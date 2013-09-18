@@ -52,7 +52,6 @@ MOD     = $(ROOTDIR)/mod
 # as well as the default Makefile compilation rules for source code files.
 include GIGC.mk
 include $(ROOTDIR)/Makefile_header.mk
-#include $(ESMADIR)/Config/ESMA_base.mk
 
 #=============================================================================
 # List of files to compile (the order is important!).  We specify these as
@@ -70,6 +69,11 @@ OBJ = $(TMP:.F90=.o)
 REGDIR    := Registry
 ACGS      := GIGCchem_ExportSpec___.h GIGCchem_GetPointer___.h \
              GIGCchem_DeclarePointer___.h GIGCchem_History___.rc
+#LIB_ESMF  := $(ESMF_DIR)/$(ARCH)/lib/libesmf.so
+#LIB_MAPL  := $(ESMADIR)/$(ARCH)/libMAPL_Base.a # At this point, we only check for MAPL_Base
+
+MAPL    := ./Shared
+ESMF    := ./ESMF
 
 #=============================================================================
 # Makefile targets: type "make help" for a complete listing!
@@ -77,12 +81,30 @@ ACGS      := GIGCchem_ExportSpec___.h GIGCchem_GetPointer___.h \
 
 .PHONY: clean help
 
+baselibs:
+ifeq ($(wildcard $(ESMF)/esmf.install),)
+	$(MAKE) -C $(ESMF) install
+	@touch $(ESMF)/esmf.install
+else	
+endif
+ifeq ($(wildcard $(MAPL)/mapl.install),)
+	$(MAKE) -C $(MAPL) install
+	@touch $(MAPL)/mapl.install
+else	
+endif
+
 lib: $(ACGS) $(OBJ)
 	$(AR) crs libGIGC.a $(OBJ)
 	mv libGIGC.a $(LIB)
 
 $(ACGS) : $(REGDIR)/Chem_Registry.rc $(ACG)
 	@$(ACG) $(ACG_FLAGS) $(REGDIR)/Chem_Registry.rc
+
+libesmf:
+	@$(MAKE) -C $(GIGC) esmf
+
+libmapl:
+	@$(MAKE) -C $(GIGC) mapl
 
 clean:
 	rm -f *.o *.mod *___.h *___.rc
