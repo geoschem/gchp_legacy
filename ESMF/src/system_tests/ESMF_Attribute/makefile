@@ -1,0 +1,38 @@
+# $Id: makefile,v 1.8 2009/07/06 23:43:41 rokuingh Exp $ 
+
+ALL: tree_build_system_tests
+
+run: tree_run_system_tests
+
+LOCDIR	  = src/system_tests/ESMF_Attribute
+
+
+SYSTEM_TESTS_BUILD    = $(ESMC_TESTDIR)/ESMF_AttributeSTest
+
+# Object files other than SysTest%.o that the
+# system tests executable will depend on.
+# List objects files in the order that they
+# are to be compiled/created.
+SYSTEM_TESTS_OBJ      = user_model1.o user_model2.o user_coupler.o
+
+SYSTEM_TESTS_RUN      = RUN_Attribute
+
+SYSTEM_TESTS_RUN_UNI  = RUN_AttributeUNI
+
+
+ESMF_AttributeSTest.o : $(SYSTEM_TESTS_OBJ)
+
+include $(ESMF_DIR)/makefile
+
+DIRS = 
+
+CLEANDIRS   =
+CLEANFILES  = $(SYSTEM_TESTS_BUILD) *.xml *.stdout
+CLOBBERDIRS =
+
+
+RUN_Attribute:
+	env MPI_REQUEST_MAX=8192 MPI_MSG_RETRIES=8192 MPI_MSGS_PER_PROC=8192 $(MAKE) TNAME=Attribute NP=6 stest
+
+RUN_AttributeUNI:
+	$(MAKE) TNAME=Attribute NP=1 stest

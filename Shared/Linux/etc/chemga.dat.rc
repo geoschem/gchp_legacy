@@ -1,0 +1,9 @@
+PARAMETERS FOR REACTIONS ON WET AEROSOLS (e.g., N2O5):
+       0.1!E10.3   astkcf -- sticking coefficient for rxns on aerosol
+       0.1!E10.3   xgdfcf -- gas phase diff. coef. (cm2/s) *NOT READ*
+    0.1E-4!E10.3   xarsrds-- radius of (dry) aerosol (cm)
+PARAMETERS FOR CONVERTING SULFATE M.R. DATA TO ARSL SFC AREA (cm2 arsl/cc air):
+       115!I10     mwarsl -- molecular weight of aerosol (g/mol) [98,115]
+    1.4E-0!E10.3   ruarsl -- denisity of aerosol (g/cc)
+     +0.39!F10.2   RH100  -- deliquescence point (%) (0.39 for NH4HSO4)
+        85!I10     iarsfa -- UNIT number for the file of sulfate M.R. data

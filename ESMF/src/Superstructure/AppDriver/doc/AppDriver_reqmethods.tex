@@ -1,0 +1,109 @@
+% $Id: AppDriver_reqmethods.tex,v 1.15.2.1 2010/02/05 20:03:26 svasquez Exp $
+%
+% Earth System Modeling Framework
+% Copyright 2002-2010, University Corporation for Atmospheric Research, 
+% Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
+% Laboratory, University of Michigan, National Centers for Environmental 
+% Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
+% NASA Goddard Space Flight Center.
+% Licensed under the University of Illinois-NCSA License.
+
+\subsubsection{User-Code SetServices Method}
+
+Many programs call some library routines.  The library
+documentation must explain what the routine name is, what arguments 
+are required and what are optional, and what the code does.  
+
+In contrast, all ESMF components must be written to {\it be called}
+by another part of the program; in effect, an ESMF component takes the 
+place of a library.  The interface is prescribed by the framework,
+and the component writer must provide specific subroutines which 
+have standard argument lists and perform specific operations.
+For technical reasons {\em none} of the arguments in user-provided subroutines
+must be declared as {\em optional}.
+
+The only {\em required} public interface of a Component is its
+set services method.  This subroutine must have an
+externally accessible name (be a public symbol), take a component
+as the first argument, and an integer return code as the second. 
+Both arguments are required and must {\em not} be declared as 
+{\tt optional}. If an intent is specified in the interface it must be 
+{\tt intent(inout)} for the first and {\tt intent(out)} for the 
+second argument. The subroutine name is not predefined, it is set by the
+component writer, but must be provided as part of the component 
+documentation.
+
+The required function that the set services subroutine must provide is to
+specify the user-code entry points for the standard ESMF Component methods. To
+this end the user-written set services routine calls the
+{\tt ESMF\_<Grid/Cpl>CompSetEntryPoint()} method to set each 
+Component entry point.
+
+See sections \ref{sec:GridSetServ} and \ref{sec:CplSetServ} for examples of
+how to write a user-code set services routine.
+
+Note that a component does not call its own set services routine;
+the AppDriver or parent component code, which is creating a component, 
+will first call {\tt ESMF\_<Grid/Cpl>CompCreate()} to create an "empty" 
+component, and then must call into {\tt ESMF\_<Grid/Cpl>CompSetServices()}, 
+supplying the user-code set services routine as an argument. The framework
+calls into the user-code set services, after the Component's VM has been
+started up.
+
+
+\subsubsection{User-Code Initialize, Run, and Finalize Methods}
+
+The required standard ESMF Component methods, for which user-code entry
+points must be set, are Initialize, Run, and Finalize. Currently optional,
+a Component may also set entry points for the WriteRestart and
+ReadRestart methods.
+
+Sections \ref{sec:GridSetServ} and \ref{sec:CplSetServ} provide examples
+of how the entry points for Initialize, Run, and Finalize are set during
+the user-code set services routine, using the 
+{\tt ESMF\_<Grid/Cpl>CompSetEntryPoint()} library call.
+
+All standard user-code methods must abide {\em exactly} to the prescribed
+interfaces. {\em None} of the arguments must be declared as {\em optional}.
+
+The names of the Initialize, Run, and Finalize user-code subroutines do
+not need to be public; in fact it is far better for them to be private to
+lower the chances of public symbol clashes between different components.
+
+See sections \ref{sec:GridInitialize}, \ref{sec:GridRun},
+\ref{sec:GridFinalize}, and \ref{sec:CplInitialize}, \ref{sec:CplRun},
+\ref{sec:CplFinalize} for examples of how to write entry points for the 
+standard ESMF Component methods.
+
+
+\subsubsection{User-Code SetVM Method}
+\label{sec:AppDriverSetVM}
+
+When the AppDriver or parent component code calls
+{\tt ESMF\_<Grid/Cpl>CompCreate()} it has the option to specify a 
+{\tt petList} argument. All of the parent PETs contained in this list become
+resources of the child component. By default all of the parent PETs are 
+provided to the child component.
+
+Unless the optional {\tt contextflag} argument is used during 
+{\tt ESMF\_<Grid/Cpl>CompCreate()}, to indicate that the child component will
+execute in the same VM as the parent, the child component has the option
+to set certain aspects of how the provided resources are to be used when
+executing child component methods. The resources provided via the parent PETs
+are the associated processing elements (PEs) and virtual address spaces (VASs).
+
+The optional user-written set vm routine is called from the parent
+through the {\tt ESMF\_<Grid/Cpl>CompSetVM()} library code, and is the only
+place where the child component can set aspects of its own VM before it is 
+started up. The child component's VM must be running before its set services
+routine can be called, and thus the optional {\tt ESMF\_<Grid/Cpl>CompSetVM()}
+call must be placed {\em before} {\tt ESMF\_<Grid/Cpl>CompSetServices()}.
+
+If called by the parent, the user-code set vm routine has the option to
+specify how the PETs of the child component share the provided parent PEs.
+Further, PETs on the same single system image can be set to run multi-threaded,
+within a reduced number of VAS, allowing a component to leverage shared memory
+concepts.
+
+Sections \ref{sec:GridSetVM} and \ref{sec:CplSetVM} provide examples for
+simple user-written set vm routines.

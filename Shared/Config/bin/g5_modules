@@ -1,0 +1,457 @@
+#!/bin/csh -f
+########################################################################
+#
+#  Name: g5_modules
+#
+#  Purposes -
+#    * provide single location for BASEDIR and module values
+#    * initialize the following:
+#      - set BASEDIR
+#      - update LD_LIBRARY_PATH with BASEDIR lib
+#      - load library modules
+#    * echo expected BASEDIR and library module values when queried
+#
+#  Notes:
+#  1. The script will not function correctly if the scriptname
+#     definition within the script is incorrect.
+#  2. Type "g5_modules help" for usage information.
+#
+#  Perl Notes:
+#  ==========
+#  1. You cannot "source" this file from a perl script.
+#  2. Instead use the following in your perl script:
+#     #--------------------------------
+#        use Env;
+#        do "g5_modules_perl_wrapper";
+#     #--------------------------------
+#  3. Use the g5_modules_perl_wrapper file located in the build's bin
+#     directory, where a copy of g5_modules also resides. This is important
+#     since g5_modules_perl_wrapper uses g5_modules and expects it to be in
+#     the same directory.
+#
+#  REVISION HISTORY
+#  31Aug2007  Stassi   Initial version of code
+#  15Oct2007  Stassi   Expand list of machines and include defaults
+#  15Dec2007  Stassi   Added LD_LIBRARY_PATH functionality
+#  21Jul2008  Takacs   New modules and BASEDIR on discover after OS upgrade
+#  13Apr2009  Stassi   Updated for pleiades
+#  22Apr2010  Kokron   Updated for Fortuna-2.1 on pleiades
+########################################################################
+
+# NOTE: Spell out scriptname--DO NOT USE $0 here!
+#------------------------------------------------
+set scriptname = g5_modules
+
+# get architecture, machine, and node information
+#------------------------------------------------
+set arch = `uname -s`
+set mach = `uname -m`
+set node = `uname -n`
+
+alias echo2  "echo \!* > /dev/stderr"
+
+# get values
+#-----------
+if ($arch == Linux) then
+   if ($mach == ia64)   goto IA64
+   if ($mach == x86_64) goto X86_64
+   if ($mach == i686)   goto I686
+
+else if ($arch == IRIX64) then
+   if ($mach == IP27) goto IP27
+   if ($mach == IP35) goto IP35
+endif
+
+# ERROR -- unknown architecture/machine
+#--------------------------------------
+echo2 "${scriptname}: >>>WARNING<<< unrecognizable arch/machine = $arch/$mach"
+echo 0   # indicating error condition
+exit 8
+
+
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+#                     IA64 values (Linux)
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+IA64:
+
+#================#
+#  IA64 default  #
+#================#
+set basedir = $HOME/baselibs/v2_2rp2t
+set mod1 = intel-comp.8.1.034
+set mod2 = mpt.1.12.0.nas
+set mod3 = scsl.1.5.1.1
+
+set mods = ( $mod1 $mod2 $mod3 )
+set modinit = /opt/modules/modules/init/csh
+set loadmodules = 0
+
+#================#
+#  PALM/EXPLORE  #
+#================#
+if (($node =~ palm*) || ($node =~ e?)) then
+
+   set basedir = /home/trayanov/baselibs/v2_2rp2_nb2
+   set mod1 = intel-comp.8.1.034
+   set mod2 = mpt.1.12.0.nas
+   set mod3 = scsl.1.5.1.1
+
+   set mods = ( $mod1 $mod2 $mod3 )
+   set modinit = /opt/modules/modules/init/csh
+   set loadmodules = 0
+
+#================#
+#  COLUMBIA/CFE  #
+#================#
+else if (($node =~ cfe*) || ($node =~ columbia*)) then
+
+   set basedir = /u/dkokron/Baselibs/GMAO-Baselibs-3_1_5/intel-comp.10.1.015
+
+   set mod1 = intel-comp.10.1.015
+   set mod2 = mpt.1.22.0.0
+   set mod3 = scsl.1.6.1.0
+
+   set mods = ( $mod1 $mod2 $mod3 )
+   set modinit = /usr/share/modules/init/tcsh
+   set loadmodules = 0
+
+#===========#
+#  THUNDER  #
+#===========#
+else if ($node == thunder) then
+
+   set basedir = /share/dasilva/baselibs/v2_2rp2_nb2
+   set mod1 = intel-comp.8.1.034
+   set mod2 = mpt.1.12.0.0
+   set mod3 = scsl.1.5.1.1
+
+   set mods = ( $mod1 $mod2 $mod3 )
+   set modinit = /usr/share/modules/init/tcsh
+   set loadmodules = 0
+
+endif
+goto ACTION
+
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+#                     X86_64 values (Linux)
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+X86_64:
+
+#==================#
+#  X86_64 default  #
+#==================#
+set basedir = /usr/local/other/baselibs/v2_2rp2_213_9.1.042meta_new
+set mod1 = comp/intel-9.1.042
+set mod2 = lib/mkl-9.0.017
+set mod3 = mpi/scali-5.3
+
+set mods = ( $mod1 $mod2 $mod3 )
+set modinit = /share/modules/init/csh
+set loadmodules = 0
+
+#======================#
+#  DISCOVER/BORG/DALI  #
+#======================#
+if (($node =~ discover*) || ($node =~ borg*) || ($node =~ dali*)) then
+
+   #set basedir = /discover/nobackup/projects/gmao/share/dao_ops/Baselibs/v3.2.0_build1
+   #set mod2 = other/mpi/mvapich2-1.4.1/intel-11.0.083
+   set basedir = /discover/nobackup/projects/gmao/share/dao_ops/Baselibs/v3.2.0_build3
+   set mod1 = comp/intel-11.0.083
+   set mod2 = mpi/impi-3.2.2.006
+   set mod3 = lib/mkl-10.0.3.020
+   set mod4 = other/comp/gcc-4.5
+   set mod5 = other/SIVO-PyD/spd_1.0.0
+
+   set mods = ( $mod1 $mod2 $mod3 $mod4 $mod5 )
+   set modinit = /usr/share/modules/init/csh
+   set loadmodules = 0
+
+#============#
+#  PLEIADES  #
+#============#
+else if ( ($node =~ pfe*) || ($node =~ p4fe*) || ($node =~ r[0-9]*i[0-9]*n[0-9]*) || ($node =~ bridge*) ) then
+
+   #--set basedir = /u/dkokron/Baselibs/GMAO-Baselibs-3_2_0/Intel-11.0.083_64_mva2-1.4.1
+   #--set mod2 = mpi-mvapich2/1.4.1/intel
+   set basedir = /u/dkokron/Baselibs/GMAO-Baselibs-3_2_0/Intel-11.0.083_64_impi-3.2.011
+   set mod1 = comp/intel/11.0.083_64
+   set mod2 = mpi-intel/3.2.011
+   set mod3 = x11-libs/32bit
+   set mod4 = imagemagick/6.4.0-3
+   set mod5 = python/2.6.1
+
+   set mods = ( $mod1 $mod2 $mod3 $mod4 $mod5 )
+   set modinit = /usr/share/modules/init/tcsh
+   set loadmodules = 0
+
+#=================#
+#     JAGUAR      #
+#=================#
+else if (($node =~ jaguar*) || ($node =~ yodjag*)) then
+   
+   set basedir = /ccs/home/dkokron/Baselibs/GMAO-Baselibs-3_1_5/PrgEnv-pgi-2.1.50HD_PS08
+   set mod1 = Base-opts/2.1.50HD_PS08
+   set mod2 = PrgEnv-pgi/2.1.50HD_PS08
+   set mod3 = pgi/8.0.4
+   set mod4 = xtpe-quadcore
+
+   set mods = ( $mod1 $mod2 $mod3 $mod4 )
+   set modinit = /opt/modules/default/init/csh
+   set loadmodules = 0
+
+#===============#
+#     JANUS     #
+#===============#
+else if ($node =~ janus*) then
+   set basedir=/home/mathomp4/GMAO-Baselibs-3_2_1
+
+endif
+
+goto ACTION
+
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+#                      I686 values (Linux)
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+I686:
+
+#================#
+#  I686 default  #
+#================#
+set basedir = $HOME/baselibs/v2_2_0rp2
+set modinit = DUMMY
+
+#===========================#
+#  LAKE (Atanas's machine)  #
+#===========================#
+if ($node == lake) then
+   set basedir = /home/trayanov/baselibs/v3_1_0rp1
+
+#============#
+#  CALCULON  #
+#============#
+else if ($node == calculon) then
+   set basedir = /home/dasilva/baselibs/v2_2rp2_nb2
+
+#===========#
+#  CEREBUS  #
+#===========#
+else if ($node == cerebus) then
+   set basedir = /home/trayanov/baselibs/v2_2_0rp2
+
+endif
+goto ACTION
+
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+#                         IP27 (IRIX64)
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+IP27:
+
+#================#
+#  IP27 default  #
+#================#
+set basedir = $HOME/baselibs/v2_2r2
+set mod1 = MIPSpro.7.4.2.0
+set mod2 = mpt.1.9.0
+set mod3 = scsl.1.3.0.
+
+set mods = ( $mod1 $mod2 $mod3 )
+set modinit = /opt/modules/modules/init/csh
+set loadmodules = 0
+
+#========#
+#  ZEUS  #
+#========#
+if ($node == zeus) then
+
+   set basedir = /share/ESMA/baselibs/v2_2r2
+   set mod1 = MIPSpro.7.4.2.0
+   set mod2 = mpt.1.9.0
+   set mod3 = scsl.1.3.0.
+
+   set mods = ( $mod1 $mod2 $mod3 )
+   set modinit = /opt/modules/modules/init/csh
+   set loadmodules = 0
+
+endif
+goto ACTION
+
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+#                         IP35 (IRIX64)
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+IP35:
+
+#================#
+#  IP35 default  #
+#================#
+set basedir = $HOME/baselibs/v2_2r2
+set mod1 = MIPSpro.7.4.2.0
+set mod2 = mpt.1.9.0
+set mod3 = scsl.1.3.0.
+
+set mods = ( $mod1 $mod2 $mod3 )
+set modinit = /opt/modules/modules/init/csh
+set loadmodules = 0
+
+#=========#
+#  DIRAC  #
+#=========#
+if ($node == dirac) then
+
+   set basedir = /share/ESMA/baselibs/v2_2r2
+   set mod1 = MIPSpro.7.4.2.0
+   set mod2 = mpt.1.9.0
+   set mod3 = scsl.1.3.0.
+
+   set mods = ( $mod1 $mod2 $mod3 )
+   set modinit = /opt/modules/modules/init/csh
+   set loadmodules = 0
+
+endif
+goto ACTION
+
+
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+#              perform requested action
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+ACTION:
+
+#================#
+#   SET VALUES   #
+#================#
+
+# set environment variables, BASEDIR and LD_LIBRARY_PATH; and load modules
+#-------------------------------------------------------------------------
+if ( $#argv == 0 ) then
+
+   # improper usage, if script not sourced and called without arguments
+   #-------------------------------------------------------------------
+   if ( $scriptname == "$0:t" ) then
+      goto usage
+   endif
+
+   # setenv BASEDIR
+   #---------------
+   echo -n "${scriptname}: Setting BASEDIR"
+   setenv BASEDIR $basedir
+
+   # add BASEDIR lib to LD_LIBRARY_PATH, if not already there
+   #---------------------------------------------------------
+   if ($?LD_LIBRARY_PATH) then
+      echo $LD_LIBRARY_PATH | grep $BASEDIR/$arch/lib > /dev/null
+      if ($status) then  #  == 1, if not found
+         setenv LD_LIBRARY_PATH ${LD_LIBRARY_PATH}:$BASEDIR/$arch/lib
+      endif
+   else
+      setenv LD_LIBRARY_PATH $BASEDIR/$arch/lib
+   endif
+
+   # add individual $ld_libraries to LD_LIBRARY_PATH, if not already there
+   #----------------------------------------------------------------------
+   if ($?ld_libraries) then
+      foreach lib ( $ld_libraries )
+         if ($LD_LIBRARY_PATH !~ *$lib*) then
+            setenv LD_LIBRARY_PATH ${LD_LIBRARY_PATH}:$lib
+         endif
+      end
+   endif
+ 
+   if ($?LD_LIBRARY64_PATH) then
+      echo $LD_LIBRARY64_PATH | grep $BASEDIR/$arch/lib > /dev/null
+      if ($status) then  #  == 1, if not found
+         setenv LD_LIBRARY64_PATH ${LD_LIBRARY64_PATH}:$BASEDIR/$arch/lib
+      endif
+   endif
+   if (($arch == "IRIX64") && (! $?LD_LIBRARY64_PATH)) then
+      setenv LD_LIBRARY64_PATH $BASEDIR/$arch/lib
+   endif
+ 
+   # load library modules
+   #---------------------
+   if (-e $modinit) then
+      echo -n " and modules"
+      source $modinit
+      module purge
+
+      if ($loadmodules) module load modules
+      foreach mod ( $mods )
+         module load $mod
+      end
+
+   endif
+   echo " for $node"
+
+#===================#
+#   ECHO VALUE(s)   #
+#===================#
+else if ( $1 == basedir ) then
+   echo $basedir
+
+else if ( $1 == modules ) then
+   echo $mods
+
+else if ( $1 == modinit ) then
+   echo $modinit
+
+else if ( $1 == loadmodules ) then
+   echo $loadmodules
+
+else if ( $1 == help ) then
+   goto usage
+
+else
+   echo2 "${scriptname}: >>>ERROR<<< unrecognizable option -- $1"
+   echo2 Type "$scriptname help" for usage information.
+   echo 0   # indicating error condition
+   exit 9
+endif
+
+exit
+
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+#                    usage information                    #
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+usage:
+
+less <<EOF
+
+NAME
+     $scriptname - Script to handle BASEDIR and library module definitions
+
+DESCRIPTION
+
+     This script provides a single location for storing the BASEDIR and
+     library module name information.  Previous to this script, this
+     information was coded in multiple files.
+
+     This script will set the BASEDIR environment variable to its proper value,
+     add the BASEDIR lib directory to LD_LIBRARY_PATH (if necessary), and will
+     load library modules when sourced.
+
+     If the script is called with "basedir", "modules", "modinit", or 
+     "loadmodules", then it will echo the values to standard output without
+     modifying the environment.
+
+     The "modinit" and "loadmodules" options are primarily for use with
+     the g5_modules_perl_wrapper script.
+
+SYNOPSIS
+
+     source $scriptname
+
+     or
+
+     $scriptname <option>
+
+OPTIONS
+
+     help                echo usage
+     basedir             echo expected value for BASEDIR environment variable
+     modules             echo expected list of modules
+     modinit             echo location of module initialization script
+     loadmodules         echo logical indicating whether "module load modules"
+                              is needed prior to loading other modules
+
+EOF
+
+exit 1

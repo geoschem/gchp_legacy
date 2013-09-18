@@ -1,0 +1,17 @@
+<?xml version="1.0"?>
+<model_component>
+  <attribute_package convention="ESG" purpose="General">
+    <Name>ESMF Example Coupler</Name>
+    <FullName>Earth System Modeling Framework Example Coupler</FullName>
+    <Agency>UCAR</Agency>
+    <Institution>National Center for Atmospheric Research (NCAR)</Institution>
+    <Version>4</Version>
+    <Author>Cecelia Deluca, et al.</Author>
+    <Discipline>Atmosphere, Ocean, and Land</Discipline>
+    <PhysicalDomain>Earth System</PhysicalDomain>
+    <CodingLanguage>Fortran 90</CodingLanguage>
+    <ModelComponentFramework>ESMF (Earth System Modeling Framework)</ModelComponentFramework>
+    <Comment>ESMF CplComp Attribute IO Test</Comment>
+    <References>http://www.earthsystemmodeling.org</References>
+  </attribute_package>
+</model_component>

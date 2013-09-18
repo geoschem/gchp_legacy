@@ -1,0 +1,17 @@
+/benchmark.h/1.1/Thu Jan 11 17:23:53 2007//TGanymed-2_1_p1_GCC-m2
+/benchmark_bin.F90/1.1/Thu Jan 11 17:23:53 2007//TGanymed-2_1_p1_GCC-m2
+/benchmark_fwrite.c/1.1/Thu Jan 11 17:23:53 2007//TGanymed-2_1_p1_GCC-m2
+/benchmark_sdf.F90/1.1/Thu Jan 11 17:23:53 2007//TGanymed-2_1_p1_GCC-m2
+/testr.f90/1.2/Wed Jan 14 02:06:21 2009//TGanymed-2_1_p1_GCC-m2
+/testr_gd.f90/1.4/Wed Jan 14 02:06:21 2009//TGanymed-2_1_p1_GCC-m2
+/testr_gd_wr.f90/1.2/Wed Jan 14 02:06:21 2009//TGanymed-2_1_p1_GCC-m2
+/testr_st.f90/1.4/Wed Jan 14 02:06:21 2009//TGanymed-2_1_p1_GCC-m2
+/testw2.f90/1.1/Wed Jun 20 12:30:13 2007//TGanymed-2_1_p1_GCC-m2
+/testw3.f90/1.1/Wed Jun 20 12:30:13 2007//TGanymed-2_1_p1_GCC-m2
+/testw_ex1.f90/1.4/Tue Jun 19 20:53:38 2007//TGanymed-2_1_p1_GCC-m2
+/testw_ex2.f90/1.6/Tue Jun 19 20:53:38 2007//TGanymed-2_1_p1_GCC-m2
+/testw_ex3.f90/1.4/Tue Jun 19 20:53:38 2007//TGanymed-2_1_p1_GCC-m2
+/testw_ex4.f90/1.4/Tue Jun 19 20:53:38 2007//TGanymed-2_1_p1_GCC-m2
+/testw_ex5.f90/1.4/Tue Jun 19 20:53:38 2007//TGanymed-2_1_p1_GCC-m2
+/testw_st.f90/1.4/Tue Jun 19 20:53:38 2007//TGanymed-2_1_p1_GCC-m2
+D
