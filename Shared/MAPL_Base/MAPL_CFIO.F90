@@ -1,4 +1,4 @@
-!  $Id: MAPL_CFIO.F90,v 1.133 2013-01-28 20:02:55 atrayano Exp $
+!  $Id: MAPL_CFIO.F90,v 1.132 2012-11-19 18:37:21 atrayano Exp $
 
 #include "MAPL_Generic.h"
 
@@ -27,7 +27,6 @@ module MAPL_CFIOMod
   use MAPL_IOMod
   use MAPL_HorzTransformMod
   use ESMFL_Mod
-  use MAPL_ShmemMod
 
   implicit none
   private
@@ -2111,7 +2110,6 @@ contains
     integer                      :: arrayRank
 
     logical                      :: IamRoot, twoD
-    logical                      :: amOnFirstNode
 
     real, pointer                ::  PTR2      (:,:),  PTR3      (:,:,:)
     real, pointer                :: GPTR2bundle(:,:), GPTR3bundle(:,:,:)
@@ -2134,8 +2132,7 @@ contains
     logical :: timeInterp=.false., VERB = .false., change_resolution, do_xshift, single_point, cubed
     integer, allocatable    :: gridToFieldMap(:)
     integer                 :: gridRank
-    integer                 :: comm
-
+    logical                 :: found
 !                              ---
     
     if ( present(VERBOSE) )     VERB = VERBOSE
@@ -2176,10 +2173,6 @@ contains
     VERIFY_(STATUS)
 
     IamRoot = MAPL_AM_I_ROOT(VM)
-    call ESMF_VMGet(VM, mpiCommunicator=comm, rc=status)
-    VERIFY_(STATUS)
-    amOnFirstNode = MAPL_ShmemAmOnFirstNode(comm=comm, RC=status)
-    VERIFY_(STATUS)
 
 ! Get info from the CFIO object
 !------------------------------
@@ -2209,7 +2202,7 @@ contains
 
        ! Assert compatibility of file and bundle
        !----------------------------------------
-       ASSERT_( LM==0 .or. counts(3) == 0 .or. LM==counts(3) )
+       ASSERT_( LM==0 .or. counts(3) == 0 .or. LM==counts(3) .or. LM==(counts(3)+1))
 
        ! Get lat/lons of input bundle
        ! ----------------------------
@@ -2270,9 +2263,14 @@ contains
                                         VALUE=MAPL_VLocationNone, RC=STATUS)
             VERIFY_(STATUS) 
 
-          else 
-            allocate(PTR3(DIMS(1),DIMS(2),LM),stat=STATUS)
-            VERIFY_(STATUS)
+          else
+            if (lm == counts(3)) then
+               allocate(PTR3(DIMS(1),DIMS(2),LM),stat=STATUS)
+               VERIFY_(STATUS)
+            else if (lm == (counts(3)+1)) then
+               allocate(PTR3(DIMS(1),DIMS(2),0:LM),stat=status)
+               VERIFY_(STATUS)
+            end if
             PTR3  = 0.0
             FIELD = ESMF_FieldCreate(grid=ESMFGRID, copyflag=ESMF_DATA_REF,   &
                             farrayPtr=PTR3, name=BundleVARNAME, RC=STATUS)
@@ -2284,9 +2282,15 @@ contains
             VERIFY_(STATUS)
             call ESMF_AttributeSet(FIELD, NAME='DIMS', VALUE=MAPL_DimsHorzVert, RC=STATUS)
             VERIFY_(STATUS)
-            call ESMF_AttributeSet(FIELD, NAME='VLOCATION', &
-                                        VALUE=MAPL_VLocationCenter, RC=STATUS)
-            VERIFY_(STATUS)
+            if (lm == counts(3)) then
+               call ESMF_AttributeSet(FIELD, NAME='VLOCATION', &
+                                           VALUE=MAPL_VLocationCenter, RC=STATUS)
+               VERIFY_(STATUS)
+            else if (lm == (counts(3)+1)) then
+               call ESMF_AttributeSet(FIELD, NAME='VLOCATION', &
+                                           VALUE=MAPL_VLocationEdge, RC=STATUS)
+               VERIFY_(STATUS)
+            end if
           end if
           call ESMF_FieldBundleAdd(BUNDLE,FIELD,                          RC=STATUS)
           VERIFY_(STATUS)
@@ -2307,19 +2311,23 @@ contains
           VERIFY_(STATUS)
           ! Assert compatibility of file and bundle
           !----------------------------------------
-          ASSERT_( LM==0 .or. counts(3) == 0 .or. LM==counts(3) )
+          ASSERT_( LM==0 .or. counts(3) == 0 .or. LM==counts(3) .or. lm == (counts(3)+1) )
 
           ! Get lat/lons of input bundle
           ! ----------------------------
           call GridGetLatLons_ ( ESMFGRID, LONSbundle, LATSbundle, rc=status )
           VERIFY_(STATUS)
 
+          found = .false.
           do K=1,size(VARS)
              call ESMF_CFIOVarInfoGet(VARS(K),vname=CFIOVARNAME,          RC=STATUS)
              VERIFY_(STATUS)
-             if(trim(BUNDLEVARNAME)==trim(CFIOVARNAME)) exit
+             if(trim(BUNDLEVARNAME)==trim(CFIOVARNAME)) then
+               found = .true.
+               exit
+             end if
           end do
-!ams      ASSERT_(K<=size(VARS)) ! K is generally not defined at this point!
+          ASSERT_(found)
        end do
 
     end if
@@ -2392,12 +2400,14 @@ contains
 !         change_resolution = change_resolution .OR. FORCE_REGRID
 !    endif
 
-    if (amOnFirstNode) then
+    if (MAPL_AM_I_ROOT(VM)) then
        if ( change_resolution ) then
-          call MAPL_HorzTransformCreate (Trans, im, jm, im0, jm0, rc=STATUS)
-          VERIFY_(STATUS)
+!          if (IM0 <  IM .or. JM0 < JM) then
+             call MAPL_HorzTransformCreate (Trans, im, jm, im0, jm0, rc=STATUS)
+             VERIFY_(STATUS)
+!          end if
        end if
-    endif
+    end if
 
 ! Pick out index into file grid for lats and lons of scm grid - 
 !  Assume that scm grid counts lon from -180 to 180 and lat from -90 to 90
@@ -2536,10 +2546,12 @@ contains
 
     end do
 
-    if (amOnFirstNode) then
+    if (MAPL_AM_I_ROOT(VM)) then
        if ( change_resolution ) then
-          call MAPL_HorzTransformDestroy(Trans,rc=STATUS)
-          VERIFY_(STATUS)
+!          if (IM <  IM0 .or. JM < JM0) then
+             call MAPL_HorzTransformDestroy(Trans,rc=STATUS)
+             VERIFY_(STATUS)
+!          end if
        end if
     end if
 

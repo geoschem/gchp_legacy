@@ -222,14 +222,14 @@ CONTAINS
 !
 !    USE COMODE_MOD,         ONLY : CSPEC_FULL
     USE COMODE_LOOP_MOD
-    USE Dao_Mod,            ONLY : Convert_Units
+    USE Dao_Mod,            ONLY : Convert_Units, AirQnt
     USE Chemistry_Mod,      ONLY : Do_Chemistry
     USE DryDep_Mod,         ONLY : Do_DryDep
     USE GIGC_ErrCode_Mod
     USE GIGC_Input_Opt_Mod, ONLY : OptInput
     USE GIGC_State_Chm_Mod, ONLY : ChmState
     USE GIGC_State_Met_Mod, ONLY : MetState
-    USE Pressure_Mod,       ONLY : Accept_External_Pedge
+    USE Pressure_Mod,       ONLY : Accept_External_Pedge, Set_Floating_Pressure
     USE Time_Mod,           ONLY : Accept_External_Date_Time
     USE Time_Mod,           ONLY : ITS_TIME_FOR_CHEM
 !
@@ -356,6 +356,10 @@ CONTAINS
     ! deposition and chemistry, and convert back to [v/v] afterwards.
     !=======================================================================
 
+    CALL Set_Floating_Pressure( State_Met%PS1 )
+
+    CALL AIRQNT( State_Met )
+
     !---------------------------------
     ! Unit conversion [v/v] --> [kg]
     !---------------------------------
@@ -369,11 +373,11 @@ CONTAINS
     ! Do dry deposition
     !--------------------------------
     IF ( Input_Opt%LDRYD ) THEN
-       CALL Do_DryDep   ( am_I_Root = am_I_Root,            & ! Root CPU?
-                          Input_Opt = Input_Opt,            & ! Input Options
-                          State_Chm = State_Chm,            & ! Chemistry State
-                          State_Met = State_Met,            & ! Met State
-                          RC        = RC                   )  ! Success?
+!       CALL Do_DryDep   ( am_I_Root = am_I_Root,            & ! Root CPU?
+!                          Input_Opt = Input_Opt,            & ! Input Options
+!                          State_Chm = State_Chm,            & ! Chemistry State
+!                          State_Met = State_Met,            & ! Met State
+!                          RC        = RC                   )  ! Success?
     ENDIF
 
     !--------------------------------

@@ -441,7 +441,7 @@
 !
 ! !OUTPUT PARAMETERS:
 !
-      real, pointer :: field(:)             ! array contains data
+      real,                  pointer :: field(:)             ! array contains data
       integer, intent(out), OPTIONAL :: rc      ! Error return code:
                                                 ! 0   all is well
 ! !DESCRIPTION:
@@ -508,13 +508,13 @@
 !
 ! !INPUT PARAMETERS:
 !
-      type(ESMF_CFIO), intent(inOut) :: cfio      ! a CFIO obj
-      character(len=*), intent(in) :: vName       ! Variable name
-      real, intent(in) :: field(:,:,:)            ! array contains data
-      integer, intent(in), OPTIONAL :: date       ! yyyymmdd
-      integer, intent(in), OPTIONAL :: curTime    ! hhmmss
-      integer, intent(in), OPTIONAL :: kbeg       ! first level to write
-      integer, intent(in), OPTIONAL :: kount      ! number of levels to write
+      type(ESMF_CFIO), intent(inOut):: cfio        ! a CFIO obj
+      character(len=*), intent(in)  :: vName       ! Variable name
+      real,             intent(in)  :: field(:,:,:)! array contains data
+      integer, intent(in), OPTIONAL :: date        ! yyyymmdd
+      integer, intent(in), OPTIONAL :: curTime     ! hhmmss
+      integer, intent(in), OPTIONAL :: kbeg        ! first level to write
+      integer, intent(in), OPTIONAL :: kount       ! number of levels to write
       character(len=*), intent(in), OPTIONAL :: timeString
                                   ! string expression for date and time
       logical, intent(in), OPTIONAL :: doComp     ! do compression

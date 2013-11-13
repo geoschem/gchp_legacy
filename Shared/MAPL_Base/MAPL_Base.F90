@@ -994,7 +994,7 @@ logical function MAPL_VRFY(A,iam,line,rc)
      MAPL_VRFY = A/=ESMF_SUCCESS 
      if(MAPL_VRFY)then
        if(present(RC)) then
-         print'(A40,I10)',Iam,line
+         print'(A40,A2,2I10)',Iam,"::",line,A
          RC=A
        endif
      endif

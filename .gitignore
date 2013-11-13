@@ -2,6 +2,10 @@
 *.mod
 *.MOD
 *~*
+*.install
+*.o
+*.a
+*.so
 geos
 geostomas
 ___.h

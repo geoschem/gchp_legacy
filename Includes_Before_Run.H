@@ -5,7 +5,7 @@
 !------------------------------------------------------------------------------
 !BOP
 !
-! !INCLUDE: Includes_Before_Run.h
+! !INCLUDE: Includes_Before_Run.H
 !
 ! !DESCRIPTION: This include file contains the array assignments that need
 !  to be made BEFORE the call to the Run method of the 
@@ -30,6 +30,10 @@
 !  18 Oct 2012 - R. Yantosca - Add proper unit conversions for met fields
 !  23 Oct 2012 - R. Yantosca - Now add QI, QL fields to State_Met object
 !  28 Nov 2012 - R. Yantosca - Now populate State_Met%SUNCOS fields from ZTH
+!  13 Feb 2013 - R. Yantosca - Now get ZTH, SLR from MAPL
+!  07 Mar 2013 - R. Yantosca - Now add error checks to prevent OOB errors
+!  15 Mar 2013 - R. Yantosca - Now assign GCCTROPP, which is the last valid
+!                              tropopause pressure, to State_Met%TROPP
 !EOP
 !------------------------------------------------------------------------------
 !BOC
@@ -38,36 +42,33 @@
   ! Two-dimensional fields
   !=========================================================================
 
-  State_Met%ALBD       = ALBVF                               ! unitless
-  State_Met%CLDFRC     = CLDTT                               ! unitless
-  State_Met%HFLUX      = SH                                  ! W/m2
+  State_Met%ALBD       = ALBD                                ! unitless
+  State_Met%CLDFRC     = CLDFRC                              ! unitless
+! State_Met%HFLUX      = SH                                  ! W/m2
   State_Met%FRCLND     = FRLAND                              ! unitless
-  State_Met%GWETTOP    = WET1                                ! unitless
+  State_Met%GWETTOP    = GWETTOP                             ! unitless
   State_Met%LWI        = LWI                                 ! unitless
-  State_Met%PARDR      = DRPAR                               ! W/m2
-  State_Met%PARDF      = DFPAR                               ! W/m2
-  State_Met%PBLH       = ZPBL                                ! m
-  State_Met%PRECCON    = CN_PRCP * 86400d0                   ! kg/m2/s -> mm/day
-  State_Met%PRECTOT    = TPREC   * 86400d0                   ! kg/m2/s -> mm/day
-  State_Met%TROPP      = TROPP   / 100d0                     ! Pa      -> hPa
-  State_Met%TO3        = TO3                                 ! DU
+  State_Met%PARDR      = PARDR                               ! W/m2
+  State_Met%PARDF      = PARDF                               ! W/m2
+  State_Met%PBLH       = PBLH                                ! m
+  State_Met%PRECCON    = PRECCON  * 86400d0                  ! kg/m2/s -> mm/day
+  State_Met%PRECTOT    = PRECTOT  * 86400d0                  ! kg/m2/s -> mm/day
+  State_Met%TROPP      = TROPP / 100d0                       ! Pa      -> hPa
+  State_Met%PS1        = PS1                                 ! hPa
+  State_Met%PS2        = PS2                                 ! hPa
+! State_Met%TO3        = TO3                                 ! DU
   State_Met%TS         = TS                                  ! K
-  State_Met%RADSWG     = SWNDSRF                             ! W/m2
+  State_Met%RADSWG     = RADSWG                              ! W/m2
   State_Met%SST        = TS                                  ! K
-  State_Met%SUNCOS     = ZTH                                 ! unitless
-  State_Met%SUNCOSmid  = ZTH                                 ! unitless
-  State_Met%SUNCOSmid5 = ZTH                                 ! unitless
+  State_Met%SUNCOS     = zenith                              ! unitless
+  State_Met%SUNCOSmid  = zenith                              ! unitless
+  State_Met%SUNCOSmid5 = zenith                              ! unitless
   State_Met%U10M       = U10M                                ! m/s
   State_Met%USTAR      = USTAR                               ! m/s
-  State_Met%UVALBEDO   = ALBVF  !*** NOTE Need to populate w/ real UVALBEDO ***
+  State_Met%UVALBEDO   = ALBD   !*** NOTE Need to populate w/ real UVALBEDO ***
   State_Met%V10M       = V10M                                ! m/s
-  State_Met%Z0         = Z0H                                 ! m
-
-!  State_Met%IREG      = IREG
-!  State_Met%ILAND     = ILAND
-!  State_Met%IUSE      = IUSE
-
- !=========================================================================
+  State_Met%Z0         = Z0                                  ! m
+  !=========================================================================
   ! Three-dimensional fields on level edges
   !=========================================================================
   DO L = 1, LM+1
@@ -77,8 +78,8 @@
 
      DO J = 1, JM
      DO I = 1, IM
-        State_Met%PEDGE(I,J,L)     = PLE    (I,J,LR) / 1d2  ! Pa -> hPa 
-        State_Met%CMFMC(I,J,L)     = CNV_MFC(I,J,LR)        ! kg/m2/s
+!       State_Met%PEDGE(I,J,L)     = PLE    (I,J,LR) / 1d2  ! Pa -> hPa 
+        State_Met%CMFMC(I,J,L)     = CMFMC  (I,J,LR)        ! kg/m2/s
      ENDDO
      ENDDO
   ENDDO
@@ -97,19 +98,19 @@
         !-------------------------------------------------------------------
         ! "True" met fields (i.e. passed from GCM)
         !-------------------------------------------------------------------
-        State_Met%AIRDEN  (L,I,J)  = AIRDENS(I,J,LR)        ! kg/m3
-        State_Met%AREA_M2 (I,J,L)  = AREA   (I,J   )        ! m2
-        State_Met%CLDF    (L,I,J)  = FCLD   (I,J,LR)        ! unitless
-        State_Met%DQIDTMST(I,J,L)  = DQIDT  (I,J,LR)        ! kg/kg/s
-        State_Met%DQLDTMST(I,J,L)  = DQLDT  (I,J,LR)        ! kg/kg/s
-        State_Met%DQVDTMST(I,J,L)  = DQDT   (I,J,LR)        ! kg/kg/s
-        State_Met%DTRAIN  (I,J,L)  = CNV_MFD(I,J,LR)        ! kg/m2/s
-        State_Met%MOISTQ  (L,I,J)  = DQDT   (I,J,LR)        ! 
+!       State_Met%AIRDEN  (L,I,J)  = AIRDENS(I,J,LR)        ! kg/m3
+!       State_Met%AREA_M2 (I,J,L)  = AREA   (I,J   )        ! m2
+        State_Met%CLDF    (L,I,J)  = CLDF   (I,J,LR)        ! unitless
+!       State_Met%DQIDTMST(I,J,L)  = DQIDT  (I,J,LR)        ! kg/kg/s
+!       State_Met%DQLDTMST(I,J,L)  = DQLDT  (I,J,LR)        ! kg/kg/s
+!       State_Met%DQVDTMST(I,J,L)  = DQDT   (I,J,LR)        ! kg/kg/s
+        State_Met%DTRAIN  (I,J,L)  = DTRAIN (I,J,LR)        ! kg/m2/s
+!       State_Met%MOISTQ  (L,I,J)  = DQDT   (I,J,LR)        ! 
         State_Met%QI      (I,J,L)  = QI     (I,J,LR)        ! kg/kg
         State_Met%QL      (I,J,L)  = QL     (I,J,LR)        ! kg/kg
-        State_Met%RH      (I,J,L)  = RH2    (I,J,LR)        ! unitless
-        State_Met%SPHU    (I,J,L)  = Q      (I,J,LR) * 1d3  ! kg/kg -> g/kg
-        State_Met%T       (I,J,L)  = T      (I,J,LR)        ! K
+        State_Met%RH      (I,J,L)  = RH     (I,J,LR)        ! unitless
+        State_Met%SPHU    (I,J,L)  = SPHU1  (I,J,LR) * 1d3  ! kg/kg -> g/kg
+        State_Met%T       (I,J,L)  = TMPU1  (I,J,LR)        ! K
         State_Met%TAUCLI  (I,J,L)  = TAUCLI (I,J,LR)        ! unitless
         State_Met%TAUCLW  (I,J,L)  = TAUCLW (I,J,LR)        ! unitless
 
@@ -119,12 +120,12 @@
         !-------------------------------------------------------------------
 
         ! Grid box height [m]
-        State_Met%BXHEIGHT(I,J,L)  =   ZLE               (I,J,LR-1)   &
-                                   -   ZLE               (I,J,LR  )
+!        State_Met%BXHEIGHT(I,J,L)  =   ZLE               (I,J,LR-1)   &
+!                                   -   ZLE               (I,J,LR  )
 
         ! Pressure thickness [hPa]
-        State_Met%DELP    (L,I,J)  =   State_Met%PEDGE   (I,J,L   )   & 
-                                   -   State_Met%PEDGE   (I,J,L+1 )
+!       State_Met%DELP    (L,I,J)  =   State_Met%PEDGE   (I,J,L   )   & 
+!                                  -   State_Met%PEDGE   (I,J,L+1 )
 
         ! Total optical depth [unitless]
         State_Met%OPTD    (L,I,J)  = ( State_Met%TAUCLI  (I,J,L   )   &
@@ -132,13 +133,13 @@
                                    *   State_Met%CLDF    (L,I,J   )
 
         ! Air mass in grid box [kg]
-        State_Met%AD      (I,J,L)  =   State_Met%AIRDEN  (L,I,J   )   &
-                                   *   AREA              (I,J     )   &
-                                   *   State_Met%BXHEIGHT(I,J,L   )
+!       State_Met%AD      (I,J,L)  =   State_Met%AIRDEN  (L,I,J   )   &
+!                                  *   AREA              (I,J     )   &
+!                                  *   State_Met%BXHEIGHT(I,J,L   )
 
         ! Grid box volume [m3]
-        State_Met%AIRVOL  (I,J,L)  =   AREA              (I,J     )   &
-                                   *   State_Met%BXHEIGHT(I,J,L   )
+!       State_Met%AIRVOL  (I,J,L)  =   AREA              (I,J     )   &
+!                                  *   State_Met%BXHEIGHT(I,J,L   )
   ENDDO
   ENDDO
   ENDDO
@@ -147,365 +148,562 @@
   ! Advected tracers and chemical species in the INTERNAL STATE
   ! (Code was generated with Perl script gcIncBef)
   !=========================================================================
-   State_Chm%Tracers( :, :, LM:1:-1, Get_Indx('TRC_NO', State_Chm%Trac_Id, State_Chm%Trac_Name ) ) = TRC_NO
+  IND = Get_Indx( 'TRC_NO', State_Chm%Trac_Id, State_Chm%Trac_Name )
+  IF ( IND > 0 ) State_Chm%Tracers(:,:,:,IND) = TRC_NO
 
-   State_Chm%Tracers( :, :, LM:1:-1, Get_Indx('TRC_O3', State_Chm%Trac_Id, State_Chm%Trac_Name ) ) = TRC_O3
+  IND = Get_Indx( 'TRC_O3', State_Chm%Trac_Id, State_Chm%Trac_Name )
+  IF ( IND > 0 ) State_Chm%Tracers(:,:,:,IND) = TRC_O3
 
-   State_Chm%Tracers( :, :, LM:1:-1, Get_Indx('TRC_PAN', State_Chm%Trac_Id, State_Chm%Trac_Name ) ) = TRC_PAN
+  IND = Get_Indx( 'TRC_PAN', State_Chm%Trac_Id, State_Chm%Trac_Name )
+  IF ( IND > 0 ) State_Chm%Tracers(:,:,:,IND) = TRC_PAN
 
-   State_Chm%Tracers( :, :, LM:1:-1, Get_Indx('TRC_CO', State_Chm%Trac_Id, State_Chm%Trac_Name ) ) = TRC_CO
+  IND = Get_Indx( 'TRC_CO', State_Chm%Trac_Id, State_Chm%Trac_Name )
+  IF ( IND > 0 ) State_Chm%Tracers(:,:,:,IND) = TRC_CO
 
-   State_Chm%Tracers( :, :, LM:1:-1, Get_Indx('TRC_ALK4', State_Chm%Trac_Id, State_Chm%Trac_Name ) ) = TRC_ALK4
+  IND = Get_Indx( 'TRC_ALK4', State_Chm%Trac_Id, State_Chm%Trac_Name )
+  IF ( IND > 0 ) State_Chm%Tracers(:,:,:,IND) = TRC_ALK4
 
-   State_Chm%Tracers( :, :, LM:1:-1, Get_Indx('TRC_ISOP', State_Chm%Trac_Id, State_Chm%Trac_Name ) ) = TRC_ISOP
+  IND = Get_Indx( 'TRC_ISOP', State_Chm%Trac_Id, State_Chm%Trac_Name )
+  IF ( IND > 0 ) State_Chm%Tracers(:,:,:,IND) = TRC_ISOP
 
-   State_Chm%Tracers( :, :, LM:1:-1, Get_Indx('TRC_HNO3', State_Chm%Trac_Id, State_Chm%Trac_Name ) ) = TRC_HNO3
+  IND = Get_Indx( 'TRC_HNO3', State_Chm%Trac_Id, State_Chm%Trac_Name )
+  IF ( IND > 0 ) State_Chm%Tracers(:,:,:,IND) = TRC_HNO3
 
-   State_Chm%Tracers( :, :, LM:1:-1, Get_Indx('TRC_H2O2', State_Chm%Trac_Id, State_Chm%Trac_Name ) ) = TRC_H2O2
+  IND = Get_Indx( 'TRC_H2O2', State_Chm%Trac_Id, State_Chm%Trac_Name )
+  IF ( IND > 0 ) State_Chm%Tracers(:,:,:,IND) = TRC_H2O2
 
-   State_Chm%Tracers( :, :, LM:1:-1, Get_Indx('TRC_ACET', State_Chm%Trac_Id, State_Chm%Trac_Name ) ) = TRC_ACET
+  IND = Get_Indx( 'TRC_ACET', State_Chm%Trac_Id, State_Chm%Trac_Name )
+  IF ( IND > 0 ) State_Chm%Tracers(:,:,:,IND) = TRC_ACET
 
-   State_Chm%Tracers( :, :, LM:1:-1, Get_Indx('TRC_MEK', State_Chm%Trac_Id, State_Chm%Trac_Name ) ) = TRC_MEK
+  IND = Get_Indx( 'TRC_MEK', State_Chm%Trac_Id, State_Chm%Trac_Name )
+  IF ( IND > 0 ) State_Chm%Tracers(:,:,:,IND) = TRC_MEK
 
-   State_Chm%Tracers( :, :, LM:1:-1, Get_Indx('TRC_ALD2', State_Chm%Trac_Id, State_Chm%Trac_Name ) ) = TRC_ALD2
+  IND = Get_Indx( 'TRC_ALD2', State_Chm%Trac_Id, State_Chm%Trac_Name )
+  IF ( IND > 0 ) State_Chm%Tracers(:,:,:,IND) = TRC_ALD2
 
-   State_Chm%Tracers( :, :, LM:1:-1, Get_Indx('TRC_RCHO', State_Chm%Trac_Id, State_Chm%Trac_Name ) ) = TRC_RCHO
+  IND = Get_Indx( 'TRC_RCHO', State_Chm%Trac_Id, State_Chm%Trac_Name )
+  IF ( IND > 0 ) State_Chm%Tracers(:,:,:,IND) = TRC_RCHO
 
-   State_Chm%Tracers( :, :, LM:1:-1, Get_Indx('TRC_MVK', State_Chm%Trac_Id, State_Chm%Trac_Name ) ) = TRC_MVK
+  IND = Get_Indx( 'TRC_MVK', State_Chm%Trac_Id, State_Chm%Trac_Name )
+  IF ( IND > 0 ) State_Chm%Tracers(:,:,:,IND) = TRC_MVK
 
-   State_Chm%Tracers( :, :, LM:1:-1, Get_Indx('TRC_MACR', State_Chm%Trac_Id, State_Chm%Trac_Name ) ) = TRC_MACR
+  IND = Get_Indx( 'TRC_MACR', State_Chm%Trac_Id, State_Chm%Trac_Name )
+  IF ( IND > 0 ) State_Chm%Tracers(:,:,:,IND) = TRC_MACR
 
-   State_Chm%Tracers( :, :, LM:1:-1, Get_Indx('TRC_PMN', State_Chm%Trac_Id, State_Chm%Trac_Name ) ) = TRC_PMN
+  IND = Get_Indx( 'TRC_PMN', State_Chm%Trac_Id, State_Chm%Trac_Name )
+  IF ( IND > 0 ) State_Chm%Tracers(:,:,:,IND) = TRC_PMN
 
-   State_Chm%Tracers( :, :, LM:1:-1, Get_Indx('TRC_PPN', State_Chm%Trac_Id, State_Chm%Trac_Name ) ) = TRC_PPN
+  IND = Get_Indx( 'TRC_PPN', State_Chm%Trac_Id, State_Chm%Trac_Name )
+  IF ( IND > 0 ) State_Chm%Tracers(:,:,:,IND) = TRC_PPN
 
-   State_Chm%Tracers( :, :, LM:1:-1, Get_Indx('TRC_R4N2', State_Chm%Trac_Id, State_Chm%Trac_Name ) ) = TRC_R4N2
+  IND = Get_Indx( 'TRC_R4N2', State_Chm%Trac_Id, State_Chm%Trac_Name )
+  IF ( IND > 0 ) State_Chm%Tracers(:,:,:,IND) = TRC_R4N2
 
-   State_Chm%Tracers( :, :, LM:1:-1, Get_Indx('TRC_PRPE', State_Chm%Trac_Id, State_Chm%Trac_Name ) ) = TRC_PRPE
+  IND = Get_Indx( 'TRC_PRPE', State_Chm%Trac_Id, State_Chm%Trac_Name )
+  IF ( IND > 0 ) State_Chm%Tracers(:,:,:,IND) = TRC_PRPE
 
-   State_Chm%Tracers( :, :, LM:1:-1, Get_Indx('TRC_C3H8', State_Chm%Trac_Id, State_Chm%Trac_Name ) ) = TRC_C3H8
+  IND = Get_Indx( 'TRC_C3H8', State_Chm%Trac_Id, State_Chm%Trac_Name )
+  IF ( IND > 0 ) State_Chm%Tracers(:,:,:,IND) = TRC_C3H8
 
-   State_Chm%Tracers( :, :, LM:1:-1, Get_Indx('TRC_CH2O', State_Chm%Trac_Id, State_Chm%Trac_Name ) ) = TRC_CH2O
+  IND = Get_Indx( 'TRC_CH2O', State_Chm%Trac_Id, State_Chm%Trac_Name )
+  IF ( IND > 0 ) State_Chm%Tracers(:,:,:,IND) = TRC_CH2O
 
-   State_Chm%Tracers( :, :, LM:1:-1, Get_Indx('TRC_C2H6', State_Chm%Trac_Id, State_Chm%Trac_Name ) ) = TRC_C2H6
+  IND = Get_Indx( 'TRC_C2H6', State_Chm%Trac_Id, State_Chm%Trac_Name )
+  IF ( IND > 0 ) State_Chm%Tracers(:,:,:,IND) = TRC_C2H6
 
-   State_Chm%Tracers( :, :, LM:1:-1, Get_Indx('TRC_N2O5', State_Chm%Trac_Id, State_Chm%Trac_Name ) ) = TRC_N2O5
+  IND = Get_Indx( 'TRC_N2O5', State_Chm%Trac_Id, State_Chm%Trac_Name )
+  IF ( IND > 0 ) State_Chm%Tracers(:,:,:,IND) = TRC_N2O5
 
-   State_Chm%Tracers( :, :, LM:1:-1, Get_Indx('TRC_HNO4', State_Chm%Trac_Id, State_Chm%Trac_Name ) ) = TRC_HNO4
+  IND = Get_Indx( 'TRC_HNO4', State_Chm%Trac_Id, State_Chm%Trac_Name )
+  IF ( IND > 0 ) State_Chm%Tracers(:,:,:,IND) = TRC_HNO4
 
-   State_Chm%Tracers( :, :, LM:1:-1, Get_Indx('TRC_MP', State_Chm%Trac_Id, State_Chm%Trac_Name ) ) = TRC_MP
+  IND = Get_Indx( 'TRC_MP', State_Chm%Trac_Id, State_Chm%Trac_Name )
+  IF ( IND > 0 ) State_Chm%Tracers(:,:,:,IND) = TRC_MP
 
-   State_Chm%Tracers( :, :, LM:1:-1, Get_Indx('TRC_DMS', State_Chm%Trac_Id, State_Chm%Trac_Name ) ) = TRC_DMS
+  IND = Get_Indx( 'TRC_DMS', State_Chm%Trac_Id, State_Chm%Trac_Name )
+  IF ( IND > 0 ) State_Chm%Tracers(:,:,:,IND) = TRC_DMS
 
-   State_Chm%Tracers( :, :, LM:1:-1, Get_Indx('TRC_SO2', State_Chm%Trac_Id, State_Chm%Trac_Name ) ) = TRC_SO2
+  IND = Get_Indx( 'TRC_SO2', State_Chm%Trac_Id, State_Chm%Trac_Name )
+  IF ( IND > 0 ) State_Chm%Tracers(:,:,:,IND) = TRC_SO2
 
-   State_Chm%Tracers( :, :, LM:1:-1, Get_Indx('TRC_SO4', State_Chm%Trac_Id, State_Chm%Trac_Name ) ) = TRC_SO4
+  IND = Get_Indx( 'TRC_SO4', State_Chm%Trac_Id, State_Chm%Trac_Name )
+  IF ( IND > 0 ) State_Chm%Tracers(:,:,:,IND) = TRC_SO4
 
-   State_Chm%Tracers( :, :, LM:1:-1, Get_Indx('TRC_SO4s', State_Chm%Trac_Id, State_Chm%Trac_Name ) ) = TRC_SO4s
+  IND = Get_Indx( 'TRC_SO4s', State_Chm%Trac_Id, State_Chm%Trac_Name )
+  IF ( IND > 0 ) State_Chm%Tracers(:,:,:,IND) = TRC_SO4s
 
-   State_Chm%Tracers( :, :, LM:1:-1, Get_Indx('TRC_MSA', State_Chm%Trac_Id, State_Chm%Trac_Name ) ) = TRC_MSA
+  IND = Get_Indx( 'TRC_MSA', State_Chm%Trac_Id, State_Chm%Trac_Name )
+  IF ( IND > 0 ) State_Chm%Tracers(:,:,:,IND) = TRC_MSA
 
-   State_Chm%Tracers( :, :, LM:1:-1, Get_Indx('TRC_NH3', State_Chm%Trac_Id, State_Chm%Trac_Name ) ) = TRC_NH3
+  IND = Get_Indx( 'TRC_NH3', State_Chm%Trac_Id, State_Chm%Trac_Name )
+  IF ( IND > 0 ) State_Chm%Tracers(:,:,:,IND) = TRC_NH3
 
-   State_Chm%Tracers( :, :, LM:1:-1, Get_Indx('TRC_NH4', State_Chm%Trac_Id, State_Chm%Trac_Name ) ) = TRC_NH4
+  IND = Get_Indx( 'TRC_NH4', State_Chm%Trac_Id, State_Chm%Trac_Name )
+  IF ( IND > 0 ) State_Chm%Tracers(:,:,:,IND) = TRC_NH4
 
-   State_Chm%Tracers( :, :, LM:1:-1, Get_Indx('TRC_NIT', State_Chm%Trac_Id, State_Chm%Trac_Name ) ) = TRC_NIT
+  IND = Get_Indx( 'TRC_NIT', State_Chm%Trac_Id, State_Chm%Trac_Name )
+  IF ( IND > 0 ) State_Chm%Tracers(:,:,:,IND) = TRC_NIT
 
-   State_Chm%Tracers( :, :, LM:1:-1, Get_Indx('TRC_NITs', State_Chm%Trac_Id, State_Chm%Trac_Name ) ) = TRC_NITs
+  IND = Get_Indx( 'TRC_NITs', State_Chm%Trac_Id, State_Chm%Trac_Name )
+  IF ( IND > 0 ) State_Chm%Tracers(:,:,:,IND) = TRC_NITs
 
-   State_Chm%Tracers( :, :, LM:1:-1, Get_Indx('TRC_BCPI', State_Chm%Trac_Id, State_Chm%Trac_Name ) ) = TRC_BCPI
+  IND = Get_Indx( 'TRC_BCPI', State_Chm%Trac_Id, State_Chm%Trac_Name )
+  IF ( IND > 0 ) State_Chm%Tracers(:,:,:,IND) = TRC_BCPI
 
-   State_Chm%Tracers( :, :, LM:1:-1, Get_Indx('TRC_OCPI', State_Chm%Trac_Id, State_Chm%Trac_Name ) ) = TRC_OCPI
+  IND = Get_Indx( 'TRC_OCPI', State_Chm%Trac_Id, State_Chm%Trac_Name )
+  IF ( IND > 0 ) State_Chm%Tracers(:,:,:,IND) = TRC_OCPI
 
-   State_Chm%Tracers( :, :, LM:1:-1, Get_Indx('TRC_BCPO', State_Chm%Trac_Id, State_Chm%Trac_Name ) ) = TRC_BCPO
+  IND = Get_Indx( 'TRC_BCPO', State_Chm%Trac_Id, State_Chm%Trac_Name )
+  IF ( IND > 0 ) State_Chm%Tracers(:,:,:,IND) = TRC_BCPO
 
-   State_Chm%Tracers( :, :, LM:1:-1, Get_Indx('TRC_OCPO', State_Chm%Trac_Id, State_Chm%Trac_Name ) ) = TRC_OCPO
+  IND = Get_Indx( 'TRC_OCPO', State_Chm%Trac_Id, State_Chm%Trac_Name )
+  IF ( IND > 0 ) State_Chm%Tracers(:,:,:,IND) = TRC_OCPO
 
-   State_Chm%Tracers( :, :, LM:1:-1, Get_Indx('TRC_DST1', State_Chm%Trac_Id, State_Chm%Trac_Name ) ) = TRC_DST1
+  IND = Get_Indx( 'TRC_DST1', State_Chm%Trac_Id, State_Chm%Trac_Name )
+  IF ( IND > 0 ) State_Chm%Tracers(:,:,:,IND) = TRC_DST1
 
-   State_Chm%Tracers( :, :, LM:1:-1, Get_Indx('TRC_DST2', State_Chm%Trac_Id, State_Chm%Trac_Name ) ) = TRC_DST2
+  IND = Get_Indx( 'TRC_DST2', State_Chm%Trac_Id, State_Chm%Trac_Name )
+  IF ( IND > 0 ) State_Chm%Tracers(:,:,:,IND) = TRC_DST2
 
-   State_Chm%Tracers( :, :, LM:1:-1, Get_Indx('TRC_DST3', State_Chm%Trac_Id, State_Chm%Trac_Name ) ) = TRC_DST3
+  IND = Get_Indx( 'TRC_DST3', State_Chm%Trac_Id, State_Chm%Trac_Name )
+  IF ( IND > 0 ) State_Chm%Tracers(:,:,:,IND) = TRC_DST3
 
-   State_Chm%Tracers( :, :, LM:1:-1, Get_Indx('TRC_DST4', State_Chm%Trac_Id, State_Chm%Trac_Name ) ) = TRC_DST4
+  IND = Get_Indx( 'TRC_DST4', State_Chm%Trac_Id, State_Chm%Trac_Name )
+  IF ( IND > 0 ) State_Chm%Tracers(:,:,:,IND) = TRC_DST4
 
-   State_Chm%Tracers( :, :, LM:1:-1, Get_Indx('TRC_SALA', State_Chm%Trac_Id, State_Chm%Trac_Name ) ) = TRC_SALA
+  IND = Get_Indx( 'TRC_SALA', State_Chm%Trac_Id, State_Chm%Trac_Name )
+  IF ( IND > 0 ) State_Chm%Tracers(:,:,:,IND) = TRC_SALA
 
-   State_Chm%Tracers( :, :, LM:1:-1, Get_Indx('TRC_SALC', State_Chm%Trac_Id, State_Chm%Trac_Name ) ) = TRC_SALC
+  IND = Get_Indx( 'TRC_SALC', State_Chm%Trac_Id, State_Chm%Trac_Name )
+  IF ( IND > 0 ) State_Chm%Tracers(:,:,:,IND) = TRC_SALC
 
-   State_Chm%Tracers( :, :, LM:1:-1, Get_Indx('TRC_Br2', State_Chm%Trac_Id, State_Chm%Trac_Name ) ) = TRC_Br2
+  IND = Get_Indx( 'TRC_Br2', State_Chm%Trac_Id, State_Chm%Trac_Name )
+  IF ( IND > 0 ) State_Chm%Tracers(:,:,:,IND) = TRC_Br2
 
-   State_Chm%Tracers( :, :, LM:1:-1, Get_Indx('TRC_Br', State_Chm%Trac_Id, State_Chm%Trac_Name ) ) = TRC_Br
+  IND = Get_Indx( 'TRC_Br', State_Chm%Trac_Id, State_Chm%Trac_Name )
+  IF ( IND > 0 ) State_Chm%Tracers(:,:,:,IND) = TRC_Br
 
-   State_Chm%Tracers( :, :, LM:1:-1, Get_Indx('TRC_BrO', State_Chm%Trac_Id, State_Chm%Trac_Name ) ) = TRC_BrO
+  IND = Get_Indx( 'TRC_BrO', State_Chm%Trac_Id, State_Chm%Trac_Name )
+  IF ( IND > 0 ) State_Chm%Tracers(:,:,:,IND) = TRC_BrO
 
-   State_Chm%Tracers( :, :, LM:1:-1, Get_Indx('TRC_HOBr', State_Chm%Trac_Id, State_Chm%Trac_Name ) ) = TRC_HOBr
+  IND = Get_Indx( 'TRC_HOBr', State_Chm%Trac_Id, State_Chm%Trac_Name )
+  IF ( IND > 0 ) State_Chm%Tracers(:,:,:,IND) = TRC_HOBr
 
-   State_Chm%Tracers( :, :, LM:1:-1, Get_Indx('TRC_HBr', State_Chm%Trac_Id, State_Chm%Trac_Name ) ) = TRC_HBr
+  IND = Get_Indx( 'TRC_HBr', State_Chm%Trac_Id, State_Chm%Trac_Name )
+  IF ( IND > 0 ) State_Chm%Tracers(:,:,:,IND) = TRC_HBr
 
-   State_Chm%Tracers( :, :, LM:1:-1, Get_Indx('TRC_BrNO2', State_Chm%Trac_Id, State_Chm%Trac_Name ) ) = TRC_BrNO2
+  IND = Get_Indx( 'TRC_BrNO2', State_Chm%Trac_Id, State_Chm%Trac_Name )
+  IF ( IND > 0 ) State_Chm%Tracers(:,:,:,IND) = TRC_BrNO2
 
-   State_Chm%Tracers( :, :, LM:1:-1, Get_Indx('TRC_BrNO3', State_Chm%Trac_Id, State_Chm%Trac_Name ) ) = TRC_BrNO3
+  IND = Get_Indx( 'TRC_BrNO3', State_Chm%Trac_Id, State_Chm%Trac_Name )
+  IF ( IND > 0 ) State_Chm%Tracers(:,:,:,IND) = TRC_BrNO3
 
-   State_Chm%Tracers( :, :, LM:1:-1, Get_Indx('TRC_CHBr3', State_Chm%Trac_Id, State_Chm%Trac_Name ) ) = TRC_CHBr3
+  IND = Get_Indx( 'TRC_CHBr3', State_Chm%Trac_Id, State_Chm%Trac_Name )
+  IF ( IND > 0 ) State_Chm%Tracers(:,:,:,IND) = TRC_CHBr3
 
-   State_Chm%Tracers( :, :, LM:1:-1, Get_Indx('TRC_CH2Br2', State_Chm%Trac_Id, State_Chm%Trac_Name ) ) = TRC_CH2Br2
+  IND = Get_Indx( 'TRC_CH2Br2', State_Chm%Trac_Id, State_Chm%Trac_Name )
+  IF ( IND > 0 ) State_Chm%Tracers(:,:,:,IND) = TRC_CH2Br2
 
-   State_Chm%Tracers( :, :, LM:1:-1, Get_Indx('TRC_CH3Br', State_Chm%Trac_Id, State_Chm%Trac_Name ) ) = TRC_CH3Br
+  IND = Get_Indx( 'TRC_CH3Br', State_Chm%Trac_Id, State_Chm%Trac_Name )
+  IF ( IND > 0 ) State_Chm%Tracers(:,:,:,IND) = TRC_CH3Br
 
-   State_Chm%Tracers( :, :, LM:1:-1, Get_Indx('TRC_MPN', State_Chm%Trac_Id, State_Chm%Trac_Name ) ) = TRC_MPN
+  IND = Get_Indx( 'TRC_MPN', State_Chm%Trac_Id, State_Chm%Trac_Name )
+  IF ( IND > 0 ) State_Chm%Tracers(:,:,:,IND) = TRC_MPN
 
-   State_Chm%Tracers( :, :, LM:1:-1, Get_Indx('TRC_ISOPN', State_Chm%Trac_Id, State_Chm%Trac_Name ) ) = TRC_ISOPN
+  IND = Get_Indx( 'TRC_ISOPN', State_Chm%Trac_Id, State_Chm%Trac_Name )
+  IF ( IND > 0 ) State_Chm%Tracers(:,:,:,IND) = TRC_ISOPN
 
-   State_Chm%Tracers( :, :, LM:1:-1, Get_Indx('TRC_MOBA', State_Chm%Trac_Id, State_Chm%Trac_Name ) ) = TRC_MOBA
+  IND = Get_Indx( 'TRC_MOBA', State_Chm%Trac_Id, State_Chm%Trac_Name )
+  IF ( IND > 0 ) State_Chm%Tracers(:,:,:,IND) = TRC_MOBA
 
-   State_Chm%Tracers( :, :, LM:1:-1, Get_Indx('TRC_PROPNN', State_Chm%Trac_Id, State_Chm%Trac_Name ) ) = TRC_PROPNN
+  IND = Get_Indx( 'TRC_PROPNN', State_Chm%Trac_Id, State_Chm%Trac_Name )
+  IF ( IND > 0 ) State_Chm%Tracers(:,:,:,IND) = TRC_PROPNN
 
-   State_Chm%Tracers( :, :, LM:1:-1, Get_Indx('TRC_HAC', State_Chm%Trac_Id, State_Chm%Trac_Name ) ) = TRC_HAC
+  IND = Get_Indx( 'TRC_HAC', State_Chm%Trac_Id, State_Chm%Trac_Name )
+  IF ( IND > 0 ) State_Chm%Tracers(:,:,:,IND) = TRC_HAC
 
-   State_Chm%Tracers( :, :, LM:1:-1, Get_Indx('TRC_GLYC', State_Chm%Trac_Id, State_Chm%Trac_Name ) ) = TRC_GLYC
+  IND = Get_Indx( 'TRC_GLYC', State_Chm%Trac_Id, State_Chm%Trac_Name )
+  IF ( IND > 0 ) State_Chm%Tracers(:,:,:,IND) = TRC_GLYC
 
-   State_Chm%Tracers( :, :, LM:1:-1, Get_Indx('TRC_MMN', State_Chm%Trac_Id, State_Chm%Trac_Name ) ) = TRC_MMN
+  IND = Get_Indx( 'TRC_MMN', State_Chm%Trac_Id, State_Chm%Trac_Name )
+  IF ( IND > 0 ) State_Chm%Tracers(:,:,:,IND) = TRC_MMN
 
-   State_Chm%Tracers( :, :, LM:1:-1, Get_Indx('TRC_RIP', State_Chm%Trac_Id, State_Chm%Trac_Name ) ) = TRC_RIP
+  IND = Get_Indx( 'TRC_RIP', State_Chm%Trac_Id, State_Chm%Trac_Name )
+  IF ( IND > 0 ) State_Chm%Tracers(:,:,:,IND) = TRC_RIP
 
-   State_Chm%Tracers( :, :, LM:1:-1, Get_Indx('TRC_IEPOX', State_Chm%Trac_Id, State_Chm%Trac_Name ) ) = TRC_IEPOX
+  IND = Get_Indx( 'TRC_IEPOX', State_Chm%Trac_Id, State_Chm%Trac_Name )
+  IF ( IND > 0 ) State_Chm%Tracers(:,:,:,IND) = TRC_IEPOX
 
-   State_Chm%Tracers( :, :, LM:1:-1, Get_Indx('TRC_MAP', State_Chm%Trac_Id, State_Chm%Trac_Name ) ) = TRC_MAP
+  IND = Get_Indx( 'TRC_MAP', State_Chm%Trac_Id, State_Chm%Trac_Name )
+  IF ( IND > 0 ) State_Chm%Tracers(:,:,:,IND) = TRC_MAP
 
-   State_Chm%Tracers( :, :, LM:1:-1, Get_Indx('TRC_NO2', State_Chm%Trac_Id, State_Chm%Trac_Name ) ) = TRC_NO2
+  IND = Get_Indx( 'TRC_NO2', State_Chm%Trac_Id, State_Chm%Trac_Name )
+  IF ( IND > 0 ) State_Chm%Tracers(:,:,:,IND) = TRC_NO2
 
-   State_Chm%Tracers( :, :, LM:1:-1, Get_Indx('TRC_NO3', State_Chm%Trac_Id, State_Chm%Trac_Name ) ) = TRC_NO3
+  IND = Get_Indx( 'TRC_NO3', State_Chm%Trac_Id, State_Chm%Trac_Name )
+  IF ( IND > 0 ) State_Chm%Tracers(:,:,:,IND) = TRC_NO3
 
-   State_Chm%Tracers( :, :, LM:1:-1, Get_Indx('TRC_HNO2', State_Chm%Trac_Id, State_Chm%Trac_Name ) ) = TRC_HNO2
+  IND = Get_Indx( 'TRC_HNO2', State_Chm%Trac_Id, State_Chm%Trac_Name )
+  IF ( IND > 0 ) State_Chm%Tracers(:,:,:,IND) = TRC_HNO2
 
-! --- 
+  IND = Get_Indx( 'A3O2', State_Chm%Spec_Id, State_Chm%Spec_Name )
+  IF ( IND > 0 ) State_Chm%Species(:,:,:,IND) = A3O2
 
-  State_Chm%Species( :, :, LM:1:-1, Get_Indx('A3O2', State_Chm%Spec_Id, State_Chm%Spec_Name ) ) = A3O2
+  IND = Get_Indx( 'ACET', State_Chm%Spec_Id, State_Chm%Spec_Name )
+  IF ( IND > 0 ) State_Chm%Species(:,:,:,IND) = ACET
 
-  State_Chm%Species( :, :, LM:1:-1, Get_Indx('ACET', State_Chm%Spec_Id, State_Chm%Spec_Name ) ) = ACET
+  IND = Get_Indx( 'ACTA', State_Chm%Spec_Id, State_Chm%Spec_Name )
+  IF ( IND > 0 ) State_Chm%Species(:,:,:,IND) = ACTA
 
-  State_Chm%Species( :, :, LM:1:-1, Get_Indx('ACTA', State_Chm%Spec_Id, State_Chm%Spec_Name ) ) = ACTA
+  IND = Get_Indx( 'ALD2', State_Chm%Spec_Id, State_Chm%Spec_Name )
+  IF ( IND > 0 ) State_Chm%Species(:,:,:,IND) = ALD2
 
-  State_Chm%Species( :, :, LM:1:-1, Get_Indx('ALD2', State_Chm%Spec_Id, State_Chm%Spec_Name ) ) = ALD2
+  IND = Get_Indx( 'ALK4', State_Chm%Spec_Id, State_Chm%Spec_Name )
+  IF ( IND > 0 ) State_Chm%Species(:,:,:,IND) = ALK4
 
-  State_Chm%Species( :, :, LM:1:-1, Get_Indx('ALK4', State_Chm%Spec_Id, State_Chm%Spec_Name ) ) = ALK4
+  IND = Get_Indx( 'ATO2', State_Chm%Spec_Id, State_Chm%Spec_Name )
+  IF ( IND > 0 ) State_Chm%Species(:,:,:,IND) = ATO2
 
-  State_Chm%Species( :, :, LM:1:-1, Get_Indx('ATO2', State_Chm%Spec_Id, State_Chm%Spec_Name ) ) = ATO2
+  IND = Get_Indx( 'B3O2', State_Chm%Spec_Id, State_Chm%Spec_Name )
+  IF ( IND > 0 ) State_Chm%Species(:,:,:,IND) = B3O2
 
-  State_Chm%Species( :, :, LM:1:-1, Get_Indx('B3O2', State_Chm%Spec_Id, State_Chm%Spec_Name ) ) = B3O2
+  IND = Get_Indx( 'Br', State_Chm%Spec_Id, State_Chm%Spec_Name )
+  IF ( IND > 0 ) State_Chm%Species(:,:,:,IND) = Br
 
-  State_Chm%Species( :, :, LM:1:-1, Get_Indx('Br', State_Chm%Spec_Id, State_Chm%Spec_Name ) ) = Br
+  IND = Get_Indx( 'Br2', State_Chm%Spec_Id, State_Chm%Spec_Name )
+  IF ( IND > 0 ) State_Chm%Species(:,:,:,IND) = Br2
 
-  State_Chm%Species( :, :, LM:1:-1, Get_Indx('Br2', State_Chm%Spec_Id, State_Chm%Spec_Name ) ) = Br2
+  IND = Get_Indx( 'BrNO2', State_Chm%Spec_Id, State_Chm%Spec_Name )
+  IF ( IND > 0 ) State_Chm%Species(:,:,:,IND) = BrNO2
 
-  State_Chm%Species( :, :, LM:1:-1, Get_Indx('BrNO2', State_Chm%Spec_Id, State_Chm%Spec_Name ) ) = BrNO2
+  IND = Get_Indx( 'BrNO3', State_Chm%Spec_Id, State_Chm%Spec_Name )
+  IF ( IND > 0 ) State_Chm%Species(:,:,:,IND) = BrNO3
 
-  State_Chm%Species( :, :, LM:1:-1, Get_Indx('BrNO3', State_Chm%Spec_Id, State_Chm%Spec_Name ) ) = BrNO3
+  IND = Get_Indx( 'BrO', State_Chm%Spec_Id, State_Chm%Spec_Name )
+  IF ( IND > 0 ) State_Chm%Species(:,:,:,IND) = BrO
 
-  State_Chm%Species( :, :, LM:1:-1, Get_Indx('BrO', State_Chm%Spec_Id, State_Chm%Spec_Name ) ) = BrO
+  IND = Get_Indx( 'C2H6', State_Chm%Spec_Id, State_Chm%Spec_Name )
+  IF ( IND > 0 ) State_Chm%Species(:,:,:,IND) = C2H6
 
-  State_Chm%Species( :, :, LM:1:-1, Get_Indx('C2H6', State_Chm%Spec_Id, State_Chm%Spec_Name ) ) = C2H6
+  IND = Get_Indx( 'C3H8', State_Chm%Spec_Id, State_Chm%Spec_Name )
+  IF ( IND > 0 ) State_Chm%Species(:,:,:,IND) = C3H8
 
-  State_Chm%Species( :, :, LM:1:-1, Get_Indx('C3H8', State_Chm%Spec_Id, State_Chm%Spec_Name ) ) = C3H8
+  IND = Get_Indx( 'CH2O', State_Chm%Spec_Id, State_Chm%Spec_Name )
+  IF ( IND > 0 ) State_Chm%Species(:,:,:,IND) = CH2O
 
-  State_Chm%Species( :, :, LM:1:-1, Get_Indx('CH2O', State_Chm%Spec_Id, State_Chm%Spec_Name ) ) = CH2O
+  IND = Get_Indx( 'CH2Br2', State_Chm%Spec_Id, State_Chm%Spec_Name )
+  IF ( IND > 0 ) State_Chm%Species(:,:,:,IND) = CH2Br2
 
-  State_Chm%Species( :, :, LM:1:-1, Get_Indx('CH2Br2', State_Chm%Spec_Id, State_Chm%Spec_Name ) ) = CH2Br2
+  IND = Get_Indx( 'CH3Br', State_Chm%Spec_Id, State_Chm%Spec_Name )
+  IF ( IND > 0 ) State_Chm%Species(:,:,:,IND) = CH3Br
 
-  State_Chm%Species( :, :, LM:1:-1, Get_Indx('CH3Br', State_Chm%Spec_Id, State_Chm%Spec_Name ) ) = CH3Br
+  IND = Get_Indx( 'CH4', State_Chm%Spec_Id, State_Chm%Spec_Name )
+  IF ( IND > 0 ) State_Chm%Species(:,:,:,IND) = CH4
 
-  State_Chm%Species( :, :, LM:1:-1, Get_Indx('CH4', State_Chm%Spec_Id, State_Chm%Spec_Name ) ) = CH4
+  IND = Get_Indx( 'CHBr3', State_Chm%Spec_Id, State_Chm%Spec_Name )
+  IF ( IND > 0 ) State_Chm%Species(:,:,:,IND) = CHBr3
 
-  State_Chm%Species( :, :, LM:1:-1, Get_Indx('CHBr3', State_Chm%Spec_Id, State_Chm%Spec_Name ) ) = CHBr3
+  IND = Get_Indx( 'CO', State_Chm%Spec_Id, State_Chm%Spec_Name )
+  IF ( IND > 0 ) State_Chm%Species(:,:,:,IND) = CO
 
-  State_Chm%Species( :, :, LM:1:-1, Get_Indx('CO', State_Chm%Spec_Id, State_Chm%Spec_Name ) ) = CO
+  IND = Get_Indx( 'DMS', State_Chm%Spec_Id, State_Chm%Spec_Name )
+  IF ( IND > 0 ) State_Chm%Species(:,:,:,IND) = DMS
 
-  State_Chm%Species( :, :, LM:1:-1, Get_Indx('DMS', State_Chm%Spec_Id, State_Chm%Spec_Name ) ) = DMS
+  IND = Get_Indx( 'DRYBr2', State_Chm%Spec_Id, State_Chm%Spec_Name )
+  IF ( IND > 0 ) State_Chm%Species(:,:,:,IND) = DRYBr2
 
-  State_Chm%Species( :, :, LM:1:-1, Get_Indx('DRYBr2', State_Chm%Spec_Id, State_Chm%Spec_Name ) ) = DRYBr2
+  IND = Get_Indx( 'DRYBrNO3', State_Chm%Spec_Id, State_Chm%Spec_Name )
+  IF ( IND > 0 ) State_Chm%Species(:,:,:,IND) = DRYBrNO3
 
-  State_Chm%Species( :, :, LM:1:-1, Get_Indx('DRYBrNO3', State_Chm%Spec_Id, State_Chm%Spec_Name ) ) = DRYBrNO3
+  IND = Get_Indx( 'DRYCH2O', State_Chm%Spec_Id, State_Chm%Spec_Name )
+  IF ( IND > 0 ) State_Chm%Species(:,:,:,IND) = DRYCH2O
 
-  State_Chm%Species( :, :, LM:1:-1, Get_Indx('DRYCH2O', State_Chm%Spec_Id, State_Chm%Spec_Name ) ) = DRYCH2O
+  IND = Get_Indx( 'DRYH2O2', State_Chm%Spec_Id, State_Chm%Spec_Name )
+  IF ( IND > 0 ) State_Chm%Species(:,:,:,IND) = DRYH2O2
 
-  State_Chm%Species( :, :, LM:1:-1, Get_Indx('DRYH2O2', State_Chm%Spec_Id, State_Chm%Spec_Name ) ) = DRYH2O2
+  IND = Get_Indx( 'DRYHBr', State_Chm%Spec_Id, State_Chm%Spec_Name )
+  IF ( IND > 0 ) State_Chm%Species(:,:,:,IND) = DRYHBr
 
-  State_Chm%Species( :, :, LM:1:-1, Get_Indx('DRYHBr', State_Chm%Spec_Id, State_Chm%Spec_Name ) ) = DRYHBr
+  IND = Get_Indx( 'DRYHNO3', State_Chm%Spec_Id, State_Chm%Spec_Name )
+  IF ( IND > 0 ) State_Chm%Species(:,:,:,IND) = DRYHNO3
 
-  State_Chm%Species( :, :, LM:1:-1, Get_Indx('DRYHNO3', State_Chm%Spec_Id, State_Chm%Spec_Name ) ) = DRYHNO3
+  IND = Get_Indx( 'DRYHOBr', State_Chm%Spec_Id, State_Chm%Spec_Name )
+  IF ( IND > 0 ) State_Chm%Species(:,:,:,IND) = DRYHOBr
 
-  State_Chm%Species( :, :, LM:1:-1, Get_Indx('DRYHOBr', State_Chm%Spec_Id, State_Chm%Spec_Name ) ) = DRYHOBr
+  IND = Get_Indx( 'DRYN2O5', State_Chm%Spec_Id, State_Chm%Spec_Name )
+  IF ( IND > 0 ) State_Chm%Species(:,:,:,IND) = DRYN2O5
 
-  State_Chm%Species( :, :, LM:1:-1, Get_Indx('DRYN2O5', State_Chm%Spec_Id, State_Chm%Spec_Name ) ) = DRYN2O5
+  IND = Get_Indx( 'DRYNO2', State_Chm%Spec_Id, State_Chm%Spec_Name )
+  IF ( IND > 0 ) State_Chm%Species(:,:,:,IND) = DRYNO2
 
-  State_Chm%Species( :, :, LM:1:-1, Get_Indx('DRYNO2', State_Chm%Spec_Id, State_Chm%Spec_Name ) ) = DRYNO2
+  IND = Get_Indx( 'DRYO3', State_Chm%Spec_Id, State_Chm%Spec_Name )
+  IF ( IND > 0 ) State_Chm%Species(:,:,:,IND) = DRYO3
 
-  State_Chm%Species( :, :, LM:1:-1, Get_Indx('DRYO3', State_Chm%Spec_Id, State_Chm%Spec_Name ) ) = DRYO3
+  IND = Get_Indx( 'DRYPAN', State_Chm%Spec_Id, State_Chm%Spec_Name )
+  IF ( IND > 0 ) State_Chm%Species(:,:,:,IND) = DRYPAN
 
-  State_Chm%Species( :, :, LM:1:-1, Get_Indx('DRYPAN', State_Chm%Spec_Id, State_Chm%Spec_Name ) ) = DRYPAN
+  IND = Get_Indx( 'DRYPMN', State_Chm%Spec_Id, State_Chm%Spec_Name )
+  IF ( IND > 0 ) State_Chm%Species(:,:,:,IND) = DRYPMN
 
-  State_Chm%Species( :, :, LM:1:-1, Get_Indx('DRYPMN', State_Chm%Spec_Id, State_Chm%Spec_Name ) ) = DRYPMN
+  IND = Get_Indx( 'DRYPPN', State_Chm%Spec_Id, State_Chm%Spec_Name )
+  IF ( IND > 0 ) State_Chm%Species(:,:,:,IND) = DRYPPN
 
-  State_Chm%Species( :, :, LM:1:-1, Get_Indx('DRYPPN', State_Chm%Spec_Id, State_Chm%Spec_Name ) ) = DRYPPN
+  IND = Get_Indx( 'DRYR4N2', State_Chm%Spec_Id, State_Chm%Spec_Name )
+  IF ( IND > 0 ) State_Chm%Species(:,:,:,IND) = DRYR4N2
 
-  State_Chm%Species( :, :, LM:1:-1, Get_Indx('DRYR4N2', State_Chm%Spec_Id, State_Chm%Spec_Name ) ) = DRYR4N2
+  IND = Get_Indx( 'DRYMVK', State_Chm%Spec_Id, State_Chm%Spec_Name )
+  IF ( IND > 0 ) State_Chm%Species(:,:,:,IND) = DRYMVK
 
-  State_Chm%Species( :, :, LM:1:-1, Get_Indx('DRYMVK', State_Chm%Spec_Id, State_Chm%Spec_Name ) ) = DRYMVK
+  IND = Get_Indx( 'DRYMACR', State_Chm%Spec_Id, State_Chm%Spec_Name )
+  IF ( IND > 0 ) State_Chm%Species(:,:,:,IND) = DRYMACR
 
-  State_Chm%Species( :, :, LM:1:-1, Get_Indx('DRYMACR', State_Chm%Spec_Id, State_Chm%Spec_Name ) ) = DRYMACR
+  IND = Get_Indx( 'EMISSION', State_Chm%Spec_Id, State_Chm%Spec_Name )
+  IF ( IND > 0 ) State_Chm%Species(:,:,:,IND) = EMISSION
 
-  State_Chm%Species( :, :, LM:1:-1, Get_Indx('EMISSION', State_Chm%Spec_Id, State_Chm%Spec_Name ) ) = EMISSION
+  IND = Get_Indx( 'EOH', State_Chm%Spec_Id, State_Chm%Spec_Name )
+  IF ( IND > 0 ) State_Chm%Species(:,:,:,IND) = EOH
 
-  State_Chm%Species( :, :, LM:1:-1, Get_Indx('EOH', State_Chm%Spec_Id, State_Chm%Spec_Name ) ) = EOH
+  IND = Get_Indx( 'ETO2', State_Chm%Spec_Id, State_Chm%Spec_Name )
+  IF ( IND > 0 ) State_Chm%Species(:,:,:,IND) = ETO2
 
-  State_Chm%Species( :, :, LM:1:-1, Get_Indx('ETO2', State_Chm%Spec_Id, State_Chm%Spec_Name ) ) = ETO2
+  IND = Get_Indx( 'ETP', State_Chm%Spec_Id, State_Chm%Spec_Name )
+  IF ( IND > 0 ) State_Chm%Species(:,:,:,IND) = ETP
 
-  State_Chm%Species( :, :, LM:1:-1, Get_Indx('ETP', State_Chm%Spec_Id, State_Chm%Spec_Name ) ) = ETP
+  IND = Get_Indx( 'GCO3', State_Chm%Spec_Id, State_Chm%Spec_Name )
+  IF ( IND > 0 ) State_Chm%Species(:,:,:,IND) = GCO3
 
-  State_Chm%Species( :, :, LM:1:-1, Get_Indx('GLYC', State_Chm%Spec_Id, State_Chm%Spec_Name ) ) = GLYC
+  IND = Get_Indx( 'GLYC', State_Chm%Spec_Id, State_Chm%Spec_Name )
+  IF ( IND > 0 ) State_Chm%Species(:,:,:,IND) = GLYC
 
-  State_Chm%Species( :, :, LM:1:-1, Get_Indx('GLYX', State_Chm%Spec_Id, State_Chm%Spec_Name ) ) = GLYX
+  IND = Get_Indx( 'GLYX', State_Chm%Spec_Id, State_Chm%Spec_Name )
+  IF ( IND > 0 ) State_Chm%Species(:,:,:,IND) = GLYX
 
-  State_Chm%Species( :, :, LM:1:-1, Get_Indx('H', State_Chm%Spec_Id, State_Chm%Spec_Name ) ) = H
+  IND = Get_Indx( 'GP', State_Chm%Spec_Id, State_Chm%Spec_Name )
+  IF ( IND > 0 ) State_Chm%Species(:,:,:,IND) = GP
 
-  State_Chm%Species( :, :, LM:1:-1, Get_Indx('H2', State_Chm%Spec_Id, State_Chm%Spec_Name ) ) = H2
+  IND = Get_Indx( 'H', State_Chm%Spec_Id, State_Chm%Spec_Name )
+  IF ( IND > 0 ) State_Chm%Species(:,:,:,IND) = H
 
-  State_Chm%Species( :, :, LM:1:-1, Get_Indx('H2O', State_Chm%Spec_Id, State_Chm%Spec_Name ) ) = H2O
+  IND = Get_Indx( 'H2', State_Chm%Spec_Id, State_Chm%Spec_Name )
+  IF ( IND > 0 ) State_Chm%Species(:,:,:,IND) = H2
 
-  State_Chm%Species( :, :, LM:1:-1, Get_Indx('H2O2', State_Chm%Spec_Id, State_Chm%Spec_Name ) ) = H2O2
+  IND = Get_Indx( 'H2O', State_Chm%Spec_Id, State_Chm%Spec_Name )
+  IF ( IND > 0 ) State_Chm%Species(:,:,:,IND) = H2O
 
-  State_Chm%Species( :, :, LM:1:-1, Get_Indx('HAC', State_Chm%Spec_Id, State_Chm%Spec_Name ) ) = HAC
+  IND = Get_Indx( 'H2O2', State_Chm%Spec_Id, State_Chm%Spec_Name )
+  IF ( IND > 0 ) State_Chm%Species(:,:,:,IND) = H2O2
 
-  State_Chm%Species( :, :, LM:1:-1, Get_Indx('HBr', State_Chm%Spec_Id, State_Chm%Spec_Name ) ) = HBr
+  IND = Get_Indx( 'HAC', State_Chm%Spec_Id, State_Chm%Spec_Name )
+  IF ( IND > 0 ) State_Chm%Species(:,:,:,IND) = HAC
 
-  State_Chm%Species( :, :, LM:1:-1, Get_Indx('HOBr', State_Chm%Spec_Id, State_Chm%Spec_Name ) ) = HOBr
+  IND = Get_Indx( 'HBr', State_Chm%Spec_Id, State_Chm%Spec_Name )
+  IF ( IND > 0 ) State_Chm%Species(:,:,:,IND) = HBr
 
-  State_Chm%Species( :, :, LM:1:-1, Get_Indx('HCOOH', State_Chm%Spec_Id, State_Chm%Spec_Name ) ) = HCOOH
+  IND = Get_Indx( 'HOBr', State_Chm%Spec_Id, State_Chm%Spec_Name )
+  IF ( IND > 0 ) State_Chm%Species(:,:,:,IND) = HOBr
 
-  State_Chm%Species( :, :, LM:1:-1, Get_Indx('HNO2', State_Chm%Spec_Id, State_Chm%Spec_Name ) ) = HNO2
+  IND = Get_Indx( 'HCOOH', State_Chm%Spec_Id, State_Chm%Spec_Name )
+  IF ( IND > 0 ) State_Chm%Species(:,:,:,IND) = HCOOH
 
-  State_Chm%Species( :, :, LM:1:-1, Get_Indx('HNO3', State_Chm%Spec_Id, State_Chm%Spec_Name ) ) = HNO3
+  IND = Get_Indx( 'HNO2', State_Chm%Spec_Id, State_Chm%Spec_Name )
+  IF ( IND > 0 ) State_Chm%Species(:,:,:,IND) = HNO2
 
-  State_Chm%Species( :, :, LM:1:-1, Get_Indx('HNO4', State_Chm%Spec_Id, State_Chm%Spec_Name ) ) = HNO4
+  IND = Get_Indx( 'HNO3', State_Chm%Spec_Id, State_Chm%Spec_Name )
+  IF ( IND > 0 ) State_Chm%Species(:,:,:,IND) = HNO3
 
-  State_Chm%Species( :, :, LM:1:-1, Get_Indx('HO2', State_Chm%Spec_Id, State_Chm%Spec_Name ) ) = HO2
+  IND = Get_Indx( 'HNO4', State_Chm%Spec_Id, State_Chm%Spec_Name )
+  IF ( IND > 0 ) State_Chm%Species(:,:,:,IND) = HNO4
 
-  State_Chm%Species( :, :, LM:1:-1, Get_Indx('IAP', State_Chm%Spec_Id, State_Chm%Spec_Name ) ) = IAP
+  IND = Get_Indx( 'HO2', State_Chm%Spec_Id, State_Chm%Spec_Name )
+  IF ( IND > 0 ) State_Chm%Species(:,:,:,IND) = HO2
 
-  State_Chm%Species( :, :, LM:1:-1, Get_Indx('INO2', State_Chm%Spec_Id, State_Chm%Spec_Name ) ) = INO2
+  IND = Get_Indx( 'IALD', State_Chm%Spec_Id, State_Chm%Spec_Name )
+  IF ( IND > 0 ) State_Chm%Species(:,:,:,IND) = IALD
 
-  State_Chm%Species( :, :, LM:1:-1, Get_Indx('INPN', State_Chm%Spec_Id, State_Chm%Spec_Name ) ) = INPN
+  IND = Get_Indx( 'IAO2', State_Chm%Spec_Id, State_Chm%Spec_Name )
+  IF ( IND > 0 ) State_Chm%Species(:,:,:,IND) = IAO2
 
-  State_Chm%Species( :, :, LM:1:-1, Get_Indx('ISN1', State_Chm%Spec_Id, State_Chm%Spec_Name ) ) = ISN1
+  IND = Get_Indx( 'IAP', State_Chm%Spec_Id, State_Chm%Spec_Name )
+  IF ( IND > 0 ) State_Chm%Species(:,:,:,IND) = IAP
 
-  State_Chm%Species( :, :, LM:1:-1, Get_Indx('ISNP', State_Chm%Spec_Id, State_Chm%Spec_Name ) ) = ISNP
+  IND = Get_Indx( 'INO2', State_Chm%Spec_Id, State_Chm%Spec_Name )
+  IF ( IND > 0 ) State_Chm%Species(:,:,:,IND) = INO2
 
-  State_Chm%Species( :, :, LM:1:-1, Get_Indx('ISOP', State_Chm%Spec_Id, State_Chm%Spec_Name ) ) = ISOP
+  IND = Get_Indx( 'INPN', State_Chm%Spec_Id, State_Chm%Spec_Name )
+  IF ( IND > 0 ) State_Chm%Species(:,:,:,IND) = INPN
 
-  State_Chm%Species( :, :, LM:1:-1, Get_Indx('KO2', State_Chm%Spec_Id, State_Chm%Spec_Name ) ) = KO2
+  IND = Get_Indx( 'ISN1', State_Chm%Spec_Id, State_Chm%Spec_Name )
+  IF ( IND > 0 ) State_Chm%Species(:,:,:,IND) = ISN1
 
-  State_Chm%Species( :, :, LM:1:-1, Get_Indx('M', State_Chm%Spec_Id, State_Chm%Spec_Name ) ) = M
+  IND = Get_Indx( 'ISNP', State_Chm%Spec_Id, State_Chm%Spec_Name )
+  IF ( IND > 0 ) State_Chm%Species(:,:,:,IND) = ISNP
 
-  State_Chm%Species( :, :, LM:1:-1, Get_Indx('MACR', State_Chm%Spec_Id, State_Chm%Spec_Name ) ) = MACR
+  IND = Get_Indx( 'ISOP', State_Chm%Spec_Id, State_Chm%Spec_Name )
+  IF ( IND > 0 ) State_Chm%Species(:,:,:,IND) = ISOP
 
-  State_Chm%Species( :, :, LM:1:-1, Get_Indx('MAN2', State_Chm%Spec_Id, State_Chm%Spec_Name ) ) = MAN2
+  IND = Get_Indx( 'KO2', State_Chm%Spec_Id, State_Chm%Spec_Name )
+  IF ( IND > 0 ) State_Chm%Species(:,:,:,IND) = KO2
 
-  State_Chm%Species( :, :, LM:1:-1, Get_Indx('MAO3', State_Chm%Spec_Id, State_Chm%Spec_Name ) ) = MAO3
+  IND = Get_Indx( 'M', State_Chm%Spec_Id, State_Chm%Spec_Name )
+  IF ( IND > 0 ) State_Chm%Species(:,:,:,IND) = M
 
-  State_Chm%Species( :, :, LM:1:-1, Get_Indx('MAOP', State_Chm%Spec_Id, State_Chm%Spec_Name ) ) = MAOP
+  IND = Get_Indx( 'MACR', State_Chm%Spec_Id, State_Chm%Spec_Name )
+  IF ( IND > 0 ) State_Chm%Species(:,:,:,IND) = MACR
 
-  State_Chm%Species( :, :, LM:1:-1, Get_Indx('MAP', State_Chm%Spec_Id, State_Chm%Spec_Name ) ) = MAP
+  IND = Get_Indx( 'MAN2', State_Chm%Spec_Id, State_Chm%Spec_Name )
+  IF ( IND > 0 ) State_Chm%Species(:,:,:,IND) = MAN2
 
-  State_Chm%Species( :, :, LM:1:-1, Get_Indx('MCO3', State_Chm%Spec_Id, State_Chm%Spec_Name ) ) = MCO3
+  IND = Get_Indx( 'MAO3', State_Chm%Spec_Id, State_Chm%Spec_Name )
+  IF ( IND > 0 ) State_Chm%Species(:,:,:,IND) = MAO3
 
-  State_Chm%Species( :, :, LM:1:-1, Get_Indx('MEK', State_Chm%Spec_Id, State_Chm%Spec_Name ) ) = MEK
+  IND = Get_Indx( 'MAOP', State_Chm%Spec_Id, State_Chm%Spec_Name )
+  IF ( IND > 0 ) State_Chm%Species(:,:,:,IND) = MAOP
 
-  State_Chm%Species( :, :, LM:1:-1, Get_Indx('MGLY', State_Chm%Spec_Id, State_Chm%Spec_Name ) ) = MGLY
+  IND = Get_Indx( 'MAP', State_Chm%Spec_Id, State_Chm%Spec_Name )
+  IF ( IND > 0 ) State_Chm%Species(:,:,:,IND) = MAP
 
-  State_Chm%Species( :, :, LM:1:-1, Get_Indx('MO2', State_Chm%Spec_Id, State_Chm%Spec_Name ) ) = MO2
+  IND = Get_Indx( 'MCO3', State_Chm%Spec_Id, State_Chm%Spec_Name )
+  IF ( IND > 0 ) State_Chm%Species(:,:,:,IND) = MCO3
 
-  State_Chm%Species( :, :, LM:1:-1, Get_Indx('MOH', State_Chm%Spec_Id, State_Chm%Spec_Name ) ) = MOH
+  IND = Get_Indx( 'MEK', State_Chm%Spec_Id, State_Chm%Spec_Name )
+  IF ( IND > 0 ) State_Chm%Species(:,:,:,IND) = MEK
 
-  State_Chm%Species( :, :, LM:1:-1, Get_Indx('MP', State_Chm%Spec_Id, State_Chm%Spec_Name ) ) = MP
+  IND = Get_Indx( 'MGLY', State_Chm%Spec_Id, State_Chm%Spec_Name )
+  IF ( IND > 0 ) State_Chm%Species(:,:,:,IND) = MGLY
 
-  State_Chm%Species( :, :, LM:1:-1, Get_Indx('MRO2', State_Chm%Spec_Id, State_Chm%Spec_Name ) ) = MRO2
+  IND = Get_Indx( 'MO2', State_Chm%Spec_Id, State_Chm%Spec_Name )
+  IF ( IND > 0 ) State_Chm%Species(:,:,:,IND) = MO2
 
-  State_Chm%Species( :, :, LM:1:-1, Get_Indx('MRP', State_Chm%Spec_Id, State_Chm%Spec_Name ) ) = MRP
+  IND = Get_Indx( 'MOH', State_Chm%Spec_Id, State_Chm%Spec_Name )
+  IF ( IND > 0 ) State_Chm%Species(:,:,:,IND) = MOH
 
-  State_Chm%Species( :, :, LM:1:-1, Get_Indx('MSA', State_Chm%Spec_Id, State_Chm%Spec_Name ) ) = MSA
+  IND = Get_Indx( 'MP', State_Chm%Spec_Id, State_Chm%Spec_Name )
+  IF ( IND > 0 ) State_Chm%Species(:,:,:,IND) = MP
 
-  State_Chm%Species( :, :, LM:1:-1, Get_Indx('MVK', State_Chm%Spec_Id, State_Chm%Spec_Name ) ) = MVK
+  IND = Get_Indx( 'MRO2', State_Chm%Spec_Id, State_Chm%Spec_Name )
+  IF ( IND > 0 ) State_Chm%Species(:,:,:,IND) = MRO2
 
-  State_Chm%Species( :, :, LM:1:-1, Get_Indx('N2', State_Chm%Spec_Id, State_Chm%Spec_Name ) ) = N2
+  IND = Get_Indx( 'MRP', State_Chm%Spec_Id, State_Chm%Spec_Name )
+  IF ( IND > 0 ) State_Chm%Species(:,:,:,IND) = MRP
 
-  State_Chm%Species( :, :, LM:1:-1, Get_Indx('N2O5', State_Chm%Spec_Id, State_Chm%Spec_Name ) ) = N2O5
+  IND = Get_Indx( 'MSA', State_Chm%Spec_Id, State_Chm%Spec_Name )
+  IF ( IND > 0 ) State_Chm%Species(:,:,:,IND) = MSA
 
-  State_Chm%Species( :, :, LM:1:-1, Get_Indx('NH2', State_Chm%Spec_Id, State_Chm%Spec_Name ) ) = NH2
+  IND = Get_Indx( 'MVK', State_Chm%Spec_Id, State_Chm%Spec_Name )
+  IF ( IND > 0 ) State_Chm%Species(:,:,:,IND) = MVK
 
-  State_Chm%Species( :, :, LM:1:-1, Get_Indx('NH3', State_Chm%Spec_Id, State_Chm%Spec_Name ) ) = NH3
+  IND = Get_Indx( 'N2', State_Chm%Spec_Id, State_Chm%Spec_Name )
+  IF ( IND > 0 ) State_Chm%Species(:,:,:,IND) = N2
 
-  State_Chm%Species( :, :, LM:1:-1, Get_Indx('NO', State_Chm%Spec_Id, State_Chm%Spec_Name ) ) = NO
+  IND = Get_Indx( 'N2O5', State_Chm%Spec_Id, State_Chm%Spec_Name )
+  IF ( IND > 0 ) State_Chm%Species(:,:,:,IND) = N2O5
 
-  State_Chm%Species( :, :, LM:1:-1, Get_Indx('NO2', State_Chm%Spec_Id, State_Chm%Spec_Name ) ) = NO2
+  IND = Get_Indx( 'NH2', State_Chm%Spec_Id, State_Chm%Spec_Name )
+  IF ( IND > 0 ) State_Chm%Species(:,:,:,IND) = NH2
 
-  State_Chm%Species( :, :, LM:1:-1, Get_Indx('NO3', State_Chm%Spec_Id, State_Chm%Spec_Name ) ) = NO3
+  IND = Get_Indx( 'NH3', State_Chm%Spec_Id, State_Chm%Spec_Name )
+  IF ( IND > 0 ) State_Chm%Species(:,:,:,IND) = NH3
 
-  State_Chm%Species( :, :, LM:1:-1, Get_Indx('O', State_Chm%Spec_Id, State_Chm%Spec_Name ) ) = O
+  IND = Get_Indx( 'NO', State_Chm%Spec_Id, State_Chm%Spec_Name )
+  IF ( IND > 0 ) State_Chm%Species(:,:,:,IND) = NO
 
-  State_Chm%Species( :, :, LM:1:-1, Get_Indx('O2', State_Chm%Spec_Id, State_Chm%Spec_Name ) ) = O2
+  IND = Get_Indx( 'NO2', State_Chm%Spec_Id, State_Chm%Spec_Name )
+  IF ( IND > 0 ) State_Chm%Species(:,:,:,IND) = NO2
 
-  State_Chm%Species( :, :, LM:1:-1, Get_Indx('O3', State_Chm%Spec_Id, State_Chm%Spec_Name ) ) = O3
+  IND = Get_Indx( 'NO3', State_Chm%Spec_Id, State_Chm%Spec_Name )
+  IF ( IND > 0 ) State_Chm%Species(:,:,:,IND) = NO3
 
-  State_Chm%Species( :, :, LM:1:-1, Get_Indx('OH', State_Chm%Spec_Id, State_Chm%Spec_Name ) ) = OH
+  IND = Get_Indx( 'O', State_Chm%Spec_Id, State_Chm%Spec_Name )
+  IF ( IND > 0 ) State_Chm%Species(:,:,:,IND) = O
 
-  State_Chm%Species( :, :, LM:1:-1, Get_Indx('PAN', State_Chm%Spec_Id, State_Chm%Spec_Name ) ) = PAN
+  IND = Get_Indx( 'O2', State_Chm%Spec_Id, State_Chm%Spec_Name )
+  IF ( IND > 0 ) State_Chm%Species(:,:,:,IND) = O2
 
-  State_Chm%Species( :, :, LM:1:-1, Get_Indx('PMN', State_Chm%Spec_Id, State_Chm%Spec_Name ) ) = PMN
+!  IND = Get_Indx( 'O3_ND', State_Chm%Spec_Id, State_Chm%Spec_Name )
+!  IF ( IND > 0 ) State_Chm%Species(:,:,:,IND) = O3_ND
 
-  State_Chm%Species( :, :, LM:1:-1, Get_Indx('PO2', State_Chm%Spec_Id, State_Chm%Spec_Name ) ) = PO2
+  IND = Get_Indx( 'OH', State_Chm%Spec_Id, State_Chm%Spec_Name )
+  IF ( IND > 0 ) State_Chm%Species(:,:,:,IND) = OH
 
-  State_Chm%Species( :, :, LM:1:-1, Get_Indx('PP', State_Chm%Spec_Id, State_Chm%Spec_Name ) ) = PP
+  IND = Get_Indx( 'PAN', State_Chm%Spec_Id, State_Chm%Spec_Name )
+  IF ( IND > 0 ) State_Chm%Species(:,:,:,IND) = PAN
 
-  State_Chm%Species( :, :, LM:1:-1, Get_Indx('PPN', State_Chm%Spec_Id, State_Chm%Spec_Name ) ) = PPN
+  IND = Get_Indx( 'PMN', State_Chm%Spec_Id, State_Chm%Spec_Name )
+  IF ( IND > 0 ) State_Chm%Species(:,:,:,IND) = PMN
 
-  State_Chm%Species( :, :, LM:1:-1, Get_Indx('PRN1', State_Chm%Spec_Id, State_Chm%Spec_Name ) ) = PRN1
+  IND = Get_Indx( 'PO2', State_Chm%Spec_Id, State_Chm%Spec_Name )
+  IF ( IND > 0 ) State_Chm%Species(:,:,:,IND) = PO2
 
-  State_Chm%Species( :, :, LM:1:-1, Get_Indx('PRPE', State_Chm%Spec_Id, State_Chm%Spec_Name ) ) = PRPE
+  IND = Get_Indx( 'PP', State_Chm%Spec_Id, State_Chm%Spec_Name )
+  IF ( IND > 0 ) State_Chm%Species(:,:,:,IND) = PP
 
-  State_Chm%Species( :, :, LM:1:-1, Get_Indx('PRPN', State_Chm%Spec_Id, State_Chm%Spec_Name ) ) = PRPN
+  IND = Get_Indx( 'PPN', State_Chm%Spec_Id, State_Chm%Spec_Name )
+  IF ( IND > 0 ) State_Chm%Species(:,:,:,IND) = PPN
 
-  State_Chm%Species( :, :, LM:1:-1, Get_Indx('R4N1', State_Chm%Spec_Id, State_Chm%Spec_Name ) ) = R4N1
+  IND = Get_Indx( 'PRN1', State_Chm%Spec_Id, State_Chm%Spec_Name )
+  IF ( IND > 0 ) State_Chm%Species(:,:,:,IND) = PRN1
 
-  State_Chm%Species( :, :, LM:1:-1, Get_Indx('R4N2', State_Chm%Spec_Id, State_Chm%Spec_Name ) ) = R4N2
+  IND = Get_Indx( 'PRPE', State_Chm%Spec_Id, State_Chm%Spec_Name )
+  IF ( IND > 0 ) State_Chm%Species(:,:,:,IND) = PRPE
 
-  State_Chm%Species( :, :, LM:1:-1, Get_Indx('R4O2', State_Chm%Spec_Id, State_Chm%Spec_Name ) ) = R4O2
+  IND = Get_Indx( 'PRPN', State_Chm%Spec_Id, State_Chm%Spec_Name )
+  IF ( IND > 0 ) State_Chm%Species(:,:,:,IND) = PRPN
 
-  State_Chm%Species( :, :, LM:1:-1, Get_Indx('R4P', State_Chm%Spec_Id, State_Chm%Spec_Name ) ) = R4P
+  IND = Get_Indx( 'R4N1', State_Chm%Spec_Id, State_Chm%Spec_Name )
+  IF ( IND > 0 ) State_Chm%Species(:,:,:,IND) = R4N1
 
-  State_Chm%Species( :, :, LM:1:-1, Get_Indx('RA3P', State_Chm%Spec_Id, State_Chm%Spec_Name ) ) = RA3P
+  IND = Get_Indx( 'R4N2', State_Chm%Spec_Id, State_Chm%Spec_Name )
+  IF ( IND > 0 ) State_Chm%Species(:,:,:,IND) = R4N2
 
-  State_Chm%Species( :, :, LM:1:-1, Get_Indx('RB3P', State_Chm%Spec_Id, State_Chm%Spec_Name ) ) = RB3P
+  IND = Get_Indx( 'R4O2', State_Chm%Spec_Id, State_Chm%Spec_Name )
+  IF ( IND > 0 ) State_Chm%Species(:,:,:,IND) = R4O2
 
-  State_Chm%Species( :, :, LM:1:-1, Get_Indx('RCHO', State_Chm%Spec_Id, State_Chm%Spec_Name ) ) = RCHO
+  IND = Get_Indx( 'R4P', State_Chm%Spec_Id, State_Chm%Spec_Name )
+  IF ( IND > 0 ) State_Chm%Species(:,:,:,IND) = R4P
 
-  State_Chm%Species( :, :, LM:1:-1, Get_Indx('RCO3', State_Chm%Spec_Id, State_Chm%Spec_Name ) ) = RCO3
+  IND = Get_Indx( 'RA3P', State_Chm%Spec_Id, State_Chm%Spec_Name )
+  IF ( IND > 0 ) State_Chm%Species(:,:,:,IND) = RA3P
 
-  State_Chm%Species( :, :, LM:1:-1, Get_Indx('RCOOH', State_Chm%Spec_Id, State_Chm%Spec_Name ) ) = RCOOH
+  IND = Get_Indx( 'RB3P', State_Chm%Spec_Id, State_Chm%Spec_Name )
+  IF ( IND > 0 ) State_Chm%Species(:,:,:,IND) = RB3P
 
-  State_Chm%Species( :, :, LM:1:-1, Get_Indx('RIO2', State_Chm%Spec_Id, State_Chm%Spec_Name ) ) = RIO2
+  IND = Get_Indx( 'RCHO', State_Chm%Spec_Id, State_Chm%Spec_Name )
+  IF ( IND > 0 ) State_Chm%Species(:,:,:,IND) = RCHO
 
-  State_Chm%Species( :, :, LM:1:-1, Get_Indx('RIP', State_Chm%Spec_Id, State_Chm%Spec_Name ) ) = RIP
+  IND = Get_Indx( 'RCO3', State_Chm%Spec_Id, State_Chm%Spec_Name )
+  IF ( IND > 0 ) State_Chm%Species(:,:,:,IND) = RCO3
 
-  State_Chm%Species( :, :, LM:1:-1, Get_Indx('ROH', State_Chm%Spec_Id, State_Chm%Spec_Name ) ) = ROH
+  IND = Get_Indx( 'RCOOH', State_Chm%Spec_Id, State_Chm%Spec_Name )
+  IF ( IND > 0 ) State_Chm%Species(:,:,:,IND) = RCOOH
 
-  State_Chm%Species( :, :, LM:1:-1, Get_Indx('RP', State_Chm%Spec_Id, State_Chm%Spec_Name ) ) = RP
+  IND = Get_Indx( 'RIO1', State_Chm%Spec_Id, State_Chm%Spec_Name )
+  IF ( IND > 0 ) State_Chm%Species(:,:,:,IND) = RIO1
 
-  State_Chm%Species( :, :, LM:1:-1, Get_Indx('SO2', State_Chm%Spec_Id, State_Chm%Spec_Name ) ) = SO2
+  IND = Get_Indx( 'RIO2', State_Chm%Spec_Id, State_Chm%Spec_Name )
+  IF ( IND > 0 ) State_Chm%Species(:,:,:,IND) = RIO2
 
-  State_Chm%Species( :, :, LM:1:-1, Get_Indx('SO4', State_Chm%Spec_Id, State_Chm%Spec_Name ) ) = SO4
+  IND = Get_Indx( 'RIP', State_Chm%Spec_Id, State_Chm%Spec_Name )
+  IF ( IND > 0 ) State_Chm%Species(:,:,:,IND) = RIP
 
-  State_Chm%Species( :, :, LM:1:-1, Get_Indx('VRO2', State_Chm%Spec_Id, State_Chm%Spec_Name ) ) = VRO2
+  IND = Get_Indx( 'ROH', State_Chm%Spec_Id, State_Chm%Spec_Name )
+  IF ( IND > 0 ) State_Chm%Species(:,:,:,IND) = ROH
 
-  State_Chm%Species( :, :, LM:1:-1, Get_Indx('VRP', State_Chm%Spec_Id, State_Chm%Spec_Name ) ) = VRP
+  IND = Get_Indx( 'RP', State_Chm%Spec_Id, State_Chm%Spec_Name )
+  IF ( IND > 0 ) State_Chm%Species(:,:,:,IND) = RP
+
+  IND = Get_Indx( 'SO2', State_Chm%Spec_Id, State_Chm%Spec_Name )
+  IF ( IND > 0 ) State_Chm%Species(:,:,:,IND) = SO2
+
+  IND = Get_Indx( 'SO4', State_Chm%Spec_Id, State_Chm%Spec_Name )
+  IF ( IND > 0 ) State_Chm%Species(:,:,:,IND) = SO4
+
+  IND = Get_Indx( 'VRO2', State_Chm%Spec_Id, State_Chm%Spec_Name )
+  IF ( IND > 0 ) State_Chm%Species(:,:,:,IND) = VRO2
+
+  IND = Get_Indx( 'VRP', State_Chm%Spec_Id, State_Chm%Spec_Name )
+  IF ( IND > 0 ) State_Chm%Species(:,:,:,IND) = VRP
+
+  ! Flip tracers & species in the vertical
+  State_Chm%Tracers = State_Chm%Tracers( :, :, LM:1:-1, : )
+  State_Chm%Species = State_Chm%Species( :, :, LM:1:-1, : )
 

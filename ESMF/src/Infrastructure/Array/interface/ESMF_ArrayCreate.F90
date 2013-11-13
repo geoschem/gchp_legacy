@@ -1,0 +1,8915 @@
+! $Id: ESMF_ArrayCreate.cppF90,v 1.43.2.2 2010/03/10 05:43:01 theurich Exp $
+!
+! Earth System Modeling Framework
+! Copyright 2002-2010, University Corporation for Atmospheric Research,
+! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
+! Laboratory, University of Michigan, National Centers for Environmental
+! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
+! NASA Goddard Space Flight Center.
+! Licensed under the University of Illinois-NCSA License.
+!
+!==============================================================================
+#define ESMF_FILENAME "ESMF_ArrayCreate.F90"
+!==============================================================================
+!
+! ESMF ArrayCreate module
+module ESMF_ArrayCreateMod
+!
+!==============================================================================
+!
+! This file contains the ArrayCreate() methods.
+!
+!------------------------------------------------------------------------------
+! INCLUDES
+! < ignore blank lines below. they are created by the files which
+! define various macros. >
+#include "ESMF.h"
+
+
+!------------------------------------------------------------------------------
+!BOPI
+! !MODULE: ESMF_ArrayCreateMod - Provide TKR overloading for ESMF_ArrayCreate()
+!
+! !DESCRIPTION:
+!
+! The code in this file is part of the {\tt ESMF\_Array} class Fortran API.
+!
+!
+!------------------------------------------------------------------------------
+! !USES:
+  use ESMF_UtilTypesMod ! ESMF utility types
+  use ESMF_InitMacrosMod ! ESMF initializer macros
+  use ESMF_BaseMod ! ESMF base class
+  use ESMF_LogErrMod ! ESMF error handling
+  use ESMF_LocalArrayMod
+  use ESMF_ArraySpecMod
+  use ESMF_VMMod
+  use ESMF_DELayoutMod
+  use ESMF_DistGridMod
+  use ESMF_RHandleMod
+  use ESMF_F90InterfaceMod ! ESMF Fortran-C++ interface helper
+
+  implicit none
+
+!------------------------------------------------------------------------------
+! !PRIVATE TYPES:
+  private
+
+!------------------------------------------------------------------------------
+! ! ESMF_Array
+!
+!------------------------------------------------------------------------------
+
+  ! Fortran class type to hold pointer to C++ object
+  type ESMF_Array
+  sequence
+  private
+    type(ESMF_Pointer) :: this
+    ESMF_INIT_DECLARE
+  end type
+
+!------------------------------------------------------------------------------
+! !PUBLIC TYPES:
+  public ESMF_Array
+
+!------------------------------------------------------------------------------
+!
+! !PUBLIC MEMBER FUNCTIONS:
+
+! - ESMF-public methods:
+  public ESMF_ArrayCreate
+  public ESMF_ArrayDestroy
+
+! - ESMF-internal methods:
+  public ESMF_ArrayGetInit
+  public ESMF_ArraySetInitCreated
+  public ESMF_ArrayGetThis
+  public ESMF_ArraySetThis
+  public ESMF_ArraySetThisNull
+  public ESMF_ArrayCopyThis
+! ESMF_ArrayCreateFromGrid - defined in ESMF_Grid.F90 due to circularity issues
+
+!EOPI
+!------------------------------------------------------------------------------
+
+!------------------------------------------------------------------------------
+! The following line turns the CVS identifier string into a printable variable.
+  character(*), parameter, private :: version = &
+    '$Id: ESMF_ArrayCreate.cppF90,v 1.43.2.2 2010/03/10 05:43:01 theurich Exp $'
+
+!==============================================================================
+!
+! INTERFACE BLOCKS
+!
+!==============================================================================
+
+
+! -------------------------- ESMF-public method -------------------------------
+!BOPI
+! !IROUTINE: ESMF_ArrayCreate -- Generic interface
+
+! !INTERFACE:
+  interface ESMF_ArrayCreate
+
+! !PRIVATE MEMBER FUNCTIONS:
+!
+    !------------------------------------------------------------------------------ 
+! <This section created by macro - do not edit directly> 
+#ifndef ESMF_NO_INTEGER_1_BYTE 
+ module procedure ESMF_ArrayCreateAssmdShape1DI1 
+ module procedure ESMF_ArrayCreateAssmdShape2DI1 
+ module procedure ESMF_ArrayCreateAssmdShape3DI1 
+ module procedure ESMF_ArrayCreateAssmdShape4DI1 
+#ifndef ESMF_NO_GREATER_THAN_4D 
+ module procedure ESMF_ArrayCreateAssmdShape5DI1 
+ module procedure ESMF_ArrayCreateAssmdShape6DI1 
+ module procedure ESMF_ArrayCreateAssmdShape7DI1 
+#endif 
+#endif 
+#ifndef ESMF_NO_INTEGER_2_BYTE 
+ module procedure ESMF_ArrayCreateAssmdShape1DI2 
+ module procedure ESMF_ArrayCreateAssmdShape2DI2 
+ module procedure ESMF_ArrayCreateAssmdShape3DI2 
+ module procedure ESMF_ArrayCreateAssmdShape4DI2 
+#ifndef ESMF_NO_GREATER_THAN_4D 
+ module procedure ESMF_ArrayCreateAssmdShape5DI2 
+ module procedure ESMF_ArrayCreateAssmdShape6DI2 
+ module procedure ESMF_ArrayCreateAssmdShape7DI2 
+#endif 
+#endif 
+ module procedure ESMF_ArrayCreateAssmdShape1DI4 
+ module procedure ESMF_ArrayCreateAssmdShape1DI8 
+ module procedure ESMF_ArrayCreateAssmdShape1DR4 
+ module procedure ESMF_ArrayCreateAssmdShape1DR8 
+ module procedure ESMF_ArrayCreateAssmdShape2DI4 
+ module procedure ESMF_ArrayCreateAssmdShape2DI8 
+ module procedure ESMF_ArrayCreateAssmdShape2DR4 
+ module procedure ESMF_ArrayCreateAssmdShape2DR8 
+ module procedure ESMF_ArrayCreateAssmdShape3DI4 
+ module procedure ESMF_ArrayCreateAssmdShape3DI8 
+ module procedure ESMF_ArrayCreateAssmdShape3DR4 
+ module procedure ESMF_ArrayCreateAssmdShape3DR8 
+ module procedure ESMF_ArrayCreateAssmdShape4DI4 
+ module procedure ESMF_ArrayCreateAssmdShape4DI8 
+ module procedure ESMF_ArrayCreateAssmdShape4DR4 
+ module procedure ESMF_ArrayCreateAssmdShape4DR8 
+#ifndef ESMF_NO_GREATER_THAN_4D 
+ module procedure ESMF_ArrayCreateAssmdShape5DI4 
+ module procedure ESMF_ArrayCreateAssmdShape5DI8 
+ module procedure ESMF_ArrayCreateAssmdShape5DR4 
+ module procedure ESMF_ArrayCreateAssmdShape5DR8 
+ module procedure ESMF_ArrayCreateAssmdShape6DI4 
+ module procedure ESMF_ArrayCreateAssmdShape6DI8 
+ module procedure ESMF_ArrayCreateAssmdShape6DR4 
+ module procedure ESMF_ArrayCreateAssmdShape6DR8 
+ module procedure ESMF_ArrayCreateAssmdShape7DI4 
+ module procedure ESMF_ArrayCreateAssmdShape7DI8 
+ module procedure ESMF_ArrayCreateAssmdShape7DR4 
+ module procedure ESMF_ArrayCreateAssmdShape7DR8 
+#endif 
+! < end macro - do not edit directly > 
+!------------------------------------------------------------------------------ 
+
+    !------------------------------------------------------------------------------ 
+! <This section created by macro - do not edit directly> 
+#ifndef ESMF_NO_INTEGER_1_BYTE 
+ module procedure ESMF_ArrayCreateFromPtr1DI1 
+ module procedure ESMF_ArrayCreateFromPtr2DI1 
+ module procedure ESMF_ArrayCreateFromPtr3DI1 
+ module procedure ESMF_ArrayCreateFromPtr4DI1 
+#ifndef ESMF_NO_GREATER_THAN_4D 
+ module procedure ESMF_ArrayCreateFromPtr5DI1 
+ module procedure ESMF_ArrayCreateFromPtr6DI1 
+ module procedure ESMF_ArrayCreateFromPtr7DI1 
+#endif 
+#endif 
+#ifndef ESMF_NO_INTEGER_2_BYTE 
+ module procedure ESMF_ArrayCreateFromPtr1DI2 
+ module procedure ESMF_ArrayCreateFromPtr2DI2 
+ module procedure ESMF_ArrayCreateFromPtr3DI2 
+ module procedure ESMF_ArrayCreateFromPtr4DI2 
+#ifndef ESMF_NO_GREATER_THAN_4D 
+ module procedure ESMF_ArrayCreateFromPtr5DI2 
+ module procedure ESMF_ArrayCreateFromPtr6DI2 
+ module procedure ESMF_ArrayCreateFromPtr7DI2 
+#endif 
+#endif 
+ module procedure ESMF_ArrayCreateFromPtr1DI4 
+ module procedure ESMF_ArrayCreateFromPtr1DI8 
+ module procedure ESMF_ArrayCreateFromPtr1DR4 
+ module procedure ESMF_ArrayCreateFromPtr1DR8 
+ module procedure ESMF_ArrayCreateFromPtr2DI4 
+ module procedure ESMF_ArrayCreateFromPtr2DI8 
+ module procedure ESMF_ArrayCreateFromPtr2DR4 
+ module procedure ESMF_ArrayCreateFromPtr2DR8 
+ module procedure ESMF_ArrayCreateFromPtr3DI4 
+ module procedure ESMF_ArrayCreateFromPtr3DI8 
+ module procedure ESMF_ArrayCreateFromPtr3DR4 
+ module procedure ESMF_ArrayCreateFromPtr3DR8 
+ module procedure ESMF_ArrayCreateFromPtr4DI4 
+ module procedure ESMF_ArrayCreateFromPtr4DI8 
+ module procedure ESMF_ArrayCreateFromPtr4DR4 
+ module procedure ESMF_ArrayCreateFromPtr4DR8 
+#ifndef ESMF_NO_GREATER_THAN_4D 
+ module procedure ESMF_ArrayCreateFromPtr5DI4 
+ module procedure ESMF_ArrayCreateFromPtr5DI8 
+ module procedure ESMF_ArrayCreateFromPtr5DR4 
+ module procedure ESMF_ArrayCreateFromPtr5DR8 
+ module procedure ESMF_ArrayCreateFromPtr6DI4 
+ module procedure ESMF_ArrayCreateFromPtr6DI8 
+ module procedure ESMF_ArrayCreateFromPtr6DR4 
+ module procedure ESMF_ArrayCreateFromPtr6DR8 
+ module procedure ESMF_ArrayCreateFromPtr7DI4 
+ module procedure ESMF_ArrayCreateFromPtr7DI8 
+ module procedure ESMF_ArrayCreateFromPtr7DR4 
+ module procedure ESMF_ArrayCreateFromPtr7DR8 
+#endif 
+! < end macro - do not edit directly > 
+!------------------------------------------------------------------------------ 
+
+    module procedure ESMF_ArrayCreateLocalArray
+    module procedure ESMF_ArrayCreateAllocate
+    module procedure ESMF_ArrayCreateCopy
+
+    module procedure ESMF_ArrayCreateFromLA !1st prototype
+
+! !DESCRIPTION:
+! This interface provides a single entry point for the various
+! types of {\tt ESMF\_ArrayCreate} functions.
+!EOPI
+  end interface
+
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+contains
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+
+!===============================================================================
+! ArrayCreate() interfaces
+!===============================================================================
+!------------------------------------------------------------------------------ 
+! <This section created by macro - do not edit directly> 
+ 
+!! < start of macros which become actual subroutine bodies after expansion > 
+ 
+! -------------------------- ESMF-public method ----------------------------- 
+!BOP 
+! !IROUTINE: ESMF_ArrayCreate - Create Array object from Fortran array pointer 
+! 
+! !INTERFACE: 
+! ! Private name; call using ESMF_ArrayCreate() 
+! function ESMF_ArrayCreateFromPtr<rank><type><kind>(farrayPtr, & 
+! distgrid, copyflag, distgridToArrayMap, computationalEdgeLWidth, & 
+! computationalEdgeUWidth, computationalLWidth, & 
+! computationalUWidth, totalLWidth, & 
+! totalUWidth, name, rc) 
+! 
+! !ARGUMENTS: 
+! <type> (ESMF_KIND_<kind>),dimension(<rank>),pointer :: farrayPtr 
+! type(ESMF_DistGrid), intent(in) :: distgrid 
+! type(ESMF_CopyFlag), intent(in), optional :: copyflag 
+! integer, intent(in), optional :: distgridToArrayMap(:) 
+! integer, intent(in), optional :: computationalEdgeLWidth(:) 
+! integer, intent(in), optional :: computationalEdgeUWidth(:) 
+! integer, intent(in), optional :: computationalLWidth(:) 
+! integer, intent(in), optional :: computationalUWidth(:) 
+! integer, intent(in), optional :: totalLWidth(:) 
+! integer, intent(in), optional :: totalUWidth(:) 
+! character (len=*), intent(in), optional :: name 
+! integer, intent(out), optional :: rc 
+! 
+! !RETURN VALUE: 
+! type(ESMF_Array) :: ESMF_ArrayCreateFromPtrmrankDmtypekind 
+! 
+! !DESCRIPTION: 
+! Create an {\tt ESMF\_Array} object from existing local native Fortran 
+! arrays with pointer attribute, according to distgrid. Besides 
+! {\tt farrayPtr} each PET must issue this call with identical arguments in 
+! order to create a consistent Array object. The bounds of the local arrays 
+! are preserved by this call and determine the bounds of the total region of 
+! the resulting Array object. Bounds of the DE-local exclusive regions are 
+! set to be consistent with the total regions and the specified distgrid 
+! argument. Bounds for Array dimensions that are not distributed are 
+! automatically set to the bounds provided by {\tt farrayPtr}. 
+! 
+! This interface requires a 1 DE per PET decomposition. The Array object will 
+! not be created and an error will be returned if this condition is not met. 
+! 
+! The not distributed Array dimensions form a tensor of rank = array.rank - 
+! distgrid.dimCount. By default all tensor elements are associated with 
+! stagger location 0. The widths of the computational region are set to 
+! the provided value, or zero by default, for all tensor elements. Use 
+! {\tt ESMF\_ArraySet()} to change these default settings after the 
+! Array object has been created. 
+! 
+! The return value is the newly created {\tt ESMF\_Array} object. 
+! 
+! The arguments are: 
+! \begin{description} 
+! \item[farrayPtr] 
+! Valid native Fortran array with pointer attribute. Memory must be 
+! associated with the actual argument. The type/kind/rank information of 
+! {\tt farrayPtr} will be used to set {\tt Array}'s properties 
+! accordingly. The shape of {\tt farrayPtr} will be checked against the 
+! information contained in the {\tt distgrid}. The bounds of 
+! {\tt farrayPtr} will be preserved by this call and the bounds of the 
+! resulting Array object are set accordingly. 
+! \item[distgrid] 
+! {\tt ESMF\_DistGrid} object that describes how the array is decomposed and 
+! distributed over DEs. The dimCount of distgrid must be smaller or equal 
+! to the rank of {\tt farrayPtr}. 
+! \item[{[copyflag]}] 
+! Specifies whether the Array object will reference the memory allocation 
+! provided by {\tt farrayPtr} directly or will copy the data from 
+! {\tt farrayPtr} into a new memory allocation. Valid options are 
+! {\tt ESMF\_DATA\_REF} (default) or {\tt ESMF\_DATA\_COPY}. 
+! Depending on the specific situation the {\tt ESMF\_DATA\_REF} option 
+! may be unsafe when specifying an array slice for {\tt farrayPtr}. 
+! \item[{[distgridToArrayMap]}] 
+! List that contains as many elements as is indicated by 
+! {\tt distgrids}'s dimCount. The list elements map each dimension of 
+! the DistGrid object to a dimension in {\tt farrayPtr} by specifying the 
+! appropriate Array dimension index. The default is to map all of 
+! {\tt distgrid}'s dimensions against the lower dimensions of the 
+! {\tt farrayPtr} argument in sequence, i.e. {\tt distgridToArrayMap = 
+! (/1, 2, .../)}. 
+! Unmapped {\tt farrayPtr} dimensions are not decomposed dimensions and 
+! form a tensor of rank = Array.rank - DistGrid.dimCount. 
+! All {\tt distgridToArrayMap} entries must be greater than or equal 
+! to zero and smaller than or equal to the Array rank. It is erroneous 
+! to specify the same entry multiple times unless it is zero. 
+! If the Array rank is less than the DistGrid dimCount then the default 
+! distgridToArrayMap will contain zeros for the dimCount - rank 
+! rightmost entries. A zero entry in the {\tt distgridToArrayMap} 
+! indicates that the particular DistGrid dimension will be replicating 
+! the Array across the DEs along this direction. 
+! \item[{[computationalEdgeLWidth]}] 
+! This vector argument must have dimCount elements, where dimCount is 
+! specified in distgrid. It specifies the lower corner of the computational 
+! region with respect to the lower corner of the exclusive region for DEs 
+! that are located on the edge of a patch. 
+! The default is a zero vector. 
+! \item[{[computationalEdgeUWidth]}] 
+! This vector argument must have dimCount elements, where dimCount is 
+! specified in distgrid. It specifies the upper corner of the computational 
+! region with respect to the upper corner of the exclusive region for DEs 
+! that are located on the edge of a patch. 
+! The default is a zero vector. 
+! \item[{[computationalLWidth]}] 
+! This vector argument must have dimCount elements, where dimCount is 
+! specified in distgrid. It specifies the lower corner of the computational 
+! region with respect to the lower corner of the exclusive region. 
+! The default is a zero vector. 
+! \item[{[computationalUWidth]}] 
+! This vector argument must have dimCount elements, where dimCount is 
+! specified in distgrid. It specifies the upper corner of the computational 
+! region with respect to the upper corner of the exclusive region. 
+! The default is a zero vector. 
+! \item[{[totalLWidth]}] 
+! This vector argument must have dimCount elements, where dimCount is 
+! specified in distgrid. It specifies the lower corner of the total memory 
+! region with respect to the lower corner of the computational region. 
+! The default is to accommodate the union of exclusive and computational 
+! region exactly. 
+! \item[{[totalUWidth]}] 
+! This vector argument must have dimCount elements, where dimCount is 
+! specified in distgrid. It specifies the upper corner of the total memory 
+! region with respect to the upper corner of the computational region. 
+! The default is a vector that contains the remaining number of elements 
+! in each direction as to fit the union of exclusive and computational 
+! region into the memory region provided by the {\tt farrayPtr} argument. 
+! \item[{[name]}] 
+! Name of the Array object. 
+! \item[{[rc]}] 
+! Return code; equals {\tt ESMF\_SUCCESS} if there are no errors. 
+! \end{description} 
+! 
+!EOP 
+!---------------------------------------------------------------------------- 
+ 
+#ifndef ESMF_NO_INTEGER_1_BYTE 
+! -------------------------- ESMF-public method ----------------------------- 
+#undef ESMF_METHOD 
+#define ESMF_METHOD "ESMF_ArrayCreateFromPtr" 
+ function ESMF_ArrayCreateFromPtr1Di1(farrayPtr, & 
+ distgrid, copyflag, distgridToArrayMap, & 
+ computationalEdgeLWidth, computationalEdgeUWidth, & 
+ computationalLWidth, computationalUWidth, totalLWidth, & 
+ totalUWidth, name, rc) 
+
+ type(ESMF_Array) :: ESMF_ArrayCreateFromPtr1Di1 
+
+ integer (ESMF_KIND_i1),dimension(:),pointer :: farrayPtr 
+ type(ESMF_DistGrid), intent(in) :: distgrid 
+ type(ESMF_CopyFlag), intent(in), optional :: copyflag 
+ integer, intent(in), optional :: distgridToArrayMap(:) 
+ integer, intent(in), optional :: computationalEdgeLWidth(:) 
+ integer, intent(in), optional :: computationalEdgeUWidth(:) 
+ integer, intent(in), optional :: computationalLWidth(:) 
+ integer, intent(in), optional :: computationalUWidth(:) 
+ integer, intent(in), optional :: totalLWidth(:) 
+ integer, intent(in), optional :: totalUWidth(:) 
+ character (len=*), intent(in), optional :: name 
+ integer, intent(out), optional :: rc 
+
+ ! Local variables 
+ integer :: localrc ! local return code 
+ type(ESMF_Array) :: array ! new Array 
+ type(ESMF_LocalArray), allocatable :: larrayList(:) ! helper variable 
+ type(ESMF_CopyFlag) :: copyflag_opt ! helper variable 
+
+ ! Initialize return code; assume failure until success is certain 
+ localrc = ESMF_RC_NOT_IMPL 
+ if (present(rc)) rc = ESMF_RC_NOT_IMPL 
+
+ ! Check init status of arguments 
+ ESMF_INIT_CHECK_DEEP_SHORT(ESMF_DistGridGetInit, distgrid, rc) 
+
+ ! Mark this Array object as invalid 
+ array%this = ESMF_NULL_POINTER 
+
+ ! Set copy/ref behavior 
+ copyflag_opt = ESMF_DATA_REF ! default 
+ if (present(copyflag)) copyflag_opt = copyflag 
+
+ ! Prepare the LocalArray list to be used in the ArrayCreate() call. 
+ ! Must pass the copyflag_opt flag into LocalArrayCreate() to ensure 
+ ! that the LocalArray object contained in the larrayList, passed to 
+ ! ArrayCreate() below, is suitable to be placed inside of the Array 
+ ! object directly. ArrayCreate() does _not_ create LocalArray objects 
+ ! internally for ESMF_INDEX_USER. 
+ allocate(larrayList(1)) 
+ larrayList(1) = ESMF_LocalArrayCreate(farrayPtr, copyflag_opt, rc=localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+
+ ! Create the Array object by calling into overloaded ArrayCreate() interf. 
+ array = ESMF_ArrayCreate(larrayList, distgrid, ESMF_INDEX_USER, & 
+ copyflag_opt, distgridToArrayMap, computationalEdgeLWidth, & 
+ computationalEdgeUWidth, computationalLWidth, computationalUWidth, & 
+ totalLWidth, totalUWidth, name=name, rc=localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+
+ ! Garbage collection. The ArrayCreate() call will have placed the 
+ ! LocalArray object created above into the Array object. It will be 
+ ! destroyed when the Array object is destroyed. Only the larrayList 
+ ! must be cleaned up here. 
+ deallocate(larrayList) 
+
+ ! Set return value 
+ ESMF_ArrayCreateFromPtr1Di1 = array 
+
+ ! Set init code 
+ ESMF_INIT_SET_CREATED(ESMF_ArrayCreateFromPtr1Di1) 
+
+ ! Return successfully 
+ if (present(rc)) rc = ESMF_SUCCESS 
+
+ end function ESMF_ArrayCreateFromPtr1Di1 
+!---------------------------------------------------------------------------- 
+ 
+! -------------------------- ESMF-public method ----------------------------- 
+#undef ESMF_METHOD 
+#define ESMF_METHOD "ESMF_ArrayCreateFromPtr" 
+ function ESMF_ArrayCreateFromPtr2Di1(farrayPtr, & 
+ distgrid, copyflag, distgridToArrayMap, & 
+ computationalEdgeLWidth, computationalEdgeUWidth, & 
+ computationalLWidth, computationalUWidth, totalLWidth, & 
+ totalUWidth, name, rc) 
+
+ type(ESMF_Array) :: ESMF_ArrayCreateFromPtr2Di1 
+
+ integer (ESMF_KIND_i1),dimension(:,:),pointer :: farrayPtr 
+ type(ESMF_DistGrid), intent(in) :: distgrid 
+ type(ESMF_CopyFlag), intent(in), optional :: copyflag 
+ integer, intent(in), optional :: distgridToArrayMap(:) 
+ integer, intent(in), optional :: computationalEdgeLWidth(:) 
+ integer, intent(in), optional :: computationalEdgeUWidth(:) 
+ integer, intent(in), optional :: computationalLWidth(:) 
+ integer, intent(in), optional :: computationalUWidth(:) 
+ integer, intent(in), optional :: totalLWidth(:) 
+ integer, intent(in), optional :: totalUWidth(:) 
+ character (len=*), intent(in), optional :: name 
+ integer, intent(out), optional :: rc 
+
+ ! Local variables 
+ integer :: localrc ! local return code 
+ type(ESMF_Array) :: array ! new Array 
+ type(ESMF_LocalArray), allocatable :: larrayList(:) ! helper variable 
+ type(ESMF_CopyFlag) :: copyflag_opt ! helper variable 
+
+ ! Initialize return code; assume failure until success is certain 
+ localrc = ESMF_RC_NOT_IMPL 
+ if (present(rc)) rc = ESMF_RC_NOT_IMPL 
+
+ ! Check init status of arguments 
+ ESMF_INIT_CHECK_DEEP_SHORT(ESMF_DistGridGetInit, distgrid, rc) 
+
+ ! Mark this Array object as invalid 
+ array%this = ESMF_NULL_POINTER 
+
+ ! Set copy/ref behavior 
+ copyflag_opt = ESMF_DATA_REF ! default 
+ if (present(copyflag)) copyflag_opt = copyflag 
+
+ ! Prepare the LocalArray list to be used in the ArrayCreate() call. 
+ ! Must pass the copyflag_opt flag into LocalArrayCreate() to ensure 
+ ! that the LocalArray object contained in the larrayList, passed to 
+ ! ArrayCreate() below, is suitable to be placed inside of the Array 
+ ! object directly. ArrayCreate() does _not_ create LocalArray objects 
+ ! internally for ESMF_INDEX_USER. 
+ allocate(larrayList(1)) 
+ larrayList(1) = ESMF_LocalArrayCreate(farrayPtr, copyflag_opt, rc=localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+
+ ! Create the Array object by calling into overloaded ArrayCreate() interf. 
+ array = ESMF_ArrayCreate(larrayList, distgrid, ESMF_INDEX_USER, & 
+ copyflag_opt, distgridToArrayMap, computationalEdgeLWidth, & 
+ computationalEdgeUWidth, computationalLWidth, computationalUWidth, & 
+ totalLWidth, totalUWidth, name=name, rc=localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+
+ ! Garbage collection. The ArrayCreate() call will have placed the 
+ ! LocalArray object created above into the Array object. It will be 
+ ! destroyed when the Array object is destroyed. Only the larrayList 
+ ! must be cleaned up here. 
+ deallocate(larrayList) 
+
+ ! Set return value 
+ ESMF_ArrayCreateFromPtr2Di1 = array 
+
+ ! Set init code 
+ ESMF_INIT_SET_CREATED(ESMF_ArrayCreateFromPtr2Di1) 
+
+ ! Return successfully 
+ if (present(rc)) rc = ESMF_SUCCESS 
+
+ end function ESMF_ArrayCreateFromPtr2Di1 
+!---------------------------------------------------------------------------- 
+ 
+! -------------------------- ESMF-public method ----------------------------- 
+#undef ESMF_METHOD 
+#define ESMF_METHOD "ESMF_ArrayCreateFromPtr" 
+ function ESMF_ArrayCreateFromPtr3Di1(farrayPtr, & 
+ distgrid, copyflag, distgridToArrayMap, & 
+ computationalEdgeLWidth, computationalEdgeUWidth, & 
+ computationalLWidth, computationalUWidth, totalLWidth, & 
+ totalUWidth, name, rc) 
+
+ type(ESMF_Array) :: ESMF_ArrayCreateFromPtr3Di1 
+
+ integer (ESMF_KIND_i1),dimension(:,:,:),pointer :: farrayPtr 
+ type(ESMF_DistGrid), intent(in) :: distgrid 
+ type(ESMF_CopyFlag), intent(in), optional :: copyflag 
+ integer, intent(in), optional :: distgridToArrayMap(:) 
+ integer, intent(in), optional :: computationalEdgeLWidth(:) 
+ integer, intent(in), optional :: computationalEdgeUWidth(:) 
+ integer, intent(in), optional :: computationalLWidth(:) 
+ integer, intent(in), optional :: computationalUWidth(:) 
+ integer, intent(in), optional :: totalLWidth(:) 
+ integer, intent(in), optional :: totalUWidth(:) 
+ character (len=*), intent(in), optional :: name 
+ integer, intent(out), optional :: rc 
+
+ ! Local variables 
+ integer :: localrc ! local return code 
+ type(ESMF_Array) :: array ! new Array 
+ type(ESMF_LocalArray), allocatable :: larrayList(:) ! helper variable 
+ type(ESMF_CopyFlag) :: copyflag_opt ! helper variable 
+
+ ! Initialize return code; assume failure until success is certain 
+ localrc = ESMF_RC_NOT_IMPL 
+ if (present(rc)) rc = ESMF_RC_NOT_IMPL 
+
+ ! Check init status of arguments 
+ ESMF_INIT_CHECK_DEEP_SHORT(ESMF_DistGridGetInit, distgrid, rc) 
+
+ ! Mark this Array object as invalid 
+ array%this = ESMF_NULL_POINTER 
+
+ ! Set copy/ref behavior 
+ copyflag_opt = ESMF_DATA_REF ! default 
+ if (present(copyflag)) copyflag_opt = copyflag 
+
+ ! Prepare the LocalArray list to be used in the ArrayCreate() call. 
+ ! Must pass the copyflag_opt flag into LocalArrayCreate() to ensure 
+ ! that the LocalArray object contained in the larrayList, passed to 
+ ! ArrayCreate() below, is suitable to be placed inside of the Array 
+ ! object directly. ArrayCreate() does _not_ create LocalArray objects 
+ ! internally for ESMF_INDEX_USER. 
+ allocate(larrayList(1)) 
+ larrayList(1) = ESMF_LocalArrayCreate(farrayPtr, copyflag_opt, rc=localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+
+ ! Create the Array object by calling into overloaded ArrayCreate() interf. 
+ array = ESMF_ArrayCreate(larrayList, distgrid, ESMF_INDEX_USER, & 
+ copyflag_opt, distgridToArrayMap, computationalEdgeLWidth, & 
+ computationalEdgeUWidth, computationalLWidth, computationalUWidth, & 
+ totalLWidth, totalUWidth, name=name, rc=localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+
+ ! Garbage collection. The ArrayCreate() call will have placed the 
+ ! LocalArray object created above into the Array object. It will be 
+ ! destroyed when the Array object is destroyed. Only the larrayList 
+ ! must be cleaned up here. 
+ deallocate(larrayList) 
+
+ ! Set return value 
+ ESMF_ArrayCreateFromPtr3Di1 = array 
+
+ ! Set init code 
+ ESMF_INIT_SET_CREATED(ESMF_ArrayCreateFromPtr3Di1) 
+
+ ! Return successfully 
+ if (present(rc)) rc = ESMF_SUCCESS 
+
+ end function ESMF_ArrayCreateFromPtr3Di1 
+!---------------------------------------------------------------------------- 
+ 
+! -------------------------- ESMF-public method ----------------------------- 
+#undef ESMF_METHOD 
+#define ESMF_METHOD "ESMF_ArrayCreateFromPtr" 
+ function ESMF_ArrayCreateFromPtr4Di1(farrayPtr, & 
+ distgrid, copyflag, distgridToArrayMap, & 
+ computationalEdgeLWidth, computationalEdgeUWidth, & 
+ computationalLWidth, computationalUWidth, totalLWidth, & 
+ totalUWidth, name, rc) 
+
+ type(ESMF_Array) :: ESMF_ArrayCreateFromPtr4Di1 
+
+ integer (ESMF_KIND_i1),dimension(:,:,:,:),pointer :: farrayPtr 
+ type(ESMF_DistGrid), intent(in) :: distgrid 
+ type(ESMF_CopyFlag), intent(in), optional :: copyflag 
+ integer, intent(in), optional :: distgridToArrayMap(:) 
+ integer, intent(in), optional :: computationalEdgeLWidth(:) 
+ integer, intent(in), optional :: computationalEdgeUWidth(:) 
+ integer, intent(in), optional :: computationalLWidth(:) 
+ integer, intent(in), optional :: computationalUWidth(:) 
+ integer, intent(in), optional :: totalLWidth(:) 
+ integer, intent(in), optional :: totalUWidth(:) 
+ character (len=*), intent(in), optional :: name 
+ integer, intent(out), optional :: rc 
+
+ ! Local variables 
+ integer :: localrc ! local return code 
+ type(ESMF_Array) :: array ! new Array 
+ type(ESMF_LocalArray), allocatable :: larrayList(:) ! helper variable 
+ type(ESMF_CopyFlag) :: copyflag_opt ! helper variable 
+
+ ! Initialize return code; assume failure until success is certain 
+ localrc = ESMF_RC_NOT_IMPL 
+ if (present(rc)) rc = ESMF_RC_NOT_IMPL 
+
+ ! Check init status of arguments 
+ ESMF_INIT_CHECK_DEEP_SHORT(ESMF_DistGridGetInit, distgrid, rc) 
+
+ ! Mark this Array object as invalid 
+ array%this = ESMF_NULL_POINTER 
+
+ ! Set copy/ref behavior 
+ copyflag_opt = ESMF_DATA_REF ! default 
+ if (present(copyflag)) copyflag_opt = copyflag 
+
+ ! Prepare the LocalArray list to be used in the ArrayCreate() call. 
+ ! Must pass the copyflag_opt flag into LocalArrayCreate() to ensure 
+ ! that the LocalArray object contained in the larrayList, passed to 
+ ! ArrayCreate() below, is suitable to be placed inside of the Array 
+ ! object directly. ArrayCreate() does _not_ create LocalArray objects 
+ ! internally for ESMF_INDEX_USER. 
+ allocate(larrayList(1)) 
+ larrayList(1) = ESMF_LocalArrayCreate(farrayPtr, copyflag_opt, rc=localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+
+ ! Create the Array object by calling into overloaded ArrayCreate() interf. 
+ array = ESMF_ArrayCreate(larrayList, distgrid, ESMF_INDEX_USER, & 
+ copyflag_opt, distgridToArrayMap, computationalEdgeLWidth, & 
+ computationalEdgeUWidth, computationalLWidth, computationalUWidth, & 
+ totalLWidth, totalUWidth, name=name, rc=localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+
+ ! Garbage collection. The ArrayCreate() call will have placed the 
+ ! LocalArray object created above into the Array object. It will be 
+ ! destroyed when the Array object is destroyed. Only the larrayList 
+ ! must be cleaned up here. 
+ deallocate(larrayList) 
+
+ ! Set return value 
+ ESMF_ArrayCreateFromPtr4Di1 = array 
+
+ ! Set init code 
+ ESMF_INIT_SET_CREATED(ESMF_ArrayCreateFromPtr4Di1) 
+
+ ! Return successfully 
+ if (present(rc)) rc = ESMF_SUCCESS 
+
+ end function ESMF_ArrayCreateFromPtr4Di1 
+!---------------------------------------------------------------------------- 
+ 
+#ifndef ESMF_NO_GREATER_THAN_4D 
+! -------------------------- ESMF-public method ----------------------------- 
+#undef ESMF_METHOD 
+#define ESMF_METHOD "ESMF_ArrayCreateFromPtr" 
+ function ESMF_ArrayCreateFromPtr5Di1(farrayPtr, & 
+ distgrid, copyflag, distgridToArrayMap, & 
+ computationalEdgeLWidth, computationalEdgeUWidth, & 
+ computationalLWidth, computationalUWidth, totalLWidth, & 
+ totalUWidth, name, rc) 
+
+ type(ESMF_Array) :: ESMF_ArrayCreateFromPtr5Di1 
+
+ integer (ESMF_KIND_i1),dimension(:,:,:,:,:),pointer :: farrayPtr 
+ type(ESMF_DistGrid), intent(in) :: distgrid 
+ type(ESMF_CopyFlag), intent(in), optional :: copyflag 
+ integer, intent(in), optional :: distgridToArrayMap(:) 
+ integer, intent(in), optional :: computationalEdgeLWidth(:) 
+ integer, intent(in), optional :: computationalEdgeUWidth(:) 
+ integer, intent(in), optional :: computationalLWidth(:) 
+ integer, intent(in), optional :: computationalUWidth(:) 
+ integer, intent(in), optional :: totalLWidth(:) 
+ integer, intent(in), optional :: totalUWidth(:) 
+ character (len=*), intent(in), optional :: name 
+ integer, intent(out), optional :: rc 
+
+ ! Local variables 
+ integer :: localrc ! local return code 
+ type(ESMF_Array) :: array ! new Array 
+ type(ESMF_LocalArray), allocatable :: larrayList(:) ! helper variable 
+ type(ESMF_CopyFlag) :: copyflag_opt ! helper variable 
+
+ ! Initialize return code; assume failure until success is certain 
+ localrc = ESMF_RC_NOT_IMPL 
+ if (present(rc)) rc = ESMF_RC_NOT_IMPL 
+
+ ! Check init status of arguments 
+ ESMF_INIT_CHECK_DEEP_SHORT(ESMF_DistGridGetInit, distgrid, rc) 
+
+ ! Mark this Array object as invalid 
+ array%this = ESMF_NULL_POINTER 
+
+ ! Set copy/ref behavior 
+ copyflag_opt = ESMF_DATA_REF ! default 
+ if (present(copyflag)) copyflag_opt = copyflag 
+
+ ! Prepare the LocalArray list to be used in the ArrayCreate() call. 
+ ! Must pass the copyflag_opt flag into LocalArrayCreate() to ensure 
+ ! that the LocalArray object contained in the larrayList, passed to 
+ ! ArrayCreate() below, is suitable to be placed inside of the Array 
+ ! object directly. ArrayCreate() does _not_ create LocalArray objects 
+ ! internally for ESMF_INDEX_USER. 
+ allocate(larrayList(1)) 
+ larrayList(1) = ESMF_LocalArrayCreate(farrayPtr, copyflag_opt, rc=localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+
+ ! Create the Array object by calling into overloaded ArrayCreate() interf. 
+ array = ESMF_ArrayCreate(larrayList, distgrid, ESMF_INDEX_USER, & 
+ copyflag_opt, distgridToArrayMap, computationalEdgeLWidth, & 
+ computationalEdgeUWidth, computationalLWidth, computationalUWidth, & 
+ totalLWidth, totalUWidth, name=name, rc=localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+
+ ! Garbage collection. The ArrayCreate() call will have placed the 
+ ! LocalArray object created above into the Array object. It will be 
+ ! destroyed when the Array object is destroyed. Only the larrayList 
+ ! must be cleaned up here. 
+ deallocate(larrayList) 
+
+ ! Set return value 
+ ESMF_ArrayCreateFromPtr5Di1 = array 
+
+ ! Set init code 
+ ESMF_INIT_SET_CREATED(ESMF_ArrayCreateFromPtr5Di1) 
+
+ ! Return successfully 
+ if (present(rc)) rc = ESMF_SUCCESS 
+
+ end function ESMF_ArrayCreateFromPtr5Di1 
+!---------------------------------------------------------------------------- 
+ 
+! -------------------------- ESMF-public method ----------------------------- 
+#undef ESMF_METHOD 
+#define ESMF_METHOD "ESMF_ArrayCreateFromPtr" 
+ function ESMF_ArrayCreateFromPtr6Di1(farrayPtr, & 
+ distgrid, copyflag, distgridToArrayMap, & 
+ computationalEdgeLWidth, computationalEdgeUWidth, & 
+ computationalLWidth, computationalUWidth, totalLWidth, & 
+ totalUWidth, name, rc) 
+
+ type(ESMF_Array) :: ESMF_ArrayCreateFromPtr6Di1 
+
+ integer (ESMF_KIND_i1),dimension(:,:,:,:,:,:),pointer :: farrayPtr 
+ type(ESMF_DistGrid), intent(in) :: distgrid 
+ type(ESMF_CopyFlag), intent(in), optional :: copyflag 
+ integer, intent(in), optional :: distgridToArrayMap(:) 
+ integer, intent(in), optional :: computationalEdgeLWidth(:) 
+ integer, intent(in), optional :: computationalEdgeUWidth(:) 
+ integer, intent(in), optional :: computationalLWidth(:) 
+ integer, intent(in), optional :: computationalUWidth(:) 
+ integer, intent(in), optional :: totalLWidth(:) 
+ integer, intent(in), optional :: totalUWidth(:) 
+ character (len=*), intent(in), optional :: name 
+ integer, intent(out), optional :: rc 
+
+ ! Local variables 
+ integer :: localrc ! local return code 
+ type(ESMF_Array) :: array ! new Array 
+ type(ESMF_LocalArray), allocatable :: larrayList(:) ! helper variable 
+ type(ESMF_CopyFlag) :: copyflag_opt ! helper variable 
+
+ ! Initialize return code; assume failure until success is certain 
+ localrc = ESMF_RC_NOT_IMPL 
+ if (present(rc)) rc = ESMF_RC_NOT_IMPL 
+
+ ! Check init status of arguments 
+ ESMF_INIT_CHECK_DEEP_SHORT(ESMF_DistGridGetInit, distgrid, rc) 
+
+ ! Mark this Array object as invalid 
+ array%this = ESMF_NULL_POINTER 
+
+ ! Set copy/ref behavior 
+ copyflag_opt = ESMF_DATA_REF ! default 
+ if (present(copyflag)) copyflag_opt = copyflag 
+
+ ! Prepare the LocalArray list to be used in the ArrayCreate() call. 
+ ! Must pass the copyflag_opt flag into LocalArrayCreate() to ensure 
+ ! that the LocalArray object contained in the larrayList, passed to 
+ ! ArrayCreate() below, is suitable to be placed inside of the Array 
+ ! object directly. ArrayCreate() does _not_ create LocalArray objects 
+ ! internally for ESMF_INDEX_USER. 
+ allocate(larrayList(1)) 
+ larrayList(1) = ESMF_LocalArrayCreate(farrayPtr, copyflag_opt, rc=localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+
+ ! Create the Array object by calling into overloaded ArrayCreate() interf. 
+ array = ESMF_ArrayCreate(larrayList, distgrid, ESMF_INDEX_USER, & 
+ copyflag_opt, distgridToArrayMap, computationalEdgeLWidth, & 
+ computationalEdgeUWidth, computationalLWidth, computationalUWidth, & 
+ totalLWidth, totalUWidth, name=name, rc=localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+
+ ! Garbage collection. The ArrayCreate() call will have placed the 
+ ! LocalArray object created above into the Array object. It will be 
+ ! destroyed when the Array object is destroyed. Only the larrayList 
+ ! must be cleaned up here. 
+ deallocate(larrayList) 
+
+ ! Set return value 
+ ESMF_ArrayCreateFromPtr6Di1 = array 
+
+ ! Set init code 
+ ESMF_INIT_SET_CREATED(ESMF_ArrayCreateFromPtr6Di1) 
+
+ ! Return successfully 
+ if (present(rc)) rc = ESMF_SUCCESS 
+
+ end function ESMF_ArrayCreateFromPtr6Di1 
+!---------------------------------------------------------------------------- 
+ 
+! -------------------------- ESMF-public method ----------------------------- 
+#undef ESMF_METHOD 
+#define ESMF_METHOD "ESMF_ArrayCreateFromPtr" 
+ function ESMF_ArrayCreateFromPtr7Di1(farrayPtr, & 
+ distgrid, copyflag, distgridToArrayMap, & 
+ computationalEdgeLWidth, computationalEdgeUWidth, & 
+ computationalLWidth, computationalUWidth, totalLWidth, & 
+ totalUWidth, name, rc) 
+
+ type(ESMF_Array) :: ESMF_ArrayCreateFromPtr7Di1 
+
+ integer (ESMF_KIND_i1),dimension(:,:,:,:,:,:,:),pointer :: farrayPtr 
+ type(ESMF_DistGrid), intent(in) :: distgrid 
+ type(ESMF_CopyFlag), intent(in), optional :: copyflag 
+ integer, intent(in), optional :: distgridToArrayMap(:) 
+ integer, intent(in), optional :: computationalEdgeLWidth(:) 
+ integer, intent(in), optional :: computationalEdgeUWidth(:) 
+ integer, intent(in), optional :: computationalLWidth(:) 
+ integer, intent(in), optional :: computationalUWidth(:) 
+ integer, intent(in), optional :: totalLWidth(:) 
+ integer, intent(in), optional :: totalUWidth(:) 
+ character (len=*), intent(in), optional :: name 
+ integer, intent(out), optional :: rc 
+
+ ! Local variables 
+ integer :: localrc ! local return code 
+ type(ESMF_Array) :: array ! new Array 
+ type(ESMF_LocalArray), allocatable :: larrayList(:) ! helper variable 
+ type(ESMF_CopyFlag) :: copyflag_opt ! helper variable 
+
+ ! Initialize return code; assume failure until success is certain 
+ localrc = ESMF_RC_NOT_IMPL 
+ if (present(rc)) rc = ESMF_RC_NOT_IMPL 
+
+ ! Check init status of arguments 
+ ESMF_INIT_CHECK_DEEP_SHORT(ESMF_DistGridGetInit, distgrid, rc) 
+
+ ! Mark this Array object as invalid 
+ array%this = ESMF_NULL_POINTER 
+
+ ! Set copy/ref behavior 
+ copyflag_opt = ESMF_DATA_REF ! default 
+ if (present(copyflag)) copyflag_opt = copyflag 
+
+ ! Prepare the LocalArray list to be used in the ArrayCreate() call. 
+ ! Must pass the copyflag_opt flag into LocalArrayCreate() to ensure 
+ ! that the LocalArray object contained in the larrayList, passed to 
+ ! ArrayCreate() below, is suitable to be placed inside of the Array 
+ ! object directly. ArrayCreate() does _not_ create LocalArray objects 
+ ! internally for ESMF_INDEX_USER. 
+ allocate(larrayList(1)) 
+ larrayList(1) = ESMF_LocalArrayCreate(farrayPtr, copyflag_opt, rc=localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+
+ ! Create the Array object by calling into overloaded ArrayCreate() interf. 
+ array = ESMF_ArrayCreate(larrayList, distgrid, ESMF_INDEX_USER, & 
+ copyflag_opt, distgridToArrayMap, computationalEdgeLWidth, & 
+ computationalEdgeUWidth, computationalLWidth, computationalUWidth, & 
+ totalLWidth, totalUWidth, name=name, rc=localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+
+ ! Garbage collection. The ArrayCreate() call will have placed the 
+ ! LocalArray object created above into the Array object. It will be 
+ ! destroyed when the Array object is destroyed. Only the larrayList 
+ ! must be cleaned up here. 
+ deallocate(larrayList) 
+
+ ! Set return value 
+ ESMF_ArrayCreateFromPtr7Di1 = array 
+
+ ! Set init code 
+ ESMF_INIT_SET_CREATED(ESMF_ArrayCreateFromPtr7Di1) 
+
+ ! Return successfully 
+ if (present(rc)) rc = ESMF_SUCCESS 
+
+ end function ESMF_ArrayCreateFromPtr7Di1 
+!---------------------------------------------------------------------------- 
+ 
+#endif 
+#endif 
+#ifndef ESMF_NO_INTEGER_2_BYTE 
+! -------------------------- ESMF-public method ----------------------------- 
+#undef ESMF_METHOD 
+#define ESMF_METHOD "ESMF_ArrayCreateFromPtr" 
+ function ESMF_ArrayCreateFromPtr1Di2(farrayPtr, & 
+ distgrid, copyflag, distgridToArrayMap, & 
+ computationalEdgeLWidth, computationalEdgeUWidth, & 
+ computationalLWidth, computationalUWidth, totalLWidth, & 
+ totalUWidth, name, rc) 
+
+ type(ESMF_Array) :: ESMF_ArrayCreateFromPtr1Di2 
+
+ integer (ESMF_KIND_i2),dimension(:),pointer :: farrayPtr 
+ type(ESMF_DistGrid), intent(in) :: distgrid 
+ type(ESMF_CopyFlag), intent(in), optional :: copyflag 
+ integer, intent(in), optional :: distgridToArrayMap(:) 
+ integer, intent(in), optional :: computationalEdgeLWidth(:) 
+ integer, intent(in), optional :: computationalEdgeUWidth(:) 
+ integer, intent(in), optional :: computationalLWidth(:) 
+ integer, intent(in), optional :: computationalUWidth(:) 
+ integer, intent(in), optional :: totalLWidth(:) 
+ integer, intent(in), optional :: totalUWidth(:) 
+ character (len=*), intent(in), optional :: name 
+ integer, intent(out), optional :: rc 
+
+ ! Local variables 
+ integer :: localrc ! local return code 
+ type(ESMF_Array) :: array ! new Array 
+ type(ESMF_LocalArray), allocatable :: larrayList(:) ! helper variable 
+ type(ESMF_CopyFlag) :: copyflag_opt ! helper variable 
+
+ ! Initialize return code; assume failure until success is certain 
+ localrc = ESMF_RC_NOT_IMPL 
+ if (present(rc)) rc = ESMF_RC_NOT_IMPL 
+
+ ! Check init status of arguments 
+ ESMF_INIT_CHECK_DEEP_SHORT(ESMF_DistGridGetInit, distgrid, rc) 
+
+ ! Mark this Array object as invalid 
+ array%this = ESMF_NULL_POINTER 
+
+ ! Set copy/ref behavior 
+ copyflag_opt = ESMF_DATA_REF ! default 
+ if (present(copyflag)) copyflag_opt = copyflag 
+
+ ! Prepare the LocalArray list to be used in the ArrayCreate() call. 
+ ! Must pass the copyflag_opt flag into LocalArrayCreate() to ensure 
+ ! that the LocalArray object contained in the larrayList, passed to 
+ ! ArrayCreate() below, is suitable to be placed inside of the Array 
+ ! object directly. ArrayCreate() does _not_ create LocalArray objects 
+ ! internally for ESMF_INDEX_USER. 
+ allocate(larrayList(1)) 
+ larrayList(1) = ESMF_LocalArrayCreate(farrayPtr, copyflag_opt, rc=localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+
+ ! Create the Array object by calling into overloaded ArrayCreate() interf. 
+ array = ESMF_ArrayCreate(larrayList, distgrid, ESMF_INDEX_USER, & 
+ copyflag_opt, distgridToArrayMap, computationalEdgeLWidth, & 
+ computationalEdgeUWidth, computationalLWidth, computationalUWidth, & 
+ totalLWidth, totalUWidth, name=name, rc=localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+
+ ! Garbage collection. The ArrayCreate() call will have placed the 
+ ! LocalArray object created above into the Array object. It will be 
+ ! destroyed when the Array object is destroyed. Only the larrayList 
+ ! must be cleaned up here. 
+ deallocate(larrayList) 
+
+ ! Set return value 
+ ESMF_ArrayCreateFromPtr1Di2 = array 
+
+ ! Set init code 
+ ESMF_INIT_SET_CREATED(ESMF_ArrayCreateFromPtr1Di2) 
+
+ ! Return successfully 
+ if (present(rc)) rc = ESMF_SUCCESS 
+
+ end function ESMF_ArrayCreateFromPtr1Di2 
+!---------------------------------------------------------------------------- 
+ 
+! -------------------------- ESMF-public method ----------------------------- 
+#undef ESMF_METHOD 
+#define ESMF_METHOD "ESMF_ArrayCreateFromPtr" 
+ function ESMF_ArrayCreateFromPtr2Di2(farrayPtr, & 
+ distgrid, copyflag, distgridToArrayMap, & 
+ computationalEdgeLWidth, computationalEdgeUWidth, & 
+ computationalLWidth, computationalUWidth, totalLWidth, & 
+ totalUWidth, name, rc) 
+
+ type(ESMF_Array) :: ESMF_ArrayCreateFromPtr2Di2 
+
+ integer (ESMF_KIND_i2),dimension(:,:),pointer :: farrayPtr 
+ type(ESMF_DistGrid), intent(in) :: distgrid 
+ type(ESMF_CopyFlag), intent(in), optional :: copyflag 
+ integer, intent(in), optional :: distgridToArrayMap(:) 
+ integer, intent(in), optional :: computationalEdgeLWidth(:) 
+ integer, intent(in), optional :: computationalEdgeUWidth(:) 
+ integer, intent(in), optional :: computationalLWidth(:) 
+ integer, intent(in), optional :: computationalUWidth(:) 
+ integer, intent(in), optional :: totalLWidth(:) 
+ integer, intent(in), optional :: totalUWidth(:) 
+ character (len=*), intent(in), optional :: name 
+ integer, intent(out), optional :: rc 
+
+ ! Local variables 
+ integer :: localrc ! local return code 
+ type(ESMF_Array) :: array ! new Array 
+ type(ESMF_LocalArray), allocatable :: larrayList(:) ! helper variable 
+ type(ESMF_CopyFlag) :: copyflag_opt ! helper variable 
+
+ ! Initialize return code; assume failure until success is certain 
+ localrc = ESMF_RC_NOT_IMPL 
+ if (present(rc)) rc = ESMF_RC_NOT_IMPL 
+
+ ! Check init status of arguments 
+ ESMF_INIT_CHECK_DEEP_SHORT(ESMF_DistGridGetInit, distgrid, rc) 
+
+ ! Mark this Array object as invalid 
+ array%this = ESMF_NULL_POINTER 
+
+ ! Set copy/ref behavior 
+ copyflag_opt = ESMF_DATA_REF ! default 
+ if (present(copyflag)) copyflag_opt = copyflag 
+
+ ! Prepare the LocalArray list to be used in the ArrayCreate() call. 
+ ! Must pass the copyflag_opt flag into LocalArrayCreate() to ensure 
+ ! that the LocalArray object contained in the larrayList, passed to 
+ ! ArrayCreate() below, is suitable to be placed inside of the Array 
+ ! object directly. ArrayCreate() does _not_ create LocalArray objects 
+ ! internally for ESMF_INDEX_USER. 
+ allocate(larrayList(1)) 
+ larrayList(1) = ESMF_LocalArrayCreate(farrayPtr, copyflag_opt, rc=localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+
+ ! Create the Array object by calling into overloaded ArrayCreate() interf. 
+ array = ESMF_ArrayCreate(larrayList, distgrid, ESMF_INDEX_USER, & 
+ copyflag_opt, distgridToArrayMap, computationalEdgeLWidth, & 
+ computationalEdgeUWidth, computationalLWidth, computationalUWidth, & 
+ totalLWidth, totalUWidth, name=name, rc=localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+
+ ! Garbage collection. The ArrayCreate() call will have placed the 
+ ! LocalArray object created above into the Array object. It will be 
+ ! destroyed when the Array object is destroyed. Only the larrayList 
+ ! must be cleaned up here. 
+ deallocate(larrayList) 
+
+ ! Set return value 
+ ESMF_ArrayCreateFromPtr2Di2 = array 
+
+ ! Set init code 
+ ESMF_INIT_SET_CREATED(ESMF_ArrayCreateFromPtr2Di2) 
+
+ ! Return successfully 
+ if (present(rc)) rc = ESMF_SUCCESS 
+
+ end function ESMF_ArrayCreateFromPtr2Di2 
+!---------------------------------------------------------------------------- 
+ 
+! -------------------------- ESMF-public method ----------------------------- 
+#undef ESMF_METHOD 
+#define ESMF_METHOD "ESMF_ArrayCreateFromPtr" 
+ function ESMF_ArrayCreateFromPtr3Di2(farrayPtr, & 
+ distgrid, copyflag, distgridToArrayMap, & 
+ computationalEdgeLWidth, computationalEdgeUWidth, & 
+ computationalLWidth, computationalUWidth, totalLWidth, & 
+ totalUWidth, name, rc) 
+
+ type(ESMF_Array) :: ESMF_ArrayCreateFromPtr3Di2 
+
+ integer (ESMF_KIND_i2),dimension(:,:,:),pointer :: farrayPtr 
+ type(ESMF_DistGrid), intent(in) :: distgrid 
+ type(ESMF_CopyFlag), intent(in), optional :: copyflag 
+ integer, intent(in), optional :: distgridToArrayMap(:) 
+ integer, intent(in), optional :: computationalEdgeLWidth(:) 
+ integer, intent(in), optional :: computationalEdgeUWidth(:) 
+ integer, intent(in), optional :: computationalLWidth(:) 
+ integer, intent(in), optional :: computationalUWidth(:) 
+ integer, intent(in), optional :: totalLWidth(:) 
+ integer, intent(in), optional :: totalUWidth(:) 
+ character (len=*), intent(in), optional :: name 
+ integer, intent(out), optional :: rc 
+
+ ! Local variables 
+ integer :: localrc ! local return code 
+ type(ESMF_Array) :: array ! new Array 
+ type(ESMF_LocalArray), allocatable :: larrayList(:) ! helper variable 
+ type(ESMF_CopyFlag) :: copyflag_opt ! helper variable 
+
+ ! Initialize return code; assume failure until success is certain 
+ localrc = ESMF_RC_NOT_IMPL 
+ if (present(rc)) rc = ESMF_RC_NOT_IMPL 
+
+ ! Check init status of arguments 
+ ESMF_INIT_CHECK_DEEP_SHORT(ESMF_DistGridGetInit, distgrid, rc) 
+
+ ! Mark this Array object as invalid 
+ array%this = ESMF_NULL_POINTER 
+
+ ! Set copy/ref behavior 
+ copyflag_opt = ESMF_DATA_REF ! default 
+ if (present(copyflag)) copyflag_opt = copyflag 
+
+ ! Prepare the LocalArray list to be used in the ArrayCreate() call. 
+ ! Must pass the copyflag_opt flag into LocalArrayCreate() to ensure 
+ ! that the LocalArray object contained in the larrayList, passed to 
+ ! ArrayCreate() below, is suitable to be placed inside of the Array 
+ ! object directly. ArrayCreate() does _not_ create LocalArray objects 
+ ! internally for ESMF_INDEX_USER. 
+ allocate(larrayList(1)) 
+ larrayList(1) = ESMF_LocalArrayCreate(farrayPtr, copyflag_opt, rc=localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+
+ ! Create the Array object by calling into overloaded ArrayCreate() interf. 
+ array = ESMF_ArrayCreate(larrayList, distgrid, ESMF_INDEX_USER, & 
+ copyflag_opt, distgridToArrayMap, computationalEdgeLWidth, & 
+ computationalEdgeUWidth, computationalLWidth, computationalUWidth, & 
+ totalLWidth, totalUWidth, name=name, rc=localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+
+ ! Garbage collection. The ArrayCreate() call will have placed the 
+ ! LocalArray object created above into the Array object. It will be 
+ ! destroyed when the Array object is destroyed. Only the larrayList 
+ ! must be cleaned up here. 
+ deallocate(larrayList) 
+
+ ! Set return value 
+ ESMF_ArrayCreateFromPtr3Di2 = array 
+
+ ! Set init code 
+ ESMF_INIT_SET_CREATED(ESMF_ArrayCreateFromPtr3Di2) 
+
+ ! Return successfully 
+ if (present(rc)) rc = ESMF_SUCCESS 
+
+ end function ESMF_ArrayCreateFromPtr3Di2 
+!---------------------------------------------------------------------------- 
+ 
+! -------------------------- ESMF-public method ----------------------------- 
+#undef ESMF_METHOD 
+#define ESMF_METHOD "ESMF_ArrayCreateFromPtr" 
+ function ESMF_ArrayCreateFromPtr4Di2(farrayPtr, & 
+ distgrid, copyflag, distgridToArrayMap, & 
+ computationalEdgeLWidth, computationalEdgeUWidth, & 
+ computationalLWidth, computationalUWidth, totalLWidth, & 
+ totalUWidth, name, rc) 
+
+ type(ESMF_Array) :: ESMF_ArrayCreateFromPtr4Di2 
+
+ integer (ESMF_KIND_i2),dimension(:,:,:,:),pointer :: farrayPtr 
+ type(ESMF_DistGrid), intent(in) :: distgrid 
+ type(ESMF_CopyFlag), intent(in), optional :: copyflag 
+ integer, intent(in), optional :: distgridToArrayMap(:) 
+ integer, intent(in), optional :: computationalEdgeLWidth(:) 
+ integer, intent(in), optional :: computationalEdgeUWidth(:) 
+ integer, intent(in), optional :: computationalLWidth(:) 
+ integer, intent(in), optional :: computationalUWidth(:) 
+ integer, intent(in), optional :: totalLWidth(:) 
+ integer, intent(in), optional :: totalUWidth(:) 
+ character (len=*), intent(in), optional :: name 
+ integer, intent(out), optional :: rc 
+
+ ! Local variables 
+ integer :: localrc ! local return code 
+ type(ESMF_Array) :: array ! new Array 
+ type(ESMF_LocalArray), allocatable :: larrayList(:) ! helper variable 
+ type(ESMF_CopyFlag) :: copyflag_opt ! helper variable 
+
+ ! Initialize return code; assume failure until success is certain 
+ localrc = ESMF_RC_NOT_IMPL 
+ if (present(rc)) rc = ESMF_RC_NOT_IMPL 
+
+ ! Check init status of arguments 
+ ESMF_INIT_CHECK_DEEP_SHORT(ESMF_DistGridGetInit, distgrid, rc) 
+
+ ! Mark this Array object as invalid 
+ array%this = ESMF_NULL_POINTER 
+
+ ! Set copy/ref behavior 
+ copyflag_opt = ESMF_DATA_REF ! default 
+ if (present(copyflag)) copyflag_opt = copyflag 
+
+ ! Prepare the LocalArray list to be used in the ArrayCreate() call. 
+ ! Must pass the copyflag_opt flag into LocalArrayCreate() to ensure 
+ ! that the LocalArray object contained in the larrayList, passed to 
+ ! ArrayCreate() below, is suitable to be placed inside of the Array 
+ ! object directly. ArrayCreate() does _not_ create LocalArray objects 
+ ! internally for ESMF_INDEX_USER. 
+ allocate(larrayList(1)) 
+ larrayList(1) = ESMF_LocalArrayCreate(farrayPtr, copyflag_opt, rc=localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+
+ ! Create the Array object by calling into overloaded ArrayCreate() interf. 
+ array = ESMF_ArrayCreate(larrayList, distgrid, ESMF_INDEX_USER, & 
+ copyflag_opt, distgridToArrayMap, computationalEdgeLWidth, & 
+ computationalEdgeUWidth, computationalLWidth, computationalUWidth, & 
+ totalLWidth, totalUWidth, name=name, rc=localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+
+ ! Garbage collection. The ArrayCreate() call will have placed the 
+ ! LocalArray object created above into the Array object. It will be 
+ ! destroyed when the Array object is destroyed. Only the larrayList 
+ ! must be cleaned up here. 
+ deallocate(larrayList) 
+
+ ! Set return value 
+ ESMF_ArrayCreateFromPtr4Di2 = array 
+
+ ! Set init code 
+ ESMF_INIT_SET_CREATED(ESMF_ArrayCreateFromPtr4Di2) 
+
+ ! Return successfully 
+ if (present(rc)) rc = ESMF_SUCCESS 
+
+ end function ESMF_ArrayCreateFromPtr4Di2 
+!---------------------------------------------------------------------------- 
+ 
+#ifndef ESMF_NO_GREATER_THAN_4D 
+! -------------------------- ESMF-public method ----------------------------- 
+#undef ESMF_METHOD 
+#define ESMF_METHOD "ESMF_ArrayCreateFromPtr" 
+ function ESMF_ArrayCreateFromPtr5Di2(farrayPtr, & 
+ distgrid, copyflag, distgridToArrayMap, & 
+ computationalEdgeLWidth, computationalEdgeUWidth, & 
+ computationalLWidth, computationalUWidth, totalLWidth, & 
+ totalUWidth, name, rc) 
+
+ type(ESMF_Array) :: ESMF_ArrayCreateFromPtr5Di2 
+
+ integer (ESMF_KIND_i2),dimension(:,:,:,:,:),pointer :: farrayPtr 
+ type(ESMF_DistGrid), intent(in) :: distgrid 
+ type(ESMF_CopyFlag), intent(in), optional :: copyflag 
+ integer, intent(in), optional :: distgridToArrayMap(:) 
+ integer, intent(in), optional :: computationalEdgeLWidth(:) 
+ integer, intent(in), optional :: computationalEdgeUWidth(:) 
+ integer, intent(in), optional :: computationalLWidth(:) 
+ integer, intent(in), optional :: computationalUWidth(:) 
+ integer, intent(in), optional :: totalLWidth(:) 
+ integer, intent(in), optional :: totalUWidth(:) 
+ character (len=*), intent(in), optional :: name 
+ integer, intent(out), optional :: rc 
+
+ ! Local variables 
+ integer :: localrc ! local return code 
+ type(ESMF_Array) :: array ! new Array 
+ type(ESMF_LocalArray), allocatable :: larrayList(:) ! helper variable 
+ type(ESMF_CopyFlag) :: copyflag_opt ! helper variable 
+
+ ! Initialize return code; assume failure until success is certain 
+ localrc = ESMF_RC_NOT_IMPL 
+ if (present(rc)) rc = ESMF_RC_NOT_IMPL 
+
+ ! Check init status of arguments 
+ ESMF_INIT_CHECK_DEEP_SHORT(ESMF_DistGridGetInit, distgrid, rc) 
+
+ ! Mark this Array object as invalid 
+ array%this = ESMF_NULL_POINTER 
+
+ ! Set copy/ref behavior 
+ copyflag_opt = ESMF_DATA_REF ! default 
+ if (present(copyflag)) copyflag_opt = copyflag 
+
+ ! Prepare the LocalArray list to be used in the ArrayCreate() call. 
+ ! Must pass the copyflag_opt flag into LocalArrayCreate() to ensure 
+ ! that the LocalArray object contained in the larrayList, passed to 
+ ! ArrayCreate() below, is suitable to be placed inside of the Array 
+ ! object directly. ArrayCreate() does _not_ create LocalArray objects 
+ ! internally for ESMF_INDEX_USER. 
+ allocate(larrayList(1)) 
+ larrayList(1) = ESMF_LocalArrayCreate(farrayPtr, copyflag_opt, rc=localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+
+ ! Create the Array object by calling into overloaded ArrayCreate() interf. 
+ array = ESMF_ArrayCreate(larrayList, distgrid, ESMF_INDEX_USER, & 
+ copyflag_opt, distgridToArrayMap, computationalEdgeLWidth, & 
+ computationalEdgeUWidth, computationalLWidth, computationalUWidth, & 
+ totalLWidth, totalUWidth, name=name, rc=localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+
+ ! Garbage collection. The ArrayCreate() call will have placed the 
+ ! LocalArray object created above into the Array object. It will be 
+ ! destroyed when the Array object is destroyed. Only the larrayList 
+ ! must be cleaned up here. 
+ deallocate(larrayList) 
+
+ ! Set return value 
+ ESMF_ArrayCreateFromPtr5Di2 = array 
+
+ ! Set init code 
+ ESMF_INIT_SET_CREATED(ESMF_ArrayCreateFromPtr5Di2) 
+
+ ! Return successfully 
+ if (present(rc)) rc = ESMF_SUCCESS 
+
+ end function ESMF_ArrayCreateFromPtr5Di2 
+!---------------------------------------------------------------------------- 
+ 
+! -------------------------- ESMF-public method ----------------------------- 
+#undef ESMF_METHOD 
+#define ESMF_METHOD "ESMF_ArrayCreateFromPtr" 
+ function ESMF_ArrayCreateFromPtr6Di2(farrayPtr, & 
+ distgrid, copyflag, distgridToArrayMap, & 
+ computationalEdgeLWidth, computationalEdgeUWidth, & 
+ computationalLWidth, computationalUWidth, totalLWidth, & 
+ totalUWidth, name, rc) 
+
+ type(ESMF_Array) :: ESMF_ArrayCreateFromPtr6Di2 
+
+ integer (ESMF_KIND_i2),dimension(:,:,:,:,:,:),pointer :: farrayPtr 
+ type(ESMF_DistGrid), intent(in) :: distgrid 
+ type(ESMF_CopyFlag), intent(in), optional :: copyflag 
+ integer, intent(in), optional :: distgridToArrayMap(:) 
+ integer, intent(in), optional :: computationalEdgeLWidth(:) 
+ integer, intent(in), optional :: computationalEdgeUWidth(:) 
+ integer, intent(in), optional :: computationalLWidth(:) 
+ integer, intent(in), optional :: computationalUWidth(:) 
+ integer, intent(in), optional :: totalLWidth(:) 
+ integer, intent(in), optional :: totalUWidth(:) 
+ character (len=*), intent(in), optional :: name 
+ integer, intent(out), optional :: rc 
+
+ ! Local variables 
+ integer :: localrc ! local return code 
+ type(ESMF_Array) :: array ! new Array 
+ type(ESMF_LocalArray), allocatable :: larrayList(:) ! helper variable 
+ type(ESMF_CopyFlag) :: copyflag_opt ! helper variable 
+
+ ! Initialize return code; assume failure until success is certain 
+ localrc = ESMF_RC_NOT_IMPL 
+ if (present(rc)) rc = ESMF_RC_NOT_IMPL 
+
+ ! Check init status of arguments 
+ ESMF_INIT_CHECK_DEEP_SHORT(ESMF_DistGridGetInit, distgrid, rc) 
+
+ ! Mark this Array object as invalid 
+ array%this = ESMF_NULL_POINTER 
+
+ ! Set copy/ref behavior 
+ copyflag_opt = ESMF_DATA_REF ! default 
+ if (present(copyflag)) copyflag_opt = copyflag 
+
+ ! Prepare the LocalArray list to be used in the ArrayCreate() call. 
+ ! Must pass the copyflag_opt flag into LocalArrayCreate() to ensure 
+ ! that the LocalArray object contained in the larrayList, passed to 
+ ! ArrayCreate() below, is suitable to be placed inside of the Array 
+ ! object directly. ArrayCreate() does _not_ create LocalArray objects 
+ ! internally for ESMF_INDEX_USER. 
+ allocate(larrayList(1)) 
+ larrayList(1) = ESMF_LocalArrayCreate(farrayPtr, copyflag_opt, rc=localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+
+ ! Create the Array object by calling into overloaded ArrayCreate() interf. 
+ array = ESMF_ArrayCreate(larrayList, distgrid, ESMF_INDEX_USER, & 
+ copyflag_opt, distgridToArrayMap, computationalEdgeLWidth, & 
+ computationalEdgeUWidth, computationalLWidth, computationalUWidth, & 
+ totalLWidth, totalUWidth, name=name, rc=localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+
+ ! Garbage collection. The ArrayCreate() call will have placed the 
+ ! LocalArray object created above into the Array object. It will be 
+ ! destroyed when the Array object is destroyed. Only the larrayList 
+ ! must be cleaned up here. 
+ deallocate(larrayList) 
+
+ ! Set return value 
+ ESMF_ArrayCreateFromPtr6Di2 = array 
+
+ ! Set init code 
+ ESMF_INIT_SET_CREATED(ESMF_ArrayCreateFromPtr6Di2) 
+
+ ! Return successfully 
+ if (present(rc)) rc = ESMF_SUCCESS 
+
+ end function ESMF_ArrayCreateFromPtr6Di2 
+!---------------------------------------------------------------------------- 
+ 
+! -------------------------- ESMF-public method ----------------------------- 
+#undef ESMF_METHOD 
+#define ESMF_METHOD "ESMF_ArrayCreateFromPtr" 
+ function ESMF_ArrayCreateFromPtr7Di2(farrayPtr, & 
+ distgrid, copyflag, distgridToArrayMap, & 
+ computationalEdgeLWidth, computationalEdgeUWidth, & 
+ computationalLWidth, computationalUWidth, totalLWidth, & 
+ totalUWidth, name, rc) 
+
+ type(ESMF_Array) :: ESMF_ArrayCreateFromPtr7Di2 
+
+ integer (ESMF_KIND_i2),dimension(:,:,:,:,:,:,:),pointer :: farrayPtr 
+ type(ESMF_DistGrid), intent(in) :: distgrid 
+ type(ESMF_CopyFlag), intent(in), optional :: copyflag 
+ integer, intent(in), optional :: distgridToArrayMap(:) 
+ integer, intent(in), optional :: computationalEdgeLWidth(:) 
+ integer, intent(in), optional :: computationalEdgeUWidth(:) 
+ integer, intent(in), optional :: computationalLWidth(:) 
+ integer, intent(in), optional :: computationalUWidth(:) 
+ integer, intent(in), optional :: totalLWidth(:) 
+ integer, intent(in), optional :: totalUWidth(:) 
+ character (len=*), intent(in), optional :: name 
+ integer, intent(out), optional :: rc 
+
+ ! Local variables 
+ integer :: localrc ! local return code 
+ type(ESMF_Array) :: array ! new Array 
+ type(ESMF_LocalArray), allocatable :: larrayList(:) ! helper variable 
+ type(ESMF_CopyFlag) :: copyflag_opt ! helper variable 
+
+ ! Initialize return code; assume failure until success is certain 
+ localrc = ESMF_RC_NOT_IMPL 
+ if (present(rc)) rc = ESMF_RC_NOT_IMPL 
+
+ ! Check init status of arguments 
+ ESMF_INIT_CHECK_DEEP_SHORT(ESMF_DistGridGetInit, distgrid, rc) 
+
+ ! Mark this Array object as invalid 
+ array%this = ESMF_NULL_POINTER 
+
+ ! Set copy/ref behavior 
+ copyflag_opt = ESMF_DATA_REF ! default 
+ if (present(copyflag)) copyflag_opt = copyflag 
+
+ ! Prepare the LocalArray list to be used in the ArrayCreate() call. 
+ ! Must pass the copyflag_opt flag into LocalArrayCreate() to ensure 
+ ! that the LocalArray object contained in the larrayList, passed to 
+ ! ArrayCreate() below, is suitable to be placed inside of the Array 
+ ! object directly. ArrayCreate() does _not_ create LocalArray objects 
+ ! internally for ESMF_INDEX_USER. 
+ allocate(larrayList(1)) 
+ larrayList(1) = ESMF_LocalArrayCreate(farrayPtr, copyflag_opt, rc=localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+
+ ! Create the Array object by calling into overloaded ArrayCreate() interf. 
+ array = ESMF_ArrayCreate(larrayList, distgrid, ESMF_INDEX_USER, & 
+ copyflag_opt, distgridToArrayMap, computationalEdgeLWidth, & 
+ computationalEdgeUWidth, computationalLWidth, computationalUWidth, & 
+ totalLWidth, totalUWidth, name=name, rc=localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+
+ ! Garbage collection. The ArrayCreate() call will have placed the 
+ ! LocalArray object created above into the Array object. It will be 
+ ! destroyed when the Array object is destroyed. Only the larrayList 
+ ! must be cleaned up here. 
+ deallocate(larrayList) 
+
+ ! Set return value 
+ ESMF_ArrayCreateFromPtr7Di2 = array 
+
+ ! Set init code 
+ ESMF_INIT_SET_CREATED(ESMF_ArrayCreateFromPtr7Di2) 
+
+ ! Return successfully 
+ if (present(rc)) rc = ESMF_SUCCESS 
+
+ end function ESMF_ArrayCreateFromPtr7Di2 
+!---------------------------------------------------------------------------- 
+ 
+#endif 
+#endif 
+! -------------------------- ESMF-public method ----------------------------- 
+#undef ESMF_METHOD 
+#define ESMF_METHOD "ESMF_ArrayCreateFromPtr" 
+ function ESMF_ArrayCreateFromPtr1Di4(farrayPtr, & 
+ distgrid, copyflag, distgridToArrayMap, & 
+ computationalEdgeLWidth, computationalEdgeUWidth, & 
+ computationalLWidth, computationalUWidth, totalLWidth, & 
+ totalUWidth, name, rc) 
+
+ type(ESMF_Array) :: ESMF_ArrayCreateFromPtr1Di4 
+
+ integer (ESMF_KIND_i4),dimension(:),pointer :: farrayPtr 
+ type(ESMF_DistGrid), intent(in) :: distgrid 
+ type(ESMF_CopyFlag), intent(in), optional :: copyflag 
+ integer, intent(in), optional :: distgridToArrayMap(:) 
+ integer, intent(in), optional :: computationalEdgeLWidth(:) 
+ integer, intent(in), optional :: computationalEdgeUWidth(:) 
+ integer, intent(in), optional :: computationalLWidth(:) 
+ integer, intent(in), optional :: computationalUWidth(:) 
+ integer, intent(in), optional :: totalLWidth(:) 
+ integer, intent(in), optional :: totalUWidth(:) 
+ character (len=*), intent(in), optional :: name 
+ integer, intent(out), optional :: rc 
+
+ ! Local variables 
+ integer :: localrc ! local return code 
+ type(ESMF_Array) :: array ! new Array 
+ type(ESMF_LocalArray), allocatable :: larrayList(:) ! helper variable 
+ type(ESMF_CopyFlag) :: copyflag_opt ! helper variable 
+
+ ! Initialize return code; assume failure until success is certain 
+ localrc = ESMF_RC_NOT_IMPL 
+ if (present(rc)) rc = ESMF_RC_NOT_IMPL 
+
+ ! Check init status of arguments 
+ ESMF_INIT_CHECK_DEEP_SHORT(ESMF_DistGridGetInit, distgrid, rc) 
+
+ ! Mark this Array object as invalid 
+ array%this = ESMF_NULL_POINTER 
+
+ ! Set copy/ref behavior 
+ copyflag_opt = ESMF_DATA_REF ! default 
+ if (present(copyflag)) copyflag_opt = copyflag 
+
+ ! Prepare the LocalArray list to be used in the ArrayCreate() call. 
+ ! Must pass the copyflag_opt flag into LocalArrayCreate() to ensure 
+ ! that the LocalArray object contained in the larrayList, passed to 
+ ! ArrayCreate() below, is suitable to be placed inside of the Array 
+ ! object directly. ArrayCreate() does _not_ create LocalArray objects 
+ ! internally for ESMF_INDEX_USER. 
+ allocate(larrayList(1)) 
+ larrayList(1) = ESMF_LocalArrayCreate(farrayPtr, copyflag_opt, rc=localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+
+ ! Create the Array object by calling into overloaded ArrayCreate() interf. 
+ array = ESMF_ArrayCreate(larrayList, distgrid, ESMF_INDEX_USER, & 
+ copyflag_opt, distgridToArrayMap, computationalEdgeLWidth, & 
+ computationalEdgeUWidth, computationalLWidth, computationalUWidth, & 
+ totalLWidth, totalUWidth, name=name, rc=localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+
+ ! Garbage collection. The ArrayCreate() call will have placed the 
+ ! LocalArray object created above into the Array object. It will be 
+ ! destroyed when the Array object is destroyed. Only the larrayList 
+ ! must be cleaned up here. 
+ deallocate(larrayList) 
+
+ ! Set return value 
+ ESMF_ArrayCreateFromPtr1Di4 = array 
+
+ ! Set init code 
+ ESMF_INIT_SET_CREATED(ESMF_ArrayCreateFromPtr1Di4) 
+
+ ! Return successfully 
+ if (present(rc)) rc = ESMF_SUCCESS 
+
+ end function ESMF_ArrayCreateFromPtr1Di4 
+!---------------------------------------------------------------------------- 
+ 
+! -------------------------- ESMF-public method ----------------------------- 
+#undef ESMF_METHOD 
+#define ESMF_METHOD "ESMF_ArrayCreateFromPtr" 
+ function ESMF_ArrayCreateFromPtr1Di8(farrayPtr, & 
+ distgrid, copyflag, distgridToArrayMap, & 
+ computationalEdgeLWidth, computationalEdgeUWidth, & 
+ computationalLWidth, computationalUWidth, totalLWidth, & 
+ totalUWidth, name, rc) 
+
+ type(ESMF_Array) :: ESMF_ArrayCreateFromPtr1Di8 
+
+ integer (ESMF_KIND_i8),dimension(:),pointer :: farrayPtr 
+ type(ESMF_DistGrid), intent(in) :: distgrid 
+ type(ESMF_CopyFlag), intent(in), optional :: copyflag 
+ integer, intent(in), optional :: distgridToArrayMap(:) 
+ integer, intent(in), optional :: computationalEdgeLWidth(:) 
+ integer, intent(in), optional :: computationalEdgeUWidth(:) 
+ integer, intent(in), optional :: computationalLWidth(:) 
+ integer, intent(in), optional :: computationalUWidth(:) 
+ integer, intent(in), optional :: totalLWidth(:) 
+ integer, intent(in), optional :: totalUWidth(:) 
+ character (len=*), intent(in), optional :: name 
+ integer, intent(out), optional :: rc 
+
+ ! Local variables 
+ integer :: localrc ! local return code 
+ type(ESMF_Array) :: array ! new Array 
+ type(ESMF_LocalArray), allocatable :: larrayList(:) ! helper variable 
+ type(ESMF_CopyFlag) :: copyflag_opt ! helper variable 
+
+ ! Initialize return code; assume failure until success is certain 
+ localrc = ESMF_RC_NOT_IMPL 
+ if (present(rc)) rc = ESMF_RC_NOT_IMPL 
+
+ ! Check init status of arguments 
+ ESMF_INIT_CHECK_DEEP_SHORT(ESMF_DistGridGetInit, distgrid, rc) 
+
+ ! Mark this Array object as invalid 
+ array%this = ESMF_NULL_POINTER 
+
+ ! Set copy/ref behavior 
+ copyflag_opt = ESMF_DATA_REF ! default 
+ if (present(copyflag)) copyflag_opt = copyflag 
+
+ ! Prepare the LocalArray list to be used in the ArrayCreate() call. 
+ ! Must pass the copyflag_opt flag into LocalArrayCreate() to ensure 
+ ! that the LocalArray object contained in the larrayList, passed to 
+ ! ArrayCreate() below, is suitable to be placed inside of the Array 
+ ! object directly. ArrayCreate() does _not_ create LocalArray objects 
+ ! internally for ESMF_INDEX_USER. 
+ allocate(larrayList(1)) 
+ larrayList(1) = ESMF_LocalArrayCreate(farrayPtr, copyflag_opt, rc=localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+
+ ! Create the Array object by calling into overloaded ArrayCreate() interf. 
+ array = ESMF_ArrayCreate(larrayList, distgrid, ESMF_INDEX_USER, & 
+ copyflag_opt, distgridToArrayMap, computationalEdgeLWidth, & 
+ computationalEdgeUWidth, computationalLWidth, computationalUWidth, & 
+ totalLWidth, totalUWidth, name=name, rc=localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+
+ ! Garbage collection. The ArrayCreate() call will have placed the 
+ ! LocalArray object created above into the Array object. It will be 
+ ! destroyed when the Array object is destroyed. Only the larrayList 
+ ! must be cleaned up here. 
+ deallocate(larrayList) 
+
+ ! Set return value 
+ ESMF_ArrayCreateFromPtr1Di8 = array 
+
+ ! Set init code 
+ ESMF_INIT_SET_CREATED(ESMF_ArrayCreateFromPtr1Di8) 
+
+ ! Return successfully 
+ if (present(rc)) rc = ESMF_SUCCESS 
+
+ end function ESMF_ArrayCreateFromPtr1Di8 
+!---------------------------------------------------------------------------- 
+ 
+! -------------------------- ESMF-public method ----------------------------- 
+#undef ESMF_METHOD 
+#define ESMF_METHOD "ESMF_ArrayCreateFromPtr" 
+ function ESMF_ArrayCreateFromPtr1Dr4(farrayPtr, & 
+ distgrid, copyflag, distgridToArrayMap, & 
+ computationalEdgeLWidth, computationalEdgeUWidth, & 
+ computationalLWidth, computationalUWidth, totalLWidth, & 
+ totalUWidth, name, rc) 
+
+ type(ESMF_Array) :: ESMF_ArrayCreateFromPtr1Dr4 
+
+ real (ESMF_KIND_r4),dimension(:),pointer :: farrayPtr 
+ type(ESMF_DistGrid), intent(in) :: distgrid 
+ type(ESMF_CopyFlag), intent(in), optional :: copyflag 
+ integer, intent(in), optional :: distgridToArrayMap(:) 
+ integer, intent(in), optional :: computationalEdgeLWidth(:) 
+ integer, intent(in), optional :: computationalEdgeUWidth(:) 
+ integer, intent(in), optional :: computationalLWidth(:) 
+ integer, intent(in), optional :: computationalUWidth(:) 
+ integer, intent(in), optional :: totalLWidth(:) 
+ integer, intent(in), optional :: totalUWidth(:) 
+ character (len=*), intent(in), optional :: name 
+ integer, intent(out), optional :: rc 
+
+ ! Local variables 
+ integer :: localrc ! local return code 
+ type(ESMF_Array) :: array ! new Array 
+ type(ESMF_LocalArray), allocatable :: larrayList(:) ! helper variable 
+ type(ESMF_CopyFlag) :: copyflag_opt ! helper variable 
+
+ ! Initialize return code; assume failure until success is certain 
+ localrc = ESMF_RC_NOT_IMPL 
+ if (present(rc)) rc = ESMF_RC_NOT_IMPL 
+
+ ! Check init status of arguments 
+ ESMF_INIT_CHECK_DEEP_SHORT(ESMF_DistGridGetInit, distgrid, rc) 
+
+ ! Mark this Array object as invalid 
+ array%this = ESMF_NULL_POINTER 
+
+ ! Set copy/ref behavior 
+ copyflag_opt = ESMF_DATA_REF ! default 
+ if (present(copyflag)) copyflag_opt = copyflag 
+
+ ! Prepare the LocalArray list to be used in the ArrayCreate() call. 
+ ! Must pass the copyflag_opt flag into LocalArrayCreate() to ensure 
+ ! that the LocalArray object contained in the larrayList, passed to 
+ ! ArrayCreate() below, is suitable to be placed inside of the Array 
+ ! object directly. ArrayCreate() does _not_ create LocalArray objects 
+ ! internally for ESMF_INDEX_USER. 
+ allocate(larrayList(1)) 
+ larrayList(1) = ESMF_LocalArrayCreate(farrayPtr, copyflag_opt, rc=localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+
+ ! Create the Array object by calling into overloaded ArrayCreate() interf. 
+ array = ESMF_ArrayCreate(larrayList, distgrid, ESMF_INDEX_USER, & 
+ copyflag_opt, distgridToArrayMap, computationalEdgeLWidth, & 
+ computationalEdgeUWidth, computationalLWidth, computationalUWidth, & 
+ totalLWidth, totalUWidth, name=name, rc=localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+
+ ! Garbage collection. The ArrayCreate() call will have placed the 
+ ! LocalArray object created above into the Array object. It will be 
+ ! destroyed when the Array object is destroyed. Only the larrayList 
+ ! must be cleaned up here. 
+ deallocate(larrayList) 
+
+ ! Set return value 
+ ESMF_ArrayCreateFromPtr1Dr4 = array 
+
+ ! Set init code 
+ ESMF_INIT_SET_CREATED(ESMF_ArrayCreateFromPtr1Dr4) 
+
+ ! Return successfully 
+ if (present(rc)) rc = ESMF_SUCCESS 
+
+ end function ESMF_ArrayCreateFromPtr1Dr4 
+!---------------------------------------------------------------------------- 
+ 
+! -------------------------- ESMF-public method ----------------------------- 
+#undef ESMF_METHOD 
+#define ESMF_METHOD "ESMF_ArrayCreateFromPtr" 
+ function ESMF_ArrayCreateFromPtr1Dr8(farrayPtr, & 
+ distgrid, copyflag, distgridToArrayMap, & 
+ computationalEdgeLWidth, computationalEdgeUWidth, & 
+ computationalLWidth, computationalUWidth, totalLWidth, & 
+ totalUWidth, name, rc) 
+
+ type(ESMF_Array) :: ESMF_ArrayCreateFromPtr1Dr8 
+
+ real (ESMF_KIND_r8),dimension(:),pointer :: farrayPtr 
+ type(ESMF_DistGrid), intent(in) :: distgrid 
+ type(ESMF_CopyFlag), intent(in), optional :: copyflag 
+ integer, intent(in), optional :: distgridToArrayMap(:) 
+ integer, intent(in), optional :: computationalEdgeLWidth(:) 
+ integer, intent(in), optional :: computationalEdgeUWidth(:) 
+ integer, intent(in), optional :: computationalLWidth(:) 
+ integer, intent(in), optional :: computationalUWidth(:) 
+ integer, intent(in), optional :: totalLWidth(:) 
+ integer, intent(in), optional :: totalUWidth(:) 
+ character (len=*), intent(in), optional :: name 
+ integer, intent(out), optional :: rc 
+
+ ! Local variables 
+ integer :: localrc ! local return code 
+ type(ESMF_Array) :: array ! new Array 
+ type(ESMF_LocalArray), allocatable :: larrayList(:) ! helper variable 
+ type(ESMF_CopyFlag) :: copyflag_opt ! helper variable 
+
+ ! Initialize return code; assume failure until success is certain 
+ localrc = ESMF_RC_NOT_IMPL 
+ if (present(rc)) rc = ESMF_RC_NOT_IMPL 
+
+ ! Check init status of arguments 
+ ESMF_INIT_CHECK_DEEP_SHORT(ESMF_DistGridGetInit, distgrid, rc) 
+
+ ! Mark this Array object as invalid 
+ array%this = ESMF_NULL_POINTER 
+
+ ! Set copy/ref behavior 
+ copyflag_opt = ESMF_DATA_REF ! default 
+ if (present(copyflag)) copyflag_opt = copyflag 
+
+ ! Prepare the LocalArray list to be used in the ArrayCreate() call. 
+ ! Must pass the copyflag_opt flag into LocalArrayCreate() to ensure 
+ ! that the LocalArray object contained in the larrayList, passed to 
+ ! ArrayCreate() below, is suitable to be placed inside of the Array 
+ ! object directly. ArrayCreate() does _not_ create LocalArray objects 
+ ! internally for ESMF_INDEX_USER. 
+ allocate(larrayList(1)) 
+ larrayList(1) = ESMF_LocalArrayCreate(farrayPtr, copyflag_opt, rc=localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+
+ ! Create the Array object by calling into overloaded ArrayCreate() interf. 
+ array = ESMF_ArrayCreate(larrayList, distgrid, ESMF_INDEX_USER, & 
+ copyflag_opt, distgridToArrayMap, computationalEdgeLWidth, & 
+ computationalEdgeUWidth, computationalLWidth, computationalUWidth, & 
+ totalLWidth, totalUWidth, name=name, rc=localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+
+ ! Garbage collection. The ArrayCreate() call will have placed the 
+ ! LocalArray object created above into the Array object. It will be 
+ ! destroyed when the Array object is destroyed. Only the larrayList 
+ ! must be cleaned up here. 
+ deallocate(larrayList) 
+
+ ! Set return value 
+ ESMF_ArrayCreateFromPtr1Dr8 = array 
+
+ ! Set init code 
+ ESMF_INIT_SET_CREATED(ESMF_ArrayCreateFromPtr1Dr8) 
+
+ ! Return successfully 
+ if (present(rc)) rc = ESMF_SUCCESS 
+
+ end function ESMF_ArrayCreateFromPtr1Dr8 
+!---------------------------------------------------------------------------- 
+ 
+! -------------------------- ESMF-public method ----------------------------- 
+#undef ESMF_METHOD 
+#define ESMF_METHOD "ESMF_ArrayCreateFromPtr" 
+ function ESMF_ArrayCreateFromPtr2Di4(farrayPtr, & 
+ distgrid, copyflag, distgridToArrayMap, & 
+ computationalEdgeLWidth, computationalEdgeUWidth, & 
+ computationalLWidth, computationalUWidth, totalLWidth, & 
+ totalUWidth, name, rc) 
+
+ type(ESMF_Array) :: ESMF_ArrayCreateFromPtr2Di4 
+
+ integer (ESMF_KIND_i4),dimension(:,:),pointer :: farrayPtr 
+ type(ESMF_DistGrid), intent(in) :: distgrid 
+ type(ESMF_CopyFlag), intent(in), optional :: copyflag 
+ integer, intent(in), optional :: distgridToArrayMap(:) 
+ integer, intent(in), optional :: computationalEdgeLWidth(:) 
+ integer, intent(in), optional :: computationalEdgeUWidth(:) 
+ integer, intent(in), optional :: computationalLWidth(:) 
+ integer, intent(in), optional :: computationalUWidth(:) 
+ integer, intent(in), optional :: totalLWidth(:) 
+ integer, intent(in), optional :: totalUWidth(:) 
+ character (len=*), intent(in), optional :: name 
+ integer, intent(out), optional :: rc 
+
+ ! Local variables 
+ integer :: localrc ! local return code 
+ type(ESMF_Array) :: array ! new Array 
+ type(ESMF_LocalArray), allocatable :: larrayList(:) ! helper variable 
+ type(ESMF_CopyFlag) :: copyflag_opt ! helper variable 
+
+ ! Initialize return code; assume failure until success is certain 
+ localrc = ESMF_RC_NOT_IMPL 
+ if (present(rc)) rc = ESMF_RC_NOT_IMPL 
+
+ ! Check init status of arguments 
+ ESMF_INIT_CHECK_DEEP_SHORT(ESMF_DistGridGetInit, distgrid, rc) 
+
+ ! Mark this Array object as invalid 
+ array%this = ESMF_NULL_POINTER 
+
+ ! Set copy/ref behavior 
+ copyflag_opt = ESMF_DATA_REF ! default 
+ if (present(copyflag)) copyflag_opt = copyflag 
+
+ ! Prepare the LocalArray list to be used in the ArrayCreate() call. 
+ ! Must pass the copyflag_opt flag into LocalArrayCreate() to ensure 
+ ! that the LocalArray object contained in the larrayList, passed to 
+ ! ArrayCreate() below, is suitable to be placed inside of the Array 
+ ! object directly. ArrayCreate() does _not_ create LocalArray objects 
+ ! internally for ESMF_INDEX_USER. 
+ allocate(larrayList(1)) 
+ larrayList(1) = ESMF_LocalArrayCreate(farrayPtr, copyflag_opt, rc=localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+
+ ! Create the Array object by calling into overloaded ArrayCreate() interf. 
+ array = ESMF_ArrayCreate(larrayList, distgrid, ESMF_INDEX_USER, & 
+ copyflag_opt, distgridToArrayMap, computationalEdgeLWidth, & 
+ computationalEdgeUWidth, computationalLWidth, computationalUWidth, & 
+ totalLWidth, totalUWidth, name=name, rc=localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+
+ ! Garbage collection. The ArrayCreate() call will have placed the 
+ ! LocalArray object created above into the Array object. It will be 
+ ! destroyed when the Array object is destroyed. Only the larrayList 
+ ! must be cleaned up here. 
+ deallocate(larrayList) 
+
+ ! Set return value 
+ ESMF_ArrayCreateFromPtr2Di4 = array 
+
+ ! Set init code 
+ ESMF_INIT_SET_CREATED(ESMF_ArrayCreateFromPtr2Di4) 
+
+ ! Return successfully 
+ if (present(rc)) rc = ESMF_SUCCESS 
+
+ end function ESMF_ArrayCreateFromPtr2Di4 
+!---------------------------------------------------------------------------- 
+ 
+! -------------------------- ESMF-public method ----------------------------- 
+#undef ESMF_METHOD 
+#define ESMF_METHOD "ESMF_ArrayCreateFromPtr" 
+ function ESMF_ArrayCreateFromPtr2Di8(farrayPtr, & 
+ distgrid, copyflag, distgridToArrayMap, & 
+ computationalEdgeLWidth, computationalEdgeUWidth, & 
+ computationalLWidth, computationalUWidth, totalLWidth, & 
+ totalUWidth, name, rc) 
+
+ type(ESMF_Array) :: ESMF_ArrayCreateFromPtr2Di8 
+
+ integer (ESMF_KIND_i8),dimension(:,:),pointer :: farrayPtr 
+ type(ESMF_DistGrid), intent(in) :: distgrid 
+ type(ESMF_CopyFlag), intent(in), optional :: copyflag 
+ integer, intent(in), optional :: distgridToArrayMap(:) 
+ integer, intent(in), optional :: computationalEdgeLWidth(:) 
+ integer, intent(in), optional :: computationalEdgeUWidth(:) 
+ integer, intent(in), optional :: computationalLWidth(:) 
+ integer, intent(in), optional :: computationalUWidth(:) 
+ integer, intent(in), optional :: totalLWidth(:) 
+ integer, intent(in), optional :: totalUWidth(:) 
+ character (len=*), intent(in), optional :: name 
+ integer, intent(out), optional :: rc 
+
+ ! Local variables 
+ integer :: localrc ! local return code 
+ type(ESMF_Array) :: array ! new Array 
+ type(ESMF_LocalArray), allocatable :: larrayList(:) ! helper variable 
+ type(ESMF_CopyFlag) :: copyflag_opt ! helper variable 
+
+ ! Initialize return code; assume failure until success is certain 
+ localrc = ESMF_RC_NOT_IMPL 
+ if (present(rc)) rc = ESMF_RC_NOT_IMPL 
+
+ ! Check init status of arguments 
+ ESMF_INIT_CHECK_DEEP_SHORT(ESMF_DistGridGetInit, distgrid, rc) 
+
+ ! Mark this Array object as invalid 
+ array%this = ESMF_NULL_POINTER 
+
+ ! Set copy/ref behavior 
+ copyflag_opt = ESMF_DATA_REF ! default 
+ if (present(copyflag)) copyflag_opt = copyflag 
+
+ ! Prepare the LocalArray list to be used in the ArrayCreate() call. 
+ ! Must pass the copyflag_opt flag into LocalArrayCreate() to ensure 
+ ! that the LocalArray object contained in the larrayList, passed to 
+ ! ArrayCreate() below, is suitable to be placed inside of the Array 
+ ! object directly. ArrayCreate() does _not_ create LocalArray objects 
+ ! internally for ESMF_INDEX_USER. 
+ allocate(larrayList(1)) 
+ larrayList(1) = ESMF_LocalArrayCreate(farrayPtr, copyflag_opt, rc=localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+
+ ! Create the Array object by calling into overloaded ArrayCreate() interf. 
+ array = ESMF_ArrayCreate(larrayList, distgrid, ESMF_INDEX_USER, & 
+ copyflag_opt, distgridToArrayMap, computationalEdgeLWidth, & 
+ computationalEdgeUWidth, computationalLWidth, computationalUWidth, & 
+ totalLWidth, totalUWidth, name=name, rc=localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+
+ ! Garbage collection. The ArrayCreate() call will have placed the 
+ ! LocalArray object created above into the Array object. It will be 
+ ! destroyed when the Array object is destroyed. Only the larrayList 
+ ! must be cleaned up here. 
+ deallocate(larrayList) 
+
+ ! Set return value 
+ ESMF_ArrayCreateFromPtr2Di8 = array 
+
+ ! Set init code 
+ ESMF_INIT_SET_CREATED(ESMF_ArrayCreateFromPtr2Di8) 
+
+ ! Return successfully 
+ if (present(rc)) rc = ESMF_SUCCESS 
+
+ end function ESMF_ArrayCreateFromPtr2Di8 
+!---------------------------------------------------------------------------- 
+ 
+! -------------------------- ESMF-public method ----------------------------- 
+#undef ESMF_METHOD 
+#define ESMF_METHOD "ESMF_ArrayCreateFromPtr" 
+ function ESMF_ArrayCreateFromPtr2Dr4(farrayPtr, & 
+ distgrid, copyflag, distgridToArrayMap, & 
+ computationalEdgeLWidth, computationalEdgeUWidth, & 
+ computationalLWidth, computationalUWidth, totalLWidth, & 
+ totalUWidth, name, rc) 
+
+ type(ESMF_Array) :: ESMF_ArrayCreateFromPtr2Dr4 
+
+ real (ESMF_KIND_r4),dimension(:,:),pointer :: farrayPtr 
+ type(ESMF_DistGrid), intent(in) :: distgrid 
+ type(ESMF_CopyFlag), intent(in), optional :: copyflag 
+ integer, intent(in), optional :: distgridToArrayMap(:) 
+ integer, intent(in), optional :: computationalEdgeLWidth(:) 
+ integer, intent(in), optional :: computationalEdgeUWidth(:) 
+ integer, intent(in), optional :: computationalLWidth(:) 
+ integer, intent(in), optional :: computationalUWidth(:) 
+ integer, intent(in), optional :: totalLWidth(:) 
+ integer, intent(in), optional :: totalUWidth(:) 
+ character (len=*), intent(in), optional :: name 
+ integer, intent(out), optional :: rc 
+
+ ! Local variables 
+ integer :: localrc ! local return code 
+ type(ESMF_Array) :: array ! new Array 
+ type(ESMF_LocalArray), allocatable :: larrayList(:) ! helper variable 
+ type(ESMF_CopyFlag) :: copyflag_opt ! helper variable 
+
+ ! Initialize return code; assume failure until success is certain 
+ localrc = ESMF_RC_NOT_IMPL 
+ if (present(rc)) rc = ESMF_RC_NOT_IMPL 
+
+ ! Check init status of arguments 
+ ESMF_INIT_CHECK_DEEP_SHORT(ESMF_DistGridGetInit, distgrid, rc) 
+
+ ! Mark this Array object as invalid 
+ array%this = ESMF_NULL_POINTER 
+
+ ! Set copy/ref behavior 
+ copyflag_opt = ESMF_DATA_REF ! default 
+ if (present(copyflag)) copyflag_opt = copyflag 
+
+ ! Prepare the LocalArray list to be used in the ArrayCreate() call. 
+ ! Must pass the copyflag_opt flag into LocalArrayCreate() to ensure 
+ ! that the LocalArray object contained in the larrayList, passed to 
+ ! ArrayCreate() below, is suitable to be placed inside of the Array 
+ ! object directly. ArrayCreate() does _not_ create LocalArray objects 
+ ! internally for ESMF_INDEX_USER. 
+ allocate(larrayList(1)) 
+ larrayList(1) = ESMF_LocalArrayCreate(farrayPtr, copyflag_opt, rc=localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+
+ ! Create the Array object by calling into overloaded ArrayCreate() interf. 
+ array = ESMF_ArrayCreate(larrayList, distgrid, ESMF_INDEX_USER, & 
+ copyflag_opt, distgridToArrayMap, computationalEdgeLWidth, & 
+ computationalEdgeUWidth, computationalLWidth, computationalUWidth, & 
+ totalLWidth, totalUWidth, name=name, rc=localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+
+ ! Garbage collection. The ArrayCreate() call will have placed the 
+ ! LocalArray object created above into the Array object. It will be 
+ ! destroyed when the Array object is destroyed. Only the larrayList 
+ ! must be cleaned up here. 
+ deallocate(larrayList) 
+
+ ! Set return value 
+ ESMF_ArrayCreateFromPtr2Dr4 = array 
+
+ ! Set init code 
+ ESMF_INIT_SET_CREATED(ESMF_ArrayCreateFromPtr2Dr4) 
+
+ ! Return successfully 
+ if (present(rc)) rc = ESMF_SUCCESS 
+
+ end function ESMF_ArrayCreateFromPtr2Dr4 
+!---------------------------------------------------------------------------- 
+ 
+! -------------------------- ESMF-public method ----------------------------- 
+#undef ESMF_METHOD 
+#define ESMF_METHOD "ESMF_ArrayCreateFromPtr" 
+ function ESMF_ArrayCreateFromPtr2Dr8(farrayPtr, & 
+ distgrid, copyflag, distgridToArrayMap, & 
+ computationalEdgeLWidth, computationalEdgeUWidth, & 
+ computationalLWidth, computationalUWidth, totalLWidth, & 
+ totalUWidth, name, rc) 
+
+ type(ESMF_Array) :: ESMF_ArrayCreateFromPtr2Dr8 
+
+ real (ESMF_KIND_r8),dimension(:,:),pointer :: farrayPtr 
+ type(ESMF_DistGrid), intent(in) :: distgrid 
+ type(ESMF_CopyFlag), intent(in), optional :: copyflag 
+ integer, intent(in), optional :: distgridToArrayMap(:) 
+ integer, intent(in), optional :: computationalEdgeLWidth(:) 
+ integer, intent(in), optional :: computationalEdgeUWidth(:) 
+ integer, intent(in), optional :: computationalLWidth(:) 
+ integer, intent(in), optional :: computationalUWidth(:) 
+ integer, intent(in), optional :: totalLWidth(:) 
+ integer, intent(in), optional :: totalUWidth(:) 
+ character (len=*), intent(in), optional :: name 
+ integer, intent(out), optional :: rc 
+
+ ! Local variables 
+ integer :: localrc ! local return code 
+ type(ESMF_Array) :: array ! new Array 
+ type(ESMF_LocalArray), allocatable :: larrayList(:) ! helper variable 
+ type(ESMF_CopyFlag) :: copyflag_opt ! helper variable 
+
+ ! Initialize return code; assume failure until success is certain 
+ localrc = ESMF_RC_NOT_IMPL 
+ if (present(rc)) rc = ESMF_RC_NOT_IMPL 
+
+ ! Check init status of arguments 
+ ESMF_INIT_CHECK_DEEP_SHORT(ESMF_DistGridGetInit, distgrid, rc) 
+
+ ! Mark this Array object as invalid 
+ array%this = ESMF_NULL_POINTER 
+
+ ! Set copy/ref behavior 
+ copyflag_opt = ESMF_DATA_REF ! default 
+ if (present(copyflag)) copyflag_opt = copyflag 
+
+ ! Prepare the LocalArray list to be used in the ArrayCreate() call. 
+ ! Must pass the copyflag_opt flag into LocalArrayCreate() to ensure 
+ ! that the LocalArray object contained in the larrayList, passed to 
+ ! ArrayCreate() below, is suitable to be placed inside of the Array 
+ ! object directly. ArrayCreate() does _not_ create LocalArray objects 
+ ! internally for ESMF_INDEX_USER. 
+ allocate(larrayList(1)) 
+ larrayList(1) = ESMF_LocalArrayCreate(farrayPtr, copyflag_opt, rc=localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+
+ ! Create the Array object by calling into overloaded ArrayCreate() interf. 
+ array = ESMF_ArrayCreate(larrayList, distgrid, ESMF_INDEX_USER, & 
+ copyflag_opt, distgridToArrayMap, computationalEdgeLWidth, & 
+ computationalEdgeUWidth, computationalLWidth, computationalUWidth, & 
+ totalLWidth, totalUWidth, name=name, rc=localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+
+ ! Garbage collection. The ArrayCreate() call will have placed the 
+ ! LocalArray object created above into the Array object. It will be 
+ ! destroyed when the Array object is destroyed. Only the larrayList 
+ ! must be cleaned up here. 
+ deallocate(larrayList) 
+
+ ! Set return value 
+ ESMF_ArrayCreateFromPtr2Dr8 = array 
+
+ ! Set init code 
+ ESMF_INIT_SET_CREATED(ESMF_ArrayCreateFromPtr2Dr8) 
+
+ ! Return successfully 
+ if (present(rc)) rc = ESMF_SUCCESS 
+
+ end function ESMF_ArrayCreateFromPtr2Dr8 
+!---------------------------------------------------------------------------- 
+ 
+! -------------------------- ESMF-public method ----------------------------- 
+#undef ESMF_METHOD 
+#define ESMF_METHOD "ESMF_ArrayCreateFromPtr" 
+ function ESMF_ArrayCreateFromPtr3Di4(farrayPtr, & 
+ distgrid, copyflag, distgridToArrayMap, & 
+ computationalEdgeLWidth, computationalEdgeUWidth, & 
+ computationalLWidth, computationalUWidth, totalLWidth, & 
+ totalUWidth, name, rc) 
+
+ type(ESMF_Array) :: ESMF_ArrayCreateFromPtr3Di4 
+
+ integer (ESMF_KIND_i4),dimension(:,:,:),pointer :: farrayPtr 
+ type(ESMF_DistGrid), intent(in) :: distgrid 
+ type(ESMF_CopyFlag), intent(in), optional :: copyflag 
+ integer, intent(in), optional :: distgridToArrayMap(:) 
+ integer, intent(in), optional :: computationalEdgeLWidth(:) 
+ integer, intent(in), optional :: computationalEdgeUWidth(:) 
+ integer, intent(in), optional :: computationalLWidth(:) 
+ integer, intent(in), optional :: computationalUWidth(:) 
+ integer, intent(in), optional :: totalLWidth(:) 
+ integer, intent(in), optional :: totalUWidth(:) 
+ character (len=*), intent(in), optional :: name 
+ integer, intent(out), optional :: rc 
+
+ ! Local variables 
+ integer :: localrc ! local return code 
+ type(ESMF_Array) :: array ! new Array 
+ type(ESMF_LocalArray), allocatable :: larrayList(:) ! helper variable 
+ type(ESMF_CopyFlag) :: copyflag_opt ! helper variable 
+
+ ! Initialize return code; assume failure until success is certain 
+ localrc = ESMF_RC_NOT_IMPL 
+ if (present(rc)) rc = ESMF_RC_NOT_IMPL 
+
+ ! Check init status of arguments 
+ ESMF_INIT_CHECK_DEEP_SHORT(ESMF_DistGridGetInit, distgrid, rc) 
+
+ ! Mark this Array object as invalid 
+ array%this = ESMF_NULL_POINTER 
+
+ ! Set copy/ref behavior 
+ copyflag_opt = ESMF_DATA_REF ! default 
+ if (present(copyflag)) copyflag_opt = copyflag 
+
+ ! Prepare the LocalArray list to be used in the ArrayCreate() call. 
+ ! Must pass the copyflag_opt flag into LocalArrayCreate() to ensure 
+ ! that the LocalArray object contained in the larrayList, passed to 
+ ! ArrayCreate() below, is suitable to be placed inside of the Array 
+ ! object directly. ArrayCreate() does _not_ create LocalArray objects 
+ ! internally for ESMF_INDEX_USER. 
+ allocate(larrayList(1)) 
+ larrayList(1) = ESMF_LocalArrayCreate(farrayPtr, copyflag_opt, rc=localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+
+ ! Create the Array object by calling into overloaded ArrayCreate() interf. 
+ array = ESMF_ArrayCreate(larrayList, distgrid, ESMF_INDEX_USER, & 
+ copyflag_opt, distgridToArrayMap, computationalEdgeLWidth, & 
+ computationalEdgeUWidth, computationalLWidth, computationalUWidth, & 
+ totalLWidth, totalUWidth, name=name, rc=localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+
+ ! Garbage collection. The ArrayCreate() call will have placed the 
+ ! LocalArray object created above into the Array object. It will be 
+ ! destroyed when the Array object is destroyed. Only the larrayList 
+ ! must be cleaned up here. 
+ deallocate(larrayList) 
+
+ ! Set return value 
+ ESMF_ArrayCreateFromPtr3Di4 = array 
+
+ ! Set init code 
+ ESMF_INIT_SET_CREATED(ESMF_ArrayCreateFromPtr3Di4) 
+
+ ! Return successfully 
+ if (present(rc)) rc = ESMF_SUCCESS 
+
+ end function ESMF_ArrayCreateFromPtr3Di4 
+!---------------------------------------------------------------------------- 
+ 
+! -------------------------- ESMF-public method ----------------------------- 
+#undef ESMF_METHOD 
+#define ESMF_METHOD "ESMF_ArrayCreateFromPtr" 
+ function ESMF_ArrayCreateFromPtr3Di8(farrayPtr, & 
+ distgrid, copyflag, distgridToArrayMap, & 
+ computationalEdgeLWidth, computationalEdgeUWidth, & 
+ computationalLWidth, computationalUWidth, totalLWidth, & 
+ totalUWidth, name, rc) 
+
+ type(ESMF_Array) :: ESMF_ArrayCreateFromPtr3Di8 
+
+ integer (ESMF_KIND_i8),dimension(:,:,:),pointer :: farrayPtr 
+ type(ESMF_DistGrid), intent(in) :: distgrid 
+ type(ESMF_CopyFlag), intent(in), optional :: copyflag 
+ integer, intent(in), optional :: distgridToArrayMap(:) 
+ integer, intent(in), optional :: computationalEdgeLWidth(:) 
+ integer, intent(in), optional :: computationalEdgeUWidth(:) 
+ integer, intent(in), optional :: computationalLWidth(:) 
+ integer, intent(in), optional :: computationalUWidth(:) 
+ integer, intent(in), optional :: totalLWidth(:) 
+ integer, intent(in), optional :: totalUWidth(:) 
+ character (len=*), intent(in), optional :: name 
+ integer, intent(out), optional :: rc 
+
+ ! Local variables 
+ integer :: localrc ! local return code 
+ type(ESMF_Array) :: array ! new Array 
+ type(ESMF_LocalArray), allocatable :: larrayList(:) ! helper variable 
+ type(ESMF_CopyFlag) :: copyflag_opt ! helper variable 
+
+ ! Initialize return code; assume failure until success is certain 
+ localrc = ESMF_RC_NOT_IMPL 
+ if (present(rc)) rc = ESMF_RC_NOT_IMPL 
+
+ ! Check init status of arguments 
+ ESMF_INIT_CHECK_DEEP_SHORT(ESMF_DistGridGetInit, distgrid, rc) 
+
+ ! Mark this Array object as invalid 
+ array%this = ESMF_NULL_POINTER 
+
+ ! Set copy/ref behavior 
+ copyflag_opt = ESMF_DATA_REF ! default 
+ if (present(copyflag)) copyflag_opt = copyflag 
+
+ ! Prepare the LocalArray list to be used in the ArrayCreate() call. 
+ ! Must pass the copyflag_opt flag into LocalArrayCreate() to ensure 
+ ! that the LocalArray object contained in the larrayList, passed to 
+ ! ArrayCreate() below, is suitable to be placed inside of the Array 
+ ! object directly. ArrayCreate() does _not_ create LocalArray objects 
+ ! internally for ESMF_INDEX_USER. 
+ allocate(larrayList(1)) 
+ larrayList(1) = ESMF_LocalArrayCreate(farrayPtr, copyflag_opt, rc=localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+
+ ! Create the Array object by calling into overloaded ArrayCreate() interf. 
+ array = ESMF_ArrayCreate(larrayList, distgrid, ESMF_INDEX_USER, & 
+ copyflag_opt, distgridToArrayMap, computationalEdgeLWidth, & 
+ computationalEdgeUWidth, computationalLWidth, computationalUWidth, & 
+ totalLWidth, totalUWidth, name=name, rc=localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+
+ ! Garbage collection. The ArrayCreate() call will have placed the 
+ ! LocalArray object created above into the Array object. It will be 
+ ! destroyed when the Array object is destroyed. Only the larrayList 
+ ! must be cleaned up here. 
+ deallocate(larrayList) 
+
+ ! Set return value 
+ ESMF_ArrayCreateFromPtr3Di8 = array 
+
+ ! Set init code 
+ ESMF_INIT_SET_CREATED(ESMF_ArrayCreateFromPtr3Di8) 
+
+ ! Return successfully 
+ if (present(rc)) rc = ESMF_SUCCESS 
+
+ end function ESMF_ArrayCreateFromPtr3Di8 
+!---------------------------------------------------------------------------- 
+ 
+! -------------------------- ESMF-public method ----------------------------- 
+#undef ESMF_METHOD 
+#define ESMF_METHOD "ESMF_ArrayCreateFromPtr" 
+ function ESMF_ArrayCreateFromPtr3Dr4(farrayPtr, & 
+ distgrid, copyflag, distgridToArrayMap, & 
+ computationalEdgeLWidth, computationalEdgeUWidth, & 
+ computationalLWidth, computationalUWidth, totalLWidth, & 
+ totalUWidth, name, rc) 
+
+ type(ESMF_Array) :: ESMF_ArrayCreateFromPtr3Dr4 
+
+ real (ESMF_KIND_r4),dimension(:,:,:),pointer :: farrayPtr 
+ type(ESMF_DistGrid), intent(in) :: distgrid 
+ type(ESMF_CopyFlag), intent(in), optional :: copyflag 
+ integer, intent(in), optional :: distgridToArrayMap(:) 
+ integer, intent(in), optional :: computationalEdgeLWidth(:) 
+ integer, intent(in), optional :: computationalEdgeUWidth(:) 
+ integer, intent(in), optional :: computationalLWidth(:) 
+ integer, intent(in), optional :: computationalUWidth(:) 
+ integer, intent(in), optional :: totalLWidth(:) 
+ integer, intent(in), optional :: totalUWidth(:) 
+ character (len=*), intent(in), optional :: name 
+ integer, intent(out), optional :: rc 
+
+ ! Local variables 
+ integer :: localrc ! local return code 
+ type(ESMF_Array) :: array ! new Array 
+ type(ESMF_LocalArray), allocatable :: larrayList(:) ! helper variable 
+ type(ESMF_CopyFlag) :: copyflag_opt ! helper variable 
+
+ ! Initialize return code; assume failure until success is certain 
+ localrc = ESMF_RC_NOT_IMPL 
+ if (present(rc)) rc = ESMF_RC_NOT_IMPL 
+
+ ! Check init status of arguments 
+ ESMF_INIT_CHECK_DEEP_SHORT(ESMF_DistGridGetInit, distgrid, rc) 
+
+ ! Mark this Array object as invalid 
+ array%this = ESMF_NULL_POINTER 
+
+ ! Set copy/ref behavior 
+ copyflag_opt = ESMF_DATA_REF ! default 
+ if (present(copyflag)) copyflag_opt = copyflag 
+
+ ! Prepare the LocalArray list to be used in the ArrayCreate() call. 
+ ! Must pass the copyflag_opt flag into LocalArrayCreate() to ensure 
+ ! that the LocalArray object contained in the larrayList, passed to 
+ ! ArrayCreate() below, is suitable to be placed inside of the Array 
+ ! object directly. ArrayCreate() does _not_ create LocalArray objects 
+ ! internally for ESMF_INDEX_USER. 
+ allocate(larrayList(1)) 
+ larrayList(1) = ESMF_LocalArrayCreate(farrayPtr, copyflag_opt, rc=localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+
+ ! Create the Array object by calling into overloaded ArrayCreate() interf. 
+ array = ESMF_ArrayCreate(larrayList, distgrid, ESMF_INDEX_USER, & 
+ copyflag_opt, distgridToArrayMap, computationalEdgeLWidth, & 
+ computationalEdgeUWidth, computationalLWidth, computationalUWidth, & 
+ totalLWidth, totalUWidth, name=name, rc=localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+
+ ! Garbage collection. The ArrayCreate() call will have placed the 
+ ! LocalArray object created above into the Array object. It will be 
+ ! destroyed when the Array object is destroyed. Only the larrayList 
+ ! must be cleaned up here. 
+ deallocate(larrayList) 
+
+ ! Set return value 
+ ESMF_ArrayCreateFromPtr3Dr4 = array 
+
+ ! Set init code 
+ ESMF_INIT_SET_CREATED(ESMF_ArrayCreateFromPtr3Dr4) 
+
+ ! Return successfully 
+ if (present(rc)) rc = ESMF_SUCCESS 
+
+ end function ESMF_ArrayCreateFromPtr3Dr4 
+!---------------------------------------------------------------------------- 
+ 
+! -------------------------- ESMF-public method ----------------------------- 
+#undef ESMF_METHOD 
+#define ESMF_METHOD "ESMF_ArrayCreateFromPtr" 
+ function ESMF_ArrayCreateFromPtr3Dr8(farrayPtr, & 
+ distgrid, copyflag, distgridToArrayMap, & 
+ computationalEdgeLWidth, computationalEdgeUWidth, & 
+ computationalLWidth, computationalUWidth, totalLWidth, & 
+ totalUWidth, name, rc) 
+
+ type(ESMF_Array) :: ESMF_ArrayCreateFromPtr3Dr8 
+
+ real (ESMF_KIND_r8),dimension(:,:,:),pointer :: farrayPtr 
+ type(ESMF_DistGrid), intent(in) :: distgrid 
+ type(ESMF_CopyFlag), intent(in), optional :: copyflag 
+ integer, intent(in), optional :: distgridToArrayMap(:) 
+ integer, intent(in), optional :: computationalEdgeLWidth(:) 
+ integer, intent(in), optional :: computationalEdgeUWidth(:) 
+ integer, intent(in), optional :: computationalLWidth(:) 
+ integer, intent(in), optional :: computationalUWidth(:) 
+ integer, intent(in), optional :: totalLWidth(:) 
+ integer, intent(in), optional :: totalUWidth(:) 
+ character (len=*), intent(in), optional :: name 
+ integer, intent(out), optional :: rc 
+
+ ! Local variables 
+ integer :: localrc ! local return code 
+ type(ESMF_Array) :: array ! new Array 
+ type(ESMF_LocalArray), allocatable :: larrayList(:) ! helper variable 
+ type(ESMF_CopyFlag) :: copyflag_opt ! helper variable 
+
+ ! Initialize return code; assume failure until success is certain 
+ localrc = ESMF_RC_NOT_IMPL 
+ if (present(rc)) rc = ESMF_RC_NOT_IMPL 
+
+ ! Check init status of arguments 
+ ESMF_INIT_CHECK_DEEP_SHORT(ESMF_DistGridGetInit, distgrid, rc) 
+
+ ! Mark this Array object as invalid 
+ array%this = ESMF_NULL_POINTER 
+
+ ! Set copy/ref behavior 
+ copyflag_opt = ESMF_DATA_REF ! default 
+ if (present(copyflag)) copyflag_opt = copyflag 
+
+ ! Prepare the LocalArray list to be used in the ArrayCreate() call. 
+ ! Must pass the copyflag_opt flag into LocalArrayCreate() to ensure 
+ ! that the LocalArray object contained in the larrayList, passed to 
+ ! ArrayCreate() below, is suitable to be placed inside of the Array 
+ ! object directly. ArrayCreate() does _not_ create LocalArray objects 
+ ! internally for ESMF_INDEX_USER. 
+ allocate(larrayList(1)) 
+ larrayList(1) = ESMF_LocalArrayCreate(farrayPtr, copyflag_opt, rc=localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+
+ ! Create the Array object by calling into overloaded ArrayCreate() interf. 
+ array = ESMF_ArrayCreate(larrayList, distgrid, ESMF_INDEX_USER, & 
+ copyflag_opt, distgridToArrayMap, computationalEdgeLWidth, & 
+ computationalEdgeUWidth, computationalLWidth, computationalUWidth, & 
+ totalLWidth, totalUWidth, name=name, rc=localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+
+ ! Garbage collection. The ArrayCreate() call will have placed the 
+ ! LocalArray object created above into the Array object. It will be 
+ ! destroyed when the Array object is destroyed. Only the larrayList 
+ ! must be cleaned up here. 
+ deallocate(larrayList) 
+
+ ! Set return value 
+ ESMF_ArrayCreateFromPtr3Dr8 = array 
+
+ ! Set init code 
+ ESMF_INIT_SET_CREATED(ESMF_ArrayCreateFromPtr3Dr8) 
+
+ ! Return successfully 
+ if (present(rc)) rc = ESMF_SUCCESS 
+
+ end function ESMF_ArrayCreateFromPtr3Dr8 
+!---------------------------------------------------------------------------- 
+ 
+! -------------------------- ESMF-public method ----------------------------- 
+#undef ESMF_METHOD 
+#define ESMF_METHOD "ESMF_ArrayCreateFromPtr" 
+ function ESMF_ArrayCreateFromPtr4Di4(farrayPtr, & 
+ distgrid, copyflag, distgridToArrayMap, & 
+ computationalEdgeLWidth, computationalEdgeUWidth, & 
+ computationalLWidth, computationalUWidth, totalLWidth, & 
+ totalUWidth, name, rc) 
+
+ type(ESMF_Array) :: ESMF_ArrayCreateFromPtr4Di4 
+
+ integer (ESMF_KIND_i4),dimension(:,:,:,:),pointer :: farrayPtr 
+ type(ESMF_DistGrid), intent(in) :: distgrid 
+ type(ESMF_CopyFlag), intent(in), optional :: copyflag 
+ integer, intent(in), optional :: distgridToArrayMap(:) 
+ integer, intent(in), optional :: computationalEdgeLWidth(:) 
+ integer, intent(in), optional :: computationalEdgeUWidth(:) 
+ integer, intent(in), optional :: computationalLWidth(:) 
+ integer, intent(in), optional :: computationalUWidth(:) 
+ integer, intent(in), optional :: totalLWidth(:) 
+ integer, intent(in), optional :: totalUWidth(:) 
+ character (len=*), intent(in), optional :: name 
+ integer, intent(out), optional :: rc 
+
+ ! Local variables 
+ integer :: localrc ! local return code 
+ type(ESMF_Array) :: array ! new Array 
+ type(ESMF_LocalArray), allocatable :: larrayList(:) ! helper variable 
+ type(ESMF_CopyFlag) :: copyflag_opt ! helper variable 
+
+ ! Initialize return code; assume failure until success is certain 
+ localrc = ESMF_RC_NOT_IMPL 
+ if (present(rc)) rc = ESMF_RC_NOT_IMPL 
+
+ ! Check init status of arguments 
+ ESMF_INIT_CHECK_DEEP_SHORT(ESMF_DistGridGetInit, distgrid, rc) 
+
+ ! Mark this Array object as invalid 
+ array%this = ESMF_NULL_POINTER 
+
+ ! Set copy/ref behavior 
+ copyflag_opt = ESMF_DATA_REF ! default 
+ if (present(copyflag)) copyflag_opt = copyflag 
+
+ ! Prepare the LocalArray list to be used in the ArrayCreate() call. 
+ ! Must pass the copyflag_opt flag into LocalArrayCreate() to ensure 
+ ! that the LocalArray object contained in the larrayList, passed to 
+ ! ArrayCreate() below, is suitable to be placed inside of the Array 
+ ! object directly. ArrayCreate() does _not_ create LocalArray objects 
+ ! internally for ESMF_INDEX_USER. 
+ allocate(larrayList(1)) 
+ larrayList(1) = ESMF_LocalArrayCreate(farrayPtr, copyflag_opt, rc=localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+
+ ! Create the Array object by calling into overloaded ArrayCreate() interf. 
+ array = ESMF_ArrayCreate(larrayList, distgrid, ESMF_INDEX_USER, & 
+ copyflag_opt, distgridToArrayMap, computationalEdgeLWidth, & 
+ computationalEdgeUWidth, computationalLWidth, computationalUWidth, & 
+ totalLWidth, totalUWidth, name=name, rc=localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+
+ ! Garbage collection. The ArrayCreate() call will have placed the 
+ ! LocalArray object created above into the Array object. It will be 
+ ! destroyed when the Array object is destroyed. Only the larrayList 
+ ! must be cleaned up here. 
+ deallocate(larrayList) 
+
+ ! Set return value 
+ ESMF_ArrayCreateFromPtr4Di4 = array 
+
+ ! Set init code 
+ ESMF_INIT_SET_CREATED(ESMF_ArrayCreateFromPtr4Di4) 
+
+ ! Return successfully 
+ if (present(rc)) rc = ESMF_SUCCESS 
+
+ end function ESMF_ArrayCreateFromPtr4Di4 
+!---------------------------------------------------------------------------- 
+ 
+! -------------------------- ESMF-public method ----------------------------- 
+#undef ESMF_METHOD 
+#define ESMF_METHOD "ESMF_ArrayCreateFromPtr" 
+ function ESMF_ArrayCreateFromPtr4Di8(farrayPtr, & 
+ distgrid, copyflag, distgridToArrayMap, & 
+ computationalEdgeLWidth, computationalEdgeUWidth, & 
+ computationalLWidth, computationalUWidth, totalLWidth, & 
+ totalUWidth, name, rc) 
+
+ type(ESMF_Array) :: ESMF_ArrayCreateFromPtr4Di8 
+
+ integer (ESMF_KIND_i8),dimension(:,:,:,:),pointer :: farrayPtr 
+ type(ESMF_DistGrid), intent(in) :: distgrid 
+ type(ESMF_CopyFlag), intent(in), optional :: copyflag 
+ integer, intent(in), optional :: distgridToArrayMap(:) 
+ integer, intent(in), optional :: computationalEdgeLWidth(:) 
+ integer, intent(in), optional :: computationalEdgeUWidth(:) 
+ integer, intent(in), optional :: computationalLWidth(:) 
+ integer, intent(in), optional :: computationalUWidth(:) 
+ integer, intent(in), optional :: totalLWidth(:) 
+ integer, intent(in), optional :: totalUWidth(:) 
+ character (len=*), intent(in), optional :: name 
+ integer, intent(out), optional :: rc 
+
+ ! Local variables 
+ integer :: localrc ! local return code 
+ type(ESMF_Array) :: array ! new Array 
+ type(ESMF_LocalArray), allocatable :: larrayList(:) ! helper variable 
+ type(ESMF_CopyFlag) :: copyflag_opt ! helper variable 
+
+ ! Initialize return code; assume failure until success is certain 
+ localrc = ESMF_RC_NOT_IMPL 
+ if (present(rc)) rc = ESMF_RC_NOT_IMPL 
+
+ ! Check init status of arguments 
+ ESMF_INIT_CHECK_DEEP_SHORT(ESMF_DistGridGetInit, distgrid, rc) 
+
+ ! Mark this Array object as invalid 
+ array%this = ESMF_NULL_POINTER 
+
+ ! Set copy/ref behavior 
+ copyflag_opt = ESMF_DATA_REF ! default 
+ if (present(copyflag)) copyflag_opt = copyflag 
+
+ ! Prepare the LocalArray list to be used in the ArrayCreate() call. 
+ ! Must pass the copyflag_opt flag into LocalArrayCreate() to ensure 
+ ! that the LocalArray object contained in the larrayList, passed to 
+ ! ArrayCreate() below, is suitable to be placed inside of the Array 
+ ! object directly. ArrayCreate() does _not_ create LocalArray objects 
+ ! internally for ESMF_INDEX_USER. 
+ allocate(larrayList(1)) 
+ larrayList(1) = ESMF_LocalArrayCreate(farrayPtr, copyflag_opt, rc=localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+
+ ! Create the Array object by calling into overloaded ArrayCreate() interf. 
+ array = ESMF_ArrayCreate(larrayList, distgrid, ESMF_INDEX_USER, & 
+ copyflag_opt, distgridToArrayMap, computationalEdgeLWidth, & 
+ computationalEdgeUWidth, computationalLWidth, computationalUWidth, & 
+ totalLWidth, totalUWidth, name=name, rc=localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+
+ ! Garbage collection. The ArrayCreate() call will have placed the 
+ ! LocalArray object created above into the Array object. It will be 
+ ! destroyed when the Array object is destroyed. Only the larrayList 
+ ! must be cleaned up here. 
+ deallocate(larrayList) 
+
+ ! Set return value 
+ ESMF_ArrayCreateFromPtr4Di8 = array 
+
+ ! Set init code 
+ ESMF_INIT_SET_CREATED(ESMF_ArrayCreateFromPtr4Di8) 
+
+ ! Return successfully 
+ if (present(rc)) rc = ESMF_SUCCESS 
+
+ end function ESMF_ArrayCreateFromPtr4Di8 
+!---------------------------------------------------------------------------- 
+ 
+! -------------------------- ESMF-public method ----------------------------- 
+#undef ESMF_METHOD 
+#define ESMF_METHOD "ESMF_ArrayCreateFromPtr" 
+ function ESMF_ArrayCreateFromPtr4Dr4(farrayPtr, & 
+ distgrid, copyflag, distgridToArrayMap, & 
+ computationalEdgeLWidth, computationalEdgeUWidth, & 
+ computationalLWidth, computationalUWidth, totalLWidth, & 
+ totalUWidth, name, rc) 
+
+ type(ESMF_Array) :: ESMF_ArrayCreateFromPtr4Dr4 
+
+ real (ESMF_KIND_r4),dimension(:,:,:,:),pointer :: farrayPtr 
+ type(ESMF_DistGrid), intent(in) :: distgrid 
+ type(ESMF_CopyFlag), intent(in), optional :: copyflag 
+ integer, intent(in), optional :: distgridToArrayMap(:) 
+ integer, intent(in), optional :: computationalEdgeLWidth(:) 
+ integer, intent(in), optional :: computationalEdgeUWidth(:) 
+ integer, intent(in), optional :: computationalLWidth(:) 
+ integer, intent(in), optional :: computationalUWidth(:) 
+ integer, intent(in), optional :: totalLWidth(:) 
+ integer, intent(in), optional :: totalUWidth(:) 
+ character (len=*), intent(in), optional :: name 
+ integer, intent(out), optional :: rc 
+
+ ! Local variables 
+ integer :: localrc ! local return code 
+ type(ESMF_Array) :: array ! new Array 
+ type(ESMF_LocalArray), allocatable :: larrayList(:) ! helper variable 
+ type(ESMF_CopyFlag) :: copyflag_opt ! helper variable 
+
+ ! Initialize return code; assume failure until success is certain 
+ localrc = ESMF_RC_NOT_IMPL 
+ if (present(rc)) rc = ESMF_RC_NOT_IMPL 
+
+ ! Check init status of arguments 
+ ESMF_INIT_CHECK_DEEP_SHORT(ESMF_DistGridGetInit, distgrid, rc) 
+
+ ! Mark this Array object as invalid 
+ array%this = ESMF_NULL_POINTER 
+
+ ! Set copy/ref behavior 
+ copyflag_opt = ESMF_DATA_REF ! default 
+ if (present(copyflag)) copyflag_opt = copyflag 
+
+ ! Prepare the LocalArray list to be used in the ArrayCreate() call. 
+ ! Must pass the copyflag_opt flag into LocalArrayCreate() to ensure 
+ ! that the LocalArray object contained in the larrayList, passed to 
+ ! ArrayCreate() below, is suitable to be placed inside of the Array 
+ ! object directly. ArrayCreate() does _not_ create LocalArray objects 
+ ! internally for ESMF_INDEX_USER. 
+ allocate(larrayList(1)) 
+ larrayList(1) = ESMF_LocalArrayCreate(farrayPtr, copyflag_opt, rc=localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+
+ ! Create the Array object by calling into overloaded ArrayCreate() interf. 
+ array = ESMF_ArrayCreate(larrayList, distgrid, ESMF_INDEX_USER, & 
+ copyflag_opt, distgridToArrayMap, computationalEdgeLWidth, & 
+ computationalEdgeUWidth, computationalLWidth, computationalUWidth, & 
+ totalLWidth, totalUWidth, name=name, rc=localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+
+ ! Garbage collection. The ArrayCreate() call will have placed the 
+ ! LocalArray object created above into the Array object. It will be 
+ ! destroyed when the Array object is destroyed. Only the larrayList 
+ ! must be cleaned up here. 
+ deallocate(larrayList) 
+
+ ! Set return value 
+ ESMF_ArrayCreateFromPtr4Dr4 = array 
+
+ ! Set init code 
+ ESMF_INIT_SET_CREATED(ESMF_ArrayCreateFromPtr4Dr4) 
+
+ ! Return successfully 
+ if (present(rc)) rc = ESMF_SUCCESS 
+
+ end function ESMF_ArrayCreateFromPtr4Dr4 
+!---------------------------------------------------------------------------- 
+ 
+! -------------------------- ESMF-public method ----------------------------- 
+#undef ESMF_METHOD 
+#define ESMF_METHOD "ESMF_ArrayCreateFromPtr" 
+ function ESMF_ArrayCreateFromPtr4Dr8(farrayPtr, & 
+ distgrid, copyflag, distgridToArrayMap, & 
+ computationalEdgeLWidth, computationalEdgeUWidth, & 
+ computationalLWidth, computationalUWidth, totalLWidth, & 
+ totalUWidth, name, rc) 
+
+ type(ESMF_Array) :: ESMF_ArrayCreateFromPtr4Dr8 
+
+ real (ESMF_KIND_r8),dimension(:,:,:,:),pointer :: farrayPtr 
+ type(ESMF_DistGrid), intent(in) :: distgrid 
+ type(ESMF_CopyFlag), intent(in), optional :: copyflag 
+ integer, intent(in), optional :: distgridToArrayMap(:) 
+ integer, intent(in), optional :: computationalEdgeLWidth(:) 
+ integer, intent(in), optional :: computationalEdgeUWidth(:) 
+ integer, intent(in), optional :: computationalLWidth(:) 
+ integer, intent(in), optional :: computationalUWidth(:) 
+ integer, intent(in), optional :: totalLWidth(:) 
+ integer, intent(in), optional :: totalUWidth(:) 
+ character (len=*), intent(in), optional :: name 
+ integer, intent(out), optional :: rc 
+
+ ! Local variables 
+ integer :: localrc ! local return code 
+ type(ESMF_Array) :: array ! new Array 
+ type(ESMF_LocalArray), allocatable :: larrayList(:) ! helper variable 
+ type(ESMF_CopyFlag) :: copyflag_opt ! helper variable 
+
+ ! Initialize return code; assume failure until success is certain 
+ localrc = ESMF_RC_NOT_IMPL 
+ if (present(rc)) rc = ESMF_RC_NOT_IMPL 
+
+ ! Check init status of arguments 
+ ESMF_INIT_CHECK_DEEP_SHORT(ESMF_DistGridGetInit, distgrid, rc) 
+
+ ! Mark this Array object as invalid 
+ array%this = ESMF_NULL_POINTER 
+
+ ! Set copy/ref behavior 
+ copyflag_opt = ESMF_DATA_REF ! default 
+ if (present(copyflag)) copyflag_opt = copyflag 
+
+ ! Prepare the LocalArray list to be used in the ArrayCreate() call. 
+ ! Must pass the copyflag_opt flag into LocalArrayCreate() to ensure 
+ ! that the LocalArray object contained in the larrayList, passed to 
+ ! ArrayCreate() below, is suitable to be placed inside of the Array 
+ ! object directly. ArrayCreate() does _not_ create LocalArray objects 
+ ! internally for ESMF_INDEX_USER. 
+ allocate(larrayList(1)) 
+ larrayList(1) = ESMF_LocalArrayCreate(farrayPtr, copyflag_opt, rc=localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+
+ ! Create the Array object by calling into overloaded ArrayCreate() interf. 
+ array = ESMF_ArrayCreate(larrayList, distgrid, ESMF_INDEX_USER, & 
+ copyflag_opt, distgridToArrayMap, computationalEdgeLWidth, & 
+ computationalEdgeUWidth, computationalLWidth, computationalUWidth, & 
+ totalLWidth, totalUWidth, name=name, rc=localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+
+ ! Garbage collection. The ArrayCreate() call will have placed the 
+ ! LocalArray object created above into the Array object. It will be 
+ ! destroyed when the Array object is destroyed. Only the larrayList 
+ ! must be cleaned up here. 
+ deallocate(larrayList) 
+
+ ! Set return value 
+ ESMF_ArrayCreateFromPtr4Dr8 = array 
+
+ ! Set init code 
+ ESMF_INIT_SET_CREATED(ESMF_ArrayCreateFromPtr4Dr8) 
+
+ ! Return successfully 
+ if (present(rc)) rc = ESMF_SUCCESS 
+
+ end function ESMF_ArrayCreateFromPtr4Dr8 
+!---------------------------------------------------------------------------- 
+ 
+#ifndef ESMF_NO_GREATER_THAN_4D 
+! -------------------------- ESMF-public method ----------------------------- 
+#undef ESMF_METHOD 
+#define ESMF_METHOD "ESMF_ArrayCreateFromPtr" 
+ function ESMF_ArrayCreateFromPtr5Di4(farrayPtr, & 
+ distgrid, copyflag, distgridToArrayMap, & 
+ computationalEdgeLWidth, computationalEdgeUWidth, & 
+ computationalLWidth, computationalUWidth, totalLWidth, & 
+ totalUWidth, name, rc) 
+
+ type(ESMF_Array) :: ESMF_ArrayCreateFromPtr5Di4 
+
+ integer (ESMF_KIND_i4),dimension(:,:,:,:,:),pointer :: farrayPtr 
+ type(ESMF_DistGrid), intent(in) :: distgrid 
+ type(ESMF_CopyFlag), intent(in), optional :: copyflag 
+ integer, intent(in), optional :: distgridToArrayMap(:) 
+ integer, intent(in), optional :: computationalEdgeLWidth(:) 
+ integer, intent(in), optional :: computationalEdgeUWidth(:) 
+ integer, intent(in), optional :: computationalLWidth(:) 
+ integer, intent(in), optional :: computationalUWidth(:) 
+ integer, intent(in), optional :: totalLWidth(:) 
+ integer, intent(in), optional :: totalUWidth(:) 
+ character (len=*), intent(in), optional :: name 
+ integer, intent(out), optional :: rc 
+
+ ! Local variables 
+ integer :: localrc ! local return code 
+ type(ESMF_Array) :: array ! new Array 
+ type(ESMF_LocalArray), allocatable :: larrayList(:) ! helper variable 
+ type(ESMF_CopyFlag) :: copyflag_opt ! helper variable 
+
+ ! Initialize return code; assume failure until success is certain 
+ localrc = ESMF_RC_NOT_IMPL 
+ if (present(rc)) rc = ESMF_RC_NOT_IMPL 
+
+ ! Check init status of arguments 
+ ESMF_INIT_CHECK_DEEP_SHORT(ESMF_DistGridGetInit, distgrid, rc) 
+
+ ! Mark this Array object as invalid 
+ array%this = ESMF_NULL_POINTER 
+
+ ! Set copy/ref behavior 
+ copyflag_opt = ESMF_DATA_REF ! default 
+ if (present(copyflag)) copyflag_opt = copyflag 
+
+ ! Prepare the LocalArray list to be used in the ArrayCreate() call. 
+ ! Must pass the copyflag_opt flag into LocalArrayCreate() to ensure 
+ ! that the LocalArray object contained in the larrayList, passed to 
+ ! ArrayCreate() below, is suitable to be placed inside of the Array 
+ ! object directly. ArrayCreate() does _not_ create LocalArray objects 
+ ! internally for ESMF_INDEX_USER. 
+ allocate(larrayList(1)) 
+ larrayList(1) = ESMF_LocalArrayCreate(farrayPtr, copyflag_opt, rc=localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+
+ ! Create the Array object by calling into overloaded ArrayCreate() interf. 
+ array = ESMF_ArrayCreate(larrayList, distgrid, ESMF_INDEX_USER, & 
+ copyflag_opt, distgridToArrayMap, computationalEdgeLWidth, & 
+ computationalEdgeUWidth, computationalLWidth, computationalUWidth, & 
+ totalLWidth, totalUWidth, name=name, rc=localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+
+ ! Garbage collection. The ArrayCreate() call will have placed the 
+ ! LocalArray object created above into the Array object. It will be 
+ ! destroyed when the Array object is destroyed. Only the larrayList 
+ ! must be cleaned up here. 
+ deallocate(larrayList) 
+
+ ! Set return value 
+ ESMF_ArrayCreateFromPtr5Di4 = array 
+
+ ! Set init code 
+ ESMF_INIT_SET_CREATED(ESMF_ArrayCreateFromPtr5Di4) 
+
+ ! Return successfully 
+ if (present(rc)) rc = ESMF_SUCCESS 
+
+ end function ESMF_ArrayCreateFromPtr5Di4 
+!---------------------------------------------------------------------------- 
+ 
+! -------------------------- ESMF-public method ----------------------------- 
+#undef ESMF_METHOD 
+#define ESMF_METHOD "ESMF_ArrayCreateFromPtr" 
+ function ESMF_ArrayCreateFromPtr5Di8(farrayPtr, & 
+ distgrid, copyflag, distgridToArrayMap, & 
+ computationalEdgeLWidth, computationalEdgeUWidth, & 
+ computationalLWidth, computationalUWidth, totalLWidth, & 
+ totalUWidth, name, rc) 
+
+ type(ESMF_Array) :: ESMF_ArrayCreateFromPtr5Di8 
+
+ integer (ESMF_KIND_i8),dimension(:,:,:,:,:),pointer :: farrayPtr 
+ type(ESMF_DistGrid), intent(in) :: distgrid 
+ type(ESMF_CopyFlag), intent(in), optional :: copyflag 
+ integer, intent(in), optional :: distgridToArrayMap(:) 
+ integer, intent(in), optional :: computationalEdgeLWidth(:) 
+ integer, intent(in), optional :: computationalEdgeUWidth(:) 
+ integer, intent(in), optional :: computationalLWidth(:) 
+ integer, intent(in), optional :: computationalUWidth(:) 
+ integer, intent(in), optional :: totalLWidth(:) 
+ integer, intent(in), optional :: totalUWidth(:) 
+ character (len=*), intent(in), optional :: name 
+ integer, intent(out), optional :: rc 
+
+ ! Local variables 
+ integer :: localrc ! local return code 
+ type(ESMF_Array) :: array ! new Array 
+ type(ESMF_LocalArray), allocatable :: larrayList(:) ! helper variable 
+ type(ESMF_CopyFlag) :: copyflag_opt ! helper variable 
+
+ ! Initialize return code; assume failure until success is certain 
+ localrc = ESMF_RC_NOT_IMPL 
+ if (present(rc)) rc = ESMF_RC_NOT_IMPL 
+
+ ! Check init status of arguments 
+ ESMF_INIT_CHECK_DEEP_SHORT(ESMF_DistGridGetInit, distgrid, rc) 
+
+ ! Mark this Array object as invalid 
+ array%this = ESMF_NULL_POINTER 
+
+ ! Set copy/ref behavior 
+ copyflag_opt = ESMF_DATA_REF ! default 
+ if (present(copyflag)) copyflag_opt = copyflag 
+
+ ! Prepare the LocalArray list to be used in the ArrayCreate() call. 
+ ! Must pass the copyflag_opt flag into LocalArrayCreate() to ensure 
+ ! that the LocalArray object contained in the larrayList, passed to 
+ ! ArrayCreate() below, is suitable to be placed inside of the Array 
+ ! object directly. ArrayCreate() does _not_ create LocalArray objects 
+ ! internally for ESMF_INDEX_USER. 
+ allocate(larrayList(1)) 
+ larrayList(1) = ESMF_LocalArrayCreate(farrayPtr, copyflag_opt, rc=localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+
+ ! Create the Array object by calling into overloaded ArrayCreate() interf. 
+ array = ESMF_ArrayCreate(larrayList, distgrid, ESMF_INDEX_USER, & 
+ copyflag_opt, distgridToArrayMap, computationalEdgeLWidth, & 
+ computationalEdgeUWidth, computationalLWidth, computationalUWidth, & 
+ totalLWidth, totalUWidth, name=name, rc=localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+
+ ! Garbage collection. The ArrayCreate() call will have placed the 
+ ! LocalArray object created above into the Array object. It will be 
+ ! destroyed when the Array object is destroyed. Only the larrayList 
+ ! must be cleaned up here. 
+ deallocate(larrayList) 
+
+ ! Set return value 
+ ESMF_ArrayCreateFromPtr5Di8 = array 
+
+ ! Set init code 
+ ESMF_INIT_SET_CREATED(ESMF_ArrayCreateFromPtr5Di8) 
+
+ ! Return successfully 
+ if (present(rc)) rc = ESMF_SUCCESS 
+
+ end function ESMF_ArrayCreateFromPtr5Di8 
+!---------------------------------------------------------------------------- 
+ 
+! -------------------------- ESMF-public method ----------------------------- 
+#undef ESMF_METHOD 
+#define ESMF_METHOD "ESMF_ArrayCreateFromPtr" 
+ function ESMF_ArrayCreateFromPtr5Dr4(farrayPtr, & 
+ distgrid, copyflag, distgridToArrayMap, & 
+ computationalEdgeLWidth, computationalEdgeUWidth, & 
+ computationalLWidth, computationalUWidth, totalLWidth, & 
+ totalUWidth, name, rc) 
+
+ type(ESMF_Array) :: ESMF_ArrayCreateFromPtr5Dr4 
+
+ real (ESMF_KIND_r4),dimension(:,:,:,:,:),pointer :: farrayPtr 
+ type(ESMF_DistGrid), intent(in) :: distgrid 
+ type(ESMF_CopyFlag), intent(in), optional :: copyflag 
+ integer, intent(in), optional :: distgridToArrayMap(:) 
+ integer, intent(in), optional :: computationalEdgeLWidth(:) 
+ integer, intent(in), optional :: computationalEdgeUWidth(:) 
+ integer, intent(in), optional :: computationalLWidth(:) 
+ integer, intent(in), optional :: computationalUWidth(:) 
+ integer, intent(in), optional :: totalLWidth(:) 
+ integer, intent(in), optional :: totalUWidth(:) 
+ character (len=*), intent(in), optional :: name 
+ integer, intent(out), optional :: rc 
+
+ ! Local variables 
+ integer :: localrc ! local return code 
+ type(ESMF_Array) :: array ! new Array 
+ type(ESMF_LocalArray), allocatable :: larrayList(:) ! helper variable 
+ type(ESMF_CopyFlag) :: copyflag_opt ! helper variable 
+
+ ! Initialize return code; assume failure until success is certain 
+ localrc = ESMF_RC_NOT_IMPL 
+ if (present(rc)) rc = ESMF_RC_NOT_IMPL 
+
+ ! Check init status of arguments 
+ ESMF_INIT_CHECK_DEEP_SHORT(ESMF_DistGridGetInit, distgrid, rc) 
+
+ ! Mark this Array object as invalid 
+ array%this = ESMF_NULL_POINTER 
+
+ ! Set copy/ref behavior 
+ copyflag_opt = ESMF_DATA_REF ! default 
+ if (present(copyflag)) copyflag_opt = copyflag 
+
+ ! Prepare the LocalArray list to be used in the ArrayCreate() call. 
+ ! Must pass the copyflag_opt flag into LocalArrayCreate() to ensure 
+ ! that the LocalArray object contained in the larrayList, passed to 
+ ! ArrayCreate() below, is suitable to be placed inside of the Array 
+ ! object directly. ArrayCreate() does _not_ create LocalArray objects 
+ ! internally for ESMF_INDEX_USER. 
+ allocate(larrayList(1)) 
+ larrayList(1) = ESMF_LocalArrayCreate(farrayPtr, copyflag_opt, rc=localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+
+ ! Create the Array object by calling into overloaded ArrayCreate() interf. 
+ array = ESMF_ArrayCreate(larrayList, distgrid, ESMF_INDEX_USER, & 
+ copyflag_opt, distgridToArrayMap, computationalEdgeLWidth, & 
+ computationalEdgeUWidth, computationalLWidth, computationalUWidth, & 
+ totalLWidth, totalUWidth, name=name, rc=localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+
+ ! Garbage collection. The ArrayCreate() call will have placed the 
+ ! LocalArray object created above into the Array object. It will be 
+ ! destroyed when the Array object is destroyed. Only the larrayList 
+ ! must be cleaned up here. 
+ deallocate(larrayList) 
+
+ ! Set return value 
+ ESMF_ArrayCreateFromPtr5Dr4 = array 
+
+ ! Set init code 
+ ESMF_INIT_SET_CREATED(ESMF_ArrayCreateFromPtr5Dr4) 
+
+ ! Return successfully 
+ if (present(rc)) rc = ESMF_SUCCESS 
+
+ end function ESMF_ArrayCreateFromPtr5Dr4 
+!---------------------------------------------------------------------------- 
+ 
+! -------------------------- ESMF-public method ----------------------------- 
+#undef ESMF_METHOD 
+#define ESMF_METHOD "ESMF_ArrayCreateFromPtr" 
+ function ESMF_ArrayCreateFromPtr5Dr8(farrayPtr, & 
+ distgrid, copyflag, distgridToArrayMap, & 
+ computationalEdgeLWidth, computationalEdgeUWidth, & 
+ computationalLWidth, computationalUWidth, totalLWidth, & 
+ totalUWidth, name, rc) 
+
+ type(ESMF_Array) :: ESMF_ArrayCreateFromPtr5Dr8 
+
+ real (ESMF_KIND_r8),dimension(:,:,:,:,:),pointer :: farrayPtr 
+ type(ESMF_DistGrid), intent(in) :: distgrid 
+ type(ESMF_CopyFlag), intent(in), optional :: copyflag 
+ integer, intent(in), optional :: distgridToArrayMap(:) 
+ integer, intent(in), optional :: computationalEdgeLWidth(:) 
+ integer, intent(in), optional :: computationalEdgeUWidth(:) 
+ integer, intent(in), optional :: computationalLWidth(:) 
+ integer, intent(in), optional :: computationalUWidth(:) 
+ integer, intent(in), optional :: totalLWidth(:) 
+ integer, intent(in), optional :: totalUWidth(:) 
+ character (len=*), intent(in), optional :: name 
+ integer, intent(out), optional :: rc 
+
+ ! Local variables 
+ integer :: localrc ! local return code 
+ type(ESMF_Array) :: array ! new Array 
+ type(ESMF_LocalArray), allocatable :: larrayList(:) ! helper variable 
+ type(ESMF_CopyFlag) :: copyflag_opt ! helper variable 
+
+ ! Initialize return code; assume failure until success is certain 
+ localrc = ESMF_RC_NOT_IMPL 
+ if (present(rc)) rc = ESMF_RC_NOT_IMPL 
+
+ ! Check init status of arguments 
+ ESMF_INIT_CHECK_DEEP_SHORT(ESMF_DistGridGetInit, distgrid, rc) 
+
+ ! Mark this Array object as invalid 
+ array%this = ESMF_NULL_POINTER 
+
+ ! Set copy/ref behavior 
+ copyflag_opt = ESMF_DATA_REF ! default 
+ if (present(copyflag)) copyflag_opt = copyflag 
+
+ ! Prepare the LocalArray list to be used in the ArrayCreate() call. 
+ ! Must pass the copyflag_opt flag into LocalArrayCreate() to ensure 
+ ! that the LocalArray object contained in the larrayList, passed to 
+ ! ArrayCreate() below, is suitable to be placed inside of the Array 
+ ! object directly. ArrayCreate() does _not_ create LocalArray objects 
+ ! internally for ESMF_INDEX_USER. 
+ allocate(larrayList(1)) 
+ larrayList(1) = ESMF_LocalArrayCreate(farrayPtr, copyflag_opt, rc=localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+
+ ! Create the Array object by calling into overloaded ArrayCreate() interf. 
+ array = ESMF_ArrayCreate(larrayList, distgrid, ESMF_INDEX_USER, & 
+ copyflag_opt, distgridToArrayMap, computationalEdgeLWidth, & 
+ computationalEdgeUWidth, computationalLWidth, computationalUWidth, & 
+ totalLWidth, totalUWidth, name=name, rc=localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+
+ ! Garbage collection. The ArrayCreate() call will have placed the 
+ ! LocalArray object created above into the Array object. It will be 
+ ! destroyed when the Array object is destroyed. Only the larrayList 
+ ! must be cleaned up here. 
+ deallocate(larrayList) 
+
+ ! Set return value 
+ ESMF_ArrayCreateFromPtr5Dr8 = array 
+
+ ! Set init code 
+ ESMF_INIT_SET_CREATED(ESMF_ArrayCreateFromPtr5Dr8) 
+
+ ! Return successfully 
+ if (present(rc)) rc = ESMF_SUCCESS 
+
+ end function ESMF_ArrayCreateFromPtr5Dr8 
+!---------------------------------------------------------------------------- 
+ 
+! -------------------------- ESMF-public method ----------------------------- 
+#undef ESMF_METHOD 
+#define ESMF_METHOD "ESMF_ArrayCreateFromPtr" 
+ function ESMF_ArrayCreateFromPtr6Di4(farrayPtr, & 
+ distgrid, copyflag, distgridToArrayMap, & 
+ computationalEdgeLWidth, computationalEdgeUWidth, & 
+ computationalLWidth, computationalUWidth, totalLWidth, & 
+ totalUWidth, name, rc) 
+
+ type(ESMF_Array) :: ESMF_ArrayCreateFromPtr6Di4 
+
+ integer (ESMF_KIND_i4),dimension(:,:,:,:,:,:),pointer :: farrayPtr 
+ type(ESMF_DistGrid), intent(in) :: distgrid 
+ type(ESMF_CopyFlag), intent(in), optional :: copyflag 
+ integer, intent(in), optional :: distgridToArrayMap(:) 
+ integer, intent(in), optional :: computationalEdgeLWidth(:) 
+ integer, intent(in), optional :: computationalEdgeUWidth(:) 
+ integer, intent(in), optional :: computationalLWidth(:) 
+ integer, intent(in), optional :: computationalUWidth(:) 
+ integer, intent(in), optional :: totalLWidth(:) 
+ integer, intent(in), optional :: totalUWidth(:) 
+ character (len=*), intent(in), optional :: name 
+ integer, intent(out), optional :: rc 
+
+ ! Local variables 
+ integer :: localrc ! local return code 
+ type(ESMF_Array) :: array ! new Array 
+ type(ESMF_LocalArray), allocatable :: larrayList(:) ! helper variable 
+ type(ESMF_CopyFlag) :: copyflag_opt ! helper variable 
+
+ ! Initialize return code; assume failure until success is certain 
+ localrc = ESMF_RC_NOT_IMPL 
+ if (present(rc)) rc = ESMF_RC_NOT_IMPL 
+
+ ! Check init status of arguments 
+ ESMF_INIT_CHECK_DEEP_SHORT(ESMF_DistGridGetInit, distgrid, rc) 
+
+ ! Mark this Array object as invalid 
+ array%this = ESMF_NULL_POINTER 
+
+ ! Set copy/ref behavior 
+ copyflag_opt = ESMF_DATA_REF ! default 
+ if (present(copyflag)) copyflag_opt = copyflag 
+
+ ! Prepare the LocalArray list to be used in the ArrayCreate() call. 
+ ! Must pass the copyflag_opt flag into LocalArrayCreate() to ensure 
+ ! that the LocalArray object contained in the larrayList, passed to 
+ ! ArrayCreate() below, is suitable to be placed inside of the Array 
+ ! object directly. ArrayCreate() does _not_ create LocalArray objects 
+ ! internally for ESMF_INDEX_USER. 
+ allocate(larrayList(1)) 
+ larrayList(1) = ESMF_LocalArrayCreate(farrayPtr, copyflag_opt, rc=localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+
+ ! Create the Array object by calling into overloaded ArrayCreate() interf. 
+ array = ESMF_ArrayCreate(larrayList, distgrid, ESMF_INDEX_USER, & 
+ copyflag_opt, distgridToArrayMap, computationalEdgeLWidth, & 
+ computationalEdgeUWidth, computationalLWidth, computationalUWidth, & 
+ totalLWidth, totalUWidth, name=name, rc=localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+
+ ! Garbage collection. The ArrayCreate() call will have placed the 
+ ! LocalArray object created above into the Array object. It will be 
+ ! destroyed when the Array object is destroyed. Only the larrayList 
+ ! must be cleaned up here. 
+ deallocate(larrayList) 
+
+ ! Set return value 
+ ESMF_ArrayCreateFromPtr6Di4 = array 
+
+ ! Set init code 
+ ESMF_INIT_SET_CREATED(ESMF_ArrayCreateFromPtr6Di4) 
+
+ ! Return successfully 
+ if (present(rc)) rc = ESMF_SUCCESS 
+
+ end function ESMF_ArrayCreateFromPtr6Di4 
+!---------------------------------------------------------------------------- 
+ 
+! -------------------------- ESMF-public method ----------------------------- 
+#undef ESMF_METHOD 
+#define ESMF_METHOD "ESMF_ArrayCreateFromPtr" 
+ function ESMF_ArrayCreateFromPtr6Di8(farrayPtr, & 
+ distgrid, copyflag, distgridToArrayMap, & 
+ computationalEdgeLWidth, computationalEdgeUWidth, & 
+ computationalLWidth, computationalUWidth, totalLWidth, & 
+ totalUWidth, name, rc) 
+
+ type(ESMF_Array) :: ESMF_ArrayCreateFromPtr6Di8 
+
+ integer (ESMF_KIND_i8),dimension(:,:,:,:,:,:),pointer :: farrayPtr 
+ type(ESMF_DistGrid), intent(in) :: distgrid 
+ type(ESMF_CopyFlag), intent(in), optional :: copyflag 
+ integer, intent(in), optional :: distgridToArrayMap(:) 
+ integer, intent(in), optional :: computationalEdgeLWidth(:) 
+ integer, intent(in), optional :: computationalEdgeUWidth(:) 
+ integer, intent(in), optional :: computationalLWidth(:) 
+ integer, intent(in), optional :: computationalUWidth(:) 
+ integer, intent(in), optional :: totalLWidth(:) 
+ integer, intent(in), optional :: totalUWidth(:) 
+ character (len=*), intent(in), optional :: name 
+ integer, intent(out), optional :: rc 
+
+ ! Local variables 
+ integer :: localrc ! local return code 
+ type(ESMF_Array) :: array ! new Array 
+ type(ESMF_LocalArray), allocatable :: larrayList(:) ! helper variable 
+ type(ESMF_CopyFlag) :: copyflag_opt ! helper variable 
+
+ ! Initialize return code; assume failure until success is certain 
+ localrc = ESMF_RC_NOT_IMPL 
+ if (present(rc)) rc = ESMF_RC_NOT_IMPL 
+
+ ! Check init status of arguments 
+ ESMF_INIT_CHECK_DEEP_SHORT(ESMF_DistGridGetInit, distgrid, rc) 
+
+ ! Mark this Array object as invalid 
+ array%this = ESMF_NULL_POINTER 
+
+ ! Set copy/ref behavior 
+ copyflag_opt = ESMF_DATA_REF ! default 
+ if (present(copyflag)) copyflag_opt = copyflag 
+
+ ! Prepare the LocalArray list to be used in the ArrayCreate() call. 
+ ! Must pass the copyflag_opt flag into LocalArrayCreate() to ensure 
+ ! that the LocalArray object contained in the larrayList, passed to 
+ ! ArrayCreate() below, is suitable to be placed inside of the Array 
+ ! object directly. ArrayCreate() does _not_ create LocalArray objects 
+ ! internally for ESMF_INDEX_USER. 
+ allocate(larrayList(1)) 
+ larrayList(1) = ESMF_LocalArrayCreate(farrayPtr, copyflag_opt, rc=localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+
+ ! Create the Array object by calling into overloaded ArrayCreate() interf. 
+ array = ESMF_ArrayCreate(larrayList, distgrid, ESMF_INDEX_USER, & 
+ copyflag_opt, distgridToArrayMap, computationalEdgeLWidth, & 
+ computationalEdgeUWidth, computationalLWidth, computationalUWidth, & 
+ totalLWidth, totalUWidth, name=name, rc=localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+
+ ! Garbage collection. The ArrayCreate() call will have placed the 
+ ! LocalArray object created above into the Array object. It will be 
+ ! destroyed when the Array object is destroyed. Only the larrayList 
+ ! must be cleaned up here. 
+ deallocate(larrayList) 
+
+ ! Set return value 
+ ESMF_ArrayCreateFromPtr6Di8 = array 
+
+ ! Set init code 
+ ESMF_INIT_SET_CREATED(ESMF_ArrayCreateFromPtr6Di8) 
+
+ ! Return successfully 
+ if (present(rc)) rc = ESMF_SUCCESS 
+
+ end function ESMF_ArrayCreateFromPtr6Di8 
+!---------------------------------------------------------------------------- 
+ 
+! -------------------------- ESMF-public method ----------------------------- 
+#undef ESMF_METHOD 
+#define ESMF_METHOD "ESMF_ArrayCreateFromPtr" 
+ function ESMF_ArrayCreateFromPtr6Dr4(farrayPtr, & 
+ distgrid, copyflag, distgridToArrayMap, & 
+ computationalEdgeLWidth, computationalEdgeUWidth, & 
+ computationalLWidth, computationalUWidth, totalLWidth, & 
+ totalUWidth, name, rc) 
+
+ type(ESMF_Array) :: ESMF_ArrayCreateFromPtr6Dr4 
+
+ real (ESMF_KIND_r4),dimension(:,:,:,:,:,:),pointer :: farrayPtr 
+ type(ESMF_DistGrid), intent(in) :: distgrid 
+ type(ESMF_CopyFlag), intent(in), optional :: copyflag 
+ integer, intent(in), optional :: distgridToArrayMap(:) 
+ integer, intent(in), optional :: computationalEdgeLWidth(:) 
+ integer, intent(in), optional :: computationalEdgeUWidth(:) 
+ integer, intent(in), optional :: computationalLWidth(:) 
+ integer, intent(in), optional :: computationalUWidth(:) 
+ integer, intent(in), optional :: totalLWidth(:) 
+ integer, intent(in), optional :: totalUWidth(:) 
+ character (len=*), intent(in), optional :: name 
+ integer, intent(out), optional :: rc 
+
+ ! Local variables 
+ integer :: localrc ! local return code 
+ type(ESMF_Array) :: array ! new Array 
+ type(ESMF_LocalArray), allocatable :: larrayList(:) ! helper variable 
+ type(ESMF_CopyFlag) :: copyflag_opt ! helper variable 
+
+ ! Initialize return code; assume failure until success is certain 
+ localrc = ESMF_RC_NOT_IMPL 
+ if (present(rc)) rc = ESMF_RC_NOT_IMPL 
+
+ ! Check init status of arguments 
+ ESMF_INIT_CHECK_DEEP_SHORT(ESMF_DistGridGetInit, distgrid, rc) 
+
+ ! Mark this Array object as invalid 
+ array%this = ESMF_NULL_POINTER 
+
+ ! Set copy/ref behavior 
+ copyflag_opt = ESMF_DATA_REF ! default 
+ if (present(copyflag)) copyflag_opt = copyflag 
+
+ ! Prepare the LocalArray list to be used in the ArrayCreate() call. 
+ ! Must pass the copyflag_opt flag into LocalArrayCreate() to ensure 
+ ! that the LocalArray object contained in the larrayList, passed to 
+ ! ArrayCreate() below, is suitable to be placed inside of the Array 
+ ! object directly. ArrayCreate() does _not_ create LocalArray objects 
+ ! internally for ESMF_INDEX_USER. 
+ allocate(larrayList(1)) 
+ larrayList(1) = ESMF_LocalArrayCreate(farrayPtr, copyflag_opt, rc=localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+
+ ! Create the Array object by calling into overloaded ArrayCreate() interf. 
+ array = ESMF_ArrayCreate(larrayList, distgrid, ESMF_INDEX_USER, & 
+ copyflag_opt, distgridToArrayMap, computationalEdgeLWidth, & 
+ computationalEdgeUWidth, computationalLWidth, computationalUWidth, & 
+ totalLWidth, totalUWidth, name=name, rc=localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+
+ ! Garbage collection. The ArrayCreate() call will have placed the 
+ ! LocalArray object created above into the Array object. It will be 
+ ! destroyed when the Array object is destroyed. Only the larrayList 
+ ! must be cleaned up here. 
+ deallocate(larrayList) 
+
+ ! Set return value 
+ ESMF_ArrayCreateFromPtr6Dr4 = array 
+
+ ! Set init code 
+ ESMF_INIT_SET_CREATED(ESMF_ArrayCreateFromPtr6Dr4) 
+
+ ! Return successfully 
+ if (present(rc)) rc = ESMF_SUCCESS 
+
+ end function ESMF_ArrayCreateFromPtr6Dr4 
+!---------------------------------------------------------------------------- 
+ 
+! -------------------------- ESMF-public method ----------------------------- 
+#undef ESMF_METHOD 
+#define ESMF_METHOD "ESMF_ArrayCreateFromPtr" 
+ function ESMF_ArrayCreateFromPtr6Dr8(farrayPtr, & 
+ distgrid, copyflag, distgridToArrayMap, & 
+ computationalEdgeLWidth, computationalEdgeUWidth, & 
+ computationalLWidth, computationalUWidth, totalLWidth, & 
+ totalUWidth, name, rc) 
+
+ type(ESMF_Array) :: ESMF_ArrayCreateFromPtr6Dr8 
+
+ real (ESMF_KIND_r8),dimension(:,:,:,:,:,:),pointer :: farrayPtr 
+ type(ESMF_DistGrid), intent(in) :: distgrid 
+ type(ESMF_CopyFlag), intent(in), optional :: copyflag 
+ integer, intent(in), optional :: distgridToArrayMap(:) 
+ integer, intent(in), optional :: computationalEdgeLWidth(:) 
+ integer, intent(in), optional :: computationalEdgeUWidth(:) 
+ integer, intent(in), optional :: computationalLWidth(:) 
+ integer, intent(in), optional :: computationalUWidth(:) 
+ integer, intent(in), optional :: totalLWidth(:) 
+ integer, intent(in), optional :: totalUWidth(:) 
+ character (len=*), intent(in), optional :: name 
+ integer, intent(out), optional :: rc 
+
+ ! Local variables 
+ integer :: localrc ! local return code 
+ type(ESMF_Array) :: array ! new Array 
+ type(ESMF_LocalArray), allocatable :: larrayList(:) ! helper variable 
+ type(ESMF_CopyFlag) :: copyflag_opt ! helper variable 
+
+ ! Initialize return code; assume failure until success is certain 
+ localrc = ESMF_RC_NOT_IMPL 
+ if (present(rc)) rc = ESMF_RC_NOT_IMPL 
+
+ ! Check init status of arguments 
+ ESMF_INIT_CHECK_DEEP_SHORT(ESMF_DistGridGetInit, distgrid, rc) 
+
+ ! Mark this Array object as invalid 
+ array%this = ESMF_NULL_POINTER 
+
+ ! Set copy/ref behavior 
+ copyflag_opt = ESMF_DATA_REF ! default 
+ if (present(copyflag)) copyflag_opt = copyflag 
+
+ ! Prepare the LocalArray list to be used in the ArrayCreate() call. 
+ ! Must pass the copyflag_opt flag into LocalArrayCreate() to ensure 
+ ! that the LocalArray object contained in the larrayList, passed to 
+ ! ArrayCreate() below, is suitable to be placed inside of the Array 
+ ! object directly. ArrayCreate() does _not_ create LocalArray objects 
+ ! internally for ESMF_INDEX_USER. 
+ allocate(larrayList(1)) 
+ larrayList(1) = ESMF_LocalArrayCreate(farrayPtr, copyflag_opt, rc=localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+
+ ! Create the Array object by calling into overloaded ArrayCreate() interf. 
+ array = ESMF_ArrayCreate(larrayList, distgrid, ESMF_INDEX_USER, & 
+ copyflag_opt, distgridToArrayMap, computationalEdgeLWidth, & 
+ computationalEdgeUWidth, computationalLWidth, computationalUWidth, & 
+ totalLWidth, totalUWidth, name=name, rc=localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+
+ ! Garbage collection. The ArrayCreate() call will have placed the 
+ ! LocalArray object created above into the Array object. It will be 
+ ! destroyed when the Array object is destroyed. Only the larrayList 
+ ! must be cleaned up here. 
+ deallocate(larrayList) 
+
+ ! Set return value 
+ ESMF_ArrayCreateFromPtr6Dr8 = array 
+
+ ! Set init code 
+ ESMF_INIT_SET_CREATED(ESMF_ArrayCreateFromPtr6Dr8) 
+
+ ! Return successfully 
+ if (present(rc)) rc = ESMF_SUCCESS 
+
+ end function ESMF_ArrayCreateFromPtr6Dr8 
+!---------------------------------------------------------------------------- 
+ 
+! -------------------------- ESMF-public method ----------------------------- 
+#undef ESMF_METHOD 
+#define ESMF_METHOD "ESMF_ArrayCreateFromPtr" 
+ function ESMF_ArrayCreateFromPtr7Di4(farrayPtr, & 
+ distgrid, copyflag, distgridToArrayMap, & 
+ computationalEdgeLWidth, computationalEdgeUWidth, & 
+ computationalLWidth, computationalUWidth, totalLWidth, & 
+ totalUWidth, name, rc) 
+
+ type(ESMF_Array) :: ESMF_ArrayCreateFromPtr7Di4 
+
+ integer (ESMF_KIND_i4),dimension(:,:,:,:,:,:,:),pointer :: farrayPtr 
+ type(ESMF_DistGrid), intent(in) :: distgrid 
+ type(ESMF_CopyFlag), intent(in), optional :: copyflag 
+ integer, intent(in), optional :: distgridToArrayMap(:) 
+ integer, intent(in), optional :: computationalEdgeLWidth(:) 
+ integer, intent(in), optional :: computationalEdgeUWidth(:) 
+ integer, intent(in), optional :: computationalLWidth(:) 
+ integer, intent(in), optional :: computationalUWidth(:) 
+ integer, intent(in), optional :: totalLWidth(:) 
+ integer, intent(in), optional :: totalUWidth(:) 
+ character (len=*), intent(in), optional :: name 
+ integer, intent(out), optional :: rc 
+
+ ! Local variables 
+ integer :: localrc ! local return code 
+ type(ESMF_Array) :: array ! new Array 
+ type(ESMF_LocalArray), allocatable :: larrayList(:) ! helper variable 
+ type(ESMF_CopyFlag) :: copyflag_opt ! helper variable 
+
+ ! Initialize return code; assume failure until success is certain 
+ localrc = ESMF_RC_NOT_IMPL 
+ if (present(rc)) rc = ESMF_RC_NOT_IMPL 
+
+ ! Check init status of arguments 
+ ESMF_INIT_CHECK_DEEP_SHORT(ESMF_DistGridGetInit, distgrid, rc) 
+
+ ! Mark this Array object as invalid 
+ array%this = ESMF_NULL_POINTER 
+
+ ! Set copy/ref behavior 
+ copyflag_opt = ESMF_DATA_REF ! default 
+ if (present(copyflag)) copyflag_opt = copyflag 
+
+ ! Prepare the LocalArray list to be used in the ArrayCreate() call. 
+ ! Must pass the copyflag_opt flag into LocalArrayCreate() to ensure 
+ ! that the LocalArray object contained in the larrayList, passed to 
+ ! ArrayCreate() below, is suitable to be placed inside of the Array 
+ ! object directly. ArrayCreate() does _not_ create LocalArray objects 
+ ! internally for ESMF_INDEX_USER. 
+ allocate(larrayList(1)) 
+ larrayList(1) = ESMF_LocalArrayCreate(farrayPtr, copyflag_opt, rc=localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+
+ ! Create the Array object by calling into overloaded ArrayCreate() interf. 
+ array = ESMF_ArrayCreate(larrayList, distgrid, ESMF_INDEX_USER, & 
+ copyflag_opt, distgridToArrayMap, computationalEdgeLWidth, & 
+ computationalEdgeUWidth, computationalLWidth, computationalUWidth, & 
+ totalLWidth, totalUWidth, name=name, rc=localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+
+ ! Garbage collection. The ArrayCreate() call will have placed the 
+ ! LocalArray object created above into the Array object. It will be 
+ ! destroyed when the Array object is destroyed. Only the larrayList 
+ ! must be cleaned up here. 
+ deallocate(larrayList) 
+
+ ! Set return value 
+ ESMF_ArrayCreateFromPtr7Di4 = array 
+
+ ! Set init code 
+ ESMF_INIT_SET_CREATED(ESMF_ArrayCreateFromPtr7Di4) 
+
+ ! Return successfully 
+ if (present(rc)) rc = ESMF_SUCCESS 
+
+ end function ESMF_ArrayCreateFromPtr7Di4 
+!---------------------------------------------------------------------------- 
+ 
+! -------------------------- ESMF-public method ----------------------------- 
+#undef ESMF_METHOD 
+#define ESMF_METHOD "ESMF_ArrayCreateFromPtr" 
+ function ESMF_ArrayCreateFromPtr7Di8(farrayPtr, & 
+ distgrid, copyflag, distgridToArrayMap, & 
+ computationalEdgeLWidth, computationalEdgeUWidth, & 
+ computationalLWidth, computationalUWidth, totalLWidth, & 
+ totalUWidth, name, rc) 
+
+ type(ESMF_Array) :: ESMF_ArrayCreateFromPtr7Di8 
+
+ integer (ESMF_KIND_i8),dimension(:,:,:,:,:,:,:),pointer :: farrayPtr 
+ type(ESMF_DistGrid), intent(in) :: distgrid 
+ type(ESMF_CopyFlag), intent(in), optional :: copyflag 
+ integer, intent(in), optional :: distgridToArrayMap(:) 
+ integer, intent(in), optional :: computationalEdgeLWidth(:) 
+ integer, intent(in), optional :: computationalEdgeUWidth(:) 
+ integer, intent(in), optional :: computationalLWidth(:) 
+ integer, intent(in), optional :: computationalUWidth(:) 
+ integer, intent(in), optional :: totalLWidth(:) 
+ integer, intent(in), optional :: totalUWidth(:) 
+ character (len=*), intent(in), optional :: name 
+ integer, intent(out), optional :: rc 
+
+ ! Local variables 
+ integer :: localrc ! local return code 
+ type(ESMF_Array) :: array ! new Array 
+ type(ESMF_LocalArray), allocatable :: larrayList(:) ! helper variable 
+ type(ESMF_CopyFlag) :: copyflag_opt ! helper variable 
+
+ ! Initialize return code; assume failure until success is certain 
+ localrc = ESMF_RC_NOT_IMPL 
+ if (present(rc)) rc = ESMF_RC_NOT_IMPL 
+
+ ! Check init status of arguments 
+ ESMF_INIT_CHECK_DEEP_SHORT(ESMF_DistGridGetInit, distgrid, rc) 
+
+ ! Mark this Array object as invalid 
+ array%this = ESMF_NULL_POINTER 
+
+ ! Set copy/ref behavior 
+ copyflag_opt = ESMF_DATA_REF ! default 
+ if (present(copyflag)) copyflag_opt = copyflag 
+
+ ! Prepare the LocalArray list to be used in the ArrayCreate() call. 
+ ! Must pass the copyflag_opt flag into LocalArrayCreate() to ensure 
+ ! that the LocalArray object contained in the larrayList, passed to 
+ ! ArrayCreate() below, is suitable to be placed inside of the Array 
+ ! object directly. ArrayCreate() does _not_ create LocalArray objects 
+ ! internally for ESMF_INDEX_USER. 
+ allocate(larrayList(1)) 
+ larrayList(1) = ESMF_LocalArrayCreate(farrayPtr, copyflag_opt, rc=localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+
+ ! Create the Array object by calling into overloaded ArrayCreate() interf. 
+ array = ESMF_ArrayCreate(larrayList, distgrid, ESMF_INDEX_USER, & 
+ copyflag_opt, distgridToArrayMap, computationalEdgeLWidth, & 
+ computationalEdgeUWidth, computationalLWidth, computationalUWidth, & 
+ totalLWidth, totalUWidth, name=name, rc=localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+
+ ! Garbage collection. The ArrayCreate() call will have placed the 
+ ! LocalArray object created above into the Array object. It will be 
+ ! destroyed when the Array object is destroyed. Only the larrayList 
+ ! must be cleaned up here. 
+ deallocate(larrayList) 
+
+ ! Set return value 
+ ESMF_ArrayCreateFromPtr7Di8 = array 
+
+ ! Set init code 
+ ESMF_INIT_SET_CREATED(ESMF_ArrayCreateFromPtr7Di8) 
+
+ ! Return successfully 
+ if (present(rc)) rc = ESMF_SUCCESS 
+
+ end function ESMF_ArrayCreateFromPtr7Di8 
+!---------------------------------------------------------------------------- 
+ 
+! -------------------------- ESMF-public method ----------------------------- 
+#undef ESMF_METHOD 
+#define ESMF_METHOD "ESMF_ArrayCreateFromPtr" 
+ function ESMF_ArrayCreateFromPtr7Dr4(farrayPtr, & 
+ distgrid, copyflag, distgridToArrayMap, & 
+ computationalEdgeLWidth, computationalEdgeUWidth, & 
+ computationalLWidth, computationalUWidth, totalLWidth, & 
+ totalUWidth, name, rc) 
+
+ type(ESMF_Array) :: ESMF_ArrayCreateFromPtr7Dr4 
+
+ real (ESMF_KIND_r4),dimension(:,:,:,:,:,:,:),pointer :: farrayPtr 
+ type(ESMF_DistGrid), intent(in) :: distgrid 
+ type(ESMF_CopyFlag), intent(in), optional :: copyflag 
+ integer, intent(in), optional :: distgridToArrayMap(:) 
+ integer, intent(in), optional :: computationalEdgeLWidth(:) 
+ integer, intent(in), optional :: computationalEdgeUWidth(:) 
+ integer, intent(in), optional :: computationalLWidth(:) 
+ integer, intent(in), optional :: computationalUWidth(:) 
+ integer, intent(in), optional :: totalLWidth(:) 
+ integer, intent(in), optional :: totalUWidth(:) 
+ character (len=*), intent(in), optional :: name 
+ integer, intent(out), optional :: rc 
+
+ ! Local variables 
+ integer :: localrc ! local return code 
+ type(ESMF_Array) :: array ! new Array 
+ type(ESMF_LocalArray), allocatable :: larrayList(:) ! helper variable 
+ type(ESMF_CopyFlag) :: copyflag_opt ! helper variable 
+
+ ! Initialize return code; assume failure until success is certain 
+ localrc = ESMF_RC_NOT_IMPL 
+ if (present(rc)) rc = ESMF_RC_NOT_IMPL 
+
+ ! Check init status of arguments 
+ ESMF_INIT_CHECK_DEEP_SHORT(ESMF_DistGridGetInit, distgrid, rc) 
+
+ ! Mark this Array object as invalid 
+ array%this = ESMF_NULL_POINTER 
+
+ ! Set copy/ref behavior 
+ copyflag_opt = ESMF_DATA_REF ! default 
+ if (present(copyflag)) copyflag_opt = copyflag 
+
+ ! Prepare the LocalArray list to be used in the ArrayCreate() call. 
+ ! Must pass the copyflag_opt flag into LocalArrayCreate() to ensure 
+ ! that the LocalArray object contained in the larrayList, passed to 
+ ! ArrayCreate() below, is suitable to be placed inside of the Array 
+ ! object directly. ArrayCreate() does _not_ create LocalArray objects 
+ ! internally for ESMF_INDEX_USER. 
+ allocate(larrayList(1)) 
+ larrayList(1) = ESMF_LocalArrayCreate(farrayPtr, copyflag_opt, rc=localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+
+ ! Create the Array object by calling into overloaded ArrayCreate() interf. 
+ array = ESMF_ArrayCreate(larrayList, distgrid, ESMF_INDEX_USER, & 
+ copyflag_opt, distgridToArrayMap, computationalEdgeLWidth, & 
+ computationalEdgeUWidth, computationalLWidth, computationalUWidth, & 
+ totalLWidth, totalUWidth, name=name, rc=localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+
+ ! Garbage collection. The ArrayCreate() call will have placed the 
+ ! LocalArray object created above into the Array object. It will be 
+ ! destroyed when the Array object is destroyed. Only the larrayList 
+ ! must be cleaned up here. 
+ deallocate(larrayList) 
+
+ ! Set return value 
+ ESMF_ArrayCreateFromPtr7Dr4 = array 
+
+ ! Set init code 
+ ESMF_INIT_SET_CREATED(ESMF_ArrayCreateFromPtr7Dr4) 
+
+ ! Return successfully 
+ if (present(rc)) rc = ESMF_SUCCESS 
+
+ end function ESMF_ArrayCreateFromPtr7Dr4 
+!---------------------------------------------------------------------------- 
+ 
+! -------------------------- ESMF-public method ----------------------------- 
+#undef ESMF_METHOD 
+#define ESMF_METHOD "ESMF_ArrayCreateFromPtr" 
+ function ESMF_ArrayCreateFromPtr7Dr8(farrayPtr, & 
+ distgrid, copyflag, distgridToArrayMap, & 
+ computationalEdgeLWidth, computationalEdgeUWidth, & 
+ computationalLWidth, computationalUWidth, totalLWidth, & 
+ totalUWidth, name, rc) 
+
+ type(ESMF_Array) :: ESMF_ArrayCreateFromPtr7Dr8 
+
+ real (ESMF_KIND_r8),dimension(:,:,:,:,:,:,:),pointer :: farrayPtr 
+ type(ESMF_DistGrid), intent(in) :: distgrid 
+ type(ESMF_CopyFlag), intent(in), optional :: copyflag 
+ integer, intent(in), optional :: distgridToArrayMap(:) 
+ integer, intent(in), optional :: computationalEdgeLWidth(:) 
+ integer, intent(in), optional :: computationalEdgeUWidth(:) 
+ integer, intent(in), optional :: computationalLWidth(:) 
+ integer, intent(in), optional :: computationalUWidth(:) 
+ integer, intent(in), optional :: totalLWidth(:) 
+ integer, intent(in), optional :: totalUWidth(:) 
+ character (len=*), intent(in), optional :: name 
+ integer, intent(out), optional :: rc 
+
+ ! Local variables 
+ integer :: localrc ! local return code 
+ type(ESMF_Array) :: array ! new Array 
+ type(ESMF_LocalArray), allocatable :: larrayList(:) ! helper variable 
+ type(ESMF_CopyFlag) :: copyflag_opt ! helper variable 
+
+ ! Initialize return code; assume failure until success is certain 
+ localrc = ESMF_RC_NOT_IMPL 
+ if (present(rc)) rc = ESMF_RC_NOT_IMPL 
+
+ ! Check init status of arguments 
+ ESMF_INIT_CHECK_DEEP_SHORT(ESMF_DistGridGetInit, distgrid, rc) 
+
+ ! Mark this Array object as invalid 
+ array%this = ESMF_NULL_POINTER 
+
+ ! Set copy/ref behavior 
+ copyflag_opt = ESMF_DATA_REF ! default 
+ if (present(copyflag)) copyflag_opt = copyflag 
+
+ ! Prepare the LocalArray list to be used in the ArrayCreate() call. 
+ ! Must pass the copyflag_opt flag into LocalArrayCreate() to ensure 
+ ! that the LocalArray object contained in the larrayList, passed to 
+ ! ArrayCreate() below, is suitable to be placed inside of the Array 
+ ! object directly. ArrayCreate() does _not_ create LocalArray objects 
+ ! internally for ESMF_INDEX_USER. 
+ allocate(larrayList(1)) 
+ larrayList(1) = ESMF_LocalArrayCreate(farrayPtr, copyflag_opt, rc=localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+
+ ! Create the Array object by calling into overloaded ArrayCreate() interf. 
+ array = ESMF_ArrayCreate(larrayList, distgrid, ESMF_INDEX_USER, & 
+ copyflag_opt, distgridToArrayMap, computationalEdgeLWidth, & 
+ computationalEdgeUWidth, computationalLWidth, computationalUWidth, & 
+ totalLWidth, totalUWidth, name=name, rc=localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+
+ ! Garbage collection. The ArrayCreate() call will have placed the 
+ ! LocalArray object created above into the Array object. It will be 
+ ! destroyed when the Array object is destroyed. Only the larrayList 
+ ! must be cleaned up here. 
+ deallocate(larrayList) 
+
+ ! Set return value 
+ ESMF_ArrayCreateFromPtr7Dr8 = array 
+
+ ! Set init code 
+ ESMF_INIT_SET_CREATED(ESMF_ArrayCreateFromPtr7Dr8) 
+
+ ! Return successfully 
+ if (present(rc)) rc = ESMF_SUCCESS 
+
+ end function ESMF_ArrayCreateFromPtr7Dr8 
+!---------------------------------------------------------------------------- 
+ 
+#endif 
+ 
+! < end macro - do not edit directly > 
+!------------------------------------------------------------------------------ 
+
+!------------------------------------------------------------------------------ 
+! <This section created by macro - do not edit directly> 
+ 
+!! < start of macros which become actual subroutine bodies after expansion > 
+ 
+! -------------------------- ESMF-public method ----------------------------- 
+!BOP 
+! !IROUTINE: ESMF_ArrayCreate - Create Array object from Fortran array 
+! 
+! !INTERFACE: 
+! ! Private name; call using ESMF_ArrayCreate() 
+! function ESMF_ArrayCreateAssmdShape<rank><type><kind>(farray, & 
+! distgrid, indexflag, copyflag, distgridToArrayMap, & 
+! computationalEdgeLWidth, computationalEdgeUWidth, computationalLWidth, & 
+! computationalUWidth, totalLWidth, & 
+! totalUWidth, undistLBound, undistUBound, name, rc) 
+! 
+! !ARGUMENTS: 
+! <type> (ESMF_KIND_<kind>),dimension(<rank>),intent(in),target :: farray 
+! type(ESMF_DistGrid), intent(in) :: distgrid 
+! type(ESMF_IndexFlag), intent(in) :: indexflag 
+! type(ESMF_CopyFlag), intent(in), optional :: copyflag 
+! integer, intent(in), optional :: distgridToArrayMap(:) 
+! integer, intent(in), optional :: computationalEdgeLWidth(:) 
+! integer, intent(in), optional :: computationalEdgeUWidth(:) 
+! integer, intent(in), optional :: computationalLWidth(:) 
+! integer, intent(in), optional :: computationalUWidth(:) 
+! integer, intent(in), optional :: totalLWidth(:) 
+! integer, intent(in), optional :: totalUWidth(:) 
+! integer, intent(in), optional :: undistLBound(:) 
+! integer, intent(in), optional :: undistUBound(:) 
+! character (len=*), intent(in), optional :: name 
+! integer, intent(out), optional :: rc 
+! 
+! !RETURN VALUE: 
+! type(ESMF_Array) :: ESMF_ArrayCreateAssmdShapemrankDmtypekind 
+! 
+! !DESCRIPTION: 
+! Create an {\tt ESMF\_Array} object from an existing local native Fortran 
+! array according to distgrid. Besides {\tt farray} each PET must issue this 
+! call with identical arguments in order to create a consistent Array object. 
+! The local arrays provided must be dimensioned according to the DE-local 
+! total region. Bounds of the exclusive regions are set as specified in the 
+! distgrid argument. Bounds for Array dimensions that are not distributed can 
+! be chosen freely using the {\tt undistLBound} and {\tt undistUBound} 
+! arguments. 
+! 
+! This interface requires a 1 DE per PET decomposition. The Array object will 
+! not be created and an error will be returned if this condition is not met. 
+! 
+! The not distributed Array dimensions form a tensor of rank = array.rank - 
+! distgrid.dimCount. By default all tensor elements are associated with 
+! stagger location 0. The widths of the computational region are set to 
+! the provided value, or zero by default, for all tensor elements. Use 
+! {\tt ESMF\_ArraySet()} to change these default settings after the 
+! Array object has been created. 
+! 
+! The return value is the newly created {\tt ESMF\_Array} object. 
+! 
+! The arguments are: 
+! \begin{description} 
+! \item[farray] 
+! Valid native Fortran array, i.e. memory must be associated with the 
+! actual argument. The type/kind/rank information of {\tt farray} will be 
+! used to set {\tt Array}'s properties accordingly. The shape of 
+! {\tt farray} will be checked against the information contained in the 
+! {\tt distgrid}. 
+! \item[distgrid] 
+! {\tt ESMF\_DistGrid} object that describes how the array is decomposed and 
+! distributed over DEs. The dimCount of distgrid must be smaller or equal 
+! to the rank of farray. 
+! \item[indexflag] 
+! Indicate how DE-local indices are defined. See section 
+! \ref{opt:indexflag} for a list of valid indexflag options. 
+! \item[{[copyflag]}] 
+! Specifies whether the Array object will reference the memory allocation 
+! provided by {\tt farray} directly or will copy the data from 
+! {\tt farray} into a new memory allocation. Valid options are 
+! {\tt ESMF\_DATA\_REF} (default) or {\tt ESMF\_DATA\_COPY}. 
+! Depending on the specific situation the {\tt ESMF\_DATA\_REF} option 
+! may be unsafe when specifying an array slice for {\tt farray}. 
+! \item[{[distgridToArrayMap]}] 
+! List that contains as many elements as is indicated by 
+! {\tt distgrids}'s dimCount. The list elements map each dimension of 
+! the DistGrid object to a dimension in {\tt farray} by specifying the 
+! appropriate Array dimension index. The default is to map all of 
+! {\tt distgrid}'s dimensions against the lower dimensions of the 
+! {\tt farray} argument in sequence, i.e. {\tt distgridToArrayMap = 
+! (/1, 2, .../)}. 
+! Unmapped {\tt farray} dimensions are not decomposed dimensions and 
+! form a tensor of rank = Array.rank - DistGrid.dimCount. 
+! All {\tt distgridToArrayMap} entries must be greater than or equal 
+! to zero and smaller than or equal to the Array rank. It is erroneous 
+! to specify the same entry multiple times unless it is zero. 
+! If the Array rank is less than the DistGrid dimCount then the default 
+! distgridToArrayMap will contain zeros for the dimCount - rank 
+! rightmost entries. A zero entry in the {\tt distgridToArrayMap} 
+! indicates that the particular DistGrid dimension will be replicating 
+! the Array across the DEs along this direction. 
+! \item[{[computationalEdgeLWidth]}] 
+! This vector argument must have dimCount elements, where dimCount is 
+! specified in distgrid. It specifies the lower corner of the computational 
+! region with respect to the lower corner of the exclusive region for DEs 
+! that are located on the edge of a patch. 
+! The default is a zero vector. 
+! \item[{[computationalEdgeUWidth]}] 
+! This vector argument must have dimCount elements, where dimCount is 
+! specified in distgrid. It specifies the upper corner of the computational 
+! region with respect to the upper corner of the exclusive region for DEs 
+! that are located on the edge of a patch. 
+! The default is a zero vector. 
+! \item[{[computationalLWidth]}] 
+! This vector argument must have dimCount elements, where dimCount is 
+! specified in distgrid. It specifies the lower corner of the computational 
+! region with respect to the lower corner of the exclusive region. 
+! The default is a zero vector. 
+! \item[{[computationalUWidth]}] 
+! This vector argument must have dimCount elements, where dimCount is 
+! specified in distgrid. It specifies the upper corner of the computational 
+! region with respect to the upper corner of the exclusive region. 
+! The default is a zero vector. 
+! \item[{[totalLWidth]}] 
+! This vector argument must have dimCount elements, where dimCount is 
+! specified in distgrid. It specifies the lower corner of the total memory 
+! region with respect to the lower corner of the computational region. 
+! The default is to accommodate the union of exclusive and computational 
+! region exactly. 
+! \item[{[totalUWidth]}] 
+! This vector argument must have dimCount elements, where dimCount is 
+! specified in distgrid. It specifies the upper corner of the total memory 
+! region with respect to the upper corner of the computational region. 
+! The default is a vector that contains the remaining number of elements 
+! in each direction as to fit the union of exclusive and computational 
+! region into the memory region provided by the {\tt farray} argument. 
+! \item[{[undistLBound]}] 
+! Lower bounds for the array dimensions that are not distributed. 
+! By default lbound is 1. 
+! \item[{[undistUBound]}] 
+! Upper bounds for the array dimensions that are not distributed. 
+! By default ubound is equal to the extent of the corresponding 
+! dimension in {\tt farray}. 
+! \item[{[name]}] 
+! Name of the Array object. 
+! \item[{[rc]}] 
+! Return code; equals {\tt ESMF\_SUCCESS} if there are no errors. 
+! \end{description} 
+! 
+!EOP 
+!---------------------------------------------------------------------------- 
+ 
+#ifndef ESMF_NO_INTEGER_1_BYTE 
+! -------------------------- ESMF-public method ----------------------------- 
+#undef ESMF_METHOD 
+#define ESMF_METHOD "ESMF_ArrayCreateAssmdShape" 
+ function ESMF_ArrayCreateAssmdShape1Di1(farray, & 
+ distgrid, indexflag, copyflag, distgridToArrayMap, & 
+ computationalEdgeLWidth, computationalEdgeUWidth, & 
+ computationalLWidth, computationalUWidth, totalLWidth, & 
+ totalUWidth, undistLBound, undistUBound, name, rc) 
+
+ type(ESMF_Array) :: ESMF_ArrayCreateAssmdShape1Di1 
+
+ integer (ESMF_KIND_i1),dimension(:),intent(in),target :: farray 
+ type(ESMF_DistGrid), intent(in) :: distgrid 
+ type(ESMF_IndexFlag), intent(in) :: indexflag 
+ type(ESMF_CopyFlag), intent(in), optional :: copyflag 
+ integer, intent(in), optional :: distgridToArrayMap(:) 
+ integer, intent(in), optional :: computationalEdgeLWidth(:) 
+ integer, intent(in), optional :: computationalEdgeUWidth(:) 
+ integer, intent(in), optional :: computationalLWidth(:) 
+ integer, intent(in), optional :: computationalUWidth(:) 
+ integer, intent(in), optional :: totalLWidth(:) 
+ integer, intent(in), optional :: totalUWidth(:) 
+ integer, intent(in), optional :: undistLBound(:) 
+ integer, intent(in), optional :: undistUBound(:) 
+ character (len=*), intent(in), optional :: name 
+ integer, intent(out), optional :: rc 
+
+ ! Local variables 
+ integer :: localrc ! local return code 
+ type(ESMF_Array) :: array ! new Array 
+ type(ESMF_LocalArray), allocatable :: larrayList(:) ! helper variable 
+ integer (ESMF_KIND_i1),dimension(:),pointer :: fptr ! helper variable 
+ type(ESMF_CopyFlag) :: copyflag_opt ! helper variable 
+
+ ! Initialize return code; assume failure until success is certain 
+ localrc = ESMF_RC_NOT_IMPL 
+ if (present(rc)) rc = ESMF_RC_NOT_IMPL 
+
+ ! Check init status of arguments 
+ ESMF_INIT_CHECK_DEEP_SHORT(ESMF_DistGridGetInit, distgrid, rc) 
+
+ ! Mark this Array object as invalid 
+ array%this = ESMF_NULL_POINTER 
+
+ ! Set copy/ref behavior 
+ copyflag_opt = ESMF_DATA_REF ! default 
+ if (present(copyflag)) copyflag_opt = copyflag 
+
+ ! Check that indexflag does not specify mode that is not supported here 
+ if (indexflag==ESMF_INDEX_USER) then 
+ call ESMF_LogMsgSetError(ESMF_RC_ARG_VALUE, & 
+ "- ESMF_INDEX_USER not supported as input value", & 
+ ESMF_CONTEXT, rc) 
+ return 
+ endif 
+
+ ! Prepare the LocalArray list to be used in the ArrayCreate() call. 
+ ! Do not pass the copyflag_opt flag into LocalArrayCreate() to prevent 
+ ! unncessary data movements at this point. The ArrayCreate() below will 
+ ! create a new LocalArray internally (to be used inside of the Array 
+ ! object), and that is where the copyflag_opt will need to be considered. 
+ allocate(larrayList(1)) 
+ fptr => farray 
+ larrayList(1) = ESMF_LocalArrayCreate(fptr, rc=localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+
+ ! Create the Array object by calling into overloaded ArrayCreate() interf. 
+ array = ESMF_ArrayCreate(larrayList, distgrid, indexflag, copyflag_opt, & 
+ distgridToArrayMap, computationalEdgeLWidth, computationalEdgeUWidth, & 
+ computationalLWidth, computationalUWidth, totalLWidth, totalUWidth, & 
+ undistLBound, undistUBound, name, localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+
+ ! Garbage collection. The ArrayCreate() call will have created a new 
+ ! LocalArray object internally, so the temporary object created above 
+ ! must be deleted here. 
+ call ESMF_LocalArrayDestroy(larrayList(1), rc=localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+ deallocate(larrayList) 
+
+ ! Set return value 
+ ESMF_ArrayCreateAssmdShape1Di1 = array 
+
+ ! Set init code 
+ ESMF_INIT_SET_CREATED(ESMF_ArrayCreateAssmdShape1Di1) 
+
+ ! Return successfully 
+ if (present(rc)) rc = ESMF_SUCCESS 
+
+ end function ESMF_ArrayCreateAssmdShape1Di1 
+!---------------------------------------------------------------------------- 
+ 
+! -------------------------- ESMF-public method ----------------------------- 
+#undef ESMF_METHOD 
+#define ESMF_METHOD "ESMF_ArrayCreateAssmdShape" 
+ function ESMF_ArrayCreateAssmdShape2Di1(farray, & 
+ distgrid, indexflag, copyflag, distgridToArrayMap, & 
+ computationalEdgeLWidth, computationalEdgeUWidth, & 
+ computationalLWidth, computationalUWidth, totalLWidth, & 
+ totalUWidth, undistLBound, undistUBound, name, rc) 
+
+ type(ESMF_Array) :: ESMF_ArrayCreateAssmdShape2Di1 
+
+ integer (ESMF_KIND_i1),dimension(:,:),intent(in),target :: farray 
+ type(ESMF_DistGrid), intent(in) :: distgrid 
+ type(ESMF_IndexFlag), intent(in) :: indexflag 
+ type(ESMF_CopyFlag), intent(in), optional :: copyflag 
+ integer, intent(in), optional :: distgridToArrayMap(:) 
+ integer, intent(in), optional :: computationalEdgeLWidth(:) 
+ integer, intent(in), optional :: computationalEdgeUWidth(:) 
+ integer, intent(in), optional :: computationalLWidth(:) 
+ integer, intent(in), optional :: computationalUWidth(:) 
+ integer, intent(in), optional :: totalLWidth(:) 
+ integer, intent(in), optional :: totalUWidth(:) 
+ integer, intent(in), optional :: undistLBound(:) 
+ integer, intent(in), optional :: undistUBound(:) 
+ character (len=*), intent(in), optional :: name 
+ integer, intent(out), optional :: rc 
+
+ ! Local variables 
+ integer :: localrc ! local return code 
+ type(ESMF_Array) :: array ! new Array 
+ type(ESMF_LocalArray), allocatable :: larrayList(:) ! helper variable 
+ integer (ESMF_KIND_i1),dimension(:,:),pointer :: fptr ! helper variable 
+ type(ESMF_CopyFlag) :: copyflag_opt ! helper variable 
+
+ ! Initialize return code; assume failure until success is certain 
+ localrc = ESMF_RC_NOT_IMPL 
+ if (present(rc)) rc = ESMF_RC_NOT_IMPL 
+
+ ! Check init status of arguments 
+ ESMF_INIT_CHECK_DEEP_SHORT(ESMF_DistGridGetInit, distgrid, rc) 
+
+ ! Mark this Array object as invalid 
+ array%this = ESMF_NULL_POINTER 
+
+ ! Set copy/ref behavior 
+ copyflag_opt = ESMF_DATA_REF ! default 
+ if (present(copyflag)) copyflag_opt = copyflag 
+
+ ! Check that indexflag does not specify mode that is not supported here 
+ if (indexflag==ESMF_INDEX_USER) then 
+ call ESMF_LogMsgSetError(ESMF_RC_ARG_VALUE, & 
+ "- ESMF_INDEX_USER not supported as input value", & 
+ ESMF_CONTEXT, rc) 
+ return 
+ endif 
+
+ ! Prepare the LocalArray list to be used in the ArrayCreate() call. 
+ ! Do not pass the copyflag_opt flag into LocalArrayCreate() to prevent 
+ ! unncessary data movements at this point. The ArrayCreate() below will 
+ ! create a new LocalArray internally (to be used inside of the Array 
+ ! object), and that is where the copyflag_opt will need to be considered. 
+ allocate(larrayList(1)) 
+ fptr => farray 
+ larrayList(1) = ESMF_LocalArrayCreate(fptr, rc=localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+
+ ! Create the Array object by calling into overloaded ArrayCreate() interf. 
+ array = ESMF_ArrayCreate(larrayList, distgrid, indexflag, copyflag_opt, & 
+ distgridToArrayMap, computationalEdgeLWidth, computationalEdgeUWidth, & 
+ computationalLWidth, computationalUWidth, totalLWidth, totalUWidth, & 
+ undistLBound, undistUBound, name, localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+
+ ! Garbage collection. The ArrayCreate() call will have created a new 
+ ! LocalArray object internally, so the temporary object created above 
+ ! must be deleted here. 
+ call ESMF_LocalArrayDestroy(larrayList(1), rc=localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+ deallocate(larrayList) 
+
+ ! Set return value 
+ ESMF_ArrayCreateAssmdShape2Di1 = array 
+
+ ! Set init code 
+ ESMF_INIT_SET_CREATED(ESMF_ArrayCreateAssmdShape2Di1) 
+
+ ! Return successfully 
+ if (present(rc)) rc = ESMF_SUCCESS 
+
+ end function ESMF_ArrayCreateAssmdShape2Di1 
+!---------------------------------------------------------------------------- 
+ 
+! -------------------------- ESMF-public method ----------------------------- 
+#undef ESMF_METHOD 
+#define ESMF_METHOD "ESMF_ArrayCreateAssmdShape" 
+ function ESMF_ArrayCreateAssmdShape3Di1(farray, & 
+ distgrid, indexflag, copyflag, distgridToArrayMap, & 
+ computationalEdgeLWidth, computationalEdgeUWidth, & 
+ computationalLWidth, computationalUWidth, totalLWidth, & 
+ totalUWidth, undistLBound, undistUBound, name, rc) 
+
+ type(ESMF_Array) :: ESMF_ArrayCreateAssmdShape3Di1 
+
+ integer (ESMF_KIND_i1),dimension(:,:,:),intent(in),target :: farray 
+ type(ESMF_DistGrid), intent(in) :: distgrid 
+ type(ESMF_IndexFlag), intent(in) :: indexflag 
+ type(ESMF_CopyFlag), intent(in), optional :: copyflag 
+ integer, intent(in), optional :: distgridToArrayMap(:) 
+ integer, intent(in), optional :: computationalEdgeLWidth(:) 
+ integer, intent(in), optional :: computationalEdgeUWidth(:) 
+ integer, intent(in), optional :: computationalLWidth(:) 
+ integer, intent(in), optional :: computationalUWidth(:) 
+ integer, intent(in), optional :: totalLWidth(:) 
+ integer, intent(in), optional :: totalUWidth(:) 
+ integer, intent(in), optional :: undistLBound(:) 
+ integer, intent(in), optional :: undistUBound(:) 
+ character (len=*), intent(in), optional :: name 
+ integer, intent(out), optional :: rc 
+
+ ! Local variables 
+ integer :: localrc ! local return code 
+ type(ESMF_Array) :: array ! new Array 
+ type(ESMF_LocalArray), allocatable :: larrayList(:) ! helper variable 
+ integer (ESMF_KIND_i1),dimension(:,:,:),pointer :: fptr ! helper variable 
+ type(ESMF_CopyFlag) :: copyflag_opt ! helper variable 
+
+ ! Initialize return code; assume failure until success is certain 
+ localrc = ESMF_RC_NOT_IMPL 
+ if (present(rc)) rc = ESMF_RC_NOT_IMPL 
+
+ ! Check init status of arguments 
+ ESMF_INIT_CHECK_DEEP_SHORT(ESMF_DistGridGetInit, distgrid, rc) 
+
+ ! Mark this Array object as invalid 
+ array%this = ESMF_NULL_POINTER 
+
+ ! Set copy/ref behavior 
+ copyflag_opt = ESMF_DATA_REF ! default 
+ if (present(copyflag)) copyflag_opt = copyflag 
+
+ ! Check that indexflag does not specify mode that is not supported here 
+ if (indexflag==ESMF_INDEX_USER) then 
+ call ESMF_LogMsgSetError(ESMF_RC_ARG_VALUE, & 
+ "- ESMF_INDEX_USER not supported as input value", & 
+ ESMF_CONTEXT, rc) 
+ return 
+ endif 
+
+ ! Prepare the LocalArray list to be used in the ArrayCreate() call. 
+ ! Do not pass the copyflag_opt flag into LocalArrayCreate() to prevent 
+ ! unncessary data movements at this point. The ArrayCreate() below will 
+ ! create a new LocalArray internally (to be used inside of the Array 
+ ! object), and that is where the copyflag_opt will need to be considered. 
+ allocate(larrayList(1)) 
+ fptr => farray 
+ larrayList(1) = ESMF_LocalArrayCreate(fptr, rc=localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+
+ ! Create the Array object by calling into overloaded ArrayCreate() interf. 
+ array = ESMF_ArrayCreate(larrayList, distgrid, indexflag, copyflag_opt, & 
+ distgridToArrayMap, computationalEdgeLWidth, computationalEdgeUWidth, & 
+ computationalLWidth, computationalUWidth, totalLWidth, totalUWidth, & 
+ undistLBound, undistUBound, name, localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+
+ ! Garbage collection. The ArrayCreate() call will have created a new 
+ ! LocalArray object internally, so the temporary object created above 
+ ! must be deleted here. 
+ call ESMF_LocalArrayDestroy(larrayList(1), rc=localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+ deallocate(larrayList) 
+
+ ! Set return value 
+ ESMF_ArrayCreateAssmdShape3Di1 = array 
+
+ ! Set init code 
+ ESMF_INIT_SET_CREATED(ESMF_ArrayCreateAssmdShape3Di1) 
+
+ ! Return successfully 
+ if (present(rc)) rc = ESMF_SUCCESS 
+
+ end function ESMF_ArrayCreateAssmdShape3Di1 
+!---------------------------------------------------------------------------- 
+ 
+! -------------------------- ESMF-public method ----------------------------- 
+#undef ESMF_METHOD 
+#define ESMF_METHOD "ESMF_ArrayCreateAssmdShape" 
+ function ESMF_ArrayCreateAssmdShape4Di1(farray, & 
+ distgrid, indexflag, copyflag, distgridToArrayMap, & 
+ computationalEdgeLWidth, computationalEdgeUWidth, & 
+ computationalLWidth, computationalUWidth, totalLWidth, & 
+ totalUWidth, undistLBound, undistUBound, name, rc) 
+
+ type(ESMF_Array) :: ESMF_ArrayCreateAssmdShape4Di1 
+
+ integer (ESMF_KIND_i1),dimension(:,:,:,:),intent(in),target :: farray 
+ type(ESMF_DistGrid), intent(in) :: distgrid 
+ type(ESMF_IndexFlag), intent(in) :: indexflag 
+ type(ESMF_CopyFlag), intent(in), optional :: copyflag 
+ integer, intent(in), optional :: distgridToArrayMap(:) 
+ integer, intent(in), optional :: computationalEdgeLWidth(:) 
+ integer, intent(in), optional :: computationalEdgeUWidth(:) 
+ integer, intent(in), optional :: computationalLWidth(:) 
+ integer, intent(in), optional :: computationalUWidth(:) 
+ integer, intent(in), optional :: totalLWidth(:) 
+ integer, intent(in), optional :: totalUWidth(:) 
+ integer, intent(in), optional :: undistLBound(:) 
+ integer, intent(in), optional :: undistUBound(:) 
+ character (len=*), intent(in), optional :: name 
+ integer, intent(out), optional :: rc 
+
+ ! Local variables 
+ integer :: localrc ! local return code 
+ type(ESMF_Array) :: array ! new Array 
+ type(ESMF_LocalArray), allocatable :: larrayList(:) ! helper variable 
+ integer (ESMF_KIND_i1),dimension(:,:,:,:),pointer :: fptr ! helper variable 
+ type(ESMF_CopyFlag) :: copyflag_opt ! helper variable 
+
+ ! Initialize return code; assume failure until success is certain 
+ localrc = ESMF_RC_NOT_IMPL 
+ if (present(rc)) rc = ESMF_RC_NOT_IMPL 
+
+ ! Check init status of arguments 
+ ESMF_INIT_CHECK_DEEP_SHORT(ESMF_DistGridGetInit, distgrid, rc) 
+
+ ! Mark this Array object as invalid 
+ array%this = ESMF_NULL_POINTER 
+
+ ! Set copy/ref behavior 
+ copyflag_opt = ESMF_DATA_REF ! default 
+ if (present(copyflag)) copyflag_opt = copyflag 
+
+ ! Check that indexflag does not specify mode that is not supported here 
+ if (indexflag==ESMF_INDEX_USER) then 
+ call ESMF_LogMsgSetError(ESMF_RC_ARG_VALUE, & 
+ "- ESMF_INDEX_USER not supported as input value", & 
+ ESMF_CONTEXT, rc) 
+ return 
+ endif 
+
+ ! Prepare the LocalArray list to be used in the ArrayCreate() call. 
+ ! Do not pass the copyflag_opt flag into LocalArrayCreate() to prevent 
+ ! unncessary data movements at this point. The ArrayCreate() below will 
+ ! create a new LocalArray internally (to be used inside of the Array 
+ ! object), and that is where the copyflag_opt will need to be considered. 
+ allocate(larrayList(1)) 
+ fptr => farray 
+ larrayList(1) = ESMF_LocalArrayCreate(fptr, rc=localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+
+ ! Create the Array object by calling into overloaded ArrayCreate() interf. 
+ array = ESMF_ArrayCreate(larrayList, distgrid, indexflag, copyflag_opt, & 
+ distgridToArrayMap, computationalEdgeLWidth, computationalEdgeUWidth, & 
+ computationalLWidth, computationalUWidth, totalLWidth, totalUWidth, & 
+ undistLBound, undistUBound, name, localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+
+ ! Garbage collection. The ArrayCreate() call will have created a new 
+ ! LocalArray object internally, so the temporary object created above 
+ ! must be deleted here. 
+ call ESMF_LocalArrayDestroy(larrayList(1), rc=localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+ deallocate(larrayList) 
+
+ ! Set return value 
+ ESMF_ArrayCreateAssmdShape4Di1 = array 
+
+ ! Set init code 
+ ESMF_INIT_SET_CREATED(ESMF_ArrayCreateAssmdShape4Di1) 
+
+ ! Return successfully 
+ if (present(rc)) rc = ESMF_SUCCESS 
+
+ end function ESMF_ArrayCreateAssmdShape4Di1 
+!---------------------------------------------------------------------------- 
+ 
+#ifndef ESMF_NO_GREATER_THAN_4D 
+! -------------------------- ESMF-public method ----------------------------- 
+#undef ESMF_METHOD 
+#define ESMF_METHOD "ESMF_ArrayCreateAssmdShape" 
+ function ESMF_ArrayCreateAssmdShape5Di1(farray, & 
+ distgrid, indexflag, copyflag, distgridToArrayMap, & 
+ computationalEdgeLWidth, computationalEdgeUWidth, & 
+ computationalLWidth, computationalUWidth, totalLWidth, & 
+ totalUWidth, undistLBound, undistUBound, name, rc) 
+
+ type(ESMF_Array) :: ESMF_ArrayCreateAssmdShape5Di1 
+
+ integer (ESMF_KIND_i1),dimension(:,:,:,:,:),intent(in),target :: farray 
+ type(ESMF_DistGrid), intent(in) :: distgrid 
+ type(ESMF_IndexFlag), intent(in) :: indexflag 
+ type(ESMF_CopyFlag), intent(in), optional :: copyflag 
+ integer, intent(in), optional :: distgridToArrayMap(:) 
+ integer, intent(in), optional :: computationalEdgeLWidth(:) 
+ integer, intent(in), optional :: computationalEdgeUWidth(:) 
+ integer, intent(in), optional :: computationalLWidth(:) 
+ integer, intent(in), optional :: computationalUWidth(:) 
+ integer, intent(in), optional :: totalLWidth(:) 
+ integer, intent(in), optional :: totalUWidth(:) 
+ integer, intent(in), optional :: undistLBound(:) 
+ integer, intent(in), optional :: undistUBound(:) 
+ character (len=*), intent(in), optional :: name 
+ integer, intent(out), optional :: rc 
+
+ ! Local variables 
+ integer :: localrc ! local return code 
+ type(ESMF_Array) :: array ! new Array 
+ type(ESMF_LocalArray), allocatable :: larrayList(:) ! helper variable 
+ integer (ESMF_KIND_i1),dimension(:,:,:,:,:),pointer :: fptr ! helper variable 
+ type(ESMF_CopyFlag) :: copyflag_opt ! helper variable 
+
+ ! Initialize return code; assume failure until success is certain 
+ localrc = ESMF_RC_NOT_IMPL 
+ if (present(rc)) rc = ESMF_RC_NOT_IMPL 
+
+ ! Check init status of arguments 
+ ESMF_INIT_CHECK_DEEP_SHORT(ESMF_DistGridGetInit, distgrid, rc) 
+
+ ! Mark this Array object as invalid 
+ array%this = ESMF_NULL_POINTER 
+
+ ! Set copy/ref behavior 
+ copyflag_opt = ESMF_DATA_REF ! default 
+ if (present(copyflag)) copyflag_opt = copyflag 
+
+ ! Check that indexflag does not specify mode that is not supported here 
+ if (indexflag==ESMF_INDEX_USER) then 
+ call ESMF_LogMsgSetError(ESMF_RC_ARG_VALUE, & 
+ "- ESMF_INDEX_USER not supported as input value", & 
+ ESMF_CONTEXT, rc) 
+ return 
+ endif 
+
+ ! Prepare the LocalArray list to be used in the ArrayCreate() call. 
+ ! Do not pass the copyflag_opt flag into LocalArrayCreate() to prevent 
+ ! unncessary data movements at this point. The ArrayCreate() below will 
+ ! create a new LocalArray internally (to be used inside of the Array 
+ ! object), and that is where the copyflag_opt will need to be considered. 
+ allocate(larrayList(1)) 
+ fptr => farray 
+ larrayList(1) = ESMF_LocalArrayCreate(fptr, rc=localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+
+ ! Create the Array object by calling into overloaded ArrayCreate() interf. 
+ array = ESMF_ArrayCreate(larrayList, distgrid, indexflag, copyflag_opt, & 
+ distgridToArrayMap, computationalEdgeLWidth, computationalEdgeUWidth, & 
+ computationalLWidth, computationalUWidth, totalLWidth, totalUWidth, & 
+ undistLBound, undistUBound, name, localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+
+ ! Garbage collection. The ArrayCreate() call will have created a new 
+ ! LocalArray object internally, so the temporary object created above 
+ ! must be deleted here. 
+ call ESMF_LocalArrayDestroy(larrayList(1), rc=localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+ deallocate(larrayList) 
+
+ ! Set return value 
+ ESMF_ArrayCreateAssmdShape5Di1 = array 
+
+ ! Set init code 
+ ESMF_INIT_SET_CREATED(ESMF_ArrayCreateAssmdShape5Di1) 
+
+ ! Return successfully 
+ if (present(rc)) rc = ESMF_SUCCESS 
+
+ end function ESMF_ArrayCreateAssmdShape5Di1 
+!---------------------------------------------------------------------------- 
+ 
+! -------------------------- ESMF-public method ----------------------------- 
+#undef ESMF_METHOD 
+#define ESMF_METHOD "ESMF_ArrayCreateAssmdShape" 
+ function ESMF_ArrayCreateAssmdShape6Di1(farray, & 
+ distgrid, indexflag, copyflag, distgridToArrayMap, & 
+ computationalEdgeLWidth, computationalEdgeUWidth, & 
+ computationalLWidth, computationalUWidth, totalLWidth, & 
+ totalUWidth, undistLBound, undistUBound, name, rc) 
+
+ type(ESMF_Array) :: ESMF_ArrayCreateAssmdShape6Di1 
+
+ integer (ESMF_KIND_i1),dimension(:,:,:,:,:,:),intent(in),target :: farray 
+ type(ESMF_DistGrid), intent(in) :: distgrid 
+ type(ESMF_IndexFlag), intent(in) :: indexflag 
+ type(ESMF_CopyFlag), intent(in), optional :: copyflag 
+ integer, intent(in), optional :: distgridToArrayMap(:) 
+ integer, intent(in), optional :: computationalEdgeLWidth(:) 
+ integer, intent(in), optional :: computationalEdgeUWidth(:) 
+ integer, intent(in), optional :: computationalLWidth(:) 
+ integer, intent(in), optional :: computationalUWidth(:) 
+ integer, intent(in), optional :: totalLWidth(:) 
+ integer, intent(in), optional :: totalUWidth(:) 
+ integer, intent(in), optional :: undistLBound(:) 
+ integer, intent(in), optional :: undistUBound(:) 
+ character (len=*), intent(in), optional :: name 
+ integer, intent(out), optional :: rc 
+
+ ! Local variables 
+ integer :: localrc ! local return code 
+ type(ESMF_Array) :: array ! new Array 
+ type(ESMF_LocalArray), allocatable :: larrayList(:) ! helper variable 
+ integer (ESMF_KIND_i1),dimension(:,:,:,:,:,:),pointer :: fptr ! helper variable 
+ type(ESMF_CopyFlag) :: copyflag_opt ! helper variable 
+
+ ! Initialize return code; assume failure until success is certain 
+ localrc = ESMF_RC_NOT_IMPL 
+ if (present(rc)) rc = ESMF_RC_NOT_IMPL 
+
+ ! Check init status of arguments 
+ ESMF_INIT_CHECK_DEEP_SHORT(ESMF_DistGridGetInit, distgrid, rc) 
+
+ ! Mark this Array object as invalid 
+ array%this = ESMF_NULL_POINTER 
+
+ ! Set copy/ref behavior 
+ copyflag_opt = ESMF_DATA_REF ! default 
+ if (present(copyflag)) copyflag_opt = copyflag 
+
+ ! Check that indexflag does not specify mode that is not supported here 
+ if (indexflag==ESMF_INDEX_USER) then 
+ call ESMF_LogMsgSetError(ESMF_RC_ARG_VALUE, & 
+ "- ESMF_INDEX_USER not supported as input value", & 
+ ESMF_CONTEXT, rc) 
+ return 
+ endif 
+
+ ! Prepare the LocalArray list to be used in the ArrayCreate() call. 
+ ! Do not pass the copyflag_opt flag into LocalArrayCreate() to prevent 
+ ! unncessary data movements at this point. The ArrayCreate() below will 
+ ! create a new LocalArray internally (to be used inside of the Array 
+ ! object), and that is where the copyflag_opt will need to be considered. 
+ allocate(larrayList(1)) 
+ fptr => farray 
+ larrayList(1) = ESMF_LocalArrayCreate(fptr, rc=localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+
+ ! Create the Array object by calling into overloaded ArrayCreate() interf. 
+ array = ESMF_ArrayCreate(larrayList, distgrid, indexflag, copyflag_opt, & 
+ distgridToArrayMap, computationalEdgeLWidth, computationalEdgeUWidth, & 
+ computationalLWidth, computationalUWidth, totalLWidth, totalUWidth, & 
+ undistLBound, undistUBound, name, localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+
+ ! Garbage collection. The ArrayCreate() call will have created a new 
+ ! LocalArray object internally, so the temporary object created above 
+ ! must be deleted here. 
+ call ESMF_LocalArrayDestroy(larrayList(1), rc=localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+ deallocate(larrayList) 
+
+ ! Set return value 
+ ESMF_ArrayCreateAssmdShape6Di1 = array 
+
+ ! Set init code 
+ ESMF_INIT_SET_CREATED(ESMF_ArrayCreateAssmdShape6Di1) 
+
+ ! Return successfully 
+ if (present(rc)) rc = ESMF_SUCCESS 
+
+ end function ESMF_ArrayCreateAssmdShape6Di1 
+!---------------------------------------------------------------------------- 
+ 
+! -------------------------- ESMF-public method ----------------------------- 
+#undef ESMF_METHOD 
+#define ESMF_METHOD "ESMF_ArrayCreateAssmdShape" 
+ function ESMF_ArrayCreateAssmdShape7Di1(farray, & 
+ distgrid, indexflag, copyflag, distgridToArrayMap, & 
+ computationalEdgeLWidth, computationalEdgeUWidth, & 
+ computationalLWidth, computationalUWidth, totalLWidth, & 
+ totalUWidth, undistLBound, undistUBound, name, rc) 
+
+ type(ESMF_Array) :: ESMF_ArrayCreateAssmdShape7Di1 
+
+ integer (ESMF_KIND_i1),dimension(:,:,:,:,:,:,:),intent(in),target :: farray 
+ type(ESMF_DistGrid), intent(in) :: distgrid 
+ type(ESMF_IndexFlag), intent(in) :: indexflag 
+ type(ESMF_CopyFlag), intent(in), optional :: copyflag 
+ integer, intent(in), optional :: distgridToArrayMap(:) 
+ integer, intent(in), optional :: computationalEdgeLWidth(:) 
+ integer, intent(in), optional :: computationalEdgeUWidth(:) 
+ integer, intent(in), optional :: computationalLWidth(:) 
+ integer, intent(in), optional :: computationalUWidth(:) 
+ integer, intent(in), optional :: totalLWidth(:) 
+ integer, intent(in), optional :: totalUWidth(:) 
+ integer, intent(in), optional :: undistLBound(:) 
+ integer, intent(in), optional :: undistUBound(:) 
+ character (len=*), intent(in), optional :: name 
+ integer, intent(out), optional :: rc 
+
+ ! Local variables 
+ integer :: localrc ! local return code 
+ type(ESMF_Array) :: array ! new Array 
+ type(ESMF_LocalArray), allocatable :: larrayList(:) ! helper variable 
+ integer (ESMF_KIND_i1),dimension(:,:,:,:,:,:,:),pointer :: fptr ! helper variable 
+ type(ESMF_CopyFlag) :: copyflag_opt ! helper variable 
+
+ ! Initialize return code; assume failure until success is certain 
+ localrc = ESMF_RC_NOT_IMPL 
+ if (present(rc)) rc = ESMF_RC_NOT_IMPL 
+
+ ! Check init status of arguments 
+ ESMF_INIT_CHECK_DEEP_SHORT(ESMF_DistGridGetInit, distgrid, rc) 
+
+ ! Mark this Array object as invalid 
+ array%this = ESMF_NULL_POINTER 
+
+ ! Set copy/ref behavior 
+ copyflag_opt = ESMF_DATA_REF ! default 
+ if (present(copyflag)) copyflag_opt = copyflag 
+
+ ! Check that indexflag does not specify mode that is not supported here 
+ if (indexflag==ESMF_INDEX_USER) then 
+ call ESMF_LogMsgSetError(ESMF_RC_ARG_VALUE, & 
+ "- ESMF_INDEX_USER not supported as input value", & 
+ ESMF_CONTEXT, rc) 
+ return 
+ endif 
+
+ ! Prepare the LocalArray list to be used in the ArrayCreate() call. 
+ ! Do not pass the copyflag_opt flag into LocalArrayCreate() to prevent 
+ ! unncessary data movements at this point. The ArrayCreate() below will 
+ ! create a new LocalArray internally (to be used inside of the Array 
+ ! object), and that is where the copyflag_opt will need to be considered. 
+ allocate(larrayList(1)) 
+ fptr => farray 
+ larrayList(1) = ESMF_LocalArrayCreate(fptr, rc=localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+
+ ! Create the Array object by calling into overloaded ArrayCreate() interf. 
+ array = ESMF_ArrayCreate(larrayList, distgrid, indexflag, copyflag_opt, & 
+ distgridToArrayMap, computationalEdgeLWidth, computationalEdgeUWidth, & 
+ computationalLWidth, computationalUWidth, totalLWidth, totalUWidth, & 
+ undistLBound, undistUBound, name, localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+
+ ! Garbage collection. The ArrayCreate() call will have created a new 
+ ! LocalArray object internally, so the temporary object created above 
+ ! must be deleted here. 
+ call ESMF_LocalArrayDestroy(larrayList(1), rc=localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+ deallocate(larrayList) 
+
+ ! Set return value 
+ ESMF_ArrayCreateAssmdShape7Di1 = array 
+
+ ! Set init code 
+ ESMF_INIT_SET_CREATED(ESMF_ArrayCreateAssmdShape7Di1) 
+
+ ! Return successfully 
+ if (present(rc)) rc = ESMF_SUCCESS 
+
+ end function ESMF_ArrayCreateAssmdShape7Di1 
+!---------------------------------------------------------------------------- 
+ 
+#endif 
+#endif 
+#ifndef ESMF_NO_INTEGER_2_BYTE 
+! -------------------------- ESMF-public method ----------------------------- 
+#undef ESMF_METHOD 
+#define ESMF_METHOD "ESMF_ArrayCreateAssmdShape" 
+ function ESMF_ArrayCreateAssmdShape1Di2(farray, & 
+ distgrid, indexflag, copyflag, distgridToArrayMap, & 
+ computationalEdgeLWidth, computationalEdgeUWidth, & 
+ computationalLWidth, computationalUWidth, totalLWidth, & 
+ totalUWidth, undistLBound, undistUBound, name, rc) 
+
+ type(ESMF_Array) :: ESMF_ArrayCreateAssmdShape1Di2 
+
+ integer (ESMF_KIND_i2),dimension(:),intent(in),target :: farray 
+ type(ESMF_DistGrid), intent(in) :: distgrid 
+ type(ESMF_IndexFlag), intent(in) :: indexflag 
+ type(ESMF_CopyFlag), intent(in), optional :: copyflag 
+ integer, intent(in), optional :: distgridToArrayMap(:) 
+ integer, intent(in), optional :: computationalEdgeLWidth(:) 
+ integer, intent(in), optional :: computationalEdgeUWidth(:) 
+ integer, intent(in), optional :: computationalLWidth(:) 
+ integer, intent(in), optional :: computationalUWidth(:) 
+ integer, intent(in), optional :: totalLWidth(:) 
+ integer, intent(in), optional :: totalUWidth(:) 
+ integer, intent(in), optional :: undistLBound(:) 
+ integer, intent(in), optional :: undistUBound(:) 
+ character (len=*), intent(in), optional :: name 
+ integer, intent(out), optional :: rc 
+
+ ! Local variables 
+ integer :: localrc ! local return code 
+ type(ESMF_Array) :: array ! new Array 
+ type(ESMF_LocalArray), allocatable :: larrayList(:) ! helper variable 
+ integer (ESMF_KIND_i2),dimension(:),pointer :: fptr ! helper variable 
+ type(ESMF_CopyFlag) :: copyflag_opt ! helper variable 
+
+ ! Initialize return code; assume failure until success is certain 
+ localrc = ESMF_RC_NOT_IMPL 
+ if (present(rc)) rc = ESMF_RC_NOT_IMPL 
+
+ ! Check init status of arguments 
+ ESMF_INIT_CHECK_DEEP_SHORT(ESMF_DistGridGetInit, distgrid, rc) 
+
+ ! Mark this Array object as invalid 
+ array%this = ESMF_NULL_POINTER 
+
+ ! Set copy/ref behavior 
+ copyflag_opt = ESMF_DATA_REF ! default 
+ if (present(copyflag)) copyflag_opt = copyflag 
+
+ ! Check that indexflag does not specify mode that is not supported here 
+ if (indexflag==ESMF_INDEX_USER) then 
+ call ESMF_LogMsgSetError(ESMF_RC_ARG_VALUE, & 
+ "- ESMF_INDEX_USER not supported as input value", & 
+ ESMF_CONTEXT, rc) 
+ return 
+ endif 
+
+ ! Prepare the LocalArray list to be used in the ArrayCreate() call. 
+ ! Do not pass the copyflag_opt flag into LocalArrayCreate() to prevent 
+ ! unncessary data movements at this point. The ArrayCreate() below will 
+ ! create a new LocalArray internally (to be used inside of the Array 
+ ! object), and that is where the copyflag_opt will need to be considered. 
+ allocate(larrayList(1)) 
+ fptr => farray 
+ larrayList(1) = ESMF_LocalArrayCreate(fptr, rc=localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+
+ ! Create the Array object by calling into overloaded ArrayCreate() interf. 
+ array = ESMF_ArrayCreate(larrayList, distgrid, indexflag, copyflag_opt, & 
+ distgridToArrayMap, computationalEdgeLWidth, computationalEdgeUWidth, & 
+ computationalLWidth, computationalUWidth, totalLWidth, totalUWidth, & 
+ undistLBound, undistUBound, name, localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+
+ ! Garbage collection. The ArrayCreate() call will have created a new 
+ ! LocalArray object internally, so the temporary object created above 
+ ! must be deleted here. 
+ call ESMF_LocalArrayDestroy(larrayList(1), rc=localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+ deallocate(larrayList) 
+
+ ! Set return value 
+ ESMF_ArrayCreateAssmdShape1Di2 = array 
+
+ ! Set init code 
+ ESMF_INIT_SET_CREATED(ESMF_ArrayCreateAssmdShape1Di2) 
+
+ ! Return successfully 
+ if (present(rc)) rc = ESMF_SUCCESS 
+
+ end function ESMF_ArrayCreateAssmdShape1Di2 
+!---------------------------------------------------------------------------- 
+ 
+! -------------------------- ESMF-public method ----------------------------- 
+#undef ESMF_METHOD 
+#define ESMF_METHOD "ESMF_ArrayCreateAssmdShape" 
+ function ESMF_ArrayCreateAssmdShape2Di2(farray, & 
+ distgrid, indexflag, copyflag, distgridToArrayMap, & 
+ computationalEdgeLWidth, computationalEdgeUWidth, & 
+ computationalLWidth, computationalUWidth, totalLWidth, & 
+ totalUWidth, undistLBound, undistUBound, name, rc) 
+
+ type(ESMF_Array) :: ESMF_ArrayCreateAssmdShape2Di2 
+
+ integer (ESMF_KIND_i2),dimension(:,:),intent(in),target :: farray 
+ type(ESMF_DistGrid), intent(in) :: distgrid 
+ type(ESMF_IndexFlag), intent(in) :: indexflag 
+ type(ESMF_CopyFlag), intent(in), optional :: copyflag 
+ integer, intent(in), optional :: distgridToArrayMap(:) 
+ integer, intent(in), optional :: computationalEdgeLWidth(:) 
+ integer, intent(in), optional :: computationalEdgeUWidth(:) 
+ integer, intent(in), optional :: computationalLWidth(:) 
+ integer, intent(in), optional :: computationalUWidth(:) 
+ integer, intent(in), optional :: totalLWidth(:) 
+ integer, intent(in), optional :: totalUWidth(:) 
+ integer, intent(in), optional :: undistLBound(:) 
+ integer, intent(in), optional :: undistUBound(:) 
+ character (len=*), intent(in), optional :: name 
+ integer, intent(out), optional :: rc 
+
+ ! Local variables 
+ integer :: localrc ! local return code 
+ type(ESMF_Array) :: array ! new Array 
+ type(ESMF_LocalArray), allocatable :: larrayList(:) ! helper variable 
+ integer (ESMF_KIND_i2),dimension(:,:),pointer :: fptr ! helper variable 
+ type(ESMF_CopyFlag) :: copyflag_opt ! helper variable 
+
+ ! Initialize return code; assume failure until success is certain 
+ localrc = ESMF_RC_NOT_IMPL 
+ if (present(rc)) rc = ESMF_RC_NOT_IMPL 
+
+ ! Check init status of arguments 
+ ESMF_INIT_CHECK_DEEP_SHORT(ESMF_DistGridGetInit, distgrid, rc) 
+
+ ! Mark this Array object as invalid 
+ array%this = ESMF_NULL_POINTER 
+
+ ! Set copy/ref behavior 
+ copyflag_opt = ESMF_DATA_REF ! default 
+ if (present(copyflag)) copyflag_opt = copyflag 
+
+ ! Check that indexflag does not specify mode that is not supported here 
+ if (indexflag==ESMF_INDEX_USER) then 
+ call ESMF_LogMsgSetError(ESMF_RC_ARG_VALUE, & 
+ "- ESMF_INDEX_USER not supported as input value", & 
+ ESMF_CONTEXT, rc) 
+ return 
+ endif 
+
+ ! Prepare the LocalArray list to be used in the ArrayCreate() call. 
+ ! Do not pass the copyflag_opt flag into LocalArrayCreate() to prevent 
+ ! unncessary data movements at this point. The ArrayCreate() below will 
+ ! create a new LocalArray internally (to be used inside of the Array 
+ ! object), and that is where the copyflag_opt will need to be considered. 
+ allocate(larrayList(1)) 
+ fptr => farray 
+ larrayList(1) = ESMF_LocalArrayCreate(fptr, rc=localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+
+ ! Create the Array object by calling into overloaded ArrayCreate() interf. 
+ array = ESMF_ArrayCreate(larrayList, distgrid, indexflag, copyflag_opt, & 
+ distgridToArrayMap, computationalEdgeLWidth, computationalEdgeUWidth, & 
+ computationalLWidth, computationalUWidth, totalLWidth, totalUWidth, & 
+ undistLBound, undistUBound, name, localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+
+ ! Garbage collection. The ArrayCreate() call will have created a new 
+ ! LocalArray object internally, so the temporary object created above 
+ ! must be deleted here. 
+ call ESMF_LocalArrayDestroy(larrayList(1), rc=localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+ deallocate(larrayList) 
+
+ ! Set return value 
+ ESMF_ArrayCreateAssmdShape2Di2 = array 
+
+ ! Set init code 
+ ESMF_INIT_SET_CREATED(ESMF_ArrayCreateAssmdShape2Di2) 
+
+ ! Return successfully 
+ if (present(rc)) rc = ESMF_SUCCESS 
+
+ end function ESMF_ArrayCreateAssmdShape2Di2 
+!---------------------------------------------------------------------------- 
+ 
+! -------------------------- ESMF-public method ----------------------------- 
+#undef ESMF_METHOD 
+#define ESMF_METHOD "ESMF_ArrayCreateAssmdShape" 
+ function ESMF_ArrayCreateAssmdShape3Di2(farray, & 
+ distgrid, indexflag, copyflag, distgridToArrayMap, & 
+ computationalEdgeLWidth, computationalEdgeUWidth, & 
+ computationalLWidth, computationalUWidth, totalLWidth, & 
+ totalUWidth, undistLBound, undistUBound, name, rc) 
+
+ type(ESMF_Array) :: ESMF_ArrayCreateAssmdShape3Di2 
+
+ integer (ESMF_KIND_i2),dimension(:,:,:),intent(in),target :: farray 
+ type(ESMF_DistGrid), intent(in) :: distgrid 
+ type(ESMF_IndexFlag), intent(in) :: indexflag 
+ type(ESMF_CopyFlag), intent(in), optional :: copyflag 
+ integer, intent(in), optional :: distgridToArrayMap(:) 
+ integer, intent(in), optional :: computationalEdgeLWidth(:) 
+ integer, intent(in), optional :: computationalEdgeUWidth(:) 
+ integer, intent(in), optional :: computationalLWidth(:) 
+ integer, intent(in), optional :: computationalUWidth(:) 
+ integer, intent(in), optional :: totalLWidth(:) 
+ integer, intent(in), optional :: totalUWidth(:) 
+ integer, intent(in), optional :: undistLBound(:) 
+ integer, intent(in), optional :: undistUBound(:) 
+ character (len=*), intent(in), optional :: name 
+ integer, intent(out), optional :: rc 
+
+ ! Local variables 
+ integer :: localrc ! local return code 
+ type(ESMF_Array) :: array ! new Array 
+ type(ESMF_LocalArray), allocatable :: larrayList(:) ! helper variable 
+ integer (ESMF_KIND_i2),dimension(:,:,:),pointer :: fptr ! helper variable 
+ type(ESMF_CopyFlag) :: copyflag_opt ! helper variable 
+
+ ! Initialize return code; assume failure until success is certain 
+ localrc = ESMF_RC_NOT_IMPL 
+ if (present(rc)) rc = ESMF_RC_NOT_IMPL 
+
+ ! Check init status of arguments 
+ ESMF_INIT_CHECK_DEEP_SHORT(ESMF_DistGridGetInit, distgrid, rc) 
+
+ ! Mark this Array object as invalid 
+ array%this = ESMF_NULL_POINTER 
+
+ ! Set copy/ref behavior 
+ copyflag_opt = ESMF_DATA_REF ! default 
+ if (present(copyflag)) copyflag_opt = copyflag 
+
+ ! Check that indexflag does not specify mode that is not supported here 
+ if (indexflag==ESMF_INDEX_USER) then 
+ call ESMF_LogMsgSetError(ESMF_RC_ARG_VALUE, & 
+ "- ESMF_INDEX_USER not supported as input value", & 
+ ESMF_CONTEXT, rc) 
+ return 
+ endif 
+
+ ! Prepare the LocalArray list to be used in the ArrayCreate() call. 
+ ! Do not pass the copyflag_opt flag into LocalArrayCreate() to prevent 
+ ! unncessary data movements at this point. The ArrayCreate() below will 
+ ! create a new LocalArray internally (to be used inside of the Array 
+ ! object), and that is where the copyflag_opt will need to be considered. 
+ allocate(larrayList(1)) 
+ fptr => farray 
+ larrayList(1) = ESMF_LocalArrayCreate(fptr, rc=localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+
+ ! Create the Array object by calling into overloaded ArrayCreate() interf. 
+ array = ESMF_ArrayCreate(larrayList, distgrid, indexflag, copyflag_opt, & 
+ distgridToArrayMap, computationalEdgeLWidth, computationalEdgeUWidth, & 
+ computationalLWidth, computationalUWidth, totalLWidth, totalUWidth, & 
+ undistLBound, undistUBound, name, localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+
+ ! Garbage collection. The ArrayCreate() call will have created a new 
+ ! LocalArray object internally, so the temporary object created above 
+ ! must be deleted here. 
+ call ESMF_LocalArrayDestroy(larrayList(1), rc=localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+ deallocate(larrayList) 
+
+ ! Set return value 
+ ESMF_ArrayCreateAssmdShape3Di2 = array 
+
+ ! Set init code 
+ ESMF_INIT_SET_CREATED(ESMF_ArrayCreateAssmdShape3Di2) 
+
+ ! Return successfully 
+ if (present(rc)) rc = ESMF_SUCCESS 
+
+ end function ESMF_ArrayCreateAssmdShape3Di2 
+!---------------------------------------------------------------------------- 
+ 
+! -------------------------- ESMF-public method ----------------------------- 
+#undef ESMF_METHOD 
+#define ESMF_METHOD "ESMF_ArrayCreateAssmdShape" 
+ function ESMF_ArrayCreateAssmdShape4Di2(farray, & 
+ distgrid, indexflag, copyflag, distgridToArrayMap, & 
+ computationalEdgeLWidth, computationalEdgeUWidth, & 
+ computationalLWidth, computationalUWidth, totalLWidth, & 
+ totalUWidth, undistLBound, undistUBound, name, rc) 
+
+ type(ESMF_Array) :: ESMF_ArrayCreateAssmdShape4Di2 
+
+ integer (ESMF_KIND_i2),dimension(:,:,:,:),intent(in),target :: farray 
+ type(ESMF_DistGrid), intent(in) :: distgrid 
+ type(ESMF_IndexFlag), intent(in) :: indexflag 
+ type(ESMF_CopyFlag), intent(in), optional :: copyflag 
+ integer, intent(in), optional :: distgridToArrayMap(:) 
+ integer, intent(in), optional :: computationalEdgeLWidth(:) 
+ integer, intent(in), optional :: computationalEdgeUWidth(:) 
+ integer, intent(in), optional :: computationalLWidth(:) 
+ integer, intent(in), optional :: computationalUWidth(:) 
+ integer, intent(in), optional :: totalLWidth(:) 
+ integer, intent(in), optional :: totalUWidth(:) 
+ integer, intent(in), optional :: undistLBound(:) 
+ integer, intent(in), optional :: undistUBound(:) 
+ character (len=*), intent(in), optional :: name 
+ integer, intent(out), optional :: rc 
+
+ ! Local variables 
+ integer :: localrc ! local return code 
+ type(ESMF_Array) :: array ! new Array 
+ type(ESMF_LocalArray), allocatable :: larrayList(:) ! helper variable 
+ integer (ESMF_KIND_i2),dimension(:,:,:,:),pointer :: fptr ! helper variable 
+ type(ESMF_CopyFlag) :: copyflag_opt ! helper variable 
+
+ ! Initialize return code; assume failure until success is certain 
+ localrc = ESMF_RC_NOT_IMPL 
+ if (present(rc)) rc = ESMF_RC_NOT_IMPL 
+
+ ! Check init status of arguments 
+ ESMF_INIT_CHECK_DEEP_SHORT(ESMF_DistGridGetInit, distgrid, rc) 
+
+ ! Mark this Array object as invalid 
+ array%this = ESMF_NULL_POINTER 
+
+ ! Set copy/ref behavior 
+ copyflag_opt = ESMF_DATA_REF ! default 
+ if (present(copyflag)) copyflag_opt = copyflag 
+
+ ! Check that indexflag does not specify mode that is not supported here 
+ if (indexflag==ESMF_INDEX_USER) then 
+ call ESMF_LogMsgSetError(ESMF_RC_ARG_VALUE, & 
+ "- ESMF_INDEX_USER not supported as input value", & 
+ ESMF_CONTEXT, rc) 
+ return 
+ endif 
+
+ ! Prepare the LocalArray list to be used in the ArrayCreate() call. 
+ ! Do not pass the copyflag_opt flag into LocalArrayCreate() to prevent 
+ ! unncessary data movements at this point. The ArrayCreate() below will 
+ ! create a new LocalArray internally (to be used inside of the Array 
+ ! object), and that is where the copyflag_opt will need to be considered. 
+ allocate(larrayList(1)) 
+ fptr => farray 
+ larrayList(1) = ESMF_LocalArrayCreate(fptr, rc=localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+
+ ! Create the Array object by calling into overloaded ArrayCreate() interf. 
+ array = ESMF_ArrayCreate(larrayList, distgrid, indexflag, copyflag_opt, & 
+ distgridToArrayMap, computationalEdgeLWidth, computationalEdgeUWidth, & 
+ computationalLWidth, computationalUWidth, totalLWidth, totalUWidth, & 
+ undistLBound, undistUBound, name, localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+
+ ! Garbage collection. The ArrayCreate() call will have created a new 
+ ! LocalArray object internally, so the temporary object created above 
+ ! must be deleted here. 
+ call ESMF_LocalArrayDestroy(larrayList(1), rc=localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+ deallocate(larrayList) 
+
+ ! Set return value 
+ ESMF_ArrayCreateAssmdShape4Di2 = array 
+
+ ! Set init code 
+ ESMF_INIT_SET_CREATED(ESMF_ArrayCreateAssmdShape4Di2) 
+
+ ! Return successfully 
+ if (present(rc)) rc = ESMF_SUCCESS 
+
+ end function ESMF_ArrayCreateAssmdShape4Di2 
+!---------------------------------------------------------------------------- 
+ 
+#ifndef ESMF_NO_GREATER_THAN_4D 
+! -------------------------- ESMF-public method ----------------------------- 
+#undef ESMF_METHOD 
+#define ESMF_METHOD "ESMF_ArrayCreateAssmdShape" 
+ function ESMF_ArrayCreateAssmdShape5Di2(farray, & 
+ distgrid, indexflag, copyflag, distgridToArrayMap, & 
+ computationalEdgeLWidth, computationalEdgeUWidth, & 
+ computationalLWidth, computationalUWidth, totalLWidth, & 
+ totalUWidth, undistLBound, undistUBound, name, rc) 
+
+ type(ESMF_Array) :: ESMF_ArrayCreateAssmdShape5Di2 
+
+ integer (ESMF_KIND_i2),dimension(:,:,:,:,:),intent(in),target :: farray 
+ type(ESMF_DistGrid), intent(in) :: distgrid 
+ type(ESMF_IndexFlag), intent(in) :: indexflag 
+ type(ESMF_CopyFlag), intent(in), optional :: copyflag 
+ integer, intent(in), optional :: distgridToArrayMap(:) 
+ integer, intent(in), optional :: computationalEdgeLWidth(:) 
+ integer, intent(in), optional :: computationalEdgeUWidth(:) 
+ integer, intent(in), optional :: computationalLWidth(:) 
+ integer, intent(in), optional :: computationalUWidth(:) 
+ integer, intent(in), optional :: totalLWidth(:) 
+ integer, intent(in), optional :: totalUWidth(:) 
+ integer, intent(in), optional :: undistLBound(:) 
+ integer, intent(in), optional :: undistUBound(:) 
+ character (len=*), intent(in), optional :: name 
+ integer, intent(out), optional :: rc 
+
+ ! Local variables 
+ integer :: localrc ! local return code 
+ type(ESMF_Array) :: array ! new Array 
+ type(ESMF_LocalArray), allocatable :: larrayList(:) ! helper variable 
+ integer (ESMF_KIND_i2),dimension(:,:,:,:,:),pointer :: fptr ! helper variable 
+ type(ESMF_CopyFlag) :: copyflag_opt ! helper variable 
+
+ ! Initialize return code; assume failure until success is certain 
+ localrc = ESMF_RC_NOT_IMPL 
+ if (present(rc)) rc = ESMF_RC_NOT_IMPL 
+
+ ! Check init status of arguments 
+ ESMF_INIT_CHECK_DEEP_SHORT(ESMF_DistGridGetInit, distgrid, rc) 
+
+ ! Mark this Array object as invalid 
+ array%this = ESMF_NULL_POINTER 
+
+ ! Set copy/ref behavior 
+ copyflag_opt = ESMF_DATA_REF ! default 
+ if (present(copyflag)) copyflag_opt = copyflag 
+
+ ! Check that indexflag does not specify mode that is not supported here 
+ if (indexflag==ESMF_INDEX_USER) then 
+ call ESMF_LogMsgSetError(ESMF_RC_ARG_VALUE, & 
+ "- ESMF_INDEX_USER not supported as input value", & 
+ ESMF_CONTEXT, rc) 
+ return 
+ endif 
+
+ ! Prepare the LocalArray list to be used in the ArrayCreate() call. 
+ ! Do not pass the copyflag_opt flag into LocalArrayCreate() to prevent 
+ ! unncessary data movements at this point. The ArrayCreate() below will 
+ ! create a new LocalArray internally (to be used inside of the Array 
+ ! object), and that is where the copyflag_opt will need to be considered. 
+ allocate(larrayList(1)) 
+ fptr => farray 
+ larrayList(1) = ESMF_LocalArrayCreate(fptr, rc=localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+
+ ! Create the Array object by calling into overloaded ArrayCreate() interf. 
+ array = ESMF_ArrayCreate(larrayList, distgrid, indexflag, copyflag_opt, & 
+ distgridToArrayMap, computationalEdgeLWidth, computationalEdgeUWidth, & 
+ computationalLWidth, computationalUWidth, totalLWidth, totalUWidth, & 
+ undistLBound, undistUBound, name, localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+
+ ! Garbage collection. The ArrayCreate() call will have created a new 
+ ! LocalArray object internally, so the temporary object created above 
+ ! must be deleted here. 
+ call ESMF_LocalArrayDestroy(larrayList(1), rc=localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+ deallocate(larrayList) 
+
+ ! Set return value 
+ ESMF_ArrayCreateAssmdShape5Di2 = array 
+
+ ! Set init code 
+ ESMF_INIT_SET_CREATED(ESMF_ArrayCreateAssmdShape5Di2) 
+
+ ! Return successfully 
+ if (present(rc)) rc = ESMF_SUCCESS 
+
+ end function ESMF_ArrayCreateAssmdShape5Di2 
+!---------------------------------------------------------------------------- 
+ 
+! -------------------------- ESMF-public method ----------------------------- 
+#undef ESMF_METHOD 
+#define ESMF_METHOD "ESMF_ArrayCreateAssmdShape" 
+ function ESMF_ArrayCreateAssmdShape6Di2(farray, & 
+ distgrid, indexflag, copyflag, distgridToArrayMap, & 
+ computationalEdgeLWidth, computationalEdgeUWidth, & 
+ computationalLWidth, computationalUWidth, totalLWidth, & 
+ totalUWidth, undistLBound, undistUBound, name, rc) 
+
+ type(ESMF_Array) :: ESMF_ArrayCreateAssmdShape6Di2 
+
+ integer (ESMF_KIND_i2),dimension(:,:,:,:,:,:),intent(in),target :: farray 
+ type(ESMF_DistGrid), intent(in) :: distgrid 
+ type(ESMF_IndexFlag), intent(in) :: indexflag 
+ type(ESMF_CopyFlag), intent(in), optional :: copyflag 
+ integer, intent(in), optional :: distgridToArrayMap(:) 
+ integer, intent(in), optional :: computationalEdgeLWidth(:) 
+ integer, intent(in), optional :: computationalEdgeUWidth(:) 
+ integer, intent(in), optional :: computationalLWidth(:) 
+ integer, intent(in), optional :: computationalUWidth(:) 
+ integer, intent(in), optional :: totalLWidth(:) 
+ integer, intent(in), optional :: totalUWidth(:) 
+ integer, intent(in), optional :: undistLBound(:) 
+ integer, intent(in), optional :: undistUBound(:) 
+ character (len=*), intent(in), optional :: name 
+ integer, intent(out), optional :: rc 
+
+ ! Local variables 
+ integer :: localrc ! local return code 
+ type(ESMF_Array) :: array ! new Array 
+ type(ESMF_LocalArray), allocatable :: larrayList(:) ! helper variable 
+ integer (ESMF_KIND_i2),dimension(:,:,:,:,:,:),pointer :: fptr ! helper variable 
+ type(ESMF_CopyFlag) :: copyflag_opt ! helper variable 
+
+ ! Initialize return code; assume failure until success is certain 
+ localrc = ESMF_RC_NOT_IMPL 
+ if (present(rc)) rc = ESMF_RC_NOT_IMPL 
+
+ ! Check init status of arguments 
+ ESMF_INIT_CHECK_DEEP_SHORT(ESMF_DistGridGetInit, distgrid, rc) 
+
+ ! Mark this Array object as invalid 
+ array%this = ESMF_NULL_POINTER 
+
+ ! Set copy/ref behavior 
+ copyflag_opt = ESMF_DATA_REF ! default 
+ if (present(copyflag)) copyflag_opt = copyflag 
+
+ ! Check that indexflag does not specify mode that is not supported here 
+ if (indexflag==ESMF_INDEX_USER) then 
+ call ESMF_LogMsgSetError(ESMF_RC_ARG_VALUE, & 
+ "- ESMF_INDEX_USER not supported as input value", & 
+ ESMF_CONTEXT, rc) 
+ return 
+ endif 
+
+ ! Prepare the LocalArray list to be used in the ArrayCreate() call. 
+ ! Do not pass the copyflag_opt flag into LocalArrayCreate() to prevent 
+ ! unncessary data movements at this point. The ArrayCreate() below will 
+ ! create a new LocalArray internally (to be used inside of the Array 
+ ! object), and that is where the copyflag_opt will need to be considered. 
+ allocate(larrayList(1)) 
+ fptr => farray 
+ larrayList(1) = ESMF_LocalArrayCreate(fptr, rc=localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+
+ ! Create the Array object by calling into overloaded ArrayCreate() interf. 
+ array = ESMF_ArrayCreate(larrayList, distgrid, indexflag, copyflag_opt, & 
+ distgridToArrayMap, computationalEdgeLWidth, computationalEdgeUWidth, & 
+ computationalLWidth, computationalUWidth, totalLWidth, totalUWidth, & 
+ undistLBound, undistUBound, name, localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+
+ ! Garbage collection. The ArrayCreate() call will have created a new 
+ ! LocalArray object internally, so the temporary object created above 
+ ! must be deleted here. 
+ call ESMF_LocalArrayDestroy(larrayList(1), rc=localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+ deallocate(larrayList) 
+
+ ! Set return value 
+ ESMF_ArrayCreateAssmdShape6Di2 = array 
+
+ ! Set init code 
+ ESMF_INIT_SET_CREATED(ESMF_ArrayCreateAssmdShape6Di2) 
+
+ ! Return successfully 
+ if (present(rc)) rc = ESMF_SUCCESS 
+
+ end function ESMF_ArrayCreateAssmdShape6Di2 
+!---------------------------------------------------------------------------- 
+ 
+! -------------------------- ESMF-public method ----------------------------- 
+#undef ESMF_METHOD 
+#define ESMF_METHOD "ESMF_ArrayCreateAssmdShape" 
+ function ESMF_ArrayCreateAssmdShape7Di2(farray, & 
+ distgrid, indexflag, copyflag, distgridToArrayMap, & 
+ computationalEdgeLWidth, computationalEdgeUWidth, & 
+ computationalLWidth, computationalUWidth, totalLWidth, & 
+ totalUWidth, undistLBound, undistUBound, name, rc) 
+
+ type(ESMF_Array) :: ESMF_ArrayCreateAssmdShape7Di2 
+
+ integer (ESMF_KIND_i2),dimension(:,:,:,:,:,:,:),intent(in),target :: farray 
+ type(ESMF_DistGrid), intent(in) :: distgrid 
+ type(ESMF_IndexFlag), intent(in) :: indexflag 
+ type(ESMF_CopyFlag), intent(in), optional :: copyflag 
+ integer, intent(in), optional :: distgridToArrayMap(:) 
+ integer, intent(in), optional :: computationalEdgeLWidth(:) 
+ integer, intent(in), optional :: computationalEdgeUWidth(:) 
+ integer, intent(in), optional :: computationalLWidth(:) 
+ integer, intent(in), optional :: computationalUWidth(:) 
+ integer, intent(in), optional :: totalLWidth(:) 
+ integer, intent(in), optional :: totalUWidth(:) 
+ integer, intent(in), optional :: undistLBound(:) 
+ integer, intent(in), optional :: undistUBound(:) 
+ character (len=*), intent(in), optional :: name 
+ integer, intent(out), optional :: rc 
+
+ ! Local variables 
+ integer :: localrc ! local return code 
+ type(ESMF_Array) :: array ! new Array 
+ type(ESMF_LocalArray), allocatable :: larrayList(:) ! helper variable 
+ integer (ESMF_KIND_i2),dimension(:,:,:,:,:,:,:),pointer :: fptr ! helper variable 
+ type(ESMF_CopyFlag) :: copyflag_opt ! helper variable 
+
+ ! Initialize return code; assume failure until success is certain 
+ localrc = ESMF_RC_NOT_IMPL 
+ if (present(rc)) rc = ESMF_RC_NOT_IMPL 
+
+ ! Check init status of arguments 
+ ESMF_INIT_CHECK_DEEP_SHORT(ESMF_DistGridGetInit, distgrid, rc) 
+
+ ! Mark this Array object as invalid 
+ array%this = ESMF_NULL_POINTER 
+
+ ! Set copy/ref behavior 
+ copyflag_opt = ESMF_DATA_REF ! default 
+ if (present(copyflag)) copyflag_opt = copyflag 
+
+ ! Check that indexflag does not specify mode that is not supported here 
+ if (indexflag==ESMF_INDEX_USER) then 
+ call ESMF_LogMsgSetError(ESMF_RC_ARG_VALUE, & 
+ "- ESMF_INDEX_USER not supported as input value", & 
+ ESMF_CONTEXT, rc) 
+ return 
+ endif 
+
+ ! Prepare the LocalArray list to be used in the ArrayCreate() call. 
+ ! Do not pass the copyflag_opt flag into LocalArrayCreate() to prevent 
+ ! unncessary data movements at this point. The ArrayCreate() below will 
+ ! create a new LocalArray internally (to be used inside of the Array 
+ ! object), and that is where the copyflag_opt will need to be considered. 
+ allocate(larrayList(1)) 
+ fptr => farray 
+ larrayList(1) = ESMF_LocalArrayCreate(fptr, rc=localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+
+ ! Create the Array object by calling into overloaded ArrayCreate() interf. 
+ array = ESMF_ArrayCreate(larrayList, distgrid, indexflag, copyflag_opt, & 
+ distgridToArrayMap, computationalEdgeLWidth, computationalEdgeUWidth, & 
+ computationalLWidth, computationalUWidth, totalLWidth, totalUWidth, & 
+ undistLBound, undistUBound, name, localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+
+ ! Garbage collection. The ArrayCreate() call will have created a new 
+ ! LocalArray object internally, so the temporary object created above 
+ ! must be deleted here. 
+ call ESMF_LocalArrayDestroy(larrayList(1), rc=localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+ deallocate(larrayList) 
+
+ ! Set return value 
+ ESMF_ArrayCreateAssmdShape7Di2 = array 
+
+ ! Set init code 
+ ESMF_INIT_SET_CREATED(ESMF_ArrayCreateAssmdShape7Di2) 
+
+ ! Return successfully 
+ if (present(rc)) rc = ESMF_SUCCESS 
+
+ end function ESMF_ArrayCreateAssmdShape7Di2 
+!---------------------------------------------------------------------------- 
+ 
+#endif 
+#endif 
+! -------------------------- ESMF-public method ----------------------------- 
+#undef ESMF_METHOD 
+#define ESMF_METHOD "ESMF_ArrayCreateAssmdShape" 
+ function ESMF_ArrayCreateAssmdShape1Di4(farray, & 
+ distgrid, indexflag, copyflag, distgridToArrayMap, & 
+ computationalEdgeLWidth, computationalEdgeUWidth, & 
+ computationalLWidth, computationalUWidth, totalLWidth, & 
+ totalUWidth, undistLBound, undistUBound, name, rc) 
+
+ type(ESMF_Array) :: ESMF_ArrayCreateAssmdShape1Di4 
+
+ integer (ESMF_KIND_i4),dimension(:),intent(in),target :: farray 
+ type(ESMF_DistGrid), intent(in) :: distgrid 
+ type(ESMF_IndexFlag), intent(in) :: indexflag 
+ type(ESMF_CopyFlag), intent(in), optional :: copyflag 
+ integer, intent(in), optional :: distgridToArrayMap(:) 
+ integer, intent(in), optional :: computationalEdgeLWidth(:) 
+ integer, intent(in), optional :: computationalEdgeUWidth(:) 
+ integer, intent(in), optional :: computationalLWidth(:) 
+ integer, intent(in), optional :: computationalUWidth(:) 
+ integer, intent(in), optional :: totalLWidth(:) 
+ integer, intent(in), optional :: totalUWidth(:) 
+ integer, intent(in), optional :: undistLBound(:) 
+ integer, intent(in), optional :: undistUBound(:) 
+ character (len=*), intent(in), optional :: name 
+ integer, intent(out), optional :: rc 
+
+ ! Local variables 
+ integer :: localrc ! local return code 
+ type(ESMF_Array) :: array ! new Array 
+ type(ESMF_LocalArray), allocatable :: larrayList(:) ! helper variable 
+ integer (ESMF_KIND_i4),dimension(:),pointer :: fptr ! helper variable 
+ type(ESMF_CopyFlag) :: copyflag_opt ! helper variable 
+
+ ! Initialize return code; assume failure until success is certain 
+ localrc = ESMF_RC_NOT_IMPL 
+ if (present(rc)) rc = ESMF_RC_NOT_IMPL 
+
+ ! Check init status of arguments 
+ ESMF_INIT_CHECK_DEEP_SHORT(ESMF_DistGridGetInit, distgrid, rc) 
+
+ ! Mark this Array object as invalid 
+ array%this = ESMF_NULL_POINTER 
+
+ ! Set copy/ref behavior 
+ copyflag_opt = ESMF_DATA_REF ! default 
+ if (present(copyflag)) copyflag_opt = copyflag 
+
+ ! Check that indexflag does not specify mode that is not supported here 
+ if (indexflag==ESMF_INDEX_USER) then 
+ call ESMF_LogMsgSetError(ESMF_RC_ARG_VALUE, & 
+ "- ESMF_INDEX_USER not supported as input value", & 
+ ESMF_CONTEXT, rc) 
+ return 
+ endif 
+
+ ! Prepare the LocalArray list to be used in the ArrayCreate() call. 
+ ! Do not pass the copyflag_opt flag into LocalArrayCreate() to prevent 
+ ! unncessary data movements at this point. The ArrayCreate() below will 
+ ! create a new LocalArray internally (to be used inside of the Array 
+ ! object), and that is where the copyflag_opt will need to be considered. 
+ allocate(larrayList(1)) 
+ fptr => farray 
+ larrayList(1) = ESMF_LocalArrayCreate(fptr, rc=localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+
+ ! Create the Array object by calling into overloaded ArrayCreate() interf. 
+ array = ESMF_ArrayCreate(larrayList, distgrid, indexflag, copyflag_opt, & 
+ distgridToArrayMap, computationalEdgeLWidth, computationalEdgeUWidth, & 
+ computationalLWidth, computationalUWidth, totalLWidth, totalUWidth, & 
+ undistLBound, undistUBound, name, localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+
+ ! Garbage collection. The ArrayCreate() call will have created a new 
+ ! LocalArray object internally, so the temporary object created above 
+ ! must be deleted here. 
+ call ESMF_LocalArrayDestroy(larrayList(1), rc=localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+ deallocate(larrayList) 
+
+ ! Set return value 
+ ESMF_ArrayCreateAssmdShape1Di4 = array 
+
+ ! Set init code 
+ ESMF_INIT_SET_CREATED(ESMF_ArrayCreateAssmdShape1Di4) 
+
+ ! Return successfully 
+ if (present(rc)) rc = ESMF_SUCCESS 
+
+ end function ESMF_ArrayCreateAssmdShape1Di4 
+!---------------------------------------------------------------------------- 
+ 
+! -------------------------- ESMF-public method ----------------------------- 
+#undef ESMF_METHOD 
+#define ESMF_METHOD "ESMF_ArrayCreateAssmdShape" 
+ function ESMF_ArrayCreateAssmdShape1Di8(farray, & 
+ distgrid, indexflag, copyflag, distgridToArrayMap, & 
+ computationalEdgeLWidth, computationalEdgeUWidth, & 
+ computationalLWidth, computationalUWidth, totalLWidth, & 
+ totalUWidth, undistLBound, undistUBound, name, rc) 
+
+ type(ESMF_Array) :: ESMF_ArrayCreateAssmdShape1Di8 
+
+ integer (ESMF_KIND_i8),dimension(:),intent(in),target :: farray 
+ type(ESMF_DistGrid), intent(in) :: distgrid 
+ type(ESMF_IndexFlag), intent(in) :: indexflag 
+ type(ESMF_CopyFlag), intent(in), optional :: copyflag 
+ integer, intent(in), optional :: distgridToArrayMap(:) 
+ integer, intent(in), optional :: computationalEdgeLWidth(:) 
+ integer, intent(in), optional :: computationalEdgeUWidth(:) 
+ integer, intent(in), optional :: computationalLWidth(:) 
+ integer, intent(in), optional :: computationalUWidth(:) 
+ integer, intent(in), optional :: totalLWidth(:) 
+ integer, intent(in), optional :: totalUWidth(:) 
+ integer, intent(in), optional :: undistLBound(:) 
+ integer, intent(in), optional :: undistUBound(:) 
+ character (len=*), intent(in), optional :: name 
+ integer, intent(out), optional :: rc 
+
+ ! Local variables 
+ integer :: localrc ! local return code 
+ type(ESMF_Array) :: array ! new Array 
+ type(ESMF_LocalArray), allocatable :: larrayList(:) ! helper variable 
+ integer (ESMF_KIND_i8),dimension(:),pointer :: fptr ! helper variable 
+ type(ESMF_CopyFlag) :: copyflag_opt ! helper variable 
+
+ ! Initialize return code; assume failure until success is certain 
+ localrc = ESMF_RC_NOT_IMPL 
+ if (present(rc)) rc = ESMF_RC_NOT_IMPL 
+
+ ! Check init status of arguments 
+ ESMF_INIT_CHECK_DEEP_SHORT(ESMF_DistGridGetInit, distgrid, rc) 
+
+ ! Mark this Array object as invalid 
+ array%this = ESMF_NULL_POINTER 
+
+ ! Set copy/ref behavior 
+ copyflag_opt = ESMF_DATA_REF ! default 
+ if (present(copyflag)) copyflag_opt = copyflag 
+
+ ! Check that indexflag does not specify mode that is not supported here 
+ if (indexflag==ESMF_INDEX_USER) then 
+ call ESMF_LogMsgSetError(ESMF_RC_ARG_VALUE, & 
+ "- ESMF_INDEX_USER not supported as input value", & 
+ ESMF_CONTEXT, rc) 
+ return 
+ endif 
+
+ ! Prepare the LocalArray list to be used in the ArrayCreate() call. 
+ ! Do not pass the copyflag_opt flag into LocalArrayCreate() to prevent 
+ ! unncessary data movements at this point. The ArrayCreate() below will 
+ ! create a new LocalArray internally (to be used inside of the Array 
+ ! object), and that is where the copyflag_opt will need to be considered. 
+ allocate(larrayList(1)) 
+ fptr => farray 
+ larrayList(1) = ESMF_LocalArrayCreate(fptr, rc=localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+
+ ! Create the Array object by calling into overloaded ArrayCreate() interf. 
+ array = ESMF_ArrayCreate(larrayList, distgrid, indexflag, copyflag_opt, & 
+ distgridToArrayMap, computationalEdgeLWidth, computationalEdgeUWidth, & 
+ computationalLWidth, computationalUWidth, totalLWidth, totalUWidth, & 
+ undistLBound, undistUBound, name, localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+
+ ! Garbage collection. The ArrayCreate() call will have created a new 
+ ! LocalArray object internally, so the temporary object created above 
+ ! must be deleted here. 
+ call ESMF_LocalArrayDestroy(larrayList(1), rc=localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+ deallocate(larrayList) 
+
+ ! Set return value 
+ ESMF_ArrayCreateAssmdShape1Di8 = array 
+
+ ! Set init code 
+ ESMF_INIT_SET_CREATED(ESMF_ArrayCreateAssmdShape1Di8) 
+
+ ! Return successfully 
+ if (present(rc)) rc = ESMF_SUCCESS 
+
+ end function ESMF_ArrayCreateAssmdShape1Di8 
+!---------------------------------------------------------------------------- 
+ 
+! -------------------------- ESMF-public method ----------------------------- 
+#undef ESMF_METHOD 
+#define ESMF_METHOD "ESMF_ArrayCreateAssmdShape" 
+ function ESMF_ArrayCreateAssmdShape1Dr4(farray, & 
+ distgrid, indexflag, copyflag, distgridToArrayMap, & 
+ computationalEdgeLWidth, computationalEdgeUWidth, & 
+ computationalLWidth, computationalUWidth, totalLWidth, & 
+ totalUWidth, undistLBound, undistUBound, name, rc) 
+
+ type(ESMF_Array) :: ESMF_ArrayCreateAssmdShape1Dr4 
+
+ real (ESMF_KIND_r4),dimension(:),intent(in),target :: farray 
+ type(ESMF_DistGrid), intent(in) :: distgrid 
+ type(ESMF_IndexFlag), intent(in) :: indexflag 
+ type(ESMF_CopyFlag), intent(in), optional :: copyflag 
+ integer, intent(in), optional :: distgridToArrayMap(:) 
+ integer, intent(in), optional :: computationalEdgeLWidth(:) 
+ integer, intent(in), optional :: computationalEdgeUWidth(:) 
+ integer, intent(in), optional :: computationalLWidth(:) 
+ integer, intent(in), optional :: computationalUWidth(:) 
+ integer, intent(in), optional :: totalLWidth(:) 
+ integer, intent(in), optional :: totalUWidth(:) 
+ integer, intent(in), optional :: undistLBound(:) 
+ integer, intent(in), optional :: undistUBound(:) 
+ character (len=*), intent(in), optional :: name 
+ integer, intent(out), optional :: rc 
+
+ ! Local variables 
+ integer :: localrc ! local return code 
+ type(ESMF_Array) :: array ! new Array 
+ type(ESMF_LocalArray), allocatable :: larrayList(:) ! helper variable 
+ real (ESMF_KIND_r4),dimension(:),pointer :: fptr ! helper variable 
+ type(ESMF_CopyFlag) :: copyflag_opt ! helper variable 
+
+ ! Initialize return code; assume failure until success is certain 
+ localrc = ESMF_RC_NOT_IMPL 
+ if (present(rc)) rc = ESMF_RC_NOT_IMPL 
+
+ ! Check init status of arguments 
+ ESMF_INIT_CHECK_DEEP_SHORT(ESMF_DistGridGetInit, distgrid, rc) 
+
+ ! Mark this Array object as invalid 
+ array%this = ESMF_NULL_POINTER 
+
+ ! Set copy/ref behavior 
+ copyflag_opt = ESMF_DATA_REF ! default 
+ if (present(copyflag)) copyflag_opt = copyflag 
+
+ ! Check that indexflag does not specify mode that is not supported here 
+ if (indexflag==ESMF_INDEX_USER) then 
+ call ESMF_LogMsgSetError(ESMF_RC_ARG_VALUE, & 
+ "- ESMF_INDEX_USER not supported as input value", & 
+ ESMF_CONTEXT, rc) 
+ return 
+ endif 
+
+ ! Prepare the LocalArray list to be used in the ArrayCreate() call. 
+ ! Do not pass the copyflag_opt flag into LocalArrayCreate() to prevent 
+ ! unncessary data movements at this point. The ArrayCreate() below will 
+ ! create a new LocalArray internally (to be used inside of the Array 
+ ! object), and that is where the copyflag_opt will need to be considered. 
+ allocate(larrayList(1)) 
+ fptr => farray 
+ larrayList(1) = ESMF_LocalArrayCreate(fptr, rc=localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+
+ ! Create the Array object by calling into overloaded ArrayCreate() interf. 
+ array = ESMF_ArrayCreate(larrayList, distgrid, indexflag, copyflag_opt, & 
+ distgridToArrayMap, computationalEdgeLWidth, computationalEdgeUWidth, & 
+ computationalLWidth, computationalUWidth, totalLWidth, totalUWidth, & 
+ undistLBound, undistUBound, name, localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+
+ ! Garbage collection. The ArrayCreate() call will have created a new 
+ ! LocalArray object internally, so the temporary object created above 
+ ! must be deleted here. 
+ call ESMF_LocalArrayDestroy(larrayList(1), rc=localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+ deallocate(larrayList) 
+
+ ! Set return value 
+ ESMF_ArrayCreateAssmdShape1Dr4 = array 
+
+ ! Set init code 
+ ESMF_INIT_SET_CREATED(ESMF_ArrayCreateAssmdShape1Dr4) 
+
+ ! Return successfully 
+ if (present(rc)) rc = ESMF_SUCCESS 
+
+ end function ESMF_ArrayCreateAssmdShape1Dr4 
+!---------------------------------------------------------------------------- 
+ 
+! -------------------------- ESMF-public method ----------------------------- 
+#undef ESMF_METHOD 
+#define ESMF_METHOD "ESMF_ArrayCreateAssmdShape" 
+ function ESMF_ArrayCreateAssmdShape1Dr8(farray, & 
+ distgrid, indexflag, copyflag, distgridToArrayMap, & 
+ computationalEdgeLWidth, computationalEdgeUWidth, & 
+ computationalLWidth, computationalUWidth, totalLWidth, & 
+ totalUWidth, undistLBound, undistUBound, name, rc) 
+
+ type(ESMF_Array) :: ESMF_ArrayCreateAssmdShape1Dr8 
+
+ real (ESMF_KIND_r8),dimension(:),intent(in),target :: farray 
+ type(ESMF_DistGrid), intent(in) :: distgrid 
+ type(ESMF_IndexFlag), intent(in) :: indexflag 
+ type(ESMF_CopyFlag), intent(in), optional :: copyflag 
+ integer, intent(in), optional :: distgridToArrayMap(:) 
+ integer, intent(in), optional :: computationalEdgeLWidth(:) 
+ integer, intent(in), optional :: computationalEdgeUWidth(:) 
+ integer, intent(in), optional :: computationalLWidth(:) 
+ integer, intent(in), optional :: computationalUWidth(:) 
+ integer, intent(in), optional :: totalLWidth(:) 
+ integer, intent(in), optional :: totalUWidth(:) 
+ integer, intent(in), optional :: undistLBound(:) 
+ integer, intent(in), optional :: undistUBound(:) 
+ character (len=*), intent(in), optional :: name 
+ integer, intent(out), optional :: rc 
+
+ ! Local variables 
+ integer :: localrc ! local return code 
+ type(ESMF_Array) :: array ! new Array 
+ type(ESMF_LocalArray), allocatable :: larrayList(:) ! helper variable 
+ real (ESMF_KIND_r8),dimension(:),pointer :: fptr ! helper variable 
+ type(ESMF_CopyFlag) :: copyflag_opt ! helper variable 
+
+ ! Initialize return code; assume failure until success is certain 
+ localrc = ESMF_RC_NOT_IMPL 
+ if (present(rc)) rc = ESMF_RC_NOT_IMPL 
+
+ ! Check init status of arguments 
+ ESMF_INIT_CHECK_DEEP_SHORT(ESMF_DistGridGetInit, distgrid, rc) 
+
+ ! Mark this Array object as invalid 
+ array%this = ESMF_NULL_POINTER 
+
+ ! Set copy/ref behavior 
+ copyflag_opt = ESMF_DATA_REF ! default 
+ if (present(copyflag)) copyflag_opt = copyflag 
+
+ ! Check that indexflag does not specify mode that is not supported here 
+ if (indexflag==ESMF_INDEX_USER) then 
+ call ESMF_LogMsgSetError(ESMF_RC_ARG_VALUE, & 
+ "- ESMF_INDEX_USER not supported as input value", & 
+ ESMF_CONTEXT, rc) 
+ return 
+ endif 
+
+ ! Prepare the LocalArray list to be used in the ArrayCreate() call. 
+ ! Do not pass the copyflag_opt flag into LocalArrayCreate() to prevent 
+ ! unncessary data movements at this point. The ArrayCreate() below will 
+ ! create a new LocalArray internally (to be used inside of the Array 
+ ! object), and that is where the copyflag_opt will need to be considered. 
+ allocate(larrayList(1)) 
+ fptr => farray 
+ larrayList(1) = ESMF_LocalArrayCreate(fptr, rc=localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+
+ ! Create the Array object by calling into overloaded ArrayCreate() interf. 
+ array = ESMF_ArrayCreate(larrayList, distgrid, indexflag, copyflag_opt, & 
+ distgridToArrayMap, computationalEdgeLWidth, computationalEdgeUWidth, & 
+ computationalLWidth, computationalUWidth, totalLWidth, totalUWidth, & 
+ undistLBound, undistUBound, name, localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+
+ ! Garbage collection. The ArrayCreate() call will have created a new 
+ ! LocalArray object internally, so the temporary object created above 
+ ! must be deleted here. 
+ call ESMF_LocalArrayDestroy(larrayList(1), rc=localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+ deallocate(larrayList) 
+
+ ! Set return value 
+ ESMF_ArrayCreateAssmdShape1Dr8 = array 
+
+ ! Set init code 
+ ESMF_INIT_SET_CREATED(ESMF_ArrayCreateAssmdShape1Dr8) 
+
+ ! Return successfully 
+ if (present(rc)) rc = ESMF_SUCCESS 
+
+ end function ESMF_ArrayCreateAssmdShape1Dr8 
+!---------------------------------------------------------------------------- 
+ 
+! -------------------------- ESMF-public method ----------------------------- 
+#undef ESMF_METHOD 
+#define ESMF_METHOD "ESMF_ArrayCreateAssmdShape" 
+ function ESMF_ArrayCreateAssmdShape2Di4(farray, & 
+ distgrid, indexflag, copyflag, distgridToArrayMap, & 
+ computationalEdgeLWidth, computationalEdgeUWidth, & 
+ computationalLWidth, computationalUWidth, totalLWidth, & 
+ totalUWidth, undistLBound, undistUBound, name, rc) 
+
+ type(ESMF_Array) :: ESMF_ArrayCreateAssmdShape2Di4 
+
+ integer (ESMF_KIND_i4),dimension(:,:),intent(in),target :: farray 
+ type(ESMF_DistGrid), intent(in) :: distgrid 
+ type(ESMF_IndexFlag), intent(in) :: indexflag 
+ type(ESMF_CopyFlag), intent(in), optional :: copyflag 
+ integer, intent(in), optional :: distgridToArrayMap(:) 
+ integer, intent(in), optional :: computationalEdgeLWidth(:) 
+ integer, intent(in), optional :: computationalEdgeUWidth(:) 
+ integer, intent(in), optional :: computationalLWidth(:) 
+ integer, intent(in), optional :: computationalUWidth(:) 
+ integer, intent(in), optional :: totalLWidth(:) 
+ integer, intent(in), optional :: totalUWidth(:) 
+ integer, intent(in), optional :: undistLBound(:) 
+ integer, intent(in), optional :: undistUBound(:) 
+ character (len=*), intent(in), optional :: name 
+ integer, intent(out), optional :: rc 
+
+ ! Local variables 
+ integer :: localrc ! local return code 
+ type(ESMF_Array) :: array ! new Array 
+ type(ESMF_LocalArray), allocatable :: larrayList(:) ! helper variable 
+ integer (ESMF_KIND_i4),dimension(:,:),pointer :: fptr ! helper variable 
+ type(ESMF_CopyFlag) :: copyflag_opt ! helper variable 
+
+ ! Initialize return code; assume failure until success is certain 
+ localrc = ESMF_RC_NOT_IMPL 
+ if (present(rc)) rc = ESMF_RC_NOT_IMPL 
+
+ ! Check init status of arguments 
+ ESMF_INIT_CHECK_DEEP_SHORT(ESMF_DistGridGetInit, distgrid, rc) 
+
+ ! Mark this Array object as invalid 
+ array%this = ESMF_NULL_POINTER 
+
+ ! Set copy/ref behavior 
+ copyflag_opt = ESMF_DATA_REF ! default 
+ if (present(copyflag)) copyflag_opt = copyflag 
+
+ ! Check that indexflag does not specify mode that is not supported here 
+ if (indexflag==ESMF_INDEX_USER) then 
+ call ESMF_LogMsgSetError(ESMF_RC_ARG_VALUE, & 
+ "- ESMF_INDEX_USER not supported as input value", & 
+ ESMF_CONTEXT, rc) 
+ return 
+ endif 
+
+ ! Prepare the LocalArray list to be used in the ArrayCreate() call. 
+ ! Do not pass the copyflag_opt flag into LocalArrayCreate() to prevent 
+ ! unncessary data movements at this point. The ArrayCreate() below will 
+ ! create a new LocalArray internally (to be used inside of the Array 
+ ! object), and that is where the copyflag_opt will need to be considered. 
+ allocate(larrayList(1)) 
+ fptr => farray 
+ larrayList(1) = ESMF_LocalArrayCreate(fptr, rc=localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+
+ ! Create the Array object by calling into overloaded ArrayCreate() interf. 
+ array = ESMF_ArrayCreate(larrayList, distgrid, indexflag, copyflag_opt, & 
+ distgridToArrayMap, computationalEdgeLWidth, computationalEdgeUWidth, & 
+ computationalLWidth, computationalUWidth, totalLWidth, totalUWidth, & 
+ undistLBound, undistUBound, name, localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+
+ ! Garbage collection. The ArrayCreate() call will have created a new 
+ ! LocalArray object internally, so the temporary object created above 
+ ! must be deleted here. 
+ call ESMF_LocalArrayDestroy(larrayList(1), rc=localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+ deallocate(larrayList) 
+
+ ! Set return value 
+ ESMF_ArrayCreateAssmdShape2Di4 = array 
+
+ ! Set init code 
+ ESMF_INIT_SET_CREATED(ESMF_ArrayCreateAssmdShape2Di4) 
+
+ ! Return successfully 
+ if (present(rc)) rc = ESMF_SUCCESS 
+
+ end function ESMF_ArrayCreateAssmdShape2Di4 
+!---------------------------------------------------------------------------- 
+ 
+! -------------------------- ESMF-public method ----------------------------- 
+#undef ESMF_METHOD 
+#define ESMF_METHOD "ESMF_ArrayCreateAssmdShape" 
+ function ESMF_ArrayCreateAssmdShape2Di8(farray, & 
+ distgrid, indexflag, copyflag, distgridToArrayMap, & 
+ computationalEdgeLWidth, computationalEdgeUWidth, & 
+ computationalLWidth, computationalUWidth, totalLWidth, & 
+ totalUWidth, undistLBound, undistUBound, name, rc) 
+
+ type(ESMF_Array) :: ESMF_ArrayCreateAssmdShape2Di8 
+
+ integer (ESMF_KIND_i8),dimension(:,:),intent(in),target :: farray 
+ type(ESMF_DistGrid), intent(in) :: distgrid 
+ type(ESMF_IndexFlag), intent(in) :: indexflag 
+ type(ESMF_CopyFlag), intent(in), optional :: copyflag 
+ integer, intent(in), optional :: distgridToArrayMap(:) 
+ integer, intent(in), optional :: computationalEdgeLWidth(:) 
+ integer, intent(in), optional :: computationalEdgeUWidth(:) 
+ integer, intent(in), optional :: computationalLWidth(:) 
+ integer, intent(in), optional :: computationalUWidth(:) 
+ integer, intent(in), optional :: totalLWidth(:) 
+ integer, intent(in), optional :: totalUWidth(:) 
+ integer, intent(in), optional :: undistLBound(:) 
+ integer, intent(in), optional :: undistUBound(:) 
+ character (len=*), intent(in), optional :: name 
+ integer, intent(out), optional :: rc 
+
+ ! Local variables 
+ integer :: localrc ! local return code 
+ type(ESMF_Array) :: array ! new Array 
+ type(ESMF_LocalArray), allocatable :: larrayList(:) ! helper variable 
+ integer (ESMF_KIND_i8),dimension(:,:),pointer :: fptr ! helper variable 
+ type(ESMF_CopyFlag) :: copyflag_opt ! helper variable 
+
+ ! Initialize return code; assume failure until success is certain 
+ localrc = ESMF_RC_NOT_IMPL 
+ if (present(rc)) rc = ESMF_RC_NOT_IMPL 
+
+ ! Check init status of arguments 
+ ESMF_INIT_CHECK_DEEP_SHORT(ESMF_DistGridGetInit, distgrid, rc) 
+
+ ! Mark this Array object as invalid 
+ array%this = ESMF_NULL_POINTER 
+
+ ! Set copy/ref behavior 
+ copyflag_opt = ESMF_DATA_REF ! default 
+ if (present(copyflag)) copyflag_opt = copyflag 
+
+ ! Check that indexflag does not specify mode that is not supported here 
+ if (indexflag==ESMF_INDEX_USER) then 
+ call ESMF_LogMsgSetError(ESMF_RC_ARG_VALUE, & 
+ "- ESMF_INDEX_USER not supported as input value", & 
+ ESMF_CONTEXT, rc) 
+ return 
+ endif 
+
+ ! Prepare the LocalArray list to be used in the ArrayCreate() call. 
+ ! Do not pass the copyflag_opt flag into LocalArrayCreate() to prevent 
+ ! unncessary data movements at this point. The ArrayCreate() below will 
+ ! create a new LocalArray internally (to be used inside of the Array 
+ ! object), and that is where the copyflag_opt will need to be considered. 
+ allocate(larrayList(1)) 
+ fptr => farray 
+ larrayList(1) = ESMF_LocalArrayCreate(fptr, rc=localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+
+ ! Create the Array object by calling into overloaded ArrayCreate() interf. 
+ array = ESMF_ArrayCreate(larrayList, distgrid, indexflag, copyflag_opt, & 
+ distgridToArrayMap, computationalEdgeLWidth, computationalEdgeUWidth, & 
+ computationalLWidth, computationalUWidth, totalLWidth, totalUWidth, & 
+ undistLBound, undistUBound, name, localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+
+ ! Garbage collection. The ArrayCreate() call will have created a new 
+ ! LocalArray object internally, so the temporary object created above 
+ ! must be deleted here. 
+ call ESMF_LocalArrayDestroy(larrayList(1), rc=localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+ deallocate(larrayList) 
+
+ ! Set return value 
+ ESMF_ArrayCreateAssmdShape2Di8 = array 
+
+ ! Set init code 
+ ESMF_INIT_SET_CREATED(ESMF_ArrayCreateAssmdShape2Di8) 
+
+ ! Return successfully 
+ if (present(rc)) rc = ESMF_SUCCESS 
+
+ end function ESMF_ArrayCreateAssmdShape2Di8 
+!---------------------------------------------------------------------------- 
+ 
+! -------------------------- ESMF-public method ----------------------------- 
+#undef ESMF_METHOD 
+#define ESMF_METHOD "ESMF_ArrayCreateAssmdShape" 
+ function ESMF_ArrayCreateAssmdShape2Dr4(farray, & 
+ distgrid, indexflag, copyflag, distgridToArrayMap, & 
+ computationalEdgeLWidth, computationalEdgeUWidth, & 
+ computationalLWidth, computationalUWidth, totalLWidth, & 
+ totalUWidth, undistLBound, undistUBound, name, rc) 
+
+ type(ESMF_Array) :: ESMF_ArrayCreateAssmdShape2Dr4 
+
+ real (ESMF_KIND_r4),dimension(:,:),intent(in),target :: farray 
+ type(ESMF_DistGrid), intent(in) :: distgrid 
+ type(ESMF_IndexFlag), intent(in) :: indexflag 
+ type(ESMF_CopyFlag), intent(in), optional :: copyflag 
+ integer, intent(in), optional :: distgridToArrayMap(:) 
+ integer, intent(in), optional :: computationalEdgeLWidth(:) 
+ integer, intent(in), optional :: computationalEdgeUWidth(:) 
+ integer, intent(in), optional :: computationalLWidth(:) 
+ integer, intent(in), optional :: computationalUWidth(:) 
+ integer, intent(in), optional :: totalLWidth(:) 
+ integer, intent(in), optional :: totalUWidth(:) 
+ integer, intent(in), optional :: undistLBound(:) 
+ integer, intent(in), optional :: undistUBound(:) 
+ character (len=*), intent(in), optional :: name 
+ integer, intent(out), optional :: rc 
+
+ ! Local variables 
+ integer :: localrc ! local return code 
+ type(ESMF_Array) :: array ! new Array 
+ type(ESMF_LocalArray), allocatable :: larrayList(:) ! helper variable 
+ real (ESMF_KIND_r4),dimension(:,:),pointer :: fptr ! helper variable 
+ type(ESMF_CopyFlag) :: copyflag_opt ! helper variable 
+
+ ! Initialize return code; assume failure until success is certain 
+ localrc = ESMF_RC_NOT_IMPL 
+ if (present(rc)) rc = ESMF_RC_NOT_IMPL 
+
+ ! Check init status of arguments 
+ ESMF_INIT_CHECK_DEEP_SHORT(ESMF_DistGridGetInit, distgrid, rc) 
+
+ ! Mark this Array object as invalid 
+ array%this = ESMF_NULL_POINTER 
+
+ ! Set copy/ref behavior 
+ copyflag_opt = ESMF_DATA_REF ! default 
+ if (present(copyflag)) copyflag_opt = copyflag 
+
+ ! Check that indexflag does not specify mode that is not supported here 
+ if (indexflag==ESMF_INDEX_USER) then 
+ call ESMF_LogMsgSetError(ESMF_RC_ARG_VALUE, & 
+ "- ESMF_INDEX_USER not supported as input value", & 
+ ESMF_CONTEXT, rc) 
+ return 
+ endif 
+
+ ! Prepare the LocalArray list to be used in the ArrayCreate() call. 
+ ! Do not pass the copyflag_opt flag into LocalArrayCreate() to prevent 
+ ! unncessary data movements at this point. The ArrayCreate() below will 
+ ! create a new LocalArray internally (to be used inside of the Array 
+ ! object), and that is where the copyflag_opt will need to be considered. 
+ allocate(larrayList(1)) 
+ fptr => farray 
+ larrayList(1) = ESMF_LocalArrayCreate(fptr, rc=localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+
+ ! Create the Array object by calling into overloaded ArrayCreate() interf. 
+ array = ESMF_ArrayCreate(larrayList, distgrid, indexflag, copyflag_opt, & 
+ distgridToArrayMap, computationalEdgeLWidth, computationalEdgeUWidth, & 
+ computationalLWidth, computationalUWidth, totalLWidth, totalUWidth, & 
+ undistLBound, undistUBound, name, localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+
+ ! Garbage collection. The ArrayCreate() call will have created a new 
+ ! LocalArray object internally, so the temporary object created above 
+ ! must be deleted here. 
+ call ESMF_LocalArrayDestroy(larrayList(1), rc=localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+ deallocate(larrayList) 
+
+ ! Set return value 
+ ESMF_ArrayCreateAssmdShape2Dr4 = array 
+
+ ! Set init code 
+ ESMF_INIT_SET_CREATED(ESMF_ArrayCreateAssmdShape2Dr4) 
+
+ ! Return successfully 
+ if (present(rc)) rc = ESMF_SUCCESS 
+
+ end function ESMF_ArrayCreateAssmdShape2Dr4 
+!---------------------------------------------------------------------------- 
+ 
+! -------------------------- ESMF-public method ----------------------------- 
+#undef ESMF_METHOD 
+#define ESMF_METHOD "ESMF_ArrayCreateAssmdShape" 
+ function ESMF_ArrayCreateAssmdShape2Dr8(farray, & 
+ distgrid, indexflag, copyflag, distgridToArrayMap, & 
+ computationalEdgeLWidth, computationalEdgeUWidth, & 
+ computationalLWidth, computationalUWidth, totalLWidth, & 
+ totalUWidth, undistLBound, undistUBound, name, rc) 
+
+ type(ESMF_Array) :: ESMF_ArrayCreateAssmdShape2Dr8 
+
+ real (ESMF_KIND_r8),dimension(:,:),intent(in),target :: farray 
+ type(ESMF_DistGrid), intent(in) :: distgrid 
+ type(ESMF_IndexFlag), intent(in) :: indexflag 
+ type(ESMF_CopyFlag), intent(in), optional :: copyflag 
+ integer, intent(in), optional :: distgridToArrayMap(:) 
+ integer, intent(in), optional :: computationalEdgeLWidth(:) 
+ integer, intent(in), optional :: computationalEdgeUWidth(:) 
+ integer, intent(in), optional :: computationalLWidth(:) 
+ integer, intent(in), optional :: computationalUWidth(:) 
+ integer, intent(in), optional :: totalLWidth(:) 
+ integer, intent(in), optional :: totalUWidth(:) 
+ integer, intent(in), optional :: undistLBound(:) 
+ integer, intent(in), optional :: undistUBound(:) 
+ character (len=*), intent(in), optional :: name 
+ integer, intent(out), optional :: rc 
+
+ ! Local variables 
+ integer :: localrc ! local return code 
+ type(ESMF_Array) :: array ! new Array 
+ type(ESMF_LocalArray), allocatable :: larrayList(:) ! helper variable 
+ real (ESMF_KIND_r8),dimension(:,:),pointer :: fptr ! helper variable 
+ type(ESMF_CopyFlag) :: copyflag_opt ! helper variable 
+
+ ! Initialize return code; assume failure until success is certain 
+ localrc = ESMF_RC_NOT_IMPL 
+ if (present(rc)) rc = ESMF_RC_NOT_IMPL 
+
+ ! Check init status of arguments 
+ ESMF_INIT_CHECK_DEEP_SHORT(ESMF_DistGridGetInit, distgrid, rc) 
+
+ ! Mark this Array object as invalid 
+ array%this = ESMF_NULL_POINTER 
+
+ ! Set copy/ref behavior 
+ copyflag_opt = ESMF_DATA_REF ! default 
+ if (present(copyflag)) copyflag_opt = copyflag 
+
+ ! Check that indexflag does not specify mode that is not supported here 
+ if (indexflag==ESMF_INDEX_USER) then 
+ call ESMF_LogMsgSetError(ESMF_RC_ARG_VALUE, & 
+ "- ESMF_INDEX_USER not supported as input value", & 
+ ESMF_CONTEXT, rc) 
+ return 
+ endif 
+
+ ! Prepare the LocalArray list to be used in the ArrayCreate() call. 
+ ! Do not pass the copyflag_opt flag into LocalArrayCreate() to prevent 
+ ! unncessary data movements at this point. The ArrayCreate() below will 
+ ! create a new LocalArray internally (to be used inside of the Array 
+ ! object), and that is where the copyflag_opt will need to be considered. 
+ allocate(larrayList(1)) 
+ fptr => farray 
+ larrayList(1) = ESMF_LocalArrayCreate(fptr, rc=localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+
+ ! Create the Array object by calling into overloaded ArrayCreate() interf. 
+ array = ESMF_ArrayCreate(larrayList, distgrid, indexflag, copyflag_opt, & 
+ distgridToArrayMap, computationalEdgeLWidth, computationalEdgeUWidth, & 
+ computationalLWidth, computationalUWidth, totalLWidth, totalUWidth, & 
+ undistLBound, undistUBound, name, localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+
+ ! Garbage collection. The ArrayCreate() call will have created a new 
+ ! LocalArray object internally, so the temporary object created above 
+ ! must be deleted here. 
+ call ESMF_LocalArrayDestroy(larrayList(1), rc=localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+ deallocate(larrayList) 
+
+ ! Set return value 
+ ESMF_ArrayCreateAssmdShape2Dr8 = array 
+
+ ! Set init code 
+ ESMF_INIT_SET_CREATED(ESMF_ArrayCreateAssmdShape2Dr8) 
+
+ ! Return successfully 
+ if (present(rc)) rc = ESMF_SUCCESS 
+
+ end function ESMF_ArrayCreateAssmdShape2Dr8 
+!---------------------------------------------------------------------------- 
+ 
+! -------------------------- ESMF-public method ----------------------------- 
+#undef ESMF_METHOD 
+#define ESMF_METHOD "ESMF_ArrayCreateAssmdShape" 
+ function ESMF_ArrayCreateAssmdShape3Di4(farray, & 
+ distgrid, indexflag, copyflag, distgridToArrayMap, & 
+ computationalEdgeLWidth, computationalEdgeUWidth, & 
+ computationalLWidth, computationalUWidth, totalLWidth, & 
+ totalUWidth, undistLBound, undistUBound, name, rc) 
+
+ type(ESMF_Array) :: ESMF_ArrayCreateAssmdShape3Di4 
+
+ integer (ESMF_KIND_i4),dimension(:,:,:),intent(in),target :: farray 
+ type(ESMF_DistGrid), intent(in) :: distgrid 
+ type(ESMF_IndexFlag), intent(in) :: indexflag 
+ type(ESMF_CopyFlag), intent(in), optional :: copyflag 
+ integer, intent(in), optional :: distgridToArrayMap(:) 
+ integer, intent(in), optional :: computationalEdgeLWidth(:) 
+ integer, intent(in), optional :: computationalEdgeUWidth(:) 
+ integer, intent(in), optional :: computationalLWidth(:) 
+ integer, intent(in), optional :: computationalUWidth(:) 
+ integer, intent(in), optional :: totalLWidth(:) 
+ integer, intent(in), optional :: totalUWidth(:) 
+ integer, intent(in), optional :: undistLBound(:) 
+ integer, intent(in), optional :: undistUBound(:) 
+ character (len=*), intent(in), optional :: name 
+ integer, intent(out), optional :: rc 
+
+ ! Local variables 
+ integer :: localrc ! local return code 
+ type(ESMF_Array) :: array ! new Array 
+ type(ESMF_LocalArray), allocatable :: larrayList(:) ! helper variable 
+ integer (ESMF_KIND_i4),dimension(:,:,:),pointer :: fptr ! helper variable 
+ type(ESMF_CopyFlag) :: copyflag_opt ! helper variable 
+
+ ! Initialize return code; assume failure until success is certain 
+ localrc = ESMF_RC_NOT_IMPL 
+ if (present(rc)) rc = ESMF_RC_NOT_IMPL 
+
+ ! Check init status of arguments 
+ ESMF_INIT_CHECK_DEEP_SHORT(ESMF_DistGridGetInit, distgrid, rc) 
+
+ ! Mark this Array object as invalid 
+ array%this = ESMF_NULL_POINTER 
+
+ ! Set copy/ref behavior 
+ copyflag_opt = ESMF_DATA_REF ! default 
+ if (present(copyflag)) copyflag_opt = copyflag 
+
+ ! Check that indexflag does not specify mode that is not supported here 
+ if (indexflag==ESMF_INDEX_USER) then 
+ call ESMF_LogMsgSetError(ESMF_RC_ARG_VALUE, & 
+ "- ESMF_INDEX_USER not supported as input value", & 
+ ESMF_CONTEXT, rc) 
+ return 
+ endif 
+
+ ! Prepare the LocalArray list to be used in the ArrayCreate() call. 
+ ! Do not pass the copyflag_opt flag into LocalArrayCreate() to prevent 
+ ! unncessary data movements at this point. The ArrayCreate() below will 
+ ! create a new LocalArray internally (to be used inside of the Array 
+ ! object), and that is where the copyflag_opt will need to be considered. 
+ allocate(larrayList(1)) 
+ fptr => farray 
+ larrayList(1) = ESMF_LocalArrayCreate(fptr, rc=localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+
+ ! Create the Array object by calling into overloaded ArrayCreate() interf. 
+ array = ESMF_ArrayCreate(larrayList, distgrid, indexflag, copyflag_opt, & 
+ distgridToArrayMap, computationalEdgeLWidth, computationalEdgeUWidth, & 
+ computationalLWidth, computationalUWidth, totalLWidth, totalUWidth, & 
+ undistLBound, undistUBound, name, localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+
+ ! Garbage collection. The ArrayCreate() call will have created a new 
+ ! LocalArray object internally, so the temporary object created above 
+ ! must be deleted here. 
+ call ESMF_LocalArrayDestroy(larrayList(1), rc=localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+ deallocate(larrayList) 
+
+ ! Set return value 
+ ESMF_ArrayCreateAssmdShape3Di4 = array 
+
+ ! Set init code 
+ ESMF_INIT_SET_CREATED(ESMF_ArrayCreateAssmdShape3Di4) 
+
+ ! Return successfully 
+ if (present(rc)) rc = ESMF_SUCCESS 
+
+ end function ESMF_ArrayCreateAssmdShape3Di4 
+!---------------------------------------------------------------------------- 
+ 
+! -------------------------- ESMF-public method ----------------------------- 
+#undef ESMF_METHOD 
+#define ESMF_METHOD "ESMF_ArrayCreateAssmdShape" 
+ function ESMF_ArrayCreateAssmdShape3Di8(farray, & 
+ distgrid, indexflag, copyflag, distgridToArrayMap, & 
+ computationalEdgeLWidth, computationalEdgeUWidth, & 
+ computationalLWidth, computationalUWidth, totalLWidth, & 
+ totalUWidth, undistLBound, undistUBound, name, rc) 
+
+ type(ESMF_Array) :: ESMF_ArrayCreateAssmdShape3Di8 
+
+ integer (ESMF_KIND_i8),dimension(:,:,:),intent(in),target :: farray 
+ type(ESMF_DistGrid), intent(in) :: distgrid 
+ type(ESMF_IndexFlag), intent(in) :: indexflag 
+ type(ESMF_CopyFlag), intent(in), optional :: copyflag 
+ integer, intent(in), optional :: distgridToArrayMap(:) 
+ integer, intent(in), optional :: computationalEdgeLWidth(:) 
+ integer, intent(in), optional :: computationalEdgeUWidth(:) 
+ integer, intent(in), optional :: computationalLWidth(:) 
+ integer, intent(in), optional :: computationalUWidth(:) 
+ integer, intent(in), optional :: totalLWidth(:) 
+ integer, intent(in), optional :: totalUWidth(:) 
+ integer, intent(in), optional :: undistLBound(:) 
+ integer, intent(in), optional :: undistUBound(:) 
+ character (len=*), intent(in), optional :: name 
+ integer, intent(out), optional :: rc 
+
+ ! Local variables 
+ integer :: localrc ! local return code 
+ type(ESMF_Array) :: array ! new Array 
+ type(ESMF_LocalArray), allocatable :: larrayList(:) ! helper variable 
+ integer (ESMF_KIND_i8),dimension(:,:,:),pointer :: fptr ! helper variable 
+ type(ESMF_CopyFlag) :: copyflag_opt ! helper variable 
+
+ ! Initialize return code; assume failure until success is certain 
+ localrc = ESMF_RC_NOT_IMPL 
+ if (present(rc)) rc = ESMF_RC_NOT_IMPL 
+
+ ! Check init status of arguments 
+ ESMF_INIT_CHECK_DEEP_SHORT(ESMF_DistGridGetInit, distgrid, rc) 
+
+ ! Mark this Array object as invalid 
+ array%this = ESMF_NULL_POINTER 
+
+ ! Set copy/ref behavior 
+ copyflag_opt = ESMF_DATA_REF ! default 
+ if (present(copyflag)) copyflag_opt = copyflag 
+
+ ! Check that indexflag does not specify mode that is not supported here 
+ if (indexflag==ESMF_INDEX_USER) then 
+ call ESMF_LogMsgSetError(ESMF_RC_ARG_VALUE, & 
+ "- ESMF_INDEX_USER not supported as input value", & 
+ ESMF_CONTEXT, rc) 
+ return 
+ endif 
+
+ ! Prepare the LocalArray list to be used in the ArrayCreate() call. 
+ ! Do not pass the copyflag_opt flag into LocalArrayCreate() to prevent 
+ ! unncessary data movements at this point. The ArrayCreate() below will 
+ ! create a new LocalArray internally (to be used inside of the Array 
+ ! object), and that is where the copyflag_opt will need to be considered. 
+ allocate(larrayList(1)) 
+ fptr => farray 
+ larrayList(1) = ESMF_LocalArrayCreate(fptr, rc=localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+
+ ! Create the Array object by calling into overloaded ArrayCreate() interf. 
+ array = ESMF_ArrayCreate(larrayList, distgrid, indexflag, copyflag_opt, & 
+ distgridToArrayMap, computationalEdgeLWidth, computationalEdgeUWidth, & 
+ computationalLWidth, computationalUWidth, totalLWidth, totalUWidth, & 
+ undistLBound, undistUBound, name, localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+
+ ! Garbage collection. The ArrayCreate() call will have created a new 
+ ! LocalArray object internally, so the temporary object created above 
+ ! must be deleted here. 
+ call ESMF_LocalArrayDestroy(larrayList(1), rc=localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+ deallocate(larrayList) 
+
+ ! Set return value 
+ ESMF_ArrayCreateAssmdShape3Di8 = array 
+
+ ! Set init code 
+ ESMF_INIT_SET_CREATED(ESMF_ArrayCreateAssmdShape3Di8) 
+
+ ! Return successfully 
+ if (present(rc)) rc = ESMF_SUCCESS 
+
+ end function ESMF_ArrayCreateAssmdShape3Di8 
+!---------------------------------------------------------------------------- 
+ 
+! -------------------------- ESMF-public method ----------------------------- 
+#undef ESMF_METHOD 
+#define ESMF_METHOD "ESMF_ArrayCreateAssmdShape" 
+ function ESMF_ArrayCreateAssmdShape3Dr4(farray, & 
+ distgrid, indexflag, copyflag, distgridToArrayMap, & 
+ computationalEdgeLWidth, computationalEdgeUWidth, & 
+ computationalLWidth, computationalUWidth, totalLWidth, & 
+ totalUWidth, undistLBound, undistUBound, name, rc) 
+
+ type(ESMF_Array) :: ESMF_ArrayCreateAssmdShape3Dr4 
+
+ real (ESMF_KIND_r4),dimension(:,:,:),intent(in),target :: farray 
+ type(ESMF_DistGrid), intent(in) :: distgrid 
+ type(ESMF_IndexFlag), intent(in) :: indexflag 
+ type(ESMF_CopyFlag), intent(in), optional :: copyflag 
+ integer, intent(in), optional :: distgridToArrayMap(:) 
+ integer, intent(in), optional :: computationalEdgeLWidth(:) 
+ integer, intent(in), optional :: computationalEdgeUWidth(:) 
+ integer, intent(in), optional :: computationalLWidth(:) 
+ integer, intent(in), optional :: computationalUWidth(:) 
+ integer, intent(in), optional :: totalLWidth(:) 
+ integer, intent(in), optional :: totalUWidth(:) 
+ integer, intent(in), optional :: undistLBound(:) 
+ integer, intent(in), optional :: undistUBound(:) 
+ character (len=*), intent(in), optional :: name 
+ integer, intent(out), optional :: rc 
+
+ ! Local variables 
+ integer :: localrc ! local return code 
+ type(ESMF_Array) :: array ! new Array 
+ type(ESMF_LocalArray), allocatable :: larrayList(:) ! helper variable 
+ real (ESMF_KIND_r4),dimension(:,:,:),pointer :: fptr ! helper variable 
+ type(ESMF_CopyFlag) :: copyflag_opt ! helper variable 
+
+ ! Initialize return code; assume failure until success is certain 
+ localrc = ESMF_RC_NOT_IMPL 
+ if (present(rc)) rc = ESMF_RC_NOT_IMPL 
+
+ ! Check init status of arguments 
+ ESMF_INIT_CHECK_DEEP_SHORT(ESMF_DistGridGetInit, distgrid, rc) 
+
+ ! Mark this Array object as invalid 
+ array%this = ESMF_NULL_POINTER 
+
+ ! Set copy/ref behavior 
+ copyflag_opt = ESMF_DATA_REF ! default 
+ if (present(copyflag)) copyflag_opt = copyflag 
+
+ ! Check that indexflag does not specify mode that is not supported here 
+ if (indexflag==ESMF_INDEX_USER) then 
+ call ESMF_LogMsgSetError(ESMF_RC_ARG_VALUE, & 
+ "- ESMF_INDEX_USER not supported as input value", & 
+ ESMF_CONTEXT, rc) 
+ return 
+ endif 
+
+ ! Prepare the LocalArray list to be used in the ArrayCreate() call. 
+ ! Do not pass the copyflag_opt flag into LocalArrayCreate() to prevent 
+ ! unncessary data movements at this point. The ArrayCreate() below will 
+ ! create a new LocalArray internally (to be used inside of the Array 
+ ! object), and that is where the copyflag_opt will need to be considered. 
+ allocate(larrayList(1)) 
+ fptr => farray 
+ larrayList(1) = ESMF_LocalArrayCreate(fptr, rc=localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+
+ ! Create the Array object by calling into overloaded ArrayCreate() interf. 
+ array = ESMF_ArrayCreate(larrayList, distgrid, indexflag, copyflag_opt, & 
+ distgridToArrayMap, computationalEdgeLWidth, computationalEdgeUWidth, & 
+ computationalLWidth, computationalUWidth, totalLWidth, totalUWidth, & 
+ undistLBound, undistUBound, name, localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+
+ ! Garbage collection. The ArrayCreate() call will have created a new 
+ ! LocalArray object internally, so the temporary object created above 
+ ! must be deleted here. 
+ call ESMF_LocalArrayDestroy(larrayList(1), rc=localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+ deallocate(larrayList) 
+
+ ! Set return value 
+ ESMF_ArrayCreateAssmdShape3Dr4 = array 
+
+ ! Set init code 
+ ESMF_INIT_SET_CREATED(ESMF_ArrayCreateAssmdShape3Dr4) 
+
+ ! Return successfully 
+ if (present(rc)) rc = ESMF_SUCCESS 
+
+ end function ESMF_ArrayCreateAssmdShape3Dr4 
+!---------------------------------------------------------------------------- 
+ 
+! -------------------------- ESMF-public method ----------------------------- 
+#undef ESMF_METHOD 
+#define ESMF_METHOD "ESMF_ArrayCreateAssmdShape" 
+ function ESMF_ArrayCreateAssmdShape3Dr8(farray, & 
+ distgrid, indexflag, copyflag, distgridToArrayMap, & 
+ computationalEdgeLWidth, computationalEdgeUWidth, & 
+ computationalLWidth, computationalUWidth, totalLWidth, & 
+ totalUWidth, undistLBound, undistUBound, name, rc) 
+
+ type(ESMF_Array) :: ESMF_ArrayCreateAssmdShape3Dr8 
+
+ real (ESMF_KIND_r8),dimension(:,:,:),intent(in),target :: farray 
+ type(ESMF_DistGrid), intent(in) :: distgrid 
+ type(ESMF_IndexFlag), intent(in) :: indexflag 
+ type(ESMF_CopyFlag), intent(in), optional :: copyflag 
+ integer, intent(in), optional :: distgridToArrayMap(:) 
+ integer, intent(in), optional :: computationalEdgeLWidth(:) 
+ integer, intent(in), optional :: computationalEdgeUWidth(:) 
+ integer, intent(in), optional :: computationalLWidth(:) 
+ integer, intent(in), optional :: computationalUWidth(:) 
+ integer, intent(in), optional :: totalLWidth(:) 
+ integer, intent(in), optional :: totalUWidth(:) 
+ integer, intent(in), optional :: undistLBound(:) 
+ integer, intent(in), optional :: undistUBound(:) 
+ character (len=*), intent(in), optional :: name 
+ integer, intent(out), optional :: rc 
+
+ ! Local variables 
+ integer :: localrc ! local return code 
+ type(ESMF_Array) :: array ! new Array 
+ type(ESMF_LocalArray), allocatable :: larrayList(:) ! helper variable 
+ real (ESMF_KIND_r8),dimension(:,:,:),pointer :: fptr ! helper variable 
+ type(ESMF_CopyFlag) :: copyflag_opt ! helper variable 
+
+ ! Initialize return code; assume failure until success is certain 
+ localrc = ESMF_RC_NOT_IMPL 
+ if (present(rc)) rc = ESMF_RC_NOT_IMPL 
+
+ ! Check init status of arguments 
+ ESMF_INIT_CHECK_DEEP_SHORT(ESMF_DistGridGetInit, distgrid, rc) 
+
+ ! Mark this Array object as invalid 
+ array%this = ESMF_NULL_POINTER 
+
+ ! Set copy/ref behavior 
+ copyflag_opt = ESMF_DATA_REF ! default 
+ if (present(copyflag)) copyflag_opt = copyflag 
+
+ ! Check that indexflag does not specify mode that is not supported here 
+ if (indexflag==ESMF_INDEX_USER) then 
+ call ESMF_LogMsgSetError(ESMF_RC_ARG_VALUE, & 
+ "- ESMF_INDEX_USER not supported as input value", & 
+ ESMF_CONTEXT, rc) 
+ return 
+ endif 
+
+ ! Prepare the LocalArray list to be used in the ArrayCreate() call. 
+ ! Do not pass the copyflag_opt flag into LocalArrayCreate() to prevent 
+ ! unncessary data movements at this point. The ArrayCreate() below will 
+ ! create a new LocalArray internally (to be used inside of the Array 
+ ! object), and that is where the copyflag_opt will need to be considered. 
+ allocate(larrayList(1)) 
+ fptr => farray 
+ larrayList(1) = ESMF_LocalArrayCreate(fptr, rc=localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+
+ ! Create the Array object by calling into overloaded ArrayCreate() interf. 
+ array = ESMF_ArrayCreate(larrayList, distgrid, indexflag, copyflag_opt, & 
+ distgridToArrayMap, computationalEdgeLWidth, computationalEdgeUWidth, & 
+ computationalLWidth, computationalUWidth, totalLWidth, totalUWidth, & 
+ undistLBound, undistUBound, name, localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+
+ ! Garbage collection. The ArrayCreate() call will have created a new 
+ ! LocalArray object internally, so the temporary object created above 
+ ! must be deleted here. 
+ call ESMF_LocalArrayDestroy(larrayList(1), rc=localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+ deallocate(larrayList) 
+
+ ! Set return value 
+ ESMF_ArrayCreateAssmdShape3Dr8 = array 
+
+ ! Set init code 
+ ESMF_INIT_SET_CREATED(ESMF_ArrayCreateAssmdShape3Dr8) 
+
+ ! Return successfully 
+ if (present(rc)) rc = ESMF_SUCCESS 
+
+ end function ESMF_ArrayCreateAssmdShape3Dr8 
+!---------------------------------------------------------------------------- 
+ 
+! -------------------------- ESMF-public method ----------------------------- 
+#undef ESMF_METHOD 
+#define ESMF_METHOD "ESMF_ArrayCreateAssmdShape" 
+ function ESMF_ArrayCreateAssmdShape4Di4(farray, & 
+ distgrid, indexflag, copyflag, distgridToArrayMap, & 
+ computationalEdgeLWidth, computationalEdgeUWidth, & 
+ computationalLWidth, computationalUWidth, totalLWidth, & 
+ totalUWidth, undistLBound, undistUBound, name, rc) 
+
+ type(ESMF_Array) :: ESMF_ArrayCreateAssmdShape4Di4 
+
+ integer (ESMF_KIND_i4),dimension(:,:,:,:),intent(in),target :: farray 
+ type(ESMF_DistGrid), intent(in) :: distgrid 
+ type(ESMF_IndexFlag), intent(in) :: indexflag 
+ type(ESMF_CopyFlag), intent(in), optional :: copyflag 
+ integer, intent(in), optional :: distgridToArrayMap(:) 
+ integer, intent(in), optional :: computationalEdgeLWidth(:) 
+ integer, intent(in), optional :: computationalEdgeUWidth(:) 
+ integer, intent(in), optional :: computationalLWidth(:) 
+ integer, intent(in), optional :: computationalUWidth(:) 
+ integer, intent(in), optional :: totalLWidth(:) 
+ integer, intent(in), optional :: totalUWidth(:) 
+ integer, intent(in), optional :: undistLBound(:) 
+ integer, intent(in), optional :: undistUBound(:) 
+ character (len=*), intent(in), optional :: name 
+ integer, intent(out), optional :: rc 
+
+ ! Local variables 
+ integer :: localrc ! local return code 
+ type(ESMF_Array) :: array ! new Array 
+ type(ESMF_LocalArray), allocatable :: larrayList(:) ! helper variable 
+ integer (ESMF_KIND_i4),dimension(:,:,:,:),pointer :: fptr ! helper variable 
+ type(ESMF_CopyFlag) :: copyflag_opt ! helper variable 
+
+ ! Initialize return code; assume failure until success is certain 
+ localrc = ESMF_RC_NOT_IMPL 
+ if (present(rc)) rc = ESMF_RC_NOT_IMPL 
+
+ ! Check init status of arguments 
+ ESMF_INIT_CHECK_DEEP_SHORT(ESMF_DistGridGetInit, distgrid, rc) 
+
+ ! Mark this Array object as invalid 
+ array%this = ESMF_NULL_POINTER 
+
+ ! Set copy/ref behavior 
+ copyflag_opt = ESMF_DATA_REF ! default 
+ if (present(copyflag)) copyflag_opt = copyflag 
+
+ ! Check that indexflag does not specify mode that is not supported here 
+ if (indexflag==ESMF_INDEX_USER) then 
+ call ESMF_LogMsgSetError(ESMF_RC_ARG_VALUE, & 
+ "- ESMF_INDEX_USER not supported as input value", & 
+ ESMF_CONTEXT, rc) 
+ return 
+ endif 
+
+ ! Prepare the LocalArray list to be used in the ArrayCreate() call. 
+ ! Do not pass the copyflag_opt flag into LocalArrayCreate() to prevent 
+ ! unncessary data movements at this point. The ArrayCreate() below will 
+ ! create a new LocalArray internally (to be used inside of the Array 
+ ! object), and that is where the copyflag_opt will need to be considered. 
+ allocate(larrayList(1)) 
+ fptr => farray 
+ larrayList(1) = ESMF_LocalArrayCreate(fptr, rc=localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+
+ ! Create the Array object by calling into overloaded ArrayCreate() interf. 
+ array = ESMF_ArrayCreate(larrayList, distgrid, indexflag, copyflag_opt, & 
+ distgridToArrayMap, computationalEdgeLWidth, computationalEdgeUWidth, & 
+ computationalLWidth, computationalUWidth, totalLWidth, totalUWidth, & 
+ undistLBound, undistUBound, name, localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+
+ ! Garbage collection. The ArrayCreate() call will have created a new 
+ ! LocalArray object internally, so the temporary object created above 
+ ! must be deleted here. 
+ call ESMF_LocalArrayDestroy(larrayList(1), rc=localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+ deallocate(larrayList) 
+
+ ! Set return value 
+ ESMF_ArrayCreateAssmdShape4Di4 = array 
+
+ ! Set init code 
+ ESMF_INIT_SET_CREATED(ESMF_ArrayCreateAssmdShape4Di4) 
+
+ ! Return successfully 
+ if (present(rc)) rc = ESMF_SUCCESS 
+
+ end function ESMF_ArrayCreateAssmdShape4Di4 
+!---------------------------------------------------------------------------- 
+ 
+! -------------------------- ESMF-public method ----------------------------- 
+#undef ESMF_METHOD 
+#define ESMF_METHOD "ESMF_ArrayCreateAssmdShape" 
+ function ESMF_ArrayCreateAssmdShape4Di8(farray, & 
+ distgrid, indexflag, copyflag, distgridToArrayMap, & 
+ computationalEdgeLWidth, computationalEdgeUWidth, & 
+ computationalLWidth, computationalUWidth, totalLWidth, & 
+ totalUWidth, undistLBound, undistUBound, name, rc) 
+
+ type(ESMF_Array) :: ESMF_ArrayCreateAssmdShape4Di8 
+
+ integer (ESMF_KIND_i8),dimension(:,:,:,:),intent(in),target :: farray 
+ type(ESMF_DistGrid), intent(in) :: distgrid 
+ type(ESMF_IndexFlag), intent(in) :: indexflag 
+ type(ESMF_CopyFlag), intent(in), optional :: copyflag 
+ integer, intent(in), optional :: distgridToArrayMap(:) 
+ integer, intent(in), optional :: computationalEdgeLWidth(:) 
+ integer, intent(in), optional :: computationalEdgeUWidth(:) 
+ integer, intent(in), optional :: computationalLWidth(:) 
+ integer, intent(in), optional :: computationalUWidth(:) 
+ integer, intent(in), optional :: totalLWidth(:) 
+ integer, intent(in), optional :: totalUWidth(:) 
+ integer, intent(in), optional :: undistLBound(:) 
+ integer, intent(in), optional :: undistUBound(:) 
+ character (len=*), intent(in), optional :: name 
+ integer, intent(out), optional :: rc 
+
+ ! Local variables 
+ integer :: localrc ! local return code 
+ type(ESMF_Array) :: array ! new Array 
+ type(ESMF_LocalArray), allocatable :: larrayList(:) ! helper variable 
+ integer (ESMF_KIND_i8),dimension(:,:,:,:),pointer :: fptr ! helper variable 
+ type(ESMF_CopyFlag) :: copyflag_opt ! helper variable 
+
+ ! Initialize return code; assume failure until success is certain 
+ localrc = ESMF_RC_NOT_IMPL 
+ if (present(rc)) rc = ESMF_RC_NOT_IMPL 
+
+ ! Check init status of arguments 
+ ESMF_INIT_CHECK_DEEP_SHORT(ESMF_DistGridGetInit, distgrid, rc) 
+
+ ! Mark this Array object as invalid 
+ array%this = ESMF_NULL_POINTER 
+
+ ! Set copy/ref behavior 
+ copyflag_opt = ESMF_DATA_REF ! default 
+ if (present(copyflag)) copyflag_opt = copyflag 
+
+ ! Check that indexflag does not specify mode that is not supported here 
+ if (indexflag==ESMF_INDEX_USER) then 
+ call ESMF_LogMsgSetError(ESMF_RC_ARG_VALUE, & 
+ "- ESMF_INDEX_USER not supported as input value", & 
+ ESMF_CONTEXT, rc) 
+ return 
+ endif 
+
+ ! Prepare the LocalArray list to be used in the ArrayCreate() call. 
+ ! Do not pass the copyflag_opt flag into LocalArrayCreate() to prevent 
+ ! unncessary data movements at this point. The ArrayCreate() below will 
+ ! create a new LocalArray internally (to be used inside of the Array 
+ ! object), and that is where the copyflag_opt will need to be considered. 
+ allocate(larrayList(1)) 
+ fptr => farray 
+ larrayList(1) = ESMF_LocalArrayCreate(fptr, rc=localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+
+ ! Create the Array object by calling into overloaded ArrayCreate() interf. 
+ array = ESMF_ArrayCreate(larrayList, distgrid, indexflag, copyflag_opt, & 
+ distgridToArrayMap, computationalEdgeLWidth, computationalEdgeUWidth, & 
+ computationalLWidth, computationalUWidth, totalLWidth, totalUWidth, & 
+ undistLBound, undistUBound, name, localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+
+ ! Garbage collection. The ArrayCreate() call will have created a new 
+ ! LocalArray object internally, so the temporary object created above 
+ ! must be deleted here. 
+ call ESMF_LocalArrayDestroy(larrayList(1), rc=localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+ deallocate(larrayList) 
+
+ ! Set return value 
+ ESMF_ArrayCreateAssmdShape4Di8 = array 
+
+ ! Set init code 
+ ESMF_INIT_SET_CREATED(ESMF_ArrayCreateAssmdShape4Di8) 
+
+ ! Return successfully 
+ if (present(rc)) rc = ESMF_SUCCESS 
+
+ end function ESMF_ArrayCreateAssmdShape4Di8 
+!---------------------------------------------------------------------------- 
+ 
+! -------------------------- ESMF-public method ----------------------------- 
+#undef ESMF_METHOD 
+#define ESMF_METHOD "ESMF_ArrayCreateAssmdShape" 
+ function ESMF_ArrayCreateAssmdShape4Dr4(farray, & 
+ distgrid, indexflag, copyflag, distgridToArrayMap, & 
+ computationalEdgeLWidth, computationalEdgeUWidth, & 
+ computationalLWidth, computationalUWidth, totalLWidth, & 
+ totalUWidth, undistLBound, undistUBound, name, rc) 
+
+ type(ESMF_Array) :: ESMF_ArrayCreateAssmdShape4Dr4 
+
+ real (ESMF_KIND_r4),dimension(:,:,:,:),intent(in),target :: farray 
+ type(ESMF_DistGrid), intent(in) :: distgrid 
+ type(ESMF_IndexFlag), intent(in) :: indexflag 
+ type(ESMF_CopyFlag), intent(in), optional :: copyflag 
+ integer, intent(in), optional :: distgridToArrayMap(:) 
+ integer, intent(in), optional :: computationalEdgeLWidth(:) 
+ integer, intent(in), optional :: computationalEdgeUWidth(:) 
+ integer, intent(in), optional :: computationalLWidth(:) 
+ integer, intent(in), optional :: computationalUWidth(:) 
+ integer, intent(in), optional :: totalLWidth(:) 
+ integer, intent(in), optional :: totalUWidth(:) 
+ integer, intent(in), optional :: undistLBound(:) 
+ integer, intent(in), optional :: undistUBound(:) 
+ character (len=*), intent(in), optional :: name 
+ integer, intent(out), optional :: rc 
+
+ ! Local variables 
+ integer :: localrc ! local return code 
+ type(ESMF_Array) :: array ! new Array 
+ type(ESMF_LocalArray), allocatable :: larrayList(:) ! helper variable 
+ real (ESMF_KIND_r4),dimension(:,:,:,:),pointer :: fptr ! helper variable 
+ type(ESMF_CopyFlag) :: copyflag_opt ! helper variable 
+
+ ! Initialize return code; assume failure until success is certain 
+ localrc = ESMF_RC_NOT_IMPL 
+ if (present(rc)) rc = ESMF_RC_NOT_IMPL 
+
+ ! Check init status of arguments 
+ ESMF_INIT_CHECK_DEEP_SHORT(ESMF_DistGridGetInit, distgrid, rc) 
+
+ ! Mark this Array object as invalid 
+ array%this = ESMF_NULL_POINTER 
+
+ ! Set copy/ref behavior 
+ copyflag_opt = ESMF_DATA_REF ! default 
+ if (present(copyflag)) copyflag_opt = copyflag 
+
+ ! Check that indexflag does not specify mode that is not supported here 
+ if (indexflag==ESMF_INDEX_USER) then 
+ call ESMF_LogMsgSetError(ESMF_RC_ARG_VALUE, & 
+ "- ESMF_INDEX_USER not supported as input value", & 
+ ESMF_CONTEXT, rc) 
+ return 
+ endif 
+
+ ! Prepare the LocalArray list to be used in the ArrayCreate() call. 
+ ! Do not pass the copyflag_opt flag into LocalArrayCreate() to prevent 
+ ! unncessary data movements at this point. The ArrayCreate() below will 
+ ! create a new LocalArray internally (to be used inside of the Array 
+ ! object), and that is where the copyflag_opt will need to be considered. 
+ allocate(larrayList(1)) 
+ fptr => farray 
+ larrayList(1) = ESMF_LocalArrayCreate(fptr, rc=localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+
+ ! Create the Array object by calling into overloaded ArrayCreate() interf. 
+ array = ESMF_ArrayCreate(larrayList, distgrid, indexflag, copyflag_opt, & 
+ distgridToArrayMap, computationalEdgeLWidth, computationalEdgeUWidth, & 
+ computationalLWidth, computationalUWidth, totalLWidth, totalUWidth, & 
+ undistLBound, undistUBound, name, localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+
+ ! Garbage collection. The ArrayCreate() call will have created a new 
+ ! LocalArray object internally, so the temporary object created above 
+ ! must be deleted here. 
+ call ESMF_LocalArrayDestroy(larrayList(1), rc=localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+ deallocate(larrayList) 
+
+ ! Set return value 
+ ESMF_ArrayCreateAssmdShape4Dr4 = array 
+
+ ! Set init code 
+ ESMF_INIT_SET_CREATED(ESMF_ArrayCreateAssmdShape4Dr4) 
+
+ ! Return successfully 
+ if (present(rc)) rc = ESMF_SUCCESS 
+
+ end function ESMF_ArrayCreateAssmdShape4Dr4 
+!---------------------------------------------------------------------------- 
+ 
+! -------------------------- ESMF-public method ----------------------------- 
+#undef ESMF_METHOD 
+#define ESMF_METHOD "ESMF_ArrayCreateAssmdShape" 
+ function ESMF_ArrayCreateAssmdShape4Dr8(farray, & 
+ distgrid, indexflag, copyflag, distgridToArrayMap, & 
+ computationalEdgeLWidth, computationalEdgeUWidth, & 
+ computationalLWidth, computationalUWidth, totalLWidth, & 
+ totalUWidth, undistLBound, undistUBound, name, rc) 
+
+ type(ESMF_Array) :: ESMF_ArrayCreateAssmdShape4Dr8 
+
+ real (ESMF_KIND_r8),dimension(:,:,:,:),intent(in),target :: farray 
+ type(ESMF_DistGrid), intent(in) :: distgrid 
+ type(ESMF_IndexFlag), intent(in) :: indexflag 
+ type(ESMF_CopyFlag), intent(in), optional :: copyflag 
+ integer, intent(in), optional :: distgridToArrayMap(:) 
+ integer, intent(in), optional :: computationalEdgeLWidth(:) 
+ integer, intent(in), optional :: computationalEdgeUWidth(:) 
+ integer, intent(in), optional :: computationalLWidth(:) 
+ integer, intent(in), optional :: computationalUWidth(:) 
+ integer, intent(in), optional :: totalLWidth(:) 
+ integer, intent(in), optional :: totalUWidth(:) 
+ integer, intent(in), optional :: undistLBound(:) 
+ integer, intent(in), optional :: undistUBound(:) 
+ character (len=*), intent(in), optional :: name 
+ integer, intent(out), optional :: rc 
+
+ ! Local variables 
+ integer :: localrc ! local return code 
+ type(ESMF_Array) :: array ! new Array 
+ type(ESMF_LocalArray), allocatable :: larrayList(:) ! helper variable 
+ real (ESMF_KIND_r8),dimension(:,:,:,:),pointer :: fptr ! helper variable 
+ type(ESMF_CopyFlag) :: copyflag_opt ! helper variable 
+
+ ! Initialize return code; assume failure until success is certain 
+ localrc = ESMF_RC_NOT_IMPL 
+ if (present(rc)) rc = ESMF_RC_NOT_IMPL 
+
+ ! Check init status of arguments 
+ ESMF_INIT_CHECK_DEEP_SHORT(ESMF_DistGridGetInit, distgrid, rc) 
+
+ ! Mark this Array object as invalid 
+ array%this = ESMF_NULL_POINTER 
+
+ ! Set copy/ref behavior 
+ copyflag_opt = ESMF_DATA_REF ! default 
+ if (present(copyflag)) copyflag_opt = copyflag 
+
+ ! Check that indexflag does not specify mode that is not supported here 
+ if (indexflag==ESMF_INDEX_USER) then 
+ call ESMF_LogMsgSetError(ESMF_RC_ARG_VALUE, & 
+ "- ESMF_INDEX_USER not supported as input value", & 
+ ESMF_CONTEXT, rc) 
+ return 
+ endif 
+
+ ! Prepare the LocalArray list to be used in the ArrayCreate() call. 
+ ! Do not pass the copyflag_opt flag into LocalArrayCreate() to prevent 
+ ! unncessary data movements at this point. The ArrayCreate() below will 
+ ! create a new LocalArray internally (to be used inside of the Array 
+ ! object), and that is where the copyflag_opt will need to be considered. 
+ allocate(larrayList(1)) 
+ fptr => farray 
+ larrayList(1) = ESMF_LocalArrayCreate(fptr, rc=localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+
+ ! Create the Array object by calling into overloaded ArrayCreate() interf. 
+ array = ESMF_ArrayCreate(larrayList, distgrid, indexflag, copyflag_opt, & 
+ distgridToArrayMap, computationalEdgeLWidth, computationalEdgeUWidth, & 
+ computationalLWidth, computationalUWidth, totalLWidth, totalUWidth, & 
+ undistLBound, undistUBound, name, localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+
+ ! Garbage collection. The ArrayCreate() call will have created a new 
+ ! LocalArray object internally, so the temporary object created above 
+ ! must be deleted here. 
+ call ESMF_LocalArrayDestroy(larrayList(1), rc=localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+ deallocate(larrayList) 
+
+ ! Set return value 
+ ESMF_ArrayCreateAssmdShape4Dr8 = array 
+
+ ! Set init code 
+ ESMF_INIT_SET_CREATED(ESMF_ArrayCreateAssmdShape4Dr8) 
+
+ ! Return successfully 
+ if (present(rc)) rc = ESMF_SUCCESS 
+
+ end function ESMF_ArrayCreateAssmdShape4Dr8 
+!---------------------------------------------------------------------------- 
+ 
+#ifndef ESMF_NO_GREATER_THAN_4D 
+! -------------------------- ESMF-public method ----------------------------- 
+#undef ESMF_METHOD 
+#define ESMF_METHOD "ESMF_ArrayCreateAssmdShape" 
+ function ESMF_ArrayCreateAssmdShape5Di4(farray, & 
+ distgrid, indexflag, copyflag, distgridToArrayMap, & 
+ computationalEdgeLWidth, computationalEdgeUWidth, & 
+ computationalLWidth, computationalUWidth, totalLWidth, & 
+ totalUWidth, undistLBound, undistUBound, name, rc) 
+
+ type(ESMF_Array) :: ESMF_ArrayCreateAssmdShape5Di4 
+
+ integer (ESMF_KIND_i4),dimension(:,:,:,:,:),intent(in),target :: farray 
+ type(ESMF_DistGrid), intent(in) :: distgrid 
+ type(ESMF_IndexFlag), intent(in) :: indexflag 
+ type(ESMF_CopyFlag), intent(in), optional :: copyflag 
+ integer, intent(in), optional :: distgridToArrayMap(:) 
+ integer, intent(in), optional :: computationalEdgeLWidth(:) 
+ integer, intent(in), optional :: computationalEdgeUWidth(:) 
+ integer, intent(in), optional :: computationalLWidth(:) 
+ integer, intent(in), optional :: computationalUWidth(:) 
+ integer, intent(in), optional :: totalLWidth(:) 
+ integer, intent(in), optional :: totalUWidth(:) 
+ integer, intent(in), optional :: undistLBound(:) 
+ integer, intent(in), optional :: undistUBound(:) 
+ character (len=*), intent(in), optional :: name 
+ integer, intent(out), optional :: rc 
+
+ ! Local variables 
+ integer :: localrc ! local return code 
+ type(ESMF_Array) :: array ! new Array 
+ type(ESMF_LocalArray), allocatable :: larrayList(:) ! helper variable 
+ integer (ESMF_KIND_i4),dimension(:,:,:,:,:),pointer :: fptr ! helper variable 
+ type(ESMF_CopyFlag) :: copyflag_opt ! helper variable 
+
+ ! Initialize return code; assume failure until success is certain 
+ localrc = ESMF_RC_NOT_IMPL 
+ if (present(rc)) rc = ESMF_RC_NOT_IMPL 
+
+ ! Check init status of arguments 
+ ESMF_INIT_CHECK_DEEP_SHORT(ESMF_DistGridGetInit, distgrid, rc) 
+
+ ! Mark this Array object as invalid 
+ array%this = ESMF_NULL_POINTER 
+
+ ! Set copy/ref behavior 
+ copyflag_opt = ESMF_DATA_REF ! default 
+ if (present(copyflag)) copyflag_opt = copyflag 
+
+ ! Check that indexflag does not specify mode that is not supported here 
+ if (indexflag==ESMF_INDEX_USER) then 
+ call ESMF_LogMsgSetError(ESMF_RC_ARG_VALUE, & 
+ "- ESMF_INDEX_USER not supported as input value", & 
+ ESMF_CONTEXT, rc) 
+ return 
+ endif 
+
+ ! Prepare the LocalArray list to be used in the ArrayCreate() call. 
+ ! Do not pass the copyflag_opt flag into LocalArrayCreate() to prevent 
+ ! unncessary data movements at this point. The ArrayCreate() below will 
+ ! create a new LocalArray internally (to be used inside of the Array 
+ ! object), and that is where the copyflag_opt will need to be considered. 
+ allocate(larrayList(1)) 
+ fptr => farray 
+ larrayList(1) = ESMF_LocalArrayCreate(fptr, rc=localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+
+ ! Create the Array object by calling into overloaded ArrayCreate() interf. 
+ array = ESMF_ArrayCreate(larrayList, distgrid, indexflag, copyflag_opt, & 
+ distgridToArrayMap, computationalEdgeLWidth, computationalEdgeUWidth, & 
+ computationalLWidth, computationalUWidth, totalLWidth, totalUWidth, & 
+ undistLBound, undistUBound, name, localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+
+ ! Garbage collection. The ArrayCreate() call will have created a new 
+ ! LocalArray object internally, so the temporary object created above 
+ ! must be deleted here. 
+ call ESMF_LocalArrayDestroy(larrayList(1), rc=localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+ deallocate(larrayList) 
+
+ ! Set return value 
+ ESMF_ArrayCreateAssmdShape5Di4 = array 
+
+ ! Set init code 
+ ESMF_INIT_SET_CREATED(ESMF_ArrayCreateAssmdShape5Di4) 
+
+ ! Return successfully 
+ if (present(rc)) rc = ESMF_SUCCESS 
+
+ end function ESMF_ArrayCreateAssmdShape5Di4 
+!---------------------------------------------------------------------------- 
+ 
+! -------------------------- ESMF-public method ----------------------------- 
+#undef ESMF_METHOD 
+#define ESMF_METHOD "ESMF_ArrayCreateAssmdShape" 
+ function ESMF_ArrayCreateAssmdShape5Di8(farray, & 
+ distgrid, indexflag, copyflag, distgridToArrayMap, & 
+ computationalEdgeLWidth, computationalEdgeUWidth, & 
+ computationalLWidth, computationalUWidth, totalLWidth, & 
+ totalUWidth, undistLBound, undistUBound, name, rc) 
+
+ type(ESMF_Array) :: ESMF_ArrayCreateAssmdShape5Di8 
+
+ integer (ESMF_KIND_i8),dimension(:,:,:,:,:),intent(in),target :: farray 
+ type(ESMF_DistGrid), intent(in) :: distgrid 
+ type(ESMF_IndexFlag), intent(in) :: indexflag 
+ type(ESMF_CopyFlag), intent(in), optional :: copyflag 
+ integer, intent(in), optional :: distgridToArrayMap(:) 
+ integer, intent(in), optional :: computationalEdgeLWidth(:) 
+ integer, intent(in), optional :: computationalEdgeUWidth(:) 
+ integer, intent(in), optional :: computationalLWidth(:) 
+ integer, intent(in), optional :: computationalUWidth(:) 
+ integer, intent(in), optional :: totalLWidth(:) 
+ integer, intent(in), optional :: totalUWidth(:) 
+ integer, intent(in), optional :: undistLBound(:) 
+ integer, intent(in), optional :: undistUBound(:) 
+ character (len=*), intent(in), optional :: name 
+ integer, intent(out), optional :: rc 
+
+ ! Local variables 
+ integer :: localrc ! local return code 
+ type(ESMF_Array) :: array ! new Array 
+ type(ESMF_LocalArray), allocatable :: larrayList(:) ! helper variable 
+ integer (ESMF_KIND_i8),dimension(:,:,:,:,:),pointer :: fptr ! helper variable 
+ type(ESMF_CopyFlag) :: copyflag_opt ! helper variable 
+
+ ! Initialize return code; assume failure until success is certain 
+ localrc = ESMF_RC_NOT_IMPL 
+ if (present(rc)) rc = ESMF_RC_NOT_IMPL 
+
+ ! Check init status of arguments 
+ ESMF_INIT_CHECK_DEEP_SHORT(ESMF_DistGridGetInit, distgrid, rc) 
+
+ ! Mark this Array object as invalid 
+ array%this = ESMF_NULL_POINTER 
+
+ ! Set copy/ref behavior 
+ copyflag_opt = ESMF_DATA_REF ! default 
+ if (present(copyflag)) copyflag_opt = copyflag 
+
+ ! Check that indexflag does not specify mode that is not supported here 
+ if (indexflag==ESMF_INDEX_USER) then 
+ call ESMF_LogMsgSetError(ESMF_RC_ARG_VALUE, & 
+ "- ESMF_INDEX_USER not supported as input value", & 
+ ESMF_CONTEXT, rc) 
+ return 
+ endif 
+
+ ! Prepare the LocalArray list to be used in the ArrayCreate() call. 
+ ! Do not pass the copyflag_opt flag into LocalArrayCreate() to prevent 
+ ! unncessary data movements at this point. The ArrayCreate() below will 
+ ! create a new LocalArray internally (to be used inside of the Array 
+ ! object), and that is where the copyflag_opt will need to be considered. 
+ allocate(larrayList(1)) 
+ fptr => farray 
+ larrayList(1) = ESMF_LocalArrayCreate(fptr, rc=localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+
+ ! Create the Array object by calling into overloaded ArrayCreate() interf. 
+ array = ESMF_ArrayCreate(larrayList, distgrid, indexflag, copyflag_opt, & 
+ distgridToArrayMap, computationalEdgeLWidth, computationalEdgeUWidth, & 
+ computationalLWidth, computationalUWidth, totalLWidth, totalUWidth, & 
+ undistLBound, undistUBound, name, localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+
+ ! Garbage collection. The ArrayCreate() call will have created a new 
+ ! LocalArray object internally, so the temporary object created above 
+ ! must be deleted here. 
+ call ESMF_LocalArrayDestroy(larrayList(1), rc=localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+ deallocate(larrayList) 
+
+ ! Set return value 
+ ESMF_ArrayCreateAssmdShape5Di8 = array 
+
+ ! Set init code 
+ ESMF_INIT_SET_CREATED(ESMF_ArrayCreateAssmdShape5Di8) 
+
+ ! Return successfully 
+ if (present(rc)) rc = ESMF_SUCCESS 
+
+ end function ESMF_ArrayCreateAssmdShape5Di8 
+!---------------------------------------------------------------------------- 
+ 
+! -------------------------- ESMF-public method ----------------------------- 
+#undef ESMF_METHOD 
+#define ESMF_METHOD "ESMF_ArrayCreateAssmdShape" 
+ function ESMF_ArrayCreateAssmdShape5Dr4(farray, & 
+ distgrid, indexflag, copyflag, distgridToArrayMap, & 
+ computationalEdgeLWidth, computationalEdgeUWidth, & 
+ computationalLWidth, computationalUWidth, totalLWidth, & 
+ totalUWidth, undistLBound, undistUBound, name, rc) 
+
+ type(ESMF_Array) :: ESMF_ArrayCreateAssmdShape5Dr4 
+
+ real (ESMF_KIND_r4),dimension(:,:,:,:,:),intent(in),target :: farray 
+ type(ESMF_DistGrid), intent(in) :: distgrid 
+ type(ESMF_IndexFlag), intent(in) :: indexflag 
+ type(ESMF_CopyFlag), intent(in), optional :: copyflag 
+ integer, intent(in), optional :: distgridToArrayMap(:) 
+ integer, intent(in), optional :: computationalEdgeLWidth(:) 
+ integer, intent(in), optional :: computationalEdgeUWidth(:) 
+ integer, intent(in), optional :: computationalLWidth(:) 
+ integer, intent(in), optional :: computationalUWidth(:) 
+ integer, intent(in), optional :: totalLWidth(:) 
+ integer, intent(in), optional :: totalUWidth(:) 
+ integer, intent(in), optional :: undistLBound(:) 
+ integer, intent(in), optional :: undistUBound(:) 
+ character (len=*), intent(in), optional :: name 
+ integer, intent(out), optional :: rc 
+
+ ! Local variables 
+ integer :: localrc ! local return code 
+ type(ESMF_Array) :: array ! new Array 
+ type(ESMF_LocalArray), allocatable :: larrayList(:) ! helper variable 
+ real (ESMF_KIND_r4),dimension(:,:,:,:,:),pointer :: fptr ! helper variable 
+ type(ESMF_CopyFlag) :: copyflag_opt ! helper variable 
+
+ ! Initialize return code; assume failure until success is certain 
+ localrc = ESMF_RC_NOT_IMPL 
+ if (present(rc)) rc = ESMF_RC_NOT_IMPL 
+
+ ! Check init status of arguments 
+ ESMF_INIT_CHECK_DEEP_SHORT(ESMF_DistGridGetInit, distgrid, rc) 
+
+ ! Mark this Array object as invalid 
+ array%this = ESMF_NULL_POINTER 
+
+ ! Set copy/ref behavior 
+ copyflag_opt = ESMF_DATA_REF ! default 
+ if (present(copyflag)) copyflag_opt = copyflag 
+
+ ! Check that indexflag does not specify mode that is not supported here 
+ if (indexflag==ESMF_INDEX_USER) then 
+ call ESMF_LogMsgSetError(ESMF_RC_ARG_VALUE, & 
+ "- ESMF_INDEX_USER not supported as input value", & 
+ ESMF_CONTEXT, rc) 
+ return 
+ endif 
+
+ ! Prepare the LocalArray list to be used in the ArrayCreate() call. 
+ ! Do not pass the copyflag_opt flag into LocalArrayCreate() to prevent 
+ ! unncessary data movements at this point. The ArrayCreate() below will 
+ ! create a new LocalArray internally (to be used inside of the Array 
+ ! object), and that is where the copyflag_opt will need to be considered. 
+ allocate(larrayList(1)) 
+ fptr => farray 
+ larrayList(1) = ESMF_LocalArrayCreate(fptr, rc=localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+
+ ! Create the Array object by calling into overloaded ArrayCreate() interf. 
+ array = ESMF_ArrayCreate(larrayList, distgrid, indexflag, copyflag_opt, & 
+ distgridToArrayMap, computationalEdgeLWidth, computationalEdgeUWidth, & 
+ computationalLWidth, computationalUWidth, totalLWidth, totalUWidth, & 
+ undistLBound, undistUBound, name, localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+
+ ! Garbage collection. The ArrayCreate() call will have created a new 
+ ! LocalArray object internally, so the temporary object created above 
+ ! must be deleted here. 
+ call ESMF_LocalArrayDestroy(larrayList(1), rc=localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+ deallocate(larrayList) 
+
+ ! Set return value 
+ ESMF_ArrayCreateAssmdShape5Dr4 = array 
+
+ ! Set init code 
+ ESMF_INIT_SET_CREATED(ESMF_ArrayCreateAssmdShape5Dr4) 
+
+ ! Return successfully 
+ if (present(rc)) rc = ESMF_SUCCESS 
+
+ end function ESMF_ArrayCreateAssmdShape5Dr4 
+!---------------------------------------------------------------------------- 
+ 
+! -------------------------- ESMF-public method ----------------------------- 
+#undef ESMF_METHOD 
+#define ESMF_METHOD "ESMF_ArrayCreateAssmdShape" 
+ function ESMF_ArrayCreateAssmdShape5Dr8(farray, & 
+ distgrid, indexflag, copyflag, distgridToArrayMap, & 
+ computationalEdgeLWidth, computationalEdgeUWidth, & 
+ computationalLWidth, computationalUWidth, totalLWidth, & 
+ totalUWidth, undistLBound, undistUBound, name, rc) 
+
+ type(ESMF_Array) :: ESMF_ArrayCreateAssmdShape5Dr8 
+
+ real (ESMF_KIND_r8),dimension(:,:,:,:,:),intent(in),target :: farray 
+ type(ESMF_DistGrid), intent(in) :: distgrid 
+ type(ESMF_IndexFlag), intent(in) :: indexflag 
+ type(ESMF_CopyFlag), intent(in), optional :: copyflag 
+ integer, intent(in), optional :: distgridToArrayMap(:) 
+ integer, intent(in), optional :: computationalEdgeLWidth(:) 
+ integer, intent(in), optional :: computationalEdgeUWidth(:) 
+ integer, intent(in), optional :: computationalLWidth(:) 
+ integer, intent(in), optional :: computationalUWidth(:) 
+ integer, intent(in), optional :: totalLWidth(:) 
+ integer, intent(in), optional :: totalUWidth(:) 
+ integer, intent(in), optional :: undistLBound(:) 
+ integer, intent(in), optional :: undistUBound(:) 
+ character (len=*), intent(in), optional :: name 
+ integer, intent(out), optional :: rc 
+
+ ! Local variables 
+ integer :: localrc ! local return code 
+ type(ESMF_Array) :: array ! new Array 
+ type(ESMF_LocalArray), allocatable :: larrayList(:) ! helper variable 
+ real (ESMF_KIND_r8),dimension(:,:,:,:,:),pointer :: fptr ! helper variable 
+ type(ESMF_CopyFlag) :: copyflag_opt ! helper variable 
+
+ ! Initialize return code; assume failure until success is certain 
+ localrc = ESMF_RC_NOT_IMPL 
+ if (present(rc)) rc = ESMF_RC_NOT_IMPL 
+
+ ! Check init status of arguments 
+ ESMF_INIT_CHECK_DEEP_SHORT(ESMF_DistGridGetInit, distgrid, rc) 
+
+ ! Mark this Array object as invalid 
+ array%this = ESMF_NULL_POINTER 
+
+ ! Set copy/ref behavior 
+ copyflag_opt = ESMF_DATA_REF ! default 
+ if (present(copyflag)) copyflag_opt = copyflag 
+
+ ! Check that indexflag does not specify mode that is not supported here 
+ if (indexflag==ESMF_INDEX_USER) then 
+ call ESMF_LogMsgSetError(ESMF_RC_ARG_VALUE, & 
+ "- ESMF_INDEX_USER not supported as input value", & 
+ ESMF_CONTEXT, rc) 
+ return 
+ endif 
+
+ ! Prepare the LocalArray list to be used in the ArrayCreate() call. 
+ ! Do not pass the copyflag_opt flag into LocalArrayCreate() to prevent 
+ ! unncessary data movements at this point. The ArrayCreate() below will 
+ ! create a new LocalArray internally (to be used inside of the Array 
+ ! object), and that is where the copyflag_opt will need to be considered. 
+ allocate(larrayList(1)) 
+ fptr => farray 
+ larrayList(1) = ESMF_LocalArrayCreate(fptr, rc=localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+
+ ! Create the Array object by calling into overloaded ArrayCreate() interf. 
+ array = ESMF_ArrayCreate(larrayList, distgrid, indexflag, copyflag_opt, & 
+ distgridToArrayMap, computationalEdgeLWidth, computationalEdgeUWidth, & 
+ computationalLWidth, computationalUWidth, totalLWidth, totalUWidth, & 
+ undistLBound, undistUBound, name, localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+
+ ! Garbage collection. The ArrayCreate() call will have created a new 
+ ! LocalArray object internally, so the temporary object created above 
+ ! must be deleted here. 
+ call ESMF_LocalArrayDestroy(larrayList(1), rc=localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+ deallocate(larrayList) 
+
+ ! Set return value 
+ ESMF_ArrayCreateAssmdShape5Dr8 = array 
+
+ ! Set init code 
+ ESMF_INIT_SET_CREATED(ESMF_ArrayCreateAssmdShape5Dr8) 
+
+ ! Return successfully 
+ if (present(rc)) rc = ESMF_SUCCESS 
+
+ end function ESMF_ArrayCreateAssmdShape5Dr8 
+!---------------------------------------------------------------------------- 
+ 
+! -------------------------- ESMF-public method ----------------------------- 
+#undef ESMF_METHOD 
+#define ESMF_METHOD "ESMF_ArrayCreateAssmdShape" 
+ function ESMF_ArrayCreateAssmdShape6Di4(farray, & 
+ distgrid, indexflag, copyflag, distgridToArrayMap, & 
+ computationalEdgeLWidth, computationalEdgeUWidth, & 
+ computationalLWidth, computationalUWidth, totalLWidth, & 
+ totalUWidth, undistLBound, undistUBound, name, rc) 
+
+ type(ESMF_Array) :: ESMF_ArrayCreateAssmdShape6Di4 
+
+ integer (ESMF_KIND_i4),dimension(:,:,:,:,:,:),intent(in),target :: farray 
+ type(ESMF_DistGrid), intent(in) :: distgrid 
+ type(ESMF_IndexFlag), intent(in) :: indexflag 
+ type(ESMF_CopyFlag), intent(in), optional :: copyflag 
+ integer, intent(in), optional :: distgridToArrayMap(:) 
+ integer, intent(in), optional :: computationalEdgeLWidth(:) 
+ integer, intent(in), optional :: computationalEdgeUWidth(:) 
+ integer, intent(in), optional :: computationalLWidth(:) 
+ integer, intent(in), optional :: computationalUWidth(:) 
+ integer, intent(in), optional :: totalLWidth(:) 
+ integer, intent(in), optional :: totalUWidth(:) 
+ integer, intent(in), optional :: undistLBound(:) 
+ integer, intent(in), optional :: undistUBound(:) 
+ character (len=*), intent(in), optional :: name 
+ integer, intent(out), optional :: rc 
+
+ ! Local variables 
+ integer :: localrc ! local return code 
+ type(ESMF_Array) :: array ! new Array 
+ type(ESMF_LocalArray), allocatable :: larrayList(:) ! helper variable 
+ integer (ESMF_KIND_i4),dimension(:,:,:,:,:,:),pointer :: fptr ! helper variable 
+ type(ESMF_CopyFlag) :: copyflag_opt ! helper variable 
+
+ ! Initialize return code; assume failure until success is certain 
+ localrc = ESMF_RC_NOT_IMPL 
+ if (present(rc)) rc = ESMF_RC_NOT_IMPL 
+
+ ! Check init status of arguments 
+ ESMF_INIT_CHECK_DEEP_SHORT(ESMF_DistGridGetInit, distgrid, rc) 
+
+ ! Mark this Array object as invalid 
+ array%this = ESMF_NULL_POINTER 
+
+ ! Set copy/ref behavior 
+ copyflag_opt = ESMF_DATA_REF ! default 
+ if (present(copyflag)) copyflag_opt = copyflag 
+
+ ! Check that indexflag does not specify mode that is not supported here 
+ if (indexflag==ESMF_INDEX_USER) then 
+ call ESMF_LogMsgSetError(ESMF_RC_ARG_VALUE, & 
+ "- ESMF_INDEX_USER not supported as input value", & 
+ ESMF_CONTEXT, rc) 
+ return 
+ endif 
+
+ ! Prepare the LocalArray list to be used in the ArrayCreate() call. 
+ ! Do not pass the copyflag_opt flag into LocalArrayCreate() to prevent 
+ ! unncessary data movements at this point. The ArrayCreate() below will 
+ ! create a new LocalArray internally (to be used inside of the Array 
+ ! object), and that is where the copyflag_opt will need to be considered. 
+ allocate(larrayList(1)) 
+ fptr => farray 
+ larrayList(1) = ESMF_LocalArrayCreate(fptr, rc=localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+
+ ! Create the Array object by calling into overloaded ArrayCreate() interf. 
+ array = ESMF_ArrayCreate(larrayList, distgrid, indexflag, copyflag_opt, & 
+ distgridToArrayMap, computationalEdgeLWidth, computationalEdgeUWidth, & 
+ computationalLWidth, computationalUWidth, totalLWidth, totalUWidth, & 
+ undistLBound, undistUBound, name, localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+
+ ! Garbage collection. The ArrayCreate() call will have created a new 
+ ! LocalArray object internally, so the temporary object created above 
+ ! must be deleted here. 
+ call ESMF_LocalArrayDestroy(larrayList(1), rc=localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+ deallocate(larrayList) 
+
+ ! Set return value 
+ ESMF_ArrayCreateAssmdShape6Di4 = array 
+
+ ! Set init code 
+ ESMF_INIT_SET_CREATED(ESMF_ArrayCreateAssmdShape6Di4) 
+
+ ! Return successfully 
+ if (present(rc)) rc = ESMF_SUCCESS 
+
+ end function ESMF_ArrayCreateAssmdShape6Di4 
+!---------------------------------------------------------------------------- 
+ 
+! -------------------------- ESMF-public method ----------------------------- 
+#undef ESMF_METHOD 
+#define ESMF_METHOD "ESMF_ArrayCreateAssmdShape" 
+ function ESMF_ArrayCreateAssmdShape6Di8(farray, & 
+ distgrid, indexflag, copyflag, distgridToArrayMap, & 
+ computationalEdgeLWidth, computationalEdgeUWidth, & 
+ computationalLWidth, computationalUWidth, totalLWidth, & 
+ totalUWidth, undistLBound, undistUBound, name, rc) 
+
+ type(ESMF_Array) :: ESMF_ArrayCreateAssmdShape6Di8 
+
+ integer (ESMF_KIND_i8),dimension(:,:,:,:,:,:),intent(in),target :: farray 
+ type(ESMF_DistGrid), intent(in) :: distgrid 
+ type(ESMF_IndexFlag), intent(in) :: indexflag 
+ type(ESMF_CopyFlag), intent(in), optional :: copyflag 
+ integer, intent(in), optional :: distgridToArrayMap(:) 
+ integer, intent(in), optional :: computationalEdgeLWidth(:) 
+ integer, intent(in), optional :: computationalEdgeUWidth(:) 
+ integer, intent(in), optional :: computationalLWidth(:) 
+ integer, intent(in), optional :: computationalUWidth(:) 
+ integer, intent(in), optional :: totalLWidth(:) 
+ integer, intent(in), optional :: totalUWidth(:) 
+ integer, intent(in), optional :: undistLBound(:) 
+ integer, intent(in), optional :: undistUBound(:) 
+ character (len=*), intent(in), optional :: name 
+ integer, intent(out), optional :: rc 
+
+ ! Local variables 
+ integer :: localrc ! local return code 
+ type(ESMF_Array) :: array ! new Array 
+ type(ESMF_LocalArray), allocatable :: larrayList(:) ! helper variable 
+ integer (ESMF_KIND_i8),dimension(:,:,:,:,:,:),pointer :: fptr ! helper variable 
+ type(ESMF_CopyFlag) :: copyflag_opt ! helper variable 
+
+ ! Initialize return code; assume failure until success is certain 
+ localrc = ESMF_RC_NOT_IMPL 
+ if (present(rc)) rc = ESMF_RC_NOT_IMPL 
+
+ ! Check init status of arguments 
+ ESMF_INIT_CHECK_DEEP_SHORT(ESMF_DistGridGetInit, distgrid, rc) 
+
+ ! Mark this Array object as invalid 
+ array%this = ESMF_NULL_POINTER 
+
+ ! Set copy/ref behavior 
+ copyflag_opt = ESMF_DATA_REF ! default 
+ if (present(copyflag)) copyflag_opt = copyflag 
+
+ ! Check that indexflag does not specify mode that is not supported here 
+ if (indexflag==ESMF_INDEX_USER) then 
+ call ESMF_LogMsgSetError(ESMF_RC_ARG_VALUE, & 
+ "- ESMF_INDEX_USER not supported as input value", & 
+ ESMF_CONTEXT, rc) 
+ return 
+ endif 
+
+ ! Prepare the LocalArray list to be used in the ArrayCreate() call. 
+ ! Do not pass the copyflag_opt flag into LocalArrayCreate() to prevent 
+ ! unncessary data movements at this point. The ArrayCreate() below will 
+ ! create a new LocalArray internally (to be used inside of the Array 
+ ! object), and that is where the copyflag_opt will need to be considered. 
+ allocate(larrayList(1)) 
+ fptr => farray 
+ larrayList(1) = ESMF_LocalArrayCreate(fptr, rc=localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+
+ ! Create the Array object by calling into overloaded ArrayCreate() interf. 
+ array = ESMF_ArrayCreate(larrayList, distgrid, indexflag, copyflag_opt, & 
+ distgridToArrayMap, computationalEdgeLWidth, computationalEdgeUWidth, & 
+ computationalLWidth, computationalUWidth, totalLWidth, totalUWidth, & 
+ undistLBound, undistUBound, name, localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+
+ ! Garbage collection. The ArrayCreate() call will have created a new 
+ ! LocalArray object internally, so the temporary object created above 
+ ! must be deleted here. 
+ call ESMF_LocalArrayDestroy(larrayList(1), rc=localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+ deallocate(larrayList) 
+
+ ! Set return value 
+ ESMF_ArrayCreateAssmdShape6Di8 = array 
+
+ ! Set init code 
+ ESMF_INIT_SET_CREATED(ESMF_ArrayCreateAssmdShape6Di8) 
+
+ ! Return successfully 
+ if (present(rc)) rc = ESMF_SUCCESS 
+
+ end function ESMF_ArrayCreateAssmdShape6Di8 
+!---------------------------------------------------------------------------- 
+ 
+! -------------------------- ESMF-public method ----------------------------- 
+#undef ESMF_METHOD 
+#define ESMF_METHOD "ESMF_ArrayCreateAssmdShape" 
+ function ESMF_ArrayCreateAssmdShape6Dr4(farray, & 
+ distgrid, indexflag, copyflag, distgridToArrayMap, & 
+ computationalEdgeLWidth, computationalEdgeUWidth, & 
+ computationalLWidth, computationalUWidth, totalLWidth, & 
+ totalUWidth, undistLBound, undistUBound, name, rc) 
+
+ type(ESMF_Array) :: ESMF_ArrayCreateAssmdShape6Dr4 
+
+ real (ESMF_KIND_r4),dimension(:,:,:,:,:,:),intent(in),target :: farray 
+ type(ESMF_DistGrid), intent(in) :: distgrid 
+ type(ESMF_IndexFlag), intent(in) :: indexflag 
+ type(ESMF_CopyFlag), intent(in), optional :: copyflag 
+ integer, intent(in), optional :: distgridToArrayMap(:) 
+ integer, intent(in), optional :: computationalEdgeLWidth(:) 
+ integer, intent(in), optional :: computationalEdgeUWidth(:) 
+ integer, intent(in), optional :: computationalLWidth(:) 
+ integer, intent(in), optional :: computationalUWidth(:) 
+ integer, intent(in), optional :: totalLWidth(:) 
+ integer, intent(in), optional :: totalUWidth(:) 
+ integer, intent(in), optional :: undistLBound(:) 
+ integer, intent(in), optional :: undistUBound(:) 
+ character (len=*), intent(in), optional :: name 
+ integer, intent(out), optional :: rc 
+
+ ! Local variables 
+ integer :: localrc ! local return code 
+ type(ESMF_Array) :: array ! new Array 
+ type(ESMF_LocalArray), allocatable :: larrayList(:) ! helper variable 
+ real (ESMF_KIND_r4),dimension(:,:,:,:,:,:),pointer :: fptr ! helper variable 
+ type(ESMF_CopyFlag) :: copyflag_opt ! helper variable 
+
+ ! Initialize return code; assume failure until success is certain 
+ localrc = ESMF_RC_NOT_IMPL 
+ if (present(rc)) rc = ESMF_RC_NOT_IMPL 
+
+ ! Check init status of arguments 
+ ESMF_INIT_CHECK_DEEP_SHORT(ESMF_DistGridGetInit, distgrid, rc) 
+
+ ! Mark this Array object as invalid 
+ array%this = ESMF_NULL_POINTER 
+
+ ! Set copy/ref behavior 
+ copyflag_opt = ESMF_DATA_REF ! default 
+ if (present(copyflag)) copyflag_opt = copyflag 
+
+ ! Check that indexflag does not specify mode that is not supported here 
+ if (indexflag==ESMF_INDEX_USER) then 
+ call ESMF_LogMsgSetError(ESMF_RC_ARG_VALUE, & 
+ "- ESMF_INDEX_USER not supported as input value", & 
+ ESMF_CONTEXT, rc) 
+ return 
+ endif 
+
+ ! Prepare the LocalArray list to be used in the ArrayCreate() call. 
+ ! Do not pass the copyflag_opt flag into LocalArrayCreate() to prevent 
+ ! unncessary data movements at this point. The ArrayCreate() below will 
+ ! create a new LocalArray internally (to be used inside of the Array 
+ ! object), and that is where the copyflag_opt will need to be considered. 
+ allocate(larrayList(1)) 
+ fptr => farray 
+ larrayList(1) = ESMF_LocalArrayCreate(fptr, rc=localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+
+ ! Create the Array object by calling into overloaded ArrayCreate() interf. 
+ array = ESMF_ArrayCreate(larrayList, distgrid, indexflag, copyflag_opt, & 
+ distgridToArrayMap, computationalEdgeLWidth, computationalEdgeUWidth, & 
+ computationalLWidth, computationalUWidth, totalLWidth, totalUWidth, & 
+ undistLBound, undistUBound, name, localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+
+ ! Garbage collection. The ArrayCreate() call will have created a new 
+ ! LocalArray object internally, so the temporary object created above 
+ ! must be deleted here. 
+ call ESMF_LocalArrayDestroy(larrayList(1), rc=localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+ deallocate(larrayList) 
+
+ ! Set return value 
+ ESMF_ArrayCreateAssmdShape6Dr4 = array 
+
+ ! Set init code 
+ ESMF_INIT_SET_CREATED(ESMF_ArrayCreateAssmdShape6Dr4) 
+
+ ! Return successfully 
+ if (present(rc)) rc = ESMF_SUCCESS 
+
+ end function ESMF_ArrayCreateAssmdShape6Dr4 
+!---------------------------------------------------------------------------- 
+ 
+! -------------------------- ESMF-public method ----------------------------- 
+#undef ESMF_METHOD 
+#define ESMF_METHOD "ESMF_ArrayCreateAssmdShape" 
+ function ESMF_ArrayCreateAssmdShape6Dr8(farray, & 
+ distgrid, indexflag, copyflag, distgridToArrayMap, & 
+ computationalEdgeLWidth, computationalEdgeUWidth, & 
+ computationalLWidth, computationalUWidth, totalLWidth, & 
+ totalUWidth, undistLBound, undistUBound, name, rc) 
+
+ type(ESMF_Array) :: ESMF_ArrayCreateAssmdShape6Dr8 
+
+ real (ESMF_KIND_r8),dimension(:,:,:,:,:,:),intent(in),target :: farray 
+ type(ESMF_DistGrid), intent(in) :: distgrid 
+ type(ESMF_IndexFlag), intent(in) :: indexflag 
+ type(ESMF_CopyFlag), intent(in), optional :: copyflag 
+ integer, intent(in), optional :: distgridToArrayMap(:) 
+ integer, intent(in), optional :: computationalEdgeLWidth(:) 
+ integer, intent(in), optional :: computationalEdgeUWidth(:) 
+ integer, intent(in), optional :: computationalLWidth(:) 
+ integer, intent(in), optional :: computationalUWidth(:) 
+ integer, intent(in), optional :: totalLWidth(:) 
+ integer, intent(in), optional :: totalUWidth(:) 
+ integer, intent(in), optional :: undistLBound(:) 
+ integer, intent(in), optional :: undistUBound(:) 
+ character (len=*), intent(in), optional :: name 
+ integer, intent(out), optional :: rc 
+
+ ! Local variables 
+ integer :: localrc ! local return code 
+ type(ESMF_Array) :: array ! new Array 
+ type(ESMF_LocalArray), allocatable :: larrayList(:) ! helper variable 
+ real (ESMF_KIND_r8),dimension(:,:,:,:,:,:),pointer :: fptr ! helper variable 
+ type(ESMF_CopyFlag) :: copyflag_opt ! helper variable 
+
+ ! Initialize return code; assume failure until success is certain 
+ localrc = ESMF_RC_NOT_IMPL 
+ if (present(rc)) rc = ESMF_RC_NOT_IMPL 
+
+ ! Check init status of arguments 
+ ESMF_INIT_CHECK_DEEP_SHORT(ESMF_DistGridGetInit, distgrid, rc) 
+
+ ! Mark this Array object as invalid 
+ array%this = ESMF_NULL_POINTER 
+
+ ! Set copy/ref behavior 
+ copyflag_opt = ESMF_DATA_REF ! default 
+ if (present(copyflag)) copyflag_opt = copyflag 
+
+ ! Check that indexflag does not specify mode that is not supported here 
+ if (indexflag==ESMF_INDEX_USER) then 
+ call ESMF_LogMsgSetError(ESMF_RC_ARG_VALUE, & 
+ "- ESMF_INDEX_USER not supported as input value", & 
+ ESMF_CONTEXT, rc) 
+ return 
+ endif 
+
+ ! Prepare the LocalArray list to be used in the ArrayCreate() call. 
+ ! Do not pass the copyflag_opt flag into LocalArrayCreate() to prevent 
+ ! unncessary data movements at this point. The ArrayCreate() below will 
+ ! create a new LocalArray internally (to be used inside of the Array 
+ ! object), and that is where the copyflag_opt will need to be considered. 
+ allocate(larrayList(1)) 
+ fptr => farray 
+ larrayList(1) = ESMF_LocalArrayCreate(fptr, rc=localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+
+ ! Create the Array object by calling into overloaded ArrayCreate() interf. 
+ array = ESMF_ArrayCreate(larrayList, distgrid, indexflag, copyflag_opt, & 
+ distgridToArrayMap, computationalEdgeLWidth, computationalEdgeUWidth, & 
+ computationalLWidth, computationalUWidth, totalLWidth, totalUWidth, & 
+ undistLBound, undistUBound, name, localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+
+ ! Garbage collection. The ArrayCreate() call will have created a new 
+ ! LocalArray object internally, so the temporary object created above 
+ ! must be deleted here. 
+ call ESMF_LocalArrayDestroy(larrayList(1), rc=localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+ deallocate(larrayList) 
+
+ ! Set return value 
+ ESMF_ArrayCreateAssmdShape6Dr8 = array 
+
+ ! Set init code 
+ ESMF_INIT_SET_CREATED(ESMF_ArrayCreateAssmdShape6Dr8) 
+
+ ! Return successfully 
+ if (present(rc)) rc = ESMF_SUCCESS 
+
+ end function ESMF_ArrayCreateAssmdShape6Dr8 
+!---------------------------------------------------------------------------- 
+ 
+! -------------------------- ESMF-public method ----------------------------- 
+#undef ESMF_METHOD 
+#define ESMF_METHOD "ESMF_ArrayCreateAssmdShape" 
+ function ESMF_ArrayCreateAssmdShape7Di4(farray, & 
+ distgrid, indexflag, copyflag, distgridToArrayMap, & 
+ computationalEdgeLWidth, computationalEdgeUWidth, & 
+ computationalLWidth, computationalUWidth, totalLWidth, & 
+ totalUWidth, undistLBound, undistUBound, name, rc) 
+
+ type(ESMF_Array) :: ESMF_ArrayCreateAssmdShape7Di4 
+
+ integer (ESMF_KIND_i4),dimension(:,:,:,:,:,:,:),intent(in),target :: farray 
+ type(ESMF_DistGrid), intent(in) :: distgrid 
+ type(ESMF_IndexFlag), intent(in) :: indexflag 
+ type(ESMF_CopyFlag), intent(in), optional :: copyflag 
+ integer, intent(in), optional :: distgridToArrayMap(:) 
+ integer, intent(in), optional :: computationalEdgeLWidth(:) 
+ integer, intent(in), optional :: computationalEdgeUWidth(:) 
+ integer, intent(in), optional :: computationalLWidth(:) 
+ integer, intent(in), optional :: computationalUWidth(:) 
+ integer, intent(in), optional :: totalLWidth(:) 
+ integer, intent(in), optional :: totalUWidth(:) 
+ integer, intent(in), optional :: undistLBound(:) 
+ integer, intent(in), optional :: undistUBound(:) 
+ character (len=*), intent(in), optional :: name 
+ integer, intent(out), optional :: rc 
+
+ ! Local variables 
+ integer :: localrc ! local return code 
+ type(ESMF_Array) :: array ! new Array 
+ type(ESMF_LocalArray), allocatable :: larrayList(:) ! helper variable 
+ integer (ESMF_KIND_i4),dimension(:,:,:,:,:,:,:),pointer :: fptr ! helper variable 
+ type(ESMF_CopyFlag) :: copyflag_opt ! helper variable 
+
+ ! Initialize return code; assume failure until success is certain 
+ localrc = ESMF_RC_NOT_IMPL 
+ if (present(rc)) rc = ESMF_RC_NOT_IMPL 
+
+ ! Check init status of arguments 
+ ESMF_INIT_CHECK_DEEP_SHORT(ESMF_DistGridGetInit, distgrid, rc) 
+
+ ! Mark this Array object as invalid 
+ array%this = ESMF_NULL_POINTER 
+
+ ! Set copy/ref behavior 
+ copyflag_opt = ESMF_DATA_REF ! default 
+ if (present(copyflag)) copyflag_opt = copyflag 
+
+ ! Check that indexflag does not specify mode that is not supported here 
+ if (indexflag==ESMF_INDEX_USER) then 
+ call ESMF_LogMsgSetError(ESMF_RC_ARG_VALUE, & 
+ "- ESMF_INDEX_USER not supported as input value", & 
+ ESMF_CONTEXT, rc) 
+ return 
+ endif 
+
+ ! Prepare the LocalArray list to be used in the ArrayCreate() call. 
+ ! Do not pass the copyflag_opt flag into LocalArrayCreate() to prevent 
+ ! unncessary data movements at this point. The ArrayCreate() below will 
+ ! create a new LocalArray internally (to be used inside of the Array 
+ ! object), and that is where the copyflag_opt will need to be considered. 
+ allocate(larrayList(1)) 
+ fptr => farray 
+ larrayList(1) = ESMF_LocalArrayCreate(fptr, rc=localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+
+ ! Create the Array object by calling into overloaded ArrayCreate() interf. 
+ array = ESMF_ArrayCreate(larrayList, distgrid, indexflag, copyflag_opt, & 
+ distgridToArrayMap, computationalEdgeLWidth, computationalEdgeUWidth, & 
+ computationalLWidth, computationalUWidth, totalLWidth, totalUWidth, & 
+ undistLBound, undistUBound, name, localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+
+ ! Garbage collection. The ArrayCreate() call will have created a new 
+ ! LocalArray object internally, so the temporary object created above 
+ ! must be deleted here. 
+ call ESMF_LocalArrayDestroy(larrayList(1), rc=localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+ deallocate(larrayList) 
+
+ ! Set return value 
+ ESMF_ArrayCreateAssmdShape7Di4 = array 
+
+ ! Set init code 
+ ESMF_INIT_SET_CREATED(ESMF_ArrayCreateAssmdShape7Di4) 
+
+ ! Return successfully 
+ if (present(rc)) rc = ESMF_SUCCESS 
+
+ end function ESMF_ArrayCreateAssmdShape7Di4 
+!---------------------------------------------------------------------------- 
+ 
+! -------------------------- ESMF-public method ----------------------------- 
+#undef ESMF_METHOD 
+#define ESMF_METHOD "ESMF_ArrayCreateAssmdShape" 
+ function ESMF_ArrayCreateAssmdShape7Di8(farray, & 
+ distgrid, indexflag, copyflag, distgridToArrayMap, & 
+ computationalEdgeLWidth, computationalEdgeUWidth, & 
+ computationalLWidth, computationalUWidth, totalLWidth, & 
+ totalUWidth, undistLBound, undistUBound, name, rc) 
+
+ type(ESMF_Array) :: ESMF_ArrayCreateAssmdShape7Di8 
+
+ integer (ESMF_KIND_i8),dimension(:,:,:,:,:,:,:),intent(in),target :: farray 
+ type(ESMF_DistGrid), intent(in) :: distgrid 
+ type(ESMF_IndexFlag), intent(in) :: indexflag 
+ type(ESMF_CopyFlag), intent(in), optional :: copyflag 
+ integer, intent(in), optional :: distgridToArrayMap(:) 
+ integer, intent(in), optional :: computationalEdgeLWidth(:) 
+ integer, intent(in), optional :: computationalEdgeUWidth(:) 
+ integer, intent(in), optional :: computationalLWidth(:) 
+ integer, intent(in), optional :: computationalUWidth(:) 
+ integer, intent(in), optional :: totalLWidth(:) 
+ integer, intent(in), optional :: totalUWidth(:) 
+ integer, intent(in), optional :: undistLBound(:) 
+ integer, intent(in), optional :: undistUBound(:) 
+ character (len=*), intent(in), optional :: name 
+ integer, intent(out), optional :: rc 
+
+ ! Local variables 
+ integer :: localrc ! local return code 
+ type(ESMF_Array) :: array ! new Array 
+ type(ESMF_LocalArray), allocatable :: larrayList(:) ! helper variable 
+ integer (ESMF_KIND_i8),dimension(:,:,:,:,:,:,:),pointer :: fptr ! helper variable 
+ type(ESMF_CopyFlag) :: copyflag_opt ! helper variable 
+
+ ! Initialize return code; assume failure until success is certain 
+ localrc = ESMF_RC_NOT_IMPL 
+ if (present(rc)) rc = ESMF_RC_NOT_IMPL 
+
+ ! Check init status of arguments 
+ ESMF_INIT_CHECK_DEEP_SHORT(ESMF_DistGridGetInit, distgrid, rc) 
+
+ ! Mark this Array object as invalid 
+ array%this = ESMF_NULL_POINTER 
+
+ ! Set copy/ref behavior 
+ copyflag_opt = ESMF_DATA_REF ! default 
+ if (present(copyflag)) copyflag_opt = copyflag 
+
+ ! Check that indexflag does not specify mode that is not supported here 
+ if (indexflag==ESMF_INDEX_USER) then 
+ call ESMF_LogMsgSetError(ESMF_RC_ARG_VALUE, & 
+ "- ESMF_INDEX_USER not supported as input value", & 
+ ESMF_CONTEXT, rc) 
+ return 
+ endif 
+
+ ! Prepare the LocalArray list to be used in the ArrayCreate() call. 
+ ! Do not pass the copyflag_opt flag into LocalArrayCreate() to prevent 
+ ! unncessary data movements at this point. The ArrayCreate() below will 
+ ! create a new LocalArray internally (to be used inside of the Array 
+ ! object), and that is where the copyflag_opt will need to be considered. 
+ allocate(larrayList(1)) 
+ fptr => farray 
+ larrayList(1) = ESMF_LocalArrayCreate(fptr, rc=localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+
+ ! Create the Array object by calling into overloaded ArrayCreate() interf. 
+ array = ESMF_ArrayCreate(larrayList, distgrid, indexflag, copyflag_opt, & 
+ distgridToArrayMap, computationalEdgeLWidth, computationalEdgeUWidth, & 
+ computationalLWidth, computationalUWidth, totalLWidth, totalUWidth, & 
+ undistLBound, undistUBound, name, localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+
+ ! Garbage collection. The ArrayCreate() call will have created a new 
+ ! LocalArray object internally, so the temporary object created above 
+ ! must be deleted here. 
+ call ESMF_LocalArrayDestroy(larrayList(1), rc=localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+ deallocate(larrayList) 
+
+ ! Set return value 
+ ESMF_ArrayCreateAssmdShape7Di8 = array 
+
+ ! Set init code 
+ ESMF_INIT_SET_CREATED(ESMF_ArrayCreateAssmdShape7Di8) 
+
+ ! Return successfully 
+ if (present(rc)) rc = ESMF_SUCCESS 
+
+ end function ESMF_ArrayCreateAssmdShape7Di8 
+!---------------------------------------------------------------------------- 
+ 
+! -------------------------- ESMF-public method ----------------------------- 
+#undef ESMF_METHOD 
+#define ESMF_METHOD "ESMF_ArrayCreateAssmdShape" 
+ function ESMF_ArrayCreateAssmdShape7Dr4(farray, & 
+ distgrid, indexflag, copyflag, distgridToArrayMap, & 
+ computationalEdgeLWidth, computationalEdgeUWidth, & 
+ computationalLWidth, computationalUWidth, totalLWidth, & 
+ totalUWidth, undistLBound, undistUBound, name, rc) 
+
+ type(ESMF_Array) :: ESMF_ArrayCreateAssmdShape7Dr4 
+
+ real (ESMF_KIND_r4),dimension(:,:,:,:,:,:,:),intent(in),target :: farray 
+ type(ESMF_DistGrid), intent(in) :: distgrid 
+ type(ESMF_IndexFlag), intent(in) :: indexflag 
+ type(ESMF_CopyFlag), intent(in), optional :: copyflag 
+ integer, intent(in), optional :: distgridToArrayMap(:) 
+ integer, intent(in), optional :: computationalEdgeLWidth(:) 
+ integer, intent(in), optional :: computationalEdgeUWidth(:) 
+ integer, intent(in), optional :: computationalLWidth(:) 
+ integer, intent(in), optional :: computationalUWidth(:) 
+ integer, intent(in), optional :: totalLWidth(:) 
+ integer, intent(in), optional :: totalUWidth(:) 
+ integer, intent(in), optional :: undistLBound(:) 
+ integer, intent(in), optional :: undistUBound(:) 
+ character (len=*), intent(in), optional :: name 
+ integer, intent(out), optional :: rc 
+
+ ! Local variables 
+ integer :: localrc ! local return code 
+ type(ESMF_Array) :: array ! new Array 
+ type(ESMF_LocalArray), allocatable :: larrayList(:) ! helper variable 
+ real (ESMF_KIND_r4),dimension(:,:,:,:,:,:,:),pointer :: fptr ! helper variable 
+ type(ESMF_CopyFlag) :: copyflag_opt ! helper variable 
+
+ ! Initialize return code; assume failure until success is certain 
+ localrc = ESMF_RC_NOT_IMPL 
+ if (present(rc)) rc = ESMF_RC_NOT_IMPL 
+
+ ! Check init status of arguments 
+ ESMF_INIT_CHECK_DEEP_SHORT(ESMF_DistGridGetInit, distgrid, rc) 
+
+ ! Mark this Array object as invalid 
+ array%this = ESMF_NULL_POINTER 
+
+ ! Set copy/ref behavior 
+ copyflag_opt = ESMF_DATA_REF ! default 
+ if (present(copyflag)) copyflag_opt = copyflag 
+
+ ! Check that indexflag does not specify mode that is not supported here 
+ if (indexflag==ESMF_INDEX_USER) then 
+ call ESMF_LogMsgSetError(ESMF_RC_ARG_VALUE, & 
+ "- ESMF_INDEX_USER not supported as input value", & 
+ ESMF_CONTEXT, rc) 
+ return 
+ endif 
+
+ ! Prepare the LocalArray list to be used in the ArrayCreate() call. 
+ ! Do not pass the copyflag_opt flag into LocalArrayCreate() to prevent 
+ ! unncessary data movements at this point. The ArrayCreate() below will 
+ ! create a new LocalArray internally (to be used inside of the Array 
+ ! object), and that is where the copyflag_opt will need to be considered. 
+ allocate(larrayList(1)) 
+ fptr => farray 
+ larrayList(1) = ESMF_LocalArrayCreate(fptr, rc=localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+
+ ! Create the Array object by calling into overloaded ArrayCreate() interf. 
+ array = ESMF_ArrayCreate(larrayList, distgrid, indexflag, copyflag_opt, & 
+ distgridToArrayMap, computationalEdgeLWidth, computationalEdgeUWidth, & 
+ computationalLWidth, computationalUWidth, totalLWidth, totalUWidth, & 
+ undistLBound, undistUBound, name, localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+
+ ! Garbage collection. The ArrayCreate() call will have created a new 
+ ! LocalArray object internally, so the temporary object created above 
+ ! must be deleted here. 
+ call ESMF_LocalArrayDestroy(larrayList(1), rc=localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+ deallocate(larrayList) 
+
+ ! Set return value 
+ ESMF_ArrayCreateAssmdShape7Dr4 = array 
+
+ ! Set init code 
+ ESMF_INIT_SET_CREATED(ESMF_ArrayCreateAssmdShape7Dr4) 
+
+ ! Return successfully 
+ if (present(rc)) rc = ESMF_SUCCESS 
+
+ end function ESMF_ArrayCreateAssmdShape7Dr4 
+!---------------------------------------------------------------------------- 
+ 
+! -------------------------- ESMF-public method ----------------------------- 
+#undef ESMF_METHOD 
+#define ESMF_METHOD "ESMF_ArrayCreateAssmdShape" 
+ function ESMF_ArrayCreateAssmdShape7Dr8(farray, & 
+ distgrid, indexflag, copyflag, distgridToArrayMap, & 
+ computationalEdgeLWidth, computationalEdgeUWidth, & 
+ computationalLWidth, computationalUWidth, totalLWidth, & 
+ totalUWidth, undistLBound, undistUBound, name, rc) 
+
+ type(ESMF_Array) :: ESMF_ArrayCreateAssmdShape7Dr8 
+
+ real (ESMF_KIND_r8),dimension(:,:,:,:,:,:,:),intent(in),target :: farray 
+ type(ESMF_DistGrid), intent(in) :: distgrid 
+ type(ESMF_IndexFlag), intent(in) :: indexflag 
+ type(ESMF_CopyFlag), intent(in), optional :: copyflag 
+ integer, intent(in), optional :: distgridToArrayMap(:) 
+ integer, intent(in), optional :: computationalEdgeLWidth(:) 
+ integer, intent(in), optional :: computationalEdgeUWidth(:) 
+ integer, intent(in), optional :: computationalLWidth(:) 
+ integer, intent(in), optional :: computationalUWidth(:) 
+ integer, intent(in), optional :: totalLWidth(:) 
+ integer, intent(in), optional :: totalUWidth(:) 
+ integer, intent(in), optional :: undistLBound(:) 
+ integer, intent(in), optional :: undistUBound(:) 
+ character (len=*), intent(in), optional :: name 
+ integer, intent(out), optional :: rc 
+
+ ! Local variables 
+ integer :: localrc ! local return code 
+ type(ESMF_Array) :: array ! new Array 
+ type(ESMF_LocalArray), allocatable :: larrayList(:) ! helper variable 
+ real (ESMF_KIND_r8),dimension(:,:,:,:,:,:,:),pointer :: fptr ! helper variable 
+ type(ESMF_CopyFlag) :: copyflag_opt ! helper variable 
+
+ ! Initialize return code; assume failure until success is certain 
+ localrc = ESMF_RC_NOT_IMPL 
+ if (present(rc)) rc = ESMF_RC_NOT_IMPL 
+
+ ! Check init status of arguments 
+ ESMF_INIT_CHECK_DEEP_SHORT(ESMF_DistGridGetInit, distgrid, rc) 
+
+ ! Mark this Array object as invalid 
+ array%this = ESMF_NULL_POINTER 
+
+ ! Set copy/ref behavior 
+ copyflag_opt = ESMF_DATA_REF ! default 
+ if (present(copyflag)) copyflag_opt = copyflag 
+
+ ! Check that indexflag does not specify mode that is not supported here 
+ if (indexflag==ESMF_INDEX_USER) then 
+ call ESMF_LogMsgSetError(ESMF_RC_ARG_VALUE, & 
+ "- ESMF_INDEX_USER not supported as input value", & 
+ ESMF_CONTEXT, rc) 
+ return 
+ endif 
+
+ ! Prepare the LocalArray list to be used in the ArrayCreate() call. 
+ ! Do not pass the copyflag_opt flag into LocalArrayCreate() to prevent 
+ ! unncessary data movements at this point. The ArrayCreate() below will 
+ ! create a new LocalArray internally (to be used inside of the Array 
+ ! object), and that is where the copyflag_opt will need to be considered. 
+ allocate(larrayList(1)) 
+ fptr => farray 
+ larrayList(1) = ESMF_LocalArrayCreate(fptr, rc=localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+
+ ! Create the Array object by calling into overloaded ArrayCreate() interf. 
+ array = ESMF_ArrayCreate(larrayList, distgrid, indexflag, copyflag_opt, & 
+ distgridToArrayMap, computationalEdgeLWidth, computationalEdgeUWidth, & 
+ computationalLWidth, computationalUWidth, totalLWidth, totalUWidth, & 
+ undistLBound, undistUBound, name, localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+
+ ! Garbage collection. The ArrayCreate() call will have created a new 
+ ! LocalArray object internally, so the temporary object created above 
+ ! must be deleted here. 
+ call ESMF_LocalArrayDestroy(larrayList(1), rc=localrc) 
+ if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+ ESMF_CONTEXT, rcToReturn=rc)) return 
+ deallocate(larrayList) 
+
+ ! Set return value 
+ ESMF_ArrayCreateAssmdShape7Dr8 = array 
+
+ ! Set init code 
+ ESMF_INIT_SET_CREATED(ESMF_ArrayCreateAssmdShape7Dr8) 
+
+ ! Return successfully 
+ if (present(rc)) rc = ESMF_SUCCESS 
+
+ end function ESMF_ArrayCreateAssmdShape7Dr8 
+!---------------------------------------------------------------------------- 
+ 
+#endif 
+ 
+! < end macro - do not edit directly > 
+!------------------------------------------------------------------------------ 
+
+! -------------------------- ESMF-public method -------------------------------
+#undef ESMF_METHOD
+#define ESMF_METHOD "ESMF_ArrayCreateLocalArray()"
+!BOP
+! !IROUTINE: ESMF_ArrayCreate - Create Array object from a list of LocalArray objects
+! !INTERFACE:
+  ! Private name; call using ESMF_ArrayCreate()
+  function ESMF_ArrayCreateLocalArray(larrayList, distgrid, indexflag, &
+    copyflag, distgridToArrayMap, computationalEdgeLWidth, &
+    computationalEdgeUWidth, computationalLWidth, computationalUWidth, &
+    totalLWidth, totalUWidth, undistLBound, undistUBound, name, rc)
+!
+! !ARGUMENTS:
+       type(ESMF_LocalArray), intent(in) :: larrayList(:)
+       type(ESMF_DistGrid), intent(in) :: distgrid
+       type(ESMF_IndexFlag), intent(in), optional :: indexflag
+       type(ESMF_CopyFlag), intent(in), optional :: copyflag
+       integer, intent(in), optional :: distgridToArrayMap(:)
+       integer, intent(in), optional :: computationalEdgeLWidth(:)
+       integer, intent(in), optional :: computationalEdgeUWidth(:)
+       integer, intent(in), optional :: computationalLWidth(:)
+       integer, intent(in), optional :: computationalUWidth(:)
+       integer, intent(in), optional :: totalLWidth(:)
+       integer, intent(in), optional :: totalUWidth(:)
+       integer, intent(in), optional :: undistLBound(:)
+       integer, intent(in), optional :: undistUBound(:)
+       character (len=*), intent(in), optional :: name
+       integer, intent(out), optional :: rc
+!
+! !RETURN VALUE:
+    type(ESMF_Array) :: ESMF_ArrayCreateLocalArray
+!
+! !DESCRIPTION:
+! Create an {\tt ESMF\_Array} object from existing {\tt ESMF\_LocalArray}
+! objects according to distgrid. Besides {\tt larrayList} each PET must issue
+! this call with identical arguments in order to create a consistent Array
+! object. The local arrays provided must be dimensioned according to the
+! DE-local total region. Bounds of the exclusive regions are set as specified
+! in the distgrid argument. Bounds for array dimensions that are not distributed
+! can be chosen freely using the {\tt undistLBound} and {\tt undistUBound} 
+! arguments. 
+!
+! This interface is able to handle multiple DEs per PET.
+!
+! The not distributed Array dimensions form a tensor of rank = array.rank -
+! distgrid.dimCount. By default all tensor elements are associated with
+! stagger location 0. The widths of the computational region are set to
+! the provided value, or zero by default, for all tensor elements. Use
+! {\tt ESMF\_ArraySet()} to change these default settings after the
+! Array object has been created.
+!
+! The return value is the newly created {\tt ESMF\_Array} object.
+!
+! The arguments are:
+! \begin{description}
+! \item[larrayList]
+! List of valid {\tt ESMF\_LocalArray} objects, i.e. memory must be
+! associated with the actual arguments. The type/kind/rank information of
+! all {\tt larrayList} elements must be identical and will
+! be used to set {\tt Array}'s properties accordingly. The shape of each
+! {\tt larrayList} element will be checked against the information
+! contained in the {\tt distgrid}.
+! \item[distgrid]
+! {\tt ESMF\_DistGrid} object that describes how the array is decomposed and
+! distributed over DEs. The dimCount of distgrid must be smaller or equal
+! to the rank specified in arrayspec, otherwise a runtime ESMF error will be
+! raised.
+! \item[{[indexflag]}]
+! Indicate how DE-local indices are defined. By default, the exclusive
+! region of each DE is placed to start at the local index space origin,
+! i.e. (1, 1, ..., 1). Alternatively the DE-local index space can be
+! aligned with the global index space, if a global index space is well
+! defined by the associated DistGrid. See section \ref{opt:indexflag}
+! for a list of valid indexflag options.
+! \item[{[copyflag]}]
+! Specifies whether the Array object will reference the memory allocation
+! provided by {\tt farray} directly or will copy the data from
+! {\tt farray} into a new memory allocation. Valid options are
+! {\tt ESMF\_DATA\_REF} (default) or {\tt ESMF\_DATA\_COPY}.
+! Depending on the specific situation the {\tt ESMF\_DATA\_REF} option
+! may be unsafe when specifying an array slice for {\tt farray}.
+! \item[{[distgridToArrayMap]}]
+! List that contains as many elements as is indicated by 
+! {\tt distgrids}'s dimCount. The list elements map each dimension of 
+! the DistGrid object to a dimension in the {\tt larrayList} elements 
+! by specifying the appropriate Array dimension index. The default is 
+! to map all of {\tt distgrid}'s dimensions against the lower dimensions 
+! of the {\tt larrayList} elements in sequence, i.e. 
+! {\tt distgridToArrayMap = (/1, 2, .../)}. 
+! Unmapped dimensions in the {\tt larrayList} elements are not 
+! decomposed dimensions and form a tensor of
+! rank = Array.rank - DistGrid.dimCount. 
+! All {\tt distgridToArrayMap} entries must be greater than or equal 
+! to zero and smaller than or equal to the Array rank. It is erroneous 
+! to specify the same entry multiple times unless it is zero. 
+! If the Array rank is less than the DistGrid dimCount then the default 
+! distgridToArrayMap will contain zeros for the dimCount - rank 
+! rightmost entries. A zero entry in the {\tt distgridToArrayMap} 
+! indicates that the particular DistGrid dimension will be replicating 
+! the Array across the DEs along this direction. 
+! \item[{[computationalEdgeLWidth]}]
+! This vector argument must have dimCount elements, where dimCount is
+! specified in distgrid. It specifies the lower corner of the computational
+! region with respect to the lower corner of the exclusive region for DEs
+! that are located on the edge of a patch.
+! \item[{[computationalEdgeUWidth]}]
+! This vector argument must have dimCount elements, where dimCount is
+! specified in distgrid. It specifies the upper corner of the computational
+! region with respect to the upper corner of the exclusive region for DEs
+! that are located on the edge of a patch.
+! \item[{[computationalLWidth]}]
+! This vector argument must have dimCount elements, where dimCount is
+! specified in distgrid. It specifies the lower corner of the computational
+! region with respect to the lower corner of the exclusive region.
+! The default is a zero vector.
+! \item[{[computationalUWidth]}]
+! This vector argument must have dimCount elements, where dimCount is
+! specified in distgrid. It specifies the upper corner of the computational
+! region with respect to the upper corner of the exclusive region.
+! The default is a zero vector.
+! \item[{[totalLWidth]}]
+! This vector argument must have dimCount elements, where dimCount is
+! specified in distgrid. It specifies the lower corner of the total memory
+! region with respect to the lower corner of the computational region.
+! The default is to accommodate the union of exclusive and computational
+! region exactly.
+! \item[{[totalUWidth]}]
+! This vector argument must have dimCount elements, where dimCount is
+! specified in distgrid. It specifies the upper corner of the total memory
+! region with respect to the upper corner of the exclusive region.
+! The default is a vector that contains the remaining number of elements
+! in each direction as to fit the union of exclusive and computational
+! region into the memory region provided by the {\tt larrayList} argument.
+! \item[{[undistLBound]}]
+! Lower bounds for the array dimensions that are not distributed.
+! By default lbound is 1.
+! \item[{[undistUBound]}]
+! Upper bounds for the array dimensions that are not distributed.
+! By default ubound is equal to the extent of the corresponding
+! dimension in {\tt larrayList}.
+! \item[{[name]}]
+! Name of the Array object.
+! \item[{[rc]}]
+! Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
+! \end{description}
+!
+!EOP
+!------------------------------------------------------------------------------
+    integer :: localrc ! local return code
+    type(ESMF_Array) :: array ! opaque pointer to new C++ Array
+    integer :: larrayCount, i ! helper variable
+    type(ESMF_InterfaceInt) :: distgridToArrayMapArg ! helper variable
+    type(ESMF_InterfaceInt) :: computationalEdgeLWidthArg ! helper variable
+    type(ESMF_InterfaceInt) :: computationalEdgeUWidthArg ! helper variable
+    type(ESMF_InterfaceInt) :: computationalLWidthArg ! helper variable
+    type(ESMF_InterfaceInt) :: computationalUWidthArg ! helper variable
+    type(ESMF_InterfaceInt) :: totalLWidthArg ! helper variable
+    type(ESMF_InterfaceInt) :: totalUWidthArg ! helper variable
+    type(ESMF_InterfaceInt) :: undistLBoundArg ! helper variable
+    type(ESMF_InterfaceInt) :: undistUBoundArg ! helper variable
+    type(ESMF_Pointer), allocatable :: larrayPointerList(:) ! helper variable
+    integer :: len_name ! helper variable
+    type(ESMF_CopyFlag) :: copyflag_opt ! helper variable
+    ! Initialize return code; assume failure until success is certain
+    localrc = ESMF_RC_NOT_IMPL
+    if (present(rc)) rc = ESMF_RC_NOT_IMPL
+    ! Determine the number of LocalArray elements in list
+    larrayCount = size(larrayList)
+    ! Check init status of arguments
+    ESMF_INIT_CHECK_DEEP_SHORT(ESMF_DistGridGetInit, distgrid, rc)
+    do i=1, larrayCount
+      ESMF_INIT_CHECK_DEEP_SHORT(ESMF_LocalArrayGetInit, larrayList(i), rc)
+    enddo
+    ! Copy C++ pointers of deep objects into a simple ESMF_Pointer array
+    ! This is necessary in order to strip off the Fortran init check members
+    ! when passing into C++
+    allocate(larrayPointerList(larrayCount))
+    do i=1, larrayCount
+      call ESMF_LocalArrayGetThis(larrayList(i), larrayPointerList(i), localrc)
+      if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, &
+        ESMF_CONTEXT, rcToReturn=rc)) return
+    enddo
+    ! Set copy/ref behavior
+    copyflag_opt = ESMF_DATA_REF ! default
+    if (present(copyflag)) copyflag_opt = copyflag
+    ! Check that indexflag does not specify mode that is not supported here
+!TODO: cannot check for this here because ArrayCreateFromPtr() calls into here!
+! if (present(indexflag)) then
+! if (indexflag==ESMF_INDEX_USER) then
+! call ESMF_LogMsgSetError(ESMF_RC_ARG_VALUE, &
+! "- ESMF_INDEX_USER not supported as input value", &
+! ESMF_CONTEXT, rc)
+! return
+! endif
+! endif
+    ! Deal with (optional) array arguments
+    distgridToArrayMapArg = ESMF_InterfaceIntCreate(distgridToArrayMap, &
+      rc=localrc)
+    if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, &
+      ESMF_CONTEXT, rcToReturn=rc)) return
+    computationalEdgeLWidthArg = &
+      ESMF_InterfaceIntCreate(computationalEdgeLWidth, rc=localrc)
+    if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, &
+      ESMF_CONTEXT, rcToReturn=rc)) return
+    computationalEdgeUWidthArg = &
+      ESMF_InterfaceIntCreate(computationalEdgeUWidth, rc=localrc)
+    if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, &
+      ESMF_CONTEXT, rcToReturn=rc)) return
+    computationalLWidthArg = ESMF_InterfaceIntCreate(computationalLWidth, &
+      rc=localrc)
+    if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, &
+      ESMF_CONTEXT, rcToReturn=rc)) return
+    computationalUWidthArg = ESMF_InterfaceIntCreate(computationalUWidth, &
+      rc=localrc)
+    if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, &
+      ESMF_CONTEXT, rcToReturn=rc)) return
+    totalLWidthArg = ESMF_InterfaceIntCreate(totalLWidth, rc=localrc)
+    if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, &
+      ESMF_CONTEXT, rcToReturn=rc)) return
+    totalUWidthArg = ESMF_InterfaceIntCreate(totalUWidth, rc=localrc)
+    if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, &
+      ESMF_CONTEXT, rcToReturn=rc)) return
+    undistLBoundArg = ESMF_InterfaceIntCreate(undistLBound, rc=localrc)
+    if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, &
+      ESMF_CONTEXT, rcToReturn=rc)) return
+    undistUBoundArg = ESMF_InterfaceIntCreate(undistUBound, rc=localrc)
+    if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, &
+      ESMF_CONTEXT, rcToReturn=rc)) return
+    ! Mark this Array object as invalid
+    array%this = ESMF_NULL_POINTER
+    ! Call into the C++ interface, which will sort out optional arguments
+    ! Optional name argument requires separate calls into C++
+    if (present(name)) then
+      len_name = len(name)
+      call c_ESMC_ArrayCreateLocalArray(array, larrayPointerList, larrayCount, &
+        distgrid, copyflag_opt, distgridToArrayMapArg, &
+        computationalEdgeLWidthArg, computationalEdgeUWidthArg, &
+        computationalLWidthArg, computationalUWidthArg, totalLWidthArg, &
+        totalUWidthArg, indexflag, &
+        undistLBoundArg, undistUBoundArg, name, len_name, localrc)
+      if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, &
+        ESMF_CONTEXT, rcToReturn=rc)) return
+    else
+      len_name = 0
+      call c_ESMC_ArrayCreateLocalArray(array, larrayPointerList, larrayCount, &
+        distgrid, copyflag_opt, distgridToArrayMapArg, &
+        computationalEdgeLWidthArg, computationalEdgeUWidthArg, &
+        computationalLWidthArg, computationalUWidthArg, totalLWidthArg, &
+        totalUWidthArg, indexflag, &
+        undistLBoundArg, undistUBoundArg, "", len_name, localrc)
+      if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, &
+        ESMF_CONTEXT, rcToReturn=rc)) return
+    endif
+    ! Garbage collection
+    deallocate(larrayPointerList)
+    call ESMF_InterfaceIntDestroy(distgridToArrayMapArg, rc=localrc)
+    if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, &
+      ESMF_CONTEXT, rcToReturn=rc)) return
+    call ESMF_InterfaceIntDestroy(computationalEdgeLWidthArg, rc=localrc)
+    if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, &
+      ESMF_CONTEXT, rcToReturn=rc)) return
+    call ESMF_InterfaceIntDestroy(computationalEdgeUWidthArg, rc=localrc)
+    if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, &
+      ESMF_CONTEXT, rcToReturn=rc)) return
+    call ESMF_InterfaceIntDestroy(computationalLWidthArg, rc=localrc)
+    if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, &
+      ESMF_CONTEXT, rcToReturn=rc)) return
+    call ESMF_InterfaceIntDestroy(computationalUWidthArg, rc=localrc)
+    if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, &
+      ESMF_CONTEXT, rcToReturn=rc)) return
+    call ESMF_InterfaceIntDestroy(totalLWidthArg, rc=localrc)
+    if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, &
+      ESMF_CONTEXT, rcToReturn=rc)) return
+    call ESMF_InterfaceIntDestroy(totalUWidthArg, rc=localrc)
+    if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, &
+      ESMF_CONTEXT, rcToReturn=rc)) return
+    call ESMF_InterfaceIntDestroy(undistLBoundArg, rc=localrc)
+    if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, &
+      ESMF_CONTEXT, rcToReturn=rc)) return
+    call ESMF_InterfaceIntDestroy(undistUBoundArg, rc=localrc)
+    if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, &
+      ESMF_CONTEXT, rcToReturn=rc)) return
+    ! Set return value
+    ESMF_ArrayCreateLocalArray = array
+    ! Set init code
+    ESMF_INIT_SET_CREATED(ESMF_ArrayCreateLocalArray)
+    ! Return successfully
+    if (present(rc)) rc = ESMF_SUCCESS
+  end function ESMF_ArrayCreateLocalArray
+!------------------------------------------------------------------------------
+! -------------------------- ESMF-public method -------------------------------
+#undef ESMF_METHOD
+#define ESMF_METHOD "ESMF_ArrayCreateAllocate()"
+!BOP
+! !IROUTINE: ESMF_ArrayCreate - Create Array object from specification and allocate memory
+! !INTERFACE:
+  ! Private name; call using ESMF_ArrayCreate()
+  function ESMF_ArrayCreateAllocate(arrayspec, distgrid, indexflag, &
+    distgridToArrayMap, computationalEdgeLWidth, computationalEdgeUWidth, &
+    computationalLWidth, computationalUWidth, totalLWidth, totalUWidth, &
+    undistLBound, undistUBound, name, rc)
+!
+! !ARGUMENTS:
+       type(ESMF_ArraySpec), intent(inout) :: arrayspec
+       type(ESMF_DistGrid), intent(in) :: distgrid
+       type(ESMF_IndexFlag), intent(in), optional :: indexflag
+       integer, intent(in), optional :: distgridToArrayMap(:)
+       integer, intent(in), optional :: computationalEdgeLWidth(:)
+       integer, intent(in), optional :: computationalEdgeUWidth(:)
+       integer, intent(in), optional :: computationalLWidth(:)
+       integer, intent(in), optional :: computationalUWidth(:)
+       integer, intent(in), optional :: totalLWidth(:)
+       integer, intent(in), optional :: totalUWidth(:)
+       integer, intent(in), optional :: undistLBound(:)
+       integer, intent(in), optional :: undistUBound(:)
+       character (len=*), intent(in), optional :: name
+       integer, intent(out), optional :: rc
+!
+! !RETURN VALUE:
+    type(ESMF_Array) :: ESMF_ArrayCreateAllocate
+!
+! !DESCRIPTION:
+! Create an {\tt ESMF\_Array} object and allocate uninitialized data space
+! according to arrayspec and distgrid. Each PET must issue
+! this call with identical arguments in order to create a consistent Array
+! object. DE-local allocations are made according to the total region defined
+! by the arguments to this call: {\tt distgrid} and the optional {\tt Width}
+! arguments.
+!
+! The return value is the newly created {\tt ESMF\_Array} object.
+!
+! The arguments are:
+! \begin{description}
+! \item[arrayspec]
+! {\tt ESMF\_ArraySpec} object containing the type/kind/rank information.
+! \item[distgrid]
+! {\tt ESMF\_DistGrid} object that describes how the array is decomposed and
+! distributed over DEs. The dimCount of distgrid must be smaller or equal
+! to the rank specified in arrayspec, otherwise a runtime ESMF error will be
+! raised.
+! \item[{[indexflag]}]
+! Indicate how DE-local indices are defined. By default, the exclusive
+! region of each DE is placed to start at the local index space origin,
+! i.e. (1, 1, ..., 1). Alternatively the DE-local index space can be
+! aligned with the global index space, if a global index space is well
+! defined by the associated DistGrid. See section \ref{opt:indexflag}
+! for a list of valid indexflag options.
+! \item[{[distgridToArrayMap]}]
+! List that contains as many elements as is indicated by 
+! {\tt distgrids}'s dimCount. The list elements map each dimension of 
+! the DistGrid object to a dimension in the newly allocated Array object 
+! by specifying the appropriate Array dimension index. The default is 
+! to map all of {\tt distgrid}'s dimensions against the lower dimensions 
+! of the Array object in sequence, i.e. {\tt distgridToArrayMap = 
+! (/1, 2, .../)}. 
+! Unmapped dimensions in the Array object are not decomposed dimensions 
+! and form a tensor of rank = Array.rank - DistGrid.dimCount. 
+! All {\tt distgridToArrayMap} entries must be greater than or equal 
+! to zero and smaller than or equal to the Array rank. It is erroneous 
+! to specify the same entry multiple times unless it is zero. 
+! If the Array rank is less than the DistGrid dimCount then the default 
+! distgridToArrayMap will contain zeros for the dimCount - rank 
+! rightmost entries. A zero entry in the {\tt distgridToArrayMap} 
+! indicates that the particular DistGrid dimension will be replicating 
+! the Array across the DEs along this direction. 
+! \item[{[computationalEdgeLWidth]}]
+! This vector argument must have dimCount elements, where dimCount is
+! specified in distgrid. It specifies the lower corner of the computational
+! region with respect to the lower corner of the exclusive region for DEs
+! that are located on the edge of a patch.
+! \item[{[computationalEdgeUWidth]}]
+! This vector argument must have dimCount elements, where dimCount is
+! specified in distgrid. It specifies the upper corner of the computational
+! region with respect to the upper corner of the exclusive region for DEs
+! that are located on the edge of a patch.
+! \item[{[computationalLWidth]}]
+! This vector argument must have dimCount elements, where dimCount is
+! specified in distgrid. It specifies the lower corner of the computational
+! region with respect to the lower corner of the exclusive region.
+! The default is a zero vector.
+! \item[{[computationalUWidth]}]
+! This vector argument must have dimCount elements, where dimCount is
+! specified in distgrid. It specifies the upper corner of the computational
+! region with respect to the upper corner of the exclusive region.
+! The default is a zero vector.
+! \item[{[totalLWidth]}]
+! This vector argument must have dimCount elements, where dimCount is
+! specified in distgrid. It specifies the lower corner of the total memory
+! region with respect to the lower corner of the computational region.
+! The default is to accommodate the union of exclusive and computational
+! region.
+! \item[{[totalUWidth]}]
+! This vector argument must have dimCount elements, where dimCount is
+! specified in distgrid. It specifies the upper corner of the total memory
+! region with respect to the upper corner of the computational region.
+! The default is to accommodate the union of exclusive and computational
+! region.
+! \item[{[undistLBound]}]
+! Lower bounds for the array dimensions that are not distributed.
+! \item[{[undistUBound]}]
+! Upper bounds for the array dimensions that are not distributed.
+! \item[{[name]}]
+! Name of the Array object.
+! \item[{[rc]}]
+! Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
+! \end{description}
+!
+!EOP
+!------------------------------------------------------------------------------
+    integer :: localrc ! local return code
+    type(ESMF_Array) :: array ! opaque pointer to new C++ Array
+    type(ESMF_InterfaceInt) :: distgridToArrayMapArg ! helper variable
+    type(ESMF_InterfaceInt) :: computationalEdgeLWidthArg ! helper variable
+    type(ESMF_InterfaceInt) :: computationalEdgeUWidthArg ! helper variable
+    type(ESMF_InterfaceInt) :: computationalLWidthArg ! helper variable
+    type(ESMF_InterfaceInt) :: computationalUWidthArg ! helper variable
+    type(ESMF_InterfaceInt) :: totalLWidthArg ! helper variable
+    type(ESMF_InterfaceInt) :: totalUWidthArg ! helper variable
+    type(ESMF_InterfaceInt) :: undistLBoundArg ! helper variable
+    type(ESMF_InterfaceInt) :: undistUBoundArg ! helper variable
+    integer :: len_name ! helper variable
+    ! Initialize return code; assume failure until success is certain
+    localrc = ESMF_RC_NOT_IMPL
+    if (present(rc)) rc = ESMF_RC_NOT_IMPL
+    ! Check init status of arguments
+    ESMF_INIT_CHECK_SHALLOW(ESMF_ArraySpecGetInit, ESMF_ArraySpecInit,arrayspec)
+    ESMF_INIT_CHECK_DEEP_SHORT(ESMF_DistGridGetInit, distgrid, rc)
+    ! Check that indexflag does not specify mode that is not supported here
+    if (present(indexflag)) then
+      if (indexflag==ESMF_INDEX_USER) then
+        call ESMF_LogMsgSetError(ESMF_RC_ARG_VALUE, &
+          "- ESMF_INDEX_USER not supported as input value", &
+          ESMF_CONTEXT, rc)
+        return
+      endif
+    endif
+    ! Deal with (optional) array arguments
+    distgridToArrayMapArg = ESMF_InterfaceIntCreate(distgridToArrayMap, &
+      rc=localrc)
+    if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, &
+      ESMF_CONTEXT, rcToReturn=rc)) return
+    computationalEdgeLWidthArg = &
+      ESMF_InterfaceIntCreate(computationalEdgeLWidth, rc=localrc)
+    if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, &
+      ESMF_CONTEXT, rcToReturn=rc)) return
+    computationalEdgeUWidthArg = &
+      ESMF_InterfaceIntCreate(computationalEdgeUWidth, rc=localrc)
+    if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, &
+      ESMF_CONTEXT, rcToReturn=rc)) return
+    computationalLWidthArg = ESMF_InterfaceIntCreate(computationalLWidth, &
+      rc=localrc)
+    if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, &
+      ESMF_CONTEXT, rcToReturn=rc)) return
+    computationalUWidthArg = ESMF_InterfaceIntCreate(computationalUWidth, &
+      rc=localrc)
+    if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, &
+      ESMF_CONTEXT, rcToReturn=rc)) return
+    totalLWidthArg = ESMF_InterfaceIntCreate(totalLWidth, rc=localrc)
+    if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, &
+      ESMF_CONTEXT, rcToReturn=rc)) return
+    totalUWidthArg = ESMF_InterfaceIntCreate(totalUWidth, rc=localrc)
+    if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, &
+      ESMF_CONTEXT, rcToReturn=rc)) return
+    undistLBoundArg = ESMF_InterfaceIntCreate(undistLBound, rc=localrc)
+    if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, &
+      ESMF_CONTEXT, rcToReturn=rc)) return
+    undistUBoundArg = ESMF_InterfaceIntCreate(undistUBound, rc=localrc)
+    if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, &
+      ESMF_CONTEXT, rcToReturn=rc)) return
+    ! Mark this Array object as invalid
+    array%this = ESMF_NULL_POINTER
+    ! Call into the C++ interface, which will sort out optional arguments
+    ! Optional name argument requires separate calls into C++
+    if (present(name)) then
+      len_name = len(name)
+      call c_ESMC_ArrayCreateAllocate(array, arrayspec, distgrid, &
+        distgridToArrayMapArg, &
+        computationalEdgeLWidthArg, computationalEdgeUWidthArg, &
+        computationalLWidthArg, computationalUWidthArg, totalLWidthArg, &
+        totalUWidthArg, indexflag, &
+        undistLBoundArg, undistUBoundArg, name, len_name, localrc)
+      if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, &
+        ESMF_CONTEXT, rcToReturn=rc)) return
+    else
+      len_name = 0
+      call c_ESMC_ArrayCreateAllocate(array, arrayspec, distgrid, &
+        distgridToArrayMapArg, &
+        computationalEdgeLWidthArg, computationalEdgeUWidthArg, &
+        computationalLWidthArg, computationalUWidthArg, totalLWidthArg, &
+        totalUWidthArg, indexflag, &
+        undistLBoundArg, undistUBoundArg, "", len_name, localrc)
+      if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, &
+        ESMF_CONTEXT, rcToReturn=rc)) return
+    endif
+    ! Garbage collection
+    call ESMF_InterfaceIntDestroy(distgridToArrayMapArg, rc=localrc)
+    if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, &
+      ESMF_CONTEXT, rcToReturn=rc)) return
+    call ESMF_InterfaceIntDestroy(computationalEdgeLWidthArg, rc=localrc)
+    if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, &
+      ESMF_CONTEXT, rcToReturn=rc)) return
+    call ESMF_InterfaceIntDestroy(computationalEdgeUWidthArg, rc=localrc)
+    if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, &
+      ESMF_CONTEXT, rcToReturn=rc)) return
+    call ESMF_InterfaceIntDestroy(computationalLWidthArg, rc=localrc)
+    if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, &
+      ESMF_CONTEXT, rcToReturn=rc)) return
+    call ESMF_InterfaceIntDestroy(computationalUWidthArg, rc=localrc)
+    if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, &
+      ESMF_CONTEXT, rcToReturn=rc)) return
+    call ESMF_InterfaceIntDestroy(totalLWidthArg, rc=localrc)
+    if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, &
+      ESMF_CONTEXT, rcToReturn=rc)) return
+    call ESMF_InterfaceIntDestroy(totalUWidthArg, rc=localrc)
+    if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, &
+      ESMF_CONTEXT, rcToReturn=rc)) return
+    call ESMF_InterfaceIntDestroy(undistLBoundArg, rc=localrc)
+    if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, &
+      ESMF_CONTEXT, rcToReturn=rc)) return
+    call ESMF_InterfaceIntDestroy(undistUBoundArg, rc=localrc)
+    if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, &
+      ESMF_CONTEXT, rcToReturn=rc)) return
+    ! Set return value
+    ESMF_ArrayCreateAllocate = array
+    ! Set init code
+    ESMF_INIT_SET_CREATED(ESMF_ArrayCreateAllocate)
+    ! Return successfully
+    if (present(rc)) rc = ESMF_SUCCESS
+  end function ESMF_ArrayCreateAllocate
+!------------------------------------------------------------------------------
+! -------------------------- ESMF-public method -------------------------------
+#undef ESMF_METHOD
+#define ESMF_METHOD "ESMF_ArrayCreateCopy()"
+!BOP
+! !IROUTINE: ESMF_ArrayCreate - Create Array object as copy of existing Array object
+! !INTERFACE:
+  ! Private name; call using ESMF_ArrayCreate()
+  function ESMF_ArrayCreateCopy(array, rc)
+!
+! !ARGUMENTS:
+       type(ESMF_Array), intent(in) :: array
+       integer, intent(out), optional :: rc
+!
+! !RETURN VALUE:
+    type(ESMF_Array) :: ESMF_ArrayCreateCopy
+!
+! !DESCRIPTION:
+! Create an {\tt ESMF\_Array} object as the copy of an existing Array.
+!
+! The return value is the newly created {\tt ESMF\_Array} object.
+!
+! The arguments are:
+! \begin{description}
+! \item[array]
+! {\tt ESMF\_Array} object to be copied.
+! \item[{[rc]}]
+! Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
+! \end{description}
+!
+!EOP
+!------------------------------------------------------------------------------
+    integer :: localrc ! local return code
+    type(ESMF_Array) :: arrayOut ! opaque pointer to new C++ Array
+    ! Initialize return code; assume failure until success is certain
+    localrc = ESMF_RC_NOT_IMPL
+    if (present(rc)) rc = ESMF_RC_NOT_IMPL
+    ! Mark this Array object as invalid
+    arrayOut%this = ESMF_NULL_POINTER
+    ! Call into the C++ interface
+    call c_ESMC_ArrayCreateCopy(array, arrayOut, localrc)
+    if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, &
+      ESMF_CONTEXT, rcToReturn=rc)) return
+    ! Set return value
+    ESMF_ArrayCreateCopy = arrayOut
+    ! Set init code
+    ESMF_INIT_SET_CREATED(ESMF_ArrayCreateCopy)
+    ! Return successfully
+    if (present(rc)) rc = ESMF_SUCCESS
+  end function ESMF_ArrayCreateCopy
+!------------------------------------------------------------------------------
+! -------------------------- ESMF-public method -------------------------------
+#undef ESMF_METHOD
+#define ESMF_METHOD "ESMF_ArrayDestroy()"
+!BOP
+! !IROUTINE: ESMF_ArrayDestroy - Destroy Array object
+! !INTERFACE:
+  subroutine ESMF_ArrayDestroy(array, rc)
+!
+! !ARGUMENTS:
+    type(ESMF_Array), intent(inout) :: array
+    integer, intent(out), optional :: rc
+!
+!
+! !DESCRIPTION:
+! Destroy an {\tt ESMF\_Array} object.
+!
+! The arguments are:
+! \begin{description}
+! \item[array]
+! {\tt ESMF\_Array} object to be destroyed.
+! \item[{[rc]}]
+! Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
+! \end{description}
+!
+!EOP
+!------------------------------------------------------------------------------
+    integer :: localrc ! local return code
+    ! Initialize return code; assume failure until success is certain
+    localrc = ESMF_RC_NOT_IMPL
+    if (present(rc)) rc = ESMF_RC_NOT_IMPL
+    ! Check init status of arguments
+    ESMF_INIT_CHECK_DEEP_SHORT(ESMF_ArrayGetInit, array, rc)
+    ! Call into the C++ interface, which will sort out optional arguments.
+    call c_ESMC_ArrayDestroy(array, localrc)
+    if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, &
+      ESMF_CONTEXT, rcToReturn=rc)) return
+    ! Mark this Array object as invalid
+    array%this = ESMF_NULL_POINTER
+    ! Set init code
+    ESMF_INIT_SET_DELETED(array)
+    ! Return successfully
+    if (present(rc)) rc = ESMF_SUCCESS
+  end subroutine ESMF_ArrayDestroy
+!------------------------------------------------------------------------------
+! -------------------------- ESMF-internal method -----------------------------
+#undef ESMF_METHOD
+#define ESMF_METHOD "ESMF_ArrayGetInit"
+!BOPI
+! !IROUTINE: ESMF_ArrayGetInit - Internal access routine for init code
+!
+! !INTERFACE:
+      function ESMF_ArrayGetInit(array)
+!
+! !RETURN VALUE:
+      ESMF_INIT_TYPE :: ESMF_ArrayGetInit
+!
+! !ARGUMENTS:
+      type(ESMF_Array), intent(in), optional :: array
+!
+! !DESCRIPTION:
+! Access deep object init code.
+!
+! The arguments are:
+! \begin{description}
+! \item [array]
+! Array object.
+! \end{description}
+!
+!EOPI
+    if (present(array)) then
+      ESMF_ArrayGetInit = ESMF_INIT_GET(array)
+    else
+      ESMF_ArrayGetInit = ESMF_INIT_CREATED
+    endif
+    end function ESMF_ArrayGetInit
+!------------------------------------------------------------------------------
+! -------------------------- ESMF-public method -------------------------------
+#undef ESMF_METHOD
+#define ESMF_METHOD "ESMF_ArraySetInitCreated()"
+!BOPI
+! !IROUTINE: ESMF_ArraySetInitCreated - Set Array init code to "CREATED"
+! !INTERFACE:
+  subroutine ESMF_ArraySetInitCreated(array, rc)
+!
+! !ARGUMENTS:
+    type(ESMF_Array), intent(inout) :: array
+    integer, intent(out), optional :: rc
+!
+!
+! !DESCRIPTION:
+! Set init code in Array object to "CREATED".
+!
+! The arguments are:
+! \begin{description}
+! \item[array]
+! Specified {\tt ESMF\_Array} object.
+! \item[{[rc]}]
+! Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
+! \end{description}
+!
+!EOPI
+!------------------------------------------------------------------------------
+    integer :: localrc ! local return code
+    ! Assume failure until success
+    if (present(rc)) rc = ESMF_RC_NOT_IMPL
+    localrc = ESMF_RC_NOT_IMPL
+    ! Set init code
+    ESMF_INIT_SET_CREATED(array)
+    ! Return success
+    if (present(rc)) rc = ESMF_SUCCESS
+  end subroutine ESMF_ArraySetInitCreated
+!------------------------------------------------------------------------------
+! -------------------------- ESMF-internal method -----------------------------
+#undef ESMF_METHOD
+#define ESMF_METHOD "ESMF_ArrayGetThis()"
+!BOPI
+! !IROUTINE: ESMF_ArrayGetThis - Internal access routine for C++ pointer
+! !INTERFACE:
+  subroutine ESMF_ArrayGetThis(array, this, rc)
+!
+! !ARGUMENTS:
+    type(ESMF_Array), intent(in) :: array
+    type(ESMF_Pointer), intent(out) :: this
+    integer, intent(out), optional :: rc
+!
+!
+! !DESCRIPTION:
+! Internal access routine for C++ pointer.
+!
+! The arguments are:
+! \begin{description}
+! \item[array]
+! Specified {\tt ESMF\_Array} object.
+! \item[this]
+! C++ pointer.
+! \item[{[rc]}]
+! Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
+! \end{description}
+!
+!EOPI
+!------------------------------------------------------------------------------
+    ! initialize return code; assume routine not implemented
+    if (present(rc)) rc = ESMF_RC_NOT_IMPL
+    ! Copy C++ pointer
+    this = array%this
+    ! return successfully
+    if (present(rc)) rc = ESMF_SUCCESS
+  end subroutine ESMF_ArrayGetThis
+!------------------------------------------------------------------------------
+! -------------------------- ESMF-internal method -----------------------------
+#undef ESMF_METHOD
+#define ESMF_METHOD "ESMF_ArraySetThis()"
+!BOPI
+! !IROUTINE: ESMF_ArraySetThis - Set C++ pointer in VM
+! !INTERFACE:
+  subroutine ESMF_ArraySetThis(array, this, rc)
+!
+! !ARGUMENTS:
+    type(ESMF_Array), intent(inout) :: array
+    type(ESMF_Pointer), intent(in) :: this
+    integer, intent(out), optional :: rc
+!
+!
+! !DESCRIPTION:
+! Set C++ pointer in VM.
+!
+! The arguments are:
+! \begin{description}
+! \item[array]
+! Specified {\tt ESMF\_Array} object.
+! \item[this]
+! C++ pointer.
+! \item[{[rc]}]
+! Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
+! \end{description}
+!
+!EOPI
+!------------------------------------------------------------------------------
+    ! initialize return code; assume routine not implemented
+    if (present(rc)) rc = ESMF_RC_NOT_IMPL
+    ! Copy C++ pointer
+    array%this = this
+    ! return successfully
+    if (present(rc)) rc = ESMF_SUCCESS
+  end subroutine ESMF_ArraySetThis
+!------------------------------------------------------------------------------
+! -------------------------- ESMF-public method -------------------------------
+#undef ESMF_METHOD
+#define ESMF_METHOD "ESMF_ArraySetThisNull()"
+!BOPI
+! !IROUTINE: ESMF_ArraySetThisNull - Set Array this member to ESMF_NULL_POINTER
+! !INTERFACE:
+  subroutine ESMF_ArraySetThisNull(array, rc)
+!
+! !ARGUMENTS:
+    type(ESMF_Array), intent(inout) :: array
+    integer, intent(out), optional :: rc
+!
+!
+! !DESCRIPTION:
+! Set Array this member to ESMF_NULL_POINTER.
+!
+! The arguments are:
+! \begin{description}
+! \item[array]
+! Specified {\tt ESMF\_Array} object.
+! \item[{[rc]}]
+! Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
+! \end{description}
+!
+!EOPI
+!------------------------------------------------------------------------------
+    integer :: localrc ! local return code
+    ! Assume failure until success
+    if (present(rc)) rc = ESMF_RC_NOT_IMPL
+    localrc = ESMF_RC_NOT_IMPL
+    ! Set this member to NULL
+    array%this = ESMF_NULL_POINTER
+    ! Return success
+    if (present(rc)) rc = ESMF_SUCCESS
+  end subroutine ESMF_ArraySetThisNull
+!------------------------------------------------------------------------------
+! -------------------------- ESMF-public method -------------------------------
+#undef ESMF_METHOD
+#define ESMF_METHOD "ESMF_ArrayCopyThis()"
+!BOPI
+! !IROUTINE: ESMF_ArrayCopyThis - Copy Array this member
+! !INTERFACE:
+  subroutine ESMF_ArrayCopyThis(arrayIn, arrayOut, rc)
+!
+! !ARGUMENTS:
+    type(ESMF_Array), intent(in) :: arrayIn
+    type(ESMF_Array), intent(inout) :: arrayOut
+    integer, intent(out), optional :: rc
+!
+!
+! !DESCRIPTION:
+! Copy Array this member. Do not set init code.
+!
+! The arguments are:
+! \begin{description}
+! \item[arrayIn]
+! Input {\tt ESMF\_Array} object.
+! \item[arrayOut]
+! Output {\tt ESMF\_Array} object.
+! \item[{[rc]}]
+! Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
+! \end{description}
+!
+!EOPI
+!------------------------------------------------------------------------------
+    integer :: localrc ! local return code
+    ! Assume failure until success
+    if (present(rc)) rc = ESMF_RC_NOT_IMPL
+    localrc = ESMF_RC_NOT_IMPL
+    ! Copy this member
+    arrayOut%this = arrayIn%this
+    ! Return success
+    if (present(rc)) rc = ESMF_SUCCESS
+  end subroutine ESMF_ArrayCopyThis
+!------------------------------------------------------------------------------
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!! old-style newArray calls of 1st prototype calls !!!!!!!!!!!!!!!!!
+! -------------------------- ESMF-public method -------------------------------
+#undef ESMF_METHOD
+#define ESMF_METHOD "ESMF_ArrayCreateFromLA()"
+!BOPI
+! !IROUTINE: ESMF_ArrayCreate - Create from LocalArray
+! !INTERFACE:
+  ! Private name; call using ESMF_ArrayCreate()
+  function ESMF_ArrayCreateFromLA(larray, haloWidth, deCount, rootPET, rc)
+!
+! !ARGUMENTS:
+    type(ESMF_LocalArray), intent(in), optional :: larray
+    integer, target, intent(in), optional :: haloWidth(:)
+    integer, intent(in), optional :: deCount
+    integer, intent(in) :: rootPET
+    integer, intent(out), optional :: rc
+!
+! !RETURN VALUE:
+    type(ESMF_Array) :: ESMF_ArrayCreateFromLA
+!
+! !DESCRIPTION:
+! Create a new {\tt ESMF\_Array} from an {\tt ESMF\_LocalArray} on
+! {\tt rootPET}.
+!
+! The arguments are:
+! \begin{description}
+! \item[{[larray]}]
+! The {\tt ESMF\_LocalArray} object that will be used to determine
+! the index space of the {\tt ESMF\_Array}. The data in
+! {\tt rootPET}'s {\tt larray} will be scattered across the newly
+! created {\tt ESMF\_Array} object before returning. Only
+! {\tt rootPET} must provide a (valid) {\tt larray} argument.
+! \item[{[haloWidth]}]
+! Array holding the halo width for each array dimension. Default is
+! a halo width of 0 in all dimensions. A negative halo width indicates
+! that the respective array dimension is not to be decomposed. Only
+! {\tt rootPET} must provide a (valid) {\tt haloWidth} argument.
+! \item[{[deCount]}]
+! Number of DEs into which this Array is to be decomposed. By default
+! deCount will equal petCount of the current VM context. Only
+! {\tt rootPET} must provide a (valid) {\tt deCount} argument.
+! \item[rootPET]
+! PET that holds the valid data in {\tt larray}.
+! \item[{[rc]}]
+! Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
+! \end{description}
+!
+!EOPI
+!------------------------------------------------------------------------------
+    integer :: localrc ! local return code
+    integer :: laRank
+    integer, pointer :: opt_haloWidth(:)
+    integer :: len_haloWidth
+    integer, target :: dummy(0) ! used to satisfy the C interface...
+    type(ESMF_VM):: vm
+    integer:: localPET
+    type(ESMF_Array):: array ! opaque pointer to new C++ Array object
+    ! Assume failure until success
+    if (present(rc)) rc = ESMF_RC_NOT_IMPL
+    localrc = ESMF_RC_NOT_IMPL
+    ! Check init status of arguments
+    ESMF_INIT_CHECK_DEEP_SHORT(ESMF_LocalArrayGetInit, larray, rc)
+    ! Initialize the pointer to NULL
+    array%this = ESMF_NULL_POINTER
+    if (present(haloWidth)) then
+      opt_haloWidth => haloWidth
+      len_haloWidth = size(haloWidth)
+      ! For rootPET check if size(haloWidth) matches the rank of the LocalArray
+      call ESMF_VMGetCurrent(vm, rc=localrc)
+      call ESMF_VMGet(vm, localPET=localPET, rc=localrc)
+      if (localPET==rootPET) then
+        call ESMF_LocalArrayGet(larray, rank=laRank, rc=localrc)
+        if (len_haloWidth/=laRank) then
+          if (ESMF_LogMsgFoundError(ESMF_RC_ARG_VALUE, &
+            "size of haloWidth array does not match rank of LocalArray", &
+            ESMF_CONTEXT, rc)) return
+        endif
+      endif
+    else
+      opt_haloWidth => dummy
+      len_haloWidth = 0
+    endif
+    !DUMMY TEST TO QUIET DOWN COMPILER WARNINGS
+    !TODO: Remove the following dummy test when dummy argument actually used
+    if (size(opt_haloWidth) == size(opt_haloWidth)) continue
+    ! Call into the C++ interface, which will sort out optional arguments.
+! call c_ESMC_ArrayCreate(array, larray, opt_haloWidth, len_haloWidth, &
+! deCount, rootPET, localrc)
+    ! Use LogErr to handle return code
+    if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, &
+      ESMF_CONTEXT, rcToReturn=rc)) return
+    ! Set return value
+    ESMF_ArrayCreateFromLA = array
+    ! Set init code
+    ESMF_INIT_SET_CREATED(ESMF_ArrayCreateFromLA)
+    ! Return successfully
+    if (present(rc)) rc = ESMF_SUCCESS
+  end function ESMF_ArrayCreateFromLA
+!------------------------------------------------------------------------------
+!------------------------------------------------------------------------------
+end module ESMF_ArrayCreateMod

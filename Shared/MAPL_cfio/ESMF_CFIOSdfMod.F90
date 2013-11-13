@@ -507,7 +507,11 @@
               if ( present(rc) ) rc = rtcode
               return
            end if
-           myIndex = IdentifyDim (dimName(iv), dimUnits(iv))
+           if ( trim(dimName(iv)) .eq. "ap" .or. trim(dimName(iv)) .eq. "bp" ) then
+              cycle
+           else
+              myIndex = IdentifyDim (dimName(iv), dimUnits(iv))
+           endif
            if (myIndex .EQ. 0) then
               cfio%varObjs(nVars)%grid%im = dimSize(iv)
               if (.not. associated(cfio%varObjs(nVars)%grid%lon)) then
@@ -857,7 +861,7 @@
             cfio%attChars(i)(ii:ii) = globalAtt(ii)
             if (ii .ge. MLEN) then
                print *,"global attribute ",trim(cfio%attCharNames(i)), &
-                       " is longer than MLEN"
+                       " is longer than MLEN", MLEN
                exit
             end if
          end do
@@ -1523,7 +1527,7 @@
 
       if (associated(field) ) then
          if (size(field,1) < myXount .or. size(field,2) < myYount .or. size(field,3) < myKount) then 
-            print *, "Field is not Large Enough in VarRead3D"
+            print *, "Field not Large Enough in VarRead3D"
             if (size(field,1) < myXount) rtcode = -4
             if (size(field,2) < myXount) rtcode = -5
             if (size(field,3) < myKount) rtcode = -3
@@ -2044,8 +2048,10 @@
          vunits(i) = cfio%varObjs(i)%vUnits
          kmvar(i) = cfio%varObjs(i)%grid%km
          if ( cfio%varObjs(i)%twoDimVar ) kmvar(i) = 0
-         valid_range(1, i) = cfio%varObjs(i)%validRange(1)
-         valid_range(2, i) = cfio%varObjs(i)%validRange(2)
+!         valid_range(1, i) = cfio%varObjs(i)%validRange(1)
+!         valid_range(2, i) = cfio%varObjs(i)%validRange(2)
+         valid_range(1, i) =  1e15
+         valid_range(2, i) = -1e15
          packing_range(1, i) = cfio%varObjs(i)%packingRange(1)
          packing_range(2, i) = cfio%varObjs(i)%packingRange(2)
          if ( cfio%varObjs(i)%timAve ) then
@@ -2744,7 +2750,7 @@
                 .LT. 0) return
 !         end if
 !         if ( cfio%varObjs(i)%addOffSet /= 0 ) then
-            add_offset = cfio%varObjs(i)%addOffSet   
+            add_offset = 0.e0 !cfio%varObjs(i)%addOffSet   
             call ncapt (cfio%fid, vid(i), 'add_offset', NCFLOAT,   &
                         1, add_offset, rc)
             if (err("FileCreate: error from ncapt for add_offset",rc,-35) &

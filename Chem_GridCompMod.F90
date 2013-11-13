@@ -3,6 +3,7 @@
 module Chem_GridCompMod
 
   USE ESMF_Mod
+  USE ESMF_DistGridMod
   USE MAPL_Mod
 
 !  USE Chem_GridCompMod,     ONLY : ChemSetServices   => SetServices
@@ -237,6 +238,7 @@ contains
     ! Pointer arrays
     REAL(ESMF_KIND_R4), POINTER :: lonCtr(:,:) ! Lon centers on this CPU [rad]
     REAL(ESMF_KIND_R4), POINTER :: latCtr(:,:) ! Lat centers on this CPU [rad]
+    REAL, POINTER               :: PS1(:,:)    ! IMPORT: 
 
     !=======================================================================
     ! Initialization
@@ -246,10 +248,18 @@ contains
 
     ! Traceback info
     CALL ESMF_GridCompGet( GC, name=compName, __RC__ )
+    VERIFY_(STATUS)
     Iam = trim( compName ) // '::' // trim( Iam )
 
+!    ! Get my MAPL_Generic state
+!    !--------------------------
+!    call MAPL_GetObjectFromGC ( GC, STATE, RC=STATUS)
+!    VERIFY_(STATUS)
+
     ! Initialize MAPL Generic
+    !--------------------------
     CALL MAPL_GenericInitialize( GC, Import, Export, Clock, __RC__ )
+    VERIFY_(STATUS)
 
     ! Test if we are on the root CPU
     am_I_Root = MAPL_Am_I_Root()
@@ -374,6 +384,12 @@ contains
        write(*,*) 
        write(*,*) '========================'
     END IF
+
+    call MAPL_GetPointer ( IMPORT, PS1,  'PS1', RC=STATUS )
+    VERIFY_(STATUS)
+    State_Met%PS1        = PS1
+
+    write( logLun, '(a,2i)') 'PET/JM', myPET, JM 
 
     CALL GIGC_Chunk_Init( am_I_Root = am_I_Root, &  ! Are we on the root CPU?   
                           I_LO      = I_LO,      &  ! Min lon index on this CPU
@@ -537,12 +553,16 @@ contains
     INTEGER :: IM_WORLD, JM_WORLD
     INTEGER :: I_LO,     J_LO
     INTEGER :: I_HI,     J_HI
+    INTEGER :: IND
 
     !=======================================================================
     ! Initialization
     !=======================================================================
-
+    
     __Iam__('Run_')
+
+    ! Assume success
+    error = GIGC_SUCCESS
 
     ! Are we on the root CPU?
     am_I_Root = MAPL_Am_I_Root()
@@ -656,141 +676,12 @@ contains
 
 #   include "Includes_Before_Run.H"
     
-    DO I=1,LM
-       Z(:,:,I) = (73-I)*1400.e0
-    END DO
+!    IND = Get_Indx( 'TRC_O3', State_Chm%Trac_Id, State_Chm%Trac_Name )
 
-    ! Dummy met_state
-    State_Met%ALBD = 0.1e0
-    State_Met%CLDFRC = 0.e0
-    State_Met%CLDTOPS = 0.e0
-    State_Met%EFLUX = 1.e0
-    State_Met%EVAP = 1.e0
-    State_Met%FRCLND = 0.e0
-    State_Met%FRLAKE = 0.e0
-    State_Met%FRLAND = 1.e0
-    State_Met%FRLANDIC = 0.e0
-    State_Met%FROCEAN = 0.e0
-    State_Met%FRSEAICE = 0.e0
-    State_Met%FRSNO = 1.e0
-    State_Met%GRN = 1.e0
-    State_Met%GWETROOT = 1.e0
-    State_Met%GWETTOP = 1.e0
-    State_Met%HFLUX = 1.e0
-    State_Met%LAI = 0.1e0
-    State_Met%LWI = 0.1e0
-    State_Met%LWI_GISS = 1.e0
-    State_Met%MOLENGTH = 1.e0
-    State_Met%OICE = 0.e0
-    State_Met%PARDR = 1.e0
-    State_Met%PARDF = 1.e0
-    State_Met%PBLH = 800.0
-    State_Met%PHIS = 1.e0
-    State_Met%PRECANV = 1.e0
-    State_Met%PRECCON = 1.e0
-    State_Met%PRECTOT = 1.e0
-    State_Met%PRECLSC = 1.e0
-    State_Met%PRECSNO = 1.e0
-    State_Met%PS1 = 1.e0
-    State_Met%PS2 = 1.e0
-    State_Met%PSC2 = 1.e0
-    State_Met%RADLWG = 1.e0
-    State_Met%RADSWG = 1.e0
-!    State_Met%SEAICE00 = 1.e0
-!    State_Met%SEAICE10 = 1.e0
-!    State_Met%SEAICE20 = 1.e0
-!    State_Met%SEAICE30 = 1.e0
-!    State_Met%SEAICE40 = 1.e0
-!    State_Met%SEAICE50 = 1.e0
-!    State_Met%SEAICE60 = 1.e0
-!    State_Met%SEAICE70 = 1.e0
-!    State_Met%SEAICE80 = 1.e0
-!    State_Met%SEAICE90 = 1.e0
-    State_Met%SLP = 100000.e0
-    State_Met%SNICE = 0.e0
-    State_Met%SNODP = 0.e0
-    State_Met%SNOMAS = 0.e0
-    State_Met%SNOW = 0.e0
-    State_Met%SST = 298.e0
-    State_Met%SUNCOS = 1.e0
-    State_Met%SUNCOSmid = 1.e0
-    State_Met%SUNCOSmid5 = 1.e0
-    State_Met%TO3 = 1.e0
-    State_Met%TO31 = 1.e0
-    State_Met%TO32 = 1.e0
-    State_Met%TROPP = 100.e0
-    State_Met%TROPP1 = 100.e0
-    State_Met%TROPP2 = 100.e0
-    State_Met%TS = 298.e0
-    State_Met%TSKIN = 298e0
-    State_Met%TTO3 = 1.e0
-    State_Met%U10M = 1.e0
-    State_Met%USTAR = 1.e0
-    State_Met%UVALBEDO = 0.5e0
-    State_Met%V10M = 1.e0
-    State_Met%Z0 = 10.e0
-    State_Met%AD = 1.e0
-    State_Met%AIRDEN = 1.e0
+!    write(*,'(a,72e10.3)') 'TRC_O3 Before:', maxval(State_Chm%Tracers(:,:,:,IND))
+!    write(*,'(a,72e10.3)') 'PS1:', State_Met%PS1(20,20)
+
     State_Met%AIRVOL = 1.e0
-    State_Met%AREA_M2 = 1.e0
-    State_Met%AVGW = 1.e0
-    State_Met%BXHEIGHT = 800.e0
-    State_Met%CLDF = 0.e0
-    State_Met%CMFMC = 0.e0
-    State_Met%DELP = 100.e0
-    State_Met%DETRAINE = 0.e0
-    State_Met%DETRAINN = 0.e0
-    State_Met%DNDE = 0.e0
-    State_Met%DNDN = 0.e0
-    State_Met%DQRCU = 0.e0
-    State_Met%DQRLSAN = 0.e0
-    State_Met%DQIDTMST = 0.e0
-    State_Met%DQLDTMST = 0.e0
-    State_Met%DQVDTMST = 0.e0
-    State_Met%DTRAIN = 0.e0
-    State_Met%ENTRAIN = 0.e0
-    State_Met%HKBETA = 1.e0
-    State_Met%HKETA = 1.e0
-    State_Met%MOISTQ = 0.e0
-    State_Met%OPTD = 0.e0
-    State_Met%OPTDEP = 0.e0
-    State_Met%PEDGE = Z
-    State_Met%PEDGE = State_Met%PEDGE+0.5
-    State_Met%PMID = Z
-    State_Met%PFICU = 1.e0
-    State_Met%PFILSAN = 1.e0
-    State_Met%PFLCU = 1.e0
-    State_Met%PFLLSAN = 1.e0
-    State_Met%PV = 1.e0
-    State_Met%QI = 1.e0
-    State_Met%QL = 1.e0
-    State_Met%REEVAPCN = 1.e0
-    State_Met%REEVAPLS = 1.e0
-    State_Met%RH = 0.e0
-    State_Met%RH1 = 1.e0
-    State_Met%RH2 = 1.e0
-    State_Met%SPHU = 1.e0
-    State_Met%SPHU1 = 1.e0
-    State_Met%SPHU2 = 1.e0
-    State_Met%T = 298.e0
-    State_Met%TAUCLI = 0.e0
-    State_Met%TAUCLW = 0.e0
-    State_Met%TMPU1 = 1.e0
-    State_Met%TMPU2 = 1.e0
-    State_Met%U = 1.e0
-    State_Met%UPDE = 1.e0
-    State_Met%UPDN = 1.e0
-    State_Met%V = 1.e0
-    State_Met%ZMEU = 1.e0
-    State_Met%ZMMD = 1.e0
-    State_Met%ZMMU = 1.e0
-    State_Met%IREG = 1.e0
-    State_Met%ILAND = 1.e0
-    State_Met%IUSE = 1.e0
-    State_Met%XLAI = 1.e0
-    State_Met%XLAI2 = 1.e0
-   
-!    print*, 'NOx Before: ', myPet, sum(TRC_NO(:,1,1)), sum(real(State_Chm%Tracers(:,1,LM,1)))
 
     where (State_Chm%Tracers .eq. 0.e0)
        State_Chm%Tracers = 1.e-36
@@ -825,6 +716,8 @@ contains
                           State_Met = State_Met,  &  ! Meteorology State object
                           RC        = error )        ! Success or failure?
 
+!    write(*,'(a,72e10.3)') 'TRC_O3 After:', maxval(State_Chm%Tracers(:,:,:,IND))
+
     ! Trap the error from GEOS-Chem
      IF ( error /= GIGC_SUCCESS ) THEN 
         CALL Error_Trap_( Ident, error, __RC__ )
@@ -839,6 +732,7 @@ contains
     !=======================================================================
 
 #   include "Includes_After_Run.H"
+!    write(*,'(a,72e10.3)') 'ESMF TRCO3 After:', maxval(TRC_O3),minval(TRC_O3)
 
 !    print*, 'NOx After: ', myPet, sum(TRC_NO(:,1,1)), sum(real(State_Chm%Tracers(:,1,LM,1)))
 

@@ -52,7 +52,7 @@ else
    FINCS += $(BASEDIR)/Linux/include/netcdf
 endif
 
-SUBDIRS = r4 r8 $(EOS_DIRS)
+SUBDIRS = r4 $(EOS_DIRS)
 
 TARGETS = esma_install esma_clean esma_doc \
           help install doc test benchmark ut clean

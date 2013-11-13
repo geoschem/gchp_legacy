@@ -50,6 +50,7 @@ TARGETS = esma_install esma_clean esma_distclean esma_doc \
 export ESMADIR BASEDIR ARCH SITE
 
 $(TARGETS): 
+	@echo "BPREC $(BPREC)"  
 	@ t=$@; argv="$(SUBDIRS)" ;\
 	  for d in $$argv; do			 \
 	    ( cd $$d				;\

@@ -83,6 +83,7 @@ ESMF    := ./ESMF
 
 baselibs:
 ifeq ($(wildcard $(ESMF)/esmf.install),)
+	$(MAKE) -C $(ESMF)
 	$(MAKE) -C $(ESMF) install
 	@touch $(ESMF)/esmf.install
 else	

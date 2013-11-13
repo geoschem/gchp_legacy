@@ -90,13 +90,13 @@ contains
     VERIFY_(STATUS)
     call MAPL_GridCompSetEntryPoint ( GC, ESMF_SETRUN,  Run,        RC=STATUS )
     VERIFY_(STATUS)
-    call MAPL_GridCompSetEntryPoint ( GC, ESMF_SETRUN,  Finalize,        RC=STATUS )
+    call MAPL_GridCompSetEntryPoint ( GC, ESMF_SETFINAL,  Finalize, RC=STATUS )
     VERIFY_(STATUS)
 
 ! Create children`s gridded components and invoke their SetServices
 ! -----------------------------------------------------------------
 
-    CHEM = MAPL_AddChild(GC, NAME='CHEMISTRY', SS=AtmosChemSetServices, RC=STATUS)
+    CHEM = MAPL_AddChild(GC, NAME='GIGCchem', SS=AtmosChemSetServices, RC=STATUS)
     VERIFY_(STATUS)
 
 !BOP
@@ -207,6 +207,7 @@ contains
 
     Iam = "Initialize"
     call ESMF_GridCompGet ( GC, name=COMP_NAME, GRID=GRID, RC=STATUS )
+!    call ESMF_GridCompGet ( GC, name=COMP_NAME, RC=STATUS )
     VERIFY_(STATUS)
     Iam = trim(COMP_NAME) // "::" // Iam
 
@@ -216,20 +217,27 @@ contains
     call MAPL_GetObjectFromGC ( GC, STATE, RC=STATUS)
     VERIFY_(STATUS)
 
-! Call Initialize for every Child
-!--------------------------------
-
-    call MAPL_GenericInitialize ( GC, IMPORT, EXPORT, CLOCK,  RC=STATUS)
-    VERIFY_(STATUS)
-
-    call MAPL_TimerOn(STATE,"TOTAL")
-!    call MAPL_TimerOn(STATE,"INITIALIZE")
-
 ! Get children and their im/ex states from my generic state.
 !----------------------------------------------------------
 
     call MAPL_Get ( STATE, GCS=GCS, GIM=GIM, GEX=GEX, RC=STATUS )
     VERIFY_(STATUS)
+
+    ! Create Atmospheric grid
+    !------------------------
+    call MAPL_GridCreate( GC, rc=status )
+    VERIFY_(STATUS)
+
+    ! Call Initialize for every Child
+    !--------------------------------
+
+    call MAPL_GenericInitialize ( GC, IMPORT, EXPORT, CLOCK,  RC=STATUS)
+    VERIFY_(STATUS)
+
+
+    call MAPL_TimerOn(STATE,"TOTAL")
+!    call MAPL_TimerOn(STATE,"INITIALIZE")
+
 
 ! Count tracers
 !--------------
@@ -345,7 +353,10 @@ contains
     I=CHEM   
 
     call MAPL_TimerOn (STATE,GCNames(I))
-     call ESMF_GridCompRun (GCS(I), GIM(I), GEX(I), CLOCK, userRC=STATUS ); VERIFY_(STATUS)
+     call ESMF_GridCompRun (GCS(I), importState=GIM(I), &
+                                    exportState=GEX(I), &
+                                    clock=CLOCK,        &
+                                    userRC=STATUS ); VERIFY_(STATUS)
      call MAPL_GenericRunCouplers (STATE, I,        CLOCK,    RC=STATUS ); VERIFY_(STATUS)
     call MAPL_TimerOff(STATE,GCNames(I))
 

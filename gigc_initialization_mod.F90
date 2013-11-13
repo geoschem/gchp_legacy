@@ -241,7 +241,7 @@ CONTAINS
     USE Olson_Landmap_Mod,    ONLY : Compute_Olson_Landmap
     USE Olson_Landmap_Mod,    ONLY : Cleanup_Olson_Landmap
     USE PBL_MIX_MOD,          ONLY : INIT_PBL_MIX
-    USE PRESSURE_MOD,         ONLY : INIT_PRESSURE
+    USE PRESSURE_MOD,         ONLY : INIT_PRESSURE, SET_FLOATING_PRESSURE
     USE TRACER_MOD,           ONLY : ITS_A_FULLCHEM_SIM
     USE TRACER_MOD,           ONLY : ITS_AN_AEROSOL_SIM
     USE TRACER_MOD,           ONLY : INIT_TRACER
@@ -555,12 +555,16 @@ CONTAINS
     ! Initialize the GEOS-Chem pressure module (set Ap & Bp)
     CALL Init_Pressure( am_I_Root )
 
+    ! Initialize the GEOS-Chem FLoatinf Pressure
+!    write(*,'(a,e10.3)') 'PS1<> ', sum(State_Met%PS1)
+!    CALL Set_Floating_Pressure( State_Met%PS1 )
+
     ! Initialize the PBL mixing module
     CALL Init_PBL_Mix()
 
     ! Initialize arrays SO2s, H2O2s in wetscav_mod.F for use in sulfate chem
-    CALL Init_WetScav &
-       ( am_I_Root, Input_Opt, State_Met, State_Chm, RC )
+!    CALL Init_WetScav &
+!       ( am_I_Root, Input_Opt, State_Met, State_Chm, RC )
 
     !=======================================================================
     ! Initialize dry deposition 

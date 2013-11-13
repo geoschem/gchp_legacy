@@ -539,6 +539,8 @@
         if (err("DimInqure: could not get units for dimension",rc,-53)&
             .NE. 0) return
         myIndex = IdentifyDim (dimName, dimUnits)
+        if (trim(dimName) .eq. 'ap') myIndex = -1
+        if (trim(dimName) .eq. 'bp') myIndex = -1 
         if ( myIndex .EQ. 0 ) then
           im = dimSize
         else if ( myIndex .EQ. 1 ) then
@@ -2781,8 +2783,8 @@
       else
         print *, 'CFIO_GetVar: Currently, times must fall on minute ',&
                 'boundaries.'
-        rc = -6
-        return
+!        rc = -6
+!        return
       endif
 
 ! Determine the time index from the offset and time increment.
@@ -3166,8 +3168,8 @@
       else
         print *, 'CFIO_GetVar: Currently, times must fall on minute ',&
                 'boundaries.'
-        rc = -6
-        return
+!        rc = -6
+!        return
       endif
 
 ! Determine the time index from the offset and time increment.
@@ -3654,6 +3656,7 @@
       else if (HUGE(dummy) .EQ. HUGE(dummy64)) then   ! -r8
         if (type .EQ. NCFLOAT) then                     ! 32-bit
           allocate (grid_32(im,jm,kount))
+          write(*,'(a,72e10.3)') 'TRCO3 at History:', maxval(grid),minval(grid)
           do k=1,kount
             do j=1,jm
               do i=1,im

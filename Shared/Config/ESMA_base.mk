@@ -32,8 +32,11 @@ endif
 ifndef NODE             # same as SITE name, except sometimes SITE comes predefined
   NODE := $(shell uname -n)
 endif
-ifndef BPREC
-  BPREC := 64#  Build with "-r8"
+#ifndef BPREC
+#  BPREC := 64#  Build with "-r8"
+#endif
+ifndef BPREC            #  Build with "-r4"
+  BPREC := 32
 endif
 
 #                       ----------------
@@ -118,12 +121,13 @@ ESMA_TIMER_CO  = # command to end   timer (for user to backet code segments)
 LIB_SCI =
 LIB_SYS =
 
-DIR_HDF5 = ./$(ARCH)
+DIR_HDF5 = $(GC_BIN)
 INC_HDF5 = $(DIR_HDF5)/include/hdf5
 LIB_HDF5 = $(wildcard $(foreach lib,hdf5_hl hdf5 z sz gpfs,\
            $(BASELIB)/lib$(lib).a) )
 
-DIR_NETCDF = ./$(ARCH)
+DIR_NETCDF = $(GC_BIN)
+#./$(ARCH)
 INC_NETCDF = $(DIR_NETCDF)/include/netcdf
 #ifeq ($(wildcard $(BASEBIN)/nc-config), )
 #    LIB_NETCDF = $(BASELIB)/libnetcdf.a $(LIB_HDF5)
@@ -131,7 +135,8 @@ INC_NETCDF = $(DIR_NETCDF)/include/netcdf
 #    LIB_NETCDF := $(shell $(BASEBIN)/nc-config --flibs)
 #endif
 
-DIR_HDF = ./$(ARCH)
+DIR_HDF = $(GC_BIN)
+#./$(ARCH)
 INC_HDF = $(DIR_HDF)/include/hdf
 LIB_HDF = $(wildcard $(foreach lib,mfhdf df hdfjpeg jpeg hdfz z sz,\
           $(BASELIB)/lib$(lib).a) )

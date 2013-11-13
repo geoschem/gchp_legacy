@@ -1,0 +1,12 @@
+  /home/mlong/CfA/GIGC/ESMF//obj/objO/Linux.intel.64.openmpi.default/ESMF_VM.o : /home/mlong/CfA/GIGC/ESMF//obj/objO/Linux.intel.64.openmpi.default/ESMF_Base.o /home/mlong/CfA/GIGC/ESMF//obj/objO/Linux.intel.64.openmpi.default/ESMF_InitMacros.o /home/mlong/CfA/GIGC/ESMF//obj/objO/Linux.intel.64.openmpi.default/ESMF_LogErr.o /home/mlong/CfA/GIGC/ESMF//obj/objO/Linux.intel.64.openmpi.default/ESMF_UtilTypes.o 
+  /home/mlong/CfA/GIGC/ESMF//obj/objO/Linux.intel.64.openmpi.default/ESMCI_VM_F.o : ESMCI_VM.h
+  /home/mlong/CfA/GIGC/ESMF//obj/objO/Linux.intel.64.openmpi.default/ESMC_VM.o : ESMCI_VM.h ESMC_VM.h
+  /home/mlong/CfA/GIGC/ESMF//obj/objO/Linux.intel.64.openmpi.default/ESMF_VM.o : /home/mlong/CfA/GIGC/ESMF//obj/objO/Linux.intel.64.openmpi.default/ESMF_Base.o /home/mlong/CfA/GIGC/ESMF//obj/objO/Linux.intel.64.openmpi.default/ESMF_InitMacros.o /home/mlong/CfA/GIGC/ESMF//obj/objO/Linux.intel.64.openmpi.default/ESMF_LogErr.o /home/mlong/CfA/GIGC/ESMF//obj/objO/Linux.intel.64.openmpi.default/ESMF_UtilTypes.o 
+  /home/mlong/CfA/GIGC/ESMF//obj/objO/Linux.intel.64.openmpi.default/ESMCI_VM_F.o : ESMCI_VM.h
+  /home/mlong/CfA/GIGC/ESMF//obj/objO/Linux.intel.64.openmpi.default/ESMC_VM.o : ESMCI_VM.h ESMC_VM.h
+  /home/mlong/CfA/GIGC/ESMF/obj/objO/Linux.intel.64.openmpi.default/ESMF_VM.o : /home/mlong/CfA/GIGC/ESMF/obj/objO/Linux.intel.64.openmpi.default/ESMF_Base.o /home/mlong/CfA/GIGC/ESMF/obj/objO/Linux.intel.64.openmpi.default/ESMF_InitMacros.o /home/mlong/CfA/GIGC/ESMF/obj/objO/Linux.intel.64.openmpi.default/ESMF_LogErr.o /home/mlong/CfA/GIGC/ESMF/obj/objO/Linux.intel.64.openmpi.default/ESMF_UtilTypes.o 
+  /home/mlong/CfA/GIGC/ESMF/obj/objO/Linux.intel.64.openmpi.default/ESMCI_VM_F.o : ESMCI_VM.h
+  /home/mlong/CfA/GIGC/ESMF/obj/objO/Linux.intel.64.openmpi.default/ESMC_VM.o : ESMCI_VM.h ESMC_VM.h
+  /home/mlong/CfA/GIGC/ESMF/obj/objO/Linux.intel.64.openmpi.default/ESMF_VM.o : /home/mlong/CfA/GIGC/ESMF/obj/objO/Linux.intel.64.openmpi.default/ESMF_Base.o /home/mlong/CfA/GIGC/ESMF/obj/objO/Linux.intel.64.openmpi.default/ESMF_InitMacros.o /home/mlong/CfA/GIGC/ESMF/obj/objO/Linux.intel.64.openmpi.default/ESMF_LogErr.o /home/mlong/CfA/GIGC/ESMF/obj/objO/Linux.intel.64.openmpi.default/ESMF_UtilTypes.o 
+  /home/mlong/CfA/GIGC/ESMF/obj/objO/Linux.intel.64.openmpi.default/ESMCI_VM_F.o : ESMCI_VM.h
+  /home/mlong/CfA/GIGC/ESMF/obj/objO/Linux.intel.64.openmpi.default/ESMC_VM.o : ESMCI_VM.h ESMC_VM.h

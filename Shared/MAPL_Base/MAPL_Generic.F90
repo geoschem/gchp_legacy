@@ -2,7 +2,6 @@
 
 #include "MAPL_ErrLog.h"
 #define GET_POINTER ESMFL_StateGetPointerToData
-
 ! MAT: The ftell function is a non-portable Fortran
 !      extension. While the 32-bit function has a
 !      common name, the 64-bit does not. So we select
@@ -1262,6 +1261,7 @@ recursive subroutine MAPL_GenericInitialize ( GC, IMPORT, EXPORT, CLOCK, RC )
    VERIFY_(STATUS)
 
    if (associated(STATE%INTERNAL_SPEC)) then
+      print*,'STATE%LOCSTREAM',MAPL_LocStreamIsAssociated(STATE%LOCSTREAM, RC=STATUS)
       if (MAPL_LocStreamIsAssociated(STATE%LOCSTREAM, RC=STATUS)) then
          call MAPL_StateCreateFromVarSpec(STATE%INTERNAL,STATE%INTERNAL_SPEC, &
                                         MYGRID%ESMFGRID,             &
@@ -5411,7 +5411,6 @@ end function MAPL_AddChildFromGC
     integer               :: I
 
     do L=1,size(SPEC)
-
        call MAPL_VarSpecGet(SPEC(L), DIMS=DIMS, VLOCATION=LOCATION, STAT=STAT, RC=STATUS )
        VERIFY_(STATUS)
 !ALT we should also check if we have a valid grid in the spec so we do not overwrite it

@@ -14,7 +14,7 @@
 ESMF_F90COMPILER=mpif90
 ESMF_F90LINKER=mpif90
 
-ESMF_F90COMPILEOPTS=-align all -fPIC -O -fPIC -m64 -mcmodel=small -threads -O -fPIC -m64 -mcmodel=small -threads -O -fPIC -m64 -mcmodel=small -threads
+ESMF_F90COMPILEOPTS=-align all -fPIC -traceback  -O -fPIC -m64 -mcmodel=small -threads -O -fPIC -m64 -mcmodel=small -threads -O -fPIC -m64 -mcmodel=small -threads
 ESMF_F90COMPILEPATHS=-I/home/mlong/CfA/GIGC/ESMF/Linux/mod -I/home/mlong/CfA/GIGC/ESMF/Linux/include
 ESMF_F90COMPILECPPFLAGS=-DESMF_NO_OPENMP -DSx86_64_small=1 -DESMF_OS_Linux=1
 ESMF_F90COMPILEFREECPP=
@@ -38,8 +38,8 @@ ESMF_CXXCOMPILECPPFLAGS=-DESMF_NO_OPENMP -DSx86_64_small=1 -DESMF_OS_Linux=1 -D_
 ESMF_CXXLINKOPTS= -m64 -mcmodel=small -pthread
 ESMF_CXXLINKPATHS=-L/home/mlong/CfA/GIGC/ESMF/Linux/lib -L/opt/intel/Compiler/11.1/069/lib/intel64/
 ESMF_CXXLINKRPATHS=-Wl,-rpath,/home/mlong/CfA/GIGC/ESMF/Linux/lib -Wl,-rpath,/opt/intel/Compiler/11.1/069/lib/intel64/
-ESMF_CXXLINKLIBS= -lopen-rte -lopen-pal -ldl -lnsl -lutil -limf -lm -ldl -lifport -lifcoremt -limf -lsvml -lm -lipgo -lirc -lpthread -lgcc_s -lgcc -lirc_s -ldl -lrt -ldl
-ESMF_CXXESMFLINKLIBS=-lesmf  -lopen-rte -lopen-pal -ldl -lnsl -lutil -limf -lm -ldl -lifport -lifcoremt -limf -lsvml -lm -lipgo -lirc -lpthread -lgcc_s -lgcc -lirc_s -ldl -lrt -ldl
+ESMF_CXXLINKLIBS= -lopen-rte -lopen-pal -ldl -lnsl -lutil -limf -lm -ldl -lifport -lifcoremt -limf -lsvml -lm -lipgo -lirc -lpthread -ldl -lgcc_s -lgcc -lirc -lirc_s -ldl -lrt -ldl
+ESMF_CXXESMFLINKLIBS=-lesmf  -lopen-rte -lopen-pal -ldl -lnsl -lutil -limf -lm -ldl -lifport -lifcoremt -limf -lsvml -lm -lipgo -lirc -lpthread -ldl -lgcc_s -lgcc -lirc -lirc_s -ldl -lrt -ldl
 
 ESMF_SO_F90COMPILEOPTS=-fPIC
 ESMF_SO_F90LINKOPTS=-shared

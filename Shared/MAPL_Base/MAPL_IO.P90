@@ -1338,6 +1338,7 @@ module MAPL_IOMod
 
 ! Local variables
     real(kind=ESMF_KIND_R4),  allocatable :: VAR(:,:)
+    real(kind=ESMF_KIND_R4)               :: VART
     integer                               :: IM_WORLD
     integer                               :: JM_WORLD
     integer                               :: status
