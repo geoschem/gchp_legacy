@@ -18,6 +18,7 @@ module GIGC_GridCompMod
   use MAPL_Mod
 
   use CHEM_GridCompMod,       only : AtmosChemSetServices     => SetServices
+  use DYN_GridCompMod,        only : AtmosDynSetServices      => SetServices
 
   implicit none
   private
@@ -32,7 +33,7 @@ module GIGC_GridCompMod
  
 !EOP
 
-  integer ::        CHEM
+  integer ::        CHEM, DYN
 
 contains
 
@@ -99,6 +100,9 @@ contains
     CHEM = MAPL_AddChild(GC, NAME='GIGCchem', SS=AtmosChemSetServices, RC=STATUS)
     VERIFY_(STATUS)
 
+    DYN  = MAPL_AddChild(GC, NAME='GIGCdyn',  SS=AtmosDynSetServices, RC=STATUS)
+    VERIFY_(STATUS)
+
 !BOP
 
 ! !IMPORT STATE:
@@ -110,7 +114,7 @@ contains
 
 ! Set internal connections between the children`s IMPORTS and EXPORTS
 ! -------------------------------------------------------------------
-
+#include "GIGC_Connections.H"
 !BOP
 
 ! !CONNECTIONS:
@@ -347,19 +351,35 @@ contains
 ! Pointers to Exports
 !--------------------
 
+! Dynamics
+!------------------
+
+    I=DYN   
+    write(*,*) 'Running Dynamics GC'
+    call MAPL_TimerOn (STATE,GCNames(I))
+     call ESMF_GridCompRun (GCS(I), importState=GIM(I), &
+          exportState=GEX(I), clock=CLOCK, userRC=STATUS );
+     VERIFY_(STATUS)
+     call MAPL_GenericRunCouplers (STATE, I, CLOCK, RC=STATUS );
+     VERIFY_(STATUS)
+    call MAPL_TimerOff(STATE,GCNames(I))
+
 ! Aerosol/Chemistry
 !------------------
 
     I=CHEM   
-
+    write(*,*) 'Running Chemistry GC'
     call MAPL_TimerOn (STATE,GCNames(I))
      call ESMF_GridCompRun (GCS(I), importState=GIM(I), &
-                                    exportState=GEX(I), &
-                                    clock=CLOCK,        &
-                                    userRC=STATUS ); VERIFY_(STATUS)
-     call MAPL_GenericRunCouplers (STATE, I,        CLOCK,    RC=STATUS ); VERIFY_(STATUS)
+          exportState=GEX(I), clock=CLOCK, userRC=STATUS );
+     VERIFY_(STATUS)
+     call MAPL_GenericRunCouplers (STATE, I, CLOCK, RC=STATUS );
+     VERIFY_(STATUS)
     call MAPL_TimerOff(STATE,GCNames(I))
 
+    write(*,*) 'Fin'
+! Done With Sim
+!------------------
     call MAPL_TimerOff(STATE,"RUN")
     call MAPL_TimerOff(STATE,"TOTAL")
 

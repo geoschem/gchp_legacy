@@ -98,8 +98,9 @@ lib: $(ACGS) $(OBJ)
 	$(AR) crs libGIGC.a $(OBJ)
 	mv libGIGC.a $(LIB)
 
-$(ACGS) : $(REGDIR)/Chem_Registry.rc $(ACG)
+$(ACGS) : $(REGDIR)/Chem_Registry.rc $(REGDIR)/Dyn_Registry.rc $(ACG)
 	@$(ACG) $(ACG_FLAGS) $(REGDIR)/Chem_Registry.rc
+	@$(ACG) $(ACG_FLAGS) $(REGDIR)/Dyn_Registry.rc
 
 libesmf:
 	@$(MAKE) -C $(GIGC) esmf
@@ -123,9 +124,11 @@ help:
 Chem_GridCompMod.o          : Chem_GridCompMod.F90 gigc_mpi_wrap.o                      \
 		              gigc_chunk_mod.o 
 
+Dyn_GridCompMod.o           : Dyn_GridCompMod.F90
+
 GEOSChem.o		    : GEOSChem.F90 GIGC_GridCompMod.o
 
-GIGC_GridCompMod.o          : GIGC_GridCompMod.F90 Chem_GridCompMod.o
+GIGC_GridCompMod.o          : GIGC_GridCompMod.F90 Chem_GridCompMod.o Dyn_GridCompMod.o
 
 gigc_initialization_mod.o   : gigc_initialization_mod.F90 gigc_mpi_wrap.o 
 

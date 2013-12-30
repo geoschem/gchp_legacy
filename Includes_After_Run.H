@@ -38,8 +38,8 @@
   !=========================================================================
 
   ! Flip tracers & species in the vertical
-  State_Chm%Tracers = State_Chm%Tracers( :, :, LM:1:-1, : )
-  State_Chm%Species = State_Chm%Species( :, :, LM:1:-1, : )
+!  State_Chm%Tracers = State_Chm%Tracers( :, :, LM:1:-1, : )
+!  State_Chm%Species = State_Chm%Species( :, :, LM:1:-1, : )
 
   IND = Get_Indx( 'TRC_NO', State_Chm%Trac_Id, State_Chm%Trac_Name )
   IF ( IND > 0 ) TRC_NO = State_Chm%Tracers(:,:,:,IND)

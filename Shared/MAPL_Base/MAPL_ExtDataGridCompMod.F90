@@ -57,6 +57,7 @@
      character(len=ESMF_MAXSTR)   :: units
      integer                      :: dim
      integer                      :: vloc
+     integer                      :: hw ! Halo width
      logical                      :: cyclic
      character(len=ESMF_MAXSTR)   :: refresh_template
      real                         :: scale, offset
@@ -889,6 +890,7 @@ CONTAINS
                call MAPL_GetPointer(self%ExtDataState, var3d, trim(item%name), __RC__)
  
                if (associated(var3d)) then
+                  write(*,*) 'EXTDATA Size<>', shape(var3d)
                   call MAPL_CFIORead(trim(item%var),          &
                                      trim(item%file),         &
                                      item%refresh_time,       & 

@@ -78,8 +78,8 @@
 
      DO J = 1, JM
      DO I = 1, IM
-!       State_Met%PEDGE(I,J,L)     = PLE    (I,J,LR) / 1d2  ! Pa -> hPa 
-        State_Met%CMFMC(I,J,L)     = CMFMC  (I,J,LR)        ! kg/m2/s
+!       State_Met%PEDGE(I,J,L)     = PLE    (I,J,L) / 1d2  ! Pa -> hPa 
+        State_Met%CMFMC(I,J,L)     = CMFMC  (I,J,L)        ! kg/m2/s
      ENDDO
      ENDDO
   ENDDO
@@ -98,21 +98,21 @@
         !-------------------------------------------------------------------
         ! "True" met fields (i.e. passed from GCM)
         !-------------------------------------------------------------------
-!       State_Met%AIRDEN  (L,I,J)  = AIRDENS(I,J,LR)        ! kg/m3
+!       State_Met%AIRDEN  (L,I,J)  = AIRDENS(I,J,L)        ! kg/m3
 !       State_Met%AREA_M2 (I,J,L)  = AREA   (I,J   )        ! m2
-        State_Met%CLDF    (L,I,J)  = CLDF   (I,J,LR)        ! unitless
-!       State_Met%DQIDTMST(I,J,L)  = DQIDT  (I,J,LR)        ! kg/kg/s
-!       State_Met%DQLDTMST(I,J,L)  = DQLDT  (I,J,LR)        ! kg/kg/s
-!       State_Met%DQVDTMST(I,J,L)  = DQDT   (I,J,LR)        ! kg/kg/s
-        State_Met%DTRAIN  (I,J,L)  = DTRAIN (I,J,LR)        ! kg/m2/s
-!       State_Met%MOISTQ  (L,I,J)  = DQDT   (I,J,LR)        ! 
-        State_Met%QI      (I,J,L)  = QI     (I,J,LR)        ! kg/kg
-        State_Met%QL      (I,J,L)  = QL     (I,J,LR)        ! kg/kg
-        State_Met%RH      (I,J,L)  = RH     (I,J,LR)        ! unitless
-        State_Met%SPHU    (I,J,L)  = SPHU1  (I,J,LR) * 1d3  ! kg/kg -> g/kg
-        State_Met%T       (I,J,L)  = TMPU1  (I,J,LR)        ! K
-        State_Met%TAUCLI  (I,J,L)  = TAUCLI (I,J,LR)        ! unitless
-        State_Met%TAUCLW  (I,J,L)  = TAUCLW (I,J,LR)        ! unitless
+        State_Met%CLDF    (L,I,J)  = CLDF   (I,J,L)        ! unitless
+!       State_Met%DQIDTMST(I,J,L)  = DQIDT  (I,J,L)        ! kg/kg/s
+!       State_Met%DQLDTMST(I,J,L)  = DQLDT  (I,J,L)        ! kg/kg/s
+!       State_Met%DQVDTMST(I,J,L)  = DQDT   (I,J,L)        ! kg/kg/s
+        State_Met%DTRAIN  (I,J,L)  = DTRAIN (I,J,L)        ! kg/m2/s
+!       State_Met%MOISTQ  (L,I,J)  = DQDT   (I,J,L)        ! 
+        State_Met%QI      (I,J,L)  = QI     (I,J,L)        ! kg/kg
+        State_Met%QL      (I,J,L)  = QL     (I,J,L)        ! kg/kg
+        State_Met%RH      (I,J,L)  = RH     (I,J,L)        ! unitless
+        State_Met%SPHU    (I,J,L)  = SPHU1  (I,J,L) * 1d3  ! kg/kg -> g/kg
+        State_Met%T       (I,J,L)  = TMPU1  (I,J,L)        ! K
+        State_Met%TAUCLI  (I,J,L)  = TAUCLI (I,J,L)        ! unitless
+        State_Met%TAUCLW  (I,J,L)  = TAUCLW (I,J,L)        ! unitless
 
         !-------------------------------------------------------------------
         ! Quantities derived from met fields
@@ -120,8 +120,8 @@
         !-------------------------------------------------------------------
 
         ! Grid box height [m]
-!        State_Met%BXHEIGHT(I,J,L)  =   ZLE               (I,J,LR-1)   &
-!                                   -   ZLE               (I,J,LR  )
+!        State_Met%BXHEIGHT(I,J,L)  =   ZLE               (I,J,L-1)   &
+!                                   -   ZLE               (I,J,L  )
 
         ! Pressure thickness [hPa]
 !       State_Met%DELP    (L,I,J)  =   State_Met%PEDGE   (I,J,L   )   & 
@@ -704,6 +704,6 @@
   IF ( IND > 0 ) State_Chm%Species(:,:,:,IND) = VRP
 
   ! Flip tracers & species in the vertical
-  State_Chm%Tracers = State_Chm%Tracers( :, :, LM:1:-1, : )
-  State_Chm%Species = State_Chm%Species( :, :, LM:1:-1, : )
+!  State_Chm%Tracers = State_Chm%Tracers( :, :, LM:1:-1, : )
+!  State_Chm%Species = State_Chm%Species( :, :, LM:1:-1, : )
 

@@ -1,20 +1,22 @@
 #include "MAPL_Generic.h"
 
-module Chem_GridCompMod
+module Dyn_GridCompMod
 
   USE ESMF_Mod
   USE ESMF_DistGridMod
   USE MAPL_Mod
-
-!  USE Chem_GridCompMod,     ONLY : ChemSetServices   => SetServices
+  
   USE GC_Type_Mod
+  USE GIGC_ErrCode_Mod
   USE GIGC_Input_Opt_Mod
+  USE GIGC_MPI_Wrap,        ONLY : mpiComm
   USE GIGC_State_Met_Mod
   USE GIGC_State_Chm_Mod
-  USE GIGC_MPI_Wrap,        ONLY : mpiComm
-  USE GIGC_Chunk_Mod
-  USE GIGC_ErrCode_Mod
+  USE GIGC_State_Grid_Mod
   USE CharPak_Mod
+
+  USE TRANSPORT_MOD
+  USE PRESSURE_MOD
 
   implicit none
   PRIVATE
@@ -32,15 +34,15 @@ module Chem_GridCompMod
 ! !PRIVATE TYPES:
 !
   ! Legacy state
-  TYPE CHEM_State
+  TYPE DYN_State
      PRIVATE
      TYPE(ESMF_Config)             :: myCF            ! Private ESMF Config obj
-  END TYPE CHEM_State
+  END TYPE DYN_State
 
   ! Hook for the ESMF
-  TYPE CHEM_Wrap
-     TYPE(CHEM_State), POINTER :: PTR => null()   ! Ptr to CHEM_State
-  END TYPE CHEM_Wrap
+  TYPE Dyn_Wrap
+     TYPE(DYN_State), POINTER :: PTR => null()   ! Ptr to DYN_State
+  END TYPE Dyn_Wrap
 
   ! Objects for GEOS-Chem
   TYPE(Spec_2_Trac)                :: Coef            ! Species <-> tracer map  
@@ -58,7 +60,7 @@ contains
     type(ESMF_GridComp), intent(INOUT) :: GC  ! gridded component
     integer, optional  , intent(  OUT) :: RC  ! return code
 
-! !DESCRIPTION:  The SetServices for the Chemistry GC needs to register its
+! !DESCRIPTION:  The SetServices for the Dynamics GC needs to register its
 !   Initialize and Run.  It uses the MAPL_Generic construct for defining 
 !   state specs and couplings among its children.  In addition, it creates the   
 !   children GCs and runs their respective SetServices.
@@ -74,8 +76,8 @@ contains
     INTEGER    :: N, ID
     INTEGER    :: NPES, MYID, NX, NY
     TYPE (MAPL_METACOMP), POINTER :: MAPL
-    TYPE(CHEM_State), POINTER     :: myState        ! Legacy state
-    TYPE(CHEM_Wrap)               :: wrap           ! Wrapper for myState
+    TYPE(DYN_State), POINTER     :: myState        ! Legacy state
+    TYPE(Dyn_Wrap)               :: wrap           ! Wrapper for myState
     CHARACTER(LEN=ESMF_MAXSTR)    :: compName       ! Gridded Component name
 
 
@@ -105,15 +107,6 @@ contains
    call MAPL_GridCompSetEntryPoint ( GC, ESMF_SETFINAL, Finalize_, RC=STATUS )
    VERIFY_(STATUS)
 
-! Connect Children
-! --------------------
-!!    call MAPL_AddConnectivity ( GC,                           &
-!!         SRC_NAME  = (/                                   /), &
-!!         DST_NAME  = (/                                   /), &
-!!         SRC_ID = CHEM,                                        &
-!!         DST_ID = ????,                                        &
-!!         RC=STATUS  )
-
    !=======================================================================
    ! Wrap internal state for storing in this gridded component
    ! Rename this to a "legacy state"
@@ -126,7 +119,7 @@ contains
    call ESMF_ConfigLoadFile( myState%myCF, 'GIGC_GridComp.rc', __RC__)
    
    ! Store internal state with Config object in the gridded component
-   CALL ESMF_UserCompSetInternalState( GC, 'CHEM_State', wrap, STATUS )
+   CALL ESMF_UserCompSetInternalState( GC, 'DYN_State', wrap, STATUS )
    VERIFY_(STATUS)
    
     !=======================================================================
@@ -137,25 +130,72 @@ contains
 !
 ! !IMPORT STATE:
 !
-#   include "GIGCchem_ImportSpec___.h"
-!
-! !INTERNAL STATE:
-!
-#   include "GIGCchem_InternalSpec___.h"
-!
-! !EXTERNAL STATE:
-!
-#   include "GIGCchem_ExportSpec___.h"
+!#include "GIGCdyn_ImportSpec___.h"
+   call MAPL_AddImportSpec(GC, &
+        SHORT_NAME         = 'PS1',  &
+        LONG_NAME          = '',  &
+        UNITS              = '1', &
+        DIMS               = MAPL_DimsHorzOnly,    &
+        VLOCATION          = MAPL_VLocationNone,    &
+        RC=STATUS  )
+   VERIFY_(STATUS)
+   
+   
+   call MAPL_AddImportSpec(GC, &
+        SHORT_NAME         = 'PS2',  &
+        LONG_NAME          = '',  &
+        UNITS              = '1', &
+        DIMS               = MAPL_DimsHorzOnly,    &
+        VLOCATION          = MAPL_VLocationNone,    &
+        RC=STATUS  )
+   VERIFY_(STATUS)
+   
+   
+   call MAPL_AddImportSpec(GC, &
+        SHORT_NAME         = 'U',  &
+        LONG_NAME          = '',  &
+        UNITS              = '1', &
+        DIMS               = MAPL_DimsHorzVert,    &
+        VLOCATION          = MAPL_VLocationCenter,    &
+        RC=STATUS  )
+   VERIFY_(STATUS)
+   
+   call MAPL_AddImportSpec(GC, &
+        SHORT_NAME         = 'V',  &
+        LONG_NAME          = '',  &
+        UNITS              = '1', &
+        DIMS               = MAPL_DimsHorzVert,    &
+        VLOCATION          = MAPL_VLocationCenter,    &
+        RC=STATUS  )
+   VERIFY_(STATUS)
 
-    call MAPL_AddInternalSpec(GC,                                 &
+   call MAPL_AddImportSpec(GC, &
         SHORT_NAME         = 'TRACERS',                           &
         LONG_NAME          = 'tracer_volume_mixing_ratios',       &
         UNITS              = 'mol/mol',                           &
         DIMS               = MAPL_DimsHorzVert,                   &
         VLOCATION          = MAPL_VLocationCenter,                &
         DATATYPE           = MAPL_BundleItem,                     &
-        FRIENDLYTO         = 'DYNAMICS:TURBULENCE:GIGCdyn',    &
-                                                       RC=STATUS  )!EOP
+        RC=STATUS  )
+   VERIFY_(STATUS)
+   
+!
+! !INTERNAL STATE:
+!
+
+!
+! !EXTERNAL STATE:
+!
+     call MAPL_AddExportSpec(GC, &
+        SHORT_NAME         = 'U',  &
+        LONG_NAME          = '',  &
+        UNITS              = '1', &
+        DIMS               = MAPL_DimsHorzVert,    &
+        VLOCATION          = MAPL_VLocationCenter,    &
+                                                       RC=STATUS  )
+     VERIFY_(STATUS)
+
+!EOP
 !BOC
 
 ! Set services now
@@ -214,10 +254,11 @@ contains
 ! LOCAL VARIABLES:
 !
     ! Objects
-    TYPE(ESMF_Grid)             :: Grid        ! ESMF Grid object
-    TYPE(ESMF_Config)           :: MaplCF      ! ESMF Config obj (MAPL.rc)
-    TYPE(ESMF_Config)           :: GeosCF      ! ESMF Config obj (GIGC*.rc) 
-    TYPE(GC_Ident)              :: Ident       ! ID information 
+    TYPE(ESMF_Grid)               :: Grid        ! ESMF Grid object
+    TYPE(ESMF_Config)             :: MaplCF      ! ESMF Config obj (MAPL.rc)
+    TYPE(ESMF_Config)             :: GeosCF      ! ESMF Config obj (GIGC*.rc) 
+    TYPE(GC_Ident)                :: Ident       ! ID information 
+    TYPE (MAPL_METACOMP), POINTER :: MAPL
                                        
     ! Scalars                                   
     LOGICAL                     :: am_I_Root   ! Are we on the root CPU?
@@ -239,28 +280,23 @@ contains
     INTEGER                     :: IM_WORLD    ! # of longitudes in global grid
     INTEGER                     :: JM_WORLD    ! # of latitudes  in global grid
     INTEGER                     :: LM_WORLD    ! # of levels     in global grid
-    REAL                        :: tsChem      ! Chemistry timestep [s]
     REAL                        :: tsDyn       ! Dynamic timestep [s]
     CHARACTER(LEN=5)            :: petStr      ! String for PET #
     CHARACTER(LEN=ESMF_MAXSTR)  :: compName    ! Name of gridded component
+    INTEGER                     :: NPES, MYID, NX, NY
      
     ! Pointer arrays
     REAL(ESMF_KIND_R4), POINTER :: lonCtr(:,:) ! Lon centers on this CPU [rad]
     REAL(ESMF_KIND_R4), POINTER :: latCtr(:,:) ! Lat centers on this CPU [rad]
-    REAL, POINTER               :: PS1(:,:)    ! IMPORT: 
-
-    ! Working variables
-    TYPE(ESMF_Field)            :: field
-    TYPE(ESMF_FieldBundle)      :: bundle
-    TYPE(MAPL_MetaComp), pointer :: MetaComp
-    TYPE(ESMF_State)             :: INTERNAL
-    INTEGER                     :: N
 
     !=======================================================================
     ! Initialization
     !=======================================================================
 
     __Iam__('Initialize_')
+
+    ! Assume success
+    error = GIGC_SUCCESS
 
     ! Traceback info
     CALL ESMF_GridCompGet( GC, name=compName, __RC__ )
@@ -280,7 +316,22 @@ contains
     ! Test if we are on the root CPU
     am_I_Root = MAPL_Am_I_Root()
 
-    ! Get various parameters from the ESMF/MAPL framework
+! Retrieve the pointer to the state
+! ---------------------------------
+
+  call MAPL_GetObjectFromGC (GC, MAPL,  RC=STATUS )
+  VERIFY_(STATUS)
+! Initialize Layout based on 2-D decomposition
+! --------------------------------------------
+
+    call MAPL_GetResource( MAPL, NX, 'NX:', default=0, RC=STATUS )
+    VERIFY_(STATUS)
+    call MAPL_GetResource( MAPL, NY, 'NY:', default=0, RC=STATUS )
+    VERIFY_(STATUS)
+    
+    ASSERT_( NX>0 .AND. NY>0 )
+
+   ! Get various parameters from the ESMF/MAPL framework
     CALL Extract_( GC,                   &  ! Reference to this Gridded Comp 
                    Clock,                &  ! ESMF Clock object
                    Grid     = Grid,      &  ! ESMF Grid object
@@ -300,7 +351,6 @@ contains
                    nhmsB    = nhmsB,     &  ! hhmmss   @ end   of simulation
                    nymdE    = nymdE,     &  ! YYYMMDD  @ start of simulation
                    nhmsE    = nhmsE,     &  ! hhmmss   @ end   of simulation
-                   tsChem   = tsChem,    &  ! Chemistry timestep [seconds]
                    tsDyn    = tsDyn,     &  ! Dynamics timestep  [seconds]
                    localPet = myPet,     &  ! CPU # that we are on now
                    mpiComm  = mpiComm,   &  ! MPI Communicator Handle
@@ -343,16 +393,15 @@ contains
 
     ! Open file for stdout redirect
     IF ( am_I_Root )  THEN
-       OPEN ( UNIT=logLun, FILE=TRIM(logFile), STATUS='OLD' , ACTION='WRITE', ACCESS='APPEND' )
-!       OPEN ( logLun, FILE=LOGFILE, STATUS='UNKNOWN' )
+       OPEN ( logLun, FILE=LOGFILE, STATUS='UNKNOWN' )
     ENDIF
 
     ! Add descriptive header text
-    IF ( am_I_Root ) THEN
-       WRITE( logLun, '(a)'   ) REPEAT( '#', 79 )
-       WRITE( logLun, 100     ) TRIM( logFile ), TRIM( Iam ), myPet
-       WRITE( logLun, '(a,/)' ) REPEAT( '#', 79 )
-    ENDIF
+!    IF ( am_I_Root ) THEN
+!       WRITE( logLun, '(a)'   ) REPEAT( '#', 79 )
+!       WRITE( logLun, 100     ) TRIM( logFile ), TRIM( Iam ), myPet
+!       WRITE( logLun, '(a,/)' ) REPEAT( '#', 79 )
+!    ENDIF
 
     !=======================================================================
     ! Save values from the ESMF resource file into the Input_Opt object
@@ -390,116 +439,51 @@ contains
 
     ! Call the GIGC initialize routine
 
-    IF ( am_I_Root ) THEN
-       write(*,*) '========================'
-       write(*,*) 'IM      JM      LM'
-       write(*,*) (IM),' ',(JM),' ',(LM)
-       write(*,*) (IM_WORLD),' ',(JM_WORLD),' ',(LM_WORLD)
-       write(*,*) 
-       write(*,*) '========================'
-    END IF
+    ALLOCATE( State_Met%PS1       ( IM, JM       ), STAT=RC )
+    IF ( RC /= GIGC_SUCCESS ) RETURN
+    State_Met%PS1      = 0d0
 
-    call MAPL_GetPointer ( IMPORT, PS1,  'PS1', RC=STATUS )
-    VERIFY_(STATUS)
-    State_Met%PS1        = PS1
+    ALLOCATE( State_Met%PS2       ( IM, JM       ), STAT=RC )
+    IF ( RC /= GIGC_SUCCESS ) RETURN
+    State_Met%PS2      = 0d0
 
-    CALL GIGC_Chunk_Init( am_I_Root = am_I_Root, &  ! Are we on the root CPU?   
-                          I_LO      = I_LO,      &  ! Min lon index on this CPU
-                          J_LO      = J_LO,      &  ! Min lat index on this CPU
-                          I_HI      = I_HI,      &  ! Max lon index on this CPU
-                          J_HI      = J_HI,      &  ! Max lat index on this CPU
-                          IM        = IM,        &  ! # lons   on this CPU
-                          JM        = JM,        &  ! # lats   on this CPU
-                          LM        = LM,        &  ! # levels on this CPU
-                          IM_WORLD  = IM_WORLD,  &  ! # lons   in global grid
-                          JM_WORLD  = JM_WORLD,  &  ! # lats   in global grid
-                          LM_WORLD  = LM_WORLD,  &  ! # levels in global grid
-                          nymdB     = nymdB,     &  ! YYYYMMDD @ start of run
-                          nhmsB     = nhmsB,     &  ! hhmmss   @ start of run
-                          nymdE     = nymdE,     &  ! YYYYMMDD @ end of run
-                          nhmsE     = nhmsE,     &  ! hhmmss   @ end of run
-                          tsChem    = tsChem,    &  ! Chemical timestep [s]
-                          tsDyn     = tsDyn,     &  ! Dynamic  timestep [s]
-                          lonCtr    = lonCtr,    &  ! Lon centers [radians]
-                          latCtr    = latCtr,    &  ! Lat centers [radians]
-                          Input_Opt = Input_Opt, &  ! Input Options obj
-                          State_Met = State_Met, &  ! Meteorology State obj
-                          State_Chm = State_Chm, &  ! Chemistry State obj
-                          RC        = error )       ! Success or failure
+    ALLOCATE( State_Met%PSC2      ( IM, JM       ), STAT=RC )
+    IF ( RC /= GIGC_SUCCESS ) RETURN
+    State_Met%PSC2     = 0d0
+
+    ALLOCATE( State_Met%U         ( IM, JM, LM   ), STAT=RC )
+    IF ( RC /= GIGC_SUCCESS ) RETURN
+    State_Met%U        = 0d0
+
+    ALLOCATE( State_Met%V         ( IM, JM, LM   ), STAT=RC )
+    IF ( RC /= GIGC_SUCCESS ) RETURN
+    State_Met%V        = 0d0   
+
+    ALLOCATE( State_Chm%Trac_Id       (   Input_Opt%MAX_TRCS   ), STAT=RC )
+    IF ( RC /= GIGC_SUCCESS ) RETURN
+
+    ALLOCATE( State_Chm%Trac_Name     (   Input_Opt%MAX_TRCS   ), STAT=RC )
+    IF ( RC /= GIGC_SUCCESS ) RETURN
+
+    ALLOCATE( State_Chm%Tracers       ( IM, JM, LM, Input_Opt%MAX_TRCS ), STAT=RC )
+    IF ( RC /= GIGC_SUCCESS ) RETURN
+
+    ALLOCATE( Input_Opt%TCVV          (   Input_Opt%Max_Trcs   ), STAT=RC )
 
     ! Trap the error from GEOS-Chem
     IF ( error /= GIGC_SUCCESS ) THEN 
        CALL Error_Trap_( Ident, error, __RC__ )
     ENDIF
 
-    call MAPL_GetObjectFromGC ( GC, MetaComp, RC=STATUS)
-    VERIFY_(STATUS)
-    call MAPL_Get ( MetaComp, INTERNAL_ESMF_STATE=INTERNAL, RC=STATUS  )
-    VERIFY_(STATUS)
-    call ESMF_StateGet(INTERNAL, 'TRACERS', bundle, __RC__ )
-
-    DO N = 1, Input_Opt%N_TRACERS
-       call ESMF_StateGet ( INTERNAL,     &
-            trim(State_Chm%Trac_Name(N)), &
-            FIELD, __RC__ )
-
-       call ESMF_AttributeSet (field,     &
-            NAME  = 'TCVV',               &
-            VALUE = Input_Opt%TCVV(State_Chm%Trac_ID(N)),    &
-            RC = STATUS )       
-
-       call ESMF_AttributeSet (field,     &
-            NAME  = 'TRAC_ID',            &
-            VALUE = State_Chm%Trac_Id(N), &
-            RC = STATUS )       
-       
-       call ESMF_FieldBundleAdd ( BUNDLE, FIELD, __RC__ )
-    ENDDO
-
-    call ESMF_AttributeSet (bundle,    &
-         NAME  = 'LTRAN',              &
-         VALUE = Input_Opt%LTRAN,      &
-         RC = STATUS )       
-       
-    call ESMF_AttributeSet (bundle,    &
-         NAME  = 'N_TRACERS',          &
-         VALUE = Input_Opt%N_TRACERS,  &
-         RC = STATUS )       
-       
-    call ESMF_AttributeSet (bundle,    &
-         NAME  = 'LFILL',              &
-         VALUE = Input_Opt%LFILL,      &
-         RC = STATUS )       
-       
-    call ESMF_AttributeSet (bundle,    &
-         NAME  = 'LPRT',               &
-         VALUE = Input_Opt%LPRT,       &
-         RC = STATUS )       
-
-!    call ESMF_AttributeSet (bundle,    &
-!         NAME  = 'TCVV',               &
-!         ValueList = Input_Opt%TCVV,   &
-!         RC = STATUS )       
-!    
-!    call ESMF_AttributeSet (bundle,     &
-!         NAME  = 'TRAC_ID',             &
-!         ValueList = State_Chm%Trac_Id, &
-!         RC = STATUS )       
-       
-   if (AM_I_ROOT .and. Input_Opt%LPRT) then
-       print *, trim(Iam)//': TRACERS Bundle during Initialize():' 
-       call ESMF_FieldBundlePrint ( bundle )
-   end if
-
     !=======================================================================
     ! All done
     !=======================================================================
 
-    ! Write a header before the timestepping begins
+!    ! Write a header before the timestepping begins
 !    IF ( am_I_Root ) THEN
-       WRITE( logLun, '(/,a)' ) REPEAT( '#', 79 )
-       WRITE( logLun, 200     ) TRIM( compName ) // '::Run_', myPet
-       WRITE( logLun, '(a,/)' ) REPEAT( '#', 79 )
+!       WRITE( logLun, '(/,a)' ) REPEAT( '#', 79 )
+!       WRITE( logLun, 200     ) TRIM( compName ) // '::Run_', myPet
+!       WRITE( logLun, '(a,/)' ) REPEAT( '#', 79 )
 !    ENDIF
 
     ! Close the file for stdout redirect.  Reopen when executing the run method.
@@ -538,8 +522,9 @@ contains
 !
 ! !USES:
 !
-#   include "GIGCchem_DeclarePointer___.h"        ! Ptr decls to states
-    
+#   include "GIGCdyn_DeclarePointer___.h"        ! Ptr decls to states
+    real, pointer, dimension(:,:,:) :: U_ ! Export
+
 !
 ! !INPUT/OUTPUT PARAMETERS:
 !
@@ -562,10 +547,8 @@ contains
 !  30 Apr 2010 - R. Yantosca - Now use 5 digits for PET
 !  02 Jun 2010 - R. Yantosca - Now use IDENT%VERBOSE to trigger debug output
 !  09 Oct 2012 - R. Yantosca - Now call MAPL_Am_I_Root to test for root CPU
-!  16 Oct 2012 - R. Yantosca - Now Include freeform files Includes_Before_Run.H
-!                              and Includes_After_Run.H
-!  13 Feb 2013 - R. Yantosca - Now call MAPL_Get_SunInsolation to return
-!                              solar zenith angle and related properties
+!  16 Oct 2012 - R. Yantosca - Now Include freeform files Includes_Before_Dyn.H
+!                              and Includes_After_Dyn.H
 !EOP
 !------------------------------------------------------------------------------
 !BOC
@@ -599,7 +582,6 @@ contains
     INTEGER                      :: minute        ! Current minute
     INTEGER                      :: second        ! Current second
     REAL                         :: UTC           ! Universal time
-    REAL                         :: tsChem        ! Chem timestep [sec]
     REAL                         :: tsDyn         ! Dynamic timestep [sec]
     REAL                         :: hElapsed      ! Elapsed time [hours]
     REAL*4                       :: lonDeg        ! Longitude [degrees]
@@ -608,24 +590,28 @@ contains
     REAL*4                       :: P1, P2        ! Pressure variables
     CHARACTER(LEN=4)             :: petStr        ! String for PET #
     CHARACTER(LEN=ESMF_MAXSTR)   :: compName      ! Gridded Component name
+    CHARACTER(LEN=ESMF_MAXSTR)   :: trcNAME
+    TYPE(ESMF_Field      )       :: trcFIELD      ! Tracer field
+    TYPE(ESMF_FieldBundle)       :: trcBUNDLE     ! Tracer field bundle
     
     !MSL TEST VALUE 4/20/12
     REAL*4 :: TEST_VAL
 
     REAL*4,  ALLOCATABLE :: Z(:,:,:)
 
-    ! Allocatable local arrays
-    REAL,  ALLOCATABLE, TARGET   :: zenith(:,:)   ! Solar zenith angle
-    REAL,  ALLOCATABLE, TARGET   :: solar(:,:)    ! Solar insolation
-
     ! Pointer arrays
-    REAL(ESMF_KIND_R4), POINTER   :: lonCtr(:,:)   ! Lon centers, this CPU [rad]
-    REAL(ESMF_KIND_R4), POINTER   :: latCtr(:,:)   ! Lat centers, this CPU [rad]
+    REAL(ESMF_KIND_R4), POINTER  :: lonCtr(:,:)   ! Lon centers, this CPU [rad]
+    REAL(ESMF_KIND_R4), POINTER  :: latCtr(:,:)   ! Lat centers, this CPU [rad]
+    REAL              , POINTER  :: fPtrArray(:,:,:)
+    REAL(ESMF_KIND_R8), POINTER  :: fPtrVal, fPtr1D(:)
     
     INTEGER :: IM_WORLD, JM_WORLD
     INTEGER :: I_LO,     J_LO
     INTEGER :: I_HI,     J_HI
     INTEGER :: IND
+    INTEGER :: IFIRST, ILAST ! Grid info for halo (Currently unused)
+
+    REAL  :: TC2
 
     !=======================================================================
     ! Initialization
@@ -636,6 +622,9 @@ contains
     ! Assume success
     error = GIGC_SUCCESS
 
+    !FIX ME!
+    TC2 = 0.5e0
+
     ! Are we on the root CPU?
     am_I_Root = MAPL_Am_I_Root()
 
@@ -644,10 +633,11 @@ contains
     Iam = TRIM( compName ) // '::' // TRIM( Iam )
 
     ! Get pointers to fields in import, internal, and export states
-#   include "GIGCchem_GetPointer___.h"
+#   include "GIGCdyn_GetPointer___.h"
+    call MAPL_GetPointer ( Export, U_,  'U', RC=STATUS )
+    VERIFY_(STATUS)
 
-    ! Add Input_Opt values to GridComponent attributed for passage to 
-    ! other grid-comps. Godda be a better way!
+    U_ = U
 
     ! Re-open file for stdout redirect
     IF ( am_I_Root )  THEN
@@ -660,7 +650,6 @@ contains
                    Grid      = Grid,     &  ! ESMF Grid object
                    MaplCf    = MaplCF,   &  ! ESMF Config obj (MAPL*.rc) 
                    GeosCf    = GeosCF,   &  ! ESMF Config obj (GIGC*.rc)
-                   tsChem    = tsChem,   &  ! Chemistry timestep [min]
                    tsDyn     = tsDyn,    &  ! Dynamic timestep [min]
                    nymd      = nymd,     &  ! Current YYYY/MM/DD date
                    nhms      = nhms,     &  ! Current hh:mm:ss time
@@ -692,25 +681,56 @@ contains
 !    ASSERT_( LM <= MAX_COLUMN       )
 !    ASSERT_( LM == DimInfo%L_COLUMN )
 
+    ! Populate State_Chm & Input_Opt from trcBUNDLE
+    call ESMF_StateGet(IMPORT, 'TRACERS', trcBUNDLE, __RC__ )    
+    call ESMF_FieldBundleGet(trcBUNDLE,                       &
+                             fieldCount=Input_Opt%N_TRACERS,  &
+                              __RC__ )
+    DO IND=1, Input_Opt%N_TRACERS
+       call ESMF_FieldBundleGet(trcBUNDLE,                    &
+                                IND,                          &
+                                trcFIELD,                     &
+                                __RC__ ) ! from child
+       call ESMF_FieldGet( trcFIELD, NAME=trcNAME, __RC__)
+       call ESMFL_BundleGetPointerToData( trcBUNDLE, IND, fPtrArray, __RC__)
+       State_Chm%Trac_Name(IND)     = trcNAME
+       State_Chm%Tracers(:,:,LM:1:-1,IND) = fPtrArray ! Reverse vertical
 
-    ! Allocate GMAO_ZTH (declared at top of module)
-    IF ( .not. ALLOCATED( zenith ) ) THEN
-       ALLOCATE( zenith( IM, JM ), STAT=STATUS)
-       VERIFY_(STATUS)
-    ENDIF
+       call ESMF_AttributeGet (trcFIELD,    &
+            NAME  = 'TRAC_ID',              &
+            VALUE = State_Chm%Trac_ID(IND), &
+            RC = STATUS )       
 
-       ! Allocate GMAO_SLR (declared @ top of module)
-    IF ( .not. ALLOCATED( solar ) ) THEN
-       ALLOCATE( solar( IM, JM ), STAT=STATUS)
-       VERIFY_(STATUS)
-    ENDIF
+       call ESMF_AttributeGet (trcFIELD,    &
+            NAME  = 'TCVV',                 &
+            VALUE = Input_Opt%TCVV(IND),    &
+            RC = STATUS )
+    END DO
+    call ESMF_AttributeGet (trcBUNDLE, &
+         NAME  = 'LTRAN',              &
+         VALUE = Input_Opt%LTRAN,      &
+         RC = STATUS )       
+       
+    call ESMF_AttributeGet (trcBUNDLE, &
+         NAME  = 'LFILL',              &
+         VALUE = Input_Opt%LFILL,      &
+         RC = STATUS )       
+       
+    call ESMF_AttributeGet (trcBUNDLE, &
+         NAME  = 'LPRT',               &
+         VALUE = Input_Opt%LPRT,       &
+         RC = STATUS )       
+
+    if (AM_I_ROOT .and. Input_Opt%LPRT) then
+       print *, trim(Iam)//': TRACERS Bundle during Initialize():' 
+       call ESMF_FieldBundlePrint ( trcbundle )
+    end if
 
     IF (.not. ALLOCATED( Z ) ) THEN
        ALLOCATE(Z(IM,JM,LM))
     ENDIF
 
-    ! Call EXTRACT a second time to get the solar zenith
-    ! angle and solar insolation fields
+    ! Call EXTRACT 
     CALL Extract_( GC,                   &  ! Ref to this Gridded Component
                    Clock,                &  ! ESMF Clock object
                    Grid      = Grid,     &  ! ESMF Grid object
@@ -718,95 +738,78 @@ contains
                    GeosCf    = GeosCF,   &  ! ESMF Config obj (GIGC*.rc)
                    lonCtr    = lonCtr,   &  ! Lon centers on this CPU [radians]
                    latCtr    = latCtr,   &  ! Lat centers on this CPU [radians]
-                   ZTH       = zenith,   &  ! Solar zenith angle
-                   SLR       = solar,    &  ! Solar insolation
                    __RC__ )
 
     !=======================================================================
     ! Print timing etc. info to the log file outside of the (I,J) loop
     !=======================================================================
 
-    ! Write time quantities
-    IF ( am_I_Root ) THEN
-       WRITE( logLun, 100 ) year, month, day, hour, minute, hElapsed
-    ENDIF
-
+    
     !=======================================================================
     ! Initialize fields of the IDENT object for each (I,J) location
     !=======================================================================
     Ident%STDOUT_FILE = ''
     Ident%STDOUT_LUN  = logLun
     Ident%PET         = myPet
+    State_Met%myPet   = myPet
     Ident%I_AM(1)     = TRIM( compName )
     Ident%I_AM(2)     = 'Run_'
     Ident%LEV         = 2
     Ident%ERRMSG      = ''
 
+    call ESMF_GRID_INTERIOR(GRID, ifirst, ilast, &
+                                  State_Met%jfirst, State_Met%jlast )
+
     !=======================================================================
     ! pre-Run method array assignments
     !=======================================================================
 
-#   include "Includes_Before_Run.H"
+#   include "Includes_Before_Dyn.H"
     
-    State_Met%AIRVOL = 1.e0
-
-    where (State_Chm%Tracers .eq. 0.e0)
-       State_Chm%Tracers = 1.e-36
-    end where
     !=======================================================================
-    ! If import restart does not exist, wait until next pass to run GIGC
+    ! Execute GEOS-Chem Dynamics on Local Chunk
     !=======================================================================
 
-    IF(Input_Opt%haveImpRst) THEN
-    !=======================================================================
-    ! Execute GEOS-Chem on multiple PETs
-    !=======================================================================
+    ! Run the transport code
 
-    ! Run the GEOS-Chem column chemistry code
-     CALL GIGC_Chunk_Run( am_I_Root = am_I_Root,  &  ! Are we on the root CPU?
-                          IM        = IM,         &  ! # of lons on this CPU
-                          JM        = JM,         &  ! # of lats on this CPU
-                          LM        = LM,         &  ! # of levs on this CPU
-                          nymd      = nymd,       &  ! Current YYYY/MM/DD date
-                          nhms      = nhms,       &  ! Current hh:mm:ss time
-                          year      = year,       &  ! Current year
-                          month     = month,      &  ! Current month
-                          day       = day,        &  ! Current day
-                          dayOfYr   = dayOfYr,    &  ! Current day of year
-                          hour      = hour,       &  ! Current hour
-                          minute    = minute,     &  ! Current minute
-                          second    = second,     &  ! Current second
-                          utc       = utc,        &  ! Current UTC time [hrs]
-                          hElapsed  = hElapsed,   &  ! Elapsed hours
-                          Input_Opt = Input_Opt,  &  ! Input Options object
-                          State_Chm = State_Chm,  &  ! Chemistry State object
-                          State_Met = State_Met,  &  ! Meteorology State object
-                          RC        = error )        ! Success or failure?
+    write(*,*) 'Local Tracer Array Shape', shape(State_Chm%Tracers)
+    write(*,*) 'Local E/W Wind Array Shape', shape(State_Met%U)
+    write(*,*) 'Executing Do_Transport', maxval(State_Chm%Tracers(:,:,:,IND))
+    CALL Set_Floating_Pressure( State_Met%PS1 )
+    CALL DO_TRANSPORT( am_I_Root, Input_Opt, State_Met, State_Chm, RC )
 
     ! Trap the error from GEOS-Chem
      IF ( error /= GIGC_SUCCESS ) THEN 
         CALL Error_Trap_( Ident, error, __RC__ )
      ENDIF
 
-    END IF
-    !PRINT *,"Setting haveImpRst to TRUE"
-    Input_Opt%haveImpRst = .TRUE.
-
     !=======================================================================
     ! post-Run method array assignments
     !=======================================================================
 
-#   include "Includes_After_Run.H"
+#   include "Includes_After_Dyn.H"
+    DO IND=1, Input_Opt%N_TRACERS
+       call ESMF_FieldBundleGet(trcBUNDLE,                    &
+                                IND,                          &
+                                trcFIELD,                     &
+                                __RC__ ) ! from child
+       call ESMF_FieldGet( trcFIELD, NAME=trcNAME, __RC__)
+       call ESMFL_BundleGetPointerToData( trcBUNDLE, IND, fPtrArray, __RC__)
+       call ESMF_FieldGet( trcFIELD, NAME=trcNAME, __RC__)
+       call ESMFL_BundleGetPointerToData( trcBUNDLE, IND, fPtrArray, __RC__)
+
+       fPtrArray = State_Chm%Tracers(:,:,LM:1:-1,IND)
+
+    END DO
 
     !=======================================================================
     ! All done
     !=======================================================================
 
-    IF ( ALLOCATED( zenith ) ) DEALLOCATE( zenith )
-    IF ( ALLOCATED( solar  ) ) DEALLOCATE( solar  )
-
     ! Close the file for stdout redirect.
     IF ( am_I_Root )  CLOSE ( UNIT=logLun )
+
+!    nullify(fPtrArray)
 
     ! Successful return
     RETURN_(ESMF_SUCCESS)
@@ -958,8 +961,8 @@ contains
     TYPE(ESMF_Time)               :: currTime       ! ESMF current time obj
     TYPE(ESMF_TimeInterval)       :: elapsedTime    ! ESMF elapsed time obj
     TYPE(ESMF_VM)                 :: VM             ! ESMF VM object
-    TYPE(CHEM_State), POINTER     :: myState        ! Legacy state
-    TYPE(CHEM_Wrap)               :: wrap           ! Wrapper for myState
+    TYPE(DYN_State), POINTER      :: myState        ! Legacy state
+    TYPE(Dyn_Wrap)                :: wrap           ! Wrapper for myState
     TYPE(MAPL_MetaComp),  POINTER :: metaComp       ! MAPL MetaComp object
     TYPE(MAPL_SunOrbit)           :: sunOrbit
 
@@ -987,7 +990,7 @@ contains
     Iam = TRIM( compName ) // '::' // TRIM( Iam )
 
     ! Get the internal state which holds the private Config object
-    CALL ESMF_UserCompGetInternalState( GC, 'CHEM_State', wrap, STATUS )
+    CALL ESMF_UserCompGetInternalState( GC, 'DYN_State', wrap, STATUS )
     VERIFY_(STATUS)
     myState => wrap%ptr
 
@@ -1071,18 +1074,18 @@ contains
     ! Does the import restart file exist?
     !=======================================================================
     
-    CALL ESMF_ConfigGetAttribute( GeosCF, importRstFN,                   &
-                           DEFAULT = "geoschemchem_import_rst",          &
-                           LABEL   = "importRestartFileName:",  __RC__ )
+!    CALL ESMF_ConfigGetAttribute( GeosCF, importRstFN,                   &
+!                           DEFAULT = "geoschemchem_import_rst",          &
+!                           LABEL   = "importRestartFileName:",  __RC__ )
 
     
-    IF ( PRESENT( queryRst ) .AND. queryRst == .TRUE. ) THEN
-     INQUIRE(FILE=TRIM(importRstFN), EXIST=Input_Opt%haveImpRst)
-     IF( MAPL_AM_I_ROOT() ) THEN
-      PRINT *," ",TRIM(importRstFN)," exists: ",Input_Opt%haveImpRst
-      PRINT *," "
-     END IF
-    END IF
+!    IF ( PRESENT( queryRst ) .AND. queryRst == .TRUE. ) THEN
+!     INQUIRE(FILE=TRIM(importRstFN), EXIST=Input_Opt%haveImpRst)
+!     IF( MAPL_AM_I_ROOT() ) THEN
+!      PRINT *," ",TRIM(importRstFN)," exists: ",Input_Opt%haveImpRst
+!      PRINT *," "
+!     END IF
+!    END IF
 
     !=======================================================================
     ! Extract time/date information
@@ -1168,32 +1171,6 @@ contains
     ! Latitude values on this PET
     IF ( PRESENT( latCtr ) ) THEN
        CALL MAPL_Get( metaComp, lats=latCtr, __RC__ )
-    ENDIF
-
-    !=======================================================================
-    ! Get solar zenith angle enformation
-    !=======================================================================
-    IF ( PRESENT( ZTH    ) .and. PRESENT( SLR    )  .and. &
-         PRESENT( lonCtr ) .and. PRESENT( latCtr ) ) THEN
-         
-       ! Get the Orbit object (of type MAPL_SunOrbit),
-       ! which is used in the call to MAPL_SunGetInsolation
-       CALL MAPL_Get( metaComp,                       &
-                      LONS      = lonCtr,             &
-                      LATS      = latCtr,             &
-                      ORBIT     = sunOrbit,           &
-                      __RC__                         )
-
-       ! Get the solar zenith angle and solar insolation
-       ! NOTE: ZTH, SLR are allocated outside of this routine
-       CALL MAPL_SunGetInsolation( LONS  = lonCtr,    &
-                                   LATS  = latCtr,    &
-                                   ORBIT = sunOrbit,  &
-                                   ZTH   = ZTH,       &
-                                   SLR   = SLR,       &
-                                   CLOCK = Clock,     &
-                                   __RC__            )
-
     ENDIF
 
     !=======================================================================
@@ -1400,4 +1377,4 @@ contains
   END SUBROUTINE GridGetInterior
 !EOC
 
-end module Chem_GridCompMod
+end module Dyn_GridCompMod

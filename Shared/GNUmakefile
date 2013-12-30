@@ -39,8 +39,9 @@ esma_help :
 
 ALLDIRS = arpack pnagpack \
 	  GMAO_mpeu \
+	  GMAO_pilgrim \
           MAPL_cfio \
-          MAPL_Base
+          MAPL_Base 
 
 SUBDIRS = $(wildcard $(ALLDIRS) )
 

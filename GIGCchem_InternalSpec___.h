@@ -15,7 +15,7 @@
         UNITS              = 'mol/mol', &
         DIMS               = MAPL_DimsHorzVert,    &
         VLOCATION          = MAPL_VLocationCenter,    &
-        FRIENDLYTO         = 'DYNAMICS:TURBULENCE:T',    &
+        FRIENDLYTO         = 'DYNAMICS:TURBULENCE:GIGCdyn',    &
                                                        RC=STATUS  )
      VERIFY_(STATUS)
 
@@ -26,7 +26,7 @@
         UNITS              = 'mol/mol', &
         DIMS               = MAPL_DimsHorzVert,    &
         VLOCATION          = MAPL_VLocationCenter,    &
-        FRIENDLYTO         = 'DYNAMICS:TURBULENCE:MOIST',    &
+        FRIENDLYTO         = 'DYNAMICS:TURBULENCE:GIGCdyn',    &
                                                        RC=STATUS  )
      VERIFY_(STATUS)
 
@@ -37,6 +37,7 @@
         UNITS              = 'mol/mol', &
         DIMS               = MAPL_DimsHorzVert,    &
         VLOCATION          = MAPL_VLocationCenter,    &
+        FRIENDLYTO         = 'DYNAMICS:TURBULENCE:GIGCdyn',    &
                                                        RC=STATUS  )
      VERIFY_(STATUS)
 
@@ -47,6 +48,7 @@
         UNITS              = 'mol/mol', &
         DIMS               = MAPL_DimsHorzVert,    &
         VLOCATION          = MAPL_VLocationCenter,    &
+        FRIENDLYTO         = 'DYNAMICS:TURBULENCE:GIGCdyn',    &
                                                        RC=STATUS  )
      VERIFY_(STATUS)
 
@@ -57,6 +59,7 @@
         UNITS              = 'mol/mol', &
         DIMS               = MAPL_DimsHorzVert,    &
         VLOCATION          = MAPL_VLocationCenter,    &
+        FRIENDLYTO         = 'DYNAMICS:TURBULENCE:GIGCdyn',    &
                                                        RC=STATUS  )
      VERIFY_(STATUS)
 
@@ -67,6 +70,7 @@
         UNITS              = 'mol/mol', &
         DIMS               = MAPL_DimsHorzVert,    &
         VLOCATION          = MAPL_VLocationCenter,    &
+        FRIENDLYTO         = 'DYNAMICS:TURBULENCE:GIGCdyn',    &
                                                        RC=STATUS  )
      VERIFY_(STATUS)
 
@@ -77,6 +81,7 @@
         UNITS              = 'mol/mol', &
         DIMS               = MAPL_DimsHorzVert,    &
         VLOCATION          = MAPL_VLocationCenter,    &
+        FRIENDLYTO         = 'DYNAMICS:TURBULENCE:GIGCdyn',    &
                                                        RC=STATUS  )
      VERIFY_(STATUS)
 
@@ -87,6 +92,7 @@
         UNITS              = 'mol/mol', &
         DIMS               = MAPL_DimsHorzVert,    &
         VLOCATION          = MAPL_VLocationCenter,    &
+        FRIENDLYTO         = 'DYNAMICS:TURBULENCE:GIGCdyn',    &
                                                        RC=STATUS  )
      VERIFY_(STATUS)
 
@@ -97,6 +103,7 @@
         UNITS              = 'mol/mol', &
         DIMS               = MAPL_DimsHorzVert,    &
         VLOCATION          = MAPL_VLocationCenter,    &
+        FRIENDLYTO         = 'DYNAMICS:TURBULENCE:GIGCdyn',    &
                                                        RC=STATUS  )
      VERIFY_(STATUS)
 
@@ -107,6 +114,7 @@
         UNITS              = 'mol/mol', &
         DIMS               = MAPL_DimsHorzVert,    &
         VLOCATION          = MAPL_VLocationCenter,    &
+        FRIENDLYTO         = 'DYNAMICS:TURBULENCE:GIGCdyn',    &
                                                        RC=STATUS  )
      VERIFY_(STATUS)
 
@@ -117,6 +125,7 @@
         UNITS              = 'mol/mol', &
         DIMS               = MAPL_DimsHorzVert,    &
         VLOCATION          = MAPL_VLocationCenter,    &
+        FRIENDLYTO         = 'DYNAMICS:TURBULENCE:GIGCdyn',    &
                                                        RC=STATUS  )
      VERIFY_(STATUS)
 
@@ -127,6 +136,7 @@
         UNITS              = 'mol/mol', &
         DIMS               = MAPL_DimsHorzVert,    &
         VLOCATION          = MAPL_VLocationCenter,    &
+        FRIENDLYTO         = 'DYNAMICS:TURBULENCE:GIGCdyn',    &
                                                        RC=STATUS  )
      VERIFY_(STATUS)
 
@@ -137,6 +147,7 @@
         UNITS              = 'mol/mol', &
         DIMS               = MAPL_DimsHorzVert,    &
         VLOCATION          = MAPL_VLocationCenter,    &
+        FRIENDLYTO         = 'DYNAMICS:TURBULENCE:GIGCdyn',    &
                                                        RC=STATUS  )
      VERIFY_(STATUS)
 
@@ -147,6 +158,7 @@
         UNITS              = 'mol/mol', &
         DIMS               = MAPL_DimsHorzVert,    &
         VLOCATION          = MAPL_VLocationCenter,    &
+        FRIENDLYTO         = 'DYNAMICS:TURBULENCE:GIGCdyn',    &
                                                        RC=STATUS  )
      VERIFY_(STATUS)
 
@@ -157,6 +169,7 @@
         UNITS              = 'mol/mol', &
         DIMS               = MAPL_DimsHorzVert,    &
         VLOCATION          = MAPL_VLocationCenter,    &
+        FRIENDLYTO         = 'DYNAMICS:TURBULENCE:GIGCdyn',    &
                                                        RC=STATUS  )
      VERIFY_(STATUS)
 
@@ -167,6 +180,7 @@
         UNITS              = 'mol/mol', &
         DIMS               = MAPL_DimsHorzVert,    &
         VLOCATION          = MAPL_VLocationCenter,    &
+        FRIENDLYTO         = 'DYNAMICS:TURBULENCE:GIGCdyn',    &
                                                        RC=STATUS  )
      VERIFY_(STATUS)
 
@@ -177,6 +191,7 @@
         UNITS              = 'mol/mol', &
         DIMS               = MAPL_DimsHorzVert,    &
         VLOCATION          = MAPL_VLocationCenter,    &
+        FRIENDLYTO         = 'DYNAMICS:TURBULENCE:GIGCdyn',    &
                                                        RC=STATUS  )
      VERIFY_(STATUS)
 
@@ -187,6 +202,7 @@
         UNITS              = 'mol/mol', &
         DIMS               = MAPL_DimsHorzVert,    &
         VLOCATION          = MAPL_VLocationCenter,    &
+        FRIENDLYTO         = 'DYNAMICS:TURBULENCE:GIGCdyn',    &
                                                        RC=STATUS  )
      VERIFY_(STATUS)
 
@@ -197,6 +213,7 @@
         UNITS              = 'mol/mol', &
         DIMS               = MAPL_DimsHorzVert,    &
         VLOCATION          = MAPL_VLocationCenter,    &
+        FRIENDLYTO         = 'DYNAMICS:TURBULENCE:GIGCdyn',    &
                                                        RC=STATUS  )
      VERIFY_(STATUS)
 
@@ -207,6 +224,7 @@
         UNITS              = 'mol/mol', &
         DIMS               = MAPL_DimsHorzVert,    &
         VLOCATION          = MAPL_VLocationCenter,    &
+        FRIENDLYTO         = 'DYNAMICS:TURBULENCE:GIGCdyn',    &
                                                        RC=STATUS  )
      VERIFY_(STATUS)
 
@@ -217,6 +235,7 @@
         UNITS              = 'mol/mol', &
         DIMS               = MAPL_DimsHorzVert,    &
         VLOCATION          = MAPL_VLocationCenter,    &
+        FRIENDLYTO         = 'DYNAMICS:TURBULENCE:GIGCdyn',    &
                                                        RC=STATUS  )
      VERIFY_(STATUS)
 
@@ -227,6 +246,7 @@
         UNITS              = 'mol/mol', &
         DIMS               = MAPL_DimsHorzVert,    &
         VLOCATION          = MAPL_VLocationCenter,    &
+        FRIENDLYTO         = 'DYNAMICS:TURBULENCE:GIGCdyn',    &
                                                        RC=STATUS  )
      VERIFY_(STATUS)
 
@@ -237,6 +257,7 @@
         UNITS              = 'mol/mol', &
         DIMS               = MAPL_DimsHorzVert,    &
         VLOCATION          = MAPL_VLocationCenter,    &
+        FRIENDLYTO         = 'DYNAMICS:TURBULENCE:GIGCdyn',    &
                                                        RC=STATUS  )
      VERIFY_(STATUS)
 
@@ -247,6 +268,7 @@
         UNITS              = 'mol/mol', &
         DIMS               = MAPL_DimsHorzVert,    &
         VLOCATION          = MAPL_VLocationCenter,    &
+        FRIENDLYTO         = 'DYNAMICS:TURBULENCE:GIGCdyn',    &
                                                        RC=STATUS  )
      VERIFY_(STATUS)
 
@@ -257,6 +279,7 @@
         UNITS              = 'mol/mol', &
         DIMS               = MAPL_DimsHorzVert,    &
         VLOCATION          = MAPL_VLocationCenter,    &
+        FRIENDLYTO         = 'DYNAMICS:TURBULENCE:GIGCdyn',    &
                                                        RC=STATUS  )
      VERIFY_(STATUS)
 
@@ -267,6 +290,7 @@
         UNITS              = 'mol/mol', &
         DIMS               = MAPL_DimsHorzVert,    &
         VLOCATION          = MAPL_VLocationCenter,    &
+        FRIENDLYTO         = 'DYNAMICS:TURBULENCE:GIGCdyn',    &
                                                        RC=STATUS  )
      VERIFY_(STATUS)
 
@@ -277,6 +301,7 @@
         UNITS              = 'mol/mol', &
         DIMS               = MAPL_DimsHorzVert,    &
         VLOCATION          = MAPL_VLocationCenter,    &
+        FRIENDLYTO         = 'DYNAMICS:TURBULENCE:GIGCdyn',    &
                                                        RC=STATUS  )
      VERIFY_(STATUS)
 
@@ -287,6 +312,7 @@
         UNITS              = 'mol/mol', &
         DIMS               = MAPL_DimsHorzVert,    &
         VLOCATION          = MAPL_VLocationCenter,    &
+        FRIENDLYTO         = 'DYNAMICS:TURBULENCE:GIGCdyn',    &
                                                        RC=STATUS  )
      VERIFY_(STATUS)
 
@@ -297,6 +323,7 @@
         UNITS              = 'mol/mol', &
         DIMS               = MAPL_DimsHorzVert,    &
         VLOCATION          = MAPL_VLocationCenter,    &
+        FRIENDLYTO         = 'DYNAMICS:TURBULENCE:GIGCdyn',    &
                                                        RC=STATUS  )
      VERIFY_(STATUS)
 
@@ -307,6 +334,7 @@
         UNITS              = 'mol/mol', &
         DIMS               = MAPL_DimsHorzVert,    &
         VLOCATION          = MAPL_VLocationCenter,    &
+        FRIENDLYTO         = 'DYNAMICS:TURBULENCE:GIGCdyn',    &
                                                        RC=STATUS  )
      VERIFY_(STATUS)
 
@@ -317,6 +345,7 @@
         UNITS              = 'mol/mol', &
         DIMS               = MAPL_DimsHorzVert,    &
         VLOCATION          = MAPL_VLocationCenter,    &
+        FRIENDLYTO         = 'DYNAMICS:TURBULENCE:GIGCdyn',    &
                                                        RC=STATUS  )
      VERIFY_(STATUS)
 
@@ -327,6 +356,7 @@
         UNITS              = 'mol/mol', &
         DIMS               = MAPL_DimsHorzVert,    &
         VLOCATION          = MAPL_VLocationCenter,    &
+        FRIENDLYTO         = 'DYNAMICS:TURBULENCE:GIGCdyn',    &
                                                        RC=STATUS  )
      VERIFY_(STATUS)
 
@@ -337,6 +367,7 @@
         UNITS              = 'mol/mol', &
         DIMS               = MAPL_DimsHorzVert,    &
         VLOCATION          = MAPL_VLocationCenter,    &
+        FRIENDLYTO         = 'DYNAMICS:TURBULENCE:GIGCdyn',    &
                                                        RC=STATUS  )
      VERIFY_(STATUS)
 
@@ -347,6 +378,7 @@
         UNITS              = 'mol/mol', &
         DIMS               = MAPL_DimsHorzVert,    &
         VLOCATION          = MAPL_VLocationCenter,    &
+        FRIENDLYTO         = 'DYNAMICS:TURBULENCE:GIGCdyn',    &
                                                        RC=STATUS  )
      VERIFY_(STATUS)
 
@@ -357,6 +389,7 @@
         UNITS              = 'mol/mol', &
         DIMS               = MAPL_DimsHorzVert,    &
         VLOCATION          = MAPL_VLocationCenter,    &
+        FRIENDLYTO         = 'DYNAMICS:TURBULENCE:GIGCdyn',    &
                                                        RC=STATUS  )
      VERIFY_(STATUS)
 
@@ -367,6 +400,7 @@
         UNITS              = 'mol/mol', &
         DIMS               = MAPL_DimsHorzVert,    &
         VLOCATION          = MAPL_VLocationCenter,    &
+        FRIENDLYTO         = 'DYNAMICS:TURBULENCE:GIGCdyn',    &
                                                        RC=STATUS  )
      VERIFY_(STATUS)
 
@@ -377,6 +411,7 @@
         UNITS              = 'mol/mol', &
         DIMS               = MAPL_DimsHorzVert,    &
         VLOCATION          = MAPL_VLocationCenter,    &
+        FRIENDLYTO         = 'DYNAMICS:TURBULENCE:GIGCdyn',    &
                                                        RC=STATUS  )
      VERIFY_(STATUS)
 
@@ -387,6 +422,7 @@
         UNITS              = 'mol/mol', &
         DIMS               = MAPL_DimsHorzVert,    &
         VLOCATION          = MAPL_VLocationCenter,    &
+        FRIENDLYTO         = 'DYNAMICS:TURBULENCE:GIGCdyn',    &
                                                        RC=STATUS  )
      VERIFY_(STATUS)
 
@@ -397,6 +433,7 @@
         UNITS              = 'mol/mol', &
         DIMS               = MAPL_DimsHorzVert,    &
         VLOCATION          = MAPL_VLocationCenter,    &
+        FRIENDLYTO         = 'DYNAMICS:TURBULENCE:GIGCdyn',    &
                                                        RC=STATUS  )
      VERIFY_(STATUS)
 
@@ -407,6 +444,7 @@
         UNITS              = 'mol/mol', &
         DIMS               = MAPL_DimsHorzVert,    &
         VLOCATION          = MAPL_VLocationCenter,    &
+        FRIENDLYTO         = 'DYNAMICS:TURBULENCE:GIGCdyn',    &
                                                        RC=STATUS  )
      VERIFY_(STATUS)
 
@@ -417,6 +455,7 @@
         UNITS              = 'mol/mol', &
         DIMS               = MAPL_DimsHorzVert,    &
         VLOCATION          = MAPL_VLocationCenter,    &
+        FRIENDLYTO         = 'DYNAMICS:TURBULENCE:GIGCdyn',    &
                                                        RC=STATUS  )
      VERIFY_(STATUS)
 
@@ -427,6 +466,7 @@
         UNITS              = 'mol/mol', &
         DIMS               = MAPL_DimsHorzVert,    &
         VLOCATION          = MAPL_VLocationCenter,    &
+        FRIENDLYTO         = 'DYNAMICS:TURBULENCE:GIGCdyn',    &
                                                        RC=STATUS  )
      VERIFY_(STATUS)
 
@@ -437,6 +477,7 @@
         UNITS              = 'mol/mol', &
         DIMS               = MAPL_DimsHorzVert,    &
         VLOCATION          = MAPL_VLocationCenter,    &
+        FRIENDLYTO         = 'DYNAMICS:TURBULENCE:GIGCdyn',    &
                                                        RC=STATUS  )
      VERIFY_(STATUS)
 
@@ -447,7 +488,7 @@
         UNITS              = 'mol/mol', &
         DIMS               = MAPL_DimsHorzVert,    &
         VLOCATION          = MAPL_VLocationCenter,    &
-        FRIENDLYTO         = 'DYNAMICS:TURBULENCE:MOIST',    &
+        FRIENDLYTO         = 'DYNAMICS:TURBULENCE:GIGCdyn',    &
                                                        RC=STATUS  )
      VERIFY_(STATUS)
 
@@ -458,7 +499,7 @@
         UNITS              = 'mol/mol', &
         DIMS               = MAPL_DimsHorzVert,    &
         VLOCATION          = MAPL_VLocationCenter,    &
-        FRIENDLYTO         = 'DYNAMICS:TURBULENCE:MOIST',    &
+        FRIENDLYTO         = 'DYNAMICS:TURBULENCE:GIGCdyn',    &
                                                        RC=STATUS  )
      VERIFY_(STATUS)
 
@@ -469,7 +510,7 @@
         UNITS              = 'mol/mol', &
         DIMS               = MAPL_DimsHorzVert,    &
         VLOCATION          = MAPL_VLocationCenter,    &
-        FRIENDLYTO         = 'DYNAMICS:TURBULENCE:MOIST',    &
+        FRIENDLYTO         = 'DYNAMICS:TURBULENCE:GIGCdyn',    &
                                                        RC=STATUS  )
      VERIFY_(STATUS)
 
@@ -480,6 +521,7 @@
         UNITS              = 'mol/mol', &
         DIMS               = MAPL_DimsHorzVert,    &
         VLOCATION          = MAPL_VLocationCenter,    &
+        FRIENDLYTO         = 'DYNAMICS:TURBULENCE:GIGCdyn',    &
                                                        RC=STATUS  )
      VERIFY_(STATUS)
 
@@ -490,6 +532,7 @@
         UNITS              = 'mol/mol', &
         DIMS               = MAPL_DimsHorzVert,    &
         VLOCATION          = MAPL_VLocationCenter,    &
+        FRIENDLYTO         = 'DYNAMICS:TURBULENCE:GIGCdyn',    &
                                                        RC=STATUS  )
      VERIFY_(STATUS)
 
@@ -500,6 +543,7 @@
         UNITS              = 'mol/mol', &
         DIMS               = MAPL_DimsHorzVert,    &
         VLOCATION          = MAPL_VLocationCenter,    &
+        FRIENDLYTO         = 'DYNAMICS:TURBULENCE:GIGCdyn',    &
                                                        RC=STATUS  )
      VERIFY_(STATUS)
 
@@ -510,6 +554,7 @@
         UNITS              = 'mol/mol', &
         DIMS               = MAPL_DimsHorzVert,    &
         VLOCATION          = MAPL_VLocationCenter,    &
+        FRIENDLYTO         = 'DYNAMICS:TURBULENCE:GIGCdyn',    &
                                                        RC=STATUS  )
      VERIFY_(STATUS)
 
@@ -520,6 +565,7 @@
         UNITS              = 'mol/mol', &
         DIMS               = MAPL_DimsHorzVert,    &
         VLOCATION          = MAPL_VLocationCenter,    &
+        FRIENDLYTO         = 'DYNAMICS:TURBULENCE:GIGCdyn',    &
                                                        RC=STATUS  )
      VERIFY_(STATUS)
 
@@ -530,6 +576,7 @@
         UNITS              = 'mol/mol', &
         DIMS               = MAPL_DimsHorzVert,    &
         VLOCATION          = MAPL_VLocationCenter,    &
+        FRIENDLYTO         = 'DYNAMICS:TURBULENCE:GIGCdyn',    &
                                                        RC=STATUS  )
      VERIFY_(STATUS)
 
@@ -540,6 +587,7 @@
         UNITS              = 'mol/mol', &
         DIMS               = MAPL_DimsHorzVert,    &
         VLOCATION          = MAPL_VLocationCenter,    &
+        FRIENDLYTO         = 'DYNAMICS:TURBULENCE:GIGCdyn',    &
                                                        RC=STATUS  )
      VERIFY_(STATUS)
 
@@ -550,6 +598,7 @@
         UNITS              = 'mol/mol', &
         DIMS               = MAPL_DimsHorzVert,    &
         VLOCATION          = MAPL_VLocationCenter,    &
+        FRIENDLYTO         = 'DYNAMICS:TURBULENCE:GIGCdyn',    &
                                                        RC=STATUS  )
      VERIFY_(STATUS)
 
@@ -560,6 +609,7 @@
         UNITS              = 'mol/mol', &
         DIMS               = MAPL_DimsHorzVert,    &
         VLOCATION          = MAPL_VLocationCenter,    &
+        FRIENDLYTO         = 'DYNAMICS:TURBULENCE:GIGCdyn',    &
                                                        RC=STATUS  )
      VERIFY_(STATUS)
 
@@ -570,6 +620,7 @@
         UNITS              = 'mol/mol', &
         DIMS               = MAPL_DimsHorzVert,    &
         VLOCATION          = MAPL_VLocationCenter,    &
+        FRIENDLYTO         = 'DYNAMICS:TURBULENCE:GIGCdyn',    &
                                                        RC=STATUS  )
      VERIFY_(STATUS)
 
@@ -580,6 +631,7 @@
         UNITS              = 'mol/mol', &
         DIMS               = MAPL_DimsHorzVert,    &
         VLOCATION          = MAPL_VLocationCenter,    &
+        FRIENDLYTO         = 'DYNAMICS:TURBULENCE:GIGCdyn',    &
                                                        RC=STATUS  )
      VERIFY_(STATUS)
 
@@ -590,6 +642,7 @@
         UNITS              = 'mol/mol', &
         DIMS               = MAPL_DimsHorzVert,    &
         VLOCATION          = MAPL_VLocationCenter,    &
+        FRIENDLYTO         = 'DYNAMICS:TURBULENCE:GIGCdyn',    &
                                                        RC=STATUS  )
      VERIFY_(STATUS)
 
@@ -600,6 +653,7 @@
         UNITS              = 'mol/mol', &
         DIMS               = MAPL_DimsHorzVert,    &
         VLOCATION          = MAPL_VLocationCenter,    &
+        FRIENDLYTO         = 'DYNAMICS:TURBULENCE:GIGCdyn',    &
                                                        RC=STATUS  )
      VERIFY_(STATUS)
 
@@ -610,6 +664,7 @@
         UNITS              = 'mol/mol', &
         DIMS               = MAPL_DimsHorzVert,    &
         VLOCATION          = MAPL_VLocationCenter,    &
+        FRIENDLYTO         = 'DYNAMICS:TURBULENCE:GIGCdyn',    &
                                                        RC=STATUS  )
      VERIFY_(STATUS)
 
@@ -620,6 +675,7 @@
         UNITS              = 'mol/mol', &
         DIMS               = MAPL_DimsHorzVert,    &
         VLOCATION          = MAPL_VLocationCenter,    &
+        FRIENDLYTO         = 'DYNAMICS:TURBULENCE:GIGCdyn',    &
                                                        RC=STATUS  )
      VERIFY_(STATUS)
 
@@ -630,6 +686,7 @@
         UNITS              = 'mol/mol', &
         DIMS               = MAPL_DimsHorzVert,    &
         VLOCATION          = MAPL_VLocationCenter,    &
+        FRIENDLYTO         = 'DYNAMICS:TURBULENCE:GIGCdyn',    &
                                                        RC=STATUS  )
      VERIFY_(STATUS)
 
@@ -640,6 +697,7 @@
         UNITS              = 'mol/mol', &
         DIMS               = MAPL_DimsHorzVert,    &
         VLOCATION          = MAPL_VLocationCenter,    &
+        FRIENDLYTO         = 'DYNAMICS:TURBULENCE:GIGCdyn',    &
                                                        RC=STATUS  )
      VERIFY_(STATUS)
 
@@ -650,6 +708,7 @@
         UNITS              = 'mol/mol', &
         DIMS               = MAPL_DimsHorzVert,    &
         VLOCATION          = MAPL_VLocationCenter,    &
+        FRIENDLYTO         = 'DYNAMICS:TURBULENCE:GIGCdyn',    &
                                                        RC=STATUS  )
      VERIFY_(STATUS)
 
@@ -660,6 +719,7 @@
         UNITS              = 'mol/mol', &
         DIMS               = MAPL_DimsHorzVert,    &
         VLOCATION          = MAPL_VLocationCenter,    &
+        FRIENDLYTO         = 'DYNAMICS:TURBULENCE:GIGCdyn',    &
                                                        RC=STATUS  )
      VERIFY_(STATUS)
 
@@ -670,6 +730,7 @@
         UNITS              = 'mol/mol', &
         DIMS               = MAPL_DimsHorzVert,    &
         VLOCATION          = MAPL_VLocationCenter,    &
+        FRIENDLYTO         = 'DYNAMICS:TURBULENCE:GIGCdyn',    &
                                                        RC=STATUS  )
      VERIFY_(STATUS)
 

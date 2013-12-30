@@ -29,6 +29,7 @@ MODULE GIGC_Mpi_Wrap
   PUBLIC :: GIGC_Bcast_Char 
   PUBLIC :: GIGC_Bcast_Int
   PUBLIC :: GIGC_Bcast_Real8
+  PUBLIC :: GIGC_Halo_NS_2d_R8
   PUBLIC :: mpiComm
 !
 ! !REMARKS:
@@ -51,6 +52,7 @@ MODULE GIGC_Mpi_Wrap
 !------------------------------------------------------------------------------
 !BOC
   INTEGER, SAVE :: mpiComm
+  INTEGER, SAVE :: northPET, southPET, eastPET, westPET
 
 CONTAINS
 !EOC
@@ -1469,5 +1471,188 @@ CONTAINS
     
   END SUBROUTINE GIGC_Bcast_Real8
 !EOC
+!------------------------------------------------------------------------------
+!          Harvard University Atmospheric Chemistry Modeling Group            !
+!------------------------------------------------------------------------------
+!BOP
+!
+! !IROUTINE: INIT_HALO
+!
+! !DESCRIPTION: Initialize halo parameters for the DE
+!\\
+!\\
+! !INTERFACE:
+!
+  SUBROUTINE INIT_GIGC_HALO(GRID, RC)
+!
+! !USES:
+!
+    USE GIGC_Errcode_Mod
+    USE MAPL_MOD
+    USE ESMF_MOD
+!
+! !INPUT PARAMETERS:
+!
+    TYPE(ESMF_Grid), INTENT(IN)   :: Grid        ! ESMF Grid object
+! 
+! !INPUT/OUTPUT PARAMETERS:
+!
+
+!
+! !OUTPUT PARAMETERS:
+!
+    INTEGER, INTENT(OUT)          :: RC          ! Success or failure?
+!
+! !REMARKS:
+!  Set
+!
+! !REVISION HISTORY:
+!  21 Nov 2013 - M. Long     - Initial version
+!EOP
+!------------------------------------------------------------------------------
+!BOC
+    
+    RC = GIGC_SUCCESS
+    
+  END SUBROUTINE INIT_GIGC_HALO
+!EOC
+!------------------------------------------------------------------------------
+!          Harvard University Atmospheric Chemistry Modeling Group            !
+!------------------------------------------------------------------------------
+!BOP
+!
+! !IROUTINE: GIGC_HALO_NS_2d_R8
+!
+! !DESCRIPTION: Wrapper routine to SEND/RECV & COPY halo region
+! within GIGC/ESMF DE's for a 2-dim REAL*8 variable only.
+!\\
+!\\
+! !INTERFACE:
+!
+  SUBROUTINE GIGC_HALO_NS_2d_R8(Q, JFIRST, JLAST, NS_HALOWIDTH, RC)
+!
+! !USES:
+!
+    USE CMN_SIZE_MOD, ONLY   : JM_WORLD
+    USE GIGC_Errcode_Mod
+    USE M_MPIF
+!
+! !INPUT PARAMETERS:
+!
+    ! Latitude indices for local first box and local last box
+    ! (NOTE: for global grids these are 1 and JM, respectively)
+    INTEGER, INTENT(IN)            :: JFIRST     
+    INTEGER, INTENT(IN)            :: JLAST 
+
+    ! N/S width of halo region to be sent & recv'd
+    INTEGER, INTENT(IN)            :: NS_HALOWIDTH
+
+! 
+! !INPUT/OUTPUT PARAMETERS:
+!
+    REAL*8,  INTENT(INOUT)         :: Q(:,:)   ! Variable to be broadcast
+!
+! !OUTPUT PARAMETERS:
+!
+    INTEGER, OPTIONAL, INTENT(OUT) :: RC          ! Success or failure?
+
+!
+! !LOCAL PARAMETERS:
+!
+    INTEGER                        :: sendPet, recvPet, myPet, IDIM, BUF_SIZE
+    INTEGER                        :: IERR
+    REAL*8, ALLOCATABLE            :: Q_BUF(:)
+    INTEGER                        :: status(MPI_STATUS_SIZE)
+
+! Set-up to/from ranks & params
+    call MPI_COMM_RANK (mpiComm, myPet, ierr)
+
+! Since N/S copy, sending longitudinal rows is implied
+    buf_size = SIZE(Q,1)*NS_HALOWIDTH
+    ALLOCATE(Q_BUF(BUF_SIZE))
+
+! 1) Send halo region
+!  a. If not at Southern grid boundary, send southern halo to nothern halo (2b)
+    if (jfirst > 1) then
+
+       ! Unrolling NS_HALOWIDTH non-halo (local) Southern longitudes 
+       CALL UNROLL_2DR8(Q(:,NS_HALOWIDTH+1:2*NS_HALOWIDTH), Q_BUF, SIZE(Q,1), NS_HALOWIDTH, BUF_SIZE)
+
+       recvPet = myPet-1 ! This dangerously assumes N/S decomposition.
+       CALL MPI_SEND(q_buf,buf_size, mpi_real8, recvPet, 1, mpiComm, ierr)
+    endif
+!  b. If not at Northern grid boundary, send northern halo to southern halo (2a)
+    if (jlast  < jm_world) then
+
+       ! Unrolling NS_HALOWIDTH non-halo (local) Northern longitudes 
+       CALL UNROLL_2DR8(Q(:,jlast-NS_HALOWIDTH+1:jlast), Q_BUF, SIZE(Q,1), NS_HALOWIDTH, BUF_SIZE)
+
+       recvPet = myPet+1 ! This dangerously assumes N/S decomposition.
+       CALL MPI_SEND(q_buf,buf_size, mpi_real8, recvPet, 1, mpiComm, ierr)
+    endif
+! 2) Receive halo region
+!  a. If not at Southern grid boundary, recv southern halo from northern halo (1b)
+    if (jfirst > 1) then
+       sendPet = myPet-1 ! This dangerously assumes N/S decomposition.
+       CALL MPI_RECV(q_buf,buf_size, mpi_real8, sendPet, 1, mpiComm, status, ierr)
+
+       CALL ROLL_2DR8(Q(:,1:NS_HALOWIDTH), Q_BUF, SIZE(Q,1), NS_HALOWIDTH, BUF_SIZE)
+
+    endif
+!  b. If not at Northern grid boundary, recv northern halo from southern halo (1a)
+    if (jlast  < jm_world) then
+       sendPet = myPet+1 ! This dangerously assumes N/S decomposition.
+       CALL MPI_RECV(q_buf,buf_size, mpi_real8, sendPet, 1, mpiComm, status, ierr)
+
+       CALL ROLL_2DR8(Q(:,jlast:jlast+NS_HALOWIDTH), Q_BUF, SIZE(Q,1), NS_HALOWIDTH, BUF_SIZE)
+
+    endif
+! 3) Copy halo to appropriate var
+!  a. If not at Southern grid boundary, copy southern halo
+    if (jfirst > 1) then
+    endif
+!  b. If not at Northern grid boundary, copy northern halo
+    if (jlast  < jm_world) then
+    endif
+
+    CONTAINS
+
+      SUBROUTINE UNROLL_2DR8(Q, Q_BUF, NI, NJ, B_SIZE)
+        REAL*8, INTENT(IN   ) :: Q(NI,NJ)
+        INTEGER, INTENT(IN  ) :: B_SIZE
+        REAL*8, INTENT(  OUT) :: Q_BUF(B_SIZE)
+        INTEGER NI, NJ, I, J, IND
+        
+        IND = 1
+        DO I=1,NI
+           DO J=1,NJ
+              Q_BUF(IND) = Q(I,J)
+              IND = IND+1
+           ENDDO
+        ENDDO
+        
+        RETURN
+
+      END SUBROUTINE UNROLL_2DR8
+
+      SUBROUTINE ROLL_2DR8(Q, Q_BUF, NI, NJ, B_SIZE)
+        REAL*8, INTENT(  OUT) :: Q(NI,NJ)
+        INTEGER, INTENT(IN  ) :: B_SIZE
+        REAL*8, INTENT(IN   ) :: Q_BUF(B_SIZE)
+        INTEGER NI, NJ, I, J, IND
+        
+        IND = 1
+        DO I=1,NI
+           DO J=1,NJ
+              Q(I,J) = Q_BUF(IND)
+              IND = IND+1
+           ENDDO
+        ENDDO
+        
+        RETURN
+      END SUBROUTINE ROLL_2DR8
+      
+  END SUBROUTINE GIGC_HALO_NS_2D_R8
+  !EOC
 END MODULE GIGC_Mpi_Wrap
 #endif

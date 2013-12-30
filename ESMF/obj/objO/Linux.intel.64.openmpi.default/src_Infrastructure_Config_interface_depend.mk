@@ -1,8 +1,0 @@
-  /home/mlong/CfA/GIGC/ESMF//obj/objO/Linux.intel.64.openmpi.default/ESMF_Config_C.o : /home/mlong/CfA/GIGC/ESMF//obj/objO/Linux.intel.64.openmpi.default/ESMF_Base.o /home/mlong/CfA/GIGC/ESMF//obj/objO/Linux.intel.64.openmpi.default/ESMF_Config.o /home/mlong/CfA/GIGC/ESMF//obj/objO/Linux.intel.64.openmpi.default/ESMF_UtilTypes.o 
-  /home/mlong/CfA/GIGC/ESMF//obj/objO/Linux.intel.64.openmpi.default/ESMC_Config.o : ESMC_Config.h
-  /home/mlong/CfA/GIGC/ESMF//obj/objO/Linux.intel.64.openmpi.default/ESMF_Config_C.o : /home/mlong/CfA/GIGC/ESMF//obj/objO/Linux.intel.64.openmpi.default/ESMF_Base.o /home/mlong/CfA/GIGC/ESMF//obj/objO/Linux.intel.64.openmpi.default/ESMF_Config.o /home/mlong/CfA/GIGC/ESMF//obj/objO/Linux.intel.64.openmpi.default/ESMF_UtilTypes.o 
-  /home/mlong/CfA/GIGC/ESMF//obj/objO/Linux.intel.64.openmpi.default/ESMC_Config.o : ESMC_Config.h
-  /home/mlong/CfA/GIGC/ESMF/obj/objO/Linux.intel.64.openmpi.default/ESMF_Config_C.o : /home/mlong/CfA/GIGC/ESMF/obj/objO/Linux.intel.64.openmpi.default/ESMF_Base.o /home/mlong/CfA/GIGC/ESMF/obj/objO/Linux.intel.64.openmpi.default/ESMF_Config.o /home/mlong/CfA/GIGC/ESMF/obj/objO/Linux.intel.64.openmpi.default/ESMF_UtilTypes.o 
-  /home/mlong/CfA/GIGC/ESMF/obj/objO/Linux.intel.64.openmpi.default/ESMC_Config.o : ESMC_Config.h
-  /home/mlong/CfA/GIGC/ESMF/obj/objO/Linux.intel.64.openmpi.default/ESMF_Config_C.o : /home/mlong/CfA/GIGC/ESMF/obj/objO/Linux.intel.64.openmpi.default/ESMF_Base.o /home/mlong/CfA/GIGC/ESMF/obj/objO/Linux.intel.64.openmpi.default/ESMF_Config.o /home/mlong/CfA/GIGC/ESMF/obj/objO/Linux.intel.64.openmpi.default/ESMF_UtilTypes.o 
-  /home/mlong/CfA/GIGC/ESMF/obj/objO/Linux.intel.64.openmpi.default/ESMC_Config.o : ESMC_Config.h
