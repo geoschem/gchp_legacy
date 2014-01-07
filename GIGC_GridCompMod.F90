@@ -19,6 +19,7 @@ module GIGC_GridCompMod
 
   use CHEM_GridCompMod,       only : AtmosChemSetServices     => SetServices
   use DYN_GridCompMod,        only : AtmosDynSetServices      => SetServices
+  use HEMCO_GridCompMod,      only : AtmosEmisSetServices     => SetServices
 
   implicit none
   private
@@ -33,7 +34,7 @@ module GIGC_GridCompMod
  
 !EOP
 
-  integer ::        CHEM, DYN
+  integer ::        CHEM, DYN, EMIS
 
 contains
 
@@ -71,6 +72,7 @@ contains
     CHARACTER(LEN=ESMF_MAXSTR)              :: RATsProviderName
     integer                                 :: I
     type (ESMF_Config)                      :: CF
+    logical                                 :: am_I_Root
 
 !=============================================================================
 
@@ -101,6 +103,9 @@ contains
     VERIFY_(STATUS)
 
     DYN  = MAPL_AddChild(GC, NAME='GIGCdyn',  SS=AtmosDynSetServices, RC=STATUS)
+    VERIFY_(STATUS)
+
+    EMIS  = MAPL_AddChild(GC, NAME='GIGCemis',  SS=AtmosEmisSetServices, RC=STATUS)
     VERIFY_(STATUS)
 
 !BOP
@@ -356,6 +361,19 @@ contains
 
     I=DYN   
     write(*,*) 'Running Dynamics GC'
+    call MAPL_TimerOn (STATE,GCNames(I))
+     call ESMF_GridCompRun (GCS(I), importState=GIM(I), &
+          exportState=GEX(I), clock=CLOCK, userRC=STATUS );
+     VERIFY_(STATUS)
+     call MAPL_GenericRunCouplers (STATE, I, CLOCK, RC=STATUS );
+     VERIFY_(STATUS)
+    call MAPL_TimerOff(STATE,GCNames(I))
+
+! Emissions  
+!------------------
+
+    I=EMIS  
+    write(*,*) 'Running Emissions (HEMCO)'
     call MAPL_TimerOn (STATE,GCNames(I))
      call ESMF_GridCompRun (GCS(I), importState=GIM(I), &
           exportState=GEX(I), clock=CLOCK, userRC=STATUS );
