@@ -144,8 +144,8 @@ contains
         SHORT_NAME         = 'EMISSIONS',                         &
         LONG_NAME          = 'tracer_surface_emissions',          &
         UNITS              = 'kg/m2/s',                           &
-        DIMS               = MAPL_DimsHorzOnly,                   &
-        VLOCATION          = MAPL_VLocationNone,                  &
+        DIMS               = MAPL_DimsHorzVert,                   &
+        VLOCATION          = MAPL_VLocationCenter,                &
         DATATYPE           = MAPL_BundleItem,                     &
                                                             __RC__ )
 
@@ -168,14 +168,13 @@ contains
 !
 #   include "GIGCchem_ExportSpec___.h"
 
-    call MAPL_AddInternalSpec(GC,                                 &
+    call MAPL_AddExportSpec(GC,                                   &
         SHORT_NAME         = 'TRACERS',                           &
         LONG_NAME          = 'tracer_volume_mixing_ratios',       &
         UNITS              = 'mol/mol',                           &
         DIMS               = MAPL_DimsHorzVert,                   &
         VLOCATION          = MAPL_VLocationCenter,                &
         DATATYPE           = MAPL_BundleItem,                     &
-        FRIENDLYTO         = 'DYNAMICS:TURBULENCE:GIGCdyn',    &
                                                        RC=STATUS  )!EOP
 !BOC
 
@@ -273,8 +272,6 @@ contains
     ! Working variables
     TYPE(ESMF_Field)            :: field
     TYPE(ESMF_FieldBundle)      :: bundle
-    TYPE(MAPL_MetaComp), pointer :: MetaComp
-    TYPE(ESMF_State)             :: INTERNAL
     INTEGER                     :: N
 
     !=======================================================================
@@ -364,8 +361,8 @@ contains
 
     ! Open file for stdout redirect
     IF ( am_I_Root )  THEN
-       OPEN ( UNIT=logLun, FILE=TRIM(logFile), STATUS='OLD' , ACTION='WRITE', ACCESS='APPEND' )
-!       OPEN ( logLun, FILE=LOGFILE, STATUS='UNKNOWN' )
+!       OPEN ( UNIT=logLun, FILE=TRIM(logFile), STATUS='OLD' , ACTION='WRITE', ACCESS='APPEND' )
+       OPEN ( logLun, FILE=LOGFILE, STATUS='UNKNOWN' )
     ENDIF
 
     ! Add descriptive header text
@@ -453,14 +450,10 @@ contains
        CALL Error_Trap_( Ident, error, __RC__ )
     ENDIF
 
-    call MAPL_GetObjectFromGC ( GC, MetaComp, RC=STATUS)
-    VERIFY_(STATUS)
-    call MAPL_Get ( MetaComp, INTERNAL_ESMF_STATE=INTERNAL, RC=STATUS  )
-    VERIFY_(STATUS)
-    call ESMF_StateGet(INTERNAL, 'TRACERS', bundle, __RC__ )
+    call ESMF_StateGet(Export, 'TRACERS', bundle, __RC__ )
 
     DO N = 1, Input_Opt%N_TRACERS
-       call ESMF_StateGet ( INTERNAL,     &
+       call ESMF_StateGet ( Export,     &
             trim(State_Chm%Trac_Name(N)), &
             FIELD, __RC__ )
 
@@ -517,11 +510,11 @@ contains
     !=======================================================================
 
     ! Write a header before the timestepping begins
-!    IF ( am_I_Root ) THEN
+    IF ( am_I_Root ) THEN
        WRITE( logLun, '(/,a)' ) REPEAT( '#', 79 )
        WRITE( logLun, 200     ) TRIM( compName ) // '::Run_', myPet
        WRITE( logLun, '(a,/)' ) REPEAT( '#', 79 )
-!    ENDIF
+    ENDIF
 
     ! Close the file for stdout redirect.  Reopen when executing the run method.
     IF ( am_I_Root )  CLOSE ( UNIT=logLun )
@@ -778,18 +771,15 @@ contains
     !=======================================================================
 
     call ESMF_StateGet(IMPORT, 'EMISSIONS', hcoBUNDLE,  __RC__ )    
-    call ESMF_FieldBundleGet(hcoBUNDLE,                       &
-                             fieldCount=N,              __RC__ )
+    call ESMF_FieldBundleGet(hcoBUNDLE, fieldCount=N,   __RC__ ) 
     DO IND=1, N 
-       call ESMF_FieldBundleGet(hcoBUNDLE,                    &
-                                IND,                          &
-                                hcoFIELD,                __RC__)
+       call ESMF_FieldBundleGet(hcoBUNDLE, IND, hcoFIELD, __RC__ ) 
        call ESMF_FieldGet( hcoFIELD, NAME=hcoNAME, __RC__)
-       call ESMFL_BundleGetPointerToData( hcoBUNDLE, N, fPtrArray, __RC__)
+       call ESMFL_BundleGetPointerToData( hcoBUNDLE, IND, fPtrArray, __RC__)
 
        ! Extract species ID
        call ESMF_AttributeGet (hcoFIELD,    &
-            NAME  = 'SpecIDs',              &
+            NAME  = 'SpecID',               &
             VALUE = tmpID,            __RC__ )
 
 !       ! Conversion factor (kg/m2/s -> molec/cm2/s)

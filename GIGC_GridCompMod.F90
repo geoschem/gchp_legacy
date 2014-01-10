@@ -95,27 +95,23 @@ contains
     VERIFY_(STATUS)
     call MAPL_GridCompSetEntryPoint ( GC, ESMF_SETFINAL,  Finalize, RC=STATUS )
     VERIFY_(STATUS)
-
-! Create children`s gridded components and invoke their SetServices
-! -----------------------------------------------------------------
-
-    CHEM = MAPL_AddChild(GC, NAME='GIGCchem', SS=AtmosChemSetServices, RC=STATUS)
-    VERIFY_(STATUS)
-
-    DYN  = MAPL_AddChild(GC, NAME='GIGCdyn',  SS=AtmosDynSetServices, RC=STATUS)
-    VERIFY_(STATUS)
-
-    EMIS  = MAPL_AddChild(GC, NAME='GIGCemis',  SS=AtmosEmisSetServices, RC=STATUS)
-    VERIFY_(STATUS)
-
 !BOP
 
 ! !IMPORT STATE:
 
 ! !EXPORT STATE:
 
-!EOP
+! Create children`s gridded components and invoke their SetServices
+! -----------------------------------------------------------------
 
+    EMIS  = MAPL_AddChild(GC, NAME='GIGCemis',  SS=AtmosEmisSetServices, RC=STATUS)
+    VERIFY_(STATUS)
+
+    CHEM = MAPL_AddChild(GC, NAME='GIGCchem', SS=AtmosChemSetServices, RC=STATUS)
+    VERIFY_(STATUS)
+
+    DYN  = MAPL_AddChild(GC, NAME='GIGCdyn',  SS=AtmosDynSetServices, RC=STATUS)
+    VERIFY_(STATUS)
 
 ! Set internal connections between the children`s IMPORTS and EXPORTS
 ! -------------------------------------------------------------------

@@ -10,10 +10,11 @@ module HEMCO_GridCompMod
 
   ! HEMCO routines/variables
   USE HCO_ERROR_MOD
-  USE HCO_TOOLS_MOD
-  USE HCOI_ESMF_MOD.        ONLY : HCOI_ESMF_SetServices
   USE HCO_STATE_MOD,        ONLY : HCO_State
   USE HCOX_EXTOPT_MOD,      ONLY : OptExt
+
+  ! temporary
+  USE CharPak_Mod
 
   implicit none
   PRIVATE
@@ -43,19 +44,30 @@ module HEMCO_GridCompMod
 
   INTEGER                          :: logLun          ! LUN for stdout logfile
   CHARACTER(LEN=ESMF_MAXSTR)       :: logFile         ! File for stdout redirect
+  CHARACTER(LEN=ESMF_MAXSTR)       :: StdOutFile      ! StdOutFile
 
   ! HEMCO objects
   TYPE(HCO_State), POINTER      :: HcoState => NULL() ! HEMCO state
   TYPE(OptExt),    POINTER      :: ExtOpt   => NULL() ! Extension options bundle 
 
   ! HEMCO configuration file:
-  CHARACTER(LEN=ESMF_MAXSTR), PARAMETER :: ConfigFile = '/home' // &
-     '/ckeller/HEMCO/HEMCO_Config'
+  CHARACTER(LEN=ESMF_MAXSTR), PARAMETER :: ConfigFile = &
+     '/home/ckeller/GIGC/HEMCO_input/HEMCO_Config.GIGCtest'
 
   ! Extension toggle (for testing purposes)
   LOGICAL, PARAMETER :: DoExt = .FALSE.
 
 contains
+
+!------------------------------------------------------------------------------
+!          Harvard University Atmospheric Chemistry Modeling Group            !
+!------------------------------------------------------------------------------
+!BOP
+!
+! !ROUTINE:  SetServices 
+!
+! !DESCRIPTION: SetServices routine 
+
 
     subroutine SetServices ( GC, RC )
 
@@ -134,7 +146,10 @@ contains
 !
     ! HEMCO data arrays
     am_I_Root   = MAPL_Am_I_Root()
-    CALL HCOI_ESMF_SetServices( am_I_Root, GC, TRIM(ConfigFile), __RC__ )
+
+    if ( am_I_Root ) write(*,*) 'HEMCO: set services'
+    CALL HCO_SetServices( am_I_Root, GC, TRIM(ConfigFile), __RC__ )
+    if ( am_I_Root ) write(*,*) 'HEMCO: services set'
 
     ! Other imports (from other components):
 !#include "HEMCO_ImportSpec___.h"
@@ -154,35 +169,44 @@ contains
           DIMS                = MAPL_DimsHorzOnly,    &
           VLOCATION           = MAPL_VLocationNone,   &
           __RC__ )
+
+    ! Import from GIGC 
+!    call MAPL_AddImportSpec(GC,                                   &
+!        SHORT_NAME         = 'TRACERS',                           &
+!        LONG_NAME          = 'tracer_volume_mixing_ratios',       &
+!        UNITS              = 'mol/mol',                           &
+!        DIMS               = MAPL_DimsHorzVert,                   &
+!        VLOCATION          = MAPL_VLocationCenter,                &
+!        DATATYPE           = MAPL_BundleItem,                     &
+!                                                          __RC__ )
+
 !
 ! !INTERNAL STATE:
 !
 !#include "HEMCO_InternalSpec___.h"
+
 !
 ! !EXTERNAL STATE:
 !
 !#include "HEMCO_ExportSpec___.h"
 !
-    ! Bundles
-    call MAPL_AddInternalSpec(GC,                                 &
+
+    call MAPL_AddExportSpec(GC,                                   &
         SHORT_NAME         = 'EMISSIONS',                         &
         LONG_NAME          = 'tracer_surface_emissions',          &
         UNITS              = 'kg/m2/s',                           &
-        DIMS               = MAPL_DimsHorzOnly,                   &
-        VLOCATION          = MAPL_VLocationNone,                  &
+        DIMS               = MAPL_DimsHorzVert,                   &
+        VLOCATION          = MAPL_VLocationCenter,                &
         DATATYPE           = MAPL_BundleItem,                     &
-!        FRIENDLYTO         = 'NotSure:WhatToAddHere:GIGCchem',    &
-                                                       RC=STATUS  )
-
-    call MAPL_AddInternalSpec(GC,                                 &
-        SHORT_NAME         = 'DRYDEP',                            &
-        LONG_NAME          = 'tracer_surface_drydep_rates',       &
-        UNITS              = 'm/s',                               &
-        DIMS               = MAPL_DimsHorzOnly,                   &
-        VLOCATION          = MAPL_VLocationNone,                  &
-        DATATYPE           = MAPL_BundleItem,                     &
-!        FRIENDLYTO         = 'NotSure:WhatToAddHere:GIGCchem',    &
-                                                       RC=STATUS  )
+                                                          __RC__ )
+!    call MAPL_AddExportSpec(GC,                                   &
+!        SHORT_NAME         = 'DRYDEP',                            &
+!        LONG_NAME          = 'tracer_surface_drydep_rates',       &
+!        UNITS              = 'm/s',                               &
+!        DIMS               = MAPL_DimsHorzOnly,                   &
+!        VLOCATION          = MAPL_VLocationNone,                  &
+!        DATATYPE           = MAPL_BundleItem,                     &
+!                                                       RC=STATUS  )
 
 !EOP
 
@@ -192,6 +216,8 @@ contains
 ! ----------------
    call MAPL_GenericSetServices  ( GC, RC=STATUS )
    VERIFY_(STATUS)
+
+    if ( am_I_Root ) write(*,*) 'Leave HEMCO_SetServices now'
 
    RETURN_(ESMF_SUCCESS)
   
@@ -222,10 +248,10 @@ contains
 !
 ! !INPUT/OUTPUT PARAMETERS:
 !
-    TYPE(ESMF_GridComp), INTENT(INOUT) :: GC          ! Ref. to this GridComp
-    TYPE(ESMF_State),    INTENT(INOUT) :: Import      ! Import state
-    TYPE(ESMF_State),    INTENT(INOUT) :: Export      ! Export state
-    TYPE(ESMF_Clock),    INTENT(INOUT) :: Clock       ! ESMF clock object
+    TYPE(ESMF_GridComp), INTENT(INOUT)         :: GC      ! Ref. to this GridComp
+    TYPE(ESMF_State),    INTENT(INOUT), TARGET :: Import  ! Import state
+    TYPE(ESMF_State),    INTENT(INOUT)         :: Export  ! Export state
+    TYPE(ESMF_Clock),    INTENT(INOUT)         :: Clock   ! ESMF clock object
 !                                                      
 ! !OUTPUT PARAMETERS:                                  
 !                                                      
@@ -243,25 +269,18 @@ contains
     TYPE(ESMF_Grid)              :: Grid        ! ESMF Grid object
     TYPE(ESMF_Config)            :: MaplCF      ! ESMF Config obj (MAPL.rc)
     TYPE(ESMF_Config)            :: GeosCF      ! ESMF Config obj (GIGC*.rc) 
-    TYPE(GC_Ident)               :: Ident       ! ID information 
     TYPE(MAPL_METACOMP), POINTER :: MAPL    
                                    
     ! Scalars                                   
     LOGICAL                     :: am_I_Root   ! Are we on the root CPU?
     INTEGER                     :: error       ! HEMCO error code
     INTEGER                     :: myPet       ! # of the CPU we are on 
-    INTEGER                     :: year        ! current year 
-    INTEGER                     :: month       ! current month 
-    INTEGER                     :: day         ! current day 
-    INTEGER                     :: minute      ! current minute 
-    INTEGER                     :: second      ! current second 
-    INTEGER                     :: DayOfYear   ! current DayOfYear 
     INTEGER                     :: IM          ! # of longitudes on this CPU
     INTEGER                     :: JM          ! # of latitudes  on this CPU
     INTEGER                     :: LM          ! # of levels     on this CPU
     REAL                        :: tsChem      ! Chemistry timestep [s]
     REAL                        :: tsDyn       ! Dynamic timestep [s]
-    REAL                        :: utc         ! UTC time 
+    INTEGER                     :: nPets       ! Total # of CPUs 
     CHARACTER(LEN=5)            :: petStr      ! String for PET #
     CHARACTER(LEN=ESMF_MAXSTR)  :: compName    ! Name of gridded component
      
@@ -277,14 +296,13 @@ contains
     ! HEMCO bundle (internal)
     TYPE(ESMF_FieldBundle)       :: hcoBUNDLE
     TYPE(ESMF_Field)             :: hcoFIELD
-    TYPE(MAPL_MetaComp), POINTER :: MetaComp
-    TYPE(ESMF_State)             :: INTERNAL
 
     ! Working variables
     CHARACTER(LEN=ESMF_MAXSTR)   :: trcNAME
     CHARACTER(LEN=ESMF_MAXSTR)   :: hcoNAME
     INTEGER                      :: I, N    
     REAL                         :: TCVV
+    REAL, POINTER                :: Arr3D(:,:,:) => NULL()
 
     !=======================================================================
     ! Initialize_ begins here!
@@ -314,52 +332,6 @@ contains
     ! Test if we are on the root CPU
     am_I_Root = MAPL_Am_I_Root()
 
-    ! Name of logfile for stdout redirect
-    CALL ESMF_ConfigGetAttribute( GeosCF, Ident%STDOUT_FILE,   &
-                                  Label   = "STDOUT_LOGFILE:", &
-                                  Default = "PET%%%%%.init",   &
-                                   __RC__ )
-
-    ! Name of log LUN # for stdout redirect
-    CALL ESMF_ConfigGetAttribute( GeosCF, logLun,              &
-                                  Label   = "STDOUT_LOGLUN:",  &
-                                  Default = 700,               &
-                                   __RC__ )
-
-    ! Fill the remaining fields of the IDENT object
-    Ident%STDOUT_LUN = logLun
-    Ident%PET        = myPet
-
-    Ident%I_AM(1)    = TRIM( compName )
-    Ident%I_AM(2)    = 'Initialize_'
-    Ident%LEV        = 2
-    Ident%ERRMSG     = ''
-    Ident%VERBOSE    = .FALSE.
-
-    !=======================================================================
-    ! Open a log file on each PET where stdout will be redirected
-    !=======================================================================
-
-    ! Replace tokens w/ PET # in the filename
-    IF ( am_I_Root ) THEN
-       logFile = Ident%STDOUT_FILE
-       WRITE( petStr, '(i5.5)' ) myPet
-       CALL StrRepl( logFile, '%%%%%', petStr )
-    ENDIF
-
-    ! Open file for stdout redirect
-    IF ( am_I_Root )  THEN
-       OPEN ( UNIT=logLun, FILE=TRIM(logFile), STATUS='OLD' , ACTION='WRITE', ACCESS='APPEND' )
-!       OPEN ( logLun, FILE=LOGFILE, STATUS='UNKNOWN' )
-    ENDIF
-
-    ! Add descriptive header text
-    IF ( am_I_Root ) THEN
-       WRITE( logLun, '(a)'   ) REPEAT( '#', 79 )
-       WRITE( logLun, 100     ) TRIM( logFile ), TRIM( Iam ), myPet
-       WRITE( logLun, '(a,/)' ) REPEAT( '#', 79 )
-    ENDIF
-
     !=======================================================================
     ! Get various parameters from the ESMF/MAPL framework
     !=======================================================================
@@ -371,14 +343,6 @@ contains
                    GeosCf    = GeosCF,   &  ! ESMF Config obj (GIGC*.rc)
                    tsDyn     = tsDyn,    &  ! Dynamic timestep [sec]
                    tsChem    = tsChem,   &  ! Chemistry timestep [sec]
-                   year      = year,     &  ! Current year
-                   month     = month,    &  ! Current month
-                   day       = day,      &  ! Current day
-                   dayOfYr   = dayOfYr,  &  ! Current day of year
-                   hour      = hour,     &  ! Current hour
-                   minute    = minute,   &  ! Current minute
-                   second    = second,   &  ! Current second 
-                   utc       = utc,      &  ! Universal time [hours]
                    IM        = IM,       &  ! # of longitudes on this PET
                    JM        = JM,       &  ! # of latitudes  on this PET
                    LM        = LM,       &  ! # of levels     on this pET
@@ -389,18 +353,61 @@ contains
                    __RC__ )
 
     !=======================================================================
+    ! Open a log file on each PET where stdout will be redirected
+    !=======================================================================
+
+    ! Name of logfile for stdout redirect
+!    CALL ESMF_ConfigGetAttribute( GeosCF, StdOutFile,          &
+!                                  Label   = "STDOUT_LOGFILE:", &
+!                                  Default = "PET%%%%%.init",   &
+!                                   __RC__ )
+
+!    ! Name of log LUN # for stdout redirect
+!    CALL ESMF_ConfigGetAttribute( GeosCF, logLun,              &
+!                                  Label   = "STDOUT_LOGLUN:",  &
+!                                  Default = 700,               &
+!                                   __RC__ )
+
+    StdOutFile = 'HEMCO.log'
+    logLun     = 800
+
+    ! Replace tokens w/ PET # in the filename
+    IF ( am_I_Root ) THEN
+       logFile = StdOutFile
+       WRITE( petStr, '(i5.5)' ) myPet
+       CALL StrRepl( logFile, '%%%%%', petStr )
+    ENDIF
+
+    ! Open file for stdout redirect
+    IF ( am_I_Root )  THEN
+       OPEN ( UNIT=logLun, FILE=TRIM(logFile), STATUS='UNKNOWN' )
+    ENDIF
+
+    ! Add descriptive header text
+    IF ( am_I_Root ) THEN
+       WRITE( logLun, '(a)'   ) REPEAT( '#', 79 )
+       WRITE( logLun, 100     ) TRIM( logFile ), TRIM( Iam ), myPet
+       WRITE( logLun, '(a,/)' ) REPEAT( '#', 79 )
+    ENDIF
+
+    !=======================================================================
     ! Initialize HEMCO state object 
     !=======================================================================
 
     ! Extract number of tracers from tracer field bundle
-    call ESMF_StateGet(IMPORT, 'TRACERS', trcBUNDLE, __RC__ )    
-    call ESMF_FieldBundleGet(trcBUNDLE,fieldCount=N, __RC__ )
+!    call ESMF_StateGet(IMPORT, 'TRACERS', trcBUNDLE, __RC__ )    
+!    call ESMF_FieldBundleGet(trcBUNDLE,fieldCount=N, __RC__ )
+
+    ! For now, hardcode to CO and NO
+    N = 2
 
     ! Initialize HEMCO state
-    CALL HcoState_Init ( am_i_Root, HcoState, N, ERROR )
+    IF (am_I_Root) WRITE( logLun, * ) 'Do HcoState_Init'
+    CALL HcoState_Init ( am_i_Root, N, HcoState, ERROR )
     IF ( ERROR /= HCO_SUCCESS ) THEN
-       CALL ERROR_TRAP_( Ident, ERROR, __RC__ )
+       ASSERT_(.FALSE.) 
     ENDIF
+    IF (am_I_Root) WRITE( logLun, * ) 'HcoState_Init done'
 
     !=======================================================================
     ! Set variables in HcoState 
@@ -415,40 +422,55 @@ contains
     ! ----------------------------------------------------------------------
     ! Extract species ('GC-tracer') information from trcBUNDLE
     DO I=1, N
-       ! Get tracer field
-       call ESMF_FieldBundleGet(trcBUNDLE, I, trcFIELD, __RC__ ) 
 
-       ! species name
-       call ESMF_FieldGet( trcFIELD, NAME=trcName, __RC__)
-       HcoState%SpecNames(I) = trcNAME
+       IF ( I == 1 ) THEN
+          HcoState%SpecNames(I)  = 'NO'
+          HcoState%SpecIDs(I)    = 1
+          HcoState%SpecMW(I)     = 30d0
+          HcoState%EmSpecMW(I)   = 30d0
+          HcoState%MolecRatio(I) = 1d0
+       ELSEIF ( I == 2 ) THEN
+          HcoState%SpecNames(I)  = 'CO'
+          HcoState%SpecIDs(I)    = 4
+          HcoState%SpecMW(I)     = 28d0
+          HcoState%EmSpecMW(I)   = 28d0
+          HcoState%MolecRatio(I) = 1d0 
+       ENDIF
 
-       ! species ID
-       call ESMF_AttributeGet (trcFIELD,    &
-            NAME  = 'TRAC_ID',              &
-            VALUE = HcoState%SpecIDs(I),    &
-                                      __RC__ )       
+!       ! Get tracer field
+!       call ESMF_FieldBundleGet(trcBUNDLE, I, trcFIELD, __RC__ ) 
 
-       ! TCVV is molec/kg
-       call ESMF_AttributeGet (trcFIELD,    &
-            NAME  = 'TCVV',                 &
-            VALUE = TCVV,                   &
-                                      __RC__ )       
+!       ! species name
+!       call ESMF_FieldGet( trcFIELD, NAME=trcName, __RC__)
+!       HcoState%SpecNames(I) = trcNAME
 
-       ! Convert to g/mol
-       TCVV = 1000.0d0 / TCVV * HcoState%Avgdr
+!       ! species ID
+!       call ESMF_AttributeGet (trcFIELD,    &
+!            NAME  = 'TRAC_ID',              &
+!            VALUE = HcoState%SpecIDs(I),    &
+!                                      __RC__ )       
+
+!       ! TCVV is molec/kg
+!       call ESMF_AttributeGet (trcFIELD,    &
+!            NAME  = 'TCVV',                 &
+!            VALUE = TCVV,                   &
+!                                      __RC__ )       
+
+!       ! Convert to g/mol
+!       TCVV = 1000.0d0 / TCVV * HcoState%Avgdr
 
        ! molecular weight of atmospheric species (g/mol)
-       HcoState%SpecMW(I) = TCVV 
+!       HcoState%SpecMW(I) = TCVV 
 
        ! molecular weight of emitted species (g/mol)
        ! For now, set EmSpecMW equal to SpecMW. This is ok
        ! as long as emitted data is in the same units as
        ! atmospheric species (e.g. kgC for VOCs)
-       HcoState%EmSpecMW = TCVV
+!       HcoState%EmSpecMW(I) = TCVV
 
        ! emitted molecules per molecule of atmospheric species
        ! NOTE: not used in ESMF environment
-       HcoState%MolecRatio = 1.0d0
+!       HcoState%MolecRatio(I) = 1.0d0
     END DO
 
     ! ----------------------------------------------------------------------
@@ -494,14 +516,8 @@ contains
 
     ! ----------------------------------------------------------------------
     ! Current timestamps 
-    HcoState%sYear       = year 
-    HcoState%sMonth      = month
-    HcoState%sDay        = day
-    HcoState%sHour       = hour
-    HcoState%sMin        = minute
-    HcoState%sSec        = sec
-    HcoState%sDayOfYear  = DayOfYr
-    HcoState%sWeekday    = HCO_GetWeekday( year, month, day, utc )
+    ! ----------------------------------------------------------------------
+    CALL HcoState_SetTime ( Clock, HcoState, __RC__ )
 
     !=======================================================================
     ! Initialize HEMCO internal lists and variables 
@@ -509,7 +525,7 @@ contains
  
     CALL HCO_INIT ( am_I_Root, HcoState, ERROR ) 
     IF ( ERROR /= HCO_SUCCESS ) THEN
-       CALL ERROR_TRAP_( Ident, ERROR, __RC__ )
+       ASSERT_(.FALSE.) 
     ENDIF
 
     !=======================================================================
@@ -525,36 +541,36 @@ contains
 
     ! Error trap
     IF ( ERROR /= HCO_SUCCESS ) THEN
-       CALL ERROR_TRAP_( Ident, ERROR, __RC__ )
+       ASSERT_(.FALSE.) 
     ENDIF
 
     endif ! temp. toggle
 
     !=======================================================================
-    ! Define HEMCO data bundle 
+    ! Define HEMCO data bundle
+    ! Each field of the bundle corresponds to an array of HcoState and will
+    ! be populated with the emissions calculated by HEMCO. 
     !=======================================================================
 
-    call MAPL_GetObjectFromGC ( GC, MetaComp, RC=STATUS)
+    call ESMF_StateGet(Export, 'EMISSIONS', HcoBUNDLE, __RC__ )
+
+    ! Empty data array to be copied to each field bundle
+    ALLOCATE(Arr3D(IM,JM,LM),STAT=STATUS)
     VERIFY_(STATUS)
-    call MAPL_Get ( MetaComp, INTERNAL_ESMF_STATE=INTERNAL, RC=STATUS  )
-    VERIFY_(STATUS)
-    call ESMF_StateGet(INTERNAL, 'EMISSIONS', HcoBUNDLE, __RC__ )
+    Arr3D = 0d0
 
     ! Add fields to bundle
     DO I = 1, N
 
        ! Extract species name
-       hcoNAME = HcoState%SpecNames(I)
+       HcoNAME = HcoState%SpecNames(I)
 
-       ! Create field. Refer to array!
-       ! Note: can I refer to nullified pointer?! If not, need
-       ! to allocate all Arr3D arrays beforehand (even those 
-       ! who won't be used, which are most of them...)
-       HcoFIELD = ESMF_FieldCreate ( Grid,                     &
-                                     HcoState%Emsr3D(I)%Arr3D, &
-                                     copyflag = ESMF_DATA_REF, &
-                                     name     = HCOname,       &
-                                                       __RC__ )
+       ! Create field. 
+       HcoFIELD = ESMF_FieldCreate ( Grid,                      &
+                                     Arr3D,                     &
+                                     copyflag = ESMF_DATA_COPY, &
+                                     name     = HcoNAME,        &
+                                                        __RC__ )
  
        call ESMF_AttributeSet (HcoFIELD,    &
             NAME  = 'SpecID',               &
@@ -574,23 +590,28 @@ contains
          NAME  = 'N_SPECIES',             &
          VALUE = N,                       &
                                __RC__    )
+
+    ! Don't need temporary array anymore
+    IF ( ASSOCIATED(Arr3D) ) DEALLOCATE(Arr3D)
        
     ! Verbose mode
-    if (AM_I_ROOT .and. HcoState%verbose) then
+    if (AM_I_ROOT) then !.and. HcoState%verbose) then
        print *, trim(Iam)//': EMISSIONS bundle during Initialization:' 
        call ESMF_FieldBundlePrint ( HcoBUNDLE )
     end if
+
+    IF (am_I_Root) WRITE( logLun, * ) 'Bundle defined'
 
     !=======================================================================
     ! All done
     !=======================================================================
 
     ! Write a header before the timestepping begins
-!    IF ( am_I_Root ) THEN
+    IF ( am_I_Root ) THEN
        WRITE( logLun, '(/,a)' ) REPEAT( '#', 79 )
-       WRITE( logLun, 200     ) TRIM( compName ) // '::Run_', myPet
+       WRITE( logLun, 200     ) TRIM( compName ) // '::Init_', myPet
        WRITE( logLun, '(a,/)' ) REPEAT( '#', 79 )
-!    ENDIF
+    ENDIF
 
     ! Close the file for stdout redirect.  Reopen when executing the run method.
     IF ( am_I_Root )  CLOSE ( UNIT=logLun )
@@ -669,25 +690,16 @@ contains
     TYPE(ESMF_Grid)              :: Grid          ! ESMF Grid object
     TYPE(ESMF_Config)            :: MaplCF        ! Config (MAPL.rc)
     TYPE(ESMF_Config)            :: GeosCF        ! Config (GIGC*.rc)
-    TYPE(GC_Ident)               :: Ident         ! G-C obj for ident info
                                                   
     ! Scalars                                     
     LOGICAL                      :: am_I_Root     ! Are we on the root CPU?
     INTEGER                      :: error         ! G-C error return code
-    INTEGER(ESMF_KIND_I8)        :: advCount      ! # of clock advances
-    INTEGER                      :: myPet         ! PET # we are on now
-    INTEGER                      :: nPets         ! Total # of PETs
-    INTEGER                      :: year          ! Current year    
-    INTEGER                      :: month         ! Current month
-    INTEGER                      :: day           ! Current day
-    INTEGER                      :: dayOfYr       ! Current day of year
-    INTEGER                      :: hour          ! Current hour
-    INTEGER                      :: minute        ! Current minute
-    INTEGER                      :: second        ! Current second
-    REAL                         :: UTC           ! Universal time
-    REAL                         :: hElapsed      ! Elapsed time 
-    CHARACTER(LEN=4)             :: petStr        ! String for PET #
     CHARACTER(LEN=ESMF_MAXSTR)   :: compName      ! Gridded Component name
+
+    ! HEMCO bundle
+    TYPE(ESMF_FieldBundle)       :: hcoBUNDLE
+    REAL, POINTER                :: fPtrArray(:,:,:) => NULL()
+    INTEGER                      :: I, N
 
     ! Pointers for IMPORT
     REAL, POINTER, DIMENSION(:,:)   :: U10M
@@ -718,54 +730,26 @@ contains
     END IF
 
     !=======================================================================
-    ! Get various parameters from the ESMF/MAPL framework
-    !=======================================================================
-
-    CALL Extract_( GC,                   &  ! Ref to this Gridded Component
-                   Clock,                &  ! ESMF Clock object
-                   Grid      = Grid,     &  ! ESMF Grid object
-                   MaplCf    = MaplCF,   &  ! ESMF Config obj (MAPL*.rc) 
-                   GeosCf    = GeosCF,   &  ! ESMF Config obj (GIGC*.rc)
-                   year      = year,     &  ! Current year
-                   month     = month,    &  ! Current month
-                   day       = day,      &  ! Current day
-                   dayOfYr   = dayOfYr,  &  ! Current day of year
-                   hour      = hour,     &  ! Current hour
-                   minute    = minute,   &  ! Current minute
-                   second    = second,   &  ! Current second 
-                   utc       = utc,      &  ! Universal time [hours]
-                   hElapsed  = hElapsed, &  ! Elapsed time  
-                   __RC__ )
-
-    !=======================================================================
-    ! Print timing etc. info to the log file outside of the (I,J) loop
-    !=======================================================================
-
-    ! Write time quantities
-    IF ( am_I_Root ) THEN
-       WRITE( logLun, 100 ) year, month, day, hour, minute, hElapsed
-    ENDIF
-
-    !=======================================================================
-    ! Initialize fields of the IDENT object for each (I,J) location
-    !=======================================================================
-    Ident%STDOUT_FILE = ''
-    Ident%STDOUT_LUN  = logLun
-    Ident%PET         = myPet
-    Ident%I_AM(1)     = TRIM( compName )
-    Ident%I_AM(2)     = 'Run_'
-    Ident%LEV         = 2
-    Ident%ERRMSG      = ''
-
-    !=======================================================================
     ! pre-Run method array assignments
     !=======================================================================
 
 !#   include "Includes_Before_Emis.H"
 
+    ! Connect HEMCO state object with HEMCO bundle
+    call ESMF_StateGet(Export, 'EMISSIONS', hcoBUNDLE, __RC__ )
+    call ESMF_FieldBundleGet( hcoBUNDLE, fieldCount=N, __RC__ )
+    DO I = 1, N
+       call ESMFL_BundleGetPointerToData( hcoBUNDLE, I, fPtrArray, __RC__ )  
+       HcoState%Emsr3D(I)%Arr3D => fPtrArray 
+       fPtrArray => NULL() 
+    ENDDO
+
     ! Set pointers to Met fields
     call MAPL_GetPointer ( IMPORT, U10M,  'U10M', __RC__ )
     call MAPL_GetPointer ( IMPORT, V10M,  'V10M', __RC__ )
+
+    ! temp. toggle
+    if ( DoExt ) then 
 
     ! SeaFlux
     IF ( ASSOCIATED ( ExtOpt%SeaFlxOpt ) ) THEN
@@ -773,6 +757,8 @@ contains
        ExtOpt%SeaFlxOpt%V10M    => V10M
        ! etc.
     ENDIF
+
+    endif
 
     ! etc.
 !    ! don't forget pointer to boxheight!!
@@ -783,7 +769,7 @@ contains
     !=======================================================================
     CALL HCO_ArrReset ( HcoState, ERROR )
     IF ( ERROR /= HCO_SUCCESS ) THEN
-       CALL ERROR_TRAP_( Ident, ERROR, __RC__ )
+       ASSERT_(.FALSE.)
     ENDIF
    
     !=======================================================================
@@ -793,21 +779,14 @@ contains
     ! Range of tracers and emission categories.
     ! Set Extension number ExtNr to 0, indicating that the core
     ! module shall be executed. 
-    HcoState%SpcMin = 1
+    HcoState%SpcMin =  1
     HcoState%SpcMax = -1 
-    HcoState%CatMin = 1
+    HcoState%CatMin =  1
     HcoState%CatMax = -1
-    HcoState%ExtNr  = 0
+    HcoState%ExtNr  =  0
 
     ! Set current datetime
-    HcoState%sYear       = year 
-    HcoState%sMonth      = month
-    HcoState%sDay        = day
-    HcoState%sHour       = hour
-    HcoState%sMin        = minute
-    HcoState%sSec        = sec
-    HcoState%sDayOfYear  = DayOfYr
-    HcoState%sWeekday    = HCO_GetWeekday( year, month, day, utc )
+    CALL HcoState_SetTime ( Clock, HcoState, __RC__ )
 
     ! Use temporary array?
     HcoState%FillTemp3D = .FALSE.
@@ -817,7 +796,7 @@ contains
     !=======================================================================
     CALL HCO_RUN ( am_I_Root, HcoState, ERROR )
     IF ( ERROR /= HCO_SUCCESS ) THEN
-       CALL ERROR_TRAP_( Ident, ERROR, __RC__ )
+       ASSERT_(.FALSE.)
     ENDIF
 
     !=======================================================================
@@ -825,11 +804,11 @@ contains
     !=======================================================================
 
     ! temp. toggle
-    if ( UseExt ) then
+    if ( DoExt ) then
 
     CALL HCOX_RUN ( am_I_Root, HcoState, ExtOpt, ERROR )
     IF ( ERROR /= HCO_SUCCESS ) THEN
-       CALL ERROR_TRAP_( Ident, ERROR, __RC__ )
+       ASSERT_(.FALSE.)
     ENDIF
 
     endif ! temp. toggle
@@ -840,12 +819,22 @@ contains
 
 !#   include "Includes_After_Emis.H"
 
+    ! temp. toggle
+    if ( DoExt ) then
+
     ! SeaFlux
     IF ( ASSOCIATED ( ExtOpt%SeaFlxOpt ) ) THEN
        ExtOpt%SeaFlxOpt%U10M    => NULL() 
        ExtOpt%SeaFlxOpt%V10M    => NULL()
        ! etc.
     ENDIF
+
+    endif
+
+    ! Disconnect HEMCO state object with HEMCO bundle
+    DO I = 1, N
+       HcoState%Emsr3D(I)%Arr3D => NULL() 
+    ENDDO
 
     !=======================================================================
     ! All done
@@ -885,7 +874,7 @@ contains
 !
   USE HCO_MAIN_MOD,      ONLY : HCO_FINAL
   USE HCOX_DRIVER_MOD,   ONLY : HCOX_FINAL
-  USE HCO_STATE_MOD,     ONLY : Cleanup_HCO_State
+  USE HCO_STATE_MOD,     ONLY : HcoState_Final
 !
 ! !REVISION HISTORY:
 !  02 Jan 2014 - C. Keller   - Initial version 
@@ -897,14 +886,17 @@ contains
     ! FINALIZE_ begins here!
     !=======================================================================
 
+    ! temp. toggle (testing only)
+    if ( DoExt ) then
     ! Cleanup extensions and ExtOpt object 
     CALL HCOX_FINAL ( HcoState, ExtOpt )
+    endif
 
     ! Cleanup HCO core
-    CALL HCO_FINAL
+!    CALL HCO_FINAL
 
-    ! Cleanup HcoState object 
-    CALL Cleanup_HCO_State ( HcoState )
+    ! Cleanup HcoState object
+!    CALL HcoState_Final ( HcoState ) 
 
   end subroutine Finalize_
 !EOC
@@ -925,13 +917,11 @@ contains
 !
   SUBROUTINE Extract_( GC,       Clock,    Grid,    MaplCF, GeosCF,    &
                        localPet, petCount, I_LO,    J_LO,   I_HI,      &
+                       nymdB,    nymdE,    nhmsB,   nhmsE,             &
                        J_HI,     IM,       JM,      LM,     IM_WORLD,  &
-                       JM_WORLD, LM_WORLD, lonCtr,  latCtr, advCount,  &
-                       nymdB,    nymdE,    nymd,    nhmsB,  nhmsE,     &
-                       nhms,     year,     month,   day,    dayOfYr,   &
-                       hour,     minute,   second,  utc,    hElapsed,  &
+                       JM_WORLD, LM_WORLD, lonCtr,  latCtr,            &
                        tsChem,   tsDyn,    mpiComm, ZTH,   SLR,        &
-                       queryRst, RC )
+                       RC )
 
 !
 ! !INPUT PARAMETERS:
@@ -974,44 +964,26 @@ contains
     INTEGER,             INTENT(OUT), OPTIONAL :: IM_WORLD    ! Global # lons
     INTEGER,             INTENT(OUT), OPTIONAL :: JM_WORLD    ! Global # lats
     INTEGER,             INTENT(OUT), OPTIONAL :: LM_WORLD    ! Global # levs
-                                                              
-    !----------------------------------
-    ! Date and time variables
-    !----------------------------------
-   INTEGER(ESMF_KIND_I8),INTENT(OUT), OPTIONAL :: advCount    ! # of clock advs
+
+    !-----------------------------------                     
+    ! Time information 
+    !-----------------------------------                     
     INTEGER,             INTENT(OUT), OPTIONAL :: nymdB       ! YYYYMMDD @ start
     INTEGER,             INTENT(OUT), OPTIONAL :: nymdE       ! YYYYMMDD @ end
-    INTEGER,             INTENT(OUT), OPTIONAL :: nymd        ! YYYYMMDD now
     INTEGER,             INTENT(OUT), OPTIONAL :: nhmsB       ! hhmmss @ start
     INTEGER,             INTENT(OUT), OPTIONAL :: nhmsE       ! hhmmss @ end
-    INTEGER,             INTENT(OUT), OPTIONAL :: nhms        ! hhmmss now
-    INTEGER,             INTENT(OUT), OPTIONAL :: year        ! UTC year 
-    INTEGER,             INTENT(OUT), OPTIONAL :: month       ! UTC month
-    INTEGER,             INTENT(OUT), OPTIONAL :: day         ! UTC day
-    INTEGER,             INTENT(OUT), OPTIONAL :: dayOfYr     ! UTC day of year
-    INTEGER,             INTENT(OUT), OPTIONAL :: hour        ! UTC hour
-    INTEGER,             INTENT(OUT), OPTIONAL :: minute      ! UTC minute
-    INTEGER,             INTENT(OUT), OPTIONAL :: second      ! UTC second
-    REAL,                INTENT(OUT), OPTIONAL :: utc         ! UTC time [hrs]
-    REAL,                INTENT(OUT), OPTIONAL :: hElapsed    ! Elapsed hours
 
     !-----------------------------------                     
     ! Timestep variables [seconds]          
     !-----------------------------------                     
     REAL,                INTENT(OUT), OPTIONAL :: tsChem      ! Chemistry
     REAL,                INTENT(OUT), OPTIONAL :: tsDyn       ! Dynamics
-    REAL,                INTENT(OUT), OPTIONAL :: tsEmis      ! Emissions 
 
     !-----------------------------------                     
     ! Solar parameters
     !-----------------------------------                     
     REAL,                INTENT(OUT), OPTIONAL :: ZTH(:,:)    ! Solar zth angle
     REAL,                INTENT(OUT), OPTIONAL :: SLR(:,:)    ! Insolation
-
-    !-----------------------------------------------
-    ! Optional import restart file existence inquiry
-    !-----------------------------------------------
-    LOGICAL,             INTENT(IN),  OPTIONAL :: queryRst    ! Ask if import restart file exists
 
     !-----------------------------------                        
     ! Return code 
@@ -1045,23 +1017,18 @@ contains
     TYPE(ESMF_Time)               :: currTime       ! ESMF current time obj
     TYPE(ESMF_TimeInterval)       :: elapsedTime    ! ESMF elapsed time obj
     TYPE(ESMF_VM)                 :: VM             ! ESMF VM object
-    TYPE(CHEM_State), POINTER     :: myState        ! Legacy state
-    TYPE(CHEM_Wrap)               :: wrap           ! Wrapper for myState
+    TYPE(EMIS_State), POINTER     :: myState        ! Legacy state
+    TYPE(EMIS_Wrap)               :: wrap           ! Wrapper for myState
     TYPE(MAPL_MetaComp),  POINTER :: metaComp       ! MAPL MetaComp object
     TYPE(MAPL_SunOrbit)           :: sunOrbit
 
     ! Scalars
     CHARACTER(len=ESMF_MAXSTR)    :: compName       ! Gridded component name
-    CHARACTER(len=ESMF_MAXSTR)    :: importRstFN    ! Import restart file name
     INTEGER(ESMF_KIND_I8)         :: count          ! # of clock advances
     INTEGER                       :: locDims(3)     ! Array for local dims
     INTEGER                       :: globDims(3)    ! Array for global dims
-    INTEGER                       :: doy            ! Day of year (0-365/366)
-    INTEGER                       :: yyyy, mm, dd   ! Year, month, day
-    INTEGER                       :: h,    m,  s    ! Hour, minute, seconds
     INTEGER                       :: IL,   IU       ! Min/max local lon indices
     INTEGER                       :: JL,   JU       ! Min/max local lat indices
-    REAL                          :: elapsedHours   ! Elapsed hours of run
 
     !=======================================================================
     ! Initialization
@@ -1130,12 +1097,6 @@ contains
                                      Label="CHEMISTRY_TIMESTEP:", __RC__ )
     ENDIF
 
-    ! Emission timestep (sec ???)
-    IF ( PRESENT( tsEmis ) ) THEN
-       CALL ESMF_ConfigGetAttribute( GeosCF, tsEmis,                      &
-                                     Label="EMISSION_TIMESTEP:", __RC__ )
-    ENDIF
-
     ! Start date
     IF ( PRESENT( nymdb ) ) THEN
        CALL ESMF_ConfigGetAttribute( GeosCF, nymdB,                       &
@@ -1159,65 +1120,6 @@ contains
        CALL ESMF_ConfigGetAttribute( GeosCF, nhmsE,                       &
                                      LABEL   = "UTC_END_TIME:",  __RC__ )
     ENDIF
-
-    !=======================================================================
-    ! Does the import restart file exist?
-    !=======================================================================
-    
-    CALL ESMF_ConfigGetAttribute( GeosCF, importRstFN,                   &
-                           DEFAULT = "geoschemchem_import_rst",          &
-                           LABEL   = "importRestartFileName:",  __RC__ )
-
-    
-    IF ( PRESENT( queryRst ) .AND. queryRst == .TRUE. ) THEN
-     INQUIRE(FILE=TRIM(importRstFN), EXIST=Input_Opt%haveImpRst)
-     IF( MAPL_AM_I_ROOT() ) THEN
-      PRINT *," ",TRIM(importRstFN)," exists: ",Input_Opt%haveImpRst
-      PRINT *," "
-     END IF
-    END IF
-
-    !=======================================================================
-    ! Extract time/date information
-    !=======================================================================
-    
-    ! Get the ESMF time object
-    CALL ESMF_ClockGet( Clock,                    &
-                        startTime    = startTime, &
-                        currTime     = currTime,  &
-                        advanceCount = count,     &
-                         __RC__ )
-
-    ! Get individual fields from the time object
-    CALL ESMF_TimeGet( currTime, yy=yyyy, mm=mm, dd=dd, dayOfYear=doy, &
-                                 h=h,     m=m,   s=s,   __RC__ )
-
-    ! Save fields for return
-    IF ( PRESENT( nymd     ) ) CALL MAPL_PackTime( nymd, yyyy, mm, dd )
-    IF ( PRESENT( nhms     ) ) CALL MAPL_PackTime( nhms, h,    m,  s  )
-    IF ( PRESENT( advCount ) ) advCount = count
-    IF ( PRESENT( year     ) ) year     = yyyy
-    IF ( PRESENT( month    ) ) month    = mm
-    IF ( PRESENT( day      ) ) day      = dd
-    IF ( PRESENT( dayOfYr  ) ) dayOfYr  = doy
-    IF ( PRESENT( hour     ) ) hour     = h
-    IF ( PRESENT( minute   ) ) minute   = m
-    IF ( PRESENT( second   ) ) second   = s
-    IF ( PRESENT( utc      ) ) utc      = ( DBLE( h )        ) + & 
-                                          ( DBLE( m )/60d0   ) + &
-                                          ( DBLE( s )/3600d0 )
- 
-    ! Compute elapsed time since start of simulation
-    elapsedTime = currTime - startTime
-
-    ! Get time fields from the elapsedTime object
-    CALL ESMF_TimeIntervalGet( elapsedTime, h=h, m=m, s=s, __RC__ )
-
-    ! Convert to decimal hours
-    elapsedHours = DBLE( h ) + ( DBLE( m )/60d0 ) + ( DBLE( s )/3600d0 )
-    
-    ! Save fields for return
-    IF ( PRESENT( hElapsed ) ) hElapsed = elapsedHours
 
     !=======================================================================
     ! Extract grid information
@@ -1295,105 +1197,6 @@ contains
     RETURN_(ESMF_SUCCESS)
 
   END SUBROUTINE Extract_
-!EOC
-!------------------------------------------------------------------------------
-!          Harvard University Atmospheric Chemistry Modeling Group            !
-!------------------------------------------------------------------------------
-!BOP
-!
-! !IROUTINE: Error_Trap_
-!
-! !DESCRIPTION: This routine stops the run and prints the name of the
-!  offending routine if an error condition is returned.
-!\\
-!\\
-! !INTERFACE:
-!
-  SUBROUTINE Error_Trap_( Ident, error, RC )
-!
-! !INPUT PARAMETERS: 
-!
-    TYPE(GC_IDENT),   INTENT(IN)  :: Ident      ! Obj w/ info from ESMF
-    INTEGER,          INTENT(IN)  :: error      ! Error code from GEOS-Chem
-!
-! !INPUT/OUTPUT PARAMETERS:
-!
-    INTEGER,          INTENT(OUT) :: RC         ! Return error code
-!
-! !REVISION HISTORY: 
-!  22 Jun 2009 - R. Yantosca - Initial version
-!  15 Jul 2009 - R. Yantosca - Updated for drydep, wetdep, PBL mixing
-!  24 Aug 2009 - R. Yantosca - Updated for emissions reader etc. routines
-!  03 Nov 2009 - R. Yantosca - Now trap error in the GC_INTERFACE
-!  03 Nov 2009 - R. Yantosca - Cosmetic changes
-!  14 Dec 2009 - R. Yantosca - Now trap errors in the GC_CHUNK routines
-!  14 Apr 2010 - R. Yantosca - Adapted for use in GEOSCHEMchem_GridCompMod.F90
-!  29 Apr 2010 - R. Yantosca - Now print error traceback info from IDENT
-!  30 Apr 2010 - R. Yantosca - Now use 5 digits for PET
-!  06 May 2010 - R. Yantosca - Remove redundant error codes
-!  03 Jun 2010 - R. Yantosca - Remove more redundant error codes
-!EOP
-!------------------------------------------------------------------------------
-!BOC
-!
-! !LOCAL VARIABLES:
-!
-    INTEGER :: N
-
-    !=======================================================================
-    ! Initialization
-    !=======================================================================
-
-     __Iam__('Error_Trap_')
-
-    ! Traceback info
-    Iam = TRIM( Ident%I_AM(1) ) // '::' // TRIM( Iam )
-
-    !=======================================================================
-    ! Error trap
-    !=======================================================================
-
-    IF ( error == GIGC_FAILURE ) THEN
-       
-       !--------------------------------------------------
-       ! Print error traceback information
-       !--------------------------------------------------
-   
-       ! Begin header
-       WRITE( logLun, '(/,a)' ) REPEAT( '=', 79 )
-       WRITE( logLun,  20     ) Ident%PET
-       WRITE( logLun,  21     ) TRIM( Ident%ERRMSG )
-       WRITE( logLun, '(/,a) ') 'Error traceback:' 
-
-       ! Write the calling sequence of routines
-       DO N = Ident%LEV, 1, -1
-          WRITE( loglun, 22   ) N, TRIM( Ident%I_AM(N) )
-       ENDDO
-
-       ! End header
-       WRITE( logLun, '(a,/)' ) REPEAT( '=', 79 )
-       CLOSE( logLun          )
-
-       ! Return w/ failure
-       RETURN_(ESMF_FAILURE)
-
-    ELSE
-
-       ! This is now deprecated
-       PRINT*, 'RC', error
-       WRITE( logLun, 10 ) 'UNKNOWN FAILURE',                    Ident%PET
-       RETURN_(ESMF_FAILURE)
-
-    ENDIF
-
-    ! FORMAT string
- 10 FORMAT( a, ' PET=', i5.5                             )
- 20 FORMAT( 'GEOS-Chem error encountered on PET: ', i5.5 )
- 21 FORMAT( 'Message: ', a                               )
- 22 FORMAT( i4, ' : ', a                                 )
-
-
-  END SUBROUTINE Error_Trap_
 !EOC
 !------------------------------------------------------------------------------
 !          Harvard University Atmospheric Chemistry Modeling Group            !
@@ -1488,9 +1291,211 @@ contains
     DEALLOCATE(AU, AL)
    
     ! Return successfully
-    RC = GIGC_SUCCESS
+    RC = HCO_SUCCESS
 
   END SUBROUTINE GridGetInterior
 !EOC
+!------------------------------------------------------------------------------
+!          Harvard University Atmospheric Chemistry Modeling Group            !
+!------------------------------------------------------------------------------
+!BOP
+!
+! !ROUTINE: HCO_SetServices
+!
+! !DESCRIPTION: Subroutine HCO\_SetServices registers all required HEMCO 
+! data so that it can be imported through the ESMF import state. 
+! This routine is called at the beginning of a simulation - even ahead of 
+! the initialization routines. Since this routine is called from outside of 
+! the HEMCO environment, use the MAPL specific error codes! 
+!\\
+!\\
+! !INTERFACE:
+!
+      SUBROUTINE HCO_SetServices( am_I_Root, GC, ConfigFile, RC ) 
+!
+! !USES:
+!
+      USE HCO_DATACONT_MOD, ONLY : ListCont
+      USE HCO_CONFIG_MOD,   ONLY : Read2Buffer, GetNextCont
+!
+! !ARGUMENTS:
+!
+      LOGICAL,             INTENT(IN   )   :: am_I_Root
+      TYPE(ESMF_GridComp), INTENT(INOUT)   :: GC
+      CHARACTER(LEN=*),    INTENT(IN   )   :: ConfigFile
+      INTEGER,             INTENT(  OUT)   :: RC
+!
+! !REVISION HISTORY:
+!  29 Aug 2013 - C. Keller - Initial version
+!EOP
+!------------------------------------------------------------------------------
+!BOC
+!
+! !LOCAL VARIABLES:
+!
+      INTEGER                    :: FLAG
+      TYPE(ListCont), POINTER    :: CurrCont => NULL()
 
+      ! ================================================================
+      ! HCO_SetServices begins here
+      ! ================================================================
+
+      ! For MAPL/ESMF error handling (defined Iam and STATUS)
+      __Iam__('HCO_SetServices (HEMCO_GridCompMod.F90)') 
+
+      ! ---------------------------------------------------------------------
+      ! Read file into buffer
+      ! ---------------------------------------------------------------------
+
+      CALL Read2Buffer( am_I_Root, TRIM(ConfigFile), STATUS )
+      IF ( STATUS /= HCO_SUCCESS ) THEN
+         ASSERT_(.FALSE.)
+      ENDIF
+
+      ! Loop over all lines and set services according to inputi file content
+      CALL GetNextCont ( CurrCont, FLAG )
+      DO WHILE ( FLAG == HCO_SUCCESS ) 
+
+         ! Skip containers that are not defined
+         IF ( .NOT. ASSOCIATED(CurrCont%Dta) ) THEN
+            CALL GetNextCont ( CurrCont, FLAG )
+            CYCLE
+         ENDIF
+
+         ! Ignore containers with ncRead flag disabled. These are typically
+         ! scalar fields directly read from the configuration file. 
+         IF ( .NOT. CurrCont%Dta%ncRead ) THEN 
+            ! don't do anything
+
+         ! 2D data
+         ELSEIF ( CurrCont%Dta%SpaceDim == 2 ) THEN
+
+            CALL MAPL_AddImportSpec(GC,                  &
+               SHORT_NAME = TRIM(CurrCont%Dta%cName),    &
+               LONG_NAME  = TRIM(CurrCont%Dta%cName),    &
+               UNITS      = TRIM(CurrCont%Dta%OrigUnit), &
+               DIMS       = MAPL_DimsHorzOnly,           &
+               VLOCATION  = MAPL_VLocationNone,          &
+               RC         = STATUS                        )
+            VERIFY_(STATUS)
+
+         ! 3D data: Assume central location in vertical dimension!
+         ELSEIF ( CurrCont%Dta%SpaceDim == 3 ) THEN
+ 
+            CALL MAPL_AddImportSpec(GC,                  &
+               SHORT_NAME = TRIM(CurrCont%Dta%cName),    &
+               LONG_NAME  = TRIM(CurrCont%Dta%cName),    &
+               UNITS      = TRIM(CurrCont%Dta%OrigUnit), &
+               DIMS       = MAPL_DimsHorzVert,           &
+               VLOCATION  = MAPL_VLocationCenter,        &
+               RC         = STATUS                        )
+            VERIFY_(STATUS)
+
+         ! Return w/ error if not 2D or 3D data 
+         ELSE
+            ASSERT_(.FALSE.) 
+         ENDIF
+
+         ! Advance to next container
+         CALL GetNextCont ( CurrCont, FLAG ) 
+
+      ENDDO
+
+      ! Free pointer
+      CurrCont => NULL()
+
+      ! Return success
+      RETURN_(ESMF_SUCCESS)
+
+      END SUBROUTINE HCO_SetServices
+!EOC
+!------------------------------------------------------------------------------
+!          Harvard University Atmospheric Chemistry Modeling Group            !
+!------------------------------------------------------------------------------
+!BOP
+!
+! !ROUTINE: HcoState_SetTime 
+!
+! !DESCRIPTION: Subroutine HcoState\_SetTime sets all time stamps in HEMCO
+! state using time information extracted from the ESMF clock object. 
+!\\
+!\\
+! !INTERFACE:
+!
+    SUBROUTINE HcoState_SetTime( Clock, HcoState, RC ) 
+!
+! !USES:
+!
+    USE HCO_DATACONT_MOD, ONLY : ListCont
+    USE HCO_CONFIG_MOD,   ONLY : Read2Buffer, GetNextCont
+    USE HCO_TIME_MOD,     ONLY : HCO_GetWeekday
+!                                                             
+! !INPUT/OUTPUT PARAMETERS:                                   
+!
+    TYPE(ESMF_Clock),    INTENT(INOUT)         :: Clock       ! ESMF clock obj 
+    TYPE(HCO_State),     POINTER               :: HcoState    ! HEMCO obj
+!                                                             
+! !OUTPUT PARAMETERS:                                   
+!
+    INTEGER,             INTENT(  OUT)         :: RC          ! Error code
+!
+! !REVISION HISTORY:
+!  29 Aug 2013 - C. Keller - Initial version
+!EOP
+!------------------------------------------------------------------------------
+!BOC
+!
+! !LOCAL VARIABLES:
+!
+    ! Objects
+    TYPE(ESMF_Time)                   :: startTime    ! ESMF start time obj
+    TYPE(ESMF_Time)                   :: currTime     ! ESMF current time obj
+
+    ! Scalars
+    INTEGER(ESMF_KIND_I8)             :: ccount       ! # of clock advances
+    INTEGER                           :: doy          ! Day of year (0-365/366)
+    INTEGER                           :: weekday      ! 0=Sun,...,6=Sat 
+    INTEGER                           :: yyyy, mm, dd ! Year, month, day
+    INTEGER                           :: h,    m,  s  ! Hour, minute, seconds
+    REAL                              :: utc          ! UTC time
+
+    ! ================================================================
+    ! HcoState_SetTime begins here
+    ! ================================================================
+
+    ! For MAPL/ESMF error handling (defined Iam and STATUS)
+    __Iam__('HcoState_SetTime (HEMCO_GridCompMod.F90)') 
+
+    !=======================================================================
+    ! Extract time/date information
+    !=======================================================================
+    
+    ! Get the ESMF time object
+    CALL ESMF_ClockGet( Clock,                    &
+                        startTime    = startTime, &
+                        currTime     = currTime,  &
+                        advanceCount = ccount,    &
+                         __RC__ )
+
+    ! Get individual fields from the time object
+    CALL ESMF_TimeGet( currTime, yy=yyyy, mm=mm, dd=dd, dayOfYear=doy, &
+                                 h=h,     m=m,   s=s,   __RC__ )
+    utc     = ( DBLE(h) ) + ( DBLE(m)/60d0 ) + ( DBLE(s)/3600d0 ) 
+    weekday = HCO_GetWeekday ( yyyy, mm, dd, utc )
+
+    ! Pass to HEMCO state 
+    HcoState%sYear       = yyyy
+    HcoState%sMonth      = mm
+    HcoState%sDay        = dd
+    HcoState%sHour       = h
+    HcoState%sMin        = m
+    HcoState%sSec        = s
+    HcoState%sDayOfYear  = doy
+    HcoState%sWeekday    = weekday
+
+    ! Return success
+    RETURN_(ESMF_SUCCESS)
+
+    END SUBROUTINE HcoState_SetTime
+!EOC
 end module HEMCO_GridCompMod

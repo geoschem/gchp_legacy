@@ -2,8 +2,7 @@
 	 SHORT_NAME  = (/'TRACERS'/),                              &
          DST_ID      = DYN,                                        &
          SRC_ID      = CHEM,                                       &
-                                                        RC=STATUS  )
-    VERIFY_(STATUS)
+                                                            __RC__  )
 
     call MAPL_AddConnectivity ( GC,                                &
 	 SHORT_NAME  = (/'EMISSIONS'/),                            &

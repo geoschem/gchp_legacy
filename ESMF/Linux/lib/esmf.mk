@@ -15,7 +15,7 @@ ESMF_F90COMPILER=mpif90
 ESMF_F90LINKER=mpif90
 
 ESMF_F90COMPILEOPTS=-align all -fPIC -traceback  -O -fPIC -m64 -mcmodel=small -threads -O -fPIC -m64 -mcmodel=small -threads -O -fPIC -m64 -mcmodel=small -threads
-ESMF_F90COMPILEPATHS=-I/home/mlong/CfA/GIGC/ESMF/Linux/mod -I/home/mlong/CfA/GIGC/ESMF/Linux/include
+ESMF_F90COMPILEPATHS=-I/home/ckeller/GIGC/GCSA/GIGC/ESMF/Linux/mod -I/home/ckeller/GIGC/GCSA/GIGC/ESMF/Linux/include
 ESMF_F90COMPILECPPFLAGS=-DESMF_NO_OPENMP -DSx86_64_small=1 -DESMF_OS_Linux=1
 ESMF_F90COMPILEFREECPP=
 ESMF_F90COMPILEFREENOCPP=
@@ -23,8 +23,8 @@ ESMF_F90COMPILEFIXCPP=
 ESMF_F90COMPILEFIXNOCPP=
 
 ESMF_F90LINKOPTS= -m64 -mcmodel=small -threads
-ESMF_F90LINKPATHS=-L/home/mlong/CfA/GIGC/ESMF/Linux/lib 
-ESMF_F90LINKRPATHS=-Wl,-rpath,/home/mlong/CfA/GIGC/ESMF/Linux/lib
+ESMF_F90LINKPATHS=-L/home/ckeller/GIGC/GCSA/GIGC/ESMF/Linux/lib 
+ESMF_F90LINKRPATHS=-Wl,-rpath,/home/ckeller/GIGC/GCSA/GIGC/ESMF/Linux/lib
 ESMF_F90LINKLIBS=  -lrt -ldl
 ESMF_F90ESMFLINKLIBS=-lesmf   -lrt -ldl
 
@@ -32,12 +32,12 @@ ESMF_CXXCOMPILER=mpicxx
 ESMF_CXXLINKER=mpicxx
 
 ESMF_CXXCOMPILEOPTS=-fPIC -O -DNDEBUG -fPIC -m64 -mcmodel=small -pthread -O -DNDEBUG -fPIC -m64 -mcmodel=small -pthread -O -DNDEBUG -fPIC -m64 -mcmodel=small -pthread
-ESMF_CXXCOMPILEPATHS=-I/home/mlong/CfA/GIGC/ESMF/Linux/include
+ESMF_CXXCOMPILEPATHS=-I/home/ckeller/GIGC/GCSA/GIGC/ESMF/Linux/include
 ESMF_CXXCOMPILECPPFLAGS=-DESMF_NO_OPENMP -DSx86_64_small=1 -DESMF_OS_Linux=1 -D__SDIR__='' -DESMF_NO_SIGUSR2
 
 ESMF_CXXLINKOPTS= -m64 -mcmodel=small -pthread
-ESMF_CXXLINKPATHS=-L/home/mlong/CfA/GIGC/ESMF/Linux/lib -L/opt/intel/Compiler/11.1/069/lib/intel64/
-ESMF_CXXLINKRPATHS=-Wl,-rpath,/home/mlong/CfA/GIGC/ESMF/Linux/lib -Wl,-rpath,/opt/intel/Compiler/11.1/069/lib/intel64/
+ESMF_CXXLINKPATHS=-L/home/ckeller/GIGC/GCSA/GIGC/ESMF/Linux/lib -L/opt/intel/Compiler/11.1/069/lib/intel64/
+ESMF_CXXLINKRPATHS=-Wl,-rpath,/home/ckeller/GIGC/GCSA/GIGC/ESMF/Linux/lib -Wl,-rpath,/opt/intel/Compiler/11.1/069/lib/intel64/
 ESMF_CXXLINKLIBS= -lopen-rte -lopen-pal -ldl -lnsl -lutil -limf -lm -ldl -lifport -lifcoremt -limf -lsvml -lm -lipgo -lirc -lpthread -ldl -lgcc_s -lgcc -lirc -lirc_s -ldl -lrt -ldl
 ESMF_CXXESMFLINKLIBS=-lesmf  -lopen-rte -lopen-pal -ldl -lnsl -lutil -limf -lm -ldl -lifport -lifcoremt -limf -lsvml -lm -lipgo -lirc -lpthread -ldl -lgcc_s -lgcc -lirc -lirc_s -ldl -lrt -ldl
 
@@ -56,7 +56,7 @@ ESMF_OPENMP_CXXLINKOPTS= -openmp
 #
 # !!! The following options were used on this ESMF build !!!
 #
-# ESMF_DIR: /home/mlong/CfA/GIGC/ESMF
+# ESMF_DIR: /home/ckeller/GIGC/GCSA/GIGC/ESMF
 # ESMF_OS: Linux
 # ESMF_MACHINE: x86_64
 # ESMF_ABI: 64

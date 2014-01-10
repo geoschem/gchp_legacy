@@ -12,7 +12,7 @@ module Dyn_GridCompMod
   USE GIGC_MPI_Wrap,        ONLY : mpiComm
   USE GIGC_State_Met_Mod
   USE GIGC_State_Chm_Mod
-  USE GIGC_State_Grid_Mod
+!  USE GIGC_State_Grid_Mod
   USE CharPak_Mod
 
   USE TRANSPORT_MOD
