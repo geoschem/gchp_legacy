@@ -274,6 +274,11 @@ contains
     TYPE(ESMF_FieldBundle)      :: bundle
     INTEGER                     :: N
 
+    TYPE(ESMF_Field)            :: hcoFIELD 
+    TYPE(ESMF_FieldBundle)      :: hcoBUNDLE 
+    CHARACTER(LEN=ESMF_MAXSTR)  :: hcoNAME
+    INTEGER                     :: IND, TrcID 
+
     !=======================================================================
     ! Initialization
     !=======================================================================
@@ -506,6 +511,31 @@ contains
    end if
 
     !=======================================================================
+    ! Match HEMCO species from HEMCO bundle with GEOS-Chem tracers 
+    !=======================================================================
+
+    call ESMF_StateGet(Import, 'EMISSIONS', hcoBUNDLE, __RC__ )
+    call ESMF_FieldBundleGet( hcoBUNDLE, fieldCount=N, __RC__ )
+
+    DO IND = 1, N 
+       call ESMF_FieldBundleGet(hcoBUNDLE, IND, hcoFIELD, __RC__ ) 
+       call ESMF_FieldGet( hcoFIELD, NAME=hcoNAME, __RC__)
+
+       ! Check if there is matching ID
+       TrcID =  Get_Indx( hcoNAME,              &
+                          Input_Opt%ID_Tracer,  &
+                          Input_Opt%Tracer_Name  )
+
+       call ESMF_AttributeSet (hcoFIELD,  &
+            NAME  = 'GIGCchem_trcID',     &
+            VALUE = TrcID,                & 
+                                    __RC__ )
+
+       ! eventually add more information here
+       
+    ENDDO
+
+    !=======================================================================
     ! All done
     !=======================================================================
 
@@ -642,7 +672,7 @@ contains
     INTEGER :: IND
 
     ! HEMCO bundle
-    INTEGER :: N, tmpID
+    INTEGER :: N, trcID
     REAL    :: COEFF
     CHARACTER(LEN=ESMF_MAXSTR)   :: hcoNAME
     TYPE(ESMF_Field      )       :: hcoFIELD      ! HEMCO emission field
@@ -779,14 +809,14 @@ contains
 
        ! Extract species ID
        call ESMF_AttributeGet (hcoFIELD,    &
-            NAME  = 'SpecID',               &
-            VALUE = tmpID,            __RC__ )
+            NAME  = 'GIGCchem_trcID',       &
+            VALUE = trcID,            __RC__ )
 
-!       ! Conversion factor (kg/m2/s -> molec/cm2/s)
-!       COEFF = Input_Opt%XNUMOL(tmpID) / 1.0d4
+       ! Conversion factor (kg/m2/s -> molec/cm2/s)
+       COEFF = Input_Opt%XNUMOL(trcID) / 1.0d4
 
        ! Pass to State_Chm. Don't reverse vertical (right?!)
-       State_Chm%Trac_Tend(:,:,:,tmpID) = fPtrArray !* COEFF
+       State_Chm%Trac_Tend(:,:,:,trcID) = fPtrArray !* COEFF
     END DO
 
     !=======================================================================

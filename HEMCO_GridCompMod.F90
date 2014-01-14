@@ -146,10 +146,7 @@ contains
 !
     ! HEMCO data arrays
     am_I_Root   = MAPL_Am_I_Root()
-
-    if ( am_I_Root ) write(*,*) 'HEMCO: set services'
     CALL HCO_SetServices( am_I_Root, GC, TRIM(ConfigFile), __RC__ )
-    if ( am_I_Root ) write(*,*) 'HEMCO: services set'
 
     ! Other imports (from other components):
 !#include "HEMCO_ImportSpec___.h"
@@ -217,8 +214,6 @@ contains
    call MAPL_GenericSetServices  ( GC, RC=STATUS )
    VERIFY_(STATUS)
 
-    if ( am_I_Root ) write(*,*) 'Leave HEMCO_SetServices now'
-
    RETURN_(ESMF_SUCCESS)
   
   end subroutine SetServices
@@ -242,7 +237,9 @@ contains
 !
 ! !USES:
 !
-    USE HCO_State_MOD,    ONLY : HcoState_Init
+    USE HCO_STATE_MOD,    ONLY : HcoState_Init
+    USE HCO_CONFIG_MOD,   ONLY : Config_GetnSpecies 
+    USE HCO_CONFIG_MOD,   ONLY : Config_GetSpecNames
     USE HCO_MAIN_MOD,     ONLY : HCO_INIT
     USE HCOX_DRIVER_MOD,  ONLY : HCOX_INIT
 !
@@ -394,16 +391,12 @@ contains
     ! Initialize HEMCO state object 
     !=======================================================================
 
-    ! Extract number of tracers from tracer field bundle
-!    call ESMF_StateGet(IMPORT, 'TRACERS', trcBUNDLE, __RC__ )    
-!    call ESMF_FieldBundleGet(trcBUNDLE,fieldCount=N, __RC__ )
-
-    ! For now, hardcode to CO and NO
-    N = 2
+    ! Get number of species registered from configuration file
+    N = Config_GetnSpecies () 
 
     ! Initialize HEMCO state
     IF (am_I_Root) WRITE( logLun, * ) 'Do HcoState_Init'
-    CALL HcoState_Init ( am_i_Root, N, HcoState, ERROR )
+    CALL HcoState_Init ( am_I_Root, HcoState, N, ERROR )
     IF ( ERROR /= HCO_SUCCESS ) THEN
        ASSERT_(.FALSE.) 
     ENDIF
@@ -420,60 +413,20 @@ contains
     HcoState%ConfigFile =  ConfigFile
 
     ! ----------------------------------------------------------------------
-    ! Extract species ('GC-tracer') information from trcBUNDLE
-    DO I=1, N
+    ! Set species information 
 
-       IF ( I == 1 ) THEN
-          HcoState%SpecNames(I)  = 'NO'
-          HcoState%SpecIDs(I)    = 1
-          HcoState%SpecMW(I)     = 30d0
-          HcoState%EmSpecMW(I)   = 30d0
-          HcoState%MolecRatio(I) = 1d0
-       ELSEIF ( I == 2 ) THEN
-          HcoState%SpecNames(I)  = 'CO'
-          HcoState%SpecIDs(I)    = 4
-          HcoState%SpecMW(I)     = 28d0
-          HcoState%EmSpecMW(I)   = 28d0
-          HcoState%MolecRatio(I) = 1d0 
-       ENDIF
+    ! Species names
+    CALL Config_GetSpecNames( HcoState%SpcName, N, ERROR )
+    IF ( ERROR /= HCO_SUCCESS ) THEN
+       ASSERT_(.FALSE.) 
+    ENDIF
 
-!       ! Get tracer field
-!       call ESMF_FieldBundleGet(trcBUNDLE, I, trcFIELD, __RC__ ) 
-
-!       ! species name
-!       call ESMF_FieldGet( trcFIELD, NAME=trcName, __RC__)
-!       HcoState%SpecNames(I) = trcNAME
-
-!       ! species ID
-!       call ESMF_AttributeGet (trcFIELD,    &
-!            NAME  = 'TRAC_ID',              &
-!            VALUE = HcoState%SpecIDs(I),    &
-!                                      __RC__ )       
-
-!       ! TCVV is molec/kg
-!       call ESMF_AttributeGet (trcFIELD,    &
-!            NAME  = 'TCVV',                 &
-!            VALUE = TCVV,                   &
-!                                      __RC__ )       
-
-!       ! Convert to g/mol
-!       TCVV = 1000.0d0 / TCVV * HcoState%Avgdr
-
-       ! molecular weight of atmospheric species (g/mol)
-!       HcoState%SpecMW(I) = TCVV 
-
-       ! molecular weight of emitted species (g/mol)
-       ! For now, set EmSpecMW equal to SpecMW. This is ok
-       ! as long as emitted data is in the same units as
-       ! atmospheric species (e.g. kgC for VOCs)
-!       HcoState%EmSpecMW(I) = TCVV
-
-       ! emitted molecules per molecule of atmospheric species
-       ! NOTE: not used in ESMF environment
-!       HcoState%MolecRatio(I) = 1.0d0
-    END DO
+    ! --> All other species properties are not of relevance 
+    !     in the ESMF environment, hence stick with the default
+    !     values! 
 
     ! ----------------------------------------------------------------------
+    ! TODO: Remove from here...
     ! Set size bins of coarse and accumulation mode aerosols
     ! NOTE: primarily used for aerosol extensions
     HcoState%SALA_REDGE_um = 0d0
@@ -537,6 +490,8 @@ contains
 
     ! Set current datetime in HcoState first (needed to read some 
     ! restart files, e.g. for soil NOx)
+    ! TODO: set species information properly. Probably best to 
+    ! explicitly set the molecular weights (?)
     CALL HCOX_INIT ( am_I_Root, HcoState, ExtOpt, ERROR )
 
     ! Error trap
@@ -549,7 +504,8 @@ contains
     !=======================================================================
     ! Define HEMCO data bundle
     ! Each field of the bundle corresponds to an array of HcoState and will
-    ! be populated with the emissions calculated by HEMCO. 
+    ! be populated with the emissions calculated by HEMCO.
+    ! Additional properties will be added in the chemistry component! 
     !=======================================================================
 
     call ESMF_StateGet(Export, 'EMISSIONS', HcoBUNDLE, __RC__ )
@@ -563,7 +519,7 @@ contains
     DO I = 1, N
 
        ! Extract species name
-       HcoNAME = HcoState%SpecNames(I)
+       HcoNAME = HcoState%SpcName(I)
 
        ! Create field. 
        HcoFIELD = ESMF_FieldCreate ( Grid,                      &
@@ -572,15 +528,15 @@ contains
                                      name     = HcoNAME,        &
                                                         __RC__ )
  
-       call ESMF_AttributeSet (HcoFIELD,    &
-            NAME  = 'SpecID',               &
-            VALUE = HcoState%SpecIDs(I),    &
-                                    __RC__ )       
+!       call ESMF_AttributeSet (HcoFIELD,    &
+!            NAME  = 'ModSpcID',             &
+!            VALUE = -1,                     &
+!                                    __RC__ )       
        
-       call ESMF_AttributeSet (HcoFIELD,    &
-            NAME  = 'MolWeight_gmol-1',     &
-            VALUE = HcoState%SpecMW(I),     &
-                                    __RC__ )       
+!       call ESMF_AttributeSet (HcoFIELD,    &
+!            NAME  = 'MolWeight_gmol-1',     &
+!            VALUE = HcoState%SpecMW(I),     &
+!                                    __RC__ )       
        
        call ESMF_FieldBundleAdd ( HcoBUNDLE, HcoFIELD, __RC__ )
     ENDDO
@@ -1316,7 +1272,8 @@ contains
 ! !USES:
 !
       USE HCO_DATACONT_MOD, ONLY : ListCont
-      USE HCO_CONFIG_MOD,   ONLY : Read2Buffer, GetNextCont
+      USE HCO_CONFIG_MOD,   ONLY : Config_ReadFile, GetNextCont
+      USE HCO_CONFIG_MOD,   ONLY : Config_ScalIDinUse
 !
 ! !ARGUMENTS:
 !
@@ -1347,12 +1304,12 @@ contains
       ! Read file into buffer
       ! ---------------------------------------------------------------------
 
-      CALL Read2Buffer( am_I_Root, TRIM(ConfigFile), STATUS )
+      CALL Config_ReadFile( am_I_Root, TRIM(ConfigFile), STATUS )
       IF ( STATUS /= HCO_SUCCESS ) THEN
          ASSERT_(.FALSE.)
       ENDIF
 
-      ! Loop over all lines and set services according to inputi file content
+      ! Loop over all lines and set services according to input file content
       CALL GetNextCont ( CurrCont, FLAG )
       DO WHILE ( FLAG == HCO_SUCCESS ) 
 
@@ -1361,6 +1318,15 @@ contains
             CALL GetNextCont ( CurrCont, FLAG )
             CYCLE
          ENDIF
+
+         ! For scale factor fields, check if this scale factor is used
+         ! by any of the base fields
+         IF ( CurrCont%Dta%DataType > 1 ) THEN
+            IF ( .NOT. Config_ScalIDinUse( CurrCont%Dta%ScalID ) ) THEN
+               CALL GetNextCont ( CurrCont, FLAG )
+               CYCLE
+            ENDIF
+         ENDIF         
 
          ! Ignore containers with ncRead flag disabled. These are typically
          ! scalar fields directly read from the configuration file. 
@@ -1426,8 +1392,6 @@ contains
 !
 ! !USES:
 !
-    USE HCO_DATACONT_MOD, ONLY : ListCont
-    USE HCO_CONFIG_MOD,   ONLY : Read2Buffer, GetNextCont
     USE HCO_TIME_MOD,     ONLY : HCO_GetWeekday
 !                                                             
 ! !INPUT/OUTPUT PARAMETERS:                                   
