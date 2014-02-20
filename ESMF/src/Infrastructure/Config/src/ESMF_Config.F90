@@ -2090,7 +2090,7 @@
       !check variables
       ESMF_INIT_CHECK_DEEP(ESMF_ConfigGetInit,config,rc)
 
-      call ESMF_ConfigLoadFile_1proc_( config, filename, localrc )
+      call ESMF_ConfigLoadFile_1proc_( config, filename, rc=localrc )
            if (ESMF_LogMsgFoundError(localrc, &
                                 "unable to load file", &
                                  ESMF_CONTEXT, rc)) return
@@ -2111,7 +2111,6 @@
 
     end subroutine ESMF_ConfigLoadFile
 
-
 #undef  ESMF_METHOD
 #define ESMF_METHOD "ESMF_ConfigLoadFile_1proc_"
 !-----------------------------------------------------------------------
@@ -2123,7 +2122,7 @@
 
 ! !INTERFACE:
 
-    subroutine ESMF_ConfigLoadFile_1proc_( config, filename, rc )
+    subroutine ESMF_ConfigLoadFile_1proc_( config, filename, rc ) 
 
 
       implicit none
@@ -2177,8 +2176,10 @@
 
 !     Read to end of file
 !     -------------------
+
       config%cptr%buffer(1:1) = EOL
       ptr = 2                         ! next buffer position
+
       do loop = 1, NBUF_MAX
 
 !        Read next line

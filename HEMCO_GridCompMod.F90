@@ -24,10 +24,11 @@ module HEMCO_GridCompMod
 !
 ! !PRIVATE MEMBER FUNCTIONS:
 !
-  PRIVATE                          :: Initialize_     ! Init method
-  PRIVATE                          :: Run_            ! Run method  
-  PRIVATE                          :: Finalize_       ! Finalize method
-  PRIVATE                          :: Extract_        ! Get values from ESMF
+  PRIVATE                          :: Initialize_      ! Init method
+  PRIVATE                          :: Run_             ! Run method  
+  PRIVATE                          :: Finalize_        ! Finalize method
+  PRIVATE                          :: HcoState_SetTime ! 
+  PRIVATE                          :: HCO_SetServices  ! 
 !
 ! !PRIVATE TYPES:
 !
@@ -44,15 +45,15 @@ module HEMCO_GridCompMod
 
   INTEGER                          :: logLun          ! LUN for stdout logfile
   CHARACTER(LEN=ESMF_MAXSTR)       :: logFile         ! File for stdout redirect
-  CHARACTER(LEN=ESMF_MAXSTR)       :: StdOutFile      ! StdOutFile
 
   ! HEMCO objects
   TYPE(HCO_State), POINTER      :: HcoState => NULL() ! HEMCO state
   TYPE(OptExt),    POINTER      :: ExtOpt   => NULL() ! Extension options bundle 
 
   ! HEMCO configuration file:
-  CHARACTER(LEN=ESMF_MAXSTR), PARAMETER :: ConfigFile = &
-     '/home/ckeller/GIGC/HEMCO_input/HEMCO_Config.GIGCtest'
+! CHARACTER(LEN=ESMF_MAXSTR), PARAMETER :: ConfigFile = &
+!    '/home/ckeller/GIGC/HEMCO_input/HEMCO_Config.GIGCtest'
+  CHARACTER(LEN=ESMF_MAXSTR)    :: ConfigFile     ! HEMCO configuration file 
 
   ! Extension toggle (for testing purposes)
   LOGICAL, PARAMETER :: DoExt = .FALSE.
@@ -74,10 +75,8 @@ contains
     type(ESMF_GridComp), intent(INOUT) :: GC  ! gridded component
     integer, optional  , intent(  OUT) :: RC  ! return code
 
-! !DESCRIPTION:  The SetServices for the emissions GC needs to register its
-!   Initialize and Run.  It uses the MAPL_Generic construct for defining 
-!   state specs and couplings among its children.  In addition, it creates the   
-!   children GCs and runs their respective SetServices.
+! !DESCRIPTION:  The SetServices for the emissions needs to register its
+!   Initialize and Run.
 !
     type(esmf_vm) :: vm
     character(len=ESMF_MAXSTR)              :: IAm
@@ -130,7 +129,7 @@ contains
    wrap%ptr => myState
 
    myState%myCF = ESMF_ConfigCreate(__RC__)
-   call ESMF_ConfigLoadFile( myState%myCF, 'GIGC_GridComp.rc', __RC__)
+   call ESMF_ConfigLoadFile( myState%myCF, 'HEMCO_GridComp.rc', __RC__)
    
    ! Store internal state with Config object in the gridded component
    CALL ESMF_UserCompSetInternalState( GC, 'EMIS_State', wrap, STATUS )
@@ -144,7 +143,11 @@ contains
 !
 ! !IMPORT STATE:
 !
-    ! HEMCO data arrays
+    ! Extract HEMCO configuration file path&name (from HEMCO_GridComp.rc)
+    CALL ESMF_ConfigGetAttribute( myState%myCF, ConfigFile,     &
+                                  Label="CONFIG_FILE:", __RC__ )
+
+    ! Set HEMCO services 
     am_I_Root   = MAPL_Am_I_Root()
     CALL HCO_SetServices( am_I_Root, GC, TRIM(ConfigFile), __RC__ )
 
@@ -166,6 +169,15 @@ contains
           DIMS                = MAPL_DimsHorzOnly,    &
           VLOCATION           = MAPL_VLocationNone,   &
           __RC__ )
+
+! TODO: Import AREA
+!     CALL MAPL_AddImportSpec( GC, &
+!          SHORT_NAME          = 'AREA',               &
+!          LONG_NAME           = 'agrid_cell_area',    &
+!          UNITS               = 'm^2',                &
+!          DIMS                = MAPL_DimsHorzOnly,    &
+!          VLOCATION           = MAPL_VLocationNone,   &
+!          __RC__ )
 
     ! Import from GIGC 
 !    call MAPL_AddImportSpec(GC,                                   &
@@ -265,25 +277,23 @@ contains
     ! Objects
     TYPE(ESMF_Grid)              :: Grid        ! ESMF Grid object
     TYPE(ESMF_Config)            :: MaplCF      ! ESMF Config obj (MAPL.rc)
-    TYPE(ESMF_Config)            :: GeosCF      ! ESMF Config obj (GIGC*.rc) 
+    TYPE(ESMF_Config)            :: EmisCF      ! ESMF Config obj (HEMCO*.rc) 
     TYPE(MAPL_METACOMP), POINTER :: MAPL    
+
+    TYPE(ESMF_VM)                 :: VM             ! ESMF VM object
+    TYPE(EMIS_State), POINTER     :: myState        ! Legacy state
+    TYPE(EMIS_Wrap)               :: wrap           ! Wrapper for myState
                                    
     ! Scalars                                   
     LOGICAL                     :: am_I_Root   ! Are we on the root CPU?
     INTEGER                     :: error       ! HEMCO error code
     INTEGER                     :: myPet       ! # of the CPU we are on 
-    INTEGER                     :: IM          ! # of longitudes on this CPU
-    INTEGER                     :: JM          ! # of latitudes  on this CPU
-    INTEGER                     :: LM          ! # of levels     on this CPU
-    REAL                        :: tsChem      ! Chemistry timestep [s]
-    REAL                        :: tsDyn       ! Dynamic timestep [s]
     INTEGER                     :: nPets       ! Total # of CPUs 
     CHARACTER(LEN=5)            :: petStr      ! String for PET #
     CHARACTER(LEN=ESMF_MAXSTR)  :: compName    ! Name of gridded component
+    CHARACTER(LEN=ESMF_MAXSTR)  :: StdOutFile  ! output log file 
      
     ! Pointer arrays
-    REAL(ESMF_KIND_R4), POINTER :: lonCtr(:,:) ! Lon centers on this CPU [rad]
-    REAL(ESMF_KIND_R4), POINTER :: latCtr(:,:) ! Lat centers on this CPU [rad]
     REAL,               POINTER :: u10m  (:,:) ! 
 
     ! TRACERS bundle (import)
@@ -294,10 +304,20 @@ contains
     TYPE(ESMF_FieldBundle)       :: hcoBUNDLE
     TYPE(ESMF_Field)             :: hcoFIELD
 
+    ! Grid information
+    TYPE(MAPL_MetaComp),  POINTER   :: metaComp    ! MAPL MetaComp object
+    INTEGER                         :: locDims(3)  ! Array for local dims
+    REAL,                 POINTER   :: lonCtr(:,:)   ! Lon centers on this CPU [rad]
+    REAL,                 POINTER   :: latCtr(:,:)   ! Lat centers on this CPU [rad]
+    REAL(ESMF_KIND_R4),   POINTER   :: AREA_3D(:,:,:)! Grid box area 
+    REAL(ESMF_KIND_R4),   POINTER   :: AREA_2D(:,:)  ! Grid box area 
+    INTEGER                         :: lDE
+    INTEGER                         :: localDECount
+
     ! Working variables
     CHARACTER(LEN=ESMF_MAXSTR)   :: trcNAME
     CHARACTER(LEN=ESMF_MAXSTR)   :: hcoNAME
-    INTEGER                      :: I, N    
+    INTEGER                      :: I, J, IDX, N    
     REAL                         :: TCVV
     REAL, POINTER                :: Arr3D(:,:,:) => NULL()
 
@@ -312,19 +332,11 @@ contains
     ERROR = HCO_SUCCESS
 
     ! Traceback info
-    CALL ESMF_GridCompGet( GC, name=compName, __RC__ )
-    VERIFY_(STATUS)
+    CALL ESMF_GridCompGet( GC, name=compName, vm=VM, __RC__ )
     Iam = trim( compName ) // '::' // trim( Iam )
 
-!    ! Get my MAPL_Generic state
-!    !--------------------------
-!    call MAPL_GetObjectFromGC ( GC, STATE, RC=STATUS)
-!    VERIFY_(STATUS)
-
     ! Initialize MAPL Generic
-    !--------------------------
     CALL MAPL_GenericInitialize( GC, Import, Export, Clock, __RC__ )
-    VERIFY_(STATUS)
 
     ! Test if we are on the root CPU
     am_I_Root = MAPL_Am_I_Root()
@@ -333,40 +345,31 @@ contains
     ! Get various parameters from the ESMF/MAPL framework
     !=======================================================================
 
-    CALL Extract_( GC,                   &  ! Ref to this Gridded Component
-                   Clock,                &  ! ESMF Clock object
-                   Grid      = Grid,     &  ! ESMF Grid object
-                   MaplCf    = MaplCF,   &  ! ESMF Config obj (MAPL*.rc) 
-                   GeosCf    = GeosCF,   &  ! ESMF Config obj (GIGC*.rc)
-                   tsDyn     = tsDyn,    &  ! Dynamic timestep [sec]
-                   tsChem    = tsChem,   &  ! Chemistry timestep [sec]
-                   IM        = IM,       &  ! # of longitudes on this PET
-                   JM        = JM,       &  ! # of latitudes  on this PET
-                   LM        = LM,       &  ! # of levels     on this pET
-                   lonCtr    = lonCtr,   &  ! sfc. lon ctrs [rad]
-                   latCtr    = latCtr,   &  ! sfc. lat ctrs [rad]
-                   localpet  = myPet,    &  ! # of the CPU we are on now
-                   petCount  = nPets,    &  ! Total # of CPUs
-                   __RC__ )
+    ! Get the internal state which holds the private Config object
+    CALL ESMF_UserCompGetInternalState( GC, 'EMIS_State', wrap, STATUS )
+    VERIFY_(STATUS)
+    myState => wrap%ptr
+    EmisCF  =  myState%myCF
 
     !=======================================================================
     ! Open a log file on each PET where stdout will be redirected
     !=======================================================================
 
+    ! Pet information 
+    CALL ESMF_VmGet( VM, localPet=myPet, __RC__ )  ! This PET
+    CALL ESMF_VmGet( VM, petCount=nPets, __RC__ )  ! Total # of PETS
+
     ! Name of logfile for stdout redirect
-!    CALL ESMF_ConfigGetAttribute( GeosCF, StdOutFile,          &
-!                                  Label   = "STDOUT_LOGFILE:", &
-!                                  Default = "PET%%%%%.init",   &
-!                                   __RC__ )
+    CALL ESMF_ConfigGetAttribute( EmisCF, StdOutFile,              &
+                                  Label   = "STDOUT_LOGFILE:",     &
+                                  Default = "PET%%%%%.HEMCO.init", &
+                                                           __RC__ )
 
-!    ! Name of log LUN # for stdout redirect
-!    CALL ESMF_ConfigGetAttribute( GeosCF, logLun,              &
-!                                  Label   = "STDOUT_LOGLUN:",  &
-!                                  Default = 700,               &
-!                                   __RC__ )
-
-    StdOutFile = 'HEMCO.log'
-    logLun     = 800
+    ! Name of log LUN # for stdout redirect
+    CALL ESMF_ConfigGetAttribute( EmisCF, logLun,              &
+                                  Label   = "STDOUT_LOGLUN:",  &
+                                  Default = 700,               &
+                                                       __RC__ )
 
     ! Replace tokens w/ PET # in the filename
     IF ( am_I_Root ) THEN
@@ -413,7 +416,7 @@ contains
     HcoState%ConfigFile =  ConfigFile
 
     ! ----------------------------------------------------------------------
-    ! Set species information 
+    ! Species information 
 
     ! Species names
     CALL Config_GetSpecNames( HcoState%SpcName, N, ERROR )
@@ -433,44 +436,65 @@ contains
     HcoState%SALC_REDGE_um = 0d0
 
     ! ----------------------------------------------------------------------
-    ! Define grid on this CPU
+    ! Local grid 
+       
+    ! Get the ESMF grid attached to this gridded component
+    CALL ESMF_GridCompGet( GC, grid=Grid, __RC__ )
+    CALL MAPL_GridGet( Grid, localCellCountPerDim = locDims, __RC__ )      
 
-    ! Grid dimensions
-    HcoState%NX = IM
-    HcoState%NY = JM
-    HcoState%NZ = LM
+    ! Pass local grid dimensions
+    HcoState%NX = locDims(1)
+    HcoState%NY = locDims(2)
+    HcoState%NZ = locDims(3)
 
-    ! Set grid midpoints (convert from rad to deg)
-    ALLOCATE ( HcoState%XMID(IM,JM,1), STAT=RC )
+    ! Prepare HcoState grid arrays 
+    ALLOCATE ( HcoState%XMID(HcoState%NX,HcoState%NY,1), STAT=RC )
     IF ( RC/= ESMF_SUCCESS ) RETURN
-    ALLOCATE ( HcoState%YMID(IM,JM,1), STAT=RC )
+    ALLOCATE ( HcoState%YMID(HcoState%NX,HcoState%NY,1), STAT=RC )
     IF ( RC/= ESMF_SUCCESS ) RETURN
+
+    ! Get horizontal coordinate variables and pass to HcoState.
+    CALL MAPL_GetObjectFromGC( GC, metaComp,    __RC__ )
+    CALL MAPL_Get( metaComp, lons=lonCtr,       __RC__ )
+    CALL MAPL_Get( metaComp, lats=latCtr,       __RC__ )
+
+    ! Convert from rad to deg and pass to HcoState
     HcoState%XMID(:,:,1) = lonCtr(:,:) * 180d0 / HcoState%PI
     HcoState%YMID(:,:,1) = latCtr(:,:) * 180d0 / HcoState%PI
-  
-    ! grid sizes (area and height).
-    ! NOTE: these variables are used by some of the extensions. No need
-    ! to define them if no extensions are used. 
-    HcoState%AREA_M2    => NULL() !AREA_M2
-    HcoState%BXHEIGHT_M => NULL() !State_Met%BXHEIGHT
+
+    ! For now, don't define area. Area only used by some of the extensions!
+    HcoState%AREA_M2 => NULL()
+
+    ! TODO: grid box height --> leave empty for now 
+    ! This variable is used by some of the extensions. No need
+    ! to define it if extensions are disabled. 
+    HcoState%BXHEIGHT_M => NULL() 
  
     ! grid edge information is only used for HEMCO internal regridding
     ! routines, which are never called in an ESMF environment. Hence
     ! leave pointers nullified.
+    ! MAPL_GridGet( Grid, gridCornerLons=..., gridCornerLats=..., __RC__)
+
     HcoState%XEDGE => NULL() 
     HcoState%YEDGE => NULL() 
     HcoState%YSIN  => NULL() 
 
     ! ----------------------------------------------------------------------
-    ! Emission and dynamics timestep in seconds
-    ! --> For now, assume that emission timestep = chemistry timestep!!
-    HcoState%TS_EMIS = tsChem
-    HcoState%TS_DYN  = tsDyn
+    ! Timesteps
+ 
+    ! Dynamic timestep (MAPL.rc)
+    CALL ESMF_GridCompGet( GC, Config=MaplCF, __RC__ )
+    CALL ESMF_ConfigGetAttribute( MaplCF, HcoState%TS_DYN, &
+                                  Label="RUN_DT:", __RC__ )
+
+    ! Emission timestep (HEMCO_GridComp.rc)
+    CALL ESMF_ConfigGetAttribute( EmisCF, HcoState%TS_EMIS,           &
+                                  Label="EMISSION_TIMESTEP:", __RC__ )
 
     ! ----------------------------------------------------------------------
-    ! Current timestamps 
-    ! ----------------------------------------------------------------------
+    ! Pass current timestamps to HcoState 
     CALL HcoState_SetTime ( Clock, HcoState, __RC__ )
+
 
     !=======================================================================
     ! Initialize HEMCO internal lists and variables 
@@ -511,7 +535,7 @@ contains
     call ESMF_StateGet(Export, 'EMISSIONS', HcoBUNDLE, __RC__ )
 
     ! Empty data array to be copied to each field bundle
-    ALLOCATE(Arr3D(IM,JM,LM),STAT=STATUS)
+    ALLOCATE(Arr3D(HcoState%NX,HcoState%NY,HcoState%NZ),STAT=STATUS)
     VERIFY_(STATUS)
     Arr3D = 0d0
 
@@ -642,11 +666,6 @@ contains
 !
 ! LOCAL VARIABLES:
 !  
-    ! Objects
-    TYPE(ESMF_Grid)              :: Grid          ! ESMF Grid object
-    TYPE(ESMF_Config)            :: MaplCF        ! Config (MAPL.rc)
-    TYPE(ESMF_Config)            :: GeosCF        ! Config (GIGC*.rc)
-                                                  
     ! Scalars                                     
     LOGICAL                      :: am_I_Root     ! Are we on the root CPU?
     INTEGER                      :: error         ! G-C error return code
@@ -857,401 +876,6 @@ contains
   end subroutine Finalize_
 !EOC
 !------------------------------------------------------------------------------
-!     NASA/GSFC, Global Modeling and Assimilation Office, Code 910.1 and      !
-!          Harvard University Atmospheric Chemistry Modeling Group            !
-!------------------------------------------------------------------------------
-!BOP
-!
-! !IROUTINE: Extract_
-!
-! !DESCRIPTION: GC routine extracts several common quantities from the 
-!  ESMF/MAPL environment so that they can be later passed down to the 
-!  grid-independent GEOS-Chem code.
-!\\
-!\\
-! !INTERFACE:
-!
-  SUBROUTINE Extract_( GC,       Clock,    Grid,    MaplCF, GeosCF,    &
-                       localPet, petCount, I_LO,    J_LO,   I_HI,      &
-                       nymdB,    nymdE,    nhmsB,   nhmsE,             &
-                       J_HI,     IM,       JM,      LM,     IM_WORLD,  &
-                       JM_WORLD, LM_WORLD, lonCtr,  latCtr,            &
-                       tsChem,   tsDyn,    mpiComm, ZTH,   SLR,        &
-                       RC )
-
-!
-! !INPUT PARAMETERS:
-!
-    TYPE(ESMF_Clock),    INTENT(IN)            :: Clock       ! ESMF clock obj 
-!                                                             
-! !INPUT/OUTPUT PARAMETERS:                                   
-!                                                             
-    TYPE(ESMF_GridComp), INTENT(INOUT)         :: GC          ! GC grid comp
-!                                                             
-! !OUTPUT PARAMETERS:                                         
-!              
-    !----------------------------------
-    ! ESMF and/or MAPL quantities
-    !----------------------------------
-    TYPE(ESMF_Grid),     INTENT(OUT), OPTIONAL :: Grid        ! ESMF Grid obj
-    TYPE(ESMF_Config),   INTENT(OUT), OPTIONAL :: MaplCF      ! MAPL.rc
-    TYPE(ESMF_Config),   INTENT(OUT), OPTIONAL :: GeosCF      ! GIGC*.rc
-    INTEGER,             INTENT(OUT), OPTIONAL :: localPet    ! This PET
-    INTEGER,             INTENT(OUT), OPTIONAL :: petCount    ! Total # of PETs
-    INTEGER,             INTENT(OUT), OPTIONAL :: mpiComm     ! MPI Communicator Handle
-
-    !----------------------------------
-    ! Local grid coordinates 
-    ! (defined on the current CPU)
-    !----------------------------------
-    INTEGER,             INTENT(OUT), OPTIONAL :: I_LO        ! Min lon index
-    INTEGER,             INTENT(OUT), OPTIONAL :: J_LO        ! Min lat index
-    INTEGER,             INTENT(OUT), OPTIONAL :: I_HI        ! Max lon index
-    INTEGER,             INTENT(OUT), OPTIONAL :: J_HI        ! Max lat index
-    INTEGER,             INTENT(OUT), OPTIONAL :: IM          ! Total # lons
-    INTEGER,             INTENT(OUT), OPTIONAL :: JM          ! Total # lats
-    INTEGER,             INTENT(OUT), OPTIONAL :: LM          ! Total # levs
-    REAL(ESMF_KIND_R4),  POINTER,     OPTIONAL :: lonCtr(:,:) ! Lon ctrs [rad]
-    REAL(ESMF_KIND_R4),  POINTER,     OPTIONAL :: latCtr(:,:) ! Lat ctrs [rad]
-
-    !----------------------------------
-    ! Global grid coordinates
-    !----------------------------------
-    INTEGER,             INTENT(OUT), OPTIONAL :: IM_WORLD    ! Global # lons
-    INTEGER,             INTENT(OUT), OPTIONAL :: JM_WORLD    ! Global # lats
-    INTEGER,             INTENT(OUT), OPTIONAL :: LM_WORLD    ! Global # levs
-
-    !-----------------------------------                     
-    ! Time information 
-    !-----------------------------------                     
-    INTEGER,             INTENT(OUT), OPTIONAL :: nymdB       ! YYYYMMDD @ start
-    INTEGER,             INTENT(OUT), OPTIONAL :: nymdE       ! YYYYMMDD @ end
-    INTEGER,             INTENT(OUT), OPTIONAL :: nhmsB       ! hhmmss @ start
-    INTEGER,             INTENT(OUT), OPTIONAL :: nhmsE       ! hhmmss @ end
-
-    !-----------------------------------                     
-    ! Timestep variables [seconds]          
-    !-----------------------------------                     
-    REAL,                INTENT(OUT), OPTIONAL :: tsChem      ! Chemistry
-    REAL,                INTENT(OUT), OPTIONAL :: tsDyn       ! Dynamics
-
-    !-----------------------------------                     
-    ! Solar parameters
-    !-----------------------------------                     
-    REAL,                INTENT(OUT), OPTIONAL :: ZTH(:,:)    ! Solar zth angle
-    REAL,                INTENT(OUT), OPTIONAL :: SLR(:,:)    ! Insolation
-
-    !-----------------------------------                        
-    ! Return code 
-    !-----------------------------------                     
-    INTEGER,             INTENT(OUT), OPTIONAL :: RC          ! 0 = all is well
-!
-! !REMARKS:
-!  If you need to obtain a quantity not returned by this routine, you can
-!  manually extract it from the MaplCF or GeosCF configuration objects.
-!
-! !REVISION HISTORY:
-!  01 Dec 2009 - A. Da Silva - Initial version
-!  07 Apr 2010 - R. Yantosca - Added ProTeX headers
-!  08 Apr 2010 - R. Yantosca - Make all outputs optional
-!  08 Apr 2010 - R. Yantosca - Added outputs for localPet, petCount
-!  08 Apr 2010 - R. Yantosca - Added outputs for individual time values
-!                              as well as elapsed time (hours)
-!  13 Apr 2010 - R. Yantosca - Now take tsDyn from the MAPL "RUN_DT:" setting
-!  30 Nov 2012 - R. Yantosca - Now return IM_WORLD, JM_WORLD, LM_WORLD
-!  30 Nov 2012 - R. Yantosca - Now return local indices I_LO, J_LO, I_HI, J_HI
-!  05 Dec 2012 - R. Yantosca - Removed latEdg argument; cosmetic changes
-!  13 Feb 2013 - E. Nielsen  - Restart file inquiry for GEOS-5
-!EOP
-!------------------------------------------------------------------------------
-!BOC
-!
-! LOCAL VARIABLES:
-! 
-    ! Objects
-    TYPE(ESMF_Time)               :: startTime      ! ESMF start time obj
-    TYPE(ESMF_Time)               :: currTime       ! ESMF current time obj
-    TYPE(ESMF_TimeInterval)       :: elapsedTime    ! ESMF elapsed time obj
-    TYPE(ESMF_VM)                 :: VM             ! ESMF VM object
-    TYPE(EMIS_State), POINTER     :: myState        ! Legacy state
-    TYPE(EMIS_Wrap)               :: wrap           ! Wrapper for myState
-    TYPE(MAPL_MetaComp),  POINTER :: metaComp       ! MAPL MetaComp object
-    TYPE(MAPL_SunOrbit)           :: sunOrbit
-
-    ! Scalars
-    CHARACTER(len=ESMF_MAXSTR)    :: compName       ! Gridded component name
-    INTEGER(ESMF_KIND_I8)         :: count          ! # of clock advances
-    INTEGER                       :: locDims(3)     ! Array for local dims
-    INTEGER                       :: globDims(3)    ! Array for global dims
-    INTEGER                       :: IL,   IU       ! Min/max local lon indices
-    INTEGER                       :: JL,   JU       ! Min/max local lat indices
-
-    !=======================================================================
-    ! Initialization
-    !=======================================================================
-
-    __Iam__('Extract_')
-
-    ! Get my name and set-up traceback handle
-    CALL ESMF_GridCompGet( GC, name=compName, vm=VM, __RC__ )
-    Iam = TRIM( compName ) // '::' // TRIM( Iam )
-
-    ! Get the internal state which holds the private Config object
-    CALL ESMF_UserCompGetInternalState( GC, 'EMIS_State', wrap, STATUS )
-    VERIFY_(STATUS)
-    myState => wrap%ptr
-
-    ! Assume successful return
-    IF ( PRESENT( RC ) ) RC = ESMF_SUCCESS
-
-    ! Zero variables
-    locDims  = 0
-    globDims = 0
-    IL       = 0
-    JL       = 0
-    IU       = 0
-    JU       = 0
-
-    !=======================================================================
-    ! Extract information from ESMF VM object
-    !=======================================================================
-
-    ! Index of the PET we are on now
-    IF ( PRESENT( localPet ) ) THEN
-       CALL ESMF_VmGet( VM, localPet=localPet, __RC__ )
-    ENDIF
-
-    ! Total # of PETs used by this gridded component
-    IF ( PRESENT( petCount ) ) THEN
-       CALL ESMF_VmGet( VM, petCount=petCount, __RC__ )
-    ENDIF
-
-    ! Global MPI Communicator Handle
-    IF ( PRESENT( mpiComm ) ) THEN
-       CALL ESMF_VmGet( VM, mpicommunicator=mpiComm, __RC__ )
-    ENDIF
-
-    !=======================================================================
-    ! Extract information from ESMF Config objects
-    !=======================================================================
-
-    ! Get the Config object based on "MAPL.rc"
-    CALL ESMF_GridCompGet( GC, Config=MaplCF, __RC__ )
-    
-    ! Get the Config object based on "GIGC_GridComp.rc"
-    GeosCF = myState%myCF
-
-    ! Dynamic timestep (convert to minutes)
-    IF ( PRESENT( tsDyn ) ) THEN
-       CALL ESMF_ConfigGetAttribute( MaplCF, tsDyn,                       &
-                                     Label="RUN_DT:",             __RC__ )
-    ENDIF
-
-    ! Chemistry timestep (convert to minutes)
-    IF ( PRESENT( tsChem ) ) THEN
-       CALL ESMF_ConfigGetAttribute( GeosCF, tsChem,                      &
-                                     Label="CHEMISTRY_TIMESTEP:", __RC__ )
-    ENDIF
-
-    ! Start date
-    IF ( PRESENT( nymdb ) ) THEN
-       CALL ESMF_ConfigGetAttribute( GeosCF, nymdB,                       &
-                                     Label   = "UTC_START_DATE:", __RC__ )
-    ENDIF
-
-    ! Start time
-    IF ( PRESENT( nhmsB ) ) then
-       CALL ESMF_ConfigGetAttribute( GeosCF, nhmsB,                       &
-                                     LABEL   = "UTC_START_TIME:", __RC__ )
-    ENDIF
-
-    ! End date
-    IF ( PRESENT( nymdE ) ) THEN
-       CALL ESMF_ConfigGetAttribute( GeosCF, nymdE,                       &
-                                     Label   = "UTC_END_DATE:",   __RC__ )
-    ENDIF
-
-    ! End time
-    IF ( PRESENT( nhmsE ) ) THEN
-       CALL ESMF_ConfigGetAttribute( GeosCF, nhmsE,                       &
-                                     LABEL   = "UTC_END_TIME:",  __RC__ )
-    ENDIF
-
-    !=======================================================================
-    ! Extract grid information
-    !=======================================================================
-    IF ( PRESENT( Grid ) ) THEN
-    
-       ! Get the ESMF grid attached to this gridded component
-       CALL ESMF_GridCompGet( GC, grid=Grid, __RC__ )
-
-       ! Get # of dimensions on this pet, and globally
-       CALL MAPL_GridGet( Grid,                                        &
-                          localCellCountPerDim  = locDims,             &
-                          globalCellCountPerDim = globDims,            &
-                          __RC__ )
-          
-       ! Get the upper and lower bounds of on each PET
-       CALL GridGetInterior( Grid, IL, IU, JL, JU, __RC__  )
-
-    ENDIF
-
-    ! Save fields for return
-    IF ( PRESENT( I_LO     ) ) I_LO     = IL
-    IF ( PRESENT( J_LO     ) ) J_LO     = JL
-    IF ( PRESENT( I_HI     ) ) I_HI     = IU
-    IF ( PRESENT( J_HI     ) ) J_HI     = JU
-    IF ( PRESENT( IM       ) ) IM       = locDims(1)
-    IF ( PRESENT( JM       ) ) JM       = locDims(2)
-    IF ( PRESENT( LM       ) ) LM       = locDims(3)
-    IF ( PRESENT( IM_WORLD ) ) IM_WORLD = globDims(1)
-    IF ( PRESENT( JM_WORLD ) ) JM_WORLD = globDims(2)
-    IF ( PRESENT( LM_WORLD ) ) LM_WORLD = globDims(3)
-
-    ! Get horizontal coordinate variables
-    CALL MAPL_GetObjectFromGC( GC, metaComp, __RC__ )
-
-    ! Longitude values on this PET
-    IF ( PRESENT( lonCtr ) ) THEN
-       CALL MAPL_Get( metaComp, lons=lonCtr, __RC__ )
-    ENDIF
-
-    ! Latitude values on this PET
-    IF ( PRESENT( latCtr ) ) THEN
-       CALL MAPL_Get( metaComp, lats=latCtr, __RC__ )
-    ENDIF
-
-    !=======================================================================
-    ! Get solar zenith angle enformation
-    !=======================================================================
-    IF ( PRESENT( ZTH    ) .and. PRESENT( SLR    )  .and. &
-         PRESENT( lonCtr ) .and. PRESENT( latCtr ) ) THEN
-         
-       ! Get the Orbit object (of type MAPL_SunOrbit),
-       ! which is used in the call to MAPL_SunGetInsolation
-       CALL MAPL_Get( metaComp,                       &
-                      LONS      = lonCtr,             &
-                      LATS      = latCtr,             &
-                      ORBIT     = sunOrbit,           &
-                      __RC__                         )
-
-       ! Get the solar zenith angle and solar insolation
-       ! NOTE: ZTH, SLR are allocated outside of this routine
-       CALL MAPL_SunGetInsolation( LONS  = lonCtr,    &
-                                   LATS  = latCtr,    &
-                                   ORBIT = sunOrbit,  &
-                                   ZTH   = ZTH,       &
-                                   SLR   = SLR,       &
-                                   CLOCK = Clock,     &
-                                   __RC__            )
-
-    ENDIF
-
-    !=======================================================================
-    ! All done
-    !=======================================================================
-    RETURN_(ESMF_SUCCESS)
-
-  END SUBROUTINE Extract_
-!EOC
-!------------------------------------------------------------------------------
-!          Harvard University Atmospheric Chemistry Modeling Group            !
-!------------------------------------------------------------------------------
-!BOP
-!
-! !IROUTINE: gridGetInterior
-!
-! !DESCRIPTION: Given an ESMF grid, returns the lower and upper longitude
-!  and latitude indices on a given PET.
-!\\
-!\\
-! !INTERFACE:
-!
-    SUBROUTINE GridGetInterior( Grid, I1, IN, J1, JN, RC )
-!
-! !INPUT PARAMETERS: 
-!
-    TYPE(ESMF_Grid), INTENT(IN)  :: Grid   ! ESMF Grid object
-!
-! !OUTPUT PARAMETERS:
-!
-    INTEGER,         INTENT(OUT) :: I1     ! Lower lon index on this PET
-    INTEGER,         INTENT(OUT) :: IN     ! Upper lon index on this PET
-    INTEGER,         INTENT(OUT) :: J1     ! Lower lat index on this PET
-    INTEGER,         INTENT(OUT) :: JN     ! Upper lat index on this PET
-    INTEGER,         INTENT(OUT) :: RC     ! Success/failure
-!
-! !REMARKS:
-!  This was a PRIVATE routine named MAPL_GridGetInterior within MAPL_Base.F90.
-!  I have pulled the source code from there.
-! 
-! !REVISION HISTORY: 
-!  30 Nov 2012 - R. Yantosca - Initial version, based on MAPL_Base
-!EOP
-!------------------------------------------------------------------------------
-!BOC
-!
-! !LOCAL VARIABLES:
-!
-    INTEGER                               :: status
-    CHARACTER(LEN=ESMF_MAXSTR)            :: IAm='MAPL_GridGetInterior'
-
-    TYPE(ESMF_DistGrid)                   :: distGrid
-    TYPE(ESMF_DELayout)                   :: LAYOUT
-    INTEGER,               ALLOCATABLE    :: AL(:,:)
-    INTEGER,               ALLOCATABLE    :: AU(:,:)
-    INTEGER                               :: nDEs
-    INTEGER                               :: deId
-    INTEGER                               :: gridRank
-    INTEGER                               :: deList(1)
-
-    ! Get ESMF DistGrid object
-    CALL ESMF_GridGet    ( GRID,                           &
-                           dimCount        = gridRank,     &
-                           distGrid        = distGrid,     &
-                           __RC__ )                    
- 
-    ! Get ESMF DELayout object
-    CALL ESMF_DistGridGet( distGRID,                       &
-                           delayout        =layout,        &
-                           __RC__ )                    
-                                                       
-                
-    ! Get the # of DE's and the list of DE's
-    CALL ESMF_DELayoutGet( layout,                         &
-                           deCount         = nDEs,         &
-                           localDeList     = deList,       &
-                           __RC__ )
-
-    deId = deList(1)
-
-    ! Allocate memory
-    ALLOCATE( AL( gridRank, 0:nDEs-1 ), stat=status )
-    ALLOCATE( AU( gridRank, 0:nDEs-1 ), stat=status )
-
-    ! Get the min/max lon/lat values on each PET
-    CALL ESMF_DistGridGet( distgrid,                       &
-                           minIndexPDimPDe = AL,           &
-                           maxIndexPDimPDe = AU,           &
-                           __RC__ )
-
-    ! Local Lon indices
-    I1 = AL( 1, deId )   ! Lower
-    IN = AU( 1, deId )   ! Upper
-
-    ! Local lat indices
-    J1 = AL( 2, deId )   ! Lower
-    JN = AU( 2, deId )   ! Upper
- 
-    ! Free memory
-    DEALLOCATE(AU, AL)
-   
-    ! Return successfully
-    RC = HCO_SUCCESS
-
-  END SUBROUTINE GridGetInterior
-!EOC
-!------------------------------------------------------------------------------
 !          Harvard University Atmospheric Chemistry Modeling Group            !
 !------------------------------------------------------------------------------
 !BOP
@@ -1260,9 +884,22 @@ contains
 !
 ! !DESCRIPTION: Subroutine HCO\_SetServices registers all required HEMCO 
 ! data so that it can be imported through the ESMF import state. 
-! This routine is called at the beginning of a simulation - even ahead of 
+! This routine is called at the beginning of a simulation - ahead of 
 ! the initialization routines. Since this routine is called from outside of 
-! the HEMCO environment, use the MAPL specific error codes! 
+! the HEMCO environment, use the MAPL specific error codes!
+! This routine determines all required HEMCO input fields from the HEMCO 
+! configuration file. Note that each file needs an equivalent ESMF-style
+! entry in the registry file (typically ExtData.rc). Otherwise, ESMF won't 
+! read these files and HEMCO will fail when attempting to get pointers to 
+! the data arrays.
+! It is important to note that the field names provided in ExtData.rc must
+! match the names in the HEMCO configuration file! Also, all time settings
+! (average and update interval) and data units need to be properly specified
+! in ExtData.rc.
+!
+! !TODO: For now, ExtData.rc and HEMCO configuration file have to be 
+! synchronized manually. Need to write a script to automate this process!
+!
 !\\
 !\\
 ! !INTERFACE:
@@ -1333,7 +970,12 @@ contains
          IF ( .NOT. CurrCont%Dta%ncRead ) THEN 
             ! don't do anything
 
-         ! 2D data
+         ! Add arrays to import spec. Distinguish between 2D and 3D arrays.
+         ! Note that we can ignore the time reading interval here, as this
+         ! is automatically determined by ESMF based upon the registry file
+         ! content!.
+
+         ! Import 2D data
          ELSEIF ( CurrCont%Dta%SpaceDim == 2 ) THEN
 
             CALL MAPL_AddImportSpec(GC,                  &
@@ -1345,7 +987,7 @@ contains
                RC         = STATUS                        )
             VERIFY_(STATUS)
 
-         ! 3D data: Assume central location in vertical dimension!
+         ! Import 3D data: Assume central location in vertical dimension!
          ELSEIF ( CurrCont%Dta%SpaceDim == 3 ) THEN
  
             CALL MAPL_AddImportSpec(GC,                  &

@@ -122,13 +122,13 @@ LIB_SCI =
 LIB_SYS =
 
 DIR_HDF5 = $(GC_BIN)
-INC_HDF5 = $(DIR_HDF5)/include/hdf5
+INC_HDF5 = $(DIR_HDF5)/../include
 LIB_HDF5 = $(wildcard $(foreach lib,hdf5_hl hdf5 z sz gpfs,\
            $(BASELIB)/lib$(lib).a) )
 
 DIR_NETCDF = $(GC_BIN)
 #./$(ARCH)
-INC_NETCDF = $(DIR_NETCDF)/include/netcdf
+INC_NETCDF = $(DIR_NETCDF)/../include
 #ifeq ($(wildcard $(BASEBIN)/nc-config), )
 #    LIB_NETCDF = $(BASELIB)/libnetcdf.a $(LIB_HDF5)
 #else
@@ -281,7 +281,7 @@ LDFLAGS = $(LDPATH) $(USER_LDFLAGS)
 	$(ESMA_TIMER) $(FC) -c $(F90FLAGS) $<
 
 .P90.o:
-	@sed -e "/\!.*'/s/'//g" $< | $(CPP) -C -ansi -DANSI_CPP $(FPPFLAGS) > $*___.f90
+	@sed -e "/\!.*'/s/'//g" $< | $(CPP) -ansi -DANSI_CPP $(FPPFLAGS) > $*___.f90
 	$(ESMA_TIMER) $(FC) -c $(f90FLAGS) -o $*.o $*___.f90
 	@$(RM) $*___.f90
 

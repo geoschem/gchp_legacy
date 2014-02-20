@@ -127,7 +127,7 @@ Chem_GridCompMod.o          : Chem_GridCompMod.F90 gigc_mpi_wrap.o              
 
 Dyn_GridCompMod.o           : Dyn_GridCompMod.F90
 
-HEMCO_GridCompMod.o         : HEMCO_GridCompMod.F90
+HEMCO_GridCompMod.o         : HEMCO_GridCompMod.F90 gigc_mpi_wrap.o
 
 GEOSChem.o		    : GEOSChem.F90 GIGC_GridCompMod.o
 
