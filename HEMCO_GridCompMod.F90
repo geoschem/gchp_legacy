@@ -43,9 +43,6 @@ module HEMCO_GridCompMod
      TYPE(EMIS_State), POINTER :: PTR => null()       ! Ptr to EMIS_State
   END TYPE EMIS_Wrap
 
-  INTEGER                          :: logLun          ! LUN for stdout logfile
-  CHARACTER(LEN=ESMF_MAXSTR)       :: logFile         ! File for stdout redirect
-
   ! HEMCO objects
   TYPE(HCO_State), POINTER      :: HcoState => NULL() ! HEMCO state
   TYPE(OptExt),    POINTER      :: ExtOpt   => NULL() ! Extension options bundle 
@@ -341,6 +338,19 @@ contains
     ! Test if we are on the root CPU
     am_I_Root = MAPL_Am_I_Root()
 
+    ! Open logfile (as specified in config file) 
+    IF ( am_I_Root ) THEN
+       CALL HCO_LOGFILE_OPEN ( RC=ERROR )
+       IF ( ERROR/=HCO_SUCCESS ) THEN
+          ASSERT_(.FALSE.)
+       ENDIF
+
+       ! Always disable verbose mode if not root CPU
+       IF ( .NOT. am_I_Root ) THEN
+          CALL HCO_VERBOSE_SET ( .FALSE. )
+       ENDIF
+    ENDIF
+
     !=======================================================================
     ! Get various parameters from the ESMF/MAPL framework
     !=======================================================================
@@ -352,45 +362,6 @@ contains
     EmisCF  =  myState%myCF
 
     !=======================================================================
-    ! Open a log file on each PET where stdout will be redirected
-    !=======================================================================
-
-    ! Pet information 
-    CALL ESMF_VmGet( VM, localPet=myPet, __RC__ )  ! This PET
-    CALL ESMF_VmGet( VM, petCount=nPets, __RC__ )  ! Total # of PETS
-
-    ! Name of logfile for stdout redirect
-    CALL ESMF_ConfigGetAttribute( EmisCF, StdOutFile,              &
-                                  Label   = "STDOUT_LOGFILE:",     &
-                                  Default = "PET%%%%%.HEMCO.init", &
-                                                           __RC__ )
-
-    ! Name of log LUN # for stdout redirect
-    CALL ESMF_ConfigGetAttribute( EmisCF, logLun,              &
-                                  Label   = "STDOUT_LOGLUN:",  &
-                                  Default = 700,               &
-                                                       __RC__ )
-
-    ! Replace tokens w/ PET # in the filename
-    IF ( am_I_Root ) THEN
-       logFile = StdOutFile
-       WRITE( petStr, '(i5.5)' ) myPet
-       CALL StrRepl( logFile, '%%%%%', petStr )
-    ENDIF
-
-    ! Open file for stdout redirect
-    IF ( am_I_Root )  THEN
-       OPEN ( UNIT=logLun, FILE=TRIM(logFile), STATUS='UNKNOWN' )
-    ENDIF
-
-    ! Add descriptive header text
-    IF ( am_I_Root ) THEN
-       WRITE( logLun, '(a)'   ) REPEAT( '#', 79 )
-       WRITE( logLun, 100     ) TRIM( logFile ), TRIM( Iam ), myPet
-       WRITE( logLun, '(a,/)' ) REPEAT( '#', 79 )
-    ENDIF
-
-    !=======================================================================
     ! Initialize HEMCO state object 
     !=======================================================================
 
@@ -398,12 +369,10 @@ contains
     N = Config_GetnSpecies () 
 
     ! Initialize HEMCO state
-    IF (am_I_Root) WRITE( logLun, * ) 'Do HcoState_Init'
     CALL HcoState_Init ( am_I_Root, HcoState, N, ERROR )
     IF ( ERROR /= HCO_SUCCESS ) THEN
        ASSERT_(.FALSE.) 
     ENDIF
-    IF (am_I_Root) WRITE( logLun, * ) 'HcoState_Init done'
 
     !=======================================================================
     ! Set variables in HcoState 
@@ -580,33 +549,20 @@ contains
        call ESMF_FieldBundlePrint ( HcoBUNDLE )
     end if
 
-    IF (am_I_Root) WRITE( logLun, * ) 'Bundle defined'
-
     !=======================================================================
     ! All done
     !=======================================================================
 
-    ! Write a header before the timestepping begins
+    ! Close HEMCO logfile before leaving
     IF ( am_I_Root ) THEN
-       WRITE( logLun, '(/,a)' ) REPEAT( '#', 79 )
-       WRITE( logLun, 200     ) TRIM( compName ) // '::Init_', myPet
-       WRITE( logLun, '(a,/)' ) REPEAT( '#', 79 )
-    ENDIF
-
-    ! Close the file for stdout redirect.  Reopen when executing the run method.
-    IF ( am_I_Root )  CLOSE ( UNIT=logLun )
+       CALL HCO_LOGFILE_CLOSE ( ERROR )
+       IF ( ERROR /= HCO_SUCCESS ) THEN
+          ASSERT_(.FALSE.)
+       ENDIF
+    ENDIF    
 
     ! Successful return
     RETURN_(ESMF_SUCCESS)
-
-    ! Formats
-100 FORMAT( '### ',                                           / &
-            '### ', a ,                                       / &
-            '### ', a, '  |  Initialization on PET # ', i5.5, / &
-            '### ' )
-200 FORMAT( '### ',                                           / &
-            '### ', a, '  |  Execution on PET # ',      i5.5, / &
-            '###' )
 
   END SUBROUTINE Initialize_
 
@@ -692,6 +648,14 @@ contains
     ! Are we on the root CPU?
     am_I_Root = MAPL_Am_I_Root()
 
+    ! Open logfile (as specified in config file) 
+    IF ( am_I_Root ) THEN
+       CALL HCO_LOGFILE_OPEN ( RC=ERROR )
+       IF ( ERROR /= HCO_SUCCESS ) THEN
+          ASSERT_(.FALSE.)
+       ENDIF
+    ENDIF
+
     ! Traceback info
     CALL ESMF_GridCompGet( GC, name=compName, __RC__ )
     Iam = TRIM( compName ) // '::' // TRIM( Iam )
@@ -699,10 +663,10 @@ contains
     ! Get pointers to fields in import, internal, and export states
 !#   include "Emis_GetPointer___.h"
 
-    ! Re-open file for stdout redirect
-    IF ( am_I_Root )  THEN
-     OPEN ( UNIT=logLun, FILE=TRIM(logFile), STATUS='OLD' , ACTION='WRITE', ACCESS='APPEND' )
-    END IF
+!    ! Re-open file for stdout redirect
+!    IF ( am_I_Root )  THEN
+!     OPEN ( UNIT=logLun, FILE=TRIM(logFile), STATUS='OLD' , ACTION='WRITE', ACCESS='APPEND' )
+!    END IF
 
     !=======================================================================
     ! pre-Run method array assignments
@@ -815,17 +779,17 @@ contains
     ! All done
     !=======================================================================
 
-    ! Close the file for stdout redirect.
-    IF ( am_I_Root )  CLOSE ( UNIT=logLun )
+    ! Close HEMCO logfile before leaving
+    IF ( am_I_Root ) THEN
+       CALL HCO_LOGFILE_CLOSE ( ERROR )
+       IF ( ERROR /= HCO_SUCCESS ) THEN
+          ASSERT_(.FALSE.)
+       ENDIF    
+    ENDIF    
 
     ! Successful return
+    ! Successful return
     RETURN_(ESMF_SUCCESS)
-
-    ! Formats
-100 FORMAT( '---> DATE: ', i4.4, '/', i2.2, '/', i2.2,      &
-            '  GMT: ', i2.2, ':', i2.2, '  X-HRS: ', f11.3 )
-110 FORMAT( 'Box (',i3,',',i3,') on PET ', i3, ' has coords: ', 2f7.2, &
-               ' LocT = ', f9.4 )
 
   end subroutine Run_
 
