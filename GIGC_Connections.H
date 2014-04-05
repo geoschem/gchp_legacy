@@ -5,6 +5,12 @@
                                                             __RC__  )
 
     call MAPL_AddConnectivity ( GC,                                &
+	 SHORT_NAME  = (/'TRACERS'/),                              &
+         DST_ID      = EMIS,                                       &
+         SRC_ID      = CHEM,                                       &
+                                                            __RC__  )
+
+    call MAPL_AddConnectivity ( GC,                                &
 	 SHORT_NAME  = (/'EMISSIONS'/),                            &
          DST_ID      = CHEM,                                       &
          SRC_ID      = EMIS,                                       &

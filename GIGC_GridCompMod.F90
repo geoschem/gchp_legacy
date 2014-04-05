@@ -104,10 +104,10 @@ contains
 ! Create children`s gridded components and invoke their SetServices
 ! -----------------------------------------------------------------
 
-    EMIS  = MAPL_AddChild(GC, NAME='GIGCemis',  SS=AtmosEmisSetServices, RC=STATUS)
+    CHEM = MAPL_AddChild(GC, NAME='GIGCchem', SS=AtmosChemSetServices, RC=STATUS)
     VERIFY_(STATUS)
 
-    CHEM = MAPL_AddChild(GC, NAME='GIGCchem', SS=AtmosChemSetServices, RC=STATUS)
+    EMIS  = MAPL_AddChild(GC, NAME='GIGCemis',  SS=AtmosEmisSetServices, RC=STATUS)
     VERIFY_(STATUS)
 
     DYN  = MAPL_AddChild(GC, NAME='GIGCdyn',  SS=AtmosDynSetServices, RC=STATUS)
@@ -365,7 +365,8 @@ contains
      VERIFY_(STATUS)
     call MAPL_TimerOff(STATE,GCNames(I))
 
-! Emissions  
+! Emissions
+! NOTE: Should that be before dynamics? 
 !------------------
 
     I=EMIS  

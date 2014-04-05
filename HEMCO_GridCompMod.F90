@@ -144,7 +144,8 @@ contains
     CALL ESMF_ConfigGetAttribute( myState%myCF, ConfigFile,     &
                                   Label="CONFIG_FILE:", __RC__ )
 
-    ! Set HEMCO services 
+    ! Set HEMCO services (reads the HEMCO configuration file and registers
+    ! all required emission fields) 
     am_I_Root   = MAPL_Am_I_Root()
     CALL HCO_SetServices( am_I_Root, GC, TRIM(ConfigFile), __RC__ )
 
@@ -177,15 +178,14 @@ contains
 !          __RC__ )
 
     ! Import from GIGC 
-!    call MAPL_AddImportSpec(GC,                                   &
-!        SHORT_NAME         = 'TRACERS',                           &
-!        LONG_NAME          = 'tracer_volume_mixing_ratios',       &
-!        UNITS              = 'mol/mol',                           &
-!        DIMS               = MAPL_DimsHorzVert,                   &
-!        VLOCATION          = MAPL_VLocationCenter,                &
-!        DATATYPE           = MAPL_BundleItem,                     &
-!                                                          __RC__ )
-
+    call MAPL_AddImportSpec(GC,                                   &
+        SHORT_NAME         = 'TRACERS',                           &
+        LONG_NAME          = 'tracer_volume_mixing_ratios',       &
+        UNITS              = 'mol/mol',                           &
+        DIMS               = MAPL_DimsHorzVert,                   &
+        VLOCATION          = MAPL_VLocationCenter,                &
+        DATATYPE           = MAPL_BundleItem,                     &
+                                                          __RC__ )
 !
 ! !INTERNAL STATE:
 !
@@ -249,7 +249,8 @@ contains
     USE HCO_STATE_MOD,    ONLY : HcoState_Init
     USE HCO_CONFIG_MOD,   ONLY : Config_GetnSpecies 
     USE HCO_CONFIG_MOD,   ONLY : Config_GetSpecNames
-    USE HCO_MAIN_MOD,     ONLY : HCO_INIT
+    USE HCO_TOOLS_MOD,    ONLY : HCO_CharMatch
+    USE HCO_DRIVER_MOD,   ONLY : HCO_INIT
     USE HCOX_DRIVER_MOD,  ONLY : HCOX_INIT
 !
 ! !INPUT/OUTPUT PARAMETERS:
@@ -274,6 +275,7 @@ contains
     ! Objects
     TYPE(ESMF_Grid)              :: Grid        ! ESMF Grid object
     TYPE(ESMF_Config)            :: MaplCF      ! ESMF Config obj (MAPL.rc)
+!    TYPE(ESMF_Config)            :: ChemCF      ! ESMF Config obj (GIGC*.rc)
     TYPE(ESMF_Config)            :: EmisCF      ! ESMF Config obj (HEMCO*.rc) 
     TYPE(MAPL_METACOMP), POINTER :: MAPL    
 
@@ -312,11 +314,16 @@ contains
     INTEGER                         :: localDECount
 
     ! Working variables
-    CHARACTER(LEN=ESMF_MAXSTR)   :: trcNAME
-    CHARACTER(LEN=ESMF_MAXSTR)   :: hcoNAME
-    INTEGER                      :: I, J, IDX, N    
-    REAL                         :: TCVV
-    REAL, POINTER                :: Arr3D(:,:,:) => NULL()
+    CHARACTER(LEN=ESMF_MAXSTR)      :: trcNAME
+    CHARACTER(LEN=ESMF_MAXSTR)      :: hcoNAME
+    CHARACTER(LEN=255)              :: MSG 
+    CHARACTER(LEN=31), ALLOCATABLE  :: HcoSpecNames(:), TrcNames(:) 
+    INTEGER, ALLOCATABLE            :: matchidx(:)
+    INTEGER                         :: nMatch, cnt, AS
+    INTEGER                         :: I, J, N, IDX, nTrc, nHco 
+    REAL                            :: TCVV
+    REAL, POINTER                   :: Arr3D(:,:,:) => NULL()
+    LOGICAL                         :: verb
 
     !=======================================================================
     ! Initialize_ begins here!
@@ -338,23 +345,6 @@ contains
     ! Test if we are on the root CPU
     am_I_Root = MAPL_Am_I_Root()
 
-    ! Open logfile (as specified in config file) 
-    IF ( am_I_Root ) THEN
-       CALL HCO_LOGFILE_OPEN ( RC=ERROR )
-       IF ( ERROR/=HCO_SUCCESS ) THEN
-          ASSERT_(.FALSE.)
-       ENDIF
-
-       ! Always disable verbose mode if not root CPU
-       IF ( .NOT. am_I_Root ) THEN
-          CALL HCO_VERBOSE_SET ( .FALSE. )
-       ENDIF
-    ENDIF
-
-    !=======================================================================
-    ! Get various parameters from the ESMF/MAPL framework
-    !=======================================================================
-
     ! Get the internal state which holds the private Config object
     CALL ESMF_UserCompGetInternalState( GC, 'EMIS_State', wrap, STATUS )
     VERIFY_(STATUS)
@@ -362,14 +352,68 @@ contains
     EmisCF  =  myState%myCF
 
     !=======================================================================
-    ! Initialize HEMCO state object 
+    ! Extract model tracer names. These are the tracers used by 
+    ! dynamics & chemistry. The HEMCO tracers will be matched against them.
+    ! NOTE: The TRACERS bundle becomes initialized in the chemistry comp. 
+    !=======================================================================
+    call ESMF_StateGet(IMPORT, 'TRACERS', trcBUNDLE, __RC__ )
+    call ESMF_FieldBundleGet(trcBUNDLE, fieldCount=nTrc, __RC__ )
+
+    allocate(trcNames(nTrc))
+    trcNames(:) = ''
+    DO N=1, nTrc
+       call ESMF_FieldBundleGet(trcBUNDLE, N, trcFIELD, __RC__ )
+       call ESMF_FieldGet( trcFIELD, NAME=trcNAME, __RC__)
+       trcNames(N) = TRIM(trcNAME)
+    ENDDO
+
+    !=======================================================================
+    ! HEMCO initialization calls follow below
+    ! Note: the configuration file was already read in SetServices, so no
+    ! need to do this again!
     !=======================================================================
 
-    ! Get number of species registered from configuration file
-    N = Config_GetnSpecies () 
+    ! Open HEMCO logfile (as specified in config file) 
+    IF ( am_I_Root ) THEN
+       CALL HCO_LOGFILE_OPEN ( RC=ERROR )
+       IF ( ERROR/=HCO_SUCCESS ) THEN
+          ASSERT_(.FALSE.)
+       ENDIF
+    ELSE
+       CALL HCO_VERBOSE_SET ( .FALSE. )
+    ENDIF
+    verb = HCO_VERBOSE_CHECK() .AND. am_I_Root 
 
-    ! Initialize HEMCO state
-    CALL HcoState_Init ( am_I_Root, HcoState, N, ERROR )
+    !=======================================================================
+    ! Define HEMCO species
+    !=======================================================================
+    ! Get number of species registered from configuration file
+    nHco = Config_GetnSpecies () 
+
+    ! Species names
+    ALLOCATE(HcoSpecNames(nHco),STAT=AS)
+    ASSERT_(AS==0)
+    CALL Config_GetSpecNames( HcoSpecNames, nHco, ERROR )
+    IF ( ERROR /= HCO_SUCCESS ) THEN
+       ASSERT_(.FALSE.) 
+    ENDIF
+
+    ! See how many species are also used in GEOS-Chem
+    ALLOCATE(matchIDx(N),STAT=AS)
+    ASSERT_(AS==0)
+    matchIDx(:) = -1
+    CALL HCO_CharMatch( HcoSpecNames, nHco, TrcNames, nTrc, matchIDx, nMatch )
+    IF ( nMatch == 0 ) THEN
+       PRINT*, 'HcoSpecNames: ', HcoSpecNames
+       PRINT*, 'TrcNames    : ', TrcNames
+       CALL HCO_ERROR ('No matching species!', ERROR, THISLOC='HCO_INIT')
+       ASSERT_(.FALSE.)
+    ENDIF
+
+    !=======================================================================
+    ! Initialize HEMCO state object 
+    !=======================================================================
+    CALL HcoState_Init ( am_I_Root, HcoState, nMatch, ERROR )
     IF ( ERROR /= HCO_SUCCESS ) THEN
        ASSERT_(.FALSE.) 
     ENDIF
@@ -378,35 +422,14 @@ contains
     ! Set variables in HcoState 
     !=======================================================================
 
-    ! ----------------------------------------------------------------------
     ! General
     HcoState%isESMF     =  .TRUE. 
     HcoState%IMPORT     => IMPORT
     HcoState%ConfigFile =  ConfigFile
 
     ! ----------------------------------------------------------------------
-    ! Species information 
-
-    ! Species names
-    CALL Config_GetSpecNames( HcoState%SpcName, N, ERROR )
-    IF ( ERROR /= HCO_SUCCESS ) THEN
-       ASSERT_(.FALSE.) 
-    ENDIF
-
-    ! --> All other species properties are not of relevance 
-    !     in the ESMF environment, hence stick with the default
-    !     values! 
-
-    ! ----------------------------------------------------------------------
-    ! TODO: Remove from here...
-    ! Set size bins of coarse and accumulation mode aerosols
-    ! NOTE: primarily used for aerosol extensions
-    HcoState%SALA_REDGE_um = 0d0
-    HcoState%SALC_REDGE_um = 0d0
-
-    ! ----------------------------------------------------------------------
-    ! Local grid 
-       
+    ! Grid
+ 
     ! Get the ESMF grid attached to this gridded component
     CALL ESMF_GridCompGet( GC, grid=Grid, __RC__ )
     CALL MAPL_GridGet( Grid, localCellCountPerDim = locDims, __RC__ )      
@@ -417,10 +440,10 @@ contains
     HcoState%NZ = locDims(3)
 
     ! Prepare HcoState grid arrays 
-    ALLOCATE ( HcoState%XMID(HcoState%NX,HcoState%NY,1), STAT=RC )
-    IF ( RC/= ESMF_SUCCESS ) RETURN
-    ALLOCATE ( HcoState%YMID(HcoState%NX,HcoState%NY,1), STAT=RC )
-    IF ( RC/= ESMF_SUCCESS ) RETURN
+    ALLOCATE ( HcoState%Grid%XMID(HcoState%NX,HcoState%NY,1), STAT=AS )
+    ASSERT_(AS==0)
+    ALLOCATE ( HcoState%Grid%YMID(HcoState%NX,HcoState%NY,1), STAT=AS )
+    ASSERT_(AS==0)
 
     ! Get horizontal coordinate variables and pass to HcoState.
     CALL MAPL_GetObjectFromGC( GC, metaComp,    __RC__ )
@@ -428,42 +451,161 @@ contains
     CALL MAPL_Get( metaComp, lats=latCtr,       __RC__ )
 
     ! Convert from rad to deg and pass to HcoState
-    HcoState%XMID(:,:,1) = lonCtr(:,:) * 180d0 / HcoState%PI
-    HcoState%YMID(:,:,1) = latCtr(:,:) * 180d0 / HcoState%PI
+    HcoState%Grid%XMID(:,:,1) = lonCtr(:,:) * 180d0 / HcoState%Phys%PI
+    HcoState%Grid%YMID(:,:,1) = latCtr(:,:) * 180d0 / HcoState%Phys%PI
 
     ! For now, don't define area. Area only used by some of the extensions!
-    HcoState%AREA_M2 => NULL()
+    ! TODO: Import
+    HcoState%Grid%AREA_M2 => NULL()
 
     ! TODO: grid box height --> leave empty for now 
     ! This variable is used by some of the extensions. No need
     ! to define it if extensions are disabled. 
-    HcoState%BXHEIGHT_M => NULL() 
+    HcoState%Grid%BXHEIGHT_M => NULL() 
  
-    ! grid edge information is only used for HEMCO internal regridding
+    ! Grid edge information is only used for HEMCO internal regridding
     ! routines, which are never called in an ESMF environment. Hence
     ! leave pointers nullified.
-    ! MAPL_GridGet( Grid, gridCornerLons=..., gridCornerLats=..., __RC__)
-
-    HcoState%XEDGE => NULL() 
-    HcoState%YEDGE => NULL() 
-    HcoState%YSIN  => NULL() 
+    HcoState%Grid%XEDGE => NULL() 
+    HcoState%Grid%YEDGE => NULL() 
+    HcoState%Grid%YSIN  => NULL() 
 
     ! ----------------------------------------------------------------------
     ! Timesteps
  
-    ! Dynamic timestep (MAPL.rc)
+    ! Dynamic timestep (get from MAPL.rc)
     CALL ESMF_GridCompGet( GC, Config=MaplCF, __RC__ )
     CALL ESMF_ConfigGetAttribute( MaplCF, HcoState%TS_DYN, &
                                   Label="RUN_DT:", __RC__ )
 
-    ! Emission timestep (HEMCO_GridComp.rc)
+!    ! Dynamics timestep (get from Chem_GridComp.rc)
+!    CALL ESMF_ConfigGetAttribute( ChemCF, tsChem,                      &
+!                                     Label="DYNAMICS_TIMESTEP:", __RC__ )
+
+!    ! Chemistry timestep (get from Chem_GridComp.rc)
+!    CALL ESMF_ConfigGetAttribute( ChemCF, tsChem,                      &
+!                                     Label="CHEMISTRY_TIMESTEP:", __RC__ )
+
+    ! Emission timestep (get from HEMCO_GridComp.rc)
     CALL ESMF_ConfigGetAttribute( EmisCF, HcoState%TS_EMIS,           &
                                   Label="EMISSION_TIMESTEP:", __RC__ )
 
-    ! ----------------------------------------------------------------------
-    ! Pass current timestamps to HcoState 
-    CALL HcoState_SetTime ( Clock, HcoState, __RC__ )
+    ! For now, assume chemistry timestep = emission timestep
+    HcoState%TS_CHEM = HcoState%TS_EMIS
 
+    !=======================================================================
+    ! Set species information and define HEMCO data bundle
+    ! Each field of the bundle corresponds to an array of HcoState and will
+    ! be populated with the emissions calculated by HEMCO.
+    ! Additional properties will be added in the chemistry component! 
+    !=======================================================================
+
+    call ESMF_StateGet(Export, 'EMISSIONS', HcoBUNDLE, __RC__ )
+
+    ! Empty data array to be copied to each field bundle
+    ALLOCATE(Arr3D(HcoState%NX,HcoState%NY,HcoState%NZ),STAT=AS)
+    ASSERT_(AS==0)
+    Arr3D = 0d0
+
+    ! Logfile I/O
+    MSG = 'HEMCO species:'
+    CALL HCO_MSG(MSG)
+
+    ! Add all used HEMCO species to bundle
+    cnt = 0
+    DO I = 1, nHco
+
+       ! Skip if this HEMCO species is not used
+       IF ( MatchIDx(I) <= 0 ) CYCLE
+
+       ! Increase counter: this is the index in HcoState%Spc!
+       cnt = cnt + 1
+
+       ! Set species names in HcoState 
+       HcoState%Spc(cnt)%SpcName = HcoSpecNames(I)
+       HcoNAME = HcoSpecNames(I)
+       N = MatchIDx(I)
+
+       ! Get additional information from TRACERS bundle
+       ! and pass to HEMCO state object.
+       call ESMF_FieldBundleGet(trcBUNDLE, N, trcFIELD, __RC__ )
+
+       ! tracer ID
+       call ESMF_AttributeGet (trcFIELD,     &
+            NAME  = 'TRAC_ID',               &
+            VALUE = HcoState%Spc(cnt)%ModID, &
+                                    __RC__ )       
+
+       ! molecular weight
+       call ESMF_AttributeGet (trcFIELD,     &
+            NAME  = 'MW_g',                  &
+            VALUE = HcoState%Spc(cnt)%MW_g,  &
+                                    __RC__ )
+
+       ! --> For now, set emitted MW to species MW! 
+       HcoState%Spc(cnt)%EmMW_g = HcoState%Spc(cnt)%MW_g
+
+       ! emission ratio
+       call ESMF_AttributeGet (trcFIELD,          &
+            NAME  = 'MolecRatio',                 &
+            VALUE = HcoState%Spc(cnt)%MolecRatio, &
+                                    __RC__ )
+
+       ! TODO: Also fetch Henry law's constants once the new species structure is in place
+
+       ! Now create field in bundle. Pass name and (chemistry) tracer ID. 
+       HcoFIELD = ESMF_FieldCreate ( Grid,                      &
+                                     Arr3D,                     &
+                                     copyflag = ESMF_DATA_COPY, &
+                                     name     = HcoNAME,        &
+                                                        __RC__ )
+       call ESMF_AttributeSet (HcoFIELD,      &
+            NAME  = 'TRAC_ID',                &
+            VALUE = HcoState%Spc(cnt)%ModID,  &
+                                    __RC__ )       
+       call ESMF_FieldBundleAdd ( HcoBUNDLE, HcoFIELD, __RC__ )
+
+       ! Logfile I/O 
+       MSG = 'Species ' // TRIM(HcoState%Spc(cnt)%SpcName)
+       CALL HCO_MSG(MSG)
+       IF ( verb ) THEN
+          write(MSG,*) '--> HcoID         : ', HcoState%Spc(cnt)%HcoID
+          CALL HCO_MSG(MSG)
+          write(MSG,*) '--> ModID         : ', HcoState%Spc(cnt)%ModID
+          CALL HCO_MSG(MSG)
+          write(MSG,*) '--> MW (g/mol)    : ', HcoState%Spc(cnt)%MW_g
+          CALL HCO_MSG(MSG)
+          write(MSG,*) '--> emitted MW    : ', HcoState%Spc(cnt)%EmMW_g
+          CALL HCO_MSG(MSG)
+          write(MSG,*) '--> Molecule ratio: ', HcoState%Spc(cnt)%MolecRatio
+          CALL HCO_MSG(MSG)
+          write(MSG,*) '--> Henry constant: ', HcoState%Spc(cnt)%HenryK0
+          CALL HCO_MSG(MSG)
+          write(MSG,*) '--> Henry temp.   : ', HcoState%Spc(cnt)%HenryCR
+          CALL HCO_MSG(MSG)
+          write(MSG,*) '--> Henry pKA     : ', HcoState%Spc(cnt)%HenryPKA
+          CALL HCO_MSG(MSG)
+       ENDIF
+    ENDDO
+    CALL HCO_MSG(SEP1='-')
+
+   ! Set bundle attributes
+    call ESMF_AttributeSet (HcoBUNDLE,    &
+         NAME  = 'N_SPECIES',             &
+         VALUE = cnt,                     &
+                               __RC__    )
+
+    ! Don't need temporary array anymore
+    IF ( ASSOCIATED(Arr3D)        ) DEALLOCATE(Arr3D)
+    IF ( ALLOCATED( HcoSpecNames) ) DEALLOCATE( HcoSpecNames )
+    IF ( ALLOCATED( TrcNames    ) ) DEALLOCATE( TrcNames     )
+    IF ( ALLOCATED( MatchIDx    ) ) DEALLOCATE( MatchIDx     )
+       
+    ! Verbose mode
+    if (verb) then 
+       print *, trim(Iam)//': EMISSIONS bundle during Initialization:' 
+       call ESMF_FieldBundlePrint ( HcoBUNDLE )
+    end if
 
     !=======================================================================
     ! Initialize HEMCO internal lists and variables 
@@ -474,20 +616,17 @@ contains
        ASSERT_(.FALSE.) 
     ENDIF
 
+    ! ----------------------------------------------------------------------
+    ! Pass current timestamps to HcoState 
+    CALL HcoState_SetTime ( Clock, HcoState, __RC__ )
+
     !=======================================================================
     ! Initialize HEMCO extensions 
     !=======================================================================
 
     ! temp. toggle
     if ( DoExt ) then 
-
-    ! Set current datetime in HcoState first (needed to read some 
-    ! restart files, e.g. for soil NOx)
-    ! TODO: set species information properly. Probably best to 
-    ! explicitly set the molecular weights (?)
     CALL HCOX_INIT ( am_I_Root, HcoState, ExtOpt, ERROR )
-
-    ! Error trap
     IF ( ERROR /= HCO_SUCCESS ) THEN
        ASSERT_(.FALSE.) 
     ENDIF
@@ -495,70 +634,12 @@ contains
     endif ! temp. toggle
 
     !=======================================================================
-    ! Define HEMCO data bundle
-    ! Each field of the bundle corresponds to an array of HcoState and will
-    ! be populated with the emissions calculated by HEMCO.
-    ! Additional properties will be added in the chemistry component! 
-    !=======================================================================
-
-    call ESMF_StateGet(Export, 'EMISSIONS', HcoBUNDLE, __RC__ )
-
-    ! Empty data array to be copied to each field bundle
-    ALLOCATE(Arr3D(HcoState%NX,HcoState%NY,HcoState%NZ),STAT=STATUS)
-    VERIFY_(STATUS)
-    Arr3D = 0d0
-
-    ! Add fields to bundle
-    DO I = 1, N
-
-       ! Extract species name
-       HcoNAME = HcoState%SpcName(I)
-
-       ! Create field. 
-       HcoFIELD = ESMF_FieldCreate ( Grid,                      &
-                                     Arr3D,                     &
-                                     copyflag = ESMF_DATA_COPY, &
-                                     name     = HcoNAME,        &
-                                                        __RC__ )
- 
-!       call ESMF_AttributeSet (HcoFIELD,    &
-!            NAME  = 'ModSpcID',             &
-!            VALUE = -1,                     &
-!                                    __RC__ )       
-       
-!       call ESMF_AttributeSet (HcoFIELD,    &
-!            NAME  = 'MolWeight_gmol-1',     &
-!            VALUE = HcoState%SpecMW(I),     &
-!                                    __RC__ )       
-       
-       call ESMF_FieldBundleAdd ( HcoBUNDLE, HcoFIELD, __RC__ )
-    ENDDO
-
-   ! Set bundle attributes
-    call ESMF_AttributeSet (HcoBUNDLE,    &
-         NAME  = 'N_SPECIES',             &
-         VALUE = N,                       &
-                               __RC__    )
-
-    ! Don't need temporary array anymore
-    IF ( ASSOCIATED(Arr3D) ) DEALLOCATE(Arr3D)
-       
-    ! Verbose mode
-    if (AM_I_ROOT) then !.and. HcoState%verbose) then
-       print *, trim(Iam)//': EMISSIONS bundle during Initialization:' 
-       call ESMF_FieldBundlePrint ( HcoBUNDLE )
-    end if
-
-    !=======================================================================
     ! All done
     !=======================================================================
 
     ! Close HEMCO logfile before leaving
     IF ( am_I_Root ) THEN
-       CALL HCO_LOGFILE_CLOSE ( ERROR )
-       IF ( ERROR /= HCO_SUCCESS ) THEN
-          ASSERT_(.FALSE.)
-       ENDIF
+       CALL HCO_LOGFILE_CLOSE 
     ENDIF    
 
     ! Successful return
@@ -585,8 +666,8 @@ contains
 !
 ! !USES:
 !
-    USE HCO_ARRAY_MOD,      ONLY : HCO_ArrReset 
-    USE HCO_MAIN_MOD,       ONLY : HCO_RUN
+    USE HCO_FLUXARR_MOD,    ONLY : HCO_FluxarrReset
+    USE HCO_DRIVER_MOD,     ONLY : HCO_RUN
     USE HCOX_DRIVER_MOD,    ONLY : HCOX_RUN
 
 !#   include "GIGCemis_DeclarePointer___.h"        ! Ptr decls to states
@@ -663,11 +744,6 @@ contains
     ! Get pointers to fields in import, internal, and export states
 !#   include "Emis_GetPointer___.h"
 
-!    ! Re-open file for stdout redirect
-!    IF ( am_I_Root )  THEN
-!     OPEN ( UNIT=logLun, FILE=TRIM(logFile), STATUS='OLD' , ACTION='WRITE', ACCESS='APPEND' )
-!    END IF
-
     !=======================================================================
     ! pre-Run method array assignments
     !=======================================================================
@@ -679,34 +755,22 @@ contains
     call ESMF_FieldBundleGet( hcoBUNDLE, fieldCount=N, __RC__ )
     DO I = 1, N
        call ESMFL_BundleGetPointerToData( hcoBUNDLE, I, fPtrArray, __RC__ )  
-       HcoState%Emsr3D(I)%Arr3D => fPtrArray 
+       HcoState%Spc(I)%Emis%Val => fPtrArray 
        fPtrArray => NULL() 
     ENDDO
 
+    ! TODO: Set met field variables 
     ! Set pointers to Met fields
     call MAPL_GetPointer ( IMPORT, U10M,  'U10M', __RC__ )
     call MAPL_GetPointer ( IMPORT, V10M,  'V10M', __RC__ )
 
-    ! temp. toggle
-    if ( DoExt ) then 
-
-    ! SeaFlux
-    IF ( ASSOCIATED ( ExtOpt%SeaFlxOpt ) ) THEN
-       ExtOpt%SeaFlxOpt%U10M    => U10M
-       ExtOpt%SeaFlxOpt%V10M    => V10M
-       ! etc.
-    ENDIF
-
-    endif
-
-    ! etc.
-!    ! don't forget pointer to boxheight!!
-!    HcoState%BXHEIGHT_M => State_Met%BXHEIGHT
+!    ! don't forget pointer to boxheight 
+!    HcoState%Grid%BXHEIGHT_M => State_Met%BXHEIGHT
 
     !=======================================================================
     ! Reset all emission and deposition values in HcoState
     !=======================================================================
-    CALL HCO_ArrReset ( HcoState, ERROR )
+    CALL HCO_FluxarrReset ( HcoState, ERROR )
     IF ( ERROR /= HCO_SUCCESS ) THEN
        ASSERT_(.FALSE.)
     ENDIF
@@ -718,18 +782,18 @@ contains
     ! Range of tracers and emission categories.
     ! Set Extension number ExtNr to 0, indicating that the core
     ! module shall be executed. 
-    HcoState%SpcMin =  1
-    HcoState%SpcMax = -1 
-    HcoState%CatMin =  1
-    HcoState%CatMax = -1
-    HcoState%ExtNr  =  0
+    HcoState%Options%SpcMin =  1
+    HcoState%Options%SpcMax = -1 
+    HcoState%Options%CatMin =  1
+    HcoState%Options%CatMax = -1
+    HcoState%Options%ExtNr  =  0
+
+    ! Use temporary array?
+    HcoState%Options%FillBuffer = .FALSE.
 
     ! Set current datetime
     CALL HcoState_SetTime ( Clock, HcoState, __RC__ )
 
-    ! Use temporary array?
-    HcoState%FillTemp3D = .FALSE.
- 
     !=======================================================================
     ! Run HEMCO and write emissions into HcoState 
     !=======================================================================
@@ -761,18 +825,14 @@ contains
     ! temp. toggle
     if ( DoExt ) then
 
-    ! SeaFlux
-    IF ( ASSOCIATED ( ExtOpt%SeaFlxOpt ) ) THEN
-       ExtOpt%SeaFlxOpt%U10M    => NULL() 
-       ExtOpt%SeaFlxOpt%V10M    => NULL()
+    !ExtOpt%SeaFlxOpt%U10M    => NULL() 
        ! etc.
-    ENDIF
 
     endif
 
     ! Disconnect HEMCO state object with HEMCO bundle
     DO I = 1, N
-       HcoState%Emsr3D(I)%Arr3D => NULL() 
+       HcoState%Spc(I)%Emis%Val => NULL() 
     ENDDO
 
     !=======================================================================
@@ -781,10 +841,7 @@ contains
 
     ! Close HEMCO logfile before leaving
     IF ( am_I_Root ) THEN
-       CALL HCO_LOGFILE_CLOSE ( ERROR )
-       IF ( ERROR /= HCO_SUCCESS ) THEN
-          ASSERT_(.FALSE.)
-       ENDIF    
+       CALL HCO_LOGFILE_CLOSE
     ENDIF    
 
     ! Successful return
@@ -811,7 +868,7 @@ contains
 !
 ! !USES:
 !
-  USE HCO_MAIN_MOD,      ONLY : HCO_FINAL
+  USE HCO_DRIVER_MOD,    ONLY : HCO_FINAL
   USE HCOX_DRIVER_MOD,   ONLY : HCOX_FINAL
   USE HCO_STATE_MOD,     ONLY : HcoState_Final
 !
@@ -832,10 +889,15 @@ contains
     endif
 
     ! Cleanup HCO core
-!    CALL HCO_FINAL
+    CALL HCO_FINAL
+
+    ! Make sure HcoState variables pointing to shared data are 
+    ! nullified (otherwise, the target arrays become deallocated)
+    HcoState%Grid%AREA_M2    => NULL()
+    HcoState%Grid%BXHEIGHT_M => NULL()
 
     ! Cleanup HcoState object
-!    CALL HcoState_Final ( HcoState ) 
+    CALL HcoState_Final ( HcoState ) 
 
   end subroutine Finalize_
 !EOC
@@ -998,7 +1060,7 @@ contains
 !
 ! !USES:
 !
-    USE HCO_TIME_MOD,     ONLY : HCO_GetWeekday
+    USE HCO_TIME_MOD,     ONLY : HcoClock_Set
 !                                                             
 ! !INPUT/OUTPUT PARAMETERS:                                   
 !
@@ -1028,6 +1090,7 @@ contains
     INTEGER                           :: yyyy, mm, dd ! Year, month, day
     INTEGER                           :: h,    m,  s  ! Hour, minute, seconds
     REAL                              :: utc          ! UTC time
+    INTEGER                           :: error
 
     ! ================================================================
     ! HcoState_SetTime begins here
@@ -1050,18 +1113,12 @@ contains
     ! Get individual fields from the time object
     CALL ESMF_TimeGet( currTime, yy=yyyy, mm=mm, dd=dd, dayOfYear=doy, &
                                  h=h,     m=m,   s=s,   __RC__ )
-    utc     = ( DBLE(h) ) + ( DBLE(m)/60d0 ) + ( DBLE(s)/3600d0 ) 
-    weekday = HCO_GetWeekday ( yyyy, mm, dd, utc )
 
-    ! Pass to HEMCO state 
-    HcoState%sYear       = yyyy
-    HcoState%sMonth      = mm
-    HcoState%sDay        = dd
-    HcoState%sHour       = h
-    HcoState%sMin        = m
-    HcoState%sSec        = s
-    HcoState%sDayOfYear  = doy
-    HcoState%sWeekday    = weekday
+    ! Set time (HEMCO clock object) 
+    CALL HcoClock_Set( HcoState, yyyy, mm, dd, h, m, s, doy, error )
+    IF ( error /= HCO_SUCCESS ) THEN
+       ASSERT_(.FALSE.)
+    ENDIF
 
     ! Return success
     RETURN_(ESMF_SUCCESS)

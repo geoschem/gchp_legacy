@@ -272,12 +272,13 @@ contains
     ! Working variables
     TYPE(ESMF_Field)            :: field
     TYPE(ESMF_FieldBundle)      :: bundle
-    INTEGER                     :: N
+    INTEGER                     :: N, trcID, ID_EMIT
 
     TYPE(ESMF_Field)            :: hcoFIELD 
     TYPE(ESMF_FieldBundle)      :: hcoBUNDLE 
     CHARACTER(LEN=ESMF_MAXSTR)  :: hcoNAME
-    INTEGER                     :: IND, TrcID 
+    INTEGER                     :: IND, ModID 
+    REAL*8                      :: MW, MolecRatio
 
     !=======================================================================
     ! Initialization
@@ -455,22 +456,49 @@ contains
        CALL Error_Trap_( Ident, error, __RC__ )
     ENDIF
 
+    !=======================================================================
+    ! Create TRACERS bundle 
+    !=======================================================================
+
     call ESMF_StateGet(Export, 'TRACERS', bundle, __RC__ )
 
     DO N = 1, Input_Opt%N_TRACERS
+
        call ESMF_StateGet ( Export,     &
             trim(State_Chm%Trac_Name(N)), &
             FIELD, __RC__ )
 
-       call ESMF_AttributeSet (field,     &
-            NAME  = 'TCVV',               &
-            VALUE = Input_Opt%TCVV(State_Chm%Trac_ID(N)),    &
-            RC = STATUS )       
+       trcID = State_Chm%Trac_ID(N)
+
+       call ESMF_AttributeSet (field,      &
+            NAME  = 'TCVV',                &
+            VALUE = Input_Opt%TCVV(trcID), &
+                    __RC__ )       
 
        call ESMF_AttributeSet (field,     &
             NAME  = 'TRAC_ID',            &
-            VALUE = State_Chm%Trac_Id(N), &
-            RC = STATUS )       
+            VALUE = trcID,                &
+                    __RC__ )       
+      
+       MW = Input_Opt%Tracer_MW_g(trcID) ! Real*8! 
+       call ESMF_AttributeSet (field,             &
+            NAME  = 'MW_g',                       &
+            VALUE = MW, & 
+                    __RC__ )       
+ 
+       ID_EMIT = Input_Opt%ID_EMITTED(trcID)
+       IF ( ID_EMIT <= 0 ) THEN
+          MolecRatio = 1.0d0
+       ELSE
+          MolecRatio = Input_Opt%TRACER_COEFF(trcID,ID_EMIT)
+       ENDIF
+       call ESMF_AttributeSet (field,             &
+            NAME  = 'MolecRatio',                 &
+            VALUE = MolecRatio,                   &
+                    __RC__ )
+
+       ! TODO: Once new species structure is in place, also 
+       ! add Henry coefficients here
        
        call ESMF_FieldBundleAdd ( BUNDLE, FIELD, __RC__ )
     ENDDO
@@ -494,46 +522,36 @@ contains
          NAME  = 'LPRT',               &
          VALUE = Input_Opt%LPRT,       &
          RC = STATUS )       
-
-!    call ESMF_AttributeSet (bundle,    &
-!         NAME  = 'TCVV',               &
-!         ValueList = Input_Opt%TCVV,   &
-!         RC = STATUS )       
-!    
-!    call ESMF_AttributeSet (bundle,     &
-!         NAME  = 'TRAC_ID',             &
-!         ValueList = State_Chm%Trac_Id, &
-!         RC = STATUS )       
        
    if (AM_I_ROOT .and. Input_Opt%LPRT) then
        print *, trim(Iam)//': TRACERS Bundle during Initialize():' 
        call ESMF_FieldBundlePrint ( bundle )
    end if
 
-    !=======================================================================
-    ! Match HEMCO species from HEMCO bundle with GEOS-Chem tracers 
-    !=======================================================================
-
-    call ESMF_StateGet(Import, 'EMISSIONS', hcoBUNDLE, __RC__ )
-    call ESMF_FieldBundleGet( hcoBUNDLE, fieldCount=N, __RC__ )
-
-    DO IND = 1, N 
-       call ESMF_FieldBundleGet(hcoBUNDLE, IND, hcoFIELD, __RC__ ) 
-       call ESMF_FieldGet( hcoFIELD, NAME=hcoNAME, __RC__)
-
-       ! Check if there is matching ID
-       TrcID =  Get_Indx( hcoNAME,              &
-                          Input_Opt%ID_Tracer,  &
-                          Input_Opt%Tracer_Name  )
-
-       call ESMF_AttributeSet (hcoFIELD,  &
-            NAME  = 'GIGCchem_trcID',     &
-            VALUE = TrcID,                & 
-                                    __RC__ )
-
-       ! eventually add more information here
-       
-    ENDDO
+!    !=======================================================================
+!    ! Match HEMCO species from HEMCO bundle with GEOS-Chem tracers 
+!    !=======================================================================
+!
+!    call ESMF_StateGet(Import, 'EMISSIONS', hcoBUNDLE, __RC__ )
+!    call ESMF_FieldBundleGet( hcoBUNDLE, fieldCount=N, __RC__ )
+!
+!    DO IND = 1, N 
+!       call ESMF_FieldBundleGet(hcoBUNDLE, IND, hcoFIELD, __RC__ ) 
+!       call ESMF_FieldGet( hcoFIELD, NAME=hcoNAME, __RC__)
+!
+!       ! Get matching ID
+!       ModID = Get_Indx( hcoNAME,              &
+!                         Input_Opt%ID_Tracer,  &
+!                         Input_Opt%Tracer_Name  )
+!
+!       call ESMF_AttributeSet (hcoFIELD,  &
+!            NAME  = 'ModID',              &
+!            VALUE = ModID,                & 
+!                                    __RC__ )
+!
+!       ! eventually add more information here
+!       
+!    ENDDO
 
     !=======================================================================
     ! All done
@@ -803,13 +821,13 @@ contains
     call ESMF_StateGet(IMPORT, 'EMISSIONS', hcoBUNDLE,  __RC__ )    
     call ESMF_FieldBundleGet(hcoBUNDLE, fieldCount=N,   __RC__ ) 
     DO IND=1, N 
+       call ESMFL_BundleGetPointerToData( hcoBUNDLE, IND, fPtrArray, __RC__)
        call ESMF_FieldBundleGet(hcoBUNDLE, IND, hcoFIELD, __RC__ ) 
        call ESMF_FieldGet( hcoFIELD, NAME=hcoNAME, __RC__)
-       call ESMFL_BundleGetPointerToData( hcoBUNDLE, IND, fPtrArray, __RC__)
-
+     
        ! Extract species ID
        call ESMF_AttributeGet (hcoFIELD,    &
-            NAME  = 'GIGCchem_trcID',       &
+            NAME  = 'TRAC_ID',              &
             VALUE = trcID,            __RC__ )
 
        ! Conversion factor (kg/m2/s -> molec/cm2/s)
