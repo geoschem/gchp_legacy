@@ -175,7 +175,18 @@ contains
         DIMS               = MAPL_DimsHorzVert,                   &
         VLOCATION          = MAPL_VLocationCenter,                &
         DATATYPE           = MAPL_BundleItem,                     &
-                                                       RC=STATUS  )!EOP
+                                                       RC=STATUS  )
+
+    ! Add surface area to export state (for use in HEMCO) 
+    call MAPL_AddExportSpec(GC,                                   &
+        SHORT_NAME         = 'AREA',                              &
+        LONG_NAME          = 'grid_cell_area',                    &
+        UNITS              = 'm^2',                               &
+        DIMS               = MAPL_DimsHorzOnly,                   &
+        VLOCATION          = MAPL_VLocationNone,                  &
+                                                       __RC__     )
+
+!EOP
 !BOC
 
 ! Set services now
@@ -203,6 +214,8 @@ contains
 ! !INTERFACE:
 !
   SUBROUTINE Initialize_( GC, Import, Export, Clock, RC )
+
+    USE GRID_MOD, ONLY : GET_AREA_M2
 !
 ! !INPUT/OUTPUT PARAMETERS:
 !
@@ -268,6 +281,8 @@ contains
     REAL(ESMF_KIND_R4), POINTER :: lonCtr(:,:) ! Lon centers on this CPU [rad]
     REAL(ESMF_KIND_R4), POINTER :: latCtr(:,:) ! Lat centers on this CPU [rad]
     REAL, POINTER               :: PS1(:,:)    ! IMPORT: 
+    REAL, POINTER               :: area2d(:,:) ! IMPORT: 
+    INTEGER                     :: i,j
 
     ! Working variables
     TYPE(ESMF_Field)            :: field
@@ -425,7 +440,7 @@ contains
 
     call MAPL_GetPointer ( IMPORT, PS1,  'PS1', RC=STATUS )
     VERIFY_(STATUS)
-    State_Met%PS1        = PS1
+    State_Met%PS1 = PS1
 
     CALL GIGC_Chunk_Init( am_I_Root = am_I_Root, &  ! Are we on the root CPU?   
                           I_LO      = I_LO,      &  ! Min lon index on this CPU
@@ -455,6 +470,14 @@ contains
     IF ( error /= GIGC_SUCCESS ) THEN 
        CALL Error_Trap_( Ident, error, __RC__ )
     ENDIF
+
+    ! Fill area in export state
+    CALL MAPL_GetPointer( Export, area2d, 'AREA', ALLOC=.TRUE., __RC__ )
+    do j=1,jm
+    do i=1,im
+       area2d(i,j) = GET_AREA_M2(i,j,1)
+    enddo
+    enddo
 
     !=======================================================================
     ! Create TRACERS bundle 

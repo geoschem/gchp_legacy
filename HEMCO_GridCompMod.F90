@@ -52,9 +52,6 @@ module HEMCO_GridCompMod
 !    '/home/ckeller/GIGC/HEMCO_input/HEMCO_Config.GIGCtest'
   CHARACTER(LEN=ESMF_MAXSTR)    :: ConfigFile     ! HEMCO configuration file 
 
-  ! Extension toggle (for testing purposes)
-  LOGICAL, PARAMETER :: DoExt = .FALSE.
-
 contains
 
 !------------------------------------------------------------------------------
@@ -129,7 +126,7 @@ contains
    call ESMF_ConfigLoadFile( myState%myCF, 'HEMCO_GridComp.rc', __RC__)
    
    ! Store internal state with Config object in the gridded component
-   CALL ESMF_UserCompSetInternalState( GC, 'EMIS_State', wrap, STATUS )
+   CALL ESMF_UserCompSetInternalState( GC, 'HEMCO_State', wrap, STATUS )
    VERIFY_(STATUS)
    
     !=======================================================================
@@ -150,32 +147,32 @@ contains
     CALL HCO_SetServices( am_I_Root, GC, TRIM(ConfigFile), __RC__ )
 
     ! Other imports (from other components):
-!#include "HEMCO_ImportSpec___.h"
+#include "HEMCO_ImportSpec___.h"
 
-     CALL MAPL_AddImportSpec( GC, &
-          SHORT_NAME          = 'U10M',               &
-          LONG_NAME           = 'sfc_ew_10m_wind',    &
-          UNITS               = '1',                  &
-          DIMS                = MAPL_DimsHorzOnly,    &
-          VLOCATION           = MAPL_VLocationNone,   &
-          __RC__ )
-
-     CALL MAPL_AddImportSpec( GC, &
-          SHORT_NAME          = 'V10M',               &
-          LONG_NAME           = 'sfc_ns_10m_wind',    &
-          UNITS               = '1',                  &
-          DIMS                = MAPL_DimsHorzOnly,    &
-          VLOCATION           = MAPL_VLocationNone,   &
-          __RC__ )
-
-! TODO: Import AREA
 !     CALL MAPL_AddImportSpec( GC, &
-!          SHORT_NAME          = 'AREA',               &
-!          LONG_NAME           = 'agrid_cell_area',    &
-!          UNITS               = 'm^2',                &
+!          SHORT_NAME          = 'U10M',               &
+!          LONG_NAME           = 'sfc_ew_10m_wind',    &
+!          UNITS               = '1',                  &
 !          DIMS                = MAPL_DimsHorzOnly,    &
 !          VLOCATION           = MAPL_VLocationNone,   &
 !          __RC__ )
+!
+!     CALL MAPL_AddImportSpec( GC, &
+!          SHORT_NAME          = 'V10M',               &
+!          LONG_NAME           = 'sfc_ns_10m_wind',    &
+!          UNITS               = '1',                  &
+!          DIMS                = MAPL_DimsHorzOnly,    &
+!          VLOCATION           = MAPL_VLocationNone,   &
+!          __RC__ )
+
+     ! grid cell area (imported from GIGCchem)
+     CALL MAPL_AddImportSpec( GC, &
+          SHORT_NAME          = 'AREA',               &
+          LONG_NAME           = 'grid_cell_area',     &
+          UNITS               = 'm^2',                &
+          DIMS                = MAPL_DimsHorzOnly,    &
+          VLOCATION           = MAPL_VLocationNone,   &
+          __RC__ )
 
     ! Import from GIGC 
     call MAPL_AddImportSpec(GC,                                   &
@@ -189,11 +186,13 @@ contains
 !
 ! !INTERNAL STATE:
 !
+!uncomment the following line if HEMCO internal state is not empty
 !#include "HEMCO_InternalSpec___.h"
 
 !
 ! !EXTERNAL STATE:
 !
+!uncomment the following line if HEMCO export state is not empty
 !#include "HEMCO_ExportSpec___.h"
 !
 
@@ -291,9 +290,6 @@ contains
     CHARACTER(LEN=5)            :: petStr      ! String for PET #
     CHARACTER(LEN=ESMF_MAXSTR)  :: compName    ! Name of gridded component
     CHARACTER(LEN=ESMF_MAXSTR)  :: StdOutFile  ! output log file 
-     
-    ! Pointer arrays
-    REAL,               POINTER :: u10m  (:,:) ! 
 
     ! TRACERS bundle (import)
     TYPE(ESMF_FieldBundle)       :: trcBUNDLE  ! Tracer field bundle
@@ -308,8 +304,6 @@ contains
     INTEGER                         :: locDims(3)  ! Array for local dims
     REAL,                 POINTER   :: lonCtr(:,:)   ! Lon centers on this CPU [rad]
     REAL,                 POINTER   :: latCtr(:,:)   ! Lat centers on this CPU [rad]
-    REAL(ESMF_KIND_R4),   POINTER   :: AREA_3D(:,:,:)! Grid box area 
-    REAL(ESMF_KIND_R4),   POINTER   :: AREA_2D(:,:)  ! Grid box area 
     INTEGER                         :: lDE
     INTEGER                         :: localDECount
 
@@ -346,7 +340,7 @@ contains
     am_I_Root = MAPL_Am_I_Root()
 
     ! Get the internal state which holds the private Config object
-    CALL ESMF_UserCompGetInternalState( GC, 'EMIS_State', wrap, STATUS )
+    CALL ESMF_UserCompGetInternalState( GC, 'HEMCO_State', wrap, STATUS )
     VERIFY_(STATUS)
     myState => wrap%ptr
     EmisCF  =  myState%myCF
@@ -440,9 +434,9 @@ contains
     HcoState%NZ = locDims(3)
 
     ! Prepare HcoState grid arrays 
-    ALLOCATE ( HcoState%Grid%XMID(HcoState%NX,HcoState%NY,1), STAT=AS )
+    ALLOCATE ( HcoState%Grid%XMID(HcoState%NX,HcoState%NY), STAT=AS )
     ASSERT_(AS==0)
-    ALLOCATE ( HcoState%Grid%YMID(HcoState%NX,HcoState%NY,1), STAT=AS )
+    ALLOCATE ( HcoState%Grid%YMID(HcoState%NX,HcoState%NY), STAT=AS )
     ASSERT_(AS==0)
 
     ! Get horizontal coordinate variables and pass to HcoState.
@@ -451,12 +445,11 @@ contains
     CALL MAPL_Get( metaComp, lats=latCtr,       __RC__ )
 
     ! Convert from rad to deg and pass to HcoState
-    HcoState%Grid%XMID(:,:,1) = lonCtr(:,:) * 180d0 / HcoState%Phys%PI
-    HcoState%Grid%YMID(:,:,1) = latCtr(:,:) * 180d0 / HcoState%Phys%PI
+    HcoState%Grid%XMID(:,:) = lonCtr(:,:) * 180d0 / HcoState%Phys%PI
+    HcoState%Grid%YMID(:,:) = latCtr(:,:) * 180d0 / HcoState%Phys%PI
 
-    ! For now, don't define area. Area only used by some of the extensions!
-    ! TODO: Import
-    HcoState%Grid%AREA_M2 => NULL()
+    ! NOTE: the grid box area is obtained from GIGCchem through the
+    ! IMPORT state. This pointer is set in the run_ subroutine.
 
     ! TODO: grid box height --> leave empty for now 
     ! This variable is used by some of the extensions. No need
@@ -508,8 +501,10 @@ contains
     Arr3D = 0d0
 
     ! Logfile I/O
-    MSG = 'HEMCO species:'
-    CALL HCO_MSG(MSG)
+    IF ( am_I_Root ) THEN
+       MSG = 'HEMCO species:'
+       CALL HCO_MSG(MSG)
+    ENDIF
 
     ! Add all used HEMCO species to bundle
     cnt = 0
@@ -566,28 +561,30 @@ contains
        call ESMF_FieldBundleAdd ( HcoBUNDLE, HcoFIELD, __RC__ )
 
        ! Logfile I/O 
-       MSG = 'Species ' // TRIM(HcoState%Spc(cnt)%SpcName)
-       CALL HCO_MSG(MSG)
-       IF ( verb ) THEN
-          write(MSG,*) '--> HcoID         : ', HcoState%Spc(cnt)%HcoID
+       IF ( am_I_Root ) THEN
+          MSG = 'Species ' // TRIM(HcoState%Spc(cnt)%SpcName)
           CALL HCO_MSG(MSG)
-          write(MSG,*) '--> ModID         : ', HcoState%Spc(cnt)%ModID
-          CALL HCO_MSG(MSG)
-          write(MSG,*) '--> MW (g/mol)    : ', HcoState%Spc(cnt)%MW_g
-          CALL HCO_MSG(MSG)
-          write(MSG,*) '--> emitted MW    : ', HcoState%Spc(cnt)%EmMW_g
-          CALL HCO_MSG(MSG)
-          write(MSG,*) '--> Molecule ratio: ', HcoState%Spc(cnt)%MolecRatio
-          CALL HCO_MSG(MSG)
-          write(MSG,*) '--> Henry constant: ', HcoState%Spc(cnt)%HenryK0
-          CALL HCO_MSG(MSG)
-          write(MSG,*) '--> Henry temp.   : ', HcoState%Spc(cnt)%HenryCR
-          CALL HCO_MSG(MSG)
-          write(MSG,*) '--> Henry pKA     : ', HcoState%Spc(cnt)%HenryPKA
-          CALL HCO_MSG(MSG)
+          IF ( verb ) THEN
+             write(MSG,*) '--> HcoID         : ', HcoState%Spc(cnt)%HcoID
+             CALL HCO_MSG(MSG)
+             write(MSG,*) '--> ModID         : ', HcoState%Spc(cnt)%ModID
+             CALL HCO_MSG(MSG)
+             write(MSG,*) '--> MW (g/mol)    : ', HcoState%Spc(cnt)%MW_g
+             CALL HCO_MSG(MSG)
+             write(MSG,*) '--> emitted MW    : ', HcoState%Spc(cnt)%EmMW_g
+             CALL HCO_MSG(MSG)
+             write(MSG,*) '--> Molecule ratio: ', HcoState%Spc(cnt)%MolecRatio
+             CALL HCO_MSG(MSG)
+             write(MSG,*) '--> Henry constant: ', HcoState%Spc(cnt)%HenryK0
+             CALL HCO_MSG(MSG)
+             write(MSG,*) '--> Henry temp.   : ', HcoState%Spc(cnt)%HenryCR
+             CALL HCO_MSG(MSG)
+             write(MSG,*) '--> Henry pKA     : ', HcoState%Spc(cnt)%HenryPKA
+             CALL HCO_MSG(MSG)
+          ENDIF
        ENDIF
     ENDDO
-    CALL HCO_MSG(SEP1='-')
+    IF ( am_I_Root ) CALL HCO_MSG(SEP1='-')
 
    ! Set bundle attributes
     call ESMF_AttributeSet (HcoBUNDLE,    &
@@ -612,26 +609,19 @@ contains
     !=======================================================================
  
     CALL HCO_INIT ( am_I_Root, HcoState, ERROR ) 
-    IF ( ERROR /= HCO_SUCCESS ) THEN
-       ASSERT_(.FALSE.) 
-    ENDIF
+    ASSERT_(ERROR==HCO_SUCCESS)
 
     ! ----------------------------------------------------------------------
     ! Pass current timestamps to HcoState 
-    CALL HcoState_SetTime ( Clock, HcoState, __RC__ )
+    CALL HcoState_SetTime ( am_I_Root, Clock, HcoState, __RC__ )
 
     !=======================================================================
     ! Initialize HEMCO extensions 
     !=======================================================================
 
     ! temp. toggle
-    if ( DoExt ) then 
     CALL HCOX_INIT ( am_I_Root, HcoState, ExtOpt, ERROR )
-    IF ( ERROR /= HCO_SUCCESS ) THEN
-       ASSERT_(.FALSE.) 
-    ENDIF
-
-    endif ! temp. toggle
+    ASSERT_(ERROR==HCO_SUCCESS)
 
     !=======================================================================
     ! All done
@@ -670,7 +660,7 @@ contains
     USE HCO_DRIVER_MOD,     ONLY : HCO_RUN
     USE HCOX_DRIVER_MOD,    ONLY : HCOX_RUN
 
-!#   include "GIGCemis_DeclarePointer___.h"        ! Ptr decls to states
+#   include "HEMCO_DeclarePointer___.h"            ! Ptr decls to states
 !
 ! !INPUT/OUTPUT PARAMETERS:
 !
@@ -713,10 +703,6 @@ contains
     REAL, POINTER                :: fPtrArray(:,:,:) => NULL()
     INTEGER                      :: I, N
 
-    ! Pointers for IMPORT
-    REAL, POINTER, DIMENSION(:,:)   :: U10M
-    REAL, POINTER, DIMENSION(:,:)   :: V10M
-
     !=======================================================================
     ! Run_ begins here!
     !=======================================================================
@@ -732,23 +718,16 @@ contains
     ! Open logfile (as specified in config file) 
     IF ( am_I_Root ) THEN
        CALL HCO_LOGFILE_OPEN ( RC=ERROR )
-       IF ( ERROR /= HCO_SUCCESS ) THEN
-          ASSERT_(.FALSE.)
-       ENDIF
+       ASSERT_(ERROR==HCO_SUCCESS)
     ENDIF
 
     ! Traceback info
     CALL ESMF_GridCompGet( GC, name=compName, __RC__ )
     Iam = TRIM( compName ) // '::' // TRIM( Iam )
 
-    ! Get pointers to fields in import, internal, and export states
-!#   include "Emis_GetPointer___.h"
-
     !=======================================================================
     ! pre-Run method array assignments
     !=======================================================================
-
-!#   include "Includes_Before_Emis.H"
 
     ! Connect HEMCO state object with HEMCO bundle
     call ESMF_StateGet(Export, 'EMISSIONS', hcoBUNDLE, __RC__ )
@@ -759,21 +738,24 @@ contains
        fPtrArray => NULL() 
     ENDDO
 
-    ! TODO: Set met field variables 
-    ! Set pointers to Met fields
-    call MAPL_GetPointer ( IMPORT, U10M,  'U10M', __RC__ )
-    call MAPL_GetPointer ( IMPORT, V10M,  'V10M', __RC__ )
+    ! Get grid box area (from GIGCchem) 
+    call MAPL_GetPointer ( IMPORT, HcoState%Grid%AREA_M2, 'AREA', __RC__ )
 
-!    ! don't forget pointer to boxheight 
+    ! Get pointers to fields in import, internal, and export states
+    ! This sets the pointers to all met fields variables needed by HEMCO
+#   include "HEMCO_GetPointer___.h"
+
+    ! Set pointers in ExtOpt 
+#   include "HEMCO_Includes_BeforeRun.H"
+ 
+!    ! TODO: add pointer to boxheight 
 !    HcoState%Grid%BXHEIGHT_M => State_Met%BXHEIGHT
 
     !=======================================================================
     ! Reset all emission and deposition values in HcoState
     !=======================================================================
     CALL HCO_FluxarrReset ( HcoState, ERROR )
-    IF ( ERROR /= HCO_SUCCESS ) THEN
-       ASSERT_(.FALSE.)
-    ENDIF
+    ASSERT_(ERROR==HCO_SUCCESS)
    
     !=======================================================================
     ! Set HEMCO calculation options 
@@ -792,49 +774,35 @@ contains
     HcoState%Options%FillBuffer = .FALSE.
 
     ! Set current datetime
-    CALL HcoState_SetTime ( Clock, HcoState, __RC__ )
+    CALL HcoState_SetTime ( am_I_Root, Clock, HcoState, __RC__ )
 
     !=======================================================================
     ! Run HEMCO and write emissions into HcoState 
     !=======================================================================
     CALL HCO_RUN ( am_I_Root, HcoState, ERROR )
-    IF ( ERROR /= HCO_SUCCESS ) THEN
-       ASSERT_(.FALSE.)
-    ENDIF
+    ASSERT_(ERROR==HCO_SUCCESS)
 
     !=======================================================================
     ! Run HEMCO extensions. Emissions are added to HcoState 
     !=======================================================================
-
-    ! temp. toggle
-    if ( DoExt ) then
-
     CALL HCOX_RUN ( am_I_Root, HcoState, ExtOpt, ERROR )
-    IF ( ERROR /= HCO_SUCCESS ) THEN
-       ASSERT_(.FALSE.)
-    ENDIF
-
-    endif ! temp. toggle
+    ASSERT_(ERROR==HCO_SUCCESS)
 
     !=======================================================================
     ! post-Run method array assignments
     !=======================================================================
 
-!#   include "Includes_After_Emis.H"
-
-    ! temp. toggle
-    if ( DoExt ) then
-
-    !ExtOpt%SeaFlxOpt%U10M    => NULL() 
-       ! etc.
-
-    endif
+    ! TODO: ExtOpt%... => NULL()
+#   include "HEMCO_Includes_AfterRun.H"
 
     ! Disconnect HEMCO state object with HEMCO bundle
     DO I = 1, N
        HcoState%Spc(I)%Emis%Val => NULL() 
     ENDDO
 
+    ! Don't need this anymore
+    HcoState%Grid%AREA_M2 => NULL()
+ 
     !=======================================================================
     ! All done
     !=======================================================================
@@ -844,7 +812,6 @@ contains
        CALL HCO_LOGFILE_CLOSE
     ENDIF    
 
-    ! Successful return
     ! Successful return
     RETURN_(ESMF_SUCCESS)
 
@@ -883,10 +850,8 @@ contains
     !=======================================================================
 
     ! temp. toggle (testing only)
-    if ( DoExt ) then
     ! Cleanup extensions and ExtOpt object 
     CALL HCOX_FINAL ( HcoState, ExtOpt )
-    endif
 
     ! Cleanup HCO core
     CALL HCO_FINAL
@@ -968,9 +933,7 @@ contains
       ! ---------------------------------------------------------------------
 
       CALL Config_ReadFile( am_I_Root, TRIM(ConfigFile), STATUS )
-      IF ( STATUS /= HCO_SUCCESS ) THEN
-         ASSERT_(.FALSE.)
-      ENDIF
+      ASSERT_(STATUS==HCO_SUCCESS)
 
       ! Loop over all lines and set services according to input file content
       CALL GetNextCont ( CurrCont, FLAG )
@@ -1056,7 +1019,7 @@ contains
 !\\
 ! !INTERFACE:
 !
-    SUBROUTINE HcoState_SetTime( Clock, HcoState, RC ) 
+    SUBROUTINE HcoState_SetTime( am_I_Root, Clock, HcoState, RC ) 
 !
 ! !USES:
 !
@@ -1064,6 +1027,7 @@ contains
 !                                                             
 ! !INPUT/OUTPUT PARAMETERS:                                   
 !
+    LOGICAL,             INTENT(IN   )         :: am_I_Root   ! Root CPU?
     TYPE(ESMF_Clock),    INTENT(INOUT)         :: Clock       ! ESMF clock obj 
     TYPE(HCO_State),     POINTER               :: HcoState    ! HEMCO obj
 !                                                             
@@ -1115,10 +1079,8 @@ contains
                                  h=h,     m=m,   s=s,   __RC__ )
 
     ! Set time (HEMCO clock object) 
-    CALL HcoClock_Set( HcoState, yyyy, mm, dd, h, m, s, doy, error )
-    IF ( error /= HCO_SUCCESS ) THEN
-       ASSERT_(.FALSE.)
-    ENDIF
+    CALL HcoClock_Set( am_I_Root, HcoState, yyyy, mm, dd, h, m, s, doy, error )
+    ASSERT_(ERROR==HCO_SUCCESS)
 
     ! Return success
     RETURN_(ESMF_SUCCESS)

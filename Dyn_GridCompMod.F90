@@ -195,6 +195,14 @@ contains
                                                        RC=STATUS  )
      VERIFY_(STATUS)
 
+!     call MAPL_AddExportSpec(GC,                   &
+!        SHORT_NAME         = 'AREA',               &
+!        LONG_NAME          = 'gridbox_area',       &
+!        UNITS              = 'm2',                 &
+!        DIMS               = MAPL_DimsHorzVert,    &
+!        VLOCATION          = MAPL_VLocationCenter, &
+!                                            __RC__ )
+
 !EOP
 !BOC
 
@@ -286,8 +294,8 @@ contains
     INTEGER                     :: NPES, MYID, NX, NY
      
     ! Pointer arrays
-    REAL(ESMF_KIND_R4), POINTER :: lonCtr(:,:) ! Lon centers on this CPU [rad]
-    REAL(ESMF_KIND_R4), POINTER :: latCtr(:,:) ! Lat centers on this CPU [rad]
+    REAL(ESMF_KIND_R4), POINTER :: lonCtr(:,:)  ! Lon centers on this CPU [rad]
+    REAL(ESMF_KIND_R4), POINTER :: latCtr(:,:)  ! Lat centers on this CPU [rad]
 
     !=======================================================================
     ! Initialization
@@ -331,7 +339,7 @@ contains
     
     ASSERT_( NX>0 .AND. NY>0 )
 
-   ! Get various parameters from the ESMF/MAPL framework
+    ! Get various parameters from the ESMF/MAPL framework
     CALL Extract_( GC,                   &  ! Reference to this Gridded Comp 
                    Clock,                &  ! ESMF Clock object
                    Grid     = Grid,      &  ! ESMF Grid object

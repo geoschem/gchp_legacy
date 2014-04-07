@@ -34,7 +34,7 @@ module GIGC_GridCompMod
  
 !EOP
 
-  integer ::        CHEM, DYN, EMIS
+  integer ::        CHEM, DYN, EMIS 
 
 contains
 
@@ -107,7 +107,7 @@ contains
     CHEM = MAPL_AddChild(GC, NAME='GIGCchem', SS=AtmosChemSetServices, RC=STATUS)
     VERIFY_(STATUS)
 
-    EMIS  = MAPL_AddChild(GC, NAME='GIGCemis',  SS=AtmosEmisSetServices, RC=STATUS)
+    EMIS = MAPL_AddChild(GC, NAME='HEMCO',   SS=AtmosEmisSetServices, RC=STATUS)
     VERIFY_(STATUS)
 
     DYN  = MAPL_AddChild(GC, NAME='GIGCdyn',  SS=AtmosDynSetServices, RC=STATUS)
@@ -369,7 +369,7 @@ contains
 ! NOTE: Should that be before dynamics? 
 !------------------
 
-    I=EMIS  
+    I=EMIS
     write(*,*) 'Running Emissions (HEMCO)'
     call MAPL_TimerOn (STATE,GCNames(I))
      call ESMF_GridCompRun (GCS(I), importState=GIM(I), &

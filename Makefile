@@ -98,10 +98,10 @@ lib: $(ACGS) $(OBJ)
 	$(AR) crs libGIGC.a $(OBJ)
 	mv libGIGC.a $(LIB)
 
-$(ACGS) : $(REGDIR)/Chem_Registry.rc $(REGDIR)/Dyn_Registry.rc $(REGDIR)/Emis_Registry.rc $(ACG)
+$(ACGS) : $(REGDIR)/Chem_Registry.rc $(REGDIR)/Dyn_Registry.rc $(REGDIR)/HEMCO_Registry.rc $(ACG)
 	@$(ACG) $(ACG_FLAGS) $(REGDIR)/Chem_Registry.rc
 	@$(ACG) $(ACG_FLAGS) $(REGDIR)/Dyn_Registry.rc
-	@$(ACG) $(ACG_FLAGS) $(REGDIR)/Emis_Registry.rc
+	@$(ACG) $(ACG_FLAGS) $(REGDIR)/HEMCO_Registry.rc
 
 libesmf:
 	@$(MAKE) -C $(GIGC) esmf
