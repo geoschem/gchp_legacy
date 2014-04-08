@@ -48,3 +48,13 @@
                                                        RC=STATUS  )
      VERIFY_(STATUS)
 
+
+     call MAPL_AddImportSpec(GC, &
+        SHORT_NAME         = 'TMPU1',  &
+        LONG_NAME          = '',  &
+        UNITS              = '1', &
+        DIMS               = MAPL_DimsHorzVert,    &
+        VLOCATION          = MAPL_VLocationCenter,    &
+                                                       RC=STATUS  )
+     VERIFY_(STATUS)
+

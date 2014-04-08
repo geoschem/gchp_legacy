@@ -28,6 +28,8 @@
   ! Two-dimensional fields
   !=========================================================================
 
+  HcoState%Grid%AREA_M2    => NULL()
+
   ExtOpt%ALBD%Arr%Val   => NULL() 
   ExtOpt%WLI%Arr%Val    => NULL() 
   ExtOpt%TSKIN%Arr%Val  => NULL() 
@@ -42,5 +44,9 @@
   ! Three-dimensional fields on level centers
   !=========================================================================
 
+  HcoState%Grid%BXHEIGHT_M => NULL()
+
+  ExtOpt%PEDGE%Arr%Val     => NULL() 
+  ExtOpt%PCENTER%Arr%Val   => NULL() 
 
 

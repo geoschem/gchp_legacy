@@ -98,7 +98,6 @@
         !-------------------------------------------------------------------
         ! "True" met fields (i.e. passed from GCM)
         !-------------------------------------------------------------------
-!       State_Met%AIRDEN  (L,I,J)  = AIRDENS(I,J,L)        ! kg/m3
 !       State_Met%AREA_M2 (I,J,L)  = AREA   (I,J   )        ! m2
         State_Met%CLDF    (L,I,J)  = CLDF   (I,J,L)        ! unitless
 !       State_Met%DQIDTMST(I,J,L)  = DQIDT  (I,J,L)        ! kg/kg/s
@@ -120,6 +119,13 @@
         !-------------------------------------------------------------------
 
         ! Grid box height [m]
+        ! --> passed from dynamics (flip vertical axis!)
+        State_Met%BXHEIGHT(I,J,L) = BOXHEIGHT(I,J,LR)
+        State_Met%AD      (I,J,L) = AD       (I,J,LR)
+        State_Met%DELP    (I,J,L) = DELP     (I,J,LR)
+        State_Met%AIRVOL  (I,J,L) = AIRVOL   (I,J,LR)
+        State_Met%AIRDEN  (I,J,L) = AIRDEN   (I,J,LR)        ! kg/m3
+
 !        State_Met%BXHEIGHT(I,J,L)  =   ZLE               (I,J,L-1)   &
 !                                   -   ZLE               (I,J,L  )
 

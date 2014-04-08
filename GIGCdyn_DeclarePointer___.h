@@ -21,3 +21,12 @@
       real, pointer, dimension(:,:)   :: PS2 ! IMPORT: 
       real, pointer, dimension(:,:,:) :: U ! IMPORT: 
       real, pointer, dimension(:,:,:) :: V ! IMPORT: 
+      real, pointer, dimension(:,:,:) :: TMPU1 ! IMPORT: 
+      real, pointer, dimension(:,:)   :: AREA ! EXPORT: surface_area
+      real, pointer, dimension(:,:,:) :: PEDGE ! EXPORT: 
+      real, pointer, dimension(:,:,:) :: PCENTER ! EXPORT: 
+      real, pointer, dimension(:,:,:) :: BOXHEIGHT ! EXPORT: 
+      real, pointer, dimension(:,:,:) :: AD ! EXPORT: 
+      real, pointer, dimension(:,:,:) :: DELP ! EXPORT: 
+      real, pointer, dimension(:,:,:) :: AIRVOL ! EXPORT: 
+      real, pointer, dimension(:,:,:) :: AIRDEN ! EXPORT: 

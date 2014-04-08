@@ -165,14 +165,14 @@ contains
 !          VLOCATION           = MAPL_VLocationNone,   &
 !          __RC__ )
 
-     ! grid cell area (imported from GIGCchem)
-     CALL MAPL_AddImportSpec( GC, &
-          SHORT_NAME          = 'AREA',               &
-          LONG_NAME           = 'grid_cell_area',     &
-          UNITS               = 'm^2',                &
-          DIMS                = MAPL_DimsHorzOnly,    &
-          VLOCATION           = MAPL_VLocationNone,   &
-          __RC__ )
+!     ! grid cell area (imported from GIGCchem)
+!     CALL MAPL_AddImportSpec( GC, &
+!          SHORT_NAME          = 'AREA',               &
+!          LONG_NAME           = 'grid_cell_area',     &
+!          UNITS               = 'm^2',                &
+!          DIMS                = MAPL_DimsHorzOnly,    &
+!          VLOCATION           = MAPL_VLocationNone,   &
+!          __RC__ )
 
     ! Import from GIGC 
     call MAPL_AddImportSpec(GC,                                   &
@@ -183,6 +183,33 @@ contains
         VLOCATION          = MAPL_VLocationCenter,                &
         DATATYPE           = MAPL_BundleItem,                     &
                                                           __RC__ )
+
+!    ! pressure edges (from dynamics) 
+!    call MAPL_AddImportSpec(GC,                                   &
+!        SHORT_NAME         = 'PEDGE',                             &
+!        LONG_NAME          = 'pressure_edge',                     &
+!        UNITS              = 'hPa',                               &
+!        DIMS               = MAPL_DimsHorzVert,                   &
+!        VLOCATION          = MAPL_VLocationCenter,                &
+!                                                       __RC__     )
+!
+!    ! pressure center (from dynamics) 
+!    call MAPL_AddImportSpec(GC,                                   &
+!        SHORT_NAME         = 'PCENTER',                           &
+!        LONG_NAME          = 'pressure_center',                   &
+!        UNITS              = 'hPa',                               &
+!        DIMS               = MAPL_DimsHorzVert,                   &
+!        VLOCATION          = MAPL_VLocationCenter,                &
+!                                                       __RC__     )
+!
+!    ! box heights (from dynamics) 
+!    call MAPL_AddImportSpec(GC,                                   &
+!        SHORT_NAME         = 'BOXHEIGHT',                         &
+!        LONG_NAME          = 'boxheight',                         &
+!        UNITS              = 'm',                                 &
+!        DIMS               = MAPL_DimsHorzVert,                   &
+!        VLOCATION          = MAPL_VLocationCenter,                &
+!                                                       __RC__     )
 !
 ! !INTERNAL STATE:
 !
@@ -214,7 +241,6 @@ contains
 !                                                       RC=STATUS  )
 
 !EOP
-
 !BOC
 
 ! Set services now
@@ -251,6 +277,10 @@ contains
     USE HCO_TOOLS_MOD,    ONLY : HCO_CharMatch
     USE HCO_DRIVER_MOD,   ONLY : HCO_INIT
     USE HCOX_DRIVER_MOD,  ONLY : HCOX_INIT
+
+    ! testing only
+    USE HCO_ARR_MOD,      ONLY : HCO_ValInit
+
 !
 ! !INPUT/OUTPUT PARAMETERS:
 !
@@ -450,11 +480,10 @@ contains
 
     ! NOTE: the grid box area is obtained from GIGCchem through the
     ! IMPORT state. This pointer is set in the run_ subroutine.
-
-    ! TODO: grid box height --> leave empty for now 
-    ! This variable is used by some of the extensions. No need
-    ! to define it if extensions are disabled. 
-    HcoState%Grid%BXHEIGHT_M => NULL() 
+    HcoState%Grid%BXHEIGHT_M => NULL()
+!    ALLOCATE ( HcoState%Grid%BXHEIGHT_M(HcoState%NX,HcoState%NY,HcoState%NZ), STAT=AS )
+!    ASSERT_(AS==0)
+!    HcoState%Grid%BXHEIGHT_M(:,:,:) = 0.0d0
  
     ! Grid edge information is only used for HEMCO internal regridding
     ! routines, which are never called in an ESMF environment. Hence
@@ -701,7 +730,7 @@ contains
     ! HEMCO bundle
     TYPE(ESMF_FieldBundle)       :: hcoBUNDLE
     REAL, POINTER                :: fPtrArray(:,:,:) => NULL()
-    INTEGER                      :: I, N
+    INTEGER                      :: I, L, LE, N
 
     !=======================================================================
     ! Run_ begins here!
@@ -729,17 +758,18 @@ contains
     ! pre-Run method array assignments
     !=======================================================================
 
+    ! # of vertical levels
+    L  = HcoState%NZ   ! center
+    LE = L+1           ! edges
+
     ! Connect HEMCO state object with HEMCO bundle
     call ESMF_StateGet(Export, 'EMISSIONS', hcoBUNDLE, __RC__ )
     call ESMF_FieldBundleGet( hcoBUNDLE, fieldCount=N, __RC__ )
     DO I = 1, N
        call ESMFL_BundleGetPointerToData( hcoBUNDLE, I, fPtrArray, __RC__ )  
-       HcoState%Spc(I)%Emis%Val => fPtrArray 
+       HcoState%Spc(I)%Emis%Val => fPtrArray(:,:,L:1:-1) 
        fPtrArray => NULL() 
     ENDDO
-
-    ! Get grid box area (from GIGCchem) 
-    call MAPL_GetPointer ( IMPORT, HcoState%Grid%AREA_M2, 'AREA', __RC__ )
 
     ! Get pointers to fields in import, internal, and export states
     ! This sets the pointers to all met fields variables needed by HEMCO
@@ -747,9 +777,6 @@ contains
 
     ! Set pointers in ExtOpt 
 #   include "HEMCO_Includes_BeforeRun.H"
- 
-!    ! TODO: add pointer to boxheight 
-!    HcoState%Grid%BXHEIGHT_M => State_Met%BXHEIGHT
 
     !=======================================================================
     ! Reset all emission and deposition values in HcoState
@@ -792,16 +819,12 @@ contains
     ! post-Run method array assignments
     !=======================================================================
 
-    ! TODO: ExtOpt%... => NULL()
 #   include "HEMCO_Includes_AfterRun.H"
 
     ! Disconnect HEMCO state object with HEMCO bundle
     DO I = 1, N
        HcoState%Spc(I)%Emis%Val => NULL() 
     ENDDO
-
-    ! Don't need this anymore
-    HcoState%Grid%AREA_M2 => NULL()
  
     !=======================================================================
     ! All done

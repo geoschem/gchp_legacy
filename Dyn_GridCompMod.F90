@@ -130,44 +130,8 @@ contains
 !
 ! !IMPORT STATE:
 !
-!#include "GIGCdyn_ImportSpec___.h"
-   call MAPL_AddImportSpec(GC, &
-        SHORT_NAME         = 'PS1',  &
-        LONG_NAME          = '',  &
-        UNITS              = '1', &
-        DIMS               = MAPL_DimsHorzOnly,    &
-        VLOCATION          = MAPL_VLocationNone,    &
-        RC=STATUS  )
-   VERIFY_(STATUS)
-   
-   
-   call MAPL_AddImportSpec(GC, &
-        SHORT_NAME         = 'PS2',  &
-        LONG_NAME          = '',  &
-        UNITS              = '1', &
-        DIMS               = MAPL_DimsHorzOnly,    &
-        VLOCATION          = MAPL_VLocationNone,    &
-        RC=STATUS  )
-   VERIFY_(STATUS)
-   
-   
-   call MAPL_AddImportSpec(GC, &
-        SHORT_NAME         = 'U',  &
-        LONG_NAME          = '',  &
-        UNITS              = '1', &
-        DIMS               = MAPL_DimsHorzVert,    &
-        VLOCATION          = MAPL_VLocationCenter,    &
-        RC=STATUS  )
-   VERIFY_(STATUS)
-   
-   call MAPL_AddImportSpec(GC, &
-        SHORT_NAME         = 'V',  &
-        LONG_NAME          = '',  &
-        UNITS              = '1', &
-        DIMS               = MAPL_DimsHorzVert,    &
-        VLOCATION          = MAPL_VLocationCenter,    &
-        RC=STATUS  )
-   VERIFY_(STATUS)
+! from registry:
+#include "GIGCdyn_ImportSpec___.h"
 
    call MAPL_AddImportSpec(GC, &
         SHORT_NAME         = 'TRACERS',                           &
@@ -186,6 +150,11 @@ contains
 !
 ! !EXTERNAL STATE:
 !
+! from registry:
+#include "GIGCdyn_ExportSpec___.h"
+
+     ! Manually add U to export state to avoid conflicting pointer
+     ! assignments (U is already in import registry!).
      call MAPL_AddExportSpec(GC, &
         SHORT_NAME         = 'U',  &
         LONG_NAME          = '',  &
@@ -194,14 +163,6 @@ contains
         VLOCATION          = MAPL_VLocationCenter,    &
                                                        RC=STATUS  )
      VERIFY_(STATUS)
-
-!     call MAPL_AddExportSpec(GC,                   &
-!        SHORT_NAME         = 'AREA',               &
-!        LONG_NAME          = 'gridbox_area',       &
-!        UNITS              = 'm2',                 &
-!        DIMS               = MAPL_DimsHorzVert,    &
-!        VLOCATION          = MAPL_VLocationCenter, &
-!                                            __RC__ )
 
 !EOP
 !BOC
@@ -231,6 +192,10 @@ contains
 ! !INTERFACE:
 !
   SUBROUTINE Initialize_( GC, Import, Export, Clock, RC )
+!
+! !USES:
+!
+    USE GRID_MOD, ONLY : GET_AREA_M2
 !
 ! !INPUT/OUTPUT PARAMETERS:
 !
@@ -292,10 +257,20 @@ contains
     CHARACTER(LEN=5)            :: petStr      ! String for PET #
     CHARACTER(LEN=ESMF_MAXSTR)  :: compName    ! Name of gridded component
     INTEGER                     :: NPES, MYID, NX, NY
-     
+    INTEGER                     :: I, J
+      
     ! Pointer arrays
     REAL(ESMF_KIND_R4), POINTER :: lonCtr(:,:)  ! Lon centers on this CPU [rad]
     REAL(ESMF_KIND_R4), POINTER :: latCtr(:,:)  ! Lat centers on this CPU [rad]
+
+    REAL, POINTER :: pedge3d(:,:,:)
+    REAL, POINTER :: pmid3d(:,:,:)
+    REAL, POINTER :: bxhgt3d(:,:,:)
+    REAL, POINTER :: airvol3d(:,:,:)
+    REAL, POINTER :: airden3d(:,:,:)
+    REAL, POINTER :: ad3d(:,:,:)
+    REAL, POINTER :: delp3d(:,:,:)
+    REAL, POINTER :: area2d(:,:)
 
     !=======================================================================
     ! Initialization
@@ -467,6 +442,30 @@ contains
     IF ( RC /= GIGC_SUCCESS ) RETURN
     State_Met%V        = 0d0   
 
+    ALLOCATE( State_Met%T         ( IM, JM, LM   ), STAT=RC )
+    IF ( RC /= GIGC_SUCCESS ) RETURN
+    State_Met%T        = 0d0   
+
+    ALLOCATE( State_Met%AIRDEN    ( IM, JM, LM   ), STAT=RC )
+    IF ( RC /= GIGC_SUCCESS ) RETURN
+    State_Met%AIRDEN   = 0d0   
+
+    ALLOCATE( State_Met%AD        ( IM, JM, LM   ), STAT=RC )
+    IF ( RC /= GIGC_SUCCESS ) RETURN
+    State_Met%AD       = 0d0   
+
+    ALLOCATE( State_Met%DELP      ( IM, JM, LM   ), STAT=RC )
+    IF ( RC /= GIGC_SUCCESS ) RETURN
+    State_Met%DELP     = 0d0   
+
+    ALLOCATE( State_Met%AIRVOL    ( IM, JM, LM   ), STAT=RC )
+    IF ( RC /= GIGC_SUCCESS ) RETURN
+    State_Met%AIRVOL   = 0d0   
+
+    ALLOCATE( State_Met%BXHEIGHT  ( IM, JM, LM   ), STAT=RC )
+    IF ( RC /= GIGC_SUCCESS ) RETURN
+    State_Met%BXHEIGHT = 0d0   
+
     ALLOCATE( State_Chm%Trac_Id       (   Input_Opt%MAX_TRCS   ), STAT=RC )
     IF ( RC /= GIGC_SUCCESS ) RETURN
 
@@ -477,11 +476,27 @@ contains
     IF ( RC /= GIGC_SUCCESS ) RETURN
 
     ALLOCATE( Input_Opt%TCVV          (   Input_Opt%Max_Trcs   ), STAT=RC )
+    IF ( RC /= GIGC_SUCCESS ) RETURN
 
-    ! Trap the error from GEOS-Chem
-    IF ( error /= GIGC_SUCCESS ) THEN 
-       CALL Error_Trap_( Ident, error, __RC__ )
-    ENDIF
+    ! Initialize export variables 
+    CALL MAPL_GetPointer( Export, pedge3d,  'PEDGE',     ALLOC=.TRUE., __RC__ )
+    CALL MAPL_GetPointer( Export, pmid3d,   'PCENTER',   ALLOC=.TRUE., __RC__ )
+    CALL MAPL_GetPointer( Export, bxhgt3d,  'BOXHEIGHT', ALLOC=.TRUE., __RC__ )
+    CALL MAPL_GetPointer( Export, airden3d, 'AIRDEN',    ALLOC=.TRUE., __RC__ )
+    CALL MAPL_GetPointer( Export, ad3d,     'AD',        ALLOC=.TRUE., __RC__ )
+    CALL MAPL_GetPointer( Export, delp3d,   'DELP',      ALLOC=.TRUE., __RC__ )
+    CALL MAPL_GetPointer( Export, airvol3d, 'AIRVOL',    ALLOC=.TRUE., __RC__ )
+
+    ! Fill area in export state
+    CALL MAPL_GetPointer ( Export, area2d, 'AREA', ALLOC=.TRUE., __RC__ )
+    DO J=1,JM
+    DO I=1,IM
+       area2d(I,J) = GET_AREA_M2(I,J,1)
+    ENDDO
+    ENDDO
+    
+    ! testing only
+    write(*,*) 'total area: ', SUM(area2d)
 
     !=======================================================================
     ! All done
@@ -530,9 +545,11 @@ contains
 !
 ! !USES:
 !
-#   include "GIGCdyn_DeclarePointer___.h"        ! Ptr decls to states
-    real, pointer, dimension(:,:,:) :: U_ ! Export
+    USE PRESSURE_MOD, ONLY : GET_PEDGE, GET_PCENTER
+    USE DAO_MOD,      ONLY : AIRQNT
 
+#   include "GIGCdyn_DeclarePointer___.h"        ! Ptr decls to states
+    real, pointer      :: U_(:,:,:)
 !
 ! !INPUT/OUTPUT PARAMETERS:
 !
@@ -605,7 +622,7 @@ contains
     !MSL TEST VALUE 4/20/12
     REAL*4 :: TEST_VAL
 
-    REAL*4,  ALLOCATABLE :: Z(:,:,:)
+!    REAL*4,  ALLOCATABLE :: Z(:,:,:)
 
     ! Pointer arrays
     REAL(ESMF_KIND_R4), POINTER  :: lonCtr(:,:)   ! Lon centers, this CPU [rad]
@@ -619,7 +636,7 @@ contains
     INTEGER :: IND
     INTEGER :: IFIRST, ILAST ! Grid info for halo (Currently unused)
 
-    REAL  :: TC2
+    REAL     :: TC2
 
     !=======================================================================
     ! Initialization
@@ -642,9 +659,8 @@ contains
 
     ! Get pointers to fields in import, internal, and export states
 #   include "GIGCdyn_GetPointer___.h"
-    call MAPL_GetPointer ( Export, U_,  'U', RC=STATUS )
-    VERIFY_(STATUS)
 
+    call MAPL_GetPointer ( Export, U_, 'U', __RC__ )
     U_ = U
 
     ! Re-open file for stdout redirect
@@ -734,10 +750,6 @@ contains
        call ESMF_FieldBundlePrint ( trcbundle )
     end if
 
-    IF (.not. ALLOCATED( Z ) ) THEN
-       ALLOCATE(Z(IM,JM,LM))
-    ENDIF
-
     ! Call EXTRACT 
     CALL Extract_( GC,                   &  ! Ref to this Gridded Component
                    Clock,                &  ! ESMF Clock object
@@ -784,6 +796,11 @@ contains
     write(*,*) 'Local E/W Wind Array Shape', shape(State_Met%U)
     write(*,*) 'Executing Do_Transport', maxval(State_Chm%Tracers(:,:,:,IND))
     CALL Set_Floating_Pressure( State_Met%PS1 )
+
+    ! Get air quantities. 
+    CALL AIRQNT ( State_Met ) 
+
+    ! Now do transport
     CALL DO_TRANSPORT( am_I_Root, Input_Opt, State_Met, State_Chm, RC )
 
     ! Trap the error from GEOS-Chem
@@ -796,6 +813,24 @@ contains
     !=======================================================================
 
 #   include "Includes_After_Dyn.H"
+
+    ! Add air quantities to arrays. Flip vertical axis! 
+    DO L=1,LM
+    DO J=1,JM
+    DO I=1,IM
+       LR = LM-L+1  ! Reverse level index
+       PEDGE    (I,J,L) = GET_PEDGE         (I,J,LR+1)
+       PCENTER  (I,J,L) = GET_PCENTER       (I,J,LR)
+       BOXHEIGHT(I,J,L) = State_Met%BXHEIGHT(I,J,LR)
+       AIRDEN   (I,J,L) = State_Met%AIRDEN  (I,J,LR)
+       AD       (I,J,L) = State_Met%AD      (I,J,LR)
+       AIRVOL   (I,J,L) = State_Met%AIRVOL  (I,J,LR)
+       DELP     (I,J,L) = State_Met%DELP    (I,J,LR)
+    ENDDO 
+    ENDDO 
+    ENDDO 
+    PEDGE(I,J,LM+1) = GET_PEDGE(I,J,1)
+
     DO IND=1, Input_Opt%N_TRACERS
        call ESMF_FieldBundleGet(trcBUNDLE,                    &
                                 IND,                          &
@@ -807,7 +842,6 @@ contains
        call ESMFL_BundleGetPointerToData( trcBUNDLE, IND, fPtrArray, __RC__)
 
        fPtrArray = State_Chm%Tracers(:,:,LM:1:-1,IND)
-
     END DO
 
     !=======================================================================

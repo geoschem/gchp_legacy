@@ -708,3 +708,53 @@
                                                        RC=STATUS  )
      VERIFY_(STATUS)
 
+
+     call MAPL_AddImportSpec(GC, &
+        SHORT_NAME         = 'BOXHEIGHT',  &
+        LONG_NAME          = '',  &
+        UNITS              = 'm', &
+        DIMS               = MAPL_DimsHorzVert,    &
+        VLOCATION          = MAPL_VLocationCenter,    &
+                                                       RC=STATUS  )
+     VERIFY_(STATUS)
+
+
+     call MAPL_AddImportSpec(GC, &
+        SHORT_NAME         = 'AD',  &
+        LONG_NAME          = '',  &
+        UNITS              = 'kg', &
+        DIMS               = MAPL_DimsHorzVert,    &
+        VLOCATION          = MAPL_VLocationCenter,    &
+                                                       RC=STATUS  )
+     VERIFY_(STATUS)
+
+
+     call MAPL_AddImportSpec(GC, &
+        SHORT_NAME         = 'DELP',  &
+        LONG_NAME          = '',  &
+        UNITS              = 'hPa', &
+        DIMS               = MAPL_DimsHorzVert,    &
+        VLOCATION          = MAPL_VLocationCenter,    &
+                                                       RC=STATUS  )
+     VERIFY_(STATUS)
+
+
+     call MAPL_AddImportSpec(GC, &
+        SHORT_NAME         = 'AIRVOL',  &
+        LONG_NAME          = '',  &
+        UNITS              = 'm3', &
+        DIMS               = MAPL_DimsHorzVert,    &
+        VLOCATION          = MAPL_VLocationCenter,    &
+                                                       RC=STATUS  )
+     VERIFY_(STATUS)
+
+
+     call MAPL_AddImportSpec(GC, &
+        SHORT_NAME         = 'AIRDEN',  &
+        LONG_NAME          = '',  &
+        UNITS              = 'kg m-3', &
+        DIMS               = MAPL_DimsHorzVert,    &
+        VLOCATION          = MAPL_VLocationCenter,    &
+                                                       RC=STATUS  )
+     VERIFY_(STATUS)
+

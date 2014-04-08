@@ -28,6 +28,8 @@
   ! Two-dimensional fields
   !=========================================================================
 
+  HcoState%Grid%AREA_M2 => AREA
+
   IF ( ExtOpt%ALBD%DoUse ) THEN
      ExtOpt%ALBD%Arr%Val => ALBD
   ENDIF
@@ -47,10 +49,18 @@
   !=========================================================================
   ! Three-dimensional fields on level edges
   !=========================================================================
+ 
+  IF ( ExtOpt%PEDGE%DoUse ) THEN
+     ExtOpt%PEDGE%Arr%Val => PEDGE(:,:,LE:1:-1)
+  ENDIF
 
   !=========================================================================
   ! Three-dimensional fields on level centers
   !=========================================================================
 
+  HcoState%Grid%BXHEIGHT_M => BOXHEIGHT(:,:,L:1:-1)
 
+  IF ( ExtOpt%PCENTER%DoUse ) THEN
+     ExtOpt%PCENTER%Arr%Val => PCENTER(:,:,L:1:-1)
+  ENDIF
 

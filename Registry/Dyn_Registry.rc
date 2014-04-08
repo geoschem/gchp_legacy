@@ -29,6 +29,7 @@
   PS2                |     1	   | xy  |   |    |   |   |	|      | 
   U                  |     1	   | xyz | C |    |   |   |	|      | 
   V                  |     1	   | xyz | C |    |   |   |	|      | 
+  TMPU1              |     1	   | xyz | C |    |   |   |	|      | 
 # -------------------|-------------|-----|---|----|---|---|-----|------|--------------------------
 </ImportSpec>
 
@@ -41,72 +42,14 @@
 #  Short	    |		     |     | V |Item|Intervl| Sub |	     Long
 #  Name 	    |   Units	     | Dim |Loc|Type| R | A |Tiles|	     Name
 # ------------------|----------------|-----|---|----|---|---|-----|---------------------------------
-#    TRC_NO      |  mol/mol   | xyz | C |    |   |   |     |      |    |    | D,T,GIGCchem | NO
-#    TRC_O3      |  mol/mol   | xyz | C |    |   |   |     |      |    |    | D,T,GIGCchem | O3
-#    TRC_PAN     |  mol/mol   | xyz | C |    |   |   |     |      |    |    | D,T,GIGCchem | peroxyacetyl nitrate
-#    TRC_CO      |  mol/mol   | xyz | C |    |   |   |     |      |    |    | D,T,GIGCchem | carbon monoxide
-#    TRC_ALK4    |  mol/mol   | xyz | C |    |   |   |     |      |    |    | D,T,GIGCchem | >=C4 alkanes
-#    TRC_ISOP    |  mol/mol   | xyz | C |    |   |   |     |      |    |    | D,T,GIGCchem | isoprene
-#    TRC_HNO3    |  mol/mol   | xyz | C |    |   |   |     |      |    |    | D,T,GIGCchem | nitric acid
-#    TRC_H2O2    |  mol/mol   | xyz | C |    |   |   |     |      |    |    | D,T,GIGCchem | hydrogen peroxide
-#    TRC_ACET    |  mol/mol   | xyz | C |    |   |   |     |      |    |    | D,T,GIGCchem | acetone
-#    TRC_MEK     |  mol/mol   | xyz | C |    |   |   |     |      |    |    | D,T,GIGCchem | methyl ethyl ketone
-#    TRC_ALD2    |  mol/mol   | xyz | C |    |   |   |     |      |    |    | D,T,GIGCchem | acetaldehyde
-#    TRC_RCHO    |  mol/mol   | xyz | C |    |   |   |     |      |    |    | D,T,GIGCchem | lumped aldehyde >=C3
-#    TRC_MVK     |  mol/mol   | xyz | C |    |   |   |     |      |    |    | D,T,GIGCchem | methyl vinyl ketone
-#    TRC_MACR    |  mol/mol   | xyz | C |    |   |   |     |      |    |    | D,T,GIGCchem | methacrolein
-#    TRC_PMN     |  mol/mol   | xyz | C |    |   |   |     |      |    |    | D,T,GIGCchem | peroxymethacryoyl nitrate
-#    TRC_PPN     |  mol/mol   | xyz | C |    |   |   |     |      |    |    | D,T,GIGCchem | lumped peroxyacyl nitrate
-#    TRC_R4N2    |  mol/mol   | xyz | C |    |   |   |     |      |    |    | D,T,GIGCchem | lumped alkyl nitrate
-#    TRC_PRPE    |  mol/mol   | xyz | C |    |   |   |     |      |    |    | D,T,GIGCchem | >=C3 alkenes
-#    TRC_C3H8    |  mol/mol   | xyz | C |    |   |   |     |      |    |    | D,T,GIGCchem | propane
-#    TRC_CH2O    |  mol/mol   | xyz | C |    |   |   |     |      |    |    | D,T,GIGCchem | formaldehyde
-#    TRC_C2H6    |  mol/mol   | xyz | C |    |   |   |     |      |    |    | D,T,GIGCchem | ethane
-#    TRC_N2O5    |  mol/mol   | xyz | C |    |   |   |     |      |    |    | D,T,GIGCchem | dinitrogen pentoxide
-#    TRC_HNO4    |  mol/mol   | xyz | C |    |   |   |     |      |    |    | D,T,GIGCchem | pernitric acid
-#    TRC_MP      |  mol/mol   | xyz | C |    |   |   |     |      |    |    | D,T,GIGCchem | methyl hydro peroxide
-#    TRC_DMS     |  mol/mol   | xyz | C |    |   |   |     |      |    |    | D,T,GIGCchem | dimethyl sulfide
-#    TRC_SO2     |  mol/mol   | xyz | C |    |   |   |     |      |    |    | D,T,GIGCchem | sulfur dioxide
-#    TRC_SO4     |  mol/mol   | xyz | C |    |   |   |     |      |    |    | D,T,GIGCchem | sulfate
-#    TRC_SO4s    |  mol/mol   | xyz | C |    |   |   |     |      |    |    | D,T,GIGCchem | sulfate on surface of sea salt aerosol
-#    TRC_MSA     |  mol/mol   | xyz | C |    |   |   |     |      |    |    | D,T,GIGCchem | methyl sulfionic acid
-#    TRC_NH3     |  mol/mol   | xyz | C |    |   |   |     |      |    |    | D,T,GIGCchem | ammonia
-#    TRC_NH4     |  mol/mol   | xyz | C |    |   |   |     |      |    |    | D,T,GIGCchem | ammonium
-#    TRC_NIT     |  mol/mol   | xyz | C |    |   |   |     |      |    |    | D,T,GIGCchem | aerosol nitrate ion
-#    TRC_NITs    |  mol/mol   | xyz | C |    |   |   |     |      |    |    | D,T,GIGCchem | aerosol nitrate ion on surface of sea salt aerosol
-#    TRC_BCPI    |  mol/mol   | xyz | C |    |   |   |     |      |    |    | D,T,GIGCchem | black carbon, hydrophilic
-#    TRC_OCPI    |  mol/mol   | xyz | C |    |   |   |     |      |    |    | D,T,GIGCchem | organic carbon, hydrophilic
-#    TRC_BCPO    |  mol/mol   | xyz | C |    |   |   |     |      |    |    | D,T,GIGCchem | black carbon, hydrophobic
-#    TRC_OCPO    |  mol/mol   | xyz | C |    |   |   |     |      |    |    | D,T,GIGCchem | organic carbon, hydrophobic
-#    TRC_DST1    |  mol/mol   | xyz | C |    |   |   |     |      |    |    | D,T,GIGCchem | dust aerosol, Reff = 0.7 microns
-#    TRC_DST2    |  mol/mol   | xyz | C |    |   |   |     |      |    |    | D,T,GIGCchem | dust aerosol, Reff = 1.4 microns
-#    TRC_DST3    |  mol/mol   | xyz | C |    |   |   |     |      |    |    | D,T,GIGCchem | dust aerosol, Reff = 2.4 microns
-#    TRC_DST4    |  mol/mol   | xyz | C |    |   |   |     |      |    |    | D,T,GIGCchem | dust aerosol, Reff = 4.5 microns
-#    TRC_SALA    |  mol/mol   | xyz | C |    |   |   |     |      |    |    | D,T,GIGCchem | sea salt aerosol, accumulation mode
-#    TRC_SALC    |  mol/mol   | xyz | C |    |   |   |     |      |    |    | D,T,GIGCchem | sea salt aerosol, coarse mode  
-#    TRC_Br2     |  mol/mol   | xyz | C |    |   |   |     |      |    |    | D,T,GIGCchem | Br2
-#    TRC_Br      |  mol/mol   | xyz | C |    |   |   |     |      |    |    | D,T,GIGCchem | Br
-#    TRC_BrO     |  mol/mol   | xyz | C |    |   |   |     |      |    |    | D,T,GIGCchem | BrO
-#    TRC_HOBr    |  mol/mol   | xyz | C |    |   |   |     |      |    |    | D,T,GIGCchem | HOBr
-#    TRC_HBr     |  mol/mol   | xyz | C |    |   |   |     |      |    |    | D,T,GIGCchem | HBr
-#    TRC_BrNO2   |  mol/mol   | xyz | C |    |   |   |     |      |    |    | D,T,GIGCchem | BrNO2
-#    TRC_BrNO3   |  mol/mol   | xyz | C |    |   |   |     |      |    |    | D,T,GIGCchem | BrNO3
-#    TRC_CHBr3   |  mol/mol   | xyz | C |    |   |   |     |      |    |    | D,T,GIGCchem | CHBr3 
-#    TRC_CH2Br2  |  mol/mol   | xyz | C |    |   |   |     |      |    |    | D,T,GIGCchem | CH2Br2 
-#    TRC_CH3Br   |  mol/mol   | xyz | C |    |   |   |     |      |    |    | D,T,GIGCchem | CH3Br 
-#    TRC_MPN     |  mol/mol   | xyz | C |    |   |   |     |      |    |    | D,T,GIGCchem | MPN
-#    TRC_ISOPN   |  mol/mol   | xyz | C |    |   |   |     |      |    |    | D,T,GIGCchem | ISOPN
-#    TRC_MOBA    |  mol/mol   | xyz | C |    |   |   |     |      |    |    | D,T,GIGCchem | MOBA
-#    TRC_PROPNN  |  mol/mol   | xyz | C |    |   |   |     |      |    |    | D,T,GIGCchem | PROPNN
-#    TRC_HAC     |  mol/mol   | xyz | C |    |   |   |     |      |    |    | D,T,GIGCchem | HAC
-#    TRC_GLYC    |  mol/mol   | xyz | C |    |   |   |     |      |    |    | D,T,GIGCchem | GLYC
-#    TRC_MMN     |  mol/mol   | xyz | C |    |   |   |     |      |    |    | D,T,GIGCchem | MMN
-#    TRC_RIP     |  mol/mol   | xyz | C |    |   |   |     |      |    |    | D,T,GIGCchem | RIP
-#    TRC_IEPOX   |  mol/mol   | xyz | C |    |   |   |     |      |    |    | D,T,GIGCchem | IEPOX
-#    TRC_MAP     |  mol/mol   | xyz | C |    |   |   |     |      |    |    | D,T,GIGCchem | MAP
-#    TRC_NO2     |  mol/mol   | xyz | C |    |   |   |     |      |    |    | D,T,GIGCchem | NO2
-#    TRC_NO3     |  mol/mol   | xyz | C |    |   |   |     |      |    |    | D,T,GIGCchem | NO3
-#    TRC_HNO2    |  mol/mol   | xyz | C |    |   |   |     |      |    |    | D,T,GIGCchem | HNO2
+  AREA              |    m2          | xy  |   |    |	|   |	  | surface_area 
+  PEDGE             |    hPa         | xyz | E |    |   |   |	  |
+  PCENTER           |    hPa         | xyz | C |    |   |   |	  |
+  BOXHEIGHT         |     m          | xyz | C |    |   |   |	  |
+  AD                |    kg          | xyz | C |    |   |   |	  |
+  DELP              |    hPa	     | xyz | C |    |   |   |	  |
+  AIRVOL            |    m3	     | xyz | C |    |   |   |	  |
+  AIRDEN            |    kg m-3      | xyz | C |    |   |   |	  |
 # ------------------|----------------|-----|---|----|---|---|-----|---------------------------------
 </ExportSpec>
 

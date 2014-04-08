@@ -272,6 +272,11 @@
       real, pointer, dimension(:,:,:) :: TMPU1 ! IMPORT: 
       real, pointer, dimension(:,:,:) :: SPHU2 ! IMPORT: 
       real, pointer, dimension(:,:,:) :: TMPU2 ! IMPORT: 
+      real, pointer, dimension(:,:,:) :: BOXHEIGHT ! IMPORT: 
+      real, pointer, dimension(:,:,:) :: AD ! IMPORT: 
+      real, pointer, dimension(:,:,:) :: DELP ! IMPORT: 
+      real, pointer, dimension(:,:,:) :: AIRVOL ! IMPORT: 
+      real, pointer, dimension(:,:,:) :: AIRDEN ! IMPORT: 
       real, pointer, dimension(:,:,:) :: O3PPMV ! EXPORT: ozone_volume_mixing_ratio_in_ppm
       real, pointer, dimension(:,:,:) :: OX_TEND ! EXPORT: tendency_of_odd_oxygen_mixing_ratio_due_to_chemistry
       real, pointer, dimension(:,:,:) :: H2O_TEND ! EXPORT: tendency_of_water_vapor_mixing_ratio_due_to_chemistry

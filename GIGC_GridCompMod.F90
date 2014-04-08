@@ -4,10 +4,23 @@
 !BOP
 
 ! !MODULE: 
-
-! GEOS\_PhysicsGridCompMod -- A Module to combine Short-Wave, Long-Wave Radiation,
-!                             Moist-Physics and Turbulence Gridded Components
-
+! GIGC\_GridCompMod -- this gridded component builds an ESMF application out
+! of the following three components:
+! - Dynamics  (GIGCdyn)
+! - Chemistry (GIGCchem)
+! - Emissions (HEMCO)
+!
+! !NOTES:
+! (1) For now, the dynamics module is rather primitive and based upon netCDF
+! input fields for all met. variables (U,V,etc.). This module computes 
+! pressure related quantities (PEDGE, PCENTER, BOXHEIGHT, AIRDEN, AD, DELP, 
+! AIRVOL) and passes these variables to chemistry and HEMCO.
+! Similarly, HEMCO inherits the grid box surface area from dynamics.
+! (2) Tracers and emissions are passed as 'bundle' from one component to
+! another.
+! (3) All 3D fields are exchanged on the 'GEOS-5' vertical levels, i.e. with
+! a reversed atmosphere (level 1 is top of atmosphere). 
+! 
 ! !INTERFACE:
 
 module GIGC_GridCompMod

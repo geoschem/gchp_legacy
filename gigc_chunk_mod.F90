@@ -222,7 +222,7 @@ CONTAINS
 !
 !    USE COMODE_MOD,         ONLY : CSPEC_FULL
     USE COMODE_LOOP_MOD
-    USE Dao_Mod,            ONLY : Convert_Units, AirQnt
+    USE Dao_Mod,            ONLY : Convert_Units
     USE Chemistry_Mod,      ONLY : Do_Chemistry
     USE DryDep_Mod,         ONLY : Do_DryDep
     USE GIGC_ErrCode_Mod
@@ -356,9 +356,11 @@ CONTAINS
     ! deposition and chemistry, and convert back to [v/v] afterwards.
     !=======================================================================
 
+    ! Now do AIRQNT in dynamics, import BXHEIGHT, etc. through state. Still
+    ! need to call Set_Floating_Pressure, though, in order to get pressure
+    ! edges (ckeller, 04/04/14).
     CALL Set_Floating_Pressure( State_Met%PS1 )
-
-    CALL AIRQNT( State_Met )
+!    CALL AIRQNT( State_Met )
 
     !---------------------------------
     ! Unit conversion [v/v] --> [kg]

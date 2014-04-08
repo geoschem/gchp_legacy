@@ -105,15 +105,6 @@ contains
    call MAPL_GridCompSetEntryPoint ( GC, ESMF_SETFINAL, Finalize_, RC=STATUS )
    VERIFY_(STATUS)
 
-! Connect Children
-! --------------------
-!!    call MAPL_AddConnectivity ( GC,                           &
-!!         SRC_NAME  = (/                                   /), &
-!!         DST_NAME  = (/                                   /), &
-!!         SRC_ID = CHEM,                                        &
-!!         DST_ID = ????,                                        &
-!!         RC=STATUS  )
-
    !=======================================================================
    ! Wrap internal state for storing in this gridded component
    ! Rename this to a "legacy state"
@@ -137,6 +128,7 @@ contains
 !
 ! !IMPORT STATE:
 !
+! from registry:
 #   include "GIGCchem_ImportSpec___.h"
 
     ! Import from HEMCO
@@ -162,10 +154,12 @@ contains
 !
 ! !INTERNAL STATE:
 !
+! from registry:
 #   include "GIGCchem_InternalSpec___.h"
 !
 ! !EXTERNAL STATE:
 !
+! from registry:
 #   include "GIGCchem_ExportSpec___.h"
 
     call MAPL_AddExportSpec(GC,                                   &
@@ -176,15 +170,6 @@ contains
         VLOCATION          = MAPL_VLocationCenter,                &
         DATATYPE           = MAPL_BundleItem,                     &
                                                        RC=STATUS  )
-
-    ! Add surface area to export state (for use in HEMCO) 
-    call MAPL_AddExportSpec(GC,                                   &
-        SHORT_NAME         = 'AREA',                              &
-        LONG_NAME          = 'grid_cell_area',                    &
-        UNITS              = 'm^2',                               &
-        DIMS               = MAPL_DimsHorzOnly,                   &
-        VLOCATION          = MAPL_VLocationNone,                  &
-                                                       __RC__     )
 
 !EOP
 !BOC
@@ -214,8 +199,6 @@ contains
 ! !INTERFACE:
 !
   SUBROUTINE Initialize_( GC, Import, Export, Clock, RC )
-
-    USE GRID_MOD, ONLY : GET_AREA_M2
 !
 ! !INPUT/OUTPUT PARAMETERS:
 !
@@ -281,7 +264,6 @@ contains
     REAL(ESMF_KIND_R4), POINTER :: lonCtr(:,:) ! Lon centers on this CPU [rad]
     REAL(ESMF_KIND_R4), POINTER :: latCtr(:,:) ! Lat centers on this CPU [rad]
     REAL, POINTER               :: PS1(:,:)    ! IMPORT: 
-    REAL, POINTER               :: area2d(:,:) ! IMPORT: 
     INTEGER                     :: i,j
 
     ! Working variables
@@ -470,14 +452,6 @@ contains
     IF ( error /= GIGC_SUCCESS ) THEN 
        CALL Error_Trap_( Ident, error, __RC__ )
     ENDIF
-
-    ! Fill area in export state
-    CALL MAPL_GetPointer( Export, area2d, 'AREA', ALLOC=.TRUE., __RC__ )
-    do j=1,jm
-    do i=1,im
-       area2d(i,j) = GET_AREA_M2(i,j,1)
-    enddo
-    enddo
 
     !=======================================================================
     ! Create TRACERS bundle 
@@ -722,6 +696,8 @@ contains
     REAL(ESMF_KIND_R8), POINTER  :: fPtrVal, fPtr1D(:)
 
     !=======================================================================
+
+    !=======================================================================
     ! Initialization
     !=======================================================================
     
@@ -856,8 +832,8 @@ contains
        ! Conversion factor (kg/m2/s -> molec/cm2/s)
        COEFF = Input_Opt%XNUMOL(trcID) / 1.0d4
 
-       ! Pass to State_Chm. Don't reverse vertical (right?!)
-       State_Chm%Trac_Tend(:,:,:,trcID) = fPtrArray !* COEFF
+       ! Pass to State_Chm. 
+       State_Chm%Trac_Tend(:,:,LM:1:-1,trcID) = fPtrArray !* COEFF
     END DO
 
     !=======================================================================
@@ -865,8 +841,6 @@ contains
     !=======================================================================
 
 #   include "Includes_Before_Run.H"
-    
-    State_Met%AIRVOL = 1.e0
 
     where (State_Chm%Tracers .eq. 0.e0)
        State_Chm%Tracers = 1.e-36
