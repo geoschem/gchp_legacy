@@ -1,7 +1,7 @@
-! $Id: ESMF_StateHelpers.F90,v 1.17.4.1 2010/02/05 20:05:08 svasquez Exp $
+! $Id: ESMF_StateHelpers.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2010, University Corporation for Atmospheric Research,
+! Copyright 2002-2012, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -15,7 +15,7 @@
 
 module ESMF_StateHelpers
 
-   use ESMF_Mod
+   use ESMF
 
    public Create2DIGrids, Create3DIGrids
    public CreateFields, CreateFieldBundle, AddFieldBundle
@@ -178,8 +178,8 @@ subroutine CreateFields(igrid1, field1, field2, field3, field4, field5, &
     type(ESMF_Field), intent(out), optional :: field2, field3, field4, field5
     integer, intent(in), optional :: dim1, dim2, dim3, dim4, dim5
     integer, intent(in), optional :: halo1, halo2, halo3, halo4, halo5
-    type(ESMF_TypeKind), intent(in), optional :: dkind1, dkind2 
-    type(ESMF_TypeKind), intent(in), optional :: dkind3, dkind4, dkind5
+    type(ESMF_TypeKind_Flag), intent(in), optional :: dkind1, dkind2 
+    type(ESMF_TypeKind_Flag), intent(in), optional :: dkind3, dkind4, dkind5
     type(ESMF_RelLoc), intent(in), optional :: relloc1, relloc2
     type(ESMF_RelLoc), intent(in), optional :: relloc3, relloc4, relloc5
     type(ESMF_RelLoc), intent(in), optional :: vrelloc1, vrelloc2
@@ -189,7 +189,7 @@ subroutine CreateFields(igrid1, field1, field2, field3, field4, field5, &
     ! Local variables
     integer :: halof1, halof2, halof3, halof4, halof5
     integer :: dimf1, dimf2, dimf3, dimf4, dimf5
-    type(ESMF_TypeKind) :: dkindf1, dkindf2, dkindf3, dkindf4, dkindf5
+    type(ESMF_TypeKind_Flag) :: dkindf1, dkindf2, dkindf3, dkindf4, dkindf5
     type(ESMF_RelLoc) :: rellocf1, rellocf2, rellocf3, rellocf4, rellocf5
     type(ESMF_RelLoc) :: vrellocf1, vrellocf2, vrellocf3, vrellocf4, vrellocf5
     type(ESMF_ArraySpec) :: arrayspecf1, arrayspecf2
@@ -337,27 +337,27 @@ subroutine CreateFieldBundle(bundle, field1, field2, field3, field4, field5, rc)
     if (localrc.NE.ESMF_SUCCESS) return
 
     if (present(field1)) then
-      call ESMF_FieldBundleAdd(bundle, field1, rc=localrc)
+      call ESMF_FieldBundleAdd(bundle, (/field1/), rc=localrc)
       if (localrc.NE.ESMF_SUCCESS) return
     endif
 
     if (present(field2)) then
-      call ESMF_FieldBundleAdd(bundle, field2, rc=localrc)
+      call ESMF_FieldBundleAdd(bundle, (/field2/), rc=localrc)
       if (localrc.NE.ESMF_SUCCESS) return
     endif
 
     if (present(field3)) then
-      call ESMF_FieldBundleAdd(bundle, field3, rc=localrc)
+      call ESMF_FieldBundleAdd(bundle, (/field3/), rc=localrc)
       if (localrc.NE.ESMF_SUCCESS) return
     endif
 
     if (present(field4)) then
-      call ESMF_FieldBundleAdd(bundle, field4, rc=localrc)
+      call ESMF_FieldBundleAdd(bundle, (/field4/), rc=localrc)
       if (localrc.NE.ESMF_SUCCESS) return
     endif
 
     if (present(field5)) then
-      call ESMF_FieldBundleAdd(bundle, field5, rc=localrc)
+      call ESMF_FieldBundleAdd(bundle, (/field5/), rc=localrc)
       if (localrc.NE.ESMF_SUCCESS) return
     endif
 
@@ -385,27 +385,27 @@ subroutine AddFieldBundle(bundle, field1, field2, field3, field4, field5, rc)
     if (present(rc)) rc = ESMF_FAILURE
         
     if (present(field1)) then
-      call ESMF_FieldBundleAdd(bundle, field1, rc=localrc)
+      call ESMF_FieldBundleAdd(bundle, (/field1/), rc=localrc)
       if (localrc.NE.ESMF_SUCCESS) return
     endif
 
     if (present(field2)) then
-      call ESMF_FieldBundleAdd(bundle, field2, rc=localrc)
+      call ESMF_FieldBundleAdd(bundle, (/field2/), rc=localrc)
       if (localrc.NE.ESMF_SUCCESS) return
     endif
 
     if (present(field3)) then
-      call ESMF_FieldBundleAdd(bundle, field3, rc=localrc)
+      call ESMF_FieldBundleAdd(bundle, (/field3/), rc=localrc)
       if (localrc.NE.ESMF_SUCCESS) return
     endif
 
     if (present(field4)) then
-      call ESMF_FieldBundleAdd(bundle, field4, rc=localrc)
+      call ESMF_FieldBundleAdd(bundle, (/field4/), rc=localrc)
       if (localrc.NE.ESMF_SUCCESS) return
     endif
 
     if (present(field5)) then
-      call ESMF_FieldBundleAdd(bundle, field5, rc=localrc)
+      call ESMF_FieldBundleAdd(bundle, (/field5/), rc=localrc)
       if (localrc.NE.ESMF_SUCCESS) return
     endif
 
@@ -495,7 +495,7 @@ subroutine InternalFillConstantField(field, r4val, r8val, i4val, i8val, rc)
     integer, intent(out), optional :: rc
     
     ! Local variables
-    type(ESMF_TypeKind) :: dk
+    type(ESMF_TypeKind_Flag) :: dk
     integer :: rank, kind
 
     ! pointer zoo
@@ -543,7 +543,7 @@ subroutine InternalFillConstantField(field, r4val, r8val, i4val, i8val, rc)
                 return
             endif
 
-            call ESMF_FieldGetDataPointer(field, ptr2dr8, ESMF_DATA_REF, rc=rc)
+            call ESMF_FieldGetDataPointer(field, ptr2dr8, ESMF_DATACOPY_REFERENCE, rc=rc)
             if (rc.NE.ESMF_SUCCESS) return
 
             ptr2dr8(:,:) = r8val
@@ -554,7 +554,7 @@ subroutine InternalFillConstantField(field, r4val, r8val, i4val, i8val, rc)
                 return
             endif
 
-            call ESMF_FieldGetDataPointer(field, ptr2dr4, ESMF_DATA_REF, rc=rc)
+            call ESMF_FieldGetDataPointer(field, ptr2dr4, ESMF_DATACOPY_REFERENCE, rc=rc)
             if (rc.NE.ESMF_SUCCESS) return
 
             ptr2dr4(:,:) = r4val
@@ -565,7 +565,7 @@ subroutine InternalFillConstantField(field, r4val, r8val, i4val, i8val, rc)
                 return
             endif
 
-            call ESMF_FieldGetDataPointer(field, ptr2di8, ESMF_DATA_REF, rc=rc)
+            call ESMF_FieldGetDataPointer(field, ptr2di8, ESMF_DATACOPY_REFERENCE, rc=rc)
             if (rc.NE.ESMF_SUCCESS) return
 
             ptr2di8(:,:) = i8val
@@ -576,7 +576,7 @@ subroutine InternalFillConstantField(field, r4val, r8val, i4val, i8val, rc)
                 return
             endif
 
-            call ESMF_FieldGetDataPointer(field, ptr2di4, ESMF_DATA_REF, rc=rc)
+            call ESMF_FieldGetDataPointer(field, ptr2di4, ESMF_DATACOPY_REFERENCE, rc=rc)
             if (rc.NE.ESMF_SUCCESS) return
 
             ptr2di4(:,:) = i4val
@@ -594,7 +594,7 @@ subroutine InternalFillConstantField(field, r4val, r8val, i4val, i8val, rc)
                 return
             endif
 
-            call ESMF_FieldGetDataPointer(field, ptr3dr8, ESMF_DATA_REF, rc=rc)
+            call ESMF_FieldGetDataPointer(field, ptr3dr8, ESMF_DATACOPY_REFERENCE, rc=rc)
             if (rc.NE.ESMF_SUCCESS) return
 
             ptr3dr8(:,:,:) = r8val
@@ -605,7 +605,7 @@ subroutine InternalFillConstantField(field, r4val, r8val, i4val, i8val, rc)
                 return
             endif
 
-            call ESMF_FieldGetDataPointer(field, ptr3dr4, ESMF_DATA_REF, rc=rc)
+            call ESMF_FieldGetDataPointer(field, ptr3dr4, ESMF_DATACOPY_REFERENCE, rc=rc)
             if (rc.NE.ESMF_SUCCESS) return
 
             ptr3dr4(:,:,:) = r4val
@@ -616,7 +616,7 @@ subroutine InternalFillConstantField(field, r4val, r8val, i4val, i8val, rc)
                 return
             endif
 
-            call ESMF_FieldGetDataPointer(field, ptr3di8, ESMF_DATA_REF, rc=rc)
+            call ESMF_FieldGetDataPointer(field, ptr3di8, ESMF_DATACOPY_REFERENCE, rc=rc)
             if (rc.NE.ESMF_SUCCESS) return
 
             ptr3di8(:,:,:) = i8val
@@ -627,7 +627,7 @@ subroutine InternalFillConstantField(field, r4val, r8val, i4val, i8val, rc)
                 return
             endif
 
-            call ESMF_FieldGetDataPointer(field, ptr3di4, ESMF_DATA_REF, rc=rc)
+            call ESMF_FieldGetDataPointer(field, ptr3di4, ESMF_DATACOPY_REFERENCE, rc=rc)
             if (rc.NE.ESMF_SUCCESS) return
 
             ptr3di4(:,:,:) = i4val
@@ -645,7 +645,7 @@ subroutine InternalFillConstantField(field, r4val, r8val, i4val, i8val, rc)
                 return
             endif
 
-            call ESMF_FieldGetDataPointer(field, ptr4dr8, ESMF_DATA_REF, rc=rc)
+            call ESMF_FieldGetDataPointer(field, ptr4dr8, ESMF_DATACOPY_REFERENCE, rc=rc)
             if (rc.NE.ESMF_SUCCESS) return
 
             ptr4dr8(:,:,:,:) = r8val
@@ -656,7 +656,7 @@ subroutine InternalFillConstantField(field, r4val, r8val, i4val, i8val, rc)
                 return
             endif
 
-            call ESMF_FieldGetDataPointer(field, ptr4dr4, ESMF_DATA_REF, rc=rc)
+            call ESMF_FieldGetDataPointer(field, ptr4dr4, ESMF_DATACOPY_REFERENCE, rc=rc)
             if (rc.NE.ESMF_SUCCESS) return
 
             ptr4dr4(:,:,:,:) = r4val
@@ -667,7 +667,7 @@ subroutine InternalFillConstantField(field, r4val, r8val, i4val, i8val, rc)
                 return
             endif
 
-            call ESMF_FieldGetDataPointer(field, ptr4di8, ESMF_DATA_REF, rc=rc)
+            call ESMF_FieldGetDataPointer(field, ptr4di8, ESMF_DATACOPY_REFERENCE, rc=rc)
             if (rc.NE.ESMF_SUCCESS) return
 
             ptr4di8(:,:,:,:) = i8val
@@ -678,7 +678,7 @@ subroutine InternalFillConstantField(field, r4val, r8val, i4val, i8val, rc)
                 return
             endif
 
-            call ESMF_FieldGetDataPointer(field, ptr4di4, ESMF_DATA_REF, rc=rc)
+            call ESMF_FieldGetDataPointer(field, ptr4di4, ESMF_DATACOPY_REFERENCE, rc=rc)
             if (rc.NE.ESMF_SUCCESS) return
 
             ptr4di4(:,:,:,:) = i4val
@@ -697,7 +697,7 @@ subroutine InternalFillConstantField(field, r4val, r8val, i4val, i8val, rc)
                 return
             endif
 
-            call ESMF_FieldGetDataPointer(field, ptr5dr8, ESMF_DATA_REF, rc=rc)
+            call ESMF_FieldGetDataPointer(field, ptr5dr8, ESMF_DATACOPY_REFERENCE, rc=rc)
             if (rc.NE.ESMF_SUCCESS) return
 
             ptr5dr8(:,:,:,:,:) = r8val
@@ -708,7 +708,7 @@ subroutine InternalFillConstantField(field, r4val, r8val, i4val, i8val, rc)
                 return
             endif
 
-            call ESMF_FieldGetDataPointer(field, ptr5dr4, ESMF_DATA_REF, rc=rc)
+            call ESMF_FieldGetDataPointer(field, ptr5dr4, ESMF_DATACOPY_REFERENCE, rc=rc)
             if (rc.NE.ESMF_SUCCESS) return
 
             ptr5dr4(:,:,:,:,:) = r4val
@@ -719,7 +719,7 @@ subroutine InternalFillConstantField(field, r4val, r8val, i4val, i8val, rc)
                 return
             endif
 
-            call ESMF_FieldGetDataPointer(field, ptr5di8, ESMF_DATA_REF, rc=rc)
+            call ESMF_FieldGetDataPointer(field, ptr5di8, ESMF_DATACOPY_REFERENCE, rc=rc)
             if (rc.NE.ESMF_SUCCESS) return
 
             ptr5di8(:,:,:,:,:) = i8val
@@ -730,7 +730,7 @@ subroutine InternalFillConstantField(field, r4val, r8val, i4val, i8val, rc)
                 return
             endif
 
-            call ESMF_FieldGetDataPointer(field, ptr5di4, ESMF_DATA_REF, rc=rc)
+            call ESMF_FieldGetDataPointer(field, ptr5di4, ESMF_DATACOPY_REFERENCE, rc=rc)
             if (rc.NE.ESMF_SUCCESS) return
 
             ptr5di4(:,:,:,:,:) = i4val
@@ -775,7 +775,7 @@ subroutine FillConstantR8Halo(field, val, rc)
     call ESMF_FieldGet(field, haloWidth=halo, rc=rc)
 
     ! get a Fortran 90 pointer back to the data
-    call ESMF_FieldGetDataPointer(field, ptr, ESMF_DATA_REF, rc=rc)
+    call ESMF_FieldGetDataPointer(field, ptr, ESMF_DATACOPY_REFERENCE, rc=rc)
     if (rc.NE.ESMF_SUCCESS) return
 
     lb(:) = lbound(ptr)
@@ -827,7 +827,7 @@ subroutine FillConstantR4Halo(field, val, rc)
     call ESMF_FieldGet(field, haloWidth=halo, rc=rc)
 
     ! get a Fortran 90 pointer back to the data
-    call ESMF_FieldGetDataPointer(field, ptr, ESMF_DATA_REF, rc=rc)
+    call ESMF_FieldGetDataPointer(field, ptr, ESMF_DATACOPY_REFERENCE, rc=rc)
     if (rc.NE.ESMF_SUCCESS) return
 
     lb(:) = lbound(ptr)
@@ -891,7 +891,7 @@ subroutine FillIndexField(field, rc)
                                  globalStartPerDim=igridOffsets, rc=rc)
 
     ! get a Fortran 90 pointer back to the data
-    call ESMF_FieldGetDataPointer(field, ptr, ESMF_DATA_REF, rc=rc)
+    call ESMF_FieldGetDataPointer(field, ptr, ESMF_DATACOPY_REFERENCE, rc=rc)
     if (rc.NE.ESMF_SUCCESS) return
     
     lb(1:2) = lbound(ptr)
@@ -1005,7 +1005,7 @@ subroutine InternalValidateConstantField(field, r8val, r4val, i8val, i4val, &
     integer :: i, j, k, l, m
     integer :: lb(7), ub(7), halo
 
-    type(ESMF_TypeKind) :: dk
+    type(ESMF_TypeKind_Flag) :: dk
     integer :: rank, kind
 
     real (ESMF_KIND_R8), dimension(:,:),       pointer :: ptr2dr8
@@ -1054,7 +1054,7 @@ subroutine InternalValidateConstantField(field, r8val, r4val, i8val, i4val, &
                 return
             endif
 
-            call ESMF_FieldGetDataPointer(field, ptr2dr8, ESMF_DATA_REF, rc=rc)
+            call ESMF_FieldGetDataPointer(field, ptr2dr8, ESMF_DATACOPY_REFERENCE, rc=rc)
             if (rc.NE.ESMF_SUCCESS) return
 
             lb(1:2) = lbound(ptr2dr8)
@@ -1079,7 +1079,7 @@ subroutine InternalValidateConstantField(field, r8val, r4val, i8val, i4val, &
                 return
             endif
 
-            call ESMF_FieldGetDataPointer(field, ptr2dr4, ESMF_DATA_REF, rc=rc)
+            call ESMF_FieldGetDataPointer(field, ptr2dr4, ESMF_DATACOPY_REFERENCE, rc=rc)
             if (rc.NE.ESMF_SUCCESS) return
 
             lb(1:2) = lbound(ptr2dr4)
@@ -1104,7 +1104,7 @@ subroutine InternalValidateConstantField(field, r8val, r4val, i8val, i4val, &
                 return
             endif
 
-            call ESMF_FieldGetDataPointer(field, ptr2di8, ESMF_DATA_REF, rc=rc)
+            call ESMF_FieldGetDataPointer(field, ptr2di8, ESMF_DATACOPY_REFERENCE, rc=rc)
             if (rc.NE.ESMF_SUCCESS) return
 
             lb(1:2) = lbound(ptr2di8)
@@ -1129,7 +1129,7 @@ subroutine InternalValidateConstantField(field, r8val, r4val, i8val, i4val, &
                 return
             endif
 
-            call ESMF_FieldGetDataPointer(field, ptr2di4, ESMF_DATA_REF, rc=rc)
+            call ESMF_FieldGetDataPointer(field, ptr2di4, ESMF_DATACOPY_REFERENCE, rc=rc)
             if (rc.NE.ESMF_SUCCESS) return
 
             lb(1:2) = lbound(ptr2di4)
@@ -1162,7 +1162,7 @@ subroutine InternalValidateConstantField(field, r8val, r4val, i8val, i4val, &
                 return
             endif
 
-            call ESMF_FieldGetDataPointer(field, ptr3dr8, ESMF_DATA_REF, rc=rc)
+            call ESMF_FieldGetDataPointer(field, ptr3dr8, ESMF_DATACOPY_REFERENCE, rc=rc)
             if (rc.NE.ESMF_SUCCESS) return
 
             lb(1:3) = lbound(ptr3dr8)
@@ -1189,7 +1189,7 @@ subroutine InternalValidateConstantField(field, r8val, r4val, i8val, i4val, &
                 return
             endif
 
-            call ESMF_FieldGetDataPointer(field, ptr3dr4, ESMF_DATA_REF, rc=rc)
+            call ESMF_FieldGetDataPointer(field, ptr3dr4, ESMF_DATACOPY_REFERENCE, rc=rc)
             if (rc.NE.ESMF_SUCCESS) return
 
             lb(1:3) = lbound(ptr3dr4)
@@ -1216,7 +1216,7 @@ subroutine InternalValidateConstantField(field, r8val, r4val, i8val, i4val, &
                 return
             endif
 
-            call ESMF_FieldGetDataPointer(field, ptr3di8, ESMF_DATA_REF, rc=rc)
+            call ESMF_FieldGetDataPointer(field, ptr3di8, ESMF_DATACOPY_REFERENCE, rc=rc)
             if (rc.NE.ESMF_SUCCESS) return
 
             lb(1:3) = lbound(ptr3di8)
@@ -1243,7 +1243,7 @@ subroutine InternalValidateConstantField(field, r8val, r4val, i8val, i4val, &
                 return
             endif
 
-            call ESMF_FieldGetDataPointer(field, ptr3di4, ESMF_DATA_REF, rc=rc)
+            call ESMF_FieldGetDataPointer(field, ptr3di4, ESMF_DATACOPY_REFERENCE, rc=rc)
             if (rc.NE.ESMF_SUCCESS) return
 
             lb(1:3) = lbound(ptr3di4)
@@ -1278,7 +1278,7 @@ subroutine InternalValidateConstantField(field, r8val, r4val, i8val, i4val, &
                 return
             endif
 
-            call ESMF_FieldGetDataPointer(field, ptr4dr8, ESMF_DATA_REF, rc=rc)
+            call ESMF_FieldGetDataPointer(field, ptr4dr8, ESMF_DATACOPY_REFERENCE, rc=rc)
             if (rc.NE.ESMF_SUCCESS) return
 
             lb(1:4) = lbound(ptr4dr8)
@@ -1307,7 +1307,7 @@ subroutine InternalValidateConstantField(field, r8val, r4val, i8val, i4val, &
                 return
             endif
 
-            call ESMF_FieldGetDataPointer(field, ptr4dr4, ESMF_DATA_REF, rc=rc)
+            call ESMF_FieldGetDataPointer(field, ptr4dr4, ESMF_DATACOPY_REFERENCE, rc=rc)
             if (rc.NE.ESMF_SUCCESS) return
 
             lb(1:4) = lbound(ptr4dr4)
@@ -1336,7 +1336,7 @@ subroutine InternalValidateConstantField(field, r8val, r4val, i8val, i4val, &
                 return
             endif
 
-            call ESMF_FieldGetDataPointer(field, ptr4di8, ESMF_DATA_REF, rc=rc)
+            call ESMF_FieldGetDataPointer(field, ptr4di8, ESMF_DATACOPY_REFERENCE, rc=rc)
             if (rc.NE.ESMF_SUCCESS) return
 
             lb(1:4) = lbound(ptr4di8)
@@ -1365,7 +1365,7 @@ subroutine InternalValidateConstantField(field, r8val, r4val, i8val, i4val, &
                 return
             endif
 
-            call ESMF_FieldGetDataPointer(field, ptr4di4, ESMF_DATA_REF, rc=rc)
+            call ESMF_FieldGetDataPointer(field, ptr4di4, ESMF_DATACOPY_REFERENCE, rc=rc)
             if (rc.NE.ESMF_SUCCESS) return
 
             lb(1:4) = lbound(ptr4di4)
@@ -1403,7 +1403,7 @@ subroutine InternalValidateConstantField(field, r8val, r4val, i8val, i4val, &
                 return
             endif
 
-            call ESMF_FieldGetDataPointer(field, ptr5dr8, ESMF_DATA_REF, rc=rc)
+            call ESMF_FieldGetDataPointer(field, ptr5dr8, ESMF_DATACOPY_REFERENCE, rc=rc)
             if (rc.NE.ESMF_SUCCESS) return
 
             lb(1:5) = lbound(ptr5dr8)
@@ -1434,7 +1434,7 @@ subroutine InternalValidateConstantField(field, r8val, r4val, i8val, i4val, &
                 return
             endif
 
-            call ESMF_FieldGetDataPointer(field, ptr5dr4, ESMF_DATA_REF, rc=rc)
+            call ESMF_FieldGetDataPointer(field, ptr5dr4, ESMF_DATACOPY_REFERENCE, rc=rc)
             if (rc.NE.ESMF_SUCCESS) return
 
             lb(1:5) = lbound(ptr5dr4)
@@ -1465,7 +1465,7 @@ subroutine InternalValidateConstantField(field, r8val, r4val, i8val, i4val, &
                 return
             endif
 
-            call ESMF_FieldGetDataPointer(field, ptr5di8, ESMF_DATA_REF, rc=rc)
+            call ESMF_FieldGetDataPointer(field, ptr5di8, ESMF_DATACOPY_REFERENCE, rc=rc)
             if (rc.NE.ESMF_SUCCESS) return
 
             lb(1:5) = lbound(ptr5di8)
@@ -1496,7 +1496,7 @@ subroutine InternalValidateConstantField(field, r8val, r4val, i8val, i4val, &
                 return
             endif
 
-            call ESMF_FieldGetDataPointer(field, ptr5di4, ESMF_DATA_REF, rc=rc)
+            call ESMF_FieldGetDataPointer(field, ptr5di4, ESMF_DATACOPY_REFERENCE, rc=rc)
             if (rc.NE.ESMF_SUCCESS) return
 
             lb(1:5) = lbound(ptr5di4)
@@ -1567,7 +1567,7 @@ subroutine ValidateConstantHalo(field, val, rc)
     call ESMF_FieldGet(field, haloWidth=halo, rc=rc)
 
     ! get a Fortran 90 pointer back to the data
-    call ESMF_FieldGetDataPointer(field, ptr, ESMF_DATA_REF, rc=rc)
+    call ESMF_FieldGetDataPointer(field, ptr, ESMF_DATACOPY_REFERENCE, rc=rc)
     if (rc.NE.ESMF_SUCCESS) return
     
 
@@ -1659,7 +1659,7 @@ subroutine ValidateConstantR4Halo(field, val, rc)
     call ESMF_FieldGet(field, haloWidth=halo, rc=rc)
 
     ! get a Fortran 90 pointer back to the data
-    call ESMF_FieldGetDataPointer(field, ptr, ESMF_DATA_REF, rc=rc)
+    call ESMF_FieldGetDataPointer(field, ptr, ESMF_DATACOPY_REFERENCE, rc=rc)
     if (rc.NE.ESMF_SUCCESS) return
     
 
@@ -1760,7 +1760,7 @@ subroutine ValidateIndexField(field, rc)
                                  globalStartPerDim=igridOffsets, rc=rc)
 
     ! get a Fortran 90 pointer back to the data
-    call ESMF_FieldGetDataPointer(field, ptr, ESMF_DATA_REF, rc=rc)
+    call ESMF_FieldGetDataPointer(field, ptr, ESMF_DATACOPY_REFERENCE, rc=rc)
     if (rc.NE.ESMF_SUCCESS) return
     
     lb(:) = lbound(ptr)
@@ -1983,12 +1983,12 @@ function CreateDataField(name, igrid, layout, relloc, r4value, r8value, rc)
       thislayout = layout
   else
       call ESMF_VMGetGlobal(vm, rc=status)
-      if (ESMF_LogMsgFoundError(status, &
+      if (ESMF_LogFoundError(status, &
                                 ESMF_ERR_PASSTHRU, &
                                 ESMF_CONTEXT, rc)) goto 10
 
       thislayout = ESMF_DELayoutCreate(vm, rc=status)
-      if (ESMF_LogMsgFoundError(status, &
+      if (ESMF_LogFoundError(status, &
                                 ESMF_ERR_PASSTHRU, &
                                 ESMF_CONTEXT, rc)) goto 10
   endif
@@ -2002,12 +2002,12 @@ function CreateDataField(name, igrid, layout, relloc, r4value, r8value, rc)
                                                       360.0_ESMF_KIND_R8/), &
                                horzStagger=ESMF_IGRID_HORZ_STAGGER_B_NE, &
                                rc=status)
-      if (ESMF_LogMsgFoundError(status, &
+      if (ESMF_LogFoundError(status, &
                                 ESMF_ERR_PASSTHRU, &
                                 ESMF_CONTEXT, rc)) goto 10
 
       call ESMF_IGridDistribute(thisigrid, delayout=thislayout, rc=status)
-      if (ESMF_LogMsgFoundError(status, &
+      if (ESMF_LogFoundError(status, &
                                 ESMF_ERR_PASSTHRU, &
                                 ESMF_CONTEXT, rc)) goto 10
   else
@@ -2024,7 +2024,7 @@ function CreateDataField(name, igrid, layout, relloc, r4value, r8value, rc)
   ! default data - both type and value.  only one of r4value or r8value
   ! can be specified.  if neither, default is r8.
   if (present(r4value) .and. present(r8value)) then
-      call ESMF_LogMsgSetError(ESMF_RC_ARG_VALUE, &
+      call ESMF_LogSetError(ESMF_RC_ARG_VALUE, &
                                "Cannot specify both *4 and *8 values", &
                                 ESMF_CONTEXT, rc)
       goto 10
@@ -2048,7 +2048,7 @@ function CreateDataField(name, igrid, layout, relloc, r4value, r8value, rc)
       call ESMF_ArraySpecSet(as, rank=2, &
                              typekind=ESMF_TYPEKIND_R4, rc=status)
   endif
-  if (ESMF_LogMsgFoundError(status, &
+  if (ESMF_LogFoundError(status, &
                             ESMF_ERR_PASSTHRU, &
                             ESMF_CONTEXT, rc)) goto 10
 
@@ -2056,21 +2056,21 @@ function CreateDataField(name, igrid, layout, relloc, r4value, r8value, rc)
   CreateDataField = ESMF_FieldCreate(igrid=thisigrid, arrayspec=as, &
                                      horzRelloc=thisrelloc, haloWidth=2, &
                                      name=name, rc=status)
-  if (ESMF_LogMsgFoundError(status, &
+  if (ESMF_LogFoundError(status, &
                             ESMF_ERR_PASSTHRU, &
                             ESMF_CONTEXT, rc)) goto 10
 
   ! initialize the data field
   if (use_r8) then
-      call ESMF_FieldGetDataPointer(CreateDataField, r8data, ESMF_DATA_REF, rc=rc)
-      if (ESMF_LogMsgFoundError(status, &
+      call ESMF_FieldGetDataPointer(CreateDataField, r8data, ESMF_DATACOPY_REFERENCE, rc=rc)
+      if (ESMF_LogFoundError(status, &
                                 ESMF_ERR_PASSTHRU, &
                                 ESMF_CONTEXT, rc)) goto 10
  
       r8data(:,:) = thisr8data
   else 
-      call ESMF_FieldGetDataPointer(CreateDataField, r4data, ESMF_DATA_REF, rc=rc)
-      if (ESMF_LogMsgFoundError(status, &
+      call ESMF_FieldGetDataPointer(CreateDataField, r4data, ESMF_DATACOPY_REFERENCE, rc=rc)
+      if (ESMF_LogFoundError(status, &
                                 ESMF_ERR_PASSTHRU, &
                                 ESMF_CONTEXT, rc)) goto 10
  
@@ -2101,12 +2101,12 @@ function CreateLayout(which, rc)
   if (present(rc)) rc = ESMF_FAILURE
 
   call ESMF_VMGetGlobal(vm, rc=status)
-  if (ESMF_LogMsgFoundError(status, &
+  if (ESMF_LogFoundError(status, &
                             ESMF_ERR_PASSTHRU, &
                             ESMF_CONTEXT, rc)) goto 10
 
   call ESMF_VMGet(vm, petCount=npets, rc=status)
-  if (ESMF_LogMsgFoundError(status, &
+  if (ESMF_LogFoundError(status, &
                             ESMF_ERR_PASSTHRU, &
                             ESMF_CONTEXT, rc)) goto 10
 
@@ -2163,7 +2163,7 @@ function CreateLayout(which, rc)
 
       end select
   endif
-  if (ESMF_LogMsgFoundError(status, &
+  if (ESMF_LogFoundError(status, &
                             ESMF_ERR_PASSTHRU, &
                             ESMF_CONTEXT, rc)) goto 10
 
@@ -2197,12 +2197,12 @@ function CreateIGrid(which, layout, rc)
       thislayout = layout
   else
       call ESMF_VMGetGlobal(vm, rc=status)
-      if (ESMF_LogMsgFoundError(status, &
+      if (ESMF_LogFoundError(status, &
                                 ESMF_ERR_PASSTHRU, &
                                 ESMF_CONTEXT, rc)) goto 10
     
       call ESMF_VMGet(vm, petCount=npets, rc=status)
-      if (ESMF_LogMsgFoundError(status, &
+      if (ESMF_LogFoundError(status, &
                                 ESMF_ERR_PASSTHRU, &
                                 ESMF_CONTEXT, rc)) goto 10
     
@@ -2279,14 +2279,14 @@ function CreateIGrid(which, layout, rc)
                                             rc=status)
 
   end select
-  if (ESMF_LogMsgFoundError(status, &
+  if (ESMF_LogFoundError(status, &
                             ESMF_ERR_PASSTHRU, &
                             ESMF_CONTEXT, rc)) goto 10
 
 
   ! distribute the igrid across the PETs
   call ESMF_IGridDistribute(CreateIGrid, delayout=thislayout, rc=status)
-  if (ESMF_LogMsgFoundError(status, &
+  if (ESMF_LogFoundError(status, &
                             ESMF_ERR_PASSTHRU, &
                             ESMF_CONTEXT, rc)) goto 10
    
@@ -2323,12 +2323,12 @@ function CreateLatLonIGrid(nx, ny, nz, xde, yde, name, data_xde, data_yde, rc)
   if (present(rc)) rc = ESMF_FAILURE
 
   call ESMF_VMGetGlobal(vm, rc=status)
-  if (ESMF_LogMsgFoundError(status, &
+  if (ESMF_LogFoundError(status, &
                             ESMF_ERR_PASSTHRU, &
                             ESMF_CONTEXT, rc)) goto 10
     
   call ESMF_VMGet(vm, petCount=npets, rc=status)
-  if (ESMF_LogMsgFoundError(status, &
+  if (ESMF_LogFoundError(status, &
                             ESMF_ERR_PASSTHRU, &
                             ESMF_CONTEXT, rc)) goto 10
     
@@ -2354,7 +2354,7 @@ function CreateLatLonIGrid(nx, ny, nz, xde, yde, name, data_xde, data_yde, rc)
   counts(2) = ny
 
   allocate(deltas(nz), stat=rc)
-  if (ESMF_LogMsgFoundAllocError(status, "Allocating delta array", &
+  if (ESMF_LogFoundAllocError(status, "Allocating delta array", &
                                        ESMF_CONTEXT, rc)) return
 
   deltas(:) = 100.0
@@ -2366,7 +2366,7 @@ function CreateLatLonIGrid(nx, ny, nz, xde, yde, name, data_xde, data_yde, rc)
                                       dimUnits=(/ "deg", "deg" /), &
                                       periodic=(/ ESMF_TRUE, ESMF_FALSE /), &
                                       name=name, rc=status)
-  if (ESMF_LogMsgFoundError(status, &
+  if (ESMF_LogFoundError(status, &
                             ESMF_ERR_PASSTHRU, &
                             ESMF_CONTEXT, rc)) goto 10
 
@@ -2374,7 +2374,7 @@ function CreateLatLonIGrid(nx, ny, nz, xde, yde, name, data_xde, data_yde, rc)
   call ESMF_IGridAddVertHeight(igrid, deltas, &
                               vertstagger=ESMF_IGRID_VERT_STAGGER_CENTER, &
                               rc=status)
-  if (ESMF_LogMsgFoundError(status, &
+  if (ESMF_LogFoundError(status, &
                             ESMF_ERR_PASSTHRU, &
                             ESMF_CONTEXT, rc)) goto 10
 
@@ -2392,7 +2392,7 @@ function CreateLatLonIGrid(nx, ny, nz, xde, yde, name, data_xde, data_yde, rc)
     if (present(data_xde)) then
        if ((data_xde .le. 0) .or. (data_xde .gt. xde)) then
 
-         call ESMF_LogMsgSetError(ESMF_RC_ARG_VALUE, &
+         call ESMF_LogSetError(ESMF_RC_ARG_VALUE, &
                                "data_xde must be > 0 and <= xde", &
                                 ESMF_CONTEXT, rc)
          goto 10
@@ -2406,7 +2406,7 @@ function CreateLatLonIGrid(nx, ny, nz, xde, yde, name, data_xde, data_yde, rc)
     if (present(data_yde)) then
        if ((data_yde .le. 0) .or. (data_yde .gt. yde)) then
 
-         call ESMF_LogMsgSetError(ESMF_RC_ARG_VALUE, &
+         call ESMF_LogSetError(ESMF_RC_ARG_VALUE, &
                                "data_yde must be > 0 and <= yde", &
                                 ESMF_CONTEXT, rc)
           goto 10
@@ -2417,7 +2417,7 @@ function CreateLatLonIGrid(nx, ny, nz, xde, yde, name, data_xde, data_yde, rc)
     endif
 
     allocate(xdecounts(xde), ydecounts(yde), stat=status)
-    if (ESMF_LogMsgFoundAllocError(status, "Allocating decount arrays", &
+    if (ESMF_LogFoundAllocError(status, "Allocating decount arrays", &
                                    ESMF_CONTEXT, rc)) return
 
     ! default to 0 data items per DE, then divide up the data counts 
@@ -2442,7 +2442,7 @@ function CreateLatLonIGrid(nx, ny, nz, xde, yde, name, data_xde, data_yde, rc)
   else
     call ESMF_IGridDistribute(igrid, delayout=thislayout, rc=status)
   endif 
-  if (ESMF_LogMsgFoundError(status, &
+  if (ESMF_LogFoundError(status, &
                             ESMF_ERR_PASSTHRU, &
                             ESMF_CONTEXT, rc)) goto 10
 
@@ -2470,7 +2470,7 @@ function CreateEmptyDataField(name, rc)
 
   rc = ESMF_FAILURE
   CreateEmptyDataField = ESMF_FieldCreateNoData(name=name, rc=status)
-  if (ESMF_LogMsgFoundError(status, &
+  if (ESMF_LogFoundError(status, &
                             ESMF_ERR_PASSTHRU, &
                             ESMF_CONTEXT, rc)) goto 10
 

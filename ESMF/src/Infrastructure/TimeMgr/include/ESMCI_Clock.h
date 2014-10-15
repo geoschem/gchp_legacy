@@ -1,7 +1,7 @@
-// $Id: ESMCI_Clock.h,v 1.10.4.2 2010/02/05 20:00:07 svasquez Exp $
+// $Id$
 //
 // Earth System Modeling Framework
-// Copyright 2002-2010, University Corporation for Atmospheric Research,
+// Copyright 2002-2012, University Corporation for Atmospheric Research,
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 // Laboratory, University of Michigan, National Centers for Environmental
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -25,7 +25,8 @@
  // put any constants or macros which apply to the whole component in this file.
  // anything public or esmf-wide should be up higher at the top level
  // include files.
-#include "ESMC_Start.h"
+#include "ESMCI_Util.h"
+#include "ESMCI_Macros.h"
 #include "ESMF_TimeMgr.inc"
 
 //-------------------------------------------------------------------------
@@ -64,8 +65,6 @@
 //-------------------------------------------------------------------------
 //
 // !USES:
-#include "ESMC_Base.h"    // all classes inherit from the ESMC Base class.
-#include "ESMC_IOSpec.h"  // IOSpec class for ReadRestart()/WriteRestart()
 #include "ESMCI_TimeInterval.h"
 #include "ESMCI_Time.h"
 #include "ESMCI_Alarm.h"
@@ -160,7 +159,7 @@ namespace ESMCI{
                       TimeInterval *currSimTime=0, 
                       TimeInterval *prevSimTime=0, 
                       Calendar    **calendar=0,
-                      ESMC_CalendarType *calendarType=0,
+                      ESMC_CalKind_Flag *calkindflag=0,
                       int               *timeZone=0,
                       ESMC_I8      *advanceCount=0, 
                       int               *alarmCount=0,
@@ -186,9 +185,9 @@ namespace ESMCI{
     int getNextTime(Time         *nextTime,
                               TimeInterval *timeStep=0);
 
-    int getAlarm(int nameLen, char *name, Alarm **alarm);
+    int getAlarm(int alarmnameLen, char *alarmname, Alarm **alarm);
 
-    int getAlarmList(ESMC_AlarmListType type,
+    int getAlarmList(ESMC_AlarmList_Flag alarmlistflag,
                                char *AlarmList1stElementPtr, 
                                char *AlarmList2ndElementPtr,
                                int  sizeofAlarmList, 
@@ -209,10 +208,9 @@ namespace ESMCI{
     // for persistence/checkpointing
 
     // friend to restore state
-    friend Clock *ESMCI_ClockReadRestart(int, const char*, 
-                                             ESMC_IOSpec*, int*);
+    friend Clock *ESMCI_ClockReadRestart(int, const char*, int*);
     // save state
-    int writeRestart(ESMC_IOSpec *iospec=0) const;
+    int writeRestart(void) const;
 
     // internal validation
     int validate(const char *options=0) const;
@@ -247,6 +245,12 @@ namespace ESMCI{
                                  TimeInterval*, int*, Time*, bool*,
                                  bool*, int*);
 
+    // friend function to copy an alarm
+    friend Alarm *ESMCI_alarmCreate(Alarm*, int*);
+
+    // friend to de-allocate alarm
+    friend int ESMCI_alarmDestroy(Alarm **);
+
 // !PRIVATE MEMBER FUNCTIONS:
 //
   private:
@@ -254,7 +258,8 @@ namespace ESMCI{
  // < declare private interface methods here >
 
     // called only by friend class Alarm
-    int addAlarm(Alarm *alarm);  // (TMG 4.1, 4.2)
+    int addAlarm(Alarm *alarm);    // alarmCreate(), alarmSet() (TMG 4.1, 4.2)
+    int removeAlarm(Alarm *alarm); // alarmDestroy(), alarmSet()
 
     friend class Alarm;
 
@@ -290,7 +295,6 @@ namespace ESMCI{
     // friend to restore state
     Clock *ESMCI_ClockReadRestart(int nameLen,
                                       const char*  name=0,
-                                      ESMC_IOSpec* iospec=0,
                                       int*         rc=0);
 
 }   // namespace ESMCI

@@ -1,7 +1,7 @@
-! $Id: ESMF_VMSendVMRecvEx.F90,v 1.13.2.1 2010/02/05 20:01:28 svasquez Exp $
+! $Id: ESMF_VMSendVMRecvEx.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2010, University Corporation for Atmospheric Research,
+! Copyright 2002-2012, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -30,7 +30,7 @@
 
 program ESMF_VMSendVMRecvEx
 
-  use ESMF_Mod
+  use ESMF
   
   implicit none
   
@@ -44,10 +44,11 @@ program ESMF_VMSendVMRecvEx
   integer :: finalrc
   finalrc = ESMF_SUCCESS
   
-  call ESMF_Initialize(vm=vm, rc=rc)
+  call ESMF_Initialize(vm=vm, defaultlogfilename="VMSendVMRecvEx.Log", &
+                    logkindflag=ESMF_LOGKIND_MULTI, rc=rc)
   if (rc/=ESMF_SUCCESS) finalrc = ESMF_FAILURE
 
-  call ESMF_VMGet(vm, localPet, petCount, rc=rc)
+  call ESMF_VMGet(vm, localPet=localPet, petCount=petCount, rc=rc)
   if (rc/=ESMF_SUCCESS) finalrc = ESMF_FAILURE
 
   count = 10
@@ -60,12 +61,12 @@ program ESMF_VMSendVMRecvEx
   dst = petCount - 1
 !BOC
   if (localPet==src) &
-    call ESMF_VMSend(vm, sendData=localData, count=count, dst=dst, rc=rc)
+    call ESMF_VMSend(vm, sendData=localData, count=count, dstPet=dst, rc=rc)
 !EOC
   if (rc/=ESMF_SUCCESS) finalrc = ESMF_FAILURE
 !BOC
   if (localPet==dst) &
-    call ESMF_VMRecv(vm, recvData=localData, count=count, src=src, rc=rc)
+    call ESMF_VMRecv(vm, recvData=localData, count=count, srcPet=src, rc=rc)
 !EOC
   if (rc/=ESMF_SUCCESS) finalrc = ESMF_FAILURE
 

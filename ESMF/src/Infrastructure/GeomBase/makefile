@@ -1,10 +1,10 @@
-# $Id: makefile,v 1.1.2.2 2010/03/10 06:33:08 oehmke Exp $
+# $Id$
 
 ALL: build_here
 
 # This needs to be the path of this directory relative to the
 # top level esmf directory.
-LOCDIR	  = src/Infrastructure/GeomBase
+LOCDIR	  = src/Infrastructure/GridUtil
 
 # Leave this line alone.
 include ${ESMF_DIR}/makefile

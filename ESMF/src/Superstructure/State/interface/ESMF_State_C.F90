@@ -1,7 +1,7 @@
-! $Id: ESMF_State_C.F90,v 1.24.2.1 2010/02/05 20:04:52 svasquez Exp $
+! $Id: ESMF_State_C.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2010, University Corporation for Atmospheric Research, 
+! Copyright 2002-2012, University Corporation for Atmospheric Research, 
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
 ! Laboratory, University of Michigan, National Centers for Environmental 
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
@@ -24,7 +24,7 @@
 !------------------------------------------------------------------------------
 ! The following line turns the CVS identifier string into a printable variable.
 !      character(*), parameter, private :: version = &
-!      '$Id: ESMF_State_C.F90,v 1.24.2.1 2010/02/05 20:04:52 svasquez Exp $'
+!      '$Id: ESMF_State_C.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $'
 !==============================================================================
 
 !------------------------------------------------------------------------------
@@ -40,7 +40,7 @@
 ! 
 !EOP
 !------------------------------------------------------------------------------
-   subroutine f_esmf_statecreate(state, stateName, rc)
+   subroutine f_esmf_statecreate(state, name, rc)
 
        use ESMF_UtilTypesMod
        use ESMF_BaseMod    ! ESMF base class
@@ -48,14 +48,14 @@
        implicit none
 
        type(ESMF_State) :: state
-      character(len=*), intent(in) :: stateName
+      character(len=*), intent(in) :: name
       integer, intent(out) :: rc
 
 
        ! Initialize return code; assume routine not implemented
        rc = ESMF_RC_NOT_IMPL
 
-       state = ESMF_StateCreate(statename=stateName, rc=rc)
+       state = ESMF_StateCreate(name=name, rc=rc)
                
     
    end subroutine f_esmf_statecreate
@@ -88,7 +88,7 @@
        !  set the valid init code of the new object
        call ESMF_ArraySetInitCreated(farray, rc)
 
-       call ESMF_StateAdd(state=state, array=farray, rc=rc)
+       call ESMF_StateAdd(state=state, arrayList=(/farray/), rc=rc)
 
 
    end subroutine f_esmf_stateaddarray
@@ -107,7 +107,7 @@
       integer, intent(out) :: rc        !out
 
        ! field is directly usable - it is a deep class implemented in Fortran
-       call ESMF_StateAdd(state=state, field=field, rc=rc)
+       call ESMF_StateAdd(state=state, fieldList=(/field/), rc=rc)
 
    end subroutine f_esmf_stateaddfield
 
@@ -197,7 +197,7 @@
        ! Initialize return code; assume routine not implemented
        rc = ESMF_RC_NOT_IMPL
 
-       call ESMF_StateDestroy(state, rc)
+       call ESMF_StateDestroy(state, rc=rc)
     
    end subroutine f_esmf_statedestroy
 
@@ -331,13 +331,13 @@
        type(ESMF_State), intent(in)              :: state                  !in
        integer, intent(in)                       :: numItems               !in
        character(len=*), intent(inout)           :: itemNameList(numItems) !out
-       type(ESMF_StateItemType), intent(inout)   :: itemTypeList(numItems) !out
+       type(ESMF_StateItem_Flag), intent(inout)   :: itemTypeList(numItems) !out
        integer, intent(out)                      :: rc                     !out
 
        ! local variable
        integer                    :: itemCount
        character(len=ESMF_MAXSTR) :: localNameList(numItems)
-       type(ESMF_StateItemType)   :: localTypeList(numItems)
+       type(ESMF_StateItem_Flag)   :: localTypeList(numItems)
 
        integer                    :: i
 
@@ -349,7 +349,7 @@
 !                              stateitemtypeList=localTypeList, rc=rc)
        call ESMF_StateGet(state=state, itemCount=itemCount, &
                           itemNameList=localNameList, &
-                          stateitemtypeList=localTypeList, rc=rc)
+                          itemtypeList=localTypeList, rc=rc)
 
        do i = 1, itemCount
           itemTypeList(i) = localTypeList(i)
@@ -369,6 +369,8 @@
     use ESMF_StateTypesMod
     use ESMF_StateMod
     
+    implicit none
+    
     type(ESMF_State)     :: state
     integer, intent(out) :: rc
   
@@ -382,17 +384,18 @@
 
     ! destruct internal data allocations
     call ESMF_StateDestruct(state%statep, rc=localrc)
-    if (ESMF_LogMsgFoundError(localrc, &
+    if (ESMF_LogFoundError(localrc, &
       ESMF_ERR_PASSTHRU, &
       ESMF_CONTEXT, &
-      rc)) return
+      rcToReturn=rc)) return
 
     ! deallocate actual StateClass allocation      
     if (associated(state%statep)) then
       deallocate(state%statep, stat=localrc)
-      if (ESMF_LogMsgFoundAllocError(localrc, "Deallocating State", &
+      localrc = merge (ESMF_SUCCESS, ESMF_RC_MEM_DEALLOCATE, localrc == 0)
+      if (ESMF_LogFoundAllocError(localrc, msg="Deallocating State", &
         ESMF_CONTEXT, &
-        rc)) return
+        rcToReturn=rc)) return
     endif
     nullify(state%statep)
 

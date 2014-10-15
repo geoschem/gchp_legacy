@@ -50,8 +50,42 @@ MOD     = $(ROOTDIR)/mod
 
 # Include header file.  This returns variables CC, F90, FREEFORM, LD, R8,
 # as well as the default Makefile compilation rules for source code files.
-include GIGC.mk
 include $(ROOTDIR)/Makefile_header.mk
+
+# Make sure ESMADIR is defined
+# ----------------------------
+
+ifndef BASEDIR
+export BASEDIR=../
+endif 
+ifndef ESMADIR
+ESMADIR:=./Shared
+endif
+ifndef ESMF_DIR
+export ESMF_DIR=../ESMF
+endif
+       RCDIR   :=$(BASEDIR)/Registry/
+
+# Compilation rules, flags, etc
+# -----------------------------
+ifeq ($(HPC),yes)
+  include $(ESMADIR)/Config/ESMA_base.mk  # Generic stuff
+  include $(ESMADIR)/Config/ESMA_arch.mk  # System dependencies
+else
+  include ./Shared/Config/ESMA_base.mk  # Generic stuff
+  include ./Shared/Config/ESMA_arch.mk  # System dependencies
+endif
+# ESMF-specific settings
+# ----------------------------
+export ESMF_COMPILER=intel
+export ESMF_COMM=openmpi
+export ESMF_INSTALL_PREFIX=$(ESMF_DIR)/$(ARCH)
+export ESMF_INSTALL_LIBDIR=$(ESMF_DIR)/$(ARCH)/lib
+export ESMF_INSTALL_MODDIR=$(ESMF_DIR)/$(ARCH)/mod
+export ESMF_INSTALL_HEADERDIR=$(ESMF_DIR)/$(ARCH)/include
+export ESMF_F90COMPILEOPTS=-align all -fPIC -traceback 
+export ESMF_CXXCOMPILEOPTS=-fPIC
+export ESMF_OPENMP=OFF
 
 #=============================================================================
 # List of files to compile (the order is important!).  We specify these as
@@ -74,6 +108,7 @@ ACGS      := GIGCchem_ExportSpec___.h GIGCchem_GetPointer___.h \
 
 MAPL    := ./Shared
 ESMF    := ./ESMF
+
 
 #=============================================================================
 # Makefile targets: type "make help" for a complete listing!
@@ -98,9 +133,9 @@ lib: $(ACGS) $(OBJ)
 	$(AR) crs libGIGC.a $(OBJ)
 	mv libGIGC.a $(LIB)
 
-$(ACGS) : $(REGDIR)/Chem_Registry.rc $(REGDIR)/Dyn_Registry.rc $(REGDIR)/HEMCO_Registry.rc $(ACG)
+$(ACGS) : $(REGDIR)/Chem_Registry.rc $(REGDIR)/HEMCO_Registry.rc $(ACG) #$(REGDIR)/Dyn_Registry.rc
 	@$(ACG) $(ACG_FLAGS) $(REGDIR)/Chem_Registry.rc
-	@$(ACG) $(ACG_FLAGS) $(REGDIR)/Dyn_Registry.rc
+##	@$(ACG) $(ACG_FLAGS) $(REGDIR)/Dyn_Registry.rc
 	@$(ACG) $(ACG_FLAGS) $(REGDIR)/HEMCO_Registry.rc
 
 libesmf:
@@ -123,16 +158,19 @@ help:
 #=============================================================================
 
 Chem_GridCompMod.o          : Chem_GridCompMod.F90 gigc_mpi_wrap.o                      \
-		              gigc_chunk_mod.o 
+		              gigc_chunk_mod.o gigc_type_mod.o 
 
-Dyn_GridCompMod.o           : Dyn_GridCompMod.F90
-
-HEMCO_GridCompMod.o         : HEMCO_GridCompMod.F90 gigc_mpi_wrap.o
+#<<MSL>>HEMCO_GridCompMod.o         : HEMCO_GridCompMod.F90 gigc_mpi_wrap.o
 
 GEOSChem.o		    : GEOSChem.F90 GIGC_GridCompMod.o
 
-GIGC_GridCompMod.o          : GIGC_GridCompMod.F90 Chem_GridCompMod.o Dyn_GridCompMod.o \
-                              HEMCO_GridCompMod.o
+GEOS_ctmEnvGridComp.o	    : GEOS_ctmEnvGridComp.F90
+
+GIGC_GridCompMod.o          : GIGC_GridCompMod.F90 Chem_GridCompMod.o \
+	                      GEOS_ctmEnvGridComp.o
+
+GIGC_Type_Mod.o             : gigc_type_mod.F
+#<<MSL>>HEMCO_GridCompMod.o
 
 gigc_initialization_mod.o   : gigc_initialization_mod.F90 gigc_mpi_wrap.o 
 

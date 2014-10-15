@@ -1,7 +1,7 @@
-// $Id: ESMCI_MeshCXX.h,v 1.8.2.1 2010/02/05 19:59:28 svasquez Exp $
+// $Id$
 //
 // Earth System Modeling Framework
-// Copyright 2002-2010, University Corporation for Atmospheric Research, 
+// Copyright 2002-2012, University Corporation for Atmospheric Research, 
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
 // Laboratory, University of Michigan, National Centers for Environmental 
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
@@ -16,8 +16,8 @@
 #include "ESMCI_Mesh.h"
 
 namespace ESMCI {
- int MeshVTKHeader(char*, int*, int*, int*);
- int MeshVTKBody(char*, int*, double*, int*, int*, int*, int*);
+ int MeshVTKHeader(const char*, int*, int*, int*);
+ int MeshVTKBody(const char*, int*, double*, int*, int*, int*, int*);
 
   class MeshCXX  {
 
@@ -25,19 +25,21 @@ namespace ESMCI {
     MeshCXX();
     ~MeshCXX();
 
-    static MeshCXX* create(int*, int*, int*);
-    int addElements(int*, int*, int*, int*);
-    int addNodes(int*, int*, double*, int*);
+    static MeshCXX* create(int, int, int*);
+    static int destroy(MeshCXX **);
+
+    int addElements(int, int*, int*, int*);
+    int addNodes(int, int*, double*, int*);
     std::vector<int> getNodeGIDS();
     int createDistGrids(int*, int*, int*, int*);
-    int meshWrite(char*);
+    int meshWrite(const char*);
     int destroy();
     int freeMemory();
     int numNodes();
     int numElements();
 
-    friend int MeshVTKHeader(char*, int*, int*, int*);
-    friend int MeshVTKBody(char*, int*, double*, int*, int*, int*, int*);
+    friend int MeshVTKHeader(const char*, int*, int*, int*);
+    friend int MeshVTKBody(const char*, int*, double*, int*, int*, int*, int*);
 
     private:
     Mesh* meshPointer;

@@ -1,7 +1,7 @@
-! $Id: ESMF_VMScatterVMGatherEx.F90,v 1.10.2.1 2010/02/05 20:01:28 svasquez Exp $
+! $Id: ESMF_VMScatterVMGatherEx.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2010, University Corporation for Atmospheric Research,
+! Copyright 2002-2012, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -29,7 +29,7 @@
 
 program ESMF_VMScatterVMGatherEx
 
-  use ESMF_Mod
+  use ESMF
   
   implicit none
   
@@ -43,10 +43,11 @@ program ESMF_VMScatterVMGatherEx
   integer :: finalrc
   finalrc = ESMF_SUCCESS
 
-  call ESMF_Initialize(vm=vm, rc=rc)
+  call ESMF_Initialize(vm=vm, defaultlogfilename="VMScatterVMGatherEx.Log", &
+                    logkindflag=ESMF_LOGKIND_MULTI, rc=rc)
   if (rc/=ESMF_SUCCESS) finalrc = ESMF_FAILURE
  
-  call ESMF_VMGet(vm, localPet, petCount, rc=rc)
+  call ESMF_VMGet(vm, localPet=localPet, petCount=petCount, rc=rc)
   if (rc/=ESMF_SUCCESS) finalrc = ESMF_FAILURE
 
   scatterRoot = 0
@@ -72,13 +73,13 @@ program ESMF_VMScatterVMGatherEx
   ! Scatter/Gather
 !BOC
   call ESMF_VMScatter(vm, sendData=array1, recvData=array2, count=nsize, &
-    root=scatterRoot, rc=rc)
+    rootPet=scatterRoot, rc=rc)
   ! Both sendData and recvData must be 1-d arrays.
 !EOC
   if (rc/=ESMF_SUCCESS) finalrc = ESMF_FAILURE
 !BOC
   call ESMF_VMGather(vm, sendData=array2, recvData=array1, count=nsize, &
-    root=gatherRoot, rc=rc)
+    rootPet=gatherRoot, rc=rc)
   ! Both sendData and recvData must be 1-d arrays.
 !EOC
   if (rc/=ESMF_SUCCESS) finalrc = ESMF_FAILURE

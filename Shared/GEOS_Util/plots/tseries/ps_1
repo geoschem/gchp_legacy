@@ -1,0 +1,261 @@
+function ps1 (args)
+
+expid  = subwrd(args,1)
+expdsc = subwrd(args,2)
+output = subwrd(args,3)
+qlname = subwrd(args,4)
+qiname = subwrd(args,5)
+
+'run getenv "GEOSUTIL"'
+         geosutil = result
+
+'getinfo grav'
+         grav  = result
+'getinfo tdim'
+         tdim  = result
+'getinfo tunit'
+         tunit = result
+
+'set t 1 'tdim
+
+
+* Compute Total, Dry, and Moist Instantaneous Values
+* --------------------------------------------------
+'define qtot = VAR1g/100'
+'define qdry = VAR1g/100-(VAR2g+VAR3g+VAR4g)*'grav'/100.0'
+'define qwet =           (VAR2g+VAR3g+VAR4g)*'grav'/100.0'
+
+
+* Compute Total, Dry, and Moist Time-Averaged Values
+* --------------------------------------------------
+'define qtotave = ave(qtot,t=1,t='tdim')'
+'define qdryave = ave(qdry,t=1,t='tdim')'
+'define qwetave = ave(qwet,t=1,t='tdim')'
+
+* -------------------------------------------------
+
+'run minmax qtot'
+       tmax = subwrd(result,1)
+       tmin = subwrd(result,2)
+'run minmax qtotave'
+       tave = subwrd(result,1)
+*      tave = 985.505
+*      tmax = 985.562
+*      tmin = 985.442
+
+       tdif1  = tmax-tave
+       tdif2  = tave-tmin
+   if( tdif1 >= tdif2 )
+       tdif   = 2*tdif1
+   else
+       tdif   = 2*tdif2
+   endif
+
+'run minmax qdry'
+       dmax = subwrd(result,1)
+       dmin = subwrd(result,2)
+'run minmax qdryave'
+       dave = subwrd(result,1)
+*      dave = 983.099
+
+       ddif1  = dmax-dave
+       ddif2  = dave-dmin
+   if( ddif1 >= ddif2 )
+       ddif   = 2*ddif1
+   else
+       ddif   = 2*ddif2
+   endif
+
+'run minmax qwetave'
+     wetave = subwrd(result,1)
+*    wetave = 2.408
+
+if( tdif > ddif ) ; ddif = tdif ; endif
+
+* Plot Total Mass
+* ---------------
+'set vpage 0 11 3.9 8.4'
+
+'set grads off'
+'set ylab %.2f'
+
+totave =   tave
+totmax = totave + 0.6*ddif
+totmin = totave - 0.6*ddif
+
+'set t 1 'tdim
+'set axlim 'totmin' 'totmax
+
+'set grid on'
+'set ylpos 0 l'
+'set ylopts 1 3 0.11'
+
+'set cmark  0'
+'set cstyle 1'
+'set ccolor 1'
+'set cthick 6'
+'d qtot'
+'set cmark  0'
+'set cstyle 1'
+'set ccolor 1'
+'set cthick 1'
+'d qtotave'
+
+* Plot Time-Average Values
+* ------------------------
+'set t 'tdim
+'getinfo date'
+         date = result
+'d qtotave'
+   qtotave = subwrd(result,4)
+'q w2xy 'date' 'qtotave
+    ytot = subwrd(result,6)
+'d qdryave'
+   qdryave = subwrd(result,4)
+'d qwetave'
+   qwetave = subwrd(result,4)
+
+'set t 1'
+'d qdry'
+   qdrybeg = subwrd(result,4)
+'set t 'tdim
+'d qdry'
+   qdryend = subwrd(result,4)
+'set t 1 'tdim
+   delqdry = (qdryend-qdrybeg)/tdim
+say '       QDYRBEG: 'qdrybeg
+say '       QDYREND: 'qdryend
+say 'ORIG   DELQDRY: 'delqdry
+
+* Convert delqdry to SCI.NOTATION
+* -------------------------------
+if( delqdry != 0 )
+   'd log10(abs('delqdry'))'
+    n = subwrd(result,4)
+else
+    n = 0
+endif
+say '    Log Factor: 'n
+if( n<0 ) ; n = n-2 ; endif
+'getint 'n
+         n = result
+if( n>0 )
+    if( n<=2 )
+        n = 0
+    else
+        n = n-2
+    endif
+endif
+say 'Scaling Factor: 'n
+if( n<0 ) ; n = -n ; endif
+scaling = 1e''n
+say ' delqdry = 'delqdry' * 'scaling
+      delqdry =  delqdry  *  scaling
+
+   'd 'delqdry
+    delqdry = subwrd(result,4)
+say 'Scaled DELQDRY: 'delqdry
+
+* Note:  Only take NDOT values after decimal point
+* ------------------------------------------------
+         val = delqdry
+         ndot    = 6
+         dotloc  = 0
+         counter = 1
+         while ( counter<20 )
+                 dot = substr(val,counter,1)
+             if( dot = '.' ) ; dotloc = counter ; endif
+                              counter = counter + 1
+         endwhile
+             val = substr(val,1,dotloc+ndot)
+         delqdry = val
+
+'set strsiz .078'
+'set string 1 l 6'
+'draw string 0.78 'ytot ' 'qtotave
+
+
+* Plot Dry Mass and QV
+* --------------------
+'set vpage 0 11 0 4.5'
+'set grads off'
+'set ylab %.2f'
+
+dryave =   dave
+drymax = dryave + 0.6* ddif
+drymin = dryave - 0.6* ddif
+
+wetmax = wetave + 0.6* ddif
+wetmin = wetave - 0.6* ddif
+
+'set t 1 'tdim
+'set axlim 'drymin' 'drymax
+
+'set ylpos 0 l'
+'set ylopts 4 3 0.11'
+
+'set cmark  0'
+'set cstyle 1'
+'set ccolor 4'
+'set cthick 6'
+'d qdry'
+'set cmark  0'
+'set cstyle 1'
+'set ccolor 4'
+'set cthick 1'
+'d qdryave'
+
+'set axlim 'wetmin' 'wetmax
+'set ylopts 2 3 0.11'
+'set ylpos 0 r'
+'set grid off'
+'set cmark  0'
+'set cstyle 1'
+'set ccolor 2'
+'set cthick 6'
+'d qwet'
+'set cmark  0'
+'set cstyle 3'
+'set ccolor 1'
+'set cthick 1'
+'d qwetave'
+
+
+* Plot Time-Average Values
+* ------------------------
+ 'set  strsiz .08'
+ 'set  string 4 l 6'
+ 'draw string 0.78 'ytot ' 'qdryave
+                    ytot =  ytot-0.2
+ 'set  string 2 l 6'
+ 'draw string 0.78 'ytot ' 'qwetave
+                    ytot =  ytot-0.4
+
+ 'set  string 4 l 6'
+ if( delqdry < 0 )
+ 'draw string 0.40 'ytot' loss (/'tunit')'
+ else
+ 'draw string 0.40 'ytot' gain (/'tunit')'
+ endif
+                    ytot =  ytot-0.2
+ 'set  string 4 r 6'
+ 'draw string 1.30 'ytot' 'delqdry' x10`a-`n'n
+
+'set vpage off'
+'set string 1 c 6'
+'set strsiz .14'
+'draw string 6.15 8.25 'expid': 'expdsc
+'draw string 6.15 7.95 Globally Integrated Total (Dry + QV+QL+QI) Surface Pressure (mb)'
+
+    wetname = "QV"
+if( qlname != NULL ) 
+    wetname = wetname"+QL"
+endif
+if( qiname != NULL ) 
+    wetname = wetname"+QI"
+endif
+
+'draw string 6.15 4.00 Dry (Blue) and Wet ['wetname'] (Red) Surface Pressure (mb)'
+
+'myprint -name 'output'/PS_TIME_SERIES'
+return

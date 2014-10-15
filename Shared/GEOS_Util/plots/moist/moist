@@ -1,0 +1,55 @@
+ reinit
+ set display color white
+ set clab off
+ set csmooth on
+ c
+
+* Note:  &0 => experiment id
+* Note:  &1 => period to be processed  (eg DJF, DEC, JJA)
+* Note:  &2 => path for data xdf_file
+* Note:  &3 => output location
+* Note:  &4 => GEOS_Util location
+
+
+xdfopen &2
+
+setx
+sety
+setz
+sett
+
+chckname rice
+chckname rliq
+
+makez   qv z
+makez   ql z
+makez   qi z
+makez rliq z
+makez rice z
+makez   qr z
+makez  uim z
+makez  vim z
+makez thim z
+makez fcld z
+
+set x 1
+seasonal   qvz
+seasonal   qlz
+seasonal   qiz
+seasonal   qrz
+seasonal rliqz
+seasonal ricez
+seasonal  uimz
+seasonal  vimz
+seasonal thimz
+seasonal fcldz
+
+set lev 1000 100
+define kappa = 2/7
+define pk = pow(1000/lev,kappa)
+set xlopts 1 4 .14
+set ylopts 1 4 .14
+
+exec &4/plots/moist/moist_1 &0 &1 &3
+exec &4/plots/moist/moist_2 &0 &1 &3
+exec &4/plots/moist/moist_3 &0 &1 &3

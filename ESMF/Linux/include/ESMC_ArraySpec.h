@@ -1,7 +1,7 @@
-// $Id: ESMC_ArraySpec.h,v 1.15.2.1 2010/02/05 19:53:07 svasquez Exp $
+// $Id: ESMC_ArraySpec.h,v 1.1.5.1 2013-01-11 20:23:43 mathomp4 Exp $
 //
 // Earth System Modeling Framework
-// Copyright 2002-2010, University Corporation for Atmospheric Research, 
+// Copyright 2002-2012, University Corporation for Atmospheric Research, 
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
 // Laboratory, University of Michigan, National Centers for Environmental 
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
@@ -24,16 +24,11 @@
 #define ESMC_ArraySpec_H
 
 //-----------------------------------------------------------------------------
-//BOPI
-// !CLASS:  ESMC_ArraySpec - uniform access to arrays from F90 and C++
-//
-// !DESCRIPTION:
+// ESMC_ArraySpec - uniform array specification for Fortran and C
 //
 // The code in this file defines the public C ArraySpec interfaces and declares
 // method signatures (prototypes).  The companion file {\tt ESMC\_ArraySpec.C}
 // contains the definitions (full code bodies) for the ArraySpec methods.
-// 
-//EOPI
 //-----------------------------------------------------------------------------
 
 #include "ESMC_Util.h"
@@ -50,10 +45,66 @@ typedef struct{
 }ESMC_ArraySpec;
 
 // Class API
-int ESMC_ArraySpecSet(ESMC_ArraySpec *arrayspec, int rank,
-  enum ESMC_TypeKind typekind);
-int ESMC_ArraySpecGet(ESMC_ArraySpec arrayspec, int *rank,
-  enum ESMC_TypeKind *typekind);
+
+//-----------------------------------------------------------------------------
+//BOP
+// !IROUTINE: ESMC_ArraySpecGet - Get values from an ArraySpec
+//
+// !INTERFACE:
+int ESMC_ArraySpecGet(
+  ESMC_ArraySpec arrayspec,         // inout
+  int *rank,                        // in
+  enum ESMC_TypeKind *typekind      // in
+);
+// !RETURN VALUE:
+//  Return code; equals ESMF_SUCCESS if there are no errors.
+//
+// !DESCRIPTION:
+//
+//  Returns information about the contents of an {\tt ESMC\_ArraySpec}.
+//
+//  The arguments are:
+//  \begin{description}
+//  \item[arrayspec]
+//    The {\tt ESMC\_ArraySpec} to query.
+//  \item[rank]
+//    Array rank (dimensionality - 1D, 2D, etc). Maximum allowed is 7D.
+//  \item[typekind]
+//    Array typekind. See section ?? for valid values.
+//  \end{description}
+//
+//EOP
+//-----------------------------------------------------------------------------
+
+//-----------------------------------------------------------------------------
+//BOP
+// !IROUTINE: ESMC_ArraySpecSet - Set values for an ArraySpec
+//
+// !INTERFACE:
+int ESMC_ArraySpecSet(
+  ESMC_ArraySpec *arrayspec,         // inout 
+  int rank,                          // in
+  enum ESMC_TypeKind typekind        // in
+);
+// !RETURN VALUE:
+//  Return code; equals ESMF_SUCCESS if there are no errors.
+//
+// !DESCRIPTION:
+//
+//  Set an Array specification - typekind, and rank.
+//
+//  The arguments are:
+//  \begin{description}
+//  \item[arrayspec]
+//    The {\tt ESMC\_ArraySpec} to set.
+//  \item[rank]
+//    Array rank (dimensionality - 1D, 2D, etc). Maximum allowed is 7D.
+//  \item[typekind]
+//    Array typekind. See section ?? for valid values.
+//  \end{description}
+//
+//EOP
+//-----------------------------------------------------------------------------
 
 #ifdef __cplusplus
 } // extern "C"

@@ -1,7 +1,7 @@
-! $Id: ESMF_AttributeUpdateEx.F90,v 1.16.2.1 2010/02/05 20:03:28 svasquez Exp $
+! $Id$
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2010, University Corporation for Atmospheric Research,
+! Copyright 2002-2012, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -24,7 +24,7 @@ program ESMF_AttributeUpdateEx
 ! This program shows examples of Attribute usage
 
   ! ESMF Framework module
-  use ESMF_Mod
+  use ESMF
   use ESMF_TestMod
 
   use ESMF_AttributeUpdateMod, only : userm1_setvm, userm1_register, &
@@ -34,7 +34,7 @@ implicit none
 
 
 !BOE
-! \subsubsection{Example: Advanced Attribute usage: Attributes in a Distributed Environment}
+! \subsubsection{Updating Attributes in a distributed environment}
 !
 ! This advanced example illustrates the proper methods of Attribute manipulation
 ! in a distributed environment to ensure consistency of metadata across the VM. 
@@ -61,12 +61,10 @@ implicit none
 ! coupler Component to the second Gridded component.  The third cycle will be through the
 ! finalize routines in the same order as the first cycle.
 !
-! The first thing we must do is declare variables and initialize ESMF in the application driver.
 !EOE
 
 
-!BOC
-      integer                 :: rc, finalrc, petCount, localPet
+      integer                 :: rc, urc, finalrc, petCount, localPet
       type(ESMF_VM)           :: vm
       type(ESMF_State)        :: c1exp, c2imp
       type(ESMF_GridComp)     :: gridcomp1
@@ -75,11 +73,11 @@ implicit none
       character(ESMF_MAXSTR)  :: convESMF,purpGen
 
       finalrc = ESMF_SUCCESS
-      call ESMF_Initialize(vm=vm, rc=rc)
+      call ESMF_Initialize(vm=vm, &
+                    defaultlogfilename="AttributeUpdateEx.Log", &
+                    logkindflag=ESMF_LOGKIND_MULTI, rc=rc)
       
       call ESMF_VMGet(vm, petCount=petCount, localPet=localPet, rc=rc)
-      if (rc/=ESMF_SUCCESS) print *, "ERROR!"
-!EOC         
       
       if (localPet==0) then
         print *, "--------------------------------------- "
@@ -88,7 +86,7 @@ implicit none
       endif
 
 !BOE
-! Still in the application driver, we must now construct some ESMF objects, 
+! In the application driver, we must now construct some ESMF objects, 
 ! such as the gridded Components, the coupler Component, and the States.  This
 ! is also where it is determined which subsets of the PETs of the VM the
 ! Components will be using to run their initialize, run, and finalize routines.
@@ -111,10 +109,10 @@ implicit none
         cplcomp = ESMF_CplCompCreate(name="cplcomp", &
           petList=(/0,1,2,3/), rc=rc)
 
-      c1exp = ESMF_StateCreate("Comp1 exportState", &
-        ESMF_STATE_EXPORT, rc=rc)
-      c2imp = ESMF_StateCreate("Comp2 importState", &
-        ESMF_STATE_IMPORT, rc=rc)
+      c1exp = ESMF_StateCreate(name="Comp1 exportState", &
+                               stateintent=ESMF_STATEINTENT_EXPORT, rc=rc)
+      c2imp = ESMF_StateCreate(name="Comp2 importState", &
+                               stateintent=ESMF_STATEINTENT_IMPORT, rc=rc)
 !EOC      
 
       endif
@@ -123,13 +121,13 @@ implicit none
 ! a random endif in the protex while investigating the uni failures in
 ! this example, which will not run UNI in the end anyway
                 
-      call ESMF_GridCompSetVM(gridcomp1, userm1_setvm, rc)
-      call ESMF_GridCompSetVM(gridcomp2, userm2_setvm, rc)
-      call ESMF_CplCompSetVM(cplcomp, usercpl_setvm, rc)
+      call ESMF_GridCompSetVM(gridcomp1, userm1_setvm, rc=rc)
+      call ESMF_GridCompSetVM(gridcomp2, userm2_setvm, rc=rc)
+      call ESMF_CplCompSetVM(cplcomp, usercpl_setvm, rc=rc)
 
-      call ESMF_GridCompSetServices(gridcomp1, userm1_register, rc)
-      call ESMF_GridCompSetServices(gridcomp2, userm2_register, rc)
-      call ESMF_CplCompSetServices(cplcomp, usercpl_register, rc)
+      call ESMF_GridCompSetServices(gridcomp1, userm1_register, rc=rc)
+      call ESMF_GridCompSetServices(gridcomp2, userm2_register, rc=rc)
+      call ESMF_CplCompSetServices(cplcomp, usercpl_register, rc=rc)
 
 !BOE
 ! Before the individual components are initialized, run, and finalized Attributes should be set at the
@@ -143,7 +141,8 @@ implicit none
 !BOC
       convESMF = 'ESMF'
       purpGen = 'General'
-    call ESMF_AttributeAdd(gridcomp1, convention=convESMF, purpose=purpGen, rc=rc)
+    call ESMF_AttributeAdd(gridcomp1, convention=convESMF, purpose=purpGen, &
+      rc=rc)
     call ESMF_AttributeSet(gridcomp1, 'Agency', 'NASA', &
       convention=convESMF, purpose=purpGen, rc=rc)
     call ESMF_AttributeSet(gridcomp1, 'Author', 'Max Suarez', &
@@ -152,14 +151,14 @@ implicit none
       'Fortran 90', convention=convESMF, purpose=purpGen, rc=rc)
     call ESMF_AttributeSet(gridcomp1, 'Discipline', &
       'Atmosphere', convention=convESMF, purpose=purpGen, rc=rc)
-    call ESMF_AttributeSet(gridcomp1, 'FullName', &
-      'Goddard Earth Observing System Version 5 Finite Volume Dynamical Core', &
+    call ESMF_AttributeSet(gridcomp1, 'ComponentLongName', &
+   'Goddard Earth Observing System Version 5 Finite Volume Dynamical Core', &
         convention=convESMF, purpose=purpGen, rc=rc)
     call ESMF_AttributeSet(gridcomp1, 'ModelComponentFramework', &
       'ESMF', &
       convention=convESMF, purpose=purpGen, rc=rc)
-    call ESMF_AttributeSet(gridcomp1, 'Name', 'GEOS-5 FV dynamical core', &
-      convention=convESMF, purpose=purpGen, rc=rc)
+    call ESMF_AttributeSet(gridcomp1, 'ComponentShortName', &
+      'GEOS-5 FV dynamical core', convention=convESMF, purpose=purpGen, rc=rc)
     call ESMF_AttributeSet(gridcomp1, 'PhysicalDomain', &
       'Earth system', convention=convESMF, purpose=purpGen, rc=rc)
     call ESMF_AttributeSet(gridcomp1, 'Version', &
@@ -195,7 +194,8 @@ implicit none
 
       call ESMF_GridCompRun(gridcomp1, exportState=c1exp, rc=rc)
       call ESMF_CplCompRun(cplcomp, importState=c1exp, &
-        exportState=c2imp, rc=rc)
+        exportState=c2imp, userRc=urc, rc=rc)
+        
       call ESMF_GridCompRun(gridcomp2, importState=c2imp, rc=rc)
       
       call ESMF_GridCompFinalize(gridcomp1, exportState=c1exp, rc=rc)

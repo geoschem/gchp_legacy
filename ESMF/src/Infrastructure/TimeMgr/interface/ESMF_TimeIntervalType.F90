@@ -1,7 +1,7 @@
-! $Id: ESMF_TimeIntervalType.F90,v 1.18.2.1 2010/02/05 20:00:36 svasquez Exp $
+! $Id: ESMF_TimeIntervalType.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2010, University Corporation for Atmospheric Research,
+! Copyright 2002-2012, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -31,7 +31,7 @@
 ! !MODULE: ESMF_TimeIntervalTypeMod
 !
 ! !DESCRIPTION:
-! Part of Time Manager Fortran API wrapper of C++ implemenation.
+! Part of Time Manager Fortran API wrapper of C++ implementation.
 !
 ! Defines Fortran types for corresponding C++ class {\tt ESMC\_TimeInterval}.
 !
@@ -40,16 +40,14 @@
 !------------------------------------------------------------------------------
 ! !USES:
       ! inherit from ESMF base class
-      use ESMF_InitMacrosMod
+      use ESMF_BaseMod
       use ESMF_UtilTypesMod
 
       implicit none
 
 !------------------------------------------------------------------------------
 ! !PRIVATE TYPES:
-!     None: all types defined in this file are public and propagated up
-!     via ESMF_TimeIntervalMod in ESMF_TimeInterval.F90
-
+      private
 !------------------------------------------------------------------------------
 !     ! ESMF_TimeInterval
 !
@@ -78,12 +76,23 @@
 !     The types defined in this file are public and propagated up via 
 !     ESMF_TimeIntervalMod in ESMF_TimeInterval.F90      
 
+      public ESMF_TimeInterval
+
+!------------------------------------------------------------------------------
+! !PUBLIC METHODS:
+!     The methods defined in this file are public and propagated up via 
+!     ESMF_TimeIntervalMod in ESMF_TimeInterval.F90      
+
+      public ESMF_TimeIntervalGetInit
+      public ESMF_TimeIntervalInit
+
+!------------------------------------------------------------------------------
 !EOPI
 
 !------------------------------------------------------------------------------
 ! The following line turns the CVS identifier string into a printable variable.
       character(*), parameter, private :: version = &
-      '$Id: ESMF_TimeIntervalType.F90,v 1.18.2.1 2010/02/05 20:00:36 svasquez Exp $'
+      '$Id: ESMF_TimeIntervalType.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $'
 !------------------------------------------------------------------------------
 
       contains
@@ -96,30 +105,30 @@
 ! !IROUTINE:  ESMF_TimeIntervalGetInit - Get initialization status.
 
 ! !INTERFACE:
-    function ESMF_TimeIntervalGetInit(s)
+      function ESMF_TimeIntervalGetInit(s)
 !
 ! !ARGUMENTS:
-       type(ESMF_TimeInterval), intent(in), optional :: s
-       ESMF_INIT_TYPE                                :: ESMF_TimeIntervalGetInit
+      type(ESMF_TimeInterval), intent(in), optional :: s
+      ESMF_INIT_TYPE                                :: ESMF_TimeIntervalGetInit
 !
 ! !DESCRIPTION:
-!      Get the initialization status of the shallow class {\tt timeinterval}.
+!     Get the initialization status of the shallow class {\tt timeinterval}.
 !
 !     The arguments are:
 !     \begin{description}
-!     \item [s]
-!           {\tt ESMF\_TimeInterval} from which to retreive status.
+!     \item [{[s]}]
+!           {\tt ESMF\_TimeInterval} from which to retrieve status.
 !     \end{description}
 !
 !EOPI
 
-       if (present(s)) then
-         ESMF_TimeIntervalGetInit = ESMF_INIT_GET(s)
-       else
-         ESMF_TimeIntervalGetInit = ESMF_INIT_DEFINED
-       endif
+      if (present(s)) then
+        ESMF_TimeIntervalGetInit = ESMF_INIT_GET(s)
+      else
+        ESMF_TimeIntervalGetInit = ESMF_INIT_DEFINED
+      endif
 
-    end function ESMF_TimeIntervalGetInit
+      end function ESMF_TimeIntervalGetInit
 
 !------------------------------------------------------------------------------
 #undef  ESMF_METHOD
@@ -128,25 +137,27 @@
 ! !IROUTINE:  ESMF_TimeIntervalInit - Initialize TimeInterval
 
 ! !INTERFACE:
-    subroutine ESMF_TimeIntervalInit(s)
+      subroutine ESMF_TimeIntervalInit(s)
 !
 ! !ARGUMENTS:
-       type(ESMF_TimeInterval) :: s
+      type(ESMF_TimeInterval), intent(inout), optional :: s
 !
 ! !DESCRIPTION:
-!      Initialize the shallow class {\tt timeinterval}.
+!     Initialize the shallow class {\tt timeinterval}.
 !
 !     The arguments are:
 !     \begin{description}
-!     \item [s]
-!           {\tt ESMF\_TimeInterval} of which being initialized.
+!     \item [{[s]}]
+!           {\tt ESMF\_TimeInterval} being initialized.
 !     \end{description}
 !
 !EOPI
-        s%shallowMemory  = 0
-        ESMF_INIT_SET_DEFINED(s)
 
-    end subroutine ESMF_TimeIntervalInit
+      if (present(s)) then
+        ESMF_INIT_SET_DEFINED(s)
+      endif
+
+      end subroutine ESMF_TimeIntervalInit
 
 !------------------------------------------------------------------------------
 

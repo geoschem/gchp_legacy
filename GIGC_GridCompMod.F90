@@ -1,5 +1,4 @@
 #include "MAPL_Generic.h"
-
 !=============================================================================
 !BOP
 
@@ -8,7 +7,6 @@
 ! of the following three components:
 ! - Dynamics  (GIGCdyn)
 ! - Chemistry (GIGCchem)
-! - Emissions (HEMCO)
 !
 ! !NOTES:
 ! (1) For now, the dynamics module is rather primitive and based upon netCDF
@@ -20,19 +18,32 @@
 ! another.
 ! (3) All 3D fields are exchanged on the 'GEOS-5' vertical levels, i.e. with
 ! a reversed atmosphere (level 1 is top of atmosphere). 
-! 
+!
+! The following quantities need to be calculated to satisfy import states
+! --- 
+!       BOXHEIGHT (CHEM, HEMCO)
+!       AD        (CHEM)
+!       DELP      (CHEM)
+!       AIRVOL    (CHEM)
+!       AIRDEN    (CHEM)
+!       AREA      (HEMCO)
+!       PEDGE     (HEMCO)
+!       PCENTER   (HEMCO)
+! ---
+!
 ! !INTERFACE:
 
 module GIGC_GridCompMod
 
 ! !USES:
 
-  use ESMF_Mod
+  use ESMF
   use MAPL_Mod
 
-  use CHEM_GridCompMod,       only : AtmosChemSetServices     => SetServices
-  use DYN_GridCompMod,        only : AtmosDynSetServices      => SetServices
-  use HEMCO_GridCompMod,      only : AtmosEmisSetServices     => SetServices
+  use CHEM_GridCompMod,           only : AtmosChemSetServices     => SetServices
+  use AdvCore_GridCompMod,        only : AtmosAdvSetServices      => SetServices
+  use GEOS_ctmEnvGridComp,        only : EctmSetServices          => SetServices
+!  use FVDyCoreCubed_GridComp,     only : AtmosDynSetServices      => SetServices
 
   implicit none
   private
@@ -47,7 +58,7 @@ module GIGC_GridCompMod
  
 !EOP
 
-  integer ::        CHEM, DYN, EMIS 
+  integer ::        ADV, CHEM, DYN, EMIS, ECTM
 
 contains
 
@@ -102,12 +113,13 @@ contains
 ! Register services for this component
 ! ------------------------------------
 
-    call MAPL_GridCompSetEntryPoint ( GC, ESMF_SETINIT, Initialize, RC=STATUS )
-    VERIFY_(STATUS)
-    call MAPL_GridCompSetEntryPoint ( GC, ESMF_SETRUN,  Run,        RC=STATUS )
-    VERIFY_(STATUS)
-    call MAPL_GridCompSetEntryPoint ( GC, ESMF_SETFINAL,  Finalize, RC=STATUS )
-    VERIFY_(STATUS)
+   call MAPL_GridCompSetEntryPoint ( GC, ESMF_METHOD_INITIALIZE, Initialize, RC=STATUS )
+   VERIFY_(STATUS)
+   call MAPL_GridCompSetEntryPoint ( GC, ESMF_METHOD_RUN, Run, RC=STATUS )
+   VERIFY_(STATUS)
+   call MAPL_GridCompSetEntryPoint ( GC, ESMF_METHOD_FINALIZE, Finalize, RC=STATUS )
+   VERIFY_(STATUS)
+
 !BOP
 
 ! !IMPORT STATE:
@@ -117,14 +129,18 @@ contains
 ! Create children`s gridded components and invoke their SetServices
 ! -----------------------------------------------------------------
 
+    ECTM = MAPL_AddChild(GC, NAME='GIGCenv' , SS=EctmSetServices,      RC=STATUS)
+    VERIFY_(STATUS)
+    print*, 'GIGCenv added'
     CHEM = MAPL_AddChild(GC, NAME='GIGCchem', SS=AtmosChemSetServices, RC=STATUS)
     VERIFY_(STATUS)
-
-    EMIS = MAPL_AddChild(GC, NAME='HEMCO',   SS=AtmosEmisSetServices, RC=STATUS)
+    print*, 'GIGCchem added'
+    ADV  = MAPL_AddChild(GC, NAME='DYNAMICS',  SS=AtmosAdvSetServices,  RC=STATUS)
     VERIFY_(STATUS)
+    print*, 'GIGCadv added'
 
-    DYN  = MAPL_AddChild(GC, NAME='GIGCdyn',  SS=AtmosDynSetServices, RC=STATUS)
-    VERIFY_(STATUS)
+!    DYN  = MAPL_AddChild(GC, NAME='GIGCdyn',  SS=AtmosDynSetServices,  RC=status)
+!    VERIFY_(STATUS)
 
 ! Set internal connections between the children`s IMPORTS and EXPORTS
 ! -------------------------------------------------------------------
@@ -133,16 +149,54 @@ contains
 
 ! !CONNECTIONS:
 
+      ! Connectivities between Children
+      ! -------------------------------
+      CALL MAPL_AddConnectivity ( GC, &
+               SHORT_NAME  = (/'AREA'/), &
+               DST_ID = ECTM, SRC_ID = ADV, __RC__  )
+
+      CALL MAPL_AddConnectivity ( GC, &
+               SRC_NAME  = (/ 'CXr8', 'CYr8', 'MFXr8', 'MFYr8', 'PLE0r8', 'PLE1r8' /), &
+               DST_NAME  = (/ 'CX',   'CY',   'MFX',   'MFY',   'PLE0',   'PLE1'   /), &
+               DST_ID = ADV, SRC_ID = ECTM, __RC__  )
+
+      CALL MAPL_AddConnectivity ( GC, &
+               SRC_NAME = (/ 'PLE' /), &
+               DST_NAME = (/ 'PLE' /), &
+               DST_ID   = CHEM, SRC_ID = ECTM, __RC__ )
+
+    ! AdvCore Imports
+    ! ---------------
+!    CALL MAPL_AddConnectivity ( GC,                                   &
+!         SHORT_NAME  = (/ 'AREA', 'MFX', 'MFY', 'CX' , 'CY', 'PLE0', 'PLE'/),   &
+!         DST_ID      = ADV,                                 &
+!         SRC_ID      = DYN,                                 &
+!         RC=STATUS  )
+!    VERIFY_(STATUS)
+
+! We Terminate these IMPORTS which are manually filled
+!-----------------------------------------------------
+
+!     call MAPL_TerminateImport    ( GC,                                                     &
+!          SHORT_NAME = (/'DUDT  ','DVDT  ','DTDT  ','DPEDT ','DQVANA','DOXANA','PHIS  '/),  &
+!          CHILD      = DYN,                                                                &
+!          RC=STATUS  )
+!     VERIFY_(STATUS)
+
+    call MAPL_TimerAdd(GC, name="RUN", RC=STATUS)
+    VERIFY_(STATUS)
+
+    call MAPL_GenericSetServices    ( GC, RC=STATUS )
+    VERIFY_(STATUS)
+
 ! Chemistry Imports
 ! -----------------
 
 !EOP
 
-    call MAPL_TimerAdd(GC, name="RUN", RC=STATUS)
-    VERIFY_(STATUS)
 
-    call MAPL_GenericSetServices ( GC, RC=STATUS )
-    VERIFY_(STATUS)
+!    call MAPL_GenericSetServices ( GC, RC=STATUS )
+!    VERIFY_(STATUS)
 
     RETURN_(ESMF_SUCCESS)
   
@@ -224,8 +278,8 @@ contains
 !define PRINT_STATES
 
     Iam = "Initialize"
-    call ESMF_GridCompGet ( GC, name=COMP_NAME, GRID=GRID, RC=STATUS )
-!    call ESMF_GridCompGet ( GC, name=COMP_NAME, RC=STATUS )
+!    call ESMF_GridCompGet ( GC, name=COMP_NAME, GRID=GRID, RC=STATUS )
+    call ESMF_GridCompGet ( GC, name=COMP_NAME, RC=STATUS )
     VERIFY_(STATUS)
     Iam = trim(COMP_NAME) // "::" // Iam
 
@@ -233,12 +287,6 @@ contains
 !--------------------------
 
     call MAPL_GetObjectFromGC ( GC, STATE, RC=STATUS)
-    VERIFY_(STATUS)
-
-! Get children and their im/ex states from my generic state.
-!----------------------------------------------------------
-
-    call MAPL_Get ( STATE, GCS=GCS, GIM=GIM, GEX=GEX, RC=STATUS )
     VERIFY_(STATUS)
 
     ! Create Atmospheric grid
@@ -249,29 +297,48 @@ contains
     ! Call Initialize for every Child
     !--------------------------------
 
-    call MAPL_GenericInitialize ( GC, IMPORT, EXPORT, CLOCK,  RC=STATUS)
+    call MAPL_GenericInitialize ( GC, IMPORT, EXPORT, CLOCK, __RC__ )
     VERIFY_(STATUS)
 
 
     call MAPL_TimerOn(STATE,"TOTAL")
-!    call MAPL_TimerOn(STATE,"INITIALIZE")
+    !    call MAPL_TimerOn(STATE,"INITIALIZE")
 
+    ! Get children and their im/ex states from my generic state.
+    !----------------------------------------------------------
+    
+    call MAPL_Get ( STATE, GCS=GCS, GIM=GIM, GEX=GEX, RC=STATUS )
+    VERIFY_(STATUS)
 
-! Count tracers
-!--------------
+    !----------------
+    ! AdvCore Tracers
+    !----------------
+    ! -- This code SEEMS to add all fields in the CHEM gridcomp
+    !    friendly to "DYNAMICS" to a bundle passed to dynamics
+    ! -- When enabled, it may permit a more elegant means
+    !    to control what gets transported, and what is simply 
+    !    reacted in chemistry - MSL
+    !call ESMF_StateGet( GIM(ADV), 'TRACERS', BUNDLE, RC=STATUS )
+    !VERIFY_(STATUS)
+    !
+    !call MAPL_GridCompGetFriendlies(GCS(CHEM), "DYNAMICS", BUNDLE, RC=STATUS )
+    !VERIFY_(STATUS)
+    
+    ! Count tracers
+    !--------------
+    
+    !    call ESMF_FieldBundleGet(BUNDLE,FieldCount=NUM_TRACERS, RC=STATUS)
+    !    VERIFY_(STATUS)
 
-!    call ESMF_FieldBundleGet(BUNDLE,FieldCount=NUM_TRACERS, RC=STATUS)
-!    VERIFY_(STATUS)
-
-! Get the names of all tracers to fill other turbulence bundles.
-!---------------------------------------------------------------
-
-!    allocate(NAMES(NUM_TRACERS),STAT=STATUS)
-!    VERIFY_(STATUS)
-
-!    call ESMF_FieldBundleGet(BUNDLE, NAMES,  RC=STATUS)
-!    VERIFY_(STATUS)
-
+    ! Get the names of all tracers to fill other turbulence bundles.
+    !---------------------------------------------------------------
+    
+    !    allocate(NAMES(NUM_TRACERS),STAT=STATUS)
+    !    VERIFY_(STATUS)
+    
+    !    call ESMF_FieldBundleGet(BUNDLE, NAMES,  RC=STATUS)
+    !    VERIFY_(STATUS)
+    
     call MAPL_TimerOff(STATE,"RUN")
     call MAPL_TimerOff(STATE,"TOTAL")
 
@@ -365,31 +432,30 @@ contains
 ! Pointers to Exports
 !--------------------
 
-! Dynamics
+! Dynamics & Advection
 !------------------
 
-    I=DYN   
-    write(*,*) 'Running Dynamics GC'
+    !---------------------
+    ! Cinderella Component: to derive variables for other components
+    !---------------------
+    I=ECTM
     call MAPL_TimerOn (STATE,GCNames(I))
-     call ESMF_GridCompRun (GCS(I), importState=GIM(I), &
-          exportState=GEX(I), clock=CLOCK, userRC=STATUS );
-     VERIFY_(STATUS)
-     call MAPL_GenericRunCouplers (STATE, I, CLOCK, RC=STATUS );
-     VERIFY_(STATUS)
+    call ESMF_GridCompRun (GCS(I),               &
+         importState = GIM(I), &
+         exportState = GEX(I), &
+         clock       = CLOCK,  &
+         userRC      = STATUS  )
+    VERIFY_(STATUS)
     call MAPL_TimerOff(STATE,GCNames(I))
 
-! Emissions
-! NOTE: Should that be before dynamics? 
-!------------------
-
-    I=EMIS
-    write(*,*) 'Running Emissions (HEMCO)'
+    I=ADV
+    write(*,*) 'Running Dynamics GC'
     call MAPL_TimerOn (STATE,GCNames(I))
-     call ESMF_GridCompRun (GCS(I), importState=GIM(I), &
-          exportState=GEX(I), clock=CLOCK, userRC=STATUS );
-     VERIFY_(STATUS)
-     call MAPL_GenericRunCouplers (STATE, I, CLOCK, RC=STATUS );
-     VERIFY_(STATUS)
+    call ESMF_GridCompRun (GCS(I), importState=GIM(I), &
+         exportState=GEX(I), clock=CLOCK, userRC=STATUS );
+    VERIFY_(STATUS)
+    call MAPL_GenericRunCouplers (STATE, I, CLOCK, RC=STATUS );
+    VERIFY_(STATUS)
     call MAPL_TimerOff(STATE,GCNames(I))
 
 ! Aerosol/Chemistry
@@ -404,8 +470,33 @@ contains
      call MAPL_GenericRunCouplers (STATE, I, CLOCK, RC=STATUS );
      VERIFY_(STATUS)
     call MAPL_TimerOff(STATE,GCNames(I))
-
     write(*,*) 'Fin'
+
+!    Use the following for two-phase runs (in this case, two run phases must
+!    be defined in Chem_GridCompMod!).
+
+!    I=CHEM   
+!    write(*,*) 'Running Chemistry GC phase 1'
+!    call MAPL_TimerOn (STATE,GCNames(I))
+!     call ESMF_GridCompRun (GCS(I), importState=GIM(I), &
+!          exportState=GEX(I), clock=CLOCK, phase=1, userRC=STATUS );
+!     VERIFY_(STATUS)
+!     call MAPL_GenericRunCouplers (STATE, I, CLOCK, RC=STATUS );
+!     VERIFY_(STATUS)
+!    call MAPL_TimerOff(STATE,GCNames(I))
+!    write(*,*) 'Fin'
+!
+!    I=CHEM   
+!    write(*,*) 'Running Chemistry GC phase 2'
+!    call MAPL_TimerOn (STATE,GCNames(I))
+!     call ESMF_GridCompRun (GCS(I), importState=GIM(I), &
+!          exportState=GEX(I), clock=CLOCK, phase=2, userRC=STATUS );
+!     VERIFY_(STATUS)
+!     call MAPL_GenericRunCouplers (STATE, I, CLOCK, RC=STATUS );
+!     VERIFY_(STATUS)
+!    call MAPL_TimerOff(STATE,GCNames(I))
+!    write(*,*) 'Fin'
+
 ! Done With Sim
 !------------------
     call MAPL_TimerOff(STATE,"RUN")

@@ -1,7 +1,7 @@
-!  $Id: ESMF_Config_C.F90,v 1.13.4.1 2010/02/05 19:54:37 svasquez Exp $
+!  $Id: ESMF_Config_C.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2010, University Corporation for Atmospheric Research, 
+! Copyright 2002-2012, University Corporation for Atmospheric Research, 
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
 ! Laboratory, University of Michigan, National Centers for Environmental 
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
@@ -23,7 +23,7 @@
 !------------------------------------------------------------------------------
 ! The following line turns the CVS identifier string into a printable variable.
 !      character(*), parameter, private :: version = &
-!      '$Id: ESMF_Config_C.F90,v 1.13.4.1 2010/02/05 19:54:37 svasquez Exp $'
+!      '$Id: ESMF_Config_C.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $'
 !==============================================================================
 
 !------------------------------------------------------------------------------
@@ -31,6 +31,8 @@
      use ESMF_UtilTypesMod    ! ESMF base class
      use ESMF_BaseMod    ! ESMF base class
      use ESMF_ConfigMod
+
+     implicit none
 
      type(ESMF_Config) :: config
      integer, intent(out) :: rc              
@@ -50,6 +52,8 @@
      use ESMF_BaseMod    ! ESMF base class
      use ESMF_ConfigMod
 
+     implicit none
+
      type(ESMF_Config) :: config
      integer, intent(out) :: rc     
 
@@ -67,6 +71,8 @@
      use ESMF_UtilTypesMod    ! ESMF base class
      use ESMF_BaseMod    ! ESMF base class
      use ESMF_ConfigMod
+
+     implicit none
 
      type(ESMF_Config)               :: config
      character(len=*), intent(in)    :: filename
@@ -98,6 +104,8 @@
      use ESMF_BaseMod    ! ESMF base class
      use ESMF_ConfigMod
 
+     implicit none
+
      type(ESMF_Config)               :: config
      character(len=*), intent(in)    :: label
      integer, intent(out)            :: rc     
@@ -117,9 +125,11 @@
      use ESMF_BaseMod    ! ESMF base class
      use ESMF_ConfigMod
 
-     type(ESMF_Config), intent(inout)  :: config      
-     integer, intent(out)              :: tableEnd
-     integer, intent(out)              :: rc   
+     implicit none
+
+     type(ESMF_Config),  intent(inout) :: config      
+     type(ESMF_Logical), intent(out)   :: tableEnd
+     integer,            intent(out)   :: rc   
 
      logical :: ltableEnd
 
@@ -127,11 +137,7 @@
      rc = ESMF_RC_NOT_IMPL
 
      call ESMF_ConfigNextLine(config, tableEnd=ltableEnd, rc=rc)
-     if (ltableEnd) then
-       tableEnd = 1
-     else
-       tableEnd = 0
-     endif
+     tableEnd = ltableEnd
 
    end subroutine f_esmf_confignextline
 !------------------------------------------------------------------------------
@@ -142,6 +148,8 @@
 !    use ESMF_UtilTypesMod    ! ESMF base class
 !    use ESMF_BaseMod    ! ESMF base class
 !    use ESMF_ConfigMod
+
+!     implicit none
 
 !    type(ESMF_Config), intent(inout)       :: config 
 !    character, intent(inout)               :: value
@@ -164,6 +172,8 @@
      use ESMF_BaseMod    ! ESMF base class
      use ESMF_ConfigMod
 
+     implicit none
+
      type(ESMF_Config), intent(inout)       :: config
      integer, intent(out)                   :: wordCount
      character(len=*), intent(in)           :: label
@@ -182,6 +192,8 @@
      use ESMF_UtilTypesMod    ! ESMF base class
      use ESMF_BaseMod    ! ESMF base class
      use ESMF_ConfigMod
+
+     implicit none
 
      type(ESMF_Config), intent(inout)       :: config
      integer, intent(out)                   :: wordCount
@@ -202,6 +214,8 @@
      use ESMF_BaseMod    ! ESMF base class
      use ESMF_ConfigMod
 
+     implicit none
+
      type(ESMF_Config), intent(inout)       :: config
      integer, intent(out)                   :: lineCount
      integer, intent(out)                   :: columnCount
@@ -211,7 +225,7 @@
      ! Initialize return code; assume routine not implemented
      rc = ESMF_RC_NOT_IMPL
 
-     call ESMF_ConfigGetDim(config, lineCount, columnCount, label,  rc=rc)
+     call ESMF_ConfigGetDim(config, lineCount, columnCount, label=label,  rc=rc)
 
    end subroutine f_esmf_configgetdim
 !------------------------------------------------------------------------------
@@ -221,6 +235,8 @@
      use ESMF_UtilTypesMod    ! ESMF base class
      use ESMF_BaseMod    ! ESMF base class
      use ESMF_ConfigMod
+
+     implicit none
 
      type(ESMF_Config), intent(inout)       :: config
      integer, intent(out)                   :: lineCount
@@ -242,9 +258,11 @@
      use ESMF_BaseMod    ! ESMF base class
      use ESMF_ConfigMod
 
-      type(ESMF_Config), intent(inout)         :: config
-      character (len=*), intent(in)            :: options
-      integer, intent(out)                     :: rc
+     implicit none
+
+     type(ESMF_Config), intent(inout)         :: config
+     character (len=*), intent(in)            :: options
+     integer, intent(out)                     :: rc
 
      ! Initialize return code; assume routine not implemented
      rc = ESMF_RC_NOT_IMPL
@@ -260,8 +278,10 @@
      use ESMF_BaseMod    ! ESMF base class
      use ESMF_ConfigMod
 
-      type(ESMF_Config), intent(inout)         :: config
-      integer, intent(out)                     :: rc
+     implicit none
+
+     type(ESMF_Config), intent(inout)         :: config
+     integer, intent(out)                     :: rc
 
      ! Initialize return code; assume routine not implemented
      rc = ESMF_RC_NOT_IMPL
@@ -281,6 +301,8 @@
 !    use ESMF_UtilTypesMod    ! ESMF base class
 !    use ESMF_BaseMod    ! ESMF base class
 !    use ESMF_ConfigMod
+
+!    implicit none
 
 !    type(ESMF_Config)                      :: config
 !    character(len=*), intent(out)          :: value
@@ -303,6 +325,8 @@
 !    use ESMF_BaseMod    ! ESMF base class
 !    use ESMF_ConfigMod
 
+!    implicit none
+
 !    type(ESMF_Config)                            :: config
 !    integer(ESMF_KIND_I4), intent(out)           :: value
 !    character(len=*), intent(in), optional       :: label
@@ -323,6 +347,8 @@
 !    use ESMF_UtilTypesMod    ! ESMF base class
 !    use ESMF_BaseMod    ! ESMF base class
 !    use ESMF_ConfigMod
+
+!    implicit none
 
 !    type(ESMF_Config)                            :: config
 !    integer(ESMF_KIND_I8), intent(out)           :: value
@@ -345,6 +371,8 @@
 !    use ESMF_BaseMod    ! ESMF base class
 !    use ESMF_ConfigMod
 
+!    implicit none
+
 !    type(ESMF_Config)                         :: config
 !    real(ESMF_KIND_R4), intent(out)           :: value
 !    character(len=*), intent(in), optional    :: label
@@ -366,6 +394,8 @@
 !    use ESMF_BaseMod    ! ESMF base class
 !    use ESMF_ConfigMod
 
+!    implicit none
+
 !    type(ESMF_Config)                         :: config
 !    real(ESMF_KIND_R8), intent(out)           :: value
 !    character(len=*), intent(in), optional    :: label
@@ -386,6 +416,8 @@
 !    use ESMF_UtilTypesMod    ! ESMF base class
 !    use ESMF_BaseMod    ! ESMF base class
 !    use ESMF_ConfigMod
+
+!    implicit none
 
 !    type(ESMF_Config), intent(inout)             :: config
 !    integer, intent(inout)                       :: value
@@ -425,6 +457,8 @@
 !    use ESMF_BaseMod    ! ESMF base class
 !    use ESMF_ConfigMod
 
+!    implicit none
+
 !    type(ESMF_Config)                               :: config
 !    integer, intent(in)                             :: count   
 !    integer(ESMF_KIND_I4), intent(inout)            :: valueList(count) 
@@ -446,6 +480,8 @@
 !    use ESMF_UtilTypesMod    ! ESMF base class
 !    use ESMF_BaseMod    ! ESMF base class
 !    use ESMF_ConfigMod
+
+!    implicit none
 
 !    type(ESMF_Config)                               :: config
 !    integer, intent(in)                             :: count   
@@ -469,6 +505,8 @@
 !    use ESMF_BaseMod    ! ESMF base class
 !    use ESMF_ConfigMod
 
+!    implicit none
+
 !    type(ESMF_Config)                            :: config
 !    integer, intent(in)                          :: count   
 !    real(ESMF_KIND_R4), intent(inout)            :: valueList(count) 
@@ -491,6 +529,8 @@
 !    use ESMF_BaseMod    ! ESMF base class
 !    use ESMF_ConfigMod
 
+!    implicit none
+
 !    type(ESMF_Config)                            :: config
 !    integer, intent(in)                          :: count   
 !    real(ESMF_KIND_R8), intent(inout)            :: valueList(count) 
@@ -512,6 +552,8 @@
 !    use ESMF_UtilTypesMod    ! ESMF base class
 !    use ESMF_BaseMod    ! ESMF base class
 !    use ESMF_ConfigMod
+
+!    implicit none
 
 !    type(ESMF_Config), intent(inout)             :: config
 !    integer, intent(in)                          :: count

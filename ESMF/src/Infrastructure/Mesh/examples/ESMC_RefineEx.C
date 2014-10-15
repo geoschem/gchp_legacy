@@ -1,3 +1,15 @@
+// $Id: ESMC_RefineEx.C,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
+//==============================================================================
+//
+// Earth System Modeling Framework
+// Copyright 2002-2012, University Corporation for Atmospheric Research, 
+// Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
+// Laboratory, University of Michigan, National Centers for Environmental 
+// Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
+// NASA Goddard Space Flight Center.
+// Licensed under the University of Illinois-NCSA License.
+//
+//==============================================================================
 #include <ESMCI_Mesh.h>
 #include <ESMCI_MeshSkin.h>
 #include <ESMCI_ShapeFunc.h>
@@ -15,11 +27,14 @@
 #include <ESMCI_Rebalance.h>
 #include <ESMCI_MeshTypes.h>
 
+#include <mpi.h>
+
 #include <iterator>
 #include <ostream>
 #include <iostream>
 #include <stdexcept>
 #include <cmath>
+#include <cstdio>
 #include <mpi.h>
 
 /*
@@ -222,6 +237,8 @@ void test_adapt_wave_exec(HAdapt &hadapt, Mesh &mesh) {
 // Example Main.
 /*-------------------------------------------------------------------*/
 int main(int argc, char *argv[]) {
+  
+  MPI_Init(&argc, &argv);
 
   // Initialize mpi, logfiles
   Par::Init("REFOUT");

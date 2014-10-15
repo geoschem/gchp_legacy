@@ -1,4 +1,4 @@
-! $Id: ESMF_CompFortranAndCSTest.F90,v 1.18 2009/10/24 05:35:18 theurich Exp $
+! $Id$
 !
 !-------------------------------------------------------------------------
 !ESMF_SYSTEM_TEST        String used by test script to count system tests.
@@ -11,8 +11,8 @@
 ! Components that are implemented in different languages (Fortran and C).
 ! Two components are created by the driver code and their SetServices()
 ! are invoked.
-!  The rest of the code works on an Array within a specific State that is 
-!  on turns modified by one Component followed by the other Component 
+!  The rest of the code works on an Array within a specific State that is
+!  on turns modified by one Component followed by the other Component
 !  verifying those changes. In addition a Field object, created on a Mesh,
 !  is passed between the Components via a State. Specifically on,
 !
@@ -29,7 +29,7 @@
 !    the C Component, and then modifies it again before returning.
 !  --The Fortran Component access the Field object imported from the C Component
 !    via state2. It calls the Field's print method to verify correctness.
-!  --The C Component verifies the Array values just modifed by the Fortran 
+!  --The C Component verifies the Array values just modifed by the Fortran
 !    component and returns.
 !
 !  "Finalize section":
@@ -47,23 +47,23 @@ program ESMF_CompFortranAndC
 #include "ESMF.h"
 
   ! ESMF Framework module
-  use ESMF_Mod
+  use ESMF
   use ESMF_TestMod
   use ESMF_CompMod
-    
+
   use user_FortranComponent, only: mySetVMInFortran, mySetServicesInFortran
 
   implicit none
 
-  ! Explicit interface for 
-  interface 
+  ! Explicit interface for
+  interface
     subroutine my_SetServicesInC(gcomp, rc)
-      use ESMF_Mod
+      use ESMF
       type(ESMF_GridComp) :: gcomp
       integer, intent(out) :: rc
     end subroutine my_SetServicesInC
   end interface
-    
+
   ! Local variables
   integer :: localPet, localrc, rc=ESMF_SUCCESS, userrc
   type(ESMF_VM):: vm
@@ -71,7 +71,7 @@ program ESMF_CompFortranAndC
   type(ESMF_GridComp) :: compInC
   type(ESMF_State) :: state1, state2
   character(len=ESMF_MAXSTR) :: cname
-        
+
   ! Variables related to the Clock
   type(ESMF_Clock) :: clock
   type(ESMF_TimeInterval) :: timeStep
@@ -106,39 +106,39 @@ program ESMF_CompFortranAndC
 !-------------------------------------------------------------------------
 !-------------------------------------------------------------------------
 
-  call ESMF_Initialize(defaultCalendar=ESMF_CAL_GREGORIAN, &
+  call ESMF_Initialize(defaultCalKind=ESMF_CALKIND_GREGORIAN, &
     defaultlogfilename="CompFortranAndCSTest.Log", &
-    defaultlogtype=ESMF_LOG_MULTI, rc=localrc)
-  if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, &
+    logkindflag=ESMF_LOGKIND_MULTI, rc=localrc)
+  if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
     ESMF_CONTEXT, rcToReturn=rc)) &
-    call ESMF_Finalize(terminationflag=ESMF_ABORT)
+    call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
   ! Get the global VM
   call ESMF_VMGetGlobal(vm, rc=localrc)
-  if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, &
+  if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
     ESMF_CONTEXT, rcToReturn=rc)) &
-    call ESMF_Finalize(terminationflag=ESMF_ABORT)
+    call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
   ! Get our pet number for output print statements
   call ESMF_VMGet(vm, localPet=localPet, rc=localrc)
-  if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, &
+  if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
     ESMF_CONTEXT, rcToReturn=rc)) &
-    call ESMF_Finalize(terminationflag=ESMF_ABORT)
+    call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
   cname = "Fortran Component"
-  compInFortran = ESMF_GridCompCreate(name=cname, gridcompType=ESMF_ATM, &
+  compInFortran = ESMF_GridCompCreate(name=cname, &
     rc=localrc)
-  if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, &
+  if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
     ESMF_CONTEXT, rcToReturn=rc)) &
-    call ESMF_Finalize(terminationflag=ESMF_ABORT)
+    call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
   print *, "Comp Create (Fortran) finished, name = ", trim(cname)
 
   cname = "C Component"
-  compInC = ESMF_GridCompCreate(name=cname, gridcompType=ESMF_ATM, rc=localrc)
-  if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, &
+  compInC = ESMF_GridCompCreate(name=cname, rc=localrc)
+  if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
     ESMF_CONTEXT, rcToReturn=rc)) &
-    call ESMF_Finalize(terminationflag=ESMF_ABORT)
+    call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
   print *, "Comp Create (C) finished, name = ", trim(cname)
 
@@ -151,59 +151,59 @@ program ESMF_CompFortranAndC
   call ESMF_GridCompSetVM(compInFortran, userRoutine=mySetVMInFortran, &
     userRc=userrc, rc=localrc)
   print *, "CompInFortran SetVM finished, rc= ", localrc, userrc
-  if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, &
+  if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
     ESMF_CONTEXT, rcToReturn=rc)) &
-    call ESMF_Finalize(terminationflag=ESMF_ABORT)
-  if (ESMF_LogMsgFoundError(userrc, ESMF_ERR_PASSTHRU, &
+    call ESMF_Finalize(endflag=ESMF_END_ABORT)
+  if (ESMF_LogFoundError(userrc, ESMF_ERR_PASSTHRU, &
     ESMF_CONTEXT, rcToReturn=rc)) &
-    call ESMF_Finalize(terminationflag=ESMF_ABORT)
+    call ESMF_Finalize(endflag=ESMF_END_ABORT)
   call ESMF_GridCompSetServices(compInFortran, &
     userRoutine=mySetServicesInFortran, userRc=userrc, rc=localrc)
   print *, "CompInFortran SetServices finished, rc= ", localrc, userrc
-  if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, &
+  if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
     ESMF_CONTEXT, rcToReturn=rc)) &
-    call ESMF_Finalize(terminationflag=ESMF_ABORT)
-  if (ESMF_LogMsgFoundError(userrc, ESMF_ERR_PASSTHRU, &
+    call ESMF_Finalize(endflag=ESMF_END_ABORT)
+  if (ESMF_LogFoundError(userrc, ESMF_ERR_PASSTHRU, &
     ESMF_CONTEXT, rcToReturn=rc)) &
-    call ESMF_Finalize(terminationflag=ESMF_ABORT)
+    call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
   call ESMF_GridCompSetServices(compInC, userRoutine=my_SetServicesInC, &
     userRc=userrc, rc=localrc)
   print *, "CompInC SetServices finished, rc= ", localrc, userrc
-  if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, &
+  if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
     ESMF_CONTEXT, rcToReturn=rc)) &
-    call ESMF_Finalize(terminationflag=ESMF_ABORT)
-  if (ESMF_LogMsgFoundError(userrc, ESMF_ERR_PASSTHRU, &
+    call ESMF_Finalize(endflag=ESMF_END_ABORT)
+  if (ESMF_LogFoundError(userrc, ESMF_ERR_PASSTHRU, &
     ESMF_CONTEXT, rcToReturn=rc)) &
-    call ESMF_Finalize(terminationflag=ESMF_ABORT)
+    call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
 !------------------------------------------------------------------------------
 ! Create and initialize a Clock.
 !------------------------------------------------------------------------------
 
   call ESMF_TimeIntervalSet(timeStep, s=2, rc=localrc)
-  if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, &
+  if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
     ESMF_CONTEXT, rcToReturn=rc)) &
-    call ESMF_Finalize(terminationflag=ESMF_ABORT)
+    call ESMF_Finalize(endflag=ESMF_END_ABORT)
   print *, "Time Interval set"
 
   call ESMF_TimeSet(startTime, yy=2004, mm=9, dd=25, rc=localrc)
-  if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, &
+  if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
     ESMF_CONTEXT, rcToReturn=rc)) &
-    call ESMF_Finalize(terminationflag=ESMF_ABORT)
+    call ESMF_Finalize(endflag=ESMF_END_ABORT)
   print *, "Start Time set"
 
   call ESMF_TimeSet(stopTime, yy=2004, mm=9, dd=26, rc=localrc)
-  if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, &
+  if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
     ESMF_CONTEXT, rcToReturn=rc)) &
-    call ESMF_Finalize(terminationflag=ESMF_ABORT)
+    call ESMF_Finalize(endflag=ESMF_END_ABORT)
   print *, "Stop Time set"
 
-  clock = ESMF_ClockCreate("Application Clock", timeStep=timeStep, &
-    startTime=startTime, stopTime=stopTime, rc=localrc)
-  if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, &
+  clock = ESMF_ClockCreate(timeStep, startTime, stopTime=stopTime, &
+                           name="Application Clock", rc=localrc)
+  if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
     ESMF_CONTEXT, rcToReturn=rc)) &
-    call ESMF_Finalize(terminationflag=ESMF_ABORT)
+    call ESMF_Finalize(endflag=ESMF_END_ABORT)
   print *, "Clock created"
 
 !-------------------------------------------------------------------------
@@ -211,37 +211,39 @@ program ESMF_CompFortranAndC
 ! Init section
 !-------------------------------------------------------------------------
 !-------------------------------------------------------------------------
- 
-  state1 = ESMF_StateCreate("igrid import state", ESMF_STATE_IMPORT, rc=localrc)
-  if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, &
+
+  state1 = ESMF_StateCreate(name="igrid import state",  &
+                            stateintent=ESMF_STATEINTENT_IMPORT, rc=localrc)
+  if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
     ESMF_CONTEXT, rcToReturn=rc)) &
-    call ESMF_Finalize(terminationflag=ESMF_ABORT)
-    
-  state2 = ESMF_StateCreate("igrid export state", ESMF_STATE_EXPORT, rc=localrc)
-  if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, &
+    call ESMF_Finalize(endflag=ESMF_END_ABORT)
+
+  state2 = ESMF_StateCreate(name="igrid export state",  &
+                            stateintent=ESMF_STATEINTENT_EXPORT, rc=localrc)
+  if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
     ESMF_CONTEXT, rcToReturn=rc)) &
-    call ESMF_Finalize(terminationflag=ESMF_ABORT)
+    call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
   call ESMF_GridCompInitialize(compInFortran, importState=state1, &
     exportState=state2, clock=clock, userRc=userrc, rc=localrc)
   print *, "CompInFortran Initialize returned, rc=", localrc, userrc
-  if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, &
+  if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
     ESMF_CONTEXT, rcToReturn=rc)) &
-    call ESMF_Finalize(terminationflag=ESMF_ABORT)
-  if (ESMF_LogMsgFoundError(userrc, ESMF_ERR_PASSTHRU, &
+    call ESMF_Finalize(endflag=ESMF_END_ABORT)
+  if (ESMF_LogFoundError(userrc, ESMF_ERR_PASSTHRU, &
     ESMF_CONTEXT, rcToReturn=rc)) &
-    call ESMF_Finalize(terminationflag=ESMF_ABORT)
- 
+    call ESMF_Finalize(endflag=ESMF_END_ABORT)
+
   call ESMF_GridCompInitialize(compInC, importState=state2, &
     exportState=state1, clock=clock, userRc=userrc, rc=localrc)
   print *, "CompInC Initialize returned, rc=", localrc, userrc
-  if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, &
+  if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
     ESMF_CONTEXT, rcToReturn=rc)) &
-    call ESMF_Finalize(terminationflag=ESMF_ABORT)
-  if (ESMF_LogMsgFoundError(userrc, ESMF_ERR_PASSTHRU, &
+    call ESMF_Finalize(endflag=ESMF_END_ABORT)
+  if (ESMF_LogFoundError(userrc, ESMF_ERR_PASSTHRU, &
     ESMF_CONTEXT, rcToReturn=rc)) &
-    call ESMF_Finalize(terminationflag=ESMF_ABORT)
- 
+    call ESMF_Finalize(endflag=ESMF_END_ABORT)
+
 !-------------------------------------------------------------------------
 !-------------------------------------------------------------------------
 ! Run section
@@ -251,22 +253,22 @@ program ESMF_CompFortranAndC
   call ESMF_GridCompRun(compInFortran, importState=state1, &
     exportState=state2, clock=clock, userRc=userrc, rc=localrc)
   print *, "CompInFortran Run returned, rc=", localrc, userrc
-  if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, &
+  if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
     ESMF_CONTEXT, rcToReturn=rc)) &
-    call ESMF_Finalize(terminationflag=ESMF_ABORT)
-  if (ESMF_LogMsgFoundError(userrc, ESMF_ERR_PASSTHRU, &
+    call ESMF_Finalize(endflag=ESMF_END_ABORT)
+  if (ESMF_LogFoundError(userrc, ESMF_ERR_PASSTHRU, &
     ESMF_CONTEXT, rcToReturn=rc)) &
-    call ESMF_Finalize(terminationflag=ESMF_ABORT)
-    
+    call ESMF_Finalize(endflag=ESMF_END_ABORT)
+
   call ESMF_GridCompRun(compInC, importState=state2, &
     exportState=state1, clock=clock, userRc=userrc, rc=localrc)
   print *, "CompInC Run returned, rc=", localrc, userrc
-  if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, &
+  if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
     ESMF_CONTEXT, rcToReturn=rc)) &
-    call ESMF_Finalize(terminationflag=ESMF_ABORT)
-  if (ESMF_LogMsgFoundError(userrc, ESMF_ERR_PASSTHRU, &
+    call ESMF_Finalize(endflag=ESMF_END_ABORT)
+  if (ESMF_LogFoundError(userrc, ESMF_ERR_PASSTHRU, &
     ESMF_CONTEXT, rcToReturn=rc)) &
-    call ESMF_Finalize(terminationflag=ESMF_ABORT)
+    call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
 !-------------------------------------------------------------------------
 !-------------------------------------------------------------------------
@@ -277,22 +279,22 @@ program ESMF_CompFortranAndC
   call ESMF_GridCompFinalize(compInFortran, importState=state1, &
     exportState=state2, clock=clock, userRc=userrc, rc=localrc)
   print *, "CompInFortran Finalize returned, rc=", localrc, userrc
-  if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, &
+  if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
     ESMF_CONTEXT, rcToReturn=rc)) &
-    call ESMF_Finalize(terminationflag=ESMF_ABORT)
-  if (ESMF_LogMsgFoundError(userrc, ESMF_ERR_PASSTHRU, &
+    call ESMF_Finalize(endflag=ESMF_END_ABORT)
+  if (ESMF_LogFoundError(userrc, ESMF_ERR_PASSTHRU, &
     ESMF_CONTEXT, rcToReturn=rc)) &
-    call ESMF_Finalize(terminationflag=ESMF_ABORT)
-    
+    call ESMF_Finalize(endflag=ESMF_END_ABORT)
+
   call ESMF_GridCompFinalize(compInC, importState=state2, &
     exportState=state1, clock=clock, userRc=userrc, rc=localrc)
   print *, "CompInC Finalize returned, rc=", localrc, userrc
-  if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, &
+  if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
     ESMF_CONTEXT, rcToReturn=rc)) &
-    call ESMF_Finalize(terminationflag=ESMF_ABORT)
-  if (ESMF_LogMsgFoundError(userrc, ESMF_ERR_PASSTHRU, &
+    call ESMF_Finalize(endflag=ESMF_END_ABORT)
+  if (ESMF_LogFoundError(userrc, ESMF_ERR_PASSTHRU, &
     ESMF_CONTEXT, rcToReturn=rc)) &
-    call ESMF_Finalize(terminationflag=ESMF_ABORT)
+    call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
 !-------------------------------------------------------------------------
 !-------------------------------------------------------------------------
@@ -301,29 +303,29 @@ program ESMF_CompFortranAndC
 !-------------------------------------------------------------------------
 
   call ESMF_GridCompDestroy(compInFortran, rc=localrc)
-  if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, &
+  if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
     ESMF_CONTEXT, rcToReturn=rc)) &
-    call ESMF_Finalize(terminationflag=ESMF_ABORT)
+    call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
   call ESMF_GridCompDestroy(compInC, rc=localrc)
-  if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, &
+  if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
     ESMF_CONTEXT, rcToReturn=rc)) &
-    call ESMF_Finalize(terminationflag=ESMF_ABORT)
+    call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
   call ESMF_StateDestroy(state1, rc=localrc)
-  if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, &
+  if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
     ESMF_CONTEXT, rcToReturn=rc)) &
-    call ESMF_Finalize(terminationflag=ESMF_ABORT)
+    call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
   call ESMF_StateDestroy(state2, rc=localrc)
-  if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, &
+  if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
     ESMF_CONTEXT, rcToReturn=rc)) &
-    call ESMF_Finalize(terminationflag=ESMF_ABORT)
+    call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
   call ESMF_ClockDestroy(clock, rc=localrc)
-  if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, &
+  if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
     ESMF_CONTEXT, rcToReturn=rc)) &
-    call ESMF_Finalize(terminationflag=ESMF_ABORT)
+    call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
   print *, "All Destroy routines done"
 
@@ -343,7 +345,7 @@ program ESMF_CompFortranAndC
     write(0, *) trim(finalMsg)
     write(0, *) ""
   endif
-  
+
   print *, "------------------------------------------------------------"
   print *, "------------------------------------------------------------"
   print *, "Test finished, localPet = ", localPet
@@ -357,6 +359,6 @@ program ESMF_CompFortranAndC
   call ESMF_Finalize()
 
 end program ESMF_CompFortranAndC
-    
+
 !\end{verbatim}
-    
+

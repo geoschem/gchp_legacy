@@ -1,4 +1,4 @@
-! $Id: user_model2.F90,v 1.10 2009/09/29 16:53:07 feiliu Exp $
+! $Id$
 !
 ! System test for Concurrent Components, user-written component 2.
 
@@ -18,7 +18,7 @@
 
     ! ESMF Framework module
     use ESMF_TestMod
-    use ESMF_Mod
+    use ESMF
 
     implicit none
     
@@ -73,18 +73,18 @@
 
         ! Register the callback routines.
 
-        call ESMF_GridCompSetEntryPoint(comp, ESMF_SETINIT, &
+        call ESMF_GridCompSetEntryPoint(comp, ESMF_METHOD_INITIALIZE, &
           userRoutine=user_init, rc=status)
-        if (ESMF_LogMsgFoundError(status, ESMF_ERR_PASSTHRU, &
-            ESMF_CONTEXT, rc)) return
-        call ESMF_GridCompSetEntryPoint(comp, ESMF_SETRUN, &
+        if (ESMF_LogFoundError(status, ESMF_ERR_PASSTHRU, &
+            ESMF_CONTEXT, rcToReturn=rc)) return
+        call ESMF_GridCompSetEntryPoint(comp, ESMF_METHOD_RUN, &
           userRoutine=user_run, rc=status)
-        if (ESMF_LogMsgFoundError(status, ESMF_ERR_PASSTHRU, &
-            ESMF_CONTEXT, rc)) return
-        call ESMF_GridCompSetEntryPoint(comp, ESMF_SETFINAL, &
+        if (ESMF_LogFoundError(status, ESMF_ERR_PASSTHRU, &
+            ESMF_CONTEXT, rcToReturn=rc)) return
+        call ESMF_GridCompSetEntryPoint(comp, ESMF_METHOD_FINALIZE, &
           userRoutine=user_final, rc=status)
-        if (ESMF_LogMsgFoundError(status, ESMF_ERR_PASSTHRU, &
-            ESMF_CONTEXT, rc)) return
+        if (ESMF_LogFoundError(status, ESMF_ERR_PASSTHRU, &
+            ESMF_CONTEXT, rcToReturn=rc)) return
 
         !print *, "Registered Initialize, Run, and Finalize routines"
 
@@ -117,34 +117,34 @@
         print *, "In user 2 init routine"
         ! Determine petCount
         call ESMF_GridCompGet(comp, vm=vm, rc=status)
-        if (ESMF_LogMsgFoundError(status, ESMF_ERR_PASSTHRU, &
-            ESMF_CONTEXT, rc)) return
+        if (ESMF_LogFoundError(status, ESMF_ERR_PASSTHRU, &
+            ESMF_CONTEXT, rcToReturn=rc)) return
         call ESMF_VMGet(vm, petCount=petCount, rc=status)
-        if (ESMF_LogMsgFoundError(status, ESMF_ERR_PASSTHRU, &
-            ESMF_CONTEXT, rc)) return
+        if (ESMF_LogFoundError(status, ESMF_ERR_PASSTHRU, &
+            ESMF_CONTEXT, rcToReturn=rc)) return
 
         distgrid = ESMF_DistGridCreate(minIndex=(/1/), maxIndex=(/9/), &
             regDecomp=(/petCount/), rc=status)
-        if (ESMF_LogMsgFoundError(status, ESMF_ERR_PASSTHRU, &
-            ESMF_CONTEXT, rc)) return
+        if (ESMF_LogFoundError(status, ESMF_ERR_PASSTHRU, &
+            ESMF_CONTEXT, rcToReturn=rc)) return
 
         grid = ESMF_GridCreate(distgrid=distgrid, &
             gridEdgeLWidth=(/0/), gridEdgeUWidth=(/0/), &
             name="grid", indexflag=ESMF_INDEX_GLOBAL, rc=status)
-        if (ESMF_LogMsgFoundError(status, ESMF_ERR_PASSTHRU, &
-            ESMF_CONTEXT, rc)) return
+        if (ESMF_LogFoundError(status, ESMF_ERR_PASSTHRU, &
+            ESMF_CONTEXT, rcToReturn=rc)) return
 
         call ESMF_ArraySpecSet(arrayspec, 1, ESMF_TYPEKIND_I4, rc=status)
-        if (ESMF_LogMsgFoundError(status, ESMF_ERR_PASSTHRU, &
-            ESMF_CONTEXT, rc)) return
+        if (ESMF_LogFoundError(status, ESMF_ERR_PASSTHRU, &
+            ESMF_CONTEXT, rcToReturn=rc)) return
   
         sorted_data = ESMF_FieldCreate(arrayspec=arrayspec, &
             grid=grid, name="sorted_data2", rc=status)
-        if (ESMF_LogMsgFoundError(status, ESMF_ERR_PASSTHRU, &
-            ESMF_CONTEXT, rc)) return
-        call ESMF_StateAdd(importState, sorted_data, rc=status)
-        if (ESMF_LogMsgFoundError(status, ESMF_ERR_PASSTHRU, &
-            ESMF_CONTEXT, rc)) return
+        if (ESMF_LogFoundError(status, ESMF_ERR_PASSTHRU, &
+            ESMF_CONTEXT, rcToReturn=rc)) return
+        call ESMF_StateAdd(importState, (/sorted_data/), rc=status)
+        if (ESMF_LogFoundError(status, ESMF_ERR_PASSTHRU, &
+            ESMF_CONTEXT, rcToReturn=rc)) return
 
         rc = status
   
@@ -173,11 +173,11 @@
 
         print *, "In user 2 run routine"
         call ESMF_StateGet(importState, "sorted_data2", sorted_data, rc=status)
-        if (ESMF_LogMsgFoundError(status, ESMF_ERR_PASSTHRU, &
-            ESMF_CONTEXT, rc)) return
+        if (ESMF_LogFoundError(status, ESMF_ERR_PASSTHRU, &
+            ESMF_CONTEXT, rcToReturn=rc)) return
         call ESMF_FieldGet(sorted_data, localDe=0, farrayPtr=sdptr, rc=status)
-        if (ESMF_LogMsgFoundError(status, ESMF_ERR_PASSTHRU, &
-            ESMF_CONTEXT, rc)) return
+        if (ESMF_LogFoundError(status, ESMF_ERR_PASSTHRU, &
+            ESMF_CONTEXT, rcToReturn=rc)) return
         
         ! sort local data
         rdptr => d
@@ -215,27 +215,27 @@
         print *, "In user 2 final routine"
   
         call ESMF_StateGet(importState, "sorted_data2", sorted_data, rc=status)
-        if (ESMF_LogMsgFoundError(status, ESMF_ERR_PASSTHRU, &
-            ESMF_CONTEXT, rc)) return
+        if (ESMF_LogFoundError(status, ESMF_ERR_PASSTHRU, &
+            ESMF_CONTEXT, rcToReturn=rc)) return
 
         call ESMF_FieldGet(sorted_data, grid=grid, rc=status)
-        if (ESMF_LogMsgFoundError(status, ESMF_ERR_PASSTHRU, &
-            ESMF_CONTEXT, rc)) return
+        if (ESMF_LogFoundError(status, ESMF_ERR_PASSTHRU, &
+            ESMF_CONTEXT, rcToReturn=rc)) return
 
         call ESMF_GridGet(grid, distgrid=distgrid, rc=status)
-        if (ESMF_LogMsgFoundError(status, ESMF_ERR_PASSTHRU, &
-            ESMF_CONTEXT, rc)) return
+        if (ESMF_LogFoundError(status, ESMF_ERR_PASSTHRU, &
+            ESMF_CONTEXT, rcToReturn=rc)) return
 
         ! destroy the objects
         call ESMF_FieldDestroy(sorted_data, rc=status)
-        if (ESMF_LogMsgFoundError(status, ESMF_ERR_PASSTHRU, &
-            ESMF_CONTEXT, rc)) return
+        if (ESMF_LogFoundError(status, ESMF_ERR_PASSTHRU, &
+            ESMF_CONTEXT, rcToReturn=rc)) return
         call ESMF_GridDestroy(grid, rc=status)
-        if (ESMF_LogMsgFoundError(status, ESMF_ERR_PASSTHRU, &
-            ESMF_CONTEXT, rc)) return
+        if (ESMF_LogFoundError(status, ESMF_ERR_PASSTHRU, &
+            ESMF_CONTEXT, rcToReturn=rc)) return
         call ESMF_DistGridDestroy(distgrid, rc=status)
-        if (ESMF_LogMsgFoundError(status, ESMF_ERR_PASSTHRU, &
-            ESMF_CONTEXT, rc)) return
+        if (ESMF_LogFoundError(status, ESMF_ERR_PASSTHRU, &
+            ESMF_CONTEXT, rcToReturn=rc)) return
         
         rc = status
    

@@ -1,20 +1,30 @@
-// $Id: ESMC_Macros.h,v 1.30.2.5 2010/05/03 13:54:45 theurich Exp $
+// $Id: ESMC_Macros.h,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
 //
 // Earth System Modeling Framework
-// Copyright 2002-2010, University Corporation for Atmospheric Research,
+// Copyright 2002-2012, University Corporation for Atmospheric Research,
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 // Laboratory, University of Michigan, National Centers for Environmental
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
 // NASA Goddard Space Flight Center.
 // Licensed under the University of Illinois-NCSA License.
+//-----------------------------------------------------------------------------
 
-// Public prototypes and constants for the ESMF C++ interface
+//-----------------------------------------------------------------------------
+// This file is part of the pure C public ESMC API
+//-----------------------------------------------------------------------------
+
+//-------------------------------------------------------------------------
+// (all lines below between the !BOP and !EOP markers will be included in
+//  the automated document processing.)
+//-------------------------------------------------------------------------
+// these lines prevent this file from being read more than once if it
+// ends up being included multiple times
 
 #ifndef ESMC_MACROS_H
 #define ESMC_MACROS_H
 
-//BOP
 // -------------------------------------------------------------------------
+//BOPI
 // 
 //  !DESCRIPTION:
 // 
@@ -23,35 +33,31 @@
 //  (all lines below between the !BOP and !EOP markers will be included in
 //   the automated document processing.)
 // 
+//EOPI
 // -------------------------------------------------------------------------
-//EOP
 
-// These MUST stay in sync with the constants defined in ESMF_Base.F90
-// in the Infrastructure/Base/interface directory.
+// These macros MUST stay in sync with the constants defined in
+// src/Infrastructure/Util/src/ESMF_UtilTypes.F90
 
 #define ESMF_SUCCESS  0
 #define ESMF_FAILURE -1
 
 #define ESMF_MAXSTR 128
 #define ESMF_MAXDIM 7
-#define ESMF_MAXDECOMPDIM 3
 #define ESMF_MAXIGRIDDIM 3
 // TODO:FIELDINTEGRATION: Remove the MAXIGRIDDIM and increase the 
 // number of MAXGRIDDIM to 7.
 #define ESMF_MAXGRIDDIM 3
 
-#if 0
-// this is now in ESMF_Macros.inc
-#define ESMF_SRCLINE __FILE__, __LINE__
-#endif
 
+#define ESMF_VERSION_MAJOR        5
+#define ESMF_VERSION_MINOR        2
+#define ESMF_VERSION_REVISION     0
+#define ESMF_VERSION_PATCHLEVEL   2
+#define ESMF_VERSION_PUBLIC       'T'
+#define ESMF_VERSION_BETASNAPSHOT 'F'
 
-#define ESMF_MAJOR_VERSION 4
-#define ESMF_MINOR_VERSION 0
-#define ESMF_REVISION      0
-#define ESMF_PATCHLEVEL    2
-
-#define ESMF_VERSION_STRING "4.0.0rp2"
+#define ESMF_VERSION_STRING "5.2.0rp2"
 
 #endif   // ESMC_MACROS_H
 

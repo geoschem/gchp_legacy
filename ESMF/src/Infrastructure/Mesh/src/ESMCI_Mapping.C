@@ -1,6 +1,7 @@
+// $Id$
 //
 // Earth System Modeling Framework
-// Copyright 2002-2010, University Corporation for Atmospheric Research, 
+// Copyright 2002-2012, University Corporation for Atmospheric Research, 
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
 // Laboratory, University of Michigan, National Centers for Environmental 
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
@@ -13,10 +14,17 @@
 #include <Mesh/include/ESMCI_ParEnv.h>
 #include <iostream>
 #include <limits>
+#include <Mesh/include/ESMCI_MathUtil.h>
 
 #include <Mesh/include/sacado/Sacado.hpp>
 
 #include <Mesh/include/ESMCI_Exception.h>
+
+//-----------------------------------------------------------------------------
+// leave the following line as-is; it will insert the cvs ident string
+// into the object file for tracking purposes.
+static const char *const version = "$Id$";
+//-----------------------------------------------------------------------------
 
 namespace ESMCI {
 
@@ -81,12 +89,120 @@ bool POLY_Mapping<SFUNC_TYPE,MPTRAITS,2,1>::is_in_cell(const double *mdata,
   Throw() << "is_in_cell not implemented for 2,1";
 }
 
+
+
 template<class SFUNC_TYPE,typename MPTRAITS>
 bool POLY_Mapping<SFUNC_TYPE,MPTRAITS,3,2>::is_in_cell(const double *mdata,
                              const double *point,
                              double *pcoord,
                              double *dist) const
 {
+
+  // The maximum number of points we expect to see in a polygon in here, plus a bit extra
+#define PM_MAX_PNTS_IN_POLY 6
+
+
+  // Eventually need to reorganize mapping/shape_func system
+  // so that the switch to different mapping types happens
+  // automatically (perhaps via a curved set of shapes as suggested
+  // by Ryan).
+
+  // translate into polygon
+  int num_pnts;
+  double pnts[3*PM_MAX_PNTS_IN_POLY];
+  if (SFUNC_TYPE::ndofs==3) {
+    num_pnts=3;
+    pnts[0]=mdata[0]; pnts[1]=mdata[1]; pnts[2]=mdata[2];
+    pnts[3]=mdata[3]; pnts[4]=mdata[4]; pnts[5]=mdata[5];
+    pnts[6]=mdata[6]; pnts[7]=mdata[7]; pnts[8]=mdata[8];
+  } else if (SFUNC_TYPE::ndofs==4) {
+    num_pnts=4;
+    pnts[0]=mdata[0]; pnts[1]=mdata[1]; pnts[2]=mdata[2];
+    pnts[3]=mdata[3]; pnts[4]=mdata[4]; pnts[5]=mdata[5];
+    pnts[6]=mdata[6]; pnts[7]=mdata[7]; pnts[8]=mdata[8];
+    pnts[9]=mdata[9]; pnts[10]=mdata[10]; pnts[11]=mdata[11];
+  } else {
+    Throw() << " only polygons with 3 or 4 sides are currently supported with 2 parametric dimensions";
+  }
+
+  // Get rid of degenerate edges
+  remove_0len_edges3D(&num_pnts, pnts);
+
+  // Get the parameters particular to what it looks like
+  if (num_pnts==4) {
+    double center[3]={0.0,0.0,0.0}; // center of sphere
+    double p[2]; 
+    double t;
+    
+    // Intersect quad with line from point to center of sphere
+    if (!intersect_quad_with_line(pnts, point, center, p, &t)) {
+      if (dist) *dist = std::numeric_limits<double>::max();
+      pcoord[0]=0.0; pcoord[1]=0.0;
+      Throw() << "Can't map point to quadrilateral cell \n";
+      return false;
+    }
+    
+    // Transform quad parametric coords from [0,1] to [-1,1] for consistancy
+    pcoord[0]=2*p[0]-1.0;
+    pcoord[1]=2*p[1]-1.0;
+    
+    // do is in
+    double sdist;
+    bool in_quad = quad_shape_func::is_in(pcoord, &sdist);
+    
+    // Distance to quad
+    if (dist) *dist=sdist;
+    
+    return in_quad;
+  } else if (num_pnts==3) {
+    double center[3]={0.0,0.0,0.0}; // center of sphere
+    double p[2]; 
+    double t;
+
+    // Intersect tri with line from point to center of sphere
+    if (!intersect_tri_with_line(pnts, point, center, p, &t)) {
+      if (dist) *dist = std::numeric_limits<double>::max();
+      Throw() << "Can't map point to triangle cell \n";
+      pcoord[0]=0.0; pcoord[1]=0.0;
+      return false;
+    }
+
+    // Don't need to transform tri parametric coords because tri shape func seems to use [0,1], but
+    // put into pcoord 
+    pcoord[0]=p[0];
+    pcoord[1]=p[1];
+
+    // do is in
+    double sdist;
+    bool in_tri = tri_shape_func::is_in(pcoord, &sdist);
+
+    // Distance to tri
+    if (dist) *dist=2.0*sdist;
+
+    return in_tri;
+  } else {
+    // This is a degenerate cell so we can't map to it. 
+    // Could throw an error here, but for flexiblity allow
+    // these degenerate cells for now, but simply don't map to them. 
+    return false;
+  }
+
+
+#undef PM_MAX_PNTS_IN_POLY
+}
+
+
+#if 0
+// Original
+
+template<class SFUNC_TYPE,typename MPTRAITS>
+bool POLY_Mapping<SFUNC_TYPE,MPTRAITS,3,2>::is_in_cell(const double *mdata,
+                             const double *point,
+                             double *pcoord,
+                             double *dist) const
+{
+
+
 //std::cout << "in 3 2 is_in_cell" << std::endl;
   // Newton's method
   const double ctol = 1e-11;
@@ -209,6 +325,7 @@ std::cout << std::endl;
   if(dist) *dist += sdist;
   return resu;
 }
+#endif
 
 template<class SFUNC_TYPE,typename MPTRAITS,int SPATIAL_DIM, int PARAMETRIC_DIM>
 bool POLY_Mapping<SFUNC_TYPE,MPTRAITS,SPATIAL_DIM,PARAMETRIC_DIM>::is_in_cell(const double *mdata,

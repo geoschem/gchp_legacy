@@ -1,5 +1,5 @@
 #!/usr/bin/env perl
-# $Id: do_st_results.pl,v 1.12 2008/04/22 18:01:22 theurich Exp $
+# $Id: do_st_results.pl,v 1.1.5.1 2013-01-11 20:23:43 mathomp4 Exp $
 # This script runs at the end of the system tests and "check_results" targets.
 # The purpose is to give the user the results of running the system tests.
 # The script calls sys_tests_results with the summary option turned off,

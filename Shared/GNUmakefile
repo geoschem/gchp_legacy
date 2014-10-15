@@ -38,10 +38,15 @@ esma_help :
 #                  --------------------------------
 
 ALLDIRS = arpack pnagpack \
+	  GFDL_fms \
+	  GMAO_gfio \
+	  GMAO_hermes \
 	  GMAO_mpeu \
 	  GMAO_pilgrim \
           MAPL_cfio \
-          MAPL_Base 
+          MAPL_Base \
+	  GEOS_Shared \
+	  GEOS_Util
 
 SUBDIRS = $(wildcard $(ALLDIRS) )
 

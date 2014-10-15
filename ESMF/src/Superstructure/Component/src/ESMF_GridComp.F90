@@ -1,7 +1,7 @@
-! $Id: ESMF_GridComp.F90,v 1.131.2.1 2010/02/05 20:04:19 svasquez Exp $
+! $Id: ESMF_GridComp.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2010, University Corporation for Atmospheric Research, 
+! Copyright 2002-2012, University Corporation for Atmospheric Research, 
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
 ! Laboratory, University of Michigan, National Centers for Environmental 
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
@@ -37,7 +37,7 @@ module ESMF_GridCompMod
 ! !USES:
   use ESMF_UtilTypesMod
   use ESMF_LogErrMod
-  use ESMF_IOSpecMod
+  use ESMF_BaseMod
   use ESMF_VMMod
   use ESMF_ConfigMod
   use ESMF_ClockTypeMod
@@ -47,6 +47,7 @@ module ESMF_GridCompMod
   use ESMF_GridMod
   use ESMF_CompMod
   use ESMF_InitMacrosMod
+  use ESMF_IOUtilMod
 
   implicit none
 
@@ -58,15 +59,22 @@ module ESMF_GridCompMod
 ! !PUBLIC MEMBER FUNCTIONS:
 
 ! - ESMF-public methods:
+  public operator(==)
+  public operator(/=)
+
   public ESMF_GridCompCreate
   public ESMF_GridCompDestroy
   public ESMF_GridCompFinalize
+  public ESMF_GridCompFinalizeAct
   public ESMF_GridCompGet
+  public ESMF_GridCompGetEPPhaseCount
   public ESMF_GridCompInitialize
+  public ESMF_GridCompInitializeAct
   public ESMF_GridCompIsPetLocal
   public ESMF_GridCompPrint
   public ESMF_GridCompReadRestart
   public ESMF_GridCompRun
+  public ESMF_GridCompRunAct
   public ESMF_GridCompSet
   public ESMF_GridCompSetEntryPoint
   public ESMF_GridCompSetServices
@@ -77,7 +85,7 @@ module ESMF_GridCompMod
   public ESMF_GridCompValidate
   public ESMF_GridCompWait
   public ESMF_GridCompWriteRestart
-
+  
 ! - ESMF-internal methods:
   public ESMF_GridCompGetInit
 
@@ -86,7 +94,7 @@ module ESMF_GridCompMod
 !------------------------------------------------------------------------------
 ! The following line turns the CVS identifier string into a printable variable.
   character(*), parameter, private :: version = &
-    '$Id: ESMF_GridComp.F90,v 1.131.2.1 2010/02/05 20:04:19 svasquez Exp $'
+    '$Id: ESMF_GridComp.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $'
 
 !==============================================================================
 !
@@ -108,6 +116,132 @@ module ESMF_GridCompMod
   end interface
 !------------------------------------------------------------------------------
 
+!===============================================================================
+! GridCompOperator() interfaces
+!===============================================================================
+
+! -------------------------- ESMF-public method -------------------------------
+!BOP
+! !IROUTINE: ESMF_GridCompAssignment(=) - GridComp assignment
+!
+! !INTERFACE:
+!   interface assignment(=)
+!   gridcomp1 = gridcomp2
+!
+! !ARGUMENTS:
+!   type(ESMF_GridComp) :: gridcomp1
+!   type(ESMF_GridComp) :: gridcomp2
+!
+! !STATUS:
+! \begin{itemize}
+! \item\apiStatusCompatibleVersion{5.2.0r}
+! \end{itemize}
+!
+! !DESCRIPTION:
+!   Assign gridcomp1 as an alias to the same ESMF GridComp object in memory
+!   as gridcomp2. If gridcomp2 is invalid, then gridcomp1 will be equally invalid after
+!   the assignment.
+!
+!   The arguments are:
+!   \begin{description}
+!   \item[gridcomp1]
+!     The {\tt ESMF\_GridComp} object on the left hand side of the assignment.
+!   \item[gridcomp2]
+!     The {\tt ESMF\_GridComp} object on the right hand side of the assignment.
+!   \end{description}
+!
+!EOP
+!------------------------------------------------------------------------------
+
+
+! -------------------------- ESMF-public method -------------------------------
+!BOP
+! !IROUTINE: ESMF_GridCompOperator(==) - GridComp equality operator
+!
+! !INTERFACE:
+  interface operator(==)
+!   if (gridcomp1 == gridcomp2) then ... endif
+!             OR
+!   result = (gridcomp1 == gridcomp2)
+! !RETURN VALUE:
+!   logical :: result
+!
+! !ARGUMENTS:
+!   type(ESMF_GridComp), intent(in) :: gridcomp1
+!   type(ESMF_GridComp), intent(in) :: gridcomp2
+!
+! !STATUS:
+! \begin{itemize}
+! \item\apiStatusCompatibleVersion{5.2.0r}
+! \end{itemize}
+!
+! !DESCRIPTION:
+!   Test whether gridcomp1 and gridcomp2 are valid aliases to the same ESMF
+!   GridComp object in memory. For a more general comparison of two ESMF GridComps,
+!   going beyond the simple alias test, the ESMF\_GridCompMatch() function (not yet
+!   implemented) must be used.
+!
+!   The arguments are:
+!   \begin{description}
+!   \item[gridcomp1]
+!     The {\tt ESMF\_GridComp} object on the left hand side of the equality
+!     operation.
+!   \item[gridcomp2]
+!     The {\tt ESMF\_GridComp} object on the right hand side of the equality
+!     operation.
+!   \end{description}
+!
+!EOP
+    module procedure ESMF_GridCompEQ
+
+  end interface
+!------------------------------------------------------------------------------
+
+
+! -------------------------- ESMF-public method -------------------------------
+!BOP
+! !IROUTINE: ESMF_GridCompOperator(/=) - GridComp not equal operator
+!
+! !INTERFACE:
+  interface operator(/=)
+!   if (gridcomp1 /= gridcomp2) then ... endif
+!             OR
+!   result = (gridcomp1 /= gridcomp2)
+! !RETURN VALUE:
+!   logical :: result
+!
+! !ARGUMENTS:
+!   type(ESMF_GridComp), intent(in) :: gridcomp1
+!   type(ESMF_GridComp), intent(in) :: gridcomp2
+!
+! !STATUS:
+! \begin{itemize}
+! \item\apiStatusCompatibleVersion{5.2.0r}
+! \end{itemize}
+!
+! !DESCRIPTION:
+!   Test whether gridcomp1 and gridcomp2 are {\it not} valid aliases to the
+!   same ESMF GridComp object in memory. For a more general comparison of two ESMF
+!   GridComps, going beyond the simple alias test, the ESMF\_GridCompMatch() function
+!   (not yet implemented) must be used.
+!
+!   The arguments are:
+!   \begin{description}
+!   \item[gridcomp1]
+!     The {\tt ESMF\_GridComp} object on the left hand side of the non-equality
+!     operation.
+!   \item[gridcomp2]
+!     The {\tt ESMF\_GridComp} object on the right hand side of the non-equality
+!     operation.
+!   \end{description}
+!
+!EOP
+    module procedure ESMF_GridCompNE
+
+  end interface
+!------------------------------------------------------------------------------
+
+
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
@@ -116,29 +250,125 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
+
+!-------------------------------------------------------------------------------
+#undef  ESMF_METHOD
+#define ESMF_METHOD "ESMF_GridCompEQ()"
+!BOPI
+! !IROUTINE:  ESMF_GridCompEQ - Compare two GridComps for equality
+!
+! !INTERFACE:
+  function ESMF_GridCompEQ(gridcomp1, gridcomp2)
+! 
+! !RETURN VALUE:
+    logical :: ESMF_GridCompEQ
+
+! !ARGUMENTS:
+    type(ESMF_GridComp), intent(in) :: gridcomp1
+    type(ESMF_GridComp), intent(in) :: gridcomp2
+
+!
+! !DESCRIPTION:
+!   Test if both {\tt gridcomp1} and {\tt gridcomp2} alias the same ESMF GridComp 
+!   object.
+!
+!EOPI
+!-------------------------------------------------------------------------------
+
+    ESMF_INIT_TYPE gcinit1, gcinit2
+    integer :: localrc1, localrc2
+    logical :: lval1, lval2
+
+    ! Use the following logic, rather than "ESMF-INIT-CHECK-DEEP", to gain 
+    ! init checks on both args, and in the case where both are uninitialized,
+    ! to distinguish equality based on uninitialized type (uncreated,
+    ! deleted).
+
+    ! TODO: Consider moving this logic to C++: use Base class? status?
+    !       Or replicate logic for C interface also.
+
+    ! check inputs
+    gcinit1 = ESMF_GridCompGetInit(gridcomp1)
+    gcinit2 = ESMF_GridCompGetInit(gridcomp2)
+
+    ! TODO: this line must remain split in two for SunOS f90 8.3 127000-03
+    if (gcinit1 .eq. ESMF_INIT_CREATED .and. &
+      gcinit2 .eq. ESMF_INIT_CREATED) then
+      ESMF_GridCompEQ = associated(gridcomp1%compp,gridcomp2%compp)
+    else
+      ESMF_GridCompEQ = ESMF_FALSE
+    endif
+
+  end function ESMF_GridCompEQ
+!-------------------------------------------------------------------------------
+
+
+!-------------------------------------------------------------------------------
+#undef  ESMF_METHOD
+#define ESMF_METHOD "ESMF_GridCompNE()"
+!BOPI
+! !IROUTINE:  ESMF_GridCompNE - Compare two GridComps for non-equality
+!
+! !INTERFACE:
+  function ESMF_GridCompNE(gridcomp1, gridcomp2)
+! 
+! !RETURN VALUE:
+    logical :: ESMF_GridCompNE
+
+! !ARGUMENTS:
+    type(ESMF_GridComp), intent(in) :: gridcomp1
+    type(ESMF_GridComp), intent(in) :: gridcomp2
+
+!
+! !DESCRIPTION:
+!   Test if both {\tt gridcomp1} and {\tt gridcomp2} alias the same ESMF GridComp 
+!   object.
+!
+!EOPI
+!-------------------------------------------------------------------------------
+
+    ESMF_INIT_TYPE gcinit1, gcinit2
+    integer :: localrc1, localrc2
+    logical :: lval1, lval2
+
+    ! Use the following logic, rather than "ESMF-INIT-CHECK-DEEP", to gain 
+    ! init checks on both args, and in the case where both are uninitialized,
+    ! to distinguish equality based on uninitialized type (uncreated,
+    ! deleted).
+    
+    ESMF_GridCompNE = .not.ESMF_GridCompEQ(gridcomp1, gridcomp2)
+
+  end function ESMF_GridCompNE
+!-------------------------------------------------------------------------------
+
 !------------------------------------------------------------------------------
 #undef  ESMF_METHOD
 #define ESMF_METHOD "ESMF_GridCompCreate"
 !BOP
-! !IROUTINE: ESMF_GridCompCreate - Create a Gridded Component
+! !IROUTINE: ESMF_GridCompCreate - Create a GridComp
 !
 ! !INTERFACE:
-  recursive function ESMF_GridCompCreate(name, gridcomptype, grid, config, &
-    configFile, clock, petList, contextflag, rc)
+  recursive function ESMF_GridCompCreate(keywordEnforcer, grid, &
+    config, configFile, clock, petList, contextflag, name, rc)
 !
 ! !RETURN VALUE:
     type(ESMF_GridComp) :: ESMF_GridCompCreate
 !
 ! !ARGUMENTS:
-    character(len=*),        intent(in),    optional :: name
-    type(ESMF_GridCompType), intent(in),    optional :: gridcomptype 
-    type(ESMF_Grid),         intent(inout), optional :: grid
-    type(ESMF_Config),       intent(inout), optional :: config
+type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
+    type(ESMF_Grid),         intent(in),    optional :: grid
+    type(ESMF_Config),       intent(in),    optional :: config
     character(len=*),        intent(in),    optional :: configFile
-    type(ESMF_Clock),        intent(inout), optional :: clock
+    type(ESMF_Clock),        intent(in),    optional :: clock
     integer,                 intent(in),    optional :: petList(:)
-    type(ESMF_ContextFlag),  intent(in),    optional :: contextflag
+    type(ESMF_Context_Flag), intent(in),    optional :: contextflag
+    character(len=*),        intent(in),    optional :: name
     integer,                 intent(out),   optional :: rc
+!
+! !STATUS:
+! \begin{itemize}
+! \item\apiStatusCompatibleVersion{5.2.0r}
+! \end{itemize}
 !
 ! !DESCRIPTION:
 ! This interface creates an {\tt ESMF\_GridComp} object. By default, a
@@ -149,22 +379,12 @@ contains
 ! inefficient.  If the application is sequential, i.e., each component is
 ! running on all the PETs of the global VM, it will be more efficient to use
 ! the global VM instead of creating a new one.  This can be done by setting
-! {\tt contextflag} to ESMF\_CHILD\_IN\_PARENT\_VM.
+! {\tt contextflag} to ESMF\_CONTEXT\_PARENT\_VM.
 !
 ! The return value is the new {\tt ESMF\_GridComp}.
 !   
 ! The arguments are:
 ! \begin{description}
-! \item[{[name]}]
-!   Name of the newly-created {\tt ESMF\_GridComp}.  This name can be altered
-!   from within the {\tt ESMF\_GridComp} code once the initialization routine
-!   is called.
-! \item[{[gridcomptype]}]
-!   {\tt ESMF\_GridComp} model type, where model includes 
-!   {\tt ESMF\_ATM, ESMF\_LAND, ESMF\_OCEAN, ESMF\_SEAICE, ESMF\_RIVER}.  
-!   Note that this has no meaning to the framework, it is an
-!   annotation for user code to query. See section
-!   \ref{opt:gridcomptype} for a complete list of valid types.
 ! \item[{[grid]}]
 !   Default {\tt ESMF\_Grid} associated with this {\tt gridcomp}. Note that
 !   it is perfectly ok to not pass a Grid in for this argument. This argument is 
@@ -177,18 +397,22 @@ contains
 !   can read in namelist-type information to set parameters for this run.
 !   If both are specified, this object takes priority over {\tt configFile}.
 ! \item[{[configFile]}]
+!   \begin{sloppypar}
 !   The filename of an {\tt ESMF\_Config} format file.  
 !   If specified, this file is opened an {\tt ESMF\_Config} configuration
 !   object is created for the file, and attached to the new component.  
 !   The user can call {\tt ESMF\_GridCompGet()} to get and use the object.
 !   If both are specified, the {\tt config} object takes priority
 !   over this one.
+!   \end{sloppypar}
 ! \item[{[clock]}]
+!   \begin{sloppypar}
 !   Component-specific {\tt ESMF\_Clock}.  This clock is available to be
 !   queried and updated by the new {\tt ESMF\_GridComp} as it chooses.
 !   This should
 !   not be the parent component clock, which should be maintained and passed
 !   down to the initialize/run/finalize routines separately.
+!   \end{sloppypar}
 ! \item[{[petList]}]
 !   List of parent {\tt PET}s given to the created child component by the
 !   parent component. If {\tt petList} is not specified all of the
@@ -197,8 +421,12 @@ contains
 !   the parent PETs.
 ! \item[{[contextflag]}]
 !   Specify the component's VM context. The default context is
-!   {\tt ESMF\_CHILD\_IN\_NEW\_VM}. See section \ref{opt:contextflag} for a
+!   {\tt ESMF\_CONTEXT\_OWN\_VM}. See section \ref{const:contextflag} for a
 !   complete list of valid flags.
+! \item[{[name]}]
+!   Name of the newly-created {\tt ESMF\_GridComp}.  This name can be altered
+!   from within the {\tt ESMF\_GridComp} code once the initialization routine
+!   is called.
 ! \item[{[rc]}]
 !   Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
 ! \end{description}
@@ -223,17 +451,17 @@ contains
 
     ! Allocate a new comp class
     allocate(compclass, stat=localrc)
-    if (ESMF_LogMsgFoundAllocError(localrc, "compclass", &
-      ESMF_CONTEXT, rc)) return
+    if (ESMF_LogFoundAllocError(localrc, msg="compclass", &
+      ESMF_CONTEXT, rcTOReturn=rc)) return
       
     ! call Comp method
     call ESMF_CompConstruct(compclass, ESMF_COMPTYPE_GRID, name, &
-      gridcomptype=gridcomptype, configFile=configFile, config=config, &
+      configFile=configFile, config=config, &
       grid=grid, clock=clock, petList=petList, contextflag=contextflag, &
       rc=localrc)
-    if (ESMF_LogMsgFoundError(localrc, &
+    if (ESMF_LogFoundError(localrc, &
       ESMF_ERR_PASSTHRU, &
-      ESMF_CONTEXT, rc)) then
+      ESMF_CONTEXT, rcTOReturn=rc)) then
       deallocate(compclass)
       return
     endif
@@ -258,17 +486,24 @@ contains
 #undef  ESMF_METHOD
 #define ESMF_METHOD "ESMF_GridCompDestroy"
 !BOP
-! !IROUTINE: ESMF_GridCompDestroy - Release resources for a GridComp
+! !IROUTINE: ESMF_GridCompDestroy - Release resources associated with a GridComp
 !
 ! !INTERFACE:
-  subroutine ESMF_GridCompDestroy(gridcomp, rc)
+  subroutine ESMF_GridCompDestroy(gridcomp, keywordEnforcer, rc)
 !
 ! !ARGUMENTS:
-    type(ESMF_GridComp)            :: gridcomp
-    integer, intent(out), optional :: rc
+    type(ESMF_GridComp), intent(inout)          :: gridcomp
+type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
+    integer,             intent(out),  optional :: rc
+!
+! !STATUS:
+! \begin{itemize}
+! \item\apiStatusCompatibleVersion{5.2.0r}
+! \end{itemize}
 !
 ! !DESCRIPTION:
-! Releases all resources associated with this {\tt ESMF\_GridComp}.
+! Destroys an {\tt ESMF\_GridComp}, releasing the resources associated
+! with the object.
 !
 ! The arguments are:
 ! \begin{description}
@@ -292,23 +527,23 @@ contains
 
     ! Check to see if already destroyed
     if (.not.associated(gridcomp%compp)) then
-      if (ESMF_LogMsgFoundError(ESMF_RC_OBJ_BAD, &
-        "GridComp not initialized or already destroyed", &
-        ESMF_CONTEXT, rc)) return
+      if (ESMF_LogFoundError(ESMF_RC_OBJ_BAD, &
+        msg="GridComp not initialized or already destroyed", &
+        ESMF_CONTEXT, rcTOReturn=rc)) return
     endif
 
     ! call Comp method
     call ESMF_CompDestruct(gridcomp%compp, rc=localrc)
-    if (ESMF_LogMsgFoundError(localrc, &
+    if (ESMF_LogFoundError(localrc, &
       ESMF_ERR_PASSTHRU, &
-      ESMF_CONTEXT, rc)) return
+      ESMF_CONTEXT, rcTOReturn=rc)) return
 
     ! mark object invalid
     call ESMF_BaseSetStatus(gridcomp%compp%base, ESMF_STATUS_INVALID, &
       rc=localrc)
-    if (ESMF_LogMsgFoundError(localrc, &
+    if (ESMF_LogFoundError(localrc, &
       ESMF_ERR_PASSTHRU, &
-      ESMF_CONTEXT, rc)) return
+      ESMF_CONTEXT, rcTOReturn=rc)) return
 
     ESMF_INIT_SET_DELETED(gridcomp)
 
@@ -326,21 +561,27 @@ contains
 ! !IROUTINE: ESMF_GridCompFinalize - Call the GridComp's finalize routine
 !
 ! !INTERFACE:
-  recursive subroutine ESMF_GridCompFinalize(gridcomp, importState, &
-    exportState, clock, phase, blockingflag, userRc, rc)
+  recursive subroutine ESMF_GridCompFinalize(gridcomp, keywordEnforcer, &
+    importState, exportState, clock, syncflag, phase, userRc, rc)
 !
 ! !ARGUMENTS:
-    type(ESMF_GridComp)                              :: gridcomp
-    type(ESMF_State),        intent(inout), optional :: importState
-    type(ESMF_State),        intent(inout), optional :: exportState
-    type(ESMF_Clock),        intent(inout), optional :: clock
-    integer,                 intent(in),    optional :: phase
-    type(ESMF_BlockingFlag), intent(in),    optional :: blockingflag
-    integer,                 intent(out),   optional :: userRc
-    integer,                 intent(out),   optional :: rc
+    type(ESMF_GridComp),  intent(inout)           :: gridcomp
+type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
+    type(ESMF_State),     intent(inout), optional :: importState
+    type(ESMF_State),     intent(inout), optional :: exportState
+    type(ESMF_Clock),     intent(inout), optional :: clock
+    type(ESMF_Sync_Flag), intent(in),    optional :: syncflag
+    integer,              intent(in),    optional :: phase
+    integer,              intent(out),   optional :: userRc
+    integer,              intent(out),   optional :: rc
+!
+! !STATUS:
+! \begin{itemize}
+! \item\apiStatusCompatibleVersion{5.2.0r}
+! \end{itemize}
 !
 ! !DESCRIPTION:
-! Call the associated user-supplied finalization code for 
+! Call the associated user-supplied finalization routine for 
 ! an {\tt ESMF\_GridComp}.
 !   
 ! The arguments are:
@@ -362,6 +603,11 @@ contains
 !   a private clock for its own internal time computations. If not present, a dummy
 !   argument will be passed to the user-supplied routine.  The 
 !   clock argument in the user code cannot be optional. 
+! \item[{[syncflag]}]  
+!   Blocking behavior of this method call. See section \ref{const:sync} 
+!   for a list of valid blocking options. Default option is
+!   {\tt ESMF\_SYNC\_VASBLOCKING} which blocks PETs and their spawned off threads 
+!   across each VAS but does not synchronize PETs that run in different VASs.
 ! \item[{[phase]}]  
 !   Component providers must document whether their each of their
 !   routines are {\em single-phase} or {\em multi-phase}.
@@ -375,11 +621,6 @@ contains
 !   number to be invoked.
 !   For single-phase child components this argument is optional. The default
 !   is 1.
-! \item[{[blockingflag]}]  
-!   Blocking behavior of this method call. See section \ref{opt:blockingflag} 
-!   for a list of valid blocking options. Default option is
-!   {\tt ESMF\_VASBLOCKING} which blocks PETs and their spawned off threads 
-!   across each VAS but does not synchronize PETs that run in different VASs.
 ! \item[{[userRc]}]
 !   Return code set by {\tt userRoutine} before returning.
 ! \item[{[rc]}]
@@ -395,15 +636,12 @@ contains
     localrc = ESMF_RC_NOT_IMPL
 
     ESMF_INIT_CHECK_DEEP(ESMF_GridCompGetInit,gridcomp,rc)
-    ESMF_INIT_CHECK_DEEP(ESMF_StateGetInit,importState,rc)
-    ESMF_INIT_CHECK_DEEP(ESMF_StateGetInit,exportState,rc)
-    ESMF_INIT_CHECK_DEEP(ESMF_ClockGetInit,clock,rc)
 
     ! call Comp method
-    call ESMF_CompExecute(gridcomp%compp, method=ESMF_SETFINAL, &
+    call ESMF_CompExecute(gridcomp%compp, method=ESMF_METHOD_FINALIZEIC, &
       importState=importState, exportState=exportState, clock=clock, &
-      phase=phase, blockingflag=blockingflag, userRc=userRc, rc=localrc)
-    if (ESMF_LogMsgFoundError(localrc, &
+      syncflag=syncflag, phase=phase, userRc=userRc, rc=localrc)
+    if (ESMF_LogFoundError(localrc, &
       ESMF_ERR_PASSTHRU, &
       ESMF_CONTEXT, rcToReturn=rc)) return
 
@@ -415,68 +653,29 @@ contains
 
 !------------------------------------------------------------------------------
 #undef  ESMF_METHOD
-#define ESMF_METHOD "ESMF_GridCompGet"
-!BOP
-! !IROUTINE: ESMF_GridCompGet - Query a GridComp for information
+#define ESMF_METHOD "ESMF_GridCompFinalizeAct"
+!BOPI
+! !IROUTINE: ESMF_GridCompFinalizeAct - Call the GridComp's finalize routine
 !
 ! !INTERFACE:
-  subroutine ESMF_GridCompGet(gridcomp, name, gridcomptype, grid, config, &
-    configFile, clock, vm, contextflag, currentMethod, currentPhase, rc)
+  recursive subroutine ESMF_GridCompFinalizeAct(gridcomp, importState, &
+    exportState, clock, syncflag, phase, userRc, rc)
 !
 ! !ARGUMENTS:
-    type(ESMF_GridComp),     intent(inout)         :: gridcomp
-    character(len=*),        intent(out), optional :: name
-    type(ESMF_GridCompType), intent(out), optional :: gridcomptype 
-    type(ESMF_Grid),         intent(out), optional :: grid
-    type(ESMF_Config),       intent(out), optional :: config
-    character(len=*),        intent(out), optional :: configFile
-    type(ESMF_Clock),        intent(out), optional :: clock
-    type(ESMF_VM),           intent(out), optional :: vm
-    type(ESMF_ContextFlag),  intent(out), optional :: contextflag
-    type(ESMF_Method),       intent(out), optional :: currentMethod
-    integer,                 intent(out), optional :: currentPhase
-    integer,                 intent(out), optional :: rc
-
+    type(ESMF_GridComp),  intent(inout)           :: gridcomp
+    type(ESMF_State),     intent(inout), optional :: importState
+    type(ESMF_State),     intent(inout), optional :: exportState
+    type(ESMF_Clock),     intent(inout), optional :: clock
+    type(ESMF_Sync_Flag), intent(in),    optional :: syncflag
+    integer,              intent(in),    optional :: phase
+    integer,              intent(out),   optional :: userRc
+    integer,              intent(out),   optional :: rc
 !
 ! !DESCRIPTION:
-! Returns information about an {\tt ESMF\_GridComp}.
-! For queries where the caller
-! only wants a single value, specify the argument by name.
-! All the arguments after the {\tt gridcomp} argument are optional
-! to facilitate this.
-!  
-! The arguments are:
-! \begin{description}
-! \item[gridcomp]
-!   {\tt ESMF\_GridComp} object to query.
-! \item[{[name]}]
-!   Return the name of the {\tt ESMF\_GridComp}.
-! \item[{[gridcomptype]}]
-!   Return the model type of this {\tt ESMF\_GridComp}. See section
-!   \ref{opt:gridcomptype} for a complete list of valid types.
-! \item[{[grid]}]
-!   Return the {\tt ESMF\_Grid} associated with this {\tt ESMF\_GridComp}.
-! \item[{[config]}]
-!   Return the {\tt ESMF\_Config} object for this {\tt ESMF\_GridComp}.
-! \item[{[configFile]}]
-!   Return the configuration filename for this {\tt ESMF\_GridComp}.
-! \item[{[clock]}]
-!   Return the private clock for this {\tt ESMF\_GridComp}.
-! \item[{[vm]}]
-!   Return the {\tt ESMF\_VM} for this {\tt ESMF\_GridComp}.
-! \item[{[contextflag]}]
-!   Return the {\tt ESMF\_ContextFlag} for this {\tt ESMF\_GridComp}.
-!   See section \ref{opt:contextflag} for a complete list of valid flags.
-! \item[{[currentMethod]}]
-!   Return the current {\tt ESMF\_Method} of the {\tt ESMF\_GridComp} execution.
-!   See section \ref{opt:method}  for a complete list of valid options.
-! \item[{[currentPhase]}]
-!   Return the current {\tt phase} of the {\tt ESMF\_GridComp} execution.
-! \item[{[rc]}]
-!   Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
-! \end{description}
+! Same as {\tt ESMF\_GridCompFinalize} but no redirection through the
+! Interface Component method, instead directly call into the actual method.
 !
-!EOP
+!EOPI
 !------------------------------------------------------------------------------
     integer :: localrc                        ! local return code
 
@@ -487,11 +686,180 @@ contains
     ESMF_INIT_CHECK_DEEP(ESMF_GridCompGetInit,gridcomp,rc)
 
     ! call Comp method
-    call ESMF_CompGet(gridcomp%compp, name, vm=vm, contextflag=contextflag,&
-      gridcomptype=gridcomptype, grid=grid, clock=clock, &
+    call ESMF_CompExecute(gridcomp%compp, method=ESMF_METHOD_FINALIZE, &
+      importState=importState, exportState=exportState, clock=clock, &
+      syncflag=syncflag, phase=phase, userRc=userRc, rc=localrc)
+    if (ESMF_LogFoundError(localrc, &
+      ESMF_ERR_PASSTHRU, &
+      ESMF_CONTEXT, rcToReturn=rc)) return
+
+    ! return successfully
+    if (present(rc)) rc = ESMF_SUCCESS
+  end subroutine ESMF_GridCompFinalizeAct
+!------------------------------------------------------------------------------
+
+
+!------------------------------------------------------------------------------
+#undef  ESMF_METHOD
+#define ESMF_METHOD "ESMF_GridCompGet"
+!BOP
+! !IROUTINE: ESMF_GridCompGet - Get GridComp information
+!
+! !INTERFACE:
+  subroutine ESMF_GridCompGet(gridcomp, keywordEnforcer, gridIsPresent, grid, &
+    importStateIsPresent, importState, exportStateIsPresent, exportState, &
+    configIsPresent, config, configFileIsPresent, configFile, &
+    clockIsPresent, clock, localPet, petCount, contextflag, &
+    currentMethod, currentPhase, comptype, vmIsPresent, vm, name, rc)
+!
+! !ARGUMENTS:
+    type(ESMF_GridComp),      intent(in)            :: gridcomp
+type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
+    logical,                  intent(out), optional :: gridIsPresent
+    type(ESMF_Grid),          intent(out), optional :: grid
+    logical,                  intent(out), optional :: importStateIsPresent
+    type(ESMF_State),         intent(out), optional :: importState
+    logical,                  intent(out), optional :: exportStateIsPresent
+    type(ESMF_State),         intent(out), optional :: exportState    
+    logical,                  intent(out), optional :: configIsPresent
+    type(ESMF_Config),        intent(out), optional :: config
+    logical,                  intent(out), optional :: configFileIsPresent
+    character(len=*),         intent(out), optional :: configFile
+    logical,                  intent(out), optional :: clockIsPresent
+    type(ESMF_Clock),         intent(out), optional :: clock
+    integer,                  intent(out), optional :: localPet
+    integer,                  intent(out), optional :: petCount
+    type(ESMF_Context_Flag),  intent(out), optional :: contextflag
+    type(ESMF_Method_Flag),   intent(out), optional :: currentMethod
+    integer,                  intent(out), optional :: currentPhase
+    type(ESMF_CompType_Flag), intent(out), optional :: comptype
+    logical,                  intent(out), optional :: vmIsPresent
+    type(ESMF_VM),            intent(out), optional :: vm
+    character(len=*),         intent(out), optional :: name
+    integer,                  intent(out), optional :: rc
+!
+! !STATUS:
+! \begin{itemize}
+! \item\apiStatusCompatibleVersion{5.2.0r}
+! \end{itemize}
+!
+! !DESCRIPTION:
+! Get information about an {\tt ESMF\_GridComp} object.
+!  
+! The arguments are:
+! \begin{description}
+! \item[gridcomp]
+!   The {\tt ESMF\_GridComp} object being queried.
+! \item[{[gridIsPresent]}]
+!   {\tt .true.} if {\tt grid} was set in GridComp object,
+!   {\tt .false.} otherwise.
+! \item[{[grid]}]
+!   Return the associated Grid.
+!   It is an error to query for the Grid if none is associated with
+!   the GridComp. If unsure, get {\tt gridIsPresent} first to determine
+!   the status.
+! \item[{[importStateIsPresent]}]
+!   {\tt .true.} if {\tt importState} was set in GridComp object,
+!   {\tt .false.} otherwise.
+! \item[{[importState]}]
+!   Return the associated import State.
+!   It is an error to query for the import State if none is associated with
+!   the GridComp. If unsure, get {\tt importStateIsPresent} first to determine
+!   the status.
+! \item[{[exportStateIsPresent]}]
+!   {\tt .true.} if {\tt exportState} was set in GridComp object,
+!   {\tt .false.} otherwise.
+! \item[{[exportState]}]
+!   Return the associated export State.
+!   It is an error to query for the export State if none is associated with
+!   the GridComp. If unsure, get {\tt exportStateIsPresent} first to determine
+!   the status.
+! \item[{[configIsPresent]}]
+!   {\tt .true.} if {\tt config} was set in GridComp object,
+!   {\tt .false.} otherwise.
+! \item[{[config]}]
+!   Return the associated Config.
+!   It is an error to query for the Config if none is associated with
+!   the GridComp. If unsure, get {\tt configIsPresent} first to determine
+!   the status.
+! \item[{[configFileIsPresent]}]
+!   {\tt .true.} if {\tt configFile} was set in GridComp object,
+!   {\tt .false.} otherwise.
+! \item[{[configFile]}]
+!   Return the associated configuration filename.
+!   It is an error to query for the configuration filename if none is associated with
+!   the GridComp. If unsure, get {\tt configFileIsPresent} first to determine
+!   the status.
+! \item[{[clockIsPresent]}]
+!   {\tt .true.} if {\tt clock} was set in GridComp object,
+!   {\tt .false.} otherwise.
+! \item[{[clock]}]
+!   Return the associated Clock.
+!   It is an error to query for the Clock if none is associated with
+!   the GridComp. If unsure, get {\tt clockIsPresent} first to determine
+!   the status.
+! \item[{[localPet]}]
+!   Return the local PET id within the {\tt ESMF\_GridComp} object.
+! \item[{[petCount]}]
+!   Return the number of PETs in the the {\tt ESMF\_GridComp} object.
+! \item[{[contextflag]}]
+!   Return the {\tt ESMF\_Context\_Flag} for this {\tt ESMF\_GridComp}.
+!   See section \ref{const:contextflag} for a complete list of valid flags.
+! \item[{[currentMethod]}]
+!   Return the current {\tt ESMF\_Method\_Flag} of the {\tt ESMF\_GridComp}
+!   execution. See section \ref{const:method}  for a complete list of valid
+!   options.
+! \item[{[currentPhase]}]
+!   Return the current {\tt phase} of the {\tt ESMF\_GridComp} execution.
+! \item[{[comptype]}]
+!   Return the Component type: {\tt ESMF\_COMPTYPE\_GRID} or 
+!   {\tt ESMF\_COMPTYPE\_CPL}.
+! \item[{[vmIsPresent]}]
+!   {\tt .true.} if {\tt vm} was set in GridComp object,
+!   {\tt .false.} otherwise.
+! \item[{[vm]}]
+!   Return the associated VM.
+!   It is an error to query for the VM if none is associated with
+!   the GridComp. If unsure, get {\tt vmIsPresent} first to determine
+!   the status.
+! \item[{[name]}]
+!   Return the name of the {\tt ESMF\_GridComp}.
+! \item[{[rc]}]
+!   Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
+! \end{description}
+!
+!EOP
+!------------------------------------------------------------------------------
+    integer               :: localrc      ! local return code
+    type(ESMF_CompStatus) :: compStatus
+
+    ! initialize return code; assume routine not implemented
+    if (present(rc)) rc = ESMF_RC_NOT_IMPL
+    localrc = ESMF_RC_NOT_IMPL
+
+    ESMF_INIT_CHECK_DEEP(ESMF_GridCompGetInit,gridcomp,rc)
+
+    ! call Comp method
+    call ESMF_CompGet(gridcomp%compp, name=name, vm=vm, contextflag=contextflag,&
+      grid=grid, importState=importState, exportState=exportState, clock=clock,&
       configFile=configFile, config=config, currentMethod=currentMethod, &
-      currentPhase=currentPhase, rc=localrc)
-    if (ESMF_LogMsgFoundError(localrc, &
+      currentPhase=currentPhase, localPet=localPet, petCount=petCount, &
+      comptype=comptype, compStatus=compStatus, rc=localrc)
+    if (ESMF_LogFoundError(localrc, &
+      ESMF_ERR_PASSTHRU, &
+      ESMF_CONTEXT, rcToReturn=rc)) return
+
+    ! call Comp method
+    call ESMF_CompStatusGet(compStatus, &
+      clockIsPresent = clockIsPresent, &
+      configIsPresent = configIsPresent, &
+      configFileIsPresent = configFileIsPresent, &
+      vmIsPresent = vmIsPresent, &
+      isIsPresent = importStateIsPresent, &
+      esIsPresent = exportStateIsPresent, &
+      gridIsPresent = gridIsPresent, &
+      rc = localrc)
+    if (ESMF_LogFoundError(localrc, &
       ESMF_ERR_PASSTHRU, &
       ESMF_CONTEXT, rcToReturn=rc)) return
 
@@ -502,16 +870,87 @@ contains
 
 
 !------------------------------------------------------------------------------
+#undef  ESMF_METHOD
+#define ESMF_METHOD "ESMF_GridCompGetEPPhaseCount"
+!BOPI
+! !IROUTINE: ESMF_GridCompGetEPPhaseCount - Get number of phases of an entry point
+!
+! !INTERFACE:
+  subroutine ESMF_GridCompGetEPPhaseCount(gridcomp, methodflag, phaseCount, &
+    phaseZeroFlag, rc)
+
+! !ARGUMENTS:
+    type(ESMF_GridComp),    intent(in)            :: gridcomp
+    type(ESMF_Method_Flag), intent(in)            :: methodflag
+    integer,                intent(out)           :: phaseCount
+    logical,                intent(out)           :: phaseZeroFlag
+    integer,                intent(out), optional :: rc 
+!
+! !DESCRIPTION:
+! Get phaseCount
+!    
+! The arguments are:
+! \begin{description}
+! \item[gridcomp]
+!   An {\tt ESMF\_GridComp} object.
+! \item[methodflag]
+!   \begin{sloppypar}
+!   One of a set of predefined Component methods - e.g.
+!   {\tt ESMF\_METHOD\_INITIALIZE}, {\tt ESMF\_METHOD\_RUN}, 
+!   {\tt ESMF\_METHOD\_FINALIZE}. See section \ref{const:method} 
+!   for a complete list of valid method options.
+!   \end{sloppypar}
+! \item[phaseCount]
+!   The number of phases for {\tt methodflag}. The method has 1..phaseCount phases.
+! \item[phaseZeroFlag]
+!   Return .true. if a "zero" phase was registered for {\tt methodflag}. Otherwise
+!   return .false..
+! \item[{[rc]}] 
+!   Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
+! \end{description}
+!
+!EOPI
+!------------------------------------------------------------------------------
+    integer :: localrc                       ! local error status
+    type(ESMF_Logical)::  phaseZeroFlagHelp
+
+    ! initialize return code; assume routine not implemented
+    if (present(rc)) rc = ESMF_RC_NOT_IMPL
+    localrc = ESMF_RC_NOT_IMPL
+
+    ESMF_INIT_CHECK_DEEP(ESMF_GridCompGetInit, gridcomp, rc)
+  
+    call c_ESMC_GetEntryPointPhaseCount(gridcomp, methodflag, phaseCount, &
+      phaseZeroFlagHelp, localrc)
+    if (ESMF_LogFoundError(localrc, &
+      ESMF_ERR_PASSTHRU, &
+      ESMF_CONTEXT, rcToReturn=rc)) return
+      
+    ! translate ESMF_Logical -> logical
+    phaseZeroFlag = phaseZeroFlagHelp
+
+    ! return successfully
+    if (present(rc)) rc = ESMF_SUCCESS
+  end subroutine
+!------------------------------------------------------------------------------
+
+
+!------------------------------------------------------------------------------
 !BOP
 ! !IROUTINE: ESMF_GridCompGetInternalState - Get private data block pointer
 !
 ! !INTERFACE:
-! subroutine ESMF_GridCompGetInternalState(gridcomp, dataPointer, rc)
+! subroutine ESMF_GridCompGetInternalState(gridcomp, wrappedDataPointer, rc)
 !
 ! !ARGUMENTS:
-!   type(ESMF_GridComp), intent(inout) :: gridcomp
-!   type(any), pointer                 :: dataPointer
-!   integer,             intent(out)   :: rc
+!   type(ESMF_GridComp)             :: gridcomp
+!   type(wrapper)                   :: wrappedDataPointer
+!   integer,            intent(out) :: rc
+!
+! !STATUS:
+! \begin{itemize}
+! \item\apiStatusCompatibleVersion{5.2.0r}
+! \end{itemize}
 !
 ! !DESCRIPTION:
 ! Available to be called by an {\tt ESMF\_GridComp} at any time after 
@@ -526,7 +965,7 @@ contains
 ! each run with private data blocks.  A corresponding 
 ! {\tt ESMF\_GridCompSetInternalState} call sets the data pointer to 
 ! this block, and this call retrieves the data pointer.
-! Note that the {\tt dataPointer} argument needs to be a derived type
+! Note that the {\tt wrappedDataPointer} argument needs to be a derived type
 ! which contains only a pointer of the type of the data block defined
 ! by the user.  When making this call the pointer needs to be unassociated.
 ! When the call returns, the pointer will now reference the original
@@ -535,13 +974,16 @@ contains
 !
 ! Only the {\em last} data block set via
 ! {\tt ESMF\_GridCompSetInternalState} will be accessible.
+!
+! CAUTION: This method does not have an explicit Fortran interface. Do not 
+! specify argument keywords when calling this method!
 !   
 ! The arguments are:
 ! \begin{description}
 ! \item[gridcomp]
 !   An {\tt ESMF\_GridComp} object.
-! \item[dataPointer]
-!   A derived type, containing only an unassociated pointer 
+! \item[wrappedDataPointer]
+!   A derived type (wrapper), containing only an unassociated pointer 
 !   to the private data block.
 !   The framework will fill in the pointer. When this call returns, the
 !   pointer is set to the same address set during the last
@@ -565,21 +1007,28 @@ contains
 ! !IROUTINE: ESMF_GridCompInitialize - Call the GridComp's initialize routine
 
 ! !INTERFACE:
-  recursive subroutine ESMF_GridCompInitialize(gridcomp, importState, &
-    exportState, clock, phase, blockingflag, userRc, rc)
+  recursive subroutine ESMF_GridCompInitialize(gridcomp, keywordEnforcer, &
+    importState, exportState, clock, syncflag, phase, userRc, rc)
 !
 ! !ARGUMENTS:
-    type(ESMF_GridComp)                              :: gridcomp
-    type(ESMF_State),        intent(inout), optional :: importState
-    type(ESMF_State),        intent(inout), optional :: exportState
-    type(ESMF_Clock),        intent(inout), optional :: clock
-    integer,                 intent(in),    optional :: phase
-    type(ESMF_BlockingFlag), intent(in),    optional :: blockingflag
-    integer,                 intent(out),   optional :: userRc
-    integer,                 intent(out),   optional :: rc
+    type(ESMF_GridComp),  intent(inout)           :: gridcomp
+type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
+    type(ESMF_State),     intent(inout), optional :: importState
+    type(ESMF_State),     intent(inout), optional :: exportState
+    type(ESMF_Clock),     intent(inout), optional :: clock
+    type(ESMF_Sync_Flag), intent(in),    optional :: syncflag
+    integer,              intent(in),    optional :: phase
+    integer,              intent(out),   optional :: userRc
+    integer,              intent(out),   optional :: rc
+!
+! !STATUS:
+! \begin{itemize}
+! \item\apiStatusCompatibleVersion{5.2.0r}
+! \end{itemize}
 !
 ! !DESCRIPTION:
-! Call the associated user initialization code for a GridComp.
+! Call the associated user initialization routine for 
+! an {\tt ESMF\_GridComp}.
 !   
 ! The arguments are:
 ! \begin{description}
@@ -600,8 +1049,13 @@ contains
 !   a private clock for its own internal time computations. If not present, a dummy
 !   argument will be passed to the user-supplied routine.  The 
 !   clock argument in the user code cannot be optional. 
+! \item[{[syncflag]}]
+!   Blocking behavior of this method call. See section \ref{const:sync} 
+!   for a list of valid blocking options. Default option is
+!   {\tt ESMF\_SYNC\_VASBLOCKING} which blocks PETs and their spawned off threads 
+!   across each VAS but does not synchronize PETs that run in different VASs.
 ! \item[{[phase]}]
-!   Component providers must document whether their each of their
+!   Component providers must document whether each of their
 !   routines are {\em single-phase} or {\em multi-phase}.
 !   Single-phase routines require only one invocation to complete
 !   their work.
@@ -613,11 +1067,6 @@ contains
 !   number to be invoked.
 !   For single-phase child components this argument is optional. The default is
 !   1.
-! \item[{[blockingflag]}]
-!   Blocking behavior of this method call. See section \ref{opt:blockingflag} 
-!   for a list of valid blocking options. Default option is
-!   {\tt ESMF\_VASBLOCKING} which blocks PETs and their spawned off threads 
-!   across each VAS but does not synchronize PETs that run in different VASs.
 ! \item[{[userRc]}]
 !   Return code set by {\tt userRoutine} before returning.
 ! \item[{[rc]}]
@@ -633,14 +1082,11 @@ contains
     localrc = ESMF_RC_NOT_IMPL
 
     ESMF_INIT_CHECK_DEEP(ESMF_GridCompGetInit,gridcomp,rc)
-    ESMF_INIT_CHECK_DEEP(ESMF_StateGetInit,importState,rc)
-    ESMF_INIT_CHECK_DEEP(ESMF_StateGetInit,exportState,rc)
-    ESMF_INIT_CHECK_DEEP(ESMF_ClockGetInit,clock,rc)
 
-    call ESMF_CompExecute(gridcomp%compp, method=ESMF_SETINIT, &
+    call ESMF_CompExecute(gridcomp%compp, method=ESMF_METHOD_INITIALIZEIC, &
       importState=importState, exportState=exportState, clock=clock, &
-      phase=phase, blockingflag=blockingflag, userRc=userRc, rc=localrc)
-    if (ESMF_LogMsgFoundError(localrc, &
+      syncflag=syncflag, phase=phase, userRc=userRc, rc=localrc)
+    if (ESMF_LogFoundError(localrc, &
       ESMF_ERR_PASSTHRU, &
       ESMF_CONTEXT, rcToReturn=rc)) return
 
@@ -652,19 +1098,72 @@ contains
 
 !------------------------------------------------------------------------------
 #undef  ESMF_METHOD
+#define ESMF_METHOD "ESMF_GridCompInitializeAct"
+!BOPI
+! !IROUTINE: ESMF_GridCompInitializeAct - Call the GridComp's initialize routine
+
+! !INTERFACE:
+  recursive subroutine ESMF_GridCompInitializeAct(gridcomp, importState, &
+    exportState, clock, syncflag, phase, userRc, rc)
+!
+! !ARGUMENTS:
+    type(ESMF_GridComp),  intent(inout)           :: gridcomp
+    type(ESMF_State),     intent(inout), optional :: importState
+    type(ESMF_State),     intent(inout), optional :: exportState
+    type(ESMF_Clock),     intent(inout), optional :: clock
+    type(ESMF_Sync_Flag), intent(in),    optional :: syncflag
+    integer,              intent(in),    optional :: phase
+    integer,              intent(out),   optional :: userRc
+    integer,              intent(out),   optional :: rc
+!
+! !DESCRIPTION:
+! Same as {\tt ESMF\_GridCompInitialize} but no redirection through the
+! Interface Component method, instead directly call into the actual method.
+!   
+!EOPI
+!------------------------------------------------------------------------------
+    integer :: localrc                        ! local return code
+
+    ! initialize return code; assume routine not implemented
+    if (present(rc)) rc = ESMF_RC_NOT_IMPL
+    localrc = ESMF_RC_NOT_IMPL
+
+    ESMF_INIT_CHECK_DEEP(ESMF_GridCompGetInit,gridcomp,rc)
+
+    call ESMF_CompExecute(gridcomp%compp, method=ESMF_METHOD_INITIALIZE, &
+      importState=importState, exportState=exportState, clock=clock, &
+      syncflag=syncflag, phase=phase, userRc=userRc, rc=localrc)
+    if (ESMF_LogFoundError(localrc, &
+      ESMF_ERR_PASSTHRU, &
+      ESMF_CONTEXT, rcToReturn=rc)) return
+
+    ! return successfully
+    if (present(rc)) rc = ESMF_SUCCESS
+  end subroutine ESMF_GridCompInitializeAct
+!------------------------------------------------------------------------------
+
+
+!------------------------------------------------------------------------------
+#undef  ESMF_METHOD
 #define ESMF_METHOD "ESMF_GridCompIsPetLocal"
 !BOP
-! !IROUTINE: ESMF_GridCompIsPetLocal - Inquire if this component is to execute on the calling PET.
+! !IROUTINE: ESMF_GridCompIsPetLocal - Inquire if this GridComp is to execute on the calling PET
 !
 ! !INTERFACE:
-  recursive function ESMF_GridCompIsPetLocal(gridcomp, rc)
+  recursive function ESMF_GridCompIsPetLocal(gridcomp, keywordEnforcer, rc)
 !
 ! !RETURN VALUE:
     logical :: ESMF_GridCompIsPetLocal
 !
 ! !ARGUMENTS:
-    type(ESMF_GridComp), intent(inout)         :: gridcomp
+    type(ESMF_GridComp), intent(in)            :: gridcomp
+type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
     integer,             intent(out), optional :: rc
+!
+! !STATUS:
+! \begin{itemize}
+! \item\apiStatusCompatibleVersion{5.2.0r}
+! \end{itemize}
 !
 ! !DESCRIPTION:
 ! Inquire if this {\tt ESMF\_GridComp} object is to execute on the calling PET.
@@ -696,9 +1195,9 @@ contains
 
     ! call Comp method
     localresult = ESMF_CompIsPetLocal(gridcomp%compp, rc=localrc)
-    if (ESMF_LogMsgFoundError(localrc, &
+    if (ESMF_LogFoundError(localrc, &
       ESMF_ERR_PASSTHRU, &
-      ESMF_CONTEXT, rc)) return
+      ESMF_CONTEXT, rcTOReturn=rc)) return
 
     ESMF_GridCompIsPetLocal = localresult
 
@@ -712,31 +1211,28 @@ contains
 #undef  ESMF_METHOD
 #define ESMF_METHOD "ESMF_GridCompPrint"
 !BOP
-! !IROUTINE:  ESMF_GridCompPrint - Print the contents of a GridComp
+! !IROUTINE:  ESMF_GridCompPrint - Print GridComp information
 !
 ! !INTERFACE:
-  subroutine ESMF_GridCompPrint(gridcomp, options, rc)
+  subroutine ESMF_GridCompPrint(gridcomp, keywordEnforcer, rc)
 !
 ! !ARGUMENTS:
-    type(ESMF_GridComp)                       :: gridcomp
-    character(len = *), intent(in),  optional :: options
-    integer,            intent(out), optional :: rc
+    type(ESMF_GridComp), intent(in)            :: gridcomp
+type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
+    integer,             intent(out), optional :: rc
+!
+! !STATUS:
+! \begin{itemize}
+! \item\apiStatusCompatibleVersion{5.2.0r}
+! \end{itemize}
 !
 ! !DESCRIPTION:
 ! Prints information about an {\tt ESMF\_GridComp} to {\tt stdout}. \\
-!
-! Note:  Many {\tt ESMF\_<class>Print} methods are implemented in C++.
-! On some platforms/compilers there is a potential issue with interleaving
-! Fortran and C++ output to {\tt stdout} such that it doesn't appear in
-! the expected order.  If this occurs, the {\tt ESMF\_IOUnitFlush()} method
-! may be used on unit 6 to get coherent output.  \\
 !
 ! The arguments are:
 ! \begin{description}
 ! \item[gridcomp]
 !   {\tt ESMF\_GridComp} to print.
-! \item[{[options]}]
-!   Print options are not yet supported.
 ! \item[{[rc]}]
 !   Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
 ! \end{description}
@@ -751,10 +1247,10 @@ contains
 
     ESMF_INIT_CHECK_DEEP(ESMF_GridCompGetInit,gridcomp,rc)
 
-    print *, "Gridded Component:"
+    write (ESMF_UtilIOStdout,*) "Gridded Component:"
     ! call Comp method
-    call ESMF_CompPrint(gridcomp%compp, options, rc=localrc)
-    if (ESMF_LogMsgFoundError(localrc, &
+    call ESMF_CompPrint(gridcomp%compp, rc=localrc)
+    if (ESMF_LogFoundError(localrc, &
       ESMF_ERR_PASSTHRU, &
       ESMF_CONTEXT, rcToReturn=rc)) return
 
@@ -771,21 +1267,28 @@ contains
 ! !IROUTINE: ESMF_GridCompReadRestart - Call the GridComp's read restart routine
 !
 ! !INTERFACE:
-  recursive subroutine ESMF_GridCompReadRestart(gridcomp, importState, &
-    exportState, clock, phase, blockingflag, userRc, rc)
+  recursive subroutine ESMF_GridCompReadRestart(gridcomp, keywordEnforcer, &
+    importState, exportState, clock, syncflag, phase, userRc, rc)
 !
 ! !ARGUMENTS:
-    type(ESMF_GridComp)                              :: gridcomp
-    type(ESMF_State),        intent(inout), optional :: importState
-    type(ESMF_State),        intent(inout), optional :: exportState
-    type(ESMF_Clock),        intent(inout), optional :: clock
-    integer,                 intent(in),    optional :: phase
-    type(ESMF_BlockingFlag), intent(in),    optional :: blockingflag
-    integer,                 intent(out),   optional :: userRc
-    integer,                 intent(out),   optional :: rc
+    type(ESMF_GridComp),  intent(inout)           :: gridcomp
+type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
+    type(ESMF_State),     intent(inout), optional :: importState
+    type(ESMF_State),     intent(inout), optional :: exportState
+    type(ESMF_Clock),     intent(inout), optional :: clock
+    type(ESMF_Sync_Flag), intent(in),    optional :: syncflag
+    integer,              intent(in),    optional :: phase
+    integer,              intent(out),   optional :: userRc
+    integer,              intent(out),   optional :: rc
+!
+! !STATUS:
+! \begin{itemize}
+! \item\apiStatusCompatibleVersion{5.2.0r}
+! \end{itemize}
 !
 ! !DESCRIPTION:
-! Call the associated user read restart code for an {\tt ESMF\_GridComp}.
+! Call the associated user read restart routine for 
+! an {\tt ESMF\_GridComp}.
 !    
 ! The arguments are:
 ! \begin{description}
@@ -806,6 +1309,11 @@ contains
 !   a private clock for its own internal time computations. If not present, a dummy
 !   argument will be passed to the user-supplied routine.  The 
 !   clock argument in the user code cannot be optional. 
+! \item[{[syncflag]}]  
+!   Blocking behavior of this method call. See section \ref{const:sync} 
+!   for a list of valid blocking options. Default option is
+!   {\tt ESMF\_SYNC\_VASBLOCKING} which blocks PETs and their spawned off threads 
+!   across each VAS but does not synchronize PETs that run in different VASs.
 ! \item[{[phase]}]   
 !   Component providers must document whether their each of their
 !   routines are {\em single-phase} or {\em multi-phase}.    
@@ -819,11 +1327,6 @@ contains
 !   number to be invoked.
 !   For single-phase child components this argument is optional. The default is
 !   1.
-! \item[{[blockingflag]}]  
-!   Blocking behavior of this method call. See section \ref{opt:blockingflag} 
-!   for a list of valid blocking options. Default option is
-!   {\tt ESMF\_VASBLOCKING} which blocks PETs and their spawned off threads 
-!   across each VAS but does not synchronize PETs that run in different VASs.
 ! \item[{[userRc]}]
 !   Return code set by {\tt userRoutine} before returning.
 ! \item[{[rc]}]
@@ -841,10 +1344,10 @@ contains
     ESMF_INIT_CHECK_DEEP(ESMF_GridCompGetInit,gridcomp,rc)
     ESMF_INIT_CHECK_DEEP(ESMF_ClockGetInit,clock,rc)
 
-    call ESMF_CompExecute(gridcomp%compp, method=ESMF_SETREADRESTART, &
+    call ESMF_CompExecute(gridcomp%compp, method=ESMF_METHOD_READRESTART, &
       importState=importState, exportState=exportState, clock=clock, &
-      phase=phase, blockingflag=blockingflag, userRc=userRc, rc=localrc)
-    if (ESMF_LogMsgFoundError(localrc, &
+      syncflag=syncflag, phase=phase, userRc=userRc, rc=localrc)
+    if (ESMF_LogFoundError(localrc, &
       ESMF_ERR_PASSTHRU, &
       ESMF_CONTEXT, rcToReturn=rc)) return
 
@@ -861,21 +1364,29 @@ contains
 ! !IROUTINE: ESMF_GridCompRun - Call the GridComp's run routine
 !
 ! !INTERFACE:
-  recursive subroutine ESMF_GridCompRun(gridcomp, importState, exportState,&
-    clock, phase, blockingflag, userRc, rc)
+  recursive subroutine ESMF_GridCompRun(gridcomp, keywordEnforcer, &
+    importState, exportState,&
+    clock, syncflag, phase, userRc, rc)
 !
 ! !ARGUMENTS:
-    type(ESMF_GridComp)                              :: gridcomp
-    type(ESMF_State),        intent(inout), optional :: importState
-    type(ESMF_State),        intent(inout), optional :: exportState
-    type(ESMF_Clock),        intent(inout), optional :: clock
-    integer,                 intent(in),    optional :: phase
-    type(ESMF_BlockingFlag), intent(in),    optional :: blockingflag
-    integer,                 intent(out),   optional :: userRc
-    integer,                 intent(out),   optional :: rc
+    type(ESMF_GridComp),  intent(inout)           :: gridcomp
+type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
+    type(ESMF_State),     intent(inout), optional :: importState
+    type(ESMF_State),     intent(inout), optional :: exportState
+    type(ESMF_Clock),     intent(inout), optional :: clock
+    type(ESMF_Sync_Flag), intent(in),    optional :: syncflag
+    integer,              intent(in),    optional :: phase
+    integer,              intent(out),   optional :: userRc
+    integer,              intent(out),   optional :: rc
+!
+! !STATUS:
+! \begin{itemize}
+! \item\apiStatusCompatibleVersion{5.2.0r}
+! \end{itemize}
 !
 ! !DESCRIPTION:
-! Call the associated user run code for an {\tt ESMF\_GridComp}.
+! Call the associated user run routine for 
+! an {\tt ESMF\_GridComp}.
 !    
 ! The arguments are:
 ! \begin{description}
@@ -896,6 +1407,11 @@ contains
 !   a private clock for its own internal time computations. If not present, a dummy
 !   argument will be passed to the user-supplied routine.  The 
 !   clock argument in the user code cannot be optional. 
+! \item[{[syncflag]}]  
+!   Blocking behavior of this method call. See section \ref{const:sync} 
+!   for a list of valid blocking options. Default option is
+!   {\tt ESMF\_SYNC\_VASBLOCKING} which blocks PETs and their spawned off threads 
+!   across each VAS but does not synchronize PETs that run in different VASs.
 ! \item[{[phase]}]   
 !   Component providers must document whether their each of their
 !   routines are {\em single-phase} or {\em multi-phase}.    
@@ -909,11 +1425,6 @@ contains
 !   number to be invoked.
 !   For single-phase child components this argument is optional. The default is
 !   1.
-! \item[{[blockingflag]}]  
-!   Blocking behavior of this method call. See section \ref{opt:blockingflag} 
-!   for a list of valid blocking options. Default option is
-!   {\tt ESMF\_VASBLOCKING} which blocks PETs and their spawned off threads 
-!   across each VAS but does not synchronize PETs that run in different VASs.
 ! \item[{[userRc]}]
 !   Return code set by {\tt userRoutine} before returning.
 ! \item[{[rc]}]
@@ -929,14 +1440,11 @@ contains
     localrc = ESMF_RC_NOT_IMPL
 
     ESMF_INIT_CHECK_DEEP(ESMF_GridCompGetInit,gridcomp,rc)
-    ESMF_INIT_CHECK_DEEP(ESMF_StateGetInit,importState,rc)
-    ESMF_INIT_CHECK_DEEP(ESMF_StateGetInit,exportState,rc)
-    ESMF_INIT_CHECK_DEEP(ESMF_ClockGetInit,clock,rc)
 
-    call ESMF_CompExecute(gridcomp%compp, method=ESMF_SETRUN, &
+    call ESMF_CompExecute(gridcomp%compp, method=ESMF_METHOD_RUNIC, &
       importState=importState, exportState=exportState, clock=clock, &
-      phase=phase, blockingflag=blockingflag, userRc=userRc, rc=localrc)
-    if (ESMF_LogMsgFoundError(localrc, &
+      syncflag=syncflag, phase=phase, userRc=userRc, rc=localrc)
+    if (ESMF_LogFoundError(localrc, &
       ESMF_ERR_PASSTHRU, &
       ESMF_CONTEXT, rcToReturn=rc)) return
 
@@ -948,41 +1456,83 @@ contains
 
 !------------------------------------------------------------------------------
 #undef  ESMF_METHOD
+#define ESMF_METHOD "ESMF_GridCompRunAct"
+!BOPI
+! !IROUTINE: ESMF_GridCompRunAct - Call the GridComp's run routine
+!
+! !INTERFACE:
+  recursive subroutine ESMF_GridCompRunAct(gridcomp, importState, exportState,&
+    clock, syncflag, phase, userRc, rc)
+!
+! !ARGUMENTS:
+    type(ESMF_GridComp),  intent(inout)           :: gridcomp
+    type(ESMF_State),     intent(inout), optional :: importState
+    type(ESMF_State),     intent(inout), optional :: exportState
+    type(ESMF_Clock),     intent(inout), optional :: clock
+    type(ESMF_Sync_Flag), intent(in),    optional :: syncflag
+    integer,              intent(in),    optional :: phase
+    integer,              intent(out),   optional :: userRc
+    integer,              intent(out),   optional :: rc
+!
+! !DESCRIPTION:
+! Same as {\tt ESMF\_GridCompRun} but no redirection through the
+! Interface Component method, instead directly call into the actual method.
+!
+!EOPI
+!------------------------------------------------------------------------------
+    integer :: localrc                        ! local return code
+
+    ! initialize return code; assume routine not implemented
+    if (present(rc)) rc = ESMF_RC_NOT_IMPL
+    localrc = ESMF_RC_NOT_IMPL
+
+    ESMF_INIT_CHECK_DEEP(ESMF_GridCompGetInit,gridcomp,rc)
+
+    call ESMF_CompExecute(gridcomp%compp, method=ESMF_METHOD_RUN, &
+      importState=importState, exportState=exportState, clock=clock, &
+      syncflag=syncflag, phase=phase, userRc=userRc, rc=localrc)
+    if (ESMF_LogFoundError(localrc, &
+      ESMF_ERR_PASSTHRU, &
+      ESMF_CONTEXT, rcToReturn=rc)) return
+
+    ! return successfully
+    if (present(rc)) rc = ESMF_SUCCESS
+  end subroutine ESMF_GridCompRunAct
+!------------------------------------------------------------------------------
+
+
+!------------------------------------------------------------------------------
+#undef  ESMF_METHOD
 #define ESMF_METHOD "ESMF_GridCompSet"
 !BOP
 ! !IROUTINE: ESMF_GridCompSet - Set or reset information about the GridComp
 !
 ! !INTERFACE:
-  subroutine ESMF_GridCompSet(gridcomp, name, gridcomptype, grid, config, &
-    configFile, clock, rc)
+  subroutine ESMF_GridCompSet(gridcomp, keywordEnforcer, grid, config, &
+    configFile, clock, name, rc)
 !
 ! !ARGUMENTS:
-    type(ESMF_GridComp),     intent(inout)           :: gridcomp
-    character(len=*),        intent(in),    optional :: name
-    type(ESMF_GridCompType), intent(in),    optional :: gridcomptype 
-    type(ESMF_Grid),         intent(inout), optional :: grid
-    type(ESMF_Config),       intent(inout), optional :: config
-    character(len=*),        intent(in),    optional :: configFile
-    type(ESMF_Clock),        intent(inout), optional :: clock
-    integer,                 intent(out),   optional :: rc
-
+    type(ESMF_GridComp), intent(inout)         :: gridcomp
+type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
+    type(ESMF_Grid),     intent(in),  optional :: grid
+    type(ESMF_Config),   intent(in),  optional :: config
+    character(len=*),    intent(in),  optional :: configFile
+    type(ESMF_Clock),    intent(in),  optional :: clock
+    character(len=*),    intent(in),  optional :: name
+    integer,             intent(out), optional :: rc
+!
+! !STATUS:
+! \begin{itemize}
+! \item\apiStatusCompatibleVersion{5.2.0r}
+! \end{itemize}
 !
 ! !DESCRIPTION:
 ! Sets or resets information about an {\tt ESMF\_GridComp}.
-! The caller can set individual values by specifying
-! the arguments by name.
-! All the arguments except {\tt gridcomp} are optional    
-! to facilitate this.
 !
 ! The arguments are:
 ! \begin{description}
 ! \item[gridcomp]
 !   {\tt ESMF\_GridComp} to change.
-! \item[{[name]}]
-!   Set the name of the {\tt ESMF\_GridComp}.
-! \item[{[gridcomptype]}]
-!   Set the model type for this {\tt ESMF\_GridComp}. See section
-!   \ref{opt:gridcomptype} for a complete list of valid types.
 ! \item[{[grid]}]
 !   Set the {\tt ESMF\_Grid} associated with the {\tt ESMF\_GridComp}.
 ! \item[{[config]}]
@@ -996,6 +1546,8 @@ contains
 !   if both are specified.
 ! \item[{[clock]}]
 !   Set the private clock for this {\tt ESMF\_GridComp}.
+! \item[{[name]}]
+!   Set the name of the {\tt ESMF\_GridComp}.
 ! \item[{[rc]}]
 !   Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
 ! \end{description}
@@ -1014,9 +1566,9 @@ contains
     ESMF_INIT_CHECK_DEEP(ESMF_ClockGetInit,clock,rc)
 
     ! call Comp method
-    call ESMF_CompSet(gridcomp%compp, name, gridcomptype=gridcomptype, &
+    call ESMF_CompSet(gridcomp%compp, name=name, &
       grid=grid, clock=clock, configFile=configFile, config=config, rc=localrc)
-    if (ESMF_LogMsgFoundError(localrc, &
+    if (ESMF_LogFoundError(localrc, &
       ESMF_ERR_PASSTHRU, &
       ESMF_CONTEXT, rcToReturn=rc)) return
 
@@ -1030,14 +1582,15 @@ contains
 #undef  ESMF_METHOD
 #define ESMF_METHOD "ESMF_GridCompSetEntryPoint"
 !BOP
-! !IROUTINE: ESMF_GridCompSetEntryPoint - Set user routine as entry point for standard Component method
+! !IROUTINE: ESMF_GridCompSetEntryPoint - Set user routine as entry point for standard GridComp method
 !
 ! !INTERFACE:
-  subroutine ESMF_GridCompSetEntryPoint(gridcomp, method, userRoutine, phase, rc)
+  recursive subroutine ESMF_GridCompSetEntryPoint(gridcomp, methodflag, &
+    userRoutine, keywordEnforcer, phase, rc)
 
 ! !ARGUMENTS:
-    type(ESMF_GridComp), intent(in) :: gridcomp
-    type(ESMF_Method),   intent(in) :: method
+    type(ESMF_GridComp),    intent(inout)         :: gridcomp
+    type(ESMF_Method_Flag), intent(in)            :: methodflag
     interface
       subroutine userRoutine(gridcomp, importState, exportState, clock, rc)
         use ESMF_CompMod
@@ -1051,25 +1604,38 @@ contains
         integer, intent(out)        :: rc           ! must not be optional
       end subroutine
     end interface
-    integer, intent(in),  optional  :: phase
-    integer, intent(out), optional  :: rc 
+type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
+    integer,                intent(in),  optional :: phase
+    integer,                intent(out), optional :: rc 
+!
+! !STATUS:
+! \begin{itemize}
+! \item\apiStatusCompatibleVersion{5.2.0r}
+! \end{itemize}
 !
 ! !DESCRIPTION:
 ! Registers a user-supplied {\tt userRoutine} as the entry point for one of the
-! predefined Component {\tt method}s. After this call the {\tt userRoutine}
+! predefined Component {\tt methodflag}s. After this call the {\tt userRoutine}
 ! becomes accessible via the standard Component method API.
 !    
 ! The arguments are:
 ! \begin{description}
 ! \item[gridcomp]
 !   An {\tt ESMF\_GridComp} object.
-! \item[method]
-!   One of a set of predefined Component methods - e.g. {\tt ESMF\_SETINIT}, 
-!   {\tt ESMF\_SETRUN}, {\tt ESMF\_SETFINAL}. See section \ref{opt:method} 
+! \item[methodflag]
+!   \begin{sloppypar}
+!   One of a set of predefined Component methods - e.g.
+!   {\tt ESMF\_METHOD\_INITIALIZE}, {\tt ESMF\_METHOD\_RUN}, 
+!   {\tt ESMF\_METHOD\_FINALIZE}. See section \ref{const:method} 
 !   for a complete list of valid method options.
+!   \end{sloppypar}
 ! \item[userRoutine]
 !   The user-supplied subroutine to be associated for this Component 
-!   {\tt method}. This subroutine does not have to be public.
+!   {\tt method}. The subroutine must be either a module scope procedure,
+!   or an external procedure that has a matching interface block specified
+!   for it. It must not be an internal procedure which is contained
+!   within another procedure. Argument types, intent and order must match
+!   the interface signature, and must not have the {\tt optional} attribute.
 ! \item[{[phase]}] 
 !   The {\tt phase} number for multi-phase methods. For single phase 
 !   methods the {\tt phase} argument can be omitted. The default setting
@@ -1077,10 +1643,6 @@ contains
 ! \item[{[rc]}] 
 !   Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
 ! \end{description}
-!
-! The Component writer must supply a subroutine with the exact interface 
-! shown above for the {\tt userRoutine} argument. Arguments in {\tt userRoutine}
-! must not be declared as optional, and the types, intent and order must match.
 !
 !EOP
 !------------------------------------------------------------------------------
@@ -1096,10 +1658,11 @@ contains
     phaseArg = 1   ! default
     if (present(phase)) phaseArg = phase
   
-    call c_ESMC_SetEntryPoint(gridcomp, method, userRoutine, phaseArg, localrc)
-    if (ESMF_LogMsgFoundError(localrc, &
-      ESMF_ERR_PASSTHRU, &
-      ESMF_CONTEXT, rcToReturn=rc)) return
+    call c_ESMC_SetEntryPoint(gridcomp, methodflag, userRoutine, phaseArg, &
+      localrc)
+!TODO: back in once thread-safe    if (ESMF_LogFoundError(localrc, &
+!TODO: back in once thread-safe      ESMF_ERR_PASSTHRU, &
+!TODO: back in once thread-safe      ESMF_CONTEXT, rcToReturn=rc)) return
 
     ! return successfully
     if (present(rc)) rc = ESMF_SUCCESS
@@ -1112,12 +1675,17 @@ contains
 ! !IROUTINE: ESMF_GridCompSetInternalState - Set private data block pointer
 !
 ! !INTERFACE:
-! subroutine ESMF_GridCompSetInternalState(gridcomp, dataPointer, rc)
+! subroutine ESMF_GridCompSetInternalState(gridcomp, wrappedDataPointer, rc)
 !
 ! !ARGUMENTS:
-!   type(ESMF_GridComp), intent(inout) :: gridcomp
-!   type(any), pointer                 :: dataPointer
-!   integer,             intent(out)   :: rc
+!   type(ESMF_GridComp)             :: gridcomp
+!   type(wrapper)                   :: wrappedDataPointer
+!   integer,            intent(out) :: rc
+!
+! !STATUS:
+! \begin{itemize}
+! \item\apiStatusCompatibleVersion{5.2.0r}
+! \end{itemize}
 !
 ! !DESCRIPTION:
 ! Available to be called by an {\tt ESMF\_GridComp} at any time, but 
@@ -1136,11 +1704,14 @@ contains
 ! Only the {\em last} data block set via
 ! {\tt ESMF\_GridCompSetInternalState} will be accessible.
 !
+! CAUTION: This method does not have an explicit Fortran interface. Do not 
+! specify argument keywords when calling this method!
+!   
 ! The arguments are:
 ! \begin{description}
 ! \item[gridcomp]
 !   An {\tt ESMF\_GridComp} object.
-! \item[dataPointer]
+! \item[wrappedDataPointer]
 !   A pointer to the private data block, wrapped in a derived type which
 !   contains only a pointer to the block.  This level of indirection is
 !   needed to reliably set and retrieve the data block no matter which
@@ -1162,10 +1733,11 @@ contains
 ! !IROUTINE: ESMF_GridCompSetServices - Call user routine to register GridComp methods
 !
 ! !INTERFACE:
-  recursive subroutine ESMF_GridCompSetServices(gridcomp, userRoutine, userRc, rc)
+  recursive subroutine ESMF_GridCompSetServices(gridcomp, &
+    userRoutine, keywordEnforcer, userRc, rc)
 !
 ! !ARGUMENTS:
-    type(ESMF_GridComp)            :: gridcomp
+    type(ESMF_GridComp), intent(inout)         :: gridcomp
     interface
       subroutine userRoutine(gridcomp, rc)
         use ESMF_CompMod
@@ -1174,32 +1746,43 @@ contains
         integer, intent(out)       :: rc       ! must not be optional
       end subroutine
     end interface
-    integer, intent(out), optional :: userRc
-    integer, intent(out), optional :: rc
+type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
+    integer,             intent(out), optional :: userRc
+    integer,             intent(out), optional :: rc
+!
+! !STATUS:
+! \begin{itemize}
+! \item\apiStatusCompatibleVersion{5.2.0r}
+! \end{itemize}
 !
 ! !DESCRIPTION:
 ! Call into user provided {\tt userRoutine} which is responsible for
-! for setting Component's Initialize(), Run() and Finalize() services.
+! setting Component's Initialize(), Run(), and Finalize() services.
 !    
 ! The arguments are:
 ! \begin{description}
 ! \item[gridcomp]
 !   Gridded Component.
 ! \item[userRoutine]
-!   Routine to be called.
+!   The Component writer must supply a subroutine with the exact interface 
+!   shown above for the {\tt userRoutine} argument. Arguments in {\tt userRoutine}
+!   must not be declared as optional, and the types, intent and order must match.
+!   The subroutine must be either a module scope procedure, or an external
+!   procedure that has a matching interface block specified for it.
+!   It must not be an internal procedure which is contained
+!   within another procedure.
+!
+!   \begin{sloppypar}
+!   The {\tt userRoutine}, when called by the framework, must make successive calls
+!   to {\tt ESMF\_GridCompSetEntryPoint()} to preset callback routines for
+!   standard Component Initialize(), Run(), and Finalize() methods.
+!   \end{sloppypar}
 ! \item[{[userRc]}]
 !   Return code set by {\tt userRoutine} before returning.
 ! \item[{[rc]}]
 !   Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
 ! \end{description}
 !
-! The Component writer must supply a subroutine with the exact interface 
-! shown above for the {\tt userRoutine} argument. Arguments in {\tt userRoutine}
-! must not be declared as optional, and the types, intent and order must match.
-!
-! The {\tt userRoutine}, when called by the framework, must make successive calls
-! to {\tt ESMF\_GridCompSetEntryPoint()} to preset callback routines for
-! standard Component Initialize(), Run() and Finalize() methods.
 !
 !EOP
 !------------------------------------------------------------------------------
@@ -1212,16 +1795,10 @@ contains
 
     ESMF_INIT_CHECK_DEEP(ESMF_GridCompGetInit, gridcomp, rc)
   
-    ! set the current method to keep track inside Component for query
-    gridcomp%compp%currentMethod = ESMF_SETSERVICES
-
     call c_ESMC_SetServices(gridcomp, userRoutine, localUserRc, localrc)
-    if (ESMF_LogMsgFoundError(localrc, &
+    if (ESMF_LogFoundError(localrc, &
       ESMF_ERR_PASSTHRU, &
       ESMF_CONTEXT, rcToReturn=rc)) return
-
-    ! reset the current method to keep track inside Component for query
-    gridcomp%compp%currentMethod = ESMF_SETNONE
 
     ! pass back userRc
     if (present(userRc)) userRc = localUserRc
@@ -1241,18 +1818,24 @@ contains
 ! !INTERFACE:
   ! Private name; call using ESMF_GridCompSetServices()
   recursive subroutine ESMF_GridCompSetServicesShObj(gridcomp, userRoutine, &
-    sharedObj, userRc, rc)
+    keywordEnforcer, sharedObj, userRc, rc)
 !
 ! !ARGUMENTS:
     type(ESMF_GridComp), intent(inout)         :: gridcomp
     character(len=*),    intent(in)            :: userRoutine
+type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
     character(len=*),    intent(in),  optional :: sharedObj
     integer,             intent(out), optional :: userRc
     integer,             intent(out), optional :: rc
 !
+! !STATUS:
+! \begin{itemize}
+! \item\apiStatusCompatibleVersion{5.2.0r}
+! \end{itemize}
+!
 ! !DESCRIPTION:
 ! Call into user provided routine which is responsible for setting
-! Component's Initialize(), Run() and Finalize() services. The named
+! Component's Initialize(), Run(), and Finalize() services. The named
 ! {\tt userRoutine} must exist in the shared object file specified in the
 ! {\tt sharedObj} argument. All of the platform specific details about 
 ! dynamic linking and loading apply.
@@ -1262,7 +1845,29 @@ contains
 ! \item[gridcomp]
 !   Gridded Component.
 ! \item[userRoutine]
-!   Name of routine to be called.
+!   Name of routine to be called, specified as a character string.
+!   The Component writer must supply a subroutine with the exact interface 
+!   shown for {\tt userRoutine} below. Arguments must not be declared
+!   as optional, and the types, intent and order must match.
+!   The subroutine must be either a module scope procedure, or an external
+!   procedure that has a matching interface block specified for it.
+!   It must not be an internal procedure which is contained
+!   within another procedure.
+!
+!   !INTERFACE:
+!     interface
+!   	subroutine userRoutine(gridcomp, rc)
+!   	  type(ESMF_GridComp)  :: gridcomp   ! must not be optional
+!   	  integer, intent(out) :: rc	     ! must not be optional
+!   	end subroutine
+!     end interface
+!
+!   !DESCRIPTION:
+!   \begin{sloppypar}
+!   The {\tt userRoutine}, when called by the framework, must make successive calls
+!   to {\tt ESMF\_GridCompSetEntryPoint()} to preset callback routines for
+!   standard Component Initialize(), Run(), and Finalize() methods.
+!   \end{sloppypar}
 ! \item[{[sharedObj]}]
 !   Name of shared object that contains {\tt userRoutine}. If the
 !   {\tt sharedObj} argument is not provided the executable itself will be
@@ -1272,23 +1877,6 @@ contains
 ! \item[{[rc]}]
 !   Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
 ! \end{description}
-!
-! The Component writer must supply a subroutine with the exact interface 
-! shown for {\tt userRoutine} below. Arguments must not be declared
-! as optional, and the types, intent and order must match.
-!
-! !INTERFACE:
-!   interface
-!     subroutine userRoutine(gridcomp, rc)
-!       type(ESMF_GridComp)  :: gridcomp   ! must not be optional
-!       integer, intent(out) :: rc         ! must not be optional
-!     end subroutine
-!   end interface
-!
-! !DESCRIPTION:
-! The {\tt userRoutine}, when called by the framework, must make successive calls
-! to {\tt ESMF\_GridCompSetEntryPoint()} to preset callback routines for
-! standard Component Initialize(), Run() and Finalize() methods.
 !
 !EOP
 !------------------------------------------------------------------------------
@@ -1302,9 +1890,6 @@ contains
 
     ESMF_INIT_CHECK_DEEP(ESMF_GridCompGetInit, gridcomp, rc)
   
-    ! set the current method to keep track inside Component for query
-    gridcomp%compp%currentMethod = ESMF_SETSERVICES
-
     if (present(sharedObj)) then
       call c_ESMC_SetServicesShObj(gridcomp, userRoutine, sharedObj, &
         localUserRc, localrc)
@@ -1312,12 +1897,9 @@ contains
       call c_ESMC_SetServicesShObj(gridcomp, userRoutine, emptyString, &
         localUserRc, localrc)
     endif
-    if (ESMF_LogMsgFoundError(localrc, &
+    if (ESMF_LogFoundError(localrc, &
       ESMF_ERR_PASSTHRU, &
       ESMF_CONTEXT, rcToReturn=rc)) return
-
-    ! reset the current method to keep track inside Component for query
-    gridcomp%compp%currentMethod = ESMF_SETNONE
 
     ! pass back userRc
     if (present(userRc)) userRc = localUserRc
@@ -1332,12 +1914,13 @@ contains
 #undef  ESMF_METHOD
 #define ESMF_METHOD "ESMF_GridCompSetVM"
 !BOP
-! !IROUTINE: ESMF_GridCompSetVM - Call user routine to set GridComp VM properies
+! !IROUTINE: ESMF_GridCompSetVM - Call user routine to set GridComp VM properties
 !
 ! !INTERFACE:
-  recursive subroutine ESMF_GridCompSetVM(gridcomp, userRoutine, userRc, rc)
+  recursive subroutine ESMF_GridCompSetVM(gridcomp, userRoutine, keywordEnforcer, &
+    userRc, rc)
 ! !ARGUMENTS:
-    type(ESMF_GridComp)            :: gridcomp
+    type(ESMF_GridComp), intent(inout)         :: gridcomp
     interface
       subroutine userRoutine(gridcomp, rc)
         use ESMF_CompMod
@@ -1346,32 +1929,40 @@ contains
         integer, intent(out)       :: rc       ! must not be optional
       end subroutine
     end interface
-    integer, intent(out), optional :: userRc
-    integer, intent(out), optional :: rc
+type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
+    integer,             intent(out), optional :: userRc
+    integer,             intent(out), optional :: rc
+!
+! !STATUS:
+! \begin{itemize}
+! \item\apiStatusCompatibleVersion{5.2.0r}
+! \end{itemize}
 !
 ! !DESCRIPTION:
 ! Optionally call into user provided {\tt userRoutine} which is responsible for
-! for setting Component's VM properties. 
+! for setting Component's VM properties.
 !
 ! The arguments are:
 ! \begin{description}
 ! \item[gridcomp]
 !   Gridded Component.
 ! \item[userRoutine]
-!   Routine to be called.
+!   The Component writer must supply a subroutine with the exact interface 
+!   shown above for the {\tt userRoutine} argument. Arguments in {\tt userRoutine}
+!   must not be declared as optional, and the types, intent and order must match.
+!   The subroutine must be either a module scope procedure, or an external
+!   procedure that has a matching interface block specified for it.
+!   It must not be an internal procedure which is contained
+!   within another procedure.
+!
+!   The subroutine, when called by the framework, is expected to use any of the
+!   {\tt ESMF\_GridCompSetVMxxx()} methods to set the properties of the VM
+!   associated with the Gridded Component.
 ! \item[{[userRc]}]
 !   Return code set by {\tt userRoutine} before returning.
 ! \item[{[rc]}]
 !   Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
 ! \end{description}
-!
-! The Component writer must supply a subroutine with the exact interface 
-! shown above for the {\tt userRoutine} argument. Arguments in {\tt userRoutine}
-! must not be declared as optional, and the types, intent and order must match.
-!
-! The subroutine, when called by the framework, is expected to use any of the
-! {\tt ESMF\_GridCompSetVMxxx()} methods to set the properties of the VM
-! associated with the Gridded Component.
 !
 !EOP
 !------------------------------------------------------------------------------
@@ -1384,17 +1975,11 @@ contains
 
     ESMF_INIT_CHECK_DEEP(ESMF_GridCompGetInit, gridcomp, rc)
   
-    ! set the current method to keep track inside Component for query
-    gridcomp%compp%currentMethod = ESMF_SETVM
-
     call c_ESMC_SetVM(gridcomp, userRoutine, localUserRc, localrc)
-    if (ESMF_LogMsgFoundError(localrc, &
+    if (ESMF_LogFoundError(localrc, &
       ESMF_ERR_PASSTHRU, &
       ESMF_CONTEXT, rcToReturn=rc)) return
       
-    ! reset the current method to keep track inside Component for query
-    gridcomp%compp%currentMethod = ESMF_SETNONE
-
     ! pass back userRc
     if (present(userRc)) userRc = localUserRc
 
@@ -1408,19 +1993,25 @@ contains
 #undef  ESMF_METHOD
 #define ESMF_METHOD "ESMF_GridCompSetVMShObj"
 !BOP
-! !IROUTINE: ESMF_GridCompSetVM - Call user routine, located in shared object, to set GridComp VM properies
+! !IROUTINE: ESMF_GridCompSetVM - Call user routine, located in shared object, to set GridComp VM properties
 !
 ! !INTERFACE:
   ! Private name; call using ESMF_GridCompSetVM()
-  recursive subroutine ESMF_GridCompSetVMShObj(gridcomp, userRoutine, sharedObj, &
-    userRc, rc)
+  recursive subroutine ESMF_GridCompSetVMShObj(gridcomp, userRoutine, &
+    keywordEnforcer, sharedObj, userRc, rc)
 !
 ! !ARGUMENTS:
     type(ESMF_GridComp), intent(inout)         :: gridcomp
     character(len=*),    intent(in)            :: userRoutine
+type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
     character(len=*),    intent(in),  optional :: sharedObj
     integer,             intent(out), optional :: userRc
     integer,             intent(out), optional :: rc
+!
+! !STATUS:
+! \begin{itemize}
+! \item\apiStatusCompatibleVersion{5.2.0r}
+! \end{itemize}
 !
 ! !DESCRIPTION:
 ! Optionally call into user provided {\tt userRoutine} which is responsible for
@@ -1433,7 +2024,27 @@ contains
 ! \item[gridcomp]
 !   Gridded Component.
 ! \item[userRoutine]
-!   Routine to be called.
+!   Routine to be called, specified as a character string.
+!   The Component writer must supply a subroutine with the exact interface 
+!   shown for {\tt userRoutine} below. Arguments must not be declared
+!   as optional, and the types, intent and order must match.
+!   The subroutine must be either a module scope procedure, or an external
+!   procedure that has a matching interface block specified for it.
+!   It must not be an internal procedure which is contained
+!   within another procedure.
+!
+!   !INTERFACE:
+!     interface
+!   	subroutine userRoutine(gridcomp, rc)
+!   	  type(ESMF_GridComp)  :: gridcomp    ! must not be optional
+!   	  integer, intent(out) :: rc	      ! must not be optional
+!   	end subroutine
+!     end interface
+!
+!   !DESCRIPTION:
+!   The subroutine, when called by the framework, is expected to use any of the
+!   {\tt ESMF\_GridCompSetVMxxx()} methods to set the properties of the VM
+!   associated with the Gridded Component.
 ! \item[{[sharedObj]}]
 !   Name of shared object that contains {\tt userRoutine}. If the
 !   {\tt sharedObj} argument is not provided the executable itself will be
@@ -1443,23 +2054,6 @@ contains
 ! \item[{[rc]}]
 !   Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
 ! \end{description}
-!
-! The Component writer must supply a subroutine with the exact interface 
-! shown for {\tt userRoutine} below. Arguments must not be declared
-! as optional, and the types, intent and order must match.
-!
-! !INTERFACE:
-!   interface
-!     subroutine userRoutine(gridcomp, rc)
-!       type(ESMF_GridComp)  :: gridcomp    ! must not be optional
-!       integer, intent(out) :: rc          ! must not be optional
-!     end subroutine
-!   end interface
-!
-! !DESCRIPTION:
-! The subroutine, when called by the framework, is expected to use any of the
-! {\tt ESMF\_GridCompSetVMxxx()} methods to set the properties of the VM
-! associated with the Gridded Component.
 !
 !EOP
 !------------------------------------------------------------------------------
@@ -1473,9 +2067,6 @@ contains
 
     ESMF_INIT_CHECK_DEEP(ESMF_GridCompGetInit, gridcomp, rc)
   
-    ! set the current method to keep track inside Component for query
-    gridcomp%compp%currentMethod = ESMF_SETVM
-
     if (present(sharedObj)) then
       call c_ESMC_SetVMShObj(gridcomp, userRoutine, sharedObj, localUserRc, &
         localrc)
@@ -1483,12 +2074,9 @@ contains
       call c_ESMC_SetVMShObj(gridcomp, userRoutine, emptyString, localUserRc, &
         localrc)
     endif
-    if (ESMF_LogMsgFoundError(localrc, &
+    if (ESMF_LogFoundError(localrc, &
       ESMF_ERR_PASSTHRU, &
       ESMF_CONTEXT, rcToReturn=rc)) return
-
-    ! reset the current method to keep track inside Component for query
-    gridcomp%compp%currentMethod = ESMF_SETNONE
 
     ! pass back userRc
     if (present(userRc)) userRc = localUserRc
@@ -1503,26 +2091,32 @@ contains
 #undef  ESMF_METHOD
 #define ESMF_METHOD "ESMF_GridCompSetVMMaxPEs"
 !BOP
-! !IROUTINE: ESMF_GridCompSetVMMaxPEs - Set VM for Gridded Component to associate max PEs with PETs.
+! !IROUTINE: ESMF_GridCompSetVMMaxPEs - Associate PEs with PETs in GridComp VM
 !
 ! !INTERFACE:
-  subroutine ESMF_GridCompSetVMMaxPEs(gridcomp, max, pref_intra_process, &
-    pref_intra_ssi, pref_inter_ssi, rc)
+  subroutine ESMF_GridCompSetVMMaxPEs(gridcomp, keywordEnforcer, &
+    maxPeCountPerPet, prefIntraProcess, prefIntraSsi, prefInterSsi, rc)
 !
 ! !ARGUMENTS:
     type(ESMF_GridComp), intent(inout)         :: gridcomp
-    integer,             intent(in),  optional :: max
-    integer,             intent(in),  optional :: pref_intra_process
-    integer,             intent(in),  optional :: pref_intra_ssi
-    integer,             intent(in),  optional :: pref_inter_ssi
+type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
+    integer,             intent(in),  optional :: maxPeCountPerPet
+    integer,             intent(in),  optional :: prefIntraProcess
+    integer,             intent(in),  optional :: prefIntraSsi
+    integer,             intent(in),  optional :: prefInterSsi
     integer,             intent(out), optional :: rc
 !
 ! !DESCRIPTION:
 !   Set characteristics of the {\tt ESMF\_VM} for this {\tt ESMF\_GridComp}.
-!   Attempts to associate {\tt max} PEs with each PET. Only PEs that are 
-!   located on the same single system image can be associated with the same PET.
-!   Within this constraint the call tries to get as close as possible to the
-!   number specified by {\tt max}.
+!   Attempts to associate up to {\tt maxPeCountPerPet} PEs with each PET. Only
+!   PEs that are located on the same single system image (SSI) can be associated
+!   with the same PET. Within this constraint the call tries to get as close as
+!   possible to the number specified by {\tt maxPeCountPerPet}.
+!
+!   The other constraint to this call is that the number of PEs is preserved.
+!   This means that the child Component in the end is associated with as many
+!   PEs as the parent Component provided to the child. The number of child PETs 
+!   however is adjusted according to the above rule.
 !
 !   The typical use of {\tt ESMF\_GridCompSetVMMaxPEs()} is to allocate
 !   multiple PEs per PET in a Component for user-level threading, e.g. OpenMP.
@@ -1531,16 +2125,17 @@ contains
 ! \begin{description}
 ! \item[gridcomp] 
 !   {\tt ESMF\_GridComp} to set the {\tt ESMF\_VM} for.
-! \item[{[max]}] 
-!   Maximum number of PEs per PET. Default is peCount.
-! \item[{[pref\_intra\_process]}] 
-!   Intra process communication preference.
+! \item[{[maxPeCountPerPet]}] 
+!   Maximum number of PEs on each PET.
+!   Default for each SSI is the local number of PEs.
+! \item[{[prefIntraProcess]}] 
+!   Communication preference within a single process.
 !   {\em Currently options not documented. Use default.}
-! \item[{[pref\_intra\_ssi]}] 
-!   Intra SSI communication preference.
+! \item[{[prefIntraSsi]}] 
+!   Communication preference within a single system image (SSI).
 !   {\em Currently options not documented. Use default.}
-! \item[{[pref\_inter\_ssi]}] 
-!   Inter process communication preference.
+! \item[{[prefInterSsi]}] 
+!   Communication preference between different single system images (SSIs).
 !   {\em Currently options not documented. Use default.}
 ! \item[{[rc]}] 
 !   Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
@@ -1557,11 +2152,11 @@ contains
     ESMF_INIT_CHECK_DEEP(ESMF_GridCompGetInit,gridcomp,rc)
 
     ! call Comp method
-    call ESMF_CompSetVMMaxPEs(gridcomp%compp, max, &
-      pref_intra_process, pref_intra_ssi, pref_inter_ssi, rc=localrc)
-    if (ESMF_LogMsgFoundError(localrc, &
+    call ESMF_CompSetVMMaxPEs(gridcomp%compp, maxPeCountPerPet, &
+      prefIntraProcess, prefIntraSsi, prefInterSsi, rc=localrc)
+    if (ESMF_LogFoundError(localrc, &
       ESMF_ERR_PASSTHRU, &
-      ESMF_CONTEXT, rc)) return
+      ESMF_CONTEXT, rcTOReturn=rc)) return
 
     ! return successfully
     if (present(rc)) rc = ESMF_SUCCESS
@@ -1573,45 +2168,53 @@ contains
 #undef  ESMF_METHOD
 #define ESMF_METHOD "ESMF_GridCompSetVMMaxThreads"
 !BOP
-! !IROUTINE: ESMF_GridCompSetVMMaxThreads - Set VM for Gridded Component with multi-threaded PETs.
+! !IROUTINE: ESMF_GridCompSetVMMaxThreads - Set multi-threaded PETs in GridComp VM
 !
 ! !INTERFACE:
-  subroutine ESMF_GridCompSetVMMaxThreads(gridcomp, max, pref_intra_process, &
-    pref_intra_ssi, pref_inter_ssi, rc)
+  subroutine ESMF_GridCompSetVMMaxThreads(gridcomp, keywordEnforcer, &
+    maxPetCountPerVas, prefIntraProcess, prefIntraSsi, prefInterSsi, rc)
 !
 ! !ARGUMENTS:
     type(ESMF_GridComp), intent(inout)         :: gridcomp
-    integer,             intent(in),  optional :: max
-    integer,             intent(in),  optional :: pref_intra_process
-    integer,             intent(in),  optional :: pref_intra_ssi
-    integer,             intent(in),  optional :: pref_inter_ssi
+type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
+    integer,             intent(in),  optional :: maxPetCountPerVas
+    integer,             intent(in),  optional :: prefIntraProcess
+    integer,             intent(in),  optional :: prefIntraSsi
+    integer,             intent(in),  optional :: prefInterSsi
     integer,             intent(out), optional :: rc
 !
 ! !DESCRIPTION:
 !   Set characteristics of the {\tt ESMF\_VM} for this {\tt ESMF\_GridComp}.
-!   Attempts to provide {\tt max} threaded PETs in each VAS. Only as many
-!   threaded PETs as there are PEs located on the same single system image
-!   can be associated with the same VAS. Within this constraint the call
-!   tries to get as close as possible to the number specified by {\tt max}.
+!   Attempts to provide {\tt maxPetCountPerVas} threaded PETs in each 
+!   virtual address space (VAS). Only as many threaded PETs as there are PEs
+!   located on the single system image (SSI) can be associated with the VAS. 
+!   Within this constraint the call tries to get as close as possible to the 
+!   number specified by {\tt maxPetCountPerVas}.
+!
+!   The other constraint to this call is that the number of PETs is preserved.
+!   This means that the child Component in the end is associated with as many
+!   PETs as the parent Component provided to the child. The threading level of
+!   the child PETs however is adjusted according to the above rule.
 !
 !   The typical use of {\tt ESMF\_GridCompSetVMMaxThreads()} is to run a 
-!   Component multi-threaded with a groups of PETs that execute within the
-!   same virtual address space.
+!   Component multi-threaded with groups of PETs executing within a common
+!   virtual address space.
 !
 ! The arguments are:
 ! \begin{description}
 ! \item[gridcomp] 
 !   {\tt ESMF\_GridComp} to set the {\tt ESMF\_VM} for.
-! \item[{[max]}] 
-!   Maximum threading level.
-! \item[{[pref\_intra\_process]}] 
-!   Intra process communication preference.
+! \item[{[maxPetCountPerVas]}] 
+!   Maximum number of threaded PETs in each virtual address space (VAS). 
+!   Default for each SSI is the local number of PEs.
+! \item[{[prefIntraProcess]}] 
+!   Communication preference within a single process.
 !   {\em Currently options not documented. Use default.}
-! \item[{[pref\_intra\_ssi]}] 
-!   Intra SSI communication preference.
+! \item[{[prefIntraSsi]}] 
+!   Communication preference within a single system image (SSI).
 !   {\em Currently options not documented. Use default.}
-! \item[{[pref\_inter\_ssi]}] 
-!   Inter process communication preference.
+! \item[{[prefInterSsi]}] 
+!   Communication preference between different single system images (SSIs).
 !   {\em Currently options not documented. Use default.}
 ! \item[{[rc]}] 
 !   Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
@@ -1628,11 +2231,11 @@ contains
     ESMF_INIT_CHECK_DEEP(ESMF_GridCompGetInit,gridcomp,rc)
 
     ! call Comp method
-    call ESMF_CompSetVMMaxThreads(gridcomp%compp, max, &
-      pref_intra_process, pref_intra_ssi, pref_inter_ssi, rc=localrc)
-    if (ESMF_LogMsgFoundError(localrc, &
+    call ESMF_CompSetVMMaxThreads(gridcomp%compp, maxPetCountPerVas, &
+      prefIntraProcess, prefIntraSsi, prefInterSsi, rc=localrc)
+    if (ESMF_LogFoundError(localrc, &
       ESMF_ERR_PASSTHRU, &
-      ESMF_CONTEXT, rc)) return
+      ESMF_CONTEXT, rcTOReturn=rc)) return
 
     ! return successfully
     if (present(rc)) rc = ESMF_SUCCESS
@@ -1644,25 +2247,31 @@ contains
 #undef  ESMF_METHOD
 #define ESMF_METHOD "ESMF_GridCompSetVMMinThreads"
 !BOP
-! !IROUTINE: ESMF_GridCompSetVMMinThreads - Set VM for Gridded Component with reduced threading level.
+! !IROUTINE: ESMF_GridCompSetVMMinThreads - Set a reduced threading level in GridComp VM
 !
 ! !INTERFACE:
-  subroutine ESMF_GridCompSetVMMinThreads(gridcomp, max, pref_intra_process, &
-    pref_intra_ssi, pref_inter_ssi, rc)
+  subroutine ESMF_GridCompSetVMMinThreads(gridcomp, keywordEnforcer, &
+    maxPeCountPerPet, prefIntraProcess, prefIntraSsi, prefInterSsi, rc)
 !
 ! !ARGUMENTS:
     type(ESMF_GridComp), intent(inout)         :: gridcomp
-    integer,             intent(in),  optional :: max
-    integer,             intent(in),  optional :: pref_intra_process
-    integer,             intent(in),  optional :: pref_intra_ssi
-    integer,             intent(in),  optional :: pref_inter_ssi
+type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
+    integer,             intent(in),  optional :: maxPeCountPerPet
+    integer,             intent(in),  optional :: prefIntraProcess
+    integer,             intent(in),  optional :: prefIntraSsi
+    integer,             intent(in),  optional :: prefInterSsi
     integer,             intent(out), optional :: rc
 !
 ! !DESCRIPTION:
 !   Set characteristics of the {\tt ESMF\_VM} for this {\tt ESMF\_GridComp}.
 !   Reduces the number of threaded PETs in each VAS. The {\tt max} argument
 !   may be specified to limit the maximum number of PEs that a single PET 
-!   may be associated with.
+!   can be associated with.
+!
+!   Several constraints apply: 1) the number of PEs cannot change, 2) PEs
+!   cannot migrate between single system images (SSIs), 3) the number of PETs
+!   cannot increase, only decrease, 4) PETs cannot migrate between virtual
+!   address spaces (VASs), nor can VASs migrate between SSIs.
 !
 !   The typical use of {\tt ESMF\_GridCompSetVMMinThreads()} is to run a 
 !   Component across a set of single-threaded PETs.
@@ -1671,16 +2280,17 @@ contains
 ! \begin{description}
 ! \item[gridcomp] 
 !   {\tt ESMF\_GridComp} to set the {\tt ESMF\_VM} for.
-! \item[{[max]}] 
-!   Maximum number of PEs per PET. Default is peCount.
-! \item[{[pref\_intra\_process]}] 
-!   Intra process communication preference.
+! \item[{[maxPeCountPerPet]}] 
+!   Maximum number of PEs on each PET.
+!   Default for each SSI is the local number of PEs.
+! \item[{[prefIntraProcess]}] 
+!   Communication preference within a single process.
 !   {\em Currently options not documented. Use default.}
-! \item[{[pref\_intra\_ssi]}] 
-!   Intra SSI communication preference.
+! \item[{[prefIntraSsi]}] 
+!   Communication preference within a single system image (SSI).
 !   {\em Currently options not documented. Use default.}
-! \item[{[pref\_inter\_ssi]}] 
-!   Inter process communication preference.
+! \item[{[prefInterSsi]}] 
+!   Communication preference between different single system images (SSIs).
 !   {\em Currently options not documented. Use default.}
 ! \item[{[rc]}] 
 !   Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
@@ -1697,11 +2307,11 @@ contains
     ESMF_INIT_CHECK_DEEP(ESMF_GridCompGetInit,gridcomp,rc)
 
     ! call Comp method
-    call ESMF_CompSetVMMinThreads(gridcomp%compp, max, &
-      pref_intra_process, pref_intra_ssi, pref_inter_ssi, rc=localrc)
-    if (ESMF_LogMsgFoundError(localrc, &
+    call ESMF_CompSetVMMinThreads(gridcomp%compp, maxPeCountPerPet, &
+      prefIntraProcess, prefIntraSsi, prefInterSsi, rc=localrc)
+    if (ESMF_LogFoundError(localrc, &
       ESMF_ERR_PASSTHRU, &
-      ESMF_CONTEXT, rc)) return
+      ESMF_CONTEXT, rcTOReturn=rc)) return
 
     ! return successfully
     if (present(rc)) rc = ESMF_SUCCESS
@@ -1716,22 +2326,26 @@ contains
 ! !IROUTINE: ESMF_GridCompValidate - Check validity of a GridComp
 !
 ! !INTERFACE:
-  subroutine ESMF_GridCompValidate(gridcomp, options, rc)
+  subroutine ESMF_GridCompValidate(gridcomp, keywordEnforcer, rc)
 !
 ! !ARGUMENTS:
-    type(ESMF_GridComp)                       :: gridcomp
-    character(len = *), intent(in),  optional :: options
-    integer,            intent(out), optional :: rc
+    type(ESMF_GridComp), intent(in)            :: gridcomp
+type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
+    integer,             intent(out), optional :: rc
+!
+! !STATUS:
+! \begin{itemize}
+! \item\apiStatusCompatibleVersion{5.2.0r}
+! \end{itemize}
 !
 ! !DESCRIPTION:
-! Currently all this method does is to check that the {\tt gridcomp} exists.
+! Currently all this method does is to check that the {\tt gridcomp}
+! was created.
 !
 ! The arguments are:
 ! \begin{description}
 ! \item[gridcomp]
 !   {\tt ESMF\_GridComp} to validate.
-! \item[{[options]}]  
-!   Validation options are not yet supported.
 ! \item[{[rc]}]
 !   Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
 ! \end{description}
@@ -1747,8 +2361,8 @@ contains
     ESMF_INIT_CHECK_DEEP(ESMF_GridCompGetInit,gridcomp,rc)
 
     ! call Comp method
-    call ESMF_CompValidate(gridcomp%compp, options, rc=localrc)
-    if (ESMF_LogMsgFoundError(localrc, &
+    call ESMF_CompValidate(gridcomp%compp, rc=localrc)
+    if (ESMF_LogFoundError(localrc, &
       ESMF_ERR_PASSTHRU, &
       ESMF_CONTEXT, rcToReturn=rc)) return
 
@@ -1765,13 +2379,19 @@ contains
 ! !IROUTINE: ESMF_GridCompWait - Wait for a GridComp to return
 !
 ! !INTERFACE:
-  subroutine ESMF_GridCompWait(gridcomp, blockingflag, userRc, rc)
+  subroutine ESMF_GridCompWait(gridcomp, keywordEnforcer, syncflag, userRc, rc)
 !
 ! !ARGUMENTS:
-    type(ESMF_GridComp),     intent(inout)         :: gridcomp
-    type(ESMF_BlockingFlag), intent(in),  optional :: blockingflag
-    integer,                 intent(out), optional :: userRc
-    integer,                 intent(out), optional :: rc
+    type(ESMF_GridComp),  intent(inout)         :: gridcomp
+type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
+    type(ESMF_Sync_Flag), intent(in),  optional :: syncflag
+    integer,              intent(out), optional :: userRc
+    integer,              intent(out), optional :: rc
+!
+! !STATUS:
+! \begin{itemize}
+! \item\apiStatusCompatibleVersion{5.2.0r}
+! \end{itemize}
 !
 ! !DESCRIPTION:
 ! When executing asychronously, wait for an {\tt ESMF\_GridComp} to return.
@@ -1780,10 +2400,10 @@ contains
 ! \begin{description}
 ! \item[gridcomp] 
 !   {\tt ESMF\_GridComp} to wait for.
-! \item[{[blockingflag]}]
-!   Blocking behavior of this method call. See section \ref{opt:blockingflag} 
+! \item[{[syncflag]}]
+!   Blocking behavior of this method call. See section \ref{const:sync} 
 !   for a list of valid blocking options. Default option is
-!   {\tt ESMF\_VASBLOCKING} which blocks PETs and their spawned off threads 
+!   {\tt ESMF\_SYNC\_VASBLOCKING} which blocks PETs and their spawned off threads 
 !   across each VAS but does not synchronize PETs that run in different VASs.
 ! \item[{[userRc]}]
 !   Return code set by {\tt userRoutine} before returning.
@@ -1802,11 +2422,11 @@ contains
     ESMF_INIT_CHECK_DEEP(ESMF_GridCompGetInit,gridcomp,rc)
 
     ! call Comp method
-    call ESMF_CompWait(gridcomp%compp, blockingflag=blockingflag, &
+    call ESMF_CompWait(gridcomp%compp, syncflag=syncflag, &
       userRc=userRc, rc=localrc)
-    if (ESMF_LogMsgFoundError(localrc, &
+    if (ESMF_LogFoundError(localrc, &
       ESMF_ERR_PASSTHRU, &
-      ESMF_CONTEXT, rc)) return
+      ESMF_CONTEXT, rcTOReturn=rc)) return
 
     ! return successfully
     if (present(rc)) rc = ESMF_SUCCESS
@@ -1821,21 +2441,28 @@ contains
 ! !IROUTINE: ESMF_GridCompWriteRestart - Call the GridComp's write restart routine
 !
 ! !INTERFACE:
-  recursive subroutine ESMF_GridCompWriteRestart(gridcomp, importState, &
-    exportState, clock, phase, blockingflag, userRc, rc)
+  recursive subroutine ESMF_GridCompWriteRestart(gridcomp, keywordEnforcer, &
+    importState, exportState, clock, syncflag, phase, userRc, rc)
 !
 ! !ARGUMENTS:
-    type(ESMF_GridComp)                              :: gridcomp
-    type(ESMF_State),        intent(inout), optional :: importState
-    type(ESMF_State),        intent(inout), optional :: exportState
-    type(ESMF_Clock),        intent(inout), optional :: clock
-    integer,                 intent(in),    optional :: phase
-    type(ESMF_BlockingFlag), intent(in),    optional :: blockingflag
-    integer,                 intent(out),   optional :: userRc
-    integer,                 intent(out),   optional :: rc
+    type(ESMF_GridComp),  intent(inout)           :: gridcomp
+type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
+    type(ESMF_State),     intent(inout), optional :: importState
+    type(ESMF_State),     intent(inout), optional :: exportState
+    type(ESMF_Clock),     intent(inout), optional :: clock
+    type(ESMF_Sync_Flag), intent(in),    optional :: syncflag
+    integer,              intent(in),    optional :: phase
+    integer,              intent(out),   optional :: userRc
+    integer,              intent(out),   optional :: rc
+!
+! !STATUS:
+! \begin{itemize}
+! \item\apiStatusCompatibleVersion{5.2.0r}
+! \end{itemize}
 !
 ! !DESCRIPTION:
-! Call the associated user write restart code for an {\tt ESMF\_GridComp}.
+! Call the associated user write restart routine for 
+! an {\tt ESMF\_GridComp}.
 !    
 ! The arguments are:
 ! \begin{description}
@@ -1856,6 +2483,11 @@ contains
 !   a private clock for its own internal time computations. If not present, a dummy
 !   argument will be passed to the user-supplied routine.  The 
 !   clock argument in the user code cannot be optional. 
+! \item[{[syncflag]}]  
+!   Blocking behavior of this method call. See section \ref{const:sync} 
+!   for a list of valid blocking options. Default option is
+!   {\tt ESMF\_SYNC\_VASBLOCKING} which blocks PETs and their spawned off threads 
+!   across each VAS but does not synchronize PETs that run in different VASs.
 ! \item[{[phase]}]   
 !   Component providers must document whether their each of their
 !   routines are {\em single-phase} or {\em multi-phase}.    
@@ -1869,11 +2501,6 @@ contains
 !   number to be invoked.
 !   For single-phase child components this argument is optional. The default is
 !   1.
-! \item[{[blockingflag]}]  
-!   Blocking behavior of this method call. See section \ref{opt:blockingflag} 
-!   for a list of valid blocking options. Default option is
-!   {\tt ESMF\_VASBLOCKING} which blocks PETs and their spawned off threads 
-!   across each VAS but does not synchronize PETs that run in different VASs.
 ! \item[{[userRc]}]
 !   Return code set by {\tt userRoutine} before returning.
 ! \item[{[rc]}]
@@ -1891,10 +2518,10 @@ contains
     ESMF_INIT_CHECK_DEEP(ESMF_GridCompGetInit,gridcomp,rc)
     ESMF_INIT_CHECK_DEEP(ESMF_ClockGetInit,clock,rc)
 
-    call ESMF_CompExecute(gridcomp%compp, method=ESMF_SETWRITERESTART, &
+    call ESMF_CompExecute(gridcomp%compp, method=ESMF_METHOD_WRITERESTART, &
       importState=importState, exportState=exportState, clock=clock, &
-      phase=phase, blockingflag=blockingflag, userRc=userRc, rc=localrc)
-    if (ESMF_LogMsgFoundError(localrc, &
+      syncflag=syncflag, phase=phase, userRc=userRc, rc=localrc)
+    if (ESMF_LogFoundError(localrc, &
       ESMF_ERR_PASSTHRU, &
       ESMF_CONTEXT, rcToReturn=rc)) return
 

@@ -1,0 +1,109 @@
+function res (args)
+
+expid    = subwrd(args,1)
+source   = subwrd(args,2)
+output   = subwrd(args,3)
+geosutil = subwrd(args,4)
+
+* Define Seasons to Process
+* -------------------------
+seasons  = ''
+       k = 5
+while( k > 0 )
+    season = subwrd(args,k)
+if( season = '' )
+    k = -1
+else
+    seasons = seasons % ' ' % season
+k = k+1
+endif
+endwhile
+'uppercase 'seasons
+          seasons = result
+
+'reinit'
+
+* File 1 (Model Experiment)
+* -------------------------
+'open residual.ctl'
+
+'run getenv  "VERIFICATION"'
+
+'set display color white'
+'set csmooth on'
+'c'
+
+
+* File 1 (Model Experiment)
+* -------------------------
+'set dfile 1'
+'getdates'
+'run getenv "BEGDATE"'
+             begdate  = result
+'run getenv "ENDDATE"'
+             enddate  = result
+'seasonal str mod'
+'seasonal res mod'
+
+
+* Loop over Possible Verification Datasets
+* ----------------------------------------
+'getnumrc 'geosutil'/plots/res'
+     rcinfo = result
+     numrc  = subwrd( rcinfo,1 )
+       num  = 1
+       cnt  = 0
+while( num <= numrc )
+        loc = num + 1
+     rcfile = subwrd( rcinfo,loc )
+
+
+'run getobs STR DYN 'rcfile
+        str    = subwrd(result,1)
+        sfile  = subwrd(result,2)
+        sscale = subwrd(result,3)
+        obsdsc = subwrd(result,4)
+        obsid  = subwrd(result,5)
+'run getobs RES DYN 'rcfile
+        res    = subwrd(result,1)
+        rfile  = subwrd(result,2)
+
+'set dfile 'sfile
+'sety'
+'setz'
+'seasonal str obs'
+
+'set dfile 'rfile
+'sety'
+'setz'
+'seasonal res obs'
+ 
+
+* Loop over Seasons to Process
+* ----------------------------
+       m = 1 
+while( m > 0 )
+    season = subwrd(seasons,m)
+if( season = '' )
+         m = -1
+else
+         m = m+1
+         say 'Processing Season: 'season
+
+
+'set dfile 'sfile
+'count "'season'"'
+ nobs = result
+
+'set dfile 1'
+'count "'season'" 'begdate' 'enddate
+ nmod = result
+
+'run 'geosutil'/plots/res/res_1 'expid' 'season' 'output' 'obsid' 'obsdsc' 'nmod' 'nobs
+'c'
+
+endif
+endwhile
+
+num = num + 1
+endwhile

@@ -1,7 +1,7 @@
-// $Id: ESMC_VM.C,v 1.7.2.1 2010/02/05 20:01:36 svasquez Exp $
+// $Id$
 //
 // Earth System Modeling Framework
-// Copyright 2002-2010, University Corporation for Atmospheric Research, 
+// Copyright 2002-2012, University Corporation for Atmospheric Research, 
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
 // Laboratory, University of Michigan, National Centers for Environmental 
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
@@ -35,7 +35,7 @@
 //-----------------------------------------------------------------------------
 // leave the following line as-is; it will insert the cvs ident string
 // into the object file for tracking purposes.
-static const char *const version = "$Id: ESMC_VM.C,v 1.7.2.1 2010/02/05 20:01:36 svasquez Exp $";
+static const char *const version = "$Id$";
 //-----------------------------------------------------------------------------
 
 extern "C" {
@@ -53,7 +53,7 @@ int ESMC_VMPrint(ESMC_VM vm){
 
   // call into ESMCI method  
   localrc = vmp->print();
-  if (ESMC_LogDefault.MsgFoundError(localrc, ESMF_ERR_PASSTHRU, &rc))
+  if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, &rc))
     return rc;  // bail out
     
   // return successfully
@@ -74,7 +74,7 @@ ESMC_VM ESMC_VMGetGlobal(int *rc){
   vm.ptr = (void *)NULL; // initialize
 
   ESMCI::VM *vmp = ESMCI::VM::getGlobal(&localrc);
-  if (ESMC_LogDefault.MsgFoundError(localrc, ESMF_ERR_PASSTHRU, rc))
+  if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, rc))
     return vm;  // bail out
 
   vm.ptr = (void*)vmp;
@@ -97,7 +97,7 @@ ESMC_VM ESMC_VMGetCurrent(int *rc){
   vm.ptr = (void *)NULL; // initialize
 
   ESMCI::VM *vmp = ESMCI::VM::getCurrent(&localrc);
-  if (ESMC_LogDefault.MsgFoundError(localrc, ESMF_ERR_PASSTHRU, rc))
+  if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, rc))
     return vm;  // bail out
 
   vm.ptr = (void*)vmp;
@@ -118,18 +118,20 @@ int ESMC_VMGet(ESMC_VM vm, int *localPet, int *petCount, int *peCount,
 
   ESMCI::VM *vmp = (ESMCI::VM*)(vm.ptr);
 
-  *localPet = vmp->getLocalPet();
-  *petCount = vmp->getPetCount();
+  if (localPet) *localPet = vmp->getLocalPet();
+  if (petCount) *petCount = vmp->getPetCount();
 
-  //compute peCount
-  int npets = vmp->getNpets();
-  *peCount = 0; // reset
-  for (int i=0; i<npets; i++)
-    *peCount += vmp->getNcpet(i);
+  if (peCount){
+    //compute peCount
+    int npets = vmp->getNpets();
+    *peCount = 0; // reset
+    for (int i=0; i<npets; i++)
+      *peCount += vmp->getNcpet(i);
+  }
 
-  *mpiCommunicator = vmp->getMpi_c();
-  *pthreadsEnabledFlag = vmp->isPthreadsEnabled();
-  *openMPEnabledFlag = vmp->isOpenMPEnabled();
+  if (mpiCommunicator) *mpiCommunicator = vmp->getMpi_c();
+  if (pthreadsEnabledFlag) *pthreadsEnabledFlag = vmp->isPthreadsEnabled();
+  if (openMPEnabledFlag) *openMPEnabledFlag = vmp->isOpenMPEnabled();
 
   // return successfully
   rc = ESMF_SUCCESS;

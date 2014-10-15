@@ -1,0 +1,28 @@
+set vpage 0 8.5 5.5 11
+set grads off
+set dfile 1
+set t 1
+set gxout shaded
+set black -100 20
+set cint 20
+set rbrange 20 800
+d topogstd
+run colorbar
+
+set vpage 0 8.5 0.25 5.75
+set grads off
+set dfile 3
+set t 1
+set gxout shaded
+set black -100 20
+set cint 20
+set rbrange 20 800
+d topogstd
+run colorbar
+
+set vpage off
+set string 1 c 6
+set strsiz .14
+draw string 4.25 10.5 1x1 Topog STD
+draw string 4.25  5.25 2x2.5 Topog STD
+

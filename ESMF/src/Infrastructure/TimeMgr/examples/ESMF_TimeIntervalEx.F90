@@ -1,7 +1,7 @@
-! $Id: ESMF_TimeIntervalEx.F90,v 1.31.4.1 2010/02/05 20:00:07 svasquez Exp $
+! $Id: ESMF_TimeIntervalEx.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2010, University Corporation for Atmospheric Research,
+! Copyright 2002-2012, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -16,7 +16,8 @@
 !ESMF_EXAMPLE        String used by test script to count examples.
 !==============================================================================
 !BOC
-! !PROGRAM: ESMF_TimeIntervalEx - Time Interval initialization and manipulation examples
+! !PROGRAM: ESMF_TimeIntervalEx - Time Interval initialization and 
+!                                 manipulation examples
 !
 ! !DESCRIPTION:
 !
@@ -24,7 +25,7 @@
 !-----------------------------------------------------------------------------
 
       ! ESMF Framework module
-      use ESMF_Mod
+      use ESMF
       implicit none
 
       ! instantiate some time intervals
@@ -43,13 +44,15 @@
 
 !BOC
       ! initialize ESMF framework
-      call ESMF_Initialize(defaultCalendar=ESMF_CAL_GREGORIAN, rc=rc)
+      call ESMF_Initialize(defaultCalKind=ESMF_CALKIND_GREGORIAN, &
+        defaultlogfilename="TimeIntervalEx.Log", &
+                    logkindflag=ESMF_LOGKIND_MULTI, rc=rc)
 !EOC
 
       if (rc.NE.ESMF_SUCCESS) finalrc = ESMF_FAILURE
 
 !BOE
-!\subsubsection{Time Interval Initialization}
+!\subsubsection{TimeInterval initialization}
 
 ! This example shows how to initialize two {\tt ESMF\_TimeIntervals}.
 !EOE
@@ -62,7 +65,7 @@
       if (rc.NE.ESMF_SUCCESS) finalrc = ESMF_FAILURE
 
 !BOC
-      call ESMF_TimeIntervalPrint(timeinterval1, "string", rc)
+      call ESMF_TimeIntervalPrint(timeinterval1, options="string", rc=rc)
 !EOC
 
       if (rc.NE.ESMF_SUCCESS) finalrc = ESMF_FAILURE
@@ -75,13 +78,13 @@
       if (rc.NE.ESMF_SUCCESS) finalrc = ESMF_FAILURE
 
 !BOC
-      call ESMF_TimeIntervalPrint(timeinterval2, "string", rc)
+      call ESMF_TimeIntervalPrint(timeinterval2, options="string", rc=rc)
 !EOC
 
       if (rc.NE.ESMF_SUCCESS) finalrc = ESMF_FAILURE
 
 !BOE
-!\subsubsection{Time Interval Conversion}
+!\subsubsection{TimeInterval conversion}
 
 ! This example shows how to convert {\tt ESMF\_TimeIntervals} into 
 ! different units.
@@ -103,7 +106,7 @@
       if (rc.NE.ESMF_SUCCESS) finalrc = ESMF_FAILURE
 
 !BOE
-!\subsubsection{Time Interval Difference}
+!\subsubsection{TimeInterval difference}
 
 ! This example shows how to calculate the difference between two 
 ! {\tt ESMF\_TimeIntervals}. 
@@ -112,15 +115,15 @@
 !BOC
       ! difference between two time intervals
       timeinterval3 = timeinterval2 - timeinterval1
-      call ESMF_TimeIntervalGet(timeinterval3, d=d, h=h, m=m, s=s, rc=rc)
-      print *, "Difference between TimeInterval2 and TimeInterval1 = ", &
-               d, " days, ", h, " hours, ", m, " minutes, ", s, " seconds."
+     call ESMF_TimeIntervalGet(timeinterval3, d=d, h=h, m=m, s=s, rc=rc)
+     print *, "Difference between TimeInterval2 and TimeInterval1 = ", &
+           d, " days, ", h, " hours, ", m, " minutes, ", s, " seconds."
 !EOC
 
       if (rc.NE.ESMF_SUCCESS) finalrc = ESMF_FAILURE
 
 !BOE
-!\subsubsection{Time Interval Multiplication}
+!\subsubsection{TimeInterval multiplication}
 
 ! This example shows how to multiply an {\tt ESMF\_TimeInterval}. 
 !EOE
@@ -136,7 +139,7 @@
       if (rc.NE.ESMF_SUCCESS) finalrc = ESMF_FAILURE
 
 !BOE
-!\subsubsection{Time Interval Comparison}
+!\subsubsection{TimeInterval comparison}
 
 ! This example shows how to compare two {\tt ESMF\_TimeIntervals}. 
 !EOE

@@ -1,8 +1,8 @@
 #if 0
-$Id: ESMF.h,v 1.8.4.1 2010/02/05 20:01:04 svasquez Exp $
+$Id: ESMF.h,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
 
 Earth System Modeling Framework
-Copyright 2002-2010, University Corporation for Atmospheric Research,
+Copyright 2002-2012, University Corporation for Atmospheric Research,
 Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 Laboratory, University of Michigan, National Centers for Environmental
 Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -15,7 +15,7 @@ Central F90 include file which includes other files.
 #if 0
 Most of the previous contents of this file have been moved into the
 base class fortran module. User code gets access to parameter definitions,
-derived types, and interfaces by using the ESMF_Mod module in their code.
+derived types, and interfaces by using the ESMF module in their code.
 Macros useful to the framework, or system-dependent compile time defines
 can go here.  THIS FILE CANNOT CONTAIN ANYTHING THAT IS REQUIRED BY USER 
 CODE BECAUSE WE AGREED TO NOT FORCE F90 USER SOURCE TO BE PREPROCESSED.  

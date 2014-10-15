@@ -1,0 +1,76 @@
+#!/bin/csh -f
+
+@ nmax = $#argv
+
+# Set Variables
+# -------------
+set        bw = false
+set antialias = false
+set rotate  = 0
+set season  = ""
+set output  = "."
+set density = "90x90"
+
+@       n  = 1
+while( $n <= $nmax )
+       if( "$argv[$n]" == "-name" ) then
+                    @ n = $n + 1
+             set name   = $argv[$n]
+       endif
+       if( "$argv[$n]" == "-season"   ) then
+                    @ n = $n + 1
+             set season = $argv[$n]
+       endif
+       if( "$argv[$n]" == "-output"   ) then
+                    @ n = $n + 1
+             set output = $argv[$n]
+       endif
+       if( "$argv[$n]" == "-rotate"   ) then
+                    @ n = $n + 1
+             set rotate = $argv[$n]
+       endif
+       if( "$argv[$n]" == "-density"  ) then
+                    @ n = $n + 1
+            set density = $argv[$n]
+       endif
+       if( "$argv[$n]" == "-bw"        ) set        bw = true
+       if( "$argv[$n]" == "-antialias" ) set antialias = true
+     @ n = $n + 1
+end
+
+if( $density == 90x90 ) then
+     set dim1 = 900
+     set dim2 = 675
+endif
+if( $density == 100x100 ) then
+     set dim1 = 1000
+     set dim2 = 750
+endif
+                     set file = ${name}
+if( .$season != .  ) set file = ${file}.${season}
+if( .$output != .. ) set file = ${output}/${file}
+
+
+# Create Postscript from Grads
+# ----------------------------
+        if( -e $file.out ) then
+             if( $rotate == 0   ) $GXYAT  -y $dim1 -x $dim2 -i $file.out -o $file.gif
+             if( $rotate == 90  ) $GXYAT  -x $dim1 -y $dim2 -i $file.out -o $file.gif
+        endif
+
+# Create GIF from Postscript
+# --------------------------
+        if( -e $file.ps ) then
+           if( $antialias == 'false' )  convert            -seed 1 -rotate $rotate -density $density $file.ps $file.gif
+           if( $antialias == 'true'  )  convert +antialias -seed 1 -rotate $rotate -density $density $file.ps $file.gif
+        endif
+
+# Remove Intermediate Files
+# -------------------------
+        if( -e $file.gif ) then
+               if( -e $file.out ) /bin/rm $file.out
+               if( -e $file.ps  ) /bin/rm $file.ps
+               chmod 644 $file.gif
+               echo Finished Creating:  $file.gif
+        endif
+

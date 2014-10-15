@@ -1,7 +1,7 @@
-! $Id: ESMF_TimeEx.F90,v 1.37.4.1 2010/02/05 20:00:07 svasquez Exp $
+! $Id: ESMF_TimeEx.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2010, University Corporation for Atmospheric Research,
+! Copyright 2002-2012, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -24,7 +24,7 @@
 !-----------------------------------------------------------------------------
 
       ! ESMF Framework module
-      use ESMF_Mod
+      use ESMF
       implicit none
 
       ! instantiate two times
@@ -46,13 +46,15 @@
 
 !BOC
       ! initialize ESMF framework
-      call ESMF_Initialize(defaultCalendar=ESMF_CAL_GREGORIAN, rc=rc)
+      call ESMF_Initialize(defaultCalKind=ESMF_CALKIND_GREGORIAN, &
+        defaultlogfilename="TimeEx.Log", &
+        logkindflag=ESMF_LOGKIND_MULTI, rc=rc)
 !EOC
 
       if (rc.NE.ESMF_SUCCESS) finalrc = ESMF_FAILURE
 
 !BOE
-!\subsubsection{Time Initialization}
+!\subsubsection{Time initialization}
 
 ! This example shows how to initialize an {\tt ESMF\_Time}.
 !EOE
@@ -66,13 +68,13 @@
 
 !BOC
       print *, "Time1 = "
-      call ESMF_TimePrint(time1, "string", rc)
+      call ESMF_TimePrint(time1, options="string", rc=rc)
 !EOC
 
       if (rc.NE.ESMF_SUCCESS) finalrc = ESMF_FAILURE
 
 !BOE
-!\subsubsection{Time Increment}
+!\subsubsection{Time increment}
 
 ! This example shows how to increment an {\tt ESMF\_Time} by
 ! an {\tt ESMF\_TimeInterval}.
@@ -87,7 +89,7 @@
 
 !BOC
       print *, "Timeinterval1 = "
-      call ESMF_TimeIntervalPrint(timeinterval1, "string", rc)
+      call ESMF_TimeIntervalPrint(timeinterval1, options="string", rc=rc)
 !EOC
 
       if (rc.NE.ESMF_SUCCESS) finalrc = ESMF_FAILURE
@@ -97,14 +99,14 @@
       time2 = time1 + timeinterval1
 
       call ESMF_TimeGet(time2, yy=YY, mm=MM, dd=DD, h=H, m=M, s=S, rc=rc)
-      print *, "time2 = time1 + timeinterval1 = ", YY, "/", MM, "/", DD, " ", &
-               H, ":", M, ":", S
+      print *, "time2 = time1 + timeinterval1 = ", YY, "/", MM, "/", DD, &
+               " ",  H, ":", M, ":", S
 !EOC
 
       if (rc.NE.ESMF_SUCCESS) finalrc = ESMF_FAILURE
 
 !BOE
-!\subsubsection{Time Comparison}
+!\subsubsection{Time comparison}
 
 ! This example shows how to compare two {\tt ESMF\_Times}.
 !EOE

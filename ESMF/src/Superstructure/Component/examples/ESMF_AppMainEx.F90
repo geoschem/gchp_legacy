@@ -1,7 +1,7 @@
-! $Id: ESMF_AppMainEx.F90,v 1.36.2.1 2010/02/05 20:03:49 svasquez Exp $
+! $Id: ESMF_AppMainEx.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2010, University Corporation for Atmospheric Research,
+! Copyright 2002-2012, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -30,7 +30,7 @@
 
     module PHYS_mod
 
-    use ESMF_Mod
+    use ESMF
     public PHYS_SetServices
     contains
 
@@ -40,9 +40,9 @@
       type(ESMF_GridComp) :: gcomp
       integer, intent(out) :: rc
 
-       call ESMF_GridCompSetEntryPoint(gcomp, ESMF_SETINIT, my_init, rc=rc)
-       call ESMF_GridCompSetEntryPoint(gcomp, ESMF_SETRUN, my_run, rc=rc)
-       call ESMF_GridCompSetEntryPoint(gcomp, ESMF_SETFINAL, my_final, rc=rc)
+       call ESMF_GridCompSetEntryPoint(gcomp, ESMF_METHOD_INITIALIZE, my_init, rc=rc)
+       call ESMF_GridCompSetEntryPoint(gcomp, ESMF_METHOD_RUN, my_run, rc=rc)
+       call ESMF_GridCompSetEntryPoint(gcomp, ESMF_METHOD_FINALIZE, my_final, rc=rc)
       
     end subroutine PHYS_SetServices
       
@@ -93,7 +93,7 @@
 !   ! Start of a Second Gridded Component module
     module DYNM_mod
 
-    use ESMF_Mod
+    use ESMF
     public DYNM_SetServices
     contains
 
@@ -103,9 +103,9 @@
       type(ESMF_GridComp) :: gcomp
       integer, intent(out) :: rc
 
-       call ESMF_GridCompSetEntryPoint(gcomp, ESMF_SETINIT, my_init, rc=rc)
-       call ESMF_GridCompSetEntryPoint(gcomp, ESMF_SETRUN, my_run, rc=rc)
-       call ESMF_GridCompSetEntryPoint(gcomp, ESMF_SETFINAL, my_final, rc=rc)
+       call ESMF_GridCompSetEntryPoint(gcomp, ESMF_METHOD_INITIALIZE, my_init, rc=rc)
+       call ESMF_GridCompSetEntryPoint(gcomp, ESMF_METHOD_RUN, my_run, rc=rc)
+       call ESMF_GridCompSetEntryPoint(gcomp, ESMF_METHOD_FINALIZE, my_final, rc=rc)
       
     end subroutine DYNM_SetServices
       
@@ -156,7 +156,7 @@
 !   ! Start of a Coupler Component module
     module CPLR_mod
 
-    use ESMF_Mod
+    use ESMF
 
     public CPLR_SetServices
     contains
@@ -167,9 +167,9 @@
       type(ESMF_CplComp) :: cpl
       integer, intent(out) :: rc
 
-       call ESMF_CplCompSetEntryPoint(cpl, ESMF_SETINIT, my_init, rc=rc)
-       call ESMF_CplCompSetEntryPoint(cpl, ESMF_SETRUN, my_run, rc=rc)
-       call ESMF_CplCompSetEntryPoint(cpl, ESMF_SETFINAL, my_final, rc=rc)
+       call ESMF_CplCompSetEntryPoint(cpl, ESMF_METHOD_INITIALIZE, my_init, rc=rc)
+       call ESMF_CplCompSetEntryPoint(cpl, ESMF_METHOD_RUN, my_run, rc=rc)
+       call ESMF_CplCompSetEntryPoint(cpl, ESMF_METHOD_FINALIZE, my_final, rc=rc)
       
     end subroutine CPLR_SetServices
       
@@ -221,7 +221,7 @@
     program ESMF_AppMainEx
     
 !   ! The ESMF Framework module
-    use ESMF_Mod
+    use ESMF
     
 !   ! User supplied modules, using only the public registration routine.
     use PHYS_Mod, only: PHYS_SetServices
@@ -251,7 +251,8 @@
 !BOC
 !-------------------------------------------------------------------------
 !   ! Initialize the Framework, and get the default VM
-    call ESMF_Initialize(vm=vm, rc=rc)
+    call ESMF_Initialize(vm=vm, defaultlogfilename="AppMainEx.Log", &
+                    logkindflag=ESMF_LOGKIND_MULTI, rc=rc)
     if (rc .ne. ESMF_SUCCESS) then
         print *, "failed to initialize ESMF Framework"
 !EOC
@@ -275,7 +276,7 @@
     if (rc.NE.ESMF_SUCCESS) finalrc = ESMF_FAILURE
 !BOC
     cname1 = "Atmosphere Physics"
-    gcomp1 = ESMF_GridCompCreate(name=cname1, gridcomptype=ESMF_ATM, rc=rc)  
+    gcomp1 = ESMF_GridCompCreate(name=cname1, rc=rc)  
 !EOC
     if (rc.NE.ESMF_SUCCESS) finalrc = ESMF_FAILURE
 !BOC
@@ -283,7 +284,7 @@
     ! This single user-supplied subroutine must be a public entry point 
     !  and can renamed with the 'use localname => modulename' syntax if
     !  the name is not unique.
-    call ESMF_GridCompSetServices(gcomp1, PHYS_SetServices, rc)
+    call ESMF_GridCompSetServices(gcomp1, PHYS_SetServices, rc=rc)
 !EOC
     if (rc.NE.ESMF_SUCCESS) finalrc = ESMF_FAILURE
 !BOC
@@ -292,13 +293,13 @@
     print *, "Comp Create returned, name = ", trim(cname1)
 
     cname2 = "Atmosphere Dynamics"
-    gcomp2 = ESMF_GridCompCreate(name=cname2, gridcomptype=ESMF_ATM, rc=rc)  
+    gcomp2 = ESMF_GridCompCreate(name=cname2, rc=rc)  
 !EOC
     if (rc.NE.ESMF_SUCCESS) finalrc = ESMF_FAILURE
 !BOC
 
     ! This single user-supplied subroutine must be a public entry point.
-    call ESMF_GridCompSetServices(gcomp2, DYNM_SetServices, rc)
+    call ESMF_GridCompSetServices(gcomp2, DYNM_SetServices, rc=rc)
 
     print *, "Comp Create returned, name = ", trim(cname2)
 
@@ -309,7 +310,7 @@
 !BOC
 
     ! This single user-supplied subroutine must be a public entry point.
-    call ESMF_CplCompSetServices(cpl, CPLR_SetServices, rc)
+    call ESMF_CplCompSetServices(cpl, CPLR_SetServices, rc=rc)
 !EOC
     if (rc.NE.ESMF_SUCCESS) finalrc = ESMF_FAILURE
 !BOC
@@ -319,18 +320,20 @@
     ! Create the necessary import and export states used to pass data
     !  between components.
 
-    states(1) = ESMF_StateCreate(cname1, ESMF_STATE_EXPORT, rc=rc)
+    states(1) = ESMF_StateCreate(name=cname1,  &
+                                 stateintent=ESMF_STATEINTENT_EXPORT, rc=rc)
 !EOC
     if (rc.NE.ESMF_SUCCESS) finalrc = ESMF_FAILURE
 !BOC
-    states(2) = ESMF_StateCreate(cname2, ESMF_STATE_IMPORT, rc=rc)
+    states(2) = ESMF_StateCreate(name=cname2,  &
+                                 stateintent=ESMF_STATEINTENT_IMPORT, rc=rc)
 !EOC
     if (rc.NE.ESMF_SUCCESS) finalrc = ESMF_FAILURE
 !BOC
     ! See the TimeMgr document for the details on the actual code needed
     !  to set up a clock.
     ! initialize calendar to be Gregorian type
-    gregorianCalendar = ESMF_CalendarCreate("Gregorian", ESMF_CAL_GREGORIAN, rc)
+    gregorianCalendar = ESMF_CalendarCreate(ESMF_CALKIND_GREGORIAN, name="Gregorian", rc=rc)
 !EOC
     if (rc.NE.ESMF_SUCCESS) finalrc = ESMF_FAILURE
 !BOC
@@ -356,7 +359,8 @@
 !BOC
 
     ! initialize the clock with the above values
-    tclock = ESMF_ClockCreate("top clock", timeStep, startTime, stopTime, rc=rc)
+    tclock = ESMF_ClockCreate(timeStep, startTime, stopTime=stopTime, &
+                              name="top clock", rc=rc)
 !EOC
     if (rc.NE.ESMF_SUCCESS) finalrc = ESMF_FAILURE
 !BOC
@@ -373,7 +377,8 @@
 !EOC
     if (rc.NE.ESMF_SUCCESS) finalrc = ESMF_FAILURE
 !BOC
-    call ESMF_CplCompInitialize(cpl, states(1), states(2), clock=tclock, rc=rc)
+    call ESMF_CplCompInitialize(cpl, importState=states(1), &
+      exportState=states(2), clock=tclock, rc=rc)
 !EOC
     if (rc.NE.ESMF_SUCCESS) finalrc = ESMF_FAILURE
 !BOC
@@ -395,7 +400,7 @@
 !EOC
     if (rc.NE.ESMF_SUCCESS) finalrc = ESMF_FAILURE
 !BOC
-        call ESMF_ClockAdvance(tclock, timestep)
+        call ESMF_ClockAdvance(tclock, timeStep=timestep)
         ! query clock for current time
         if (ESMF_ClockIsStopTime(tclock)) finished = .true.
     enddo
@@ -412,7 +417,8 @@
 !EOC
     if (rc.NE.ESMF_SUCCESS) finalrc = ESMF_FAILURE
 !BOC
-    call ESMF_CplCompFinalize(cpl, states(1), states(2), clock=tclock, rc=rc)
+    call ESMF_CplCompFinalize(cpl, importState=states(1), &
+      exportState=states(2), clock=tclock, rc=rc)
 !EOC
     if (rc.NE.ESMF_SUCCESS) finalrc = ESMF_FAILURE
 !BOC
@@ -473,10 +479,10 @@
     ! Each Component must supply a SetServices routine which makes the
     !  following types of calls:
     !
-    !! call ESMF_GridCompSetEntryPoint(gcomp1, ESMF_SETINIT, PHYS_Init, 1, rc)
-    !! call ESMF_GridCompSetEntryPoint(gcomp1, ESMF_SETINIT, PHYS_InitPhase2, 2, rc)
-    !! call ESMF_GridCompSetEntryPoint(gcomp1, ESMF_SETRUN, PHYS_Run, 0, rc)
-    !! call ESMF_GridCompSetEntryPoint(gcomp1, ESMF_SETFINAL, PHYS_Final, 0, rc)
+    !! call ESMF_GridCompSetEntryPoint(gcomp1, ESMF_METHOD_INITIALIZE, PHYS_Init, 1, rc=rc)
+    !! call ESMF_GridCompSetEntryPoint(gcomp1, ESMF_METHOD_INITIALIZE, PHYS_InitPhase2, 2, rc=rc)
+    !! call ESMF_GridCompSetEntryPoint(gcomp1, ESMF_METHOD_RUN, PHYS_Run, 0, rc=rc)
+    !! call ESMF_GridCompSetEntryPoint(gcomp1, ESMF_METHOD_FINALIZE, PHYS_Final, 0, rc=rc)
     !
     ! The arguments are: the component, the type of routine, 
     !  the name of the internal subroutine which contains the user code, 

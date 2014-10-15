@@ -1,7 +1,7 @@
-! $Id: ESMF_ArrayScatterUTest.F90,v 1.37.4.1 2010/02/05 19:52:57 svasquez Exp $
+! $Id: ESMF_ArrayScatterUTest.F90,v 1.1.5.1 2013-01-11 20:23:43 mathomp4 Exp $
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2010, University Corporation for Atmospheric Research,
+! Copyright 2002-2012, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -28,14 +28,14 @@ program ESMF_ArrayScatterUTest
 !-----------------------------------------------------------------------------
 ! !USES:
   use ESMF_TestMod     ! test methods
-  use ESMF_Mod
+  use ESMF
 
   implicit none
 
 !------------------------------------------------------------------------------
 ! The following line turns the CVS identifier string into a printable variable.
   character(*), parameter :: version = &
-    '$Id: ESMF_ArrayScatterUTest.F90,v 1.37.4.1 2010/02/05 19:52:57 svasquez Exp $'
+    '$Id: ESMF_ArrayScatterUTest.F90,v 1.1.5.1 2013-01-11 20:23:43 mathomp4 Exp $'
 !------------------------------------------------------------------------------
 
   ! cumulative result: count failures; no failures equals "all pass"
@@ -85,10 +85,10 @@ program ESMF_ArrayScatterUTest
   
   !------------------------------------------------------------------------
   ! preparations
-  call ESMF_VMGetGlobal(vm, rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  call ESMF_VMGetGlobal(vm, rc=rc)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   call ESMF_VMGet(vm, localPet=localPet, petCount=petCount, rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   
   !------------------------------------------------------------------------
   ! this unit test requires to be run on exactly 4 PETs
@@ -99,16 +99,16 @@ print *, min_R4, min_R8
   !------------------------------------------------------------------------
   ! preparations
   call ESMF_ArraySpecSet(arrayspec, typekind=ESMF_TYPEKIND_R8, rank=2, rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   distgrid = ESMF_DistGridCreate(minIndex=(/1,1/), maxIndex=(/15,23/), &
     regDecomp=(/2,2/), rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   array = ESMF_ArrayCreate(arrayspec=arrayspec, distgrid=distgrid, &
     indexflag=ESMF_INDEX_GLOBAL, rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !call ESMF_ArrayPrint(array)
   call ESMF_ArrayGet(array, farrayPtr=farrayPtr, rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   farrayPtr = real(localPet,ESMF_KIND_R8)  ! initialize each DE-local data chunk of Array
 !print *, "farrayPtr:", farrayPtr
   ! prepare srcfarray on all PETs -> serves as ref. in comparison after scatter
@@ -181,9 +181,9 @@ print *, min_R4, min_R8
   !------------------------------------------------------------------------
   ! cleanup  
   call ESMF_ArrayDestroy(array, rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   call ESMF_DistGridDestroy(distgrid, rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   deallocate(srcfarray)
   
   !------------------------------------------------------------------------
@@ -192,16 +192,16 @@ print *, min_R4, min_R8
   !------------------------------------------------------------------------
   ! preparations for same test as above but omit farray on PETs not root
   call ESMF_ArraySpecSet(arrayspec, typekind=ESMF_TYPEKIND_R8, rank=2, rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   distgrid = ESMF_DistGridCreate(minIndex=(/1,1/), maxIndex=(/15,23/), &
     regDecomp=(/2,2/), rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   array = ESMF_ArrayCreate(arrayspec=arrayspec, distgrid=distgrid, &
     indexflag=ESMF_INDEX_GLOBAL, rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !call ESMF_ArrayPrint(array)
   call ESMF_ArrayGet(array, farrayPtr=farrayPtr, rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   farrayPtr = real(localPet,ESMF_KIND_R8)  ! initialize each DE-local data chunk of Array
 !print *, "farrayPtr:", farrayPtr
   ! prepare srcfarray on all PETs -> serves as ref. in comparison after scatter
@@ -264,9 +264,9 @@ print *, min_R4, min_R8
   !------------------------------------------------------------------------
   ! cleanup  
   call ESMF_ArrayDestroy(array, rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   call ESMF_DistGridDestroy(distgrid, rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   deallocate(srcfarray)
   
   !------------------------------------------------------------------------
@@ -275,16 +275,16 @@ print *, min_R4, min_R8
   !------------------------------------------------------------------------
   ! preparations for same test as above but with ESMF_TYPEKIND_R4
   call ESMF_ArraySpecSet(arrayspec, typekind=ESMF_TYPEKIND_R4, rank=2, rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   distgrid = ESMF_DistGridCreate(minIndex=(/1,1/), maxIndex=(/15,23/), &
     regDecomp=(/2,2/), rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   array = ESMF_ArrayCreate(arrayspec=arrayspec, distgrid=distgrid, &
     indexflag=ESMF_INDEX_GLOBAL, rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !call ESMF_ArrayPrint(array)
   call ESMF_ArrayGet(array, farrayPtr=farrayPtr_R4, rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   farrayPtr_R4 = real(localPet,ESMF_KIND_R4)  ! initialize each DE-local data chunk of Array
 !print *, "farrayPtr_R4:", farrayPtr_R4
   ! prepare srcfarray_R4 on all PETs -> serves as ref. in comparison after scatter
@@ -340,9 +340,9 @@ print *, min_R4, min_R8
   !------------------------------------------------------------------------
   ! cleanup  
   call ESMF_ArrayDestroy(array, rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   call ESMF_DistGridDestroy(distgrid, rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   deallocate(srcfarray_R4)
   
   !------------------------------------------------------------------------
@@ -354,16 +354,16 @@ print *, min_R4, min_R8
   ! -> there will be DEs not associated with DistGrid elements, namely DE 1 and
   ! DE 3.
   call ESMF_ArraySpecSet(arrayspec, typekind=ESMF_TYPEKIND_R8, rank=2, rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   distgrid = ESMF_DistGridCreate(minIndex=(/1,1/), maxIndex=(/1,23/), &
     regDecomp=(/2,2/), rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   array = ESMF_ArrayCreate(arrayspec=arrayspec, distgrid=distgrid, &
     indexflag=ESMF_INDEX_GLOBAL, rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !call ESMF_ArrayPrint(array)
   call ESMF_ArrayGet(array, farrayPtr=farrayPtr, rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   farrayPtr = real(localPet,ESMF_KIND_R8)  ! initialize each DE-local data chunk of Array
 !print *, "farrayPtr:", farrayPtr
   ! prepare srcfarray on all PETs -> serves as ref. in comparison after scatter
@@ -418,9 +418,9 @@ print *, min_R4, min_R8
   !------------------------------------------------------------------------
   ! cleanup  
   call ESMF_ArrayDestroy(array, rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   call ESMF_DistGridDestroy(distgrid, rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   deallocate(srcfarray)
 
 #ifdef ESMF_TESTEXHAUSTIVE
@@ -429,17 +429,17 @@ print *, min_R4, min_R8
   ! preparations for testing ArrayScatter() for a 
   ! 2D+1 Array, i.e. an Array with 3D data rank but 2D decomposition
   call ESMF_ArraySpecSet(arrayspec, typekind=ESMF_TYPEKIND_R8, rank=3, rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   distgrid = ESMF_DistGridCreate(minIndex=(/1,1/), maxIndex=(/15,23/), &
     regDecomp=(/2,2/), rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   array = ESMF_ArrayCreate(arrayspec=arrayspec, distgrid=distgrid, &
     indexflag=ESMF_INDEX_GLOBAL, undistLBound=(/-5/), undistUBound=(/4/), &
     rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !call ESMF_ArrayPrint(array)
   call ESMF_ArrayGet(array, farrayPtr=farrayPtr3d, rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   farrayPtr3d = real(localPet,ESMF_KIND_R8)  ! initialize each DE-local data chunk of Array
 !print *, "farrayPtr3d:", farrayPtr3d
   ! prepare srcfarray on all PETs -> serves as ref. in comparison after scatter
@@ -502,7 +502,7 @@ print *, min_R4, min_R8
   !------------------------------------------------------------------------
   ! cleanup  
   call ESMF_ArrayDestroy(array, rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   deallocate(srcfarray3d)
   
   !------------------------------------------------------------------------
@@ -512,14 +512,14 @@ print *, min_R4, min_R8
   ! preparations for testing ArrayScatter() for a 2D+1 Array with 
   ! non-contiguous exclusive region 
   call ESMF_ArraySpecSet(arrayspec, typekind=ESMF_TYPEKIND_R8, rank=3, rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   array = ESMF_ArrayCreate(arrayspec=arrayspec, distgrid=distgrid, &
     totalLWidth=(/2,3/), totalUWidth=(/3,4/), indexflag=ESMF_INDEX_GLOBAL, &
     undistLBound=(/-5/), undistUBound=(/4/), rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !call ESMF_ArrayPrint(array)
   call ESMF_ArrayGet(array, farrayPtr=farrayPtr3d, rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   farrayPtr3d = real(localPet,ESMF_KIND_R8)  ! initialize each DE-local data chunk of Array
 !print *, "farrayPtr3d:", farrayPtr3d
   ! prepare srcfarray on all PETs -> serves as ref. in comparison after scatter
@@ -594,9 +594,9 @@ print *, min_R4, min_R8
   !------------------------------------------------------------------------
   ! cleanup  
   call ESMF_ArrayDestroy(array, rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   call ESMF_DistGridDestroy(distgrid, rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   deallocate(srcfarray3d)  
 
   !------------------------------------------------------------------------
@@ -606,18 +606,18 @@ print *, min_R4, min_R8
   ! preparations for testing ArrayScatter() for a 2D+1 Array with 
   ! non-contiguous exclusive region and cyclic decomposition
   call ESMF_ArraySpecSet(arrayspec, typekind=ESMF_TYPEKIND_R8, rank=3, rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   distgrid = ESMF_DistGridCreate(minIndex=(/0,1/), maxIndex=(/14,23/), &
     regDecomp=(/2,2/), decompflag=(/ESMF_DECOMP_DEFAULT,ESMF_DECOMP_CYCLIC/),&
     rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   array = ESMF_ArrayCreate(arrayspec=arrayspec, distgrid=distgrid, &
     totalLWidth=(/2,3/), totalUWidth=(/3,4/), &
     undistLBound=(/-5/), undistUBound=(/4/), rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !call ESMF_ArrayPrint(array)
   call ESMF_ArrayGet(array, farrayPtr=farrayPtr3d, rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   farrayPtr3d = real(localPet,ESMF_KIND_R8)  ! initialize each DE-local data chunk of Array
 !print *, "farrayPtr3d:", farrayPtr3d
   ! prepare srcfarray on all PETs -> serves as ref. in comparison after scatter
@@ -722,9 +722,9 @@ print *, min_R4, min_R8
   !------------------------------------------------------------------------
   ! cleanup  
   call ESMF_ArrayDestroy(array, rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   call ESMF_DistGridDestroy(distgrid, rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   deallocate(srcfarray3d)  
   deallocate(indexList1)
   deallocate(indexList2)

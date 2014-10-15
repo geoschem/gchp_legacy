@@ -1,7 +1,7 @@
-! $Id: ESMF_GridCreateTripoleEx.F90,v 1.3.4.1 2010/02/05 19:57:00 svasquez Exp $
+! $Id: ESMF_GridCreateTripoleEx.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2010, University Corporation for Atmospheric Research,
+! Copyright 2002-2012, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -13,7 +13,7 @@
 program ESMF_GridCreateEx
 
 !==============================================================================
-!ESMF_EX_NOTWORKING_AMPLE        String used by test script to count examples.
+!EX_NOTWORKING_AMPLE        String used by test script to count examples.
 !==============================================================================
 
 !  !PROGRAM: ESMF_GridCreateEx - Examples of Grid creation.
@@ -23,7 +23,7 @@ program ESMF_GridCreateEx
 ! This program shows examples of Grid creation
 
 !BOE
-! \subsubsection{Example: 2D Tripole Grid Creation From Arrays}\label{sec:usage:ex:adv:tripole}
+! \subsubsection{Create a 2D tripole grid from Arrays}\label{sec:usage:ex:adv:tripole}
 !
 ! This example illustrates the creation of a 2D tripole Grid from coordinate data
 ! read in on a single processor and then distributed to the rest of the processors. 
@@ -34,7 +34,7 @@ program ESMF_GridCreateEx
 
 !BOC
       ! Use ESMF framework module
-      use ESMF_Mod
+      use ESMF
       implicit none
 
       ! Local variables  
@@ -75,13 +75,13 @@ program ESMF_GridCreateEx
 !EOC
       
 !BOE    
-! Construct a single patch tripole domain. 
+! Construct a single tile tripole domain. 
 ! Specifiy that the first dimension is periodic: \\
 !
 ! \begin{itemize}
-! \item Setting patchIndexA=patchIndexB indicates that the connection 
-!      is within the patch.
-! \item The position vector is set to span the width of the patch's 
+! \item Setting tileIndexA=tileIndexB indicates that the connection 
+!      is within the tile.
+! \item The position vector is set to span the width of the tile's 
 !      first dimension.
 ! \item The repetitionVector indicates that the connection repeats along
 !           the dimension. This takes care of both sides of the connection.
@@ -93,7 +93,7 @@ program ESMF_GridCreateEx
       allocate( connectionList(2*gridRank,3) )
       call ESMF_ConnectionElementConstruct(                          &
                  connectionElement=connectionList(:,1),     &
-                 patchIndexA=1, patchIndexB=1,              &
+                 tileIndexA=1, tileIndexB=1,              &
                  positionVector = (/gridSize(1),0/),        &
                  repetitionVector= (/1,0/), rc=rc)
 !EOC
@@ -102,14 +102,14 @@ program ESMF_GridCreateEx
 ! Specifiy the northern bipolar fold: \\
 !
 !  The position and orientation vectors indicate that each element 
-!  along the top edge of the patch is attached to the corresponding
+!  along the top edge of the tile is attached to the corresponding
 !  element across the fold. 
 !EOE
 
 !BOC
        call ESMF_ConnectionElementConstruct(
                   connectionElement = connectionList(:,2), &
-                  patchIndexA = 1, patchIndexB = 1, &
+                  tileIndexA = 1, tileIndexB = 1, &
                   positionVector = (/gridSize(1)+1, 2*gridSize(2)/), &
                   orientationVector = (/-1, -2/), &
                   rc=rc)
@@ -119,13 +119,13 @@ program ESMF_GridCreateEx
 ! Specifiy the south pole: \\
 !
 !  The position and orientation vectors indicate that each element along
-!   the bottom edge of the patch is attached to the element directly across the pole. 
+!   the bottom edge of the tile is attached to the element directly across the pole. 
 !EOE
 
 !BOC
        call ESMF_ConnectionElementConstruct( 
                  connectionElement = connectionList(:,3), &
-                 patchIndexA = 1, patchIndexB = 1, &
+                 tileIndexA = 1, tileIndexB = 1, &
                  positionVector = (/gridSize(1)/2, 0/), &
                  orientationVector = (/1, -2/), &
                  repetitionVector = (/1, 0/), &

@@ -1,0 +1,62 @@
+# fcst_fv2prs.lcv.rc
+#
+#  This is a resource file for the fv2prs utility.
+#
+# !REVISION HISTORY:
+#
+#  10May201  Lucchesi  First cut.
+#
+#...........................................................................
+
+#                     ----------------------
+#                     Output File Resolution
+#                     ----------------------
+
+zonal_resolution: 288              # no. of zonal grid-points (im)
+west_most_longitude_in_deg: -180.0 # longitude of first point (i=1)
+meridional_resolution: 181         # no. meridional grid-points (jm)
+vertical_levels_in_hPa: 1000 975 950 925 900 875 850 825 800 750 700 650 600 550 500 450 400 350 300 250 200 150 100 70 50 40 30 20 10 7 5 3 2 1
+
+#zonal_resolution: 360              # no. of zonal grid-points (im)
+#west_most_longitude_in_deg: 0.0 # longitude of first point (i=1)
+#meridional_resolution: 181          # no. meridional grid-points (jm)
+#vertical_levels_in_hPa:  1 2 3 5 7 10 20 30 40 50 70 100 150 200 250 300 350 400 450 500 550 600 650 700 750 800 825 850 875 900 925 950 975 1000
+
+
+#                       ----------------
+#                       Variable Classes
+#                       ----------------
+
+# A variable class lists the variable names that make up a file
+# type or product.
+
+### PRODUCT: tncep3d_p
+# Missing: TKE, OMEGA
+#
+VarClass*tncep3d_p: HGHT TMPU RH SLP TS LWI PS UWND;VWND theta sphu
+
+
+#                         --------------------
+#                         Variable Translation
+#                         --------------------
+
+Variable_translation_table::
+
+#      Output          |                       Input
+#  Name       Units    | Name             scale_factor  add_offset
+#  ----------------------------------------------------------------------
+   PS         hPa        ps                     0.01       0.0 # Pa
+   PHIS       (m/s)2     phis                   1.0        0.0
+   LWI        0-1-2      lwi                    1.0        0.0 
+   TS         K          ts                     1.0        0.0
+   UWND;VWND  m/s        uwnd;vwnd              1.0        0.0
+   HGHT       m          hght(theta,phis)       1.0        0.0
+   TMPU       K          tmpu(theta,delp,sphu)  1.0        0.0
+   SLP        hPa        slp(theta,phis,delp)   1.0        0.0 # Pa
+   RH         %          rh(theta,sphu)         1.0        0.0
+   SPHU       kg/kg      sphu                   1.0        0.0 
+   hs_stdv    meter      hs_stdv                1.0        0.0 
+   delp       Pa         delp                   1.0        0.0 
+   theta      unknown    theta                  1.0        0.0 
+::
+

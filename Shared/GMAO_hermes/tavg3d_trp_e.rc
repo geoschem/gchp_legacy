@@ -1,0 +1,49 @@
+# !REVISION HISTORY:
+#
+#  Nov2003  B. Yin    first version.
+#
+#                     ----------------------
+#                     Output File Resolution
+#                     ----------------------
+
+vertical_level_numbers: 32 33 34 35 36 37 38 39 40 41 42 43 44 45 46 47 48 49 50 51 52 53 54 55
+
+#                       ----------------
+#                       Variable Classes
+#                       ----------------
+ 
+# A variable class lists the variable names that make up a file type or product.
+
+###  PRODUCT: tavg3d_trp_e Tropospheric Transport PRODUCT  Resolution: (288x181x24)
+VarClass*tavg3d_trp_e: PS CLDTOT CMFDQR2 CMFDTR CMFETR CMFMC CMFMC2 DQRL DTRAIN HKBETA HKETA MOISTQ TAUCLI TAUCLW ZMDQR ZMDU ZMED ZMEU ZMMD ZMMU 
+
+#                         --------------------
+#                         Variable Translation
+#                         --------------------
+
+Variable_translation_table::
+
+#   Output           |         Input
+#    Name            |          Name
+#--------------------------------------
+
+   PS                    SURFP
+   CLDTOT                CLOUD
+   CMFDQR2               CMFDQR2
+   CMFDTR                CMFDTR
+   CMFETR                CMFETR
+   CMFMC                 CMFMC
+   CMFMC2                CMFMC2
+   DQRL                  DQRL
+   DTRAIN                DTRAIN
+   HKBETA                HKBETA
+   HKETA                 HKETA
+   MOISTQ                DQCOND
+   TAUCLI                TAUCLI
+   TAUCLW                TAUCLW
+   ZMDQR                 ZMDQR
+   ZMDU                  ZMDU
+   ZMED                  ZMED
+   ZMEU                  ZMEU
+   ZMMD                  ZMMD
+   ZMMU                  ZMMU

@@ -1,6 +1,7 @@
+// $Id: ESMC_DPart.C,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
 //
 // Earth System Modeling Framework
-// Copyright 2002-2010, University Corporation for Atmospheric Research, 
+// Copyright 2002-2012, University Corporation for Atmospheric Research, 
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
 // Laboratory, University of Michigan, National Centers for Environmental 
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
@@ -12,6 +13,8 @@
 /*
  * Program splits a serial mesh into a set of meshes for parallel exection 
  */
+
+#include <mpi.h>
 
 #include <stdlib.h>
 //#include <ctype.h>
@@ -47,6 +50,8 @@ using namespace ESMCI::MESH;
 
 int main(int argc, char *argv[]) {
 
+  MPI_Init(&argc, &argv);
+  
   Par::Init("DPARTLOG");
 
   Mesh srcmesh;

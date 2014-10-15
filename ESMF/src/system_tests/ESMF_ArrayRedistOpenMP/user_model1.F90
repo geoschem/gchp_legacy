@@ -1,4 +1,4 @@
-! $Id: user_model1.F90,v 1.2 2009/05/29 19:52:05 theurich Exp $
+! $Id$
 !
 ! Example/test code which shows User Component calls.
 
@@ -15,7 +15,7 @@
 module user_model1
 
   ! ESMF Framework module
-  use ESMF_Mod
+  use ESMF
 
   implicit none
     
@@ -46,7 +46,7 @@ module user_model1
     call ESMF_VMGet(vm, pthreadsEnabledFlag=pthreadsEnabled, rc=rc)
     if (rc/=ESMF_SUCCESS) return ! bail out
     if (pthreadsEnabled) then
-      call ESMF_GridCompSetVMMaxPEs(comp, max=2, rc=rc)
+      call ESMF_GridCompSetVMMaxPEs(comp, maxPeCountPerPet=2, rc=rc)
       if (rc/=ESMF_SUCCESS) return ! bail out
     endif
     
@@ -63,13 +63,13 @@ module user_model1
 
     ! Register the callback routines.
 
-    call ESMF_GridCompSetEntryPoint(comp, ESMF_SETINIT, userRoutine=user_init, &
+    call ESMF_GridCompSetEntryPoint(comp, ESMF_METHOD_INITIALIZE, userRoutine=user_init, &
       rc=rc)
     if (rc/=ESMF_SUCCESS) return ! bail out
-    call ESMF_GridCompSetEntryPoint(comp, ESMF_SETRUN, userRoutine=user_run, &
+    call ESMF_GridCompSetEntryPoint(comp, ESMF_METHOD_RUN, userRoutine=user_run, &
       rc=rc)
     if (rc/=ESMF_SUCCESS) return ! bail out
-    call ESMF_GridCompSetEntryPoint(comp, ESMF_SETFINAL, userRoutine=user_final, &
+    call ESMF_GridCompSetEntryPoint(comp, ESMF_METHOD_FINALIZE, userRoutine=user_final, &
       rc=rc)
     if (rc/=ESMF_SUCCESS) return ! bail out
 
@@ -121,7 +121,7 @@ module user_model1
     if (rc/=ESMF_SUCCESS) return ! bail out
     call ESMF_ArraySet(array, name="array data", rc=rc)
     if (rc/=ESMF_SUCCESS) return ! bail out
-    call ESMF_StateAdd(exportState, array, rc=rc)
+    call ESMF_StateAdd(exportState, (/array/), rc=rc)
     if (rc/=ESMF_SUCCESS) return ! bail out
    
     print *, "User Comp1 Init returning"
@@ -134,6 +134,9 @@ module user_model1
 !   !
  
   subroutine user_run(comp, importState, exportState, clock, rc)
+
+!$  use omp_lib
+
     type(ESMF_GridComp) :: comp
     type(ESMF_State) :: importState, exportState
     type(ESMF_Clock) :: clock
@@ -145,8 +148,6 @@ module user_model1
     real(ESMF_KIND_R8), pointer :: farrayPtr(:,:)   ! matching F90 array pointer
     type(ESMF_VM)         :: vm
     integer               :: i, j, tid, localPet, peCOunt
-    
-!$  integer :: omp_get_thread_num
     
     ! Initialize return code
     rc = ESMF_SUCCESS
@@ -169,13 +170,17 @@ module user_model1
     if (rc/=ESMF_SUCCESS) return ! bail out
     call ESMF_VMGet(vm, localPet=localPet, rc=rc)
     if (rc/=ESMF_SUCCESS) return ! bail out
-    call ESMF_VMGetPETLocalInfo(vm, pet=localPet, peCount=peCount, rc=rc)
+    call ESMF_VMGet(vm, pet=localPet, peCount=peCount, rc=rc)
     if (rc/=ESMF_SUCCESS) return ! bail out
+
 !$  call omp_set_num_threads(peCount)
 
     ! Fill source Array with data
     tid = 0
-!$omp parallel do
+!$omp parallel do  &
+!$omp& default (none)  &
+!$omp& shared  (farrayPtr, pi)  &
+!$omp& private (i, j, tid)
     do j = lbound(farrayPtr, 2), ubound(farrayPtr, 2)
 !$    tid = omp_get_thread_num()
       print *, "user_model1.run(): tid = ", tid, " is working on column j = ", j

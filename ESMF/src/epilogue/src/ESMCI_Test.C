@@ -1,7 +1,7 @@
-// $Id: ESMCI_Test.C,v 1.12.2.1 2010/02/05 20:14:07 svasquez Exp $
+// $Id: ESMCI_Test.C,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
 //
 // Earth System Modeling Framework
-// Copyright 2002-2010, University Corporation for Atmospheric Research,    
+// Copyright 2002-2012, University Corporation for Atmospheric Research,    
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 // Laboratory, University of Michigan, National Centers for Environmental
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
@@ -38,7 +38,7 @@
 //-----------------------------------------------------------------------------
 // leave the following line as-is; it will insert the cvs ident string
 // into the object file for tracking purposes.
-static const char *const version = "$Id: ESMCI_Test.C,v 1.12.2.1 2010/02/05 20:14:07 svasquez Exp $";
+static const char *const version = "$Id: ESMCI_Test.C,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $";
 //-----------------------------------------------------------------------------
 
 namespace ESMCI {
@@ -63,14 +63,14 @@ int Test(
 //    ESMF_SUCCESS or ESMF_FAILURE
 //
 // !ARGUMENTS:
-  int condition,  // in - the test pass/fail condition
-  char *name,     // in - the test name
-  char *failMsg,  // in - optional message printed on test failure
-  int *result,    // in/out - cumulative failure count
-  char *file,     // in - test filename
-  int line,       // in - test line number in test filename
-  int only) {     // in - if set to 0, print on stderr also
-// 
+  int condition,       // in - the test pass/fail condition
+  const char *name,    // in - the test name
+  const char *failMsg, // in - optional message printed on test failure
+  int *result,         // in/out - cumulative failure count
+  const char *file,    // in - test filename
+  int line,            // in - test line number in test filename
+  int only) {          // in - if set to 0, print on stderr also
+//
 // !DESCRIPTION:
 //    Prints PASS/FAIL based on passed-in condition.  If FAIL, prints
 //    optional failure message and increments failure result counter.
@@ -90,7 +90,7 @@ int Test(
       "ESMCI::Test()\n", __FILE__, __LINE__);
     whichLog->Write(msgbuf, ESMC_LOG_INFO);
     if (!only)
-      fprintf(stderr, msgbuf);
+      fprintf(stderr, "%s", msgbuf);
     return(ESMF_FAILURE);
   }
 
@@ -98,12 +98,12 @@ int Test(
     sprintf(msgbuf, "PASS %s, %s, line %d\n", name, file, line);
     whichLog->Write(msgbuf, ESMC_LOG_INFO);
     if (!only)
-      fprintf(stderr, msgbuf);
+      fprintf(stderr, "%s", msgbuf);
   }else {
     sprintf(msgbuf, "FAIL %s, %s, line %d, %s\n", name, file, line, failMsg);
     whichLog->Write(msgbuf, ESMC_LOG_INFO);
     if (!only)
-      fprintf(stderr, msgbuf);
+      fprintf(stderr, "%s", msgbuf);
     (*result)++; // count total failures; 0 = all pass
   }
 
@@ -124,10 +124,10 @@ int TestEnd(
 //    ESMF_SUCCESS or ESMF_FAILURE
 //
 // !ARGUMENTS:
-  int result,     // in - cumulative failure count
-  char *file,     // in - test filename
-  int line,       // in - test line number in test filename
-  int only) {     // in - if set to 0, print on stderr also
+  int result,       // in - cumulative failure count
+  const char *file, // in - test filename
+  int line,         // in - test line number in test filename
+  int only) {       // in - if set to 0, print on stderr also
 // 
 // !DESCRIPTION:
 //    Prints summary message about total failures, and standard exit message.
@@ -148,26 +148,26 @@ int TestEnd(
       "ESMCI::TestEnd()\n", __FILE__, __LINE__);
     whichLog->Write(msgbuf, ESMC_LOG_INFO);
     if (!only)
-      fprintf(stderr, msgbuf);
+      fprintf(stderr, "%s", msgbuf);
     return(ESMF_FAILURE);
   }
 
   sprintf(msgbuf, "Number of failed tests: %d\n", result);
   whichLog->Write(msgbuf, ESMC_LOG_INFO);
   if (!only)
-    fprintf(stderr, msgbuf);
+    fprintf(stderr, "%s", msgbuf);
 
   sprintf(msgbuf, "Ending Test, file %s, line %d\n", file, line);
   whichLog->Write(msgbuf, ESMC_LOG_INFO);
   if (!only)
-    fprintf(stderr, msgbuf);
+    fprintf(stderr, "%s", msgbuf);
 
   rc = ESMCI_Finalize();
   if (rc != ESMF_SUCCESS) {
     sprintf(msgbuf, "FAIL: %s, line %d, Finalizing ESMF\n", file, line);
     whichLog->Write(msgbuf, ESMC_LOG_INFO);
     if (!only)
-      fprintf(stderr, msgbuf);
+      fprintf(stderr, "%s", msgbuf);
     return(rc);
   }
  
@@ -214,7 +214,7 @@ bool TestMaxPETs(
       "ESMCI::TestMaxPETs()\n", __FILE__, __LINE__);
     whichLog->Write(msgbuf, ESMC_LOG_INFO);
     if (!only)
-      fprintf(stderr, msgbuf);
+      fprintf(stderr, "%s", msgbuf);
     return (false);
   }
 
@@ -225,7 +225,7 @@ bool TestMaxPETs(
 
     whichLog->Write(msgbuf, ESMC_LOG_INFO);
     if (!only)
-      fprintf(stderr, msgbuf);
+      fprintf(stderr, "%s", msgbuf);
 
     return (false);
   }
@@ -238,7 +238,7 @@ bool TestMaxPETs(
     sprintf(msgbuf, "SKIP  %s, %s, line %d\n", failMsg, file, line);
     whichLog->Write(msgbuf, ESMC_LOG_INFO);
     if (!only)
-      fprintf(stderr, msgbuf);
+      fprintf(stderr, "%s", msgbuf);
 
     return (false);
   }
@@ -286,7 +286,7 @@ bool TestMinPETs(
       "ESMCI::TestMinPETs()\n", __FILE__, __LINE__);
     whichLog->Write(msgbuf, ESMC_LOG_INFO);
     if (!only)
-      fprintf(stderr, msgbuf);
+      fprintf(stderr, "%s", msgbuf);
     return (false);
   }
 
@@ -297,7 +297,7 @@ bool TestMinPETs(
 
     whichLog->Write(msgbuf, ESMC_LOG_INFO);
     if (!only)
-      fprintf(stderr, msgbuf);
+      fprintf(stderr, "%s", msgbuf);
 
     return (false);
   }
@@ -310,7 +310,7 @@ bool TestMinPETs(
     sprintf(msgbuf, "SKIP  %s, %s, line %d\n", failMsg, file, line);
    whichLog->Write(msgbuf, ESMC_LOG_INFO);
     if (!only)
-      fprintf(stderr, msgbuf);
+      fprintf(stderr, "%s", msgbuf);
 
     return (false);
   }
@@ -358,7 +358,7 @@ bool TestNumPETs(
       "ESMCI::TestNumPETs()\n", __FILE__, __LINE__);
     whichLog->Write(msgbuf, ESMC_LOG_INFO);
     if (!only)
-      fprintf(stderr, msgbuf);
+      fprintf(stderr, "%s", msgbuf);
     return (false);
   }
 
@@ -369,7 +369,7 @@ bool TestNumPETs(
 
     whichLog->Write(msgbuf, ESMC_LOG_INFO);
     if (!only)
-      fprintf(stderr, msgbuf);
+      fprintf(stderr, "%s", msgbuf);
 
     return (false);
   }
@@ -382,7 +382,7 @@ bool TestNumPETs(
     sprintf(msgbuf, "SKIP  %s, %s, line %d\n", failMsg, file, line);
     whichLog->Write(msgbuf, ESMC_LOG_INFO);
     if (!only)
-      fprintf(stderr, msgbuf);
+      fprintf(stderr, "%s", msgbuf);
 
     return (false);
   }
@@ -404,9 +404,9 @@ int TestStart(
 //    ESMF_SUCCESS or ESMF_FAILURE
 //
 // !ARGUMENTS:
-  char *file,     // in - test filename
-  int line,       // in - test line number in test filename
-  int only) {     // in - if set to 0, print on stderr also
+  const char *file, // in - test filename
+  int line,         // in - test line number in test filename
+  int only) {       // in - if set to 0, print on stderr also
 // 
 // !DESCRIPTION:
 //    Initializes the framework, prints out the standard messages needed
@@ -430,26 +430,26 @@ int TestStart(
       "ESMCI::TestStart()\n", __FILE__, __LINE__);
     whichLog->Write(msgbuf, ESMC_LOG_INFO);
     if (!only)
-      fprintf(stderr, msgbuf);
+      fprintf(stderr, "%s", msgbuf);
     return(ESMF_FAILURE);
   }
 
   char logFileName[160];
-  char *underScore = strchr(file, '_');
+  const char *underScore = strchr(file, '_');
   if (underScore == NULL) underScore = file-1;
-  char *period = strrchr(file, '.');
+  const char *period = strrchr(file, '.');
   int numChars = period - underScore;
   strncpy(logFileName, underScore+1, numChars);
   strcpy(logFileName+numChars, "Log\0");
 
-  rc = ESMCI_Initialize((char *)"", ESMC_CAL_NOCALENDAR, logFileName,
+  rc = ESMCI_Initialize((char *)"", ESMC_CALKIND_NOCALENDAR, logFileName,
     ESMC_LOG_MULTI);
   if (rc != ESMF_SUCCESS) {
     sprintf(msgbuf, "FAIL  rc=%d, %s, line %d, Unable to initialize ESMF\n", rc,
       file, line);
     whichLog->Write(msgbuf, ESMC_LOG_INFO);
     if (!only)
-      fprintf(stderr, msgbuf);
+      fprintf(stderr, "%s", msgbuf);
     return(rc);
   }
 
@@ -460,7 +460,7 @@ int TestStart(
 
     whichLog->Write(msgbuf, ESMC_LOG_INFO);
     if (!only)
-      fprintf(stderr, msgbuf);
+      fprintf(stderr, "%s", msgbuf);
 
     return (false);
   }
@@ -470,12 +470,12 @@ int TestStart(
   sprintf(msgbuf, "Beginning Test, file %s, line %d\n", file, line);
   whichLog->Write(msgbuf, ESMC_LOG_INFO);
   if (!only)
-    fprintf(stderr, msgbuf);
+    fprintf(stderr, "%s", msgbuf);
 
   sprintf(msgbuf, "NUMBER_OF_PROCESSORS %d\n", numPETs);
   whichLog->Write(msgbuf, ESMC_LOG_INFO);
   if (!only)
-    fprintf(stderr, msgbuf);
+    fprintf(stderr, "%s", msgbuf);
  
   return(ESMF_SUCCESS);
 

@@ -1,0 +1,398 @@
+function template (args)
+
+*******************************************************
+****                 INPUT Variables               ****
+*******************************************************
+
+'numargs  'args
+ numargs = result
+
+NAME   = NULL
+DEBUG  = FALSE
+ZLOG   = OFF  
+levels = 0
+
+        n   = 0
+        num = 0
+while ( num < numargs )
+        num = num + 1
+
+if( subwrd(args,num) = '-EXPID'  ) ; EXPID  = subwrd(args,num+1) ; endif
+if( subwrd(args,num) = '-OUTPUT' ) ; OUTPUT = subwrd(args,num+1) ; endif
+if( subwrd(args,num) = '-DEBUG'  ) ; DEBUG  = subwrd(args,num+1) ; endif
+if( subwrd(args,num) = '-ZLOG'   ) ; ZLOG   = subwrd(args,num+1) ; endif
+if( subwrd(args,num) = '-NAME'   ) ; NAME   = subwrd(args,num+1) ; endif
+
+* Read EXPORTS
+* ------------
+if( subwrd(args,num) = '-EXPORT' )
+              n = n + 1
+       EXPORT.n = subwrd(args,num+n   )
+           word = subwrd(args,num+n+1 )
+            bit = checkbit(word)
+       while( bit != '-' )
+              n = n + 1
+       EXPORT.n = subwrd(args,num+n   )
+           word = subwrd(args,num+n+1 )
+            bit = checkbit(word)
+       endwhile
+endif
+
+* Read LEVELS
+* -----------
+if( subwrd(args,num) = '-LEVELS' )
+     levels = ''
+           k = 1
+    while( k > 0 )
+           L = num + k
+        level  = subwrd(args,L)
+    if( level = '' )
+        k = -1
+    else
+        bit = substr(level,1,1)
+        if( bit = '-' )
+              k = -1
+        else
+              levels = levels % ' ' % level
+              k = k+1
+        endif
+    endif
+    endwhile
+endif
+
+* Read SEASONS
+* -----------
+if( subwrd(args,num) = '-SEASON' )
+     seasons = ''
+           k = 1
+    while( k > 0 )
+           L = num + k
+        season  = subwrd(args,L)
+    if( season  = '' )
+        k = -1
+    else
+        bit = substr(season,1,1)
+        if( bit = '-' )
+              k = -1
+        else
+              seasons = seasons % ' ' % season
+              k = k+1
+        endif
+    endif
+    endwhile
+endif
+
+endwhile
+
+
+* Construct GCs from Input EXPORTS
+* --------------------------------
+        m  = 0
+        k  = 1
+while ( k <= n )
+        EX = ''
+         j = 1
+       bit = substr(EXPORT.k,j,1)
+       while(bit != ':' & bit != '')
+        EX = EX''bit
+         j = j + 1
+       bit = substr(EXPORT.k,j,1)
+       endwhile
+       if( EX != EXPORT.k )
+         m = m + 1
+         j = j + 1
+       GC.m = ''
+       bit = substr(EXPORT.k,j,1)
+       while(bit != '')
+       GC.m = GC.m''bit
+         j = j + 1
+       bit = substr(EXPORT.k,j,1)
+       endwhile
+       EXPORT.k = EX
+       endif
+k = k + 1
+endwhile
+
+
+* Set number of EXPORTS & GCs
+* ---------------------------
+if( n = m )
+    nexp = n
+else
+    say 'Number of EXPORTS does not equal number of GCs!'
+    say 'Number of EXPORTS: 'n
+    say '              GCS: 'm
+    return
+endif
+ 
+'numargs  'levels
+ numlevs = result
+
+'run uppercase 'seasons
+                seasons = result
+'numargs  'seasons
+ numseas = result
+
+
+**************************************************
+****            Echo Calling Sequence         ****
+**************************************************
+
+say ' '
+say 'EXPID    = 'EXPID
+n = 1
+while( n<=nexp )
+say 'EXPORT.'n' = 'EXPORT.n
+say '    GC.'n' = 'GC.n
+n = n + 1
+endwhile
+if( NAME != NULL ) ; say '    NAME = 'NAME ; endif
+say '  OUTPUT = 'OUTPUT
+say '  DEBUG  = 'DEBUG
+say '  LEVELS = 'levels
+say '  SEASONS= 'seasons
+say '  NUMLEVS= 'numlevs
+say '  NUMSEAS= 'numseas
+say ' '
+
+**************************************************
+
+'run getenv "GEOSUTIL"'
+             geosutil = result
+
+* Initialize
+* ----------
+'reinit'
+'set display color white'
+'set csmooth on'
+'c'
+'rgbset'
+
+
+* Get Model Variables
+* -------------------
+        n  = 1
+while ( n <= nexp )
+'run getvar 'EXPORT.n' 'GC.n
+        qname.n = subwrd(result,1)
+        qfile.n = subwrd(result,2)
+        scale.n = subwrd(result,3)
+       expdsc.n = subwrd(result,4)
+    if( qfile.n = 'NULL' ) ; return ; endif
+         n  = n + 1
+endwhile
+
+
+* Model Experiment
+* ----------------
+'set dfile 'qfile.1
+'setlons'
+'set lat -90 90'
+
+      do_h = true
+      do_z = true
+if( levels = ' misc' )
+  'getlevs   'qname.1
+     nlevs = result
+ if( nlevs > 1 )
+      do_h = false
+ else
+      do_z = false
+    levels = 0
+ endif
+endif
+
+* Ensure NAME has no underscores
+* ------------------------------
+        m=1
+while ( m<nexp+1 )
+'fixname 'qname.m
+          alias.m = result
+say 'Alias #'m' = 'alias.m
+        m = m+1
+endwhile
+
+
+* Extract Beginning and Ending Dates for Plots
+* --------------------------------------------
+'set dfile 'qfile.1
+'setdates'
+'run getenv "BEGDATE"'
+             begdate  = result
+'run getenv "ENDDATE"'
+             enddate  = result
+if( begdate = "NULL" )
+   'set dfile 'qfile.1
+   'set t    '1
+   'getinfo date'
+         begdate = result
+endif
+if( enddate = "NULL" )
+   'set dfile 'qfile.1
+   'getinfo tdim'
+            tdim     = result
+   'set t  'tdim
+   'getinfo date'
+         enddate = result
+endif
+
+
+* Loop Over Levels
+* ----------------
+if( do_h = 'true' )
+z = 1
+while ( z<=numlevs )
+
+              level = subwrd(levels,z)
+    'set lev 'level
+say ' '
+say 'Producing Plot for Level: 'level' ...'
+say ' '
+
+
+* Perform Model Formula Calculation
+* ---------------------------------
+'set dfile 'qfile.1
+'sett'
+if( nexp = 1 )
+      NAME = EXPORT.1
+        GC =     GC.1
+    EXPORT =  alias.1'1'
+   'seasonalf -FUNCTION 'qname.1'*'scale.1' -NAME 'EXPORT
+    climfile = result
+else
+    mstring = NAME
+    m  = 1
+    while ( m <= nexp )
+           mstring = mstring' 'qname.m'.'qfile.m'*'scale.m
+           m  = m + 1
+    endwhile
+   'run 'geosutil'/plots/formulas/'NAME'.gs 'mstring
+    climfile = result
+    EXPORT = NAME
+        GC = GC.1
+endif
+'set dfile 'qfile.1
+'set lev   'level
+
+
+* Loop over SEASONS for PLOT
+* --------------------------
+                 k = 1
+          while( k > 0 )
+              season = subwrd(seasons,k)
+          if( season = '' )
+                   k = -1
+          else
+                   k = k+1
+
+                  'count "'season'" 'begdate' 'enddate
+                     num = result
+                           flag = ""
+                   while ( flag = "" )
+                   'run hplot 'EXPID' 'NAME' 'GC' 'EXPORT' 'season' 'OUTPUT' 'level' 'num' 'begdate' 'enddate' 'expdsc.1' 'qname.1
+                    if( DEBUG = "debug" )
+                        say "Hit  ENTER  to repeat plot"
+                        say "Type 'next' for  next plot, 'done' for next field"
+                        pull flag
+                    else
+                        flag = "next"
+                    endif
+                   endwhile
+
+          endif
+          endwhile
+
+      if( flag = "done" )
+         z = numlevs + 1
+      else
+         z = z+1
+      endif
+
+endwhile
+endif
+
+
+* Process Zonal Mean Plots
+* ------------------------
+if( do_z = 'true' )
+'setx'
+'set lat -90 90'
+
+
+* Perform Model Formula Calculation
+* ---------------------------------
+'set dfile 'qfile.1
+'sett'
+
+* Set proper ZDIM
+* ---------------
+ 'getlevs   'qname.1
+    nlevs = result
+if( nlevs != 'NULL' )
+   'run setenv "ZDIM" 'nlevs
+endif
+'setz'
+
+if( nexp = 1 )
+      NAME = EXPORT.1
+        GC =     GC.1
+    EXPORT =  alias.1'1'
+   'seasonalf -FUNCTION 'qname.1'*'scale.1' -NAME 'EXPORT
+    climfile = result
+else
+    mstring = NAME
+    m  = 1
+    while ( m <= nexp )
+           mstring = mstring' 'qname.m'.'qfile.m'*'scale.m
+           m  = m + 1
+    endwhile
+   'run 'geosutil'/plots/formulas/'NAME'.gs 'mstring
+    climfile = result
+    EXPORT = NAME
+        GC = GC.1
+endif
+'set dfile 'qfile.1
+'setz'
+
+                 k = 1
+          while( k > 0 )
+              season = subwrd(seasons,k)
+          if( season = '' )
+                   k = -1
+          else
+                   k = k+1
+
+                  'count "'season'" 'begdate' 'enddate
+                     num = result
+                       flag = ""
+               while ( flag = "" )
+              'set dfile 'climfile
+              'setx'
+              'makez     'EXPORT''season' z'
+              'set dfile 'qfile.1
+              'set lon 0'
+              'run zplot 'EXPID' 'NAME' 'GC' 'EXPORT' 'season' 'OUTPUT' 'ZLOG' 'num' 'expdsc.1' 'qname.1
+                if( DEBUG = "debug" )
+                    say "Hit  ENTER  to repeat plot"
+                    say "Type 'next' for  next plot, 'done' for next field"
+                    pull flag
+                else
+                    flag = "next"
+                endif
+               endwhile
+          endif
+          endwhile
+endif
+
+'run unsetenv "ZDIM"'
+'quit'
+return
+
+* To Prevent Problem with BIT: E
+* ------------------------------
+function checkbit (word)
+      bit = substr(word,1,1)
+      dum = bit'TEST'
+      if( dum = "ETEST" ) ; bit = A ; endif
+return bit

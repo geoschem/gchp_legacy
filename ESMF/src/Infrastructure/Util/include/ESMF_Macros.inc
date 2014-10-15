@@ -1,8 +1,8 @@
 #if 0
-$Id: ESMF_Macros.inc,v 1.5.4.1 2010/02/05 20:01:04 svasquez Exp $
+$Id: ESMF_Macros.inc,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
 
 Earth System Modeling Framework
-Copyright 2002-2010, University Corporation for Atmospheric Research,
+Copyright 2002-2012, University Corporation for Atmospheric Research,
 Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 Laboratory, University of Michigan, National Centers for Environmental
 Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -34,7 +34,11 @@ the following macro is here for the frameworks own internal use.
 unmatched quotes confuse some preprocessors with delusions of grammar.)
 #endif
 
-#define ESMF_SRCLINE __FILE__, __LINE__
+#define ESMF_SRCLINE ESMF_FILENAME, __LINE__
+
+#ifndef ESMF_FILENAME
+#define ESMF_FILENAME __FILE__
+#endif
 
 #endif 
 

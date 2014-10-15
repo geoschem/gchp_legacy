@@ -1,4 +1,4 @@
-! $Id: ESMF_FieldBundleRedistArb2ArbSTest.F90,v 1.8 2009/10/28 03:05:24 theurich Exp $
+! $Id$
 !
 ! System test FieldBundleRedistArb2Arb
 !  Description on Sourceforge under System Test #XXXXX
@@ -27,10 +27,8 @@
 
 program Arb2ArbBunReDist
 
-#include "ESMF_Macros.inc"
-
      ! ESMF Framework module
-     use ESMF_Mod
+     use ESMF
      use ESMF_TestMod
     
      implicit none
@@ -83,7 +81,7 @@ program Arb2ArbBunReDist
 !
      ! Initialize the framework and get back the default global VM
      call ESMF_Initialize(vm=vm, defaultlogfilename="FieldBundleRedistArb2ArbSTest.Log", &
-                        defaultlogtype=ESMF_LOG_MULTI, rc=status)
+                        logkindflag=ESMF_LOGKIND_MULTI, rc=status)
      if (status .ne. ESMF_SUCCESS) goto 20
 
      ! Get the PET count and our PET number
@@ -91,11 +89,6 @@ program Arb2ArbBunReDist
      if (status .ne. ESMF_SUCCESS) goto 20
 
      miscount = 0
-
-     if (npets .eq. 1) then
-       print *, "This test must run with > 1 processor"
-       goto 20
-     endif
 
      print *, "Create section finished"
 !
@@ -123,7 +116,7 @@ program Arb2ArbBunReDist
      localCount = int((counts(1)*counts(2) + npets -1)/npets)
      allocate (myIndices1(localCount,2))
      ! calculate myIndices based on DE number
-     ! for now, start at point (1,1+localPet) and go up in the j-direction first
+     ! for now, start at point (1,1+localPet) and go up in the i-direction first
      ! to create a semi-regular distribution of points
      i1  = 1 + localPet
      add = 0
@@ -136,9 +129,10 @@ program Arb2ArbBunReDist
        i1 = i - counts(1)
      enddo
 
-     grid1 = ESMF_GridCreateShapeTile("source grid", coordTypeKind=ESMF_TYPEKIND_R8, &
+     grid1 = ESMF_GridCreateNoPeriDim(coordTypeKind=ESMF_TYPEKIND_R8, &
        minIndex=(/1,1/), maxIndex=counts, &
-       localArbIndex=myIndices1,localArbIndexCount=localCount,rc=status)
+       arbIndexList=myIndices1,arbIndexCount=localCount, &
+       name="source grid", rc=status)
      if (status .ne. ESMF_SUCCESS) goto 20
      call ESMF_GridAddCoord(grid1, rc=status)
      if (status .ne. ESMF_SUCCESS) goto 20
@@ -163,9 +157,10 @@ program Arb2ArbBunReDist
        j1 = j - counts(2)
      enddo
 
-     grid2 = ESMF_GridCreateShapeTile("dest grid", coordTypeKind=ESMF_TYPEKIND_R8, &
+     grid2 = ESMF_GridCreateNoPeriDim(coordTypeKind=ESMF_TYPEKIND_R8, &
        minIndex=(/1,1/), maxIndex=counts, &
-       localArbIndex=myIndices2,localArbIndexCount=localCount,rc=status)
+       arbIndexList=myIndices2,arbIndexCount=localCount, &
+       name="dest grid", rc=status)
      if (status .ne. ESMF_SUCCESS) goto 20
 
      ! Set up a 1D (for the arbitrarily distributed FieldBundle) and a 1D real array
@@ -177,30 +172,30 @@ program Arb2ArbBunReDist
      if (status .ne. ESMF_SUCCESS) goto 20
 
      ! Create bundles
-     bundle1 = ESMF_FieldBundleCreate(grid1, 'FieldBundle1', rc=status)
+     bundle1 = ESMF_FieldBundleCreate(name='FieldBundle1', rc=status)
      if (status .ne. ESMF_SUCCESS) goto 20
 
-     bundle2 = ESMF_FieldBundleCreate(grid2, 'FieldBundle2', rc=status)
+     bundle2 = ESMF_FieldBundleCreate(name='FieldBundle2', rc=status)
      if (status .ne. ESMF_SUCCESS) goto 20
 
-     bundle3 = ESMF_FieldBundleCreate(grid1, 'FieldBundle3', rc=status)
+     bundle3 = ESMF_FieldBundleCreate(name='FieldBundle3', rc=status)
      if (status .ne. ESMF_SUCCESS) goto 20
 
      ! Create the field and have it create the array internally for each grid
      ! and add the Fields to the FieldBundle corresponding to the grid.
      humidity1 = ESMF_FieldCreate(grid1, arrayspec1, &
                                   name="humidity1", rc=status)
-     call ESMF_FieldBundleAdd(bundle1, humidity1, rc=status)
+     call ESMF_FieldBundleAdd(bundle1, (/humidity1/), rc=status)
 
      if (status .ne. ESMF_SUCCESS) goto 20
      humidity2 = ESMF_FieldCreate(grid2, arrayspec2, &
                                   name="humidity2", rc=status)
-     call ESMF_FieldBundleAdd(bundle2, humidity2, rc=status)
+     call ESMF_FieldBundleAdd(bundle2, (/humidity2/), rc=status)
      if (status .ne. ESMF_SUCCESS) goto 20
 
      humidity3 = ESMF_FieldCreate(grid1, arrayspec1, &
                                   name="humidity3", rc=status)
-     call ESMF_FieldBundleAdd(bundle3, humidity3, rc=status)
+     call ESMF_FieldBundleAdd(bundle3, (/humidity3/), rc=status)
      if (status .ne. ESMF_SUCCESS) goto 20
 
      ! precompute communication patterns, the first from the 1st arbitrarily
@@ -212,10 +207,10 @@ program Arb2ArbBunReDist
 
     ! get coordinate arrays available for setting the source data array
     call ESMF_GridGetCoord(grid1, localDE=0, coordDim=1, &
-      fptr=coordX, totalCount=localCounts, rc=status)
+      farrayPtr=coordX, totalCount=localCounts, rc=status)
     if (status .ne. ESMF_SUCCESS) goto 20
     call ESMF_GridGetCoord(grid1, localDE=0, coordDim=2, &
-      fptr=coordY, rc=status)
+      farrayPtr=coordY, rc=status)
     if (status .ne. ESMF_SUCCESS) goto 20
 
     ! Get pointers to the data and set it up
@@ -254,7 +249,7 @@ program Arb2ArbBunReDist
     ! Call redistribution method here, output ends up in humidity2
     call ESMF_FieldBundleRedist(bundle1, bundle2, rh12, rc=status)
     print *, "Run ESMF_FieldBundleRedist :",status,ESMF_SUCCESS
-    call ESMF_FieldBundleGet(bundle2, "humidity2", humidity2, rc=status)
+    call ESMF_FieldBundleGet(bundle2, "humidity2", field=humidity2, rc=status)
     print *, "Run ESMF_FieldBundleGetField :",status,ESMF_SUCCESS
     if (status .ne. ESMF_SUCCESS) goto 20
 
@@ -263,7 +258,7 @@ program Arb2ArbBunReDist
     ! Redistribute back so we can compare contents
     ! output ends up in humidity3
     call ESMF_FieldBundleRedist(bundle2, bundle3, rh23, rc=status)
-    call ESMF_FieldBundleGet(bundle3, "humidity3", humidity3, rc=status)
+    call ESMF_FieldBundleGet(bundle3, "humidity3", field=humidity3, rc=status)
     if (status .ne. ESMF_SUCCESS) goto 20
 
     print *, "Array contents after second Redistribution, should match original:"
@@ -319,25 +314,25 @@ program Arb2ArbBunReDist
 
     deallocate(myIndices1, myIndices2)
 
-    call ESMF_FieldBundleRedistRelease(rh12, status)
+    call ESMF_FieldBundleRedistRelease(rh12, rc=status)
     if (status .ne. ESMF_SUCCESS) goto 20
-    call ESMF_FieldBundleRedistRelease(rh23, status)
+    call ESMF_FieldBundleRedistRelease(rh23, rc=status)
     if (status .ne. ESMF_SUCCESS) goto 20
-    call ESMF_FieldBundleDestroy(bundle1, status)
+    call ESMF_FieldBundleDestroy(bundle1, rc=status)
     if (status .ne. ESMF_SUCCESS) goto 20
-    call ESMF_FieldBundleDestroy(bundle2, status)
+    call ESMF_FieldBundleDestroy(bundle2, rc=status)
     if (status .ne. ESMF_SUCCESS) goto 20
-    call ESMF_FieldBundleDestroy(bundle3, status)
+    call ESMF_FieldBundleDestroy(bundle3, rc=status)
     if (status .ne. ESMF_SUCCESS) goto 20
-    call ESMF_FieldDestroy(humidity1, status)
+    call ESMF_FieldDestroy(humidity1, rc=status)
     if (status .ne. ESMF_SUCCESS) goto 20
-    call ESMF_FieldDestroy(humidity2, status)
+    call ESMF_FieldDestroy(humidity2, rc=status)
     if (status .ne. ESMF_SUCCESS) goto 20
-    call ESMF_FieldDestroy(humidity3, status)
+    call ESMF_FieldDestroy(humidity3, rc=status)
     if (status .ne. ESMF_SUCCESS) goto 20
-    call ESMF_GridDestroy(grid1, status)
+    call ESMF_GridDestroy(grid1, rc=status)
     if (status .ne. ESMF_SUCCESS) goto 20
-    call ESMF_GridDestroy(grid2, status)
+    call ESMF_GridDestroy(grid2, rc=status)
     if (status .ne. ESMF_SUCCESS) goto 20
     print *, "All Destroy routines done"
 
@@ -364,9 +359,11 @@ program Arb2ArbBunReDist
   print *, "------------------------------------------------------------"
   print *, "------------------------------------------------------------"
 
-  ! IMPORTANT: ESMF_STest() prints the PASS string and the # of processors in the log
-  ! file that the scripts grep for.
-  call ESMF_STest((status.eq.ESMF_SUCCESS), testname, failMsg, result, ESMF_SRCLINE)
+  ! IMPORTANT: ESMF_STest() prints the PASS string and the # of processors
+  ! into the Log file that the scripts grep for.
+  call ESMF_STest((status.eq.ESMF_SUCCESS), testname, failMsg, result, &
+  __FILE__, &
+  __LINE__)
 
   call ESMF_Finalize()
 

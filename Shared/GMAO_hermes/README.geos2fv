@@ -1,0 +1,54 @@
+                   Converting GEOS-2 prog.sig files to FVGCM
+
+                             Arlindo da Silva
+
+                             November 9, 1999
+
+
+The utility geos2fv.x can be used to convert GEOS-2 prognostic fields
+in sigma coordinates (prog.sig files) to FVGCM state variables
+(restart, grads or GFIO formats). This version requires prog.sig
+files in HDF written with GFIO. If you have an older prog.sig in PHOENIX
+format you must convert this file to HDF with LATS4D; see below.
+
+
+1) Configure and make
+
+   ./configure
+   make
+
+2) Next, run geos2fv on a sample file:
+
+   geos2fv.x -i b290_03_w98.pre-anal.sig.t19971221 -o test  19971221 0
+
+   By default this will create a GFIO file named "test.nc"; 
+   type "geos2fv.x" for additional options.
+
+
+
+PHOENIX FILES:
+
+If you have an older PHOENIX file, say 
+
+     helios1:/u/almeida/scott/uth01/prog/dec1997/uth01.prog.sig.t19971221
+
+then you must first create a ctl for it; just enter
+
+     phx2ctl uth01.prog.sig.t19971221
+
+Next, use lats4d to subset and convert this file to HDF:
+
+   lats4d -v -i uth01.prog.sig.t19971221.ctl -o uth01.fg.t19971221 \
+          -vars phis ps slp lwi uwnd vwnd tmpu sphu rh
+
+This will create an HDF file named "uth01.fg.t19971221.nc"
+
+
+NOTE: phx2ctl and lats4d is on /ford1/local.
+
+
+
+Send algorithm related questions to SJ Lin (lin@dao); GFIO, lats4d and
+other format related questions to Arlindo da Silva (dasilva@dao).
+
+                       --- // ---

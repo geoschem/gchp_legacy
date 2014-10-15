@@ -1,7 +1,7 @@
-! $Id: ESMF_DELayoutUTest.F90,v 1.27.2.1 2010/02/05 19:55:07 svasquez Exp $
+! $Id: ESMF_DELayoutUTest.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2010, University Corporation for Atmospheric Research,
+! Copyright 2002-2012, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -30,14 +30,14 @@
 !-----------------------------------------------------------------------------
 ! !USES:
       use ESMF_TestMod     ! test methods
-      use ESMF_Mod
+      use ESMF
 
       implicit none
 
 !------------------------------------------------------------------------------
 ! The following line turns the CVS identifier string into a printable variable.
       character(*), parameter :: version = &
-      '$Id: ESMF_DELayoutUTest.F90,v 1.27.2.1 2010/02/05 19:55:07 svasquez Exp $'
+      '$Id: ESMF_DELayoutUTest.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $'
 !------------------------------------------------------------------------------
 
       ! cumulative result: count failures; no failures equals "all pass"
@@ -79,7 +79,7 @@
 !------------------------------------------------------------------------------- 
       call ESMF_TestStart(ESMF_SRCLINE, rc=rc)
 
-      call ESMF_VMGetGlobal(vm, rc)
+      call ESMF_VMGetGlobal(vm, rc=rc)
       call ESMF_VMGet(vm, petCount=petCount, rc=rc)
 
 !-------------------------------------------------------------------------------
@@ -289,7 +289,7 @@
       enddo
       print *, "deGrouping: ", deGrouping
       delayout = ESMF_DELayoutCreate(deCount=2*petCount, deGrouping=deGrouping,&
-        dePinFlag=ESMF_DE_PIN_VAS, rc=rc)
+        pinflag=ESMF_PIN_DE_TO_VAS, rc=rc)
       call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
       deallocate(deGrouping)
 

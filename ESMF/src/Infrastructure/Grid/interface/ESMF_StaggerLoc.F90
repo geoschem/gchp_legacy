@@ -1,7 +1,7 @@
-! $Id: ESMF_StaggerLoc.F90,v 1.18.2.1 2010/02/05 19:57:39 svasquez Exp $
+! $Id: ESMF_StaggerLoc.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2010, University Corporation for Atmospheric Research,
+! Copyright 2002-2012, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -34,6 +34,7 @@
 ! !USES:
       use ESMF_UtilTypesMod    ! ESMF base class
       use ESMF_LogErrMod
+      use ESMF_IOUtilMod
 
       implicit none
 
@@ -63,9 +64,9 @@
   public ESMF_StaggerLocString
   public ESMF_StaggerLocSet
   public ESMF_StaggerLocPrint
-  public operator(.eq.), operator(.ne.) 
-  public operator(.gt.), operator(.ge.) 
-  public operator(.lt.), operator(.le.) 
+  public operator(==), operator(/=) 
+  public operator(>), operator(>=) 
+  public operator(<), operator(<=) 
 
 !------------------------------------------------------------------------------
 !
@@ -103,7 +104,7 @@
 !------------------------------------------------------------------------------
 ! The following line turns the CVS identifier string into a printable variable.
       character(*), parameter, private :: version = &
-      '$Id: ESMF_StaggerLoc.F90,v 1.18.2.1 2010/02/05 19:57:39 svasquez Exp $'
+      '$Id: ESMF_StaggerLoc.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $'
 
 
 !==============================================================================
@@ -116,7 +117,7 @@
 !==============================================================================
 !BOPI
 ! !INTERFACE:
-      interface operator (.eq.)
+      interface operator (==)
 
 ! !PRIVATE MEMBER FUNCTIONS:
          module procedure ESMF_StaggerLocEqual
@@ -132,7 +133,7 @@
 !------------------------------------------------------------------------------
 !BOPI
 ! !INTERFACE:
-      interface operator (.ne.)
+      interface operator (/=)
 
 ! !PRIVATE MEMBER FUNCTIONS:
          module procedure ESMF_StaggerLocNotEqual
@@ -147,7 +148,7 @@
 !------------------------------------------------------------------------------
 !BOPI
 ! !INTERFACE:
-      interface operator (.gt.)
+      interface operator (>)
 
 ! !PRIVATE MEMBER FUNCTIONS:
          module procedure ESMF_StaggerLocGreater
@@ -162,7 +163,7 @@
 !------------------------------------------------------------------------------
 !BOPI
 ! !INTERFACE:
-      interface operator (.lt.)
+      interface operator (<)
 
 ! !PRIVATE MEMBER FUNCTIONS:
          module procedure ESMF_StaggerLocLess
@@ -177,7 +178,7 @@
 !------------------------------------------------------------------------------
 !BOPI
 ! !INTERFACE:
-      interface operator (.ge.)
+      interface operator (>=)
 
 ! !PRIVATE MEMBER FUNCTIONS:
          module procedure ESMF_StaggerLocGreaterEqual
@@ -192,7 +193,7 @@
 !------------------------------------------------------------------------------
 !BOPI
 ! !INTERFACE:
-      interface operator (.le.)
+      interface operator (<=)
 
 ! !PRIVATE MEMBER FUNCTIONS:
          module procedure ESMF_StaggerLocLessEqual
@@ -240,13 +241,19 @@ end interface
 
 ! !INTERFACE:
   ! Private name; call using ESMF_StaggerLocSet() 
-     subroutine ESMF_StaggerLocSetAllDim(staggerloc,loc,rc)
+     subroutine ESMF_StaggerLocSetAllDim(staggerloc, loc, keywordenforcer, rc)
 !
 ! !ARGUMENTS:
       type (ESMF_StaggerLoc), intent(inout) :: staggerloc
-      integer, intent(in) :: loc(:)
-      integer, optional :: rc 
+      integer,                intent(in)    :: loc(:)
+type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
+      integer, optional                     :: rc 
 
+! !STATUS:
+! \begin{itemize}
+! \item\apiStatusCompatibleVersion{5.2.0r}
+! \end{itemize}
+!
 ! !DESCRIPTION:
 !    Sets a custom {\tt staggerloc} to a position in a cell by using the array
 !    {\tt loc}. The values in the array should only be 0,1. If loc(i) is 0 it 
@@ -299,13 +306,20 @@ end interface
 
 ! !INTERFACE:
   ! Private name; call using ESMF_StaggerLocSet() 
-      subroutine ESMF_StaggerLocSetDim(staggerloc,dim,loc,rc)
+      subroutine ESMF_StaggerLocSetDim(staggerloc, dim, loc, keywordenforcer, rc)
 !
 ! !ARGUMENTS:
       type (ESMF_StaggerLoc), intent(inout) :: staggerloc
-      integer, intent(in) :: dim,loc
-      integer, optional :: rc 
+      integer,                intent(in)    :: dim
+      integer,                intent(in)    :: loc
+type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
+      integer, optional                     :: rc 
 
+! !STATUS:
+! \begin{itemize}
+! \item\apiStatusCompatibleVersion{5.2.0r}
+! \end{itemize}
+!
 ! !DESCRIPTION:
 !   Sets a particular dimension of a custom {\tt staggerloc} to a position in a cell 
 !    by using the variable {\tt loc}. The variable {\tt loc} should only be 0,1. 
@@ -354,13 +368,19 @@ end interface
 ! !IROUTINE:  ESMF_StaggerLocString - Return a StaggerLoc as a string
 !
 ! !INTERFACE:
-      subroutine ESMF_StaggerLocString(staggerloc, string, rc)
+      subroutine ESMF_StaggerLocString(staggerloc, string, keywordenforcer, rc)
 !
 !
 ! !ARGUMENTS:
-      type(ESMF_StaggerLoc), intent(in) :: staggerloc
-      character (len = *), intent(out) :: string
-      integer, intent(out), optional :: rc
+      type(ESMF_StaggerLoc), intent(in)  :: staggerloc
+      character (len = *),   intent(out) :: string
+type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
+      integer, optional,     intent(out) :: rc
+!
+! !STATUS:
+! \begin{itemize}
+! \item\apiStatusCompatibleVersion{5.2.0r}
+! \end{itemize}
 !
 ! !DESCRIPTION:
 !     Return an {\tt ESMF\_StaggerLoc} as a printable string.
@@ -383,16 +403,16 @@ end interface
 
         ! translate staggerloc to string
         ! (Strings should be appropriate for 2D and 3D)
-        if (staggerloc .lt. ESMF_STAGGERLOC_CENTER) string="No String For This StaggerLoc" 
-        if (staggerloc .eq. ESMF_STAGGERLOC_CENTER) string="Center" 
-        if (staggerloc .eq. ESMF_STAGGERLOC_CORNER) string="Corner of Dim. 1 and Dim. 2" 
-        if (staggerloc .eq. ESMF_STAGGERLOC_EDGE1)  string="Middle of Face Offset in Dim. 1" 
-        if (staggerloc .eq. ESMF_STAGGERLOC_EDGE2)  string="Middle of Face Offset in Dim. 2" 
-        if (staggerloc .eq. ESMF_STAGGERLOC_CENTER_VFACE) string="Middle of Face Offset in Dim. 3"
-        if (staggerloc .eq. ESMF_STAGGERLOC_EDGE1_VFACE) string="Middle of Edge Offset in Dim. 1 and Dim. 3"
-        if (staggerloc .eq. ESMF_STAGGERLOC_EDGE2_VFACE) string="Middle of Edge Offset in Dim. 2 and Dim. 3"
-        if (staggerloc .eq. ESMF_STAGGERLOC_CORNER_VFACE) string="Corner of Dim. 1, Dim. 2, and Dim. 3"
-        if (staggerloc .gt. ESMF_STAGGERLOC_CORNER_VFACE) string="No String For This StaggerLoc" 
+        if (staggerloc < ESMF_STAGGERLOC_CENTER) string="No String For This StaggerLoc" 
+        if (staggerloc == ESMF_STAGGERLOC_CENTER) string="Center" 
+        if (staggerloc == ESMF_STAGGERLOC_CORNER) string="Corner of Dim. 1 and Dim. 2" 
+        if (staggerloc == ESMF_STAGGERLOC_EDGE1)  string="Middle of Face Offset in Dim. 1" 
+        if (staggerloc == ESMF_STAGGERLOC_EDGE2)  string="Middle of Face Offset in Dim. 2" 
+        if (staggerloc == ESMF_STAGGERLOC_CENTER_VFACE) string="Middle of Face Offset in Dim. 3"
+        if (staggerloc == ESMF_STAGGERLOC_EDGE1_VFACE) string="Middle of Edge Offset in Dim. 1 and Dim. 3"
+        if (staggerloc == ESMF_STAGGERLOC_EDGE2_VFACE) string="Middle of Edge Offset in Dim. 2 and Dim. 3"
+        if (staggerloc == ESMF_STAGGERLOC_CORNER_VFACE) string="Corner of Dim. 1, Dim. 2, and Dim. 3"
+        if (staggerloc > ESMF_STAGGERLOC_CORNER_VFACE) string="No String For This StaggerLoc" 
 
         if (present(rc)) rc = ESMF_SUCCESS
 
@@ -498,7 +518,7 @@ end interface
 !
 !EOPI
 
-      ESMF_StaggerLocGreater = (StaggerLoc1%staggerloc .gt. &
+      ESMF_StaggerLocGreater = (StaggerLoc1%staggerloc > &
                               StaggerLoc2%staggerloc)
 
       end function ESMF_StaggerLocGreater
@@ -532,7 +552,7 @@ end interface
 !
 !EOPI
 
-      ESMF_StaggerLocLess = (StaggerLoc1%staggerloc .lt. &
+      ESMF_StaggerLocLess = (StaggerLoc1%staggerloc < &
                                  StaggerLoc2%staggerloc)
 
       end function ESMF_StaggerLocLess
@@ -567,7 +587,7 @@ end interface
 !
 !EOPI
 
-      ESMF_StaggerLocGreaterEqual = (StaggerLoc1%staggerloc .ge. &
+      ESMF_StaggerLocGreaterEqual = (StaggerLoc1%staggerloc >= &
                               StaggerLoc2%staggerloc)
 
       end function ESMF_StaggerLocGreaterEqual
@@ -601,31 +621,31 @@ end interface
 !
 !EOPI
 
-      ESMF_StaggerLocLessEqual = (StaggerLoc1%staggerloc .le. &
+      ESMF_StaggerLocLessEqual = (StaggerLoc1%staggerloc <= &
                                  StaggerLoc2%staggerloc)
 
       end function ESMF_StaggerLocLessEqual
-
+!------------------------------------------------------------------------------
 #undef  ESMF_METHOD
 #define ESMF_METHOD "ESMF_StaggerLocPrint"
 !BOP
-! !IROUTINE: ESMF_StaggerLocPrint - Print information of a ESMF_StaggerLoc object
+! !IROUTINE: ESMF_StaggerLocPrint - Print StaggerLoc information
 
 ! !INTERFACE:
-      subroutine ESMF_StaggerLocPrint(staggerloc, rc)
+      subroutine ESMF_StaggerLocPrint(staggerloc, keywordenforcer, rc)
 !
 ! !ARGUMENTS:
-      type (ESMF_StaggerLoc), intent(in) :: staggerloc
-      integer, intent(out), optional     :: rc 
+      type (ESMF_StaggerLoc), intent(in)  :: staggerloc
+type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
+      integer, optional,      intent(out) :: rc 
 
+! !STATUS:
+! \begin{itemize}
+! \item\apiStatusCompatibleVersion{5.2.0r}
+! \end{itemize}
+!
 ! !DESCRIPTION:
 !     Print the internal data members of an {\tt ESMF\_StaggerLoc} object. \\
-!
-!     Note:  Many {\tt ESMF\_<class>Print} methods are implemented in C++.
-!     On some platforms/compilers there is a potential issue with interleaving
-!     Fortran and C++ output to {\tt stdout} such that it doesn't appear in
-!     the expected order.  If this occurs, the {\tt ESMF\_IOUnitFlush()} method
-!     may be used on unit 6 to get coherent output.  \\
 !
 !     The arguments are:
 !     \begin{description}
@@ -640,9 +660,9 @@ end interface
       ! Initialize return code; assume routine not implemented
       if (present(rc)) rc = ESMF_RC_NOT_IMPL
 
-      write(*, *) "StaggerLoc Print Begins =====>"
-      write(*, *) "   staggerloc = ", staggerloc%staggerloc
-      write(*, *) "StaggerLoc Print Ends   =====>"
+      write(ESMF_UtilIOStdout, *) "StaggerLoc Print Begins =====>"
+      write(ESMF_UtilIOStdout, *) "   staggerloc = ", staggerloc%staggerloc
+      write(ESMF_UtilIOStdout, *) "StaggerLoc Print Ends   =====>"
 
       rc = ESMF_SUCCESS
 

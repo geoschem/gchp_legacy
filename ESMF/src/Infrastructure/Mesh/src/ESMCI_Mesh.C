@@ -1,6 +1,7 @@
+// $Id$
 //
 // Earth System Modeling Framework
-// Copyright 2002-2010, University Corporation for Atmospheric Research, 
+// Copyright 2002-2012, University Corporation for Atmospheric Research, 
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
 // Laboratory, University of Michigan, National Centers for Environmental 
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
@@ -18,6 +19,13 @@
 #include <Mesh/include/ESMCI_GlobalIds.h>
 
 #include <bitset>
+#include <cstdio>
+
+//-----------------------------------------------------------------------------
+// leave the following line as-is; it will insert the cvs ident string
+// into the object file for tracking purposes.
+static const char *const version = "$Id$";
+//-----------------------------------------------------------------------------
 
 //#define CRE_DEBUG
 
@@ -1588,6 +1596,7 @@ void Mesh::build_sym_comm_rel(UInt obj_type) {
 
      if (oproc >= Par::Size()) {
        Par::Out() << "Error! rank is greater than nproc:obj:" << node;
+       std::printf(" gid= %d\n",node.get_id());
        Throw() << "Bad processor number!";
      }
    }

@@ -1,7 +1,7 @@
-! $Id: ESMF_FieldRepDimEx.F90,v 1.5.2.1 2010/02/05 19:55:38 svasquez Exp $
+! $Id$
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2010, University Corporation for Atmospheric Research,
+! Copyright 2002-2012, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -24,7 +24,7 @@
 #include "ESMF.h"
     ! ESMF Framework module
     use ESMF_TestMod
-    use ESMF_Mod
+    use ESMF
     implicit none
     
     ! Local variables
@@ -37,14 +37,14 @@
     ! local arguments used to get info from field
     type(ESMF_Grid)         :: grid1
     type(ESMF_Array)        :: array
-    type(ESMF_TypeKind)     :: typekind
+    type(ESMF_TypeKind_Flag)     :: typekind
     integer                 :: dimCount, gridrank_repdim
     type(ESMF_StaggerLoc)   :: lstaggerloc
     integer, dimension(4) :: lgridToFieldMap
     integer, dimension(1) :: lungriddedLBound 
     integer, dimension(1) :: lungriddedUBound 
-    integer, dimension(2) :: lmaxHaloLWidth
-    integer, dimension(2) :: lmaxHaloUWidth
+    integer, dimension(2,1) :: ltotalLWidth
+    integer, dimension(2,1) :: ltotalUWidth
 
     ! local arguments used to verify field get
     integer                                     :: i, ii, ij, ik
@@ -62,22 +62,25 @@
 !   !Set finalrc to success
     finalrc = ESMF_SUCCESS
 
-    call ESMF_Initialize(vm=vm, rc=rc)
-    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+    call ESMF_Initialize(vm=vm, defaultlogfilename="FieldRepDimEx.Log", &
+                    logkindflag=ESMF_LOGKIND_MULTI, rc=rc)
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
     if (.not. ESMF_TestMinPETs(4, ESMF_SRCLINE)) &
-        call ESMF_Finalize(terminationflag=ESMF_ABORT)
+        call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
 !>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%
 !-------------------------------- Example -----------------------------
 !>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%
 !BOE
-!\subsubsection{Field with replicated dimension}
+!\subsubsection{Create a Field with replicated dimensions}
 !\label{sec:field:usage:create_repdim}
 !
+!  \begin{sloppypar}
 !  In this example an {\tt ESMF\_Field} with replicated dimension is created from an {\tt ESMF\_Grid} and 
 !  an {\tt ESMF\_Arrayspec}. A user can also use other {\tt ESMF\_FieldCreate()} methods to create replicated
 !  dimension Field, this example illustrates the key concepts and use of a replicated dimension Field.
+!  \end{sloppypar}
 !
 !  Normally gridToFieldMap argument in {\tt ESMF\_FieldCreate()} should not contain
 !  0 value entries. However, for Field with replicated dimension, a 0 entry in gridToFieldMap
@@ -89,8 +92,8 @@
 
 !BOC
     ! create 4D distgrid
-    distgrid = ESMF_DistGridCreate(minIndex=(/1,1,1,1/), maxIndex=(/6,4,6,4/), &
-        regDecomp=(/2,1,2,1/), rc=rc)
+    distgrid = ESMF_DistGridCreate(minIndex=(/1,1,1,1/), &
+        maxIndex=(/6,4,6,4/), regDecomp=(/2,1,2,1/), rc=rc)
     if (rc.NE.ESMF_SUCCESS) finalrc = ESMF_FAILURE
 
     ! create 4D grid on top of the 4D distgrid
@@ -109,28 +112,28 @@
 !EOE
 !BOC
     ! create field, 2nd and 4th dimensions of the Grid are replicated
-    field = ESMF_FieldCreate(grid, arrayspec, ESMF_INDEX_DELOCAL, &
+    field = ESMF_FieldCreate(grid, arrayspec, indexflag=ESMF_INDEX_DELOCAL, &
         gridToFieldMap=(/1,0,2,0/), &
         ungriddedLBound=(/1/), ungriddedUBound=(/4/), &
-        maxHaloLWidth=(/1,1/), maxHaloUWidth=(/4,5/), &
+        totalLWidth=(/1,1/), totalUWidth=(/4,5/), &
         staggerloc=ESMF_STAGGERLOC_CORNER, &
         rc=rc)
     if (rc.NE.ESMF_SUCCESS) finalrc = ESMF_FAILURE
 
     ! get basic information from the field
     call ESMF_FieldGet(field, grid=grid1, array=array, typekind=typekind, &
-        dimCount=dimCount, staggerloc=lstaggerloc, gridToFieldMap=lgridToFieldMap, &
-        ungriddedLBound=lungriddedLBound, ungriddedUBound=lungriddedUBound, &
-        maxHaloLWidth=lmaxHaloLWidth, maxHaloUWidth=lmaxHaloUWidth, &
-        rc=rc)
+        dimCount=dimCount, staggerloc=lstaggerloc, &
+        gridToFieldMap=lgridToFieldMap, ungriddedLBound=lungriddedLBound, &
+        ungriddedUBound=lungriddedUBound, totalLWidth=ltotalLWidth, &
+        totalUWidth=ltotalUWidth, rc=rc)
     if (rc.NE.ESMF_SUCCESS) finalrc = ESMF_FAILURE
 
     ! get bounds information from the field
     call ESMF_FieldGet(field, localDe=0, farrayPtr=farray, &
         exclusiveLBound=felb, exclusiveUBound=feub, exclusiveCount=fec, &
-        computationalLBound=fclb, computationalUBound=fcub, computationalCount=fcc, &
-        totalLBound=ftlb, totalUBound=ftub, totalCount=ftc, &
-        rc=rc)
+        computationalLBound=fclb, computationalUBound=fcub, &
+        computationalCount=fcc, totalLBound=ftlb, totalUBound=ftub, &
+        totalCount=ftc, rc=rc)
     if (rc.NE.ESMF_SUCCESS) finalrc = ESMF_FAILURE
 
 !BOE
@@ -152,7 +155,8 @@
 ! We have the following formula: X = A - (B - C)
 !EOE
 !BOC
-    allocate(audlb(arank-adimCount+gridrank_repdim), audub(arank-adimCount+gridrank_repdim))
+    allocate(audlb(arank-adimCount+gridrank_repdim), &
+	audub(arank-adimCount+gridrank_repdim))
     call ESMF_ArrayGet(array, exclusiveLBound=aelb, exclusiveUBound=aeub, &
         computationalLBound=aclb, computationalUBound=acub, &
         totalLBound=atlb, totalUBound=atub, &

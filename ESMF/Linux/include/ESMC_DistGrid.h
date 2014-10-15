@@ -1,7 +1,7 @@
-// $Id: ESMC_DistGrid.h,v 1.40.4.1 2010/02/05 19:55:14 svasquez Exp $
+// $Id: ESMC_DistGrid.h,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
 //
 // Earth System Modeling Framework
-// Copyright 2002-2010, University Corporation for Atmospheric Research, 
+// Copyright 2002-2012, University Corporation for Atmospheric Research, 
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
 // Laboratory, University of Michigan, National Centers for Environmental 
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
@@ -24,16 +24,11 @@
 #define ESMC_DistGrid_H
 
 //-----------------------------------------------------------------------------
-//BOPI
-// !CLASS:  ESMC_DistGrid - Public C interface to the ESMF DistGrid class
-//
-// !DESCRIPTION:
+// ESMC_DistGrid - Public C interface to the ESMF DistGrid class
 //
 // The code in this file defines the public C DistGrid class and declares method
 // signatures (prototypes).  The companion file {\tt ESMC\_DistGrid.C} contains
 // the definitions (full code bodies) for the DistGrid methods.
-//
-//EOPI
 //-----------------------------------------------------------------------------
 
 
@@ -49,10 +44,88 @@ typedef struct{
 }ESMC_DistGrid;
 
 // Class API
-ESMC_DistGrid ESMC_DistGridCreate(ESMC_InterfaceInt minIndexInterfaceArg, 
-  ESMC_InterfaceInt maxIndexInterfaceArg, int *rc); //TODO: complete this API
-int ESMC_DistGridPrint(ESMC_DistGrid distgrid);
-int ESMC_DistGridDestroy(ESMC_DistGrid *distgrid);
+
+//-----------------------------------------------------------------------------
+//BOP
+// !IROUTINE: ESMC_DistGridCreate - Create a DistGrid
+//
+// !INTERFACE:
+ESMC_DistGrid ESMC_DistGridCreate(
+  ESMC_InterfaceInt minIndexInterfaceArg,   // in
+  ESMC_InterfaceInt maxIndexInterfaceArg,   // in
+  int *rc                                   // out
+);
+// !RETURN VALUE:
+//  Newly created ESMC_DistGrid object.
+//
+// !DESCRIPTION:
+//  Create an {\tt ESMC\_DistGrid} from a single logically rectangular (LR) 
+//  tile with default decomposition. The default decomposition is 
+//  {\tt deCount}$ \times 1 \times ... \times 1$, where {\tt deCount} is the
+//  number of DEs in a default DELayout, equal to {\tt petCount}. This means
+//  that the default decomposition will be into as many DEs as there are PETs,
+//  with 1 DE per PET.
+//
+//  The arguments are:
+//  \begin{description}
+//  \item[minIndex]
+//    Global coordinate tuple of the lower corner of the tile.
+//  \item[maxIndex]
+//    Global coordinate tuple of the upper corner of the tile.
+//  \item[{[rc]}]
+//    Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
+//  \end{description}
+//
+//EOP
+//-----------------------------------------------------------------------------
+
+//-----------------------------------------------------------------------------
+//BOP
+// !IROUTINE: ESMC_DistGridDestroy - Destroy a DistGrid
+//
+// !INTERFACE:
+int ESMC_DistGridDestroy(
+  ESMC_DistGrid *distgrid         // inout
+);
+// !RETURN VALUE:
+//  Return code; equals ESMF_SUCCESS if there are no errors.
+//
+// !DESCRIPTION:
+//
+//  Destroy an {\tt ESMC\_DistGrid} object.
+//
+//  The arguments are:
+//  \begin{description}
+//  \item[distgrid] 
+//    {\tt ESMC\_DistGrid} object to be destroyed.
+//  \end{description}
+//
+//EOP
+//-----------------------------------------------------------------------------
+
+//-----------------------------------------------------------------------------
+//BOP
+// !IROUTINE: ESMC_DistGridPrint - Print a DistGrid
+//
+// !INTERFACE:
+int ESMC_DistGridPrint(
+  ESMC_DistGrid distgrid          // in
+);
+// !RETURN VALUE:
+//  Return code; equals ESMF_SUCCESS if there are no errors.
+//
+// !DESCRIPTION:
+//
+//  Print internal information of the specified {\tt ESMC\_DistGrid} object.
+//
+//  The arguments are:
+//  \begin{description}
+//  \item[distgrid] 
+//    {\tt ESMC\_DistGrid} object to be destroyed.
+//  \end{description}
+//
+//EOP
+//-----------------------------------------------------------------------------
 
 #ifdef __cplusplus
 } // extern "C"

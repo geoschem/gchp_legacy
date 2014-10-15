@@ -1,7 +1,8 @@
+// $Id: ESMC_RendEx.C,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
 //==============================================================================
 //
 // Earth System Modeling Framework
-// Copyright 2002-2010, University Corporation for Atmospheric Research, 
+// Copyright 2002-2012, University Corporation for Atmospheric Research, 
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
 // Laboratory, University of Michigan, National Centers for Environmental 
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
@@ -26,6 +27,8 @@
 #include <ESMCI_Rebalance.h>
 #include <ESMCI_Interp.h>
 
+#include <mpi.h>
+
 #include <iterator>
 #include <ostream>
 #include <stdlib.h>
@@ -34,6 +37,7 @@
 #include <iostream>
 #include <stdexcept>
 #include <cmath>
+#include <cstdio>
 
 #if !defined (M_PI)
 // for Windows...
@@ -92,7 +96,7 @@ void set_dest_coords(const Mesh &mesh) {
 
 int main(int argc, char *argv[]) {
 
-
+  MPI_Init(&argc, &argv);
 
   Par::Init("RENDLOG");
   Par::Out() << "Rend, proc:" << Par::Rank() << ", starting..." << std::endl;
@@ -172,7 +176,7 @@ int main(int argc, char *argv[]) {
   // Ghost elements across parallel boundaries (needed by INTERP_PATCH)
   srcmesh.CreateGhost();
   
-  Interp interp(srcmesh, dstmesh, fpairs);
+  Interp interp(srcmesh, dstmesh, 0, fpairs);
   
 
   UInt nstep = 0;

@@ -1,4 +1,4 @@
-! $Id: user_model1.F90,v 1.5 2009/09/29 16:53:07 feiliu Exp $
+! $Id$
 !
 ! Example/test code which shows User Component calls.
 
@@ -16,7 +16,7 @@
     module user_model1
 
     ! ESMF Framework module
-    use ESMF_Mod
+    use ESMF
 
     implicit none
     
@@ -40,11 +40,11 @@
 
         ! Register the callback routines.
 
-        call ESMF_GridCompSetEntryPoint(comp, ESMF_SETINIT, user_init, rc=rc)
+        call ESMF_GridCompSetEntryPoint(comp, ESMF_METHOD_INITIALIZE, user_init, rc=rc)
         if(rc/=ESMF_SUCCESS) return
-        call ESMF_GridCompSetEntryPoint(comp, ESMF_SETRUN, user_run, rc=rc)
+        call ESMF_GridCompSetEntryPoint(comp, ESMF_METHOD_RUN, user_run, rc=rc)
         if(rc/=ESMF_SUCCESS) return
-        call ESMF_GridCompSetEntryPoint(comp, ESMF_SETFINAL, user_final, rc=rc)
+        call ESMF_GridCompSetEntryPoint(comp, ESMF_METHOD_FINALIZE, user_final, rc=rc)
         if(rc/=ESMF_SUCCESS) return
 
         print *, "Registered Initialize, Run, and Finalize routines"
@@ -110,7 +110,7 @@
                                typekind=ESMF_TYPEKIND_R8)
         if (rc .ne. ESMF_SUCCESS) return
 
-        call ESMF_StateAdd(exportState, humidity, rc=rc)
+        call ESMF_StateAdd(exportState, (/humidity/), rc=rc)
         if (rc .ne. ESMF_SUCCESS) return
      !   call ESMF_StatePrint(exportState, rc=rc)
 
@@ -162,9 +162,9 @@
         call ESMF_FieldGet(humidity, locstream=locs, rc=rc)
         if(rc/=ESMF_SUCCESS) return
 
-        call ESMF_FieldDestroy(humidity, rc)
+        call ESMF_FieldDestroy(humidity, rc=rc)
         if(rc/=ESMF_SUCCESS) return
-        call ESMF_LocStreamDestroy(locs, rc)
+        call ESMF_LocStreamDestroy(locs, rc=rc)
         if(rc/=ESMF_SUCCESS) return
         print *, "User Comp Final returning"
 

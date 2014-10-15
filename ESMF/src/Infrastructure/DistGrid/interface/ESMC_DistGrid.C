@@ -1,7 +1,7 @@
-// $Id: ESMC_DistGrid.C,v 1.8.2.1 2010/02/05 19:55:14 svasquez Exp $
+// $Id$
 //
 // Earth System Modeling Framework
-// Copyright 2002-2010, University Corporation for Atmospheric Research, 
+// Copyright 2002-2012, University Corporation for Atmospheric Research, 
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
 // Laboratory, University of Michigan, National Centers for Environmental 
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
@@ -35,7 +35,7 @@
 //-----------------------------------------------------------------------------
 // leave the following line as-is; it will insert the cvs ident string
 // into the object file for tracking purposes.
-static const char *const version = "$Id: ESMC_DistGrid.C,v 1.8.2.1 2010/02/05 19:55:14 svasquez Exp $";
+static const char *const version = "$Id$";
 //-----------------------------------------------------------------------------
 
 extern "C" {
@@ -61,7 +61,7 @@ ESMC_DistGrid ESMC_DistGridCreate(ESMC_InterfaceInt minIndexInterfaceArg,
     ESMCI::DistGrid::create(minIndexInterface, maxIndexInterface, NULL,
       NULL, 0, NULL, NULL, NULL, NULL, NULL, (ESMCI::DELayout*)NULL, NULL,
       &localrc);
-  if (ESMC_LogDefault.MsgFoundError(localrc, ESMF_ERR_PASSTHRU, rc)){
+  if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, rc)){
     distgrid.ptr = NULL;
     return distgrid;  // bail out
   }
@@ -84,7 +84,7 @@ int ESMC_DistGridPrint(ESMC_DistGrid distgrid){
 
   // call into ESMCI method  
   localrc = dgp->print();
-  if (ESMC_LogDefault.MsgFoundError(localrc, ESMF_ERR_PASSTHRU, &rc))
+  if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, &rc))
     return rc;  // bail out
     
   // return successfully
@@ -105,7 +105,7 @@ int ESMC_DistGridDestroy(ESMC_DistGrid *distgrid){
 
   // call into ESMCI method  
   localrc = ESMCI::DistGrid::destroy(&dgp);
-  if (ESMC_LogDefault.MsgFoundError(localrc, ESMF_ERR_PASSTHRU, &rc))
+  if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, &rc))
     return rc;  // bail out
   
   // invalidate pointer

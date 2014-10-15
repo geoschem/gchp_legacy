@@ -1,7 +1,7 @@
-! $Id: ESMF_AlarmEx.F90,v 1.21.4.1 2010/02/05 20:00:07 svasquez Exp $
+! $Id: ESMF_AlarmEx.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2010, University Corporation for Atmospheric Research,
+! Copyright 2002-2012, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -25,7 +25,7 @@
 !-----------------------------------------------------------------------------
 
       ! ESMF Framework module
-      use ESMF_Mod
+      use ESMF
       implicit none
 
       ! instantiate time_step, start, stop, and alarm times
@@ -53,13 +53,15 @@
 
 !BOC
       ! initialize ESMF framework
-      call ESMF_Initialize(defaultCalendar=ESMF_CAL_GREGORIAN, rc=rc)
+      call ESMF_Initialize(defaultCalKind=ESMF_CALKIND_GREGORIAN, &
+        defaultlogfilename="AlarmEx.Log", &
+        logkindflag=ESMF_LOGKIND_MULTI, rc=rc)
 !EOC
 
       if (rc.NE.ESMF_SUCCESS) finalrc = ESMF_FAILURE
 
 !BOE
-!\subsubsection{Clock Initialization}
+!\subsubsection{Clock initialization}
 
 ! This example shows how to create and initialize an {\tt ESMF\_Clock}.
 !EOE
@@ -87,14 +89,14 @@
 
 !BOC
       ! create & initialize the clock with the above values
-      clock = ESMF_ClockCreate("The Clock", timeStep, startTime, stopTime, &
-                               rc=rc)
+      clock = ESMF_ClockCreate(timeStep, startTime, stopTime=stopTime, &
+                               name="The Clock", rc=rc)
 !EOC
 
       if (rc.NE.ESMF_SUCCESS) finalrc = ESMF_FAILURE
 
 !BOE
-!\subsubsection{Alarm Initialization}
+!\subsubsection{Alarm initialization}
 
 ! This example shows how to create and initialize two {\tt ESMF\_Alarms} and
 ! associate them with the clock.
@@ -109,8 +111,8 @@
       if (rc.NE.ESMF_SUCCESS) finalrc = ESMF_FAILURE
 
 !BOC
-      alarm(1) = ESMF_AlarmCreate("Example alarm 1", clock, &
-                                  ringTime=alarmTime, rc=rc)
+      alarm(1) = ESMF_AlarmCreate(clock, &
+         ringTime=alarmTime, name="Example alarm 1", rc=rc)
 !EOC
 
       if (rc.NE.ESMF_SUCCESS) finalrc = ESMF_FAILURE
@@ -138,7 +140,7 @@
       if (rc.NE.ESMF_SUCCESS) finalrc = ESMF_FAILURE
 
 !BOE
-!\subsubsection{Clock Advance and Alarm Processing}
+!\subsubsection{Clock advance and Alarm processing}
 
 ! This example shows how to advance an {\tt ESMF\_Clock} and process any 
 ! resulting ringing alarms.
@@ -146,7 +148,7 @@
 
 !BOC
       ! time step clock from start time to stop time
-      do while (.not.ESMF_ClockIsStopTime(clock, rc))
+      do while (.not.ESMF_ClockIsStopTime(clock, rc=rc))
 !EOC
 
         if (rc.NE.ESMF_SUCCESS) finalrc = ESMF_FAILURE
@@ -160,7 +162,7 @@
         if (rc.NE.ESMF_SUCCESS) finalrc = ESMF_FAILURE
 
 !BOC
-        call ESMF_ClockPrint(clock, "currTime string", rc)
+        call ESMF_ClockPrint(clock, options="currTime string", rc=rc)
 !EOC
 
         if (rc.NE.ESMF_SUCCESS) finalrc = ESMF_FAILURE
@@ -171,7 +173,7 @@
           print *, "number of ringing alarms = ", ringingAlarmCount
 
           do i = 1, NUMALARMS
-            if (ESMF_AlarmIsRinging(alarm(i), rc)) then
+            if (ESMF_AlarmIsRinging(alarm(i), rc=rc)) then
 !EOC
 
               if (rc.NE.ESMF_SUCCESS) finalrc = ESMF_FAILURE
@@ -185,7 +187,7 @@
 
 !BOC
               ! after processing alarm, turn it off
-              call ESMF_AlarmRingerOff(alarm(i), rc)
+              call ESMF_AlarmRingerOff(alarm(i), rc=rc)
 !EOC
 
               if (rc.NE.ESMF_SUCCESS) finalrc = ESMF_FAILURE
@@ -198,7 +200,7 @@
 !EOC
 
 !BOE
-!\subsubsection{Alarm and Clock Destruction}
+!\subsubsection{Alarm and Clock destruction}
 
 ! This example shows how to destroy {\tt ESMF\_Alarms} and {\tt ESMF\_Clocks}.
 !EOE

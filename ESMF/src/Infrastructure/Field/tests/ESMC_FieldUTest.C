@@ -1,7 +1,7 @@
-// $Id: ESMC_FieldUTest.C,v 1.12.2.1 2010/02/05 19:56:10 svasquez Exp $
+// $Id$
 //
 // Earth System Modeling Framework
-// Copyright 2002-2010, University Corporation for Atmospheric Research, 
+// Copyright 2002-2012, University Corporation for Atmospheric Research, 
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
 // Laboratory, University of Michigan, National Centers for Environmental 
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
@@ -43,6 +43,7 @@ int main(void){
 
   int num_elem, num_node, conn_size;
   ESMC_Mesh mesh, mesh1;
+  ESMC_Array array;
   int pdim=2;
   int sdim=3;
 
@@ -63,7 +64,7 @@ int main(void){
   // Create a mesh
   strcpy(name, "MeshCreate");
   strcpy(failMsg, "Did not return ESMF_SUCCESS");
-  mesh = ESMC_MeshCreate(&pdim,&sdim,&rc);
+  mesh = ESMC_MeshCreate(pdim,sdim,&rc);
   ESMC_Test((rc==ESMF_SUCCESS), name, failMsg, &result, __FILE__, __LINE__, 0);
   //----------------------------------------------------------------------------
 
@@ -105,7 +106,7 @@ int main(void){
   // Add node information to the mesh
   strcpy(name, "MeshAddNodes");
   strcpy(failMsg, "Did not return ESMF_SUCCESS");
-  rc = ESMC_MeshAddNodes(mesh, &num_node, nodeId, nodeCoord, nodeOwner);
+  rc = ESMC_MeshAddNodes(mesh, num_node, nodeId, nodeCoord, nodeOwner);
   ESMC_Test((rc==ESMF_SUCCESS), name, failMsg, &result, __FILE__, __LINE__, 0);
   //----------------------------------------------------------------------------
 
@@ -114,7 +115,7 @@ int main(void){
   // Add element information to the mesh
   strcpy(name, "MeshAddElements");
   strcpy(failMsg, "Did not return ESMF_SUCCESS");
-  rc = ESMC_MeshAddElements(mesh, &num_elem, elemId, elemType, elemConn);
+  rc = ESMC_MeshAddElements(mesh, num_elem, elemId, elemType, elemConn);
   ESMC_Test((rc==ESMF_SUCCESS), name, failMsg, &result, __FILE__, __LINE__, 0);
   
   //----------------------------------------------------------------------------
@@ -172,6 +173,22 @@ int main(void){
   strcpy(name, "Get an ESMC_Mesh object from ESMC_Field object");
   strcpy(failMsg, "Did not return ESMF_SUCCESS");
   mesh1 = ESMC_FieldGetMesh(field, &rc);
+  ESMC_Test((rc==ESMF_SUCCESS), name, failMsg, &result, __FILE__, __LINE__, 0);
+  //----------------------------------------------------------------------------
+
+  //----------------------------------------------------------------------------
+  //NEX_UTest
+  strcpy(name, "Get an ESMC_Array object from ESMC_Field object");
+  strcpy(failMsg, "Did not return ESMF_SUCCESS");
+  array = ESMC_FieldGetArray(field, &rc);
+  ESMC_Test((rc==ESMF_SUCCESS), name, failMsg, &result, __FILE__, __LINE__, 0);
+  //----------------------------------------------------------------------------
+
+  //----------------------------------------------------------------------------
+  //NEX_UTest
+  strcpy(name, "Get a void * C pointer to data from ESMC_Field object");
+  strcpy(failMsg, "Did not return ESMF_SUCCESS");
+  void * ptr = ESMC_FieldGetPtr(field, 0, &rc);
   ESMC_Test((rc==ESMF_SUCCESS), name, failMsg, &result, __FILE__, __LINE__, 0);
   //----------------------------------------------------------------------------
 

@@ -1,7 +1,7 @@
-// $Id: ESMCI_SpaceDir.h,v 1.2.2.2 2010/03/10 06:33:08 oehmke Exp $
+// $Id$
 //
 // Earth System Modeling Framework
-// Copyright 2002-2009, University Corporation for Atmospheric Research, 
+// Copyright 2002-2012, University Corporation for Atmospheric Research, 
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
 // Laboratory, University of Michigan, National Centers for Environmental 
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
@@ -23,7 +23,6 @@
 #include <Mesh/include/ESMCI_OTree.h>
 #include <vector>
 #include <set>
-  using namespace std;
 //-------------------------------------------------------------------------
 //BOP
 // !CLASS: ESMCI_SpaceDir - SpaceDir
@@ -78,7 +77,7 @@ class SpaceDir {    // inherits from ESMC_Base class
 
   // Get list of procs that might hold min-max box
   //  void get_procs(double min[3], double max[3], int *num_procs, int **procs);
-  void get_procs(double min[3], double max[3], vector<int> *procs);
+  void get_procs(double min[3], double max[3], std::vector<int> *procs);
 
 };  // end class ESMC_SpaceDir
 

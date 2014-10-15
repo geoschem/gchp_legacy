@@ -1,7 +1,7 @@
-! $Id: ESMF_MyRegistrationInFortran.F90,v 1.8.2.1 2010/02/05 20:04:30 svasquez Exp $
+! $Id$
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2010, University Corporation for Atmospheric Research,
+! Copyright 2002-2012, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -13,7 +13,7 @@
 
 module myFortranIRFMod
 
-  use ESMF_Mod
+  use ESMF
 
 contains
   subroutine myInitInFortran(gcomp, importState, exportState, clock, rc)
@@ -99,7 +99,7 @@ end module
 
 
 subroutine my_RegistrationInFortran(gcomp, rc)
-  use ESMF_Mod
+  use ESMF
   use myFortranIRFMod
   implicit none
   type(ESMF_GridComp) :: gcomp
@@ -108,11 +108,11 @@ subroutine my_RegistrationInFortran(gcomp, rc)
   print *, "I am in myRegistrationInFortran()"
   call ESMF_GridCompPrint(gcomp)
   
-  call ESMF_GridCompSetEntryPoint(gcomp, ESMF_SETINIT, userRoutine=myInitInFortran, &
+  call ESMF_GridCompSetEntryPoint(gcomp, ESMF_METHOD_INITIALIZE, userRoutine=myInitInFortran, &
     rc=rc)
-  call ESMF_GridCompSetEntryPoint(gcomp, ESMF_SETRUN, userRoutine=myRunInFortran, &
+  call ESMF_GridCompSetEntryPoint(gcomp, ESMF_METHOD_RUN, userRoutine=myRunInFortran, &
     rc=rc)
-  call ESMF_GridCompSetEntryPoint(gcomp, ESMF_SETFINAL, userRoutine=myFinalInFortran, &
+  call ESMF_GridCompSetEntryPoint(gcomp, ESMF_METHOD_FINALIZE, userRoutine=myFinalInFortran, &
     rc=rc)
   
   ! return successfully
@@ -121,7 +121,7 @@ end subroutine
 
 
 subroutine my_CplRegistrationInFortran(cplcomp, rc)
-  use ESMF_Mod
+  use ESMF
   use myFortranIRFMod
   implicit none
   type(ESMF_CplComp) :: cplcomp
@@ -130,11 +130,11 @@ subroutine my_CplRegistrationInFortran(cplcomp, rc)
   print *, "I am in myRegistrationInFortran()"
   call ESMF_CplCompPrint(cplcomp)
   
-  call ESMF_CplCompSetEntryPoint(cplcomp, ESMF_SETINIT, userRoutine=myCplInitInFortran, &
+  call ESMF_CplCompSetEntryPoint(cplcomp, ESMF_METHOD_INITIALIZE, userRoutine=myCplInitInFortran, &
     rc=rc)
-  call ESMF_CplCompSetEntryPoint(cplcomp, ESMF_SETRUN, userRoutine=myCplRunInFortran, &
+  call ESMF_CplCompSetEntryPoint(cplcomp, ESMF_METHOD_RUN, userRoutine=myCplRunInFortran, &
     rc=rc)
-  call ESMF_CplCompSetEntryPoint(cplcomp, ESMF_SETFINAL, userRoutine=myCplFinalInFortran, &
+  call ESMF_CplCompSetEntryPoint(cplcomp, ESMF_METHOD_FINALIZE, userRoutine=myCplFinalInFortran, &
     rc=rc)
   
   ! return successfully

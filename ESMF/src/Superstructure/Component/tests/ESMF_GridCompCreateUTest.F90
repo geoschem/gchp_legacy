@@ -1,7 +1,7 @@
-! $Id: ESMF_GridCompCreateUTest.F90,v 1.28.2.1 2010/02/05 20:04:30 svasquez Exp $
+! $Id: ESMF_GridCompCreateUTest.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2010, University Corporation for Atmospheric Research,
+! Copyright 2002-2012, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -27,13 +27,14 @@
 !
 ! !USES:
     use ESMF_TestMod     ! test methods
-    use ESMF_Mod
+    use ESMF
     implicit none
     
 !   ! Local variables
     integer :: rc
     character(ESMF_MAXSTR) :: cname
-    type(ESMF_GridComp) :: comp1
+    type(ESMF_GridComp) :: comp1, gridcompAlias
+    logical:: gridcompBool
 
     ! individual test failure message
     character(ESMF_MAXSTR) :: failMsg
@@ -54,7 +55,9 @@
 
 #ifdef ESMF_TESTEXHAUSTIVE
     character(ESMF_MAXSTR) :: bname
-    type (dataWrapper) :: wrap1, wrap2, wrap3, wrap4, wrap5, wrap6
+    type(dataWrapper) :: wrap1, wrap2, wrap3, wrap4, wrap5, wrap6
+    type(ESMF_Grid) :: grid, gridIn
+    logical         :: isPresent
 #endif
 
 !-------------------------------------------------------------------------------
@@ -68,29 +71,73 @@
         
     call ESMF_TestStart(ESMF_SRCLINE, rc=rc)
 
-
-!-------------------------------------------------------------------------
-!   !
+    !------------------------------------------------------------------------
     !NEX_UTest
-!   !  Test creation of a Component
     cname = "Atmosphere"
-    comp1 = ESMF_GridCompCreate(name=cname, gridcompType=ESMF_ATM, &
-                                             configFile="grid.rc", rc=rc)  
-
+    comp1 = ESMF_GridCompCreate(name=cname, configFile="grid.rc", rc=rc)  
     write(failMsg, *) "Did not return ESMF_SUCCESS"
     write(name, *) "Creating a Component Test"
     call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
 
-
-!-------------------------------------------------------------------------
-!   !
+    !------------------------------------------------------------------------
     !NEX_UTest
-!   !  Destroying a component
-
-    call ESMF_GridCompDestroy(comp1, rc=rc)
-
+    write(name, *) "GridComp equality before assignment Test"
     write(failMsg, *) "Did not return ESMF_SUCCESS"
-    write(name, *) "Destroying a Component Test"
+    gridcompBool = (gridcompAlias.eq.comp1)
+    call ESMF_Test(.not.gridcompBool, name, failMsg, result, ESMF_SRCLINE)
+    
+    !------------------------------------------------------------------------
+    !NEX_UTest
+    ! Testing ESMF_GridCompAssignment(=)()
+    write(name, *) "GridComp assignment and equality Test"
+    write(failMsg, *) "Did not return ESMF_SUCCESS"
+    gridcompAlias = comp1
+    gridcompBool = (gridcompAlias.eq.comp1)
+    call ESMF_Test(gridcompBool, name, failMsg, result, ESMF_SRCLINE)
+    
+    !------------------------------------------------------------------------
+    !NEX_UTest
+    write(name, *) "GridCompDestroy Test"
+    write(failMsg, *) "Did not return ESMF_SUCCESS"
+    call ESMF_GridCompDestroy(comp1, rc=rc)
+    call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+    
+    !------------------------------------------------------------------------
+    !NEX_UTest
+    ! Testing ESMF_GridCompOperator(==)()
+    write(name, *) "GridComp equality after destroy Test"
+    write(failMsg, *) "Did not return ESMF_SUCCESS"
+    gridcompBool = (gridcompAlias==comp1)
+    call ESMF_Test(.not.gridcompBool, name, failMsg, result, ESMF_SRCLINE)
+    
+    !------------------------------------------------------------------------
+    !NEX_UTest
+    ! Testing ESMF_GridCompOperator(/=)()
+    write(name, *) "GridComp non-equality after destroy Test"
+    write(failMsg, *) "Did not return ESMF_SUCCESS"
+    gridcompBool = (gridcompAlias/=comp1)
+    call ESMF_Test(gridcompBool, name, failMsg, result, ESMF_SRCLINE)
+    
+    !------------------------------------------------------------------------
+    !NEX_UTest
+    write(name, *) "Double GridCompDestroy through alias Test"
+    write(failMsg, *) "Did not return ESMF_SUCCESS"
+    call ESMF_GridCompDestroy(gridcompAlias, rc=rc)
+    call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+
+    !------------------------------------------------------------------------
+    !NEX_UTest
+    cname = "Atmosphere"
+    comp1 = ESMF_GridCompCreate(name=cname, configFile="grid.rc", rc=rc)  
+    write(failMsg, *) "Did not return ESMF_SUCCESS"
+    write(name, *) "Creating a Component Test"
+    call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+
+    !------------------------------------------------------------------------
+    !NEX_UTest
+    write(name, *) "GridCompDestroy Test"
+    write(failMsg, *) "Did not return ESMF_SUCCESS"
+    call ESMF_GridCompDestroy(comp1, rc=rc)
     call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
 
 #ifdef ESMF_TESTEXHAUSTIVE
@@ -102,18 +149,126 @@
 
     call ESMF_GridCompGet(comp1, name=bname, rc=rc)
 
-    write(failMsg, *) "Returned ESMF_SUCCESS incorrectly"
-    write(name, *) "Getting  a Component name Test"
+    write(failMsg, *) "Did return ESMF_SUCCESS"
+    write(name, *) "Getting a Component name Test"
     call ESMF_Test((rc.ne.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
-
 
 !-------------------------------------------------------------------------
 !   !
     !EX_UTest
 !   !  Test creation of a Component
+    comp1 = ESMF_GridCompCreate(rc=rc)  
+
+    write(failMsg, *) "Did not return ESMF_SUCCESS"
+    write(name, *) "Creating a Component Test"
+    call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+
+!-------------------------------------------------------------------------
+!   !
+    !EX_UTest
+!   !  Query gridIsPresent
+
+    call ESMF_GridCompGet(comp1, gridIsPresent=isPresent, rc=rc)
+
+    write(failMsg, *) "Did not return ESMF_SUCCESS"
+    write(name, *) "Query gridIsPresent bit for Grid that was not set Test"
+    call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+
+!-------------------------------------------------------------------------
+!   !
+    !EX_UTest
+!   !  Verify gridIsPresent
+
+    write(failMsg, *) "Did not verify"
+    write(name, *) "Verify gridIsPresent for Grid that was not set Test"
+    call ESMF_Test((.not.isPresent), name, failMsg, result, ESMF_SRCLINE)
+
+!-------------------------------------------------------------------------
+!   !
+    !EX_UTest
+!   !  Test get a Grid that was not set
+
+    call ESMF_GridCompGet(comp1, grid=grid, rc=rc)
+
+    write(failMsg, *) "Did return ESMF_SUCCESS"
+    write(name, *) "Getting a Grid that was not set Test"
+    call ESMF_Test((rc.ne.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+
+!-------------------------------------------------------------------------
+
+    gridIn = ESMF_GridEmptyCreate(rc=rc)
+    if (rc/=ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
+    
+!-------------------------------------------------------------------------
+!   !
+    !EX_UTest
+!   !  Set a Grid
+
+    call ESMF_GridCompSet(comp1, grid=gridIn, rc=rc)
+
+    write(failMsg, *) "Did return ESMF_SUCCESS"
+    write(name, *) "Setting a Grid that was not set Test"
+    call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+
+!-------------------------------------------------------------------------
+!   !
+    !EX_UTest
+!   !  Query gridIsPresent
+
+    call ESMF_GridCompGet(comp1, gridIsPresent=isPresent, rc=rc)
+
+    write(failMsg, *) "Did not return ESMF_SUCCESS"
+    write(name, *) "Query gridIsPresent for Grid that was set Test"
+    call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+
+!-------------------------------------------------------------------------
+!   !
+    !EX_UTest
+!   !  Verify gridIsPresent
+
+    write(failMsg, *) "Did not verify"
+    write(name, *) "Verify gridIsPresent for Grid that was not set Test"
+    call ESMF_Test((isPresent), name, failMsg, result, ESMF_SRCLINE)
+
+!-------------------------------------------------------------------------
+!   !
+    !EX_UTest
+!   !  Test get a Grid that was not set
+
+    call ESMF_GridCompGet(comp1, grid=grid, rc=rc)
+
+    write(failMsg, *) "Did return ESMF_SUCCESS"
+    write(name, *) "Getting a Grid that was set Test"
+    call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+
+!-------------------------------------------------------------------------
+!   !
+    !EX_UTest
+!   !  Verify grid
+
+    write(failMsg, *) "Did not verify"
+    write(name, *) "Verify Grid that was set Test"
+    call ESMF_Test((grid==gridIn), name, failMsg, result, ESMF_SRCLINE)
+
+!-------------------------------------------------------------------------
+!   !
+    !EX_UTest
+    write(name, *) "GridCompDestroy Test"
+    write(failMsg, *) "Did not return ESMF_SUCCESS"
+    call ESMF_GridCompDestroy(comp1, rc=rc)
+    call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+
+!-------------------------------------------------------------------------
+
+    call ESMF_GridDestroy(gridIn, rc=rc)
+    if (rc/=ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
+    
+!-------------------------------------------------------------------------
+!   !
+    !EX_UTest
+!   !  Test creation of a Component
     cname = "Atmosphere"
-    comp1 = ESMF_GridCompCreate(name=cname, gridcompType=ESMF_ATM, &
-                                             configFile="grid.rc", rc=rc)  
+    comp1 = ESMF_GridCompCreate(name=cname, configFile="grid.rc", rc=rc)  
 
     write(failMsg, *) "Did not return ESMF_SUCCESS"
     write(name, *) "Creating a Component Test"
@@ -139,6 +294,7 @@
     write(failMsg, *) "Did not return ESMF_SUCCESS"
     write(name, *) "Waiting for a Component Test"
     call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+
 !-------------------------------------------------------------------------
 !   !
     !EX_UTest
@@ -147,21 +303,31 @@
     call ESMF_GridCompGet(comp1, name=bname, rc=rc)
 
     write(failMsg, *) "Did not return ESMF_SUCCESS"
-    write(name, *) "Getting  a Component name Test"
+    write(name, *) "Getting a Component name Test"
     call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
-
 
 !-------------------------------------------------------------------------
 !   !
     !EX_UTest
 !   !  Verify the name is correct
 
-
     write(failMsg, *) "Did not return ESMF_SUCCESS"
     write(name, *) "Verifying the correct Component name was returned Test"
-    call ESMF_Test((bname.eq."Atmosphere"), name, failMsg, result, ESMF_SRCLINE)
+    call ESMF_Test((bname.eq.cname), name, failMsg, result, ESMF_SRCLINE)
 
 !-------------------------------------------------------------------------
+!   !
+    !EX_UTest
+!   !  Test get a Grid that was not set
+
+    call ESMF_GridCompGet(comp1, grid=grid, rc=rc)
+
+    write(failMsg, *) "Did return ESMF_SUCCESS"
+    write(name, *) "Getting a Grid that was not set Test"
+    call ESMF_Test((rc.ne.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+
+!-------------------------------------------------------------------------
+!   !
 !   !  Set Internal State
     !EX_UTest
     allocate(wrap1%p)
@@ -191,6 +357,7 @@
     print *, "wrap2%p%testnumber = ", wrap2%p%testnumber
     
 !-------------------------------------------------------------------------
+!   !
 !   !  Set Internal State
     !EX_UTest
     allocate(wrap3%p)

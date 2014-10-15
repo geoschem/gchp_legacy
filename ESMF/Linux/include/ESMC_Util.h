@@ -1,7 +1,7 @@
-// $Id: ESMC_Util.h,v 1.32.2.1 2010/02/05 20:01:04 svasquez Exp $
+// $Id: ESMC_Util.h,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
 //
 // Earth System Modeling Framework
-// Copyright 2002-2010, University Corporation for Atmospheric Research,
+// Copyright 2002-2012, University Corporation for Atmospheric Research,
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 // Laboratory, University of Michigan, National Centers for Environmental
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -21,6 +21,16 @@
 #define ESMC_UTIL_H
 
 #include "ESMC_Conf.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+  int ESMC_UtilGetArgIndex(int argc, char *argv[], char *value, int *rc);
+
+#ifdef __cplusplus
+} // extern "C"
+#endif
 
 // general logical value - MUST MATCH F90
 enum ESMC_Logical { ESMF_TRUE=1,

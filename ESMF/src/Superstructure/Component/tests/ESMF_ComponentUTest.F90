@@ -1,4 +1,4 @@
-! $Id: ESMF_ComponentUTest.F90,v 1.18 2009/08/31 22:24:21 svasquez Exp $
+! $Id: ESMF_ComponentUTest.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
 !
 ! Test code which creates a new Component.
 
@@ -18,7 +18,7 @@
     program ESMF_ComponentUTest
     
 !   ! ESMF Framework module
-    use ESMF_Mod
+    use ESMF
     use ESMF_TestMod
     
     implicit none
@@ -51,8 +51,7 @@
     !NEX_UTest
     ! Verifing that a Gridded Component can be created
     cname = "Atmosphere - default context"
-    comp1 = ESMF_GridCompCreate(name=cname, gridcompType=ESMF_ATM, &
-      configFile="grid.rc", rc=rc)  
+    comp1 = ESMF_GridCompCreate(name=cname, configFile="grid.rc", rc=rc)  
     write(failMsg, *) "Did not return ESMF_SUCCESS"
     write(name, *) "Creating a Gridded Component"
     call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
@@ -94,8 +93,8 @@
     !EX_UTest
     ! Verifing that a Gridded Component can be created in parent VM context
     cname = "Atmosphere - child in parent VM context"
-    comp1 = ESMF_GridCompCreate(name=cname, gridcompType=ESMF_ATM, &
-      configFile="grid.rc", contextflag=ESMF_CHILD_IN_PARENT_VM, rc=rc)  
+    comp1 = ESMF_GridCompCreate(name=cname, &
+      configFile="grid.rc", contextflag=ESMF_CONTEXT_PARENT_VM, rc=rc)  
     write(failMsg, *) "Did not return ESMF_SUCCESS"
     write(name, *) "Creating a Gridded Component"
     call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
@@ -177,8 +176,8 @@
     !EX_UTest
     ! Verifing that a Gridded Component can be created in new VM context
     cname = "Atmosphere - child in new VM context"
-    comp1 = ESMF_GridCompCreate(name=cname, gridcompType=ESMF_ATM, &
-      configFile="grid.rc", contextflag=ESMF_CHILD_IN_NEW_VM, rc=rc)  
+    comp1 = ESMF_GridCompCreate(name=cname, &
+      configFile="grid.rc", contextflag=ESMF_CONTEXT_OWN_VM, rc=rc)  
     write(failMsg, *) "Did not return ESMF_SUCCESS"
     write(name, *) "Creating a Gridded Component"
     call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)

@@ -1,0 +1,141 @@
+# fv2prs.rc
+#
+#  This is a resource file for the fv2prs utility.
+#
+# !REVISION HISTORY:
+#
+#  26Jan2006  B. Yin    Modification from tsyn2d_mis_x.rc.
+#  25Apr2006  Todling   Declared dims so fvsetup get set them up.
+#
+#...........................................................................
+
+#                     ----------------------
+#                     Output File Resolution
+#                     ----------------------
+
+zonal_resolution: @IM              # no. of zonal grid-points (im)
+west_most_longitude_in_deg: -180.0 # longitude of first point (i=1)
+meridional_resolution: @JM          # no. meridional grid-points (jm)
+vertical_levels_in_hPa: 1000
+#vertical_level_numbers: 1 
+
+#                       ----------------
+#                       Variable Classes
+#                       ----------------
+ 
+# A variable class lists the variable names that make up a file
+# type or product.
+
+
+### PRODUCT: inst2d_met_x (2-D instantaneous variables)
+VarClass*inst2d_met_x: PHIS PS DISPH EFLUX HFLUX LWI QV10M QV2M SLP T10M T2M TAUX TAUY TO3 TQC TQV TROPP TROPQ TROPT TSKIN TTO3 U10M U2M U50M V10M V2M V50M
+
+#                         --------------------
+#                         Variable Translation
+#                         --------------------
+
+Variable_translation_table::
+
+#      Output          |                       Input
+#  Name       Units    | Name             scale_factor  add_offset  Positive Check
+#  -------------------------------------------------------------------------------
+# For inst2d_met_x -- from xana.sfc file
+   PHIS       m2/s2      PHIS                   1.0        0.0          0 
+   PS         Pa         PS                     100.0      0.0          0 
+   DISPH      m          DISPH                  1.0        0.0          0
+   EFLUX      W/m2       EFLUX                  1.0        0.0          0
+   HFLUX      W/m2       HFLUX                  1.0        0.0          0
+   LWI     0=water,1=land,2=ice LWI             1.0        0.0          0
+   QV10M      kg/kg      Q10M                   0.001      0.0          1
+   QV2M       kg/kg      Q2M                    0.001      0.0          1
+   SLP        Pa         SLP                    100.0      0.0          0
+   T10M       K          T10M                   1.0        0.0          0
+   T2M        K          T2M                    1.0        0.0          0
+   TAUX       N/m2       UFLUX                  1.0        0.0          0
+   TAUY       N/m2       VFLUX                  1.0        0.0          0
+   TO3        Dobson     TO3                    1.0        0.0          0
+   TQC        kg/m2      (TQL+TQI)              1.0        0.0          1
+   TQV        kg/m2      TQV                    1.0        0.0          1
+   TROPP      Pa         TROPP                  100.0      0.0          0
+   TROPQ      kg/kg      TROPQ                  0.001      0.0          0
+   TROPT      K          TROPT                  1.0        0.0          0
+   TSKIN      K          TSKIN                  1.0        0.0          0
+   TTO3       Dobson     TTO3                   1.0        0.0          0
+   U10M       m/s        U10M                   1.0        0.0          0
+   U50M       m/s        U50M                   1.0        0.0          0
+   U2M        m/s        U2M                    1.0        0.0          0
+   V10M       m/s        V10M                   1.0        0.0          0
+   V50M       m/s        V50M                   1.0        0.0          0
+   V2M        m/s        V2M                    1.0        0.0          0
+::
+
+#                         --------------------
+#                         Variable Description
+#                         --------------------
+
+# Table for variable names and description:
+# For inst2d_met_x
+PHIS:      Surface geopotential
+PS:        Surface pressure
+DISPH:     Displacement Height
+EFLUX:     Latent Heat Flux at Surface 
+HFLUX:     Sensible Heat Flux at Surface 
+LWI:	   Surface types
+QV10M:     Specific humidity at 10 m above displacement height
+QV2M:      Specific humidity at 2 m above displacement height
+SLP:       Sea level pressure
+T10M:      Temperature at 10 m above displacement height
+T2M:       Temperature at 2 m above displacement height
+TAUX:  	   Eastward (zonal) surface wind stress
+TAUY:  	   Northward (meridional) surface wind stress
+TO3:	   Total column ozone
+TQC:	   Total cloud condensate (ice + water)  
+TQV:	   Total water vapor (Total precipitable water)
+TROPP:	   Tropopause pressure
+TROPQ:     Tropopause specific humidity
+TROPT:     Tropopause temperature
+TSKIN:     Skin temperature
+TTO3:	   Tropospheric Total Ozone Column
+U10M:      Eastward (zonal) wind at 10 m above displacement height
+U50M:      Eastward (zonal) wind at 50 m above displacement height
+U2M:       Eastward (zonal) wind at 2 m above displacement height
+V10M:      Northward (meridional) wind at 10 m above displacement height
+V50M:      Northward (meridional) wind at 50 m above displacement height
+V2M:       Northward (meridional) wind at 2 m above displacement height
+
+StandardName:PHIS:      Surface geopotential
+StandardName:PS:        Surface pressure
+StandardName:DISPH:     Displacement Height
+StandardName:EFLUX:     Latent Heat Flux at Surface
+StandardName:HFLUX:     Sensible Heat Flux at Surface
+StandardName:LWI:       Surface types
+StandardName:QV10M:     Specific humidity at 10 m above displacement height
+StandardName:QV2M:      Specific humidity at 2 m above displacement height
+StandardName:SLP:       Sea level pressure
+StandardName:T10M:      Temperature at 10 m above displacement height
+StandardName:T2M:       Temperature at 2 m above displacement height
+StandardName:TAUX:      Eastward (zonal) surface wind stress
+StandardName:TAUY:      Northward (meridional) surface wind stress
+StandardName:TO3:       Total column ozone
+StandardName:TQC:       Total cloud condensate (ice + water)
+StandardName:TQV:       Total water vapor (Total precipitable water)
+StandardName:TROPP:     Tropopause pressure
+StandardName:TROPQ:     Tropopause specific humidity
+StandardName:TROPT:     Tropopause temperature
+StandardName:TSKIN:     Skin temperature
+StandardName:TTO3:      Tropospheric Total Ozone Column
+StandardName:U10M:      Eastward (zonal) wind at 10 m above displacement height
+StandardName:U50M:      Eastward (zonal) wind at 50 m above displacement height
+StandardName:U2M:       Eastward (zonal) wind at 2 m above displacement height
+StandardName:V10M:      Northward (meridional) wind at 10 m above displacement height
+StandardName:V50M:      Northward (meridional) wind at 50 m above displacement height
+StandardName:V2M:       Northward (meridional) wind at 2 m above displacement height
+
+history:        @CVSTAG
+convention:     CF-1.0
+institution:    Global Modeling and Assimilation Office (GMAO), NASA Goddard Space Flight Center, Greenbelt, MD 20771
+references:     http://gmao.gsfc.nasa.gov
+comment:        This HDF-4 file uses gzip. 
+source:         @PUBLICTAG
+title:          @PUBLICTAG forward-processing
+contact:        data@gmao.gsfc.nasa.gov

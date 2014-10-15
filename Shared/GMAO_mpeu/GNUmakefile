@@ -7,12 +7,13 @@
 # 20Oct2004  da Silva  Standardization
 # 19Feb2007  Stassi    Move from Makefile.dependency to $(DEPS);
 #                      mods for build parallelization (pinstall)
+# 22Jun2011 Guo        Fixed target "lib:" to be phony instead of real.
 #
 
 # Make sure ESMADIR is defined
 # ----------------------------
 ifndef ESMADIR
-       ESMADIR := $(PWD)/..
+       ESMADIR := $(PWD)/../../..
 endif
 
 # Compilation rules, flags, etc
@@ -98,6 +99,7 @@ SRCS_F90	= m_date.F90			\
 		  m_mergedList.F90		\
 		  m_mpif90.F90			\
 		  m_mpout.F90			\
+                  m_parDOT.F90                  \
 		  m_rankMerge.F90		\
 		  m_realkinds.F90		\
 		  m_showDistrib.F90		\
@@ -143,6 +145,7 @@ MODS_OBJ        = m_chars.o		\
 		  m_mpif90.o		\
 		  m_mpout.o		\
 		  m_Permuter.o		\
+		  m_parDOT.o		\
 		  m_realkinds.o		\
 		  m_SortingTools.o	\
 		  m_String.o		\
@@ -160,7 +163,7 @@ USER_FFLAGS = $(BIG_ENDIAN) $(M).
 MOD_DIRS = . $(INC_MPI)
 FREAL = $(FREAL4)
 
-$(LIBeu): $(DEPS) $(OBJS_ALL) mpi0/libmpi0.a
+$(LIBeu): $(OBJS_ALL) mpi0/libmpi0.a
 	$(RM) $@
 	cp -p mpi0/libmpi0.a $@
 	@ echo $(AR) cq $@ $(OBJS_ALL)
@@ -171,7 +174,9 @@ mpi0/libmpi0.a:
 
 vpath % $(MOD_DIRS)
 
-$(LIB) lib:	$(OBJS_ALL)
+lib:	$(LIBeu) $(LIB)
+
+$(LIB):	$(OBJS_ALL)
 	$(RM) $@
 	@ echo $(AR) cq $@ $(OBJS_ALL)
 	@ $(AR) cq $@ $(OBJS_ALL)

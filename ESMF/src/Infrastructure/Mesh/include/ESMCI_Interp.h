@@ -1,6 +1,6 @@
-//
+// $Id$
 // Earth System Modeling Framework
-// Copyright 2002-2010, University Corporation for Atmospheric Research, 
+// Copyright 2002-2012, University Corporation for Atmospheric Research, 
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
 // Laboratory, University of Michigan, National Centers for Environmental 
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
@@ -18,6 +18,7 @@
 #include <Mesh/include/ESMCI_Migrator.h>
 #include <Mesh/include/ESMCI_SparseMsg.h>
 #include <Mesh/include/ESMCI_WMat.h>
+#include <Mesh/src/Zoltan/zoltan.h>
 
 #include <vector>
 #include <ostream>
@@ -130,7 +131,7 @@ void IWeights::GatherTangentVectors(const Mesh &mesh, TVECT tv, bool transpose) 
 class Interp {
 public:
 
-  enum {INTERP_STD = 0, INTERP_PATCH};
+  enum {INTERP_STD = 0, INTERP_PATCH, INTERP_CONSERVE};
   
   struct FieldPair {
   FieldPair(MEField<> *_sF, MEField<> *_dF, UChar _idata=INTERP_STD, UChar _patch_order=2) :
@@ -145,7 +146,7 @@ public:
    * Build the interpolation object.  The MEFields must be compatible in the
    * sense that they are all element based, or node based, etc...
    */
-  Interp(Mesh &src, Mesh &dest, const std::vector<FieldPair> &Fields, int unmappedaction=ESMC_UNMAPPEDACTION_ERROR);
+  Interp(Mesh &src, Mesh &dest, Mesh *midmesh, const std::vector<FieldPair> &Fields, int unmappedaction=ESMC_UNMAPPEDACTION_ERROR);
   
   ~Interp();
   
@@ -154,17 +155,28 @@ public:
   
   // Form a matrix of the interpolant for the fpair_num field
   void operator()(int fpair_num, IWeights &iw);
+
+  // L2 conservative interpolation - generate conservative interpolation weights
+  // this routine will not work unless iwts is defined as a MEField<> on both meshes
+  void interpL2csrvM(const IWeights &, IWeights *, 
+                     MEField<> const * const, MEField<> const * const);
+  
+  void release_zz() { if(zz) Zoltan_Destroy(&zz); }
   
   private:
-  
+
+  // interpolation parallel?
   void transfer_serial();
-  
   void transfer_parallel();
-  
-  void mat_transfer_serial(int fpair_num, IWeights &);
-  
-  void mat_transfer_parallel(int fpair_num, IWeights &);
-  
+
+  // interpolation type
+  void mat_transfer_serial(int fpair_num, IWeights &iw, IWeights &src_frac);
+  void mat_transfer_parallel(int fpair_num, IWeights &, IWeights &);
+
+  // L2 conservative interpolation matrix generation parallel?
+  void interpL2csrvM_serial(const IWeights &, IWeights *, MEField<> const * const, MEField<> const * const);
+  void interpL2csrvM_parallel(IWeights &, IWeights *, MEField<> const * const, MEField<> const * const);
+
   SearchResult sres;
   GeomRend grend;
   std::vector<FieldPair> fpairs;
@@ -175,12 +187,13 @@ public:
   std::vector<int> iflag;
   bool has_std; // true if a standard interpolation exists
   bool has_patch; // true if a patch interp exists
+  bool has_cnsrv; // true if a conserve interp exists
   Mesh &srcmesh;
   Mesh &dstmesh;
+  Mesh *midmesh;
+  Zoltan_Struct * zz;
 };
 
-
-  
 } // namespace
 
 #endif /*ESMC_INTERP_H_*/

@@ -1,4 +1,4 @@
-! $Id: ESMF_FieldRedistArb2ArbSTest.F90,v 1.18 2009/10/28 03:05:28 theurich Exp $
+! $Id: ESMF_FieldRedistArb2ArbSTest.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
 !
 ! System test FieldRedistArb2Arb
 !  Description on Sourceforge under System Test #XXXXX
@@ -27,12 +27,10 @@
 
      program Arb2ArbFldReDist
 
-#include "ESMF_Macros.inc"
-
      ! ESMF Framework module
-     use ESMF_Mod
+     use ESMF
      use ESMF_TestMod
-    
+
      implicit none
 
      ! Local variables
@@ -74,7 +72,7 @@
 !
      ! Initialize the framework and get back the default global VM
      call ESMF_Initialize(vm=vm, defaultlogfilename="FieldRedistArb2ArbSTest.Log", &
-                        defaultlogtype=ESMF_LOG_MULTI, rc=status)
+                        logkindflag=ESMF_LOGKIND_MULTI, rc=status)
      if (status .ne. ESMF_SUCCESS) goto 20
 
      ! Get the PET count and our PET number
@@ -122,9 +120,10 @@
        i1 = i - counts(1)
      enddo
 
-     grid1 = ESMF_GridCreateShapeTile("source grid", coordTypeKind=ESMF_TYPEKIND_R8, &
+     grid1 = ESMF_GridCreateNoPeriDim(coordTypeKind=ESMF_TYPEKIND_R8, &
        minIndex=(/1,1/), maxIndex=counts, &
-       localArbIndex=myIndices1,localArbIndexCount=localCount,rc=status)
+       arbIndexList=myIndices1,arbIndexCount=localCount, &
+       name="source grid", rc=status)
      if (status .ne. ESMF_SUCCESS) goto 20
      call ESMF_GridAddCoord(grid1, rc=status)
      if (status .ne. ESMF_SUCCESS) goto 20
@@ -147,9 +146,10 @@
        j1 = j - counts(2)
      enddo
 
-     grid2 = ESMF_GridCreateShapeTile("dest grid", coordTypeKind=ESMF_TYPEKIND_R8, &
+     grid2 = ESMF_GridCreateNoPeriDim(coordTypeKind=ESMF_TYPEKIND_R8, &
        minIndex=(/1,1/), maxIndex=counts, &
-       localArbIndex=myIndices2,localArbIndexCount=localCount,rc=status)
+       arbIndexList=myIndices2,arbIndexCount=localCount, &
+       name="dest grid", rc=status)
      if (status .ne. ESMF_SUCCESS) goto 20
 
      ! Set up a 1D (for the arbitrarily distributed Field) and a 2D real array
@@ -182,10 +182,10 @@
 
     ! get coordinate arrays available for setting the source data array
     call ESMF_GridGetCoord(grid1, localDE=0, coordDim=1, &
-      fptr=coordX, totalCount=localCounts, rc=status)
+      farrayPtr=coordX, totalCount=localCounts, rc=status)
     if (status .ne. ESMF_SUCCESS) goto 20
     call ESMF_GridGetCoord(grid1, localDE=0, coordDim=2, &
-      fptr=coordY, rc=status)
+      farrayPtr=coordY, rc=status)
     if (status .ne. ESMF_SUCCESS) goto 20
 
     ! Get pointers to the data and set it up
@@ -285,19 +285,19 @@
 
     deallocate(myIndices1, myIndices2)
 
-    call ESMF_FieldRedistRelease(rh12, status)
+    call ESMF_FieldRedistRelease(rh12, rc=status)
     if (status .ne. ESMF_SUCCESS) goto 20
-    call ESMF_FieldRedistRelease(rh23, status)
+    call ESMF_FieldRedistRelease(rh23, rc=status)
     if (status .ne. ESMF_SUCCESS) goto 20
-    call ESMF_FieldDestroy(humidity1, status)
+    call ESMF_FieldDestroy(humidity1, rc=status)
     if (status .ne. ESMF_SUCCESS) goto 20
-    call ESMF_FieldDestroy(humidity2, status)
+    call ESMF_FieldDestroy(humidity2, rc=status)
     if (status .ne. ESMF_SUCCESS) goto 20
-    call ESMF_FieldDestroy(humidity3, status)
+    call ESMF_FieldDestroy(humidity3, rc=status)
     if (status .ne. ESMF_SUCCESS) goto 20
-    call ESMF_GridDestroy(grid1, status)
+    call ESMF_GridDestroy(grid1, rc=status)
     if (status .ne. ESMF_SUCCESS) goto 20
-    call ESMF_GridDestroy(grid2, status)
+    call ESMF_GridDestroy(grid2, rc=status)
     if (status .ne. ESMF_SUCCESS) goto 20
     print *, "All Destroy routines done"
 
@@ -324,11 +324,12 @@
 
     endif
 
-    ! IMPORTANT: ESMF_STest() prints the PASS string and the # of processors in the log
-    ! file that the scripts grep for.
-    call ESMF_STest((status.eq.ESMF_SUCCESS), testname, failMsg, result, ESMF_SRCLINE)
+    ! IMPORTANT: ESMF_STest() prints the PASS string and the # of processors
+    ! into the Log file that the scripts grep for.
+    call ESMF_STest((status.eq.ESMF_SUCCESS), testname, failMsg, result, &
+    __FILE__, &
+    __LINE__)
 
-    
     call ESMF_Finalize(rc=status)
 
     end program Arb2ArbFldReDist

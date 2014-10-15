@@ -1,7 +1,7 @@
-! $Id: ESMF_LocStreamUTest.F90,v 1.11.2.2 2010/03/10 06:33:08 oehmke Exp $
+! $Id$
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2010, University Corporation for Atmospheric Research,
+! Copyright 2002-2012, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -27,14 +27,14 @@ program ESMF_LocStreamCreateUTest
 !-----------------------------------------------------------------------------
 ! !USES:
   use ESMF_TestMod     ! test methods
-  use ESMF_Mod
+  use ESMF
 
   implicit none
 
 !------------------------------------------------------------------------------
 ! The following line turns the CVS identifier string into a printable variable.
   character(*), parameter :: version = &
-    '$Id: ESMF_LocStreamUTest.F90,v 1.11.2.2 2010/03/10 06:33:08 oehmke Exp $'
+    '$Id$'
 !------------------------------------------------------------------------------
     
   ! cumulative result: count failures; no failures equals "all pass"
@@ -52,8 +52,8 @@ program ESMF_LocStreamCreateUTest
   type(ESMF_VM) :: vm
   type(ESMF_DistGrid) :: distgrid, distgridOut
   type(ESMF_DELayout) :: delayout
-  type(ESMF_IndexFlag) :: indexflag
-  type(ESMF_LocStream) :: locstream, locstream2, newLocStream
+  type(ESMF_Index_Flag) :: indexflag
+  type(ESMF_LocStream) :: locstream, locstream2, newlocstream, locstreamAlias
   integer :: ec,el,eu,cc,cl,cu,tc,tl,tu
   integer :: keyCount, localDECount, localDECountOut, i
   real(ESMF_KIND_R8), pointer :: keyDataR8(:),tmpR8(:)
@@ -69,6 +69,8 @@ program ESMF_LocStreamCreateUTest
   real(ESMF_KIND_R8), pointer :: nodeCoords(:)
   integer :: numNodes, numElems
   integer, pointer :: elemIds(:),elemTypes(:),elemConn(:)
+  logical:: locstreamBool
+
 
 
   !-----------------------------------------------------------------------------
@@ -77,13 +79,14 @@ program ESMF_LocStreamCreateUTest
 
   ! get global VM
   call ESMF_VMGetGlobal(vm, rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   call ESMF_VMGet(vm, localPet=localPet, petCount=petCount, rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
+
 
   ! prepare DistGrid
   distgrid=ESMF_DistGridCreate(minIndex=(/1/),maxIndex=(/10/), rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
 
   !-----------------------------------------------------------------------------
@@ -263,12 +266,55 @@ program ESMF_LocStreamCreateUTest
     endif
   endif
 
-  call ESMF_LocStreamDestroy(locstream,rc=localrc)
-  if (localrc .ne. ESMF_SUCCESS) rc=ESMF_FAILURE
-
   call ESMF_Test(((rc .eq. ESMF_SUCCESS) .and. correct), name, failMsg, result, ESMF_SRCLINE)
   !-----------------------------------------------------------------------------
 
+  !------------------------------------------------------------------------
+  !NEX_UTest
+  write(name, *) "LocStream equality before assignment Test"
+  write(failMsg, *) "Did not return ESMF_SUCCESS"
+  locstreamBool = (locstreamAlias.eq.locstream)
+  call ESMF_Test(.not.locstreamBool, name, failMsg, result, ESMF_SRCLINE)
+  
+  !------------------------------------------------------------------------
+  !NEX_UTest
+  ! Testing ESMF_LocStreamAssignment(=)()
+  write(name, *) "LocStream assignment and equality Test"
+  write(failMsg, *) "Did not return ESMF_SUCCESS"
+  locstreamAlias = locstream
+  locstreamBool = (locstreamAlias.eq.locstream)
+  call ESMF_Test(locstreamBool, name, failMsg, result, ESMF_SRCLINE)
+  
+  !------------------------------------------------------------------------
+  !NEX_UTest
+  write(name, *) "LocStreamDestroy Test"
+  write(failMsg, *) "Did not return ESMF_SUCCESS"
+  call ESMF_LocStreamDestroy(locstream, rc=rc)
+  call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+  
+  !------------------------------------------------------------------------
+  !NEX_UTest
+  ! Testing ESMF_LocStreamOperator(==)()
+  write(name, *) "LocStream equality after destroy Test"
+  write(failMsg, *) "Did not return ESMF_SUCCESS"
+  locstreamBool = (locstreamAlias==locstream)
+  call ESMF_Test(.not.locstreamBool, name, failMsg, result, ESMF_SRCLINE)
+  
+  !------------------------------------------------------------------------
+  !NEX_UTest
+  ! Testing ESMF_LocStreamOperator(/=)()
+  write(name, *) "LocStream non-equality after destroy Test"
+  write(failMsg, *) "Did not return ESMF_SUCCESS"
+  locstreamBool = (locstreamAlias/=locstream)
+  call ESMF_Test(locstreamBool, name, failMsg, result, ESMF_SRCLINE)
+  
+  !------------------------------------------------------------------------
+  !NEX_UTest
+  write(name, *) "Double LocStreamDestroy through alias Test"
+  write(failMsg, *) "Did not return ESMF_SUCCESS"
+  call ESMF_LocStreamDestroy(locstreamAlias, rc=rc)
+  call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+  
 
 
   !-----------------------------------------------------------------------------
@@ -1244,7 +1290,6 @@ program ESMF_LocStreamCreateUTest
   !-----------------------------------------------------------------------------
 
 
-
   !-----------------------------------------------------------------------------
   !NEX_UTest
   write(name, *) "Test ESMF_LocStream Create From Background Mesh"
@@ -1581,7 +1626,7 @@ program ESMF_LocStreamCreateUTest
 
   ! Destroy distgrid
   call ESMF_DistGridDestroy(distgrid, rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
 
   !-----------------------------------------------------------------------------
@@ -1597,8 +1642,8 @@ contains
   integer :: localrc
   type(ESMF_Grid) :: gridA
   type(ESMF_VM) :: vm
-  real(ESMF_KIND_R8), pointer :: fptrXC(:,:)
-  real(ESMF_KIND_R8), pointer :: fptrYC(:,:)
+  real(ESMF_KIND_R8), pointer :: farrayPtrXC(:,:)
+  real(ESMF_KIND_R8), pointer :: farrayPtrYC(:,:)
   integer :: clbnd(2),cubnd(2)
   integer :: i1,i2,i3, index(2)
   real(ESMF_KIND_R8) :: coord(2)
@@ -1647,9 +1692,10 @@ contains
   A_maxy = 2.0
   
   ! setup source grid
-  gridA=ESMF_GridCreateShapeTile(minIndex=(/1,1/),maxIndex=(/A_nx,A_ny/),regDecomp=(/petCount,1/), &
-                              indexflag=ESMF_INDEX_GLOBAL, &
-                              rc=localrc)
+  gridA=ESMF_GridCreateNoPeriDim(minIndex=(/1,1/),maxIndex=(/A_nx,A_ny/),regDecomp=(/petCount,1/), &
+                                 coordSys=ESMF_COORDSYS_CART, &
+                                 indexflag=ESMF_INDEX_GLOBAL, &
+                                 rc=localrc)
   if (localrc /=ESMF_SUCCESS) then
     rc=ESMF_FAILURE
     return
@@ -1667,14 +1713,14 @@ contains
   ! (Get memory and set coords for src)
   !! get coord 1
   call ESMF_GridGetCoord(gridA, localDE=0, staggerLoc=ESMF_STAGGERLOC_CORNER, coordDim=1, &
-                            computationalLBound=clbnd, computationalUBound=cubnd, fptr=fptrXC, rc=localrc)
+                            computationalLBound=clbnd, computationalUBound=cubnd, farrayPtr=farrayPtrXC, rc=localrc)
   if (localrc /=ESMF_SUCCESS) then
      rc=ESMF_FAILURE
      return
   endif
 
   call ESMF_GridGetCoord(gridA, localDE=0, staggerLoc=ESMF_STAGGERLOC_CORNER, coordDim=2, &
-                            computationalLBound=clbnd, computationalUBound=cubnd, fptr=fptrYC, rc=localrc)
+                            computationalLBound=clbnd, computationalUBound=cubnd, farrayPtr=farrayPtrYC, rc=localrc)
   if (localrc /=ESMF_SUCCESS) then
         rc=ESMF_FAILURE
         return
@@ -1685,8 +1731,8 @@ contains
   do i2=clbnd(2),cubnd(2)
 
      ! Set source coordinates
-     fptrXC(i1,i2) = ((A_maxx-A_minx)*REAL(i1-1)/REAL(A_nx-1))+A_minx
-     fptrYC(i1,i2) = ((A_maxy-A_miny)*REAL(i2-1)/REAL(A_ny-1))+A_miny
+     farrayPtrXC(i1,i2) = ((A_maxx-A_minx)*REAL(i1-1)/REAL(A_nx-1))+A_minx
+     farrayPtrYC(i1,i2) = ((A_maxy-A_miny)*REAL(i2-1)/REAL(A_ny-1))+A_miny
 
   enddo
   enddo
@@ -1769,14 +1815,14 @@ contains
  
   !! get coord 1
   call ESMF_GridGetCoord(gridA, localDE=0, staggerLoc=ESMF_STAGGERLOC_CORNER, coordDim=1, &
-                            fptr=fptrXC, rc=localrc)
+                            farrayPtr=farrayPtrXC, rc=localrc)
      if (localrc /=ESMF_SUCCESS) then
         rc=ESMF_FAILURE
         return
      endif
 
   call ESMF_GridGetCoord(gridA, localDE=0, staggerLoc=ESMF_STAGGERLOC_CORNER, coordDim=2, &
-                            computationalLBound=clbnd, computationalUBound=cubnd, fptr=fptrYC, rc=localrc)
+                            computationalLBound=clbnd, computationalUBound=cubnd, farrayPtr=farrayPtrYC, rc=localrc)
   if (localrc /=ESMF_SUCCESS) then
         rc=ESMF_FAILURE
         return
@@ -1864,8 +1910,8 @@ contains
   integer :: localrc
   type(ESMF_Grid) :: gridA
   type(ESMF_VM) :: vm
-  real(ESMF_KIND_R8), pointer :: fptrXC(:,:)
-  real(ESMF_KIND_R8), pointer :: fptrYC(:,:)
+  real(ESMF_KIND_R8), pointer :: farrayPtrXC(:,:)
+  real(ESMF_KIND_R8), pointer :: farrayPtrYC(:,:)
   integer :: clbnd(2),cubnd(2)
   integer :: i1,i2,i3, index(2)
   real(ESMF_KIND_R8) :: coord(2)
@@ -1914,9 +1960,10 @@ contains
   A_maxy = 2.0
   
   ! setup source grid
-  gridA=ESMF_GridCreateShapeTile(minIndex=(/1,1/),maxIndex=(/A_nx,A_ny/),regDecomp=(/petCount,1/), &
-                              gridAlign=(/1,1/),indexflag=ESMF_INDEX_GLOBAL, &
-                              rc=localrc)
+  gridA=ESMF_GridCreateNoPeriDim(minIndex=(/1,1/),maxIndex=(/A_nx,A_ny/),regDecomp=(/petCount,1/), &
+                                 coordSys=ESMF_COORDSYS_CART, &
+                                 gridAlign=(/1,1/),indexflag=ESMF_INDEX_GLOBAL, &
+                                 rc=localrc)
   if (localrc /=ESMF_SUCCESS) then
     rc=ESMF_FAILURE
     return
@@ -1934,14 +1981,14 @@ contains
   ! (Get memory and set coords for src)
   !! get coord 1
   call ESMF_GridGetCoord(gridA, localDE=0, staggerLoc=ESMF_STAGGERLOC_CORNER, coordDim=1, &
-                            computationalLBound=clbnd, computationalUBound=cubnd, fptr=fptrXC, rc=localrc)
+                            computationalLBound=clbnd, computationalUBound=cubnd, farrayPtr=farrayPtrXC, rc=localrc)
   if (localrc /=ESMF_SUCCESS) then
      rc=ESMF_FAILURE
      return
   endif
 
   call ESMF_GridGetCoord(gridA, localDE=0, staggerLoc=ESMF_STAGGERLOC_CORNER, coordDim=2, &
-                            computationalLBound=clbnd, computationalUBound=cubnd, fptr=fptrYC, rc=localrc)
+                            computationalLBound=clbnd, computationalUBound=cubnd, farrayPtr=farrayPtrYC, rc=localrc)
   if (localrc /=ESMF_SUCCESS) then
         rc=ESMF_FAILURE
         return
@@ -1952,8 +1999,8 @@ contains
   do i2=clbnd(2),cubnd(2)
 
      ! Set source coordinates
-     fptrXC(i1,i2) = ((A_maxx-A_minx)*REAL(i1-1)/REAL(A_nx-1))+A_minx
-     fptrYC(i1,i2) = ((A_maxy-A_miny)*REAL(i2-1)/REAL(A_ny-1))+A_miny
+     farrayPtrXC(i1,i2) = ((A_maxx-A_minx)*REAL(i1-1)/REAL(A_nx-1))+A_minx
+     farrayPtrYC(i1,i2) = ((A_maxy-A_miny)*REAL(i2-1)/REAL(A_ny-1))+A_miny
 
   enddo
   enddo
@@ -2036,14 +2083,14 @@ contains
  
   !! get coord 1
   call ESMF_GridGetCoord(gridA, localDE=0, staggerLoc=ESMF_STAGGERLOC_CORNER, coordDim=1, &
-                            fptr=fptrXC, rc=localrc)
+                            farrayPtr=farrayPtrXC, rc=localrc)
      if (localrc /=ESMF_SUCCESS) then
         rc=ESMF_FAILURE
         return
      endif
 
   call ESMF_GridGetCoord(gridA, localDE=0, staggerLoc=ESMF_STAGGERLOC_CORNER, coordDim=2, &
-                            computationalLBound=clbnd, computationalUBound=cubnd, fptr=fptrYC, rc=localrc)
+                            computationalLBound=clbnd, computationalUBound=cubnd, farrayPtr=farrayPtrYC, rc=localrc)
   if (localrc /=ESMF_SUCCESS) then
         rc=ESMF_FAILURE
         return
@@ -2132,8 +2179,8 @@ contains
   integer :: localrc
   type(ESMF_Grid) :: gridA
   type(ESMF_VM) :: vm
-  real(ESMF_KIND_R8), pointer :: fptrLonC(:,:)
-  real(ESMF_KIND_R8), pointer :: fptrLatC(:,:)
+  real(ESMF_KIND_R8), pointer :: farrayPtrLonC(:,:)
+  real(ESMF_KIND_R8), pointer :: farrayPtrLatC(:,:)
   integer :: clbnd(2),cubnd(2)
   integer :: i1,i2,i3, index(2)
   real(ESMF_KIND_R8) :: coord(2)
@@ -2174,7 +2221,8 @@ contains
 
   
   ! setup source grid
-  gridA=ESMF_GridCreateShapeTile(minIndex=(/1,1/),maxIndex=(/A_nlon,A_nlat/),regDecomp=(/petCount,1/), &
+  gridA=ESMF_GridCreateNoPeriDim(minIndex=(/1,1/),maxIndex=(/A_nlon,A_nlat/),regDecomp=(/petCount,1/), &
+                              coordSys=ESMF_COORDSYS_CART, &
                               indexflag=ESMF_INDEX_GLOBAL, &
                               rc=localrc)
   if (localrc /=ESMF_SUCCESS) then
@@ -2194,14 +2242,14 @@ contains
   ! (Get memory and set coords for src)
   !! get coord 1
   call ESMF_GridGetCoord(gridA, localDE=0, staggerLoc=ESMF_STAGGERLOC_CORNER, coordDim=1, &
-                            computationalLBound=clbnd, computationalUBound=cubnd, fptr=fptrLonC, rc=localrc)
+                            computationalLBound=clbnd, computationalUBound=cubnd, farrayPtr=farrayPtrLonC, rc=localrc)
   if (localrc /=ESMF_SUCCESS) then
      rc=ESMF_FAILURE
      return
   endif
 
   call ESMF_GridGetCoord(gridA, localDE=0, staggerLoc=ESMF_STAGGERLOC_CORNER, coordDim=2, &
-                            computationalLBound=clbnd, computationalUBound=cubnd, fptr=fptrLatC, rc=localrc)
+                            computationalLBound=clbnd, computationalUBound=cubnd, farrayPtr=farrayPtrLatC, rc=localrc)
   if (localrc /=ESMF_SUCCESS) then
         rc=ESMF_FAILURE
         return
@@ -2215,10 +2263,10 @@ contains
   do i2=clbnd(2),cubnd(2)
 
     ! Set source coordinates as 0 to 360
-    fptrLonC(i1,i2) = REAL(i1-1)*A_dlon
+    farrayPtrLonC(i1,i2) = REAL(i1-1)*A_dlon
 
     ! Set source coordinates as -90 to 90
-    fptrLatC(i1,i2) = -90. + (REAL(i2-1)*A_dlat + 0.5*A_dlat)
+    farrayPtrLatC(i1,i2) = -90. + (REAL(i2-1)*A_dlat + 0.5*A_dlat)
 
   enddo
   enddo
@@ -2301,14 +2349,14 @@ contains
  
   !! get coord 1
   call ESMF_GridGetCoord(gridA, localDE=0, staggerLoc=ESMF_STAGGERLOC_CORNER, coordDim=1, &
-                            fptr=fptrLonC, rc=localrc)
+                            farrayPtr=farrayPtrLonC, rc=localrc)
      if (localrc /=ESMF_SUCCESS) then
         rc=ESMF_FAILURE
         return
      endif
 
   call ESMF_GridGetCoord(gridA, localDE=0, staggerLoc=ESMF_STAGGERLOC_CORNER, coordDim=2, &
-                            computationalLBound=clbnd, computationalUBound=cubnd, fptr=fptrLatC, rc=localrc)
+                            computationalLBound=clbnd, computationalUBound=cubnd, farrayPtr=farrayPtrLatC, rc=localrc)
   if (localrc /=ESMF_SUCCESS) then
         rc=ESMF_FAILURE
         return
@@ -2392,7 +2440,6 @@ contains
   endif
 
  end subroutine test_locstreambkgsph
-
 
 
 end program ESMF_LocStreamCreateUTest

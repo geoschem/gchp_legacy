@@ -1,7 +1,7 @@
-// $Id: ESMCI_Clock.C,v 1.12.2.2 2010/02/05 20:00:41 svasquez Exp $
+// $Id$
 //
 // Earth System Modeling Framework
-// Copyright 2002-2010, University Corporation for Atmospheric Research, 
+// Copyright 2002-2012, University Corporation for Atmospheric Research, 
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
 // Laboratory, University of Michigan, National Centers for Environmental 
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
@@ -35,7 +35,7 @@
 //-------------------------------------------------------------------------
  // leave the following line as-is; it will insert the cvs ident string
  // into the object file for tracking purposes.
- static const char *const version = "$Id: ESMCI_Clock.C,v 1.12.2.2 2010/02/05 20:00:41 svasquez Exp $";
+ static const char *const version = "$Id$";
 //-------------------------------------------------------------------------
 
 namespace ESMCI{
@@ -156,7 +156,7 @@ int Clock::count=0;
     clock->prevTime = clock->currTime = clock->startTime;
 
     returnCode = clock->validate();
-    if (ESMC_LogDefault.MsgFoundError(returnCode, ESMF_ERR_PASSTHRU, rc)) {
+    if (ESMC_LogDefault.MsgFoundError(returnCode, ESMCI_ERR_PASSTHRU, rc)) {
       // TODO: distinguish non-fatal rc's (warnings, info) at this level (C++),
       //   and at the F90 level, so isInit flag can be set to usable value.
       delete clock;
@@ -214,7 +214,7 @@ int Clock::count=0;
     }
 
     returnCode = clockCopy->validate();
-    if (ESMC_LogDefault.MsgFoundError(returnCode, ESMF_ERR_PASSTHRU, rc)) {
+    if (ESMC_LogDefault.MsgFoundError(returnCode, ESMCI_ERR_PASSTHRU, rc)) {
       // TODO: distinguish non-fatal rc's (warnings, info) at this level (C++),
       //   and at the F90 level, so isInit flag can be set to usable value.
       delete clockCopy;
@@ -244,6 +244,13 @@ int Clock::count=0;
 //      via an {\tt ESMCI\_ClockCreate} routine.  Define for deep classes only.
 //
 //EOP
+
+   // set any associated alarm's clock pointers to null
+   if (*clock != ESMC_NULL_POINTER) {
+     for(int i=0; i < (*clock)->alarmCount; i++) {
+       ((*clock)->alarmList[i])->clock = ESMC_NULL_POINTER;
+     }
+   }
 
    // TODO: clock->destruct(); constructor calls it!
    delete *clock; // ok to delete null pointer
@@ -362,7 +369,7 @@ int Clock::count=0;
     }
 
     rc = Clock::validate();
-    if (ESMC_LogDefault.MsgFoundError(rc, ESMF_ERR_PASSTHRU, &rc)) {
+    if (ESMC_LogDefault.MsgFoundError(rc, ESMCI_ERR_PASSTHRU, &rc)) {
       // restore original clock values
       *this = saveClock;
     }
@@ -382,25 +389,25 @@ int Clock::count=0;
 //    int error return code
 //
 // !ARGUMENTS:
-      int                nameLen,          // in
-      int               *tempNameLen,      // out
-      char              *tempName,         // out
-      TimeInterval *timeStep,         // out
-      Time         *startTime,        // out
-      Time         *stopTime,         // out
-      TimeInterval *runDuration,      // out
-      ESMC_R8      *runTimeStepCount, // out
-      Time         *refTime,          // out
-      Time         *currTime,         // out
-      Time         *prevTime,         // out
-      TimeInterval *currSimTime,      // out
-      TimeInterval *prevSimTime,      // out
-      Calendar    **calendar,         // out
-      ESMC_CalendarType *calendarType,     // out
-      int               *timeZone,         // out
-      ESMC_I8      *advanceCount,     // out
-      int               *alarmCount,       // out
-      ESMC_Direction    *direction) {      // out
+      int             nameLen,          // in
+      int            *tempNameLen,      // out
+      char           *tempName,         // out
+      TimeInterval   *timeStep,         // out
+      Time           *startTime,        // out
+      Time           *stopTime,         // out
+      TimeInterval   *runDuration,      // out
+      ESMC_R8        *runTimeStepCount, // out
+      Time           *refTime,          // out
+      Time           *currTime,         // out
+      Time           *prevTime,         // out
+      TimeInterval   *currSimTime,      // out
+      TimeInterval   *prevSimTime,      // out
+      Calendar      **calendar,         // out
+      ESMC_CalKind_Flag *calkindflag,   // out
+      int            *timeZone,         // out
+      ESMC_I8        *advanceCount,     // out
+      int            *alarmCount,       // out
+      ESMC_Direction *direction) {      // out
 
 // !DESCRIPTION:
 //      Gets a {\tt ESMC\_Clock}'s property values
@@ -479,8 +486,8 @@ int Clock::count=0;
                       ESMC_NULL_POINTER, ESMC_NULL_POINTER, calendar);
       ESMC_LogDefault.MsgFoundError(rc, "Time::get(...calendar) failed.", &rc);
     }
-    if (calendarType != ESMC_NULL_POINTER) {
-      // get calendar type from currTime, but could get from any other clock
+    if (calkindflag != ESMC_NULL_POINTER) {
+      // get calendar kind from currTime, but could get from any other clock
       // Time, since they all use the same calendar
       // TODO: use native C++ Get, not F90 entry point, when ready
       rc = this->currTime.Time::get((ESMC_I4 *)ESMC_NULL_POINTER,
@@ -492,8 +499,8 @@ int Clock::count=0;
                       ESMC_NULL_POINTER, ESMC_NULL_POINTER, ESMC_NULL_POINTER,
                       ESMC_NULL_POINTER, ESMC_NULL_POINTER, ESMC_NULL_POINTER,
                       ESMC_NULL_POINTER, ESMC_NULL_POINTER, ESMC_NULL_POINTER,
-                      calendarType);
-      ESMC_LogDefault.MsgFoundError(rc, "Time::get(...calendarType) failed.",
+                      calkindflag);
+      ESMC_LogDefault.MsgFoundError(rc, "Time::get(...calkindflag) failed.",
                                     &rc);
     }
     if (timeZone != ESMC_NULL_POINTER) {
@@ -562,7 +569,7 @@ int Clock::count=0;
       return(rc);
     }
 
-    if (direction == ESMF_MODE_FORWARD) {
+    if (direction == ESMF_DIRECTION_FORWARD) {
 
       // save current time, then advance it
       prevTime = currTime;
@@ -578,7 +585,7 @@ int Clock::count=0;
       // count number of timesteps
       advanceCount++;
 
-    } else { // ESMF_MODE_REVERSE
+    } else { // ESMF_DIRECTION_REVERSE
 
       // TODO: make more robust by removing simplifying assumptions:
       //       1) timeSteps are constant throughout clock run.
@@ -840,8 +847,8 @@ int Clock::count=0;
 //
 // !DESCRIPTION:
 //    Checks if {\tt ESMC\_Clock}'s stop time has been reached if in
-//    {\tt ESMF\_MODE\_FORWARD} or if it has reached start time if in
-//    {\tt ESMF\_MODE\_REVERSE}.
+//    {\tt ESMF\_DIRECTION\_FORWARD} or if it has reached start time if in
+//    {\tt ESMF\_DIRECTION\_REVERSE}.
 //
 //EOP
 // !REQUIREMENTS:
@@ -857,7 +864,7 @@ int Clock::count=0;
       return(false);
     }
 
-    if (direction == ESMF_MODE_FORWARD) {
+    if (direction == ESMF_DIRECTION_FORWARD) {
 
       if (!stopTimeEnabled) return(false);
 
@@ -874,7 +881,7 @@ int Clock::count=0;
       // or no stopTime direction ? (stopTime == startTime)
       } else return(currTime == stopTime);
 
-    } else { // ESMF_MODE_REVERSE
+    } else { // ESMF_DIRECTION_REVERSE
 
       // check if startTime has been reached or crossed
 
@@ -907,7 +914,7 @@ int Clock::count=0;
       int  *rc) const {        // out - error return code
 //
 // !DESCRIPTION:
-//    Checks if {\tt ESMC\_Clock}'s direction is {\tt ESMF\_MODE\_REVERSE}.
+//    Checks if {\tt ESMC\_Clock}'s direction is {\tt ESMF\_DIRECTION\_REVERSE}.
 //
 //EOP
 // !REQUIREMENTS:
@@ -923,7 +930,7 @@ int Clock::count=0;
       return(false);
     }
 
-    return(direction == ESMF_MODE_REVERSE);
+    return(direction == ESMF_DIRECTION_REVERSE);
 
  } // end Clock::isReverse
 
@@ -983,12 +990,12 @@ int Clock::count=0;
 //    int error return code
 //
 // !ARGUMENTS:
-      int          nameLen,   // in  - the length of the alarm name
-      char        *name,      // in  - the alarm "name" to get
+      int          alarmnameLen,   // in  - the length of the alarm name
+      char        *alarmname,      // in  - the alarm "name" to get
       Alarm **alarm) {   // out - the alarm named "name"
 //
 // !DESCRIPTION:
-//     Retrieve's the clock's alarm named "name" from the alarm list
+//     Retrieve's the clock's alarm named "alarmname" from the alarm list
 //
 //EOP
 // !REQUIREMENTS:  TMG x.x
@@ -1004,18 +1011,18 @@ int Clock::count=0;
       return(rc);
     }
 
-    if (nameLen >= ESMF_MAXSTR) {
+    if (alarmnameLen >= ESMF_MAXSTR) {
       char logMsg[ESMF_MAXSTR];
-      sprintf(logMsg, "For alarm name %s, length >= ESMF_MAXSTR, "
-                      "truncated.", name);
+      sprintf(logMsg, "For alarmname %s, length >= ESMF_MAXSTR, "
+                      "truncated.", alarmname);
       ESMC_LogDefault.Write(logMsg, ESMC_LOG_WARN,ESMC_CONTEXT);
       // TODO: return ESMF_WARNING when defined
     }
 
     // TODO: use inherited methods from ESMC_Base
     char alarmName[ESMF_MAXSTR];
-    strncpy(alarmName, name, nameLen);
-    alarmName[nameLen] = '\0';  // null terminate
+    strncpy(alarmName, alarmname, alarmnameLen);
+    alarmName[alarmnameLen] = '\0';  // null terminate
 
     // linear search for alarm name
     for(int i=0; i<alarmCount; i++) {
@@ -1043,7 +1050,7 @@ int Clock::count=0;
 //    int error return code
 //
 // !ARGUMENTS:
-      ESMC_AlarmListType type,                   // in - list type to get
+      ESMC_AlarmList_Flag alarmlistflag,         // in - list flag to get
       char              *alarmList1stElementPtr, // out - array of alarms
       char              *alarmList2ndElementPtr, // in  - address of 2nd
                                                  //        element to calculate
@@ -1052,10 +1059,10 @@ int Clock::count=0;
       int                sizeofAlarmList,        // in  - size of given array
                                                  //       of alarms
       int               *alarmCount,             // out - number of alarms
-      TimeInterval *timeStep) {             // in  - optional time step to
+      TimeInterval *timeStep) {                  // in  - optional time step to
                                                  //         use instead of the
                                                  //         clock's (only use
-                                                 //         with alarm list type
+                                                 //         with alarm list flag
                                                  // ESMF_ALARMLIST_NEXTRINGING)
 //
 // !DESCRIPTION:
@@ -1075,10 +1082,10 @@ int Clock::count=0;
       return(rc);
     }
 
-    *alarmCount = 0;
+    if (alarmCount != ESMC_NULL_POINTER) *alarmCount = 0;
 
     // Calculate element size of F90 array of Alarm pointers since we
-    // cannont depend on C++ element size to be the same as F90's across all
+    // cannot depend on C++ element size to be the same as F90's across all
     // platforms.  It is assumed that all F90 platforms allocate arrays
     // contiguously and uniformly in memory, in either ascending or descending
     // address order.
@@ -1087,7 +1094,8 @@ int Clock::count=0;
     // see also Clock::advance().
 
     int f90ArrayElementSize = 0; 
-    if (alarmList2ndElementPtr != ESMC_NULL_POINTER) {
+    if (alarmList1stElementPtr != ESMC_NULL_POINTER &&
+        alarmList2ndElementPtr != ESMC_NULL_POINTER) {
         f90ArrayElementSize = (int)(alarmList2ndElementPtr -
                                     alarmList1stElementPtr);
     }
@@ -1095,12 +1103,11 @@ int Clock::count=0;
     // traverse clock's alarm list (i) for alarms to return in
     //   requested list (j)
     for(int i=0, j=0; i < this->alarmCount; i++) {
-      int rc;
       bool returnAlarm;
 
-      // based on requested list type, check if this (i'th) alarm is
+      // based on requested list flag, check if this (i'th) alarm is
       //   to be returned
-      switch (type)
+      switch (alarmlistflag)
       {
         case ESMF_ALARMLIST_ALL:
           // return all alarms!
@@ -1109,24 +1116,24 @@ int Clock::count=0;
 
         case ESMF_ALARMLIST_RINGING:
           // return alarm if it's ringing
-          returnAlarm = alarmList[i]->Alarm::isRinging(&rc);
+          returnAlarm = (this->alarmList[i])->Alarm::isRinging(&rc);
           break;
 
         case ESMF_ALARMLIST_NEXTRINGING:
           // return alarm if it will ring upon the next clock time step
-          returnAlarm = alarmList[i]->Alarm::willRingNext(timeStep, &rc);
+          returnAlarm = (this->alarmList[i])->Alarm::willRingNext(timeStep,&rc);
           break;
 
         case ESMF_ALARMLIST_PREVRINGING:
           // return alarm if it was ringing on the previous clock time step
-          returnAlarm = alarmList[i]->Alarm::wasPrevRinging(&rc);
+          returnAlarm = (this->alarmList[i])->Alarm::wasPrevRinging(&rc);
           break;
 
         default :
-          // unknown alarm list type; return empty list
+          // unknown alarm list flag; return empty list
           char logMsg[ESMF_MAXSTR];
-          sprintf(logMsg, "For clock %s, unknown alarm list type %d.",
-                  this->name, type);
+          sprintf(logMsg, "For clock %s, unknown alarm list flag %d.",
+                  this->name, alarmlistflag);
           ESMC_LogDefault.Write(logMsg, ESMC_LOG_WARN,ESMC_CONTEXT);
           return(ESMF_FAILURE);
       }
@@ -1134,27 +1141,29 @@ int Clock::count=0;
       // copy alarm pointers to be returned into given F90 array
       if (returnAlarm) {
         // count and report number of returned alarms
-        (*alarmCount)++;
+        if (alarmCount != ESMC_NULL_POINTER) (*alarmCount)++;
 
-        // copy if there's space in the given F90 array
-        if (j < sizeofAlarmList) {
-          // F90/C++ equivalent: AlarmList(j) = this->alarmList[i]
-          //                 j = j + 1
-          // calculate F90 array address for the j'th element ...
-          char *f90ArrayElementJ;
-          f90ArrayElementJ = alarmList1stElementPtr +
+        if (alarmList1stElementPtr != ESMC_NULL_POINTER) {
+          // copy if there's space in the given F90 array
+          if (j < sizeofAlarmList) {
+            // F90/C++ equivalent: AlarmList(j) = this->alarmList[i]
+            //                 j = j + 1
+            // calculate F90 array address for the j'th element ...
+            char *f90ArrayElementJ;
+            f90ArrayElementJ = alarmList1stElementPtr +
                                                 (j++ * f90ArrayElementSize);
-          // ... then copy it in!
-          *((Alarm**)f90ArrayElementJ) = alarmList[i];
-        } else {
-          // list overflow!
-          char logMsg[ESMF_MAXSTR];
-          sprintf(logMsg, "For clock %s, "
-                  "trying to return %dth requested alarm, but given "
-                  "alarmList array can only hold %d.",
-                  this->name, j+1, sizeofAlarmList);
-          ESMC_LogDefault.Write(logMsg, ESMC_LOG_WARN,ESMC_CONTEXT);
-          rc = ESMF_FAILURE;
+            // ... then copy it in!
+            *((Alarm**)f90ArrayElementJ) = this->alarmList[i];
+          } else {
+            // list overflow!
+            char logMsg[ESMF_MAXSTR];
+            sprintf(logMsg, "For clock %s, "
+                    "trying to return %dth requested alarm, but given "
+                    "alarmList array can only hold %d.",
+                    this->name, j+1, sizeofAlarmList);
+            ESMC_LogDefault.Write(logMsg, ESMC_LOG_WARN,ESMC_CONTEXT);
+            rc = ESMF_FAILURE;
+          }
         }
       }
     }
@@ -1311,7 +1320,7 @@ int Clock::count=0;
     // set current time to wall clock time
     // TODO:  ensure current time is within startTime and stopTime
     rc = currTime.Time::syncToRealTime();
-    if (ESMC_LogDefault.MsgFoundError(rc, ESMF_ERR_PASSTHRU, &rc))
+    if (ESMC_LogDefault.MsgFoundError(rc, ESMCI_ERR_PASSTHRU, &rc))
       return(rc);
     return(Clock::validate());
 
@@ -1353,10 +1362,14 @@ int Clock::count=0;
       }
   
       // copy alarm list (array of pointers)
-      for(int i=0; i<clock.alarmCount; i++) {
-        alarmList[i] = clock.alarmList[i];
-      }
-      alarmCount = clock.alarmCount;
+      //for(int i=0; i<clock.alarmCount; i++) {
+      //  alarmList[i] = clock.alarmList[i];
+      //}
+      //alarmCount = clock.alarmCount;
+
+      // don't copy alarm list values; an alarm can only be associated with
+      // one clock
+      alarmCount = 0;
 
       // copy all other members
       strcpy(name,           clock.name);
@@ -1463,7 +1476,6 @@ int Clock::count=0;
 // !ARGUMENTS:
       int          nameLen,  // in
       const char  *name,     // in
-      ESMC_IOSpec *iospec,   // in
       int         *rc ) {    // out - return code
 
 //
@@ -1480,7 +1492,7 @@ int Clock::count=0;
     // Initialize return code
     if (rc != ESMC_NULL_POINTER) *rc = ESMC_RC_NOT_IMPL;
 
-    // TODO:  read clock state from iospec/name, then allocate/restore
+    // TODO:  read clock state from name, then allocate/restore
     //        (share code with ESMCI_ClockCreate()).
 
     return(ESMC_NULL_POINTER);
@@ -1492,13 +1504,13 @@ int Clock::count=0;
 // !IROUTINE:  Clock::writeRestart - save contents of a Clock
 //
 // !INTERFACE:
-      int Clock::writeRestart(
+      int Clock::writeRestart(void) const {
 //
 // !RETURN VALUE:
 //    int error return code
 //
 // !ARGUMENTS:
-      ESMC_IOSpec *iospec) const {
+//    none
 //
 // !DESCRIPTION:
 //      Save information about an {\tt ESMC\_Clock}.
@@ -1518,7 +1530,7 @@ int Clock::count=0;
       return(rc);
     }
 
-    // TODO:  save clock state using iospec/name.  Default to disk file.
+    // TODO:  save clock state using name.  Default to disk file.
 
     return(ESMF_SUCCESS);
 
@@ -1570,10 +1582,11 @@ int Clock::count=0;
        return(rc);
     }
 
-    if (direction != ESMF_MODE_FORWARD && direction != ESMF_MODE_REVERSE) {
+    if (direction != ESMF_DIRECTION_FORWARD && 
+        direction != ESMF_DIRECTION_REVERSE) {
       char logMsg[ESMF_MAXSTR];
-      sprintf(logMsg, "direction property %d is not ESMF_MODE_FORWARD or "
-              "ESMF_MODE_REVERSE", direction);
+      sprintf(logMsg, "direction property %d is not ESMF_DIRECTION_FORWARD or "
+              "ESMF_DIRECTION_REVERSE", direction);
       ESMC_LogDefault.Write(logMsg, ESMC_LOG_WARN,ESMC_CONTEXT);
       return(ESMF_FAILURE);
     }
@@ -1883,7 +1896,7 @@ int Clock::count=0;
 
     name[0] = '\0';
     advanceCount = 0;
-    direction = ESMF_MODE_FORWARD;
+    direction = ESMF_DIRECTION_FORWARD;
     userChangedDirection = false;
     stopTimeEnabled = false;
     id = ++count;  // TODO: inherit from ESMC_Base class
@@ -2045,5 +2058,69 @@ int Clock::count=0;
     return(rc);
 
  } // end Clock::addAlarm
+
+//-------------------------------------------------------------------------
+//BOP
+// !IROUTINE:  Clock::removeAlarm - remove alarm from clock's alarm list
+//
+// !INTERFACE:
+      int Clock::removeAlarm(
+//
+// !RETURN VALUE:
+//    int error return code
+//
+// !ARGUMENTS:
+      Alarm *alarm) {   // in - alarm to remove
+//
+// !DESCRIPTION:
+//     Adds given alarm to a clock's alarm list. 
+//     Used by {\tt ESMC\_AlarmCreate().}
+//
+//EOP
+// !REQUIREMENTS:  TMG xx.x
+
+ #undef  ESMC_METHOD
+ #define ESMC_METHOD "ESMCI::Clock::removeAlarm()"
+
+    int rc = ESMF_SUCCESS;
+
+    // validate inputs
+
+    if (this == ESMC_NULL_POINTER) {
+      ESMC_LogDefault.MsgFoundError(ESMC_RC_PTR_NULL,
+         "; 'this' pointer is NULL.", &rc);
+      return(rc);
+    }
+
+    if (alarm == ESMC_NULL_POINTER) {
+      char logMsg[ESMF_MAXSTR];
+      sprintf(logMsg, "For clock %s, given alarm is NULL.", this->name);
+      ESMC_LogDefault.Write(logMsg, ESMC_LOG_WARN, ESMC_CONTEXT);
+      return(ESMF_FAILURE);
+    }
+
+    // TODO: replace alarmList with C++ STL container
+    // linear search for given alarm in list
+    for(int i=0; i<alarmCount; i++) {
+      if (alarmList[i] == alarm) {
+        // remove alarm by left shifting remainder of list ...
+        for(int j=i; j<alarmCount-1; j++) {
+          alarmList[j] = alarmList[j+1];
+        }
+        // ... and nullifying end of list
+        alarmList[alarmCount-1] = ESMC_NULL_POINTER; 
+        alarmCount--;
+        return(rc);
+      }
+    }
+
+    // given alarm not found in list
+    char logMsg[ESMF_MAXSTR];
+    sprintf(logMsg, "For clock %s, given alarm is not in clock's alarmList.",
+            this->name);
+    ESMC_LogDefault.Write(logMsg, ESMC_LOG_WARN, ESMC_CONTEXT);
+    return(ESMF_FAILURE);
+
+ } // end Clock::removeAlarm
 
 }  // namespace ESMCI

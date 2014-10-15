@@ -1,0 +1,81 @@
+
+#######################################################################
+#       Regridding to Ganymed From Fortuna or MERRA Restarts
+#######################################################################
+
+Note:  Ganymed-1_0_M:
+       --------------
+       Contains tile files which treat the Great Lakes and Capsian Sea as LAKE,
+       and therefore uses the GEOS5 Lake (M)odel to update its surface temperature.
+       This boundary area would be approprate when running with Reynolds 1-deg SST 
+       data which has no LAKE information.
+
+       Ganymed-1_0_D:
+       --------------
+       Contains tile files which treat the Great Lakes and Capsian Sea as OCEAN, 
+       and therefore uses the Input SST (D)ata to update its surface temperature.  
+       This boundary area would be approprate when running with OSTIA 1/8-deg SST 
+       data which has information over LAKEs.
+
+MERRA
+-----
+
+To create Ganymed-1_0_(M or D) Restarts from MERRA, you must first regrid the MERRA restarts
+to a set of 1/2-deg Lat/Lon Fortuna-2_1 restarts.  This is done so that a proper scaling
+of the CATCH restarts may be made (from Fortuna to Ganymed). So ...
+
+1) Run Regrid with the OUTPUT Boundary Condition Tag (-bctago) set to: Fortuna-2_1
+               and the OUTPUT Horizontal Resolution set to 1/2-deg (Horizontal Resolution Code: d)
+
+2) Continue with steps to create Ganymed Restarts from Fortuna.
+
+
+Fortuna
+-------
+
+To create Ganymed-1_0_(M or D) Restarts from Fortuna Tags, you must first regrid the Fortuna restarts
+to an equivalent Ganymed set using the Ganymed-1_0_m1 OUTPUT Boundary Condition Tag.  The REGRID 
+utility will then automatically scale the resulting CATCH restarts to be consistent with Ganymed-1_0 
+Land parameters.  From here you may then regrid to any valid Ganymed-1_0 configuration. So ...
+
+1) Run Regrid with the OUTPUT Boundary Condition Tag (-bctago) set to: Ganymed-1_0_m1
+               and the OUTPUT Horizontal Resolution identical to the Input Horizontal Resolution.
+
+2) Pointing to the OUTPUT Restarts created from (1),
+   Run Regrid again with the INPUT Boundary Condition Tag (-bctagi) set to: Ganymed-1_0_m1
+   and the OUTPUT Horizontal Resolution and Boundary Condition Tag be set to any valid Ganymed-1_0 option.
+
+
+
+Examples
+--------
+The following examples show REQUIRED command line options for regridding.  You may 'cut-and-paste'
+each line to begin the multi-step process.  Along the way, the regrid script will query the USER 
+for other user-defined options.
+
+1) MERRA to Ganymed-1_0_(M or D) (3-Step Process)
+   -------------------------------------
+
+  Step_1) regrid -in merra -bctago Fortuna-2_1 -im 576 -jm 361
+  Step_2) regrid           -bctagi Fortuna-2_1 -im 576 -jm 361 -bctago Ganymed-1_0_m1 -oceano o1
+  Step_3) regrid                                               -bctagi Ganymed-1_0_m1 -oceani o1
+
+
+2) Fortuna to Ganymed-1_0_(M or D) (2-Step Process)
+   ---------------------------------------
+
+  Step_1) regrid -bctagi Fortuna-2_1 -bctago Ganymed-1_0_m1 -oceano o1
+  Step_2) regrid                     -bctagi Ganymed-1_0_m1 -oceani o1
+
+
+FYI: GEOSadas Boundary Condition Tags 
+-------------------------------------
+     Ganymed-1_0_D  (GEOSadas-5_9_1 with Date-Driven Great_Lakes)
+     Ganymed-1_0_M  (GEOSadas-5_9_1 with Model-Based Great_Lakes)
+     Ganymed-1_0_m2 (GEOSadas-5_9_0 with Date-Driven Great_Lakes)
+     Ganymed-1_0_m1 (GEOSadas-5_9_0 with Model-Based Great_Lakes)
+     Ganymed-1_0    (GEOSadas-5_8_0)
+     Fortuna-2_1    (GEOSadas-5_6_1 to GEOSadas-5_7_2)
+     Fortuna-1_4    (MERRA)
+
+Note: Boundary Condition Tag Ganymed-1_0 should be treated like Fortuna-2_1

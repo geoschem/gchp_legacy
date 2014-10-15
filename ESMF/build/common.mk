@@ -1,4 +1,4 @@
-#  $Id: common.mk,v 1.282.2.1 2009/12/23 18:20:50 svasquez Exp $
+#  $Id: common.mk,v 1.1.5.1 2013-01-11 20:23:43 mathomp4 Exp $
 #===============================================================================
 #
 #  GNUmake makefile - cannot be used with standard unix make!!
@@ -116,6 +116,10 @@ ifeq ($(origin ESMF_MPIRUNOPTIONS), environment)
 $(error Obsolete environment variable ESMF_MPIRUNOPTIONS detected. Please see ESMF README and/or User's Guide for a current list of ESMF environment variables.)
 endif
 
+ifeq ($(origin ESMF_TESTHARNESS), environment)
+$(error Obsolete environment variable ESMF_TESTHARNESS detected. Please see ESMF README and/or User's Guide for a current list of ESMF environment variables.)
+endif
+
 #-------------------------------------------------------------------------------
 # Set defaults for environment variables that are not set
 #-------------------------------------------------------------------------------
@@ -204,8 +208,12 @@ ifndef ESMF_TESTFORCEOPENMP
 export ESMF_TESTFORCEOPENMP = default
 endif
 
-ifndef ESMF_TESTHARNESS
-export ESMF_TESTHARNESS = default
+ifndef ESMF_TESTHARNESS_ARRAY
+export ESMF_TESTHARNESS_ARRAY = default
+endif
+
+ifndef ESMF_TESTHARNESS_FIELD
+export ESMF_TESTHARNESS_FIELD = default
 endif
 
 ifndef ESMF_ETCDIR
@@ -258,6 +266,13 @@ endif
 endif
 endif
 
+ifeq ($(ESMF_OS),Unicos)
+# set ESMF_MACHINE for Unicos
+ifeq ($(ESMF_MACHINE),default)
+export ESMF_MACHINE := $(shell uname -m)
+endif
+endif
+
 ifeq ($(ESMF_ABI),default)
 # start with 64-bit default for all architectures
 export ESMF_ABI = 64
@@ -287,10 +302,6 @@ endif
 ifeq ($(ESMF_OS),Cygwin)
 # default on Cygwin is 32-bit
 export ESMF_ABI = 32
-ifeq ($(ESMF_MACHINE),ia64)
-# except for IA64
-export ESMF_ABI = 64
-endif
 ifeq ($(ESMF_MACHINE),x86_64)
 # and x86_64
 export ESMF_ABI = 64
@@ -298,12 +309,8 @@ endif
 endif
 
 ifeq ($(ESMF_OS),MinGW)
-# default on MinGW is 32-bit
-export ESMF_ABI = 32
-ifeq ($(ESMF_MACHINE),x86_64)
-# except x86_64
+# default on MinGW is 64-bit
 export ESMF_ABI = 64
-endif
 endif
 
 endif
@@ -318,17 +325,22 @@ endif
 ifeq ($(ESMF_OS),Darwin)
 export ESMF_COMPILER = absoft
 ifeq ($(ESMF_MACHINE),i386)
-export ESMF_COMPILER = intel
+export ESMF_COMPILER = gfortran
 endif
 ifeq ($(ESMF_MACHINE),x86_64)
-export ESMF_COMPILER = intel
+export ESMF_COMPILER = gfortran
 endif
 endif
 ifeq ($(ESMF_OS),Linux)
-export ESMF_COMPILER = intel
+export ESMF_COMPILER = gfortran
 endif
 ifeq ($(ESMF_OS),MinGW)
 export ESMF_COMPILER = intel
+endif
+ifeq ($(ESMF_OS),Unicos)
+ifeq ($(ESMF_MACHINE),x86_64)
+export ESMF_COMPILER = pgi
+endif
 endif
 endif
 
@@ -340,12 +352,12 @@ ifneq ($(ESMF_ARRAY_LITE),TRUE)
 export ESMF_ARRAY_LITE = FALSE
 endif
 
-ifneq ($(ESMF_NO_INTEGER_1_BYTE),TRUE)
-export ESMF_NO_INTEGER_1_BYTE = FALSE
+ifneq ($(ESMF_NO_INTEGER_1_BYTE),FALSE)
+export ESMF_NO_INTEGER_1_BYTE = TRUE
 endif
 
-ifneq ($(ESMF_NO_INTEGER_2_BYTE),TRUE)
-export ESMF_NO_INTEGER_2_BYTE = FALSE
+ifneq ($(ESMF_NO_INTEGER_2_BYTE),FALSE)
+export ESMF_NO_INTEGER_2_BYTE = TRUE
 endif
 
 ifneq ($(ESMF_TESTEXHAUSTIVE),ON)
@@ -370,10 +382,6 @@ endif
 
 ifneq ($(ESMF_TESTFORCEOPENMP),ON)
 export ESMF_TESTFORCEOPENMP = OFF
-endif
-
-ifeq ($(ESMF_TESTHARNESS),default)
-export ESMF_TESTHARNESS = NONEXHAUSTIVE
 endif
 
 ifeq ($(ESMF_ETCDIR),default)
@@ -419,6 +427,16 @@ else
 export ESMF_INSTALL_LIBDIR_ABSPATH = $(ESMF_INSTALL_LIBDIR)
 endif
 
+ifndef ESMF_INSTALL_BINDIR
+ESMF_INSTALL_BINDIR := bin/bin$(ESMF_BOPT)/$(ESMF_OS).$(ESMF_COMPILER).$(ESMF_ABI).$(ESMF_COMM).$(ESMF_SITE)
+endif
+pathtype := $(shell $(ESMF_DIR)/scripts/pathtype $(ESMF_INSTALL_BINDIR))
+ifeq ($(pathtype),rel)
+export ESMF_INSTALL_BINDIR_ABSPATH = $(ESMF_INSTALL_PREFIX_ABSPATH)/$(ESMF_INSTALL_BINDIR)
+else
+export ESMF_INSTALL_BINDIR_ABSPATH = $(ESMF_INSTALL_BINDIR)
+endif
+
 ifndef ESMF_INSTALL_DOCDIR
 ESMF_INSTALL_DOCDIR := doc
 endif
@@ -428,6 +446,30 @@ export ESMF_INSTALL_DOCDIR_ABSPATH = $(ESMF_INSTALL_PREFIX_ABSPATH)/$(ESMF_INSTA
 else
 export ESMF_INSTALL_DOCDIR_ABSPATH = $(ESMF_INSTALL_DOCDIR)
 endif
+
+#-------------------------------------------------------------------------------
+# Set ESMFMKFILE here in order to be available for installcheck target
+#-------------------------------------------------------------------------------
+ifndef ESMFMKFILE
+export ESMFMKFILE = $(ESMF_INSTALL_LIBDIR_ABSPATH)/esmf.mk
+endif
+
+#-------------------------------------------------------------------------------
+# Set ESMF Version variables
+#-------------------------------------------------------------------------------
+ESMF_VERSION_STRING = `fgrep ESMF_VERSION_STRING $(ESMF_DIR)/src/Infrastructure/Util/include/ESMC_Macros.h | $(ESMF_SED) -e 's/.* \"//' -e 's/\"//' `
+
+ESMF_VERSION_MAJOR = `fgrep ESMF_VERSION_MAJOR $(ESMF_DIR)/src/Infrastructure/Util/include/ESMC_Macros.h | $(ESMF_SED) -e 's/.* //' `
+
+ESMF_VERSION_MINOR = `fgrep ESMF_VERSION_MINOR $(ESMF_DIR)/src/Infrastructure/Util/include/ESMC_Macros.h | $(ESMF_SED) -e 's/.* //' `
+
+ESMF_VERSION_REVISION = `fgrep ESMF_VERSION_REVISION $(ESMF_DIR)/src/Infrastructure/Util/include/ESMC_Macros.h | $(ESMF_SED) -e 's/.* //' `
+
+ESMF_VERSION_PATCHLEVEL = `fgrep ESMF_VERSION_PATCHLEVEL $(ESMF_DIR)/src/Infrastructure/Util/include/ESMC_Macros.h | $(ESMF_SED) -e 's/.* //' `
+
+ESMF_VERSION_PUBLIC = `fgrep ESMF_VERSION_PUBLIC $(ESMF_DIR)/src/Infrastructure/Util/include/ESMC_Macros.h | $(ESMF_SED) -e 's/.* //' `
+
+ESMF_VERSION_BETASNAPSHOT = `fgrep ESMF_VERSION_BETASNAPSHOT $(ESMF_DIR)/src/Infrastructure/Util/include/ESMC_Macros.h | $(ESMF_SED) -e 's/.* //' `
 
 #-------------------------------------------------------------------------------
 # TODO: in general ESMF_BUILD is respected - most generated files are created
@@ -440,7 +482,7 @@ endif
 # the same source tree, these files cannot go into a generic include dir.
 # - the 'storeh:' target copies include files into src/include under the
 # distribution tree.  
-# - the system tests and demos (not sure about the unit tests and examples) 
+# - the system tests (not sure about the unit tests and examples) 
 # are compiled with the current dir set to the src dir (this is
 # i think because if there are multiple .o files, it gets complicated to make
 # them, get their names to link them, and then remove just them if you are 
@@ -473,11 +515,17 @@ else
 ESMF_OBJDIR     = $(ESMF_MODDIR)
 endif
 
+# local obj dir
+ESMF_LOCOBJDIR = $(ESMF_OBJDIR)/$(LOCDIR)
+
 # test executable directory
 ESMF_TESTDIR    = $(ESMF_BUILD)/test/test$(ESMF_BOPT)/$(ESMF_OS).$(ESMF_COMPILER).$(ESMF_ABI).$(ESMF_COMM).$(ESMF_SITE)
 
 # example executable diretory
 ESMF_EXDIR      = $(ESMF_BUILD)/examples/examples$(ESMF_BOPT)/$(ESMF_OS).$(ESMF_COMPILER).$(ESMF_ABI).$(ESMF_COMM).$(ESMF_SITE)
+
+# apps executable directory
+ESMF_APPSDIR     = $(ESMF_BUILD)/apps/apps$(ESMF_BOPT)/$(ESMF_OS).$(ESMF_COMPILER).$(ESMF_ABI).$(ESMF_COMM).$(ESMF_SITE)
 
 # include file directory
 ESMF_INCDIR     = $(ESMF_BUILD)/src/include
@@ -525,6 +573,7 @@ DO_UT_RESULTS	    = $(ESMF_TESTSCRIPTS)/do_ut_results.pl -h $(ESMF_TESTSCRIPTS) 
 DO_EX_RESULTS	    = $(ESMF_TESTSCRIPTS)/do_ex_results.pl -h $(ESMF_TESTSCRIPTS) -d $(ESMF_EXDIR) -b $(ESMF_BOPT)
 DO_ST_RESULTS	    = $(ESMF_TESTSCRIPTS)/do_st_results.pl -h $(ESMF_TESTSCRIPTS) -d $(ESMF_TESTDIR) -b $(ESMF_BOPT) 
 DO_SUM_RESULTS	    = $(ESMF_TESTSCRIPTS)/do_summary.pl -h $(ESMF_TESTSCRIPTS) -d $(ESMF_TESTDIR) -e $(ESMF_EXDIR) -b $(ESMF_BOPT) 
+DO_CK_SUM_RESULTS   = $(ESMF_TESTSCRIPTS)/do_ck_summary.pl -h $(ESMF_TESTSCRIPTS) -d $(ESMF_TESTDIR) -e $(ESMF_EXDIR) -b $(ESMF_BOPT) 
 DO_UTC_RESULTS	    = $(ESMF_UTCSCRIPTS)/do_utc_results.pl -h $(ESMF_UTCSCRIPTS) -d $(ESMF_TESTDIR) -b $(ESMF_BOPT) -e $(ESMF_MAX_PROCS)
 
 # C specific variables
@@ -566,7 +615,9 @@ ESMF_MV                     = mv -f
 ESMF_WC                     = wc 
 ESMF_GREPV                  = grep -v
 
-ESMF_RPATHPREFIX     = -Wl,-rpath,
+# dummies here, expected to be overwritten in platform files if used
+ESMF_F90RPATHPREFIX         = -L
+ESMF_CXXRPATHPREFIX         = -L
 
 ESMF_F90OPTFLAG_X           =
 ESMF_CXXOPTFLAG_X           =
@@ -626,19 +677,35 @@ ifeq ($(ESMF_BOPT),O)
 ESMF_F90OPTFLAG = $(ESMF_F90OPTFLAG_O)
 endif
 endif
+# - make sure environment variable gets prepended _once_
+ifeq ($(origin ESMF_F90COMPILEOPTS), environment)
+export ESMF_F90COMPILEOPTS_ENV := $(ESMF_F90COMPILEOPTS)
+unexport ESMF_F90COMPILEOPTS
+endif
+ifeq ($(origin ESMF_F90COMPILEOPTS_ENV), environment)
+ESMF_F90COMPILEOPTS = $(ESMF_F90COMPILEOPTS_ENV)
+endif
 ESMF_F90COMPILEOPTS += $(ESMF_F90OPTFLAG) $(ESMF_SO_F90COMPILEOPTS)
-ESMF_F90COMPILEPATHS += $(ESMF_F90IMOD)$(ESMF_F90MODDIR)
+# - make sure environment variable gets prepended _once_
+ifeq ($(origin ESMF_F90COMPILEPATHS), environment)
+export ESMF_F90COMPILEPATHS_ENV := $(ESMF_F90COMPILEPATHS)
+unexport ESMF_F90COMPILEPATHS
+endif
+ifeq ($(origin ESMF_F90COMPILEPATHS_ENV), environment)
+ESMF_F90COMPILEPATHS = $(ESMF_F90COMPILEPATHS_ENV)
+endif
+ESMF_F90COMPILEPATHS     += $(ESMF_F90IMOD)$(ESMF_F90MODDIR)
 ESMF_F90COMPILEPATHSLOCAL =
 ifneq ($(ESMF_SITE),default)
 ESMF_F90COMPILEPATHSLOCAL += -I$(ESMF_SITEDIR)
 endif
 ESMF_F90COMPILEPATHSLOCAL += -I$(ESMF_CONFDIR) $(ESMF_INTERNALINCDIRS)
-ESMF_F90COMPILEPATHS += -I$(ESMF_INCDIR)
-ESMF_F90COMPILEFREECPP +=
-ESMF_F90COMPILEFREENOCPP +=
-ESMF_F90COMPILEFIXCPP +=
-ESMF_F90COMPILEFIXNOCPP +=
-ESMF_F90COMPILECPPFLAGS += $(FPPFLAGS)
+ESMF_F90COMPILEPATHS      += -I$(ESMF_INCDIR) $(ESMF_F90COMPILEPATHSTHIRD)
+ESMF_F90COMPILEFREECPP    +=
+ESMF_F90COMPILEFREENOCPP  +=
+ESMF_F90COMPILEFIXCPP     +=
+ESMF_F90COMPILEFIXNOCPP   +=
+ESMF_F90COMPILECPPFLAGS   += $(FPPFLAGS)
 
 # - CXXCOMPILER
 ifneq ($(origin ESMF_CXXCOMPILER), environment)
@@ -658,15 +725,32 @@ ifeq ($(ESMF_BOPT),O)
 ESMF_CXXOPTFLAG = $(ESMF_CXXOPTFLAG_O)
 endif
 endif
+# - make sure environment variable gets prepended _once_
+ifeq ($(origin ESMF_CXXCOMPILEOPTS), environment)
+export ESMF_CXXCOMPILEOPTS_ENV := $(ESMF_CXXCOMPILEOPTS)
+unexport ESMF_CXXCOMPILEOPTS
+endif
+ifeq ($(origin ESMF_CXXCOMPILEOPTS_ENV), environment)
+ESMF_CXXCOMPILEOPTS = $(ESMF_CXXCOMPILEOPTS_ENV)
+endif
 ESMF_CXXCOMPILEOPTS += $(ESMF_CXXOPTFLAG) $(ESMF_SO_CXXCOMPILEOPTS)
-ESMF_CXXCOMPILEPATHSLOCAL = -I$(ESMF_DIR)/$(LOCDIR)
+# - make sure environment variable gets prepended _once_
+ifeq ($(origin ESMF_CXXCOMPILEPATHS), environment)
+export ESMF_CXXCOMPILEPATHS_ENV := $(ESMF_CXXCOMPILEPATHS)
+unexport ESMF_CXXCOMPILEPATHS
+endif
+ifeq ($(origin ESMF_CXXCOMPILEPATHS_ENV), environment)
+ESMF_CXXCOMPILEPATHS = $(ESMF_CXXCOMPILEPATHS_ENV)
+endif
+ESMF_CXXCOMPILEPATHS      +=
+ESMF_CXXCOMPILEPATHSLOCAL  = -I$(ESMF_DIR)/$(LOCDIR)
 ESMF_CXXCOMPILEPATHSLOCAL += -I$(ESMF_DIR)/$(LOCDIR)/../include 
 ifneq ($(ESMF_SITE),default)
 ESMF_CXXCOMPILEPATHSLOCAL += -I$(ESMF_SITEDIR)
 endif
 ESMF_CXXCOMPILEPATHSLOCAL += -I$(ESMF_CONFDIR) $(ESMF_INTERNALINCDIRS)
-ESMF_CXXCOMPILEPATHS += -I$(ESMF_INCDIR)
-ESMF_CXXCOMPILECPPFLAGS += $(CPPFLAGS) -D__SDIR__='"$(LOCDIR)"'
+ESMF_CXXCOMPILEPATHS      += -I$(ESMF_INCDIR)  $(ESMF_CXXCOMPILEPATHSTHIRD)
+ESMF_CXXCOMPILECPPFLAGS   += $(CPPFLAGS) -D__SDIR__='"$(LOCDIR)"'
 
 # - F90LINKER
 ifneq ($(origin ESMF_F90LINKER), environment)
@@ -677,10 +761,42 @@ ESMF_F90LINKER = $(ESMF_F90LINKERDEFAULT)
 ESMF_F90LINKERDEFAULT = $(ESMF_F90DEFAULT)
 endif
 endif
-ESMF_F90LINKOPTS +=
-ESMF_F90LINKPATHS += -L$(ESMF_LDIR)
-ESMF_F90LINKRPATHS += $(ESMF_RPATHPREFIX)$(ESMF_LDIR)
-ESMF_F90LINKLIBS +=
+# - make sure environment variable gets prepended _once_
+ifeq ($(origin ESMF_F90LINKOPTS), environment)
+export ESMF_F90LINKOPTS_ENV := $(ESMF_F90LINKOPTS)
+unexport ESMF_F90LINKOPTS
+endif
+ifeq ($(origin ESMF_F90LINKOPTS_ENV), environment)
+ESMF_F90LINKOPTS = $(ESMF_F90LINKOPTS_ENV)
+endif
+ESMF_F90LINKOPTS     +=
+# - make sure environment variable gets prepended _once_
+ifeq ($(origin ESMF_F90LINKPATHS), environment)
+export ESMF_F90LINKPATHS_ENV := $(ESMF_F90LINKPATHS)
+unexport ESMF_F90LINKPATHS
+endif
+ifeq ($(origin ESMF_F90LINKPATHS_ENV), environment)
+ESMF_F90LINKPATHS = $(ESMF_F90LINKPATHS_ENV)
+endif
+ESMF_F90LINKPATHS    += -L$(ESMF_LDIR) $(ESMF_F90LINKPATHSTHIRD)
+# - make sure environment variable gets prepended _once_
+ifeq ($(origin ESMF_F90LINKRPATHS), environment)
+export ESMF_F90LINKRPATHS_ENV := $(ESMF_F90LINKRPATHS)
+unexport ESMF_F90LINKRPATHS
+endif
+ifeq ($(origin ESMF_F90LINKRPATHS_ENV), environment)
+ESMF_F90LINKRPATHS = $(ESMF_F90LINKRPATHS_ENV)
+endif
+ESMF_F90LINKRPATHS   += $(ESMF_F90RPATHPREFIX)$(ESMF_LDIR) $(ESMF_F90LINKRPATHSTHIRD)
+# - make sure environment variable gets prepended _once_
+ifeq ($(origin ESMF_F90LINKLIBS), environment)
+export ESMF_F90LINKLIBS_ENV := $(ESMF_F90LINKLIBS)
+unexport ESMF_F90LINKLIBS
+endif
+ifeq ($(origin ESMF_F90LINKLIBS_ENV), environment)
+ESMF_F90LINKLIBS = $(ESMF_F90LINKLIBS_ENV)
+endif
+ESMF_F90LINKLIBS     +=
 ESMF_F90ESMFLINKLIBS += -lesmf $(ESMF_F90LINKLIBS)
 
 # - CXXLINKER
@@ -692,10 +808,42 @@ ESMF_CXXLINKER = $(ESMF_CXXLINKERDEFAULT)
 ESMF_CXXLINKERDEFAULT = $(ESMF_CXXDEFAULT)
 endif
 endif
-ESMF_CXXLINKOPTS +=
-ESMF_CXXLINKPATHS += -L$(ESMF_LDIR)
-ESMF_CXXLINKRPATHS += $(ESMF_RPATHPREFIX)$(ESMF_LDIR)
-ESMF_CXXLINKLIBS +=
+# - make sure environment variable gets prepended _once_
+ifeq ($(origin ESMF_CXXLINKOPTS), environment)
+export ESMF_CXXLINKOPTS_ENV := $(ESMF_CXXLINKOPTS)
+unexport ESMF_CXXLINKOPTS
+endif
+ifeq ($(origin ESMF_CXXLINKOPTS_ENV), environment)
+ESMF_CXXLINKOPTS = $(ESMF_CXXLINKOPTS_ENV)
+endif
+ESMF_CXXLINKOPTS     +=
+# - make sure environment variable gets prepended _once_
+ifeq ($(origin ESMF_CXXLINKPATHS), environment)
+export ESMF_CXXLINKPATHS_ENV := $(ESMF_CXXLINKPATHS)
+unexport ESMF_CXXLINKPATHS
+endif
+ifeq ($(origin ESMF_CXXLINKPATHS_ENV), environment)
+ESMF_CXXLINKPATHS = $(ESMF_CXXLINKPATHS_ENV)
+endif
+ESMF_CXXLINKPATHS    += -L$(ESMF_LDIR) $(ESMF_CXXLINKPATHSTHIRD)
+# - make sure environment variable gets prepended _once_
+ifeq ($(origin ESMF_CXXLINKRPATHS), environment)
+export ESMF_CXXLINKRPATHS_ENV := $(ESMF_CXXLINKRPATHS)
+unexport ESMF_CXXLINKRPATHS
+endif
+ifeq ($(origin ESMF_CXXLINKRPATHS_ENV), environment)
+ESMF_CXXLINKRPATHS = $(ESMF_CXXLINKRPATHS_ENV)
+endif
+ESMF_CXXLINKRPATHS   += $(ESMF_CXXRPATHPREFIX)$(ESMF_LDIR) $(ESMF_CXXLINKRPATHSTHIRD)
+# - make sure environment variable gets prepended _once_
+ifeq ($(origin ESMF_CXXLINKLIBS), environment)
+export ESMF_CXXLINKLIBS_ENV := $(ESMF_CXXLINKLIBS)
+unexport ESMF_CXXLINKLIBS
+endif
+ifeq ($(origin ESMF_CXXLINKLIBS_ENV), environment)
+ESMF_CXXLINKLIBS = $(ESMF_CXXLINKLIBS_ENV)
+endif
+ESMF_CXXLINKLIBS     +=
 ESMF_CXXESMFLINKLIBS += -lesmf $(ESMF_CXXLINKLIBS)
 
 # - tools: AR + RANLIB + ...
@@ -860,14 +1008,10 @@ ESMF_CXXLINKLIBS        := $(ESMF_LAPACK_LIBS) $(ESMF_CXXLINKLIBS)
 ESMF_F90LINKLIBS        := $(ESMF_LAPACK_LIBS) $(ESMF_F90LINKLIBS)
 endif
 ifdef ESMF_LAPACK_LIBPATH
-ESMF_CXXLINKPATHS       += -L$(ESMF_LAPACK_LIBPATH)
-ESMF_F90LINKPATHS       += -L$(ESMF_LAPACK_LIBPATH)
-ifneq ($(ESMF_CXXLINKRPATHS), "")
-ESMF_CXXLINKRPATHS += $(ESMF_RPATHPREFIX)$(ESMF_LAPACK_LIBPATH)
-endif
-ifneq ($(ESMF_F90LINKRPATHS), "")
-ESMF_F90LINKRPATHS += $(ESMF_RPATHPREFIX)$(ESMF_LAPACK_LIBPATH)
-endif
+ESMF_CXXLINKPATHSTHIRD    += -L$(ESMF_LAPACK_LIBPATH)
+ESMF_F90LINKPATHSTHIRD    += -L$(ESMF_LAPACK_LIBPATH)
+ESMF_CXXLINKRPATHSTHIRD   += $(ESMF_CXXRPATHPREFIX)$(ESMF_LAPACK_LIBPATH)
+ESMF_F90LINKRPATHSTHIRD   += $(ESMF_F90RPATHPREFIX)$(ESMF_LAPACK_LIBPATH)
 endif
 endif
 
@@ -889,46 +1033,45 @@ endif
 ifdef ESMF_NETCDF
 CPPFLAGS                += -DESMF_NETCDF=1
 ifdef ESMF_NETCDF_INCLUDE
-ESMF_CXXCOMPILEPATHS    += -I$(ESMF_NETCDF_INCLUDE)
-ESMF_F90COMPILEPATHS    += -I$(ESMF_NETCDF_INCLUDE)
+ESMF_CXXCOMPILEPATHSTHIRD    += -I$(ESMF_NETCDF_INCLUDE)
+ESMF_F90COMPILEPATHSTHIRD    += -I$(ESMF_NETCDF_INCLUDE)
 endif
 ifdef ESMF_NETCDF_LIBS
 ESMF_CXXLINKLIBS        += $(ESMF_NETCDF_LIBS)
 ESMF_F90LINKLIBS        += $(ESMF_NETCDF_LIBS)
 endif
 ifdef ESMF_NETCDF_LIBPATH
-ESMF_CXXLINKPATHS       += -L$(ESMF_NETCDF_LIBPATH)
-ESMF_F90LINKPATHS       += -L$(ESMF_NETCDF_LIBPATH)
-ifneq ("$(ESMF_CXXLINKRPATHS)", "")
-ESMF_CXXLINKRPATHS += $(ESMF_RPATHPREFIX)$(ESMF_NETCDF_LIBPATH)
-endif
-ifneq ("$(ESMF_F90LINKRPATHS)", "")
-ESMF_F90LINKRPATHS += $(ESMF_RPATHPREFIX)$(ESMF_NETCDF_LIBPATH)
-endif
+ESMF_CXXLINKPATHSTHIRD    += -L$(ESMF_NETCDF_LIBPATH)
+ESMF_F90LINKPATHSTHIRD    += -L$(ESMF_NETCDF_LIBPATH)
+ESMF_CXXLINKRPATHSTHIRD   += $(ESMF_CXXRPATHPREFIX)$(ESMF_NETCDF_LIBPATH)
+ESMF_F90LINKRPATHSTHIRD   += $(ESMF_F90RPATHPREFIX)$(ESMF_NETCDF_LIBPATH)
 endif
 endif
 
 #-------------------------------------------------------------------------------
 # PNETCDF
 #-------------------------------------------------------------------------------
+ifeq ($(ESMF_PNETCDF),standard)
+ifneq ($(origin ESMF_NETCDF_LIBS), environment)
+ESMF_PNETCDF_LIBS = -lpnetcdf
+endif
+endif
+
 ifdef ESMF_PNETCDF
 CPPFLAGS                += -DESMF_PNETCDF=1
 ifdef ESMF_PNETCDF_INCLUDE
-ESMF_CXXCOMPILEPATHS    += -I$(ESMF_PNETCDF_INCLUDE)
+ESMF_CXXCOMPILEPATHSTHIRD    += -I$(ESMF_PNETCDF_INCLUDE)
+ESMF_F90COMPILEPATHSTHIRD    += -I$(ESMF_PNETCDF_INCLUDE)
 endif
 ifdef ESMF_PNETCDF_LIBS
 ESMF_CXXLINKLIBS        += $(ESMF_PNETCDF_LIBS)
 ESMF_F90LINKLIBS        += $(ESMF_PNETCDF_LIBS)
 endif
 ifdef ESMF_PNETCDF_LIBPATH
-ESMF_CXXLINKPATHS       += -L$(ESMF_PNETCDF_LIBPATH)
-ESMF_F90LINKPATHS       += -L$(ESMF_PNETCDF_LIBPATH)
-ifneq ("$(ESMF_CXXLINKRPATHS)", "")
-ESMF_CXXLINKRPATHS += $(ESMF_RPATHPREFIX)$(ESMF_PNETCDF_LIBPATH)
-endif
-ifneq ("$(ESMF_F90LINKRPATHS)", "")
-ESMF_F90LINKRPATHS += $(ESMF_RPATHPREFIX)$(ESMF_PNETCDF_LIBPATH)
-endif
+ESMF_CXXLINKPATHSTHIRD    += -L$(ESMF_PNETCDF_LIBPATH)
+ESMF_F90LINKPATHSTHIRD    += -L$(ESMF_PNETCDF_LIBPATH)
+ESMF_CXXLINKRPATHSTHIRD   += $(ESMF_CXXRPATHPREFIX)$(ESMF_PNETCDF_LIBPATH)
+ESMF_F90LINKRPATHSTHIRD   += $(ESMF_F90RPATHPREFIX)$(ESMF_PNETCDF_LIBPATH)
 endif
 endif
 
@@ -944,24 +1087,75 @@ endif
 ifdef ESMF_XERCES
 CPPFLAGS                += -DESMF_XERCES=1
 ifdef ESMF_XERCES_INCLUDE
-ESMF_CXXCOMPILEPATHS    += -I$(ESMF_XERCES_INCLUDE)
-ESMF_F90COMPILEPATHS    += -I$(ESMF_XERCES_INCLUDE)
+ESMF_CXXCOMPILEPATHSTHIRD    += -I$(ESMF_XERCES_INCLUDE)
+ESMF_F90COMPILEPATHSTHIRD    += -I$(ESMF_XERCES_INCLUDE)
 endif
 ifdef ESMF_XERCES_LIBS
 ESMF_CXXLINKLIBS        += $(ESMF_XERCES_LIBS)
 ESMF_F90LINKLIBS        += $(ESMF_XERCES_LIBS)
 endif
 ifdef ESMF_XERCES_LIBPATH
-ESMF_CXXLINKPATHS       += -L$(ESMF_XERCES_LIBPATH)
-ESMF_F90LINKPATHS       += -L$(ESMF_XERCES_LIBPATH)
-ifneq ("$(ESMF_CXXLINKRPATHS)", "")
-ESMF_CXXLINKRPATHS += $(ESMF_RPATHPREFIX)$(ESMF_XERCES_LIBPATH)
-endif
-ifneq ("$(ESMF_F90LINKRPATHS)", "")
-ESMF_F90LINKRPATHS += $(ESMF_RPATHPREFIX)$(ESMF_XERCES_LIBPATH)
+ESMF_CXXLINKPATHSTHIRD    += -L$(ESMF_XERCES_LIBPATH)
+ESMF_F90LINKPATHSTHIRD    += -L$(ESMF_XERCES_LIBPATH)
+ESMF_CXXLINKRPATHSTHIRD   += $(ESMF_CXXRPATHPREFIX)$(ESMF_XERCES_LIBPATH)
+ESMF_F90LINKRPATHSTHIRD   += $(ESMF_F90RPATHPREFIX)$(ESMF_XERCES_LIBPATH)
 endif
 endif
+
+#-------------------------------------------------------------------------------
+# PIO
+#-------------------------------------------------------------------------------
+ifneq ($(origin ESMF_PIO), environment)
+ifdef ESMF_PIODEFAULT
+export ESMF_PIO = $(ESMF_PIODEFAULT)
+
+ifeq ($(ESMF_PIO),internal)
+ifeq ($(ESMF_COMM),mpiuni)
+#TODO: This turns PIO off if it was set to internal from a default setting.
+#TODO: We need to do this while our internal PIO does not support mpiuni mode,
+#TODO: but want to allow external PIO or explicit ESMF_PIO setting for developm. #TODO: Eventually this should become unnecessary.
+ESMF_PIO = OFF
 endif
+endif
+
+endif
+endif
+
+ifeq ($(ESMF_PIO),OFF)
+ESMF_PIO=
+endif
+
+ifeq ($(ESMF_PIO),external)
+ifneq ($(origin ESMF_PIO_LIBS), environment)
+ESMF_PIO_LIBS = -lpio
+endif
+endif
+
+ifdef ESMF_PIO
+CPPFLAGS                += -DESMF_PIO=$(ESMF_PIO)
+ifdef ESMF_PIO_INCLUDE
+ESMF_CXXCOMPILEPATHSTHIRD    += -I$(ESMF_PIO_INCLUDE)
+ESMF_F90COMPILEPATHSTHIRD    += -I$(ESMF_PIO_INCLUDE)
+endif
+ifdef ESMF_PIO_LIBS
+ESMF_CXXLINKLIBS        := $(ESMF_PIO_LIBS) $(ESMF_CXXLINKLIBS)
+ESMF_F90LINKLIBS        := $(ESMF_PIO_LIBS) $(ESMF_F90LINKLIBS)
+endif
+ifdef ESMF_PIO_LIBPATH
+ESMF_CXXLINKPATHSTHIRD    += -L$(ESMF_PIO_LIBPATH)
+ESMF_F90LINKPATHSTHIRD    += -L$(ESMF_PIO_LIBPATH)
+ESMF_CXXLINKRPATHSTHIRD   += $(ESMF_CXXRPATHPREFIX)$(ESMF_PIO_LIBPATH)
+ESMF_F90LINKRPATHSTHIRD   += $(ESMF_F90RPATHPREFIX)$(ESMF_PIO_LIBPATH)
+endif
+endif
+
+ifneq ($(ESMF_COMM),mpiuni)
+ifneq ($(ESMF_COMM),mvapich)
+export ESMF_MPIIO = supported
+CPPFLAGS += -DESMF_MPIIO
+endif
+endif
+
 
 #-------------------------------------------------------------------------------
 # Set the correct MPIRUN command with appropriate options
@@ -1045,7 +1239,38 @@ SOURCE		= $(SOURCEC) $(SOURCEF)
 OBJS		= $(OBJSC) $(OBJSF)
 #-------------------------------------------------------------------------------
 
+#-------------------------------------------------------------------------------
+# Test an installation pointed to by ESMFMKFILE
+#-------------------------------------------------------------------------------
 
+ifeq ($(ESMF_TESTESMFMKFILE),ON)
+include $(ESMFMKFILE)
+ESMFLIB =
+ESMF_INTERNALINCDIRS  += -I$(ESMF_BUILD)/src/Superstructure/ESMFMod/include
+ESMF_INTERNALINCDIRS  += -I$(ESMF_BUILD)/src/Superstructure/State/include
+ESMF_INTERNALINCDIRS  += -I$(ESMF_BUILD)/src/Infrastructure/Util/include
+ESMF_INTERNALINCDIRS  += -I$(ESMF_BUILD)/src/Infrastructure/Base/include
+ESMF_INTERNALINCDIRS  += -I$(ESMF_BUILD)/src/Infrastructure/VM/include
+ESMF_INTERNALINCDIRS  += -I$(ESMF_BUILD)/src/Infrastructure/Attribute/include
+ESMF_INTERNALINCDIRS  += -I$(ESMF_BUILD)/src/Infrastructure/Array/include
+ESMF_INTERNALINCDIRS  += -I$(ESMF_BUILD)/src/Infrastructure/ArrayBundle/include
+ESMF_INTERNALINCDIRS  += -I$(ESMF_BUILD)/src/Infrastructure/ArraySpec/include
+ESMF_INTERNALINCDIRS  += -I$(ESMF_BUILD)/src/Infrastructure/DELayout/include
+ESMF_INTERNALINCDIRS  += -I$(ESMF_BUILD)/src/Infrastructure/DistGrid/include
+ESMF_INTERNALINCDIRS  += -I$(ESMF_BUILD)/src/Infrastructure/LocalArray/include
+ESMF_INTERNALINCDIRS  += -I$(ESMF_BUILD)/src/Infrastructure/LogErr/include
+ESMF_INTERNALINCDIRS  += -I$(ESMF_BUILD)/src/Infrastructure/TimeMgr/include
+ESMF_INTERNALINCDIRS  += -I$(ESMF_BUILD)/src/Infrastructure/Grid/include
+ESMF_INTERNALINCDIRS  += -I$(ESMF_BUILD)/src/Infrastructure/Route/include
+ESMF_INTERNALINCDIRS  += -I$(ESMF_BUILD)/src/Infrastructure/Field/include
+ESMF_INTERNALINCDIRS  += -I$(ESMF_BUILD)/src/epilogue/include
+export ESMF_AUTO_LIB_BUILD=OFF
+ifeq ($(ESMF_TESTEXHAUSTIVE),ON) 
+ESMF_F90COMPILEOPTS   += -DESMF_TESTEXHAUSTIVE 
+ESMF_CXXCOMPILEOPTS   += -DESMF_TESTEXHAUSTIVE 
+endif
+
+endif
 
 #-------------------------------------------------------------------------------
 #-------------------------------------------------------------------------------
@@ -1161,10 +1386,20 @@ chkdir_examples:
 	  echo Making directory $(ESMF_EXDIR) for examples output; \
 	  mkdir -p $(ESMF_EXDIR) ; fi
 
+chkdir_apps:
+	@if [ ! -d $(ESMF_APPSDIR) ]; then \
+	  echo Making directory $(ESMF_APPSDIR) for apps output; \
+	  mkdir -p $(ESMF_APPSDIR) ; fi
+
+chkdir_locobj:
+	@if [ ! -d $(ESMF_LOCOBJDIR) ]; then \
+	  echo Making directory $(ESMF_LOCOBJDIR) for apps output; \
+	  mkdir -p $(ESMF_LOCOBJDIR) ; fi
 
 # use these targets if the libdir, testdir, etc. must be there already. 
 # this target prints a fail message and exits if not present.
 reqdir_lib:  
+ifneq ($(ESMF_TESTESMFMKFILE),ON)
 	@if [ ! -d $(ESMF_LIBDIR) ]; then \
 	  echo "ESMF library directory not found:" ; \
 	  echo " $(ESMF_LIBDIR) " ; \
@@ -1179,6 +1414,7 @@ reqdir_lib:
           echo " has the same setting as at library build time." ; \
 	  echo "" ; \
           $(MAKE) err ; fi
+endif
 
 reqdir_tests:  
 	@if [ ! -d $(ESMF_TESTDIR) ]; then \
@@ -1203,9 +1439,11 @@ reqdir_examples:
 # the file libesmf.a exists in the lib dir; if not, build it.  if it is there,
 # call it success, even if a source file is more recent than the lib.
 
-reqfile_libesmf:  
+reqfile_libesmf:
+ifneq ($(ESMF_TESTESMFMKFILE),ON)
 	@if [ ! -f $(ESMFLIB) ]; then \
 	  $(MAKE) lib ; fi
+endif
 
 #-------------------------------------------------------------------------------
 # This target used to check that variables which had to have settings
@@ -1254,11 +1492,11 @@ endif
 lib: info
 	@$(MAKE) build_libs
 	@$(MAKE) info_mk
-	@echo "ESMF library built successfully."
+	@echo "ESMF library built successfully on "`date`
 	@echo "To verify, build and run the unit and system tests with: $(MAKE) check"
 	@echo " or the more extensive: $(MAKE) all_tests"
 
-build_libs: chkdir_lib include etc
+build_libs: chkdir_lib include_n_etc
 	cd $(ESMF_DIR) ; $(MAKE) ACTION=tree_lib tree
 ifeq ($(ESMF_DEFER_LIB_BUILD),ON)
 	cd $(ESMF_DIR) ; $(MAKE) defer
@@ -1270,9 +1508,8 @@ endif
 
 # Build only stuff in and below the current dir.
 build_here: chkdir_lib chkdir_include chkdir_etc
-	$(MAKE) ACTION=tree_include tree
+	$(MAKE) ACTION="tree_include tree_etc" tree
 	$(MAKE) ACTION=tree_lib tree
-	$(MAKE) ACTION=tree_etc tree
 ifeq ($(ESMF_DEFER_LIB_BUILD),ON)
 	$(MAKE) defer
 endif
@@ -1291,8 +1528,6 @@ esmflib:: chkdir_lib $(SOURCE)
 		$(MAKE) -f $(MAKEFILE) libc ; fi
 	@if [ "$(SOURCEF)" != "" ] ; then \
 		$(MAKE) -f $(MAKEFILE) libf ; fi
-	@if [ "$(QUICKSTART)" != "" ] ; then \
-		$(MAKE) -f $(MAKEFILE) tree_build_quick_start; fi
 
 # copy private include files into src/include directory.
 include: chkdir_include $(if $(findstring ON,$(ESMF_DEFER_LIB_BUILD)),chkdir_lib)
@@ -1319,6 +1554,19 @@ tree_etc:
 	    cp -fp ../etc/$$etcfile $(ESMF_ETCDIR) ; \
 	  fi ; \
 	done
+
+# combined include and etc target that walks the tree only once
+include_n_etc: chkdir_include chkdir_etc $(if $(findstring ON,$(ESMF_DEFER_LIB_BUILD)),chkdir_lib)
+	cd $(ESMF_DIR) ;\
+        $(MAKE) ACTION="tree_include tree_etc" tree
+        
+# extra indirection to allow build_libs to be turned off in targets using it
+autobuild_libs:
+ifeq ($(ESMF_AUTO_LIB_BUILD),OFF)
+	$(MAKE) reqfile_libesmf
+else
+	$(MAKE) build_libs
+endif
 
 #-------------------------------------------------------------------------------
 # Clean and clobber targets.
@@ -1347,7 +1595,7 @@ tree_etc:
 
 CLEAN_DEFDIRS = coredir.*
 CLEAN_DEFAULTS = *.o *.$(ESMF_SL_SUFFIX) *.mod *.txt core ESM*.stdout ESM*.Log PET*.Log *ESMF_LogFile
-CLEAN_TEXFILES = *.aux *.bbl *.blg *.log *.toc *.dvi *.ORIG
+CLEAN_TEXFILES = *.aux *.bbl *.blg *.log *.toc *.dvi *.ps *.ORIG *.out
 
 clean:
 	$(MAKE) ACTION=tree_clean tree
@@ -1405,14 +1653,14 @@ mostlyclean:
 	$(MAKE) ACTION=tree_mostlyclean tree
 
 tree_mostlyclean:
-	@for DIR in $(DUSTDIRS) foo ; do \
+	@for DIR in $(MOSTLYCLEANDIRS) foo ; do \
 	   if [ $$DIR != "foo" ] ; then \
 	      cd $$DIR; $(MAKE) ACTION=tree_clean tree ;\
 	   fi ;\
 	done
-	
+
 #-------------------------------------------------------------------------------
-# Generic target for building and running all tests, examples, and demos.
+# Generic target for building and running all tests and examples
 #-------------------------------------------------------------------------------
 
 # vars used below in the all_tests target, because these are in the pattern
@@ -1422,15 +1670,13 @@ TEST_TARGETS = build_unit_tests run_unit_tests \
                build_system_tests run_system_tests
 
 ALLTEST_TARGETS = $(TEST_TARGETS) \
-                  build_examples run_examples \
-                  build_demos run_demos
+                  build_examples run_examples
 
 TEST_TARGETS_UNI = build_unit_tests run_unit_tests_uni \
                    build_system_tests run_system_tests_uni
 
 ALLTEST_TARGETS_UNI = $(TEST_TARGETS_UNI) \
-                      build_examples run_examples_uni \
-                      build_demos run_demos_uni
+                      build_examples run_examples_uni
 
 
 # TODO: a bit more on what eventually these targets should be:
@@ -1440,8 +1686,8 @@ ALLTEST_TARGETS_UNI = $(TEST_TARGETS_UNI) \
 # pinned off.  this does a cursory check, not a full, exhaustive check.
 #
 # 'gmake all_tests' makes and runs the full set of tests, respecting the user
-# setting for TESTEXHAUSTIVE.  it runs the unit tests, system tests, examples,
-# and the demo.
+# setting for TESTEXHAUSTIVE.  it runs the unit tests, system tests, and
+# examples.
 #
 # 'gmake validate' should probably do some numerical validation to make
 # sure we have something like bit reproducibility, that we are not going to
@@ -1451,11 +1697,11 @@ ALLTEST_TARGETS_UNI = $(TEST_TARGETS_UNI) \
 
 # quick sanity check, defaulting to TESTEXHAUSTIVE OFF but respecting
 # the user setting if it already has a value.
-check:
+check: info
 	@if [ $(ESMF_COMM) = "mpiuni" ] ; then \
-	  $(MAKE) info clean_check $(TEST_TARGETS_UNI) ;\
+	  $(MAKE) clean_check $(TEST_TARGETS_UNI) results_ck_summary ;\
 	else \
-	  $(MAKE) info clean_check $(TEST_TARGETS) ;\
+	  $(MAKE) clean_check $(TEST_TARGETS) results_ck_summary ;\
         fi
 
 
@@ -1476,29 +1722,30 @@ clean_check:
 
 
 # all tests, respecting user setting of TESTEXHAUSTIVE
-all_tests: 
+all_tests: info
 	@if [ $(ESMF_COMM) = "mpiuni" ] ; then \
-	  $(MAKE) info $(ALLTEST_TARGETS_UNI) results_summary ;\
+	  $(MAKE) $(ALLTEST_TARGETS_UNI) results_summary ;\
 	else \
-	  $(MAKE) info $(ALLTEST_TARGETS) results_summary ;\
+	  $(MAKE) $(ALLTEST_TARGETS) results_summary ;\
         fi
 
+dust_all_tests: dust_unit_tests dust_system_tests dust_examples
 
 build_all_tests: clean_if_exhaustive_flag_mismatch
-	$(MAKE) build_unit_tests build_system_tests build_examples build_demos 
+	$(MAKE) build_unit_tests build_system_tests build_examples
 
 
 run_all_tests:
 	@if [ $(ESMF_COMM) = "mpiuni" ] ; then \
 	  $(MAKE) run_unit_tests_uni run_system_tests_uni \
-                  run_examples_uni run_demos_uni results_summary ;\
+                  run_examples_uni results_summary ;\
 	else \
 	  $(MAKE) run_unit_tests run_system_tests \
-                  run_examples run_demos results_summary ;\
+                  run_examples results_summary ;\
         fi
 
 clean_all_tests:
-	$(MAKE) clean_unit_tests clean_system_tests clean_examples clean_demos
+	$(MAKE) clean_unit_tests clean_system_tests clean_examples
 
 
 # TODO: reserved for running any numerical validation tests, wordsize and
@@ -1528,12 +1775,39 @@ clean_validate:
 	$(MAKE) clean_unit_tests 
 
 
+#-------------------------------------------------------------------------------
+# Targets for building apps.
+#-------------------------------------------------------------------------------
+
+#
+# build_apps
+#
+build_apps: reqfile_libesmf reqdir_lib
+	cd $(ESMF_DIR)/src/apps; $(MAKE) ACTION=tree_build_apps tree
+	@echo "ESMF apps built successfully."
+# Notice: the cd into "$(ESMF_DIR)/src/apps" before the tree target above
+# makes this a lot faster than a complete tree traversal starting at the root!
+
+tree_build_apps: $(APPS_BUILD)
+
+#
+#  Link rule for apps, switch between C and Fortran
+#
+ifeq ($(APPS_MAINLANGUAGE),C)
+$(ESMF_APPSDIR)/% : $(addprefix $(ESMF_LOCOBJDIR)/,$(APPS_OBJ)) $(ESMFLIB)
+	$(MAKE) chkdir_apps
+	$(ESMF_CXXLINKER) $(ESMF_CXXLINKOPTS) $(ESMF_CXXLINKPATHS) $(ESMF_CXXLINKRPATHS) $(ESMF_EXEOUT_OPTION) $(addprefix $(ESMF_LOCOBJDIR)/,$(APPS_OBJ)) $(ESMF_CXXESMFLINKLIBS)
+else        
+$(ESMF_APPSDIR)/% : $(addprefix $(ESMF_LOCOBJDIR)/,$(APPS_OBJ)) $(ESMFLIB)
+	$(MAKE) chkdir_apps
+	$(ESMF_F90LINKER) $(ESMF_F90LINKOPTS) $(ESMF_F90LINKPATHS) $(ESMF_F90LINKRPATHS) $(ESMF_EXEOUT_OPTION) $(addprefix $(ESMF_LOCOBJDIR)/,$(APPS_OBJ)) $(ESMF_F90ESMFLINKLIBS)
+endif
 
 #-------------------------------------------------------------------------------
 # Targets for building and running system tests.
 #-------------------------------------------------------------------------------
 
-system_tests: chkdir_tests
+system_tests: chkdir_tests autobuild_libs dust_system_tests
 	@if [ -d $(ESMF_STDIR) ] ; then cd $(ESMF_STDIR); fi; \
 	if [ ! $(SYSTEM_TEST)foo = foo ] ; then \
 	   if [ -d $(SYSTEM_TEST) ] ; then \
@@ -1560,7 +1834,7 @@ tree_system_tests: tree_build_system_tests tree_run_system_tests
 #
 # system_tests_uni, build and run uni versions of the system tests
 #
-system_tests_uni: chkdir_tests
+system_tests_uni: chkdir_tests autobuild_libs dust_system_tests
 	@if [ -d $(ESMF_STDIR) ] ; then cd $(ESMF_STDIR); fi; \
 	if [ ! $(SYSTEM_TEST)foo = foo ] ; then \
 	   if [ -d $(SYSTEM_TEST) ] ; then \
@@ -1614,7 +1888,7 @@ tree_build_system_tests: $(SYSTEM_TESTS_BUILD)
 # and linking, or to create a temp subdir based on the compiler/platform/
 # BOPT/SITE settings - so compiles are truly independent.
 #
-# this also applies to the tests, examples, and demo code.
+# this also applies to the tests, and examples.
 #
 
 #
@@ -1654,9 +1928,23 @@ MPMDCLEANUP:
 	$(ESMF_RM) -f *.o *.mod
 
 #
+# dust_system_tests
+#
+dust_system_tests:
+	$(ESMF_RM) $(ESMF_TESTDIR)/system_tests_results
+	$(ESMF_RM) $(ESMF_TESTDIR)/*STest.Log
+	$(ESMF_RM) $(ESMF_TESTDIR)/*STest.stdout
+	$(ESMF_RM) $(ESMF_TESTDIR)/*.rc
+	$(ESMF_RM) $(ESMF_TESTDIR)/*.nc
+	$(ESMF_RM) $(ESMF_TESTDIR)/data
+
+#
 # run_system_tests
 #
 run_system_tests:  reqdir_tests update_sys_tests_flags
+	@if [ $(ESMF_DIR) = `pwd` ] ; then \
+	  $(MAKE) dust_system_tests ; \
+	fi
 	@if [ -d $(ESMF_STDIR) ] ; then cd $(ESMF_STDIR) ; fi; \
 	if [ ! $(SYSTEM_TEST)foo = foo ] ; then \
 	   if [ -d $(SYSTEM_TEST) ] ; then \
@@ -1687,6 +1975,9 @@ tree_run_system_tests: $(SYSTEM_TESTS_RUN)
 # run_system_tests_uni
 #
 run_system_tests_uni:  reqdir_tests update_sys_tests_flags
+	@if [ $(ESMF_DIR) = `pwd` ] ; then \
+	  $(MAKE) dust_system_tests ; \
+	fi
 	@if [ -f $(SYS_TESTS_CONFIG) ] ; then \
            $(ESMF_SED) -e 's/ [A-Za-z][A-Za-z]*processor/ Uniprocessor/' $(SYS_TESTS_CONFIG) > $(SYS_TESTS_CONFIG).temp; \
            $(ESMF_MV) $(SYS_TESTS_CONFIG).temp $(SYS_TESTS_CONFIG); \
@@ -1863,7 +2154,7 @@ tree_build_use_test_cases: chkdir_tests $(USE_TEST_CASES_BUILD)
 # and linking, or to create a temp subdir based on the compiler/platform/
 # BOPT/SITE settings - so compiles are truly independent.
 #
-# this also applies to the tests, examples, and demo code.
+# this also applies to the tests, and examples.
 #
 
 #
@@ -1983,7 +2274,7 @@ check_use_test_cases:
 # all is well (it comes out 128).  if this gets fixed in our code, the dashes
 # can be removed and make can correctly stop on error.
 
-unit_tests: chkdir_tests build_libs
+unit_tests: chkdir_tests autobuild_libs dust_unit_tests
 	@if [ $(ESMF_COMM) = "mpiuni" ] ; then \
           echo "Cannot run multiprocessor unit tests when ESMF_COMM is mpiuni;" ; \
 	  echo "run unit_tests_uni instead." ; \
@@ -1999,7 +2290,7 @@ tree_unit_tests: tree_build_unit_tests tree_run_unit_tests
 #
 # tests_uni
 #
-unit_tests_uni: chkdir_tests build_libs
+unit_tests_uni: chkdir_tests autobuild_libs dust_unit_tests
 	$(MAKE) MULTI="Uniprocessor" config_unit_tests
 	-$(MAKE) ACTION=tree_unit_tests_uni tree
 	$(MAKE) check_unit_tests
@@ -2042,6 +2333,17 @@ unit_test_links:
 	ln -s $(ESMF_TESTDIR)/ESMF_$(TNAME)UTest.Log l
 
 #
+# dust_unit_tests
+#
+dust_unit_tests: dust_test_harness
+	$(ESMF_RM) $(ESMF_TESTDIR)/unit_tests_results
+	$(ESMF_RM) $(ESMF_TESTDIR)/*UTest.Log
+	$(ESMF_RM) $(ESMF_TESTDIR)/*UTest.stdout
+	$(ESMF_RM) $(ESMF_TESTDIR)/*.rc
+	$(ESMF_RM) $(ESMF_TESTDIR)/*.nc
+	$(ESMF_RM) $(ESMF_TESTDIR)/data
+
+#
 # run_unit_tests
 #
 run_unit_tests:  reqdir_tests verify_exhaustive_flag
@@ -2050,7 +2352,10 @@ run_unit_tests:  reqdir_tests verify_exhaustive_flag
 	  echo "run run_unit_tests_uni instead." ; \
 	  echo "" ; \
 	  $(MAKE) err ; \
-	fi 
+	fi
+	@if [ $(ESMF_DIR) = `pwd` ] ; then \
+	  $(MAKE) dust_unit_tests ; \
+	fi
 	@if [ -f $(UNIT_TESTS_CONFIG) ] ; then \
 	   $(ESMF_SED) -e 's/ [A-Za-z][A-Za-z]*processor/ Multiprocessor/' $(UNIT_TESTS_CONFIG) > $(UNIT_TESTS_CONFIG).temp; \
            $(ESMF_MV) $(UNIT_TESTS_CONFIG).temp $(UNIT_TESTS_CONFIG); \
@@ -2064,6 +2369,9 @@ tree_run_unit_tests: $(TESTS_RUN)
 # run_unit_tests_uni
 #
 run_unit_tests_uni:  reqdir_tests verify_exhaustive_flag
+	@if [ $(ESMF_DIR) = `pwd` ] ; then \
+	  $(MAKE) dust_unit_tests ; \
+	fi
 	@if [ -f $(UNIT_TESTS_CONFIG) ] ; then \
 	   $(ESMF_SED) -e 's/ [A-Za-z][A-Za-z]*processor/ Uniprocessor/' $(UNIT_TESTS_CONFIG) > $(UNIT_TESTS_CONFIG).temp; \
            $(ESMF_MV) $(UNIT_TESTS_CONFIG).temp $(UNIT_TESTS_CONFIG); \
@@ -2188,17 +2496,28 @@ ftest:
 
 htest:
 	-@cd $(ESMF_TESTDIR) ; \
-	$(ESMF_RM) ./PET*$(TNAME)UTest.Log ; \
+	$(ESMF_RM) ./PET*$(TNAME)UTest.Log ESMF_$(TNAME)UTest.stdout ; \
 	if [ $(ESMF_BATCHDEPRECATED) = "true" ] ; then \
-	  echo $(ESMF_MPIRUN) -np $(NP) ./ESMF_$(TNAME)UTest ; \
-	  $(ESMF_MPIRUN) -np $(NP) ./ESMF_$(TNAME)UTest ; \
+	  echo $(ESMF_MPIRUN) -np $(NP) ./ESMF_$(TNAME)UTest -case $(TESTHARNESSCASE)_test.rc -xml $(TESTHARNESSCASE).xml; \
+	  $(ESMF_MPIRUN) -np $(NP) ./ESMF_$(TNAME)UTest -case $(TESTHARNESSCASE)_test.rc -xml $(TESTHARNESSCASE).xml ; \
+	  if [ -f $(ESMF_TESTDIR)/ESMF_$(TNAME)UTest.stdout ] ; then \
+		mv -f $(ESMF_TESTDIR)/ESMF_$(TNAME)UTest.stdout $(ESMF_TESTDIR)/ESMF_$(HNAME)UTest.stdout ; \
+	  fi ; \
 	else \
-	  echo $(ESMF_MPIRUN) -np $(NP) ./ESMF_$(TNAME)UTest 1\> ./ESMF_$(HNAME)UTest.stdout 2\>\&1 ; \
-	  $(ESMF_MPIRUN) -np $(NP) ./ESMF_$(TNAME)UTest 1> ./ESMF_$(HNAME)UTest.stdout 2>&1 ; \
+	  echo $(ESMF_MPIRUN) -np $(NP) ./ESMF_$(TNAME)UTest -case $(TESTHARNESSCASE)_test.rc -xml $(TESTHARNESSCASE).xml; \
+	  $(ESMF_MPIRUN) -np $(NP) ./ESMF_$(TNAME)UTest -case $(TESTHARNESSCASE)_test.rc -xml $(TESTHARNESSCASE).xml 1> ./ESMF_$(HNAME)UTest.stdout 2>&1 ; \
+	  if [ -f $(ESMF_TESTDIR)/ESMF_$(TNAME)UTest.stdout ] ; then \
+		mv -f $(ESMF_TESTDIR)/ESMF_$(TNAME)UTest.stdout $(ESMF_TESTDIR)/ESMF_$(HNAME)UTest.stdout ; \
+	   fi ; \
 	fi ; \
 	cat ./PET*$(TNAME)UTest.Log > ./ESMF_$(HNAME)UTest.Log ; \
-	$(ESMF_RM) ./PET*$(TNAME)UTest.Log
+	$(ESMF_RM) ./PET*$(TNAME)UTest.Log ; \
+	if [ -f $(TESTHARNESSCASE).xml ] ; then \
+		echo xsltproc -o $(TESTHARNESSCASE).html $(ESMF_DIR)/src/test_harness/src/HarnessHttp.xslt $(TESTHARNESSCASE).xml ; \
+		xsltproc -o $(TESTHARNESSCASE).html $(ESMF_DIR)/src/test_harness/src/HarnessHttp.xslt $(TESTHARNESSCASE).xml ; \
+	fi
 
+### TNAME=TestHarness HNAME=$(TESTHARNESSCASE)_NP$(NP) TESTHARNESSPATH=$(PWD)
 
 ctest:
 	-@cd $(ESMF_TESTDIR) ; \
@@ -2225,6 +2544,53 @@ citest:
 	fi ; \
 	cat ./PET*$(TNAME)UTest.Log > ./ESMCI_$(TNAME)UTest.Log ; \
 	$(ESMF_RM) ./PET*$(TNAME)UTest.Log
+
+##########################
+# prepare to run test harness
+dust_test_harness:
+	$(ESMF_RM) $(ESMF_TESTDIR)/test_harness.*
+
+#
+# run test harness
+#    parameters
+#        TESTHARNESSCASE    test case name
+#        NP                 number of processors
+#
+#
+#    internal
+#        TNAME    test name (hardcoded TestHarness)
+#        HNAME    unique name base on suite and number of processors
+#
+#    environment
+#        MPIRUN        mpirun command
+#        ESMF_TESTDIR  test directory
+#
+# need UNI case, NP=UNI?
+#
+#
+run_test_harness: 
+	$(MAKE) TNAME=TestHarness HNAME=$(TESTHARNESSCASE)_NP$(NP) run_test_harness_sec
+
+# target with expanded parameters
+run_test_harness_sec:
+	@if [ -f $(ESMF_TESTDIR)/test_harness.list ] ; then \
+	  if ! grep ESMF_$(HNAME)UTest $(ESMF_TESTDIR)/test_harness.list ; then \
+	    echo ESMF_$(HNAME)UTest >> $(ESMF_TESTDIR)/test_harness.list ; \
+	  fi ; \
+	else \
+	  echo ESMF_$(HNAME)UTest > $(ESMF_TESTDIR)/test_harness.list ; \
+	fi ; \
+	if [ -d harness_config ] ; then \
+	  if [ -f harness_config/$(TESTHARNESSCASE)_test.rc ] ; then \
+	    cp -f harness_config/$(TESTHARNESSCASE)_*.rc $(ESMF_TESTDIR) ; \
+            cp -f harness_config/$(TESTHARNESSCASE)_test.rc $(ESMF_TESTDIR)/test_harness.rc ; \
+	    $(MAKE) htest ; \
+	  else \
+	    echo "FAIL: missing file - harness_config/$(TESTHARNESSCASE)_test.rc" ; \
+	  fi ; \
+	else \
+	  echo "FAIL: missing directory - harness_config" ; \
+	fi
 
 #-------------------------------------------------------------------------------
 #  Obsolete targets for building and running unit tests.  Echo an error
@@ -2270,7 +2636,7 @@ err: ; $(error gnumake exiting)
 #
 # examples
 #
-examples: chkdir_examples build_libs
+examples: chkdir_examples autobuild_libs dust_examples
 	@if [ $(ESMF_COMM) = "mpiuni" ] ; then \
           echo "Cannot run multiprocessor examples when ESMF_COMM is mpiuni;" ; \
 	  echo "run examples_uni instead." ; \
@@ -2287,7 +2653,7 @@ tree_examples: tree_build_examples tree_run_examples
 #
 # examples_uni
 #
-examples_uni: chkdir_examples build_libs
+examples_uni: chkdir_examples autobuild_libs dust_examples
 	$(MAKE) MULTI="Uniprocessor" config_examples
 	-$(MAKE) ACTION=tree_examples_uni tree
 	$(MAKE) check_examples
@@ -2317,6 +2683,17 @@ $(ESMF_EXDIR)/ESMC_%Ex: ESMC_%Ex.o $(ESMFLIB)
 	$(ESMF_RM) $<
 
 #
+# dust_examples
+#
+dust_examples:
+	$(ESMF_RM) $(ESMF_EXDIR)/examples_results
+	$(ESMF_RM) $(ESMF_EXDIR)/*Ex.Log
+	$(ESMF_RM) $(ESMF_EXDIR)/*Ex.stdout
+	$(ESMF_RM) $(ESMF_EXDIR)/*.rc
+	$(ESMF_RM) $(ESMF_EXDIR)/*.nc
+	$(ESMF_RM) $(ESMF_EXDIR)/data
+
+#
 # run_examples
 #
 run_examples:  reqdir_examples
@@ -2325,6 +2702,9 @@ run_examples:  reqdir_examples
 	  echo "run run_examples_uni instead." ; \
 	  echo "" ; \
 	  $(MAKE) err ; \
+	fi
+	@if [ $(ESMF_DIR) = `pwd` ] ; then \
+	  $(MAKE) dust_examples ; \
 	fi
 	@if [ -f $(EXAMPLES_CONFIG) ] ; then \
 	   $(ESMF_SED) -e 's/ [A-Za-z][A-Za-z]*processor/ Multiprocessor/' $(EXAMPLES_CONFIG) > $(EXAMPLES_CONFIG).temp; \
@@ -2339,6 +2719,9 @@ tree_run_examples: $(EXAMPLES_RUN)
 # run_examples_uni
 #
 run_examples_uni:  reqdir_examples
+	@if [ $(ESMF_DIR) = `pwd` ] ; then \
+	  $(MAKE) dust_examples ; \
+	fi
 	@if [ -f $(EXAMPLES_CONFIG) ] ; then \
 	   $(ESMF_SED) -e 's/ [A-Za-z][A-Za-z]*processor/ Uniprocessor/' $(EXAMPLES_CONFIG) > $(EXAMPLES_CONFIG).temp; \
 	$(ESMF_MV) $(EXAMPLES_CONFIG).temp $(EXAMPLES_CONFIG); \
@@ -2368,23 +2751,31 @@ endif
 #
 exfrun:
 	-@cd $(ESMF_EXDIR) ; \
+	$(ESMF_RM) ./PET*$(EXNAME)Ex.Log ; \
 	if [ $(ESMF_BATCHDEPRECATED) = "true" ] ; then \
 	  echo $(ESMF_MPIRUN) -np $(NP) ./ESMF_$(EXNAME)Ex ; \
 	  $(ESMF_MPIRUN) -np $(NP) ./ESMF_$(EXNAME)Ex ; \
 	else \
 	  echo $(ESMF_MPIRUN) -np $(NP) ./ESMF_$(EXNAME)Ex \> ./ESMF_$(EXNAME)Ex.stdout 2\>\&1 ; \
 	  $(ESMF_MPIRUN) -np $(NP) ./ESMF_$(EXNAME)Ex > ./ESMF_$(EXNAME)Ex.stdout 2>&1 ; \
-	fi 
+	fi ; \
+	cat ./PET*$(EXNAME)Ex.Log> ./ESMF_$(EXNAME)Ex.Log ; \
+	$(ESMF_RM) ./PET*$(EXNAME)Ex.Log
+
 
 excrun:
 	-@cd $(ESMF_EXDIR) ; \
+	$(ESMF_RM) ./PET*$(EXNAME)Ex.Log ; \
 	if [ $(ESMF_BATCHDEPRECATED) = "true" ] ; then \
 	  echo $(ESMF_MPIRUN) -np $(NP) ./ESMC_$(EXNAME)Ex ; \
 	  $(ESMF_MPIRUN) -np $(NP) ./ESMC_$(EXNAME)Ex ; \
 	else \
 	  echo $(ESMF_MPIRUN) -np $(NP) ./ESMC_$(EXNAME)Ex \> ./ESMC_$(EXNAME)Ex.stdout 2\>\&1 ; \
 	  $(ESMF_MPIRUN) -np $(NP) ./ESMC_$(EXNAME)Ex > ./ESMC_$(EXNAME)Ex.stdout 2>&1 ; \
-	fi 
+	fi ; \
+	cat ./PET*$(EXNAME)Ex.Log> ./ESMC_$(EXNAME)Ex.Log ; \
+	$(ESMF_RM) ./PET*$(EXNAME)Ex.Log
+
 
 #
 # this target deletes only the example related files from the example subdir
@@ -2401,75 +2792,6 @@ check_examples:
 
 
 #-------------------------------------------------------------------------------
-# Targets for building and running demos.
-#-------------------------------------------------------------------------------
-
-demos: build_libs chkdir_tests
-	@if [ $(ESMF_COMM) = "mpiuni" ] ; then \
-          echo "Cannot run multiprocessor demo when ESMF_COMM is mpiuni;" ; \
-	  echo "run demos_uni instead." ; \
-	  echo "" ; \
-	  $(MAKE) err ; \
-	fi
-	@if [ -d src/demos ] ; then cd src/demos; fi; \
-	$(MAKE) ACTION=tree_demos tree
-
-tree_demos: tree_build_demos tree_run_demos
-
-demos_uni: build_libs chkdir_tests
-	@if [ -d src/demos ] ; then cd src/demos; fi; \
-	$(MAKE) ACTION=tree_demos_uni tree
-
-tree_demos_uni: tree_build_demos tree_run_demos_uni
-
-#
-# build_demos
-#
-build_demos: reqfile_libesmf reqdir_lib chkdir_tests
-	@if [ -d src/demos ] ; then cd src/demos; fi; \
-	$(MAKE) ACTION=tree_build_demos tree
-# TODO:FIELDINTEGRATION Restore once demo is updated
-#	@echo "ESMF demos built successfully."
-
-tree_build_demos: $(DEMOS_BUILD) 
-
-$(ESMF_TESTDIR)/%App : %Demo.o $(DEMOS_OBJ) $(ESMFLIB)
-	$(ESMF_F90LINKER) $(ESMF_F90LINKOPTS) $(ESMF_F90LINKPATHS) $(ESMF_F90LINKRPATHS) $(ESMF_EXEOUT_OPTION) $(DEMOS_OBJ) $< $(ESMF_F90ESMFLINKLIBS)
-	$(ESMF_RM) -f *.o *.mod
-
-
-#
-# run_demos
-#
-run_demos:  reqdir_tests
-	@if [ $(ESMF_COMM) = "mpiuni" ] ; then \
-          echo "Cannot run multiprocessor demo when ESMF_COMM is mpiuni;" ; \
-	  echo "run run_demos_uni instead." ; \
-	  echo "" ; \
-	  $(MAKE) err ; \
-	fi
-	@if [ -d src/demos ] ; then cd src/demos; fi; \
-	$(MAKE) ACTION=tree_run_demos tree
-
-tree_run_demos: $(DEMOS_RUN) 
-
-run_demos_uni:  reqdir_tests
-	@if [ -d src/demos ] ; then cd src/demos; fi; \
-	$(MAKE) ACTION=tree_run_demos_uni tree
-
-tree_run_demos_uni: $(DEMOS_RUN_UNI) 
-
-#
-# this target deletes only the demos and output files created by the demos
-#
-clean_demos:
-	$(ESMF_RM) $(ESMF_TESTDIR)/*App 
-	@if [ -d src/demos ] ; then cd src/demos; fi; \
-	$(MAKE) clean
-	
-
-
-#-------------------------------------------------------------------------------
 # Targets for checking the builds
 #-------------------------------------------------------------------------------
 
@@ -2478,35 +2800,19 @@ check_results: check_unit_tests check_examples check_system_tests
 results_summary:
 	@$(DO_SUM_RESULTS)
 
+results_ck_summary:
+	@$(DO_CK_SUM_RESULTS)
 
 #-------------------------------------------------------------------------------
 # Quickstart targets
 #-------------------------------------------------------------------------------
 
-QUICKSTART_DIR     =  $(ESMF_BUILD)/quick_start
-
-chkdir_quick_start:
-	@if [ ! -d $(QUICKSTART_DIR) ] ; then \
-	   echo Making $(QUICKSTART_DIR); mkdir -p $(QUICKSTART_DIR) ; fi
-	@for DIR in $(QUICKSTART_SUBDIRS) foo ; do \
-	   if [ $$DIR != "foo" ] ; then \
-	      if [ ! -d $(QUICKSTART_DIR)/$$DIR ] ; then \
-	         echo Making $(QUICKSTART_DIR)/$$DIR ;\
-	         mkdir $(QUICKSTART_DIR)/$$DIR ;\
-	      fi ;\
-	   fi ;\
-	done
-
-build_quick_start: chkdir_quick_start
+build_quick_start:
 	$(MAKE) ACTION=tree_build_quick_start tree
 
-tree_build_quick_start: chkdir_quick_start
-	@for DIR in $(QUICKSTART_COPYDIRS) foo ; do \
-	   if [ $$DIR != "foo" ] ; then \
-	      echo "Copying $$DIR files to $(QUICKSTART_DIR)" ;\
-	      cp -f $$DIR/* $(QUICKSTART_DIR) ;\
-	   fi ;\
-	done
+tree_build_quick_start:
+	@if [ "$(QUICKSTARTDIR)" = "YES" ] ; then \
+		$(MAKE); fi
 
 #-------------------------------------------------------------------------------
 #  Doc targets
@@ -2518,6 +2824,7 @@ doc:  chkdir_doc
 	@echo "=========================================" 
 	@if [ ! -d $(ESMF_DIR)/src/doc ] ; then \
           echo "*** This version of the ESMF source tree does not contain documentation files. Please see http://www.earthsystemmodeling.org/ for ESMF documentation." ; \
+          $(ESMF_RM) $(ESMF_DOCDIR) ; \
           $(MAKE) err; \
         fi;
 	cd $(ESMF_DIR)/src/doc ;\
@@ -2531,6 +2838,11 @@ alldoc: doc
 # subsystem doc directory and will build only that doc.
 # this is also the default if you call make from a doc subdir.
 
+localdoc:
+	$(MAKE) $(TEXFILES_TO_MAKE)
+	$(MAKE) $(DVIFILES)
+	$(MAKE) $(PDFFILES)
+        
 onedoc: chkdir_doc include tex
 	@echo "========================================="
 	@echo "Building Single Document"
@@ -2610,8 +2922,8 @@ ifeq (,$(findstring k,$(MAKEFLAGS)))
 	  for dir in $(DIRS) foo ; do \
             if [ -d $$dir ]; then \
               (cd $$dir ; \
-              echo $(ACTION) in: `pwd`; \
-              $(MAKE) -f makefile tree ACTION=$(ACTION));\
+              echo "$(ACTION)" in: `pwd`; \
+              $(MAKE) -f makefile tree ACTION="$(ACTION)");\
               if [ "$$?" != 0 ]; then \
                 exit 1; \
               fi; \
@@ -2623,8 +2935,8 @@ else
 	  for dir in $(DIRS) foo ; do \
             if [ -d $$dir ]; then \
               (cd $$dir ; \
-              echo $(ACTION) in: `pwd`; \
-              $(MAKE) -f makefile tree ACTION=$(ACTION));\
+              echo "$(ACTION)" in: `pwd`; \
+              $(MAKE) -f makefile tree ACTION="$(ACTION)");\
             fi; \
 	  done; \
         fi
@@ -2678,6 +2990,30 @@ $(ESMF_OBJDIR)/%.o : %.c
 	$(ESMF_CXXCOMPILE_CMD) $< $(ESMF_OBJOUT_OPTION)
 
 $(ESMF_OBJDIR)/%.o : %.C
+	$(ESMF_CXXCOMPILE_CMD) $< $(ESMF_OBJOUT_OPTION)
+
+$(ESMF_LOCOBJDIR)/%.o : %.F90
+	$(MAKE) chkdir_locobj 
+	$(ESMF_F90COMPILEFREECPP_CMD) $< $(ESMF_OBJOUT_OPTION)
+
+$(ESMF_LOCOBJDIR)/%.o : %.f90
+	$(MAKE) chkdir_locobj 
+	$(ESMF_F90COMPILEFREENOCPP_CMD) $< $(ESMF_OBJOUT_OPTION)
+
+$(ESMF_LOCOBJDIR)/%.o : %.F
+	$(MAKE) chkdir_locobj 
+	$(ESMF_F90COMPILEFIXCPP_CMD) $< $(ESMF_OBJOUT_OPTION)
+
+$(ESMF_LOCOBJDIR)/%.o : %.f
+	$(MAKE) chkdir_locobj 
+	$(ESMF_F90COMPILEFIXNOCPP_CMD) $< $(ESMF_OBJOUT_OPTION)
+
+$(ESMF_LOCOBJDIR)/%.o : %.c
+	$(MAKE) chkdir_locobj 
+	$(ESMF_CXXCOMPILE_CMD) $< $(ESMF_OBJOUT_OPTION)
+
+$(ESMF_LOCOBJDIR)/%.o : %.C
+	$(MAKE) chkdir_locobj 
 	$(ESMF_CXXCOMPILE_CMD) $< $(ESMF_OBJOUT_OPTION)
 
 .F90.o:
@@ -2937,7 +3273,7 @@ endif
 # \input and \includegraphics LaTeX commands.
 #
 
-TEXINPUTS_VALUE = ".:$(ESMF_DIR)/src/doc:$(ESMF_BUILD_DOCDIR):$(ESMF_DIR)/src/demos/coupled_flow:"
+TEXINPUTS_VALUE = ".:$(ESMF_DIR)/src/doc:$(ESMF_BUILD_DOCDIR):"
 export TEXINPUTS_VALUE
 
 
@@ -2951,6 +3287,13 @@ export TEXINPUTS_VALUE
 	@echo "========================================="
 	export TEXINPUTS=$(TEXINPUTS_VALUE) ;\
 	$(DO_LATEX) $* ref
+
+%_crefdoc.dvi : %_crefdoc.ctex $(REFDOC_DEP_FILES)
+	@echo "========================================="
+	@echo "_crefdoc.dvi rule from common.mk"
+	@echo "========================================="
+	export TEXINPUTS=$(TEXINPUTS_VALUE) ;\
+	$(DO_LATEX) $* cref
 
 #-------------------------------------------------------------------------------
 #  pdf rules
@@ -2969,12 +3312,23 @@ $(ESMF_DOCDIR)/%.pdf: %.dvi
 
 $(ESMF_DOCDIR)/%_refdoc: %_refdoc.ctex $(REFDOC_DEP_FILES)
 	@echo "========================================="
-	@echo "_%refdoc from %.ctex rule from common.mk"
+	@echo "_refdoc hyml rule from common.mk"
 	@echo "========================================="
 	@if [ $(TEXINPUTS_VALUE)foo != foo ] ; then \
 	  echo '$$TEXINPUTS = $(TEXINPUTS_VALUE)' > .latex2html-init ;\
 	fi;
 	$(DO_L2H) $* ref
+	$(ESMF_RM) .latex2html-init
+	$(ESMF_MV) $(@F) $(ESMF_DOCDIR)
+
+$(ESMF_DOCDIR)/%_crefdoc: %_crefdoc.ctex $(REFDOC_DEP_FILES)
+	@echo "========================================="
+	@echo "_crefdoc html rule from common.mk"
+	@echo "========================================="
+	@if [ $(TEXINPUTS_VALUE)foo != foo ] ; then \
+	  echo '$$TEXINPUTS = $(TEXINPUTS_VALUE)' > .latex2html-init ;\
+	fi;
+	$(DO_L2H) $* cref
 	$(ESMF_RM) .latex2html-init
 	$(ESMF_MV) $(@F) $(ESMF_DOCDIR)
 
@@ -2988,7 +3342,7 @@ $(ESMF_DOCDIR)/%_refdoc: %_refdoc.ctex $(REFDOC_DEP_FILES)
 #-------------------------------------------------------------------------------
 # Keep .o and .$(ESMF_SL_SUFFIX) files
 #-------------------------------------------------------------------------------
-.PRECIOUS: %.o %.$(ESMF_SL_SUFFIX)
+.PRECIOUS: %.o %.$(ESMF_SL_SUFFIX) $(addprefix $(ESMF_LOCOBJDIR)/,$(APPS_OBJ))
 
 
 #-------------------------------------------------------------------------------
@@ -3018,12 +3372,20 @@ endif
 # keyword.  Multiple use statements on the same line are not recognized.
 define MOD_FUNC
 $(filter-out $(addsuffix .o,$(basename $(1))), \
+ $(subst ESMF_.o,ESMF.o, \
   $(sort \
-    $(shell awk  '/^ *use  *ESMF_/' $(1) \
-          | sed 's/^ *use  *ESMF_/ESMF_/' \
-          | sed 's/Mod.*$$/\.o/' \
+   $(addsuffix .o, \
+      $(shell awk  '/^ *use  *ESMF_/' $(1) \
+            | sed 's/^ *use  *ESMF_/ESMF_/' \
+            | sed 's/Mod.*$$//' \
+       ) \
+      $(shell awk  '/^ *use  *NUOPC/' $(1) \
+            | sed 's/^ *use  *NUOPC/NUOPC/' \
+            | sed 's/,.*$$//' \
+       ) \
      ) \
    ) \
+  ) \
  )
 endef
 
@@ -3089,7 +3451,7 @@ endif
 # - if SOURCEF or SOURCEC are non-empty
 # - define LOCAL_INCLUDE_FILES based on SOURCEH and ../include
 # - Fortran autogen source files are assumed to be named with the .cppF90 suffix
-ifeq ($(ACTION), tree_include)
+ifneq (,$(findstring tree_include,"$(ACTION)"))
   ifneq (,$(strip $(SOURCEF) $(SOURCEC)))
     LOCAL_INCLUDE_FILES = $(strip $(SOURCEH) $(notdir $(wildcard ../include/*)))
     $(foreach f,$(filter-out $(AUTOGEN),$(SOURCEF)),\

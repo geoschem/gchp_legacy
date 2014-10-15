@@ -1,0 +1,260 @@
+function zplt (args)
+
+'numargs  'args
+ numargs = result
+
+        num = 0
+while ( num < numargs )
+        num = num + 1
+
+if( subwrd(args,num) = '-EXPID'   ) ; expid    = subwrd(args,num+1) ; endif
+if( subwrd(args,num) = '-EXPORT'  ) ; EXPORT   = subwrd(args,num+1) ; endif
+if( subwrd(args,num) = '-ALIAS'   ) ; alias    = subwrd(args,num+1) ; endif
+if( subwrd(args,num) = '-QFILE'   ) ; qfile    = subwrd(args,num+1) ; endif
+if( subwrd(args,num) = '-OFILE'   ) ; ofile    = subwrd(args,num+1) ; endif
+if( subwrd(args,num) = '-ONAME'   ) ; obsnam   = subwrd(args,num+1) ; endif
+if( subwrd(args,num) = '-OBDATE'  ) ; begdateo = subwrd(args,num+1) ; endif
+if( subwrd(args,num) = '-OEDATE'  ) ; enddateo = subwrd(args,num+1) ; endif
+if( subwrd(args,num) = '-NMOD'    ) ; nmod     = subwrd(args,num+1) ; endif
+if( subwrd(args,num) = '-NOBS'    ) ; nobs     = subwrd(args,num+1) ; endif
+if( subwrd(args,num) = '-QDESC'   ) ; qdesc    = subwrd(args,num+1) ; endif
+if( subwrd(args,num) = '-ODESC'   ) ; odesc    = subwrd(args,num+1) ; endif
+if( subwrd(args,num) = '-OUTPUT'  ) ; output   = subwrd(args,num+1) ; endif
+if( subwrd(args,num) = '-SEASON'  ) ; season   = subwrd(args,num+1) ; endif
+if( subwrd(args,num) = '-PTOP'    ) ; ptop     = subwrd(args,num+1) ; endif
+
+endwhile
+
+
+* Check for Contour Level Type
+* ----------------------------
+'run getenv "LEVTYPE"'
+             LEVTYPE = result
+
+
+say '-EXPID 'expid
+say '-EXPORT 'EXPORT
+say '-ALIAS  'alias
+say '-QFILE 'qfile
+say '-OFILE 'ofile
+say '-ONAME 'obsnam
+say '-OBDATE 'begdateo
+say '-OEDATE 'enddateo
+say '-NMOD 'nmod
+say '-NOBS 'nobs
+say '-QDESC 'qdesc
+say '-ODESC 'odesc
+say '-OUTPUT 'output
+say '-SEASON 'season
+
+* Get Dates for Plots
+* -------------------
+'run getenv "BEGDATE"'
+             begdate  = result
+'run getenv "ENDDATE"'
+             enddate  = result
+if( begdate = "NULL" )
+   'set dfile 'qfile
+   'set t    '1
+   'getinfo date'
+         begdate = result
+endif
+if( enddate = "NULL" )
+   'set dfile 'qfile
+   'getinfo tdim'
+            tdim     = result
+   'set t  'tdim
+   'getinfo date'
+         enddate = result
+endif
+
+'run getenv "CLIMATE"'
+             climate = result
+if( begdate = begdateo & enddate = enddateo )
+         climate = 'Actual'
+endif
+
+'set gxout shaded'
+
+* Get Plotting Values from Resource File
+* --------------------------------------
+'run getenv "GEOSUTIL"'
+             geosutil = result
+PLOTRC = geosutil'/plots/grads_util/plot.rc'
+ 
+if( EXPORT = "U"   )
+    oname = "/horiz_"obsnam"_uwnd_z"
+   'getresource 'PLOTRC' U_DYN_TITLE'           ; title = result
+   'getresource 'PLOTRC' U_DYN_Z_CLEVS'         ; clevs = result
+   'getresource 'PLOTRC' U_DYN_Z_CCOLS'         ; ccols = result
+   'getresource 'PLOTRC' U_DYN_Z_DCOLS'         ; dcols = result
+   'getresource 'PLOTRC' U_DYN_Z_'LEVTYPE'LEVS' ; dlevs = result
+endif
+if( EXPORT = "V"   )
+    oname = "/horiz_"obsnam"_vwnd_z"
+   'getresource 'PLOTRC' V_DYN_TITLE'           ; title = result
+   'getresource 'PLOTRC' V_DYN_Z_CLEVS'         ; clevs = result
+   'getresource 'PLOTRC' V_DYN_Z_CCOLS'         ; ccols = result
+   'getresource 'PLOTRC' V_DYN_Z_DCOLS'         ; dcols = result
+   'getresource 'PLOTRC' V_DYN_Z_'LEVTYPE'LEVS' ; dlevs = result
+endif
+if( EXPORT = "T"   )
+    oname = "/horiz_"obsnam"_tmpu_z"
+   'getresource 'PLOTRC' T_DYN_TITLE'           ; title = result
+   'getresource 'PLOTRC' T_DYN_Z_CLEVS'         ; clevs = result
+   'getresource 'PLOTRC' T_DYN_Z_CCOLS'         ; ccols = result
+   'getresource 'PLOTRC' T_DYN_Z_'LEVTYPE'COLS' ; dcols = result
+   'getresource 'PLOTRC' T_DYN_Z_'LEVTYPE'LEVS' ; dlevs = result
+endif
+if( EXPORT = "Q"   )
+    oname = "/horiz_"obsnam"_sphu_z"
+   'getresource 'PLOTRC' Q_MOIST_TITLE'           ; title = result
+   'getresource 'PLOTRC' Q_MOIST_Z_CLEVS'         ; clevs = result
+   'getresource 'PLOTRC' Q_MOIST_Z_CCOLS'         ; ccols = result
+   'getresource 'PLOTRC' Q_MOIST_Z_DCOLS'         ; dcols = result
+   'getresource 'PLOTRC' Q_MOIST_Z_'LEVTYPE'LEVS' ; dlevs = result
+endif
+if( EXPORT = "RH2" )
+    oname = "/horiz_"obsnam"_rh_z"
+   'getresource 'PLOTRC' RH2_MOIST_TITLE'           ; title = result
+   'getresource 'PLOTRC' RH2_MOIST_Z_CLEVS'         ; clevs = result
+   'getresource 'PLOTRC' RH2_MOIST_Z_CCOLS'         ; ccols = result
+   'getresource 'PLOTRC' RH2_MOIST_Z_DCOLS'         ; dcols = result
+   'getresource 'PLOTRC' RH2_MOIST_Z_'LEVTYPE'LEVS' ; dlevs = result
+endif
+if( EXPORT = "ZLE"   )
+    oname = "/horiz_"obsnam"_hght_z"
+   'getresource 'PLOTRC' ZLE_DYN_TITLE'           ; title = result
+   'getresource 'PLOTRC' ZLE_DYN_Z_CLEVS'         ; clevs = result
+   'getresource 'PLOTRC' ZLE_DYN_Z_CCOLS'         ; ccols = result
+   'getresource 'PLOTRC' ZLE_DYN_Z_'LEVTYPE'COLS' ; dcols = result
+   'getresource 'PLOTRC' ZLE_DYN_Z_'LEVTYPE'LEVS' ; dlevs = result
+endif
+if( EXPORT = "OMEGA"   )
+    oname = "/horiz_"obsnam"_omega_z"
+   'getresource 'PLOTRC' OMEGA_DYN_TITLE'           ; title = result
+   'getresource 'PLOTRC' OMEGA_DYN_CLEVS'           ; clevs = result
+   'getresource 'PLOTRC' OMEGA_DYN_CCOLS'           ; ccols = result
+   'getresource 'PLOTRC' OMEGA_DYN_'LEVTYPE'COLS'   ; dcols = result
+   'getresource 'PLOTRC' OMEGA_DYN_'LEVTYPE'LEVS'   ; dlevs = result
+endif
+
+* Make Mean Plot
+* --------------
+'set vpage off'
+'set parea off'
+'set grid  off'
+'set frame on'
+'set xlopts 1 3 .11'
+'set ylopts 1 3 .11'
+'rgbset'
+
+'set dfile 'qfile
+'set lat -90 90'
+'set lon 0'
+'set lev 1000 'ptop
+'set t 1'
+
+'set vpage 0 8.5 0.0 11'
+'set parea 1.5 7.0 7.70 10.50'
+if( EXPORT = "U" | EXPORT = "T" | EXPORT = "ZLE" ) ; 'setlevs' ; endif
+'set grads off'
+'set gxout shaded'
+'set clevs 'clevs
+'set ccols 'ccols
+ 'd modz'
+'draw ylab Pressure (mb)'
+'set gxout contour'
+'set ccolor 1'
+'set clevs 'clevs
+ 'd modz'
+'set parea 0 8.5 7.0 11'
+'cbarn -vert'
+'set parea off'
+
+'set dfile 'ofile
+'set lat -90 90'
+'set lon 0'
+'set lev 1000 'ptop
+'set t 1'
+'set vpage 0 8.5 0.0 11'
+'set parea 1.5 7.0 4.30 7.10'
+if( EXPORT = "U" | EXPORT = "T" | EXPORT = "ZLE" ) ; 'setlevs' ; endif
+'set grads off'
+'set gxout shaded'
+'set clevs 'clevs
+'set ccols 'ccols
+'d obsz'
+'draw ylab Pressure (mb)'
+'set gxout contour'
+'set clevs 'clevs
+'set ccolor 1'
+'d obsz'
+'set parea off'
+
+'set dfile 'qfile
+'set lat -90 90'
+'set lon 0'
+'set lev 1000 'ptop
+'set t 1'
+'set vpage 0 8.5 0.0 11'
+'set parea 1.5 7.0 0.90 3.70'
+if( EXPORT = "U" | EXPORT = "T" | EXPORT = "ZLE" ) ; 'setlevs' ; endif
+'set grads off'
+'set gxout shaded'
+'set clevs 'dlevs
+'set ccols 'dcols
+'d qz'
+'draw ylab Pressure (mb)'
+'set gxout contour'
+'set ccolor 1'
+'set clevs 'dlevs
+'d qz'
+'cbarn -snum 0.75'
+
+'set vpage off'
+'set string 1 c 6'
+'set strsiz .13'
+'draw string 4.25 10.85 'title
+
+'set strsiz .11'
+'draw string 4.25 10.635 EXPID: 'expid'  'qdesc' 'season' ('nmod')'
+'draw string 4.25  7.235 'odesc' 'season' ('nobs') ('climate')'
+'draw string 4.25  3.850 Difference (Top-Middle)'
+
+                date = getdate (begdate)
+bmnthm = subwrd(date,1)
+byearm = subwrd(date,2)
+                date = getdate (enddate)
+emnthm = subwrd(date,1)
+eyearm = subwrd(date,2)
+                date = getdate (begdateo)
+bmntho = subwrd(date,1)
+byearo = subwrd(date,2)
+                date = getdate (enddateo)
+emntho = subwrd(date,1)
+eyearo = subwrd(date,2)
+
+'set string 1 l 4'
+'set strsiz .08'
+'draw string 0.10 10.37 Beg: 'bmnthm' 'byearm
+'draw string 0.10 10.24 End: 'emnthm' 'eyearm
+'draw string 0.10  6.97 Beg: 'bmntho' 'byearo
+'draw string 0.10  6.84 End: 'emntho' 'eyearo
+'set string 1 c 6'
+
+'myprint -name 'output'/'oname'.'season
+
+return
+
+function getdate (date,month,year)
+       num = 1
+       bit = substr(date,num,1)
+while( bit != '' )
+       num = num+1
+       bit = substr(date,num,1)
+endwhile
+       loc = num-7
+     month = substr(date,loc  ,3)
+      year = substr(date,loc+3,4)
+return month' 'year

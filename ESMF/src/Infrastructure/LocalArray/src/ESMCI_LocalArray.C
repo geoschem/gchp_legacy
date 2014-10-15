@@ -1,7 +1,7 @@
-// $Id: ESMCI_LocalArray.C,v 1.14.2.1 2010/02/05 19:58:41 svasquez Exp $
+// $Id$
 //
 // Earth System Modeling Framework
-// Copyright 2002-2010, University Corporation for Atmospheric Research, 
+// Copyright 2002-2012, University Corporation for Atmospheric Research, 
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
 // Laboratory, University of Michigan, National Centers for Environmental 
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
@@ -12,7 +12,7 @@
 #define ESMC_FILENAME "ESMCI_LocalArray.C"
 //==============================================================================
 //
-// ESMC LocalArray method implementation (body) file
+// LocalArray class implementation (body) file
 //
 //-----------------------------------------------------------------------------
 //
@@ -36,7 +36,7 @@
 #include <cstring>
 
 // include ESMF headers
-#include "ESMC_Start.h"
+#include "ESMCI_Macros.h"
 #include "ESMCI_LogErr.h"
 #include "ESMF_LogMacros.inc"             // for LogErr
 
@@ -45,7 +45,7 @@ using namespace std;
 //-----------------------------------------------------------------------------
 // leave the following line as-is; it will insert the cvs ident string
 // into the object file for tracking purposes.
-static const char *const version = "$Id: ESMCI_LocalArray.C,v 1.14.2.1 2010/02/05 19:58:41 svasquez Exp $";
+static const char *const version = "$Id$";
 //-----------------------------------------------------------------------------
 
   
@@ -152,8 +152,7 @@ int LocalArray::construct(
   const int *ubounds,         // upper index number per dim
   const int *icounts,         // number of items in each dim
   void *ibase_addr,           // base memory address of data block
-  struct c_F90ptr *f90ptr,    // opaque type of Fortran dope vector
-  const char *name            // name, default created if NULL
+  struct c_F90ptr *f90ptr     // opaque type of Fortran dope vector
   ){
 //
 // !DESCRIPTION:
@@ -202,7 +201,7 @@ int LocalArray::construct(
     LocalArray *aptr = this;
     FTN(f_esmf_localarrayf90allocate)(&aptr, &rank, &typekind, counts, 
       lbound, ubound, &localrc);
-    if (ESMC_LogDefault.MsgFoundError(localrc, ESMF_ERR_PASSTHRU, &rc))
+    if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, &rc))
       return rc;
   } 
 
@@ -264,7 +263,7 @@ int LocalArray::construct(
   if (dealloc){
     // must deallocate data allocation
     FTN(f_esmf_localarrayf90deallocate)(&aptr, &rank, &typekind, &localrc);
-    if (ESMC_LogDefault.MsgFoundError(localrc, ESMF_ERR_PASSTHRU, &rc))
+    if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, &rc))
       return rc;
   }
 
@@ -297,7 +296,6 @@ LocalArray *LocalArray::create(
   ESMC_TypeKind tk,           // I1, I2, I4, I8, R4, R8
   int rank,                   // 1, 2, ..., ESMF_MAXDIM
   LocalArrayOrigin oflag,     // caller is fortran or C++?
-  const char *name,           // object name
   int *rc){                   // return code
 //
 // !DESCRIPTION:
@@ -323,8 +321,8 @@ LocalArray *LocalArray::create(
   }
   
   localrc = a->construct(false, DATA_NONE, tk, rank, oflag, false,
-    NULL, NULL, NULL, NULL, NULL, NULL, name);
-  if (ESMC_LogDefault.MsgFoundError(localrc, ESMF_ERR_PASSTHRU, rc))
+    NULL, NULL, NULL, NULL, NULL, NULL);
+  if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, rc))
     return ESMC_NULL_POINTER;
 
   // return successfully
@@ -351,7 +349,6 @@ LocalArray *LocalArray::create(
   int rank,                   // 1, 2, ..., ESMF_MAXDIM
   const int *counts,          // number of items in each dim
   void *base_addr,            // if non-null, this is already allocated memory
-  const char *name,           // object name
   CopyFlag docopy,            // make a data copy from base_addr?
   int *rc){                   // return code
 //
@@ -382,8 +379,8 @@ LocalArray *LocalArray::create(
 
   // construct LocalArray internals, allocate memory for data
   localrc = a->construct(true, docopy, tk, rank, FROM_CPLUSPLUS, true,
-    NULL, NULL, NULL, counts, base_addr, NULL, name);
-  if (ESMC_LogDefault.MsgFoundError(localrc, ESMF_ERR_PASSTHRU, rc))
+    NULL, NULL, NULL, counts, base_addr, NULL);
+  if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, rc))
     return ESMC_NULL_POINTER;
 
   // return successfully
@@ -412,7 +409,6 @@ LocalArray *LocalArray::create(
   const int *lbounds,         // lower index number per dim
   const int *ubounds,         // upper index number per dim
   void *base_addr,            // if non-null, this is already allocated memory
-  const char *name,           // object name
   CopyFlag docopy,            // make a data copy from base_addr?
   int *rc){                   // return code
 //
@@ -443,8 +439,8 @@ LocalArray *LocalArray::create(
 
   // construct LocalArray internals, allocate memory for data
   localrc = a->construct(true, docopy, tk, rank, FROM_CPLUSPLUS, true,
-    NULL, lbounds, ubounds, counts, base_addr, NULL, name);
-  if (ESMC_LogDefault.MsgFoundError(localrc, ESMF_ERR_PASSTHRU, rc))
+    NULL, lbounds, ubounds, counts, base_addr, NULL);
+  if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, rc))
     return ESMC_NULL_POINTER;
 
   // return successfully
@@ -471,7 +467,6 @@ LocalArray *LocalArray::create(
   const LocalArray *larrayIn, // object to copy from
   const int *lbounds,         // lower index number per dim
   const int *ubounds,         // upper index number per dim
-  const char *name,           // object name
   int *rc){                   // return code
 //
 // !DESCRIPTION:
@@ -507,7 +502,7 @@ LocalArray *LocalArray::create(
 
   // call into Fortran copy method, which will use larrayOut's lbound and ubound
   FTN(f_esmf_localarraycopyf90ptr)(&larrayIn, &larrayOut, &localrc);
-  if (ESMC_LogDefault.MsgFoundError(localrc, ESMF_ERR_PASSTHRU, rc))
+  if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, rc))
     return ESMC_NULL_POINTER;
   
   // return successfully 
@@ -567,8 +562,8 @@ LocalArray *LocalArray::create(
   
   if (copyflag == DATA_COPY){
     // make a copy of the LocalArray object including the data allocation
-    larrayOut = LocalArray::create(larrayIn, lbounds, ubounds, NULL, &localrc);
-    if (ESMC_LogDefault.MsgFoundError(localrc, ESMF_ERR_PASSTHRU, rc))
+    larrayOut = LocalArray::create(larrayIn, lbounds, ubounds, &localrc);
+    if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, rc))
       return NULL;
   }else{
     // allocate memory for new LocalArray object
@@ -591,7 +586,7 @@ LocalArray *LocalArray::create(
     // adjust the Fortran dope vector to reflect the new bounds
     FTN(f_esmf_localarrayadjust)(&larrayOut, &rank, &typekind, counts,
       larrayOut->lbound, larrayOut->ubound, &localrc);
-    if (ESMC_LogDefault.MsgFoundError(localrc, ESMF_ERR_PASSTHRU, rc))
+    if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, rc))
       return NULL;
   }
   
@@ -638,7 +633,7 @@ int LocalArray::destroy(
   int rc = ESMC_RC_NOT_IMPL;              // final return code
 
   localrc = localarray->destruct();
-  if (ESMC_LogDefault.MsgFoundError(localrc, ESMF_ERR_PASSTHRU, &rc))
+  if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, &rc))
     return rc;
 
   delete localarray;
@@ -847,6 +842,8 @@ template void LocalArray::getDataInternal(int *index, ESMC_I4 *data);
 //-----------------------------------------------------------------------------
 
 
+
+
 //-----------------------------------------------------------------------------
 #undef  ESMC_METHOD
 #define ESMC_METHOD "getData"
@@ -897,6 +894,104 @@ template int LocalArray::getData(int *index, ESMC_R8 *data);
 template int LocalArray::getData(int *index, ESMC_R4 *data);
 template int LocalArray::getData(int *index, ESMC_I4 *data);
 //-----------------------------------------------------------------------------
+
+
+
+//-----------------------------------------------------------------------------
+#undef  ESMC_METHOD
+#define ESMC_METHOD "setDataInternal"
+//BOPI
+// !IROUTINE:  setDataInternal - set the data at an index location without error checking
+//
+// !INTERFACE:
+template <class TYPE>
+void LocalArray::setDataInternal(
+//
+// !RETURN VALUE:
+//    none
+//
+// !ARGUMENTS:
+  int *index,           // in - index location
+  TYPE data){           // in - data to set 
+//
+// !DESCRIPTION:
+//  Get the data at a particular index location in a LocalArray. For
+//  efficiency's sake this routine doesn't do error checking. It's assumed 
+//  that the error checking is occuring at a higher level. For error checking
+//  use setData.
+//
+//EOPI
+//-----------------------------------------------------------------------------
+  int off;
+
+  // Loop through summing up offset for each dimension
+  off=-lOff;
+  for (int i=0; i<rank; i++)
+    off +=dimOff[i]*index[i];
+  
+  // Set Data 
+  *((TYPE *)((char *)base_addr+ESMC_TypeKindSize(typekind)*off))=data; 
+}
+//-----------------------------------------------------------------------------
+// Add more types here if necessary
+template void LocalArray::setDataInternal(int *index, ESMC_R8 data);
+template void LocalArray::setDataInternal(int *index, ESMC_R4 data);
+template void LocalArray::setDataInternal(int *index, ESMC_I4 data);
+//-----------------------------------------------------------------------------
+
+
+//-----------------------------------------------------------------------------
+#undef  ESMC_METHOD
+#define ESMC_METHOD "setData"
+//BOPI
+// !IROUTINE:  setData - get the data at an index location
+//
+// !INTERFACE:
+template <class TYPE>
+int LocalArray::setData(
+//
+// !RETURN VALUE:
+//    int error return code
+//
+// !ARGUMENTS:
+  int *index,           // in - index location
+  TYPE data){          //  in - data. 
+//
+// !DESCRIPTION:
+//  Set the data at a particular index location in a LocalArray. 
+//
+// TODO: This method should eventually be made more efficient by precalculating
+//        and storing the offsets per Dim. 
+//
+//EOPI
+//-----------------------------------------------------------------------------
+  // initialize return code; assume routine not implemented
+  int rc = ESMC_RC_NOT_IMPL;              // final return code
+
+  // Make sure index is within bounds
+  for (int i=0; i<rank; i++) {   
+    if ((index[i] < lbound[i]) || (index[i] > ubound[i])) {
+      ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_VALUE,
+        "- index outside of LocalArray bounds", &rc);
+      return rc;
+    }
+  }
+
+  // Actually Get Data
+  this->setDataInternal(index,data);
+
+  // return successfully
+  rc = ESMF_SUCCESS;
+  return rc;
+}
+//-----------------------------------------------------------------------------
+// Add more types here if necessary
+template int LocalArray::setData(int *index, ESMC_R8 data);
+template int LocalArray::setData(int *index, ESMC_R4 data);
+template int LocalArray::setData(int *index, ESMC_I4 data);
+//-----------------------------------------------------------------------------
+
+
 
 
 //-----------------------------------------------------------------------------

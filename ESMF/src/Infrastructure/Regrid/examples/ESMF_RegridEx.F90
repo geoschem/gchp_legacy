@@ -1,7 +1,7 @@
-! $Id: ESMF_RegridEx.F90,v 1.18.4.1 2010/02/05 19:59:54 svasquez Exp $
+! $Id: ESMF_RegridEx.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2010, University Corporation for Atmospheric Research,
+! Copyright 2002-2012, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -25,7 +25,7 @@
 !-----------------------------------------------------------------------------
 
     ! ESMF Framework module
-    use ESMF_Mod
+    use ESMF
 
     implicit none
     
@@ -100,7 +100,7 @@
     if (rc.NE.ESMF_SUCCESS) finalrc = ESMF_FAILURE
     
     ! get a fortran pointer to the data spacd
-    call ESMF_FieldGetDataPointer(field1, f90ptr1, ESMF_DATA_REF, rc=rc)
+    call ESMF_FieldGetDataPointer(field1, f90ptr1, ESMF_DATACOPY_REFERENCE, rc=rc)
     
     if (rc.NE.ESMF_SUCCESS) finalrc = ESMF_FAILURE
     
@@ -137,7 +137,7 @@
 !BOC
     call ESMF_FieldRegridStore(field1, field2, vm, &
                                routehandle=regrid_rh, &
-                               regridmethod=ESMF_REGRID_METHOD_BILINEAR, rc=rc)
+                               regridmethod=ESMF_REGRIDMETHOD_BILINEAR, rc=rc)
 !EOC
     if (rc.NE.ESMF_SUCCESS) finalrc = ESMF_FAILURE
 

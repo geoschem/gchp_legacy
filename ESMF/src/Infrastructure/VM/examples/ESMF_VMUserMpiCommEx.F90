@@ -1,7 +1,7 @@
-! $Id: ESMF_VMUserMpiCommEx.F90,v 1.8.2.1 2010/02/05 20:01:28 svasquez Exp $
+! $Id: ESMF_VMUserMpiCommEx.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2010, University Corporation for Atmospheric Research,
+! Copyright 2002-2012, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -19,19 +19,21 @@
 !
 ! \subsubsection{Nesting ESMF inside a user MPI application on a subset of MPI ranks}
 !
+! \begin{sloppypar}
 ! The previous example demonstrated that it is possible to nest an ESMF 
 ! application, i.e. {\tt ESMF\_Initialize()}...{\tt ESMF\_Finalize()} inside
 ! {\tt MPI\_Init()}...{\tt MPI\_Finalize()}. It is not necessary that all
 ! MPI ranks enter the ESMF application. The following example shows how the
 ! user code can pass an MPI communicator to {\tt ESMF\_Initialize()}, and
 ! enter the ESMF application on a subset of MPI ranks.
+! \end{sloppypar}
 !
 !EOE
 !------------------------------------------------------------------------------
 
 program ESMF_VMUserMpiCommEx
 
-  use ESMF_Mod
+  use ESMF
   
   implicit none
 #ifndef ESMF_MPIUNI     
@@ -70,7 +72,9 @@ program ESMF_VMUserMpiCommEx
 #endif
 !BOC
   if (rank < 2) then
-    call ESMF_Initialize(mpiCommunicator=esmfComm, rc=rc)
+    call ESMF_Initialize(mpiCommunicator=esmfComm, &
+		    defaultlogfilename="VMUserMpiCommEx.Log", &
+                    logkindflag=ESMF_LOGKIND_MULTI, rc=rc)
     ! Only call ESMF_Initialize() on rank 0 and 1, passing the prepared MPI
     ! communicator that spans these ranks.
 !EOC
@@ -79,7 +83,7 @@ program ESMF_VMUserMpiCommEx
     print *, "ESMF application on MPI rank:", rank
     ! user code finalizes ESMF
 !BOC
-    call ESMF_Finalize(terminationflag=ESMF_KEEPMPI, rc=rc)
+    call ESMF_Finalize(endflag=ESMF_END_KEEPMPI, rc=rc)
     ! Finalize ESMF without finalizing MPI. The user application will call
     ! MPI_Finalize() on all ranks.
 !EOC

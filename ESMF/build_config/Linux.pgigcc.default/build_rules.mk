@@ -1,4 +1,4 @@
-# $Id: build_rules.mk,v 1.19 2009/06/01 04:43:43 theurich Exp $
+# $Id: build_rules.mk,v 1.1.5.1 2013-01-11 20:23:43 mathomp4 Exp $
 #
 # Linux.pgigcc.default
 #
@@ -28,6 +28,7 @@ ESMF_MPIRUNDEFAULT      = $(ESMF_DIR)/src/Infrastructure/stubs/mpiuni/mpirun
 else
 ifeq ($(ESMF_COMM),mpich)
 # Mpich ----------------------------------------------------
+ESMF_F90COMPILECPPFLAGS+= -DESMF_MPICH
 ESMF_CXXCOMPILECPPFLAGS+= -DESMF_MPICH
 ESMF_F90DEFAULT         = mpif90
 ESMF_F90LINKLIBS       += -lpmpich++ -lmpich
@@ -55,6 +56,7 @@ ifeq ($(ESMF_COMM),openmpi)
 ESMF_CXXCOMPILECPPFLAGS+= -DESMF_NO_SIGUSR2
 ESMF_F90DEFAULT         = mpif90
 ESMF_CXXDEFAULT         = mpicxx
+ESMF_CXXLINKLIBS       += -lmpi_f77
 ESMF_MPIRUNDEFAULT      = mpirun $(ESMF_MPILAUNCHOPTIONS)
 ESMF_MPIMPMDRUNDEFAULT  = mpiexec $(ESMF_MPILAUNCHOPTIONS)
 else
@@ -75,6 +77,17 @@ endif
 ESMF_F90COMPILER_VERSION    = $(ESMF_DIR)/scripts/version.pgf90 $(ESMF_F90COMPILER)
 ESMF_CXXCOMPILER_VERSION    = ${ESMF_CXXCOMPILER} -v --version
 
+############################################################
+# Determine PGI version
+#
+ESMF_PGIVERSION_MAJOR = $(shell $(ESMF_DIR)/scripts/version.pgi 1 $(ESMF_F90COMPILER_VERSION))
+ESMF_F90COMPILECPPFLAGS += -DESMF_PGIVERSION_MAJOR=$(ESMF_PGIVERSION_MAJOR)
+
+ESMF_PGIVERSION_MINOR = $(shell $(ESMF_DIR)/scripts/version.pgi 2 $(ESMF_F90COMPILER_VERSION))
+ESMF_F90COMPILECPPFLAGS += -DESMF_PGIVERSION_MINOR=$(ESMF_PGIVERSION_MINOR)
+
+ESMF_PGIVERSION_PATCH = $(shell $(ESMF_DIR)/scripts/version.pgi 3 $(ESMF_F90COMPILER_VERSION))
+ESMF_F90COMPILECPPFLAGS += -DESMF_PGIVERSION_PATCH=$(ESMF_PGIVERSION_PATCH)
 
 ############################################################
 # Construct the ABISTRING
@@ -131,10 +144,16 @@ ESMF_F90COMPILEFREENOCPP = -Mfreeform
 ESMF_F90COMPILEFIXCPP    = -Mpreprocess -Mnofreeform
 
 ############################################################
+# Set rpath syntax
+#
+ESMF_F90RPATHPREFIX         = -Wl,-rpath,
+ESMF_CXXRPATHPREFIX         = -Wl,-rpath,
+
+############################################################
 # Determine where pgf90's libraries are located
 #
 ESMF_CXXLINKPATHS += -L$(shell $(ESMF_DIR)/scripts/libpath.pgf90 $(ESMF_F90COMPILER))
-ESMF_CXXLINKRPATHS += $(ESMF_RPATHPREFIX)$(shell $(ESMF_DIR)/scripts/libpath.pgf90 $(ESMF_F90COMPILER))
+ESMF_CXXLINKRPATHS += $(ESMF_CXXRPATHPREFIX)$(shell $(ESMF_DIR)/scripts/libpath.pgf90 $(ESMF_F90COMPILER))
 
 ############################################################
 # Link against libesmf.a using the F90 linker front-end
@@ -147,21 +166,16 @@ ESMF_F90LINKLIBS += -lrt -lC -lc -ldl
 ESMF_CXXLINKLIBS += -lrt $(shell $(ESMF_DIR)/scripts/libs.pgf90 $(ESMF_F90COMPILER)) -ldl
 
 ############################################################
-# Blank out shared library options
-#
-ESMF_SL_LIBS_TO_MAKE  =
-
-############################################################
 # Shared library options
 #
-#ESMF_SL_LIBOPTS  += -shared
+ESMF_SL_LIBOPTS  += -shared
 
 ############################################################
 # Shared object options
 #
-#ESMF_SO_F90COMPILEOPTS  = -fPIC
-#ESMF_SO_F90LINKOPTS     = -shared
-#ESMF_SO_F90LINKOPTSEXE  = -Wl,-export-dynamic
-#ESMF_SO_CXXCOMPILEOPTS  = -fPIC
-#ESMF_SO_CXXLINKOPTS     = -shared
-#ESMF_SO_CXXLINKOPTSEXE  = -Wl,-export-dynamic
+ESMF_SO_F90COMPILEOPTS  = -fPIC
+ESMF_SO_F90LINKOPTS     = -shared
+ESMF_SO_F90LINKOPTSEXE  = -Wl,-export-dynamic
+ESMF_SO_CXXCOMPILEOPTS  = -fPIC
+ESMF_SO_CXXLINKOPTS     = -shared
+ESMF_SO_CXXLINKOPTSEXE  = -Wl,-export-dynamic

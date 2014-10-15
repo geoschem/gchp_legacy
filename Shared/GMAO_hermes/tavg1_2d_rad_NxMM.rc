@@ -1,0 +1,146 @@
+# lcv2prs.rc
+#
+#  This is a resource file for the lcv2prs utility.
+#
+# !REVISION HISTORY:
+#
+#  26Jan2006  B. Yin    First version.
+#
+#...........................................................................
+#                     ----------------------
+#                     Output File Resolution
+#                     ----------------------
+
+zonal_resolution: 540              # no. of zonal grid-points (im)
+west_most_longitude_in_deg: -180.0 # longitude of first point (i=1)
+meridional_resolution: 361         # no. meridional grid-points (jm)
+vertical_level_numbers: 1
+#                       ----------------
+#                       Variable Classes
+#                       ----------------
+ 
+# A variable class lists the variable names that make up a file type or product.
+
+###  PRODUCT: tavg1_2d_rad_Nx (2-D diagnostics)
+
+VarClass*tavg1_2d_rad_Nx: EMIS TS ALBEDO ALBNIRDF ALBNIRDR ALBVISDF ALBVISDR \
+                          LWGEM LWGAB LWGABCLR LWGABCLRCLN LWGNT LWGNTCLR LWGNTCLRCLN \
+                          LWTUP LWTUPCLR LWTUPCLRCLN SWTDN SWGDN SWGDNCLR  \
+                          SWGNT SWGNTCLR SWGNTCLN SWGNTCLRCLN SWTNT SWTNTCLR SWTNTCLN SWTNTCLRCLN \
+                          TAUHGH TAULOW TAUMID TAUTOT CLDHGH CLDLOW CLDMID CLDTOT \
+                          Var_EMIS Var_TS Var_ALBEDO Var_ALBNIRDF Var_ALBNIRDR Var_ALBVISDF Var_ALBVISDR \
+                          Var_LWGEM Var_LWGAB Var_LWGABCLR Var_LWGABCLRCLN Var_LWGNT Var_LWGNTCLR Var_LWGNTCLRCLN \
+                          Var_LWTUP Var_LWTUPCLR Var_LWTUPCLRCLN Var_SWTDN Var_SWGDN Var_SWGDNCLR Var_SWGNT \
+                          Var_SWGNTCLR Var_SWGNTCLN Var_SWGNTCLRCLN Var_SWTNT Var_SWTNTCLR Var_SWTNTCLN Var_SWTNTCLRCLN \
+                          Var_TAUHGH Var_TAULOW Var_TAUMID Var_TAUTOT Var_CLDHGH Var_CLDLOW Var_CLDMID Var_CLDTOT
+#                         --------------------
+#                         Variable Translation
+#                         --------------------
+
+Variable_translation_table::
+
+#      Output          |                       Input
+#  Name       Units    | Name             scale_factor  add_offset Positive check
+#  ------------------------------------------------------------------------------
+   EMIS       fraction   EMIS                   1.0        0.0         0
+   TS         K          TS                     1.0        0.0         0
+   ALBEDO     fraction   ALBEDO                 1.0        0.0         0
+   ALBNIRDF   fraction   ALBNIRDF               1.0        0.0         0
+   ALBNIRDR   fraction   ALBNIRDR               1.0        0.0         0
+   ALBVISDF   fraction   ALBVISDF               1.0        0.0         0
+   ALBVISDR   fraction   ALBVISDR               1.0        0.0         0
+   LWGEM      W/m2       LWGEM                  1.0        0.0         0
+   LWGAB      W/m2       LWGAB                  1.0        0.0         0
+   LWGABCLR   W/m2       LWGABCLR               1.0        0.0         0
+   LWGABCLRCLN  W/m2     LWGABCLRCLN            1.0        0.0         0
+   LWGNT      W/m2       LWGNT                  1.0        0.0         0
+   LWGNTCLR   W/m2       LWGNTCLR               1.0        0.0         0
+   LWGNTCLRCLN  W/m2     LWGNTCLRCLN            1.0        0.0         0
+   LWTUP      W/m2       LWTUP                  1.0        0.0         0
+   LWTUPCLR   W/m2       LWTUPCLR               1.0        0.0         0
+   LWTUPCLRCLN  W/m2     LWTUPCLRCLN            1.0        0.0         0
+   SWTDN      W/m2       SWTDN                  1.0        0.0         0
+   SWGDN      W/m2       SWGDN                  1.0        0.0         0
+   SWGDNCLR   W/m2       SWGDNCLR               1.0        0.0         0
+   SWGDNCLN   W/m2       SWGDNCLN               1.0        0.0         0
+   SWGDNCLRCLN  W/m2     SWGDNCLRCLN            1.0        0.0         0
+   SWGNT      W/m2       SWGNT                  1.0        0.0         0
+   SWGNTCLR   W/m2       SWGNTCLR               1.0        0.0         0
+   SWGNTCLN   W/m2       SWGNTCLN               1.0        0.0         0
+   SWGNTCLRCLN  W/m2     SWGNTCLRCLN            1.0        0.0         0
+   SWTDWN     W/m2       SWTDWN                 1.0        0.0         0
+   SWTUP      W/m2       SWTUP                  1.0        0.0         0
+   SWTUPCLR   W/m2       SWTUPCLR               1.0        0.0         0
+   SWTUPCLN   W/m2       SWTUPCLN               1.0        0.0         0
+   SWTUPCLRCLN    W/m2   SWTUPCLRCLN            1.0        0.0         0
+   SWTNT      W/m2       SWTNT                  1.0        0.0         0
+   SWTNTCLR   W/m2       SWTNTCLR               1.0        0.0         0
+   SWTNTCLN   W/m2       SWTNTCLN               1.0        0.0         0
+   SWTNTCLRCLN  W/m2     SWTNTCLRCLN            1.0        0.0         0
+   TAUHGH     dimensionless    TAUHGH         1.0        0.0          0
+   TAULOW     dimensionless    TAULOW         1.0        0.0          0
+   TAUMID     dimensionless    TAUMID         1.0        0.0          0
+   TAUTOT     dimensionless    TAUTOT         1.0        0.0          0
+   CLDHGH     fraction   CLDHGH                 1.0        0.0          0
+   CLDLOW     fraction   CLDLOW                 1.0        0.0          0
+   CLDMID     fraction   CLDMID                 1.0        0.0          0
+   CLDTOT     fraction   CLDTOT                 1.0        0.0          0
+::
+
+
+# Table for variable names and description:
+
+EMIS:       Surface emissivity
+TS:         Surface skin temperature
+ALBEDO:     Surface albedo
+ALBNIRDF:   Diffuse beam NIR surface albedo
+ALBNIRDR:   Direct beam NIR surface albedo
+ALBVISDF:   Diffuse beam VIS-UV surface albedo
+ALBVISDR:   Direct beam VIS-UV surface albedo
+LWGEM:      Emitted longwave at the surface
+LWGAB:      Absorbed longwave at the surface
+LWGABCLR:   Absorbed longwave at the surface with no cloud
+LWGABCLRCLN: Absorbed longwave at the surface with no cloud or aerosol
+LWGNT:      Net downward longwave flux at the surface
+LWGNTCLR:   Net downward longwave flux at the surface for cloud-free sky
+LWGNTCLRCLN:  Net downward longwave flux at the surface for clear sky
+LWTUP:      Upward longwave flux at top of atmosphere (TOA)
+LWTUPCLR:   Upward longwave flux at TOA assuming clear sky
+LWTUPCLRCLN:  Upward longwave flux at TOA assuming clear clean sky
+SWTDN:      TOA incident shortwave flux
+SWGDN:      Surface incident shortwave flux
+SWGDNCLR:   Surface incident shortwave flux assuming clear sky
+SWGDNCLN:   Surface downward shortwave flux assuming clean sky
+SWGDNCLRCLN:  Surface downward shortwave flux assuming clear clean sky
+SWGNT:      Surface net downward shortwave flux
+SWGNTCLR:   Surface net downward shortwave flux assuming clear sky
+SWGNTCLN:   Surface net downward shortwave flux assuming clean sky
+SWGNTCLRCLN:  Surface net downward shortwave flux assuming clear clean sky
+SWTDWN:     Incident shortwave radiation at top of atmosphere
+SWTUP:      TOA outgoing shortwave flux
+SWTUPCLR:   TOA outgoing shortwave flux assuming clear sky
+SWTUPCLN:   TOA outgoing shortwave flux assuming clean sky
+SWTUPCLRCLN:  TOA outgoing shortwave flux assuming clear clean sky
+SWTNT:      TOA outgoing shortwave flux
+SWTNTCLR:   TOA outgoing shortwave flux assuming clear sky
+SWTNTCLN:   TOA outgoing shortwave flux assuming clean sky
+SWTNTCLRCLN:  TOA outgoing shortwave flux assuming clear clean sky
+TAUHGH:    Optical thickness of high clouds
+TAULOW:    Optical thickness of low clouds
+TAUMID:    Optical thickness of mid-level clouds
+TAUTOT:    Optical thickness of all clouds
+CLDHGH:    High-level (above 400 hPa) cloud fraction
+CLDLOW:    Low-level (1000-700 hPa) cloud fraction
+CLDMID:    Mid-level (700-400 hPa) cloud fraction
+CLDTOT:    Total cloud fraction
+
+# Global meta data
+
+history:        File written by CFIO
+convention:     CF-1.0
+institution:    Global Modeling and Assimilation Office, NASA Goddard Space Flight Center, Greenbelt, MD 20771
+references:     http://gmao.gsfc.nasa.gov/research/merra/
+comment:        @PUBLICTAG
+source:         Global Modeling and Assimilation Office. GEOSops_5_2_0
+title:          MERRA reanalysis.  @PUBLICTAG
+contact:        http://gmao.gsfc.nasa.gov/ 

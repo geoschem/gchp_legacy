@@ -1,7 +1,7 @@
-! $Id: ESMF_VMBroadcastUTest.F90,v 1.9.4.1 2010/02/05 20:02:07 svasquez Exp $
+! $Id: ESMF_VMBroadcastUTest.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2010, University Corporation for Atmospheric Research,
+! Copyright 2002-2012, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -29,14 +29,14 @@
 !-----------------------------------------------------------------------------
 ! !USES:
       use ESMF_TestMod     ! test methods
-      use ESMF_Mod
+      use ESMF
 
       implicit none
 
 !------------------------------------------------------------------------------
 ! The following line turns the CVS identifier string into a printable variable.
       character(*), parameter :: version = &
-      '$Id: ESMF_VMBroadcastUTest.F90,v 1.9.4.1 2010/02/05 20:02:07 svasquez Exp $'
+      '$Id: ESMF_VMBroadcastUTest.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $'
 !------------------------------------------------------------------------------
       ! cumulative result: count failures; no failures equals "all pass"
       integer :: result = 0
@@ -75,7 +75,7 @@
 
       ! Get count of PETs and which PET number we are
       call ESMF_VMGetGlobal(vm, rc=rc)
-      call ESMF_VMGet(vm, localPet, petCount=petCount, rc=rc)
+      call ESMF_VMGet(vm, localPet=localPet, petCount=petCount, rc=rc)
 
       ! Allocate localData
       count = 2
@@ -123,7 +123,7 @@
       ! Broadcast data from the root processor
       write(failMsg, *) "Did not RETURN ESMF_SUCCESS"
       write(name, *) "Broadcasting  data Test"
-      call ESMF_VMBroadcast(vm, bcstData=localData, count=count, root=root, &
+      call ESMF_VMBroadcast(vm, bcstData=localData, count=count, rootPet=root, &
                             rc=rc)
       call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
 
@@ -147,7 +147,7 @@
       ! Broadcast local data from root processor
       write(failMsg, *) "Did not RETURN ESMF_SUCCESS"
       write(name, *) "Broadcasting local data Test"
-      call ESMF_VMBroadcast(vm, bcstData=r4_localData, count=count, root=root, &
+      call ESMF_VMBroadcast(vm, bcstData=r4_localData, count=count, rootPet=root, &
                             rc=rc)
       call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
 
@@ -174,7 +174,7 @@
       ! Broadcast  data from root
       write(failMsg, *) "Did not RETURN ESMF_SUCCESS"
       write(name, *) "Broadcasting local data Test"
-      call ESMF_VMBroadcast(vm, bcstData=r8_localData, count=count, root=root, &
+      call ESMF_VMBroadcast(vm, bcstData=r8_localData, count=count, rootPet=root, &
                             rc=rc)
       call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
 
@@ -200,7 +200,7 @@
       write(failMsg, *) "Did not RETURN ESMF_SUCCESS"
       write(name, *) "Broadcasting local data Test"
       call ESMF_VMBroadcast(vm, bcstData=local_logical, count=count, &
-                            root=root, rc=rc)
+        rootPet=root, rc=rc)
       call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
 
       !------------------------------------------------------------------------

@@ -1,7 +1,7 @@
-// $Id: ESMC_ClockUTest.C,v 1.16.2.1 2010/02/05 20:00:46 svasquez Exp $
+// $Id: ESMC_ClockUTest.C,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
 //
 // Earth System Modeling Framework
-// Copyright 2002-2010, University Corporation for Atmospheric Research, 
+// Copyright 2002-2012, University Corporation for Atmospheric Research, 
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
 // Laboratory, University of Michigan, National Centers for Environmental 
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
@@ -54,7 +54,7 @@ int main(void){
   ESMC_I4 yy1=2006;
   ESMC_I4 h1=0;
   ESMC_I4 h2=1;
-  ESMC_CalendarType calType1=ESMC_CAL_GREGORIAN;
+  ESMC_CalKind_Flag calKind1=ESMC_CALKIND_GREGORIAN;
   int tZ1=-6;
   const ESMC_I4 one=1;
   ESMC_TimeInterval currSimTime;
@@ -67,7 +67,7 @@ int main(void){
   //NEX_UTest
   strcpy(name, "Create ESMC_Calendar object");
   strcpy(failMsg, "Did not return ESMF_SUCCESS");
-  calendar = ESMC_CalendarCreate("Gregorian", ESMC_CAL_GREGORIAN, &rc);
+  calendar = ESMC_CalendarCreate("Gregorian", ESMC_CALKIND_GREGORIAN, &rc);
   ESMC_Test((rc==ESMF_SUCCESS), name, failMsg, &result, __FILE__, __LINE__, 0);
   //----------------------------------------------------------------------------
 
@@ -75,7 +75,7 @@ int main(void){
   //NEX_UTest
   strcpy(name, "Set Start Time");
   strcpy(failMsg, "Did not return ESMF_SUCCESS");
-  rc = ESMC_TimeSet(&startTime, yy1, h1, calendar, calType1, tZ1);
+  rc = ESMC_TimeSet(&startTime, yy1, h1, calendar, calKind1, tZ1);
   ESMC_Test((rc==ESMF_SUCCESS), name, failMsg, &result, __FILE__, __LINE__, 0);
   //----------------------------------------------------------------------------
 
@@ -83,7 +83,7 @@ int main(void){
   //NEX_UTest
   strcpy(name, "Set Stop Time");
   strcpy(failMsg, "Did not return ESMF_SUCCESS");
-  rc = ESMC_TimeSet(&stopTime, yy1, h2, calendar, calType1, tZ1);
+  rc = ESMC_TimeSet(&stopTime, yy1, h2, calendar, calKind1, tZ1);
   ESMC_Test((rc==ESMF_SUCCESS), name, failMsg, &result, __FILE__, __LINE__, 0);
   //----------------------------------------------------------------------------
 

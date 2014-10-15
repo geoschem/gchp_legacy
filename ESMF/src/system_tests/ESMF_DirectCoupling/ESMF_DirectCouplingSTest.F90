@@ -1,4 +1,4 @@
-! $Id: ESMF_DirectCouplingSTest.F90,v 1.8 2009/10/19 16:57:53 svasquez Exp $
+! $Id: ESMF_DirectCouplingSTest.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
 !
 !-------------------------------------------------------------------------
 !ESMF_MULTI_PROC_SYSTEM_TEST        String used by test script to count system tests.
@@ -7,7 +7,7 @@
 !-------------------------------------------------------------------------
 !
 ! !DESCRIPTION:
-! System test DirectCoupling.  
+! System test DirectCoupling.
 !
 !     Component hierarchy:
 !
@@ -22,38 +22,38 @@
 !                                modelAComp (PET 1,4)     modelBComp (PET 2,3,5)
 !
 !
-!     Direct coupling stucture: 
+!     Direct coupling stucture:
 !                               ioComp
-!                                /  ^ 
+!                                /  ^
 !                               /    \
 !                              v      \
 !                     modelAComp ---> modelBComp
 !
 !
 !     The ioComp runs on a single PET and during Initialize() creates a 2D
-!     source Array "ioComp.arraySrc" as well as a destination array 
+!     source Array "ioComp.arraySrc" as well as a destination array
 !     "ioComp.arrayDst" on a 100x150 DistGrid with a single DE. The modelAComp
 !     creates a 100x150 Array "modelA.array" with 2 DEs across its 2 PETs during
-!     Initialize(). Finally modelBComp also creates a 100x150 Array 
-!     "modelB.array" with 3 DEs across the the PETs it is defined on.
+!     Initialize(). Finally modelBComp also creates a 100x150 Array
+!     "modelB.array" with 3 DEs across the PETs it is defined on.
 !
 !     The cplComp has a 2 phase Initialize(). During the first phase an
 !     ArrayRegrid() between "ioComp.arraySrc" and "modelA.array" is precomputed.
-!     In the second phase an ArrayRegrid() between "modelB.array" and 
+!     In the second phase an ArrayRegrid() between "modelB.array" and
 !     "ioComp.arrayDst" is precomputed. The associated RouteHandles are added
 !     to the respective States and thus become accessible to ioComp, modelAComp
 !     and modelBComp.
 !
-!     For setting up of the coupling between modelAComp and modelBComp no extra 
+!     For setting up of the coupling between modelAComp and modelBComp no extra
 !     coupler component is used, instead the ArrayRedist() between
-!     "modelA.array" and "modelB.array" is precomputed during modelComp 
+!     "modelA.array" and "modelB.array" is precomputed during modelComp
 !     Initialize(). Again the RouteHandle is added to the appropriate States.
 !
 !     After all Initialize() methods have executed the ioComp, modelAComp and
-!     modelBComp are set up for direct coupling. The Run() section on the 
+!     modelBComp are set up for direct coupling. The Run() section on the
 !     main driver level starts up ioComp and modelComp concurrently. The
 !     modelComp Run() branches out into concurrent exection of modelAComp and
-!     modelBComp. Once running ioComp, modelAComp and modelBComp do not return
+!     modelBComp. Once running, ioComp, modelAComp and modelBComp do not return
 !     to an upper level to exchange data but call directly into the precomputed
 !     ArrayRedist() methods.
 !
@@ -62,16 +62,16 @@
 !
 !       10.0 + 5.0*sin((I/Imax)*pi) + 2.0*sin((J/Jmax)*pi)
 !
-!     where I = [1,..,Imax=100] and J = [1,..,Jmax=150]. The "ioCOmp.arrayDst"
+!     where I = [1,..,Imax=100] and J = [1,..,Jmax=150]. The "ioComp.arrayDst"
 !     is initialized to 0.
 !
 !     During each iteration a full coupling cycle is completed:
 !     * ioComp sends "ioComp.arraySrc" data to modelAComp via ArrayRedist()
-!     * modelAComp receives data from ioComp via ArrayRedist() into 
+!     * modelAComp receives data from ioComp via ArrayRedist() into
 !       "modelA.array"
 !     * modelAComp sends "modelA.array" data to modelBComp via ArrayRedist(),
 !       which was precomputed with factor = -2
-!     * modelBComp receives modelAComp data via ArrayRedist() into 
+!     * modelBComp receives modelAComp data via ArrayRedist() into
 !       "modelB.array" which is -2 x "modelA.array" data
 !     * modelBComp sends "modelB.array" data to ioComp via ArrayRedist()
 !     * ioComp receives modelBComp data into "ioComp.arrayDst" via ArrayRedist()
@@ -80,17 +80,17 @@
 !
 !     The above cycle is repeated for 3 iterations. The final result in
 !     "ioComp.arrayDst" is then -8 x the initial value of "ioComp.arraySrc".
-!     The ioComp Run() method validates the results before returning to the 
+!     The ioComp Run() method validates the results before returning to the
 !     main driver.
 !
 !     As an added feature the Arrays in ioComp are of type/kind R4 while
 !     modelAComp and modelBComp Arrays are of type/kind R8. The ArrayRedist()
 !     method automatically handles typecasting of the exchanged data.
 !
-!     The Finalize() methods are responsible for destroying all of the 
+!     The Finalize() methods are responsible for destroying all of the
 !     explicitly created objects in the Component context. RouteHandles must
 !     be released in the Component that precomputed them. All of the
-!     objects created by ESMF_StateReconcile() will be automatically destroyed 
+!     objects created by ESMF_StateReconcile() will be automatically destroyed
 !     when the State is destroyed.
 !
 !-------------------------------------------------------------------------
@@ -102,7 +102,7 @@ program ESMF_DirectCouplingSTest
 #include "ESMF.h"
 
   ! ESMF Framework module
-  use ESMF_Mod
+  use ESMF
   use ESMF_TestMod
 
   ! Application components
@@ -111,9 +111,9 @@ program ESMF_DirectCouplingSTest
   use cplCompMod,    only : cplCompSetVM, cplCompReg
 
   implicit none
-    
+
   ! Local variables
-  integer :: localPet, petCount, localrc, rc=ESMF_SUCCESS
+  integer :: localPet, petCount, userrc, localrc, rc=ESMF_SUCCESS
   type(ESMF_VM):: vm
   type(ESMF_GridComp) :: ioComp, modelComp
   type(ESMF_CplComp) :: cplComp
@@ -145,17 +145,24 @@ program ESMF_DirectCouplingSTest
 
   ! Initialize framework and get back default global VM
   call ESMF_Initialize(vm=vm,  defaultlogfilename="DirectCouplingSTest.Log", &
-                        defaultlogtype=ESMF_LOG_MULTI, rc=localrc)
-  if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, &
+                        logkindflag=ESMF_LOGKIND_MULTI, rc=localrc)
+  if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
     ESMF_CONTEXT, rcToReturn=rc)) &
-    call ESMF_Finalize(rc=rc, terminationflag=ESMF_ABORT)
+    call ESMF_Finalize(rc=rc, endflag=ESMF_END_ABORT)
 
   ! Get number of PETs and local PET this driver is running on
   call ESMF_VMGet(vm, petCount=petCount, localPet=localPet, rc=localrc)
-  if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, &
+  if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
     ESMF_CONTEXT, rcToReturn=rc)) &
-    call ESMF_Finalize(rc=rc, terminationflag=ESMF_ABORT)
+    call ESMF_Finalize(rc=rc, endflag=ESMF_END_ABORT)
 
+   ! Check for correct number of PETs
+  if ( petCount < 6 ) then
+     call ESMF_LogSetError(ESMF_RC_ARG_BAD,&
+         msg="This system test does not run on fewer than 6 PETs.",&
+         ESMF_CONTEXT, rcToReturn=rc)
+     call ESMF_Finalize(rc=rc, endflag=ESMF_END_ABORT)
+   endif
 
 !-------------------------------------------------------------------------
 !-------------------------------------------------------------------------
@@ -165,22 +172,22 @@ program ESMF_DirectCouplingSTest
 
   ! ioComp on PET 0
   ioComp = ESMF_GridCompCreate(name="ioComp", petList=(/0/), rc=localrc)
-  if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, &
+  if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
     ESMF_CONTEXT, rcToReturn=rc)) &
-    call ESMF_Finalize(rc=rc, terminationflag=ESMF_ABORT)
+    call ESMF_Finalize(rc=rc, endflag=ESMF_END_ABORT)
 
   ! modelComp on PET 1,2,3,4,5
   modelComp = ESMF_GridCompCreate(name="modelComp", petList=(/1,2,3,4,5/), &
     rc=localrc)
-  if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, &
+  if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
     ESMF_CONTEXT, rcToReturn=rc)) &
-    call ESMF_Finalize(rc=rc, terminationflag=ESMF_ABORT)
+    call ESMF_Finalize(rc=rc, endflag=ESMF_END_ABORT)
 
   ! cplComp on all PETs
   cplComp = ESMF_CplCompCreate(name="cplComp", rc=localrc)
-  if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, &
+  if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
     ESMF_CONTEXT, rcToReturn=rc)) &
-    call ESMF_Finalize(rc=rc, terminationflag=ESMF_ABORT)
+    call ESMF_Finalize(rc=rc, endflag=ESMF_END_ABORT)
 
 !-------------------------------------------------------------------------
 !-------------------------------------------------------------------------
@@ -188,83 +195,126 @@ program ESMF_DirectCouplingSTest
 !-------------------------------------------------------------------------
 !-------------------------------------------------------------------------
 
-  call ESMF_GridCompSetVM(ioComp, userRoutine=ioCompSetVM, rc=localrc)
-  if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, &
+  call ESMF_GridCompSetVM(ioComp, userRoutine=ioCompSetVM, &
+    userRc=userrc, rc=localrc)
+  if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
     ESMF_CONTEXT, rcToReturn=rc)) &
-    call ESMF_Finalize(rc=rc, terminationflag=ESMF_ABORT)
-  call ESMF_GridCompSetServices(ioComp, userRoutine=ioCompReg, rc=localrc)
-  if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, &
+    call ESMF_Finalize(rc=rc, endflag=ESMF_END_ABORT)
+  if (ESMF_LogFoundError(userrc, ESMF_ERR_PASSTHRU, &
     ESMF_CONTEXT, rcToReturn=rc)) &
-    call ESMF_Finalize(rc=rc, terminationflag=ESMF_ABORT)
+    call ESMF_Finalize(rc=rc, endflag=ESMF_END_ABORT)
 
-  call ESMF_GridCompSetVM(modelComp, userRoutine=modelCompSetVM, rc=localrc)
-  if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, &
+  call ESMF_GridCompSetServices(ioComp, userRoutine=ioCompReg, &
+    userRc=userrc, rc=localrc)
+  if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
     ESMF_CONTEXT, rcToReturn=rc)) &
-    call ESMF_Finalize(rc=rc, terminationflag=ESMF_ABORT)
-  call ESMF_GridCompSetServices(modelComp, userRoutine=modelCompReg, rc=localrc)
-  if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, &
+    call ESMF_Finalize(rc=rc, endflag=ESMF_END_ABORT)
+  if (ESMF_LogFoundError(userrc, ESMF_ERR_PASSTHRU, &
     ESMF_CONTEXT, rcToReturn=rc)) &
-    call ESMF_Finalize(rc=rc, terminationflag=ESMF_ABORT)
+    call ESMF_Finalize(rc=rc, endflag=ESMF_END_ABORT)
 
-  call ESMF_CplCompSetVM(cplComp, userRoutine=cplCompSetVM, rc=localrc)
-  if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, &
+  call ESMF_GridCompSetVM(modelComp, userRoutine=modelCompSetVM, &
+    userRc=userrc, rc=localrc)
+  if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
     ESMF_CONTEXT, rcToReturn=rc)) &
-    call ESMF_Finalize(rc=rc, terminationflag=ESMF_ABORT)
-  call ESMF_CplCompSetServices(cplComp, userRoutine=cplCompReg, rc=localrc)
-  if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, &
+    call ESMF_Finalize(rc=rc, endflag=ESMF_END_ABORT)
+  if (ESMF_LogFoundError(userrc, ESMF_ERR_PASSTHRU, &
     ESMF_CONTEXT, rcToReturn=rc)) &
-    call ESMF_Finalize(rc=rc, terminationflag=ESMF_ABORT)
+    call ESMF_Finalize(rc=rc, endflag=ESMF_END_ABORT)
+
+  call ESMF_GridCompSetServices(modelComp, userRoutine=modelCompReg, &
+    userRc=userrc, rc=localrc)
+  if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+    ESMF_CONTEXT, rcToReturn=rc)) &
+    call ESMF_Finalize(rc=rc, endflag=ESMF_END_ABORT)
+  if (ESMF_LogFoundError(userrc, ESMF_ERR_PASSTHRU, &
+    ESMF_CONTEXT, rcToReturn=rc)) &
+    call ESMF_Finalize(rc=rc, endflag=ESMF_END_ABORT)
+
+  call ESMF_CplCompSetVM(cplComp, userRoutine=cplCompSetVM, &
+    userRc=userrc, rc=localrc)
+  if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+    ESMF_CONTEXT, rcToReturn=rc)) &
+    call ESMF_Finalize(rc=rc, endflag=ESMF_END_ABORT)
+  if (ESMF_LogFoundError(userrc, ESMF_ERR_PASSTHRU, &
+    ESMF_CONTEXT, rcToReturn=rc)) &
+    call ESMF_Finalize(rc=rc, endflag=ESMF_END_ABORT)
+
+  call ESMF_CplCompSetServices(cplComp, userRoutine=cplCompReg, &
+    userRc=userrc, rc=localrc)
+  if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+    ESMF_CONTEXT, rcToReturn=rc)) &
+    call ESMF_Finalize(rc=rc, endflag=ESMF_END_ABORT)
+  if (ESMF_LogFoundError(userrc, ESMF_ERR_PASSTHRU, &
+    ESMF_CONTEXT, rcToReturn=rc)) &
+    call ESMF_Finalize(rc=rc, endflag=ESMF_END_ABORT)
 
 !-------------------------------------------------------------------------
 !-------------------------------------------------------------------------
 ! Create States and initialize Components
 !-------------------------------------------------------------------------
 !-------------------------------------------------------------------------
- 
+
   ! ioComp
-  ioImp = ESMF_StateCreate("ioComp import", ESMF_STATE_IMPORT, rc=localrc)
-  if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, &
+  ioImp = ESMF_StateCreate(name="ioComp import",  &
+                           stateintent=ESMF_STATEINTENT_IMPORT, rc=localrc)
+  if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
     ESMF_CONTEXT, rcToReturn=rc)) &
-    call ESMF_Finalize(rc=rc, terminationflag=ESMF_ABORT)
-  ioExp = ESMF_StateCreate("ioComp export", ESMF_STATE_EXPORT, rc=localrc)
-  if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, &
+    call ESMF_Finalize(rc=rc, endflag=ESMF_END_ABORT)
+  ioExp = ESMF_StateCreate(name="ioComp export",  &
+                           stateintent=ESMF_STATEINTENT_EXPORT, rc=localrc)
+  if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
     ESMF_CONTEXT, rcToReturn=rc)) &
-    call ESMF_Finalize(rc=rc, terminationflag=ESMF_ABORT)
+    call ESMF_Finalize(rc=rc, endflag=ESMF_END_ABORT)
   call ESMF_GridCompInitialize(ioComp, importState=ioImp, exportState=ioExp, &
-    rc=localrc)
-  if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, &
+    userRC=userrc, rc=localrc)
+  if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
     ESMF_CONTEXT, rcToReturn=rc)) &
-    call ESMF_Finalize(rc=rc, terminationflag=ESMF_ABORT)
- 
+    call ESMF_Finalize(rc=rc, endflag=ESMF_END_ABORT)
+  if (ESMF_LogFoundError(userrc, ESMF_ERR_PASSTHRU, &
+    ESMF_CONTEXT, rcToReturn=rc)) &
+    call ESMF_Finalize(rc=rc, endflag=ESMF_END_ABORT)
+
   ! modelComp
-  modelImp = ESMF_StateCreate("modelComp import", ESMF_STATE_IMPORT, rc=localrc)
-  if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, &
+  modelImp = ESMF_StateCreate(name="modelComp import",  &
+                              stateintent=ESMF_STATEINTENT_IMPORT, rc=localrc)
+  if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
     ESMF_CONTEXT, rcToReturn=rc)) &
-    call ESMF_Finalize(rc=rc, terminationflag=ESMF_ABORT)
-  modelExp = ESMF_StateCreate("modelComp export", ESMF_STATE_EXPORT, rc=localrc)
-  if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, &
+    call ESMF_Finalize(rc=rc, endflag=ESMF_END_ABORT)
+  modelExp = ESMF_StateCreate(name="modelComp export",  &
+                              stateintent=ESMF_STATEINTENT_EXPORT, rc=localrc)
+  if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
     ESMF_CONTEXT, rcToReturn=rc)) &
-    call ESMF_Finalize(rc=rc, terminationflag=ESMF_ABORT)
+    call ESMF_Finalize(rc=rc, endflag=ESMF_END_ABORT)
   call ESMF_GridCompInitialize(modelComp, importState=modelImp, &
-    exportState=modelExp, rc=localrc)
-  if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, &
+    exportState=modelExp, userRC=userrc, rc=localrc)
+  if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
     ESMF_CONTEXT, rcToReturn=rc)) &
-    call ESMF_Finalize(rc=rc, terminationflag=ESMF_ABORT)
- 
+    call ESMF_Finalize(rc=rc, endflag=ESMF_END_ABORT)
+  if (ESMF_LogFoundError(userrc, ESMF_ERR_PASSTHRU, &
+    ESMF_CONTEXT, rcToReturn=rc)) &
+    call ESMF_Finalize(rc=rc, endflag=ESMF_END_ABORT)
+
   ! ioComp->modelComp coupling
   call ESMF_CplCompInitialize(cplComp, importState=ioExp, &
-    exportState=modelImp, phase=1, rc=localrc)
-  if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, &
+    exportState=modelImp, phase=1, userRC=userrc, rc=localrc)
+  if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
     ESMF_CONTEXT, rcToReturn=rc)) &
-    call ESMF_Finalize(rc=rc, terminationflag=ESMF_ABORT)
+    call ESMF_Finalize(rc=rc, endflag=ESMF_END_ABORT)
+  if (ESMF_LogFoundError(userrc, ESMF_ERR_PASSTHRU, &
+    ESMF_CONTEXT, rcToReturn=rc)) &
+    call ESMF_Finalize(rc=rc, endflag=ESMF_END_ABORT)
 
   ! modelComp->ioComp coupling
   call ESMF_CplCompInitialize(cplComp, importState=modelExp, &
-    exportState=ioImp, phase=2, rc=localrc)
-  if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, &
+    exportState=ioImp, phase=2, userRC=userrc, rc=localrc)
+  if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
     ESMF_CONTEXT, rcToReturn=rc)) &
-    call ESMF_Finalize(rc=rc, terminationflag=ESMF_ABORT)
- 
+    call ESMF_Finalize(rc=rc, endflag=ESMF_END_ABORT)
+  if (ESMF_LogFoundError(userrc, ESMF_ERR_PASSTHRU, &
+    ESMF_CONTEXT, rcToReturn=rc)) &
+    call ESMF_Finalize(rc=rc, endflag=ESMF_END_ABORT)
+
 !-------------------------------------------------------------------------
 !-------------------------------------------------------------------------
 ! Run io and model Components concurrently -> direct coupling between Components
@@ -273,18 +323,24 @@ program ESMF_DirectCouplingSTest
 
   ! ioComp
   call ESMF_GridCompRun(ioComp, importState=ioImp, exportState=ioExp, &
-    rc=localrc)
-  if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, &
+    userRc=userrc, rc=localrc)
+  if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
     ESMF_CONTEXT, rcToReturn=rc)) &
-    call ESMF_Finalize(rc=rc, terminationflag=ESMF_ABORT)
+    call ESMF_Finalize(rc=rc, endflag=ESMF_END_ABORT)
+  if (ESMF_LogFoundError(userrc, ESMF_ERR_PASSTHRU, &
+    ESMF_CONTEXT, rcToReturn=rc)) &
+    call ESMF_Finalize(rc=rc, endflag=ESMF_END_ABORT)
 
   ! modelComp
   call ESMF_GridCompRun(modelComp, importState=modelImp, exportState=modelExp, &
-    rc=localrc)
-  if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, &
+    userRc=userrc, rc=localrc)
+  if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
     ESMF_CONTEXT, rcToReturn=rc)) &
-    call ESMF_Finalize(rc=rc, terminationflag=ESMF_ABORT)
- 
+    call ESMF_Finalize(rc=rc, endflag=ESMF_END_ABORT)
+  if (ESMF_LogFoundError(userrc, ESMF_ERR_PASSTHRU, &
+    ESMF_CONTEXT, rcToReturn=rc)) &
+    call ESMF_Finalize(rc=rc, endflag=ESMF_END_ABORT)
+
 !-------------------------------------------------------------------------
 !-------------------------------------------------------------------------
 ! Finalize Components
@@ -293,31 +349,43 @@ program ESMF_DirectCouplingSTest
 
   ! ioComp->modelComp coupling
   call ESMF_CplCompFinalize(cplComp, importState=ioExp, &
-    exportState=modelImp, phase=1, rc=localrc)
-  if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, &
+    exportState=modelImp, phase=1, userRc=userrc, rc=localrc)
+  if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
     ESMF_CONTEXT, rcToReturn=rc)) &
-    call ESMF_Finalize(rc=rc, terminationflag=ESMF_ABORT)
+    call ESMF_Finalize(rc=rc, endflag=ESMF_END_ABORT)
+  if (ESMF_LogFoundError(userrc, ESMF_ERR_PASSTHRU, &
+    ESMF_CONTEXT, rcToReturn=rc)) &
+    call ESMF_Finalize(rc=rc, endflag=ESMF_END_ABORT)
 
   ! modelComp->ioComp coupling
   call ESMF_CplCompFinalize(cplComp, importState=modelExp, &
-    exportState=ioImp, phase=2, rc=localrc)
-  if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, &
+    exportState=ioImp, phase=2, userRc=userrc, rc=localrc)
+  if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
     ESMF_CONTEXT, rcToReturn=rc)) &
-    call ESMF_Finalize(rc=rc, terminationflag=ESMF_ABORT)
+    call ESMF_Finalize(rc=rc, endflag=ESMF_END_ABORT)
+  if (ESMF_LogFoundError(userrc, ESMF_ERR_PASSTHRU, &
+    ESMF_CONTEXT, rcToReturn=rc)) &
+    call ESMF_Finalize(rc=rc, endflag=ESMF_END_ABORT)
 
   ! ioComp
   call ESMF_GridCompFinalize(ioComp, importState=ioImp, exportState=ioExp, &
-    rc=localrc)
-  if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, &
+    userRc=userrc, rc=localrc)
+  if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
     ESMF_CONTEXT, rcToReturn=rc)) &
-    call ESMF_Finalize(rc=rc, terminationflag=ESMF_ABORT)
+    call ESMF_Finalize(rc=rc, endflag=ESMF_END_ABORT)
+  if (ESMF_LogFoundError(userrc, ESMF_ERR_PASSTHRU, &
+    ESMF_CONTEXT, rcToReturn=rc)) &
+    call ESMF_Finalize(rc=rc, endflag=ESMF_END_ABORT)
 
   ! modelComp
   call ESMF_GridCompFinalize(modelComp, importState=modelImp, &
-    exportState=modelExp, rc=localrc)
-  if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, &
+    exportState=modelExp, userRc=userrc, rc=localrc)
+  if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
     ESMF_CONTEXT, rcToReturn=rc)) &
-    call ESMF_Finalize(rc=rc, terminationflag=ESMF_ABORT)
+    call ESMF_Finalize(rc=rc, endflag=ESMF_END_ABORT)
+  if (ESMF_LogFoundError(userrc, ESMF_ERR_PASSTHRU, &
+    ESMF_CONTEXT, rcToReturn=rc)) &
+    call ESMF_Finalize(rc=rc, endflag=ESMF_END_ABORT)
 
 !-------------------------------------------------------------------------
 !-------------------------------------------------------------------------
@@ -326,40 +394,40 @@ program ESMF_DirectCouplingSTest
 !-------------------------------------------------------------------------
 
   call ESMF_GridCompDestroy(ioComp, rc=localrc)
-  if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, &
+  if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
     ESMF_CONTEXT, rcToReturn=rc)) &
-    call ESMF_Finalize(rc=rc, terminationflag=ESMF_ABORT)
+    call ESMF_Finalize(rc=rc, endflag=ESMF_END_ABORT)
 
   call ESMF_GridCompDestroy(modelComp, rc=localrc)
-  if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, &
+  if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
     ESMF_CONTEXT, rcToReturn=rc)) &
-    call ESMF_Finalize(rc=rc, terminationflag=ESMF_ABORT)
+    call ESMF_Finalize(rc=rc, endflag=ESMF_END_ABORT)
 
   call ESMF_CplCompDestroy(cplComp, rc=localrc)
-  if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, &
+  if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
     ESMF_CONTEXT, rcToReturn=rc)) &
-    call ESMF_Finalize(rc=rc, terminationflag=ESMF_ABORT)
+    call ESMF_Finalize(rc=rc, endflag=ESMF_END_ABORT)
 
   call ESMF_StateDestroy(ioExp, rc=localrc)
-  if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, &
+  if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
     ESMF_CONTEXT, rcToReturn=rc)) &
-    call ESMF_Finalize(rc=rc, terminationflag=ESMF_ABORT)
-    
+    call ESMF_Finalize(rc=rc, endflag=ESMF_END_ABORT)
+
   call ESMF_StateDestroy(ioImp, rc=localrc)
-  if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, &
+  if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
     ESMF_CONTEXT, rcToReturn=rc)) &
-    call ESMF_Finalize(rc=rc, terminationflag=ESMF_ABORT)
-    
+    call ESMF_Finalize(rc=rc, endflag=ESMF_END_ABORT)
+
   call ESMF_StateDestroy(modelExp, rc=localrc)
-  if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, &
+  if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
     ESMF_CONTEXT, rcToReturn=rc)) &
-    call ESMF_Finalize(rc=rc, terminationflag=ESMF_ABORT)
-    
+    call ESMF_Finalize(rc=rc, endflag=ESMF_END_ABORT)
+
   call ESMF_StateDestroy(modelImp, rc=localrc)
-  if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, &
+  if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
     ESMF_CONTEXT, rcToReturn=rc)) &
-    call ESMF_Finalize(rc=rc, terminationflag=ESMF_ABORT)
-    
+    call ESMF_Finalize(rc=rc, endflag=ESMF_END_ABORT)
+
 !-------------------------------------------------------------------------
 !-------------------------------------------------------------------------
 
@@ -377,7 +445,7 @@ program ESMF_DirectCouplingSTest
     write(0, *) trim(finalMsg)
     write(0, *) ""
   endif
-  
+
   print *, "------------------------------------------------------------"
   print *, "------------------------------------------------------------"
   print *, "Test finished, localPet = ", localPet
@@ -392,5 +460,5 @@ program ESMF_DirectCouplingSTest
   call ESMF_Finalize()
 
 end program ESMF_DirectCouplingSTest
-    
+
 !\end{verbatim}

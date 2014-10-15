@@ -1,7 +1,7 @@
-! $Id: ESMF_Field.F90,v 1.343.2.2 2010/04/27 20:49:18 feiliu Exp $
+! $Id: ESMF_Field.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2010, University Corporation for Atmospheric Research, 
+! Copyright 2002-2012, University Corporation for Atmospheric Research, 
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
 ! Laboratory, University of Michigan, National Centers for Environmental 
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
@@ -17,8 +17,7 @@ module ESMF_FieldMod
 !
 !==============================================================================
 !
-! This file contains the Field class definition and all Field
-! class method.
+! This file contains the Field class definition and Field class methods.
 !
 !------------------------------------------------------------------------------
 ! INCLUDES
@@ -33,8 +32,7 @@ module ESMF_FieldMod
 ! The code in this file implements the {\tt ESMF\_Field} class, which 
 ! represents a single scalar or vector field.  {\tt ESMF\_Field}s associate
 ! a metadata description expressed as a set of {\tt ESMF\_Attributes} with
-! a data {\tt ESMF\_Array}, {\tt ESMF\_Grid}, and I/O specification, or
-! {\tt ESMF\_IOSpec} (NOT IMPLEMENTED). 
+! a data {\tt ESMF\_Array} and an {\tt ESMF\_Grid}.
 ! 
 ! A gridToFieldMap describes the relationship of the {\tt ESMF\_Array} to
 ! the {\tt ESMF\_Grid}.  
@@ -47,7 +45,6 @@ module ESMF_FieldMod
   use ESMF_UtilMod
   use ESMF_BaseMod
   use ESMF_LogErrMod
-  use ESMF_IOSpecMod
   use ESMF_ArraySpecMod
   use ESMF_LocalArrayMod
   use ESMF_DELayoutMod
@@ -68,6 +65,20 @@ module ESMF_FieldMod
   private
 
 !------------------------------------------------------------------------------
+! ! ESMF_FieldStatus_Flag
+
+  type ESMF_FieldStatus_Flag
+    sequence
+    !private
+    integer :: status
+  end type
+
+  type(ESMF_FieldStatus_Flag), parameter :: ESMF_FIELDSTATUS_UNINIT = ESMF_FieldStatus_Flag(1), &
+                                  ESMF_FIELDSTATUS_EMPTY = ESMF_FieldStatus_Flag(2), &
+                                  ESMF_FIELDSTATUS_GRIDSET = ESMF_FieldStatus_Flag(3), &
+                                  ESMF_FIELDSTATUS_COMPLETE = ESMF_FieldStatus_Flag(4)
+
+!------------------------------------------------------------------------------
 ! ! ESMF_FieldType
 ! ! Definition of the Field class.
 
@@ -77,9 +88,7 @@ module ESMF_FieldMod
     type (ESMF_Base)              :: base             ! base class object
     type (ESMF_Array)             :: array
     type (ESMF_GeomBase)          :: geombase
-    type (ESMF_Status)            :: gridstatus
-    type (ESMF_Status)            :: datastatus
-    type (ESMF_IOSpec)            :: iospec           ! iospec values
+    type (ESMF_FieldStatus_Flag)  :: status
     type (ESMF_Status)            :: iostatus         ! if unset, inherit from gcomp
     logical                       :: array_internal   ! .true. if field%array is
                                                       ! internally allocated
@@ -88,8 +97,8 @@ module ESMF_FieldMod
     integer                       :: gridToFieldMap(ESMF_MAXDIM)
     integer                       :: ungriddedLBound(ESMF_MAXDIM)
     integer                       :: ungriddedUBound(ESMF_MAXDIM)
-    integer                       :: maxHaloLWidth(ESMF_MAXDIM)
-    integer                       :: maxHaloUWidth(ESMF_MAXDIM)
+    integer                       :: totalLWidth(ESMF_MAXDIM)
+    integer                       :: totalUWidth(ESMF_MAXDIM)
     ESMF_INIT_DECLARE
   end type
 
@@ -108,7 +117,11 @@ module ESMF_FieldMod
 !------------------------------------------------------------------------------
 ! !PUBLIC TYPES:
   public ESMF_Field
+  public ESMF_FieldStatus_Flag
   public ESMF_FieldType ! For internal use only
+
+  public ESMF_FIELDSTATUS_UNINIT, ESMF_FIELDSTATUS_EMPTY, &
+    ESMF_FIELDSTATUS_GRIDSET, ESMF_FIELDSTATUS_COMPLETE
 
 !------------------------------------------------------------------------------
 !
@@ -116,8 +129,7 @@ module ESMF_FieldMod
 !
 ! - ESMF-public methods:
    public ESMF_FieldValidate           ! Check internal consistency
-
-   public assignment(=)
+   public operator(==), operator(/=)
 
 ! - ESMF-internal methods:
    public ESMF_FieldGetInit            ! For Standardized Initialization
@@ -125,40 +137,24 @@ module ESMF_FieldMod
    public ESMF_FieldDeserialize
    public ESMF_FieldInitialize         ! Default initiailze field member variables
 
-!
-!
-!EOPI
-   
+
 !------------------------------------------------------------------------------
 ! The following line turns the CVS identifier string into a printable variable.
   character(*), parameter, private :: version = &
-    '$Id: ESMF_Field.F90,v 1.343.2.2 2010/04/27 20:49:18 feiliu Exp $'
+    '$Id: ESMF_Field.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $'
 
 !==============================================================================
 !
 ! INTERFACE BLOCKS
 !
 !==============================================================================
-!------------------------------------------------------------------------------
-!BOPI
-! !IROUTINE: assignment (=) - set one field equal to another
-!
-! !INTERFACE:
-      interface assignment (=)
-   
-! !PRIVATE MEMBER FUNCTIONS:
-      module procedure ESMF_FieldAssign
+interface operator (==)
+  module procedure ESMF_sfeq
+end interface
 
-
-! !DESCRIPTION:
-!    Set one field equal to another note that since its 
-!    a pointer copy the fields are actually the same
- 
-!EOPI
-      end interface
-!
-!
-
+interface operator (/=)
+  module procedure ESMF_sfne
+end interface
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -168,40 +164,6 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-
-!------------------------------------------------------------------------------
-#undef  ESMF_METHOD
-#define ESMF_METHOD "ESMF_FieldAssign()"
-!BOPI
-! !IROUTINE:  ESMF_FieldAssign - set one field struct equal to another
-
-! !INTERFACE:
-
-   subroutine ESMF_FieldAssign(dval, sval)
-!
-! !ARGUMENTS:
- type(ESMF_Field), intent(out) :: dval
- type(ESMF_Field), intent(in) :: sval
-!
-! !DESCRIPTION:
-!      Set one field structure equal to another
-!
-!     The arguments are:
-!     \begin{description}
-!     \item [dval]
-!           destination structure
-!     \item [dval]
-!           source structure
-!     \end{description}
-!
-!EOPI
-
- dval%ftypep => sval%ftypep
-
- ESMF_INIT_COPY(dval,sval)
-
- end subroutine
-
 !------------------------------------------------------------------------------
 #undef  ESMF_METHOD
 #define ESMF_METHOD "ESMF_FieldValidate"
@@ -210,11 +172,17 @@ contains
 ! !IROUTINE:  ESMF_FieldValidate - Check validity of a Field
 
 ! !INTERFACE:
-      subroutine ESMF_FieldValidate(field, rc)
+      subroutine ESMF_FieldValidate(field, keywordEnforcer, rc)
 !
 ! !ARGUMENTS:
-      type(ESMF_Field), intent(inout) :: field 
-      integer, intent(out), optional :: rc   
+      type(ESMF_Field), intent(in)            :: field 
+type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
+      integer,          intent(out), optional :: rc   
+!
+! !STATUS:
+! \begin{itemize}
+! \item\apiStatusCompatibleVersion{5.2.0r}
+! \end{itemize}
 !
 ! !DESCRIPTION:
 !      Validates that the {\tt field} is internally consistent.
@@ -251,9 +219,9 @@ contains
       integer, allocatable :: arrayCompUBnd(:, :), arrayCompLBnd(:, :)
       type(ESMF_DistGrid)  :: arrayDistGrid, gridDistGrid
       type(ESMF_GridDecompType) :: decompType
-      type(ESMF_GeomType) :: geomType
+      type(ESMF_GeomType_Flag) :: geomtype
       type(ESMF_Grid) :: grid
-      type(ESMF_Status) :: fieldstatus
+      type(ESMF_Status) :: basestatus
 
       ! Initialize
       localrc = ESMF_RC_NOT_IMPL
@@ -263,9 +231,9 @@ contains
       ESMF_INIT_CHECK_DEEP(ESMF_FieldGetInit,field,rc)
 
       if (.not.associated(field%ftypep)) then 
-         call ESMF_LogMsgSetError(ESMF_RC_OBJ_BAD, &
-            "Uninitialized or already destroyed Field: ftypep unassociated", &
-             ESMF_CONTEXT, rc)
+         call ESMF_LogSetError(rcToCheck=ESMF_RC_OBJ_BAD, &
+            msg="Uninitialized or already destroyed Field: ftypep unassociated", &
+             ESMF_CONTEXT, rcToReturn=rc)
          return
       endif 
 
@@ -273,48 +241,49 @@ contains
 
 
       ! make sure the field is ready before trying to look at contents
-      call ESMF_BaseGetStatus(ftypep%base, fieldstatus, rc=localrc)
-      if (ESMF_LogMsgFoundError(localrc, &
+      call ESMF_BaseGetStatus(ftypep%base, basestatus, rc=localrc)
+      if (ESMF_LogFoundError(localrc, &
         ESMF_ERR_PASSTHRU, &
-        ESMF_CONTEXT, rc)) return
-      if (fieldstatus .ne. ESMF_STATUS_READY) then
-         call ESMF_LogMsgSetError(ESMF_RC_OBJ_BAD, &
-            "Uninitialized or already destroyed Field: fieldstatus not ready", &
-             ESMF_CONTEXT, rc)
+        ESMF_CONTEXT, rcToReturn=rc)) return
+      if (basestatus .ne. ESMF_STATUS_READY) then
+         call ESMF_LogSetError(rcToCheck=ESMF_RC_OBJ_BAD, &
+            msg="Uninitialized or already destroyed Field: fieldstatus not ready", &
+             ESMF_CONTEXT, rcToReturn=rc)
          return
       endif 
 
       ! make sure there is a grid before asking it questions.
-      if (ftypep%gridstatus .eq. ESMF_STATUS_READY) then
+      if (ftypep%status .eq. ESMF_FIELDSTATUS_GRIDSET .or. &
+          ftypep%status .eq. ESMF_FIELDSTATUS_COMPLETE) then
           call ESMF_GeomBaseValidate(ftypep%geombase, rc=localrc)
-          if (ESMF_LogMsgFoundError(localrc, &
+          if (ESMF_LogFoundError(localrc, &
                                     ESMF_ERR_PASSTHRU, &
-                                    ESMF_CONTEXT, rc)) return
+                                    ESMF_CONTEXT, rcToReturn=rc)) return
 
 	  ! get the grid decomp type if geombase is grid
       decompType = ESMF_GRID_NONARBITRARY
-          call ESMF_GeomBaseGet(ftypep%geombase, geomType=geomType, rc=localrc)
-          if (ESMF_LogMsgFoundError(localrc, &  
+          call ESMF_GeomBaseGet(ftypep%geombase, geomtype=geomtype, rc=localrc)
+          if (ESMF_LogFoundError(localrc, &  
             ESMF_ERR_PASSTHRU, &  
-            ESMF_CONTEXT, rc)) return  
+            ESMF_CONTEXT, rcToReturn=rc)) return  
           
-          if (geomType .eq. ESMF_GEOMTYPE_GRID) then
+          if (geomtype .eq. ESMF_GEOMTYPE_GRID) then
              call ESMF_GeomBaseGet(ftypep%geombase, grid=grid, rc=localrc)
-             if (ESMF_LogMsgFoundError(localrc, &  
+             if (ESMF_LogFoundError(localrc, &  
           	    ESMF_ERR_PASSTHRU, &  
-           	    ESMF_CONTEXT, rc)) return  
+           	    ESMF_CONTEXT, rcToReturn=rc)) return  
              call ESMF_GridGetDecompType(grid, decompType, rc=localrc)
-             if (ESMF_LogMsgFoundError(localrc, &  
+             if (ESMF_LogFoundError(localrc, &  
           	    ESMF_ERR_PASSTHRU, &  
-           	    ESMF_CONTEXT, rc)) return  
+           	    ESMF_CONTEXT, rcToReturn=rc)) return  
           endif   
           ! get grid dim and extents for the local piece
           call ESMF_GeomBaseGet(ftypep%geombase, dimCount=gridrank, &
                             distgrid=gridDistGrid, localDECount=localDECount, rc=localrc)
           if (localrc .ne. ESMF_SUCCESS) then
-             call ESMF_LogMsgSetError(ESMF_RC_OBJ_BAD, &
-                "Cannot retrieve distgrid, gridrank, localDECount from ftypep%grid", &
-                 ESMF_CONTEXT, rc)
+             call ESMF_LogSetError(rcToCheck=ESMF_RC_OBJ_BAD, &
+                msg="Cannot retrieve distgrid, gridrank, localDECount from ftypep%grid", &
+                 ESMF_CONTEXT, rcToReturn=rc)
              return
           endif 
           ! Bounds only valid if there are local DE's
@@ -324,36 +293,37 @@ contains
                                exclusiveUBound=exclUBounds, &
                                rc=localrc)
               if (localrc .ne. ESMF_SUCCESS) then
-                 call ESMF_LogMsgSetError(ESMF_RC_OBJ_BAD, &
-                    "Cannot retrieve exclusive bounds from ftypep%grid", &
-                     ESMF_CONTEXT, rc)
+                 call ESMF_LogSetError(rcToCheck=ESMF_RC_OBJ_BAD, &
+                    msg="Cannot retrieve exclusive bounds from ftypep%grid", &
+                     ESMF_CONTEXT, rcToReturn=rc)
                  return
               endif 
           enddo
       endif
       ! make sure there is data before asking it questions.
-      if (ftypep%datastatus .eq. ESMF_STATUS_READY) then
+      if (ftypep%status .eq. ESMF_FIELDSTATUS_COMPLETE) then
           call ESMF_ArrayValidate(array=ftypep%array, rc=localrc)
           if (localrc .ne. ESMF_SUCCESS) then
-             call ESMF_LogMsgSetError(ESMF_RC_OBJ_BAD, &
-                "Cannot validate ftypep%array", &
-                 ESMF_CONTEXT, rc)
+             call ESMF_LogSetError(rcToCheck=ESMF_RC_OBJ_BAD, &
+                msg="Cannot validate ftypep%array", &
+                 ESMF_CONTEXT, rcToReturn=rc)
              return
           endif 
           call ESMF_ArrayGet(ftypep%array, dimCount=dimCount, localDECount=localDECount, &
               distgrid=arrayDistGrid, rank=arrayrank, rc=localrc)
           if (localrc .ne. ESMF_SUCCESS) then
-             call ESMF_LogMsgSetError(ESMF_RC_OBJ_BAD, &
-                "Cannot retrieve dimCount, localDECount, arrayDistGrid, arrayrank from ftypep%array", &
-                 ESMF_CONTEXT, rc)
+             call ESMF_LogSetError(rcToCheck=ESMF_RC_OBJ_BAD, &
+                msg="Cannot retrieve dimCount, localDECount, arrayDistGrid, arrayrank from ftypep%array", &
+                 ESMF_CONTEXT, rcToReturn=rc)
              return
           endif 
           
           ! Verify the distgrids in array and grid match.
-          if(.not. ESMF_DistGridMatch(gridDistGrid, arrayDistGrid, rc=localrc)) then
-              call ESMF_LogMsgSetError(ESMF_RC_OBJ_BAD, &
-                 "grid DistGrid does not match array DistGrid", &
-                  ESMF_CONTEXT, rc)
+          if(ESMF_DistGridMatch(gridDistGrid, arrayDistGrid, rc=localrc) &
+            < ESMF_DISTGRIDMATCH_EXACT) then
+              call ESMF_LogSetError(rcToCheck=ESMF_RC_OBJ_BAD, &
+                 msg="grid DistGrid does not match array DistGrid", &
+                  ESMF_CONTEXT, rcToReturn=rc)
               return
           endif
 
@@ -369,9 +339,9 @@ contains
                   distgridToPackedArrayMap=distgridToPackedArrayMap, &
                   rc=localrc)
              if (localrc .ne. ESMF_SUCCESS) then
-                 call ESMF_LogMsgSetError(ESMF_RC_OBJ_BAD, &
-                 "Cannot retrieve distgridToPackedArrayMap from ftypep%array", &
-                 ESMF_CONTEXT, rc)
+                 call ESMF_LogSetError(rcToCheck=ESMF_RC_OBJ_BAD, &
+                 msg="Cannot retrieve distgridToPackedArrayMap from ftypep%array", &
+                 ESMF_CONTEXT, rcToReturn=rc)
                 return
              endif 
 
@@ -382,9 +352,9 @@ contains
             enddo
 
             if ( arrayrank .lt. gridrank_norep) then
-                call ESMF_LogMsgSetError(ESMF_RC_OBJ_BAD, &
-                   "grid rank + ungridded Bound rank not equal to array rank", &
-                    ESMF_CONTEXT, rc)
+                call ESMF_LogSetError(rcToCheck=ESMF_RC_OBJ_BAD, &
+                   msg="grid rank + ungridded Bound rank not equal to array rank", &
+                    ESMF_CONTEXT, rcToReturn=rc)
                 return
             endif
 
@@ -395,6 +365,7 @@ contains
       if (present(rc)) rc = ESMF_SUCCESS
 
       end subroutine ESMF_FieldValidate
+
 
 !------------------------------------------------------------------------------
 !------------------------------------------------------------------------------
@@ -427,8 +398,7 @@ contains
 ! !DESCRIPTION:
 !      Takes an {\tt ESMF\_Field} object and adds all the information needed
 !      to save the information to a file or recreate the object based on this
-!      information.   Expected to be used by {\tt ESMF\_StateReconcile()} and
-!      by {\tt ESMF\_FieldWrite()} and {\tt ESMF\_FieldRead()}.
+!      information.   Expected to be used by {\tt ESMF\_StateReconcile()}.
 !
 !     The arguments are:
 !     \begin{description}
@@ -485,35 +455,36 @@ contains
 
       call c_ESMC_BaseSerialize(fp%base, buffer(1), length, offset, &
                                  lattreconflag, linquireflag, localrc)
-      if (ESMF_LogMsgFoundError(localrc, &
+      if (ESMF_LogFoundError(localrc, &
                                  ESMF_ERR_PASSTHRU, &
-                                 ESMF_CONTEXT, rc)) return
+                                 ESMF_CONTEXT, rcToReturn=rc)) return
 
-      call c_ESMC_FieldSerialize(fp%gridstatus, &
-                                 fp%datastatus, fp%iostatus, & 
+      call c_ESMC_FieldSerialize(fp%status, &
+                                 fp%iostatus, & 
                                  fp%dimCount, fp%gridToFieldMap, &
                                  fp%ungriddedLBound, fp%ungriddedUBound, &
-                                 fp%maxHaloLWidth, fp%maxHaloUWidth, &
+                                 fp%totalLWidth, fp%totalUWidth, &
                                  buffer(1), length, offset, linquireflag, localrc)
-      if (ESMF_LogMsgFoundError(localrc, &
+      if (ESMF_LogFoundError(localrc, &
                                  ESMF_ERR_PASSTHRU, &
-                                 ESMF_CONTEXT, rc)) return
+                                 ESMF_CONTEXT, rcToReturn=rc)) return
 
 
-      if (fp%gridstatus .eq. ESMF_STATUS_READY) then
+      if (fp%status .eq. ESMF_FIELDSTATUS_GRIDSET .or. &
+          fp%status .eq. ESMF_FIELDSTATUS_COMPLETE) then
         call ESMF_GeomBaseSerialize(fp%geombase, buffer, length, offset, &
                                     lattreconflag, linquireflag, localrc)
-        if (ESMF_LogMsgFoundError(localrc, &
+        if (ESMF_LogFoundError(localrc, &
                                      ESMF_ERR_PASSTHRU, &
-                                     ESMF_CONTEXT, rc)) return
+                                     ESMF_CONTEXT, rcToReturn=rc)) return
       endif
 
-      if (fp%datastatus .eq. ESMF_STATUS_READY) then
+      if (fp%status .eq. ESMF_FIELDSTATUS_COMPLETE) then
           call c_ESMC_ArraySerialize(fp%array, buffer(1), length, offset, &
                                      lattreconflag, linquireflag, localrc)
-          if (ESMF_LogMsgFoundError(localrc, &
+          if (ESMF_LogFoundError(localrc, &
                                      ESMF_ERR_PASSTHRU, &
-                                     ESMF_CONTEXT, rc)) return
+                                     ESMF_CONTEXT, rcToReturn=rc)) return
       endif
 
       if  (present(rc)) rc = ESMF_SUCCESS
@@ -567,6 +538,7 @@ contains
       type(ESMF_FieldType), pointer :: fp    ! field type
       integer staggerloc
       type(ESMF_AttReconcileFlag) :: lattreconflag
+      type(ESMF_Logical) :: linkChange
 
       ! Initialize
       localrc = ESMF_RC_NOT_IMPL
@@ -584,63 +556,65 @@ contains
 
       ! Shortcut to internals
       allocate(fp, stat=localrc)
-      if (ESMF_LogMsgFoundAllocError(localrc, &
-                                     "space for new Field object", &
-                                     ESMF_CONTEXT, rc)) return
+      if (ESMF_LogFoundAllocError(localrc, &
+                                     msg="space for new Field object", &
+                                     ESMF_CONTEXT, rcToReturn=rc)) return
 
       ! Deserialize Base
       call c_ESMC_BaseDeserialize(fp%base, buffer(1), offset, lattreconflag, localrc)
-      if (ESMF_LogMsgFoundError(localrc, &
+      if (ESMF_LogFoundError(localrc, &
                                  ESMF_ERR_PASSTHRU, &
-                                 ESMF_CONTEXT, rc)) return
+                                 ESMF_CONTEXT, rcToReturn=rc)) return
                                  
       call ESMF_BaseSetInitCreated(fp%base, rc=localrc)
-      if (ESMF_LogMsgFoundError(localrc, &
+      if (ESMF_LogFoundError(localrc, &
                                  ESMF_ERR_PASSTHRU, &
-                                 ESMF_CONTEXT, rc)) return
+                                 ESMF_CONTEXT, rcToReturn=rc)) return
 
       ! Deserialize other Field members
 
-      call c_ESMC_FieldDeserialize(fp%gridstatus, &
-                                   fp%datastatus, fp%iostatus, &
+      call c_ESMC_FieldDeserialize(fp%status, &
+                                   fp%iostatus, &
                                    fp%dimCount, fp%gridToFieldMap, &
                                    fp%ungriddedLBound, fp%ungriddedUBound, &
-                                   fp%maxHaloLWidth, fp%maxHaloUWidth, &
+                                   fp%totalLWidth, fp%totalUWidth, &
                                    buffer(1), offset, localrc)
-      if (ESMF_LogMsgFoundError(localrc, &
+      if (ESMF_LogFoundError(localrc, &
                                 ESMF_ERR_PASSTHRU, &
-                                ESMF_CONTEXT, rc)) return
+                                ESMF_CONTEXT, rcToReturn=rc)) return
 
-      if (fp%gridstatus .eq. ESMF_STATUS_READY) then
+      if (fp%status .eq. ESMF_FIELDSTATUS_GRIDSET .or. &
+          fp%status .eq. ESMF_FIELDSTATUS_COMPLETE) then
           fp%geombase=ESMF_GeomBaseDeserialize(buffer, offset, &
                                               lattreconflag, localrc)
-          if (ESMF_LogMsgFoundError(localrc, &
+          if (ESMF_LogFoundError(localrc, &
                                      ESMF_ERR_PASSTHRU, &
-                                     ESMF_CONTEXT, rc)) return
+                                     ESMF_CONTEXT, rcToReturn=rc)) return
           
           !  here we relink the Field Attribute hierarchy to the Attribute
           !  hierarchy of the object in the GeomBase, Grid for now
           if (lattreconflag%value == ESMF_ATTRECONCILE_ON%value .and. & 
               fp%geombase%gbcp%type%type == ESMF_GEOMTYPE_GRID%type) then
-            call c_ESMC_AttributeLink(fp%base, fp%geombase%gbcp%grid, localrc)
-            if (ESMF_LogMsgFoundError(localrc, &
+            linkChange = ESMF_TRUE
+            call c_ESMC_AttributeLink(fp%base, fp%geombase%gbcp%grid, linkChange, localrc)
+            if (ESMF_LogFoundError(localrc, &
                                     ESMF_ERR_PASSTHRU, &
-                                    ESMF_CONTEXT, rc)) return
+                                    ESMF_CONTEXT, rcToReturn=rc)) return
           endif
 
       endif
 
-      if (fp%datastatus .eq. ESMF_STATUS_READY) then
+      if (fp%status .eq. ESMF_FIELDSTATUS_COMPLETE) then
           call c_ESMC_ArrayDeserialize(fp%array, buffer(1), offset, &
                                       lattreconflag, localrc)
-          if (ESMF_LogMsgFoundError(localrc, &
+          if (ESMF_LogFoundError(localrc, &
                                      ESMF_ERR_PASSTHRU, &
-                                     ESMF_CONTEXT, rc)) return
+                                     ESMF_CONTEXT, rcToReturn=rc)) return
 
           call ESMF_ArraySetInitCreated(fp%array,rc=localrc)
-          if (ESMF_LogMsgFoundError(localrc, &
+          if (ESMF_LogFoundError(localrc, &
                                      ESMF_ERR_PASSTHRU, &
-                                     ESMF_CONTEXT, rc)) return
+                                     ESMF_CONTEXT, rcToReturn=rc)) return
       endif
     
       fp%is_proxy = .true.
@@ -718,8 +692,7 @@ contains
 !     \end{description}
 !
 !EOPI
-        ftypep%gridstatus  = ESMF_STATUS_UNINIT
-        ftypep%datastatus  = ESMF_STATUS_UNINIT
+        ftypep%status      = ESMF_FIELDSTATUS_UNINIT
         ftypep%iostatus    = ESMF_STATUS_UNINIT
        
         ftypep%array_internal = .false. 
@@ -727,13 +700,29 @@ contains
         ftypep%gridToFieldMap = -1
         ftypep%ungriddedLBound = -1
         ftypep%ungriddedUBound = -1
-        ftypep%maxHaloLWidth   = -1
-        ftypep%maxHaloUWidth   = -1
+        ftypep%totalLWidth   = -1
+        ftypep%totalUWidth   = -1
 
         if(present(rc)) rc = ESMF_SUCCESS
 
     end subroutine ESMF_FieldInitialize
 
 !------------------------------------------------------------------------------
+!------------------------------------------------------------------------------
+! function to compare two ESMF_Status flags to see if they're the same or not
+
+function ESMF_sfeq(sf1, sf2)
+ logical ESMF_sfeq
+ type(ESMF_FieldStatus_Flag), intent(in) :: sf1, sf2
+
+ ESMF_sfeq = (sf1%status == sf2%status)
+end function
+
+function ESMF_sfne(sf1, sf2)
+ logical ESMF_sfne
+ type(ESMF_FieldStatus_Flag), intent(in) :: sf1, sf2
+
+ ESMF_sfne = (sf1%status /= sf2%status)
+end function
 
 end module ESMF_FieldMod

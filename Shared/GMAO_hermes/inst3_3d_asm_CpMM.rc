@@ -1,0 +1,90 @@
+# fv2prs.rc
+#
+#  This is a resource file for the fv2prs utility.
+#
+# !REVISION HISTORY:
+#
+#  26Jan2006  B. Yin    Modification from tsyn3d_mis_p.rc.
+#
+#...........................................................................
+
+#                     ----------------------
+#                     Output File Resolution
+#                     ----------------------
+
+zonal_resolution: 288              # no. of zonal grid-points (im)
+west_most_longitude_in_deg: -179.375 # longitude of first point (i=1)
+meridional_resolution: 144          # no. meridional grid-points (jm)
+south_most_latitude_in_deg: -89.375 # latitude of first point (i=1)
+delta_phi:                  1.25    # latitude difference between 2 grid points
+vertical_level_numbers: 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40 41 42
+#vertical_levels_in_hPa: 1000 975 950 925 900 875 850 825 800 775 750 725 700 650 600 550 500 450 400 350 300 250 200 150 100 70 50 40 30 20 10 7 5 4 3 2 1 0.7 0.5 0.4 0.3 0.1
+
+#                       ----------------
+#                       Variable Classes
+#                       ----------------
+ 
+# A variable class lists the variable names that make up a file
+# type or product.
+
+
+### PRODUCT: inst3_3d_asm_Cp (3-D instantaneous variables)
+VarClass*inst3_3d_asm_Cp: SLP PS PHIS H O3 QV QL QI RH T U V EPV OMEGA Cov_U_V Cov_U_T Cov_V_T Cov_U_QV Cov_V_QV Cov_U_QL Cov_V_QL Cov_U_QI Cov_V_QI vsts Var_SLP Var_PS Var_PHIS Var_H Var_O3 Var_QV Var_QL Var_QI Var_RH Var_T Var_U Var_V Var_EPV Var_OMEGA
+
+#                         --------------------
+#                         Variable Translation
+#                         --------------------
+
+Variable_translation_table::
+
+#      Output          |                       Input
+#  Name       Units    | Name             scale_factor  add_offset  Positive Check
+#  -------------------------------------------------------------------------------
+# For inst3_3d_asm_Cp -- from ana.eta file
+   SLP        Pa         SLP                    1.0        0.0          0
+   PS         Pa         PS                     1.0        0.0          0
+   PHIS       m2/s2      PHIS                   1.0        0.0          0
+   H          m          H                      1.0        0.0          0
+   RH         fraction   RH                     1.0        0.0          0
+   U          m/s        U                      1.0        0.0          0
+   V          m/s        V                      1.0        0.0          0
+   O3         kg/kg      O3                     1.0        0.0          0
+   QV         kg/kg      QV                     1.0        0.0          0 # kg/kg
+   QI         kg/kg      QI                     1.0        0.0          0 # kg/kg
+   QL         kg/kg      QL                     1.0        0.0          0 # kg/kg
+   T          K          T                      1.0        0.0          0
+   EPV        Km2/kg/s   EPV                    1.0        0.0          0
+   OMEGA      Pa/day     OMEGA                  1.0        0.0          0
+::
+
+#                         Variable Description
+#                         --------------------
+
+# Table for variable names and description:
+# For inst3_3d_asm_Cp
+
+SLP:       Sea-level pressure
+PS:        Surface pressure
+PHIS:      Surface Geopotential
+H:         Geopotential height
+O3:        Ozone Mixing Ratio
+QV:        Specific humidity
+QL:        Cloud liquid water mixing ratio
+QI:        Cloud ice mixing ratio
+RH:        Relative humidity
+T:         Air Temperature
+U:         Eastward wind component
+V:         Northward wind component
+EPV:	   Ertel potential vorticity 
+OMEGA:     Vertical pressure velocity
+
+
+history:        File written by CFIO
+convention:     CF-1.0
+institution:    Global Modeling and Assimilation Office, NASA Goddard Space Flight Center, Greenbelt, MD 20771
+references:     http://gmao.gsfc.nasa.gov/research/merra/
+comment:        @PUBLICTAG
+source:         Global Modeling and Assimilation Office. GEOSops_5_2_0
+title:          MERRA reanalysis.  @PUBLICTAG
+contact:        http://gmao.gsfc.nasa.gov/
+

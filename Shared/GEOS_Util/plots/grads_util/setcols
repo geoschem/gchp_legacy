@@ -1,0 +1,22 @@
+function setcols (cint)
+c1 = cint
+c2 = cint*2
+c3 = cint*3
+c4 = cint*4
+c5 = cint*5
+c6 = cint*6
+c7 = cint*7
+c8 = cint*8
+c9 = cint*9
+b1 = -cint
+b2 = -cint*2
+b3 = -cint*3
+b4 = -cint*4
+b5 = -cint*5
+b6 = -cint*6
+b7 = -cint*7
+b8 = -cint*8
+b9 = -cint*9
+'set clevs  'b9' 'b8' 'b7' 'b6' 'b5' 'b4' 'b3' 'b2' 'b1' 'c1' 'c2' 'c3' 'c4' 'c5' 'c6' 'c7' 'c8' 'c9
+'set ccols 49  48  47  46  45  44  43  42  41 0  61  62  63  64  65  66  67  68  69'
+return

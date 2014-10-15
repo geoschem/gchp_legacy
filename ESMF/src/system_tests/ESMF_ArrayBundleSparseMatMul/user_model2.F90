@@ -1,4 +1,4 @@
-! $Id: user_model2.F90,v 1.9 2009/05/29 19:24:41 theurich Exp $
+! $Id: user_model2.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
 !
 ! Example/test code which shows User Component calls.
 
@@ -15,7 +15,7 @@
 module user_model2
 
   ! ESMF Framework module
-  use ESMF_Mod
+  use ESMF
 
   implicit none
     
@@ -48,9 +48,12 @@ module user_model2
 
     ! First test whether ESMF-threading is supported on this machine
     call ESMF_VMGetGlobal(vm, rc=rc)
+    if (rc/=ESMF_SUCCESS) return ! bail out
     call ESMF_VMGet(vm, pthreadsEnabledFlag=pthreadsEnabled, rc=rc)
+    if (rc/=ESMF_SUCCESS) return ! bail out
     if (pthreadsEnabled) then
       call ESMF_GridCompSetVMMinThreads(comp, rc=rc)
+      if (rc/=ESMF_SUCCESS) return ! bail out
     endif
 #endif
 
@@ -67,13 +70,13 @@ module user_model2
 
     ! Register the callback routines.
 
-    call ESMF_GridCompSetEntryPoint(comp, ESMF_SETINIT, userRoutine=user_init, &
+    call ESMF_GridCompSetEntryPoint(comp, ESMF_METHOD_INITIALIZE, userRoutine=user_init, &
       rc=rc)
     if (rc/=ESMF_SUCCESS) return ! bail out
-    call ESMF_GridCompSetEntryPoint(comp, ESMF_SETRUN, userRoutine=user_run, &
+    call ESMF_GridCompSetEntryPoint(comp, ESMF_METHOD_RUN, userRoutine=user_run, &
       rc=rc)
     if (rc/=ESMF_SUCCESS) return ! bail out
-    call ESMF_GridCompSetEntryPoint(comp, ESMF_SETFINAL, userRoutine=user_final, &
+    call ESMF_GridCompSetEntryPoint(comp, ESMF_METHOD_FINALIZE, userRoutine=user_final, &
       rc=rc)
     if (rc/=ESMF_SUCCESS) return ! bail out
 
@@ -129,7 +132,7 @@ module user_model2
     arraybundle = ESMF_ArrayBundleCreate(arrayList=array, name="dstAryBndl", &
       rc=rc)
     if (rc/=ESMF_SUCCESS) return ! bail out
-    call ESMF_StateAdd(importState, arraybundle, rc=rc)
+    call ESMF_StateAdd(importState, (/arraybundle/), rc=rc)
     if (rc/=ESMF_SUCCESS) return ! bail out
    
     print *, "User Comp2 Init returning"

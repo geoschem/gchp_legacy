@@ -1,0 +1,334 @@
+function setupd (args)
+
+****************************************************************
+*****                                                      *****
+*****  This script is the driver for creating difference   *****
+*****  plots of RMS and STD from 2 experiments             *****
+*****  (eg. EXP0 and EXP2 from the stats.rc)               *****
+*****                                                      *****
+****************************************************************
+
+'reinit'
+'set display color white'
+'rgbset'
+'c'
+
+'run getenv GEOSUTIL'
+        geosutil = result
+'run getenv SOURCE'
+        SOURCE   = result
+
+if( SOURCE = "NULL" )
+   'run getenv "PWD"'
+    SOURCE = result
+   'run setenv "SOURCE" 'SOURCE
+endif
+
+'run setenv "ANTIALIAS" TRUE'
+
+****************************************************************
+****************************************************************
+
+'numargs  'args
+ numargs = result
+
+rcfile = "stats.rc"
+fields = 'p h u v t q chi psi'
+  exps = ''
+  levs = '1000 850 700 500 400 300 250 200 150 100'
+
+       num = 0
+while( num < numargs )
+       num = num + 1
+if( subwrd(args,num) = '-rc' ) ; rcfile = subwrd(args,num+1) ; endif
+
+* Read EXPS
+* -----------
+if( subwrd(args,num) = '-exps' )
+           k = 1
+    while( k > 0 )
+           L = num + k
+        exp  = subwrd(args,L)
+    if( exp = '' )
+        k = -1
+    else
+        bit = checkbit(exp)
+*       bit = substr(exp,1,1)
+        if( bit = '-' )
+              k = -1
+        else
+              exps = exps % ' ' % exp
+              k = k+1
+        endif
+    endif
+    endwhile
+endif
+
+* Read FIELDS
+* -----------
+if( subwrd(args,num) = '-fields' )
+     fields = ''
+           k = 1
+    while( k > 0 )
+           L = num + k
+        field  = subwrd(args,L)
+    if( field = '' )
+        k = -1
+    else
+        bit = substr(field,1,1)
+        if( bit = "-" )
+              k = -1
+        else
+              fields = fields % ' ' % field
+              k = k+1
+        endif
+    endif
+    endwhile
+endif
+
+* Read LEVELS
+* -----------
+if( subwrd(args,num) = '-levels' )
+     levs = ''
+           k = 1
+    while( k > 0 )
+           L = num + k
+        level  = subwrd(args,L)
+    if( level = '' )
+        k = -1
+    else
+        bit = substr(level,1,1)
+        if( bit = "-" )
+              k = -1
+        else
+              levs = levs % ' ' % level
+              k = k+1
+        endif
+    endif
+    endwhile
+endif
+
+endwhile
+
+*******************************************************
+****             Read Stats Resource File          ****
+*******************************************************
+
+n = 0
+
+'getresource 'SOURCE'/'rcfile' EXP'n ;  exp.n = result
+'getresource 'SOURCE'/'rcfile' DSC'n ; desc.n = result
+ if( exp.n != NULL | desc.n  != NULL )
+     length = strlen(desc.n)
+     desc.n = substr(desc.n,2,length)
+          n = n+1
+ else
+     say 'You must supply a CONTROL and COMPARISON experiment list'
+     say 'in the file:  stats.rc'
+     return
+ endif
+
+while( n >= 0 )
+'getresource 'SOURCE'/'rcfile' EXP'n ;  exp.n = result
+'getresource 'SOURCE'/'rcfile' DSC'n ; desc.n = result
+ if( exp.n != NULL | desc.n  != NULL )
+     length = strlen(desc.n)
+     desc.n = substr(desc.n,2,length)
+          n = n+1
+ else
+     ntot = n-1
+        n = -999
+ endif
+endwhile
+
+* Modify EXPS based on input
+* --------------------------
+if( exps != '' )
+   'numargs 'exps
+    ktot = result
+    k = 1
+    while( k<=ktot )
+      i = k - 1
+    idx = subwrd(exps,k)
+    exptmp.i =  exp.idx
+    dsctmp.i = desc.idx
+      k = k + 1
+    endwhile
+    k = 1
+    while( k<=ktot )
+      i = k - 1
+     exp.i = exptmp.i
+    desc.i = dsctmp.i
+      k = k + 1
+    endwhile
+    ntot = ktot-1
+endif
+
+say ' '
+say '  EXPS: 'exps
+say 'FIELDS: 'fields
+say 'LEVELS: 'levs
+say ' '
+
+*******************************************************
+****         Compute stats for kth-Experiment      ****
+*******************************************************
+
+k    = 0
+ktot = ntot
+
+while( k <= ktot )
+
+'fixname 'desc.k
+          DESC.k = result
+
+* Open Files
+* ----------
+'!'geosutil'/plots/grads_util/make_globl_ctl1 'exp.k' 'DESC.k
+'pltsys_open 'desc.k' 'DESC.k
+        numfiles = result
+
+'numargs  'fields
+ numflds = result
+
+n = 1
+while ( n<=numflds )
+              field = subwrd(fields,n)
+'set dfile 1'
+'setlons'
+'sety'
+
+  if( field = p   ) ; name = slp  ; levels = '1000' ; endif
+  if( field = h   ) ; name = hght ; levels =  levs  ; endif
+  if( field = u   ) ; name = uwnd ; levels =  levs  ; endif
+  if( field = v   ) ; name = vwnd ; levels =  levs  ; endif
+  if( field = t   ) ; name = tmpu ; levels =  levs  ; endif
+  if( field = q   ) ; name = sphu ; levels =  levs  ; endif
+  if( field = chi ) ; name = chi  ; levels =  levs  ; endif
+  if( field = psi ) ; name = psi  ; levels =  levs  ; endif
+
+'numargs  'levels
+ numlevs = result
+
+if( numlevs > 1 )
+   'setz'
+else
+   'set lev 'levels
+endif
+say 'Set LEVS: 'levels
+
+'statmak 'field' 'DESC.k
+
+n = n + 1
+endwhile
+
+say '   k: 'k
+say 'ktot: 'ktot
+if( k != ktot )
+'q files'
+say 'closing files 'result
+   'closefiles'
+   '!remove TINC.txt'
+endif
+
+k = k + 1
+endwhile
+
+****************************************************************
+****                  Make Horizontal Plots                 ****
+****************************************************************
+
+'set dfile 1'
+'setlons'
+'sety'
+'getinfo month'
+         month = result
+
+k    = 0
+ktot = ntot-1
+while( k <= ktot )
+ kp1 = k + 1
+'!/bin/mkdir -p 'SOURCE'/'desc.k'.'desc.kp1
+
+       n = 1
+       while ( n<=numflds )
+                     field = subwrd(fields,n)
+
+         if( field = p   ) ; name = slp  ; levels = '1000' ; endif
+         if( field = h   ) ; name = hght ; levels =  levs  ; endif
+         if( field = u   ) ; name = uwnd ; levels =  levs  ; endif
+         if( field = v   ) ; name = vwnd ; levels =  levs  ; endif
+         if( field = t   ) ; name = tmpu ; levels =  levs  ; endif
+         if( field = q   ) ; name = sphu ; levels =  levs  ; endif
+         if( field = chi ) ; name = chi  ; levels =  levs  ; endif
+         if( field = psi ) ; name = psi  ; levels =  levs  ; endif
+
+        'numargs  'levels
+         numlevs = result
+
+                     z = 1
+                     while( z <= numlevs )
+                     level = subwrd(levels,z)
+                     'set lev 'level
+                     'movie statpltdrv "'field' 'desc.k' 'desc.kp1' 'numfiles'" -print -rotate 90 -name 'SOURCE'/'desc.k'.'desc.kp1'/stats_'name'_syscmp_GLO_'level'_'month
+                     z = z + 1
+                     endwhile
+
+         n = n + 1
+         endwhile
+
+k = k + 1
+endwhile
+
+****************************************************************
+****                  Make Zonal Mean Plots                 ****
+****************************************************************
+
+'set dfile 1'
+'set x 1'
+'sety'
+'setz'
+'getinfo month'
+         month = result
+
+k    = 0
+ktot = ntot-1
+while( k <= ktot )
+ kp1 = k + 1
+'!/bin/mkdir -p 'SOURCE'/'desc.k'.'desc.kp1
+
+       n = 1
+       while ( n<=numflds )
+                     field = subwrd(fields,n)
+
+         if( field != p )
+         if( field  = h   ) ; name = hght ; endif
+         if( field  = u   ) ; name = uwnd ; endif
+         if( field  = v   ) ; name = vwnd ; endif
+         if( field  = t   ) ; name = tmpu ; endif
+         if( field  = q   ) ; name = sphu ; endif
+         if( field  = chi ) ; name = chi  ; endif
+         if( field  = psi ) ; name = psi  ; endif
+
+        'movie statpltdrvz "'field' 'desc.k' 'desc.kp1' 'numfiles'" -print -rotate 90 -name 'SOURCE'/'desc.k'.'desc.kp1'/stats_'name'_syscmp_GLO_z_'month
+         endif
+
+         n = n + 1
+         endwhile
+
+k = k + 1
+endwhile
+
+return
+
+****************************************************************
+****************************************************************
+
+* To Prevent Problem with BIT: 0
+* ------------------------------
+function checkbit (word)
+      bit = substr(word,1,1)
+      dum = bit'TEST'
+      if( dum = "0TEST" ) ; bit = A ; endif
+return bit
+

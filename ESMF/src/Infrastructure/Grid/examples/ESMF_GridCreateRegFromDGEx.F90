@@ -1,7 +1,7 @@
-! $Id: ESMF_GridCreateRegFromDGEx.F90,v 1.11.2.1 2010/02/05 19:57:00 svasquez Exp $
+! $Id: ESMF_GridCreateRegFromDGEx.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2010, University Corporation for Atmospheric Research,
+! Copyright 2002-2012, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -17,7 +17,7 @@ program ESMF_GridCreateEx
 !==============================================================================
 
 !BOE
-! \subsubsection{Example: Create 2D Grid with Regular Distribution from a DistGrid}~\label{sec:usage:ex:adv:reg}
+! \subsubsection{Create a 2D Grid with regular distribution from a DistGrid}~\label{sec:usage:ex:adv:reg}
 !
 ! This example illustrates the creation of a single tile 2D Grid
 ! with a regular distribution from a DistGrid.  The size of the Grid is
@@ -35,7 +35,7 @@ program ESMF_GridCreateEx
 
 !BOC
       ! Use ESMF framework module
-      use ESMF_Mod
+      use ESMF
       implicit none
 
       ! Local variables  
@@ -47,7 +47,8 @@ program ESMF_GridCreateEx
 
       ! initialize ESMF
       finalrc = ESMF_SUCCESS
-      call ESMF_Initialize(vm=vm, rc=rc)
+      call ESMF_Initialize(vm=vm, defaultlogfilename="GridCreateRegFromDGEx.Log", &
+                    logkindflag=ESMF_LOGKIND_MULTI, rc=rc)
 
 !BOE
 ! First construct a single tile distgrid with regular distribution of the
@@ -79,11 +80,11 @@ program ESMF_GridCreateEx
 
    ! Get rid of memory
    call ESMF_GridDestroy(Grid2D, rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
    ! Get rid of memory
    call ESMF_DistgridDestroy(distgrid2D, rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
 
 10 continue

@@ -1,0 +1,33 @@
+
+OBSNAM: SRB
+OBSDSC: SRB_Rel2.5_Longwave_Monthly_(198307-200506)
+
+        filename:   'VERIFICATION/SRB/LW/clr_sfc_down_monthly.ctl'
+        filetype:   'BIN'
+        fields:     'SFCDWNC'  , 'IRRAD'         , 'SFCDWNC'     , 1
+                    ::
+
+        filename:   'VERIFICATION/SRB/LW/sfc_down_monthly.ctl'
+        filetype:   'BIN'
+        fields:     'SFCDWN'   , 'IRRAD'         , 'SFCDWN'      , 1
+                    ::
+
+        filename:   'VERIFICATION/SRB/LW/sfc_up_monthly.ctl'
+        filetype:   'BIN'
+        fields:     'SFCUP'    , 'IRRAD'         , 'SFCUP'       , 1
+                    ::
+
+        filename:   'VERIFICATION/SRB/LW/clr_sfc_up_monthly.ctl'
+        filetype:   'BIN'
+        fields:     'SFCUPC'   , 'IRRAD'         , 'SFCUPC'      , 1
+                    ::
+
+        filename:   'VERIFICATION/SRB/LW/clr_toa_up_monthly.ctl'
+        filetype:   'BIN'
+        fields:     'OLC'      , 'IRRAD'         , 'OLRCLR'      , 1
+                    ::
+
+        filename:   'VERIFICATION/SRB/LW/toa_up_monthly.ctl'
+        filetype:   'BIN'
+        fields:     'OLR'      , 'IRRAD'         , 'OLR'         , 1
+                    ::

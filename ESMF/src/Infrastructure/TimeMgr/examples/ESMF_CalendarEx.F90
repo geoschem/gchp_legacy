@@ -1,7 +1,7 @@
-! $Id: ESMF_CalendarEx.F90,v 1.35.4.1 2010/02/05 20:00:07 svasquez Exp $
+! $Id: ESMF_CalendarEx.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2010, University Corporation for Atmospheric Research,
+! Copyright 2002-2012, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -20,11 +20,11 @@
 !
 ! !DESCRIPTION:
 !
-! This program shows examples of how to create different calendar types
+! This program shows examples of how to create different calendar kinds
 !-----------------------------------------------------------------------------
 
       ! ESMF Framework module
-      use ESMF_Mod
+      use ESMF
       implicit none
 
       ! instantiate calendars
@@ -45,51 +45,52 @@
 
 !BOC
       ! initialize ESMF framework
-      call ESMF_Initialize(rc=rc)
+      call ESMF_Initialize(defaultlogfilename="CalendarEx.Log", &
+                    logkindflag=ESMF_LOGKIND_MULTI, rc=rc)
 !EOC
 
       if (rc.NE.ESMF_SUCCESS) finalrc = ESMF_FAILURE
 
 !BOE
-!\subsubsection{Calendar Creation}
+!\subsubsection{Calendar creation}
 
 ! This example shows how to create two {\tt ESMF\_Calendars}.
 !EOE
 
 !BOC
       ! create a Gregorian calendar
-      gregorianCalendar = ESMF_CalendarCreate("Gregorian", &
-                                              ESMF_CAL_GREGORIAN, rc)
+      gregorianCalendar = ESMF_CalendarCreate(ESMF_CALKIND_GREGORIAN, &
+                                              name="Gregorian", rc=rc)
 !EOC
 
       if (rc.NE.ESMF_SUCCESS) finalrc = ESMF_FAILURE
 
 !BOC
       ! create a Julian Day calendar
-      julianDayCalendar = ESMF_CalendarCreate("JulianDay", &
-                                              ESMF_CAL_JULIANDAY, rc)
+      julianDayCalendar = ESMF_CalendarCreate(ESMF_CALKIND_JULIANDAY, &
+                                              name="JulianDay", rc=rc)
 !EOC
 
       if (rc.NE.ESMF_SUCCESS) finalrc = ESMF_FAILURE
 
 !BOE
-!\subsubsection{Calendar Comparison}
+!\subsubsection{Calendar comparison}
 
 ! This example shows how to compare an {\tt ESMF\_Calendar} with a known
-! calendar type.
+! calendar kind.
 !EOE
 
 !BOC
-      ! compare calendar type against a known type
-      if (gregorianCalendar == ESMF_CAL_GREGORIAN) then
-          print *, "gregorianCalendar is of type ESMF_CAL_GREGORIAN."
+      ! compare calendar kind against a known type
+      if (gregorianCalendar == ESMF_CALKIND_GREGORIAN) then
+        print *, "gregorianCalendar is of type ESMF_CALKIND_GREGORIAN."
       else
-          print *, "gregorianCalendar is not of type ESMF_CAL_GREGORIAN."
+        print *, "gregorianCalendar is not of type ESMF_CALKIND_GREGORIAN."
       end if
 !EOC
 
 !BOE
-!\subsubsection{Time Conversion Between Calendars}
+!\subsubsection{Time conversion between Calendars}
 
 ! This example shows how to convert a time from one {\tt ESMF\_Calendar}
 ! to another.
@@ -118,19 +119,19 @@
       if (rc.NE.ESMF_SUCCESS) finalrc = ESMF_FAILURE
 
 !BOE
-!\subsubsection{Calendar Destruction}
+!\subsubsection{Calendar destruction}
 
 ! This example shows how to destroy two {\tt ESMF\_Calendars}.
 !EOE
 
 !BOC
-      call ESMF_CalendarDestroy(julianDayCalendar, rc)
+      call ESMF_CalendarDestroy(julianDayCalendar, rc=rc)
 !EOC
 
       if (rc.NE.ESMF_SUCCESS) finalrc = ESMF_FAILURE
 
 !BOC
-      call ESMF_CalendarDestroy(gregorianCalendar, rc)
+      call ESMF_CalendarDestroy(gregorianCalendar, rc=rc)
 !EOC
 
       if (rc.NE.ESMF_SUCCESS) finalrc = ESMF_FAILURE

@@ -1,7 +1,7 @@
-// $Id: ESMCI_IO_NetCDF.h,v 1.3.2.1 2010/02/05 19:57:53 svasquez Exp $
+// $Id$
 //
 // Earth System Modeling Framework
-// Copyright 2002-2010, University Corporation for Atmospheric Research,
+// Copyright 2002-2012, University Corporation for Atmospheric Research,
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 // Laboratory, University of Michigan, National Centers for Environmental
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -25,7 +25,7 @@
  // put any constants or macros which apply to the whole component in this file.
  // anything public or esmf-wide should be up higher at the top level
  // include files.
-#include "ESMC_Start.h"
+#include "ESMCI_Macros.h"
 
 //-------------------------------------------------------------------------
 //BOP
@@ -36,8 +36,8 @@
 //-------------------------------------------------------------------------
 //
 // !USES:
-#include "ESMC_Base.h"           // inherited Base class
-#include <ESMCI_State.h>
+#include "ESMCI_Base.h"           // inherited Base class
+#include "ESMCI_State.h"
 
 #ifdef ESMF_NETCDF
 #include <netcdfcpp.h>
@@ -53,7 +53,7 @@ namespace ESMCI
 // !PRIVATE TYPES:
 
  // class definition type
- class IO_NetCDF : ESMC_Base { // inherit ESMC_Base class
+ class IO_NetCDF : public ESMC_Base { // inherit ESMC_Base class
   private:   // corresponds to F90 module 'type ESMF_IO_NetCDF' members
     ESMC_Base   *base;    // associated object's base
     char         fileName[ESMF_MAXSTR];
@@ -137,7 +137,6 @@ namespace ESMCI
     // friend to restore state  TODO ?
     //Clock *ESMCI_IO_NetCDFReadRestart(int nameLen,
                                    //const char*  name=0,
-                                   //ESMC_IOSpec* iospec=0,
                                    //int*         rc=0);
 
 }   // namespace ESMCI

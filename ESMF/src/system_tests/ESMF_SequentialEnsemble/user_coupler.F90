@@ -1,4 +1,4 @@
-! $Id: user_coupler.F90,v 1.3 2009/10/22 03:28:51 svasquez Exp $
+! $Id$
 !
 ! Example/test code which shows User Component calls.
 
@@ -15,7 +15,7 @@
 module user_coupler
 
   ! ESMF Framework module
-  use ESMF_Mod
+  use ESMF
     
   implicit none
    
@@ -39,13 +39,13 @@ module user_coupler
     rc = ESMF_SUCCESS
 
     ! Register the callback routines.
-    call ESMF_CplCompSetEntryPoint(comp, ESMF_SETINIT, userRoutine=user_init, &
+    call ESMF_CplCompSetEntryPoint(comp, ESMF_METHOD_INITIALIZE, userRoutine=user_init, &
       rc=rc)
     if (rc/=ESMF_SUCCESS) return ! bail out
-    call ESMF_CplCompSetEntryPoint(comp, ESMF_SETRUN, userRoutine=user_run, &
+    call ESMF_CplCompSetEntryPoint(comp, ESMF_METHOD_RUN, userRoutine=user_run, &
       rc=rc)
     if (rc/=ESMF_SUCCESS) return ! bail out
-    call ESMF_CplCompSetEntryPoint(comp, ESMF_SETFINAL, userRoutine=user_final, &
+    call ESMF_CplCompSetEntryPoint(comp, ESMF_METHOD_FINALIZE, userRoutine=user_final, &
       rc=rc)
     if (rc/=ESMF_SUCCESS) return ! bail out
 
@@ -64,7 +64,7 @@ module user_coupler
     ! Local variables
     integer :: i, itemcount
     integer :: petCount, xprocs, yprocs
-    character(len=ESMF_MAXSTR) :: stateName,stateItemNames(4)
+    character(len=ESMF_MAXSTR) :: name,stateItemNames(4)
     type(ESMF_Array) :: srcArray, dstArray
     type(ESMF_State) :: state
     type(ESMF_VM) :: vm
@@ -73,23 +73,20 @@ module user_coupler
     ! Initialize return code
     rc = ESMF_SUCCESS
 
-    ! get vm to be used by stateReconcile
+    ! get vm 
     call ESMF_CplCompGet(comp, vm=vm, rc=rc)
     if (rc/=ESMF_SUCCESS) return ! bail out
 
     call ESMF_VMGet(vm, petCount = petCount, rc=rc)
     if (rc/=ESMF_SUCCESS) return ! bail out
 
-    call ESMF_StateGet(importState, name=stateName, itemNameList=stateItemNames, itemcount=itemcount, rc=rc)
+    call ESMF_StateGet(importState, name=name, itemNameList=stateItemNames, itemcount=itemcount, rc=rc)
     if (rc/=ESMF_SUCCESS) return ! bail out
 
     ! each item in the import state contains one export state from the ensemble, let's get them one by one
-    ! and call stateReconcile to reconcile them if they are concurrent components
     ! Also call ArrayRedistStore to regrid them to the destination array and add them to the export state
     do i=1,itemcount
         call ESMF_StateGet(importState, stateItemNames(i), state, rc=rc)
-        if (rc/=ESMF_SUCCESS) return ! bail out
-        call ESMF_StateReconcile(state, vm, rc=rc)
         if (rc/=ESMF_SUCCESS) return ! bail out
 
         ! Get source Array out of import state
@@ -118,7 +115,7 @@ module user_coupler
     	if (rc/=ESMF_SUCCESS) return ! bail out
     
         ! Add the dstArray into the exportState using the component export state name
-        call ESMF_StateAdd(exportState, dstArray, rc=rc)
+        call ESMF_StateAdd(exportState, (/dstArray/), rc=rc)
         if (rc/=ESMF_SUCCESS) return ! bail out
 
     end do    

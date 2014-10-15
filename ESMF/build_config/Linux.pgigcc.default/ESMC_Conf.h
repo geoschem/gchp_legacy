@@ -1,11 +1,11 @@
 #ifdef ESMC_RCS_HEADER
-"$Id: ESMC_Conf.h,v 1.12.2.1 2010/02/05 20:22:37 svasquez Exp $"
+"$Id: ESMC_Conf.h,v 1.1.5.1 2013-01-11 20:23:43 mathomp4 Exp $"
 "Defines the configuration for this machine"
 #endif
 
 #if 0
 Earth System Modeling Framework
-Copyright 2002-2010, University Corporation for Atmospheric Research,
+Copyright 2002-2012, University Corporation for Atmospheric Research,
 Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 Laboratory, University of Michigan, National Centers for Environmental
 Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -23,7 +23,12 @@ Licensed under the University of Illinois-NCSA License.
 #if defined (__cplusplus)
 // Typedef to match the data type of the 'hidden' string length
 // argument that Fortran uses when passing CHARACTER strings.
+#if (ESMF_PGIVERSION_MAJOR < 12)
 typedef int ESMCI_FortranStrLenArg;
+#else
+#include <stdlib.h>
+typedef size_t ESMCI_FortranStrLenArg;
+#endif
 #endif
 
 #if 0

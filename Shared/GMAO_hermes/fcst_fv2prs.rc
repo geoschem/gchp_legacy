@@ -1,0 +1,62 @@
+# fcst_fv2prs.rc
+#
+#  This is a resource file for the fv2prs utility.
+#
+# !REVISION HISTORY:
+#
+#
+#...........................................................................
+
+#                     ----------------------
+#                     Output File Resolution
+#                     ----------------------
+
+zonal_resolution: 288              # no. of zonal grid-points (im)
+west_most_longitude_in_deg: -180.0 # longitude of first point (i=1)
+meridional_resolution: 181         # no. meridional grid-points (jm)
+vertical_levels_in_hPa: 1000 975 950 925 900 875 850 825 800 750 700 650 600 550 500 450 400 350 300 250 200 150 100 70 50 40 30 20 10 7 5 3 2 1 
+
+#zonal_resolution: 360              # no. of zonal grid-points (im)
+#west_most_longitude_in_deg: 0.0 # longitude of first point (i=1)
+#meridional_resolution: 181          # no. meridional grid-points (jm)
+#vertical_levels_in_hPa:  1 2 3 5 7 10 20 30 40 50 70 100 150 200 250 300 350 400 450 500 550 600 650 700 750 800 825 850 875 900 925 950 975 1000
+
+
+#                       ----------------
+#                       Variable Classes
+#                       ----------------
+ 
+# A variable class lists the variable names that make up a file
+# type or product.
+
+### PRODUCT: tprog3d_p
+#
+VarClass*TPROG3D_P: hght u;v slp zs
+
+### PRODUCT: tncep3d_p
+#
+VarClass*tncep3d_p:  U;V SLP PS TG PRECP HGHT T PV Q OMEGA
+
+#                         --------------------
+#                         Variable Translation
+#                         --------------------
+
+Variable_translation_table::
+
+#      Output          |                       Input
+#  Name       Units    | Name             scale_factor  add_offset
+#  ----------------------------------------------------------------------
+   T          K          t                      1.0        0.0
+   ZS         (m/s)2     zs                     1.0        0.0
+   ZE         (m/s)2     ze                     1.0        0.0
+   SLP        hPa        slp                    0.01       0.0
+   HGHT       m          hght(ze,zs)            1.0        0.0
+   PS         hPa        ps                     0.01       0.0
+   TG         K          tg                     1.0        0.0
+   PRECP      mm/day     precp                  1.0        0.0
+   U;V        m/s        u;v                    1.0        0.0
+   PV         unknown    pv                     1.0        0.0
+   Q          kg/kg      q                      1.0        0.0
+   OMEGA      Pa/s       omega                  1.0        0.0
+::
+

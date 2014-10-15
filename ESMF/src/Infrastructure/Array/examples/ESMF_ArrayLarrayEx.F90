@@ -1,7 +1,7 @@
-! $Id: ESMF_ArrayLarrayEx.F90,v 1.16.2.1 2010/02/05 19:51:56 svasquez Exp $
+! $Id: ESMF_ArrayLarrayEx.F90,v 1.1.5.1 2013-01-11 20:23:43 mathomp4 Exp $
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2010, University Corporation for Atmospheric Research,
+! Copyright 2002-2012, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -16,7 +16,9 @@
 
 !BOE
 ! \subsubsection{Array from {\tt ESMF\_LocalArray}}
-! 
+! \label{Array:LocalArray}
+!
+! \begin{sloppypar}
 ! Alternative to the direct usage of Fortran arrays during Array creation
 ! it is also possible to first create an {\tt ESMF\_LocalArray} and create the
 ! Array from it. While this may seem more burdensome for the 1 DE per PET cases
@@ -24,11 +26,12 @@
 ! generalization to the multiple DE per PET case. The following example first
 ! recaptures the previous example using an {\tt ESMF\_LocalArray} and then
 ! expands to the multiple DE per PET case.
+! \end{sloppypar}
 !EOE
 !BOC
 program ESMF_ArrayLarrayEx
 
-  use ESMF_Mod
+  use ESMF
   
   implicit none
   
@@ -39,16 +42,16 @@ program ESMF_ArrayLarrayEx
 !EOE
 !BOC
   ! local variables
-  real(ESMF_KIND_R8), pointer :: farrayP(:,:)       ! Fortran array pointer
-  real(ESMF_KIND_R8), pointer :: farrayPtr(:,:)     ! matching Fortran array pointer 
-  type(ESMF_LocalArray)       :: larray             ! ESMF_LocalArray object
-  type(ESMF_LocalArray)       :: larrayRef          ! ESMF_LocalArray object
-  type(ESMF_DistGrid)         :: distgrid           ! DistGrid object
-  type(ESMF_Array)            :: array              ! Array object
+  real(ESMF_KIND_R8), pointer :: farrayP(:,:)   ! Fortran array pointer
+  real(ESMF_KIND_R8), pointer :: farrayPtr(:,:) ! matching Fortran array ptr 
+  type(ESMF_LocalArray)       :: larray         ! ESMF_LocalArray object
+  type(ESMF_LocalArray)       :: larrayRef      ! ESMF_LocalArray object
+  type(ESMF_DistGrid)         :: distgrid       ! DistGrid object
+  type(ESMF_Array)            :: array          ! Array object
   integer                     :: rc, i, j, de
   real                        :: localSum
-  type(ESMF_LocalArray), allocatable :: larrayList(:)      ! ESMF_LocalArray object list
-  type(ESMF_LocalArray), allocatable :: larrayRefList(:)   ! ESMF_LocalArray object list
+  type(ESMF_LocalArray), allocatable :: larrayList(:) ! LocalArray object list
+  type(ESMF_LocalArray), allocatable :: larrayRefList(:)!LocalArray obj. list
   
   type(ESMF_VM):: vm
   integer:: localPet, petCount
@@ -60,10 +63,11 @@ program ESMF_ArrayLarrayEx
   finalrc = ESMF_SUCCESS
   
 !BOC
-  call ESMF_Initialize(vm=vm, rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  call ESMF_Initialize(vm=vm, defaultlogfilename="ArrayLarrayEx.Log", &
+                    logkindflag=ESMF_LOGKIND_MULTI, rc=rc)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   call ESMF_VMGet(vm, localPet=localPet, petCount=petCount, rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   
   if (petCount /= 4) then
     finalrc = ESMF_FAILURE
@@ -78,7 +82,7 @@ program ESMF_ArrayLarrayEx
 !BOC
   distgrid = ESMF_DistGridCreate(minIndex=(/1,1/), maxIndex=(/40,10/), rc=rc)
 !EOC
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !BOC
   allocate(farrayP(14,14))    ! allocate Fortran array on each PET with halo
 !EOC
@@ -87,18 +91,19 @@ program ESMF_ArrayLarrayEx
 ! {\tt farrayP}s an {\tt ESMF\_LocalArray} object will be created on each PET.
 !EOE
 !BOC
-  larray = ESMF_LocalArrayCreate(farrayP, ESMF_DATA_REF, rc=rc)
+  larray = ESMF_LocalArrayCreate(farrayP, &
+               datacopyflag=ESMF_DATACOPY_REFERENCE, rc=rc)
 !EOC
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !BOE
 ! The Array object can now be created from {\tt larray}. The Array 
 ! creation method checks for each PET that the LocalArray can 
 ! accommodate the requested regions.
 !EOE
 !BOC
-  array = ESMF_ArrayCreate(larrayList=(/larray/), distgrid=distgrid, rc=rc)
+  array = ESMF_ArrayCreate(localarrayList=(/larray/), distgrid=distgrid, rc=rc)
 !EOC
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !BOE
 ! Once created there is no difference in how the Array object can be used.
 ! The exclusive Array region on each PET can be accessed through a suitable
@@ -107,7 +112,7 @@ program ESMF_ArrayLarrayEx
 !BOC
   call ESMF_ArrayGet(array, farrayPtr=farrayPtr, rc=rc)
 !EOC  
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   farrayPtr = 123.456d0 ! initialize
 !call ESMF_ArrayPrint(array, rc=rc)
 !print *, "farrayPtr:", lbound(farrayPtr), ubound(farrayPtr)
@@ -118,13 +123,13 @@ program ESMF_ArrayLarrayEx
 ! extracted using LocalArray methods.
 !EOE
 !BOC
-  call ESMF_ArrayGet(array, larray=larrayRef, rc=rc)
+  call ESMF_ArrayGet(array, localarray=larrayRef, rc=rc)
 !EOC  
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !BOC
   call ESMF_LocalArrayGet(larrayRef, farrayPtr, rc=rc)
 !EOC  
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !call ESMF_ArrayPrint(array, rc=rc)
 !print *, "farrayPtr:", lbound(farrayPtr), ubound(farrayPtr)
 !BOE
@@ -164,7 +169,7 @@ program ESMF_ArrayLarrayEx
   distgrid = ESMF_DistGridCreate(minIndex=(/1,1/), maxIndex=(/8,8/), &
     regDecomp=(/2,4/), rc=rc)
 !EOC  
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !BOE
 !
 ! The {\tt distgrid} object created in this manner will contain 8 DEs no 
@@ -212,10 +217,12 @@ program ESMF_ArrayLarrayEx
   allocate(larrayList(2))   ! 2 DEs per PET
   allocate(farrayP(4, 2))   ! without halo each DE is of size 4 x 2 
   farrayP = 123.456d0
-  larrayList(1) = ESMF_LocalArrayCreate(farrayP, ESMF_DATA_REF, rc=rc)  ! 1st DE
+  larrayList(1) = ESMF_LocalArrayCreate(farrayP, &
+    datacopyflag=ESMF_DATACOPY_REFERENCE, rc=rc) !1st DE
   allocate(farrayP(4, 2))   ! without halo each DE is of size 4 x 2 
   farrayP = 456.789d0
-  larrayList(2) = ESMF_LocalArrayCreate(farrayP, ESMF_DATA_REF, rc=rc)  ! 2nd DE  
+  larrayList(2) = ESMF_LocalArrayCreate(farrayP, &
+    datacopyflag=ESMF_DATACOPY_REFERENCE, rc=rc) !2nd DE  
 !EOC
 !BOE
 ! Notice that it is perfectly fine to {\em re}-use {\tt farrayP} for all
@@ -228,9 +235,9 @@ program ESMF_ArrayLarrayEx
 ! LocalArray elements in {\tt larrayList}.
 !EOE
 !BOC
-  array = ESMF_ArrayCreate(larrayList=larrayList, distgrid=distgrid, rc=rc)
+  array = ESMF_ArrayCreate(localarrayList=larrayList, distgrid=distgrid, rc=rc)
 !EOC  
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !BOE
 ! Usage of a LocalArray list is the only way to provide a list of variable 
 ! length of Fortran array allocations to ArrayCreate() for each PET. The 
@@ -244,9 +251,9 @@ program ESMF_ArrayLarrayEx
 !EOE
 !BOC
   allocate(larrayRefList(2))
-  call ESMF_ArrayGet(array, larrayList=larrayRefList, rc=rc)
+  call ESMF_ArrayGet(array, localarrayList=larrayRefList, rc=rc)
 !EOC  
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !BOE
 ! Finally, access to the actual Fortran pointers is done on a per DE basis.
 ! Generally each PET will loop over its DEs.

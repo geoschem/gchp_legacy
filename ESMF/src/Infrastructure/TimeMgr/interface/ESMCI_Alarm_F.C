@@ -1,7 +1,7 @@
-// $Id: ESMCI_Alarm_F.C,v 1.2.4.1 2010/02/05 20:00:10 svasquez Exp $
+// $Id$
 //
 // Earth System Modeling Framework
-// Copyright 2002-2010, University Corporation for Atmospheric Research, 
+// Copyright 2002-2012, University Corporation for Atmospheric Research, 
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
 // Laboratory, University of Michigan, National Centers for Environmental 
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
@@ -17,6 +17,8 @@
 //------------------------------------------------------------------------------
 // INCLUDES
 //------------------------------------------------------------------------------
+#include <cstdio>
+
 #include <ESMCI_F90Interface.h>
 #include <ESMCI_Alarm.h>
 //------------------------------------------------------------------------------
@@ -41,7 +43,8 @@ extern "C" {
                 Time *ringTime, TimeInterval *ringInterval,
                 Time *stopTime, TimeInterval *ringDuration, 
                 int *ringTimeStepCount, Time *refTime,
-                bool *enabled, bool *sticky, int *status) {
+                bool *enabled, bool *sticky, int *status,
+                ESMCI_FortranStrLenArg name_l) {
           *ptr = ESMCI_alarmCreate(          
                                            *nameLen, // always present
                                                      //   internal argument.
@@ -77,7 +80,8 @@ extern "C" {
                 Time *stopTime, TimeInterval *ringDuration, 
                 int *ringTimeStepCount, Time *refTime,
                 bool *ringing, bool *enabled, bool *sticky,
-                int *status) {
+                int *status,
+                ESMCI_FortranStrLenArg name_l) {
           ESMF_CHECK_POINTER(*ptr, status)
           int rc = (*ptr)->Alarm::set(
                                            *nameLen, // always present
@@ -105,7 +109,8 @@ extern "C" {
                 int *timeStepRingingCount, Time *ringBegin,
                 Time *ringEnd, Time *refTime, bool *ringing,
                 bool *ringingOnPrevTimeStep, bool *enabled, bool *sticky,
-                int *status) {
+                int *status,
+                ESMCI_FortranStrLenArg tempName_l) {
           ESMF_CHECK_POINTER(*ptr, status)
           int rc = (*ptr)->Alarm::get(
 			                 // always presnet internal arguments
@@ -222,27 +227,25 @@ extern "C" {
 
        void FTN(c_esmc_alarmreadrestart)(Alarm **ptr, int *nameLen,
                                          const char *name,
-                                         ESMC_IOSpec *iospec,
-                                         int *status) {
+                                         int *status,
+                                         ESMCI_FortranStrLenArg name_l) {
           *ptr = ESMCI_alarmReadRestart(
                                            *nameLen,  // always present
                                                       //   internal argument.
                                             name,     // required.
-                    ESMC_NOT_PRESENT_FILTER(iospec),
                     ESMC_NOT_PRESENT_FILTER(status) );
        }
 
        void FTN(c_esmc_alarmwriterestart)(Alarm **ptr,
-                                          ESMC_IOSpec *iospec,
                                           int *status) {
           ESMF_CHECK_POINTER(*ptr, status)
-          int rc = (*ptr)->Alarm::writeRestart(
-                          ESMC_NOT_PRESENT_FILTER(iospec) );
+          int rc = (*ptr)->Alarm::writeRestart();
           if (ESMC_PRESENT(status)) *status = rc;
        }
 
        void FTN(c_esmc_alarmvalidate)(Alarm **ptr, const char *options,
-                                      int *status) {
+                                      int *status,
+                                      ESMCI_FortranStrLenArg options_l) {
           ESMF_CHECK_POINTER(*ptr, status)
           int rc = (*ptr)->Alarm::validate(
                       ESMC_NOT_PRESENT_FILTER(options) );
@@ -250,10 +253,12 @@ extern "C" {
        }
 
        void FTN(c_esmc_alarmprint)(Alarm **ptr, const char *options,
-                                      int *status) {
+                                      int *status,
+                                      ESMCI_FortranStrLenArg options_l) {
           ESMF_CHECK_POINTER(*ptr, status)
           int rc = (*ptr)->Alarm::print(
                    ESMC_NOT_PRESENT_FILTER(options) );
+          fflush (stdout);
           if (ESMC_PRESENT(status)) *status = rc;
        }
 };

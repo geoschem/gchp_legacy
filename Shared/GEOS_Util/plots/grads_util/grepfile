@@ -1,0 +1,76 @@
+#!/bin/csh -f
+
+set FILENAME = grads.txt
+set TEMPFN = grepfile.txt
+
+# The next five lines are from the original 
+# script.  The "extra" searching that follows
+# changes the result only if a match is found.
+# --------------------------------------------
+if( .$2 == . ) then
+ cat $1 > ${FILENAME}
+else
+ cat $1 | grep $2 > ${FILENAME}
+endif
+
+# Determine length of input string.
+# ---------------------------------
+set LENGTH = `echo ${2} | wc -c`
+
+# Many (and maybe all?) ${2}s have a nonprintable
+# terminating character. Assume that the input string
+# without its last character is sufficient for a match.
+# -----------------------------------------------------
+set REQUIRED_LENGTH = `expr ${LENGTH} - 1`
+
+# How many instances did the grep find?
+# -------------------------------------
+set LINES = `cat ${FILENAME} | wc -l`
+
+# Search ${FILENAME} backward line-by-line looking
+# for ${2} less its teminating character, but select
+# only the case in which no characters preceed the string.
+# --------------------------------------------------------
+set N = 1
+while ( ${N} <= ${LINES} )
+
+ set STRING = `tail -${N} ${FILENAME} | line | awk '{ print $1 }'`
+ set LENGTH = `echo ${STRING} | wc -c`
+ @ LENGTH  = ${LENGTH} - 1
+
+# If a : is in the string, take only
+# those characters that precede it.
+# ----------------------------------
+ set M = 1
+ set COLON_POSITION = -1
+ while ( ${M} <= ${LENGTH} )
+  set CHAR = `echo ${STRING} | cut -c${M}`
+  if ( ${CHAR} == : ) then
+   set COLON_POSITION = ${M}
+   set M = ${LENGTH}
+  endif
+  @ M = $M + 1
+ end
+ if ( ${COLON_POSITION} > 0 ) then
+  set LENGTH = `expr ${COLON_POSITION} - 1`
+ endif
+
+# If the length of the extracted string matches the 
+# length of ${2} less its teminating character, then
+# save this line in a temporary text file, and quit.
+# --------------------------------------------------
+ if ( ${LENGTH} == ${REQUIRED_LENGTH} ) then
+  tail -${N} ${FILENAME} | line > ${TEMPFN}
+  set N = ${LINES}
+ endif
+
+# Increment number of lines to tail 
+# ---------------------------------
+ @ N = $N + 1
+end
+
+# Overwrite $(FILENAME} with the single line of text.
+# ---------------------------------------------------
+if ( -e ${TEMPFN} ) /bin/mv -f ${TEMPFN} ${FILENAME}
+
+exit

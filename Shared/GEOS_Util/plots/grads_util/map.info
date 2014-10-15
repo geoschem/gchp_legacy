@@ -1,0 +1,155 @@
+The simple format of the data set is for each record of lon/lat
+points to be in a packed integer format with a 3 byte header 
+followed by the number of lon/lat coord pairs indicated in the 
+header.  The simple header is:
+
+       1,1,cnt    Each value one byte
+
+The coord pairs are 3 bytes for each value, where the 
+float lon is converted to int by:
+
+     INT ( lon * 1e4) + 0.5
+
+Note the lon MUST be in the range 0 to 360.  
+
+and the lat is converted to int by:
+
+     INT ( (lat+90) *1e4 ) +0.5  
+
+I am appending the program that wrote the lowres data set which I 
+hope is simple enough to follow.  The gapby routine has not been
+tested on a big_endian machine (ie, sun or sgi) since once the
+data sets are created they are portable accross systems.
+
+Brian
+            
+------------------------created lowres data set -------------------------
+
+#include <stdio.h>
+
+/* Specifies byte ordering for this machine.  0 is for DEC and
+   PC, 1 is for SGI, Sun, etc. */
+
+#define BYTEORDER 0
+
+void gapby (int, char *, int, int);
+
+main () {
+FILE *mapin, *ofile;
+int i,j,ilon,ilat,cnt,rc,ccc;
+float *mapx, *mapy, lon, lat, lnmin,lnmax;
+char hdr[3],rec[1600];
+short dat[2];
+
+  mapin = fopen ("lomap.dat","rb");
+  if (mapin==NULL) {
+    printf ("open error\n");
+    return;
+  }
+  ofile = fopen("lowres","wb");
+  if (ofile==NULL) {
+    printf ("open error\n");
+    return;
+  }
+
+  lnmin = 9999.9;  lnmax = -9999.9;
+  cnt = 0;
+  ccc = 0;
+  while (1) {
+    printf ("starting to read \n");
+       /* Input data is shorts; first is lon, 2nd is lat */
+    rc = fread(dat,2,2,mapin);
+    ccc++;
+    if (rc<2) break;
+       /* Input lat too big indicates pen up movement, which means
+          we need to write out previous record and start new one */
+    if (dat[1]>10000) {
+      dat[1] = dat[1]-20000;
+      if (cnt>1) {
+        /* Write header; 1,1,cnt */
+        i = 1;
+        gapby (i,hdr,0,1);
+        gapby (i,hdr,1,1);
+        gapby (cnt,hdr,2,1);
+        fwrite (hdr,1,3,ofile);
+        /* write record of 255 or less points */
+        fwrite (rec,1,cnt*6,ofile);
+      }
+      cnt = 0;
+    }
+    lon = (float)dat[0]/60.0;
+    lat = (float)dat[1]/60.0 + 90.0;
+    if (ccc<=3767) lon = lon + 360.0;
+    if (lon>lnmax) lnmax = lon;
+    if (lon<lnmin) lnmin = lon;
+    /*  fill output record.  each lat/lon is a 3 byte pair (6 bytes
+        total), integer.  note conversion of lat/lon to stored value */
+    ilon = (int)((lon*1e4)+0.5);
+    ilat = (int)((lat*1e4)+0.5);
+    gapby (ilon,rec,cnt*6,3);
+    gapby (ilat,rec,cnt*6+3,3);
+    cnt++;
+    /*  record can have a max of 255 points.  here we split the
+        output record if needed.  */
+    if (cnt==255) {
+      i = 1;
+      gapby (i,hdr,0,1);
+      gapby (i,hdr,1,1);
+      gapby (cnt,hdr,2,1);
+      fwrite (hdr,1,3,ofile);
+      fwrite (rec,1,cnt*6,ofile);
+      for (i=0; i<6; i++) rec[i] = rec[i+1524];
+      cnt = 1;
+    }
+  }
+   /* write out last record if there */
+  if (cnt>1) {
+    i = 1;
+    gapby (i,hdr,0,1);
+    gapby (i,hdr,1,1);
+    gapby (cnt,hdr,2,1);
+    fwrite (hdr,1,3,ofile);
+    fwrite (rec,1,cnt*6,ofile);
+  }
+  printf ("%g %g\n",lnmin,lnmax);
+}
+
+void gapby (int ival, char *ch, int ioff, int ilen) {
+
+char *ch1;
+
+  ch1 = (char *)(&ival);
+
+  if (BYTEORDER) {
+  if (ilen==1) *(ch+ioff) = *(ch1+3);
+  else if (ilen==2) {
+    *(ch+ioff) = *(ch1+2);
+    *(ch+ioff+1) = *(ch1+3);
+  } else if (ilen==3) {
+    *(ch+ioff) = *(ch1+1);
+    *(ch+ioff+1) = *(ch1+2);
+    *(ch+ioff+2) = *(ch1+3);
+  } else {
+    *(ch+ioff) = *ch1;
+    *(ch+ioff+1) = *(ch1+1);
+    *(ch+ioff+2) = *(ch1+2);
+    *(ch+ioff+3) = *(ch1+3);
+  }
+  } else {
+  if (ilen==1)  *(ch+ioff) = *ch1;
+  else if (ilen==2) {
+    *(ch+ioff) = *(ch1+1);
+    *(ch+ioff+1) = *ch1 ;
+  } else if (ilen==3) {
+    *(ch+ioff) = *(ch1+2) ;
+    *(ch+ioff+1) = *(ch1+1) ;
+    *(ch+ioff+2) = *ch1 ;
+  } else {
+    *(ch+ioff) = *(ch1+3) ;
+    *(ch+ioff+1) = *(ch1+2) ;
+    *(ch+ioff+2) = *(ch1+1) ;
+    *(ch+ioff+3) = *ch1;
+  }
+  }
+  return;
+}

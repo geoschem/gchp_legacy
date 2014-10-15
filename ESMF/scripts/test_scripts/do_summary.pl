@@ -1,5 +1,5 @@
 #!/usr/bin/env perl
-# $Id: do_summary.pl,v 1.8 2008/04/22 18:01:22 theurich Exp $
+# $Id: do_summary.pl,v 1.1.5.1 2013-01-11 20:23:43 mathomp4 Exp $
 # This prints a summary of system tests, unit tests and examples.
 # The script calls sys_tests_results, examples_results and 
 # unit_tests_results with the summary option turned on,

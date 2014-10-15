@@ -1,0 +1,227 @@
+#!/usr/bin/perl -w
+#
+# Simple perl script for ticking the clock.
+#
+# !Revision History
+# 2000Apr04  daSilva  Initial version
+# 2010Sep17  Stassi   Replaced Time::Local routines with sub add_seconds()
+#                     so that script will work beyond 19Jan2038
+#------------------------------------------------------------------
+use strict;
+
+# global variables
+#-----------------
+my $SECS_PER_MIN  = 60;
+my $MINS_PER_HOUR = 60;
+my $HOURS_PER_DAY = 24;
+my $MONTHS_PER_YR = 12;
+
+my $SECS_PER_HOUR = $SECS_PER_MIN  * $MINS_PER_HOUR;
+my $SECS_PER_DAY  = $SECS_PER_HOUR * $HOURS_PER_DAY;
+my $MINS_PER_DAY  = $MINS_PER_HOUR * $HOURS_PER_DAY;
+
+# generic MONTH and YEAR definitions
+#-----------------------------------
+my $DAYS_PER_MONTH = 30;
+my $DAYS_PER_YEAR = 365;
+
+my %lastday = (1 => 31, 2 =>  0, 3 => 31,  4 => 30,  5 => 31,  6 => 30,
+               7 => 31, 8 => 31, 9 => 30, 10 => 31, 11 => 30, 12 => 31);
+
+# main program
+#-------------
+{
+    my ($numargs, $nymd, $nhms, $isecs);
+    my ($iymd, $ihms, $hh, $mm, $ss);
+    my ($yr, $mnth, $dy, $idays);
+
+    $numargs = scalar @ARGV;
+    usage() if $numargs < 1 or $numargs > 4;
+
+    $nymd = shift @ARGV;
+    $nhms = shift @ARGV;
+
+    if ($numargs == 3) {
+        $isecs = shift @ARGV;
+    }
+    elsif ($numargs == 4) {
+        $iymd = shift @ARGV;
+        $ihms = shift @ARGV;
+
+        ($hh, $mm, $ss) = parseIntTime($ihms);
+        ($yr, $mnth, $dy) = parseIntTime($iymd);
+        $idays = $dy + $mnth*$DAYS_PER_MONTH + $yr*$DAYS_PER_YEAR;
+
+        $isecs = $ss;
+        $isecs += $SECS_PER_MIN  * $mm;
+        $isecs += $SECS_PER_HOUR * $hh;
+        $isecs += $SECS_PER_DAY  * $idays;
+    }
+    $isecs = 86400 unless defined($isecs);
+    $nhms = 0 unless $nhms;
+
+    ($nymd, $nhms) = add_seconds($nymd, $nhms, $isecs);
+
+    if ( $numargs == 1 ) { print "$nymd\n" }
+    else                 { print "$nymd $nhms\n" }
+}
+
+#...................................................................
+sub parseIntTime {
+    my ($hhmmss, $hh, $mm, $ss, $sign);
+
+    $hhmmss = shift @_;
+
+    $sign = 1;
+    if ($hhmmss < 0) { $sign = -1; $hhmmss *= -1 }
+
+    $hh = $sign * ( int($hhmmss / 10000) );
+    $mm = $sign * ( int($hhmmss % 10000 / 100) );
+    $ss = $sign * ( $hhmmss % 100 );
+
+    return ($hh, $mm, $ss);
+}
+
+#...................................................................
+sub add_seconds {
+    my ($nymd, $nhms, $isecs);
+    my ($yr, $mnth, $dy, $hh, $mm, $ss);
+
+    $nymd  = shift @_;
+    $nhms  = shift @_;
+    $isecs = shift @_;
+
+    ($yr, $mnth, $dy) = parseIntTime($nymd);
+    ($hh, $mm, $ss) = parseIntTime($nhms);
+
+    # check validity of initial date/time
+    #------------------------------------
+    die "Error; invalid month ($mnth) in initial date: $nymd;"
+        if $mnth < 1 or $mnth > 12;
+
+    die "Error; invalid day ($dy) in initial date: $nymd;"
+        if $dy < 1 or $dy > num_days_in_month($yr, $mnth);
+
+    die "Error; invalid hour ($hh) in initial time: $nhms;"
+        if $hh < 0 or $hh >= $HOURS_PER_DAY;
+
+    die "Error; invalid minute ($mm) in initial time: $nhms;"
+        if $mm < 0 or $mm >= $MINS_PER_HOUR;
+
+    die "Error; invalid seconds ($ss) in initial time: $nhms;"
+        if $ss < 0 or $ss >= $SECS_PER_MIN;
+
+    # adjust seconds
+    #---------------
+    return ($nymd, $nhms) unless $isecs;
+    $ss += $isecs;
+
+    while ($ss <= -1*$SECS_PER_DAY)  { $ss += $SECS_PER_DAY;  $dy-- }
+    while ($ss <= -1*$SECS_PER_HOUR) { $ss += $SECS_PER_HOUR; $hh-- }
+    while ($ss < 0 )                 { $ss += $SECS_PER_MIN;  $mm-- }
+
+    while ($ss >= $SECS_PER_DAY)     { $ss -= $SECS_PER_DAY;  $dy++ }
+    while ($ss >= $SECS_PER_HOUR)    { $ss -= $SECS_PER_HOUR; $hh++ }
+    while ($ss >= $SECS_PER_MIN)     { $ss -= $SECS_PER_MIN;  $mm++ }
+
+    # adjust minutes
+    #---------------
+    while ($mm < 0)                  { $mm += $MINS_PER_HOUR; $hh-- }
+    while ($mm >= $MINS_PER_HOUR)    { $mm -= $MINS_PER_HOUR; $hh++ }
+
+    # adjust hours
+    #-------------
+    while ($hh < 0)                  { $hh += $HOURS_PER_DAY; $dy-- }
+    while ($hh >= $HOURS_PER_DAY)    { $hh -= $HOURS_PER_DAY; $dy++ }
+
+    # adjust days, months, and years
+    #-------------------------------
+    while ($dy < 1) {
+        $mnth--;
+        while ($mnth < 1) { $mnth += $MONTHS_PER_YR; $yr-- }
+        $dy += num_days_in_month($yr, $mnth);
+    }
+
+    while ($dy > num_days_in_month($yr, $mnth)) {
+        $dy -= num_days_in_month($yr, $mnth);
+        $mnth++;
+        while ($mnth > $MONTHS_PER_YR) { $mnth -= $MONTHS_PER_YR; $yr++ }
+    }
+
+    # zero-fill values where necessary for 2-digit and 4-digit representation
+    #------------------------------------------------------------------------
+    foreach (\$ss, \$mm, \$hh, \$dy, \$mnth) { $$_ = sprintf "%02i", $$_ }
+    $yr = sprintf "%04i", $yr;
+
+    return "$yr$mnth$dy", "$hh$mm$ss";
+}
+
+#...................................................................
+sub num_days_in_month {
+    my ($yr, $mnth);
+
+    $yr   = shift @_;
+    $mnth = shift @_;
+
+    # special handling for month of February
+    #---------------------------------------
+    if ($mnth == 2) {
+        $lastday{2} = 28;
+        $lastday{2} = 29 if $yr%4==0 and ($yr%100!=0 or $yr%400==0);
+    }
+
+    return $lastday{$mnth};
+}
+
+#...................................................................
+sub usage {
+
+  print <<"EOF";
+NAME
+     tick - Increments date and time
+
+SYNOPSIS
+
+     tick yyyymmdd
+     tick yyyymmdd hhmmss
+     tick yyyymmdd hhmmss isecs
+     tick yyyymmdd hhmmss iyymmdd ihhmmss
+
+   where
+     yyyymmdd = 8-digit initial date
+     hhmmss = 6-digit initial time
+     isecs = number of seconds to add to initial date/time
+     iyymmdd = date increment to add to initial date/time
+     ihhmmss = time increment to add to initial date/time
+
+DESCRIPTION
+     Increments initial date/time (yyyymmdd/hhmmss) by isecs seconds,
+     where isecs is specified directly as an integer number of seconds
+     or indirectly as a time increment given by iyymmdd and ihms.
+
+NOTES
+     1. Using the date increment to add months and years is not recommended
+        since this will increment by generic 30-day months and 365-day years
+     2. hhmmss defaults to 000000 if not specified.
+     3. isecs defaults to 86400 (one day) if neither isecs
+        nor iyymmdd and ihms are specified.
+
+EXAMPLES
+
+     tick 20000228                  ===>   20000229
+     tick 19990930 120000           ===>   19991001 120000
+     tick 19990930 060000 36000     ===>   19990930 160000
+     tick 19990930 060000 -36000    ===>   19990929 200000
+     tick 19990930 060000 5 0       ===>   19991005 060000
+     tick 19990930 060000 -5 0      ===>   19990925 060000
+     tick 19990930 060000 5 030000  ===>   19991005 090000
+     tick 19990930 060000 0 -120000 ===>   19990929 180000
+
+AUTHOR
+     Arlindo da Silva, dasilva\@dao.gsfc.nasa.gov
+
+EOF
+
+exit(1);
+
+}

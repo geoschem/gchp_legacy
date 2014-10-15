@@ -1,8 +1,8 @@
 #if 0
-$Id: ESMF_Conf.inc,v 1.8.4.1 2010/02/05 20:22:39 svasquez Exp $
+$Id: ESMF_Conf.inc,v 1.1.5.1 2013-01-11 20:23:43 mathomp4 Exp $
 
 Earth System Modeling Framework
-Copyright 2002-2010, University Corporation for Atmospheric Research,
+Copyright 2002-2012, University Corporation for Atmospheric Research,
 Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 Laboratory, University of Michigan, National Centers for Environmental
 Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -14,11 +14,14 @@ Licensed under the University of Illinois-NCSA License.
 Define the proper way to flush Fortran units.  Typically this will
 be one of the following:
 
-  * Fortran-2003 FLUSH statement (preferred)
+  * Fortran-2003 FLUSH statement (preferred and default)
   * Two argument FLUSH call
   * One argument FLUSH call
 
+  Use F2003 FLUSH statement from 9.0-onwards IBM.  If an older
+  compiler is being used, enable the following macro.
 #endif
 
+#if 0
 #define ESMF_IOFlushMacro(unit,status) call flush_ (unit)
-
+#endif

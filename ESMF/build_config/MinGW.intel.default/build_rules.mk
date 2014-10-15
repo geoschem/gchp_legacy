@@ -1,4 +1,4 @@
-# $Id: build_rules.mk,v 1.12 2009/10/13 21:10:03 w6ws Exp $
+# $Id$
 #
 # MinGW.intel.default
 #
@@ -7,7 +7,7 @@
 # Default compiler setting.
 #
 ESMF_F90DEFAULT         = ifort
-ESMF_F90COMPILEOPTS    += -unix -Qfpp
+ESMF_F90COMPILEOPTS    += -fpp -heap-arrays:1000
 ESMF_CXXDEFAULT         = icl
 
 # Turn off some noise
@@ -47,8 +47,8 @@ ESMF_CXXCOMPILECPPFLAGS+= -D__int64="long long"
 ESMF_F90COMPILEPATHS   += -I$(ESMF_MSMPIDIR)/Include
 ESMF_CXXCOMPILEPATHS   += -I$(ESMF_MSMPIDIR)/Include
 ESMF_MPILIBPATH          = -libpath:$(ESMF_MSMPIDIRW)/Lib/amd64
-ESMF_F90LINKLIBS       += msmpi.lib
-ESMF_CXXLINKLIBS       += msmpi.lib
+ESMF_F90LINKLIBS       += Ws2_32.lib msmpi.lib
+ESMF_CXXLINKLIBS       += Ws2_32.lib msmpi.lib
 ESMF_MPIRUNDEFAULT      = mpiexec $(ESMF_MPILAUNCHOPTIONS)
 ESMF_MPIMPMDRUNDEFAULT  = mpiexec $(ESMF_MPILAUNCHOPTIONS)
 else
@@ -215,7 +215,7 @@ ESMF_CXXLINKPATHS =
 ############################################################
 # Link against libesmf.lib using the F90 linker front-end
 #
-ESMF_F90LINKLIBS += -link -debug -libpath:`$(ESMF_DIR)/scripts/path_mingw2win $(ESMF_LDIR)` $(ESMF_MPILIBPATH)
+ESMF_F90LINKLIBS += -link -debug -libpath:`$(ESMF_DIR)/scripts/path_mingw2win $(ESMF_LDIR)` $(ESMF_MPILIBPATH) 
 ESMF_F90ESMFLINKLIBS = libesmf.lib $(ESMF_F90LINKLIBS)
 
 ############################################################
@@ -228,3 +228,12 @@ ESMF_CXXESMFLINKLIBS = libesmf.lib $(ESMF_CXXLINKLIBS)
 # Blank out shared library options
 #
 ESMF_SL_LIBS_TO_MAKE  =
+
+############################################################
+# Disable WebService testing for now
+#
+# TODO: Remove this variable and associated infrastructure as soon as
+# TODO: WebService testing is robust enough to work on all systems.
+#
+ESMF_NOWEBSERVTESTING = TRUE
+

@@ -1,0 +1,136 @@
+# lcv2prs.rc
+#
+#  This is a resource file for the lcv2prs utility.
+#
+# !REVISION HISTORY:
+#
+#  26Jan2006  B. Yin    First version.
+#
+#...........................................................................
+#                     ----------------------
+#                     Output File Resolution
+#                     ----------------------
+
+zonal_resolution: 540              # no. of zonal grid-points (im)
+west_most_longitude_in_deg: -180.0 # longitude of first point (i=1)
+meridional_resolution: 361         # no. meridional grid-points (jm)
+vertical_level_numbers: 1
+#                       ----------------
+#                       Variable Classes
+#                       ----------------
+ 
+# A variable class lists the variable names that make up a file type or product.
+
+###  PRODUCT: tavg1_2d_slv_Nx (2-D diagnostics)
+
+VarClass*tavg1_2d_slv_Nx: SLP PS U850 U500 U250 V850 V500 V250 T850 T500 T250   \
+                          Q850 Q500 Q250 H1000 H850 H500 H250 OMEGA500 U10M U2M U50M  \
+                          V10M V2M V50M T10M T2M QV10M QV2M TS DISPH TROPPV TROPPT TROPPB \
+                          TROPT TROPQ CLDPRS CLDTMP \
+                          Var_SLP Var_PS Var_U850 Var_U500 Var_U250 Var_V850 Var_V500 Var_V250 \
+                          Var_T850 Var_T500 Var_T250 Var_Q850 Var_Q500 Var_Q250 Var_H1000 Var_H850 \
+                          Var_H500 Var_H250 Var_OMEGA500 Var_U10M Var_U2M Var_U50M Var_V10M Var_V2M \
+                          Var_V50M Var_T10M Var_T2M Var_QV10M Var_QV2M Var_TS Var_DISPH Var_TROPPV \
+                          Var_TROPPT Var_TROPPB Var_TROPT Var_TROPQ Var_CLDPRS Var_CLDTMP
+
+#                         --------------------
+#                         Variable Translation
+#                         --------------------
+
+Variable_translation_table::
+
+#      Output          |                       Input
+#  Name       Units    | Name             scale_factor  add_offset Positive check
+#  ------------------------------------------------------------------------------
+   SLP        Pa         SLP                    1.0        0.0         0  # kg/kg
+   PS         Pa         PS                     1.0        0.0         0  # Pa
+   U850       m/s        U850                   1.0        0.0         0
+   U500       m/s        U500                   1.0        0.0         0
+   U250       m/s        U250                   1.0        0.0         0
+   V850       m/s        V850                   1.0        0.0         0
+   V500       m/s        V500                   1.0        0.0         0
+   V250       m/s        V250                   1.0        0.0         0
+   T850       K          T850                   1.0        0.0         0
+   T500       K          T500                   1.0        0.0         0
+   T250       K          T250                   1.0        0.0         0
+   Q850       kg/kg      Q850                   1.0        0.0         0
+   Q500       kg/kg      Q500                   1.0        0.0         0
+   Q250       kg/kg      Q250                   1.0        0.0         0
+   H1000      m          H1000                  1.0        0.0         0
+   H850       m          H850                   1.0        0.0         0
+   H500       m          H500                   1.0        0.0         0
+   H250       m          H250                   1.0        0.0         0
+   OMEGA500   Pa/s       OMEGA500               1.0        0.0         0
+   U10M       m/s        U10M                   1.0        0.0         0
+   U50M       m/s        U50M                   1.0        0.0         0
+   U2M        m/s        U2M                    1.0        0.0         0
+   V10M       m/s        V10M                   1.0        0.0         0
+   V50M       m/s        V50M                   1.0        0.0         0
+   V2M        m/s        V2M                    1.0        0.0         0
+   T10M       K          T10M                   1.0        0.0         0
+   T2M        K          T2M                    1.0        0.0         0
+   QV10M      kg/kg      QV10M                  1.0        0.0         0  # kg/kg
+   QV2M       kg/kg      QV2M                   1.0        0.0         0  # kg/kg
+   TS         K          TS                     1.0        0.0         0
+   DISPH      m          DISPH                  1.0        0.0         0
+   TROPPV     Pa         TROPPV                 1.0        0.0         0  # kg/m2
+   TROPPT     Pa         TROPPT                 1.0        0.0         0  # kg/m2
+   TROPPB     Pa         TROPPB                 1.0        0.0         0  # kg/m2
+   TROPQ      kg/kg      TROPQ                  1.0        0.0         0  # kg/m2
+   TROPT      K          TROPT                  1.0        0.0         0  # kg/m2
+   CLDPRS     Pa         CLDPRS                 1.0        0.0          0
+   CLDTMP     K          CLDTMP                 1.0        0.0          0
+::
+
+
+
+# Table for variable names and description:
+
+SLP:        Sea level pressure
+PS:         Time averaged surface pressure
+U850:       Eastward wind at 850 hPa
+U500:       Eastward wind at 500 hPa
+U250:       Eastward wind at 250 hPa
+V850:       Northward wind at 850 hPa
+V500:       Northward wind at 500 hPa
+V250:       Northward wind at 250 hPa
+T850:       Temperature at 850 hPa
+T500:       Temperature at 500 hPa
+T250:       Temperature at 250 hPa
+Q850:       Specific humidity at 850 hPa
+Q500:       Specific humidity at 500 hPa
+Q250:       Specific humidity at 250 hPa
+H1000:      Height at 1000 hPa
+H850:       Height at 850 hPa
+H500:       Height at 500 hPa
+H250:       Height at 250 hPa
+OMEGA500:   Vertical pressure velocity at 500 hPa
+U10M:       Eastward wind at 10 m above displacement height
+U2M:        Eastward wind at 2 m above the displacement height
+U50M:       Eastward wind at 50 m above surface
+V10M:       Northward wind at 50 m above the displacement height
+V2M:        Northward wind at 2 m above the displacement height
+V50M:       Northward wind at 50 m above 
+T10M:       Temperature at 10 m above the displacement height
+T2M:        Temperature at 2 m above the displacement height
+QV10M:      Specific humidity at 10 m above the displacement height
+QV2M:       Specific humidity at 2 m above the displacement height
+TS:         Surface skin temperature
+DISPH:      Displacement height
+TROPPV:     PV based tropopause pressure
+TROPPT:     T based tropopause pressure
+TROPPB:     Blended tropopause pressure 
+TROPQ:      Tropopause specific humidity
+TROPT:      Tropopause temperature
+CLDPRS:     Cloud-top pressure
+CLDTMP:     Cloud-top temperature
+
+
+history:        File written by CFIO
+convention:     CF-1.0
+institution:    Global Modeling and Assimilation Office, NASA Goddard Space Flight Center, Greenbelt, MD 20771
+references:     http://gmao.gsfc.nasa.gov/research/merra/
+comment:        @PUBLICTAG
+source:         Global Modeling and Assimilation Office. GEOSops_5_2_0
+title:          MERRA reanalysis.  @PUBLICTAG
+contact:        http://gmao.gsfc.nasa.gov/ 

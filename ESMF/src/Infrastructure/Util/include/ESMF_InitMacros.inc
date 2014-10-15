@@ -1,8 +1,8 @@
 #if 0
-$Id: ESMF_InitMacros.inc,v 1.33.4.1 2010/02/05 20:01:04 svasquez Exp $
+$Id: ESMF_InitMacros.inc,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
 
 Earth System Modeling Framework
-Copyright 2002-2010, University Corporation for Atmospheric Research,
+Copyright 2002-2012, University Corporation for Atmospheric Research,
 Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 Laboratory, University of Michigan, National Centers for Environmental
 Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -38,11 +38,13 @@ automatic initialization of types.
  (For more information about the detection process please see Section 5.10 of the 
  developers guide.)
 
-  ESMF_INIT_DEFINED  marks if a shallow object has been defined by ESMF. 
+  ESMF_INIT_UNDEFINED marks if a shallow object has not been defined by ESMF. 
+  ESMF_INIT_DEFINED   marks if a shallow object has been set by an ESMF call.
   ESMF_INIT_CREATED  marks if a deep object has been allocated
   ESMF_INIT_DELETED  marks if a deep object has been deallocated. 
 #endif
-#define ESMF_INIT_DEFINED 76838410
+#define ESMF_INIT_UNDEFINED   76838410
+#define ESMF_INIT_DEFINED     63451943
 #define ESMF_INIT_CREATED 82949521
 #define ESMF_INIT_DELETED 12594838
 
@@ -53,12 +55,12 @@ automatic initialization of types.
 
 #ifdef ESMF_NO_INITIALIZERS
 #define ESMF_INIT_DECLARE  ESMF_INIT_TYPE :: isInit
-#define ESMF_INIT_CHECK_SHALLOW(fget,finit,var) \
+#define ESMF_INIT_CHECK_SET_SHALLOW(fget,finit,var) \
              if (fget(var) .ne. ESMF_INIT_DEFINED) call \
                  finit(var)
 #else
-#define ESMF_INIT_DECLARE ESMF_INIT_TYPE :: isInit = ESMF_INIT_DEFINED
-#define ESMF_INIT_CHECK_SHALLOW(fget,finit,var)
+#define ESMF_INIT_DECLARE ESMF_INIT_TYPE :: isInit = ESMF_INIT_UNDEFINED
+#define ESMF_INIT_CHECK_SET_SHALLOW(fget,finit,var)
 #endif
 
 #define ESMF_INIT_SET_DEFINED(var) var%isInit=ESMF_INIT_DEFINED
@@ -67,11 +69,18 @@ automatic initialization of types.
 #define ESMF_INIT_COPY(dvar,svar)  dvar%isInit=svar%isInit
 
 
-#define ESMF_INIT_CHECK_DEEP(fget,var, rc) \
-if (ESMF_IMErr(fget(var),ESMF_CONTEXT,rc=rc)) return
+#define ESMF_INIT_CHECK_DEEP(fget,var, rcvar) \
+if (ESMF_IMErr(fget(var),__LINE__,ESMF_FILENAME,ESMF_METHOD,rc=rcvar)) return
 
-#define ESMF_INIT_CHECK_DEEP_SHORT(fget,var, rc) \
-if (ESMF_IMErr(fget(var),__LINE__,ESMF_FILENAME,"?",rc=rc)) return
+#define ESMF_INIT_CHECK_DEEP_SHORT(fget,var, rcvar) \
+if (ESMF_IMErr(fget(var),__LINE__,ESMF_FILENAME,"?",rc=rcvar)) return
+
+#define ESMF_INIT_CHECK_SHALLOW(fget,var, rcvar) \
+if (ESMF_IMErrS(fget(var),__LINE__,ESMF_FILENAME,ESMF_METHOD,rc=rcvar)) return
+
+#define ESMF_INIT_CHECK_SHALLOW_SHORT(fget,var, rcvar) \
+if (ESMF_IMErrS(fget(var),__LINE__,ESMF_FILENAME,"?",rc=rcvar)) return
+
 
 #define ESMF_INIT_C_PAD   char isInit[8]; 
 
@@ -81,18 +90,20 @@ if (ESMF_IMErr(fget(var),__LINE__,ESMF_FILENAME,"?",rc=rc)) return
 
 #ifdef ESMF_NO_INITIALIZERS
 #define ESMF_INIT_DECLARE 
-#define ESMF_INIT_CHECK_SHALLOW(fget,finit,var) 
+#define ESMF_INIT_CHECK_SET_SHALLOW(fget,finit,var) 
 #else
 #define ESMF_INIT_DECLARE 
-#define ESMF_INIT_CHECK_SHALLOW(fget,finit,var)
+#define ESMF_INIT_CHECK_SET_SHALLOW(fget,finit,var)
 #endif
 
 #define ESMF_INIT_SET_DEFINED(var) 
 #define ESMF_INIT_SET_CREATED(var) 
 #define ESMF_INIT_SET_DELETED(var) 
 #define ESMF_INIT_COPY(dvar,svar)
-#define ESMF_INIT_CHECK_DEEP(fget, var, rc)
-#define ESMF_INIT_CHECK_DEEP_SHORT(fget,var, rc) 
+#define ESMF_INIT_CHECK_DEEP(fget, var, rcvar)
+#define ESMF_INIT_CHECK_DEEP_SHORT(fget,var, rcvar) 
+#define ESMF_INIT_CHECK_SHALLOW(fget,var, rcvar) 
+#define ESMF_INIT_CHECK_SHALLOW_SHORT(fget,var, rcvar)
 
 #define ESMF_INIT_C_PAD 
 

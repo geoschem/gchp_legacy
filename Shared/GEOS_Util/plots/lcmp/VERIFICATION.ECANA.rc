@@ -1,0 +1,13 @@
+
+OBSNAM: ecops
+OBSDSC: ECMWF_OPNL_ANA
+
+        filename:   'VERIFICATION/ECMWF_OPS.NCDF3/xdf.tabl'
+        filetype:   'HDF'
+        fields:     'ZLE'      , 'DYN'           , 'HGHT'   , 1
+                    'SLP'      , 'DYN'           , 'SLP'    , 1
+                    'T'        , 'DYN'           , 'T'      , 1
+                    'U'        , 'DYN'           , 'U'      , 1
+                    'V'        , 'DYN'           , 'V'      , 1
+                    'RH2'      , 'MOIST'         , 'RH'     , 1
+                    ::

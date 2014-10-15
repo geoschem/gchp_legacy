@@ -1,4 +1,4 @@
-! $Id: user_coupler.F90,v 1.6 2009/05/29 19:24:41 theurich Exp $
+! $Id$
 !
 ! Example/test code which shows User Component calls.
 
@@ -15,7 +15,7 @@
 module user_coupler
 
   ! ESMF Framework module
-  use ESMF_Mod
+  use ESMF
     
   implicit none
    
@@ -51,9 +51,12 @@ module user_coupler
 
     ! First test whether ESMF-threading is supported on this machine
     call ESMF_VMGetGlobal(vm, rc=rc)
+    if (rc/=ESMF_SUCCESS) return ! bail out
     call ESMF_VMGet(vm, pthreadsEnabledFlag=pthreadsEnabled, rc=rc)
+    if (rc/=ESMF_SUCCESS) return ! bail out
     if (pthreadsEnabled) then
       call ESMF_CplCompSetVMMinThreads(comp, rc=rc)
+      if (rc/=ESMF_SUCCESS) return ! bail out
     endif
 #endif
 
@@ -69,13 +72,13 @@ module user_coupler
     print *, "User Coupler Register starting"
     
     ! Register the callback routines.
-    call ESMF_CplCompSetEntryPoint(comp, method=ESMF_SETINIT, &
+    call ESMF_CplCompSetEntryPoint(comp, ESMF_METHOD_INITIALIZE, &
       userRoutine=user_init, rc=rc)
     if (rc/=ESMF_SUCCESS) return ! bail out
-    call ESMF_CplCompSetEntryPoint(comp, method=ESMF_SETRUN, &
+    call ESMF_CplCompSetEntryPoint(comp, ESMF_METHOD_RUN, &
       userRoutine=user_run, rc=rc)
     if (rc/=ESMF_SUCCESS) return ! bail out
-    call ESMF_CplCompSetEntryPoint(comp, method=ESMF_SETFINAL, &
+    call ESMF_CplCompSetEntryPoint(comp, ESMF_METHOD_FINALIZE, &
       userRoutine=user_final, rc=rc)
     if (rc/=ESMF_SUCCESS) return ! bail out
 
@@ -111,9 +114,9 @@ module user_coupler
     ! Need to reconcile import and export states
     call ESMF_CplCompGet(comp, vm=vm, rc=rc)
     if (rc/=ESMF_SUCCESS) return ! bail out
-    call ESMF_StateReconcile(importState, vm, rc=rc)
+    call ESMF_StateReconcile(importState, vm=vm, rc=rc)
     if (rc/=ESMF_SUCCESS) return ! bail out
-    call ESMF_StateReconcile(exportState, vm, rc=rc)
+    call ESMF_StateReconcile(exportState, vm=vm, rc=rc)
     if (rc/=ESMF_SUCCESS) return ! bail out
 
     ! Get source Array out of import state
@@ -199,7 +202,7 @@ end module user_coupler
 !\end{verbatim}
 
 subroutine usercpl_setvm(comp, rc)
-  use ESMF_Mod
+  use ESMF
   use user_coupler
   type(ESMF_CplComp) :: comp
   integer, intent(out) :: rc
@@ -207,7 +210,7 @@ subroutine usercpl_setvm(comp, rc)
 end subroutine
 
 subroutine usercpl_reg(comp, rc)
-  use ESMF_Mod
+  use ESMF
   use user_coupler
   type(ESMF_CplComp) :: comp
   integer, intent(out) :: rc

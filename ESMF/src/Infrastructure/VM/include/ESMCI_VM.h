@@ -1,7 +1,7 @@
-// $Id: ESMCI_VM.h,v 1.6.2.2 2010/02/19 04:55:13 theurich Exp $
+// $Id$
 //
 // Earth System Modeling Framework
-// Copyright 2002-2010, University Corporation for Atmospheric Research, 
+// Copyright 2002-2012, University Corporation for Atmospheric Research, 
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
 // Laboratory, University of Michigan, National Centers for Environmental 
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
@@ -20,7 +20,7 @@
 
 //-------------------------------------------------------------------------
 //BOPI
-// !CLASS: ESMCI_VM - virtual machine
+// !CLASS: ESMCI::VM - VM (virtual machine)
 //
 // !DESCRIPTION:
 //
@@ -39,6 +39,7 @@
 //-------------------------------------------------------------------------
 
 #include "ESMCI_VMKernel.h"    // inherit from ESMCI::VMK class
+#include "ESMCI_Util.h"
 
 //-------------------------------------------------------------------------
 
@@ -53,7 +54,7 @@ typedef struct{
 
 //-------------------------------------------------------------------------
 
-#include "ESMC_Base.h"        // cannot move Base.h before def. of ESMCI::VMId 
+#include "ESMCI_Base.h"        // cannot move Base.h before def. of ESMCI::VMId 
 
 //-------------------------------------------------------------------------
 
@@ -98,12 +99,13 @@ class VM : public VMK {   // inherits from ESMCI::VMK class
       int *petMatchList, int len_petMatchList);
     VMId *getVMId(int *rc) const;   // Return VMId of the VM context.
     static void getArgs(int *argc, char ***argv, int *rc);  // command line args
-    static VM *getGlobal(int *rc);      // global VM
-    static VM *getCurrent(int *rc);     // current VM
-    static VMId *getCurrentID(int *rc); // VMId of current VM
+    static VM *getGlobal(int *rc=NULL);      // global VM
+    static VM *getCurrent(int *rc=NULL);     // current VM
+    static VMId *getCurrentID(int *rc=NULL); // VMId of current VM
     static int getBaseIDAndInc(VMId *vmID);
     static void addObject(ESMC_Base *, VMId *vmID);
     static void addFObject(void **fobject, int objectID, VMId *vmID);
+    static char const *getenv(char const *name);
     // misc.
     int print() const;
     int validate() const;

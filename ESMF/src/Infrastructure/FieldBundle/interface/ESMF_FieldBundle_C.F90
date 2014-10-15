@@ -1,7 +1,7 @@
-!  $Id: ESMF_FieldBundle_C.F90,v 1.8.2.1 2010/02/05 19:56:21 svasquez Exp $
+!  $Id: ESMF_FieldBundle_C.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2010, University Corporation for Atmospheric Research, 
+! Copyright 2002-2012, University Corporation for Atmospheric Research, 
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
 ! Laboratory, University of Michigan, National Centers for Environmental 
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
@@ -24,12 +24,15 @@
 !------------------------------------------------------------------------------
 ! The following line turns the CVS identifier string into a printable variable.
 !      character(*), parameter, private :: version = &
-!      '$Id: ESMF_FieldBundle_C.F90,v 1.8.2.1 2010/02/05 19:56:21 svasquez Exp $'
+!      '$Id: ESMF_FieldBundle_C.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $'
 !==============================================================================
    subroutine f_esmf_bundlecreate(bundlep, rc)
-       use ESMF_UtilTypesMod    ! ESMF generic types class
-       use ESMF_BaseMod         ! ESMF base class
-       use ESMF_FieldBundleMod
+     use ESMF_UtilTypesMod    ! ESMF generic types class
+     use ESMF_BaseMod         ! ESMF base class
+     use ESMF_FieldBundleMod
+
+     implicit none
+
      type(ESMF_FieldBundle), pointer :: bundlep
      type(ESMF_FieldBundle), target :: thebundle
      integer, intent(out) :: rc              
@@ -46,16 +49,19 @@
    end subroutine f_esmf_bundlecreate
 
    subroutine f_esmf_bundledestroy(bundlep, rc)
-       use ESMF_UtilTypesMod    ! ESMF generic types class
-       use ESMF_BaseMod         ! ESMF base class
-       use ESMF_FieldBundleMod
+     use ESMF_UtilTypesMod    ! ESMF generic types class
+     use ESMF_BaseMod         ! ESMF base class
+     use ESMF_FieldBundleMod
+
+     implicit none
+
      type(ESMF_FieldBundle), pointer :: bundlep      
      integer, intent(out), optional :: rc     
 
      ! Initialize return codes; assume routines not initialized
      if (present(rc)) rc = ESMF_RC_NOT_IMPL
 
-     call ESMF_FieldBundleDestroy(bundlep, rc)
+     call ESMF_FieldBundleDestroy(bundlep, rc=rc)
 
 
    end subroutine f_esmf_bundledestroy
@@ -67,6 +73,8 @@
     use ESMF_BaseMod
     use ESMF_LogErrMod
     use ESMF_FieldBundleMod
+
+    implicit none
 
     type(ESMF_FieldBundle):: fb
     integer, intent(out)  :: rc
@@ -80,20 +88,20 @@
     !print *, "collecting FieldBundle garbage"
   
     ! destruct internal data allocations
-    call ESMF_FieldBundleDestruct(fb%btypep, rc=localrc)
-    if (ESMF_LogMsgFoundError(localrc, &
+    call ESMF_FieldBundleDestruct(fb%this, localrc)
+    if (ESMF_LogFoundError(localrc, &
       ESMF_ERR_PASSTHRU, &
       ESMF_CONTEXT, &
-      rc)) return
+      rcToReturn=rc)) return
 
     ! deallocate actual FieldBundleType allocation      
-    if (associated(fb%btypep)) then
-      deallocate(fb%btypep, stat=localrc)
-      if (ESMF_LogMsgFoundAllocError(localrc, "Deallocating FieldBundle", &
+    if (associated(fb%this)) then
+      deallocate(fb%this, stat=localrc)
+      if (ESMF_LogFoundAllocError(localrc, msg="Deallocating FieldBundle", &
         ESMF_CONTEXT, &
-        rc)) return
+        rcToReturn=rc)) return
     endif
-    nullify(fb%btypep)
+    nullify(fb%this)
 
     ! return successfully
     rc = ESMF_SUCCESS

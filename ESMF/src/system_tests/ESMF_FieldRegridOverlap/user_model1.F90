@@ -1,4 +1,4 @@
-! $Id: user_model1.F90,v 1.2 2009/09/29 16:53:08 feiliu Exp $
+! $Id$
 !
 ! Example/test code which shows User Component calls.
 
@@ -16,7 +16,7 @@
     module user_model1
 
     ! ESMF Framework module
-    use ESMF_Mod
+    use ESMF
 
     implicit none
     
@@ -38,11 +38,11 @@
 
         ! Register the callback routines.
 
-        call ESMF_GridCompSetEntryPoint(comp, ESMF_SETINIT, user_init, rc=rc)
+        call ESMF_GridCompSetEntryPoint(comp, ESMF_METHOD_INITIALIZE, user_init, rc=rc)
         if(rc/=ESMF_SUCCESS) return
-        call ESMF_GridCompSetEntryPoint(comp, ESMF_SETRUN, user_run, rc=rc)
+        call ESMF_GridCompSetEntryPoint(comp, ESMF_METHOD_RUN, user_run, rc=rc)
         if(rc/=ESMF_SUCCESS) return
-        call ESMF_GridCompSetEntryPoint(comp, ESMF_SETFINAL, user_final, rc=rc)
+        call ESMF_GridCompSetEntryPoint(comp, ESMF_METHOD_FINALIZE, user_final, rc=rc)
         if(rc/=ESMF_SUCCESS) return
 
         print *, "Registered Initialize, Run, and Finalize routines"
@@ -90,7 +90,7 @@
         dx = (max(1)-min(1))/(counts(1)-1)
         dy = (max(2)-min(2))/(counts(2)-1)
 
-        grid1 = ESMF_GridCreateShapeTile(minIndex=(/1,1/), maxIndex=counts, &
+        grid1 = ESMF_GridCreateNoPeriDim(minIndex=(/1,1/), maxIndex=counts, &
             gridEdgeLWidth=(/0,0/), gridEdgeUWidth=(/0,0/), &
             indexflag=ESMF_INDEX_GLOBAL, &
             regDecomp=(/1, npets/), name="source grid", rc=rc)
@@ -98,10 +98,10 @@
         call ESMF_GridAddCoord(grid1, rc=rc)
         if (rc .ne. ESMF_SUCCESS) return
         call ESMF_GridGetCoord(grid1, localDE=0, coordDim=1, &
-                           fptr=coordX, computationalLBound=tlb, computationalUBound=tub, rc=rc)
+                           farrayPtr=coordX, computationalLBound=tlb, computationalUBound=tub, rc=rc)
         if(rc/=ESMF_SUCCESS) return
         call ESMF_GridGetCoord(grid1, localDE=0, coordDim=2, &
-                           fptr=coordY, rc=rc)
+                           farrayPtr=coordY, rc=rc)
         if(rc/=ESMF_SUCCESS) return
         do j   = tlb(2), tub(2)
           do i = tlb(1), tub(1)
@@ -117,7 +117,7 @@
 
         ! Create the field and have it create the array internally
         humidity = ESMF_FieldCreate(grid1, arrayspec, &
-                                    maxHaloLWidth=(/0,0/), maxHaloUWidth=(/0,0/), &
+                                    totalLWidth=(/0,0/), totalUWidth=(/0,0/), &
                                     name="humidity", rc=rc)
         if (rc .ne. ESMF_SUCCESS) return
 
@@ -128,7 +128,7 @@
         ! Set initial data values over whole array to our de id
         idata = real(de_id,ESMF_KIND_R8)
 
-        call ESMF_StateAdd(exportState, humidity, rc=rc)
+        call ESMF_StateAdd(exportState, (/humidity/), rc=rc)
         if (rc .ne. ESMF_SUCCESS) return
      !   call ESMF_StatePrint(exportState, rc=rc)
 
@@ -152,7 +152,7 @@
         type(ESMF_grid) :: grid
         real(ESMF_KIND_R8) :: pi
         real(ESMF_KIND_R8), dimension(:,:), pointer :: idata, coordX, coordY
-        integer :: i, j, i1, j1, haloWidth, haloUWidth(2), counts(2), tlb(2), tub(2)
+        integer :: i, j, i1, j1, haloWidth, haloUWidth(2,1), counts(2), tlb(2), tub(2)
 
         rc = ESMF_SUCCESS
         print *, "User Comp Run starting"
@@ -174,14 +174,14 @@
       
         ! get the grid and coordinates
         call ESMF_FieldGet(humidity, grid=grid, &
-                           maxHaloUWidth=haloUWidth, rc=rc)
+                           totalUWidth=haloUWidth, rc=rc)
         if (rc .ne. ESMF_SUCCESS) return
-        haloWidth = haloUWidth(1)
+        haloWidth = haloUWidth(1,1)
         call ESMF_GridGetCoord(grid, localDE=0, coordDim=1, &
-                           fptr=coordX, computationalLBound=tlb, computationalUBound=tub, rc=rc)
+                           farrayPtr=coordX, computationalLBound=tlb, computationalUBound=tub, rc=rc)
         if(rc/=ESMF_SUCCESS) return
         call ESMF_GridGetCoord(grid, localDE=0, coordDim=2, &
-                           fptr=coordY, rc=rc)
+                           farrayPtr=coordY, rc=rc)
         if(rc/=ESMF_SUCCESS) return
 
         ! update field values here

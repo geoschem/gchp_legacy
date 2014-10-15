@@ -1,7 +1,7 @@
-! $Id: ESMF_StateReconcileEx.F90,v 1.26.2.1 2010/02/05 20:04:47 svasquez Exp $
+! $Id: ESMF_StateReconcileEx.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2010, University Corporation for Atmospheric Research,
+! Copyright 2002-2012, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -13,13 +13,16 @@
 
 module ESMF_StateReconcileEx_Mod
 
-use ESMF_Mod
+use ESMF
 
 contains
 
 !BOE
-!\subsubsection{Initialization and SetServices Routines}
+!\subsubsection{{\tt ESMF\_StateReconcile()} usage}
 !  
+! The set services routines are used to tell ESMF which routine
+! hold the user code for the initialize, run, and finalize
+! blocks of user level Components.
 ! These are the separate subroutines called by the code below.
 !EOE
 
@@ -36,9 +39,9 @@ subroutine comp1_init(gcomp, istate, ostate, clock, rc)
 
     print *, "i am comp1_init"
 
-    field1 = ESMF_FieldCreateEmpty(name="Comp1 Field", rc=localrc)
+    field1 = ESMF_FieldEmptyCreate(name="Comp1 Field", rc=localrc)
   
-    call ESMF_StateAdd(istate, field1, rc=localrc)
+    call ESMF_StateAdd(istate, (/field1/), rc=localrc)
     
     rc = localrc
 
@@ -56,9 +59,9 @@ subroutine comp2_init(gcomp, istate, ostate, clock, rc)
 
     print *, "i am comp2_init"
 
-    field2 = ESMF_FieldCreateEmpty(name="Comp2 Field", rc=localrc)
+    field2 = ESMF_FieldEmptyCreate(name="Comp2 Field", rc=localrc)
     
-    call ESMF_StateAdd(istate, field2, rc=localrc)
+    call ESMF_StateAdd(istate, (/field2/), rc=localrc)
 
     rc = localrc
 
@@ -93,7 +96,7 @@ end module ESMF_StateReconcileEx_Mod
 !-----------------------------------------------------------------------------
 
     ! ESMF Framework module
-    use ESMF_Mod
+    use ESMF
     use ESMF_StateReconcileEx_Mod
     implicit none
 
@@ -109,7 +112,8 @@ end module ESMF_StateReconcileEx_Mod
     finalrc = ESMF_SUCCESS
 
 
-    call ESMF_Initialize(vm=vm, rc=rc)
+    call ESMF_Initialize(vm=vm, defaultlogfilename="StateReconcileEx.Log", &
+                     logkindflag=ESMF_LOGKIND_MULTI, rc=rc)
     
     ! verify that this example can run on the given petCount
     call ESMF_VMGet(vm, petCount=petCount, rc=rc)
@@ -123,7 +127,6 @@ end module ESMF_StateReconcileEx_Mod
 
 !-------------------------------------------------------------------------
 !BOE
-!\subsubsection{Creating Components on subsets of the current PET list}
 !      
 !  A Component can be created which will run only on a subset of the
 !  current PET list.
@@ -144,7 +147,7 @@ end module ESMF_StateReconcileEx_Mod
     print *, "GridComp Create returned, name = ", trim(comp2name)
 
     statename = "Ocn2Atm"
-    state1 = ESMF_StateCreate(statename, rc=rc)  
+    state1 = ESMF_StateCreate(name=statename, rc=rc)  
 !EOC
     print *, "State Create returned, name = ", trim(statename)
 
@@ -153,7 +156,6 @@ end module ESMF_StateReconcileEx_Mod
 
 !-------------------------------------------------------------------------
 !BOE
-!\subsubsection{Invoking Components on a subset of the Parent PETs}
 !   
 !  Here we register the subroutines which should be called for initialization.
 !  Then we call ESMF\_GridCompInitialize() on all PETs, but the code runs
@@ -171,22 +173,24 @@ end module ESMF_StateReconcileEx_Mod
     ! but to make this example very short, they are called inline below.
     ! This is o.k. because the SetServices routine must execute from within
     ! the parent component VM.
-    call ESMF_GridCompSetVM(comp1, comp_dummy, rc)
-    call ESMF_GridCompSetVM(comp2, comp_dummy, rc)
-    call ESMF_GridCompSetServices(comp1, comp_dummy, rc)
-    call ESMF_GridCompSetServices(comp2, comp_dummy, rc)
+    call ESMF_GridCompSetVM(comp1, comp_dummy, rc=rc)
+    call ESMF_GridCompSetVM(comp2, comp_dummy, rc=rc)
+    call ESMF_GridCompSetServices(comp1, comp_dummy, rc=rc)
+    call ESMF_GridCompSetServices(comp2, comp_dummy, rc=rc)
 
     print *, "ready to set entry point 1"
-    call ESMF_GridCompSetEntryPoint(comp1, ESMF_SETINIT, comp1_init, rc=rc)
+    call ESMF_GridCompSetEntryPoint(comp1, ESMF_METHOD_INITIALIZE, &
+         comp1_init, rc=rc)
 
     print *, "ready to set entry point 2"
-    call ESMF_GridCompSetEntryPoint(comp2, ESMF_SETINIT, comp2_init, rc=rc)
+    call ESMF_GridCompSetEntryPoint(comp2, ESMF_METHOD_INITIALIZE, &
+         comp2_init, rc=rc)
 
 
     print *, "ready to call init for comp 1"
-    call ESMF_GridCompInitialize(comp1, state1, rc=rc)
+    call ESMF_GridCompInitialize(comp1, exportState=state1, rc=rc)
     print *, "ready to call init for comp 2"
-    call ESMF_GridCompInitialize(comp2, state1, rc=rc)
+    call ESMF_GridCompInitialize(comp2, exportState=state1, rc=rc)
 !EOC
 
     print *, "State Example 2 finished"
@@ -194,7 +198,6 @@ end module ESMF_StateReconcileEx_Mod
 
 !-------------------------------------------------------------------------
 !BOE
-!\subsubsection{Using State Reconcile}
 !   
 ! Now we have {\tt state1} containing {\tt field1} on PETs 0 and 1, and
 ! {\tt state1} containing {\tt field2} on PETs 2 and 3.  For the code
@@ -211,7 +214,8 @@ end module ESMF_StateReconcileEx_Mod
     print *, "State before calling StateReconcile()"
     call ESMF_StatePrint(state1, rc=rc)
 
-    call ESMF_StateReconcile(state1, vm, ESMF_ATTRECONCILE_OFF, rc=rc)
+    call ESMF_StateReconcile(state1, vm=vm,  &
+                             attreconflag=ESMF_ATTRECONCILE_OFF, rc=rc)
 
     print *, "State after calling StateReconcile()"
     call ESMF_StatePrint(state1, rc=rc)

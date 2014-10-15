@@ -1,0 +1,52 @@
+
+# -------------------------------------
+# Regridding Resource File Information
+# -------------------------------------
+#
+#         Boundary Condition Tag: Ganymed-1_0 (Current Model Development)
+#                                 Fortuna-2_1 (GEOSadas-5_6_1 to GEOSadas-5_7_2)
+#                                 Fortuna-2_0
+#                                 Fortuna-1_5
+#                                 Fortuna-1_4 (MERRA)
+#
+#          Horizontal Dimensions (IM JM):  144  91
+#                                          288 181
+#                                          576 361
+#                                         1152 721
+#                                          540 361 (MERRA)
+#
+#          DYN_INTERNAL_RESTART_FILE: Full path filename for    fvcore_internal_rst
+#        MOIST_INTERNAL_RESTART_FILE: Full path filename for     moist_internal_rst
+#        CATCH_INTERNAL_RESTART_FILE: Full path filename for     catch_internal_rst
+#         LAKE_INTERNAL_RESTART_FILE: Full path filename for      lake_internal_rst
+#      LANDICE_INTERNAL_RESTART_FILE: Full path filename for   landice_internal_rst
+#    SALTWATER_INTERNAL_RESTART_FILE: Full path filename for saltwater_internal_rst
+#           AGCM_IMPORT_RESTART_FILE: Full path filename for        agcm_import_rst
+#        PCHEM_INTERNAL_RESTART_FILE: Full path filename for     pchem_internal_rst
+#       GOCART_INTERNAL_RESTART_FILE: Full path filename for    gocart_internal_rst
+#
+# ---------------------------------------------------------------------------------------------------
+
+# REQUIRED INPUT Restart Information
+# ----------------------------------
+                         BC_TAG: @BC_TAG
+                         IM_OLD: @IM_OLD
+                         JM_OLD: @JM_OLD
+      DYN_INTERNAL_RESTART_FILE: @DYN_INTERNAL_RESTART_FILE
+    MOIST_INTERNAL_RESTART_FILE: @MOIST_INTERNAL_RESTART_FILE
+    CATCH_INTERNAL_RESTART_FILE: @CATCH_INTERNAL_RESTART_FILE
+     LAKE_INTERNAL_RESTART_FILE: @LAKE_INTERNAL_RESTART_FILE
+  LANDICE_INTERNAL_RESTART_FILE: @LANDICE_INTERNAL_RESTART_FILE
+SALTWATER_INTERNAL_RESTART_FILE: @SALTWATER_INTERNAL_RESTART_FILE
+
+# OPTIONAL INPUT Restart Information (Leave BLANK if not desired)
+# ---------------------------------------------------------------
+       AGCM_IMPORT_RESTART_FILE: @AGCM_IMPORT_RESTART_FILE
+    PCHEM_INTERNAL_RESTART_FILE: @PCHEM_INTERNAL_RESTART_FILE
+   GOCART_INTERNAL_RESTART_FILE: @GOCART_INTERNAL_RESTART_FILE
+
+
+# REQUIRED OUTPUT Restart Information ( Note: for Cubed-Sphere, JM_NEW == 6*IM_NEW )
+# ----------------------------------------------------------------------------------
+      IM_NEW: @IM_NEW
+      JM_NEW: @JM_NEW

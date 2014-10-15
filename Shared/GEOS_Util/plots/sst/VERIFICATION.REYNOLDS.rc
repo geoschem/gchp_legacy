@@ -1,0 +1,16 @@
+
+OBSNAM: REYNOLDS
+OBSDSC: REYNOLDS_SST_360x180_(Dec_1981-Dec_2004)
+
+        filename:   'VERIFICATION/reynolds_sst/sst_NOAA_OI_v2.nc'
+        filetype:   'SDF'
+        fields:     'TS'  , 'SURFACE' , 'SST' , 1+273.16
+                    ::
+
+OBSNAM: REYNOLDS
+OBSDSC: REYNOLDS_Land_Sea_Mask_360x180
+
+        filename:   'VERIFICATION/reynolds_sst/lsmask.nc'
+        filetype:   'SDF'
+        fields:     'LWI' , 'SURFACE' , 'MASK' , 1
+                    ::

@@ -1,0 +1,569 @@
+#!/bin/tcsh -f
+
+if ( ! $?GEOSUTIL ) then
+      echo " "
+      echo Environment variable GEOSUTIL must be defined before use!
+      echo Set GEOSUTIL to the directory path of the GEOS_util module
+      echo " "
+      exit 1
+endif
+
+@ nmax = $#argv
+
+# Usage
+# -----
+if( $nmax == 0 ) then
+      echo " "
+      echo "Usage:"
+      echo "-----"
+      echo "quickplot -source   SOURCE_DIRECTORY"
+      echo "          -season   SEASON"
+      echo "         [-cmpexp   CMPEXP_DIRECTORY]"
+      echo "         [-begdate  BEGDATE]"
+      echo "         [-enddate  ENDDATE]"
+      echo "         [-type     TYPE]"
+      echo "         [-plots    PLOTS]"
+      echo "         [-noplot   NOPLOTS]"
+      echo "         [-plotsdir PLOTSDIR]"
+      echo "         [-hist     HISTORY_DIRECTORY]"
+      echo "         [-rc       HISTORY.rc]"
+      echo "         [-clim     CLIM]"
+      echo "         [-taylor   TAYLOR]"
+      echo "         [-ana      ANALYSIS]"
+      echo "         [-std      STD_DEV ]"
+      echo "         [-gradsx   GRADSX]"
+      echo " "
+      echo "where:    SOURCE_DIRECTORY: is the source directory for experiment"
+      echo "                    SEASON: is the season to plot (eg. DJF, JAN)"
+      echo "          CMPEXP_DIRECTORY: are the experiment directory(s) to be used for comparison  (Default: None)"
+      echo "                   BEGDATE: is the YYYYMM to begin time average  (Default: Begin Date in File)"
+      echo "                   ENDDATE: is the YYYYMM to end   time average  (Default: End   Date in File)"
+      echo "                      TYPE: L for Landscape, P for Portrait                 (Default: BOTH)"
+      echo "                     PLOTS: prog surf moist turb rad gwd                    (Default: ALL)"
+      echo "                   NOPLOTS: Any plot(s) you wish to skip (useful with ALL)  (Default: NONE)"
+      echo "                  PLOTSDIR: is the directory to write plots into            (Default: SOURCE_DIRECTORY/plots)"
+      echo "         HISTORY_DIRECTORY: is the directory containing the HISTORY.rc file (Default: SOURCE_DIRECTORY)"
+      echo "                HISTORY.rc: is the full path (including filename) "
+      echo "                            of the desired rc file to use                   (Default: SOURCE_DIRECTORY/HISTORY.rc)"
+      echo "                      CLIM: Logical for using Climatology or Actual Dates   (Default: CLIM     = TRUE)"
+      echo "                    TAYLOR: Logical for producing Taylor Plots              (Default: TAYLOR   = TRUE)"
+      echo "                  ANALYSIS: Logical for producing Analysis Contour Levels   (Default: ANALYSIS = FALSE)"
+      echo "                   STD_DEV: Logical for producing Standard Deviation Plots  (Default: STD_DEV  = FALSE)"
+      echo "                    GRADSX: GrADS executable to use for processing          (Default: GRADSX  = gradsnc4)"
+      echo " "
+      exit 1
+endif
+
+
+# Set Variables
+# -------------
+set debug    = false
+set type     = ALL
+set plots    = ALL
+set plotsdir = NULL
+set expid    = NULL
+set hist     = xxx
+set rc       = HISTORY.rc
+set clim     = true
+set taylor   = true
+set analysis = false
+set std_dev  = false
+set begdate  = NULL
+set enddate  = NULL
+set cmpexp   = NULL
+set move     = false
+set gradsx   = gradsnc4
+set noplot   = ""
+
+# Parse command line
+# ------------------
+
+@       n  = 1
+while( $n <= $nmax )
+       if( "$argv[$n]" == "-source" ) then
+                    @ n = $n + 1
+             set source = $argv[$n]
+       endif
+       if( "$argv[$n]" == "-plotsdir" ) then
+                    @ n = $n + 1
+           set plotsdir = $argv[$n]
+       endif
+       if( "$argv[$n]" == "-hist"   ) then
+                    @ n = $n + 1
+             set hist   = $argv[$n]
+       endif
+       if( "$argv[$n]" == "-rc"     ) then
+                    @ n = $n + 1
+             set rc     = $argv[$n]
+       endif
+       if( "$argv[$n]" == "-expid"     ) then
+                    @ n = $n + 1
+             set expid  = $argv[$n]
+       endif
+       if( "$argv[$n]" == "-begdate"   ) then
+                    @ n = $n + 1
+             set begdate = $argv[$n]
+       endif
+       if( "$argv[$n]" == "-enddate"   ) then
+                    @ n = $n + 1
+             set enddate = $argv[$n]
+       endif
+       if( "$argv[$n]" == "-clim"   ) then
+                    @ n = $n + 1
+             set clim   = $argv[$n]
+       endif
+       if( "$argv[$n]" == "-type"   ) then
+                    @ n = $n + 1
+             set type   = `echo $argv[$n] | tr "[:lower:]" "[:upper:]"`
+             if($type  == "1" ) set type = L
+             if($type  == "2" ) set type = P
+       endif
+       if( "$argv[$n]" == "-taylor"   ) then
+                    @ n = $n + 1
+             set taylor = $argv[$n]
+       endif
+       if( "$argv[$n]" == "-gradsx"   ) then
+                    @ n = $n + 1
+             set gradsx = $argv[$n]
+       endif
+       if( "$argv[$n]" == "-std"    ) set std_dev  = true
+       if( "$argv[$n]" == "-ana"    ) set analysis = true
+       if( "$argv[$n]" == "-debug"  ) set debug    = true
+       if( "$argv[$n]" == "-move"   ) set move     = true
+       if( "$argv[$n]" == "-cmpexp" ) then
+                    @ n = $n + 1
+                                      set cmpexp  = ""
+                                      set next   = $argv[$n]
+                                      set bit    = `echo $next | cut -c1-1`
+                                      while( "$bit" != "-" )
+                                         set cmpexp = `echo $cmpexp $next`
+                                          @   n  = $n + 1
+                                         if( $n <= $nmax ) then
+                                             set next = $argv[$n]
+                                             set bit  = `echo $next | cut -c1-1`
+                                         else
+                                             set bit  = "-"
+                                         endif
+                                      end
+                                             @ n = $n - 1
+       endif
+       if( "$argv[$n]" == "-plots"  ) then
+                    @ n = $n + 1
+                                      set plots  = ""
+                                      set next   = $argv[$n]
+                                      set bit    = `echo $next | cut -c1-1`
+                                      while( "$bit" != "-" )
+                                         set plots = `echo $plots $next`
+                                          @   n  = $n + 1
+                                         if( $n <= $nmax ) then
+                                             set next = $argv[$n]
+                                             set bit  = `echo $next | cut -c1-1`
+                                         else
+                                             set bit  = "-"
+                                         endif
+                                      end
+                                             @ n = $n - 1
+       endif
+       if( "$argv[$n]" == "-noplot"  ) then
+                    @ n = $n + 1
+                                      set noplot  = ""
+                                      set next   = $argv[$n]
+                                      set bit    = `echo $next | cut -c1-1`
+                                      while( "$bit" != "-" )
+                                         set noplot = `echo $noplot $next`
+                                          @   n  = $n + 1
+                                         if( $n <= $nmax ) then
+                                             set next = $argv[$n]
+                                             set bit  = `echo $next | cut -c1-1`
+                                         else
+                                             set bit  = "-"
+                                         endif
+                                      end
+                                             @ n = $n - 1
+       endif
+       if( "$argv[$n]" == "-season"  ) then
+                    @ n = $n + 1
+                                      set seasons = ""
+                                      set next   = $argv[$n]
+                                      set bit    = `echo $next | cut -c1-1`
+                                      while( "$bit" != "-" )
+                                         set seasons = `echo $seasons $next`
+                                          @   n  = $n + 1
+                                         if( $n <= $nmax ) then
+                                             set next = $argv[$n]
+                                             set bit  = `echo $next | cut -c1-1`
+                                         else
+                                             set bit  = "-"
+                                         endif
+                                      end
+                                             @ n = $n - 1
+       endif
+     @ n = $n + 1
+end
+
+# Prepare Environment
+# ---------------------
+
+setenv SOURCE         $source
+setenv CLIM           $clim
+setenv TAYLOR         $taylor
+setenv ANALYSIS       $analysis
+setenv STD_DEV        $std_dev
+setenv TBEG           $begdate
+setenv TEND           $enddate
+setenv GRADSX         $gradsx 
+
+if( -e $source/.HOMDIR ) then
+    set homdir = `cat $source/.HOMDIR`
+else
+    set homdir = $source
+endif
+
+if( $hist == xxx        ) set hist = $homdir
+if( $rc   == HISTORY.rc ) then
+    setenv   HISTORYRC    ${hist}/$rc
+else
+    setenv   HISTORYRC            $rc
+endif
+
+if( $cmpexp[1] != "NULL" ) then
+    setenv CMPEXP "$cmpexp NULL"
+else
+    setenv CMPEXP "$cmpexp"
+endif
+
+if( $TBEG != NULL ) setenv CLIM false
+if( $TEND != NULL ) setenv CLIM false
+
+
+# Break Large Plot Segments into Smaller Plot Segments (for speed)
+# ----------------------------------------------------------------
+set plotz = ""
+if( $plots[1] != ALL ) then
+     foreach plot ($plots)
+        if( $plot == cmpexp  ) set plotz = `echo $plotz cmpexpz.dyn cmpexph.dyn cmpexpz.gwd cmpexph.gwd cmpexpz.rad cmpexph.rad cmpexph.aero cmpexpz.ana cmpexph.ana cmpexpz.turb cmpexph.turb.1 cmpexph.turb.2 cmpexph.turb.3 cmpexpz.moist cmpexph.moist.1 cmpexph.moist.2 cmpexph.moist.3 cmpexph.moist.4`
+        if( $plot == cmpexpz ) set plotz = `echo $plotz cmpexpz.dyn cmpexpz.gwd cmpexpz.rad cmpexpz.ana cmpexpz.turb cmpexpz.moist`
+        if( $plot == cmpexph ) set plotz = `echo $plotz cmpexph.dyn cmpexph.gwd cmpexph.rad cmpexph.aero cmpexph.ana cmpexph.turb.1 cmpexph.turb.2 cmpexph.turb.3 cmpexph.moist.1 cmpexph.moist.2 cmpexph.moist.3 cmpexph.moist.4`
+        if( $plot == moist   ) set plotz = `echo $plotz moist.1 moist.2 moist.3 moist.4`
+        if( $plot == tend    ) set plotz = `echo $plotz tend.1 tend.2 tend.3 tend.4 tend.5`
+        if( $plot == turb    ) set plotz = `echo $plotz turb.1 turb.2`
+        if( $plot == surf    ) set plotz = `echo $plotz surf.1 surf2.misc surf2.cld`
+        if( $plot == gwd     ) set plotz = `echo $plotz gwd`
+        if( $plot == rad     ) set plotz = `echo $plotz rad.1 rad.sw rad.lw rad.net`
+        if( $plot == energy  ) set plotz = `echo $plotz energy`
+        if( $plot == tseries ) set plotz = `echo $plotz tseries`
+        if( $plot == taylor  ) set plotz = `echo $plotz taylor`
+        if( $plot == quad    ) set plotz = `echo $plotz hquad zquad`
+        if( $plot == gmichem ) set plotz = `echo $plotz gmi.1`
+        if( $plot == gocart  ) set plotz = `echo $plotz gocart.1`
+
+        if( $plot == prog ) then
+             set plotz = `echo $plotz residual`
+             set     HEXPORTS = "  SLP:1000 \
+                                     U:1000     U:925     U:850     U:700     U:600     U:500     U:400     U:300     U:250     U:200     U:150     U:100     U:70     U:50     U:30 \
+                                     V:1000     V:925     V:850     V:700     V:600     V:500     V:400     V:300     V:250     V:200     V:150     V:100     V:70     V:50     V:30 \
+                                     T:1000     T:925     T:850     T:700     T:600     T:500     T:400     T:300     T:250     T:200     T:150     T:100     T:70     T:50     T:30 \
+	                             Q:1000     Q:925     Q:850     Q:700     Q:600     Q:500     Q:400     Q:300     Q:250     Q:200     Q:150     Q:100     Q:70     Q:50     Q:30 \
+                                    HE:1000    HE:925    HE:850    HE:700    HE:600    HE:500    HE:400    HE:300    HE:250    HE:200    HE:150    HE:100    HE:70    HE:50    HE:30 \
+                                   RH2:1000   RH2:925   RH2:850   RH2:700   RH2:600   RH2:500   RH2:400   RH2:300   RH2:250   RH2:200   RH2:150   RH2:100   RH2:70   RH2:50   RH2:30 \
+                                   ZLE:1000   ZLE:925   ZLE:850   ZLE:700   ZLE:600   ZLE:500   ZLE:400   ZLE:300   ZLE:250   ZLE:200   ZLE:150   ZLE:100   ZLE:70   ZLE:50   ZLE:30 \
+                                   CHI:1000   CHI:925   CHI:850   CHI:700   CHI:600   CHI:500   CHI:400   CHI:300   CHI:250   CHI:200   CHI:150   CHI:100   CHI:70   CHI:50   CHI:30 \
+                                   PSI:1000   PSI:925   PSI:850   PSI:700   PSI:600   PSI:500   PSI:400   PSI:300   PSI:250   PSI:200   PSI:150   PSI:100   PSI:70   PSI:50   PSI:30 \
+                                 OMEGA:1000 OMEGA:925 OMEGA:850 OMEGA:700 OMEGA:600 OMEGA:500 OMEGA:400 OMEGA:300 OMEGA:250 OMEGA:200 OMEGA:150 OMEGA:100 OMEGA:70 OMEGA:50 OMEGA:30 "
+             set     HEXPORTS = `echo $HEXPORTS` # To remove extra blanks
+             foreach HEXPORT ($HEXPORTS)
+             set plotz = `echo $plotz progh_$HEXPORT`
+             end
+
+             set     VEXPORTS = "ZLE SLP U V T Q RH2"
+             foreach VEXPORT ($VEXPORTS)
+             set plotz = `echo $plotz linez1_$VEXPORT`
+             end
+             set     VEXPORTS = "U V T RH2"
+             foreach VEXPORT ($VEXPORTS)
+             set plotz = `echo $plotz progz1_$VEXPORT`
+             end
+             set     VEXPORTS = "U V T Q RH2 ZLE OMEGA"
+             foreach VEXPORT ($VEXPORTS)
+             set plotz = `echo $plotz progz2_$VEXPORT`
+             end
+        endif
+
+        if( $plot == progh ) then
+             set     HEXPORTS = "  SLP:1000 \
+                                     U:1000     U:925     U:850     U:700     U:600     U:500     U:400     U:300     U:250     U:200     U:150     U:100     U:70     U:50     U:30 \
+                                     V:1000     V:925     V:850     V:700     V:600     V:500     V:400     V:300     V:250     V:200     V:150     V:100     V:70     V:50     V:30 \
+                                     T:1000     T:925     T:850     T:700     T:600     T:500     T:400     T:300     T:250     T:200     T:150     T:100     T:70     T:50     T:30 \
+	                             Q:1000     Q:925     Q:850     Q:700     Q:600     Q:500     Q:400     Q:300     Q:250     Q:200     Q:150     Q:100     Q:70     Q:50     Q:30 \
+                                    HE:1000    HE:925    HE:850    HE:700    HE:600    HE:500    HE:400    HE:300    HE:250    HE:200    HE:150    HE:100    HE:70    HE:50    HE:30 \
+                                   RH2:1000   RH2:925   RH2:850   RH2:700   RH2:600   RH2:500   RH2:400   RH2:300   RH2:250   RH2:200   RH2:150   RH2:100   RH2:70   RH2:50   RH2:30 \
+                                   ZLE:1000   ZLE:925   ZLE:850   ZLE:700   ZLE:600   ZLE:500   ZLE:400   ZLE:300   ZLE:250   ZLE:200   ZLE:150   ZLE:100   ZLE:70   ZLE:50   ZLE:30 \
+                                   CHI:1000   CHI:925   CHI:850   CHI:700   CHI:600   CHI:500   CHI:400   CHI:300   CHI:250   CHI:200   CHI:150   CHI:100   CHI:70   CHI:50   CHI:30 \
+                                   PSI:1000   PSI:925   PSI:850   PSI:700   PSI:600   PSI:500   PSI:400   PSI:300   PSI:250   PSI:200   PSI:150   PSI:100   PSI:70   PSI:50   PSI:30 \
+                                 OMEGA:1000 OMEGA:925 OMEGA:850 OMEGA:700 OMEGA:600 OMEGA:500 OMEGA:400 OMEGA:300 OMEGA:250 OMEGA:200 OMEGA:150 OMEGA:100 OMEGA:70 OMEGA:50 OMEGA:30 "
+             set     HEXPORTS = `echo $HEXPORTS` # To remove extra blanks
+             foreach HEXPORT ($HEXPORTS)
+             set plotz = `echo $plotz progh_$HEXPORT`
+             end
+        endif
+
+        if( $plot == progz ) then
+             set     VEXPORTS = "ZLE SLP U V T Q RH2"
+             foreach VEXPORT ($VEXPORTS)
+             set plotz = `echo $plotz linez1_$VEXPORT`
+             end
+             set     VEXPORTS = "U V T RH2"
+             foreach VEXPORT ($VEXPORTS)
+             set plotz = `echo $plotz progz1_$VEXPORT`
+             end
+             set     VEXPORTS = "U V T Q RH2 ZLE OMEGA"
+             foreach VEXPORT ($VEXPORTS)
+             set plotz = `echo $plotz progz2_$VEXPORT`
+             end
+        endif
+
+        if( $plot == progz1 ) then
+             set     VEXPORTS = "U V T RH2"
+             foreach VEXPORT ($VEXPORTS)
+             set plotz = `echo $plotz progz1_$VEXPORT`
+             end
+        endif
+
+        if( $plot == progz2 ) then
+             set     VEXPORTS = "U V T Q RH2 ZLE OMEGA"
+             foreach VEXPORT ($VEXPORTS)
+             set plotz = `echo $plotz progz2_$VEXPORT`
+             end
+        endif
+
+        if( $plot == linez ) then
+             set     VEXPORTS = "ZLE SLP U V T Q RH2"
+             foreach VEXPORT ($VEXPORTS)
+             set plotz = `echo $plotz linez1_$VEXPORT`
+             end
+        endif
+
+        if( $plot == residual ) set plotz = `echo $plotz residual`
+     end
+
+     foreach skip ( $noplot )
+         set plotz = `echo $plotz | sed -e "s/$skip//"`
+     end
+else
+
+     set plotz = "cmpexpz.dyn cmpexph.dyn \
+                  cmpexpz.gwd cmpexph.gwd \
+                  cmpexpz.ana cmpexph.ana \
+                  cmpexpz.rad cmpexph.rad cmpexph.aero \
+                  cmpexpz.turb cmpexph.turb.1 cmpexph.turb.2 cmpexph.turb.3 \
+                  cmpexpz.moist cmpexph.moist.1 cmpexph.moist.2 cmpexph.moist.3 cmpexph.moist.4 \
+                  moist.1 moist.2 moist.3 moist.4 \
+                  tend.1 tend.2 tend.3 tend.4 tend.5 \
+                  turb.1 turb.2 surf.1 surf2.misc surf2.cld \
+                  taylor gwd rad.1 rad.sw rad.lw rad.net energy tseries hquad zquad prog.1 gocart.1"
+     set plotz = `echo $plotz` # To remove extra blanks
+
+# Allow user to skip specific plot(s)
+# -----------------------------------
+    foreach skip ( $noplot )
+        set plotz = `echo $plotz | sed -e "s/$skip//"`
+    end
+    if  ( "$plotz" =~ *prog.1* ) then
+             set plotz = `echo $plotz residual`
+             set     HEXPORTS = "  SLP:1000 \
+                                     U:1000     U:925     U:850     U:700     U:600     U:500     U:400     U:300     U:250     U:200     U:150     U:100     U:70     U:50     U:30 \
+                                     V:1000     V:925     V:850     V:700     V:600     V:500     V:400     V:300     V:250     V:200     V:150     V:100     V:70     V:50     V:30 \
+                                     T:1000     T:925     T:850     T:700     T:600     T:500     T:400     T:300     T:250     T:200     T:150     T:100     T:70     T:50     T:30 \
+	                             Q:1000     Q:925     Q:850     Q:700     Q:600     Q:500     Q:400     Q:300     Q:250     Q:200     Q:150     Q:100     Q:70     Q:50     Q:30 \
+                                    HE:1000    HE:925    HE:850    HE:700    HE:600    HE:500    HE:400    HE:300    HE:250    HE:200    HE:150    HE:100    HE:70    HE:50    HE:30 \
+                                   RH2:1000   RH2:925   RH2:850   RH2:700   RH2:600   RH2:500   RH2:400   RH2:300   RH2:250   RH2:200   RH2:150   RH2:100   RH2:70   RH2:50   RH2:30 \
+                                   ZLE:1000   ZLE:925   ZLE:850   ZLE:700   ZLE:600   ZLE:500   ZLE:400   ZLE:300   ZLE:250   ZLE:200   ZLE:150   ZLE:100   ZLE:70   ZLE:50   ZLE:30 \
+                                   CHI:1000   CHI:925   CHI:850   CHI:700   CHI:600   CHI:500   CHI:400   CHI:300   CHI:250   CHI:200   CHI:150   CHI:100   CHI:70   CHI:50   CHI:30 \
+                                   PSI:1000   PSI:925   PSI:850   PSI:700   PSI:600   PSI:500   PSI:400   PSI:300   PSI:250   PSI:200   PSI:150   PSI:100   PSI:70   PSI:50   PSI:30 \
+                                 OMEGA:1000 OMEGA:925 OMEGA:850 OMEGA:700 OMEGA:600 OMEGA:500 OMEGA:400 OMEGA:300 OMEGA:250 OMEGA:200 OMEGA:150 OMEGA:100 OMEGA:70 OMEGA:50 OMEGA:30 "
+         set     HEXPORTS = `echo $HEXPORTS` # To remove extra blanks
+         foreach HEXPORT ($HEXPORTS)
+             set plotz = `echo $plotz progh_$HEXPORT`
+         end
+         set     VEXPORTS = "ZLE SLP U V T Q RH2"
+         foreach VEXPORT ($VEXPORTS)
+             set plotz = `echo $plotz linez1_$VEXPORT`
+         end
+         set     VEXPORTS = "U V T RH2"
+         foreach VEXPORT ($VEXPORTS)
+             set plotz = `echo $plotz progz1_$VEXPORT`
+         end
+         set     VEXPORTS = "U V T Q RH2 ZLE OMEGA"
+         foreach VEXPORT ($VEXPORTS)
+             set plotz = `echo $plotz progz2_$VEXPORT`
+         end
+   endif
+    foreach skip ( $noplot )
+        set plotz = `echo $plotz | sed -e "s/$skip//"`
+    end
+endif
+
+if( $plotz[1] != "" ) set plots = `echo $plotz`
+
+# Define Zonal Mean Quadratics Plots
+# ----------------------------------
+if( $plots[1] != "" ) then
+    foreach plot ($plots)
+       if( $plot == zquad ) then
+           set QUADS = "U_U V_V T_T ZLE_ZLE OMEGA_OMEGA Q_Q U_V V_T V_Q OMEGA_T OMEGA_Q KE_KE"
+           foreach QUAD ($QUADS)
+           set plots = `echo $plots zquad_$QUAD`
+           end
+       endif
+       if( $plot == hquad ) then
+           set HQUADS = "hquad_U_U:850 hquad_U_U:500 hquad_U_U:200 hquad_U_U:20 \
+                         hquad_V_V:850 hquad_V_V:500 hquad_V_V:200 hquad_V_V:20 \
+                         hquad_T_T:850 hquad_T_T:500 hquad_T_T:200 hquad_T_T:20 \
+                         hquad_Q_Q:850 hquad_Q_Q:500 hquad_Q_Q:200 hquad_Q_Q:20 \
+                         hquad_U_V:850 hquad_U_V:500 hquad_U_V:200 hquad_U_V:20 \
+                         hquad_V_T:850 hquad_V_T:500 hquad_V_T:200 hquad_V_T:20 \
+                         hquad_V_Q:850 hquad_V_Q:500 hquad_V_Q:200 hquad_V_Q:20 \
+                         hquad_ZLE_ZLE:850 hquad_ZLE_ZLE:500 hquad_ZLE_ZLE:200 hquad_ZLE_ZLE:20 \
+                         hquad_OMEGA_OMEGA:850 hquad_OMEGA_OMEGA:500 hquad_OMEGA_OMEGA:200 hquad_OMEGA_OMEGA:20 \
+                         hquad_KE_KE:850 hquad_KE_KE:500 hquad_KE_KE:200 hquad_KE_KE:20 \
+                         hquad_OMEGA_T:850 hquad_OMEGA_T:500 hquad_OMEGA_T:200 hquad_OMEGA_T:20 \
+                         hquad_OMEGA_Q:850 hquad_OMEGA_Q:500 hquad_OMEGA_Q:200 hquad_OMEGA_Q:20 "
+           set HQUADS = `echo $HQUADS` # To remove extra blanks
+           set plots  = `echo $plots $HQUADS`
+       endif
+    end
+endif
+
+# Echo Plotting Environment
+# -------------------------
+echo " "
+echo "plots  = " $plots
+echo "season = " $seasons
+echo "debug  = " $debug
+echo " "
+ 
+
+# Extract EXPID from HISTORY
+# --------------------------
+if( $expid == NULL ) set expid = `grep EXPID: $HISTORYRC | cut -d':' -f2`
+
+
+# Make Output Directory for Plots
+# -------------------------------
+if( $plotsdir != NULL ) then
+      set plots_dir = $plotsdir
+else
+      set plots_dir = $source/plots
+endif
+if( ! -e ${plots_dir}/misc ) mkdir -p ${plots_dir}/misc
+if ( -e /usr/bin/lfs) then
+  /usr/bin/lfs setstripe -c 1 -s 262144 -i -1 ${plots_dir}
+endif
+
+
+# Run Grads-Based Quickplot Utility
+# ---------------------------------
+set tmpdirs = ""
+foreach plot ($plots)
+  echo "Processing $plot of type $type"
+  set datetime = `date +%Y%m%d_%H%M%S`
+  if( ! -e $plots_dir/$plot.$datetime.$type ) mkdir -p $plots_dir/$plot.$datetime.$type
+  cd       $plots_dir/$plot.$datetime.$type
+
+# Configure QUICKPLOT to Computing Platform
+# -----------------------------------------
+$GEOSUTIL/plots/configure
+source $plots_dir/$plot.$datetime.$type/.quickplotrc
+
+echo "       GRADS = " $GRADS
+echo "        ARCH = " `uname`
+echo "        HOST = " `hostname`
+echo "    GEOSUTIL = " $GEOSUTIL
+echo "      SOURCE = " $SOURCE
+echo "VERIFICATION = " $VERIFICATION
+echo "        CLIM = " $CLIM
+echo "      TAYLOR = " $TAYLOR
+echo "    ANALYSIS = " $ANALYSIS
+echo "     STD_DEV = " $STD_DEV
+echo "        PLOT = " $plot
+echo " "
+
+# Check Format of HISTORY.rc
+# --------------------------
+   set   test   = `grep COLLECTIONS $HISTORYRC`
+   if( "$test" != "" ) then
+        /bin/cp $GEOSUTIL/plots/chckhist.new chckhist
+   else
+        /bin/cp $GEOSUTIL/plots/chckhist.old chckhist
+   endif
+
+  set tmpdirs = `echo $tmpdirs $plot.$datetime.$type`
+
+  if( $debug == true ) then
+
+       if($type != P) then
+          $GEOSUTIL/plots/landscape.script -expid    $expid     \
+                                           -source   $source    \
+                                           -plot     $plot      \
+                                           -output   $plots_dir \
+                                           -geosutil $GEOSUTIL  \
+                                           -grads    $GRADS     \
+                                           -debug               \
+                                           -season   $seasons    
+       endif
+       if($type != L) then
+          $GEOSUTIL/plots/portrait.script  -expid    $expid     \
+                                           -source   $source    \
+                                           -plot     $plot      \
+                                           -output   $plots_dir \
+                                           -geosutil $GEOSUTIL  \
+                                           -grads    $GRADS     \
+                                           -debug               \
+                                           -season   $seasons    
+       endif
+
+  else
+
+       if($type != P) then
+          $GEOSUTIL/plots/landscape.script -expid    $expid     \
+                                           -source   $source    \
+                                           -plot     $plot      \
+                                           -output   $plots_dir \
+                                           -geosutil $GEOSUTIL  \
+                                           -grads    $GRADS     \
+                                           -batch               \
+                                           -season   $seasons   &
+          sleep 5
+       endif
+       if($type != L) then
+          $GEOSUTIL/plots/portrait.script  -expid    $expid     \
+                                           -source   $source    \
+                                           -plot     $plot      \
+                                           -output   $plots_dir \
+                                           -geosutil $GEOSUTIL  \
+                                           -grads    $GRADS     \
+                                           -batch               \
+                                           -season   $seasons   &
+          sleep 5
+       endif
+
+  endif
+
+end
+wait
+
+# Sleep for 3 minutes to ensure all plots are converted
+# -----------------------------------------------------
+SLEEP:
+if( $debug == false ) then
+#   sleep 3m
+    sleep 10s
+else
+    sleep 10s
+endif
+
+# Reset Environment
+# -----------------
+cd         $plots_dir
+/bin/rm -r $tmpdirs
+

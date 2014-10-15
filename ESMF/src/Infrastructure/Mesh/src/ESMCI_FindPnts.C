@@ -1,7 +1,7 @@
-// $Id: ESMCI_FindPnts.C,v 1.2.2.2 2010/03/10 06:33:08 oehmke Exp $
+// $Id$
 //
 // Earth System Modeling Framework
-// Copyright 2002-2009, University Corporation for Atmospheric Research, 
+// Copyright 2002-2012, University Corporation for Atmospheric Research, 
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
 // Laboratory, University of Michigan, National Centers for Environmental 
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
@@ -34,11 +34,14 @@
 #include <limits>
 #include <vector>
 
+using std::set;
+using std::vector;
+
 
 //-----------------------------------------------------------------------------
 // leave the following line as-is; it will insert the cvs ident string
 // into the object file for tracking purposes.
-static const char *const version = "$Id: ESMCI_FindPnts.C,v 1.2.2.2 2010/03/10 06:33:08 oehmke Exp $";
+static const char *const version = "$Id$";
 //-----------------------------------------------------------------------------
 
 namespace ESMCI {

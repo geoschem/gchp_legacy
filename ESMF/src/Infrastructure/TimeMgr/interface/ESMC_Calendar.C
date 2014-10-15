@@ -1,7 +1,7 @@
-// $Id: ESMC_Calendar.C,v 1.6.2.1 2010/02/05 20:00:13 svasquez Exp $
+// $Id$
 //
 // Earth System Modeling Framework
-// Copyright 2002-2010, University Corporation for Atmospheric Research,
+// Copyright 2002-2012, University Corporation for Atmospheric Research,
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 // Laboratory, University of Michigan, National Centers for Environmental
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -32,7 +32,7 @@
 // include ESMF headers
 #include "ESMCI_Arg.h"
 #include "ESMCI_LogErr.h"
-#include "ESMC_LogMacros.inc"             // for LogErr
+#include "ESMCI_LogMacros.inc"
 #include "ESMCI_Calendar.h"
 #include "ESMCI_Time.h"
 
@@ -40,7 +40,7 @@
 // leave the following line as-is; it will insert the cvs ident string
 // into the object file for tracking purposes.
 static const char *const version =
-  "$Id: ESMC_Calendar.C,v 1.6.2.1 2010/02/05 20:00:13 svasquez Exp $";
+  "$Id$";
 //-----------------------------------------------------------------------------
 
 // TODO: Implement more -native- C++ TimeMgr API alongside existing
@@ -57,7 +57,7 @@ extern "C" {
 
 ESMC_Calendar ESMC_CalendarCreate(
       const char        *name,         // in
-      ESMC_CalendarType  calendarType, // in
+      ESMC_CalKind_Flag  calkindflag,  // in
       int               *rc) {         // out - return code
 
   // initialize return code; assume routine not implemented
@@ -68,8 +68,8 @@ ESMC_Calendar ESMC_CalendarCreate(
 
   // call into ESMCI method
   calendar.ptr = (void *)
-     ESMCI::ESMCI_CalendarCreate(strlen(name), name, calendarType, &localrc);
-  if (ESMC_LogDefault.MsgFoundError(localrc, ESMF_ERR_PASSTHRU, ESMC_CONTEXT,                                       rc)) {
+     ESMCI::ESMCI_CalendarCreate(strlen(name), name, calkindflag, &localrc);
+  if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, ESMC_CONTEXT,                                       rc)) {
     calendar.ptr = NULL; // defensive; should already be set in CalendarCreate()
     return calendar;  // bail out
   }
@@ -100,7 +100,7 @@ int ESMC_CalendarDestroy(ESMC_Calendar *calendar) {
 
   // call into ESMCI method; let it handle possible NULL ptr
   localrc = ESMCI::ESMCI_CalendarDestroy((ESMCI::Calendar **)&(calendar->ptr));
-  if (ESMC_LogDefault.MsgFoundError(localrc, ESMF_ERR_PASSTHRU, ESMC_CONTEXT,
+  if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, ESMC_CONTEXT,
                                     &rc)) return rc;  // bail out
   // invalidate pointer
   calendar->ptr = NULL; // defensive; should already be set in CalendarDestroy()
@@ -132,7 +132,7 @@ int ESMC_CalendarPrint(ESMC_Calendar calendar){
   // call into ESMCI method
   localrc = ((ESMCI::Calendar*)(calendar.ptr))->print((const char *)NULL,
                                                     (const ESMCI::Time *)NULL);
-  if (ESMC_LogDefault.MsgFoundError(localrc, ESMF_ERR_PASSTHRU, ESMC_CONTEXT,
+  if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, ESMC_CONTEXT,
                                     &rc)) return rc;  // bail out
   // return successfully
   rc = ESMF_SUCCESS;

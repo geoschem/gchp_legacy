@@ -1,7 +1,7 @@
-! $Id: ESMF_VMDefaultBasicsEx.F90,v 1.9.2.1 2010/02/05 20:01:28 svasquez Exp $
+! $Id: ESMF_VMDefaultBasicsEx.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2010, University Corporation for Atmospheric Research,
+! Copyright 2002-2012, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -35,7 +35,7 @@
 !BOC
 program ESMF_VMDefaultBasicsEx
 
-  use ESMF_Mod
+  use ESMF
   
   implicit none
   
@@ -48,7 +48,8 @@ program ESMF_VMDefaultBasicsEx
   integer :: finalrc
   finalrc = ESMF_SUCCESS
 !BOC
-  call ESMF_Initialize(vm=vm, rc=rc)
+  call ESMF_Initialize(vm=vm, defaultlogfilename="VMDefaultBasicsEx.Log", &
+                    logkindflag=ESMF_LOGKIND_MULTI, rc=rc)
   ! Providing the optional vm argument to ESMF_Initialize() is one way of
   ! obtaining the global VM.
 !EOC
@@ -75,8 +76,7 @@ program ESMF_VMDefaultBasicsEx
   print *, "of a total of ",petCount," PETs in this VM."
   print *, "There are ", peCount," PEs referenced by this VM"
 
-  call ESMF_VMGetPETLocalInfo(vm, localPet, peCount=peCount, ssiId=ssiId, &
-    vas=vas, rc=rc)
+  call ESMF_VMGet(vm, localPet, peCount=peCount, ssiId=ssiId, vas=vas, rc=rc)
 !EOC
   if (rc/=ESMF_SUCCESS) finalrc = ESMF_FAILURE
 !BOC

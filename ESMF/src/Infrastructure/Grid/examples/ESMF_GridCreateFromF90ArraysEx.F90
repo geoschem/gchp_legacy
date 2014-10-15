@@ -1,7 +1,7 @@
-! $Id: ESMF_GridCreateFromF90ArraysEx.F90,v 1.4.4.1 2010/02/05 19:56:58 svasquez Exp $
+! $Id: ESMF_GridCreateFromF90ArraysEx.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2010, University Corporation for Atmospheric Research,
+! Copyright 2002-2012, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -23,7 +23,7 @@ program ESMF_GridCreateEx
 ! This program shows examples of Grid creation
 
 !BOE
-! \subsubsection{Example: Grid Creation from Existing F90 Arrays}~\label{sec:example5}
+! \subsubsection{Create a Grid from existing F90 arrays}~\label{sec:example5}
 !
 ! This example illustrates the creation of a simple 2D Grid from coordinate data
 !  contained in fortan arrays.  The new Grid contains just the center stagger location.
@@ -62,7 +62,7 @@ program ESMF_GridCreateEx
 
 !BOC
       ! Use ESMF framework module
-      use ESMF_Mod
+      use ESMF
       implicit none
 
       ! Local variables  
@@ -80,7 +80,8 @@ program ESMF_GridCreateEx
 !EOC         
 
       finalrc = ESMF_SUCCESS
-      call ESMF_Initialize(vm=vm, rc=rc)
+      call ESMF_Initialize(vm=vm, defaultlogfilename="GridCreateFromF90ArraysEx.Log", &
+                    logkindflag=ESMF_LOGKIND_MULTI, rc=rc)
       call ESMF_VMGet(vm, localPet=myPet, petCount=npets, rc=rc)
 
       rootPet = zero
@@ -140,7 +141,7 @@ program ESMF_GridCreateEx
 !EOE
 
 !BOC 
-     patchGrid = ESMF_GridCreate(arrays=gridCoordArrays, &
+     tileGrid = ESMF_GridCreate(arrays=gridCoordArrays, &
                                staggerLocs=staggerlocs,rc=rc)
 !EOC  
 

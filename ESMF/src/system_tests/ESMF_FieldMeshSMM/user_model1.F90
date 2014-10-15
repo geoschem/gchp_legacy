@@ -1,4 +1,4 @@
-! $Id: user_model1.F90,v 1.5 2009/10/21 22:30:01 feiliu Exp $
+! $Id$
 !
 ! Example/test code which shows User Component calls.
 
@@ -16,7 +16,7 @@
     module user_model1
 
     ! ESMF Framework module
-    use ESMF_Mod
+    use ESMF
 
     implicit none
     
@@ -40,11 +40,11 @@
 
         ! Register the callback routines.
 
-        call ESMF_GridCompSetEntryPoint(comp, ESMF_SETINIT, user_init, rc=rc)
+        call ESMF_GridCompSetEntryPoint(comp, ESMF_METHOD_INITIALIZE, user_init, rc=rc)
         if(rc/=ESMF_SUCCESS) return
-        call ESMF_GridCompSetEntryPoint(comp, ESMF_SETRUN, user_run, rc=rc)
+        call ESMF_GridCompSetEntryPoint(comp, ESMF_METHOD_RUN, user_run, rc=rc)
         if(rc/=ESMF_SUCCESS) return
-        call ESMF_GridCompSetEntryPoint(comp, ESMF_SETFINAL, user_final, rc=rc)
+        call ESMF_GridCompSetEntryPoint(comp, ESMF_METHOD_FINALIZE, user_final, rc=rc)
         if(rc/=ESMF_SUCCESS) return
 
         print *, "Registered Initialize, Run, and Finalize routines"
@@ -68,7 +68,7 @@
         type(ESMF_VM) :: vm
         type(ESMF_ArraySpec) :: arrayspec
         integer(ESMF_KIND_I4), dimension(:), pointer :: srcfptr
-        integer :: npets, localPet
+        integer :: npets, localPet, i
 
         integer, pointer :: nodeIds(:),nodeOwners(:)
         real(ESMF_KIND_R8), pointer :: nodeCoords(:)
@@ -238,9 +238,11 @@
         call ESMF_FieldGet(humidity, localDe=0, farrayPtr=srcfptr, rc=rc)
         if (rc .ne. ESMF_SUCCESS) return
 
-        srcfptr = 1
+        do i = lbound(srcfptr, 1), ubound(srcfptr, 1)
+            srcfptr(i) = i
+        enddo
 
-        call ESMF_StateAdd(exportState, humidity, rc=rc)
+        call ESMF_StateAdd(exportState, (/humidity/), rc=rc)
         if (rc .ne. ESMF_SUCCESS) return
      !   call ESMF_StatePrint(exportState, rc=rc)
 
@@ -292,9 +294,9 @@
         call ESMF_FieldGet(humidity, mesh=mesh, rc=rc)
         if(rc/=ESMF_SUCCESS) return
 
-        call ESMF_FieldDestroy(humidity, rc)
+        call ESMF_FieldDestroy(humidity, rc=rc)
         if(rc/=ESMF_SUCCESS) return
-        call ESMF_MeshDestroy(mesh, rc)
+        call ESMF_MeshDestroy(mesh, rc=rc)
         if(rc/=ESMF_SUCCESS) return
         print *, "User Comp Final returning"
 

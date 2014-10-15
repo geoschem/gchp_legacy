@@ -1,7 +1,7 @@
-! $Id: ESMF_VMBarrierUTest.F90,v 1.14.4.1 2010/02/05 20:02:07 svasquez Exp $
+! $Id: ESMF_VMBarrierUTest.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2010, University Corporation for Atmospheric Research,
+! Copyright 2002-2012, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -29,14 +29,14 @@
 !-----------------------------------------------------------------------------
 ! !USES:
       use ESMF_TestMod     ! test methods
-      use ESMF_Mod
+      use ESMF
 
       implicit none
 
 !------------------------------------------------------------------------------
 ! The following line turns the CVS identifier string into a printable variable.
       character(*), parameter :: version = &
-      '$Id: ESMF_VMBarrierUTest.F90,v 1.14.4.1 2010/02/05 20:02:07 svasquez Exp $'
+      '$Id: ESMF_VMBarrierUTest.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $'
 !------------------------------------------------------------------------------
       ! cumulative result: count failures; no failures equals "all pass"
       integer :: result = 0
@@ -74,7 +74,7 @@
       print *, "timing precision is: ", dt_prec_local(1)
       
       ! Find the maximum dt_prec across all PETs
-      call ESMF_VMAllReduce(vm, dt_prec_local, dt_prec_max, 1, ESMF_MAX, rc=rc)
+      call ESMF_VMAllReduce(vm, dt_prec_local, dt_prec_max, 1, ESMF_REDUCE_MAX, rc=rc)
       dt_prec = dt_prec_max(1)
       print *, "max timing precision is: ", dt_prec
       
@@ -92,13 +92,13 @@
         call ESMF_VMWTime(t_a)  ! t_a is start time for each PET
 
         ! double barrier construct
-        call ESMF_VMBarrier(vm, rc)
+        call ESMF_VMBarrier(vm, rc=rc)
         if (localPet==i) then
           ! delay PET i by delay_time
           dt = delay_time + 4*dt_prec ! 4*dt_prec compensates for 4x taking time
           call ESMF_VMWTimeDelay(dt)
         endif
-        call ESMF_VMBarrier(vm, rc)
+        call ESMF_VMBarrier(vm, rc=rc)
 
         call ESMF_VMWTime(t_b)  ! t_b is end time for each PET
 

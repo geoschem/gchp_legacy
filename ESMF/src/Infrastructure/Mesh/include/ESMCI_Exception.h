@@ -1,6 +1,6 @@
-//
+// $Id$
 // Earth System Modeling Framework
-// Copyright 2002-2010, University Corporation for Atmospheric Research, 
+// Copyright 2002-2012, University Corporation for Atmospheric Research, 
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
 // Laboratory, University of Michigan, National Centers for Environmental 
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
@@ -17,6 +17,7 @@
 #include <vector>
 
 #include <exception>
+#include <iostream>
 
 
 namespace ESMCI {
@@ -105,7 +106,14 @@ typedef TraceBack Trace;
 // Condition is tested in optimized and debug
 #define ThrowRequire(cond) (cond ? (void) 0 : throw Ex() << "Condition {" << #cond << "} failed at " << __FILE__ << ", line:" << __LINE__)
 
+
+#if 1
 #define Throw() throw Ex() << __FILE__ << ", line:" << __LINE__ << ":" 
+#else
+// Use this one if exceptions aren't working and you want to see where one is being thrown
+#define Throw() std::cerr << __FILE__ << ", line:" << __LINE__ << ":" 
+#endif
+
 
 } // namespace
 

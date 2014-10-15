@@ -1,0 +1,67 @@
+function axlim (args)
+
+*************************************************************
+*****                                                   *****
+*****  Usage:  set_axlim name field1 field2 ...         *****
+*****                                                   *****
+*****  This function sets the AXLIM                     *****
+*****  based on an arbitrary number of input fields.    *****
+*****  If NAME exists as a file, AXLIM will             *****
+*****  be read in, otherwise AXLIM will be computed.    *****
+*****                                                   *****
+*************************************************************
+
+k = 1
+while( k > 0 )
+field.k = subwrd(args,k)
+if( field.k = '' )
+k = 1-k
+else
+k = k+1
+endif
+endwhile
+k = -k
+
+name = ''
+n = k
+while( n > 1 )
+name = name' 'field.n
+n = n-1
+endwhile
+
+file = subwrd(args,1)
+       ioflag = sublin( read(file),1 )
+    if(ioflag = 0)
+    dum =          close(file)
+    min =   sublin( read(file),2 )
+    max =   sublin( read(file),2 )
+    else
+    min = ''
+    max = ''
+    endif
+
+if( min = '' )
+'getinfo latmin'
+         latmin = result
+'getinfo latmax'
+         latmax = result
+'getinfo lonmin'
+         lonmin = result
+'getinfo lonmax'
+         lonmax = result
+say 'Lons: 'lonmin' 'lonmax'   Lats: 'latmin' 'latmax
+
+'minmax 'name
+max = subwrd( result,1 )
+min = subwrd( result,2 )
+write(file,min)
+write(file,max)
+endif
+
+dif = max-min
+max = max + 0.25*dif
+min = min - 0.25*dif
+
+say 'File: 'file' setting axlim for field: 'name' with 'min' 'max
+'set axlim 'min' 'max
+return min' 'max

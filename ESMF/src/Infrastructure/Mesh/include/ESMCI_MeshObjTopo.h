@@ -1,6 +1,6 @@
-//
+// $Id$
 // Earth System Modeling Framework
-// Copyright 2002-2010, University Corporation for Atmospheric Research, 
+// Copyright 2002-2012, University Corporation for Atmospheric Research, 
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
 // Laboratory, University of Michigan, National Centers for Environmental 
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
@@ -103,11 +103,11 @@ const MeshObjTopo *FlattenTopo(const MeshObjTopo &topo);
  *              2
  *              o
  *             / \
- *            /   \      
- *           /     \         
- *        5 *       * 4      
- *         /         \       
- *        /           \      
+ *            /   \
+ *           /     \
+ *        5 *       * 4
+ *         /         \
+ *        /           \ 
  *       /             \
  *      o-------*-------o
  *      0       3       1 

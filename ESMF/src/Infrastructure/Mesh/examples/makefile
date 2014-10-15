@@ -1,4 +1,4 @@
-# $Id: makefile,v 1.16 2009/10/29 22:57:08 theurich Exp $
+# $Id: makefile,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
 
 ALL: build_examples
 run: run_examples
@@ -11,13 +11,10 @@ LOCDIR	  = src/Infrastructure/Mesh/examples
 
 
 EXAMPLES_BUILD    = \
+                      $(ESMF_EXDIR)/ESMF_MeshEx \
                       $(ESMF_EXDIR)/ESMC_RendEx \
                       $(ESMF_EXDIR)/ESMC_DCatEx \
                       $(ESMF_EXDIR)/ESMC_RefineEx \
-                      $(ESMF_EXDIR)/ESMC_PatchWghtEx \
-                      $(ESMF_EXDIR)/ESMF_MeshEx 
-                      
-#                      $(ESMF_EXDIR)/ESMC_BreckEx \
 
 EXAMPLES_RUN      = run_ESMF_MeshEx 
 
@@ -44,5 +41,5 @@ run_ESMC_RefineEx_uni:
 run_ESMF_MeshEx:
 	cp -r data $(ESMF_EXDIR)
 	chmod u+rw $(ESMF_EXDIR)/data/*
-	$(MAKE) EXNAME=Mesh NP=6 exfrun
+	$(MAKE) EXNAME=Mesh NP=4 exfrun
 

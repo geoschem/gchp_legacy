@@ -1,4 +1,4 @@
-# $Id: makefile,v 1.2 2009/05/01 04:49:50 eschwab Exp $
+# $Id$
 
 ALL:     build_unit_tests
 run:     run_unit_tests
@@ -25,8 +25,10 @@ CLOBBERDIRS =
 
 RUN_ESMF_IOGridCompUTest:
 	cp -f $(ESMF_DIR)/src/Superstructure/Component/etc/esmf_gridcomp.xml $(ESMF_TESTDIR)
+	$(ESMF_DIR)/scripts/copy_xsd $(ESMF_TESTDIR)
 	$(MAKE) TNAME=IOGridComp NP=4 ftest
 
 RUN_ESMF_IOGridCompUTestUNI:
 	cp -f $(ESMF_DIR)/src/Superstructure/Component/etc/esmf_gridcomp.xml $(ESMF_TESTDIR)
+	$(ESMF_DIR)/scripts/copy_xsd $(ESMF_TESTDIR)
 	$(MAKE) TNAME=IOGridComp NP=1 ftest

@@ -1,7 +1,7 @@
-// $Id: ESMCI_Field_F.C,v 1.11.2.2 2010/04/27 20:49:31 feiliu Exp $
+// $Id: ESMCI_Field_F.C,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
 //
 // Earth System Modeling Framework
-// Copyright 2002-2010, University Corporation for Atmospheric Research, 
+// Copyright 2002-2012, University Corporation for Atmospheric Research, 
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
 // Laboratory, University of Michigan, National Centers for Environmental 
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
@@ -22,7 +22,7 @@
 #include <cstring>
 using namespace std;
 
-#include "ESMC_Start.h"
+#include "ESMCI_Macros.h"
 #include "ESMCI_LogErr.h"
 
 
@@ -30,7 +30,7 @@ using namespace std;
  // leave the following line as-is; it will insert the cvs ident string
  // into the object file for tracking purposes.
  static const char *const version = 
-             "$Id: ESMCI_Field_F.C,v 1.11.2.2 2010/04/27 20:49:31 feiliu Exp $";
+             "$Id: ESMCI_Field_F.C,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $";
 //-----------------------------------------------------------------------------
 
 extern "C" {
@@ -44,17 +44,17 @@ extern "C" {
 
 // non-method functions
 void FTN(c_esmc_fieldserialize)(
-                ESMC_Status *gridstatus, 
-                ESMC_Status *datastatus, 
+                ESMC_Status *status, 
                 ESMC_Status *iostatus,
                 int * dimCount,
                 int * gridToFieldMap,
                 int * ungriddedLBound,
                 int * ungriddedUBound,
-                int * maxHaloLWidth,
-                int * maxHaloUWidth,
-                void *buffer, int *length, int *offset,
-                ESMC_InquireFlag *inquireflag, int *localrc){
+                int * totalLWidth,
+                int * totalUWidth,
+                char *buffer, int *length, int *offset,
+                ESMC_InquireFlag *inquireflag, int *localrc,
+                ESMCI_FortranStrLenArg buf_l){
 
     ESMC_InquireFlag linquireflag = *inquireflag;
     int i;
@@ -78,13 +78,12 @@ void FTN(c_esmc_fieldserialize)(
     }
 
 
-    sp = (ESMC_Status *)((char *)(buffer) + *offset);
+    sp = (ESMC_Status *)(buffer + *offset);
     if (linquireflag != ESMF_INQUIREONLY) {
-      *sp++ = *gridstatus; 
-      *sp++ = *datastatus; 
+      *sp++ = *status; 
       *sp++ = *iostatus; 
     } else
-      sp += 3;
+      sp += 2;
 
     // copy the rest of the field parameters
     // we are explicitly assuming Fortran-integer is of size C-int
@@ -105,13 +104,13 @@ void FTN(c_esmc_fieldserialize)(
       memcpy((void *)ptr, (const void *)ungriddedUBound, ESMF_MAXDIM*sizeof(int));
     ptr += ESMF_MAXDIM*sizeof(int);
     if (linquireflag != ESMF_INQUIREONLY)
-      memcpy((void *)ptr, (const void *)maxHaloLWidth, ESMF_MAXDIM*sizeof(int));
+      memcpy((void *)ptr, (const void *)totalLWidth, ESMF_MAXDIM*sizeof(int));
     ptr += ESMF_MAXDIM*sizeof(int);
     if (linquireflag != ESMF_INQUIREONLY)
-      memcpy((void *)ptr, (const void *)maxHaloUWidth, ESMF_MAXDIM*sizeof(int));
+      memcpy((void *)ptr, (const void *)totalUWidth, ESMF_MAXDIM*sizeof(int));
     ptr += ESMF_MAXDIM*sizeof(int);
 
-    *offset = ptr - (char *)buffer;
+    *offset = ptr - buffer;
 
     if (localrc) *localrc = ESMF_SUCCESS;
 
@@ -120,16 +119,16 @@ void FTN(c_esmc_fieldserialize)(
 
 
 void FTN(c_esmc_fielddeserialize)(
-                ESMC_Status *gridstatus, 
-                ESMC_Status *datastatus, 
+                ESMC_Status *status, 
                 ESMC_Status *iostatus, 
                 int * dimCount,
                 int * gridToFieldMap,
                 int * ungriddedLBound,
                 int * ungriddedUBound,
-                int * maxHaloLWidth,
-                int * maxHaloUWidth,
-				void *buffer, int *offset, int *localrc){
+                int * totalLWidth,
+                int * totalUWidth,
+		char *buffer, int *offset, int *localrc,
+                ESMCI_FortranStrLenArg buffer_l){
 
     int i;
 
@@ -138,9 +137,8 @@ void FTN(c_esmc_fielddeserialize)(
     // either put the code here, or call into a real C++ function
     ESMC_Status *sp;
 
-    sp = (ESMC_Status *)((char *)(buffer) + *offset);
-    *gridstatus = *sp++;
-    *datastatus = *sp++;
+    sp = (ESMC_Status *)(buffer + *offset);
+    *status = *sp++;
     *iostatus = *sp++;
 
     char * ptr = (char *)sp;
@@ -152,12 +150,12 @@ void FTN(c_esmc_fielddeserialize)(
     ptr += ESMF_MAXDIM*sizeof(int);
     memcpy((void *)ungriddedUBound, (const void *)ptr, ESMF_MAXDIM*sizeof(int));
     ptr += ESMF_MAXDIM*sizeof(int);
-    memcpy((void *)maxHaloLWidth, (const void *)ptr, ESMF_MAXDIM*sizeof(int));
+    memcpy((void *)totalLWidth, (const void *)ptr, ESMF_MAXDIM*sizeof(int));
     ptr += ESMF_MAXDIM*sizeof(int);
-    memcpy((void *)maxHaloUWidth, (const void *)ptr, ESMF_MAXDIM*sizeof(int));
+    memcpy((void *)totalUWidth, (const void *)ptr, ESMF_MAXDIM*sizeof(int));
     ptr += ESMF_MAXDIM*sizeof(int);
 
-    *offset = ptr - (char *)buffer;
+    *offset = ptr - buffer;
 
     if (localrc) *localrc = ESMF_SUCCESS;
 

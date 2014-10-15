@@ -1,7 +1,7 @@
-// $Id: ESMCI_RHandle.C,v 1.4.2.1 2010/02/05 19:59:59 svasquez Exp $
+// $Id$
 //
 // Earth System Modeling Framework
-// Copyright 2002-2010, University Corporation for Atmospheric Research, 
+// Copyright 2002-2012, University Corporation for Atmospheric Research, 
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
 // Laboratory, University of Michigan, National Centers for Environmental 
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
@@ -12,7 +12,7 @@
 #define ESMF_FILENAME "ESMCI_RHandle.C"
 //==============================================================================
 //
-// ESMCI RouteHandle method implementation (body) file
+// RouteHandle class implementation (body) file
 //
 //-----------------------------------------------------------------------------
 //
@@ -28,9 +28,10 @@
 
 // include higher level, 3rd party or system headers
 #include <cstdlib>
+#include <cstdio>
 
 // include ESMF headers
-#include "ESMC_Start.h"
+#include "ESMCI_Macros.h"
 #include "ESMCI_Array.h"
 #include "ESMCI_ArrayBundle.h"
 
@@ -43,7 +44,7 @@ using namespace std;
 // leave the following line as-is; it will insert the cvs ident string
 // into the object file for tracking purposes.
 static const char *const version = 
-  "$Id: ESMCI_RHandle.C,v 1.4.2.1 2010/02/05 19:59:59 svasquez Exp $";
+  "$Id$";
 //-----------------------------------------------------------------------------
 
 
@@ -79,14 +80,14 @@ RouteHandle *RouteHandle::create(
     routehandle = new RouteHandle;
 
     localrc = routehandle->construct();
-    if (ESMC_LogDefault.MsgFoundError(localrc,ESMF_ERR_PASSTHRU,rc)){
+    if (ESMC_LogDefault.MsgFoundError(localrc,ESMCI_ERR_PASSTHRU,rc)){
       routehandle->ESMC_BaseSetStatus(ESMF_STATUS_INVALID);  // mark invalid
       return NULL;
     }
     
   }catch(int localrc){
     // catch standard ESMF return code
-    ESMC_LogDefault.MsgFoundError(localrc, ESMF_ERR_PASSTHRU, rc);
+    ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, rc);
     routehandle->ESMC_BaseSetStatus(ESMF_STATUS_INVALID);  // mark invalid
     return NULL;
   }catch(...){
@@ -136,7 +137,7 @@ int RouteHandle::destroy(
   
   // destruct DistGrid object
   localrc = routehandle->destruct();
-  if (ESMC_LogDefault.MsgFoundError(localrc, ESMF_ERR_PASSTHRU, &rc))
+  if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, &rc))
     return rc;
   
   // mark as invalid object
@@ -266,8 +267,49 @@ int RouteHandle::print(
 //EOP
 //-----------------------------------------------------------------------------
   // initialize return code; assume routine not implemented
+  int localrc = ESMC_RC_NOT_IMPL;         // local return code
   int rc = ESMC_RC_NOT_IMPL;              // final return code
 
+  try{
+  
+    // get XXE from routehandle
+    XXE *xxe = (XXE *)getStorage();
+  
+    // print XXE stream profile
+    VM *vm = VM::getCurrent(&localrc);
+    if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, &rc))
+      return rc;
+    int localPet = vm->getLocalPet();
+    int petCount = vm->getPetCount();
+    char file[160];
+    sprintf(file, "xxeprofile.%05d", localPet);
+    FILE *fp = fopen(file, "a");
+    fprintf(fp, "\n=================================================="
+      "==============================\n");
+    fprintf(fp, "=================================================="
+      "==============================\n\n");
+    for (int pet=0; pet<petCount; pet++){
+      if (pet==localPet){
+        localrc = xxe->printProfile(fp);
+        if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU,
+          &rc))
+        return rc;
+      }
+      vm->barrier();
+    }
+    fclose(fp);
+  }catch(int localrc){
+    // catch standard ESMF return code
+    ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, &rc);
+    return rc;
+  }catch(...){
+    ESMC_LogDefault.MsgFoundError(ESMC_RC_INTNRL_BAD,
+      "- Caught exception", &rc);
+    return rc;
+  }
+  
+  // return successfully
+  rc = ESMF_SUCCESS;
   return rc;
 }
 //-----------------------------------------------------------------------------

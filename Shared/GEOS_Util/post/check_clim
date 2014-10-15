@@ -1,0 +1,32 @@
+#!/bin/csh -f
+
+set fname      = $1
+set begdate    = $2
+set enddate    = $3
+set month      = $4
+set ext        = $5
+
+echo 'Checking Files for Month: '$month
+
+set begyear = `echo $begdate | cut -c1-4`
+set endyear = `echo $enddate | cut -c1-4`
+set    year = $begyear
+
+while ( $year <= $endyear )
+    if( ${year}${month} >= $begdate && ${year}${month} <= $enddate ) then
+        set file = $fname.${year}${month}.$ext
+        if(! -e $file ) then
+              echo $file not found
+              exit 1
+        endif
+    endif
+@ year = $year + 1
+
+# Ensure YEAR is 4 digits
+# -----------------------
+set year = `printf "%04d" $year`
+
+end
+
+echo '     All Files found.'
+exit 0

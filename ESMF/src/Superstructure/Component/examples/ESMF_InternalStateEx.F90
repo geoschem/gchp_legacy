@@ -1,7 +1,7 @@
-! $Id: ESMF_InternalStateEx.F90,v 1.18.2.1 2010/02/05 20:03:51 svasquez Exp $
+! $Id: ESMF_InternalStateEx.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2010, University Corporation for Atmospheric Research,
+! Copyright 2002-2012, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -16,7 +16,7 @@
 
 !-------------------------------------------------------------------------
 !BOP
-!\subsubsection{Setting and Getting the Internal State}  
+!\subsubsection{Set and Get the Internal State}  
 !
 !   ESMF provides the concept of an Internal State that is associated with
 !   a Component. Through the Internal State API a user can attach a private
@@ -39,7 +39,7 @@ program ESMF_InternalStateEx
 ! !USES:
 !BOC
   ! ESMF Framework module
-  use ESMF_Mod
+  use ESMF
   implicit none
   
   type(ESMF_GridComp) :: comp
@@ -64,7 +64,8 @@ program ESMF_InternalStateEx
   finalrc = ESMF_SUCCESS
 !-------------------------------------------------------------------------
         
-  call ESMF_Initialize(rc=rc)
+  call ESMF_Initialize(defaultlogfilename="InternalStateEx.Log", &
+                    logkindflag=ESMF_LOGKIND_MULTI, rc=rc)
   if (rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE 
 
 !-------------------------------------------------------------------------

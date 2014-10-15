@@ -1,0 +1,149 @@
+function keg (args)
+
+expdsc = subwrd(args,1)
+output = subwrd(args,2)
+
+'run getenv "GEOSUTIL"'
+         geosutil = result
+'sett'
+'getinfo tdim'
+         tdim = result
+
+'set grads off'
+'set ylab %.1f'
+'set axlim -3 4'
+
+'set cmark  0'
+'set cstyle 1'
+'set ccolor 2'
+'set cthick 6'
+'d kegeng'
+'define kegenave = ave(kegeng,t=1,t='tdim')'
+'set cmark  0'
+'set cstyle 1'
+'set ccolor 2'
+'set cthick 1'
+'d kegenave'
+'set cmark  0'
+'set cstyle 3'
+'set ccolor 6'
+'set cthick 6'
+'d kepgg + tedyng'
+
+'set cmark  0'
+'set cstyle 1'
+'set ccolor 4'
+'set cthick 6'
+'d kedyng + tedyng'
+'define kedynave = ave(kedyng + tedyng,t=1,t='tdim')'
+'set cmark  0'
+'set cstyle 1'
+'set ccolor 4'
+'set cthick 1'
+'d kedynave'
+
+'set cmark  0'
+'set cstyle 2'
+'set ccolor 4'
+'set cthick 6'
+'d kegeng - (kedyng + tedyng)'
+'define kedynlos = ave(kegeng-(kedyng+tedyng),t=1,t='tdim')'
+'set cmark  0'
+'set cstyle 2'
+'set ccolor 4'
+'set cthick 1'
+'d kedynlos'
+
+'set cmark  0'
+'set cstyle 1'
+'set ccolor 3'
+'set cthick 6'
+'d kephyg + tephyg'
+'define kephyave = ave(kephyg + tephyg,t=1,t='tdim')'
+'set cmark  0'
+'set cstyle 1'
+'set ccolor 3'
+'set cthick 1'
+'d kephyave'
+
+'set cmark  0'
+'set cstyle 1'
+'set ccolor 5'
+'set cthick 6'
+'d keanag + teanag'
+'define keanaave = ave(keanag + teanag,t=1,t='tdim')'
+'set cmark  0'
+'set cstyle 1'
+'set ccolor 5'
+'set cthick 1'
+'d keanaave'
+
+'set cmark  0'
+'set cstyle 1'
+'set ccolor 1'
+'set cthick 6'
+'d kedyng+tedyng + kephyg+tephyg + keanag+teanag'
+
+'set cmark  0'
+'set cstyle 1'
+'set ccolor 1'
+'set cthick 3'
+'define ketotave = ave( KEDYNg+TEDYNg + KEPHYg+TEPHYg + KEANAg+TEANAg, t=1,t='tdim')'
+'d ketotave'
+
+* Plot Time-Average Values
+* ------------------------
+'set t 'tdim
+'getinfo date'
+         date = result
+'d kegenave'
+   kegenave = subwrd(result,4)
+'d kedynave'
+   kedynave = subwrd(result,4)
+'d kedynlos'
+   kedynlos = subwrd(result,4)
+'d kephyave'
+   kephyave = subwrd(result,4)
+'d keanaave'
+   keanaave = subwrd(result,4)
+'d ketotave'
+   ketotave = subwrd(result,4)
+
+'q w2xy 'date' 'kegenave
+    ygen = subwrd(result,6)
+'q w2xy 'date' 'kedynave
+    ydyn = subwrd(result,6)
+'q w2xy 'date' 'kedynlos
+    ylos = subwrd(result,6)
+'q w2xy 'date' 'kephyave
+    yphy = subwrd(result,6)
+'q w2xy 'date' 'keanaave
+    yana = subwrd(result,6)
+'q w2xy 'date' 'ketotave
+    ytot = subwrd(result,6)
+
+'set strsiz .08'
+
+ 'set string 1 l 5'
+ 'draw string 10.52 'ytot ' 'ketotave
+
+ 'set string 2 r 5'
+ 'draw string 1.58 'ygen ' 'kegenave
+ 'set string 4 r 5'
+ 'draw string 1.58 'ydyn ' 'kedynave
+ 'set string 4 r 5'
+ 'draw string 1.58 'ylos ' 'kedynlos
+ 'set string 3 r 5'
+ 'draw string 1.58 'yphy ' 'kephyave
+ 'set string 5 r 5'
+ 'draw string 1.58 'yana ' 'keanaave
+
+'set vpage off'
+'set string 1 c 6'
+'set strsiz .14'
+'draw string 6.15 8.25 'expdsc
+'draw string 6.15 7.95 Globally Integrated Kinetic Energy Generation (W/m`a2`n)'
+'lines 'geosutil'/plots/tseries/ke.stk 1'
+
+'myprint -name 'output'/KE_TIME_SERIES'
+return

@@ -1,7 +1,7 @@
-// $Id: ESMCI_Alarm.C,v 1.11.2.5 2010/02/05 20:00:38 svasquez Exp $
+// $Id$
 //
 // Earth System Modeling Framework
-// Copyright 2002-2010, University Corporation for Atmospheric Research, 
+// Copyright 2002-2012, University Corporation for Atmospheric Research, 
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
 // Laboratory, University of Michigan, National Centers for Environmental 
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
@@ -36,7 +36,7 @@
 //-------------------------------------------------------------------------
  // leave the following line as-is; it will insert the cvs ident string
  // into the object file for tracking purposes.
- static const char *const version = "$Id: ESMCI_Alarm.C,v 1.11.2.5 2010/02/05 20:00:38 svasquez Exp $";
+ static const char *const version = "$Id$";
 //-------------------------------------------------------------------------
 
 namespace ESMCI{
@@ -180,7 +180,7 @@ int Alarm::count=0;
     //        this->ringTime > (passed in) ringTime
 
     returnCode = alarm->Alarm::validate();
-    if (ESMC_LogDefault.MsgFoundError(returnCode, ESMF_ERR_PASSTHRU, rc)) {
+    if (ESMC_LogDefault.MsgFoundError(returnCode, ESMCI_ERR_PASSTHRU, rc)) {
       // TODO: distinguish non-fatal rc's (warnings, info) at this level (C++),
       //   and at the F90 level, so isInit flag can be set to usable value.
       delete alarm;
@@ -189,7 +189,7 @@ int Alarm::count=0;
       // add this new valid alarm to the given clock
       if (rc != ESMC_NULL_POINTER) *rc = ESMF_SUCCESS;
       returnCode = clock->Clock::addAlarm(alarm);
-      ESMC_LogDefault.MsgFoundError(returnCode, ESMF_ERR_PASSTHRU, rc);
+      ESMC_LogDefault.MsgFoundError(returnCode, ESMCI_ERR_PASSTHRU, rc);
     }
  
     return(alarm);
@@ -242,12 +242,19 @@ int Alarm::count=0;
     }
 
     returnCode = alarmCopy->Alarm::validate();
-    if (ESMC_LogDefault.MsgFoundError(returnCode, ESMF_ERR_PASSTHRU, rc)) {
+    if (ESMC_LogDefault.MsgFoundError(returnCode, ESMCI_ERR_PASSTHRU, rc)) {
       // TODO: distinguish non-fatal rc's (warnings, info) at this level (C++),
       //   and at the F90 level, so isInit flag can be set to usable value.
       delete alarmCopy;
       return(ESMC_NULL_POINTER);
-    } 
+    } else {
+      // add this new valid alarm copy to the same clock as the original alarm
+      if (rc != ESMC_NULL_POINTER) *rc = ESMF_SUCCESS;
+      if (alarmCopy->clock != ESMC_NULL_POINTER) {
+        returnCode = (alarmCopy->clock)->Clock::addAlarm(alarmCopy);
+        ESMC_LogDefault.MsgFoundError(returnCode, ESMCI_ERR_PASSTHRU, rc);
+      }
+    }
 
     if (rc != ESMC_NULL_POINTER) *rc = ESMF_SUCCESS;
     return(alarmCopy);     
@@ -276,10 +283,21 @@ int Alarm::count=0;
   // Initialize return code; assume routine not implemented
   int rc = ESMC_RC_NOT_IMPL;
 
+  // can't work with a non-existent object
+  if (alarm == ESMC_NULL_POINTER) {
+    ESMC_LogDefault.Write("alarm pointer NULL", ESMC_LOG_WARN, ESMC_CONTEXT);
+    return(ESMF_FAILURE);
+  }
+
   // TODO: alarm->Alarm::destruct(); constructor calls it!
+
+  // remove alarm from associated clock's alarmList
+  if ((*alarm)->clock != ESMC_NULL_POINTER) {
+    rc = ((*alarm)->clock)->Clock::removeAlarm(*alarm);
+    ESMC_LogDefault.MsgFoundError(rc, ESMCI_ERR_PASSTHRU, &rc);
+  }
   delete *alarm;   // ok to delete null pointer
   *alarm = ESMC_NULL_POINTER;
-  rc = ESMF_SUCCESS;
   return(rc);
 
  } // end ESMCI_alarmDestroy
@@ -350,6 +368,17 @@ int Alarm::count=0;
     }
 
     if (clock != ESMC_NULL_POINTER) {
+      // remove this alarm from associated clock's alarmList
+      if (this->clock != ESMC_NULL_POINTER) {
+        rc = (this->clock)->Clock::removeAlarm(this);
+        ESMC_LogDefault.MsgFoundError(rc, ESMCI_ERR_PASSTHRU, &rc);
+      }
+
+      // and add it to the given clock's alarmList
+      rc = (*clock)->Clock::addAlarm(this);
+      ESMC_LogDefault.MsgFoundError(rc, ESMCI_ERR_PASSTHRU, &rc);
+
+      // this alarm is now associated with the given clock
       this->clock = *clock;
     }
     if (ringTime != ESMC_NULL_POINTER) {
@@ -395,7 +424,7 @@ int Alarm::count=0;
     //        this->ringTime > (passed in) ringTime
 
     rc = Alarm::validate();
-    if (ESMC_LogDefault.MsgFoundError(rc, ESMF_ERR_PASSTHRU, &rc)) {
+    if (ESMC_LogDefault.MsgFoundError(rc, ESMCI_ERR_PASSTHRU, &rc)) {
       // restore original alarm values
       *this = saveAlarm;
     }
@@ -721,7 +750,7 @@ int Alarm::count=0;
     ringing = false;
     timeStepRingingCount = 0;
 
-    if (clock->direction == ESMF_MODE_FORWARD) {
+    if (clock->direction == ESMF_DIRECTION_FORWARD) {
       // remember this time, so if we go in reverse, we will know when
       //   to turn the alarm back on.
       //   TODO:  Assumes constant ringInterval between successive ringEnds;
@@ -729,7 +758,7 @@ int Alarm::count=0;
       //          end times, which may vary (e.g. due to variable timeSteps).
       ringEnd = clock->currTime;
 
-    } else {      // ESMF_MODE_REVERSE
+    } else {      // ESMF_DIRECTION_REVERSE
       // for sticky alarms, step back ring times
       if (sticky && ringTime != firstRingTime) {
         ringTime     -= ringInterval;
@@ -839,6 +868,7 @@ int Alarm::count=0;
       char logMsg[ESMF_MAXSTR];
       sprintf(logMsg, "alarm %s is not associated with any clock.", name);
       ESMC_LogDefault.Write(logMsg, ESMC_LOG_WARN,ESMC_CONTEXT);
+      if (rc != ESMC_NULL_POINTER) *rc = ESMC_RC_PTR_NULL;
       return(false);
     }
 
@@ -1088,7 +1118,7 @@ int Alarm::count=0;
     bool positive = (clock->currAdvanceTimeStep.absValue() ==
                      clock->currAdvanceTimeStep) ? true : false;
 
-    if (clock->direction == ESMF_MODE_FORWARD) {
+    if (clock->direction == ESMF_DIRECTION_FORWARD) {
 
       // carry previous flag forward
       ringingOnPrevTimeStep = ringingOnCurrTimeStep;
@@ -1224,7 +1254,7 @@ int Alarm::count=0;
         //print("ringTime string");
       }
 
-    } else { // ESMF_MODE_REVERSE
+    } else { // ESMF_DIRECTION_REVERSE
 
       // TODO: Make more robust by removing the following simplifying
       //       assumptions:
@@ -1384,7 +1414,7 @@ int Alarm::count=0;
                   clock->prevTime <= ringTime && clock->prevTime > ringTimeEnd;
       }
 
-    }  // end if ESMF_MODE_REVERSE
+    }  // end if ESMF_DIRECTION_REVERSE
 
     if (rc != ESMC_NULL_POINTER) *rc = ESMF_SUCCESS;
 
@@ -1472,7 +1502,6 @@ int Alarm::count=0;
 // !ARGUMENTS:
       int          nameLen,  // in
       const char  *name,     // in
-      ESMC_IOSpec *iospec,   // in
       int         *rc ) {    // out - return code
 
 //
@@ -1486,7 +1515,7 @@ int Alarm::count=0;
  #undef  ESMC_METHOD
  #define ESMC_METHOD "ESMCI_alarmReadRestart()"
 
-    // TODO:  read alarm state from iospec/name, then allocate/restore
+    // TODO:  read alarm state from name, then allocate/restore
     //        (share code with ESMCI_alarmCreate()).
 
     // Initialize return code; assume routine not implemented
@@ -1501,13 +1530,13 @@ int Alarm::count=0;
 // !IROUTINE:  Alarm::writeRestart - save contents of an Alarm
 //
 // !INTERFACE:
-      int Alarm::writeRestart(
+      int Alarm::writeRestart(void) const {
 //
 // !RETURN VALUE:
 //    int error return code
 //
 // !ARGUMENTS:
-      ESMC_IOSpec *iospec) const {
+//    none
 //
 // !DESCRIPTION:
 //      Save information about an {\tt ESMC\_Alarm}.
@@ -1528,7 +1557,7 @@ int Alarm::count=0;
       return(rc);
     }
 
-    // TODO:  save alarm state using iospec/name.  Default to disk file.
+    // TODO:  save alarm state using name.  Default to disk file.
 
     rc = ESMF_SUCCESS;
     return(rc);
@@ -1820,7 +1849,7 @@ int Alarm::count=0;
                                       ESMC_NULL_POINTER, ESMC_NULL_POINTER,
                                       ESMC_NULL_POINTER, &s);
 
-    ESMC_LogDefault.MsgFoundError(rc, ESMF_ERR_PASSTHRU, &rc);
+    ESMC_LogDefault.MsgFoundError(rc, ESMCI_ERR_PASSTHRU, &rc);
 
  } // end Alarm
 
@@ -1949,7 +1978,7 @@ int Alarm::count=0;
 
 //-------------------------------------------------------------------------
 //BOPI
-// !IROUTINE:  Alarm::resetRingBegin - reset ringBegin during ESMF_MODE_REVERSE
+// !IROUTINE:  Alarm::resetRingBegin - reset ringBegin during ESMF_DIRECTION_REVERSE
 //
 // !INTERFACE:
       int Alarm::resetRingBegin(
@@ -1963,7 +1992,7 @@ int Alarm::count=0;
 //
 // !DESCRIPTION:
 //      Reconstructs ringBegin for an alarm event during
-//      {\tt ESMF\_MODE\_REVERSE}
+//      {\tt ESMF\_DIRECTION\_REVERSE}
 //
 //EOPI
 // !REQUIREMENTS:

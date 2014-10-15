@@ -1,0 +1,79 @@
+function sett (args)
+
+'getinfo desc'
+         desc = result
+'!froot 'desc
+'run getenv FROOT'
+     basename = result
+
+* Initialize Time based on Existance of Pre-Set Environment Variables
+* -------------------------------------------------------------------
+'run getenv "TBEG"'
+         begdate  = result
+         begyear  = substr(begdate,1,4)
+         begmonth = substr(begdate,5,2)
+
+'run getenv "TEND"'
+         enddate  = result
+         endyear  = substr(enddate,1,4)
+         endmonth = substr(enddate,5,2)
+
+'getinfo tdim'
+         tdim     = result
+
+
+* Initialize Hour and Day
+* -----------------------
+'set t 1'
+'getinfo date'
+         date = substr(result,1,5)
+
+
+* Initialize Tmin and Tmax
+* ------------------------
+if( begdate != "NULL" )
+       month =  getmon(begmonth)
+       tmin  =  date''month''begyear
+else
+      'set t 1'
+      'getinfo date'
+       tmin =  result
+endif
+
+if( enddate != "NULL" )
+       month =  getmon(endmonth)
+       tmax  =  date''month''endyear
+else
+      'set t 'tdim
+      'getinfo date'
+       tmax =  result
+endif
+
+
+* Set Time
+* --------
+if( basename != clim.tabl )
+   'set time 'tmin' 'tmax
+    say 'Setting Time Dates: 'tmin' to 'tmax
+else
+   'set t 1 'tdim
+    say 'Setting T 1 to 'tdim
+endif
+
+return
+
+function getmon(num)
+            if( num = "01" ) ; month = JAN ; endif
+            if( num = "02" ) ; month = FEB ; endif
+            if( num = "03" ) ; month = MAR ; endif
+            if( num = "04" ) ; month = APR ; endif
+            if( num = "05" ) ; month = MAY ; endif
+            if( num = "06" ) ; month = JUN ; endif
+            if( num = "07" ) ; month = JUL ; endif
+            if( num = "08" ) ; month = AUG ; endif
+            if( num = "09" ) ; month = SEP ; endif
+            if( num = "10" ) ; month = OCT ; endif
+            if( num = "11" ) ; month = NOV ; endif
+            if( num = "12" ) ; month = DEC ; endif
+return month
+

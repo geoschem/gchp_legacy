@@ -1,4 +1,4 @@
-# $Id: makefile,v 1.83 2009/10/28 01:41:02 theurich Exp $ 
+# $Id: makefile,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $ 
 
 ALL: build_system_tests
 
@@ -12,12 +12,13 @@ DIRS      = ESMF_CompCreate \
             ESMF_RecursiveComponent \
             ESMF_ArrayScatterGather \
             ESMF_Attribute \
+            ESMF_AttributeCIM \
+            ESMF_ComplianceChecker \
             ESMF_ArraySparseMatMul \
             ESMF_ArrayRedist \
             ESMF_ArrayRedistMPMD \
             ESMF_ArrayRedistSharedObj \
             ESMF_ArrayRedist3D \
-            ESMF_DirectCoupling \
             ESMF_ArrayBundleSparseMatMul \
             ESMF_ArrayBundleRedist \
             ESMF_FieldSparseMatMul \
@@ -35,21 +36,17 @@ DIRS      = ESMF_CompCreate \
             ESMF_FieldRegridDisjoint \
             ESMF_FieldRegridOverlap \
             ESMF_FieldRegridMesh \
+            ESMF_FieldRegridMeshToMesh \
             ESMF_FieldLSSMM \
             ESMF_FieldMeshSMM \
 	    ESMF_SequentialEnsemble \
 	    ESMF_ConcurrentEnsemble \
-	    ESMF_ArrayRedistOpenMP 
-# Tests temporarily disabled, re-enable once capability is implemented
-#           ESMF_RowReduce \          cover by Array comms
-#           ESMF_MergeCoupling \
+	    ESMF_ArrayRedistOpenMP \
+            ESMF_DirectCoupling
+# Disabled STests
 #           ESMF_FieldRegridConserv \ cover by Regrid
 #           ESMF_FieldRegridMulti \   cover by Regrid
 #           ESMF_FieldRegridOrder \   cover by Regrid
-#           ESMF_FlowWithCoupling \
-#           ESMF_FlowComp \
-#           ESMF_FieldHalo \
-#           ESMF_FieldHaloPer \
 
 
 CLEANDIRS   =

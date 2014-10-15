@@ -1,4 +1,4 @@
-! $Id: GridComp2Template.F90,v 1.4 2009/03/23 20:40:48 theurich Exp $
+! $Id: GridComp2Template.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
 !
 ! Template code for a child Grid Component, which has no subcomponents
 !  below it.  This is where the bulk of the computation is expected to be
@@ -24,7 +24,7 @@
     module UserGridComp2Mod
     
     ! ESMF Framework module
-    use ESMF_Mod
+    use ESMF
     
     implicit none
     private
@@ -35,11 +35,11 @@
 
     subroutine UserGrid_SetServices(gcomp, rc)
        type(ESMF_GridComp) :: gcomp
-       integer :: rc
+       integer, intent(out) :: rc
 
-       call ESMF_GridCompSetEntryPoint(gcomp, ESMF_SETINIT, my_init, rc=rc)
-       call ESMF_GridCompSetEntryPoint(gcomp, ESMF_SETRUN, my_run, rc=rc)
-       call ESMF_GridCompSetEntryPoint(gcomp, ESMF_SETFINAL, my_final, rc=rc)
+       call ESMF_GridCompSetEntryPoint(gcomp, ESMF_METHOD_INITIALIZE, my_init, rc=rc)
+       call ESMF_GridCompSetEntryPoint(gcomp, ESMF_METHOD_RUN, my_run, rc=rc)
+       call ESMF_GridCompSetEntryPoint(gcomp, ESMF_METHOD_FINALIZE, my_final, rc=rc)
 
     end subroutine UserGrid_SetServices
 
@@ -49,10 +49,10 @@
       type(ESMF_State) :: importState
       type(ESMF_State) :: exportState
       type(ESMF_Clock) :: externalclock
-      integer :: rc
+      integer, intent(out) :: rc
      
 
-      call ESMF_LogWrite("User initialize routine called", ESMF_LOG_INFO)
+      call ESMF_LogWrite("User initialize routine called", ESMF_LOGMSG_INFO)
       rc = ESMF_SUCCESS
 
     end subroutine my_init
@@ -63,9 +63,9 @@
       type(ESMF_State) :: importState
       type(ESMF_State) :: exportState
       type(ESMF_Clock) :: externalclock
-      integer :: rc
+      integer, intent(out) :: rc
      
-      call ESMF_LogWrite("User run routine called", ESMF_LOG_INFO)
+      call ESMF_LogWrite("User run routine called", ESMF_LOGMSG_INFO)
       rc = ESMF_SUCCESS
 
     end subroutine my_run
@@ -76,9 +76,9 @@
       type(ESMF_State) :: importState
       type(ESMF_State) :: exportState
       type(ESMF_Clock) :: externalclock
-      integer :: rc
+      integer, intent(out) :: rc
      
-      call ESMF_LogWrite("User finalize routine called", ESMF_LOG_INFO)
+      call ESMF_LogWrite("User finalize routine called", ESMF_LOGMSG_INFO)
       rc = ESMF_SUCCESS
 
     end subroutine my_final

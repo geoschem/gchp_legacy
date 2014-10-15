@@ -1,0 +1,21 @@
+function level (args)
+file = level_pos_file
+
+'getinfo level'
+level = result
+
+if( args = "" )
+'!/bin/rm 'file
+say "Click on center position for Level"
+'query pos'
+xpos = subwrd(result,3)
+ypos = subwrd(result,4)
+write(file,xpos)
+write(file,ypos)
+else
+xpos = sublin( read(file),2 )
+ypos = sublin( read(file),2 )
+endif
+
+'draw string 'xpos' 'ypos' Level: 'level' 'args
+return

@@ -1,7 +1,7 @@
-// $Id: ESMC_TimeInterval.C,v 1.6.2.1 2010/02/05 20:00:13 svasquez Exp $
+// $Id$
 //
 // Earth System Modeling Framework
-// Copyright 2002-2010, University Corporation for Atmospheric Research,
+// Copyright 2002-2012, University Corporation for Atmospheric Research,
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 // Laboratory, University of Michigan, National Centers for Environmental
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -29,7 +29,7 @@
 // include ESMF headers
 #include "ESMCI_Arg.h"
 #include "ESMCI_LogErr.h"
-#include "ESMC_LogMacros.inc"             // for LogErr
+#include "ESMCI_LogMacros.inc"
 #include "ESMCI_TimeInterval.h"
 #include "ESMCI_Calendar.h"
 
@@ -37,7 +37,7 @@
 // leave the following line as-is; it will insert the cvs ident string
 // into the object file for tracking purposes.
 static const char *const version =
-  "$Id: ESMC_TimeInterval.C,v 1.6.2.1 2010/02/05 20:00:13 svasquez Exp $";
+  "$Id$";
 //-----------------------------------------------------------------------------
 
 // TODO: Implement more -native- C++ TimeMgr API alongside existing
@@ -84,8 +84,8 @@ int ESMC_TimeIntervalSet(ESMC_TimeInterval *timeInterval,
                                 (ESMC_I4 *)NULL, (ESMC_I8 *)NULL,
                                 (ESMCI::Time *)NULL, (ESMCI::Time *)NULL,
                                 (ESMCI::Calendar **)NULL,
-                                (ESMC_CalendarType *)NULL);
-  if (ESMC_LogDefault.MsgFoundError(localrc, ESMF_ERR_PASSTHRU, ESMC_CONTEXT,
+                                (ESMC_CalKind_Flag *)NULL);
+  if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, ESMC_CONTEXT,
                                     &rc)) return rc;  // bail out
   // return successfully
   rc = ESMF_SUCCESS;
@@ -107,7 +107,7 @@ int ESMC_TimeIntervalGet(ESMC_TimeInterval timeInterval,
   int      rc = ESMC_RC_NOT_IMPL;         // final return code
 
   // Note: Don't need to check for passed-thru NULL input pointers currently;
-  //       ESMCI::TimeInterval::get() intreprets them as "not desired".
+  //       ESMCI::TimeInterval::get() interprets them as "not desired".
   //       (designed to support F90 not-present args)
 
   // call into ESMCI method
@@ -129,13 +129,13 @@ int ESMC_TimeIntervalGet(ESMC_TimeInterval timeInterval,
                              (ESMC_I4 *)NULL, (ESMC_I8 *)NULL,
                              (ESMCI::Time *)NULL, (ESMCI::Time *)NULL,
                              (ESMCI::Calendar **)NULL,
-                             (ESMC_CalendarType *)NULL,
+                             (ESMC_CalKind_Flag *)NULL,
                              (ESMCI::Time *)NULL, (ESMCI::Time *)NULL,
                              (ESMCI::Calendar **)NULL,
-                             (ESMC_CalendarType *)NULL,
+                             (ESMC_CalKind_Flag *)NULL,
                              (int)0, (int *)NULL, (char *)NULL,
                              (int)0, (int *)NULL, (char *)NULL);
-  if (ESMC_LogDefault.MsgFoundError(localrc, ESMF_ERR_PASSTHRU, ESMC_CONTEXT,
+  if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, ESMC_CONTEXT,
                                     &rc)) return rc;  // bail out
   // return successfully
   rc = ESMF_SUCCESS;
@@ -156,7 +156,7 @@ int ESMC_TimeIntervalPrint(ESMC_TimeInterval timeInterval) {
 
   // call into ESMCI method
   localrc = ((ESMCI::TimeInterval *)&timeInterval)->print("string");
-  if (ESMC_LogDefault.MsgFoundError(localrc, ESMF_ERR_PASSTHRU, ESMC_CONTEXT,
+  if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, ESMC_CONTEXT,
                                     &rc)) return rc;  // bail out
   //return successfully
   return ESMF_SUCCESS;

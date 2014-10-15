@@ -1,4 +1,4 @@
-# $Id: build_rules.mk,v 1.15.2.1 2010/03/09 23:35:54 svasquez Exp $
+# $Id: build_rules.mk,v 1.1.5.1 2013-01-11 20:23:43 mathomp4 Exp $
 #
 # Linux.gfortran.default
 #
@@ -26,8 +26,16 @@ ESMF_CXXCOMPILECPPFLAGS+= -DESMF_MPIUNI
 ESMF_CXXCOMPILEPATHS   += -I$(ESMF_DIR)/src/Infrastructure/stubs/mpiuni
 ESMF_MPIRUNDEFAULT      = $(ESMF_DIR)/src/Infrastructure/stubs/mpiuni/mpirun
 else
+ifeq ($(ESMF_COMM),mpi)
+# Vendor MPI -----------------------------------------------
+ESMF_F90LINKLIBS       += -lmpi -lmpi++
+ESMF_CXXLINKLIBS       += -lmpi -lmpi++
+ESMF_MPIRUNDEFAULT      = mpiexec_mpt $(ESMF_MPILAUNCHOPTIONS)
+ESMF_MPIMPMDRUNDEFAULT  = mpiexec_mpt $(ESMF_MPILAUNCHOPTIONS)
+else
 ifeq ($(ESMF_COMM),mpich)
 # Mpich ----------------------------------------------------
+ESMF_F90COMPILECPPFLAGS+= -DESMF_MPICH
 ESMF_CXXCOMPILECPPFLAGS+= -DESMF_MPICH
 ESMF_F90DEFAULT         = mpif90
 ESMF_F90LINKLIBS       += -lpmpich++ -lmpich
@@ -62,6 +70,7 @@ ESMF_CXXCOMPILECPPFLAGS+= -DESMF_NO_SIGUSR2
 ESMF_F90DEFAULT         = mpif90
 ESMF_F90LINKLIBS       += -lmpi_cxx
 ESMF_CXXDEFAULT         = mpicxx
+ESMF_CXXLINKLIBS       += -lmpi_f77
 ESMF_MPIRUNDEFAULT      = mpirun $(ESMF_MPILAUNCHOPTIONS)
 ESMF_MPIMPMDRUNDEFAULT  = mpiexec $(ESMF_MPILAUNCHOPTIONS)
 else
@@ -69,6 +78,7 @@ ifeq ($(ESMF_COMM),user)
 # User specified flags -------------------------------------
 else
 $(error Invalid ESMF_COMM setting: $(ESMF_COMM))
+endif
 endif
 endif
 endif
@@ -172,6 +182,17 @@ ESMF_F90COMPILEFREENOCPP = -ffree-form
 ESMF_F90COMPILEFIXCPP    = -cpp -ffixed-form
 
 ############################################################
+# Set unlimited line length limit for free format files
+#
+ESMF_F90COMPILEOPTS += -ffree-line-length-none
+
+############################################################
+# Set rpath syntax
+#
+ESMF_F90RPATHPREFIX         = -Wl,-rpath,
+ESMF_CXXRPATHPREFIX         = -Wl,-rpath,
+
+############################################################
 # Determine where gcc's libraries are located
 #
 ESMF_LIBSTDCXX := $(shell $(ESMF_CXXCOMPILER) $(ESMF_CXXCOMPILEOPTS) -print-file-name=libstdc++.so)
@@ -179,7 +200,7 @@ ifeq ($(ESMF_LIBSTDCXX),libstdc++.so)
 ESMF_LIBSTDCXX := $(shell $(ESMF_CXXCOMPILER) $(ESMF_CXXCOMPILEOPTS) -print-file-name=libstdc++.a)
 endif
 ESMF_F90LINKPATHS += -L$(dir $(ESMF_LIBSTDCXX))
-ESMF_F90LINKRPATHS += -Wl,-rpath,$(dir $(ESMF_LIBSTDCXX))
+ESMF_F90LINKRPATHS += $(ESMF_F90RPATHPREFIX)$(dir $(ESMF_LIBSTDCXX))
 
 ############################################################
 # Determine where gfortran's libraries are located
@@ -189,7 +210,7 @@ ifeq ($(ESMF_LIBSTDCXX),libgfortran.so)
 ESMF_LIBGFORTRAN := $(shell $(ESMF_F90COMPILER) $(ESMF_F90COMPILEOPTS) -print-file-name=libgfortran.a)
 endif
 ESMF_CXXLINKPATHS += -L$(dir $(ESMF_LIBGFORTRAN))
-ESMF_CXXLINKRPATHS += -Wl,-rpath,$(dir $(ESMF_LIBGFORTRAN))
+ESMF_CXXLINKRPATHS += $(ESMF_CXXRPATHPREFIX)$(dir $(ESMF_LIBGFORTRAN))
 
 ############################################################
 # Link against libesmf.a using the F90 linker front-end
@@ -205,6 +226,7 @@ ESMF_CXXLINKLIBS += -lrt -lgfortran -ldl
 # Shared library options
 #
 ESMF_SL_LIBOPTS  += -shared
+ESMF_SL_LIBLIBS  += -lrt -lgfortran -ldl
 
 ############################################################
 # Shared object options

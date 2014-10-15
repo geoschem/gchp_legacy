@@ -92,7 +92,8 @@ LIB_TRANSF = $(ESMALIB)/libGMAO_transf.a
 
 INC_GMAO_SHARED = $(INC_MPEU) $(INC_PILGRIM) $(INC_MFHDF3) $(INC_GFIO) \
                   $(INC_CFIO) $(INC_MAPL_BASE) $(INC_GEOS_SHARED) \
-                  $(INC_CHEM_BASE) $(INC_CHEM_SHARED) $(INC_GFDL_FMS)
+                  $(INC_CHEM_BASE) $(INC_CHEM_SHARED) $(INC_GFDL_FMS) \
+		  $(INC_HERMES)
 
 INC_PSAS = $(ESMAINC)/GMAO_psas
 LIB_PSAS = $(ESMALIB)/libGMAO_psas.a

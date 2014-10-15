@@ -1,4 +1,4 @@
-# $Id: build_rules.mk,v 1.10.2.1 2009/11/05 23:42:08 w6ws Exp $
+# $Id: build_rules.mk,v 1.1.5.1 2013-01-11 20:23:43 mathomp4 Exp $
 #
 # Cygwin.gfortran.default
 #
@@ -28,6 +28,7 @@ ESMF_MPIRUNDEFAULT      = $(ESMF_DIR)/src/Infrastructure/stubs/mpiuni/mpirun
 else
 ifeq ($(ESMF_COMM),mpich)
 # Mpich ----------------------------------------------------
+ESMF_F90COMPILECPPFLAGS+= -DESMF_MPICH
 ESMF_CXXCOMPILECPPFLAGS+= -DESMF_MPICH
 ESMF_F90DEFAULT         = mpif90
 ESMF_F90LINKLIBS       += -lpmpich -lmpich
@@ -68,6 +69,7 @@ ESMF_CXXCOMPILECPPFLAGS+= -DESMF_NO_SIGUSR2
 ESMF_F90DEFAULT         = mpif90
 ESMF_F90LINKLIBS       += -lmpi_cxx
 ESMF_CXXDEFAULT         = mpicxx
+ESMF_CXXLINKLIBS       += -lmpi_f77
 ESMF_MPIRUNDEFAULT      = mpirun $(ESMF_MPILAUNCHOPTIONS)
 ESMF_MPIMPMDRUNDEFAULT  = mpiexec $(ESMF_MPILAUNCHOPTIONS)
 else
@@ -142,20 +144,33 @@ ESMF_F90COMPILEFREENOCPP = -ffree-form
 ESMF_F90COMPILEFIXCPP    = -cpp -ffixed-form
 
 ############################################################
+# Set unlimited line length limit for free format files
+#
+ESMF_F90COMPILEOPTS += -ffree-line-length-none
+
+############################################################
+# Set rpath syntax
+#
+ESMF_F90RPATHPREFIX         = -Wl,-rpath,
+ESMF_CXXRPATHPREFIX         = -Wl,-rpath,
+
+############################################################
 # Determine where gcc's libraries are located
 #
-ESMF_F90LINKPATHS += \
-  -L$(dir $(shell $(ESMF_CXXCOMPILER) -print-file-name=libstdc++.a))
-ESMF_F90LINKRPATHS += \
-  -Wl,-rpath,$(dir $(shell $(ESMF_CXXCOMPILER) -print-file-name=libstdc++.a))
+ESMF_CXXLIBFULLPATH    = \
+  $(shell dirname `$(ESMF_CXXCOMPILER) -print-file-name=libstdc++.a`)
+
+ESMF_F90LINKPATHS  += -L$(ESMF_CXXLIBFULLPATH)
+ESMF_F90LINKRPATHS += $(ESMF_F90RPATHPREFIX)$(ESMF_F90LINKPATHS)
 
 ############################################################
 # Determine where gfortran's libraries are located
 #
-ESMF_CXXLINKPATHS += \
-  -L$(dir $(shell $(ESMF_F90COMPILER) -print-file-name=libgfortran.a))
-ESMF_CXXLINKRPATHS += \
-  -Wl,-rpath,$(dir $(shell $(ESMF_F90COMPILER) -print-file-name=libgfortran.a))
+ESMF_F90LIBFULLPATH   = \
+  $(shell dirname `$(ESMF_F90COMPILER) -print-file-name=libgfortran.a`)
+
+ESMF_CXXLINKPATHS  += -L$(ESMF_F90LIBFULLPATH)
+ESMF_CXXLINKRPATHS += $(ESMF_CXXRPATHPREFIX)$(ESMF_CXXLINKPATHS)
 
 ############################################################
 # Link against libesmf.a using the F90 linker front-end
@@ -170,6 +185,8 @@ ESMF_CXXLINKLIBS += -lgfortran
 ESMF_CXXLINKOPTS += -Wl,--enable-auto-import
 
 ############################################################
-# Blank out shared library options
+# Shared library options
 #
-ESMF_SL_LIBS_TO_MAKE  =
+ESMF_SL_SUFFIX         = dll.a
+ESMF_SL_LIBOPTS       += -shared
+ESMF_SL_LIBLIBS       += -lgfortran

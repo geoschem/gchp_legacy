@@ -1,0 +1,10 @@
+function getxy (args)
+  r = subwrd(args,1)
+cor = subwrd(args,2)
+'d acos('cor')'
+th = subwrd(result,4)
+'d 'r'*cos('th')'
+ x = subwrd(result,4)
+'d 'r'*sin('th')'
+ y = subwrd(result,4)
+return x' 'y

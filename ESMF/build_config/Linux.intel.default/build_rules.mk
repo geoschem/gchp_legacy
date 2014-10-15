@@ -1,4 +1,4 @@
-# $Id: build_rules.mk,v 1.83.2.1 2010/01/08 22:47:29 svasquez Exp $
+# $Id: build_rules.mk,v 1.89.4.1 2012/03/26 23:09:33 theurich Exp $
 #
 # Linux.intel.default
 #
@@ -30,11 +30,12 @@ ifeq ($(ESMF_COMM),mpi)
 # Vendor MPI -----------------------------------------------
 ESMF_F90LINKLIBS       += -lmpi -lmpi++
 ESMF_CXXLINKLIBS       += -lmpi -lmpi++
-ESMF_MPIRUNDEFAULT      = mpiexec $(ESMF_MPILAUNCHOPTIONS)
-ESMF_MPIMPMDRUNDEFAULT  = mpiexec $(ESMF_MPILAUNCHOPTIONS)
+ESMF_MPIRUNDEFAULT      = mpiexec_mpt $(ESMF_MPILAUNCHOPTIONS)
+ESMF_MPIMPMDRUNDEFAULT  = mpiexec_mpt $(ESMF_MPILAUNCHOPTIONS)
 else
 ifeq ($(ESMF_COMM),mpich)
 # Mpich ----------------------------------------------------
+ESMF_F90COMPILECPPFLAGS+= -DESMF_MPICH
 ESMF_CXXCOMPILECPPFLAGS+= -DESMF_MPICH
 ESMF_F90DEFAULT         = mpif90
 ESMF_CXXDEFAULT         = mpiCC
@@ -78,8 +79,15 @@ ESMF_MPIMPMDRUNDEFAULT  = mpiexec $(ESMF_MPILAUNCHOPTIONS)
 else
 ifeq ($(ESMF_COMM),openmpi)
 # OpenMPI --------------------------------------------------
-ESMF_CXXCOMPILECPPFLAGS+= -DESMF_NO_SIGUSR2
+ifeq ($(shell $(ESMF_DIR)/scripts/available mpifort),mpifort)
+ESMF_F90DEFAULT         = mpifort
+ESMF_CXXLINKLIBS       += -lmpi_mpifh
+else
 ESMF_F90DEFAULT         = mpif90
+ESMF_CXXLINKLIBS       += -lmpi_f77
+endif
+ESMF_CXXCOMPILECPPFLAGS+= -DESMF_NO_SIGUSR2
+ESMF_F90LINKLIBS       += -lmpi_cxx
 ESMF_CXXDEFAULT         = mpicxx
 ESMF_MPIRUNDEFAULT      = mpirun $(ESMF_MPILAUNCHOPTIONS)
 ESMF_MPIMPMDRUNDEFAULT  = mpiexec $(ESMF_MPILAUNCHOPTIONS)
@@ -160,6 +168,7 @@ ESMF_F90COMPILEOPTS += -threads
 ESMF_CXXCOMPILEOPTS += -pthread
 ESMF_F90LINKOPTS    += -threads
 ESMF_CXXLINKOPTS    += -pthread
+ESMF_SL_LIBOPTS     += -pthread
 endif
 
 ############################################################
@@ -171,11 +180,17 @@ ESMF_OPENMP_F90LINKOPTS    += -openmp
 ESMF_OPENMP_CXXLINKOPTS    += -openmp
 
 ############################################################
+# Set rpath syntax
+#
+ESMF_F90RPATHPREFIX         = -Wl,-rpath,
+ESMF_CXXRPATHPREFIX         = -Wl,-rpath,
+
+############################################################
 # Determine where ifort's libraries are located
 #
 ESMF_CXXLINKPATHS += -L$(dir $(shell $(ESMF_DIR)/scripts/libpath.ifort $(ESMF_F90COMPILER)))
 ESMF_CXXLINKRPATHS += \
-  $(ESMF_RPATHPREFIX)$(dir $(shell $(ESMF_DIR)/scripts/libpath.ifort $(ESMF_F90COMPILER)))
+  $(ESMF_CXXRPATHPREFIX)$(dir $(shell $(ESMF_DIR)/scripts/libpath.ifort $(ESMF_F90COMPILER)))
 
 ############################################################
 # Determine where icpc's libraries are located
@@ -206,3 +221,8 @@ ESMF_SO_F90LINKOPTSEXE  = -Wl,-export-dynamic
 ESMF_SO_CXXCOMPILEOPTS  = -fPIC
 ESMF_SO_CXXLINKOPTS     = -shared
 ESMF_SO_CXXLINKOPTSEXE  = -Wl,-export-dynamic
+
+############################################################
+# 3rd party code dependency: PIO
+#
+#TODO: activate this once PIO support is stable: ESMF_PIODEFAULT = internal

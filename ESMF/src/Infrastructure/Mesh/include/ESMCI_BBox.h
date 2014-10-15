@@ -1,6 +1,6 @@
-//
+// $Id$
 // Earth System Modeling Framework
-// Copyright 2002-2010, University Corporation for Atmospheric Research, 
+// Copyright 2002-2012, University Corporation for Atmospheric Research, 
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
 // Laboratory, University of Michigan, National Centers for Environmental 
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
@@ -43,6 +43,10 @@ BBox(const MEField<> &coords, const MeshObj &obj, double normexp = 0.0);
 BBox(const MEField<> &coords, const MeshDB &mesh);
 
 BBox(_field &coords, const MeshDB &mesh);
+
+#if 0
+ BBox(_field &coords, const MeshObj &obj);
+#endif
 
 BBox(const BBox &rhs);
 BBox &operator=(const BBox &rhs);

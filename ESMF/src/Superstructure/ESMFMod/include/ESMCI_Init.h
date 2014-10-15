@@ -1,7 +1,7 @@
-// $Id: ESMCI_Init.h,v 1.6.4.1 2010/02/05 20:04:35 svasquez Exp $
+// $Id: ESMCI_Init.h,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
 //
 // Earth System Modeling Framework
-// Copyright 2002-2010, University Corporation for Atmospheric Research, 
+// Copyright 2002-2012, University Corporation for Atmospheric Research, 
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
 // Laboratory, University of Michigan, National Centers for Environmental 
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
@@ -26,8 +26,7 @@
 //
 
 // !USES:
-#include "ESMC_Start.h"
-#include "ESMC_Base.h"  // all classes inherit from the ESMC Base class.
+#include "ESMCI_Macros.h"
 #include "ESMCI_Calendar.h"
 
 // public globals, filled in by ESMC_Initialize()
@@ -43,13 +42,13 @@ enum ESMCI_MainLanguage { ESMF_MAIN_C=1, ESMF_MAIN_F90 };
 
 // prototypes for C routines
 int ESMCI_Initialize(char *defaultConfigFilename,
-  ESMC_CalendarType defaultCalendar=ESMC_CAL_NOCALENDAR,
-  char *defaultLogFilename=NULL, ESMC_LogType defaultLogType=ESMC_LOG_SINGLE);
+  ESMC_CalKind_Flag defaultCalendar=ESMC_CALKIND_NOCALENDAR,
+  char *defaultLogFilename=NULL, ESMC_LogType defaultLogType=ESMC_LOG_MULTI);
 
-int ESMCI_Initialize(ESMC_CalendarType defaultCalendar=ESMC_CAL_NOCALENDAR);
+int ESMCI_Initialize(ESMC_CalKind_Flag defaultCalendar=ESMC_CALKIND_NOCALENDAR);
 
 int ESMCI_Initialize(int argc, char **argv, 
-  ESMC_CalendarType defaultCalendar=ESMC_CAL_NOCALENDAR);
+  ESMC_CalKind_Flag defaultCalendar=ESMC_CALKIND_NOCALENDAR);
 
 int ESMCI_Finalize(void);
 
@@ -58,7 +57,7 @@ int ESMCI_Finalize(void);
 extern "C" {
    void FTN(f_esmf_frameworkinitialize)(int *language, 
                                         char *defaultConfigFileName,
-                                        ESMC_CalendarType *defaultCalendar,
+                                        ESMC_CalKind_Flag *defaultCalendar,
                                         char *defaultLogFileName,
                                         ESMC_LogType *defaultLogType,
                                         int *rc, ESMCI_FortranStrLenArg count1,

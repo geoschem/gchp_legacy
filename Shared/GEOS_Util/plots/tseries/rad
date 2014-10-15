@@ -1,0 +1,125 @@
+function ke (args)
+                                                                                                                            
+expid    = subwrd(args,1)
+output   = subwrd(args,2)
+debug    = subwrd(args,3)
+                                                                                                                            
+
+* Initialize
+* ----------
+'reinit'
+'set display color white'
+'set clab off'
+'c'
+
+* Get RAD Budget Variables
+* ------------------------
+numvar = 0
+
+'run getvar OLR IRRAD'
+        qname.1 = subwrd(result,1)
+        qfile.1 = subwrd(result,2)
+        scale.1 = subwrd(result,3)
+        expdsc  = subwrd(result,4)
+        alias.1 = radlw
+        numvar  = numvar + 1
+
+'run getvar RSR SOLAR'
+        qname.2 = subwrd(result,1)
+        qfile.2 = subwrd(result,2)
+        scale.2 = subwrd(result,3)
+        alias.2 = radsw
+        numvar  = numvar + 1
+
+*'run getvar SLRTP SOLAR'
+*        qname.3 = subwrd(result,1)
+*        qfile.3 = subwrd(result,2)
+*        scale.3 = subwrd(result,3)
+*        alias.3 = radswt
+*        numvar  = numvar + 1
+*'run getvar OLC IRRAD'
+*        qname.4 = subwrd(result,1)
+*        qfile.4 = subwrd(result,2)
+*        scale.4 = subwrd(result,3)
+*        alias.4 = radlwc
+*        numvar  = numvar + 1
+*'run getvar RSC SOLAR'
+*        qname.5 = subwrd(result,1)
+*        qfile.5 = subwrd(result,2)
+*        scale.5 = subwrd(result,3)
+*        alias.5 = radswc
+*        numvar  = numvar + 1
+
+rc = 0
+ n = 1
+while( n<=numvar )
+if( qname.n = 'NULL' ) ; rc = rc + 1 ; endif
+ n = n + 1
+endwhile
+if( rc = numvar ) ; return ; endif
+
+
+* Get Environment Variables
+* -------------------------
+'run getenv "GEOSUTIL"'
+         geosutil = result
+                                                                                                                            
+
+* Experiment Datasets
+* -------------------
+n = 1
+while( n<=numvar )
+
+'set dfile 'qfile.n
+'setx'
+'sety'
+'sett'
+'set z 1'
+
+if( qname.n != 'NULL' )
+'make_ts -FUNCTION 'qname.n' -NAME 'alias.n
+  newfile = subwrd(result,1)
+  kdim    = subwrd(result,2)
+'set x 1'
+'set y 1'
+'set z 1'
+'sett'
+'seasonal 'alias.n'g'
+endif
+
+n = n+1
+endwhile
+
+'set x 1'
+'set y 1'
+'set z 1'
+
+* Make Time-Series Plot
+* ---------------------
+        flag = ""
+while ( flag = "" )
+       'run 'geosutil'/plots/tseries/rad_1 'expid' 'expdsc' 'output
+        if( debug = "debug" )
+            say "Hit  ENTER  to repeat plot"
+            say "Type 'next' for  next plot, 'done' for next field"
+                 pull flag
+        else
+                 flag = "next"
+        endif
+        'c'
+endwhile
+
+* Make Seasonal Cycle Plot
+* ------------------------
+        flag = ""
+while ( flag = "" )
+       'run 'geosutil'/plots/tseries/rad_2 'expid' 'expdsc' 'output
+        if( debug = "debug" )
+            say "Hit  ENTER  to repeat plot"
+            say "Type 'next' for  next plot, 'done' for next field"
+                 pull flag
+        else
+                 flag = "next"
+        endif
+        'c'
+endwhile

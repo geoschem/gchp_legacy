@@ -1,7 +1,7 @@
-// $Id: ESMCI_LocalArray.h,v 1.11.2.1 2010/02/05 19:58:23 svasquez Exp $
+// $Id$
 //
 // Earth System Modeling Framework
-// Copyright 2002-2010, University Corporation for Atmospheric Research, 
+// Copyright 2002-2012, University Corporation for Atmospheric Research, 
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
 // Laboratory, University of Michigan, National Centers for Environmental 
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
@@ -31,7 +31,10 @@
 //EOPI
 //-------------------------------------------------------------------------
 
-#include "ESMC_Base.h"
+#include <stdlib.h>
+
+#include "ESMCI_Util.h"
+#include "ESMCI_Macros.h"
 
 //-------------------------------------------------------------------------
 
@@ -101,23 +104,20 @@ namespace ESMCI {
     int construct(bool aflag, CopyFlag docopy,
       ESMC_TypeKind tk, int irank, LocalArrayOrigin oflag, bool dflag,
       const int *offsets, const int *lbounds, const int *ubounds,
-      const int *icounts, void *ibase_addr, struct c_F90ptr *f90ptr,
-      const char *name);
+      const int *icounts, void *ibase_addr, struct c_F90ptr *f90ptr);
     int destruct();
 
    public:
     // create() and destroy()
     static LocalArray *create(ESMC_TypeKind tk, int rank,
-      LocalArrayOrigin oflag, const char *name = NULL, int *rc = NULL);
+      LocalArrayOrigin oflag, int *rc = NULL);
     static LocalArray *create(ESMC_TypeKind tk, int rank, const int *counts,
-      void *base_addr = NULL, const char *name = NULL,
-      CopyFlag docopy = DATA_REF, int *rc = NULL);
+      void *base_addr = NULL, CopyFlag docopy = DATA_REF, int *rc = NULL);
     static LocalArray *create(ESMC_TypeKind dk, int rank, const int *counts,
       const int *lbounds, const int *ubounds, void *base_addr = NULL, 
-      const char *name = NULL, CopyFlag docopy = DATA_REF, int *rc = NULL);
+      CopyFlag docopy = DATA_REF, int *rc = NULL);
     static LocalArray *create(const LocalArray *larrayIn,
-      const int *lbounds = NULL, const int *ubounds = NULL,
-      const char *name = NULL, int *rc = NULL);
+      const int *lbounds = NULL, const int *ubounds = NULL, int *rc = NULL);
     static LocalArray *create(const LocalArray *larrayIn, CopyFlag copyflag,
       const int *lbounds, const int *ubounds, int *rc);
     static int destroy(LocalArray *array);
@@ -186,7 +186,13 @@ namespace ESMCI {
 
     // Get Data from a position in the LocalArray w/o internal error checking
     template <class TYPE> void getDataInternal(int *index, TYPE *data);
-    
+
+    // Set Data to a position in the LocalArray
+    template <class TYPE> int setData(int *index, TYPE data);
+
+    // Set data to a position in the LocalArray w/o internal error checking
+    template <class TYPE> void setDataInternal(int *index, TYPE data);
+
     // portably copy Fortran dope vector
     static int tkrPtrCopy(void *dst, void *src, ESMC_TypeKind typekind,
       int rank);

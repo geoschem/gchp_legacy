@@ -1,0 +1,189 @@
+function minmax (args)
+
+*************************************************************
+*****                                                   *****
+*****  Usage:  minmax field1 field2 field3 ...          *****
+*****                                                   *****
+*****  This function returns the maximum and minimum    *****
+*****  values from an arbitrary number of input fields. *****
+*****  In addition, the x,y,z,t coordinates of the max  *****
+*****  and min are also returned. The range of          *****
+*****  coordinates tested is based on the current       *****
+*****  coordinate environment (ie., NOT the total range *****
+*****  from the GrADS Control File).                    *****
+*****                                                   *****
+*************************************************************
+
+k = 1
+while( k > 0 )
+field.k = subwrd(args,k)
+if( field.k = '' )
+k = 1-k
+else
+k = k+1
+endif
+endwhile
+k = -k
+
+
+* Get Bounding Values
+* -------------------
+'getinfo xdim'
+         xdim = result
+'getinfo ydim'
+         ydim = result
+'getinfo zdim'
+         zdim = result
+
+* Set x dimension
+* ---------------
+'getinfo xfreq'
+xfreq = result
+if( xfreq = 'varying' )
+'getinfo xmin'
+x1 = result
+'getinfo xmax'
+x2 = result
+endif
+if( xfreq = 'fixed' )
+'getinfo xpos'
+x1 = result
+x2 = result
+endif
+
+* Set y dimension
+* ---------------
+'getinfo yfreq'
+yfreq = result
+if( yfreq = 'varying' )
+'getinfo ymin'
+y1 = result
+'getinfo ymax'
+y2 = result
+endif
+if( yfreq = 'fixed' )
+'getinfo ypos'
+y1 = result
+y2 = result
+endif
+
+* Set z dimension
+* ---------------
+'getinfo zfreq'
+zfreq = result
+if( zfreq = 'varying' )
+'getinfo zmin'
+z1 = result
+'getinfo zmax'
+z2 = result
+endif
+if( zfreq = 'fixed' )
+'getinfo zpos'
+z1 = result
+z2 = result
+endif
+
+* Set t dimension
+* ---------------
+'getinfo tfreq'
+tfreq = result
+if( tfreq = 'varying' )
+'getinfo tmin'
+t1 = result
+'getinfo tmax'
+t2 = result
+endif
+if( tfreq = 'fixed' )
+'getinfo time'
+t1 = result
+t2 = result
+endif
+
+* Initialization
+* --------------
+'getinfo undef'
+undef = result
+'set undef 'undef
+
+blank = " "
+qmin =  1e+15
+qmax = -1e+15
+xmin = 0
+ymin = 0
+zmin = 0
+tmin = 0
+xmax = 0
+ymax = 0
+zmax = 0
+tmax = 0
+'getinfo file'
+         file = result
+say 'Checking file: 'file' with undef value: 'undef' against 'qmin
+
+* Loop over all input fields
+* --------------------------
+n = 1
+while ( n <= k )
+
+* Loop over all x-y-z-t to find min and max
+* -----------------------------------------
+t = t1
+while( t<=t2 )
+y = y1
+while( y<=y2 )
+x = x1
+while( x<=x2 )
+z = z1
+while( z<=z2 )
+  'set t 't
+  'set x 'x
+  'set y 'y
+  'set z 'z
+  'd 'field.n
+
+val = subwrd(result,4)
+
+if (val != undef )
+   if( val > qmax )
+   qmax = val
+   xmax = x
+   ymax = y
+   zmax = z
+   tmax = t
+   nmax = n
+   endif
+   if( val < qmin )
+   qmin = val
+   xmin = x
+   ymin = y
+   zmin = z
+   tmin = t
+   nmin = n
+   endif
+endif
+z = z+1
+endwhile
+x = x+1
+endwhile
+y = y+1
+endwhile
+t = t+1
+endwhile
+n = n+1
+endwhile
+
+* Reset initial space-time environment
+* ------------------------------------
+'set x 'x1' 'x2
+'set y 'y1' 'y2
+'set z 'z1' 'z2
+'set t 't1' 't2
+
+* Return output
+* -------------
+if( qmin =  1e+15 ) ; qmin = undef ; endif
+if( qmax = -1e+15 ) ; qmax = undef ; endif
+
+say 'The max  value is 'field.nmax'('xmax','ymax','zmax') = 'qmax' for t = 'tmax
+say 'The min  value is 'field.nmin'('xmin','ymin','zmin') = 'qmin' for t = 'tmin
+return qmax blank qmin blank xmax blank ymax blank xmin blank ymin blank zmax blank zmin blank tmax blank tmin

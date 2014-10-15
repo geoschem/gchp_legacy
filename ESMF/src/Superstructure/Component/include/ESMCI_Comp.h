@@ -1,7 +1,7 @@
-// $Id: ESMCI_Comp.h,v 1.16.2.1 2010/02/05 20:03:51 svasquez Exp $
+// $Id$
 //
 // Earth System Modeling Framework
-// Copyright 2002-2010, University Corporation for Atmospheric Research, 
+// Copyright 2002-2012, University Corporation for Atmospheric Research, 
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
 // Laboratory, University of Michigan, National Centers for Environmental 
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
@@ -44,9 +44,11 @@ namespace ESMCI {
 // constants and enums
 
 enum CompType { COMPTYPE_GRID=1, COMPTYPE_CPL, COMPTYPE_UNKNOWN };
-enum GridCompType { ATM=2, LAND, OCEAN, SEAICE, RIVER, UNKNOWN };
-enum method { SETINIT=1, SETRUN, SETFINAL, SETWRITERESTART, SETREADRESTART,
-  SETREGISTER };
+enum method { METHOD_NONE=0, 
+  METHOD_INITIALIZE, METHOD_RUN, METHOD_FINALIZE, 
+  METHOD_WRITERESTART, METHOD_READRESTART,
+  METHOD_INITIALIZEIC, METHOD_RUNIC, METHOD_FINALIZEIC, 
+  METHOD_WRITERESTARTIC, METHOD_READRESTARTIC, METHOD_SETSERVICES };
 
 
 // class definition
@@ -64,10 +66,10 @@ class Comp{
 
 class GridComp:public Comp{
   public:
-    static GridComp *create(char const *name, enum GridCompType mtype,
+    static GridComp *create(char const *name, 
       char const *configFile, ESMCI::Clock *clock, int *rc=NULL);
     static int destroy(GridComp *comp);
-    int print(char const *options) const;
+    int print() const;
     int initialize(ESMCI::State *importState, ESMCI::State *exportState,
       ESMCI::Clock *clock, int phase, int *userRc) const;
     int run(ESMCI::State *importState, ESMCI::State *exportState,
@@ -81,7 +83,7 @@ class CplComp:public Comp{
     static CplComp *create(char const *name, char const *configFile,
       ESMCI::Clock *clock, int *rc=NULL);
     static int destroy(CplComp *comp);
-    int print(char const *options) const;
+    int print() const;
     int initialize(ESMCI::State *importState, ESMCI::State *exportState,
       ESMCI::Clock *clock, int phase, int *userRc) const;
     int run(ESMCI::State *importState, ESMCI::State *exportState,

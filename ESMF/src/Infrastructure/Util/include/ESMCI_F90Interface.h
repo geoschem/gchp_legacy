@@ -1,7 +1,7 @@
-// $Id: ESMCI_F90Interface.h,v 1.8.4.1 2010/02/05 20:01:03 svasquez Exp $
+// $Id: ESMCI_F90Interface.h,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
 //
 // Earth System Modeling Framework
-// Copyright 2002-2010, University Corporation for Atmospheric Research,
+// Copyright 2002-2012, University Corporation for Atmospheric Research,
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 // Laboratory, University of Michigan, National Centers for Environmental
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -33,28 +33,41 @@
 // Class that helps with [optinal] F90 array arguments on the interface
 //-------------------------------------------------------------------------
 
+#include <vector>
+#include <cstddef>
+#include <iostream>
+
 namespace ESMCI {
 
+  class F90ClassHolder{
+    void *memoryHolder[16]; // Reserves 16 times the space of a void pointer.
+                            // This value has been determined empirically to
+                            // work on all the supported platforms.
+    friend std::ostream& operator<<(std::ostream& out,
+      const F90ClassHolder& f90p){
+      out << f90p.memoryHolder[0];
+      return out;
+    }
+   public:
+    F90ClassHolder(){}              // default constructor
+    F90ClassHolder(void **udtPtr);  // constructor that converts from UDT
+    int castToFortranUDT(void **udtPtr);
+  };
 
-class F90ClassHolder{
-  void *memoryHolder[8];  // reserve 8 times the space of a void pointer
-                          // this value has been determined empirically to work
-                          // on the supported platforms.
-};
+  //--------------------------------------------------------------------------
 
-
-class InterfaceInt{
-  public: // this thin class is public to make it's usage uncomplicated
-    int *array;
-    int dimCount;
-    int extent[7];    // size 7 reflects the Fortran limit
-  public:
-    InterfaceInt(void);                                   // native constructor
-    InterfaceInt(int *arrayArg, int lenArg);              // native constructor
-    InterfaceInt(int *arrayArg, int dimArg, const int *lenArg); //n. constructor
-    ~InterfaceInt(void);                                  // native destructor
-};
-
+  class InterfaceInt{
+    public: // this thin class is public to make it's usage uncomplicated
+      int *array;
+      int dimCount;
+      int extent[7];    // size 7 reflects the Fortran limit
+    public:
+      InterfaceInt();                           // constructor
+      InterfaceInt(int *arrayArg, int lenArg);  // constructor
+      InterfaceInt(std::vector<int> &arrayArg); // constructor
+      InterfaceInt(int *arrayArg, int dimArg, const int *lenArg); // constructor
+      ~InterfaceInt(void);                      // destructor
+  };
 
 } // namespace ESMCI
 

@@ -1,49 +1,52 @@
-% $Id: State_options.tex,v 1.13 2008/04/02 20:42:59 cdeluca Exp $
+% $Id: State_options.tex,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
 
-\subsubsection{ESMF\_StateItemType}
-\label{opt:stateitemtype}
+\subsubsection{ESMF\_STATEINTENT}
+\label{const:stateintent}
+
+{\sf DESCRIPTION:\\}
+Specifies whether a {\tt ESMF\_State} contains data to be imported
+into a component or exported from a component.
+
+The type of this flag is:
+
+{\tt type(ESMF\_StateIntent\_Flag)}
+
+The valid values are:
+\begin{description}
+   \item [ESMF\_STATEINTENT\_IMPORT] 
+         Contains data to be imported into a component.
+   \item [ESMF\_STATEINTENT\_EXPORT]
+         Contains data to be exported out of a component.
+   \item [ESMF\_STATEINTENT\_UNSPECIFIED]
+         The intent has not been specified.
+\end{description}
+
+\subsubsection{ESMF\_STATEITEM}
+\label{const:stateitem}
 
 {\sf DESCRIPTION:\\}
 Specifies the type of object being added to or retrieved from an
 {ESMF\_State.}
 
-Valid values are:
+The type of this flag is:
+
+{\tt type(ESMF\_StateItem\_Flag)}
+
+The valid values are:
 \begin{description}
-   \item [ESMF\_STATEITEM\_BUNDLE] 
-         Refers to an {\tt ESMF\_FieldBundle} within an {\tt ESMF\_State}.
-   \item [ESMF\_STATEITEM\_FIELD]
-         Refers to an {\tt ESMF\_Field} within an {\tt ESMF\_State}.
    \item [ESMF\_STATEITEM\_ARRAY]
          Refers to an {\tt ESMF\_Array} within an {\tt ESMF\_State}.
+   \item [ESMF\_STATEITEM\_ARRAYBUNDLE]
+         Refers to an {\tt ESMF\_Array} within an {\tt ESMF\_State}.
+   \item [ESMF\_STATEITEM\_FIELD]
+         Refers to a {\tt ESMF\_Field} within an {\tt ESMF\_State}.
+   \item [ESMF\_STATEITEM\_FIELDBUNDLE] 
+         Refers to a {\tt ESMF\_FieldBundle} within an {\tt ESMF\_State}.
+   \item [ESMF\_STATEITEM\_ROUTEHANDLE] 
+         Refers to a {\tt ESMF\_RouteHandle} within an {\tt ESMF\_State}.
    \item [ESMF\_STATEITEM\_STATE]
-         Refers to an {\tt ESMF\_State} within an {\tt ESMF\_State}.
-   \item [ESMF\_STATEITEM\_NAME]
-         Refers to a data name used as a placeholder within 
-         an {\tt ESMF\_State}.
-   \item [ESMF\_STATEITEM\_NOTFOUND]
-         Only valid as a return object type from a query routine.  Indicates
-         that no object with this name exists in the {\tt ESMF\_State}.
-   \item [ESMF\_STATEITEM\_UNKNOWN]
-         Object type within an {\tt ESMF\_State} is unknown.
+         Refers to a {\tt ESMF\_State} within an {\tt ESMF\_State}.
 \end{description}
-
-\subsubsection{ESMF\_StateType}
-\label{opt:statetype}
-{\sf DESCRIPTION:\\}
-Specifies whether an {\tt ESMF\_State} contains data to be imported
-into a component or exported from a component. 
-
-Valid values are:
-\begin{description}
-   \item [ESMF\_STATE\_IMPORT] 
-         Contains data to be imported into a component.
-   \item [ESMF\_STATE\_EXPORT]
-         Contains data to be exported out of a component.
-   \item [ESMF\_STATE\_INVALID]
-         Does not contain valid data.
-\end{description}
-
-
 
 
 

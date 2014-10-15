@@ -1,0 +1,85 @@
+# fv2prs.rc
+#
+#  This is a resource file for the lcv2prs utility.
+#
+# !REVISION HISTORY:
+#
+#  Feb2007  B. Yin    First version.
+#
+#...........................................................................
+
+#                     ----------------------
+#                     Output File Resolution
+#                     ----------------------
+
+zonal_resolution: 288              # no. of zonal grid-points (im)
+west_most_longitude_in_deg: -180.0 # longitude of first point (i=1)
+meridional_resolution: 181          # no. meridional grid-points (jm)
+vertical_level_numbers: 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40 41 42 43 44 45 46 47 48 49 50 51 52 53 54 55 56 57 58 59 60 61 62 63 64 65 66 67 68 69 70 71 72 73
+
+#                       ----------------
+#                       Variable Classes
+#                       ----------------
+ 
+# A variable class lists the variable names that make up a file
+# type or product.
+
+
+### PRODUCT: tavg3_3d_chm_Fe (3-D instantaneous variables)
+VarClass*tavg3_3d_chm_Fe: MFZ CMFMC PFLLSAN PFILSAN PFLCU PFICU KH
+#VarClass*tavg3_3d_chm_Fe: MFZ CMFMC RNLLS RNILS RNLAN RNIAN RNLCN RNICN KH
+
+#                         --------------------
+#                         Variable Translation
+#                         --------------------
+
+Variable_translation_table::
+
+#      Output          |                       Input
+#  Name       Units    | Name             scale_factor  add_offset  Positive Check
+#  -------------------------------------------------------------------------------
+# For tavg3_3d_chm_Fe -- from ana.eta file
+   MFZ        kg/m2/s    MFZ                    1.0        0.0          0
+   CMFMC      kg/m2/s    CMFMC                  1.0        0.0          0
+   RNLLS      kg/m2/s    RNLLS                  1.0        0.0          0
+   RNILS      kg/m2/s    RNILS                  1.0        0.0          0
+   RNLAN      kg/m2/s    RNLAN                  1.0        0.0          0
+   RNIAN      kg/m2/s    RNIAN                  1.0        0.0          0
+   RNLCN      kg/m2/s    RNLCN                  1.0        0.0          0
+   RNICN      kg/m2/s    RNICN                  1.0        0.0          0
+   PFICU      kg/m2/s    PFICU                  1.0        0.0          0
+   PFLCU      kg/m2/s    PFLCU                  1.0        0.0          0
+   PFLLSAN    kg/m2/s    PFLLSAN                1.0        0.0          0
+   PFILSAN    kg/m2/s    PFILSAN                1.0        0.0          0
+   KH         m2/s       KH                     1.0        0.0          0
+::
+
+#                         Variable Description
+#                         --------------------
+
+# Table for variable names and description:
+# For tavg3_3d_chm_Fe
+
+MFZ:            Upward resolved mass flux
+CMFMC:          Upward moist convective mass flux
+RNLLS:          Liquid large-scale precipitation
+RNILS:          Ice large-scale precipitation
+RNLAN:          Liquid anvil precipitation
+RNIAN:          Ice anvil precipitation
+RNLCN:          Liquid convective precipitation
+RNICN:          Ice convective precipitation
+PFICU:          Ice convective precipitation
+PFLCU:          Liquid convective precipitation
+PFLLSAN:        Liquid large-scale plus anvil precipitation
+PFILSAN:        Ice large-scale plus anvil precipitation
+KH:             Total scalar diffusivity
+
+history:        File written by CFIO
+convention:     CF-1.0
+institution:    Global Modeling and Assimilation Office, NASA Goddard Space Flight Center, Greenbelt, MD 20771
+references:     http://gmao.gsfc.nasa.gov
+comment:        First CFIO GEOS version
+source:         Global Modeling and Assimilation Office. @CVSTAG
+title:          File written by CFIO. @CVSTAG
+contact:        data@gmao.gsfc.nasa.gov
+

@@ -1,4 +1,4 @@
-! $Id: ESMF_FieldBundleCreateEx.F90,v 1.5 2009/09/15 17:50:36 feiliu Exp $
+! $Id: ESMF_FieldBundleCreateEx.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
 !
 ! Example/test code which creates a new bundle.
 
@@ -18,7 +18,7 @@
     program ESMF_FieldBundleCreateEx
 
     ! ESMF Framework module
-    use ESMF_Mod
+    use ESMF
 
     implicit none
     
@@ -27,7 +27,8 @@
     type(ESMF_Grid) :: grid
     type(ESMF_ArraySpec) :: arrayspec
     character (len = ESMF_MAXSTR) :: bname1, fname1, fname2
-    type(ESMF_Field) :: field(10), returnedfield1, returnedfield2, simplefield
+    type(ESMF_Field) :: field(10), returnedfield1, returnedfield2
+    type(ESMF_Field) :: simplefield
     type(ESMF_FieldBundle) :: bundle1, bundle2, bundle3
 !\end{verbatim}
 !EOP
@@ -37,7 +38,8 @@
         
 !-------------------------------------------------------------------------
     ! Initialize framework
-    call ESMF_Initialize(rc=rc)
+    call ESMF_Initialize(defaultlogfilename="FieldBundleCreateEx.Log", &
+                    logkindflag=ESMF_LOGKIND_MULTI, rc=rc)
 !EOC
     
     if (rc.NE.ESMF_SUCCESS) finalrc = ESMF_FAILURE
@@ -46,7 +48,7 @@
 !-------------------------------------------------------------------------
 !   !  Create several Fields and add them to a new FieldBundle.
  
-    grid = ESMF_GridCreateShapeTile(minIndex=(/1,1/), maxIndex=(/100,200/), &
+    grid = ESMF_GridCreateNoPeriDim(minIndex=(/1,1/), maxIndex=(/100,200/), &
                                   regDecomp=(/2,2/), name="atmgrid", rc=rc)
 !EOC
     if (rc.NE.ESMF_SUCCESS) finalrc = ESMF_FAILURE
@@ -80,7 +82,8 @@
     if (rc.NE.ESMF_SUCCESS) finalrc = ESMF_FAILURE
 
 !BOC
-    bundle1 = ESMF_FieldBundleCreate(3, field, name="atmosphere data", rc=rc)
+    bundle1 = ESMF_FieldBundleCreate(fieldList=field(1:3), &
+				name="atmosphere data", rc=rc)
 
     print *, "FieldBundle example 1 returned"
 !EOC
@@ -93,7 +96,7 @@
 
 
     simplefield = ESMF_FieldCreate(grid, arrayspec, &
-                                staggerloc=ESMF_STAGGERLOC_CENTER, name="rh", rc=rc)
+                  staggerloc=ESMF_STAGGERLOC_CENTER, name="rh", rc=rc)
 !EOC
 
     if (rc.NE.ESMF_SUCCESS) finalrc = ESMF_FAILURE
@@ -105,7 +108,7 @@
     if (rc.NE.ESMF_SUCCESS) finalrc = ESMF_FAILURE
     
 !BOC
-    call ESMF_FieldBundleAdd(bundle2, simplefield, rc)
+    call ESMF_FieldBundleAdd(bundle2, (/simplefield/), rc=rc)
 !EOC
 
     if (rc.NE.ESMF_SUCCESS) finalrc = ESMF_FAILURE
@@ -129,7 +132,7 @@
     if (rc.NE.ESMF_SUCCESS) finalrc = ESMF_FAILURE
 
 !BOC
-    call ESMF_FieldBundleAdd(bundle3, 3, field, rc)
+    call ESMF_FieldBundleAdd(bundle3, field(1:3), rc=rc)
 !EOC
 
     if (rc.NE.ESMF_SUCCESS) finalrc = ESMF_FAILURE
@@ -147,7 +150,7 @@
 !   !  Get a Field back from a FieldBundle, first by name and then by index.
 !   !  Also get the FieldBundle name.
 
-    call ESMF_FieldBundleGet(bundle1, "pressure", returnedfield1, rc)
+    call ESMF_FieldBundleGet(bundle1, "pressure", field=returnedfield1, rc=rc)
 !EOC
 
     if (rc.NE.ESMF_SUCCESS) finalrc = ESMF_FAILURE
@@ -159,7 +162,7 @@
     if (rc.NE.ESMF_SUCCESS) finalrc = ESMF_FAILURE
 
 !BOC
-    call ESMF_FieldBundleGet(bundle1, 2, returnedfield2, rc)
+    call ESMF_FieldBundleGet(bundle1, 2, returnedfield2, rc=rc)
 !EOC
 
     if (rc.NE.ESMF_SUCCESS) finalrc = ESMF_FAILURE

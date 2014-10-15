@@ -1,4 +1,4 @@
-# $Id: build_rules.mk,v 1.29.2.1 2010/03/16 03:36:46 svasquez Exp $
+# $Id: build_rules.mk,v 1.1.5.1 2013-01-11 20:23:43 mathomp4 Exp $
 #
 # Linux.lahey.default
 #
@@ -29,6 +29,7 @@ ESMF_MPIRUNDEFAULT      = $(ESMF_DIR)/src/Infrastructure/stubs/mpiuni/mpirun
 else
 ifeq ($(ESMF_COMM),mpich)
 # Mpich ----------------------------------------------------
+ESMF_F90COMPILECPPFLAGS+= -DESMF_MPICH
 ESMF_CXXCOMPILECPPFLAGS+= -DESMF_MPICH
 ESMF_F90DEFAULT         = mpif90
 ESMF_F90LINKERDEFAULT   = mpiCC
@@ -66,6 +67,7 @@ ESMF_CXXCOMPILECPPFLAGS+= -DESMF_NO_SIGUSR2
 ESMF_F90DEFAULT         = mpif90
 ESMF_F90LINKERDEFAULT   = mpicxx
 ESMF_CXXDEFAULT         = mpicxx
+ESMF_CXXLINKLIBS       += -lmpi_f77
 ESMF_MPIRUNDEFAULT      = mpirun $(ESMF_MPILAUNCHOPTIONS)
 ESMF_MPIMPMDRUNDEFAULT  = mpiexec $(ESMF_MPILAUNCHOPTIONS)
 else
@@ -111,17 +113,23 @@ ESMF_F90COMPILEFREENOCPP = --nfix
 ESMF_F90COMPILEFIXCPP    = --fix -Cpp
 
 ############################################################
+# Set rpath syntax
+#
+ESMF_F90RPATHPREFIX         = -Wl,-rpath,
+ESMF_CXXRPATHPREFIX         = -Wl,-rpath,
+
+############################################################
 # Determine where lf95's libraries are located
 #
 ESMF_CXXLINKPATHS += $(addprefix -L,$(shell $(ESMF_DIR)/scripts/libpath.lf95 "$(ESMF_F90COMPILER) $(ESMF_F90COMPILEOPTS)"))
-ESMF_RPATHPREFIXFIXED := $(ESMF_RPATHPREFIX)
+ESMF_RPATHPREFIXFIXED := $(ESMF_CXXRPATHPREFIX)
 ESMF_CXXLINKRPATHS += $(addprefix $(ESMF_RPATHPREFIXFIXED), $(shell $(ESMF_DIR)/scripts/libpath.lf95 "$(ESMF_F90COMPILER) $(ESMF_F90COMPILEOPTS)"))
 
 ############################################################
 # Determine where lf95's libraries are located as to find it during runtime
 #
 ESMF_F90LINKPATHS += $(addprefix -L,$(shell $(ESMF_DIR)/scripts/libpath.lf95 "$(ESMF_F90COMPILER) $(ESMF_F90COMPILEOPTS)"))
-ESMF_RPATHPREFIXFIXED := $(ESMF_RPATHPREFIX)
+ESMF_RPATHPREFIXFIXED := $(ESMF_F90RPATHPREFIX)
 ESMF_F90LINKRPATHS += $(addprefix $(ESMF_RPATHPREFIXFIXED), $(shell $(ESMF_DIR)/scripts/libpath.lf95 "$(ESMF_F90COMPILER) $(ESMF_F90COMPILEOPTS)"))
 
 ############################################################

@@ -1,4 +1,4 @@
-! $Id: ESMF_AttributeUpdateMod.F90,v 1.17 2009/10/01 17:24:22 rokuingh Exp $
+! $Id$
 !
 ! Example/test code which shows User Component calls.
 
@@ -9,7 +9,7 @@
 module ESMF_AttributeUpdateMod
 
   ! ESMF Framework module
-  use ESMF_Mod
+  use ESMF
 
   implicit none
   
@@ -62,11 +62,11 @@ module ESMF_AttributeUpdateMod
 
     ! Register the callback routines.
 
-    call ESMF_GridCompSetEntryPoint(comp, ESMF_SETINIT, userm1_init, rc=rc)
+    call ESMF_GridCompSetEntryPoint(comp, ESMF_METHOD_INITIALIZE, userm1_init, rc=rc)
     if (rc/=ESMF_SUCCESS) return ! bail out
-    call ESMF_GridCompSetEntryPoint(comp, ESMF_SETRUN, userm1_run, rc=rc)
+    call ESMF_GridCompSetEntryPoint(comp, ESMF_METHOD_RUN, userm1_run, rc=rc)
     if (rc/=ESMF_SUCCESS) return ! bail out
-    call ESMF_GridCompSetEntryPoint(comp, ESMF_SETFINAL, userm1_final, rc=rc)
+    call ESMF_GridCompSetEntryPoint(comp, ESMF_METHOD_FINALIZE, userm1_final, rc=rc)
     if (rc/=ESMF_SUCCESS) return ! bail out
 
   end subroutine userm1_register
@@ -112,11 +112,11 @@ module ESMF_AttributeUpdateMod
 
     ! Register the callback routines.
 
-    call ESMF_GridCompSetEntryPoint(comp, ESMF_SETINIT, userm2_init, rc=rc)
+    call ESMF_GridCompSetEntryPoint(comp, ESMF_METHOD_INITIALIZE, userm2_init, rc=rc)
     if (rc/=ESMF_SUCCESS) return ! bail out
-    call ESMF_GridCompSetEntryPoint(comp, ESMF_SETRUN, userm2_run, rc=rc)
+    call ESMF_GridCompSetEntryPoint(comp, ESMF_METHOD_RUN, userm2_run, rc=rc)
     if (rc/=ESMF_SUCCESS) return ! bail out
-    call ESMF_GridCompSetEntryPoint(comp, ESMF_SETFINAL, userm2_final, rc=rc)
+    call ESMF_GridCompSetEntryPoint(comp, ESMF_METHOD_FINALIZE, userm2_final, rc=rc)
     if (rc/=ESMF_SUCCESS) return ! bail out
     
   end subroutine userm2_register
@@ -161,11 +161,11 @@ module ESMF_AttributeUpdateMod
     rc = ESMF_SUCCESS
     
     ! Register the callback routines.
-    call ESMF_CplCompSetEntryPoint(comp, ESMF_SETINIT, usercpl_init, rc=rc)
+    call ESMF_CplCompSetEntryPoint(comp, ESMF_METHOD_INITIALIZE, usercpl_init, rc=rc)
     if (rc/=ESMF_SUCCESS) return ! bail out
-    call ESMF_CplCompSetEntryPoint(comp, ESMF_SETRUN, usercpl_run, rc=rc)
+    call ESMF_CplCompSetEntryPoint(comp, ESMF_METHOD_RUN, usercpl_run, rc=rc)
     if (rc/=ESMF_SUCCESS) return ! bail out
-    call ESMF_CplCompSetEntryPoint(comp, ESMF_SETFINAL, usercpl_final, rc=rc)
+    call ESMF_CplCompSetEntryPoint(comp, ESMF_METHOD_FINALIZE, usercpl_final, rc=rc)
     if (rc/=ESMF_SUCCESS) return ! bail out
 
   end subroutine usercpl_register
@@ -189,34 +189,30 @@ module ESMF_AttributeUpdateMod
 !EOE
 
 !BOC
-    type(ESMF_VM)               :: vm
-    integer                     :: petCount, status, myPet
-    character(ESMF_MAXSTR)      :: name1,name2,name3,name4,value1,value2, &
-                                   value3,value4,convESMF,purpGen,convCC
-    type(ESMF_ArraySpec)        :: arrayspec
-    type(ESMF_Grid)             :: grid
-    type(ESMF_Field)            :: DPEDT,DTDT,DUDT,DVDT,PHIS,QTR,CNV,CONVCPT, &
-                                   CONVKE,CONVPHI
-    type(ESMF_FieldBundle)      :: fbundle
+    type(ESMF_VM)            :: vm
+    integer                  :: petCount, status, myPet
+    character(ESMF_MAXSTR)   :: name1,name2,name3,name4,value1,value2, &
+                                value3,value4,convESMF,purpGen,convCC
+    type(ESMF_ArraySpec)     :: arrayspec
+    type(ESMF_Grid)          :: grid
+    type(ESMF_Field)         :: DPEDT,DTDT,DUDT,DVDT,PHIS,QTR,CNV,CONVCPT, &
+                                CONVKE,CONVPHI
+    type(ESMF_FieldBundle)   :: fieldbundle
     character(ESMF_MAXSTR),dimension(2)   :: attrList         
     
     rc = ESMF_SUCCESS
 
     call ESMF_GridCompGet(comp, vm=vm, rc=status)
-    if (status .ne. ESMF_SUCCESS) return
     call ESMF_VMGet(vm, petCount=petCount, localPet=myPet, rc=status)
-    if (status .ne. ESMF_SUCCESS) return
 
-    call ESMF_ArraySpecSet(arrayspec, typekind=ESMF_TYPEKIND_R8, rank=2, rc=rc)
-    if (rc/=ESMF_SUCCESS) return
-    grid = ESMF_GridCreateShapeTile(minIndex=(/1,1/), maxIndex=(/100,150/), &
+    call ESMF_ArraySpecSet(arrayspec, typekind=ESMF_TYPEKIND_R8, rank=2, &
+           rc=rc)
+    grid = ESMF_GridCreateNoPeriDim(minIndex=(/1,1/), maxIndex=(/100,150/), &
       regDecomp=(/1,petCount/), &
       gridEdgeLWidth=(/0,0/), gridEdgeUWidth=(/0,0/), &
       indexflag=ESMF_INDEX_GLOBAL, rc=rc)
-    if (rc/=ESMF_SUCCESS) return
 !EOC
 
-!BOE
 ! This first bit is a verification that the {\tt ESMF\_StateReconcile()} call will correctly
 ! reconcile Attributes and Attribute packages that are attached to the top level 
 ! State in an Attribute hierarchy.  During the initialize phase of the
@@ -225,24 +221,20 @@ module ESMF_AttributeUpdateMod
 ! completion of {\tt ESMF\_StateReconcile()}, as that is the responsibility of the
 ! {\tt ESMF\_AttributeUpdate()} call.  There will be more on this subject when we get
 ! to the coupler Component.
-!EOE
-!BOC
     call ESMF_AttributeSet(exportState, name="TESTESTEST", &
                            value="SUCCESUCCESUCCES", rc=status)
     if (status .ne. ESMF_SUCCESS) return
-!EOC
 
 !BOE
 ! At this point the Fields will need to have Attribute packages attached to them, and the
-! Attributes will be set with appropriate values.  This process is quite involved
-! at present, but will be more streamlined with the addition of the ESMF I/O class.
+! Attributes will be set with appropriate values.
 !EOE
   
 !BOC
     convCC = 'CustomConvention'
     convESMF = 'ESMF'
     purpGen = 'General'
-    name1 = 'Name'
+    name1 = 'ShortName'
     name2 = 'StandardName'
     name3 = 'LongName'
     name4 = 'Units'
@@ -264,7 +256,8 @@ module ESMF_AttributeUpdateMod
       purpose=purpGen, rc=status)
     call ESMF_AttributeSet(DPEDT, name4, value4, convention=convESMF, &
       purpose=purpGen, rc=status)
-    if (status .ne. ESMF_SUCCESS) return
+
+!EOC
 
     value1 = 'DTDT'
     value2 = 'tendency_of_air_temperature'
@@ -438,28 +431,42 @@ module ESMF_AttributeUpdateMod
     if (status .ne. ESMF_SUCCESS) return
 
     ! Create the Grid Attribute Package
-    call ESMF_AttributeAdd(grid,convention=convESMF, purpose=purpGen, rc=status)
-    call ESMF_AttributeSet(grid,'DimOrder','YX',convention=convESMF, purpose=purpGen, rc=status)
-    call ESMF_AttributeSet(grid,'GridType','Cubed sphere',convention=convESMF, purpose=purpGen, rc=status)    
-    call ESMF_AttributeSet(grid,'CongruentTiles',.true.,convention=convESMF, purpose=purpGen, rc=status)
-    call ESMF_AttributeSet(grid,'NorthPoleLocation','long: 0.0 lat: 90.0',convention=convESMF, purpose=purpGen, rc=status)
-    call ESMF_AttributeSet(grid,'NumberOfCells','53457',convention=convESMF, purpose=purpGen, rc=status)
-    call ESMF_AttributeSet(grid,'NumDims','2',convention=convESMF, purpose=purpGen, rc=status)
-    call ESMF_AttributeSet(grid,'NX','96',convention=convESMF, purpose=purpGen, rc=status)
-    call ESMF_AttributeSet(grid,'NY','96',convention=convESMF, purpose=purpGen, rc=status)
-    call ESMF_AttributeSet(grid,'NZ','15',convention=convESMF, purpose=purpGen, rc=status)
-    call ESMF_AttributeSet(grid,'Resolution','C48',convention=convESMF, purpose=purpGen, rc=status)
-    call ESMF_AttributeSet(grid,'IsConformal',.false.,convention=convESMF, purpose=purpGen, rc=status)
-    call ESMF_AttributeSet(grid,'IsRegular',.false.,convention=convESMF, purpose=purpGen, rc=status)
-    call ESMF_AttributeSet(grid,'IsUniform',.false.,convention=convESMF, purpose=purpGen, rc=status)
-    call ESMF_AttributeSet(grid,'IsPoleCovered',.true.,convention=convESMF, purpose=purpGen, rc=status)
-    call ESMF_AttributeSet(grid,'DiscretizationType','Logically Rectangular',convention=convESMF, purpose=purpGen, rc=status)
-    call ESMF_AttributeSet(grid,'GeometryType','Sphere',convention=convESMF, purpose=purpGen, rc=status)
+    call ESMF_AttributeAdd(grid,convention=convESMF, purpose=purpGen, &
+                        rc=status)
+    call ESMF_AttributeSet(grid,'GridType','Cubed sphere', &
+                        convention=convESMF, purpose=purpGen, rc=status)    
+    call ESMF_AttributeSet(grid,'CongruentTiles',.true., &
+                        convention=convESMF, purpose=purpGen, rc=status)
+    call ESMF_AttributeSet(grid,'NumberOfGridTiles','1', &
+                        convention=convESMF, purpose=purpGen, rc=status)
+    call ESMF_AttributeSet(grid,'DimensionOrder','YX', &
+                        convention=convESMF, purpose=purpGen, rc=status)
+    call ESMF_AttributeSet(grid,'DiscretizationType', &
+                        'Logically Rectangular', convention=convESMF, &
+                         purpose=purpGen, rc=status)
+    call ESMF_AttributeSet(grid,'GeometryType','Sphere', &
+                         convention=convESMF, purpose=purpGen, rc=status)
+    call ESMF_AttributeSet(grid,'IsConformal',.false., &
+                         convention=convESMF, purpose=purpGen, rc=status)
+    call ESMF_AttributeSet(grid,'IsRegular',.false., &
+                         convention=convESMF, purpose=purpGen, rc=status)
+    call ESMF_AttributeSet(grid,'IsUniform',.false.,convention=convESMF, &
+			 purpose=purpGen, rc=status)
+    call ESMF_AttributeSet(grid,'NorthPoleLocation','long: 0.0 lat: 90.0', &
+			 convention=convESMF, purpose=purpGen, rc=status)
+    call ESMF_AttributeSet(grid,'NumberOfCells','53457',convention=convESMF, &
+			  purpose=purpGen, rc=status)
+    call ESMF_AttributeSet(grid,'NX','96',convention=convESMF, &
+                          purpose=purpGen, rc=status)
+    call ESMF_AttributeSet(grid,'NY','96',convention=convESMF, &
+                          purpose=purpGen, rc=status)
+    call ESMF_AttributeSet(grid,'HorizontalResolution','C48', &
+                          convention=convESMF, purpose=purpGen, rc=status)
     if (status .ne. ESMF_SUCCESS) return
 
-!EOC
-
 !BOE
+!     ... and so on for the other 9 Fields.
+!
 ! Now the Fields will be added to the FieldBundle, at which point the Attribute
 ! hierarchies of the Fields will also be attached to the Attribute hierarchy of
 ! the FieldBundle.  After that, the FieldBundle will be attached to the export
@@ -468,24 +475,21 @@ module ESMF_AttributeUpdateMod
 !EOE
 
 !BOC
-    fbundle = ESMF_FieldBundleCreate(name="fbundle", rc=status)
-    call ESMF_FieldBundleSetGrid(fbundle, grid=grid, rc=status)
-    if (status .ne. ESMF_SUCCESS) return
+    fieldbundle = ESMF_FieldBundleCreate(name="fieldbundle", rc=status)
+    call ESMF_FieldBundleSet(fieldbundle, grid=grid, rc=status)
       
-    call ESMF_FieldBundleAdd(fbundle, DPEDT, rc=status)
-    call ESMF_FieldBundleAdd(fbundle, DTDT, rc=status)
-    call ESMF_FieldBundleAdd(fbundle, DUDT, rc=status)
-    call ESMF_FieldBundleAdd(fbundle, DVDT, rc=status)
-    call ESMF_FieldBundleAdd(fbundle, PHIS, rc=status)
-    call ESMF_FieldBundleAdd(fbundle, QTR, rc=status)
-    call ESMF_FieldBundleAdd(fbundle, CNV, rc=status)
-    call ESMF_FieldBundleAdd(fbundle, CONVCPT, rc=status)
-    call ESMF_FieldBundleAdd(fbundle, CONVKE, rc=status)
-    call ESMF_FieldBundleAdd(fbundle, CONVPHI, rc=status)
-    if (status .ne. ESMF_SUCCESS) return
+    call ESMF_FieldBundleAdd(fieldbundle, (/DPEDT/), rc=status)
+    call ESMF_FieldBundleAdd(fieldbundle, (/DTDT/), rc=status)
+    call ESMF_FieldBundleAdd(fieldbundle, (/DUDT/), rc=status)
+    call ESMF_FieldBundleAdd(fieldbundle, (/DVDT/), rc=status)
+    call ESMF_FieldBundleAdd(fieldbundle, (/PHIS/), rc=status)
+    call ESMF_FieldBundleAdd(fieldbundle, (/QTR/), rc=status)
+    call ESMF_FieldBundleAdd(fieldbundle, (/CNV/), rc=status)
+    call ESMF_FieldBundleAdd(fieldbundle, (/CONVCPT/), rc=status)
+    call ESMF_FieldBundleAdd(fieldbundle, (/CONVKE/), rc=status)
+    call ESMF_FieldBundleAdd(fieldbundle, (/CONVPHI/), rc=status)
 
-    call ESMF_StateAdd(exportState, fieldbundle=fbundle, rc=status)
-    if (status .ne. ESMF_SUCCESS) return
+    call ESMF_StateAdd(exportState, fieldbundleList=(/fieldbundle/), rc=status)
 !EOC
 
 !BOE
@@ -550,11 +554,10 @@ module ESMF_AttributeUpdateMod
     rc = ESMF_SUCCESS
 
     call ESMF_CplCompGet(comp, vm=vm, rc=rc)
-    if (rc/=ESMF_SUCCESS) return
-    call ESMF_StateReconcile(importState, vm, attreconflag=ESMF_ATTRECONCILE_ON, rc=rc)
-    if (rc/=ESMF_SUCCESS) return
-    call ESMF_StateReconcile(exportState, vm, attreconflag=ESMF_ATTRECONCILE_ON, rc=rc)
-    if (rc/=ESMF_SUCCESS) return
+    call ESMF_StateReconcile(importState, vm=vm, &
+               attreconflag=ESMF_ATTRECONCILE_ON, rc=rc)
+    call ESMF_StateReconcile(exportState, vm=vm, &
+               attreconflag=ESMF_ATTRECONCILE_ON, rc=rc)
 !EOC
    
 !BOE
@@ -589,33 +592,29 @@ module ESMF_AttributeUpdateMod
 !BOC
     type(ESMF_VM)               :: vm
     integer                     :: petCount, status, myPet, k
-    character(ESMF_MAXSTR)      :: name2,value2,convESMF,convCC,purpGen,name3
+    character(ESMF_MAXSTR)      :: name2,value2,convESMF,purpGen,purp2,name3
     character(ESMF_MAXSTR),dimension(2) :: attrList
     type(ESMF_Field)            :: field
-    type(ESMF_FieldBundle)      :: fbundle
+    type(ESMF_FieldBundle)      :: fieldbundle
     type(ESMF_Grid)             :: grid
 
     rc = ESMF_SUCCESS
 
     convESMF = 'ESMF'
-    convCC = 'CustomConvention'
     purpGen = 'General'
     name2 = 'StandardName'
     value2 = 'default_standard_name'
     name3 = 'LongName'
     
-    attrList(1) = 'coordinates'
-    attrList(2) = 'mask'
+    purp2 = 'Extended'
+    attrList(1) = 'Coordinates'
+    attrList(2) = 'Mask'
     
     call ESMF_GridCompGet(comp, vm=vm, rc=status)
-    if (status .ne. ESMF_SUCCESS) return
     call ESMF_VMGet(vm, petCount=petCount, localPet=myPet, rc=status)
-    if (status .ne. ESMF_SUCCESS) return
 
-    call ESMF_StateGet(exportState, "fbundle", fbundle, rc=rc)
-    if (rc/=ESMF_SUCCESS) return
-    call ESMF_FieldBundleGet(fbundle, grid=grid, rc=rc)
-    if (rc/=ESMF_SUCCESS) return
+    call ESMF_StateGet(exportState, "fieldbundle", fieldbundle, rc=rc)
+    call ESMF_FieldBundleGet(fieldbundle, grid=grid, rc=rc)
 !EOC
 
 !BOE
@@ -630,21 +629,18 @@ module ESMF_AttributeUpdateMod
 
 !BOC
     do k = 1, 10
-        call ESMF_FieldBundleGet(fbundle, fieldIndex=k, field=field, rc=rc)
-        if (rc/=ESMF_SUCCESS) return
+        call ESMF_FieldBundleGet(fieldbundle, fieldIndex=k, field=field, rc=rc)
         call ESMF_AttributeSet(field, name2, value2, convention=convESMF, &
           purpose=purpGen, rc=status)
-        if (rc/=ESMF_SUCCESS) return
-        call ESMF_AttributeAdd(field, convention=convCC, purpose=purpGen, &
-          attrList=attrList, nestConvention=convESMF, nestPurpose=purpGen, rc=rc)
+        call ESMF_AttributeAdd(field, convention=convESMF, purpose=purp2, &
+          attrList=attrList, nestConvention=convESMF, nestPurpose=purpGen, &
+          rc=rc)
         call ESMF_AttributeSet(field, name='Coordinates', value='Latlon', &
-          convention=convCC, purpose=purpGen, rc=rc)
+          convention=convESMF, purpose=purp2, rc=rc)
         call ESMF_AttributeSet(field, name='Mask', value='Yes', &
-          convention=convCC, purpose=purpGen, rc=rc)
-        if (rc/=ESMF_SUCCESS) return
+          convention=convESMF, purpose=purp2, rc=rc)
         call ESMF_AttributeRemove(field, name=name3, convention=convESMF, &
           purpose=purpGen, rc=status)
-        if (rc/=ESMF_SUCCESS) return
     enddo
 !EOC
 
@@ -691,22 +687,17 @@ module ESMF_AttributeUpdateMod
     rc = ESMF_SUCCESS
 
     call ESMF_CplCompGet(comp, vm=vm, rc=rc)
-    if (rc/=ESMF_SUCCESS) return
+
     call ESMF_VMGet(vm, localPet=myPet, rc=rc)
-    if (rc/=ESMF_SUCCESS) return
 
     call ESMF_StateGet(importState, rc=rc)
-    if (rc/=ESMF_SUCCESS) return
     call ESMF_StateGet(exportState, rc=rc)
-    if (rc/=ESMF_SUCCESS) return
 
     rootList = (/0,1/)
     call ESMF_AttributeUpdate(importState, vm, rootList=rootList, rc=rc)
-    if (rc/=ESMF_SUCCESS) return
    
     call ESMF_AttributeCopy(importState, exportState, &
-      ESMF_ATTCOPY_HYBRID, ESMF_ATTTREE_ON, rc=rc)
-    if (rc/=ESMF_SUCCESS) return
+      ESMF_COPY_ALIAS, ESMF_ATTTREE_ON, rc=rc)
 !EOC
 
 
@@ -740,9 +731,8 @@ module ESMF_AttributeUpdateMod
 ! parts of the VM can use them.  However, this is not our concern at this
 ! point because we will now explore the capabilities of {\tt ESMF\_AttributeWrite()}.
 !
-! First we will get the Component and VM.  Next we will use the writing
-! capabilities of the Attribute class, soon to be replaced by the ESMF I/O
-! class.  We will first write out the Attribute hierarchy to an .xml file, 
+! First we will get the Component and VM.  Then we will write out the 
+! Attribute hierarchy to an .xml file, 
 ! after which we will write out the Attribute hierarchy to a more reader
 ! friendly tab-delimited format.  Both of these write calls will output their
 ! respective data into files in the execution directory, in either a .xml
@@ -791,24 +781,24 @@ module ESMF_AttributeUpdateMod
     integer, intent(out) :: rc
 
     type(ESMF_Field)            :: field
-    type(ESMF_FieldBundle)      :: fbundle
+    type(ESMF_FieldBundle)      :: fieldbundle
     type(ESMF_Grid)             :: grid
     integer                     :: k
 
     ! Initialize return code
     rc = ESMF_SUCCESS
     
-    call ESMF_StateGet(exportState, "fbundle", fbundle, rc=rc)
+    call ESMF_StateGet(exportState, "fieldbundle", fieldbundle, rc=rc)
     if (rc/=ESMF_SUCCESS) return ! bail out
-    call ESMF_FieldBundleGet(fbundle, grid=grid, rc=rc)
+    call ESMF_FieldBundleGet(fieldbundle, grid=grid, rc=rc)
     if (rc/=ESMF_SUCCESS) return ! bail out
     do k = 1, 10
-        call ESMF_FieldBundleGet(fbundle, fieldIndex=k, field=field, rc=rc)
+        call ESMF_FieldBundleGet(fieldbundle, fieldIndex=k, field=field, rc=rc)
         if (rc/=ESMF_SUCCESS) return ! bail out
         call ESMF_FieldDestroy(field, rc=rc)
         if (rc/=ESMF_SUCCESS) return ! bail out
     enddo
-    call ESMF_FieldBundleDestroy(fbundle, rc=rc)
+    call ESMF_FieldBundleDestroy(fieldbundle, rc=rc)
     if (rc/=ESMF_SUCCESS) return ! bail out
 
     call ESMF_GridDestroy(grid, rc=rc)

@@ -1,17 +1,25 @@
+! $Id: ESMF_F90ArrayPtrUTest.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
+!
+! Earth System Modeling Framework
+! Copyright 2002-2012, University Corporation for Atmospheric Research,
+! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
+! Laboratory, University of Michigan, National Centers for Environmental
+! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
+! NASA Goddard Space Flight Center.
+! Licensed under the University of Illinois-NCSA License.
+!
+!==============================================================================
 
     program test
     
 #include "ESMF.h"
 
-#define _FROM_FORTRAN 1
-#include "ESMC_Conf.h"
-
-    use ESMF_Mod
+    use ESMF
     use ESMF_TestMod
     implicit none
 
     ! This test verifies that the actual size of the Fortran 90 "dope vector"
-    ! (private pointer information which stores the rank, indicies, data type,
+    ! (private pointer information which stores the rank, indices, data type,
     ! etc for any Fortran array) will fit within space which has been set aside
     ! for it.
     !

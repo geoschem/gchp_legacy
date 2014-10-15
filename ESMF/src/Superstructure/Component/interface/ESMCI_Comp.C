@@ -1,7 +1,7 @@
-// $Id: ESMCI_Comp.C,v 1.13.2.1 2010/02/05 20:03:54 svasquez Exp $
+// $Id$
 //
 // Earth System Modeling Framework
-// Copyright 2002-2010, University Corporation for Atmospheric Research, 
+// Copyright 2002-2012, University Corporation for Atmospheric Research, 
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
 // Laboratory, University of Michigan, National Centers for Environmental 
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
@@ -41,7 +41,7 @@
 //-----------------------------------------------------------------------------
 // leave the following line as-is; it will insert the cvs ident string
 // into the object file for tracking purposes.
-static const char *const version = "$Id: ESMCI_Comp.C,v 1.13.2.1 2010/02/05 20:03:54 svasquez Exp $";
+static const char *const version = "$Id$";
 //-----------------------------------------------------------------------------
 
 
@@ -49,23 +49,22 @@ static const char *const version = "$Id: ESMCI_Comp.C,v 1.13.2.1 2010/02/05 20:0
 // prototypes for Fortran interface routines called by C++ code below
 extern "C" {
   void FTN(f_esmf_gridcompcreate)(ESMCI::GridComp *comp, char const *name, 
-    ESMCI::GridCompType *mtype, char const *configFile, ESMCI::Clock **clock, 
+    char const *configFile, ESMCI::Clock **clock, 
     int *rc, ESMCI_FortranStrLenArg nlen, ESMCI_FortranStrLenArg clen);
   void FTN(f_esmf_gridcompdestroy)(ESMCI::GridComp *comp, int *rc);
   void FTN(f_esmf_gridcompinitialize)(const ESMCI::GridComp *gcomp,
     ESMCI::State *importState, ESMCI::State *exportState, 
-    ESMCI::Clock **clock, int *phase, ESMC_BlockingFlag *blockingFlag, 
+    ESMCI::Clock **clock, ESMC_BlockingFlag *blockingFlag, int *phase,
     int *userRc, int *rc);
   void FTN(f_esmf_gridcomprun)(const ESMCI::GridComp *gcomp,
     ESMCI::State *importState, ESMCI::State *exportState, 
-    ESMCI::Clock **clock, int *phase, ESMC_BlockingFlag *blockingFlag,
+    ESMCI::Clock **clock, ESMC_BlockingFlag *blockingFlag, int *phase,
     int *userRc, int *rc);
   void FTN(f_esmf_gridcompfinalize)(const ESMCI::GridComp *gcomp,
     ESMCI::State *importState, ESMCI::State *exportState, 
-    ESMCI::Clock **clock, int *phase, ESMC_BlockingFlag *blockingFlag,
+    ESMCI::Clock **clock, ESMC_BlockingFlag *blockingFlag, int *phase,
     int *userRc, int *rc);
-  void FTN(f_esmf_gridcompprint)(const ESMCI::GridComp *gcomp,
-    char const *options, int *rc, ESMCI_FortranStrLenArg olen);
+  void FTN(f_esmf_gridcompprint)(const ESMCI::GridComp *gcomp, int *rc);
   
   void FTN(f_esmf_cplcompcreate)(ESMCI::CplComp *comp, char const *name, 
     char const *configFile, ESMCI::Clock **clock, 
@@ -73,18 +72,17 @@ extern "C" {
   void FTN(f_esmf_cplcompdestroy)(ESMCI::CplComp *comp, int *rc);
   void FTN(f_esmf_cplcompinitialize)(const ESMCI::CplComp *gcomp,
     ESMCI::State *importState, ESMCI::State *exportState, 
-    ESMCI::Clock **clock, int *phase, ESMC_BlockingFlag *blockingFlag,
+    ESMCI::Clock **clock, ESMC_BlockingFlag *blockingFlag, int *phase,
     int *userRc, int *rc);
   void FTN(f_esmf_cplcomprun)(const ESMCI::CplComp *gcomp,
     ESMCI::State *importState, ESMCI::State *exportState, 
-    ESMCI::Clock **clock, int *phase, ESMC_BlockingFlag *blockingFlag,
+    ESMCI::Clock **clock, ESMC_BlockingFlag *blockingFlag, int *phase,
     int *userRc, int *rc);
   void FTN(f_esmf_cplcompfinalize)(const ESMCI::CplComp *gcomp,
     ESMCI::State *importState, ESMCI::State *exportState, 
-    ESMCI::Clock **clock, int *phase, ESMC_BlockingFlag *blockingFlag,
+    ESMCI::Clock **clock, ESMC_BlockingFlag *blockingFlag, int *phase,
     int *userRc, int *rc);
-  void FTN(f_esmf_cplcompprint)(const ESMCI::CplComp *gcomp,
-    char const *options, int *rc, ESMCI_FortranStrLenArg olen);
+  void FTN(f_esmf_cplcompprint)(const ESMCI::CplComp *gcomp, int *rc);
 };
 //==============================================================================
 
@@ -125,7 +123,7 @@ int Comp::setServices(
   }
 
   FTable::setServices(this, (void(*)())func, userRc, &localrc);
-  if (ESMC_LogDefault.MsgFoundError(localrc, ESMF_ERR_PASSTHRU, &rc))
+  if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, &rc))
     return rc;
   
   // return successfully
@@ -178,22 +176,37 @@ int Comp::setEntryPoint(
 
   char const *methodString;
   switch(method){
-  case ESMCI::SETINIT:
+  case ESMCI::METHOD_INITIALIZE:
     methodString = "Initialize";
     break;
-  case ESMCI::SETRUN:
+  case ESMCI::METHOD_RUN:
     methodString = "Run";
     break;
-  case ESMCI::SETFINAL:
+  case ESMCI::METHOD_FINALIZE:
     methodString = "Finalize";
     break;
-  case ESMCI::SETWRITERESTART:
+  case ESMCI::METHOD_WRITERESTART:
     methodString = "WriteRestart";
     break;
-  case ESMCI::SETREADRESTART:
+  case ESMCI::METHOD_READRESTART:
     methodString = "ReadRestart";
     break;
-  case ESMCI::SETREGISTER:
+  case ESMCI::METHOD_INITIALIZEIC:
+    methodString = "InitializeIC";
+    break;
+  case ESMCI::METHOD_RUNIC:
+    methodString = "RunIC";
+    break;
+  case ESMCI::METHOD_FINALIZEIC:
+    methodString = "FinalizeIC";
+    break;
+  case ESMCI::METHOD_WRITERESTARTIC:
+    methodString = "WriteRestartIC";
+    break;
+  case ESMCI::METHOD_READRESTARTIC:
+    methodString = "ReadRestartIC";
+    break;
+  case ESMCI::METHOD_SETSERVICES:
     methodString = "Register";
     break;
   default:
@@ -205,7 +218,7 @@ int Comp::setEntryPoint(
   FTable::newtrim(methodString, slen, &phase, NULL, &fname);
   
   localrc = ftable->setFuncPtr(fname, (void *)functionPtr, FT_VOIDP4INTP);
-  if (ESMC_LogDefault.MsgFoundError(localrc, ESMF_ERR_PASSTHRU, &rc)) 
+  if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, &rc)) 
     return rc;
 
   delete[] fname;  // delete memory that "newtrim" allocated above
@@ -261,7 +274,7 @@ void *Comp::getInternalState(
   void *data;
   
   localrc = ftable->getDataPtr(name, &data, &dtype);
-  if (ESMC_LogDefault.MsgFoundError(localrc, ESMF_ERR_PASSTHRU, rc))
+  if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, rc))
     return NULL;
   
   // return successfully
@@ -314,7 +327,7 @@ int Comp::setInternalState(
   enum dtype dtype = DT_VOIDP;
   
   localrc = ftable->setDataPtr(name, &data, dtype);
-  if (ESMC_LogDefault.MsgFoundError(localrc, ESMF_ERR_PASSTHRU, &rc))
+  if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, &rc))
     return rc;
   
   // return successfully
@@ -339,7 +352,6 @@ GridComp *GridComp::create(
 // !ARGUMENTS:
 //
     char const *name, 
-    enum GridCompType mtype,
     char const *configFile,
     Clock *clock,
     int *rc
@@ -355,9 +367,9 @@ GridComp *GridComp::create(
   
   GridComp *comp = new GridComp;
   
-  FTN(f_esmf_gridcompcreate)(comp, name, &mtype,
+  FTN(f_esmf_gridcompcreate)(comp, name,
     configFile, &clock, &localrc, strlen(name), strlen(configFile));
-  if (ESMC_LogDefault.MsgFoundError(localrc, ESMF_ERR_PASSTHRU, rc))
+  if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, rc))
     return comp;
 
   // return successfully
@@ -400,7 +412,7 @@ int GridComp::destroy(
   }
   
   FTN(f_esmf_gridcompdestroy)(comp, &localrc);
-  if (ESMC_LogDefault.MsgFoundError(localrc, ESMF_ERR_PASSTHRU, &rc))
+  if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, &rc))
     return rc;
   
   delete comp;
@@ -454,8 +466,8 @@ int GridComp::initialize(
   if (userRc) localUserRc = *userRc;
   
   FTN(f_esmf_gridcompinitialize)(this, importState, exportState, &clock,
-    &phase, &blockingFlag, &localUserRc, &localrc);
-  if (ESMC_LogDefault.MsgFoundError(localrc, ESMF_ERR_PASSTHRU, &rc))
+    &blockingFlag, &phase, &localUserRc, &localrc);
+  if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, &rc))
     return rc;
   
   if (userRc) *userRc = localUserRc;
@@ -509,8 +521,8 @@ int GridComp::run(
   if (userRc) localUserRc = *userRc;
 
   FTN(f_esmf_gridcomprun)(this, importState, exportState, &clock,
-    &phase, &blockingFlag, &localUserRc, &localrc);
-  if (ESMC_LogDefault.MsgFoundError(localrc, ESMF_ERR_PASSTHRU, &rc))
+    &blockingFlag, &phase, &localUserRc, &localrc);
+  if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, &rc))
     return rc;
   
   if (userRc) *userRc = localUserRc;
@@ -564,8 +576,8 @@ int GridComp::finalize(
   if (userRc) localUserRc = *userRc;
   
   FTN(f_esmf_gridcompfinalize)(this, importState, exportState, &clock,
-    &phase, &blockingFlag, &localUserRc, &localrc);
-  if (ESMC_LogDefault.MsgFoundError(localrc, ESMF_ERR_PASSTHRU, &rc))
+    &blockingFlag, &phase, &localUserRc, &localrc);
+  if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, &rc))
     return rc;
   
   if (userRc) *userRc = localUserRc;
@@ -591,7 +603,6 @@ int GridComp::print(
 //
 // !ARGUMENTS:
 //
-    char const *options
   )const{
 //
 // !DESCRIPTION:
@@ -609,8 +620,8 @@ int GridComp::print(
     return rc;
   }
   
-  FTN(f_esmf_gridcompprint)(this, options, &localrc, strlen(options));
-  if (ESMC_LogDefault.MsgFoundError(localrc, ESMF_ERR_PASSTHRU, &rc))
+  FTN(f_esmf_gridcompprint)(this, &localrc);
+  if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, &rc))
     return rc;
   
   // return successfully
@@ -652,7 +663,7 @@ CplComp *CplComp::create(
   
   FTN(f_esmf_cplcompcreate)(comp, name, configFile, &clock, &localrc,
     strlen(name), strlen(configFile));
-  if (ESMC_LogDefault.MsgFoundError(localrc, ESMF_ERR_PASSTHRU, rc))
+  if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, rc))
     return comp;
 
   // return successfully
@@ -695,7 +706,7 @@ int CplComp::destroy(
   }
   
   FTN(f_esmf_cplcompdestroy)(comp, &localrc);
-  if (ESMC_LogDefault.MsgFoundError(localrc, ESMF_ERR_PASSTHRU, &rc))
+  if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, &rc))
     return rc;
   
   delete comp;
@@ -749,8 +760,8 @@ int CplComp::initialize(
   if (userRc) localUserRc = *userRc;
 
   FTN(f_esmf_cplcompinitialize)(this, importState, exportState, &clock,
-    &phase, &blockingFlag, &localUserRc, &localrc);
-  if (ESMC_LogDefault.MsgFoundError(localrc, ESMF_ERR_PASSTHRU, &rc))
+    &blockingFlag, &phase, &localUserRc, &localrc);
+  if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, &rc))
     return rc;
   
   if (userRc) *userRc = localUserRc;
@@ -804,8 +815,8 @@ int CplComp::run(
   if (userRc) localUserRc = *userRc;
 
   FTN(f_esmf_cplcomprun)(this, importState, exportState, &clock,
-    &phase, &blockingFlag, &localUserRc, &localrc);
-  if (ESMC_LogDefault.MsgFoundError(localrc, ESMF_ERR_PASSTHRU, &rc))
+    &blockingFlag, &phase, &localUserRc, &localrc);
+  if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, &rc))
     return rc;
   
   if (userRc) *userRc = localUserRc;
@@ -859,8 +870,8 @@ int CplComp::finalize(
   if (userRc) localUserRc = *userRc;
 
   FTN(f_esmf_cplcompfinalize)(this, importState, exportState, &clock,
-    &phase, &blockingFlag, &localUserRc, &localrc);
-  if (ESMC_LogDefault.MsgFoundError(localrc, ESMF_ERR_PASSTHRU, &rc))
+    &blockingFlag, &phase, &localUserRc, &localrc);
+  if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, &rc))
     return rc;
   
   if (userRc) *userRc = localUserRc;
@@ -886,7 +897,6 @@ int CplComp::print(
 //
 // !ARGUMENTS:
 //
-    char const *options
   )const{
 //
 // !DESCRIPTION:
@@ -904,8 +914,8 @@ int CplComp::print(
     return rc;
   }
   
-  FTN(f_esmf_cplcompprint)(this, options, &localrc, strlen(options));
-  if (ESMC_LogDefault.MsgFoundError(localrc, ESMF_ERR_PASSTHRU, &rc))
+  FTN(f_esmf_cplcompprint)(this, &localrc);
+  if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, &rc))
     return rc;
   
   // return successfully

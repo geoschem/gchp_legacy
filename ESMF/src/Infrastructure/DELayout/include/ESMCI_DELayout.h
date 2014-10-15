@@ -1,7 +1,7 @@
-// $Id: ESMCI_DELayout.h,v 1.17.2.1 2010/02/05 19:54:45 svasquez Exp $
+// $Id: ESMCI_DELayout.h,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
 //
 // Earth System Modeling Framework
-// Copyright 2002-2010, University Corporation for Atmospheric Research, 
+// Copyright 2002-2012, University Corporation for Atmospheric Research, 
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
 // Laboratory, University of Michigan, National Centers for Environmental 
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
@@ -31,7 +31,7 @@
 //EOPI
 //-------------------------------------------------------------------------
 
-#include "ESMC_Base.h"      // Base is superclass to DELayout
+#include "ESMCI_Base.h"       // Base is superclass to DELayout
 #include "ESMCI_VM.h"
 #include "ESMCI_F90Interface.h"
 
@@ -43,7 +43,7 @@ namespace ESMCI {
 
 const int DELAYOUT_CWGHT_NORMAL = 50;
 
-enum DELayoutServiceReply {DELAYOUT_SERVICE_ACCEPT=1, DELAYOUT_SERVICE_DENY};
+enum ServiceReply {SERVICEREPLY_ACCEPT=1, SERVICEREPLY_DENY};
 
 
 // classes
@@ -76,17 +76,17 @@ class DELayout : public ESMC_Base {    // inherits from ESMC_Base class
     de_type *deInfoList;// list that holds all of this layout's DE info
     // --- local section ---
     int localDeCount; // number of DEs associated with instantiating PET
-    int *localDeList; // list that holds all of the de indices for this PET
+    int *localDeToDeMap; // list that holds all of the de indices for this PET
     int *deList;      // localDE index for DE or -1 if not local
     
     int oldstyle;   // if this flag is set then this is an oldstyle delayout
                     // new style delayouts follow proposal sent out on 02/15/06
     
     // - NEWSTYLE section
-    ESMC_DePinFlag dePinFlag; // type of resources DEs are pinned to    
+    ESMC_Pin_Flag pinFlag; // type of resources DEs are pinned to    
     
     int vasLocalDeCount;// number of DEs associated with local VAS
-    int *vasLocalDeList;// list that holds all of the de indices for this VAS
+    int *vasLocalDeToDeMap;// list that holds all of the de indices for this VAS
     
     // - DEPRECATED section
     int ndim;       // dimensionality of this layout
@@ -111,30 +111,30 @@ class DELayout : public ESMC_Base {    // inherits from ESMC_Base class
   private:
     // construct() and destruct()
     int construct(VM *vmArg=ESMC_NULL_POINTER, 
-      ESMC_DePinFlag *dePinFlagArg=ESMC_NULL_POINTER, 
+      ESMC_Pin_Flag *pinFlagArg=ESMC_NULL_POINTER, 
       int *petMap=ESMC_NULL_POINTER, int petMapCount=0);
     int destruct();
     
   public:
     // create() and destroy()
     static DELayout *create(int *petMap, int petMapCount,
-      ESMC_DePinFlag *dePinFlag, VM *vm=NULL, int *rc=NULL);
+      ESMC_Pin_Flag *pinFlag, VM *vm=NULL, int *rc=NULL);
     static DELayout *create(int *deCount=NULL,
-      InterfaceInt *deGrouping=NULL, ESMC_DePinFlag *dePinFlag=NULL,
+      InterfaceInt *deGrouping=NULL, ESMC_Pin_Flag *pinFlag=NULL,
       InterfaceInt *petList=NULL, VM *vm=NULL, int *rc=NULL);
     static int destroy(ESMCI::DELayout **layout);
     // get() and set()
-    VM *getVM()                     const {return vm;}
-    int getDeCount()                const {return deCount;}
-    const int *getDeList()          const {return deList;}
-    int getLocalDeCount()           const {return localDeCount;}
-    const int *getLocalDeList()     const {return localDeList;}
-    int getVasLocalDeCount()        const {return vasLocalDeCount;}
-    const int *getVasLocalDeList()  const {return vasLocalDeList;}
-    int getPet(int i)               const {return deInfoList[i].pet;}
-    int getVas(int i)               const {return deInfoList[i].vas;}
-    ESMC_Logical getOneToOneFlag()  const {return oneToOneFlag;}
-    ESMC_DePinFlag getDePinFlag()   const {return dePinFlag;}
+    VM *getVM()                       const {return vm;}
+    int getDeCount()                  const {return deCount;}
+    const int *getDeList()            const {return deList;}
+    int getLocalDeCount()             const {return localDeCount;}
+    const int *getLocalDeToDeMap()    const {return localDeToDeMap;}
+    int getVasLocalDeCount()          const {return vasLocalDeCount;}
+    const int *getVasLocalDeToDeMap() const {return vasLocalDeToDeMap;}
+    int getPet(int i)                 const {return deInfoList[i].pet;}
+    int getVas(int i)                 const {return deInfoList[i].vas;}
+    ESMC_Logical getOneToOneFlag()    const {return oneToOneFlag;}
+    ESMC_Pin_Flag getPinFlag()        const {return pinFlag;}
     int getDEMatchDE(int DEid, DELayout &layoutMatch, int *deMatchCount, 
       int *deMatchList, int len_deMatchList)const;
     int getDEMatchPET(int DEid, VM &vmMatch, int *petMatchCount,
@@ -147,7 +147,7 @@ class DELayout : public ESMC_Base {    // inherits from ESMC_Base class
       ESMC_InquireFlag inquireflag) const;
     static DELayout *deserialize(char *buffer, int *offset);
     // work queue synchronization methods
-    DELayoutServiceReply serviceOffer(int de, int *rc);
+    ServiceReply serviceOffer(int de, int *rc);
     int serviceComplete(int de);
     
     // ---------------- DEPRECATED section -------------------
@@ -213,19 +213,28 @@ class DELayout : public ESMC_Base {    // inherits from ESMC_Base class
 class XXE{
   public:
     enum OpId{
+      // --- send and recv
       send, recv,
       sendnb, recvnb, sendnbRRA, recvnbRRA,
-      waitOnIndex, waitOnAnyIndexSub, waitOnIndexRange,
+      // --- wait
+      waitOnIndex, waitOnAnyIndexSub, waitOnIndexRange, waitOnIndexSub,
+      // --- test
+      testOnIndex, testOnIndexSub,
+      // --- cancel
+      cancelIndex,
+      // --- product and sum
       productSumVector,
       productSumScalar, productSumScalarRRA,
       sumSuperScalarDstRRA,
       productSumSuperScalarDstRRA,
       productSumSuperScalarSrcRRA,
       productSumSuperScalarContigRRA,
-      zeroScalarRRA, zeroSuperScalarRRA, zeroVector, zeroVectorRRA,
+      // -- zero
+      zeroScalarRRA, zeroSuperScalarRRA, zeroMemset, zeroMemsetRRA,
+      // --- mem movement
       memCpy, memCpySrcRRA,
       memGatherSrcRRA,
-      // --- subs
+      // --- unconditional subs
       xxeSub, xxeSubMulti,
       // --- profiling
       wtimer,
@@ -240,33 +249,80 @@ class XXE{
       I4, I8, R4, R8, BYTE
     };
     struct StreamElement{
+      // Generic stream element that any stream element can be cast into. This
+      // permits access to the first two members, common to all stream elements.
       OpId opId;              // id of operation
       int predicateBitField;  // predicate bit field to control conditional exec
-      char opInfo[12*8];      // 12 x 8-byte to hold info associated with op
+      char opInfo[16*8];      // 16 x 8-byte padding to hold stream specific
+                              // members
     };
     
+    // special predefined filter bits
+    static int const filterBitRegionTotalZero   = 0x1;  // total dst zero'ing
+    static int const filterBitRegionSelectZero  = 0x2;  // select dst element z.
+    static int const filterBitNbStart           = 0x4;  // non-block start
+    static int const filterBitNbTestFinish      = 0x8;  // non-block test&finish
+    static int const filterBitNbWaitFinish      = 0x10; // non-block wait&finish
+    static int const filterBitCancel            = 0x20; // cancel
+
+    struct BufferInfo{
+      // The BufferInfo provides an extra level of indirection to XXE managed
+      // communication buffers, allowing the resizing of buffers without having
+      // to rewrite XXE stream elements. The relevant size and scaling
+      // information is also provided to support buffer resizing during exec(),
+      // when the actual execution time vectorLength is known.
+      char *buffer;                 // buffer
+      int size;                     // size of buffer in byte
+      int vectorLengthMultiplier;   // multiplier that allows to determine size
+                                    // requirement depending on vectorLength
+                                    // during exec()
+      
+      BufferInfo(char *buffer_, int size_, int vectorLengthMultiplier_){
+        // constructor
+        buffer = buffer_;
+        size = size_;
+        vectorLengthMultiplier = vectorLengthMultiplier_;
+      }
+    };
+        
   public:
     VM *vm;
-    StreamElement *stream;
-    int count;
-    char **storage;
-    int storageCount;
-    VMK::commhandle ***commhandle;
-    int commhandleCount;
-    XXE **xxeSubList;
-    int xxeSubCount;
-    ESMC_TypeKind typekind[10];
+    StreamElement *stream;          // actual stream containing XXE elements
+    int count;                      // number of elements in the stream
+    char **storage;                 // list of (char *) entries to allocations
+                                    // for which this XXE object is responsible
+    int storageCount;               // number of elements in storage
+    VMK::commhandle ***commhandle;  // list of (commhandle **) entries for 
+                                    // which this XXE object is responsible
+    int commhandleCount;            // number of elements in commhandle
+    XXE **xxeSubList;               // list of (XXE *) entries for which this
+                                    // XXE object is responsible
+    int xxeSubCount;                // number of elements in xxeSubList
+    ESMC_TypeKind typekind[10];     // place the XXE can store TypeKind info
+    std::vector<BufferInfo *>bufferInfoList; // vector of (BufferInfo *) entries
+      // The bufferInfoList provides an extra level of indirection to XXE
+      // managed communication buffers, and associated size information.
+      // At the beginning of exec() the entries in the bufferInfoList are
+      // checked against the current exec() conditions (i.e. the vectorLength
+      // at execution time), and new, larger buffers are allocated if necessary.
+      // Actual XXE elements in the stream that go through the bufferInfoList
+      // entries have the "indirectionFlag" set, and thus support buffer
+      // updates during exec() through the bufferInfoList indirection, without
+      // the need for XXE stream rewrite (which would be far too expensive to
+      // do during exec())!
+    int lastFilterBitField;         // filterBitField during last exec() call
   private:
-    int max;
-    int storageMaxCount;
-    int commhandleMaxCount;
-    int xxeSubMaxCount;
+    int max;                        // maximum number of elements in stream
+    int storageMaxCount;            // maximum number of elements in storage
+    int commhandleMaxCount;         // maximum number of elements in commhandle
+    int xxeSubMaxCount;             // maximum number of elements in xxeSubList
     
   public:
     XXE(VM *vmArg, int maxArg=1000, int storageMaxCountArg=1000,
       int commhandleMaxCountArg=1000, int xxeSubMaxCountArg=1000){
       // constructor
       vm = vmArg;
+      // -> set up internal stream and bookkeeping members
       stream = new StreamElement[maxArg]; count = 0; max = maxArg;
       storage = new char*[storageMaxCountArg];
       storageCount  = 0;
@@ -277,23 +333,38 @@ class XXE{
       xxeSubList = new XXE*[xxeSubMaxCountArg];
       xxeSubCount  = 0;
       xxeSubMaxCount = xxeSubMaxCountArg;
+      bufferInfoList.reserve(1000);  // initial preparation
+      lastFilterBitField = 0x0;
     }
-    ~XXE(){     // destructor
+    ~XXE(){
+      // destructor
+      // -> clean-up all allocations for which this XXE object is responsible:
+      // stream of XXE elements
       delete [] stream;
+      // memory allocations held in storage
       for (int i=0; i<storageCount; i++)
         delete [] storage[i];
       delete [] storage;
+      // CommHandles held in commhandle
       for (int i=0; i<commhandleCount; i++){
         delete *commhandle[i];
         delete commhandle[i];
       }
       delete [] commhandle;
+      // XXE sub objects held in xxeSubList
       for (int i=0; i<xxeSubCount; i++)
         delete xxeSubList[i];
       delete [] xxeSubList;
+      // BufferInfo objects held in bufferInfoList
+      for (int i=0; i<bufferInfoList.size(); i++)
+        delete bufferInfoList[i];
+      bufferInfoList.clear();
     }
     void clearReset(int countArg, int storageCountArg=-1, 
-      int commhandleCountArg=-1, int xxeSubCountArg=-1){
+      int commhandleCountArg=-1, int xxeSubCountArg=-1, 
+      int bufferInfoListArg=-1){
+      // reset the stream back to a specified position, and clear all
+      // bookkeeping elements above specified positions
       count = countArg; // reset
       if (storageCountArg>0){
         for (int i=storageCountArg; i<storageCount; i++)
@@ -312,12 +383,21 @@ class XXE{
           delete xxeSubList[i];
         xxeSubCount = xxeSubCountArg; // reset
       }
+      if (bufferInfoListArg>0){
+        std::vector<BufferInfo *>::iterator first =
+          bufferInfoList.begin() + bufferInfoListArg;
+        std::vector<BufferInfo *>::iterator last = bufferInfoList.end();
+        for (std::vector<BufferInfo *>::iterator bi=first; bi!=last; ++bi)
+          delete *bi;
+        bufferInfoList.erase(first, last);
+      }
     }
-    int exec(int rraCount=0, char **rraList=NULL, int filterBitField=0x0,
+    int exec(int rraCount=0, char **rraList=NULL, int *vectorLength=NULL,
+      int filterBitField=0x0, bool *finished=NULL, bool *cancelled=NULL, 
       double *dTime=NULL, int indexStart=-1, int indexStop=-1);
-    int print(int rraCount=0, char **rraList=NULL, int filterBitField=0x0,
-      int indexStart=-1, int indexStop=-1);
-    int printProfile();
+    int print(FILE *fp, int rraCount=0, char **rraList=NULL,
+      int filterBitField=0x0, int indexStart=-1, int indexStop=-1);
+    int printProfile(FILE *fp);
     int execReady();
     int optimize();
     int optimizeElement(int index);
@@ -335,42 +415,58 @@ class XXE{
     int storeStorage(char *storage);
     int storeCommhandle(VMK::commhandle **commhandle);
     int storeXxeSub(XXE *xxeSub);
-    int appendXxeSub(int predicateBitField, XXE *xxeSub, int rraShift);
+    int storeBufferInfo(char *buffer, int size, int vectorLengthMultiplier);
+    char *getBufferInfoPtr(){
+      int i=bufferInfoList.size();
+      if (i>0)
+        return (char *)bufferInfoList[i-1];
+      else
+        return NULL;
+    }
+    int appendXxeSub(int predicateBitField, XXE *xxeSub, int rraShift,
+      int vectorLengthShift);
     int appendWtimer(int predicateBitField, char *string, int id, int actualId,
       int relativeId=0, XXE *relativeXXE=NULL);
     int appendRecvnb(int predicateBitField, void *buffer, int size, int srcPet,
-      int tag=-1);
+      int tag=-1, bool vectorFlag=false, bool indirectionFlag=false);
     int appendSendnb(int predicateBitField, void *buffer, int size, int dstPet,
-      int tag=-1);
+      int tag=-1, bool vectorFlag=false, bool indirectionFlag=false);
     int appendSendnbRRA(int predicateBitField, int rraOffset, int size,
-      int dstPet, int rraIndex, int tag=-1);
+      int dstPet, int rraIndex, int tag=-1, bool vectorFlag=false);
     int appendMemCpySrcRRA(int predicateBitField, int rraOffset, int size,
       void *dstMem, int rraIndex);
     int appendMemGatherSrcRRA(int predicateBitField, void *dstBase,
-      TKId dstBaseTK, int rraIndex, int chunkCount,
-      int vectorLength=1);
+      TKId dstBaseTK, int rraIndex, int chunkCount, bool vectorFlag=false,
+      bool indirectionFlag=false);
     int appendZeroScalarRRA(int predicateBitField, TKId elementTK,
       int rraOffset, int rraIndex);
     int appendZeroSuperScalarRRA(int predicateBitField, TKId elementTK,
-      int rraIndex, int termCount,
-      int vectorLength=1);
-    int appendZeroVector(int predicateBitField, char *buffer, int byteCount);
-    int appendZeroVectorRRA(int predicateBitField, int byteCount, int rraIndex);
+      int rraIndex, int termCount, bool vectorFlag=false);
+    int appendZeroMemset(int predicateBitField, void *buffer, int byteCount,
+      bool vectorFlag=false, bool indirectionFlag=false);
+    int appendZeroMemsetRRA(int predicateBitField, int byteCount, int rraIndex,
+      bool vectorFlag=false);
     int appendProductSumScalarRRA(int predicateBitField, TKId elementTK,
       TKId valueTK, TKId factorTK, int rraOffset, void *factor, void *value,
       int rraIndex);
     int appendSumSuperScalarDstRRA(int predicateBitField, TKId elementTK,
-      TKId valueTK, int rraIndex, int termCount,
-      int vectorLength=1);
+      TKId valueTK, int rraIndex, int termCount, void *valueBase,
+      bool vectorFlag=false, bool indirectionFlag=false);
     int appendProductSumSuperScalarDstRRA(int predicateBitField, TKId elementTK,
-      TKId valueTK, TKId factorTK, int rraIndex, int termCount,
-      int vectorLength=1);
+      TKId valueTK, TKId factorTK, int rraIndex, int termCount, void *valueBase,
+      bool vectorFlag=false, bool indirectionFlag=false);
     int appendProductSumSuperScalarSrcRRA(int predicateBitField, TKId elementTK,
       TKId valueTK, TKId factorTK, int rraIndex, int termCount,
-      int vectorLength=1);
+      void *elementBase, bool vectorFlag=false, bool indirectionFlag=false);
     int appendWaitOnIndex(int predicateBitField, int index);
+    int appendTestOnIndex(int predicateBitField, int index);
     int appendWaitOnAnyIndexSub(int predicateBitField, int count);
     int appendWaitOnAllSendnb(int predicateBitField);
+    int appendWaitOnIndexSub(int predicateBitField, XXE *xxeSub, int rraShift,
+      int vectorLengthShift, int index);
+    int appendTestOnIndexSub(int predicateBitField, XXE *xxeSub, int rraShift,
+      int vectorLengthShift, int index);
+    int appendCancelIndex(int predicateBitField, int index);
     int appendProfileMessage(int predicateBitField, char *messageString);
     int appendMessage(int predicateBitField, char *messageString);
     
@@ -383,64 +479,87 @@ class XXE{
       V *value, TKId valueTK, int resolved);
     template<typename T, typename V>
     static void sssDstRra(T *rraBase, TKId elementTK, int *rraOffsetList,
-      V **valueList, TKId valueTK, int termCount, int vectorLength,
-      int resolved);
+      V *valueBase, int *valueOffsetList, TKId valueTK, int termCount,
+      int vectorLength, int resolved);
     template<typename T, typename U, typename V>
     static void psssDstRra(T *rraBase, TKId elementTK, int *rraOffsetList,
-      U **factorList, TKId factorTK, V **valueList, TKId valueTK,
-      int termCount, int vectorLength, int resolved);
+      U **factorList, TKId factorTK, V *valueBase, int *valueOffsetList,
+      TKId valueTK, int termCount, int vectorLength, int resolved);
     template<typename T, typename U, typename V>
     static void psssSrcRra(T *rraBase, TKId valueTK, int *rraOffsetList,
-      U **factorList, TKId factorTK, V **elementList, TKId elementTK,
-      int termCount, int vectorLength, int resolved);
+      U **factorList, TKId factorTK, V *elementBase, int *elementOffsetList,
+      TKId elementTK, int termCount, int vectorLength, int resolved);
     template<typename T, typename U, typename V>
     static void pssscRra(T *rraBase, TKId elementTK, int *rraOffsetList,
       U **factorList, TKId factorTK, V *valueList, TKId valueTK,
       int termCount, int vectorLength, int resolved);
 
-  // types with which to interpret the StreamElement elements
   public:
+      
+    // specific stream element types, used to interpret the elements in stream
+    
+    // Common stream element members and their meaning:
+    //  opId                - operation id according to "enum OpId"
+    //  predicateBitField   - predicate bit field to control conditional exec
+    //  vectorFlag          - true:  scale with vectorLength during exec()
+    //                      - false: ignore vectorLength during exec()
+    //  indirectionFlag     - true:  interpret buffer as " *(char **)buffer"
+    //                        false: interpret buffer as " (char *)buffer"
       
     typedef struct{
       OpId opId;
       int predicateBitField;
       VMK::commhandle **commhandle;
+      bool activeFlag;
+      bool cancelledFlag;
       void *buffer;
       int size;
       int dstPet;
       int tag;
+      bool vectorFlag;
+      bool indirectionFlag;
     }SendnbInfo;
 
     typedef struct{
       OpId opId;
       int predicateBitField;
       VMK::commhandle **commhandle;
+      bool activeFlag;
+      bool cancelledFlag;
       void *buffer;
       int size;
       int srcPet;
       int tag;
+      bool vectorFlag;
+      bool indirectionFlag;
     }RecvnbInfo;
 
     typedef struct{
       OpId opId;
       int predicateBitField;
       VMK::commhandle **commhandle;
+      bool activeFlag;
+      bool cancelledFlag;
       int rraOffset;
       int size;
       int dstPet;
       int rraIndex;
       int tag;
+      bool vectorFlag;
     }SendnbRRAInfo;
 
     typedef struct{
       OpId opId;
       int predicateBitField;
       VMK::commhandle **commhandle;
+      bool activeFlag;
+      bool cancelledFlag;
       int rraOffset;
       int size;
       int srcPet;
       int rraIndex;
       int tag;
+      bool vectorFlag;
     }RecvnbRRAInfo;
 
     typedef struct{
@@ -448,6 +567,12 @@ class XXE{
       int predicateBitField;
       int index;
     }WaitOnIndexInfo;
+
+    typedef struct{
+      OpId opId;
+      int predicateBitField;
+      int index;
+    }TestOnIndexInfo;
 
     typedef struct{
       OpId opId;
@@ -464,6 +589,30 @@ class XXE{
       int indexStart;
       int indexEnd;
     }WaitOnIndexRangeInfo;
+
+    typedef struct{
+      OpId opId;
+      int predicateBitField;
+      XXE *xxe;
+      int rraShift;
+      int vectorLengthShift;
+      int index;
+    }WaitOnIndexSubInfo;
+    
+    typedef struct{
+      OpId opId;
+      int predicateBitField;
+      XXE *xxe;
+      int rraShift;
+      int vectorLengthShift;
+      int index;
+    }TestOnIndexSubInfo;
+    
+    typedef struct{
+      OpId opId;
+      int predicateBitField;
+      int index;
+    }CancelIndexInfo;
 
     typedef struct{
       OpId opId;
@@ -506,10 +655,12 @@ class XXE{
       TKId elementTK;
       TKId valueTK;
       int *rraOffsetList;
-      void **valueList;
+      void *valueBase;
       int rraIndex;
       int termCount;
-      int vectorLength;
+      bool vectorFlag;
+      bool indirectionFlag;
+      int *valueOffsetList;
     }SumSuperScalarDstRRAInfo;
 
     typedef struct{
@@ -520,10 +671,12 @@ class XXE{
       TKId valueTK;
       int *rraOffsetList;
       void **factorList;
-      void **valueList;
+      void *valueBase;
       int rraIndex;
       int termCount;
-      int vectorLength;
+      bool vectorFlag;
+      bool indirectionFlag;
+      int *valueOffsetList;
     }ProductSumSuperScalarDstRRAInfo;
 
     typedef struct{
@@ -534,10 +687,12 @@ class XXE{
       TKId valueTK;
       int *rraOffsetList;
       void **factorList;
-      void **elementList;
+      void *elementBase;
       int rraIndex;
       int termCount;
-      int vectorLength;
+      bool vectorFlag;
+      bool indirectionFlag;
+      int *elementOffsetList;
     }ProductSumSuperScalarSrcRRAInfo;
 
     typedef struct{
@@ -551,7 +706,8 @@ class XXE{
       void *valueList;
       int rraIndex;
       int termCount;
-      int vectorLength;
+      bool vectorFlag;
+      bool indirectionFlag;
     }ProductSumSuperScalarContigRRAInfo;
 
     typedef struct{
@@ -569,22 +725,25 @@ class XXE{
       int *rraOffsetList;
       int rraIndex;
       int termCount;
-      int vectorLength;
+      bool vectorFlag;
     }ZeroSuperScalarRRAInfo;
 
     typedef struct{
       OpId opId;
       int predicateBitField;
-      char *buffer;
+      void *buffer;
       int byteCount;
-    }ZeroVectorInfo;
+      bool vectorFlag;
+      bool indirectionFlag;
+    }ZeroMemsetInfo;
 
     typedef struct{
       OpId opId;
       int predicateBitField;
       int byteCount;
       int rraIndex;
-    }ZeroVectorRRAInfo;
+      bool vectorFlag;
+    }ZeroMemsetRRAInfo;
 
     typedef struct{
       OpId opId;
@@ -612,7 +771,8 @@ class XXE{
       int *countList;
       int rraIndex;
       int chunkCount;
-      int vectorLength;
+      bool vectorFlag;
+      bool indirectionFlag;
     }MemGatherSrcRRAInfo;
     
     // --- sub-streams
@@ -622,6 +782,7 @@ class XXE{
       int predicateBitField;
       XXE *xxe;
       int rraShift;
+      int vectorLengthShift;
     }XxeSubInfo;
     
     typedef struct{
@@ -669,6 +830,8 @@ class XXE{
       OpId opId;
       int predicateBitField;
       VMK::commhandle **commhandle;
+      bool activeFlag;
+      bool cancelledFlag;
     }CommhandleInfo;
 
 };  // class XXE

@@ -1,0 +1,13 @@
+
+OBSNAM: merra
+OBSDSC: GEOSdas-2_1_4_(MERRA)
+
+        filename:   'VERIFICATION/MERRA_MEANS/tavg1_2d_flx_Nx.ddf'
+        filetype:   'HDF'
+        fields:     'TPREC'    , 'MOIST'         , 'PRECTOT' , 86400
+                    ::
+
+        filename:   'VERIFICATION/MERRA_MEANS/inst1_2d_int_Nx.ddf'
+        filetype:   'HDF'
+        fields:     'TQV'    , 'AGCM'         , 'TQV' , 1
+                    ::

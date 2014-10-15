@@ -1,7 +1,7 @@
-! $Id: ESMF_FieldStressUTest.F90,v 1.8.2.1 2010/02/05 19:56:15 svasquez Exp $
+! $Id: ESMF_FieldStressUTest.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2010, University Corporation for Atmospheric Research,
+! Copyright 2002-2012, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -29,7 +29,7 @@
 !-----------------------------------------------------------------------------
 ! !USES:
     use ESMF_TestMod     ! test methods
-    use ESMF_Mod
+    use ESMF
 
     implicit none
 
@@ -104,49 +104,49 @@ contains
         localrc = ESMF_SUCCESS
         rc = ESMF_SUCCESS
         do i = 1, n_loop
-            grid = ESMF_GridCreateShapeTile(minIndex=(/1,1/), maxIndex=(/10,20/), &
+            grid = ESMF_GridCreateNoPeriDim(minIndex=(/1,1/), maxIndex=(/10,20/), &
                                       regDecomp=(/1,1/), name="landgrid", rc=localrc)
-            if (ESMF_LogMsgFoundError(localrc, &
+            if (ESMF_LogFoundError(localrc, &
                 ESMF_ERR_PASSTHRU, &
-                ESMF_CONTEXT, rc)) return
+                ESMF_CONTEXT, rcToReturn=rc)) return
 
             call ESMF_GridGet(grid, distgrid=distgrid, rc=localrc)
-            if (ESMF_LogMsgFoundError(localrc, &
+            if (ESMF_LogFoundError(localrc, &
                 ESMF_ERR_PASSTHRU, &
-                ESMF_CONTEXT, rc)) return
+                ESMF_CONTEXT, rcToReturn=rc)) return
 
             call ESMF_GridGet(grid, localde=0, staggerloc=ESMF_STAGGERLOC_CENTER, &
                 computationalCount=gcc, exclusiveCount=gec, rc=localrc)
-            if (ESMF_LogMsgFoundError(localrc, &
+            if (ESMF_LogFoundError(localrc, &
                 ESMF_ERR_PASSTHRU, &
-                ESMF_CONTEXT, rc)) return
+                ESMF_CONTEXT, rcToReturn=rc)) return
 
             allocate(farray(max(gcc(1), gec(1)), max(gcc(2), gec(2))) )
 
-            array = ESMF_ArrayCreate(farray, distgrid=distgrid, &
+            array = ESMF_ArrayCreate(distgrid, farray, &
                 indexflag=ESMF_INDEX_DELOCAL, &
                 computationalEdgeUWidth=(/-1,-1/), rc=localrc)
-            if (ESMF_LogMsgFoundError(localrc, &
+            if (ESMF_LogFoundError(localrc, &
                 ESMF_ERR_PASSTHRU, &
-                ESMF_CONTEXT, rc)) return
+                ESMF_CONTEXT, rcToReturn=rc)) return
 
-            field = ESMF_FieldCreate(grid, array, copyflag=ESMF_DATA_COPY, rc=localrc)
-            if (ESMF_LogMsgFoundError(localrc, &
+            field = ESMF_FieldCreate(grid, array, datacopyflag=ESMF_DATACOPY_VALUE, rc=localrc)
+            if (ESMF_LogFoundError(localrc, &
                 ESMF_ERR_PASSTHRU, &
-                ESMF_CONTEXT, rc)) return
+                ESMF_CONTEXT, rcToReturn=rc)) return
 
             call ESMF_FieldDestroy(field, rc=localrc)
-            if (ESMF_LogMsgFoundError(localrc, &
+            if (ESMF_LogFoundError(localrc, &
                 ESMF_ERR_PASSTHRU, &
-                ESMF_CONTEXT, rc)) return
+                ESMF_CONTEXT, rcToReturn=rc)) return
             call ESMF_ArrayDestroy(array, rc=localrc)
-            if (ESMF_LogMsgFoundError(localrc, &
+            if (ESMF_LogFoundError(localrc, &
                 ESMF_ERR_PASSTHRU, &
-                ESMF_CONTEXT, rc)) return
+                ESMF_CONTEXT, rcToReturn=rc)) return
             call ESMF_GridDestroy(grid, rc=localrc)
-            if (ESMF_LogMsgFoundError(localrc, &
+            if (ESMF_LogFoundError(localrc, &
                 ESMF_ERR_PASSTHRU, &
-                ESMF_CONTEXT, rc)) return
+                ESMF_CONTEXT, rcToReturn=rc)) return
             deallocate(farray)
         enddo
         rc = localrc

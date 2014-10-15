@@ -1,7 +1,7 @@
-! $Id: ESMF_VMScatterUTest.F90,v 1.10.4.1 2010/02/05 20:02:07 svasquez Exp $
+! $Id: ESMF_VMScatterUTest.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2010, University Corporation for Atmospheric Research,
+! Copyright 2002-2012, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -29,14 +29,14 @@ program ESMF_VMScatterUTest
 !-----------------------------------------------------------------------------
 ! !USES:
   use ESMF_TestMod     ! test methods
-  use ESMF_Mod
+  use ESMF
 
   implicit none
 
 !------------------------------------------------------------------------------
 ! The following line turns the CVS identifier string into a printable variable.
   character(*), parameter :: version = &
-    '$Id: ESMF_VMScatterUTest.F90,v 1.10.4.1 2010/02/05 20:02:07 svasquez Exp $'
+    '$Id: ESMF_VMScatterUTest.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $'
 !------------------------------------------------------------------------------
   ! cumulative result: count failures; no failures equals "all pass"
   integer :: result = 0
@@ -69,7 +69,7 @@ program ESMF_VMScatterUTest
 
   ! get global vm information
   call ESMF_VMGetGlobal(vm, rc=rc)
-  call ESMF_VMGet(vm, localPet, petCount=petCount, rc=rc)
+  call ESMF_VMGet(vm, localPet=localPet, petCount=petCount, rc=rc)
 
   scatterRoot = 0
   ! allocate data arrays
@@ -104,7 +104,7 @@ program ESMF_VMScatterUTest
   write(name, *) "Scatter() Test for Integer"
   write(failMsg, *) "Did not RETURN ESMF_SUCCESS"
   call ESMF_VMScatter(vm, sendData=array1, recvData=array2, count=nsize, &
-    root=scatterRoot, rc=rc)
+    rootPet=scatterRoot, rc=rc)
   call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
 
   !------------------------------------------------------------------------
@@ -148,7 +148,7 @@ program ESMF_VMScatterUTest
   write(name, *) "Scatter() Test for ESMF_KIND_R8"
   write(failMsg, *) "Did not RETURN ESMF_SUCCESS"
   call ESMF_VMScatter(vm, sendData=farray1, recvData=farray2, count=nsize, &
-    root=scatterRoot, rc=rc)
+    rootPet=scatterRoot, rc=rc)
   call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
 
   !------------------------------------------------------------------------
@@ -192,7 +192,7 @@ program ESMF_VMScatterUTest
   write(name, *) "Scatter() Test for ESMF_KIND_R4"
   write(failMsg, *) "Did not RETURN ESMF_SUCCESS"
   call ESMF_VMScatter(vm, sendData=f4array1, recvData=f4array2, count=nsize, &
-    root=scatterRoot, rc=rc)
+    rootPet=scatterRoot, rc=rc)
   call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
 
   !------------------------------------------------------------------------
@@ -269,7 +269,7 @@ program ESMF_VMScatterUTest
   write(failMsg, *) "Did not RETURN ESMF_SUCCESS"
   call ESMF_VMScatterV(vm, sendData=array1, sendCounts=sendCounts, &
     sendOffsets=sendOffsets, recvData=array2, recvCount=nsize, &
-    root=scatterRoot, rc=rc)
+    rootPet=scatterRoot, rc=rc)
   call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
 
   !------------------------------------------------------------------------
@@ -314,7 +314,7 @@ program ESMF_VMScatterUTest
   write(failMsg, *) "Did not RETURN ESMF_SUCCESS"
   call ESMF_VMScatterV(vm, sendData=farray1, sendCounts=sendCounts, &
     sendOffsets=sendOffsets, recvData=farray2, recvCount=nsize, &
-    root=scatterRoot, rc=rc)
+    rootPet=scatterRoot, rc=rc)
   call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
 
   !------------------------------------------------------------------------
@@ -359,7 +359,7 @@ program ESMF_VMScatterUTest
   write(failMsg, *) "Did not RETURN ESMF_SUCCESS"
   call ESMF_VMScatterV(vm, sendData=f4array1, sendCounts=sendCounts, &
     sendOffsets=sendOffsets, recvData=f4array2, recvCount=nsize, &
-    root=scatterRoot, rc=rc)
+    rootPet=scatterRoot, rc=rc)
   call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
 
   !------------------------------------------------------------------------

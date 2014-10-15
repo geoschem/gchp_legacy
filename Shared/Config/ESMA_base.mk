@@ -81,7 +81,7 @@ RM          = /bin/rm -f
 SED         = /bin/sed                       
 TAR         = /bin/tar
 GZIP        = gzip -v
-BOPT        = O
+BOPT        = g
 M4          = m4
 FDP         = $(ESMABIN)/fdp
 FDP_FLAGS   = -v
@@ -128,12 +128,16 @@ LIB_HDF5 = $(wildcard $(foreach lib,hdf5_hl hdf5 z sz gpfs,\
 
 DIR_NETCDF = $(GC_BIN)
 #./$(ARCH)
-INC_NETCDF = $(DIR_NETCDF)/../include
+INC_NETCDF = $(GC_INCLUDE)
+#$(DIR_NETCDF)/../include
 #ifeq ($(wildcard $(BASEBIN)/nc-config), )
 #    LIB_NETCDF = $(BASELIB)/libnetcdf.a $(LIB_HDF5)
 #else
-#    LIB_NETCDF := $(shell $(BASEBIN)/nc-config --flibs)
+    LIB_NETCDF := $(shell $(GC_BIN)/nc-config --flibs)
 #endif
+
+#	LIB_NETCDF = -L$(GC_LIB)
+#$(NCL)
 
 DIR_HDF = $(GC_BIN)
 #./$(ARCH)
@@ -154,14 +158,15 @@ else
      ifneq ($(shell grep -c 'netcdf version 3' $(INC_SDF)/netcdf.inc),0)
         DEF_SDF += $(D)HAS_NETCDF3
      endif
-     ifneq ($(shell grep -c 'define H5_HAVE_PARALLEL 1' $(INC_HDF5)/H5pubconf.h),0)
-        DEF_SDF += $(D)H5_HAVE_PARALLEL
-     endif
+#     ifneq ($(shell grep -c 'define H5_HAVE_PARALLEL 1' $(INC_HDF5)/H5pubconf.h),0)
+#        DEF_SDF += $(D)H5_HAVE_PARALLEL
+#     endif
    endif
 endif
 
 
-DIR_ESMF := $(BASEDIR)/ESMF
+DIR_ESMF := $(ESMF_DIR)
+#$(BASEDIR)/ESMF
 INC_ESMF := $(DIR_ESMF)/$(ARCH)/include/
 MOD_ESMF := $(DIR_ESMF)/$(ARCH)/mod/
 LIB_ESMF := $(DIR_ESMF)/$(ARCH)/lib/libesmf.so

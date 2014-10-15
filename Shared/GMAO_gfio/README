@@ -1,0 +1,29 @@
+
+GFIO Version 1.0.8 - 11/02/1999
+-------------------------------
+
+The primary documentation for GFIO is found on the 
+DAO Intranet at:
+
+http://dao.gsfc.nasa.gov/Intranet/GEOS3/Software/Core/GPIOS/GFIO/
+
+For convenience and quick reference, a Postscript copy of the GFIO
+interface document is in the located in the main distribution
+directory:
+
+doc/gfioV1.0.4_IF.ps
+
+If you have any problems or questions, contact Rob Lucchesi.
+(rlucchesi@dao.gsfc.nasa.gov)
+
+
+Notes on F90 Modules Wed Jun 12 12:40:24 EDT 2002
+-------------------------------------------------
+
+The following FORTRAN 90 modules are still experimental, and should be
+consider in alpha stage. Both interface and functionality are expected
+to change in the near future. User at your own risk.
+
+m_GFIO_GetFld.f
+m_GFIO_PutFld.f
+m_gfio.f90

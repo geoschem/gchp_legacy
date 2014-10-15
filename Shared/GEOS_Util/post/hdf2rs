@@ -1,0 +1,39 @@
+#!/bin/csh
+
+      ./configure
+source .configure
+
+if(-e hdf2rs_${ARCH}.x ) /bin/rm hdf2rs_${ARCH}.x
+if(-e test.o           ) /bin/rm test.o
+if(-e test.F           ) /bin/rm test.F
+cat hdf2rs.F timer.F gmap.F > test.F
+
+# Set Endian
+# ----------
+ set ENDIAN = ""
+#set ENDIAN = "-convert big_endian"
+
+
+# Linux Compilation
+# -----------------
+if( ${ARCH} == 'Linux' ) then
+
+     set gfio = GMAO_gfio_r4
+     set cfio = MAPL_cfio_r4
+     set hdf  = GMAO_mfhdf3
+
+     ifort -c -extend_source -O3 -I.     -Dmpi  dynamics_lattice_module.F
+     ifort -c -extend_source -O3 -I.     -Dmpi  mpi_util.F
+     ifort -c -extend_source -O3 -I.     -Dmpi  mymalloc.F
+     ifort -c -extend_source -O3 -I.     -Dmpi  windfix.F
+     ifort -c -extend_source -O3 -I. -r8 -Dmpi  PWSSSP.F
+
+     ifort -o hdf2rs_${ARCH}.x $ENDIAN -extend_source -O3 -Dmpi  -I.     test.F \
+            dynamics_lattice_module.o mpi_util.o mymalloc.o windfix.o PWSSSP.o \
+           -L$GFIODIR/$ARCH/lib -l$cfio -l$gfio -l$hdf \
+           -L$BASEDIR/$ARCH/lib                        \
+           -lmfhdf -ldf -ljpeg -lz -lsz -ldl -lc -lrt -lcprts -lunwind -lfmpi -lmpi -lmpio -lesmf
+endif
+
+if( -e test.F ) /bin/rm test.F
+if( -e test.o ) /bin/rm test.o

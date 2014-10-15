@@ -1,7 +1,7 @@
-! $Id: ESMF_FieldGetEx.F90,v 1.12.2.1 2010/02/05 19:55:38 svasquez Exp $
+! $Id: ESMF_FieldGetEx.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2010, University Corporation for Atmospheric Research,
+! Copyright 2002-2012, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -23,7 +23,7 @@
 !-----------------------------------------------------------------------------
 
     ! ESMF Framework module
-    use ESMF_Mod
+    use ESMF
     implicit none
     
     ! Local variables
@@ -45,14 +45,14 @@
     integer :: excl_count(1:3)
     integer :: total_count(1:3)
 
-    type(ESMF_TypeKind)        :: typekind
+    type(ESMF_TypeKind_Flag)        :: typekind
     integer                    :: rank
     type(ESMF_StaggerLoc)      :: staggerloc 
     integer                    :: gridToFieldMap(3)    
     integer                    :: ungriddedLBound(3)
     integer                    :: ungriddedUBound(3)
-    integer                    :: maxHaloLWidth(3)
-    integer                    :: maxHaloUWidth(3)
+    integer                    :: totalLWidth(3)
+    integer                    :: totalUWidth(3)
     integer                    :: fa_shape(3)
     character(len=32)          :: name
 
@@ -61,13 +61,14 @@
 !   !Set finalrc to success
     finalrc = ESMF_SUCCESS
 
-    call ESMF_Initialize(rc=rc)
+    call ESMF_Initialize(defaultlogfilename="FieldGetEx.Log", &
+                    logkindflag=ESMF_LOGKIND_MULTI, rc=rc)
 
 !>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%
 !-------------------------------- Example -----------------------------
 !>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%
 !BOE
-!\subsubsection{Get Fortran data pointer, Bounds, and Counts information from a Field}
+!\subsubsection{Get a Fortran data pointer, bounds, and counts information from a Field}
 !\label{sec:field:usage:field_get_dataptr}
 !
 !  User can get various bounds and counts information from a {\tt ESMF\_Field}
@@ -89,7 +90,7 @@
 
     ! create a 3D data Field from Grid and Array
     ! create a Grid 
-    grid3d = ESMF_GridCreateShapeTile(minIndex=(/1,1,1/), maxIndex=(/xdim,ydim,zdim/), &
+    grid3d = ESMF_GridCreateNoPeriDim(minIndex=(/1,1,1/), maxIndex=(/xdim,ydim,zdim/), &
                               regDecomp=(/2,2,1/), name="grid", rc=rc)
     if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
 
@@ -143,7 +144,7 @@
 !-------------------------------- Example -----------------------------
 !>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%
 !BOE
-!\subsubsection{Get Grid and Array and other information from a Field}
+!\subsubsection{Get a Grid, Array, and other information from a Field}
 !\label{sec:field:usage:field_get_default}
 !
 !  User can get the internal {\tt ESMF\_Grid} and {\tt ESMF\_Array} 
@@ -160,7 +161,7 @@
         typekind=typekind, dimCount=rank, staggerloc=staggerloc, &
         gridToFieldMap=gridToFieldMap, &
         ungriddedLBound=ungriddedLBound, ungriddedUBound=ungriddedUBound, &
-        maxHaloLWidth=maxHaloLWidth, maxHaloUWidth=maxHaloUWidth, & 
+        totalLWidth=totalLWidth, totalUWidth=totalUWidth, & 
         name=name, &
         rc=rc)
 !EOC

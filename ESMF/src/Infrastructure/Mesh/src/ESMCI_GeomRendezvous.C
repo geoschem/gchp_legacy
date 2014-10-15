@@ -1,6 +1,7 @@
+// $Id$
 //
 // Earth System Modeling Framework
-// Copyright 2002-2010, University Corporation for Atmospheric Research, 
+// Copyright 2002-2012, University Corporation for Atmospheric Research, 
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
 // Laboratory, University of Michigan, National Centers for Environmental 
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
@@ -19,6 +20,12 @@
 #include <Mesh/src/Zoltan/zoltan.h>
 
 #include <limits>
+
+//-----------------------------------------------------------------------------
+// leave the following line as-is; it will insert the cvs ident string
+// into the object file for tracking purposes.
+static const char *const version = "$Id$";
+//-----------------------------------------------------------------------------
 
 namespace ESMCI {
 
@@ -72,6 +79,7 @@ static void GetObject(void *user, int numGlobalIds, int numLids, int numObjs,
   MEField<> *coord_dst = udata.coord_dst;
   *err = 0;
 
+
   UInt list1_size = udata.srcObj.size();
   for (UInt i = 0; i < (UInt) numObjs; i++) {
     UInt mesh = gids[2*i]; // 0 = src, 1 = dst
@@ -79,6 +87,7 @@ static void GetObject(void *user, int numGlobalIds, int numLids, int numObjs,
 
     std::vector<double> ndata(numDim);
     double *c;
+
     if (mesh == 0) {
       MeshObj *elemp = udata.srcObj[idx];
       elemCentroid(*coord_src, *elemp, &ndata[0]);
@@ -87,11 +96,19 @@ static void GetObject(void *user, int numGlobalIds, int numLids, int numObjs,
     } else if (mesh == 1) {
       UInt sidx = idx - list1_size; // local indices start from first list, continue into second
       MeshObj *nodep = udata.dstObj[sidx];
-      c = coord_dst->data(*nodep);
-    } else throw("GetObject, unknown mesh from global id");
 
+      // Get destination coord depending on object type
+      if (udata.iter_is_obj) {
+	elemCentroid(*coord_dst, *nodep, &ndata[0]);
+	c = &ndata[0];
+      } else {
+	c = coord_dst->data(*nodep);
+      }
+
+    } else throw("GetObject, unknown mesh from global id");
     for (UInt d = 0; d < (UInt) numDim; d++) pts[i*numDim + d] = c[d];
   }
+
 }
 
 /*-----------------------------------------------------------------------------------*/
@@ -372,9 +389,13 @@ void GeomRend::build_dst_mig(Zoltan_Struct *zz, ZoltanUD &zud, int numExport,
 
     std::vector<CommRel::CommNode> mignode;
 
-    CommRel &dst_migration = dstComm.GetCommRel(dcfg.obj_type);
-    dst_migration.Init("dst_migration", dstmesh, dstmesh_rend, false);
     rcb_isect(zz, coord, zud.dstObj, mignode, dcfg.geom_tol, sdim);
+
+    // Add results to the migspec
+    CommRel &dst_migration = dstComm.GetCommRel(dcfg.obj_type); 
+    //    CommRel &dst_migration = dstComm.GetCommRel(MeshObj::ELEMENT);
+    dst_migration.Init("dst_migration", dstmesh, dstmesh_rend, false);
+    dst_migration.add_domain(mignode); // BOB added
     
     // Now flush out the comm with lower hierarchy
     dst_migration.dependants(dstComm.GetCommRel(MeshObj::NODE), MeshObj::NODE); 
@@ -448,7 +469,22 @@ void GeomRend::prep_meshes() {
     srcmesh_rend.RegisterField("mask", smask->GetMEFamily(),
 		 MeshObj::ELEMENT, smask->GetContext(), smask->dim());
   }
-  
+
+
+  MEField<> *src_elem_mask = srcmesh.GetField("elem_mask");
+  if (src_elem_mask != NULL) {
+    srcmesh_rend.RegisterField("elem_mask", src_elem_mask->GetMEFamily(),
+		 MeshObj::ELEMENT, src_elem_mask->GetContext(), src_elem_mask->dim());
+  }
+
+
+  MEField<> *src_elem_area = srcmesh.GetField("elem_area");
+  if (src_elem_area != NULL) {
+    srcmesh_rend.RegisterField("elem_area", src_elem_area->GetMEFamily(),
+		 MeshObj::ELEMENT, src_elem_area->GetContext(), src_elem_area->dim());
+  }
+
+
   // Destination Mesh //
   
   // Mesh dims
@@ -464,7 +500,21 @@ void GeomRend::prep_meshes() {
   if (iter_is_obj) {
     MEField<> &dcoord = *dstmesh.GetCoordField();
     dstmesh_rend.RegisterField("coordinates", dcoord.GetMEFamily(), MeshObj::ELEMENT,
-                        dcoord.GetContext(), dcoord.dim());
+                               dcoord.GetContext(), dcoord.dim());
+
+    MEField<> *dst_elem_mask = dstmesh.GetField("elem_mask");
+    if (dst_elem_mask != NULL) {
+      dstmesh_rend.RegisterField("elem_mask", dst_elem_mask->GetMEFamily(),
+                                 MeshObj::ELEMENT, dst_elem_mask->GetContext(), dst_elem_mask->dim());
+    }
+
+
+    MEField<> *dst_elem_area = dstmesh.GetField("elem_area");
+    if (dst_elem_area != NULL) {
+      dstmesh_rend.RegisterField("elem_area", dst_elem_area->GetMEFamily(),
+                                 MeshObj::ELEMENT, dst_elem_area->GetContext(), dst_elem_area->dim());
+    }
+
   } else {
     
      MEField<> &dcoord = *dstmesh.GetCoordField();
@@ -493,10 +543,9 @@ void GeomRend::migrate_meshes() {
   srcComm.GetCommRel(MeshObj::FACE).build_range();
   srcComm.GetCommRel(MeshObj::ELEMENT).build_range();
 
-
   {  
     int num_snd=0;
-    MEField<> *snd[2],*rcv[2];
+    MEField<> *snd[4],*rcv[4];
 
     MEField<> *sc = srcmesh.GetCoordField();
     MEField<> *sc_r = srcmesh_rend.GetCoordField();
@@ -517,12 +566,33 @@ void GeomRend::migrate_meshes() {
       num_snd++;            
     }
 
+    // Do elem masks if necessary
+    MEField<> *sem = srcmesh.GetField("elem_mask");
+    if (sem != NULL) {
+      MEField<> *sem_r = srcmesh_rend.GetField("elem_mask");
+
+      // load mask fields
+      snd[num_snd]=sem;
+      rcv[num_snd]=sem_r;
+      num_snd++;            
+    }
+
+    // Do elem masks if necessary
+    MEField<> *sea = srcmesh.GetField("elem_area");
+    if (sea != NULL) {
+      MEField<> *sea_r = srcmesh_rend.GetField("elem_area");
+
+      // load mask fields
+      snd[num_snd]=sea;
+      rcv[num_snd]=sea_r;
+      num_snd++;            
+    }
+
      srcmesh_rend.Commit();
   
      srcComm.SendFields(num_snd, snd, rcv);
   }
 
-  
   // And now the destination
   dstComm.GetCommRel(MeshObj::NODE).build_range();
   
@@ -533,22 +603,63 @@ void GeomRend::migrate_meshes() {
     dstComm.GetCommRel(MeshObj::ELEMENT).build_range();
   }
   
-  MEField<> *dc = dstmesh.GetCoordField();
 
-  MEField<> *dm = dstmesh.GetField("mask");
-
-  
   dstmesh_rend.Commit();
   
-  if (iter_is_obj) {
-    
+  if (iter_is_obj) {    
+    int num_snd=0;
+    MEField<> *snd[4],*rcv[4];
+
+    MEField<> *dc = dstmesh.GetCoordField();
     MEField<> *dc_r = dstmesh_rend.GetCoordField();
-    dstComm.SendFields(1, &dc, &dc_r);
-    
+
+    // load coordinate fields
+    snd[num_snd]=dc;
+    rcv[num_snd]=dc_r;
+    num_snd++;            
+
+    // Do masks if necessary
+    MEField<> *dm = dstmesh.GetField("mask");
+    if (dm != NULL) {
+      MEField<> *dm_r = dstmesh_rend.GetField("mask");
+
+      // load mask fields
+      snd[num_snd]=dm;
+      rcv[num_snd]=dm_r;
+      num_snd++;            
+    }
+
+    // Do elem masks if necessary
+    MEField<> *dem = dstmesh.GetField("elem_mask");
+    if (dem != NULL) {
+      MEField<> *dem_r = dstmesh_rend.GetField("elem_mask");
+
+      // load mask fields
+      snd[num_snd]=dem;
+      rcv[num_snd]=dem_r;
+      num_snd++;            
+    }
+
+    // Do elem area if necessary
+    MEField<> *dea = dstmesh.GetField("elem_area");
+    if (dea != NULL) {
+      MEField<> *dea_r = dstmesh_rend.GetField("elem_area");
+
+      // load mask fields
+      snd[num_snd]=dea;
+      rcv[num_snd]=dea_r;
+      num_snd++;            
+    }
+
+     dstComm.SendFields(num_snd, snd, rcv);
+
   } else {
     int num_snd=0;
     _field *snd[2],*rcv[2];
 
+    MEField<> *dc = dstmesh.GetCoordField();
+    MEField<> *dm = dstmesh.GetField("mask");
+      
     _field *dcf = dc->GetNodalfield();
     _field *dc_rf = dstmesh_rend.Getfield("coordinates_1");
     ThrowRequire(dc_rf);
@@ -574,11 +685,12 @@ void GeomRend::migrate_meshes() {
     dst_node.send_fields(num_snd, snd, rcv);
         Trace __trace1("dst_node post send fields->");
 
-  }  
+  }
+
 
 }
 
-void GeomRend::Build(UInt nsrcF, MEField<> **srcF, UInt ndstF, MEField<> **dstF) {
+void GeomRend::Build(UInt nsrcF, MEField<> **srcF, UInt ndstF, MEField<> **dstF, struct Zoltan_Struct **zzp, bool free_zz) {
   Trace __trace("GeomRend::Build()");
 
   ThrowRequire(built == false);
@@ -587,7 +699,7 @@ void GeomRend::Build(UInt nsrcF, MEField<> **srcF, UInt ndstF, MEField<> **dstF)
   // Should not use neighbors flag unless source has ghosting enabled
   ThrowRequire(!dcfg.neighbors || srcmesh.HasGhost());
 	
-  ZoltanUD zud(sdim, srcmesh.GetCoordField(), dstmesh.GetCoordField());
+  ZoltanUD zud(sdim, srcmesh.GetCoordField(), dstmesh.GetCoordField(), iter_is_obj);
 
   // Gather the destination points.  Also get a min/max
   double cmin[3], cmax[3];
@@ -601,16 +713,15 @@ void GeomRend::Build(UInt nsrcF, MEField<> **srcF, UInt ndstF, MEField<> **dstF)
   float ver;
   int rc = Zoltan_Initialize(0, NULL, &ver);
 
-  struct Zoltan_Struct *zz;
   int rank = Par::Rank(); 
   int csize = Par::Size(); 
 
-  zz = Zoltan_Create(Par::Comm());
+
+  struct Zoltan_Struct * zz = Zoltan_Create(Par::Comm());
+  *zzp = zz;
 
   // Zoltan Parameters
   set_zolt_param(zz);
-
-
 
   // Local vars needed by zoltan
   int changes;
@@ -633,7 +744,6 @@ void GeomRend::Build(UInt nsrcF, MEField<> **srcF, UInt ndstF, MEField<> **dstF)
   Zoltan_Set_Num_Geom_Fn(zz, GetNumGeom, (void*) &zud);
   Zoltan_Set_Geom_Multi_Fn(zz, GetObject, (void*) &zud);
 
-
   // Call zoltan
   rc = Zoltan_LB_Partition(zz, &changes, &numGidEntries, &numLidEntries,
     &numImport, &importGlobalids, &importLocalids, &importProcs, &importToPart,
@@ -644,6 +754,7 @@ void GeomRend::Build(UInt nsrcF, MEField<> **srcF, UInt ndstF, MEField<> **dstF)
 
   // Build the destination migration
   build_dst_mig(zz, zud, numExport, exportLocalids, exportGlobalids, exportProcs);
+
 
   // Ok.  Done with zud lists, so free them in the intests of memory
   std::vector<MeshObj*>().swap(zud.srcObj);
@@ -678,7 +789,6 @@ void GeomRend::Build(UInt nsrcF, MEField<> **srcF, UInt ndstF, MEField<> **dstF)
   
   //WriteMesh(srcmesh_rend, "srcrend");
 
-
   // Now, IMPORTANT: We transpose the destination comm since this is how is will be
   // used until destruction.
   dstComm.Transpose();
@@ -689,9 +799,9 @@ void GeomRend::Build(UInt nsrcF, MEField<> **srcF, UInt ndstF, MEField<> **dstF)
   Zoltan_LB_Free_Part(&exportGlobalids, &exportLocalids,
                       &exportProcs, &exportToPart);
 
-
-  Zoltan_Destroy(&zz);
-
+  if(free_zz){
+    Zoltan_Destroy(&zz);
+  }
 }
 
 } // namespace ESMCI

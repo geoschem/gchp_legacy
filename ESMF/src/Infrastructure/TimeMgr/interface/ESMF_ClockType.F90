@@ -1,7 +1,7 @@
-! $Id: ESMF_ClockType.F90,v 1.20.2.1 2010/02/05 20:00:31 svasquez Exp $
+! $Id: ESMF_ClockType.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2010, University Corporation for Atmospheric Research,
+! Copyright 2002-2012, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -31,7 +31,7 @@
 ! !MODULE: ESMF_ClockTypeMod
 !
 ! !DESCRIPTION:
-! Part of Time Manager Fortran API wrapper of C++ implemenation.
+! Part of Time Manager Fortran API wrapper of C++ implementation.
 !
 ! Defines Fortran types for corresponding C++ class {\tt ESMC\_Clock}.
 !
@@ -39,15 +39,15 @@
 !
 !------------------------------------------------------------------------------
 ! !USES:
-      use ESMF_UtilTypesMod
+      ! inherit from ESMF base class
       use ESMF_BaseMod
+      use ESMF_UtilTypesMod
+
       implicit none
 
 !------------------------------------------------------------------------------
 ! !PRIVATE TYPES:
-!     None: all types defined in this file are public and propagated up
-!     via ESMF_ClockMod in ESMF_Clock.F90
-
+      private
 !------------------------------------------------------------------------------
 !     ! ESMF_Clock
 !
@@ -63,12 +63,26 @@
 !     The types defined in this file are public and propagated up via 
 !     ESMF_ClockMod in ESMF_Clock.F90      
 
+      public ESMF_Clock
+
+!------------------------------------------------------------------------------
+! !PUBLIC METHODS:
+!     The methods defined in this file are public and propagated up via 
+!     ESMF_ClockMod in ESMF_Clock.F90      
+
+      public ESMF_ClockGetInit
+      public ESMF_ClockSetInitCreated
+      public ESMF_ClockSetInitDeleted
+      public ESMF_ClockGetThis
+      public ESMF_ClockSetThis
+
+!------------------------------------------------------------------------------
 !EOPI
 
 !------------------------------------------------------------------------------
 ! The following line turns the CVS identifier string into a printable variable.
       character(*), parameter, private :: version = &
-      '$Id: ESMF_ClockType.F90,v 1.20.2.1 2010/02/05 20:00:31 svasquez Exp $'
+      '$Id: ESMF_ClockType.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $'
 !------------------------------------------------------------------------------
 
       contains
@@ -80,30 +94,30 @@
 ! !IROUTINE:  ESMF_ClockGetInit - Get initialization status.
 
 ! !INTERFACE:
-    function ESMF_ClockGetInit(d)
+      function ESMF_ClockGetInit(d)
 !
 ! !ARGUMENTS:
       type(ESMF_Clock), intent(in), optional :: d
       ESMF_INIT_TYPE                         :: ESMF_ClockGetInit
 !
 ! !DESCRIPTION:
-!     Get the initialization status of the Deep class {\tt bundle}.
+!     Get the initialization status of the Deep class {\tt clock}.
 !
 !     The arguments are:
 !     \begin{description}
-!     \item [s]
-!           {\tt ESMF\_Clock} from which to retreive status.
+!     \item [{[d]}]
+!           {\tt ESMF\_Clock} from which to retrieve status.
 !     \end{description}
 !
 !EOPI
 
-       if (present(d)) then
-         ESMF_ClockGetInit = ESMF_INIT_GET(d)
-       else
-         ESMF_ClockGetInit = ESMF_INIT_CREATED
-       endif
+      if (present(d)) then
+        ESMF_ClockGetInit = ESMF_INIT_GET(d)
+      else
+        ESMF_ClockGetInit = ESMF_INIT_CREATED
+      endif
 
-    end function ESMF_ClockGetInit
+      end function ESMF_ClockGetInit
 
 !------------------------------------------------------------------------------
 
@@ -114,11 +128,11 @@
 ! !IROUTINE: ESMF_ClockSetInitCreated - Set Clock init code to "CREATED"
 
 ! !INTERFACE:
-  subroutine ESMF_ClockSetInitCreated(clock, rc)
+      subroutine ESMF_ClockSetInitCreated(clock, rc)
 !
 ! !ARGUMENTS:
-    type(ESMF_Clock), intent(inout)         :: clock
-    integer,          intent(out), optional :: rc  
+      type(ESMF_Clock), intent(inout), optional :: clock
+      integer,          intent(out),   optional :: rc  
 !         
 !
 ! !DESCRIPTION:
@@ -126,7 +140,7 @@
 !
 !     The arguments are:
 !     \begin{description}
-!     \item[clock] 
+!     \item[{[clock]}] 
 !          Specified {\tt ESMF\_Clock} object.
 !     \item[{[rc]}] 
 !          Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
@@ -135,16 +149,19 @@
 !EOPI
 !------------------------------------------------------------------------------
 
-    ! Assume failure until success
-    if (present(rc)) rc = ESMF_RC_NOT_IMPL
+      ! Assume failure until success
+      if (present(rc)) rc = ESMF_RC_NOT_IMPL
     
-    ! Set init code
-    ESMF_INIT_SET_CREATED(clock)
+      ! Set init code
+      if (present(clock)) then
+        ESMF_INIT_SET_CREATED(clock)
+      endif
 
-    ! Return success
-    if (present(rc)) rc = ESMF_SUCCESS
+      ! Return success
+      if (present(rc)) rc = ESMF_SUCCESS
     
-  end subroutine ESMF_ClockSetInitCreated
+      end subroutine ESMF_ClockSetInitCreated
+
 !------------------------------------------------------------------------------
 
 ! -------------------------- ESMF-public method -------------------------------
@@ -154,11 +171,11 @@
 ! !IROUTINE: ESMF_ClockSetInitDeleted - Set Clock init code to "DELETED"
 
 ! !INTERFACE:
-  subroutine ESMF_ClockSetInitDeleted(clock, rc)
+      subroutine ESMF_ClockSetInitDeleted(clock, rc)
 !
 ! !ARGUMENTS:
-    type(ESMF_Clock), intent(inout)         :: clock
-    integer,          intent(out), optional :: rc  
+      type(ESMF_Clock), intent(inout)         :: clock
+      integer,          intent(out), optional :: rc  
 !         
 !
 ! !DESCRIPTION:
@@ -175,16 +192,17 @@
 !EOPI
 !------------------------------------------------------------------------------
 
-    ! Assume failure until success
-    if (present(rc)) rc = ESMF_RC_NOT_IMPL
+      ! Assume failure until success
+      if (present(rc)) rc = ESMF_RC_NOT_IMPL
     
-    ! Set init code
-    ESMF_INIT_SET_DELETED(clock)
+      ! Set init code
+      ESMF_INIT_SET_DELETED(clock)
 
-    ! Return success
-    if (present(rc)) rc = ESMF_SUCCESS
+      ! Return success
+      if (present(rc)) rc = ESMF_SUCCESS
     
-  end subroutine ESMF_ClockSetInitDeleted
+      end subroutine ESMF_ClockSetInitDeleted
+
 !------------------------------------------------------------------------------
 
 ! -------------------------- ESMF-internal method -----------------------------
@@ -194,12 +212,12 @@
 ! !IROUTINE: ESMF_ClockGetThis - Internal access routine for C++ pointer
 
 ! !INTERFACE:
-  subroutine ESMF_ClockGetThis(clock, this, rc)
+      subroutine ESMF_ClockGetThis(clock, this, rc)
 !
 ! !ARGUMENTS:
-    type(ESMF_Clock),   intent(in)             :: clock
-    type(ESMF_Pointer), intent(out)            :: this
-    integer,            intent(out),  optional :: rc  
+      type(ESMF_Clock),   intent(in)             :: clock
+      type(ESMF_Pointer), intent(out)            :: this
+      integer,            intent(out),  optional :: rc  
 !         
 !
 ! !DESCRIPTION:
@@ -218,16 +236,17 @@
 !EOPI
 !------------------------------------------------------------------------------
 
-    ! initialize return code; assume routine not implemented
-    if (present(rc)) rc = ESMF_RC_NOT_IMPL
+      ! initialize return code; assume routine not implemented
+      if (present(rc)) rc = ESMF_RC_NOT_IMPL
     
-    ! Copy C++ pointer
-    this = clock%this
+      ! Copy C++ pointer
+      this = clock%this
 
-    ! return successfully
-    if (present(rc)) rc = ESMF_SUCCESS
+      ! return successfully
+      if (present(rc)) rc = ESMF_SUCCESS
     
-  end subroutine ESMF_ClockGetThis
+      end subroutine ESMF_ClockGetThis
+
 !------------------------------------------------------------------------------
 
 ! -------------------------- ESMF-internal method -----------------------------
@@ -237,12 +256,12 @@
 ! !IROUTINE: ESMF_ClockSetThis - Set C++ pointer in Clock
 
 ! !INTERFACE:
-  subroutine ESMF_ClockSetThis(clock, this, rc)
+      subroutine ESMF_ClockSetThis(clock, this, rc)
 !
 ! !ARGUMENTS:
-    type(ESMF_Clock),   intent(inout)          :: clock
-    type(ESMF_Pointer), intent(in)             :: this
-    integer,            intent(out),  optional :: rc  
+      type(ESMF_Clock),   intent(inout)          :: clock
+      type(ESMF_Pointer), intent(in)             :: this
+      integer,            intent(out),  optional :: rc  
 !         
 !
 ! !DESCRIPTION:
@@ -261,18 +280,17 @@
 !EOPI
 !------------------------------------------------------------------------------
 
-    ! initialize return code; assume routine not implemented
-    if (present(rc)) rc = ESMF_RC_NOT_IMPL
+      ! initialize return code; assume routine not implemented
+      if (present(rc)) rc = ESMF_RC_NOT_IMPL
     
-    ! Copy C++ pointer
-    clock%this = this
+      ! Copy C++ pointer
+      clock%this = this
 
-    ! return successfully
-    if (present(rc)) rc = ESMF_SUCCESS
+      ! return successfully
+      if (present(rc)) rc = ESMF_SUCCESS
     
-  end subroutine ESMF_ClockSetThis
+      end subroutine ESMF_ClockSetThis
+
 !------------------------------------------------------------------------------
-
-
 
       end module ESMF_ClockTypeMod

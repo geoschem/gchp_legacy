@@ -1,4 +1,4 @@
-! $Id: user_FortranComponent.F90,v 1.15 2009/10/24 05:35:18 theurich Exp $
+! $Id$
 !
 ! Example/test code which shows User Component calls.
 
@@ -15,7 +15,7 @@
 module user_FortranComponent
 
   ! ESMF Framework module
-  use ESMF_Mod
+  use ESMF
 
   implicit none
     
@@ -75,13 +75,13 @@ module user_FortranComponent
 
     ! Register the callback routines.
 
-    call ESMF_GridCompSetEntryPoint(comp, ESMF_SETINIT, &
+    call ESMF_GridCompSetEntryPoint(comp, ESMF_METHOD_INITIALIZE, &
       userRoutine=myInitInFortran, rc=rc)
     if (rc/=ESMF_SUCCESS) return ! bail out
-    call ESMF_GridCompSetEntryPoint(comp, ESMF_SETRUN, &
+    call ESMF_GridCompSetEntryPoint(comp, ESMF_METHOD_RUN, &
       userRoutine=myRunInFortran, rc=rc)
     if (rc/=ESMF_SUCCESS) return ! bail out
-    call ESMF_GridCompSetEntryPoint(comp, ESMF_SETFINAL, &
+    call ESMF_GridCompSetEntryPoint(comp, ESMF_METHOD_FINALIZE, &
       userRoutine=myFinalInFortran, rc=rc)
     if (rc/=ESMF_SUCCESS) return ! bail out
   end subroutine
@@ -119,9 +119,9 @@ module user_FortranComponent
 
     ! This is where the model specific setup code goes.  
 
-    call ESMF_GridCompPrint(comp, "", rc=rc)
+    call ESMF_GridCompPrint(comp, rc=rc)
     if (rc/=ESMF_SUCCESS) return ! bail out
-    call ESMF_StatePrint(exportState, "", rc=rc)
+    call ESMF_StatePrint(exportState, options="", rc=rc)
     if (rc/=ESMF_SUCCESS) return ! bail out
     
     call ESMF_GridCompGet(comp, vm=vm, rc=rc)
@@ -142,7 +142,7 @@ module user_FortranComponent
     if (rc/=ESMF_SUCCESS) return ! bail out
 
     ! Add Array to the export State
-    call ESMF_StateAdd(exportState, array, rc=rc)
+    call ESMF_StateAdd(exportState, (/array/), rc=rc)
     if (rc/=ESMF_SUCCESS) return ! bail out
 
     call ESMF_StatePrint(exportState, rc=rc)
@@ -180,7 +180,7 @@ module user_FortranComponent
     if (rc/=ESMF_SUCCESS) return ! bail out
 
     ! access Array data through farrayPtr
-    call ESMF_ArrayGet(array, 0, farrayPtr=farrayPtr, rc=rc)
+    call ESMF_ArrayGet(array, localDE=0, farrayPtr=farrayPtr, rc=rc)
     if (rc/=ESMF_SUCCESS) return ! bail out
 
     ! values must be as set in "myInitInC"

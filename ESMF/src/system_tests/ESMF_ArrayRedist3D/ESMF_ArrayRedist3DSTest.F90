@@ -1,4 +1,4 @@
-! $Id: ESMF_ArrayRedist3DSTest.F90,v 1.8 2009/10/16 21:16:01 svasquez Exp $
+! $Id$
 !
 !-------------------------------------------------------------------------
 !ESMF_MULTI_PROC_SYSTEM_TEST        String used by test script to count system tests.
@@ -10,11 +10,11 @@
 ! System test ArrayRedist3D.
 !    Two gridded components and one coupler component, one-way coupling.
 !
-!    First gridded component runs on 8 PETs and defines a 3D source Array 
-!    100x150x4. Second gridded component defines a destination Array also 
-!    100x150x4 but runs on only 2 PETs. Both gridded components use DELayouts 
-!    with 1 DE per PET. The decomposition of the source Array is defined as 
-!    (2 x 2 x 2) while the destination Array is decomposed as 
+!    First gridded component runs on 8 PETs and defines a 3D source Array
+!    100x150x4. Second gridded component defines a destination Array also
+!    100x150x4 but runs on only 2 PETs. Both gridded components use DELayouts
+!    with 1 DE per PET. The decomposition of the source Array is defined as
+!    (2 x 2 x 2) while the destination Array is decomposed as
 !    (1 x 1 x petCount) = (1 x 1 x 2).
 !
 !    The first component initializes the source Array to a geometric function:
@@ -22,10 +22,10 @@
 !       10.0 + 5.0*sin((I/Imax)*pi) + 2.0*sin((J/Jmax)*pi) + 3.0*sin((K/Kmax)*pi)
 !
 !    The coupler component runs on all 8 PETs and reconciles import and export
-!    states which contain source and destination Array, respectively. The 
+!    states which contain source and destination Array, respectively. The
 !    coupler component then calls ArrayRedist() to redistribute the source
 !    Array data onto the destination Array.
-!    
+!
 !    Finally the second gridded component compares the data stored in the
 !    destination Array to the exact solution of the above function as a measure
 !    of the accuracy of the ArrayRedist() method.
@@ -39,7 +39,7 @@ program ESMF_ArrayRedist3DSTest
 #include "ESMF.h"
 
   ! ESMF Framework module
-  use ESMF_Mod
+  use ESMF
   use ESMF_TestMod
 
   use user_model1, only : userm1_setvm, userm1_register
@@ -47,9 +47,9 @@ program ESMF_ArrayRedist3DSTest
   use user_coupler, only : usercpl_setvm, usercpl_register
 
   implicit none
-    
+
   ! Local variables
-  integer :: localPet, petCount, localrc, rc=ESMF_SUCCESS
+  integer :: localPet, petCount, userrc, localrc, rc=ESMF_SUCCESS
   character(len=ESMF_MAXSTR) :: cname1, cname2, cplname
   type(ESMF_VM):: vm
   type(ESMF_State) :: c1exp, c2imp
@@ -86,41 +86,50 @@ program ESMF_ArrayRedist3DSTest
 !
   ! Initialize framework and get back default global VM
   call ESMF_Initialize(vm=vm, defaultlogfilename="ESMF_ArrayRedist3DSTest.Log", &
-                        defaultlogtype=ESMF_LOG_MULTI, rc=localrc)
-  if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, &
+                        logkindflag=ESMF_LOGKIND_MULTI, rc=localrc)
+  if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
     ESMF_CONTEXT, rcToReturn=rc)) &
-    call ESMF_Finalize(rc=rc, terminationflag=ESMF_ABORT)
+    call ESMF_Finalize(rc=rc, endflag=ESMF_END_ABORT)
 
   ! Get number of PETs we are running with
   call ESMF_VMGet(vm, petCount=petCount, localPet=localPet, rc=localrc)
-  if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, &
+  if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
     ESMF_CONTEXT, rcToReturn=rc)) &
-    call ESMF_Finalize(rc=rc, terminationflag=ESMF_ABORT)
+    call ESMF_Finalize(rc=rc, endflag=ESMF_END_ABORT)
+
+
+   ! Check for correct number of PETs
+  if ( petCount < 8 ) then
+     call ESMF_LogSetError(ESMF_RC_ARG_BAD,&
+         msg="This system test does not run on fewer than 8 PETs.",&
+         ESMF_CONTEXT, rcToReturn=rc)
+     call ESMF_Finalize(rc=rc, endflag=ESMF_END_ABORT)
+   endif
 
   ! Create the 2 model components and coupler
   cname1 = "user model 1"
   ! use petList to define comp1 on PET 0,1,2,3,4,5,6,7
   comp1 = ESMF_GridCompCreate(name=cname1, petList=(/0,1,2,3,4,5,6,7/), rc=localrc)
   print *, "Created component ", trim(cname1), "rc =", localrc
-  if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, &
+  if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
     ESMF_CONTEXT, rcToReturn=rc)) &
-    call ESMF_Finalize(rc=rc, terminationflag=ESMF_ABORT)
+    call ESMF_Finalize(rc=rc, endflag=ESMF_END_ABORT)
 
   cname2 = "user model 2"
   ! use petList to define comp2 on PET 4,5
   comp2 = ESMF_GridCompCreate(name=cname2, petList=(/4,5/), rc=localrc)
   print *, "Created component ", trim(cname2), "rc =", localrc
-  if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, &
+  if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
     ESMF_CONTEXT, rcToReturn=rc)) &
-    call ESMF_Finalize(rc=rc, terminationflag=ESMF_ABORT)
+    call ESMF_Finalize(rc=rc, endflag=ESMF_END_ABORT)
 
   cplname = "user one-way coupler"
   ! no petList means that coupler component runs on all PETs
   cpl = ESMF_CplCompCreate(name=cplname, rc=localrc)
   print *, "Created component ", trim(cplname), ", rc =", localrc
-  if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, &
+  if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
     ESMF_CONTEXT, rcToReturn=rc)) &
-    call ESMF_Finalize(rc=rc, terminationflag=ESMF_ABORT)
+    call ESMF_Finalize(rc=rc, endflag=ESMF_END_ABORT)
 
   print *, "Comp Creates finished"
 
@@ -130,120 +139,185 @@ program ESMF_ArrayRedist3DSTest
 !-------------------------------------------------------------------------
 !-------------------------------------------------------------------------
 
-  call ESMF_GridCompSetVM(comp1, userRoutine=userm1_setvm, rc=localrc)
+  call ESMF_GridCompSetVM(comp1, userRoutine=userm1_setvm, &
+     userRc=userrc, rc=localrc)
   print *, "Comp1 SetVM finished, rc= ", localrc
-  if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, &
+  if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
     ESMF_CONTEXT, rcToReturn=rc)) &
-    call ESMF_Finalize(rc=rc, terminationflag=ESMF_ABORT)
-  call ESMF_GridCompSetServices(comp1, userRoutine=userm1_register, rc=localrc)
+    call ESMF_Finalize(rc=rc, endflag=ESMF_END_ABORT)
+  if (ESMF_LogFoundError(userrc, ESMF_ERR_PASSTHRU, &
+    ESMF_CONTEXT, rcToReturn=rc)) &
+    call ESMF_Finalize(rc=rc, endflag=ESMF_END_ABORT)
+
+  call ESMF_GridCompSetServices(comp1, userRoutine=userm1_register, &
+     userRc=userrc, rc=localrc)
   print *, "Comp1 SetServices finished, rc= ", localrc
-  if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, &
+  if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
     ESMF_CONTEXT, rcToReturn=rc)) &
-    call ESMF_Finalize(rc=rc, terminationflag=ESMF_ABORT)
+    call ESMF_Finalize(rc=rc, endflag=ESMF_END_ABORT)
+  if (ESMF_LogFoundError(userrc, ESMF_ERR_PASSTHRU, &
+    ESMF_CONTEXT, rcToReturn=rc)) &
+    call ESMF_Finalize(rc=rc, endflag=ESMF_END_ABORT)
 
-  call ESMF_GridCompSetVM(comp2, userRoutine=userm2_setvm, rc=localrc)
+  call ESMF_GridCompSetVM(comp2, userRoutine=userm2_setvm, &
+     userRc=userrc, rc=localrc)
   print *, "Comp2 SetVM finished, rc= ", localrc
-  if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, &
+  if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
     ESMF_CONTEXT, rcToReturn=rc)) &
-    call ESMF_Finalize(rc=rc, terminationflag=ESMF_ABORT)
-  call ESMF_GridCompSetServices(comp2, userRoutine=userm2_register, rc=localrc)
-  print *, "Comp2 SetServices finished, rc= ", localrc
-  if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, &
+    call ESMF_Finalize(rc=rc, endflag=ESMF_END_ABORT)
+  if (ESMF_LogFoundError(userrc, ESMF_ERR_PASSTHRU, &
     ESMF_CONTEXT, rcToReturn=rc)) &
-    call ESMF_Finalize(rc=rc, terminationflag=ESMF_ABORT)
+    call ESMF_Finalize(rc=rc, endflag=ESMF_END_ABORT)
 
-  call ESMF_CplCompSetVM(cpl, userRoutine=usercpl_setvm, rc=localrc)
+  call ESMF_GridCompSetServices(comp2, userRoutine=userm2_register, &
+     userRc=userrc, rc=localrc)
+  print *, "Comp2 SetServices finished, rc= ", localrc
+  if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+    ESMF_CONTEXT, rcToReturn=rc)) &
+    call ESMF_Finalize(rc=rc, endflag=ESMF_END_ABORT)
+  if (ESMF_LogFoundError(userrc, ESMF_ERR_PASSTHRU, &
+    ESMF_CONTEXT, rcToReturn=rc)) &
+    call ESMF_Finalize(rc=rc, endflag=ESMF_END_ABORT)
+
+  call ESMF_CplCompSetVM(cpl, userRoutine=usercpl_setvm, &
+     userRc=userrc, rc=localrc)
   print *, "Cpl SetVM finished, rc= ", localrc
-  if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, &
+  if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
     ESMF_CONTEXT, rcToReturn=rc)) &
-    call ESMF_Finalize(rc=rc, terminationflag=ESMF_ABORT)
-  call ESMF_CplCompSetServices(cpl, userRoutine=usercpl_register, rc=localrc)
+    call ESMF_Finalize(rc=rc, endflag=ESMF_END_ABORT)
+  if (ESMF_LogFoundError(userrc, ESMF_ERR_PASSTHRU, &
+    ESMF_CONTEXT, rcToReturn=rc)) &
+    call ESMF_Finalize(rc=rc, endflag=ESMF_END_ABORT)
+
+  call ESMF_CplCompSetServices(cpl, userRoutine=usercpl_register, &
+     userRc=userrc, rc=localrc)
   print *, "Cpl SetServices finished, rc= ", localrc
-  if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, &
+  if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
     ESMF_CONTEXT, rcToReturn=rc)) &
-    call ESMF_Finalize(rc=rc, terminationflag=ESMF_ABORT)
+    call ESMF_Finalize(rc=rc, endflag=ESMF_END_ABORT)
+  if (ESMF_LogFoundError(userrc, ESMF_ERR_PASSTHRU, &
+    ESMF_CONTEXT, rcToReturn=rc)) &
+    call ESMF_Finalize(rc=rc, endflag=ESMF_END_ABORT)
 
 !-------------------------------------------------------------------------
 !-------------------------------------------------------------------------
 ! Init section
 !-------------------------------------------------------------------------
 !-------------------------------------------------------------------------
- 
-  c1exp = ESMF_StateCreate("comp1 export", ESMF_STATE_EXPORT, rc=localrc)
-  if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, &
+
+  c1exp = ESMF_StateCreate(name="comp1 export",  &
+                           stateintent=ESMF_STATEINTENT_EXPORT, rc=localrc)
+  if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
     ESMF_CONTEXT, rcToReturn=rc)) &
-    call ESMF_Finalize(rc=rc, terminationflag=ESMF_ABORT)
-  call ESMF_GridCompInitialize(comp1, exportState=c1exp, rc=localrc)
-  print *, "Comp 1 Initialize finished, rc =", localrc
-  if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, &
+    call ESMF_Finalize(rc=rc, endflag=ESMF_END_ABORT)
+  call ESMF_GridCompInitialize(comp1, exportState=c1exp, &
+    userRc=userrc, rc=localrc)
+  print *, "Comp 1 Initialize finished, rc =", localrc, userrc
+  if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
     ESMF_CONTEXT, rcToReturn=rc)) &
-    call ESMF_Finalize(rc=rc, terminationflag=ESMF_ABORT)
- 
-  c2imp = ESMF_StateCreate("comp2 import", ESMF_STATE_IMPORT, rc=localrc)
-  if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, &
+    call ESMF_Finalize(rc=rc, endflag=ESMF_END_ABORT)
+  if (ESMF_LogFoundError(userrc, ESMF_ERR_PASSTHRU, &
     ESMF_CONTEXT, rcToReturn=rc)) &
-    call ESMF_Finalize(rc=rc, terminationflag=ESMF_ABORT)
-  call ESMF_GridCompInitialize(comp2, importState=c2imp, rc=localrc)
-  print *, "Comp 2 Initialize finished, rc =", localrc
-  if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, &
+    call ESMF_Finalize(rc=rc, endflag=ESMF_END_ABORT)
+
+  c2imp = ESMF_StateCreate(name="comp2 import",  &
+                           stateintent=ESMF_STATEINTENT_IMPORT, rc=localrc)
+  if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
     ESMF_CONTEXT, rcToReturn=rc)) &
-    call ESMF_Finalize(rc=rc, terminationflag=ESMF_ABORT)
- 
+    call ESMF_Finalize(rc=rc, endflag=ESMF_END_ABORT)
+  call ESMF_GridCompInitialize(comp2, importState=c2imp, &
+    userRc=userrc, rc=localrc)
+  print *, "Comp 2 Initialize finished, rc =", localrc, userrc
+  if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+    ESMF_CONTEXT, rcToReturn=rc)) &
+    call ESMF_Finalize(rc=rc, endflag=ESMF_END_ABORT)
+  if (ESMF_LogFoundError(userrc, ESMF_ERR_PASSTHRU, &
+    ESMF_CONTEXT, rcToReturn=rc)) &
+    call ESMF_Finalize(rc=rc, endflag=ESMF_END_ABORT)
+
   ! note that the coupler's import is comp1's export state
   ! and coupler's export is comp2's import state
-  call ESMF_CplCompInitialize(cpl, c1exp, c2imp, rc=localrc)
-  print *, "Coupler Initialize finished, rc =", localrc
-  if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, &
+  call ESMF_CplCompInitialize(cpl, importState=c1exp, &
+    exportState=c2imp, userRc=userrc, rc=localrc)
+  print *, "Coupler Initialize finished, rc =", localrc, userrc
+  if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
     ESMF_CONTEXT, rcToReturn=rc)) &
-    call ESMF_Finalize(rc=rc, terminationflag=ESMF_ABORT)
- 
+    call ESMF_Finalize(rc=rc, endflag=ESMF_END_ABORT)
+  if (ESMF_LogFoundError(userrc, ESMF_ERR_PASSTHRU, &
+    ESMF_CONTEXT, rcToReturn=rc)) &
+    call ESMF_Finalize(rc=rc, endflag=ESMF_END_ABORT)
+
 !-------------------------------------------------------------------------
 !-------------------------------------------------------------------------
 ! Run section
 !-------------------------------------------------------------------------
 !-------------------------------------------------------------------------
 
-  call ESMF_GridCompRun(comp1, exportState=c1exp, rc=localrc)
+  call ESMF_GridCompRun(comp1, exportState=c1exp, &
+    userRc=userrc, rc=localrc)
   print *, "Comp 1 Run returned, rc =", localrc
-  if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, &
+  if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
     ESMF_CONTEXT, rcToReturn=rc)) &
-    call ESMF_Finalize(rc=rc, terminationflag=ESMF_ABORT)
+    call ESMF_Finalize(rc=rc, endflag=ESMF_END_ABORT)
+  if (ESMF_LogFoundError(userrc, ESMF_ERR_PASSTHRU, &
+    ESMF_CONTEXT, rcToReturn=rc)) &
+    call ESMF_Finalize(rc=rc, endflag=ESMF_END_ABORT)
 
-  call ESMF_CplCompRun(cpl, c1exp, c2imp, rc=localrc)
+  call ESMF_CplCompRun(cpl, importState=c1exp, &
+    exportState=c2imp, userRc=userrc, rc=localrc)
   print *, "Coupler Run returned, rc =", localrc
-  if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, &
+  if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
     ESMF_CONTEXT, rcToReturn=rc)) &
-    call ESMF_Finalize(rc=rc, terminationflag=ESMF_ABORT)
+    call ESMF_Finalize(rc=rc, endflag=ESMF_END_ABORT)
+  if (ESMF_LogFoundError(userrc, ESMF_ERR_PASSTHRU, &
+    ESMF_CONTEXT, rcToReturn=rc)) &
+    call ESMF_Finalize(rc=rc, endflag=ESMF_END_ABORT)
 
-  call ESMF_GridCompRun(comp2, importState=c2imp, rc=localrc)
+  call ESMF_GridCompRun(comp2, importState=c2imp, &
+    userRc=userrc, rc=localrc)
   print *, "Comp 2 Run returned, rc =", localrc
-  if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, &
+  if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
     ESMF_CONTEXT, rcToReturn=rc)) &
-    call ESMF_Finalize(rc=rc, terminationflag=ESMF_ABORT)
- 
+    call ESMF_Finalize(rc=rc, endflag=ESMF_END_ABORT)
+  if (ESMF_LogFoundError(userrc, ESMF_ERR_PASSTHRU, &
+    ESMF_CONTEXT, rcToReturn=rc)) &
+    call ESMF_Finalize(rc=rc, endflag=ESMF_END_ABORT)
+
 !-------------------------------------------------------------------------
 !-------------------------------------------------------------------------
 ! Finalize section
 !-------------------------------------------------------------------------
 !-------------------------------------------------------------------------
 
-  call ESMF_CplCompFinalize(cpl, c1exp, c2imp, rc=localrc)
-  print *, "Coupler Finalize finished, rc =", localrc
-  if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, &
+  call ESMF_CplCompFinalize(cpl, importState=c1exp, &
+    exportState=c2imp, userRc=userrc, rc=localrc)
+  print *, "Coupler Finalize finished, rc =", localrc, userrc
+  if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
     ESMF_CONTEXT, rcToReturn=rc)) &
-    call ESMF_Finalize(rc=rc, terminationflag=ESMF_ABORT)
+    call ESMF_Finalize(rc=rc, endflag=ESMF_END_ABORT)
+  if (ESMF_LogFoundError(userrc, ESMF_ERR_PASSTHRU, &
+    ESMF_CONTEXT, rcToReturn=rc)) &
+    call ESMF_Finalize(rc=rc, endflag=ESMF_END_ABORT)
 
-  call ESMF_GridCompFinalize(comp1, exportState=c1exp, rc=localrc)
-  print *, "Comp 1 Finalize finished, rc =", localrc
-  if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, &
+  call ESMF_GridCompFinalize(comp1, exportState=c1exp, &
+    userRc=userrc, rc=localrc)
+  print *, "Comp 1 Finalize finished, rc =", localrc, userrc
+  if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
     ESMF_CONTEXT, rcToReturn=rc)) &
-    call ESMF_Finalize(rc=rc, terminationflag=ESMF_ABORT)
+    call ESMF_Finalize(rc=rc, endflag=ESMF_END_ABORT)
+  if (ESMF_LogFoundError(userrc, ESMF_ERR_PASSTHRU, &
+    ESMF_CONTEXT, rcToReturn=rc)) &
+    call ESMF_Finalize(rc=rc, endflag=ESMF_END_ABORT)
 
-  call ESMF_GridCompFinalize(comp2, importState=c2imp, rc=localrc)
-  print *, "Comp 2 Finalize finished, rc =", localrc
-  if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, &
+  call ESMF_GridCompFinalize(comp2, importState=c2imp, &
+    userRc=userrc, rc=localrc)
+  print *, "Comp 2 Finalize finished, rc =", localrc, userrc
+  if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
     ESMF_CONTEXT, rcToReturn=rc)) &
-    call ESMF_Finalize(rc=rc, terminationflag=ESMF_ABORT)
+    call ESMF_Finalize(rc=rc, endflag=ESMF_END_ABORT)
+  if (ESMF_LogFoundError(userrc, ESMF_ERR_PASSTHRU, &
+    ESMF_CONTEXT, rcToReturn=rc)) &
+    call ESMF_Finalize(rc=rc, endflag=ESMF_END_ABORT)
 
 !-------------------------------------------------------------------------
 !-------------------------------------------------------------------------
@@ -252,26 +326,26 @@ program ESMF_ArrayRedist3DSTest
 !-------------------------------------------------------------------------
 
   call ESMF_GridCompDestroy(comp1, rc=localrc)
-  if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, &
+  if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
     ESMF_CONTEXT, rcToReturn=rc)) &
-    call ESMF_Finalize(rc=rc, terminationflag=ESMF_ABORT)
+    call ESMF_Finalize(rc=rc, endflag=ESMF_END_ABORT)
   call ESMF_GridCompDestroy(comp2, rc=localrc)
-  if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, &
+  if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
     ESMF_CONTEXT, rcToReturn=rc)) &
-    call ESMF_Finalize(rc=rc, terminationflag=ESMF_ABORT)
+    call ESMF_Finalize(rc=rc, endflag=ESMF_END_ABORT)
   call ESMF_CplCompDestroy(cpl, rc=localrc)
-  if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, &
+  if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
     ESMF_CONTEXT, rcToReturn=rc)) &
-    call ESMF_Finalize(rc=rc, terminationflag=ESMF_ABORT)
+    call ESMF_Finalize(rc=rc, endflag=ESMF_END_ABORT)
 
   call ESMF_StateDestroy(c1exp, rc=localrc)
-  if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, &
+  if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
     ESMF_CONTEXT, rcToReturn=rc)) &
-    call ESMF_Finalize(rc=rc, terminationflag=ESMF_ABORT)
+    call ESMF_Finalize(rc=rc, endflag=ESMF_END_ABORT)
   call ESMF_StateDestroy(c2imp, rc=localrc)
-  if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, &
+  if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
     ESMF_CONTEXT, rcToReturn=rc)) &
-    call ESMF_Finalize(rc=rc, terminationflag=ESMF_ABORT)
+    call ESMF_Finalize(rc=rc, endflag=ESMF_END_ABORT)
 
   print *, "All Destroy routines done"
 
@@ -292,7 +366,7 @@ program ESMF_ArrayRedist3DSTest
     write(0, *) trim(finalMsg)
     write(0, *) ""
   endif
-  
+
   print *, "------------------------------------------------------------"
   print *, "------------------------------------------------------------"
   print *, "Test finished, localPet = ", localPet
@@ -307,5 +381,5 @@ program ESMF_ArrayRedist3DSTest
   call ESMF_Finalize()
 
 end program ESMF_ArrayRedist3DSTest
-    
+
 !\end{verbatim}

@@ -1,7 +1,7 @@
-% $Id: Component_refdoc.ctex,v 1.42.2.1 2010/02/05 20:03:48 svasquez Exp $
+% $Id: Component_refdoc.ctex,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
 %
 % Earth System Modeling Framework
-% Copyright 2002-2010, University Corporation for Atmospheric Research, 
+% Copyright 2002-2012, University Corporation for Atmospheric Research, 
 % Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
 % Laboratory, University of Michigan, National Centers for Environmental 
 % Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
@@ -14,14 +14,15 @@
 \usepackage{epsf}
 \usepackage{html}
 \usepackage{times}
+\usepackage{alltt}
 \usepackage[T1]{fontenc}
 \usepackage[dvips]{graphics,color}
 
 \textwidth 6.5in
 \textheight 8.5in
 \addtolength{\oddsidemargin}{-.75in}
-\newcommand{\mytitle}{Component Reference Manual}
-\newcommand{\myauthors}{Nancy Collins}
+\newcommand{\mytitle}{\Large {\bf Component Reference}}
+\newcommand{\myauthors}{\large {\it Gerhard Theurich}}
 % these are temporary patches until something more
 % permanent is done to the protex script.
 \newlength{\oldparskip}
@@ -55,12 +56,12 @@
 \input{../Superstructure/Component/doc/GridComp_desc}
 #endif
 
-\subsection{GridComp Options}
-#ifdef STANDALONE
-\input{GridComp_options}
-#elif defined(CONSTITUENT)
-\input{../Superstructure/Component/doc/GridComp_options}
-#endif
+%\subsection{GridComp Options}
+%#ifdef STANDALONE
+%\input{GridComp_options}
+%#elif defined(CONSTITUENT)
+%\input{../Superstructure/Component/doc/GridComp_options}
+%#endif
 
 \subsection{Use and Examples}
 #ifdef STANDALONE
@@ -126,7 +127,7 @@
 
 #ifdef STANDALONE
 %\section{Glossary}
-\input{Component_glos}
+%\input{Component_glos}
 #endif
 
 #ifdef STANDALONE

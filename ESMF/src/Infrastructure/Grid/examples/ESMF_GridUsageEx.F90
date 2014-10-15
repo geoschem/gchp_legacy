@@ -1,7 +1,7 @@
-! $Id: ESMF_GridUsageEx.F90,v 1.66.2.1 2010/02/05 19:57:00 svasquez Exp $
+! $Id: ESMF_GridUsageEx.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2010, University Corporation for Atmospheric Research,
+! Copyright 2002-2012, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -25,7 +25,7 @@ program ESMF_GridCreateEx
 ! This program contains a set of Grid creation examples
 
       ! Use ESMF framework module
-      use ESMF_Mod
+      use ESMF
       implicit none
 
       ! Parameters
@@ -60,30 +60,24 @@ program ESMF_GridCreateEx
       integer :: lDE,localDECount
       integer :: xdim, ydim, zdim
       integer :: ind, localArbIndexCount, remain
+      character(len=80) :: filename
 
       ! initialize ESMF
       finalrc = ESMF_SUCCESS
-  call ESMF_Initialize(vm=vm,  rc=rc)
+  call ESMF_Initialize(vm=vm,  defaultlogfilename="GridUsageEx.Log", &
+                    logkindflag=ESMF_LOGKIND_MULTI, rc=rc)
   call ESMF_VMGet(vm, localPet=localPet, petCount=petCount, rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
 
 !BOE
 !
-!\subsubsection{Shortcut Creation Method for Single-Tile Grids}
+!\subsubsection{Create single-tile Grid shortcut method}
 
-! The method {\tt ESMF\_GridCreateShapeTile()} is a shortcut
-! for building single tile logically rectangular Grids up to 
-! three dimensions.
-! It is partially implemented.  The user can specify Grid
-! size, dimension and distribution, but cannot specify tile edge
-! connectivities yet.  The default is that Grid edges are
-! not connected.  Once completed, this method will enable users
-! to create many common grid shapes, including
-! rectangle, bipole sphere, and tripole sphere. 
-!
-! In v4.0.0, the {\tt ESMF\_GridCreateShapeTile()} method supports 
-! all three types of distributions described in 
+! The set of methods {\tt ESMF\_GridCreateNoPeriDim()}, {\tt ESMF\_GridCreate1PeriDim()},
+! {\tt ESMF\_GridCreate2PeriDim()}, and {\tt ESMF\_GridCreate()} are shortcuts
+! for building 2D or 3D single tile logically rectangular Grids. 
+! These methods support all three types of distributions described in 
 ! Section~\ref{sec:desc:dist}: regular, irregular and arbitrary.
 !
 ! The ESMF Grid is cell based and so for all distribution 
@@ -114,20 +108,21 @@ program ESMF_GridCreateEx
 !EOE
 
 !BOC
-  grid3D=ESMF_GridCreateShapeTile(regDecomp=(/2,4,1/), maxIndex=(/10,20,30/), &
+  grid3D=ESMF_GridCreateNoPeriDim(regDecomp=(/2,4,1/), maxIndex=(/10,20,30/), &
            rc=rc)   
 !EOC
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
    !-------------------------------------------------------------------
    ! Clean up to prepare for the next example.
    !-------------------------------------------------------------------
   call ESMF_GridDestroy(grid3D, rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
+
 
 !BOE
 ! Irregular distribution requires the user to specify the
 ! exact number of Grid cells per DE in each dimension.  In the
-! {\tt ESMF\_GridCreateShapeTile()} call the {\tt countsPerDEDim1},
+! {\tt ESMF\_GridCreateNoPeriDim()} call the {\tt countsPerDEDim1},
 ! {\tt countsPerDim2}, and {\tt countsPerDim3}
 ! arguments are used to specify a rectangular distribution
 ! containing size(countsPerDEDim1) by size(countsPerDEDim2) by
@@ -147,17 +142,17 @@ program ESMF_GridCreateEx
 !EOE
 
 !BOC
-   grid2D=ESMF_GridCreateShapeTile(countsPerDEDim1=(/3,7/), &
+   grid2D=ESMF_GridCreateNoPeriDim(countsPerDEDim1=(/3,7/), &
           countsPerDEDim2=(/11,2,7/), rc=rc)   
-!EOC
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
 
+!EOC
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
 !!!!!!!!!!!!!!!!!!!!!!!
 ! Cleanup after Example
 !!!!!!!!!!!!!!!!!!!!!!
 call ESMF_GridDestroy(grid2D,rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
 
 !BOE
@@ -166,16 +161,16 @@ call ESMF_GridDestroy(grid2D,rc=rc)
 !EOE
 
 !BOC
-   grid3d=ESMF_GridCreateShapeTile(countsPerDEDim1=(/3,7/), &
+   grid3d=ESMF_GridCreateNoPeriDim(countsPerDEDim1=(/3,7/), &
           countsPerDEDim2=(/11,2,7/), countsPerDEDim3=(/15,15/), rc=rc)   
 !EOC
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
 !!!!!!!!!!!!!!!!!!!!!!!
 ! Cleanup after Example
 !!!!!!!!!!!!!!!!!!!!!!
 call ESMF_GridDestroy(grid3D,rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
 
 !BOE 
@@ -184,21 +179,22 @@ call ESMF_GridDestroy(grid3D,rc=rc)
 !EOE
 
 !BOC
-   grid3D=ESMF_GridCreateShapeTile(countsPerDEDim1=(/3,7/),  &
+   grid3D=ESMF_GridCreateNoPeriDim(countsPerDEDim1=(/3,7/),  &
           countsPerDEDim2=(/11,2,7/), countsPerDEDim3=(/30/), rc=rc)   
 !EOC
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
 
 !!!!!!!!!!!!!!!!!!!!!!!
 ! Cleanup after Example
 !!!!!!!!!!!!!!!!!!!!!!
 call ESMF_GridDestroy(grid3D,rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
 
 !BOE
 !
+! \begin{sloppypar}
 ! The {\tt petMap} parameter may be used to specify on to which specific PETs 
 ! the DEs in the Grid are assigned. Note that this parameter is only available for the 
 ! regular and irregular distribution types. The {\tt petMap} 
@@ -212,13 +208,20 @@ call ESMF_GridDestroy(grid3D,rc=rc)
 ! an irregular Grid the size is equal to the number of items in
 ! the corresponding {\tt countsPerDEDim} variable (i.e. 
 ! {\tt size(petMap,d)=size(countsPerDEDimd)} for all dimensions {\tt d} in the Grid).
+! \end{sloppypar}
 ! 
+! \begin{sloppypar}
+! The {\tt petMap} parameter may be used to specify on to which specific PETs 
 ! Each entry in {\tt petMap} specifies to which PET the corresponding
 ! DE should be assigned. For example, {\tt petMap(3,2)=4} tells the Grid
 ! create call to put the DE located at column 3 row 2 on PET 4.
+! \end{sloppypar}
 !
+! \begin{sloppypar}
+! The {\tt petMap} parameter may be used to specify on to which specific PETs 
 ! The following example demonstrates how to specify the PET to DE association 
-! for an {\tt ESMF\_GridCreateShapeTile()} call.
+! for an {\tt ESMF\_GridCreateNoPeriDim()} call.
+! \end{sloppypar}
 !EOE
 
 ! Skip if not right number of procs.
@@ -233,7 +236,7 @@ if (petcount .eq. 4) then
 
 
    ! Let the 3D grid be be distributed only in the first two dimensions.
-   grid2D=ESMF_GridCreateShapeTile(countsPerDEDim1=(/3,7/), &
+   grid2D=ESMF_GridCreateNoPeriDim(countsPerDEDim1=(/3,7/), &
            countsPerDEDim2=(/7,6/), petMap=petMap, rc=rc)   
 !EOC
 
@@ -276,8 +279,8 @@ endif
    localArbIndex(5,:)=(/5,5/)
 
    ! Create a 2D Arbitrarily distributed Grid
-   grid2D=ESMF_GridCreateShapeTile(maxIndex=(/5,5/), & 
-         localArbIndex=localArbIndex, localArbIndexCount=5, rc=rc)   
+   grid2D=ESMF_GridCreateNoPeriDim(maxIndex=(/5,5/), & 
+         arbIndexList=localArbIndex, arbIndexCount=5, rc=rc)   
 !EOC
 
 !BOE
@@ -288,8 +291,9 @@ endif
 
 !BOC
    ! Create a 3D Grid with the 1st and 3rd dimension arbitrarily distributed
-   grid3D=ESMF_GridCreateShapeTile(maxIndex=(/5,6,5/), & 
-         localArbIndex=localArbIndex, localArbIndexCount=5, distDim=(/1,3/), rc=rc)   
+   grid3D=ESMF_GridCreateNoPeriDim(maxIndex=(/5,6,5/), & 
+         arbIndexList=localArbIndex, arbIndexCount=5, &
+         distDim=(/1,3/), rc=rc)   
 !EOC
 
    !-------------------------------------------------------------------
@@ -299,18 +303,19 @@ endif
    call ESMF_GridDestroy(grid3D, rc=rc)
    deallocate(localArbIndex)
 
+
 #ifdef LOCAL_NOT_IMPL
 !BOEI
 !
-!\subsubsection{Specifying Tile Edge Connections}
+!\subsubsection{Specifying tile edge connections}
 ! \label{example:TileEdgeConn}
 !
-! The {\tt ESMF\_GridCreateShapeTile} command has three arguments 
-! {\tt connDim1}, {\tt connDim2}, and {\tt connDim3} which specify the
+! The {\tt ESMF\_GridCreateNoPeriDim} command has three arguments 
+! {\tt connflagDim1}, {\tt connflagDim2}, and {\tt connflagDim3} which specify the
 ! tile connectivitay. Each of these consists of a two element array of 
-! type {\tt ESMF\_GridConn}. The two elements specify the connectivity using 
-! predefined tags. See section \ref{sec:opt:gridconn} for a list of valid
-! values for {\tt ESMF\_GridConn}. The first entry specifies the low end of 
+! type {\tt ESMF\_GridConn\_Flag}. The two elements specify the connectivity using 
+! predefined tags. See section \ref{const:gridconn} for a list of valid
+! values for {\tt ESMF\_GridConn\_Flag}. The first entry specifies the low end of 
 ! the dimension, while the second specifies the high end.
 !
 ! The following example constructs a curvilinear longitude-latitude spherical grid
@@ -321,10 +326,10 @@ endif
 !EOEI
 
 !BOCI
-   grid2D=ESMF_GridCreateShapeTile(countsPerDEDim1=(/5,5/), &
+   grid2D=ESMF_GridCreateNoPeriDim(countsPerDEDim1=(/5,5/), &
                        countsPerDEDim2=(/7,7,6/), &
-                       connDim1=(/ESMF_GRIDCONN_PERIODIC, ESMF_GRIDCONN_PERIODIC/), &
-                       connDim2=(/ESMF_GRIDCONN_POLE, ESMF_GRIDCONN_POLE/), &
+                       connflagDim1=(/ESMF_GRIDCONN_PERIODIC, ESMF_GRIDCONN_PERIODIC/), &
+                       connflagDim2=(/ESMF_GRIDCONN_POLE, ESMF_GRIDCONN_POLE/), &
                        rc=rc)   
 !EOCI
 
@@ -344,10 +349,10 @@ call ESMF_GridDestroy(grid2D,rc=rc)
 !xEOE
 
 !BOCI
-   grid2D=ESMF_GridCreateShapeTile(countsPerDEDim1=(/5,5/), &
+   grid2D=ESMF_GridCreateNoPeriDim(countsPerDEDim1=(/5,5/), &
                        countsPerDEDim2=(/7,7,6/), &
-                       connDim1=(/ESMF_GRIDCONN_PERIODIC, ESMF_GRIDCONN_PERIODIC/), &
-                       connDim2=(/ESMF_GRIDCONN_POLE, ESMF_GRIDCONN_POLE/), &
+                       connflagDim1=(/ESMF_GRIDCONN_PERIODIC, ESMF_GRIDCONN_PERIODIC/), &
+                       connflagDim2=(/ESMF_GRIDCONN_POLE, ESMF_GRIDCONN_POLE/), &
                        poleStaggerLoc2=(/ESMF_STAGGERLOC_CENTER, ESMF_STAGGERLOC_CENTER/), &
                        rc=rc)   
 !EOCI
@@ -356,7 +361,7 @@ call ESMF_GridDestroy(grid2D,rc=rc)
 ! Cleanup after Example
 !!!!!!!!!!!!!!!!!!!!!!
 call ESMF_GridDestroy(grid2D,rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
 
 !BOEI
@@ -371,25 +376,24 @@ call ESMF_GridDestroy(grid2D,rc=rc)
 !EOEI
 
 !BOCI
-   grid2D=ESMF_GridCreateShapeTile(countsPerDEDim1=(/5,5/), &
+   grid2D=ESMF_GridCreateNoPeriDim(countsPerDEDim1=(/5,5/), &
            countsPerDEDim2=(/7,7,6/), &
-           connDim1=(/ESMF_GRIDCONN_PERIODIC, ESMF_GRIDCONN_PERIODIC/), &
-           connDim2=(/ESMF_GRIDCONN_BIPOLE, ESMF_GRIDCONN_BIPOLE/), &
+           connflagDim1=(/ESMF_GRIDCONN_PERIODIC, ESMF_GRIDCONN_PERIODIC/), &
+           connflagDim2=(/ESMF_GRIDCONN_BIPOLE, ESMF_GRIDCONN_BIPOLE/), &
            bipolePos2=(/1,1/), &
            rc=rc)   
 !EOCI
 #endif
 
 
-
 !BOE
-!\subsubsection{Creating a 2D Regularly Distributed Rectilinear Grid
-!                  With Uniformly Spaced Coordinates}
+!\subsubsection{Create a 2D regularly distributed rectilinear Grid
+!                  with uniformly spaced coordinates}
 ! \label{example:2DRegUniGrid}
 !
 ! The following is an example of creating a simple rectilinear grid 
 ! and loading in a set of coordinates. It illustrates a straightforward use
-! of the {\tt ESMF\_GridCreateShapeTile()} call described in the previous section. 
+! of the {\tt ESMF\_GridCreateNoPeriDim()} call described in the previous section. 
 ! This code creates a 10x20 2D grid with uniformly spaced coordinates varying from (10,10) to (100,200).
 ! The grid is partitioned using a regular distribution. The first dimension
 ! is divided into two pieces, and the second dimension is divided into 3.
@@ -409,24 +413,23 @@ if (petCount .le. 6) then
    !-------------------------------------------------------------------
    ! Create the Grid:  Allocate space for the Grid object, define the
    ! topology and distribution of the Grid, and specify that it 
-   ! will have global indices.  Note that aperiodic bounds are
-   ! specified by default - if periodic bounds were desired they
-   ! would need to be specified using an additional gridConn argument
-   ! (which isn't implemented yet). In this call the minIndex hasn't 
+   ! will have global indices.  Note that here aperiodic bounds are
+   ! specified by the argument name. In this call the minIndex hasn't 
    ! been set, so it defaults to (1,1,...). The default is to 
    ! divide the index range as equally as possible among the DEs
    ! specified in regDecomp. This behavior can be changed by 
    ! specifying decompFlag. 
    !-------------------------------------------------------------------
-   grid2D=ESMF_GridCreateShapeTile(          &
-            ! Define a regular distribution
-            maxIndex=(/10,20/), & ! define index space
-            regDecomp=(/2,3/),  & ! define how to divide among DEs
-            ! Specify mapping of coords dim to Grid dim
-            coordDep1=(/1/), & ! 1st coord is 1D and depends on 1st Grid dim
-            coordDep2=(/2/), & ! 2nd coord is 1D and depends on 2nd Grid dim
-            indexflag=ESMF_INDEX_GLOBAL, &
-            rc=rc)
+   grid2D=ESMF_GridCreateNoPeriDim(          &
+         ! Define a regular distribution
+         maxIndex=(/10,20/), & ! define index space
+         regDecomp=(/2,3/),  & ! define how to divide among DEs
+         coordSys=ESMF_COORDSYS_CART, &
+         ! Specify mapping of coords dim to Grid dim
+         coordDep1=(/1/), & ! 1st coord is 1D and depends on 1st Grid dim
+         coordDep2=(/2/), & ! 2nd coord is 1D and depends on 2nd Grid dim
+         indexflag=ESMF_INDEX_GLOBAL, &
+         rc=rc)
 
    !-------------------------------------------------------------------
    ! Allocate coordinate storage and associate it with the center
@@ -442,7 +445,8 @@ if (petCount .le. 6) then
    !-------------------------------------------------------------------
    call ESMF_GridGetCoord(grid2D, coordDim=1, localDE=0, &
           staggerloc=ESMF_STAGGERLOC_CENTER, &
-          computationalLBound=lbnd, computationalUBound=ubnd, fptr=coordX, rc=rc)
+          computationalLBound=lbnd, computationalUBound=ubnd, &
+          farrayPtr=coordX, rc=rc)
 
    !-------------------------------------------------------------------
    ! Calculate and set coordinates in the first dimension [10-100].
@@ -457,7 +461,8 @@ if (petCount .le. 6) then
    !-------------------------------------------------------------------
    call ESMF_GridGetCoord(grid2D, coordDim=2, localDE=0, &
           staggerloc=ESMF_STAGGERLOC_CENTER, &
-          computationalLBound=lbnd, computationalUBound=ubnd, fptr=coordY, rc=rc)
+          computationalLBound=lbnd, computationalUBound=ubnd, &
+          farrayPtr=coordY, rc=rc)
 
    !-------------------------------------------------------------------
    ! Calculate and set coordinates in the second dimension [10-200]
@@ -470,7 +475,100 @@ if (petCount .le. 6) then
    ! Clean up to prepare for the next example.
    !-------------------------------------------------------------------
    call ESMF_GridDestroy(grid2D, rc=rc)
-   if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+   if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
+endif
+
+
+
+!BOE
+!\subsubsection{Create a periodic 2D regularly distributed rectilinear Grid}
+! \label{example:2DPeriRegUniGrid}
+!
+! The following is an example of creating a simple rectilinear grid 
+! with a periodic dimension and loading in a set of coordinates. It illustrates a straightforward use
+! of the {\tt ESMF\_GridCreate1PeriDim()} call described in the previous section. 
+! This code creates a 10x20 2D grid with uniformly spaced coordinates varying from (1,1) to (360,180).
+! The grid is partitioned using a regular distribution. The first dimension
+! is divided into two pieces, and the second dimension is divided into 3.
+! This example assumes that the code is being run with a 1-1 mapping between 
+! PETs and DEs because we are only accessing the first DE on each PET (localDE=0).
+! Because we have 6 DEs (2x3), this example would only work when run on 6 PETs. 
+! The Grid is created with global indices. After Grid creation the
+! local bounds and native Fortran arrays are retrieved and the
+! coordinates are set by the user. 
+!
+!EOE
+
+! Don't run without correct number of procs
+if (petCount .le. 6) then
+
+!BOC
+   !-------------------------------------------------------------------
+   ! Create the Grid:  Allocate space for the Grid object, define the
+   ! topology and distribution of the Grid, and specify that it 
+   ! will have global indices.  Note that here a single periodic connection
+   ! is specified by the argument name. In this call the minIndex hasn't 
+   ! been set, so it defaults to (1,1,...). The default is to 
+   ! divide the index range as equally as possible among the DEs
+   ! specified in regDecomp. This behavior can be changed by 
+   ! specifying decompFlag. Since the coordinate system is
+   ! not specified, it defaults to ESMF_COORDSYS_SPH_DEG.
+   !-------------------------------------------------------------------
+   grid2D=ESMF_GridCreate1PeriDim(          &
+         ! Define a regular distribution
+         maxIndex=(/360,180/), & ! define index space
+         regDecomp=(/2,3/),  & ! define how to divide among DEs
+         ! Specify mapping of coords dim to Grid dim
+         coordDep1=(/1/), & ! 1st coord is 1D and depends on 1st Grid dim
+         coordDep2=(/2/), & ! 2nd coord is 1D and depends on 2nd Grid dim
+         indexflag=ESMF_INDEX_GLOBAL, &
+         rc=rc)
+
+   !-------------------------------------------------------------------
+   ! Allocate coordinate storage and associate it with the center
+   ! stagger location.  Since no coordinate values are specified in
+   ! this call no coordinate values are set yet.
+   !-------------------------------------------------------------------
+   call ESMF_GridAddCoord(grid2D,  & 
+          staggerloc=ESMF_STAGGERLOC_CENTER, rc=rc)
+
+   !-------------------------------------------------------------------
+   ! Get the pointer to the first coordinate array and the bounds
+   ! of its global indices on the local DE.   
+   !-------------------------------------------------------------------
+   call ESMF_GridGetCoord(grid2D, coordDim=1, localDE=0, &
+          staggerloc=ESMF_STAGGERLOC_CENTER, &
+          computationalLBound=lbnd, computationalUBound=ubnd, &
+          farrayPtr=coordX, rc=rc)
+
+   !-------------------------------------------------------------------
+   ! Calculate and set coordinates in the first dimension [10-100].
+   !-------------------------------------------------------------------
+   do i=lbnd(1),ubnd(1)
+        coordX(i) = i*1.0
+   enddo
+
+   !-------------------------------------------------------------------
+   ! Get the pointer to the second coordinate array and the bounds of
+   ! its global indices on the local DE.
+   !-------------------------------------------------------------------
+   call ESMF_GridGetCoord(grid2D, coordDim=2, localDE=0, &
+          staggerloc=ESMF_STAGGERLOC_CENTER, &
+          computationalLBound=lbnd, computationalUBound=ubnd, &
+          farrayPtr=coordY, rc=rc)
+
+   !-------------------------------------------------------------------
+   ! Calculate and set coordinates in the second dimension [10-200]
+   !-------------------------------------------------------------------
+   do j=lbnd(1),ubnd(1)
+        coordY(j) = j*1.0
+   enddo
+!EOC
+   !-------------------------------------------------------------------
+   ! Clean up to prepare for the next example.
+   !-------------------------------------------------------------------
+   call ESMF_GridDestroy(grid2D, rc=rc)
+   if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 endif
 
 
@@ -481,8 +579,8 @@ endif
 ! using a regular distribution, replace the {\tt countsPerDEDim} arguments
 ! in the Grid create with the appropriate {\tt maxIndex} and {\tt regDecomp} arguments. 
 !
-!\subsubsection{Creating a 2D Irregularly Distributed Rectilinear Grid
-!                  With Uniformly Spaced Coordinates}
+!\subsubsection{Create a 2D irregularly distributed rectilinear Grid
+!                  with uniformly spaced coordinates}
 ! \label{example:2DIrregUniGrid}
 !
 ! This example serves as an illustration of the difference between using
@@ -511,12 +609,10 @@ if (petCount .le. 6) then
    ! Create the Grid:  Allocate space for the Grid object, define the
    ! topology and distribution of the Grid, and specify that it 
    ! will have global coordinates.  Note that aperiodic bounds are
-   ! specified by default - if periodic bounds were desired they
-   ! would need to be specified using an additional gridConn argument
-   ! (which isn't implemented yet). In this call the minIndex hasn't 
+   ! indicated by the method name. In this call the minIndex hasn't 
    ! been set, so it defaults to (1,1,...).
    !-------------------------------------------------------------------
-   grid2D=ESMF_GridCreateShapeTile(          &
+   grid2D=ESMF_GridCreateNoPeriDim(          &
             ! Define an irregular distribution
             countsPerDEDim1=(/3,7/),    &
             countsPerDEDim2=(/11,2,7/), &
@@ -540,7 +636,8 @@ if (petCount .le. 6) then
    !-------------------------------------------------------------------
    call ESMF_GridGetCoord(grid2D, coordDim=1, localDE=0, &
           staggerloc=ESMF_STAGGERLOC_CENTER, &
-          computationalLBound=lbnd, computationalUBound=ubnd, fptr=coordX, rc=rc)
+          computationalLBound=lbnd, computationalUBound=ubnd, &
+          farrayPtr=coordX, rc=rc)
 
    !-------------------------------------------------------------------
    ! Calculate and set coordinates in the first dimension [10-100].
@@ -555,7 +652,8 @@ if (petCount .le. 6) then
    !-------------------------------------------------------------------
    call ESMF_GridGetCoord(grid2D, coordDim=2, localDE=0, &
           staggerloc=ESMF_STAGGERLOC_CENTER, &
-          computationalLBound=lbnd, computationalUBound=ubnd, fptr=coordY, rc=rc)
+          computationalLBound=lbnd, computationalUBound=ubnd, &
+          farrayPtr=coordY, rc=rc)
 
    !-------------------------------------------------------------------
    ! Calculate and set coordinates in the second dimension [10-200]
@@ -568,13 +666,13 @@ if (petCount .le. 6) then
    ! Clean up to prepare for the next example.
    !-------------------------------------------------------------------
    call ESMF_GridDestroy(grid2D, rc=rc)
-   if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+   if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 endif
 
 !BOE
 !
-!\subsubsection{Creating a 2D Irregularly Distributed Grid
-!                  With Curvilinear Coordinates}
+!\subsubsection{Create a 2D irregularly distributed Grid
+!                  with curvilinear coordinates}
 ! \label{example:2DIrregCurviGrid}
 !
 ! The following is an example of creating a simple curvilinear Grid and
@@ -601,20 +699,19 @@ if (petCount .le. 6) then
    ! Create the Grid:  Allocate space for the Grid object, define the
    ! distribution of the Grid, and specify that it 
    ! will have global indices.  Note that aperiodic bounds are
-   ! specified by default - if periodic bounds were desired they
-   ! would need to be specified using an additional gridConn argument
-   ! (which isn't implemented yet). In this call the minIndex hasn't 
-   ! been set, so it defaults to (1,1,...).
+   ! indicated by the method name. If periodic bounds were desired they
+   ! could be specified by using the ESMF_GridCreate1PeriDim() call.
+   ! In this call the minIndex hasn't been set, so it defaults to (1,1,...).
    !-------------------------------------------------------------------
-   grid2D=ESMF_GridCreateShapeTile(      &
-            ! Define an irregular distribution
-            countsPerDEDim1=(/3,7/),     &
-            countsPerDEDim2=(/11,2,7/),   &
-            ! Specify mapping of coords dim to Grid dim
-            coordDep1=(/1,2/), & ! 1st coord is 2D and depends on both Grid dim
-            coordDep2=(/1,2/), & ! 2nd coord is 1D and depends on both Grid dim
-            indexflag=ESMF_INDEX_GLOBAL, &
-            rc=rc)
+   grid2D=ESMF_GridCreateNoPeriDim(      &
+        ! Define an irregular distribution
+        countsPerDEDim1=(/3,7/),     &
+        countsPerDEDim2=(/11,2,7/),   &
+        ! Specify mapping of coords dim to Grid dim
+        coordDep1=(/1,2/), & ! 1st coord is 2D and depends on both Grid dim
+        coordDep2=(/1,2/), & ! 2nd coord is 1D and depends on both Grid dim
+        indexflag=ESMF_INDEX_GLOBAL, &
+        rc=rc)
 
    !-------------------------------------------------------------------
    ! Allocate coordinate storage and associate it with the center
@@ -630,7 +727,8 @@ if (petCount .le. 6) then
    !-------------------------------------------------------------------
    call ESMF_GridGetCoord(grid2D, coordDim=1, localDE=0, &
           staggerloc=ESMF_STAGGERLOC_CENTER, &
-          computationalLBound=lbnd, computationalUBound=ubnd, fptr=coordX2D, rc=rc)
+          computationalLBound=lbnd, computationalUBound=ubnd, &
+          farrayPtr=coordX2D, rc=rc)
 
    !-------------------------------------------------------------------
    ! Calculate and set coordinates in the first dimension [10-100].
@@ -647,7 +745,8 @@ if (petCount .le. 6) then
    !-------------------------------------------------------------------
    call ESMF_GridGetCoord(grid2D, coordDim=2, localDE=0, &
           staggerloc=ESMF_STAGGERLOC_CENTER, &
-          computationalLBound=lbnd, computationalUBound=ubnd, fptr=coordY2D, rc=rc)
+          computationalLBound=lbnd, computationalUBound=ubnd, &
+          farrayPtr=coordY2D, rc=rc)
 
    !-------------------------------------------------------------------
    ! Calculate and set coordinates in the second dimension [10-200]
@@ -662,12 +761,12 @@ if (petCount .le. 6) then
    ! Clean up to prepare for the next example.
    !-------------------------------------------------------------------
    call ESMF_GridDestroy(grid2D, rc=rc)
-   if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+   if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 endif
 
 !BOE
-!\subsubsection{Creating an Irregularly Distributed Rectilinear Grid with
-!                a Non-Distributed Vertical Dimension}
+!\subsubsection{Create an irregularly distributed rectilinear Grid with
+!                a non-distributed vertical dimension}
 ! \label{example:CurviGridWithUndistDim}
 !
 ! This example demonstrates how a user can build a rectilinear 
@@ -683,14 +782,15 @@ endif
    !-------------------------------------------------------------------
    ! Create the Grid:  Allocate space for the Grid object.  The
    ! Grid is defined to be 180 Grid cells in the first dimension
-   ! (e.g. longitude), 90 Grid cells in the second dimension (e.g. latitude), and
-   ! 40 Grid cells in the third dimension (e.g. height).  The first dimension is
-   ! decomposed over 4 DEs, the second over 3 DEs, and the third is 
-   ! not distributed.  The connectivities in each dimension default 
-   ! to aperiodic since they are not yet implemented. In this call 
-   ! the minIndex hasn't been set, so it defaults to (1,1,...). 
+   ! (e.g. longitude), 90 Grid cells in the second dimension 
+   ! (e.g. latitude), and 40 Grid cells in the third dimension 
+   ! (e.g. height).  The first dimension is decomposed over 4 DEs, 
+   ! the second over 3 DEs, and the third is not distributed.  
+   ! The connectivities in each dimension are set to aperiodic 
+   ! by this method. In this call the minIndex hasn't been set, 
+   ! so it defaults to (1,1,...). 
    !-------------------------------------------------------------------
-   grid3D=ESMF_GridCreateShapeTile( &
+   grid3D=ESMF_GridCreateNoPeriDim( &
             ! Define an irregular distribution
             countsPerDEDim1=(/45,75,40,20/), &
             countsPerDEDim2=(/30,40,20/),    &
@@ -738,7 +838,7 @@ endif
              staggerLoc=ESMF_STAGGERLOC_CORNER_VCENTER,       &
              computationalLBound=lbnd_corner,                 &
              computationalUBound=ubnd_corner,                 &
-             fptr=cornerX, rc=rc)
+             farrayPtr=cornerX, rc=rc)
 
       !----------------------------------------------------------------
       ! Calculate and set coordinates in the first dimension.
@@ -756,7 +856,7 @@ endif
              staggerLoc=ESMF_STAGGERLOC_CORNER_VCENTER,         &
              computationalLBound=lbnd_corner,                   &
              computationalUBound=ubnd_corner,                   &
-             fptr=cornerY, rc=rc)
+             farrayPtr=cornerY, rc=rc)
 
       !----------------------------------------------------------------
       ! Calculate and set coordinates in the second dimension.
@@ -772,7 +872,7 @@ endif
       call ESMF_GridGetCoord(grid3D, coordDim=3, localDE=lDE,   &
              staggerloc=ESMF_STAGGERLOC_CENTER_VCENTER,         &
              computationalLBound=lbnd, computationalUBound=ubnd,&
-             fptr=cornerZ, rc=rc)
+             farrayPtr=cornerZ, rc=rc)
 
       !----------------------------------------------------------------
       ! Calculate and set the vertical coordinates
@@ -792,7 +892,7 @@ endif
       call ESMF_GridGetCoord(grid3D, coordDim=1, localDE=lDE,    &
              staggerloc=ESMF_STAGGERLOC_CENTER_VCENTER,          &
              computationalLBound=lbnd, computationalUBound=ubnd, &
-             fptr=centerX, rc=rc)
+             farrayPtr=centerX, rc=rc)
 
       !----------------------------------------------------------------
       ! Calculate and set coordinates in the first dimension.
@@ -808,7 +908,7 @@ endif
        call ESMF_GridGetCoord(grid3D, coordDim=2, localDE=lDE,    &
               staggerloc=ESMF_STAGGERLOC_CENTER_VCENTER,          &
               computationalLBound=lbnd, computationalUBound=ubnd, &
-              fptr=centerY, rc=rc)
+              farrayPtr=centerY, rc=rc)
 
       !----------------------------------------------------------------
       ! Calculate and set coordinates in the second dimension.
@@ -824,7 +924,7 @@ endif
       call ESMF_GridGetCoord(grid3D, coordDim=3, localDE=lDE,   &
              staggerloc=ESMF_STAGGERLOC_CENTER_VCENTER,         &
              computationalLBound=lbnd, computationalUBound=ubnd,&
-             fptr=centerZ, rc=rc)
+             farrayPtr=centerZ, rc=rc)
 
       !----------------------------------------------------------------
       ! Calculate and set the vertical coordinates
@@ -846,14 +946,16 @@ endif
    call ESMF_GridDestroy(grid3D, rc=rc)
 
 !BOE
-!\subsubsection{Creating an Arbitrarily Distributed Rectilinear Grid with
-!                a Non-Distributed Vertical Dimension}
+!\subsubsection{Create an arbitrarily distributed rectilinear Grid with
+!                a non-distributed vertical dimension}
 ! \label{example:ArbGridWithUndistDim}
 !
+! \begin{sloppypar}
 ! There are more restrictions in defining an arbitrarily distributed grid.  
 ! First, there is always one DE per PET.  Secondly, only local index ({\tt ESMF\_INDEX\_LOCAL})
 ! is supported. Third, only one stagger location, i.e. {\tt ESMF\_STAGGERLOC\_CENTER} is allowed
 ! and last there is no extra paddings on the edge of the grid.  
+! \end{sloppypar}
 !
 ! This example demonstrates how a user can build a 3D grid with its rectilinear 
 ! horizontal Grid distributed arbitrarily and a non-distributed vertical dimension.
@@ -863,12 +965,12 @@ endif
 !BOC
    !-------------------------------------------------------------------
    ! Set up the local index array:  Assuming the grid is 360x180x10.  First
-   ! calculate the localArbIndexCount and localArbIndex array for each PET based on
-   ! the total number of PETS. The cells are evenly distributed in all the
-   ! PETs. If the total number of cells are not divisible by the total PETs, 
-   ! the remaining cells are assigned to the last PET.  The cells are card 
-   ! dealed to each PET in y dimension first, i.e. (1,1) -> PET 0, (1,2)->
-   ! PET 1, (1,3)-> PET 2, and so forth.  
+   ! calculate the localArbIndexCount and localArbIndex array for each PET 
+   ! based on the total number of PETS. The cells are evenly distributed in 
+   ! all the PETs. If the total number of cells are not divisible by the 
+   ! total PETs, the remaining cells are assigned to the last PET.  The 
+   ! cells are card dealed to each PET in y dimension first, 
+   ! i.e. (1,1) -> PET 0, (1,2)->  PET 1, (1,3)-> PET 2, and so forth.  
    !-------------------------------------------------------------------
    xdim = 360
    ydim = 180
@@ -896,17 +998,17 @@ endif
    !-------------------------------------------------------------------
    ! Create the Grid:  Allocate space for the Grid object.  
    ! the minIndex hasn't been set, so it defaults to (1,1,...). The
-   ! default coordDep1 and coordDep2 are (/ESMF_GRID_ARBDIM/) where 
-   ! ESMF_GRID_ARBDIM represents the collapsed dimension for the 
+   ! default coordDep1 and coordDep2 are (/ESMF_DIM_ARB/) where 
+   ! ESMF_DIM_ARB represents the collapsed dimension for the 
    ! arbitrarily distributed grid dimensions.  For the undistributed
    ! grid dimension, the default value for coordDep3 is (/3/).  The
    ! default values for coordDepX in the arbitrary distribution are
    ! different from the non-arbitrary distributions.
    !-------------------------------------------------------------------
-   grid3D=ESMF_GridCreateShapeTile( &
+   grid3D=ESMF_GridCreateNoPeriDim( &
 	    maxIndex = (/xdim, ydim, zdim/), &
-            localArbIndex = localArbIndex, &
-            localArbIndexCount = localArbIndexCount, &
+            arbIndexList = localArbIndex, &
+            arbIndexCount = localArbIndexCount, &
             rc=rc)
 
    !-------------------------------------------------------------------
@@ -924,7 +1026,7 @@ endif
           staggerLoc=ESMF_STAGGERLOC_CENTER,       &
           computationalLBound=lbnd,                 &
           computationalUBound=ubnd,                 &
-          fptr=centerX, rc=rc)
+          farrayPtr=centerX, rc=rc)
 
 
    !----------------------------------------------------------------
@@ -942,7 +1044,7 @@ endif
    call ESMF_GridGetCoord(grid3D, coordDim=2, localDE=0,    &
           staggerloc=ESMF_STAGGERLOC_CENTER,                  &
           computationalLBound=lbnd, computationalUBound=ubnd, &
-          fptr=centerY, rc=rc)
+          farrayPtr=centerY, rc=rc)
 
    !----------------------------------------------------------------
    ! Calculate and set coordinates in the second dimension.
@@ -958,7 +1060,7 @@ endif
    call ESMF_GridGetCoord(grid3D, coordDim=3, localDE=0,   &
           staggerloc=ESMF_STAGGERLOC_CENTER,               &
           computationalLBound=lbnd, computationalUBound=ubnd,&
-          fptr=centerZ, rc=rc)
+          farrayPtr=centerZ, rc=rc)
 
    !----------------------------------------------------------------
    ! Calculate and set the vertical coordinates
@@ -975,26 +1077,66 @@ endif
 
 
 !BOE
-!\subsubsection{Creating an Empty Grid in a Parent Component 
-! for Completion in a Child Component}\label{sec:usage:setcommit}
+!\subsubsection{Create a curvilinear Grid using the coordinates defined 
+! in a SCRIP file}\label{sec:example:2DLogRecFromScrip}
 !
+! \begin{sloppypar}
+! ESMF supports the creation of a 2D curvilinear Grid using the coordinates 
+! defined in a SCRIP format Grid file~\cite{ref:SCRIP}. The grid contained in the 
+! file must be a 2D logically rectangular grid with {\tt grid\_rank} in the file set
+! to 2.  The center coordinates variables {\tt grid\_center\_lat} and {\tt grid\_center\_lon} in the file
+! are placed in the ESMF\_STAGGERLOC\_CENTER location.  If the parameter {\tt addCornerStagger}
+! in the {\tt ESMF\_GridCreate} call is set to .true., then 
+! the variables {\tt grid\_corner\_lat} and {\tt grid\_corner\_lon} in the file
+! are used to set the ESMF\_STAGGERLOC\_CORNER coordinates, otherwise they are ignored.
+! The values in the {\tt grid\_imask} variable in the file are used to set the ESMF\_GRIDITEM\_MASK in the Grid.
+! \end{sloppypar}
+! 
+! The following example code shows you how to create a 2D Grid with both center and corner coordinates
+! using a SCRIP file and a row only regular distribution:
+!EOE
+
+#ifdef ESMF_NETCDF
+!BOC
+   grid2D = ESMF_GridCreate(filename="data/T42_grid.nc", &
+              regDecomp=(/PetCount,1/), addCornerStagger=.true., rc=rc)
+!EOC
+#endif
+
+!BOE
+!  Where T42\_grid.nc is a 2D global grid of size (128x64) and the resulting Grid is distributed
+!  by partitioning the rows evenly over all the PETs.
+!EOE
+
+   !-------------------------------------------------------------------
+   ! Clean up to prepare for the next example.
+   !-------------------------------------------------------------------
+   call ESMF_GridDestroy(grid2D, rc=rc)
+
+#if 1
+!BOE
+!\subsubsection{Create an empty Grid in a parent Component 
+! for completion in a child Component}\label{sec:usage:setcommit}
+!
+! \begin{sloppypar}
 ! ESMF Grids can be created incrementally. To do this,
-! the user first calls {\tt ESMF\_GridCreateEmpty()} to allocate the shell of
-! a Grid. Next, we use the {\tt ESMF\_GridSetCommitShapeTile()}
+! the user first calls {\tt ESMF\_GridEmptyCreate()} to allocate the shell of
+! a Grid. Next, we use the {\tt ESMF\_GridEmptyComplete()}
 ! call that fills in the Grid and does an internal commit to make it usable.
 ! For consistency's sake the {\tt ESMF\_GridSetCommitShapeTile()}
 ! call must occur on the same or a subset of the PETs as the
-!  {\tt ESMF\_GridCreateEmpty()} call. The 
-! {\tt ESMF\_GridSetCommitShapeTile()} call uses the VM for
+!  {\tt ESMF\_GridEmptyCreate()} call. The 
+! {\tt ESMF\_GridEmptyComplete()} call uses the VM for
 ! the context in which it's executed and the "empty" Grid contains
 ! no information about the VM in which its create was run.  This
-! means that if the {\tt ESMF\_GridSetCommitShapeTile()} call occurs
-! in a subset of the PETs in which the {\tt ESMF\_GridCreateEmpty()} was 
+! means that if the {\tt ESMF\_GridEmptyComplete()} call occurs
+! in a subset of the PETs in which the {\tt ESMF\_GridEmptyCreate()} was 
 ! executed that the Grid is created only in that subset. Inside the subset
 ! the Grid will be fine, but outside the subset the Grid objects will
 ! still be "empty" and not usable. The following example uses the
 ! incremental technique to create a rectangular 10x20 Grid with coordinates at
 ! the center and corner stagger locations. 
+! \end{sloppypar}
 !EOE
 
 !BOC
@@ -1005,14 +1147,14 @@ endif
 ! The child's [vm or pet list] is passed into the create call so that
 ! the Grid is defined on the appropriate subset of the parent's PETs. 
 !---------------------------------------------------------------------------
-   grid2D=ESMF_GridCreateEmpty(rc=rc)
+   grid2D=ESMF_GridEmptyCreate(rc=rc)
 
 !---------------------------------------------------------------------------
 ! IN THE CHILD COMPONENT:
 ! Set the Grid topology.  Here we define an irregularly distributed 
 ! rectangular Grid.
 !---------------------------------------------------------------------------
-   call ESMF_GridSetCommitShapeTile(grid2D,             &
+   call ESMF_GridEmptyComplete(grid2D,             &
                           countsPerDEDim1=(/6,4/),      &
                           countsPerDEDim2=(/10,3,7/), rc=rc)
 
@@ -1031,12 +1173,11 @@ endif
    ! Clean up to prepare for the next example.
    !-------------------------------------------------------------------
    call ESMF_GridDestroy(grid2D, rc=rc)
-
-
+#endif
 
 
 !BOE
-!\subsubsection{Grid Stagger Locations}
+!\subsubsection{Grid stagger locations}
 !\label{sec:usage:staggerloc}
 !
 ! A useful finite difference technique is to place different physical 
@@ -1054,7 +1195,7 @@ endif
 ! at the cell center, at the cell corners, or at the cell faces, in 2D, 3D, and
 ! higher dimensions. (Note that any Arakawa stagger can be constructed
 ! of a set of Grid stagger locations.)  There are predefined stagger locations
-! (see Section~\ref{sec:opt:staggerloc}), or,
+! (see Section~\ref{const:staggerloc}), or,
 ! should the user wish to specify their own, there
 ! is also a set of methods for generating custom locations 
 ! (See Section~\ref{sec:usage:staggerloc:adv}).
@@ -1076,7 +1217,7 @@ endif
 
 
 !BOE
-!\subsubsection{Associating Coordinates with Stagger Locations}
+!\subsubsection{Associate coordinates with stagger locations}
 !
 ! The primary type of data the Grid is resposible for storing is coordinates. 
 ! The coordinate values in a Grid can be employed by the user in calculations or
@@ -1105,16 +1246,16 @@ endif
 !BOC 
    call ESMF_GridAddCoord(grid2D, staggerLoc=ESMF_STAGGERLOC_CORNER, rc=rc)
 !EOC  
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
 !!!!!!!!!!!!!!!!!!!!!!!
 ! Cleanup after Example
 !!!!!!!!!!!!!!!!!!!!!!
    call ESMF_GridDestroy(grid2D, rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
    call ESMF_DistGridDestroy(distgrid2D, rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
 !BOE
 ! Note only the center stagger location {\tt ESMF\_STAGGERLOC\_CENTER} is supported 
@@ -1144,8 +1285,8 @@ endif
 
 !BOE
 !
-!\subsubsection{Specifying the Relationship of Coordinate Arrays
-!               to Index Space Dimensions}
+!\subsubsection{Specify the relationship of coordinate Arrays
+!               to index space dimensions}
 !
 ! To specify how the coordinate arrays are mapped to the 
 ! index dimensions the arguments {\tt coordDep1}, 
@@ -1170,12 +1311,12 @@ endif
 !EOE
 
 !BOC
-   grid2D=ESMF_GridCreateShapeTile(countsPerDEDim1=(/5,5/), &
+   grid2D=ESMF_GridCreateNoPeriDim(countsPerDEDim1=(/5,5/), &
           countsPerDEDim2=(/7,7,6/),                    &
           coordDep1=(/2/),                              &
           coordDep2=(/1/), rc=rc)   
 !EOC
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
 !!!!!!!!!!!!!!!!!!!!!!!
 ! Cleanup after Example
@@ -1191,7 +1332,7 @@ call ESMF_GridDestroy(grid2D,rc=rc)
 !EOE
 
 !BOC
-   grid2D=ESMF_GridCreateShapeTile(countsPerDEDim1=(/6,4/), &
+   grid2D=ESMF_GridCreateNoPeriDim(countsPerDEDim1=(/6,4/), &
           countsPerDEDim2=(/10,7,3/), countsPerDEDim3=(/30/), &
           coordDep1=(/1,2/), coordDep2=(/1,2/), &
           coordDep3=(/3/), rc=rc)   
@@ -1210,32 +1351,32 @@ call ESMF_GridDestroy(grid2D,rc=rc)
 !EOE
 
 !BOC
-   grid2D=ESMF_GridCreateShapeTile(countsPerDEDim1=(/6,4/), &
+   grid2D=ESMF_GridCreateNoPeriDim(countsPerDEDim1=(/6,4/), &
            countsPerDEDim2=(/10,7,3/), indexflag=ESMF_INDEX_GLOBAL, rc=rc)   
 !EOC
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
 !!!!!!!!!!!!!!!!!!!!!!!
 ! Cleanup after Example
 !!!!!!!!!!!!!!!!!!!!!!
 call ESMF_GridDestroy(grid2D,rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
 !BOE
 ! For an arbitrarily distributed grid, the default value of a coordinate
-! array dimension is {\tt ESMF\_GRID\_ARBDIM} if the index dimension is arbitrarily
+! array dimension is {\tt ESMF\_DIM\_ARB} if the index dimension is arbitrarily
 ! distributed and is {\tt n} where {\tt n} is the index dimension itself when it is not
 ! distributed. The following call is equivalent to the example in 
 ! Section \ref{example:ArbGridWithUndistDim} 
 !EOE
 
 !BOC
-   grid3D=ESMF_GridCreateShapeTile( &
+   grid3D=ESMF_GridCreateNoPeriDim( &
 	    maxIndex = (/xdim, ydim, zdim/), &
-            localArbIndex = localArbIndex, &
-            localArbIndexCount = localArbIndexCount,	 &
- 	    coordDep1 = (/ESMF_GRID_ARBDIM/), &
-	    coordDep2 = (/ESMF_GRID_ARBDIM/), &
+            arbIndexList = localArbIndex, &
+            arbIndexCount = localArbIndexCount,	 &
+ 	    coordDep1 = (/ESMF_DIM_ARB/), &
+	    coordDep2 = (/ESMF_DIM_ARB/), &
 	    coordDep3 = (/3/), &
             rc=rc)
 !EOC 
@@ -1244,7 +1385,7 @@ call ESMF_GridDestroy(grid2D,rc=rc)
 ! Cleanup after Example
 !!!!!!!!!!!!!!!!!!!!!!
 call ESMF_GridDestroy(grid3D,rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
 !BOE
 ! The following call uses non-default {\tt coordDep1}, {\tt coordDep2}, 
@@ -1253,13 +1394,13 @@ call ESMF_GridDestroy(grid3D,rc=rc)
 !EOE
 
 !BOC
-   grid3D=ESMF_GridCreateShapeTile( &
+   grid3D=ESMF_GridCreateNoPeriDim( &
 	    maxIndex = (/xdim, ydim, zdim/), &
-            localArbIndex = localArbIndex, &
-            localArbIndexCount = localArbIndexCount,	 &
- 	    coordDep1 = (/ESMF_GRID_ARBDIM, 3/), &
-	    coordDep2 = (/ESMF_GRID_ARBDIM, 3/), &
-	    coordDep3 = (/ESMF_GRID_ARBDIM, 3/), &
+            arbIndexList = localArbIndex, &
+            arbIndexCount = localArbIndexCount,	 &
+ 	    coordDep1 = (/ESMF_DIM_ARB, 3/), &
+	    coordDep2 = (/ESMF_DIM_ARB, 3/), &
+	    coordDep3 = (/ESMF_DIM_ARB, 3/), &
             rc=rc)
 !EOC 
 
@@ -1267,10 +1408,10 @@ call ESMF_GridDestroy(grid3D,rc=rc)
 ! Cleanup after Example
 !!!!!!!!!!!!!!!!!!!!!!
 call ESMF_GridDestroy(grid3D,rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
 !BOE
-!\subsubsection{Accessing Coordinates}
+!\subsubsection{Access coordinates}
 !\label{sec:usage:coords:accessing}
 !
 ! Once a Grid has been created, the user has several options to access
@@ -1286,34 +1427,34 @@ call ESMF_GridDestroy(grid3D,rc=rc)
 ! Setup For Example
 !!!!!!!!!!!!!!!!!!!!!!
    distgrid2D=ESMF_DistGridCreate(minIndex=(/1,1/),maxIndex=(/10,10/), rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
    grid2D=ESMF_GridCreate(distgrid=distgrid2D, rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   call ESMF_GridGet(grid2D, staggerloc=ESMF_STAGGERLOC_CORNER, &
-         staggerdistgrid=staggerdistgrid, rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+         distgrid=staggerdistgrid, rc=rc)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
    call ESMF_ArraySpecSet(arrayspec2D,rank=2,typekind=ESMF_TYPEKIND_R8)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
    arrayCoordX=ESMF_ArrayCreate(arrayspec=arrayspec2D, distgrid=staggerDistgrid, &
               rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
 !BOC
    call ESMF_GridSetCoord(grid2D, &
           staggerLoc=ESMF_STAGGERLOC_CORNER, &
           coordDim=1, array=arrayCoordX, rc=rc)
 !EOC
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
 !!!!!!!!!!!!!!!!!!!!!!!
 ! Cleanup after Example
 !!!!!!!!!!!!!!!!!!!!!!
    call ESMF_GridDestroy(grid2D, rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
    call ESMF_ArrayDestroy(arrayCoordX, rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
    call ESMF_DistGridDestroy(distgrid2D, rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
 
 !BOE
@@ -1329,12 +1470,12 @@ call ESMF_GridDestroy(grid3D,rc=rc)
 ! Setup For Example
 !!!!!!!!!!!!!!!!!!!!!!
    distgrid2D=ESMF_DistGridCreate(minIndex=(/1,1/),maxIndex=(/10,10/), rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
    grid2D=ESMF_GridCreate(distgrid=distgrid2D, rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
    call ESMF_GridAddCoord(grid2D,&
           staggerLoc=ESMF_STAGGERLOC_CORNER, rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
 
 !BOC
@@ -1343,15 +1484,15 @@ call ESMF_GridDestroy(grid3D,rc=rc)
           coordDim=2,                           &
           array=arrayCoordY, rc=rc)
 !EOC
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
 !!!!!!!!!!!!!!!!!!!!!!!
 ! Cleanup after Example
 !!!!!!!!!!!!!!!!!!!!!!
    call ESMF_GridDestroy(grid2D, rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
    call ESMF_DistGridDestroy(distgrid2D, rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
 
 
@@ -1366,36 +1507,36 @@ call ESMF_GridDestroy(grid3D,rc=rc)
 ! Setup For Example
 !!!!!!!!!!!!!!!!!!!!!!
    distgrid2D=ESMF_DistGridCreate(minIndex=(/1,1/),maxIndex=(/10,10/), rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
    grid2D=ESMF_GridCreate(distgrid=distgrid2D, rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
    call ESMF_GridAddCoord(grid2D,&
           staggerLoc=ESMF_STAGGERLOC_CORNER, rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
 
 ! Don't run without correct number of DEs
   call ESMF_GridGet(grid2D, localDECount=localDECount, rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   if (localDECount .gt. 0) then
 !BOC
    call ESMF_GridGetCoord(grid2D, coordDim=2, localDE=0, &
-          staggerloc=ESMF_STAGGERLOC_CORNER, fptr=coordY2D, rc=rc)
+          staggerloc=ESMF_STAGGERLOC_CORNER, farrayPtr=coordY2D, rc=rc)
 !EOC
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   endif
 
 !!!!!!!!!!!!!!!!!!!!!!!
 ! Cleanup after Example
 !!!!!!!!!!!!!!!!!!!!!!
    call ESMF_GridDestroy(grid2D, rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   call ESMF_DistGridDestroy(distgrid2D, rc=rc)
-   if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+   if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
 
 !BOE
-!\subsubsection{Associating Items with Stagger Locations}
+!\subsubsection{Associate items with stagger locations}
 !\label{sec:usage:items}
 !
 ! The ESMF Grids contain the ability to store other kinds of 
@@ -1404,7 +1545,7 @@ call ESMF_GridDestroy(grid3D,rc=rc)
 ! data as they see fit, the user should be aware that
 ! this data may also be used by other parts of ESMF (e.g. the 
 ! ESMF\_GRIDITEM\_MASK item is used in regridding). 
-! Please see Section~\ref{sec:opt:griditem} for a list of valid
+! Please see Section~\ref{const:griditem} for a list of valid
 ! items.
 !
 ! Like coordinates items are also created on stagger locations.
@@ -1428,62 +1569,64 @@ call ESMF_GridDestroy(grid3D,rc=rc)
 
 !BOC 
    call ESMF_GridAddItem(grid2D, staggerLoc=ESMF_STAGGERLOC_CORNER, &
-          item=ESMF_GRIDITEM_MASK, rc=rc)
+          itemflag=ESMF_GRIDITEM_MASK, rc=rc)
 !EOC  
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
 !!!!!!!!!!!!!!!!!!!!!!!
 ! Cleanup after Example
 !!!!!!!!!!!!!!!!!!!!!!
    call ESMF_GridDestroy(grid2D, rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
    call ESMF_DistGridDestroy(distgrid2D, rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
 
 !BOE
-!\subsubsection{Accessing Items}
+!\subsubsection{Access items}
 !\label{sec:usage:items:accessing}
+! \begin{sloppypar}
 ! Once an item has been added to a Grid, the user has several options to access
 ! the data. The first of these, {\tt ESMF\_GridSetItem()}, 
 ! enables the user to use ESMF Arrays to set data for one stagger location across the whole Grid. 
 ! For example, the following sets the mask item in the corner stagger location to 
 ! those in the ESMF Array {\tt arrayMask}.
+! \end{sloppypar}
 !EOE
 
 !!!!!!!!!!!!!!!!!!!!!!!
 ! Setup For Example
 !!!!!!!!!!!!!!!!!!!!!!
    distgrid2D=ESMF_DistGridCreate(minIndex=(/1,1/),maxIndex=(/10,10/), rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
    grid2D=ESMF_GridCreate(distgrid=distgrid2D, rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   call ESMF_GridGet(grid2D, staggerloc=ESMF_STAGGERLOC_CORNER, &
-         staggerdistgrid=staggerdistgrid, rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+         distgrid=staggerdistgrid, rc=rc)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
    call ESMF_ArraySpecSet(arrayspec2D,rank=2,typekind=ESMF_TYPEKIND_I4)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
    arrayMask=ESMF_ArrayCreate(arrayspec=arrayspec2D, distgrid=staggerDistgrid, &
               rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
 !BOC
    call ESMF_GridSetItem(grid2D,             &
           staggerLoc=ESMF_STAGGERLOC_CORNER, &
-          item=ESMF_GRIDITEM_MASK, array=arrayMask, rc=rc)
+          itemflag=ESMF_GRIDITEM_MASK, array=arrayMask, rc=rc)
 !EOC
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
 !!!!!!!!!!!!!!!!!!!!!!!
 ! Cleanup after Example
 !!!!!!!!!!!!!!!!!!!!!!
    call ESMF_GridDestroy(grid2D, rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
    call ESMF_ArrayDestroy(arrayMask, rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
    call ESMF_DistGridDestroy(distgrid2D, rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
 
 !BOE
@@ -1499,29 +1642,29 @@ call ESMF_GridDestroy(grid3D,rc=rc)
 ! Setup For Example
 !!!!!!!!!!!!!!!!!!!!!!
    distgrid2D=ESMF_DistGridCreate(minIndex=(/1,1/),maxIndex=(/10,10/), rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
    grid2D=ESMF_GridCreate(distgrid=distgrid2D, rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
    call ESMF_GridAddItem(grid2D,&
-          staggerLoc=ESMF_STAGGERLOC_CORNER, item=ESMF_GRIDITEM_MASK, rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+          staggerLoc=ESMF_STAGGERLOC_CORNER, itemflag=ESMF_GRIDITEM_MASK, rc=rc)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
 
 !BOC
    call ESMF_GridGetItem(grid2D,             &
           staggerLoc=ESMF_STAGGERLOC_CORNER, &
-          item=ESMF_GRIDITEM_MASK,           &
+          itemflag=ESMF_GRIDITEM_MASK,           &
           array=arrayMask, rc=rc)
 !EOC
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
 !!!!!!!!!!!!!!!!!!!!!!!
 ! Cleanup after Example
 !!!!!!!!!!!!!!!!!!!!!!
    call ESMF_GridDestroy(grid2D, rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
    call ESMF_DistGridDestroy(distgrid2D, rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
 
 
@@ -1536,47 +1679,50 @@ call ESMF_GridDestroy(grid3D,rc=rc)
 ! Setup For Example
 !!!!!!!!!!!!!!!!!!!!!!
    distgrid2D=ESMF_DistGridCreate(minIndex=(/1,1/),maxIndex=(/10,10/), rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
    grid2D=ESMF_GridCreate(distgrid=distgrid2D, rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
    call ESMF_GridAddItem(grid2D,&
           staggerLoc=ESMF_STAGGERLOC_CORNER, &
-          item=ESMF_GRIDITEM_MASK, rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+          itemflag=ESMF_GRIDITEM_MASK, rc=rc)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
 
 ! Don't run without correct number of DEs
   call ESMF_GridGet(grid2D, localDECount=localDECount, rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   if (localDECount .gt. 0) then
 !BOC
    call ESMF_GridGetItem(grid2D, localDE=0,   &
           staggerloc=ESMF_STAGGERLOC_CORNER,  &
-          item=ESMF_GRIDITEM_MASK, fptr=mask2D, rc=rc)
+          itemflag=ESMF_GRIDITEM_MASK, farrayPtr=mask2D, rc=rc)
 !EOC 
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   endif
 
 !!!!!!!!!!!!!!!!!!!!!!!
 ! Cleanup after Example
 !!!!!!!!!!!!!!!!!!!!!!
    call ESMF_GridDestroy(grid2D, rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   call ESMF_DistGridDestroy(distgrid2D, rc=rc)
-   if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+   if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
 
 
 !BOE
-!\subsubsection{Grid Regions and Bounds}
+!\subsubsection{Grid regions and bounds}
 !\label{sec:grid:usage:bounds}
 !
+! \begin{sloppypar}
 ! Like an Array or a Field, the index space of each 
 ! stagger location in the Grid contains an exclusive region, a 
 ! computational region and a total region. Please 
 ! see Section~\ref{Array_regions_and_default_bounds}
 ! for an in depth description of these regions. 
+! \end{sloppypar}
 !
+! \begin{sloppypar}
 ! The exclusive region is the index space defined by the 
 ! distgrid of each stagger location of the Grid. This region 
 ! is the region which is owned by the DE and is the region 
@@ -1585,6 +1731,7 @@ call ESMF_GridDestroy(grid3D,rc=rc)
 ! exclusive region defined by the DistGrid used to create the Grid.
 ! The size of the stagger exclusive region is the index space for the 
 ! Grid cells, plus the stagger padding. 
+! \end{sloppypar}
 !
 ! The default stagger padding depends on the topology of the Grid. 
 ! For an unconnected dimension the stagger padding is a width
@@ -1615,26 +1762,26 @@ call ESMF_GridDestroy(grid3D,rc=rc)
 !EOE
 
 !BOC
-  grid2D=ESMF_GridCreateShapeTile(regDecomp=(/2,4/), maxIndex=(/5,15/), &
+  grid2D=ESMF_GridCreateNoPeriDim(regDecomp=(/2,4/), maxIndex=(/5,15/), &
            indexflag=ESMF_INDEX_GLOBAL, rc=rc)   
 !EOC
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
    !-------------------------------------------------------------------
    ! Clean up to prepare for the next example.
    !-------------------------------------------------------------------
   call ESMF_GridDestroy(grid2D, rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
 !BOC
-  grid2D=ESMF_GridCreateShapeTile(countsPerDEDim1=(/4,4,4,3/), &
+  grid2D=ESMF_GridCreateNoPeriDim(countsPerDEDim1=(/4,4,4,3/), &
            countsPerDEDim2=(/3,2/), indexflag=ESMF_INDEX_GLOBAL, rc=rc)   
 !EOC
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
    !-------------------------------------------------------------------
    ! Clean up to prepare for the next example.
    !-------------------------------------------------------------------
   call ESMF_GridDestroy(grid2D, rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
 
 !BOE
@@ -1703,7 +1850,7 @@ call ESMF_GridDestroy(grid3D,rc=rc)
 !EOE
 
 !BOE
-!\subsubsection{Getting Grid Coordinate Bounds}
+!\subsubsection{Get Grid coordinate bounds}
 !
 ! When operating on coordinates the user may often wish to 
 ! retrieve the bounds of the piece of coordinate data on
@@ -1716,7 +1863,7 @@ call ESMF_GridDestroy(grid3D,rc=rc)
 ! As described in the previous section there are three types of bounds the user can 
 ! get: exclusive bounds, computational bounds, 
 ! and total bounds. The bounds
-! provided by {\tt ESMF\_GridGetCoord} are for both distributed
+! provided by {\tt ESMF\_GridGetCoordBounds} are for both distributed
 ! and undistributed dimensions and are ordered according to the
 ! order of dimensions in the  coordinate. This means that the bounds
 !  provided should be usable
@@ -1734,38 +1881,38 @@ call ESMF_GridDestroy(grid3D,rc=rc)
 ! Setup For Example
 !!!!!!!!!!!!!!!!!!!!!!
    distgrid2D=ESMF_DistGridCreate(minIndex=(/1,1/),maxIndex=(/10,10/), rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
    grid2D=ESMF_GridCreate(distgrid=distgrid2D, rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   call ESMF_GridAddCoord(grid2D, staggerloc=ESMF_STAGGERLOC_CORNER, rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
 ! Don't run without correct number of DEs
   call ESMF_GridGet(grid2D, localDECount=localDECount, rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   if (localDECount .gt. 0) then 
 !BOC
-   call ESMF_GridGetCoord(grid2D, coordDim=1, localDE=0,  &
+   call ESMF_GridGetCoordBounds(grid2D, coordDim=1, localDE=0,  &
           staggerLoc=ESMF_STAGGERLOC_CORNER,                         &
           exclusiveLBound=elbnd, exclusiveUBound=eubnd,              &
           computationalLBound=clbnd, computationalUBound=cubnd,      & 
           totalLBound=tlbnd, totalUBound=tubnd, rc=rc)
 !EOC
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 endif
 
 !!!!!!!!!!!!!!!!!!!!!!!
 ! Cleanup after Example
 !!!!!!!!!!!!!!!!!!!!!!
    call ESMF_GridDestroy(grid2D, rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
    call ESMF_DistGridDestroy(distgrid2D, rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
 
 
 !BOE
-!\subsubsection{Getting Grid Stagger Location Bounds}
+!\subsubsection{Get Grid stagger location bounds}
 !
 ! When operating on data stored at a particular stagger
 ! in a Grid the user may find it useful to be able
@@ -1792,15 +1939,15 @@ endif
 ! Setup For Example
 !!!!!!!!!!!!!!!!!!!!!!
    distgrid2D=ESMF_DistGridCreate(minIndex=(/1,1/),maxIndex=(/10,10/), rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
    grid2D=ESMF_GridCreate(distgrid=distgrid2D, rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   call ESMF_GridAddCoord(grid2D, staggerloc=ESMF_STAGGERLOC_CORNER, rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
 ! Don't run without correct number of DEs
   call ESMF_GridGet(grid2D, localDECount=localDECount, rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   if (localDECount .gt. 0) then 
 !BOC
    call ESMF_GridGet(grid2D, localDE=0,                         &
@@ -1808,21 +1955,21 @@ endif
           exclusiveLBound=elbnd, exclusiveUBound=eubnd,         &
           computationalLBound=clbnd, computationalUBound=cubnd, rc=rc)
 !EOC
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
  endif
 
 !!!!!!!!!!!!!!!!!!!!!!!
 ! Cleanup after Example
 !!!!!!!!!!!!!!!!!!!!!!
    call ESMF_GridDestroy(grid2D, rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
    call ESMF_DistGridDestroy(distgrid2D, rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
 
 
 !BOE
-!\subsubsection{Getting Grid Stagger Location Information}
+!\subsubsection{Get Grid stagger location information}
 !
 ! In addition to the per DE information that can be accessed about
 ! a stagger location there is some global information that can
@@ -1830,11 +1977,11 @@ endif
 ! localDE. One of the uses of this information is to create
 ! an ESMF Array to hold data for a stagger location. 
 !
+! \begin{sloppypar}
 ! The information currently available from a stagger
-! location is the {\tt staggerDistgrid}  and
-! {\tt minIndex} and {\tt maxIndex}. The {\tt staggerDistgrid} gives the 
+! location is the {\tt distgrid}. The {\tt distgrid} gives the 
 ! distgrid which describes the size and distribution of the elements in the stagger location.
-! The {\tt minIndex} and {\tt maxIndex} describe the lower and upper bounds of the stagger location.
+! \end{sloppypar}
 !
 ! The following is an example of retrieving information for localDE 0
 ! from the corner stagger location. 
@@ -1845,34 +1992,33 @@ endif
 ! Setup For Example
 !!!!!!!!!!!!!!!!!!!!!!
    distgrid2D=ESMF_DistGridCreate(minIndex=(/1,1/),maxIndex=(/10,10/), rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
    grid2D=ESMF_GridCreate(distgrid=distgrid2D, rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   call ESMF_GridAddCoord(grid2D, staggerloc=ESMF_STAGGERLOC_CORNER, rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
 !BOC
     ! Get info about staggerloc
     call ESMF_GridGet(grid2D, staggerLoc=ESMF_STAGGERLOC_CORNER,  &
-           staggerDistgrid=staggerDistgrid, &
-           minIndex=minIndex, maxIndex=maxIndex, &
+           distgrid=staggerDistgrid, &
            rc=rc)
 
 !EOC
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
 !!!!!!!!!!!!!!!!!!!!!!!
 ! Cleanup after Example
 !!!!!!!!!!!!!!!!!!!!!!
    call ESMF_GridDestroy(grid2D, rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
    call ESMF_DistGridDestroy(distgrid2D, rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
 
 
 !BOE
-!\subsubsection{Creating an Array at a Stagger Location}
+!\subsubsection{Create an Array at a stagger location}
 !
 ! In order to create an Array to correspond to a Grid stagger location
 ! several pieces of information need to be obtained from both the 
@@ -1897,11 +2043,11 @@ endif
 ! Setup For Example
 !!!!!!!!!!!!!!!!!!!!!!
    distgrid2D=ESMF_DistGridCreate(minIndex=(/1,1/),maxIndex=(/10,10/), rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
    grid2D=ESMF_GridCreate(distgrid=distgrid2D, rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   call ESMF_GridAddCoord(grid2D, staggerloc=ESMF_STAGGERLOC_CORNER, rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
  
 !BOC
 
@@ -1910,7 +2056,7 @@ endif
 
     ! Get info about staggerloc
     call ESMF_GridGet(grid2D, staggerLoc=ESMF_STAGGERLOC_CORNER, &
-           staggerDistgrid=staggerDistgrid, &
+           distgrid=staggerDistgrid, &
            rc=rc)
 
     ! construct ArraySpec
@@ -1922,17 +2068,17 @@ endif
             rc=rc)
 
 !EOC
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
 !!!!!!!!!!!!!!!!!!!!!!!
 ! Cleanup after Example
 !!!!!!!!!!!!!!!!!!!!!!
    call ESMF_ArrayDestroy(array, rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
    call ESMF_GridDestroy(grid2D, rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
    call ESMF_DistGridDestroy(distgrid2D, rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
 !BOE
 ! Creating an Array for a Grid with arbitrary distribution is different. 
@@ -1949,12 +2095,12 @@ endif
 !!!!!!!!!!!!!!!!!!!!!!!
 ! Setup For Example
 !!!!!!!!!!!!!!!!!!!!!!
-    grid3D=ESMF_GridCreateShapeTile( &
+    grid3D=ESMF_GridCreateNoPeriDim( &
 	    maxIndex = (/xdim, ydim, zdim/), &
-            localArbIndex = localArbIndex, &
-            localArbIndexCount = localArbIndexCount, &
+            arbIndexList = localArbIndex, &
+            arbIndexCount = localArbIndexCount, &
             rc=rc)
-    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
  
 !BOC
     ! Get distGrid from Grid
@@ -1967,13 +2113,13 @@ endif
     array=ESMF_ArrayCreate(arrayspec=arrayspec,distgrid=distgrid, rc=rc)
 
 !EOC
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
 !!!!!!!!!!!!!!!!!!!!!!!
 ! Cleanup after Example
 !!!!!!!!!!!!!!!!!!!!!!
    call ESMF_GridDestroy(grid3D, rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
 
 #ifdef LOCAL_NOT_IMPL
@@ -1982,7 +2128,7 @@ endif
 ! a Fortran pointer. These methods only work with the local piece of the 
 ! Grid on the DE. {\tt ESMF\_GridSetCoord} enables the user
 ! to set data into the local piece of the coordinates residing on the DE.
-! The following call gets a pointer (fptr) to the Fortran array holding the 
+! The following call gets a pointer (farrayPtr) to the Fortran array holding the 
 ! first component (e.g. x) coordinates for the corner stagger
 ! for the piece of tile 2 which is on this PET. It
 ! defaults to the first DE because it isn't specified. 
@@ -1991,7 +2137,7 @@ endif
 !BOCI
    call ESMF_GridSetCoord(grid3D, tile=2,  &
           staggerLoc=ESMF_STAGGERLOC_CORNER,        &
-          coordDim=1, fptr, doCopy=ESMF_DATA_REF, rc=rc)
+          coordDim=1, farrayPtr, datacopyflag=ESMF_DATACOPY_REFERENCE, rc=rc)
 !EOCI
 #endif
 
@@ -2028,7 +2174,7 @@ endif
 
 #ifdef LOCAL_NOT_IMPL
 !BOEI
-!\subsubsection{Generating Grid Coordinates}
+!\subsubsection{Generate Grid coordinates}
 !
 ! The current ESMF grid interface provides some automatic production
 ! of coordinate values. In the future there are plans to add more, but 
@@ -2050,7 +2196,7 @@ endif
 
 #ifdef LOCAL_NOT_IMPL
 !BOEI
-!\subsubsection{Calculating Grid Coordinates}
+!\subsubsection{Calculate Grid coordinates}
 !
 ! In addition to the grid generate option specified above to set coordinates, 
 ! ESMF also provides a method to calculate coordinates based on those
@@ -2069,7 +2215,7 @@ endif
 
 #ifdef LOCAL_NOT_IMPL
 !BOEI
-!\subsubsection{Grid Halo}
+!\subsubsection{Grid halo}
 !
 ! The Grid halo operation allows users to update the
 ! halos (if present) of the Grid coordinate arrays to contain the coordinate values on the 
@@ -2091,7 +2237,7 @@ endif
 
 #ifdef LOCAL_NOT_IMPL
 !BOEI
-! \subsubsection{Creating a Regularly Distributed 3D Grid with Generated Coordinates}
+! \subsubsection{Create a regularly distributed 3D Grid with generated coordinates}
 !
 ! This example illustrates the creation of a 100x100x100  3D Grid distributed across
 ! 5 PETs in each dimension. The coordinates in the Grid are uniformly distributed
@@ -2101,7 +2247,7 @@ endif
 
 !BOCI
    ! Use ESMF framework module
-   use ESMF_Mod
+   use ESMF
    implicit none
 
    ! Local variables  
@@ -2115,7 +2261,7 @@ endif
 
 !BOCI
    ! Create the Grid.
-   grid=ESMF_GridCreateShapeTile(maxIndex=(/100,100,100/), regDecomp=(/5,5,5/), rc=rc)   
+   grid=ESMF_GridCreateNoPeriDim(maxIndex=(/100,100,100/), regDecomp=(/5,5,5/), rc=rc)   
 
    ! Add a center stagger location 
    call ESMF_GridSetCoord(grid, staggerLoc=ESMF_STAGGERLOC_CENTER, rc=rc)
@@ -2129,11 +2275,11 @@ endif
 
 #ifdef LOCAL_NOT_IMPL
 !removeBOE
-! \subsubsection{Creating a Grid from Existing Fortran Arrays}~\label{sec:example5}
+! \subsubsection{Create a Grid from existing Fortran arrays}~\label{sec:example5}
 !
 ! This example illustrates the creation of a simple 2D Grid from coordinate data
 !  contained in 4 byte real fortan arrays.  The new Grid contains just the center stagger location.
-!  Each PET contains a pair of 10x10 Fortran arrays named fptrX and fptrY. 
+!  Each PET contains a pair of 10x10 Fortran arrays named farrayPtrX and farrayPtrY. 
 !  These arrays contain the coordinates for the piece of the global Grid held by each
 !  PET. The final global Grid will be 20x20 and the pieces of this Grid held
 !  by each PET are as follows:
@@ -2167,7 +2313,7 @@ endif
 
 !removeBOC
    ! Use ESMF framework module
-   use ESMF_Mod
+   use ESMF
    implicit none
 
    ! Local variables  
@@ -2175,7 +2321,7 @@ endif
    integer:: myPet, npets, rootPet
    type(ESMF_VM):: vm
    type(ESMF_Grid) :: grid
-   real(ESMF_KIND_R4), pointer :: fptrX(:,:),fptrY(:,:)
+   real(ESMF_KIND_R4), pointer :: farrayPtrX(:,:),farrayPtrY(:,:)
    integer :: petMap(2,2,1)
 !removeEOC         
 
@@ -2192,7 +2338,7 @@ endif
    petMap(:,1,1) = (/1,2/)
 
    ! Create Grid
-   grid=ESMF_GridCreateShapeTile(coordTypeKind=ESMF_TYPEKIND_R4, &
+   grid=ESMF_GridCreateNoPeriDim(coordTypeKind=ESMF_TYPEKIND_R4, &
                            countsPerDEDim1=(/10,10/), &
                            countsPerDEDim2=(/10,10/), &
                            coordDep1=(/1,2/), &
@@ -2204,21 +2350,21 @@ endif
    ! Add a center stagger location and at the same time set {\tt grid} to 
    ! reference the coordinate arrays. 
    call ESMF_GridSetCoord(grid, staggerLoc=ESMF_STAGGERLOC_CENTER, &
-                  coord1=fptrX, coord2=fptrY, rc=rc)
+                  coord1=farrayPtrX, coord2=farrayPtrY, rc=rc)
  
 !removeEOC
 
 
 !removeBOE
-! \subsubsection{Example: Grid Creation from Existing Fortran Arrays Using CreateEmpty/Set}
+! \subsubsection{Create a Grid from existing Fortran arrays using the EmptyCreate/Complete paradigm}
 !
-!  This example illustrates the use of the CreateEmpty/Set paradigm.
+!  This example illustrates the use of the EmptyCreate/Complete paradigm.
 !  It repeats the above example using this grid creation technique.
 !removeEOE
 
 !removeBOC
    ! Use ESMF framework module
-   use ESMF_Mod
+   use ESMF
    implicit none
 
    ! Local variables  
@@ -2226,7 +2372,7 @@ endif
    integer:: myPet, npets, rootPet
    type(ESMF_VM):: vm
    type(ESMF_Grid) :: grid
-   real(ESMF_KIND_R4), pointer :: fptrX(:,:),fptrY(:,:)
+   real(ESMF_KIND_R4), pointer :: farrayPtrX(:,:),farrayPtrY(:,:)
    integer :: petMap(2,2,1)
 !removeEOC         
 
@@ -2236,7 +2382,7 @@ endif
 
 !removeBOC
    ! Create an empty grid
-   grid=ESMF_GridCreateEmpty(rc=rc)
+   grid=ESMF_GridEmptyCreate(rc=rc)
 
 
    ! Set the Grid type and kind
@@ -2259,18 +2405,18 @@ endif
   ! Create the grid and add a center stagger location and at the same time set {\tt grid} to 
   ! reference the coordinate arrays. 
   call ESMF_GridSetCoord(grid, staggerLoc=ESMF_STAGGERLOC_CENTER, &
-                  coord1=fptrX, coord2=fptrY, rc=rc)
+                  coord1=farrayPtrX, coord2=farrayPtrY, rc=rc)
 
 !removeEOC
 #endif
 
 
 !BOE
-!\subsubsection{Creating More Complex Grids Using DistGrid}
+!\subsubsection{Create more complex Grids using DistGrid}
 !\label{sec:usage:adv:create}
 !
 ! Besides the shortcut methods for creating a Grid object such as
-! {\tt ESMF\_GridCreateShapeTile()}, there is
+! {\tt ESMF\_GridCreateNoPeriDim()}, there is
 ! a set of methods which give the user more control over the
 ! specifics of the grid.  The following describes the more 
 ! general interface, using DistGrid.
@@ -2287,7 +2433,8 @@ endif
 
 !BOC 
    ! Create DistGrid
-   distgrid2D = ESMF_DistGridCreate(minIndex=(/1,2/), maxIndex=(/11,22/), rc=rc)  
+   distgrid2D = ESMF_DistGridCreate(minIndex=(/1,2/), maxIndex=(/11,22/), &
+           rc=rc)  
 
    ! Create Grid
    grid3D=ESMF_GridCreate(distGrid=distgrid2D, rc=rc)
@@ -2297,12 +2444,13 @@ endif
 ! Cleanup after Example
 !!!!!!!!!!!!!!!!!!!!!!!
    call ESMF_GridDestroy(grid3D, rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
    call ESMF_DistGridDestroy(distgrid2D, rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
 
 !BOE
+! \begin{sloppypar}
 ! To alter which dimensions are distributed, the {\tt distgridToGridMap} 
 ! argument can be used. The {\tt distgridToGridMap} is used to set
 ! which dimensions of the Grid are mapped to the dimensions
@@ -2312,31 +2460,34 @@ endif
 ! DistGrid dimension should be mapped. 
 ! The following example illustrates the creation of a Grid where the largest
 ! dimension is first. To accomplish this the two dimensions are swapped. 
+! \end{sloppypar}
 !EOE
 
 !BOC 
    ! Create DistGrid
-   distgrid2D = ESMF_DistGridCreate(minIndex=(/1,2/), maxIndex=(/11,22/), rc=rc)  
+   distgrid2D = ESMF_DistGridCreate(minIndex=(/1,2/), maxIndex=(/11,22/), &
+        rc=rc)  
 
    ! Create Grid
-   grid2D=ESMF_GridCreate(distGrid=distgrid2D, distgridToGridMap=(/2,1/), rc=rc)
+   grid2D=ESMF_GridCreate(distGrid=distgrid2D, distgridToGridMap=(/2,1/), &
+        rc=rc)
 !EOC  
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
 
 !!!!!!!!!!!!!!!!!!!!!!!
 ! Cleanup after Example
 !!!!!!!!!!!!!!!!!!!!!!!
    call ESMF_GridDestroy(grid2D, rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
    call ESMF_DistGridDestroy(distgrid2D, rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
 
 
 #ifdef LOCAL_NOT_IMPL
 !BOEI
-!\subsubsection{Creation: Advanced: Coordinate Specification and Index Space Dependency}~\label{sec:usage:coordstore}
+!\subsubsection{Create with advanced coordinate specification and index space dependency}~\label{sec:usage:coordstore}
 !
 ! Depending on the user's coordinate data there are many possible
 ! arrangements for the coordinates to be stored in memory. 
@@ -2407,7 +2558,7 @@ endif
 
 #ifdef LOCAL_NOT_IMPL
 !removeBOE
-!\subsubsection{Creation: Advanced: Miscellaneous}
+!\subsubsection{Create with miscellaneous advanced options}
 !
 ! There are also a couple of other grid arguments which don't
 ! fit into the above categories. One of these
@@ -2429,10 +2580,10 @@ endif
 
 
 !BOE
-!\subsubsection{Specifying Custom Stagger Locations}
+!\subsubsection{Specify custom stagger locations}
 !\label{sec:usage:staggerloc:adv}
 !
-! Although ESMF provides a set of predefined stagger locations (See Section~\ref{sec:opt:staggerloc}),
+! Although ESMF provides a set of predefined stagger locations (See Section~\ref{const:staggerloc}),
 ! the user may need one outside this set. This section describes the construction of
 ! custom stagger locations. 
 !
@@ -2507,19 +2658,19 @@ endif
    call ESMF_StaggerLocSet(staggerLoc,loc=(/1,1,1,1/),rc=rc)
    call ESMF_GridAddCoord(grid4D, staggerLoc=staggerLoc, rc=rc)
 !EOC
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
 !!!!!!!!!!!!!!!!!!!!!!!
 ! Cleanup after Example
 !!!!!!!!!!!!!!!!!!!!!!!
    call ESMF_GridDestroy(grid4D, rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
    call ESMF_DistGridDestroy(distgrid4D, rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
 
 !BOE
-!\subsubsection{Specifying Custom Stagger Padding}
+!\subsubsection{Specify custom stagger padding}
 !\label{sec:usage:staggerpadding:adv}
 !
 !There is an added complication with the data (e.g. coordinates) stored at stagger locations in 
@@ -2581,18 +2732,18 @@ endif
 !!!!!!!!!!!!!!!!!!!!!!
 
 !BOC 
-   grid2D=ESMF_GridCreateShapeTile(minIndex=(/1,1/),maxIndex=(/10,10/), &
+   grid2D=ESMF_GridCreateNoPeriDim(minIndex=(/1,1/),maxIndex=(/10,10/), &
             gridEdgeLWidth=(/1,1/), gridEdgeUWidth=(/0,0/), rc=rc)
 
 !EOC  
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
 
 !!!!!!!!!!!!!!!!!!!!!!!
 ! Cleanup after Example
 !!!!!!!!!!!!!!!!!!!!!!!
    call ESMF_GridDestroy(grid2D, rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
 
 !BOE
@@ -2618,18 +2769,18 @@ endif
 !!!!!!!!!!!!!!!!!!!!!!
 
 !BOC 
-   grid2D=ESMF_GridCreateShapeTile(minIndex=(/1,1/),maxIndex=(/10,10/), &
+   grid2D=ESMF_GridCreateNoPeriDim(minIndex=(/1,1/),maxIndex=(/10,10/), &
             gridAlign=(/1,1/), rc=rc)
 
 !EOC  
 
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
 !!!!!!!!!!!!!!!!!!!!!!!
 ! Cleanup after Example
 !!!!!!!!!!!!!!!!!!!!!!!
    call ESMF_GridDestroy(grid2D, rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
 !BOE
 ! The {\tt gridEdgeWidth} and {\tt gridAlign} arguments both
@@ -2679,16 +2830,16 @@ endif
           staggerEdgeLWidth=(/1,1/), staggerEdgeUWidth=(/0,0/), rc=rc)
 
 !EOC  
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
 
 !!!!!!!!!!!!!!!!!!!!!!!
 ! Cleanup after Example
 !!!!!!!!!!!!!!!!!!!!!!!
    call ESMF_GridDestroy(grid2D, rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
    call ESMF_DistGridDestroy(distgrid2D, rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
 
 !BOE
@@ -2722,23 +2873,29 @@ endif
           staggerLoc=ESMF_STAGGERLOC_CORNER, staggerAlign=(/1,1/), rc=rc)
 !EOC  
 
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
 !!!!!!!!!!!!!!!!!!!!!!!
 ! Cleanup after Example
 !!!!!!!!!!!!!!!!!!!!!!!
    call ESMF_GridDestroy(grid2D, rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
    call ESMF_DistGridDestroy(distgrid2D, rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
 !BOE
-!\subsubsection{Creating a 2D Regularly Distributed Rectilinear Grid from File} 
+!\subsubsection{Create a 2D regularly distributed rectilinear Grid from file} 
 ! \label{example:GridCrFromFile}
 !
 ! This example shows how to read an ESMF GridSpec Attribute Package from an
-! XML file and use it to create a grid; see
-! ESMF\_DIR/src/Infrastructure/Grid/etc/esmf\_grid\_shape\_tile.xml.
+! XML file and use it to create a grid.  The XML file contains Attribute values
+! filled-in by the user.  The standard GridSpec Attribute Package is supplied
+! with ESMF and is defined in an XSD file, which is used to validate the
+! XML file. See
+! \begin{description}
+! \item ESMF\_DIR/src/Infrastructure/Grid/etc/esmf\_grid\_shape\_tile.xml (Attribute Package values) and
+! \item ESMF\_DIR/src/Infrastructure/Grid/etc/esmf\_grid.xsd (Attribute Package definition).
+! \end{description}
 !
 ! The following XML attributes, from the file mentioned above, specifies a
 ! two dimensional, 10x20 single-tile rectilinear grid that is regularly
@@ -2746,15 +2903,17 @@ endif
 ! dimension, for a total of 6 DEs (2x3):
 !
 ! \begin{verbatim}
-! <?xml version="1.0" encoding="UTF-8"?>
-! <GridSpec>
+!<?xml version="1.0"?>
+!<GridSpec>
+!  <Mosaic>
 !    <attribute_package convention="ESMF" purpose="General">
 !      <NX>10</NX>
 !      <NY>20</NY>
-!      <RegDecompX>2</RegDecompX>
-!      <RegDecompY>3</RegDecompY>
 !    </attribute_package>
-! </GridSpec>
+!    <RegDecompX>2</RegDecompX>
+!    <RegDecompY>3</RegDecompY>
+!  </Mosaic>
+!</GridSpec>
 ! \end{verbatim}
 !EOE
 !!!!!!!!!!!!!!!!!!!!!!!
@@ -2765,21 +2924,27 @@ endif
 !EOE
 
 !BOC
+   ! Read an XML file containing user-filled-in values for a GridSpec 
+   ! Attribute package and use it to create a grid.  The file is 
+   ! validated against an internal, ESMF-supplied XSD file defining 
+   ! the standard GridSpec Attribute package (see file pathnames above).
+
    grid2D=ESMF_GridCreate("esmf_grid_shape_tile.xml", rc=rc)
 !EOC
    if (rc == ESMF_RC_LIB_NOT_PRESENT) goto 10  ! exit if Xerces not present
-   if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+   if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !BOE
 ! then show that the minimum and maximum global indices of the Grid are
 ! (1,1) $\sim$ (11,21) (one extra default stagger pad in each dimension):
 !EOE
 
 !BOC
-   call ESMF_GridGet(grid2D, minIndex=minIndex, maxIndex=maxIndex, rc=rc)
+   call ESMF_GridGet(grid2D, tile=1, minIndex=minIndex, maxIndex=maxIndex, &
+     staggerloc=ESMF_STAGGERLOC_CENTER, rc=rc)
    print *, "minIndex(1), minIndex(2) = ", minIndex(1), minIndex(2)
    print *, "maxIndex(1), maxIndex(2) = ", maxIndex(1), maxIndex(2)
 !EOC
-   if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+   if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
    print *, " "
 
 !BOE
@@ -2794,7 +2959,7 @@ endif
    call ESMF_GridGet(grid2D, localDECount=localDECount, rc=rc)
    print *, "localDECount = ", localDECount
 !EOC
-   if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+   if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
    print *, " "
 
 !BOC
@@ -2808,7 +2973,7 @@ endif
        print *, " "
    enddo
 !EOC
-   if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+   if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !BOE
 ! For a 4 PET run, this will show the following (lower) $\sim$ (upper)
 ! computational bounds per DE, 6 DEs total (2x3):
@@ -2863,11 +3028,23 @@ endif
 ! \end{verbatim}
 !EOE
 
+!BOE
+! Write the attributes back out to an xml file.
+!EOE
+
+!BOC
+   ! Write an XML file 
+   call ESMF_AttributeWrite(grid2D, 'ESMF', 'General', &
+                            attwriteflag=ESMF_ATTWRITE_XML, rc=rc)
+!EOC
+   if (rc == ESMF_RC_LIB_NOT_PRESENT) goto 10  ! exit if Xerces not present
+   if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
+
 !!!!!!!!!!!!!!!!!!!!!!!
 ! Cleanup after Example
 !!!!!!!!!!!!!!!!!!!!!!!
    call ESMF_GridDestroy(grid2D, rc=rc)
-   if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+   if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
 
    !-------------------------------------------------------------------

@@ -1,7 +1,7 @@
-! $Id: ESMF_CplCompCreateUTest.F90,v 1.29.2.1 2010/02/05 20:04:30 svasquez Exp $
+! $Id: ESMF_CplCompCreateUTest.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2010, University Corporation for Atmospheric Research,
+! Copyright 2002-2012, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -28,13 +28,14 @@
 !
 ! !USES:
     use ESMF_TestMod     ! test methods
-    use ESMF_Mod
+    use ESMF
     implicit none
     
 !   ! Local variables
     integer :: rc
     character(ESMF_MAXSTR) :: cplname
-    type(ESMF_CplComp) :: cpl
+    type(ESMF_CplComp) :: cpl, cplcompAlias
+    logical:: cplcompBool
 
     ! individual test failure message
     character(ESMF_MAXSTR) :: failMsg
@@ -60,6 +61,7 @@
     character(ESMF_MAXSTR) :: cname, bname
     type (dataWrapper) :: wrap1, wrap2
     type(testData), target :: data1, data2
+    logical         :: isPresent
 #endif
 
 !-------------------------------------------------------------------------------
@@ -74,29 +76,75 @@
    ! Initialize framework
    call ESMF_TestStart(ESMF_SRCLINE, rc=rc)
 
-
-!-------------------------------------------------------------------------
-!   !
+    !------------------------------------------------------------------------
     !NEX_UTest
-!   !  Test creation of a Coupler Component
     cplname = "One Way Coupler"
     cpl = ESMF_CplCompCreate(name=cplname, rc=rc)
     write(failMsg, *) "Did not return ESMF_SUCCESS"
     write(name, *) "Creating a Coupler Component Test"
     call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
 
-
-!-------------------------------------------------------------------------
-!   !
+    !------------------------------------------------------------------------
     !NEX_UTest
-!   !  Destroying a component
-
-    call ESMF_CplCompDestroy(cpl, rc=rc)
-
+    write(name, *) "CplComp equality before assignment Test"
     write(failMsg, *) "Did not return ESMF_SUCCESS"
-    write(name, *) "Destroying a Component Test"
+    cplcompBool = (cplcompAlias.eq.cpl)
+    call ESMF_Test(.not.cplcompBool, name, failMsg, result, ESMF_SRCLINE)
+    
+    !------------------------------------------------------------------------
+    !NEX_UTest
+    ! Testing ESMF_CplCompAssignment(=)()
+    write(name, *) "CplComp assignment and equality Test"
+    write(failMsg, *) "Did not return ESMF_SUCCESS"
+    cplcompAlias = cpl
+    cplcompBool = (cplcompAlias.eq.cpl)
+    call ESMF_Test(cplcompBool, name, failMsg, result, ESMF_SRCLINE)
+    
+    !------------------------------------------------------------------------
+    !NEX_UTest
+    write(name, *) "CplCompDestroy Test"
+    write(failMsg, *) "Did not return ESMF_SUCCESS"
+    call ESMF_CplCompDestroy(cpl, rc=rc)
+    call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+    
+    !------------------------------------------------------------------------
+    !NEX_UTest
+    ! Testing ESMF_CplCompOperator(==)()
+    write(name, *) "CplComp equality after destroy Test"
+    write(failMsg, *) "Did not return ESMF_SUCCESS"
+    cplcompBool = (cplcompAlias==cpl)
+    call ESMF_Test(.not.cplcompBool, name, failMsg, result, ESMF_SRCLINE)
+    
+    !------------------------------------------------------------------------
+    !NEX_UTest
+    ! Testing ESMF_CplCompOperator(/=)()
+    write(name, *) "CplComp non-equality after destroy Test"
+    write(failMsg, *) "Did not return ESMF_SUCCESS"
+    cplcompBool = (cplcompAlias/=cpl)
+    call ESMF_Test(cplcompBool, name, failMsg, result, ESMF_SRCLINE)
+    
+    !------------------------------------------------------------------------
+    !NEX_UTest
+    write(name, *) "Double CplCompDestroy through alias Test"
+    write(failMsg, *) "Did not return ESMF_SUCCESS"
+    call ESMF_CplCompDestroy(cplcompAlias, rc=rc)
     call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
 
+    !------------------------------------------------------------------------
+    !NEX_UTest
+    cplname = "One Way Coupler"
+    cpl = ESMF_CplCompCreate(name=cplname, rc=rc)
+    write(failMsg, *) "Did not return ESMF_SUCCESS"
+    write(name, *) "Creating a Coupler Component Test"
+    call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+
+    !------------------------------------------------------------------------
+    !NEX_UTest
+    write(name, *) "CplCompDestroy Test"
+    write(failMsg, *) "Did not return ESMF_SUCCESS"
+    call ESMF_CplCompDestroy(cpl, rc=rc)
+    call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+    
 #ifdef ESMF_TESTEXHAUSTIVE
 !-------------------------------------------------------------------------
 
@@ -118,7 +166,7 @@
     !------------------------------------------------------------------------
     !EX_UTest
     ! Create a Coupler Component with a negative number in the petlist
-    ! to force ab error.
+    ! to force an error.
     cname = "CplComp with out of range PetList"
     cpl2 = ESMF_CplCompCreate(name=cname, petList=(/0,-3/), rc=rc)
     write(failMsg, *) "Did not return ESMF_RC_ARG_VALUE"
@@ -128,14 +176,14 @@
     !------------------------------------------------------------------------
     !EX_UTest
     ! Create a Coupler Component setting with an out of range petlist
-    ! to force ab error.
+    ! to force an error.
     cname = "CplComp with out of range PetList"
     cpl2 = ESMF_CplCompCreate(name=cname, petList=(/0,2,5,8/), rc=rc)
     write(failMsg, *) "Did not return ESMF_RC_ARG_VALUE"
     write(name, *) "Creating a Coupler Component with out of range petList"
     call ESMF_Test((rc.eq.ESMF_RC_ARG_VALUE), name, failMsg, result, ESMF_SRCLINE)
 
-   !------------------------------------------------------------------------
+    !------------------------------------------------------------------------
     !EX_UTest
     ! Query the run status of a Gridded Component
     bool = ESMF_CplCompIsPetLocal(cpl2, rc=rc)
@@ -147,15 +195,28 @@
                                 name, failMsg, result, ESMF_SRCLINE)
 
     !------------------------------------------------------------------------
-
-   !
     !EX_UTest
-   !  Test creation of a Component
+    ! Test creation of a Component
     cplname = "One Way Coupler"
     cpl = ESMF_CplCompCreate(name=cplname, rc=rc)
     write(failMsg, *) "Did not return ESMF_SUCCESS"
     write(name, *) "Creating a Coupler Component Test"
     call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+
+    !------------------------------------------------------------------------
+    !EX_UTest
+    ! Query clockIsPresent
+    write(failMsg, *) "Did not return ESMF_SUCCESS"
+    write(name, *) "Query clockIsPresent bit for Clock that was not set Test"
+    call ESMF_CplCompGet(cpl, clockIsPresent=isPresent, rc=rc)
+    call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+
+    !------------------------------------------------------------------------
+    !EX_UTest
+    ! Verify clockIsPresent
+    write(failMsg, *) "Did not verify"
+    write(name, *) "Verify clockIsPresent for Clock that was not set Test"
+    call ESMF_Test((.not.isPresent), name, failMsg, result, ESMF_SRCLINE)
 
     !------------------------------------------------------------------------
     !EX_UTest

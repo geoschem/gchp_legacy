@@ -1,0 +1,48 @@
+#!/bin/csh -x
+
+      ./configure
+source .configure
+
+set fname = eta2prs
+
+/bin/rm ${fname}_${ARCH}.x
+/bin/rm test.o
+/bin/rm test.F
+cat $fname.F alias.F timer.F > test.F
+
+
+# SGI Compilation
+# ---------------
+if( ${ARCH} == 'IRIX64' ) then
+     f90 -c -fixedform -extend_source -O3 -64 -r8 -i4 -mips4 -I $BASEDIR/include -Dopenmp -mp -OPT:Olimit=0 test.F
+     f90 -o test.x -O3 -64 -r8 -i4 -mips4 -I . -mp test.o \
+            -L$GFIODIR -L$BASEDIR/lib \
+            -lgfio -lmfhdf -ldf -lz -lm
+endif
+
+# Compaq Compilation
+# ------------------
+if( ${ARCH} == 'OSF1' ) then
+     f90 -o test.x -extend_source -O2 -convert big_endian -assume byterecl -i4 -I. test.F \
+           -L$GFIODIR/$ARCH/lib -lGMAO_cfio -lGMAO_gfio -lGMAO_mfhdf3 \
+           -L$BASEDIR/$ARCH/lib -lmfhdf -ldf -lhdfjpeg -lhdfz -lsz
+endif
+
+# Linux Compilation
+# -----------------
+if( ${ARCH} == 'Linux' ) then
+
+     set gfio = GMAO_gfio_r4
+     set cfio = MAPL_cfio_r4
+     set hdf  = GMAO_mfhdf3
+
+     ifort -o test.x -extend_source -convert big_endian -assume byterecl -O3 -I. test.F \
+           -L$GFIODIR/$ARCH/lib -l$cfio -l$gfio -l$hdf \
+           -L$BASEDIR/$ARCH/lib -lmfhdf -ldf -lhdfjpeg -lhdfz -lsz
+endif
+
+
+/bin/rm test.F
+/bin/rm test.o
+/bin/mv test.x ${fname}_${ARCH}.x
+             ./${fname}_${ARCH}.x

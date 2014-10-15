@@ -1,7 +1,7 @@
-! $Id: ESMF_AttributeEx.F90,v 1.13.2.1 2010/02/05 20:03:28 svasquez Exp $
+! $Id$
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2010, University Corporation for Atmospheric Research,
+! Copyright 2002-2012, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -17,12 +17,12 @@ program ESMF_AttributeEx
 !==============================================================================
 
 !BOE
-! \subsubsection{Example: Basic Attribute usage} \label{AttributeEx}
+! \subsubsection{Basic Attribute usage} \label{ex:AttributeEx}
 !
 ! This example illustrates the most basic usage of the Attribute class.  
 ! This demonstration of Attribute manipulation is limited to the gridded 
 ! Component, but the same principles apply to the coupler Component, State, 
-! Grid, FieldBundle, Field, and Array.  The
+! Grid, FieldBundle, Field, ArrayBundle and Array.  The
 ! functionality that is demonstrated includes setting and getting Attributes, 
 ! working with Attributes with different types and lists, removing Attributes,
 ! and getting default Attributes.  Various other uses of 
@@ -40,7 +40,7 @@ program ESMF_AttributeEx
 
 !BOC
       ! Use ESMF framework module
-      use ESMF_Mod
+      use ESMF
       implicit none
 
       ! Local variables  
@@ -49,31 +49,30 @@ program ESMF_AttributeEx
       type(ESMF_VM)           :: vm
       type(ESMF_GridComp)     :: gridcomp
       character(ESMF_MAXSTR)  :: name
+      type(ESMF_TypeKind_Flag)     :: tk
 
-      integer(ESMF_KIND_I4)                         :: inI4
-      integer(ESMF_KIND_I4), dimension(3)         :: inI4l
-      integer(ESMF_KIND_I8)                       :: inI8
-      integer(ESMF_KIND_I8), dimension(3)         :: inI8l
-      real(ESMF_KIND_I4)                          :: inR4
-      real(ESMF_KIND_I4), dimension(3)            :: inR4l
-      real(ESMF_KIND_I8)                          :: inR8
-      real(ESMF_KIND_I8), dimension(3)            :: inR8l
-      character(ESMF_MAXSTR)                :: inChar
-      character(ESMF_MAXSTR), dimension(3)  :: inCharl, &
-                                               defaultCharl, dfltoutCharl
-      character(ESMF_MAXSTR), dimension(8)  :: outCharl
-      logical                               :: inLog
-      logical, dimension(3)                 :: inLogl, value
+      integer(ESMF_KIND_I4)                :: inI4
+      integer(ESMF_KIND_I4), dimension(3)  :: inI4l
+      integer(ESMF_KIND_I8)                :: inI8
+      integer(ESMF_KIND_I8), dimension(3)  :: inI8l
+      real(ESMF_KIND_I4)                   :: inR4
+      real(ESMF_KIND_I4), dimension(3)     :: inR4l
+      real(ESMF_KIND_I8)                   :: inR8
+      real(ESMF_KIND_I8), dimension(3)     :: inR8l
+      character(ESMF_MAXSTR)               :: inChar
+      character(ESMF_MAXSTR), dimension(3) :: inCharl, &
+                                           defaultCharl, dfltoutCharl
+      character(ESMF_MAXSTR), dimension(8) :: outCharl
+      logical                              :: inLog
+      logical, dimension(3)                :: inLogl, value
       
-      type(ESMF_TypeKind)   :: tk
-
       ! initialize ESMF
       finalrc = ESMF_SUCCESS
-      call ESMF_Initialize(vm=vm, rc=rc)
+      call ESMF_Initialize(vm=vm, defaultlogfilename="AttributeEx.Log", &
+                    logkindflag=ESMF_LOGKIND_MULTI, rc=rc)
       
       ! get the vm
       call ESMF_VMGet(vm, petCount=petCount, localPet=localPet, rc=rc)
-      if (rc/=ESMF_SUCCESS) goto 10
 !EOC         
       
       if (localPet==0) then
@@ -215,10 +214,6 @@ program ESMF_AttributeEx
       print *, "--------------------------------------- "
   endif
 
-10 continue
-  if (rc/=ESMF_SUCCESS) finalrc = ESMF_FAILURE
-  call ESMF_Finalize(rc=rc)
-  
   if (rc/=ESMF_SUCCESS) finalrc = ESMF_FAILURE
   if (finalrc==ESMF_SUCCESS) then
     print *, "PASS: ESMF_AttributeEx.F90"

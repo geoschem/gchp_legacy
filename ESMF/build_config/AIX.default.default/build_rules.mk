@@ -1,4 +1,4 @@
-# $Id: build_rules.mk,v 1.35 2009/10/20 15:57:43 theurich Exp $
+# $Id: build_rules.mk,v 1.1.5.1 2013-01-11 20:23:43 mathomp4 Exp $
 #
 # AIX.default.default
 #
@@ -117,7 +117,9 @@ ESMF_CXXLINKLIBS += -lm_r -lxlf90_r -lC_r
 # Shared library options
 #
 ESMF_SL_LIBOPTS  += -Wl,-bbigtoc
-ESMF_SL_LIBOPTS  += -G -qmkshrobj
+ESMF_SL_LIBOPTS  += -G -qmkshrobj -lf
 ifeq ($(ESMF_ABI),64)
 ESMF_SL_LIBOPTS  += -q64
 endif
+ESMF_SO_F90LINKOPTSEXE = -bdynamic -brtl
+ESMF_SO_CXXLINKOPTSEXE = -bdynamic -brtl

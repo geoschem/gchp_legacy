@@ -1,0 +1,8 @@
+
+OBSNAM: SRB
+OBSDSC: SRB_2x2.5_Data_(Mar_1985-Dec_1988)
+
+        filename:   'VERIFICATION/Clouds_radiation/srb/srb2x25.tabl'
+        filetype:   'BIN'
+        fields:     'TS'  , 'SURFACE' , 'TSURF' , 1
+                    ::

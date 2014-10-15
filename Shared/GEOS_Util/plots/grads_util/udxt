@@ -1,0 +1,199 @@
+#
+# Sample GrADS table for Dynamic User Defined Commands/Functions.
+# There are 2 types of extensions: 
+#
+#    udc   user defined commands
+#    udf   user defined functions
+#
+# This feature requires OpenGrADS v1.9.8 or later.
+#.................................................................
+
+#  Type       Name            Function                 Library
+# ------  ---------------  ----------------  --------------------------------  
+   udc        gsudf           udc_gsudf             gsudf.gex.so
+   udf        speed           udf_gsudf             gsudf.gex.so
+   udf        x_cdiff         udf_gsudf             gsudf.gex.so
+#
+   udc        env             udc_env               env.gex.so
+#  udc        getenv          udc_getenv            env.gex.so
+#  udc        printenv        udc_xenv              env.gex.so
+#  udc        setenv          udc_setenv            env.gex.so
+   udc        xenv            udc_xenv              env.gex.so
+   udc        @               udc_env               env.gex.so
+#
+   udc        g2_open         udc_g2open            grib2.gex.so
+   udc        g2_verb         udc_g2verb            grib2.gex.so
+   udc        g2_repl         udc_repl              grib2.gex.so
+   udc        g2_exec         udc_exec              grib2.gex.so
+#  udc        %               udc_exec              grib2.gex.so
+   udf        g2              udf_grib2             grib2.gex.so
+
+#..........................................................................
+
+
+#
+# Sample GrADS table for Dynamic User Defined Commands/Functions.
+# There are 2 types of extensions: 
+#
+#    udc   user defined commands
+#    udf   user defined functions
+#
+# This feature requires OpenGrADS v1.9.8 or later.
+#.................................................................
+
+#  Type       Name            Function                 Library
+# ------  ---------------  ----------------  --------------------------------  
+   udf    lt                   udf_bjt           libbjt.gex.so
+   udf    jd                   udf_bjt           libbjt.gex.so
+   udf    cosz                 udf_bjt           libbjt.gex.so
+   udf    dayratio             udf_bjt           libbjt.gex.so
+   udf    if                   udf_bjt           libbjt.gex.so
+   udf    maxv                 udf_bjt           libbjt.gex.so
+   udf    minv                 udf_bjt           libbjt.gex.so
+   udf    which                udf_bjt           libbjt.gex.so
+   udf    ftest                udf_bjt           libbjt.gex.so
+   udf    ttest                udf_bjt           libbjt.gex.so
+   udf    tfit                 udf_bjt           libbjt.gex.so
+   udf    fit                  udf_bjt           libbjt.gex.so
+   udf    tcorr2               udf_bjt           libbjt.gex.so
+   udf    tregr2               udf_bjt           libbjt.gex.so
+   udf    tmave2               udf_bjt           libbjt.gex.so
+   udf    madvu                udf_bjt           libbjt.gex.so
+   udf    madvv                udf_bjt           libbjt.gex.so
+   udf    madvw                udf_bjt           libbjt.gex.so
+   udf    muadv                udf_bjt           libbjt.gex.so
+   udf    mvadv                udf_bjt           libbjt.gex.so
+   udf    mwadv                udf_bjt           libbjt.gex.so
+   udf    satvap               udf_bjt           libbjt.gex.so
+   udf    dew                  udf_bjt           libbjt.gex.so
+   udf    lw                   udf_bjt           libbjt.gex.so
+   udf    lw2                  udf_bjt           libbjt.gex.so
+   udf    pinterp              udf_bjt           libbjt.gex.so
+   udf    zinterp              udf_bjt           libbjt.gex.so
+#  udf    line                 udf_bjt           libbjt.gex.so
+#  udf    vint2                udf_bjt           libbjt.gex.so
+#...........................................................................
+
+
+#
+# Sample GrADS table for Dynamic User Defined Commands/Functions.
+# There are 2 types of extensions: 
+#
+#    udc   user defined commands
+#    udf   user defined functions
+#
+# This feature requires OpenGrADS v1.9.8 or later.
+#.................................................................
+
+#  Type       Name            Function                 Library
+# ------  ---------------  ----------------  --------------------------------  
+   udf        fish           udf_fish               fish.gex.so
+   udf        fish_psi       udf_psichi             fish.gex.so
+   udf        fish_vor       udf_psichi             fish.gex.so
+   udf        fish_chi       udf_psichi             fish.gex.so
+   udf        fish_div       udf_psichi             fish.gex.so
+#..........................................................................
+
+
+# Sample GrADS User Defined Command Table
+#
+# This feature requires OpenGrADS v1.9.8 or later.
+#.................................................................
+
+#  Type        Name             Function              Library
+# -------  ----------------  ----------------  ----------------------------  
+    udc        gxyat              gxyat         gxyat.gex.so
+#...........................................................................
+#
+# Sample GrADS table for Dynamic User Defined Commands/Functions.
+# There are 2 types of extensions: 
+#
+#    udc   user defined commands
+#    udf   user defined functions
+#
+# This feature requires OpenGrADS v1.9.8 or later.
+#.................................................................
+
+#  Type       Name            Function                 Library
+# ------  ---------------  ----------------  --------------------------------  
+   udc        hello          cmd_hello         libhello.gex.so
+   udf        hello          fun_hello         libhello.gex.so
+#..........................................................................
+
+
+#
+# Sample GrADS table for Dynamic User Defined Commands/Functions.
+# There are 2 types of extensions: 
+#
+#    udc   user defined commands
+#    udf   user defined functions
+#
+# This feature requires OpenGrADS v1.9.8 or later.
+#.................................................................
+
+#  Type       Name            Function                 Library
+# ------  ---------------  ----------------  --------------------------------  
+   udc      ipc_verb        cmd_Verb         libipc.gex.so
+   udc      ipc_open        cmd_Open         libipc.gex.so
+   udc      ipc_close       cmd_Close        libipc.gex.so
+   udc      ipc_save        cmd_Save         libipc.gex.so
+   udc      ipc_define      cmd_Define       libipc.gex.so
+   udc      ipc_error       cmd_Error        libipc.gex.so
+# 
+   udf      ipc_save        fun_Save         libipc.gex.so
+   udf      ipc_load        fun_Load         libipc.gex.so
+   udf      ipc_pipe        fun_Pipe         libipc.gex.so
+#..........................................................................
+
+
+#
+# Sample GrADS table for Dynamic User Defined Commands/Functions.
+# There are 2 types of extensions: 
+#
+#    udc   user defined commands
+#    udf   user defined functions
+#
+# This feature requires OpenGrADS v1.9.8 or later.
+#.................................................................
+
+#  Type       Name            Function                 Library
+# ------  ---------------  ----------------  --------------------------------  
+   udf         re                 re              re.gex.so
+#..........................................................................
+
+
+#
+# Sample GrADS table for Dynamic User Defined Commands/Functions.
+# There are 2 types of extensions: 
+#
+#    udc   user defined commands
+#    udf   user defined functions
+#
+# This feature requires GrADS v1.9.0 or later.
+#.................................................................
+
+#  Type       Name            Function                 Library
+# ------  ---------------  ----------------  --------------------------------  
+   udc    shp_lines        cmd_lines          shape.gex.so
+   udc    shp_polyf        cmd_polyf          shape.gex.so
+   udc    shp_print        cmd_print          shape.gex.so
+#..........................................................................
+
+
+#
+# Sample GrADS table for Dynamic User Defined Commands/Functions.
+# There are 2 types of extensions: 
+#
+#    udc   user defined commands
+#    udf   user defined functions
+#
+# This feature requires OpenGrADS v1.9.8 or later.
+#.................................................................
+
+#  Type       Name            Function                 Library
+# ------  ---------------  ----------------  --------------------------------  
+   udf        sh_filt         udf_shfilt          shfilt.gex.so
+   udf        sh_power        udf_shpowr          shfilt.gex.so
+#..........................................................................
+
+

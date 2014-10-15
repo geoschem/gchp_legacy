@@ -1,0 +1,19 @@
+OBSNAM: ecinterim
+OBSDSC: ECMWF_INTERIM_ANA
+
+        filename:   'VERIFICATION/ECMWF_Interim_FullRes/ecint_prs.ctl'
+        filetype:   'BIN'
+        fields:     'ZLE'      , 'DYN'           , 'Z'   , 1/9.80665
+                    'T'        , 'DYN'           , 'T'   , 1
+                    'U'        , 'DYN'           , 'U'   , 1
+                    'V'        , 'DYN'           , 'V'   , 1
+                    'RH2'      , 'MOIST'         , 'R'   , 1
+                    'Q'        , 'MOIST'         , 'Q'   , 1
+                    'OMEGA'    , 'DYN'           , 'W'   , 1
+                    ::
+
+        filename:   'VERIFICATION/ECMWF_Interim_FullRes/surface/MSL_197901_201111.nc'
+        filetype:   'SDF'
+        fields:     'SLP'      , 'DYN'           , 'MSL'    , 1
+                    ::
+

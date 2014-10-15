@@ -1,0 +1,27 @@
+#!/bin/csh -f
+
+set lm  = 91
+set dir = /discover/nobackup/projects/gmao/share/dao_ops/fvInput_nc3/g5chem/L72/aero_clm
+
+set pwd = `pwd`
+cd $dir
+set files = `ls -1 *.nc`
+cd $pwd
+
+foreach file ($files)
+ln -s $dir/$file fdummy
+convert_aerosols.x -psfile /discover/nobackup/ltakacs/aerosols/ps_288x181_MERRA_CLIM.nc -f fdummy -lm $lm
+/bin/rm fdummy
+/bin/mv fdummy* $file
+
+if(-e filename1 ) /bin/rm filename1
+if(-e filename2 ) /bin/rm filename2
+echo $file                             > filename1
+echo $file |  sed -e "s/z72/z${lm}/g"  > filename2
+
+/bin/mv `cat filename1 filename2`
+
+end
+
+if(-e filename1 ) /bin/rm filename1
+if(-e filename2 ) /bin/rm filename2

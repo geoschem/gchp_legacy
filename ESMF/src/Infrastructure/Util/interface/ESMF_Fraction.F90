@@ -1,7 +1,7 @@
-! $Id: ESMF_Fraction.F90,v 1.3.2.1 2010/02/05 20:01:06 svasquez Exp $
+! $Id$
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2010, University Corporation for Atmospheric Research,
+! Copyright 2002-2012, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -76,7 +76,7 @@
 !------------------------------------------------------------------------------
 ! The following line turns the CVS identifier string into a printable variable.
       character(*), parameter, private :: version = &
-      '$Id: ESMF_Fraction.F90,v 1.3.2.1 2010/02/05 20:01:06 svasquez Exp $'
+      '$Id$'
 
 !==============================================================================
 
@@ -136,8 +136,9 @@
 !     \end{description}
 !
 !EOPI
-        s%shallowMemory = 0
+
         ESMF_INIT_SET_DEFINED(s)
+
     end subroutine ESMF_FractionInit
 
 !------------------------------------------------------------------------------
@@ -166,7 +167,7 @@
 !     \end{description}
 !
 !EOPI
-     ESMF_INIT_CHECK_SHALLOW(ESMF_FractionGetInit,ESMF_FractionInit,s)
+     ESMF_INIT_CHECK_SET_SHALLOW(ESMF_FractionGetInit,ESMF_FractionInit,s)
 
      !DUMMY TEST TO QUIET DOWN COMPILER WARNINGS
      !TODO: Remove the following dummy test when implementing this method

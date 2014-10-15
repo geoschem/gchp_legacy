@@ -1,0 +1,137 @@
+
+set x 1
+* DUDT 1000-ptop
+* --------------
+vpage 1 1 2 2
+setz
+setlevs
+set gxout shaded
+set clevs  -8  -6   -4   -2   -1   -.8   -.6   -.4   -.2  .2   .4   .6   .8   1   2   4   6   8
+set ccols 49 48   47   46   45   44    43    42    41   0    61   62   63  64   65 66  67  68  69
+d uitz&1*86400
+cbarn
+set gxout contour
+set clevs -.2 .2
+set ccolor 1
+d uitz&1*86400
+draw ylab Pressure (mb)
+draw title Total U-Wind Tendency from Turbulence (m/sec/day)
+
+* DVDT 1000-ptop
+* --------------
+vpage 2 1 2 2
+setz
+setlevs
+set gxout shaded
+set clevs  -8  -6   -4   -2   -1   -.8   -.6   -.4   -.2  .2   .4   .6   .8   1   2   4   6   8
+set ccols 49 48   47   46   45   44    43    42    41   0    61   62   63  64   65 66  67  68  69
+d vitz&1*86400
+cbarn
+set gxout contour
+set clevs -.2 .2
+set ccolor 1
+d vitz&1*86400
+draw title Total V-Wind Tendency from Turbulence (m/sec/day)
+
+* DUDT 1000-10
+* ------------
+vpage 1 2 2 2
+set lev 1000 100
+set zlog off
+set gxout shaded
+black
+set cint 1
+set rbrange -10 10
+d uitz&1*86400
+cbarn
+set gxout contour
+black
+set cint  1
+set ccolor 1
+d uitz&1*86400
+draw ylab Pressure (mb)
+draw title Total U-Wind Tendency from Turbulence (m/sec/day)
+
+* vit 1000-10
+* ------------
+vpage 2 2 2 2
+set lev 1000 100
+set zlog off
+set gxout shaded
+black
+set cint 1
+set rbrange -10 10
+d vitz&1*86400
+cbarn
+set gxout contour
+black
+set cint  1
+set ccolor 1
+d vitz&1*86400
+draw title Total V-Wind Tendency from Turbulence (m/sec/day)
+
+
+set vpage off
+set strsiz .13
+set string 1 c 6
+
+xlabel 1 5.5 8.3
+draw string 5.5 8.1 (&1)
+
+myprint -name &2/&0.turbuv.&1
+c
+
+
+* DTDT 1000-10
+* ------------
+* Note:  sit      => m2/sec3 (after diag_eta2prs delta-P unweighting)
+*        sit/Cp   => m2/sec3 / (J/(kg K))
+*                 =  m2/sec3 / (kg m2/sec2 / (kg K))
+*                 =  K/sec
+
+vpage 1 1 2 2
+set lev 1000 300
+set zlog off
+set gxout shaded
+black 0.49
+set cint 0.5
+set rbrange -1 6
+d sitz&1*86400/1004
+cbarn
+set gxout contour
+black 0.49
+set clevs 0.5
+set ccolor 1
+d sitz&1*86400/1004
+draw ylab Pressure (mb)
+draw title Equivalent Temperature Tendency from Turbulence (K/day)
+
+* DqDT 1000-10
+* ------------
+vpage 2 1 2 2
+set lev 1000 300
+set zlog off
+set gxout shaded
+black
+set cint 1
+set rbrange -10 10
+*d dqdtz&1*86400
+*cbarn
+set gxout contour
+black
+set cint  1
+set ccolor 1
+*d dqdtz&1*86400
+*draw title Total Spec.Hum. Tendency from Turbulence (g/kg/day)
+
+
+set vpage off
+set strsiz .13
+set string 1 c 6
+
+xlabel 1 5.5 8.3
+draw string 5.5 8.1 (&1)
+
+myprint -name &2/&0.turbtq.&1
+c
+

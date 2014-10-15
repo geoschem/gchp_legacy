@@ -1,4 +1,4 @@
-# $Id: makefile,v 1.108 2009/06/03 23:00:27 theurich Exp $
+# $Id: makefile,v 1.1.5.1 2013-01-11 20:23:43 mathomp4 Exp $
 #===============================================================================
 #                            makefile
 # 
@@ -12,6 +12,20 @@
 ifndef ESMF_DIR
 $(error ESMF_DIR needs to be set to the top ESMF directory)
 endif
+ifndef ARCH
+  ARCH := $(shell uname -s)
+endif
+
+export ESMF_COMPILER=intel
+export ESMF_COMM=openmpi
+export ESMF_INSTALL_PREFIX=$(ESMF_DIR)/$(ARCH)
+export ESMF_INSTALL_LIBDIR=$(ESMF_DIR)/$(ARCH)/lib
+export ESMF_INSTALL_MODDIR=$(ESMF_DIR)/$(ARCH)/mod
+export ESMF_INSTALL_HEADERDIR=$(ESMF_DIR)/$(ARCH)/include
+export ESMF_F90COMPILEOPTS=-align all -fPIC -traceback 
+export ESMF_CXXCOMPILEOPTS=-fPIC
+export ESMF_OPENMP=OFF
+
 #-------------------------------------------------------------------------------
 
 #-------------------------------------------------------------------------------
@@ -31,12 +45,13 @@ include $(ESMF_DIR)/build/common.mk
 #-------------------------------------------------------------------------------
 DIRS = src
 
-CLEANDIRS = $(ESMF_LIBDIR) $(ESMF_MODDIR) $(ESMF_OBJDIR) $(ESMF_TESTDIR) $(ESMF_EXDIR) \
-	    $(ESMF_BUILD)/src/include $(ESMF_ETCDIR)
+CLEANDIRS = $(ESMF_LIBDIR) $(ESMF_MODDIR) $(ESMF_OBJDIR) $(ESMF_TESTDIR) \
+  $(ESMF_EXDIR) $(ESMF_BUILD)/src/include $(ESMF_ETCDIR) $(ESMF_APPSDIR)
 CLOBBERDIRS = $(ESMF_BUILD)/lib $(ESMF_BUILD)/mod $(ESMF_BUILD)/obj \
 	      $(ESMF_BUILD)/test $(ESMF_BUILD)/quick_start \
               $(ESMF_BUILD)/release $(ESMF_BUILD)/examples \
-              $(ESMF_BUILD)/doc
+              $(ESMF_BUILD)/doc \
+              $(ESMF_BUILD)/apps
 #-------------------------------------------------------------------------------
 
 #-------------------------------------------------------------------------------
@@ -46,7 +61,7 @@ CLOBBERDIRS = $(ESMF_BUILD)/lib $(ESMF_BUILD)/mod $(ESMF_BUILD)/obj \
 # after the include of common.mk, so it does not interfere with the
 # definition of the default build rule.
 
-all:  lib build_unit_tests build_examples build_system_tests build_demos
+all:  lib build_unit_tests build_examples build_system_tests
 
 
 #-------------------------------------------------------------------------------
@@ -62,11 +77,10 @@ script_info:
 	-@echo "C++ Compiler version:"; $(ESMF_CXXCOMPILER_VERSION); echo "" 
 	-@echo "--------------------------------------------------------------"
 	-@echo "Preprocessor version:"
-	@$(ESMF_CPP) --version $(ESMF_DIR)/scpripts/empty.C
+	@$(ESMF_CPP) --version $(ESMF_DIR)/scripts/empty.C
 	-@echo "" 
 	-@echo "--------------------------------------------------------------"
-	-@if [ -f $(ESMF_DIR)/src/Infrastructure/Util/include/ESMC_Macros.h ] ; then \
-	  fgrep ESMF_VERSION_STRING $(ESMF_DIR)/src/Infrastructure/Util/include/ESMC_Macros.h | $(ESMF_SED) "s/^#define //" ; fi
+	-@echo "ESMF_VERSION_STRING:    $(ESMF_VERSION_STRING)"
 	-@echo "--------------------------------------------------------------"
 	-@echo " "
 	-@echo "--------------------------------------------------------------"
@@ -100,8 +114,11 @@ script_info:
 	-@echo "ESMF_TESTMPMD:          $(ESMF_TESTMPMD)"
 	-@echo "ESMF_TESTSHAREDOBJ:     $(ESMF_TESTSHAREDOBJ)"
 	-@echo "ESMF_TESTFORCEOPENMP:   $(ESMF_TESTFORCEOPENMP)"
-	-@echo "ESMF_TESTHARNESS:       $(ESMF_TESTHARNESS)"
+	-@echo "ESMF_TESTHARNESS_ARRAY: $(ESMF_TESTHARNESS_ARRAY)"
+	-@echo "ESMF_TESTHARNESS_FIELD: $(ESMF_TESTHARNESS_FIELD)"
 	-@echo "ESMF_MPIRUN:            $(ESMF_MPIRUN)"
+	-@if [ "$(ESMF_TESTMPMD)" = "ON" ] ; then \
+	  echo "ESMF_MPIMPMDRUN:        $(ESMF_MPIMPMDRUN)" ; fi
 	-@if [ -n "$(ESMF_MPISCRIPTOPTIONS)" ] ; then \
 	  echo "ESMF_MPISCRIPTOPTIONS:  $(ESMF_MPISCRIPTOPTIONS)" ; fi
 	-@if [ -n "$(ESMF_MPIBATCHOPTIONS)" ] ; then \
@@ -156,6 +173,18 @@ script_info:
 	    echo "ESMF_XERCES_LIBPATH:    $(ESMF_XERCES_LIBPATH)" ; \
           fi; \
          fi
+	-@if [ -n "$(ESMF_PIO)" ] ; then \
+	  echo "ESMF_PIO:               $(ESMF_PIO)" ; \
+	  if [ -n "$(ESMF_PIO_INCLUDE)" ] ; then \
+	    echo "ESMF_PIO_INCLUDE:       $(ESMF_PIO_INCLUDE)" ; \
+          fi; \
+	  if [ -n "$(ESMF_PIO_LIBS)" ] ; then \
+	    echo "ESMF_PIO_LIBS:          $(ESMF_PIO_LIBS)" ; \
+          fi; \
+	  if [ -n "$(ESMF_PIO_LIBPATH)" ] ; then \
+	    echo "ESMF_PIO_LIBPATH:       $(ESMF_PIO_LIBPATH)" ; \
+          fi; \
+         fi
 	-@echo " "
 	-@echo "--------------------------------------------------------------"
 	-@echo " * ESMF environment variables for final installation *"
@@ -163,6 +192,7 @@ script_info:
 	-@echo "ESMF_INSTALL_HEADERDIR: $(ESMF_INSTALL_HEADERDIR)"
 	-@echo "ESMF_INSTALL_MODDIR:    $(ESMF_INSTALL_MODDIR)"
 	-@echo "ESMF_INSTALL_LIBDIR:    $(ESMF_INSTALL_LIBDIR)"
+	-@echo "ESMF_INSTALL_BINDIR:    $(ESMF_INSTALL_BINDIR)"
 	-@echo "ESMF_INSTALL_DOCDIR:    $(ESMF_INSTALL_DOCDIR)"
 	-@echo " "
 #
@@ -232,6 +262,20 @@ info_mk: chkdir_lib
 	-@echo "# Please see end of file for options used on this ESMF build" >> $(MKINFO)
 	-@echo "#" >> $(MKINFO)
 	-@echo "" >> $(MKINFO)
+	-@echo "" >> $(MKINFO)
+	-@echo "ESMF_VERSION_STRING=$(ESMF_VERSION_STRING)" >> $(MKINFO)
+	-@echo "" >> $(MKINFO)
+	-@echo "ESMF_VERSION_MAJOR=$(ESMF_VERSION_MAJOR)" >> $(MKINFO)
+	-@echo "ESMF_VERSION_MINOR=$(ESMF_VERSION_MINOR)" >> $(MKINFO)
+	-@echo "ESMF_VERSION_REVISION=$(ESMF_VERSION_REVISION)" >> $(MKINFO)
+	-@echo "ESMF_VERSION_PATCHLEVEL=$(ESMF_VERSION_PATCHLEVEL)" >> $(MKINFO)
+	-@echo "ESMF_VERSION_PUBLIC=$(ESMF_VERSION_PUBLIC)" >> $(MKINFO)
+	-@echo "ESMF_VERSION_BETASNAPSHOT=$(ESMF_VERSION_BETASNAPSHOT)" >> $(MKINFO)
+	-@echo "" >> $(MKINFO)
+	-@echo "" >> $(MKINFO)
+	-@echo "ESMF_APPSDIR=$(ESMF_APPSDIR)" >> $(MKINFO)
+	-@echo "" >> $(MKINFO)
+	-@echo "" >> $(MKINFO)
 	-@echo "ESMF_F90COMPILER=$(ESMF_F90COMPILER)" >> $(MKINFO)
 	-@echo "ESMF_F90LINKER=$(ESMF_F90LINKER)" >> $(MKINFO)
 	-@echo "" >> $(MKINFO)
@@ -274,6 +318,10 @@ info_mk: chkdir_lib
 	-@echo "ESMF_OPENMP_CXXCOMPILEOPTS=$(ESMF_OPENMP_CXXCOMPILEOPTS)" >> $(MKINFO)
 	-@echo "ESMF_OPENMP_CXXLINKOPTS=$(ESMF_OPENMP_CXXLINKOPTS)" >> $(MKINFO)
 	-@echo "" >> $(MKINFO)
+	-@echo "# Internal ESMF variables, do NOT depend on these!" >> $(MKINFO)
+	-@echo "" >> $(MKINFO)
+	-@echo "ESMF_INTERNAL_DIR=$(ESMF_DIR)" >> $(MKINFO)
+	-@echo "" >> $(MKINFO)
 	-@echo "#" >> $(MKINFO)
 	-@echo "# !!! The following options were used on this ESMF build !!!" >> $(MKINFO)
 	-@echo "#" >> $(MKINFO)
@@ -296,12 +344,6 @@ info_mk: chkdir_lib
 	-@echo "# ESMF_NO_INTEGER_2_BYTE: $(ESMF_NO_INTEGER_2_BYTE)" >> $(MKINFO)
 	-@echo "# ESMF_FORTRANSYMBOLS: $(ESMF_FORTRANSYMBOLS)" >> $(MKINFO)
 	-@echo "# ESMF_DEFER_LIB_BUILD:   $(ESMF_DEFER_LIB_BUILD)" >> $(MKINFO)
-	-@echo "# ESMF_TESTEXHAUSTIVE: $(ESMF_TESTEXHAUSTIVE)" >> $(MKINFO)
-	-@echo "# ESMF_TESTWITHTHREADS: $(ESMF_TESTWITHTHREADS)" >> $(MKINFO)
-	-@echo "# ESMF_TESTMPMD: $(ESMF_TESTMPMD)" >> $(MKINFO)
-	-@echo "# ESMF_TESTSHAREDOBJ: $(ESMF_TESTSHAREDOBJ)" >> $(MKINFO)
-	-@echo "# ESMF_TESTFORCEOPENMP: $(ESMF_TESTFORCEOPENMP)" >> $(MKINFO)
-	-@echo "# ESMF_TESTHARNESS: $(ESMF_TESTHARNESS)" >> $(MKINFO)
 	-@echo "# " >> $(MKINFO)
 	-@echo "# ESMF environment variables pointing to 3rd party software:" >> $(MKINFO)
 	-@if [ -n "$(ESMF_LAPACK)" ] ; then \
@@ -349,9 +391,27 @@ info_mk: chkdir_lib
 	    echo "# ESMF_XERCES_LIBPATH:    $(ESMF_XERCES_LIBPATH)" >> $(MKINFO) ; \
           fi; \
          fi
+	-@if [ -n "$(ESMF_PIO)" ] ; then \
+	  echo "# ESMF_PIO:               $(ESMF_PIO)" >> $(MKINFO) ; \
+	  if [ -n "$(ESMF_PIO_INCLUDE)" ] ; then \
+	    echo "# ESMF_PIO_INCLUDE:       $(ESMF_PIO_INCLUDE)" >> $(MKINFO) ; \
+          fi; \
+	  if [ -n "$(ESMF_PIO_LIBS)" ] ; then \
+	    echo "# ESMF_PIO_LIBS:          $(ESMF_PIO_LIBS)" >> $(MKINFO) ; \
+          fi; \
+	  if [ -n "$(ESMF_PIO_LIBPATH)" ] ; then \
+	    echo "# ESMF_PIO_LIBPATH:       $(ESMF_PIO_LIBPATH)" >> $(MKINFO) ; \
+          fi; \
+         fi
 
+# Rewrite esmf.mk during installation to ensure correct installation paths are encoded
 install_info_mk:
-	$(MAKE) info_mk ESMF_LDIR=$(ESMF_INSTALL_LIBDIR_ABSPATH) ESMF_LIBDIR=$(ESMF_INSTALL_LIBDIR_ABSPATH) ESMF_MODDIR=$(ESMF_INSTALL_MODDIR_ABSPATH) ESMF_INCDIR=$(ESMF_INSTALL_HEADERDIR_ABSPATH)
+	$(MAKE) info_mk ESMF_APPSDIR=$(ESMF_INSTALL_BINDIR_ABSPATH) ESMF_LDIR=$(ESMF_INSTALL_LIBDIR_ABSPATH) ESMF_LIBDIR=$(ESMF_INSTALL_LIBDIR_ABSPATH) ESMF_MODDIR=$(ESMF_INSTALL_MODDIR_ABSPATH) ESMF_INCDIR=$(ESMF_INSTALL_HEADERDIR_ABSPATH)
+
+# Relink apps during installation to ensure correct shared library location is encoded
+install_apps:
+	mkdir -p $(ESMF_INSTALL_BINDIR_ABSPATH)
+	$(MAKE) build_apps ESMF_APPSDIR=$(ESMF_INSTALL_BINDIR_ABSPATH) ESMF_LDIR=$(ESMF_INSTALL_LIBDIR_ABSPATH) ESMF_LIBDIR=$(ESMF_INSTALL_LIBDIR_ABSPATH) ESMF_MODDIR=$(ESMF_INSTALL_MODDIR_ABSPATH)
 
 # Ranlib on the libraries
 ranlib:
@@ -360,17 +420,6 @@ ranlib:
 # Deletes ESMF libraries
 deletelibs: chkopts_basic
 	-$(ESMF_RM) $(wildcard $(ESMF_LIBDIR)/lib*.*)
-
-# This demo is disabled until halo is implemented.
-# ESMF_COUPLED_FLOW/demo target.
-#ESMF_COUPLED_FLOW: chkopts build_libs chkdir_tests
-#	cd src/demos/coupled_flow ;\
-#	$(MAKE) BOPT=$(BOPT) demos
-#
-## ESMF_COUPLED_FLOW_uni/demo target.
-#ESMF_COUPLED_FLOW_uni: chkopts build_libs chkdir_tests
-#	cd src/demos/coupled_flow ;\
-#	$(MAKE) BOPT=$(BOPT) demos_uni
 
 
 # ------------------------------------------------------------------
@@ -386,13 +435,11 @@ SCRIPTS    =
 
 # ------------------------------------------------------------------
 # INSTALL target
-install: lib
+install:
 	-@echo " "
 	-@echo "Installing ESMF:"
 	-@echo " "
 	mkdir -p $(ESMF_INSTALL_HEADERDIR_ABSPATH)
-	cp -f $(ESMF_BUILD)/src/include/ESMF.h $(ESMF_INSTALL_HEADERDIR_ABSPATH)
-	cp -f $(ESMF_BUILD)/src/include/ESMF_*.inc $(ESMF_INSTALL_HEADERDIR_ABSPATH)
 	cp -f $(ESMF_BUILD)/src/include/ESMC.h $(ESMF_INSTALL_HEADERDIR_ABSPATH)
 	cp -f $(ESMF_BUILD)/src/include/ESMC_*.h $(ESMF_INSTALL_HEADERDIR_ABSPATH)
 	cp -f $(ESMF_DIR)/build_config/$(ESMF_OS).$(ESMF_COMPILER).$(ESMF_SITE)/ESMC_Conf.h $(ESMF_INSTALL_HEADERDIR_ABSPATH)
@@ -401,6 +448,7 @@ install: lib
 	mkdir -p $(ESMF_INSTALL_LIBDIR_ABSPATH)
 	cp -f $(ESMF_LIBDIR)/lib*.* $(ESMF_INSTALL_LIBDIR_ABSPATH)
 	$(ESMF_RANLIB) $(ESMF_INSTALL_LIBDIR_ABSPATH)/lib*.a
+	$(MAKE) install_apps
 	mkdir -p $(ESMF_INSTALL_DOCDIR_ABSPATH)
 	@if [ -d $(ESMF_DOCDIR) ]; then \
         cp -rf $(ESMF_DOCDIR)/* $(ESMF_INSTALL_DOCDIR_ABSPATH); \
@@ -409,18 +457,18 @@ install: lib
 	-@echo " "
 	-@echo "ESMF installation complete."
 	-@echo " "
-
+        
 # ------------------------------------------------------------------
 # INSTALLCHECK target
 installcheck:
 	-@echo " "
 	-@echo "Checking ESMF installation:"
 	-@echo " "
-	cd $(ESMF_DIR)/application ;\
+	cd $(ESMF_DIR)/src/installcheck ;\
 	$(MAKE) clean
-	cd $(ESMF_DIR)/application ;\
+	cd $(ESMF_DIR)/src/installcheck ;\
 	$(MAKE)
-	cd $(ESMF_DIR)/application ;\
+	cd $(ESMF_DIR)/src/installcheck ;\
         $(MAKE) check
 	-@echo " "
 	-@echo "ESMF installation check complete."

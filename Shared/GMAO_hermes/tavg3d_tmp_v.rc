@@ -1,0 +1,74 @@
+# lcv2prs.rc
+#
+#  This is a resource file for the lcv2prs utility.
+#
+# !REVISION HISTORY:
+#
+#  27Jan2006  B. Yin    First version.
+#  25Apr2006  Todling   Declared dims so fvsetup get set them up.
+#
+#...........................................................................
+#                     ----------------------
+#                     Output File Resolution
+#                     ----------------------
+
+zonal_resolution: @IM              # no. of zonal grid-points (im)
+west_most_longitude_in_deg: -180.0 # longitude of first point (i=1)
+meridional_resolution: @JM         # no. meridional grid-points (jm)
+vertical_level_numbers: 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40 41 42 43 44 45 46 47 48 49 50 51 52 53 54 55 56 57 58 59 60 61 62 63 64 65 66 67 68 69 70 71 72
+
+#                       ----------------
+#                       Variable Classes
+#                       ----------------
+ 
+# A variable class lists the variable names that make up a file type or product.
+
+#
+###  PRODUCT: tavg3d_tmp_v (3-D tendency)
+VarClass*tavg3d_tmp_v: PS DELP DTDTDYN DTDTFRI DTDTGWD DTDTLWR DTDTLWRCLR DTDTMST DTDTSWR DTDTSWRCLR DTDTTRB
+#                         --------------------
+#                         Variable Translation
+#                         --------------------
+
+Variable_translation_table::
+
+#      Output          |                       Input
+#  Name       Units    | Name             scale_factor  add_offset Positive check
+#  ------------------------------------------------------------------------------
+   PS         Pa         PS                     1.0        0.0         0  # Pa
+   DELP       Pa         DELP                   1.0        0.0         0
+   DTDTDYN     K/s         DTDTDYN          1.00000     0.00000           0
+   DTDTFRI     K/s         DTDTFRI          1.00000     0.00000           0
+   DTDTGWD     K/s         DTDTGWD          1.00000     0.00000           0
+   DTDTLWR     K/s         DTDTLWR          1.00000     0.00000           0
+   DTDTLWRCLR  K/s         DTDTLWRCLR       1.00000     0.00000           0
+   DTDTMST     K/s         DTDTMST          1.00000     0.00000           0
+   DTDTSWR     K/s         DTDTSWR          1.00000     0.00000           0
+   DTDTSWRCLR  K/s         DTDTSWRCLR       1.00000     0.00000           0
+   DTDTTRB     K/s         DTDTTRB          1.00000     0.00000           0
+::
+
+
+
+# Table for variable names and description:
+
+PS:         Surface pressure (two-dimensional field)
+DELP:       Pressure difference between layer edges
+DTDTDYN:    Temperature tendency from dynamics
+DTDTFRI:    Temperature tendency from frictional heating
+DTDTGWD:    Temperature tendency from gravity wave drag
+DTDTLWR:    Temperature tendency from long wave radiation
+DTDTLWRCLR: Temperature tendency from long wave radiation (clear sky)
+DTDTMST:    Temperature tendency from moist physics
+DTDTSWR:    Temperature tendency from short wave radiation
+DTDTSWRCLR: Temperature tendency from short wave radiation (clear sky)
+DTDTTRB:    Temperature tendency from turbulence
+
+history:        @CVSTAG
+convention:     CF-1.0
+institution:    Global Modeling and Assimilation Office (GMAO), NASA Goddard Space Flight Center, Greenbelt, MD 20771
+references:     http://gmao.gsfc.nasa.gov
+comment:        This HDF-4 file uses gzip.
+source:         @PUBLICTAG
+title:          @PUBLICTAG forward-processing
+contact:        data@gmao.gsfc.nasa.gov

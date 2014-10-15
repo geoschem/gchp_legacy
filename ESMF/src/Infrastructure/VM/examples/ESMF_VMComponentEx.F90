@@ -1,7 +1,7 @@
-! $Id: ESMF_VMComponentEx.F90,v 1.17.2.1 2010/02/05 20:01:28 svasquez Exp $
+! $Id: ESMF_VMComponentEx.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2010, University Corporation for Atmospheric Research,
+! Copyright 2002-2012, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -38,7 +38,7 @@ module ESMF_VMComponentEx_gcomp_mod
 !EOC
 
   ! modules
-  use ESMF_Mod
+  use ESMF
   
   implicit none
   
@@ -57,11 +57,11 @@ module ESMF_VMComponentEx_gcomp_mod
     integer, intent(out):: rc
     
     ! register INIT method
-    call ESMF_GridCompSetEntryPoint(gcomp, ESMF_SETINIT, mygcomp_init, rc=rc)
+    call ESMF_GridCompSetEntryPoint(gcomp, ESMF_METHOD_INITIALIZE, mygcomp_init, rc=rc)
     ! register RUN method
-    call ESMF_GridCompSetEntryPoint(gcomp, ESMF_SETRUN, mygcomp_run, rc=rc)
+    call ESMF_GridCompSetEntryPoint(gcomp, ESMF_METHOD_RUN, mygcomp_run, rc=rc)
     ! register FINAL method
-    call ESMF_GridCompSetEntryPoint(gcomp, ESMF_SETFINAL, mygcomp_final, rc=rc)
+    call ESMF_GridCompSetEntryPoint(gcomp, ESMF_METHOD_FINALIZE, mygcomp_final, rc=rc)
   end subroutine !--------------------------------------------------------------
   
 !BOC
@@ -80,7 +80,7 @@ module ESMF_VMComponentEx_gcomp_mod
     ! the VM object contains information about the execution environment of
     ! the Component
 
-    call ESMF_VMPrint(vm, rc)
+    call ESMF_VMPrint(vm, rc=rc)
     
     rc = 0
   end subroutine !--------------------------------------------------------------
@@ -101,7 +101,7 @@ module ESMF_VMComponentEx_gcomp_mod
     ! the VM object contains information about the execution environment of
     ! the Component
 
-    call ESMF_VMPrint(vm, rc)
+    call ESMF_VMPrint(vm, rc=rc)
     
     rc = 0
   end subroutine !--------------------------------------------------------------
@@ -121,7 +121,7 @@ module ESMF_VMComponentEx_gcomp_mod
     ! the VM object contains information about the execution environment of
     ! the Component
 
-    call ESMF_VMPrint(vm, rc)
+    call ESMF_VMPrint(vm, rc=rc)
     
     rc = 0
   end subroutine !--------------------------------------------------------------
@@ -132,7 +132,7 @@ end module
 
 !BOC
 program ESMF_VMComponentEx
-  use ESMF_Mod
+  use ESMF
   use ESMF_VMComponentEx_gcomp_mod
   implicit none
   
@@ -144,7 +144,8 @@ program ESMF_VMComponentEx
   integer :: finalrc
   finalrc = ESMF_SUCCESS
 
-  call ESMF_Initialize(rc=rc)
+  call ESMF_Initialize(defaultlogfilename="VMComponentEx.Log", &
+                    logkindflag=ESMF_LOGKIND_MULTI, rc=rc)
   if (rc/=ESMF_SUCCESS) finalrc = ESMF_FAILURE
 
 !BOC  
@@ -153,7 +154,7 @@ program ESMF_VMComponentEx
   if (rc/=ESMF_SUCCESS) finalrc = ESMF_FAILURE
 
 !BOC  
-  call ESMF_GridCompSetServices(gcomp, mygcomp_register, rc)
+  call ESMF_GridCompSetServices(gcomp, mygcomp_register, rc=rc)
 !EOC  
   if (rc/=ESMF_SUCCESS) finalrc = ESMF_FAILURE
 

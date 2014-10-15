@@ -1,7 +1,7 @@
-// $Id: ESMC_State.C,v 1.29.2.1 2010/02/05 20:04:52 svasquez Exp $
+// $Id: ESMC_State.C,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
 //
 // Earth System Modeling Framework
-// Copyright 2002-2010, University Corporation for Atmospheric Research, 
+// Copyright 2002-2012, University Corporation for Atmospheric Research, 
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
 // Laboratory, University of Michigan, National Centers for Environmental 
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
@@ -45,7 +45,7 @@
 
 // leave the following line as-is; it will insert the cvs ident string
 // into the object file for tracking purposes.
-static const char *const version = "$Id: ESMC_State.C,v 1.29.2.1 2010/02/05 20:04:52 svasquez Exp $";
+static const char *const version = "$Id: ESMC_State.C,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $";
 //-----------------------------------------------------------------------------
 
 //
@@ -71,7 +71,7 @@ extern "C" {
 //     pointer to newly allocated ESMC_State
 //
 // !ARGUMENTS:
-      char *name,          // in - state name
+      const char *name,    // in - state name
       int *rc) {           // out - return code
 //
 // !DESCRIPTION:
@@ -89,7 +89,7 @@ extern "C" {
 
     // Invoque the C++ interface
     state = (void *)ESMCI::State::create(name, &localrc);
-    if (ESMC_LogDefault.MsgFoundError(localrc, ESMF_ERR_PASSTHRU, rc))
+    if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, rc))
       return state; // bail out
 
     rc = &localrc;
@@ -126,7 +126,7 @@ extern "C" {
       localrc = ESMF_RC_NOT_IMPL;
       
       localrc = ((ESMCI::State*)state)->addArray((ESMCI::Array*)array.ptr);
-      if (ESMC_LogDefault.MsgFoundError(localrc, ESMF_ERR_PASSTHRU,&rc))
+      if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU,&rc))
         return localrc;
 
       rc = localrc;
@@ -163,7 +163,7 @@ extern "C" {
       localrc = ESMF_RC_NOT_IMPL;
       
       localrc = ((ESMCI::State*)state)->addField((ESMCI::Field*)field);
-      if (ESMC_LogDefault.MsgFoundError(localrc, ESMF_ERR_PASSTHRU,&rc))
+      if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU,&rc))
         return localrc;
 
       rc = localrc;
@@ -185,7 +185,7 @@ extern "C" {
 //
 // !ARGUMENTS:
       ESMC_State state,    // in - state
-      char* arrayName,     // in - name of Array to get
+      const char* arrayName,    // in - name of Array to get
       ESMC_Array *array){       // out - array to get
 //
 // !DESCRIPTION:
@@ -202,7 +202,7 @@ extern "C" {
 
       localrc = ((ESMCI::State*)state)->getArray(arrayName,
         (ESMCI::Array**)&(array->ptr));
-      if (ESMC_LogDefault.MsgFoundError(localrc, ESMF_ERR_PASSTHRU,&rc))
+      if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU,&rc))
         return localrc;
 
       rc = localrc;
@@ -224,7 +224,7 @@ extern "C" {
 //
 // !ARGUMENTS:
       ESMC_State state,    // in - state
-      char* fieldName,     // in - name of Field to get
+      const char* fieldName,    // in - name of Field to get
       ESMC_Field *field){       // out - Field to get
 //
 // !DESCRIPTION:
@@ -241,7 +241,7 @@ extern "C" {
 
       localrc = ((ESMCI::State*)state)->getField(fieldName,
         (ESMCI::Field**)field);
-      if (ESMC_LogDefault.MsgFoundError(localrc, ESMF_ERR_PASSTHRU,&rc))
+      if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU,&rc))
         return localrc;
 
       rc = localrc;
@@ -278,7 +278,7 @@ extern "C" {
 
     // Invoque the C++ interface
     localrc = ((ESMCI::State*)state)->print();
-    if (ESMC_LogDefault.MsgFoundError(localrc, ESMF_ERR_PASSTHRU, &rc))
+    if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, &rc))
       return localrc;
 
     return rc = localrc;
@@ -323,7 +323,7 @@ extern "C" {
 
     // Invoque the C++ interface
     localrc = ESMCI::State::destroy(statep);
-    if (ESMC_LogDefault.MsgFoundError(localrc, ESMF_ERR_PASSTHRU, &rc))
+    if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, &rc))
       return localrc;
 
     // invalidate pointer

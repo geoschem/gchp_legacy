@@ -1,7 +1,7 @@
-! $Id: ESMF_AttReadGridEx.F90,v 1.6.2.1 2010/02/05 20:03:28 svasquez Exp $
+! $Id$
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2010, University Corporation for Atmospheric Research,
+! Copyright 2002-2012, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -17,10 +17,16 @@ program ESMF_AttReadGridEx
 !==============================================================================
 
 !BOE
-! \subsubsection{Example: Reading an XML file-based GridSpec Attribute Package for a Grid}
+! \subsubsection{Read an XML file-based GridSpec Attribute package for a Grid}
 ! This example shows how to read a GridSpec Attribute Package from an
-! XML file; see
-! ESMF\_DIR/src/Infrastructure/Grid/etc/esmf\_grid.xml.
+! XML file.  The XML file contains Attribute values filled-in by the user.
+! The standard GridSpec Attribute Package is supplied with ESMF and is defined
+! in an XSD file, which is used to validate the XML file.  See
+! \begin{description}
+! \item ESMF\_DIR/src/Infrastructure/Grid/etc/esmf\_grid.xml (Attribute Package values) and
+! \item ESMF\_DIR/src/Infrastructure/Grid/etc/esmf\_grid.xsd (Attribute Package definition)
+! \end{description}
+
 !EOE
 
 #include "ESMF.h"
@@ -38,7 +44,7 @@ program ESMF_AttReadGridEx
 
 !BOC
       ! ESMF Framework module
-      use ESMF_Mod
+      use ESMF
       implicit none
 
       ! local variables
@@ -58,20 +64,25 @@ program ESMF_AttReadGridEx
 
 !BOC
       ! initialize ESMF
-      call ESMF_Initialize(vm=vm, rc=rc)
+      call ESMF_Initialize(vm=vm, &
+                    defaultlogfilename="AttReadGridEx.Log", &
+                    logkindflag=ESMF_LOGKIND_MULTI, rc=rc)
 !EOC
 
-      if (rc.ne.ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+      if (rc.ne.ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
 !BOC
       ! Create a grid
-      grid = ESMF_GridCreateEmpty(rc=rc)
+      grid = ESMF_GridEmptyCreate(rc=rc)
 !EOC
 
-      if (rc.ne.ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+      if (rc.ne.ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
 !BOC
-      ! Read an XML file to populate the GridSpec Attribute package of a Grid
+      ! Read an XML file to populate the GridSpec Attribute package of a Grid.
+      ! The file is validated against an internal, ESMF-supplied XSD file
+      ! defining the standard GridSpec Attribute package (see file pathnames
+      ! above).
       call ESMF_AttributeRead(grid=grid, fileName="esmf_grid.xml", rc=rc)
 !EOC
       if (rc==ESMF_RC_LIB_NOT_PRESENT) then
@@ -81,17 +92,6 @@ program ESMF_AttReadGridEx
       if (rc .ne. ESMF_SUCCESS .and. xercesPresent) finalrc = ESMF_FAILURE
 
 !print *, 'rc = ', rc
-
-!BOC
-      ! Get GridSpec "CongruentTiles" Attribute from a Grid
-      call ESMF_AttributeGet(grid, name='CongruentTiles', value=attrValue, &
-                             convention='GridSpec', purpose='General', rc=rc)
-!EOC
-
-      if (.not.((rc==ESMF_SUCCESS .and. attrvalue=='true') &
-                      .or. .not. xercesPresent)) finalrc = ESMF_FAILURE
-!print *, 'rc = ', rc
-!print *, 'attrvalue = ', attrvalue
 
 !BOC
       ! Get GridSpec "GridType" Attribute from a Grid
@@ -105,8 +105,31 @@ program ESMF_AttReadGridEx
 !print *, 'attrvalue = ', attrvalue
 
 !BOC
-      ! Get GridSpec "DimOrder" Attribute from a Grid
-      call ESMF_AttributeGet(grid, name='DimOrder', value=attrValue, &
+      ! Get GridSpec "CongruentTiles" Attribute from a Grid
+      call ESMF_AttributeGet(grid, name='CongruentTiles', value=attrValue, &
+                             convention='GridSpec', purpose='General', rc=rc)
+!EOC
+
+      if (.not.((rc==ESMF_SUCCESS .and. attrvalue=='true') &
+                      .or. .not. xercesPresent)) finalrc = ESMF_FAILURE
+!print *, 'rc = ', rc
+!print *, 'attrvalue = ', attrvalue
+
+!BOC
+      ! Get GridSpec "NumberOfGridTiles" Attribute from a Grid
+      call ESMF_AttributeGet(grid, name='NumberOfGridTiles', &
+                             value=attrValue, convention='GridSpec', &
+                             purpose='General', rc=rc)
+!EOC
+
+      if (.not.((rc==ESMF_SUCCESS .and. attrvalue=='1') &
+                      .or. .not. xercesPresent)) finalrc = ESMF_FAILURE
+!print *, 'rc = ', rc
+!print *, 'attrvalue = ', attrvalue
+
+!BOC
+      ! Get GridSpec "DimensionOrder" Attribute from a Grid
+      call ESMF_AttributeGet(grid, name='DimensionOrder', value=attrValue, &
                              convention='GridSpec', purpose='General', rc=rc)
 !EOC
 
@@ -145,17 +168,6 @@ program ESMF_AttReadGridEx
 !EOC
 
       if (.not.((rc==ESMF_SUCCESS .and. attrvalue=='false') &
-                      .or. .not. xercesPresent)) finalrc = ESMF_FAILURE
-!print *, 'rc = ', rc
-!print *, 'attrvalue = ', attrvalue
-
-!BOC
-      ! Get GridSpec "IsPoleCovered" Attribute from a Grid
-      call ESMF_AttributeGet(grid, name='IsPoleCovered', value=attrValue, &
-                             convention='GridSpec', purpose='General', rc=rc)
-!EOC
-
-      if (.not.((rc==ESMF_SUCCESS .and. attrvalue=='true') &
                       .or. .not. xercesPresent)) finalrc = ESMF_FAILURE
 !print *, 'rc = ', rc
 !print *, 'attrvalue = ', attrvalue
@@ -206,17 +218,6 @@ program ESMF_AttReadGridEx
 !print *, 'attrvalue = ', attrvalue
 
 !BOC
-      ! Get GridSpec "NumDims" Attribute from a Grid
-      call ESMF_AttributeGet(grid, name='NumDims', value=attrValue, &
-                             convention='GridSpec', purpose='General', rc=rc)
-!EOC
-
-      if (.not.((rc==ESMF_SUCCESS .and. attrvalue=='2') &
-                      .or. .not. xercesPresent)) finalrc = ESMF_FAILURE
-!print *, 'rc = ', rc
-!print *, 'attrvalue = ', attrvalue
-
-!BOC
       ! Get GridSpec "NX" Attribute from a Grid
       call ESMF_AttributeGet(grid, name='NX', value=attrValue, &
                              convention='GridSpec', purpose='General', rc=rc)
@@ -239,20 +240,10 @@ program ESMF_AttReadGridEx
 !print *, 'attrvalue = ', attrvalue
 
 !BOC
-      ! Get GridSpec "NZ" Attribute from a Grid
-      call ESMF_AttributeGet(grid, name='NZ', value=attrValue, &
-                             convention='GridSpec', purpose='General', rc=rc)
-!EOC
-
-      if (.not.((rc==ESMF_SUCCESS .and. attrvalue=='15') &
-                      .or. .not. xercesPresent)) finalrc = ESMF_FAILURE
-!print *, 'rc = ', rc
-!print *, 'attrvalue = ', attrvalue
-
-!BOC
-      ! Get GridSpec "Resolution" Attribute from a Grid
-      call ESMF_AttributeGet(grid, name='Resolution', value=attrValue, &
-                             convention='GridSpec', purpose='General', rc=rc)
+      ! Get GridSpec "HorizontalResolution" Attribute from a Grid
+      call ESMF_AttributeGet(grid, name='HorizontalResolution', &
+                             value=attrValue, convention='GridSpec', &
+                             purpose='General', rc=rc)
 !EOC
 
       if (.not.((rc==ESMF_SUCCESS .and. attrvalue=='C48') &
@@ -264,7 +255,7 @@ program ESMF_AttReadGridEx
       call ESMF_GridDestroy(grid, rc=rc)
 !EOC
 
-      if (rc .ne. ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+      if (rc .ne. ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
 !BOC
       ! finalize ESMF framework

@@ -1,7 +1,7 @@
-! $Id: ESMF_FieldBundleSMMEx.F90,v 1.6.2.1 2010/02/05 19:56:19 svasquez Exp $
+! $Id$
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2010, University Corporation for Atmospheric Research,
+! Copyright 2002-2012, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -27,14 +27,14 @@
 #undef ESMF_METHOD
 #define ESMF_METHOD "ESMF_FieldBundleSMMEx"
      ! ESMF Framework module
-     use ESMF_Mod
+     use ESMF
      use ESMF_TestMod
      implicit none
 
 !------------------------------------------------------------------------------
 ! The following line turns the CVS identifier string into a printable variable.
     character(*), parameter :: version = &
-    '$Id: ESMF_FieldBundleSMMEx.F90,v 1.6.2.1 2010/02/05 19:56:19 svasquez Exp $'
+    '$Id$'
 !------------------------------------------------------------------------------
 
     ! Local variables
@@ -58,15 +58,16 @@
     rc = ESMF_SUCCESS
     finalrc = ESMF_SUCCESS
 !------------------------------------------------------------------------------
-    call ESMF_Initialize(rc=rc)
-    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+    call ESMF_Initialize(defaultlogfilename="FieldBundleSMMEx.Log", &
+                    logkindflag=ESMF_LOGKIND_MULTI, rc=rc)
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
     if (.not. ESMF_TestMinPETs(4, ESMF_SRCLINE)) &
-        call ESMF_Finalize(terminationflag=ESMF_ABORT)
+        call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !------------------------------------------------------------------------------
 !BOE
-! \subsubsection{Perform Sparse Matrix Multiplication from source FieldBundle 
-!  to destination FieldBundle}
+! \subsubsection{Perform sparse matrix multiplication from a source FieldBundle 
+!  to a destination FieldBundle}
 ! \label{sec:fieldbundle:usage:smm_1dptr}
 !
 ! A user can use {\tt ESMF\_FieldBundleSMM} interface to perform SMM from 
@@ -104,15 +105,15 @@
     if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
 
     ! create field bundles and fields
-    srcFieldBundle = ESMF_FieldBundleCreate(grid, rc=rc)
+    srcFieldBundle = ESMF_FieldBundleCreate(rc=rc)
     if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
 
-    dstFieldBundle = ESMF_FieldBundleCreate(grid, rc=rc)
+    dstFieldBundle = ESMF_FieldBundleCreate(rc=rc)
     if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
 
     do i = 1, 3
         srcField(i) = ESMF_FieldCreate(grid, arrayspec, &
-            maxHaloLWidth=(/1/), maxHaloUWidth=(/2/), &
+            totalLWidth=(/1/), totalUWidth=(/2/), &
             rc=rc)
         if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
 
@@ -121,11 +122,11 @@
 
         srcfptr = 1
 
-        call ESMF_FieldBundleAdd(srcFieldBundle, srcField(i), rc=rc)
+        call ESMF_FieldBundleAdd(srcFieldBundle, (/srcField(i)/), rc=rc)
         if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
 
         dstField(i) = ESMF_FieldCreate(grid, arrayspec, &
-            maxHaloLWidth=(/1/), maxHaloUWidth=(/2/), &
+            totalLWidth=(/1/), totalUWidth=(/2/), &
             rc=rc)
         if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
 
@@ -134,7 +135,7 @@
 
         dstfptr = 0
 
-        call ESMF_FieldBundleAdd(dstFieldBundle, dstField(i), rc=rc)
+        call ESMF_FieldBundleAdd(dstFieldBundle, (/dstField(i)/), rc=rc)
         if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
     enddo
 
@@ -144,12 +145,13 @@
     factorList = (/1,2,3,4/)
     factorIndexList(1,:) = (/lpe*4+1,lpe*4+2,lpe*4+3,lpe*4+4/)
     factorIndexList(2,:) = (/lpe*4+1,lpe*4+2,lpe*4+3,lpe*4+4/)
-    call ESMF_FieldBundleSMMStore(srcFieldBundle, dstFieldBundle, routehandle, &
-        factorList, factorIndexList, rc=rc)
+    call ESMF_FieldBundleSMMStore(srcFieldBundle, dstFieldBundle, &
+        routehandle, factorList, factorIndexList, rc=rc)
     if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
 
     ! perform smm
-    call ESMF_FieldBundleSMM(srcFieldBundle, dstFieldBundle, routehandle, rc=rc)
+    call ESMF_FieldBundleSMM(srcFieldBundle, dstFieldBundle, routehandle, &
+          rc=rc)
     if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
 
     ! verify smm
@@ -160,7 +162,8 @@
 
         ! Verify that the smm data in dstField(l) is correct.
         ! Before the smm op, the dst Field contains all 0. 
-        ! The smm op reset the values to the index value, verify this is the case.
+        ! The smm op reset the values to the index value, verify 
+        ! this is the case.
         !write(*, '(9I3)') l, lpe, fptr
         do i = exlb(1), exub(1)
             if(fptr(i) .ne. i) finalrc = ESMF_FAILURE

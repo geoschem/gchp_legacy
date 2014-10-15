@@ -1,4 +1,4 @@
-# $Id: makefile,v 1.18 2009/03/18 05:51:06 eschwab Exp $ 
+# $Id: makefile,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $ 
 
 ALL: build_here
 
@@ -6,10 +6,7 @@ LOCDIR   = src/Superstructure
 
 include $(ESMF_DIR)/makefile
 
-# The ESMF_Mod file is currently in the Component/src directory,
-# since this is the last to get built.
-
-DIRS     =  State Component AttributeAPI IOAPI ESMFMod AppDriver
+DIRS     =  State Component AttachMethods AttributeAPI WebServices ESMFMod AppDriver
 
 CLEANDIRS   =
 CLEANFILES  =

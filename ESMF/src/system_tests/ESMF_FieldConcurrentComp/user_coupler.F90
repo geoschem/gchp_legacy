@@ -1,4 +1,4 @@
-! $Id: user_coupler.F90,v 1.8.2.1 2010/04/27 20:49:02 feiliu Exp $
+! $Id$
 !
 ! System test of Exclusive components, user-written Coupler component.
 
@@ -18,7 +18,7 @@
 
     ! ESMF Framework module
     use ESMF_TestMod
-    use ESMF_Mod
+    use ESMF
     
     implicit none
     
@@ -75,18 +75,18 @@
         print *, "in user coupler register routine"
   
         ! Register the callback routines.
-        call ESMF_CplCompSetEntryPoint(comp, ESMF_SETINIT, userRoutine=user_init, &
+        call ESMF_CplCompSetEntryPoint(comp, ESMF_METHOD_INITIALIZE, userRoutine=user_init, &
           rc=status)
-        if (ESMF_LogMsgFoundError(status, ESMF_ERR_PASSTHRU, &
-            ESMF_CONTEXT, rc)) return
-        call ESMF_CplCompSetEntryPoint(comp, ESMF_SETRUN, userRoutine=user_run, &
+        if (ESMF_LogFoundError(status, ESMF_ERR_PASSTHRU, &
+            ESMF_CONTEXT, rcToReturn=rc)) return
+        call ESMF_CplCompSetEntryPoint(comp, ESMF_METHOD_RUN, userRoutine=user_run, &
           rc=status)
-        if (ESMF_LogMsgFoundError(status, ESMF_ERR_PASSTHRU, &
-            ESMF_CONTEXT, rc)) return
-        call ESMF_CplCompSetEntryPoint(comp, ESMF_SETFINAL, userRoutine=user_final, &
+        if (ESMF_LogFoundError(status, ESMF_ERR_PASSTHRU, &
+            ESMF_CONTEXT, rcToReturn=rc)) return
+        call ESMF_CplCompSetEntryPoint(comp, ESMF_METHOD_FINALIZE, userRoutine=user_final, &
           rc=status)
-        if (ESMF_LogMsgFoundError(status, ESMF_ERR_PASSTHRU, &
-            ESMF_CONTEXT, rc)) return
+        if (ESMF_LogFoundError(status, ESMF_ERR_PASSTHRU, &
+            ESMF_CONTEXT, rcToReturn=rc)) return
 
         !print *, "Registered Initialize, Run, and Finalize routines"
   
@@ -120,11 +120,11 @@
   
         ! Get VM from coupler component
         call ESMF_CplCompGet(comp, vm=vm, rc=status)
-        if (ESMF_LogMsgFoundError(status, ESMF_ERR_PASSTHRU, &
-            ESMF_CONTEXT, rc)) return
+        if (ESMF_LogFoundError(status, ESMF_ERR_PASSTHRU, &
+            ESMF_CONTEXT, rcToReturn=rc)) return
         call ESMF_VMGet(vm, localPET=pet_id, rc=status)
-        if (ESMF_LogMsgFoundError(status, ESMF_ERR_PASSTHRU, &
-            ESMF_CONTEXT, rc)) return
+        if (ESMF_LogFoundError(status, ESMF_ERR_PASSTHRU, &
+            ESMF_CONTEXT, rcToReturn=rc)) return
   
         ! Since the components we are coupling between are running concurrently,
         ! they have each separately created ESMF objects.   We are planning to
@@ -135,53 +135,53 @@
         ! Must be called on each state which is going to be accessed from
         ! this coupler.  When the call returns all objects which were not
         ! in existence on all PETs now have an object which represents them.
-        call ESMF_StateReconcile(importState, vm, rc=status)
-        if (ESMF_LogMsgFoundError(status, ESMF_ERR_PASSTHRU, &
-            ESMF_CONTEXT, rc)) return
+        call ESMF_StateReconcile(importState, vm=vm, rc=status)
+        if (ESMF_LogFoundError(status, ESMF_ERR_PASSTHRU, &
+            ESMF_CONTEXT, rcToReturn=rc)) return
         !call ESMF_StatePrint(importState, rc=status)
-        !if (ESMF_LogMsgFoundError(status, ESMF_ERR_PASSTHRU, &
-        !    ESMF_CONTEXT, rc)) return
+        !if (ESMF_LogFoundError(status, ESMF_ERR_PASSTHRU, &
+        !    ESMF_CONTEXT, rcToReturn=rc)) return
   
-        call ESMF_StateReconcile(exportState, vm, rc=status)
-        if (ESMF_LogMsgFoundError(status, ESMF_ERR_PASSTHRU, &
-            ESMF_CONTEXT, rc)) return
+        call ESMF_StateReconcile(exportState, vm=vm, rc=status)
+        if (ESMF_LogFoundError(status, ESMF_ERR_PASSTHRU, &
+            ESMF_CONTEXT, rcToReturn=rc)) return
         !call ESMF_StatePrint(exportState, rc=status)
-        !if (ESMF_LogMsgFoundError(status, ESMF_ERR_PASSTHRU, &
-        !    ESMF_CONTEXT, rc)) return
+        !if (ESMF_LogFoundError(status, ESMF_ERR_PASSTHRU, &
+        !    ESMF_CONTEXT, rcToReturn=rc)) return
   
         call ESMF_StateGet(importState, itemcount=itemcount, rc=status)
-        if (ESMF_LogMsgFoundError(status, ESMF_ERR_PASSTHRU, &
-            ESMF_CONTEXT, rc)) return
+        if (ESMF_LogFoundError(status, ESMF_ERR_PASSTHRU, &
+            ESMF_CONTEXT, rcToReturn=rc)) return
         !print *, "Import State contains ", itemcount, " items."
         call ESMF_StateGet(exportState, itemcount=itemcount, rc=status)
-        if (ESMF_LogMsgFoundError(status, ESMF_ERR_PASSTHRU, &
-            ESMF_CONTEXT, rc)) return
+        if (ESMF_LogFoundError(status, ESMF_ERR_PASSTHRU, &
+            ESMF_CONTEXT, rcToReturn=rc)) return
         !print *, "Export State contains ", itemcount, " items."
 
         ! Get the src and dst arrays
         call ESMF_StateGet(importState, "sorted_data1", sorted_data1, rc=status)       
-        if (ESMF_LogMsgFoundError(status, ESMF_ERR_PASSTHRU, &
-            ESMF_CONTEXT, rc)) return
+        if (ESMF_LogFoundError(status, ESMF_ERR_PASSTHRU, &
+            ESMF_CONTEXT, rcToReturn=rc)) return
         call ESMF_StateGet(exportState, "sorted_data2", sorted_data2, rc=status)       
-        if (ESMF_LogMsgFoundError(status, ESMF_ERR_PASSTHRU, &
-            ESMF_CONTEXT, rc)) return
+        if (ESMF_LogFoundError(status, ESMF_ERR_PASSTHRU, &
+            ESMF_CONTEXT, rcToReturn=rc)) return
 
         ! check dimCount
         call ESMF_FieldGet(sorted_data1, dimCount=dimCount, rc=status)
-        if (ESMF_LogMsgFoundError(status, ESMF_ERR_PASSTHRU, &
-            ESMF_CONTEXT, rc)) return
+        if (ESMF_LogFoundError(status, ESMF_ERR_PASSTHRU, &
+            ESMF_CONTEXT, rcToReturn=rc)) return
         if(dimCount /= 1) then
-            call ESMF_LogMsgSetError(ESMF_RC_OBJ_BAD, &
-                "dimCount not properly reconciled", &
-                 ESMF_CONTEXT, rc)
+            call ESMF_LogSetError(ESMF_RC_OBJ_BAD, &
+                msg="dimCount not properly reconciled", &
+                 ESMF_CONTEXT, rcToReturn=rc)
             return
         endif
 
         ! precompute redist handle
         call ESMF_FieldRedistStore(srcField=sorted_data1, &
           dstField=sorted_data2, routehandle=redistRH12, rc=status)
-        if (ESMF_LogMsgFoundError(status, ESMF_ERR_PASSTHRU, &
-            ESMF_CONTEXT, rc)) return
+        if (ESMF_LogFoundError(status, ESMF_ERR_PASSTHRU, &
+            ESMF_CONTEXT, rcToReturn=rc)) return
 
         rc = status
   
@@ -207,20 +207,20 @@
         
         ! query data from States
         call ESMF_StateGet(importState, "sorted_data1", sorted_data1, rc=status)    
-        if (ESMF_LogMsgFoundError(status, ESMF_ERR_PASSTHRU, &
-            ESMF_CONTEXT, rc)) return
+        if (ESMF_LogFoundError(status, ESMF_ERR_PASSTHRU, &
+            ESMF_CONTEXT, rcToReturn=rc)) return
 
         call ESMF_StateGet(exportState, "sorted_data2", sorted_data2, rc=status)    
-        if (ESMF_LogMsgFoundError(status, ESMF_ERR_PASSTHRU, &
-            ESMF_CONTEXT, rc)) return
+        if (ESMF_LogFoundError(status, ESMF_ERR_PASSTHRU, &
+            ESMF_CONTEXT, rcToReturn=rc)) return
 
         ! preform data redistribution
         ! deliver sorted result from component 1 to component 2
         ! component 2 will verify component 1 result
         call ESMF_FieldRedist(srcField=sorted_data1, dstField=sorted_data2, &
           routehandle= redistRH12, checkflag=.true., rc=status)
-        if (ESMF_LogMsgFoundError(status, ESMF_ERR_PASSTHRU, &
-            ESMF_CONTEXT, rc)) return
+        if (ESMF_LogFoundError(status, ESMF_ERR_PASSTHRU, &
+            ESMF_CONTEXT, rcToReturn=rc)) return
 
         rc = status
 
@@ -246,8 +246,8 @@
           
         ! release route handle
         call ESMF_FieldRedistRelease(redistRH12, rc=status)     
-        if (ESMF_LogMsgFoundError(status, ESMF_ERR_PASSTHRU, &
-            ESMF_CONTEXT, rc)) return
+        if (ESMF_LogFoundError(status, ESMF_ERR_PASSTHRU, &
+            ESMF_CONTEXT, rcToReturn=rc)) return
 
         rc = status
 

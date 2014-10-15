@@ -1,0 +1,11 @@
+function gety (args)
+  r = subwrd(args,1)
+cor = subwrd(args,2)
+'d acos('cor')'
+th = subwrd(result,4)
+say 'result = 'result
+'d 'r'*sin('th')'
+say 'result = 'result
+ y = subwrd(result,4)
+return y
+

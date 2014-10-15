@@ -1,0 +1,283 @@
+function pme (args)
+
+expid  = subwrd(args,1)
+expdsc = subwrd(args,2)
+output = subwrd(args,3)
+afile  = subwrd(args,4)
+ofile  = subwrd(args,5)
+oname  = subwrd(args,6)
+
+'run getenv "GEOSUTIL"'
+         geosutil = result
+
+* Plot Time Series Values
+* -----------------------
+
+'set dfile 1'
+'setdates'
+
+'set dfile 'ofile
+'getdates'
+           begdate = subwrd(result,1)
+           enddate = subwrd(result,2)
+'set time 'begdate
+'getinfo tmin'
+         tmin = result
+'set time 'enddate
+'getinfo tmax'
+         tmax = result
+'set t  'tmin' 'tmax
+'define oave = ave( obsg,t='tmin',t='tmax')'
+'set t  'tmax
+'d oave'
+   oave = subwrd(result,4)
+
+'set t  'tmin' 'tmax
+'run minmax obsg'
+   omax = subwrd(result,1)
+   omin = subwrd(result,2)
+
+'set dfile 1'
+'sett'
+'getinfo tmin'
+         tmin = result
+'getinfo tmax'
+         tmax = result
+'set t  'tmin' 'tmax
+'set vpage 0 11 3.5 8'
+'set grads off'
+'set ylab %.2f'
+
+'define oave = 'oave
+'define pave = ave( preaccg,t='tmin',t='tmax')  '
+'define eave = ave( evpaccg,t='tmin',t='tmax')  '
+
+if( afile != 'NULL' )
+'define anaave = ave(anaaccg,t='tmin',t='tmax') '
+'run minmax anaaccg'
+       amax = subwrd(result,1)
+       amin = subwrd(result,2)
+endif
+
+'define pltave = (pave+eave)/2'
+'run minmax preaccg'
+   pmax = subwrd(result,1)
+   pmin = subwrd(result,2)
+'run minmax evpaccg'
+   emax = subwrd(result,1)
+   emin = subwrd(result,2)
+if(omax > pmax ) ; pmax = omax ; endif
+if(omin < pmin ) ; pmin = omin ; endif
+if(emax > pmax ) ; pmax = emax ; endif
+if(emin < pmin ) ; pmin = emin ; endif
+
+'set t 'tmin
+'d pltave'
+pltave = subwrd(result,4)
+pltmin = pltave - 1.5*(pltave-pmin)
+pltmax = pltave - 1.5*(pltave-pmax)
+if( afile != 'NULL' )
+'d anaave'
+anaave = subwrd(result,4)
+anamin = anaave - 1.5*(anaave-amin)
+anamax = anaave - 1.5*(anaave-amax)
+endif
+
+'set axlim 'pltmin' 'pltmax
+
+'set t 'tmin' 'tmax
+'set cmark  0'
+'set cstyle 1'
+'set ccolor 4'
+'set cthick 6'
+'d preaccg'
+'set cmark  0'
+'set cstyle 1'
+'set ccolor 4'
+'set cthick 1'
+'d pave'
+'set cmark  0'
+'set cstyle 1'
+'set ccolor 1'
+'set cthick 6'
+'d obsg'
+'set cmark  0'
+'set cstyle 1'
+'set ccolor 1'
+'set cthick 1'
+'d oave'
+
+'set cmark  0'
+'set cstyle 1'
+'set ccolor 2'
+'set cthick 6'
+'d evpaccg'
+'set cmark  0'
+'set cstyle 1'
+'set ccolor 2'
+'set cthick 1'
+'d eave'
+
+if( afile != 'NULL' )
+ 'set cmark  0'
+ 'set cstyle 1'
+ 'set ccolor 5'
+ 'set cthick 6'
+ 'd preaccg - anaaccg'
+ 'set cmark  0'
+ 'set cstyle 1'
+ 'set ccolor 5'
+ 'set cthick 1'
+endif
+
+
+* Get Time-Average Values
+* -----------------------
+'set t 'tmax
+'getinfo date'
+         date = result
+'d pave'
+   pave = subwrd(result,4)
+'d eave'
+   eave = subwrd(result,4)
+
+
+* Plot Time-Average Values
+* ------------------------
+'q w2xy 'date' 'pave
+    yp   = subwrd(result,6)
+'q w2xy 'date' 'eave
+    ye   = subwrd(result,6)
+'q w2xy 'date' 'oave
+    gp   = subwrd(result,6)
+
+'set strsiz .08'
+
+if( yp < gp )
+    if( gp-yp < 0.1 ) ; gp = gp + 0.1 ; endif
+else
+    if( yp-gp < 0.1 ) ; gp = gp - 0.1 ; endif
+endif
+
+'set string 4 r 6'
+'draw string 1.58  'yp   ' 'pave
+'set string 1 r 6'
+'draw string 1.58  'gp   ' 'oave
+
+'set string 2 l 6'
+'draw string 10.52 'ye   ' 'eave
+
+'set t 'tmin' 'tmax
+'set vpage 0 11 0 4.5'
+'set grads off'
+
+if( afile != 'NULL' )
+'define pltnet =     evpaccg-preaccg+anaaccg'
+'define pltave = ave(evpaccg-preaccg+anaaccg,t='tmin',t='tmax')'
+'define anaave = ave(anaaccg,t='tmin',t='tmax')'
+'run minmax anaaccg'
+       amax = subwrd(result,1)
+       amin = subwrd(result,2)
+else
+'define pltnet =     evpaccg-preaccg'
+'define pltave = ave(evpaccg-preaccg        ,t='tmin',t='tmax')'
+       amax = 0.0
+       amin = 0.0
+endif
+
+'run minmax pltnet'
+       pmax = subwrd(result,1)
+       pmin = subwrd(result,2)
+   if( amax > pmax ) ; pmax = amax ; endif
+   if( amin < pmin ) ; pmin = amin ; endif
+
+
+'set t 'tmin
+'d pltave'
+   pltave = subwrd(result,4)
+pltmin = pltave - 1.5*(pltave-pmin)
+pltmax = pltave - 1.5*(pltave-pmax)
+
+'set axlim 'pltmin' 'pltmax
+
+'set t 'tmin' 'tmax
+'set cmark  0'
+'set cstyle 1'
+'set ccolor 3'
+'set cthick 6'
+'d pltnet'
+'set cmark  0'
+'set cstyle 1'
+'set ccolor 3'
+'set cthick 1'
+'d pltave'
+
+if( afile != 'NULL' )
+'set cmark  0'
+'set cstyle 1'
+'set ccolor 5'
+'set cthick 6'
+'d anaaccg'
+'set cmark  0'
+'set cstyle 1'
+'set ccolor 5'
+'set cthick 1'
+'d anaave'
+endif
+
+* Get Time-Average Values
+* -----------------------
+'set t 'tmax
+'d pltave'
+   pltave = subwrd(result,4)
+'q w2xy 'date' 'pltave
+    ynet = subwrd(result,6)
+
+if( afile != 'NULL' )
+'d anaave'
+   anaave = subwrd(result,4)
+'q w2xy 'date' 'anaave
+    yana = subwrd(result,6)
+endif
+
+* Plot Time-Average Values
+* ------------------------
+
+'set strsiz .08'
+
+'set string 3 r 6'
+'draw string 1.58 'ynet ' 'pltave
+if( afile != 'NULL' )
+    if( ynet < yana )
+        if( yana-ynet < 0.1 ) ; yana = yana + 0.1 ; endif
+    else
+        if( ynet-yana < 0.1 ) ; yana = yana - 0.1 ; endif
+    endif
+   'set string 5 r 6'
+   'draw string 1.58 'yana ' 'anaave
+endif
+
+'set vpage off'
+'set string 1 c 6'
+'set strsiz .14'
+'draw string 6.15 8.25 'expid': 'expdsc
+'draw string 6.15 7.95 Globally Integrated Precipitation and Evaporation (mm/day)'
+
+
+
+if( afile != 'NULL' )
+'!/bin/cp 'geosutil'/plots/tseries/pme.stk0 pme.tmp'
+else
+'!/bin/cp 'geosutil'/plots/tseries/pme.stk1 pme.tmp'
+endif
+'!cat pme.tmp | /bin/sed -e "s/OBSNAME/'oname'/g" > pme.tmp2'
+'lines "pme.tmp2" 1'
+
+if( afile != 'NULL' )
+'lines 'geosutil'/plots/tseries/pme.stk3 1'
+else
+'lines 'geosutil'/plots/tseries/pme.stk2 1'
+endif
+
+'myprint -name 'output'/PME_TIME_SERIES.'oname
+return

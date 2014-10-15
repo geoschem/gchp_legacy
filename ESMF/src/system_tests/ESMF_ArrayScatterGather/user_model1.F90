@@ -1,4 +1,4 @@
-! $Id: user_model1.F90,v 1.9 2009/05/29 19:24:42 theurich Exp $
+! $Id: user_model1.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
 !
 ! Example/test code which shows User Component calls.
 
@@ -15,7 +15,7 @@
 module user_model1
 
   ! ESMF Framework module
-  use ESMF_Mod
+  use ESMF
 
   implicit none
     
@@ -51,9 +51,12 @@ module user_model1
 
     ! First test whether ESMF-threading is supported on this machine
     call ESMF_VMGetGlobal(vm, rc=rc)
+    if (rc/=ESMF_SUCCESS) return ! bail out
     call ESMF_VMGet(vm, pthreadsEnabledFlag=pthreadsEnabled, rc=rc)
+    if (rc/=ESMF_SUCCESS) return ! bail out
     if (pthreadsEnabled) then
       call ESMF_GridCompSetVMMinThreads(comp, rc=rc)
+      if (rc/=ESMF_SUCCESS) return ! bail out
     endif
 #endif
 
@@ -70,13 +73,13 @@ module user_model1
 
     ! Register the callback routines.
 
-    call ESMF_GridCompSetEntryPoint(comp, ESMF_SETINIT, userRoutine=user_init, &
+    call ESMF_GridCompSetEntryPoint(comp, ESMF_METHOD_INITIALIZE, userRoutine=user_init, &
       rc=rc)
     if (rc/=ESMF_SUCCESS) return ! bail out
-    call ESMF_GridCompSetEntryPoint(comp, ESMF_SETRUN, userRoutine=user_run, &
+    call ESMF_GridCompSetEntryPoint(comp, ESMF_METHOD_RUN, userRoutine=user_run, &
       rc=rc)
     if (rc/=ESMF_SUCCESS) return ! bail out
-    call ESMF_GridCompSetEntryPoint(comp, ESMF_SETFINAL, userRoutine=user_final, &
+    call ESMF_GridCompSetEntryPoint(comp, ESMF_METHOD_FINALIZE, userRoutine=user_final, &
       rc=rc)
     if (rc/=ESMF_SUCCESS) return ! bail out
 
@@ -124,7 +127,7 @@ module user_model1
     srcArray1 = ESMF_ArrayCreate(arrayspec=arrayspec, distgrid=distgrid, &
       indexflag=ESMF_INDEX_GLOBAL, name="srcArray1", rc=rc)
     if (rc/=ESMF_SUCCESS) return ! bail out
-    call ESMF_StateAdd(exportState, srcArray1, rc=rc)
+    call ESMF_StateAdd(exportState, (/srcArray1/), rc=rc)
     if (rc/=ESMF_SUCCESS) return ! bail out
     
     ! Create the dstArray1 and add it to the importState
@@ -134,7 +137,7 @@ module user_model1
     dstArray1 = ESMF_ArrayCreate(arrayspec=arrayspec, distgrid=distgrid, &
       indexflag=ESMF_INDEX_GLOBAL, name="dstArray1", rc=rc)
     if (rc/=ESMF_SUCCESS) return ! bail out
-    call ESMF_StateAdd(importState, dstArray1, rc=rc)
+    call ESMF_StateAdd(importState, (/dstArray1/), rc=rc)
     if (rc/=ESMF_SUCCESS) return ! bail out
     
     ! Fill the srcF90 array and ArrayScatter() it across srcArray1

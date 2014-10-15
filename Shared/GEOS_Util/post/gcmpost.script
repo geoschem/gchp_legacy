@@ -1,0 +1,1062 @@
+#!/bin/csh -f
+
+# This script performs post-processing of files which have been created from: gcm_run.j
+# It performs the following tasks:
+#
+#         1) Parses files within the ../holding/$stream directories to the appropriate YYYYMM
+#         2) Performs monthly means if the YYYYMM directories are complete (ie, contains all required files)
+#         3) Spawns ARCHIVE job if monthly means are successful.
+#         4) Spawns PLOT job if DJF or JJA has just been completed.
+#
+# -------------------------------------------------------------------------
+
+@ nmax = $#argv
+
+# Usage
+# -----
+if( $nmax == 0 ) then
+      echo " "
+      echo "Usage:"
+      echo "-----"
+      echo "gcmpost -source  SOURCE_DIRECTORY"
+      echo "         where:  SOURCE_DIRECTORY  is the source directory for experiment"
+      echo " "
+      echo "       <-recover YYYYMM     Optional Argument to Recover and Repeat YYYYMM>"
+      echo "       <-ddf     clim       Optional Argument to Use clim.tabl for plots>"
+      echo "       <-nostrict           Optional Argument to Disable STRICT (Default: TRUE)>"
+      echo " "
+      echo "       <-plots   SEASON     Optional Argument to use SEASON           for plots>"
+      echo "       <-begdate BEGDATE    Optional Argument to use BEGDATE (YYYYMM) for plots>"
+      echo "       <-enddate ENDDATE    Optional Argument to use BEGDATE (YYYYMM) for plots>"
+      echo "       <-history HISTORY.rc Optional Argument to use HISTORY.rc       for plots>"
+      echo "       <-ana                Optional Argument to use 'ana' Countours  for plots>"
+      echo " "
+      exit 1
+endif
+
+if ( ! $?GEOSUTIL ) then
+      echo " "
+      echo "Environment variable GEOSUTIL must be defined before use\!"
+      echo "GEOSUTIL must point to the build directory containing: src/GMAO_Shared/GEOS_Util"
+      echo " "
+      exit 1
+endif
+
+# Process Input String
+# --------------------
+        set    EXPID = 'NULL'
+        set    NCPUS = 'NULL'
+        set    CLIMO = 'FALSE'
+        set    DDF   = 'NULL'
+
+        set    HISTORYRC = "NULL"
+        set    PLOTS     = "NULL"
+        set    BEGDATE   = "NULL"
+        set    ENDDATE   = "NULL"
+        set    RECDATE   = "NULL"
+        set    STRICT    = ""
+        set    ANA       = ""
+
+@       n  = 1
+while( $n <= $nmax )
+
+       if( "$argv[$n]" == "-source" ) then 
+                  @  n  = $n + 1 
+            setenv SOURCE $argv[$n] 
+       endif
+
+       if( "$argv[$n]" == "-recover"  ) then
+                    @ n = $n + 1
+            set RECDATE = $argv[$n] 
+       endif
+
+       if( "$argv[$n]" == "-ncpus" ) then 
+                  @  n  = $n + 1 
+            set   NCPUS = $argv[$n] 
+       endif
+
+       if( "$argv[$n]" == "-expid" ) then 
+                  @  n  = $n + 1 
+            set   EXPID = $argv[$n] 
+       endif
+
+       if( "$argv[$n]" == "-clim" ) then 
+            set   CLIMO = 'TRUE'
+       endif
+
+       if( "$argv[$n]" == "-nostrict" ) then 
+            set  STRICT = '-strict false'
+       endif
+
+       if( "$argv[$n]" == "-ana" ) then 
+            set    ANA =  '-ana'
+       endif
+
+       if( "$argv[$n]" == "-ddf" ) then 
+                  @  n  = $n + 1 
+            set     DDF = $argv[$n] 
+       endif
+
+       if( "$argv[$n]" == "-history" ) then 
+                  @  n  = $n + 1 
+            set HISTORYRC = $argv[$n] 
+       endif
+
+       if( "$argv[$n]" == "-begdate" ) then 
+                  @  n  = $n + 1 
+            set BEGDATE = $argv[$n] 
+       endif
+
+       if( "$argv[$n]" == "-enddate" ) then 
+                  @  n  = $n + 1 
+            set ENDDATE = $argv[$n] 
+       endif
+
+       if( "$argv[$n]" == "-plots"  ) then
+                    @ n = $n + 1
+                                      set PLOTS = ""
+                                      set next   = $argv[$n]
+                                      set bit    = `echo $next | cut -c1-1`
+                                      while( "$bit" != "-" )
+                                         set PLOTS = `echo $PLOTS $next`
+                                          @   n  = $n + 1
+                                         if( $n <= $nmax ) then
+                                             set next = $argv[$n]
+                                             set bit  = `echo $next | cut -c1-1`
+                                         else
+                                             set bit  = "-"
+                                         endif
+                                      end
+                                             @ n = $n - 1
+       endif
+
+     @ n = $n + 1
+end
+
+
+# Set HOMDIR
+# ----------
+if( -e $SOURCE/.HOMDIR ) then
+    setenv HOMDIR `cat $SOURCE/.HOMDIR`
+else
+    setenv HOMDIR $SOURCE
+endif
+
+# Set HISTORYRC
+# -------------
+if( $HISTORYRC == "NULL" ) then
+    if( -e $HOMDIR/HISTORY.rc ) set HISTORYRC = $HOMDIR/HISTORY.rc
+endif
+
+if(! -e $HISTORYRC | -d $HISTORYRC ) then
+       echo " "
+       echo "You must supply the full pathname for your HISTORY.rc\!"
+       echo " "
+       exit 7
+else
+    set   dummy  = `grep COLLECTIONS: $HISTORYRC`
+    if( "$dummy" == "" ) then
+       echo " "
+       echo "You must supply the full pathname for your HISTORY.rc\!"
+       echo " "
+       exit 7
+    endif
+endif
+
+
+# Determine Machine ID
+# --------------------
+setenv ARCH `   uname`
+setenv HOST `hostname`
+set name = `echo $HOST` ; if ( ($name =~ pfe*) || ($name =~ p4fe*) || ($name =~ r[0-9]*i[0-9]*n[0-9]*) || ($name =~ bridge*) ) setenv HOST pleiades
+
+set name = `echo $HOST | cut -b 1-8` ; if( $name == 'discover' ) setenv HOST $name
+set name = `echo $HOST | cut -b 1-4` ; if( $name == 'borg'     ) setenv HOST discover
+set name = `echo $HOST | cut -b 1-4` ; if( $name == 'warp'     ) setenv HOST discover
+set name = `echo $HOST | cut -b 1-4` ; if( $name == 'dali'     ) setenv HOST discover
+
+
+# Extract EXPID
+# -------------
+if( $EXPID == "NULL" ) then
+    if( $HISTORYRC != "NULL" ) then
+        set expid = `grep EXPID: $HISTORYRC | cut -d':' -f2`
+    else
+        set expid = `basename $SOURCE`
+    endif
+else
+    set expid = $EXPID
+endif
+
+
+# Determine Number of Nodes if running in BATCH
+# ---------------------------------------------
+if( $NCPUS == "NULL"  ) then
+  if ($?PBS_NODEFILE & $?BATCHNAME) then
+     set BATCHJOB  = `qstat | grep $BATCHNAME | grep $LOGNAME | cut -d' ' -f1`
+     set  numjobs  = $#BATCHJOB
+     if( $numjobs != 0 ) then
+        set  NCPUS = `cat $PBS_NODEFILE | wc -l`
+     endif
+  endif
+endif
+echo Use: NCPUS = $NCPUS
+
+
+# Set Architecture Speicific Variables
+# ------------------------------------
+if( $ARCH == 'Linux'  ) then
+    if( $HOST == 'pleiades' ) then
+                              setenv MASTOR lfe1.nas.nasa.gov
+                              setenv MASDIR $expid
+                              setenv BATCHQ normal
+                              set scpvar = "mcp"
+                              set mytar  = "mtar"
+    endif
+    if( $HOST == 'discover' ) then
+                              setenv MASTOR  dirac
+                              setenv MASDIR /archive/u/$LOGNAME/GEOS5.0/$expid
+                              setenv BATCHQ general
+                              set scpvar = "bbscp -r3 -z"
+                              set mytar  = "tar"
+    endif
+endif
+
+setenv GROUP `cat $HOME/.GROUProot`
+set check_plot = FALSE
+
+
+
+# Determine Collection Names and Archive Locations from HISTORY RC File
+# ---------------------------------------------------------------------
+set collections = `$GEOSUTIL/post/get_streams $HISTORYRC`
+set    archives = `$GEOSUTIL/post/get_archive $HISTORYRC`
+
+
+
+# Count Number of "Dots" in Collection Name to Find Location of Date Node
+# -----------------------------------------------------------------------
+@ m = 0
+set ndots = ''
+foreach collection ( $collections )
+      @ n = 0
+      @ b = 1
+      set bit = `echo ${collection} | cut -b $b`
+      while( "${bit}" != '' )
+         if( "${bit}" == '.' ) then
+                  @ n = $n + 1
+         endif
+                  @ b = $b + 1
+         set bit = `echo ${collection} | cut -b $b`
+      end
+      set ndots = `echo $ndots $n`
+@ m = $m + 1
+end
+
+# Check for PLOTS Option
+# ----------------------
+if( $PLOTS[1] != "NULL"  ) then
+
+    set   grads_ddfs = `grep grads_ddf $HISTORYRC | cut -d: -f2 | cut -d, -f1 | sed -e "s/'//g"`
+    if( $#grads_ddfs == 0 ) then
+
+         # Default Model Development Case (No grads_ddf attribute)
+         # -------------------------------------------------------
+         cd $SOURCE/$collections[1]
+         set  monthlies = `/bin/ls -1 $expid.$collections[1].monthly* | grep -v $expid.$collections[1].monthly.clim`
+         set        num = `/bin/ls -1 $monthlies | wc -l`
+         set check_plot = TRUE
+         @ date_node = $ndots[1] + 4
+         if( $num >= 24 ) set DDF = clim
+
+    else
+
+         # Non-Default Case (Need to Find location of monthlies)
+         # -----------------------------------------------------
+           set   DSET =  "NULL"
+                  @ n =   1
+         while( $DSET == "NULL" & $n <= $#grads_ddfs )
+             set TEST = `cat ${grads_ddfs[$n]} | grep -i DSET | cut -d' ' -f2`
+             set FILE = `basename $TEST`
+             set COLLECTION = `echo $FILE | cut -d. -f2`
+             if( ! ($FILE =~ *const_2d*) ) then
+                 set DSET = $TEST
+             else
+                  @ n = $n + 1
+             endif
+         end
+         if( $DSET == "NULL" ) then
+            echo " "
+            echo "There are no NON 'const_2d' COLLECTION names!"
+            echo " "
+            exit 7
+         endif
+
+         @ m = 1
+         set PATH = ''
+         set node = `echo $DSET | cut -d / -f$m `
+         while( $node != $FILE )
+             set node = `echo $node | sed -e 's/%y4/\#/g' ` 
+             set node = `echo $node | sed -e "s/%m2/\#/g" `
+             set node = `echo $node | sed -e "s/%d2/\#/g" `
+             set node = `echo $node | sed -e "s/%h2/\#/g" `
+             set node = `echo $node | sed -e "s/%n2/\#/g" `
+             set PATH = `echo ${PATH}/${node}`
+             @ m = $m + 1
+             set node = `echo $DSET | cut -d / -f$m `
+         end
+         set PATH = `echo $PATH/\#$COLLECTION.monthly\#`
+         set monthlies = `echo $PATH | sed -e 's/\#/\*/g'`
+         set       num = `/bin/ls -1 $monthlies | wc -l`
+         set check_plot = TRUE
+         @ date_node = $ndots[1] + 4
+
+    endif
+
+goto QUICKPLOT
+
+else
+
+
+# Check for Post-Processing Executables
+# -------------------------------------
+set execs = "time_ave"
+foreach exec ($execs)
+if( ! -e $GEOSUTIL/post/${exec}.x ) then
+    echo "Error!  Post-Processing Utility  ${exec}.x  is not found."
+    exit  7
+endif
+end
+
+
+# Check for RECDATE Option
+# ------------------------
+     if( $RECDATE != "NULL"  ) then
+         foreach collection (  $collections )
+            if( -e      $SOURCE/holding/$collection/$RECDATE ) then
+                     cd $SOURCE/holding/$collection
+                 if( -e $RECDATE.tmp ) /bin/rm -r $RECDATE.tmp
+                /bin/mv $RECDATE $RECDATE.tmp
+                /bin/mv   `/bin/ls -1 $RECDATE.tmp/${expid}*${collection}* | grep -v monthly | grep -v diurnal | grep -v daily` .
+                /bin/rm            -r $RECDATE.tmp
+            endif
+         end
+     endif
+
+# Move Current Files within Holding Directory to proper YYYYMM Sub-Directories
+# ----------------------------------------------------------------------------
+     set    dates = ''
+     set numdates = ''
+     @    nstream = 0
+     foreach collection (  $collections )
+     @    nstream =        $nstream  + 1
+     @  date_node = $ndots[$nstream] + 3
+
+      cd $SOURCE/holding/$collection
+            set locals  = `/bin/ls -1  | grep ${expid}.${collection} | grep -v monthly | grep -v diurnal`
+            set numlocs = $#locals
+            set numdate = 0
+
+            if( $numlocs != 0 ) then
+
+              # Extract Extension (last node) from Typical Local File 
+              # -----------------------------------------------------
+              @ loc = 1
+                while( $loc != 0 )
+                        set   dum  = `echo $locals[1] | cut -d "." -f$loc`
+                        if( .$dum != . ) then
+                             set ext = $dum
+                               @ loc = $loc + 1
+                        else
+                               @ loc = 0
+                        endif
+                end
+
+                set date0 = xxxx
+                foreach local ( $locals )
+                    set  date = `echo $local | cut -d "." -f${date_node} | cut -c1-6`
+                    if( $date != $date0 ) then
+                         @ numdate = $numdate + 1
+                         set dates = `echo $dates $date`
+                         set date0 = $date
+                    endif
+                    if(! -e $SOURCE/holding/$collection/$date ) mkdir      -p $SOURCE/holding/$collection/$date
+                                                               /bin/mv $local $SOURCE/holding/$collection/$date
+                end
+            else
+                @ numdate = $numdate + 1
+                set date  = 0
+                set dates = `echo $dates $date`
+            endif
+
+     set numdates = `echo $numdates $numdate`
+     end
+
+echo $numdates
+echo $dates
+
+
+
+# Process Monthly Means
+# ---------------------
+@ m      = 1
+@ begloc = 1
+@  count = 0
+foreach collection ( $collections )
+      @ endloc = $begloc + $numdates[$m] - 1
+        set streamdates = `echo $dates[${begloc}-${endloc}]`
+
+  if( $streamdates[1] != 0 ) then   
+        foreach date ( $streamdates )
+        echo $collection $streamdates Current Date: $date
+
+        if( -e $SOURCE/holding/$collection/$date ) then
+            cd $SOURCE/holding/$collection/$date
+         
+            set locals = `/bin/ls -1 | grep ${expid}.${collection} | grep -v monthly | grep -v diurnal`
+            set  num   = `/bin/ls -1 | grep ${expid}.${collection} | grep -v monthly | grep -v diurnal | wc -l`
+
+            echo "Is it time to perform Time-Average on Local Files?:"
+            echo "--------------------------------------------------"
+            echo "     Collection: $collection"
+            echo "           Date: $date"
+            echo "Number of Files: $num"
+            echo ""
+            echo $locals
+            echo ""
+
+            if( $num > 0 ) then
+
+# Find Dates within first local file
+# ----------------------------------
+            set file     =  $locals[1]
+            set filedate = `$GEOSUTIL/post/getdates $file`
+            set  begdate =  $filedate[1]
+            set  begtime =  $filedate[2]
+            set  enddate =  $filedate[3]
+            set  endtime =  $filedate[4]
+            set      ndt =  $filedate[5]
+
+# Decrement First Date by one Time Increment
+# ------------------------------------------
+            set prevdate = `$GEOSUTIL/post/tick $begdate $begtime -$ndt`
+            set  prvdate =  $prevdate[1]
+            set  prvtime =  $prevdate[2]
+
+# Check to see if Decremented Date passed Month Boundary
+# ------------------------------------------------------
+            set prvmon   = `echo $prvdate | cut -c5-6`
+            set begmon   = `echo $begdate | cut -c5-6`
+
+# Find Dates within last local file
+# ---------------------------------
+            set file     =  $locals[$num]
+            set filedate = `$GEOSUTIL/post/getdates $file`
+            set  begdate =  $filedate[1]
+            set  begtime =  $filedate[2]
+            set  enddate =  $filedate[3]
+            set  endtime =  $filedate[4]
+            set      ndt =  $filedate[5]
+
+# Increment Last Date by one Time Increment
+# -----------------------------------------
+            set nextdate = `$GEOSUTIL/post/tick $enddate $endtime $ndt`
+            set  nxtdate =  $nextdate[1]
+            set  nxttime =  $nextdate[2]
+
+# Check to see if Incremented Date passed Month Boundary
+# ------------------------------------------------------
+            set endmon   = `echo $enddate | cut -c5-6`
+            set nxtmon   = `echo $nxtdate | cut -c5-6`
+
+            echo "Beginning Month within Local Files: ${begmon} (-$ndt Month: ${prvmon})"
+            echo "   Ending Month within Local Files: ${begmon} (+$ndt Month: ${nxtmon})"
+               if( ($prvmon != $begmon && $endmon != $nxtmon) | (".$STRICT" != .) ) then
+                   echo "   Performing time average ..."
+                   if(! -e time_ave.rc ) ln -s $GEOSUTIL/post/time_ave.rc .
+                   if( $NCPUS == "NULL" | $NCPUS == 1 | !($?RUN_CMD) ) then
+                           $GEOSUTIL/post/time_ave_nompi.x -hdf $locals -rc time_ave.rc    \
+                                                           -tag $expid.$collection.monthly \
+                                                           -d   $expid.$collection.diurnal $STRICT
+                   else
+                  $RUN_CMD $NCPUS $GEOSUTIL/post/time_ave.x -hdf $locals -rc time_ave.rc    \
+                                                            -tag $expid.$collection.monthly \
+                                                            -d   $expid.$collection.diurnal $STRICT
+                   endif
+                   @ count = $count + 1
+                   if( $count == 9 ) then
+                      @ count =  1
+                        wait
+                   endif
+               else
+                   echo "   End of Month not yet reached."
+               endif
+            endif
+
+        endif  # End IFTEST for -e $SOURCE/holding/$collection/$date due to possible deletion from other archive job
+        end
+
+  endif
+@ begloc = $endloc + 1
+@ m      = $m      + 1
+
+end      # End Collection Loop
+wait
+
+
+# Determine Horizontal Resolution
+# ---------------------------------------------
+set AGCM_IM = `grep  AGCM_IM: $HOMDIR/AGCM.rc | cut -d':' -f2`
+set AGCM_JM = `grep  AGCM_JM: $HOMDIR/AGCM.rc | cut -d':' -f2`
+    @ RAT  = ${AGCM_JM} / ${AGCM_IM}
+                 set CUBE = FALSE
+if (${RAT} == 6) set CUBE = TRUE
+
+set HIRES   = FALSE
+if( $AGCM_IM >= 1152 | ($AGCM_IM >= 360 & $CUBE == TRUE ) ) set HIRES = TRUE 
+
+
+# Move and Archive Monthly Means and Dailies
+# ------------------------------------------
+@ m       = 1
+@ begloc  = 1
+@ nstream = 0
+foreach collection ( $collections )
+   @ nstream   =        $nstream  + 1
+   @ date_node = $ndots[$nstream] + 3
+
+     set        archfile = $SOURCE/archive/archive_commands.$collection.`date +%Y%m%d_%H%M%S`
+    /bin/rm -f $archfile
+     touch     $archfile
+
+      @ endloc = $begloc + $numdates[$m] - 1
+        set  streamdates = `echo $dates[${begloc}-${endloc}]`
+        if( $streamdates[1] != 0 ) then   
+        foreach date ( $streamdates )
+        if( -e            $SOURCE/holding/$collection/$date ) then
+            set locdir  = $SOURCE/holding/$collection/$date
+            cd $SOURCE/holding/$collection/$date
+            set  num  = `/bin/ls -1 $expid.$collection.monthly.* | wc -l`
+            if( $num != 0 ) then
+
+                set    check_plot = TRUE
+                echo "set success = TRUE"                               >> $archfile
+                echo "if( -e $SOURCE/holding/$collection/$date ) then " >> $archfile
+                echo "cd $SOURCE/holding/$collection/$date"             >> $archfile
+
+# Tar and Archive Dailies
+# -----------------------
+                    set locals = `/bin/ls -1 | grep ${expid}.${collection} | grep -v monthly | grep -v diurnal`
+                        @ daily_date_node  = $date_node
+                    if( $HIRES == FALSE ) then
+                        $mytar cf $expid.${collection}.daily.$date.$ext.tar $locals
+                        set locals = $expid.${collection}.daily.$date.$ext.tar
+                        @ daily_date_node  = $date_node + 1                 # Since daily is simply appended to collection name
+                    endif
+
+                foreach local ($locals)
+
+                    set fdate = `echo $local | cut -d "." -f${daily_date_node}`   # Assumed date format: YYYYMMDD_HHMMSS
+                    set year  = `echo $fdate | cut -c1-4`
+                    set month = `echo $fdate | cut -c5-6`
+                    set day   = `echo $fdate | cut -c7-8`
+                    set hour  = `echo $fdate | cut -c10-11`
+
+                    set archive = `echo $archives[$m] | sed -e "s/%c/$collection/ g" | \
+                                                        sed -e "s/%y4/$year/      g" | \
+                                                        sed -e "s/%m2/$month/     g" | \
+                                                        sed -e "s/%d2/$day/       g" | \
+                                                        sed -e "s/%h2/$hour/      g"`
+
+                    if( $HOST == 'pleiades' ) then
+                        echo "ssh ${MASTOR}               mkdir -p ${MASDIR}/$archive"        >> $archfile
+                        echo "ssh ${MASTOR} $scpvar $locdir/$local ${MASDIR}/$archive"        >> $archfile
+                        echo "ssh ${MASTOR}               dmput -r ${MASDIR}/$archive/$local" >> $archfile
+                    endif
+
+                    if( $HOST == 'discover' ) then
+                        echo "if( -e $local ) then"                                                                    >> $archfile
+                        echo "ssh $MASTOR mkdir -p ${MASDIR}/$archive "                                                >> $archfile
+                        echo 'echo " "'                                                                                >> $archfile
+                        echo "echo 'Archiving:  '$local"                                                               >> $archfile
+                        echo "$scpvar $local ${MASTOR}:${MASDIR}/$archive | set archive_status = "'`sed -e "s/ / /g"`' >> $archfile
+                        echo 'if ( .$archive_status[4] == .OK ) then'                                                  >> $archfile
+                        echo 'echo "   Archive ... PASS "'                                                             >> $archfile
+                        echo "/bin/rm -f $local"                                                                       >> $archfile
+                        echo "else"                                                                                    >> $archfile
+                        echo 'echo "   Archive ... FAIL!"'                                                             >> $archfile
+                        echo 'set success = FALSE'                                                                     >> $archfile
+                        echo "endif"                                                                                   >> $archfile
+                        echo 'unset  archive_status'                                                                   >> $archfile
+                        echo 'endif'                                                                                   >> $archfile
+                    endif
+
+                end
+                        echo "wait" >> $archfile
+
+# Archive Monthlies (non diurnal files)
+# -------------------------------------
+      @ monthly_date_node  = $date_node + 1                 # Since monthly is simply appended to collection name
+                set locals = `/bin/ls -1 | grep ${expid}.${collection} | grep  monthly | grep -v diurnal`
+
+                foreach local ($locals)
+                    set fdate  = `echo $local | cut -d "." -f${monthly_date_node}`   # Assumed date format: YYYYMMDD_HHMMSS
+                    set year   = `echo $fdate | cut -c1-4`
+                    set month  = `echo $fdate | cut -c5-6`
+                    set day    = `echo $fdate | cut -c7-8`
+                    set hour   = `echo $fdate | cut -c10-11`
+
+                    set archive = `echo $archives[$m] | sed -e "s/%c/$collection/ g" | \
+                                                        sed -e "s/%y4/$year/      g" | \
+                                                        sed -e "s/%m2/$month/     g" | \
+                                                        sed -e "s/%d2/$day/       g" | \
+                                                        sed -e "s/%h2/$hour/      g"`
+
+                    /bin/cp $local $SOURCE/$collection
+
+                    if( $HOST == 'pleiades' ) then
+                        echo "ssh ${MASTOR}               mkdir -p ${MASDIR}/$archive"        >> $archfile
+                        echo "ssh ${MASTOR} $scpvar $locdir/$local ${MASDIR}/$archive"        >> $archfile
+                        echo "ssh ${MASTOR}               dmput -r ${MASDIR}/$archive/$local" >> $archfile
+                    endif
+
+                    if( $HOST == 'discover' ) then
+                        echo "if( -e $local ) then"                                                                    >> $archfile
+                        echo "ssh $MASTOR mkdir -p ${MASDIR}/$archive "                                                >> $archfile
+                        echo 'echo " "'                                                                                >> $archfile
+                        echo "echo 'Archiving:  '$local"                                                               >> $archfile
+                        echo "$scpvar $local ${MASTOR}:${MASDIR}/$archive | set archive_status = "'`sed -e "s/ / /g"`' >> $archfile
+                        echo 'if ( .$archive_status[4] == .OK ) then'                                                  >> $archfile
+                        echo 'echo "   Archive ... PASS "'                                                             >> $archfile
+                        echo "/bin/rm -f $local"                                                                       >> $archfile
+                        echo "else"                                                                                    >> $archfile
+                        echo 'echo "   Archive ... FAIL!"'                                                             >> $archfile
+                        echo 'set success = FALSE'                                                                     >> $archfile
+                        echo "endif"                                                                                   >> $archfile
+                        echo 'unset  archive_status'                                                                   >> $archfile
+                        echo 'endif'                                                                                   >> $archfile
+                    endif
+
+                end
+
+# Archive Monthlies (diurnal files)
+# ---------------------------------
+      @ monthly_date_node  = $date_node + 1                 # Since diurnal is simply appended to collection name
+                set locals = `/bin/ls -1 | grep ${expid}.${collection} | grep  diurnal | grep -v monthly`
+                set  num   = `/bin/ls -1 | grep ${expid}.${collection} | grep  diurnal | grep -v monthly | wc -l`
+                if( $num  != 0 ) then
+
+                foreach local ($locals)
+                    set fdate  = `echo $local | cut -d "." -f${monthly_date_node}`   # Assumed date format: YYYYMMDD_HHMMSS
+                    set year   = `echo $fdate | cut -c1-4`
+                    set month  = `echo $fdate | cut -c5-6`
+                    set day    = `echo $fdate | cut -c7-8`
+                    set hour   = `echo $fdate | cut -c10-11`
+
+                    set archive = `echo $archives[$m] | sed -e "s/%c/$collection/ g" | \
+                                                        sed -e "s/%y4/$year/      g" | \
+                                                        sed -e "s/%m2/$month/     g" | \
+                                                        sed -e "s/%d2/$day/       g" | \
+                                                        sed -e "s/%h2/$hour/      g"`
+
+                     mkdir -p      $SOURCE/$collection/diurnal
+                    /bin/cp $local $SOURCE/$collection/diurnal
+
+                    if( $HOST == 'pleiades' ) then
+                        echo "ssh ${MASTOR}               mkdir -p ${MASDIR}/$archive"        >> $archfile
+                        echo "ssh ${MASTOR} $scpvar $locdir/$local ${MASDIR}/$archive"        >> $archfile
+                        echo "ssh ${MASTOR}               dmput -r ${MASDIR}/$archive/$local" >> $archfile
+                    endif
+
+                    if( $HOST == 'discover' ) then
+                        echo "if( -e $local ) then"                                                                          >> $archfile
+                        echo "ssh $MASTOR mkdir -p ${MASDIR}/$archive "                                                      >> $archfile
+                        echo 'echo " "'                                                                                      >> $archfile
+                        echo "echo 'Archiving:  '$local"                                                                     >> $archfile
+                        echo "$scpvar $local ${MASTOR}:${MASDIR}/$archive | set archive_status = "'`sed -e "s/ / /g"`'       >> $archfile
+                        echo 'if ( .$archive_status[4] == .OK ) then'                                                        >> $archfile
+                        echo 'echo "   Archive ... PASS "'                                                                   >> $archfile
+                        echo "/bin/rm -f $local"                                                                             >> $archfile
+                        echo "else"                                                                                          >> $archfile
+                        echo 'echo "   Archive ... FAIL!"'                                                                   >> $archfile
+                        echo 'set success = FALSE'                                                                           >> $archfile
+                        echo "endif"                                                                                         >> $archfile
+                        echo 'unset  archive_status'                                                                         >> $archfile
+                        echo 'endif'                                                                                         >> $archfile
+                    endif
+
+                end
+                endif
+
+# Archive Restarts (First Stream Only)
+# ------------------------------------
+                if( $nstream == 1 ) then
+                     echo " "                                                                                                >> $archfile
+                     if( $HOST == 'pleiades' ) then
+                         echo "ssh ${MASTOR}                                   mkdir -p ${MASDIR}/restarts/Y${year}"         >> $archfile
+                         echo "ssh ${MASTOR} $scpvar $SOURCE/restarts/*${year}${month}* ${MASDIR}/restarts/Y${year}"         >> $archfile
+                         echo "ssh ${MASTOR}                                   dmput -r ${MASDIR}/restarts/Y${year}/*${year}${month}*" >> $archfile
+                         echo "ssh ${MASTOR} $scpvar $SOURCE/GEOSgcm.x                  ${MASDIR}"                           >> $archfile
+                         echo "ssh ${MASTOR} $scpvar $HISTORYRC                         ${MASDIR}"                           >> $archfile
+                         echo "ssh ${MASTOR} $scpvar $HOMDIR/AGCM.rc                    ${MASDIR}"                           >> $archfile
+                         echo "ssh ${MASTOR} $scpvar $HOMDIR/CAP.rc                     ${MASDIR}"                           >> $archfile
+                         echo "ssh ${MASTOR} $scpvar $HOMDIR/gcm_run.j                  ${MASDIR}"                           >> $archfile
+                     endif
+
+                     if( $HOST == 'discover' ) then
+                         echo "    ssh $MASTOR                             mkdir -p ${MASDIR}/restarts/Y${year}"             >> $archfile
+                         echo "$scpvar $SOURCE/restarts/*${year}${month}* ${MASTOR}:${MASDIR}/restarts/Y${year}"             >> $archfile
+                         echo "$scpvar $SOURCE/GEOSgcm.x                  ${MASTOR}:${MASDIR}"                               >> $archfile
+                         echo "$scpvar $HISTORYRC                         ${MASTOR}:${MASDIR}"                               >> $archfile
+                         echo "$scpvar $HOMDIR/AGCM.rc                    ${MASTOR}:${MASDIR}"                               >> $archfile
+                         echo "$scpvar $HOMDIR/CAP.rc                     ${MASTOR}:${MASDIR}"                               >> $archfile
+                         echo "$scpvar $HOMDIR/gcm_run.j                  ${MASTOR}:${MASDIR}"                               >> $archfile
+                     endif
+                     echo "/bin/rm $SOURCE/restarts/*${year}${month}*"                                                       >> $archfile
+                endif
+
+                echo "cd ../"                                                                                                >> $archfile
+                echo 'if( $success == TRUE ) then'                                                                           >> $archfile
+                echo '    /bin/rm -r '$date                                                                                  >> $archfile
+                echo 'echo "   Successfully Archived:  "'$SOURCE/holding/$collection/$date                                   >> $archfile
+                echo 'else'                                                                                                  >> $archfile
+                echo 'echo "   FAILED to Archive:  "'$SOURCE/holding/$collection/$date                                       >> $archfile
+                echo 'endif'                                                                                                 >> $archfile
+                echo 'endif'                                                                                                 >> $archfile
+
+            endif
+
+        endif  # End IFTEST for -e $SOURCE/holding/$collection/$date due to possible deletion from other archive job
+        end
+        endif
+      @ begloc = $endloc + 1
+      @ m      = $m      + 1
+
+# Submit Archive Job
+# ------------------
+set test = `cat $archfile`
+if( $#test != 0 ) then
+    cat $SOURCE/archive/gcm_archive.j $archfile > $SOURCE/archive/gcm_archive.$collection.$streamdates[1].j
+    cd  $SOURCE/archive
+    /bin/rm -f sedfile
+    /bin/mv -f gcm_archive.$collection.$streamdates[1].j tmpfile
+cat > sedfile << EOF
+s/OUTPUT/gcm_archive.$collection.$streamdates[1].o/g
+EOF
+    sed -f sedfile tmpfile > gcm_archive.$collection.$streamdates[1].j
+    chmod +x gcm_archive.$collection.$streamdates[1].j
+    if( $HOST == 'pleiades' ) then
+                ./gcm_archive.$collection.$streamdates[1].j
+    else
+         qsub     gcm_archive.$collection.$streamdates[1].j
+    endif
+    /bin/rm -f $archfile
+    /bin/rm -f sedfile
+    /bin/rm -f tmpfile
+else
+    /bin/rm -f $archfile
+endif
+
+end
+wait
+
+#######################################################################
+#     Create Grads Data Description File (DDF) for Monthly Means
+#######################################################################
+
+@ nstream = 0
+foreach collection ( $collections )
+    @ nstream   =        $nstream  + 1
+    @ date_node = $ndots[$nstream] + 4
+
+    cd $SOURCE/${collection}
+    set monthlies = `/bin/ls -1 $expid.${collection}.monthly* | grep -v $expid.${collection}.monthly.clim`
+    set       num = `/bin/ls -1 $monthlies | wc -l`
+
+if( $num != 0 ) then
+
+# Create DDF File
+# ---------------
+   /bin/rm -f xdf.tabl
+
+# Extract Extension (last node) from Monthly Mean File 
+# ----------------------------------------------------
+@ m = 1
+while( $m != 0 )
+    set   dum  = `echo $monthlies[1] | cut -d "." -f$m`
+    if( .$dum != . ) then
+         set ext = $dum
+         @ m = $m + 1
+    else
+         @ m = 0
+    endif
+end
+
+    set date  = `echo $monthlies[1] | cut -d "." -f${date_node}`
+    set year  = `echo $date         | cut -c1-4`
+    set month = `echo $date         | cut -c5-6`
+    set day   = `echo $date         | cut -c7-8`
+    set hour  = `echo $date         | cut -c10-11`
+
+    set expdsc = `grep EXPDSC: $HISTORYRC | cut -d" " -f2`
+    set perpyr = `grep PERPETUAL_YEAR:  $HOMDIR/CAP.rc | grep -v \#`
+    set perpmo = `grep PERPETUAL_MONTH: $HOMDIR/CAP.rc | grep -v \#`
+
+    if( $#perpyr != 0 & $#perpmo != 0 ) then
+        set timinc = "yr"
+    else
+        set timinc = "mo"
+    endif
+
+    if( $month == "01" ) set MON = JAN
+    if( $month == "02" ) set MON = FEB
+    if( $month == "03" ) set MON = MAR
+    if( $month == "04" ) set MON = APR
+    if( $month == "05" ) set MON = MAY
+    if( $month == "06" ) set MON = JUN
+    if( $month == "07" ) set MON = JUL
+    if( $month == "08" ) set MON = AUG
+    if( $month == "09" ) set MON = SEP
+    if( $month == "10" ) set MON = OCT
+    if( $month == "11" ) set MON = NOV
+    if( $month == "12" ) set MON = DEC
+
+    echo DSET $SOURCE/${collection}/$expid.${collection}.monthly.%y4%m2.$ext >  xdf.tabl
+    echo TITLE $expdsc                                                       >> xdf.tabl
+    echo OPTIONS template                                                    >> xdf.tabl
+    echo TDEF time $num  LINEAR  00:00Z01$MON$year 1$timinc                  >> xdf.tabl
+
+endif  # Endif for monthlies NUM = 0 check
+
+# Create/Update Climatology Files for 2 or more years
+# ---------------------------------------------------
+if( $num >= 24 && ( $RECDATE == "NULL" || $CLIMO == "TRUE" ) ) then
+    set date  = `echo $monthlies[$num] | cut -d "." -f${date_node}`
+    set month = `echo $date            | cut -c5-6`
+           $GEOSUTIL/post/gcmclim.script -source $SOURCE -collection $collection -month $month
+    if( -e $SOURCE/${collection}/diurnal ) then
+           $GEOSUTIL/post/gcmclim.script -source $SOURCE -collection $collection -month $month -diurnal
+    endif
+    if( $DDF == "NULL" ) set DDF = clim
+endif
+
+end    # End ForEach Output Stream Loop
+
+endif  # End PLOTS Option
+
+#######################################################################
+#                        Submit Quickplot Job                  
+#                        --------------------                  
+#          Note: $num, $monthlies, and ${date_node}
+#                are from last output stream examined
+#######################################################################
+
+QUICKPLOT:
+if( $check_plot == "TRUE" && $RECDATE == "NULL"  ) then
+cd  $SOURCE/plot
+
+    if(! -e plot.rc ) ln -s $GEOSUTIL/post/plot.rc .
+    set STATUS    = `grep    PLOT_STATUS: plot.rc | cut -d'#' -f1 | cut -d':' -f2 | tr "[:lower:]" "[:upper:]"`
+    set SEASONS   = `grep   PLOT_SEASONS: plot.rc | cut -d'#' -f1 | cut -d':' -f2 | tr "[:lower:]" "[:upper:]"`
+    set FREQUENCY = `grep PLOT_FREQUENCY: plot.rc | cut -d'#' -f1 | cut -d':' -f2 | tr "[:lower:]" "[:upper:]"`
+    set OPTIONS   = `grep   PLOT_OPTIONS: plot.rc | cut -d'#' -f1 | cut -d':' -f2 `
+    set CMPEXP    = `grep    PLOT_CMPEXP: plot.rc | cut -d'#' -f1 | cut -d':' -f2 `
+    set MISCTMP   = `grep      PLOT_MISC: plot.rc | cut -d'#' -f1 | tr "[:lower:]" "[:upper:]"`
+    set MISC      = ''
+
+    set   miscnum  = $#MISCTMP
+    if( $#miscnum != 0 ) then
+        @ m = 2
+        while( $m <= $miscnum )
+        set MISC = `echo $MISC $MISCTMP[$m]`
+        @ m = $m + 1
+        end
+    endif
+       
+set CMPEXP = `echo $CMPEXP`
+
+if( $PLOTS[1] != "NULL" ) set STATUS = ON
+if( $STATUS == "ON" && $num > 0 ) then   # At least 1 monthly mean exists
+
+if( $BEGDATE != "NULL" & $ENDDATE != "NULL" ) then
+     @ n = 1
+     set date = ''
+     while( $date == '' & $n <= $num )
+     set date = `echo $monthlies[$n] | grep $ENDDATE | cut -d "." -f${date_node}`
+     @ n = $n + 1
+     end
+else
+     set date = `echo $monthlies[$num] | cut -d "." -f${date_node}`
+endif
+
+set month  = `echo $date            | cut -c5-6`
+set year   = `echo $date            | cut -c1-4`
+set decade = `echo $year            | cut -c3-4`
+
+    if( $month == "01" ) set MON = JAN
+    if( $month == "02" ) set MON = FEB
+    if( $month == "03" ) set MON = MAR
+    if( $month == "04" ) set MON = APR
+    if( $month == "05" ) set MON = MAY
+    if( $month == "06" ) set MON = JUN
+    if( $month == "07" ) set MON = JUL
+    if( $month == "08" ) set MON = AUG
+    if( $month == "09" ) set MON = SEP
+    if( $month == "10" ) set MON = OCT
+    if( $month == "11" ) set MON = NOV
+    if( $month == "12" ) set MON = DEC
+
+                                                                   set season = ''
+    foreach case ($SEASONS)
+            if( $MON == $case )                                    set season = `echo $season $case `
+            if( $MON == "FEB"  &&  $case == "DJF"  &&  $num > 2  ) set season = `echo $season $case `
+            if( $MON == "MAY"  &&  $case == "MAM"  &&  $num > 2  ) set season = `echo $season $case `
+            if( $MON == "AUG"  &&  $case == "JJA"  &&  $num > 2  ) set season = `echo $season $case `
+            if( $MON == "OCT"  &&  $case == "SON"  &&  $num > 2  ) set season = `echo $season $case `
+            if( $MON == "DEC"  &&  $case == "ANN"  &&  $num > 11 ) set season = `echo $season $case `
+    end
+
+# Check for "gcmpost.script -plots SEASON" Over-ride
+# --------------------------------------------------
+if( $PLOTS[1] != "NULL" ) set season = `echo $PLOTS`
+
+if( $season[1] != '' ) then
+
+if( $#CMPEXP != 0 ) then
+  set CMPEXP = `echo -cmpexp $CMPEXP`
+  set cmpexp = "cmpexpz.dyn   cmpexph.dyn  \
+                cmpexpz.gwd   cmpexph.gwd  \
+                cmpexpz.ana   cmpexph.ana  \
+                cmpexpz.rad   cmpexph.rad cmpexph.aero \
+                cmpexpz.turb  cmpexph.turb.1  cmpexph.turb.2 cmpexph.turb.3 \
+                cmpexpz.moist cmpexph.moist.1 cmpexph.moist.2 cmpexph.moist.3 cmpexph.moist.4"
+  set cmpexp = `echo $cmpexp` # To remove extra blanks
+else
+  set cmpexp = ''
+endif
+
+if( $FREQUENCY == "CLIM" ) then
+
+    set plotsdir = $SOURCE/plots_CLIM
+    set date     = `echo $monthlies[1]    | cut -d "." -f${date_node}`
+    set year     = `echo $date            | cut -c1-4`
+    set month    = `echo $date            | cut -c5-6`
+    set begdate  = ${year}${month}
+    set date     = `echo $monthlies[$num] | cut -d "." -f${date_node}`
+    set year     = `echo $date            | cut -c1-4`
+    set month    = `echo $date            | cut -c5-6`
+    set enddate  = ${year}${month}
+
+else
+    set DDF = 'NULL' # To ensure plotting YEARLY data
+    set plotsdir = $SOURCE/plots_Y${year}
+    if( $#season == 1 ) then
+        if( $season == $MON ) then
+            set begdate  = ${year}${month}
+            set enddate  = ${year}${month}
+        else
+             if( $season == "ANN" ) then
+                 @ ndt = 11 * 30 * 86400
+             else
+                 @ ndt =  2 * 30 * 86400
+             endif
+        set nymd = ${year}${month}15
+        set date = `$GEOSUTIL/post/tick $nymd 000000 -$ndt`
+        set begdate  = `echo $date[1] | cut -c1-6`
+        set enddate  = ${year}${month}
+        endif
+    else
+        if( $season[1] == "ANN" || $season[2] == "ANN" ) then
+            @ ndt = 11 * 30 * 86400
+        else
+            @ ndt =  2 * 30 * 86400
+        endif
+        set nymd = ${year}${month}15
+        set date = `$GEOSUTIL/post/tick $nymd 000000 -$ndt`
+        set begdate  = `echo $date[1] | cut -c1-6`
+        set enddate  = ${year}${month}
+    endif
+endif
+
+# Create Plot Job Scripts (ntype:L => landscape.script, ntype:P => portrait.script)
+# ---------------------------------------------------------------------------------
+                    set   datetime = `date +%Y%m%d_%H%M%S`
+         /bin/rm -f LIST_$datetime
+         touch      LIST_$datetime
+
+         set   ntypes = "L P"
+foreach type ($ntypes)
+
+    if( $type == "L" ) then
+         set   nplots = `$GEOSUTIL/plots/landscape.script -plots`
+         set   nplots = "$nplots $MISC"
+    else if ( $type == "P" ) then
+         set   nplots = `$GEOSUTIL/plots/portrait.script -plots`
+         set   nplots = "$cmpexp $nplots $MISC"
+    endif
+    set nplots = `echo $nplots` # To remove blanks
+
+foreach plot ($nplots)
+
+         set types   = " -type  $type "
+         set plots   = " -plots $plot "
+
+         if( $DDF != "clim" ) then
+              set begplt = $begdate
+              set endplt = $enddate
+         else
+              set begplt  = NULL
+              set endplt  = NULL
+         endif
+         if( $plot == "tseries" ) then
+              set begplt = $begdate
+              set endplt = $enddate
+         endif
+         if( $BEGDATE != "NULL" ) set begplt = $BEGDATE
+         if( $ENDDATE != "NULL" ) set endplt = $ENDDATE
+
+set   PLOT_COMMANDS = "-source $SOURCE -season $season $types $plots -clim false $CMPEXP -plotsdir $plotsdir -rc $HISTORYRC $ANA -begdate $begplt -enddate $endplt $OPTIONS "
+echo $PLOT_COMMANDS >> LIST_$datetime
+
+end   # End plot Loop
+end   # End type Loop
+
+/bin/cp -f LIST_$datetime MASTERLIST
+
+# -----------------------
+
+@ njobs = 10
+@     n = 1
+while( $n <= $njobs )
+     set  FILE = gcm_plot${n}.j
+     set OFILE = gcm_plot${n}.o
+     set bname = `echo ${expid}_PLT${n} | cut -b1-15`
+ /bin/rm -f  FILE
+ /bin/rm -f $FILE
+ /bin/rm -f sedfile
+
+cat gcm_plot.tmpl > FILE
+
+cat > sedfile << EOF
+s|${expid}_PLT|$bname|g
+s|OUTPUT|$OFILE|g
+s|@LIST|LIST_$datetime|g
+s|@N|$n|g
+EOF
+sed -f sedfile FILE > $FILE
+
+qsub $FILE
+
+/bin/rm -f FILE
+/bin/rm -f sedfile
+
+@ n = $n + 1
+sleep 2
+end
+
+
+
+
+endif # End season     test
+endif # End num        test
+endif # End check_plot test

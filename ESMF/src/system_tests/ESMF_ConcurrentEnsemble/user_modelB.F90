@@ -1,4 +1,4 @@
-! $Id: user_modelB.F90,v 1.1 2009/10/22 03:26:24 svasquez Exp $
+! $Id$
 !
 ! Example/test code which shows User Component calls.
 
@@ -17,7 +17,7 @@ module user_modelB
 #include "ESMF.h"
 
   ! ESMF Framework module
-  use ESMF_Mod
+  use ESMF
   use ESMF_TestMod
 
   implicit none
@@ -47,13 +47,13 @@ module user_modelB
 
     ! Register the callback routines.
 
-    call ESMF_GridCompSetEntryPoint(comp, ESMF_SETINIT, userRoutine=user_init, &
+    call ESMF_GridCompSetEntryPoint(comp, ESMF_METHOD_INITIALIZE, userRoutine=user_init, &
       rc=rc)
     if (rc/=ESMF_SUCCESS) return ! bail out
-    call ESMF_GridCompSetEntryPoint(comp, ESMF_SETRUN, userRoutine=user_run, &
+    call ESMF_GridCompSetEntryPoint(comp, ESMF_METHOD_RUN, userRoutine=user_run, &
       rc=rc)
     if (rc/=ESMF_SUCCESS) return ! bail out
-    call ESMF_GridCompSetEntryPoint(comp, ESMF_SETFINAL, userRoutine=user_final, &
+    call ESMF_GridCompSetEntryPoint(comp, ESMF_METHOD_FINALIZE, userRoutine=user_final, &
       rc=rc)
     if (rc/=ESMF_SUCCESS) return ! bail out
 
@@ -124,7 +124,7 @@ module user_modelB
     allocate(intStatePtr%p)
 
     ! Set the export state 
-    call ESMF_StateAdd(exportState, array, rc=rc)
+    call ESMF_StateAdd(exportState, (/array/), rc=rc)
     if (rc/=ESMF_SUCCESS) return ! bail out
 
     ! Set the internal state

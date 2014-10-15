@@ -1,0 +1,47 @@
+#!/bin/csh -f
+
+set EXPDIRS = `echo $argv`
+      @ num = $#EXPDIRS
+
+
+# Create list of files in Control Experiment
+# ------------------------------------------
+set files0 = `/bin/ls -1 $EXPDIRS[1]/*stats*ctl1`
+
+
+# Create list of files in ALL Experiments
+# ---------------------------------------
+set allfiles = ''
+       @   n = 1
+   while( $n <= $num )
+   set fnew = `/bin/ls -1 $EXPDIRS[$n]/*stats*ctl1`
+   set allfiles = `echo $allfiles $fnew`
+       @   n = $n + 1
+   end
+
+
+# Create list of subset files co-existing in ALL Experiments
+# ----------------------------------------------------------
+echo Creating List of Subset Files ...
+set subset = ''
+foreach file ($files0 )
+set base = `basename $file`
+set date = `echo $base | cut -d. -f2-`
+   set test = ''
+   foreach dum ($allfiles)
+     set   dum2 = `echo $dum | grep $date`
+     if( $#dum2 != 0 ) then
+         set test = `echo $test $dum`
+     endif
+   end
+   if( $#test == $num ) set subset = `echo $subset $file`
+end
+
+if(-e subset_files) /bin/rm -f subset_files
+echo $#subset > subset_files
+       @   n = 1
+  while( $n <= $#subset )
+     echo $subset[$n] >> subset_files
+       @   n = $n + 1
+  end
+

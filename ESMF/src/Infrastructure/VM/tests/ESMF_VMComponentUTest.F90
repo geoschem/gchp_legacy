@@ -1,7 +1,7 @@
-! $Id: ESMF_VMComponentUTest.F90,v 1.26.2.1 2010/02/05 20:02:07 svasquez Exp $
+! $Id: ESMF_VMComponentUTest.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2010, University Corporation for Atmospheric Research,
+! Copyright 2002-2012, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -14,7 +14,7 @@
 module ESMF_VMComponentUTest_gcomp_mod
 
   ! modules
-  use ESMF_Mod
+  use ESMF
   
   implicit none
   
@@ -62,15 +62,15 @@ module ESMF_VMComponentUTest_gcomp_mod
     rc = ESMF_SUCCESS
 
     ! register INIT method
-    call ESMF_GridCompSetEntryPoint(gcomp, ESMF_SETINIT, userRoutine=mygcomp_init, &
+    call ESMF_GridCompSetEntryPoint(gcomp, ESMF_METHOD_INITIALIZE, userRoutine=mygcomp_init, &
       rc=rc)
     if (rc/=ESMF_SUCCESS) return ! bail out
     ! register RUN method
-    call ESMF_GridCompSetEntryPoint(gcomp, ESMF_SETRUN, userRoutine=mygcomp_run, &
+    call ESMF_GridCompSetEntryPoint(gcomp, ESMF_METHOD_RUN, userRoutine=mygcomp_run, &
       rc=rc)
     if (rc/=ESMF_SUCCESS) return ! bail out
     ! register FINAL method
-    call ESMF_GridCompSetEntryPoint(gcomp, ESMF_SETFINAL, userRoutine=mygcomp_final, &
+    call ESMF_GridCompSetEntryPoint(gcomp, ESMF_METHOD_FINALIZE, userRoutine=mygcomp_final, &
       rc=rc)
     if (rc/=ESMF_SUCCESS) return ! bail out
 
@@ -85,15 +85,15 @@ module ESMF_VMComponentUTest_gcomp_mod
     rc = ESMF_SUCCESS
 
     ! register INIT method
-    call ESMF_GridCompSetEntryPoint(gcomp, ESMF_SETINIT, userRoutine=mygcomp_init, &
+    call ESMF_GridCompSetEntryPoint(gcomp, ESMF_METHOD_INITIALIZE, userRoutine=mygcomp_init, &
       rc=rc)
     if (rc/=ESMF_SUCCESS) return ! bail out
     ! register RUN method
-    call ESMF_GridCompSetEntryPoint(gcomp, ESMF_SETRUN, userRoutine=mygcomp_run, &
+    call ESMF_GridCompSetEntryPoint(gcomp, ESMF_METHOD_RUN, userRoutine=mygcomp_run, &
       rc=rc)
     if (rc/=ESMF_SUCCESS) return ! bail out
     ! register FINAL method
-    call ESMF_GridCompSetEntryPoint(gcomp, ESMF_SETFINAL, userRoutine=mygcomp_final, &
+    call ESMF_GridCompSetEntryPoint(gcomp, ESMF_METHOD_FINALIZE, userRoutine=mygcomp_final, &
       rc=rc)
     if (rc/=ESMF_SUCCESS) return ! bail out
 
@@ -158,7 +158,7 @@ program ESMF_VMComponentUTest
 !-----------------------------------------------------------------------------
 ! !USES:
   use ESMF_TestMod     ! test methods
-  use ESMF_Mod
+  use ESMF
   use ESMF_VMComponentUTest_gcomp_mod
 
   implicit none
@@ -166,7 +166,7 @@ program ESMF_VMComponentUTest
 !------------------------------------------------------------------------------
   ! The following line turns the CVS identifier string into a printable variable.
   character(*), parameter :: version = &
-    '$Id: ESMF_VMComponentUTest.F90,v 1.26.2.1 2010/02/05 20:02:07 svasquez Exp $'
+    '$Id: ESMF_VMComponentUTest.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $'
 !------------------------------------------------------------------------------
   ! cumulative result: count failures; no failures equals "all pass"
   integer :: result = 0

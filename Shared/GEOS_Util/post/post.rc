@@ -1,0 +1,11 @@
+
+# ---------------------------------
+# GCM Post-Processing RC Parameters
+# ---------------------------------
+#
+#     POST_SEASONS:       XXX .... Produces 3-Month Seasonal Climatologies plus Annual Mean
+#                                  Options: JFM FMA MAM AMJ MJJ JJA JAS ASO SON OND NDJ DJF ANN
+#
+# ---------------------------------------------------------------------------------------------------
+
+  POST_SEASONS: DJF JJA MAM SON ANN

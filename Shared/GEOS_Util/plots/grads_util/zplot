@@ -1,0 +1,333 @@
+function zplot (args)
+
+expid   = subwrd(args,1)
+export  = subwrd(args,2)
+GC      = subwrd(args,3)
+field   = subwrd(args,4)
+season  = subwrd(args,5)
+output  = subwrd(args,6)
+logflag = subwrd(args,7)
+nseason = subwrd(args,8)
+expdsc  = subwrd(args,9)
+name    = subwrd(args,10)
+
+say "export  = "export
+say "LogFlag = "logflag
+
+   blak = 1
+undef   = 1e15
+qmin    = undef
+qmax    = undef
+qcnt    = undef
+cint    = undef
+qtype   = "continuous"
+prefix  = "0"
+suffix  = " "
+
+* Get Plotting Values from Resource File
+* --------------------------------------
+'run getenv "GEOSUTIL"'
+             geosutil = result
+PLOTRC = geosutil'/plots/grads_util/plot.rc'
+
+say ''
+                        'getresource 'PLOTRC' 'export'_'GC'_TITLE'  ; title   = result
+                        'getresource 'PLOTRC' 'export'_'GC'_FACTOR' ; fact    = result
+
+                        'getresource 'PLOTRC' 'export'_'GC'_Z_CCOLS'
+if( result = 'NULL' ) ; 'getresource 'PLOTRC' 'export'_'GC'_CCOLS' ; endif
+                                                            ccols = result
+
+                        'getresource 'PLOTRC' 'export'_'GC'_Z_CLEVS'
+if( result = 'NULL' ) ; 'getresource 'PLOTRC' 'export'_'GC'_CLEVS' ; endif
+                                                            clevs = result
+
+                        'getresource 'PLOTRC' 'export'_'GC'_CNTLEVS'; cntlevs = result
+                        'getresource 'PLOTRC' 'export'_'GC'_YLAB'    ; ylab    = result
+                        'getresource 'PLOTRC' 'export'_'GC'_YFMT'    ; yfmt    = result
+                        'getresource 'PLOTRC' 'export'_'GC'_CBSCALE'; cbscale = result
+                        'getresource 'PLOTRC' 'export'_'GC'_AXLIM'  ; axlim   = result
+say ''
+
+if( title   = 'NULL' )
+  'getdesc 'name
+     title  = result
+endif
+if( fact    = 'NULL' ) ; fact    = 1            ; endif
+if( clevs   = 'NULL' ) ; clevs   = "0.0 0.0"    ; endif
+if( ccols   = 'NULL' ) ; ccols   = "0.0 0.0"    ; endif
+if( cbscale = 'NULL' ) ; cbscale =  0.65        ; endif
+if( cntlevs = 'NULL' ) ; cntlevs = "0.0 0.0"    ; endif
+
+
+*******************************************************************
+**** Note:                                                     ****
+****  prefix  = "0" will set lowest  shade to white            ****
+****  suffix  = "0" will set highest shade to white            ****
+****  contour = "0" will disable contours                      ****
+****  clevs   = "lev1 lev2 ..." will use user-defined values   ****
+****  qmin    = ...             will use user-defined value    ****
+****  qmax    = ...             will use user-defined value    ****
+****  qcnt    = ...             will use user-defined value    ****
+****                                                           ****
+****                                                           ****
+****                                                           ****
+****                                                           ****
+****                                                           ****
+****                                                           ****
+*******************************************************************
+
+'c'
+
+* Temperature Tendencies
+* ----------------------
+
+if( export = 'TIM' )
+     title = 'DTDT from Moist Physics (K/day)'
+     fact  = 86400
+    clevs  = '-5 -4 -3 -2 -1 -.8 -.6 -.4 -0.2 0.2 .4 .6 .8 1 2 3 4 5'
+     qtype = 'plsmns'
+endif
+
+if( export = 'TIT' )
+     title = 'DTDT from Turbulence (K/day)'
+     fact  = 86400
+    clevs  = '-1.8 -1.6 -1.4 -1.2 -1 -.8 -.6 -.4 -.2 1 2 3 4 5 6 7 8 9'
+     qtype = 'plsmns'
+endif
+
+* Analysis Tendencies
+* -------------------
+if( export = 'DUDT' & GC = 'AGCM' )
+     title = 'DUDT Bias Correction from Analysis (m/sec/day) '
+     fact  = 86400
+                       clevs = "-2.25 -2 -1.75 -1.5 -1.25 -1 -0.75 -0.5 -.25 .25 .5 0.75 1 1.25 2.5 1.75 2 2.25"
+                       ccols = "55  49  47  45  44  36  34  33  32  0  21  22  23  24  25  26  27  28 69"
+endif
+
+if( export = 'DVDT' & GC = 'AGCM' )
+     title = 'DVDT Bias Correction from Analysis (m/sec/day) '
+     fact  = 86400
+                       clevs = "-2.25 -2 -1.75 -1.5 -1.25 -1 -0.75 -0.5 -.25 .25 .5 0.75 1 1.25 2.5 1.75 2 2.25"
+                       ccols = "55  49  47  45  44  36  34  33  32  0  21  22  23  24  25  26  27  28 69"
+endif
+
+if( export = 'DTDT' & GC = 'AGCM' )
+     title = 'DTDT Bias Correction from Analysis (K/day) '
+     fact  = 86400
+                       clevs = "-2.25 -2 -1.75 -1.5 -1.25 -1 -0.75 -0.5 -.25 .25 .5 0.75 1 1.25 2.5 1.75 2 2.25"
+                       ccols = "55  49  47  45  44  36  34  33  32  0  21  22  23  24  25  26  27  28 69"
+endif
+
+if( export = 'DQVDT' & GC = 'AGCM' )
+     title = 'DQVDT Bias Correction from Analysis (g/kg/day) '
+     fact  = 86400*1000
+                       clevs = "-1.4 -1.2 -1.0 -.8 -.6 -.4 -0.3 -0.2 -.1 .1 .2 .3 .4 .6 .8 1.0 1.2 1.4"
+                       ccols = "55  49  47  45  44  36  34  33  32  0  21  22  23  24  25  26  27  28 69"
+endif
+
+if( export = 'DUDT_ANA' & GC = 'AGCM' )
+     title = 'DUDT from Analysis (m/sec/day) '
+     fact  = 86400
+                       clevs = "-2.25 -2 -1.75 -1.5 -1.25 -1 -0.75 -0.5 -.25 .25 .5 0.75 1 1.25 1.5 1.75 2 2.25"
+                       ccols = "55  49  47  45  44  36  34  33  32  0  21  22  23  24  25  26  27  28 69"
+endif
+
+if( export = 'DVDT_ANA' & GC = 'AGCM' )
+     title = 'DVDT from Analysis (m/sec/day) '
+     fact  = 86400
+                       clevs = "-2.25 -2 -1.75 -1.5 -1.25 -1 -0.75 -0.5 -.25 .25 .5 0.75 1 1.25 1.5 1.75 2 2.25"
+                       ccols = "55  49  47  45  44  36  34  33  32  0  21  22  23  24  25  26  27  28 69"
+endif
+
+if( export = 'DTDT_ANA' & GC = 'AGCM' )
+     title = 'DTDT from Analysis (K/day) '
+     fact  = 86400
+                       clevs = "-2.25 -2 -1.75 -1.5 -1.25 -1 -0.75 -0.5 -.25 .25 .5 0.75 1 1.25 1.5 1.75 2 2.25"
+                       ccols = "55  49  47  45  44  36  34  33  32  0  21  22  23  24  25  26  27  28 69"
+endif
+
+
+* Miscellaneous
+* -------------
+if( export = 'RI' & GC = 'TURBULENCE' )
+     title = 'Richardson Number from Louis'
+endif
+
+if( export = 'SRFDIS' )
+     title = 'Frictional Heating Rate from Surface Drag K/s Pa'
+endif
+if( export = 'RI'  & GC = 'MOIST' )
+     title = 'Ice phase cloud particle effective radius  (x10`a-6`n m)'
+     fact  = 1e6
+endif
+if( export = 'RL' )
+     title = 'Liquid cloud particle effective radius  (x10`a-6`n m)'
+     fact  = 1e6
+endif
+if( export = 'REV_CN' )
+     title = 'Evaporation of Convective Rain  (g/kg/day)'
+     fact  = 1000*86400
+endif
+if( export = 'REV_AN' )
+     title = 'Evaporation of Anvil Rain  (g/kg/day)'
+     fact  = 1000*86400
+endif
+if( export = 'REV_LS' )
+     title = 'Evaporation of Large-Scale Rain  (g/kg/day)'
+     fact  = 1000*86400
+endif
+if( export = 'RSU_AN' )
+     title = 'Sublimation of Anvil Rain  (g/kg/day)'
+     fact  = 1000*86400
+endif
+if( export = 'RSU_LS' )
+     title = 'Sublimation of Large-Scale Rain  (g/kg/day)'
+     fact  = 1000*86400
+endif
+if( export = 'RSU_CN' )
+     title = 'Sublimation of Convective Rain  (g/kg/day)'
+     fact  = 1000*86400
+endif
+if( export = 'TAUIR' )
+     title = 'Longwave Optical Thickness at 800 cm`a-1`n'
+     clevs = "5  10  15  20  25  30  35  40  45  50  60  70  80  90  100 120 120 130"
+     ccols = "0 49 47 45 44 37 36 34 33 32 31 21 22 23 24 25 26 27 28"
+endif
+if( export = 'TAUCLI' )
+     title = 'Shortwave Optical Thickness for Cloud Ice'
+     clevs = "0.01  0.02  0.03  0.04  0.05  0.06   0.08  0.10  0.12  0.14  0.16  0.18  0.20  0.25  0.3 .35 .4 .45"
+     ccols = "0 49 47 45 44 37 36 34 33 32 31 21 22 23 24 25 26 27 28"
+endif
+if( export = 'TAUCLW' )
+     title = 'Shortwave Optical Thickness for Cloud Liquid'
+     clevs = "0.1  0.2  0.3  0.4  0.5  0.6   0.8  1.0  1.2  1.4  1.6  1.8  2.0  2.5  3 3.5 4 4.5"
+     ccols = "0 49 47 45 44 37 36 34 33 32 31 21 22 23 24 25 26 27 28"
+endif
+
+
+* Create Plot
+*************
+
+'getinfo zdim'
+         zdim = result
+
+'set display color white'
+'set vpage off'
+'set parea 1.5 10.5 0.75 7.5'
+
+'set lat -90 90'
+'set lon 0'
+'define qmod = 'field''season'z'
+
+'set grads off'
+'set clab off'
+if( blak = 1 ) ; 'black' ; endif
+                                        'set zlog off'
+if( logflag = "ON" | logflag = "on" ) 
+                                        'set zlog on'
+                                        'setlevs' 
+endif
+
+if( axlim != "NULL" ) ; 'set axlim 'axlim ; endif
+if( yfmt  != "NULL" ) ; 'set ylab  'yfmt  ; endif
+
+'define  qdum = qmod*'fact
+
+if( ccols = "0.0 0.0" )
+
+'getinfo zfreq'
+         zfreq = result
+     if( zfreq = 'varying' )
+         'getinfo zmin'
+                  zmin = result
+         'getinfo zmax'
+                  zmax = result
+     endif
+     if( zfreq = 'fixed' )
+         'getinfo zpos' 
+                  zmin = result
+                  zmax = result
+     endif 
+'set gxout stat'
+'d qdum'
+qminmax = sublin(result,8)
+qmin    = subwrd(qminmax,4)
+qmax    = subwrd(qminmax,5)
+'set gxout shaded'
+'set z 1'
+'d abs('qmin')'
+        qmin = subwrd(result,4)
+'d abs('qmax')'
+        qmax = subwrd(result,4)
+if( qmin > qmax ) ; qmax = qmin ; endif
+if( qmax > 0 )
+   'd log10('qmax')'
+    n = subwrd(result,4)
+else
+    n = 0
+endif
+say '    Log Factor: 'n
+if( n<0 ) ; n = n-2 ; endif
+'getint 'n
+         n = result
+if( n>0 )
+    if( n<=2 ) 
+        n = 0
+     else
+        n = n+2 
+     endif
+endif
+say 'Scaling Factor: 'n
+'set z 'zmin' 'zmax
+'define qdum = qdum / 1e'n 
+     'shades 'qdum' 0'
+      cint = result
+else
+    'set clevs 'clevs
+    'set ccols 'ccols
+         n = 0
+endif
+
+'set gxout shaded'
+if( prefix = "0" | suffix = "0" ) ; 'black' ; endif
+'d qdum'
+'cbarn  -xmid 5.95 -ymid 0.25 -snum 'cbscale
+
+'q shades'
+num = sublin(result,1)
+num = subwrd(num,5)
+clevs = sublin(result,2)
+clevs = subwrd(clevs,3)
+k = 2
+while( k<= num )
+loc = k+1
+line = sublin(result,loc)
+clevs = clevs' 'subwrd(line,2)
+k = k+1
+endwhile
+
+if( prefix = "0" | suffix = "0" ) ; 'black' ; endif
+if( blak = 1 )                    ; 'black' ; endif
+'set gxout contour'
+'set clevs 'clevs
+'set ccolor  1'
+'d qdum'
+
+if( zdim > 1 )       ; 'draw ylab Pressure (mb)' ; endif
+if( ylab != "NULL" ) ; 'draw ylab 'ylab          ; endif
+
+'set string 1 c 6 0'
+'set strsiz .12'
+'draw string 5.96 8.2 EXPID: 'expid'  'expdsc
+if( n != 0 )
+'draw string 5.96 7.8 'export':'GC'  'title'  'season' ('nseason')    (x10`a'n'`n)'
+else
+'draw string 5.96 7.8 'export':'GC'  'title'  'season' ('nseason')'
+endif
+'set string 1 c 6 0'
+
+'myprint -name 'output'/hdiag_'export'.'GC'_z.'season
+
+'set vpage off'
+'set parea off'

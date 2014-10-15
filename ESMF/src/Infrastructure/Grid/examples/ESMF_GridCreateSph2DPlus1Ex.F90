@@ -1,7 +1,7 @@
-! $Id: ESMF_GridCreateSph2DPlus1Ex.F90,v 1.3.4.1 2010/02/05 19:57:00 svasquez Exp $
+! $Id: ESMF_GridCreateSph2DPlus1Ex.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2010, University Corporation for Atmospheric Research,
+! Copyright 2002-2012, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -23,7 +23,7 @@ program ESMF_GridCreateEx
 ! This program shows examples of Grid creation
 
 !BOE
-! \subsubsection{Example: 2D+1 Spherical Grid Creation}
+! \subsubsection{Create a 2D thick sphere grid}
 !
 ! This example  illustrates the creation of a 2D spherical Grid 
 ! with a 3rd undistributed dimension.  The Grid contains both the center stagger location and a corner
@@ -33,7 +33,7 @@ program ESMF_GridCreateEx
 
 !BOC
       ! Use ESMF framework module
-      use ESMF_Mod
+      use ESMF
       implicit none
 
       ! Local variables  
@@ -53,10 +53,11 @@ program ESMF_GridCreateEx
 !EOC         
 
       finalrc = ESMF_SUCCESS
-      call ESMF_Initialize(vm=vm, rc=rc)
+      call ESMF_Initialize(vm=vm, defaultlogfilename="GridCreateSph2DPlus1Ex.Log", &
+                    logkindflag=ESMF_LOGKIND_MULTI, rc=rc)
 
 !BOE    
-! Construct a single patch spherical domain without connection across
+! Construct a single tile spherical domain without connection across
 ! the poles.
 !EOE
 
@@ -65,7 +66,7 @@ program ESMF_GridCreateEx
       allocate( connectionList(2*2,2) )
       call ESMF_ConnectionElementConstruct(                          &
                           connectionElement=connectionList(:,1),     &
-                          patchIndexA=1, patchIndexB=1,              &
+                          tileIndexA=1, tileIndexB=1,              &
                           positionVector = (/gridSize(1),0/),        &
                           repetitionVector= (/1,0/), rc=rc)
 

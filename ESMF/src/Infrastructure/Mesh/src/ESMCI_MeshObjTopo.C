@@ -1,6 +1,7 @@
+// $Id$
 //
 // Earth System Modeling Framework
-// Copyright 2002-2010, University Corporation for Atmospheric Research, 
+// Copyright 2002-2012, University Corporation for Atmospheric Research, 
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
 // Laboratory, University of Michigan, National Centers for Environmental 
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
@@ -12,6 +13,12 @@
 #include <Mesh/include/ESMCI_Exception.h>
 
 #include <map>
+
+//-----------------------------------------------------------------------------
+// leave the following line as-is; it will insert the cvs ident string
+// into the object file for tracking purposes.
+static const char *const version = "$Id$";
+//-----------------------------------------------------------------------------
 
 namespace ESMCI {
 
@@ -601,7 +608,7 @@ MeshObjTopo *GetTopo(const std::string &name) {
 MeshObjTopo *GetTopo(UInt t) {
 
   // This is 1 based in topo, so zero is no topo (nodes)
-  static char *tmap[] = {
+  static const char *tmap[] = {
     "NULL",
     "HEX",
     "HEX27",

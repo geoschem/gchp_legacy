@@ -1,0 +1,16 @@
+#!/bin/csh -f
+
+set HISTORYRC = $1
+
+set collections = `$GEOSUTIL/post/get_streams $HISTORYRC`
+
+# Find Archive Template
+# ---------------------
+set archives = ''
+foreach collection ($collections)
+                        set archive  = `grep $collection.archive: $HISTORYRC | cut -d "'" -f2`
+   if( .$archive == . ) set archive  =       $collection
+                        set archives = `echo $archives $archive`
+end
+
+echo $archives

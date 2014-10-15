@@ -1,7 +1,7 @@
-!  $Id: ESMF_Field_C.F90,v 1.18.2.1 2010/02/05 19:55:46 svasquez Exp $
+!  $Id: ESMF_Field_C.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2010, University Corporation for Atmospheric Research, 
+! Copyright 2002-2012, University Corporation for Atmospheric Research, 
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
 ! Laboratory, University of Michigan, National Centers for Environmental 
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
@@ -24,7 +24,7 @@
 !------------------------------------------------------------------------------
 ! The following line turns the CVS identifier string into a printable variable.
 !      character(*), parameter, private :: version = &
-!      '$Id: ESMF_Field_C.F90,v 1.18.2.1 2010/02/05 19:55:46 svasquez Exp $'
+!      '$Id: ESMF_Field_C.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $'
 !==============================================================================
 
 #undef  ESMF_METHOD
@@ -40,11 +40,14 @@
     use ESMF_FieldMod
     use ESMF_FieldCreateMod
 
+    implicit none
+
     ! arguments
     type(ESMF_Field)               :: field
     type(ESMF_Pointer)             :: mesh_pointer
     type(ESMF_ArraySpec)           :: arrayspec
-    integer                        :: gridToFieldMap(1:len1), len1, ungriddedLBound(1:len2), len2, ungriddedUBound(1:len3), len3
+    integer, intent(in)            :: len1, len2, len3
+    integer                        :: gridToFieldMap(1:len1), ungriddedLBound(1:len2), ungriddedUBound(1:len3)
     character(len=*),intent(in)    :: name
     integer, intent(out)           :: rc              
   
@@ -60,7 +63,7 @@
         ungriddedLBound=ungriddedLBound, ungriddedUBound=ungriddedUBound, &
         name=name, &
         rc=rc)    
-    if (ESMF_LogMsgFoundError(rc, ESMF_ERR_PASSTHRU, &
+    if (ESMF_LogFoundError(rc, ESMF_ERR_PASSTHRU, &
       ESMF_CONTEXT, rcToReturn=rc)) return
    
     rc = ESMF_SUCCESS
@@ -78,6 +81,8 @@
     use ESMF_FieldMod
     use ESMF_FieldPrMod
 
+    implicit none
+
     type(ESMF_Field),intent(inout) :: field
     integer, intent(out)           :: rc              
 
@@ -86,7 +91,7 @@
     localrc = ESMF_RC_NOT_IMPL
 
     call ESMF_FieldPrint(field, rc=localrc)
-    if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, &
+    if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
       ESMF_CONTEXT, rcToReturn=rc)) return
 
     ! return successfully
@@ -95,8 +100,37 @@
   end subroutine f_esmf_fieldprint
 
 #undef  ESMF_METHOD
-#define ESMF_METHOD "f_esmf_fieldget"
-  subroutine f_esmf_fieldget(field, meshp, rc)
+#define ESMF_METHOD "f_esmf_fieldcast"
+  subroutine f_esmf_fieldcast(fieldOut, fieldIn, rc)
+
+    use ESMF_UtilTypesMod
+    use ESMF_BaseMod
+    use ESMF_LogErrMod
+    use ESMF_ArraySpecMod
+    use ESMF_FieldMod
+    use ESMF_FieldPrMod
+
+    implicit none
+
+    type(ESMF_Field),intent(inout) :: fieldOut
+    type(ESMF_Field),intent(inout) :: fieldIn
+    integer, intent(out)           :: rc              
+
+    integer :: localrc
+
+    localrc = ESMF_RC_NOT_IMPL
+
+    ! simple assignment
+    fieldOut = fieldIn
+
+    ! return successfully
+    rc = ESMF_SUCCESS
+  
+  end subroutine f_esmf_fieldcast
+
+#undef  ESMF_METHOD
+#define ESMF_METHOD "f_esmf_fieldgetmesh"
+  subroutine f_esmf_fieldgetmesh(field, meshp, rc)
 
     use ESMF_UtilTypesMod
     use ESMF_BaseMod
@@ -105,6 +139,8 @@
     use ESMF_MeshMod
     use ESMF_FieldMod
     use ESMF_FieldGetMod
+
+    implicit none
 
     type(ESMF_Field),intent(inout) :: field
     type(ESMF_Pointer)             :: meshp
@@ -115,14 +151,54 @@
     rc = ESMF_RC_NOT_IMPL
 
     call ESMF_FieldGet(field, mesh=mesh, rc=rc)
-    if (ESMF_LogMsgFoundError(rc, ESMF_ERR_PASSTHRU, &
+    if (ESMF_LogFoundError(rc, ESMF_ERR_PASSTHRU, &
       ESMF_CONTEXT, rcToReturn=rc)) return
 
     meshp = mesh%this;
 
     rc = ESMF_SUCCESS
   
-  end subroutine f_esmf_fieldget
+  end subroutine f_esmf_fieldgetmesh
+
+#undef  ESMF_METHOD
+#define ESMF_METHOD "f_esmf_fieldgetarray"
+  subroutine f_esmf_fieldgetarray(field, array, rc)
+
+    use ESMF_UtilTypesMod
+    use ESMF_BaseMod
+    use ESMF_LogErrMod
+    use ESMF_ArraySpecMod
+    use ESMF_ArrayMod
+    use ESMF_FieldMod
+    use ESMF_FieldGetMod
+
+    implicit none
+
+    ! arguments
+    type(ESMF_Field),intent(inout) :: field
+    type(ESMF_Array)               :: array
+    integer, intent(out)           :: rc              
+
+    ! local
+    type(ESMF_Array)               :: l_array
+
+    rc = ESMF_RC_NOT_IMPL
+
+    call ESMF_FieldGet(field, array=l_array, rc=rc)
+    if (ESMF_LogFoundError(rc, ESMF_ERR_PASSTHRU, &
+      ESMF_CONTEXT, rcToReturn=rc)) return
+
+    ! because ESMF_Array.this is private, it cannot be accessed directly
+    ! we use the public interface to do the ptr copy;
+    ! the array object returned to the C interface must consist only of the
+    ! this pointer. It must not contain the isInit member.
+    call ESMF_ArrayCopyThis(l_array, array, rc)
+    if (ESMF_LogFoundError(rc, ESMF_ERR_PASSTHRU, &
+      ESMF_CONTEXT, rcToReturn=rc)) return
+
+    rc = ESMF_SUCCESS
+  
+  end subroutine f_esmf_fieldgetarray
 
 #undef  ESMF_METHOD
 #define ESMF_METHOD "f_esmf_fielddestroy"
@@ -134,6 +210,8 @@
     use ESMF_FieldMod
     use ESMF_FieldCreateMod
 
+    implicit none
+
     type(ESMF_Field)               :: field
     integer, intent(out)           :: rc     
   
@@ -141,7 +219,7 @@
     rc = ESMF_RC_NOT_IMPL
   
     call ESMF_FieldDestroy(field, rc=rc)
-    if (ESMF_LogMsgFoundError(rc, ESMF_ERR_PASSTHRU, &
+    if (ESMF_LogFoundError(rc, ESMF_ERR_PASSTHRU, &
       ESMF_CONTEXT, rcToReturn=rc)) return
   
     rc = ESMF_SUCCESS
@@ -158,6 +236,8 @@
     use ESMF_FieldMod
     use ESMF_FieldCreateMod
 
+    implicit none
+
     type(ESMF_Field)      :: field
     integer, intent(out)  :: rc     
   
@@ -171,15 +251,15 @@
     
     ! destruct internal data allocations
     call ESMF_FieldDestruct(field%ftypep, rc=localrc)
-    if (ESMF_LogMsgFoundError(localrc, &
+    if (ESMF_LogFoundError(localrc, &
       ESMF_ERR_PASSTHRU, &
-      ESMF_CONTEXT, rc)) return
+      ESMF_CONTEXT, rcToReturn=rc)) return
 
     ! deallocate actual FieldType allocation      
     if (associated(field%ftypep)) then
       deallocate(field%ftypep, stat=localrc)
-      if (ESMF_LogMsgFoundAllocError(localrc, "Deallocating Field", &
-        ESMF_CONTEXT, rc)) return
+      if (ESMF_LogFoundAllocError(localrc, msg="Deallocating Field", &
+        ESMF_CONTEXT, rcToReturn=rc)) return
     endif
     nullify(field%ftypep)
 

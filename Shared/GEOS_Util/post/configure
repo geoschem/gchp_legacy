@@ -1,0 +1,40 @@
+#!/bin/csh -f
+
+
+setenv ARCH `uname`
+setenv HOST `hostname`
+set name = `echo $HOST | cut -b 1-8` ; if( $name == 'columbia' ) setenv HOST $name
+set name = `echo $HOST | cut -b 1-8` ; if( $name == 'discover' ) setenv HOST $name
+set name = `echo $HOST | cut -b 1-4` ; if( $name == 'borg'     ) setenv HOST discover
+set name = `echo $HOST | cut -b 1-4` ; if( $name == 'warp'     ) setenv HOST discover
+set name = `echo $HOST | cut -b 1-4` ; if( $name == 'dali'     ) setenv HOST discover
+                                       if( $name == 'cfe1'     ) setenv HOST columbia
+                                       if( $name == 'cfe2'     ) setenv HOST columbia
+                                       if( $name == 'e1'       ) setenv HOST palm
+                                       if( $name == 'e2'       ) setenv HOST palm
+                                       if( $name == 'e3'       ) setenv HOST palm
+
+                setenv  GFIODIR ../../../../
+if !($?BASEDIR) source $GFIODIR/src/g5_modules
+
+
+# Echo Results
+# ------------
+echo "        ARCH = " $ARCH
+echo "        HOST = " $HOST
+echo "     BASEDIR = " $BASEDIR
+echo "     GFIODIR = " $GFIODIR
+
+
+# Create .configure for compile
+# -----------------------------
+if( -e .configure ) /bin/rm .configure
+echo \#\!/bin/csh                                                   >  .configure
+echo setenv ARCH    $ARCH                                           >> .configure
+echo setenv HOST    $HOST                                           >> .configure
+echo setenv BASEDIR $BASEDIR                                        >> .configure
+echo setenv GFIODIR $GFIODIR                                        >> .configure
+
+chmod 755 .configure
+
+

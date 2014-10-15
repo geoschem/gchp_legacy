@@ -1,7 +1,7 @@
-// $Id: ESMCI_BaseTime.C,v 1.9.2.1 2010/02/05 20:00:41 svasquez Exp $
+// $Id$
 //
 // Earth System Modeling Framework
-// Copyright 2002-2010, University Corporation for Atmospheric Research,
+// Copyright 2002-2012, University Corporation for Atmospheric Research,
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 // Laboratory, University of Michigan, National Centers for Environmental
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -40,7 +40,7 @@
 //-------------------------------------------------------------------------
  // leave the following line as-is; it will insert the cvs ident string
  // into the object file for tracking purposes.
- static const char *const version = "$Id: ESMCI_BaseTime.C,v 1.9.2.1 2010/02/05 20:00:41 svasquez Exp $";
+ static const char *const version = "$Id$";
 //-------------------------------------------------------------------------
 
   namespace ESMCI{
@@ -369,7 +369,7 @@
       // convert remaining time to milliseconds
       Fraction msRemainingTime = remainingTime;
       int rc = msRemainingTime.convert(1000);
-      if (ESMC_LogDefault.MsgFoundError(rc, ESMF_ERR_PASSTHRU, &rc))
+      if (ESMC_LogDefault.MsgFoundError(rc, ESMCI_ERR_PASSTHRU, &rc))
         return(rc);
       *ms = msRemainingTime.getn();
 
@@ -381,7 +381,7 @@
       // convert remaining time to microseconds
       Fraction usRemainingTime = remainingTime;
       int rc = usRemainingTime.convert(1000000);
-      if (ESMC_LogDefault.MsgFoundError(rc, ESMF_ERR_PASSTHRU, &rc))
+      if (ESMC_LogDefault.MsgFoundError(rc, ESMCI_ERR_PASSTHRU, &rc))
         return(rc);
       *us = usRemainingTime.getn();
 
@@ -393,7 +393,7 @@
       // convert remaining time to nanoseconds
       Fraction nsRemainingTime = remainingTime;
       int rc = nsRemainingTime.convert(1000000000);
-      if (ESMC_LogDefault.MsgFoundError(rc, ESMF_ERR_PASSTHRU, &rc))
+      if (ESMC_LogDefault.MsgFoundError(rc, ESMCI_ERR_PASSTHRU, &rc))
         return(rc);
       *ns = nsRemainingTime.getn();
     }
@@ -494,8 +494,7 @@
 //
 // !ARGUMENTS:
       int          nameLen,   // in
-      const char  *name,      // in
-      ESMC_IOSpec *iospec) {  // in
+      const char  *name) {    // in
 //
 // !DESCRIPTION:
 //      restore {\tt BaseTime} state for persistence/checkpointing.
@@ -505,7 +504,7 @@
 
     int rc = ESMF_SUCCESS;
 
-    // TODO:  read base time state from iospec/name, then restore
+    // TODO:  read base time state from name, then restore
     //        (share code with ESMCI::BaseTime::set()).
 
     return(rc);
@@ -517,13 +516,13 @@
 // !IROUTINE:  ESMCI::BaseTime::writeRestart - save BaseTime state
 //
 // !INTERFACE:
-      int BaseTime::writeRestart(
+      int BaseTime::writeRestart(void) const {
 //
 // !RETURN VALUE:
 //    int error return code
 //
 // !ARGUMENTS:
-      ESMC_IOSpec *iospec) const {
+//    none
 //
 // !DESCRIPTION:
 //      Save {\tt BaseTime} state for persistence/checkpointing

@@ -1,7 +1,7 @@
-! $Id: ESMF_DistGridEx.F90,v 1.29.2.1 2010/02/05 19:55:11 svasquez Exp $
+! $Id: ESMF_DistGridEx.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2010, University Corporation for Atmospheric Research,
+! Copyright 2002-2012, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -16,7 +16,7 @@
 
 program ESMF_DistGridEx
 
-  use ESMF_Mod
+  use ESMF
   
   implicit none
   
@@ -29,17 +29,19 @@ program ESMF_DistGridEx
   type(ESMF_DistGrid):: distgrid
   integer, allocatable:: dimExtent(:,:), localIndexList(:)
   integer, allocatable:: minIndex(:,:), maxIndex(:,:), regDecomp(:,:)
-  integer, allocatable:: deBlockList(:,:,:), connectionList(:,:)
-  integer, allocatable:: localDeList(:), arbSeqIndexList(:)
+  integer, allocatable:: deBlockList(:,:,:)
+  type(ESMF_DistGridConnection), allocatable:: connectionList(:)
+  integer, allocatable:: localDeToDeMap(:), arbSeqIndexList(:)
   ! result code
   integer :: finalrc
   
   
   finalrc = ESMF_SUCCESS
-  call ESMF_Initialize(vm=vm, rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  call ESMF_Initialize(vm=vm, defaultlogfilename="DistGridEx.Log", &
+                    logkindflag=ESMF_LOGKIND_MULTI, rc=rc)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   call ESMF_VMGet(vm, petCount=petCount, localPet=localPet, rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   
   if (petCount /= 4) then
     finalrc = ESMF_FAILURE
@@ -47,26 +49,26 @@ program ESMF_DistGridEx
   endif
   
 !BOE
-! \subsubsection{Single patch DistGrid with regular decomposition}
+! \subsubsection{Single tile DistGrid with regular decomposition}
 ! 
 ! The minimum information required to create an {\tt ESMF\_DistGrid} object
-! for a single patch with default decomposition are the corners of the patch
+! for a single tile with default decomposition are the corners of the tile
 ! in index space. The following call will create a 1D DistGrid for a 
-! 1D index space patch with elements from 1 through 1000.
+! 1D index space tile with elements from 1 through 1000.
 !EOE
 
 !BOC
   distgrid = ESMF_DistGridCreate(minIndex=(/1/), maxIndex=(/1000/), rc=rc)
 !EOC  
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !  call ESMF_DistGridPrint(distgrid, rc=rc)
-!  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+!  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   call ESMF_DistGridDestroy(distgrid, rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
 !BOE
 ! A default DELayout with 1 DE per PET will be created during 
-! {\tt ESMF\_DistGridCreate()}. The 1000 elements of the specified 1D patch will
+! {\tt ESMF\_DistGridCreate()}. The 1000 elements of the specified 1D tile will
 ! then be block decomposed across the available DEs, i.e. across all PETs. 
 ! Hence, for 4 PETs the (min) $\sim$ (max) corners of the DE-local LR regions
 ! will be:
@@ -78,18 +80,18 @@ program ESMF_DistGridEx
 ! \end{verbatim}
 !
 ! DistGrids with rank > 1 can also be created with default decompositions,
-! specifying only the corners of the patch. The following will create a
-! 2D DistGrid for a 5x5 patch with default decomposition.
+! specifying only the corners of the tile. The following will create a
+! 2D DistGrid for a 5x5 tile with default decomposition.
 !EOE
 
 !BOC
   distgrid = ESMF_DistGridCreate(minIndex=(/1,1/), maxIndex=(/5,5/), rc=rc)
 !EOC  
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !  call ESMF_DistGridPrint(distgrid, rc=rc)
-!  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+!  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   call ESMF_DistGridDestroy(distgrid, rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
 !BOE
 ! The default decomposition for a DistGrid of rank $N$ will be $ (nDEs \times 1
@@ -107,7 +109,7 @@ program ESMF_DistGridEx
 ! In many cases the default decomposition will not suffice for higher rank
 ! DistGrids (rank > 1). For this reason a decomposition descriptor 
 ! {\tt regDecomp} argument is available during {\tt ESMF\_DistGridCreate()}. The
-! following call creates a DistGrid on the same 2D patch as before, but now with
+! following call creates a DistGrid on the same 2D tile as before, but now with
 ! a user specified regular decomposition of $2 \times 3 = 6 $ DEs.
 !EOE
 
@@ -115,11 +117,11 @@ program ESMF_DistGridEx
   distgrid = ESMF_DistGridCreate(minIndex=(/1,1/), maxIndex=(/5,5/), &
     regDecomp=(/2,3/), rc=rc)
 !EOC  
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !  call ESMF_DistGridPrint(distgrid, rc=rc)
-!  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+!  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   call ESMF_DistGridDestroy(distgrid, rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
 !BOE
 ! The default DE labeling sequence follows column major order for the
@@ -145,7 +147,7 @@ program ESMF_DistGridEx
 !   DE 5 - (4,5) ~ (5,5)
 ! \end{verbatim}
 ! 
-! The specifics of the patch decomposition into DE-local LR domains can be
+! The specifics of the tile decomposition into DE-local LR domains can be
 ! modified by the optional {\tt decompflag} argument. The following line shows
 ! how this argument is used to keep ESMF's default decomposition in the first
 ! dimension but move extra grid points of the second dimension to the last DEs
@@ -156,12 +158,12 @@ program ESMF_DistGridEx
 !EOE
 !BOC
   distgrid = ESMF_DistGridCreate(minIndex=(/1,1/), maxIndex=(/5,5/), &
-    regDecomp=(/2,3/), decompflag=(/ESMF_DECOMP_DEFAULT,ESMF_DECOMP_RESTLAST/),&
-    rc=rc)
+    regDecomp=(/2,3/), decompflag=(/ESMF_DECOMP_DEFAULT, &
+    ESMF_DECOMP_RESTLAST/), rc=rc)
 !EOC  
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !  call ESMF_DistGridPrint(distgrid, rc=rc)
-!  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+!  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
 !BOE
 ! Now DE 4 and DE 5 will hold the extra elements along the 2nd dimension.
@@ -175,7 +177,7 @@ program ESMF_DistGridEx
 ! \end{verbatim}
 !
 ! An alternative way of indicating the DE-local LR regions is to list the 
-! index space coordinate as given by the associated DistGrid patch for each
+! index space coordinate as given by the associated DistGrid tile for each
 ! dimension. For this 2D example there are two lists (dim 1) / (dim 2) for each
 ! DE:
 ! \begin{verbatim}
@@ -193,34 +195,35 @@ program ESMF_DistGridEx
 !BOC
   allocate(dimExtent(2, 0:5)) ! (dimCount, deCount)
   call ESMF_DistGridGet(distgrid, delayout=delayout, &
-    indexCountPDimPDe=dimExtent, rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+    indexCountPDe=dimExtent, rc=rc)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   call ESMF_DELayoutGet(delayout, localDeCount=localDeCount, rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
-  allocate(localDeList(0:localDeCount-1))
-  call ESMF_DELayoutGet(delayout, localDeList=localDeList, rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
+  allocate(localDeToDeMap(0:localDeCount-1))
+  call ESMF_DELayoutGet(delayout, localDeToDeMap=localDeToDeMap, rc=rc)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   do localDe=0, localDeCount-1
-    de = localDeList(localDe)
+    de = localDeToDeMap(localDe)
     do dim=1, 2
-      allocate(localIndexList(dimExtent(dim, de))) ! allocate list to hold indices
+      allocate(localIndexList(dimExtent(dim, de))) ! allocate list 
+                                                   ! to hold indices
       call ESMF_DistGridGet(distgrid, localDe=localDe, dim=dim, &
         indexList=localIndexList, rc=rc)
-      if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
-      print *, "local DE ", localDe," - DE ",de," localIndexList along dim=", &
-        dim," :: ", localIndexList
+      if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
+      print *, "local DE ", localDe," - DE ",de, &
+        " localIndexList along dim=", dim," :: ", localIndexList
       deallocate(localIndexList)
     enddo
   enddo
-  deallocate(localDeList)
+  deallocate(localDeToDeMap)
   deallocate(dimExtent)
 !EOC  
   call ESMF_DistGridDestroy(distgrid, rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
 !BOE
 ! The advantage of the {\tt localIndexList} format over the min-/max-corner 
-! format is that it can be used directly for DE-local to patch index 
+! format is that it can be used directly for DE-local to tile index 
 ! dereferencing. Furthermore the {\tt localIndexList} allows to express very
 ! general decompositions such as the cyclic decompositions in the first
 ! dimension generated by the following call:
@@ -228,12 +231,12 @@ program ESMF_DistGridEx
 
 !BOC
   distgrid = ESMF_DistGridCreate(minIndex=(/1,1/), maxIndex=(/5,5/), &
-    regDecomp=(/2,3/), decompflag=(/ESMF_DECOMP_CYCLIC,ESMF_DECOMP_RESTLAST/),&
-    rc=rc)
+    regDecomp=(/2,3/), &
+    decompflag=(/ESMF_DECOMP_CYCLIC,ESMF_DECOMP_RESTLAST/), rc=rc)
 !EOC  
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !  call ESMF_DistGridPrint(distgrid, rc=rc)
-!  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+!  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
 !BOE
 ! with decomposition:
@@ -251,7 +254,7 @@ program ESMF_DistGridEx
 !BOC
   call ESMF_DistGridDestroy(distgrid, rc=rc)
 !EOC  
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
 
 !BOE
@@ -270,17 +273,17 @@ program ESMF_DistGridEx
   distgrid = ESMF_DistGridCreate(minIndex=(/1,1/), maxIndex=(/5,5/), &
     regDecomp=(/2,3/), rc=rc)
 !EOC  
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   
 !  call ESMF_DistGridPrint(distgrid, rc=rc)
-!  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+!  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !  call ESMF_DistGridGet(distgrid, delayout=delayout, rc=rc)
-!  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+!  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !  call ESMF_DELayoutPrint(delayout, rc=rc)
-!  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+!  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   
   call ESMF_DistGridDestroy(distgrid, rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
 !BOE
 ! will result in the following domain decomposition in terms of DEs
@@ -337,9 +340,9 @@ program ESMF_DistGridEx
   distgrid = ESMF_DistGridCreate(minIndex=(/1,1/), maxIndex=(/5,5/), &
     regDecomp=(/2,3/), fastAxis=1, rc=rc)
 !EOCI
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   call ESMF_DistGridDestroy(distgrid, rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !BOEI
 ! A second way to achieve the same distribution is to explicitly create a
 ! suitable DELayout object.
@@ -357,16 +360,16 @@ program ESMF_DistGridEx
 !BOC
   delayout = ESMF_DELayoutCreate(deCount=6, deGrouping=(/(i/2,i=0,5)/), rc=rc)
 !EOC  
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !BOC
   distgrid = ESMF_DistGridCreate(minIndex=(/1,1/), maxIndex=(/5,5/), &
     regDecomp=(/2,3/), delayout=delayout, rc=rc)
 !EOC  
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   call ESMF_DistGridDestroy(distgrid, rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   call ESMF_DELayoutDestroy(delayout, rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !BOE
 ! This will ensure a distribution of DEs across the cluster resource 
 ! in the following way:
@@ -390,16 +393,16 @@ program ESMF_DistGridEx
   delayout = ESMF_DELayoutCreate(deCount=6, deGrouping=(/(mod(i,3),i=0,5)/), &
     rc=rc)
 !EOC  
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !BOC
   distgrid = ESMF_DistGridCreate(minIndex=(/1,1/), maxIndex=(/5,5/), &
     regDecomp=(/2,3/), deLabelList=(/0,3,1,4,2,5/), delayout=delayout, rc=rc)
 !EOC  
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   call ESMF_DistGridDestroy(distgrid, rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   call ESMF_DELayoutDestroy(delayout, rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !BOE
 ! Here the {\tt deLabelList} argument changes the default DE label sequence from
 ! column major to row major. The DELayout compensates for this change in DE
@@ -424,24 +427,24 @@ program ESMF_DistGridEx
 !BOC
   delayout = ESMF_DELayoutCreate(petMap=(/0,3,1,3,2,3/), rc=rc)
 !EOC  
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !BOC
   distgrid = ESMF_DistGridCreate(minIndex=(/1,1/), maxIndex=(/5,5/), &
     regDecomp=(/2,3/), delayout=delayout, rc=rc)
 !EOC  
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   
 !  call ESMF_DistGridPrint(distgrid, rc=rc)
-!  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+!  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !  call ESMF_DistGridGet(distgrid, delayout=delayout, rc=rc)
-!  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+!  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !  call ESMF_DELayoutPrint(delayout, rc=rc)
-!  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+!  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   
   call ESMF_DistGridDestroy(distgrid, rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   call ESMF_DELayoutDestroy(delayout, rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !BOE
 ! This decomposes the global domain into
 ! \begin{verbatim}
@@ -485,16 +488,16 @@ program ESMF_DistGridEx
 !BOCI
 !  delayout = ESMF_DELayoutCreate(deCount=16*32, virtualStride=(/1,16/), rc=rc)
 !EOCI  
-!  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+!  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !BOCI
 !  distgrid = ESMF_DistGridCreate(minIndex=(/1,1/), maxIndex=(/64,128/), &
 !    regDecomp=(/16,32/), delayout=delayout, rc=rc)
 !EOCI  
-!  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+!  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !  call ESMF_DistGridDestroy(distgrid, rc=rc)
-!  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+!  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !  call ESMF_DELayoutDestroy(delayout, rc=rc)
-!  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+!  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !BOEI
 !
 ! Assuming the associated VM contains PETs with multiple PEs the above example 
@@ -516,7 +519,7 @@ program ESMF_DistGridEx
 !    virtualStride=(/1, nodeCount/), virtualDePinFlag=ESMF_VIRTUALDE_PIN_VAS, &
 !    rc=rc)
 !EOCI  
- ! if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+ ! if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !BOEI
 ! contains 8 times as many DEs than there are PETs and groups them into
 ! {\tt nodeCount} virtual groups that are pinned against VAS. Using this
@@ -526,11 +529,11 @@ program ESMF_DistGridEx
 !  distgrid = ESMF_DistGridCreate(minIndex=(/1,1/), maxIndex=(/64,128/), &
 !    regDecomp=(/nodeCount,32/), delayout=delayout, rc=rc)
 !EOCI
-!  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+!  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !  call ESMF_DistGridDestroy(distgrid, rc=rc)
-!  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+!  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !  call ESMF_DELayoutDestroy(delayout, rc=rc)
-!  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+!  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !BOEI
 ! ensures that each set of 32 DEs is associated with 4 PETs that form a
 ! thread group. Work-queue dynamic load balancing within these DE sets can be 
@@ -541,7 +544,7 @@ program ESMF_DistGridEx
 
 
 !BOE
-! \subsubsection{Single patch DistGrid with decomposition by DE blocks}
+! \subsubsection{Single tile DistGrid with decomposition by DE blocks}
 ! 
 ! The examples of the previous sections showed how DistGrid objects with
 ! regular decompositions are created. However, in some cases a regular 
@@ -551,7 +554,7 @@ program ESMF_DistGridEx
 !
 ! A single 5x5 LR domain is to be decomposed into 6 DEs. To this end a list is
 ! constructed that holds the min and max corners of all six DE
-! LR blocks. The DE-local LR blocks are arranged as to cover the whole patch 
+! LR blocks. The DE-local LR blocks are arranged as to cover the whole tile 
 ! domain without overlap.
 !EOE
 ! 
@@ -574,98 +577,85 @@ program ESMF_DistGridEx
   distgrid = ESMF_DistGridCreate(minIndex=(/1,1/), maxIndex=(/5,5/), &
     deBlockList=deBlockList, rc=rc)
 !EOC
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
 !  call ESMF_DistGridPrint(distgrid, rc=rc)
-!  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+!  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
   call ESMF_DistGridDestroy(distgrid, rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
 !BOE
-! \subsubsection{Single patch DistGrid with periodic boundaries}
+! \subsubsection{Single tile DistGrid with periodic boundaries}
 ! 
-! By default the edges of all patches have solid wall boundary conditions. 
+! By default the edges of all tiles have solid wall boundary conditions. 
 ! Periodic boundary conditions can be imposed by specifying connections between
-! patches. For the single LR domain of the last section periodic boundaries 
-! along the first dimension are imposed by adding a
-! {\tt connectionList} argument with only one element to the create call.
-!
-! Each {\tt connectionList} element is a vector of {\tt (3 * dimCount + 2)}
-! integer numbers:
+! tiles. For the single LR domain of the last section periodic boundaries 
+! along the first dimension are imposed by adding a {\tt connectionList} 
+! argument with only one element to the create call.
 !EOE
 !BOC
-  allocate(connectionList(3*2+2, 1))  ! (3*dimCount+2, number of connections)
+  allocate(connectionList(1))
 !EOC
 !BOE
-! and has the following format:
 !
-! {\tt (/patchIndex\_A, patchIndex\_B, positionVector, orientationVector,
-! repetitionVector/)}.
-!
-! The following constructor call can be used to construct a suitable connectionList
-! element.
+! The connection element holds information about {\tt tileIndex\_A}, 
+! {\tt tileIndex\_B}, {\tt positionVector}, and {\tt orientationVector/)}.
 !EOE
 !BOC
-  call ESMF_DistGridConnection(connection=connectionList(:,1), &
-     patchIndexA=1, patchIndexB=1, &
+  call ESMF_DistGridConnectionSet(connection=connectionList(1), &
+     tileIndexA=1, tileIndexB=1, &
      positionVector=(/5, 0/), &
      orientationVector=(/1, 2/), &
-     repetitionVector=(/1, 0/), rc=rc)
+     rc=rc)
 !EOC
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
-  
-!  print *, "connectionList(:,1) = ", connectionList(:,1)
-  
-
-
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !BOE
-! The {\tt patchIndexA} and {\tt patchIndexB} arguments specify that this is a
-! connection within patch 1. The {\tt positionVector} indicates that there is no
-! offset between patchB and patchA along the second dimension, but there is
+! \begin{sloppypar}
+! The {\tt tileIndexA} and {\tt tileIndexB} arguments specify that this is a
+! connection within tile 1. The {\tt positionVector} indicates that there is no
+! offset between tileB and tileA along the second dimension, but there is
 ! an offset of 5 along the first dimension (which in this case is the length of
-! dimension 1). This aligns patchB (which is patch 1) right next to patchA
-! (which is also patch 1).
+! dimension 1). This aligns tileB (which is tile 1) right next to tileA
+! (which is also tile 1).
+! \end{sloppypar}
 !
-! The {\tt orientationVector} fixes the orientation of the patchB index space to
-! be the same as the orientation of patchA (it maps index 1 of patchA to index 1
-! of patchB and the same for index 2). The {\tt orientationVector} could have
+! The {\tt orientationVector} fixes the orientation of the tileB index space to
+! be the same as the orientation of tileA (it maps index 1 of tileA to index 1
+! of tileB and the same for index 2). The {\tt orientationVector} could have
 ! been omitted in this case which corresponds to the default orientation.
 !
-! Finally, the {\tt repetitionVector} idicates that this connetion element will
-! be periodically repeated along dimension 1.
-!
-! The {\tt connectionList} can now be used to create a {\tt DistGrid} object with the
-! desired boundary conditions.
+! The {\tt connectionList} can now be used to create a {\tt DistGrid} object 
+! with the desired boundary conditions.
 !BOC
   distgrid = ESMF_DistGridCreate(minIndex=(/1,1/), maxIndex=(/5,5/), &
     deBlockList=deBlockList, connectionList=connectionList, rc=rc)
 !EOC
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   
-!  call ESMF_DistGridPrint(distgrid, rc=rc)
-!  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  call ESMF_DistGridPrint(distgrid, rc=rc)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   
   call ESMF_DistGridDestroy(distgrid, rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !BOC
   deallocate(connectionList)
 !EOC
   deallocate(deBlockList)
 !BOE
-! This closes the patch along the first dimension on itself, thus imposing
+! This closes the tile along the first dimension on itself, thus imposing
 ! periodic boundaries along this direction.
 !EOE
 
 !BOE
-! \subsubsection{2D patchwork DistGrid with regular decomposition}
+! \subsubsection{2D tilework DistGrid with regular decomposition}
 ! 
 ! Creating a DistGrid from a list of LR domains is a straight forward
 ! extension of the case with a single LR domain. The first four 
 ! arguments of {\tt ESMF\_DistGridCreate()} are promoted to rank 2, the 
-! second dimension being the patch count index.
+! second dimension being the tile count index.
 ! 
-! The following 2D patchwork domain consisting of 3 LR patches will 
+! The following 2D tilework domain consisting of 3 LR tiles will 
 ! be used in the examples of this section:
 ! \begin{verbatim}
 !   ----------------------------------------> 2nd dim
@@ -690,12 +680,12 @@ program ESMF_DistGridEx
 !  1st dim
 ! \end{verbatim}
 !
-! The first step in creating a patchwork global domain is to construct the
+! The first step in creating a tilework global domain is to construct the
 ! {\tt minIndex} and {\tt maxIndex} arrays.
 !EOE
 !BOC
-  allocate(minIndex(2,3))    ! (dimCount, number of patches)
-  allocate(maxIndex(2,3))    ! (dimCount, number of patches)
+  allocate(minIndex(2,3))    ! (dimCount, number of tiles)
+  allocate(maxIndex(2,3))    ! (dimCount, number of tiles)
   minIndex(:,1) = (/11,1/)
   maxIndex(:,1) = (/20,10/)
   minIndex(:,2) = (/11,11/)
@@ -704,12 +694,12 @@ program ESMF_DistGridEx
   maxIndex(:,3) = (/10,20/)
 !EOC  
 !BOE
-! Next the regular decomposition for each patch is set up in the
-! {\tt regDecomp} array. In this example each patch is associated with a
+! Next the regular decomposition for each tile is set up in the
+! {\tt regDecomp} array. In this example each tile is associated with a
 ! single DE.
 !EOE
 !BOC
-  allocate(regDecomp(2,3))    ! (dimCount, number of patches)
+  allocate(regDecomp(2,3))    ! (dimCount, number of tiles)
   regDecomp(:,1) = (/1,1/)    ! one DE
   regDecomp(:,2) = (/1,1/)    ! one DE
   regDecomp(:,3) = (/1,1/)    ! one DE
@@ -718,46 +708,46 @@ program ESMF_DistGridEx
 ! Finally the DistGrid can be created by calling
 !EOE
 !BOC
-  distgrid = ESMF_DistGridCreate(minIndex=minIndex, maxIndex=maxIndex, &
-    regDecomp=regDecomp, rc=rc)
+  distgrid = ESMF_DistGridCreate(minIndexPTile=minIndex, &
+    maxIndexPTile=maxIndex, regDecompPTile=regDecomp, rc=rc)
 !EOC  
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
 !  call ESMF_DistGridPrint(distgrid, rc=rc)
-!  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+!  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   
   call ESMF_DistGridDestroy(distgrid, rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
 !BOE
-! The default DE labeling sequence is identical to the patch labeling sequence
-! and follows the sequence in which the patches are defined during the create
-! call. However, DE labels start at 0 whereas patch labels start at 1. In this 
+! The default DE labeling sequence is identical to the tile labeling sequence
+! and follows the sequence in which the tiles are defined during the create
+! call. However, DE labels start at 0 whereas tile labels start at 1. In this 
 ! case the DE labels look as:
 ! \begin{verbatim}
 !         2
 !     0   1
 ! \end{verbatim}
 !
-! Each patch can be decomposed differently into DEs. The default DE labeling 
-! follows the column major order for each patch. This is demonstrated in the
-! following case where the patchwork global domain is decomposed into 9 DEs,
+! Each tile can be decomposed differently into DEs. The default DE labeling 
+! follows the column major order for each tile. This is demonstrated in the
+! following case where the tilework global domain is decomposed into 9 DEs,
 !EOE
 !BOC
   regDecomp(:,1) = (/2,2/)    ! 4 DEs
   regDecomp(:,2) = (/1,3/)    ! 3 DEs
   regDecomp(:,3) = (/2,1/)    ! 2 DEs
   
-  distgrid = ESMF_DistGridCreate(minIndex=minIndex, maxIndex=maxIndex, &
-    regDecomp=regDecomp, rc=rc)
+  distgrid = ESMF_DistGridCreate(minIndexPTile=minIndex, &
+    maxIndexPTile=maxIndex, regDecompPTile=regDecomp, rc=rc)
 !EOC
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
 !  call ESMF_DistGridPrint(distgrid, rc=rc)
-!  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+!  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
   call ESMF_DistGridDestroy(distgrid, rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !BOE
 ! resulting in the following decomposition:
 ! \begin{verbatim}
@@ -786,7 +776,7 @@ program ESMF_DistGridEx
 !
 ! The {\tt decompflag} and {\tt deLabelList} arguments can be used much like
 ! in the single LR domain case to overwrite the default grid decomposition 
-! (per patch) and to change the overall DE labeling sequence, respectively.
+! (per tile) and to change the overall DE labeling sequence, respectively.
 !EOE
 
 !BOE
@@ -814,7 +804,8 @@ program ESMF_DistGridEx
   allocate(arbSeqIndexList(10))   ! each PET will have 10 elements
   
   do i=1, 10
-    arbSeqIndexList(i) = (i-1)*petCount + localPet  ! initialize unique seq. indices
+    arbSeqIndexList(i) = (i-1)*petCount + localPet ! initialize unique 
+                                                   ! seq. indices
   enddo
 !EOC
   
@@ -826,7 +817,7 @@ program ESMF_DistGridEx
 !BOC
   distgrid = ESMF_DistGridCreate(arbSeqIndexList=arbSeqIndexList, rc=rc)
 !EOC
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
 !BOE
 ! The user provided sequence index array can be deallocated once it has
@@ -838,7 +829,7 @@ program ESMF_DistGridEx
 !EOC
 
 !  call ESMF_DistGridPrint(distgrid, rc=rc)
-!  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+!  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
 !BOE
 ! The {\tt distgrid} object can be used just like any other DistGrid object.
@@ -851,7 +842,7 @@ program ESMF_DistGridEx
 !BOC
   call ESMF_DistGridDestroy(distgrid, rc=rc)
 !EOC
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
 !BOE
 ! The second {\tt ESMF\_DistGridCreate()} call, that accepts the 
@@ -868,7 +859,8 @@ program ESMF_DistGridEx
   allocate(arbSeqIndexList(10))   ! each PET will have 10 elements
   
   do i=1, 10
-    arbSeqIndexList(i) = (i-1)*petCount + localPet  ! initialize unique seq. indices
+    arbSeqIndexList(i) = (i-1)*petCount + localPet  ! initialize unique 
+                                                    ! seq. indices
   enddo
 !EOC
 
@@ -883,20 +875,20 @@ program ESMF_DistGridEx
 
 !BOC
   distgrid = ESMF_DistGridCreate(arbSeqIndexList=arbSeqIndexList, &
-    arbDim=1, minIndex=(/1,1/), maxIndex=(/5,7/), rc=rc)
+    arbDim=1, minIndexPTile=(/1,1/), maxIndexPTile=(/5,7/), rc=rc)
 !EOC
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
 !BOC
   deallocate(arbSeqIndexList)
 !EOC
-  call ESMF_DistGridPrint(distgrid, rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+!  call ESMF_DistGridPrint(distgrid, rc=rc)
+!  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
 !BOC
   call ESMF_DistGridDestroy(distgrid, rc=rc)
 !EOC
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
 
 10 continue

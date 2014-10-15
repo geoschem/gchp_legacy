@@ -1,7 +1,7 @@
-! $Id: ESMF_AttributeABundleUTest.F90,v 1.23.2.1 2010/02/05 20:03:39 svasquez Exp $
+! $Id$
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2010, University Corporation for Atmospheric Research,
+! Copyright 2002-2012, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -29,13 +29,13 @@ program ESMF_AttributeArrayBundleUTest
 !-----------------------------------------------------------------------------
 ! !USES:
       use ESMF_TestMod     ! test methods
-      use ESMF_Mod         ! the ESMF Framework
+      use ESMF         ! the ESMF Framework
       implicit none
 
 !------------------------------------------------------------------------------
 ! The following line turns the CVS identifier string into a printable variable.
       character(*), parameter :: version = &
-      '$Id: ESMF_AttributeABundleUTest.F90,v 1.23.2.1 2010/02/05 20:03:39 svasquez Exp $'
+      '$Id$'
 !------------------------------------------------------------------------------
 
 !-------------------------------------------------------------------------
@@ -53,7 +53,7 @@ program ESMF_AttributeArrayBundleUTest
       type(ESMF_DistGrid) :: distgrid
       character(ESMF_MAXSTR) :: attrname, attrnameOut, attrvalue
       integer                :: rc, count, items
-      type(ESMF_TypeKind)    :: attrTK
+      type(ESMF_TypeKind_Flag)    :: attrTK
 
       real(ESMF_KIND_I8)                     :: inR8, outR8, defaultR8, dfltoutR8
       real(ESMF_KIND_I8), dimension(3)       :: inR8l, defaultR8l, dfltoutR8l, outR8l
@@ -775,9 +775,9 @@ program ESMF_AttributeArrayBundleUTest
       ! Too Short Get an ESMF_R8 list Attribute from an ArrayBundle Test
       call ESMF_AttributeGet(arraybundle, name="AttrR8l", &
         valueList=outR8lLong(1:2), itemCount=itemCount, rc=rc)
-      write(failMsg, *) "Did not return ESMF_RC_ARG_BAD"
+      write(failMsg, *) "Did not return ESMF_RC_ATTR_ITEMSOFF"
       write(name, *) "Getting an ESMF_R8l Attribute from an ArrayBundle Test with short valueList"
-      call ESMF_Test(rc==ESMF_RC_ARG_BAD, name, failMsg, result, ESMF_SRCLINE)
+      call ESMF_Test(rc/=ESMF_SUCCESS, name, failMsg, result, ESMF_SRCLINE)
       !------------------------------------------------------------------------
 
       itemCount = 3
@@ -808,9 +808,9 @@ program ESMF_AttributeArrayBundleUTest
       ! Too Short Get a char list Attribute from an ArrayBundle Test
       call ESMF_AttributeGet(arraybundle, name="Charl", &
         valueList=outCharlLong(1:2),itemCount=itemCount, rc=rc)
-      write(failMsg, *) "Did not return ESMF_RC_ARG_BAD"
+      write(failMsg, *) "Did not return ESMF_RC_ATTR_ITEMSOFF"
       write(name, *) "Getting an Attribute char list from an ArrayBundle test with short valueList"
-      call ESMF_Test((rc==ESMF_RC_ARG_BAD), name, failMsg, result, ESMF_SRCLINE)
+      call ESMF_Test((rc/=ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
       !------------------------------------------------------------------------
 
       itemCount = 3
@@ -1163,7 +1163,8 @@ program ESMF_AttributeArrayBundleUTest
         attwriteflag=ESMF_ATTWRITE_XML, rc=rc)
       write(failMsg, *) "Did not return ESMF_SUCCESS"
       write(name, *) "Writing an Attribute package to .xml from an ArrayBundle Test"
-      call ESMF_Test((rc==ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+      call ESMF_Test((rc==ESMF_SUCCESS .or. rc==ESMF_RC_LIB_NOT_PRESENT), &
+                      name, failMsg, result, ESMF_SRCLINE)
       !------------------------------------------------------------------------
 
       !EX_UTest
@@ -1196,7 +1197,7 @@ program ESMF_AttributeArrayBundleUTest
       call ESMF_AttributeLink(arraybundle, afb, rc=rc)
       write(failMsg, *) "Did not return ESMC_RC_ATTR_LINK"
       write(name, *) "Linking an ArrayBundle hierarchy to a Array hierarchy Test, again"
-      call ESMF_Test((rc==ESMC_RC_ATTR_LINK), name, failMsg, result, ESMF_SRCLINE)
+      call ESMF_Test((rc==ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
       !------------------------------------------------------------------------
 
       !EX_UTest
@@ -1205,6 +1206,22 @@ program ESMF_AttributeArrayBundleUTest
       write(failMsg, *) "Did not return ESMF_SUCCESS"
       write(name, *) "Unlinking an ArrayBundle hierarchy from a Array hierarchy Test"
       call ESMF_Test((rc==ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+      !------------------------------------------------------------------------
+
+      !EX_UTest
+      ! Unlink an ArrayBundle Attribute hierarchy from a Array Attribute hierarchy ArrayBundle Test 2
+      call ESMF_AttributeLinkRemove(arraybundle, afb, rc=rc)
+      write(failMsg, *) "Did not return ESMF_SUCCESS"
+      write(name, *) "Unlinking an ArrayBundle hierarchy from a Array hierarchy Test 2"
+      call ESMF_Test((rc==ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+      !------------------------------------------------------------------------
+
+      !EX_UTest
+      ! Unlink an ArrayBundle Attribute hierarchy from a Array Attribute hierarchy ArrayBundle Test 3
+      call ESMF_AttributeLinkRemove(arraybundle, afb, rc=rc)
+      write(failMsg, *) "Did not return ESMF_SUCCESS"
+      write(name, *) "Unlinking an ArrayBundle hierarchy from a Array hierarchy Test 3"
+      call ESMF_Test((rc/=ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
       !------------------------------------------------------------------------
 
 #endif
@@ -1259,7 +1276,7 @@ program ESMF_AttributeArrayBundleUTest
       call ESMF_ArrayDestroy(array(2), rc=rc)
       call ESMF_DistGridDestroy(distgrid, rc=rc)
 
-      if (rc .ne. ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+      if (rc .ne. ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
   !-----------------------------------------------------------------------------
   call ESMF_TestEnd(result, ESMF_SRCLINE)

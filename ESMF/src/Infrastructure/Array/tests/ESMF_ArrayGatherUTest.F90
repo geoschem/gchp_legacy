@@ -1,7 +1,7 @@
-! $Id: ESMF_ArrayGatherUTest.F90,v 1.14.2.1 2010/02/05 19:52:57 svasquez Exp $
+! $Id: ESMF_ArrayGatherUTest.F90,v 1.1.5.1 2013-01-11 20:23:43 mathomp4 Exp $
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2010, University Corporation for Atmospheric Research,
+! Copyright 2002-2012, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -29,14 +29,14 @@ program ESMF_ArrayGatherUTest
 !-----------------------------------------------------------------------------
 ! !USES:
     use ESMF_TestMod     ! test methods
-    use ESMF_Mod
+    use ESMF
   
     implicit none
 
 !------------------------------------------------------------------------------
 ! The following line turns the CVS identifier string into a printable variable.
     character(*), parameter :: version = &
-    '$Id: ESMF_ArrayGatherUTest.F90,v 1.14.2.1 2010/02/05 19:52:57 svasquez Exp $'
+    '$Id: ESMF_ArrayGatherUTest.F90,v 1.1.5.1 2013-01-11 20:23:43 mathomp4 Exp $'
 !------------------------------------------------------------------------------
 
     ! cumulative result: count failures; no failures equals "all pass"
@@ -53,10 +53,10 @@ program ESMF_ArrayGatherUTest
 
     call ESMF_TestStart(ESMF_SRCLINE, rc=rc)
     if(rc /= ESMF_SUCCESS) &
-        call ESMF_Finalize(terminationflag=ESMF_ABORT)
+        call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
     if (.not. ESMF_TestMinPETs(4, ESMF_SRCLINE)) &
-        call ESMF_Finalize(terminationflag=ESMF_ABORT)
+        call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
     !------------------------------------------------------------------------
     !NEX_UTest_Multi_Proc_Only
@@ -131,45 +131,45 @@ contains
         localrc = ESMF_SUCCESS
 
         call ESMF_VMGetCurrent(vm, rc=localrc)
-        if (ESMF_LogMsgFoundError(localrc, &
+        if (ESMF_LogFoundError(localrc, &
             ESMF_ERR_PASSTHRU, &
-            ESMF_CONTEXT, rc)) return
+            ESMF_CONTEXT, rcToReturn=rc)) return
 
         call ESMF_VMGet(vm, localPet=lpe, rc=localrc)
-        if (ESMF_LogMsgFoundError(localrc, &
+        if (ESMF_LogFoundError(localrc, &
             ESMF_ERR_PASSTHRU, &
-            ESMF_CONTEXT, rc)) return
+            ESMF_CONTEXT, rcToReturn=rc)) return
 
         distgrid = ESMF_DistGridCreate(minIndex =(/1/), maxIndex=(/16/), &
             rc=localrc)
-        if (ESMF_LogMsgFoundError(localrc, &
+        if (ESMF_LogFoundError(localrc, &
             ESMF_ERR_PASSTHRU, &
-            ESMF_CONTEXT, rc)) return
+            ESMF_CONTEXT, rcToReturn=rc)) return
 
         call ESMF_ArraySpecSet(arrayspec, typekind=ESMF_TYPEKIND_I4, rank=1, &
           rc=localrc)
-        if (ESMF_LogMsgFoundError(localrc, &
+        if (ESMF_LogFoundError(localrc, &
             ESMF_ERR_PASSTHRU, &
-            ESMF_CONTEXT, rc)) return
+            ESMF_CONTEXT, rcToReturn=rc)) return
 
-        array = ESMF_ArrayCreate(arrayspec, distgrid=distgrid, &
+        array = ESMF_ArrayCreate(distgrid, arrayspec, &
           totalLWidth=totalLWidth, totalUWidth=totalUWidth, rc=localrc)
-        if (ESMF_LogMsgFoundError(localrc, &
+        if (ESMF_LogFoundError(localrc, &
             ESMF_ERR_PASSTHRU, &
-            ESMF_CONTEXT, rc)) return
+            ESMF_CONTEXT, rcToReturn=rc)) return
 
         call ESMF_ArrayGet(array, farrayPtr=farray, rc=localrc)
-        if (ESMF_LogMsgFoundError(localrc, &
+        if (ESMF_LogFoundError(localrc, &
             ESMF_ERR_PASSTHRU, &
-            ESMF_CONTEXT, rc)) return
+            ESMF_CONTEXT, rcToReturn=rc)) return
 
         farray = lpe  ! fill array with values
 
         if(lpe .eq. 0) allocate(farrayDst(16))  ! rootPet
         call ESMF_ArrayGather(array, farrayDst, rootPet=0, rc=localrc)
-        if (ESMF_LogMsgFoundError(localrc, &
+        if (ESMF_LogFoundError(localrc, &
             ESMF_ERR_PASSTHRU, &
-            ESMF_CONTEXT, rc)) return
+            ESMF_CONTEXT, rcToReturn=rc)) return
 
         ! check that the values gathered on rootPet are correct
         if(lpe .eq. 0) then
@@ -178,20 +178,20 @@ contains
                     if(farrayDst((i-1)*4+j) .ne. i-1) localrc=ESMF_FAILURE
                 enddo
             enddo
-            if (ESMF_LogMsgFoundError(localrc, &
+            if (ESMF_LogFoundError(localrc, &
                 ESMF_ERR_PASSTHRU, &
-                ESMF_CONTEXT, rc)) return
+                ESMF_CONTEXT, rcToReturn=rc)) return
         endif
 
         call ESMF_ArrayDestroy(array, rc=localrc)
-        if (ESMF_LogMsgFoundError(localrc, &
+        if (ESMF_LogFoundError(localrc, &
             ESMF_ERR_PASSTHRU, &
-            ESMF_CONTEXT, rc)) return
+            ESMF_CONTEXT, rcToReturn=rc)) return
                     
         call ESMF_DistGridDestroy(distgrid, rc=localrc)
-        if (ESMF_LogMsgFoundError(localrc, &
+        if (ESMF_LogFoundError(localrc, &
             ESMF_ERR_PASSTHRU, &
-            ESMF_CONTEXT, rc)) return
+            ESMF_CONTEXT, rcToReturn=rc)) return
         
         if(lpe .eq. 0) deallocate(farrayDst)
 
@@ -218,45 +218,45 @@ contains
         localrc = ESMF_SUCCESS
 
         call ESMF_VMGetCurrent(vm, rc=localrc)
-        if (ESMF_LogMsgFoundError(localrc, &
+        if (ESMF_LogFoundError(localrc, &
             ESMF_ERR_PASSTHRU, &
-            ESMF_CONTEXT, rc)) return
+            ESMF_CONTEXT, rcToReturn=rc)) return
 
         call ESMF_VMGet(vm, localPet=lpe, rc=localrc)
-        if (ESMF_LogMsgFoundError(localrc, &
+        if (ESMF_LogFoundError(localrc, &
             ESMF_ERR_PASSTHRU, &
-            ESMF_CONTEXT, rc)) return
+            ESMF_CONTEXT, rcToReturn=rc)) return
 
         distgrid = ESMF_DistGridCreate(minIndex=(/1,1/), maxIndex=(/10,20/), &
             regDecomp=(/2,2/), rc=localrc)
-        if (ESMF_LogMsgFoundError(localrc, &
+        if (ESMF_LogFoundError(localrc, &
             ESMF_ERR_PASSTHRU, &
-            ESMF_CONTEXT, rc)) return
+            ESMF_CONTEXT, rcToReturn=rc)) return
 
         call ESMF_ArraySpecSet(arrayspec, typekind=ESMF_TYPEKIND_I4, rank=2, &
           rc=localrc)
-        if (ESMF_LogMsgFoundError(localrc, &
+        if (ESMF_LogFoundError(localrc, &
             ESMF_ERR_PASSTHRU, &
-            ESMF_CONTEXT, rc)) return
+            ESMF_CONTEXT, rcToReturn=rc)) return
 
-        array = ESMF_ArrayCreate(arrayspec, distgrid=distgrid, &
+        array = ESMF_ArrayCreate(distgrid, arrayspec, &
           totalLWidth=totalLWidth, totalUWidth=totalUWidth, rc=localrc)
-        if (ESMF_LogMsgFoundError(localrc, &
+        if (ESMF_LogFoundError(localrc, &
             ESMF_ERR_PASSTHRU, &
-            ESMF_CONTEXT, rc)) return
+            ESMF_CONTEXT, rcToReturn=rc)) return
 
         call ESMF_ArrayGet(array, farrayPtr=farray, rc=localrc)
-        if (ESMF_LogMsgFoundError(localrc, &
+        if (ESMF_LogFoundError(localrc, &
             ESMF_ERR_PASSTHRU, &
-            ESMF_CONTEXT, rc)) return
+            ESMF_CONTEXT, rcToReturn=rc)) return
 
         farray = lpe  ! fill array with values
 
         if(lpe .eq. 0) allocate(farrayDst(10,20))  ! rootPet
         call ESMF_ArrayGather(array, farrayDst, rootPet=0, rc=localrc)
-        if (ESMF_LogMsgFoundError(localrc, &
+        if (ESMF_LogFoundError(localrc, &
             ESMF_ERR_PASSTHRU, &
-            ESMF_CONTEXT, rc)) return
+            ESMF_CONTEXT, rcToReturn=rc)) return
 
         ! check that the values gathered on rootPet are correct
         if(lpe .eq. 0) then
@@ -265,20 +265,20 @@ contains
                     if(farrayDst(i*5, j*10) .ne. (i-1)+(j-1)*2) localrc=ESMF_FAILURE
                 enddo
             enddo
-            if (ESMF_LogMsgFoundError(localrc, &
+            if (ESMF_LogFoundError(localrc, &
                 ESMF_ERR_PASSTHRU, &
-                ESMF_CONTEXT, rc)) return
+                ESMF_CONTEXT, rcToReturn=rc)) return
         endif
 
         call ESMF_ArrayDestroy(array, rc=localrc)
-        if (ESMF_LogMsgFoundError(localrc, &
+        if (ESMF_LogFoundError(localrc, &
             ESMF_ERR_PASSTHRU, &
-            ESMF_CONTEXT, rc)) return
+            ESMF_CONTEXT, rcToReturn=rc)) return
                     
         call ESMF_DistGridDestroy(distgrid, rc=localrc)
-        if (ESMF_LogMsgFoundError(localrc, &
+        if (ESMF_LogFoundError(localrc, &
             ESMF_ERR_PASSTHRU, &
-            ESMF_CONTEXT, rc)) return
+            ESMF_CONTEXT, rcToReturn=rc)) return
         
         if(lpe .eq. 0) deallocate(farrayDst)
         rc = ESMF_SUCCESS
@@ -305,45 +305,45 @@ contains
         localrc = ESMF_SUCCESS
 
         call ESMF_VMGetCurrent(vm, rc=localrc)
-        if (ESMF_LogMsgFoundError(localrc, &
+        if (ESMF_LogFoundError(localrc, &
             ESMF_ERR_PASSTHRU, &
-            ESMF_CONTEXT, rc)) return
+            ESMF_CONTEXT, rcToReturn=rc)) return
 
         call ESMF_VMGet(vm, localPet=lpe, rc=localrc)
-        if (ESMF_LogMsgFoundError(localrc, &
+        if (ESMF_LogFoundError(localrc, &
             ESMF_ERR_PASSTHRU, &
-            ESMF_CONTEXT, rc)) return
+            ESMF_CONTEXT, rcToReturn=rc)) return
 
         distgrid = ESMF_DistGridCreate(minIndex=(/1,1,1/), &
             maxIndex=(/10,20,5/), regDecomp=(/2,2,1/), rc=localrc)
-        if (ESMF_LogMsgFoundError(localrc, &
+        if (ESMF_LogFoundError(localrc, &
             ESMF_ERR_PASSTHRU, &
-            ESMF_CONTEXT, rc)) return
+            ESMF_CONTEXT, rcToReturn=rc)) return
 
         call ESMF_ArraySpecSet(arrayspec, typekind=ESMF_TYPEKIND_I4, rank=3, &
           rc=localrc)
-        if (ESMF_LogMsgFoundError(localrc, &
+        if (ESMF_LogFoundError(localrc, &
             ESMF_ERR_PASSTHRU, &
-            ESMF_CONTEXT, rc)) return
+            ESMF_CONTEXT, rcToReturn=rc)) return
 
-        array = ESMF_ArrayCreate(arrayspec, distgrid=distgrid, &
+        array = ESMF_ArrayCreate(distgrid, arrayspec, &
           totalLWidth=totalLWidth, totalUWidth=totalUWidth, rc=localrc)
-        if (ESMF_LogMsgFoundError(localrc, &
+        if (ESMF_LogFoundError(localrc, &
             ESMF_ERR_PASSTHRU, &
-            ESMF_CONTEXT, rc)) return
+            ESMF_CONTEXT, rcToReturn=rc)) return
 
         call ESMF_ArrayGet(array, farrayPtr=farray, rc=localrc)
-        if (ESMF_LogMsgFoundError(localrc, &
+        if (ESMF_LogFoundError(localrc, &
             ESMF_ERR_PASSTHRU, &
-            ESMF_CONTEXT, rc)) return
+            ESMF_CONTEXT, rcToReturn=rc)) return
 
         farray = lpe  ! fill array with values
 
         if(lpe .eq. 0) allocate(farrayDst(10,20,5))  ! rootPet
         call ESMF_ArrayGather(array, farrayDst, rootPet=0, rc=localrc)
-        if (ESMF_LogMsgFoundError(localrc, &
+        if (ESMF_LogFoundError(localrc, &
             ESMF_ERR_PASSTHRU, &
-            ESMF_CONTEXT, rc)) return
+            ESMF_CONTEXT, rcToReturn=rc)) return
 
         ! check that the values gathered on rootPet are correct
         if(lpe .eq. 0) then
@@ -354,20 +354,20 @@ contains
                     enddo
                 enddo
             enddo
-            if (ESMF_LogMsgFoundError(localrc, &
+            if (ESMF_LogFoundError(localrc, &
                 ESMF_ERR_PASSTHRU, &
-                ESMF_CONTEXT, rc)) return
+                ESMF_CONTEXT, rcToReturn=rc)) return
         endif
 
         call ESMF_ArrayDestroy(array, rc=localrc)
-        if (ESMF_LogMsgFoundError(localrc, &
+        if (ESMF_LogFoundError(localrc, &
             ESMF_ERR_PASSTHRU, &
-            ESMF_CONTEXT, rc)) return
+            ESMF_CONTEXT, rcToReturn=rc)) return
                     
         call ESMF_DistGridDestroy(distgrid, rc=localrc)
-        if (ESMF_LogMsgFoundError(localrc, &
+        if (ESMF_LogFoundError(localrc, &
             ESMF_ERR_PASSTHRU, &
-            ESMF_CONTEXT, rc)) return
+            ESMF_CONTEXT, rcToReturn=rc)) return
         
         if(lpe .eq. 0) deallocate(farrayDst)
         rc = ESMF_SUCCESS

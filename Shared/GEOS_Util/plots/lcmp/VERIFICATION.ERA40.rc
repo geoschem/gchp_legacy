@@ -1,0 +1,18 @@
+
+OBSNAM: era40
+OBSDSC: ERA40_REANAL_Jan_1958-Dec_2001
+
+        filename:   'VERIFICATION/ERA40/era40_pressure.ctl'
+        filetype:   'BIN'
+        fields:     'ZLE'      , 'DYN'           , 'HGT'    , 1/9.80665
+                    'T'        , 'DYN'           , 'TMP'    , 1
+                    'U'        , 'DYN'           , 'UGRD'   , 1
+                    'V'        , 'DYN'           , 'VGRD'   , 1
+                    'RH2'      , 'MOIST'         , 'RH'     , 1
+                    'Q'        , 'MOIST'         , 'SPFH'   , 1
+                    ::
+
+        filename:   'VERIFICATION/ERA40/era40.monthly_mean.ctl'
+        filetype:   'BIN'
+        fields:     'SLP'      , 'DYN'           , 'MSLSFC' , 1
+                    ::

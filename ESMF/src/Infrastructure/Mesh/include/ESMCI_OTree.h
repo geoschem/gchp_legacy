@@ -1,7 +1,7 @@
-// $Id: ESMCI_OTree.h,v 1.4.2.1 2010/02/05 19:59:29 svasquez Exp $
+// $Id$
 //
 // Earth System Modeling Framework
-// Copyright 2002-2010, University Corporation for Atmospheric Research, 
+// Copyright 2002-2012, University Corporation for Atmospheric Research, 
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
 // Laboratory, University of Michigan, National Centers for Environmental 
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
@@ -75,6 +75,8 @@ class OTree {    // inherits from ESMC_Base class
   int max_size_mem;
   int curr_size_mem;
 
+  // committed
+  bool is_committed;
 
  public:
 

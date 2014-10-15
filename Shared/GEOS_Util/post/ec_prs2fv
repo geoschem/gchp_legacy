@@ -1,0 +1,63 @@
+#!/bin/csh -f
+
+set nymd = $1
+set nhms = $2
+set hour = `echo $nhms | cut -c1-2`
+
+set xdim = 1152
+set ydim = 721
+
+# Link Background GEOS5 Restarts and Topography
+# ---------------------------------------------
+/bin/ln -s /discover/nobackup/ltakacs/GEOSadas-5_6_2_p3/restarts/orig/*fvcore_internal_rst.${nymd}_${hour}z.* .
+/bin/ln -s /discover/nobackup/ltakacs/GEOSadas-5_6_2_p3/restarts/orig/*moist_internal_rst.${nymd}_${hour}z.* .
+
+set dynrst = `ls *fvcore_internal_rst.${nymd}_${hour}z.*`
+set mstrst = `ls *moist_internal_rst.${nymd}_${hour}z.*`
+set topo   = /discover/nobackup/ltakacs/bcs/Fortuna-2_1/${xdim}x${ydim}/topo_DYN_ave_${xdim}x${ydim}_DC.data
+
+
+# Link Original ECMWF.nc File
+# ---------------------------
+/bin/rm -f ecmwf.data
+/bin/ln -s /discover/nobackup/dao_ops/intermediate/flk/stage/ecmwf/ecmwf.inst3_3d_wxm_Np.${nymd}_${hour}z+${nymd}_${hour}z.nc  ecmwf.data
+
+
+# Convert Original ECMWF.nc File to GFIO-Readable nc4 File (Creates:  grads.fwrite.nc4)
+# -------------------------------------------------------------------------------------
+/bin/rm -f                                               grads.commands
+touch                                                    grads.commands
+echo \'sdfopen ecmwf.data\'                           >> grads.commands
+echo \'run $GEOSUTIL/plots/grads_util/writegrads.gs\' >> grads.commands
+echo \'q ctlinfo\'                                    >> grads.commands
+echo   write \(ctlinfo,\result\)                      >> grads.commands
+echo \'quit\'                                         >> grads.commands
+gradsnc4 -b -l -c "run grads.commands"
+
+$GEOSUTIL/post/flat2hdf.x -flat grads.fwrite -ctl ctlinfo -nymd $nymd -nhms $nhms -ndt 21600
+
+
+# Remap ECMWF data to GEOS Grid (Creates: $dynrst.ecmwf & $mstrst.ecmwf)
+# ----------------------------------------------------------------------
+$GEOSUTIL/post/ec_prs2fv.x -dyn   $dynrst            \
+                           -moist $mstrst            \
+                           -ecmwf grads.fwrite.nc4   \
+                           -topo  $topo              \
+                           -nymd  $nymd -nhms $nhms
+
+
+# Convert G5ECMWF Restarts to BKG.ETA format (Creates:  g5ecmwf.bkg.eta)
+# ----------------------------------------------------------------------
+$GEOSUTIL/post/rs2hdf.x -dynrst   $dynrst.ecmwf     \
+                        -moistrst $mstrst.ecmwf     \
+                        -topo     $topo             \
+                        -tag      g5ecmwf           \
+                        -nymd     $nymd -nhms $nhms
+
+
+# Construct Initial Condition PRS File from BKG.ETA File for Stats (Creates:  g5ecmwf.bkg.prs)
+# --------------------------------------------------------------------------------------------
+$GEOSUTIL/post/eta2prs.x -eta  g5ecmwf.bkg.eta.${nymd}_${hour}z.nc4                   \
+                         -levs 1000 925 850 700 500 400 300 250 200 150 100 50 20 10  \
+                         -ana -noquad -tag g5ecmwf.bkg.prs
+

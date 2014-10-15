@@ -1,7 +1,7 @@
-! $Id: ESMF_WordsizeUTest.F90,v 1.14.4.1 2010/02/05 20:08:17 svasquez Exp $
+! $Id: ESMF_WordsizeUTest.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2010, University Corporation for Atmospheric Research,
+! Copyright 2002-2012, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -14,11 +14,7 @@
     
 #include "ESMF.h"
 
-! must do this to use the ESMC_Conf.h file from fortran
-#define _FROM_FORTRAN 1
-#include "ESMC_Conf.h"
-
-    use ESMF_Mod
+    use ESMF
     use ESMF_TestMod
     implicit none
 

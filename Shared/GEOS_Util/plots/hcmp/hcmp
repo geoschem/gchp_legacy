@@ -1,0 +1,342 @@
+function hcmp (args)
+
+EXPORT   = subwrd(args,1)
+GC       = subwrd(args,2)
+
+expid    = subwrd(args,3)
+output   = subwrd(args,4)
+analysis = subwrd(args,5)
+debug    = subwrd(args,6)
+ 
+* Define Seasons to Process
+* -------------------------
+seasons  = ''
+       k = 7
+while( k > 0 )
+    season = subwrd(args,k)
+if( season = '' )
+    k = -1
+else
+    seasons = seasons % ' ' % season
+k = k+1
+endif
+endwhile
+'uppercase 'seasons
+          seasons = result
+
+
+* Initialize
+* ----------
+levs = "1000 925 850 700 600 500 400 300 250 200 150 100 70 50 30"
+
+'reinit'
+'set display color white'
+'set csmooth on'
+'c'
+
+
+* Determine Variable Name and Data File
+* -------------------------------------
+if ( EXPORT = "HE" )
+    'run getvar  ZLE DYN'
+else
+    'run getvar 'EXPORT' 'GC
+endif
+         qname  = subwrd(result,1)
+         qfile  = subwrd(result,2)
+         scale  = subwrd(result,3)
+         expdsc = subwrd(result,4)
+
+
+* Return if EXPORT not found
+* --------------------------
+if( qfile = "NULL" ) 
+    return
+endif
+
+
+* Get Environment Variables
+* -------------------------
+'run getenv "GEOSUTIL"'
+         geosutil = result
+
+'run getenv "VERIFICATION"'
+         verification = result
+
+'run getenv "STD_DEV"'
+         std_dev  = result
+
+
+* Set Levels
+* ----------
+if( EXPORT = "SLP" )
+    zmax = 1
+else
+   'numargs 'levs
+    zmax = result
+endif
+say 'Number of Levels = 'zmax
+
+
+*PLOTS
+*-----
+z = 1
+while ( z<=zmax )
+
+* Set Default EXPORT Model and Observation Scaling Factors
+* --------------------------------------------------------
+                         facm = 1    ; faco = 1
+if( EXPORT = "U"     ) ; facm = 1    ; faco = 1    ; endif
+if( EXPORT = "V"     ) ; facm = 1    ; faco = 1    ; endif
+if( EXPORT = "T"     ) ; facm = 1    ; faco = 1    ; endif
+if( EXPORT = "Q"     ) ; facm = 1000 ; faco = 1000 ; endif
+if( EXPORT = "RH2"   ) ; facm = 100  ; faco = 1    ; endif
+if( EXPORT = "SLP"   ) ; facm = 0.01 ; faco = 0.01 ; endif
+
+
+* Model Experiment Data
+* ---------------------
+'set dfile 'qfile
+          level = subwrd(levs,z)
+'set lev 'level
+'getinfo level'
+      modlevel = result
+if(   modlevel = level )
+
+'setlons'
+'getinfo lonmin'
+         lonmin = result
+'getinfo lonmax'
+         lonmax = result
+'set lat -90 90'
+
+* Create Environment Variables for Seasonal Utility
+* -------------------------------------------------
+'setdates'
+'sett'
+          'alias ' qname
+           alias = result
+'chckname 'alias
+                                      fact = facm
+if( EXPORT = "ZLE"  & level < 300 ) ; fact = fact*0.001 ; endif
+if( EXPORT = "Q"    & level < 400 ) ; fact = fact*1000  ; endif
+
+'define mod = 'alias'*'fact'*'scale
+
+if( EXPORT = "HE"  ) 
+   'define mod = mod-ave(mod,lon='lonmin',lon='lonmax',-b)'
+endif
+
+'q dims'
+ say 'Model Environment:'
+ say result
+'seasonal mod'
+
+
+* Compute Verification
+* --------------------
+                                      fact = faco
+if( EXPORT = "ZLE"  & level < 300 ) ; fact = fact*0.001 ; endif
+if( EXPORT = "Q"    & level < 400 ) ; fact = fact*1000  ; endif
+
+* Check for TAYLOR Plots
+* ----------------------
+'run getenv "TAYLOR"'
+         taylor  = result
+                                                      ptaylor = false
+if( taylor = "true" & EXPORT = "SLP"              ) ; ptaylor = true  ; endif 
+if( taylor = "true" & EXPORT = "U"  & level = 850 ) ; ptaylor = true  ; endif
+if( taylor = "true" & EXPORT = "V"  & level = 850 ) ; ptaylor = true  ; endif
+if( taylor = "true" & EXPORT = "T"  & level = 850 ) ; ptaylor = true  ; endif
+if( taylor = "true" & EXPORT = "Q"  & level = 850 ) ; ptaylor = true  ; endif
+if( taylor = "true" & EXPORT = "U"  & level = 500 ) ; ptaylor = true  ; endif
+if( taylor = "true" & EXPORT = "V"  & level = 500 ) ; ptaylor = true  ; endif
+if( taylor = "true" & EXPORT = "T"  & level = 500 ) ; ptaylor = true  ; endif
+if( taylor = "true" & EXPORT = "Q"  & level = 500 ) ; ptaylor = true  ; endif
+if( taylor = "true" & EXPORT = "U"  & level = 200 ) ; ptaylor = true  ; endif
+if( taylor = "true" & EXPORT = "V"  & level = 200 ) ; ptaylor = true  ; endif
+if( taylor = "true" & EXPORT = "T"  & level = 200 ) ; ptaylor = true  ; endif
+if( taylor = "true" & EXPORT = "Q"  & level = 200 ) ; ptaylor = true  ; endif
+if( taylor = "true" & EXPORT = "HE" & level = 300 ) ; ptaylor = true  ; endif
+if( taylor = "true" & EXPORT = "HE" & level = 500 ) ; ptaylor = true  ; endif
+
+* Loop over Possible Verification Datasets and Check for Inclusion into TAYLOR Average (Currently: NCEP & ERA40)
+* --------------------------------------------------------------------------------------------------------------
+' getnumrc 'geosutil'/plots/hcmp'
+     rcinfo = result
+     numrc  = subwrd( rcinfo,1 )
+       num  = 1
+       cnt  = 0
+while( num <= numrc )
+        loc = num + 1
+     rcfile = subwrd( rcinfo,loc )
+              OBS = EXPORT
+              if( EXPORT = "HE" ) ; OBS = "ZLE" ; endif
+     'run getobs 'OBS' 'GC' 'rcfile
+               oname = subwrd(result,1)
+             obsfile = subwrd(result,2)
+              oscale = subwrd(result,3)
+              obsdsc = subwrd(result,4)
+              obsnam = subwrd(result,5)
+     if( (ptaylor = "true" & obsnam = "era40") | (ptaylor = "true" & obsnam = "ncep") | rcfile = analysis )
+            cnt =  cnt + 1
+           'set dfile 'obsfile
+           'getdates'
+
+           'getinfo   tmin'
+                      tmin = result
+           'getinfo   tmax'
+                      tmax = result
+           'set t    'tmin
+           'getinfo   date'
+                      begdateo = result
+           'set t    'tmax
+           'getinfo   date'
+                      enddateo = result
+           'run setenv   "BEGDATEO" 'begdateo
+           'run setenv   "ENDDATEO" 'enddateo
+           'set time 'begdateo' 'enddateo
+
+           'define obs'cnt' = 'oname'*'oscale'*'fact
+           if( EXPORT = "HE" ) ; 'define  obs'cnt' = (obs'cnt'-ave(obs'cnt',lon='lonmin',lon='lonmax',-b))' ; endif
+           'q dims'
+            say 'OBS'cnt'  Environment:'
+            say result
+           'seasonal obs'cnt
+            if( rcfile = analysis )
+               'run getenv "CLIMATE"'
+                        climate = result
+                        anaindx = cnt
+                        anafile = obsfile
+                        anadsc  = obsdsc
+                        ananam  = obsnam
+            endif
+     endif
+num = num + 1
+endwhile
+
+* Average Verification Datasets for TAYLOR plot
+* ---------------------------------------------
+   'define obsdjf = obs1djf'
+   'define obsjja = obs1jja'
+   'define obsmam = obs1mam'
+   'define obsson = obs1son'
+   'define obsann = obs1ann'
+       num  = 2
+while( num <= cnt )
+   'define obsdjf = obsdjf + obs'num'djf'
+   'define obsjja = obsjja + obs'num'jja'
+   'define obsmam = obsmam + obs'num'mam'
+   'define obsson = obsson + obs'num'son'
+   'define obsann = obsann + obs'num'ann'
+    num = num + 1
+endwhile
+   'define obsdjf = obsdjf / 'cnt
+   'define obsjja = obsjja / 'cnt
+   'define obsmam = obsmam / 'cnt
+   'define obsson = obsson / 'cnt
+   'define obsann = obsann / 'cnt
+
+say 'Taylor Averaging Counter = 'cnt
+
+* Perform Taylor Plots
+* --------------------
+if( ptaylor = "true" )
+   'set dfile 'qfile
+   'set clab off'
+   'taylor moddjf obsdjf djf 'expid
+   'taylor modjja obsjja jja 'expid
+   'taylor modson obsson son 'expid
+   'taylor modmam obsmam mam 'expid
+   'taylor modann obsann ann 'expid
+
+if( EXPORT != "SLP" )
+    NAME1 = EXPORT"_"level
+   'taylor_write 'expid' 'NAME1' 'output
+   'taylor_read   GFDL   'NAME1' 'verification
+   'taylor_read   ncep   'NAME1' 'verification
+   'taylor_read   era40  'NAME1' 'verification
+   'taylor_read   CAM3   'NAME1' 'verification
+   'taylor_read   e0203  'NAME1' 'verification
+   "taylor_plt 6  ncep era40 CAM3 GFDL e0203 "expid" "output" "NAME1" '"NAME1" vs NCEP/ERA40 Re-Analysis' "debug
+else
+    NAME1 = EXPORT
+   'taylor_write 'expid' 'NAME1' 'output
+   'taylor_read   GFDL   'NAME1' 'verification
+   'taylor_read   CAM3   'NAME1' 'verification
+   'taylor_read   e0203  'NAME1' 'verification
+   "taylor_plt 4  CAM3 GFDL e0203 "expid" "output" "NAME1" '"NAME1" vs NCEP Re-Analysis' "debug
+endif
+
+if( 1 > 2)
+   'taylor obs1djf obsdjf djf 'obsname1
+   'taylor obs1jja obsjja jja 'obsname1
+   'taylor obs1son obsson son 'obsname1
+   'taylor obs1mam obsmam mam 'obsname1
+   'taylor obs1ann obsann ann 'obsname1
+   'taylor_write 'obsname1' 'NAME1' 'output
+   "taylor_plt 1 "obsname1" "output" "NAME1" '"NAME1" vs NCEP/ERA40 Re-Analysis' "debug
+
+   'taylor obs2djf obsdjf djf 'obsname2
+   'taylor obs2jja obsjja jja 'obsname2
+   'taylor obs2son obsson son 'obsname2
+   'taylor obs2mam obsmam mam 'obsname2
+   'taylor obs2ann obsann ann 'obsname2
+   'taylor_write 'obsname2' 'NAME1' 'output
+   "taylor_plt 1 "obsname2" "output" "NAME1" '"NAME1" vs NCEP/ERA40 Re-Analysis' "debug
+endif
+
+   'set dfile 'qfile
+   'set clab on'
+   'setlons'
+   'set lat -90 90'
+   'set lev 'level
+endif
+
+                 k = 1
+          while( k > 0 )
+              season = subwrd(seasons,k)
+          if( season = '' )
+                   k = -1
+          else
+                   k = k+1
+
+                  'set dfile 'qfile
+                  'count "'season'"'
+                   nmod = result
+                  'set dfile 'anafile
+                  'count "'season'"'
+                   nobs = result
+
+                                           'define obs'season'    = obs'anaindx''season
+                  if( std_dev = 'true' ) ; 'define obs'season'std = obs'anaindx''season'std' ; endif
+                 'run setenv "CLIMATE" 'climate
+
+                       flag = ""
+               while ( flag = "" )
+              'run 'geosutil'/plots/hcmp/hplt 'expid' 'EXPORT' 'season' 'output' 'level' 'nmod' 'nobs' 'anafile' 'ananam' 'anadsc' 'debug' 'expdsc
+                if( debug = "debug" )
+                    say "Hit  ENTER  to repeat plot"
+                    say "Type 'next' for  next plot, 'done' for next field"
+                    pull flag
+                else
+                    flag = "next"
+                endif
+               endwhile
+              'c'
+          endif
+          endwhile
+
+
+if( flag = "done" )
+   z = zmax+1
+else
+   z = z+1
+endif
+else
+   say 'Model Level: 'level' not found!'
+   z = z+1
+endif
+endwhile
+
+return

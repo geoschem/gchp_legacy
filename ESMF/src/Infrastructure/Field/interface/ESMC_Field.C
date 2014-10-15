@@ -1,7 +1,7 @@
-// $Id: ESMC_Field.C,v 1.17.2.1 2010/02/05 19:55:46 svasquez Exp $
+// $Id: ESMC_Field.C,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
 //
 // Earth System Modeling Framework
-// Copyright 2002-2010, University Corporation for Atmospheric Research,
+// Copyright 2002-2012, University Corporation for Atmospheric Research,
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 // Laboratory, University of Michigan, National Centers for Environmental
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -22,13 +22,13 @@
 //EOP
 //------------------------------------------------------------------------------
 // INCLUDES
-
-#include "ESMCI_LogErr.h"
-#include "ESMF_LogMacros.inc"             // for LogErr
 #include "ESMC_Field.h"
+
+#include "ESMCI_Macros.h"
 #include "ESMCI_Field.h"
 #include "ESMCI_F90Interface.h"
-#include "ESMC_Interface.h"
+#include "ESMCI_LogErr.h"
+#include "ESMF_LogMacros.inc"             // for LogErr
 
 using namespace ESMCI;
 
@@ -49,7 +49,7 @@ extern "C" {
     // Invoque the C++ interface
     field = reinterpret_cast<void *>(ESMCI::Field::create(mesh, arrayspec,
       gridToFieldMap, ungriddedLBound, ungriddedUBound, name, &localrc));
-    if (ESMC_LogDefault.MsgFoundError(localrc, ESMF_ERR_PASSTHRU, rc))
+    if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, rc))
       return field; // bail out
 
     if(rc) *rc = localrc;
@@ -71,7 +71,7 @@ extern "C" {
 
     // Invoque the C++ interface
     localrc = ESMCI::Field::destroy(fieldp);
-    if (ESMC_LogDefault.MsgFoundError(localrc, ESMF_ERR_PASSTHRU, &rc))
+    if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, &rc))
       return rc;
 
     // invalidate pointer
@@ -97,7 +97,7 @@ extern "C" {
 
     // Invoque the C++ interface
     localrc = fieldp->print();
-    if (ESMC_LogDefault.MsgFoundError(localrc, ESMF_ERR_PASSTHRU, &rc))
+    if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, &rc))
       return rc;
 
     // return successfully
@@ -120,7 +120,7 @@ extern "C" {
 
     // Invoque the C++ interface
     ESMC_Mesh mesh = fieldp->getMesh(&localrc);
-    if (ESMC_LogDefault.MsgFoundError(localrc, ESMF_ERR_PASSTHRU, rc))
+    if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, rc))
       return mesh;
 
     // return successfully
@@ -129,5 +129,50 @@ extern "C" {
   }
 //--------------------------------------------------------------------------
 
+
+//--------------------------------------------------------------------------
+#undef  ESMC_METHOD
+#define ESMC_METHOD "ESMC_FieldGetArray()"
+  ESMC_Array ESMC_FieldGetArray(ESMC_Field field, int *rc){
+    // Initialize return code; assume routine not implemented
+    if(rc) *rc = ESMC_RC_NOT_IMPL;
+    int localrc = ESMC_RC_NOT_IMPL;
+    
+    // typecase into ESMCI type
+    ESMCI::Field *fieldp = reinterpret_cast<ESMCI::Field *>(field);
+
+    // Invoque the C++ interface
+    ESMC_Array array = fieldp->getArray(&localrc);
+    if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, rc))
+      return array;
+
+    // return successfully
+    if(rc) *rc = ESMF_SUCCESS;
+    return array;
+  }
+//--------------------------------------------------------------------------
+
+
+//--------------------------------------------------------------------------
+#undef  ESMC_METHOD
+#define ESMC_METHOD "ESMC_FieldGetPtr()"
+void *ESMC_FieldGetPtr(ESMC_Field field, int localDe, int *rc){
+  // initialize return code; assume routine not implemented
+  int localrc = ESMC_RC_NOT_IMPL;         // local return code
+  if (rc!=NULL) *rc = ESMC_RC_NOT_IMPL;   // final return code
+
+  ESMC_Array array = ESMC_FieldGetArray(field, &localrc);
+  if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU,
+    rc)) return NULL;  // bail out
+
+  void *ptr = ESMC_ArrayGetPtr(array, localDe, &localrc);
+  if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU,
+    rc)) return NULL;  // bail out
+
+  // return successfully
+  if (rc!=NULL) *rc = ESMF_SUCCESS;
+  return ptr;
+} 
+//--------------------------------------------------------------------------
 
 }

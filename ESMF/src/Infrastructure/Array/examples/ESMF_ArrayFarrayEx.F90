@@ -1,7 +1,7 @@
-! $Id: ESMF_ArrayFarrayEx.F90,v 1.15.2.1 2010/02/05 19:51:56 svasquez Exp $
+! $Id: ESMF_ArrayFarrayEx.F90,v 1.1.5.1 2013-01-11 20:23:43 mathomp4 Exp $
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2010, University Corporation for Atmospheric Research,
+! Copyright 2002-2012, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -16,6 +16,7 @@
 
 !BOE
 ! \subsubsection{Array from native Fortran array with 1 DE per PET}
+! \label{Array_from_native_1_to_1}
 ! 
 ! The create call of the {\tt ESMF\_Array} class has been overloaded
 ! extensively to facilitate the need for generality while keeping simple
@@ -27,7 +28,7 @@
 !BOC
 program ESMF_ArrayFarrayEx
 
-  use ESMF_Mod
+  use ESMF
   
   implicit none
   
@@ -39,10 +40,10 @@ program ESMF_ArrayFarrayEx
 ! automatic from the user's perspective and the details of the allocation 
 ! (static or dynamic, heap or stack) are left to the compiler. (Compiler flags
 ! may be used to control some of the details). In the second case, i.e. for 
-! deferred-shape actual objects, the array definition must include the pointer 
-! or allocatable attribute and it is the user's responsibility to allocate 
+! deferred-shape actual objects, the array definition must include the {\tt pointer} 
+! or {\tt allocatable} attribute and it is the user's responsibility to allocate 
 ! memory. While it is also the user's responsibility to deallocate memory for
-! arrays with pointer attribute the compiler will automatically deallocate
+! arrays with the {\tt pointer} attribute the compiler will automatically deallocate
 ! allocatable arrays under certain circumstances defined by the Fortran
 ! standard.
 !
@@ -61,7 +62,7 @@ program ESMF_ArrayFarrayEx
 ! an error if its memory references have been invalidated. 
 
 ! The easiest, portable way to provide safe native Fortran memory allocations
-! to Array create is to use arrays with the pointer attribute. Memory allocated
+! to Array create is to use arrays with the {\tt pointer} attribute. Memory allocated
 ! for an array pointer will not be deallocated automatically. However, in this
 ! case the possibility of memory leaks becomes an issue of concern. The 
 ! deallocation of memory provided to an Array in form of a native Fortran
@@ -75,30 +76,30 @@ program ESMF_ArrayFarrayEx
 !EOE
 !BOC
   ! local variables
-  real(ESMF_KIND_R8)          :: farrayE(10,10)     ! explicit shape Fortran array
+  real(ESMF_KIND_R8)       :: farrayE(10,10)  ! explicit shape Fortran array
 !EOC
 !BOE
 ! Then an allocatable array {\tt farrayA} is declared which will be used
 ! to show user-controlled dynamic memory allocation.
 !EOE
 !BOC
-  real(ESMF_KIND_R8), allocatable :: farrayA(:,:)   ! allocatable Fortran array
+  real(ESMF_KIND_R8), allocatable :: farrayA(:,:) ! allocatable Fortran array
 !EOC
 !BOE
 ! Finally an array with pointer attribute {\tt farrayP} is declared, also used
 ! for user-controlled dynamic memory allocation.
 !EOE
 !BOC
-  real(ESMF_KIND_R8), pointer :: farrayP(:,:)       ! Fortran array pointer 
+  real(ESMF_KIND_R8), pointer :: farrayP(:,:)   ! Fortran array pointer 
 !EOC
 !BOE
 ! A matching array pointer must also be available to gain access to the arrays
 ! held by an Array object.
 !EOE
 !BOC
-  real(ESMF_KIND_R8), pointer :: farrayPtr(:,:)     ! matching Fortran array pointer 
-  type(ESMF_DistGrid)         :: distgrid           ! DistGrid object
-  type(ESMF_Array)            :: array              ! Array object
+  real(ESMF_KIND_R8), pointer :: farrayPtr(:,:) ! matching Fortran array ptr 
+  type(ESMF_DistGrid)         :: distgrid       ! DistGrid object
+  type(ESMF_Array)            :: array          ! Array object
   integer                     :: rc
   
 !EOC
@@ -111,13 +112,14 @@ program ESMF_ArrayFarrayEx
   finalrc = ESMF_SUCCESS
   
 !BOC
-  call ESMF_Initialize(rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  call ESMF_Initialize(defaultlogfilename="ArrayFarrayEx.Log", &
+                    logkindflag=ESMF_LOGKIND_MULTI, rc=rc)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !EOC
   call ESMF_VMGetGlobal(vm, rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   call ESMF_VMGet(vm, petCount=petCount, rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   
   if (petCount /= 4) then
     finalrc = ESMF_FAILURE
@@ -140,7 +142,7 @@ program ESMF_ArrayFarrayEx
 !BOC
   distgrid = ESMF_DistGridCreate(minIndex=(/1,1/), maxIndex=(/40,10/), rc=rc)
 !EOC
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !BOE
 ! This example is assumed to run on 4 PETs. The default 2D decomposition will 
 ! then be into 4 x 1 DEs as to ensure 1 DE per PET. 
@@ -152,7 +154,7 @@ program ESMF_ArrayFarrayEx
   array = ESMF_ArrayCreate(farray=farrayE, distgrid=distgrid, &
     indexflag=ESMF_INDEX_DELOCAL, rc=rc)
 !EOC
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !call ESMF_ArrayPrint(array)
 !BOE
 ! The 40 x 10 index space defined by the {\tt minIndex} and {\tt maxIndex} 
@@ -204,7 +206,7 @@ program ESMF_ArrayFarrayEx
 !BOC
   call ESMF_ArrayGet(array, farrayPtr=farrayPtr, rc=rc)
 !EOC
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !BOC
   print *, farrayPtr
 !EOC
@@ -216,7 +218,7 @@ program ESMF_ArrayFarrayEx
 !BOC
   call ESMF_ArrayDestroy(array, rc=rc)
 !EOC
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !BOE
 ! Since the memory allocation for each {\tt farrayE} is automatic there is
 ! nothing more to do.
@@ -231,7 +233,7 @@ program ESMF_ArrayFarrayEx
   array = ESMF_ArrayCreate(farray=farrayA, distgrid=distgrid, &
     indexflag=ESMF_INDEX_DELOCAL, rc=rc)
 !EOC
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !BOC
   print *, farrayA            ! print PET-local farrayA directly
   call ESMF_ArrayGet(array, farrayPtr=farrayPtr, rc=rc)! obtain array pointer
@@ -248,7 +250,7 @@ program ESMF_ArrayFarrayEx
   array = ESMF_ArrayCreate(farray=farrayP, distgrid=distgrid, &
     indexflag=ESMF_INDEX_DELOCAL, rc=rc)
 !EOC
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !BOC
   print *, farrayP            ! print PET-local farrayA directly
   call ESMF_ArrayGet(array, farrayPtr=farrayPtr, rc=rc)! obtain array pointer

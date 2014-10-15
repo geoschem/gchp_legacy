@@ -170,9 +170,9 @@ ifeq ($(ARCH),Linux)
 
 #   MKL math library
 #   ----------------
-    ifeq ($(wildcard $(ESMABIN)/mklpath.pl),$(ESMABIN)/mklpath.pl)
-       MKLPATH = $(shell $(ESMABIN)/mklpath.pl)
-    endif
+#    ifeq ($(wildcard $(ESMABIN)/mklpath.pl),$(ESMABIN)/mklpath.pl)
+#       MKLPATH = $(shell $(ESMABIN)/mklpath.pl)
+#    endif
     ifdef MKLPATH
        ifeq ($(wildcard $(MKLPATH)/libmkl_intel_lp64.so),)
            LIB_SCI += -L$(MKLPATH) -lmkl_lapack -lmkl 

@@ -1,7 +1,7 @@
-// $Id: ESMC_ClockEx.C,v 1.29.4.1 2010/02/05 20:00:00 svasquez Exp $
+// $Id: ESMC_ClockEx.C,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
 //
 // Earth System Modeling Framework
-// Copyright 2002-2010, University Corporation for Atmospheric Research, 
+// Copyright 2002-2012, University Corporation for Atmospheric Research, 
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
 // Laboratory, University of Michigan, National Centers for Environmental 
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
@@ -28,7 +28,7 @@
 //-----------------------------------------------------------------------------
  // leave the following line as-is; it will insert the cvs ident string
  // into the object file for tracking purposes.
- static const char *const version = "$Id: ESMC_ClockEx.C,v 1.29.4.1 2010/02/05 20:00:00 svasquez Exp $";
+ static const char *const version = "$Id: ESMC_ClockEx.C,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $";
 //-----------------------------------------------------------------------------
 
  int main(int argc, char *argv[])
@@ -52,7 +52,7 @@
 
    // initialize calendar to be Gregorian type
    gregorianCalendar = ESMC_CalendarCreate(9, "Gregorian", 
-                                           ESMC_CAL_GREGORIAN, &rc);
+                                           ESMC_CALKIND_GREGORIAN, &rc);
 
    if (rc != ESMF_SUCCESS) {
        finalrc = ESMF_FAILURE;

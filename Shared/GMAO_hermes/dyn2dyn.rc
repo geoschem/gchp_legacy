@@ -1,0 +1,41 @@
+######################################################################
+#
+# !DESCRIPTION: Resource file to set parameters for interpolation
+#    of GCM trajectory files. Initially set to interpolate between
+#    dynamics vectors (dyn-vect). See remarks below.
+#
+# !REMARSK:
+#     Set to be use by both dyn2dyn and vdc2vdc
+#
+# !REVISION HISTORY:
+#    28Sep2004  Todling  Initial file
+#    02Aug2006  Todling  Updated vertical resolution to GEOS-5
+#
+######################################################################
+
+######################################################################
+#  DYNAMICS TRAJECTORY: Dyn-vector trajectory
+######################################################################
+
+dyn2dyn_zonal_grid_points: 72
+dyn2dyn_meridional_grid_points: 46
+dyn2dyn_vertical_grid_points: 72
+
+dyn2dyn_outfile_precision: 32
+dyn2dyn_lwi_filename: %s.lwi.072x046.bin
+
+######################################################################
+#  PHYSICS TRAJECTORY: Vertical diffusion coefficients 
+######################################################################
+
+vdc2vdc_zonal_grid_points: 72
+vdc2vdc_meridional_grid_points: 46
+vdc2vdc_vertical_grid_points: 72
+
+vdc2vdc_vdc_old_filename: %s.vdc.high.hdf       # this is not relavant when
+                                                # interpolating the phys traj
+                                                # on the fly - the prog has the
+                                                # old coeffs in memory
+vdc2vdc_vdc_new_filename: %s.ptrj.prs.%y4%m2%d2_%h2%n2z.hdf
+
+vdc2vdc_frequency: 003000

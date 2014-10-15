@@ -1,0 +1,221 @@
+*****************************************************************
+*                                                               *
+* This script computes the Seasonal Means of the INPUT function *
+*                                                               *
+*****************************************************************
+ 
+function seasonalf (args)
+
+'numargs  'args
+ numargs = result
+
+        num = 0
+while ( num < numargs )
+        num = num + 1
+
+if( subwrd(args,num) = '-FUNCTION' ) ; function = subwrd(args,num+1) ; endif
+if( subwrd(args,num) = '-NAME'     ) ; name     = subwrd(args,num+1) ; endif
+
+endwhile
+
+ 
+* Capture Input Environment
+* -------------------------
+'getinfo file'
+       infile = result
+
+'getinfo lonmin'
+         lonmin = result
+'getinfo lonmax'
+         lonmax = result
+
+'getinfo latmin'
+         latmin = result
+'getinfo latmax'
+         latmax = result
+
+'getinfo tmin'
+         tmin = result
+'getinfo tmax'
+         tmax = result
+
+'getinfo zmin'
+         zmin = result
+'getinfo zmax'
+         zmax = result
+
+
+* Initialize Time based on Existance of Environment Variables
+* -----------------------------------------------------------
+'run getenv "DO_STD"'
+             do_std   = result
+'run getenv "BEGDATE"'
+             begdate  = result
+'run getenv "ENDDATE"'
+             enddate  = result
+'run getinfo tdim'
+             tdim = result
+
+'run uppercase 'do_std
+                do_std = result
+
+tmin = 0
+tmax = tdim + 1
+
+if( begdate != "NULL" & enddate != "NULL" )
+say ' '
+say 'Inside seasonal, Asking for begdate: 'begdate
+say '---------------  Asking for enddate: 'enddate
+   'set time 'begdate' 'enddate
+   'getinfo   tmin'
+              tmin = result
+   'getinfo   tmax'
+              tmax = result
+   'run setenv "CLIMATE" Actual'
+endif
+
+if( tmin<1 | tmax>tdim )
+    tmin = 1
+    'set t ' tmin
+    'getinfo date'
+          begdate = result
+    'set t 'tdim
+    'getinfo date'
+          enddate = result
+     tmax = tdim
+    'run setenv "CLIMATE" Climatology'
+endif
+
+'set time  'begdate
+     tbeg = gettbeg()
+
+* Compute Seasons
+* ---------------
+tjan = 01-tbeg+tmin
+tfeb = 02-tbeg+tmin
+tmar = 03-tbeg+tmin
+tapr = 04-tbeg+tmin
+tmay = 05-tbeg+tmin
+tjun = 06-tbeg+tmin
+tjul = 07-tbeg+tmin
+taug = 08-tbeg+tmin
+tsep = 09-tbeg+tmin
+toct = 10-tbeg+tmin
+tnov = 11-tbeg+tmin
+tdec = 12-tbeg+tmin
+
+if( tjan<=0 ) ; tjan = tjan + 12 ; endif
+if( tfeb<=0 ) ; tfeb = tfeb + 12 ; endif
+if( tmar<=0 ) ; tmar = tmar + 12 ; endif
+if( tapr<=0 ) ; tapr = tapr + 12 ; endif
+if( tmay<=0 ) ; tmay = tmay + 12 ; endif
+if( tjun<=0 ) ; tjun = tjun + 12 ; endif
+if( tjul<=0 ) ; tjul = tjul + 12 ; endif
+if( taug<=0 ) ; taug = taug + 12 ; endif
+if( tsep<=0 ) ; tsep = tsep + 12 ; endif
+if( toct<=0 ) ; toct = toct + 12 ; endif
+if( tnov<=0 ) ; tnov = tnov + 12 ; endif
+if( tdec<=0 ) ; tdec = tdec + 12 ; endif
+
+tmam = tmar + 2
+tjja = tjun + 2
+tson = tsep + 2
+tdjf = tdec + 2
+
+'run getinfo time'
+             time = result
+
+'run getenv "CLIMATE"'
+             climate = result
+
+say ' '
+say 'Processing Seasonal Means for: 'function' using 'climate' Dates'
+say '------------------------------ '
+say ' t_beg = 'time'  'begdate
+say ' t_end = 'tmax'  'enddate
+say ' '
+say 'MAM: 'tmar' 'tmam
+say 'JJA: 'tjun' 'tjja
+say 'SON: 'tsep' 'tson
+say 'DJF: 'tdec' 'tdjf
+
+
+* Intialize Time Range (12-months Starting from Begdate)
+* ------------------------------------------------------
+ t1 = time
+ t2 = t1   + 11
+
+'set t 'time' 'tmax
+'makefile -FUNCTION 'function' -NAME 'name
+  newfile = subwrd(result,1)
+  newtime = subwrd(result,2)
+'define 'name'clim = 'qdata'.'newfile
+
+* Define Climatology Field
+* ------------------------
+if( newtime != 1 )
+    'set t  't1' 't2
+    'modify 'name'clim        seasonal'
+endif
+
+*'   close 'newfile
+ 'set dfile 'infile
+
+'set lat 'latmin' 'latmax
+'set lon 'lonmin' 'lonmax
+'set z   '  zmin' '  zmax
+'set t   '  time
+
+say " "
+say 'define 'name'clim'
+
+* Define Monthly and Seasonal Mean Fields
+* ---------------------------------------
+'set t 'tjan ; 'define 'name'jan = 'name'clim'
+'set t 'tfeb ; 'define 'name'feb = 'name'clim'
+'set t 'tmar ; 'define 'name'mar = 'name'clim'
+'set t 'tapr ; 'define 'name'apr = 'name'clim'
+'set t 'tmay ; 'define 'name'may = 'name'clim'
+'set t 'tjun ; 'define 'name'jun = 'name'clim'
+'set t 'tjul ; 'define 'name'jul = 'name'clim'
+'set t 'taug ; 'define 'name'aug = 'name'clim'
+'set t 'tsep ; 'define 'name'sep = 'name'clim'
+'set t 'toct ; 'define 'name'oct = 'name'clim'
+'set t 'tnov ; 'define 'name'nov = 'name'clim'
+'set t 'tdec ; 'define 'name'dec = 'name'clim'
+
+'set t 'time
+
+    'define 'name'djf = ave('name'clim,t='tdec',t='tdjf')'
+say 'define 'name'djf = ave('name'clim,t='tdec',t='tdjf')'
+
+    'define 'name'jja = ave('name'clim,t='tjun',t='tjja')'
+say 'define 'name'jja = ave('name'clim,t='tjun',t='tjja')'
+
+    'define 'name'son = ave('name'clim,t='tsep',t='tson')'
+say 'define 'name'son = ave('name'clim,t='tsep',t='tson')'
+
+    'define 'name'mam = ave('name'clim,t='tmar',t='tmam')'
+say 'define 'name'mam = ave('name'clim,t='tmar',t='tmam')'
+
+    'define 'name'ann = ave('name'clim,t='t1',t='t2')'
+say 'define 'name'ann = ave('name'clim,t='t1',t='t2')'
+
+return newfile
+
+function gettbeg(args)
+'getinfo month'
+         month = result
+      if(month="JAN") ; tbeg = 1  ; endif
+      if(month="FEB") ; tbeg = 2  ; endif
+      if(month="MAR") ; tbeg = 3  ; endif
+      if(month="APR") ; tbeg = 4  ; endif
+      if(month="MAY") ; tbeg = 5  ; endif
+      if(month="JUN") ; tbeg = 6  ; endif
+      if(month="JUL") ; tbeg = 7  ; endif
+      if(month="AUG") ; tbeg = 8  ; endif
+      if(month="SEP") ; tbeg = 9  ; endif
+      if(month="OCT") ; tbeg = 10 ; endif
+      if(month="NOV") ; tbeg = 11 ; endif
+      if(month="DEC") ; tbeg = 12 ; endif
+return tbeg

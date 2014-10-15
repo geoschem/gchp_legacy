@@ -1,0 +1,16 @@
+say 'top left to bottom right'
+'q pos '
+x1 = subwrd(result,3)
+y1 = subwrd(result,4)
+'q pos '
+x2 = subwrd(result,3)
+y2 = subwrd(result,4)
+'query xy2w 'x1' 'y1
+lat1 = subwrd(result,6)
+lon1 = subwrd(result,3)
+'query xy2w 'x2' 'y2
+lat2 = subwrd(result,6)
+lon2 = subwrd(result,3)
+'set lon 'lon1' 'lon2
+'set lat 'lat2' 'lat1
+'clear'

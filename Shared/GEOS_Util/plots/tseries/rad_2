@@ -1,0 +1,131 @@
+function keg (args)
+
+expid  = subwrd(args,1)
+expdsc = subwrd(args,2)
+output = subwrd(args,3)
+
+'run getenv "GEOSUTIL"'
+         geosutil = result
+'set t 1'
+'getinfo year'
+         year = result
+'set time JAN'year' DEC'year
+
+* Plot Global Mean Values
+* -----------------------
+'set vpage 0 11 3.5 8'
+'set grads off'
+'set ylab %.0f'
+'set axlim 230 250'
+
+'set cmark  0'
+'set cstyle 1'
+'set ccolor 2'
+'set cthick 6'
+'d radlwgclim'
+'define radlwave = ave(radlwgclim,t=1,t=12)'
+'set cmark  0'
+'set cstyle 1'
+'set ccolor 2'
+'set cthick 1'
+'d radlwave'
+
+'set cmark  0'
+'set cstyle 1'
+'set ccolor 4'
+'set cthick 6'
+'d radswgclim'
+'define radswave = ave(radswgclim,t=1,t=12)'
+'set cmark  0'
+'set cstyle 1'
+'set ccolor 4'
+'set cthick 1'
+'d radswave'
+
+* Plot Global Mean Time-Average Values
+* ------------------------------------
+'set t 1'
+'getinfo date'
+         date = result
+
+'d radlwave'
+   radlwave = subwrd(result,4)
+'d radswave'
+   radswave = subwrd(result,4)
+
+'q w2xy 'date' 'radlwave
+    ylwg = subwrd(result,6)
+'q w2xy 'date' 'radswave
+    yswg = subwrd(result,6)
+    ydif = ( ylwg-yswg )
+if( ydif < 0 ) ; ydif = -ydif ; endif
+
+if( ydif < 0.1 )
+if( ylwg <= yswg )
+    yswg  = ylwg + 0.1
+endif
+if( yswg <= ylwg )
+    ylwg  = yswg + 0.1
+endif
+endif
+
+'set strsiz .08'
+
+'set string 2 r 5'
+'draw string 1.4 'ylwg ' 'radlwave
+'set string 4 r 5'
+'draw string 1.4 'yswg ' 'radswave
+
+
+* Plot NET
+* --------
+'set time JAN'year' DEC'year
+'set vpage 0 11 0 4.5'
+'set grads off'
+'set axlim -15 15'
+'set cmark  0'
+'set cstyle 1'
+'set ccolor 3'
+'set cthick 6'
+'d -(radlwgclim-radswgclim)'
+'define radave = -ave( radlwgclim-radswgclim ,t=1,t=12)'
+'set cmark  0'
+'set cstyle 1'
+'set ccolor 3'
+'set cthick 1'
+'d radave'
+
+'set t 1'
+'getinfo date'
+         date = result
+'d radave'
+   radave = subwrd(result,4)
+'q w2xy 'date' 'radave
+    yrad = subwrd(result,6)
+
+'set strsiz .08'
+
+'set string 3 r 5'
+'draw string 1.4 'yrad ' 'radave
+
+
+
+'set vpage off'
+'set string 1 c 6'
+'set strsiz .14'
+'draw string 6.15 8.25 'expid': 'expdsc
+'draw string 6.15 7.95 Globally Averaged TOA Radiation Budget (W/m`a2`n)'
+
+'set string 1 l 6'
+'set line 2 1 6'
+'draw line   2.0 7.5 2.5 7.5'
+'draw string 2.6 7.5 Outgoing LW Rad'
+'set line 4 1 6'
+'draw line   4.6 7.5 5.1 7.5'
+'draw string 5.2 7.5 Net Downward SW Rad'
+'set line 3 1 6'
+'draw line   7.9 7.5 8.4 7.5'
+'draw string 8.5 7.5 Net Downward Rad'
+
+'myprint -name 'output'/RAD_TIME_SERIES_CLIM'
+return

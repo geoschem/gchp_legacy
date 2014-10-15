@@ -1,7 +1,7 @@
-! $Id: ESMF_F90Interface.F90,v 1.9.2.1 2010/02/05 20:01:06 svasquez Exp $
+! $Id: ESMF_F90Interface.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2010, University Corporation for Atmospheric Research, 
+! Copyright 2002-2012, University Corporation for Atmospheric Research, 
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
 ! Laboratory, University of Michigan, National Centers for Environmental 
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
@@ -36,8 +36,8 @@ module ESMF_F90InterfaceMod
   
   
 !------------------------------------------------------------------------------
-!     ! ESMF_InterfaceInt (helps handling [optional] integer arrays on the
-!                          F90-to-C++ interface)
+! ESMF_InterfaceInt:
+!   Handling of [optional] integer arrays on the Fortran-to-C++ interface.
 !
 !------------------------------------------------------------------------------
 
@@ -50,105 +50,261 @@ module ESMF_F90InterfaceMod
 #else
     type(ESMF_Pointer) :: this
 #endif
+    integer, pointer   :: farray1D(:)       ! holding Fortran reference
+    integer, pointer   :: farray2D(:,:)     ! holding Fortran reference
+    integer, pointer   :: farray3D(:,:,:)   ! holding Fortran reference
   end type
 
 
+!==============================================================================
+! 
+! INTERFACE BLOCKS
+!
+!==============================================================================
+
+! -------------------------- ESMF-public method -------------------------------
+!BOPI
+! !IROUTINE: ESMF_InterfaceIntCreate -- Generic interface
+
+! !INTERFACE:
+  interface ESMF_InterfaceIntCreate
+
+! !PRIVATE MEMBER FUNCTIONS:
+!
+    module procedure ESMF_InterfaceIntCreateTrg
+    module procedure ESMF_InterfaceIntCreatePtr
+      
+! !DESCRIPTION: 
+!EOPI 
+  end interface
+!==============================================================================
+
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 contains
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 
 ! -------------------------- ESMF-public method -------------------------------
 #undef  ESMF_METHOD
-#define ESMF_METHOD "ESMF_InterfaceIntCreate()"
+#define ESMF_METHOD "ESMF_InterfaceIntCreateTrg()"
 !BOPI
-! !IROUTINE: ESMF_InterfaceIntCreate - Create InterfaceInt
+! !IROUTINE: ESMF_InterfaceIntCreateTrg - Create InterfaceInt
 
 ! !INTERFACE:
-  function ESMF_InterfaceIntCreate(farray1D, farray2D, farray3D, rc)
+  function ESMF_InterfaceIntCreateTrg(farray1D, farray2D, farray3D, rc)
 !
 ! !ARGUMENTS:
-    integer,              target, intent(in), optional  :: farray1D(:)
-    integer,              target, intent(in), optional  :: farray2D(:,:)
-    integer,              target, intent(in), optional  :: farray3D(:,:,:)
-    integer,                      intent(out),optional  :: rc
+    integer, target, intent(in),  optional :: farray1D(:)
+    integer, target, intent(in),  optional :: farray2D(:,:)
+    integer, target, intent(in),  optional :: farray3D(:,:,:)
+    integer,         intent(out), optional :: rc
 !         
 ! !RETURN VALUE:
-    type(ESMF_InterfaceInt) :: ESMF_InterfaceIntCreate
+    type(ESMF_InterfaceInt) :: ESMF_InterfaceIntCreateTrg
 !
 ! !DESCRIPTION:
-!     Create an {\tt ESMF\_InterfaceInt} from optional F90 array.
+!   Create an {\tt ESMF\_InterfaceInt} from Fortran array. The 
+!   {\tt transferOwnership} allows ownershipt of the Fortran array to be
+!   transferred to the InterfaceInt object. InterfaceIntDestroy() will call 
+!   deallocate() for Fortran arrays whose ownership was transferred.
 !
-!     The arguments are:
-!     \begin{description}
-!     \item[{[farray1D]}]
-!          1D F90 array.
-!     \item[{[farray2D]}]
-!          2D F90 array.
-!     \item[{[farray3D]}]
-!          3D F90 array.
-!     \item[{[rc]}]
-!          Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
-!     \end{description}
+!   The arguments are:
+!   \begin{description}
+!   \item[{[farray1D]}]
+!     1D Fortran array.
+!   \item[{[farray2D]}]
+!     2D Fortran array.
+!   \item[{[farray3D]}]
+!     3D Fortran array.
+!   \item[{[transferOwnership]}]
+!     For a value of {\tt .true.} transfers ownership of Fortran array to the
+!     newly created InterfaceInt object.
+!   \item[{[rc]}]
+!     Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
+!   \end{description}
 !
 !EOPI
-! !REQUIREMENTS:  SSSn.n, GGGn.n
 !------------------------------------------------------------------------------
-    integer                 :: status     ! local error status
-    type(ESMF_InterfaceInt) :: array      ! opaque pointer to new C++ object
-    integer, allocatable    :: len(:)
+    integer                 :: localrc      ! local return code
+    type(ESMF_InterfaceInt) :: array        ! opaque pointer to new C++ object
+    integer                 :: checkCount
+    integer, pointer        :: farray1DPtr(:)
+    integer, pointer        :: farray2DPtr(:,:)
+    integer, pointer        :: farray3DPtr(:,:,:)
     
-    ! initialize return code; assume failure until success is certain
-    status = ESMF_FAILURE
-    if (present(rc)) rc = ESMF_FAILURE
+    ! initialize return code; assume routine not implemented
+    localrc = ESMF_RC_NOT_IMPL
+    if (present(rc)) rc = ESMF_RC_NOT_IMPL
     
     ! mark this InterfaceInt as invalid
     array%this = ESMF_NULL_POINTER
-
-    ! call into the C++ interface, depending on whether or not farray is present
-    if (present(farray1D)) then
-      allocate(len(1))
-      len = shape(farray1D)
-      if (all(len .ne. 0)) then
-         call c_ESMC_InterfaceIntCreate1D(array, farray1D(1), len, status)
-      else
-         call c_ESMC_InterfaceIntCreate1D(array, 0, len, status)
-      endif
-      if (ESMF_LogMsgFoundError(status, ESMF_ERR_PASSTHRU, &
-        ESMF_CONTEXT, rcToReturn=rc)) return
-      deallocate(len)
-    endif
-    if (present(farray2D)) then
-      allocate(len(2))
-      len = shape(farray2D)
-      if (all(len .ne. 0)) then
-         call c_ESMC_InterfaceIntCreate2D(array, farray2D(1,1), len, status)
-      else
-         call c_ESMC_InterfaceIntCreate2D(array, 0, len, status)
-      endif
-      if (ESMF_LogMsgFoundError(status, ESMF_ERR_PASSTHRU, &
-        ESMF_CONTEXT, rcToReturn=rc)) return
-      deallocate(len)
-    endif
-    if (present(farray3D)) then
-      allocate(len(3))
-      len = shape(farray3D)
-      if (all(len .ne. 0)) then
-         call c_ESMC_InterfaceIntCreate3D(array, farray3D(1,1,1), len, status)
-      else
-         call c_ESMC_InterfaceIntCreate3D(array, 0, len, status)
-      endif
-      if (ESMF_LogMsgFoundError(status, ESMF_ERR_PASSTHRU, &
-        ESMF_CONTEXT, rcToReturn=rc)) return
-      deallocate(len)
-    endif
+    
+    ! initialize
+    nullify(farray1DPtr)
+    nullify(farray2DPtr)
+    nullify(farray3DPtr)
+    
+    ! set references
+    if (present(farray1D)) farray1DPtr => farray1D
+    if (present(farray2D)) farray2DPtr => farray2D
+    if (present(farray3D)) farray3DPtr => farray3D
+    
+    ! create InterfaceInt object
+    array = ESMF_InterfaceIntCreate(farray1DPtr, farray2DPtr, farray3DPtr, &
+      transferOwnership=.false., rc=localrc)
+    if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+      ESMF_CONTEXT, rcToReturn=rc)) return
     
     ! set return value
-    ESMF_InterfaceIntCreate = array
+    ESMF_InterfaceIntCreateTrg = array
  
     ! return successfully
     if (present(rc)) rc = ESMF_SUCCESS
  
-  end function ESMF_InterfaceIntCreate
+  end function ESMF_InterfaceIntCreateTrg
+!------------------------------------------------------------------------------
+
+
+! -------------------------- ESMF-public method -------------------------------
+#undef  ESMF_METHOD
+#define ESMF_METHOD "ESMF_InterfaceIntCreatePtr()"
+!BOPI
+! !IROUTINE: ESMF_InterfaceIntCreatePtr - Create InterfaceInt
+
+! !INTERFACE:
+  function ESMF_InterfaceIntCreatePtr(farray1D, farray2D, farray3D, &
+    transferOwnership, rc)
+!
+! !ARGUMENTS:
+    integer, pointer,              optional :: farray1D(:)
+    integer, pointer,              optional :: farray2D(:,:)
+    integer, pointer,              optional :: farray3D(:,:,:)
+    logical,          intent(in)            :: transferOwnership
+    integer,          intent(out), optional :: rc
+!         
+! !RETURN VALUE:
+    type(ESMF_InterfaceInt) :: ESMF_InterfaceIntCreatePtr
+!
+! !DESCRIPTION:
+!   Create an {\tt ESMF\_InterfaceInt} from Fortran array. The 
+!   {\tt transferOwnership} allows ownership of the Fortran array to be
+!   transferred to the InterfaceInt object. InterfaceIntDestroy() will call 
+!   deallocate() for Fortran arrays whose ownership was transferred.
+!
+!   The arguments are:
+!   \begin{description}
+!   \item[{[farray1D]}]
+!     1D Fortran array.
+!   \item[{[farray2D]}]
+!     2D Fortran array.
+!   \item[{[farray3D]}]
+!     3D Fortran array.
+!   \item[transferOwnership]
+!     For a value of {\tt .true.} transfers ownership of Fortran array to the
+!     newly created InterfaceInt object.
+!   \item[{[rc]}]
+!     Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
+!   \end{description}
+!
+!EOPI
+!------------------------------------------------------------------------------
+    integer                 :: localrc      ! local return code
+    type(ESMF_InterfaceInt) :: array        ! opaque pointer to new C++ object
+    integer, allocatable    :: len(:)
+    integer                 :: checkCount
+    
+    ! initialize return code; assume routine not implemented
+    localrc = ESMF_RC_NOT_IMPL
+    if (present(rc)) rc = ESMF_RC_NOT_IMPL
+    
+    ! mark this InterfaceInt as invalid
+    array%this = ESMF_NULL_POINTER
+    
+    ! initialize Fortran array references
+    nullify(array%farray1D)
+    nullify(array%farray2D)
+    nullify(array%farray3D)
+    
+    ! check that only one of the array arguments is present
+    checkCount = 0  ! reset
+    if (present(farray1D)) then
+      if (associated(farray1D)) checkCount = checkCount + 1
+    endif
+    if (present(farray2D)) then
+      if (associated(farray2D)) checkCount = checkCount + 1
+    endif
+    if (present(farray3D)) then
+      if (associated(farray3D)) checkCount = checkCount + 1
+    endif
+    if (checkCount>1) then
+      call ESMF_LogSetError(rcToCheck=ESMF_RC_ARG_BAD, &
+        msg="too many farrayXD arguments were specified.", &
+        ESMF_CONTEXT, rcToReturn=rc)
+      return
+    endif
+
+    ! call into the C++ interface, depending on whether or not farray is present
+    if (present(farray1D)) then
+      if (associated(farray1D)) then
+        if (transferOwnership) &
+          array%farray1D => farray1D
+        allocate(len(1))
+        len = shape(farray1D)
+        if (all(len .ne. 0)) then
+          call c_ESMC_InterfaceIntCreate1D(array, farray1D(1), len, localrc)
+        else
+          call c_ESMC_InterfaceIntCreate1D(array, 0, len, localrc)
+        endif
+        if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+          ESMF_CONTEXT, rcToReturn=rc)) return
+        deallocate(len)
+      endif
+    endif
+    if (present(farray2D)) then
+      if (associated(farray2D)) then
+        if (transferOwnership) &
+          array%farray2D => farray2D
+        allocate(len(2))
+        len = shape(farray2D)
+        if (all(len .ne. 0)) then
+          call c_ESMC_InterfaceIntCreate2D(array, farray2D(1,1), len, localrc)
+        else
+          call c_ESMC_InterfaceIntCreate2D(array, 0, len, localrc)
+        endif
+        if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+          ESMF_CONTEXT, rcToReturn=rc)) return
+        deallocate(len)
+      endif
+    endif
+    if (present(farray3D)) then
+      if (associated(farray3D)) then
+        if (transferOwnership) &
+          array%farray3D => farray3D
+        allocate(len(3))
+        len = shape(farray3D)
+        if (all(len .ne. 0)) then
+          call c_ESMC_InterfaceIntCreate3D(array, farray3D(1,1,1), len, localrc)
+        else
+          call c_ESMC_InterfaceIntCreate3D(array, 0, len, localrc)
+        endif
+        if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+          ESMF_CONTEXT, rcToReturn=rc)) return
+        deallocate(len)
+      endif
+    endif
+    
+    ! set return value
+    ESMF_InterfaceIntCreatePtr = array
+ 
+    ! return successfully
+    if (present(rc)) rc = ESMF_SUCCESS
+ 
+  end function ESMF_InterfaceIntCreatePtr
 !------------------------------------------------------------------------------
 
 
@@ -162,34 +318,55 @@ contains
   subroutine ESMF_InterfaceIntDestroy(array, rc)
 !
 ! !ARGUMENTS:
-    type(ESMF_InterfaceInt)           :: array
-    integer,  intent(out),  optional  :: rc
+    type(ESMF_InterfaceInt), intent(inout)         :: array
+    integer,                 intent(out), optional :: rc
 !         
 !
 ! !DESCRIPTION:
-!     Destroy an {\tt ESMF\_InterfaceInt} object.
+!   Destroy an {\tt ESMF\_InterfaceInt} object. Deallocate Fortran arrays
+!   whose ownership was transferred to the InterfaceInt object.
 !
-!     The arguments are:
-!     \begin{description}
-!     \item[array]
-!          {\tt ESMF\_InterfaceInt} object.
-!     \item[{[rc]}]
-!          Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
-!     \end{description}
+!   The arguments are:
+!   \begin{description}
+!   \item[array]
+!     {\tt ESMF\_InterfaceInt} object.
+!   \item[{[rc]}]
+!     Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
+!   \end{description}
 !
 !EOPI
-! !REQUIREMENTS:  SSSn.n, GGGn.n
 !------------------------------------------------------------------------------
-    integer                 :: status       ! local error status
+    integer                 :: localrc      ! local return code
+    integer                 :: stat         ! Fortran return code
     
-    ! initialize return code; assume failure until success is certain
-    status = ESMF_FAILURE
-    if (present(rc)) rc = ESMF_FAILURE
+    ! initialize return code; assume routine not implemented
+    localrc = ESMF_RC_NOT_IMPL
+    if (present(rc)) rc = ESMF_RC_NOT_IMPL
     
     ! call into the C++ interface
-    call c_ESMC_InterfaceIntDestroy(array, status)
-    if (ESMF_LogMsgFoundError(status, ESMF_ERR_PASSTHRU, &
+    call c_ESMC_InterfaceIntDestroy(array, localrc)
+    if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
       ESMF_CONTEXT, rcToReturn=rc)) return
+    
+    ! deallocate Fortran arrays whose ownership was transferred
+    if (associated(array%farray1D)) then
+      deallocate(array%farray1D, stat=stat)
+      if (ESMF_LogFoundDeallocError(stat, msg="deallocating array%farray1D", &
+        ESMF_CONTEXT)) &
+        return  ! bail out
+    endif
+    if (associated(array%farray2D)) then
+      deallocate(array%farray2D, stat=stat)
+      if (ESMF_LogFoundDeallocError(stat, msg="deallocating array%farray1D", &
+        ESMF_CONTEXT)) &
+        return  ! bail out
+    endif
+    if (associated(array%farray3D)) then
+      deallocate(array%farray3D, stat=stat)
+      if (ESMF_LogFoundDeallocError(stat, msg="deallocating array%farray1D", &
+        ESMF_CONTEXT)) &
+        return  ! bail out
+    endif
     
     ! return successfully
     if (present(rc)) rc = ESMF_SUCCESS

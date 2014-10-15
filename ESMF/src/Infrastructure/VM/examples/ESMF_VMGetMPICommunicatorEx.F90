@@ -1,7 +1,7 @@
-! $Id: ESMF_VMGetMPICommunicatorEx.F90,v 1.16.2.1 2010/02/05 20:01:28 svasquez Exp $
+! $Id: ESMF_VMGetMPICommunicatorEx.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2010, University Corporation for Atmospheric Research,
+! Copyright 2002-2012, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -32,7 +32,7 @@
 
 program ESMF_VMGetMPICommunicatorEx
 
-  use ESMF_Mod
+  use ESMF
   
   implicit none
   !include 'mpif.h'
@@ -55,7 +55,8 @@ program ESMF_VMGetMPICommunicatorEx
   ! result code
   integer :: finalrc
   finalrc = ESMF_SUCCESS
-  call ESMF_Initialize(vm=vm, rc=rc)
+  call ESMF_Initialize(vm=vm, defaultlogfilename="VMGetMPICommunicatorEx.Log", &
+                    logkindflag=ESMF_LOGKIND_MULTI, rc=rc)
   if (rc/=ESMF_SUCCESS) finalrc = ESMF_FAILURE
 !BOC
   call ESMF_VMGet(vm, mpiCommunicator=mpic, rc=rc)

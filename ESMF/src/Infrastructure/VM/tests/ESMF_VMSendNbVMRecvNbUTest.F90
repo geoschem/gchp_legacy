@@ -1,7 +1,7 @@
-! $Id: ESMF_VMSendNbVMRecvNbUTest.F90,v 1.8.4.1 2010/02/05 20:02:07 svasquez Exp $
+! $Id: ESMF_VMSendNbVMRecvNbUTest.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2010, University Corporation for Atmospheric Research,
+! Copyright 2002-2012, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -29,14 +29,14 @@
 !-----------------------------------------------------------------------------
 ! !USES:
       use ESMF_TestMod     ! test methods
-      use ESMF_Mod
+      use ESMF
 
       implicit none
 
 !------------------------------------------------------------------------------
 ! The following line turns the CVS identifier string into a printable variable.
       character(*), parameter :: version = &
-      '$Id: ESMF_VMSendNbVMRecvNbUTest.F90,v 1.8.4.1 2010/02/05 20:02:07 svasquez Exp $'
+      '$Id: ESMF_VMSendNbVMRecvNbUTest.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $'
 !------------------------------------------------------------------------------
       ! cumulative result: count failures; no failures equals "all pass"
       integer :: result = 0
@@ -88,7 +88,7 @@
 
       ! Get count of PETs and which PET number we are
       call ESMF_VMGetGlobal(vm, rc=rc)
-      call ESMF_VMGet(vm, localPet, petCount=petCount, rc=rc)
+      call ESMF_VMGet(vm, localPet=localPet, petCount=petCount, rc=rc)
 
       ! Allocate localData
       count = 2
@@ -144,7 +144,7 @@
       enddo
       
       write(infostring, *) "First round: src=",src," dst=",dst
-      call ESMF_LogWrite(infostring, ESMF_LOG_INFO)
+      call ESMF_LogWrite(infostring, ESMF_LOGMSG_INFO)
 
       !The solution to test against is..
       do  i=1,count
@@ -165,8 +165,8 @@
       ! Send local data to dst
       write(failMsg, *) "Did not RETURN ESMF_SUCCESS"
       write(name, *) "Sending local I4 data Test"
-      call ESMF_VMSend(vm, sendData=localData, count=count, dst=dst, &
-        blockingflag=ESMF_NONBLOCKING, commhandle=commhandleI4s, rc=rc)
+      call ESMF_VMSend(vm, sendData=localData, count=count, dstPet=dst, &
+        syncflag=ESMF_SYNC_NONBLOCKING, commhandle=commhandleI4s, rc=rc)
       call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
 
       !------------------------------------------------------------------------
@@ -176,8 +176,8 @@
       ! dst receives local data from src
       write(failMsg, *) "Did not RETURN ESMF_SUCCESS"
       write(name, *) "Receiving local I4 data Test"
-      call ESMF_VMRecv(vm, recvData=i_recvData, count=count, src=src, &
-        blockingflag=ESMF_NONBLOCKING, commhandle=commhandleI4r, rc=rc)
+      call ESMF_VMRecv(vm, recvData=i_recvData, count=count, srcPet=src, &
+        syncflag=ESMF_SYNC_NONBLOCKING, commhandle=commhandleI4r, rc=rc)
       call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
 
      !Test with REAL_KIND_R4 arguments
@@ -187,8 +187,8 @@
       ! Send local data to dst
       write(failMsg, *) "Did not RETURN ESMF_SUCCESS"
       write(name, *) "Sending local R4 data Test"
-      call ESMF_VMSend(vm, sendData=r4_localData, count=count, dst=dst, &
-        blockingflag=ESMF_NONBLOCKING, commhandle=commhandleR4s, rc=rc)
+      call ESMF_VMSend(vm, sendData=r4_localData, count=count, dstPet=dst, &
+        syncflag=ESMF_SYNC_NONBLOCKING, commhandle=commhandleR4s, rc=rc)
       call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
 
       !------------------------------------------------------------------------
@@ -198,8 +198,8 @@
       ! dst receives local data from src
       write(failMsg, *) "Did not RETURN ESMF_SUCCESS"
       write(name, *) "Receiving local R4 data Test"
-      call ESMF_VMRecv(vm, recvData=r4_recvData, count=count, src=src, &
-        blockingflag=ESMF_NONBLOCKING, commhandle=commhandleR4r, rc=rc)
+      call ESMF_VMRecv(vm, recvData=r4_recvData, count=count, srcPet=src, &
+        syncflag=ESMF_SYNC_NONBLOCKING, commhandle=commhandleR4r, rc=rc)
       call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
 
      !Test with ESMF_KIND_R8 arguments
@@ -209,8 +209,8 @@
       ! Send local data to dst
       write(failMsg, *) "Did not RETURN ESMF_SUCCESS"
       write(name, *) "Sending local R8 data Test"
-      call ESMF_VMSend(vm, sendData=r8_localData, count=count, dst=dst, &
-        blockingflag=ESMF_NONBLOCKING, commhandle=commhandleR8s, rc=rc)
+      call ESMF_VMSend(vm, sendData=r8_localData, count=count, dstPet=dst, &
+        syncflag=ESMF_SYNC_NONBLOCKING, commhandle=commhandleR8s, rc=rc)
       call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
 
       !------------------------------------------------------------------------
@@ -220,8 +220,8 @@
       ! dst receives local data from src
       write(failMsg, *) "Did not RETURN ESMF_SUCCESS"
       write(name, *) "Receiving local R8 data Test"
-      call ESMF_VMRecv(vm, recvData=r8_recvData, count=count, src=src, &
-        blockingflag=ESMF_NONBLOCKING, commhandle=commhandleR8r, rc=rc)
+      call ESMF_VMRecv(vm, recvData=r8_recvData, count=count, srcPet=src, &
+        syncflag=ESMF_SYNC_NONBLOCKING, commhandle=commhandleR8r, rc=rc)
       call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
 
      !Test with logical arguments
@@ -231,8 +231,8 @@
       ! Send local data to dst
       write(failMsg, *) "Did not RETURN ESMF_SUCCESS"
       write(name, *) "Sending local LOGICAL data Test"
-      call ESMF_VMSend(vm, sendData=local_logical, count=count, dst=dst, &
-        blockingflag=ESMF_NONBLOCKING, commhandle=commhandleLOGICALs, rc=rc)
+      call ESMF_VMSend(vm, sendData=local_logical, count=count, dstPet=dst, &
+        syncflag=ESMF_SYNC_NONBLOCKING, commhandle=commhandleLOGICALs, rc=rc)
       call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
 
       !------------------------------------------------------------------------
@@ -245,8 +245,8 @@
       ! dst receives local data from src
       write(failMsg, *) "Did not RETURN ESMF_SUCCESS"
       write(name, *) "Receiving local LOGICAL data Test"
-      call ESMF_VMRecv(vm, recvData=recv_logical, count=count, src=src, &
-        blockingflag=ESMF_NONBLOCKING, commhandle=commhandleLOGICALr, rc=rc)
+      call ESMF_VMRecv(vm, recvData=recv_logical, count=count, srcPet=src, &
+        syncflag=ESMF_SYNC_NONBLOCKING, commhandle=commhandleLOGICALr, rc=rc)
       call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
 
 
@@ -257,7 +257,7 @@
       ! Wait on integer recv
       write(failMsg, *) "Did not RETURN ESMF_SUCCESS"
       write(name, *) "Waiting for I4 RecvNb"
-      call ESMF_VMCommWait(vm, commhandleI4r, rc)
+      call ESMF_VMCommWait(vm, commhandleI4r, rc=rc)
       call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
 
       !------------------------------------------------------------------------
@@ -277,7 +277,7 @@
       ! Wait on R4 recv
       write(failMsg, *) "Did not RETURN ESMF_SUCCESS"
       write(name, *) "Waiting for R4 RecvNb"
-      call ESMF_VMCommWait(vm, commhandleR4r, rc)
+      call ESMF_VMCommWait(vm, commhandleR4r, rc=rc)
       call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
 
       !------------------------------------------------------------------------
@@ -298,7 +298,7 @@
       ! Wait on R8 recv
       write(failMsg, *) "Did not RETURN ESMF_SUCCESS"
       write(name, *) "Waiting for R8 RecvNb"
-      call ESMF_VMCommWait(vm, commhandleR8r, rc)
+      call ESMF_VMCommWait(vm, commhandleR8r, rc=rc)
       call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
 
       !------------------------------------------------------------------------
@@ -319,7 +319,7 @@
       ! Wait on LOGICAL recv
       write(failMsg, *) "Did not RETURN ESMF_SUCCESS"
       write(name, *) "Waiting for LOGICAL RecvNb"
-      call ESMF_VMCommWait(vm, commhandleLOGICALr, rc)
+      call ESMF_VMCommWait(vm, commhandleLOGICALr, rc=rc)
       call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
 
       !------------------------------------------------------------------------
@@ -345,7 +345,7 @@
 !===============================================================================
 ! Second round of tests don't use commhandles but rely on ESMF's internal
 ! request queue. After all of the non-blocking calls are queued and before
-! testing the received values a call to ESMF_VMCommQueueWait() waits on _all_
+! testing the received values a call to ESMF_VMCommWaitAll() waits on _all_
 ! outstanding non-blocking communication calls for the current VM.
 !===============================================================================
 
@@ -360,7 +360,7 @@
       enddo
 
       write(infostring, *) "Second round: src=",src," dst=",dst
-      call ESMF_LogWrite(infostring, ESMF_LOG_INFO)
+      call ESMF_LogWrite(infostring, ESMF_LOGMSG_INFO)
 
       !The solution to test against is..
       do  i=1,count
@@ -381,8 +381,8 @@
       ! Send local data to dst
       write(failMsg, *) "Did not RETURN ESMF_SUCCESS"
       write(name, *) "Sending local I4 data Test"
-      call ESMF_VMSend(vm, sendData=localData, count=count, dst=dst, &
-        blockingflag=ESMF_NONBLOCKING, rc=rc)
+      call ESMF_VMSend(vm, sendData=localData, count=count, dstPet=dst, &
+        syncflag=ESMF_SYNC_NONBLOCKING, rc=rc)
       call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
 
       !------------------------------------------------------------------------
@@ -392,8 +392,8 @@
       ! dst receives local data from src
       write(failMsg, *) "Did not RETURN ESMF_SUCCESS"
       write(name, *) "Receiving local I4 data Test"
-      call ESMF_VMRecv(vm, recvData=i_recvData, count=count, src=src, &
-        blockingflag=ESMF_NONBLOCKING, rc=rc)
+      call ESMF_VMRecv(vm, recvData=i_recvData, count=count, srcPet=src, &
+        syncflag=ESMF_SYNC_NONBLOCKING, rc=rc)
       call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
 
      !Test with REAL_KIND_R4 arguments
@@ -403,8 +403,8 @@
       ! Send local data to dst
       write(failMsg, *) "Did not RETURN ESMF_SUCCESS"
       write(name, *) "Sending local R4 data Test"
-      call ESMF_VMSend(vm, sendData=r4_localData, count=count, dst=dst, &
-        blockingflag=ESMF_NONBLOCKING, rc=rc)
+      call ESMF_VMSend(vm, sendData=r4_localData, count=count, dstPet=dst, &
+        syncflag=ESMF_SYNC_NONBLOCKING, rc=rc)
       call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
 
       !------------------------------------------------------------------------
@@ -414,8 +414,8 @@
       ! dst receives local data from src
       write(failMsg, *) "Did not RETURN ESMF_SUCCESS"
       write(name, *) "Receiving local R4 data Test"
-      call ESMF_VMRecv(vm, recvData=r4_recvData, count=count, src=src, &
-        blockingflag=ESMF_NONBLOCKING, rc=rc)
+      call ESMF_VMRecv(vm, recvData=r4_recvData, count=count, srcPet=src, &
+        syncflag=ESMF_SYNC_NONBLOCKING, rc=rc)
       call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
 
      !Test with ESMF_KIND_R8 arguments
@@ -425,8 +425,8 @@
       ! Send local data to dst
       write(failMsg, *) "Did not RETURN ESMF_SUCCESS"
       write(name, *) "Sending local R8 data Test"
-      call ESMF_VMSend(vm, sendData=r8_localData, count=count, dst=dst, &
-        blockingflag=ESMF_NONBLOCKING, rc=rc)
+      call ESMF_VMSend(vm, sendData=r8_localData, count=count, dstPet=dst, &
+        syncflag=ESMF_SYNC_NONBLOCKING, rc=rc)
       call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
 
       !------------------------------------------------------------------------
@@ -436,8 +436,8 @@
       ! dst receives local data from src
       write(failMsg, *) "Did not RETURN ESMF_SUCCESS"
       write(name, *) "Receiving local R8 data Test"
-      call ESMF_VMRecv(vm, recvData=r8_recvData, count=count, src=src, &
-        blockingflag=ESMF_NONBLOCKING, rc=rc)
+      call ESMF_VMRecv(vm, recvData=r8_recvData, count=count, srcPet=src, &
+        syncflag=ESMF_SYNC_NONBLOCKING, rc=rc)
       call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
 
      !Test with logical arguments
@@ -447,8 +447,8 @@
       ! Send local data to dst
       write(failMsg, *) "Did not RETURN ESMF_SUCCESS"
       write(name, *) "Sending local LOGICAL data Test"
-      call ESMF_VMSend(vm, sendData=local_logical, count=count, dst=dst, &
-        blockingflag=ESMF_NONBLOCKING, rc=rc)
+      call ESMF_VMSend(vm, sendData=local_logical, count=count, dstPet=dst, &
+        syncflag=ESMF_SYNC_NONBLOCKING, rc=rc)
       call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
 
       !------------------------------------------------------------------------
@@ -461,19 +461,19 @@
       ! dst receives local data from src
       write(failMsg, *) "Did not RETURN ESMF_SUCCESS"
       write(name, *) "Receiving local LOGICAL data Test"
-      call ESMF_VMRecv(vm, recvData=recv_logical, count=count, src=src, &
-        blockingflag=ESMF_NONBLOCKING, rc=rc)
+      call ESMF_VMRecv(vm, recvData=recv_logical, count=count, srcPet=src, &
+        syncflag=ESMF_SYNC_NONBLOCKING, rc=rc)
       call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
 
 
-     !Test the VMCommQueueWait function to wait on all outstanding nb comms for VM
+     !Test the VMCommWaitAll function to wait on all outstanding nb comms for VM
      !===========================     
       !------------------------------------------------------------------------
       !NEX_UTest
       ! Wait on integer sendrecv
       write(failMsg, *) "Did not RETURN ESMF_SUCCESS"
       write(name, *) "Waiting for all queued non-blocking comms in VM"
-      call ESMF_VMCommQueueWait(vm, rc)
+      call ESMF_VMCommWaitAll(vm, rc=rc)
       call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
 
 

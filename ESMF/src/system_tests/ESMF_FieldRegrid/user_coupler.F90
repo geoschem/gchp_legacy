@@ -1,4 +1,4 @@
-! $Id: user_coupler.F90,v 1.21 2009/08/03 18:43:59 theurich Exp $
+! $Id: user_coupler.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
 !
 ! Example/test code which shows User Component calls.
 
@@ -16,7 +16,7 @@
     module user_coupler
 
     ! ESMF Framework module
-    use ESMF_Mod
+    use ESMF
     
     implicit none
     
@@ -40,11 +40,11 @@
       print *, "in user setservices routine"
 
       ! Register the callback routines.
-      call ESMF_CplCompSetEntryPoint(comp, ESMF_SETINIT, user_init, rc=rc)
+      call ESMF_CplCompSetEntryPoint(comp, ESMF_METHOD_INITIALIZE, user_init, rc=rc)
       if(rc/=ESMF_SUCCESS) return
-      call ESMF_CplCompSetEntryPoint(comp, ESMF_SETRUN, user_run, rc=rc)
+      call ESMF_CplCompSetEntryPoint(comp, ESMF_METHOD_RUN, user_run, rc=rc)
       if(rc/=ESMF_SUCCESS) return
-      call ESMF_CplCompSetEntryPoint(comp, ESMF_SETFINAL, user_final, rc=rc)
+      call ESMF_CplCompSetEntryPoint(comp, ESMF_METHOD_FINALIZE, user_final, rc=rc)
       if(rc/=ESMF_SUCCESS) return
 
       print *, "Registered Initialize, Run, and Finalize routines"
@@ -93,7 +93,7 @@
 
       call ESMF_FieldRegridStore(srcField=humidity1, dstField=humidity2, &
                                  routeHandle=routehandle, &
-                                 regridMethod=ESMF_REGRID_METHOD_BILINEAR, &
+                                 regridmethod=ESMF_REGRIDMETHOD_BILINEAR, &
                                  rc=rc)
       if(rc/=ESMF_SUCCESS) return
 
@@ -160,7 +160,7 @@
       print *, "User Coupler Final starting"
    
       ! Release resources stored for the Regridding.
-      call ESMF_FieldRegridRelease(routehandle, rc)
+      call ESMF_FieldRegridRelease(routehandle, rc=rc)
       if(rc/=ESMF_SUCCESS) return
 
       print *, "User Coupler Final returning"

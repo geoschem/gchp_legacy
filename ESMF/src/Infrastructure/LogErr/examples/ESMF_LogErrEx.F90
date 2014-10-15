@@ -1,7 +1,7 @@
-! $Id: ESMF_LogErrEx.F90,v 1.33.4.1 2010/02/05 19:58:54 svasquez Exp $
+! $Id: ESMF_LogErrEx.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2010, University Corporation for Atmospheric Research,
+! Copyright 2002-2012, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -32,13 +32,13 @@
 #include "ESMF_LogMacros.inc"
 
     ! ESMF Framework module
-    use ESMF_Mod
+    use ESMF
     implicit none
     
     ! return variables
     integer :: rc1, rc2, rc3, rcToTest, allocRcToTest
     type(ESMF_LOG) :: alog  ! a log object that is not the default log
-    type(ESMF_LogType) :: defaultLogtype
+    type(ESMF_LogKind_Flag) :: logkindflag
     type(ESMF_Time) :: time
     integer, pointer :: intptr(:)
 !EOC
@@ -54,30 +54,30 @@
 
 !BOC
     ! Initialize ESMF to initialize the default Log
-    call ESMF_Initialize(rc=rc1, defaultlogtype=ESMF_LOG_MULTI)
+    call ESMF_Initialize(rc=rc1, logkindflag=ESMF_LOGKIND_MULTI)
 !EOC
 
     if (rc1.NE.ESMF_SUCCESS) then
-        finalrc = ESMF_FAILURE
+        finalrc = ESMF_RC_OBJ_BAD
     end if
 
 !BOC
     ! LogWrite 
-    call ESMF_LogWrite("Log Write 2", ESMF_LOG_INFO, rc=rc2)
+    call ESMF_LogWrite("Log Write 2", ESMF_LOGMSG_INFO, rc=rc2)
 !EOC
 
     if (rc2.NE.ESMF_SUCCESS) then
-        finalrc = ESMF_FAILURE
+        finalrc = ESMF_RC_OBJ_BAD
     end if
 
 !BOC
     ! LogMsgSetError
-    call ESMF_LogMsgSetError(ESMF_FAILURE, "Convergence failure", &
+    call ESMF_LogSetError(ESMF_RC_OBJ_BAD, msg="Convergence failure", &
                              rcToReturn=rc2)
     ! LogMsgFoundError
-    call ESMF_TimeSet(time, calendarType=ESMF_CAL_NOCALENDAR)
-    call ESMF_TimeSyncToRealTime(time, rcToTest)
-    if (ESMF_LogMsgFoundError(rcToTest, "getting wall clock time", &
+    call ESMF_TimeSet(time, calkindflag=ESMF_CALKIND_NOCALENDAR)
+    call ESMF_TimeSyncToRealTime(time, rc=rcToTest)
+    if (ESMF_LogFoundError(rcToTest, msg="getting wall clock time", &
                               rcToReturn=rc2)) then
         ! Error getting time. The previous call will have printed the error
         ! already into the log file.  Add any additional error handling here.
@@ -86,7 +86,7 @@
 
     ! LogMsgFoundAllocError
     allocate(intptr(10), stat=allocRcToTest)
-    if (ESMF_LogMsgFoundAllocError(allocRcToTest, "integer array", &
+    if (ESMF_LogFoundAllocError(allocRcToTest, msg="integer array", &
                                    rcToReturn=rc2)) then
         ! Error during allocation.  The previous call will have logged already
         ! an error message into the log.
@@ -95,7 +95,7 @@
 !EOC
 
 !BOE
-!\subsubsection{User Created Log}
+!\subsubsection{User created Log}
 ! This example shows how to use a user created Log.  This example uses
 ! cpp macros.
 !EOE
@@ -110,24 +110,25 @@
     end if
 
 !BOC
-    ! LogWrite; ESMF_CONTEXT expands into __LINE__,ESMF_FILENAME,ESMF_METHOD
-    call ESMF_LogWrite("Log Write 2", ESMF_LOG_INFO, ESMF_CONTEXT, &
-                       log=alog, rc=rc2)
+    ! LogWrite
+    call ESMF_LogWrite("Log Write 2", ESMF_LOGMSG_INFO, &
+                       line=__LINE__, file=ESMF_FILENAME, &
+                       method=ESMF_METHOD, log=alog, rc=rc2)
 !EOC
 
     if (rc2.NE.ESMF_SUCCESS) then
-        finalrc = ESMF_FAILURE
+        finalrc = ESMF_RC_OBJ_BAD
     end if
 
 !BOC
-    ! LogMsgSetError; ESMF_CONTEXT expands into
-    !   __LINE__,ESMF_FILENAME,ESMF_METHOD
-    call ESMF_LogMsgSetError(ESMF_FAILURE, "Interpolation Failure", &
-                             ESMF_CONTEXT, rcToReturn=rc2, log=alog)
+    ! LogMsgSetError
+    call ESMF_LogSetError(ESMF_RC_OBJ_BAD,  msg="Interpolation Failure", &
+                          line=__LINE__, file=ESMF_FILENAME, &
+                           method=ESMF_METHOD, rcToReturn=rc2, log=alog)
 !EOC
 
-    if (rc2.NE.ESMF_FAILURE) then
-        finalrc = ESMF_FAILURE
+    if (rc2.NE.ESMF_RC_OBJ_BAD) then
+        finalrc = ESMF_RC_OBJ_BAD
     end if
 
 !BOE
@@ -139,31 +140,31 @@
 !BOC
     ! This is an example showing a query of the default Log.  Please note that
     ! no Log is passed in the argument list, so the default Log will be used.
-    call ESMF_LogGet(logtype=defaultLogtype, rc=rc3)
+    call ESMF_LogGet(logkindflag=logkindflag, rc=rc3)
 !EOC
 
     if (rc3.NE.ESMF_SUCCESS) then
-        finalrc = ESMF_FAILURE
+        finalrc = ESMF_RC_OBJ_BAD
     end if
 
 !BOC
     ! This is an example setting a property of a Log that is not the default.
     ! It was opened in a previous example, and the handle for it must be
     ! passed in the argument list.
-    call ESMF_LogSet(log=alog, halt=ESMF_LOG_HALTERROR, rc=rc2)
+    call ESMF_LogSet(log=alog, logmsgAbort=(/ESMF_LOGMSG_ERROR/), rc=rc2)
 !EOC
 
     if (rc2.NE.ESMF_SUCCESS) then
-        finalrc = ESMF_FAILURE
+        finalrc = ESMF_RC_OBJ_BAD
     end if
 
 !BOC
     ! Close the user log.
-    call ESMF_LogClose(alog, rc3)
+    call ESMF_LogClose(alog, rc=rc3)
 !EOC
 
     if (rc3.NE.ESMF_SUCCESS) then
-        finalrc = ESMF_FAILURE
+        finalrc = ESMF_RC_OBJ_BAD
     end if
 
 !BOC
@@ -172,7 +173,7 @@
 !EOC
 
     if (rc1.NE.ESMF_SUCCESS) then
-        finalrc = ESMF_FAILURE
+        finalrc = ESMF_RC_OBJ_BAD
     end if
 
     if (finalrc.EQ.ESMF_SUCCESS) then

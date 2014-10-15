@@ -1,6 +1,6 @@
-//
+// $Id$
 // Earth System Modeling Framework
-// Copyright 2002-2010, University Corporation for Atmospheric Research, 
+// Copyright 2002-2012, University Corporation for Atmospheric Research, 
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
 // Laboratory, University of Michigan, National Centers for Environmental 
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
@@ -56,18 +56,20 @@ public:
    * DstConfig object; if the 'conserv' type case, the full MEField will
    * be registered else only the interp _field will be registered.
    */
-  void Build(UInt nsrcF, MEField<> **srcF, UInt ndstF, MEField<> **dstF);
+  void Build(UInt nsrcF, MEField<> **srcF, UInt ndstF, MEField<> **dstF, Zoltan_Struct **zzp, bool free_zz);
 
   struct ZoltanUD {
-    ZoltanUD(UInt _sdim, MEField<> *_coord_src, MEField<> *_coord_dst) :
+  ZoltanUD(UInt _sdim, MEField<> *_coord_src, MEField<> *_coord_dst,bool _iter_is_obj) :
       coord_src(_coord_src),
       coord_dst(_coord_dst),
-      sdim(_sdim) {}
+	sdim(_sdim), 
+	iter_is_obj(_iter_is_obj) {}
     std::vector<MeshObj*> srcObj;
     std::vector<MeshObj*> dstObj;
     MEField<> *coord_src;
     MEField<> *coord_dst;
     UInt sdim;
+    bool iter_is_obj;
   };
 	
   Mesh &GetSrcRend() { return srcmesh_rend; }

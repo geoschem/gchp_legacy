@@ -1,4 +1,4 @@
-# $Id: makefile,v 1.20.2.1 2010/03/10 06:33:08 oehmke Exp $
+# $Id: makefile,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
 
 # leave alone.
 ALL: build_here 
@@ -19,9 +19,12 @@ SOURCEC	  = \
            ESMCI_GeomRendezvous.C \
            ESMCI_GlobalIds.C \
            ESMCI_HAdapt.C \
+           ESMCI_Integrate.C \
+           ESMCI_XGridUtil.C \
            ESMCI_Interp.C \
            ESMCI_IOField.C \
            ESMCI_Kernel.C \
+           ESMCI_MathUtil.C \
            ESMCI_Mapping.C \
            ESMCI_MasterElement.C \
            ESMCI_MCoord.C \
@@ -43,6 +46,7 @@ SOURCEC	  = \
            ESMCI_MeshPNC.C \
            ESMCI_MeshRead.C \
            ESMCI_MeshRefine.C \
+           ESMCI_MeshRegrid.C \
            ESMCI_MeshSkin.C \
            ESMCI_MeshUtils.C \
            ESMCI_MeshVTK.C \
@@ -65,12 +69,12 @@ SOURCEC	  = \
            ESMCI_WMat.C \
            ESMCI_WriteWeights.C \
            ESMCI_WriteWeightsPar.C \
-	   ESMCI_SpaceDir.C \
-	   ESMCI_FindPnts.C \
+           ESMCI_SpaceDir.C \
+           ESMCI_FindPnts.C \
+           ESMCI_ConserveInterp.C \
            ESMCI_MeshCXX.C
 
-SOURCEF	  = \
-	    ESMF_SolverUtil_C.F90 \
+SOURCEF	  = ESMF_SolverUtil_C.F90 \
 
 SOURCEH	  = ESMCI_MeshCXX.h
 

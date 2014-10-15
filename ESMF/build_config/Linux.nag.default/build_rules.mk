@@ -1,4 +1,4 @@
-# $Id: build_rules.mk,v 1.35.2.4 2010/05/03 12:35:29 theurich Exp $
+# $Id: build_rules.mk,v 1.1.5.1 2013-01-11 20:23:43 mathomp4 Exp $
 #
 # Linux.nag.default
 #
@@ -28,6 +28,7 @@ ESMF_MPIRUNDEFAULT      = $(ESMF_DIR)/src/Infrastructure/stubs/mpiuni/mpirun
 else
 ifeq ($(ESMF_COMM),mpich)
 # Mpich ----------------------------------------------------
+ESMF_F90COMPILECPPFLAGS+= -DESMF_MPICH
 ESMF_CXXCOMPILECPPFLAGS+= -DESMF_MPICH
 ESMF_F90DEFAULT         = mpif90
 ESMF_CXXDEFAULT         = mpiCC
@@ -60,6 +61,8 @@ ifeq ($(ESMF_COMM),openmpi)
 ESMF_CXXCOMPILECPPFLAGS+= -DESMF_NO_SIGUSR2
 ESMF_F90DEFAULT         = mpif90
 ESMF_CXXDEFAULT         = mpicxx
+ESMF_F90LINKLIBS       += -lmpi_cxx
+ESMF_CXXLINKLIBS       += -lmpi_f77
 ESMF_MPIRUNDEFAULT      = mpirun $(ESMF_MPILAUNCHOPTIONS)
 ESMF_MPIMPMDRUNDEFAULT  = mpiexec $(ESMF_MPILAUNCHOPTIONS)
 else
@@ -118,10 +121,20 @@ ESMF_F90COMPILEFREENOCPP = -free
 ESMF_F90COMPILEFIXCPP    = -fixed -fpp
 
 ############################################################
-# Blank out variables to prevent rpath encoding
+# Set rpath syntax
 #
-ESMF_F90LINKRPATHS      =
-ESMF_CXXLINKRPATHS      =
+ESMF_F90RPATHPREFIX         = -Wl,-Wl,,-rpath,,
+ESMF_CXXRPATHPREFIX         = -Wl,-rpath,
+
+############################################################
+# Determine where gcc's libraries are located
+#
+ESMF_LIBSTDCXX := $(shell $(ESMF_CXXCOMPILER) $(ESMF_CXXCOMPILEOPTS) -print-file-name=libstdc++.so)
+ifeq ($(ESMF_LIBSTDCXX),libstdc++.so)
+ESMF_LIBSTDCXX := $(shell $(ESMF_CXXCOMPILER) $(ESMF_CXXCOMPILEOPTS) -print-file-name=libstdc++.a)
+endif
+ESMF_F90LINKPATHS += -L$(dir $(ESMF_LIBSTDCXX))
+ESMF_F90LINKRPATHS += $(ESMF_F90RPATHPREFIX)$(dir $(ESMF_LIBSTDCXX))
 
 ############################################################
 # Link against libesmf.a using the F90 linker front-end
@@ -134,6 +147,12 @@ ESMF_F90LINKLIBS += -lrt -lstdc++ -ldl
 ESMF_CXXLINKLIBS += -lrt -ldl $(shell $(ESMF_DIR)/scripts/libs.nag $(ESMF_F90COMPILER))
 
 ############################################################
-# Blank out shared library options
+# Shared library options
 #
-ESMF_SL_LIBS_TO_MAKE  =
+ESMF_SL_LIBOPTS  += -shared
+
+############################################################
+# Shared object options
+#
+ESMF_SO_F90COMPILEOPTS  = -pic
+ESMF_SO_CXXCOMPILEOPTS  = -fPIC

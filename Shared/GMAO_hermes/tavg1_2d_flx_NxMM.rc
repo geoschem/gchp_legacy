@@ -1,0 +1,134 @@
+# lcv2prs.rc
+#
+#  This is a resource file for the lcv2prs utility.
+#
+# !REVISION HISTORY:
+#
+#  26Jan2006  B. Yin    First version.
+#
+#...........................................................................
+#                     ----------------------
+#                     Output File Resolution
+#                     ----------------------
+
+zonal_resolution: 540              # no. of zonal grid-points (im)
+west_most_longitude_in_deg: -180.0 # longitude of first point (i=1)
+meridional_resolution: 361         # no. meridional grid-points (jm)
+vertical_level_numbers: 1
+#                       ----------------
+#                       Variable Classes
+#                       ----------------
+ 
+# A variable class lists the variable names that make up a file type or product.
+
+###  PRODUCT: tavg1_2d_flx_Nx (2-D diagnostics)
+
+VarClass*tavg1_2d_flx_Nx: EFLUX EVAP HFLUX TAUX TAUY TAUGWX TAUGWY PBLH DISPH BSTAR  \   
+                          USTAR TSTAR QSTAR RI Z0H Z0M HLML TLML QLML ULML VLML RHOA \
+                          SPEED CDH CDQ CDM CN TSH QSH FRSEAICE PRECANV PRECCON PRECLSC \
+                          PRECSNO PRECTOT PGENTOT \
+                          Var_EFLUX Var_EVAP Var_HFLUX Var_TAUX Var_TAUY Var_TAUGWX Var_TAUGWY \
+                          Var_PBLH Var_DISPH Var_BSTAR Var_USTAR Var_TSTAR Var_QSTAR Var_RI Var_Z0H \
+                          Var_Z0M Var_HLML Var_TLML Var_QLML Var_ULML Var_VLML Var_RHOA Var_SPEED \
+                          Var_CDH Var_CDQ Var_CDM Var_CN Var_TSH Var_QSH Var_PRECANV Var_PRECCON \
+                          Var_PRECLSC Var_PRECSNO Var_PRECTOT Var_PGENTOT
+
+#                         --------------------
+#                         Variable Translation
+#                         --------------------
+
+Variable_translation_table::
+
+#      Output          |                       Input
+#  Name       Units    | Name             scale_factor  add_offset Positive check
+#  ------------------------------------------------------------------------------
+   EFLUX      W/m2       EFLUX                  1.0        0.0         0
+   EVAP       kg/m2/s    EVAP                   1.0        0.0         0
+   HFLUX      W/m2       HFLUX                  1.0        0.0         0
+   TAUX       N/m2       TAUX                   1.0        0.0         0
+   TAUY       N/m2       TAUY                   1.0        0.0         0
+   TAUGWX     N/m2       TAUGWX                 1.0        0.0         0
+   TAUGWY     N/m2       TAUGWY                 1.0        0.0         0
+   PBLH       m          PBLH                   1.0        0.0         0
+   DISPH      m          DISPH                  1.0        0.0         0
+   BSTAR      m/s        BSTAR                  1.0        0.0         0
+   USTAR      m/s        USTAR                  1.0        0.0         0
+   TSTAR      K          TSTAR                  1.0        0.0         0
+   QSTAR      kg/kg      QSTAR                  1.0        0.0         0
+   RI         nondimensional  RI                1.0        0.0         0
+   Z0H        m          Z0H                    1.0        0.0         0
+   Z0M        m          Z0M                    1.0        0.0         0
+   HLML       m          HLML                   1.0        0.0         0
+   TLML       K          TLML                   1.0        0.0         0
+   QLML       kg/kg      QLML                   1.0        0.0         0
+   ULML       m/s        ULML                   1.0        0.0         0
+   VLML       m/s        VLML                   1.0        0.0         0
+   RHOA       kg/m3      RHOA                   1.0        0.0         0
+   SPEED      m/s        SPEED                  1.0        0.0         0
+   CDH        kg/m2/s    CDH                    1.0        0.0         0
+   CDQ        kg/m2/s    CDQ                    1.0        0.0         0
+   CDM        kg/m2/s    CDM                    1.0        0.0         0
+   CN         nondimensional  CN                1.0        0.0         0
+   TSH        K          TSH                    1.0        0.0         0
+   QSH        kg/kg      QSH                    1.0        0.0         0
+   FRSEAICE   fraction   FRSEAICE               1.0        0.0         0
+   PRECANV    kg/m2/s    PRECANV                1.0        0.0         0
+   PRECCON    kg/m2/s    PRECCON                1.0        0.0         0
+   PRECLSC    kg/m2/s    PRECLSC                1.0        0.0         0
+   PRECSNO    kg/m2/s    PRECSNO                1.0        0.0         0
+   PRECTOT    kg/m2/s    PRECTOT                1.0        0.0         0
+   PGENTOT    kg/m2/s    PGENTOT                1.0        0.0         0
+::
+
+
+# Table for variable names and description:
+
+EFLUX:      Latent heat flux (positive upward)
+EVAP:       Surface evaporation
+HFLUX:      Sensible heat flux (positive upward)
+TAUX:       Eastward surface wind stress
+TAUY:       Northward surface wind stress
+TAUGWX:     Eastward gravity wave surface stress
+TAUGWY:     Northward gravity wave surface stress
+PBLH:       Planetary boundary layer height
+DISPH:     Displacement Height
+BSTAR:      Surface buoyancy scale
+USTAR:      Surface velocity scale
+TSTAR:      Surface temperature scale
+QSTAR:      Surface humidity scale
+RI:         Surface Richardson number
+Z0H:        Roughness length, sensible heat
+Z0M:        Roughness length, momentum
+HLML:       Height of center of lowest model layer
+TLML:       Temperature of lowest model layer
+QLML:       Specific Humidity of lowest model layer
+ULML:       Eastward Wind of lowest model layer
+VLML:       Northward Wind of lowest model layer
+RHOA:       Surface air density
+SPEED:      Effective surface wind speed
+CDH:        Surface exchange coefficient for heat
+CDQ:        Surface exchange coefficient for moisture
+CDM:        Surface exchange coefficient for momentum
+CN:         Surface neutral drag coefficient
+TSH:        Effective turbulence skin temperature
+QSH:        Effective turbulence skin humidity
+FRSEAICE:   Ice covered fraction of tile
+PRECANV:    Surface precipitation flux from anvils
+PRECCON:    Surface precipitation flux from convection
+PRECLSC:    Surface precipitation flux from large-scale
+PRECSNO:    Surface snowfall flux
+PRECTOT:    Total surface precipitation flux
+PGENTOT:    Total generation of precipitation
+
+
+
+# Global meta data
+
+history:        File written by CFIO
+convention:     CF-1.0
+institution:    Global Modeling and Assimilation Office, NASA Goddard Space Flight Center, Greenbelt, MD 20771
+references:     http://gmao.gsfc.nasa.gov/research/merra/
+comment:        @PUBLICTAG
+source:         Global Modeling and Assimilation Office. GEOSops_5_2_0
+title:          MERRA reanalysis.  @PUBLICTAG
+contact:        http://gmao.gsfc.nasa.gov/ 

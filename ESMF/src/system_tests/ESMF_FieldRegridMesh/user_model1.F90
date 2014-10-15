@@ -1,4 +1,4 @@
-! $Id: user_model1.F90,v 1.1 2009/10/26 17:25:58 oehmke Exp $
+! $Id$
 !
 ! Example/test code which shows User Component calls.
 
@@ -16,7 +16,7 @@
     module user_model1
 
     ! ESMF Framework module
-    use ESMF_Mod
+    use ESMF
 
     implicit none
     
@@ -38,11 +38,11 @@
 
         ! Register the callback routines.
 
-        call ESMF_GridCompSetEntryPoint(comp, ESMF_SETINIT, user_init, rc=rc)
+        call ESMF_GridCompSetEntryPoint(comp, ESMF_METHOD_INITIALIZE, user_init, rc=rc)
         if(rc/=ESMF_SUCCESS) return
-        call ESMF_GridCompSetEntryPoint(comp, ESMF_SETRUN, user_run, rc=rc)
+        call ESMF_GridCompSetEntryPoint(comp, ESMF_METHOD_RUN, user_run, rc=rc)
         if(rc/=ESMF_SUCCESS) return
-        call ESMF_GridCompSetEntryPoint(comp, ESMF_SETFINAL, user_final, rc=rc)
+        call ESMF_GridCompSetEntryPoint(comp, ESMF_METHOD_FINALIZE, user_final, rc=rc)
         if(rc/=ESMF_SUCCESS) return
 
         print *, "Registered Initialize, Run, and Finalize routines"
@@ -154,7 +154,7 @@
       endif
 
       ! Create source field
-      call ESMF_ArraySpecSet(arrayspec, 1, ESMF_TYPEKIND_R8, rc)
+      call ESMF_ArraySpecSet(arrayspec, 1, ESMF_TYPEKIND_R8, rc=rc)
 
       srcField = ESMF_FieldCreate(srcMesh, arrayspec, &
                         name="src", rc=localrc)
@@ -200,7 +200,7 @@
 
 
         ! Add Field to State
-        call ESMF_StateAdd(exportState, srcField, rc=rc)
+        call ESMF_StateAdd(exportState, (/srcField/), rc=rc)
         if (rc .ne. ESMF_SUCCESS) return
      !   call ESMF_StatePrint(exportState, rc=rc)
 
@@ -222,7 +222,7 @@
         type(ESMF_grid) :: grid
         real(ESMF_KIND_R8) :: pi
         real(ESMF_KIND_R8), dimension(:,:), pointer :: idata, coordX, coordY
-        integer :: i, j, i1, j1, haloWidth, haloUWidth(2), counts(2), tlb(2), tub(2)
+        integer :: i, j, i1, j1
 
         rc = ESMF_SUCCESS
         print *, "User Comp Run starting"

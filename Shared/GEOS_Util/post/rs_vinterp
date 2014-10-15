@@ -1,0 +1,31 @@
+#!/bin/csh -f
+
+echo ''
+      ./configure
+source .configure
+
+set fname = rs_vinterp
+
+if( -e ${fname}.x ) /bin/rm ${fname}.x
+if( -e ${fname}.o ) /bin/rm ${fname}.o
+
+echo ''
+echo Compiling ${fname}.F90 ...
+
+/bin/rm -f dummy.*
+cat ${fname}.F90 set_eta.F90 > dummy.F90
+
+# Linux Compilation
+# -----------------
+if( ${ARCH} == 'Linux' ) then
+     ifort -o ${fname}.x -DESMA  -I$BASEDIR/$ARCH/include/esmf \
+           -O3 -assume byterecl  -extend_source -fpe0  -align dcommons -Dmpi -r8 dummy.F90
+endif
+
+/bin/rm -f dummy.*
+
+if( -e  ${fname}.x ) then
+echo "Created   ${fname}.x"
+echo " "
+              ./${fname}.x
+endif

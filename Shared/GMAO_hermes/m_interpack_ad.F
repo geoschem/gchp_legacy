@@ -1,0 +1,965 @@
+#define _TAMC_
+      module m_interpack_ad
+
+!
+! !REVISION HISTORY:
+!
+!   06Jul2007  Todling  - Wrapped up as module
+!      
+      implicit none
+      
+      private
+      
+      public  interpack_terpv_ad
+      
+      interface  interpack_terpv_ad; module procedure
+     &            adterpv_,
+     &            adterpv2d_,
+     &            adterpv3d_,
+     &            adterpv3dr4_
+      end interface
+      
+      real, parameter :: UNDEF    = 1.e15
+      real, parameter :: LON0_DEF = 0.
+
+      CONTAINS
+
+      subroutine adterpv3dr4_ ( im1, jm1, km1, f, ad_f, im2, jm2, km2, adfint, rc,
+     &                          lon0, fill ) ! optionals
+                                                                                                                                   
+      implicit none
+                                                                                                                                   
+      integer, intent(in)    :: im1, jm1, km1    ! dim of input vector
+      integer, intent(in)    :: im2, jm2, km2    ! dim to interpolate to
+      integer, intent(out)   :: rc
+      real(4), intent(in)    ::      f(im1,jm1,km1)
+      real(4), intent(inout) ::   ad_f(im1,jm1,km1)
+      real(4), intent(in)    :: adfint(im2,jm2,km2)
+      real(4), intent(in), optional :: lon0
+      real(4), intent(in), optional :: fill
+
+      real(8) ::      f_r8(im1,jm1,km1)
+      real(8) ::   ad_f_r8(im1,jm1,km1)
+      real(8) :: adfint_r8(im2,jm2,km2)
+
+      f_r8 = f
+      adfint_r8 = adfint
+      ad_f_r8 = ad_f
+
+      call adterpv3d_ ( im1, jm1, km1, f_r8, ad_f_r8, im2, jm2, km2, adfint_r8, rc,
+     &                  real(lon0,8), real(fill,8) ) ! optionals
+
+      ad_f = ad_f_r8
+
+      end subroutine adterpv3dr4_
+
+      subroutine adterpv3d_ ( im1, jm1, km1, f, ad_f, im2, jm2, km2, adfint, rc,
+     &                        lon0, fill ) ! optionals
+                                                                                                                                   
+      implicit none
+                                                                                                                                   
+      integer, intent(in)    :: im1, jm1, km1    ! dim of input vector
+      integer, intent(in)    :: im2, jm2, km2    ! dim to interpolate to
+      integer, intent(out)   :: rc
+      real,    intent(in)    ::      f(im1,jm1,km1)
+      real,    intent(inout) ::   ad_f(im1,jm1,km1)
+      real,    intent(in)    :: adfint(im2,jm2,km2)
+      real,    intent(in), optional :: lon0
+      real,    intent(in), optional :: fill
+                                                                                                                                   
+      integer k
+                                                                                                                                   
+      rc=0
+      if (km1/=km2) then
+          rc=99
+          return
+      endif
+                                                                                                                                   
+      do k = 1, km1
+         call adterpv2d_ ( im1, jm1, f(:,:,k), ad_f(:,:,k), im2, jm2, adfint(:,:,k), lon0=lon0, fill=fill )
+      enddo
+                                                                                                                                   
+      end subroutine adterpv3d_
+
+      
+      subroutine adterpv2d_ ( im1, jm1, f, ad_f, im2, jm2, adfint,
+     &                        lon0, fill ) ! optionals
+
+      implicit none
+
+      integer, intent(in)    :: im1, jm1
+      integer, intent(in)    :: im2, jm2
+      real,    intent(in)    ::      f(im1,jm1)
+      real,    intent(inout) ::   ad_f(im1,jm1)
+      real,    intent(in)    :: adfint(im2,jm2)
+      real,    intent(in), optional :: lon0
+      real,    intent(in), optional :: fill
+
+      integer  i,j,ij,len
+      real     lon0_
+      real, allocatable :: aux(:)
+      real, allocatable :: lats(:)
+      real, allocatable :: lons(:)
+
+      lon0_ = LON0_DEF
+      if(present(lon0)) lon0_ = lon0
+
+      len = im2*jm2
+      allocate( aux(len), lats(len), lons(len) )
+
+      ij=0
+      do j=1,jm2
+         do i=1,im2
+            ij=ij+1
+            lats(ij) = -90.  + (j-1)*180./(jm2-1)
+            lons(ij) = lon0_ + (i-1)*360./ im2
+         enddo
+      enddo
+
+      aux = reshape(adfint(1:im2,1:jm2),(/len/))
+
+      call adterpv_ ( lats, lons, len, f, im1, jm1, aux, ad_f,
+     &                deglon0=lon0, fill=fill )
+
+      deallocate( aux, lats, lons )
+
+      end subroutine adterpv2d_
+                                                                                                                           
+#ifdef _TAMC_
+      subroutine adterpv_( deglat, deglon, len, f, im, jnp,
+     $ adfint, ad_f,
+     $ deglon0, fill ) ! optionals
+C***************************************************************
+C***************************************************************
+C** This routine was generated by the                         **
+C** Tangent linear and Adjoint Model Compiler,  TAMC 5.2.6    **
+C***************************************************************
+C***************************************************************
+C==============================================
+C all entries are defined explicitly
+!
+! !REVISION HISTORY:
+!   18May00  Todling  - Created w/ TAMC, and cleaned up.
+!                     - adfint never changes on output
+!   06Jul07  Todling  add optionals (deglon0,fill)
+!
+C==============================================
+      implicit none
+
+C==============================================
+C define arguments
+C==============================================
+      integer len
+      integer im
+      integer jnp
+      real, intent(inout) :: adfint(len)
+      real, intent(in) :: deglat(len)
+      real, intent(in) :: deglon(len)
+      real, intent(in) ::     f(im,jnp)
+      real, intent(inout)::ad_f(im,jnp)
+      real, intent(in), optional :: deglon0
+      real, intent(in), optional :: fill
+
+C==============================================
+C define local variables
+C==============================================
+      real a
+      real ad_a
+      real ad_b
+      real ad_c
+      real ad_d
+      real ad_d1
+      real ad_d2
+      real ad_d3
+      real ad_d4
+      real ad_wti1
+      real ad_wtj1
+      real ad_xi
+      real ad_yj
+      real b
+      real c
+      real d
+      real d1
+      real d2
+      real d3
+      real d4
+      real fill_
+      real deglon0_
+      integer i0
+      integer i1
+      integer ifl
+      integer ii
+      integer j0
+      integer j1
+      real qdegdx
+      real qdegdy
+      real wti1
+      real wtj1
+      real xi
+      real yj
+
+      real, allocatable :: ad_fint(:)
+
+C----------------------------------------------
+C RESET LOCAL ADJOINT VARIABLES
+C----------------------------------------------
+      ad_a = 0.
+      ad_b = 0.
+      ad_c = 0.
+      ad_d = 0.
+      ad_d1 = 0.
+      ad_d2 = 0.
+      ad_d3 = 0.
+      ad_d4 = 0.
+      ad_wti1 = 0.
+      ad_wtj1 = 0.
+      ad_xi = 0.
+      ad_yj = 0.
+
+      allocate ( ad_fint(len) )
+      ad_fint = adfint
+C----------------------------------------------
+C ROUTINE BODY
+C----------------------------------------------
+      fill_ = UNDEF
+      if(present(fill)) fill_ = fill
+      deglon0_ = lon0_def
+      if(present(deglon0)) deglon0_ = deglon0
+      qdegdx = im/360.
+      qdegdy = (jnp-1)/180.
+      do ii = 1, len
+        ad_a = 0.
+        ad_b = 0.
+        ad_c = 0.
+        ad_d = 0.
+        ad_d1 = 0.
+        ad_d2 = 0.
+        ad_d3 = 0.
+        ad_d4 = 0.
+        ad_wti1 = 0.
+        ad_wtj1 = 0.
+        ad_xi = 0.
+        ad_yj = 0.
+        yj = (deglat(ii)+90.)*qdegdy+1.
+        j0 = yj
+        j0 = max0(j0,1)
+        j0 = min0(j0,jnp-1)
+        j1 = j0+1
+        xi = (deglon(ii)-deglon0_)*qdegdx+1.
+        if (xi .ge. im+1) then
+          xi = xi-im
+        endif
+        if (xi .lt. 1) then
+          xi = xi+im
+        endif
+        i0 = xi
+        i0 = max0(i0,1)
+        i0 = min0(i0,im)
+        i1 = i0+1
+        if (i0 .eq. im) then
+          i1 = 1
+        endif
+        wtj1 = yj-j0
+        wti1 = xi-i0
+        a = f(i0,j0)
+        b = f(i1,j0)
+        c = f(i0,j1)
+        d = f(i1,j1)
+        ifl = 0
+        if (a .eq. fill_) then
+          ifl = 1
+        endif
+        if (b .eq. fill_) then
+          ifl = ifl+2
+        endif
+        if (d .eq. fill_) then
+          ifl = ifl+4
+        endif
+        if (c .eq. fill_) then
+          ifl = ifl+8
+        endif
+        if (ifl .eq. 0) then
+          d1 = a
+          d2 = b
+          d3 = c
+          d4 = d
+        else if (ifl .eq. 1) then
+          d1 = 0.5*(b+c)
+          d2 = b
+          d3 = c
+          d4 = d
+        else if (ifl .eq. 2) then
+          d1 = a
+          d2 = 0.5*(a+d)
+          d3 = c
+          d4 = d
+        else if (ifl .eq. 3) then
+          d1 = 0.5*(c+d)
+          d2 = d1
+          d3 = c
+          d4 = d
+        else if (ifl .eq. 4) then
+          d1 = a
+          d2 = b
+          d3 = c
+          d4 = 0.5*(b+c)
+        else if (ifl .eq. 5) then
+          d1 = 0.5*(b+c)
+          d2 = b
+          d3 = c
+          d4 = d1
+        else if (ifl .eq. 6) then
+          d1 = a
+          d2 = 0.5*(a+c)
+          d3 = c
+          d4 = d2
+        else if (ifl .eq. 7) then
+          d1 = c
+          d2 = c
+          d3 = c
+          d4 = c
+        else if (ifl .eq. 8) then
+          d1 = a
+          d2 = b
+          d3 = 0.5*(a+d)
+          d4 = d
+        else if (ifl .eq. 9) then
+          d1 = 0.5*(b+d)
+          d2 = b
+          d3 = d1
+          d4 = d
+        else if (ifl .eq. 10) then
+          d1 = a
+          d2 = 0.5*(a+d)
+          d3 = d2
+          d4 = d
+        else if (ifl .eq. 11) then
+          d1 = d
+          d2 = d
+          d3 = d
+          d4 = d
+        else if (ifl .eq. 12) then
+          d1 = a
+          d2 = b
+          d3 = 0.5*(a+b)
+          d4 = d3
+        else if (ifl .eq. 13) then
+          d1 = b
+          d2 = b
+          d3 = b
+          d4 = b
+        else if (ifl .eq. 14) then
+          d1 = a
+          d2 = a
+          d3 = a
+          d4 = a
+        else if (ifl .eq. 15) then
+          d1 = fill_
+          d2 = fill_
+          d3 = fill_
+          d4 = fill_
+        endif
+        if (d1 .eq. fill_) then
+          ad_fint(ii) = 0.
+        else
+          a = d1
+          b = d2
+          c = d3
+          d = d4
+          ad_a = ad_a+ad_fint(ii)*(1.-wtj1)*(1.-wti1)
+          ad_b = ad_b+ad_fint(ii)*(1.-wtj1)*wti1
+          ad_c = ad_c+ad_fint(ii)*wtj1*(1.-wti1)
+          ad_d = ad_d+ad_fint(ii)*wtj1*wti1
+          ad_wti1 = ad_wti1+ad_fint(ii)*(wtj1*(d-c)+(1.-wtj1)*(b-a))
+          ad_wtj1 = ad_wtj1+ad_fint(ii)*(wti1*d+(1.-wti1)*c-(wti1*b+(1.-
+     $wti1)*a))
+          ad_fint(ii) = 0.
+          ad_d4 = ad_d4+ad_d
+          ad_d = 0.
+          ad_d3 = ad_d3+ad_c
+          ad_c = 0.
+          ad_d2 = ad_d2+ad_b
+          ad_b = 0.
+          ad_d1 = ad_d1+ad_a
+          ad_a = 0.
+        endif
+        if (ifl .eq. 0) then
+          ad_d = ad_d+ad_d4
+          ad_d4 = 0.
+          ad_c = ad_c+ad_d3
+          ad_d3 = 0.
+          ad_b = ad_b+ad_d2
+          ad_d2 = 0.
+          ad_a = ad_a+ad_d1
+          ad_d1 = 0.
+        else if (ifl .eq. 1) then
+          ad_d = ad_d+ad_d4
+          ad_d4 = 0.
+          ad_c = ad_c+ad_d3
+          ad_d3 = 0.
+          ad_b = ad_b+ad_d2
+          ad_d2 = 0.
+          ad_b = ad_b+0.5*ad_d1
+          ad_c = ad_c+0.5*ad_d1
+          ad_d1 = 0.
+        else if (ifl .eq. 2) then
+          ad_d = ad_d+ad_d4
+          ad_d4 = 0.
+          ad_c = ad_c+ad_d3
+          ad_d3 = 0.
+          ad_a = ad_a+0.5*ad_d2
+          ad_d = ad_d+0.5*ad_d2
+          ad_d2 = 0.
+          ad_a = ad_a+ad_d1
+          ad_d1 = 0.
+        else if (ifl .eq. 3) then
+          ad_d = ad_d+ad_d4
+          ad_d4 = 0.
+          ad_c = ad_c+ad_d3
+          ad_d3 = 0.
+          ad_d1 = ad_d1+ad_d2
+          ad_d2 = 0.
+          ad_c = ad_c+0.5*ad_d1
+          ad_d = ad_d+0.5*ad_d1
+          ad_d1 = 0.
+        else if (ifl .eq. 4) then
+          ad_b = ad_b+0.5*ad_d4
+          ad_c = ad_c+0.5*ad_d4
+          ad_d4 = 0.
+          ad_c = ad_c+ad_d3
+          ad_d3 = 0.
+          ad_b = ad_b+ad_d2
+          ad_d2 = 0.
+          ad_a = ad_a+ad_d1
+          ad_d1 = 0.
+        else if (ifl .eq. 5) then
+          ad_d1 = ad_d1+ad_d4
+          ad_d4 = 0.
+          ad_c = ad_c+ad_d3
+          ad_d3 = 0.
+          ad_b = ad_b+ad_d2
+          ad_d2 = 0.
+          ad_b = ad_b+0.5*ad_d1
+          ad_c = ad_c+0.5*ad_d1
+          ad_d1 = 0.
+        else if (ifl .eq. 6) then
+          ad_d2 = ad_d2+ad_d4
+          ad_d4 = 0.
+          ad_c = ad_c+ad_d3
+          ad_d3 = 0.
+          ad_a = ad_a+0.5*ad_d2
+          ad_c = ad_c+0.5*ad_d2
+          ad_d2 = 0.
+          ad_a = ad_a+ad_d1
+          ad_d1 = 0.
+        else if (ifl .eq. 7) then
+          ad_c = ad_c+ad_d4
+          ad_d4 = 0.
+          ad_c = ad_c+ad_d3
+          ad_d3 = 0.
+          ad_c = ad_c+ad_d2
+          ad_d2 = 0.
+          ad_c = ad_c+ad_d1
+          ad_d1 = 0.
+        else if (ifl .eq. 8) then
+          ad_d = ad_d+ad_d4
+          ad_d4 = 0.
+          ad_a = ad_a+0.5*ad_d3
+          ad_d = ad_d+0.5*ad_d3
+          ad_d3 = 0.
+          ad_b = ad_b+ad_d2
+          ad_d2 = 0.
+          ad_a = ad_a+ad_d1
+          ad_d1 = 0.
+        else if (ifl .eq. 9) then
+          ad_d = ad_d+ad_d4
+          ad_d4 = 0.
+          ad_d1 = ad_d1+ad_d3
+          ad_d3 = 0.
+          ad_b = ad_b+ad_d2
+          ad_d2 = 0.
+          ad_b = ad_b+0.5*ad_d1
+          ad_d = ad_d+0.5*ad_d1
+          ad_d1 = 0.
+        else if (ifl .eq. 10) then
+          ad_d = ad_d+ad_d4
+          ad_d4 = 0.
+          ad_d2 = ad_d2+ad_d3
+          ad_d3 = 0.
+          ad_a = ad_a+0.5*ad_d2
+          ad_d = ad_d+0.5*ad_d2
+          ad_d2 = 0.
+          ad_a = ad_a+ad_d1
+          ad_d1 = 0.
+        else if (ifl .eq. 11) then
+          ad_d = ad_d+ad_d4
+          ad_d4 = 0.
+          ad_d = ad_d+ad_d3
+          ad_d3 = 0.
+          ad_d = ad_d+ad_d2
+          ad_d2 = 0.
+          ad_d = ad_d+ad_d1
+          ad_d1 = 0.
+        else if (ifl .eq. 12) then
+          ad_d3 = ad_d3+ad_d4
+          ad_d4 = 0.
+          ad_a = ad_a+0.5*ad_d3
+          ad_b = ad_b+0.5*ad_d3
+          ad_d3 = 0.
+          ad_b = ad_b+ad_d2
+          ad_d2 = 0.
+          ad_a = ad_a+ad_d1
+          ad_d1 = 0.
+        else if (ifl .eq. 13) then
+          ad_b = ad_b+ad_d4
+          ad_d4 = 0.
+          ad_b = ad_b+ad_d3
+          ad_d3 = 0.
+          ad_b = ad_b+ad_d2
+          ad_d2 = 0.
+          ad_b = ad_b+ad_d1
+          ad_d1 = 0.
+        else if (ifl .eq. 14) then
+          ad_a = ad_a+ad_d4
+          ad_d4 = 0.
+          ad_a = ad_a+ad_d3
+          ad_d3 = 0.
+          ad_a = ad_a+ad_d2
+          ad_d2 = 0.
+          ad_a = ad_a+ad_d1
+          ad_d1 = 0.
+        else if (ifl .eq. 15) then
+          ad_d4 = 0.
+          ad_d3 = 0.
+          ad_d2 = 0.
+          ad_d1 = 0.
+        endif
+        ad_f(i1,j1) = ad_f(i1,j1)+ad_d
+        ad_d = 0.
+        ad_f(i0,j1) = ad_f(i0,j1)+ad_c
+        ad_c = 0.
+        ad_f(i1,j0) = ad_f(i1,j0)+ad_b
+        ad_b = 0.
+        ad_f(i0,j0) = ad_f(i0,j0)+ad_a
+        ad_a = 0.
+        ad_xi = ad_xi+ad_wti1
+        ad_wti1 = 0.
+        ad_yj = ad_yj+ad_wtj1
+        ad_wtj1 = 0.
+        ad_xi = 0.
+        ad_yj = 0.
+      end do
+
+      deallocate (ad_fint)
+!     print *, 'Completed TAMC-generated call to: adterpv'
+      return
+      end subroutine adterpv_
+#else /* _TAMC_ */
+
+!-------------------------------------------------------------------------
+!         NASA/GSFC, Data Assimilation Office, Code 910.3, GEOS/DAS      !
+!-------------------------------------------------------------------------
+!BOP
+!
+! !ROUTINE:  adTerpv --- Bi-linear interpolation to lat/lon locations
+! 
+! !INTERFACE:
+!
+!     subroutine adTerpv_( DEGLAT, DEGLON, FINT, LEN, F, IM, JNP, 
+      subroutine adTerpv_( DEGLAT, DEGLON, LEN, F, IM, JNP, 
+     .                     ad_FINT, ad_F,
+     .                     deglon0, fill ) ! optionals
+!
+! !USES:
+
+      Implicit None
+
+! !INPUT PARAMETERS: 
+!
+      integer,intent(in) ::  len
+      integer,intent(in) ::  IM, JNP
+      real,intent(in)    ::  DEGLAT(LEN)
+      real,intent(in)    ::  DEGLON(LEN)
+      real,intent(in)    ::  F(IM,JNP)
+!     real,intent(in)    ::  FINT(LEN)
+      real,intent(inout) ::  ad_FINT(LEN)
+      real,intent(in),optional :: deglon0
+      real,intent(in),optional :: fill
+
+! !OUTPUT PARAMETERS:
+
+      real,intent(inout) ::  ad_F(IM,JNP)
+!
+! !DESCRIPTION: This routine performs bilinear interpolation of a field, 
+!               f, to a set of lat/lon locations. Notice that
+!  deglat(i) is assumed to be between  -90.0 and  +90.0, and that
+!  deglon(i) is assumed to be between -180.0 and +180.0.
+!
+! !REVISION HISTORY: 
+!
+!  unknown   unknown    Initial code. There was no revision history
+!                       recorded in this file.
+!  13aug97   Todling    Switched position of common block with
+!                       declaration of F, so that im and jnp
+!                       be defined before used 
+!  09Oct97   da Silva   Added ProTeX compliant prologue. Changed
+!                       #include "file"  into  include "file" when
+!                       applicable. 
+!  23Oct97   Todling    Passing im, jnp to eliminate common /contrl/
+!  24Oct97   Todling    Incrementally changing value of fill
+!  18Feb98   Todling    Declared implicit none.
+!  24Feb98   Todling    Value of fill from getcon()
+!
+!
+!  16May00   Yanqiu Zhu  Initial ADJ code.
+!
+!EOP
+!-------------------------------------------------------------------------
+
+
+      INTEGER           II
+      INTEGER           I0
+      INTEGER           I1
+      INTEGER           J0
+      INTEGER           J1
+      REAL              QDEGDX
+      REAL              QDEGDY
+      REAL              WTI1
+      REAL              WTJ1
+      REAL              XI
+      REAL              YJ
+      real       a, b, c, d
+      real       ad_a, ad_b, ad_c, ad_d
+      real       d1, d2, d3, d4
+      real       ad_d1, ad_d2, ad_d3, ad_d4
+      integer    ifl
+ 
+      real    deglon0_,fill_
+ 
+      fill_   = UNDEF
+      if(present(fill)) fill_ = fill
+      deglon0_   = lon0_def
+      if(present(deglon0)) deglon0_ = deglon0
+      QDEGDX = IM / 360.0
+      QDEGDY = (JNP-1) / 180.0
+
+      ad_a  = 0.0
+      ad_b  = 0.0
+      ad_c  = 0.0
+      ad_d  = 0.0
+      ad_d1 = 0.0
+      ad_d2 = 0.0
+      ad_d3 = 0.0
+      ad_d4 = 0.0
+ 
+      DO 100 II = 1, LEN
+ 
+         YJ    = ( DEGLAT(II) +  90.0 ) * QDEGDY + 1.0
+         J0    = YJ
+         J0    = MAX0( J0, 1 )
+         J0    = MIN0( J0, JNP-1 )
+         J1    = J0 + 1
+ 
+         XI    = ( DEGLON(II) - deglon0_ ) * QDEGDX + 1.0
+         IF( XI.GE.(IM+1) ) XI = XI - IM
+         IF( XI.LT.1 ) XI = XI + IM
+         I0    = XI
+         I0    = MAX0( I0, 1 )
+         I0    = MIN0( I0, IM )
+         I1    = I0 + 1
+         IF( I0.EQ.IM ) I1 = 1
+ 
+         WTJ1  = YJ - J0
+         WTI1  = XI - I0
+ 
+c Screen for fill values on level - replace fill values according 
+c to predetermined criteria. 
+ 
+C
+C For brevity, the four corner points will be identified as follows:
+C
+C         X X   8               X X   4
+C         X X                   X X
+C         C  (D3)               D  (D4)
+C
+C
+C
+C
+C         X X   1               X X   2
+C         X X                   X X
+C         A   (D1)              B   (D2)
+C
+C
+C
+C Assign corner values
+C
+      A = F(I0,J0)
+      B = F(I1,J0)
+      C = F(I0,J1)
+      D = F(I1,J1)
+ 
+C Identify pattern of filled points by using a 4 bit binary representation,
+C e.g., 2 (decimal) = 0010 (binary) = corner B only is filled. 
+ 
+      IFL  = 0
+ 
+      IF( A .EQ. FILL_) THEN
+              IFL = 1
+      ENDIF
+      IF( B .EQ. FILL_) THEN
+              IFL = IFL + 2
+      ENDIF
+      IF( D .EQ. FILL_) THEN
+              IFL = IFL + 4
+      ENDIF
+      IF( C .EQ. FILL_) THEN
+              IFL = IFL + 8
+      ENDIF
+ 
+C
+C Filled values are repalced with values obtained from the other corners
+C so that the horizontal interpolation can be done.  Note that there are 
+C 16 special cases of filled patterns. 
+C
+      IF( IFL .EQ. 0 ) THEN
+              D1 = A
+              D2 = B
+              D3 = C
+              D4 = D
+      ELSE IF( IFL .EQ. 1 ) THEN
+              D1 = .5 * ( B + C )
+              D2 = B
+              D3 = C
+              D4 = D
+      ELSE IF( IFL .EQ. 2 ) THEN
+              D1 = A
+              D2 = .5 * ( A + D )
+              D3 = C
+              D4 = D
+      ELSE IF( IFL .EQ. 3 ) THEN
+              D1 = .5 * ( C + D )
+              D2 = D1
+              D3 = C
+              D4 = D
+      ELSE IF( IFL .EQ. 4 ) THEN
+              D1 = A
+              D2 = B
+              D3 = C
+              D4 = .5 * ( B + C )
+      ELSE IF( IFL .EQ. 5 ) THEN
+              D1 = .5 * ( B + C )
+              D2 = B
+              D3 = C
+              D4 = D1
+      ELSE IF( IFL .EQ. 6 ) THEN
+              D1 = A
+              D2 = .5 * ( A + C )
+              D3 = C
+              D4 = D2
+      ELSE IF( IFL .EQ. 7 ) THEN
+              D1 = C
+              D2 = C
+              D3 = C
+              D4 = C
+      ELSE IF( IFL .EQ. 8 ) THEN
+              D1 = A
+              D2 = B
+              D3 = .5 * ( A + D )
+              D4 = D
+      ELSE IF( IFL .EQ. 9 ) THEN
+              D1 = .5 * ( B + D )
+              D2 = B
+              D3 = D1
+              D4 = D
+      ELSE IF( IFL .EQ. 10) THEN
+              D1 = A
+              D2 = .5 * ( A + D )
+              D3 = D2
+              D4 = D
+      ELSE IF( IFL .EQ. 11) THEN
+              D1 = D
+              D2 = D
+              D3 = D
+              D4 = D
+      ELSE IF( IFL .EQ. 12) THEN
+              D1 = A
+              D2 = B
+              D3 = .5 * ( A + B )
+              D4 = D3
+      ELSE IF( IFL .EQ. 13) THEN
+              D1 = B
+              D2 = B
+              D3 = B
+              D4 = B
+      ELSE IF( IFL .EQ. 14) THEN
+              D1 = A
+              D2 = A
+              D3 = A
+              D4 = A
+      ELSE IF( IFL .EQ. 15) THEN
+              D1 = FILL_
+              D2 = FILL_
+              D3 = FILL_
+              D4 = FILL_
+      ENDIF
+ 
+C  HORIZONTAL INTERPOLATION
+ 
+      if (d1.eq.FILL_) then 
+         ad_fint(ii) = 0.0   !  fill 
+      else 
+         ad_d = ad_d + WTJ1 * WTI1 * ad_fint(ii)
+         ad_c = ad_c + WTJ1 * (1.0-WTI1) * ad_fint(ii)
+         ad_b = ad_b + (1.0-WTJ1) * WTI1 * ad_fint(ii)
+         ad_a = ad_a + (1.0-WTJ1) * (1.0-WTI1) * ad_fint(ii)
+         ad_fint(ii) = 0.0
+         ad_d1 = ad_d1 + ad_a
+         ad_a  = 0.0
+         ad_d2 = ad_d2 + ad_b
+         ad_b  = 0.0
+         ad_d3 = ad_d3 + ad_c
+         ad_c  = 0.0
+         ad_d4 = ad_d4 + ad_d
+         ad_d  = 0.0
+      end if 
+ 
+      IF( IFL .EQ. 0 ) THEN
+         ad_a  = ad_a + ad_d1
+         ad_d1 = 0.0 
+         ad_b  = ad_b + ad_d2
+         ad_d2 = 0.0
+         ad_c  = ad_c + ad_d3
+         ad_d3 = 0.0
+         ad_d  = ad_d + ad_d4
+         ad_d4 = 0.0
+      ELSE IF( IFL .EQ. 1 ) THEN
+         ad_b  = ad_b + 0.5 * ad_d1 + ad_d2
+         ad_c  = ad_c + 0.5 * ad_d1 + ad_d3
+         ad_d  = ad_d + ad_d4
+         ad_d1 = 0.0
+         ad_d2 = 0.0
+         ad_d3 = 0.0
+         ad_d4 = 0.0 
+      ELSE IF( IFL .EQ. 2 ) THEN
+         ad_a  = ad_a + ad_d1 + 0.5 * ad_d2
+         ad_d  = ad_d + 0.5 * ad_d2 + ad_d4
+         ad_c  = ad_c + ad_d3
+         ad_d1 = 0.0
+         ad_d2 = 0.0
+         ad_d3 = 0.0
+         ad_d4 = 0.0
+      ELSE IF( IFL .EQ. 3 ) THEN
+         ad_d1 = ad_d1 + ad_d2
+         ad_d2 = 0.0
+         ad_c  = ad_c + 0.5 * ad_d1 + ad_d3
+         ad_d  = ad_d + 0.5 * ad_d1 + ad_d4
+         ad_d1 = 0.0
+         ad_d3 = 0.0
+         ad_d4 = 0.0
+      ELSE IF( IFL .EQ. 4 ) THEN
+         ad_b  = ad_b + 0.5 * ad_d4 + ad_d2
+         ad_c  = ad_c + 0.5 * ad_d4 + ad_d3
+         ad_a  = ad_a + ad_d1
+         ad_d1 = 0.0
+         ad_d2 = 0.0
+         ad_d3 = 0.0
+         ad_d4 = 0.0
+      ELSE IF( IFL .EQ. 5 ) THEN
+         ad_d1 = ad_d1 + ad_d4
+         ad_d4 = 0.0
+         ad_c  = ad_c + ad_d3 + 0.5 * ad_d1
+         ad_b  = ad_b + ad_d2 + 0.5 * ad_d1
+         ad_d1 = 0.0
+         ad_d2 = 0.0
+         ad_d3 = 0.0
+      ELSE IF( IFL .EQ. 6 ) THEN
+         ad_d2 = ad_d2 + ad_d4
+         ad_d4 = 0.0
+         ad_c  = ad_c + ad_d3 + 0.5 * ad_d2
+         ad_a  = ad_a + 0.5 * ad_d2 + ad_d1
+         ad_d1 = 0.0
+         ad_d2 = 0.0
+         ad_d3 = 0.0
+      ELSE IF( IFL .EQ. 7 ) THEN
+         ad_c  = ad_c + ad_d1 + ad_d2 + ad_d3 + ad_d4
+         ad_d1 = 0.0
+         ad_d2 = 0.0
+         ad_d3 = 0.0
+         ad_d4 = 0.0
+      ELSE IF( IFL .EQ. 8 ) THEN
+         ad_d  = ad_d + ad_d4 + 0.5 * ad_d3
+         ad_a  = ad_a + ad_d1 + 0.5 * ad_d3
+         ad_b  = ad_b + ad_d2
+         ad_d1 = 0.0
+         ad_d2 = 0.0
+         ad_d3 = 0.0
+         ad_d4 = 0.0
+      ELSE IF( IFL .EQ. 9 ) THEN
+         ad_d  = ad_d + ad_d4
+         ad_d4 = 0.0
+         ad_d1 = ad_d1 + ad_d3
+         ad_d3 = 0.0
+         ad_b  = ad_b + ad_d2 + 0.5 * ad_d1
+         ad_d2 = 0.0
+         ad_d  = ad_d + 0.5 * ad_d1
+         ad_d1 = 0.0
+      ELSE IF( IFL .EQ. 10) THEN
+         ad_d  = ad_d + ad_d4
+         ad_d4 = 0.0
+         ad_d2 = ad_d2 + ad_d3
+         ad_d3 = 0.0
+         ad_a  = ad_a + 0.5 * ad_d2 + ad_d1
+         ad_d  = ad_d + 0.5 * ad_d2
+         ad_d2 = 0.0
+         ad_d1 = 0.0
+      ELSE IF( IFL .EQ. 11) THEN
+         ad_d  = ad_d + ad_d1 + ad_d2 + ad_d3 + ad_d4
+         ad_d1 = 0.0
+         ad_d2 = 0.0
+         ad_d3 = 0.0
+         ad_d4 = 0.0
+      ELSE IF( IFL .EQ. 12) THEN
+         ad_d3 = ad_d3 + ad_d4
+         ad_d4 = 0.0
+         ad_a  = ad_a + 0.5 * ad_d3 + ad_d1
+         ad_b  = ad_b + 0.5 * ad_d3 + ad_d2
+         ad_d1 = 0.0
+         ad_d2 = 0.0
+         ad_d3 = 0.0
+      ELSE IF( IFL .EQ. 13) THEN
+         ad_b  = ad_b + ad_d1 + ad_d2 + ad_d3 + ad_d4
+         ad_d1 = 0.0
+         ad_d2 = 0.0
+         ad_d3 = 0.0
+         ad_d4 = 0.0
+      ELSE IF( IFL .EQ. 14) THEN
+         ad_a  = ad_a + ad_d1 + ad_d2 + ad_d3 + ad_d4
+         ad_d1 = 0.0
+         ad_d2 = 0.0
+         ad_d3 = 0.0
+         ad_d4 = 0.0
+      ELSE IF( IFL .EQ. 15) THEN
+         ad_d1 = 0.0
+         ad_d2 = 0.0
+         ad_d3 = 0.0
+         ad_d4 = 0.0
+      ENDIF
+
+      ad_F(I0,J0) = ad_F(I0,J0) + ad_a
+      ad_a        = 0.0
+      ad_F(I1,J0) = ad_F(I1,J0) + ad_b
+      ad_b        = 0.0
+      ad_F(I0,J1) = ad_F(I0,J1) + ad_c
+      ad_c        = 0.0
+      ad_F(I1,J1) = ad_F(I1,J1) + ad_d
+      ad_d        = 0.0
+  
+  100 CONTINUE
+ 
+      RETURN
+      END subroutine adterpv_
+#endif /* _TAMC_ */
+
+      end module m_interpack_ad
+
+

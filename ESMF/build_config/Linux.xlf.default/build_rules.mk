@@ -1,4 +1,4 @@
-# $Id: build_rules.mk,v 1.17 2009/06/01 04:41:27 theurich Exp $
+# $Id: build_rules.mk,v 1.1.5.1 2013-01-11 20:23:43 mathomp4 Exp $
 #
 # Linux.xlf.default
 #
@@ -62,6 +62,11 @@ ESMF_CXXCOMPILECPPFLAGS += -DESMF_NO_POSIXIPC
 ESMF_CXXCOMPILECPPFLAGS += -DESMF_NO_DLFCN
 
 ############################################################
+# BlueGene/L does not have support for socket options
+#
+ESMF_CXXCOMPILECPPFLAGS += -DESMF_NO_SOCKOPT
+
+############################################################
 # BlueGene/L does not have support for Pthreads
 #
 ESMF_PTHREADS := OFF
@@ -123,3 +128,11 @@ ESMF_CXXLINKLIBS +=
 # Blank out shared library options
 #
 ESMF_SL_LIBS_TO_MAKE  =
+
+############################################################
+# Disable WebService testing for now
+#
+# TODO: Remove this variable and associated infrastructure as soon as
+# TODO: WebService testing is robust enough to work on all systems.
+#
+ESMF_NOWEBSERVTESTING = TRUE

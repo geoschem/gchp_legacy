@@ -1,7 +1,7 @@
-! $Id: ESMF_StateReadWriteEx.F90,v 1.4.2.1 2010/02/05 20:04:47 svasquez Exp $
+! $Id$
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2010, University Corporation for Atmospheric Research,
+! Copyright 2002-2012, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -15,25 +15,21 @@
 !------------------------------------------------------------------------------
 !ESMF_EXAMPLE        String used by test script to count examples.
 !-------------------------------------------------------------------------
-!BOE
-!\subsubsection{State Read/Write from/to a NetCDF file}
-! \label{example:StateRdWr}
-!EOE
 
 #include "ESMF.h"
 
-!==============================================================================
-!BOC
-! !PROGRAM: ESMF_StateReadWriteEx - State Read/Write from/to a NetCDF file
-!
-! !DESCRIPTION:
-!
+!BOE
+!\subsubsection{Read Arrays from a netCDF file and add to a State}
+! \label{example:StateRdWr}
 ! This program shows an example of reading and writing Arrays from a State
 ! from/to a NetCDF file.
+!EOE
+
 !-----------------------------------------------------------------------------
 
+!BOC
     ! ESMF Framework module
-    use ESMF_Mod
+    use ESMF
     implicit none
 
     ! Local variables
@@ -46,27 +42,15 @@
     integer :: finalrc
     finalrc = ESMF_SUCCESS
 
-!-------------------------------------------------------------------------
-!BOE
-!\subsubsection{ESMF Initialization and Empty State Create}
-!
-!  Initialize ESMF and Create an empty {\tt ESMF\_State}, which will be
-!  subsequently filled with {\tt ESMF\_Arrays} from a file.
-!  
-!EOE
-
-!BOC
-    call ESMF_Initialize(vm=vm, rc=rc)
+    call ESMF_Initialize(vm=vm, defaultlogfilename="StateReadWriteEx.Log", &
+                     logkindflag=ESMF_LOGKIND_MULTI, rc=rc)
     call ESMF_VMGet(vm, localPet=localPet, rc=rc)
 
-    state = ESMF_StateCreate("Ocean Import", ESMF_STATE_IMPORT, rc=rc)  
-!EOC
+    state = ESMF_StateCreate(name="Ocean Import",  &
+                             stateintent=ESMF_STATEINTENT_IMPORT, rc=rc)  
     if (rc.NE.ESMF_SUCCESS) finalrc = ESMF_FAILURE
 
-!-------------------------------------------------------------------------
 !BOE
-!\subsubsection{Reading Arrays from a NetCDF file and Adding to a State}
-!
 !  The following line of code will read all Array data contained in a NetCDF
 !  file, place them in {\tt ESMF\_Arrays} and add them to an {\tt ESMF\_State}.
 !  Only PET 0 reads the file; the States in the other PETs remain empty.
@@ -101,7 +85,7 @@
 
 !-------------------------------------------------------------------------
 !BOE
-!\subsubsection{Printing Array data from a State}
+!\subsubsection{Print Array data from a State}
 !
 !  To see that the State now contains the same data as in the file, the
 !  following shows how to print out what Arrays are contained within the
@@ -145,7 +129,7 @@
 
 !-------------------------------------------------------------------------
 !BOE
-!\subsubsection{Writing Array data within a State to a NetCDF file}
+!\subsubsection{Write Array data within a State to a netCDF file}
 !
 !  All the Array data within the State on PET 0 can be written out to a NetCDF
 !  file as follows:
@@ -162,17 +146,6 @@
 !  parallel writing, as well as parallel reading.
 !EOE
 
-!-------------------------------------------------------------------------
-!BOE
-!\subsubsection{Destroying a State and its constituent Arrays}
-!
-!  Destroying a State only deallocates the container, not the contents, as
-!  the contents may be used in other States and elsewhere.  The contents of a
-!  State, such as the Arrays in this example, must be destroyed separately.
-!  Only PET 0 in this example will have Arrays that need to be destroyed.
-!EOE
-
-!BOC
     ! Destroy the State container
     call ESMF_StateDestroy(state, rc=rc)
 
@@ -186,13 +159,10 @@
       call ESMF_ArrayDestroy(pArray,     rc=rc)
       call ESMF_ArrayDestroy(rhArray,    rc=rc)
     endif
-!EOC
     if (rc.NE.ESMF_SUCCESS) finalrc = ESMF_FAILURE
 
-!BOC
  10 continue  ! Exit point if NetCDF not present (PET 0)
     call ESMF_Finalize(rc=rc)
-!EOC
     if (rc.NE.ESMF_SUCCESS) finalrc = ESMF_FAILURE
 
     if (finalrc.EQ.ESMF_SUCCESS) then

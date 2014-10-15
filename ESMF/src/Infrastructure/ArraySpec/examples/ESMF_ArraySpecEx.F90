@@ -1,7 +1,7 @@
-! $Id: ESMF_ArraySpecEx.F90,v 1.11.4.1 2010/02/05 19:53:07 svasquez Exp $
+! $Id: ESMF_ArraySpecEx.F90,v 1.1.5.1 2013-01-11 20:23:43 mathomp4 Exp $
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2010, University Corporation for Atmospheric Research,
+! Copyright 2002-2012, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -24,13 +24,13 @@
 !-----------------------------------------------------------------------------
 
       ! ESMF Framework module
-      use ESMF_Mod
+      use ESMF
       implicit none
 
       ! local variables 
       type(ESMF_ArraySpec) :: arrayDS
       integer :: myrank
-      type(ESMF_TypeKind) :: mytypekind
+      type(ESMF_TypeKind_Flag) :: mytypekind
 
 
       ! return code
@@ -43,13 +43,14 @@
 
 !BOC
       ! initialize ESMF framework
-      call ESMF_Initialize(rc=rc)
+      call ESMF_Initialize(defaultlogfilename="ArraySpecEx.Log", &
+                    logkindflag=ESMF_LOGKIND_MULTI, rc=rc)
 !EOC
 
       if (rc.NE.ESMF_SUCCESS) finalrc = ESMF_FAILURE
 
 !BOP
-!\subsubsection{Setting ArraySpec Values}
+!\subsubsection{Set ArraySpec values}
 
 ! This example shows how to set values in an {\tt ESMF\_ArraySpec}.
 !EOP
@@ -62,13 +63,14 @@
       if (rc.NE.ESMF_SUCCESS) finalrc = ESMF_FAILURE
 
 !BOP
-!\subsubsection{Getting ArraySpec Values}
+!\subsubsection{Get ArraySpec values}
 
 ! This example shows how to query an {\tt ESMF\_ArraySpec}.
 !EOP
 
 !BOC
-      call ESMF_ArraySpecGet(arrayDS, myrank, mytypekind, rc)
+      call ESMF_ArraySpecGet(arrayDS, rank=myrank, &
+        typekind=mytypekind, rc=rc)
       print *, "Returned values from ArraySpec:"
       print *, "rank =", myrank
 !EOC

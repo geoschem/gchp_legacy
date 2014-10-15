@@ -1,7 +1,7 @@
-// $Id: ESMCI_Fraction_F.C,v 1.2.4.1 2010/02/05 20:01:04 svasquez Exp $
+// $Id$
 //
 // Earth System Modeling Framework
-// Copyright 2002-2010, University Corporation for Atmospheric Research, 
+// Copyright 2002-2012, University Corporation for Atmospheric Research, 
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
 // Laboratory, University of Michigan, National Centers for Environmental 
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
@@ -17,8 +17,8 @@
 //------------------------------------------------------------------------------
 // INCLUDES
 //------------------------------------------------------------------------------
-#include <ESMCI_F90Interface.h>
-#include <ESMCI_Fraction.h>
+#include "ESMCI_Fraction.h"
+#include "ESMCI_F90Interface.h"
 //------------------------------------------------------------------------------
 //BOP
 // !DESCRIPTION:
@@ -62,33 +62,32 @@ extern "C" {
 
        void FTN(c_esmc_fractionreadrestart)(Fraction *ptr, int *nameLen,
                                             const char *name,
-                                            ESMC_IOSpec *iospec,
-                                            int *status) {
+                                            int *status,
+                                            ESMCI_FortranStrLenArg name_l) {
           int rc = (ptr)->readRestart(*nameLen,  // always present
                                                  //   internal
                                                  //   argument.
-                                       name,     // required.
-                            ESMC_NOT_PRESENT_FILTER(iospec) );
+                                       name);    // required.
           if (ESMC_PRESENT(status)) *status = rc;
        }
 
        void FTN(c_esmc_fractionwriterestart)(Fraction *ptr,
-                                             ESMC_IOSpec *iospec,
                                              int *status) {
-          int rc = (ptr)->writeRestart(
-                            ESMC_NOT_PRESENT_FILTER(iospec) );
+          int rc = (ptr)->writeRestart();
           if (ESMC_PRESENT(status)) *status = rc;
        }
 
        void FTN(c_esmc_fractionvalidate)(Fraction *ptr,
                                          const char *options,
-                                         int *status) {
+                                         int *status,
+                                         ESMCI_FortranStrLenArg options_l) {
           int rc = (ptr)->validate(ESMC_NOT_PRESENT_FILTER(options) );
           if (ESMC_PRESENT(status)) *status = rc;
        }
 
        void FTN(c_esmc_fractionprint)(Fraction *ptr, const char *options,
-                                      int *status) {
+                                      int *status,
+                                      ESMCI_FortranStrLenArg options_l) {
           int rc = (ptr)->print(ESMC_NOT_PRESENT_FILTER(options) );
           if (ESMC_PRESENT(status)) *status = rc;
        }

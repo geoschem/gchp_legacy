@@ -1,0 +1,147 @@
+**************************************************************
+*                                                            *
+*     This script queries the FILE for existance of NAME     *
+*     or its known aliases.                                  *
+*                                                            *
+**************************************************************
+ 
+  function alias (args)
+  name = subwrd(args,1)
+
+  'query file'
+  numvar = sublin(result,6)
+  numvar = subwrd(numvar,5)
+
+  flag = false
+    rc = name
+
+  n = 1
+  while ( n<numvar+1 )
+  field = sublin(result,6+n)
+  field = subwrd(field,1)
+        if( name=field )
+        flag = true
+        endif
+  n = n+1
+  endwhile
+
+  if (flag=true) ; return rc ; endif
+
+* Check for Aliases
+* -----------------
+
+* U-Wind
+* ------
+  if( name='uwnd' )
+           num =  1
+       alias.1 = 'u'
+  m = 1
+  while ( m<num+1 )
+  n = 1
+  while ( n<numvar+1 )
+  field = sublin(result,6+n)
+  field = subwrd(field,1)
+        if( alias.m=field )
+        flag = true
+           K = m
+        endif
+  n = n+1
+  endwhile
+  m = m+1
+  endwhile
+  endif
+
+* V-Wind
+* ------
+  if( name='vwnd' )
+           num =  1
+       alias.1 = 'v'
+  m = 1
+  while ( m<num+1 )
+  n = 1
+  while ( n<numvar+1 )
+  field = sublin(result,6+n)
+  field = subwrd(field,1)
+        if( alias.m=field )
+        flag = true
+           K = m
+        endif
+  n = n+1
+  endwhile
+  m = m+1
+  endwhile
+  endif
+
+* Temperature
+* -----------
+  if( name='tmpu' )
+           num =  1
+       alias.1 = 't'
+  m = 1
+  while ( m<num+1 )
+  n = 1
+  while ( n<numvar+1 )
+  field = sublin(result,6+n)
+  field = subwrd(field,1)
+        if( alias.m=field )
+        flag = true
+           K = m
+        endif
+  n = n+1
+  endwhile
+  m = m+1
+  endwhile
+  endif
+
+* Specific Humidity
+* -----------------
+  if( name='sphu' )
+           num =  2
+       alias.1 = 'q'
+       alias.2 = 'qv'
+  m = 1
+  while ( m<num+1 )
+  n = 1
+  while ( n<numvar+1 )
+  field = sublin(result,6+n)
+  field = subwrd(field,1)
+        if( alias.m=field )
+        flag = true
+           K = m
+        endif
+  n = n+1
+  endwhile
+  m = m+1
+  endwhile
+  endif
+
+* Relative Humidity
+* -----------------
+  if( name='rh' )
+           num =  1
+       alias.1 = 'relu'
+  m = 1
+  while ( m<num+1 )
+  n = 1
+  while ( n<numvar+1 )
+  field = sublin(result,6+n)
+  field = subwrd(field,1)
+        if( alias.m=field )
+        flag = true
+           K = m
+        endif
+  n = n+1
+  endwhile
+  m = m+1
+  endwhile
+  endif
+
+
+  if( flag=true )
+      say name' not found!  Aliasing with 'alias.K
+      rc = alias.K
+  else
+      rc = name
+  endif
+
+  return rc

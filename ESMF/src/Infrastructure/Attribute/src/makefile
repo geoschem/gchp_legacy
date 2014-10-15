@@ -1,4 +1,4 @@
-# $Id: makefile,v 1.6 2008/12/02 22:24:33 rokuingh Exp $ 
+# $Id$ 
 
 # default rule if no explicit target is given to make
 ALL: build_here

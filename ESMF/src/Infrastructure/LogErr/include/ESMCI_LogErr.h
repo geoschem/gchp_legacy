@@ -1,7 +1,7 @@
-// $Id: ESMCI_LogErr.h,v 1.8.2.1 2010/02/05 19:58:55 svasquez Exp $
+// $Id$
 //
 // Earth System Modeling Framework
-// Copyright 2002-2010, University Corporation for Atmospheric Research, 
+// Copyright 2002-2012, University Corporation for Atmospheric Research, 
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
 // Laboratory, University of Michigan, National Centers for Environmental 
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
@@ -28,11 +28,10 @@
 //
 // !USES:
 
-#include <stdlib.h>
+#include <cstdio>
 
 #include "ESMC_LogErr.h"
 #include "ESMCI_Util.h"
-#include "ESMC_Conf.h"
 
 namespace ESMCI{
 
@@ -92,8 +91,8 @@ private:
     bool Write(const char msg[],int msgtype,int LINE,const char FILE[],
          const char method[]);       
 // !PUBLIC Variables:          
-    FILE *ESMC_LogFile;
-    char nameLogErrFile[32];
+    std::FILE *ESMC_LogFile;
+    char nameLogErrFile[ESMC_MAXPATHLEN];
     int *pet_num;
     ESMC_LogType logtype;
     int *errorMask;

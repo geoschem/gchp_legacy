@@ -1,6 +1,7 @@
+// $Id$
 //
 // Earth System Modeling Framework
-// Copyright 2002-2010, University Corporation for Atmospheric Research, 
+// Copyright 2002-2012, University Corporation for Atmospheric Research, 
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
 // Laboratory, University of Michigan, National Centers for Environmental 
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
@@ -21,6 +22,12 @@
 #include <cmath>
 
 #include <mpi.h>
+
+//-----------------------------------------------------------------------------
+// leave the following line as-is; it will insert the cvs ident string
+// into the object file for tracking purposes.
+static const char *const version = "$Id$";
+//-----------------------------------------------------------------------------
 
 namespace ESMCI {
 
@@ -49,6 +56,7 @@ BBox &BBox::operator=(const BBox &rhs) {
   return *this;
 }
 
+
 BBox::BBox(const MEField<> &coords, const MeshObj &obj, double normexp) :
  isempty(false)
 {
@@ -76,8 +84,14 @@ BBox::BBox(const MEField<> &coords, const MeshObj &obj, double normexp) :
     mp->normal(1,&cd[0], &pc[0], &nr[0]);
    
     double ns = std::sqrt(nr[0]*nr[0]+nr[1]*nr[1]+nr[2]*nr[2]);
-    
-    nr[0] /= ns; nr[1] /= ns; nr[2] /= ns;
+
+    // Only normalize if bigger than 0.0
+    if (ns >1.0E-19) {
+       nr[0] /= ns; nr[1] /= ns; nr[2] /= ns;
+    } else {
+      nr[0] =0.0; nr[1] =0.0; nr[2] =0.0;
+    }
+
     /*
     if (obj.get_id() == 2426) {
       std::cout << "elem 2426 coords:";
@@ -126,6 +140,8 @@ BBox::BBox(const MEField<> &coords, const MeshObj &obj, double normexp) :
 
 }
 
+
+
 BBox::BBox(const MEField<> &coords, const MeshDB &mesh) :
  isempty(false)
 {
@@ -168,6 +184,38 @@ BBox::BBox(_field &coords, const MeshDB &mesh) {
   }
   
 }
+
+#if 0
+  // NOTE THAT THIS DOENS'T DO THE EXPANSION IN THE NORMAL DIRECTION
+BBox::BBox(_field &coords, const MeshObj &obj) :
+ isempty(false)
+{
+  if (obj.get_type() != MeshObj::ELEMENT) Throw() << "Not able to create BBOx for non element";
+  const MeshObjTopo &topo = *GetMeshObjTopo(obj);
+  const UInt npe = topo.num_nodes;
+
+  if (topo.spatial_dim != topo.parametric_dim) 
+    Throw() << "Won't work for shell elements !!!!";
+
+  dim = topo.spatial_dim;
+
+  for (UInt i =0; i < dim; i++) {
+    min[i] = std::numeric_limits<double>::max();
+    max[i] = -std::numeric_limits<double>::max();
+  }
+  
+  // Loop the nodes
+  for (UInt n = 0; n < topo.num_nodes; n++) {
+    const MeshObj &node = *(obj.Relations[n].obj);
+    const double *coord = coords.data(node);
+    for (UInt j = 0; j < dim; j++) {
+      if (coord[j] < min[j]) min[j] = coord[j];
+      if (coord[j] > max[j]) max[j] = coord[j];
+    }
+  }
+}
+
+#endif
 
 void BBox::checkEmpty() {
   isempty = false;

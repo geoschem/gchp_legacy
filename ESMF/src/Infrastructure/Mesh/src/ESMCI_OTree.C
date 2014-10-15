@@ -1,7 +1,7 @@
-// $Id: ESMCI_OTree.C,v 1.2.2.1 2010/02/05 19:59:44 svasquez Exp $
+// $Id$
 //
 // Earth System Modeling Framework
-// Copyright 2002-2010, University Corporation for Atmospheric Research, 
+// Copyright 2002-2012, University Corporation for Atmospheric Research, 
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
 // Laboratory, University of Michigan, National Centers for Environmental 
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
@@ -33,7 +33,7 @@
 //-----------------------------------------------------------------------------
 // leave the following line as-is; it will insert the cvs ident string
 // into the object file for tracking purposes.
-static const char *const version = "$Id: ESMCI_OTree.C,v 1.2.2.1 2010/02/05 19:59:44 svasquez Exp $";
+static const char *const version = "$Id$";
 //-----------------------------------------------------------------------------
 
 
@@ -78,12 +78,13 @@ OTree::OTree(
 
   // allocate node mem
   mem=NULL;
-  mem=new ONode[max_size];
+  if (max_size>0) mem=new ONode[max_size];
 
   // Set values
   max_size_mem=max_size;
   curr_size_mem=0;
   root=NULL;
+  is_committed=false;
 }
 //-----------------------------------------------------------------------------
 
@@ -253,19 +254,23 @@ void OTree::commit(
   // Reset root
   root=NULL;
 
-  // Scramble to reduce chance of degenerate trees
-  std::random_shuffle (mem,mem+curr_size_mem);  
+  // Record that we're now committed
+  // Do it here in case the tree is empty. 
+  is_committed=true;
 
   // Make first node root
   if (curr_size_mem > 0) root=mem;
   else return; // no nodes, so leave
+
+  // Scramble to reduce chance of degenerate trees
+  std::random_shuffle (mem,mem+curr_size_mem);  
 
   // Add rest of nodes
   for (int i=1; i<curr_size_mem; i++) {
     //// Add
     _add_onode(root, mem+i);
   }
-  
+
 }
 //-----------------------------------------------------------------------------
 
@@ -361,12 +366,12 @@ int OTree::runon(
 
   RUNON_INFO ri;
 
+  // Make sure that this has been committed
+  if (!is_committed) Throw() << "Search tree hasn't been committed, so can't do runon()";
+
   // if tree empty return
-  if (root==NULL) {
-   return 0;
-  }
-
-
+  if (root==NULL) return 0;
+ 
   // Load search info
   ri.min[0]=min[0];
   ri.min[1]=min[1];

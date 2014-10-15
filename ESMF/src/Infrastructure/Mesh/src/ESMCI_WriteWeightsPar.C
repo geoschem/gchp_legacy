@@ -1,6 +1,7 @@
+// $Id$
 //
 // Earth System Modeling Framework
-// Copyright 2002-2010, University Corporation for Atmospheric Research, 
+// Copyright 2002-2012, University Corporation for Atmospheric Research, 
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
 // Laboratory, University of Michigan, National Centers for Environmental 
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
@@ -11,8 +12,9 @@
 #include <Mesh/include/ESMCI_WriteWeightsPar.h>
 
 #include <Mesh/include/ESMCI_Interp.h>
-#include <Mesh/include/ESMCI_Migrator.h>
+#include <Mesh/include/ESMCI_MeshRegrid.h>
 #include <Mesh/include/ESMCI_MeshUtils.h>
+#include <Mesh/include/ESMCI_Migrator.h>
 #include <ESMC_Macros.h>
 
 #ifdef ESMF_PNETCDF
@@ -29,6 +31,12 @@ typedef long long MPI_OffType;
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
 #endif
+
+//-----------------------------------------------------------------------------
+// leave the following line as-is; it will insert the cvs ident string
+// into the object file for tracking purposes.
+static const char *const version = "$Id$";
+//-----------------------------------------------------------------------------
 
 namespace ESMCI {
 
@@ -342,6 +350,11 @@ void WriteNCMatFilePar(const std::string &src_ncfile,
                     const std::string &dst_ncfile,
                     const std::string &outfile,
                     const IWeights &w,
+                    Mesh &srcmesh,
+                    Mesh &dstmesh,
+                    Mesh &dstmeshcpy,
+                    int *regridConserve,
+                    int *regridMethod,
                     int ordering)
 {
   Trace __trace("WriteNCMatFilePar(const std::string &src_ncfile, const std::string &dst_ncfile, const std::string &outfile, const IWeights &w, int ordering"); 
@@ -511,16 +524,16 @@ void WriteNCMatFilePar(const std::string &src_ncfile,
    
    if ((retval = ncmpi_def_var(ncid, "area_a", NC_DOUBLE, 1, &n_adimid, &area_aid)))
       Throw() << "NC error:" << ncmpi_strerror(retval);
-   units = "square radians";
+   units = "unitless";
     if ((retval = ncmpi_put_att_text(ncid, area_aid, "units", std::strlen(units.c_str()), units.c_str())))
         Throw() << "NC error:" << ncmpi_strerror(retval);
-    
+
     if ((retval = ncmpi_def_var(ncid, "area_b", NC_DOUBLE, 1, &n_bdimid, &area_bid)))
       Throw() << "NC error:" << ncmpi_strerror(retval);
-    units = "square radians";
+    units = "unitless";
      if ((retval = ncmpi_put_att_text(ncid, area_bid, "units", std::strlen(units.c_str()), units.c_str())))
          Throw() << "NC error:" << ncmpi_strerror(retval);
-    
+
     if ((retval = ncmpi_def_var(ncid, "frac_a", NC_DOUBLE, 1, &n_adimid, &frac_aid)))
       Throw() << "NC error:" << ncmpi_strerror(retval);
     units = "unitless";
@@ -545,13 +558,24 @@ void WriteNCMatFilePar(const std::string &src_ncfile,
     // Add some global attributes to let this work with scrip_test 
     // eventually these should be optional with a flag
 
-
     // Title
-    // TODO: make this title contain the grid file names
-    static char title[]="Patch Weights";
+    // map method 
+    char title[128];
+    if (*regridConserve == ESMC_REGRID_CONSERVE_OFF &&
+        *regridMethod == ESMC_REGRID_METHOD_BILINEAR) {
+      sprintf(title, "ESMF Offline Bilinear Remapping");
+    } else if (*regridConserve == ESMC_REGRID_CONSERVE_ON &&
+        *regridMethod == ESMC_REGRID_METHOD_BILINEAR) {
+      sprintf(title, "ESMF Offline Conservative Bilinear Remapping");
+    } else if (*regridConserve == ESMC_REGRID_CONSERVE_OFF &&
+        *regridMethod == ESMC_REGRID_METHOD_PATCH) {
+      sprintf(title, "ESMF Offline Patch Remapping");
+    } else if (*regridConserve == ESMC_REGRID_CONSERVE_ON &&
+        *regridMethod == ESMC_REGRID_METHOD_PATCH) {
+      sprintf(title, "ESMF Offline Conservative Patch Remapping");
+    }
     if ((retval = ncmpi_put_att_text(ncid, NC_GLOBAL, "title",std::strlen(title), title)))
       Throw() << "NC error:" << ncmpi_strerror(retval);
-
 
     // Normalization type
     static char norm[]="destarea";
@@ -559,8 +583,20 @@ void WriteNCMatFilePar(const std::string &src_ncfile,
       Throw() << "NC error:" << ncmpi_strerror(retval);
 
     // map method 
-    // Note we are making this "Bilinear" because this is the closest equivalent to what we have
-    static char map_method[]="Bilinear remapping";
+    char map_method[128];
+    if (*regridConserve == ESMC_REGRID_CONSERVE_OFF &&
+        *regridMethod == ESMC_REGRID_METHOD_BILINEAR) {
+      sprintf(map_method, "Bilinear remapping");
+    } else if (*regridConserve == ESMC_REGRID_CONSERVE_ON &&
+        *regridMethod == ESMC_REGRID_METHOD_BILINEAR) {
+      sprintf(map_method, "Conservative remapping");
+    } else if (*regridConserve == ESMC_REGRID_CONSERVE_OFF &&
+        *regridMethod == ESMC_REGRID_METHOD_PATCH) {
+      sprintf(map_method, "Bilinear remapping");
+    } else if (*regridConserve == ESMC_REGRID_CONSERVE_ON &&
+        *regridMethod == ESMC_REGRID_METHOD_PATCH) {
+      sprintf(map_method, "Conservative remapping");
+    }
     if ((retval = ncmpi_put_att_text(ncid, NC_GLOBAL, "map_method",std::strlen(map_method), map_method)))
       Throw() << "NC error:" << ncmpi_strerror(retval);
 
@@ -644,30 +680,62 @@ void WriteNCMatFilePar(const std::string &src_ncfile,
    
    if ((retval = ncmpi_put_vara_int_all(ncid, mask_aid, startsa, countsa, &ncsrc.grid_imask[0])))
      Throw() << "NC error:" << ncmpi_strerror(retval);
-   
+
    // Set Src Area
    {
-     std::vector<double> area;
+     std::vector<double> src_area;
      
-     area.resize(ncsrc.local_grid_size, 0.0);
-     if ((retval = ncmpi_put_vara_double_all(ncid, area_aid, startsa, countsa, &area[0])))
+     src_area.resize(ncsrc.local_grid_size, 0.0);
+
+   if (*regridConserve == ESMC_REGRID_CONSERVE_ON){ 
+     MEField<> *src_iwts = srcmesh.GetField("iwts");
+
+    // first sort by get_data_index
+    int num_nodes = srcmesh.num_nodes();
+
+    std::vector<MeshObj*> all_nodes;
+
+    all_nodes.resize(num_nodes, static_cast<MeshObj*>(0));
+
+    Mesh::iterator ni = srcmesh.node_begin(), ne = srcmesh.node_end();
+
+    for (; ni != ne; ++ni) {
+
+      int seq = ni->get_data_index();
+
+      ThrowRequire(seq < num_nodes);
+
+      all_nodes[seq] = &*ni;
+
+    }
+
+    // now load data into the vector to write
+    for (UInt i=0; i<all_nodes.size(); ++i) {
+      MeshObj *node = all_nodes.at(i);
+      double *Sdata = src_iwts->data(*node);
+      ThrowRequire(i<src_area.size());
+      src_area[i] = *Sdata;
+    }
+
+   }
+     if ((retval = ncmpi_put_vara_double_all(ncid, area_aid, startsa, countsa, &src_area[0])))
        Throw() << "NC error:" << ncmpi_strerror(retval);
      
    }
-   
+ 
    // Set Src Frac
    {
-   std::vector<double> frac;
-   frac.resize(ncsrc.local_grid_size, 0.0);
+   std::vector<double> src_frac;
+   src_frac.resize(ncsrc.local_grid_size, 0.0);
 
    // Make frac non-zero for non-zero mask values
-   for (int i=0; i<frac.size(); i++) {
+   for (int i=0; i<src_frac.size(); i++) {
      if (ncsrc.grid_imask[i] == 1) {
-       frac[i]=1.0;
+       src_frac[i]=1.0;
      }
    }
 
-   if ((retval = ncmpi_put_vara_double_all(ncid,frac_aid, startsa, countsa, &frac[0])))
+   if ((retval = ncmpi_put_vara_double_all(ncid,frac_aid, startsa, countsa, &src_frac[0])))
      Throw() << "NC error:" << ncmpi_strerror(retval);
    
    } // free frac
@@ -705,27 +773,64 @@ void WriteNCMatFilePar(const std::string &src_ncfile,
 
    // Set Dst Area
    {
-     std::vector<double> area;
+     std::vector<double> dst_area;
      
-     area.resize(ncdst.local_grid_size, 0.0);
-     if ((retval = ncmpi_put_vara_double_all(ncid, area_bid, startsb, countsb, &area[0])))
+     dst_area.resize(ncdst.local_grid_size, 0.0);
+
+// TODO: This routine is writing the weights of a copy mesh
+//       when conservation is turned on because of the fact
+//       that some of the polar nodes are shipped to a different
+//       processor when adding poles in offline regridding.  -RO 5/20/10
+
+   if (*regridConserve == ESMC_REGRID_CONSERVE_ON){ 
+     MEField<> *dst_iwts = dstmeshcpy.GetField("iwts");
+
+    // first sort by get_data_index
+    int num_nodes = dstmeshcpy.num_nodes();
+
+    std::vector<MeshObj*> all_nodes;
+
+    all_nodes.resize(num_nodes, static_cast<MeshObj*>(0));
+
+    Mesh::iterator ni = dstmeshcpy.node_begin(), ne = dstmeshcpy.node_end();
+
+    for (; ni != ne; ++ni) {
+
+      int seq = ni->get_data_index();
+
+      ThrowRequire(seq < num_nodes);
+
+      all_nodes[seq] = &*ni;
+
+    }
+
+    // now load data into the vector to write
+    for (UInt i=0; i<all_nodes.size(); ++i) {
+      MeshObj *node = all_nodes.at(i);
+      double *Ddata = dst_iwts->data(*node);
+      ThrowRequire(i<dst_area.size());
+      dst_area[i] = *Ddata;
+    }
+
+   }
+     if ((retval = ncmpi_put_vara_double_all(ncid, area_bid, startsb, countsb, &dst_area[0])))
         Throw() << "NC error:" << ncmpi_strerror(retval);
    }
-   
+
    // Set Dst Frac
    {
-   std::vector<double> frac;
+   std::vector<double> dst_frac;
    
-   frac.resize(ncdst.local_grid_size, 0.0);
+   dst_frac.resize(ncdst.local_grid_size, 0.0);
 
    // Make frac non-zero for non-zero mask values
-   for (int i=0; i<frac.size(); i++) {
+   for (int i=0; i<dst_frac.size(); i++) {
      if (ncdst.grid_imask[i] == 1) {
-       frac[i]=1.0;
+       dst_frac[i]=1.0;
      }
    }
 
-   if ((retval = ncmpi_put_vara_double_all(ncid, frac_bid, startsb, countsb, &frac[0])))
+   if ((retval = ncmpi_put_vara_double_all(ncid, frac_bid, startsb, countsb, &dst_frac[0])))
       Throw() << "NC error:" << ncmpi_strerror(retval);
 
    } // free frac
@@ -769,7 +874,7 @@ void WriteNCMatFilePar(const std::string &src_ncfile,
      } else Throw() << "Unknown ordering:" << ordering;
      
    }
-   
+//std::cout<<"  cnt  =  "<<cnt<<std::endl;   
    MPI_OffType starts[] = {local_start_n_s, 0};
    MPI_OffType counts[] = {ln_s, 0};
    

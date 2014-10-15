@@ -1,7 +1,7 @@
-! $Id: ESMF_FieldBundle.F90,v 1.34.2.1 2010/02/05 19:56:21 svasquez Exp $
+! $Id: ESMF_FieldBundle.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2010, University Corporation for Atmospheric Research, 
+! Copyright 2002-2012, University Corporation for Atmospheric Research, 
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
 ! Laboratory, University of Michigan, National Centers for Environmental 
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
@@ -9,1998 +9,3588 @@
 ! Licensed under the University of Illinois-NCSA License.
 !
 !==============================================================================
-!
 #define ESMF_FILENAME "ESMF_FieldBundle.F90"
+!==============================================================================
 !
-!     ESMF FieldBundle Module
-      module ESMF_FieldBundleMod 
+! ESMF FieldBundle Module
+module ESMF_FieldBundleMod
 !
 !==============================================================================
+!
+! This file contains the F90 implementation of the fieldbundle class.
+!
 !------------------------------------------------------------------------------
 ! INCLUDES
 #include "ESMF.h"
 
-!------------------------------------------------------------------------------
-!
+!==============================================================================
 !BOPI
 ! !MODULE: ESMF_FieldBundleMod
 !
-! !DESCRIPTION:
-! The code in this file implements the {\tt ESMF\_FieldBundle} class, which 
-! represents a set of {\tt ESMF\_Fields} discretized on the same 
-! geometry (i.e. {\tt ESMF\_Grid}, {\tt ESMF\_Mesh}, etc.).
-! {\tt ESMF\_FieldBundle}s offer the option to pack the data 
-! from the {\tt ESMF\_Field}s they contain into a single buffer. 
-!
-!  This type is implemented in Fortran 90 and a corresponding
-!  C++ interface is provided.
 
+!   F90 implemenation of fieldbundle
 !
+!------------------------------------------------------------------------------
+
 ! !USES:
-      use ESMF_UtilTypesMod    ! ESMF base class
-      use ESMF_BaseMod
-      use ESMF_LogErrMod
-      use ESMF_IOSpecMod
-      use ESMF_StaggerLocMod
-      use ESMF_GridMod
-      use ESMF_FieldMod
-      use ESMF_FieldCreateMod
-      use ESMF_FieldGetMod
-      use ESMF_InitMacrosMod
-      use ESMF_GeomBaseMod
-      use ESMF_LocStreamMod
-      use ESMF_MeshMod
+  use ESMF_UtilTypesMod     ! ESMF utility types
+  use ESMF_InitMacrosMod    ! ESMF initializer macros
+  use ESMF_BaseMod          ! ESMF base class
+  use ESMF_LogErrMod        ! ESMF error handling
+  use ESMF_F90InterfaceMod  ! ESMF F90-C++ interface helper
+  use ESMF_ArrayMod
+  use ESMF_ArrayBundleMod
+  use ESMF_ContainerMod
+  use ESMF_GridMod
+  use ESMF_XGridMod
+  use ESMF_MeshMod
+  use ESMF_LocStreamMod
+  use ESMF_GeomBaseMod
+  use ESMF_FieldMod
+  use ESMF_FieldCreateMod
+  use ESMF_FieldGetMod
+  use ESMF_FieldPrMod
+  use ESMF_FieldSMMMod
+  use ESMF_FieldRegridMod
+  use ESMF_FieldWrMod
+  use ESMF_RHandleMod
+  use ESMF_RegridMod
+  use ESMF_StaggerLocMod    
+  use ESMF_VMMod
+  
+  implicit none
 
-      implicit none
-!
+!------------------------------------------------------------------------------
 ! !PRIVATE TYPES:
-      private
-
+  private
 !------------------------------------------------------------------------------
-!! ESMF_PackFlag   
-!!
-!! Data type to set the status of data in this FieldBundle; it can either be
-!! simply a collection of Fields which contain the data, or it can also 
-!! have a private packed data buffer associated directly with the FieldBundle.
-
-      type ESMF_PackFlag
-      sequence
-      !private
-        integer :: packflag
-      end type
-
-      type(ESMF_PackFlag), parameter :: ESMF_PACKED_DATA = ESMF_PackFlag(1), &
-                                        ESMF_NO_PACKED_DATA = ESMF_PackFlag(2)
-
-!------------------------------------------------------------------------------
-!! For bookkeeping information which must be identical in each constituent
-!! Field in order to optimize some of the communications calls.
-
-      type ESMF_FieldBundleCongrntData
-      sequence
-      private
-        ! for starters:
-        integer :: datarank
-        type(ESMF_TypeKind) :: typekind
-        integer :: indexorders(ESMF_MAXDIM)
-        integer :: nonindexcounts(ESMF_MAXDIM) 
-        type(ESMF_StaggerLoc) :: datastaggerloc
-        integer :: haloWidth
-        ESMF_INIT_DECLARE
-      end type
-
-
-!------------------------------------------------------------------------------
-!! ESMF_LocalFieldBundle
+!     ! ESMF_FieldBundleStatus
 !
-      type ESMF_LocalFieldBundle
-      sequence
-      !private
-!        type(ESMF_InternArray) :: packed_data               ! local packed array
-        type(ESMF_Status) :: gridstatus
-        type(ESMF_Status) :: arraystatus
-        integer :: accesscount
-        ESMF_INIT_DECLARE
-      end type
-
 !------------------------------------------------------------------------------
-!!     ESMF_FieldBundleType
+
+  type ESMF_FieldBundleStatus
+    sequence
+    integer :: status
+  end type
+
+  type(ESMF_FieldBundleStatus), parameter :: ESMF_FBSTATUS_UNINIT = ESMF_FieldBundleStatus(1), &
+                                  ESMF_FBSTATUS_EMPTY = ESMF_FieldBundleStatus(2), &
+                                  ESMF_FBSTATUS_GRIDSET = ESMF_FieldBundleStatus(3)
+      
+!------------------------------------------------------------------------------
+!     ! ESMF_FieldBundle
 !
-      type ESMF_FieldBundleType
-      sequence
-      ! this data type is not private so the bundlecomm code can
-      ! reach directly in and get at the localdata without a loop
-      ! of subroutine calls.  but this causes problems with the 'pattern'
-      ! declaration below - the bundlecongruentdata derived type is
-      ! private and so it wants this to be private as well.
-      ! since pattern is not being used yet, comment it out below, but this
-      ! needs to be rationalized at some point soon.  perhaps the comm code
-      ! will have to go through a subroutine interface.  this is where
-      ! fortran needs a 'friend' type of access.
-      !private
-        type(ESMF_Base) :: base                   ! base class object
-        type(ESMF_Field), dimension(:), pointer :: flist
-        type(ESMF_Status) :: gridstatus
+!------------------------------------------------------------------------------
 
-        type(ESMF_GeomBase) :: geombase           ! associated global grid, mesh, etc.
-        type(ESMF_LocalFieldBundle) :: localbundle    ! this differs per DE
-        type(ESMF_Packflag) :: pack_flag         ! is packed data present?
-        type(ESMF_IOSpec) :: iospec              ! iospec values
-        type(ESMF_Status) :: iostatus            ! if unset, inherit from gcomp
-        logical :: isCongruent                   ! are all fields identical?
-        logical :: hasPattern                    ! first data field sets this
-        logical :: is_proxy                      ! true if this is a proxy FB
-        !type(ESMF_FieldBundleCongrntData) :: pattern ! what they must match
-        integer :: field_count      
-        ESMF_INIT_DECLARE
-      end type
+  type ESMF_FieldBundleType
+    sequence
+    type(ESMF_Base)              :: base      ! base class object
+    type(ESMF_GeomBase)          :: geombase  ! base class object
+    type(ESMF_Container)         :: container ! internal storage implementation
+    type(ESMF_FieldBundleStatus) :: status    ! status of this FieldBundle
+    logical                      :: is_proxy  ! true if this is a proxy FB
+    ESMF_INIT_DECLARE
+  end type
+
+  ! F90 class type to hold pointer to FieldBundleType
+  type ESMF_FieldBundle
+    sequence
+    type(ESMF_FieldBundleType), pointer :: this
+    ESMF_INIT_DECLARE
+  end type
 
 !------------------------------------------------------------------------------
-!! ESMF_FieldBundle
-
-!! The FieldBundle data structure that is passed between implementation and
-!! calling languages.
-
-      type ESMF_FieldBundle
-      sequence
-      !private
-      type (ESMF_FieldBundleType), pointer :: btypep 
-
-      ESMF_INIT_DECLARE
-      end type
-
-!------------------------------------------------------------------------------
-!
 ! !PUBLIC TYPES:
-      public ESMF_FieldBundle, ESMF_PackFlag, ESMF_PACKED_DATA, ESMF_NO_PACKED_DATA
+  public ESMF_FieldBundle
+  public ESMF_FieldBundleType
+  public ESMF_FieldBundleStatus
+      
+!------------------------------------------------------------------------------
 
-      ! intended for internal ESMF use only but public for FieldBundleComms
-      public ESMF_FieldBundleType           ! internal ESMF use only, for FieldBundleComm
-      public ESMF_LocalFieldBundle          ! internal ESMF use only, for FieldBundleComm
-
-
+!------------------------------------------------------------------------------
+!
 ! !PUBLIC MEMBER FUNCTIONS:
-!
 
-       ! public ESMF_FieldBundleCongDataVdate  ! For Standardized Initialization
-       ! ESMF_FieldBundleCongrntData(Init) and (GetInit) are private
+! - ESMF-public methods:
+  public operator(==)
+  public operator(/=)
 
-       public ESMF_LocalFieldBundleInit     ! For Standardized Initialization
-       public ESMF_LocalFieldBundleValidate ! For Standardized Initialization
-       public ESMF_LocalFieldBundleGetInit  ! For Standardized Initialization
-
-       public ESMF_FieldBundleTypeInit      ! For Standardized Initialization
-       public ESMF_FieldBundleTypeValidate  ! For Standardized Initialization
-       public ESMF_FieldBundleTypeGetInit   ! For Standardized Initialization
-
-       public ESMF_FieldBundleGetInit       ! For Standardized Initialization
-
-       public ESMF_FieldBundleCreate       ! Create a new FieldBundle
-       public ESMF_FieldBundleDestroy      ! Destroy a FieldBundle
-
-       public ESMF_FieldBundleDestruct      ! for ESMF garbage collection
-
-       public ESMF_FieldBundleGet          ! Get FieldBundle information
-       public ESMF_FieldBundleAdd          ! Add field/fields to FieldBundle
-
-!      public ESMF_FieldBundleRemoveField   ! Delete one or more Fields by name or number
-
-
-      public ESMF_FieldBundleSetGrid           ! In empty FieldBundle, set Grid
-      public ESMF_FieldBundleSet               ! In empty FieldBundle, set Grid
-
-      public ESMF_FieldBundleIsCongruent        ! private to framework
-
-   ! These are the recommended entry points; the code itself is in Array:
-   !public ESMF_FieldBundleRedist   ! Redistribute existing arrays, matching Grids
-   !public ESMF_FieldBundleHalo     ! Halo updates
-
-   !public ESMF_FieldBundleGather   ! Combine 1 decomposed bundle into 1 on 1 DE
-   !public ESMF_FieldBundleAllGather! Combine 1 decomposed bundle into N copies on N DEs
-
-   !public ESMF_FieldBundleScatter  ! Split 1 bundle into a decomposed one over N DEs
-   !public ESMF_FieldBundleBroadcast! Send 1 bundle to all DEs, none decomposed
-   !public ESMF_FieldBundleAlltoAll ! might make sense with bundles; each DE could
-                              ! call with a different non-decomposed bundle 
-                              ! and the result would be a packed bundle of
-                              ! data with decomposed bundles on each DE.
-
-   !public ESMF_FieldBundleReduce     ! Global reduction operation, return on 1 DE    
-   !public ESMF_FieldBundleAllReduce  ! Global reduction operation, return on each DE
-
-
-    public ESMF_FieldBundleSerialize    ! Convert to byte stream...
-    public ESMF_FieldBundleDeserialize  ! ... and back into an object again
-    public ESMF_FieldBundleValidate     ! Check internal consistency
-    public ESMF_FieldBundlePrint        ! Print contents of a FieldBundle
-
-    public operator(.eq.), operator(.ne.)
-
-!  !subroutine ESMF_FieldBundleWriteRestart(bundle, iospec, rc)
-!  !function ESMF_FieldBundleReadRestart(name, iospec, rc)
-!  !subroutine ESMF_FieldBundleWrite(bundle, subarray, iospec, rc)
-!  !function ESMF_FieldBundleRead(name, iospec, rc)
-
-! !PRIVATE MEMBER FUNCTIONS:
-!  ! additional future signatures of ESMF_FieldBundleCreate() functions:
-!  !function ESMF_FieldBundleCreateCopy(bundle, subarray, name, packflag, rc)
-!  !function ESMF_FieldBundleCreateRemap(bundle, grid, name, packflag, rc)
-
-!EOPI
+  public ESMF_FieldBundleAdd
+  public ESMF_FieldBundleAddReplace
+  public ESMF_FieldBundleCreate
+  public ESMF_FieldBundleDeserialize
+  public ESMF_FieldBundleDestroy
+  public ESMF_FieldBundleGet
+  public ESMF_FieldBundleHalo
+  public ESMF_FieldBundleHaloRelease
+  public ESMF_FieldBundleHaloStore
+  public ESMF_FieldBundlePrint
+  public ESMF_FieldBundleRead
+  public ESMF_FieldBundleRedist
+  public ESMF_FieldBundleRedistRelease
+  public ESMF_FieldBundleRedistStore
+  public ESMF_FieldBundleRegrid
+  public ESMF_FieldBundleRegridRelease
+  public ESMF_FieldBundleRegridStore
+  public ESMF_FieldBundleRemove
+  public ESMF_FieldBundleReplace
+  public ESMF_FieldBundleSerialize
+  public ESMF_FieldBundleSet
+  public ESMF_FieldBundleSMM
+  public ESMF_FieldBundleSMMRelease
+  public ESMF_FieldBundleSMMStore
+  public ESMF_FieldBundleValidate
+  public ESMF_FieldBundleWrite
 
 
 !------------------------------------------------------------------------------
+!------------------------------------------------------------------------------
+! - ESMF-internal methods:
+  public ESMF_FieldBundleGetInit
+  public ESMF_FieldBundleDestruct
+
+
+!EOPI
+!------------------------------------------------------------------------------
+
+!------------------------------------------------------------------------------
+! The following line turns the CVS identifier string into a printable variable.
+  character(*), parameter, private :: version = &
+    '$Id: ESMF_FieldBundle.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $'
+
+!==============================================================================
+! 
+! INTERFACE BLOCKS
+!
+!==============================================================================
+
+! -------------------------- ESMF-public method -------------------------------
 !BOPI
-! !IROUTINE: ESMF_FieldBundleCreate - Create a new FieldBundle
+! !IROUTINE: ESMF_FieldBundleAdd -- Generic interface
+
+! !INTERFACE:
+  interface ESMF_FieldBundleAdd
+
+! !PRIVATE MEMBER FUNCTIONS:
+!
+    module procedure ESMF_FieldBundleAddList
+!EOPI
+
+  end interface
+
+! -------------------------- ESMF-public method -------------------------------
+!BOPI
+! !IROUTINE: ESMF_FieldBundleGet -- Generic interface
+
+! !INTERFACE:
+  interface ESMF_FieldBundleGet
+
+! !PRIVATE MEMBER FUNCTIONS:
+!
+    module procedure ESMF_FieldBundleGetItem
+    module procedure ESMF_FieldBundleGetList
+    module procedure ESMF_FieldBundleGetListAll
+    module procedure ESMF_FieldBundleGetIndex
+!EOPI
+
+  end interface
+
+! -------------------------- ESMF-public method -------------------------------
+!BOPI
+! !IROUTINE: ESMF_FieldBundleSet -- Generic interface
+
+! !INTERFACE:
+  interface ESMF_FieldBundleSet
+
+! !PRIVATE MEMBER FUNCTIONS:
+!
+    module procedure ESMF_FieldBundleSetGrid
+    module procedure ESMF_FieldBundleSetLS
+    module procedure ESMF_FieldBundleSetMesh
+    module procedure ESMF_FieldBundleSetXGrid
+!EOPI
+
+  end interface
+
+! -------------------------- ESMF-public method -------------------------------
+!BOPI
+! !IROUTINE: ESMF_FieldBundleRedist -- Generic interface
+
+! !INTERFACE:
+  interface ESMF_FieldBundleRedistStore
+
+! !PRIVATE MEMBER FUNCTIONS:
+    module procedure ESMF_FieldBundleRedistStoreI4
+    module procedure ESMF_FieldBundleRedistStoreI8
+    module procedure ESMF_FieldBundleRedistStoreR4
+    module procedure ESMF_FieldBundleRedistStoreR8
+    module procedure ESMF_FieldBundleRedistStoreNF
+!
+!EOPI
+
+  end interface
+
+! -------------------------- ESMF-public method -------------------------------
+!BOPI
+! !IROUTINE: ESMF_FieldBundleSMM -- Generic interface
+
+! !INTERFACE:
+  interface ESMF_FieldBundleSMMStore
+
+! !PRIVATE MEMBER FUNCTIONS:
+    module procedure ESMF_FieldBundleSMMStoreI4
+    module procedure ESMF_FieldBundleSMMStoreI8
+    module procedure ESMF_FieldBundleSMMStoreR4
+    module procedure ESMF_FieldBundleSMMStoreR8
+    module procedure ESMF_FieldBundleSMMStoreNF
+!
+!EOPI
+
+  end interface
+
+
+!===============================================================================
+! FieldBundleOperator() interfaces
+!===============================================================================
+
+! -------------------------- ESMF-public method -------------------------------
+!BOP
+! !IROUTINE: ESMF_FieldBundleAssignment(=) - FieldBundle assignment
 !
 ! !INTERFACE:
-     interface ESMF_FieldBundleCreate
-
-! !PRIVATE MEMBER FUNCTIONS:
-        module procedure ESMF_FieldBundleCreateNew
-        module procedure ESMF_FieldBundleCreateNFNone
-        module procedure ESMF_FieldBundleCreateNFGrid
-        module procedure ESMF_FieldBundleCreateNFLS
-        module procedure ESMF_FieldBundleCreateNFMesh
-
+!   interface assignment(=)
+!   fieldbundle1 = fieldbundle2
+!
+! !ARGUMENTS:
+!   type(ESMF_FieldBundle) :: fieldbundle1
+!   type(ESMF_FieldBundle) :: fieldbundle2
+!
+! !STATUS:
+! \begin{itemize}
+! \item\apiStatusCompatibleVersion{5.2.0r}
+! \end{itemize}
+!
 ! !DESCRIPTION:
-! This interface provides a single entry point for the various
-!  types of {\tt ESMF\_FieldBundleCreate} functions.
-!EOPI
-      end interface
-
-
+!   Assign fieldbundle1 as an alias to the same ESMF fieldbundle object in memory
+!   as fieldbundle2. If fieldbundle2 is invalid, then fieldbundle1 will be equally invalid after
+!   the assignment.
+!
+!   The arguments are:
+!   \begin{description}
+!   \item[fieldbundle1]
+!     The {\tt ESMF\_FieldBundle} object on the left hand side of the assignment.
+!   \item[fieldbundle2]
+!     The {\tt ESMF\_FieldBundle} object on the right hand side of the assignment.
+!   \end{description}
+!
+!EOP
 !------------------------------------------------------------------------------
-!BOPI
-! !IROUTINE: ESMF_FieldBundleSet - Set a geometry into a FieldBundle
+
+
+! -------------------------- ESMF-public method -------------------------------
+!BOP
+! !IROUTINE: ESMF_FieldBundleOperator(==) - FieldBundle equality operator
 !
 ! !INTERFACE:
-     interface ESMF_FieldBundleSet
-
-! !PRIVATE MEMBER FUNCTIONS:
-        module procedure ESMF_FieldBundleSetGrid
-        module procedure ESMF_FieldBundleSetLS
-        module procedure ESMF_FieldBundleSetMesh
-
+  interface operator(==)
+!   if (fieldbundle1 == fieldbundle2) then ... endif
+!             OR
+!   result = (fieldbundle1 == fieldbundle2)
+! !RETURN VALUE:
+!   logical :: result
+!
+! !ARGUMENTS:
+!   type(ESMF_FieldBundle), intent(in) :: fieldbundle1
+!   type(ESMF_FieldBundle), intent(in) :: fieldbundle2
+!
+! !STATUS:
+! \begin{itemize}
+! \item\apiStatusCompatibleVersion{5.2.0r}
+! \end{itemize}
+!
 ! !DESCRIPTION:
-! This interface provides a single entry point for the various
-!  types of {\tt ESMF\_FieldBundleSet} functions.
-!EOPI
-      end interface
+!   \begin{sloppypar}
+!   Test whether fieldbundle1 and fieldbundle2 are valid aliases to the same ESMF
+!   fieldbundle object in memory. For a more general comparison of two ESMF FieldBundles,
+!   going beyond the simple alias test, the ESMF\_FieldBundleMatch() function (not yet
+!   implemented) must be used.
+!   \end{sloppypar}
+!
+!   The arguments are:
+!   \begin{description}
+!   \item[fieldbundle1]
+!     The {\tt ESMF\_FieldBundle} object on the left hand side of the equality
+!     operation.
+!   \item[fieldbundle2]
+!     The {\tt ESMF\_FieldBundle} object on the right hand side of the equality
+!     operation.
+!   \end{description}
+!
+!EOP
+    module procedure ESMF_FieldBundleEQ
+    module procedure ESMF_FieldBundleStatusEQ
 
+  end interface
 !------------------------------------------------------------------------------
-!BOPI
-! !IROUTINE: ESMF_FieldBundleConstruct - Construct the internals of a new FieldBundle
+
+
+! -------------------------- ESMF-public method -------------------------------
+!BOP
+! !IROUTINE: ESMF_FieldBundleOperator(/=) - FieldBundle not equal operator
 !
 ! !INTERFACE:
-     interface ESMF_FieldBundleConstruct
-
-! !PRIVATE MEMBER FUNCTIONS:
-        module procedure ESMF_FieldBundleConstructNew
-        module procedure ESMF_FieldBundleConstructEmpty
-
+  interface operator(/=)
+!   if (fieldbundle1 /= fieldbundle2) then ... endif
+!             OR
+!   result = (fieldbundle1 /= fieldbundle2)
+! !RETURN VALUE:
+!   logical :: result
+!
+! !ARGUMENTS:
+!   type(ESMF_FieldBundle), intent(in) :: fieldbundle1
+!   type(ESMF_FieldBundle), intent(in) :: fieldbundle2
+!
+! !STATUS:
+! \begin{itemize}
+! \item\apiStatusCompatibleVersion{5.2.0r}
+! \end{itemize}
+!
 ! !DESCRIPTION:
-! This interface provides a single entry point for the various
-!  types of {\tt ESMF\_FieldBundleConstruct} functions.
-!EOPI
-      end interface
+!   \begin{sloppypar}
+!   Test whether fieldbundle1 and fieldbundle2 are {\it not} valid aliases to the
+!   same ESMF fieldbundle object in memory. For a more general comparison of two ESMF
+!   FieldBundles, going beyond the simple alias test, the ESMF\_FieldBundleMatch() function
+!   (not yet implemented) must be used.
+!   \end{sloppypar}
+!
+!   The arguments are:
+!   \begin{description}
+!   \item[fieldbundle1]
+!     The {\tt ESMF\_FieldBundle} object on the left hand side of the non-equality
+!     operation.
+!   \item[fieldbundle2]
+!     The {\tt ESMF\_FieldBundle} object on the right hand side of the non-equality
+!     operation.
+!   \end{description}
+!
+!EOP
+    module procedure ESMF_FieldBundleNE
+    module procedure ESMF_FieldBundleStatusNE
 
+  end interface
 !------------------------------------------------------------------------------
+
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+contains
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+
+!-------------------------------------------------------------------------------
+#undef  ESMF_METHOD
+#define ESMF_METHOD "ESMF_FieldBundleEQ()"
 !BOPI
-! !IROUTINE: ESMF_FieldBundleGet - Get information from a FieldBundle
+! !IROUTINE:  ESMF_FieldBundleEQ - Compare two FieldBundles for equality
 !
 ! !INTERFACE:
-     interface ESMF_FieldBundleGet
+  function ESMF_FieldBundleEQ(fieldbundle1, fieldbundle2)
+! 
+! !RETURN VALUE:
+    logical :: ESMF_FieldBundleEQ
 
-! !PRIVATE MEMBER FUNCTIONS:
-        module procedure ESMF_FieldBundleGetInfo
-        module procedure ESMF_FieldBundleGetFieldNames
-        module procedure ESMF_FieldBundleGetFieldByName
-        module procedure ESMF_FieldBundleGetFieldByNum
+! !ARGUMENTS:
+    type(ESMF_FieldBundle), intent(in) :: fieldbundle1
+    type(ESMF_FieldBundle), intent(in) :: fieldbundle2
 
 ! !DESCRIPTION:
-! This interface provides a single entry point for the various
-!  types of {\tt ESMF\_FieldBundleGet} functions.
+!   Test if both {\tt fieldbundle1} and {\tt fieldbundle2} alias the same ESMF fieldbundle 
+!   object.
+!
 !EOPI
-      end interface
+!-------------------------------------------------------------------------------
+
+    ESMF_INIT_TYPE fbinit1, fbinit2
+    integer :: localrc1, localrc2
+    logical :: lval1, lval2
+
+    ! Use the following logic, rather than "ESMF-INIT-CHECK-DEEP", to gain 
+    ! init checks on both args, and in the case where both are uninitialized,
+    ! to distinguish equality based on uninitialized type (uncreated,
+    ! deleted).
+
+    ! TODO: Consider moving this logic to C++: use Base class? status?
+    !       Or replicate logic for C interface also.
+
+    ! check inputs
+    fbinit1 = ESMF_FieldBundleGetInit(fieldbundle1)
+    fbinit2 = ESMF_FieldBundleGetInit(fieldbundle2)
+
+    ! TODO: this line must remain split in two for SunOS f90 8.3 127000-03
+    if (fbinit1 .eq. ESMF_INIT_CREATED .and. &
+      fbinit2 .eq. ESMF_INIT_CREATED) then
+      ESMF_FieldBundleEQ = associated(fieldbundle1%this,fieldbundle2%this)
+    else
+      ESMF_FieldBundleEQ = ESMF_FALSE
+    endif
+
+  end function ESMF_FieldBundleEQ
+!-------------------------------------------------------------------------------
+
+
+!-------------------------------------------------------------------------------
+#undef  ESMF_METHOD
+#define ESMF_METHOD "ESMF_FieldBundleNE()"
+!BOPI
+! !IROUTINE:  ESMF_FieldBundleNE - Compare two FieldBundles for non-equality
+!
+! !INTERFACE:
+  function ESMF_FieldBundleNE(fieldbundle1, fieldbundle2)
+! 
+! !RETURN VALUE:
+    logical :: ESMF_FieldBundleNE
+
+! !ARGUMENTS:
+    type(ESMF_FieldBundle), intent(in) :: fieldbundle1
+    type(ESMF_FieldBundle), intent(in) :: fieldbundle2
+
+! !DESCRIPTION:
+!   Test if both {\tt fieldbundle1} and {\tt fieldbundle2} alias the same ESMF fieldbundle 
+!   object.
+!
+!EOPI
+!-------------------------------------------------------------------------------
+
+    ESMF_INIT_TYPE fbinit1, fbinit2
+    integer :: localrc1, localrc2
+    logical :: lval1, lval2
+
+    ! Use the following logic, rather than "ESMF-INIT-CHECK-DEEP", to gain 
+    ! init checks on both args, and in the case where both are uninitialized,
+    ! to distinguish equality based on uninitialized type (uncreated,
+    ! deleted).
+
+    ESMF_FieldBundleNE = .not.ESMF_FieldBundleEQ(fieldbundle1, fieldbundle2)
+
+  end function ESMF_FieldBundleNE
+!-------------------------------------------------------------------------------
+
 
 !------------------------------------------------------------------------------
-!BOPI
+#undef  ESMF_METHOD
+#define ESMF_METHOD "ESMF_FieldBundleAddList()"
+!BOP
 ! !IROUTINE: ESMF_FieldBundleAdd - Add Fields to a FieldBundle
 !
 ! !INTERFACE:
-     interface ESMF_FieldBundleAdd
-
-! !PRIVATE MEMBER FUNCTIONS:
-        module procedure ESMF_FieldBundleAddOneField
-        module procedure ESMF_FieldBundleAddFieldList
-
-! !DESCRIPTION:
-! This interface provides a single entry point for the various
-!  types of {\tt ESMF\_FieldBundleAdd} functions.
-!EOPI
-      end interface
-
-
-!------------------------------------------------------------------------------
-interface operator (.eq.)
- module procedure ESMF_pfeq
-end interface
-
-interface operator (.ne.)
- module procedure ESMF_pfne
-end interface
-
-
-!------------------------------------------------------------------------------
-
-      contains
-
-!------------------------------------------------------------------------------
-! function to compare two ESMF_PackFlags to see if they're the same or not
-
-function ESMF_pfeq(pf1, pf2)
- logical ESMF_pfeq
- type(ESMF_PackFlag), intent(in) :: pf1, pf2
-
- ESMF_pfeq = (pf1%packflag .eq. pf2%packflag)
-end function
-
-function ESMF_pfne(pf1, pf2)
- logical ESMF_pfne
- type(ESMF_PackFlag), intent(in) :: pf1, pf2
-
- ESMF_pfne = (pf1%packflag .ne. pf2%packflag)
-end function
-
-
-!------------------------------------------------------------------------------
-#undef  ESMF_METHOD
-#define ESMF_METHOD "ESMF_FieldBundleAddOneField"
-!BOP
-! !IROUTINE: ESMF_FieldBundleAdd - Add a Field to a FieldBundle
-!
-! !INTERFACE:
-      ! Private name; call using ESMF_FieldBundleAdd()
-      subroutine ESMF_FieldBundleAddOneField(bundle, field, rc)
+    ! Private name; call using ESMF_FieldBundleAdd()   
+    subroutine ESMF_FieldBundleAddList(fieldbundle, fieldList, keywordEnforcer, &
+      multiflag, relaxedflag, rc)
 !
 ! !ARGUMENTS:
-      type(ESMF_FieldBundle), intent(inout) :: bundle
-      type(ESMF_Field), intent(inout) :: field
-      integer, intent(out), optional :: rc
+    type(ESMF_FieldBundle), intent(inout)         :: fieldbundle
+    type(ESMF_Field),       intent(in)            :: fieldList(:)
+type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
+    logical,                intent(in),  optional :: multiflag
+    logical,                intent(in),  optional :: relaxedflag
+    integer,                intent(out), optional :: rc
+!
+! !STATUS:
+! \begin{itemize}
+! \item\apiStatusCompatibleVersion{5.2.0r}
+! \end{itemize}
 !
 ! !DESCRIPTION:
-!      Adds a single {\tt field} to an existing {\tt bundle}.  The
-!      {\tt field} must be associated with the same geometry (i.e. ESMF\_Grid, ESMF\_Mesh, or ESMF\_LocStream) 
-!      as the other {\tt ESMF\_Field}s in the {\tt bundle}.   
-!      The {\tt field} is referenced by the {\tt bundle}, not copied.
-! 
-!     The arguments are:
-!     \begin{description}
-!     \item [bundle]
-!           The {\tt ESMF\_FieldBundle} to add the {\tt ESMF\_Field} to.
-!     \item [field] 
-!           The {\tt ESMF\_Field} to add.
-!     \item [{[rc]}]
-!           Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
-!     \end{description}
+!   Add Field(s) to a FieldBundle. It is an error if {\tt fieldList} contains
+!   Fields that match by name Fields already contained in 
+!   {\tt fieldbundle} when multiflag
+!   is set to {\tt .false.} and relaxedflag is set to {\tt .false.}.
 !
-!EOP
-
-      integer :: status                                ! Error status
-      logical :: dummy
-      type(ESMF_Field) :: temp_list(1)
-      type(ESMF_FieldBundleType), pointer :: btype
-
-      ! Initialize return code in case we return early.
-      ! Otherwise, count on AddFieldList call to set rc
-      if (present(rc)) rc = ESMF_RC_NOT_IMPL
-      status = ESMF_RC_NOT_IMPL
-
-      ! check variables
-      ESMF_INIT_CHECK_DEEP(ESMF_FieldBundleGetInit,bundle,rc)
-      ESMF_INIT_CHECK_DEEP(ESMF_FieldGetInit,field,rc)
-
-      temp_list(1) = field
-
-      ! Validate bundle before going further
-      call ESMF_FieldBundleValidate(bundle, rc=status)
-      if (ESMF_LogMsgFoundError(status, &
-                                ESMF_ERR_PASSTHRU, &
-                                ESMF_CONTEXT, rc)) return
-
-      btype => bundle%btypep
-    
-      call ESMF_FieldBundleTypeAddList(btype, 1, temp_list, rc=status)
-      if (ESMF_LogMsgFoundError(status, &
-                                ESMF_ERR_PASSTHRU, &
-                                ESMF_CONTEXT, rc)) return
-
-      !  link the Attribute hierarchies
-      call c_ESMC_AttributeLink(btype%base, field%ftypep%base, status)
-      if (ESMF_LogMsgFoundError(status, ESMF_ERR_PASSTHRU, &
-                    ESMF_CONTEXT, rcToReturn=rc))  return
-
-      ! this resets the congruent flag as a side effect
-      dummy = ESMF_FieldBundleIsCongruent(bundle, rc=status)
-      if (ESMF_LogMsgFoundError(status, &
-                                ESMF_ERR_PASSTHRU, &
-                                ESMF_CONTEXT, rc)) return
-
-      if (present(rc)) rc = ESMF_SUCCESS
-      end subroutine ESMF_FieldBundleAddOneField
-
-
-!------------------------------------------------------------------------------
-#undef  ESMF_METHOD
-#define ESMF_METHOD "ESMF_FieldBundleAddFieldList"
-!BOP
-! !IROUTINE: ESMF_FieldBundleAdd - Add a list of Fields to a FieldBundle
-!
-! !INTERFACE:
-      ! Private name; call using ESMF_FieldBundleAdd()
-      subroutine ESMF_FieldBundleAddFieldList(bundle, fieldCount, fieldList, rc)
-!
-! !ARGUMENTS:
-      type(ESMF_FieldBundle), intent(inout) :: bundle        
-      integer, intent(in) :: fieldCount
-      type(ESMF_Field), dimension(:), intent(inout) :: fieldList
-      integer, intent(out), optional :: rc          
-!
-! !DESCRIPTION:
-!      Adds a {\tt fieldList} to an existing {\tt ESMF\_FieldBundle}.  
-!      The items added from the {\tt ESMF\_fieldList} must be associated 
-!      with the same geometry (i.e. ESMF\_Grid, ESMF\_Mesh, or ESMF\_LocStream) 
-!       as the other {\tt ESMF\_Field}s in the 
-!      {\tt bundle}.  The items in the {\tt fieldList} are referenced by
-!      the {\tt bundle}, not copied.  
-!
-!     The arguments are:
-!     \begin{description}
-!     \item [bundle]
-!           {\tt ESMF\_FieldBundle} to add {\tt ESMF\_Field}s to.
-!     \item [fieldCount]
-!           Number of {\tt ESMF\_Field}s to be added to the 
-!           {\tt ESMF\_FieldBundle}; must be equal to or less than the 
-!           number of items in the {\tt fieldList}.
-!     \item [fieldList]
-!           Array of existing {\tt ESMF\_Field}s.  The first {\tt fieldCount}
-!           items will be added to the {\tt ESMF\_FieldBundle}.
-!     \item [{[rc]}]
-!           Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
-!     \end{description}
-! 
-!EOP
-
-      integer :: status                                ! Error status
-      logical :: dummy
-      type(ESMF_FieldBundleType), pointer :: btype
-      integer :: i
-
-      ! Initialize return code in case we return early.
-      ! Otherwise, count on AddFieldList call to set rc
-      if (present(rc)) rc = ESMF_RC_NOT_IMPL
-      status = ESMF_RC_NOT_IMPL
-
-      ! check variables
-      ESMF_INIT_CHECK_DEEP(ESMF_FieldBundleGetInit,bundle,rc)
-      do i=1,fieldCount
-         ESMF_INIT_CHECK_DEEP(ESMF_FieldGetInit,fieldList(i),rc)
-      enddo
-
-      ! Validate bundle before going further
-      call ESMF_FieldBundleValidate(bundle, rc=status)
-      if (ESMF_LogMsgFoundError(status, &
-                                ESMF_ERR_PASSTHRU, &
-                                ESMF_CONTEXT, rc)) return
-
-      btype => bundle%btypep
-    
-      call ESMF_FieldBundleTypeAddList(btype, fieldCount, fieldList, rc=status)
-      if (ESMF_LogMsgFoundError(status, &
-                                ESMF_ERR_PASSTHRU, &
-                                ESMF_CONTEXT, rc)) return
-      
-      ! link the Attribute hierarchies
-      do i=1,fieldCount
-         call c_ESMC_AttributeLink(btype%base, &
-          fieldList(i)%ftypep%base, status)
-         if (ESMF_LogMsgFoundError(status, ESMF_ERR_PASSTHRU, &
-                    ESMF_CONTEXT, rcToReturn=rc))  return
-      enddo
-
-      ! this resets the congruent flag as a side effect
-      dummy = ESMF_FieldBundleIsCongruent(bundle, rc=status)
-      if (ESMF_LogMsgFoundError(status, &
-                                ESMF_ERR_PASSTHRU, &
-                                ESMF_CONTEXT, rc)) return
-
-      if (present(rc)) rc = ESMF_SUCCESS
-      end subroutine ESMF_FieldBundleAddFieldList
-
-!------------------------------------------------------------------------------
-
-#undef  ESMF_METHOD
-#define ESMF_METHOD "ESMF_FieldBundleCreateNew"
-!BOP
-! !IROUTINE: ESMF_FieldBundleCreate - Create a FieldBundle from existing Fields
-!
-! !INTERFACE:
-      ! Private name; call using ESMF_FieldBundleCreate()
-      function ESMF_FieldBundleCreateNew(fieldCount, fieldList, &
-                                    packflag, name, iospec, rc)
-!
-! !RETURN VALUE:
-      type(ESMF_FieldBundle) :: ESMF_FieldBundleCreateNew
-!
-! !ARGUMENTS:
-      integer, intent(in) :: fieldCount           
-      type(ESMF_Field), dimension (:) :: fieldList
-      type(ESMF_PackFlag), intent(in), optional :: packflag 
-      character (len = *), intent(in), optional :: name 
-      type(ESMF_IOSpec), intent(in), optional :: iospec
-      integer, intent(out), optional :: rc             
-
-!
-! !DESCRIPTION:
-!   Creates an {\tt ESMF\_FieldBundle} from a list of existing
-!   {\tt ESMF\_Fields} stored in a {\tt fieldList}.  All items in 
-!   the {\tt fieldList} must be associated with the same 
-!   geometry (i.e. ESMF\_Grid, ESMF\_Mesh, or ESMF\_LocStream).  
-!   Returns a new {\tt ESMF\_FieldBundle}.
-!
-!   The arguments are:
 !   \begin{description}
-!   \item [fieldCount]
-!      Number of fields to be added to the new {\tt ESMF\_FieldBundle}.
-!      Must be equal to or less than the number of 
-!      {\tt ESMF\_Field}s in the {\tt fieldList}.
+!   \item [fieldbundle]
+!     {\tt ESMF\_FieldBundle} to be added to.
 !   \item [fieldList]
-!      Array of existing {\tt ESMF\_Field}s.  The first {\tt ESMF\_FieldCount}
-!      items will be added to the new {\tt ESMF\_FieldBundle}.
-!   \item [{[packflag]}]
-!      The packing option is not yet implemented.  
-!      See Section~\ref{sec:bundlerest}
-!      for a description of packing, and Section~\ref{opt:packflag} for 
-!      anticipated values.  The current implementation corresponds to the
-!      value {\tt ESMF\_NO\_PACKED\_DATA}, which means that every 
-!      {\tt ESMF\_Field} is referenced separately rather 
-!      than being copied into a single contiguous buffer.  
-!      This is the case no matter what value, if any, is passed in for
-!      this argument.
-!   \item [{[name]}]
-!      {\tt ESMF\_FieldBundle} name.  A default name is generated if
-!      one is not specified.
-!   \item [{[iospec]}]
-!      The {\tt ESMF\_IOSpec} is not yet used by {\tt ESMF\_FieldBundle}s.  Any 
-!      values passed in will be ignored.
+!     List of {\tt ESMF\_Field} objects to be added.
+!   \item [{[multiflag]}]
+!     A setting of {\tt .true.} allows multiple items with the same name
+!     to be added to {\tt ESMF\_FieldBundle}. For {\tt .false.} added items must
+!     have unique names. The default setting is {\tt .false.}.
+!   \item [{[relaxedflag]}]
+!     A setting of {\tt .true.} indicates a relaxed definition of "add"
+!     under {\tt multiflag=.false.} mode, where it is {\em not} an error if 
+!     {\tt fieldList} contains items with names that are also found in 
+!     {\tt ESMF\_FieldBundle}. The {\tt ESMF\_FieldBundle} is left unchanged for these items.
+!     For {\tt .false.} this is treated as an error condition. 
+!     The default setting is {\tt .false.}.
 !   \item [{[rc]}]
-!      Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
+!     Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
 !   \end{description}
 !
-!
 !EOP
-
-      type(ESMF_FieldBundleType), pointer :: btypep         ! Pointer to new bundle
-      logical :: dummy
-      integer :: status                                ! Error status
-      integer :: i      
-
-      ! Initialize return code in case we return early.
-      if (present(rc)) rc = ESMF_RC_NOT_IMPL
-      status = ESMF_RC_NOT_IMPL
-
-      ! check variables
-      do i=1,fieldCount
-         ESMF_INIT_CHECK_DEEP(ESMF_FieldGetInit,fieldList(i),rc)
-      enddo
-
-      ! Initialize pointers
-      nullify(btypep)
-      nullify(ESMF_FieldBundleCreateNew%btypep)
-
-      allocate(btypep,  stat=status)
-      if (ESMF_LogMsgFoundAllocError(status, "FieldBundle allocate", &
-                                       ESMF_CONTEXT, rc)) return
-
-      ! Call construction method to initialize bundle internals.
-      call ESMF_FieldBundleConstructNew(btypep, fieldCount, fieldList, &
-                                   packflag, &
-                                   name, iospec, status)
-      if (ESMF_LogMsgFoundError(status, &
-                                  ESMF_ERR_PASSTHRU, &
-                                  ESMF_CONTEXT, rc)) then
-          deallocate(btypep, stat=status)
-          return
-      endif
-
-      ! link the Attribute hierarchies
-      do i=1,fieldCount
-         call c_ESMC_AttributeLink(btypep%base, &
-          fieldList(i)%ftypep%base, status)
-         if (ESMF_LogMsgFoundError(status, ESMF_ERR_PASSTHRU, &
-                    ESMF_CONTEXT, rcToReturn=rc))  return
-      enddo
-
-      ! set the return bundle
-      ESMF_FieldBundleCreateNew%btypep => btypep
-      
-      ! Add reference to this object into ESMF garbage collection table
-      ! Only call this in those Create() methods that call Construct()
-      call c_ESMC_VMAddFObject(ESMF_FieldBundleCreateNew, &
-        ESMF_ID_FIELDBUNDLE%objectID)
-
-      ! do this before ESMF_FieldBundleIsConguent so it doesn't complain
-      ! about uninitialized bundles
-      ESMF_INIT_SET_CREATED(ESMF_FieldBundleCreateNew)
-
-
-      ! this resets the congruent flag as a side effect
-      dummy = ESMF_FieldBundleIsCongruent(ESMF_FieldBundleCreateNew, rc)
-
-
-      ! Set return values.
-      if (present(rc)) rc = ESMF_SUCCESS
-
-
-      end function ESMF_FieldBundleCreateNew
-
 !------------------------------------------------------------------------------
-#undef  ESMF_METHOD
-#define ESMF_METHOD "ESMF_FieldBundleCreateNFNone"
-!BOP
-! !IROUTINE: ESMF_FieldBundleCreate - Create a FieldBundle with no Fields no Grid
-!
-! !INTERFACE:
-      ! Private name; call using ESMF_FieldBundleCreate()
-      function ESMF_FieldBundleCreateNFNone(name, iospec, rc)
-!
-! !RETURN VALUE:                
-      type(ESMF_FieldBundle) :: ESMF_FieldBundleCreateNFNone
-!
-! !ARGUMENTS:
-      character (len = *), intent(in), optional :: name 
-      type(ESMF_IOSpec), intent(in), optional :: iospec
-      integer, intent(out), optional :: rc             
-
-!
-! !DESCRIPTION:
-!   Creates an {\tt ESMF\_FieldBundle} with no associated {\tt ESMF\_Fields}.
-!
-!   The arguments are:
-!   \begin{description}
-!   \item [{[name]}]
-!       {\tt ESMF\_FieldBundle} name.  A default name is generated if
-!       one is not specified.
-!   \item [{[iospec]}]
-!       The {\tt ESMF\_IOSpec} is not yet used by {\tt ESMF\_FieldBundle}s.  Any 
-!       values passed in will be ignored.
-!   \item [{[rc]}]
-!       Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
-!   \end{description}
-!
-!
-!EOP
-
-
-      type(ESMF_FieldBundleType), pointer :: btypep   ! Pointer to new bundle
-      integer :: status                          ! Error status
-
-      ! Initialize pointers
-      status = ESMF_RC_NOT_IMPL
-      nullify(btypep)
-      nullify(ESMF_FieldBundleCreateNFNone%btypep)
-
-      ! Initialize return code
-      if (present(rc)) rc = ESMF_RC_NOT_IMPL
-
-      allocate(btypep, stat=status)
-      if (ESMF_LogMsgFoundAllocError(status, "FieldBundle allocate", &
-                                       ESMF_CONTEXT, rc)) return
-
-      ! Call construction method to allocate and initialize bundle internals.
-      call ESMF_FieldBundleConstructEmpty(btypep, name, iospec, rc)
-      if (ESMF_LogMsgFoundError(status, &
-                                  ESMF_ERR_PASSTHRU, &
-                                  ESMF_CONTEXT, rc)) return
-
-
-      ! Set return values.
-      ESMF_FieldBundleCreateNFNone%btypep => btypep
-      ! Add reference to this object into ESMF garbage collection table
-      ! Only call this in those Create() methods that call Construct()
-      call c_ESMC_VMAddFObject(ESMF_FieldBundleCreateNFNone, &
-        ESMF_ID_FIELDBUNDLE%objectID)
-
-      ESMF_INIT_SET_CREATED(ESMF_FieldBundleCreateNFNone)
-
-      if (present(rc)) rc = ESMF_SUCCESS
-
-      end function ESMF_FieldBundleCreateNFNone
-
-!------------------------------------------------------------------------------
-#undef  ESMF_METHOD
-#define ESMF_METHOD "ESMF_FieldBundleCreateNFGrid"
-!BOP
-! !IROUTINE: ESMF_FieldBundleCreate - Create a FieldBundle with no Fields, but a Grid
-!
-! !INTERFACE:
-      ! Private name; call using ESMF_FieldBundleCreate()
-      function ESMF_FieldBundleCreateNFGrid(grid, name, iospec, rc)
-!
-! !RETURN VALUE:
-      type(ESMF_FieldBundle) :: ESMF_FieldBundleCreateNFGrid
-!
-! !ARGUMENTS:
-      type(ESMF_Grid), intent(in) :: grid
-      character (len = *), intent(in), optional :: name 
-      type(ESMF_IOSpec), intent(in), optional :: iospec
-      integer, intent(out), optional :: rc             
-
-!
-! !DESCRIPTION:
-!   Creates an {\tt ESMF\_FieldBundle} with no associated {\tt ESMF\_Fields}.
-!
-!   The arguments are:
-!   \begin{description}
-!   \item [grid]
-!       The {\tt ESMF\_Grid} which all {\tt ESMF\_Field}s added to this
-!       {\tt ESMF\_FieldBundle} must be associated with. 
-!   \item [{[name]}]
-!       {\tt ESMF\_FieldBundle} name.  A default name is generated if
-!       one is not specified.
-!   \item [{[iospec]}]
-!       The {\tt ESMF\_IOSpec} is not yet used by {\tt ESMF\_FieldBundle}s.  Any 
-!       values passed in will be ignored.
-!   \item [{[rc]}]
-!       Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
-!   \end{description}
-!
-!
-!EOP
-
-
-      type(ESMF_FieldBundleType), pointer :: btypep   ! Pointer to new bundle
-      integer :: status                          ! Error status
-
-      ! Initialize pointers
-      status = ESMF_RC_NOT_IMPL
-      nullify(btypep)
-      nullify(ESMF_FieldBundleCreateNFGrid%btypep)
-
-      ! Initialize return code
-      if (present(rc)) rc = ESMF_RC_NOT_IMPL
-
-      ! check inputs 
-      ESMF_INIT_CHECK_DEEP(ESMF_GridGetInit,grid,rc)
-
-      allocate(btypep, stat=status)
-      if (ESMF_LogMsgFoundAllocError(status, "FieldBundle allocate", &
-                                       ESMF_CONTEXT, rc)) return
-
-      ! Call construction method to allocate and initialize bundle internals.
-      call ESMF_FieldBundleConstructEmpty(btypep, name, iospec, rc)
-      if (ESMF_LogMsgFoundError(status, &
-                                  ESMF_ERR_PASSTHRU, &
-                                  ESMF_CONTEXT, rc)) return
-
-      ! Set the Grid.  All Fields added to this FieldBundle
-      !  must be based on this same Grid.
-          call ESMF_GridValidate(grid, rc=status)
-          if (ESMF_LogMsgFoundError(status, &
-                                  ESMF_ERR_PASSTHRU, &
-                                  ESMF_CONTEXT, rc)) return
-
-          ! Create the geombase around the grid, use the center stagger as a generic stagger here, 
-          ! because the stagger won't really matter in this case
-          btypep%geombase=ESMF_GeomBaseCreate(grid,ESMF_STAGGERLOC_CENTER,rc=status)
-          if (ESMF_LogMsgFoundError(status, ESMF_ERR_PASSTHRU, &
-                    ESMF_CONTEXT, rcToReturn=rc))  return
-
-          btypep%gridstatus = ESMF_STATUS_READY
-
-          !  link the Attribute hierarchies
-          call c_ESMC_AttributeLink(btypep%base, grid, status)
-          if (ESMF_LogMsgFoundError(status, ESMF_ERR_PASSTHRU, &
-                    ESMF_CONTEXT, rcToReturn=rc))  return
-
-
-      ! Set return values.
-      ESMF_FieldBundleCreateNFGrid%btypep => btypep
-      ! Add reference to this object into ESMF garbage collection table
-      ! Only call this in those Create() methods that call Construct()
-      call c_ESMC_VMAddFObject(ESMF_FieldBundleCreateNFGrid, &
-        ESMF_ID_FIELDBUNDLE%objectID)
-
-      ESMF_INIT_SET_CREATED(ESMF_FieldBundleCreateNFGrid)
-
-      if (present(rc)) rc = ESMF_SUCCESS
-
-      end function ESMF_FieldBundleCreateNFGrid
-
-
-
-!------------------------------------------------------------------------------
-#undef  ESMF_METHOD
-#define ESMF_METHOD "ESMF_FieldBundleCreateNFMesh"
-!BOP
-! !IROUTINE: ESMF_FieldBundleCreate - Create a FieldBundle with no Fields, but a Mesh
-!
-! !INTERFACE:
-      ! Private name; call using ESMF_FieldBundleCreate()
-      function ESMF_FieldBundleCreateNFMesh(mesh, name, iospec, rc)
-!
-! !RETURN VALUE:
-      type(ESMF_FieldBundle) :: ESMF_FieldBundleCreateNFMesh
-!
-! !ARGUMENTS:
-      type(ESMF_Mesh), intent(in) :: mesh
-      character (len = *), intent(in), optional :: name 
-      type(ESMF_IOSpec), intent(in), optional :: iospec
-      integer, intent(out), optional :: rc             
-
-!
-! !DESCRIPTION:
-!   Creates an {\tt ESMF\_FieldBundle} with no associated {\tt ESMF\_Fields}.
-!
-!   The arguments are:
-!   \begin{description}
-!   \item [mesh]
-!       The {\tt ESMF\_Mesh} which all {\tt ESMF\_Field}s added to this
-!       {\tt ESMF\_FieldBundle} must be associated with. 
-!   \item [{[name]}]
-!       {\tt ESMF\_FieldBundle} name.  A default name is generated if
-!       one is not specified.
-!   \item [{[iospec]}]
-!       The {\tt ESMF\_IOSpec} is not yet used by {\tt ESMF\_FieldBundle}s.  Any 
-!       values passed in will be ignored.
-!   \item [{[rc]}]
-!       Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
-!   \end{description}
-!
-!
-!EOP
-
-
-      type(ESMF_FieldBundleType), pointer :: btypep   ! Pointer to new bundle
-      integer :: status                          ! Error status
-
-      ! Initialize pointers
-      status = ESMF_RC_NOT_IMPL
-      nullify(btypep)
-      nullify(ESMF_FieldBundleCreateNFMesh%btypep)
-
-      ! Initialize return code
-      if (present(rc)) rc = ESMF_RC_NOT_IMPL
-
-      ! check inputs 
-      ESMF_INIT_CHECK_DEEP(ESMF_MeshGetInit,mesh,rc)
-
-      allocate(btypep, stat=status)
-      if (ESMF_LogMsgFoundAllocError(status, "FieldBundle allocate", &
-                                       ESMF_CONTEXT, rc)) return
-
-      ! Call construction method to allocate and initialize bundle internals.
-      call ESMF_FieldBundleConstructEmpty(btypep, name, iospec, rc)
-      if (ESMF_LogMsgFoundError(status, &
-                                  ESMF_ERR_PASSTHRU, &
-                                  ESMF_CONTEXT, rc)) return
-
-      ! Set the Mesh.  All Fields added to this FieldBundle
-      !  must be based on this same Mesh.
-
-          ! Create the geombase around the mesh
-          btypep%geombase=ESMF_GeomBaseCreate(mesh,rc=status)
-          if (ESMF_LogMsgFoundError(status, ESMF_ERR_PASSTHRU, &
-                    ESMF_CONTEXT, rcToReturn=rc))  return
-
-          btypep%gridstatus = ESMF_STATUS_READY
-
-      ! Set return values.
-      ESMF_FieldBundleCreateNFMesh%btypep => btypep
-
-      ! Add reference to this object into ESMF garbage collection table
-      ! Only call this in those Create() methods that call Construct()
-      call c_ESMC_VMAddFObject(ESMF_FieldBundleCreateNFMesh, &
-        ESMF_ID_FIELDBUNDLE%objectID)
-
-      ESMF_INIT_SET_CREATED(ESMF_FieldBundleCreateNFMesh)
-
-      if (present(rc)) rc = ESMF_SUCCESS
-
-      end function ESMF_FieldBundleCreateNFMesh
-
-
-!------------------------------------------------------------------------------
-#undef  ESMF_METHOD
-#define ESMF_METHOD "ESMF_FieldBundleCreateNFLS"
-!BOP
-! !IROUTINE: ESMF_FieldBundleCreate - Create a FieldBundle with no Fields, but a LocStream
-!
-! !INTERFACE:
-      ! Private name; call using ESMF_FieldBundleCreate()
-      function ESMF_FieldBundleCreateNFLS(locstream, name, iospec, rc)
-!
-! !RETURN VALUE:
-      type(ESMF_FieldBundle) :: ESMF_FieldBundleCreateNFLS
-!
-! !ARGUMENTS:
-      type(ESMF_LocStream), intent(in) :: locstream
-      character (len = *), intent(in), optional :: name 
-      type(ESMF_IOSpec), intent(in), optional :: iospec
-      integer, intent(out), optional :: rc             
-
-!
-! !DESCRIPTION:
-!   Creates an {\tt ESMF\_FieldBundle} with no associated {\tt ESMF\_Fields}.
-!
-!   The arguments are:
-!   \begin{description}
-!   \item [locstream]
-!       The {\tt ESMF\_LocStream} which all {\tt ESMF\_Field}s added to this
-!       {\tt ESMF\_FieldBundle} must be associated with. 
-!   \item [{[name]}]
-!       {\tt ESMF\_FieldBundle} name.  A default name is generated if
-!       one is not specified.
-!   \item [{[iospec]}]
-!       The {\tt ESMF\_IOSpec} is not yet used by {\tt ESMF\_FieldBundle}s.  Any 
-!       values passed in will be ignored.
-!   \item [{[rc]}]
-!       Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
-!   \end{description}
-!
-!
-!EOP
-
-
-      type(ESMF_FieldBundleType), pointer :: btypep   ! Pointer to new bundle
-      integer :: status                          ! Error status
-
-      ! Initialize pointers
-      status = ESMF_RC_NOT_IMPL
-      nullify(btypep)
-      nullify(ESMF_FieldBundleCreateNFLS%btypep)
-
-      ! Initialize return code
-      if (present(rc)) rc = ESMF_RC_NOT_IMPL
-
-      ! check inputs 
-      ESMF_INIT_CHECK_DEEP(ESMF_LocStreamGetInit,locstream,rc)
-
-      allocate(btypep, stat=status)
-      if (ESMF_LogMsgFoundAllocError(status, "FieldBundle allocate", &
-                                       ESMF_CONTEXT, rc)) return
-
-      ! Call construction method to allocate and initialize bundle internals.
-      call ESMF_FieldBundleConstructEmpty(btypep, name, iospec, rc)
-      if (ESMF_LogMsgFoundError(status, &
-                                  ESMF_ERR_PASSTHRU, &
-                                  ESMF_CONTEXT, rc)) return
-
-      ! Set the LocStream.  All Fields added to this FieldBundle
-      !  must be based on this same LocStream.
-
-          ! Create the geombase around the mesh
-          btypep%geombase=ESMF_GeomBaseCreate(locstream,rc=status)
-          if (ESMF_LogMsgFoundError(status, ESMF_ERR_PASSTHRU, &
-                    ESMF_CONTEXT, rcToReturn=rc))  return
-
-          btypep%gridstatus = ESMF_STATUS_READY
-
-      ! Set return values.
-      ESMF_FieldBundleCreateNFLS%btypep => btypep
-      ! Add reference to this object into ESMF garbage collection table
-      ! Only call this in those Create() methods that call Construct()
-      call c_ESMC_VMAddFObject(ESMF_FieldBundleCreateNFLS, &
-        ESMF_ID_FIELDBUNDLE%objectID)
-
-      ESMF_INIT_SET_CREATED(ESMF_FieldBundleCreateNFLS)
-
-      if (present(rc)) rc = ESMF_SUCCESS
-
-      end function ESMF_FieldBundleCreateNFLS
-
-!------------------------------------------------------------------------------
-#undef  ESMF_METHOD
-#define ESMF_METHOD "ESMF_FieldBundleDestroy"
-!BOP
-! !IROUTINE: ESMF_FieldBundleDestroy - Free all resources associated with a FieldBundle
-!
-! !INTERFACE:
-      subroutine ESMF_FieldBundleDestroy(bundle, rc)
-!
-! !ARGUMENTS:
-      type(ESMF_FieldBundle) :: bundle
-      integer, intent(out), optional :: rc
-!
-! !DESCRIPTION:
-!     Releases resources associated with the {\tt bundle}.  This
-!     method does not destroy the {\tt ESMF\_Field}s that the
-!     {\tt bundle} contains.  The
-!     {\tt bundle} should be destroyed before the {\tt ESMF\_Field}s
-!     within it are.
-!
-!     \begin{description}
-!     \item [bundle]
-!           An {\tt ESMF\_FieldBundle} object.
-!     \item [{[rc]}]
-!           Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
-!     \end{description}
-!
-!
-!EOP
-
-      ! Local variables
-      integer :: localrc                           ! Error status
-
-      ! Initialize return code
-      localrc = ESMF_RC_NOT_IMPL
-      if (present(rc)) rc = ESMF_RC_NOT_IMPL
-
-      ! check inputs 
-      ESMF_INIT_CHECK_DEEP(ESMF_FieldBundleGetInit,bundle,rc)
-
-      if (.not.associated(bundle%btypep)) then 
-        call ESMF_LogMsgSetError(ESMF_RC_OBJ_BAD, &
-          "Uninitialized or already destroyed FieldBundle: btypep unassociated", &
-          ESMF_CONTEXT, rc)
+    integer                       :: localrc      ! local return code
+    integer                       :: fieldCount, i, j, addedIndex, garbageSize
+    type(ESMF_Logical)            :: linkChange
+    type(ESMF_Field), pointer     :: garbageList(:), addedList(:)
+    logical                       :: isGarbage
+
+    ! initialize return code; assume routine not implemented
+    localrc = ESMF_RC_NOT_IMPL
+    if (present(rc)) rc = ESMF_RC_NOT_IMPL
+
+    ! Check init status of arguments
+    ESMF_INIT_CHECK_DEEP_SHORT(ESMF_FieldBundleGetInit, fieldbundle, rc)
+
+    ! Determine the number of FieldList elements
+    fieldCount = size(fieldList)
+
+    call ESMF_ContainerGarbageOn(fieldbundle%this%container, rc=localrc)
+    if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+      ESMF_CONTEXT, rcToReturn=rc)) return
+
+    call ESMF_ContainerGarbageClear(fieldbundle%this%container, rc=localrc)
+    if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+      ESMF_CONTEXT, rcToReturn=rc)) return
+
+    call ESMF_ContainerAdd(fieldbundle%this%container, fieldList, &
+      multiflag=multiflag, relaxedflag=relaxedflag, rc=localrc)
+    if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+      ESMF_CONTEXT, rcToReturn=rc)) return
+
+    nullify(garbageList)
+    call ESMF_ContainerGarbageGet(fieldbundle%this%container, garbageList=garbageList, rc=localrc)
+    if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+      ESMF_CONTEXT, rcToReturn=rc)) return
+
+    call ESMF_ContainerGarbageOff(fieldbundle%this%container, rc=localrc)
+    if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+      ESMF_CONTEXT, rcToReturn=rc)) return
+
+    ! There are garbage, some fields are not added. 
+    ! Deduce the list of Field actually got added.
+    nullify(addedList)
+    garbageSize = size(garbageList)
+    if(garbageSize /= 0) then
+
+      ! There are garbage after ContainerAdd, figure out which fields are added
+      ! error checking
+      if(garbageSize .gt. fieldCount) then
+        call ESMF_LogSetError(rcToCheck=ESMF_RC_OBJ_BAD, &
+          msg = " - there are more garbage in garbageList than fields in FieldList", &
+          ESMF_CONTEXT, rcToReturn=rc)
         return
-      endif 
-    
-      ! Destruct all bundle internals and then free field memory.
-      call ESMF_FieldBundleDestruct(bundle%btypep, rc=localrc)
-      if (ESMF_LogMsgFoundError(localrc, &
-                                  ESMF_ERR_PASSTHRU, &
-                                  ESMF_CONTEXT, rc)) return
+      endif
 
-      ! mark object invalid
-      call ESMF_BaseSetStatus(bundle%btypep%base, ESMF_STATUS_INVALID, &
-        rc=localrc)
-      if (ESMF_LogMsgFoundError(localrc, &
-                                ESMF_ERR_PASSTHRU, &
-                                ESMF_CONTEXT, rc)) return
-                                
-      ESMF_INIT_SET_DELETED(bundle)
+      ! at least 1 Field was added
+      ! No need to handle the case when garbageSize == fieldCount when no Field is added
+      if(garbageSize .lt. fieldCount) then
 
-      if (present(rc)) rc = ESMF_SUCCESS
-      end subroutine ESMF_FieldBundleDestroy
+        allocate(addedList(fieldCount - garbageSize), stat=localrc)
+        if(localrc /= 0) then
+          call ESMF_LogSetError(rcToCheck=ESMF_RC_OBJ_BAD, &
+            msg = " - cannot allocate addedList", &
+            ESMF_CONTEXT, rcToReturn=rc)
+          return
+        endif
 
+        ! TODO: this is a performance bottlnect
+        ! if this causes problem, the container add method should return
+        ! a list of field actually are added
+        addedIndex = 1
+        do i = 1, fieldCount
+          isGarbage = .false.
+          do j = 1, garbageSize
+            if(fieldList(i) == garbageList(j)) isGarbage = .true.
+          enddo
+
+          if(.not. isGarbage)  then
+            addedList(addedIndex) = fieldList(i)
+            addedIndex = addedIndex + 1
+          endif
+        enddo
+
+        ! Attribute link
+        linkChange = ESMF_TRUE
+
+        if(size(addedList) .ge. 1) then
+          call ESMF_FieldBundleSetGeom(fieldbundle, addedList(1), rc=localrc)
+          if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+                        ESMF_CONTEXT, rcToReturn=rc))  return
+        endif
+
+        do i=1, size(addedList)
+          call c_ESMC_AttributeLink(fieldbundle%this%base, addedList(i)%ftypep%base, linkChange, localrc)
+          if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+                        ESMF_CONTEXT, rcToReturn=rc))  return
+        enddo
+        deallocate(addedList)
+
+      endif  ! partial add
+
+    else
+      ! No garbage, all fieldList should be linked
+      !
+      ! Obviously the attribute linking of the geombase object is a bit tricky,
+      ! right now, we don't restrict the geombase to be matched among the fields in the
+      ! fieldBundle. But for attribute hierarchy, we actually assume that all fields in
+      ! the fieldBundle should be built on the same geombase object.
+      !
+      ! Attribute link
+      if(size(fieldList) .ge. 1) then
+        ! setgeom links grid geombase automatically
+        call ESMF_FieldBundleSetGeom(fieldbundle, fieldList(1), rc=localrc)
+        if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+          ESMF_CONTEXT, rcToReturn=rc))  return
+      endif ! non-empty fieldlist
+
+      linkChange = ESMF_TRUE
+      do i=1, size(fieldList)
+        call c_ESMC_AttributeLink(fieldbundle%this%base, fieldList(i)%ftypep%base, linkChange, localrc)
+        if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+                      ESMF_CONTEXT, rcToReturn=rc))  return
+      enddo
+      
+    endif ! garbageSize /= 0
+
+    ! always deallocate garbageList because it's always associated returning from Container
+    deallocate(garbageList)
+
+    ! Return successfully
+    if (present(rc)) rc = ESMF_SUCCESS
+  
+  end subroutine ESMF_FieldBundleAddList
+!------------------------------------------------------------------------------
 
 !------------------------------------------------------------------------------
 #undef  ESMF_METHOD
-#define ESMF_METHOD "ESMF_FieldBundleGetInfo"
-!BOP
-! !IROUTINE: ESMF_FieldBundleGet - Return information about a FieldBundle
+#define ESMF_METHOD "ESMF_FieldBundleAddItem()"
+!BOPI
+! !IROUTINE: ESMF_FieldBundleAdd - Add one Field to a FieldBundle
 !
 ! !INTERFACE:
-      ! Private name; call using ESMF_FieldBundleGet()
-      subroutine ESMF_FieldBundleGetInfo(bundle, geomtype, grid, mesh, locstream, fieldCount, name, rc)
+    ! Private name; call using ESMF_FieldBundleAdd()   
+    subroutine ESMF_FieldBundleAddItem(fieldbundle, field, keywordEnforcer, &
+      multiflag, relaxedflag, rc)
 !
 ! !ARGUMENTS:
-      type(ESMF_FieldBundle), intent(in) :: bundle
-      type(ESMF_GeomType), intent(out), optional :: geomtype
-      type(ESMF_Grid), intent(out), optional :: grid
-      type(ESMF_Mesh), intent(out), optional :: mesh
-      type(ESMF_LocStream), intent(out), optional :: locstream
-      integer, intent(out), optional :: fieldCount
-      character (len = *), intent(out), optional :: name
-      integer, intent(out), optional :: rc
+    type(ESMF_FieldBundle), intent(inout)         :: fieldbundle
+    type(ESMF_Field),       intent(in)            :: field
+type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
+    logical,                intent(in),  optional :: multiflag
+    logical,                intent(in),  optional :: relaxedflag
+    integer,                intent(out), optional :: rc
+!
+!
+! !STATUS:
+! \begin{itemize}
+! \item\apiStatusCompatibleVersion{5.2.0r}
+! \end{itemize}
 !
 ! !DESCRIPTION:
-!      Returns information about the {\tt bundle}.  
-!      If the {\tt ESMF\_FieldBundle} was originally created
-!      without specifying a name, a unique name will have been generated
-!      by the framework.
+!   Add a single field to a FieldBundle. It is an error if {\tt field} 
+!   match by name to what is already contained in {\tt fieldbundle} when multiflag
+!   is set to {\tt .false.} and relaxedflag is set to {\tt .false.} by default.
 !
-!     The arguments are:
-!     \begin{description}
-!     \item [bundle]
-!           The {\tt ESMF\_FieldBundle} object to query.
-!     \item [{[geomtype]}]
-!           Specifies the type of geometry on which the FieldBundle is built. Please see Section~\ref{opt:geomtype} for 
-!           the range of values. Based on this value the user can use this method to retrieve one and only one 
-!           of {\tt grid}, {\tt mesh}, or {\tt locstream}. 
-!     \item [{[grid]}]
-!           The {\tt ESMF\_Grid} associated with the {\tt bundle}.
-!     \item [{[mesh]}]
-!           The {\tt ESMF\_Mesh} associated with the {\tt bundle}.
-!     \item [{[locstream]}]
-!           The {\tt ESMF\_LocStream} associated with the {\tt bundle}.
-!     \item [{[fieldCount]}]
-!           Number of {\tt ESMF\_Field}s in the {\tt bundle}.
-!     \item [{[name]}]
-!           A character string where the {\tt bundle} name is returned.
-!     \item [{[rc]}]
-!           Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
-!     \end{description}
+!   \begin{description}
+!   \item [fieldbundle]
+!     {\tt ESMF\_FieldBundle} to be added to.
+!   \item [field]
+!     {\tt ESMF\_Field} object to be added.
+!   \item [{[multiflag]}]
+!     A setting of {\tt .true.} allows multiple items with the same name
+!     to be added to {\tt ESMF\_FieldBundle}. For {\tt .false.} added items must
+!     have unique names. The default setting is {\tt .false.}.
+!   \item [{[relaxedflag]}]
+!     A setting of {\tt .true.} indicates a relaxed definition of "add"
+!     under {\tt multiflag=.false.} mode, where it is {\em not} an error if 
+!     {\tt fieldList} contains items with names that are also found in 
+!     {\tt ESMF\_FieldBundle}. The {\tt ESMF\_FieldBundle} is left unchanged for these items.
+!     For {\tt .false.} this is treated as an error condition. 
+!     The default setting is {\tt .false.}.
+!   \item [{[rc]}]
+!     Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
+!   \end{description}
 !
+!EOPI
+!------------------------------------------------------------------------------
+    integer                       :: localrc      ! local return code
+
+    ! initialize return code; assume routine not implemented
+    localrc = ESMF_RC_NOT_IMPL
+    if (present(rc)) rc = ESMF_RC_NOT_IMPL
+
+    ! Call into the list version
+    call ESMF_FieldBundleAddList(fieldbundle, (/field/), multiflag=multiflag, &
+      relaxedflag=relaxedflag, rc=localrc)
+    if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+      ESMF_CONTEXT, rcToReturn=rc)) return
+
+    ! Return successfully
+    if (present(rc)) rc = ESMF_SUCCESS
+  
+  end subroutine ESMF_FieldBundleAddItem
+!------------------------------------------------------------------------------
+
+!------------------------------------------------------------------------------
+#undef  ESMF_METHOD
+#define ESMF_METHOD "ESMF_FieldBundleAddReplace()"
+!BOP
+! !IROUTINE: ESMF_FieldBundleAddReplace - Conditionally add or replace Fields in a FieldBundle
+!
+! !INTERFACE:
+    subroutine ESMF_FieldBundleAddReplace(fieldbundle, fieldList, keywordEnforcer, rc)
+!
+! !ARGUMENTS:
+    type(ESMF_FieldBundle), intent(inout)         :: fieldbundle
+    type(ESMF_Field),       intent(in)            :: fieldList(:)
+type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
+    integer,                intent(out), optional :: rc
+!
+! !STATUS:
+! \begin{itemize}
+! \item\apiStatusCompatibleVersion{5.2.0r}
+! \end{itemize}
+!
+! !DESCRIPTION:
+!   Fields in {\tt fieldList} that do not match any Fields by name in 
+!   {\tt fieldbundle} are added to the FieldBundle. Fields in {\tt fieldList}
+!   that match any Fields by name in {\tt fieldbundle} replace those Fields.
+!
+!   \begin{description}
+!   \item [fieldbundle]
+!     {\tt ESMF\_FieldBundle} to be manipulated.
+!   \item [fieldList]
+!     List of {\tt ESMF\_Field} objects to be added or used as replacement.
+!   \item [{[rc]}]
+!     Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
+!   \end{description}
 !
 !EOP
-
-      integer :: status                           ! Error status
-      type(ESMF_FieldBundleType), pointer :: btype     ! internal data
-      type(ESMF_GeomType) :: localGeomType
-
-      ! Initialize return code; assume routine not implemented
-      status = ESMF_RC_NOT_IMPL
-      if (present(rc)) rc = ESMF_RC_NOT_IMPL
-
-
-     ! Set initialize fieldCount to 0
-      if (present(fieldCount)) then
-          fieldCount = 0
-      endif
-
-      ! check variables
-      ESMF_INIT_CHECK_DEEP(ESMF_FieldBundleGetInit,bundle,rc)
-
-      ! Validate bundle before going further
-      call ESMF_FieldBundleValidate(bundle, rc=status)
-      if (ESMF_LogMsgFoundError(status, &
-                                ESMF_ERR_PASSTHRU, &
-                                ESMF_CONTEXT, rc)) return
-
-      btype => bundle%btypep
-
-    ! Get the geometry type
-    if (present(geomtype)) then
-        if (btype%gridstatus .ne. ESMF_STATUS_READY) then
-            if (ESMF_LogMsgFoundError(ESMF_RC_OBJ_BAD, &
-                            "No Grid or Mesh or LocStream attached to FieldBundle", &
-                             ESMF_CONTEXT, rc)) return
-        endif
-
-        call ESMF_GeomBaseGet(btype%geombase, geomtype=localGeomType, rc=status)
-        if (ESMF_LogMsgFoundError(status, &
-                                  ESMF_ERR_PASSTHRU, &
-                                  ESMF_CONTEXT, rc)) return
-        geomType = localGeomType
-    endif
-
-    if (present(grid)) then
-        if (btype%gridstatus .ne. ESMF_STATUS_READY) then
-            if (ESMF_LogMsgFoundError(ESMF_RC_OBJ_BAD, &
-                            "No Grid or invalid Grid attached to FieldBundle", &
-                             ESMF_CONTEXT, rc)) return
-        endif
-        call ESMF_GeomBaseGet(btype%geombase, &
-                  grid=grid, rc=status)
-        if (ESMF_LogMsgFoundError(status, &
-                                  ESMF_ERR_PASSTHRU, &
-                                  ESMF_CONTEXT, rc)) return
-    endif
-
-    if (present(mesh)) then
-        if (btype%gridstatus .ne. ESMF_STATUS_READY) then
-            if (ESMF_LogMsgFoundError(ESMF_RC_OBJ_BAD, &
-                            "No Mesh or invalid Mesh attached to FieldBundle", &
-                             ESMF_CONTEXT, rc)) return
-        endif
-        call ESMF_GeomBaseGet(btype%geombase, &
-                  mesh=mesh, rc=status)
-        if (ESMF_LogMsgFoundError(status, &
-                                  ESMF_ERR_PASSTHRU, &
-                                  ESMF_CONTEXT, rc)) return
-    endif
-
-    if (present(locstream)) then
-        if (btype%gridstatus .ne. ESMF_STATUS_READY) then
-            if (ESMF_LogMsgFoundError(ESMF_RC_OBJ_BAD, &
-                            "No LocStream or invalid LocStream attached to FieldBundle", &
-                             ESMF_CONTEXT, rc)) return
-        endif
-        call ESMF_GeomBaseGet(btype%geombase, &
-                  locstream=locstream, rc=status)
-        if (ESMF_LogMsgFoundError(status, &
-                                  ESMF_ERR_PASSTHRU, &
-                                  ESMF_CONTEXT, rc)) return
-    endif
-
-
-      if (present(fieldCount)) then
-          ! Return Field count
-          fieldCount = bundle%btypep%field_count
-      endif
-
-      if (present(name)) then
-          call c_ESMC_GetName(btype%base, name, status)
-          if (ESMF_LogMsgFoundError(status, &
-                                  ESMF_ERR_PASSTHRU, &
-                                  ESMF_CONTEXT, rc)) return
-      endif
-
-      if (present(rc)) rc = ESMF_SUCCESS
-      end subroutine ESMF_FieldBundleGetInfo
-
-
 !------------------------------------------------------------------------------
-#undef  ESMF_METHOD
-#define ESMF_METHOD "ESMF_FieldBundleGetAllFields"
-!BOPI
-! !IROUTINE: ESMF_FieldBundleGetAllFields - Retrieve an array of Fields 
-!
-! !INTERFACE:
-      subroutine ESMF_FieldBundleGetAllFields(bundle, fieldList, fieldCount, rc)
-!
-! !ARGUMENTS:
-      type(ESMF_FieldBundle), intent(in) :: bundle
-      type(ESMF_Field), dimension (:), optional :: fieldList
-      integer, intent(out), optional :: fieldCount
-      integer, intent(out), optional :: rc
-!
-! !DESCRIPTION:
-!     Return all {\tt ESMF\_Field}s in an {\tt ESMF\_FieldBundle}.
-!
-!     The arguments are:
-!     \begin{description}
-!     \item [bundle]
-!           The {\tt ESMF\_FieldBundle} to query for the {\tt ESMF\_Field}s.
-!     \item [{[fieldList]}]
-!           {\tt ESMF\_Field} array.
-!     \item [{[fieldCount]}]
-!           Return the number of {\tt ESMF\_Field}s in the {\tt bundle}.
-!     \item [{[rc]}]
-!           Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
-!     \end{description}
-!
-!EOPI
+    integer                       :: localrc      ! local return code
+    integer                       :: fieldCount, i, garbageSize
+    type(ESMF_Logical)            :: linkChange
+    type(ESMF_Field), pointer     :: garbageList(:)
 
+    ! initialize return code; assume routine not implemented
+    localrc = ESMF_RC_NOT_IMPL
+    if (present(rc)) rc = ESMF_RC_NOT_IMPL
 
-      integer :: status                           ! Error status
-      type(ESMF_FieldBundleType), pointer :: btype     ! internal data
-      integer :: nitems                           ! items in return array
+    ! Check init status of arguments
+    ESMF_INIT_CHECK_DEEP_SHORT(ESMF_FieldBundleGetInit, fieldbundle, rc)
+    
+    ! Determine the number of FieldList elements
+    fieldCount = size(fieldList)
+    nullify(garbageList)
 
-      ! Initialize return code; assume routine not implemented
-      status = ESMF_RC_NOT_IMPL
-      if (present(rc)) rc = ESMF_RC_NOT_IMPL
+    call ESMF_ContainerGarbageOn(fieldbundle%this%container, rc=localrc)
+    if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+      ESMF_CONTEXT, rcToReturn=rc)) return
 
-      ! check variables
-      ESMF_INIT_CHECK_DEEP(ESMF_FieldBundleGetInit,bundle,rc)
+    call ESMF_ContainerGarbageClear(fieldbundle%this%container, rc=localrc)
+    if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+      ESMF_CONTEXT, rcToReturn=rc)) return
 
+    ! Call into container addreplace
+    call ESMF_ContainerAddReplace(fieldbundle%this%container, fieldList, &
+      rc=localrc)
+    if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+      ESMF_CONTEXT, rcToReturn=rc)) return
 
-      ! Validate bundle before going further
-      call ESMF_FieldBundleValidate(bundle, rc=status)
-      if (ESMF_LogMsgFoundError(status, &
-                                ESMF_ERR_PASSTHRU, &
-                                ESMF_CONTEXT, rc)) return
+    call ESMF_ContainerGarbageGet(fieldbundle%this%container, garbageList=garbageList, rc=localrc)
+    if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+      ESMF_CONTEXT, rcToReturn=rc)) return
 
-      btype => bundle%btypep
+    call ESMF_ContainerGarbageOff(fieldbundle%this%container, rc=localrc)
+    if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+      ESMF_CONTEXT, rcToReturn=rc)) return
 
-      ! Return Fields
-      if (present(fieldList)) then
-          nitems = size(fieldList)
-          if (nitems .lt. btype%field_count) then
-              if (ESMF_LogMsgFoundError(ESMF_RC_ARG_BAD, &
-                       "More Fields in FieldBundle than space in fieldList array", &
-                                        ESMF_CONTEXT, rc)) return
-          endif
+    ! Attribute link
+    if(size(fieldList) .ge. 1) then
+      ! setgeom links grid geombase automatically
+      call ESMF_FieldBundleSetGeom(fieldbundle, fieldList(1), rc=localrc)
+      if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+        ESMF_CONTEXT, rcToReturn=rc))  return
+    endif ! non-empty fieldlist
+    linkChange = ESMF_TRUE
+    ! Add all fields in fieldList
+    do i = 1, fieldCount
+      call c_ESMC_AttributeLink(fieldbundle%this%base, fieldList(i)%ftypep%base, linkChange, localrc)
+      if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+                    ESMF_CONTEXT, rcToReturn=rc))  return
+    enddo
+    
+    ! Remove those that were replaced
+    garbageSize = size(garbageList)
+    do i=1, garbageSize
+      call c_ESMC_AttributeLinkRemove(fieldbundle%this%base, garbageList(i)%ftypep%base, linkChange, localrc)
+      if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+                    ESMF_CONTEXT, rcToReturn=rc))  return
+    enddo
+    deallocate(garbageList)
 
-          fieldList(1:btype%field_count) = btype%flist(1:btype%field_count)
-      endif
-
-      ! Return Field count
-      if (present(fieldCount)) then
-          fieldCount = btype%field_count
-      endif
-
-
-      if (present(rc)) rc = ESMF_SUCCESS
-      end subroutine ESMF_FieldBundleGetAllFields
-!------------------------------------------------------------------------------
-#undef  ESMF_METHOD
-#define ESMF_METHOD "ESMF_FieldBundleIsCongruent"
-!BOPI
-! !IROUTINE: ESMF_FieldBundleIsCongruent - Is data in FieldBundle the same?
-!
-! !INTERFACE:
-      function ESMF_FieldBundleIsCongruent(bundle, rc)
-
-! !RETURN VALUE:
-      logical :: ESMF_FieldBundleIsCongruent
-!
-! !ARGUMENTS:
-      type(ESMF_FieldBundle), intent(in) :: bundle
-      integer, intent(out), optional :: rc   
-!
-! !DESCRIPTION:
-!      Returns {\tt .TRUE.} if the data in all {\tt ESMF\_Fields} in the
-!      {\tt bundle} are completely congruent, meaning they have the same
-!      data rank, type, kind, index ordering, relative location in a cell, etc.
-!      This may allow more optimized communication by grouping data together
-!      and making fewer communcations calls.  Returns {\tt .FALSE.} if the
-!      data is not congruent.   A {\tt ESMF\_FieldBundle} with no data, or on error
-!      this routine returns {\tt .FALSE.}.
-!
-!      This routine also resets the internal bundle flag to a known bundle
-!      before returning.
-!
-!     The arguments are:
-!     \begin{description}
-!     \item [bundle]
-!           The {\tt ESMF\_FieldBundle} object to query.
-!     \item [{[rc]}]
-!           Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
-!     \end{description}
-!
-!
-!EOPI
-
-      integer :: status                            ! Error status
-      integer :: i, newstart
-      type(ESMF_FieldBundleType), pointer :: btype      ! internal data
-      type(ESMF_FieldBundleCongrntData) :: pattern    ! values to compare against
-      type(ESMF_FieldBundleCongrntData) :: candidate  ! values being compared
-      type(ESMF_Field), pointer :: fieldp
-!      type(ESMF_InternArray) :: array
-!      type(ESMF_FieldDataMap) :: datamap
-
-      ! Initialize return code; assume routine not implemented
-      if (present(rc)) rc = ESMF_RC_NOT_IMPL
-      status = ESMF_RC_NOT_IMPL
-
-      ! check variables
-      ESMF_INIT_CHECK_DEEP(ESMF_FieldBundleGetInit,bundle,rc)
-
-
-! TODO:FIELDINTEGRATION Restore FieldBundleIsCongruent
-      ESMF_FieldBundleIsCongruent = .FALSE.
-#if 0
-      bundle%btypep%isCongruent = .FALSE.
-
-      ! Validate bundle before going further
-      call ESMF_FieldBundleValidate(bundle, rc=status)
-      if (ESMF_LogMsgFoundError(status, &
-                                ESMF_ERR_PASSTHRU, &
-                                ESMF_CONTEXT, rc)) return
-
-      btype => bundle%btypep
-
-      newstart = 1
-
-      ! find the first field with data and set the pattern to be matched
-      do i=1, btype%field_count
-       
-        fieldp => btype%flist(i)
-        call ESMF_FieldGet(fieldp, array=array, datamap=datamap, &
-                           staggerloc=pattern%datastaggerloc, &
-                           haloWidth=pattern%haloWidth, rc=status)
-        if (status .ne. ESMF_SUCCESS) cycle
-
-
-        ! if you get here, this field has an array.  check it for 
-        ! data types, etc.
-        call ESMF_InternArrayGet(array, rank=pattern%datarank, &
-                           typekind=pattern%typekind, &
-                           rc=status)
-        if (status .ne. ESMF_SUCCESS) cycle
-
-        call ESMF_FieldDataMapGet(datamap, dataIndexList=pattern%indexorders, &
-                                  counts=pattern%nonindexcounts, rc=status)
-        if (status .ne. ESMF_SUCCESS) cycle
-
-        newstart = i+1
-        exit
-
-      enddo
+    ! Return successfully
+    if (present(rc)) rc = ESMF_SUCCESS
   
-      ! if no fields had data, return now.
-      if (newstart .le. 1) then
-          rc = ESMF_SUCCESS
-          return
+  end subroutine ESMF_FieldBundleAddReplace
+!------------------------------------------------------------------------------
+
+
+!------------------------------------------------------------------------------
+#undef  ESMF_METHOD
+#define ESMF_METHOD "ESMF_FieldBundleCreate()"
+!BOP
+! !IROUTINE: ESMF_FieldBundleCreate - Create a FieldBundle from a list of Fields
+!
+! !INTERFACE:
+  function ESMF_FieldBundleCreate(keywordEnforcer, fieldList, &
+      multiflag, relaxedflag, name, rc)
+!
+! !ARGUMENTS:
+type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
+    type(ESMF_Field), intent(in),  optional :: fieldList(:)
+    logical,          intent(in),  optional :: multiflag
+    logical,          intent(in),  optional :: relaxedflag
+    character (len=*),intent(in),  optional :: name
+    integer,          intent(out), optional :: rc
+!         
+! !RETURN VALUE:
+    type(ESMF_FieldBundle) :: ESMF_FieldBundleCreate
+!         
+! !STATUS:
+! \begin{itemize}
+! \item\apiStatusCompatibleVersion{5.2.0r}
+! \end{itemize}
+!
+! !DESCRIPTION:
+!   Create an {\tt ESMF\_FieldBundle} object from a list of existing Fields.
+!
+!   The creation of a FieldBundle leaves the bundled Fields unchanged, they
+!   remain valid individual objects. a FieldBundle is a light weight container
+!   of Field references. The actual data remains in place, there are no
+!   data movements or duplications associated with the creation of an 
+!   FieldBundle.
+!
+!   \begin{description}
+!   \item [{[fieldList]}]
+!     List of {\tt ESMF\_Field} objects to be bundled.
+!   \item [{[multiflag]}]
+!     A setting of {\tt .true.} allows multiple items with the same name
+!     to be added to {\tt fieldbundle}. For {\tt .false.} added items must
+!     have unique names. The default setting is {\tt .false.}.
+!   \item [{[relaxedflag]}]
+!     A setting of {\tt .true.} indicates a relaxed definition of "add"
+!     under {\tt multiflag=.false.} mode, where it is {\em not} an error if 
+!     {\tt fieldList} contains items with names that are also found in 
+!     {\tt fieldbundle}. The {\tt fieldbundle} is left unchanged for these items.
+!     For {\tt .false.} this is treated as an error condition. 
+!     The default setting is {\tt .false.}.
+!   \item [{[name]}]
+!     Name of the created {\tt ESMF\_FieldBundle}. A default name is generated
+!     if not specified.
+!   \item [{[rc]}]
+!     Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
+!   \end{description}
+!
+!EOP
+!------------------------------------------------------------------------------
+    integer                 :: localrc    ! local return code
+    type(ESMF_FieldBundleType), pointer  :: this
+    integer                 :: fieldCount, i
+    type(ESMF_Logical)      :: linkChange
+    type(ESMF_GeomType_Flag)     :: geomtype
+    type(ESMF_Grid)         :: grid
+    type(ESMF_XGrid)        :: xgrid
+    type(ESMF_Mesh)         :: mesh
+    type(ESMF_LocStream)    :: locstream
+    type(ESMF_FieldStatus_Flag)  :: fstatus
+
+    ! Initialize return code
+    if (present(rc)) rc = ESMF_RC_NOT_IMPL
+    localrc = ESMF_RC_NOT_IMPL
+    
+    ! Determine the number of FieldList elements
+    if (present(fieldList)) then
+      fieldCount = size(fieldList)
+    else
+      fieldCount = 0
+    endif
+
+    ! Check init status of arguments
+    do i=1, fieldCount
+      ESMF_INIT_CHECK_DEEP(ESMF_FieldGetInit, fieldList(i), rc)
+    enddo
+
+    ! Initialize
+    nullify(this)
+    nullify(ESMF_FieldBundleCreate%this)
+    
+    ! Create the internal objects
+    allocate(this, stat=localrc)
+    if (ESMF_LogFoundAllocError(localrc, &
+        msg="- Allocating FieldBundle Type", &
+        ESMF_CONTEXT, rcToReturn=rc)) return
+
+    call ESMF_BaseCreate(this%base, "FieldBundle", name, 0, rc=localrc)
+    if (ESMF_LogFoundError(localrc, &
+        ESMF_ERR_PASSTHRU, &
+        ESMF_CONTEXT, rcToReturn=rc)) return
+
+    this%container = ESMF_ContainerCreate(rc=localrc)
+    if (ESMF_LogFoundError(localrc, &
+        ESMF_ERR_PASSTHRU, &
+        ESMF_CONTEXT, rcToReturn=rc)) return
+
+    this%status = ESMF_FBSTATUS_EMPTY
+
+    ! Set up proxy flag
+    this%is_proxy = .false.
+
+    ! Set return value
+    ESMF_FieldBundleCreate%this => this
+
+    ! Add reference to this object into ESMF garbage collection table
+    ! Only call this in those Create() methods that call Construct()
+    call c_ESMC_VMAddFObject(ESMF_FieldBundleCreate, ESMF_ID_FIELDBUNDLE%objectID)
+
+    ! Set init code
+    ESMF_INIT_SET_CREATED(ESMF_FieldBundleCreate)
+
+    if(present(fieldList)) then
+      call ESMF_FieldBundleAdd(ESMF_FieldBundleCreate, fieldList, &
+        multiflag=multiflag, relaxedflag=relaxedflag, rc=localrc)
+      if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+          ESMF_CONTEXT, rcToReturn=rc)) return
+    endif
+
+    ! Return successfully
+    if (present(rc)) rc = ESMF_SUCCESS
+    
+  end function ESMF_FieldBundleCreate
+!------------------------------------------------------------------------------
+
+
+! -------------------------- ESMF-public method -------------------------------
+#undef  ESMF_METHOD
+#define ESMF_METHOD "ESMF_FieldBundleDestroy()"
+!BOP
+! !IROUTINE: ESMF_FieldBundleDestroy - Release resources associated with a FieldBundle
+
+! !INTERFACE:
+  subroutine ESMF_FieldBundleDestroy(fieldbundle, keywordEnforcer, rc)
+!
+! !ARGUMENTS:
+    type(ESMF_FieldBundle), intent(inout)           :: fieldbundle
+type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
+    integer,                intent(out),  optional  :: rc  
+!         
+! !STATUS:
+! \begin{itemize}
+! \item\apiStatusCompatibleVersion{5.2.0r}
+! \end{itemize}
+!
+! !DESCRIPTION:
+! Destroy an {\tt ESMF\_FieldBundle} object. The member Fields are not
+! touched by this operation and remain valid objects that need to be 
+! destroyed individually if necessary.
+!
+! The arguments are:
+! \begin{description}
+! \item[fieldbundle] 
+!      {\tt ESMF\_FieldBundle} object to be destroyed.
+! \item[{[rc]}] 
+!      Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
+! \end{description}
+!
+!EOP
+!------------------------------------------------------------------------------
+    integer :: localrc                        ! local return code
+
+    ! Initialize return code
+    if (present(rc)) rc = ESMF_RC_NOT_IMPL
+    localrc = ESMF_RC_NOT_IMPL
+
+    ! Check init status of arguments
+    ESMF_INIT_CHECK_DEEP_SHORT(ESMF_FieldBundleGetInit, fieldbundle, rc)
+
+    if (.not.associated(fieldbundle%this)) then
+      call ESMF_LogSetError(rcToCheck=ESMF_RC_OBJ_BAD, &
+        msg="Uninitialized or already destroyed FieldBundle: this pointer unassociated", &
+        ESMF_CONTEXT, rcToReturn=rc)
+      return
+    endif
+
+    call ESMF_FieldBundleDestruct(fieldbundle%this, rc=localrc)
+    if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+      ESMF_CONTEXT, rcToReturn=rc)) return
+
+    ! Mark this fieldbundle as invalid
+    nullify(fieldbundle%this)
+
+    ! Set init code
+    ESMF_INIT_SET_DELETED(fieldbundle)
+ 
+    ! Return successfully
+    if (present(rc)) rc = ESMF_SUCCESS
+ 
+  end subroutine ESMF_FieldBundleDestroy
+!------------------------------------------------------------------------------
+
+!------------------------------------------------------------------------------
+#undef  ESMF_METHOD
+#define ESMF_METHOD "ESMF_FieldBundleDestruct()"
+!BOPI
+! !IROUTINE: ESMF_FieldBundleDestruct - Destruct the FieldBundleType
+!
+! !INTERFACE:
+    ! Private name; call using ESMF_FieldBundleDestruct()   
+  subroutine ESMF_FieldBundleDestruct(this, rc)
+!
+! !ARGUMENTS:
+    type(ESMF_FieldBundleType), pointer       :: this
+    integer, intent(out), optional            :: rc
+!
+!
+! !DESCRIPTION:
+!   Destruct the FieldBundleType
+!
+!   \begin{description}
+!   \item [this]
+!     {\tt ESMF\_FieldBundleType} to be destructed.
+!   \item [{[rc]}]
+!     Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
+!   \end{description}
+!
+!EOPI
+!------------------------------------------------------------------------------
+
+    integer                                   :: localrc, fcount, i
+    type(ESMF_Status) :: basestatus
+    type(ESMF_Field), pointer                 :: flist(:)
+
+    ! Initialize
+    localrc = ESMF_RC_NOT_IMPL
+    if (present(rc)) rc = ESMF_RC_NOT_IMPL
+
+    call ESMF_BaseGetStatus(this%base, basestatus, rc=localrc)
+    if (ESMF_LogFoundError(localrc, &
+      ESMF_ERR_PASSTHRU, &
+      ESMF_CONTEXT, rcToReturn=rc)) return
+
+    if (basestatus .eq. ESMF_STATUS_READY) then
+      
+      ! Destroy internal geombase and mark this fieldBundle UNINIT
+      if(this%status == ESMF_FBSTATUS_GRIDSET) then
+        call ESMF_GeomBaseDestroy(this%geombase, rc=localrc)
+        if (ESMF_LogFoundError(localrc, &
+          ESMF_ERR_PASSTHRU, &
+          ESMF_CONTEXT, rcToReturn=rc)) return
+        this%status = ESMF_FBSTATUS_UNINIT
       endif
 
-      ! now starting from the pattern field, compare the rest to see if they
-      ! match.  first nonmatch we can exit with return .FALSE.
+      ! Destroy all the internal Fields if this is a proxy fieldBundle
+      if(this%is_proxy) then
+        nullify(flist)
+        call ESMF_ContainerGet(this%container, itemCount=fcount, itemList=flist, rc=localrc)
+        if (ESMF_LogFoundError(localrc, &
+          ESMF_ERR_PASSTHRU, &
+          ESMF_CONTEXT, rcToReturn=rc)) return
+        do i = 1, fcount
+          call ESMF_FieldDestroy(flist(i), rc=localrc)
+          if (ESMF_LogFoundError(localrc, &
+            ESMF_ERR_PASSTHRU, &
+            ESMF_CONTEXT, rcToReturn=rc)) return
+        enddo
+        deallocate(flist)
+      endif
 
-      ! set this here so we can just return if we find a mismatch
-      rc = ESMF_SUCCESS
-      do i=newstart, btype%field_count
-       
-        fieldp => btype%flist(i)
-        call ESMF_FieldGet(fieldp, array=array, datamap=datamap, &
-                           staggerloc=candidate%datastaggerloc, &
-                           haloWidth=candidate%haloWidth, rc=status)
-        if (status .ne. ESMF_SUCCESS) return
+      ! Destroy internal container
+      call ESMF_ContainerDestroy(this%container, rc=localrc)
+      if (ESMF_LogFoundError(localrc, &
+        ESMF_ERR_PASSTHRU, &
+        ESMF_CONTEXT, rcToReturn=rc)) return
 
-        ! if you get here, this field has an array.  check it for 
-        ! data types, etc.
-        call ESMF_InternArrayGet(array, rank=candidate%datarank, &
-                           typekind=candidate%typekind, &
-                           rc=status)
-        if (status .ne. ESMF_SUCCESS) return
+    endif
 
-        call ESMF_FieldDataMapGet(datamap, &
-                                  dataIndexList=candidate%indexorders, &
-                                  counts=candidate%nonindexcounts, rc=status)
-        if (status .ne. ESMF_SUCCESS) return
+    
+    ! Mark base object invalid
+    call ESMF_BaseSetStatus(this%base, ESMF_STATUS_INVALID, rc=localrc)
+    if (ESMF_LogFoundError(localrc, &
+      ESMF_ERR_PASSTHRU, &
+      ESMF_CONTEXT, rcToReturn=rc)) return
 
-        ! now we have all the info; compare and bail on first mismatch
-        if (pattern%datarank .ne. candidate%datarank ) return
-        if (pattern%typekind .ne. candidate%typekind ) return
-        if (pattern%haloWidth .ne. candidate%haloWidth) return
-        if (pattern%datastaggerloc .ne. candidate%datastaggerloc) return
+    if(present(rc)) rc = ESMF_SUCCESS
+  
+  end subroutine ESMF_FieldBundleDestruct
+!------------------------------------------------------------------------------
 
-        ! TODO: finish this
-        !do j=1, gridrank
-        !if (pattern%indexorders(ESMF_MAXDIM) .ne. &
-        !     candidate%indexorders(ESMF_MAXDIM)) return
-        !do j=1, datarank-gridrank 
-        !if (pattern%nonindexcounts(ESMF_MAXDIM) .ne. &
-        !     candidate%nonindexcounts(ESMF_MAXDIM)) return
+!------------------------------------------------------------------------------
+#undef  ESMF_METHOD
+#define ESMF_METHOD "ESMF_FieldBundleGetItem()"
+!BOP
+! !IROUTINE: ESMF_FieldBundleGet - Get information about a Field by name
+!
+! !INTERFACE:
+    ! Private name; call using ESMF_FieldBundleGet()   
+    subroutine ESMF_FieldBundleGetItem(fieldbundle, fieldName, &
+      keywordEnforcer, field, fieldCount, isPresent, rc)
+!
+! !ARGUMENTS:
+    type(ESMF_FieldBundle), intent(in)            :: fieldbundle
+    character(len=*),       intent(in)            :: fieldName
+type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
+    type(ESMF_Field),       intent(out), optional :: field
+    integer,                intent(out), optional :: fieldCount
+    logical,                intent(out), optional :: isPresent
+    integer,                intent(out), optional :: rc
+!
+! !STATUS:
+! \begin{itemize}
+! \item\apiStatusCompatibleVersion{5.2.0r}
+! \end{itemize}
+!
+! !DESCRIPTION:
+!   Get information about items that match {\tt fieldName} in FieldBundle.
+!
+!   \begin{description}
+!   \item [fieldbundle]
+!     {\tt ESMF\_FieldBundle} to be queried.
+!   \item [fieldName]
+!     Specified name.
+!   \item [{[field]}]
+!     Upon return holds the requested field item. It is an error if this
+!     argument was specified and there is not exactly one field item in 
+!     {\tt ESMF\_FieldBundle} that matches {\tt fieldName}.
+!   \item [{[fieldCount]}]
+!     Number of Fields with {\tt fieldName} in {\tt ESMF\_FieldBundle}.
+!   \item [{[isPresent]}]
+!     Upon return indicates whether field(s) with {\tt fieldName} exist
+!     in {\tt ESMF\_FieldBundle}.
+!   \item [{[rc]}]
+!     Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
+!   \end{description}
+!
+!EOP
+!------------------------------------------------------------------------------
+    integer                       :: localrc      ! local return code
 
+    ! initialize return code; assume routine not implemented
+    localrc = ESMF_RC_NOT_IMPL
+    if (present(rc)) rc = ESMF_RC_NOT_IMPL
+
+    ! Check init status of arguments
+    ESMF_INIT_CHECK_DEEP_SHORT(ESMF_FieldBundleGetInit, fieldbundle, rc)
+    
+    if (present(fieldCount)) then
+      call ESMF_ContainerGet(fieldbundle%this%container, itemName=trim(fieldName), &
+        itemCount=fieldCount, rc=localrc)
+      if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+        ESMF_CONTEXT, rcToReturn=rc)) return
+    endif
+
+    if (present(isPresent)) then
+      call ESMF_ContainerGet(fieldbundle%this%container, itemName=trim(fieldName), &
+        isPresent=isPresent, rc=localrc)
+      if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+        ESMF_CONTEXT, rcToReturn=rc)) return
+    endif
+
+    if(present(fieldCount)) then
+      if(fieldCount .gt. 1) then
+        if(present(field)) then
+          call ESMF_LogSetError(rcToCheck=ESMF_RC_ARG_WRONG, &
+            msg = " - field argument cannot be specified when fieldCount is greater than 1", &
+            ESMF_CONTEXT, rcToReturn=rc)
+          return
+        endif
+      endif
+    endif
+
+    if (present(field)) then
+      call ESMF_ContainerGet(fieldbundle%this%container, itemName=trim(fieldName), &
+        item=field, rc=localrc)
+      if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+        ESMF_CONTEXT, rcToReturn=rc)) return
+    endif
+
+    ! Return successfully
+    if (present(rc)) rc = ESMF_SUCCESS
+  
+  end subroutine ESMF_FieldBundleGetItem
+!------------------------------------------------------------------------------
+
+
+!------------------------------------------------------------------------------
+#undef  ESMF_METHOD
+#define ESMF_METHOD "ESMF_FieldBundleGetList()"
+!BOP
+! !IROUTINE: ESMF_FieldBundleGet - Get a list of Fields by name
+!
+! !INTERFACE:
+    ! Private name; call using ESMF_FieldBundleGet()   
+    subroutine ESMF_FieldBundleGetList(fieldbundle, fieldName, fieldList, &
+      keywordEnforcer, rc)
+!
+! !ARGUMENTS:
+    type(ESMF_FieldBundle), intent(in)            :: fieldbundle
+    character(len=*),       intent(in)            :: fieldName
+    type(ESMF_Field),       intent(out)           :: fieldList(:)
+type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
+    integer,                intent(out), optional :: rc
+!
+! !STATUS:
+! \begin{itemize}
+! \item\apiStatusCompatibleVersion{5.2.0r}
+! \end{itemize}
+!
+! !DESCRIPTION:
+!   Get the list of Fields from fieldbundle that match fieldName.
+!
+!   \begin{description}
+!   \item [fieldbundle]
+!     {\tt ESMF\_FieldBundle} to be queried.
+!   \item [fieldName]
+!     Specified name.
+!   \item [{[fieldList]}]
+!     List of Fields in {\tt ESMF\_FieldBundle} that match {\tt fieldName}. The
+!     argument must be allocated to be at least of size {\tt fieldCount}
+!     returned for this {\tt fieldName}.
+!   \item [{[rc]}]
+!     Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
+!   \end{description}
+!
+!EOP
+!------------------------------------------------------------------------------
+    integer                       :: localrc      ! local return code
+    integer                       :: fieldCount
+    type(ESMF_Field), pointer     :: l_fieldList(:)
+
+    ! initialize return code; assume routine not implemented
+    localrc = ESMF_RC_NOT_IMPL
+    if (present(rc)) rc = ESMF_RC_NOT_IMPL
+
+    ! Check init status of arguments
+    ESMF_INIT_CHECK_DEEP_SHORT(ESMF_FieldBundleGetInit, fieldbundle, rc)
+    
+    nullify(l_fieldList)
+    ! Check size
+    call ESMF_ContainerGet(fieldbundle%this%container, trim(fieldName), &
+      itemCount=fieldCount, rc=localrc)
+    if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+      ESMF_CONTEXT, rcToReturn=rc)) return
+
+    if(size(fieldList) .lt. fieldCount) then
+      call ESMF_LogSetError(rcToCheck=ESMF_RC_ARG_BAD, &
+      msg=" - Input argument fieldList size is too small", &
+      ESMF_CONTEXT, rcToReturn=rc) 
+      return
+    endif
+
+    allocate(l_fieldList(fieldCount), stat=localrc)
+    if(localrc /= ESMF_SUCCESS) then
+      call ESMF_LogSetError(rcToCheck=ESMF_RC_OBJ_BAD, &
+        msg = " - cannot allocate l_fieldList internally", &
+        ESMF_CONTEXT, rcToReturn=rc)
+      return
+    endif
+
+    call ESMF_ContainerGet(fieldbundle%this%container, trim(fieldName), &
+      l_fieldList, rc=localrc)
+    if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+      ESMF_CONTEXT, rcToReturn=rc)) return
+
+    fieldList(1:fieldCount) = l_fieldList(1:fieldCount)
+
+    deallocate(l_fieldList)
+
+    ! Return successfully
+    if (present(rc)) rc = ESMF_SUCCESS
+  
+  end subroutine ESMF_FieldBundleGetList
+!------------------------------------------------------------------------------
+
+
+!------------------------------------------------------------------------------
+#undef  ESMF_METHOD
+#define ESMF_METHOD "ESMF_FieldBundleGetListAll()"
+!BOP
+! !IROUTINE: ESMF_FieldBundleGet - Get object-wide information from the FieldBundle
+!
+! !INTERFACE:
+    ! Private name; call using ESMF_FieldBundleGet()   
+    subroutine ESMF_FieldBundleGetListAll(fieldbundle, keywordEnforcer, &
+      geomtype, grid, locstream, mesh, xgrid, &
+      fieldCount, fieldList, fieldNameList, name, rc)
+!
+! !ARGUMENTS:
+    type(ESMF_FieldBundle),  intent(in)            :: fieldbundle
+type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
+    type(ESMF_GeomType_Flag),intent(out), optional :: geomtype
+    type(ESMF_Grid),         intent(out), optional :: grid
+    type(ESMF_LocStream),    intent(out), optional :: locstream
+    type(ESMF_Mesh),         intent(out), optional :: mesh
+    type(ESMF_XGrid),        intent(out), optional :: xgrid
+    integer,                 intent(out), optional :: fieldCount
+    type(ESMF_Field),        intent(out), optional :: fieldList(:)
+    character(len=*),        intent(out), optional :: fieldNameList(:)
+    character(len=*),        intent(out), optional :: name
+    integer,                 intent(out), optional :: rc
+!
+! !STATUS:
+! \begin{itemize}
+! \item\apiStatusCompatibleVersion{5.2.0r}
+! \end{itemize}
+!
+! !DESCRIPTION:
+!   Get the list of all Fields and field names bundled in a FieldBundle.
+!
+!   \begin{description}
+!   \item [fieldbundle]
+!         {\tt ESMF\_FieldBundle} to be queried.
+!   \item[{[geomtype]}]
+!      Flag that indicates what type of geometry this FieldBundle object holds. 
+!      Can be {\tt ESMF\_GEOMTYPE\_GRID}, {\tt ESMF\_GEOMTYPE\_MESH}, {\tt ESMF\_GEOMTYPE\_LOCSTREAM},
+!      {\tt ESMF\_GEOMTYPE\_XGRID}
+!   \item[{[grid]}]
+!      The Grid object that this FieldBundle object holds. 
+!   \item[{[locstream]}]
+!      The LocStream object that this FieldBundle object holds. 
+!   \item[{[mesh]}]
+!      The Mesh object that this FieldBundle object holds. 
+!   \item[{[xgrid]}]
+!      The XGrid object that this FieldBundle object holds. 
+!   \item [{[fieldCount]}]
+!         Upon return holds the number of Fields bundled in the fieldbundle.
+!   \item [{[fieldList]}]
+!         Upon return holds a list of Fields bundled in {\tt ESMF\_FieldBundle}. The
+!         argument must be allocated to be at least of size {\tt fieldCount}.
+!   \item [{[fieldNameList]}]
+!         Upon return holds a list of the names of the field bundled in 
+!         {\tt ESMF\_FieldBundle}. The argument must be allocated to be at least of
+!         size {\tt fieldCount}.
+!   \item [{[name]}]
+!         Name of the fieldbundle object.
+!   \item [{[rc]}]
+!         Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
+!   \end{description}
+!
+!EOP
+!------------------------------------------------------------------------------
+    integer                       :: localrc      ! local return code
+    integer                       :: l_fieldCount, i         ! helper variable
+    type(ESMF_Field), pointer     :: l_fieldList(:)
+    type(ESMF_FieldBundleType), pointer     :: this
+    type(ESMF_GeomType_Flag)           :: l_geomtype
+
+    ! initialize return code; assume routine not implemented
+    localrc = ESMF_RC_NOT_IMPL
+    if (present(rc)) rc = ESMF_RC_NOT_IMPL
+
+    ! Check init status of arguments
+    ESMF_INIT_CHECK_DEEP_SHORT(ESMF_FieldBundleGetInit, fieldbundle, rc)
+
+    nullify(this)
+    nullify(l_fieldList)
+
+    this => fieldbundle%this
+
+    ! geomBase
+    if(present(geomtype)) then
+      if(this%status /= ESMF_FBSTATUS_GRIDSET) then
+        call ESMF_LogSetError(rcToCheck=ESMF_RC_OBJ_BAD, &
+          msg = " - fieldbundle does not have a geombase object stored", &
+          ESMF_CONTEXT, rcToReturn=rc)
+        return
+      endif
+  
+      call ESMF_GeomBaseGet(this%geombase, geomtype=geomtype, rc=localrc)
+      if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+        ESMF_CONTEXT, rcToReturn=rc)) return
+    endif
+
+    if(present(grid)) then
+      if(this%status /= ESMF_FBSTATUS_GRIDSET) then
+        call ESMF_LogSetError(rcToCheck=ESMF_RC_OBJ_BAD, &
+          msg = " - fieldbundle does not have a geombase object stored", &
+          ESMF_CONTEXT, rcToReturn=rc)
+        return
+      endif
+  
+      call ESMF_GeomBaseGet(this%geombase, grid=grid, rc=localrc)
+      if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+        ESMF_CONTEXT, rcToReturn=rc)) return
+    endif
+
+    if(present(xgrid)) then
+      if(this%status /= ESMF_FBSTATUS_GRIDSET) then
+        call ESMF_LogSetError(rcToCheck=ESMF_RC_OBJ_BAD, &
+          msg = " - fieldbundle does not have a geombase object stored", &
+          ESMF_CONTEXT, rcToReturn=rc)
+        return
+      endif
+  
+      call ESMF_GeomBaseGet(this%geombase, xgrid=xgrid, rc=localrc)
+      if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+        ESMF_CONTEXT, rcToReturn=rc)) return
+    endif
+
+    if(present(mesh)) then
+      if(this%status /= ESMF_FBSTATUS_GRIDSET) then
+        call ESMF_LogSetError(rcToCheck=ESMF_RC_OBJ_BAD, &
+          msg = " - fieldbundle does not have a geombase object stored", &
+          ESMF_CONTEXT, rcToReturn=rc)
+        return
+      endif
+  
+      call ESMF_GeomBaseGet(this%geombase, mesh=mesh, rc=localrc)
+      if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+        ESMF_CONTEXT, rcToReturn=rc)) return
+    endif
+
+    if(present(locstream)) then
+      if(this%status /= ESMF_FBSTATUS_GRIDSET) then
+        call ESMF_LogSetError(rcToCheck=ESMF_RC_OBJ_BAD, &
+          msg = " - fieldbundle does not have a geombase object stored", &
+          ESMF_CONTEXT, rcToReturn=rc)
+        return
+      endif
+  
+      call ESMF_GeomBaseGet(this%geombase, locstream=locstream, rc=localrc)
+      if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+        ESMF_CONTEXT, rcToReturn=rc)) return
+    endif
+        
+    
+    ! Call into the container
+    call ESMF_ContainerGet(fieldbundle%this%container, &
+      itemCount=l_fieldCount, rc=localrc)
+    if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+      ESMF_CONTEXT, rcToReturn=rc)) return
+
+    if(present(fieldCount)) fieldCount = l_fieldCount
+
+    allocate(l_fieldList(l_fieldCount), stat=localrc)
+    if(localrc /= ESMF_SUCCESS) then
+      call ESMF_LogSetError(rcToCheck=ESMF_RC_OBJ_BAD, &
+        msg = " - cannot allocate l_fieldList internally", &
+        ESMF_CONTEXT, rcToReturn=rc)
+      return
+    endif
+
+    call ESMF_ContainerGet(fieldbundle%this%container, &
+      itemList=l_fieldList, rc=localrc)
+    if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+      ESMF_CONTEXT, rcToReturn=rc)) return
+
+    if(present(fieldList)) then
+      if(size(fieldList) .lt. l_fieldCount) then
+        call ESMF_LogSetError(rcToCheck=ESMF_RC_OBJ_BAD, &
+          msg = " - Input fieldList size is too small", &
+          ESMF_CONTEXT, rcToReturn=rc)
+        return
+      endif
+      fieldList(1:l_fieldCount) = l_fieldList(1:l_fieldCount)
+    endif
+
+    ! Special call to get name out of Base class
+    if (present(fieldNameList)) then
+      if(size(fieldNameList) .lt. l_fieldCount) then
+        call ESMF_LogSetError(rcToCheck=ESMF_RC_OBJ_BAD, &
+          msg = " - Input fieldNameList size is too small", &
+          ESMF_CONTEXT, rcToReturn=rc)
+        return
+      endif
+      do i = 1, l_fieldCount
+        call ESMF_FieldGet(l_fieldList(i), name=fieldNameList(i), rc=localrc)
+        if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+          ESMF_CONTEXT, rcToReturn=rc)) return
       enddo
-     
-      ! if you get here, all fields matched
-      ESMF_FieldBundleIsCongruent = .TRUE.
-      btype%isCongruent = .TRUE.
+    endif
+  
+    deallocate(l_fieldList)
+
+    if (present(name)) then
+        call c_ESMC_GetName(fieldbundle%this%base, name, localrc)
+        if (ESMF_LogFoundError(localrc, &
+          ESMF_ERR_PASSTHRU, &
+          ESMF_CONTEXT, rcToReturn=rc)) return
+    endif
+    
+    ! Return successfully
+    if (present(rc)) rc = ESMF_SUCCESS
+  
+  end subroutine ESMF_FieldBundleGetListAll
+!------------------------------------------------------------------------------
+
+
+!------------------------------------------------------------------------------
+#undef  ESMF_METHOD
+#define ESMF_METHOD "ESMF_FieldBundleGetIndex()"
+!BOPI
+! !IROUTINE: ESMF_FieldBundleGet - Access the fieldIndex-th Field in FieldBundle
+!
+! !INTERFACE:
+    ! Private name; call using ESMF_FieldBundleGet()   
+    subroutine ESMF_FieldBundleGetIndex(fieldbundle, fieldIndex, field, keywordEnforcer, &
+      rc)
+!
+! !ARGUMENTS:
+    type(ESMF_FieldBundle), intent(in)            :: fieldbundle
+    integer,                intent(in)            :: fieldIndex
+    type(ESMF_Field),       intent(inout)         :: field
+type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
+    integer,                intent(out), optional :: rc
+!
+! !DESCRIPTION:
+!   Get the fieldIndex-th Field in FieldBundle. The order of the Field in FieldBundle
+!   is not guranteed. If this call is used iteratively, then any Add, Replace, Remove
+!   call on the FieldBundle will invalidate the order of the Field in the FieldBundle.
+!
+!   \begin{description}
+!   \item [fieldbundle]
+!         {\tt ESMF\_FieldBundle} to be queried.
+!   \item [fieldIndex]
+!         The fieldIndex-th Field to be returned.
+!   \item [field]
+!         The fieldIndex-th Field to be returned.
+!   \item [{[rc]}]
+!         Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
+!   \end{description}
+!
+!EOPI
+!------------------------------------------------------------------------------
+    integer                       :: localrc      ! local return code
+    integer                       :: l_fieldCount, i         ! helper variable
+    type(ESMF_Field), pointer     :: l_fieldList(:)
+
+    ! initialize return code; assume routine not implemented
+    localrc = ESMF_RC_NOT_IMPL
+    if (present(rc)) rc = ESMF_RC_NOT_IMPL
+
+    ! Check init status of arguments
+    ESMF_INIT_CHECK_DEEP_SHORT(ESMF_FieldBundleGetInit, fieldbundle, rc)
+
+    nullify(l_fieldList)
+    
+    ! Call into the container
+    call ESMF_ContainerGet(fieldbundle%this%container, &
+      itemCount=l_fieldCount, rc=localrc)
+    if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+      ESMF_CONTEXT, rcToReturn=rc)) return
+
+    if(fieldIndex .lt. 1 .or. fieldIndex .gt. l_fieldCount) then
+      call ESMF_LogSetError(rcToCheck=ESMF_RC_OBJ_BAD, &
+        msg = " - fieldIndex must be between 1 and fieldCount in the FieldBundle", &
+        ESMF_CONTEXT, rcToReturn=rc)
+      return
+    endif
+
+    allocate(l_fieldList(l_fieldCount), stat=localrc)
+    if(localrc /= ESMF_SUCCESS) then
+      call ESMF_LogSetError(rcToCheck=ESMF_RC_OBJ_BAD, &
+        msg = " - cannot allocate l_fieldList internally", &
+        ESMF_CONTEXT, rcToReturn=rc)
+      return
+    endif
+
+    call ESMF_ContainerGet(fieldbundle%this%container, &
+      itemList=l_fieldList, rc=localrc)
+    if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+      ESMF_CONTEXT, rcToReturn=rc)) return
+
+    field = l_fieldList(fieldIndex)
+  
+    deallocate(l_fieldList)
+
+    ! Return successfully
+    if (present(rc)) rc = ESMF_SUCCESS
+  
+  end subroutine ESMF_FieldBundleGetIndex
+!------------------------------------------------------------------------------
+
+!------------------------------------------------------------------------------
+#undef  ESMF_METHOD
+#define ESMF_METHOD "ESMF_FieldBundleHalo()"
+!BOP
+! !IROUTINE: ESMF_FieldBundleHalo - Execute a FieldBundle halo operation
+!
+! !INTERFACE:
+  subroutine ESMF_FieldBundleHalo(fieldbundle, routehandle, keywordEnforcer, &
+    checkflag, rc)
+!
+! !ARGUMENTS:
+        type(ESMF_FieldBundle), intent(inout)           :: fieldbundle
+        type(ESMF_RouteHandle), intent(inout)           :: routehandle
+type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
+        logical,                intent(in),   optional  :: checkflag
+        integer,                intent(out),  optional  :: rc
+!
+! !STATUS:
+! \begin{itemize}
+! \item\apiStatusCompatibleVersion{5.2.0r}
+! \end{itemize}
+!
+! !DESCRIPTION:
+!   \begin{sloppypar}
+!   Execute a precomputed FieldBundle halo operation for the Fields in FieldBundle.
+!   See {\tt ESMF\_FieldBundleStore()} on how to compute routehandle.
+!   \end{sloppypar}
+!
+!   \begin{description}
+!   \item [fieldbundle]
+!     {\tt ESMF\_FieldBundle} with source data. The data in this 
+!       FieldBundle may be destroyed by this call.
+!   \item [routehandle]
+!     Handle to the precomputed Route.
+!   \item [{[checkflag]}]
+!     If set to {\tt .TRUE.} the input FieldBundle pair will be checked for
+!     consistency with the precomputed operation provided by {\tt routehandle}.
+!     If set to {\tt .FALSE.} {\em (default)} only a very basic input check
+!     will be performed, leaving many inconsistencies undetected. Set
+!     {\tt checkflag} to {\tt .FALSE.} to achieve highest performance.
+!   \item [{[rc]}]
+!     Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
+!   \end{description}
+!
+!EOP
+!------------------------------------------------------------------------------
+        integer                 :: localrc      ! local return code
+        
+        ! local variables to buffer optional arguments
+        logical                 :: l_checkflag! helper variable
+        type(ESMF_Field)        :: l_field ! helper variable
+        type(ESMF_Field), allocatable        :: l_fieldList(:) ! helper variable
+
+        ! local internal variables
+        integer                 :: fcount, i
+
+        type(ESMF_ArrayBundle)  :: arrayBundle
+        type(ESMF_Array), allocatable :: arrays(:)
+
+        ! initialize return code; assume routine not implemented
+        localrc = ESMF_RC_NOT_IMPL
+        if (present(rc)) rc = ESMF_RC_NOT_IMPL
+
+        ! Check init status of arguments, deal with optional FieldBundle args
+        ESMF_INIT_CHECK_DEEP_SHORT(ESMF_RouteHandleGetInit, routehandle, rc)
+
+        ! Set default flags
+        l_checkflag = ESMF_FALSE
+        if (present(checkflag)) l_checkflag = checkflag
+
+        ESMF_INIT_CHECK_DEEP_SHORT(ESMF_FieldBundleGetInit, fieldbundle, rc)
+
+        call ESMF_FieldBundleGet(fieldbundle, fieldCount=fcount, rc=localrc)
+        if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+            ESMF_CONTEXT, rcToReturn=rc)) return
+
+        allocate(l_fieldList(fcount))
+
+        call ESMF_FieldBundleGet(fieldbundle, fieldList=l_fieldList, rc=localrc)
+        if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+            ESMF_CONTEXT, rcToReturn=rc)) return
+
+        ! build arrayBundle on-the-fly
+        allocate(arrays(fcount))
+        do i = 1, fcount
+            call ESMF_FieldGet(l_fieldList(i), array=arrays(i), rc=localrc)
+            if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+                ESMF_CONTEXT, rcToReturn=rc)) return
+        enddo
+        arrayBundle = ESMF_ArrayBundleCreate(arrayList=arrays, rc=localrc)
+        if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+            ESMF_CONTEXT, rcToReturn=rc)) return
+        deallocate(arrays)
+
+        call ESMF_ArrayBundleHalo(arrayBundle, routehandle, &
+            checkflag=l_checkflag, rc=localrc)
+        if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+            ESMF_CONTEXT, rcToReturn=rc)) return
+            
+        ! garbage collection
+        call ESMF_ArrayBundleDestroy(arrayBundle, rc=localrc)
+        if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+            ESMF_CONTEXT, rcToReturn=rc)) return
+
+        deallocate(l_fieldList)
+        
+        ! return successfully
+        if (present(rc)) rc = ESMF_SUCCESS
+
+    end subroutine ESMF_FieldBundleHalo
+
+!------------------------------------------------------------------------------
+#undef  ESMF_METHOD
+#define ESMF_METHOD "ESMF_FieldBundleHaloRelease()"
+!BOP
+! !IROUTINE: ESMF_FieldBundleHaloRelease - Release resources associated with a FieldBundle halo operation
+!
+! !INTERFACE:
+  subroutine ESMF_FieldBundleHaloRelease(routehandle, keywordEnforcer, rc)
+!
+! !ARGUMENTS:
+        type(ESMF_RouteHandle), intent(inout)           :: routehandle
+type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
+        integer,                intent(out),  optional  :: rc
+!
+! !STATUS:
+! \begin{itemize}
+! \item\apiStatusCompatibleVersion{5.2.0r}
+! \end{itemize}
+!
+! !DESCRIPTION:
+!   Release resouces associated with a FieldBundle halo operation. After this call
+!   {\tt routehandle} becomes invalid.
+!
+!   \begin{description}
+!   \item [routehandle]
+!     Handle to the precomputed Route.
+!   \item [{[rc]}]
+!     Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
+!   \end{description}
+!
+!EOP
+!------------------------------------------------------------------------------
+        integer                 :: localrc      ! local return code
+
+        ! initialize return code; assume routine not implemented
+        localrc = ESMF_RC_NOT_IMPL
+        if (present(rc)) rc = ESMF_RC_NOT_IMPL
+
+        ! Check init status of arguments
+        ESMF_INIT_CHECK_DEEP_SHORT(ESMF_RouteHandleGetInit, routehandle, rc)
+            
+        ! Call into the RouteHandle code
+        call ESMF_RouteHandleRelease(routehandle, localrc)
+        if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+          ESMF_CONTEXT, rcToReturn=rc)) return
+        
+        ! return successfully
+        if (present(rc)) rc = ESMF_SUCCESS
+
+    end subroutine ESMF_FieldBundleHaloRelease
+
+!------------------------------------------------------------------------------
+#undef  ESMF_METHOD
+#define ESMF_METHOD "ESMF_FieldBundleHaloStore()"
+!BOP
+! !IROUTINE: ESMF_FieldBundleHaloStore - Precompute a FieldBundle halo operation
+!
+! !INTERFACE:
+    subroutine ESMF_FieldBundleHaloStore(fieldbundle, routehandle, &
+      keywordEnforcer, rc)
+!
+! !ARGUMENTS:
+    type(ESMF_FieldBundle), intent(inout)           :: fieldbundle
+    type(ESMF_RouteHandle), intent(inout)           :: routehandle
+type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
+    integer,                intent(out),   optional :: rc
+!
+! !STATUS:
+! \begin{itemize}
+! \item\apiStatusCompatibleVersion{5.2.0r}
+! \end{itemize}
+!
+! !DESCRIPTION:
+!   Store a FieldBundle halo operation over the data in {\tt fieldbundle}. 
+!   By definition, all elements in the total Field regions that lie
+!   outside the exclusive regions will be considered potential destination
+!   elements for halo. However, only those elements that have a corresponding
+!   halo source element, i.e. an exclusive element on one of the DEs, will be
+!   updated under the halo operation. Elements that have no associated source
+!   remain unchanged under halo.
+!
+!   The routine returns an {\tt ESMF\_RouteHandle} that can be used to call 
+!   {\tt ESMF\_FieldBundleHalo()} on any FieldBundle that is weakly congruent
+!   and typekind conform to {\tt fieldbundle}. Congruency for FieldBundles is
+!   given by the congruency of its constituents.
+!   Congruent Fields possess matching DistGrids, and the shape of the local
+!   array tiles matches between the Fields for every DE. For weakly congruent
+!   Fields the sizes of the undistributed dimensions, that vary faster with
+!   memory than the first distributed dimension, are permitted to be different.
+!   This means that the same {\tt routehandle} can be applied to a large class
+!   of similar Fields that differ in the number of elements in the left most
+!   undistributed dimensions.
+!  
+!   This call is {\em collective} across the current VM.  
+!
+!   \begin{description}
+!   \item [fieldbundle]
+!     {\tt ESMF\_FieldBundle} containing data to be haloed. The data in this 
+!       FieldBundle may be destroyed by this call.
+!   \item [routehandle]
+!     Handle to the precomputed Route.
+!   \item [{[rc]}]
+!     Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
+!   \end{description}
+!
+!EOP
+!------------------------------------------------------------------------------
+        ! internal local variables 
+        integer                                       :: localrc, fcount, i 
+        type(ESMF_Field)                              :: l_field
+        type(ESMF_ArrayBundle)                        :: arrayBundle
+        type(ESMF_Array), allocatable                 :: arrays(:)
+        type(ESMF_Field), allocatable                 :: l_fieldList(:) ! helper variable
+
+        ! Initialize return code; assume routine not implemented 
+        localrc = ESMF_RC_NOT_IMPL 
+        if(present(rc)) rc = ESMF_RC_NOT_IMPL 
+
+        ! check variables
+        ESMF_INIT_CHECK_DEEP_SHORT(ESMF_FieldBundleGetInit, fieldbundle, rc) 
+
+        ! build arrayBundle on-the-fly
+        call ESMF_FieldBundleGet(fieldbundle, fieldCount=fcount, rc=localrc)
+        if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+            ESMF_CONTEXT, rcToReturn=rc)) return
+
+        allocate(l_fieldList(fcount))
+
+        call ESMF_FieldBundleGet(fieldbundle, fieldList=l_fieldList, rc=localrc)
+        if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+            ESMF_CONTEXT, rcToReturn=rc)) return
+
+        allocate(arrays(fcount))
+        do i = 1, fcount
+            call ESMF_FieldGet(l_fieldList(i), array=arrays(i), rc=localrc)
+            if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+                ESMF_CONTEXT, rcToReturn=rc)) return
+        enddo
+        arrayBundle = ESMF_ArrayBundleCreate(arrayList=arrays, rc=localrc)
+        if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+            ESMF_CONTEXT, rcToReturn=rc)) return
+        deallocate(arrays)
+
+        call ESMF_ArrayBundleHaloStore(arrayBundle, routehandle, rc=localrc)
+        if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+            ESMF_CONTEXT, rcToReturn=rc)) return
+            
+        ! garbage collection
+        call ESMF_ArrayBundleDestroy(arrayBundle, rc=localrc)
+        if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+          ESMF_CONTEXT, rcToReturn=rc)) return
+
+        deallocate(l_fieldList)
+
+        ! return successfully
+        if (present(rc)) rc = ESMF_SUCCESS
+        
+    end subroutine ESMF_FieldBundleHaloStore
+!------------------------------------------------------------------------------ 
+
+
+! -------------------------- ESMF-public method -------------------------------
+#undef  ESMF_METHOD
+#define ESMF_METHOD "ESMF_FieldBundlePrint()"
+!BOP
+! !IROUTINE: ESMF_FieldBundlePrint - Print FieldBundle information
+
+! !INTERFACE:
+  subroutine ESMF_FieldBundlePrint(fieldbundle, keywordEnforcer, rc)
+!
+! !ARGUMENTS:
+    type(ESMF_FieldBundle), intent(in)              :: fieldbundle
+type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
+    integer,                intent(out),  optional  :: rc  
+!
+! !STATUS:
+! \begin{itemize}
+! \item\apiStatusCompatibleVersion{5.2.0r}
+! \end{itemize}
+!
+! !DESCRIPTION:
+!   Print internal information of the specified {\tt fieldbundle} object. \\
+!
+!   The arguments are:
+!   \begin{description}
+!   \item[fieldbundle] 
+!     {\tt ESMF\_FieldBundle} object.
+!   \item[{[rc]}] 
+!     Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
+!   \end{description}
+!
+!EOP
+!------------------------------------------------------------------------------
+    integer                 :: localrc      ! local return code
+    integer                 :: l_fieldCount, i
+    type(ESMF_Field), pointer     :: l_fieldList(:)
+
+    ! initialize return code; assume routine not implemented
+    localrc = ESMF_RC_NOT_IMPL
+    if (present(rc)) rc = ESMF_RC_NOT_IMPL
+
+    ! Check init status of arguments
+    ESMF_INIT_CHECK_DEEP_SHORT(ESMF_FieldBundleGetInit, fieldbundle, rc)
+
+    nullify(l_fieldList)
+    
+    ! Get all the fields
+    call ESMF_FieldBundleGet(fieldbundle, fieldCount=l_fieldCount,  rc=localrc)
+    if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+      ESMF_CONTEXT, rcToReturn=rc)) return
+
+    allocate(l_fieldList(l_fieldCount), stat=localrc)
+    if(localrc /= ESMF_SUCCESS) then
+      call ESMF_LogSetError(rcToCheck=ESMF_RC_OBJ_BAD, &
+        msg = " - cannot allocate l_fieldList internally", &
+        ESMF_CONTEXT, rcToReturn=rc)
+      return
+    endif
+
+    call ESMF_ContainerGet(fieldbundle%this%container, &
+      itemList=l_fieldList, rc=localrc)
+    if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+      ESMF_CONTEXT, rcToReturn=rc)) return
+
+    do i = 1, l_fieldCount
+      call ESMF_FieldPrint(l_fieldList(i), rc=localrc)
+      if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+        ESMF_CONTEXT, rcToReturn=rc)) return
+    enddo
+
+    deallocate(l_fieldList)
+
+    ! Return successfully
+    if (present(rc)) rc = ESMF_SUCCESS
+ 
+  end subroutine ESMF_FieldBundlePrint
+!------------------------------------------------------------------------------
+
+
+! -------------------------- ESMF-public method -------------------------------
+#undef  ESMF_METHOD
+#define ESMF_METHOD "ESMF_FieldBundleRead()"
+!BOP
+! !IROUTINE: ESMF_FieldBundleRead - Read Fields to a FieldBundle from file(s)
+! \label{api:FieldBundleRead}
+
+! !INTERFACE:
+  subroutine ESMF_FieldBundleRead(fieldbundle, file, &
+    keywordEnforcer, singleFile, iofmt, rc)
+!
+! !ARGUMENTS:
+    type(ESMF_FieldBundle), intent(inout)          :: fieldbundle
+    character(*),           intent(in)             :: file
+type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords for the below
+    logical,                intent(in),  optional  :: singleFile
+    type(ESMF_IOFmtFlag),   intent(in),  optional  :: iofmt
+    integer,                intent(out), optional  :: rc
+!
+! !DESCRIPTION:
+!   Read field data to a FieldBundle object from file(s).
+!   For this API to be functional, the environment variable {\tt ESMF\_PIO} 
+!   should be set to "internal" when the ESMF library is built.
+!   Please see the section on Data I/O,~\ref{io:dataio}.
+!
+!   Limitations:
+!   \begin{itemize}
+!     \item Only 1 DE per PET supported.
+!     \item Not supported in {\tt ESMF\_COMM=mpiuni} mode.
+!   \end{itemize}
+!
+!   The arguments are:
+!   \begin{description}
+!   \item[fieldbundle] 
+!     An {\tt ESMF\_FieldBundle} object.
+!   \item[file]
+!     The name of the file from which fieldbundle data is read.
+!   \item[{[singleFile]}]
+!     A logical flag, the default is .true., i.e., all Fields in the bundle 
+!     are stored in one single file. If .false., each field is stored 
+!     in separate files; these files are numbered with the name based on the
+!     argument "file". That is, a set of files are named: [file\_name]001,
+!     [file\_name]002, [file\_name]003,...
+!   \item[{[iofmt]}]
+!     \begin{sloppypar}
+!     The IO format. Please see Section~\ref{opt:iofmtflag} for the list
+!     of options.  If not present, defaults to {\tt ESMF\_IOFMT\_NETCDF}.
+!     \end{sloppypar}
+!   \item[{[rc]}] 
+!     Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
+!   \end{description}
+!
+!EOP
+!------------------------------------------------------------------------------
+    integer                 :: localrc      ! local return code
+    character(len=80), allocatable :: Aname(:)
+    integer :: fieldCount,i
+    type(ESMF_Field), allocatable :: fieldList(:)
+    logical                       :: singlef
+    character(len=80)             :: filename
+    character(len=3)              :: cnum
+    type(ESMF_IOFmtFlag)          :: iofmtd
+
+#ifdef ESMF_PIO
+    ! initialize return code; assume routine not implemented
+    localrc = ESMF_RC_NOT_IMPL
+    if (present(rc)) rc = ESMF_RC_NOT_IMPL
+
+    ! Check init status of arguments
+    ESMF_INIT_CHECK_DEEP_SHORT(ESMF_FieldBundleGetInit, fieldbundle, rc)
+
+    ! Check options
+    singlef = .true.
+    if (present(singleFile)) singlef = singleFile
+    iofmtd = ESMF_IOFMT_NETCDF   ! default format
+    if(present(iofmt)) iofmtd = iofmt
+
+    call ESMF_FieldBundleGet(fieldbundle, fieldCount=fieldCount, rc=localrc)
+    if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+         ESMF_CONTEXT, rcToReturn=rc)) return
+
+    allocate (Aname(fieldCount))
+    allocate (fieldList(fieldCount))
+    call ESMF_FieldBundleGet(fieldbundle, fieldList=fieldList, rc=localrc)
+    if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+         ESMF_CONTEXT, rcToReturn=rc)) return
+
+    if (singlef) then
+      ! Get and read the fields in the Bundle
+      do i=1,fieldCount
+       call ESMF_FieldGet(fieldList(i), name=Aname(i), rc=localrc)
+       if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+          ESMF_CONTEXT, rcToReturn=rc)) return
+       call ESMF_FieldRead(fieldList(i), file=file, &
+          iofmt=iofmtd, rc=localrc)
+       if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+          ESMF_CONTEXT, rcToReturn=rc)) return
+      enddo
+    else
+      do i=1,fieldCount
+        write(cnum,"(i3.3)") i
+        filename = file // cnum
+        call ESMF_FieldGet(fieldList(i), name=Aname(i), rc=localrc)
+        if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+           ESMF_CONTEXT, rcToReturn=rc)) return
+        call ESMF_FieldRead(fieldList(i), file=filename,  &
+               iofmt=iofmtd, rc=localrc)
+        if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+           ESMF_CONTEXT, rcToReturn=rc)) return
+      enddo
+    endif
+
+    ! Return successfully
+    if (present(rc)) rc = ESMF_SUCCESS
+
+#else
+    ! Return indicating PIO not present
+    if (present(rc)) rc = ESMF_RC_LIB_NOT_PRESENT
 #endif
 
-      if (present(rc)) rc = ESMF_SUCCESS
-
-
-      end function ESMF_FieldBundleIsCongruent
-
+  end subroutine ESMF_FieldBundleRead
+!------------------------------------------------------------------------------
 
 !------------------------------------------------------------------------------
 #undef  ESMF_METHOD
-#define ESMF_METHOD "ESMF_FieldBundleGetFieldByName"
+#define ESMF_METHOD "ESMF_FieldBundleRedist()"
 !BOP
-! !IROUTINE: ESMF_FieldBundleGet - Retrieve a Field by name
+! !IROUTINE: ESMF_FieldBundleRedist - Execute a FieldBundle redistribution
 !
 ! !INTERFACE:
-      ! Private name; call using ESMF_FieldBundleGet()
-      subroutine ESMF_FieldBundleGetFieldByName(bundle, name, field, rc)
+  subroutine ESMF_FieldBundleRedist(srcFieldBundle, dstFieldBundle, &
+    routehandle, keywordEnforcer, checkflag, rc)
 !
 ! !ARGUMENTS:
-      type(ESMF_FieldBundle), intent(in) :: bundle
-      character (len = *), intent(in) :: name
-      type(ESMF_Field), intent(out) :: field
-      integer, intent(out), optional :: rc
+        type(ESMF_FieldBundle), intent(in),    optional  :: srcFieldBundle
+        type(ESMF_FieldBundle), intent(inout), optional  :: dstFieldBundle
+        type(ESMF_RouteHandle), intent(inout)            :: routehandle
+type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
+        logical,                intent(in),    optional  :: checkflag
+        integer,                intent(out),   optional  :: rc
+!
+! !STATUS:
+! \begin{itemize}
+! \item\apiStatusCompatibleVersion{5.2.0r}
+! \end{itemize}
 !
 ! !DESCRIPTION:
-!      Returns a {\tt field} from a {\tt bundle} using
-!      the {\tt field}'s {\tt name}.
+!   \begin{sloppypar}
+!   Execute a precomputed FieldBundle redistribution from {\tt srcFieldBundle} to
+!   {\tt dstFieldBundle}. Both {\tt srcFieldBundle} and {\tt dstFieldBundle} must be
+!   weakly congruent and typekind conform with the respective FieldBundles used during 
+!   {\tt ESMF\_FieldBundleRedistStore()}. Congruent FieldBundles possess
+!   matching DistGrids and the shape of the local array tiles matches between
+!   the FieldBundles for every DE. For weakly congruent Fields the sizes of the 
+!   undistributed dimensions, that vary faster with memory than the first distributed 
+!   dimension, are permitted to be different. This means that the same {\tt routehandle} 
+!   can be applied to a large class of similar Fields that differ in the number of 
+!   elements in the left most undistributed dimensions. 
+!   \end{sloppypar}
 !
-!     The arguments are:
-!     \begin{description}
+!   The {\tt srcFieldBundle} and {\tt dstFieldBundle} arguments are optional in support of
+!   the situation where {\tt srcFieldBundle} and/or {\tt dstFieldBundle} are not defined on
+!   all PETs. The {\tt srcFieldBundle} and {\tt dstFieldBundle} must be specified on those
+!   PETs that hold source or destination DEs, respectively, but may be omitted
+!   on all other PETs. PETs that hold neither source nor destination DEs may
+!   omit both arguments.
 !
-!     \item [bundle]
-!           {\tt ESMF\_FieldBundle} to query for {\tt ESMF\_Field}.
-!     \item [name]
-!           {\tt ESMF\_Field} name.
-!     \item [field]
-!           Returned {\tt ESMF\_Field}.
-!     \item [{[rc]}]
-!           Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
+!   It is erroneous to specify the identical FieldBundle object for {\tt srcFieldBundle} and
+!   {\tt dstFieldBundle} arguments.
 !
-!     \end{description}
+!   See {\tt ESMF\_FieldBundleRedistStore()} on how to precompute 
+!   {\tt routehandle}.
+!
+!   This call is {\em collective} across the current VM.
+!
+!   For examples and associated documentations using this method see Section  
+!   \ref{sec:fieldbundle:usage:redist_1dptr}. 
+!
+!   \begin{description}
+!   \item [{[srcFieldBundle]}]
+!     {\tt ESMF\_FieldBundle} with source data.
+!   \item [{[dstFieldBundle]}]
+!     {\tt ESMF\_FieldBundle} with destination data.
+!   \item [routehandle]
+!     Handle to the precomputed Route.
+!   \item [{[checkflag]}]
+!     If set to {\tt .TRUE.} the input FieldBundle pair will be checked for
+!     consistency with the precomputed operation provided by {\tt routehandle}.
+!     If set to {\tt .FALSE.} {\em (default)} only a very basic input check
+!     will be performed, leaving many inconsistencies undetected. Set
+!     {\tt checkflag} to {\tt .FALSE.} to achieve highest performance.
+!   \item [{[rc]}]
+!     Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
+!   \end{description}
 !
 !EOP
+!------------------------------------------------------------------------------
+    integer                 :: localrc      ! local return code
+    
+    ! local variables to buffer optional arguments
+    logical                 :: l_checkflag! helper variable
 
+    ! local internal variables
+    logical                 :: src_bundle
+    logical                 :: dst_bundle
+    integer                 :: fcount, i
+    type(ESMF_ArrayBundle)  :: srcab, dstab
+    type(ESMF_Array), allocatable :: srca(:), dsta(:)
 
-      integer :: status                           ! Error status
-      integer :: i                                ! temp var
-      logical :: found                            ! did we find a match?
-      character (len=ESMF_MAXSTR) :: temp_name
-      !type(ESMF_Field) :: temp_field
-      type(ESMF_FieldBundleType), pointer :: btype
+    ! initialize return code; assume routine not implemented
+    localrc = ESMF_RC_NOT_IMPL
+    if (present(rc)) rc = ESMF_RC_NOT_IMPL
 
-      ! Initialize return code.  Assume routine not implemented.
-      status = ESMF_RC_NOT_IMPL
-      if (present(rc)) rc = ESMF_RC_NOT_IMPL
+    ! Check init status of arguments, deal with optional FieldBundle args
+    ESMF_INIT_CHECK_DEEP_SHORT(ESMF_RouteHandleGetInit, routehandle, rc)
 
-      ! check variables
-      ESMF_INIT_CHECK_DEEP(ESMF_FieldBundleGetInit,bundle,rc)
+    ! Set default flags
+    l_checkflag = ESMF_FALSE
+    if (present(checkflag)) l_checkflag = checkflag
 
-      found = .FALSE.
+    src_bundle = .true.
+    if (present(srcFieldBundle)) then
+      srcab = ESMF_FieldBundleToAB(srcFieldBundle, rc=localrc)
+      if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+          ESMF_CONTEXT, rcToReturn=rc)) return
+    else
+      src_bundle = .false.
+    endif
 
-      ! Validate bundle before going further
-      call ESMF_FieldBundleValidate(bundle, rc=status)
-      if (ESMF_LogMsgFoundError(status, &
-                                ESMF_ERR_PASSTHRU, &
-                                ESMF_CONTEXT, rc)) return
+    dst_bundle = .true.
+    if (present(dstFieldBundle)) then
+      dstab = ESMF_FieldBundleToAB(dstFieldBundle, rc=localrc)
+      if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+          ESMF_CONTEXT, rcToReturn=rc)) return
+    else
+      dst_bundle = .false.
+    endif
+        
+    ! perform FieldBundle redistribution
+    if(src_bundle .and. dst_bundle) &
+        call ESMF_ArrayBundleRedist(srcab, dstab, routehandle, &
+            checkflag=l_checkflag, rc=localrc)
+    if(src_bundle .and. .not. dst_bundle) &
+        call ESMF_ArrayBundleRedist(srcArrayBundle=srcab, routehandle=routehandle, &
+            checkflag=l_checkflag, rc=localrc)
+    if(.not. src_bundle .and. dst_bundle) &
+        call ESMF_ArrayBundleRedist(dstArrayBundle=dstab, routehandle=routehandle, &
+            checkflag=l_checkflag, rc=localrc)
+    if(.not. src_bundle .and. .not. dst_bundle) &
+        call ESMF_ArrayBundleRedist(routehandle=routehandle, &
+            checkflag=l_checkflag, rc=localrc)
+    if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+        ESMF_CONTEXT, rcToReturn=rc)) return
 
-      btype => bundle%btypep
+    ! garbage collection
+    if (present(srcFieldBundle)) then
+      call ESMF_ArrayBundleDestroy(srcab, rc=localrc)
+      if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+        ESMF_CONTEXT, rcToReturn=rc)) return
+    endif
+    if (present(dstFieldBundle)) then
+      call ESMF_ArrayBundleDestroy(dstab, rc=localrc)
+      if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+        ESMF_CONTEXT, rcToReturn=rc)) return
+    endif
+    
+    ! return successfully
+    if (present(rc)) rc = ESMF_SUCCESS
 
-      ! Check for an empty FieldBundle first
-      if(btype%field_count .eq. 0) then
-         if (ESMF_LogMsgFoundError(ESMF_RC_OBJ_BAD, &
-                                "Empty FieldBundle", &
-                                 ESMF_CONTEXT, rc)) return
-      endif
-
-      ! Check each field for a match
-      do i = 1, btype%field_count
-  
-       call ESMF_FieldGet(btype%flist(i), name=temp_name, rc=status)
-       ! "Error getting Field name from Field ", i
-       if (ESMF_LogMsgFoundError(status, &
-                                  ESMF_ERR_PASSTHRU, &
-                                  ESMF_CONTEXT, rc)) return
-
-       if (name .eq. temp_name) then
-           field = bundle%btypep%flist(i) 
-           found = .TRUE.
-           ! found match, exit loop early
-           exit
-        endif
-      enddo
-
-      if (.not. found) then
-        !"Field not found with name ", name
-         if (ESMF_LogMsgFoundError(ESMF_RC_OBJ_BAD, &
-                                "Field not found with requested name", &
-                                 ESMF_CONTEXT, rc)) return
-      endif
-
-      if (present(rc)) rc = ESMF_SUCCESS
-
-      end subroutine ESMF_FieldBundleGetFieldByName
+  end subroutine ESMF_FieldBundleRedist
 
 !------------------------------------------------------------------------------
 #undef  ESMF_METHOD
-#define ESMF_METHOD "ESMF_FieldBundleGetFieldByNum"
+#define ESMF_METHOD "ESMF_FieldBundleRedistRelease()"
 !BOP
-! !IROUTINE: ESMF_FieldBundleGet - Retrieve a Field by index number
+! !IROUTINE: ESMF_FieldBundleRedistRelease - Release resources associated with a FieldBundle redistribution
 !
 ! !INTERFACE:
-      ! Private name; call using ESMF_FieldBundleGet()
-      subroutine ESMF_FieldBundleGetFieldByNum(bundle, fieldIndex, field, rc)
+  subroutine ESMF_FieldBundleRedistRelease(routehandle, keywordEnforcer, rc)
 !
 ! !ARGUMENTS:
-      type(ESMF_FieldBundle), intent(in) :: bundle
-      integer, intent(in) :: fieldIndex
-      type(ESMF_Field), intent(out) :: field
-      integer, intent(out), optional :: rc
+        type(ESMF_RouteHandle), intent(inout)           :: routehandle
+type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
+        integer,                intent(out),  optional  :: rc
+!
+! !STATUS:
+! \begin{itemize}
+! \item\apiStatusCompatibleVersion{5.2.0r}
+! \end{itemize}
 !
 ! !DESCRIPTION:
-!      Returns a {\tt field} from a {\tt bundle} by index number.
+!   Release resouces associated with a FieldBundle redistribution. After this call
+!   {\tt routehandle} becomes invalid.
 !
-!     The arguments are:
-!     \begin{description}
-!     \item [bundle]
-!           {\tt ESMF\_FieldBundle} to query for {\tt ESMF\_Field}.
-!     \item [fieldIndex]
-!           {\tt ESMF\_Field} index number; first {\tt fieldIndex} is 1.
-!     \item [field]
-!           Returned {\tt ESMF\_Field}.
-!     \item [{[rc]}]
-!           Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
-!     \end{description}
+!   \begin{description}
+!   \item [routehandle]
+!     Handle to the precomputed Route.
+!   \item [{[rc]}]
+!     Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
+!   \end{description}
 !
 !EOP
-
-
-      integer :: status                           ! Error status
-      logical :: found                            ! did we find a match?
-      type(ESMF_FieldBundleType), pointer :: btype
-
-      ! Initialize return code.  Assume routine not implemented.
-      status = ESMF_RC_NOT_IMPL
-      if (present(rc)) rc = ESMF_RC_NOT_IMPL
-
-      ! check variables
-      ESMF_INIT_CHECK_DEEP(ESMF_FieldBundleGetInit,bundle,rc)
-
-      found = .FALSE.
-
-      ! Validate bundle before going further
-      call ESMF_FieldBundleValidate(bundle, rc=status)
-      if (ESMF_LogMsgFoundError(status, &
-                                ESMF_ERR_PASSTHRU, &
-                                ESMF_CONTEXT, rc)) return
-
-      btype => bundle%btypep
-
-      ! Check for an empty FieldBundle first
-      if(btype%field_count .eq. 0) then
-         if (ESMF_LogMsgFoundError(ESMF_RC_OBJ_BAD, &
-                                "Empty FieldBundle", &
-                                 ESMF_CONTEXT, rc)) return
-      endif
-
-      ! Check for out of range index number
-      if ((fieldIndex .lt. 1) .or. (fieldIndex .gt. btype%field_count)) then
-        ! "ERROR in ESMF_FieldBundleGetField: fieldIndex ", fieldIndex, &
-        !                "out of range. Min=1, max=", btype%field_count
-        if (ESMF_LogMsgFoundError(ESMF_RC_ARG_VALUE, &
-                                "Index out of range", &
-                                 ESMF_CONTEXT, rc)) return
-        return
-      endif
-
-      ! Fetch requested field
-      field = bundle%btypep%flist(fieldIndex) 
-
-      if (present(rc)) rc = ESMF_SUCCESS
-
-      end subroutine ESMF_FieldBundleGetFieldByNum
-
-
 !------------------------------------------------------------------------------
-#undef  ESMF_METHOD
-#define ESMF_METHOD "ESMF_FieldBundleGetFieldNames"
-!BOP
-! !IROUTINE: ESMF_FieldBundleGet - Return all Field names in a FieldBundle
+        integer                 :: localrc      ! local return code
 
-! !INTERFACE:
-      ! Private name; call using ESMF_FieldBundleGet()
-      subroutine ESMF_FieldBundleGetFieldNames(bundle, nameList, nameCount, rc)
-!
-! !ARGUMENTS:
-      type(ESMF_FieldBundle), intent(in) :: bundle 
-      character (len = *), intent(out) :: nameList(:)
-      integer, intent(out), optional :: nameCount     
-      integer, intent(out), optional :: rc     
-!
-! !DESCRIPTION:
-!      Returns an array of {\tt ESMF\_Field} names in an {\tt ESMF\_FieldBundle}.
-!
-!     The arguments are:
-!     \begin{description}
-!     \item [bundle]
-!           An {\tt ESMF\_FieldBundle} object.
-!     \item [nameList]
-!           An array of character strings where each {\tt ESMF\_Field} name
-!           is returned.  Must be at least as long as {\tt nameCount}.
-!     \item [{[nameCount]}]
-!           A count of how many {\tt ESMF\_Field} names were returned.  Same as
-!           the number of {\tt ESMF\_Field}s in the {\tt ESMF\_FieldBundle}.
-!     \item [{[rc]}]
-!           Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
-!     \end{description}
-!
-!EOP
+        ! initialize return code; assume routine not implemented
+        localrc = ESMF_RC_NOT_IMPL
+        if (present(rc)) rc = ESMF_RC_NOT_IMPL
 
-      integer :: i, status
-      type(ESMF_FieldBundleType), pointer :: bp
-
-      ! Initialize return code; assume routine not implemented
-      if (present(rc)) rc = ESMF_RC_NOT_IMPL
-      status = ESMF_RC_NOT_IMPL
-
-      ! check variables
-      ESMF_INIT_CHECK_DEEP(ESMF_FieldBundleGetInit,bundle,rc)
-
-      bp => bundle%btypep
-
-      if (present(nameCount)) nameCount = bp%field_count
-
-      if (size(nameList) .lt. bp%field_count) then
-          call ESMF_LogMsgSetError(ESMF_RC_ARG_VALUE, &
-                                  "nameList too short for number of fields", &
-                                  ESMF_CONTEXT, rc)
-          return
-      endif
-
-      do i=1, bp%field_count
-          call ESMF_FieldGet(bp%flist(i), name=nameList(i), rc=status)      
-          if (ESMF_LogMsgFoundError(status, &
-                                  ESMF_ERR_PASSTHRU, &
-                                  ESMF_CONTEXT, rc)) return
-      enddo 
-
-      if (present(rc)) rc = ESMF_SUCCESS
-      end subroutine ESMF_FieldBundleGetFieldNames
-
-
-!------------------------------------------------------------------------------
-#undef  ESMF_METHOD
-#define ESMF_METHOD "ESMF_FieldBundlePrint"
-!BOP
-! !IROUTINE: ESMF_FieldBundlePrint - Print information about a FieldBundle
-!
-! !INTERFACE:
-      subroutine ESMF_FieldBundlePrint(bundle, options, rc)
-!
-! !ARGUMENTS:
-      type(ESMF_FieldBundle), intent(in) :: bundle
-      character (len=*), intent(in), optional :: options
-      integer, intent(out), optional :: rc
-!
-! !DESCRIPTION:
-!     Prints diagnostic information about the {\tt bundle}
-!     to {\tt stdout}. \\
-!
-!     Note:  Many {\tt ESMF\_<class>Print} methods are implemented in C++.
-!     On some platforms/compilers there is a potential issue with interleaving
-!     Fortran and C++ output to {\tt stdout} such that it doesn't appear in
-!     the expected order.  If this occurs, the {\tt ESMF\_IOUnitFlush()} method
-!     may be used on unit 6 to get coherent output.  \\
-!
-!     The arguments are:
-!     \begin{description}
-!     \item [bundle]
-!           An {\tt ESMF\_FieldBundle} object.
-!     \item [{[options]}]
-!           Print options are not yet supported.
-!     \item [{[rc]}]
-!           Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
-!     \end{description}
-!
-!EOP
-
-
-      character(len=ESMF_MAXSTR) :: bname, fname
-      !character(len=ESMF_MAXSTR) :: msgbuf
-      type(ESMF_FieldBundleType), pointer :: btype
-      !type(ESMF_Field) :: field
-      integer :: i
-      integer :: status
-      character(len=6) :: defaultopts
-
-       ! print option is not implemented, but it has to pass to c_ESMC_BasePrint()
-      defaultopts = "brief"
-
-      ! Initialize return code; assume routine not implemented
-      if (present(rc)) rc = ESMF_RC_NOT_IMPL
-      status = ESMF_RC_NOT_IMPL
-
-      ESMF_INIT_CHECK_DEEP(ESMF_FieldBundleGetInit,bundle,rc)
-
-    !jw  call ESMF_LogWrite("FieldBundle Print:", ESMF_LOG_INFO)
-      write (*, *)  "FieldBundle print:"
-
-      if (.not. associated(bundle%btypep)) then
-      !jw  call ESMF_LogWrite("Empty or Uninitialized FieldBundle", ESMF_LOG_INFO)
-        write(*,*) "Empty or Uninitialized FieldBundle"
+        ! Check init status of arguments
+        ESMF_INIT_CHECK_DEEP_SHORT(ESMF_RouteHandleGetInit, routehandle, rc)
+            
+        ! Call into the RouteHandle code
+        call ESMF_RouteHandleRelease(routehandle, localrc)
+        if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+          ESMF_CONTEXT, rcToReturn=rc)) return
+        
+        ! return successfully
         if (present(rc)) rc = ESMF_SUCCESS
-        return
-      endif
 
-      btype => bundle%btypep
-      call c_ESMC_GetName(btype%base, bname, status)
-    !jw  write (msgbuf, *)  "  FieldBundle name = ", trim(bname)
-    !jw  call ESMF_LogWrite(msgbuf, ESMF_LOG_INFO)
-      write (*, *)  "  FieldBundle name = ", trim(bname)
+    end subroutine ESMF_FieldBundleRedistRelease
 
-    ! pli: print attributes 
-      call c_ESMC_BasePrint(btype%base, defaultopts, status)
-      if (ESMF_LogMsgFoundError(status, &
-                                  ESMF_ERR_PASSTHRU, &
-                                  ESMF_CONTEXT, rc)) return
-    
-    !jw  write (msgbuf, *)  "  Field count = ", btype%field_count
-    !jw  call ESMF_LogWrite(msgbuf, ESMF_LOG_INFO)
-      write (*, *)  "  Field count = ", btype%field_count
-    
-      do i = 1, btype%field_count
-
-       write (*, *)  "    Field", i, ": "
-       !call ESMF_FieldPrint(btype%flist(i),rc=status)  
-       !call ESMF_FieldGet(btype%flist(i), name=fname, rc=status)
-       if (ESMF_LogMsgFoundError(status, &
-                                  ESMF_ERR_PASSTHRU, &
-                                  ESMF_CONTEXT, rc)) return
-
-     !jw  write (msgbuf, *)  "    Field", i, "name = ", trim(fname)
-     !jw  call ESMF_LogWrite(msgbuf, ESMF_LOG_INFO)
-      enddo
-
-      ! TODO: add more code here for printing more info
-
-      if (present(rc)) rc = ESMF_SUCCESS
-      end subroutine ESMF_FieldBundlePrint
-
-!------------------------------------------------------------------------------
-#undef  ESMF_METHOD
-#define ESMF_METHOD "ESMF_FieldBundleRead"
-!BOPI
-! !IROUTINE: ESMF_FieldBundleRead - Create a FieldBundle from an external source
-!
-! !INTERFACE:
-!      function ESMF_FieldBundleRead(name, iospec, rc)
-!
-! !RETURN VALUE:
-!      type(ESMF_FieldBundle) :: ESMF_FieldBundleRead
-!
-! !ARGUMENTS:
-!      character (len = *), intent(in) :: name
-!      type(ESMF_IOSpec), intent(in), optional :: iospec
-!      integer, intent(out), optional :: rc
-!
-! !DESCRIPTION:
-!      Used to read data from persistent storage in a variety of formats.
-!
-!     The arguments are:
-!     \begin{description}
-!     \item [bundle]
-!           An {\tt ESMF\_FieldBundle} object.
-!     \item [{[iospec]}]
-!           The file I/O specification.
-!     \item [{[rc]}]
-!           Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
-!     \end{description}
-
-!EOPI
-
-!
-!  TODO: code goes here
-!
-!      type(ESMF_FieldBundle) :: b
-
-      ! Initialize return code; assume routine not implemented
-!      if (present(rc)) rc = ESMF_RC_NOT_IMPL
-
-!      allocate(b%btypep)
-
-!      ESMF_FieldBundleRead = b
-
-!      end function ESMF_FieldBundleRead
-
-!------------------------------------------------------------------------------
-#undef  ESMF_METHOD
-#define ESMF_METHOD "ESMF_FieldBundleReadRestart"
-!BOPI
-! !IROUTINE: ESMF_FieldBundleReadRestart - Read back a saved FieldBundle
-!
-! !INTERFACE:
-!      function ESMF_FieldBundleReadRestart(name, iospec, rc)
-!
-! !RETURN VALUE:
-!      type(ESMF_FieldBundle) :: ESMF_FieldBundleReadRestart
-!
-! !ARGUMENTS:
-!      character (len = *), intent(in) :: name     
-!      type(ESMF_IOSpec), intent(in), optional :: iospec
-!      integer, intent(out), optional :: rc         
-!
-! !DESCRIPTION:
-!      Used to reinitialize
-!      all data associated with a {\t ESMF\_FieldBundle} 
-!      from the last call to WriteRestart.
-!
-!     The arguments are:
-!     \begin{description}
-!     \item [bundle]
-!           An {\tt ESMF\_FieldBundle} object.
-!     \item [{[iospec]}]
-!           The I/O specification.
-!     \item [{[rc]}]
-!           Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
-!     \end{description}
-!
-!EOPI
-
-
-!
-!  TODO: code goes here
-!
-!      type(ESMF_FieldBundle) :: b
-
-      ! Initialize return code; assume routine not implemented
-!      if (present(rc)) rc = ESMF_RC_NOT_IMPL
-
-!      allocate(b%btypep)
-
- 
-!      ESMF_FieldBundleReadRestart = b
-
-!      end function ESMF_FieldBundleReadRestart
-
-!------------------------------------------------------------------------------
-#undef  ESMF_METHOD
-#define ESMF_METHOD "ESMF_FieldBundleRemoveField"
-!BOPI
-! !IROUTINE: ESMF_FieldBundleRemoveField - Remove a Field from a FieldBundle
-!
-! !INTERFACE:
-      subroutine ESMF_FieldBundleRemoveField(bundle, name, rc)
-!
-! !ARGUMENTS:
-      type(ESMF_FieldBundle), intent(inout) :: bundle
-      character (len = *), intent(in) :: name
-      integer, intent(out), optional :: rc
-
-!
-! !DESCRIPTION:
-!      Deletes an {\tt ESMF\_Field} reference from an existing {\tt bundle}
-!      by {\tt name}.  
-!
-!     The arguments are:
-!     \begin{description}
-!     \item [bundle]
-!           The {\tt ESMF\_FieldBundle} to remove the {\tt ESMF\_Field} from.
-!     \item [name]
-!           The name of the {\tt ESMF\_Field} to remove.
-!     \item [{[rc]}]
-!           Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
-!     \end{description}
-!
-!
-!EOPI
-      integer :: localrc                        ! local return code
-
-      ! Initialize return code; assume routine not implemented
-      if (present(rc)) rc = ESMF_RC_NOT_IMPL
-      localrc = ESMF_RC_NOT_IMPL
-
-!
-!  TODO: code goes here
-!
-      if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, &
-      ESMF_CONTEXT, rcToReturn=rc)) return
-
-      if (present(rc)) rc = ESMF_SUCCESS
-
-      end subroutine ESMF_FieldBundleRemoveField
-!------------------------------------------------------------------------------
-#undef  ESMF_METHOD
-#define ESMF_METHOD "ESMF_FieldBundleSetDataValues"
-!BOPI
-! !IROUTINE: ESMF_FieldBundleSetDataValues - Set contents of packed array
-!
-! !INTERFACE:
-      subroutine ESMF_FieldBundleSetDataValues(bundle, index, value, rc)
-!
-! !ARGUMENTS:
-      type(ESMF_FieldBundle), intent(inout) :: bundle
-      integer, dimension (:), intent(in) :: index
-      real(ESMF_KIND_R8), dimension (:), intent(in) :: value
-      integer, intent(out), optional :: rc
-!
-! !DESCRIPTION:
-!     Allows data values associated with an {\tt ESMF\_FieldBundle} to be 
-!     set through the {\tt ESMF\_FieldBundle} interface instead of 
-!     detaching data and setting it in a loop.
-!     Various restrictions on data types may be imposed.
+!---------------------------------------------------------------------------- 
+!BOP 
+! !IROUTINE: ESMF_FieldBundleRedistStore - Precompute a FieldBundle redistribution with local factor argument 
 ! 
+! !INTERFACE: 
+! ! Private name; call using ESMF_FieldBundleRedistStore() 
+! subroutine ESMF_FieldBundleRedistStore<type><kind>(srcFieldBundle, &
+!   dstFieldBundle, routehandle, factor, keywordEnforcer, &
+!   srcToDstTransposeMap, rc) 
+! 
+! !ARGUMENTS: 
+!   type(ESMF_FieldBundle), intent(in)             :: srcFieldBundle  
+!   type(ESMF_FieldBundle), intent(inout)          :: dstFieldBundle  
+!   type(ESMF_RouteHandle), intent(inout)          :: routehandle
+!   <type>(ESMF_KIND_<kind>), intent(in)           :: factor
+!type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
+!   integer,                intent(in),   optional :: srcToDstTransposeMap(:)
+!   integer,                intent(out),  optional :: rc 
 !
-!     The arguments are:
-!     \begin{description}
-!     \item [bundle]
-!           The {\tt ESMF\_FieldBundle} to operate on.
-!     \item [index]
-!           Index values to change.
-!     \item [value]
-!           Data value(s) to set.
-!     \item [{[rc]}]
-!           Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
-!     \end{description}
+! !STATUS:
+! \begin{itemize}
+! \item\apiStatusCompatibleVersion{5.2.0r}
+! \end{itemize}
 !
+! !DESCRIPTION: 
+! 
+! Store a FieldBundle redistribution operation from {\tt srcFieldBundle} to {\tt dstFieldBundle}. 
+! PETs that
+! specify a {\tt factor} argument must use the <type><kind> overloaded interface. Other 
+! PETs call into the interface without {\tt factor} argument. If multiple PETs specify 
+! the {\tt factor} argument its type and kind as well as its value must match across 
+! all PETs. If none of the PETs specifies a {\tt factor} argument the default will be a  
+! factor of 1. 
+!  
+! Both {\tt srcFieldBundle} and {\tt dstFieldBundle} are interpreted as sequentialized 
+! vectors. The 
+! sequence is defined by the order of DistGrid dimensions and the order of 
+! tiles within the DistGrid or by user-supplied arbitrary sequence indices. See 
+! section \ref{Array:SparseMatMul} for details on the definition of {\em sequence indices}. 
+! Redistribution corresponds to an identity mapping of the source FieldBundle vector to 
+! the destination FieldBundle vector. 
+!  
+! Source and destination FieldBundles may be of different <type><kind>. Further source 
+! and destination FieldBundles may differ in shape, however, the number of elements 
+! must match. 
+!  
+! It is erroneous to specify the identical FieldBundle object for srcFieldBundle 
+! and dstFieldBundle arguments. 
+!  
+! The routine returns an {\tt ESMF\_RouteHandle} that can be used to call 
+! {\tt ESMF\_FieldBundleRedist()} on any pair of FieldBundles that are congruent and typekind 
+! conform with the srcFieldBundle, dstFieldBundle pair. Congruent FieldBundles possess matching 
+! DistGrids and the shape of the local array tiles matches between the FieldBundles for 
+! every DE. For weakly congruent Fields the sizes of the 
+! undistributed dimensions, that vary faster with memory than the first distributed 
+! dimension, are permitted to be different. This means that the same {\tt routehandle} 
+! can be applied to a large class of similar Fields that differ in the number of 
+! elements in the left most undistributed dimensions. 
+
 !
+! This method is overloaded for:\newline
+! {\tt ESMF\_TYPEKIND\_I4}, {\tt ESMF\_TYPEKIND\_I8},\newline 
+! {\tt ESMF\_TYPEKIND\_R4}, {\tt ESMF\_TYPEKIND\_R8}.
+! \newline
+!  
+! This call is collective across the current VM.  
+! 
+! For examples and associated documentations using this method see Section  
+! \ref{sec:fieldbundle:usage:redist_1dptr}. 
+! 
+! The arguments are: 
+! \begin{description} 
+! \item [srcFieldBundle]  
+!       {\tt ESMF\_FieldBundle} with source data. 
+! \item [dstFieldBundle] 
+!       {\tt ESMF\_FieldBundle} with destination data. The data in this 
+!       FieldBundle may be destroyed by this call. 
+! \item [routehandle] 
+!       Handle to the precomputed Route. 
+! \item [factor]
+!       Factor by which to multiply source data.
+! \item [{[srcToDstTransposeMap]}] 
+!       List with as many entries as there are dimensions in {\tt srcFieldBundle}. Each 
+! entry maps the corresponding {\tt srcFieldBundle} dimension 
+! against the specified {\tt dstFieldBundle} 
+! dimension. Mixing of distributed and undistributed dimensions is supported.  
+! \item [{[rc]}]  
+!       Return code; equals {\tt ESMF\_SUCCESS} if there are no errors. 
+! \end{description} 
+! 
+!EOP 
+!---------------------------------------------------------------------------- 
+
+#undef  ESMF_METHOD 
+#define ESMF_METHOD "ESMF_FieldBundleRedistStoreI4" 
+!BOPI
+! !IROUTINE: ESMF_FieldBundleRedistStore - Precompute a FieldBundle redistribution
+!
+! !INTERFACE:
+  ! Private name; call using ESMF_FieldBundleRedistStore()
+    subroutine ESMF_FieldBundleRedistStoreI4(srcFieldBundle, &
+      dstFieldBundle, routehandle, factor, keywordEnforcer, &
+      srcToDstTransposeMap, rc) 
+
+        ! input arguments 
+        type(ESMF_FieldBundle), intent(in)          :: srcFieldBundle  
+        type(ESMF_FieldBundle), intent(inout)       :: dstFieldBundle  
+        type(ESMF_RouteHandle), intent(inout)       :: routehandle
+        integer(ESMF_KIND_I4),  intent(in)          :: factor
+type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
+        integer,              intent(in) , optional :: srcToDstTransposeMap(:)
+        integer,              intent(out), optional :: rc 
+
 !EOPI
-      integer :: localrc                        ! local return code
+        ! local variables as temporary input/output arguments 
 
-      ! Initialize return code; assume routine not implemented
-      if (present(rc)) rc = ESMF_RC_NOT_IMPL
-      localrc = ESMF_RC_NOT_IMPL
+        ! internal local variables 
+        integer                                       :: localrc, sfcount, dfcount, i 
+        type(ESMF_ArrayBundle)                        :: srcab, dstab
+        type(ESMF_Array), allocatable                 :: srca(:), dsta(:)
 
+        ! Initialize return code; assume routine not implemented 
+        localrc = ESMF_RC_NOT_IMPL 
+        if(present(rc)) rc = ESMF_RC_NOT_IMPL 
+
+        ! check variables
+        ESMF_INIT_CHECK_DEEP_SHORT(ESMF_FieldBundleGetInit, srcFieldBundle, rc) 
+        ESMF_INIT_CHECK_DEEP_SHORT(ESMF_FieldBundleGetInit, dstFieldBundle, rc) 
+
+        ! loop over source and destination fields. 
+        ! verify src and dst FieldBundles can communicate
+        ! field_count match
+        call ESMF_FieldBundleGet(srcFieldBundle, fieldCount=sfcount, rc=localrc)
+        if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+            ESMF_CONTEXT, rcToReturn=rc)) return
+        call ESMF_FieldBundleGet(dstFieldBundle, fieldCount=dfcount, rc=localrc)
+        if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+            ESMF_CONTEXT, rcToReturn=rc)) return
+
+        if(sfcount /= dfcount) then
+            call ESMF_LogSetError(rcToCheck=ESMF_RC_ARG_VALUE, &
+               msg="src and dst FieldBundle must have same number of fields", &
+                ESMF_CONTEXT, rcToReturn=rc)
+            return
+        endif 
+
+        srcab = ESMF_FieldBundleToAB(srcFieldBundle, rc=localrc)
+        if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+            ESMF_CONTEXT, rcToReturn=rc)) return
+
+        dstab = ESMF_FieldBundleToAB(dstFieldBundle, rc=localrc)
+        if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+            ESMF_CONTEXT, rcToReturn=rc)) return
+
+        call ESMF_ArrayBundleRedistStore(srcab, dstab, routehandle, factor, & 
+            srcToDstTransposeMap=srcToDstTransposeMap, rc=localrc) 
+        if (ESMF_LogFoundError(localrc, & 
+            ESMF_ERR_PASSTHRU, & 
+            ESMF_CONTEXT, rcToReturn=rc)) return 
+
+        ! garbage collection
+        call ESMF_ArrayBundleDestroy(srcab, rc=localrc)
+        if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+          ESMF_CONTEXT, rcToReturn=rc)) return
+        call ESMF_ArrayBundleDestroy(dstab, rc=localrc)
+        if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+          ESMF_CONTEXT, rcToReturn=rc)) return
+
+        ! return successfully
+        if (present(rc)) rc = ESMF_SUCCESS
+        
+    end subroutine ESMF_FieldBundleRedistStoreI4
+!------------------------------------------------------------------------------ 
+
+#undef  ESMF_METHOD 
+#define ESMF_METHOD "ESMF_FieldBundleRedistStoreI8" 
+!BOPI
+! !IROUTINE: ESMF_FieldBundleRedistStore - Precompute a FieldBundle redistribution
 !
-!  TODO: code goes here
-!
+! !INTERFACE:
+  ! Private name; call using ESMF_FieldBundleRedistStore()
+    subroutine ESMF_FieldBundleRedistStoreI8(srcFieldBundle, dstFieldBundle, & 
+      routehandle, factor, keywordEnforcer, srcToDstTransposeMap, rc) 
 
-      if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, &
+        ! input arguments 
+        type(ESMF_FieldBundle), intent(in)         :: srcFieldBundle  
+        type(ESMF_FieldBundle), intent(inout)      :: dstFieldBundle  
+        type(ESMF_RouteHandle), intent(inout)      :: routehandle
+        integer(ESMF_KIND_I8),  intent(in)         :: factor
+type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
+        integer,             intent(in) , optional :: srcToDstTransposeMap(:)
+        integer,             intent(out), optional :: rc 
+
+!EOPI
+        ! local variables as temporary input/output arguments 
+
+        ! internal local variables 
+        integer                                       :: localrc, sfcount, dfcount, i 
+        type(ESMF_ArrayBundle)                        :: srcab, dstab
+        type(ESMF_Array), allocatable                 :: srca(:), dsta(:)
+
+        ! Initialize return code; assume routine not implemented 
+        localrc = ESMF_RC_NOT_IMPL 
+        if(present(rc)) rc = ESMF_RC_NOT_IMPL 
+
+        ! check variables
+        ESMF_INIT_CHECK_DEEP_SHORT(ESMF_FieldBundleGetInit, srcFieldBundle, rc) 
+        ESMF_INIT_CHECK_DEEP_SHORT(ESMF_FieldBundleGetInit, dstFieldBundle, rc) 
+
+        ! loop over source and destination fields. 
+        ! verify src and dst FieldBundles can communicate
+        ! field_count match
+        call ESMF_FieldBundleGet(srcFieldBundle, fieldCount=sfcount, rc=localrc)
+        if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+            ESMF_CONTEXT, rcToReturn=rc)) return
+        call ESMF_FieldBundleGet(dstFieldBundle, fieldCount=dfcount, rc=localrc)
+        if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+            ESMF_CONTEXT, rcToReturn=rc)) return
+
+        if(sfcount /= dfcount) then
+            call ESMF_LogSetError(rcToCheck=ESMF_RC_ARG_VALUE, &
+               msg="src and dst FieldBundle must have same number of fields", &
+                ESMF_CONTEXT, rcToReturn=rc)
+            return
+        endif 
+
+        srcab = ESMF_FieldBundleToAB(srcFieldBundle, rc=localrc)
+        if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+            ESMF_CONTEXT, rcToReturn=rc)) return
+
+        dstab = ESMF_FieldBundleToAB(dstFieldBundle, rc=localrc)
+        if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+            ESMF_CONTEXT, rcToReturn=rc)) return
+
+        call ESMF_ArrayBundleRedistStore(srcab, dstab, routehandle, factor, & 
+            srcToDstTransposeMap=srcToDstTransposeMap, rc=localrc) 
+        if (ESMF_LogFoundError(localrc, & 
+            ESMF_ERR_PASSTHRU, & 
+            ESMF_CONTEXT, rcToReturn=rc)) return 
+
+        ! garbage collection
+        call ESMF_ArrayBundleDestroy(srcab, rc=localrc)
+        if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+          ESMF_CONTEXT, rcToReturn=rc)) return
+        call ESMF_ArrayBundleDestroy(dstab, rc=localrc)
+        if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+          ESMF_CONTEXT, rcToReturn=rc)) return
+
+        ! return successfully
+        if (present(rc)) rc = ESMF_SUCCESS
+        
+    end subroutine ESMF_FieldBundleRedistStoreI8
+!------------------------------------------------------------------------------ 
+
+#undef  ESMF_METHOD 
+#define ESMF_METHOD "ESMF_FieldBundleRedistStoreR4"
+!BOPI
+! !IROUTINE: ESMF_FieldBundleRedistStore - Precompute a FieldBundle redistribution
+!
+! !INTERFACE:
+  ! Private name; call using ESMF_FieldBundleRedistStore()
+    subroutine ESMF_FieldBundleRedistStoreR4(srcFieldBundle, dstFieldBundle, & 
+      routehandle, factor, keywordEnforcer, srcToDstTransposeMap, rc) 
+
+        ! input arguments 
+        type(ESMF_FieldBundle), intent(in)          :: srcFieldBundle  
+        type(ESMF_FieldBundle), intent(inout)       :: dstFieldBundle  
+        type(ESMF_RouteHandle), intent(inout)       :: routehandle
+        real(ESMF_KIND_R4),   intent(in)            :: factor
+type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
+        integer,              intent(in) , optional :: srcToDstTransposeMap(:)
+        integer,              intent(out), optional :: rc 
+
+!EOPI
+        ! local variables as temporary input/output arguments 
+
+        ! internal local variables 
+        integer                                       :: localrc, sfcount, dfcount, i 
+        type(ESMF_ArrayBundle)                        :: srcab, dstab
+        type(ESMF_Array), allocatable                 :: srca(:), dsta(:)
+
+        ! Initialize return code; assume routine not implemented 
+        localrc = ESMF_RC_NOT_IMPL 
+        if(present(rc)) rc = ESMF_RC_NOT_IMPL 
+
+        ! check variables
+        ESMF_INIT_CHECK_DEEP_SHORT(ESMF_FieldBundleGetInit, srcFieldBundle, rc) 
+        ESMF_INIT_CHECK_DEEP_SHORT(ESMF_FieldBundleGetInit, dstFieldBundle, rc) 
+
+        ! loop over source and destination fields. 
+        ! verify src and dst FieldBundles can communicate
+        ! field_count match
+        call ESMF_FieldBundleGet(srcFieldBundle, fieldCount=sfcount, rc=localrc)
+        if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+            ESMF_CONTEXT, rcToReturn=rc)) return
+        call ESMF_FieldBundleGet(dstFieldBundle, fieldCount=dfcount, rc=localrc)
+        if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+            ESMF_CONTEXT, rcToReturn=rc)) return
+
+        if(sfcount /= dfcount) then
+            call ESMF_LogSetError(rcToCheck=ESMF_RC_ARG_VALUE, &
+               msg="src and dst FieldBundle must have same number of fields", &
+                ESMF_CONTEXT, rcToReturn=rc)
+            return
+        endif 
+
+        srcab = ESMF_FieldBundleToAB(srcFieldBundle, rc=localrc)
+        if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+            ESMF_CONTEXT, rcToReturn=rc)) return
+
+        dstab = ESMF_FieldBundleToAB(dstFieldBundle, rc=localrc)
+        if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+            ESMF_CONTEXT, rcToReturn=rc)) return
+
+        call ESMF_ArrayBundleRedistStore(srcab, dstab, routehandle, factor, & 
+            srcToDstTransposeMap=srcToDstTransposeMap, rc=localrc) 
+        if (ESMF_LogFoundError(localrc, & 
+            ESMF_ERR_PASSTHRU, & 
+            ESMF_CONTEXT, rcToReturn=rc)) return 
+
+        ! garbage collection
+        call ESMF_ArrayBundleDestroy(srcab, rc=localrc)
+        if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+          ESMF_CONTEXT, rcToReturn=rc)) return
+        call ESMF_ArrayBundleDestroy(dstab, rc=localrc)
+        if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+          ESMF_CONTEXT, rcToReturn=rc)) return
+
+        ! return successfully
+        if (present(rc)) rc = ESMF_SUCCESS
+        
+    end subroutine ESMF_FieldBundleRedistStoreR4
+!------------------------------------------------------------------------------ 
+
+#undef  ESMF_METHOD 
+#define ESMF_METHOD "ESMF_FieldBundleRedistStoreR8"
+!BOPI
+! !IROUTINE: ESMF_FieldBundleRedistStore - Precompute a FieldBundle redistribution
+!
+! !INTERFACE:
+  ! Private name; call using ESMF_FieldBundleRedistStore()
+    subroutine ESMF_FieldBundleRedistStoreR8(srcFieldBundle, dstFieldBundle, & 
+        routehandle, factor, keywordEnforcer, srcToDstTransposeMap, rc) 
+
+        ! input arguments 
+        type(ESMF_FieldBundle), intent(in)            :: srcFieldBundle  
+        type(ESMF_FieldBundle), intent(inout)         :: dstFieldBundle  
+        type(ESMF_RouteHandle), intent(inout)         :: routehandle
+        real(ESMF_KIND_R8),     intent(in)            :: factor
+type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
+        integer,                intent(in) , optional :: srcToDstTransposeMap(:)
+        integer,                intent(out), optional :: rc 
+
+!EOPI
+        ! local variables as temporary input/output arguments 
+
+        ! internal local variables 
+        integer                                       :: localrc, sfcount, dfcount, i 
+        type(ESMF_ArrayBundle)                        :: srcab, dstab
+        type(ESMF_Array), allocatable                 :: srca(:), dsta(:)
+
+        ! Initialize return code; assume routine not implemented 
+        localrc = ESMF_RC_NOT_IMPL 
+        if(present(rc)) rc = ESMF_RC_NOT_IMPL 
+
+        ! check variables
+        ESMF_INIT_CHECK_DEEP_SHORT(ESMF_FieldBundleGetInit, srcFieldBundle, rc) 
+        ESMF_INIT_CHECK_DEEP_SHORT(ESMF_FieldBundleGetInit, dstFieldBundle, rc) 
+
+        ! loop over source and destination fields. 
+        ! verify src and dst FieldBundles can communicate
+        ! field_count match
+        call ESMF_FieldBundleGet(srcFieldBundle, fieldCount=sfcount, rc=localrc)
+        if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+            ESMF_CONTEXT, rcToReturn=rc)) return
+        call ESMF_FieldBundleGet(dstFieldBundle, fieldCount=dfcount, rc=localrc)
+        if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+            ESMF_CONTEXT, rcToReturn=rc)) return
+
+        if(sfcount /= dfcount) then
+            call ESMF_LogSetError(rcToCheck=ESMF_RC_ARG_VALUE, &
+               msg="src and dst FieldBundle must have same number of fields", &
+                ESMF_CONTEXT, rcToReturn=rc)
+            return
+        endif 
+
+        srcab = ESMF_FieldBundleToAB(srcFieldBundle, rc=localrc)
+        if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+            ESMF_CONTEXT, rcToReturn=rc)) return
+
+        dstab = ESMF_FieldBundleToAB(dstFieldBundle, rc=localrc)
+        if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+            ESMF_CONTEXT, rcToReturn=rc)) return
+
+        call ESMF_ArrayBundleRedistStore(srcab, dstab, routehandle, factor, & 
+            srcToDstTransposeMap=srcToDstTransposeMap, rc=localrc) 
+        if (ESMF_LogFoundError(localrc, & 
+            ESMF_ERR_PASSTHRU, & 
+            ESMF_CONTEXT, rcToReturn=rc)) return 
+
+        ! garbage collection
+        call ESMF_ArrayBundleDestroy(srcab, rc=localrc)
+        if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+          ESMF_CONTEXT, rcToReturn=rc)) return
+        call ESMF_ArrayBundleDestroy(dstab, rc=localrc)
+        if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+          ESMF_CONTEXT, rcToReturn=rc)) return
+
+        ! return successfully
+        if (present(rc)) rc = ESMF_SUCCESS
+        
+    end subroutine ESMF_FieldBundleRedistStoreR8
+
+!---------------------------------------------------------------------------- 
+!BOP 
+! !IROUTINE: ESMF_FieldBundleRedistStore - Precompute a FieldBundle redistribution with local factor argument 
+! 
+! !INTERFACE: 
+! ! Private name; call using ESMF_FieldBundleRedistStore() 
+! subroutine ESMF_FieldBundleRedistStoreNF(srcFieldBundle, dstFieldBundle, & 
+!        routehandle, factor, keywordEnforcer, srcToDstTransposeMap, rc) 
+! 
+! !ARGUMENTS: 
+!   type(ESMF_FieldBundle), intent(in)             :: srcFieldBundle  
+!   type(ESMF_FieldBundle), intent(inout)          :: dstFieldBundle  
+!   type(ESMF_RouteHandle), intent(inout)          :: routehandle
+!type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
+!   integer,                intent(in),   optional :: srcToDstTransposeMap(:)
+!   integer,                intent(out),  optional :: rc 
+!
+! !STATUS:
+! \begin{itemize}
+! \item\apiStatusCompatibleVersion{5.2.0r}
+! \end{itemize}
+!
+! !DESCRIPTION: 
+!
+! \begin{sloppypar}
+! Store a FieldBundle redistribution operation from {\tt srcFieldBundle}
+! to {\tt dstFieldBundle}. PETs that specify non-zero matrix coefficients must use
+! the <type><kind> overloaded interface and provide the {\tt factorList} and
+! {\tt factorIndexList} arguments. Providing {\tt factorList} and
+! {\tt factorIndexList} arguments with {\tt size(factorList) = (/0/)} and
+! {\tt size(factorIndexList) = (/2,0/)} or {\tt (/4,0/)} indicates that a 
+! PET does not provide matrix elements. Alternatively, PETs that do not 
+! provide matrix elements may also call into the overloaded interface
+! {\em without} {\tt factorList} and {\tt factorIndexList} arguments.
+! \end{sloppypar}
+! 
+! Both {\tt srcFieldBundle} and {\tt dstFieldBundle} are interpreted as sequentialized 
+! vectors. The 
+! sequence is defined by the order of DistGrid dimensions and the order of 
+! tiles within the DistGrid or by user-supplied arbitrary sequence indices. See 
+! section \ref{Array:SparseMatMul} for details on the definition of {\em sequence indices}. 
+! Redistribution corresponds to an identity mapping of the source FieldBundle vector to 
+! the destination FieldBundle vector. 
+!  
+! Source and destination Fields may be of different <type><kind>. Further source 
+! and destination Fields may differ in shape, however, the number of elements 
+! must match. 
+!  
+! It is erroneous to specify the identical FieldBundle object for srcFieldBundle and dstFieldBundle 
+! arguments. 
+!  
+! The routine returns an {\tt ESMF\_RouteHandle} that can be used to call 
+! {\tt ESMF\_FieldBundleRedist()} on any pair of Fields that are congruent and typekind 
+! conform with the srcFieldBundle, dstFieldBundle pair. Congruent Fields possess matching 
+! DistGrids and the shape of the local array tiles matches between the Fields for 
+! every DE. For weakly congruent Fields the sizes of the 
+!   undistributed dimensions, that vary faster with memory than the first distributed 
+!   dimension, are permitted to be different. This means that the same {\tt routehandle} 
+!   can be applied to a large class of similar Fields that differ in the number of 
+!   elements in the left most undistributed dimensions. 
+
+!  
+! This method is overloaded for:\newline
+! {\tt ESMF\_TYPEKIND\_I4}, {\tt ESMF\_TYPEKIND\_I8},\newline 
+! {\tt ESMF\_TYPEKIND\_R4}, {\tt ESMF\_TYPEKIND\_R8}.
+! \newline
+!
+! This call is collective across the current VM.  
+! 
+! For examples and associated documentations using this method see Section  
+! \ref{sec:fieldbundle:usage:redist_1dptr}. 
+! 
+! The arguments are: 
+! \begin{description} 
+! \item [srcFieldBundle]  
+!       {\tt ESMF\_FieldBundle} with source data. 
+! \item [dstFieldBundle] 
+!       {\tt ESMF\_FieldBundle} with destination data. The data in this 
+!       FieldBundle may be destroyed by this call. 
+! \item [routehandle] 
+!       Handle to the precomputed Route. 
+! \item [{[srcToDstTransposeMap]}] 
+!       List with as many entries as there are dimensions in {\tt srcFieldBundle}. Each 
+! entry maps the corresponding {\tt srcFieldBundle} dimension 
+! against the specified {\tt dstFieldBundle} 
+! dimension. Mixing of distributed and undistributed dimensions is supported.  
+! \item [{[rc]}]  
+!       Return code; equals {\tt ESMF\_SUCCESS} if there are no errors. 
+! \end{description} 
+! 
+!EOP 
+!---------------------------------------------------------------------------- 
+
+#undef  ESMF_METHOD 
+#define ESMF_METHOD "ESMF_FieldBundleRedistStoreNF" 
+!BOPI
+! !IROUTINE: ESMF_FieldBundleRedistStore - Precompute a FieldBundle redistribution
+!
+! !INTERFACE:
+  ! Private name; call using ESMF_FieldBundleRedistStore()
+    subroutine ESMF_FieldBundleRedistStoreNF(srcFieldBundle, dstFieldBundle, & 
+      routehandle, keywordEnforcer, srcToDstTransposeMap, rc) 
+
+        ! input arguments 
+        type(ESMF_FieldBundle), intent(in)            :: srcFieldBundle  
+        type(ESMF_FieldBundle), intent(inout)         :: dstFieldBundle  
+        type(ESMF_RouteHandle), intent(inout)         :: routehandle
+type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
+        integer,                intent(in) , optional :: srcToDstTransposeMap(:)
+        integer,                intent(out), optional :: rc 
+
+!EOPI
+        ! local variables as temporary input/output arguments 
+
+        ! internal local variables 
+        integer                                       :: localrc, sfcount, dfcount, i 
+        type(ESMF_ArrayBundle)                        :: srcab, dstab
+        type(ESMF_Array), allocatable                 :: srca(:), dsta(:)
+
+        ! Initialize return code; assume routine not implemented 
+        localrc = ESMF_RC_NOT_IMPL 
+        if(present(rc)) rc = ESMF_RC_NOT_IMPL 
+
+        ! check variables
+        ESMF_INIT_CHECK_DEEP_SHORT(ESMF_FieldBundleGetInit, srcFieldBundle, rc) 
+        ESMF_INIT_CHECK_DEEP_SHORT(ESMF_FieldBundleGetInit, dstFieldBundle, rc) 
+
+        ! loop over source and destination fields. 
+        ! verify src and dst FieldBundles can communicate
+        ! field_count match
+        call ESMF_FieldBundleGet(srcFieldBundle, fieldCount=sfcount, rc=localrc)
+        if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+            ESMF_CONTEXT, rcToReturn=rc)) return
+        call ESMF_FieldBundleGet(dstFieldBundle, fieldCount=dfcount, rc=localrc)
+        if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+            ESMF_CONTEXT, rcToReturn=rc)) return
+
+        if(sfcount /= dfcount) then
+            call ESMF_LogSetError(rcToCheck=ESMF_RC_ARG_VALUE, &
+               msg="src and dst FieldBundle must have same number of fields", &
+                ESMF_CONTEXT, rcToReturn=rc)
+            return
+        endif 
+
+        ! TODO:
+        ! internal grids match
+        !if(ESMF_GridMatch(srcFieldBundle%btypep%grid, dstFieldBundle%btypep%grid) then
+        !    call ESMF_LogSetError(rcToCheck=ESMF_RC_ARG_VALUE, &
+        !       "src and dst FieldBundle must have matching grid", &
+        !        ESMF_CONTEXT, rcToReturn=rc)
+        !    return
+        !endif 
+
+        srcab = ESMF_FieldBundleToAB(srcFieldBundle, rc=localrc)
+        if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+            ESMF_CONTEXT, rcToReturn=rc)) return
+
+        dstab = ESMF_FieldBundleToAB(dstFieldBundle, rc=localrc)
+        if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+            ESMF_CONTEXT, rcToReturn=rc)) return
+
+        call ESMF_ArrayBundleRedistStore(srcab, dstab, routehandle, & 
+            srcToDstTransposeMap=srcToDstTransposeMap, rc=localrc) 
+        if (ESMF_LogFoundError(localrc, & 
+            ESMF_ERR_PASSTHRU, & 
+            ESMF_CONTEXT, rcToReturn=rc)) return 
+
+        ! garbage collection
+        call ESMF_ArrayBundleDestroy(srcab, rc=localrc)
+        if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+          ESMF_CONTEXT, rcToReturn=rc)) return
+        call ESMF_ArrayBundleDestroy(dstab, rc=localrc)
+        if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+          ESMF_CONTEXT, rcToReturn=rc)) return
+
+        ! return successfully
+        if (present(rc)) rc = ESMF_SUCCESS
+        
+    end subroutine ESMF_FieldBundleRedistStoreNF
+!------------------------------------------------------------------------------
+
+
+!------------------------------------------------------------------------------
+#undef  ESMF_METHOD
+#define ESMF_METHOD "ESMF_FieldBundleRegrid()"
+!BOP
+! !IROUTINE: ESMF_FieldBundleRegrid - Execute a FieldBundle regrid operation
+!
+! !INTERFACE:
+  subroutine ESMF_FieldBundleRegrid(srcFieldBundle, dstFieldBundle, &
+         routehandle, keywordEnforcer, zeroregion, checkflag, rc)
+!
+! !ARGUMENTS:
+        type(ESMF_FieldBundle), intent(in),    optional  :: srcFieldBundle
+        type(ESMF_FieldBundle), intent(inout), optional  :: dstFieldBundle
+        type(ESMF_RouteHandle), intent(inout)            :: routehandle
+type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
+        type(ESMF_Region_Flag), intent(in),    optional  :: zeroregion
+        logical,                intent(in),    optional  :: checkflag
+        integer,                intent(out),   optional  :: rc
+!
+! !STATUS:
+! \begin{itemize}
+! \item\apiStatusCompatibleVersion{5.2.0r}
+! \end{itemize}
+!
+! !DESCRIPTION:
+!   \begin{sloppypar}
+!   Execute a precomputed FieldBundle regrid from {\tt srcFieldBundle} to
+!   {\tt dstFieldBundle}. Both {\tt srcFieldBundle} and {\tt dstFieldBundle} must be
+!   congruent and typekind conform with the respective FieldBundles used during 
+!   {\tt ESMF\_FieldBundleRegridStore()}. Congruent FieldBundles possess
+!   matching DistGrids and the shape of the local array tiles matches between
+!   the FieldBundles for every DE. For weakly congruent Fields the sizes of the 
+!   undistributed dimensions, that vary faster with memory than the first distributed 
+!   dimension, are permitted to be different. This means that the same {\tt routehandle} 
+!   can be applied to a large class of similar Fields that differ in the number of 
+!   elements in the left most undistributed dimensions. 
+!   \end{sloppypar}
+!
+!   The {\tt srcFieldBundle} and {\tt dstFieldBundle} arguments are optional in support of
+!   the situation where {\tt srcFieldBundle} and/or {\tt dstFieldBundle} are not defined on
+!   all PETs. The {\tt srcFieldBundle} and {\tt dstFieldBundle} must be specified on those
+!   PETs that hold source or destination DEs, respectively, but may be omitted
+!   on all other PETs. PETs that hold neither source nor destination DEs may
+!   omit both arguments.
+!
+!   It is erroneous to specify the identical FieldBundle object for {\tt srcFieldBundle} and
+!   {\tt dstFieldBundle} arguments.
+!
+!   See {\tt ESMF\_FieldBundleRegridStore()} on how to precompute 
+!   {\tt routehandle}.
+!
+!   This call is {\em collective} across the current VM.
+!
+!   \begin{description}
+!   \item [{[srcFieldBundle]}]
+!     {\tt ESMF\_FieldBundle} with source data.
+!   \item [{[dstFieldBundle]}]
+!     {\tt ESMF\_FieldBundle} with destination data.
+!   \item [routehandle]
+!     Handle to the precomputed Route.
+!   \item [{[zeroregion]}]
+!     \begin{sloppypar}
+!     If set to {\tt ESMF\_REGION\_TOTAL} {\em (default)} the total regions of
+!     all DEs in {\tt dstFieldBundle} will be initialized to zero before updating the 
+!     elements with the results of the sparse matrix multiplication. If set to
+!     {\tt ESMF\_REGION\_EMPTY} the elements in {\tt dstFieldBundle} will not be
+!     modified prior to the sparse matrix multiplication and results will be
+!     added to the incoming element values. Setting {\tt zeroregion} to 
+!     {\tt ESMF\_REGION\_SELECT} will only zero out those elements in the 
+!     destination FieldBundle that will be updated by the sparse matrix
+!     multiplication. See section \ref{const:region} for a complete list of
+!     valid settings.
+!     \end{sloppypar}
+!   \item [{[checkflag]}]
+!     If set to {\tt .TRUE.} the input FieldBundle pair will be checked for
+!     consistency with the precomputed operation provided by {\tt routehandle}.
+!     If set to {\tt .FALSE.} {\em (default)} only a very basic input check
+!     will be performed, leaving many inconsistencies undetected. Set
+!     {\tt checkflag} to {\tt .FALSE.} to achieve highest performance.
+!   \item [{[rc]}]
+!     Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
+!   \end{description}
+!
+!EOP
+!------------------------------------------------------------------------------
+        integer                 :: localrc      ! local return code
+        
+        ! initialize return code; assume routine not implemented
+        localrc = ESMF_RC_NOT_IMPL
+        if (present(rc)) rc = ESMF_RC_NOT_IMPL
+
+        ! Check init status of arguments, deal with optional FieldBundle args
+        ESMF_INIT_CHECK_DEEP_SHORT(ESMF_RouteHandleGetInit, routehandle, rc)
+        ESMF_INIT_CHECK_DEEP_SHORT(ESMF_FieldBundleGetInit, srcFieldBundle, rc) 
+        ESMF_INIT_CHECK_DEEP_SHORT(ESMF_FieldBundleGetInit, dstFieldBundle, rc) 
+
+        call ESMF_FieldBundleSMM(srcFieldBundle=srcFieldBundle, &
+          dstFieldBundle=dstFieldBundle, routehandle=routehandle, &
+          zeroregion=zeroregion, checkflag=checkflag, rc=localrc)
+        if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+          ESMF_CONTEXT, rcToReturn=rc)) return
+        
+        ! return successfully
+        if (present(rc)) rc = ESMF_SUCCESS
+
+    end subroutine ESMF_FieldBundleRegrid
+
+!------------------------------------------------------------------------------
+#undef  ESMF_METHOD
+#define ESMF_METHOD "ESMF_FieldBundleRegridRelease()"
+!BOP
+! !IROUTINE: ESMF_FieldBundleRegridRelease - Release resources associated with a FieldBundle regrid operation
+!
+! !INTERFACE:
+  subroutine ESMF_FieldBundleRegridRelease(routehandle, keywordEnforcer, rc)
+!
+! !ARGUMENTS:
+        type(ESMF_RouteHandle), intent(inout)           :: routehandle
+type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
+        integer,                intent(out),  optional  :: rc
+!
+! !STATUS:
+! \begin{itemize}
+! \item\apiStatusCompatibleVersion{5.2.0r}
+! \end{itemize}
+!
+! !DESCRIPTION:
+!   Release resouces associated with a FieldBundle regrid operation. After this call
+!   {\tt routehandle} becomes invalid.
+!
+!   \begin{description}
+!   \item [routehandle]
+!     Handle to the precomputed Route.
+!   \item [{[rc]}]
+!     Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
+!   \end{description}
+!
+!EOP
+!------------------------------------------------------------------------------
+        integer                 :: localrc      ! local return code
+
+        ! initialize return code; assume routine not implemented
+        localrc = ESMF_RC_NOT_IMPL
+        if (present(rc)) rc = ESMF_RC_NOT_IMPL
+
+        ! Check init status of arguments
+        ESMF_INIT_CHECK_DEEP_SHORT(ESMF_RouteHandleGetInit, routehandle, rc)
+
+        ! Call into the RouteHandle code
+        call ESMF_RouteHandleRelease(routehandle, localrc)
+        if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+          ESMF_CONTEXT, rcToReturn=rc)) return
+        
+        ! return successfully
+        if (present(rc)) rc = ESMF_SUCCESS
+
+    end subroutine ESMF_FieldBundleRegridRelease
+
+!------------------------------------------------------------------------------
+#undef  ESMF_METHOD
+#define ESMF_METHOD "ESMF_FieldBundleRegridStore()"
+!BOP
+! !IROUTINE: ESMF_FieldBundleRegridStore - Precompute a FieldBundle regrid operation
+!
+! !INTERFACE:
+    subroutine ESMF_FieldBundleRegridStore(srcFieldBundle, dstFieldBundle, &
+                                           srcMaskValues, dstMaskValues, &
+                                           regridmethod, polemethod, &
+                                           regridPoleNPnts,  &
+                                           unmappedaction, routehandle, rc)
+!
+! !ARGUMENTS:
+    type(ESMF_FieldBundle),        intent(in)             :: srcFieldBundle
+    type(ESMF_FieldBundle),        intent(inout)          :: dstFieldBundle
+    integer(ESMF_KIND_I4),         intent(in),   optional :: srcMaskValues(:)
+    integer(ESMF_KIND_I4),         intent(in),   optional :: dstMaskValues(:)
+    type(ESMF_RegridMethod_Flag),  intent(in),   optional :: regridmethod
+    type(ESMF_PoleMethod_Flag),    intent(in),   optional :: polemethod
+    integer,                       intent(in),   optional :: regridPoleNPnts
+    type(ESMF_UnmappedAction_Flag),intent(in),   optional :: unmappedaction
+    type(ESMF_RouteHandle),        intent(inout),optional :: routehandle
+    integer,                       intent(out),  optional :: rc
+!
+! !STATUS:
+! \begin{itemize}
+! \item\apiStatusCompatibleVersion{5.2.0r}
+! \end{itemize}
+!
+! !DESCRIPTION:
+!   Store a FieldBundle regrid operation over the data in {\tt srcFieldBundle} and
+!   {\tt dstFieldBundle} pair. 
+!
+!   The routine returns an {\tt ESMF\_RouteHandle} that can be used to call 
+!   {\tt ESMF\_FieldBundleRegrid()} on any FieldBundle pairs that are weakly congruent
+!   and typekind conform to the FieldBundle pair used here.
+!   Congruency for FieldBundles is
+!   given by the congruency of its constituents.
+!   Congruent Fields possess matching DistGrids, and the shape of the local
+!   array tiles matches between the Fields for every DE. For weakly congruent
+!   Fields the sizes of the undistributed dimensions, that vary faster with
+!   memory than the first distributed dimension, are permitted to be different.
+!   This means that the same {\tt routehandle} can be applied to a large class
+!   of similar Fields that differ in the number of elements in the left most
+!   undistributed dimensions.
+!   Note {\tt ESMF\_FieldBundleRegridStore()} assumes the coordinates used in the Grids 
+!   upon which the FieldBundles are built are in degrees.  
+
+!  
+!   This call is {\em collective} across the current VM.  
+!
+!   \begin{description}
+!   \item [srcFieldbundle]
+!     Source {\tt ESMF\_FieldBundle} containing data to be regridded.
+!  \item [{[srcMaskValues]}]
+!     List of values that indicate a source point should be masked out. 
+!     If not specified, no masking will occur. 
+!   \item [dstFieldbundle]
+!     Destination {\tt ESMF\_FieldBundle}.
+!  \item [{[dstMaskValues]}]
+!     List of values that indicate a destination point should be masked out. 
+!     If not specified, no masking will occur.
+!  \item [{[unmappedaction]}]
+!    Specifies what should happen if there are destination points that
+!    can't be mapped to a source cell. Options are 
+!    {\tt ESMF\_UNMAPPEDACTION\_ERROR} or 
+!    {\tt ESMF\_UNMAPPEDACTION\_IGNORE}. If not specified, defaults 
+!    to {\tt ESMF\_UNMAPPEDACTION\_ERROR}. 
+!   \item [{[regridmethod]}]
+!     The type of interpolation. Please see Section~\ref{opt:regridmethod} for a list of
+!     valid options. If not specified, defaults to {\tt ESMF\_REGRIDMETHOD\_BILINEAR}.
+!   \item [{[polemethod]}]
+!    Which type of artificial pole
+!    to construct on the source Grid for regridding. Please see Section~\ref{const:polemethod} for a list of
+!    valid options. If not specified, defaults to {\tt ESMF\_POLEMETHOD\_ALLAVG}. 
+!   \item [{[regridPoleNPnts]}]
+!    If {\tt polemethod} is {\tt ESMF\_POLEMETHOD\_NPNTAVG}.
+!    This parameter indicates how many points should be averaged
+!    over. Must be specified if {\tt polemethod} is 
+!    {\tt ESMF\_POLEMETHOD\_NPNTAVG}.
+!   \item [{[routehandle]}]
+!     Handle to the precomputed Route.
+!   \item [{[rc]}]
+!     Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
+!   \end{description}
+!
+!EOP
+!------------------------------------------------------------------------------
+        ! internal local variables 
+        integer                                       :: localrc, i, localDeCount, fieldCount
+        integer                                       :: rraShift, vectorLengthShift 
+        integer                                       :: sfcount, dfcount
+        type(ESMF_Field)                              :: srcField, dstField
+        type(ESMF_Field), pointer                     :: srcFieldList(:), dstFieldList(:)
+        type(ESMF_RouteHandle)                        :: rh
+        logical         :: havePrev, matchesPrev, isGridPair
+        type(ESMF_Grid) :: prevSrcGrid, prevDstGrid
+        type(ESMF_StaggerLoc) :: prevSrcStaggerLoc, prevDstStaggerLoc
+        type(ESMF_Grid) :: currSrcGrid, currDstGrid
+        type(ESMF_StaggerLoc) :: currSrcStaggerLoc, currDstStaggerLoc
+        integer(ESMF_KIND_I4), pointer :: tmp_indices(:,:)
+        integer(ESMF_KIND_I4), pointer :: prev_indices(:,:)
+        real(ESMF_KIND_R8), pointer :: prev_weights(:)
+        type(ESMF_GeomType_Flag) :: srcGeomtype        
+        type(ESMF_GeomType_Flag) :: dstGeomtype        
+        integer :: j
+
+        ! Initialize return code; assume routine not implemented 
+        localrc = ESMF_RC_NOT_IMPL 
+        if(present(rc)) rc = ESMF_RC_NOT_IMPL 
+
+        ! check variables
+        ESMF_INIT_CHECK_DEEP_SHORT(ESMF_FieldBundleGetInit, srcFieldBundle, rc) 
+        ESMF_INIT_CHECK_DEEP_SHORT(ESMF_FieldBundleGetInit, dstFieldBundle, rc) 
+
+        call ESMF_FieldBundleGet(srcFieldBundle, fieldCount=sfcount, rc=localrc)
+        if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+            ESMF_CONTEXT, rcToReturn=rc)) return
+        call ESMF_FieldBundleGet(dstFieldBundle, fieldCount=dfcount, rc=localrc)
+        if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+            ESMF_CONTEXT, rcToReturn=rc)) return
+
+        if(sfcount /= dfcount) then
+            call ESMF_LogSetError(rcToCheck=ESMF_RC_ARG_VALUE, &
+               msg="src and dst FieldBundle must have same number of Fields", &
+                ESMF_CONTEXT, rcToReturn=rc)
+            return
+        endif 
+
+        ! init some variables for optimization
+        havePrev=.false.
+        matchesPrev=.false.
+
+        fieldCount = sfcount
+
+        if (present(routehandle)) then
+          routehandle = ESMF_RouteHandleCreate(rc=localrc)
+          if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+            ESMF_CONTEXT, rcToReturn=rc)) return
+        
+          call ESMF_RouteHandlePrepXXE(routehandle, rc=localrc)
+          if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+            ESMF_CONTEXT, rcToReturn=rc)) return
+        endif        
+
+        ! 6) loop over all Fields in FieldBundles, call FieldRegridStore and append rh
+        rraShift = 0          ! reset
+        vectorLengthShift = 0 ! reset
+
+        allocate(srcFieldList(fieldCount), dstFieldList(fieldCount), stat=localrc)
+        if (ESMF_LogFoundAllocError(localrc, msg= "allocating srcFieldList dstFieldList", &
+          ESMF_CONTEXT, rcToReturn=rc)) return ! bail out
+
+        call ESMF_FieldBundleGet(srcFieldBundle, fieldList=srcFieldList, rc=localrc)
+        if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+          ESMF_CONTEXT, rcToReturn=rc)) return
+
+        call ESMF_FieldBundleGet(dstFieldBundle, fieldList=dstFieldList, rc=localrc)
+        if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+          ESMF_CONTEXT, rcToReturn=rc)) return
+
+        do i=1, fieldCount
+      
+          ! obtain srcField
+          srcField = srcFieldList(i)
+          
+          ! obtain dstField
+          dstField = dstFieldList(i)
+          
+          ! If these are both Grids, then check for optimization
+          call ESMF_FieldGet(srcField, geomtype=srcGeomType, rc=localrc)
+          if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+               ESMF_CONTEXT, rcToReturn=rc)) return
+
+          call ESMF_FieldGet(dstField, geomtype=dstGeomType, rc=localrc)
+          if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+               ESMF_CONTEXT, rcToReturn=rc)) return
+
+          isGridPair=.false.
+          if ((srcGeomType==ESMF_GEOMTYPE_GRID) .and. (dstGeomType==ESMF_GEOMTYPE_GRID)) then
+             ! Mark that this is a pair of grids and therefore optimizable
+             isGridPair=.true.
+
+             ! Get Grids and staggerlocs
+             call ESMF_FieldGet(srcField, grid=currSrcGrid, staggerloc=currSrcStaggerloc, rc=localrc)
+             if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+               ESMF_CONTEXT, rcToReturn=rc)) return
+
+             call ESMF_FieldGet(dstField, grid=currDstGrid, staggerloc=currDstStaggerloc, rc=localrc)
+             if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+               ESMF_CONTEXT, rcToReturn=rc)) return
+
+             ! see if grids match prev grids
+             matchesPrev=.false.
+             if (havePrev) then
+                if ((currSrcStaggerLoc==prevSrcStaggerLoc) .and.  &
+                    (currDstStaggerLoc==prevDstStaggerLoc)) then 
+
+                   ! TODO: This only needs to consider matching the Field staggerlocs in the Grid
+                   !       and it only needs to match the coordinates and distribution
+                   !       Reimplement as a FieldMatch() with an EXACTMAT output????
+                   if ((ESMF_GridMatch(currSrcGrid, prevSrcGrid)==ESMF_GRIDMATCH_EXACT) .and. &
+                       (ESMF_GridMatch(currDstGrid, prevDstGrid)==ESMF_GRIDMATCH_EXACT)) then
+                      matchesPrev=.true.
+                   endif
+                endif
+             endif
+          endif
+
+          ! precompute regrid operation based on grids, etc.
+          if (isGridPair) then
+             if (matchesPrev) then
+                call ESMF_FieldSMMStore(srcField=srcField, dstField=dstField, & 
+                        routehandle=rh, &
+                        factorList=prev_weights, factorIndexList=prev_indices, &
+                        rc=localrc)
+                if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+                     ESMF_CONTEXT, rcToReturn=rc)) return
+             else ! If it doesn't match make a new previous
+                ! if we have them, get rid of old matrix
+                if (havePrev) then
+                   deallocate(prev_indices)
+                   deallocate(prev_weights)
+                endif
+
+                ! Get routeHandle as well as matrix info
+                call ESMF_FieldRegridStore(srcField=srcField, dstField=dstField, &
+                     srcMaskValues=srcMaskValues, dstMaskValues=dstMaskValues, &
+                     regridmethod=regridmethod, &
+                     polemethod=polemethod, regridPoleNPnts=regridPoleNPnts, &
+                     unmappedaction=unmappedaction, &
+                     routehandle=rh, &
+                     factorIndexList=prev_indices, factorList=prev_weights, &
+                     rc=localrc)
+                if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+                     ESMF_CONTEXT, rcToReturn=rc)) return
+
+                ! Mark as prev and record info about prev
+                havePrev=.true.
+                prevSrcStaggerLoc=currSrcStaggerLoc
+                prevDstStaggerLoc=currDstStaggerLoc
+                prevSrcGrid=currSrcGrid 
+                prevDstGrid=currDstGrid 
+             endif
+          else ! If not a grid pair no optimization at this point         
+             call ESMF_FieldRegridStore(srcField=srcField, dstField=dstField, &
+                  srcMaskValues=srcMaskValues, dstMaskValues=dstMaskValues, &
+                  regridmethod=regridmethod, &
+                  polemethod=polemethod, regridPoleNPnts=regridPoleNPnts, &
+                  unmappedaction=unmappedaction, &
+                  routehandle=rh,rc=localrc)
+             if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+                  ESMF_CONTEXT, rcToReturn=rc)) return
+           endif
+
+          ! append rh to routehandle and clear rh
+          if (present(routehandle)) then
+            call ESMF_RouteHandleAppendClear(routehandle, appendRoutehandle=rh, &
+              rraShift=rraShift, vectorLengthShift=vectorLengthShift, rc=localrc)
+            if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+              ESMF_CONTEXT, rcToReturn=rc)) return
+           endif
+        
+          ! adjust rraShift and vectorLengthShift
+          call ESMF_FieldGet(srcField, localDeCount=localDeCount, rc=localrc)
+          if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+            ESMF_CONTEXT, rcToReturn=rc)) return
+          rraShift = rraShift + localDeCount
+          call ESMF_FieldGet(dstField, localDeCount=localDeCount, rc=localrc)
+          if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+            ESMF_CONTEXT, rcToReturn=rc)) return
+          rraShift = rraShift + localDeCount
+          vectorLengthShift = vectorLengthShift + 1
+        enddo
+
+        ! if we have them, get rid of old matrix
+        if (havePrev) then
+           deallocate(prev_indices)
+           deallocate(prev_weights)
+        endif
+
+        deallocate(srcFieldList, dstFieldList)
+
+        ! return successfully
+        if (present(rc)) rc = ESMF_SUCCESS
+        
+    end subroutine ESMF_FieldBundleRegridStore
+!------------------------------------------------------------------------------ 
+
+
+!------------------------------------------------------------------------------
+#undef  ESMF_METHOD
+#define ESMF_METHOD "ESMF_FieldBundleRemove()"
+!BOP
+! !IROUTINE: ESMF_FieldBundleRemove - Remove Fields from FieldBundle
+!
+! !INTERFACE:
+    subroutine ESMF_FieldBundleRemove(fieldbundle, fieldNameList, &
+      keywordEnforcer, multiflag, relaxedflag, rc)
+!
+! !ARGUMENTS:
+    type(ESMF_FieldBundle), intent(inout)         :: fieldbundle
+    character(len=*),       intent(in)            :: fieldNameList(:)
+type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
+    logical,                intent(in),  optional :: multiflag
+    logical,                intent(in),  optional :: relaxedflag
+    integer,                intent(out), optional :: rc
+!
+! !STATUS:
+! \begin{itemize}
+! \item\apiStatusCompatibleVersion{5.2.0r}
+! \end{itemize}
+!
+! !DESCRIPTION:
+!   Remove field(s) by name from FieldBundle. In the relaxed setting it is 
+!   {\em not} an error if {\tt fieldNameList} contains names that are not 
+!   found in {\tt fieldbundle}.
+!
+!   \begin{description}
+!   \item [fieldbundle]
+!     {\tt ESMF\_FieldBundle} from which to remove items.
+!   \item [fieldNameList]
+!     List of items to remove.
+!   \item [{[multiflag]}]
+!     A setting of {\tt .true.} allows multiple Fields with the same name
+!     to be removed from {\tt fieldbundle}. For {\tt .false.}, items to be
+!     removed must have unique names. The default setting is {\tt .false.}.
+!   \item [{[relaxedflag]}]
+!     A setting of {\tt .true.} indicates a relaxed definition of "remove"
+!     where it is {\em not} an error if {\tt fieldNameList} contains item
+!     names that are not found in {\tt fieldbundle}. For {\tt .false.} this is 
+!     treated as an error condition. 
+!     Further, in {\tt multiflag=.false.} mode, the relaxed definition of
+!     "remove" also covers the case where there are multiple items in
+!     {\tt fieldbundle} that match a single entry in {\tt fieldNameList}.
+!     For {\tt relaxedflag=.false.} this is treated as an error condition.
+!     The default setting is {\tt .false.}.
+!   \item [{[rc]}]
+!     Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
+!   \end{description}
+!
+!EOP
+!------------------------------------------------------------------------------
+    integer                       :: localrc      ! local return code
+    integer                       :: fieldCount, i, fcount
+    type(ESMF_Logical)            :: linkChange
+    type(ESMF_Field), pointer     :: garbageList(:)
+
+    ! initialize return code; assume routine not implemented
+    localrc = ESMF_RC_NOT_IMPL
+    if (present(rc)) rc = ESMF_RC_NOT_IMPL
+
+    nullify(garbageList)
+
+    ! Check init status of arguments
+    ESMF_INIT_CHECK_DEEP_SHORT(ESMF_FieldBundleGetInit, fieldbundle, rc)
+    
+    call ESMF_ContainerGarbageOn(fieldbundle%this%container, rc=localrc)
+    if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
       ESMF_CONTEXT, rcToReturn=rc)) return
 
-      if (present(rc)) rc = ESMF_SUCCESS
-      end subroutine ESMF_FieldBundleSetDataValues
+    call ESMF_ContainerGarbageClear(fieldbundle%this%container, rc=localrc)
+    if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+      ESMF_CONTEXT, rcToReturn=rc)) return
+  
+    ! Call into ContainerRemove
+    call ESMF_ContainerRemove(fieldbundle%this%container, fieldNameList, &
+      multiflag=multiflag, relaxedflag=relaxedflag, rc=localrc)
+    if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+      ESMF_CONTEXT, rcToReturn=rc)) return
+
+    call ESMF_ContainerGarbageGet(fieldbundle%this%container, garbageList=garbageList, rc=localrc)
+    if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+      ESMF_CONTEXT, rcToReturn=rc)) return
+
+    call ESMF_ContainerGarbageOff(fieldbundle%this%container, rc=localrc)
+    if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+      ESMF_CONTEXT, rcToReturn=rc)) return
+
+    ! Remove attribute link for those Fields that were removed
+    do i=1, size(garbageList)
+      call c_ESMC_AttributeLinkRemove(fieldbundle%this%base, garbageList(i)%ftypep%base, linkChange, localrc)
+      if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+                    ESMF_CONTEXT, rcToReturn=rc))  return
+    enddo
+    deallocate(garbageList)
+
+    ! Check if the fieldbundle is empty
+    call ESMF_FieldBundleGet(fieldbundle, fieldCount=fcount, rc=localrc)
+    if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+      ESMF_CONTEXT, rcToReturn=rc)) return
+  
+    if(fcount == 0) then
+      call ESMF_FieldBundleRemoveGeom(fieldbundle, rc=localrc)
+      if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+        ESMF_CONTEXT, rcToReturn=rc)) return
+    endif
+
+    ! Return successfully
+    if (present(rc)) rc = ESMF_SUCCESS
+  
+  end subroutine ESMF_FieldBundleRemove
+!------------------------------------------------------------------------------
+
+
+!------------------------------------------------------------------------------
+#undef  ESMF_METHOD
+#define ESMF_METHOD "ESMF_FieldBundleReplace()"
+!BOP
+! !IROUTINE: ESMF_FieldBundleReplace - Replace Fields in FieldBundle
+!
+! !INTERFACE:
+    subroutine ESMF_FieldBundleReplace(fieldbundle, fieldList, &
+      keywordEnforcer, multiflag, relaxedflag, rc)
+!
+! !ARGUMENTS:
+    type(ESMF_FieldBundle), intent(inout)         :: fieldbundle
+    type(ESMF_Field),       intent(in)            :: fieldList(:)
+type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
+    logical,                intent(in),  optional :: multiflag
+    logical,                intent(in),  optional :: relaxedflag
+    integer,                intent(out), optional :: rc
+!
+! !STATUS:
+! \begin{itemize}
+! \item\apiStatusCompatibleVersion{5.2.0r}
+! \end{itemize}
+!
+! !DESCRIPTION:
+!   Replace field(s) by name in FieldBundle. In the relaxed setting it is not
+!   an error if {\tt fieldList} contains Fields that do not match by name any
+!   item in {\tt fieldbundle}. These Fields are simply ignored in this case.
+!
+!   \begin{description}
+!   \item [fieldbundle]
+!     {\tt ESMF\_FieldBundle} in which to replace items.
+!   \item [fieldList]
+!     List of items to replace.
+!   \item [{[multiflag]}]
+!     A setting of {\tt .true.} allows multiple items with the same name
+!     to be replaced in {\tt fieldbundle}. For {\tt .false.}, items to be
+!     replaced must have unique names. The default setting is {\tt .false.}.
+!   \item [{[relaxedflag]}]
+!     A setting of {\tt .true.} indicates a relaxed definition of "replace"
+!     where it is {\em not} an error if {\tt fieldList} contains items with
+!     names that are not found in {\tt fieldbundle}. These items in 
+!     {\tt fieldList} are ignored in the relaxed mode. For {\tt .false.} this
+!     is treated as an error condition.
+!     Further, in {\tt multiflag=.false.} mode, the relaxed definition of
+!     "replace" also covers the case where there are multiple items in
+!     {\tt fieldbundle} that match a single entry by name in {\tt fieldList}.
+!     For {\tt relaxedflag=.false.} this is treated as an error condition.
+!     The default setting is {\tt .false.}.
+!   \item [{[rc]}]
+!     Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
+!   \end{description}
+!
+!EOP
+!------------------------------------------------------------------------------
+    integer                       :: localrc      ! local return code
+    integer                       :: fieldCount, i
+    type(ESMF_Logical)            :: linkChange
+    type(ESMF_Field), pointer     :: garbageList(:)
+
+    ! initialize return code; assume routine not implemented
+    localrc = ESMF_RC_NOT_IMPL
+    if (present(rc)) rc = ESMF_RC_NOT_IMPL
+
+    nullify(garbageList)
+
+    ! Check init status of arguments
+    ESMF_INIT_CHECK_DEEP_SHORT(ESMF_FieldBundleGetInit, fieldbundle, rc)
+
+    call ESMF_ContainerGarbageOn(fieldbundle%this%container, rc=localrc)
+    if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+      ESMF_CONTEXT, rcToReturn=rc)) return
+
+    call ESMF_ContainerGarbageClear(fieldbundle%this%container, rc=localrc)
+    if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+      ESMF_CONTEXT, rcToReturn=rc)) return
+
+    ! Call into ContainerReplace
+    call ESMF_ContainerReplace(fieldbundle%this%container, fieldList, &
+      multiflag=multiflag, relaxedflag=relaxedflag, rc=localrc)
+    if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+      ESMF_CONTEXT, rcToReturn=rc)) return
+
+    call ESMF_ContainerGarbageGet(fieldbundle%this%container, garbageList=garbageList, rc=localrc)
+    if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+      ESMF_CONTEXT, rcToReturn=rc)) return
+
+    call ESMF_ContainerGarbageOff(fieldbundle%this%container, rc=localrc)
+    if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+      ESMF_CONTEXT, rcToReturn=rc)) return
+
+    ! Attribute link
+    fieldCount = size(fieldList)
+    if(fieldCount .ge. 1) then
+      ! setgeom links grid geombase automatically
+      call ESMF_FieldBundleSetGeom(fieldbundle, fieldList(1), rc=localrc)
+      if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+        ESMF_CONTEXT, rcToReturn=rc))  return
+    endif ! non-empty fieldlist
+
+    ! Add all the input Fields in fieldList
+    linkChange = ESMF_TRUE
+    do i = 1, fieldCount
+      call c_ESMC_AttributeLink(fieldbundle%this%base, fieldList(i)%ftypep%base, linkChange, localrc)
+      if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+                    ESMF_CONTEXT, rcToReturn=rc))  return
+    enddo
+    
+    ! Remove those that were replaced or not added
+    do i = 1, size(garbageList)
+      call c_ESMC_AttributeLinkRemove(fieldbundle%this%base, garbageList(i)%ftypep%base, linkChange, localrc)
+      if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+                    ESMF_CONTEXT, rcToReturn=rc))  return
+    enddo
+    deallocate(garbageList)
+
+    ! Return successfully
+    if (present(rc)) rc = ESMF_SUCCESS
+  
+  end subroutine ESMF_FieldBundleReplace
+!------------------------------------------------------------------------------
 
 
 !------------------------------------------------------------------------------
 #undef  ESMF_METHOD
 #define ESMF_METHOD "ESMF_FieldBundleSetGrid"
-!BOP
+!BOPI
 ! !IROUTINE: ESMF_FieldBundleSet - Associate a Grid with an empty FieldBundle
 ! 
 ! !INTERFACE:
       ! Private name; call using ESMF_FieldBundleSet()
-      subroutine ESMF_FieldBundleSetGrid(bundle, grid, rc)
+      subroutine ESMF_FieldBundleSetGrid(fieldbundle, grid, keywordEnforcer, rc)
 !
 ! !ARGUMENTS:
-      type(ESMF_FieldBundle), intent(inout) :: bundle
-      type(ESMF_Grid), intent(in) :: grid
-      integer, intent(out), optional :: rc
+      type(ESMF_FieldBundle), intent(inout)         :: fieldbundle
+      type(ESMF_Grid),        intent(in)            :: grid
+type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
+      integer,                intent(out), optional :: rc
 !
 ! !DESCRIPTION:
-!   Sets the {\tt grid} for a {\tt bundle} that contains no {\tt ESMF\_Field}s. 
-!   All {\tt ESMF\_Field}s added to this {\tt bundle} must be
+!   \begin{sloppypar}
+!   Sets the {\tt grid} for a {\tt fieldbundle} that contains no {\tt ESMF\_Field}s. 
+!   All {\tt ESMF\_Field}s added to this {\tt fieldbundle} must be
 !   associated with the same {\tt ESMF\_Grid}.  Returns an error if 
-!   there is already an {\tt ESMF\_Grid} associated with the {\tt bundle}.
+!   there is already an {\tt ESMF\_GeomBase} object associated with the {\tt fieldbundle}.
+!   \end{sloppypar}
 !
 !   The arguments are:
 !   \begin{description}
-!   \item [bundle]
+!   \item [fieldbundle]
 !        An {\tt ESMF\_FieldBundle} object.
 !   \item [grid]
 !        The {\tt ESMF\_Grid} which all {\tt ESMF\_Field}s added to this
@@ -2010,87 +3600,79 @@ end function
 !   \end{description}
 !
 !
-!EOP
+!EOPI
 
 
       integer :: status                           ! Error status
       type(ESMF_FieldBundleType), pointer :: btype     ! internal data
+      type(ESMF_Logical) :: linkChange
 
       ! Initialize return code; assume routine not implemented
       status = ESMF_RC_NOT_IMPL
       if (present(rc)) rc = ESMF_RC_NOT_IMPL
 
       ! check variables
-      ESMF_INIT_CHECK_DEEP(ESMF_FieldBundleGetInit,bundle,rc)
+      ESMF_INIT_CHECK_DEEP(ESMF_FieldBundleGetInit,fieldbundle,rc)
       ESMF_INIT_CHECK_DEEP(ESMF_GridGetInit,grid,rc)
 
-      ! Validate bundle before going further
-      call ESMF_FieldBundleValidate(bundle, rc=status)
-      if (ESMF_LogMsgFoundError(status, &
-                                ESMF_ERR_PASSTHRU, &
-                                ESMF_CONTEXT, rc)) return
-
-      btype => bundle%btypep
+      btype => fieldbundle%this
    
-      ! here we will only let someone associate a grid with a bundle
+      ! here we will only let someone associate a grid with a fieldbundle
       ! if there is not one already associated with it.  
-      if (btype%gridstatus .eq. ESMF_STATUS_READY) then
-        if (ESMF_LogMsgFoundError(ESMF_RC_OBJ_BAD, &
-                                "FieldBundle is already associated with a Grid", &
-                                 ESMF_CONTEXT, rc)) return
+      if (btype%status == ESMF_FBSTATUS_GRIDSET) then
+        if (ESMF_LogFoundError(ESMF_RC_OBJ_BAD, &
+          msg="FieldBundle is already associated with a Geombase", &
+          ESMF_CONTEXT, rcToReturn=rc)) return
       endif
 
-      ! OK to set grid, but validate it first
-       call ESMF_GridValidate(grid, rc=status)
-       if (ESMF_LogMsgFoundError(status, &
-                                   ESMF_ERR_PASSTHRU, &
-                                   ESMF_CONTEXT, rc)) return
-
-       ! Create the geombase around the grid, use the center stagger as a generic stagger here, 
-       ! because the stagger won't really matter in this case
-       btype%geombase=ESMF_GeomBaseCreate(grid,ESMF_STAGGERLOC_CENTER,rc=status)
-       if (ESMF_LogMsgFoundError(status, ESMF_ERR_PASSTHRU, &
-                    ESMF_CONTEXT, rcToReturn=rc))  return
+      ! Create the geombase around the grid, use the center stagger as a generic stagger here, 
+      ! because the stagger won't really matter in this case
+      btype%geombase=ESMF_GeomBaseCreate(grid,ESMF_STAGGERLOC_CENTER,rc=status)
+      if (ESMF_LogFoundError(status, ESMF_ERR_PASSTHRU, &
+                   ESMF_CONTEXT, rcToReturn=rc))  return
 
       ! Set Status to containing a Grid
-      btype%gridstatus = ESMF_STATUS_READY
-
+      btype%status = ESMF_FBSTATUS_GRIDSET
 
       !  link the Attribute hierarchies
-      call c_ESMC_AttributeLink(btype%base, grid, status)
-      if (ESMF_LogMsgFoundError(status, ESMF_ERR_PASSTHRU, &
+      linkChange = ESMF_TRUE
+      call c_ESMC_AttributeLink(btype%base, grid, linkChange, status)
+      if (ESMF_LogFoundError(status, ESMF_ERR_PASSTHRU, &
                     ESMF_CONTEXT, rcToReturn=rc))  return
 
       if (present(rc)) rc = ESMF_SUCCESS
 
       end subroutine ESMF_FieldBundleSetGrid
-
+!------------------------------------------------------------------------------
 
 
 !------------------------------------------------------------------------------
 #undef  ESMF_METHOD
 #define ESMF_METHOD "ESMF_FieldBundleSetMesh"
-!BOP
+!BOPI
 ! !IROUTINE: ESMF_FieldBundleSet - Associate a Mesh with an empty FieldBundle
 ! 
 ! !INTERFACE:
       ! Private name; call using ESMF_FieldBundleSet()
-      subroutine ESMF_FieldBundleSetMesh(bundle, mesh, rc)
+      subroutine ESMF_FieldBundleSetMesh(fieldbundle, mesh, keywordEnforcer, rc)
 !
 ! !ARGUMENTS:
-      type(ESMF_FieldBundle), intent(inout) :: bundle
-      type(ESMF_Mesh), intent(in) :: mesh
-      integer, intent(out), optional :: rc
+      type(ESMF_FieldBundle), intent(inout)         :: fieldbundle
+      type(ESMF_Mesh),        intent(in)            :: mesh
+type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
+      integer,                intent(out), optional :: rc
 !
 ! !DESCRIPTION:
-!   Sets the {\tt mesh} for a {\tt bundle} that contains no {\tt ESMF\_Field}s. 
-!   All {\tt ESMF\_Field}s added to this {\tt bundle} must be
+!   \begin{sloppypar}
+!   Sets the {\tt mesh} for a {\tt fieldbundle} that contains no {\tt ESMF\_Field}s. 
+!   All {\tt ESMF\_Field}s added to this {\tt fieldbundle} must be
 !   associated with the same {\tt ESMF\_Mesh}.  Returns an error if 
-!   there is already an {\tt ESMF\_Mesh} associated with the {\tt bundle}.
+!   there is already an {\tt ESMF\_Geombase} associated with the {\tt fieldbundle}.
+!   \end{sloppypar}
 !
 !   The arguments are:
 !   \begin{description}
-!   \item [bundle]
+!   \item [fieldbundle]
 !        An {\tt ESMF\_FieldBundle} object.
 !   \item [mesh]
 !        The {\tt ESMF\_Mesh} which all {\tt ESMF\_Field}s added to this
@@ -2100,7 +3682,7 @@ end function
 !   \end{description}
 !
 !
-!EOP
+!EOPI
 
 
       integer :: status                           ! Error status
@@ -2111,66 +3693,60 @@ end function
       if (present(rc)) rc = ESMF_RC_NOT_IMPL
 
       ! check variables
-      ESMF_INIT_CHECK_DEEP(ESMF_FieldBundleGetInit,bundle,rc)
+      ESMF_INIT_CHECK_DEEP(ESMF_FieldBundleGetInit,fieldbundle,rc)
       ESMF_INIT_CHECK_DEEP(ESMF_MeshGetInit,mesh,rc)
 
-      ! Validate bundle before going further
-      call ESMF_FieldBundleValidate(bundle, rc=status)
-      if (ESMF_LogMsgFoundError(status, &
-                                ESMF_ERR_PASSTHRU, &
-                                ESMF_CONTEXT, rc)) return
+      btype => fieldbundle%this
 
-      btype => bundle%btypep
-   
-      ! here we will only let someone associate a grid with a bundle
+      ! here we will only let someone associate a grid with a fieldbundle
       ! if there is not one already associated with it.  
-      if (btype%gridstatus .eq. ESMF_STATUS_READY) then
-        if (ESMF_LogMsgFoundError(ESMF_RC_OBJ_BAD, &
-                                "FieldBundle is already associated with a geometry", &
-                                 ESMF_CONTEXT, rc)) return
+      if (btype%status == ESMF_FBSTATUS_GRIDSET) then
+        if (ESMF_LogFoundError(ESMF_RC_OBJ_BAD, &
+          msg="FieldBundle is already associated with a Geombase", &
+          ESMF_CONTEXT, rcToReturn=rc)) return
       endif
 
-      ! OK to set mesh
+      ! Create the geombase around the grid, use the center stagger as a generic stagger here, 
+      ! because the stagger won't really matter in this case
+      btype%geombase=ESMF_GeomBaseCreate(mesh,rc=status)
+      if (ESMF_LogFoundError(status, ESMF_ERR_PASSTHRU, &
+                   ESMF_CONTEXT, rcToReturn=rc))  return
 
-       ! Create the geombase around the grid, use the center stagger as a generic stagger here, 
-       ! because the stagger won't really matter in this case
-       btype%geombase=ESMF_GeomBaseCreate(mesh,rc=status)
-       if (ESMF_LogMsgFoundError(status, ESMF_ERR_PASSTHRU, &
-                    ESMF_CONTEXT, rcToReturn=rc))  return
-
-      ! Set Status to containing a Grid
-      btype%gridstatus = ESMF_STATUS_READY
+      ! Set Status to containing a Geombase
+      btype%status = ESMF_FBSTATUS_GRIDSET
 
       if (present(rc)) rc = ESMF_SUCCESS
 
       end subroutine ESMF_FieldBundleSetMesh
-
+!------------------------------------------------------------------------------
 
 
 !------------------------------------------------------------------------------
 #undef  ESMF_METHOD
 #define ESMF_METHOD "ESMF_FieldBundleSetLS"
-!BOP
+!BOPI
 ! !IROUTINE: ESMF_FieldBundleSet - Associate a LocStream with an empty FieldBundle
 ! 
 ! !INTERFACE:
       ! Private name; call using ESMF_FieldBundleSet()
-      subroutine ESMF_FieldBundleSetLS(bundle, locstream, rc)
+      subroutine ESMF_FieldBundleSetLS(fieldbundle, locstream, &
+        keywordEnforcer, rc)
 !
 ! !ARGUMENTS:
-      type(ESMF_FieldBundle), intent(inout) :: bundle
-      type(ESMF_LocStream), intent(in) :: locstream
-      integer, intent(out), optional :: rc
+      type(ESMF_FieldBundle), intent(inout)         :: fieldbundle
+      type(ESMF_LocStream),   intent(in)            :: locstream
+type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
+      integer,                intent(out), optional :: rc
 !
 ! !DESCRIPTION:
-!   Sets the {\tt locstream} for a {\tt bundle} that contains no {\tt ESMF\_Field}s. 
-!   All {\tt ESMF\_Field}s added to this {\tt bundle} must be
+!   Sets the {\tt locstream} for a {\tt fieldbundle} that contains no {\tt ESMF\_Field}s. 
+!   All {\tt ESMF\_Field}s added to this {\tt fieldbundle} must be
 !   associated with the same {\tt ESMF\_LocStream}.  Returns an error if 
-!   there is already an {\tt ESMF\_LocStream} associated with the {\tt bundle}.
+!   there is already an {\tt ESMF\_Geombase} associated with the {\tt fieldbundle}.
 !
 !   The arguments are:
 !   \begin{description}
-!   \item [bundle]
+!   \item [fieldbundle]
 !        An {\tt ESMF\_FieldBundle} object.
 !   \item [locstream]
 !        The {\tt ESMF\_LocStream} which all {\tt ESMF\_Field}s added to this
@@ -2180,7 +3756,7 @@ end function
 !   \end{description}
 !
 !
-!EOP
+!EOPI
 
 
       integer :: status                           ! Error status
@@ -2191,847 +3767,1136 @@ end function
       if (present(rc)) rc = ESMF_RC_NOT_IMPL
 
       ! check variables
-      ESMF_INIT_CHECK_DEEP(ESMF_FieldBundleGetInit,bundle,rc)
+      ESMF_INIT_CHECK_DEEP(ESMF_FieldBundleGetInit,fieldbundle,rc)
       ESMF_INIT_CHECK_DEEP(ESMF_LocStreamGetInit,locstream,rc)
 
-      ! Validate bundle before going further
-      call ESMF_FieldBundleValidate(bundle, rc=status)
-      if (ESMF_LogMsgFoundError(status, &
-                                ESMF_ERR_PASSTHRU, &
-                                ESMF_CONTEXT, rc)) return
-
-      btype => bundle%btypep
+      btype => fieldbundle%this
    
-      ! here we will only let someone associate a grid with a bundle
+      ! here we will only let someone associate a grid with a fieldbundle
       ! if there is not one already associated with it.  
-      if (btype%gridstatus .eq. ESMF_STATUS_READY) then
-        if (ESMF_LogMsgFoundError(ESMF_RC_OBJ_BAD, &
-                                "FieldBundle is already associated with a geometry", &
-                                 ESMF_CONTEXT, rc)) return
+      if (btype%status == ESMF_FBSTATUS_GRIDSET) then
+        if (ESMF_LogFoundError(ESMF_RC_OBJ_BAD, &
+          msg="FieldBundle is already associated with a Geombase", &
+          ESMF_CONTEXT, rcToReturn=rc)) return
       endif
 
        ! Create the geombase around the locstream
        btype%geombase=ESMF_GeomBaseCreate(locstream,rc=status)
-       if (ESMF_LogMsgFoundError(status, ESMF_ERR_PASSTHRU, &
+       if (ESMF_LogFoundError(status, ESMF_ERR_PASSTHRU, &
                     ESMF_CONTEXT, rcToReturn=rc))  return
 
-      ! Set Status to containing a Grid
-      btype%gridstatus = ESMF_STATUS_READY
+      ! Set Status to containing a Geombase
+      btype%status = ESMF_FBSTATUS_GRIDSET
 
       if (present(rc)) rc = ESMF_SUCCESS
 
       end subroutine ESMF_FieldBundleSetLS
-
+!------------------------------------------------------------------------------
 
 
 !------------------------------------------------------------------------------
 #undef  ESMF_METHOD
-#define ESMF_METHOD "ESMF_FieldBundleValidate"
-!BOP
-! !IROUTINE: ESMF_FieldBundleValidate - Check validity of a FieldBundle
-!
-! !INTERFACE:
-      subroutine ESMF_FieldBundleValidate(bundle, options, rc)
-!
-! !ARGUMENTS:
-      type(ESMF_FieldBundle), intent(in) :: bundle
-      character (len=*), intent(in), optional :: options 
-      integer, intent(out), optional :: rc
-!
-! !DESCRIPTION:
-!      Validates that the {\tt bundle} is internally consistent.
-!      Currently this method determines if the {\tt bundle} is uninitialized 
-!      or already destroyed.  The method returns an error code if problems 
-!      are found.  
-!
-!     The arguments are:
-!     \begin{description}
-!     \item [bundle]
-!           {\tt ESMF\_FieldBundle} to validate.
-!     \item [{[options]}]
-!           Validation options are not yet supported.
-!     \item [{[rc]}]
-!           Return code; equals {\tt ESMF\_SUCCESS} if the {\tt bundle}
-!           is valid.
-!     \end{description}
-
-!EOP
-
-
-      ! Local variables
-      integer :: localrc                           ! Error status
-      type(ESMF_Status) :: fieldbundlestatus
-
-      ! Initialize return code; assume routine not implemented
-      localrc = ESMF_RC_NOT_IMPL
-      if (present(rc)) rc = ESMF_RC_NOT_IMPL
-
-      ! check variables
-      ESMF_INIT_CHECK_DEEP(ESMF_FieldBundleGetInit,bundle,rc)
-
-      if (.not.associated(bundle%btypep)) then 
-         if (ESMF_LogMsgFoundError(ESMF_RC_OBJ_BAD, &
-                                "Uninitialized or already destroyed FieldBundle", &
-                                 ESMF_CONTEXT, rc)) return
-      endif 
-
-      call ESMF_BaseGetStatus(bundle%btypep%base, fieldbundlestatus, rc=localrc)
-      if (ESMF_LogMsgFoundError(localrc, &
-          ESMF_ERR_PASSTHRU, &
-          ESMF_CONTEXT, rc)) return
-          
-      if (fieldbundlestatus .ne. ESMF_STATUS_READY) then
-         if (ESMF_LogMsgFoundError(ESMF_RC_OBJ_BAD, &
-                                "Uninitialized or already destroyed FieldBundle", &
-                                 ESMF_CONTEXT, rc)) return
-      endif 
-
-      ! TODO: add more code here
-
-      if (present(rc)) rc = ESMF_SUCCESS
-
-      end subroutine ESMF_FieldBundleValidate
-
-
-!------------------------------------------------------------------------------
-#undef  ESMF_METHOD
-#define ESMF_METHOD "ESMF_FieldBundleWrite"
+#define ESMF_METHOD "ESMF_FieldBundleSetXGrid"
 !BOPI
-! !IROUTINE: ESMF_FieldBundleWrite - Save a FieldBundle to an external destination
-!
-! !INTERFACE:
-      subroutine ESMF_FieldBundleWrite(bundle, &
-      iospec, rc)
-      !subarray, 
-!
-! !ARGUMENTS:
-      type(ESMF_FieldBundle), intent(inout) :: bundle
-!      type(ESMF_InternArray), pointer, optional :: subarray
-      type(ESMF_IOSpec), intent(in), optional :: iospec 
-      integer, intent(out), optional :: rc
-!
-! !DESCRIPTION:
-!      Used to write data to persistent storage in a variety of formats.  
-!      (see WriteRestart/ReadRestart for quick data dumps.)
-!
-!     The arguments are:
-!     \begin{description}
-!     \item [bundle]
-!           An {\tt ESMF\_FieldBundle} object.
-!     \item [{[subarray]}]
-!           The subset to write.
-!     \item [{[iospec]}]
-!           The I/O specification.
-!     \item [{[rc]}]
-!           Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
-!     \end{description}
-!
-!EOPI
-      integer :: localrc                        ! local return code
-
-      ! Initialize return code; assume routine not implemented
-      if (present(rc)) rc = ESMF_RC_NOT_IMPL
-      localrc = ESMF_RC_NOT_IMPL
-
-!
-!  TODO: code goes here
-!
-      if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, &
-      ESMF_CONTEXT, rcToReturn=rc)) return
-
-      if (present(rc)) rc = ESMF_SUCCESS
-      end subroutine ESMF_FieldBundleWrite
-
-
-!------------------------------------------------------------------------------
-#undef  ESMF_METHOD
-#define ESMF_METHOD "ESMF_FieldBundleWriteRestart"
-!BOPI
-! !IROUTINE: ESMF_FieldBundleWriteRestart - Save FieldBundle in the quickest manner possible
-!
-! !INTERFACE:
-      subroutine ESMF_FieldBundleWriteRestart(bundle, iospec, rc)
-!
-! !ARGUMENTS:
-      type(ESMF_FieldBundle), intent(inout) :: bundle 
-      type(ESMF_IOSpec), intent(in), optional :: iospec
-      integer, intent(out), optional :: rc     
-!
-! !DESCRIPTION:
-!      Used to save all data to disk as quickly as possible.  
-!      (see Read/Write for other format options).  Internally will use 
-!      same I/O interfaces as Read/Write
-!      but will default to the fastest options.
-!
-!     The arguments are:
-!     \begin{description}
-!     \item [bundle]
-!           An {\tt ESMF\_FieldBundle} object.
-!     \item [{[iospec]}]
-!           The I/O specification.
-!     \item [{[rc]}]
-!           Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
-!     \end{description}
-!
-!EOPI
-      integer :: localrc                        ! local return code
-
-      ! Initialize return code; assume routine not implemented
-      if (present(rc)) rc = ESMF_RC_NOT_IMPL
-      localrc = ESMF_RC_NOT_IMPL
-
-!
-!  TODO: code goes here
-!
-      if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, &
-      ESMF_CONTEXT, rcToReturn=rc)) return
-
-      if (present(rc)) rc = ESMF_SUCCESS
-      end subroutine ESMF_FieldBundleWriteRestart
-
-!------------------------------------------------------------------------------
-#undef  ESMF_METHOD
-#define ESMF_METHOD "ESMF_FieldBundleTypeAddList"
-!BOPI
-! !IROUTINE: ESMF_FieldBundleTypeAddList - Add a list of Fields to a FieldBundle.
-!
-! !INTERFACE:
-      subroutine ESMF_FieldBundleTypeAddList(btype, fieldCount, fields, rc)
-!
-! !ARGUMENTS:
-      type(ESMF_FieldBundleType), pointer :: btype        
-      integer, intent(in) :: fieldCount
-      type(ESMF_Field), dimension(:), intent(inout) :: fields
-      integer, intent(out), optional :: rc          
-!
-! !DESCRIPTION:
-!  Add a Field reference to an existing {\tt ESMF\_FieldBundle}.  
-!  The {\tt ESMF\_Field} must have the
-!  same geometry (i.e. ESMF\_Grid, ESMF\_Mesh, or ESMF\_LocStream) 
-!   as the rest of the {\tt ESMF\_Field}s in the {\tt ESMF\_FieldBundle}.
-!  If the {\tt ESMF\_FieldBundle} has
-!  packed data this will mean making a copy of the data.
-!  Note: packed data is currently not supported. 
-!
-!  The arguments are:
-!  \begin{description}
-!  \item [btype]
-!        {\tt ESMF\_FieldBundleType} to add {\tt ESMF\_Field}s into.
-!  \item [fieldCount]
-!        Number of fields to be added to the {\tt ESMF\_FieldBundle}.
-!        Must be equal to or less than the number of 
-!        {\tt ESMF\_Field}s in the following argument.
-!  \item [fields]
-!        Array of existing {\tt ESMF\_Field}s.  The first {\tt fieldCount}
-!        items will be added to the {\tt ESMF\_FieldBundle}.
-!  \item [{[rc]}]
-!        Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
-!  \end{description}
+! !IROUTINE: ESMF_FieldBundleSet - Associate a XGrid with an empty FieldBundle
 ! 
-!EOPI
-      
-      integer :: status                           ! Error status
-      integer :: i                                ! temp var
-      type(ESMF_Field), dimension(:), pointer :: temp_flist  
-                                                  ! list of fields
-      logical :: isGeomFound
-      type(ESMF_GeomType) :: geomtype, geomtypeToCheck
-      type(ESMF_Grid) :: grid, gridToCheck
-      type(ESMF_LocStream) :: locstream, locstreamToCheck
-      type(ESMF_Mesh) :: mesh, meshToCheck
-      logical :: wasempty, isCommitted,theyMatch
-      integer :: indexToStartChecking
-
-
-      ! Initialize return code.  Assume routine not implemented.
-      status = ESMF_RC_NOT_IMPL
-      if(present(rc)) rc = ESMF_RC_NOT_IMPL
-
-      ! check variables
-      ESMF_INIT_CHECK_DEEP(ESMF_FieldBundleTypeGetInit,btype,rc)
-      do i=1,fieldCount
-         ESMF_INIT_CHECK_DEEP(ESMF_FieldGetInit,fields(i),rc)
-      enddo
-
-      ! Initial values
-      nullify(temp_flist)
-    
-      ! early exit.
-      if (fieldCount .le. 0) then
-         if (ESMF_LogMsgFoundError(ESMF_RC_OBJ_BAD, &
-                                 "called with no Fields", &
-                                 ESMF_CONTEXT, rc)) return
-      endif
-      
-      ! validate fields before moving ahead
-      do i=1, fieldCount
-         call ESMF_FieldValidate(fields(i), rc=status)
-         if (ESMF_LogMsgFoundError(status, &
-                        "Invalid Field found when trying to add into FieldBundle", &
-                                   ESMF_CONTEXT, rc)) return
-      enddo
-
-      ! consistency checking.  logic is: 
-      !    if bundle has grid, use it to compare against
-      !    if bundle has no grid, find first field w/ grid and use it instead
-      !    if field has no grid, skip it 
-      !    if inconsistent grid found in list, exit w/ error leaving bundle
-      !       unchanged
-      !    if all ok, then if bundle had no grid originally, set it here 
-
-      isGeomFound=.false.
-      if (btype%gridstatus .ne. ESMF_STATUS_READY) then
-          do i=1, fieldCount
-            ! determine if a Field is committed and has a Grid associated with it
-            call ESMF_FieldGet(fields(i), isCommitted=isCommitted, rc=status)
-            if (ESMF_LogMsgFoundError(status, &
-                        "Invalid Field found when trying to access Field", &
-                        ESMF_CONTEXT, rc)) return
-            if(.not.isCommitted) cycle
-
-            ! Get geomtype
-            call ESMF_FieldGet(fields(i), geomtype=geomtype, rc=status)
-            if (ESMF_LogMsgFoundError(status, &
-                        "Invalid Field found when trying to access Field", &
-                        ESMF_CONTEXT, rc)) return
-
-            ! Get geom based on geomtype
-            if (geomtype==ESMF_GEOMTYPE_GRID) then
-               call ESMF_FieldGet(fields(i), grid=grid, rc=status)
-               if (ESMF_LogMsgFoundError(status, &
-                        "Invalid Field found when trying to access Field", &
-                        ESMF_CONTEXT, rc)) return
-
-            else if (geomtype==ESMF_GEOMTYPE_LOCSTREAM) then
-               call ESMF_FieldGet(fields(i), locstream=locstream, rc=status)
-               if (ESMF_LogMsgFoundError(status, &
-                        "Invalid Field found when trying to access Field", &
-                        ESMF_CONTEXT, rc)) return
-
-            else if (geomtype==ESMF_GEOMTYPE_MESH) then
-               call ESMF_FieldGet(fields(i), mesh=mesh, rc=status)
-               if (ESMF_LogMsgFoundError(status, &
-                        "Invalid Field found when trying to access Field", &
-                        ESMF_CONTEXT, rc)) return
-
-            else
-               if (ESMF_LogMsgFoundError(ESMF_RC_OBJ_BAD, &
-                   "Bad geomtype", &
-                    ESMF_CONTEXT, rc)) return
-            endif
-
-            ! We've found a geometry
-	    isGeomFound=.true.
-
-            ! Set the index we should start checking fields at
-            indexToStartChecking=i+1
-
-            exit
-          enddo
-       else
-            ! Get geomtype
-            call ESMF_GeomBaseGet(btype%geombase, geomtype=geomtype, rc=status)
-            if (ESMF_LogMsgFoundError(status, ESMF_ERR_PASSTHRU, &
-                   ESMF_CONTEXT, rcToReturn=rc)) return
-
-            ! Get geom based on geomtype
-            if (geomtype==ESMF_GEOMTYPE_GRID) then
-               call ESMF_GeomBaseGet(btype%geombase, grid=grid, rc=status)
-               if (ESMF_LogMsgFoundError(status, ESMF_ERR_PASSTHRU, &
-                   ESMF_CONTEXT, rcToReturn=rc)) return
-            else if (geomtype==ESMF_GEOMTYPE_LOCSTREAM) then
-               call ESMF_GeomBaseGet(btype%geombase, locstream=locstream, rc=status)
-               if (ESMF_LogMsgFoundError(status, ESMF_ERR_PASSTHRU, &
-                   ESMF_CONTEXT, rcToReturn=rc)) return
-            else if (geomtype==ESMF_GEOMTYPE_MESH) then
-               call ESMF_GeomBaseGet(btype%geombase, mesh=mesh, rc=status)
-               if (ESMF_LogMsgFoundError(status, ESMF_ERR_PASSTHRU, &
-                   ESMF_CONTEXT, rcToReturn=rc)) return
-            else
-               if (ESMF_LogMsgFoundError(ESMF_RC_OBJ_BAD, &
-                   "Bad geomtype", &
-                    ESMF_CONTEXT, rc)) return
-            endif
-
-            ! We've found a geometry
-            isGeomFound=.true.
-
-            ! Set the index we should start checking fields at
-            indexToStartChecking=1
-       endif
-
-       ! Set FieldBundle geombase if we now have one
-       if (isGeomFound .and. (btype%gridstatus .ne. ESMF_STATUS_READY)) then
-            ! Get geom based on geomtype
-            if (geomtype==ESMF_GEOMTYPE_GRID) then
-               ! Construct GeomBase for FieldBundle
-	       btype%geombase=ESMF_GeomBaseCreate(grid,ESMF_STAGGERLOC_CENTER,rc=status)
-       	       if (ESMF_LogMsgFoundError(status, ESMF_ERR_PASSTHRU, &
-                    ESMF_CONTEXT, rcToReturn=rc))  return
-
-            else if (geomtype==ESMF_GEOMTYPE_LOCSTREAM) then
-               ! Construct GeomBase for FieldBundle
-	       btype%geombase=ESMF_GeomBaseCreate(locstream,rc=status)
-       	       if (ESMF_LogMsgFoundError(status, ESMF_ERR_PASSTHRU, &
-                    ESMF_CONTEXT, rcToReturn=rc))  return
-
-            else if (geomtype==ESMF_GEOMTYPE_MESH) then
-               ! Construct GeomBase for FieldBundle
-	       btype%geombase=ESMF_GeomBaseCreate(mesh,rc=status)
-       	       if (ESMF_LogMsgFoundError(status, ESMF_ERR_PASSTHRU, &
-                    ESMF_CONTEXT, rcToReturn=rc))  return
-
-            else
-               if (ESMF_LogMsgFoundError(ESMF_RC_OBJ_BAD, &
-                   "Bad geomtype", &
-                    ESMF_CONTEXT, rc)) return
-            endif
-
-            ! Set Status to containing a geometry
-             btype%gridstatus = ESMF_STATUS_READY
-
-       endif
-
-
-       ! if bundle has no grid, and all new fields have no grid, then 
-       ! we cannot do any grid consistency checks here.  so only continue
-       ! here if someone somewhere has a grid to compare against.
-       if (isGeomFound) then
-          ! check matchgrid against each new grid in the add list
-          do i=indexToStartChecking, fieldCount
-
-            ! determine if a Field is committed and has a Grid associated with it
-            call ESMF_FieldGet(fields(i), isCommitted=isCommitted, rc=status)
-            if (ESMF_LogMsgFoundError(status, &
-                        "Invalid Field found when trying to access Field", &
-                        ESMF_CONTEXT, rc)) return
-            if(.not.isCommitted) cycle
-
-            ! Get geomtype from field
-            call ESMF_FieldGet(fields(i), geomtype=geomtypeToCheck, rc=status)
-            if (ESMF_LogMsgFoundError(status, &
-                        "Invalid Field found when found when trying to access field", &
-                        ESMF_CONTEXT, rc)) return
-
-            ! Make sure geomtypes match
-            if (geomType .ne. geomTypeToCheck) then
-               if (ESMF_LogMsgFoundError(ESMF_RC_OBJ_BAD, &
-                   " Fields in Field Bundle must all have the same type of gemetry (e.g. grid, mesh, etc)", &
-                    ESMF_CONTEXT, rc)) return     
-            endif
-
-            ! Get geom based on geomtype
-            if (geomtypeToCheck==ESMF_GEOMTYPE_GRID) then
-               call ESMF_FieldGet(fields(i), grid=gridToCheck, rc=status)
-               if (ESMF_LogMsgFoundError(status, &
-                        "Invalid Field found when trying to access Field", &
-                        ESMF_CONTEXT, rc)) return
-               
-               ! make sure this fields grid matches the rest in the bundle
-
-
-               ! NOTE: ALL GRIDS MATCH RIGHT NOW UNTIL WE HAVE A MORE IN DEPTH
-               !       GRID MATCH FUNCTION
-               ! theyMatch=ESMF_GridMatch(grid,gridToCheck,status)
-               theyMatch=.true.
-               if (ESMF_LogMsgFoundAllocError(status, ESMF_ERR_PASSTHRU, &
-                   ESMF_CONTEXT, rcToReturn=rc)) return
-
-	       if (.not. theyMatch) then
-                  if (ESMF_LogMsgFoundError(ESMF_RC_OBJ_BAD, &
-                   " Fields in a FieldBundle must all be on the same Grid", &
-                    ESMF_CONTEXT, rc)) return     
-               endif
-            else if (geomtypeToCheck==ESMF_GEOMTYPE_LOCSTREAM) then
-               call ESMF_FieldGet(fields(i), locstream=locstreamToCheck, rc=status)
-               if (ESMF_LogMsgFoundError(status, &
-                        "Invalid Field found when trying to access Field", &
-                        ESMF_CONTEXT, rc)) return
-
-               ! make sure this fields grid matches the rest in the bundle
-               theyMatch=ESMF_LocStreamMatch(locstream,locstreamToCheck,status)
-               if (ESMF_LogMsgFoundAllocError(status, ESMF_ERR_PASSTHRU, &
-                   ESMF_CONTEXT, rcToReturn=rc)) return
-
-	       if (.not. theyMatch) then
-                  if (ESMF_LogMsgFoundError(ESMF_RC_OBJ_BAD, &
-                   " Fields in a FieldBundle must all be on the same LocStream", &
-                    ESMF_CONTEXT, rc)) return     
-               endif
-
-            else if (geomtypeToCheck==ESMF_GEOMTYPE_MESH) then
-               call ESMF_FieldGet(fields(i), mesh=meshToCheck, rc=status)
-               if (ESMF_LogMsgFoundError(status, &
-                        "Invalid Field found when trying to access Field", &
-                        ESMF_CONTEXT, rc)) return
-
-               ! make sure this fields grid matches the rest in the bundle
-               theyMatch=ESMF_MeshMatch(mesh,meshToCheck,status)
-               if (ESMF_LogMsgFoundAllocError(status, ESMF_ERR_PASSTHRU, &
-                   ESMF_CONTEXT, rcToReturn=rc)) return
-
-	       if (.not. theyMatch) then
-                  if (ESMF_LogMsgFoundError(ESMF_RC_OBJ_BAD, &
-                   " Fields in a FieldBundle must all be on the same Mesh", &
-                    ESMF_CONTEXT, rc)) return     
-               endif
-            else
-               if (ESMF_LogMsgFoundError(ESMF_RC_OBJ_BAD, &
-                   "Bad geomtype", &
-                    ESMF_CONTEXT, rc)) return
-            endif
-         enddo ! do i=indexToStartCheck, fieldCount
-       endif
-
-      ! if we get this far, either no one has any grids, or the grids
-      ! have passed the consistency check.  add them to the bundle.
-
-      ! Add the fields in the list, checking for consistency.
-      if (btype%field_count .eq. 0) then
-        
-          wasempty = .TRUE. 
-
-          allocate(btype%flist(fieldCount), stat=status)
-          if (ESMF_LogMsgFoundAllocError(status, "Fieldlist allocate", &
-                                       ESMF_CONTEXT, rc)) return
-         
-          ! now add the fields to the new list
-          do i=1, fieldCount
-            btype%flist(i) = fields(i)
-          enddo
-
-          btype%field_count = fieldCount
-      else
-
-          wasempty = .FALSE.
-
-          ! make a list the right length
-          allocate(temp_flist(btype%field_count + fieldCount), stat=status)
-          if (ESMF_LogMsgFoundAllocError(status, "temp Fieldlist allocate", &
-                                       ESMF_CONTEXT, rc)) return
-
-          ! preserve old contents
-          do i = 1, btype%field_count
-            temp_flist(i) = btype%flist(i)
-          enddo
-
-          ! and append the new fields to the list
-          do i=1, fieldCount
-            temp_flist(btype%field_count+i) = fields(i)
-          enddo
-
-          ! delete old list
-          deallocate(btype%flist, stat=status)
-          if (ESMF_LogMsgFoundAllocError(status, "Fieldlist deallocate", &
-                                       ESMF_CONTEXT, rc)) return
-
-          ! and now make this the permanent list
-          btype%flist => temp_flist
-          btype%field_count = btype%field_count + fieldCount
-
-      endif
-
-      ! If packed data buffer requested, create or update it here.
-      ! if (btype%pack_flag .eq. ESMF_PACKED_DATA) then
-
-      !   call ESMF_FieldBundleTypeRepackData(btype, rc=status)
-      !   if (ESMF_LogMsgFoundAllocError(status, ESMF_ERR_PASSTHRU, &
-      !   ESMF_CONTEXT, rcToReturn=rc)) return
-
-      ! endif
-
-      ! TODO: outstanding architectural issue:
-      ! unless all the fields are required to contain data before they are
-      ! added to the bundle, we cannot set the congruent flag yet -- it is
-      ! possible with the current interfaces to add empty fields to a bundle
-      ! and then add inconsistent grids to the fields -- which needs to be
-      ! avoided; but also the data can be added afterwards and there is no
-      ! obvious time to check for consistency/congruency.   the suggested
-      ! fix is that a field being added to a bundle must already contain both
-      ! a grid and the data array, so we can do the checking here.
-
-      ! all the handling below is to fool around with maintaining information
-      ! about whether the data fields inside this bundle are identical in
-      ! rank, data type, staggerloc, index order, etc.  if we know they already
-      ! are not, we can jump around the code to the continue.  otherwise we
-      ! have to test the new fields to make sure they match in datatype.
-
-      ! if already known that field data is not the same, then do not
-      ! bother to test recently added fields.  but if true, then compare
-      ! the fields to see if the types all match.   an optimization is to
-      ! only compare the newly added fields and not search the old ones.
-      if (btype%isCongruent) then
-          ! compare the last fieldCount fields against the congruent data
-          ! type stored in the bundle.  if the bundle is empty, set the
-          ! congruent info from the first one and then proceed from fields
-          ! 2 thru fieldCount.
-         
-          ! if not contradicted by the data, leave isCongruent .TRUE.
-          ! else at the first mismatch, set isCongruent to .FALSE. and
-          ! bail out of the loop.
-          if (wasempty) then
-              ! search the fields looking for one with data (it is possible
-              ! none have data - in which case we cannot change the flag)
-              ! the first one sets the congruent pattern which all others
-              ! must match to optimize the communication of this bundle
-              ! in the most extreme version.  (other optimizations are possible
-              ! with non-congruent bundles.
-              
-              ! if all empty, get out
-              ! if not, set the congruent datainfo here
-          endif
-          
-      endif
-
-      ! TODO: this code does nothing with the congruent flag right now.
-      ! this needs to be fixed before the bundle communication code can 
-      ! be considered robust.
-
-10 continue
-      if (present(rc)) rc = ESMF_SUCCESS
-
-      end subroutine ESMF_FieldBundleTypeAddList
-
-!------------------------------------------------------------------------------
-#undef  ESMF_METHOD
-#define ESMF_METHOD "ESMF_FieldBundleConstructNew"
-!BOPI
-! !IROUTINE: ESMF_FieldBundleConstructNew - Construct the internals of a FieldBundle
-!
 ! !INTERFACE:
-      subroutine ESMF_FieldBundleConstructNew(btype, fieldCount, fields, &
-                                         packflag, &
-                                         name, iospec, rc)
+      ! Private name; call using ESMF_FieldBundleSet()
+      subroutine ESMF_FieldBundleSetXGrid(fieldbundle, xgrid, &
+        keywordEnforcer, rc)
 !
 ! !ARGUMENTS:
-      type(ESMF_FieldBundleType), pointer :: btype 
-      integer, intent(in) :: fieldCount           
-      type(ESMF_Field), dimension (:) :: fields
-      type(ESMF_PackFlag), intent(in), optional :: packflag 
-       character (len = *), intent(in), optional :: name 
-      type(ESMF_IOSpec), intent(in), optional :: iospec
-      integer, intent(out), optional :: rc
+      type(ESMF_FieldBundle), intent(inout)         :: fieldbundle
+      type(ESMF_XGrid),   intent(in)                :: xgrid
+type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
+      integer,                intent(out), optional :: rc
 !
 ! !DESCRIPTION:
-!   Constructs an {\tt ESMF\_FieldBundle} from a list of existing
-!   gridded {\tt ESMF\_Fields}.  This routine requires an existing
-!   {\tt ESMF\_FieldBundle} type as an input and fills in
-!   the internals.  {\tt ESMF\_FieldBundleCreateNew()} does
-!   the allocation of an {\tt ESMF\_FieldBundle} type first and then
-!   calls this routine.
+!   Sets the {\tt locstream} for a {\tt fieldbundle} that contains no {\tt ESMF\_Field}s. 
+!   All {\tt ESMF\_Field}s added to this {\tt fieldbundle} must be
+!   associated with the same {\tt ESMF\_LocStream}.  Returns an error if 
+!   there is already an {\tt ESMF\_Geombase} associated with the {\tt fieldbundle}.
 !
 !   The arguments are:
 !   \begin{description}
-!   \item [btype]
-!      Pointer to an {\tt ESMF\_FieldBundle} object.
-!   \item [fieldCount]
-!      Number of fields to be added to the {\tt ESMF\_FieldBundle}.
-!      Must be equal to or less than the number of
-!      {\tt ESMF\_Field}s in the following argument.
-!   \item [fields]
-!      Array of existing {\tt ESMF\_Field}s.  The first {\tt fieldCount}
-!      items will be added to the {\tt ESMF\_FieldBundle}.
-!   \item [{[packflag]}]
-!      If set to {\tt ESMF\_PACK\_FIELD\_DATA}, the {\tt ESMF\_Field}
-!      data in individual {\tt ESMF\_Array}s will be collected
-!      into a single data {\tt ESMF\_Array} for the entire {\tt ESMF\_FieldBundle}.
-!      The default is {\tt ESMF\_NO\_PACKED\_DATA}.
-!   \item [{[name]}]
-!      {\tt ESMF\_FieldBundle} name.  A default name will be generated if
-!      one is not specified.
-!   \item [{[iospec]}]
-!      I/O specification.
+!   \item [fieldbundle]
+!        An {\tt ESMF\_FieldBundle} object.
+!   \item [xgrid]
+!        The {\tt ESMF\_XGrid} which all {\tt ESMF\_Field}s added to this
+!        {\tt ESMF\_FieldBundle} must have.
 !   \item [{[rc]}]
-!      Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
+!         Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
 !   \end{description}
 !
+!
 !EOPI
-      
-      integer :: status                           ! Error status
-      integer :: i
 
-      ! Initialize return code.  Assume routine not implemented.
+      integer :: status                                ! Error status
+      type(ESMF_FieldBundleType), pointer :: btype     ! internal data
+
+      ! Initialize return code; assume routine not implemented
       status = ESMF_RC_NOT_IMPL
       if (present(rc)) rc = ESMF_RC_NOT_IMPL
 
       ! check variables
-      do i=1,fieldCount
-         ESMF_INIT_CHECK_DEEP(ESMF_FieldGetInit,fields(i),rc)
-      enddo
+      ESMF_INIT_CHECK_DEEP(ESMF_FieldBundleGetInit,fieldbundle,rc)
+      ESMF_INIT_CHECK_DEEP(ESMF_XGridGetInit,xgrid,rc)
 
-      ! Initialize the derived type contents.
-      call ESMF_FieldBundleConstructEmpty(btype, name, iospec, status)
-      if (ESMF_LogMsgFoundError(status, &
-                                  ESMF_ERR_PASSTHRU, &
-                                  ESMF_CONTEXT, rc)) return
+      btype => fieldbundle%this
+   
+      ! here we will only let someone associate a grid with a fieldbundle
+      ! if there is not one already associated with it.  
+      if (btype%status == ESMF_FBSTATUS_GRIDSET) then
+        if (ESMF_LogFoundError(ESMF_RC_OBJ_BAD, &
+          msg="FieldBundle is already associated with a Geombase", &
+          ESMF_CONTEXT, rcToReturn=rc)) return
+      endif
 
-      ! If specified, set packflag and interleave
-      if(present(packflag)) then
-        if(packflag.eq.ESMF_PACKED_DATA) then
-          call ESMF_LogMsgSetError(ESMF_RC_NOT_IMPL, &
-                                 "Packed data option not implemented", &
-                                 ESMF_CONTEXT, rc) 
-          return
-        else
-          btype%pack_flag = packflag
-        endif
-      endif  
- 
-      ! Add the fields in the list, checking for consistency.
-      call ESMF_FieldBundleTypeAddList(btype, fieldCount, fields, status)
-      if (ESMF_LogMsgFoundError(status, &
-                                  ESMF_ERR_PASSTHRU, &
-                                  ESMF_CONTEXT, rc)) return
+       ! Create the geombase around the locstream
+       btype%geombase=ESMF_GeomBaseCreate(xgrid, rc=status)
+       if (ESMF_LogFoundError(status, ESMF_ERR_PASSTHRU, &
+                    ESMF_CONTEXT, rcToReturn=rc))  return
 
+      ! Set Status to containing a Geombase
+      btype%status = ESMF_FBSTATUS_GRIDSET
 
       if (present(rc)) rc = ESMF_SUCCESS
 
-      end subroutine ESMF_FieldBundleConstructNew
+      end subroutine ESMF_FieldBundleSetXGrid
+!------------------------------------------------------------------------------
 
 
 !------------------------------------------------------------------------------
 #undef  ESMF_METHOD
-#define ESMF_METHOD "ESMF_FieldBundleConstructEmpty"
-!BOPI
-! !IROUTINE: ESMF_FieldBundleConstructEmpty - Construct the internals of a FieldBundle
+#define ESMF_METHOD "ESMF_FieldBundleSMM()"
+!BOP
+! !IROUTINE: ESMF_FieldBundleSMM - Execute a FieldBundle sparse matrix multiplication
 !
 ! !INTERFACE:
-      subroutine ESMF_FieldBundleConstructEmpty(btype, name, iospec, rc)
+  subroutine ESMF_FieldBundleSMM(srcFieldBundle, dstFieldBundle, &
+        routehandle, keywordEnforcer, zeroregion, checkflag, rc)
 !
 ! !ARGUMENTS:
-      type(ESMF_FieldBundleType), pointer :: btype 
-      character (len = *), intent(in), optional :: name 
-      type(ESMF_IOSpec), intent(in), optional :: iospec
-      integer, intent(out), optional :: rc
+        type(ESMF_FieldBundle), intent(in),    optional  :: srcFieldBundle
+        type(ESMF_FieldBundle), intent(inout), optional  :: dstFieldBundle
+        type(ESMF_RouteHandle), intent(inout)            :: routehandle
+type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
+        type(ESMF_Region_Flag), intent(in),    optional  :: zeroregion
+        logical,                intent(in),    optional  :: checkflag
+        integer,                intent(out),   optional  :: rc
+!
+! !STATUS:
+! \begin{itemize}
+! \item\apiStatusCompatibleVersion{5.2.0r}
+! \end{itemize}
 !
 ! !DESCRIPTION:
-!     Constructs the internals of an {\tt ESMF\_FieldBundle}, given an existing
-!     {\tt ESMF\_FieldBundle} type as an input.
+!   Execute a precomputed FieldBundle sparse matrix multiplication from {\tt srcFieldBundle} to
+!   {\tt dstFieldBundle}. Both {\tt srcFieldBundle} and {\tt dstFieldBundle} must be
+!   congruent and typekind conform with the respective FieldBundles used during 
+!   {\tt ESMF\_FieldBundleSMMStore()}. Congruent FieldBundles possess
+!   matching DistGrids and the shape of the local array tiles matches between
+!   the FieldBundles for every DE. For weakly congruent Fields the sizes of the 
+!   undistributed dimensions, that vary faster with memory than the first distributed 
+!   dimension, are permitted to be different. This means that the same {\tt routehandle} 
+!   can be applied to a large class of similar Fields that differ in the number of 
+!   elements in the left most undistributed dimensions. 
+!
+!   The {\tt srcFieldBundle} and {\tt dstFieldBundle} arguments are optional in support of
+!   the situation where {\tt srcFieldBundle} and/or {\tt dstFieldBundle} are not defined on
+!   all PETs. The {\tt srcFieldBundle} and {\tt dstFieldBundle} must be specified on those
+!   PETs that hold source or destination DEs, respectively, but may be omitted
+!   on all other PETs. PETs that hold neither source nor destination DEs may
+!   omit both arguments.
+!
+!   It is erroneous to specify the identical FieldBundle object for {\tt srcFieldBundle} and
+!   {\tt dstFieldBundle} arguments.
+!
+!   See {\tt ESMF\_FieldBundleSMMStore()} on how to precompute 
+!   {\tt routehandle}.
+!
+!   This call is {\em collective} across the current VM.
+!
+!   For examples and associated documentations using this method see Section  
+!   \ref{sec:fieldbundle:usage:smm_1dptr}. 
+!
+!   \begin{description}
+!   \item [{[srcFieldBundle]}]
+!     {\tt ESMF\_FieldBundle} with source data.
+!   \item [{[dstFieldBundle]}]
+!     {\tt ESMF\_FieldBundle} with destination data.
+!   \item [routehandle]
+!     Handle to the precomputed Route.
+!   \item [{[zeroregion]}]
+!     If set to {\tt ESMF\_REGION\_TOTAL} {\em (default)} the total regions of
+!     all DEs in {\tt dstFieldBundle} will be initialized to zero before updating the 
+!     elements with the results of the sparse matrix multiplication. If set to
+!     {\tt ESMF\_REGION\_EMPTY} the elements in {\tt dstFieldBundle} will not be
+!     modified prior to the sparse matrix multiplication and results will be
+!     added to the incoming element values. Setting {\tt zeroregion} to 
+!
+!     {\tt ESMF\_REGION\_SELECT} will only zero out those elements in the 
+!     destination FieldBundle that will be updated by the sparse matrix
+!     multiplication. See section \ref{const:region} for a complete list of
+!     valid settings.
+!   \item [{[checkflag]}]
+!     If set to {\tt .TRUE.} the input FieldBundle pair will be checked for
+!     consistency with the precomputed operation provided by {\tt routehandle}.
+!     If set to {\tt .FALSE.} {\em (default)} only a very basic input check
+!     will be performed, leaving many inconsistencies undetected. Set
+!     {\tt checkflag} to {\tt .FALSE.} to achieve highest performance.
+!   \item [{[rc]}]
+!     Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
+!   \end{description}
+!
+!EOP
+!------------------------------------------------------------------------------
+        integer                 :: localrc      ! local return code
+        
+        ! local variables to buffer optional arguments
+        type(ESMF_Region_Flag)   :: l_zeroregion
+        logical                 :: l_checkflag! helper variable
+
+        ! local internal variables
+        logical                 :: src_bundle
+        logical                 :: dst_bundle
+        integer                 :: fcount, i
+
+        type(ESMF_ArrayBundle)  :: srcab, dstab
+        type(ESMF_Array), allocatable :: srca(:), dsta(:)
+
+        ! initialize return code; assume routine not implemented
+        localrc = ESMF_RC_NOT_IMPL
+        if (present(rc)) rc = ESMF_RC_NOT_IMPL
+
+        ! Check init status of arguments, deal with optional FieldBundle args
+        ESMF_INIT_CHECK_DEEP_SHORT(ESMF_RouteHandleGetInit, routehandle, rc)
+
+        ! Set default flags
+        l_checkflag = ESMF_FALSE
+        if (present(checkflag)) l_checkflag = checkflag
+        l_zeroregion = ESMF_REGION_TOTAL
+        if (present(zeroregion)) l_zeroregion = zeroregion
+
+        src_bundle = .true.
+        if (present(srcFieldBundle)) then
+          srcab = ESMF_FieldBundleToAB(srcFieldBundle, rc=localrc)
+          if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+              ESMF_CONTEXT, rcToReturn=rc)) return
+        else
+          src_bundle = .false.
+        endif
+
+        dst_bundle = .true.
+        if (present(dstFieldBundle)) then
+          dstab = ESMF_FieldBundleToAB(dstFieldBundle, rc=localrc)
+          if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+              ESMF_CONTEXT, rcToReturn=rc)) return
+        else
+            dst_bundle = .false.
+        endif
+
+        ! perform FieldBundle SMM
+        if(src_bundle .and. dst_bundle) &
+            call ESMF_ArrayBundleSMM(srcab, dstab, routehandle, &
+                zeroregion=l_zeroregion, checkflag=l_checkflag, rc=localrc)
+        if(src_bundle .and. .not. dst_bundle) &
+            call ESMF_ArrayBundleSMM(srcArrayBundle=srcab, routehandle=routehandle, &
+                zeroregion=l_zeroregion, checkflag=l_checkflag, rc=localrc)
+        if(.not. src_bundle .and. dst_bundle) &
+            call ESMF_ArrayBundleSMM(dstArrayBundle=dstab, routehandle=routehandle, &
+                zeroregion=l_zeroregion, checkflag=l_checkflag, rc=localrc)
+        if(.not. src_bundle .and. .not. dst_bundle) &
+            call ESMF_ArrayBundleSMM(routehandle=routehandle, &
+                zeroregion=l_zeroregion, checkflag=l_checkflag, rc=localrc)
+        if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+            ESMF_CONTEXT, rcToReturn=rc)) return
+            
+        ! garbage collection
+        if (present(srcFieldBundle)) then
+          call ESMF_ArrayBundleDestroy(srcab, rc=localrc)
+          if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+            ESMF_CONTEXT, rcToReturn=rc)) return
+        endif
+        if (present(dstFieldBundle)) then
+          call ESMF_ArrayBundleDestroy(dstab, rc=localrc)
+          if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+            ESMF_CONTEXT, rcToReturn=rc)) return
+        endif
+        
+        ! return successfully
+        if (present(rc)) rc = ESMF_SUCCESS
+
+    end subroutine ESMF_FieldBundleSMM
+
+!------------------------------------------------------------------------------
+#undef  ESMF_METHOD
+#define ESMF_METHOD "ESMF_FieldBundleSMMRelease()"
+!BOP
+! !IROUTINE: ESMF_FieldBundleSMMRelease - Release resources associated with a FieldBundle sparse matrix multiplication
+!
+! !INTERFACE:
+  subroutine ESMF_FieldBundleSMMRelease(routehandle, keywordEnforcer, rc)
+!
+! !ARGUMENTS:
+        type(ESMF_RouteHandle), intent(inout)           :: routehandle
+type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
+        integer,                intent(out),  optional  :: rc
+!
+! !STATUS:
+! \begin{itemize}
+! \item\apiStatusCompatibleVersion{5.2.0r}
+! \end{itemize}
+!
+! !DESCRIPTION:
+!   Release resouces associated with a FieldBundle sparse matrix multiplication. After this call
+!   {\tt routehandle} becomes invalid.
+!
+!   \begin{description}
+!   \item [routehandle]
+!     Handle to the precomputed Route.
+!   \item [{[rc]}]
+!     Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
+!   \end{description}
+!
+!EOP
+!------------------------------------------------------------------------------
+        integer                 :: localrc      ! local return code
+
+        ! initialize return code; assume routine not implemented
+        localrc = ESMF_RC_NOT_IMPL
+        if (present(rc)) rc = ESMF_RC_NOT_IMPL
+
+        ! Check init status of arguments
+        ESMF_INIT_CHECK_DEEP_SHORT(ESMF_RouteHandleGetInit, routehandle, rc)
+            
+        ! Call into the RouteHandle code
+        call ESMF_RouteHandleRelease(routehandle, localrc)
+        if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+          ESMF_CONTEXT, rcToReturn=rc)) return
+        
+        ! return successfully
+        if (present(rc)) rc = ESMF_SUCCESS
+
+    end subroutine ESMF_FieldBundleSMMRelease
+
+!---------------------------------------------------------------------------- 
+!BOP 
+! !IROUTINE: ESMF_FieldBundleSMMStore - Precompute a FieldBundle sparse matrix multiplication with local factors
+! 
+! !INTERFACE: 
+! ! Private name; call using ESMF_FieldBundleSMMStore() 
+! subroutine ESMF_FieldBundleSMMStore<type><kind>(srcFieldBundle, &
+!   dstFieldBundle,  routehandle, factorList, factorIndexList, &
+!   keywordEnforcer, rc) 
+! 
+! !ARGUMENTS: 
+!   type(ESMF_FieldBundle),   intent(in)            :: srcFieldBundle  
+!   type(ESMF_FieldBundle),   intent(inout)         :: dstFieldBundle  
+!   type(ESMF_RouteHandle),   intent(inout)         :: routehandle
+!   <type>(ESMF_KIND_<kind>), intent(in)            :: factorList(:) 
+!   integer,                  intent(in),           :: factorIndexList(:,:) 
+!type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
+!   integer,                  intent(out), optional :: rc 
+!
+! !STATUS:
+! \begin{itemize}
+! \item\apiStatusCompatibleVersion{5.2.0r}
+! \end{itemize}
+!
+! !DESCRIPTION: 
+! 
+! \begin{sloppypar}
+! Store a FieldBundle sparse matrix multiplication operation from {\tt srcFieldBundle}
+! to {\tt dstFieldBundle}. PETs that specify non-zero matrix coefficients must use
+! the <type><kind> overloaded interface and provide the {\tt factorList} and
+! {\tt factorIndexList} arguments. Providing {\tt factorList} and
+! {\tt factorIndexList} arguments with 
+! {\tt size(factorList) = (/0/)} and
+! {\tt size(factorIndexList) = (/2,0/)} or {\tt (/4,0/)} indicates that a 
+! PET does not provide matrix elements. Alternatively, PETs that do not 
+! provide matrix elements may also call into the overloaded interface
+! {\em without} {\tt factorList} and {\tt factorIndexList} arguments.
+! \end{sloppypar}
+!  
+! Both {\tt srcFieldBundle} and {\tt dstFieldBundle} are interpreted as sequentialized 
+! vectors. The 
+! sequence is defined by the order of DistGrid dimensions and the order of 
+! tiles within the DistGrid or by user-supplied arbitrary sequence indices. See 
+! section \ref{Array:SparseMatMul} for details on the definition of {\em sequence indices}. 
+! SMM corresponds to an identity mapping of the source FieldBundle vector to 
+! the destination FieldBundle vector. 
+!  
+! Source and destination Fields may be of different <type><kind>. Further source 
+! and destination Fields may differ in shape, however, the number of elements 
+! must match. 
+!  
+! It is erroneous to specify the identical FieldBundle object for srcFieldBundle 
+! and dstFieldBundle arguments. 
+!
+! The routine returns an {\tt ESMF\_RouteHandle} that can be used to call 
+! {\tt ESMF\_FieldBundleSMM()} on any pair of FieldBundles that are congruent and typekind 
+! conform with the srcFieldBundle, dstFieldBundle pair. Congruent FieldBundles possess matching 
+! DistGrids and the shape of the local array tiles matches between the FieldBundles for 
+! every DE. For weakly congruent Fields the sizes of the 
+!   undistributed dimensions, that vary faster with memory than the first distributed 
+!   dimension, are permitted to be different. This means that the same {\tt routehandle} 
+!   can be applied to a large class of similar Fields that differ in the number of 
+!   elements in the left most undistributed dimensions. 
+!  
+! This method is overloaded for:\newline
+! {\tt ESMF\_TYPEKIND\_I4}, {\tt ESMF\_TYPEKIND\_I8},\newline 
+! {\tt ESMF\_TYPEKIND\_R4}, {\tt ESMF\_TYPEKIND\_R8}.
+! \newline
+!  
+! This call is collective across the current VM.  
+! 
+! For examples and associated documentations using this method see Section  
+! \ref{sec:fieldbundle:usage:smm_1dptr}. 
+! 
+! The arguments are: 
+! \begin{description} 
+! \item [srcFieldBundle]  
+!       {\tt ESMF\_FieldBundle} with source data. 
+! \item [dstFieldBundle] 
+!       {\tt ESMF\_FieldBundle} with destination data. The data in this 
+!       FieldBundle may be destroyed by this call.
+! \item [routehandle] 
+!       Handle to the precomputed Route. 
+! \item [factorList]
+!       List of non-zero coefficients.
+! \item [factorIndexList]
+!     Pairs of sequence indices for the factors stored in {\tt factorList}.
+!
+!     \begin{sloppypar}
+!     The second dimension of {\tt factorIndexList} steps through the list of
+!     pairs, i.e. {\tt size(factorIndexList,2) == size(factorList)}. The first
+!     dimension of {\tt factorIndexList} is either of size 2 or size 4.
+!     \end{sloppypar}
+!
+!     In the {\em size 2 format} {\tt factorIndexList(1,:)} specifies the
+!     sequence index of the source element in the {\tt srcFieldBundle} while
+!     {\tt factorIndexList(2,:)} specifies the sequence index of the
+!     destination element in {\tt dstFieldBundle}. For this format to be a valid
+!     option source and destination FieldBundles must have matching number of
+!     tensor elements (the product of the sizes of all Field tensor dimensions).
+!     Under this condition an identiy matrix can be applied within the space of
+!     tensor elements for each sparse matrix factor.
+!
+!     The {\em size 4 format} is more general and does not require a matching
+!     tensor element count. Here the 
+!
+!     {\tt factorIndexList(1,:)} specifies the
+!     sequence index while {\tt factorIndexList(2,:)} specifies the tensor
+!     sequence index of the source element in the {\tt srcFieldBundle}. Further
+!     {\tt factorIndexList(3,:)} specifies the sequence index and
+!     {\tt factorIndexList(4,:)} specifies the tensor sequence index of the 
+!     destination element in the {\tt dstFieldBundle}.
+!
+!     See section \ref{Array:SparseMatMul} for details on the definition of 
+!     {\em sequence indices} and {\em tensor sequence indices}.
+! \item [{[rc]}]  
+!       Return code; equals {\tt ESMF\_SUCCESS} if there are no errors. 
+! \end{description} 
+! 
+!EOP 
+!---------------------------------------------------------------------------- 
+
+#undef  ESMF_METHOD 
+#define ESMF_METHOD "ESMF_FieldBundleSMMStoreI4" 
+!BOPI
+! !IROUTINE: ESMF_FieldBundleSMMStore - Precompute a FieldBundle sparse matrix multiplication
+!
+! !INTERFACE:
+  ! Private name; call using ESMF_FieldBundleSMMStore()
+    subroutine ESMF_FieldBundleSMMStoreI4(srcFieldBundle, dstFieldBundle, & 
+        routehandle, factorList, factorIndexList, keywordEnforcer, rc) 
+
+        ! input arguments 
+        type(ESMF_FieldBundle), intent(in)            :: srcFieldBundle  
+        type(ESMF_FieldBundle), intent(inout)         :: dstFieldBundle  
+        type(ESMF_RouteHandle), intent(inout)         :: routehandle
+        integer(ESMF_KIND_I4),  intent(in)            :: factorList(:)
+        integer,                intent(in)            :: factorIndexList(:,:) 
+type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
+        integer,                intent(out), optional :: rc 
+
+!EOPI
+        ! local variables as temporary input/output arguments 
+
+        ! internal local variables 
+        integer                                       :: localrc, sfcount, dfcount, i 
+        type(ESMF_ArrayBundle)                        :: srcab, dstab
+        type(ESMF_Array), allocatable                 :: srca(:), dsta(:)
+
+        ! Initialize return code; assume routine not implemented 
+        localrc = ESMF_RC_NOT_IMPL 
+        if(present(rc)) rc = ESMF_RC_NOT_IMPL 
+
+        ! check variables
+        ESMF_INIT_CHECK_DEEP_SHORT(ESMF_FieldBundleGetInit, srcFieldBundle, rc) 
+        ESMF_INIT_CHECK_DEEP_SHORT(ESMF_FieldBundleGetInit, dstFieldBundle, rc) 
+
+        ! loop over source and destination fields. 
+        ! verify src and dst FieldBundles can communicate
+        ! field_count match
+        call ESMF_FieldBundleGet(srcFieldBundle, fieldCount=sfcount, rc=localrc)
+        if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+            ESMF_CONTEXT, rcToReturn=rc)) return
+        call ESMF_FieldBundleGet(dstFieldBundle, fieldCount=dfcount, rc=localrc)
+        if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+            ESMF_CONTEXT, rcToReturn=rc)) return
+
+        if(sfcount /= dfcount) then
+            call ESMF_LogSetError(rcToCheck=ESMF_RC_ARG_VALUE, &
+               msg="src and dst FieldBundle must have same number of fields", &
+                ESMF_CONTEXT, rcToReturn=rc)
+            return
+        endif 
+
+        srcab = ESMF_FieldBundleToAB(srcFieldBundle, rc=localrc)
+        if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+            ESMF_CONTEXT, rcToReturn=rc)) return
+
+        dstab = ESMF_FieldBundleToAB(dstFieldBundle, rc=localrc)
+        if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+            ESMF_CONTEXT, rcToReturn=rc)) return
+
+        call ESMF_ArrayBundleSMMStore(srcab, dstab, routehandle, factorList, &
+            factorIndexList, rc=localrc)
+        if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+            ESMF_CONTEXT, rcToReturn=rc)) return
+            
+        ! garbage collection
+        call ESMF_ArrayBundleDestroy(srcab, rc=localrc)
+        if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+          ESMF_CONTEXT, rcToReturn=rc)) return
+        call ESMF_ArrayBundleDestroy(dstab, rc=localrc)
+        if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+          ESMF_CONTEXT, rcToReturn=rc)) return
+
+        ! return successfully
+        if (present(rc)) rc = ESMF_SUCCESS
+        
+    end subroutine ESMF_FieldBundleSMMStoreI4
+!------------------------------------------------------------------------------ 
+
+#undef  ESMF_METHOD 
+#define ESMF_METHOD "ESMF_FieldBundleSMMStoreI8" 
+!BOPI
+! !IROUTINE: ESMF_FieldBundleSMMStore - Precompute a FieldBundle sparse matrix multiplication
+!
+! !INTERFACE:
+  ! Private name; call using ESMF_FieldBundleSMMStore()
+    subroutine ESMF_FieldBundleSMMStoreI8(srcFieldBundle, dstFieldBundle, & 
+      routehandle, factorList, factorIndexList, keywordEnforcer, rc) 
+
+        ! input arguments 
+        type(ESMF_FieldBundle), intent(in)            :: srcFieldBundle  
+        type(ESMF_FieldBundle), intent(inout)         :: dstFieldBundle  
+        type(ESMF_RouteHandle), intent(inout)         :: routehandle
+        integer(ESMF_KIND_I8),  intent(in)            :: factorList(:)
+        integer,                intent(in)            :: factorIndexList(:,:) 
+type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
+        integer,                intent(out), optional :: rc 
+
+!EOPI
+        ! local variables as temporary input/output arguments 
+
+        ! internal local variables 
+        integer                                       :: localrc, sfcount, dfcount, i 
+        type(ESMF_ArrayBundle)                        :: srcab, dstab
+        type(ESMF_Array), allocatable                 :: srca(:), dsta(:)
+
+        ! Initialize return code; assume routine not implemented 
+        localrc = ESMF_RC_NOT_IMPL 
+        if(present(rc)) rc = ESMF_RC_NOT_IMPL 
+
+        ! check variables
+        ESMF_INIT_CHECK_DEEP_SHORT(ESMF_FieldBundleGetInit, srcFieldBundle, rc) 
+        ESMF_INIT_CHECK_DEEP_SHORT(ESMF_FieldBundleGetInit, dstFieldBundle, rc) 
+
+        ! loop over source and destination fields. 
+        ! verify src and dst FieldBundles can communicate
+        ! field_count match
+        call ESMF_FieldBundleGet(srcFieldBundle, fieldCount=sfcount, rc=localrc)
+        if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+            ESMF_CONTEXT, rcToReturn=rc)) return
+        call ESMF_FieldBundleGet(dstFieldBundle, fieldCount=dfcount, rc=localrc)
+        if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+            ESMF_CONTEXT, rcToReturn=rc)) return
+
+        if(sfcount /= dfcount) then
+            call ESMF_LogSetError(rcToCheck=ESMF_RC_ARG_VALUE, &
+               msg="src and dst FieldBundle must have same number of fields", &
+                ESMF_CONTEXT, rcToReturn=rc)
+            return
+        endif 
+
+        srcab = ESMF_FieldBundleToAB(srcFieldBundle, rc=localrc)
+        if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+            ESMF_CONTEXT, rcToReturn=rc)) return
+
+        dstab = ESMF_FieldBundleToAB(dstFieldBundle, rc=localrc)
+        if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+            ESMF_CONTEXT, rcToReturn=rc)) return
+
+        call ESMF_ArrayBundleSMMStore(srcab, dstab, routehandle, factorList, &
+            factorIndexList, rc=localrc)
+        if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+            ESMF_CONTEXT, rcToReturn=rc)) return
+            
+        ! garbage collection
+        call ESMF_ArrayBundleDestroy(srcab, rc=localrc)
+        if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+          ESMF_CONTEXT, rcToReturn=rc)) return
+        call ESMF_ArrayBundleDestroy(dstab, rc=localrc)
+        if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+          ESMF_CONTEXT, rcToReturn=rc)) return
+
+        ! return successfully
+        if (present(rc)) rc = ESMF_SUCCESS
+
+    end subroutine ESMF_FieldBundleSMMStoreI8
+!------------------------------------------------------------------------------ 
+
+#undef  ESMF_METHOD 
+#define ESMF_METHOD "ESMF_FieldBundleSMMStoreR4"
+!BOPI
+! !IROUTINE: ESMF_FieldBundleSMMStore - Precompute a FieldBundle sparse matrix multiplication
+!
+! !INTERFACE:
+  ! Private name; call using ESMF_FieldBundleSMMStore()
+    subroutine ESMF_FieldBundleSMMStoreR4(srcFieldBundle, dstFieldBundle, & 
+      routehandle, factorList, factorIndexList, keywordEnforcer, rc) 
+
+        ! input arguments 
+        type(ESMF_FieldBundle), intent(in)            :: srcFieldBundle  
+        type(ESMF_FieldBundle), intent(inout)         :: dstFieldBundle  
+        type(ESMF_RouteHandle), intent(inout)         :: routehandle
+        real(ESMF_KIND_R4),     intent(in)            :: factorList(:)
+        integer,                intent(in)            :: factorIndexList(:,:) 
+type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
+        integer,                intent(out), optional :: rc 
+
+!EOPI
+        ! local variables as temporary input/output arguments 
+
+        ! internal local variables 
+        integer                                       :: localrc, sfcount, dfcount, i 
+        type(ESMF_ArrayBundle)                        :: srcab, dstab
+        type(ESMF_Array), allocatable                 :: srca(:), dsta(:)
+
+        ! Initialize return code; assume routine not implemented 
+        localrc = ESMF_RC_NOT_IMPL 
+        if(present(rc)) rc = ESMF_RC_NOT_IMPL 
+
+        ! check variables
+        ESMF_INIT_CHECK_DEEP_SHORT(ESMF_FieldBundleGetInit, srcFieldBundle, rc) 
+        ESMF_INIT_CHECK_DEEP_SHORT(ESMF_FieldBundleGetInit, dstFieldBundle, rc) 
+
+        ! loop over source and destination fields. 
+        ! verify src and dst FieldBundles can communicate
+        ! field_count match
+        call ESMF_FieldBundleGet(srcFieldBundle, fieldCount=sfcount, rc=localrc)
+        if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+            ESMF_CONTEXT, rcToReturn=rc)) return
+        call ESMF_FieldBundleGet(dstFieldBundle, fieldCount=dfcount, rc=localrc)
+        if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+            ESMF_CONTEXT, rcToReturn=rc)) return
+
+        if(sfcount /= dfcount) then
+            call ESMF_LogSetError(rcToCheck=ESMF_RC_ARG_VALUE, &
+               msg="src and dst FieldBundle must have same number of fields", &
+                ESMF_CONTEXT, rcToReturn=rc)
+            return
+        endif 
+
+        srcab = ESMF_FieldBundleToAB(srcFieldBundle, rc=localrc)
+        if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+            ESMF_CONTEXT, rcToReturn=rc)) return
+
+        dstab = ESMF_FieldBundleToAB(dstFieldBundle, rc=localrc)
+        if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+            ESMF_CONTEXT, rcToReturn=rc)) return
+
+        call ESMF_ArrayBundleSMMStore(srcab, dstab, routehandle, factorList, &
+            factorIndexList, rc=localrc)
+        if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+            ESMF_CONTEXT, rcToReturn=rc)) return
+
+        ! garbage collection
+        call ESMF_ArrayBundleDestroy(srcab, rc=localrc)
+        if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+          ESMF_CONTEXT, rcToReturn=rc)) return
+        call ESMF_ArrayBundleDestroy(dstab, rc=localrc)
+        if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+          ESMF_CONTEXT, rcToReturn=rc)) return
+
+        ! return successfully
+        if (present(rc)) rc = ESMF_SUCCESS
+        
+    end subroutine ESMF_FieldBundleSMMStoreR4
+!------------------------------------------------------------------------------ 
+
+#undef  ESMF_METHOD 
+#define ESMF_METHOD "ESMF_FieldBundleSMMStoreR8"
+!BOPI
+! !IROUTINE: ESMF_FieldBundleSMMStore - Precompute a FieldBundle sparse matrix multiplication
+!
+! !INTERFACE:
+  ! Private name; call using ESMF_FieldBundleSMMStore()
+    subroutine ESMF_FieldBundleSMMStoreR8(srcFieldBundle, dstFieldBundle, & 
+      routehandle, factorList, factorIndexList, keywordEnforcer, rc) 
+
+        ! input arguments 
+        type(ESMF_FieldBundle), intent(in)            :: srcFieldBundle  
+        type(ESMF_FieldBundle), intent(inout)         :: dstFieldBundle  
+        type(ESMF_RouteHandle), intent(inout)         :: routehandle
+        real(ESMF_KIND_R8),     intent(in)            :: factorList(:)
+        integer,                intent(in)            :: factorIndexList(:,:) 
+type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
+        integer,                intent(out), optional :: rc 
+
+!EOPI
+        ! local variables as temporary input/output arguments 
+
+        ! internal local variables 
+        integer                                       :: localrc, sfcount, dfcount, i 
+        type(ESMF_ArrayBundle)                        :: srcab, dstab
+        type(ESMF_Array), allocatable                 :: srca(:), dsta(:)
+
+        ! Initialize return code; assume routine not implemented 
+        localrc = ESMF_RC_NOT_IMPL 
+        if(present(rc)) rc = ESMF_RC_NOT_IMPL 
+
+        ! check variables
+        ESMF_INIT_CHECK_DEEP_SHORT(ESMF_FieldBundleGetInit, srcFieldBundle, rc) 
+        ESMF_INIT_CHECK_DEEP_SHORT(ESMF_FieldBundleGetInit, dstFieldBundle, rc) 
+
+        ! loop over source and destination fields. 
+        ! verify src and dst FieldBundles can communicate
+        ! field_count match
+        call ESMF_FieldBundleGet(srcFieldBundle, fieldCount=sfcount, rc=localrc)
+        if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+            ESMF_CONTEXT, rcToReturn=rc)) return
+        call ESMF_FieldBundleGet(dstFieldBundle, fieldCount=dfcount, rc=localrc)
+        if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+            ESMF_CONTEXT, rcToReturn=rc)) return
+
+        if(sfcount /= dfcount) then
+            call ESMF_LogSetError(rcToCheck=ESMF_RC_ARG_VALUE, &
+               msg="src and dst FieldBundle must have same number of fields", &
+                ESMF_CONTEXT, rcToReturn=rc)
+            return
+        endif 
+
+        srcab = ESMF_FieldBundleToAB(srcFieldBundle, rc=localrc)
+        if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+            ESMF_CONTEXT, rcToReturn=rc)) return
+
+        dstab = ESMF_FieldBundleToAB(dstFieldBundle, rc=localrc)
+        if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+            ESMF_CONTEXT, rcToReturn=rc)) return
+
+        call ESMF_ArrayBundleSMMStore(srcab, dstab, routehandle, factorList, &
+            factorIndexList, rc=localrc)
+        if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+            ESMF_CONTEXT, rcToReturn=rc)) return
+
+        ! garbage collection
+        call ESMF_ArrayBundleDestroy(srcab, rc=localrc)
+        if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+          ESMF_CONTEXT, rcToReturn=rc)) return
+        call ESMF_ArrayBundleDestroy(dstab, rc=localrc)
+        if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+          ESMF_CONTEXT, rcToReturn=rc)) return
+
+        ! return successfully
+        if (present(rc)) rc = ESMF_SUCCESS
+        
+    end subroutine ESMF_FieldBundleSMMStoreR8
+
+!---------------------------------------------------------------------------- 
+!BOP 
+! !IROUTINE: ESMF_FieldBundleSMMStore - Precompute a FieldBundle sparse matrix multiplication without local factors
+! 
+! !INTERFACE: 
+! ! Private name; call using ESMF_FieldBundleSMMStore() 
+! subroutine ESMF_FieldBundleSMMStoreNF(srcFieldBundle, dstFieldBundle, & 
+!        routehandle, keywordEnforcer, rc) 
+! 
+! !ARGUMENTS: 
+!   type(ESMF_FieldBundle),   intent(in)            :: srcFieldBundle  
+!   type(ESMF_FieldBundle),   intent(inout)         :: dstFieldBundle  
+!   type(ESMF_RouteHandle),   intent(inout)         :: routehandle
+!type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
+!   integer,                  intent(out), optional :: rc 
+!
+! !STATUS:
+! \begin{itemize}
+! \item\apiStatusCompatibleVersion{5.2.0r}
+! \end{itemize}
+!
+! !DESCRIPTION: 
+!
+! \begin{sloppypar}
+! Store a FieldBundle sparse matrix multiplication operation from {\tt srcFieldBundle}
+! to {\tt dstFieldBundle}. PETs that specify non-zero matrix coefficients must use
+! the <type><kind> overloaded interface and provide the {\tt factorList} and
+! {\tt factorIndexList} arguments. Providing {\tt factorList} and
+! {\tt factorIndexList} arguments with {\tt size(factorList) = (/0/)} and
+! {\tt size(factorIndexList) = (/2,0/)} or {\tt (/4,0/)} indicates that a 
+! PET does not provide matrix elements. Alternatively, PETs that do not 
+! provide matrix elements may also call into the overloaded interface
+! {\em without} {\tt factorList} and {\tt factorIndexList} arguments.
+! \end{sloppypar}
+! 
+! Both {\tt srcFieldBundle} and {\tt dstFieldBundle} are interpreted as sequentialized 
+! vectors. The 
+! sequence is defined by the order of DistGrid dimensions and the order of 
+! tiles within the DistGrid or by user-supplied arbitrary sequence indices. See 
+! section \ref{Array:SparseMatMul} for details on the definition of {\em sequence indices}. 
+! SMM corresponds to an identity mapping of the source FieldBundle vector to 
+! the destination FieldBundle vector. 
+!  
+! Source and destination Fields may be of different <type><kind>. Further source 
+! and destination Fields may differ in shape, however, the number of elements 
+! must match. 
+!  
+! It is erroneous to specify the identical FieldBundle object for srcFieldBundle and dstFieldBundle 
+! arguments. 
+!  
+! The routine returns an {\tt ESMF\_RouteHandle} that can be used to call 
+! {\tt ESMF\_FieldBundleSMM()} on any pair of FieldBundles that are congruent and typekind 
+! conform with the srcFieldBundle, dstFieldBundle pair. Congruent FieldBundles possess matching 
+! DistGrids and the shape of the local array tiles matches between the FieldBundles for 
+! every DE. For weakly congruent Fields the sizes of the 
+!   undistributed dimensions, that vary faster with memory than the first distributed 
+!   dimension, are permitted to be different. This means that the same {\tt routehandle} 
+!   can be applied to a large class of similar Fields that differ in the number of 
+!   elements in the left most undistributed dimensions. 
+!  
+! \begin{sloppypar}
+! This method is overloaded for
+! {\tt ESMF\_TYPEKIND\_I4}, {\tt ESMF\_TYPEKIND\_I8}, 
+! {\tt ESMF\_TYPEKIND\_R4}, {\tt ESMF\_TYPEKIND\_R8}.
+! \end{sloppypar}
+!
+! This call is collective across the current VM.  
+! 
+! For examples and associated documentations using this method see Section  
+! \ref{sec:fieldbundle:usage:smm_1dptr}. 
+! 
+! The arguments are: 
+! \begin{description} 
+! \item [srcFieldBundle]  
+!       {\tt ESMF\_FieldBundle} with source data. 
+! \item [dstFieldBundle] 
+!       {\tt ESMF\_FieldBundle} with destination data. The data in this 
+!       FieldBundle may be destroyed by this call. 
+! \item [routehandle] 
+!       Handle to the precomputed Route. 
+! \item [{[rc]}]  
+!       Return code; equals {\tt ESMF\_SUCCESS} if there are no errors. 
+! \end{description} 
+! 
+!EOP 
+!---------------------------------------------------------------------------- 
+
+#undef  ESMF_METHOD 
+#define ESMF_METHOD "ESMF_FieldBundleSMMStoreNF" 
+!BOPI
+! !IROUTINE: ESMF_FieldBundleSMMStore - Precompute a FieldBundle sparse matrix multiplication
+!
+! !INTERFACE:
+  ! Private name; call using ESMF_FieldBundleSMMStore()
+    subroutine ESMF_FieldBundleSMMStoreNF(srcFieldBundle, dstFieldBundle, & 
+        routehandle, keywordEnforcer, rc) 
+
+        ! input arguments 
+        type(ESMF_FieldBundle), intent(in)            :: srcFieldBundle  
+        type(ESMF_FieldBundle), intent(inout)         :: dstFieldBundle  
+        type(ESMF_RouteHandle), intent(inout)         :: routehandle
+type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
+        integer,                intent(out), optional :: rc 
+
+!EOPI
+        ! local variables as temporary input/output arguments 
+
+        ! internal local variables 
+        integer                                       :: localrc, sfcount, dfcount, i 
+        type(ESMF_ArrayBundle)                        :: srcab, dstab
+        type(ESMF_Array), allocatable                 :: srca(:), dsta(:)
+
+        ! Initialize return code; assume routine not implemented 
+        localrc = ESMF_RC_NOT_IMPL 
+        if(present(rc)) rc = ESMF_RC_NOT_IMPL 
+
+        ! check variables
+        ESMF_INIT_CHECK_DEEP_SHORT(ESMF_FieldBundleGetInit, srcFieldBundle, rc) 
+        ESMF_INIT_CHECK_DEEP_SHORT(ESMF_FieldBundleGetInit, dstFieldBundle, rc) 
+
+        ! loop over source and destination fields. 
+        ! verify src and dst FieldBundles can communicate
+        ! field_count match
+        call ESMF_FieldBundleGet(srcFieldBundle, fieldCount=sfcount, rc=localrc)
+        if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+            ESMF_CONTEXT, rcToReturn=rc)) return
+        call ESMF_FieldBundleGet(dstFieldBundle, fieldCount=dfcount, rc=localrc)
+        if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+            ESMF_CONTEXT, rcToReturn=rc)) return
+
+        if(sfcount /= dfcount) then
+            call ESMF_LogSetError(rcToCheck=ESMF_RC_ARG_VALUE, &
+               msg="src and dst FieldBundle must have same number of fields", &
+                ESMF_CONTEXT, rcToReturn=rc)
+            return
+        endif 
+
+        ! TODO:
+        ! internal grids match
+        !if(ESMF_GridMatch(srcFieldBundle%btypep%grid, dstFieldBundle%btypep%grid) then
+        !    call ESMF_LogSetError(rcToCheck=ESMF_RC_ARG_VALUE, &
+        !       "src and dst FieldBundle must have matching grid", &
+        !        ESMF_CONTEXT, rcToReturn=rc)
+        !    return
+        !endif 
+
+        srcab = ESMF_FieldBundleToAB(srcFieldBundle, rc=localrc)
+        if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+            ESMF_CONTEXT, rcToReturn=rc)) return
+
+        dstab = ESMF_FieldBundleToAB(dstFieldBundle, rc=localrc)
+        if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+            ESMF_CONTEXT, rcToReturn=rc)) return
+
+        call ESMF_ArrayBundleSMMStore(srcab, dstab, routehandle, rc=localrc)
+        if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+            ESMF_CONTEXT, rcToReturn=rc)) return
+
+        ! garbage collection
+        call ESMF_ArrayBundleDestroy(srcab, rc=localrc)
+        if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+          ESMF_CONTEXT, rcToReturn=rc)) return
+        call ESMF_ArrayBundleDestroy(dstab, rc=localrc)
+        if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+          ESMF_CONTEXT, rcToReturn=rc)) return
+
+        ! return successfully
+        if (present(rc)) rc = ESMF_SUCCESS
+        
+    end subroutine ESMF_FieldBundleSMMStoreNF
+! ---------------------------------------------------------------------------- 
+
+! -------------------------- ESMF-public method -------------------------------
+#undef  ESMF_METHOD
+#define ESMF_METHOD "ESMF_FieldBundleValidate()"
+!BOP
+! !IROUTINE: ESMF_FieldBundleValidate - Validate fieldbundle internals
+
+! !INTERFACE:
+  subroutine ESMF_FieldBundleValidate(fieldbundle, rc)
+!
+! !ARGUMENTS:
+    type(ESMF_FieldBundle), intent(in)              :: fieldbundle
+    integer,                intent(out),  optional  :: rc  
+!         
+!
+! !DESCRIPTION:
+!      Validates that the {\tt fieldbundle} is internally consistent.
+!      The method returns an error code if problems are found.  
 !
 !     The arguments are:
 !     \begin{description}
-!     \item [btype]
-!           An existing {\tt ESMF\_FieldBundle} to be initialized.
-!     \item [{[name]}]
-!           {\tt ESMF\_FieldBundle} name.  A default name will be generated if
-!           one is not specified.
-!     \item [{[iospec]}]
-!           I/O specification.
-!     \item [{[rc]}]
-!           Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
+!     \item[fieldbundle] 
+!          Specified {\tt ESMF\_FieldBundle} object.
+!     \item[{[rc]}] 
+!          Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
 !     \end{description}
 !
-!EOPI
-      
-      integer :: status                            ! Error status
-      !character (len = ESMF_MAXSTR) :: defaultname ! FieldBundle name if not given
-
-      ! Initialize return code.  Assume routine not implemented.
-      status = ESMF_RC_NOT_IMPL
-      if (present(rc)) rc = ESMF_RC_NOT_IMPL
-
-       ! Initialize the base object
-      btype%base%this = ESMF_NULL_POINTER
-      call ESMF_BaseCreate(btype%base, "FieldBundle", name, 0, status)
-      if (ESMF_LogMsgFoundError(status, &
-                                  ESMF_ERR_PASSTHRU, &
-                                  ESMF_CONTEXT, rc)) return
-
-   
-      ! Initialize bundle contents.  An empty FieldBundle starts out with the
-      ! status flags uninitialized, and assumes all data is congruent.
-      ! As fields are added, the first non-compliant one turns the flag
-      ! to false, and after it is false, there is no way to set it back
-      ! to true.
-      btype%localbundle%gridstatus = ESMF_STATUS_UNINIT
-      btype%localbundle%arraystatus = ESMF_STATUS_UNINIT
-      btype%gridstatus = ESMF_STATUS_UNINIT
-      btype%isCongruent = .TRUE.
-   
-      btype%field_count = 0
-      btype%is_proxy = .false.
-      nullify(btype%flist)
-      
-      btype%pack_flag = ESMF_NO_PACKED_DATA
-!     nullify(btype%localbundle%packed_data)
-  
-
-      ! Set as created 
-      ESMF_INIT_SET_CREATED(btype)
-
-      if (present(rc)) rc = ESMF_SUCCESS
-
-      end subroutine ESMF_FieldBundleConstructEmpty
-
-
+!EOP
 !------------------------------------------------------------------------------
+    integer :: localrc                        ! local return code
+
+    ! Initialize return code
+    if (present(rc)) rc = ESMF_RC_NOT_IMPL
+    localrc = ESMF_RC_NOT_IMPL
+    
+    ! Check init status of arguments
+    ESMF_INIT_CHECK_DEEP_SHORT(ESMF_FieldBundleGetInit, fieldbundle, rc)
+    
+    ! Call into the C++ interface layer
+    !todo: call c_ESMC_FieldBundleValidate(fieldbundle, localrc)
+    localrc = ESMF_SUCCESS  ! remove when todo is done.
+    
+    ! Use LogErr to handle return code
+    if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+      ESMF_CONTEXT, rcToReturn=rc)) return
+      
+    ! return successfully
+    if (present(rc)) rc = ESMF_SUCCESS
+    
+  end subroutine ESMF_FieldBundleValidate
+!------------------------------------------------------------------------------
+
+
+! -------------------------- ESMF-public method -------------------------------
 #undef  ESMF_METHOD
-#define ESMF_METHOD "ESMF_FieldBundleDestruct"
-!BOPI
-! !IROUTINE: ESMF_FieldBundleDestruct - Free contents of a FieldBundle 
-!
+#define ESMF_METHOD "ESMF_FieldBundleWrite()"
+!BOP
+! !IROUTINE: ESMF_FieldBundleWrite - Write the Fields into a file
+! \label{api:FieldBundleWrite}
+
 ! !INTERFACE:
-      subroutine ESMF_FieldBundleDestruct(btype, rc)
+  subroutine ESMF_FieldBundleWrite(fieldbundle, file, &
+    keywordEnforcer, singleFile, timeslice, iofmt, rc)
 !
 ! !ARGUMENTS:
-      type(ESMF_FieldBundleType), pointer :: btype 
-      integer, intent(out), optional :: rc
-
+    type(ESMF_FieldBundle), intent(in)              :: fieldbundle
+    character(*),           intent(in)              :: file
+type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords for the below
+    logical,                intent(in),   optional  :: singleFile
+    integer,                intent(in),   optional  :: timeslice
+    type(ESMF_IOFmtFlag),   intent(in),   optional  :: iofmt
+    integer,                intent(out),  optional  :: rc  
 !
 ! !DESCRIPTION:
-!     Releases all resources except the {\tt ESMF\_FieldBundle} itself.
+!   Write the Fields into a file. For this API to be functional,
+!   the environment variable {\tt ESMF\_PIO} should be set to "internal"
+!   when the ESMF library is built. Please see the section on 
+!   Data I/O,~\ref{io:dataio}.
 !
-!     \begin{description}
-!     \item [btype]
-!           Pointer to an {\tt ESMF\_FieldBundle} object.
-!     \item [{[rc]}]
-!           Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
-!     \end{description}
+!   Limitations:
+!   \begin{itemize}
+!     \item Only 1 DE per PET supported.
+!     \item Not supported in {\tt ESMF\_COMM=mpiuni} mode.
+!   \end{itemize}
 !
-!EOPI
+!   The arguments are:
+!   \begin{description}
+!   \item[fieldbundle] 
+!     An {\tt ESMF\_FieldBundle} object.
+!   \item[file]
+!     The name of the output file to which field bundle data is written.
+!   \item[{[singleFile]}]
+!     A logical flag, the default is .true., i.e., all fields in the bundle 
+!     are written in one single file. If .false., each field will be written
+!     in separate files; these files are numbered with the name based on the
+!     argument "file". That is, a set of files are named: [file\_name]001,
+!     [file\_name]002, [file\_name]003,...
+!   \item[{[timeslice]}]
+!     Some IO formats (e.g. NetCDF) support the output of data in form of
+!     time slices. The {\tt timeslice} argument provides access to this
+!     capability. Usage of this feature requires that the first slice is
+!     written with a positive {\tt timeslice} value, and that subsequent slices
+!     are written with a {\tt timeslice} argument that increments by one each
+!     time. By default, i.e. by omitting the {\tt timeslice} argument, no
+!     provisions for time slicing are made in the output file.
+!   \item[{[iofmt]}]
+!     \begin{sloppypar}
+!     The IO format. Please see Section~\ref{opt:iofmtflag} for the list
+!     of options.  If not present, defaults to {\tt ESMF\_IOFMT\_NETCDF}.
+!     \end{sloppypar}
+!   \item[{[rc]}] 
+!     Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
+!   \end{description}
+!
+!EOP
+!------------------------------------------------------------------------------
+    integer                 :: localrc      ! local return code
+    character(len=80), allocatable :: Aname(:)
+    integer :: fieldCount,i,time
+    type(ESMF_Field), allocatable :: fieldList(:)
+    logical :: singlef
+    character(len=80) :: filename
+    character(len=3) :: cnum
+    type(ESMF_IOFmtFlag)        :: iofmtd
 
-      integer :: localrc, i
-      type(ESMF_Status) :: fieldbundlestatus
+#ifdef ESMF_PIO
+    ! initialize return code; assume routine not implemented
+    localrc = ESMF_RC_NOT_IMPL
+    if (present(rc)) rc = ESMF_RC_NOT_IMPL
 
-      ! Initialize return code; assume routine not implemented
-      localrc = ESMF_RC_NOT_IMPL
-      if (present(rc)) rc = ESMF_RC_NOT_IMPL
+    ! Check init status of arguments
+    ESMF_INIT_CHECK_DEEP_SHORT(ESMF_FieldBundleGetInit, fieldbundle, rc)
 
-      call ESMF_BaseGetStatus(btype%base, fieldbundlestatus, rc=localrc)
-      if (ESMF_LogMsgFoundError(localrc, &
-          ESMF_ERR_PASSTHRU, &
-          ESMF_CONTEXT, rc)) return
+    ! Check options
+    singlef = .true.
+    if (present(singleFile)) singlef = singleFile
+    iofmtd = ESMF_IOFMT_NETCDF   ! default format
+    if(present(iofmt)) iofmtd = iofmt
+    time = -1   ! default, no time dimension
+    if (present(timeslice)) time = timeslice
+    
+    call ESMF_FieldBundleGet(fieldbundle, fieldCount=fieldCount, rc=localrc)
+    if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+         ESMF_CONTEXT, rcToReturn=rc)) return
 
-      if (fieldbundlestatus .eq. ESMF_STATUS_READY) then
-        if (associated(btype%flist)) then
-          deallocate(btype%flist, stat=localrc)
-          if (ESMF_LogMsgFoundAllocError(localrc, "FieldBundle deallocate", &
-                                         ESMF_CONTEXT, rc)) return
+    allocate (Aname(fieldCount))
+    allocate (fieldList(fieldCount))
+    call ESMF_FieldBundleGet(fieldbundle, fieldList=fieldList, rc=localrc)
+    if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+         ESMF_CONTEXT, rcToReturn=rc)) return
 
-        endif
-      endif
+    if (singlef) then
+      ! Get and write the first field in the Bundle
+      call ESMF_FieldGet(fieldList(1), name=Aname(1), rc=localrc)
+      if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+         ESMF_CONTEXT, rcToReturn=rc)) return
+      call ESMF_FieldWrite(fieldList(1), file=file, timeslice=time, iofmt=iofmtd, rc=localrc)
+      if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+         ESMF_CONTEXT, rcToReturn=rc)) return
 
-      ! Set as deleted 
-      ESMF_INIT_SET_DELETED(btype)
+      ! Get and write the rest of the fields in the Bundle
+      do i=2,fieldCount
+       call ESMF_FieldGet(fieldList(i), name=Aname(i), rc=localrc)
+       if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+         ESMF_CONTEXT, rcToReturn=rc)) return
+       call ESMF_FieldWrite(fieldList(i), file=file, timeslice=time, &
+         append=.true., iofmt=iofmtd, rc=localrc)
+       if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+         ESMF_CONTEXT, rcToReturn=rc)) return
+      enddo
+    else
+      do i=1,fieldCount
+        write(cnum,"(i3.3)") i
+        filename = file // cnum
+        ! Get and write the first field in the Bundle
+        call ESMF_FieldGet(fieldList(i), name=Aname(i), rc=localrc)
+        if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+           ESMF_CONTEXT, rcToReturn=rc)) return
+        call ESMF_FieldWrite(fieldList(i), file=trim(filename),  &
+           timeslice=time, iofmt=iofmtd, rc=localrc)
+        if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+           ESMF_CONTEXT, rcToReturn=rc)) return
+      enddo
+    endif
 
-      if (present(rc)) rc = ESMF_SUCCESS
+    ! Return successfully
+    if (present(rc)) rc = ESMF_SUCCESS
 
-
-      end subroutine ESMF_FieldBundleDestruct
+#else
+    ! Return indicating PIO not present
+    if (present(rc)) rc = ESMF_RC_LIB_NOT_PRESENT
+#endif
+ 
+  end subroutine ESMF_FieldBundleWrite
+!------------------------------------------------------------------------------
 
 !------------------------------------------------------------------------------
 #undef  ESMF_METHOD
 #define ESMF_METHOD "ESMF_FieldBundleSerialize"
 
 !BOPI
-! !IROUTINE: ESMF_FieldBundleSerialize - Serialize bundle info into a byte stream
+! !IROUTINE: ESMF_FieldBundleSerialize - Serialize fieldbundle info into a byte stream
 !
 ! !INTERFACE:
-      subroutine ESMF_FieldBundleSerialize(bundle, buffer, length, offset, &
+    subroutine ESMF_FieldBundleSerialize(fieldbundle, buffer, length, offset, &
                                           attreconflag, inquireflag, rc) 
 !
 ! !ARGUMENTS:
-      type(ESMF_FieldBundle), intent(inout) :: bundle 
+      type(ESMF_FieldBundle), intent(inout) :: fieldbundle 
       character, pointer, dimension(:) :: buffer
       integer, intent(inout) :: length
       integer, intent(inout) :: offset
@@ -3047,7 +4912,7 @@ end function
 !
 !     The arguments are:
 !     \begin{description}
-!     \item [bundle]
+!     \item [fieldbundle]
 !           {\tt ESMF\_FieldBundle} object to be serialized.
 !     \item [buffer]
 !           Data buffer which will hold the serialized information.
@@ -3071,17 +4936,20 @@ end function
 !EOPI
 
       integer :: localrc                     ! Error status
-      integer :: i
-      type(ESMF_FieldBundleType), pointer :: bp   ! bundle type
+      integer :: i, fieldCount
+      type(ESMF_FieldBundleType), pointer :: bp   ! fieldbundle type
       type(ESMF_AttReconcileFlag) :: lattreconflag
       type(ESMF_InquireFlag) :: linquireflag
+      type(ESMF_Field), pointer :: l_fieldList(:)
 
       ! Initialize return code; assume routine not implemented
       if (present(rc)) rc = ESMF_RC_NOT_IMPL
       localrc = ESMF_RC_NOT_IMPL
 
       ! check inputs
-      ESMF_INIT_CHECK_DEEP(ESMF_FieldBundleGetInit,bundle,rc)      
+      ESMF_INIT_CHECK_DEEP(ESMF_FieldBundleGetInit,fieldbundle,rc)
+
+      nullify(l_fieldList)
 
       ! deal with optional attreconflag and inquireflag
       if (present(attreconflag)) then
@@ -3097,46 +4965,49 @@ end function
       end if
 
       ! shortcut to internals
-      bp => bundle%btypep
+      bp => fieldbundle%this
+
+      call ESMF_ContainerGet(bp%container, itemCount=fieldCount, &
+        itemList=l_fieldList, rc=localrc)
+      if (ESMF_LogFoundError(localrc, &
+        ESMF_ERR_PASSTHRU, &
+        ESMF_CONTEXT, rcToReturn=rc)) return
       
       call c_ESMC_BaseSerialize(bp%base, buffer, length, offset, &
                                  lattreconflag, linquireflag, localrc)
-      if (ESMF_LogMsgFoundError(localrc, &
-                                 ESMF_ERR_PASSTHRU, &
-                                 ESMF_CONTEXT, rc)) return
+      if (ESMF_LogFoundError(localrc, &
+         ESMF_ERR_PASSTHRU, &
+         ESMF_CONTEXT, rcToReturn=rc)) return
 
-      call c_ESMC_FieldBundleSerialize(bp%gridstatus, &
-                                 bp%iostatus, &
-                                 bp%field_count, bp%pack_flag, &
-                                 bp%isCongruent, bp%hasPattern, &
+      call c_ESMC_FieldBundleSerialize(bp%status, fieldCount, &
                                  buffer, length, offset, linquireflag, localrc)
-      if (ESMF_LogMsgFoundError(localrc, &
-                                 ESMF_ERR_PASSTHRU, &
-                                 ESMF_CONTEXT, rc)) return
+      if (ESMF_LogFoundError(localrc, &
+        ESMF_ERR_PASSTHRU, &
+        ESMF_CONTEXT, rcToReturn=rc)) return
 
-      if (bp%gridstatus .eq. ESMF_STATUS_READY) then
-          call ESMF_GeomBaseSerialize(bp%geombase, buffer, length, offset, &
-                                  attreconflag=lattreconflag, &
-                                  inquireflag=linquireflag, rc=localrc)
-          if (ESMF_LogMsgFoundError(localrc, &
-                                     ESMF_ERR_PASSTHRU, &
-                                     ESMF_CONTEXT, rc)) return
-
+      if(bp%status == ESMF_FBSTATUS_GRIDSET) then
+        call ESMF_GeomBaseSerialize(bp%geombase, buffer, length, offset, &
+                                 lattreconflag, linquireflag, localrc)
+        if (ESMF_LogFoundError(localrc, &
+          ESMF_ERR_PASSTHRU, &
+          ESMF_CONTEXT, rcToReturn=rc)) return
       endif
 
       ! TODO: decide if these need to be sent before or after
-      do i = 1, bp%field_count
-          call ESMF_FieldSerialize(bp%flist(i), buffer, length, offset, &
+      do i = 1, fieldCount
+          call ESMF_FieldSerialize(l_fieldList(i), buffer, length, offset, &
                                   attreconflag=lattreconflag, &
                                   inquireflag=linquireflag, rc=localrc)
-          if (ESMF_LogMsgFoundError(localrc, &
-                                    ESMF_ERR_PASSTHRU, &
-                                    ESMF_CONTEXT, rc)) return
+          if (ESMF_LogFoundError(localrc, &
+             ESMF_ERR_PASSTHRU, &
+             ESMF_CONTEXT, rcToReturn=rc)) return
       enddo
+
+      deallocate(l_fieldList)
 
       if  (present(rc)) rc = ESMF_SUCCESS
 
-      end subroutine ESMF_FieldBundleSerialize
+    end subroutine ESMF_FieldBundleSerialize
 
 !------------------------------------------------------------------------------
 #undef  ESMF_METHOD
@@ -3146,7 +5017,7 @@ end function
 ! !IROUTINE: ESMF_FieldBundleDeserialize - Deserialize a byte stream into a FieldBundle
 !
 ! !INTERFACE:
-      function ESMF_FieldBundleDeserialize(buffer, offset, &
+    function ESMF_FieldBundleDeserialize(buffer, offset, &
                                           attreconflag, rc) 
 !
 ! !RETURN VALUE:
@@ -3182,16 +5053,20 @@ end function
 !EOPI
 
       integer :: localrc, status             ! Error status, allocation status
-      integer :: i
-      type(ESMF_FieldBundleType), pointer :: bp   ! bundle type
+      integer :: i, fieldCount
+      type(ESMF_FieldBundleType), pointer :: bp   ! fieldbundle type
       type(ESMF_AttReconcileFlag) :: lattreconflag
       type(ESMF_Grid) :: grid
-      type(ESMF_GeomType) :: geomtype
+      type(ESMF_GeomType_Flag) :: geomtype
+      type(ESMF_Logical) :: linkChange
+      type(ESMF_Field), pointer :: flist(:)
 
       ! Initialize return code; assume routine not implemented
       if (present(rc)) rc = ESMF_RC_NOT_IMPL
       localrc = ESMF_RC_NOT_IMPL
       status = ESMF_RC_NOT_IMPL
+
+      nullify(flist)
 
       ! deal with optional attreconflag
       if (present(attreconflag)) then
@@ -3199,435 +5074,396 @@ end function
       else
         lattreconflag = ESMF_ATTRECONCILE_OFF
       endif
+      ! linkChange flag true for all but Components
+      linkChange = ESMF_TRUE;
 
       ! in case of error, make sure this is invalid.
-      nullify(ESMF_FieldBundleDeserialize%btypep)
+      nullify(bp)
+      nullify(ESMF_FieldBundleDeserialize%this)
 
       ! shortcut to internals
       allocate(bp, stat=status)
-      if (ESMF_LogMsgFoundAllocError(status, &
-                                     "space for new FieldBundle object", &
-                                     ESMF_CONTEXT, rc)) return
-
+      if (ESMF_LogFoundAllocError(status, &
+        msg="space for new FieldBundle object", &
+        ESMF_CONTEXT, rcToReturn=rc)) return
 
       ! Deserialize Base
       call c_ESMC_BaseDeserialize(bp%base, buffer(1), offset, lattreconflag, localrc)
-      if (ESMF_LogMsgFoundError(localrc, &
-                                 ESMF_ERR_PASSTHRU, &
-                                 ESMF_CONTEXT, rc)) return
+      if (ESMF_LogFoundError(localrc, &
+        ESMF_ERR_PASSTHRU, &
+        ESMF_CONTEXT, rcToReturn=rc)) return
 
       call ESMF_BaseSetInitCreated(bp%base, rc=localrc)
-      if (ESMF_LogMsgFoundError(localrc, &
-                                 ESMF_ERR_PASSTHRU, &
-                                 ESMF_CONTEXT, rc)) return
+      if (ESMF_LogFoundError(localrc, &
+        ESMF_ERR_PASSTHRU, &
+        ESMF_CONTEXT, rcToReturn=rc)) return
 
       ! Deserialize other FieldBundle members
       
-      call c_ESMC_FieldBundleDeserialize(bp%gridstatus, &
-                                 bp%iostatus, &
-                                 bp%field_count, bp%pack_flag, &
-                                 bp%isCongruent, bp%hasPattern, &
+      call c_ESMC_FieldBundleDeserialize(bp%status, fieldCount, &
                                  buffer(1), offset, localrc)
-      if (ESMF_LogMsgFoundError(localrc, &
-                                 ESMF_ERR_PASSTHRU, &
-                                 ESMF_CONTEXT, rc)) return
+      if (ESMF_LogFoundError(localrc, &
+        ESMF_ERR_PASSTHRU, &
+        ESMF_CONTEXT, rcToReturn=rc)) return
 
-      if (bp%gridstatus .eq. ESMF_STATUS_READY) then
-          bp%geombase = ESMF_GeomBaseDeserialize(buffer, offset, &
-                                      attreconflag=lattreconflag, rc=localrc)
-          if (ESMF_LogMsgFoundError(localrc, &
-                                     ESMF_ERR_PASSTHRU, &
-                                     ESMF_CONTEXT, rc)) return
-
-          !  here we relink the FieldBundle Attribute hierarchies to the
-          !  Grid Attribute hierarchy, as they were before
-          if (lattreconflag%value == ESMF_ATTRECONCILE_ON%value) then
-	    call ESMF_GeomBaseGet(bp%geombase,geomtype=geomtype,rc=localrc)            
-            if (ESMF_LogMsgFoundError(localrc, &
-                                      ESMF_ERR_PASSTHRU, &
-                                      ESMF_CONTEXT, rc)) return
-
-            if (geomtype .eq. ESMF_GEOMTYPE_GRID) then
-       	       call ESMF_GeomBaseGet(bp%geombase,grid=grid,rc=localrc)            
-               if (ESMF_LogMsgFoundError(localrc, &
-                                         ESMF_ERR_PASSTHRU, &
-                                         ESMF_CONTEXT, rc)) return
-
-               call c_ESMC_AttributeLink(bp%base, grid, localrc)
-               if (ESMF_LogMsgFoundError(localrc, &
-                                    ESMF_ERR_PASSTHRU, &
-                                    ESMF_CONTEXT, rc)) return
-	    endif
-         endif
+      if(bp%status == ESMF_FBSTATUS_GRIDSET) then
+        bp%geombase = ESMF_GeomBaseDeserialize(buffer, offset, &
+          attreconflag=attreconflag, rc=localrc)
+        if (ESMF_LogFoundError(localrc, &
+          ESMF_ERR_PASSTHRU, &
+          ESMF_CONTEXT, rcToReturn=rc)) return
+        !  link the Attribute hierarchies
+        call ESMF_GeomBaseGet(bp%geombase, geomtype=geomtype, rc=localrc)
+        if (ESMF_LogFoundError(localrc, &
+          ESMF_ERR_PASSTHRU, &
+          ESMF_CONTEXT, rcToReturn=rc)) return
+        if(geomtype == ESMF_GEOMTYPE_GRID) then
+          call ESMF_GeomBaseGet(bp%geombase, grid=grid, rc=localrc)
+          if (ESMF_LogFoundError(localrc, &
+            ESMF_ERR_PASSTHRU, &
+            ESMF_CONTEXT, rcToReturn=rc)) return
+          linkChange = ESMF_TRUE
+          call c_ESMC_AttributeLink(bp%base, grid, linkChange, status)
+          if (ESMF_LogFoundError(status, ESMF_ERR_PASSTHRU, &
+                        ESMF_CONTEXT, rcToReturn=rc))  return
+        endif
       endif
 
       ! TODO: decide if these need to be sent before or after
-      allocate(bp%flist(bp%field_count), stat=localrc)
-      if (ESMF_LogMsgFoundAllocError(localrc, &
-                                     "Field list", &
-                                     ESMF_CONTEXT, rc)) return
+      allocate(flist(fieldCount), stat=localrc)
+      if (ESMF_LogFoundAllocError(localrc, &
+        msg = " - Field list", &
+        ESMF_CONTEXT, rcToReturn=rc)) return
 
-      do i = 1, bp%field_count
-          bp%flist(i) = ESMF_FieldDeserialize(buffer, offset, &
-                                      attreconflag=lattreconflag, rc=localrc)
-          if (ESMF_LogMsgFoundError(localrc, &
-                                    ESMF_ERR_PASSTHRU, &
-                                    ESMF_CONTEXT, rc)) then
-              deallocate(bp%flist)
-              return
-          endif
-          !  here we relink the Field Attribute hierarchies to the FieldBundle
-          !  Attribute hierarchies, as they were before
-          if (lattreconflag%value == ESMF_ATTRECONCILE_ON%value) then
-            call c_ESMC_AttributeLink(bp%base, bp%flist(i)%ftypep%base, localrc)
-            if (ESMF_LogMsgFoundError(localrc, &
-                                    ESMF_ERR_PASSTHRU, &
-                                    ESMF_CONTEXT, rc)) then
-              deallocate(bp%flist)
-              return
-            endif
-          endif
+      do i = 1, fieldCount
+        flist(i) = ESMF_FieldDeserialize(buffer, offset, &
+                                    attreconflag=lattreconflag, rc=localrc)
+        if (ESMF_LogFoundError(localrc, &
+          ESMF_ERR_PASSTHRU, &
+          ESMF_CONTEXT, rcToReturn=rc)) then
+          deallocate(flist)
+          return
+        endif
       enddo
+
+      bp%container = ESMF_ContainerCreate(rc=localrc)
+      if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+        ESMF_CONTEXT, rcToReturn=rc)) return
 
       bp%is_proxy = .true.
 
-      ESMF_FieldBundleDeserialize%btypep => bp
+      ESMF_FieldBundleDeserialize%this => bp
 
       ! Add reference to this object into ESMF garbage collection table
+      ! Only call this in those Create() methods that call Construct()
       call c_ESMC_VMAddFObject(ESMF_FieldBundleDeserialize, &
         ESMF_ID_FIELDBUNDLE%objectID)
-      
+
       ! Set as created
       ESMF_INIT_SET_CREATED(ESMF_FieldBundleDeserialize)
 
-      if  (present(rc)) rc = ESMF_SUCCESS
+      call ESMF_FieldBundleAdd(ESMF_FieldBundleDeserialize, flist, multiflag=.true., rc=localrc)
+      if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+        ESMF_CONTEXT, rcToReturn=rc)) return
 
-      end function ESMF_FieldBundleDeserialize
+      deallocate(flist)
 
-!------------------------------------------------------------------------------
+      if (present(rc)) rc = ESMF_SUCCESS
+
+    end function ESMF_FieldBundleDeserialize
+
+! -------------------------- ESMF-internal method -----------------------------
 #undef  ESMF_METHOD
-#define ESMF_METHOD "ESMF_FieldBundleCongDataGetInit"
+#define ESMF_METHOD "ESMF_FieldBundleSetGeom()"
 !BOPI
-! !IROUTINE:  ESMF_FieldBundleCongDataGetInit - Get initialization status.
-
+! !IROUTINE: ESMF_FieldBundleSetGeom - Set a GeomBase in FieldBundle
+!
 ! !INTERFACE:
-    function ESMF_FieldBundleCongDataGetInit(s)
+  subroutine ESMF_FieldBundleSetGeom(fieldbundle, field, rc)
 !
 ! !ARGUMENTS:
-       type(ESMF_FieldBundleCongrntData), intent(in), optional :: s
-       ESMF_INIT_TYPE :: ESMF_FieldBundleCongDataGetInit
+    type(ESMF_FieldBundle), intent(inout)             :: fieldbundle
+    type(ESMF_Field), intent(in)                      :: field
+    integer, intent(out), optional                    :: rc 
 !
 ! !DESCRIPTION:
-!      Get the initialization status of the shallow class {\tt bundlecongruentdata}.
+!      Set a geombase in FieldBundle, if the geombase is a Grid, attribute
+!     linking is done inside FieldBundleSetGrid.
 !
 !     The arguments are:
 !     \begin{description}
-!     \item [s]
-!           {\tt ESMF\_ESMF_FieldBundleCongrntData} from which to retreive status.
-!     \end{description}
-!
-!EOPI
-
-       if (present(s)) then
-         ESMF_FieldBundleCongDataGetInit = ESMF_INIT_GET(s)
-       else
-         ESMF_FieldBundleCongDataGetInit = ESMF_INIT_DEFINED
-       endif
-
-    end function ESMF_FieldBundleCongDataGetInit
-
-!------------------------------------------------------------------------------
-#undef  ESMF_METHOD
-#define ESMF_METHOD "ESMF_FieldBundleCongrntDataInit"
-!BOPI
-! !IROUTINE:  ESMF_FieldBundleCongrntDataInit - Initialize FieldBundleCongruentData
-
-! !INTERFACE:
-    subroutine ESMF_FieldBundleCongrntDataInit(s)
-!
-! !ARGUMENTS:
-       type(ESMF_FieldBundleCongrntData) :: s
-!
-! !DESCRIPTION:
-!      Initialize the shallow class {\tt bundlecongruentdata}.
-!
-!     The arguments are:
-!     \begin{description}
-!     \item [s]
-!           {\tt ESMF\_FieldBundleCongruentData} of which being initialized.
-!     \end{description}
-!
-!EOPI
-
-       ESMF_INIT_SET_DEFINED(s)
-    end subroutine ESMF_FieldBundleCongrntDataInit
-
-!------------------------------------------------------------------------------
-#undef  ESMF_METHOD
-#define ESMF_METHOD "ESMF_FieldBundleCongDataVdate"
-!BOPI
-! !IROUTINE:  ESMF_FieldBundleCongDataVdate - Check validity of a FieldBundleCongruentData
-
-! !INTERFACE:
-    subroutine ESMF_FieldBundleCongDataVdate(s,rc)
-!
-! !ARGUMENTS:
-       type(ESMF_FieldBundleCongrntData), intent(inout) :: s
-       integer, intent(out), optional :: rc
-!
-! !DESCRIPTION:
-!      Validates that the {\tt FieldBundleCongruentData} is internally consistent.
-!
-!     The arguments are:
-!     \begin{description}
-!     \item [s]
-!           {\tt ESMF\_FieldBundleCongruentData} to validate.
+!     \item [fieldbundle]
+!           fieldbundle object.
+!     \item [field]
+!           field object.
 !     \item [{[rc]}]
-!           Return code; equals {\tt ESMF\_SUCCESS} if the {\tt localfield}
-!           is valid.
-!     \end{description}
-!
-!EOPI
-      ! Initialize return code; assume routine not implemented
-      if (present(rc)) rc = ESMF_RC_NOT_IMPL
-
-     ESMF_INIT_CHECK_SHALLOW(ESMF_FieldBundleCongDataGetInit, ESMF_FieldBundleCongrntDataInit,s)
-
-     ! return success
-     if(present(rc)) then
-       rc = ESMF_SUCCESS
-     endif 
-    end subroutine ESMF_FieldBundleCongDataVdate
-
-
-!------------------------------------------------------------------------------
-#undef  ESMF_METHOD
-#define ESMF_METHOD "ESMF_LocalFieldBundleGetInit"
-!BOPI
-! !IROUTINE:  ESMF_LocalFieldBundleGetInit - Get initialization status.
-
-! !INTERFACE:
-    function ESMF_LocalFieldBundleGetInit(s)
-!
-! !ARGUMENTS:
-       type(ESMF_LocalFieldBundle), intent(in), optional :: s
-       ESMF_INIT_TYPE :: ESMF_LocalFieldBundleGetInit
-!
-! !DESCRIPTION:
-!      Get the initialization status of the shallow class {\tt localbundle}.
-!
-!     The arguments are:
-!     \begin{description}
-!     \item [s]
-!           {\tt ESMF\_LocalFieldBundle} from which to retreive status.
+!           Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
 !     \end{description}
 !
 !EOPI
 
-       if (present(s)) then
-         ESMF_LocalFieldBundleGetInit = ESMF_INIT_GET(s)
-       else
-         ESMF_LocalFieldBundleGetInit = ESMF_INIT_DEFINED
-       endif
+    integer                                           :: localrc
+    type(ESMF_GeomType_Flag)                               :: geomtype
+    type(ESMF_Grid)                                   :: grid
+    type(ESMF_XGrid)                                  :: xgrid
+    type(ESMF_Mesh)                                   :: mesh
+    type(ESMF_LocStream)                              :: locstream
+    type(ESMF_FieldStatus_Flag)                            :: fstatus
 
-    end function ESMF_LocalFieldBundleGetInit
+    localrc = ESMF_RC_NOT_IMPL
+    if(present(rc)) rc = ESMF_RC_NOT_IMPL
 
-!------------------------------------------------------------------------------
+    ! check input arguments
+    ESMF_INIT_CHECK_DEEP(ESMF_FieldBundleGetInit,fieldbundle,rc)
+    ESMF_INIT_CHECK_DEEP(ESMF_FieldGetInit,field, rc)
+
+    ! Don't do anything if fieldbundle already has a geombase
+    ! TODO: we'll check matchness here in the future between field%geombase
+    ! and fieldbundle%geombase
+    if(fieldbundle%this%status == ESMF_FBSTATUS_GRIDSET) then
+      if(present(rc)) rc = ESMF_SUCCESS
+      return
+    endif
+
+    call ESMF_FieldGet(field, status=fstatus, rc=localrc)
+    if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+      ESMF_CONTEXT, rcToReturn=rc))  return
+
+    if(fstatus == ESMF_FIELDSTATUS_GRIDSET .or. &
+       fstatus == ESMF_FIELDSTATUS_COMPLETE) then
+      call ESMF_FieldGet(field, geomtype=geomtype, rc=localrc)
+      if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+        ESMF_CONTEXT, rcToReturn=rc))  return
+      if(geomtype == ESMF_GEOMTYPE_GRID) then
+        call ESMF_FieldGet(field, grid=grid, rc=localrc)  
+        if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+          ESMF_CONTEXT, rcToReturn=rc))  return
+        ! this call takes care of attribute linking of Grid
+        call ESMF_FieldBundleSet(fieldbundle, grid, rc=localrc)
+        if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+          ESMF_CONTEXT, rcToReturn=rc))  return
+      else if(geomtype == ESMF_GEOMTYPE_XGRID) then
+        call ESMF_FieldGet(field, xgrid=xgrid, rc=localrc)
+        if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+          ESMF_CONTEXT, rcToReturn=rc))  return
+        call ESMF_FieldBundleSet(fieldbundle, xgrid, rc=localrc)
+        if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+          ESMF_CONTEXT, rcToReturn=rc))  return
+      else if(geomtype == ESMF_GEOMTYPE_MESH) then
+        call ESMF_FieldGet(field, mesh=mesh, rc=localrc)
+        if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+          ESMF_CONTEXT, rcToReturn=rc))  return
+        call ESMF_FieldBundleSet(fieldbundle, mesh, rc=localrc)
+        if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+          ESMF_CONTEXT, rcToReturn=rc))  return
+      else if(geomtype == ESMF_GEOMTYPE_LOCSTREAM) then
+        call ESMF_FieldGet(field, locstream=locstream, rc=localrc)
+        if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+          ESMF_CONTEXT, rcToReturn=rc))  return
+        call ESMF_FieldBundleSet(fieldbundle, locstream, rc=localrc)
+        if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+          ESMF_CONTEXT, rcToReturn=rc))  return
+      endif
+      fieldbundle%this%status = ESMF_FBSTATUS_GRIDSET
+    endif
+
+    if(present(rc)) rc = ESMF_SUCCESS
+
+  end subroutine ESMF_FieldBundleSetGeom
+
+! -----------------------------------------------------------------------------
+
+
+! -------------------------- ESMF-internal method -----------------------------
 #undef  ESMF_METHOD
-#define ESMF_METHOD "ESMF_LocalFieldBundleInit"
+#define ESMF_METHOD "ESMF_FieldBundleRemoveGeom()"
 !BOPI
-! !IROUTINE:  ESMF_LocalFieldBundleInit - Initialize LocalFieldBundle
-
+! !IROUTINE: ESMF_FieldBundleRemoveGeom - Remove the GeomBase in FieldBundle
+!
 ! !INTERFACE:
-    subroutine ESMF_LocalFieldBundleInit(s)
+  subroutine ESMF_FieldBundleRemoveGeom(fieldbundle, rc)
 !
 ! !ARGUMENTS:
-       type(ESMF_LocalFieldBundle) :: s
+    type(ESMF_FieldBundle), intent(inout)             :: fieldbundle
+    integer, intent(out), optional                    :: rc 
 !
 ! !DESCRIPTION:
-!      Initialize the shallow class {\tt localbundle}.
+!      Remove the geombase in FieldBundle, if the geombase is a Grid, attribute
+!     linking is removed as well. Called when the fieldbundle is emptied.
 !
 !     The arguments are:
 !     \begin{description}
-!     \item [s]
-!           {\tt ESMF\_LocalFieldBundle} of which being initialized.
-!     \end{description}
-!
-!EOPI
-
-       ESMF_INIT_SET_DEFINED(s)
-    end subroutine ESMF_LocalFieldBundleInit
-
-!------------------------------------------------------------------------------
-#undef  ESMF_METHOD
-#define ESMF_METHOD "ESMF_LocalFieldBundleValidate"
-!BOPI
-! !IROUTINE:  ESMF_LocalFieldBundleValidate - Check validity of a LocalFieldBundle
-
-! !INTERFACE:
-    subroutine ESMF_LocalFieldBundleValidate(s,rc)
-!
-! !ARGUMENTS:
-       type(ESMF_LocalFieldBundle), intent(inout) :: s
-       integer, intent(out), optional :: rc
-!
-! !DESCRIPTION:
-!      Validates that the {\tt LocalFieldBundle} is internally consistent.
-!
-!     The arguments are:
-!     \begin{description}
-!     \item [s]
-!           {\tt ESMF\_LocalFieldBundle} to validate.
+!     \item [fieldbundle]
+!           fieldbundle object.
 !     \item [{[rc]}]
-!           Return code; equals {\tt ESMF\_SUCCESS} if the {\tt localfield}
-!           is valid.
-!     \end{description}
-!
-!EOPI
-      ! Initialize return code; assume routine not implemented
-      if (present(rc)) rc = ESMF_RC_NOT_IMPL
-
-     ESMF_INIT_CHECK_SHALLOW(ESMF_LocalFieldBundleGetInit,ESMF_LocalFieldBundleInit,s)
-
-     ! return success
-     if(present(rc)) then
-       rc = ESMF_SUCCESS
-     endif
-    end subroutine ESMF_LocalFieldBundleValidate
-
-
-!------------------------------------------------------------------------------
-#undef  ESMF_METHOD
-#define ESMF_METHOD "ESMF_FieldBundleTypeGetInit"
-!BOPI
-! !IROUTINE:  ESMF_FieldBundleTypeGetInit - Get initialization status.
-
-! !INTERFACE:
-    function ESMF_FieldBundleTypeGetInit(s)
-!
-! !ARGUMENTS:
-       type(ESMF_FieldBundleType), intent(in), optional :: s
-       ESMF_INIT_TYPE :: ESMF_FieldBundleTypeGetInit
-!
-! !DESCRIPTION:
-!      Get the initialization status of the shallow class {\tt bundletype}.
-!
-!     The arguments are:
-!     \begin{description}
-!     \item [s]
-!           {\tt ESMF\_FieldBundleType} from which to retreive status.
+!           Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
 !     \end{description}
 !
 !EOPI
 
-       if (present(s)) then
-         ESMF_FieldBundleTypeGetInit = ESMF_INIT_GET(s)
-       else
-         ESMF_FieldBundleTypeGetInit = ESMF_INIT_DEFINED
-       endif
+    integer                                           :: localrc
+    type(ESMF_GeomType_Flag)                               :: geomtype
+    type(ESMF_Grid)                                   :: grid
+    type(ESMF_Logical)                                :: linkChange
 
-    end function ESMF_FieldBundleTypeGetInit
+    localrc = ESMF_RC_NOT_IMPL
+    if(present(rc)) rc = ESMF_RC_NOT_IMPL
 
-!------------------------------------------------------------------------------
+    ! check input arguments
+    ESMF_INIT_CHECK_DEEP(ESMF_FieldBundleGetInit,fieldbundle,rc)
+
+    ! should never call this method when it's not GRIDSET
+    if(fieldbundle%this%status /= ESMF_FBSTATUS_GRIDSET) then
+      call ESMF_LogSetError(rcToCheck=ESMF_RC_OBJ_BAD, &
+        msg = " - cannot remove a gemobase from a fieldbundle that is empty", &
+        ESMF_CONTEXT, rcToReturn=rc)
+      return
+    endif
+
+    call ESMF_GeomBaseGet(fieldbundle%this%geombase, geomtype=geomtype, rc=localrc)
+    if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+      ESMF_CONTEXT, rcToReturn=rc))  return
+    if(geomtype == ESMF_GEOMTYPE_GRID) then
+      call ESMF_GeombaseGet(fieldbundle%this%geombase, grid=grid, rc=localrc)  
+      if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+        ESMF_CONTEXT, rcToReturn=rc))  return
+
+      linkChange = ESMF_TRUE
+      call c_ESMC_AttributeLinkRemove(fieldbundle%this%base, grid, linkChange, localrc)
+      if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+                    ESMF_CONTEXT, rcToReturn=rc))  return
+    endif
+    call ESMF_GeomBaseDestroy(fieldbundle%this%geombase, rc=localrc)
+    if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+      ESMF_CONTEXT, rcToReturn=rc))  return
+
+    fieldbundle%this%status = ESMF_FBSTATUS_EMPTY
+
+    if(present(rc)) rc = ESMF_SUCCESS
+
+  end subroutine ESMF_FieldBundleRemoveGeom
+! -----------------------------------------------------------------------------
+
+! -------------------------- ESMF-internal method -----------------------------
 #undef  ESMF_METHOD
-#define ESMF_METHOD "ESMF_FieldBundleTypeInit"
+#define ESMF_METHOD "ESMF_FieldBundleToAB()"
 !BOPI
-! !IROUTINE:  ESMF_FieldBundleTypeInit - Initialize FieldBundleType
-
+! !IROUTINE: ESMF_FieldBundleToAB - Create an ArrayBundle from a FieldBundle
+!
 ! !INTERFACE:
-    subroutine ESMF_FieldBundleTypeInit(s)
+  function ESMF_FieldBundleToAB(fieldbundle, rc)
+
+!
+! !RETURN VALUE:
+    type(ESMF_ArrayBundle)                    :: ESMF_FieldBundleToAB
+
 !
 ! !ARGUMENTS:
-       type(ESMF_FieldBundleType) :: s
+    type(ESMF_FieldBundle), intent(in)        :: fieldbundle
+    integer, intent(out), optional            :: rc
 !
 ! !DESCRIPTION:
-!      Initialize the shallow class {\tt bundletype}.
+!      Create an ArrayBundle from a FieldBundle.
 !
 !     The arguments are:
 !     \begin{description}
-!     \item [s]
-!           {\tt ESMF\_FieldBundleType} of which being initialized.
-!     \end{description}
-!
-!EOPI
-
-        nullify(s%flist)
-
-        ESMF_INIT_SET_DEFINED(s)
-    end subroutine ESMF_FieldBundleTypeInit
-
-!------------------------------------------------------------------------------
-#undef  ESMF_METHOD
-#define ESMF_METHOD "ESMF_FieldBundleTypeValidate"
-!BOPI
-! !IROUTINE:  ESMF_FieldBundleTypeValidate - Check validity of a FieldBundleType
-
-! !INTERFACE:
-    subroutine ESMF_FieldBundleTypeValidate(s,rc)
-!
-! !ARGUMENTS:
-       type(ESMF_FieldBundleType), intent(inout) :: s
-       integer, intent(out), optional :: rc
-!
-! !DESCRIPTION:
-!      Validates that the {\tt FieldBundleType} is internally consistent.
-!
-!     The arguments are:
-!     \begin{description}
-!     \item [s]
-!           {\tt ESMF\_FieldBundleType} to validate.
+!     \item [fieldbundle]
+!           fieldbundle object.
 !     \item [{[rc]}]
-!           Return code; equals {\tt ESMF\_SUCCESS} if the {\tt localfield}
-!           is valid.
+!           Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
 !     \end{description}
 !
 !EOPI
-      ! Initialize return code; assume routine not implemented
-      if (present(rc)) rc = ESMF_RC_NOT_IMPL
 
+    integer                                   :: fcount, i, localrc
+    type(ESMF_Field), pointer                 :: flist(:)
+    type(ESMF_Array), pointer                 :: alist(:)
 
-     ESMF_INIT_CHECK_SHALLOW(ESMF_FieldBundleTypeGetInit,ESMF_FieldBundleTypeInit,s)
+    localrc = ESMF_RC_NOT_IMPL
+    if(present(rc)) rc = ESMF_RC_NOT_IMPL
 
-     ! return success
-     if(present(rc)) then
-       rc = ESMF_SUCCESS
-     endif
-    end subroutine ESMF_FieldBundleTypeValidate
+    ESMF_INIT_CHECK_DEEP_SHORT(ESMF_FieldBundleGetInit, fieldbundle, rc)
 
-!------------------------------------------------------------------------------
+    call ESMF_FieldBundleGet(fieldbundle, fieldCount=fcount, rc=localrc) 
+    if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+      ESMF_CONTEXT, rcToReturn=rc))  return
+
+    allocate(flist(fcount), stat=localrc)
+    if (ESMF_LogFoundAllocError(localrc, msg= "allocating flist", &
+      ESMF_CONTEXT, rcToReturn=rc)) return ! bail out
+
+    call ESMF_FieldBundleGet(fieldbundle, fieldList=flist, rc=localrc)
+    if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+        ESMF_CONTEXT, rcToReturn=rc)) return
+
+    allocate(alist(fcount), stat=localrc)
+    if (ESMF_LogFoundAllocError(localrc, msg= "allocating alist", &
+      ESMF_CONTEXT, rcToReturn=rc)) return ! bail out
+
+    do i = 1, fcount
+        call ESMF_FieldGet(flist(i), array=alist(i), rc=localrc)
+        if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+            ESMF_CONTEXT, rcToReturn=rc)) return
+    enddo
+
+    ESMF_FieldBundleToAB = ESMF_ArrayBundleCreate(arrayList=alist, rc=localrc)
+    if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+        ESMF_CONTEXT, rcToReturn=rc)) return
+
+    deallocate(alist, flist)
+
+    if(present(rc)) rc = ESMF_SUCCESS
+
+  end function ESMF_FieldBundleToAB
+! -----------------------------------------------------------------------------
+
+! -------------------------- ESMF-internal method -----------------------------
 #undef  ESMF_METHOD
-#define ESMF_METHOD "ESMF_FieldBundleGetInit"
+#define ESMF_METHOD "ESMF_FieldBundleGetInit()"
 !BOPI
-! !IROUTINE:  ESMF_FieldBundleGetInit - Get initialization status.
-
+! !IROUTINE: ESMF_FieldBundleGetInit - Internal access routine for init code
+!
 ! !INTERFACE:
-    function ESMF_FieldBundleGetInit(d)
+      function ESMF_FieldBundleGetInit(fieldbundle) 
+!
+! !RETURN VALUE:
+      ESMF_INIT_TYPE :: ESMF_FieldBundleGetInit   
 !
 ! !ARGUMENTS:
-       type(ESMF_FieldBundle), intent(in), optional :: d
-       ESMF_INIT_TYPE :: ESMF_FieldBundleGetInit
+      type(ESMF_FieldBundle), intent(in), optional :: fieldbundle
 !
 ! !DESCRIPTION:
-!      Get the initialization status of the Deep class {\tt bundle}.
+!      Access deep object init code.
 !
 !     The arguments are:
 !     \begin{description}
-!     \item [s]
-!           {\tt ESMF\_FieldBundle} from which to retreive status.
+!     \item [fieldbundle]
+!           fieldbundle object.
 !     \end{description}
 !
 !EOPI
 
-       if (present(d)) then
-         ESMF_FieldBundleGetInit = ESMF_INIT_GET(d)
-       else
-         ESMF_FieldBundleGetInit = ESMF_INIT_CREATED
-       endif
+    if (present(fieldbundle)) then
+      ESMF_FieldBundleGetInit = ESMF_INIT_GET(fieldbundle)
+    else
+      ESMF_FieldBundleGetInit = ESMF_INIT_CREATED
+    endif
 
     end function ESMF_FieldBundleGetInit
-
-
 !------------------------------------------------------------------------------
 
+function ESMF_FieldBundleStatusEQ(sf1, sf2)
+ logical ESMF_FieldBundleStatusEQ
+ type(ESMF_FieldBundleStatus), intent(in) :: sf1, sf2
 
-      end module ESMF_FieldBundleMod
+ ESMF_FieldBundleStatusEQ = (sf1%status == sf2%status)
+end function
+
+function ESMF_FieldBundleStatusNE(sf1, sf2)
+ logical ESMF_FieldBundleStatusNE
+ type(ESMF_FieldBundleStatus), intent(in) :: sf1, sf2
+
+ ESMF_FieldBundleStatusNE = (sf1%status /= sf2%status)
+end function
+
+end module ESMF_FieldBundleMod

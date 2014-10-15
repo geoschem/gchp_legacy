@@ -1,7 +1,7 @@
-// $Id: ESMC_ComponentUTest.C,v 1.11.2.1 2010/02/05 20:04:28 svasquez Exp $
+// $Id$
 //
 // Earth System Modeling Framework
-// Copyright 2002-2010, University Corporation for Atmospheric Research, 
+// Copyright 2002-2012, University Corporation for Atmospheric Research, 
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
 // Laboratory, University of Michigan, National Centers for Environmental 
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
@@ -83,11 +83,11 @@ void myFinalInC(ESMC_GridComp gcomp, ESMC_State importState,
 void myRegistrationInC(ESMC_GridComp gcomp, int *rc){
   // register Init(), Run(), Finalize()
   printf("I am in myRegistrationInC()\n");
-  ESMC_GridCompPrint(gcomp, "");
+  ESMC_GridCompPrint(gcomp);
   
-  ESMC_GridCompSetEntryPoint(gcomp, ESMF_SETINIT, myInitInC, 1);
-  ESMC_GridCompSetEntryPoint(gcomp, ESMF_SETRUN, myRunInC, 1);
-  ESMC_GridCompSetEntryPoint(gcomp, ESMF_SETFINAL, myFinalInC, 1);
+  ESMC_GridCompSetEntryPoint(gcomp, ESMF_METHOD_INITIALIZE, myInitInC, 1);
+  ESMC_GridCompSetEntryPoint(gcomp, ESMF_METHOD_RUN, myRunInC, 1);
+  ESMC_GridCompSetEntryPoint(gcomp, ESMF_METHOD_FINALIZE, myFinalInC, 1);
     
   // return successfully
   if (rc!=NULL) *rc = ESMF_SUCCESS;
@@ -148,11 +148,11 @@ void myCplFinalInC(ESMC_CplComp cplcomp, ESMC_State importState,
 void myCplRegistrationInC(ESMC_CplComp cplcomp, int *rc){
   // register Init(), Run(), Finalize()
   printf("I am in myCplRegistrationInC()\n");
-  ESMC_CplCompPrint(cplcomp, "");
+  ESMC_CplCompPrint(cplcomp);
   
-  ESMC_CplCompSetEntryPoint(cplcomp, ESMF_SETINIT, myCplInitInC, 1);
-  ESMC_CplCompSetEntryPoint(cplcomp, ESMF_SETRUN, myCplRunInC, 1);
-  ESMC_CplCompSetEntryPoint(cplcomp, ESMF_SETFINAL, myCplFinalInC, 1);
+  ESMC_CplCompSetEntryPoint(cplcomp, ESMF_METHOD_INITIALIZE, myCplInitInC, 1);
+  ESMC_CplCompSetEntryPoint(cplcomp, ESMF_METHOD_RUN, myCplRunInC, 1);
+  ESMC_CplCompSetEntryPoint(cplcomp, ESMF_METHOD_FINALIZE, myCplFinalInC, 1);
     
   // return successfully
   if (rc!=NULL) *rc = ESMF_SUCCESS;
@@ -175,7 +175,7 @@ int main(void){
   ESMC_Time startTime;
   ESMC_I4 yy1;
   ESMC_I4 h1;
-  ESMC_CalendarType calType1;
+  ESMC_CalKind_Flag calKind1;
   int tZ1;
   ESMC_Time stopTime;
   ESMC_I4 h2;
@@ -198,7 +198,7 @@ int main(void){
   //NEX_UTest
   strcpy(name, "Create ESMC_Calendar object");
   strcpy(failMsg, "Did not return ESMF_SUCCESS");
-  calendar = ESMC_CalendarCreate("Gregorian", ESMC_CAL_GREGORIAN, &rc);
+  calendar = ESMC_CalendarCreate("Gregorian", ESMC_CALKIND_GREGORIAN, &rc);
   ESMC_Test((rc==ESMF_SUCCESS), name, failMsg, &result, __FILE__, __LINE__, 0);
   //----------------------------------------------------------------------------
 
@@ -208,9 +208,9 @@ int main(void){
   strcpy(failMsg, "Did not return ESMF_SUCCESS");
   yy1=2006;
   h1=0;
-  calType1=ESMC_CAL_GREGORIAN;
+  calKind1=ESMC_CALKIND_GREGORIAN;
   tZ1=-6;
-  rc = ESMC_TimeSet(&startTime, yy1, h1, calendar, calType1, tZ1);
+  rc = ESMC_TimeSet(&startTime, yy1, h1, calendar, calKind1, tZ1);
   ESMC_Test((rc==ESMF_SUCCESS), name, failMsg, &result, __FILE__, __LINE__, 0);
   //----------------------------------------------------------------------------
 
@@ -219,7 +219,7 @@ int main(void){
   strcpy(name, "Set Stop Time");
   strcpy(failMsg, "Did not return ESMF_SUCCESS");
   h2=1;
-  rc = ESMC_TimeSet(&stopTime, yy1, h2, calendar, calType1, tZ1);
+  rc = ESMC_TimeSet(&stopTime, yy1, h2, calendar, calKind1, tZ1);
   ESMC_Test((rc==ESMF_SUCCESS), name, failMsg, &result, __FILE__, __LINE__, 0);
   //----------------------------------------------------------------------------
 
@@ -263,8 +263,7 @@ int main(void){
   //NEX_UTest
   strcpy(name, "Create ESMC_GridComp object");
   strcpy(failMsg, "Did not return ESMF_SUCCESS");
-  gcomp = ESMC_GridCompCreate("gridded component in C", ESMF_ATM, "grid.rc",
-    clock, &rc);
+  gcomp = ESMC_GridCompCreate("gridded component in C", "grid.rc", clock, &rc);
   ESMC_Test((rc==ESMF_SUCCESS), name, failMsg, &result, __FILE__, __LINE__, 0);
   //----------------------------------------------------------------------------
   
@@ -272,8 +271,17 @@ int main(void){
   //NEX_UTest
   strcpy(name, "Print ESMC_GridComp object");
   strcpy(failMsg, "Did not return ESMF_SUCCESS");
-  rc = ESMC_GridCompPrint(gcomp, "");
+  rc = ESMC_GridCompPrint(gcomp);
   ESMC_Test((rc==ESMF_SUCCESS), name, failMsg, &result, __FILE__, __LINE__, 0);
+  //----------------------------------------------------------------------------
+  
+  //----------------------------------------------------------------------------
+  //NEX_UTest
+  strcpy(name, "ESMC_GridCompInitialize() before calling"     
+    "ESMC_GridCompSetServices()");
+  strcpy(failMsg, "Did return ESMF_SUCCESS");
+  rc = ESMC_GridCompInitialize(gcomp, importState, exportState, clock, 1, NULL);
+  ESMC_Test((rc!=ESMF_SUCCESS), name, failMsg, &result, __FILE__, __LINE__, 0);
   //----------------------------------------------------------------------------
   
   //----------------------------------------------------------------------------
@@ -321,7 +329,7 @@ int main(void){
   strcpy(name, "Create ESMC_GridComp object");
   strcpy(failMsg, "Did not return ESMF_SUCCESS");
   gcomp = ESMC_GridCompCreate("gridded Component in C w/ Fortran registration",
-    ESMF_ATM, "grid.rc", clock, &rc);
+    "grid.rc", clock, &rc);
   ESMC_Test((rc==ESMF_SUCCESS), name, failMsg, &result, __FILE__, __LINE__, 0);
   //----------------------------------------------------------------------------
   
@@ -380,7 +388,7 @@ int main(void){
   //NEX_UTest
   strcpy(name, "Print ESMC_CplComp object");
   strcpy(failMsg, "Did not return ESMF_SUCCESS");
-  rc = ESMC_CplCompPrint(cplcomp, "");
+  rc = ESMC_CplCompPrint(cplcomp);
   ESMC_Test((rc==ESMF_SUCCESS), name, failMsg, &result, __FILE__, __LINE__, 0);
   //----------------------------------------------------------------------------
   

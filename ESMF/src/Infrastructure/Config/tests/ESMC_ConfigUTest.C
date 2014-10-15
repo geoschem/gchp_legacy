@@ -1,7 +1,7 @@
-// $Id: ESMC_ConfigUTest.C,v 1.9.4.1 2010/02/05 19:54:40 svasquez Exp $
+// $Id$
 //
 // Earth System Modeling Framework
-// Copyright 2002-2010, University Corporation for Atmospheric Research, 
+// Copyright 2002-2012, University Corporation for Atmospheric Research, 
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
 // Laboratory, University of Michigan, National Centers for Environmental 
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
@@ -30,10 +30,11 @@
 int main(void){
 
   ESMC_Config cf;              // ESMC_Config object
-  char* fileName = "ESMF_Resource_File_Sample.rc";                // file name
-  char* fileName2= "ESMF_Resource_File_Sample2.rc";               // file name
+  const char* fileName = "ESMF_Resource_File_Sample.rc";   // file name
+  const char* fileName2= "ESMF_Resource_File_Sample2.rc";  // file name
   char name[80];
   char failMsg[80];
+  int linecount, colcount;
   int result = 0;
   int rc = ESMF_RC_NOT_IMPL;
   int unique = 0;
@@ -78,6 +79,24 @@ int main(void){
     ESMC_ArgLast);
   ESMC_Test((rc == ESMF_SUCCESS), name, failMsg, &result, __FILE__, __LINE__,0);
   //----------------------------------------------------------------------------
+
+  //----------------------------------------------------------------------------
+  //NEX_UTest
+  //Validate the Config object
+  strcpy(name, "ConfigValidate Unit test");
+  strcpy(failMsg, "Did not return ESMF_SUCCESS");
+  rc = ESMC_ConfigValidate (cf, ESMC_ArgLast);
+  ESMC_Test((rc == ESMF_SUCCESS), name, failMsg, &result, __FILE__, __LINE__,0);
+  //----------------------------------------------------------------------------
+
+  //----------------------------------------------------------------------------
+  //NEX_UTest
+  //Get Config object array dimensions
+  strcpy(name, "ConfigGetDim Unit test");
+  strcpy(failMsg, "Did not return ESMF_SUCCESS");
+  rc = ESMC_ConfigGetDim (cf, &linecount, &colcount, ESMC_ArgLast);
+  ESMC_Test((rc == ESMF_SUCCESS), name, failMsg, &result, __FILE__, __LINE__,0);
+  //----------------------------------------------------------------------------
  
 #ifdef ESMF_TESTEXHAUSTIVE
  //----------------------------------------------------------------------------
@@ -97,7 +116,7 @@ int main(void){
   //----------------------------------------------------------------------------
   //NEX_UTest
   //Find a label in the loaded resource file
-  char* label="Number_of_Members:";
+  const char* label="Number_of_Members:";
   strcpy(name, "ConfigFindLabel Unit test");
   strcpy(failMsg, "Did not return ESMF_SUCCESS");
   rc = ESMC_ConfigFindLabel(cf, label);
@@ -107,11 +126,11 @@ int main(void){
   //----------------------------------------------------------------------------
   //NEX_UTest
   //Find the next line
-  int tableEnd = 1;           //true
+  int tableEnd = 1;
   strcpy(name, "ConfigNextLine Unit test");
   strcpy(failMsg, "Did not return ESMF_SUCCESS");
-  rc = ESMC_ConfigNextLine(cf, tableEnd);
-  ESMC_Test((rc == ESMF_SUCCESS), name, failMsg, &result, __FILE__, __LINE__,0);
+  rc = ESMC_ConfigNextLine(cf, &tableEnd);
+  ESMC_Test((rc == ESMF_SUCCESS) && (tableEnd == 0), name, failMsg, &result, __FILE__, __LINE__,0);
   //----------------------------------------------------------------------------
 
   //----------------------------------------------------------------------------

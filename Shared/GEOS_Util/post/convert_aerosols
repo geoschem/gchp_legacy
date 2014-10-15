@@ -1,0 +1,33 @@
+#!/bin/csh
+
+echo ''
+      ./configure
+source .configure
+
+set fname = convert_aerosols
+
+if( -e ${fname}.x ) /bin/rm ${fname}.x
+if( -e ${fname}.o ) /bin/rm ${fname}.o
+
+echo ''
+echo Compiling ${fname}.F ...
+
+
+# Linux Compilation
+# -----------------
+if( ${ARCH} == 'Linux' ) then
+     ifort -c -DESMA  -I$BASEDIR/$ARCH/include/esmf \
+              -O3 -assume byterecl  -extend_source -fpe0  -align dcommons -Dmpi ${fname}.F
+     ifort -c -DESMA  -I$BASEDIR/$ARCH/include/esmf \
+              -O3 -assume byterecl  -extend_source -fpe0  -align dcommons -Dmpi set_eta.F90
+     gmake ${fname}.x
+endif
+
+if( -e ${fname}.o ) /bin/rm ${fname}.o
+if( -e  set_eta.o ) /bin/rm  set_eta.o
+
+if( -e  ${fname}.x ) then
+echo "Created   ${fname}.x"
+echo " "
+              ./${fname}.x
+endif

@@ -1,7 +1,7 @@
-! $Id: ESMF_Base.F90,v 1.142.2.1 2010/02/05 19:53:57 svasquez Exp $
+! $Id: ESMF_Base.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2010, University Corporation for Atmospheric Research,
+! Copyright 2002-2012, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -49,6 +49,7 @@ module ESMF_BaseMod
 ! !USES:
   use ESMF_UtilTypesMod     ! ESMF utility types
   use ESMF_InitMacrosMod    ! ESMF initializer macros
+  use ESMF_IOUtilMod        ! ESMF I/O utilities
   use ESMF_LogErrMod        ! ESMF error handling
 
   implicit none
@@ -126,7 +127,7 @@ module ESMF_BaseMod
 ! leave the following line as-is; it will insert the cvs ident string
 ! into the object file for tracking purposes.
       character(*), parameter, private :: version = &
-               '$Id: ESMF_Base.F90,v 1.142.2.1 2010/02/05 19:53:57 svasquez Exp $'
+               '$Id: ESMF_Base.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $'
 !------------------------------------------------------------------------------
 
       contains
@@ -193,7 +194,7 @@ module ESMF_BaseMod
         !!call c_ESMC_BaseCreate(base , superclass, ESMF_NULL_POINTER, &
         call c_ESMC_BaseCreate(base , superclass, "", allocNattrs, status)
     endif
-    if (ESMF_LogMsgFoundError(status, ESMF_ERR_PASSTHRU, &
+    if (ESMF_LogFoundError(status, ESMF_ERR_PASSTHRU, &
       ESMF_CONTEXT, rcToReturn=rc)) return
     
     ! Set init code
@@ -245,7 +246,7 @@ module ESMF_BaseMod
     ESMF_INIT_CHECK_DEEP(ESMF_BaseGetInit,base,rc)
 
     call c_ESMC_BaseDestroy(base , status)
-    if (ESMF_LogMsgFoundError(status, ESMF_ERR_PASSTHRU, &
+    if (ESMF_LogFoundError(status, ESMF_ERR_PASSTHRU, &
       ESMF_CONTEXT, rcToReturn=rc)) return
 
     ! Set init code
@@ -404,7 +405,7 @@ module ESMF_BaseMod
       localrc = ESMF_RC_NOT_IMPL
 
       call c_ESMC_BaseSetBaseStatus(base, baseStatus, localrc)
-      if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, &
+      if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
         ESMF_CONTEXT, rcToReturn=rc)) return
       
       ! return successfully
@@ -449,7 +450,7 @@ module ESMF_BaseMod
       localrc = ESMF_RC_NOT_IMPL
 
       call c_ESMC_BaseGetBaseStatus(base, baseStatus, localrc)
-      if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, &
+      if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
         ESMF_CONTEXT, rcToReturn=rc)) return
       
       ! return successfully
@@ -494,7 +495,7 @@ module ESMF_BaseMod
       localrc = ESMF_RC_NOT_IMPL
 
       call c_ESMC_BaseSetStatus(base, status, localrc)
-      if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, &
+      if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
         ESMF_CONTEXT, rcToReturn=rc)) return
       
       ! return successfully
@@ -539,7 +540,7 @@ module ESMF_BaseMod
       localrc = ESMF_RC_NOT_IMPL
 
       call c_ESMC_BaseGetStatus(base, status, localrc)
-      if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, &
+      if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
         ESMF_CONTEXT, rcToReturn=rc)) return
       
       ! return successfully
@@ -567,12 +568,6 @@ module ESMF_BaseMod
 ! !DESCRIPTION:
 !     Interface to call through to C++ and print base object values. \\
 !
-!     Note:  Many {\tt ESMF\_<class>Print} methods are implemented in C++.
-!     On some platforms/compilers there is a potential issue with interleaving
-!     Fortran and C++ output to {\tt stdout} such that it doesn't appear in
-!     the expected order.  If this occurs, the {\tt ESMF\_IOUnitFlush()} method
-!     may be used on unit 6 to get coherent output.  \\
-!
 !     The arguments are:
 !     \begin{description}
 !     \item[base]
@@ -585,7 +580,7 @@ module ESMF_BaseMod
 !
 !
 !EOPI
-    integer                     :: localrc
+    integer                     :: localrc, ignorerc
     character(len=ESMF_MAXSTR)  :: opts
 
     ! Initialize return code; assume routine not implemented
@@ -601,8 +596,12 @@ module ESMF_BaseMod
         opts = ''
     endif
 
-    call c_ESMC_BasePrint(base , opts, localrc)
-    if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, &
+    call ESMF_UtilIOUnitFlush (unit=ESMF_UtilIOstdout, rc=ignorerc)
+    ! Ignore localrc, because sometimes stdout is not open at this point
+    ! and some compilers FLUSH statements will complain.
+
+    call c_ESMC_BasePrint(base , 0, opts, localrc)
+    if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
       ESMF_CONTEXT, rcToReturn=rc)) return
 
     ! Return successfully
@@ -655,7 +654,7 @@ module ESMF_BaseMod
     endif
 
     call c_ESMC_BaseValidate(base , opts, localrc)
-    if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, &
+    if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
       ESMF_CONTEXT, rcToReturn=rc)) return
 
     ! Return successfully

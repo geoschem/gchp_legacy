@@ -1,7 +1,7 @@
-! $Id: ESMF_UtilUTest.F90,v 1.16.2.1 2010/02/05 20:01:18 svasquez Exp $
+! $Id: ESMF_UtilUTest.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2010, University Corporation for Atmospheric Research,
+! Copyright 2002-2012, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -27,14 +27,14 @@
 !-----------------------------------------------------------------------------
 ! !USES:
       use ESMF_TestMod     ! test methods
-      use ESMF_Mod         ! the ESMF Framework
+      use ESMF         ! the ESMF Framework
       use ESMF_IOUtilMod   ! Internal Fortran I/O routines
       implicit none
 
 !------------------------------------------------------------------------------
 ! The following line turns the CVS identifier string into a printable variable.
       character(*), parameter :: version = &
-      '$Id: ESMF_UtilUTest.F90,v 1.16.2.1 2010/02/05 20:01:18 svasquez Exp $'
+      '$Id: ESMF_UtilUTest.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $'
 !------------------------------------------------------------------------------
 
       ! cumulative result: count failures; no failures equals "all pass"
@@ -69,6 +69,20 @@
       integer :: funits(5)
       integer :: ioerr
 
+#ifdef ESMF_TESTEXHAUSTIVE
+      character(ESMF_MAXSTR) :: arg
+      character(2) :: argshort
+      integer :: arg_len
+      integer :: nargs
+      character(ESMF_MAXSTR) :: program_path
+      integer :: argindex
+
+      type(ESMF_MapPtr) :: mapcontainer
+      integer :: newvalue
+      integer :: mapsize
+      logical :: isfound
+#endif
+
 !-------------------------------------------------------------------------------
 !  The unit tests are divided into Sanity and Exhaustive. The Sanity tests are
 !  always run. When the environment variable, EXHAUSTIVE, is set to ON then
@@ -91,15 +105,15 @@
     ! Print all the constants, just for the record.
 
       print *
-      print *, ' ESMF_MAJOR_VERSION =', ESMF_MAJOR_VERSION
-      print *, ' ESMF_MINOR_VERSION =', ESMF_MINOR_VERSION
-      print *, ' ESMF_REVISION      =', ESMF_REVISION
-      print *, ' ESMF_PATCHLEVEL    =', ESMF_PATCHLEVEL
+      print *, ' ESMF_VERSION_MAJOR =', ESMF_VERSION_MAJOR
+      print *, ' ESMF_VERSION_MINOR =', ESMF_VERSION_MINOR
+      print *, ' ESMF_VERSION_REVISION      =', ESMF_VERSION_REVISION
+      print *, ' ESMF_VERSION_PATCHLEVEL    =', ESMF_VERSION_PATCHLEVEL
       print *, ' ESMF_VERSION_STRING=', trim (ESMF_VERSION_STRING)
 
     !NEX_UTest
     ! Compare numeric major version to the string
-    write (major_version,'(i2)') ESMF_MAJOR_VERSION
+    write (major_version,'(i2)') ESMF_VERSION_MAJOR
     evs = ESMF_VERSION_STRING
     evs_dotpos = index (evs, '.')
     write(failMsg, *) "Numeric and character major_version mismatch"
@@ -109,7 +123,7 @@
     !
     !NEX_UTest
     ! Compare numeric minor version to the string
-    write (minor_version,'(i2)') ESMF_MINOR_VERSION
+    write (minor_version,'(i2)') ESMF_VERSION_MINOR
     evs = evs(evs_dotpos+1:)
     evs_dotpos = index (evs, '.')
     write(failMsg, *) "Numeric and character minor_version mismatch"
@@ -119,7 +133,7 @@
     !
     !NEX_UTest
     ! Compare numeric revision to the string
-    write (revision,'(i2)') ESMF_REVISION
+    write (revision,'(i2)') ESMF_VERSION_REVISION
     evs = evs(evs_dotpos+1:)
     do, i=1, len (evs)
       if (scan (evs(i:i), '0123456789') /= 1) exit
@@ -143,7 +157,7 @@
     ! Obtain a few Fortran units
     funits = -1
     do, i=1, size (funits)
-      call ESMF_IOUnitGet(funits(i), rc)
+      call ESMF_UtilIOUnitGet(funits(i), rc=rc)
       ioerr = 0
       if (rc == ESMF_SUCCESS) then
         write (filename,'(a,2i2.2)') 'IOtempfile', localPet, i
@@ -152,7 +166,7 @@
       if (rc /= ESMF_SUCCESS .or. ioerr /= 0) exit
     end do
 
-    write (name, *) "Testing ESMF_IOUnitGet, obtaining and opening units"
+    write (name, *) "Testing ESMF_UtilIOUnitGet, obtaining and opening units"
     if (i > size (funits)) then
       write (failMsg, *) "Could not obtain a unit."
     else
@@ -172,8 +186,8 @@
     !
     !NEX_UTest
     ! Get a unit number for flush
-    write (name, *) "Testing ESMF_IOUnitFlush, get a free unit"
-    call ESMF_IOUnitGet(funits(1), rc)
+    write (name, *) "Testing ESMF_UtilIOUnitFlush, get a free unit"
+    call ESMF_UtilIOUnitGet (funits(1), rc=rc)
     write (failMsg, *) "Obtaining a fresh unit"
     call ESMF_Test(rc == ESMF_SUCCESS, name, failMsg, result, ESMF_SRCLINE)
 
@@ -181,7 +195,7 @@
     !NEX_UTest
     ! Open it
     write (filename,'(a,i2.2)') 'IOtempfile_', localPet
-    write (name, *) "ESMF_IOUnitFlush, open scratch file: ", trim (filename)
+    write (name, *) "ESMF_UtilIOUnitFlush, open scratch file: ", trim (filename)
     write (failMsg, *) "Opening scratch unit"
     open (funits(1), file=filename, form='formatted', iostat=ioerr)
     call ESMF_Test(ioerr == 0, name, failMsg, result, ESMF_SRCLINE)
@@ -189,17 +203,214 @@
     !
     !NEX_UTest
     ! Flush it
-    write (name, *) "ESMF_IOUnitFlush, flush the scratch file"
-    write (funits(1), *) 'Testing ESMF_IOUnitFlush'
-    write (failMsg, *) 'calling ESMF_IOUnitFlush'
-    call ESMF_IOUnitFlush(funits(1), rc)
+    write (name, *) "ESMF_UtilIOUnitFlush, flush the scratch file"
+    write (funits(1), *) 'Testing ESMF_UtilIOUnitFlush'
+    write (failMsg, *) 'calling ESMF_UtilIOUnitFlush'
+    call ESMF_UtilIOUnitFlush (funits(1), rc=rc)
     call ESMF_Test (rc == ESMF_SUCCESS, name, failMsg, result, ESMF_SRCLINE)
 
     close (funits(1), status='delete', iostat=ioerr)
 
 
 #ifdef ESMF_TESTEXHAUSTIVE
+!Command line arguments
+!====================
 
+    !
+    !EX_UTest
+    ! Get command line argument count
+    write (name, *) "Testing ESMF_UtilGetArgC, command line argument count"
+    write (failMsg, *) "Obtaining the command line argument count"
+    call ESMF_UtilGetArgC (nargs)
+    call ESMF_Test(nargs >= 0, name, failMsg, result, ESMF_SRCLINE)
+
+    !
+    !EX_UTest
+    ! Test bad command line argument index
+    write (name, *) "Testing ESMF_UtilGetArgC, argindex < 0"
+    write (failMsg, *) "wrong rc when argindex < 0"
+    call ESMF_UtilGetArg (argindex=-1, rc=rc)
+    call ESMF_Test(rc == ESMF_RC_ARG_VALUE, name, failMsg, result, ESMF_SRCLINE)
+
+    !
+    !EX_UTest
+    ! Get command name
+    write (name, *) "Testing ESMF_UtilGetArgC, get command name"
+    write (failMsg, *) "Obtaining the command name"
+    call ESMF_UtilGetArg (argindex=0, argvalue=arg, rc=rc)
+    print *, 'command name = ', trim (arg)
+    call ESMF_Test(rc == ESMF_SUCCESS, name, failMsg, result, ESMF_SRCLINE)
+
+    !
+    !EX_UTest
+    ! Get command line arguments
+    write (name, *) "Testing ESMF_UtilGetArgC, get truncated command name"
+    write (failMsg, *) "Obtaining truncated command name"
+    call ESMF_UtilGetArg (argindex=0, argvalue=argshort, rc=rc)
+    call ESMF_Test(rc == ESMF_RC_ARG_SIZE, name, failMsg, result, ESMF_SRCLINE)
+
+    !
+    !EX_UTest
+    ! Get command line arguments
+    write (name, *) "Testing ESMF_UtilGetArgC, compare arg lengths"
+    write (failMsg, *) "Returned arg length does not match actual arg length"
+    call ESMF_UtilGetArg (argindex=0, argvalue=arg, arglength=arg_len, rc=rc)
+    print *, 'arg_len =', arg_len, ', len_trim (arg) =', len_trim (arg)
+    call ESMF_Test(rc == ESMF_SUCCESS .and. arg_len == len_trim (arg),  &
+        name, failMsg, result, ESMF_SRCLINE)
+
+    program_path = arg
+
+    !
+    !EX_UTest
+    ! Test bad command line argument index
+    write (name, *) "Testing ESMF_UtilGetArgC, argindex > nargs"
+    write (failMsg, *) "wrong rc when argindex > nargs"
+    call ESMF_UtilGetArg (argindex=nargs+1, rc=rc)
+    call ESMF_Test(rc == ESMF_RC_ARG_VALUE, name, failMsg, result, ESMF_SRCLINE)
+
+    !
+    !EX_UTest
+    ! Test command line argument index with the program name
+    write (name, *) "Testing ESMF_UtilGetArgIndex for program path"
+    write (failMsg, *) "did not find program path"
+    call ESMF_UtilGetArgIndex (argvalue=program_path, argindex=argindex, rc=rc)
+    call ESMF_Test(rc == ESMF_SUCCESS .and. argindex == 0,  &
+      name, failMsg, result, ESMF_SRCLINE)
+
+    !
+    !EX_UTest
+    ! Test command line argument index with unknown value
+    write (name, *) "Testing ESMF_UtilGetArgIndex for program path"
+    write (failMsg, *) "did not return -1"
+    call ESMF_UtilGetArgIndex (argvalue="esmf_xyzzy", argindex=argindex, rc=rc)
+    call ESMF_Test(rc == ESMF_SUCCESS .and. argindex == -1,  &
+      name, failMsg, result, ESMF_SRCLINE)
+
+
+!MapName Containers
+!==================
+
+! Note: These are internal ESMF routines, subject to change, and
+! not intended to be end-user callable.
+
+    !
+    !EX_UTest
+    ! Test creation of a MapName container
+    write (name, *) "Testing creation of a MapName container"
+    write (failMsg, *) "did not return ESMF_SUCCESS"
+    call ESMF_UtilMapNameCreate (mapcontainer, rc=rc)
+    call ESMF_Test(rc == ESMF_SUCCESS, name, failMsg, result, ESMF_SRCLINE)
+
+    !EX_UTest
+    ! Test adding a name/value pair
+    write (name, *) "Testing adding a name/value pair"
+    write (failMsg, *) "did not return ESMF_SUCCESS"
+    call ESMF_UtilMapNameAdd (mapcontainer,  &
+        name="Temperature", value=1, rc=rc)
+    call ESMF_Test(rc == ESMF_SUCCESS, name, failMsg, result, ESMF_SRCLINE)
+
+    !EX_UTest
+    ! Test adding a second name/value pair
+    write (name, *) "Testing adding a name/value pair #2"
+    write (failMsg, *) "did not return ESMF_SUCCESS"
+    call ESMF_UtilMapNameAdd (mapcontainer,  &
+        name="Pressure", value=42, rc=rc)
+    call ESMF_Test(rc == ESMF_SUCCESS, name, failMsg, result, ESMF_SRCLINE)
+
+    !EX_UTest
+    ! Test obtaining the size of the map
+    write (name, *) "Testing obtaining size"
+    write (failMsg, *) "did not return correct size"
+    mapsize = ESMF_UtilMapNameSize (mapcontainer)
+    call ESMF_Test(mapsize == 2, name, failMsg, result, ESMF_SRCLINE)
+
+    !EX_UTest
+    ! Test obtaining the size of the map
+    write (name, *) "Testing obtaining size return code"
+    write (failMsg, *) "did not return ESMF_SUCCESS"
+    mapsize = ESMF_UtilMapNameSize (mapcontainer, rc=rc)
+    call ESMF_Test(rc == ESMF_SUCCESS, name, failMsg, result, ESMF_SRCLINE)
+
+    !EX_UTest
+    ! Test printing the name/value pairs
+    write (name, *) "Testing debug printout to stdout"
+    write (failMsg, *) "did not return ESMF_SUCCESS"
+    call ESMF_UtilMapNamePrint (mapcontainer, title=name, rc=rc)
+    call ESMF_Test(rc == ESMF_SUCCESS, name, failMsg, result, ESMF_SRCLINE)
+
+    !EX_UTest
+    ! Test looking up a name/value pair (part 1)
+    write (name, *) "Testing looking up a name/value pair (part 1)"
+    write (failMsg, *) "did not return ESMF_SUCCESS"
+    call ESMF_UtilMapNameLookup (mapcontainer,  &
+        name="Temperature", value=newvalue, foundFlag=isfound, rc=rc)
+    call ESMF_Test(rc == ESMF_SUCCESS, name, failMsg, result, ESMF_SRCLINE)
+
+    !EX_UTest
+    ! Test looking up a name/value pair (part 2)
+    write (name, *) "Testing looking up a name/value pair (part 2)"
+    write (failMsg, *) "did not return correct foundFlag"
+    call ESMF_Test(isfound, name, failMsg, result, ESMF_SRCLINE)
+
+    !EX_UTest
+    ! Test looking up a name/value pair (part 3)
+    write (name, *) "Testing looking up a name/value pair (part 3)"
+    write (failMsg, *) "did not return correct value"
+    call ESMF_Test(newvalue == 1, name, failMsg, result, ESMF_SRCLINE)
+
+    !EX_UTest
+    ! Test looking up a second name/value pair (part 1)
+    write (name, *) "Testing looking up a second name/value pair (part 1)"
+    write (failMsg, *) "did not return ESMF_SUCCESS or correct value"
+    call ESMF_UtilMapNameLookup (mapcontainer,  &
+        name="Pressure", value=newvalue, foundFlag=isfound, rc=rc)
+    call ESMF_Test(rc == ESMF_SUCCESS, name, failMsg, result, ESMF_SRCLINE)
+
+    !EX_UTest
+    ! Test looking up a second name/value pair (part 2)
+    write (name, *) "Testing looking up a second name/value pair (part 2)"
+    write (failMsg, *) "did not return correct foundFlag"
+    call ESMF_Test(isfound, name, failMsg, result, ESMF_SRCLINE)
+
+    !EX_UTest
+    ! Test looking up a second name/value pair (part 3)
+    write (name, *) "Testing looking up a second name/value pair (part 3)"
+    write (failMsg, *) "did not return correct value"
+    call ESMF_Test(newvalue == 42, name, failMsg, result, ESMF_SRCLINE)
+
+    !EX_UTest
+    ! Test removing a name/value pair
+    write (name, *) "Testing removing a name/value pair"
+    write (failMsg, *) "did not return ESMF_SUCCESS"
+    call ESMF_UtilMapNameRemove (mapcontainer,  &
+        name="Temperature", rc=rc)
+    call ESMF_Test(rc == ESMF_SUCCESS, name, failMsg, result, ESMF_SRCLINE)
+
+    !EX_UTest
+    ! Test looking up a removed name/value pair (part 1)
+    write (name, *) "Testing looking up a removed name/value pair (part 1)"
+    write (failMsg, *) "did not return ESMF_SUCCESS"
+    call ESMF_UtilMapNameLookup (mapcontainer,  &
+        name="Temperature", value=newvalue, foundFlag=isfound, rc=rc)
+    call ESMF_Test(rc == ESMF_SUCCESS,  &
+        name, failMsg, result, ESMF_SRCLINE)
+
+    !EX_UTest
+    ! Test looking up a removed name/value pair (part 2)
+    write (name, *) "Testing looking up a removed name/value pair (part 2)"
+    write (failMsg, *) "indicated a removed pair was found"
+    call ESMF_Test(.not. isfound,  &
+        name, failMsg, result, ESMF_SRCLINE)
+
+    call ESMF_UtilMapNamePrint (mapcontainer, title=name, rc=rc)
+
+    !EX_UTest
+    ! Test destruction of a MapName container
+    write (name, *) "Testing destruction of a MapName container"
+    write (failMsg, *) "did not return ESMF_SUCCESS"
+    call ESMF_UtilMapNameDestroy (mapcontainer, rc=rc)
+    call ESMF_Test(rc == ESMF_SUCCESS, name, failMsg, result, ESMF_SRCLINE)
 
 #endif
 

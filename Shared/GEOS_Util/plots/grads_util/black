@@ -1,0 +1,8 @@
+function black (args)
+cint = subwrd(args,1)
+if( cint = '' )
+'set black -1.0e-20 1.0e-20'
+else
+cint= 0.99*cint
+'set black -'cint' 'cint
+endif

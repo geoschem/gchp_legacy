@@ -1,7 +1,7 @@
-// $Id: ESMCI_VMKernel.C,v 1.13.2.1 2010/02/05 20:02:01 svasquez Exp $
+// $Id$
 //
 // Earth System Modeling Framework
-// Copyright 2002-2010, University Corporation for Atmospheric Research, 
+// Copyright 2002-2012, University Corporation for Atmospheric Research, 
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
 // Laboratory, University of Michigan, National Centers for Environmental 
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
@@ -258,6 +258,7 @@ void VMK::init(MPI_Comm mpiCommunicator){
 #if !defined (ESMF_NO_SIGNALS)
   struct sigaction action;
   action.sa_handler = SIG_DFL;
+  action.sa_flags   = 0;
   sigemptyset (&(action.sa_mask));
   sigaction(VM_SIG1, &action, NULL);  // restore default handle for VM_SIG1
   sigset_t sigs_to_block;
@@ -308,9 +309,12 @@ void VMK::init(MPI_Comm mpiCommunicator){
   mypthid=0;
 #endif
 #ifdef ESMF_MPIUNI
-  mpionly = 0;          // this way the commtype will be checked in comm calls
+  mpionly=0;          // this way the commtype will be checked in comm calls
 #else
-  mpionly = 1;          // normally the default VM can only be MPI-only
+  if (npets==1)
+    mpionly=0;          // this way the commtype will be checked in comm calls
+  else
+    mpionly=1;          // normally the default VM can only be MPI-only
 #endif
   // no threading in default global VM
   nothreadsflag = 1;
@@ -343,12 +347,22 @@ void VMK::init(MPI_Comm mpiCommunicator){
   sendChannel[0].comm_type = VM_COMM_TYPE_MPIUNI;
   sendChannel[0].shmp = new shared_mp;
   sync_reset(&(sendChannel[0].shmp->shms));
+  sendChannel[0].shmp->tcounter = 0;
   recvChannel[0] = sendChannel[0];
 #else
-  for (int i=0; i<npets; i++){
-    // normally by default all communication is via MPI-1
-    sendChannel[i].comm_type = VM_COMM_TYPE_MPI1;
-    recvChannel[i].comm_type = VM_COMM_TYPE_MPI1;
+  if (npets==1){
+    // for single PET VMs use the MPIUNI branch
+    sendChannel[0].comm_type = VM_COMM_TYPE_MPIUNI;
+    sendChannel[0].shmp = new shared_mp;
+    sync_reset(&(sendChannel[0].shmp->shms));
+    sendChannel[0].shmp->tcounter = 0;
+    recvChannel[0] = sendChannel[0];
+  }else{
+    for (int i=0; i<npets; i++){
+      // normally by default all communication is via MPI-1
+      sendChannel[i].comm_type = VM_COMM_TYPE_MPI1;
+      recvChannel[i].comm_type = VM_COMM_TYPE_MPI1;
+    }
   }
 #endif
   // setup the IntraProcessSharedMemoryAllocation List
@@ -430,9 +444,8 @@ void VMK::finalize(int finalizeMpi){
   pthread_mutex_destroy(pth_mutex2);
 #endif
   delete pth_mutex2;
-#ifdef ESMF_MPIUNI
-  delete sendChannel[0].shmp;
-#endif
+  if (npets==1)
+    delete sendChannel[0].shmp; // covers mpiuni and mpi 1PET VM
   delete [] sendChannel;
   delete [] recvChannel;  
   while (*ipshmTop != NULL){
@@ -639,10 +652,14 @@ void VMK::construct(void *ssarg){
   // don't set mpionly flag so that comm call check for commtype
   mpionly=0;
 #else
-  // determine whether we are dealing with an MPI-only VMK
-  mpionly=1;  // assume this is MPI-only VMK until found otherwise
-  for (int i=0; i<npets; i++)
-    if (tid[i]>0) mpionly=0;    // found multi-threading PET
+  if (npets==1)
+    mpionly=0;
+  else{
+    // determine whether we are dealing with an MPI-only VMK
+    mpionly=1;  // assume this is MPI-only VMK until found otherwise
+    for (int i=0; i<npets; i++)
+      if (tid[i]>0) mpionly=0;    // found multi-threading PET
+  }
 #endif
   nothreadsflag = sarg->nothreadsflag;
   // need a barrier here before any of the PETs get into user code...
@@ -1519,6 +1536,7 @@ void *VMK::startup(class VMKPlan *vmp,
                 sync_reset(&(new_commarray[pet1Index][pet2Index].shmp->shms));
                 new_commarray[pet1Index][pet2Index].comm_type =
                   VM_COMM_TYPE_MPIUNI;
+                new_commarray[pet1Index][pet2Index].shmp->tcounter = 0;
 #else
                 if (pet1 != pet2){
                   // pet1 and pet2 are different PETs that run in mypet's VAS
@@ -1552,7 +1570,7 @@ void *VMK::startup(class VMKPlan *vmp,
                   }
                 }else{
                   new_commarray[pet1Index][pet2Index].comm_type =
-                      VM_COMM_TYPE_MPI1;  // default for selfcommunication
+                    VM_COMM_TYPE_MPI1;  // default for selfcommunication
                 }
 #endif               
                 ++pet2Index;
@@ -1925,6 +1943,16 @@ int VMK::getVas(int i){
 
 int VMK::getLpid(int i){
   return lpid[i];
+}
+
+int VMK::getMaxTag(){
+  int *value;
+  int flag;
+  MPI_Attr_get(MPI_COMM_WORLD, MPI_TAG_UB, &value, &flag);
+  if (flag)
+    return *value;
+  else
+    return 0;
 }
 
 // --- VMKPlan methods ---
@@ -2528,8 +2556,8 @@ int VMK::commtest(commhandle **ch, int *completeFlag, status *status){
   // tree)
   // finally unlink the *ch container from the commqueue and delete the
   // container (only) if the *ch was part of the commqueue!
-//fprintf(stderr, "VMK::commwait: nhandles=%d\n", nhandles);
-//fprintf(stderr, "VMK::commwait: *ch=%p\n", *ch);
+//fprintf(stderr, "(%d)VMK::commtest: nhandles=%d\n", mypet, nhandles);
+//fprintf(stderr, "(%d)VMK::commtest: *ch=%p\n", mypet, *ch);
   int localrc=0;
   if ((ch!=NULL) && ((*ch)!=NULL)){
     // wait for all non-blocking requests in commhandle to complete
@@ -2552,7 +2580,8 @@ int VMK::commtest(commhandle **ch, int *completeFlag, status *status){
         mpi_s = MPI_STATUS_IGNORE;
       // TODO: status will only reflect the last communiction in the i-loop!
       for (int i=0; i<(*ch)->nelements; i++){
-//fprintf(stderr, "MPI_Wait: ch=%p\n", &((*ch)->mpireq[i]));
+//fprintf(stderr, "(%d)VMK::commtest: right before MPI_Test(): ch=%p\n",
+//    mypet, &((*ch)->mpireq[i]));
 #ifndef ESMF_NO_PTHREADS
         if (mpi_mutex_flag) pthread_mutex_lock(pth_mutex);
 #endif
@@ -2561,16 +2590,23 @@ int VMK::commtest(commhandle **ch, int *completeFlag, status *status){
 #ifndef ESMF_NO_PTHREADS
         if (mpi_mutex_flag) pthread_mutex_unlock(pth_mutex);
 #endif
-        if (status){
-          if (lpid[mpi_s->MPI_SOURCE] == mpi_s->MPI_SOURCE)
-            status->srcPet = mpi_s->MPI_SOURCE;
-          else{
-            for (int k=0; k<npets; k++)
-              if (lpid[k] == mpi_s->MPI_SOURCE)
+//fprintf(stderr, "(%d)VMK::commtest: right after MPI_Test()\n", mypet);
+        if (status && localCompleteFlag){
+          if (!(*ch)->sendFlag){
+            int cancelled;
+            MPI_Test_cancelled(mpi_s, &cancelled);
+            if (!cancelled){
+              if (lpid[mpi_s->MPI_SOURCE] == mpi_s->MPI_SOURCE)
                 status->srcPet = mpi_s->MPI_SOURCE;
+              else{
+                for (int k=0; k<npets; k++)
+                  if (lpid[k] == mpi_s->MPI_SOURCE)
+                    status->srcPet = mpi_s->MPI_SOURCE;
+              }
+              status->tag     = mpi_s->MPI_TAG;
+              status->error   = mpi_s->MPI_ERROR;
+            }
           }
-          status->tag     = mpi_s->MPI_TAG;
-          status->error   = mpi_s->MPI_ERROR;
         }
       }
       if (localCompleteFlag)
@@ -2602,8 +2638,8 @@ int VMK::commwait(commhandle **ch, status *status, int nanopause){
   // and delete all of the inside contents of *ch (even if it is a tree)
   // finally unlink the *ch container from the commqueue and delete the
   // container (only) if the *ch was part of the commqueue!
-//fprintf(stderr, "VMK::commwait: nhandles=%d\n", nhandles);
-//fprintf(stderr, "VMK::commwait: *ch=%p\n", *ch);
+//fprintf(stderr, "(%d)VMK::commwait: nhandles=%d\n", mypet, nhandles);
+//fprintf(stderr, "(%d)VMK::commwait: *ch=%p\n", mypet, *ch);
   int localrc=0;
   if ((ch!=NULL) && ((*ch)!=NULL)){
     // wait for all non-blocking requests in commhandle to complete
@@ -2655,15 +2691,21 @@ int VMK::commwait(commhandle **ch, status *status, int nanopause){
 #endif
           }
           if (status){
-            if (lpid[mpi_s->MPI_SOURCE] == mpi_s->MPI_SOURCE)
-              status->srcPet = mpi_s->MPI_SOURCE;
-            else{
-              for (int k=0; k<npets; k++)
-                if (lpid[k] == mpi_s->MPI_SOURCE)
+            if (!(*ch)->sendFlag){
+              int cancelled;
+              MPI_Test_cancelled(mpi_s, &cancelled);
+              if (!cancelled){
+                if (lpid[mpi_s->MPI_SOURCE] == mpi_s->MPI_SOURCE)
                   status->srcPet = mpi_s->MPI_SOURCE;
+                else{
+                  for (int k=0; k<npets; k++)
+                    if (lpid[k] == mpi_s->MPI_SOURCE)
+                      status->srcPet = mpi_s->MPI_SOURCE;
+                }
+                status->tag     = mpi_s->MPI_TAG;
+                status->error   = mpi_s->MPI_ERROR;
+              }
             }
-            status->tag     = mpi_s->MPI_TAG;
-            status->error   = mpi_s->MPI_ERROR;
           }
         }else{
 #ifndef ESMF_NO_PTHREADS
@@ -2674,15 +2716,21 @@ int VMK::commwait(commhandle **ch, status *status, int nanopause){
           if (mpi_mutex_flag) pthread_mutex_unlock(pth_mutex);
 #endif
           if (status){
-            if (lpid[mpi_s->MPI_SOURCE] == mpi_s->MPI_SOURCE)
-              status->srcPet = mpi_s->MPI_SOURCE;
-            else{
-              for (int k=0; k<npets; k++)
-                if (lpid[k] == mpi_s->MPI_SOURCE)
+            if (!(*ch)->sendFlag){
+              int cancelled;
+              MPI_Test_cancelled(mpi_s, &cancelled);
+              if (!cancelled){
+                if (lpid[mpi_s->MPI_SOURCE] == mpi_s->MPI_SOURCE)
                   status->srcPet = mpi_s->MPI_SOURCE;
+                else{
+                  for (int k=0; k<npets; k++)
+                    if (lpid[k] == mpi_s->MPI_SOURCE)
+                      status->srcPet = mpi_s->MPI_SOURCE;
+                }
+                status->tag     = mpi_s->MPI_TAG;
+                status->error   = mpi_s->MPI_ERROR;
+              }
             }
-            status->tag     = mpi_s->MPI_TAG;
-            status->error   = mpi_s->MPI_ERROR;
           }
         }
       }
@@ -2744,6 +2792,20 @@ void VMK::commcancel(commhandle **commh){
 }
 
 
+bool VMK::cancelled(status *status){
+  if (status->comm_type == VM_COMM_TYPE_MPI1){
+    int flag;
+    MPI_Test_cancelled(&(status->mpi_s), &flag);
+    if (flag)
+      return true;
+    else
+      return false;
+  }else{
+    return false;
+  }
+}
+
+
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // ~~~ Communication Calls
@@ -2774,7 +2836,15 @@ int VMK::send(const void *message, int size, int dest, int tag){
 #ifndef ESMF_NO_PTHREADS
     if (mpi_mutex_flag) pthread_mutex_lock(pth_mutex);
 #endif
-    if (tag == -1) tag = 1000*mypet+dest;   // default tag to simplify debugging
+    if (tag == -1){
+      tag = 1000*mypet+dest;  // default tag to simplify debugging
+      // make sure to stay below max tag
+      int maxTag = getMaxTag();
+      if (maxTag > 0)
+        tag = tag%maxTag;
+      else
+        tag = 0;
+    }
     localrc = MPI_Send(messageC, size, MPI_BYTE, lpid[dest], tag, mpi_c);
 #ifndef ESMF_NO_PTHREADS
     if (mpi_mutex_flag) pthread_mutex_unlock(pth_mutex);
@@ -2923,6 +2993,7 @@ int VMK::send(const void *message, int size, int dest, commhandle **ch,
   case VM_COMM_TYPE_MPI1:
     (*ch)->nelements=1;
     (*ch)->type=1;
+    (*ch)->sendFlag=true; // send request
     (*ch)->mpireq = new MPI_Request[1];
     // MPI-1 implementation
     void *messageC; // for MPI C interface convert (const void *) -> (void *)
@@ -2932,7 +3003,15 @@ int VMK::send(const void *message, int size, int dest, commhandle **ch,
     if (mpi_mutex_flag) pthread_mutex_lock(pth_mutex);
 #endif
 //fprintf(stderr, "MPI_Isend: ch=%p\n", (*ch)->mpireq);
-    if (tag == -1) tag = 1000*mypet+dest;   // default tag to simplify debugging
+    if (tag == -1){
+      tag = 1000*mypet+dest;  // default tag to simplify debugging
+      // make sure to stay below max tag
+      int maxTag = getMaxTag();
+      if (maxTag > 0)
+        tag = tag%maxTag;
+      else
+        tag = 0;
+    }
     localrc = MPI_Isend(messageC, size, MPI_BYTE, lpid[dest], tag, mpi_c, 
       (*ch)->mpireq);
 #ifndef ESMF_NO_PTHREADS
@@ -3011,8 +3090,16 @@ int VMK::recv(void *message, int size, int source, int tag, status *status){
 #ifndef ESMF_NO_PTHREADS
     if (mpi_mutex_flag) pthread_mutex_lock(pth_mutex);
 #endif
-    if (tag == -1) tag = 1000*source+mypet; // default tag to simplify debugging
-    else if (tag == VM_ANY_TAG) tag = MPI_ANY_TAG;
+    if (tag == -1){
+      tag = 1000*source+mypet;  // default tag to simplify debugging
+      // make sure to stay below max tag
+      int maxTag = getMaxTag();
+      if (maxTag > 0)
+        tag = tag%maxTag;
+      else
+        tag = 0;
+    }else if (tag == VM_ANY_TAG)
+      tag = MPI_ANY_TAG;
     int mpiSource;
     if (source == VM_ANY_SRC) mpiSource = MPI_ANY_SOURCE;
     else mpiSource = lpid[source];
@@ -3026,15 +3113,19 @@ int VMK::recv(void *message, int size, int source, int tag, status *status){
     if (mpi_mutex_flag) pthread_mutex_unlock(pth_mutex);
 #endif
     if (status){
-      if (lpid[mpi_s->MPI_SOURCE] == mpi_s->MPI_SOURCE)
-        status->srcPet = mpi_s->MPI_SOURCE;
-      else{
-        for (int k=0; k<npets; k++)
-          if (lpid[k] == mpi_s->MPI_SOURCE)
-            status->srcPet = mpi_s->MPI_SOURCE;
+      int cancelled;
+      MPI_Test_cancelled(mpi_s, &cancelled);
+      if (!cancelled){
+        if (lpid[mpi_s->MPI_SOURCE] == mpi_s->MPI_SOURCE)
+          status->srcPet = mpi_s->MPI_SOURCE;
+        else{
+          for (int k=0; k<npets; k++)
+            if (lpid[k] == mpi_s->MPI_SOURCE)
+              status->srcPet = mpi_s->MPI_SOURCE;
+        }
+        status->tag     = mpi_s->MPI_TAG;
+        status->error   = mpi_s->MPI_ERROR;
       }
-      status->tag     = mpi_s->MPI_TAG;
-      status->error   = mpi_s->MPI_ERROR;
     }
     break;
   case VM_COMM_TYPE_PTHREAD:
@@ -3189,6 +3280,7 @@ int VMK::recv(void *message, int size, int source, commhandle **ch, int tag){
   case VM_COMM_TYPE_MPI1:
     (*ch)->nelements=1;
     (*ch)->type=1;
+    (*ch)->sendFlag=false;  // not a send request
     (*ch)->mpireq = new MPI_Request[1];
     // MPI-1 implementation
     // use mutex to serialize mpi comm calls if mpi thread support requires it
@@ -3196,8 +3288,16 @@ int VMK::recv(void *message, int size, int source, commhandle **ch, int tag){
     if (mpi_mutex_flag) pthread_mutex_lock(pth_mutex);
 #endif
 //fprintf(stderr, "MPI_Irecv: ch=%p\n", (*ch)->mpireq);
-    if (tag == -1) tag = 1000*source+mypet; // default tag to simplify debugging
-    else if (tag == VM_ANY_TAG) tag = MPI_ANY_TAG;
+    if (tag == -1){
+      tag = 1000*source+mypet;  // default tag to simplify debugging
+      // make sure to stay below max tag
+      int maxTag = getMaxTag();
+      if (maxTag > 0)
+        tag = tag%maxTag;
+      else
+        tag = 0;
+    }else if (tag == VM_ANY_TAG)
+      tag = MPI_ANY_TAG;
     int mpiSource;
     if (source == VM_ANY_SRC) mpiSource = MPI_ANY_SOURCE;
     else mpiSource = lpid[source];
@@ -4702,24 +4802,33 @@ void VMK::ipshmdeallocate(void *pointer){
 #ifndef ESMF_NO_PTHREADS
   pthread_mutex_lock(ipshmMutex);
 #endif
-  ipshmAlloc *ipshmTemp = *ipshmTop; // start at the current top of the list
-  while (ipshmTemp != NULL){
-    if (ipshmTemp->allocation == pointer) break;
-    ipshmTemp = ipshmTemp->next;
-  }
-  if (ipshmTemp!=NULL){
-    // found the allocation
-    --(ipshmTemp->auxCounter); // count this thread's deallocate call
-    if (ipshmTemp->auxCounter == 0){
-      // this was the last thread to call deallocate for this allocation
-      //printf("freeing %p\n", pointer);
-      free(pointer);
-      // Cannot deallocate the allocation element in list here without
-      // disturbing list structure which is shared between threads.
-      // It is anyway safer to do a centralized deallocation of this structure
-      // during VM shutdown as it gives a chance to free any remaining
-      // pointers that are still allocated in order to prevent memory leaks
-      // because of improper user code.
+
+  if (getNthreads(getMypet()) == 1){
+    // PET is in single-thread group -> much simpler and faster
+    // don't do anything here, and have the VMK::finalize() take care of it
+  }else{
+    // PET is part of a multi-thread group -> need to search for entry
+    // maybe using a std::map would help for more efficient search as number
+    // of objects increases
+    ipshmAlloc *ipshmTemp = *ipshmTop; // start at the current top of the list
+    while (ipshmTemp != NULL){
+      if (ipshmTemp->allocation == pointer) break;
+      ipshmTemp = ipshmTemp->next;
+    }
+    if (ipshmTemp!=NULL){
+      // found the allocation
+      --(ipshmTemp->auxCounter); // count this thread's deallocate call
+      if (ipshmTemp->auxCounter == 0){
+        // this was the last thread to call deallocate for this allocation
+        //printf("freeing %p\n", pointer);
+        free(pointer);
+        // Cannot deallocate the allocation element in list here without
+        // disturbing list structure which is shared between threads.
+        // It is anyway safer to do a centralized deallocation of this structure
+        // during VM shutdown as it gives a chance to free any remaining
+        // pointers that are still allocated in order to prevent memory leaks
+        // because of improper user code.
+      }
     }
   }
 #ifndef ESMF_NO_PTHREADS
@@ -4847,6 +4956,14 @@ void sync_reset(shmsync *shms){
     *(shms->buffer_done[i]) = 0;
 }
 
+
+//==============================================================================
+//==============================================================================
+//==============================================================================
+// ComPat: abstract class providing basic communication patters
+//==============================================================================
+//==============================================================================
+//==============================================================================
 
 namespace ESMCI{
   void ComPat::totalExchange(VMK *vmk){

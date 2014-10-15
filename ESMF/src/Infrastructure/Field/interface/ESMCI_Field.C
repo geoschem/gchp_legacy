@@ -2,7 +2,7 @@
 //$1.10 2007/04/26 16:13:59 rosalind Exp $
 //
 // Earth System Modeling Framework
-// Copyright 2002-2010, University Corporation for Atmospheric Research, 
+// Copyright 2002-2012, University Corporation for Atmospheric Research, 
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
 // Laboratory, University of Michigan, National Centers for Environmental 
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
@@ -29,6 +29,7 @@
 // associated header file
 #include "ESMCI_Field.h"
 #include "ESMC_Field.h"
+#include "ESMCI_Array.h"
 
 //insert any higher level, 3rd party or system includes here
 #include <string.h>         // strlen()
@@ -49,7 +50,7 @@
 
 // leave the following line as-is; it will insert the cvs ident string
 // into the object file for tracking purposes.
-static const char *const version = "$Id: ESMCI_Field.C,v 1.2.2.1 2010/02/05 19:55:44 svasquez Exp $";
+static const char *const version = "$Id$";
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
@@ -72,9 +73,16 @@ void FTN(f_esmf_fieldcreate)(ESMCI::Field *fieldp, void *mesh_pointer, ESMC_Arra
 
 void FTN(f_esmf_fielddestroy)(ESMCI::Field *fieldp, int *rc);
 
+void FTN(f_esmf_fieldgetmesh)(ESMCI::Field *fieldp, void *mesh_pointer,
+  int *rc);
+
+void FTN(f_esmf_fieldgetarray)(ESMCI::Field *fieldp, void *array_pointer,
+  int *rc);
+
 void FTN(f_esmf_fieldprint)(ESMCI::Field *fieldp, int *rc);
 
-void FTN(f_esmf_fieldget)(ESMCI::Field *fieldp, void *mesh_pointer, int *rc);
+void FTN(f_esmf_fieldcast)(ESMCI::F90ClassHolder *fieldOut,
+  ESMCI::Field *fieldIn, int *rc);
 
 }
 
@@ -144,7 +152,7 @@ namespace ESMCI {
     int slen = strlen(name);
     char * fName = new char[slen];
     localrc = ESMC_CtoF90string(name, fName, slen);
-    if (ESMC_LogDefault.MsgFoundError(localrc, ESMF_ERR_PASSTHRU, rc)) {
+    if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, rc)) {
         delete[] fName;
         return field;
     }
@@ -162,7 +170,7 @@ namespace ESMCI {
         uglb->array, &uglb->extent[0], 
         ugub->array, &ugub->extent[0], 
         fName, &localrc, slen);
-    if (ESMC_LogDefault.MsgFoundError(localrc, ESMF_ERR_PASSTHRU, rc)) {
+    if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, rc)) {
         return field;
     }
   
@@ -236,8 +244,8 @@ namespace ESMCI {
 
     ESMC_Mesh mesh;
     mesh.ptr = NULL; // initialize
-    FTN(f_esmf_fieldget)(this, &(mesh.ptr), &localrc);
-    if (ESMC_LogDefault.MsgFoundError(localrc, ESMF_ERR_PASSTHRU, rc))
+    FTN(f_esmf_fieldgetmesh)(this, &(mesh.ptr), &localrc);
+    if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, rc))
       return mesh;
     
     // return successfully
@@ -246,6 +254,41 @@ namespace ESMCI {
   }
 //-----------------------------------------------------------------------------
   
+//-----------------------------------------------------------------------------
+#undef  ESMC_METHOD
+#define ESMC_METHOD "ESMCI::Field::getArray()"
+//BOP
+// !IROUTINE:  ESMCI::Field::getArray - Get the number of items contained
+//             in this Field
+//
+// !INTERFACE:
+  ESMC_Array Field::getArray(
+//
+// !RETURN VALUE:
+//     ESMC_Array object
+//
+// !ARGUMENTS:
+    int *rc) {           // out - return code
+//
+// !DESCRIPTION:
+//      Get the number of items contained in an existing Field
+//
+//EOP
+    // Initialize return code. Assume routine not implemented
+    int localrc = ESMC_RC_NOT_IMPL;
+
+    ESMC_Array array;
+    array.ptr = NULL; // initialize
+    FTN(f_esmf_fieldgetarray)(this, (ESMCI::Array **)&(array.ptr), &localrc);
+    if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, rc))
+      return array;
+    
+    // return successfully
+    if (rc) *rc = ESMF_SUCCESS;
+    return array;
+  }
+//-----------------------------------------------------------------------------
+
 //-----------------------------------------------------------------------------
 #undef  ESMC_METHOD
 #define ESMC_METHOD "ESMCI::Field::print()"
@@ -270,7 +313,7 @@ namespace ESMCI {
 
     // Invoque the fortran interface through the F90-C++ "glue" code
     FTN(f_esmf_fieldprint)(this, &localrc);
-    if (ESMC_LogDefault.MsgFoundError(localrc, ESMF_ERR_PASSTHRU, &rc))
+    if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, &rc))
       return rc;
 
     // return successfully
@@ -280,4 +323,37 @@ namespace ESMCI {
 //-----------------------------------------------------------------------------
   
   
+//-----------------------------------------------------------------------------
+#undef  ESMC_METHOD
+#define ESMC_METHOD "ESMCI::Field::castToFortran()"
+//BOP
+// !IROUTINE:  ESMCI::Field::castToFortran - cast Field object to Fortran
+// !INTERFACE:
+  int Field::castToFortran(F90ClassHolder *fc){
+
+// !RETURN VALUE:
+//    int error return code
+  
+// !ARGUMENTS:
+//   returned Fortran cast
+
+//  !DESCRIPTION
+//    Cast Field object to Fortran.
+
+    // Initialize return code. Assume routine not implemented
+    int localrc = ESMC_RC_NOT_IMPL;
+    int rc=ESMC_RC_NOT_IMPL;
+
+    // Invoque the fortran interface through the F90-C++ "glue" code
+    FTN(f_esmf_fieldcast)(fc, this, &localrc);
+    if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, &rc))
+      return rc;
+
+    // return successfully
+    rc = ESMF_SUCCESS;
+    return rc;
+  }
+//-----------------------------------------------------------------------------
+
+
 } // namespace ESMCI

@@ -1,7 +1,7 @@
-! $Id: ESMF_StateVa.F90,v 1.3.2.1 2010/02/05 20:05:07 svasquez Exp $
+! $Id$
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2010, University Corporation for Atmospheric Research, 
+! Copyright 2002-2012, University Corporation for Atmospheric Research, 
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
 ! Laboratory, University of Michigan, National Centers for Environmental 
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
@@ -22,6 +22,8 @@
 ! INCLUDES
 !------------------------------------------------------------------------------
 #include "ESMF.h"
+
+#define ESMF_ENABLEBIGNAMEMAP
 !------------------------------------------------------------------------------
 !BOPI
 ! !MODULE: ESMF_StateVaMod - State Va Module
@@ -32,9 +34,17 @@
 !
 !
 ! !USES:
+      use ESMF_ArrayMod,       only: ESMF_ArrayValidate
+      use ESMF_ArrayBundleMod, only: ESMF_ArrayBundleValidate
+      use ESMF_FieldMod,       only: ESMF_FieldValidate
+      use ESMF_FieldBundleMod, only: ESMF_FieldBundleValidate
       use ESMF_LogErrMod
+      use ESMF_RHandleMod,     only: ESMF_RouteHandleValidate
       use ESMF_StateTypesMod
+      use ESMF_StateContainerMod
       use ESMF_InitMacrosMod
+      use ESMF_UtilTypesMod
+      use ESMF_UtilMod,        only: ESMF_StringLowerCase
       
       implicit none
       
@@ -56,7 +66,7 @@
 !------------------------------------------------------------------------------
 ! The following line turns the CVS identifier string into a printable variable.
       character(*), parameter, private :: version = &
-      '$Id: ESMF_StateVa.F90,v 1.3.2.1 2010/02/05 20:05:07 svasquez Exp $'
+      '$Id$'
 
 !==============================================================================
 ! 
@@ -78,16 +88,22 @@
 ! !IROUTINE: ESMF_StateValidate - Check validity of a State
 !
 ! !INTERFACE:
-      subroutine ESMF_StateValidate(state, options, rc)
+      subroutine ESMF_StateValidate(state, keywordEnforcer, nestedFlag, rc)
 !
 ! !ARGUMENTS:
-      type(ESMF_State) :: state
-      character (len = *), intent(in), optional :: options
-      integer, intent(out), optional :: rc 
+      type(ESMF_State), intent(in) :: state
+    type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
+      logical,          intent(in),  optional :: nestedFlag
+      integer,          intent(out), optional :: rc 
+!
+! !STATUS:
+! \begin{itemize}
+! \item\apiStatusCompatibleVersion{5.2.0r}
+! \end{itemize}
 !
 ! !DESCRIPTION:
 !     Validates that the {\tt state} is internally consistent.
-!      Currently this method determines if the {\tt state} is uninitialized 
+!      Currently this method determines if the {\tt State} is uninitialized 
 !      or already destroyed.  The method returns an error code if problems 
 !      are found.  
 !
@@ -95,8 +111,9 @@
 !     \begin{description}
 !     \item[state]
 !       The {\tt ESMF\_State} to validate.
-!     \item[{[options]}]
-!       Validation options are not yet supported.
+!     \item[{[nestedFlag]}]
+!       {\tt .false.} - validates at the current State level only (default)
+!       {\tt .true.} - recursively validates any nested States
 !     \item[{[rc]}]
 !       Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
 !     \end{description}
@@ -107,33 +124,115 @@
 !
 ! TODO: code goes here
 !
-      character (len=6) :: localopts
+      integer :: localrc
+      logical :: localnestedflag
+      type(ESMF_StateClass), pointer :: stypep
+
+      ! Initialize return code; assume failure until success is certain
+      if (present(rc)) rc = ESMF_RC_NOT_IMPL
+      localrc = ESMF_SUCCESS
 
       ! check input variables
       ESMF_INIT_CHECK_DEEP(ESMF_StateGetInit,state,rc)
 
-      localopts = "brief"
-      if (present (options)) then
-        if (options /= " ")  &
-          localopts = options
+      localnestedflag = .false.
+      if (present (nestedFlag)) then
+        localnestedflag = nestedFlag
       end if
 
-      ! Initialize return code; assume failure until success is certain
-      if (present(rc)) rc = ESMF_RC_NOT_IMPL
+      ! Validate the State
 
-      if (.not.associated(state%statep)) then
-          if (ESMF_LogMsgFoundError(ESMF_RC_OBJ_BAD, &
-                                 "State uninitialized or already destroyed", &
-                                  ESMF_CONTEXT, rc)) return
+      if (.not. associated (state%statep)) then
+          if (ESMF_LogFoundError(ESMF_RC_OBJ_BAD, &
+                                 msg="State uninitialized or already destroyed", &
+                                  ESMF_CONTEXT, rcToReturn=rc)) return
       endif
 
-      if (state%statep%st .eq. ESMF_STATE_INVALID) then
-          if (ESMF_LogMsgFoundError(ESMF_RC_OBJ_BAD, &
-                                 "State uninitialized or already destroyed", &
-                                  ESMF_CONTEXT, rc)) return
-      endif
 
-      if (present(rc)) rc = ESMF_SUCCESS
+      if (localnestedflag) then
+        stypep => state%statep
+        call validateWorker (stypep, rc=localrc)
+      end if
+
+      if (present(rc)) rc = localrc
+
+      contains
+
+        recursive subroutine validateWorker (sp, rc)
+          type(ESMF_StateClass), pointer :: sp
+          integer, intent (out) :: rc
+
+          integer :: i1
+          integer :: local1rc
+          type(ESMF_StateItemWrap),  pointer :: ptrs(:)
+          type(ESMF_StateItem), pointer :: sip
+          integer :: memstat1
+
+          rc = ESMF_SUCCESS
+
+          if (sp%st == ESMF_STATEINTENT_INVALID) then
+            if (ESMF_LogFoundError(ESMF_RC_OBJ_BAD, &
+                msg="State uninitialized or already destroyed", &
+                ESMF_CONTEXT, rcToReturn=rc)) return
+          end if
+
+          ptrs => null ()
+          call ESMF_ContainerGet (sp%StateContainer, itemList=ptrs, rc=local1rc)
+          if (ESMF_LogFoundError(local1rc, ESMF_ERR_PASSTHRU, &
+              ESMF_CONTEXT, rcToReturn=rc)) return
+
+          do, i1 = 1, size (ptrs)
+            local1rc = ESMF_SUCCESS
+            sip => ptrs(i1)%si
+
+            select case (sip%otype%ot)
+            case (ESMF_STATEITEM_ARRAY%ot)
+              call ESMF_ArrayValidate (sip%datap%ap, rc=local1rc)
+
+            case (ESMF_STATEITEM_ARRAYBUNDLE%ot)
+              call ESMF_ArrayBundleValidate (sip%datap%abp, rc=local1rc)
+
+            case (ESMF_STATEITEM_FIELD%ot)
+              call ESMF_FieldValidate (sip%datap%fp, rc=local1rc)
+
+            case (ESMF_STATEITEM_FIELDBUNDLE%ot)
+              call ESMF_FieldBundleValidate (sip%datap%fbp, rc=local1rc)
+
+            case (ESMF_STATEITEM_ROUTEHANDLE%ot)
+              call ESMF_RouteHandleValidate (sip%datap%rp, rc=local1rc)
+
+            case (ESMF_STATEITEM_STATE%ot)
+              if (localnestedflag)  &
+                call validateWorker (sip%datap%spp, rc=local1rc)
+
+#if 0
+            case (ESMF_STATEITEM_NAME%ot, ESMF_STATEITEM_INDIRECT%ot)
+              continue
+#endif
+
+            case (ESMF_STATEITEM_UNKNOWN%ot, ESMF_STATEITEM_NOTFOUND%ot)
+              local1rc = ESMF_RC_OBJ_BAD
+
+            case default
+              local1rc = ESMF_RC_OBJ_BAD
+
+            end select
+
+            if (local1rc /= ESMF_SUCCESS) then
+              rc = ESMF_RC_OBJ_BAD
+              if (ESMF_LogFoundError(local1rc, ESMF_ERR_PASSTHRU, &
+        	  ESMF_CONTEXT, rcToReturn=rc)) exit
+            end if
+
+          end do
+
+          if (associated (ptrs)) then
+            deallocate (ptrs, stat=memstat1)
+            if (ESMF_LogFoundDeallocError(memstat1, msg= "deallocating pointers", &
+        ESMF_CONTEXT, rcToReturn=rc)) return
+          end if
+
+        end subroutine validateWorker
 
       end subroutine ESMF_StateValidate
 

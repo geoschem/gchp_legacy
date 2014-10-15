@@ -1,7 +1,7 @@
-! $Id: ESMF_AttributeArrayUTest.F90,v 1.28.2.1 2010/02/05 20:03:39 svasquez Exp $
+! $Id$
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2010, University Corporation for Atmospheric Research,
+! Copyright 2002-2012, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -29,13 +29,13 @@ program ESMF_AttributeArrayUTest
 !-----------------------------------------------------------------------------
 ! !USES:
       use ESMF_TestMod     ! test methods
-      use ESMF_Mod         ! the ESMF Framework
+      use ESMF         ! the ESMF Framework
       implicit none
 
 !------------------------------------------------------------------------------
 ! The following line turns the CVS identifier string into a printable variable.
       character(*), parameter :: version = &
-      '$Id: ESMF_AttributeArrayUTest.F90,v 1.28.2.1 2010/02/05 20:03:39 svasquez Exp $'
+      '$Id$'
 !------------------------------------------------------------------------------
 
 !-------------------------------------------------------------------------
@@ -51,7 +51,7 @@ program ESMF_AttributeArrayUTest
       type(ESMF_DistGrid)    :: distgrid
       character(ESMF_MAXSTR) :: attrname, attrnameOut, attrvalue
       integer                :: rc, count, items
-      type(ESMF_TypeKind)    :: attrTK
+      type(ESMF_TypeKind_Flag)    :: attrTK
 
       real(ESMF_KIND_I8)                     :: inR8, outR8, defaultR8, dfltoutR8
       real(ESMF_KIND_I8), dimension(3)       :: inR8l, defaultR8l, dfltoutR8l, outR8l
@@ -114,8 +114,8 @@ program ESMF_AttributeArrayUTest
       call ESMF_ArraySpecSet(arrayspec, typekind=ESMF_TYPEKIND_R8, rank=2, rc=rc)
       distgrid = ESMF_DistGridCreate(minIndex=(/1,1/), maxIndex=(/5,5/), &
         regDecomp=(/2,3/), rc=rc)
-      array = ESMF_ArrayCreate(arrayspec, distgrid, rc=rc)
-      if (rc .ne. ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+      array = ESMF_ArrayCreate(distgrid, arrayspec, rc=rc)
+      if (rc .ne. ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
 !-------------------------------------------------------------------------
 !  ARRAY
@@ -596,7 +596,7 @@ program ESMF_AttributeArrayUTest
       !EX_UTest
       ! Set a char list Attribute on a Array Test
       call ESMF_AttributeSet(array, name="Charl", &
-        valueList=InCharl, rc=rc)
+        valueList=InCharl(1:1), rc=rc)
       write(failMsg, *) "Did not return ESMF_SUCCESS"
       write(name, *) "Setting an Attribute char list on an Array test"
       call ESMF_Test((rc==ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
@@ -608,7 +608,7 @@ program ESMF_AttributeArrayUTest
         valueList=OutCharl, rc=rc)
       write(failMsg, *) "Did not return ESMF_SUCCESS"
       write(name, *) "Getting an Attribute char list from an Array test"
-      call ESMF_Test((rc==ESMF_SUCCESS) .and. all (InCharl==OutCharl), &
+      call ESMF_Test((rc==ESMF_SUCCESS) .and. all (InCharl(1:1)==OutCharl(1:1)), &
                       name, failMsg, result, ESMF_SRCLINE)
       !------------------------------------------------------------------------
 
@@ -773,9 +773,9 @@ program ESMF_AttributeArrayUTest
       ! Too Short Get an ESMF_R8 list Attribute from an Array Test
       call ESMF_AttributeGet(array, name="AttrR8l", &
         valueList=outR8lLong(1:2), itemCount=itemCount, rc=rc)
-      write(failMsg, *) "Did not return ESMF_RC_ARG_BAD"
+      write(failMsg, *) "Did not return ESMF_RC_ATTR_ITEMSOFF"
       write(name, *) "Getting an ESMF_R8l Attribute from an Array Test with short valueList"
-      call ESMF_Test(rc==ESMF_RC_ARG_BAD, name, failMsg, result, ESMF_SRCLINE)
+      call ESMF_Test(rc/=ESMF_SUCCESS, name, failMsg, result, ESMF_SRCLINE)
       !------------------------------------------------------------------------
 
       itemCount = 3
@@ -806,9 +806,9 @@ program ESMF_AttributeArrayUTest
       ! Too Short Get a char list Attribute from an Array Test
       call ESMF_AttributeGet(array, name="Charl", &
         valueList=outCharlLong(1:2),itemCount=itemCount, rc=rc)
-      write(failMsg, *) "Did not return ESMF_RC_ARG_BAD"
+      write(failMsg, *) "Did not return ESMF_RC_ATTR_ITEMSOFF"
       write(name, *) "Getting an Attribute char list from an Array test with short valueList"
-      call ESMF_Test((rc==ESMF_RC_ARG_BAD), name, failMsg, result, ESMF_SRCLINE)
+      call ESMF_Test((rc/=ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
       !------------------------------------------------------------------------
 
       itemCount = 3
@@ -1072,13 +1072,38 @@ program ESMF_AttributeArrayUTest
       call ESMF_Test((rc==ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
       !------------------------------------------------------------------------
 
+    !-------------------------------------------------------------------------
+    !  Attribute package - custom - setget one element section of list to attpack attribute
+    !-------------------------------------------------------------------------
+
       attrname = "Character_namelist"
       !EX_UTest
+      ! Set a one element char list Attribute in an Attribute package on an Array Test
+      call ESMF_AttributeSet(array, name=attrname, &
+        valueList=attpackList(1:1), convention=conv, purpose=purp, rc=rc)
+      write(failMsg, *) "Did not return ESMF_SUCCESS"
+      write(name, *) "Setting a one element char list Attribute in an Attribute package on an Array Test"
+      call ESMF_Test((rc==ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+      !------------------------------------------------------------------------
+
+      !EX_UTest
       ! Set a char list Attribute in an Attribute package on an Array Test
+      call ESMF_AttributeGet(array, name=attrname, &
+        valueList=outCharl, convention=conv, purpose=purp, rc=rc)
+      write(failMsg, *) "Did not return ESMF_SUCCESS"
+      write(name, *) "Getting a one element char list Attribute in an Attribute package on an Array Test"
+      call ESMF_Test((rc==ESMF_SUCCESS) .and. all (attpackList(1:1)==OutCharl(1:1)), &
+                      name, failMsg, result, ESMF_SRCLINE)
+      !------------------------------------------------------------------------
+
+      !EX_UTest
+      ! Reset a char list Attribute in an Attribute package on an Array Test
+      ! If this goes it should fail in below in the 'Get a char list attribute 
+      ! in an Attribute package on an Array Test'
       call ESMF_AttributeSet(array, name=attrname, &
         valueList=attpackList, convention=conv, purpose=purp, rc=rc)
       write(failMsg, *) "Did not return ESMF_SUCCESS"
-      write(name, *) "Setting a char list Attribute in an Attribute package on an Array Test"
+      write(name, *) "Resetting a char list Attribute in an Attribute package on an Array Test"
       call ESMF_Test((rc==ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
       !------------------------------------------------------------------------
 
@@ -1162,7 +1187,8 @@ program ESMF_AttributeArrayUTest
         attwriteflag=ESMF_ATTWRITE_XML, rc=rc)
       write(failMsg, *) "Did not return ESMF_SUCCESS"
       write(name, *) "Writing an Attribute package to .xml from an Array Test"
-      call ESMF_Test((rc==ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+      call ESMF_Test((rc==ESMF_SUCCESS .or. rc==ESMF_RC_LIB_NOT_PRESENT), &
+                      name, failMsg, result, ESMF_SRCLINE)
       !------------------------------------------------------------------------
 
       !EX_UTest
@@ -1223,7 +1249,7 @@ program ESMF_AttributeArrayUTest
       call ESMF_ArrayDestroy(array, rc=rc)
       call ESMF_DistGridDestroy(distGrid, rc=rc)
       
-      if (rc .ne. ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+      if (rc .ne. ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
   !-----------------------------------------------------------------------------
   call ESMF_TestEnd(result, ESMF_SRCLINE)

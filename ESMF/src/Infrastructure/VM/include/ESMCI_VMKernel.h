@@ -1,7 +1,7 @@
-// $Id: ESMCI_VMKernel.h,v 1.8.2.1 2010/02/05 20:01:32 svasquez Exp $
+// $Id$
 //
 // Earth System Modeling Framework
-// Copyright 2002-2010, University Corporation for Atmospheric Research, 
+// Copyright 2002-2012, University Corporation for Atmospheric Research, 
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
 // Laboratory, University of Michigan, National Centers for Environmental 
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
@@ -100,6 +100,7 @@ class VMK{
     commhandle *next_handle;// next handle in the queue
     int nelements;          // number of elements
     int type;       // 0: commhandle container, 1: MPI_Requests, 2: ... reserved
+    bool sendFlag;          // true if this is a send request
     commhandle **handles;   // sub handles
     MPI_Request *mpireq;    // request array
   };
@@ -273,6 +274,8 @@ class VMK{
     int getVas(int i);             // return vas for PET
     int getLpid(int i);            // return lpid for PET
     
+    int getMaxTag();               // return maximum value of tag
+    
     // get() calls
     int getLocalPet() const {return mypet;}
     int getPetCount() const {return npets;}
@@ -356,7 +359,8 @@ class VMK{
     int commwait(commhandle **commh, status *status=NULL, int nanopause=0);
     void commqueuewait();
     void commcancel(commhandle **commh);
-    
+    bool cancelled(status *status);
+        
     // IntraProcessSharedMemoryAllocation Table Methods
     void *ipshmallocate(int bytes, int *firstFlag=NULL);
     void ipshmdeallocate(void *);

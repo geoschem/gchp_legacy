@@ -1,4 +1,4 @@
-! $Id: user_model2.F90,v 1.7 2009/10/22 14:40:48 feiliu Exp $
+! $Id: user_model2.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
 !
 ! Example/test code which shows User Component calls.
 
@@ -15,7 +15,7 @@
 module user_model2
 
   ! ESMF Framework module
-  use ESMF_Mod
+  use ESMF
 
   implicit none
     
@@ -67,15 +67,15 @@ module user_model2
 
     ! Register the callback routines.
 
-    call ESMF_GridCompSetEntryPoint(comp, ESMF_SETINIT, userRoutine=user_init, &
+    call ESMF_GridCompSetEntryPoint(comp, ESMF_METHOD_INITIALIZE, userRoutine=user_init, &
       rc=rc)
-    if (rc/=ESMF_SUCCESS) call ESMF_Finalize(rc=rc, terminationflag=ESMF_ABORT)
-    call ESMF_GridCompSetEntryPoint(comp, ESMF_SETRUN, userRoutine=user_run, &
+    if (rc/=ESMF_SUCCESS) call ESMF_Finalize(rc=rc, endflag=ESMF_END_ABORT)
+    call ESMF_GridCompSetEntryPoint(comp, ESMF_METHOD_RUN, userRoutine=user_run, &
       rc=rc)
-    if (rc/=ESMF_SUCCESS) call ESMF_Finalize(rc=rc, terminationflag=ESMF_ABORT)
-    call ESMF_GridCompSetEntryPoint(comp, ESMF_SETFINAL, userRoutine=user_final, &
+    if (rc/=ESMF_SUCCESS) call ESMF_Finalize(rc=rc, endflag=ESMF_END_ABORT)
+    call ESMF_GridCompSetEntryPoint(comp, ESMF_METHOD_FINALIZE, userRoutine=user_final, &
       rc=rc)
-    if (rc/=ESMF_SUCCESS) call ESMF_Finalize(rc=rc, terminationflag=ESMF_ABORT)
+    if (rc/=ESMF_SUCCESS) call ESMF_Finalize(rc=rc, endflag=ESMF_END_ABORT)
 
     print *, "Registered Initialize, Run, and Finalize routines"
     print *, "User Comp2 Register returning"
@@ -107,31 +107,31 @@ module user_model2
 
     ! Determine petCount
     call ESMF_GridCompGet(comp, vm=vm, rc=rc)
-    if (rc/=ESMF_SUCCESS) call ESMF_Finalize(rc=rc, terminationflag=ESMF_ABORT)
+    if (rc/=ESMF_SUCCESS) call ESMF_Finalize(rc=rc, endflag=ESMF_END_ABORT)
     call ESMF_VMGet(vm, petCount=petCount, rc=rc)
-    if (rc/=ESMF_SUCCESS) call ESMF_Finalize(rc=rc, terminationflag=ESMF_ABORT)
+    if (rc/=ESMF_SUCCESS) call ESMF_Finalize(rc=rc, endflag=ESMF_END_ABORT)
     
     ! Create the destination FieldBundle and add it to the import State
     call ESMF_ArraySpecSet(arrayspec, typekind=ESMF_TYPEKIND_R8, rank=2, rc=rc)
     if (rc/=ESMF_SUCCESS) return ! bail out
-    grid = ESMF_GridCreateShapeTile(minIndex=(/1,1/), maxIndex=(/100,150/), &
+    grid = ESMF_GridCreateNoPeriDim(minIndex=(/1,1/), maxIndex=(/100,150/), &
       regDecomp=(/1,petCount/), &
       gridEdgeLWidth=(/0,0/), gridEdgeUWidth=(/0,0/), & ! no stagger padding
       indexflag=ESMF_INDEX_GLOBAL, rc=rc)
-    if (rc/=ESMF_SUCCESS) call ESMF_Finalize(rc=rc, terminationflag=ESMF_ABORT)
+    if (rc/=ESMF_SUCCESS) call ESMF_Finalize(rc=rc, endflag=ESMF_END_ABORT)
 
     do i = 1, 3
         field(i) = ESMF_FieldCreate(grid, arrayspec=arrayspec, &
               staggerloc=ESMF_STAGGERLOC_CENTER, rc=rc)
-        if (rc/=ESMF_SUCCESS) call ESMF_Finalize(rc=rc, terminationflag=ESMF_ABORT)
+        if (rc/=ESMF_SUCCESS) call ESMF_Finalize(rc=rc, endflag=ESMF_END_ABORT)
     enddo
 
-    fieldbundle = ESMF_FieldBundleCreate(fieldCount=3, fieldList=field, &
+    fieldbundle = ESMF_FieldBundleCreate(fieldList=field, &
         name="fieldbundle data", rc=rc)
-    if (rc/=ESMF_SUCCESS) call ESMF_Finalize(rc=rc, terminationflag=ESMF_ABORT)
+    if (rc/=ESMF_SUCCESS) call ESMF_Finalize(rc=rc, endflag=ESMF_END_ABORT)
 
-    call ESMF_StateAdd(importState, fieldbundle=fieldbundle, rc=rc)
-    if (rc/=ESMF_SUCCESS) call ESMF_Finalize(rc=rc, terminationflag=ESMF_ABORT)
+    call ESMF_StateAdd(importState, fieldbundleList=(/fieldbundle/), rc=rc)
+    if (rc/=ESMF_SUCCESS) call ESMF_Finalize(rc=rc, endflag=ESMF_END_ABORT)
    
     print *, "User Comp2 Init returning"
 
@@ -167,25 +167,25 @@ module user_model2
 
     ! Get the destination Field from the import State
     call ESMF_StateGet(importState, itemName="fieldbundle data", fieldbundle=fieldbundle, rc=rc)
-    if (rc/=ESMF_SUCCESS) call ESMF_Finalize(rc=rc, terminationflag=ESMF_ABORT)
+    if (rc/=ESMF_SUCCESS) call ESMF_Finalize(rc=rc, endflag=ESMF_END_ABORT)
    
     ! Get the Grid from the FieldBundle
     call ESMF_FieldBundleGet(fieldbundle, grid=grid, rc=rc)
-    if (rc/=ESMF_SUCCESS) call ESMF_Finalize(rc=rc, terminationflag=ESMF_ABORT)
+    if (rc/=ESMF_SUCCESS) call ESMF_Finalize(rc=rc, endflag=ESMF_END_ABORT)
 
     ! Get Bounds
     call ESMF_GridGet(grid, localDe=0, staggerloc=ESMF_STAGGERLOC_CENTER, &
            computationalLBound=compLBnd, computationalUBound=compUBnd, rc=rc)
-    if (rc/=ESMF_SUCCESS) call ESMF_Finalize(rc=rc, terminationflag=ESMF_ABORT)
+    if (rc/=ESMF_SUCCESS) call ESMF_Finalize(rc=rc, endflag=ESMF_END_ABORT)
 
     do k = 1, 3
         ! Get the k-th field from the FieldBundle
         call ESMF_FieldBundleGet(fieldbundle, fieldIndex=k, field=field, rc=rc)
-        if (rc/=ESMF_SUCCESS) call ESMF_Finalize(rc=rc, terminationflag=ESMF_ABORT)
+        if (rc/=ESMF_SUCCESS) call ESMF_Finalize(rc=rc, endflag=ESMF_END_ABORT)
 
         ! Gain access to actual data via F90 array pointer
         call ESMF_FieldGet(field, localDe=0, farrayPtr=farrayPtr, rc=rc)
-        if (rc/=ESMF_SUCCESS) call ESMF_Finalize(rc=rc, terminationflag=ESMF_ABORT)
+        if (rc/=ESMF_SUCCESS) call ESMF_Finalize(rc=rc, endflag=ESMF_END_ABORT)
           
         ! Test FieldBundle in import state against exact solution
         do j = compLBnd(2), compUBnd(2)
@@ -228,19 +228,19 @@ module user_model2
     print *, "User Comp2 Final starting"
 
     call ESMF_StateGet(importState, "fieldbundle data", fieldbundle, rc=rc)
-    if (rc/=ESMF_SUCCESS) call ESMF_Finalize(rc=rc, terminationflag=ESMF_ABORT)
+    if (rc/=ESMF_SUCCESS) call ESMF_Finalize(rc=rc, endflag=ESMF_END_ABORT)
     call ESMF_FieldBundleGet(fieldbundle, grid=grid, rc=rc)
-    if (rc/=ESMF_SUCCESS) call ESMF_Finalize(rc=rc, terminationflag=ESMF_ABORT)
+    if (rc/=ESMF_SUCCESS) call ESMF_Finalize(rc=rc, endflag=ESMF_END_ABORT)
     do k = 1, 3
         call ESMF_FieldBundleGet(fieldbundle, fieldIndex=k, field=field, rc=rc)
-        if (rc/=ESMF_SUCCESS) call ESMF_Finalize(rc=rc, terminationflag=ESMF_ABORT)
+        if (rc/=ESMF_SUCCESS) call ESMF_Finalize(rc=rc, endflag=ESMF_END_ABORT)
         call ESMF_FieldDestroy(field, rc=rc)
-        if (rc/=ESMF_SUCCESS) call ESMF_Finalize(rc=rc, terminationflag=ESMF_ABORT)
+        if (rc/=ESMF_SUCCESS) call ESMF_Finalize(rc=rc, endflag=ESMF_END_ABORT)
     enddo
     call ESMF_FieldBundleDestroy(fieldbundle, rc=rc)
-    if (rc/=ESMF_SUCCESS) call ESMF_Finalize(rc=rc, terminationflag=ESMF_ABORT)
+    if (rc/=ESMF_SUCCESS) call ESMF_Finalize(rc=rc, endflag=ESMF_END_ABORT)
     call ESMF_GridDestroy(grid, rc=rc)
-    if (rc/=ESMF_SUCCESS) call ESMF_Finalize(rc=rc, terminationflag=ESMF_ABORT)
+    if (rc/=ESMF_SUCCESS) call ESMF_Finalize(rc=rc, endflag=ESMF_END_ABORT)
 
     print *, "User Comp2 Final returning"
 

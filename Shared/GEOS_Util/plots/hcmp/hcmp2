@@ -1,0 +1,527 @@
+function hcmp (args)
+
+EXPORT   = subwrd(args,1)
+GC       = subwrd(args,2)
+level    = subwrd(args,3)
+
+expid    = subwrd(args,4)
+output   = subwrd(args,5)
+debug    = subwrd(args,6)
+ 
+* Define Seasons to Process
+* -------------------------
+seasons  = ''
+       k = 7
+while( k > 0 )
+    season = subwrd(args,k)
+if( season = '' )
+    k = -1
+else
+    seasons = seasons % ' ' % season
+k = k+1
+endif
+endwhile
+'uppercase 'seasons
+          seasons = result
+
+
+* Initialize
+* ----------
+'reinit'
+'set display color white'
+'set csmooth on'
+'c'
+
+
+* Determine Variable Name and Data File
+* -------------------------------------
+if ( EXPORT = "HE" )
+    'run getvar  ZLE DYN'
+         qname  = subwrd(result,1)
+         qfile  = subwrd(result,2)
+         scale  = subwrd(result,3)
+         expdsc = subwrd(result,4)
+endif
+
+if( EXPORT = "CHI" | EXPORT = "PSI" )
+    'run getvar U DYN'
+         uname  = subwrd(result,1)
+         ufile  = subwrd(result,2)
+         uscale = subwrd(result,3)
+         expdsc = subwrd(result,4)
+    'run getvar V DYN'
+         vname  = subwrd(result,1)
+         vfile  = subwrd(result,2)
+         vscale = subwrd(result,3)
+         qfile  = ufile
+endif
+
+if( EXPORT != "CHI" & EXPORT != "PSI" & EXPORT != "HE" )
+    'run getvar 'EXPORT' 'GC
+         qname  = subwrd(result,1)
+         qfile  = subwrd(result,2)
+         scale  = subwrd(result,3)
+         expdsc = subwrd(result,4)
+endif
+
+
+* Return if EXPORT not found
+* --------------------------
+if( qfile = "NULL" )
+    return
+endif
+
+
+* Get Environment Variables
+* -------------------------
+'run getenv "GEOSUTIL"'
+         geosutil = result
+
+'run getenv "VERIFICATION"'
+         verification = result
+
+'run getenv "STD_DEV"'
+         std_dev  = result
+
+'run getenv "ANALYSIS"'
+         analysis  = result
+
+
+*PLOTS
+*-----
+
+* Set Default EXPORT Model and Observation Scaling Factors
+* --------------------------------------------------------
+                         facm = 1    ; faco = 1
+if( EXPORT = "U"     ) ; facm = 1    ; faco = 1    ; endif
+if( EXPORT = "V"     ) ; facm = 1    ; faco = 1    ; endif
+if( EXPORT = "T"     ) ; facm = 1    ; faco = 1    ; endif
+if( EXPORT = "Q"     ) ; facm = 1000 ; faco = 1000 ; endif
+if( EXPORT = "RH2"   ) ; facm = 100  ; faco = 1    ; endif
+if( EXPORT = "SLP"   ) ; facm = 0.01 ; faco = 0.01 ; endif
+
+if( EXPORT = "SLP" & level != 1000  ) ; return ; endif
+
+* Model Experiment Data
+* ---------------------
+'set dfile 'qfile
+'set lev 'level
+'getinfo  level'
+          modlev = result
+
+'getinfo xdim'
+         xdim  = result
+'getinfo ydim'
+         ydim  = result
+'getinfo undef'
+            undef = result
+'set undef 'undef
+
+* Return for CHI/PSI if resolution is > 0.5-deg
+* ---------------------------------------------
+if( (EXPORT = "CHI" | EXPORT = "PSI") & ( xdim>576 | ydim>361 ) )
+    return
+endif
+
+'setlons'
+'getinfo lonmin'
+         lonmin = result
+'getinfo lonmax'
+         lonmax = result
+'set lat -90 90'
+
+* Create Environment Variables for Seasonal Utility
+* -------------------------------------------------
+'setdates'
+'run getenv "BEGDATE"'
+             begdate  = result
+'run getenv "ENDDATE"'
+             enddate  = result
+'sett'
+
+                                     fact = facm
+if( EXPORT = "Q"   & level < 400 ) ; fact = fact*1000  ; endif
+
+* Check for CHI/PSI EXPORTS
+* -------------------------
+if( EXPORT = "CHI" | EXPORT = "PSI" )
+   'set dfile 'ufile
+       'alias 'uname
+        ualias = result
+   'chckname 'ualias
+   'define umod = 'ualias'*'fact'*'uscale
+   'set dfile 'vfile
+       'alias 'vname
+        valias = result
+   'chckname 'valias
+   'define vmod = 'valias'*'fact'*'vscale
+       'getinfo xmin'
+                xmin = result
+       'getinfo xmax'
+                xmax = result
+       'getint 'xmin
+                imin = result
+       'getint 'xmax
+                imax = result
+       'set x ' imin' 'imax
+       'sety'
+        if( EXPORT = "CHI" ) ; 'define mod = fish_chi(umod,vmod)' ; endif
+        if( EXPORT = "PSI" ) ; 'define mod = fish_psi(umod,vmod)' ; endif
+       'setlons'
+       'set lat -90 90'
+   'set dfile 'qfile
+else
+       'alias ' qname
+        alias = result
+   'chckname 'alias
+   'define mod = 'alias'*'fact'*'scale
+endif
+
+if( EXPORT = "HE"  ) 
+   'define mod = mod-ave(mod,lon='lonmin',lon='lonmax',-b)'
+endif
+
+'q dims'
+ say 'Model Environment:'
+ say result
+if( EXPORT = "CHI" | EXPORT = "PSI" ); 'define mod = mod - aave(mod,global)' ; endif
+'seasonal mod'
+
+
+
+* Loop over Possible Experiment Datasets for Comparison
+* -----------------------------------------------------
+'!/bin/mv HISTORY.T HISTORY.Tmp'
+'run getenv "CMPEXP"'
+         cmpexp = result
+            num = 1
+            exp = subwrd( cmpexp,num )
+while( exp != 'NULL' )
+say ' '
+say 'Comparing with: 'exp
+                                        'run setenv "DIFFTYPE" 'A
+if( EXPORT = "CHI" | EXPORT = "PSI" ) ; 'run setenv "DIFFTYPE" 'D ; endif
+
+'!chckfile 'exp'/.HOMDIR'
+ 'run getenv CHECKFILE'
+         CHECKFILE  = result
+     if( CHECKFILE != 'NULL' )
+        '!/bin/cp `cat 'exp'/.HOMDIR`/HISTORY.rc .'
+     else
+        '!/bin/cp 'exp'/HISTORY.rc .'
+     endif
+'!remove CHECKFILE.txt'
+
+'!cat HISTORY.rc | sed -e "s/,/ , /g" > HISTORY.T'
+
+if ( EXPORT = "HE" )
+    'run getvar  ZLE DYN 'exp
+         oname  = subwrd(result,1)
+       obsfile  = subwrd(result,2)
+        oscale  = subwrd(result,3)
+        obsdsc  = subwrd(result,4)
+        obsnam  = subwrd(result,5)
+endif
+
+if( EXPORT = "CHI" | EXPORT = "PSI" )
+    'run getvar U DYN 'exp
+         uname  = subwrd(result,1)
+         ufile  = subwrd(result,2)   
+         uscale = subwrd(result,3)   
+        obsdsc  = subwrd(result,4)
+        obsnam  = subwrd(result,5)
+    'run getvar V DYN 'exp
+         vname  = subwrd(result,1)
+         vfile  = subwrd(result,2)
+         vscale = subwrd(result,3)
+       obsfile  = ufile
+endif
+
+if( EXPORT != "CHI" & EXPORT != "PSI" & EXPORT != "HE" )
+    'run getvar 'EXPORT' 'GC' 'exp
+         oname  = subwrd(result,1)
+       obsfile  = subwrd(result,2)
+        oscale  = subwrd(result,3)
+        obsdsc  = subwrd(result,4)
+        obsnam  = subwrd(result,5)
+endif
+
+           'set dfile 'obsfile
+           'getinfo xdim'
+                    xdim  = result
+           'getinfo ydim'
+                    ydim  = result
+           'set lev 'level
+           'getinfo  level'
+                     obslev = result
+           'getdates'
+            begdateo = subwrd(result,1)
+            enddateo = subwrd(result,2)
+
+           'run setenv   "BEGDATEO" 'begdateo
+           'run setenv   "ENDDATEO" 'enddateo
+
+* Check for CHI/PSI EXPORTS
+* -------------------------
+if( EXPORT = "CHI" | EXPORT = "PSI" )
+   'set dfile 'ufile
+   'define uobs = 'uname'*'fact'*'uscale
+   'set dfile 'vfile 
+   'define vobs = 'vname'*'fact'*'vscale
+       'getinfo xmin'
+                xmin = result
+       'getinfo xmax'
+                xmax = result
+       'getint 'xmin
+                imin = result
+       'getint 'xmax
+                imax = result
+       'set x ' imin' 'imax
+       'sety'
+        if( xdim<577 & ydim<362 )
+            if( EXPORT = "CHI" ) ; 'define obs = fish_chi(uobs,vobs)' ; endif
+            if( EXPORT = "PSI" ) ; 'define obs = fish_psi(uobs,vobs)' ; endif
+        else
+                                   'define obs = lat-lat+lon-lon+'undef
+        endif
+       'setlons'
+       'set lat -90 90'
+   'set dfile 'obsfile
+else
+   'define obs = 'oname'*'oscale'*'fact
+endif
+           if( EXPORT = "HE" ) ; 'define obs = (obs-ave(obs,lon='lonmin',lon='lonmax',-b))' ; endif
+
+           'q dims'
+            say 'OBS  Environment:'
+            say result
+           if( EXPORT = "CHI" | EXPORT = "PSI" ) ; 'define obs = obs - aave(obs,global)';  endif
+           'seasonal obs'
+
+               'run getenv "CLIMATE"'
+                        climate = result
+                        anafile = obsfile
+                        anadsc  = obsdsc
+                        ananam  = obsnam
+
+                 k = 1
+          while( k > 0 )
+              season = subwrd(seasons,k)
+          if( season = '' )
+                   k = -1
+          else
+                   k = k+1
+
+                  'set dfile 'qfile
+                  'count "'season'" 'begdate' 'enddate
+                   nmod = result
+                  'set dfile 'anafile
+                  'count "'season'"'
+                   nobs = result
+
+                                           'define obs'season'    = obs'season
+                  if( std_dev = 'true' ) ; 'define obs'season'std = obs'season'std' ; endif
+                 'run setenv "CLIMATE" 'climate
+
+                       flag = ""
+               while ( flag = "" )
+              'run 'geosutil'/plots/hcmp/hplt 'expid' 'EXPORT' 'season' 'output' 'level' 'nmod' 'nobs' 'qfile' 'anafile' 'ananam' 'anadsc' 'debug' 'expdsc
+                if( debug = "debug" )
+                    say "Hit  ENTER  to repeat plot"
+                    say "Type 'next' for  next plot, 'done' for next field"
+                    pull flag
+                else
+                    flag = "next"
+                endif
+               endwhile
+              'c'
+          endif
+          endwhile
+
+* Check next Comparison Experiment Dataset
+* ----------------------------------------
+  num = num + 1
+  exp = subwrd( cmpexp,num )
+endwhile
+'!/bin/mv HISTORY.Tmp HISTORY.T'
+
+
+
+
+
+
+
+* Loop over Possible Verification Datasets for Comparison
+* -------------------------------------------------------
+
+                         facm = 1    ; faco = 1
+if( EXPORT = "U"     ) ; facm = 1    ; faco = 1    ; endif
+if( EXPORT = "V"     ) ; facm = 1    ; faco = 1    ; endif
+if( EXPORT = "T"     ) ; facm = 1    ; faco = 1    ; endif
+if( EXPORT = "Q"     ) ; facm = 1000 ; faco = 1000 ; endif
+if( EXPORT = "RH2"   ) ; facm = 100  ; faco = 1    ; endif
+if( EXPORT = "SLP"   ) ; facm = 0.01 ; faco = 0.01 ; endif
+
+                                     fact = faco
+if( EXPORT = "Q"   & level < 400 ) ; fact = fact*1000  ; endif
+
+' getnumrc 'geosutil'/plots/hcmp'
+     rcinfo = result
+     numrc  = subwrd( rcinfo,1 )
+       num  = 1
+       cnt  = 0
+while( num <= numrc )
+        loc = num + 1
+     rcfile = subwrd( rcinfo,loc )
+              OBS = EXPORT
+              if( EXPORT = "HE" ) ; OBS = "ZLE" ; endif
+
+     if( EXPORT = "CHI" | EXPORT = "PSI" )
+        'run getobs U DYN 'rcfile
+                  ouname = subwrd(result,1)
+                obsufile = subwrd(result,2)
+                 ouscale = subwrd(result,3)
+                  obsdsc = subwrd(result,4)
+                  obsnam = subwrd(result,5)
+        'run getobs V DYN 'rcfile
+                  ovname = subwrd(result,1)
+                obsvfile = subwrd(result,2)
+                 ovscale = subwrd(result,3)
+                   oname = ouname
+                 obsfile = obsufile
+     else
+        'run getobs 'OBS' 'GC' 'rcfile
+                   oname = subwrd(result,1)
+                 obsfile = subwrd(result,2)
+                  oscale = subwrd(result,3)
+                  obsdsc = subwrd(result,4)
+                  obsnam = subwrd(result,5)
+     endif
+
+if( analysis != "false" )
+   'run setenv "DIFFTYPE" 'A
+else
+   'run setenv "DIFFTYPE" 'D
+endif
+
+* Perform PLOT for valid OBS
+* --------------------------
+if( oname != 'NULL' )
+            cnt =  cnt + 1
+           'set dfile 'obsfile
+           'getinfo xdim'
+                    xdim  = result
+           'getinfo ydim'
+                    ydim  = result
+           'set lev 'level
+           'getinfo  level'
+               obslev = result
+           'getlevs 'oname
+              nobslev = result
+
+* Check for Valid OBS Level
+* -------------------------
+           if( obslev = modlev | nobslev = 1 ) 
+           if( nobslev = 1 ) ; 'set z 1' ; endif 
+           'getdates'
+            begdateo = subwrd(result,1)
+            enddateo = subwrd(result,2)
+
+           'run setenv   "BEGDATEO" 'begdateo
+           'run setenv   "ENDDATEO" 'enddateo
+
+* Check for CHI/PSI EXPORTS
+* -------------------------
+if( EXPORT = "CHI" | EXPORT = "PSI" )
+   'set dfile 'obsufile 
+   'define uobs = 'ouname'*'fact'*'ouscale
+   'set dfile 'obsvfile 
+   'define vobs = 'ovname'*'fact'*'ovscale
+       'getinfo xmin'
+                xmin = result
+       'getinfo xmax'
+                xmax = result
+       'getint 'xmin
+                imin = result
+       'getint 'xmax
+                imax = result
+       'set x ' imin' 'imax
+       'sety'
+        if( xdim<577 & ydim<362 )
+            if( EXPORT = "CHI" ) ; 'define obs'cnt' = fish_chi(uobs,vobs)' ; endif
+            if( EXPORT = "PSI" ) ; 'define obs'cnt' = fish_psi(uobs,vobs)' ; endif
+        else
+                                   'define obs'cnt' = lat-lat+lon-lon+'undef
+        endif
+       'setlons'
+       'set lat -90 90'
+   'set dfile 'obsfile 
+else
+   'define obs'cnt' = 'oname'*'oscale'*'fact
+endif
+
+           if( EXPORT = "HE" ) ; 'define obs'cnt' = (obs'cnt'-ave(obs'cnt',lon='lonmin',lon='lonmax',-b))' ; endif
+
+           'q dims'
+            say 'OBS'cnt'  Environment:'
+            say result
+            if( EXPORT = "CHI" | EXPORT = "PSI" ); 'define obs'cnt' = obs'cnt' - aave(obs'cnt',global)' ; endif
+           'seasonal obs'cnt
+
+               'run getenv "CLIMATE"'
+                        climate = result
+                        anaindx = cnt
+                        anafile = obsfile
+                        anadsc  = obsdsc
+                        ananam  = obsnam
+
+                 k = 1
+          while( k > 0 )
+              season = subwrd(seasons,k)
+          if( season = '' )
+                   k = -1
+          else
+                   k = k+1
+
+                  'set dfile 'qfile
+                  'count "'season'" 'begdate' 'enddate
+                   nmod = result
+                  'set dfile 'anafile
+                  'count "'season'"'
+                   nobs = result
+
+                                           'define obs'season'    = obs'anaindx''season
+                  if( std_dev = 'true' ) ; 'define obs'season'std = obs'anaindx''season'std' ; endif
+                 'run setenv "CLIMATE" 'climate
+
+                       flag = ""
+               while ( flag = "" )
+              'run 'geosutil'/plots/hcmp/hplt 'expid' 'EXPORT' 'season' 'output' 'level' 'nmod' 'nobs' 'qfile' 'anafile' 'ananam' 'anadsc' 'debug' 'expdsc
+                if( debug = "debug" )
+                    say "Hit  ENTER  to repeat plot"
+                    say "Type 'next' for  next plot, 'done' for next field"
+                    pull flag
+                else
+                    flag = "next"
+                endif
+               endwhile
+              'c'
+          endif
+          endwhile
+
+* End check for valid Level within OBS
+* ------------------------------------
+else
+                    say "Level "modlev" not found in Verification!"
+endif
+
+* End check for valid OBS
+* -----------------------
+endif
+
+* Check next Verification Dataset
+* -------------------------------
+num = num + 1
+endwhile
+
+return

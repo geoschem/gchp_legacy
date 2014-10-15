@@ -1,7 +1,7 @@
-// $Id: ESMCI_LocalArray_F.C,v 1.10.2.1 2010/02/05 19:58:23 svasquez Exp $
+// $Id$
 //
 // Earth System Modeling Framework
-// Copyright 2002-2010, University Corporation for Atmospheric Research, 
+// Copyright 2002-2012, University Corporation for Atmospheric Research, 
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
 // Laboratory, University of Michigan, National Centers for Environmental 
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
@@ -20,12 +20,12 @@
 #include <cstdio>
 #include <cstring>
 
-#include "ESMC_Start.h"
+#include "ESMCI_Macros.h"
 
 #include "ESMCI_LocalArray.h"
 
 #include "ESMCI_LogErr.h"
-#include "ESMC_LogMacros.inc"             // for LogErr
+#include "ESMCI_LogMacros.inc"
 
 using namespace std;
 
@@ -55,8 +55,8 @@ extern "C" {
     if (rc!=NULL) *rc = ESMC_RC_NOT_IMPL;
     int localrc = ESMC_RC_NOT_IMPL;
     // call into C++
-    *ptr = ESMCI::LocalArray::create(*tk, *rank, *oflag, NULL, &localrc);
-    if (ESMC_LogDefault.MsgFoundError(localrc, ESMF_ERR_PASSTHRU, ESMC_CONTEXT,
+    *ptr = ESMCI::LocalArray::create(*tk, *rank, *oflag, &localrc);
+    if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, ESMC_CONTEXT,
       rc)) return;
     // return successfully
     if (rc!=NULL) *rc = ESMF_SUCCESS;
@@ -76,8 +76,8 @@ extern "C" {
       return;
     }
     // call into C++
-    *larrayOut = ESMCI::LocalArray::create(*ptr, NULL, NULL, NULL, &localrc);
-    if (ESMC_LogDefault.MsgFoundError(localrc, ESMF_ERR_PASSTHRU, ESMC_CONTEXT,
+    *larrayOut = ESMCI::LocalArray::create(*ptr, NULL, NULL, &localrc);
+    if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, ESMC_CONTEXT,
       rc)) return;
     // return successfully
     if (rc!=NULL) *rc = ESMF_SUCCESS;
@@ -115,7 +115,7 @@ extern "C" {
     //TODO: replace this by multiple set() calls.
     localrc = (*ptr)->setInfo(fptr, XD base, counts, lbounds, ubounds, offsets,
       cf, df);
-    if (ESMC_LogDefault.MsgFoundError(localrc, ESMF_ERR_PASSTHRU, ESMC_CONTEXT,
+    if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, ESMC_CONTEXT,
       rc)) return;
     // return successfully
     if (rc!=NULL) *rc = ESMF_SUCCESS;
@@ -228,7 +228,7 @@ extern "C" {
       return;
     }
     localrc = ESMCI::LocalArray::destroy(*ptr);
-    if (ESMC_LogDefault.MsgFoundError(localrc, ESMF_ERR_PASSTHRU, ESMC_CONTEXT,
+    if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, ESMC_CONTEXT,
       rc)) return;
     // return successfully
     if (rc!=NULL) *rc = ESMF_SUCCESS;
@@ -282,7 +282,7 @@ extern "C" {
       return;
     }
     localrc = (*ptr)->setFortranDopev(fptr);
-    if (ESMC_LogDefault.MsgFoundError(localrc, ESMF_ERR_PASSTHRU, ESMC_CONTEXT,
+    if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, ESMC_CONTEXT,
       rc)) return;
     // return successfully
     if (rc!=NULL) *rc = ESMF_SUCCESS;
@@ -302,7 +302,7 @@ extern "C" {
       return;
     }
     localrc = (*ptr)->getFortranDopev(fptr);
-    if (ESMC_LogDefault.MsgFoundError(localrc, ESMF_ERR_PASSTHRU, ESMC_CONTEXT,
+    if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, ESMC_CONTEXT,
       rc)) return;
     // return successfully
     if (rc!=NULL) *rc = ESMF_SUCCESS;
@@ -322,7 +322,7 @@ extern "C" {
       return;
     }
     localrc = (*ptr)->forceFortranPtr(XD base);
-    if (ESMC_LogDefault.MsgFoundError(localrc, ESMF_ERR_PASSTHRU, ESMC_CONTEXT,
+    if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, ESMC_CONTEXT,
       rc)) return;
     // return successfully
     if (rc!=NULL) *rc = ESMF_SUCCESS;
@@ -369,7 +369,7 @@ extern "C" {
   }
 
   void FTN(c_esmc_localarrayprint)(ESMCI::LocalArray **ptr, char *opts, int *rc,
-    int clen){
+    ESMCI_FortranStrLenArg clen){
 #undef  ESMC_METHOD
 #define ESMC_METHOD "c_esmc_localarrayprint()"
     // Initialize return code; assume routine not implemented
@@ -390,15 +390,19 @@ extern "C" {
       temp[clen] = '\0';
     }
     localrc = (*ptr)->print(temp);
-    if (ESMC_LogDefault.MsgFoundError(localrc, ESMF_ERR_PASSTHRU, ESMC_CONTEXT,
+    if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, ESMC_CONTEXT,
       rc)) return;
     if (temp) delete[] temp;
+    // Flush before crossing language interface to ensure correct output order
+    fflush(stdout);
     // return successfully
     if (rc!=NULL) *rc = ESMF_SUCCESS;
   }
 
   void FTN(c_esmc_localarraywrite)(ESMCI::LocalArray **ptr, char *opts,
-    char *fname, int *rc, int optlen, int flen){
+    char *fname, int *rc,
+    ESMCI_FortranStrLenArg optlen,
+    ESMCI_FortranStrLenArg flen){
 #undef  ESMC_METHOD
 #define ESMC_METHOD "c_esmc_localarraywrite()"
     // Initialize return code; assume routine not implemented
@@ -425,7 +429,7 @@ extern "C" {
       filetemp[flen] = '\0';
     }
     localrc = (*ptr)->write(opttemp, filetemp);
-    if (ESMC_LogDefault.MsgFoundError(localrc, ESMF_ERR_PASSTHRU, ESMC_CONTEXT,
+    if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, ESMC_CONTEXT,
       rc)) return;
     if (opttemp) delete[] opttemp;
     if (filetemp) delete[] filetemp;
@@ -433,7 +437,9 @@ extern "C" {
     if (rc!=NULL) *rc = ESMF_SUCCESS;
   }
 
-  void FTN(c_esmf_f90ptrsizeprint)(char *p1, char *p2, int *rank, int *rc){
+  void FTN(c_esmf_f90ptrsizeprint)(char *p1, char *p2, int *rank, int *rc,
+    ESMCI_FortranStrLenArg p1_l,
+    ESMCI_FortranStrLenArg p2_l) {
 #undef  ESMC_METHOD
 #define ESMC_METHOD "c_esmf_f90ptrsizeprint()"
     // Initialize return code; assume routine not implemented

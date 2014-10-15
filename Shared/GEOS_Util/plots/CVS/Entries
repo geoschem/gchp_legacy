@@ -1,0 +1,80 @@
+/GNUmakefile/1.2/Mon Jan 27 19:00:56 2014//Tjk-G40-GEOSctm-advcore-update3
+/chckhist.new/1.14/Wed Jan 29 21:13:16 2014//Tjk-G40-GEOSctm-advcore-update3
+/chckhist.old/1.2/Thu Jul 23 14:26:50 2009//Tjk-G40-GEOSctm-advcore-update3
+/chckrc/1.10/Thu May  9 18:16:57 2013//Tjk-G40-GEOSctm-advcore-update3
+/configure/1.56/Wed Dec 12 21:51:48 2012//Tjk-G40-GEOSctm-advcore-update3
+/get_exports/1.3/Wed Feb 29 17:00:29 2012//Tjk-G40-GEOSctm-advcore-update3
+/landscape.script/1.28/Wed Feb  5 20:58:07 2014//Tjk-G40-GEOSctm-advcore-update3
+/moveplot/1.10/Wed Jan 29 17:34:45 2014//Tjk-G40-GEOSctm-advcore-update3
+/portrait.script/1.32/Wed Feb  5 20:06:22 2014//Tjk-G40-GEOSctm-advcore-update3
+/quickplot/1.118/Wed Feb  5 20:06:22 2014//Tjk-G40-GEOSctm-advcore-update3
+/quickstat/1.9/Mon Dec 31 19:03:13 2012//Tjk-G40-GEOSctm-advcore-update3
+/zonal/1.11/Wed Jan  3 16:26:59 2007//Tjk-G40-GEOSctm-advcore-update3
+/zonal.f/1.7/Mon Jan 27 19:00:56 2014//Tjk-G40-GEOSctm-advcore-update3
+D/NETHEATG////
+D/aerosol////
+D/albedo////
+D/cldhi////
+D/cldlo////
+D/cldmd////
+D/cldtt////
+D/cloud////
+D/eflux////
+D/emp////
+D/fcst////
+D/formulas////
+D/grads_util////
+D/gwd////
+D/hcmp////
+D/hflux////
+D/lcmp////
+D/lwgdwn////
+D/lwgdwnc////
+D/lwgdwncf////
+D/lwgnet////
+D/lwgnetc////
+D/lwgnetcf////
+D/lwgup////
+D/lwgupc////
+D/lwgupcf////
+D/lwp////
+D/moist////
+D/nettoa////
+D/nettoac////
+D/olr////
+D/olrc////
+D/olrcf////
+D/osr////
+D/osrc////
+D/osrcf////
+D/phys////
+D/precip////
+D/quad////
+D/rad////
+D/radnetg////
+D/radnetgc////
+D/radswt////
+D/res////
+D/speed////
+D/sst////
+D/swgdwn////
+D/swgdwnc////
+D/swgdwncf////
+D/swgnet////
+D/swgnetc////
+D/swgnetcf////
+D/swgup////
+D/swgupc////
+D/swgupcf////
+D/tau////
+D/taux////
+D/tauy////
+D/taylor////
+D/toacf////
+D/tpw////
+D/tseries////
+D/tskin////
+D/turb////
+D/uflux////
+D/zcmp////
+D/zcmp1////

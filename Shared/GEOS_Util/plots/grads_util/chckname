@@ -1,0 +1,80 @@
+**************************************************************
+*                                                            *
+*     This script queries the FILE for existance of NAME     *
+*                                                            *
+**************************************************************
+ 
+  function chckname (args)
+               name = subwrd(args,1)
+  'lowercase  'name
+               name = result
+
+  'query file'
+  numvar = sublin(result,6)
+  numvar = subwrd(numvar,5)
+
+  flag = false
+
+  n = 1
+  while ( n<numvar+1 )
+  field = sublin(result,6+n)
+  field = subwrd(field,1)
+        if( name=field )
+        flag = true
+        endif
+  n = n+1
+  endwhile
+
+  rc = 0
+  if (flag=true) ; return rc ; endif
+
+* Check previously defined variables
+* ----------------------------------
+  'query define'
+         define = result
+  n = 1
+  field = sublin(result,n)
+  field = subwrd(field,1)
+  while ( field != "" & flag = "false" )
+        if( name=field )
+        flag = true
+        endif
+  n = n+1
+  field = sublin(result,n)
+  field = subwrd(field,1)
+  endwhile
+
+  rc = 1
+  if (flag=true) ; return rc ; endif
+
+* Just use current spatial environment (for t=1, which is sufficient)
+* -------------------------------------------------------------------
+*  'getinfo tdim'
+*   tdim = result
+*  'getinfo xdim'
+*   xdim = result
+*  'getinfo ydim'
+*   ydim = result
+*  'set x 1 'xdim
+*  'set y 1 'ydim
+*  'set t 1 'tdim
+*  if( xdim>1 )
+*  'set lon 0 360'
+*  endif
+
+  say name' not found!  Setting 'name' to zero'
+ 'q dims'
+    dims = result
+  say 'DIMS: 'dims
+
+ 'getinfo tmin'
+          tmin = result
+ 'getinfo tmax'
+          tmax = result
+
+ 'set t 1'
+ 'define 'name' = lon-lon + lat-lat + lev-lev'
+ 'set t  'tmin' 'tmax
+
+  rc = -1
+  return rc

@@ -1,0 +1,249 @@
+#!/bin/csh -f
+
+set export   = $1
+set GC       = $2
+set RCFILE   = $3
+set HISTORY0 = `cat $RCFILE`
+
+set arch  = `uname`
+set host  = `hostname`
+set name  = `echo $host | cut -b 1-5` ; if( $name == 'halem'    ) set host = $name
+set name  = `echo $host | cut -b 1-8` ; if( $name == 'columbia' ) set host = $name
+
+# Set Defaults
+# ------------
+set obsdsc = NULL
+set obsnam = NULL
+set alias  = NULL
+set fname  = NULL
+set ftype  = NULL
+set ftype0 = NULL
+set scale  = 1.0
+
+
+# Create true comma-separated HISTORY variable
+# --------------------------------------------
+if(-e   HISTORY.TMP )           /bin/rm HISTORY.TMP
+   cat $RCFILE   | sed -e 's/,/ , /g' > HISTORY.TMP
+   set  HISTORY  =                 `cat HISTORY.TMP`
+                                /bin/rm HISTORY.TMP
+
+
+# Find Validation Name and Description
+# ------------------------------------
+@ n = 2
+foreach word ($HISTORY)
+   if( $word == OBSNAM: ) then
+            set obsnam = $HISTORY[$n] 
+   endif
+   if( $word == OBSDSC: ) then
+            set obsdsc = $HISTORY[$n] 
+   endif
+@ n = $n + 1
+end
+
+
+# Find Validation Data Streams
+# ----------------------------
+@ n = 0
+@ m = 0
+set loc_output = ""
+foreach word ($HISTORY)
+@ n = $n + 1
+set  filename = `echo $word | cut -d "%" -f2`
+if( $filename == filename: )  then
+@ k = $n + 1
+@ m = $m + 1
+set loc_output = `echo $loc_output $k`
+endif
+end
+set   num_output = $#loc_output
+echo "Number of Validation Data Streams: " $num_output
+
+
+
+# Find Aliases (Note: cat -E puts a "$" at end of each line)
+# ----------------------------------------------------------
+if( $arch == 'IRIX64' ) set catargs = "-ve"
+if( $arch == 'Linux'  ) set catargs = "-E"
+if( $arch == 'OSF1'   ) set catargs = "-E"
+set   temp = `cat $catargs $RCFILE | grep "'${export}'" | grep "'${GC}'"`
+if( $#temp > 0 ) then
+
+# Find First End-of-Line from Possible Multiple Output Streams
+# ------------------------------------------------------------
+set string   = ""
+set lastword = false
+foreach word ($temp)
+if( $lastword != true ) then
+        set newword = ""
+@             n = 1
+        set bit = `echo $word | cut -b $n`
+        while( "${bit}" != '' )
+           if( "${bit}" != '$' ) then
+                   set newword  = `echo ${newword}${bit}`
+           else
+                   set lastword = true
+           endif
+@             n = $n + 1
+        set bit = `echo $word | cut -b $n`
+        end
+set string = `echo $string $newword`
+endif
+end 
+
+# Check if EXPORT is first output variable
+# ----------------------------------------
+set  first =  `echo $string[1]`
+if( $first == 'fields:' ) shift string
+
+# Ensure STRING is true comma-separated
+# -------------------------------------
+set newstring = ""
+foreach word ($string)
+  set firstbit = `echo $word | cut -b 1`
+  set newstring  = `echo ${newstring} ${firstbit}`
+
+  set bit = `echo $word | cut -b 2`
+  if( "${bit}" != "" ) then
+       if( "${firstbit}" == ',' ) then
+          set newstring = `echo ${newstring} ${bit}`
+       else
+          set newstring = `echo ${newstring}${bit}`
+       endif
+  endif
+
+@ n = 3
+  set bit = `echo $word | cut -b $n`
+  while( "${bit}" != '' )
+       if( "${bit}" == ',' ) then
+          set newstring = `echo ${newstring} ${bit}`
+       else
+          set newstring = `echo ${newstring}${bit}`
+       endif
+@               n = $n + 1
+          set bit = `echo $word | cut -b $n`
+  end
+end
+set string = `echo $newstring`
+
+# Set Alias and Scale Factor
+# --------------------------
+if( $#string == 4 ) set  alias = $export
+if( $#string == 6 ) then
+                    set  alias = `echo $string[5]`
+                    set  alias = `echo $alias | cut -d "'" -f2`
+endif
+if( $#string >= 7 ) then
+                    set  alias = `echo $string[5]`
+                    set  alias = `echo $alias | cut -d "'" -f2`
+                    set  scale = `echo $string[7]`
+endif
+
+# Associate EXPORT with particular Output Stream and FileType
+# -----------------------------------------------------------
+set found = FALSE
+@ n = 0
+foreach word ($HISTORY)
+@ n = $n + 1
+set  xxxx = `echo $word | cut -d "'" -f2`
+if( $xxxx == $export & $found == FALSE ) then
+    set found = TRUE
+    @ m = $n + 2
+    @ k = $n + 4
+    if( $#string  == 4 ) then
+    if( "'${GC}'" == $HISTORY[$m] ) then
+        @ i = $num_output
+        while( $loc_output[$i] > $m )
+           @ i = $i - 1
+        end
+        set fname  = `echo $HISTORY[$loc_output[$i]] | cut -d "'" -f2`
+          @ beg = $i - 1
+       if( $beg == 0 ) then
+          @ loc = 1
+       else
+          @ loc = $loc_output[$beg]
+       endif
+        while( $loc < $n )
+         @ j = $loc + 1
+           if( $HISTORY[$loc] == filetype: )  then 
+                   set ftype0 = $HISTORY[$j] 
+           endif
+         @ loc = $j
+        end
+    endif
+    else
+    if( "'${GC}'"    == $HISTORY[$m] && \
+        "'${alias}'" == $HISTORY[$k] ) then
+        @ i = $num_output
+        while( $loc_output[$i] > $m )
+           @ i = $i - 1
+        end
+        set fname  = `echo $HISTORY[$loc_output[$i]] | cut -d "'" -f2`
+          @ beg = $i - 1
+       if( $beg == 0 ) then
+          @ loc = 1
+       else
+          @ loc = $loc_output[$beg]
+       endif
+        while( $loc < $n )
+         @ j = $loc + 1
+           if( $HISTORY[$loc] == filetype: )  then 
+                   set ftype0 = $HISTORY[$j] 
+           endif
+         @ loc = $j
+        end
+    endif
+    endif
+endif
+end
+
+endif
+
+
+# Remove 's from FTYPE
+# --------------------
+     set ftype = ""
+   @ n = 1
+     set bit = `echo $ftype0 | cut -b $n`
+     while( "${bit}" != '' )
+          if( "${bit}" != "'" ) then
+             set ftype = `echo ${ftype}${bit}`
+          endif
+   @      n = $n + 1
+          set bit = `echo $ftype0 | cut -b $n`
+     end
+
+
+# Replace Generic VERIFICATION location (if possible)
+# ---------------------------------------------------
+if( -e sedfile ) /bin/rm  sedfile
+cat >  sedfile << EOF
+s?VERIFICATION?$VERIFICATION?g
+EOF
+if( -e VERIFICATION.tmp ) /bin/rm    VERIFICATION.tmp
+if( -e VERIFICATION.loc ) /bin/rm    VERIFICATION.loc
+echo $fname     > VERIFICATION.tmp
+sed -f    sedfile VERIFICATION.tmp > VERIFICATION.loc
+set  fname = `cat VERIFICATION.loc`
+
+
+# Export Results
+# --------------
+setenv OBSNAM $obsnam
+setenv OBSDSC $obsdsc
+setenv OUTPUT $fname
+setenv FTYPE  $ftype
+setenv ALIAS  $alias
+
+echo ' '
+echo Found: $export \(aka: ${ALIAS}\) in ObsStream: ${OUTPUT} \(TYPE: ${FTYPE}\) with scaling: $scale 
+
+if( -e hist.txt ) /bin/rm hist.txt
+touch hist.txt
+echo $obsnam >> hist.txt
+echo $obsdsc >> hist.txt
+echo $fname  >> hist.txt
+echo $ftype  >> hist.txt
+echo $alias  >> hist.txt
+echo $scale  >> hist.txt

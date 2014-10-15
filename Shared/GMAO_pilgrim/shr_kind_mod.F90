@@ -1,7 +1,7 @@
 !===============================================================================
 ! CVS: $Id: shr_kind_mod.F90,v 1.3 2008-04-13 20:26:51 wsawyer Exp $
 ! CVS: $Source: /cvsroot/esma/esma/src/Shared/GMAO_pilgrim/shr_kind_mod.F90,v $
-! CVS: $Name: Ganymed-2_1_p1_GCC-m2 $
+! CVS: $Name: jk-G40-GEOSctm-advcore-update3 $
 !===============================================================================
 
 MODULE shr_kind_mod

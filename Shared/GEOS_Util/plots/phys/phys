@@ -1,0 +1,34 @@
+ reinit
+ set display color white
+ set clab off
+ set csmooth on
+ c
+
+* Note:  &0 => experiment id
+* Note:  &1 => period to be processed  (eg DJF, DEC, JJA)
+* Note:  &2 => path for data xdf_file
+* Note:  &3 => output location
+* Note:  &4 => GEOS_Util location
+
+
+xdfopen &2
+
+setx
+sety
+setz
+sett
+rgbset
+
+makez dudt z
+makez dvdt z
+makez dtdt z
+
+set x 1
+seasonal dudtz
+seasonal dvdtz
+seasonal dtdtz
+
+set xlopts 1 4 .14
+set ylopts 1 4 .14
+
+exec &4/plots/phys/phys_1 &0 &1 &3

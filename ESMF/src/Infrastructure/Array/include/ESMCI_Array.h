@@ -1,7 +1,7 @@
-// $Id: ESMCI_Array.h,v 1.36.2.1 2010/02/05 19:51:56 svasquez Exp $
+// $Id: ESMCI_Array.h,v 1.1.5.1 2013-01-11 20:23:43 mathomp4 Exp $
 //
 // Earth System Modeling Framework
-// Copyright 2002-2010, University Corporation for Atmospheric Research, 
+// Copyright 2002-2012, University Corporation for Atmospheric Research, 
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
 // Laboratory, University of Michigan, National Centers for Environmental 
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
@@ -31,7 +31,7 @@
 //EOPI
 //-------------------------------------------------------------------------
 
-#include "ESMC_Base.h"      // Base is superclass to Array
+#include "ESMCI_Base.h"       // Base is superclass to Array
 #include "ESMCI_VM.h"
 #include "ESMCI_DELayout.h"
 #include "ESMCI_DistGrid.h"
@@ -49,7 +49,52 @@ namespace ESMCI {
   struct SeqIndex;
   class SparseMatrix;
 
-  // class definition
+  // class definitions
+  
+  //============================================================================
+  struct SeqIndex{
+    int decompSeqIndex;
+    int tensorSeqIndex;
+    SeqIndex(){
+      decompSeqIndex = -1;  // invalidate
+      tensorSeqIndex = -1;  // invalidate
+    }
+    void print(){
+      printf("SeqIndex: (%d, %d)\n", decompSeqIndex, tensorSeqIndex);
+    }
+    bool valid(){
+      if (decompSeqIndex == -1) return false; // invalid seqIndex
+      return true;  // otherwise valid
+    }
+  };  // struct seqIndex
+  bool operator==(SeqIndex a, SeqIndex b);
+  bool operator!=(SeqIndex a, SeqIndex b);
+  bool operator<(SeqIndex a, SeqIndex b);
+  
+  class SeqInd{
+    int n;  // number of components in sequence index
+    int const *index;
+   public:
+    SeqInd(){n=0; index=NULL;}
+    SeqInd(int n_, int const *index_){
+      n = n_;
+      index = index_;
+    }
+    int getIndex(int i)const{return index[i];}
+    void print(){
+      printf("SeqInd: (");
+      int i;
+      for (i=0; i<n-1; i++)
+        printf("%d, ", index[i]);
+      printf("%d)\n", index[i]);
+    }
+  };
+  
+  //todo: try to unify SeqIndex and SeqInd structs!
+  //============================================================================
+  
+  
+  //============================================================================
   class Array : public ESMC_Base {    // inherits from ESMC_Base class
   
    private:
@@ -96,6 +141,13 @@ namespace ESMCI {
                                       // Multiply with tensorElementCount to get
                                       // total number of elements in total
                                       // Array region.
+    std::vector<std::vector<SeqIndex> > rimSeqIndex;// elements in the rim between
+                                          // exclusive and total region
+                                          // [localDeCount][rimElementCount[]]
+    std::vector<std::vector<int> > rimLinIndex;     // elements in the rim between
+                                          // exclusive and total region
+                                          // [localDeCount][rimElementCount[]]
+    std::vector<int> rimElementCount;      // numb. of elements in rim [localDeCount]
     // lower level object references
     DistGrid *distgrid;
     bool distgridCreator;
@@ -130,6 +182,11 @@ namespace ESMCI {
       tensorElementCount = 0;
       exclusiveElementCountPDe = NULL;
       totalElementCountPLocalDe = NULL;
+#if !defined (PARCH_IRIX64)
+      rimSeqIndex.resize(0);
+#endif
+      rimLinIndex.resize(0);
+      rimElementCount.resize(0);
       localDeCountAux = 0;  // auxiliary variable for garbage collection
     }
     Array(int baseID):ESMC_Base(baseID){  // prevent baseID counter increment
@@ -154,6 +211,11 @@ namespace ESMCI {
       tensorElementCount = 0;
       exclusiveElementCountPDe = NULL;
       totalElementCountPLocalDe = NULL;
+#if !defined (PARCH_IRIX64)
+      rimSeqIndex.resize(0);
+#endif
+      rimLinIndex.resize(0);
+      rimElementCount.resize(0);
       localDeCountAux = 0;  // auxiliary variable for garbage collection
     }
    private:
@@ -217,19 +279,28 @@ namespace ESMCI {
       {return distgridToPackedArrayMap;}
     DistGrid *getDistGrid()                 const {return distgrid;}
     DELayout *getDELayout()                 const {return delayout;}
-    int getLinearIndexExclusive(int localDe, int *index, int *rc=NULL) const;
-    SeqIndex getSequenceIndexExclusive(int localDe, int *index,
-      int *rc=NULL) const;
-    SeqIndex getSequenceIndexPatch(int patch, const int *index, int *rc=NULL)
+    int getLinearIndexExclusive(int localDe, int const *index, int *rc=NULL)
       const;
+    SeqIndex getSequenceIndexExclusive(int localDe, int const *index,
+      int depth=0, int *rc=NULL) const;
+    SeqIndex getSequenceIndexTile(int tile, const int *index, int *rc=NULL)
+      const;
+    int getTensorSequenceIndex(const int *index, int *rc=NULL)const;
+    int getArbSequenceIndexOffset(const int *index, int *rc=NULL)const;
     int setComputationalLWidth(InterfaceInt *computationalLWidthArg);
     int setComputationalUWidth(InterfaceInt *computationalUWidthArg);
+    int setRimSeqIndex(int localDe, InterfaceInt *rimSeqIndexArg);
     const char *getName()               const {return ESMC_BaseGetName();}
-    int setName(char *name){return ESMC_BaseSetName(name, "Array");}
+    int setName(const char *name){return ESMC_BaseSetName(name, "Array");}
     // misc.
     static bool match(Array *array1, Array *array2, int *rc=NULL);
+    static int read(Array *array, char *file, char *variableName,
+         int *timeslice, ESMC_IOFmtFlag *iofmt);
+    static int write(Array *array, char *file, char *variableName, bool *append,
+         int *timeslice, ESMC_IOFmtFlag *iofmt);
     int print() const;
     int validate() const;
+    int constructPioDof(InterfaceInt *pioDofList, int localDe) const;
     // serialize() and deserialize()
     int serialize(char *buffer, int *length, int *offset,
       const ESMC_AttReconcileFlag &attreconflag,
@@ -238,49 +309,38 @@ namespace ESMCI {
       const ESMC_AttReconcileFlag &attreconflag);
     // comms
     int gather(void *array, ESMC_TypeKind typekind, int rank,
-      int *counts, int *patch, int rootPet, VM *vm);
+      int *counts, int *tile, int rootPet, VM *vm);
     int scatter(void *array, ESMC_TypeKind typekind, int rank,
-      int *counts, int *patch, int rootPet, VM *vm);
+      int *counts, int *tile, int rootPet, VM *vm);
+    static int haloStore(Array *array, RouteHandle **routehandle,
+      ESMC_HaloStartRegionFlag halostartregionflag=ESMF_REGION_EXCLUSIVE,
+      InterfaceInt *haloLDepth=NULL, InterfaceInt *haloUDepth=NULL);
+    static int halo(Array *array,
+      RouteHandle **routehandle, ESMC_CommFlag commflag=ESMF_COMM_BLOCKING,
+      bool *finishedflag=NULL, bool *cancelledflag=NULL, bool checkflag=false);
+    static int haloRelease(RouteHandle *routehandle);
     static int redistStore(Array *srcArray, Array *dstArray,
       RouteHandle **routehandle, InterfaceInt *srcToDstTransposeMap,
       ESMC_TypeKind typekindFactor = ESMF_NOKIND, void *factor = NULL);
     static int redist(Array *srcArray, Array *dstArray,
-      RouteHandle **routehandle, ESMC_Logical checkflag=ESMF_FALSE);
+      RouteHandle **routehandle, ESMC_CommFlag commflag=ESMF_COMM_BLOCKING,
+      bool *finishedflag=NULL, bool *cancelledflag=NULL, bool checkflag=false);
     static int redistRelease(RouteHandle *routehandle);
     static int sparseMatMulStore(Array *srcArray, Array *dstArray,
-      RouteHandle **routehandle, vector<SparseMatrix> const &sparseMatrix);
+      RouteHandle **routehandle, std::vector<SparseMatrix> const &sparseMatrix,
+      bool haloFlag=false);
     static int sparseMatMul(Array *srcArray, Array *dstArray,
-      RouteHandle **routehandle,
-      ESMC_RegionFlag zeroflag=ESMF_REGION_TOTAL,
-      ESMC_Logical checkflag=ESMF_FALSE);
+      RouteHandle **routehandle, ESMC_CommFlag commflag=ESMF_COMM_BLOCKING,
+      bool *finishedflag=NULL, bool *cancelledflag=NULL,
+      ESMC_RegionFlag zeroflag=ESMF_REGION_TOTAL, bool checkflag=false,
+      bool haloFlag=false);
     static int sparseMatMulRelease(RouteHandle *routehandle);
     
   };  // class Array
-
-  
-  struct SeqIndex{
-    int decompSeqIndex;
-    int tensorSeqIndex;
-  };  // struct seqIndex
-  bool operator==(SeqIndex a, SeqIndex b);
-  bool operator<(SeqIndex a, SeqIndex b);
+  //============================================================================
   
   
-  class SeqInd{
-    int n;  // number of components in sequence index
-    int const *index;
-   public:
-    SeqInd(){n=0; index=NULL;}
-    SeqInd(int n_, int const *index_){
-      n = n_;
-      index = index_;
-    }
-    int getIndex(int i)const{return index[i];}
-  };
-  
-  //todo: try to unify SeqIndex and SeqInd structs!
-  
-  
+  //============================================================================
   class SparseMatrix{
     ESMC_TypeKind typekind;
     void const *factorList;
@@ -304,20 +364,28 @@ namespace ESMCI {
     int getSrcN()const{return srcN;}
     int getDstN()const{return dstN;}
   };
+  //============================================================================
 
+  
+  //============================================================================
   class ArrayElement : public MultiDimIndexLoop{
-    Array *array;                     // associated Array object
+    // Iterator type through Array elements.
+    Array const *array;               // associated Array object
     int localDe;                      // localDe index
    public:
-    ArrayElement(Array *arrayArg, int localDeArg);
-    int getLinearIndexExclusive(){
-      return array->getLinearIndexExclusive(localDe, &indexTuple[0]);
-    }
-    SeqIndex getSequenceIndexExclusive(){
-      // getSequenceIndexExclusive() expects basis 0 indexTuple in excl. region
-      return array->getSequenceIndexExclusive(localDe, &indexTuple[0]);
-    }
+    ArrayElement(Array const *arrayArg, int localDeArg);
+      // construct iterator through exclusive Array region
+    ArrayElement(Array const *arrayArg, int localDeArg,
+      bool blockExclusiveFlag);
+      // construct iterator through total Array region with block excl. option
+    bool hasValidSeqIndex()const;
+    int getLinearIndexExclusive()const;
+    SeqIndex getSequenceIndexExclusive(int depth=0)const;
+    int getTensorSequenceIndex()const;
+    int getArbSequenceIndexOffset()const;
+    void print()const;
   };  // class ArrayElement 
+  //============================================================================
   
 } // namespace ESMCI
 
@@ -383,7 +451,7 @@ class ESMC_newArray : public ESMC_Base {    // inherits from ESMC_Base class
     // cached DELayout information
     int deCount;              // total number of DEs
     int localDeCount;         // number of DEs that map onto localVAS
-    int *localDeList;         // list of local DEs
+    int *localDeToDeMap;      // list of local DEs
     int *deVASList;           // list of VASs for all DEs
     
   public:

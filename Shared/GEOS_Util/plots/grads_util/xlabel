@@ -1,0 +1,25 @@
+function xlabel(args)
+
+file = subwrd(args,1)
+xpos = subwrd(args,2)
+ypos = subwrd(args,3)
+
+if( file=0 )
+'getinfo file'
+file = result
+endif
+
+
+'getinfo file'
+file0 = result
+
+'set dfile 'file
+'getinfo label'
+label = result
+'set dfile 'file0
+
+say 'draw string 'xpos' 'ypos' 'label
+'draw string 'xpos' 'ypos' 'label
+
+return
+

@@ -1,7 +1,7 @@
-! $Id: ESMF_AttributeGridUTest.F90,v 1.25.2.1 2010/02/05 20:03:41 svasquez Exp $
+! $Id$
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2010, University Corporation for Atmospheric Research,
+! Copyright 2002-2012, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -29,13 +29,13 @@ program ESMF_AttributeGridUTest
 !-----------------------------------------------------------------------------
 ! !USES:
       use ESMF_TestMod     ! test methods
-      use ESMF_Mod         ! the ESMF Framework
+      use ESMF         ! the ESMF Framework
       implicit none
 
 !------------------------------------------------------------------------------
 ! The following line turns the CVS identifier string into a printable variable.
       character(*), parameter :: version = &
-      '$Id: ESMF_AttributeGridUTest.F90,v 1.25.2.1 2010/02/05 20:03:41 svasquez Exp $'
+      '$Id$'
 !------------------------------------------------------------------------------
 
 !-------------------------------------------------------------------------
@@ -50,7 +50,7 @@ program ESMF_AttributeGridUTest
       character(ESMF_MAXSTR) :: conv, purp, attrname, &
                                 attrnameOut, attrvalue
       integer                :: rc, count, items
-      type(ESMF_TypeKind)    :: attrTK
+      type(ESMF_TypeKind_Flag)    :: attrTK
 
       real(ESMF_KIND_I8)                     :: inR8, outR8, defaultR8, dfltoutR8
       real(ESMF_KIND_I8), dimension(3)       :: inR8l, defaultR8l, dfltoutR8l, outR8l
@@ -107,7 +107,7 @@ program ESMF_AttributeGridUTest
       !------------------------------------------------------------------------
       ! preparations
       ! grids
-      grid = ESMF_GridCreateEmpty(rc=rc)
+      grid = ESMF_GridEmptyCreate(rc=rc)
 
 !-------------------------------------------------------------------------
 !  GRID
@@ -766,9 +766,9 @@ program ESMF_AttributeGridUTest
       ! Too Short Get an ESMF_R8 list Attribute from a Grid Test
       call ESMF_AttributeGet(grid, name="AttrR8l", &
         valueList=outR8lLong(1:2), itemCount=itemCount, rc=rc)
-      write(failMsg, *) "Did not return ESMF_RC_ARG_BAD"
+      write(failMsg, *) "Did not return ESMF_RC_ATTR_ITEMSOFF"
       write(name, *) "Getting an ESMF_R8l Attribute from a Grid Test with short valueList"
-      call ESMF_Test(rc==ESMF_RC_ARG_BAD, name, failMsg, result, ESMF_SRCLINE)
+      call ESMF_Test(rc/=ESMF_SUCCESS, name, failMsg, result, ESMF_SRCLINE)
       !------------------------------------------------------------------------
 
       itemCount = 3
@@ -799,9 +799,9 @@ program ESMF_AttributeGridUTest
       ! Too Short Get a char list Attribute from a Grid Test
       call ESMF_AttributeGet(grid, name="Charl", &
         valueList=outCharlLong(1:2),itemCount=itemCount, rc=rc)
-      write(failMsg, *) "Did not return ESMF_RC_ARG_BAD"
+      write(failMsg, *) "Did not return ESMF_RC_ATTR_ITEMSOFF"
       write(name, *) "Getting an Attribute char list from a Grid test with short valueList"
-      call ESMF_Test((rc==ESMF_RC_ARG_BAD), name, failMsg, result, ESMF_SRCLINE)
+      call ESMF_Test((rc/=ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
       !------------------------------------------------------------------------
 
       itemCount = 3
@@ -1187,7 +1187,7 @@ program ESMF_AttributeGridUTest
       ! clean up
       call ESMF_GridDestroy(grid, rc=rc)
       
-      if (rc .ne. ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+      if (rc .ne. ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
   !-----------------------------------------------------------------------------
   call ESMF_TestEnd(result, ESMF_SRCLINE)

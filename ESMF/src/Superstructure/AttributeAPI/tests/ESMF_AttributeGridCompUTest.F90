@@ -1,7 +1,7 @@
-! $Id: ESMF_AttributeGridCompUTest.F90,v 1.24.2.1 2010/02/05 20:03:41 svasquez Exp $
+! $Id$
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2010, University Corporation for Atmospheric Research,
+! Copyright 2002-2012, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -29,13 +29,13 @@ program ESMF_AttributeGridCompUTest
 !-----------------------------------------------------------------------------
 ! !USES:
       use ESMF_TestMod     ! test methods
-      use ESMF_Mod         ! the ESMF Framework
+      use ESMF         ! the ESMF Framework
       implicit none
 
 !------------------------------------------------------------------------------
 ! The following line turns the CVS identifier string into a printable variable.
       character(*), parameter :: version = &
-      '$Id: ESMF_AttributeGridCompUTest.F90,v 1.24.2.1 2010/02/05 20:03:41 svasquez Exp $'
+      '$Id$'
 !------------------------------------------------------------------------------
 
 !-------------------------------------------------------------------------
@@ -52,7 +52,7 @@ program ESMF_AttributeGridCompUTest
       character(ESMF_MAXSTR) :: attrname, &
                                 attrnameOut, attrvalue
       integer                :: rc, count, items
-      type(ESMF_TypeKind)    :: attrTK
+      type(ESMF_TypeKind_Flag)    :: attrTK
 
       real(ESMF_KIND_I8)                     :: inR8, outR8, defaultR8, dfltoutR8
       real(ESMF_KIND_I8), dimension(3)       :: inR8l, defaultR8l, dfltoutR8l, outR8l
@@ -106,7 +106,8 @@ program ESMF_AttributeGridCompUTest
       !------------------------------------------------------------------------
       ! preparations
       ! states
-      sfg = ESMF_StateCreate("stateforgridcomp", ESMF_STATE_EXPORT, rc=rc)
+      sfg = ESMF_StateCreate(name="stateforgridcomp",  &
+                             stateintent=ESMF_STATEINTENT_EXPORT, rc=rc)
       
       ! coupler components
       cfg = ESMF_CplCompCreate(name="cplcompforgridcomp", petList=(/0/), rc=rc)
@@ -117,7 +118,7 @@ program ESMF_AttributeGridCompUTest
       gridcompValue = ESMF_GridCompCreate(name="gridcompforvaluecopy", petList=(/0/), rc=rc)
       gridcompHybrid = ESMF_GridCompCreate(name="gridcompforhybridcopy", petList=(/0/), rc=rc)
       
-      if (rc .ne. ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+      if (rc .ne. ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
 !-------------------------------------------------------------------------
 !  GRIDCOMP
@@ -775,9 +776,9 @@ program ESMF_AttributeGridCompUTest
       ! Too Short Get an ESMF_R8 list Attribute from a GridComp Test
       call ESMF_AttributeGet(gridcomp, name="AttrR8l", &
         valueList=outR8lLong(1:2), itemCount=itemCount, rc=rc)
-      write(failMsg, *) "Did not return ESMF_RC_ARG_BAD"
+      write(failMsg, *) "Did not return ESMF_RC_ATTR_ITEMSOFF"
       write(name, *) "Getting an ESMF_R8l Attribute from a GridComp Test with short valueList"
-      call ESMF_Test(rc==ESMF_RC_ARG_BAD, name, failMsg, result, ESMF_SRCLINE)
+      call ESMF_Test(rc/=ESMF_SUCCESS, name, failMsg, result, ESMF_SRCLINE)
       !------------------------------------------------------------------------
 
       itemCount = 3
@@ -808,9 +809,9 @@ program ESMF_AttributeGridCompUTest
       ! Too Short Get a char list Attribute from a GridComp Test
       call ESMF_AttributeGet(gridcomp, name="Charl", &
         valueList=outCharlLong(1:2),itemCount=itemCount, rc=rc)
-      write(failMsg, *) "Did not return ESMF_RC_ARG_BAD"
+      write(failMsg, *) "Did not return ESMF_RC_ATTR_ITEMSOFF"
       write(name, *) "Getting an Attribute char list from a GridComp test with short valueList"
-      call ESMF_Test((rc==ESMF_RC_ARG_BAD), name, failMsg, result, ESMF_SRCLINE)
+      call ESMF_Test((rc/=ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
       !------------------------------------------------------------------------
 
       itemCount = 3
@@ -1166,7 +1167,8 @@ program ESMF_AttributeGridCompUTest
         attwriteflag=ESMF_ATTWRITE_XML, rc=rc)
       write(failMsg, *) "Did not return ESMF_SUCCESS"
       write(name, *) "Writing an Attribute package to .xml from a GridComp Test"
-      call ESMF_Test((rc==ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+      call ESMF_Test((rc==ESMF_SUCCESS .or. rc==ESMF_RC_LIB_NOT_PRESENT), &
+                      name, failMsg, result, ESMF_SRCLINE)
       !------------------------------------------------------------------------
 
       !EX_UTest
@@ -1185,7 +1187,7 @@ program ESMF_AttributeGridCompUTest
       !EX_UTest
       ! Copy a GridComp Attribute hierarchy VALUE ONE LEVEL Test
       call ESMF_AttributeCopy(gridcomp, gridcompValue, &
-        attcopyflag=ESMF_ATTCOPY_VALUE, atttreeflag=ESMF_ATTTREE_OFF, rc=rc)
+        copyflag=ESMF_COPY_VALUE, atttreeflag=ESMF_ATTTREE_OFF, rc=rc)
       write(failMsg, *) "Did not return ESMF_SUCCESS"
       write(name, *) "Copying a GridComp Attribute hierarchy VALUE ONE LEVEL Test"
       call ESMF_Test((rc==ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
@@ -1194,7 +1196,7 @@ program ESMF_AttributeGridCompUTest
       !EX_UTest
       ! Copy a GridComp Attribute hierarchy HYBRID Test
       call ESMF_AttributeCopy(gridcomp, gridcompHybrid, &
-        attcopyflag=ESMF_ATTCOPY_HYBRID, atttreeflag=ESMF_ATTTREE_ON, rc=rc)
+        copyflag=ESMF_COPY_REFERENCE, atttreeflag=ESMF_ATTTREE_ON, rc=rc)
       write(failMsg, *) "Did not return ESMF_SUCCESS"
       write(name, *) "Copying a GridComp Attribute hierarchy HYBRID Test"
       call ESMF_Test((rc==ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
@@ -1237,7 +1239,7 @@ program ESMF_AttributeGridCompUTest
       call ESMF_AttributeLink(gridcomp, sfg, rc=rc)
       write(failMsg, *) "Did not return ESMC_RC_ATTR_LINK"
       write(name, *) "Linking a GridComp hierarchy to a State hierarchy Test, again"
-      call ESMF_Test((rc==ESMC_RC_ATTR_LINK), name, failMsg, result, ESMF_SRCLINE)
+      call ESMF_Test((rc==ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
       !------------------------------------------------------------------------
 
       !EX_UTest
@@ -1245,7 +1247,7 @@ program ESMF_AttributeGridCompUTest
       call ESMF_AttributeLink(gridcomp, cfg, rc=rc)
       write(failMsg, *) "Did not return ESMC_RC_ATTR_LINK"
       write(name, *) "Linking a GridComp hierarchy to a CplComp hierarchy Test, again"
-      call ESMF_Test((rc==ESMC_RC_ATTR_LINK), name, failMsg, result, ESMF_SRCLINE)
+      call ESMF_Test((rc==ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
       !------------------------------------------------------------------------
 
       !EX_UTest
@@ -1253,7 +1255,7 @@ program ESMF_AttributeGridCompUTest
       call ESMF_AttributeLink(gridcomp, gfg, rc=rc)
       write(failMsg, *) "Did not return ESMC_RC_ATTR_LINK"
       write(name, *) "Linking a GridComp hierarchy to a GridComp hierarchy Test, again"
-      call ESMF_Test((rc==ESMC_RC_ATTR_LINK), name, failMsg, result, ESMF_SRCLINE)
+      call ESMF_Test((rc==ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
       !------------------------------------------------------------------------
 
 #endif
@@ -1282,6 +1284,57 @@ program ESMF_AttributeGridCompUTest
       call ESMF_Test((rc==ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
       !------------------------------------------------------------------------
 
+#ifdef ESMF_TESTEXHAUSTIVE
+
+      !EX_UTest
+      ! Unlink a GridComp Attribute hierarchy from a State Attribute hierarchy GridComp Test 2
+      call ESMF_AttributeLinkRemove(gridcomp, sfg, rc=rc)
+      write(failMsg, *) "Did not return ESMF_SUCCESS"
+      write(name, *) "Unlinking a GridComp hierarchy from a State hierarchy Test 2"
+      call ESMF_Test((rc==ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+      !------------------------------------------------------------------------
+
+      !EX_UTest
+      ! Unlink a GridComp Attribute hierarchy from a CplComp Attribute hierarchy GridComp Test 2
+      call ESMF_AttributeLinkRemove(gridcomp, cfg, rc=rc)
+      write(failMsg, *) "Did not return ESMF_SUCCESS"
+      write(name, *) "Unlinking a GridComp hierarchy from a CplComp hierarchy Test 2"
+      call ESMF_Test((rc==ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+      !------------------------------------------------------------------------
+
+      !EX_UTest
+      ! Unlink a GridComp Attribute hierarchy from a GridComp Attribute hierarchy GridComp Test 2
+      call ESMF_AttributeLinkRemove(gridcomp, gfg, rc=rc)
+      write(failMsg, *) "Did not return ESMF_SUCCESS"
+      write(name, *) "Unlinking a GridComp hierarchy from a GridComp hierarchy Test 2"
+      call ESMF_Test((rc==ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+      !------------------------------------------------------------------------
+
+      !EX_UTest
+      ! Unlink a GridComp Attribute hierarchy from a State Attribute hierarchy GridComp Test 3
+      call ESMF_AttributeLinkRemove(gridcomp, sfg, rc=rc)
+      write(failMsg, *) "Did not return ESMF_SUCCESS"
+      write(name, *) "Unlinking a GridComp hierarchy from a State hierarchy Test 3"
+      call ESMF_Test((rc/=ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+      !------------------------------------------------------------------------
+
+      !EX_UTest
+      ! Unlink a GridComp Attribute hierarchy from a CplComp Attribute hierarchy GridComp Test 3
+      call ESMF_AttributeLinkRemove(gridcomp, cfg, rc=rc)
+      write(failMsg, *) "Did not return ESMF_SUCCESS"
+      write(name, *) "Unlinking a GridComp hierarchy from a CplComp hierarchy Test 3"
+      call ESMF_Test((rc/=ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+      !------------------------------------------------------------------------
+
+      !EX_UTest
+      ! Unlink a GridComp Attribute hierarchy from a GridComp Attribute hierarchy GridComp Test 3
+      call ESMF_AttributeLinkRemove(gridcomp, gfg, rc=rc)
+      write(failMsg, *) "Did not return ESMF_SUCCESS"
+      write(name, *) "Unlinking a GridComp hierarchy from a GridComp hierarchy Test 3"
+      call ESMF_Test((rc/=ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+      !------------------------------------------------------------------------
+
+#endif
     !-------------------------------------------------------------------------
     !  Attribute Info
     !-------------------------------------------------------------------------
@@ -1335,7 +1388,7 @@ program ESMF_AttributeGridCompUTest
 
       call ESMF_StateDestroy(sfg, rc=rc)
       
-      if (rc .ne. ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+      if (rc .ne. ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
   !-----------------------------------------------------------------------------
   call ESMF_TestEnd(result, ESMF_SRCLINE)

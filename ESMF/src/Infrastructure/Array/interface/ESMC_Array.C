@@ -1,7 +1,7 @@
-// $Id: ESMC_Array.C,v 1.18.2.1 2010/02/05 19:52:14 svasquez Exp $
+// $Id$
 //
 // Earth System Modeling Framework
-// Copyright 2002-2010, University Corporation for Atmospheric Research, 
+// Copyright 2002-2012, University Corporation for Atmospheric Research, 
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
 // Laboratory, University of Michigan, National Centers for Environmental 
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
@@ -29,14 +29,14 @@
 // include ESMF headers
 #include "ESMCI_Arg.h"
 #include "ESMCI_LogErr.h"
-#include "ESMC_LogMacros.inc"             // for LogErr
+#include "ESMCI_LogMacros.inc"
 #include "ESMCI_Array.h"
 #include "ESMC_Interface.h"
 
 //-----------------------------------------------------------------------------
 // leave the following line as-is; it will insert the cvs ident string
 // into the object file for tracking purposes.
-static const char *const version = "$Id: ESMC_Array.C,v 1.18.2.1 2010/02/05 19:52:14 svasquez Exp $";
+static const char *const version = "$Id$";
 //-----------------------------------------------------------------------------
 
 extern "C" {
@@ -45,7 +45,7 @@ extern "C" {
 #undef  ESMC_METHOD
 #define ESMC_METHOD "ESMC_ArrayCreate()"
 ESMC_Array ESMC_ArrayCreate(ESMC_ArraySpec arrayspec, ESMC_DistGrid distgrid,
-  char* name, int *rc){ //TODO: complete this API
+  const char* name, int *rc){ //TODO: complete this API
 
   // initialize return code; assume routine not implemented
   int localrc = ESMC_RC_NOT_IMPL;         // local return code
@@ -61,7 +61,7 @@ ESMC_Array ESMC_ArrayCreate(ESMC_ArraySpec arrayspec, ESMC_DistGrid distgrid,
 
   // Set name in newly created Array
   localrc = ((ESMCI::Array*)(array.ptr))->ESMCI::Array::setName(name);
-  if (ESMC_LogDefault.MsgFoundError(localrc, ESMF_ERR_PASSTHRU, ESMC_CONTEXT,
+  if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, ESMC_CONTEXT,
     rc)){
     array.ptr = NULL;
     return array;  // bail out
@@ -88,7 +88,7 @@ int ESMC_ArrayDestroy(ESMC_Array *array){
 
   // call into ESMCI method  
   localrc = ESMCI::Array::destroy(&ap);
-  if (ESMC_LogDefault.MsgFoundError(localrc, ESMF_ERR_PASSTHRU, ESMC_CONTEXT,
+  if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, ESMC_CONTEXT,
     &rc)) return rc;  // bail out
   
   // invalidate pointer
@@ -115,7 +115,7 @@ int ESMC_ArrayPrint(ESMC_Array array){
 
   // call into ESMCI method  
   localrc = ap->print();
-  if (ESMC_LogDefault.MsgFoundError(localrc, ESMF_ERR_PASSTHRU, ESMC_CONTEXT,
+  if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, ESMC_CONTEXT,
     &rc)) return rc;  // bail out
     
   // return successfully
@@ -199,7 +199,7 @@ int ESMC_ArraySetLWidth(ESMC_Array array,
   // call into ESMCI method
   localrc = ap->setComputationalLWidth(
     (ESMCI::InterfaceInt *)(computationalLWidthArg.ptr));
-  if (ESMC_LogDefault.MsgFoundError(localrc, ESMF_ERR_PASSTHRU, ESMC_CONTEXT,
+  if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, ESMC_CONTEXT,
     &rc)) return rc;  // bail out
 
   // return successfully

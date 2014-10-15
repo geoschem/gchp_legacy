@@ -1,6 +1,7 @@
+// $Id$
 //
 // Earth System Modeling Framework
-// Copyright 2002-2010, University Corporation for Atmospheric Research, 
+// Copyright 2002-2012, University Corporation for Atmospheric Research, 
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
 // Laboratory, University of Michigan, National Centers for Environmental 
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
@@ -12,6 +13,12 @@
 #include <Mesh/include/ESMCI_Exception.h>
 
 #include <Mesh/include/sacado/Sacado.hpp>
+
+//-----------------------------------------------------------------------------
+// leave the following line as-is; it will insert the cvs ident string
+// into the object file for tracking purposes.
+static const char *const version = "$Id$";
+//-----------------------------------------------------------------------------
 
 namespace ESMCI {
 
@@ -183,6 +190,8 @@ void tri_shape_func::shape_grads(unsigned int npts, const ScalarT pcoord[], Scal
   }  // for j
 }
 
+
+#if 0
 bool tri_shape_func::is_in(const double pcoord[], double *dist) {
   const double in_tol = 1e-10;
   if (pcoord[0] < -in_tol) {
@@ -197,6 +206,41 @@ bool tri_shape_func::is_in(const double pcoord[], double *dist) {
   }
   return true;
 }
+#endif
+
+bool tri_shape_func::is_in(const double pcoord[], double *dist) {
+  const double in_tol = 1e-10;
+  bool in=true;
+
+  if ((pcoord[0] <-in_tol) || (pcoord[1] <-in_tol)) {
+    double out_dist[2]={0.0,0.0};
+
+     if (pcoord[0] < -in_tol) {
+        out_dist[0] = -pcoord[0];
+        in=false;
+     } else if (pcoord[0] > 1.0+in_tol) {
+        out_dist[0] = pcoord[0]-1.0;
+        // no setting of in, this is just to calculate dist
+     }
+
+     if (pcoord[1] < -in_tol) {
+        out_dist[1] = -pcoord[1];
+        in=false;
+     } else if (pcoord[1] > 1.0+in_tol) {
+        out_dist[1] = pcoord[1]-1.0;
+        // no setting of in, this is just to calculate dist
+     }
+
+     if (dist) *dist=std::sqrt(out_dist[0]*out_dist[0]+out_dist[1]*out_dist[1]);
+
+  } else if ((pcoord[0] + pcoord[1]) > 1.0+in_tol) {
+    if (dist) *dist = std::abs((pcoord[0] + pcoord[1]) - 1.0);
+    in=false;
+  }
+
+  return in;
+}
+
 
 const double tri_shape_func::ipoints[ndofs*pdim] = {
  0,  0,
@@ -276,6 +320,7 @@ void quad_shape_func::shape_grads(unsigned int npts, const ScalarT pcoord[], Sca
   }  // for j
 }
 
+#if 0
 bool quad_shape_func::is_in(const double pcoord[], double *dist) {
   const double in_tol = 1e-10;
   if (pcoord[0] < -1.0-in_tol) {
@@ -290,6 +335,38 @@ bool quad_shape_func::is_in(const double pcoord[], double *dist) {
   }
   return true;
 }
+#endif
+
+
+bool quad_shape_func::is_in(const double pcoord[], double *dist) {
+  const double in_tol = 1e-10;
+  bool in=true;
+  double max_out[2]={0.0,0.0};
+
+  if (pcoord[0] < -1.0-in_tol) {
+    max_out[0]=-1.0 - pcoord[0];
+    in= false;
+  } else if (pcoord[0] > 1.0+in_tol) {
+    max_out[0]=pcoord[0] - 1.0;
+    in= false;
+  }
+
+  if (pcoord[1] < -1.0-in_tol) {
+    max_out[1]=-1.0 - pcoord[1];
+    in= false;
+  } else if (pcoord[1] > 1.0+in_tol) {
+    max_out[1]=pcoord[1] - 1.0;
+    in= false;
+  }
+
+  if (dist) *dist=std::sqrt(max_out[0]*max_out[0]+max_out[1]*max_out[1]);
+
+  return in;
+}
+
+
+
+
 
 const double quad_shape_func::ipoints[ndofs*pdim] = {
  -1, -1,  

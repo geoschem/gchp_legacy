@@ -1,0 +1,7 @@
+function setx (args)
+
+'getinfo xdim'
+xdim = result
+'set x 1 'xdim
+if( args != "" ) ; say "setting x from 1 to "xdim ; endif
+return

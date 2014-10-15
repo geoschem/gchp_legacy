@@ -1,0 +1,19 @@
+set dfile 1
+set t -10 55
+run rad_ts.plt 260 280 30 45 U.S.
+print
+c
+run rad_ts.plt  10  50 40 50 Europe
+print
+c
+run rad_ts.plt  60 120 30 60 Asia
+print
+c
+run rad_ts.plt 120 150 -30 -15 Australia
+print
+c
+run rad_ts.plt   0  30 10 30 Sahara
+print
+c
+run rad_ts.plt 290 310 -25 -5 Brazil
+print

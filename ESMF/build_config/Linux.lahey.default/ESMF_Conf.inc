@@ -1,8 +1,8 @@
 #if 0
-$Id: ESMF_Conf.inc,v 1.8.4.1 2010/02/05 20:22:36 svasquez Exp $
+$Id: ESMF_Conf.inc,v 1.1.5.1 2013-01-11 20:23:43 mathomp4 Exp $
 
 Earth System Modeling Framework
-Copyright 2002-2010, University Corporation for Atmospheric Research,
+Copyright 2002-2012, University Corporation for Atmospheric Research,
 Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 Laboratory, University of Michigan, National Centers for Environmental
 Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -21,6 +21,15 @@ be one of the following:
 #endif
 
 #define ESMF_IOFlushMacro(unit,status) call flush (unit)
+
+#if 0
+Define the proper way to read the command line.  Lahey does not
+have the Fortran-2003 command line intrinsics, nor Posix calls.  
+So use getarg.
+
+#endif
+
+#define ESMF_NEEDSGETARG
 
 #if 0
 the lahey compiler does not seem to pass the base address of the data

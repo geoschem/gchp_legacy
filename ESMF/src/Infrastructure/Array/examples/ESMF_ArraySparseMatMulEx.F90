@@ -1,7 +1,7 @@
-! $Id: ESMF_ArraySparseMatMulEx.F90,v 1.13.2.1 2010/02/05 19:51:56 svasquez Exp $
+! $Id: ESMF_ArraySparseMatMulEx.F90,v 1.1.5.1 2013-01-11 20:23:43 mathomp4 Exp $
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2010, University Corporation for Atmospheric Research,
+! Copyright 2002-2012, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -16,7 +16,7 @@
 
 program ESMF_ArraySparseMatMulEx
 
-  use ESMF_Mod
+  use ESMF
   
   implicit none
   
@@ -39,10 +39,11 @@ program ESMF_ArraySparseMatMulEx
 ! ------------------------------------------------------------------------------
 ! ------------------------------------------------------------------------------
   finalrc = ESMF_SUCCESS
-  call ESMF_Initialize(vm=vm, rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  call ESMF_Initialize(vm=vm, defaultlogfilename="ArraySparseMatMulEx.Log", &
+                    logkindflag=ESMF_LOGKIND_MULTI, rc=rc)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   call ESMF_VMGet(vm, localPet=localPet, petCount=petCount, rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   
   if (petCount /= 4) then
     finalrc = ESMF_FAILURE
@@ -70,8 +71,8 @@ program ESMF_ArraySparseMatMulEx
 ! information about the non-zero elements. One option is to store the value
 ! of each coefficient together with the corresponding destination element index
 ! and source element index. Destination and source indices could be expressed in
-! terms of the corresponding DistGrid patch index together with the coordinate
-! tuple within the patch. While this format may be the most natural way to
+! terms of the corresponding DistGrid tile index together with the coordinate
+! tuple within the tile. While this format may be the most natural way to
 ! express elements in the source and destination Array, it has two major drawbacks.
 ! First the coordinate tuple is {\tt dimCount} specific and second the format
 ! is extremely bulky. For 2D source and destination Arrays it would require 6
@@ -86,16 +87,16 @@ program ESMF_ArraySparseMatMulEx
 ! matrix multiplication}.
 !
 ! The default sequence index rule assigns index $1$ to the {\tt minIndex} corner
-! element of the first patch of the DistGrid on which the Array is defined. It then
+! element of the first tile of the DistGrid on which the Array is defined. It then
 ! increments the sequence index by $1$ for each element running through the
-! DistGrid dimensions by order. The index space position of the DistGrid patches
+! DistGrid dimensions by order. The index space position of the DistGrid tiles
 ! does not affect the sequence labeling of elements. The default sequence indices
 ! for
 !EOE
 !BOC
   srcDistgrid = ESMF_DistGridCreate(minIndex=(/-1,0/), maxIndex=(/1,3/), rc=rc)
 !EOC  
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !BOE
 ! for each element are:
 ! \begin{verbatim}
@@ -127,21 +128,21 @@ program ESMF_ArraySparseMatMulEx
 !BOC
   call ESMF_ArraySpecSet(arrayspec, typekind=ESMF_TYPEKIND_R8, rank=2, rc=rc)
 !EOC  
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !BOE
 !BOC
   srcArray = ESMF_ArrayCreate(arrayspec=arrayspec, distgrid=srcDistgrid, &
     totalLWidth=(/1,1/), totalUWidth=(/1,1/), indexflag=ESMF_INDEX_GLOBAL, &
     rc=rc)
 !EOC
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !BOE
 ! The extra padding of 1 element in each direction around the exclusive elements on
 ! each DE are "invisible" to the Array spare matrix multiplication method. These
 ! extra elements are either updated by the computational kernel or by Array halo
 ! operations (not yet implemented!).
 !
-! An alternative way to assign sequence indices to all the elements in the patches
+! An alternative way to assign sequence indices to all the elements in the tiles
 ! covered by a DistGrid object is to use a special {\tt ESMF\_DistGridCreate()}
 ! call. This call has been specifically designed for 1D cases with arbitrary,
 ! user-supplied sequence indices.
@@ -151,7 +152,7 @@ program ESMF_ArraySparseMatMulEx
   seqIndexList(2) = localPet*10 + 1
   dstDistgrid = ESMF_DistGridCreate(arbSeqIndexList=seqIndexList, rc=rc)
 !EOC  
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !BOE
 ! This call to {\tt ESMF\_DistGridCreate()} is collective across the current VM.
 ! The {\tt arbSeqIndexList} argument specifies the PET-local arbitrary sequence
@@ -173,11 +174,11 @@ program ESMF_ArraySparseMatMulEx
 ! non-exclusive elements.
 !EOE
   call ESMF_ArraySpecSet(arrayspec, typekind=ESMF_TYPEKIND_R8, rank=1, rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !BOC
   dstArray = ESMF_ArrayCreate(arrayspec=arrayspec, distgrid=dstDistgrid, rc=rc)
 !EOC
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !BOE
 ! With the definition of sequence indices, either by the default rule or as user
 ! provided arbitrary sequence indices, it is now possible to uniquely identify
@@ -185,6 +186,7 @@ program ESMF_ArraySparseMatMulEx
 ! number. Specifying a pair of source and destination elements takes two integer
 ! number regardless of the number of dimensions.
 !
+! \begin{sloppypar}
 ! The information required to carry out a sparse matrix multiplication are the
 ! pair of source and destination sequence indices and the associated
 ! multiplication factor for each pair. ESMF requires this information in form of
@@ -198,6 +200,7 @@ program ESMF_ArraySparseMatMulEx
 ! are stored in the first row of {\tt 
 ! factorIndexList} while the sequence indices of the destination Array elements are
 ! stored in the second row.
+! \end{sloppypar}
 !
 ! Each PET in the current VM must call into {\tt ESMF\_ArraySMMStore()}
 ! to precompute and store the communication pattern for the sparse matrix
@@ -262,7 +265,7 @@ program ESMF_ArraySparseMatMulEx
   call ESMF_ArraySMM(srcArray=srcArray, dstArray=dstArray, &
     routehandle=sparseMatMulHandle, rc=rc)
 !EOC
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !BOE
 ! will initialize the entire {\tt dstArray} to 0.0 and then update two elements:
 !
@@ -279,14 +282,14 @@ program ESMF_ArraySparseMatMulEx
 ! \end{verbatim}
 !
 ! The call to {\tt ESMF\_ArraySMM()} does provide the option to turn
-! the default {\tt dstArray} initialization off. If argument {\tt zeroflag}
+! the default {\tt dstArray} initialization off. If argument {\tt zeroregion}
 ! is set to {\tt ESMF\_REGION\_EMPTY}
 !EOE
 !BOC
   call ESMF_ArraySMM(srcArray=srcArray, dstArray=dstArray, &
-    routehandle=sparseMatMulHandle, zeroflag=ESMF_REGION_EMPTY, rc=rc)
+    routehandle=sparseMatMulHandle, zeroregion=ESMF_REGION_EMPTY, rc=rc)
 !EOC
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !BOE
 ! skips the initialization and elements in {\tt dstArray} are updated according to:
 !
@@ -297,13 +300,23 @@ program ESMF_ArraySparseMatMulEx
 !   enddo
 ! \end{verbatim}
 !
+! The {\tt ESMF\_RouteHandle} object returned by {\tt ESMF\_ArraySMMStore()}
+! can be applied to any src/dst Array pairs that are weakly congurent to the
+! Array pair used during precomputation. Arrays are congruent if they are
+! defined on matching DistGrids and the shape of local array allocations match
+! for all DEs. For weakly congruent Arrays the sizes of the undistributed
+! dimensions, that vary faster with memory than the first distributed
+! dimension, are permitted to be different. See section \ref{Array:Redist}
+! for an example of this feature demonstrated for the Redist case. The exact
+! same principle applies to the SMM case.
+!
 ! The resources held by {\tt sparseMatMulHandle} need to be deallocated by the
 ! user code before the handle becomes inaccessible.
 !EOE
 !BOC
   call ESMF_ArraySMMRelease(routehandle=sparseMatMulHandle, rc=rc)
 !EOC
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   
 !call ESMF_ArrayPrint(srcArray, rc=rc)
 !call ESMF_ArrayPrint(dstArray, rc=rc)
@@ -325,17 +338,17 @@ program ESMF_ArraySparseMatMulEx
 ! of all undistributed dimensions, be the same for source and destination Array.
 !EOE
   call ESMF_ArrayDestroy(srcArray, rc=rc) ! destroy the Array object
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !BOC
   call ESMF_ArraySpecSet(arrayspec, typekind=ESMF_TYPEKIND_R8, rank=3, rc=rc)
   srcArray = ESMF_ArrayCreate(arrayspec=arrayspec, distgrid=srcDistgrid, &
     totalLWidth=(/1,1/), totalUWidth=(/1,1/), indexflag=ESMF_INDEX_GLOBAL, &
     distgridToArrayMap=(/1,2/), undistLBound=(/1/), undistUBound=(/2/), rc=rc)
 !EOC
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   
   call ESMF_ArrayGet(srcArray, farrayPtr=farray3d, rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   counter = localPet*100
   do k=lbound(farray3d,3),ubound(farray3d,3)
     do j=lbound(farray3d,2),ubound(farray3d,2)
@@ -347,14 +360,14 @@ program ESMF_ArraySparseMatMulEx
   enddo
 
   call ESMF_ArrayDestroy(dstArray, rc=rc) ! destroy the Array object
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   
 !BOC
   call ESMF_ArraySpecSet(arrayspec, typekind=ESMF_TYPEKIND_R8, rank=2, rc=rc)
   dstArray = ESMF_ArrayCreate(arrayspec=arrayspec, distgrid=dstDistgrid, &
     distgridToArrayMap=(/2/), undistLBound=(/1/), undistUBound=(/2/), rc=rc)
 !EOC
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
 
 !call ESMF_ArrayPrint(srcArray, rc=rc)
@@ -412,7 +425,7 @@ program ESMF_ArraySparseMatMulEx
   call ESMF_ArraySMM(srcArray=srcArray, dstArray=dstArray, &
     routehandle=sparseMatMulHandle, rc=rc)
 !EOC
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
 !BOE
 ! This operation will initialize the entire {\tt dstArray} to 0.0 and then 
@@ -440,7 +453,7 @@ program ESMF_ArraySparseMatMulEx
 !call ESMF_ArrayPrint(dstArray, rc=rc)
 
   call ESMF_ArraySMMRelease(routehandle=sparseMatMulHandle, rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
  
 !BOE
 ! In a more general version of the Array sparse matrix multiplication the
@@ -457,17 +470,17 @@ program ESMF_ArraySparseMatMulEx
 ! destination Array.
 !EOE
   call ESMF_ArrayDestroy(srcArray, rc=rc) ! destroy the Array object
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !BOC
   call ESMF_ArraySpecSet(arrayspec, typekind=ESMF_TYPEKIND_R8, rank=3, rc=rc)
   srcArray = ESMF_ArrayCreate(arrayspec=arrayspec, distgrid=srcDistgrid, &
     totalLWidth=(/1,1/), totalUWidth=(/1,1/), indexflag=ESMF_INDEX_GLOBAL, &
     distgridToArrayMap=(/1,2/), undistLBound=(/1/), undistUBound=(/2/), rc=rc)
 !EOC
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   
   call ESMF_ArrayGet(srcArray, farrayPtr=farray3d, rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   counter = localPet*100
   do k=lbound(farray3d,3),ubound(farray3d,3)
     do j=lbound(farray3d,2),ubound(farray3d,2)
@@ -479,14 +492,14 @@ program ESMF_ArraySparseMatMulEx
   enddo
 
   call ESMF_ArrayDestroy(dstArray, rc=rc) ! destroy the Array object
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   
 !BOC
   call ESMF_ArraySpecSet(arrayspec, typekind=ESMF_TYPEKIND_R8, rank=2, rc=rc)
   dstArray = ESMF_ArrayCreate(arrayspec=arrayspec, distgrid=dstDistgrid, &
     distgridToArrayMap=(/2/), undistLBound=(/1/), undistUBound=(/4/), rc=rc)
 !EOC
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
 
 !call ESMF_ArrayPrint(srcArray, rc=rc)
@@ -545,7 +558,7 @@ program ESMF_ArraySparseMatMulEx
   call ESMF_ArraySMM(srcArray=srcArray, dstArray=dstArray, &
     routehandle=sparseMatMulHandle, rc=rc)
 !EOC
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
 !BOE
 ! This operation will initialize the entire {\tt dstArray} to 0.0 and then 
@@ -571,16 +584,16 @@ program ESMF_ArraySparseMatMulEx
 !call ESMF_ArrayPrint(dstArray, rc=rc)
 
   call ESMF_ArraySMMRelease(routehandle=sparseMatMulHandle, rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
  
   call ESMF_ArrayDestroy(srcArray, rc=rc) ! destroy the Array object
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   call ESMF_DistGridDestroy(srcDistgrid, rc=rc) ! destroy the DistGrid object
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   call ESMF_ArrayDestroy(dstArray, rc=rc) ! destroy the Array object
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   call ESMF_DistGridDestroy(dstDistgrid, rc=rc) ! destroy the DistGrid object
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   
 ! ------------------------------------------------------------------------------
 ! ------------------------------------------------------------------------------

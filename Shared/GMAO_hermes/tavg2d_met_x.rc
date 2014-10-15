@@ -1,0 +1,217 @@
+# lcv2prs.rc
+#
+#  This is a resource file for the lcv2prs utility.
+#
+# !REVISION HISTORY:
+#
+#  26Jan2006  B. Yin    First version.
+#  25Apr2006  Todling   Declared dims so fvsetup get set them up.
+#
+#...........................................................................
+#                     ----------------------
+#                     Output File Resolution
+#                     ----------------------
+
+zonal_resolution: @IM              # no. of zonal grid-points (im)
+west_most_longitude_in_deg: -180.0 # longitude of first point (i=1)
+meridional_resolution: @JM         # no. meridional grid-points (jm)
+vertical_levels_in_hPa: 1000
+#vertical_level_numbers: 1
+#                       ----------------
+#                       Variable Classes
+#                       ----------------
+ 
+# A variable class lists the variable names that make up a file type or product.
+
+###  PRODUCT: tavg2d_met_x (2-D diagnostics)
+
+VarClass*tavg2d_met_x: ALBEDO ALBNIRDF ALBNIRDR ALBVISDF ALBVISDR BSTAR CLDHGH CLDLOW \
+     CLDMID CLDTOT DISPH DTG EFLUX EMIS EVAP FRLAKE FRLAND FRLANDICE FROCEAN GRN GWETROOT GWETTOP \
+     HFLUX LAI LWGDWN LWGNETCLR LWGNET LWGUP LWI LWTUP LWTUPCLR PARDF PARDR PBLH \
+     PRECANV PRECCON PRECLSC PRECSNO PRECTOT PS QV10M QV2M RHOA SLP SNOMAS SNODP  \
+     SWGDWN SWGDWNCLR SWGNET SWGNETCLR SWTDWN SWTUP SWTUPCLR T10M T2M TAUGWX TAUGWY TAUHGH \ 
+     TAULOW TAUMID TAUTOT TAUX TAUY TO3 TPW TROPP TROPQ TROPT TSKIN TTO3 \  
+     U10M U2M U50M USTAR V10M V2M V50M Z0H Z0M
+
+#                         --------------------
+#                         Variable Translation
+#                         --------------------
+
+Variable_translation_table::
+
+#      Output          |                       Input
+#  Name       Units    | Name             scale_factor  add_offset Positive check
+#  ------------------------------------------------------------------------------
+   EFLUX      W/m2       EFLUX                  1.0        0.0         0
+   EMIS       dimensionless  EMIS               1.0        0.0         0
+   RHOA       kg/m3      RHOA                   1.0        0.0         0
+   SNODP      m          SNODP                  1.0        0.0         0
+   ALBEDO     fraction   ALBEDO                 1.0        0.0         0
+   ALBNIRDF   fraction   ALBNIRDF               1.0        0.0         0
+   ALBNIRDR   fraction   ALBNIRDR               1.0        0.0         0
+   ALBVISDF   fraction   ALBVISDF               1.0        0.0         0
+   ALBVISDR   fraction   ALBVISDR               1.0        0.0         0
+   BSTAR      m/s2       BSTAR                  1.0        0.0         0
+   CLDHGH     fraction   CLDHGH                 1.0        0.0         0
+   CLDLOW     fraction   CLDLOW                 1.0        0.0         0
+   CLDMID     fraction   CLDMID                 1.0        0.0         0
+   CLDTOT     fraction   CLDTOT                 1.0        0.0         0
+   DISPH      m          DISPH                  1.0        0.0         0
+   DTG        K          DTG                    1.0        0.0         0
+   EVAP       kg/m2/s    EVAP                   1.0        0.0         1  # kg/m2/s
+   FRLAKE     fraction   FRLAKE                 1.0        0.0         0
+   FRLAND     fraction   FRLAND                 1.0        0.0         0
+   FRLANDICE  fraction   FRLANDICE              1.0        0.0         0
+   FROCEAN    fraction   FROCEAN                1.0        0.0         0
+   GRN        fraction   GRN                    1.0        0.0         0
+   GWETROOT   fraction   GWETROOT               1.0        0.0         0
+   GWETTOP    fraction   GWETTOP                1.0        0.0         0
+   HFLUX      W/m2       HFLUX                  1.0        0.0         0
+   LAI        m2/m2      LAI                    1.0        0.0         0
+   LWGDWN     W/M2       LWGDWN                 1.0        0.0         0
+   LWGNET     W/M2       LWGNET                 1.0        0.0         0
+   LWGNETCLR  W/M2       LWGNETCLR              1.0        0.0         0
+   LWGUP      W/M2       LWGUP                  1.0        0.0         0
+   LWI     0=water,1=land,2=ice   LWI           1.0        0.0         0
+   LWTUP      W/m2       LWTUP                  1.0        0.0         0
+   LWTUPCLR   W/m2       LWTUPCLR               1.0        0.0         0
+   PARDF      W/m2       PARDF                  1.0        0.0         0
+   PARDR      W/m2       PARDR                  1.0        0.0         0
+   PBLH       m          PBLH                   1.0        0.0         0  # m  ??????
+   PRECANV    kg/m2/s    PRECANV                1.0        0.0         0
+   PRECCON    kg/m2/s    PRECCON                1.0        0.0         0
+   PRECLSC    kg/m2/s    PRECLSC                1.0        0.0         0
+   PRECSNO    kg/m2/s    PRECSNO                1.0        0.0         0
+   PRECTOT    kg/m2/s    PRECTOT                1.0        0.0         0
+   PS         Pa         PS                     1.0        0.0         0  # Pa
+   QV10M      kg/kg      QV10M                  1.0        0.0         0  # kg/kg
+   QV2M       kg/kg      QV2M                   1.0        0.0         0  # kg/kg
+   SLP        Pa         SLP                    1.0        0.0         0  # kg/kg
+   SNOMAS     m          SNOMAS                 1.0        0.0         0
+   SWGDWN     W/m2       SWGDWN                 1.0        0.0         0
+   SWGDWNCLR  W/m2       SWGDWNCLR              1.0        0.0         0
+   SWGNET     W/m2       SWGNET                 1.0        0.0         0
+   SWGNETCLR  W/m2       SWGNETCLR              1.0        0.0         0
+   SWTDWN     W/m2       SWTDWN                 1.0        0.0         0
+   SWTUP      W/m2       SWTUP                  1.0        0.0         0
+   SWTUPCLR   W/m2       SWTUPCLR               1.0        0.0         0
+   T10M       K          T10M                   1.0        0.0         0
+   T2M        K          T2M                    1.0        0.0         0
+   TAUGWX     N/m2       TAUGWX                 1.0        0.0         0
+   TAUGWY     N/m2       TAUGWY                 1.0        0.0         0
+   TAUHGH     dimensionless  TAUHGH             1.0        0.0         0
+   TAULOW     dimensionless  TAULOW             1.0        0.0         0
+   TAUMID     dimensionless  TAUMID             1.0        0.0         0
+   TAUTOT     dimensionless  TAUTOT             1.0        0.0         0
+   TAUX       N/m2       TAUX                   1.0        0.0         0
+   TAUY       N/m2       TAUY                   1.0        0.0         0
+   TO3        Dobson     TO3                    1.0        0.0         0
+   TPW        kg/m2      TPW                    1.0        0.0         0  # kg/m2
+   TROPP      Pa         TROPP                  1.0        0.0         0  # kg/m2
+   TROPQ      kg/kg      TROPQ                  1.0        0.0         0  # kg/m2
+   TROPT      K          TROPT                  1.0        0.0         0  # kg/m2
+   TSKIN      K          TSKIN                  1.0        0.0         0
+   TTO3       Dobson     TTO3                   1.0        0.0         0
+   U10M       m/s        U10M                   1.0        0.0         0
+   U50M       m/s        U50M                   1.0        0.0         0
+   U2M        m/s        U2M                    1.0        0.0         0
+   USTAR      m/s        USTAR                  1.0        0.0         0
+   V10M       m/s        V10M                   1.0        0.0         0
+   V50M       m/s        V50M                   1.0        0.0         0
+   V2M        m/s        V2M                    1.0        0.0         0
+   Z0H        m          Z0H                    1.0        0.0         0
+   Z0M        m          Z0M                    1.0        0.0         0
+::
+
+
+
+# Table for variable names and description:
+
+EFLUX:      Latent heat flux (positive upward)
+EMIS:       Surface emissivity
+RHOA:       Surface air density
+SNODP:      Snow depth
+ALBEDO:     Surface albedo
+ALBNIRDF:   Diffuse beam NIR surface albedo
+ALBNIRDR:   Direct beam NIR surface albedo
+ALBVISDF:   Diffuse beam VIS surface albedo 
+ALBVISDR:   Direct beam VIS surface albedo 
+BSTAR:      Surface buoyancy scale    
+CLDHGH:     High-level (above 400hPa) cloud fraction
+CLDLOW:     Low-level (1000-700hPa) cloud fraction
+CLDMID:     Mid-level (700-400hPa) cloud fraction
+CLDTOT:     Total cloud fraction 
+DISPH:      Displacement Height
+DTG:        Change of Surface Skin Temperature
+EVAP:       Surface evaporation
+FRLAKE:     Fraction of lake type in grid box
+FRLAND:     Fraction of land type in grid box
+FRLANDICE:  Fraction of land ice type in grid box
+FROCEAN:    Fraction of ocean in grid box
+GRN:        Vegetation greeness fraction
+GWETROOT:   Root zone soil wetness
+GWETTOP:    Top soil layer wetness
+HFLUX:      Sensible heat flux (positive upward)
+LAI:        Leaf area index
+LWGDWN:     Surface downward longwave flux 
+LWGNET:     Net surface downward longwave flux at the ground
+LWGNETCLR:  Net surface downward longwave flux assuming clear sky 
+LWGUP:      Longwave flux emitted from surface (upward)    
+LWI:        Surface types
+LWTUP:      Upward longwave flux at top of atmosphere
+LWTUPCLR:   Upward longwave flux at top of atmosphere assuming clear sky
+PARDF:      Surface downward photosynthetically active radiation diffuse flux
+PARDR:      Surface downward photosynthetically active radiation beam flux
+PBLH:       Planetary boundary layer height
+PRECANV:    Surface precipitation flux from anvils
+PRECCON:    Surface precipitation flux from convection
+PRECLSC:    Surface precipitation flux from large-scale
+PRECSNO:    Surface snowfall flux
+PRECTOT:    Total surface precipitation flux
+PS:         Time averaged surface pressure
+QV10M:      Specific humidity interpolated to 10 m above the displacement height
+QV2M:       Specific humidity interpolated to 2 m above the displacement height
+SLP:        Sea level pressure
+SNOMAS:     Snow mass as liquid water equivalent depth
+SWGDWN:     Surface downward shortwave flux 
+SWGDWNCLR:  Surface downward shortwave flux assuming clear sky
+SWGNET:     Net surface downward shortwave flux 
+SWGNETCLR:  Net surface downward shortwave flux assuming clear sky 
+SWTDWN:     Incident shortwave radiation at top of atmosphere
+SWTUP:      Top of atmosphere outgoing shortwave flux
+SWTUPCLR:   Top of atmosphere outgoing shortwave flux assuming clear sky
+T10M:       Temperature interpolated to 10 m above the displacement height
+T2M:        Temperature interpolated to 2  m above the displacement height
+TAUGWX:     Eastward (zonal) gravity wave surface stress 
+TAUGWY:     Northward (meridional) gravity wave surface stress
+TAUHGH:     Optical thickness of high clouds
+TAULOW:     Optical thickness of low clouds
+TAUMID:     Optical thickness of mid-level clouds
+TAUTOT:     Optical thickness of all clouds
+TAUX:       Eastward (zonal) surface wind stress
+TAUY:       Northward (meridional) surface wind stress
+TO3:        Total Column Ozone
+TPW:        Total precipitable water
+TROPP:      Tropopause pressure 
+TROPQ:      Tropopause specific humidity 
+TROPT:      Tropopause temperature
+TSKIN:      Skin temperature
+TTO3:       Tropospheric Total Ozone Column
+U10M:       Eastward (zonal) wind at 10 m above the displacement height
+U50M:       Eastward (zonal) wind at 50 m above the displacement height
+U2M:        Eastward (zonal) wind at 2 m above the displacement height
+USTAR:      Surface velocity scale
+V10M:       Northward (meridional) wind at 10 m above the displacement height
+V50M:       Northward (meridional) wind at 50 m above the displacement height
+V2M:        Northward (meridional) wind at 2 m above the displacement height
+Z0H:        Roughness length, sensible heat
+Z0M:        Roughness length, momentum
+
+history:        @CVSTAG
+convention:     CF-1.0
+institution:    Global Modeling and Assimilation Office (GMAO), NASA Goddard Space Flight Center, Greenbelt, MD 20771
+references:     http://gmao.gsfc.nasa.gov
+comment:        This HDF-4 file uses gzip. 
+source:         @PUBLICTAG
+title:          @PUBLICTAG forward-processing
+contact:        data@gmao.gsfc.nasa.gov

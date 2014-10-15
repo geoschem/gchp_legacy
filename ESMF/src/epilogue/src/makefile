@@ -1,9 +1,9 @@
-# $Id: makefile,v 1.6 2008/09/26 21:11:40 cdeluca Exp $
+# $Id: makefile,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
 
 ALL: build_here 
 
 SOURCEC	  = ESMCI_Test.C ESMC_Test.C
-SOURCEF	  = ESMF_Test.F90
+SOURCEF	  = ESMF_Test.F90 ESMF_ComplianceIC.F90
 
 # list all .h files which should be copied to common include dir
 STOREH	  = ESMCI_Test.h ESMC_Test.h

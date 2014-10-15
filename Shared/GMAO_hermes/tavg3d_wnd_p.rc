@@ -1,0 +1,64 @@
+# lcv2prs.rc
+#
+#  This is a resource file for the lcv2prs utility.
+#
+# !REVISION HISTORY:
+#
+#  27Jan2006  B. Yin    First version.
+#  25Apr2006  Todling   Declared dims so fvsetup get set them up.
+#  17May2006  Stassi    modified from tavg3d_wnd_v.rc for pressure levels
+#
+#...........................................................................
+
+#                     ----------------------
+#                     Output File Resolution
+#                     ----------------------
+
+zonal_resolution: @IM              # no. of zonal grid-points (im)
+west_most_longitude_in_deg: -180.0 # longitude of first point (i=1)
+meridional_resolution: @JM         # no. meridional grid-points (jm)
+vertical_levels_in_hPa: 1000 975 950 925 900 875 850 825 800 750 700 650 600 550 500 450 400 350 300 250 200 150 100 70 50 40 30 20 10 7 5 3 2 1 0.4 0.2
+
+#                       ----------------
+#                       Variable Classes
+#                       ----------------
+ 
+# A variable class lists the variable names that make up a file type or product.
+
+###  PRODUCT: tavg3d_wnd_p (3-D tendency)
+VarClass*tavg3d_wnd_p: DUDTDYN DUDTGWD DUDTMST DUDTTRB DVDTDYN DVDTGWD DVDTMST DVDTTRB 
+
+#                       --------------------
+#                       Variable Translation
+#                       --------------------
+
+Variable_translation_table::
+
+#      Output          |                       Input
+#  Name       Units    | Name             scale_factor  add_offset Positive check
+#  ------------------------------------------------------------------------------
+   DUDTDYN     m/s2        DUDTDYN          1.00000     0.00000           0
+   DUDTGWD     m/s2        DUDTGWD          1.00000     0.00000           0
+   DUDTMST     m/s2        DUDTMST          1.00000     0.00000           0
+   DUDTTRB     m/s2        DUDTTRB          1.00000     0.00000           0
+   DVDTDYN     m/s2        DVDTDYN          1.00000     0.00000           0
+   DVDTGWD     m/s2        DVDTGWD          1.00000     0.00000           0
+   DVDTMST     m/s2        DVDTMST          1.00000     0.00000           0
+   DVDTTRB     m/s2        DVDTTRB          1.00000     0.00000           0
+::
+
+#                       --------------------
+#                       Variable Description
+#                       --------------------
+
+# Table for variable names and description:
+
+DUDTDYN:    U-wind tendency from dynamics
+DUDTGWD:    U-wind tendency from gravity wave drag
+DUDTMST:    U-wind tendency from moist physics
+DUDTTRB:    U-wind tendency from turbulence
+DVDTDYN:    V-wind tendency from dynamics
+DVDTGWD:    V-wind tendency from gravity wave drag
+DVDTMST:    V-wind tendency from moist physics
+DVDTTRB:    V-wind tendency from turbulence
+

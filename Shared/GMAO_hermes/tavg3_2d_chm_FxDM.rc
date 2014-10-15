@@ -1,0 +1,118 @@
+# lcv2prs.rc
+#
+#  This is a resource file for the lcv2prs utility.
+#
+# !REVISION HISTORY:
+#
+#  26Jan2006  B. Yin    First version.
+#
+#...........................................................................
+#                     ----------------------
+#                     Output File Resolution
+#                     ----------------------
+
+zonal_resolution: 288              # no. of zonal grid-points (im)
+west_most_longitude_in_deg: -180.0 # longitude of first point (i=1)
+meridional_resolution: 181         # no. meridional grid-points (jm)
+vertical_level_numbers: 1
+#                       ----------------
+#                       Variable Classes
+#                       ----------------
+ 
+# A variable class lists the variable names that make up a file type or product.
+
+###  PRODUCT: tavg3_2d_chm_Fx (2-D diagnostics)
+
+VarClass*tavg3_2d_chm_Fx: PRECANV PRECCON PRECLSC FRCLS FRCAN FRCCN PRECSNO TS QV2M T2M   \
+                          U10M V10M PARDF PARDR NIRDF NIRDR LWGNET SWGNET LWGDWN SWGDWN \
+                          EVAP HFLUX GWETROOT GWETTOP CLDHGH CLDLOW CLDMID CLDTOT PBLH PBLTOP PS 
+
+#                         --------------------
+#                         Variable Translation
+#                         --------------------
+
+Variable_translation_table::
+
+#      Output          |                       Input
+#  Name       Units    | Name             scale_factor  add_offset Positive check
+#  ------------------------------------------------------------------------------
+   PRECANV    kg/m2/s    PRECANV                1.0        0.0          0
+   PRECCON    kg/m2/s    PRECCON                1.0        0.0          0
+   PRECLSC    kg/m2/s    PRECLSC                1.0        0.0          0
+   FRCLS      Fraction   FRCLS                  1.0        0.0          0
+   FRCAN      Fraction   FRCAN                  1.0        0.0          0
+   FRCCN      Fraction   FRCCN                  1.0        0.0          0
+   PRECSNO    kg/m2/s    PRECSNO                1.0        0.0          0
+   TS         K          TS                     1.0        0.0          0
+   QV2M       kg/kg      QV2M                   1.0        0.0          0
+   T2M        K          T2M                    1.0        0.0          0
+   U10M       M/s        U10M                   1.0        0.0          0
+   V10M       M/s        V10M                   1.0        0.0          0
+   PARDF      W/m2       PARDF                  1.0        0.0          0
+   PARDR      W/m2       PARDR                  1.0        0.0          0
+   NIRDF      W/m2       NIRDF                  1.0        0.0          0
+   NIRDR      W/m2       NIRDR                  1.0        0.0          0
+   LWGNET     W/m2       LWGNET                 1.0        0.0          0
+   SWGNET     W/m2       SWGNET                 1.0        0.0          0
+   LWGDWN     W/m2       LWGDWN                 1.0        0.0          0
+   SWGDWN     W/m2       SWGDWN                 1.0        0.0          0
+   EVAP       kg/m2/s    EVAP                   1.0        0.0          0
+   HFLUX      W/m2       HFLUX                  1.0        0.0          0
+   GWETROOT   fraction   GWETROOT               1.0        0.0          0
+   GWETTOP    fraction   GWETTOP                1.0        0.0          0
+   CLDHGH     fraction   CLDHGH                 1.0        0.0          0
+   CLDLOW     fraction   CLDLOW                 1.0        0.0          0
+   CLDMID     fraction   CLDMID                 1.0        0.0          0
+   CLDTOT     fraction   CLDTOT                 1.0        0.0          0
+   PBLH       m          PBLH                   1.0        0.0          0
+   PBLTOP     Pa         PBLTOP                 1.0        0.0          0
+   PS         Pa         PS                     1.0        0.0          0
+::
+
+
+# Table for variable names and description:
+
+PRECANV:    Surface precipitation flux from anvils
+PRECCON:    Surface precipitation flux from convection
+PRECLSC:    Surface precipitation flux from large-scale
+FRCLS:      Fractional area of large-scale precipitation
+FRCAN:      Fractional area of anvil precipitation
+FRCCN:      Fractional area of convective precipitation
+PRECSNO:    Surface snowfall flux
+TS:         Surface skin temperature
+QV2M:       Specific humidity 2 m above displacement height
+T2M:        Temperature 2 m above displacement height
+U10M:       Eastward wind 10 m above the displacement height
+V10M:       Northward wind 10 m above the displacement height
+PARDF:      Surface downward PAR diffuse flux
+PARDR:      Surface downward PAR beam flux
+NIRDF:      Surface downward NIR diffuse flux
+NIRDR:      Surface downward NIR beam flux
+LWGNET:     Surface net downward longwave flux
+SWGNET:     Net surface downward shortwave flux
+LWGDWN:     Surface downward longwave flux
+SWGDWN:     Surface downward shortwave flux
+EVAP:       Surface evaporation
+HFLUX:      Sensible heat flux (positive upward)
+GWETROOT:   Root zone soil wetness
+GWETTOP:    Top soil layer wetness
+CLDHGH:     High-level (above 400 hPa) cloud fraction
+CLDLOW:     Low-level (1000-700 hPa) cloud fraction
+CLDMID:     Mid-level (700-400 hPa) cloud fraction
+CLDTOT:     Total cloud fraction
+PBLH:       Planetary boundary layer height above surface
+PBLTOP:     Pressure at PBL top
+PS:         Surface pressure
+
+
+
+# Global meta data
+
+history:        File written by CFIO
+convention:     CF-1.0
+institution:    Global Modeling and Assimilation Office, NASA Goddard Space Flight Center, Greenbelt, MD 20771
+references:     http://gmao.gsfc.nasa.gov/research/merra/
+comment:        @PUBLICTAG
+source:         Global Modeling and Assimilation Office. GEOSops_5_2_0
+title:          MERRA reanalysis.  @PUBLICTAG
+contact:        http://gmao.gsfc.nasa.gov/ 

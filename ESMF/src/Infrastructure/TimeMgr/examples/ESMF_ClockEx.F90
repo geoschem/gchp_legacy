@@ -1,7 +1,7 @@
-! $Id: ESMF_ClockEx.F90,v 1.44.4.1 2010/02/05 20:00:07 svasquez Exp $
+! $Id: ESMF_ClockEx.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2010, University Corporation for Atmospheric Research,
+! Copyright 2002-2012, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -25,7 +25,7 @@
 !-----------------------------------------------------------------------------
 
       ! ESMF Framework module
-      use ESMF_Mod
+      use ESMF
       implicit none
 
       ! instantiate a clock 
@@ -51,13 +51,15 @@
 
 !BOC
       ! initialize ESMF framework
-      call ESMF_Initialize(defaultCalendar=ESMF_CAL_GREGORIAN, rc=rc)
+      call ESMF_Initialize(defaultCalKind=ESMF_CALKIND_GREGORIAN, &
+        defaultlogfilename="ClockEx.Log", &
+                    logkindflag=ESMF_LOGKIND_MULTI, rc=rc)
 !EOC
 
       if (rc.NE.ESMF_SUCCESS) finalrc = ESMF_FAILURE
 
 !BOE
-!\subsubsection{Clock Creation}
+!\subsubsection{Clock creation}
 
 ! This example shows how to create and initialize an {\tt ESMF\_Clock}.
 !EOE
@@ -85,26 +87,27 @@
 
 !BOC
       ! initialize the clock with the above values
-      clock = ESMF_ClockCreate("Clock 1", timeStep, startTime, stopTime, rc=rc)
+      clock = ESMF_ClockCreate(timeStep, startTime, stopTime=stopTime, &
+                               name="Clock 1", rc=rc)
 !EOC
 
       if (rc.NE.ESMF_SUCCESS) finalrc = ESMF_FAILURE
 
 !BOE
-!\subsubsection{Clock Advance}
+!\subsubsection{Clock advance}
 
 ! This example shows how to time-step an {\tt ESMF\_Clock}.
 !EOE
 
 !BOC
       ! time step clock from start time to stop time
-      do while (.not.ESMF_ClockIsStopTime(clock, rc))
+      do while (.not.ESMF_ClockIsStopTime(clock, rc=rc))
 !EOC
 
         if (rc.NE.ESMF_SUCCESS) finalrc = ESMF_FAILURE
 
 !BOC
-        call ESMF_ClockPrint(clock, "currTime string", rc)
+        call ESMF_ClockPrint(clock, options="currTime string", rc=rc)
 !EOC
 
         if (rc.NE.ESMF_SUCCESS) finalrc = ESMF_FAILURE
@@ -120,7 +123,7 @@
 !EOC
 
 !BOE
-!\subsubsection{Clock Examination}
+!\subsubsection{Clock examination}
 
 ! This example shows how to examine an {\tt ESMF\_Clock}.
 !EOE
@@ -149,13 +152,13 @@
       if (rc.NE.ESMF_SUCCESS) finalrc = ESMF_FAILURE
   
 !BOE
-!\subsubsection{Clock Reversal}
+!\subsubsection{Clock reversal}
 
 ! This example shows how to time-step an {\tt ESMF\_Clock} in reverse mode.
 !EOE
 
 !BOC
-      call ESMF_ClockSet(clock, direction=ESMF_MODE_REVERSE, rc=rc)
+      call ESMF_ClockSet(clock, direction=ESMF_DIRECTION_REVERSE, rc=rc)
 !EOC
 
         if (rc.NE.ESMF_SUCCESS) finalrc = ESMF_FAILURE
@@ -163,13 +166,13 @@
 !BOC
       ! time step clock in reverse from stop time back to start time;
       !  note use of ESMF_ClockIsDone() rather than ESMF_ClockIsStopTime()
-      do while (.not.ESMF_ClockIsDone(clock, rc))
+      do while (.not.ESMF_ClockIsDone(clock, rc=rc))
 !EOC
 
         if (rc.NE.ESMF_SUCCESS) finalrc = ESMF_FAILURE
 
 !BOC
-        call ESMF_ClockPrint(clock, "currTime string", rc)
+        call ESMF_ClockPrint(clock, options="currTime string", rc=rc)
 !EOC
 
         if (rc.NE.ESMF_SUCCESS) finalrc = ESMF_FAILURE
@@ -185,14 +188,14 @@
 !EOC
 
 !BOE
-!\subsubsection{Clock Destruction}
+!\subsubsection{Clock destruction}
 
 ! This example shows how to destroy an {\tt ESMF\_Clock}.
 !EOE
 
 !BOC
       ! destroy clock
-      call ESMF_ClockDestroy(clock, rc)
+      call ESMF_ClockDestroy(clock, rc=rc)
 !EOC
 
       if (rc.NE.ESMF_SUCCESS) finalrc = ESMF_FAILURE

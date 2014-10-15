@@ -1,0 +1,24 @@
+7
+1 6 4
+Dynamics
+1 6 3
+Physics
+1 6 5
+Analysis
+1 6 1
+Net ( Dyn + Phys + Ana )
+1 6 2
+- Omega*Alpha
+3 6 6
+Pres.Grad. + Mntn.Torque
+2 6 4
+Dynamics Loss (-Omega*Alpha minus Dynamics)
+5.1
+1.9
+9.6
+3.5
+
+6.2844
+2.2
+9.59732
+3.5

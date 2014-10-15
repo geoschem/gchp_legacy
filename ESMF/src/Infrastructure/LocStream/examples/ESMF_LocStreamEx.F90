@@ -1,6 +1,6 @@
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2010, University Corporation for Atmospheric Research,
+! Copyright 2002-2012, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -22,7 +22,7 @@ program ESMF_LocStreamEx
 !
 
       ! Use ESMF framework module
-      use ESMF_Mod
+      use ESMF
       implicit none
 
       ! Parameters
@@ -33,26 +33,29 @@ program ESMF_LocStreamEx
 
       real(ESMF_KIND_R8), pointer :: lat(:), lon(:), temperature(:)
       type(ESMF_Field)            :: field_temperature
-      type(ESMF_Grid) :: grid 
       type(ESMF_LocStream) :: locstream, newlocstream
+      type(ESMF_Grid) :: grid
       integer :: localPet, petCount
       integer,parameter :: numLocationsOnThisPet=20
+      integer :: i
       integer,parameter :: GridLatSize=20
       integer,parameter :: GridLonSize=20
-      integer :: i,i1,i2
-      real(ESMF_KIND_R8), pointer :: fptrLonC(:,:)
-      real(ESMF_KIND_R8), pointer :: fptrLatC(:,:)
+      integer :: i1,i2
+      real(ESMF_KIND_R8), pointer :: farrayPtrLonC(:,:)
+      real(ESMF_KIND_R8), pointer :: farrayPtrLatC(:,:)
       integer :: clbnd(2),cubnd(2)
+
 
       ! initialize ESMF
       finalrc = ESMF_SUCCESS
-  call ESMF_Initialize(vm=vm,  rc=rc)
+  call ESMF_Initialize(vm=vm,  defaultlogfilename="LocStreamEx.Log", &
+                    logkindflag=ESMF_LOGKIND_MULTI, rc=rc)
   call ESMF_VMGet(vm, localPet=localPet, petCount=petCount, rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
 #if 1
 !BOE
-!\subsubsection{Creating a LocStream Employing User Allocated Memory}
+!\subsubsection{Create a LocStream with user allocated memory}
 !
 ! The following is an example of creating a LocStream object.
 ! After creation, key data is added, and a Field is created to hold data
@@ -93,20 +96,20 @@ program ESMF_LocStreamEx
 
    !-------------------------------------------------------------------
    ! Add key data, referencing a user data pointer. By changing the 
-   ! copyFlag to ESMF_DATA_COPY an internally allocated copy of the 
+   ! datacopyflag to ESMF_DATACOPY_VALUE an internally allocated copy of the 
    ! user data may also be set.  
    !-------------------------------------------------------------------
    call ESMF_LocStreamAddKey(locstream,              &
                              keyName="Lat",          &
                              farray=lat,             &
-                             copyFlag=ESMF_DATA_REF, &
+                             datacopyflag=ESMF_DATACOPY_REFERENCE, &
                              keyUnits="Degrees",     &
                              keyLongName="Latitude", rc=rc)
 
    call ESMF_LocStreamAddKey(locstream,              &
                              keyName="Lon",          &
                              farray=lon,             &
-                             copyFlag=ESMF_DATA_REF, &
+                             datacopyflag=ESMF_DATACOPY_REFERENCE, &
                              keyUnits="Degrees",     &
                              keyLongName="Longitude", rc=rc)
 
@@ -126,17 +129,17 @@ program ESMF_LocStreamEx
    ! Clean up to prepare for the next example.
    !-------------------------------------------------------------------
    call ESMF_FieldDestroy(field_temperature, rc=rc)
-   if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+   if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
    call ESMF_LocStreamDestroy(locstream, rc=rc)
-   if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+   if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
    deallocate(lon)
    deallocate(lat)
    deallocate(temperature)
 
 !BOE
-!\subsubsection{Creating a LocStream Employing Internally Allocated Memory}
+!\subsubsection{Create a LocStream with internally allocated memory}
 !
 ! The following is an example of creating a LocStream object.
 ! After creation, key data is internally allocated,
@@ -222,17 +225,18 @@ program ESMF_LocStreamEx
    ! Clean up to prepare for the next example.
    !-------------------------------------------------------------------
    call ESMF_FieldDestroy(field_temperature, rc=rc)
-   if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+   if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
    call ESMF_LocStreamDestroy(locstream, rc=rc)
-   if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+   if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
    deallocate(temperature)
 
 
 
+
 !BOE
-!\subsubsection{Creating a LocStream from a Background Grid}
+!\subsubsection{Create a LocStream from a background Grid}
 !
 ! The following is an example of creating a LocStream object from another LocStream object 
 ! using a background Grid. The new LocStream contains the data present in the old LocStream, 
@@ -298,8 +302,10 @@ program ESMF_LocStreamEx
    ! is  0 to 360 in longitude and -90 to 90 in latitude. Note that we 
    ! use indexflag=ESMF_INDEX_GLOBAL for the Grid creation. At this time 
    ! this is required for a Grid to be usable as a background Grid.
+   ! Note that here the points are treated as cartesian.
    !-------------------------------------------------------------------
-   grid=ESMF_GridCreateShapeTile(maxIndex=(/GridLonSize,GridLatSize/),          &
+   grid=ESMF_GridCreateNoPeriDim(maxIndex=(/GridLonSize,GridLatSize/), &
+                                 coordSys=ESMF_COORDSYS_CART, &
                                  indexflag=ESMF_INDEX_GLOBAL, &
                                  rc=rc)
 
@@ -316,22 +322,23 @@ program ESMF_LocStreamEx
    ! coordinate information and then set the coordinates to be uniformly 
    ! distributed around the globe. 
    !-------------------------------------------------------------------
-   call ESMF_GridGetCoord(grid, localDE=0, staggerLoc=ESMF_STAGGERLOC_CORNER,   &
-                          coordDim=1,                                           &
-                          computationalLBound=clbnd, computationalUBound=cubnd, & 
-                          fptr=fptrLonC, rc=rc)
+   call ESMF_GridGetCoord(grid, localDE=0,                       &
+                          staggerLoc=ESMF_STAGGERLOC_CORNER,     &
+                          coordDim=1, computationalLBound=clbnd, &
+                          computationalUBound=cubnd,             & 
+                          farrayPtr=farrayPtrLonC, rc=rc)
 
-   call ESMF_GridGetCoord(grid, localDE=0, staggerLoc=ESMF_STAGGERLOC_CORNER, &
-                          coordDim=2,                                         &
-                          fptr=fptrLatC, rc=rc)
+   call ESMF_GridGetCoord(grid, localDE=0,                       &
+                         staggerLoc=ESMF_STAGGERLOC_CORNER,      &
+                          coordDim=2, farrayPtr=farrayPtrLatC, rc=rc)
 
    do i1=clbnd(1),cubnd(1)
    do i2=clbnd(2),cubnd(2)
       ! Set Grid longitude coordinates as 0 to 360
-      fptrLonC(i1,i2) = REAL(i1-1)*360.0/REAL(GridLonSize)
+      farrayPtrLonC(i1,i2) = REAL(i1-1)*360.0/REAL(GridLonSize)
 
       ! Set Grid latitude coordinates as -90 to 90
-      fptrLatC(i1,i2) = -90. + REAL(i2-1)*180.0/REAL(GridLatSize) + &
+      farrayPtrLatC(i1,i2) = -90. + REAL(i2-1)*180.0/REAL(GridLatSize) + &
                                       0.5*180.0/REAL(GridLatSize)
    enddo
    enddo
@@ -358,13 +365,13 @@ program ESMF_LocStreamEx
    ! Clean up to prepare for the next example.
    !-------------------------------------------------------------------
    call ESMF_LocStreamDestroy(locstream, rc=rc)
-   if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+   if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
    call ESMF_LocStreamDestroy(newLocstream, rc=rc)
-   if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+   if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
    call ESMF_GridDestroy(grid, rc=rc)
-   if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+   if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
 #endif
 

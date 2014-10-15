@@ -1,0 +1,256 @@
+# fv2prs.rc
+#
+#  This is a resource file for the fv2prs utility.
+#
+# !REVISION HISTORY:
+#
+#  10May2001  Lucchesi  First cut.
+#  14Feb2002  Lucchesi  Modification.
+#  04Jun2002  B. Yin    Modification.
+#
+#...........................................................................
+
+#                     ----------------------
+#                     Output File Resolution
+#                     ----------------------
+
+#zonal_resolution: 360              # no. of zonal grid-points (im)
+zonal_resolution: 288              # no. of zonal grid-points (im)
+#west_most_longitude_in_deg: 0.0    # longitude of first point (i=1)
+west_most_longitude_in_deg: -180.0 # longitude of first point (i=1)
+meridional_resolution: 181          # no. meridional grid-points (jm)
+vertical_levels_in_hPa: 1000 975 950 925 900 875 850 825 800 750 700 650 600 550 500 450 400 350 300 250 200 150 100 70 50 40 30 20 10 7 5 3 2 1 0.4 0.2
+#vertical_levels_in_hPa:  0.2 0.4 1 2 3 5 7 10 20 30 40 50 70 100 150 200 250 300 350 400 450 500 550 600 650 700 750 800 825 850 875 900 925 950 975 1000
+
+
+#                       ----------------
+#                       Variable Classes
+#                       ----------------
+ 
+# A variable class lists the variable names that make up a file
+# type or product.
+
+###  PRODUCT: tavg2d_eng_x (2-D energy diagnostics)
+VarClass*tavg2d_eng_x: PRECON PRECL PREACC TPW EVAP GWETROOT GWETTOP HFLUX TSKIN T2M T10M Q2M Q10M RADLWG RADSWG PARDF PARDR LWGCLR SWGCLR ALBEDO ALBVISDR ALBVISDF ALBNIRDR ALBNIRDF VAVEU VAVEV VAVET VAVEUQ VAVEVQ VAVEUT VAVEVT
+
+### PRODUCT: tavg2d_str_x (2-D stress diagnostics)
+VarClass*tavg2d_str_x: GWDUS GWDVS PS UFLUX VFLUX USTAR Z0H Z0M PBLH U2M;V2M U10M;V10M
+
+### PRODUCT: tavg2d_cld_x (2-D cloud diagnostics)
+VarClass*tavg2d_cld_x: OLR OLRCLR RADSWT OSR OSRCLR CLDFRC CLDLOW CLDMID CLDHI
+
+### PRODUCT: tavg3d_mst_p (3-D moisture diagnostics)
+VarClass*tavg3d_mst_p: TURBQ MOISTQ
+
+### PRODUCT: tavg3d_cld_p (3-D cloud diagnostics)
+VarClass*tavg3d_cld_p: TAUCLI TAUCLW CLDTOT
+
+### PRODUCT: tavg3d_mom_p (3-D momentum diagnostics)
+VarClass*tavg3d_mom_p: TURBU TURBV GWDU GWDV OMEGA
+
+### PRODUCT: tavg3d_tmp_p (3-D temperature diagnostics)
+VarClass*tavg3d_tmp_p: TURBT MOISTT RADLW RADSW GWDT
+
+### PRODUCT: tavg3d_trp_p (3-D transport diagnostics)
+VarClass*tavg3d_trp_p: KH KM CLDMAS DTRAIN
+
+### PRODUCT: tavg2d_lsm_x
+#
+#
+VarClass*tavg2d_lsm_x: SNOW RAINCON RAINLSP LWGDOWN LWGUP LAI DTG
+
+
+### PRODUCT: tavg3d_chm_p
+VarClass*tavg3d_chm_p: OZONE 
+
+### PRODUCT: tavg3d_mls_p
+#
+#
+#
+VarClass*tavg3d_mls_p: U;V T H
+
+#                         --------------------
+#                         Variable Translation
+#                         --------------------
+
+Variable_translation_table::
+
+#      Output          |                       Input
+#  Name       Units    | Name             scale_factor  add_offset Positive check
+#  ------------------------------------------------------------------------------
+#  For tavg3d_mls_p class -- from diag.eta file
+   U;V        m/s        U;V                    1.0        0.0         0
+   T          K          T                      1.0        0.0         0
+   H          m          H                      1.0        0.0         0
+#  For tavg3d_cld_p class -- from diag.eta file
+   TAUCLI     non-dimensional  TAUCLI           1.0        0.0         0
+   TAUCLW     non-dimensional  TAUCLW           1.0        0.0         0
+   CLDTOT     fraction   CLOUD                  1.0        0.0         0
+#  For tavg3d_mom_p class -- from diag.eta file
+   TURBU      m/s/day    DUV                86400.0        0.0         0  # m/s2
+   TURBV      m/s/day    DVV                86400.0        0.0         0  # m/s2
+   GWDU       m/s/day    UTGW               86400.0        0.0         0  # m/s2
+   GWDV       m/s/day    VTGW               86400.0        0.0         0  # m/s2
+   OMEGA      Pa/s       OMEGA                  1.0        0.0         0
+#  For tavg3d_mst_p class -- from diag.eta file
+   TURBQ      g/kg/day   VD01               86400000.0     0.0         0  # kg/kg/s
+   MOISTQ     g/kg/day   DQCOND             86400000.0     0.0         0  # kg/kg/s
+#  For tavg3d_tmp_p class -- from diag.eta file
+   TURBT      K/day      DTV                86400.0        0.0         0  # K/s
+   MOISTT     K/day      DTCOND             86400.0        0.0         0  # K/s
+   RADLW      K/day      QRL                86400.0        0.0         0  # K/s
+   RADSW      K/day      QRS                86400.0        0.0         0  # K/s
+   GWDT       K/day      TTMGW              86400.0        0.0         0  # K/s
+#  For tavg3d_trp_p class -- from diag.eta file
+   KH         m2/s       KVH                    1.0        0.0         0
+   KM         m2/s       KVM                    1.0        0.0         0
+   CLDMAS     kg/m2/s    CMFMC                  0.10197    0.0         0  # Kg/m2/s  ????
+   DTRAIN     kg/m2/s    DTRAIN                 0.10197    0.0         0
+#  For tavg2d_eng_x  class -- from diag.sfc file
+   PREACC     mm/day     PREACC(PRECC,+,PRECL)  1.0        0.0         1
+   PRECL      mm/day     PRECL                  1.0        0.0         1
+   PRECON     mm/day     PRECC                  1.0        0.0         1
+   TPW        g/cm2      TQ                     0.1        0.0         0  # kg/m2
+   EVAP       mm/day     QFLX               86400.0        0.0         0  # kg/m2/s
+   GWETROOT   fraction   GWETROOT               1.0        0.0         0
+   GWETTOP    fraction   GWETTOP                1.0        0.0         0
+   HFLUX      W/m2       SHFX                   1.0        0.0         0
+   TSKIN      K          TSKIN                  1.0        0.0         0
+   T2M        K          T2M                    1.0        0.0         0
+   T10M       K          T10M                   1.0        0.0         0
+   Q2M        g/kg       Q2M                 1000.0        0.0         1  # kg/kg
+   Q10M       g/kg       Q10M                1000.0        0.0         1  # kg/kg
+   RADLWG     W/m2       FLNS                   1.0        0.0         0
+   RADSWG     W/m2       FSNS                   1.0        0.0         0
+   PARDF      W/m2       PARDF                  1.0        0.0         0
+   PARDR      W/m2       PARDR                  1.0        0.0         0
+   LWGCLR     W/m2       FLNSC                  1.0        0.0         0
+   SWGCLR     W/m2       FSNSC                  1.0        0.0         0
+   ALBEDO     fraction   ALBEDO                 1.0        0.0         0
+   ALBVISDR   fraction   ASDIR                  1.0        0.0         0
+   ALBVISDF   fraction   ASDIF                  1.0        0.0         0
+   ALBNIRDR   fraction   ALDIR                  1.0        0.0         0
+   ALBNIRDF   fraction   ALDIF                  1.0        0.0         0
+   VAVEU      m/s        VAVEU                  1.0        0.0         0
+   VAVEV      m/s        VAVEV                  1.0        0.0         0
+   VAVET      K          VAVET                  1.0        0.0         0
+   VAVEUQ     m-g/s-kg   VAVEUQ                 1.0        0.0         0
+   VAVEVQ     m-g/s-kg   VAVEVQ                 1.0        0.0         0
+   VAVEUT     m-K/s      VAVEUT                 1.0        0.0         0
+   VAVEVT     m-K/s      VAVEVT                 1.0        0.0         0
+#  For tavg2d_str_x  class -- from diag.sfc file
+   PS         hPa        SURFP                  0.01       0.0         0  # Pa
+   UFLUX      N/m2       TAUX                   1.0        0.0         0
+   VFLUX      N/m2       TAUY                   1.0        0.0         0
+   GWDUS      N/m2       TAUGWX                 1.0        0.0         0
+   GWDVS      N/m2       TAUGWY                 1.0        0.0         0
+   USTAR      m/s        USTAR                  1.0        0.0         0
+   Z0H        m          Z0H                    1.0        0.0         0
+   Z0M        m          Z0M                    1.0        0.0         0
+   PBLH       m          PBLH                   1.0        0.0         0  # m  ??????
+   U2M;V2M    m/s        U2M;V2M                1.0        0.0         0
+   U10M;V10M  m/s        U10M;V10M              1.0        0.0         0
+#  For tavg2d_lsm_x  class -- from lsm.ops.hdf file
+   SNOW       mm         SNOWH                  1000       0.0         0
+   RAINCON    mm/day     PRECC                  1.0        0.0         1
+   RAINLSP    mm/day     PRECL                  1.0        0.0         1
+   LWGDOWN    W/M2       LWGDOWN(SRFRAD,-,FSNS) 1.0        0.0         0
+   LWGUP      W/M2       LWGUP(FLNS,+,SRFRAD,-,FSNS) 1.0        0.0         0
+   LAI        %          LAI                    1.0        0.0         0
+   DTG        K/s        DTG                    1.0        0.0         0
+#  For tavg2d_cld_x  class -- from diag.sfc file
+   OLR        W/m2       FLNT                   1.0        0.0         0
+   OLRCLR     W/m2       FLNTC                  1.0        0.0         0
+   RADSWT     W/m2       SOLIN                  1.0        0.0         0
+   OSR        W/m2       OSR(SOLIN,-,FSNT)      1.0        0.0         0
+   OSRCLR     W/m2       OSRCLR(SOLIN,-,FSNTC)  1.0        0.0         0
+   CLDFRC     fraction   CLDTOT                 1.0        0.0         0
+   CLDLOW     fraction   CLDLOW                 1.0        0.0         0
+   CLDMID     fraction   CLDMED                 1.0        0.0         0
+   CLDHI      fraction   CLDHGH                 1.0        0.0         0
+::
+
+
+
+# Table for variable names and description:
+
+PREACC:     Total precipitation rate
+PRECON:     Convective precipitation rate
+PRECL:      Large-scale precipitation rate
+EVAP:       Surface evaporation
+HFLUX:      Sensible heat flux (positive upward)
+TSKIN:      Skin temperature
+T2M:        Temperature interpolated to 2 meters
+T10M:       Temperature interpolated to 10 meters
+Q2M:        Specific humidity interpolated to 2 meters
+Q10M:       Specific humidity interpolated to 10 meters
+LWGCLR:     Clear sky net longwave flux at the ground
+SWGCLR:     Clear sky net downward shortwave radiation at the ground 
+TPW:        Total precipitable water
+PS:         Time averaged surface pressure
+UFLUX:      Zonal wind surface stress
+VFLUX:      Meridional wind surface stress 
+USTAR:      Friction velocity
+PBLH:       Planetary boundary layer height
+U2M:        Zonal wind interpolated to 2 meters
+V2M:        Meridional wind interpolated to 2 meters
+U10M:       Zonal wind interpolated to 10 meters
+V10M:       Meridional wind interpolated to 10 meters
+OLR:        Outgoing longwave radiation
+OLRCLR:     Clear sky outgoing longwave radiation
+OSR:        Outgoing shortwave radiation
+OSRCLR:     Clear sky outgoing shortwave radiation
+Z0H:        Roughness length, sensible heat
+Z0M:        Roughness length, momentum
+CLDFRC:     Total cloud fraction
+CLDLOW:     Low-level (1000-700hpa) cloud fraction
+CLDMID:     Mid-level (700-400hpa) cloud fraction
+CLDHI:      High-level (above 400hpa) cloud fraction
+CLDTOT:     3-D total cloud fraction
+TURBU:      Zonal wind tendency due to turbulence
+TURBV:      Meridional wind tendency due to turbulence
+GWDU:       Zonal wind tendency due to gravity wave drag
+GWDV:       Meridional wind tendency due to gravity wave drag
+TURBQ:      Specific humidity tendency due to turbulence
+MOISTQ:     Specific humidity tendency due to moist processes
+TURBT:      Temperature tendency due to turbulence
+MOISTT:     Temperature tendency due to moist processes
+RADLW:      Temperature tendency due to longwave radiation
+RADSW:      Temperature tendency due to shortwave radiation
+GWDT:       Temperature tendency due to gravity wave drag
+RADSWT:     Incident shortwave radiation at top of atmosphere
+RADLWG:     Net upward longwave flux at the ground
+RADSWG:     Net downward shortwave flux at the ground
+PARDR:      Direct-beam photosynthetically active radiation 
+PARDF:      Diffuse-beam photosynthetically active radiation
+CLDMAS:     Cloud mass flux
+KH:         Eddy diffusivity coefficient for scalars
+KM:         Eddy diffusivity coefficient for momentum
+ALBVISDR:   Direct beam VIS surface albedo
+ALBVISDF:   Diffuse beam VIS surface albedo
+ALBNIRDR:   Direct beam NIR surface albedo
+ALBNIRDF:   Diffuse beam NIR surface albedo
+GWETROOT:   Root zone soil wetness
+GWETTOP:    Top soil layer wetness
+GWDUS:      Zonal wind gravity wave surface stress 
+GWDVS:      Meridional wind gravity wave surface stress
+SNOW:       Snow depth
+OMEGA:      Vertical velocity
+DTRAIN:     Detrainment cloud mass flux
+ALBEDO:     Surface albedo
+VAVEU:      Vertically averaged zonal wind
+VAVEV:      Vertically averaged Meridional wind
+VAVET:      Vertically averaged temperature
+VAVEUQ:     Vertically averaged UWND*SPHU 
+VAVEVQ:     Vertically averaged VWND*SPHU 
+VAVEUT:     Vertically averaged UWND*TMPU 
+VAVEVT:     Vertically averaged VWND*TMPU 
+RAINCON:    Convective rainfall (liquid precipitate)
+RAINLSP:    Large-scale rainfall (liquid precipitate)
+LWGDOWN:    Downward longwave radiation at the ground
+LWGUP:      Upward longwave radiation at the ground
+LAI:        Leaf area index
+DTG:        Total change in ground temperature 
+TAUCLI:     Cloud optical depth, ice
+TAUCLW:     Cloud optical depth, water
+

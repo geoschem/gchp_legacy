@@ -1,0 +1,6 @@
+#!/bin/csh -f
+if( -e $1 ) then
+     if( -e CHECKFILE.txt ) /bin/rm CHECKFILE.txt
+     echo $1 > CHECKFILE.txt
+endif
+exit

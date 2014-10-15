@@ -1,7 +1,7 @@
-// $Id: ESMCI_VM_F.C,v 1.7.2.2 2010/02/19 04:55:13 theurich Exp $
+// $Id$
 //
 // Earth System Modeling Framework
-// Copyright 2002-2010, University Corporation for Atmospheric Research, 
+// Copyright 2002-2012, University Corporation for Atmospheric Research, 
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
 // Laboratory, University of Michigan, National Centers for Environmental 
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
@@ -18,7 +18,7 @@
 // INCLUDES
 //------------------------------------------------------------------------------
 #include "ESMCI_F90Interface.h"
-#include "ESMC_Start.h"
+#include "ESMCI_Macros.h"
 #include "ESMCI_VM.h"
 
 #include "ESMCI_LogErr.h"                  // for LogErr
@@ -450,7 +450,7 @@ extern "C" {
     if (rc!=NULL) *rc = ESMC_RC_NOT_IMPL;
     int localrc = ESMC_RC_NOT_IMPL;
     *vmid = (*ptr)->getVMId(&localrc);
-    if (ESMC_LogDefault.MsgFoundError(localrc, ESMF_ERR_PASSTHRU, rc))
+    if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, rc))
       return;
     // return successfully
     if (rc!=NULL) *rc = ESMF_SUCCESS;
@@ -463,8 +463,10 @@ extern "C" {
     if (rc!=NULL) *rc = ESMC_RC_NOT_IMPL;
     // Call into the actual C++ method wrapped inside LogErr handling
     if (ESMC_LogDefault.MsgFoundError((*ptr)->print(),
-      ESMF_ERR_PASSTHRU,
+      ESMCI_ERR_PASSTHRU,
       ESMC_NOT_PRESENT_FILTER(rc))) return;
+    // Flush before crossing language interface to ensure correct output order
+    fflush(stdout);
     // return successfully
     if (rc!=NULL) *rc = ESMF_SUCCESS;
   }
@@ -476,7 +478,7 @@ extern "C" {
     if (rc!=NULL) *rc = ESMC_RC_NOT_IMPL;
     // Call into the actual C++ method wrapped inside LogErr handling
     if (ESMC_LogDefault.MsgFoundError((*ptr)->validate(),
-      ESMF_ERR_PASSTHRU,
+      ESMCI_ERR_PASSTHRU,
       ESMC_NOT_PRESENT_FILTER(rc))) return;
     // return successfully
     if (rc!=NULL) *rc = ESMF_SUCCESS;
@@ -790,7 +792,7 @@ extern "C" {
     if (rc!=NULL) *rc = ESMC_RC_NOT_IMPL;
     int localrc = ESMC_RC_NOT_IMPL;
     *ptr = ESMCI::VM::getCurrent(&localrc);
-    if (ESMC_LogDefault.MsgFoundError(localrc, ESMF_ERR_PASSTHRU, rc))
+    if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, rc))
       return;
     // return successfully
     if (rc!=NULL) *rc = ESMF_SUCCESS;
@@ -848,7 +850,7 @@ extern "C" {
     if (rc!=NULL) *rc = ESMC_RC_NOT_IMPL;
     int localrc = ESMC_RC_NOT_IMPL;
     (*ptr_vmparent)->shutdown(*ptr_vmplan, *vm_info, &localrc);
-    if (ESMC_LogDefault.MsgFoundError(localrc, ESMF_ERR_PASSTHRU, rc))
+    if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, rc))
       return;
     // return successfully
     if (rc!=NULL) *rc = ESMF_SUCCESS;
@@ -1083,7 +1085,7 @@ extern "C" {
     if (rc!=NULL) *rc = ESMC_RC_NOT_IMPL;
     int localrc = ESMC_RC_NOT_IMPL;
     *vmid = ESMCI::VM::getCurrentID(&localrc);
-    if (ESMC_LogDefault.MsgFoundError(localrc, ESMF_ERR_PASSTHRU, rc))
+    if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, rc))
       return;
     // return successfully
     if (rc!=NULL) *rc = ESMF_SUCCESS;
@@ -1118,7 +1120,7 @@ extern "C" {
     int localrc = ESMC_RC_NOT_IMPL;
     *vmid = new ESMCI::VMId;              // allocate memory off the heap
     **vmid = ESMCI::VMIdCreate(&localrc); // allocate VMId internal members
-    if (ESMC_LogDefault.MsgFoundError(localrc, ESMF_ERR_PASSTHRU, rc))
+    if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, rc))
       return;
     // return successfully
     if (rc!=NULL) *rc = ESMF_SUCCESS;
@@ -1133,7 +1135,7 @@ extern "C" {
     ESMCI::VMIdDestroy(*vmid, &localrc);  // free memory for internal members
     delete *vmid;                       // free memory for this VMId
     *vmid=NULL;
-    if (ESMC_LogDefault.MsgFoundError(localrc, ESMF_ERR_PASSTHRU, rc))
+    if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, rc))
       return;
     // return successfully
     if (rc!=NULL) *rc = ESMF_SUCCESS;
@@ -1147,7 +1149,7 @@ extern "C" {
     if (rc!=NULL) *rc = ESMC_RC_NOT_IMPL;
     int localrc = ESMC_RC_NOT_IMPL;
     localrc = (*ptr)->sendVMId(*vmid, *dest);
-    if (ESMC_LogDefault.MsgFoundError(localrc, ESMF_ERR_PASSTHRU, rc))
+    if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, rc))
       return;
     // return successfully
     if (rc!=NULL) *rc = ESMF_SUCCESS;
@@ -1161,7 +1163,7 @@ extern "C" {
     if (rc!=NULL) *rc = ESMC_RC_NOT_IMPL;
     int localrc = ESMC_RC_NOT_IMPL;
     localrc = (*ptr)->recvVMId(*vmid, *source);
-    if (ESMC_LogDefault.MsgFoundError(localrc, ESMF_ERR_PASSTHRU, rc))
+    if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, rc))
       return;
     // return successfully
     if (rc!=NULL) *rc = ESMF_SUCCESS;
@@ -1175,7 +1177,7 @@ extern "C" {
     if (rc!=NULL) *rc = ESMC_RC_NOT_IMPL;
     int localrc = ESMC_RC_NOT_IMPL;
     localrc = (*ptr)->bcastVMId(*vmid, *root);
-    if (ESMC_LogDefault.MsgFoundError(localrc, ESMF_ERR_PASSTHRU, rc))
+    if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, rc))
       return;
     // return successfully
     if (rc!=NULL) *rc = ESMF_SUCCESS;

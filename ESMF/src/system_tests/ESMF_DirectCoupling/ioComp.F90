@@ -1,4 +1,4 @@
-! $Id: ioComp.F90,v 1.10 2009/05/29 19:24:42 theurich Exp $
+! $Id: ioComp.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
 !
 !-------------------------------------------------------------------------
 !-------------------------------------------------------------------------
@@ -6,7 +6,7 @@
 module ioCompMod
 
   ! ESMF Framework module
-  use ESMF_Mod
+  use ESMF
 
   implicit none
     
@@ -54,13 +54,13 @@ module ioCompMod
     rc = ESMF_SUCCESS
 
     ! Register Init, Run, Finalize
-    call ESMF_GridCompSetEntryPoint(comp, ESMF_SETINIT, userRoutine=compInit, &
+    call ESMF_GridCompSetEntryPoint(comp, ESMF_METHOD_INITIALIZE, userRoutine=compInit, &
       rc=rc)
     if (rc/=ESMF_SUCCESS) return ! bail out
-    call ESMF_GridCompSetEntryPoint(comp, ESMF_SETRUN, userRoutine=compRun, &
+    call ESMF_GridCompSetEntryPoint(comp, ESMF_METHOD_RUN, userRoutine=compRun, &
       rc=rc)
     if (rc/=ESMF_SUCCESS) return ! bail out
-    call ESMF_GridCompSetEntryPoint(comp, ESMF_SETFINAL, userRoutine=compFinal, &
+    call ESMF_GridCompSetEntryPoint(comp, ESMF_METHOD_FINALIZE, userRoutine=compFinal, &
       rc=rc)
     if (rc/=ESMF_SUCCESS) return ! bail out
 
@@ -99,14 +99,14 @@ module ioCompMod
     arraySrc = ESMF_ArrayCreate(arrayspec=arrayspec, distgrid=distgrid, &
       indexflag=ESMF_INDEX_GLOBAL, name="ioComp.arraySrc", rc=rc)
     if (rc/=ESMF_SUCCESS) return ! bail out
-    call ESMF_StateAdd(exportState, arraySrc, rc=rc)
+    call ESMF_StateAdd(exportState, (/arraySrc/), rc=rc)
     if (rc/=ESMF_SUCCESS) return ! bail out
    
     ! Create the destination Array and add it to the import State
     arrayDst = ESMF_ArrayCreate(arrayspec=arrayspec, distgrid=distgrid, &
       indexflag=ESMF_INDEX_GLOBAL, name="ioComp.arrayDst", rc=rc)
     if (rc/=ESMF_SUCCESS) return ! bail out
-    call ESMF_StateAdd(importState, arrayDst, rc=rc)
+    call ESMF_StateAdd(importState, (/arrayDst/), rc=rc)
     if (rc/=ESMF_SUCCESS) return ! bail out
    
   end subroutine

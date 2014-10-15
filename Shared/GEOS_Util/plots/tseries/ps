@@ -1,0 +1,96 @@
+function ps (args)
+                                                                                                                            
+expid    = subwrd(args,1)
+output   = subwrd(args,2)
+debug    = subwrd(args,3)
+                                                                                                                            
+
+* Initialize
+* ----------
+'reinit'
+'set display color white'
+'set clab off'
+'c'
+
+* Get MASS Variable
+* -----------------
+'run getvar MASS AGCM'
+        qname.1 = subwrd(result,1)
+        qfile.1 = subwrd(result,2)
+        scale.1 = subwrd(result,3)
+        expdsc  = subwrd(result,4)
+    if( qname.1 = 'NULL' )
+       'run getvar PS DYN'
+        qname.1 = subwrd(result,1)
+        qfile.1 = subwrd(result,2)
+        scale.1 = subwrd(result,3)
+        expdsc  = subwrd(result,4)
+        if( qname.1 = 'NULL' ) ; return ; endif
+    endif
+
+'run getvar TQV AGCM'
+        qname.2 = subwrd(result,1)
+        qfile.2 = subwrd(result,2)
+        scale.2 = subwrd(result,3)
+    if( qname.2 = 'NULL' ) ; return ; endif
+
+'run getvar TQL AGCM'
+        qname.3 = subwrd(result,1)
+        qfile.3 = subwrd(result,2)
+        scale.3 = subwrd(result,3)
+
+'run getvar TQI AGCM'
+        qname.4 = subwrd(result,1)
+        qfile.4 = subwrd(result,2)
+        scale.4 = subwrd(result,3)
+
+numvar = 4
+
+
+* Get Environment Variables
+* -------------------------
+'run getenv "GEOSUTIL"'
+         geosutil = result
+                                                                                                                            
+'run getinfo grav'
+             grav = result
+
+* Experiment Datasets
+* -------------------
+n = 1
+while( n<=numvar )
+if( qfile.n != "NULL"  ) ; 'set dfile 'qfile.n ; endif
+'setx'
+'sety'
+'sett'
+'set z 1'
+
+if( qname.n = 'MASS' )
+   'make_ts -FUNCTION ('qname.n'*'grav')+1 -NAME VAR'n
+else
+   'make_ts -FUNCTION  'qname.n'        -NAME VAR'n
+endif
+  newfile = subwrd(result,1)
+  kdim    = subwrd(result,2)
+
+n = n+1
+endwhile
+'set x 1'
+'set y 1'
+'set z 1'
+
+
+* Make Plot
+* ---------
+        flag = ""
+while ( flag = "" )
+       'run 'geosutil'/plots/tseries/ps_1 'expid' 'expdsc' 'output' 'qname.3' 'qname.4
+        if( debug = "debug" )
+            say "Hit  ENTER  to repeat plot"
+            say "Type 'next' for  next plot, 'done' for next field"
+                 pull flag
+        else
+                 flag = "next"
+        endif
+        'c'
+endwhile

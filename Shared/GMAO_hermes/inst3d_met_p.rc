@@ -1,0 +1,90 @@
+# fv2prs.rc
+#
+#  This is a resource file for the fv2prs utility.
+#
+# !REVISION HISTORY:
+#
+#  26Jan2006  B. Yin    Modification from tsyn3d_mis_p.rc.
+#  25Apr2006  Todling   Declared dims so fvsetup get set them up.
+#  15May2006  Todling   Placed back QL and QI extraction from bkg/ana files
+#  10Mar2009  Todling   Merge w/ FDDA - A-grid winds + TV in ori bkg/ana files
+#
+#...........................................................................
+
+#                     ----------------------
+#                     Output File Resolution
+#                     ----------------------
+
+zonal_resolution: @IM              # no. of zonal grid-points (im)
+west_most_longitude_in_deg: -180.0 # longitude of first point (i=1)
+meridional_resolution: @JM          # no. meridional grid-points (jm)
+vertical_levels_in_hPa: 1000 975 950 925 900 875 850 825 800 750 700 650 600 550 500 450 400 350 300 250 200 150 100 70 50 40 30 20 10 7 5 3 2 1 0.4 0.2
+
+#                       ----------------
+#                       Variable Classes
+#                       ----------------
+ 
+# A variable class lists the variable names that make up a file
+# type or product.
+
+
+### PRODUCT: inst3d_met_p (3-D instantaneous variables)
+VarClass*inst3d_met_p: SLP H O3 QC QV RH T U V
+
+#                         --------------------
+#                         Variable Translation
+#                         --------------------
+
+Variable_translation_table::
+
+#      Output          |                       Input
+#  Name       Units    | Name             scale_factor  add_offset  Positive Check
+#  -------------------------------------------------------------------------------
+# For inst3d_met_p -- from ana.eta file
+   SLP        Pa         slp                    1.0        0.0          0
+   H          m          hght(theta,phis)       1.0        0.0          0
+   O3         kg/kg      ozone              0.00000166     0.0          0
+   QC         kg/kg      (qitot+qltot)          1.0        0.0          1
+   QV         kg/kg      sphu                   1.0        0.0          1 # kg/kg
+   RH         percent    rh(tv,sphu)            1.0        0.0          1
+   T          K          tmpu(tv,sphu)          1.0        0.0          0
+   U          m/s        u                      1.0        0.0          0
+   V          m/s        v                      1.0        0.0          0
+::
+
+#                         Variable Description
+#                         --------------------
+
+# Table for variable names and description:
+# For inst3d_met_p
+
+SLP:       Sea Level Pressure
+H:         Geopotential height
+O3:        Ozone Mixing Ratio
+QC:	   Total Condensate Mixing Ratio
+QV:        Specific humidity
+RH:        Relative humidity
+T:         Air Temperature
+U:         Eastward wind component
+V:         Northward wind component
+
+StandardName:SLP:       Sea_Level_Pressure
+StandardName:H:         Geopotential_height
+StandardName:O3:        Ozone_Mixing_Ratio
+StandardName:QC:        Total_Condensate_Mixing_Ratio
+StandardName:QV:        Specific_humidity
+StandardName:RH:        Relative_humidity
+StandardName:T:         Temperature
+StandardName:U:         Zonal_wind
+StandardName:V:         Meridional_wind
+
+
+history:        @CVSTAG
+convention:     CF-1.0
+institution:    Global Modeling and Assimilation Office (GMAO), NASA Goddard Space Flight Center, Greenbelt, MD 20771
+references:     http://gmao.gsfc.nasa.gov
+comment:        This HDF-4 file uses gzip.  
+source:         @PUBLICTAG
+title:          @PUBLICTAG forward-processing
+contact:        data@gmao.gsfc.nasa.gov
+

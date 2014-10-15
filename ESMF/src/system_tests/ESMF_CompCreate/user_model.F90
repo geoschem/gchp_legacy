@@ -1,4 +1,4 @@
-! $Id: user_model.F90,v 1.27 2009/10/21 16:57:40 theurich Exp $
+! $Id: user_model.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
 !
 ! Example/test code which shows User Component calls.
 
@@ -16,7 +16,7 @@
     module user_model
 
     ! ESMF Framework module
-    use ESMF_Mod
+    use ESMF
 
     implicit none
     
@@ -84,16 +84,16 @@
 
         ! Register the callback routines.
 
-        call ESMF_GridCompSetEntryPoint(comp, ESMF_SETINIT, userRoutine=user_init1,&
+        call ESMF_GridCompSetEntryPoint(comp, ESMF_METHOD_INITIALIZE, userRoutine=user_init1,&
           phase=1, rc=rc)
         if (rc/=ESMF_SUCCESS) return ! bail on error    
-        call ESMF_GridCompSetEntryPoint(comp, ESMF_SETINIT, userRoutine=user_init2,&
+        call ESMF_GridCompSetEntryPoint(comp, ESMF_METHOD_INITIALIZE, userRoutine=user_init2,&
           phase=2, rc=rc)
         if (rc/=ESMF_SUCCESS) return ! bail on error    
-        call ESMF_GridCompSetEntryPoint(comp, ESMF_SETRUN, userRoutine=user_run, &
+        call ESMF_GridCompSetEntryPoint(comp, ESMF_METHOD_RUN, userRoutine=user_run, &
           rc=rc)
         if (rc/=ESMF_SUCCESS) return ! bail on error    
-        call ESMF_GridCompSetEntryPoint(comp, ESMF_SETFINAL, userRoutine=user_final, &
+        call ESMF_GridCompSetEntryPoint(comp, ESMF_METHOD_FINALIZE, userRoutine=user_final, &
           rc=rc)
         if (rc/=ESMF_SUCCESS) return ! bail on error    
 
@@ -156,9 +156,9 @@
 
         ! This is where the model specific setup code goes.  
 
-        call ESMF_GridCompPrint(comp, "", rc=rc)
+        call ESMF_GridCompPrint(comp, rc=rc)
         if (rc/=ESMF_SUCCESS) return ! bail on error    
-        call ESMF_StatePrint(exportState, "", rc=rc)
+        call ESMF_StatePrint(exportState, options="", rc=rc)
         if (rc/=ESMF_SUCCESS) return ! bail on error    
 
         print *, "init, ready to call get data ptr"
@@ -173,9 +173,9 @@
                      mydatablock%scale_factor, mydatablock%flag
 
         ! Add an empty "humidity" field to the export state.
-        humidity = ESMF_FieldCreateEmpty(name="humidity", rc=rc)
+        humidity = ESMF_FieldEmptyCreate(name="humidity", rc=rc)
         if (rc/=ESMF_SUCCESS) return ! bail on error    
-        call ESMF_StateAdd(exportState, humidity, rc=rc)
+        call ESMF_StateAdd(exportState, (/humidity/), rc=rc)
         if (rc/=ESMF_SUCCESS) return ! bail on error    
         call ESMF_StatePrint(exportState, rc=rc)
         if (rc/=ESMF_SUCCESS) return ! bail on error    
@@ -211,7 +211,7 @@
         if (onetime .gt. 0) then
           call ESMF_StateGet(exportState, "humidity", humidity, rc=rc)
           if (rc/=ESMF_SUCCESS) return ! bail on error    
-          call ESMF_StateAdd(importState, humidity, rc=rc)
+          call ESMF_StateAdd(importState, (/humidity/), rc=rc)
           if (rc/=ESMF_SUCCESS) return ! bail on error    
           onetime = 0
         endif

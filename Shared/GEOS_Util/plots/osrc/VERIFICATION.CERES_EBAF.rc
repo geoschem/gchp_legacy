@@ -1,0 +1,14 @@
+OBSNAM: CERES_EBAF
+OBSDSC: CERES_EBAF_L4_Ed2-6r
+
+        filename:   'VERIFICATION/CERES-EBAF/CERES-EBAF_L4_Ed2-6r.ctl'
+        filetype:   'BIN'
+        fields:     'OLR'      , 'IRRAD'         , 'RLUT'         , 1
+                    'OLC'      , 'IRRAD'         , 'RLUTCS'       , 1
+                    'OSR'      , 'SOLAR'         , 'RSUT'         , 1
+                    'OSC'      , 'SOLAR'         , 'RSUTCS'       , 1
+                    'SLRTP'    , 'SOLAR'         , 'RSDT'         , 1
+                    'RSR'      , 'SOLAR'         , 'RSNUT'        , 1
+                    'RSC'      , 'SOLAR'         , 'RSNUTCS'      , 1
+                    ::
+

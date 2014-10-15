@@ -1,7 +1,7 @@
-! $Id: ESMF_ArraySpec_C.F90,v 1.9.4.1 2010/02/05 19:53:13 svasquez Exp $
+! $Id: ESMF_ArraySpec_C.F90,v 1.1.5.1 2013-01-11 20:23:43 mathomp4 Exp $
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2010, University Corporation for Atmospheric Research,
+! Copyright 2002-2012, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -25,7 +25,7 @@
 !------------------------------------------------------------------------------
 ! The following line turns the CVS identifier string into a printable variable.
 !      character(*), parameter, private :: version = &
-!      '$Id: ESMF_ArraySpec_C.F90,v 1.9.4.1 2010/02/05 19:53:13 svasquez Exp $'
+!      '$Id: ESMF_ArraySpec_C.F90,v 1.1.5.1 2013-01-11 20:23:43 mathomp4 Exp $'
 !==============================================================================
 
 !------------------------------------------------------------------------------
@@ -48,10 +48,12 @@
     use ESMF_ArraySpecMod
     use ESMF_UtilTypesMod
     use ESMF_LogErrMod
+    
+    implicit none
 
     type(ESMF_ArraySpec) :: arrayspec
     integer :: rank
-    type(ESMF_TypeKind) :: typekind
+    type(ESMF_TypeKind_Flag) :: typekind
     integer :: rc
 
     integer                 :: localrc      ! local return code
@@ -62,7 +64,7 @@
 
     call ESMF_ArraySpecSet(arrayspec=arrayspec, rank=rank, typekind=typekind, &
       rc=localrc)
-    if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, &
+    if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
       ESMF_CONTEXT, &
       rcToReturn=rc)) return
       
@@ -80,9 +82,11 @@
     use ESMF_UtilTypesMod
     use ESMF_LogErrMod
 
+    implicit none
+
     type(ESMF_ArraySpec) :: arrayspec
     integer :: rank
-    type(ESMF_TypeKind) :: typekind
+    type(ESMF_TypeKind_Flag) :: typekind
     integer :: rc
 
     integer                 :: localrc      ! local return code
@@ -93,7 +97,7 @@
 
     call ESMF_ArraySpecGet(arrayspec=arrayspec, rank=rank, typekind=typekind, &
       rc=localrc)
-    if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, &
+    if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
       ESMF_CONTEXT, &
       rcToReturn=rc)) return
 
@@ -108,7 +112,10 @@
 #undef  ESMF_METHOD
 #define ESMF_METHOD "f_esmf_arrayspecgetrank()"
     use ESMF_ArraySpecMod
+    use ESMF_UtilTypesMod
     use ESMF_LogErrMod
+
+    implicit none
 
     type(ESMF_ArraySpec) :: arrayspec
     integer :: rank
@@ -121,7 +128,7 @@
     rc = ESMF_RC_NOT_IMPL
 
     call ESMF_ArraySpecGet(arrayspec=arrayspec, rank=rank, rc=localrc)
-    if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, &
+    if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
       ESMF_CONTEXT, &
       rcToReturn=rc)) return
 
@@ -139,8 +146,10 @@
     use ESMF_UtilTypesMod
     use ESMF_LogErrMod
 
+    implicit none
+    
     type(ESMF_ArraySpec) :: arrayspec
-    type(ESMF_TypeKind) :: typekind
+    type(ESMF_TypeKind_Flag) :: typekind
     integer :: rc
 
     integer                 :: localrc      ! local return code
@@ -150,7 +159,7 @@
     rc = ESMF_RC_NOT_IMPL
 
     call ESMF_ArraySpecGet(arrayspec=arrayspec, typekind=typekind, rc=localrc)
-    if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, &
+    if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
       ESMF_CONTEXT, &
       rcToReturn=rc)) return
 

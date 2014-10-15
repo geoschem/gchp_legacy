@@ -1,7 +1,7 @@
-// $Id: ESMCI_DistGrid.h,v 1.22.2.1 2010/02/05 19:55:11 svasquez Exp $
+// $Id: ESMCI_DistGrid.h,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
 //
 // Earth System Modeling Framework
-// Copyright 2002-2010, University Corporation for Atmospheric Research, 
+// Copyright 2002-2012, University Corporation for Atmospheric Research, 
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
 // Laboratory, University of Michigan, National Centers for Environmental 
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
@@ -31,7 +31,9 @@
 //EOPI
 //-------------------------------------------------------------------------
 
-#include "ESMC_Base.h"      // Base is superclass to DistGrid
+#include <vector>
+
+#include "ESMCI_Base.h"       // Base is superclass to DistGrid
 #include "ESMCI_VM.h"
 #include "ESMCI_DELayout.h"
 
@@ -41,8 +43,11 @@ namespace ESMCI {
 
   // constants and enums
 
-  enum DecompFlag {DECOMP_DEFAULT=1, DECOMP_HOMOGEN,
+  enum Decomp_Flag {DECOMP_INVALID=0, DECOMP_DEFAULT, DECOMP_BALANCED,
     DECOMP_RESTFIRST, DECOMP_RESTLAST, DECOMP_CYCLIC};
+
+  enum DistGridMatch_Flag {DISTGRIDMATCH_INVALID=0, DISTGRIDMATCH_NONE,
+    DISTGRIDMATCH_EXACT, DISTGRIDMATCH_ALIAS};
 
   // classes
 
@@ -53,20 +58,21 @@ namespace ESMCI {
 
    private:
     int dimCount;                 // rank of DistGrid
-    int patchCount;               // number of patches in DistGrid
-    int *minIndexPDimPPatch;      // lower corner indices [dimCount*patchCount]
-    int *maxIndexPDimPPatch;      // upper corner indices [dimCount*patchCount]
-    int *elementCountPPatch;      // number of elements [patchCount]
+    int tileCount;               // number of tiles in DistGrid
+    int *minIndexPDimPTile;      // lower corner indices [dimCount*tileCount]
+    int *maxIndexPDimPTile;      // upper corner indices [dimCount*tileCount]
+    int *elementCountPTile;      // number of elements [tileCount]
     int *minIndexPDimPDe;         // lower corner indices [dimCount*deCount]
     int *maxIndexPDimPDe;         // upper corner indices [dimCount*deCount]
     int *elementCountPDe;         // number of elements [deCount]
-    int *patchListPDe;            // patch indices [deCount]
+    int *tileListPDe;            // tile indices [deCount]
     int *contigFlagPDimPDe;       // flag contiguous indices [dimCount*deCount]
     int *indexCountPDimPDe;       // number of indices [dimCount*deCount]
     int **indexListPDimPLocalDe;  // local DEs' indices [dimCount*localDeCount]
                                   // [indexCountPDimPDe(localDe,dim)]
     int connectionCount;          // number of elements in connection list
-    int **connectionList;         // list of connection elements
+    int **connectionList;         // connection elements
+                                  // [connectionCount][2*dimCount+2]
     int ***arbSeqIndexListPCollPLocalDe;// local arb sequence indices
                                   // [diffCollocationCount][localDeCount]
                                   // [elementCountPCollPLocalDe(localDe)]
@@ -94,7 +100,7 @@ namespace ESMCI {
     
    private:
     // construct() and destruct()
-    int construct(int dimCount, int patchCount, int *dePatchList,
+    int construct(int dimCount, int tileCount, int *deTileList,
       int *minIndex, int *maxIndex, int *minIndexPDimPDe, int *maxIndexPDimPDe,
       int *contigFlagPDimPDe, int *indexCountPDimPDe, int **indexList,
       int *regDecompArg, InterfaceInt *connectionList,
@@ -102,12 +108,12 @@ namespace ESMCI {
     int destruct(bool followCreator=true);
    public:
     // create() and destroy()
-    static DistGrid *create(DistGrid const *dg,
+    static DistGrid *create(DistGrid *dg,
       InterfaceInt *firstExtra, InterfaceInt *lastExtra, 
-      ESMC_IndexFlag *indexflag, int *rc=NULL);
+      ESMC_IndexFlag *indexflag, InterfaceInt *connectionList, int *rc=NULL);
     static DistGrid *create(InterfaceInt *minIndex,
       InterfaceInt *maxIndex, InterfaceInt *regDecomp, 
-      DecompFlag *decompflag, int decompflagCount,
+      Decomp_Flag *decompflag, int decompflagCount,
       InterfaceInt *regDecompFirstExtra, InterfaceInt *regDecompLastExtra, 
       InterfaceInt *deLabelList, ESMC_IndexFlag *indexflag, 
       InterfaceInt *connectionList,
@@ -119,14 +125,14 @@ namespace ESMCI {
       DELayout *delayout=NULL, VM *vm=NULL, int *rc=NULL);
     static DistGrid *create(InterfaceInt *minIndex,
       InterfaceInt *maxIndex, InterfaceInt *regDecomp, 
-      DecompFlag *decompflag, int decompflagCount,
+      Decomp_Flag *decompflag, int decompflagCount,
       InterfaceInt *regDecompFirstExtra, InterfaceInt *regDecompLastExtra, 
       InterfaceInt *deLabelList, ESMC_IndexFlag *indexflag, 
       InterfaceInt *connectionList,
       int fastAxis, VM *vm=NULL, int *rc=NULL);
     static DistGrid *create(InterfaceInt *minIndex,
       InterfaceInt *maxIndex, InterfaceInt *regDecomp, 
-      DecompFlag *decompflag, int decompflagCount1, int decompflagCount2,
+      Decomp_Flag *decompflag, int decompflagCount1, int decompflagCount2,
       InterfaceInt *regDecompFirstExtra, InterfaceInt *regDecompLastExtra, 
       InterfaceInt *deLabelList, ESMC_IndexFlag *indexflag, 
       InterfaceInt *connectionList,
@@ -136,47 +142,54 @@ namespace ESMCI {
     bool isLocalDeOnEdgeL(int localDe, int dim, int *rc) const;
     bool isLocalDeOnEdgeU(int localDe, int dim, int *rc) const;
     // get() and set()
-    int getDimCount()                   const {return dimCount;}
-    int getPatchCount()                 const {return patchCount;}
-    int getDiffCollocationCount()   const {return diffCollocationCount;}
-    const int *getMinIndexPDimPPatch()  const {return minIndexPDimPPatch;}
-    const int *getMinIndexPDimPPatch(int patch, int *rc) const;
-    const int *getMaxIndexPDimPPatch()  const {return maxIndexPDimPPatch;}
-    const int *getMaxIndexPDimPPatch(int patch, int *rc) const;
-    const int *getElementCountPPatch()  const {return elementCountPPatch;}
-    const int *getMinIndexPDimPDe()     const {return minIndexPDimPDe;}
-    const int *getMinIndexPDimPDe(int de, int *rc) const;
-    const int *getMaxIndexPDimPDe()     const {return maxIndexPDimPDe;}
-    const int *getMaxIndexPDimPDe(int de, int *rc) const;
-    const int *getElementCountPDe()      const {return elementCountPDe;}
+    int getDimCount() const {return dimCount;}
+    int getTileCount() const {return tileCount;}
+    int getDiffCollocationCount() const {return diffCollocationCount;}
+    int const *getMinIndexPDimPTile() const {return minIndexPDimPTile;}
+    int const *getMinIndexPDimPTile(int tile, int *rc) const;
+    int const *getMaxIndexPDimPTile() const {return maxIndexPDimPTile;}
+    int const *getMaxIndexPDimPTile(int tile, int *rc) const;
+    int const *getElementCountPTile() const {return elementCountPTile;}
+    int const *getMinIndexPDimPDe() const {return minIndexPDimPDe;}
+    int const *getMinIndexPDimPDe(int de, int *rc) const;
+    int const *getMaxIndexPDimPDe() const {return maxIndexPDimPDe;}
+    int const *getMaxIndexPDimPDe(int de, int *rc) const;
+    int const *getElementCountPDe() const {return elementCountPDe;}
     int getElementCountPDe(int de, int *rc) const;
-    const int *getPatchListPDe()        const {return patchListPDe;}
-    const int *getContigFlagPDimPDe()   const {return contigFlagPDimPDe;}
+    int const *getTileListPDe() const {return tileListPDe;}
+    int const *getContigFlagPDimPDe() const {return contigFlagPDimPDe;}
     int getContigFlagPDimPDe(int de, int dim, int *rc) const;
-    const int *getIndexCountPDimPDe()   const {return indexCountPDimPDe;}
-    const int *getIndexListPDimPLocalDe(int localDe, int dim, int *rc=NULL)
+    int const *getIndexCountPDimPDe() const {return indexCountPDimPDe;}
+    int const *getIndexListPDimPLocalDe(int localDe, int dim, int *rc=NULL)
       const;
-    const int *getCollocationPDim() const {return collocationPDim;}
-    const int *getCollocationTable() const {return collocationTable;}
-    DELayout *getDELayout()         const {return delayout;}
-    const int *getRegDecomp()       const {return regDecomp;}
-    int getSequenceIndexLocalDe(int localDe, const int *index, int *rc=NULL)
-      const;
-    int getSequenceIndexPatchRelative(int patch, const int *index, int depth,
-      int *rc=NULL)const;
-    int getSequenceIndexPatch(int patch, const int *index, int depth,
-      int *rc=NULL)const;
-    int *const*getElementCountPCollPLocalDe()
-      const {return elementCountPCollPLocalDe;}
-    const int *getArbSeqIndexListPLocalDe(int localDe, int collocation,
+    int getConnectionCount() const {return connectionCount;}
+    int *const *getConnectionList() const {return connectionList;}
+    int const *getCollocationPDim() const {return collocationPDim;}
+    int const *getCollocationTable() const {return collocationTable;}
+    DELayout *getDELayout() const {return delayout;}
+    int const *getRegDecomp() const {return regDecomp;}
+    int getSequenceIndexLocalDe(int localDe, int const *index, int depth=0,
       int *rc=NULL) const;
+    int getSequenceIndexTileRelative(int tile, int const *index, int depth,
+      int *rc=NULL)const;
+    int getSequenceIndexTile(int tile, int const *index, int depth,
+      int *rc=NULL)const;
+    int *const *getElementCountPCollPLocalDe()
+      const {return elementCountPCollPLocalDe;}
+    int const *getArbSeqIndexList(int localDe, int collocation, int *rc=NULL)
+      const;
     int setArbSeqIndex(InterfaceInt *arbSeqIndex, int localDe, int collocation);
     int setCollocationPDim(InterfaceInt *collocationPDim);
     // fill()
+    int fillSeqIndexList(InterfaceInt *seqIndexList, int localDe,
+      int collocation) const;
+    int fillSeqIndexList(std::vector<int> &seqIndexList, int localDe,
+      int collocation) const;
     int fillIndexListPDimPDe(int *indexList, int de, int dim,
       VMK::commhandle **commh, int rootPet, VM *vm=NULL) const;
     // misc.
-    static bool match(DistGrid *distgrid1, DistGrid *distgrid2, int *rc=NULL);
+    static DistGridMatch_Flag match(DistGrid *distgrid1, DistGrid *distgrid2,
+      int *rc=NULL);
     int print() const;
     int validate() const;
     // serialize() and deserialize()
@@ -184,99 +197,50 @@ namespace ESMCI {
       const;
     static DistGrid *deserialize(char *buffer, int *offset);
     // connections
-    static int connection(InterfaceInt *connection, int patchIndexA, 
-      int patchIndexB, InterfaceInt *positionVector,
-      InterfaceInt *orientationVector, InterfaceInt *repetitionVector);
+    static int connection(InterfaceInt *connection, int tileIndexA, 
+      int tileIndexB, InterfaceInt *positionVector,
+      InterfaceInt *orientationVector);
   };  // class DistGrid
 
   
+  
+  //============================================================================
   class MultiDimIndexLoop{
+    // Iterator type through regular multidimensional structures.
    protected:
-    vector<int> indexTupleStart;
-    vector<int> indexTupleEnd;
-    vector<int> indexTuple;
-    vector<bool> skipMask;
+    std::vector<int> indexTupleStart;
+    std::vector<int> indexTupleEnd;
+    std::vector<int> indexTuple;
+    std::vector<bool> skipDim;
+    std::vector<int> indexTupleBlockStart; // blocked region
+    std::vector<int> indexTupleBlockEnd;   // blocked region
+    std::vector<int> indexTupleWatchStart; // watched region
+    std::vector<int> indexTupleWatchEnd;   // watched region
    public:
-    MultiDimIndexLoop(){
-      indexTupleStart.resize(0);
-      indexTupleEnd.resize(0);
-      indexTuple.resize(0);
-      skipMask.resize(0);
-    }
-    MultiDimIndexLoop(const vector<int> sizes){
-      indexTupleEnd = sizes;
-      indexTupleStart.resize(sizes.size());
-      indexTuple.resize(sizes.size());
-      skipMask.resize(sizes.size());
-      for (int i=0; i<indexTuple.size(); i++){
-        indexTupleStart[i] = indexTuple[i] = 0; // reset
-        skipMask[i] = false;                    // reset
-      }
-    }
-    MultiDimIndexLoop(const vector<int> offsets, const vector<int> sizes){
-      indexTupleStart = offsets;
-      indexTupleEnd = sizes;
-      // todo: check that vector size matches, and throw exception if not
-      indexTuple.resize(sizes.size());
-      skipMask.resize(sizes.size());
-      for (int i=0; i<indexTuple.size(); i++){
-        indexTuple[i] = indexTupleStart[i];     // reset
-        indexTupleEnd[i] += indexTupleStart[i]; // shift end by offsets
-        skipMask[i] = false;                    // reset
-      }
-    }
-    void setSkipDim(int dim){
-      // todo: check that dim is between 0...,size-1
-      skipMask[dim] = true;
-    }
-    void first(){
-      for (int i=0; i<indexTuple.size(); i++)
-        indexTuple[i] = indexTupleStart[i];  // reset
-    }
-    void last(){
-      for (int i=0; i<indexTuple.size(); i++)
-        indexTuple[i] = indexTupleEnd[i]-1;  // reset
-    }
-    void next(){
-      if (skipMask[0])
-        indexTuple[0] = indexTupleEnd[0]; // skip
-      else
-        ++indexTuple[0];                  // increment
-      for (int i=0; i<indexTuple.size()-1; i++){
-        if (indexTuple[i] == indexTupleEnd[i]){
-          indexTuple[i] = indexTupleStart[i];  // reset
-          if (skipMask[i+1])
-            indexTuple[i+1] = indexTupleEnd[i+1]; // skip
-          else
-            ++indexTuple[i+1];                    // increment
-        }
-      }
-    }
-    bool isFirst(){
-      for (int i=0; i<indexTuple.size(); i++)
-        if (indexTuple[i] != indexTupleStart[i]) return false;
-      return true;
-    }
-    bool isLast(){
-      for (int i=0; i<indexTuple.size(); i++)
-        if (indexTuple[i] != indexTupleEnd[i]-1) return false;
-      return true;
-    }
-    bool isPastLast(){
-      if (indexTuple[indexTuple.size()-1] < indexTupleEnd[indexTuple.size()-1])
-        return false;
-      return true;
-    }
-    const int *getIndexTuple(){
-      return &indexTuple[0];
-    }
-    const int *getIndexTupleEnd(){
-      return &indexTupleEnd[0];
-    }
-    const int *getIndexTupleStart(){
-      return &indexTupleStart[0];
-    }
+    MultiDimIndexLoop();
+    MultiDimIndexLoop(std::vector<int> const &sizes);
+    MultiDimIndexLoop(std::vector<int> const &offsets, std::vector<int> const &sizes);
+    void setSkipDim(int dim);
+    void setBlockStart(std::vector<int> const &blockStart);
+    void setBlockEnd(std::vector<int> const &blockEnd);
+    void setWatchStart(std::vector<int> const &watchStart);
+    void setWatchEnd(std::vector<int> const &watchEnd);
+    void first();
+    void last();
+    void adjust();
+    void next();
+    bool isFirst()const;
+    bool isLast()const;
+    bool isWithin()const;
+    bool isWithinBlock(int dim)const;
+    bool isWithinWatch()const;
+    int const *getIndexTuple()const;
+    int const *getIndexTupleEnd()const;
+    int const *getIndexTupleStart()const;
+    void print()const;
   };  // class MultiDimIndexLoop
+  //============================================================================
+
 
 } // namespace ESMCI
 

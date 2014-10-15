@@ -1,7 +1,7 @@
-// $Id: ESMCI_LocStream_F.C,v 1.8.2.1 2010/02/05 19:58:15 svasquez Exp $
+// $Id$
 //
 // Earth System Modeling Framework
-// Copyright 2002-2010, University Corporation for Atmospheric Research, 
+// Copyright 2002-2012, University Corporation for Atmospheric Research, 
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
 // Laboratory, University of Michigan, National Centers for Environmental 
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
@@ -22,7 +22,7 @@
 #include <cstring>
 using namespace std;
 
-#include "ESMC_Start.h"
+#include "ESMCI_Macros.h"
 #include "ESMCI_LogErr.h"
 #include "ESMCI_DistGrid.h"
 #include "ESMCI_Array.h"
@@ -32,7 +32,7 @@ using namespace std;
  // leave the following line as-is; it will insert the cvs ident string
  // into the object file for tracking purposes.
  static const char *const version = 
-             "$Id: ESMCI_LocStream_F.C,v 1.8.2.1 2010/02/05 19:58:15 svasquez Exp $";
+             "$Id$";
 //-----------------------------------------------------------------------------
 
 extern "C" {
@@ -172,21 +172,21 @@ void FTN(c_esmc_locstreamgetelbnd)(ESMCI::DistGrid **_distgrid,
       *exclusiveLBound = 1; // excl. region starts at (1,1,1...) 
   } else {
     // Get some useful information
-    const int *localDeList = distgrid->getDELayout()->getLocalDeList();
+    const int *localDeToDeMap = distgrid->getDELayout()->getLocalDeToDeMap();
 
     // Get the Global DE from the local DE
-    int de = localDeList[localDE];
+    int de = localDeToDeMap[localDE];
 
     // obtain indexList for this DE and dim
     const int *indexList =
       distgrid->getIndexListPDimPLocalDe(localDE, 1, &localrc);
-    if (ESMC_LogDefault.MsgFoundError(localrc,ESMF_ERR_PASSTHRU, ESMC_NOT_PRESENT_FILTER(rc)))
+    if (ESMC_LogDefault.MsgFoundError(localrc,ESMCI_ERR_PASSTHRU, ESMC_NOT_PRESENT_FILTER(rc)))
         return;
       
       // make sure this dimension is contiguous         
       const int contig=distgrid->getContigFlagPDimPDe(de, 1, &localrc);
       if (ESMC_LogDefault.MsgFoundError(localrc,
-                                    ESMF_ERR_PASSTHRU, ESMC_NOT_PRESENT_FILTER(rc))) return;
+                                    ESMCI_ERR_PASSTHRU, ESMC_NOT_PRESENT_FILTER(rc))) return;
       if (!contig) {
         ESMC_LogDefault.MsgFoundError(ESMC_RC_NOT_IMPL,
 				      "- doesn't handle non-contiguous DEs yet ",  ESMC_NOT_PRESENT_FILTER(rc));
@@ -234,11 +234,11 @@ void FTN(c_esmc_locstreamgeteubnd)(ESMCI::DistGrid **_distgrid,
   }
 
   // Get some useful information
-  const int *localDeList = distgrid->getDELayout()->getLocalDeList();
+  const int *localDeToDeMap = distgrid->getDELayout()->getLocalDeToDeMap();
   const int *indexCountPDimPDe = distgrid->getIndexCountPDimPDe();
 
   // Get the Global DE from the local DE
-  int de = localDeList[localDE];
+  int de = localDeToDeMap[localDE];
 
   // exlc. region for each DE ends at indexCountPDimPDe of the associated
   // DistGrid
@@ -250,13 +250,13 @@ void FTN(c_esmc_locstreamgeteubnd)(ESMCI::DistGrid **_distgrid,
     // obtain indexList for this DE and dim
     const int *indexList =
       distgrid->getIndexListPDimPLocalDe(localDE, 1, &localrc);
-    if (ESMC_LogDefault.MsgFoundError(localrc,ESMF_ERR_PASSTHRU, ESMC_NOT_PRESENT_FILTER(rc)))
+    if (ESMC_LogDefault.MsgFoundError(localrc,ESMCI_ERR_PASSTHRU, ESMC_NOT_PRESENT_FILTER(rc)))
       return;
     
     // make sure is contiguous         
     const int contig=distgrid->getContigFlagPDimPDe(de, 1, &localrc);
     if (ESMC_LogDefault.MsgFoundError(localrc,
-				      ESMF_ERR_PASSTHRU, ESMC_NOT_PRESENT_FILTER(rc))) return;
+				      ESMCI_ERR_PASSTHRU, ESMC_NOT_PRESENT_FILTER(rc))) return;
     if (!contig) {
       ESMC_LogDefault.MsgFoundError(ESMC_RC_NOT_IMPL,
 				    "- doesn't handle non-contiguous DEs yet ", ESMC_NOT_PRESENT_FILTER(rc));
@@ -279,8 +279,9 @@ void FTN(c_esmc_locstreamgeteubnd)(ESMCI::DistGrid **_distgrid,
 // non-method functions
 void FTN(c_esmc_locstreamserialize)(ESMC_IndexFlag *indexflag, 
                 int *keyCount,
-	        void *buffer, int *length, int *offset,
-                ESMC_InquireFlag *inquireflag, int *localrc){
+	        char *buffer, int *length, int *offset,
+                ESMC_InquireFlag *inquireflag, int *localrc,
+                ESMCI_FortranStrLenArg buffer_l){
 
     ESMC_IndexFlag *ifp;
     int *ip;
@@ -301,7 +302,7 @@ void FTN(c_esmc_locstreamserialize)(ESMC_IndexFlag *indexflag,
 
 
     // Save indexflag
-    ifp = (ESMC_IndexFlag *)((char *)(buffer) + *offset);
+    ifp = (ESMC_IndexFlag *)(buffer + *offset);
     if (*inquireflag != ESMF_INQUIREONLY)
       *ifp++ = *indexflag;
 
@@ -321,7 +322,8 @@ void FTN(c_esmc_locstreamserialize)(ESMC_IndexFlag *indexflag,
 
 
 void FTN(c_esmc_locstreamdeserialize)(ESMC_IndexFlag *indexflag, 
-                int *keyCount, void *buffer, int *offset, int *localrc){
+                int *keyCount, char *buffer, int *offset, int *localrc,
+                ESMCI_FortranStrLenArg buffer_l){
 
     ESMC_IndexFlag *ifp;
     int *ip;
@@ -330,7 +332,7 @@ void FTN(c_esmc_locstreamdeserialize)(ESMC_IndexFlag *indexflag,
     if (localrc) *localrc = ESMC_RC_NOT_IMPL;
 
     // Get indexflag
-    ifp = (ESMC_IndexFlag *)((char *)(buffer) + *offset);
+    ifp = (ESMC_IndexFlag *)(buffer + *offset);
     *indexflag=*ifp++; 
 
     // Get keyCount
@@ -351,8 +353,12 @@ void FTN(c_esmc_locstreamkeyserialize)(
 				       int *keyNameLen, char *keyName,
 				       int *unitsLen, char *units,
 				       int *longNameLen, char *longName,
-	        void *buffer, int *length, int *offset, 
-                ESMC_InquireFlag *inquireflag, int *localrc){
+	        char *buffer, int *length, int *offset, 
+                ESMC_InquireFlag *inquireflag, int *localrc,
+                ESMCI_FortranStrLenArg keyName_l,
+                ESMCI_FortranStrLenArg units_l,
+                ESMCI_FortranStrLenArg longName_l,
+                ESMCI_FortranStrLenArg buffer_l) {
 
   ESMC_InquireFlag linquireflag = *inquireflag;
   int *ip;
@@ -373,7 +379,7 @@ void FTN(c_esmc_locstreamkeyserialize)(
   }
 
   // Get pointer to memory
-  ip = (int *)((char *)(buffer) + *offset);
+  ip = (int *)(buffer + *offset);
 
   // Save string lengths
   if (linquireflag != ESMF_INQUIREONLY) {
@@ -418,7 +424,11 @@ void FTN(c_esmc_locstreamkeydeserialize)(
 					 char *keyName,
 					 char *units,
 					 char *longName,
-					 void *buffer, int *offset, int *localrc){
+					 char *buffer, int *offset, int *localrc,
+                                         ESMCI_FortranStrLenArg keyName_l,
+                                         ESMCI_FortranStrLenArg units_l,
+                                         ESMCI_FortranStrLenArg longName_l,
+                                         ESMCI_FortranStrLenArg buffer_l) {
 
   int *ip;
   char *cp;
@@ -428,7 +438,7 @@ void FTN(c_esmc_locstreamkeydeserialize)(
   if (localrc) *localrc = ESMC_RC_NOT_IMPL;
 
   // Get pointer to memory
-  ip = (int *)((char *)(buffer) + *offset);
+  ip = (int *)(buffer + *offset);
 
   // Save string lengths
   keyNameLen = *ip++; 

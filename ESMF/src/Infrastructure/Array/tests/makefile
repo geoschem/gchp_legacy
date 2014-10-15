@@ -1,4 +1,4 @@
-# $Id: makefile,v 1.38 2008/10/07 21:36:51 donstark Exp $ 
+# $Id: makefile,v 1.1.5.1 2013-01-11 20:23:43 mathomp4 Exp $ 
 
 ALL:      build_unit_tests
 run:      run_unit_tests
@@ -10,34 +10,38 @@ TESTS_BUILD   = $(ESMF_TESTDIR)/ESMF_ArrayCreateGetUTest \
                 $(ESMF_TESTDIR)/ESMF_ArrayDataUTest \
                 $(ESMF_TESTDIR)/ESMF_ArrayScatterUTest \
                 $(ESMF_TESTDIR)/ESMF_ArrayGatherUTest \
+                $(ESMF_TESTDIR)/ESMF_ArrayIOUTest \
+                $(ESMF_TESTDIR)/ESMF_ArraySMMUTest \
                 $(ESMF_TESTDIR)/ESMF_ArrayArbIdxSMMUTest \
                 $(ESMF_TESTDIR)/ESMF_ArrayRedistUTest \
+                $(ESMF_TESTDIR)/ESMF_ArrayHaloUTest \
                 $(ESMF_TESTDIR)/ESMC_ArrayUTest 
 
 TESTS_RUN     = RUN_ESMF_ArrayCreateGetUTest \
                 RUN_ESMF_ArrayDataUTest  \
                 RUN_ESMF_ArrayScatterUTest \
                 RUN_ESMF_ArrayGatherUTest \
+                RUN_ESMF_ArrayIOUTest \
+                RUN_ESMF_ArraySMMUTest \
                 RUN_ESMF_ArrayArbIdxSMMUTest \
                 RUN_ESMF_ArrayRedistUTest \
+                RUN_ESMF_ArrayHaloUTest \
                 RUN_ESMC_ArrayUTest 
-
-ifeq ($(ESMF_TESTHARNESS), NONEXHAUSTIVE)
-  TESTS_RUN  := $(TESTS_RUN) \
-                RUN_ESMF_ArrayHarness2UTest
-else
-ifeq ($(ESMF_TESTHARNESS), EXHAUSTIVE)
-  TESTS_RUN  := $(TESTS_RUN) \
-                RUN_ESMF_ArrayHarness1UTest \
-                RUN_ESMF_ArrayHarness2UTest \
-                RUN_ESMF_ArrayHarness4UTest \
-                RUN_ESMF_ArrayHarness8UTest
-endif
-endif
 
 TESTS_RUN_UNI = RUN_ESMF_ArrayDataUTestUNI \
                 RUN_ESMC_ArrayUTestUNI
 
+#
+# check ESMF_TESTHARNESS_ARRAY for default, 
+# otherwise append test harness suite target
+#
+ifeq ($(ESMF_TESTHARNESS_ARRAY), default)
+  TESTS_RUN := $(TESTS_RUN) RUN_ESMF_TestHarnessArray_default
+  TESTS_RUN_UNI := $(TESTS_RUN_UNI) RUN_ESMF_TestHarnessArrayUNI_default
+else
+  TESTS_RUN := $(TESTS_RUN) $(ESMF_TESTHARNESS_ARRAY)
+  TESTS_RUN_UNI := $(TESTS_RUN_UNI) $(ESMF_TESTHARNESS_ARRAY)
+endif
 
 include ${ESMF_DIR}/makefile
 
@@ -66,8 +70,24 @@ RUN_ESMF_ArrayDataUTestUNI:
 
 RUN_ESMF_ArrayScatterUTest:
 	$(MAKE) TNAME=ArrayScatter NP=4 ftest
+
+# ---
+
 RUN_ESMF_ArrayGatherUTest:
 	$(MAKE) TNAME=ArrayGather NP=4 ftest
+
+# ---
+
+RUN_ESMF_ArrayIOUTest:
+	$(MAKE) TNAME=ArrayIO NP=6 ftest
+
+# ---
+
+RUN_ESMF_ArraySMMUTest:
+	$(MAKE) TNAME=ArraySMM NP=6 ftest
+
+RUN_ESMF_ArraySMMUTestUNI:
+	$(MAKE) TNAME=ArraySMM NP=1 ftest
 
 # ---
 
@@ -81,6 +101,11 @@ RUN_ESMF_ArrayRedistUTest:
 
 # ---
 
+RUN_ESMF_ArrayHaloUTest:
+	$(MAKE) TNAME=ArrayHalo NP=4 ftest
+
+# ---
+
 RUN_ESMC_ArrayUTest:
 	$(MAKE) TNAME=Array NP=4 ctest
 
@@ -88,67 +113,31 @@ RUN_ESMC_ArrayUTestUNI:
 	$(MAKE) TNAME=Array NP=1 ctest
 
 # ---
+#
+# TestHarness tests
+#
+RUN_ESMF_TestHarnessArray_default:
+	$(MAKE) TESTHARNESSCASE=array_default NP=4 run_test_harness
 
-RUN_ESMF_ArrayHarness1UTest:
-	@if [ -f $(ESMF_TESTDIR)/test_harness.list ] ; then \
-	  if ! grep ArrayHarness1UTest $(ESMF_TESTDIR)/test_harness.list ; then \
-	    echo "ESMF_ArrayHarness1UTest" >> $(ESMF_TESTDIR)/test_harness.list ; \
-	  fi ; \
-	else \
-	  echo "ESMF_ArrayHarness1UTest" > $(ESMF_TESTDIR)/test_harness.list ; \
-	fi
-	cp -f test_harness.rc $(ESMF_TESTDIR)
-	cp -f harness_config/*.rc $(ESMF_TESTDIR)
-	rm -f $(ESMF_TESTDIR)/ESMF_TestHarnessUTest.stdout
-	$(MAKE) TNAME=TestHarness HNAME=ArrayHarness1 NP=1 htest
-	@if [ -f $(ESMF_TESTDIR)/ESMF_TestHarnessUTest.stdout ] ; then \
-	  cp -f $(ESMF_TESTDIR)/ESMF_TestHarnessUTest.stdout $(ESMF_TESTDIR)/ESMF_ArrayHarness1UTest.stdout ; \
-	fi
+#
+RUN_ESMF_TestHarnessArray_1:
+	$(MAKE) TESTHARNESSCASE=array_1 NP=4 run_test_harness
 
-RUN_ESMF_ArrayHarness2UTest:
-	@if [ -f $(ESMF_TESTDIR)/test_harness.list ] ; then \
-	  if ! grep ArrayHarness2UTest $(ESMF_TESTDIR)/test_harness.list ; then \
-	    echo "ESMF_ArrayHarness2UTest" >> $(ESMF_TESTDIR)/test_harness.list ; \
-	  fi ; \
-	else \
-	  echo "ESMF_ArrayHarness2UTest" > $(ESMF_TESTDIR)/test_harness.list ; \
-	fi
-	cp -f test_harness.rc $(ESMF_TESTDIR)
-	cp -f harness_config/*.rc $(ESMF_TESTDIR)
-	rm -f $(ESMF_TESTDIR)/ESMF_TestHarnessUTest.stdout
-	$(MAKE) TNAME=TestHarness HNAME=ArrayHarness2 NP=2 htest
-	@if [ -f $(ESMF_TESTDIR)/ESMF_TestHarnessUTest.stdout ] ; then \
-	  cp -f $(ESMF_TESTDIR)/ESMF_TestHarnessUTest.stdout $(ESMF_TESTDIR)/ESMF_ArrayHarness2UTest.stdout ; \
-	fi
+#
+RUN_ESMF_TestHarnessArray_2:
+	$(MAKE) TESTHARNESSCASE=array_2 NP=4 run_test_harness
 
-RUN_ESMF_ArrayHarness4UTest:
-	@if [ -f $(ESMF_TESTDIR)/test_harness.list ] ; then \
-	  if ! grep ArrayHarness4UTest $(ESMF_TESTDIR)/test_harness.list ; then \
-	    echo "ESMF_ArrayHarness4UTest" >> $(ESMF_TESTDIR)/test_harness.list ; \
-	  fi ; \
-	else \
-	  echo "ESMF_ArrayHarness4UTest" > $(ESMF_TESTDIR)/test_harness.list ; \
-	fi
-	cp -f test_harness.rc $(ESMF_TESTDIR)
-	cp -f harness_config/*.rc $(ESMF_TESTDIR)
-	rm -f $(ESMF_TESTDIR)/ESMF_TestHarnessUTest.stdout
-	$(MAKE) TNAME=TestHarness HNAME=ArrayHarness4 NP=4 htest
-	@if [ -f $(ESMF_TESTDIR)/ESMF_TestHarnessUTest.stdout ] ; then \
-	  cp -f $(ESMF_TESTDIR)/ESMF_TestHarnessUTest.stdout $(ESMF_TESTDIR)/ESMF_ArrayHarness4UTest.stdout ; \
-	fi
+# UNI test harness
+RUN_ESMF_TestHarnessArrayUNI_default:
+	$(MAKE) TESTHARNESSCASE=array_default NP=1 run_test_harness
 
-RUN_ESMF_ArrayHarness8UTest:
-	@if [ -f $(ESMF_TESTDIR)/test_harness.list ] ; then \
-	  if ! grep ArrayHarness8UTest $(ESMF_TESTDIR)/test_harness.list ; then \
-	    echo "ESMF_ArrayHarness8UTest" >> $(ESMF_TESTDIR)/test_harness.list ; \
-	  fi ; \
-	else \
-	  echo "ESMF_ArrayHarness8UTest" > $(ESMF_TESTDIR)/test_harness.list ; \
-	fi
-	cp -f test_harness.rc $(ESMF_TESTDIR)
-	cp -f harness_config/*.rc $(ESMF_TESTDIR)
-	rm -f $(ESMF_TESTDIR)/ESMF_TestHarnessUTest.stdout
-	$(MAKE) TNAME=TestHarness HNAME=ArrayHarness8 NP=8 htest
-	@if [ -f $(ESMF_TESTDIR)/ESMF_TestHarnessUTest.stdout ] ; then \
-	  cp -f $(ESMF_TESTDIR)/ESMF_TestHarnessUTest.stdout $(ESMF_TESTDIR)/ESMF_ArrayHarness8UTest.stdout ; \
-	fi
+#
+RUN_ESMF_TestHarnessArrayUNI_1:
+	$(MAKE) TESTHARNESSCASE=array_1 NP=1 run_test_harness
+
+#
+RUN_ESMF_TestHarnessArrayUNI_2:
+	$(MAKE) TESTHARNESSCASE=array_2 NP=1 run_test_harness
+
+
+##

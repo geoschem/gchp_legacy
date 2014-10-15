@@ -1,4 +1,4 @@
-# $Id: build_rules.mk,v 1.35.4.1 2010/04/23 05:37:36 theurich Exp $
+# $Id: build_rules.mk,v 1.1.5.1 2013-01-11 20:23:43 mathomp4 Exp $
 # 
 # IRIX64.default.default
 #
@@ -115,9 +115,10 @@ ESMF_F90COMPILEFIXCPP    = -fixedform -cpp -extend_source
 ESMF_F90COMPILEFIXNOCPP  = -fixedform -nocpp -extend_source
 
 ############################################################
-# Prefix for rpath option
+# Set rpath syntax
 #
-ESMF_RPATHPREFIX      = -rpath 
+ESMF_F90RPATHPREFIX         = -rpath
+ESMF_CXXRPATHPREFIX         = -rpath
 
 ############################################################
 # IRIX64 does not have a ranlib -> "true" is a noop command

@@ -1,7 +1,7 @@
-! $Id: ESMF_TestHarnessUtilMod.F90,v 1.9.2.1 2010/02/05 22:35:15 theurich Exp $
+! $Id$
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2010, University Corporation for Atmospheric Research,
+! Copyright 2002-2012, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -31,7 +31,7 @@
 ! !DESCRIPTION:
 !
 ! The code in this file contains basic utilities for string manipulation and 
-! inputting configuration table entries
+! inputting configuration table entries and misc utility functions
 !
 !-------------------------------------------------------------------------------
 ! !USES:
@@ -42,6 +42,17 @@
   implicit none
 
 !===============================================================================
+! minimum error neighborhood for regrid interpolation
+real(ESMF_KIND_R8), parameter :: RegridMinNeighborhood = 1.0D-14
+
+
+! global storage of test specification
+type (harness_descriptor), save :: har
+
+integer :: localPet
+integer :: petCount
+integer :: rootPet = Harness_rootPet
+
 
   contains 
 
@@ -61,7 +72,7 @@
     !---------------------------------------------------------------------------
 
     ! arguments
-    character(len=ESMF_MAXSTR), intent(in   ) :: lstring
+    character(len=THARN_MAXSTR), intent(in   ) :: lstring
     integer,          intent(in   ) :: MemBeg, MemEnd
     integer,          intent(  out) :: localrc
 
@@ -82,7 +93,7 @@
     if ( nGrid == 0 ) then
        ! syntax error, no grid layout specified
        print*,'Syntax error, no grid layout'
-       call ESMF_LogMsgSetError( ESMF_FAILURE, "syntax error, no grid " //     &
+       call ESMF_LogSetError( ESMF_FAILURE, msg="syntax error, no grid " //     &
                 "layout specified", rcToReturn=localrc)
        return
     endif
@@ -133,8 +144,8 @@
     
     ! check to see that values is within the acceptable range
     if ( ntemp < 0 .and. ntemp > 9 ) then
-       call ESMF_LogMsgSetError( ESMF_FAILURE,                                 &
-                 "character is not a digit between 0 and 9",                   &
+       call ESMF_LogSetError( ESMF_FAILURE,                                 &
+                 msg="character is not a digit between 0 and 9",                   &
                  rcToReturn=localrc)
         return
        char2int = 0
@@ -201,7 +212,7 @@
     !---------------------------------------------------------------------------
 
     ! arguments
-    character(len=ESMF_MAXSTR), intent(in   ) :: lstring
+    character(len=THARN_MAXSTR), intent(in   ) :: lstring
     integer,          intent(in   ) :: MemBeg, MemEnd
     integer,          intent(  out) :: localrc
 
@@ -219,8 +230,8 @@
     nDist = set_query(lstring(MemBeg:MemEnd), pattern3)
 
     if ( nDist == 0 ) then
-       call ESMF_LogMsgSetError( ESMF_FAILURE,                              &
-                "Syntax Error - no distribution indicated",                 &
+       call ESMF_LogSetError( ESMF_FAILURE,                              &
+                msg="Syntax Error - no distribution indicated",                 &
                 rcToReturn=localrc)
        return
     endif
@@ -275,14 +286,14 @@
     nEnd = pattern_query(lstring, ']')
 
     if( nMem+1 /=  iRank .and. nEnd /= 1 ) then
-       call ESMF_LogMsgSetError(ESMF_FAILURE, "asserted memory rank does not"  &
+       call ESMF_LogSetError(ESMF_FAILURE, msg="asserted memory rank does not"  &
                 // " agree with actual memory rank", rcToReturn=localrc)
        return
     else
        !------------------------------------------------------------------------
        !------------------------------------------------------------------------
        allocate( MemPos(nMem), stat=allocRcToTest  )
-       if (ESMF_LogMsgFoundAllocError(allocRcToTest, "integer array "//        &
+       if (ESMF_LogFoundAllocError(allocRcToTest, msg="integer array "//        &
           "MemPos in memory_separate", rcToReturn=localrc)) then
        endif
 
@@ -350,7 +361,7 @@
     !---------------------------------------------------------------------------
 
     ! arguments
-    character(ESMF_MAXSTR), intent(in   ) :: lstring
+    character(THARN_MAXSTR), intent(in   ) :: lstring
     integer,                intent(in   ) :: location(2)
     integer,                intent(  out) :: srcMulti, dstMulti
     integer,                intent(  out) :: srcBlock,dstBlock
@@ -390,7 +401,7 @@
            dstBlock = set_query(lstring(location(2):strlen),'[' )
            dstMulti = set_query(lstring(location(2):strlen),'(' )
        else
-          call ESMF_LogMsgSetError(ESMF_FAILURE,"symbols not properly paired", &
+          call ESMF_LogSetError(ESMF_FAILURE,msg="symbols not properly paired", &
                    rcToReturn=localrc)
           return
        endif
@@ -409,13 +420,13 @@
            dstBlock = set_query(lstring(location(2):strlen),'[' )
 
        else
-          call ESMF_LogMsgSetError(ESMF_FAILURE,"symbols not properly paired", &
+          call ESMF_LogSetError(ESMF_FAILURE,msg="symbols not properly paired", &
                    rcToReturn=localrc)
           return
        endif
 
     else   ! syntax error
-       call ESMF_LogMsgSetError( ESMF_FAILURE, "symbols not paired properly",  &
+       call ESMF_LogSetError( ESMF_FAILURE, msg="symbols not paired properly",  &
                 rcToReturn=localrc)
        return
     endif
@@ -451,7 +462,7 @@
     integer,          intent(  out) :: localrc
 
     ! local variables
-    character(ESMF_MAXSTR) :: pattern
+    character(THARN_MAXSTR) :: pattern
     integer :: iredist, iregrid, direction, ib
 
     ! initialize variables
@@ -529,8 +540,8 @@
 
           case default
              ! syntax error - no recognized method specified
-             call ESMF_LogMsgSetError( ESMF_FAILURE,                           &
-                      "process symbol not recognized",                         &
+             call ESMF_LogSetError( ESMF_FAILURE,                           &
+                      msg="process symbol not recognized",                         &
                       rcToReturn=localrc)
              lname = 'ERROR'
              tag  = Harness_Error
@@ -541,8 +552,8 @@
           end select  ! remap type
       elseif( (iredist == 0).and.(iregrid == 0) ) then
          ! syntax error - no action
-         call ESMF_LogMsgSetError( ESMF_FAILURE,                               &
-               "no process symbol found",                                      &
+         call ESMF_LogSetError( ESMF_FAILURE,                               &
+               msg="no process symbol found",                                      &
                rcToReturn=localrc)
          lname = 'ERROR'
          tag = Harness_Error
@@ -550,8 +561,8 @@
 
       elseif( (iredist /= 0).and.(iregrid /= 0) ) then
          ! syntax error - multiple actions
-         call ESMF_LogMsgSetError( ESMF_FAILURE,                               &
-                  "more than one process symbol found",                        &
+         call ESMF_LogSetError( ESMF_FAILURE,                               &
+                  msg="more than one process symbol found",                        &
                   rcToReturn=localrc)
          lname = 'ERROR'
          tag = Harness_Error
@@ -703,11 +714,11 @@
        ! the numbers match, so now check that the order is left to right
        !------------------------------------------------------------------------
        allocate( locL(ntestL), stat=allocRcToTest )
-       if (ESMF_LogMsgFoundAllocError(allocRcToTest, "integer array "//        &
+       if (ESMF_LogFoundAllocError(allocRcToTest, msg="integer array "//        &
           "locL in pattern_match", rcToReturn=rc)) then
        endif
        allocate( locR(ntestR), stat=allocRcToTest )
-       if (ESMF_LogMsgFoundAllocError(allocRcToTest, "integer array "//        &
+       if (ESMF_LogFoundAllocError(allocRcToTest, msg="integer array "//        &
           "locR in pattern_match", rcToReturn=rc)) then
        endif
        call pattern_locate(lstring,trim(adjustL(lcharL)), ntestL, locL )
@@ -858,7 +869,7 @@
   ! This separate routine was created to avoid significant duplication of code
   ! necessary for parsing the tables.
   !-----------------------------------------------------------------------------
-  character(ESMF_MAXSTR), intent(in   ) :: lfilename, descriptor_label
+  character(THARN_MAXSTR), intent(in   ) :: lfilename, descriptor_label
   integer, intent(  out) :: int_value
   integer, intent(in   ) :: ncolumns(:), new_row(:)
   integer, intent(inout) :: irow       ! current row of table
@@ -871,7 +882,7 @@
   integer :: localrc ! local error status
 
   ! local character strings
-  character(ESMF_MAXSTR) :: lchar, ltmp
+  character(THARN_MAXSTR) :: lchar, ltmp
   integer :: int_tmp
 
   logical :: flag = .true.
@@ -891,8 +902,8 @@
      ! if error
      !--------------------------------------------------------------------------
      write(lchar,"(i5)") irow
-     if( ESMF_LogMsgFoundError(localrc,                                        &
-         "cannot read row " // trim(adjustL(lchar)) //                         &
+     if( ESMF_LogFoundError(localrc,                                        &
+         msg="cannot read row " // trim(adjustL(lchar)) //                         &
          " of table " //trim(descriptor_label) // "in file " //                &
          trim(lfilename), rcToReturn=rc) ) return
          kelements = kelements + 1
@@ -913,8 +924,8 @@
         if( debug_flag) print*,' get next line '
         call ESMF_ConfigNextLine(localcf, tableEnd=flag, rc=localrc)
         write(lchar,"(i5)") irow
-        if( ESMF_LogMsgFoundError(localrc,                                     &
-           "cannot read row " // trim(adjustL(lchar)) //                       &
+        if( ESMF_LogFoundError(localrc,                                     &
+           msg="cannot read row " // trim(adjustL(lchar)) //                       &
            " of table " //trim(descriptor_label) // "in file " //              &
            trim(lfilename), rcToReturn=rc) ) return
 
@@ -923,8 +934,8 @@
         !-----------------------------------------------------------------------
         if( debug_flag) print*,' get attribute integer - contin symbol '
         call ESMF_ConfigGetAttribute(localcf, ltmp, rc=localrc)
-        if( ESMF_LogMsgFoundError(localrc,                                     &
-           "cannot read row " // trim(adjustL(lchar)) //                       &
+        if( ESMF_LogFoundError(localrc,                                     &
+           msg="cannot read row " // trim(adjustL(lchar)) //                       &
            " of table " //trim(descriptor_label) // "in file " //              &
            trim(lfilename), rcToReturn=rc) ) return
 
@@ -933,8 +944,8 @@
         !-----------------------------------------------------------------------
         if( debug_flag) print*,' get attribute integer - after contin symbol '
         call ESMF_ConfigGetAttribute(localcf, int_tmp, rc=localrc)
-        if( ESMF_LogMsgFoundError(localrc,                                     &
-           "cannot read row " // trim(adjustL(lchar)) //                       &
+        if( ESMF_LogFoundError(localrc,                                     &
+           msg="cannot read row " // trim(adjustL(lchar)) //                       &
            " of table " //trim(descriptor_label) // "in file " //              &
            trim(lfilename), rcToReturn=rc) ) return
 
@@ -946,8 +957,8 @@
         ! error continuation line missing, but grid not finished
         !-----------------------------------------------------------------------
         write(lchar,"(i5)") irow
-        call ESMF_LogMsgSetError( ESMF_FAILURE,                                &
-              "cannot read row " // trim(adjustL(lchar)) //                    &
+        call ESMF_LogSetError( ESMF_FAILURE,                                &
+              msg="cannot read row " // trim(adjustL(lchar)) //                    &
               " of table " //trim(descriptor_label) // "in file " //           &
               trim(lfilename), rcToReturn=rc)
         return
@@ -978,7 +989,7 @@
   ! This separate routine was created to avoid significant duplication of code
   ! necessary for parsing the tables.
   !-----------------------------------------------------------------------------
-  character(ESMF_MAXSTR), intent(in   ) :: lfilename, descriptor_label
+  character(THARN_MAXSTR), intent(in   ) :: lfilename, descriptor_label
   real(ESMF_KIND_R8), intent(  out) :: flt_value
   integer, intent(in   ) :: ncolumns(:), new_row(:)
   integer, intent(inout) :: irow       ! current row of table
@@ -991,7 +1002,7 @@
   integer :: localrc ! local error status
 
   ! local character strings
-  character(ESMF_MAXSTR) :: lchar, ltmp
+  character(THARN_MAXSTR) :: lchar, ltmp
   real(ESMF_KIND_R8) :: flt_tmp
 
   logical :: flag = .true.
@@ -1011,8 +1022,8 @@
      ! if error
      !--------------------------------------------------------------------------
      write(lchar,"(i5)") irow
-     if( ESMF_LogMsgFoundError(localrc,                                        &
-         "cannot read row " // trim(adjustL(lchar)) //                         &
+     if( ESMF_LogFoundError(localrc,                                        &
+         msg="cannot read row " // trim(adjustL(lchar)) //                         &
          " of table " //trim(descriptor_label) // "in file " //                &
          trim(lfilename), rcToReturn=rc) ) return
          kelements = kelements + 1
@@ -1033,8 +1044,8 @@
         if( debug_flag) print*,' get next line  in real'
         call ESMF_ConfigNextLine(localcf, tableEnd=flag, rc=localrc)
         write(lchar,"(i5)") irow
-        if( ESMF_LogMsgFoundError(localrc,                                     &
-           "cannot read row " // trim(adjustL(lchar)) //                       &
+        if( ESMF_LogFoundError(localrc,                                     &
+           msg="cannot read row " // trim(adjustL(lchar)) //                       &
            " of table " //trim(descriptor_label) // "in file " //              &
            trim(lfilename), rcToReturn=rc) ) return
         !-----------------------------------------------------------------------
@@ -1042,8 +1053,8 @@
         !-----------------------------------------------------------------------
         if( debug_flag) print*,' get attribute - contin symbol '
         call ESMF_ConfigGetAttribute(localcf, ltmp, rc=localrc)
-        if( ESMF_LogMsgFoundError(localrc,                                     &
-           "cannot read row " // trim(adjustL(lchar)) //                       &
+        if( ESMF_LogFoundError(localrc,                                     &
+           msg="cannot read row " // trim(adjustL(lchar)) //                       &
            " of table " //trim(descriptor_label) // "in file " //              &
            trim(lfilename), rcToReturn=rc) ) return
 
@@ -1052,8 +1063,8 @@
         !-----------------------------------------------------------------------
         if( debug_flag) print*,' get attribute - real after continuation '
         call ESMF_ConfigGetAttribute(localcf, flt_tmp, rc=localrc)
-        if( ESMF_LogMsgFoundError(localrc,                                     &
-           "cannot read row " // trim(adjustL(lchar)) //                       &
+        if( ESMF_LogFoundError(localrc,                                     &
+           msg="cannot read row " // trim(adjustL(lchar)) //                       &
            " of table " //trim(descriptor_label) // "in file " //              &
            trim(lfilename), rcToReturn=rc) ) return
 
@@ -1065,7 +1076,7 @@
         ! error continuation line missing, but grid not finished
         !-----------------------------------------------------------------------
         write(lchar,"(i5)") irow
-        call ESMF_LogMsgSetError( ESMF_FAILURE," continuation missing " //     &
+        call ESMF_LogSetError( ESMF_FAILURE,msg=" continuation missing " //     &
               "cannot read row " // trim(adjustL(lchar)) //                    &
               " of table " //trim(descriptor_label) // "in file " //           &
               trim(lfilename), rcToReturn=rc)
@@ -1098,8 +1109,8 @@
   ! necessary for parsing the tables.
   !-----------------------------------------------------------------------------
   ! arguments
-  character(ESMF_MAXSTR), intent(in   ) :: lfilename, descriptor_label
-  character(ESMF_MAXSTR), intent(  out) :: string
+  character(THARN_MAXSTR), intent(in   ) :: lfilename, descriptor_label
+  character(THARN_MAXSTR), intent(  out) :: string
   integer, intent(in   ) :: ncolumns(:), new_row(:)
   integer, intent(inout) :: irow       ! current row of table
   integer, intent(in   ) :: nrows      ! total rows in table
@@ -1111,7 +1122,7 @@
   integer :: localrc ! local error status
 
   ! local character strings
-  character(ESMF_MAXSTR) :: ltmp, lchar
+  character(THARN_MAXSTR) :: ltmp, lchar
 
   logical :: flag = .true.
 
@@ -1130,8 +1141,8 @@
      ! if error
      !--------------------------------------------------------------------------
      write(lchar,"(i5)") irow
-     if( ESMF_LogMsgFoundError(localrc,                                        &
-         "cannot read row " // trim(adjustL(lchar)) //                         &
+     if( ESMF_LogFoundError(localrc,                                        &
+         msg="cannot read row " // trim(adjustL(lchar)) //                         &
          " of table " //trim(descriptor_label) // "in file " //                &
          trim(lfilename), rcToReturn=rc) ) return
          kelements = kelements + 1
@@ -1152,8 +1163,8 @@
         if( debug_flag) print*,' next line string '
         call ESMF_ConfigNextLine(localcf, tableEnd=flag, rc=localrc)
         write(lchar,"(i5)") irow
-        if( ESMF_LogMsgFoundError(localrc,                                     &
-              "cannot read row " // trim(adjustL(lchar)) //                    &
+        if( ESMF_LogFoundError(localrc,                                     &
+              msg="cannot read row " // trim(adjustL(lchar)) //                    &
               " of table " //trim(descriptor_label) // "in file " //           &
               trim(lfilename), rcToReturn=rc) ) return
         !-----------------------------------------------------------------------
@@ -1161,8 +1172,8 @@
         !-----------------------------------------------------------------------
         if( debug_flag) print*,' get attribute - read continuation symbol '
         call ESMF_ConfigGetAttribute(localcf, ltmp, rc=localrc)
-        if( ESMF_LogMsgFoundError(localrc,                                     &
-              "cannot read row " // trim(adjustL(lchar)) //                    &
+        if( ESMF_LogFoundError(localrc,                                     &
+              msg="cannot read row " // trim(adjustL(lchar)) //                    &
               " of table " //trim(descriptor_label) // "in file " //           &
               trim(lfilename), rcToReturn=rc) ) return
 
@@ -1171,8 +1182,8 @@
         !-----------------------------------------------------------------------
         if( debug_flag)  print*,' get attribute string after continuation '
         call ESMF_ConfigGetAttribute(localcf, ltmp, rc=localrc)
-        if( ESMF_LogMsgFoundError(localrc,                                     &
-              "cannot read row " // trim(adjustL(lchar)) //                    &
+        if( ESMF_LogFoundError(localrc,                                     &
+              msg="cannot read row " // trim(adjustL(lchar)) //                    &
               " of table " //trim(descriptor_label) // "in file " //           &
               trim(lfilename), rcToReturn=rc) ) return
 
@@ -1184,7 +1195,7 @@
         ! error continuation line missing, but grid not finished
         !-----------------------------------------------------------------------
         write(lchar,"(i5)") irow
-        call ESMF_LogMsgSetError( ESMF_FAILURE," continuation missing " //     &
+        call ESMF_LogSetError( ESMF_FAILURE,msg=" continuation missing " //     &
                "cannot read row " // trim(adjustL(lchar)) //                   &
                " of table " //trim(descriptor_label) // "in file " //          &
                trim(lfilename), rcToReturn=rc)
@@ -1199,6 +1210,80 @@
   !-----------------------------------------------------------------------------
   end subroutine read_table_string
   !-----------------------------------------------------------------------------
+
+
+  !-----------------------------------------------------------------------------
+  !
+  ! check an actual value against and expected value within a (relative) tolerance
+  !
+  logical function check_value (exp_val, act_val, tol)
+    real(ESMF_KIND_R8), intent(in) :: exp_val
+    real(ESMF_KIND_R8), intent(in) :: act_val
+    real(ESMF_KIND_R8), intent(in) :: tol
+
+    real(ESMF_KIND_R8) :: abs_err
+    real(ESMF_KIND_R8) :: tol_band
+
+    abs_err  = abs(act_val - exp_val)
+    tol_band = abs(tol * exp_val) + RegridMinNeighborhood
+
+    check_value = abs_err .LT. tol_band
+
+#if 1
+    ! print error message if value rejected because its outside of the minimum tolerance band
+    if (.NOT. check_value) then
+      if (abs_err .GE. RegridMinNeighborhood) then
+        call ESMF_LogSetError (ESMF_FAILURE, msg="regrid error - value outside of minimum tolerance band", &
+          line=__LINE__, file=__FILE__)
+      end if
+    end if
+#endif
+
+! debug
+#if 0
+    if (.NOT. check_value) then
+      print *, "check_value - value out of tolerance(debug)", exp_val, act_val, abs_err, tol_band
+    endif
+#endif
+
+    return
+  !-----------------------------------------------------------------------------
+  end function check_value
+  !-----------------------------------------------------------------------------
+
+  !-----------------------------------------------------------------------------
+  !
+  ! check an ESMF return code, display file/line no of error location
+  !
+  logical function CheckError (checkpoint, line, file, rcValue, msg, rcToReturn)
+    logical,          intent(in)  :: checkpoint
+    integer,          intent(in)  :: line
+    character(len=*), intent(in)  :: file
+    character(len=*), intent(in)  :: msg
+    integer,          intent(in)  :: rcValue
+    integer,          intent(out) :: rcToReturn
+
+    if (checkpoint) then
+      print '("checkpoint at line ", I5, " in file ", A)', line, file
+    end if
+
+    rcToReturn = ESMF_SUCCESS
+
+    CheckError = ESMF_LogFoundError (rcValue, msg=msg, rcToReturn=rcToReturn)
+
+    if (CheckError) then
+      print '("error detected at line ", I5, " in file ", A, " - return code = ", I8)', &
+        line, file, rcToReturn
+      print '("     ", A)', msg
+    end if
+
+    return
+  !-----------------------------------------------------------------------------
+  end function CheckError
+  !-----------------------------------------------------------------------------
+
+!-----------------------------------------------------------------------
+
 
 !===============================================================================
   end module ESMF_TestHarnessUtilMod

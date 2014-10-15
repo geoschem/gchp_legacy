@@ -1,7 +1,7 @@
-! $Id: ESMF_ArrayBundleEx.F90,v 1.5.2.1 2010/02/05 19:53:02 svasquez Exp $
+! $Id: ESMF_ArrayBundleEx.F90,v 1.1.5.1 2013-01-11 20:23:43 mathomp4 Exp $
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2010, University Corporation for Atmospheric Research,
+! Copyright 2002-2012, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -16,7 +16,7 @@
 
 program ESMF_ArrayBundleEx
 
-  use ESMF_Mod
+  use ESMF
   
   implicit none
   
@@ -26,7 +26,6 @@ program ESMF_ArrayBundleEx
   type(ESMF_VM):: vm
   type(ESMF_DistGrid):: distgrid
   type(ESMF_ArraySpec):: arrayspec
-  type(ESMF_Array):: array(2)
   type(ESMF_Array), allocatable:: arrayList(:)
   type(ESMF_ArrayBundle):: arraybundle
 
@@ -34,10 +33,11 @@ program ESMF_ArrayBundleEx
   integer :: finalrc
   
   finalrc = ESMF_SUCCESS
-  call ESMF_Initialize(vm=vm, rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  call ESMF_Initialize(vm=vm, defaultlogfilename="ArrayBundleEx.Log", &
+                    logkindflag=ESMF_LOGKIND_MULTI, rc=rc)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   call ESMF_VMGet(vm, localPet=localPet, petCount=petCount, rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   
   if (petCount /= 4) then
     finalrc = ESMF_FAILURE
@@ -45,37 +45,49 @@ program ESMF_ArrayBundleEx
   endif
   
 !BOE
-! \subsubsection{ArrayBundle creation from a list of Arrays}
+! \subsubsection{Create an ArrayBundle from a list of Arrays}
 !
-! First create an array of two {\tt ESMF\_Array} objects.
+! First create a Fortran array of two {\tt ESMF\_Array} objects.
 !EOE
 !BOC
   call ESMF_ArraySpecSet(arrayspec, typekind=ESMF_TYPEKIND_R8, rank=2, rc=rc)
 !EOC  
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !BOC
   distgrid = ESMF_DistGridCreate(minIndex=(/1,1/), maxIndex=(/5,5/), &
     regDecomp=(/2,3/), rc=rc)
 !EOC  
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !BOC
-  array(1) = ESMF_ArrayCreate(arrayspec=arrayspec, distgrid=distgrid, rc=rc)
+  allocate(arrayList(2))
+  arrayList(1) = ESMF_ArrayCreate(arrayspec=arrayspec, distgrid=distgrid, &
+                 rc=rc)
 !EOC  
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !BOC
-  array(2) = ESMF_ArrayCreate(arrayspec=arrayspec, distgrid=distgrid, rc=rc)
+  arrayList(2) = ESMF_ArrayCreate(arrayspec=arrayspec, distgrid=distgrid, &
+                 rc=rc)
 !EOC  
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
 !BOE
-! Now the {\tt array} of Arrays can be used to create an ArrayBundle object.
+! Now the {\tt arrayList} of Arrays can be used to create an ArrayBundle object.
 !EOE
 
 !BOC
-  arraybundle = ESMF_ArrayBundleCreate(arrayList=array, &
+  arraybundle = ESMF_ArrayBundleCreate(arrayList=arrayList, &
     name="MyArrayBundle", rc=rc)
 !EOC  
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
+  
+!BOE
+! The temporary {\tt arrayList} can be deallocated now. This will not affect
+! the ESMF Array objects. The Array objects must not be deallocated while 
+! the ArrayBundle refers to them!
+!EOE
+!BOC
+  deallocate(arrayList)
+!EOC
 
 !BOE
 ! The ArrayBundle object can be printed.
@@ -84,7 +96,7 @@ program ESMF_ArrayBundleEx
 !BOC
   call ESMF_ArrayBundlePrint(arraybundle, rc=rc)
 !EOC  
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
 !BOE
 ! \subsubsection{Access Arrays inside the ArrayBundle}
@@ -99,19 +111,21 @@ program ESMF_ArrayBundleEx
 !BOC
   call ESMF_ArrayBundleGet(arraybundle, arrayCount=arrayCount, rc=rc)
 !EOC
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
 !BOE
+! \begin{sloppypar}
 ! The {\tt arrayCount} can be used to correctly allocate the {\tt arrayList}
 ! variable for a second call to {\tt ESMF\_ArrayBundleGet()} to gain access
 ! to the bundled Array objects.
+! \end{sloppypar}
 !EOE
 
 !BOC
   allocate(arrayList(arrayCount))
   call ESMF_ArrayBundleGet(arraybundle, arrayList=arraylist, rc=rc)
 !EOC
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
 !BOE
 ! The {\tt arrayList} variable can be used to access the individual Arrays,
@@ -121,7 +135,7 @@ program ESMF_ArrayBundleEx
 !BOC
   do i=1, arrayCount
     call ESMF_ArrayPrint(arrayList(i), rc=rc)
-    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   enddo
 !EOC
 
@@ -137,7 +151,7 @@ program ESMF_ArrayBundleEx
 !BOC
   call ESMF_ArrayBundleDestroy(arraybundle, rc=rc)
 !EOC  
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
 !BOE
 ! After the ArrayBundle object has been destroyed it is safe to destroy its
@@ -146,20 +160,23 @@ program ESMF_ArrayBundleEx
 
 
 !BOC
-  call ESMF_ArrayDestroy(array(1), rc=rc)
+  call ESMF_ArrayDestroy(arrayList(1), rc=rc)
 !EOC  
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
 !BOC
-  call ESMF_ArrayDestroy(array(2), rc=rc)
+  call ESMF_ArrayDestroy(arrayList(2), rc=rc)
 !EOC  
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
 !BOC
+  deallocate(arrayList)
+  
   call ESMF_DistGridDestroy(distgrid, rc=rc)
 !EOC  
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
+  
 
 10 continue
   call ESMF_Finalize(rc=rc)

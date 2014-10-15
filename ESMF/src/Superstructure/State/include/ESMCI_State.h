@@ -1,7 +1,7 @@
-// $Id: ESMCI_State.h,v 1.17.2.1 2010/02/05 20:04:47 svasquez Exp $
+// $Id$
 //
 // Earth System Modeling Framework
-// Copyright 2002-2010, University Corporation for Atmospheric Research, 
+// Copyright 2002-2012, University Corporation for Atmospheric Research, 
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
 // Laboratory, University of Michigan, National Centers for Environmental 
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
@@ -66,22 +66,25 @@ namespace ESMCI{
     F90ClassHolder fortranclass;
     // methods
     public:
-    static State* create(char* name, int *rc);
+    static State* create(const char* name, int *rc);
     int addArray(Array *array);
     int addField(Field *field);
     int print();
-    int getArray(char* name, Array **array);
-    int getField(char* name, Field **field);
+    int getArray(const char* name, Array **array);
+    int getField(const char* name, Field **field);
     static int destroy(State *state);
 
     int getNumItems(int* numItems);
-    vector<string>  getItemNames();
+    std::vector<std::string>  getItemNames();
 
     int getNumItems(int* numItems, ESMC_StateItemType  itemType);
-    vector<string>  getItemNames(ESMC_StateItemType  itemType);
+    std::vector<std::string>  getItemNames(ESMC_StateItemType  itemType);
 
     int getNumArrays(int* numArrays);
-    vector<string>  getArrayNames();
+    std::vector<std::string>  getArrayNames();
+
+    int read(ESMC_Base* base, int fileNameLen, const char* fileName);
+    int write(ESMC_Base* base, int fileNameLen, const char* fileName);
 
   }; // class State
 };// namespace ESMCI

@@ -1,0 +1,142 @@
+# lcv2prs.rc
+#
+#  This is a resource file for the lcv2prs utility.
+#
+# !REVISION HISTORY:
+#
+#  26Jan2006  B. Yin    First version.
+#
+#...........................................................................
+#                     ----------------------
+#                     Output File Resolution
+#                     ----------------------
+
+zonal_resolution: 540              # no. of zonal grid-points (im)
+west_most_longitude_in_deg: -180.0 # longitude of first point (i=1)
+meridional_resolution: 361         # no. meridional grid-points (jm)
+vertical_level_numbers: 1
+#                       ----------------
+#                       Variable Classes
+#                       ----------------
+ 
+# A variable class lists the variable names that make up a file type or product.
+
+###  PRODUCT: tavg1_2d_lnd_Nx (2-D diagnostics)
+
+VarClass*tavg1_2d_lnd_Nx: GRN LAI GWETROOT GWETTOP TPSNOW TUNST TSAT TWLT PRECSNO    \   
+                          PRECTOT SNOMAS SNODP EVPSOIL EVPTRNS EVPINTR EVPSBLN RUNOFF \
+                          BASEFLOW SMLAND FRUNST FRSAT FRSNO FRWLT PARDF PARDR       \
+                          SHLAND LHLAND EVLAND LWLAND SWLAND GHLAND TWLAND    \
+                          TELAND WCHANGE ECHANGE SPLAND SPWATR SPSNOW \
+                          Var_GRN Var_LAI Var_GWETROOT Var_GWETTOP Var_TPSNOW Var_TUNST \
+                          Var_TSAT Var_TWLT Var_PRECSNO Var_PRECTOT Var_SNOMAS Var_SNODP \
+                          Var_EVPSOIL Var_EVPTRNS Var_EVPINTR Var_EVPSBLN Var_RUNOFF Var_BASEFLOW \
+                          Var_SMLAND Var_FRUNST Var_FRSAT Var_FRSNO Var_FRWLT Var_PARDF Var_PARDR \
+                          Var_SHLAND Var_LHLAND Var_EVLAND Var_LWLAND Var_SWLAND Var_GHLAND Var_TWLAND \
+                          Var_TELAND Var_WCHANGE Var_ECHANGE Var_SPLAND Var_SPWATR Var_SPSNOW
+
+#                         --------------------
+#                         Variable Translation
+#                         --------------------
+
+Variable_translation_table::
+
+#      Output          |                       Input
+#  Name       Units    | Name             scale_factor  add_offset Positive check
+#  ------------------------------------------------------------------------------
+   GRN        fraction   GRN                    1.0        0.0         0
+   LAI        m2/m2      LAI                    1.0        0.0         0
+   GWETROOT   fraction   GWETROOT               1.0        0.0         0
+   GWETTOP    fraction   GWETTOP                1.0        0.0         0
+   TPSNOW     K          TPSNOW                 1.0        0.0         0
+   TUNST      K          TUNST                  1.0        0.0         0
+   TSAT       K          TSAT                   1.0        0.0         0
+   TWLT       K          TWLT                   1.0        0.0         0
+   PRECSNO    kg/m2/s    PRECSNO                1.0        0.0         0
+   PRECTOT    kg/m2/s    PRECTOT                1.0        0.0         0
+   SNOMAS     kg/m2      SNOMAS                 1.0        0.0         0
+   SNODP      m          SNODP                  1.0        0.0         0
+   EVPSOIL    W/m2       EVPSOIL                1.0        0.0         0
+   EVPTRNS    W/m2       EVPTRNS                1.0        0.0         0
+   EVPINTR    W/m2       EVPINTR                1.0        0.0         0
+   EVPSBLN    W/m2       EVPSBLN                1.0        0.0         0
+   RUNOFF     kg/m2/s    RUNOFF                 1.0        0.0         0
+   BASEFLOW   kg/m2/s    BASEFLOW               1.0        0.0         0
+   SMLAND     kg/m2/s    SMLAND                 1.0        0.0         0
+   FRUNST     fraction   FRUNST                 1.0        0.0         0
+   FRSAT      fraction   FRSAT                  1.0        0.0         0
+   FRSNO      fraction   FRSNO                  1.0        0.0         0
+   FRWLT      fraction   FRWLT                  1.0        0.0         0
+   PARDF      W/m2       PARDF                  1.0        0.0         0
+   PARDR      W/m2       PARDR                  1.0        0.0         0
+   SHLAND     W/m2       SHLAND                 1.0        0.0         0
+   LHLAND     W/m2       LHLAND                 1.0        0.0         0
+   EVLAND     kg/m2/s    EVLAND                 1.0        0.0         0
+   LWLAND     W/m2       LWLAND                 1.0        0.0         0
+   SWLAND     W/m2       SWLAND                 1.0        0.0         0
+   GHLAND     W/m2       GHLAND                 1.0        0.0         0
+   TWLAND     kg/m2      TWLAND                 1.0        0.0         0
+   TSLAND     kg/m2      TSLAND                 1.0        0.0         0
+   TELAND     J/m2       TELAND                 1.0        0.0         0
+   WCHANGE    kg/m2/s    WCHANGE                1.0        0.0         0
+   ECHANGE    W/m2       ECHANGE                1.0        0.0         0
+   SPLAND     W/m2       SPLAND                 1.0        0.0         0
+   SPWATR     kg/m2/s    SPWATR                 1.0        0.0         0
+   SPSNOW     kg/m2/s    SPSNOW                 1.0        0.0         0
+
+::
+
+
+# Table for variable names and description:
+
+GRN:        Vegetation greeness fraction
+LAI:        Leaf area index
+GWETROOT:   Root zone soil wetness
+GWETTOP:    Top soil layer wetness
+TPSNOW:     Top snow layer temperature
+TUNST:      Surface temperature of unsaturated zone
+TSAT:       Surface temperature of saturated zone
+TWLT:       Surface temperature of wilted zone
+PRECSNO:    Surface snowfall
+PRECTOT:    Total surface precipitation
+SNOMAS:     Snow mass
+SNODP:      Snow depth
+EVPSOIL:    Bare soil evaporation
+EVPTRNS:    Transpiration
+EVPINTR:    Interception loss
+EVPSBLN:    Sublimation
+RUNOFF:     Overland runoff
+BASEFLOW:   Baseflow
+SMLAND:     Snowmelt
+FRUNST:     Fractional unsaturated area
+FRSAT:      Fractional saturated area
+FRSNO:      Fractional snow-covered area
+FRWLT:      Fractional wilting area
+PARDF:      Surface downward PAR diffuse flux
+PARDR:      Surface downward PAR beam flux
+SHLAND:     Sensible heat flux from land
+LHLAND:     Latent heat flux from land
+EVLAND:     Evaporation from land
+LWLAND:     Net downward longwave flux over land
+SWLAND:     Net downward shortwave flux over land
+GHLAND:     Downward heat flux at base of top soil layer
+TWLAND:     Total water store in land reservoirs 
+TSLAND:     Snow store in land reservoirs
+TELAND:     Energy store in land reservoirs
+WCHANGE:    Total land water change per unit time
+ECHANGE:    Total land energy change per unit time
+SPLAND:     Spurious land energy source
+SPWATR:     Spurious land water source
+SPSNOW:     Spurious snow energy
+
+
+# Global meta data
+
+history:        File written by CFIO
+convention:     CF-1.0
+institution:    Global Modeling and Assimilation Office, NASA Goddard Space Flight Center, Greenbelt, MD 20771
+references:     http://gmao.gsfc.nasa.gov/research/merra/
+comment:        @PUBLICTAG
+source:         Global Modeling and Assimilation Office. GEOSops_5_2_0
+title:          MERRA reanalysis.  @PUBLICTAG
+contact:        http://gmao.gsfc.nasa.gov/ 

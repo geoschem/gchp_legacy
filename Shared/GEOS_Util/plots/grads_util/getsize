@@ -1,0 +1,7 @@
+#!/bin/csh -f
+
+if( -e size.txt ) /bin/rm size.txt
+set   string = `/bin/ls -lat $1`
+echo $string[5] > size.txt
+
+exit

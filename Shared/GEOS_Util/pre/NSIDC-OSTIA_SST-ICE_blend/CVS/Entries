@@ -1,0 +1,24 @@
+/GNUmakefile/1.3/Fri Nov 15 17:22:06 2013//Tjk-G40-GEOSctm-advcore-update3
+/SST_ICE_bcs.csh/1.1/Thu Feb 14 20:33:34 2013//Tjk-G40-GEOSctm-advcore-update3
+/SST_ICE_bcs.pl/1.4/Tue Apr  2 19:48:46 2013//Tjk-G40-GEOSctm-advcore-update3
+/bin2bin.F90/1.1/Thu Feb 14 20:28:52 2013//Tjk-G40-GEOSctm-advcore-update3
+/caspian_ice_fix.pdf/1.1/Fri Nov 15 17:14:53 2013//Tjk-G40-GEOSctm-advcore-update3
+/check.F90/1.1/Thu Feb 14 20:41:37 2013//Tjk-G40-GEOSctm-advcore-update3
+/convert_nsidc_grid.F90/1.1/Thu Feb 14 20:31:10 2013//Tjk-G40-GEOSctm-advcore-update3
+/fill_Land.F90/1.1/Thu Feb 14 20:31:10 2013//Tjk-G40-GEOSctm-advcore-update3
+/fill_NPOLE.F90/1.1/Thu Feb 14 20:31:10 2013//Tjk-G40-GEOSctm-advcore-update3
+/get_nsidc_icec.F90/1.1/Thu Feb 14 20:31:10 2013//Tjk-G40-GEOSctm-advcore-update3
+/hflip.F90/1.1/Thu Feb 14 20:31:10 2013//Tjk-G40-GEOSctm-advcore-update3
+/input_stuff.txt/1.1/Thu Feb 14 20:33:34 2013//Tjk-G40-GEOSctm-advcore-update3
+/interp_to_eight_deg.F90/1.1/Thu Feb 14 20:33:34 2013//Tjk-G40-GEOSctm-advcore-update3
+/make_ostia_eigth.csh/1.1/Fri Nov 15 17:00:02 2013//Tjk-G40-GEOSctm-advcore-update3
+/make_ostia_quart.csh/1.1/Fri Nov 15 17:00:02 2013//Tjk-G40-GEOSctm-advcore-update3
+/proc_SST_FRACI.F90/1.1.14.1/Mon Nov 18 19:37:21 2013//Tjk-G40-GEOSctm-advcore-update3
+/proc_SST_FRACI_ostia_quart.F90/1.1/Fri Nov 15 17:00:02 2013//Tjk-G40-GEOSctm-advcore-update3
+/read_Ostia.F90/1.1/Thu Feb 14 20:33:34 2013//Tjk-G40-GEOSctm-advcore-update3
+/read_Ostia_quart.F90/1.1/Fri Nov 15 17:01:12 2013//Tjk-G40-GEOSctm-advcore-update3
+/read_Reynolds.F90/1.1/Thu Feb 14 20:33:34 2013//Tjk-G40-GEOSctm-advcore-update3
+/read_input.F90/1.1.14.1/Mon Nov 18 19:35:39 2013//Tjk-G40-GEOSctm-advcore-update3
+/read_input_quart.F90/1.1/Fri Nov 15 17:00:02 2013//Tjk-G40-GEOSctm-advcore-update3
+/read_nsidc_icec.F90/1.1/Thu Feb 14 20:33:34 2013//Tjk-G40-GEOSctm-advcore-update3
+D/CMIP_1977_1982////

@@ -1,6 +1,6 @@
-//
+// $Id$
 // Earth System Modeling Framework
-// Copyright 2002-2010, University Corporation for Atmospheric Research, 
+// Copyright 2002-2012, University Corporation for Atmospheric Research, 
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
 // Laboratory, University of Michigan, National Centers for Environmental 
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
@@ -38,6 +38,8 @@ void MeshAddPoleNPnts(Mesh &mesh, int num_avg_pnts, UInt node_id,
                       UInt constraint_id, 
                       IWeights &cweights);
 
+  void MeshAddPoleTeeth(Mesh &mesh, UInt node_id, 
+			UInt constraint_id, IWeights &cweights);
 } // namespace
 
 #endif /*ESMC_EXTRAPOLATION_H_*/

@@ -1,4 +1,4 @@
-# $Id: makefile,v 1.17.2.1 2009/12/23 19:44:29 svasquez Exp $ 
+# $Id: makefile,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $ 
 
 ALL:      build_unit_tests
 run:      run_unit_tests
@@ -9,19 +9,22 @@ LOCDIR	  = src/prologue/tests
 TESTS_BUILD   = $(ESMF_TESTDIR)/ESMF_StringUTest \
                 $(ESMF_TESTDIR)/ESMF_WordsizeUTest \
                 $(ESMF_TESTDIR)/ESMF_F90ArrayPtrUTest \
-		$(ESMF_TESTDIR)/ESMF_LAPACKUTest
+		$(ESMF_TESTDIR)/ESMF_LAPACKUTest \
+		$(ESMF_TESTDIR)/ESMCI_ExceptionsUTest
 #		$(ESMF_TESTDIR)/ESMF_F95PtrUTest
 
 TESTS_RUN     = RUN_ESMF_StringUTest \
                 RUN_ESMF_WordsizeUTest \
                 RUN_ESMF_F90ArrayPtrUTest \
-		RUN_ESMF_LAPACKUTest
+		RUN_ESMF_LAPACKUTest \
+		RUN_ESMCI_ExceptionsUTest
 #		RUN_ESMF_F95PtrUTest
 
 TESTS_RUN_UNI = RUN_ESMF_StringUTestUNI \
                 RUN_ESMF_WordsizeUTestUNI \
                 RUN_ESMF_F90ArrayPtrUTestUNI \
-		RUN_ESMF_LAPACKUTestUNI
+		RUN_ESMF_LAPACKUTestUNI \
+		RUN_ESMCI_ExceptionsUTestUNI
 #		RUN_ESMF_F95PtrUTestUNI
 
 include ${ESMF_DIR}/makefile
@@ -37,8 +40,8 @@ CLOBBERDIRS =
 # Special for strings passed between C++ and F90
 #
 
-ESMF_UTEST_String_OBJS = ESMC_StringSubr.o
-ESMF_StringUTest.o : ESMC_StringSubr.o
+ESMF_UTEST_String_OBJS = ESMCI_StringSubr.o
+ESMF_StringUTest.o : ESMCI_StringSubr.o
 
 RUN_ESMF_StringUTest:
 	$(MAKE) TNAME=String NP=2 ftest
@@ -65,8 +68,8 @@ RUN_ESMF_F90ArrayPtrUTestUNI:
 # Special for testing wordsizes
 #
 
-ESMF_UTEST_Wordsize_OBJS = ESMC_WordsizeSubr.o
-ESMF_WordsizeUTest.o : ESMC_WordsizeSubr.o
+ESMF_UTEST_Wordsize_OBJS = ESMCI_WordsizeSubr.o
+ESMF_WordsizeUTest.o : ESMCI_WordsizeSubr.o
 
 RUN_ESMF_WordsizeUTest:
 	$(MAKE) TNAME=Wordsize NP=2 ftest
@@ -97,3 +100,14 @@ RUN_ESMF_LAPACKUTest:
 
 RUN_ESMF_LAPACKUTestUNI:
 	$(MAKE) TNAME=LAPACK NP=1 ftest
+
+
+#
+# Test whether C++ exceptions work correctly
+#
+
+RUN_ESMCI_ExceptionsUTest:
+	$(MAKE) TNAME=Exceptions NP=4 citest
+
+RUN_ESMCI_ExceptionsUTestUNI:
+	$(MAKE) TNAME=Exceptions NP=1 citest

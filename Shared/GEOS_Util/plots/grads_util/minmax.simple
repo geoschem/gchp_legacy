@@ -1,0 +1,14 @@
+function minmax (args)
+
+field = subwrd(args,1)
+
+'set gxout stat'
+'d 'field
+stuff = sublin(result,8)
+min   = subwrd(stuff,4)
+max   = subwrd(stuff,5)
+
+*say 'The min = 'min
+*say 'The max = 'max
+'set gxout shaded'
+return max' 'min

@@ -1,0 +1,11 @@
+DSET    ^lwmask1440721.data
+TITLE   GEOS GCM Land-Water Mask
+FORMAT  big_endian
+UNDEF   1e15
+XDEF 1440 Linear  -180 0.25
+YDEF  721 Linear   -90 0.25
+ZDEF     1   Linear   1 1
+TDEF    1 LINEAR  00:00Z10Jan2000 1mo
+VARS    1
+lwmask      0   0  GEOS GCM Land-Water Mask
+ENDVARS

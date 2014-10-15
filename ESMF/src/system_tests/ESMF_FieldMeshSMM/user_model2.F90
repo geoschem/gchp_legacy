@@ -1,4 +1,4 @@
-! $Id: user_model2.F90,v 1.3 2009/09/29 16:53:07 feiliu Exp $
+! $Id$
 !
 ! Example/test code which shows User Component calls.
 
@@ -16,7 +16,7 @@
     module user_model2
 
     ! ESMF Framework module
-    use ESMF_Mod
+    use ESMF
 
     implicit none
     
@@ -40,11 +40,11 @@
 
         ! Register the callback routines.
 
-        call ESMF_GridCompSetEntryPoint(comp, ESMF_SETINIT, user_init, rc=rc)
+        call ESMF_GridCompSetEntryPoint(comp, ESMF_METHOD_INITIALIZE, user_init, rc=rc)
         if(rc/=ESMF_SUCCESS) return
-        call ESMF_GridCompSetEntryPoint(comp, ESMF_SETRUN, user_run, rc=rc)
+        call ESMF_GridCompSetEntryPoint(comp, ESMF_METHOD_RUN, user_run, rc=rc)
         if(rc/=ESMF_SUCCESS) return
-        call ESMF_GridCompSetEntryPoint(comp, ESMF_SETFINAL, user_final, rc=rc)
+        call ESMF_GridCompSetEntryPoint(comp, ESMF_METHOD_FINALIZE, user_final, rc=rc)
         if(rc/=ESMF_SUCCESS) return
 
         print *, "Registered Initialize, Run, and Finalize routines"
@@ -85,8 +85,7 @@
       distgrid = ESMF_DistGridCreate(minIndex=(/1/), maxIndex=(/9/), rc=rc)
       if(rc/=ESMF_SUCCESS) return
 
-      grid = ESMF_GridCreate(distgrid=distgrid, gridEdgeLWidth=(/0/), gridEdgeUWidth=(/0/), &
-            destroyDistGrid=.true., rc=rc)
+      grid = ESMF_GridCreate(distgrid=distgrid, rc=rc)
       if(rc/=ESMF_SUCCESS) return
       call ESMF_ArraySpecSet(arrayspec, 1, ESMF_TYPEKIND_I4, rc=rc)
       if(rc/=ESMF_SUCCESS) return
@@ -100,7 +99,7 @@
 
       dstfptr = 0
   
-      call ESMF_StateAdd(importState, humidity, rc)
+      call ESMF_StateAdd(importState, (/humidity/), rc=rc)
       if(rc/=ESMF_SUCCESS) return
       !   call ESMF_StatePrint(importState, rc=rc)
   
@@ -140,7 +139,7 @@
       ! The smm op reset the values to the index value, verify this is the case.
       !write(*, '(9I3)') l, lpe, fptr
       do i = exlb(1), exub(1)
-          if(fptr(i) .ne. i) rc = ESMF_FAILURE
+          if(fptr(i) .ne. i*i) rc = ESMF_FAILURE
       enddo
 
       print *, "User Comp Run returning"
@@ -161,6 +160,7 @@
       ! Local variables
       type(ESMF_Field) :: field
       type(ESMF_Grid) :: grid
+      type(ESMF_DistGrid) :: distgrid
       type(ESMF_VM) :: vm
       integer       :: de_id
 
@@ -180,9 +180,14 @@
       call ESMF_FieldGet(field, grid=grid, rc=rc)
       if(rc/=ESMF_SUCCESS) return
 
+      call ESMF_GridGet(grid, distgrid=distgrid, rc=rc)
+      if(rc/=ESMF_SUCCESS) return
+
       call ESMF_FieldDestroy(field, rc=rc)
       if(rc/=ESMF_SUCCESS) return
       call ESMF_GridDestroy(grid, rc=rc)
+      if(rc/=ESMF_SUCCESS) return
+      call ESMF_DistGridDestroy(distgrid, rc=rc)
       if(rc/=ESMF_SUCCESS) return
 
       print *, "User Comp Final returning"

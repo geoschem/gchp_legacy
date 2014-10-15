@@ -1,0 +1,3 @@
+#!/bin/csh -f
+if( -e $1 ) /bin/ls $1
+exit

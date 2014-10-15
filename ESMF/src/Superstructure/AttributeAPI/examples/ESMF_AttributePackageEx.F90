@@ -1,7 +1,7 @@
-! $Id: ESMF_AttributePackageEx.F90,v 1.12.2.1 2010/02/05 20:03:28 svasquez Exp $
+! $Id$
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2010, University Corporation for Atmospheric Research,
+! Copyright 2002-2012, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -17,19 +17,18 @@ program ESMF_AttributePackageEx
 !==============================================================================
 
 !BOE
-! \subsubsection{Example: Intermediate Attribute usage: Attribute Packages}
+! \subsubsection{Attribute packages} \label{ex:AttributePackageEx}
 !
 ! This example is slightly more complex than the example presented in section 
-! \ref{AttributeEx} and illustrates the use of the Attribute class to create 
-! Attribute hierarchies using Attribute packages.  A gridded Component
+! \ref{ex:AttributeEx} and illustrates the use of the Attribute class to
+! create Attribute hierarchies using Attribute packages.  A gridded Component
 ! is used in conjunction with two States, a FieldBundle, and various realistic
 ! Fields to create an Attribute hierarchy and copy it from one State to another.  
-! Attributes packages are created on the Component and Fields, and the 
+! Attribute packages are created on the Component and Fields, and the 
 ! standard Attributes in each package are used in the Attribute hierarchy.
 ! The Attribute package nesting capability is demonstrated by nesting the standard
 ! ESMF supplied packages for the Fields inside a user specified Attribute package
 ! with a customized convention.
-! The first thing we must do is declare variables and initialize ESMF.
 !EOE
 
 
@@ -40,9 +39,8 @@ program ESMF_AttributePackageEx
 ! This program shows examples of Attribute usage
 
 
-!BOC
       ! Use ESMF framework module
-      use ESMF_Mod
+      use ESMF
       implicit none
 
       ! Local variables  
@@ -61,12 +59,12 @@ program ESMF_AttributePackageEx
 
       ! initialize ESMF
       finalrc = ESMF_SUCCESS
-      call ESMF_Initialize(vm=vm, rc=rc)
+      call ESMF_Initialize(vm=vm, &
+                    defaultlogfilename="AttributePackageEx.Log", &
+                    logkindflag=ESMF_LOGKIND_MULTI, rc=rc)
       
       ! get the vm
       call ESMF_VMGet(vm, petCount=petCount, localPet=localPet, rc=rc)
-      if (rc/=ESMF_SUCCESS) goto 10
-!EOC
       
       if (localPet==0) then
         print *, "--------------------------------------- "
@@ -82,25 +80,27 @@ program ESMF_AttributePackageEx
 !EOE
 !BOC
       if (petCount<4) then
-        gridcomp = ESMF_GridCompCreate(name="gridded_component", &
+        gridcomp = ESMF_GridCompCreate(name="gridded_comp_ex2", &
           petList=(/0/), rc=rc)
       else 
-        gridcomp = ESMF_GridCompCreate(name="gridded_component", &
+        gridcomp = ESMF_GridCompCreate(name="gridded_comp_ex2", &
           petList=(/0,1,2,3/), rc=rc)
       endif
-      importState = ESMF_StateCreate("importState", ESMF_STATE_IMPORT, rc=rc)
-      exportState = ESMF_StateCreate("exportState", ESMF_STATE_EXPORT, rc=rc)
+      importState = ESMF_StateCreate(name="importState",  &
+                                     stateintent=ESMF_STATEINTENT_IMPORT, rc=rc)
+      exportState = ESMF_StateCreate(name="exportState",  &
+                                     stateintent=ESMF_STATEINTENT_EXPORT, rc=rc)
         
-      DPEDT = ESMF_FieldCreateEmpty(name='DPEDT', rc=rc)
-      DTDT = ESMF_FieldCreateEmpty(name='DTDT', rc=rc)
-      DUDT = ESMF_FieldCreateEmpty(name='DUDT', rc=rc)
-      DVDT = ESMF_FieldCreateEmpty(name='DVDT', rc=rc)
-      PHIS = ESMF_FieldCreateEmpty(name='PHIS', rc=rc)
-      QTR = ESMF_FieldCreateEmpty(name='QTR', rc=rc)
-      CNV = ESMF_FieldCreateEmpty(name='CNV', rc=rc)
-      CONVCPT = ESMF_FieldCreateEmpty(name='CONVCPT', rc=rc)
-      CONVKE = ESMF_FieldCreateEmpty(name='CONVKE', rc=rc)
-      CONVPHI = ESMF_FieldCreateEmpty(name='CONVPHI', rc=rc)
+      DPEDT = ESMF_FieldEmptyCreate(name='DPEDT', rc=rc)
+      DTDT = ESMF_FieldEmptyCreate(name='DTDT', rc=rc)
+      DUDT = ESMF_FieldEmptyCreate(name='DUDT', rc=rc)
+      DVDT = ESMF_FieldEmptyCreate(name='DVDT', rc=rc)
+      PHIS = ESMF_FieldEmptyCreate(name='PHIS', rc=rc)
+      QTR = ESMF_FieldEmptyCreate(name='QTR', rc=rc)
+      CNV = ESMF_FieldEmptyCreate(name='CNV', rc=rc)
+      CONVCPT = ESMF_FieldEmptyCreate(name='CONVCPT', rc=rc)
+      CONVKE = ESMF_FieldEmptyCreate(name='CONVKE', rc=rc)
+      CONVPHI = ESMF_FieldEmptyCreate(name='CONVPHI', rc=rc)
       
       fbundle = ESMF_FieldBundleCreate(name="fbundle", rc=rc)
 !EOC
@@ -124,60 +124,83 @@ program ESMF_AttributePackageEx
       attrList(2) = 'Mask'
 
       ! DPEDT
-      call ESMF_AttributeAdd(DPEDT, convention=convESMF, purpose=purpGen, rc=rc)
-      call ESMF_AttributeAdd(DPEDT, convention=convCC, purpose=purpGen, &
-        attrList=attrList, nestConvention=convESMF, nestPurpose=purpGen, rc=rc)
+      call ESMF_AttributeAdd(DPEDT, convention=convESMF, purpose=purpGen, &
+        rc=rc)
+      call ESMF_AttributeAdd(DPEDT, convention=convCC, purpose=purpGen,   &
+        attrList=attrList, nestConvention=convESMF, nestPurpose=purpGen,  &
+        rc=rc)
+
+!EOC
 
       ! DTDT
-      call ESMF_AttributeAdd(DTDT, convention=convESMF, purpose=purpGen, rc=rc)
-      call ESMF_AttributeAdd(DTDT, convention=convCC, purpose=purpGen, &
-        attrList=attrList, nestConvention=convESMF, nestPurpose=purpGen, rc=rc)
+      call ESMF_AttributeAdd(DTDT, convention=convESMF, purpose=purpGen, &
+        rc=rc)
+      call ESMF_AttributeAdd(DTDT, convention=convCC, purpose=purpGen,   &
+        attrList=attrList, nestConvention=convESMF, nestPurpose=purpGen, &
+        rc=rc)
 
       ! DUDT
-      call ESMF_AttributeAdd(DUDT, convention=convESMF, purpose=purpGen, rc=rc)
-      call ESMF_AttributeAdd(DUDT, convention=convCC, purpose=purpGen, &
-        attrList=attrList, nestConvention=convESMF, nestPurpose=purpGen, rc=rc)
+      call ESMF_AttributeAdd(DUDT, convention=convESMF, purpose=purpGen, &
+        rc=rc)
+      call ESMF_AttributeAdd(DUDT, convention=convCC, purpose=purpGen,   &
+        attrList=attrList, nestConvention=convESMF, nestPurpose=purpGen, &
+        rc=rc)
 
       ! DVDT
-      call ESMF_AttributeAdd(DVDT, convention=convESMF, purpose=purpGen, rc=rc)
-      call ESMF_AttributeAdd(DVDT, convention=convCC, purpose=purpGen, &
-        attrList=attrList, nestConvention=convESMF, nestPurpose=purpGen, rc=rc)
+      call ESMF_AttributeAdd(DVDT, convention=convESMF, purpose=purpGen, &
+        rc=rc)
+      call ESMF_AttributeAdd(DVDT, convention=convCC, purpose=purpGen,   &
+        attrList=attrList, nestConvention=convESMF, nestPurpose=purpGen, &
+        rc=rc)
 
       ! PHIS
-      call ESMF_AttributeAdd(PHIS, convention=convESMF, purpose=purpGen, rc=rc)
-      call ESMF_AttributeAdd(PHIS, convention=convCC, purpose=purpGen, &
-        attrList=attrList, nestConvention=convESMF, nestPurpose=purpGen, rc=rc)
+      call ESMF_AttributeAdd(PHIS, convention=convESMF, purpose=purpGen, &
+        rc=rc)
+      call ESMF_AttributeAdd(PHIS, convention=convCC, purpose=purpGen,   &
+        attrList=attrList, nestConvention=convESMF, nestPurpose=purpGen, &
+        rc=rc)
 
       ! QTR
-      call ESMF_AttributeAdd(QTR, convention=convESMF, purpose=purpGen, rc=rc)
-      call ESMF_AttributeAdd(QTR, convention=convCC, purpose=purpGen, &
-        attrList=attrList, nestConvention=convESMF, nestPurpose=purpGen, rc=rc)
+      call ESMF_AttributeAdd(QTR, convention=convESMF, purpose=purpGen, &
+        rc=rc)
+      call ESMF_AttributeAdd(QTR, convention=convCC, purpose=purpGen,   &
+        attrList=attrList, nestConvention=convESMF, nestPurpose=purpGen, &
+        rc=rc)
 
       ! CNV
-      call ESMF_AttributeAdd(CNV, convention=convESMF, purpose=purpGen, rc=rc)
-      call ESMF_AttributeAdd(CNV, convention=convCC, purpose=purpGen, &
-        attrList=attrList, nestConvention=convESMF, nestPurpose=purpGen, rc=rc)
+      call ESMF_AttributeAdd(CNV, convention=convESMF, purpose=purpGen, &
+        rc=rc)
+      call ESMF_AttributeAdd(CNV, convention=convCC, purpose=purpGen,   &
+        attrList=attrList, nestConvention=convESMF, nestPurpose=purpGen, &
+        rc=rc)
 
       ! CONVCPT
-      call ESMF_AttributeAdd(CONVCPT, convention=convESMF, purpose=purpGen, rc=rc)
-      call ESMF_AttributeAdd(CONVCPT, convention=convCC, purpose=purpGen, &
-        attrList=attrList, nestConvention=convESMF, nestPurpose=purpGen, rc=rc)
+      call ESMF_AttributeAdd(CONVCPT, convention=convESMF, purpose=purpGen, &
+        rc=rc)
+      call ESMF_AttributeAdd(CONVCPT, convention=convCC, purpose=purpGen,   &
+        attrList=attrList, nestConvention=convESMF, nestPurpose=purpGen,    &
+        rc=rc)
 
       ! CONVKE
-      call ESMF_AttributeAdd(CONVKE, convention=convESMF, purpose=purpGen, rc=rc)
-      call ESMF_AttributeAdd(CONVKE, convention=convCC, purpose=purpGen, &
-        attrList=attrList, nestConvention=convESMF, nestPurpose=purpGen, rc=rc)
+      call ESMF_AttributeAdd(CONVKE, convention=convESMF, purpose=purpGen, &
+        rc=rc)
+      call ESMF_AttributeAdd(CONVKE, convention=convCC, purpose=purpGen,   &
+        attrList=attrList, nestConvention=convESMF, nestPurpose=purpGen,   &
+        rc=rc)
 
       ! CONVPHI
-      call ESMF_AttributeAdd(CONVPHI, convention=convESMF, purpose=purpGen, rc=rc)
-      call ESMF_AttributeAdd(CONVPHI, convention=convCC, purpose=purpGen, &
-        attrList=attrList, nestConvention=convESMF, nestPurpose=purpGen, rc=rc)
+      call ESMF_AttributeAdd(CONVPHI, convention=convESMF, purpose=purpGen, &
+        rc=rc)
+      call ESMF_AttributeAdd(CONVPHI, convention=convCC, purpose=purpGen,   &
+        attrList=attrList, nestConvention=convESMF, nestPurpose=purpGen,    &
+        rc=rc)
       
       call ESMF_AttributeAdd(gridcomp, convention=convESMF, &
         purpose=purpGen, rc=rc)
-!EOC  
 
 !BOE
+!     ... and so on for the other 9 Fields.
+!
 !     The standard Attribute package currently supplied by ESMF for 
 !     Field contains 6 Attributes, 2 of which are set automatically.  
 !     The remaining 4 Attributes in the standard Field Attribute
@@ -187,7 +210,7 @@ program ESMF_AttributePackageEx
 !EOE
 
 !BOC
-      name1 = 'Name'
+      name1 = 'ShortName'
       name2 = 'StandardName'
       name3 = 'LongName'
       name4 = 'Units'
@@ -211,6 +234,8 @@ program ESMF_AttributePackageEx
         purpose=purpGen, rc=rc)
       call ESMF_AttributeSet(DPEDT, name4, value4, convention=convESMF, &
         purpose=purpGen, rc=rc)
+
+!EOC
     
       ! DTDT
       value1 = 'DTDT'
@@ -391,9 +416,10 @@ program ESMF_AttributePackageEx
         purpose=purpGen, rc=rc)
       call ESMF_AttributeSet(CONVPHI, name4, value4, convention=convESMF, &
         purpose=purpGen, rc=rc)
-!EOC  
 
 !BOE
+!     ... and so on for the other 9 Fields.
+!
 !     The standard Attribute package currently supplied by ESMF for 
 !     Component contains 10 Attributes.  These Attributes conform to both
 !     the ESG and CF conventions, and must be set manually.
@@ -408,12 +434,13 @@ program ESMF_AttributePackageEx
       'Fortran 90', convention=convESMF, purpose=purpGen, rc=rc)
     call ESMF_AttributeSet(gridcomp, 'Discipline', &
       'Atmosphere', convention=convESMF, purpose=purpGen, rc=rc)
-    call ESMF_AttributeSet(gridcomp, 'FullName', &
+    call ESMF_AttributeSet(gridcomp, 'ComponentLongName', &
       'Goddard Earth Observing System Version 5 Finite Volume Dynamical Core', &
         convention=convESMF, purpose=purpGen, rc=rc)
     call ESMF_AttributeSet(gridcomp, 'ModelComponentFramework', &
       'ESMF', convention=convESMF, purpose=purpGen, rc=rc)
-    call ESMF_AttributeSet(gridcomp, 'Name', 'GEOS-5 FV dynamical core', &
+    call ESMF_AttributeSet(gridcomp, 'ComponentShortName', &
+      'GEOS-5 FV dynamical core', &
       convention=convESMF, purpose=purpGen, rc=rc)
     call ESMF_AttributeSet(gridcomp, 'PhysicalDomain', &
       'Earth system', convention=convESMF, purpose=purpGen, rc=rc)
@@ -428,18 +455,18 @@ program ESMF_AttributePackageEx
 !EOE
 
 !BOC
-      call ESMF_FieldBundleAdd(fbundle, DPEDT, rc=rc)
-      call ESMF_FieldBundleAdd(fbundle, DTDT, rc=rc)
-      call ESMF_FieldBundleAdd(fbundle, DUDT, rc=rc)
-      call ESMF_FieldBundleAdd(fbundle, DVDT, rc=rc)
-      call ESMF_FieldBundleAdd(fbundle, PHIS, rc=rc)
-      call ESMF_FieldBundleAdd(fbundle, QTR, rc=rc)
-      call ESMF_FieldBundleAdd(fbundle, CNV, rc=rc)
-      call ESMF_FieldBundleAdd(fbundle, CONVCPT, rc=rc)
-      call ESMF_FieldBundleAdd(fbundle, CONVKE, rc=rc)
-      call ESMF_FieldBundleAdd(fbundle, CONVPHI, rc=rc)
+      call ESMF_FieldBundleAdd(fbundle, (/DPEDT/), rc=rc)
+      call ESMF_FieldBundleAdd(fbundle, (/DTDT/), rc=rc)
+      call ESMF_FieldBundleAdd(fbundle, (/DUDT/), rc=rc)
+      call ESMF_FieldBundleAdd(fbundle, (/DVDT/), rc=rc)
+      call ESMF_FieldBundleAdd(fbundle, (/PHIS/), rc=rc)
+      call ESMF_FieldBundleAdd(fbundle, (/QTR/), rc=rc)
+      call ESMF_FieldBundleAdd(fbundle, (/CNV/), rc=rc)
+      call ESMF_FieldBundleAdd(fbundle, (/CONVCPT/), rc=rc)
+      call ESMF_FieldBundleAdd(fbundle, (/CONVKE/), rc=rc)
+      call ESMF_FieldBundleAdd(fbundle, (/CONVPHI/), rc=rc)
       
-      call ESMF_StateAdd(exportState, fieldbundle=fbundle, rc=rc)
+      call ESMF_StateAdd(exportState, fieldbundleList=(/fbundle/), rc=rc)
 !EOC
 
 !BOE
@@ -474,7 +501,6 @@ program ESMF_AttributePackageEx
         attwriteflag=ESMF_ATTWRITE_XML,rc=rc)
       call ESMF_AttributeWrite(gridcomp,convESMF,purpGen,rc=rc)
 !EOC
-        if (rc/=ESMF_SUCCESS) goto 10
       endif
 
     ! Destroy
@@ -499,10 +525,6 @@ program ESMF_AttributePackageEx
       print *, "--------------------------------------- "
   endif
 
-    call ESMF_Finalize(rc=rc)
-
-10 continue
-  if (rc/=ESMF_SUCCESS) finalrc = ESMF_FAILURE
   call ESMF_Finalize(rc=rc)
   
   if (rc/=ESMF_SUCCESS) finalrc = ESMF_FAILURE

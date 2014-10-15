@@ -1,0 +1,9 @@
+20110802 
+20110803 
+/discover/nobackup/sakella/GEOSadas/src/GMAO_Shared/GEOS_Util/preprocess/FRACI/avhrr-only-v2.20110802.nc 
+/discover/nobackup/sakella/GEOSadas/src/GMAO_Shared/GEOS_Util/preprocess/FRACI/nt_20110802_f17_nrt_n.bin 
+/discover/nobackup/sakella/GEOSadas/src/GMAO_Shared/GEOS_Util/preprocess/FRACI/nt_20110802_f17_nrt_s.bin 
+/discover/nobackup/sakella/GEOSadas/src/GMAO_Shared/GEOS_Util/preprocess/FRACI/20110802-UKMO-L4HRfnd-GLOB-v01-fv02-OSTIA.nc 
+1440 
+2880 
+1

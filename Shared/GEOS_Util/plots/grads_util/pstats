@@ -1,0 +1,27 @@
+function stats (args)
+name = subwrd(args,1)
+xpos = subwrd(args,2)
+ypos = subwrd(args,3)
+
+'q dims'
+xline = sublin(result,2)
+lon1  = subwrd(xline,6)
+lon2  = subwrd(xline,8)
+yline = sublin(result,3)
+lat1  = subwrd(yline,6)
+lat2  = subwrd(yline,8)
+
+'define avg = aave('name',lon='lon1',lon='lon2',lat='lat1',lat='lat2')'
+'define var = ('name')*('name') - avg*avg'
+'define var = aave(var,lon='lon1',lon='lon2',lat='lat1',lat='lat2')'
+'define std = sqrt(var)'
+'d avg'
+avg = subwrd(result,4)
+'d std'
+std = subwrd(result,4)
+
+say 'Average of 'name' = 'avg' over lats: ('lat1','lat2')  lons: ('lon1','lon2')'
+say 'Std.Dev of 'name' = 'std' over lats: ('lat1','lat2')  lons: ('lon1','lon2')'
+'draw string 'xpos' 'ypos' ave: 'avg'  std: 'std
+return avg' 'std
+

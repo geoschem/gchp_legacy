@@ -1,7 +1,7 @@
-! $Id: ESMF_GridToMeshUTest.F90,v 1.15.2.1 2010/02/05 19:57:51 svasquez Exp $
+! $Id$
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2010, University Corporation for Atmospheric Research,
+! Copyright 2002-2012, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -27,14 +27,14 @@ program ESMF_GridToMeshUTest
 !-----------------------------------------------------------------------------
 ! !USES:
   use ESMF_TestMod     ! test methods
-  use ESMF_Mod
+  use ESMF
 
   implicit none
 
 !------------------------------------------------------------------------------
 ! The following line turns the CVS identifier string into a printable variable.
   character(*), parameter :: version = &
-    '$Id: ESMF_GridToMeshUTest.F90,v 1.15.2.1 2010/02/05 19:57:51 svasquez Exp $'
+    '$Id$'
 !------------------------------------------------------------------------------
     
   ! cumulative result: count failures; no failures equals "all pass"
@@ -49,7 +49,7 @@ program ESMF_GridToMeshUTest
   logical :: correct
   type(ESMF_Grid) :: grid2D
   type(ESMF_VM) :: vm
-  real(ESMF_KIND_R8), pointer :: fptr2D(:,:)
+  real(ESMF_KIND_R8), pointer :: farrayPtr2D(:,:)
   integer :: clbnd(2),cubnd(2)
   integer :: i1,i2
   integer :: lDE, localDECount
@@ -61,9 +61,9 @@ program ESMF_GridToMeshUTest
 
   ! get global VM
   call ESMF_VMGetGlobal(vm, rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   call ESMF_VMGet(vm, localPet=localPet, petCount=petCount, rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
   !-----------------------------------------------------------------------------
   !NEX_UTest_Multi_Proc_Only
@@ -74,7 +74,7 @@ program ESMF_GridToMeshUTest
   correct=.true.
   rc=ESMF_SUCCESS
 
-   grid2D=ESMF_GridCreateShapeTile(minIndex=(/1,1/),maxIndex=(/10,10/),regDecomp=(/4,4/), &
+   grid2D=ESMF_GridCreateNoPeriDim(minIndex=(/1,1/),maxIndex=(/10,10/),regDecomp=(/4,4/), &
                               gridEdgeLWidth=(/0,0/), gridEdgeUWidth=(/0,0/), &
                               indexflag=ESMF_INDEX_GLOBAL, &
                               rc=localrc)
@@ -95,7 +95,7 @@ program ESMF_GridToMeshUTest
  
      !! get coord 1
      call ESMF_GridGetCoord(grid2D, localDE=lDE, staggerLoc=ESMF_STAGGERLOC_CENTER, coordDim=1, &
-                            computationalLBound=clbnd, computationalUBound=cubnd, fptr=fptr2D, rc=localrc)
+                            computationalLBound=clbnd, computationalUBound=cubnd, farrayPtr=farrayPtr2D, rc=localrc)
      if (localrc .ne. ESMF_SUCCESS) rc=ESMF_FAILURE    
 
     write(*,*) lDE," ::",clbnd,":",cubnd
@@ -103,19 +103,19 @@ program ESMF_GridToMeshUTest
      !! set coord 1  
      do i1=clbnd(1),cubnd(1)
      do i2=clbnd(2),cubnd(2)
-        fptr2D(i1,i2)=REAL(i1,ESMF_KIND_R8)
+        farrayPtr2D(i1,i2)=REAL(i1,ESMF_KIND_R8)
      enddo
      enddo
 
      !! get coord 2
      call ESMF_GridGetCoord(grid2D, localDE=lDE, staggerLoc=ESMF_STAGGERLOC_CENTER, coordDim=2, &
-                            computationalLBound=clbnd, computationalUBound=cubnd, fptr=fptr2D, rc=localrc)
+                            computationalLBound=clbnd, computationalUBound=cubnd, farrayPtr=farrayPtr2D, rc=localrc)
      if (localrc .ne. ESMF_SUCCESS) rc=ESMF_FAILURE    
 
      !! set coord 2  
      do i1=clbnd(1),cubnd(1)
      do i2=clbnd(2),cubnd(2)
-        fptr2D(i1,i2)=REAL(i2,ESMF_KIND_R8)
+        farrayPtr2D(i1,i2)=REAL(i2,ESMF_KIND_R8)
      enddo
      enddo
   enddo    
@@ -124,10 +124,6 @@ program ESMF_GridToMeshUTest
   mesh=ESMF_GridToMesh(grid=grid2D, staggerLoc=ESMF_STAGGERLOC_CENTER, &
             isSphere=0, rc=localrc)
   if (localrc .ne. ESMF_SUCCESS) rc=ESMF_FAILURE    
-
-  !!  Switch to F90 interface above, because that's what's used in Regrid
-  !  call gridtomesh_test(vm, grid2D, ESMF_STAGGERLOC_CENTER, localrc)
-  !  if (localrc .ne. ESMF_SUCCESS) rc=ESMF_FAILURE    
 
   call ESMF_GridDestroy(grid2D, rc=localrc)
   if (localrc .ne. ESMF_SUCCESS) rc=ESMF_FAILURE    

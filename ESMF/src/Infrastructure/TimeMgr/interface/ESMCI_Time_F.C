@@ -1,7 +1,7 @@
-// $Id: ESMCI_Time_F.C,v 1.3.4.1 2010/02/05 20:00:13 svasquez Exp $
+// $Id$
 //
 // Earth System Modeling Framework
-// Copyright 2002-2010, University Corporation for Atmospheric Research,
+// Copyright 2002-2012, University Corporation for Atmospheric Research,
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 // Laboratory, University of Michigan, National Centers for Environmental
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -17,6 +17,8 @@
 //------------------------------------------------------------------------------
 // INCLUDES
 //------------------------------------------------------------------------------
+#include <cstdio>
+
 #include <ESMCI_F90Interface.h>
 #include <ESMCI_TimeInterval.h>
 #include <ESMCI_Time.h>
@@ -52,7 +54,7 @@ extern "C" {
                                 ESMC_I4 *sN, ESMC_I8 *sN_i8,
                                 ESMC_I4 *sD, ESMC_I8 *sD_i8,
                                 Calendar **calendar,
-                                ESMC_CalendarType *calendarType,
+                                ESMC_CalKind_Flag *calkindflag,
                                 int *timeZone,
                                 int *status) {
           int rc = (ptr)->Time::set(
@@ -81,7 +83,7 @@ extern "C" {
                        ESMC_NOT_PRESENT_FILTER(sD),
                        ESMC_NOT_PRESENT_FILTER(sD_i8),
                        ESMC_NOT_PRESENT_FILTER(calendar),
-                       ESMC_NOT_PRESENT_FILTER(calendarType),
+                       ESMC_NOT_PRESENT_FILTER(calkindflag),
                        ESMC_NOT_PRESENT_FILTER(timeZone) );
           if (ESMC_PRESENT(status)) *status = rc;
        }
@@ -101,7 +103,7 @@ extern "C" {
                               ESMC_I4 *sN, ESMC_I8 *sN_i8,
                               ESMC_I4 *sD, ESMC_I8 *sD_i8,
                               Calendar **calendar, 
-                              ESMC_CalendarType *calendarType, 
+                              ESMC_CalKind_Flag *calkindflag, 
                               int *timeZone,
                               int *timeStringLen, int *tempTimeStringLen, 
                               char *tempTimeString,
@@ -113,7 +115,9 @@ extern "C" {
                               ESMC_I4 *dayOfYear,
                               ESMC_R8 *dayOfYear_r8,
                               TimeInterval *dayOfYear_intvl,
-                              int *status) {
+                              int *status,
+                              ESMCI_FortranStrLenArg tempTime_l,
+                              ESMCI_FortranStrLenArg tempTimeISOFrac_l) {
           int rc = (ptr)->Time::get(
                        ESMC_NOT_PRESENT_FILTER(yy),
                        ESMC_NOT_PRESENT_FILTER(yy_i8),
@@ -140,7 +144,7 @@ extern "C" {
                        ESMC_NOT_PRESENT_FILTER(sD),
                        ESMC_NOT_PRESENT_FILTER(sD_i8),
                        ESMC_NOT_PRESENT_FILTER(calendar),
-                       ESMC_NOT_PRESENT_FILTER(calendarType),
+                       ESMC_NOT_PRESENT_FILTER(calkindflag),
                        ESMC_NOT_PRESENT_FILTER(timeZone),
                                           // always present internal arguments
                                               *timeStringLen,
@@ -199,35 +203,35 @@ extern "C" {
 
        void FTN(c_esmc_timereadrestart)(Time *ptr, int *nameLen,
                                         const char *name,
-                                        ESMC_IOSpec *iospec,   
-                                        int *status) {
+                                        int *status,
+                                        ESMCI_FortranStrLenArg name_l) {
           int rc = (ptr)->Time::readRestart(
                                                *nameLen,  // always present 
                                                           //  internal argument.
-                                                name,      // required.
-                        ESMC_NOT_PRESENT_FILTER(iospec) );
+                                                name);    // required.
           if (ESMC_PRESENT(status)) *status = rc;
        }
 
        void FTN(c_esmc_timewriterestart)(Time *ptr, 
-                                         ESMC_IOSpec *iospec,
                                          int *status) {
-          int rc = (ptr)->Time::writeRestart(
-                        ESMC_NOT_PRESENT_FILTER(iospec) );
+          int rc = (ptr)->Time::writeRestart();
           if (ESMC_PRESENT(status)) *status = rc;
        }
 
        void FTN(c_esmc_timevalidate)(Time *ptr, const char *options,
-                                     int *status) {
+                                     int *status,
+                                     ESMCI_FortranStrLenArg options_l) {
           int rc = (ptr)->Time::validate(
                     ESMC_NOT_PRESENT_FILTER(options) );
           if (ESMC_PRESENT(status)) *status = rc;
        }
 
        void FTN(c_esmc_timeprint)(Time *ptr, const char *options,
-                                  int *status) {
+                                  int *status,
+                                  ESMCI_FortranStrLenArg options_l) {
           int rc = (ptr)->Time::print(
                  ESMC_NOT_PRESENT_FILTER(options) );
+          fflush (stdout);
           if (ESMC_PRESENT(status)) *status = rc;
        }
 };

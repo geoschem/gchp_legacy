@@ -1,7 +1,7 @@
-// $Id: ESMCI_Util.h,v 1.22.2.1 2010/02/05 20:01:03 svasquez Exp $
+// $Id: ESMCI_Util.h,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
 //
 // Earth System Modeling Framework
-// Copyright 2002-2010, University Corporation for Atmospheric Research,
+// Copyright 2002-2012, University Corporation for Atmospheric Research,
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 // Laboratory, University of Michigan, National Centers for Environmental
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -22,12 +22,7 @@
  // Anything public or esmf-wide should be up higher at the top level
  // include files.
 
-#include "stdio.h"
-
-#include "ESMC_Start.h"
-
-#include "ESMF_InitMacros.inc"
-
+#include <string>
 #include "ESMC_Util.h"
 
 //-----------------------------------------------------------------------------
@@ -46,6 +41,8 @@
 // WARNING:  the values of these enums MUST match the values defined
 //  in ../src/ESMF_UtilTypes.F90
 
+// Maximum length of a file name, including its path.
+#define ESMC_MAXPATHLEN 1024
 
 // ESMF class states
 enum ESMC_Status { ESMF_STATUS_UNINIT=1,
@@ -68,13 +65,19 @@ enum ESMC_BlockingFlag { ESMF_BLOCKING=1,
 enum ESMC_ContextFlag { ESMF_CHILD_IN_NEW_VM=1,
                         ESMF_CHILD_IN_PARENT_VM};
 
-// de pin flag
-enum ESMC_DePinFlag { ESMF_DE_PIN_PET=1,
-                        ESMF_DE_PIN_VAS};
+// pin flag
+enum ESMC_Pin_Flag { ESMF_PIN_DE_TO_PET=1,
+                     ESMF_PIN_DE_TO_VAS};
 
 // direction type
-enum ESMC_Direction { ESMF_MODE_FORWARD=1,
-                      ESMF_MODE_REVERSE};
+enum ESMC_Direction { ESMF_DIRECTION_FORWARD=1,
+                      ESMF_DIRECTION_REVERSE};
+
+// io format type
+enum ESMC_IOFmtFlag { ESMF_IOFMT_BIN=0,
+                      ESMF_IOFMT_NETCDF,
+                      ESMF_IOFMT_NETCDF4P,
+                      ESMF_IOFMT_NETCDF4C};
 
 // indexflag type
 enum ESMC_IndexFlag { ESMF_INDEX_DELOCAL=0,
@@ -89,15 +92,25 @@ enum ESMC_InquireFlag { ESMF_INQUIREONLY=ESMF_TRUE,
 enum ESMC_ProxyFlag { ESMF_PROXYYES=1,
                       ESMF_PROXYNO};
 
+// halostartregionflag type
+enum ESMC_HaloStartRegionFlag { ESMF_REGION_EXCLUSIVE=0,
+                                ESMF_REGION_COMPUTATIONAL};
 // regionflag type
 enum ESMC_RegionFlag { ESMF_REGION_TOTAL=0,
                        ESMF_REGION_SELECT,
                        ESMF_REGION_EMPTY};
 
+// commflag type
+enum ESMC_CommFlag { ESMF_COMM_BLOCKING=0,
+                     ESMF_COMM_NBSTART,
+                     ESMF_COMM_NBTESTFINISH,
+                     ESMF_COMM_NBWAITFINISH,
+                     ESMF_COMM_CANCEL};
+
 // Attribute reconcile type
-enum ESMC_AttCopyFlag { ESMC_ATTCOPY_HYBRID=0,
-                        ESMC_ATTCOPY_REFERENCE,
-                        ESMC_ATTCOPY_VALUE};
+enum ESMC_AttCopyFlag { ESMF_COPY_ALIAS=0,
+                        ESMF_COPY_REFERENCE,
+                        ESMF_COPY_VALUE};
 
 // attgetcount flag type
 enum ESMC_AttGetCountFlag { ESMC_ATTGETCOUNT_ATTRIBUTE=0,
@@ -105,10 +118,6 @@ enum ESMC_AttGetCountFlag { ESMC_ATTGETCOUNT_ATTRIBUTE=0,
                             ESMC_ATTGETCOUNT_ATTLINK,
                             ESMC_ATTGETCOUNT_TOTAL};
                         
-// nested Attribute package flag type
-enum ESMC_AttPackNestFlag { ESMC_ATTPACKNEST_OFF=0,
-                            ESMC_ATTPACKNEST_ON};
-
 // Attribute reconcile type
 enum ESMC_AttReconcileFlag { ESMC_ATTRECONCILE_OFF=0,
                             ESMC_ATTRECONCILE_ON};
@@ -173,12 +182,24 @@ void FTN(esmf_pointerdifference)(int *n, short *s1, short *s2, int *len);
 
 }
 
+// generate a Globally Unique ID (GUID) in a platform independent way (e.g.
+//   does not require UUID library).
+int ESMC_InitializeGUID(void);
+int ESMC_GenerateGUID(std::string &guid);
+
+// Find and replace all occurrences of a string in a given string with another.
+// TODO:  When C++11 STL becomes supported in all our supported
+// compilers/versions, replace with std::tr1::regex_replace() or simply
+// std::regex_replace().
+int ESMC_FindAndReplaceAll(std::string &subjectStr,
+                           const std::string& searchStr,
+                           const std::string& replaceStr);
+
 // general reduction operator value - MUST MATCH F90
 enum ESMC_Operation { ESMF_SUM=1, ESMF_MIN, ESMF_MAX};
 
 
 extern ESMC_ObjectID ESMC_ID_BASE;
-extern ESMC_ObjectID ESMC_ID_IOSPEC;
 extern ESMC_ObjectID ESMC_ID_LOGERR;
 extern ESMC_ObjectID ESMC_ID_TIME;
 extern ESMC_ObjectID ESMC_ID_CALENDAR;
@@ -210,7 +231,7 @@ extern ESMC_ObjectID ESMC_ID_STATE;
 extern ESMC_ObjectID ESMC_ID_GRIDCOMPONENT;
 extern ESMC_ObjectID ESMC_ID_CPLCOMPONENT;
 extern ESMC_ObjectID ESMC_ID_COMPONENT;
+extern ESMC_ObjectID ESMC_ID_XGRID;
 extern ESMC_ObjectID ESMC_ID_NONE;
-
 
 #endif  // ESMCI_UTIL_H

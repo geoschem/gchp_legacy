@@ -1,7 +1,7 @@
-! $Id: ESMF_StdCompMethodsUTest.F90,v 1.1.2.1 2010/02/05 20:04:30 svasquez Exp $
+! $Id$
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2010, University Corporation for Atmospheric Research,
+! Copyright 2002-2012, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -14,7 +14,7 @@
 module ESMF_StdCompMethods_mod
 
   ! modules
-  use ESMF_Mod
+  use ESMF
   
   implicit none
   
@@ -63,23 +63,23 @@ module ESMF_StdCompMethods_mod
     rc = ESMF_SUCCESS
 
     ! register INIT method
-    call ESMF_GridCompSetEntryPoint(gcomp, ESMF_SETINIT, &
+    call ESMF_GridCompSetEntryPoint(gcomp, ESMF_METHOD_INITIALIZE, &
       userRoutine=gcomp_init, rc=rc)
     if (rc/=ESMF_SUCCESS) return ! bail out
     ! register RUN method
-    call ESMF_GridCompSetEntryPoint(gcomp, ESMF_SETRUN, &
+    call ESMF_GridCompSetEntryPoint(gcomp, ESMF_METHOD_RUN, &
       userRoutine=gcomp_run, rc=rc)
     if (rc/=ESMF_SUCCESS) return ! bail out
     ! register FINAL method
-    call ESMF_GridCompSetEntryPoint(gcomp, ESMF_SETFINAL, &
+    call ESMF_GridCompSetEntryPoint(gcomp, ESMF_METHOD_FINALIZE, &
       userRoutine=gcomp_final, rc=rc)
     if (rc/=ESMF_SUCCESS) return ! bail out
     ! register WRITERESTART method
-    call ESMF_GridCompSetEntryPoint(gcomp, ESMF_SETWRITERESTART, &
+    call ESMF_GridCompSetEntryPoint(gcomp, ESMF_METHOD_WRITERESTART, &
       userRoutine=gcomp_writerestart, rc=rc)
     if (rc/=ESMF_SUCCESS) return ! bail out
     ! register READESTART method
-    call ESMF_GridCompSetEntryPoint(gcomp, ESMF_SETREADRESTART, &
+    call ESMF_GridCompSetEntryPoint(gcomp, ESMF_METHOD_READRESTART, &
       userRoutine=gcomp_readrestart, rc=rc)
     if (rc/=ESMF_SUCCESS) return ! bail out
 
@@ -169,7 +169,7 @@ module ESMF_StdCompMethods_mod
     call ESMF_VMGetGlobal(vm, rc=rc)
     call ESMF_VMGet(vm, pthreadsEnabledFlag=pthreadsEnabled, rc=rc)
     if (pthreadsEnabled) then
-      call ESMF_CplCompSetVMMaxThreads(cplcomp, max=1, rc=rc)
+      call ESMF_CplCompSetVMMaxThreads(cplcomp, maxPetCountPerVas=1, rc=rc)
     endif
 #endif
 
@@ -198,7 +198,7 @@ module ESMF_StdCompMethods_mod
     call ESMF_VMGetGlobal(vm, rc=rc)
     call ESMF_VMGet(vm, pthreadsEnabledFlag=pthreadsEnabled, rc=rc)
     if (pthreadsEnabled) then
-      call ESMF_CplCompSetVMMaxPEs(cplcomp, max=1, rc=rc)
+      call ESMF_CplCompSetVMMaxPEs(cplcomp, maxPeCountPerPet=1, rc=rc)
     endif
 #endif
 
@@ -213,23 +213,23 @@ module ESMF_StdCompMethods_mod
     rc = ESMF_SUCCESS
 
     ! register INIT method
-    call ESMF_CplCompSetEntryPoint(cplcomp, ESMF_SETINIT, &
+    call ESMF_CplCompSetEntryPoint(cplcomp, ESMF_METHOD_INITIALIZE, &
       userRoutine=cplcomp_init, rc=rc)
     if (rc/=ESMF_SUCCESS) return ! bail out
     ! register RUN method
-    call ESMF_CplCompSetEntryPoint(cplcomp, ESMF_SETRUN, &
+    call ESMF_CplCompSetEntryPoint(cplcomp, ESMF_METHOD_RUN, &
       userRoutine=cplcomp_run, rc=rc)
     if (rc/=ESMF_SUCCESS) return ! bail out
     ! register FINAL method
-    call ESMF_CplCompSetEntryPoint(cplcomp, ESMF_SETFINAL, &
+    call ESMF_CplCompSetEntryPoint(cplcomp, ESMF_METHOD_FINALIZE, &
       userRoutine=cplcomp_final, rc=rc)
     if (rc/=ESMF_SUCCESS) return ! bail out
     ! register WRITERESTART method
-    call ESMF_CplCompSetEntryPoint(cplcomp, ESMF_SETWRITERESTART, &
+    call ESMF_CplCompSetEntryPoint(cplcomp, ESMF_METHOD_WRITERESTART, &
       userRoutine=cplcomp_writerestart, rc=rc)
     if (rc/=ESMF_SUCCESS) return ! bail out
     ! register READESTART method
-    call ESMF_CplCompSetEntryPoint(cplcomp, ESMF_SETREADRESTART, &
+    call ESMF_CplCompSetEntryPoint(cplcomp, ESMF_METHOD_READRESTART, &
       userRoutine=cplcomp_readrestart, rc=rc)
     if (rc/=ESMF_SUCCESS) return ! bail out
 
@@ -319,7 +319,7 @@ program ESMF_StdCompMethodsUTest
 !-----------------------------------------------------------------------------
 ! !USES:
   use ESMF_TestMod     ! test methods
-  use ESMF_Mod
+  use ESMF
   use ESMF_StdCompMethods_mod
 
   implicit none
@@ -327,7 +327,7 @@ program ESMF_StdCompMethodsUTest
 !------------------------------------------------------------------------------
   ! The following line turns the CVS identifier string into a printable variable.
   character(*), parameter :: version = &
-    '$Id: ESMF_StdCompMethodsUTest.F90,v 1.1.2.1 2010/02/05 20:04:30 svasquez Exp $'
+    '$Id$'
 !------------------------------------------------------------------------------
   ! cumulative result: count failures; no failures equals "all pass"
   integer :: result = 0

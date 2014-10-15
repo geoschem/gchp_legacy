@@ -1,0 +1,84 @@
+'set x 1'
+'sety'
+'set gxout fwrite'
+t=1
+while(t<=35)
+  'set t 't
+
+* Write uwnd
+* ----------
+   z=1
+   while(z<=25)
+   if( z != 6 & z != 8 )
+      'set z 'z
+      'getinfo level'
+       lev = result
+       say "UWND Level = "lev
+      'd uwnd'
+   endif
+   z=z+1
+   endwhile
+       say "  "
+
+* Write uwnd
+* ----------
+   z=1
+   while(z<=25)
+   if( z != 6 & z != 8 )
+      'set z 'z
+      'getinfo level'
+       lev = result
+       say "VWND Level = "lev
+      'd vwnd'
+   endif
+   z=z+1
+   endwhile
+       say "  "
+
+* Write uwnd
+* ----------
+   z=1
+   while(z<=25)
+   if( z != 6 & z != 8 )
+      'set z 'z
+      'getinfo level'
+       lev = result
+       say "TMPU Level = "lev
+      'd tmpu'
+   endif
+   z=z+1
+   endwhile
+       say "  "
+
+* Write uwnd
+* ----------
+   z=1
+   while(z<=25)
+   if( z != 6 & z != 8 )
+      'set z 'z
+      'getinfo level'
+       lev = result
+       say "SPHU Level = "lev
+      'd sphu'
+   endif
+   z=z+1
+   endwhile
+       say "  "
+
+* Write uwnd
+* ----------
+   z=1
+   while(z<=25)
+   if( z != 6 & z != 8 )
+      'set z 'z
+      'getinfo level'
+       lev = result
+       say "RH  Level = "lev
+      'd rh'
+   endif
+   z=z+1
+   endwhile
+       say "  "
+
+t=t+1
+endwhile

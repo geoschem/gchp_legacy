@@ -1,7 +1,7 @@
-! $Id: ESMF_AttributeStateUTest.F90,v 1.25.2.1 2010/02/05 20:03:41 svasquez Exp $
+! $Id$
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2010, University Corporation for Atmospheric Research,
+! Copyright 2002-2012, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -29,13 +29,13 @@ program ESMF_AttributeStateUTest
 !-----------------------------------------------------------------------------
 ! !USES:
       use ESMF_TestMod     ! test methods
-      use ESMF_Mod         ! the ESMF Framework
+      use ESMF         ! the ESMF Framework
       implicit none
 
 !------------------------------------------------------------------------------
 ! The following line turns the CVS identifier string into a printable variable.
       character(*), parameter :: version = &
-      '$Id: ESMF_AttributeStateUTest.F90,v 1.25.2.1 2010/02/05 20:03:41 svasquez Exp $'
+      '$Id$'
 !------------------------------------------------------------------------------
 
 !-------------------------------------------------------------------------
@@ -52,7 +52,7 @@ program ESMF_AttributeStateUTest
       character(ESMF_MAXSTR) :: conv, purp, attrname, &
                                 attrnameOut, attrvalue
       integer                :: rc, count, items
-      type(ESMF_TypeKind)    :: attrTK
+      type(ESMF_TypeKind_Flag)    :: attrTK
 
       real(ESMF_KIND_I8), dimension(3)       :: inR8l, defaultR8l, dfltoutR8l, outR8l
       character(ESMF_MAXSTR)           :: inChar, outChar, defaultChar, dfltoutChar
@@ -108,18 +108,22 @@ program ESMF_AttributeStateUTest
       !------------------------------------------------------------------------
       ! preparations
       ! fields
-      ffs = ESMF_FieldCreateEmpty(name="fieldforstate", rc=rc)
+      ffs = ESMF_FieldEmptyCreate(name="fieldforstate", rc=rc)
       
       ! field bundles
       fbfs = ESMF_FieldBundleCreate(name="fieldbundleforstate", rc=rc)
       
       ! states
-      state = ESMF_StateCreate("original state", ESMF_STATE_IMPORT, rc=rc)
-      sfs = ESMF_StateCreate("stateforstatelink", ESMF_STATE_EXPORT, rc=rc)
-      stateValue = ESMF_StateCreate("stateforvaluecopy", ESMF_STATE_EXPORT, rc=rc)
-      stateHybrid = ESMF_StateCreate("stateforhybridcopy", ESMF_STATE_EXPORT, rc=rc)
+      state = ESMF_StateCreate(name="original state",  &
+                               stateintent=ESMF_STATEINTENT_IMPORT, rc=rc)
+      sfs   = ESMF_StateCreate(name="stateforstatelink", &
+                               stateintent=ESMF_STATEINTENT_EXPORT, rc=rc)
+      stateValue = ESMF_StateCreate(name="stateforvaluecopy",  &
+                               stateintent=ESMF_STATEINTENT_EXPORT, rc=rc)
+      stateHybrid = ESMF_StateCreate(name="stateforhybridcopy",  &
+                               stateintent=ESMF_STATEINTENT_EXPORT, rc=rc)
 
-      if (rc .ne. ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+      if (rc .ne. ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
 !-------------------------------------------------------------------------
 !  STATE
@@ -777,9 +781,9 @@ program ESMF_AttributeStateUTest
       ! Too Short Get an ESMF_R8 list Attribute from a State Test
       call ESMF_AttributeGet(state, name="AttrR8l", &
         valueList=outR8lLong(1:2), itemCount=itemCount, rc=rc)
-      write(failMsg, *) "Did not return ESMF_RC_ARG_BAD"
+      write(failMsg, *) "Did not return ESMF_RC_ATTR_ITEMSOFF"
       write(name, *) "Getting an ESMF_R8l Attribute from a State Test with short valueList"
-      call ESMF_Test(rc==ESMF_RC_ARG_BAD, name, failMsg, result, ESMF_SRCLINE)
+      call ESMF_Test(rc/=ESMF_SUCCESS, name, failMsg, result, ESMF_SRCLINE)
       !------------------------------------------------------------------------
 
       itemCount = 3
@@ -810,9 +814,9 @@ program ESMF_AttributeStateUTest
       ! Too Short Get a char list Attribute from a State Test
       call ESMF_AttributeGet(state, name="Charl", &
         valueList=outCharlLong(1:2),itemCount=itemCount, rc=rc)
-      write(failMsg, *) "Did not return ESMF_RC_ARG_BAD"
+      write(failMsg, *) "Did not return ESMF_RC_ATTR_ITEMSOFF"
       write(name, *) "Getting an Attribute char list from a State test with short valueList"
-      call ESMF_Test((rc==ESMF_RC_ARG_BAD), name, failMsg, result, ESMF_SRCLINE)
+      call ESMF_Test((rc/=ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
       !------------------------------------------------------------------------
 
       itemCount = 3
@@ -1160,7 +1164,8 @@ program ESMF_AttributeStateUTest
         attwriteflag=ESMF_ATTWRITE_XML, rc=rc)
       write(failMsg, *) "Did not return ESMF_SUCCESS"
       write(name, *) "Writing an Attribute package to .xml from a State Test"
-      call ESMF_Test((rc==ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+      call ESMF_Test((rc==ESMF_SUCCESS .or. rc==ESMF_RC_LIB_NOT_PRESENT), &
+                      name, failMsg, result, ESMF_SRCLINE)
       !------------------------------------------------------------------------
 
       !EX_UTest
@@ -1179,7 +1184,7 @@ program ESMF_AttributeStateUTest
       !EX_UTest
       ! Copy a State Attribute hierarchy VALUE ONE LEVEL Test
       call ESMF_AttributeCopy(state, stateValue, &
-        attcopyflag=ESMF_ATTCOPY_VALUE, atttreeflag=ESMF_ATTTREE_OFF, rc=rc)
+        copyflag=ESMF_COPY_VALUE, atttreeflag=ESMF_ATTTREE_OFF, rc=rc)
       write(failMsg, *) "Did not return ESMF_SUCCESS"
       write(name, *) "Copying a State Attribute hierarchy VALUE ONE LEVEL Test"
       call ESMF_Test((rc==ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
@@ -1188,7 +1193,7 @@ program ESMF_AttributeStateUTest
       !EX_UTest
       ! Copy a State Attribute hierarchy HYBRID Test
       call ESMF_AttributeCopy(state, stateHybrid, &
-        attcopyflag=ESMF_ATTCOPY_HYBRID, atttreeflag=ESMF_ATTTREE_ON, rc=rc)
+        copyflag=ESMF_COPY_REFERENCE, atttreeflag=ESMF_ATTTREE_ON, rc=rc)
       write(failMsg, *) "Did not return ESMF_SUCCESS"
       write(name, *) "Copying a State Attribute hierarchy HYBRID Test"
       call ESMF_Test((rc==ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
@@ -1231,7 +1236,7 @@ program ESMF_AttributeStateUTest
       call ESMF_AttributeLink(state, sfs, rc=rc)
       write(failMsg, *) "Did not return ESMC_RC_ATTR_LINK"
       write(name, *) "Linking a State hierarchy to a State hierarchy Test, again"
-      call ESMF_Test((rc==ESMC_RC_ATTR_LINK), name, failMsg, result, ESMF_SRCLINE)
+      call ESMF_Test((rc==ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
       !------------------------------------------------------------------------
 
       !EX_UTest
@@ -1239,7 +1244,7 @@ program ESMF_AttributeStateUTest
       call ESMF_AttributeLink(state, ffs, rc=rc)
       write(failMsg, *) "Did not return ESMC_RC_ATTR_LINK"
       write(name, *) "Linking a State hierarchy to a Field hierarchy Test, again"
-      call ESMF_Test((rc==ESMC_RC_ATTR_LINK), name, failMsg, result, ESMF_SRCLINE)
+      call ESMF_Test((rc==ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
       !------------------------------------------------------------------------
 
       !EX_UTest
@@ -1247,7 +1252,7 @@ program ESMF_AttributeStateUTest
       call ESMF_AttributeLink(state, fbfs, rc=rc)
       write(failMsg, *) "Did not return ESMC_RC_ATTR_LINK"
       write(name, *) "Linking a State hierarchy to a FieldBundle hierarchy Test, again"
-      call ESMF_Test((rc==ESMC_RC_ATTR_LINK), name, failMsg, result, ESMF_SRCLINE)
+      call ESMF_Test((rc==ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
       !------------------------------------------------------------------------
 
 #endif
@@ -1275,6 +1280,58 @@ program ESMF_AttributeStateUTest
       write(name, *) "Unlinking a State hierarchy from a FieldBundle hierarchy Test"
       call ESMF_Test((rc==ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
       !------------------------------------------------------------------------
+
+#ifdef ESMF_TESTEXHAUSTIVE
+
+      !EX_UTest
+      ! Unlink a State Attribute hierarchy from a State Attribute hierarchy State Test 2
+      call ESMF_AttributeLinkRemove(state, sfs, rc=rc)
+      write(failMsg, *) "Did not return ESMF_SUCCESS"
+      write(name, *) "Unlinking a State hierarchy from a State hierarchy Test 2"
+      call ESMF_Test((rc==ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+      !------------------------------------------------------------------------
+
+      !EX_UTest
+      ! Unlink a State Attribute hierarchy from a Field Attribute hierarchy State Test 2
+      call ESMF_AttributeLinkRemove(state, ffs, rc=rc)
+      write(failMsg, *) "Did not return ESMF_SUCCESS"
+      write(name, *) "Unlinking a State hierarchy from a Field hierarchy Test 2"
+      call ESMF_Test((rc==ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+      !------------------------------------------------------------------------
+
+      !EX_UTest
+      ! Unlink a State Attribute hierarchy from a FieldBundle Attribute hierarchy State Test 2
+      call ESMF_AttributeLinkRemove(state, fbfs, rc=rc)
+      write(failMsg, *) "Did not return ESMF_SUCCESS"
+      write(name, *) "Unlinking a State hierarchy from a FieldBundle hierarchy Test 2"
+      call ESMF_Test((rc==ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+      !------------------------------------------------------------------------
+
+      !EX_UTest
+      ! Unlink a State Attribute hierarchy from a State Attribute hierarchy State Test 3
+      call ESMF_AttributeLinkRemove(state, sfs, rc=rc)
+      write(failMsg, *) "Did not return ESMF_SUCCESS"
+      write(name, *) "Unlinking a State hierarchy from a State hierarchy Test 3"
+      call ESMF_Test((rc/=ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+      !------------------------------------------------------------------------
+
+      !EX_UTest
+      ! Unlink a State Attribute hierarchy from a Field Attribute hierarchy State Test 3
+      call ESMF_AttributeLinkRemove(state, ffs, rc=rc)
+      write(failMsg, *) "Did not return ESMF_SUCCESS"
+      write(name, *) "Unlinking a State hierarchy from a Field hierarchy Test 3"
+      call ESMF_Test((rc/=ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+      !------------------------------------------------------------------------
+
+      !EX_UTest
+      ! Unlink a State Attribute hierarchy from a FieldBundle Attribute hierarchy State Test 3
+      call ESMF_AttributeLinkRemove(state, fbfs, rc=rc)
+      write(failMsg, *) "Did not return ESMF_SUCCESS"
+      write(name, *) "Unlinking a State hierarchy from a FieldBundle hierarchy Test 3"
+      call ESMF_Test((rc/=ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+      !------------------------------------------------------------------------
+
+#endif
 
     !-------------------------------------------------------------------------
     !  Attribute Info
@@ -1328,7 +1385,7 @@ program ESMF_AttributeStateUTest
       call ESMF_StateDestroy(sfs, rc=rc)
       call ESMF_StateDestroy(state, rc=rc)
      
-      if (rc .ne. ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+      if (rc .ne. ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
   !-----------------------------------------------------------------------------
   call ESMF_TestEnd(result, ESMF_SRCLINE)

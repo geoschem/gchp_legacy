@@ -1,7 +1,7 @@
-! $Id: ESMF_UtilTypes.F90,v 1.85.2.6 2010/05/03 13:54:45 theurich Exp $
+! $Id: ESMF_UtilTypes.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2010, University Corporation for Atmospheric Research,
+! Copyright 2002-2012, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -66,20 +66,37 @@
 !    !Global integer parameters
 
       integer, parameter :: ESMF_SUCCESS = 0, ESMF_FAILURE = -1
+
+! General non-specific string length
       integer, parameter :: ESMF_MAXSTR = 128
+
+! Maximum length of a file name, including its path.
+      integer, parameter :: ESMF_MAXPATHLEN = 1024
+
 ! TODO:FIELDINTEGRATION Adjust MAXGRIDDIM
       integer, parameter :: ESMF_MAXDIM = 7, &
-                            ESMF_MAXDECOMPDIM = 3, &
                             ESMF_MAXIGRIDDIM = 3, &
                             ESMF_MAXGRIDDIM = 3
      
 !EOPI
 
-      integer, parameter :: ESMF_MAJOR_VERSION = 4
-      integer, parameter :: ESMF_MINOR_VERSION = 0
-      integer, parameter :: ESMF_REVISION      = 0
-      integer, parameter :: ESMF_PATCHLEVEL    = 2
-      character(*), parameter :: ESMF_VERSION_STRING = "4.0.0rp2"
+      integer, parameter :: ESMF_VERSION_MAJOR        = 5
+      integer, parameter :: ESMF_VERSION_MINOR        = 2
+      integer, parameter :: ESMF_VERSION_REVISION     = 0
+      integer, parameter :: ESMF_VERSION_PATCHLEVEL   = 2
+      logical, parameter :: ESMF_VERSION_PUBLIC       = .true.
+      logical, parameter :: ESMF_VERSION_BETASNAPSHOT = .false.
+
+      character(*), parameter :: ESMF_VERSION_STRING  = "5.2.0rp2"
+
+!------------------------------------------------------------------------------
+!
+!    ! Keyword enforcement type
+
+     type ESMF_KeywordEnforcer
+       private
+       integer:: quiet
+     end type
 
 !------------------------------------------------------------------------------
 !
@@ -134,7 +151,7 @@
 !     ! WARNING: 
 !     !  constants MUST match corresponding values in ../include/ESMC_Util.h
 
-      type ESMF_TypeKind
+      type ESMF_TypeKind_Flag
       sequence
       ! TODO: can this be made private now?
       !!private
@@ -142,41 +159,48 @@
       end type
 
       ! these work well for internal ESMF use, arguments, etc
-      type(ESMF_TypeKind), parameter :: &
 #ifndef ESMF_NO_INTEGER_1_BYTE 
-                   ESMF_TYPEKIND_I1 = ESMF_TypeKind(1), &
+      type(ESMF_TypeKind_Flag), parameter :: &
+                   ESMF_TYPEKIND_I1 = ESMF_TypeKind_Flag(1)
 #endif
 #ifndef ESMF_NO_INTEGER_2_BYTE 
-                   ESMF_TYPEKIND_I2 = ESMF_TypeKind(2), &
+      type(ESMF_TypeKind_Flag), parameter :: &
+                   ESMF_TYPEKIND_I2 = ESMF_TypeKind_Flag(2)
 #endif
-                   ESMF_TYPEKIND_I4 = ESMF_TypeKind(3), &
-                   ESMF_TYPEKIND_I8 = ESMF_TypeKind(4), &
-                   ESMF_TYPEKIND_R4 = ESMF_TypeKind(5), &
-                   ESMF_TYPEKIND_R8 = ESMF_TypeKind(6), &
-                   ESMF_C8 = ESMF_TypeKind(7), &
-                   ESMF_C16 = ESMF_TypeKind(8), &
-                   ESMF_TYPEKIND_LOGICAL = ESMF_TypeKind(9), &
-                   ESMF_TYPEKIND_CHARACTER = ESMF_TypeKind(10), &
-                   ESMF_TYPEKIND_I  = ESMF_TypeKind(90), &
-                   ESMF_TYPEKIND_R  = ESMF_TypeKind(91), &
-                   ESMF_NOKIND = ESMF_TypeKind(99)
+      type(ESMF_TypeKind_Flag), parameter :: &
+                   ESMF_TYPEKIND_I4 = ESMF_TypeKind_Flag(3), &
+                   ESMF_TYPEKIND_I8 = ESMF_TypeKind_Flag(4), &
+                   ESMF_TYPEKIND_R4 = ESMF_TypeKind_Flag(5), &
+                   ESMF_TYPEKIND_R8 = ESMF_TypeKind_Flag(6), &
+                   ESMF_TYPEKIND_C8 = ESMF_TypeKind_Flag(7), &
+                   ESMF_TYPEKIND_C16 = ESMF_TypeKind_Flag(8), &
+                   ESMF_TYPEKIND_LOGICAL = ESMF_TypeKind_Flag(9), &
+                   ESMF_TYPEKIND_CHARACTER = ESMF_TypeKind_Flag(10), &
+                   ESMF_TYPEKIND_I  = ESMF_TypeKind_Flag(90), &
+                   ESMF_TYPEKIND_R  = ESMF_TypeKind_Flag(91), &
+                   ESMF_NOKIND = ESMF_TypeKind_Flag(99)
 
       ! these are the only Fortran kind parameters supported
       ! by ESMF.
 
-      integer, parameter :: &
 #ifndef ESMF_NO_INTEGER_1_BYTE 
-                   ESMF_KIND_I1 = selected_int_kind(2), &
+      integer, parameter :: &
+                   ESMF_KIND_I1 = selected_int_kind(2)
 #endif
 #ifndef ESMF_NO_INTEGER_2_BYTE 
-                   ESMF_KIND_I2 = selected_int_kind(4), &
+      integer, parameter :: &
+                   ESMF_KIND_I2 = selected_int_kind(4)
 #endif
-                   ESMF_KIND_I4 = selected_int_kind(9), &
+      integer, parameter :: &
+                   ESMF_KIND_I4 = selected_int_kind(9)
 #ifndef ESMF_NEC_KIND_I8
-                   ESMF_KIND_I8 = selected_int_kind(18), &
+      integer, parameter :: &
+                   ESMF_KIND_I8 = selected_int_kind(18)
 #else
-                   ESMF_KIND_I8 = selected_int_kind(15), &
+      integer, parameter :: &
+                   ESMF_KIND_I8 = selected_int_kind(15)
 #endif
+      integer, parameter :: &
                    ESMF_KIND_R4 = selected_real_kind(3,25), &
                    ESMF_KIND_R8 = selected_real_kind(6,45), &
                    ESMF_KIND_C8 = selected_real_kind(3,25), &
@@ -200,6 +224,18 @@
       end type
 
 !------------------------------------------------------------------------------
+!     ! ESMF_MapPtr - used to provide Fortran access to C++ STL map containers
+!     ! for associative lookup name-pointer pairs.
+
+      type ESMF_MapPtr
+        sequence
+        !private
+        type(ESMF_Pointer) :: this
+        ! only used internally -> no init macro!
+      end type
+
+
+!------------------------------------------------------------------------------
 !
 !    ! Integer object type id, one for each ESMF Object type 
 !    ! plus a string "official" object name.   Keep this in sync
@@ -215,38 +251,48 @@
 #endif
       end type
 
+      ! Note:  any changes made to this Fortran list must also be made to
+      !        the corresponding C++ list in ESMCI_Util.C
+
+      ! Caution:  The NAG compiler v5.2 error-exits if there are blank lines in
+      !           this list.
+
       ! these work well for internal ESMF use, arguments, etc
       type(ESMF_ObjectID), parameter :: &
-         ESMF_ID_BASE = ESMF_ObjectID(1, "ESMF_Base"), &
-         ESMF_ID_IOSPEC = ESMF_ObjectID(2, "ESMF_IOSpec"), &
-         ESMF_ID_LOGERR = ESMF_ObjectID(3, "ESMF_LogErr"), &
-         ESMF_ID_TIME = ESMF_ObjectID(4, "ESMF_Time"), &
-         ESMF_ID_CALENDAR = ESMF_ObjectID(5, "ESMF_Calendar"), &
-         ESMF_ID_TIMEINTERVAL = ESMF_ObjectID(6, "ESMF_TimeInterval"), &
-         ESMF_ID_ALARM = ESMF_ObjectID(7, "ESMF_Alarm"), &
-         ESMF_ID_CLOCK = ESMF_ObjectID(8, "ESMF_Clock"), &
-         ESMF_ID_ARRAYSPEC = ESMF_ObjectID(9, "ESMF_ArraySpec"), &
-         ESMF_ID_LOCALARRAY = ESMF_ObjectID(10, "ESMF_LocalArray"), &
-         ESMF_ID_ARRAYBUNDLE = ESMF_ObjectID(11, "ESMF_ArrayBundle"), &
-         ESMF_ID_VM = ESMF_ObjectID(12, "ESMF_VM"), &
-         ESMF_ID_DELAYOUT = ESMF_ObjectID(13, "ESMF_DELayout"), &
-         ESMF_ID_CONFIG = ESMF_ObjectID(14, "ESMF_Config"), &
-         ESMF_ID_ARRAY = ESMF_ObjectID(16, "ESMF_Array"), &
-         ESMF_ID_COMMTABLE = ESMF_ObjectID(21, "ESMF_CommTable"), &
-         ESMF_ID_ROUTETABLE = ESMF_ObjectID(22, "ESMF_RouteTable"), &
-         ESMF_ID_ROUTE = ESMF_ObjectID(23, "ESMF_Route"), &
-         ESMF_ID_ROUTEHANDLE = ESMF_ObjectID(24, "ESMF_RouteHandle"), &
-         ESMF_ID_FIELDDATAMAP = ESMF_ObjectID(25, "ESMF_FieldDataMap"), &
-         ESMF_ID_FIELD = ESMF_ObjectID(26, "ESMF_Field"), &
-         ESMF_ID_FIELDBUNDLE = ESMF_ObjectID(28, "ESMF_FieldBundle"), &
-         ESMF_ID_GEOMBASE = ESMF_ObjectID(29, "ESMF_GeomBase"), &
-         ESMF_ID_REGRID = ESMF_ObjectID(30, "ESMF_Regrid"), &
-         ESMF_ID_LOCSTREAM = ESMF_ObjectID(31, "ESMF_Locstream"), &
-         ESMF_ID_STATE = ESMF_ObjectID(32, "ESMF_State"), &
-         ESMF_ID_GRIDCOMPONENT = ESMF_ObjectID(33, "ESMF_GridComponent"), &
-         ESMF_ID_CPLCOMPONENT = ESMF_ObjectID(34, "ESMF_CplComponent"), &
-         ESMF_ID_COMPONENT = ESMF_ObjectID(35, "ESMF_Component"), &
-         ESMF_ID_NONE = ESMF_ObjectID(99, "ESMF_None")
+        ESMF_ID_BASE           = ESMF_ObjectID(1,  "ESMF_Base"), &
+        ESMF_ID_LOGERR         = ESMF_ObjectID(2,  "ESMF_LogErr"), &
+        ESMF_ID_TIME           = ESMF_ObjectID(3,  "ESMF_Time"), &
+        ESMF_ID_CALENDAR       = ESMF_ObjectID(4,  "ESMF_Calendar"), &
+        ESMF_ID_TIMEINTERVAL   = ESMF_ObjectID(5,  "ESMF_TimeInterval"), &
+        ESMF_ID_ALARM          = ESMF_ObjectID(6,  "ESMF_Alarm"), &
+        ESMF_ID_CLOCK          = ESMF_ObjectID(7,  "ESMF_Clock"), &
+        ESMF_ID_ARRAYSPEC      = ESMF_ObjectID(8,  "ESMF_ArraySpec"), &
+        ESMF_ID_LOCALARRAY     = ESMF_ObjectID(9,  "ESMF_LocalArray"), &
+        ESMF_ID_ARRAYBUNDLE    = ESMF_ObjectID(10, "ESMF_ArrayBundle"), &
+        ESMF_ID_VM             = ESMF_ObjectID(11, "ESMF_VM"), &
+        ESMF_ID_DELAYOUT       = ESMF_ObjectID(12, "ESMF_DELayout"), &
+        ESMF_ID_CONFIG         = ESMF_ObjectID(13, "ESMF_Config"), &
+        ESMF_ID_ARRAY          = ESMF_ObjectID(14, "ESMF_Array"), &
+        ESMF_ID_PHYSGRID       = ESMF_ObjectID(15, "ESMF_PhysGrid"), &
+        ESMF_ID_IGRID          = ESMF_ObjectID(16, "ESMF_IGrid"), &
+        ESMF_ID_EXCHANGEPACKET = ESMF_ObjectID(17, "ESMF_ExchangePacket"), &
+        ESMF_ID_COMMTABLE      = ESMF_ObjectID(18, "ESMF_CommTable"), &
+        ESMF_ID_ROUTETABLE     = ESMF_ObjectID(19, "ESMF_RouteTable"), &
+        ESMF_ID_ROUTE          = ESMF_ObjectID(20, "ESMF_Route"), &
+        ESMF_ID_ROUTEHANDLE    = ESMF_ObjectID(21, "ESMF_RouteHandle"), &
+        ESMF_ID_FIELDDATAMAP   = ESMF_ObjectID(22, "ESMF_FieldDataMap"), &
+        ESMF_ID_FIELD          = ESMF_ObjectID(23, "ESMF_Field"), &
+        ESMF_ID_BUNDLEDATAMAP  = ESMF_ObjectID(24, "ESMF_FieldBundleDataMap"), &
+        ESMF_ID_FIELDBUNDLE    = ESMF_ObjectID(25, "ESMF_FieldBundle"), &
+        ESMF_ID_GEOMBASE       = ESMF_ObjectID(26, "ESMF_GeomBase"), &
+        ESMF_ID_REGRID         = ESMF_ObjectID(27, "ESMF_Regrid"), &
+        ESMF_ID_LOCSTREAM      = ESMF_ObjectID(28, "ESMF_Locstream"), &
+        ESMF_ID_STATE          = ESMF_ObjectID(29, "ESMF_State"), &
+        ESMF_ID_GRIDCOMPONENT  = ESMF_ObjectID(30, "ESMF_GridComponent"), &
+        ESMF_ID_CPLCOMPONENT   = ESMF_ObjectID(31, "ESMF_CplComponent"), &
+        ESMF_ID_COMPONENT      = ESMF_ObjectID(32, "ESMF_Component"), &
+        ESMF_ID_XGRID          = ESMF_ObjectID(33, "ESMF_XGrid"), &
+        ESMF_ID_NONE           = ESMF_ObjectID(99, "ESMF_None")
 
 !------------------------------------------------------------------------------
 !------------------------------------------------------------------------------
@@ -289,119 +335,168 @@
 
 !     ! WARNING: must match corresponding values in ../include/ESMC_Util.h
 
-      type ESMF_ReduceFlag
+      type ESMF_Reduce_Flag
       sequence
       private
           integer :: value
       end type
 
-      type(ESMF_ReduceFlag), parameter ::  ESMF_SUM   = ESMF_ReduceFlag(1), &
-                                          ESMF_MIN   = ESMF_ReduceFlag(2), &
-                                          ESMF_MAX   = ESMF_ReduceFlag(3)
+      type(ESMF_Reduce_Flag), parameter ::  ESMF_REDUCE_SUM   = ESMF_Reduce_Flag(1), &
+                                          ESMF_REDUCE_MIN  = ESMF_Reduce_Flag(2), &
+                                          ESMF_REDUCE_MAX  = ESMF_Reduce_Flag(3)
                                      
 !------------------------------------------------------------------------------
 !
 !     ! Typed blocking/non-blocking flag
 
-      type ESMF_BlockingFlag
+      type ESMF_Sync_Flag
       sequence
       private
           integer :: value
       end type
 
-      type(ESMF_BlockingFlag), parameter:: &
-        ESMF_BLOCKING     = ESMF_BlockingFlag(1), &
-        ESMF_VASBLOCKING  = ESMF_BlockingFlag(2), &
-        ESMF_NONBLOCKING  = ESMF_BlockingFlag(3)
+      type(ESMF_Sync_Flag), parameter:: &
+        ESMF_SYNC_BLOCKING     = ESMF_Sync_Flag(1), &
+        ESMF_SYNC_VASBLOCKING  = ESMF_Sync_Flag(2), &
+        ESMF_SYNC_NONBLOCKING  = ESMF_Sync_Flag(3)
 
 !------------------------------------------------------------------------------
 !
 !     ! Typed context flag
 
-      type ESMF_ContextFlag
+      type ESMF_Context_Flag
       sequence
       private
           integer :: value
       end type
 
-      type(ESMF_ContextFlag), parameter:: &
-        ESMF_CHILD_IN_NEW_VM     = ESMF_ContextFlag(1), &
-        ESMF_CHILD_IN_PARENT_VM  = ESMF_ContextFlag(2)
+      type(ESMF_Context_Flag), parameter:: &
+        ESMF_CONTEXT_OWN_VM     = ESMF_Context_Flag(1), &
+        ESMF_CONTEXT_PARENT_VM  = ESMF_Context_Flag(2)
 
 !------------------------------------------------------------------------------
 !
 !     ! Typed termination flag
 
-      type ESMF_TerminationFlag
+      type ESMF_End_Flag
       sequence
       private
           integer :: value
       end type
 
-      type(ESMF_TerminationFlag), parameter:: &
-        ESMF_FINAL        = ESMF_TerminationFlag(1), &
-        ESMF_KEEPMPI      = ESMF_TerminationFlag(2), &
-        ESMF_ABORT        = ESMF_TerminationFlag(3)
+      type(ESMF_End_Flag), parameter:: &
+        ESMF_END_NORMAL        = ESMF_End_Flag(1), &
+        ESMF_END_KEEPMPI      = ESMF_End_Flag(2), &
+        ESMF_END_ABORT        = ESMF_End_Flag(3)
 
 !------------------------------------------------------------------------------
 !
 !     ! Typed DE pinning flag
 
-      type ESMF_DePinFlag
+      type ESMF_Pin_Flag
       sequence
       private
           integer :: value
       end type
 
-      type(ESMF_DePinFlag), parameter:: &
-        ESMF_DE_PIN_PET        = ESMF_DePinFlag(1), &
-        ESMF_DE_PIN_VAS        = ESMF_DePinFlag(2)
+      type(ESMF_Pin_Flag), parameter:: &
+        ESMF_PIN_DE_TO_PET        = ESMF_Pin_Flag(1), &
+        ESMF_PIN_DE_TO_VAS        = ESMF_Pin_Flag(2)
 
 !------------------------------------------------------------------------------
 !
 !     ! Direction type
 
-      type ESMF_Direction
+      type ESMF_Direction_Flag
       sequence
       private
           integer :: value
       end type
 
-      type(ESMF_Direction), parameter:: &
-        ESMF_MODE_FORWARD = ESMF_Direction(1), &
-        ESMF_MODE_REVERSE = ESMF_Direction(2)
+      type(ESMF_Direction_Flag), parameter:: &
+        ESMF_DIRECTION_FORWARD = ESMF_Direction_Flag(1), &
+        ESMF_DIRECTION_REVERSE = ESMF_Direction_Flag(2)
 
 !------------------------------------------------------------------------------
-!     ! ESMF_IndexFlag
+!
+!     ! PIO Format type
+
+      type ESMF_IOFmtFlag
+      sequence
+      private
+          integer :: io_type
+      end type
+
+      type(ESMF_IOFmtFlag), parameter ::  &
+                           ESMF_IOFMT_BIN      = esmf_IOFmtFlag(0), &
+                           ESMF_IOFMT_NETCDF   = ESMF_IOFmtFlag(1), &
+                           ESMF_IOFMT_NETCDF4P = ESMF_IOFmtFlag(2), &
+                           ESMF_IOFMT_NETCDF4C = ESMF_IOFmtFlag(3)
+
+!------------------------------------------------------------------------------
+!     ! ESMF_Index_Flag
 !
 !     ! Interface flag for setting index bounds
 
-      type ESMF_IndexFlag
+      type ESMF_Index_Flag
       sequence
       private
         integer :: i_type
       end type
 
-      type(ESMF_IndexFlag), parameter ::  &
-                               ESMF_INDEX_DELOCAL  = ESMF_IndexFlag(0), &
-                               ESMF_INDEX_GLOBAL = ESMF_IndexFlag(1), &
-                               ESMF_INDEX_USER = ESMF_IndexFlag(2)
+      type(ESMF_Index_Flag), parameter ::  &
+                               ESMF_INDEX_DELOCAL  = ESMF_Index_Flag(0), &
+                               ESMF_INDEX_GLOBAL = ESMF_Index_Flag(1), &
+                               ESMF_INDEX_USER = ESMF_Index_Flag(2)
 
 !------------------------------------------------------------------------------
-!     ! ESMF_RegionFlag
+!     ! ESMF_StartRegion_Flag
 !
 !     ! Interface flag for setting index bounds
 
-      type ESMF_RegionFlag
+      type ESMF_StartRegion_Flag
       sequence
       private
         integer :: i_type
       end type
 
-      type(ESMF_RegionFlag), parameter ::  &
-        ESMF_REGION_TOTAL = ESMF_RegionFlag(0), &
-        ESMF_REGION_SELECT = ESMF_RegionFlag(1), &
-        ESMF_REGION_EMPTY = ESMF_RegionFlag(2)
+      type(ESMF_StartRegion_Flag), parameter ::  &
+        ESMF_STARTREGION_EXCLUSIVE = ESMF_StartRegion_Flag(0), &
+        ESMF_STARTREGION_COMPUTATIONAL = ESMF_StartRegion_Flag(1)
+
+!------------------------------------------------------------------------------
+!     ! ESMF_Region_Flag
+!
+!     ! Interface flag for setting index bounds
+
+      type ESMF_Region_Flag
+      sequence
+      private
+        integer :: i_type
+      end type
+
+      type(ESMF_Region_Flag), parameter ::  &
+        ESMF_REGION_TOTAL = ESMF_Region_Flag(0), &
+        ESMF_REGION_SELECT = ESMF_Region_Flag(1), &
+        ESMF_REGION_EMPTY = ESMF_Region_Flag(2)
+
+!------------------------------------------------------------------------------
+!     ! ESMF_RouteSync_Flag
+!
+!     ! Interface flag for setting communication options
+
+      type ESMF_RouteSync_Flag
+      sequence
+      private
+        integer :: i_type
+      end type
+
+      type(ESMF_RouteSync_Flag), parameter ::  &
+        ESMF_ROUTESYNC_BLOCKING        = ESMF_RouteSync_Flag(0), &
+        ESMF_ROUTESYNC_NBSTART         = ESMF_RouteSync_Flag(1), &
+        ESMF_ROUTESYNC_NBTESTFINISH    = ESMF_RouteSync_Flag(2), &
+        ESMF_ROUTESYNC_NBWAITFINISH    = ESMF_RouteSync_Flag(3), &
+        ESMF_ROUTESYNC_CANCEL          = ESMF_RouteSync_Flag(4)
 
 !------------------------------------------------------------------------------
 !     ! ESMF_AttWriteFlag
@@ -419,21 +514,6 @@
         ESMF_ATTWRITE_XML = ESMF_AttWriteFlag(1)
 
 !------------------------------------------------------------------------------
-!     ! ESMF_AttPackNestFlag
-!
-!     ! Interface flag for Attribute package nesting
-
-      type ESMF_AttPackNestFlag
-      sequence
-      !private
-        integer :: value
-      end type
-
-      type(ESMF_AttPackNestFlag), parameter ::  &
-        ESMF_ATTPACKNEST_OFF = ESMF_AttPackNestFlag(0), &
-        ESMF_ATTPACKNEST_ON = ESMF_AttPackNestFlag(1)
-
-!------------------------------------------------------------------------------
 !     ! ESMF_AttReconcileFlag
 !
 !     ! Interface flag for Attribute reconcile
@@ -449,20 +529,20 @@
         ESMF_ATTRECONCILE_ON = ESMF_AttReconcileFlag(1)
 
 !------------------------------------------------------------------------------
-!     ! ESMF_AttCopyFlag
+!     ! ESMF_Copy_Flag
 !
 !     ! Interface flag for Attribute copy
 
-      type ESMF_AttCopyFlag
+      type ESMF_Copy_Flag
       sequence
       !private
         integer :: value
       end type
 
-      type(ESMF_AttCopyFlag), parameter ::  &
-        ESMF_ATTCOPY_HYBRID = ESMF_AttCopyFlag(0), &
-        ESMF_ATTCOPY_REFERENCE = ESMF_AttCopyFlag(1), &
-        ESMF_ATTCOPY_VALUE = ESMF_AttCopyFlag(2)
+      type(ESMF_Copy_Flag), parameter ::  &
+        ESMF_COPY_ALIAS = ESMF_Copy_Flag(0), &
+        ESMF_COPY_REFERENCE = ESMF_Copy_Flag(1), &
+        ESMF_COPY_VALUE = ESMF_Copy_Flag(2)
 
 !------------------------------------------------------------------------------
 !     ! ESMF_AttGetCountFlag
@@ -496,16 +576,74 @@
         ESMF_ATTTREE_OFF = ESMF_AttTreeFlag(0), &
         ESMF_ATTTREE_ON = ESMF_AttTreeFlag(1)
 
+
+!------------------------------------------------------------------------------
+!
+!
       ! What to do when a point can't be mapped
-      type ESMF_UnmappedAction
+      type ESMF_UnmappedAction_Flag
       sequence
 !  private
          integer :: unmappedaction
       end type
 
-      type(ESMF_UnmappedAction), parameter :: &
-           ESMF_UNMAPPEDACTION_ERROR    = ESMF_UnmappedAction(0), &
-           ESMF_UNMAPPEDACTION_IGNORE   = ESMF_UnmappedAction(1)
+      type(ESMF_UnmappedAction_Flag), parameter :: &
+           ESMF_UNMAPPEDACTION_ERROR    = ESMF_UnmappedAction_Flag(0), &
+           ESMF_UNMAPPEDACTION_IGNORE   = ESMF_UnmappedAction_Flag(1)
+
+!------------------------------------------------------------------------------
+      type ESMF_RegridMethod_Flag
+      sequence
+!  private
+         integer :: regridmethod
+      end type
+
+
+      type(ESMF_RegridMethod_Flag), parameter :: &
+           ESMF_REGRIDMETHOD_BILINEAR    = ESMF_RegridMethod_Flag(0), &
+           ESMF_REGRIDMETHOD_PATCH       = ESMF_RegridMethod_Flag(1), &
+           ESMF_REGRIDMETHOD_CONSERVE    = ESMF_RegridMethod_Flag(2)
+
+!------------------------------------------------------------------------------
+
+      type ESMF_PoleMethod_Flag
+      sequence
+!  private
+         integer :: polemethod
+      end type
+
+
+      type(ESMF_PoleMethod_Flag), parameter :: &
+           ESMF_POLEMETHOD_NONE    =  ESMF_PoleMethod_Flag(0), &
+           ESMF_POLEMETHOD_ALLAVG  =  ESMF_PoleMethod_Flag(1), &
+           ESMF_POLEMETHOD_NPNTAVG =  ESMF_PoleMethod_Flag(2), &
+           ESMF_POLEMETHOD_TEETH   =  ESMF_PoleMethod_Flag(3)
+
+!------------------------------------------------------------------------------
+!
+!
+      type ESMF_RegridConserve
+      sequence
+!  private
+         integer :: regridconserve
+      end type
+
+
+      type(ESMF_RegridConserve), parameter :: &
+           ESMF_REGRID_CONSERVE_OFF     = ESMF_RegridConserve(0), &
+           ESMF_REGRID_CONSERVE_ON      = ESMF_RegridConserve(1)
+
+
+!------------------------------------------------------------------------------
+!
+!
+      integer, parameter :: ESMF_REGRID_SCHEME_FULL3D = 0, &
+                            ESMF_REGRID_SCHEME_NATIVE = 1, &
+                            ESMF_REGRID_SCHEME_REGION3D = 2, &
+                            ESMF_REGRID_SCHEME_FULLTOREG3D=3, &
+                            ESMF_REGRID_SCHEME_REGTOFULL3D=4, &
+                            ESMF_REGRID_SCHEME_DCON3D=5, &
+                            ESMF_REGRID_SCHEME_DCON3DWPOLE=6
 
 
 !------------------------------------------------------------------------------
@@ -526,7 +664,7 @@
 
       public ESMF_TYPEKIND_I4, ESMF_TYPEKIND_I8, & 
              ESMF_TYPEKIND_R4, ESMF_TYPEKIND_R8, &
-             ESMF_C8, ESMF_C16, &
+             ESMF_TYPEKIND_C8, ESMF_TYPEKIND_C16, &
              ESMF_TYPEKIND_LOGICAL, ESMF_TYPEKIND_CHARACTER, &
              ESMF_KIND_I, ESMF_KIND_R, &
              ESMF_NOKIND
@@ -547,35 +685,64 @@
       public ESMF_InquireFlag
       public ESMF_INQUIREONLY, ESMF_NOINQUIRE
 
-      public ESMF_Direction, ESMF_MODE_FORWARD, ESMF_MODE_REVERSE
+      public ESMF_Direction_Flag, ESMF_DIRECTION_FORWARD, ESMF_DIRECTION_REVERSE
 
-      public ESMF_IndexFlag
+      public ESMF_IOFmtFlag, ESMF_IOFMT_BIN, ESMF_IOFMT_NETCDF, &
+             ESMF_IOFMT_NETCDF4P, ESMF_IOFMT_NETCDF4C
+
+      public ESMF_Index_Flag
       public ESMF_INDEX_DELOCAL, ESMF_INDEX_GLOBAL, ESMF_INDEX_USER
-      public ESMF_RegionFlag, &
+      public ESMF_StartRegion_Flag, &
+             ESMF_STARTREGION_EXCLUSIVE, ESMF_STARTREGION_COMPUTATIONAL
+      public ESMF_Region_Flag, &
              ESMF_REGION_TOTAL, ESMF_REGION_SELECT, ESMF_REGION_EMPTY
+      public ESMF_RouteSync_Flag, &
+             ESMF_ROUTESYNC_BLOCKING, ESMF_ROUTESYNC_NBSTART, &
+             ESMF_ROUTESYNC_NBTESTFINISH, ESMF_ROUTESYNC_NBWAITFINISH, ESMF_ROUTESYNC_CANCEL
 
-      public ESMF_ReduceFlag, ESMF_SUM, ESMF_MIN, ESMF_MAX
-      public ESMF_BlockingFlag, ESMF_BLOCKING, ESMF_VASBLOCKING, &
-             ESMF_NONBLOCKING
-      public ESMF_ContextFlag, ESMF_CHILD_IN_NEW_VM, ESMF_CHILD_IN_PARENT_VM
-      public ESMF_TerminationFlag, ESMF_FINAL, ESMF_KEEPMPI, ESMF_ABORT
-      public ESMF_DePinFlag, ESMF_DE_PIN_PET, ESMF_DE_PIN_VAS
-      public ESMF_AttCopyFlag, ESMF_ATTCOPY_HYBRID, ESMF_ATTCOPY_REFERENCE, &
-                               ESMF_ATTCOPY_VALUE
+      public ESMF_Reduce_Flag, ESMF_REDUCE_SUM, ESMF_REDUCE_MIN, ESMF_REDUCE_MAX
+      public ESMF_Sync_Flag, ESMF_SYNC_BLOCKING, ESMF_SYNC_VASBLOCKING, &
+             ESMF_SYNC_NONBLOCKING
+      public ESMF_Context_Flag, ESMF_CONTEXT_OWN_VM, ESMF_CONTEXT_PARENT_VM
+      public ESMF_End_Flag, ESMF_END_NORMAL, ESMF_END_KEEPMPI, ESMF_END_ABORT
+      public ESMF_Pin_Flag, ESMF_PIN_DE_TO_PET, ESMF_PIN_DE_TO_VAS
+      public ESMF_Copy_Flag, ESMF_COPY_ALIAS, ESMF_COPY_REFERENCE, &
+                               ESMF_COPY_VALUE
       public ESMF_AttGetCountFlag, ESMF_ATTGETCOUNT_ATTRIBUTE, ESMF_ATTGETCOUNT_ATTPACK, &
                                    ESMF_ATTGETCOUNT_ATTLINK, ESMF_ATTGETCOUNT_TOTAL
-      public ESMF_AttPackNestFlag, ESMF_ATTPACKNEST_OFF, ESMF_ATTPACKNEST_ON
       public ESMF_AttReconcileFlag, ESMF_ATTRECONCILE_OFF, ESMF_ATTRECONCILE_ON
       public ESMF_AttTreeFlag, ESMF_ATTTREE_OFF, ESMF_ATTTREE_ON
       public ESMF_AttWriteFlag, ESMF_ATTWRITE_TAB, ESMF_ATTWRITE_XML
 
+       public ESMF_RegridMethod_Flag,   ESMF_REGRIDMETHOD_BILINEAR, &
+                                   ESMF_REGRIDMETHOD_PATCH, &
+                                   ESMF_REGRIDMETHOD_CONSERVE
+
+       public ESMF_PoleMethod_Flag,  ESMF_POLEMETHOD_NONE, &
+                                ESMF_POLEMETHOD_ALLAVG, &
+                                ESMF_POLEMETHOD_NPNTAVG, &
+                                ESMF_POLEMETHOD_TEETH
+
+       public ESMF_RegridConserve, ESMF_REGRID_CONSERVE_OFF, &
+                                   ESMF_REGRID_CONSERVE_ON
+
+       public ESMF_REGRID_SCHEME_FULL3D, &
+              ESMF_REGRID_SCHEME_NATIVE, &
+              ESMF_REGRID_SCHEME_REGION3D, &
+              ESMF_REGRID_SCHEME_FULLTOREG3D, &
+              ESMF_REGRID_SCHEME_REGTOFULL3D, &
+              ESMF_REGRID_SCHEME_DCON3D, &
+              ESMF_REGRID_SCHEME_DCON3DWPOLE
+
       public ESMF_FAILURE, ESMF_SUCCESS
       public ESMF_MAXSTR
+      public ESMF_MAXPATHLEN
 ! TODO:FIELDINTEGRATION Adjust MAXGRIDDIM
-      public ESMF_MAXDIM, ESMF_MAXDECOMPDIM, ESMF_MAXIGRIDDIM, ESMF_MAXGRIDDIM
+      public ESMF_MAXDIM, ESMF_MAXIGRIDDIM, ESMF_MAXGRIDDIM
      
-      public ESMF_MAJOR_VERSION, ESMF_MINOR_VERSION
-      public ESMF_REVISION, ESMF_PATCHLEVEL
+      public ESMF_VERSION_MAJOR, ESMF_VERSION_MINOR
+      public ESMF_VERSION_REVISION, ESMF_VERSION_PATCHLEVEL
+      public ESMF_VERSION_PUBLIC, ESMF_VERSION_BETASNAPSHOT
       public ESMF_VERSION_STRING 
 
       public ESMF_ObjectID
@@ -584,36 +751,41 @@
       public ESMF_ObjectIDGetInit, ESMF_ObjectIDInit, ESMF_ObjectIDValidate
 #endif
       public ESMF_ID_NONE
-      public ESMF_ID_BASE, ESMF_ID_IOSPEC, ESMF_ID_LOGERR, ESMF_ID_TIME
+      public ESMF_ID_BASE, ESMF_ID_LOGERR, ESMF_ID_TIME
       public ESMF_ID_CALENDAR, ESMF_ID_TIMEINTERVAL, ESMF_ID_ALARM
       public ESMF_ID_CLOCK, ESMF_ID_ARRAYSPEC, ESMF_ID_LOCALARRAY
       public ESMF_ID_ARRAYBUNDLE, ESMF_ID_VM, ESMF_ID_DELAYOUT
       public ESMF_ID_CONFIG, ESMF_ID_ARRAY
       public ESMF_ID_COMMTABLE, ESMF_ID_ROUTETABLE, ESMF_ID_ROUTE
       public ESMF_ID_ROUTEHANDLE, ESMF_ID_FIELDDATAMAP, ESMF_ID_FIELD
-      public ESMF_ID_FIELDBUNDLE, ESMF_ID_GEOMBASE
+      public ESMF_ID_FIELDBUNDLE, ESMF_ID_GEOMBASE, ESMF_ID_XGRID
       public ESMF_ID_REGRID, ESMF_ID_LOCSTREAM, ESMF_ID_STATE
       public ESMF_ID_GRIDCOMPONENT, ESMF_ID_CPLCOMPONENT, ESMF_ID_COMPONENT
 
-      public ESMF_Status, ESMF_Pointer, ESMF_TypeKind
+      public ESMF_KeywordEnforcer
+
+      public ESMF_Status, ESMF_Pointer, ESMF_TypeKind_Flag
       public ESMF_DataValue
 
+      public ESMF_MapPtr
+
       public ESMF_PointerPrint
-      
-       public ESMF_UnmappedAction, ESMF_UNMAPPEDACTION_ERROR, &
+
+       public ESMF_UnmappedAction_Flag, ESMF_UNMAPPEDACTION_ERROR, &
                                    ESMF_UNMAPPEDACTION_IGNORE
 
+      
 !  Overloaded = operator functions
-      public operator(.eq.), operator(.ne.), assignment(=)
+      public operator(==), operator(/=), assignment(=)
 !
 
 !------------------------------------------------------------------------------
 
-! overload .eq. & .ne. with additional derived types so you can compare 
+! overload == & /= with additional derived types so you can compare 
 !  them as if they were simple integers.
  
 
-interface operator (.eq.)
+interface operator (==)
   module procedure ESMF_sfeq
   module procedure ESMF_dkeq
   module procedure ESMF_pteq
@@ -624,10 +796,12 @@ interface operator (.eq.)
   module procedure ESMF_freq
   module procedure ESMF_ifeq
   module procedure ESMF_rfeq
-  module procedure ESMF_unmappedActioneq
+  module procedure ESMF_unmappedactioneq
+  module procedure ESMF_ioeq
+  module procedure ESMF_RegridPoleEq
 end interface
 
-interface operator (.ne.)
+interface operator (/=)
   module procedure ESMF_sfne
   module procedure ESMF_dkne
   module procedure ESMF_ptne
@@ -636,7 +810,8 @@ interface operator (.ne.)
   module procedure ESMF_ctfne
   module procedure ESMF_tnfne
   module procedure ESMF_frne
-  module procedure ESMF_unmappedActionne
+  module procedure ESMF_unmappedactionne
+  module procedure ESMF_RegridPoleNe
 end interface
 
 interface assignment (=)
@@ -648,7 +823,21 @@ interface assignment (=)
   module procedure ESMF_tfas2_v
   module procedure ESMF_ptas
   module procedure ESMF_ptas2
+  module procedure ESMF_ioas
 end interface  
+
+
+!------------------------------------------------------------------------------
+! ! ESMF_MethodTable
+
+  type ESMF_MethodTable
+    sequence
+    !private
+    type(ESMF_Pointer) :: this
+    ! only use internally -> no init macro!
+  end type
+     
+  public ESMF_MethodTable
 
 
 !------------------------------------------------------------------------------
@@ -743,7 +932,7 @@ end interface
     ! Initialize return code; assume routine not implemented
     if (present(rc)) rc = ESMF_RC_NOT_IMPL
 
-     ESMF_INIT_CHECK_SHALLOW(ESMF_ObjectIDGetInit,ESMF_ObjectIDInit,s)
+     ESMF_INIT_CHECK_SET_SHALLOW(ESMF_ObjectIDGetInit,ESMF_ObjectIDInit,s)
 
      ! return success
      if(present(rc)) then
@@ -760,14 +949,14 @@ function ESMF_sfeq(sf1, sf2)
  logical ESMF_sfeq
  type(ESMF_Status), intent(in) :: sf1, sf2
 
- ESMF_sfeq = (sf1%status .eq. sf2%status)
+ ESMF_sfeq = (sf1%status == sf2%status)
 end function
 
 function ESMF_sfne(sf1, sf2)
  logical ESMF_sfne
  type(ESMF_Status), intent(in) :: sf1, sf2
 
- ESMF_sfne = (sf1%status .ne. sf2%status)
+ ESMF_sfne = (sf1%status /= sf2%status)
 end function
 
 !------------------------------------------------------------------------------
@@ -775,82 +964,82 @@ end function
 
 function ESMF_dkeq(dk1, dk2)
  logical ESMF_dkeq
- type(ESMF_TypeKind), intent(in) :: dk1, dk2
+ type(ESMF_TypeKind_Flag), intent(in) :: dk1, dk2
 
- ESMF_dkeq = (dk1%dkind .eq. dk2%dkind)
+ ESMF_dkeq = (dk1%dkind == dk2%dkind)
 end function
 
 function ESMF_dkne(dk1, dk2)
  logical ESMF_dkne
- type(ESMF_TypeKind), intent(in) :: dk1, dk2
+ type(ESMF_TypeKind_Flag), intent(in) :: dk1, dk2
 
- ESMF_dkne = (dk1%dkind .ne. dk2%dkind)
+ ESMF_dkne = (dk1%dkind /= dk2%dkind)
 end function
 
 subroutine ESMF_dkas(intval, dkval)
  integer, intent(out) :: intval
- type(ESMF_TypeKind), intent(in) :: dkval
+ type(ESMF_TypeKind_Flag), intent(in) :: dkval
 
  intval = dkval%dkind
 end subroutine
 
 
 !------------------------------------------------------------------------------
-! function to compare two ESMF_BlockingFlags
+! function to compare two ESMF_Sync_Flags
 
 subroutine ESMF_bfas(bf1, bf2)
- type(ESMF_BlockingFlag), intent(out) :: bf1
- type(ESMF_BlockingFlag), intent(in)  :: bf2
+ type(ESMF_Sync_Flag), intent(out) :: bf1
+ type(ESMF_Sync_Flag), intent(in)  :: bf2
 
  bf1%value = bf2%value
 end subroutine
 
 function ESMF_bfeq(bf1, bf2)
  logical ESMF_bfeq
- type(ESMF_BlockingFlag), intent(in) :: bf1, bf2
+ type(ESMF_Sync_Flag), intent(in) :: bf1, bf2
 
- ESMF_bfeq = (bf1%value .eq. bf2%value)
+ ESMF_bfeq = (bf1%value == bf2%value)
 end function
 
 function ESMF_bfne(bf1, bf2)
  logical ESMF_bfne
- type(ESMF_BlockingFlag), intent(in) :: bf1, bf2
+ type(ESMF_Sync_Flag), intent(in) :: bf1, bf2
 
- ESMF_bfne = (bf1%value .ne. bf2%value)
+ ESMF_bfne = (bf1%value /= bf2%value)
 end function
 
 !------------------------------------------------------------------------------
-! function to compare two ESMF_ContextFlags
+! function to compare two ESMF_Context_Flags
 
 function ESMF_ctfeq(ctf1, ctf2)
  logical ESMF_ctfeq
- type(ESMF_ContextFlag), intent(in) :: ctf1, ctf2
+ type(ESMF_Context_Flag), intent(in) :: ctf1, ctf2
 
- ESMF_ctfeq = (ctf1%value .eq. ctf2%value)
+ ESMF_ctfeq = (ctf1%value == ctf2%value)
 end function
 
 function ESMF_ctfne(ctf1, ctf2)
  logical ESMF_ctfne
- type(ESMF_ContextFlag), intent(in) :: ctf1, ctf2
+ type(ESMF_Context_Flag), intent(in) :: ctf1, ctf2
 
- ESMF_ctfne = (ctf1%value .ne. ctf2%value)
+ ESMF_ctfne = (ctf1%value /= ctf2%value)
 end function
 
 !------------------------------------------------------------------------------
-! function to compare two ESMF_TerminationFlags
+! function to compare two ESMF_End_Flags
 
 function ESMF_tnfeq(tnf1, tnf2)
  logical ESMF_tnfeq
- type(ESMF_TerminationFlag), intent(in) :: tnf1, tnf2
+ type(ESMF_End_Flag), intent(in) :: tnf1, tnf2
 
- ESMF_tnfeq = (tnf1%value .eq. tnf2%value)
+ ESMF_tnfeq = (tnf1%value == tnf2%value)
 end function
 
 function ESMF_tnfne(tnf1, tnf2)
  logical ESMF_tnfne
- type(ESMF_TerminationFlag), intent(in) :: tnf1, tnf2
+ type(ESMF_End_Flag), intent(in) :: tnf1, tnf2
 
- ESMF_tnfne = (tnf1%value .ne. tnf2%value)
+ ESMF_tnfne = (tnf1%value /= tnf2%value)
 end function
 
 !------------------------------------------------------------------------------
@@ -860,14 +1049,14 @@ function ESMF_pteq(pt1, pt2)
  logical ESMF_pteq
  type(ESMF_Pointer), intent(in) :: pt1, pt2
 
- ESMF_pteq = (pt1%ptr .eq. pt2%ptr)
+ ESMF_pteq = (pt1%ptr == pt2%ptr)
 end function
 
 function ESMF_ptne(pt1, pt2)
  logical ESMF_ptne
  type(ESMF_Pointer), intent(in) :: pt1, pt2
 
- ESMF_ptne = (pt1%ptr .ne. pt2%ptr)
+ ESMF_ptne = (pt1%ptr /= pt2%ptr)
 end function
 
 subroutine ESMF_ptas(ptval, intval)
@@ -892,28 +1081,28 @@ function ESMF_tfeq(tf1, tf2)
  logical ESMF_tfeq
  type(ESMF_Logical), intent(in) :: tf1, tf2
 
- ESMF_tfeq = (tf1%value .eq. tf2%value)
+ ESMF_tfeq = (tf1%value == tf2%value)
 end function
 
 function ESMF_tfne(tf1, tf2)
  logical ESMF_tfne
  type(ESMF_Logical), intent(in) :: tf1, tf2
 
- ESMF_tfne = (tf1%value .ne. tf2%value)
+ ESMF_tfne = (tf1%value /= tf2%value)
 end function
 
 subroutine ESMF_tfas(lval, tfval)
  logical, intent(out) :: lval
  type(ESMF_Logical), intent(in) :: tfval
 
- lval = (tfval%value .eq. 1)    ! this must match initializer
+ lval = (tfval%value == 1)    ! this must match initializer
 end subroutine
 
 subroutine ESMF_tfas_v(lval, tfval)
  logical, intent(out) :: lval(:)
  type(ESMF_Logical), intent(in) :: tfval(:)
 
- lval = (tfval%value .eq. 1)    ! this must match initializer
+ lval = (tfval%value == 1)    ! this must match initializer
 end subroutine
 
 subroutine ESMF_tfas2 (tfval, lval)
@@ -931,41 +1120,57 @@ subroutine ESMF_tfas2_v (tfval, lval)
 end subroutine
 
 !------------------------------------------------------------------------------
-! function to compare two ESMF_Direction types
+! function to compare two ESMF_Direction_Flag types
 
 function ESMF_freq(fr1, fr2)
  logical ESMF_freq
- type(ESMF_Direction), intent(in) :: fr1, fr2
+ type(ESMF_Direction_Flag), intent(in) :: fr1, fr2
 
- ESMF_freq = (fr1%value .eq. fr2%value)
+ ESMF_freq = (fr1%value == fr2%value)
 end function
 
 function ESMF_frne(fr1, fr2)
  logical ESMF_frne
- type(ESMF_Direction), intent(in) :: fr1, fr2
+ type(ESMF_Direction_Flag), intent(in) :: fr1, fr2
 
- ESMF_frne = (fr1%value .ne. fr2%value)
+ ESMF_frne = (fr1%value /= fr2%value)
 end function
 
 !------------------------------------------------------------------------------
-! function to compare two ESMF_IndexFlag types
+! function to compare two ESMF_IOFmtFlag
+
+subroutine ESMF_ioas(io1, io2)
+ type(ESMF_IOFmtFlag), intent(out) :: io1
+ type(ESMF_IOFmtFlag), intent(in)  :: io2
+
+ io1%io_type = io2%io_type
+end subroutine
+
+function ESMF_ioeq(io1, io2)
+  logical ESMF_ioeq
+  type(ESMF_IOFmtFlag), intent(in) :: io1, io2
+
+  ESMF_ioeq = (io1%io_type == io2%io_type)
+end function
+
+!------------------------------------------------------------------------------
+! function to compare two ESMF_Index_Flag types
 
 function ESMF_ifeq(if1, if2)
   logical ESMF_ifeq
-  type(ESMF_IndexFlag), intent(in) :: if1, if2
+  type(ESMF_Index_Flag), intent(in) :: if1, if2
 
-  ESMF_ifeq = (if1%i_type .eq. if2%i_type)
+  ESMF_ifeq = (if1%i_type == if2%i_type)
 end function
 
-
 !------------------------------------------------------------------------------
-! function to compare two ESMF_RegionFlag types
+! function to compare two ESMF_Region_Flag types
 
 function ESMF_rfeq(rf1, rf2)
   logical ESMF_rfeq
-  type(ESMF_RegionFlag), intent(in) :: rf1, rf2
+  type(ESMF_Region_Flag), intent(in) :: rf1, rf2
 
-  ESMF_rfeq = (rf1%i_type .eq. rf2%i_type)
+  ESMF_rfeq = (rf1%i_type == rf2%i_type)
 end function
 
 
@@ -982,19 +1187,36 @@ end subroutine
 !------------------------------------------------------------------------------
 ! function to compare two ESMF_UNMAPPEDACTION types
 
-function ESMF_unmappedActioneq(uma1, uma2)
- logical ESMF_unmappedActioneq
- type(ESMF_UNMAPPEDACTION), intent(in) :: uma1, uma2
+function ESMF_unmappedactioneq(uma1, uma2)
+ logical ESMF_unmappedactioneq
+ type(ESMF_UnmappedAction_Flag), intent(in) :: uma1, uma2
 
- ESMF_unmappedActioneq = (uma1%unmappedaction .eq. uma2%unmappedaction)
+ ESMF_unmappedactioneq = (uma1%unmappedaction == uma2%unmappedaction)
 end function
 
-function ESMF_unmappedActionne(uma1, uma2)
- logical ESMF_unmappedActionne
- type(ESMF_UNMAPPEDACTION), intent(in) :: uma1, uma2
+function ESMF_unmappedactionne(uma1, uma2)
+ logical ESMF_unmappedactionne
+ type(ESMF_UnmappedAction_Flag), intent(in) :: uma1, uma2
 
- ESMF_unmappedActionne = (uma1%unmappedaction .ne. uma2%unmappedaction)
+ ESMF_unmappedactionne = (uma1%unmappedaction /= uma2%unmappedaction)
 end function
 
+
+!------------------------------------------------------------------------------
+! function to compare two ESMF_PoleMethod types
+
+function ESMF_RegridPoleEq(rp1, rp2)
+ logical ESMF_RegridPoleEq
+ type(ESMF_PoleMethod_Flag), intent(in) :: rp1, rp2
+
+ ESMF_RegridPoleEq = (rp1%polemethod == rp2%polemethod)
+end function
+
+function ESMF_RegridPoleNe(rp1, rp2)
+ logical ESMF_RegridPoleNe
+ type(ESMF_PoleMethod_Flag), intent(in) :: rp1, rp2
+
+ ESMF_RegridPoleNe = (rp1%polemethod /= rp2%polemethod)
+end function
 
       end module ESMF_UtilTypesMod

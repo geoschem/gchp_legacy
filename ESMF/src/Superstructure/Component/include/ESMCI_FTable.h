@@ -1,7 +1,7 @@
-// $Id: ESMCI_FTable.h,v 1.16.2.1 2010/02/05 20:03:54 svasquez Exp $
+// $Id$
 //
 // Earth System Modeling Framework
-// Copyright 2002-2010, University Corporation for Atmospheric Research, 
+// Copyright 2002-2012, University Corporation for Atmospheric Research, 
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
 // Laboratory, University of Michigan, National Centers for Environmental 
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
@@ -69,7 +69,6 @@ class funcinfo {
     char *funcname;
     void *funcptr;
     void *funcarg[numargs];
-    int  funcintarg;
     enum ftype ftype;
   public:
     funcinfo(){
@@ -142,16 +141,23 @@ class FTable {
     ~FTable(void);
     static void newtrim(char const *oldc, int clen, int *phase, int *nstate,
       char **newc);
+    static char const *methodString(enum ESMCI::method method);
+    static enum method methodFromString(char const *methodString);
+    enum method methodFromIndex(int i);
   private: 
     int query(int *nfuncp, int *ndatap);
 };
 
 typedef struct{
-  char name[160];     // trimmed type string
-  FTable *ftable;     // pointer to function table
-  int rcCount;        // number of return codes in esmfrc and userrc
-  int *esmfrc;        // return codes of esmf call back method (all threads)
-  int *userrc;        // return codes of registered user method (all threads)
+  char name[160];       // trimmed type string
+  FTable *ftable;       // pointer to function table
+  int rcCount;          // number of return codes in esmfrc and userrc
+  int *esmfrc;          // return codes of esmf call back method (all threads)
+  int *userrc;          // return codes of registered user method (all threads)
+  void *previousCargo;  // support for recursive entering of methods
+  int previousParentFlag; // support for recursive entering of methods
+  enum method currentMethod;
+  int currentPhase;
 }cargotype;
 
 
@@ -230,7 +236,8 @@ class MethodTable{
     int add(std::string labelArg, void *pointer);
     int add(std::string labelArg, std::string name, std::string sharedObj);
     int remove(std::string labelArg);
-    int execute(std::string labelArg, void *object, int *userRc);
+    int execute(std::string labelArg, void *object, int *userRc,
+      bool* existflag=NULL);
 };
 
 } // namespace ESMCI

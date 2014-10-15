@@ -1,0 +1,14 @@
+DSET ^/discover/nobackup/sakella/processData/MERRA2_27June2013/UTILS/FOR_CMIP/cmip_clim_sst_20520101.bin
+*DSET ^/discover/nobackup/sakella/processData/MERRA2_27June2013/UTILS/FOR_CMIP/cmip_raw_sst_19820101.bin
+UNDEF 1.0e15
+TITLE f
+OPTIONS SEQUENTIAL
+THEADER 56
+XDEF 1440 LINEAR -179.875   0.25
+YDEF  720 LINEAR  -89.875   0.25
+ZDEF 1    LINEAR 1 1
+TDEF 1    LINEAR 1Jan2099 1dy
+VARS 1
+sst 0 1 sst
+ENDVARS
+

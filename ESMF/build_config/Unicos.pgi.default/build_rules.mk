@@ -1,4 +1,4 @@
-# $Id: build_rules.mk,v 1.7.2.2 2010/04/23 05:42:40 theurich Exp $
+# $Id: build_rules.mk,v 1.1.5.1 2013-01-11 20:23:43 mathomp4 Exp $
 #
 # Unicos.pgi.default
 #
@@ -46,6 +46,18 @@ endif
 #
 ESMF_F90COMPILER_VERSION    = ${ESMF_F90COMPILER} -V -v -c
 ESMF_CXXCOMPILER_VERSION    = ${ESMF_CXXCOMPILER} -V -v -c
+
+############################################################
+# Determine PGI version
+#
+ESMF_PGIVERSION_MAJOR = $(shell $(ESMF_DIR)/scripts/version.pgi 1 $(ESMF_F90COMPILER_VERSION))
+ESMF_F90COMPILECPPFLAGS += -DESMF_PGIVERSION_MAJOR=$(ESMF_PGIVERSION_MAJOR)
+
+ESMF_PGIVERSION_MINOR = $(shell $(ESMF_DIR)/scripts/version.pgi 2 $(ESMF_F90COMPILER_VERSION))
+ESMF_F90COMPILECPPFLAGS += -DESMF_PGIVERSION_MINOR=$(ESMF_PGIVERSION_MINOR)
+
+ESMF_PGIVERSION_PATCH = $(shell $(ESMF_DIR)/scripts/version.pgi 3 $(ESMF_F90COMPILER_VERSION))
+ESMF_F90COMPILECPPFLAGS += -DESMF_PGIVERSION_PATCH=$(ESMF_PGIVERSION_PATCH)
 
 ############################################################
 # XT compute nodes do not have support for POSIX IPC (memory mapped files)
@@ -96,25 +108,45 @@ ESMF_CXXLINKRPATHS      =
 
 ############################################################
 # Determine where pgf90's libraries are located
-#
-ESMF_CXXLINKPATHS += -L$(shell $(ESMF_DIR)/scripts/libpath.pgf90 $(ESMF_F90COMPILER))
+#gjt: Commented out following line after ORNL support indicated
+#gjt: that it is okay to mix different PGI versions for library
+#gjt: build and application build.
+#ESMF_CXXLINKPATHS += -L$(shell $(ESMF_DIR)/scripts/libpath.pgf90 $(ESMF_F90COMPILER))
 
 ############################################################
 # Determine where pgCC's libraries are located
-#
-ESMF_F90LINKPATHS += -L$(shell $(ESMF_DIR)/scripts/libpath.pgCC $(ESMF_CXXCOMPILER))
+#gjt: Commented out following line after ORNL support indicated
+#gjt: that it is okay to mix different PGI versions for library
+#gjt: build and application build.
+#ESMF_F90LINKPATHS += -L$(shell $(ESMF_DIR)/scripts/libpath.pgCC $(ESMF_CXXCOMPILER))
 
 ############################################################
 # Link against libesmf.a using the F90 linker front-end
 #
+ifeq ($(ESMF_PGIVERSION_MAJOR),7)
 ESMF_F90LINKLIBS += -lstd -lrt -lC -ldl
+else
+ESMF_F90LINKLIBS += -pgcpplibs
+endif
 
 ############################################################
 # Link against libesmf.a using the C++ linker front-end
 #
-ESMF_CXXLINKLIBS += -lrt $(shell $(ESMF_DIR)/scripts/libs.pgf90 $(ESMF_F90COMPILER)) -ldl
+ifeq ($(ESMF_PGIVERSION_MAJOR),7)
+ESMF_CXXLINKLIBS += -lrt -ldl
+else
+ESMF_CXXLINKLIBS += -pgf90libs
+endif
 
 ############################################################
 # Blank out shared library options
 #
 ESMF_SL_LIBS_TO_MAKE  =
+
+############################################################
+# Disable WebService testing for now
+#
+# TODO: Remove this variable and associated infrastructure as soon as
+# TODO: WebService testing is robust enough to work on all systems.
+#
+ESMF_NOWEBSERVTESTING = TRUE

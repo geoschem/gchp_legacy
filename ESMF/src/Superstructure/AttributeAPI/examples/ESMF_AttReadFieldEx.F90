@@ -1,7 +1,7 @@
-! $Id: ESMF_AttReadFieldEx.F90,v 1.6.2.1 2010/02/05 20:03:28 svasquez Exp $
+! $Id$
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2010, University Corporation for Atmospheric Research,
+! Copyright 2002-2012, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -17,10 +17,15 @@ program ESMF_AttReadFieldEx
 !==============================================================================
 
 !BOE
-! \subsubsection{Example: Reading an XML file-based CF Attribute Package for a Field}
+! \subsubsection{Read an XML file-based CF Attribute package for a Field}
 ! This example shows how to read a CF Attribute Package for a Field from an
-! XML file; see
-! ESMF\_DIR/src/Infrastructure/Field/etc/esmf\_field.xml.
+! XML file.  The XML file contains Attribute values filled-in by the user.
+! The standard CF Attribute Package is supplied with ESMF and is defined in
+! an XSD file, which is used to validate the XML file.  See
+! \begin{description}
+! \item ESMF\_DIR/src/Infrastructure/Field/etc/esmf\_field.xml (Attribute Package values) and
+! \item ESMF\_DIR/src/Infrastructure/Field/etc/esmf\_field.xsd (Attribute Package definition).
+! \end{description}
 !EOE
 
 #include "ESMF.h"
@@ -38,7 +43,7 @@ program ESMF_AttReadFieldEx
 
 !BOC
       ! ESMF Framework module
-      use ESMF_Mod
+      use ESMF
       implicit none
 
       ! local variables
@@ -58,20 +63,23 @@ program ESMF_AttReadFieldEx
 
 !BOC
       ! initialize ESMF
-      call ESMF_Initialize(vm=vm, rc=rc)
+      call ESMF_Initialize(vm=vm, defaultlogfilename="AttReadFieldEx.Log", &
+                    logkindflag=ESMF_LOGKIND_MULTI, rc=rc)
 !EOC
 
-      if (rc.ne.ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+      if (rc.ne.ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
 !BOC
       ! Create a field
-      field = ESMF_FieldCreateEmpty(name="field", rc=rc)
+      field = ESMF_FieldEmptyCreate(name="field", rc=rc)
 !EOC
 
-      if (rc.ne.ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+      if (rc.ne.ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
 !BOC
-      ! Read an XML file to populate the CF Attribute package of a Field
+      ! Read an XML file to populate the CF Attribute package of a Field.
+      ! The file is validated against an internal, ESMF-supplied XSD file
+      ! defining the standard CF Attribute package (see file pathnames above).
       call ESMF_AttributeRead(field=field, fileName="esmf_field.xml", rc=rc)
 !EOC
       if (rc==ESMF_RC_LIB_NOT_PRESENT) then
@@ -83,8 +91,8 @@ program ESMF_AttReadFieldEx
 !print *, 'rc = ', rc
 
 !BOC
-      ! Get CF "Name" Attribute from a Field
-      call ESMF_AttributeGet(field, name='Name', value=attrValue, &
+      ! Get CF "ShortName" Attribute from a Field
+      call ESMF_AttributeGet(field, name='ShortName', value=attrValue, &
                              convention='CF', purpose='General', rc=rc)
 !EOC
 
@@ -95,7 +103,8 @@ program ESMF_AttReadFieldEx
 
 !BOC
       ! Get CF "StandardName" Attribute from a Field
-      call ESMF_AttributeGet(field, name='StandardName', value=attrValue, &
+      call ESMF_AttributeGet(field, name='StandardName', &
+                             value=attrValue, &
                              convention='CF', purpose='Extended', rc=rc)
 !EOC
 
@@ -131,7 +140,7 @@ program ESMF_AttReadFieldEx
       call ESMF_FieldDestroy(field, rc=rc)
 !EOC
 
-      if (rc .ne. ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+      if (rc .ne. ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
 !BOC
       ! finalize ESMF framework

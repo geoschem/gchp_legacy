@@ -1,0 +1,64 @@
+# lcv2prs.rc
+#
+#  This is a resource file for the lcv2prs utility.
+#
+# !REVISION HISTORY:
+#
+#  26Jan2006  B. Yin    First version.
+#
+#...........................................................................
+#                     ----------------------
+#                     Output File Resolution
+#                     ----------------------
+
+zonal_resolution: 288              # no. of zonal grid-points (im)
+west_most_longitude_in_deg: -180.0 # longitude of first point (i=1)
+meridional_resolution: 181         # no. meridional grid-points (jm)
+vertical_level_numbers: 1
+#                       ----------------
+#                       Variable Classes
+#                       ----------------
+ 
+# A variable class lists the variable names that make up a file type or product.
+
+###  PRODUCT: tavg2d_slv_x (2-D diagnostics)
+
+VarClass*const_2d_chm_Fx: PHIS SGH FRLAKE FRLAND FRLANDICE FROCEAN 
+
+#                         --------------------
+#                         Variable Translation
+#                         --------------------
+
+Variable_translation_table::
+
+#      Output          |                       Input
+#  Name       Units    | Name             scale_factor  add_offset Positive check
+#  ------------------------------------------------------------------------------
+   PHIS       m2/s2      PHIS                   1.0        0.0         0  # kg/kg
+   SGH        m          SGH                    1.0        0.0         0  # Pa
+   FRLAKE     fraction   FRLAKE                 1.0        0.0         0
+   FRLAND     fraction   FRLAND                 1.0        0.0         0
+   FRLANDICE  fraction   FRLANDICE              1.0        0.0         0
+   FROCEAN    fraction   FROCEAN                1.0        0.0         0
+::
+
+
+
+# Table for variable names and description:
+
+PHIS:      Surface geopotential
+SGH:       Standard deviation of topography for gravity wave drag
+FRLAKE:     Fraction of lake type in grid box
+FRLAND:     Fraction of land type in grid box
+FRLANDICE:  Fraction of land ice type in grid box
+FROCEAN:    Fraction of ocean in grid box
+
+
+history:        File written by CFIO
+convention:     CF-1.0
+institution:    Global Modeling and Assimilation Office, NASA Goddard Space Flight Center, Greenbelt, MD 20771
+references:     http://gmao.gsfc.nasa.gov
+comment:        First CFIO GEOS version
+source:         Global Modeling and Assimilation Office. @CVSTAG
+title:          File written by CFIO. @CVSTAG
+contact:        data@gmao.gsfc.nasa.gov

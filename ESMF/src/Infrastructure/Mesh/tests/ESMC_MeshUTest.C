@@ -1,7 +1,7 @@
-// $Id: ESMC_MeshUTest.C,v 1.11.2.1 2010/02/05 19:59:44 svasquez Exp $
+// $Id$
 //
 // Earth System Modeling Framework
-// Copyright 2002-2010, University Corporation for Atmospheric Research,
+// Copyright 2002-2012, University Corporation for Atmospheric Research,
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 // Laboratory, University of Michigan, National Centers for Environmental
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -61,7 +61,7 @@ int main(void){
   // Create a mesh
   strcpy(name, "MeshCreate");
   strcpy(failMsg, "Did not return ESMF_SUCCESS");
-  mesh = ESMC_MeshCreate(&pdim,&sdim,&rc);
+  mesh = ESMC_MeshCreate(pdim,sdim,&rc);
   ESMC_Test((rc==ESMF_SUCCESS), name, failMsg, &result, __FILE__, __LINE__, 0);
   //----------------------------------------------------------------------------
 
@@ -103,7 +103,7 @@ int main(void){
   // Add node information to the mesh
   strcpy(name, "MeshAddNodes");
   strcpy(failMsg, "Did not return ESMF_SUCCESS");
-  rc = ESMC_MeshAddNodes(mesh, &num_node, nodeId, nodeCoord, nodeOwner);
+  rc = ESMC_MeshAddNodes(mesh, num_node, nodeId, nodeCoord, nodeOwner);
   ESMC_Test((rc==ESMF_SUCCESS), name, failMsg, &result, __FILE__, __LINE__, 0);
   //----------------------------------------------------------------------------
 
@@ -112,7 +112,7 @@ int main(void){
   // Add element information to the mesh
   strcpy(name, "MeshAddElements");
   strcpy(failMsg, "Did not return ESMF_SUCCESS");
-  rc = ESMC_MeshAddElements(mesh, &num_elem, elemId, elemType, elemConn);
+  rc = ESMC_MeshAddElements(mesh, num_elem, elemId, elemType, elemConn);
   ESMC_Test((rc==ESMF_SUCCESS), name, failMsg, &result, __FILE__, __LINE__, 0);
   //----------------------------------------------------------------------------
 
@@ -140,7 +140,7 @@ int main(void){
   // Get the number of local nodes
   strcpy(name, "MeshGetNumNodes");
   strcpy(failMsg, "Did not return ESMF_SUCCESS");
-  rc = ESMC_MeshGetNumNodes(mesh, &num_nodes);
+  rc = ESMC_MeshGetLocalNodeCount(mesh, &num_nodes);
   ESMC_Test((rc==ESMF_SUCCESS), name, failMsg, &result, __FILE__, __LINE__, 0);
   //----------------------------------------------------------------------------
 
@@ -149,7 +149,7 @@ int main(void){
   // Get the number of local elements
   strcpy(name, "MeshGetNumElements");
   strcpy(failMsg, "Did not return ESMF_SUCCESS");
-  rc = ESMC_MeshGetNumElements(mesh, &num_elements);
+  rc = ESMC_MeshGetLocalElementCount(mesh, &num_elements);
   ESMC_Test((rc==ESMF_SUCCESS), name, failMsg, &result, __FILE__, __LINE__, 0);
   //----------------------------------------------------------------------------
 

@@ -1,0 +1,85 @@
+# fv2prs.rc
+#
+#  This is a resource file for the fv2prs utility.
+#
+# !REVISION HISTORY:
+#
+#  26Jan2006  B. Yin    Modification from tsyn3d_mis_p.rc.
+#
+#...........................................................................
+
+#                     ----------------------
+#                     Output File Resolution
+#                     ----------------------
+
+zonal_resolution: 540              # no. of zonal grid-points (im)
+west_most_longitude_in_deg: -180.0 # longitude of first point (i=1)
+meridional_resolution: 361          # no. meridional grid-points (jm)
+#vertical_levels_in_hPa: 1000 975 950 925 900 875 850 825 800 775 750 725 700 650 600 550 500 450 400 350 300 250 200 150 100 70 50 40 30 20 10 7 5 4 3 2 1 0.7 0.5 0.4 0.3 0.1
+vertical_level_numbers: 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40 41 42
+
+
+#                       ----------------
+#                       Variable Classes
+#                       ----------------
+ 
+# A variable class lists the variable names that make up a file
+# type or product.
+
+
+### PRODUCT: inst3d_met_p (3-D instantaneous variables)
+VarClass*inst6_3d_ana_Np: SLP PS H T U V QV O3 Cov_U_V Cov_U_T Cov_V_T Cov_U_QV Cov_V_QV vsts Var_SLP Var_PS Var_H Var_T Var_U Var_V Var_QV Var_O3
+
+#                         --------------------
+#                         Variable Translation
+#                         --------------------
+
+Variable_translation_table::
+
+#      Output          |                       Input
+#  Name       Units    | Name             scale_factor  add_offset  Positive Check
+#  -------------------------------------------------------------------------------
+# For inst3d_met_p -- from ana.eta file
+   SLP        Pa         SLP                    1.0        0.0          0
+   PS         Pa         PS                     1.0        0.0          0
+   H          m          H                      1.0        0.0          0
+   T          K          T                      1.0        0.0          0
+   U          m/s        U                      1.0        0.0          0
+   V          m/s        V                      1.0        0.0          0
+   QV         kg/kg      QV                     1.0        0.0          0 # kg/kg
+   O3         kg/kg      O3                     1.0        0.0          0
+::
+
+#                         Variable Description
+#                         --------------------
+
+# Table for variable names and description:
+# For inst3d_met_p
+
+SLP:       Sea-level pressure
+PS:        Surface pressure
+H:         Geopotential height
+T:         Air temperature
+U:         Eastward wind component
+V:         Northward wind component
+QV:        Specific humidity
+O3:        Ozone mixing ratio
+
+
+StandardName:SLP:  air_pressure_at_sea_level
+StandardName:PS:   surface_air_pressure
+StandardName:H:    geopotential_height
+StandardName:T:    air_temperature
+StandardName:U:    eastward_wind
+StandardName:V:    northward_wind
+StandardName:QV:   specific_humidity
+StandardName:O3:   ozone_mixing_ratio
+
+history:        File written by CFIO
+convention:     CF-1.0
+institution:    Global Modeling and Assimilation Office, NASA Goddard Space Flight Center, Greenbelt, MD 20771
+references:     http://gmao.gsfc.nasa.gov/research/merra/
+comment:        @PUBLICTAG
+source:         Global Modeling and Assimilation Office. GEOSops_5_2_0
+title:          MERRA reanalysis.  @PUBLICTAG
+contact:        http://gmao.gsfc.nasa.gov/

@@ -1,7 +1,7 @@
-! $Id: ESMF_FieldPr.F90,v 1.11.2.1 2010/02/05 19:56:03 svasquez Exp $
+! $Id: ESMF_FieldPr.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2010, University Corporation for Atmospheric Research, 
+! Copyright 2002-2012, University Corporation for Atmospheric Research, 
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
 ! Laboratory, University of Michigan, National Centers for Environmental 
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
@@ -31,7 +31,6 @@ module ESMF_FieldPrMod
   use ESMF_BaseMod
   use ESMF_VMMod
   use ESMF_LogErrMod
-  use ESMF_IOSpecMod
   use ESMF_ArraySpecMod
   use ESMF_LocalArrayMod
   use ESMF_DELayoutMod
@@ -44,8 +43,11 @@ module ESMF_FieldPrMod
   use ESMF_ArrayGetMod
   use ESMF_TimeMod
   use ESMF_InitMacrosMod
+  use ESMF_IOUtilMod
 
   use ESMF_FieldMod
+  use ESMF_FieldGetMod
+  use ESMF_ArrayIOMod
 
   implicit none
 
@@ -59,6 +61,7 @@ module ESMF_FieldPrMod
 !
 ! - ESMF-public methods:
    public ESMF_FieldPrint              ! Print contents of a Field
+   public ESMF_FieldRead               ! Read  Field data from a file
 
 !------------------------------------------------------------------------------
 
@@ -77,26 +80,26 @@ contains
 #define ESMF_METHOD "ESMF_FieldPrint"
 
 !BOP
-! !IROUTINE:  ESMF_FieldPrint - Print the contents of a Field
+! !IROUTINE:  ESMF_FieldPrint - Print Field information
 
 ! !INTERFACE:
-      subroutine ESMF_FieldPrint(field, rc)
+      subroutine ESMF_FieldPrint(field, keywordEnforcer, rc)
 !
 !
 ! !ARGUMENTS:
-      type(ESMF_Field), intent(inout) :: field 
-      integer, intent(out), optional :: rc
+      type(ESMF_Field), intent(in)            :: field 
+type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
+      integer,          intent(out), optional :: rc
+!
+! !STATUS:
+! \begin{itemize}
+! \item\apiStatusCompatibleVersion{5.2.0r}
+! \end{itemize}
 !
 ! !DESCRIPTION:
 !     Prints information about the {\tt field} to {\tt stdout}.
 !     This subroutine goes through the internal data members of a field
 !     data type and prints information of each data member. \\
-!
-!     Note:  Many {\tt ESMF\_<class>Print} methods are implemented in C++.
-!     On some platforms/compilers there is a potential issue with interleaving
-!     Fortran and C++ output to {\tt stdout} such that it doesn't appear in
-!     the expected order.  If this occurs, the {\tt ESMF\_IOUnitFlush()} method
-!     may be used on unit 6 to get coherent output.  \\
 !
 !     The arguments are:
 !     \begin{description}
@@ -128,88 +131,184 @@ contains
         fp => field%ftypep
 
         call ESMF_BaseGetStatus(fp%base, fieldstatus, rc=localrc)
-        if (ESMF_LogMsgFoundError(localrc, &
+        if (ESMF_LogFoundError(localrc, &
           ESMF_ERR_PASSTHRU, &
-          ESMF_CONTEXT, rc)) return
+          ESMF_CONTEXT, rcToReturn=rc)) return
 
-        !nsc call ESMF_LogWrite("Field Print:", ESMF_LOG_INFO)
-        write(*,*) "Field Print Starts ====>"
+        !nsc call ESMF_LogWrite("Field Print:", ESMF_LOGMSG_INFO)
+        write(ESMF_UtilIOStdout,*) "Field Print Starts ====>"
 
         call ESMF_StatusString(fieldstatus, str, localrc)
-        if (ESMF_LogMsgFoundError(localrc, &
+        if (ESMF_LogFoundError(localrc, &
                                   ESMF_ERR_PASSTHRU, &
-                                  ESMF_CONTEXT, rc)) return
-        write(*, *)  "Field status = ", trim(str)
+                                  ESMF_CONTEXT, rcToReturn=rc)) return
+        write(ESMF_UtilIOStdout,*)  "Field base status = ", trim(str)
 
         if (fieldstatus .ne. ESMF_STATUS_READY) then
-          write(*,*) "Empty or Uninitialized Field"
-          write(*,*) "Field Print Ends   ====>"
+          write(ESMF_UtilIOStdout,*) "Empty or Uninitialized Field"
+          write(ESMF_UtilIOStdout,*) "Field Print Ends   ====>"
           if (present(rc)) rc = ESMF_SUCCESS
           return
         endif
         
         if (.not. associated(field%ftypep)) then
-        !jw  call ESMF_LogWrite("Empty or Uninitialized Field", ESMF_LOG_INFO)
-          write(*,*) "Empty or Uninitialized Field"
-          write(*,*) "Field Print Ends   ====>"
+        !jw  call ESMF_LogWrite("Empty or Uninitialized Field", ESMF_LOGMSG_INFO)
+          write(ESMF_UtilIOStdout,*) "Empty or Uninitialized Field"
+          write(ESMF_UtilIOStdout,*) "Field Print Ends   ====>"
           if (present(rc)) rc = ESMF_SUCCESS
           return
         endif
 
         call c_ESMC_GetName(fp%base, name, localrc)
-        if (ESMF_LogMsgFoundError(localrc, &
+        if (ESMF_LogFoundError(localrc, &
                                   ESMF_ERR_PASSTHRU, &
-                                  ESMF_CONTEXT, rc)) return
+                                  ESMF_CONTEXT, rcToReturn=rc)) return
       !jw  write(msgbuf, *)  "  Name = '",  trim(name), "'"
-      !jw  call ESMF_LogWrite(msgbuf, ESMF_LOG_INFO)
-        write(*, *)  "  Name = '",  trim(name), "'"
+      !jw  call ESMF_LogWrite(msgbuf, ESMF_LOGMSG_INFO)
+        write(ESMF_UtilIOStdout,*)  "  Name = '",  trim(name), "'"
 
         call ESMF_BasePrint(fp%base, defaultopts, localrc)
-        if (ESMF_LogMsgFoundError(localrc, &
+        if (ESMF_LogFoundError(localrc, &
                                   ESMF_ERR_PASSTHRU, &
-                                  ESMF_CONTEXT, rc)) return
+                                  ESMF_CONTEXT, rcToReturn=rc)) return
 
 
-        call ESMF_StatusString(fp%gridstatus, str, localrc)
-        write(*, *)  "Grid status = ", trim(str)
-        if (fp%gridstatus .eq. ESMF_STATUS_READY) then 
+        write(ESMF_UtilIOStdout,*)  "Field status = ", fp%status
+        if (fp%status .eq. ESMF_FIELDSTATUS_GRIDSET .or. &
+            fp%status .eq. ESMF_FIELDSTATUS_COMPLETE) then 
 !           call ESMF_GeomBasePrint(fp%geombase, "", localrc)
-!          if (ESMF_LogMsgFoundError(localrc, &
+!          if (ESMF_LogFoundError(localrc, &
 !            ESMF_ERR_PASSTHRU, &
-!            ESMF_CONTEXT, rc)) return
+!            ESMF_CONTEXT, rcToReturn=rc)) return
           call ESMF_GeomBaseGet(fp%geombase, dimCount=gridrank, rc=localrc)
-          if (ESMF_LogMsgFoundError(localrc, &
+          if (ESMF_LogFoundError(localrc, &
             ESMF_ERR_PASSTHRU, &
-            ESMF_CONTEXT, rc)) return
-          write(*, *) "gridrank = ", gridrank
+            ESMF_CONTEXT, rcToReturn=rc)) return
+          write(ESMF_UtilIOStdout,*) "gridrank = ", gridrank
         endif
 
-        call ESMF_StatusString(fp%datastatus, str, localrc)
-        write(*, *)  "Data status = ", trim(str)
-        if (fp%datastatus .eq. ESMF_STATUS_READY) then 
+        if (fp%status .eq. ESMF_FIELDSTATUS_COMPLETE) then 
           call ESMF_ArrayPrint(fp%array, rc=localrc)
-          if (ESMF_LogMsgFoundError(localrc, &
+          if (ESMF_LogFoundError(localrc, &
             ESMF_ERR_PASSTHRU, &
-            ESMF_CONTEXT, rc)) return
+            ESMF_CONTEXT, rcToReturn=rc)) return
           call ESMF_ArrayGet(fp%array, rank=arrayrank, rc=localrc)
-          if (ESMF_LogMsgFoundError(localrc, &
+          if (ESMF_LogFoundError(localrc, &
             ESMF_ERR_PASSTHRU, &
-            ESMF_CONTEXT, rc)) return
-          write(*, *) "arrayrank = ", arrayrank
+            ESMF_CONTEXT, rcToReturn=rc)) return
+          write(ESMF_UtilIOStdout,*) "arrayrank = ", arrayrank
         endif
 
-        write(*, *) "gridToFieldMap ungriddedLBound ungriddedUBound maxHaloLWidth", &
-            " maxHaloUWidth"
+        write(ESMF_UtilIOStdout,*) "gridToFieldMap ungriddedLBound ungriddedUBound totalLWidth", &
+            " totalUWidth"
         do i = 1, ESMF_MAXDIM
-            write(*, *) fp%gridToFieldMap(i), fp%ungriddedLBound(i), fp%ungriddedUBound(i), &
-                "    ", fp%maxHaloLWidth(i), fp%maxHaloUWidth(i)
+            write(ESMF_UtilIOStdout,*) fp%gridToFieldMap(i), fp%ungriddedLBound(i), fp%ungriddedUBound(i), &
+                "    ", fp%totalLWidth(i), fp%totalUWidth(i)
         enddo
-        write(*,*) "Field Print Ends   ====>"
+        write(ESMF_UtilIOStdout,*) "Field Print Ends   ====>"
 
         if (present(rc)) rc = ESMF_SUCCESS
 
         end subroutine ESMF_FieldPrint
 
+
+!------------------------------------------------------------------------------
+#undef  ESMF_METHOD
+#define ESMF_METHOD "ESMF_FieldRead"
+
+!BOP
+! !IROUTINE:  ESMF_FieldRead - Read Field data from a file
+! \label{api:FieldRead}
+
+! !INTERFACE:
+      subroutine ESMF_FieldRead(field, file, &
+        keywordEnforcer, timeslice, iofmt, rc)
+!
+!
+! !ARGUMENTS:
+      type(ESMF_Field),     intent(inout)          :: field 
+      character(*),         intent(in)             :: file 
+type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
+      integer,              intent(in),  optional  :: timeslice
+      type(ESMF_IOFmtFlag), intent(in),  optional  :: iofmt 
+      integer,              intent(out), optional  :: rc
+!
+! !DESCRIPTION:
+!   Read Field data from a file and put it into an {ESMF\_Field} object.
+!   For this API to be functional, the environment variable {\tt ESMF\_PIO}
+!   should be set to "internal" when the ESMF library is built.
+!   Please see the section on Data I/O,~\ref{io:dataio}.
+!
+!   Limitations:
+!   \begin{itemize}
+!     \item Only 1 DE per PET supported.
+!     \item Not supported in {\tt ESMF\_COMM=mpiuni} mode.
+!   \end{itemize}
+!
+!   The arguments are:
+!   \begin{description}
+!   \item [field]
+!     The {\tt ESMF\_Field} object in which the read data is returned.
+!   \item[file]
+!     The name of the file from which Field data is read.
+!   \item[timeslice]
+!     Number of slices to be read from file, starting from the 1st slice
+!   \item[{[iofmt]}]
+!     \begin{sloppypar}
+!     The IO format.  Please see Section~\ref{opt:iofmtflag} for the list 
+!     of options.  If not present, defaults to {\tt ESMF\_IOFMT\_NETCDF}.
+!     \end{sloppypar}
+!   \item [{[rc]}]
+!     Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
+!   \end{description}
+!
+!EOP
+        character(len=ESMF_MAXSTR)      :: name
+        type(ESMF_FieldType), pointer   :: fp 
+        type(ESMF_Array)                :: array 
+        integer                         :: i, localrc
+        integer                         :: gridrank, arrayrank
+        type(ESMF_Status)               :: fieldstatus
+        type(ESMF_IOFmtFlag)            :: iofmtd
+        integer                         :: time
+
+#ifdef ESMF_PIO
+!       Initialize
+        localrc = ESMF_RC_NOT_IMPL
+        if (present(rc)) rc = ESMF_RC_NOT_IMPL
+
+        ! check variables
+        ESMF_INIT_CHECK_DEEP(ESMF_FieldGetInit,field,rc)
+
+        iofmtd = ESMF_IOFMT_NETCDF   ! default format
+        if(present(iofmt)) iofmtd = iofmt
+        time = 0
+        if(present(timeslice)) time = timeslice
+
+        fp => field%ftypep
+
+        call c_ESMC_GetName(fp%base, name, localrc)
+        if (ESMF_LogFoundError(localrc, &
+                                  ESMF_ERR_PASSTHRU, &
+                                  ESMF_CONTEXT, rcToReturn=rc)) return
+
+        call ESMF_FieldGet(field, array=array, rc=localrc)
+        if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+                                  ESMF_CONTEXT, rcToReturn=rc)) return
+
+        call ESMF_ArrayRead(array, file, variableName=trim(name), &
+          timeslice=time, iofmt=iofmtd, rc=localrc)
+        if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+                                  ESMF_CONTEXT, rcToReturn=rc)) return
+
+        if (present(rc)) rc = ESMF_SUCCESS
+
+#else
+        ! Return indicating PIO not present
+        if (present(rc)) rc = ESMF_RC_LIB_NOT_PRESENT
+#endif
+
+        end subroutine ESMF_FieldRead
 
 !------------------------------------------------------------------------------
 

@@ -1,7 +1,7 @@
-! $Id: ESMF_TestHarnessReportMod.F90,v 1.9.2.1 2010/02/05 22:35:15 theurich Exp $
+! $Id$
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2010, University Corporation for Atmospheric Research,
+! Copyright 2002-2012, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -31,9 +31,13 @@
 ! The code in this file contains  Modules for reporting the test harness
 ! results.
 !
+! In addition, This module will print a summary report describing the the
+! tests that will be run for a harness suite.
+!
 !-------------------------------------------------------------------------------
 ! !USES:
 
+  use ESMF_TestHarnessTypesMod
   use ESMF_TestHarnessUtilMod
 
   implicit none
@@ -42,6 +46,7 @@
 ! PUBLIC METHODS:
 !-------------------------------------------------------------------------------
   public report_descriptor_string, construct_descriptor_string
+  public summary_report_generate
 
 
 
@@ -69,8 +74,8 @@
   integer, intent(  out) :: localrc
 
   ! local character strings
-  character(ESMF_MAXSTR) :: src_string, dst_string
-  character(ESMF_MAXSTR) :: lstatus, laction, lgrid, ldist, lsuffix, ltmp
+  character(THARN_MAXSTR) :: src_string, dst_string
+  character(THARN_MAXSTR) :: lstatus, laction, lgrid, ldist, lsuffix, ltmp
   character(7) :: lsize, lorder, ltmpL, ltmpR, l1, l2, l3, l4  
 
   ! local integer variables
@@ -134,7 +139,7 @@
           istatus =-1 
        else
        ! error
-          call ESMF_LogMsgSetError( ESMF_FAILURE,"invalid test status value ", &
+          call ESMF_LogSetError( ESMF_FAILURE, msg="invalid test status value ", &
                rcToReturn=localrc)
           return
        endif
@@ -300,12 +305,12 @@
   ! arguments
   type(problem_descriptor_strings), intent(inout) :: PDS
   integer, intent(in   ) :: iG, iD, iDfile, iGfile
-  character(ESMF_MAXSTR), intent(in   ) :: reportType
+  character(THARN_MAXSTR), intent(in   ) :: reportType
   integer, intent(in   ) :: localPET
   integer, intent(  out) :: localrc
 
   ! local character strings
-  character(ESMF_MAXSTR) :: lstatus, lout, test_string
+  character(THARN_MAXSTR) :: lstatus, lout, test_string
   character(7) :: l1, l2, lpet
 
   ! local integer variables
@@ -353,7 +358,7 @@
            trim(adjustL(l2)), trim(adjustL(PDS%Dfiles(iDfile)%filename)) 
      else
         ! error
-        call ESMF_LogMsgSetError( ESMF_FAILURE,"invalid test status value ",   &
+        call ESMF_LogSetError( ESMF_FAILURE,msg="invalid test status value ",   &
              rcToReturn=localrc)
         return
      endif
@@ -390,7 +395,7 @@
      case default
      ! error
      print*,"error, report flag improperly set"
-     call ESMF_LogMsgSetError( ESMF_FAILURE," report flag improperly set",     &
+     call ESMF_LogSetError( ESMF_FAILURE, msg=" report flag improperly set",     &
                rcToReturn=localrc)
      return
 
@@ -405,8 +410,320 @@
   end subroutine report_descriptor_string
   !-----------------------------------------------------------------------------
 
- !------------------------------------------------------------------------------
+!------------------------------------------------------------------------------
+!------------------------------------------------------------------------------
+  !-----------------------------------------------------------------------------
+  subroutine summ_rpt_write_detail_line (DSpecNo, GSpecNo, &
+      srcDist, dstDist, srcGrid, dstGrid, rptLun, localrc)
+    integer,                         intent(in)  :: DSpecNo
+    integer,                         intent(in)  :: GSpecNo
+    type(dist_specification_record), intent(in)  :: srcDist
+    type(dist_specification_record), intent(in)  :: dstDist
+    type(grid_specification_record), intent(in)  :: srcGrid
+    type(grid_specification_record), intent(in)  :: dstGrid
+    integer,                         intent(in)  :: rptLun
+    integer,                         intent(out) :: localrc
 
+    integer :: RankNo
+
+    localrc = ESMF_SUCCESS
+
+    write (rptLun, 9001)
+
+    write (rptLun, 9005) DSpecNo
+    write (rptLun, 9006) GSpecNo
+
+    ! make sure distribution rank is consistent
+    if (srcDist%drank .NE. dstDist%drank) then
+      write (rptLun, '("source distribution rank does not match destination rank", I4, 2x, I4)') &
+        srcDist%drank, dstDist%drank
+    end if
+
+    ! make sure grid rank is consistent
+    if (srcGrid%grank .NE. dstGrid%grank) then
+      write (rptLun, '("source grid rank does not match destination rank", I4, 2x, I4)') &
+        srcGrid%grank, dstGrid%grank
+    end if
+
+    ! make sure distribution and grid are consistent
+    if (srcDist%drank .NE. srcGrid%grank) then
+      write (rptLun, '("distribution rank does not match grid rank", I4, 2x, I4)') &
+        srcDist%drank, srcGrid%grank
+    end if
+
+    write (rptLun, 9007) srcDist%drank
+    write (rptLun, 9008) srcGrid%grank
+
+    ! write source distribution
+    do RankNo = 1, srcDist%drank
+      write (rptLun, 9012) RankNo, srcDist%dsize(RankNo), RankNo
+    end do
+
+    ! write destination distribution
+    do RankNo = 1, dstDist%drank
+      write (rptLun, 9013) RankNo, dstDist%dsize(RankNo), RankNo
+    end do
+
+    ! write source grid
+    do RankNo = 1, srcGrid%grank
+      write (rptLun, 9020) RankNo, srcGrid%gsize(RankNo), RankNo
+      write (rptLun, 9021) RankNo, srcGrid%grange(RankNo, 1), RankNo
+      write (rptLun, 9022) RankNo, srcGrid%grange(RankNo, 2), RankNo
+      write (rptLun, 9023) RankNo, trim(srcGrid%gtype(RankNo)%string), RankNo
+      write (rptLun, 9024) RankNo, trim(srcGrid%gunits(RankNo)%string), RankNo
+    end do
+
+    ! write destination grid
+    do RankNo = 1, dstGrid%grank
+      write (rptLun, 9030) RankNo, dstGrid%gsize(RankNo), RankNo
+      write (rptLun, 9031) RankNo, dstGrid%grange(RankNo, 1), RankNo
+      write (rptLun, 9032) RankNo, dstGrid%grange(RankNo, 2), RankNo
+      write (rptLun, 9033) RankNo, trim(dstGrid%gtype(RankNo)%string), RankNo
+      write (rptLun, 9034) RankNo, trim(dstGrid%gunits(RankNo)%string), RankNo
+    end do
+
+    write (rptLun, 9002)
+
+    9001 FORMAT ('        <Row>')
+    9002 FORMAT ('        </Row>')
+
+    9005 FORMAT ('          <DSpecNo>', I3, '</DSpecNo>')
+    9006 FORMAT ('          <GSpecNo>', I3, '</GSpecNo>')
+    9007 FORMAT ('          <DistRank>', I1, '</DistRank>')
+    9008 FORMAT ('          <GridRank>', I1, '</GridRank>')
+
+    9012 FORMAT ('          <SourceDistSize', I1, '>', I5, '</SourceDistSize', I1, '>')
+    9013 FORMAT ('          <DestDistSize', I1, '>', I5, '</DestDistSize', I1, '>')
+
+    ! EN format specifier displays real in engineering format (ISO 1539-1:2004 sect. 10.6.1.2.3)
+    9020 FORMAT ('          <SourceGridSize', I1, '>', I5, '</SourceGridSize', I1, '>')
+    9021 FORMAT ('          <SourceGridCoordLow', I1, '>', EN17.6, '</SourceGridCoordLow', I1, '>')
+    9022 FORMAT ('          <SourceGridCoordHigh', I1, '>', EN17.6, '</SourceGridCoordHigh', I1, '>')
+    9023 FORMAT ('          <SourceGridType', I1, '>', A16, '</SourceGridType', I1, '>')
+    9024 FORMAT ('          <SourceGridUnits', I1, '>', A16, '</SourceGridUnits', I1, '>')
+
+    9030 FORMAT ('          <DestGridSize', I1, '>', I5, '</DestGridSize', I1, '>')
+    9031 FORMAT ('          <DestGridCoordLow', I1, '>', EN17.6, '</DestGridCoordLow', I1, '>')
+    9032 FORMAT ('          <DestGridCoordHigh', I1, '>', EN17.6, '</DestGridCoordHigh', I1, '>')
+    9033 FORMAT ('          <DestGridType', I1, '>', A16, '</DestGridType', I1, '>')
+    9034 FORMAT ('          <DestGridUnits', I1, '>', A16, '</DestGridUnits', I1, '>')
+
+  end subroutine summ_rpt_write_detail_line
+
+  !-----------------------------------------------------------------------------
+  subroutine summ_rpt_proc_dist_grid_files (DfileNo, GfileNo, DRec, GRec, rptLun, localrc)
+    integer,            intent(in)  :: DFileNo
+    integer,            intent(in)  :: GfileNo
+    type(dist_record),  intent(in)  :: DRec
+    type(grid_record),  intent(in)  :: GRec
+    integer,            intent(in)  :: rptLun
+    integer,            intent(out) :: localrc
+
+    integer :: DSpecCnt
+    integer :: DSpecNo
+
+    integer :: GSpecCnt
+    integer :: GSpecNo
+
+    localrc = ESMF_SUCCESS
+
+    write (rptLun, 9001)
+
+    write (rptLun, 9012) DfileNo
+    write (rptLun, 9013) GfileNo
+
+    DSpecCnt = DRec%nDspecs
+    write (rptLun, 9010) DSpecCnt
+
+    GSpecCnt = GRec%nGspecs
+    write (rptLun, 9011) GSpecCnt
+
+    ! process all dist records
+    do DSpecNo = 1,DSpecCnt
+      ! process all grid records
+      do GSpecNo = 1, GSpecCnt
+        ! display distribution/grid
+        call summ_rpt_write_detail_line (DSpecNo, GSpecNo, &
+          DRec%src_dist(DSpecNo), DRec%dst_dist(DSpecNo), &
+          GRec%src_grid(GSpecNo), GRec%dst_grid(GSpecNo), rptLun, localrc)
+      end do
+    end do
+
+    write (rptLun, 9002)
+
+    9001 FORMAT ('      <DistGridFile>')
+    9002 FORMAT ('      </DistGridFile>')
+    9010 FORMAT ('        <DSpecCnt>', I3, '</DSpecCnt>')
+    9011 FORMAT ('        <GSpecCnt>', I3, '</GSpecCnt>')
+    9012 FORMAT ('        <DFileNo>', I3, '</DFileNo>')
+    9013 FORMAT ('        <GFileNo>', I3, '</GFileNo>')
+  end subroutine summ_rpt_proc_dist_grid_files
+
+  !-----------------------------------------------------------------------------
+  subroutine summ_rpt_proc_prob_descr_string (pdsNo, probDescrStr, rptLun, localrc)
+    integer,                           intent(in)  :: pdsNo
+    type(problem_descriptor_strings),  intent(in)  :: probDescrStr
+    integer,                           intent(in)  :: rptLun
+    integer,                           intent(out) :: localrc
+
+    !integer :: PdsCnt
+    !integer :: PdsNo
+
+    integer :: DfileCnt
+    integer :: DfileNo
+
+    integer :: GfileCnt
+    integer :: GfileNo
+
+    write (rptLun, 9001)
+    write (rptLun, 9015) pdsNo
+    write (rptLun, 9010) trim(probDescrStr%pds)
+
+    write (rptLun, 9011)  trim(probDescrStr%process%string)
+    write (rptLun, 9012) probDescrStr%process%tag
+
+    DfileCnt = probDescrStr%nDFiles
+    write (rptLun, 9013) DfileCnt
+
+    GfileCnt = probDescrStr%nGFiles
+    write (rptLun, 9014) GfileCnt
+
+    ! for each distribution file
+    do DfileNo = 1, DfileCnt
+      ! for each grid file
+      do GfileNo = 1, GfileCnt
+        ! display dist file and grid file entry
+        call summ_rpt_proc_dist_grid_files (DfileNo, GfileNo, &
+          probDescrStr%Dfiles(DfileNo), probDescrStr%Gfiles(GfileNo), rptLun, localrc)
+      end do
+    end do
+
+    write (rptLun, 9002)
+
+    localrc = ESMF_SUCCESS
+
+    90 continue
+
+    9001 FORMAT ('    <ProbDescString>')
+    9002 FORMAT ('    </ProbDescString>')
+    9010 FORMAT ('      <PDS>', A, '</PDS>')
+    9011 FORMAT ('      <Process>', A, '</Process>')
+    9012 FORMAT ('      <ProcessCode>', I3, '</ProcessCode>')
+    9013 FORMAT ('      <DistFileCnt>', I3, '</DistFileCnt>')
+    9014 FORMAT ('      <GridFileCnt>', I3, '</GridFileCnt>')
+    9015 FORMAT ('      <PdsNo>', I3, '</PdsNo>')
+
+  end subroutine summ_rpt_proc_prob_descr_string
+
+  !-----------------------------------------------------------------------------
+  subroutine summ_rpt_proc_prob_descr_rec (pdrNo, probDescrRec, rptLun, localrc)
+    integer,                           intent(in)  :: pdrNo
+    type(problem_descriptor_records),  intent(in)  :: probDescrRec
+    integer,                           intent(in)  :: rptLun
+    integer,                           intent(out) :: localrc
+
+    integer :: PdsCnt
+    integer :: PdsNo
+
+    write (rptLun, 9001)
+    write (rptLun, 9012) pdrNo
+    write (rptLun, 9010) trim(probDescrRec%filename)
+
+    PdsCnt = probDescrRec%numStrings
+    write (rptLun, 9011) PdsCnt
+
+    do PdsNo = 1, PdsCnt
+      call summ_rpt_proc_prob_descr_string (PdsNo, probDescrRec%str(PdsNo), rptLun, localrc)
+    end do
+
+    write (rptLun, 9002)
+
+    localrc = ESMF_SUCCESS
+
+    90 continue
+
+    9001 FORMAT ('  <ProbDescRec>')
+    9002 FORMAT ('  </ProbDescRec>')
+    9010 FORMAT ('    <Filename>', A, '</Filename>')
+    9011 FORMAT ('    <PdsCnt>', I3, '</PdsCnt>')
+    9012 FORMAT ('    <PdrNo>', I4, '</PdrNo>')
+  end subroutine summ_rpt_proc_prob_descr_rec
+
+  !-----------------------------------------------------------------------------
+  subroutine summary_report_generate (harnDesc, reportFname, localrc)
+    type (harness_descriptor), intent(in)  :: harnDesc
+    character(len=*),          intent(in)  :: reportFname
+    integer,                   intent(out) :: localrc
+
+    integer, parameter :: rptLun = 50
+    integer :: iostat
+    logical :: openstat
+
+    integer :: PdrNo
+    integer :: PdrCnt
+
+    integer :: timeStamp(8)
+
+    ! initialize return status
+    localrc = ESMF_FAILURE
+
+    ! open report file
+    open (unit=rptLun, file=reportFname, status='REPLACE', iostat=iostat, action='WRITE')
+    if (iostat .NE. 0) then
+      print '("error in summ_rpt_generate, unable to open report file - filename = ", A)', &
+        reportFname
+      go to 90
+    end if
+
+    ! get timestamp
+    call date_and_time (values=timeStamp)
+
+    ! write top level structure
+    write (rptLun, 9000)
+    !write (rptLun, 9001)
+    write (rptLun, 9005)
+    write (rptLun, 9010) timeStamp(1:3), timeStamp(5:7)
+    write (rptLun, 9011) adjustL(trim(harnDesc%configPath))
+    write (rptLun, 9012) adjustL(trim(harnDesc%topFname))
+    write (rptLun, 9013) adjustL(trim(harnDesc%testClass))
+    write (rptLun, 9014) trim(harnDesc%reportType)
+    write (rptLun, 9015) trim(harnDesc%setupReportType)
+    write (rptLun, 9016) harnDesc%numRecords
+
+    ! problem_descriptor_records
+    PdrCnt = harnDesc%numRecords
+    do PdrNo = 1, PdrCnt
+      call summ_rpt_proc_prob_descr_rec (PdrNo, harnDesc%rcrd(PdrNo), rptLun, localrc)
+    end do
+
+    ! write trailer
+    write (rptLun, 9006)
+
+    localrc = ESMF_SUCCESS
+
+    ! return status & exit
+    90 continue
+
+    ! close report file
+    inquire (rptLun, opened=openstat)
+    if (openstat) then
+      close (rptLun)
+    end if
+
+    9000 FORMAT ('<?xml version="1.0"?>')
+    !9001 FORMAT ('<?xml-stylesheet type="application/xml" href="Harness.xslt"?>')
+    9005 FORMAT ('<TopConfig>')
+    9006 FORMAT ('</TopConfig>')
+    9010 FORMAT ('  <Timestamp>', I4, '/', I2, '/', I2, 2x, I2, ':', I2, ':', I2, '</Timestamp>')
+    9011 FORMAT ('  <ConfigPath>', A, '</ConfigPath>')
+    9012 FORMAT ('  <TopFname>', A, '</TopFname>')
+    9013 FORMAT ('  <TestClass>', A, '</TestClass>')
+    9014 FORMAT ('  <ReportType>', A, '</ReportType>')
+    9015 FORMAT ('  <SetUpReportType>', A, '</SetUpReportType>')
+    9016 FORMAT ('  <PDRCnt>', I3, '</PDRCnt>')
+
+  end subroutine summary_report_generate
+  !-----------------------------------------------------------------------------
 !===============================================================================
   end module ESMF_TestHarnessReportMod
 !===============================================================================

@@ -1,0 +1,12 @@
+function qminmax (args)
+
+field = subwrd(args,1)
+'set gxout stat'
+'d 'field
+stuff = result
+minmax = sublin(result,9)
+qmin = subwrd(minmax,5)
+qmax = subwrd(minmax,6)
+cint = subwrd(minmax,7)
+'set gxout contour'
+return qmin' 'qmax' 'cint

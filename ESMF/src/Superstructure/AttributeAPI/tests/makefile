@@ -1,4 +1,4 @@
-# $Id: makefile,v 1.6 2009/04/22 05:50:37 eschwab Exp $ 
+# $Id$ 
 
 ALL:  build_unit_tests
 run:  run_unit_tests
@@ -10,11 +10,14 @@ TESTS_BUILD   = $(ESMF_TESTDIR)/ESMF_AttributeArrayUTest \
 		$(ESMF_TESTDIR)/ESMF_AttributeABundleUTest \
 		$(ESMF_TESTDIR)/ESMF_AttributeCplCompUTest \
 		$(ESMF_TESTDIR)/ESMF_AttributeDistGridUTest \
-		$(ESMF_TESTDIR)/ESMF_AttributeFieldUTest \
 		$(ESMF_TESTDIR)/ESMF_AttributeFBundleUTest \
+        $(ESMF_TESTDIR)/ESMF_AttributeFieldUTest \
 		$(ESMF_TESTDIR)/ESMF_AttributeGridCompUTest \
 		$(ESMF_TESTDIR)/ESMF_AttributeGridUTest \
 		$(ESMF_TESTDIR)/ESMF_AttributeStateUTest \
+		$(ESMF_TESTDIR)/ESMF_AttributeUpdateUTest \
+		$(ESMF_TESTDIR)/ESMF_AttributeUpdate2UTest \
+		$(ESMF_TESTDIR)/ESMF_AttributeXMLUTest \
 		$(ESMF_TESTDIR)/ESMF_AttReadCplCompUTest \
 		$(ESMF_TESTDIR)/ESMF_AttReadGridCompUTest \
 		$(ESMF_TESTDIR)/ESMF_AttReadFieldUTest
@@ -28,6 +31,9 @@ TESTS_RUN     = RUN_ESMF_AttributeArrayUTest \
 		RUN_ESMF_AttributeGridCompUTest \
 		RUN_ESMF_AttributeGridUTest \
 		RUN_ESMF_AttributeStateUTest \
+		RUN_ESMF_AttributeUpdateUTest \
+		RUN_ESMF_AttributeUpdate2UTest \
+		RUN_ESMF_AttributeXMLUTest \
 		RUN_ESMF_AttReadCplCompUTest \
 		RUN_ESMF_AttReadGridCompUTest \
 		RUN_ESMF_AttReadFieldUTest
@@ -41,6 +47,7 @@ TESTS_RUN_UNI = RUN_ESMF_AttributeArrayUTestUNI \
 		RUN_ESMF_AttributeGridCompUTestUNI \
 		RUN_ESMF_AttributeGridUTestUNI \
 		RUN_ESMF_AttributeStateUTestUNI \
+		RUN_ESMF_AttributeXMLUTestUNI \
 		RUN_ESMF_AttReadCplCompUTestUNI \
 		RUN_ESMF_AttReadGridCompUTestUNI \
 		RUN_ESMF_AttReadFieldUTestUNI
@@ -85,10 +92,12 @@ RUN_ESMF_AttributeCplCompUTestUNI:
 
 RUN_ESMF_AttReadCplCompUTest:
 	cp -f $(ESMF_DIR)/src/Superstructure/Component/etc/esmf_cplcomp.xml $(ESMF_TESTDIR)
+	$(ESMF_DIR)/scripts/copy_xsd $(ESMF_TESTDIR)
 	$(MAKE) TNAME=AttReadCplComp NP=4 ftest
 
 RUN_ESMF_AttReadCplCompUTestUNI:
 	cp -f $(ESMF_DIR)/src/Superstructure/Component/etc/esmf_cplcomp.xml $(ESMF_TESTDIR)
+	$(ESMF_DIR)/scripts/copy_xsd $(ESMF_TESTDIR)
 	$(MAKE) TNAME=AttReadCplComp NP=1 ftest
 
 # --- DistGrid
@@ -109,10 +118,12 @@ RUN_ESMF_AttributeFieldUTestUNI:
 
 RUN_ESMF_AttReadFieldUTest:
 	cp -f $(ESMF_DIR)/src/Infrastructure/Field/etc/esmf_field.xml $(ESMF_TESTDIR)
+	$(ESMF_DIR)/scripts/copy_xsd $(ESMF_TESTDIR)
 	$(MAKE) TNAME=AttReadField NP=4 ftest
 
 RUN_ESMF_AttReadFieldUTestUNI:
 	cp -f $(ESMF_DIR)/src/Infrastructure/Field/etc/esmf_field.xml $(ESMF_TESTDIR)
+	$(ESMF_DIR)/scripts/copy_xsd $(ESMF_TESTDIR)
 	$(MAKE) TNAME=AttReadField NP=1 ftest
 
 
@@ -134,11 +145,29 @@ RUN_ESMF_AttributeGridCompUTestUNI:
 
 RUN_ESMF_AttReadGridCompUTest:
 	cp -f $(ESMF_DIR)/src/Superstructure/Component/etc/esmf_gridcomp.xml $(ESMF_TESTDIR)
+	$(ESMF_DIR)/scripts/copy_xsd $(ESMF_TESTDIR)
 	$(MAKE) TNAME=AttReadGridComp NP=4 ftest
 
 RUN_ESMF_AttReadGridCompUTestUNI:
 	cp -f $(ESMF_DIR)/src/Superstructure/Component/etc/esmf_gridcomp.xml $(ESMF_TESTDIR)
+	$(ESMF_DIR)/scripts/copy_xsd $(ESMF_TESTDIR)
 	$(MAKE) TNAME=AttReadGridComp NP=1 ftest
+
+# --- Update
+
+RUN_ESMF_AttributeUpdateUTest:
+	$(MAKE) TNAME=AttributeUpdate NP=4 ftest
+
+RUN_ESMF_AttributeUpdate2UTest:
+	$(MAKE) TNAME=AttributeUpdate2 NP=6 ftest
+
+# --- XML
+
+RUN_ESMF_AttributeXMLUTest:
+	$(MAKE) TNAME=AttributeXML NP=4 ftest
+
+RUN_ESMF_AttributeXMLUTestUNI:
+	$(MAKE) TNAME=AttributeXML NP=1 ftest
 
 # --- Grid
 

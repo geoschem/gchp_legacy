@@ -1,7 +1,7 @@
-// $Id: ESMCI_BaseTime.h,v 1.10.4.1 2010/02/05 20:00:07 svasquez Exp $
+// $Id$
 //
 // Earth System Modeling Framework
-// Copyright 2002-2010, University Corporation for Atmospheric Research,
+// Copyright 2002-2012, University Corporation for Atmospheric Research,
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 // Laboratory, University of Michigan, National Centers for Environmental
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -25,7 +25,8 @@
  // Put any constants or macros which apply to the whole component in this file.
  // Anything public or esmf-wide should be up higher at the top level
  // include files.
-#include "ESMC_Start.h"
+#include "ESMCI_Util.h"
+#include "ESMCI_Macros.h"
 #include "ESMF_TimeMgr.inc"
 
 //-------------------------------------------------------------------------
@@ -107,8 +108,6 @@
 //-------------------------------------------------------------------------
 //
 // !USES:
-#include "ESMC_Base.h"   // all classes inherit from the ESMC Base class.
-#include "ESMC_IOSpec.h" // IOSpec class for ReadRestart()/WriteRestart()
 #include "ESMCI_Fraction.h"
 
 namespace ESMCI {
@@ -175,9 +174,8 @@ class BaseTime : public Fraction { // it is a fraction !
     // required methods inherited and overridden from the ESMC_Base class
 
     // for persistence/checkpointing
-    int readRestart(int nameLen, const char *name=0,
-                                 ESMC_IOSpec *iospec=0);
-    int writeRestart(ESMC_IOSpec *iospec=0) const;
+    int readRestart(int nameLen, const char *name=0);
+    int writeRestart(void) const;
 
     // internal validation
     int validate(const char *options=0) const;

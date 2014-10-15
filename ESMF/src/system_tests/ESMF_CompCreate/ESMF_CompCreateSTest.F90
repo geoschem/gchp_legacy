@@ -1,4 +1,4 @@
-! $Id: ESMF_CompCreateSTest.F90,v 1.29 2009/10/16 20:37:05 svasquez Exp $
+! $Id: ESMF_CompCreateSTest.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
 !
 ! System test CompCreate
 !  Description on Sourceforge under System Test #63029
@@ -17,23 +17,21 @@
 
     program CompCreate
 
-#include "ESMF_Macros.inc"
-
     ! ESMF Framework module
-    use ESMF_Mod
+    use ESMF
     use ESMF_TestMod
-    
+
     use user_model, only : user_setvm, user_register
 
     implicit none
-    
+
 !   Local variables
-    integer :: my_pet, rc
+    integer :: my_pet, rc, userrc
     type(ESMF_VM):: vm
     type(ESMF_GridComp) :: comp1
     type(ESMF_State) :: imp, exp
     character(len=ESMF_MAXSTR) :: cname
-        
+
     ! cumulative result: count failures; no failures equals "all pass"
     integer :: result = 0
 
@@ -56,7 +54,7 @@
 !
 
     call ESMF_Initialize(defaultlogfilename="CompCreateSTest.Log", &
-                        defaultlogtype=ESMF_LOG_MULTI, rc=rc)
+                        logkindflag=ESMF_LOGKIND_MULTI, rc=rc)
     if (rc .ne. ESMF_SUCCESS) goto 10
 
     ! Get the default global VM
@@ -68,7 +66,7 @@
     if (rc .ne. ESMF_SUCCESS) goto 10
 
     cname = "System Test CompCreate"
-    comp1 = ESMF_GridCompCreate(name=cname, gridcompType=ESMF_ATM, rc=rc)
+    comp1 = ESMF_GridCompCreate(name=cname, rc=rc)
     if (rc .ne. ESMF_SUCCESS) goto 10
     call ESMF_GridCompPrint(comp1)
 
@@ -80,11 +78,13 @@
 !  Register section
 !-------------------------------------------------------------------------
 !-------------------------------------------------------------------------
-      call ESMF_GridCompSetVM(comp1, userRoutine=user_setvm, rc=rc)
-      if (rc .ne. ESMF_SUCCESS) goto 10
+      call ESMF_GridCompSetVM(comp1, userRoutine=user_setvm, &
+        userRc=userrc, rc=rc)
+      if ((rc .ne. ESMF_SUCCESS) .or. (userrc .ne. ESMF_SUCCESS)) goto 10
       print *, "Comp SetVM finished, rc= ", rc
-      call ESMF_GridCompSetServices(comp1, userRoutine=user_register, rc=rc)
-      if (rc .ne. ESMF_SUCCESS) goto 10
+      call ESMF_GridCompSetServices(comp1, userRoutine=user_register, &
+        userRc=userrc, rc=rc)
+      if ((rc .ne. ESMF_SUCCESS) .or. (userrc .ne. ESMF_SUCCESS)) goto 10
       print *, "Comp Register finished, rc= ", rc
 
 !-------------------------------------------------------------------------
@@ -92,36 +92,43 @@
 !  Init section
 !-------------------------------------------------------------------------
 !-------------------------------------------------------------------------
- 
-      imp = ESMF_StateCreate("igrid import state", ESMF_STATE_IMPORT, rc=rc)
-      if (rc .ne. ESMF_SUCCESS) goto 10
-      exp = ESMF_StateCreate("igrid export state", ESMF_STATE_EXPORT, rc=rc)
+
+      imp = ESMF_StateCreate(name="igrid import state",  &
+                             stateintent=ESMF_STATEINTENT_IMPORT, rc=rc)
+      if ( (rc .ne. ESMF_SUCCESS) .or. (userrc .ne. ESMF_SUCCESS) ) goto 10
+      exp = ESMF_StateCreate(name="igrid export state",  &
+                             stateintent=ESMF_STATEINTENT_EXPORT, rc=rc)
       if (rc .ne. ESMF_SUCCESS) goto 10
 
-      call ESMF_GridCompInitialize(comp1, imp, exp, phase=1, rc=rc)
-      if (rc .ne. ESMF_SUCCESS) goto 10
+      call ESMF_GridCompInitialize(comp1, importState=imp, &
+        exportState=exp, phase=1, userRc=userrc, rc=rc)
+      if ( (rc .ne. ESMF_SUCCESS) .or. (userrc .ne. ESMF_SUCCESS) ) goto 10
       print *, "Comp Initialize 1 finished"
- 
-      call ESMF_GridCompInitialize(comp1, imp, exp, phase=2, rc=rc)
-      if (rc .ne. ESMF_SUCCESS) goto 10
+
+      call ESMF_GridCompInitialize(comp1, importState=imp, &
+        exportState=exp, phase=2, userRc=userrc, rc=rc)
+      if ( (rc .ne. ESMF_SUCCESS) .or. (userrc .ne. ESMF_SUCCESS) ) goto 10
       print *, "Comp Initialize 2 finished"
- 
+
 !-------------------------------------------------------------------------
 !-------------------------------------------------------------------------
 !     Run section
 !-------------------------------------------------------------------------
 !-------------------------------------------------------------------------
 
-      call ESMF_GridCompRun(comp1, imp, exp, rc=rc)
-      if (rc .ne. ESMF_SUCCESS) goto 10
+      call ESMF_GridCompRun(comp1, importState=imp, &
+        exportState=exp, userRc=userrc, rc=rc)
+      if ((rc .ne. ESMF_SUCCESS) .or. (userrc .ne. ESMF_SUCCESS)) goto 10
       print *, "Comp Run returned first time"
 
-      call ESMF_GridCompRun(comp1, imp, exp, rc=rc)
-      if (rc .ne. ESMF_SUCCESS) goto 10
+      call ESMF_GridCompRun(comp1, importState=imp, &
+        exportState=exp, userRc=userrc, rc=rc)
+      if ((rc .ne. ESMF_SUCCESS) .or. (userrc .ne. ESMF_SUCCESS)) goto 10
       print *, "Comp Run returned second time"
- 
-      call ESMF_GridCompRun(comp1, imp, exp, rc=rc)
-      if (rc .ne. ESMF_SUCCESS) goto 10
+
+      call ESMF_GridCompRun(comp1, importState=imp, &
+        exportState=exp, userRc=userrc, rc=rc)
+      if ((rc .ne. ESMF_SUCCESS) .or. (userrc .ne. ESMF_SUCCESS)) goto 10
       print *, "Comp Run returned third time"
 
 !-------------------------------------------------------------------------
@@ -131,8 +138,9 @@
 !-------------------------------------------------------------------------
 !     Print result
 
-      call ESMF_GridCompFinalize(comp1, imp, exp, rc=rc)
-      if (rc .ne. ESMF_SUCCESS) goto 10
+      call ESMF_GridCompFinalize(comp1, importState=imp, &
+        exportState=exp, userRc=userrc, rc=rc)
+      if ( (rc .ne. ESMF_SUCCESS) .or. (userrc .ne. ESMF_SUCCESS) ) goto 10
 
 
       print *, "-----------------------------------------------------------------"
@@ -161,13 +169,13 @@
 
 !-------------------------------------------------------------------------
 !-------------------------------------------------------------------------
- 
+
  10   print *, "System Test CompCreate complete"
 
       ! Standard ESMF Test output to log file
       write(failMsg, *) "System Test failure"
       write(testname, *) "System Test CompCreate: Component Create Test"
-  
+
       if (rc .ne. ESMF_SUCCESS) then
         ! Separate message to console, for quick confirmation of success/failure
         if (rc .eq. ESMF_SUCCESS) then
@@ -182,14 +190,15 @@
 
       endif
 
-      ! IMPORTANT: ESMF_STest() prints the PASS string and the # of processors in the log
-      ! file that the scripts grep for.
-      call ESMF_STest((rc.eq.ESMF_SUCCESS), testname, failMsg, result, ESMF_SRCLINE)
-
+      ! IMPORTANT: ESMF_STest() prints the PASS string and the # of processors
+      ! into the Log file that the scripts grep for.
+      call ESMF_STest((rc.eq.ESMF_SUCCESS), testname, failMsg, result, &
+        __FILE__, &
+        __LINE__)
 
       call ESMF_Finalize(rc=rc)
 
       end program CompCreate
-    
+
 !\end{verbatim}
-    
+

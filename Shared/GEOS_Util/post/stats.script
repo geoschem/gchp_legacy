@@ -1,0 +1,24 @@
+#!/bin/csh -fx
+
+
+foreach day ( 01 02 03 04 05 06 07 08 09 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31)
+
+set expid = e561_run_10_F22
+set date  = 200910$day
+
+set fcst_files = `ls -1 /discover/nobackup/ltakacs/$expid/holding.$date/$expid.vtx_prs.*nc4`
+set anal_files = `ls -1 /discover/nobackup/ltakacs/e561_run_10/vtx_prs/e561_run_10.vtx.prs.*nc4`
+
+stats.x -fcst $fcst_files \
+        -ana  $anal_files \
+        -cli /discover/nobackup/ltakacs/verification/stats/merrasc.197901-200812.clim_00z.144x91.data.nc \
+             /discover/nobackup/ltakacs/verification/stats/merrasc.197901-200812.clim_06z.144x91.data.nc \
+             /discover/nobackup/ltakacs/verification/stats/merrasc.197901-200812.clim_12z.144x91.data.nc \
+             /discover/nobackup/ltakacs/verification/stats/merrasc.197901-200812.clim_18z.144x91.data.nc \
+        -tag ${expid} -nfreq 060000 & 
+
+end
+wait
+
+
+

@@ -1,7 +1,7 @@
-! $Id: ESMF_ArrayCreateGetUTest.F90,v 1.22.2.1 2010/02/05 19:52:57 svasquez Exp $
+! $Id: ESMF_ArrayCreateGetUTest.F90,v 1.1.5.1 2013-01-11 20:23:43 mathomp4 Exp $
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2010, University Corporation for Atmospheric Research,
+! Copyright 2002-2012, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -30,14 +30,14 @@ program ESMF_ArrayCreateGetUTest
 !-----------------------------------------------------------------------------
 ! !USES:
   use ESMF_TestMod     ! test methods
-  use ESMF_Mod
+  use ESMF
 
   implicit none
 
 !------------------------------------------------------------------------------
 ! The following line turns the CVS identifier string into a printable variable.
   character(*), parameter :: version = &
-    '$Id: ESMF_ArrayCreateGetUTest.F90,v 1.22.2.1 2010/02/05 19:52:57 svasquez Exp $'
+    '$Id: ESMF_ArrayCreateGetUTest.F90,v 1.1.5.1 2013-01-11 20:23:43 mathomp4 Exp $'
 !------------------------------------------------------------------------------
 
   ! cumulative result: count failures; no failures equals "all pass"
@@ -53,8 +53,8 @@ program ESMF_ArrayCreateGetUTest
   !LOCAL VARIABLES:
   type(ESMF_VM):: vm
   integer:: petCount, localPet
-  type(ESMF_ArraySpec):: arrayspec
-  type(ESMF_Array):: array, arrayCpy
+  type(ESMF_ArraySpec):: arrayspec, arrayspec2
+  type(ESMF_Array):: array, arrayAlias, arrayCpy, arrayUnInit
   type(ESMF_DistGrid):: distgrid, distgrid2
   real(ESMF_KIND_R8)      :: farray1D(10)
   real(ESMF_KIND_R8)      :: farray2D(10,10)
@@ -68,7 +68,9 @@ program ESMF_ArrayCreateGetUTest
   character (len=80)      :: arrayName
   integer, allocatable:: totalLWidth(:,:), totalUWidth(:,:)
   integer, allocatable:: totalLBound(:,:), totalUBound(:,:)
-  
+  integer, allocatable:: computationalLWidth(:,:), computationalUWidth(:,:)
+  logical:: arrayBool
+    
   integer:: count
   
   
@@ -89,25 +91,113 @@ program ESMF_ArrayCreateGetUTest
   !------------------------------------------------------------------------
   ! preparations
   call ESMF_VMGetGlobal(vm, rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   call ESMF_VMGet(vm, localPet=localPet, petCount=petCount, rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   
   !------------------------------------------------------------------------
   ! this unit test requires to be run on exactly 4 PETs
   if (petCount /= 4) goto 10
 
   !------------------------------------------------------------------------
-  ! preparations
-  call ESMF_ArraySpecSet(arrayspec, typekind=ESMF_TYPEKIND_R8, rank=2, rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  ! DistGrid preparation
   distgrid = ESMF_DistGridCreate(minIndex=(/1,1/), maxIndex=(/15,23/), &
     regDecomp=(/2,2/), rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
   !------------------------------------------------------------------------
   !NEX_UTest_Multi_Proc_Only
   write(name, *) "ArrayCreate Allocate 2D ESMF_TYPEKIND_R8 Test"
+  write(failMsg, *) "Did not return ESMF_SUCCESS"
+  array = ESMF_ArrayCreate(typekind=ESMF_TYPEKIND_R8, distgrid=distgrid, &
+    indexflag=ESMF_INDEX_GLOBAL, name="MyArray", rc=rc)
+  call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+  
+  !------------------------------------------------------------------------
+  !NEX_UTest_Multi_Proc_Only
+  write(name, *) "Array equality before assignment Test"
+  write(failMsg, *) "Did not return ESMF_SUCCESS"
+  arrayBool = (arrayAlias.eq.array)
+  call ESMF_Test(.not.arrayBool, name, failMsg, result, ESMF_SRCLINE)
+
+  !------------------------------------------------------------------------
+  !NEX_UTest_Multi_Proc_Only
+  ! Testing ESMF_ArrayAssignment(=)()
+  write(name, *) "Array assignment and equality Test"
+  write(failMsg, *) "Did not return ESMF_SUCCESS"
+  arrayAlias = array
+  arrayBool = (arrayAlias.eq.array)
+  call ESMF_Test(arrayBool, name, failMsg, result, ESMF_SRCLINE)
+  
+  !------------------------------------------------------------------------
+  !NEX_UTest_Multi_Proc_Only
+  write(name, *) "ArrayDestroy Test"
+  write(failMsg, *) "Did not return ESMF_SUCCESS"
+  call ESMF_ArrayDestroy(array, rc=rc)
+  call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+
+  !------------------------------------------------------------------------
+  !NEX_UTest_Multi_Proc_Only
+  ! Testing ESMF_ArrayOperator(==)()
+  write(name, *) "Array equality after destroy Test"
+  write(failMsg, *) "Did not return ESMF_SUCCESS"
+  arrayBool = (arrayAlias==array)
+  call ESMF_Test(.not.arrayBool, name, failMsg, result, ESMF_SRCLINE)
+
+  !------------------------------------------------------------------------
+  !NEX_UTest_Multi_Proc_Only
+  ! Testing ESMF_ArrayOperator(/=)()
+  write(name, *) "Array non-equality after destroy Test"
+  write(failMsg, *) "Did not return ESMF_SUCCESS"
+  arrayBool = (arrayAlias/=array)
+  call ESMF_Test(arrayBool, name, failMsg, result, ESMF_SRCLINE)
+
+  !------------------------------------------------------------------------
+  !NEX_UTest_Multi_Proc_Only
+  write(name, *) "Double ArrayDestroy through alias Test"
+  write(failMsg, *) "Did not return ESMF_SUCCESS"
+  call ESMF_ArrayDestroy(arrayAlias, rc=rc)
+  call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+
+  !------------------------------------------------------------------------
+  !NEX_UTest_Multi_Proc_Only
+  write(name, *) "ArrayCreate Allocate 2D ESMF_TYPEKIND_R8 rank inconsistency Test"
+  write(failMsg, *) "Did not return ESMF_SUCCESS"
+  array = ESMF_ArrayCreate(typekind=ESMF_TYPEKIND_R8, distgrid=distgrid, &
+    indexflag=ESMF_INDEX_GLOBAL, undistLBound=(/0/), undistUBound=(/2,2/), &
+    name="MyArray", rc=rc)
+  call ESMF_Test((rc.ne.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+  
+  !------------------------------------------------------------------------
+  !NEX_UTest_Multi_Proc_Only
+  write(name, *) "ArrayCreate Allocate 2D ESMF_TYPEKIND_R8 Test"
+  write(failMsg, *) "Did not return ESMF_SUCCESS"
+  array = ESMF_ArrayCreate(typekind=ESMF_TYPEKIND_R8, distgrid=distgrid, &
+    indexflag=ESMF_INDEX_GLOBAL, name="MyArray", rc=rc)
+  call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+  
+  !------------------------------------------------------------------------
+  !NEX_UTest_Multi_Proc_Only
+  write(name, *) "ArraySet Test"
+  write(failMsg, *) "Did not return ESMF_SUCCESS"
+  call ESMF_ArraySet(array, name="MyArrayNewName", rc=rc)
+  call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+
+  !------------------------------------------------------------------------
+  !NEX_UTest_Multi_Proc_Only
+  write(name, *) "ArrayDestroy Test"
+  write(failMsg, *) "Did not return ESMF_SUCCESS"
+  call ESMF_ArrayDestroy(array, rc=rc)
+  call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+
+  !------------------------------------------------------------------------
+  ! ArraySpec preparation
+  call ESMF_ArraySpecSet(arrayspec, typekind=ESMF_TYPEKIND_R8, rank=2, rc=rc)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
+
+  !------------------------------------------------------------------------
+  !NEX_UTest_Multi_Proc_Only
+  write(name, *) "ArrayCreate Allocate 2D ESMF_TYPEKIND_R8 Test w/ ArraySpec"
   write(failMsg, *) "Did not return ESMF_SUCCESS"
   array = ESMF_ArrayCreate(arrayspec=arrayspec, distgrid=distgrid, &
     indexflag=ESMF_INDEX_GLOBAL, name="MyArray", rc=rc)
@@ -124,7 +214,7 @@ program ESMF_ArrayCreateGetUTest
   !NEX_UTest_Multi_Proc_Only
   write(name, *) "ArrayGet name, 2D ESMF_TYPEKIND_R8 Test"
   write(failMsg, *) "Did not return ESMF_SUCCESS"
-  call ESMF_ArrayGet(array, name=arrayName, rc=rc)
+  call ESMF_ArrayGet(array, arrayspec=arrayspec2, name=arrayName, rc=rc)
   print *, "Array name: ", arrayname
   call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
   
@@ -147,6 +237,13 @@ program ESMF_ArrayCreateGetUTest
   write(name, *) "Verify Attribute count from an Array"
   write(failMsg, *) "Incorrect count"
   call ESMF_Test((count.eq.0), name, failMsg, result, ESMF_SRCLINE)
+  
+  !------------------------------------------------------------------------
+  !NEX_UTest_Multi_Proc_Only
+  write(name, *) "ArrayCreate from Copy, uninitialized Array Test"
+  write(failMsg, *) "Incorrectly returned ESMF_SUCCESS"
+  arrayCpy = ESMF_ArrayCreate(arrayUnInit, rc=rc)
+  call ESMF_Test((rc /= ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
   
   !------------------------------------------------------------------------
   !NEX_UTest_Multi_Proc_Only
@@ -233,11 +330,11 @@ program ESMF_ArrayCreateGetUTest
 
   !------------------------------------------------------------------------
   !NEX_UTest_Multi_Proc_Only
-  write(name, *) "ArrayCreate with 3D farray on 2D DistGrid w/ ESMF_DATA_COPY Test"
+  write(name, *) "ArrayCreate with 3D farray on 2D DistGrid w/ ESMF_DATACOPY_VALUE Test"
   write(failMsg, *) "Did not return ESMF_SUCCESS"
   allocate(farrayPtr3D(8,12,10))
   array = ESMF_ArrayCreate(farray=farrayPtr3D, distgrid=distgrid, &
-    indexflag=ESMF_INDEX_GLOBAL, name="MyArray", copyflag=ESMF_DATA_COPY, rc=rc)
+    indexflag=ESMF_INDEX_GLOBAL, name="MyArray", datacopyflag=ESMF_DATACOPY_VALUE, rc=rc)
   call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
   
   !------------------------------------------------------------------------
@@ -251,11 +348,11 @@ program ESMF_ArrayCreateGetUTest
 
   !------------------------------------------------------------------------
   !NEX_UTest_Multi_Proc_Only
-  write(name, *) "ArrayCreate with 3D farrayPtr on 2D DistGrid w/ ESMF_DATA_COPY Test"
+  write(name, *) "ArrayCreate with 3D farrayPtr on 2D DistGrid w/ ESMF_DATACOPY_VALUE Test"
   write(failMsg, *) "Did not return ESMF_SUCCESS"
   allocate(farrayPtr3D(8,12,10))
   array = ESMF_ArrayCreate(farrayPtr=farrayPtr3D, distgrid=distgrid, &
-    name="MyArray", copyflag=ESMF_DATA_COPY, rc=rc)
+    name="MyArray", datacopyflag=ESMF_DATACOPY_VALUE, rc=rc)
   call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
   
   !------------------------------------------------------------------------
@@ -326,6 +423,31 @@ program ESMF_ArrayCreateGetUTest
 
   !------------------------------------------------------------------------
   !NEX_UTest_Multi_Proc_Only
+  write(name, *) "ArrayGet 2D ESMF_TYPEKIND_R8 w/ computationalEdge widths Test"
+  write(failMsg, *) "Did not return ESMF_SUCCESS"
+  allocate(totalLWidth(2,1))
+  allocate(totalUWidth(2,1))
+  allocate(computationalLWidth(2,1))
+  allocate(computationalUWidth(2,1))
+  call ESMF_ArrayGet(array, totalLWidth=totalLWidth, totalUWidth=totalUWidth, &
+    computationalLWidth=computationalLWidth, &
+    computationalUWidth=computationalUWidth, rc=rc)
+  call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+
+  !------------------------------------------------------------------------
+  !NEX_UTest_Multi_Proc_Only
+  write(name, *) "Check total widths for 2D ESMF_TYPEKIND_R8 w/ computationalEdge widths Test"
+  write(failMsg, *) "Total widths are wrong"
+  call ESMF_Test((totalLWidth(1,1)==max(0,computationalLWidth(1,1))&
+    .and.totalLWidth(2,1)==max(0,computationalLWidth(2,1))&
+    .and.totalUWidth(1,1)==max(0,computationalUWidth(1,1))&
+    .and.totalUWidth(2,1)==max(0,computationalUWidth(2,1))), &
+    name, failMsg, result, ESMF_SRCLINE)
+  deallocate(totalLWidth, totalUWidth)
+  deallocate(computationalLWidth, computationalUWidth)
+
+  !------------------------------------------------------------------------
+  !NEX_UTest_Multi_Proc_Only
   write(name, *) "ArrayDestroy Test"
   write(failMsg, *) "Did not return ESMF_SUCCESS"
   call ESMF_ArrayDestroy(array, rc=rc)
@@ -374,20 +496,20 @@ program ESMF_ArrayCreateGetUTest
   write(name, *) "Check total bounds for 2D ESMF_TYPEKIND_R8 w/ computationalEdge and total widths Test"
   write(failMsg, *) "Total bounds are wrong"
   if (localPet==0) then
-    call ESMF_Test((totalLBound(1,1)==0.and.totalLBound(2,1)==0.and.&
+    call ESMF_Test((totalLBound(1,1)==0.and.totalLBound(2,1)==-1.and.&
     totalUBound(1,1)==11.and.totalUBound(2,1)==16), &
       name, failMsg, result, ESMF_SRCLINE)
   else if (localPet==1) then
-    call ESMF_Test((totalLBound(1,1)==8.and.totalLBound(2,1)==0.and.&
-    totalUBound(1,1)==16.and.totalUBound(2,1)==16), &
+    call ESMF_Test((totalLBound(1,1)==8.and.totalLBound(2,1)==-1.and.&
+    totalUBound(1,1)==18.and.totalUBound(2,1)==16), &
       name, failMsg, result, ESMF_SRCLINE)
   else if (localPet==2) then
     call ESMF_Test((totalLBound(1,1)==0.and.totalLBound(2,1)==11.and.&
-    totalUBound(1,1)==11.and.totalUBound(2,1)==28), &
+    totalUBound(1,1)==11.and.totalUBound(2,1)==27), &
       name, failMsg, result, ESMF_SRCLINE)
   else if (localPet==3) then
     call ESMF_Test((totalLBound(1,1)==8.and.totalLBound(2,1)==11.and.&
-    totalUBound(1,1)==16.and.totalUBound(2,1)==28), &
+    totalUBound(1,1)==18.and.totalUBound(2,1)==27), &
       name, failMsg, result, ESMF_SRCLINE)
   endif  
   deallocate(totalLBound, totalUBound)
@@ -402,7 +524,7 @@ program ESMF_ArrayCreateGetUTest
   !------------------------------------------------------------------------
   ! cleanup  
   call ESMF_DistGridDestroy(distgrid, rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   
   ! test validate code
   !------------------------------------------------------------------------
@@ -443,7 +565,7 @@ program ESMF_ArrayCreateGetUTest
   !------------------------------------------------------------------------
   ! preparations
   distgrid = ESMF_DistGridCreate(minIndex=(/1/), maxIndex=(/40/), rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   
   !------------------------------------------------------------------------
   !NEX_UTest_Multi_Proc_Only
@@ -507,12 +629,12 @@ program ESMF_ArrayCreateGetUTest
   !------------------------------------------------------------------------
   ! cleanup  
   call ESMF_DistGridDestroy(distgrid, rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   
   !------------------------------------------------------------------------
   ! preparations
   distgrid = ESMF_DistGridCreate(minIndex=(/1,1/), maxIndex=(/40,10/), rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   
   !------------------------------------------------------------------------
   !NEX_UTest_Multi_Proc_Only
@@ -546,13 +668,13 @@ program ESMF_ArrayCreateGetUTest
   !------------------------------------------------------------------------
   ! cleanup  
   call ESMF_DistGridDestroy(distgrid, rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   
   !------------------------------------------------------------------------
   ! preparations
   distgrid = ESMF_DistGridCreate(minIndex=(/1,1,1/), maxIndex=(/40,10,10/), &
     rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   
   !------------------------------------------------------------------------
   !NEX_UTest_Multi_Proc_Only
@@ -579,13 +701,13 @@ program ESMF_ArrayCreateGetUTest
   !------------------------------------------------------------------------
   ! cleanup  
   call ESMF_DistGridDestroy(distgrid, rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   
   !------------------------------------------------------------------------
   ! preparations
   distgrid = ESMF_DistGridCreate(minIndex=(/1,1,1,1/), &
     maxIndex=(/40,10,10,10/), rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   
   !------------------------------------------------------------------------
   !NEX_UTest_Multi_Proc_Only
@@ -612,7 +734,7 @@ program ESMF_ArrayCreateGetUTest
   !------------------------------------------------------------------------
   ! cleanup  
   call ESMF_DistGridDestroy(distgrid, rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   
 10 continue
   !------------------------------------------------------------------------

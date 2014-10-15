@@ -1,0 +1,41 @@
+#!/bin/csh -x
+
+# Note: Variable GEOSgcm should point to a recently compiled version of the GEOS model
+# ------------------------------------------------------------------------------------
+
+set arch = `uname`
+set host = `hostname`
+set name = `echo $host | cut -b 1-5` ; if( $name == 'halem'    ) set host = $name
+set name = `echo $host | cut -b 1-8` ; if( $name == 'columbia' ) set host = $name
+
+
+if( ! -e zonal_$arch.x ) then
+
+if( -e test.o ) /bin/rm test.o
+if( -e test.F ) /bin/rm test.F
+cat zonal.f > test.F
+
+
+# SGI Compilation
+# ---------------
+if( ${arch} == 'IRIX64' ) then
+     f90 -c -fixedform -extend_source -O3 -64 -r8 -i4 -mips4 -I $BASEDIR/include -Dgrads -mp -OPT:Olimit=0 test.F
+     f90 -o zonal_${arch}.x -O3 -64 -r8 -i4 -mips4 -I . -mp test.o
+endif
+
+# Compaq Compilation
+# ------------------
+if( ${arch} == 'OSF1' ) then
+     f90 -o zonal_${arch}.x -extend_source -convert big_endian -assume byterecl -g -r4 -i4 -I. test.F
+endif
+
+# Linux Compilation
+# -----------------
+if( ${arch} == 'Linux' ) then
+     ifort -o zonal_${arch}.x -extend_source -assume byterecl -O2 -I. -Dgrads test.F
+endif
+
+
+if( -e test.o ) /bin/rm test.F
+if( -e test.o ) /bin/rm test.o
+endif

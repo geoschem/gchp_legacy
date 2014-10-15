@@ -1,0 +1,38 @@
+#
+# !REVISION HISTORY:
+#
+#  Nov2003  B. Yin    first version.
+#
+
+#                       ----------------
+#                       Variable Classes
+#                       ----------------
+ 
+# A variable class lists the variable names that make up a file type or product.
+
+###  PRODUCT: tavg3d_mis_e MET  PRODUCT  Resolution: (288x181x55)
+VarClass*tavg3d_mis_e: PS DIABDT HGHT HGHTE KH KM OMEGA PV RH SPHU TMPU UWND VWND
+
+#                         --------------------
+#                         Variable Translation
+#                         --------------------
+
+Variable_translation_table::
+
+#   Output           |         Input
+#    Name            |          Name
+#--------------------------------------
+
+   PS                     SURFP
+   DIABDT                 DIABDT
+   HGHT                   H
+   HGHTE                  HGHTE
+   KH                     KVH
+   KM                     KVM
+   OMEGA                  OMEGA
+   PV                     PV
+   RH                     RELHUM
+   SPHU                   Q
+   TMPU                   T
+   UWND                   U
+   VWND                   V

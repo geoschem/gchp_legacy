@@ -1,7 +1,7 @@
-! $Id: ESMF_CalRangeUTest.F90,v 1.38.2.1 2010/02/05 20:00:46 svasquez Exp $
+! $Id: ESMF_CalRangeUTest.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2010, University Corporation for Atmospheric Research,
+! Copyright 2002-2012, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -32,13 +32,13 @@
 !-----------------------------------------------------------------------------
 ! !USES:
       use ESMF_TestMod      ! test methods
-      use ESMF_Mod
+      use ESMF
       implicit none
 
 !------------------------------------------------------------------------------
 ! The following line turns the CVS identifier string into a printable variable.
       character(*), parameter :: version = &
-      '$Id: ESMF_CalRangeUTest.F90,v 1.38.2.1 2010/02/05 20:00:46 svasquez Exp $'
+      '$Id: ESMF_CalRangeUTest.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $'
 !------------------------------------------------------------------------------
 
       integer, parameter :: CONVERT_TO_TIME = 1, CONVERT_TO_DATE = 2, &
@@ -56,7 +56,8 @@
 
 
 
-      integer, dimension(MONTHS_PER_YEAR) :: DaysPerMonth
+      ! days per month array, 12 months per year
+      integer, dimension(12) :: DaysPerMonth
 
 #ifdef ESMF_TESTEXHAUSTIVE
       ! individual test name
@@ -112,26 +113,28 @@
 
       ! Julian Day Calendar
 
-      ! initialize calendar to be Julian Day type
-      julianDayCalendar = ESMF_CalendarCreate("JulianDay", &
-                                              ESMF_CAL_JULIANDAY, rc)
+      ! initialize calendar to be Julian Day kind
+      julianDayCalendar = ESMF_CalendarCreate(ESMF_CALKIND_JULIANDAY, &
+        name="JulianDay", rc=rc)
 
       ! Modified Julian Day Calendar
 
-      ! initialize calendar to be Modified Julian Day type
-      modifiedJulianDayCalendar = ESMF_CalendarCreate("ModifiedJulianDay", &
-                                              ESMF_CAL_MODJULIANDAY, rc)
+      ! initialize calendar to be Modified Julian Day kind
+      modifiedJulianDayCalendar = &
+        ESMF_CalendarCreate(ESMF_CALKIND_MODJULIANDAY, &
+        name="ModifiedJulianDay", rc=rc)
 
       ! Gregorian Calendar
 
-      ! initialize calendar to be Gregorian type
-      gregorianCalendar = ESMF_CalendarCreate("Gregorian", &
-                                              ESMF_CAL_GREGORIAN, rc)
+      ! initialize calendar to be Gregorian kind
+      gregorianCalendar = ESMF_CalendarCreate(ESMF_CALKIND_GREGORIAN, &
+        name="Gregorian", rc=rc)
+
       ! Julian Calendar
 
-      ! initialize calendar to be Julian type
-      julianCalendar = ESMF_CalendarCreate("Julian", &
-                                              ESMF_CAL_JULIAN, rc)
+      ! initialize calendar to be Julian kind
+      julianCalendar = ESMF_CalendarCreate(ESMF_CALKIND_JULIAN, &
+        name="Julian", rc=rc)
 
 
       !-------------------------------------------------------------------------
@@ -536,10 +539,10 @@
       !-------------------!
       ! destroy calendars !
       !-------------------!
-      call ESMF_CalendarDestroy(julianCalendar, rc)
-      call ESMF_CalendarDestroy(gregorianCalendar, rc)
-      call ESMF_CalendarDestroy(julianDayCalendar, rc)
-      call ESMF_CalendarDestroy(modifiedJulianDayCalendar, rc)
+      call ESMF_CalendarDestroy(julianCalendar, rc=rc)
+      call ESMF_CalendarDestroy(gregorianCalendar, rc=rc)
+      call ESMF_CalendarDestroy(julianDayCalendar, rc=rc)
+      call ESMF_CalendarDestroy(modifiedJulianDayCalendar, rc=rc)
 #endif
 
       ! finalize ESMF framework
@@ -800,13 +803,13 @@
       integer(ESMF_KIND_I8), parameter :: ly1 = 400, ly2 = 4, ly3 = 100
       logical :: leapYear 
 
-      if (cal .eq. ESMF_CAL_GREGORIAN) then
+      if (cal .eq. ESMF_CALKIND_GREGORIAN) then
 ! Note: At least one Absoft compiler (in particular, version 9a SP1 on x86_64 linux)
 ! may miscompile the following statement - which causes a floating point error at
 ! runtime.  See ticket #2800140.
         leapYear = (mod(YYl,ly1).eq.0) .or. &
                      (mod(YYl,ly2).eq.0 .and. mod(YYl,ly3).ne.0)
-      else if (cal .eq. ESMF_CAL_JULIAN) then
+      else if (cal .eq. ESMF_CALKIND_JULIAN) then
         leapYear = mod(YYl,ly2).eq.0
       else
         !print *, "Error:  Leap year rule unknown for given calendar."

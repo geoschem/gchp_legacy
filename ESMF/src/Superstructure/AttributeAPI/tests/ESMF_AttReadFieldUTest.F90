@@ -1,7 +1,7 @@
-! $Id: ESMF_AttReadFieldUTest.F90,v 1.4.2.1 2010/02/05 20:03:39 svasquez Exp $
+! $Id$
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2010, University Corporation for Atmospheric Research,
+! Copyright 2002-2012, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -29,14 +29,14 @@ program ESMF_AttReadFieldUTest
 !-----------------------------------------------------------------------------
 ! !USES:
       use ESMF_TestMod     ! test methods
-      use ESMF_Mod         ! the ESMF Framework
+      use ESMF         ! the ESMF Framework
 
       implicit none
 
 !------------------------------------------------------------------------------
 ! The following line turns the CVS identifier string into a printable variable.
       character(*), parameter :: version = &
-      '$Id: ESMF_AttReadFieldUTest.F90,v 1.4.2.1 2010/02/05 20:03:39 svasquez Exp $'
+      '$Id$'
 !------------------------------------------------------------------------------
 
 !-------------------------------------------------------------------------
@@ -77,12 +77,12 @@ program ESMF_AttReadFieldUTest
       !------------------------------------------------------------------------
       
       ! create a field
-      field = ESMF_FieldCreateEmpty(name="field", rc=rc)
+      field = ESMF_FieldEmptyCreate(name="field", rc=rc)
 
 ! TODO:  resolve
 print *, "this print statement prevents mpi abort!"
 
-      if (rc .ne. ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+      if (rc .ne. ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
       ! assume Xerces XML C++ API library present until proven otherwise
       xercesNotPresent = .false.
@@ -111,15 +111,15 @@ print *, 'rc = ', rc
 
       !------------------------------------------------------------------------
       !EX_UTest
-      ! Get CF "Name" Attribute from a Field Test
-      attrname = 'Name'
+      ! Get CF "ShortName" Attribute from a Field Test
+      attrname = 'ShortName'
       attrvalue = 'DPEDT'
       conv = 'CF'
       purp = 'General'
       call ESMF_AttributeGet(field, name=attrname, value=outChar, &
                              convention=conv, purpose=purp, rc=rc)
       write(failMsg, *) "Did not return ESMF_SUCCESS or wrong value"
-      write(name, *) "Getting CF 'Name' Attribute from a Field Test"
+      write(name, *) "Getting CF 'ShortName' Attribute from a Field Test"
       call ESMF_Test(((rc==ESMF_SUCCESS .and. outChar==attrvalue) &
                       .or. xercesNotPresent), &
                       name, failMsg, result, ESMF_SRCLINE)
@@ -193,7 +193,7 @@ print *, 'outChar = ', outChar
       !------------------------------------------------------------------------
       call ESMF_FieldDestroy(field, rc=rc)
 
-      if (rc .ne. ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+      if (rc .ne. ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
   !-----------------------------------------------------------------------------
   call ESMF_TestEnd(result, ESMF_SRCLINE)

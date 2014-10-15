@@ -1,0 +1,396 @@
+function progz (args)
+
+EXPORT   = subwrd(args,1)
+GC       = subwrd(args,2)
+
+expid    = subwrd(args,3)
+output   = subwrd(args,4)
+debug    = subwrd(args,5)
+
+
+* Define Seasons to Process
+* -------------------------
+seasons  = ''
+       k = 6
+while( k > 0 )
+    season = subwrd(args,k)
+if( season = '' )
+    k = -1
+else
+    seasons = seasons % ' ' % season
+k = k+1
+endif
+endwhile
+uppercase seasons
+          seasons = result
+                                                                                                                                                     
+* Initialize
+* ----------
+'reinit'
+'set display color white'
+'set csmooth on'
+'set clab off'
+'c'
+
+
+* Determine Variable Name and Location
+* ------------------------------------
+if ( EXPORT = "HE" )
+    'run getvar  ZLE      DYN'
+else
+    'run getvar 'EXPORT' 'GC
+endif
+         mname  = subwrd(result,1)
+         mfile  = subwrd(result,2)
+         scale  = subwrd(result,3)
+         expdsc = subwrd(result,4)
+
+if( mfile = "NULL" ) ; return ; endif
+
+'run getenv "GEOSUTIL"'
+         geosutil = result
+                                                                                                   
+'run getenv "VERIFICATION"'
+         verification = result
+
+'run getenv "ANALYSIS"'
+         analysis = result
+
+
+* Model Experiment Data
+* ---------------------
+'set dfile 'mfile
+'setdates'
+'run getenv "BEGDATE"'
+             begdate  = result
+'run getenv "ENDDATE"'
+             enddate  = result
+
+'setlons'
+'sety'
+'setz'
+'sett'
+
+
+* Get Dimension of Model Environment
+* ----------------------------------
+'getinfo lonmin'
+         lonmin = result
+'getinfo lonmax'
+         lonmax = result
+'getinfo latmin'
+         latmin = result
+'getinfo latmax'
+         latmax = result
+
+                     ' alias ' mname
+                      malias = result
+'chckname            'malias
+'seasonalf -FUNCTION 'malias'*'scale' -NAME mod0'
+ modfile  = subwrd(result,1)
+ 
+*******************************************************************
+****   Loop over Possible Experiment Datasets for Comparison   ****
+*******************************************************************
+
+'!/bin/mv HISTORY.T HISTORY.Tmp'
+'run getenv "CMPEXP"'
+         cmpexp = result
+            num = 1
+            exp = subwrd( cmpexp,num )
+while( exp != 'NULL' )
+say ' '
+say 'Comparing with: 'exp
+
+'run setenv "LEVTYPE" 'A
+
+'!chckfile 'exp'/.HOMDIR'
+ 'run getenv CHECKFILE'
+         CHECKFILE  = result
+     if( CHECKFILE != 'NULL' )
+        '!/bin/cp `cat 'exp'/.HOMDIR`/HISTORY.rc .'
+     else
+        '!/bin/cp 'exp'/HISTORY.rc .'
+     endif
+'!remove CHECKFILE.txt'
+
+'!cat HISTORY.rc | sed -e "s/,/ , /g" > HISTORY.T'
+
+if ( EXPORT = "HE" )
+    'run getvar  ZLE      DYN 'exp
+else
+    'run getvar 'EXPORT' 'GC' 'exp
+endif
+               oname = subwrd(result,1)
+               ofile = subwrd(result,2)
+              oscale = subwrd(result,3)
+              obsdsc = subwrd(result,4)
+              obsnam = subwrd(result,5)
+
+'set dfile 'ofile
+    'getdates'
+     begdateo = subwrd(result,1)
+     enddateo = subwrd(result,2)
+
+'set lon 'lonmin' 'lonmax
+'set lat 'latmin' 'latmax
+'setz'
+
+                     ' alias ' oname
+                      oalias = result
+'chckname            'oalias
+'seasonalf -FUNCTION 'oalias'*'oscale' -NAME exp'
+ expfile  = subwrd(result,1)
+ 
+
+* Loop over Seasons to Process
+* ----------------------------
+                 m = 1
+          while( m > 0 )
+              season = subwrd(seasons,m)
+          if( season = '' )
+                   m = -1
+          else
+                   m = m+1
+
+say 'Processing Season: 'season
+
+'set dfile 'mfile
+'count "'season'" 'begdate' 'enddate
+ nmod =  result
+
+'set dfile 'ofile
+'count "'season'"'
+ nobs =  result
+
+
+* Set EXPORT Model and Observation Scaling Factors
+* ------------------------------------------------
+if( EXPORT = "U"     ) ; facm = 1     ; endif
+if( EXPORT = "V"     ) ; facm = 1     ; endif
+if( EXPORT = "T"     ) ; facm = 1     ; endif
+if( EXPORT = "Q"     ) ; facm = 1000  ; endif
+if( EXPORT = "ZLE"   ) ; facm = 1     ; endif
+if( EXPORT = "RH2"   ) ; facm = 100   ; endif
+
+faco = facm
+
+* Create Temporary File at 1x1 degree resolution with consistent levels
+* ---------------------------------------------------------------------
+'set dfile 'mfile
+'set lat -90 90'
+'setlons'
+
+'set dfile 'modfile
+'setz'
+'set t 1'
+'define mod = mod0'season'*'facm
+'makez  mod z'
+
+'set dfile 'expfile
+'setz'
+'set t 1'
+'define obs = exp'season'*'faco
+'makez  obs z'
+
+'set dfile 'mfile
+'set t 1'
+'makezdif -q1 mod -q2 obs -file1 'modfile' -file2 'expfile' -ptop '0.02
+
+
+* Make ZPLT
+* ---------
+   if ( EXPORT = "RH2" )
+        plotop = 5
+   else
+        plotop = 0.02
+   endif
+                       flag = ""
+               while ( flag = "" )
+
+'run 'geosutil'/plots/zcmp1/zplt1 -EXPID 'expid' -EXPORT 'EXPORT' -ALIAS 'mname' -QFILE 'mfile' -OFILE 'ofile' -ONAME 'obsnam' -OBDATE 'begdateo' -OEDATE 'enddateo' -NMOD 'nmod' -NOBS 'nobs' -FACM 'facm' -FACO 'faco' -QDESC 'expdsc' -ODESC 'obsdsc' -OUTPUT 'output' -SEASON 'season' -PTOP 'plotop
+
+                if( debug = "debug" )
+                    say "Hit  ENTER  to repeat plot"
+                    say "Type 'next' for  next plot, 'done' for next field"
+                    pull flag
+                else
+                    flag = "next"
+                endif
+               endwhile
+              'c'
+ 
+* End Seasonal Test
+* -----------------
+endif
+
+* End Seasonal Loop
+* -----------------
+endwhile
+
+
+* Check next Comparison Experiment Dataset
+* ----------------------------------------
+  num = num + 1
+  exp = subwrd( cmpexp,num )
+endwhile
+'!/bin/mv HISTORY.Tmp HISTORY.T'
+
+
+*********************************************************************
+****   Loop over Possible Verification Datasets for Comparison   ****
+*********************************************************************
+
+* Set EXPORT Model and Observation Scaling Factors
+* ------------------------------------------------
+if( EXPORT = "U"     ) ; facm = 1     ; faco = 1     ; endif
+if( EXPORT = "V"     ) ; facm = 1     ; faco = 1     ; endif
+if( EXPORT = "T"     ) ; facm = 1     ; faco = 1     ; endif
+if( EXPORT = "Q"     ) ; facm = 1000  ; faco = 1000  ; endif
+if( EXPORT = "ZLE"   ) ; facm = 1     ; faco = 1     ; endif
+if( EXPORT = "RH2"   ) ; facm = 100   ; faco = 100   ; endif
+
+* Get Plotting Values from Resource File
+* --------------------------------------
+'run getenv "GEOSUTIL"'
+         geosutil = result
+PLOTRC = geosutil'/plots/grads_util/plot.rc'
+
+' getnumrc 'geosutil'/plots/zcmp1'
+     rcinfo = result
+     numrc  = subwrd( rcinfo,1 )
+       num  = 1
+       cnt  = 0
+while( num <= numrc )
+        loc = num + 1
+     rcfile = subwrd( rcinfo,loc )
+              OBS = EXPORT
+     'run getobs 'OBS' 'GC' 'rcfile
+               oname = subwrd(result,1)
+               ofile = subwrd(result,2)
+              oscale = subwrd(result,3)
+              obsdsc = subwrd(result,4)
+              obsnam = subwrd(result,5)
+
+if( analysis != "false" )
+   'run setenv "LEVTYPE" 'A
+else
+   'run setenv "LEVTYPE" 'D
+endif
+
+* Compute PLOT for Specific Verification
+* --------------------------------------
+if( oname != 'NULL' ) 
+
+'set dfile 'ofile
+    'getdates'
+     begdateo = subwrd(result,1)
+     enddateo = subwrd(result,2)
+
+'set lon 'lonmin' 'lonmax
+'set lat 'latmin' 'latmax
+'setz'
+
+
+                     ' alias ' oname
+                      oalias = result
+'chckname            'oalias
+'seasonalf -FUNCTION 'oalias'*'oscale' -NAME obs'
+ obsfile  = subwrd(result,1)
+ 
+
+* Loop over Seasons to Process
+* ----------------------------
+                 m = 1
+          while( m > 0 )
+              season = subwrd(seasons,m)
+          if( season = '' )
+                   m = -1
+          else
+                   m = m+1
+
+say 'Processing Season: 'season
+
+'set dfile 'mfile
+'count "'season'" 'begdate' 'enddate
+ nmod =  result
+
+'set dfile 'ofile
+'count "'season'"'
+ nobs =  result
+
+
+* Create Temporary File at 1x1 degree resolution with consistent levels
+* ---------------------------------------------------------------------
+'set dfile 'mfile
+'set lat -90 90'
+'setlons'
+
+'set dfile 'modfile
+'setz'
+'set t 1'
+'define mod = mod0'season'*'facm
+'makez  mod z'
+
+'set dfile 'obsfile
+'setz'
+'set t 1'
+'define obs = obs'season'*'faco
+'makez  obs z'
+
+'set dfile 'mfile
+'set t 1'
+'makezdif -q1 mod -q2 obs -file1 'modfile' -file2 'obsfile' -ptop '0.02
+
+* Make ZPLT
+* ---------
+   if ( EXPORT = "RH2" )
+        plotop = 5
+   else
+        plotop = 0.02
+   endif
+                       flag = ""
+               while ( flag = "" )
+
+'run 'geosutil'/plots/zcmp1/zplt1 -EXPID 'expid' -EXPORT 'EXPORT' -ALIAS 'mname' -QFILE 'mfile' -OFILE 'ofile' -ONAME 'obsnam' -OBDATE 'begdateo' -OEDATE 'enddateo' -NMOD 'nmod' -NOBS 'nobs' -FACM 'facm' -FACO 'faco' -QDESC 'expdsc' -ODESC 'obsdsc' -OUTPUT 'output' -SEASON 'season' -PTOP 'plotop
+
+                if( debug = "debug" )
+                    say "Hit  ENTER  to repeat plot"
+                    say "Type 'next' for  next plot, 'done' for next field"
+                    pull flag
+                else
+                    flag = "next"
+                endif
+               endwhile
+              'c'
+
+* End Seasonal Test
+* -----------------
+endif
+
+* End Seasonal Loop
+* -----------------
+endwhile
+
+* End check for valid OBS
+* -----------------------
+endif
+
+* Check next Verification Dataset
+* -------------------------------
+num = num + 1
+endwhile
+
+return
+
+function getdate (date,month,year)
+       num = 1
+       bit = substr(date,num,1)
+while( bit != '' )
+       num = num+1
+       bit = substr(date,num,1)
+endwhile
+       loc = num-7
+     month = substr(date,loc  ,3)
+      year = substr(date,loc+3,4)
+return month' 'year

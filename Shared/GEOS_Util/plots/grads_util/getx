@@ -1,0 +1,13 @@
+function getx (args)
+  r = subwrd(args,1)
+cor = subwrd(args,2)
+say 'ARGS = 'args
+say '   r = 'r
+say ' cor = 'cor
+'d acos('cor')'
+say 'result = 'result
+th = subwrd(result,4)
+'d 'r'*cos('th')'
+ x = subwrd(result,4)
+say 'result = 'result
+return x

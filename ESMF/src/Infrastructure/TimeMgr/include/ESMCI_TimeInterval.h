@@ -1,7 +1,7 @@
-// $Id: ESMCI_TimeInterval.h,v 1.14.2.1 2010/02/05 20:00:07 svasquez Exp $
+// $Id$
 //
 // Earth System Modeling Framework
-// Copyright 2002-2010, University Corporation for Atmospheric Research,
+// Copyright 2002-2012, University Corporation for Atmospheric Research,
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 // Laboratory, University of Michigan, National Centers for Environmental
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -25,7 +25,8 @@
  // Put any constants or macros which apply to the whole component in this file.
  // Anything public or esmf-wide should be up higher at the top level
  // include files.
-#include "ESMC_Start.h"
+#include "ESMCI_Util.h"
+#include "ESMCI_Macros.h"
 #include "ESMF_TimeMgr.inc"
 #include "ESMCI_Fraction.h"
 
@@ -63,7 +64,6 @@
 //-------------------------------------------------------------------------
 
 // !USES:
-#include "ESMC_Base.h"           // inherited Base class
 #include "ESMCI_BaseTime.h"       // inherited BaseTime class
 #include "ESMCI_Time.h"
 #include "ESMCI_Calendar.h"
@@ -117,7 +117,7 @@ class TimeInterval : public BaseTime {
                              ESMC_I4 *sD=0, ESMC_I8 *sD_i8=0,
                              Time *startTime=0, Time *endTime=0,
                              Calendar **calendar=0,
-                             ESMC_CalendarType *calendarType=0);
+                             ESMC_CalKind_Flag *calkindflag=0);
 
     int get(ESMC_I4 *yy=0, ESMC_I8 *yy_i8=0,
                              ESMC_I4 *mm=0, ESMC_I8 *mm_i8=0,
@@ -134,10 +134,10 @@ class TimeInterval : public BaseTime {
                              ESMC_I4 *sD=0, ESMC_I8 *sD_i8=0,
                              Time *startTime=0, Time *endTime=0,
                              Calendar **calendar=0,
-                             ESMC_CalendarType *calendarType=0,
+                             ESMC_CalKind_Flag *calkindflag=0,
                              Time *startTimeIn=0, Time *endTimeIn=0,
                              Calendar **calendarIn=0,
-                             ESMC_CalendarType *calendarTypeIn=0,
+                             ESMC_CalKind_Flag *calkindflagIn=0,
                              int timeStringLen=0, int *tempTimeStringLen=0,
                              char *tempTimeString=0,
                              int timeStringLenISOFrac=0,
@@ -205,8 +205,8 @@ class TimeInterval : public BaseTime {
     // required methods inherited and overridden from the ESMC_Base class
 
     // for persistence/checkpointing
-    int readRestart(int nameLen, const char *name=0, ESMC_IOSpec *iospec=0);
-    int writeRestart(ESMC_IOSpec *iospec=0) const;
+    int readRestart(int nameLen, const char *name=0);
+    int writeRestart(void) const;
 
     // internal validation (TMG 7.1.1)
     int validate(const char *options=0) const;
@@ -220,12 +220,12 @@ class TimeInterval : public BaseTime {
                  ESMC_I8 yy=0, ESMC_I8 mm=0, ESMC_I8 d=0, ESMC_R8 d_r8=0.0,
                  Time *startTime=0, Time *endTime=0,
                  Calendar *calendar=0,
-                 ESMC_CalendarType calendarType=(ESMC_CalendarType)0);
+                 ESMC_CalKind_Flag calkindflag=(ESMC_CalKind_Flag)0);
     int set(ESMC_I8 s, ESMC_I8 sN=0, ESMC_I8 sD=1,
             ESMC_I8 yy=0, ESMC_I8 mm=0, ESMC_I8 d=0, ESMC_R8 d_r8=0.0,
             Time *startTime=0, Time *endTime=0,
             Calendar *calendar=0,
-            ESMC_CalendarType calendarType=(ESMC_CalendarType)0);
+            ESMC_CalKind_Flag calkindflag=(ESMC_CalKind_Flag)0);
                                    // used internally instead of constructor
                                    // to cover case of initial entry from F90,
                                    // to avoid automatic destructor invocation

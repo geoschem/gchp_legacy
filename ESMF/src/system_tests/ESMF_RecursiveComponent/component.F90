@@ -1,4 +1,4 @@
-! $Id: component.F90,v 1.9 2009/05/29 19:24:43 theurich Exp $
+! $Id: component.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
 !
 !-------------------------------------------------------------------------
 !-------------------------------------------------------------------------
@@ -6,7 +6,7 @@
 module componentMod
 
   ! ESMF Framework module
-  use ESMF_Mod
+  use ESMF
 
   implicit none
     
@@ -62,13 +62,13 @@ module componentMod
     rc = ESMF_SUCCESS
 
     ! Register Init, Run, Finalize
-    call ESMF_GridCompSetEntryPoint(comp, ESMF_SETINIT, userRoutine=compInit, &
+    call ESMF_GridCompSetEntryPoint(comp, ESMF_METHOD_INITIALIZE, userRoutine=compInit, &
       rc=rc)
     if (rc/=ESMF_SUCCESS) return ! bail out
-    call ESMF_GridCompSetEntryPoint(comp, ESMF_SETRUN, userRoutine=compRun, &
+    call ESMF_GridCompSetEntryPoint(comp, ESMF_METHOD_RUN, userRoutine=compRun, &
       rc=rc)
     if (rc/=ESMF_SUCCESS) return ! bail out
-    call ESMF_GridCompSetEntryPoint(comp, ESMF_SETFINAL, userRoutine=compFinal, &
+    call ESMF_GridCompSetEntryPoint(comp, ESMF_METHOD_FINALIZE, userRoutine=compFinal, &
       rc=rc)
     if (rc/=ESMF_SUCCESS) return ! bail out
 
@@ -84,7 +84,7 @@ module componentMod
     
     ! Local variables
     type(ESMF_VM)           :: vm
-    integer                 :: petCount
+    integer                 :: petCount, userrc
     type(ESMF_GridComp)     :: component1, component2
     type(myComponents), pointer :: myComps
     type(myComponentsWrapper) :: myCompsWrapper
@@ -106,20 +106,22 @@ module componentMod
       component1 = ESMF_GridCompCreate(name="component012", petList=(/0,1,2/), &
         rc=rc)
       if (rc/=ESMF_SUCCESS) return ! bail out
-      call ESMF_GridCompSetServices(component1, componentReg, rc=rc)
-      if (rc/=ESMF_SUCCESS) return ! bail out
+      call ESMF_GridCompSetServices(component1, componentReg, &
+        userRc=userrc, rc=rc)
+      if ((rc/=ESMF_SUCCESS) .or. (userrc/=ESMF_SUCCESS))  return ! bail out
       component2 = ESMF_GridCompCreate(name="component345", petList=(/3,4,5/), &
         rc=rc)
       if (rc/=ESMF_SUCCESS) return ! bail out
-      call ESMF_GridCompSetServices(component2, componentReg, rc=rc)
-      if (rc/=ESMF_SUCCESS) return ! bail out
+      call ESMF_GridCompSetServices(component2, componentReg, &
+        userRc=userrc, rc=rc)
+      if ((rc/=ESMF_SUCCESS) .or. (userrc/=ESMF_SUCCESS))  return ! bail out
       ! Initialize component concurrently
       call ESMF_GridCompInitialize(component1, importState=importState, &
-        exportState=exportState, rc=rc)
-      if (rc/=ESMF_SUCCESS) return ! bail out
+        exportState=exportState, userRc=userrc, rc=rc)
+      if ((rc/=ESMF_SUCCESS) .or. (userrc/=ESMF_SUCCESS)) return ! bail out
       call ESMF_GridCompInitialize(component2, importState=importState, &
-        exportState=exportState, rc=rc)
-      if (rc/=ESMF_SUCCESS) return ! bail out
+        exportState=exportState, userRc=userrc, rc=rc)
+      if ((rc/=ESMF_SUCCESS) .or. (userrc/=ESMF_SUCCESS)) return ! bail out
       
       ! Set newly created components in internal State
       allocate(myComps)
@@ -135,20 +137,22 @@ module componentMod
       component1 = ESMF_GridCompCreate(name="component0", petList=(/0/), &
         rc=rc)
       if (rc/=ESMF_SUCCESS) return ! bail out
-      call ESMF_GridCompSetServices(component1, componentReg, rc=rc)
-      if (rc/=ESMF_SUCCESS) return ! bail out
+      call ESMF_GridCompSetServices(component1, componentReg, &
+        userRc=userrc, rc=rc)
+      if ((rc/=ESMF_SUCCESS) .or. (userrc/=ESMF_SUCCESS)) return ! bail out
       component2 = ESMF_GridCompCreate(name="component12", petList=(/1,2/), &
         rc=rc)
       if (rc/=ESMF_SUCCESS) return ! bail out
-      call ESMF_GridCompSetServices(component2, componentReg, rc=rc)
-      if (rc/=ESMF_SUCCESS) return ! bail out
+      call ESMF_GridCompSetServices(component2, componentReg, &
+        userRc=userrc, rc=rc)
+      if ((rc/=ESMF_SUCCESS) .or. (userrc/=ESMF_SUCCESS)) return ! bail out
       ! Initialize component concurrently
       call ESMF_GridCompInitialize(component1, importState=importState, &
-        exportState=exportState, rc=rc)
-      if (rc/=ESMF_SUCCESS) return ! bail out
+        exportState=exportState, userRc=userrc, rc=rc)
+      if ((rc/=ESMF_SUCCESS) .or. (userrc/=ESMF_SUCCESS)) return ! bail out
       call ESMF_GridCompInitialize(component2, importState=importState, &
-        exportState=exportState, rc=rc)
-      if (rc/=ESMF_SUCCESS) return ! bail out
+        exportState=exportState, userRc=userrc, rc=rc)
+      if ((rc/=ESMF_SUCCESS) .or. (userrc/=ESMF_SUCCESS)) return ! bail out
 
       ! Set newly created components in internal State
       allocate(myComps)
@@ -172,7 +176,7 @@ module componentMod
 
     ! Local variables
     type(ESMF_VM)           :: vm
-    integer                 :: petCount
+    integer                 :: petCount, userrc
     type(ESMF_GridComp)     :: component1, component2
     type(myComponents), pointer :: myComps
     type(myComponentsWrapper) :: myCompsWrapper
@@ -202,11 +206,11 @@ module componentMod
       component2 = myComps%component2
       ! Recursive Run()
       call ESMF_GridCompRun(component1, importState=importState, &
-        exportState=exportState, rc=rc)
-      if (rc/=ESMF_SUCCESS) return ! bail out
+        exportState=exportState, userRc=userrc, rc=rc)
+      if ((rc/=ESMF_SUCCESS) .or. (userrc/=ESMF_SUCCESS)) return ! bail out
       call ESMF_GridCompRun(component2, importState=importState, &
-        exportState=exportState, rc=rc)
-      if (rc/=ESMF_SUCCESS) return ! bail out
+        exportState=exportState, userRc=userrc, rc=rc)
+      if ((rc/=ESMF_SUCCESS) .or. (userrc/=ESMF_SUCCESS)) return ! bail out
     endif
         
     print *, "Run() method after recursive call"
@@ -225,7 +229,7 @@ module componentMod
 
     ! Local variables
     type(ESMF_VM)           :: vm
-    integer                 :: petCount
+    integer                 :: petCount, userrc
     type(ESMF_GridComp)     :: component1, component2
     type(myComponents), pointer :: myComps
     type(myComponentsWrapper) :: myCompsWrapper
@@ -253,11 +257,11 @@ module componentMod
       component2 = myComps%component2
       ! Recursive Finalize()
       call ESMF_GridCompFinalize(component1, importState=importState, &
-        exportState=exportState, rc=rc)
-      if (rc/=ESMF_SUCCESS) return ! bail out
+        exportState=exportState, userRc=userrc, rc=rc)
+      if ((rc/=ESMF_SUCCESS) .or. (userrc/=ESMF_SUCCESS)) return ! bail out
       call ESMF_GridCompFinalize(component2, importState=importState, &
-        exportState=exportState, rc=rc)
-      if (rc/=ESMF_SUCCESS) return ! bail out
+        exportState=exportState, userRc=userrc, rc=rc)
+      if ((rc/=ESMF_SUCCESS) .or. (userrc/=ESMF_SUCCESS)) return ! bail out
       ! Destroy subcomponents
       call ESMF_GridCompDestroy(component1, rc=rc)
       if (rc/=ESMF_SUCCESS) return ! bail out

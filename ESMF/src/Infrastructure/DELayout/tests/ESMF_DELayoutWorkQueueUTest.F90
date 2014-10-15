@@ -1,7 +1,7 @@
-! $Id: ESMF_DELayoutWorkQueueUTest.F90,v 1.19.2.1 2010/02/05 19:55:09 svasquez Exp $
+! $Id: ESMF_DELayoutWorkQueueUTest.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2010, University Corporation for Atmospheric Research,
+! Copyright 2002-2012, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -13,7 +13,7 @@
 
 module ESMF_DELayoutWQUTest_mod
 
-  use ESMF_Mod
+  use ESMF
 
   implicit none
   
@@ -22,18 +22,17 @@ module ESMF_DELayoutWQUTest_mod
     
   contains !--------------------------------------------------------------------
 
-  subroutine mygcomp_register(gcomp, rc)
+  recursive subroutine mygcomp_register(gcomp, rc)
     type(ESMF_GridComp):: gcomp
     integer, intent(out):: rc
     
     rc = ESMF_SUCCESS
 
-    print *, "*** hi from mygcomp_register ***"
+    !IO may not be thread-safe print *, "*** hi from mygcomp_register ***"
     
-    ! Run this VM default mode: mpi-only, no threads
-    
-    call ESMF_GridCompSetEntryPoint(gcomp, ESMF_SETRUN, userRoutine=mygcomp_run, &
-      rc=rc)
+    call ESMF_GridCompSetEntryPoint(gcomp, ESMF_METHOD_RUN, &
+      userRoutine=mygcomp_run, rc=rc)
+      
     if (rc /= ESMF_SUCCESS) return  ! bail out
     
   end subroutine !--------------------------------------------------------------
@@ -61,8 +60,8 @@ module ESMF_DELayoutWQUTest_mod
     type(ESMF_VM):: vm
     type(ESMF_DELayout):: delayout
     integer:: petCount, localPet, localDeCount, i, workDe, k, deCount
-    integer, allocatable:: localDeList(:)
-    type(ESMF_DELayoutServiceReply):: reply
+    integer, allocatable:: localDeToDeMap(:)
+    type(ESMF_ServiceReply_Flag):: reply
     real:: x
     
     rc = ESMF_SUCCESS
@@ -77,7 +76,7 @@ module ESMF_DELayoutWQUTest_mod
 
     deCount = 10*petCount
     delayout = ESMF_DELayoutCreate(deCount=deCount, &
-      dePinFlag=ESMF_DE_PIN_VAS, rc=rc)
+      pinflag=ESMF_PIN_DE_TO_VAS, rc=rc)
     if (rc/=ESMF_SUCCESS) return ! bail out
     
 !    call ESMF_DELayoutPrint(delayout, rc=rc)
@@ -85,17 +84,17 @@ module ESMF_DELayoutWQUTest_mod
 
     call ESMF_DELayoutGet(delayout, vasLocalDeCount=localDeCount, rc=rc)
     if (rc/=ESMF_SUCCESS) return ! bail out
-    allocate(localDeList(localDeCount))
-    call ESMF_DELayoutGet(delayout, vasLocalDeList=localDeList, rc=rc)
+    allocate(localDeToDeMap(localDeCount))
+    call ESMF_DELayoutGet(delayout, vasLocalDeToDeMap=localDeToDeMap, rc=rc)
     if (rc/=ESMF_SUCCESS) return ! bail out
     
     do k=1, 4
       do i=1, localDeCount
-        workDe = localDeList(i)
+        workDe = localDeToDeMap(i)
 !        print *, "I am PET", localPET, " and I am offering service for DE ", workDe
         reply = ESMF_DELayoutServiceOffer(delayout, de=workDe, rc=rc)
         if (rc/=ESMF_SUCCESS) return ! bail out
-        if (reply == ESMF_DELAYOUT_SERVICE_ACCEPT) then
+        if (reply == ESMF_SERVICEREPLY_ACCEPT) then
 !          print *, "I am PET", localPET, ", service offer for DE ", workDe, &
 !            " was accepted."
           call work(x, workDe, petCount)  ! work for workDe
@@ -108,7 +107,7 @@ module ESMF_DELayoutWQUTest_mod
       enddo
     enddo    
     
-    deallocate(localDeList)
+    deallocate(localDeToDeMap)
     
     call ESMF_DELayoutDestroy(delayout, rc=rc)
     if (rc/=ESMF_SUCCESS) return ! bail out
@@ -160,7 +159,7 @@ program ESMF_DELayoutWQUTest
   !---------------------------------------------------------------------------
   ! !USES:
   use ESMF_TestMod     ! test methods
-  use ESMF_Mod
+  use ESMF
 
   use ESMF_DELayoutWQUTest_mod
 
@@ -180,14 +179,14 @@ program ESMF_DELayoutWQUTest
   integer :: result = 0
 
   call ESMF_TestStart(ESMF_SRCLINE, rc=rc)
-  !if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  !if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   
   call ESMF_VMGetGlobal(vm, rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   
   call ESMF_VMGet(vm, localPet=localPet, pthreadsEnabledFlag=pthreadsEnabled, &
     rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
 
   !----------------- test without threads ----------------------------

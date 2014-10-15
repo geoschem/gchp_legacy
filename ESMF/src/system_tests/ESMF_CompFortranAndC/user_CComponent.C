@@ -1,4 +1,4 @@
-// $Id: user_CComponent.C,v 1.12 2009/10/26 23:15:26 theurich Exp $
+// $Id$
 //
 // Example/test code which shows User Component calls.
 
@@ -13,6 +13,9 @@
 
 // ESMF header -- provides access to the entire public ESMF C API
 #include "ESMC.h"
+
+ESMC_Mesh tmp_mesh;
+
 
 //-------------------------------------------------------------------------
 //-------------------------------------------------------------------------
@@ -70,9 +73,12 @@ void myInitInC(ESMC_GridComp gcomp, ESMC_State importState,
   printf("local ptr[0] = %g\n", ptr[0]);
   
   // Create a Mesh from VTK file
-  mesh = ESMC_MeshCreate(&pdim, &sdim, rc);
+  mesh = ESMC_MeshCreate(pdim, sdim, rc);
   if (*rc!=ESMF_SUCCESS) return;  // bail out
-  
+
+  // Hold this to be deleted later, because getting a C mesh from a C field broken  
+  tmp_mesh=mesh;
+
   // Read input files' header data
   *rc = ESMC_MeshVTKHeader("data/testmesh", &num_elem, &num_node, &conn_size);
   if (*rc!=ESMF_SUCCESS) return;  // bail out
@@ -97,11 +103,11 @@ void myInitInC(ESMC_GridComp gcomp, ESMC_State importState,
   }
   
   // Add node information to the mesh
-  *rc = ESMC_MeshAddNodes(mesh, &num_node, nodeId, nodeCoord, nodeOwner);
+  *rc = ESMC_MeshAddNodes(mesh, num_node, nodeId, nodeCoord, nodeOwner);
   if (*rc!=ESMF_SUCCESS) return;  // bail out
   
   // Add element information to the mesh
-  *rc = ESMC_MeshAddElements(mesh, &num_elem, elemId, elemType, elemConn);
+  *rc = ESMC_MeshAddElements(mesh, num_elem, elemId, elemType, elemConn);
   if (*rc!=ESMF_SUCCESS) return;  // bail out
   
   // garbage collection of temporary variables used to create Mesh object
@@ -220,7 +226,8 @@ void myFinalInC(ESMC_GridComp gcomp, ESMC_State importState,
   if (*rc!=ESMF_SUCCESS) return;  // bail out
   
   // get the Mesh object from the Field
-  mesh = ESMC_FieldGetMesh(field, rc);
+  // THIS CALL IS BROKEN RIGHT NOW, SO DON'T USE
+  //  mesh = ESMC_FieldGetMesh(field, rc);
   if (*rc!=ESMF_SUCCESS) return;  // bail out
 
   // destroy Field object
@@ -228,7 +235,10 @@ void myFinalInC(ESMC_GridComp gcomp, ESMC_State importState,
   if (*rc!=ESMF_SUCCESS) return;  // bail out
 
   // destroy Mesh object
-  *rc = ESMC_MeshDestroy(&mesh);
+  // Destroy object holding mesh (tmp_mesh) saved from before, 
+  // because ESMC_FieldGetMesh() is broken
+  //*rc = ESMC_MeshDestroy(&mesh);
+  *rc = ESMC_MeshDestroy(&tmp_mesh);
   if (*rc!=ESMF_SUCCESS) return;  // bail out
 }
 
@@ -247,14 +257,14 @@ extern "C" {
     
     printf("In mySetServicesInC()\n");
     
-    *rc = ESMC_GridCompPrint(gcomp, "");
+    *rc = ESMC_GridCompPrint(gcomp);
     if (*rc!=ESMF_SUCCESS) return;  // bail out
 
-    *rc = ESMC_GridCompSetEntryPoint(gcomp, ESMF_SETINIT, myInitInC, 1);
+    *rc = ESMC_GridCompSetEntryPoint(gcomp, ESMF_METHOD_INITIALIZE,myInitInC,1);
     if (*rc!=ESMF_SUCCESS) return;  // bail out
-    *rc = ESMC_GridCompSetEntryPoint(gcomp, ESMF_SETRUN, myRunInC, 1);
+    *rc = ESMC_GridCompSetEntryPoint(gcomp, ESMF_METHOD_RUN, myRunInC, 1);
     if (*rc!=ESMF_SUCCESS) return;  // bail out
-    *rc = ESMC_GridCompSetEntryPoint(gcomp, ESMF_SETFINAL, myFinalInC, 1);
+    *rc = ESMC_GridCompSetEntryPoint(gcomp, ESMF_METHOD_FINALIZE,myFinalInC, 1);
     if (*rc!=ESMF_SUCCESS) return;  // bail out
   }
 } //extern "C"

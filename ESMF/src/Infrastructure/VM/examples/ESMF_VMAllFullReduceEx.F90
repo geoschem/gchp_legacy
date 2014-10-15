@@ -1,7 +1,7 @@
-! $Id: ESMF_VMAllFullReduceEx.F90,v 1.8.2.1 2010/02/05 20:01:22 svasquez Exp $
+! $Id: ESMF_VMAllFullReduceEx.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2010, University Corporation for Atmospheric Research,
+! Copyright 2002-2012, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -29,7 +29,7 @@
 
 program ESMF_VMAllFullReduceEx
 
-  use ESMF_Mod
+  use ESMF
   
   implicit none
   
@@ -44,10 +44,11 @@ program ESMF_VMAllFullReduceEx
   integer :: finalrc
   finalrc = ESMF_SUCCESS
 
-  call ESMF_Initialize(vm=vm, rc=rc)
+  call ESMF_Initialize(vm=vm, defaultlogfilename="VMAllFullReduceEx.Log", &
+                    logkindflag=ESMF_LOGKIND_MULTI, rc=rc)
   if (rc/=ESMF_SUCCESS) finalrc = ESMF_FAILURE
 
-  call ESMF_VMGet(vm, localPet, rc=rc)
+  call ESMF_VMGet(vm, localPet=localPet, rc=rc)
   if (rc/=ESMF_SUCCESS) finalrc = ESMF_FAILURE
 
   ! allocate data arrays
@@ -68,18 +69,18 @@ program ESMF_VMAllFullReduceEx
 
 !BOC
   call ESMF_VMAllReduce(vm, sendData=array1, recvData=array2, count=nsize, &
-    reduceflag=ESMF_SUM, rc=rc)
-  ! Both sendData and recvData must be 1-d arrays. Reduce distributed sendData
-  ! element by element into recvData and return in on all PETs.
+    reduceflag=ESMF_REDUCE_SUM, rc=rc)
+  ! Both sendData and recvData must be 1-d arrays. Reduce distributed 
+  ! sendData element by element into recvData and return in on all PETs.
 !EOC
   if (rc/=ESMF_SUCCESS) finalrc = ESMF_FAILURE
   
   ! global sum
 !BOC
-  call ESMF_VMAllFullReduce(vm, sendData=array1, recvData=result, count=nsize, &
-    reduceflag=ESMF_SUM, rc=rc)
-  ! sendData must be 1-d array. Fully reduce the distributed sendData into a
-  ! single scalar and return it in recvData on all PETs.
+  call ESMF_VMAllFullReduce(vm, sendData=array1, recvData=result, &
+    count=nsize, reduceflag=ESMF_REDUCE_SUM, rc=rc)
+  ! sendData must be 1-d array. Fully reduce the distributed sendData 
+  ! into a single scalar and return it in recvData on all PETs.
 !EOC
   if (rc/=ESMF_SUCCESS) finalrc = ESMF_FAILURE
   

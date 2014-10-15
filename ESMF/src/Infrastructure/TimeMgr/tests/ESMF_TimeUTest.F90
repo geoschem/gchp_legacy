@@ -1,7 +1,7 @@
-! $Id: ESMF_TimeUTest.F90,v 1.34.2.2 2010/04/27 20:15:35 eschwab Exp $
+! $Id: ESMF_TimeUTest.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2010, University Corporation for Atmospheric Research,
+! Copyright 2002-2012, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -31,13 +31,13 @@
 !-----------------------------------------------------------------------------
 ! !USES:
       use ESMF_TestMod      ! test methods
-      use ESMF_Mod
+      use ESMF
       implicit none
 
 !------------------------------------------------------------------------------
 ! The following line turns the CVS identifier string into a printable variable.
       character(*), parameter :: version = &
-      '$Id: ESMF_TimeUTest.F90,v 1.34.2.2 2010/04/27 20:15:35 eschwab Exp $'
+      '$Id: ESMF_TimeUTest.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $'
 !------------------------------------------------------------------------------
 
       ! cumulative result: count failures; no failures equals "all pass"
@@ -79,6 +79,8 @@
 
       ! instantiate timestep, start and stop times
       type(ESMF_Time) :: stopTime
+
+      type(ESMF_CalKind_Flag) :: calkindflag
 #endif
 
 !-------------------------------------------------------------------------------
@@ -97,18 +99,19 @@
       ! Calendar Interval tests
       ! ----------------------------------------------------------------------------
       ! initialize calendars
-      gregorianCalendar = ESMF_CalendarCreate("Gregorian", &
-                                              ESMF_CAL_GREGORIAN, rc)
-      julianCalendar = ESMF_CalendarCreate("Julian", &
-                                              ESMF_CAL_JULIAN, rc)
-      noLeapCalendar = ESMF_CalendarCreate("No Leap", &
-                                              ESMF_CAL_NOLEAP, rc)
-      day360Calendar = ESMF_CalendarCreate("360 Day", &
-                                              ESMF_CAL_360DAY, rc)
-      julianDayCalendar = ESMF_CalendarCreate("Julian Day", &
-                                              ESMF_CAL_JULIANDAY, rc)
-      modifiedJulianDayCalendar = ESMF_CalendarCreate("ModifiedJulianDay", &
-                                                      ESMF_CAL_MODJULIANDAY, rc)
+      gregorianCalendar = ESMF_CalendarCreate(ESMF_CALKIND_GREGORIAN, &
+        name="Gregorian", rc=rc)
+      julianCalendar = ESMF_CalendarCreate(ESMF_CALKIND_JULIAN, &
+        name="Julian", rc=rc)
+      noLeapCalendar = ESMF_CalendarCreate(ESMF_CALKIND_NOLEAP, &
+        name="No Leap", rc=rc)
+      day360Calendar = ESMF_CalendarCreate(ESMF_CALKIND_360DAY, &
+        name="360 Day", rc=rc)
+      julianDayCalendar = ESMF_CalendarCreate(ESMF_CALKIND_JULIANDAY, &
+        name="Julian Day", rc=rc)
+      modifiedJulianDayCalendar = &
+        ESMF_CalendarCreate(ESMF_CALKIND_MODJULIANDAY, &
+        name="ModifiedJulianDay", rc=rc)
 
       ! ----------------------------------------------------------------------------
 
@@ -140,6 +143,81 @@
 
       ! ----------------------------------------------------------------------------
 
+      !EX_UTest
+      ! Attempt to compare an initialized time to an un-initialized time.
+      ! In support of bug #2826626 "Error in ESMC_Fraction.C w/ ESMF 3.1.0rp2",
+      ! which in all likelihood was due to user-code using an uninitialized 
+      ! time in a comparison.  If run against ESMF 3.1.0rp2, this test will
+      ! produce the same log error message the user reported:
+      !  "ESMC_Fraction.C 352 ESMC_FractionSimplify() Cannot divide by zero".
+      ! In ESMF >= 4.0.0r, the Init macros catch this condition and report it
+      ! in the log file accordingly:
+      !  "Object Set or SetDefault method not called - Object not Initialized".
+      ! However, since this test uses an overloaded operator, there is no
+      ! return code to check.  Also, the == operation does not change its input 
+      ! arguments, and always returns .false. in case of error.
+      ! TODO:  Hence the only way to verify that the test is truly successful
+      ! is to check that the appropriate error message was written to the log
+      ! file at the appropriate place.  Currently, this can only be done via
+      ! manual inspection, so we need a way to automate it, probably with a new
+      ! ESMF_Test*() method.
+      write(name, *) "Compare initialized and uninitialized Times Test 1"
+      bool = (startTime == time2)
+      write(failMsg, *) " Returned .true."
+      call ESMF_Test((bool .eqv. .false.), &
+                     name, failMsg, result, ESMF_SRCLINE)
+
+      ! ----------------------------------------------------------------------------
+      !EX_UTest
+      ! TODO:  Automate check for real success; see "Compare ... Times Test 1"
+      ! above.
+      write(name, *) "Compare initialized and uninitialized Times Test 2"
+      bool = (time1 .ne. time2)
+      write(failMsg, *) " Returned .false."
+      call ESMF_Test((bool .eqv. .true.), &
+                     name, failMsg, result, ESMF_SRCLINE)
+
+      ! ----------------------------------------------------------------------------
+      !EX_UTest
+      ! TODO:  Automate check for real success; see "Compare ... Times Test 1"
+      ! above.
+      write(name, *) "Compare initialized and uninitialized Times Test 3"
+      bool = (time1 < startTime)
+      write(failMsg, *) " Returned .true."
+      call ESMF_Test((bool .eqv. .false.), &
+                     name, failMsg, result, ESMF_SRCLINE)
+
+      ! ----------------------------------------------------------------------------
+      !EX_UTest
+      ! TODO:  Automate check for real success; see "Compare ... Times Test 1"
+      ! above.
+      write(name, *) "Compare initialized and uninitialized Times Test 4"
+      bool = (time1 .le. time2)
+      write(failMsg, *) " Returned .true."
+      call ESMF_Test((bool .eqv. .false.), &
+                     name, failMsg, result, ESMF_SRCLINE)
+
+      ! ----------------------------------------------------------------------------
+      !EX_UTest
+      ! TODO:  Automate check for real success; see "Compare ... Times Test 1"
+      ! above.
+      write(name, *) "Compare initialized and uninitialized Times Test 5"
+      bool = (time1 > time2)
+      write(failMsg, *) " Returned .true."
+      call ESMF_Test((bool .eqv. .false.), &
+                     name, failMsg, result, ESMF_SRCLINE)
+
+      ! ----------------------------------------------------------------------------
+      !EX_UTest
+      ! TODO:  Automate check for real success; see "Compare ... Times Test 1"
+      ! above.
+      write(name, *) "Compare initialized and uninitialized Times Test 6"
+      bool = (startTime .ge. time2)
+      write(failMsg, *) " Returned .true."
+      call ESMF_Test((bool .eqv. .false.), &
+                     name, failMsg, result, ESMF_SRCLINE)
+
+      ! ----------------------------------------------------------------------------
       !EX_UTest
       ! Tests fix to support #1115836, bug #1118178, "ESMF_TimeGet returns
       !   string with %lld not %04lld" reported by Paul Schopf/GMU
@@ -298,6 +376,20 @@
       call ESMF_Test((rc.eq.ESMF_SUCCESS), &
                       name, failMsg, result, ESMF_SRCLINE)
 
+      ! ----------------------------------------------------------------------------
+      !EX_UTest
+      ! Testing ESMF_TimeAssignment(=)(time, time)
+      write(name, *) "Assign one time to another test"
+      write(failMsg, *) " Did not return time1=startTime2, 1/29/2004 12:17:59 or ESMF_SUCCESS"
+      time1 = startTime2  ! exercise default F90 Time = assignment
+      call ESMF_TimeGet(time1, yy=YY, mm=MM, dd=DD, h=H, m=M, s=S, &
+                        calkindflag=calkindflag, rc=rc)
+      call ESMF_Test((time1==startTime2 .and. YY==2004 .and. MM==1 .and. &
+                      DD==29 .and. H==12 .and. M==17 .and. S==59 .and. &
+                      calkindflag==ESMF_CALKIND_GREGORIAN .and. &
+                      rc==ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+
+      !print *, " yy/mm/d h:m:s = ", YY, "/", MM, "/", DD, " ", H, ":", M, ":", S
       ! ----------------------------------------------------------------------------
 
       !EX_UTest
@@ -528,14 +620,14 @@
       !EX_UTest
       ! Test Setting Stop Time, relying on defaults 5
       write(failMsg, *) " Default NOLEAP Did not return 1/1/0 and ESMF_SUCCESS"
-      call ESMF_CalendarSetDefault(ESMF_CAL_NOLEAP)
+      call ESMF_CalendarSetDefault(ESMF_CALKIND_NOLEAP)
       call ESMF_TimeSet(stopTime, rc=rc)
       call ESMF_TimeGet(stopTime, yy=YY, mm=MM, dd=DD)
       write(name, *) "Set Time Initialization Test w/Defaults 5"
       call ESMF_Test((YY.eq.0.and.mm.eq.1.and.dd.eq.1.and. &
                       rc.eq.ESMF_SUCCESS), &
                       name, failMsg, result, ESMF_SRCLINE)
-      call ESMF_CalendarSetDefault(ESMF_CAL_NOCALENDAR)
+      call ESMF_CalendarSetDefault(ESMF_CALKIND_NOCALENDAR)
 
       ! ----------------------------------------------------------------------------
 
@@ -544,14 +636,14 @@
       !   by Giang Nong/GFDL
       ! Test Setting Stop Time, relying on defaults 6
       write(failMsg, *) " Default JULIAN Did not return 1/1/0 and ESMF_SUCCESS"
-      call ESMF_CalendarSetDefault(ESMF_CAL_JULIAN)
+      call ESMF_CalendarSetDefault(ESMF_CALKIND_JULIAN)
       call ESMF_TimeSet(stopTime, rc=rc)
       call ESMF_TimeGet(stopTime, yy=YY, mm=MM, dd=DD)
       write(name, *) "Set Time Initialization Test w/Defaults 6"
       call ESMF_Test((YY.eq.0.and.mm.eq.1.and.dd.eq.1.and. &
                       rc.eq.ESMF_SUCCESS), &
                       name, failMsg, result, ESMF_SRCLINE)
-      call ESMF_CalendarSetDefault(ESMF_CAL_NOCALENDAR)
+      call ESMF_CalendarSetDefault(ESMF_CALKIND_NOCALENDAR)
 
       ! ----------------------------------------------------------------------------
       
@@ -559,11 +651,11 @@
       ! This test verifies the fix to support #1415439, reported
       !   by Tim Campbell/NRL
       ! Test Setting Time with No Calendar, just s, ms, ns
-      write(failMsg, *) " Did not set/get s=1, ms=2, ns=3 with ESMF_CAL_NOCALENDAR, and return ESMF_SUCCESS"
+      write(failMsg, *) " Did not set/get s=1, ms=2, ns=3 with ESMF_CALKIND_NOCALENDAR, and return ESMF_SUCCESS"
       call ESMF_TimeSet(stopTime, s=1, ms=2, ns=3, &
-                        calendarType=ESMF_CAL_NOCALENDAR, rc=rc)
+                        calkindflag=ESMF_CALKIND_NOCALENDAR, rc=rc)
       call ESMF_TimeGet(stopTime, s=S, ms=MS, ns=NS)
-      write(name, *) "Set Time Initialization Test w/ESMF_CAL_NOCALENDAR"
+      write(name, *) "Set Time Initialization Test w/ESMF_CALKIND_NOCALENDAR"
       call ESMF_Test(S.eq.1.and.MS.eq.2.and.NS.eq.3.and. &
                      rc.eq.ESMF_SUCCESS, name, failMsg, result, ESMF_SRCLINE)
 

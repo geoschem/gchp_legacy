@@ -1,0 +1,11 @@
+dset   ^grads.fwrite
+undef  UNDEF
+title template for 1-deg data
+xdef   360 linear -180.000  1.00
+ydef   181 linear  -90.000  1.00
+zdef ZDIM2 levels LEVS
+tdef    1  linear     00z01JAN2005    1mo
+vars 2
+q    ZDIM2 0 Arbitray 1-degree data
+qstd ZDIM2 0 Arbitray 1-degree data
+endvars

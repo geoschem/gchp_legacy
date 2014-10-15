@@ -1,6 +1,7 @@
+// $Id$
 //
 // Earth System Modeling Framework
-// Copyright 2002-2010, University Corporation for Atmospheric Research, 
+// Copyright 2002-2012, University Corporation for Atmospheric Research, 
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
 // Laboratory, University of Michigan, National Centers for Environmental 
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
@@ -11,6 +12,15 @@
 #include <Mesh/include/ESMCI_WMat.h>
 #include <Mesh/include/ESMCI_Attr.h>
 #include <Mesh/include/ESMCI_MeshUtils.h>
+
+#include <algorithm>
+#include <cstdio>
+
+//-----------------------------------------------------------------------------
+// leave the following line as-is; it will insert the cvs ident string
+// into the object file for tracking purposes.
+static const char *const version = "$Id$";
+//-----------------------------------------------------------------------------
 
 namespace ESMCI {
 
@@ -40,13 +50,15 @@ WMat &WMat::operator=(const WMat &rhs)
   return *this;
 }
 
+// Insert row and associated columns into matrix complain if row is already there
+// and it isn't the same
 void WMat::InsertRow(const Entry &row, const std::vector<Entry> &cols) {
 
-  
   std::pair<WeightMap::iterator, bool> wi =
     weights.insert(std::make_pair(row, cols));
     
   if (wi.second == false) {
+
     // Just verify that entries are the same
     std::vector<Entry> &tcol = wi.first->second;
     ThrowRequire(tcol.size() == cols.size());
@@ -55,17 +67,84 @@ void WMat::InsertRow(const Entry &row, const std::vector<Entry> &cols) {
       ThrowRequire(tcol[i].idx == cols[i].idx);
       ThrowRequire(std::abs(tcol[i].value-cols[i].value) < 1e-5);
     }
+
   } else {
     
     // Sort the column entries (invariant used elsewhere).
     std::sort(wi.first->second.begin(), wi.first->second.end());
 
     // compress storage
-    std::vector<Entry>(wi.first->second).swap(wi.first->second);
-    
+    std::vector<Entry>(wi.first->second).swap(wi.first->second);    
   }
   
 }
+
+
+// Insert row and associated columns into matrix complain if column doesn't 
+// exist then add it, if it exists with a different value then complain
+// ASSUMES cols is in sorted order
+void WMat::InsertRowMerge(const Entry &row, const std::vector<Entry> &cols) {
+
+  std::pair<WeightMap::iterator, bool> wi =
+    weights.insert(std::make_pair(row, cols));
+    
+  if (wi.second == false) {
+    // Get old columns associated with original row 
+    std::vector<Entry> &old_cols = wi.first->second;
+
+    // temp to put merged results into
+    std::vector<Entry> tmp_cols;
+    tmp_cols.resize(cols.size()+old_cols.size());
+    // If nothing to be added then exit
+    if (tmp_cols.empty()) return;
+
+    // Merge cols together
+    std::merge(old_cols.begin(),old_cols.end(), 
+	  cols.begin(),cols.end(),
+	  tmp_cols.begin());
+
+    // Resize old_cols to contain merged and unqiued data
+    old_cols.resize(tmp_cols.size());
+    // Get rid of duplicates and 
+    // make sure there are no bad duplicates
+    // (e.g. same id, but different values)
+    // These will be in sequence since the cols
+    // are sorted.
+    int j=0;
+    old_cols[0]=tmp_cols[0];
+    for (int i=1; i<tmp_cols.size(); i++) {
+      if (tmp_cols[i].id != old_cols[j].id) {
+	j++;
+	old_cols[j]=tmp_cols[i];
+      } else {
+	// If we look like the same entry, but have different values then complain
+	// NOTE: equality for entries considers more than just the .id, but doesn't
+	//       consider .value
+	if ((tmp_cols[i]       == old_cols[j]) &&
+	    (std::abs(tmp_cols[i].value-old_cols[j].value) > 1e-5))
+	  printf("ERROR dst_id=%d tmp_cols: id=%d idx=%d src_id=%d value=%f old_cols: id=%d idx=%d src_id=%d value=%f \n", row.id,
+	   tmp_cols[i].id,tmp_cols[i].idx,tmp_cols[i].src_id,tmp_cols[i].value,old_cols[j].id,old_cols[j].idx,old_cols[j].src_id,old_cols[j].value);
+
+        //	Throw() << "Shouldn't have same entries with different value!";
+
+      }
+    }
+
+    // Resize old_cols to fit just what's needed
+    old_cols.resize(j+1);
+
+    // Get rid of extra memory
+    std::vector<Entry>(old_cols).swap(old_cols);
+
+  } else {
+    // Sort the column entries (invariant used elsewhere).
+    std::sort(wi.first->second.begin(), wi.first->second.end());
+    // compress storage
+    std::vector<Entry>(wi.first->second).swap(wi.first->second);
+  }
+}
+
+
 
 void WMat::Print(std::ostream &os) {
   
@@ -89,6 +168,7 @@ void WMat::Print(std::ostream &os) {
   
 }
 
+// Migrate WMat based on mesh's node ids
 //void WMat::Migrate(CommRel &crel) {
 void WMat::Migrate(Mesh &mesh) { 
   Trace __trace("WMat::Migrate(Mesh &mesh)");
@@ -134,6 +214,55 @@ for (; wi != we; ++wi) {
   return;
   
 }
+
+// Migrate WMat based on mesh's element ids
+//void WMat::Migrate(CommRel &crel) {
+void WMat::MigrateToElem(Mesh &mesh) { 
+  Trace __trace("WMat::Migrate(Mesh &mesh)");
+  
+  // Gather pole constraints
+  {
+    std::vector<UInt> mesh_dist, iw_dist;
+    
+    Context c; c.set(Attr::ACTIVE_ID);
+    Attr a(MeshObj::ELEMENT, c);
+    getMeshGIDS(mesh, a, mesh_dist);
+    GetRowGIDS(iw_dist);
+    
+    Migrator mig(mesh_dist.size(), mesh_dist.size() > 0 ? &mesh_dist[0] : NULL, 0,
+        iw_dist.size(), iw_dist.size() > 0 ? &iw_dist[0] : NULL);
+    
+    mig.Migrate(*this);
+    
+//#define CHECK_WEIGHT_MIG
+#ifdef CHECK_WEIGHT_MIG
+// Check something: should have 1 to 1 coresp ids and entries
+for (UInt i = 0; i < mesh_dist.size(); i++) {
+  Entry ent(mesh_dist[i]);
+  WeightMap::iterator wi = weights.lower_bound(ent);
+  if (wi == weights.end() || wi->first.id != ent.id)
+    Throw() << "Did not find id:" << ent.id << std::endl;
+}
+// And the other way
+std::sort(mesh_dist.begin(), mesh_dist.end());
+WeightMap::iterator wi = weights.begin(), we = weights.end();
+for (; wi != we; ++wi) {
+  std::vector<UInt>::iterator lb =
+    std::lower_bound(mesh_dist.begin(), mesh_dist.end(), wi->first.id);
+  
+  if (lb == mesh_dist.end() || *lb != wi->first.id)
+    Throw() << "Weight entry:" << wi->first.id << " not a mesh id!";
+}
+#endif
+  
+    
+  }
+  
+  return;
+  
+}
+
+
   
 void WMat::clear() {
   

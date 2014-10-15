@@ -1,0 +1,83 @@
+#!/bin/csh
+
+set    plots = "hght tmpu uwnd vwnd"
+set    types = "tcor cor rms"
+set  seasons = "JAN"
+set  regions = "EUR GLO NAM NEQ NHE NWQ SEQ SHE SWQ TRO"
+set     levs = "1000 850 700 500 400 300 250 200 150 100 z"
+
+# Create Postscript from Grads
+# ----------------------------
+foreach plot   ($plots)
+foreach type   ($types)
+foreach season ($seasons)
+foreach reg    ($regions)
+@               cnt  =  0
+        foreach lev  ($levs)
+        set     file = stats_${plot}_${type}_${reg}_${lev}_$season
+        if    ( -e $file.out ) then
+        gxps -c -i $file.out -o $file.ps &
+@               cnt  = $cnt + 1
+        if( $cnt == 5 ) then
+@            cnt  = 0
+             wait
+        endif
+        endif
+        end
+end
+end
+end
+end
+wait
+
+# Create GIF from Postscript
+# --------------------------
+foreach plot   ($plots)
+foreach type   ($types)
+foreach season ($seasons)
+foreach reg    ($regions)
+@               cnt  =  0
+        foreach lev  ($levs)
+        set     file = stats_${plot}_${type}_${reg}_${lev}_$season
+        if    ( -e $file.out ) then
+        if    ( $type == 'rms' & $lev == 'z' ) then
+        convert -seed 1            -density 90x90 $file.ps $file.gif &
+        else
+        convert -seed 1 -rotate 90 -density 90x90 $file.ps $file.gif &
+        endif
+@               cnt  = $cnt + 1
+        if( $cnt == 5 ) then
+@            cnt  = 0
+             wait
+        endif
+        endif
+        end
+end
+end
+end
+end
+wait
+
+# Remove Intermediate Files
+# -------------------------
+foreach plot   ($plots)
+foreach type   ($types)
+foreach season ($seasons)
+foreach reg    ($regions)
+@               cnt  =  0
+        foreach lev  ($levs)
+        set     file = stats_${plot}_${type}_${reg}_${lev}_$season
+        if    ( -e $file.out ) then
+        /bin/rm $file.out $file.ps &
+@               cnt  = $cnt + 1
+        if( $cnt == 5 ) then
+@            cnt  = 0
+             wait
+        endif
+        endif
+        end
+end
+end
+end
+end
+wait

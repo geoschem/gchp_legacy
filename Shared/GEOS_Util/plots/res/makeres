@@ -1,0 +1,26 @@
+#!/bin/csh -f
+
+# Remember Current Location
+# -------------------------
+set locdir = `pwd`
+
+# Check for Zonal Executable
+# --------------------------
+cd $GEOSUTIL/plots
+./zonal
+setenv ARCH `uname`
+cd $locdir
+
+# Run Zonal Executable to produce Residual Circulation
+# ----------------------------------------------------
+setenv GASCRP $GEOSUTIL/plots/grads_util
+setenv GAUDFT $GEOSUTIL/plots/grads_util/udft_$ARCH.tools
+$GRADS -b -l -c "$GEOSUTIL/plots/res/zonal.gs"
+
+# Remove txt files from SETENV commands within zonal.gs
+# -----------------------------------------------------
+/bin/rm -f XDIM.txt
+/bin/rm -f YDIM.txt
+/bin/rm -f ZDIM.txt
+/bin/rm -f TDIM.txt
+

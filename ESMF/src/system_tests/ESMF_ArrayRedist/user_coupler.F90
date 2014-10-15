@@ -1,4 +1,4 @@
-! $Id: user_coupler.F90,v 1.10 2009/05/29 19:24:41 theurich Exp $
+! $Id$
 !
 ! Example/test code which shows User Component calls.
 
@@ -15,7 +15,7 @@
 module user_coupler
 
   ! ESMF Framework module
-  use ESMF_Mod
+  use ESMF
     
   implicit none
    
@@ -51,9 +51,12 @@ module user_coupler
 
     ! First test whether ESMF-threading is supported on this machine
     call ESMF_VMGetGlobal(vm, rc=rc)
+    if (rc/=ESMF_SUCCESS) return ! bail out
     call ESMF_VMGet(vm, pthreadsEnabledFlag=pthreadsEnabled, rc=rc)
+    if (rc/=ESMF_SUCCESS) return ! bail out
     if (pthreadsEnabled) then
       call ESMF_CplCompSetVMMinThreads(comp, rc=rc)
+      if (rc/=ESMF_SUCCESS) return ! bail out
     endif
 #endif
 
@@ -69,14 +72,14 @@ module user_coupler
     print *, "User Coupler Register starting"
     
     ! Register the callback routines.
-    call ESMF_CplCompSetEntryPoint(comp, ESMF_SETINIT, userRoutine=user_init, &
-      rc=rc)
+    call ESMF_CplCompSetEntryPoint(comp, methodflag=ESMF_METHOD_INITIALIZE, &
+      userRoutine=user_init, rc=rc)
     if (rc/=ESMF_SUCCESS) return ! bail out
-    call ESMF_CplCompSetEntryPoint(comp, ESMF_SETRUN, userRoutine=user_run, &
-      rc=rc)
+    call ESMF_CplCompSetEntryPoint(comp, methodflag=ESMF_METHOD_RUN, &
+      userRoutine=user_run, rc=rc)
     if (rc/=ESMF_SUCCESS) return ! bail out
-    call ESMF_CplCompSetEntryPoint(comp, ESMF_SETFINAL, userRoutine=user_final, &
-      rc=rc)
+    call ESMF_CplCompSetEntryPoint(comp, methodflag=ESMF_METHOD_FINALIZE, &
+      userRoutine=user_final, rc=rc)
     if (rc/=ESMF_SUCCESS) return ! bail out
 
     print *, "Registered Initialize, Run, and Finalize routines"
@@ -111,9 +114,9 @@ module user_coupler
     ! Need to reconcile import and export states
     call ESMF_CplCompGet(comp, vm=vm, rc=rc)
     if (rc/=ESMF_SUCCESS) return ! bail out
-    call ESMF_StateReconcile(importState, vm, rc=rc)
+    call ESMF_StateReconcile(importState, vm=vm, rc=rc)
     if (rc/=ESMF_SUCCESS) return ! bail out
-    call ESMF_StateReconcile(exportState, vm, rc=rc)
+    call ESMF_StateReconcile(exportState, vm=vm, rc=rc)
     if (rc/=ESMF_SUCCESS) return ! bail out
 
     ! Get source Array out of import state

@@ -1,4 +1,4 @@
-! $Id: user_model1.F90,v 1.10 2009/09/29 16:53:07 feiliu Exp $
+! $Id$
 !
 ! System test for Concurrent Components.  User-code, component 1.
 
@@ -18,7 +18,7 @@
 
     ! ESMF Framework module
     use ESMF_TestMod
-    use ESMF_Mod
+    use ESMF
 
     implicit none
     
@@ -72,18 +72,18 @@
         print *, "In user 1 register routine"
         ! Register the callback routines.
 
-        call ESMF_GridCompSetEntryPoint(comp, ESMF_SETINIT, &
+        call ESMF_GridCompSetEntryPoint(comp, ESMF_METHOD_INITIALIZE, &
           userRoutine=user_init, rc=status)
-        if (ESMF_LogMsgFoundError(status, ESMF_ERR_PASSTHRU, &
-            ESMF_CONTEXT, rc)) return
-        call ESMF_GridCompSetEntryPoint(comp, ESMF_SETRUN, &
+        if (ESMF_LogFoundError(status, ESMF_ERR_PASSTHRU, &
+            ESMF_CONTEXT, rcToReturn=rc)) return
+        call ESMF_GridCompSetEntryPoint(comp, ESMF_METHOD_RUN, &
           userRoutine=user_run, rc=status)
-        if (ESMF_LogMsgFoundError(status, ESMF_ERR_PASSTHRU, &
-            ESMF_CONTEXT, rc)) return
-        call ESMF_GridCompSetEntryPoint(comp, ESMF_SETFINAL, &
+        if (ESMF_LogFoundError(status, ESMF_ERR_PASSTHRU, &
+            ESMF_CONTEXT, rcToReturn=rc)) return
+        call ESMF_GridCompSetEntryPoint(comp, ESMF_METHOD_FINALIZE, &
           userRoutine=user_final, rc=status)
-        if (ESMF_LogMsgFoundError(status, ESMF_ERR_PASSTHRU, &
-            ESMF_CONTEXT, rc)) return
+        if (ESMF_LogFoundError(status, ESMF_ERR_PASSTHRU, &
+            ESMF_CONTEXT, rcToReturn=rc)) return
 
         !print *, "Registered Initialize, Run, and Finalize routines"
 
@@ -117,42 +117,42 @@
         print *, "In user 1 init routine"
         ! Determine petCount
         call ESMF_GridCompGet(comp, vm=vm, rc=rc)
-        if (ESMF_LogMsgFoundError(status, ESMF_ERR_PASSTHRU, &
-            ESMF_CONTEXT, rc)) return
+        if (ESMF_LogFoundError(status, ESMF_ERR_PASSTHRU, &
+            ESMF_CONTEXT, rcToReturn=rc)) return
         call ESMF_VMGet(vm, petCount=petCount, rc=rc)
-        if (ESMF_LogMsgFoundError(status, ESMF_ERR_PASSTHRU, &
-            ESMF_CONTEXT, rc)) return
+        if (ESMF_LogFoundError(status, ESMF_ERR_PASSTHRU, &
+            ESMF_CONTEXT, rcToReturn=rc)) return
 
         distgrid = ESMF_DistGridCreate(minIndex=(/1/), maxIndex=(/9/), &
             regDecomp=(/petCount/), rc=status)
-        if (ESMF_LogMsgFoundError(status, ESMF_ERR_PASSTHRU, &
-            ESMF_CONTEXT, rc)) return
+        if (ESMF_LogFoundError(status, ESMF_ERR_PASSTHRU, &
+            ESMF_CONTEXT, rcToReturn=rc)) return
 
         grid = ESMF_GridCreate(distgrid=distgrid, &
             gridEdgeLWidth=(/0/), gridEdgeUWidth=(/0/), &
             name="grid", indexflag=ESMF_INDEX_GLOBAL, rc=status)
-        if (ESMF_LogMsgFoundError(status, ESMF_ERR_PASSTHRU, &
-            ESMF_CONTEXT, rc)) return
+        if (ESMF_LogFoundError(status, ESMF_ERR_PASSTHRU, &
+            ESMF_CONTEXT, rcToReturn=rc)) return
 
         call ESMF_ArraySpecSet(arrayspec, 1, ESMF_TYPEKIND_I4, rc=status)
-        if (ESMF_LogMsgFoundError(status, ESMF_ERR_PASSTHRU, &
-            ESMF_CONTEXT, rc)) return
+        if (ESMF_LogFoundError(status, ESMF_ERR_PASSTHRU, &
+            ESMF_CONTEXT, rcToReturn=rc)) return
 
         rawdata = ESMF_FieldCreate(arrayspec=arrayspec, &
             grid=grid, name="rawdata", rc=status)
-        if (ESMF_LogMsgFoundError(status, ESMF_ERR_PASSTHRU, &
-            ESMF_CONTEXT, rc)) return
-        call ESMF_StateAdd(exportState, rawdata, rc=status)
-        if (ESMF_LogMsgFoundError(status, ESMF_ERR_PASSTHRU, &
-            ESMF_CONTEXT, rc)) return
+        if (ESMF_LogFoundError(status, ESMF_ERR_PASSTHRU, &
+            ESMF_CONTEXT, rcToReturn=rc)) return
+        call ESMF_StateAdd(exportState, (/rawdata/), rc=status)
+        if (ESMF_LogFoundError(status, ESMF_ERR_PASSTHRU, &
+            ESMF_CONTEXT, rcToReturn=rc)) return
   
         sorted_data = ESMF_FieldCreate(arrayspec=arrayspec, &
             grid=grid, name="sorted_data1", rc=status)
-        if (ESMF_LogMsgFoundError(status, ESMF_ERR_PASSTHRU, &
-            ESMF_CONTEXT, rc)) return
-        call ESMF_StateAdd(exportState, sorted_data, rc=status)
-        if (ESMF_LogMsgFoundError(status, ESMF_ERR_PASSTHRU, &
-            ESMF_CONTEXT, rc)) return
+        if (ESMF_LogFoundError(status, ESMF_ERR_PASSTHRU, &
+            ESMF_CONTEXT, rcToReturn=rc)) return
+        call ESMF_StateAdd(exportState, (/sorted_data/), rc=status)
+        if (ESMF_LogFoundError(status, ESMF_ERR_PASSTHRU, &
+            ESMF_CONTEXT, rcToReturn=rc)) return
 
         rc = status
 
@@ -182,18 +182,18 @@
   
         print *, "In user 1 run routine"
         call ESMF_StateGet(exportState, "rawdata", rawdata, rc=status)
-        if (ESMF_LogMsgFoundError(status, ESMF_ERR_PASSTHRU, &
-            ESMF_CONTEXT, rc)) return
+        if (ESMF_LogFoundError(status, ESMF_ERR_PASSTHRU, &
+            ESMF_CONTEXT, rcToReturn=rc)) return
         call ESMF_FieldGet(rawdata, localDe=0, farrayPtr=rdptr, rc=status)
-        if (ESMF_LogMsgFoundError(status, ESMF_ERR_PASSTHRU, &
-            ESMF_CONTEXT, rc)) return
+        if (ESMF_LogFoundError(status, ESMF_ERR_PASSTHRU, &
+            ESMF_CONTEXT, rcToReturn=rc)) return
   
         call ESMF_StateGet(exportState, "sorted_data1", sorted_data, rc=status)
-        if (ESMF_LogMsgFoundError(status, ESMF_ERR_PASSTHRU, &
-            ESMF_CONTEXT, rc)) return
+        if (ESMF_LogFoundError(status, ESMF_ERR_PASSTHRU, &
+            ESMF_CONTEXT, rcToReturn=rc)) return
         call ESMF_FieldGet(sorted_data, localDe=0, farrayPtr=sdptr, rc=status)
-        if (ESMF_LogMsgFoundError(status, ESMF_ERR_PASSTHRU, &
-            ESMF_CONTEXT, rc)) return
+        if (ESMF_LogFoundError(status, ESMF_ERR_PASSTHRU, &
+            ESMF_CONTEXT, rcToReturn=rc)) return
 
         ! sort the input data locally
         pd => d
@@ -228,34 +228,34 @@
         print *, "In user 1 final routine"
 
         call ESMF_StateGet(exportState, "rawdata", rawdata, rc=status)
-        if (ESMF_LogMsgFoundError(status, ESMF_ERR_PASSTHRU, &
-            ESMF_CONTEXT, rc)) return
+        if (ESMF_LogFoundError(status, ESMF_ERR_PASSTHRU, &
+            ESMF_CONTEXT, rcToReturn=rc)) return
 
         call ESMF_FieldGet(rawdata, grid=grid, rc=status)
-        if (ESMF_LogMsgFoundError(status, ESMF_ERR_PASSTHRU, &
-            ESMF_CONTEXT, rc)) return
+        if (ESMF_LogFoundError(status, ESMF_ERR_PASSTHRU, &
+            ESMF_CONTEXT, rcToReturn=rc)) return
 
         call ESMF_GridGet(grid, distgrid=distgrid, rc=status)
-        if (ESMF_LogMsgFoundError(status, ESMF_ERR_PASSTHRU, &
-            ESMF_CONTEXT, rc)) return
+        if (ESMF_LogFoundError(status, ESMF_ERR_PASSTHRU, &
+            ESMF_CONTEXT, rcToReturn=rc)) return
   
         call ESMF_StateGet(exportState, "sorted_data1", sorted_data, rc=status)
-        if (ESMF_LogMsgFoundError(status, ESMF_ERR_PASSTHRU, &
-            ESMF_CONTEXT, rc)) return
+        if (ESMF_LogFoundError(status, ESMF_ERR_PASSTHRU, &
+            ESMF_CONTEXT, rcToReturn=rc)) return
 
         ! destroy the objects
         call ESMF_FieldDestroy(rawdata, rc=status)
-        if (ESMF_LogMsgFoundError(status, ESMF_ERR_PASSTHRU, &
-            ESMF_CONTEXT, rc)) return
+        if (ESMF_LogFoundError(status, ESMF_ERR_PASSTHRU, &
+            ESMF_CONTEXT, rcToReturn=rc)) return
         call ESMF_FieldDestroy(sorted_data, rc=status)
-        if (ESMF_LogMsgFoundError(status, ESMF_ERR_PASSTHRU, &
-            ESMF_CONTEXT, rc)) return
+        if (ESMF_LogFoundError(status, ESMF_ERR_PASSTHRU, &
+            ESMF_CONTEXT, rcToReturn=rc)) return
         call ESMF_GridDestroy(grid, rc=status)
-        if (ESMF_LogMsgFoundError(status, ESMF_ERR_PASSTHRU, &
-            ESMF_CONTEXT, rc)) return
+        if (ESMF_LogFoundError(status, ESMF_ERR_PASSTHRU, &
+            ESMF_CONTEXT, rcToReturn=rc)) return
         call ESMF_DistGridDestroy(distgrid, rc=status)
-        if (ESMF_LogMsgFoundError(status, ESMF_ERR_PASSTHRU, &
-            ESMF_CONTEXT, rc)) return
+        if (ESMF_LogFoundError(status, ESMF_ERR_PASSTHRU, &
+            ESMF_CONTEXT, rcToReturn=rc)) return
 
         rc = status
 

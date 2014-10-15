@@ -1,0 +1,149 @@
+#!/bin/csh -f
+
+if ( ! $?GEOSUTIL ) then
+      echo " "
+      echo Environment variable GEOSUTIL must be defined before use!
+      echo Set GEOSUTIL to the directory path of the GEOS_util module
+      echo " "
+      exit 1
+endif
+
+set expdir = $1
+set tmpdir = $2
+set pwd    = `pwd`
+if( .$1 == . ) then
+   echo " "
+   echo "\!\! No Experiment Path given \!\!"
+   echo " "
+   exit
+endif
+if( .$tmpdir == . ) then
+  set tmpdir = "."
+else
+   mkdir -p $tmpdir
+endif
+echo EXPDIR $expdir
+echo TMPDIR $tmpdir
+echo    PWD $pwd
+
+# Link GLOBAL datasets to TMPDIR
+# ------------------------------
+/bin/rm -f $tmpdir/*globl*data
+/bin/rm -f $tmpdir/*globl*ctl
+/bin/rm -f $tmpdir/*globl*ctl1
+/bin/ln -s $expdir/*globl*data $tmpdir
+/bin/ln -s $expdir/*globl*ctl  $tmpdir
+ 
+cd $tmpdir
+
+set files = `/bin/ls -1 *globl*ctl`
+set num   = $#files
+set expid = `echo $files[1]    | cut -d. -f1`
+
+# Find Date Node (Assumed to follow .globl.)
+# ------------------------------------------
+@ dnode = 1
+set dummy = `echo $files[1] | cut -d. -f$dnode`
+while( $dummy != 'globl' )
+      @ dnode = $dnode + 1
+    set dummy = `echo $files[1] | cut -d. -f$dnode`
+end
+      @ dnode = $dnode + 1
+
+# Find Extension Node (Filename assumed to be of the form .ctl)
+# -------------------------------------------------------------
+@ enode = 1
+set fname = `echo $files[1] | cut -d. -f$enode`
+set dummy = `echo $files[1] | cut -d. -f$enode`
+while( $dummy != '' )
+      @ enode = $enode + 1
+    set dummy = `echo $files[1] | cut -d. -f$enode`
+    if( $dummy != '' & $dummy != ctl) set fname = `echo ${fname}.$dummy`
+end
+      @ enode = $enode - 1
+
+# Set Dates
+# ---------
+set nymdb = `echo $files[1]    | cut -d. -f$dnode | cut -c2-9`
+set nymdf = `echo $files[$num] | cut -d. -f$dnode | cut -c2-9`
+
+set nymd   = $nymdb
+set year   = `echo $nymd | cut -c1-4`
+set month  = `echo $nymd | cut -c5-6`
+set month0 = `echo $nymd | cut -c5-6`
+
+set TDEF = `grep  TDEF $files[1]`
+set TDEF = `echo $TDEF | sed -e "s/ /./g"`
+set TMAX = `echo $TDEF | cut -d'.' -f2`
+set TINC = `echo $TDEF | cut -d'.' -f5`
+
+if( $month == "01" ) set MM = JAN
+if( $month == "02" ) set MM = FEB
+if( $month == "03" ) set MM = MAR
+if( $month == "04" ) set MM = APR
+if( $month == "05" ) set MM = MAY
+if( $month == "06" ) set MM = JUN
+if( $month == "07" ) set MM = JUL
+if( $month == "08" ) set MM = AUG
+if( $month == "09" ) set MM = SEP
+if( $month == "10" ) set MM = OCT
+if( $month == "11" ) set MM = NOV
+if( $month == "12" ) set MM = DEC
+
+# Loop over Days
+# --------------
+while( $month == $month0 && $nymd <= $nymdf )
+
+set date  = `$GEOSUTIL/post/tick $nymd 0 432000`
+set nymde = $date[1]
+set day   = `echo $nymd | cut -b 7-8`
+
+set   tmpfile  = `/bin/ls -1 *globl.b${nymd}_00z.e${nymde}_00z.ctl`
+set   tmpfile1 = `/bin/ls -1 *globl.b${nymd}_00z.e${nymde}_00z.ctl1`
+
+if( $#tmpfile  > 1 ) then
+      echo 'NON-Standard Stats GLOBL Filenames' 
+      exit
+endif
+if( $#tmpfile1 > 1 ) then
+      echo 'NON-Standard Stats GLOBL Filenames' 
+      exit
+endif
+if( $#tmpfile1 == 1 ) /bin/rm -f $tmpfile1
+
+# Create Filename for Each Day
+# ----------------------------
+@ enode = 1
+set dummy = `echo $tmpfile | cut -d. -f$enode`
+set fname = $dummy
+while( $dummy != '' )
+      @ enode = $enode + 1
+    set dummy = `echo $tmpfile | cut -d. -f$enode`
+    if( $dummy != '' & $dummy != ctl) set fname = `echo ${fname}.$dummy`
+end
+/bin/cp -f $fname.ctl $fname.tmp1
+
+    if( -e zz2 ) /bin/rm zz2
+    if( -e zzz ) /bin/rm zzz
+    touch  zzz
+
+    echo "#\!/bin/csh -f" >> zzz
+    echo "cat $fname.tmp1 | \" >> zzz
+    echo  "awk '{ sub(/00:00Z${day}${MM}${year}/,@00:00Z01${MM}${year}@) ; print }' > \" >> zzz
+    echo  "$fname.ctl1" >> zzz
+
+    /bin/rm -f sedfile
+cat > sedfile << EOF
+s/@/\"/g
+EOF
+sed -f sedfile zzz > zz2
+chmod +x zz2
+./zz2
+
+/bin/rm $fname.tmp1
+
+set date  = `$GEOSUTIL/post/tick $nymd 0 86400`
+set nymd  = $date[1]
+set month = `echo $nymd | cut -c5-6`
+
+end

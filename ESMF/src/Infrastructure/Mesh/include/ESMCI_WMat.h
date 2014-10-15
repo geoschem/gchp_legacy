@@ -1,6 +1,6 @@
-//
+// $Id$
 // Earth System Modeling Framework
-// Copyright 2002-2010, University Corporation for Atmospheric Research, 
+// Copyright 2002-2012, University Corporation for Atmospheric Research, 
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
 // Laboratory, University of Michigan, National Centers for Environmental 
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
@@ -58,7 +58,7 @@ public:
     
     typedef UInt id_type;
     typedef char idx_type;
-    typedef float value_type;
+    typedef double value_type;
     
     id_type id;  // MeshObj id
     idx_type idx; // field index
@@ -87,6 +87,8 @@ public:
   WMat &operator=(const WMat &);
   
   void InsertRow(const Entry &row, const std::vector<Entry> &cols);
+
+  void InsertRowMerge(const Entry &row, const std::vector<Entry> &cols);
   
   void GetRowGIDS(std::vector<UInt> &gids);
 
@@ -101,6 +103,7 @@ public:
    * mesh.
    */
   void Migrate(Mesh &mesh);
+  void MigrateToElem(Mesh &mesh);
   
   // Return the number of rows that use this id
   UInt NumRows(long id) const;
@@ -133,10 +136,21 @@ public:
   WeightMap::iterator end_row() { return weights.end(); }
   WeightMap::const_iterator begin_row() const { return weights.begin(); }
   WeightMap::const_iterator end_row() const { return weights.end(); }
+
+  // Return iterator to lowest row which contains ids greater than or equal to id
+  WeightMap::iterator lower_bound_id_row(UInt id) {
+    Entry lower(id);
+    return weights.lower_bound(lower);
+  }
   
   void InsertRow(WeightMap::value_type &row) {
     InsertRow(row.first, row.second);
   }
+
+  void InsertRowMerge(WeightMap::value_type &row) {
+    InsertRowMerge(row.first, row.second);
+  }
+
 
   std::pair<int, int> count_matrix_entries() const;
   
@@ -179,7 +193,9 @@ struct MigTraits<WMat> {
   
   static element_iterator element_end(WMat &t) { return t.end_row(); }
   
-  static void insert_element(WMat & t, UInt , element_type &el) { t.InsertRow(el); }
+  static void insert_element(WMat & t, UInt , element_type &el) { t.InsertRowMerge(el); }
+
+  //  static void insert_element(WMat & t, UInt , element_type &el) { t.InsertRow(el); }
   
   static void resize_object(WMat &, UInt) {}
   

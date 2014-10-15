@@ -1,0 +1,289 @@
+# lcv2prs.rc
+#
+#  This is a resource file for the lcv2prs utility.
+#
+# !REVISION HISTORY:
+#
+#  26Jan2006  B. Yin    First version.
+#
+#...........................................................................
+#                     ----------------------
+#                     Output File Resolution
+#                     ----------------------
+
+zonal_resolution: 540              # no. of zonal grid-points (im)
+west_most_longitude_in_deg: -180.0 # longitude of first point (i=1)
+meridional_resolution: 361         # no. meridional grid-points (jm)
+vertical_level_numbers: 1
+#                       ----------------
+#                       Variable Classes
+#                       ----------------
+ 
+# A variable class lists the variable names that make up a file type or product.
+
+###  PRODUCT: tavg1_2d_int_Nx (2-D diagnostics)
+
+VarClass*tavg1_2d_int_Nx: DMDT_DYN DMDT_ANA DQVDT_DYN DQVDT_PHY DQVDT_ANA \
+       DQVDT_MST DQVDT_TRB DQVDT_CHM DQLDT_DYN DQLDT_PHY DQLDT_ANA DQLDT_MST \
+       DQIDT_DYN DQIDT_PHY DQIDT_ANA DQIDT_MST DOXDT_DYN DOXDT_PHY DOXDT_ANA \
+       DOXDT_CHM DKDT_DYN DKDT_PHY DKDT_ANA DKDT_PHYPHY DHDT_DYN DHDT_PHY \
+       DHDT_ANA DHDT_RES DPDT_DYN DPDT_PHY DPDT_ANA \
+       UFLXCPT VFLXCPT UFLXPHI VFLXPHI \
+       UFLXKE VFLXKE UFLXQV VFLXQV UFLXQL VFLXQL UFLXQI VFLXQI \
+       TEFIXER \
+       CONVCPT CONVPHI CONVKE CONVTHV DKDT_GEN DKDT_PG DKDT_REMAP DKDT_INRES DKDT_PGRES \
+       DHDT_REMAP DPDT_REMAP DKDT_GWD DKDT_RAY DKDT_BKG DKDT_ORO DKDT_GWDRES BKGERR \
+       DHDT_GWD DHDT_RAY DHDT_BKG DHDT_ORO DKDT_TRB DKDT_SRF DKDT_INT DKDT_TOP DKDT_MST DHDT_TRB \
+       DHDT_MST DHDT_FRI DHDT_RAD DHDT_CUF QTFILL DQVDT_FIL DQIDT_FIL DQLDT_FIL DOXDT_FIL \
+       HFLUX EVAP PRECCU PRECLS PRECSN DTHDT_ANA DTHDT_PHY DTHDT_DYN DTHDT_REMAP DTHDT_CONSV \
+       DTHDT_FIL LWTNET LWGNET SWNETTOA SWNETSRF LSCNVCL LSCNVCI LSCNVRN CUCNVCL CUCNVCI \
+       CUCNVRN EVPCL EVPRN SUBCI SUBSN AUTCNVRN SDMCI COLCNVRN COLCNVSN FRZCL FRZRN
+
+
+#                         --------------------
+#                         Variable Translation
+#                         --------------------
+
+Variable_translation_table::
+
+#      Output          |                       Input
+#  Name       Units    | Name             scale_factor  add_offset Positive check
+#  ------------------------------------------------------------------------------
+   DMDT_DYN    kg/m2/s    DMDT_DYN              1.0        0.0            0
+   DMDT_ANA    kg/m2/s    DMDT_ANA              1.0        0.0            0
+   DQVDT_DYN   kg/m2/s    DQVDT_DYN             1.0        0.0            0
+   DQVDT_PHY   kg/m2/s    DQVDT_PHY             1.0        0.0            0
+   DQVDT_ANA   kg/m2/s    DQVDT_ANA             1.0        0.0            0
+   DQVDT_MST   kg/m2/s    DQVDT_MST             1.0        0.0            0
+   DQVDT_TRB   kg/m2/s    DQVDT_TRB             1.0        0.0            0
+   DQVDT_CHM   kg/m2/s    DQVDT_CHM             1.0        0.0            0
+   DQLDT_DYN   kg/m2/s    DQLDT_DYN             1.0        0.0            0
+   DQLDT_PHY   kg/m2/s    DQLDT_PHY             1.0        0.0            0
+   DQLDT_ANA   kg/m2/s    DQLDT_ANA             1.0        0.0            0
+   DQLDT_MST   kg/m2/s    DQLDT_MST             1.0        0.0            0
+   DQIDT_DYN   kg/m2/s    DQIDT_DYN             1.0        0.0            0
+   DQIDT_PHY   kg/m2/s    DQIDT_PHY             1.0        0.0            0
+   DQIDT_ANA   kg/m2/s    DQIDT_ANA             1.0        0.0            0
+   DQIDT_MST   kg/m2/s    DQIDT_MST             1.0        0.0            0
+   DOXDT_DYN   kg/m2/s    DOXDT_DYN             1.0        0.0            0
+   DOXDT_PHY   kg/m2/s    DOXDT_PHY             1.0        0.0            0
+   DOXDT_ANA   kg/m2/s    DOXDT_ANA             1.0        0.0            0
+   DOXDT_CHM   kg/m2/s    DOXDT_CHM             1.0        0.0            0
+   DKDT_DYN    W/m2       DKDT_DYN              1.0        0.0            0
+   DKDT_PHY    W/m2       DKDT_PHY              1.0        0.0            0
+   DKDT_ANA    W/m2       DKDT_ANA              1.0        0.0            0
+   DKDT_PHYPHY W/m2       DKDT_PHYPHY           1.0        0.0            0
+   DHDT_DYN    W/m2       DHDT_DYN              1.0        0.0            0
+   DHDT_PHY    W/m2       DHDT_PHY              1.0        0.0            0
+   DHDT_ANA    W/m2       DHDT_ANA              1.0        0.0            0
+   DHDT_RES    W/m2       DHDT_RES              1.0        0.0            0
+   DPDT_DYN    W/m2       DPDT_DYN              1.0        0.0            0
+   DPDT_PHY    W/m2       DPDT_PHY              1.0        0.0            0
+   DPDT_ANA    W/m2       DPDT_ANA              1.0        0.0            0
+   UFLXCPT     J/m/s      UFLXCPT               1.0        0.0            0
+   VFLXCPT     J/m/s      VFLXCPT               1.0        0.0            0
+   UFLXPHI     J/m/s      UFLXPHI               1.0        0.0            0
+   VFLXPHI     J/m/s      VFLXPHI               1.0        0.0            0
+   UFLXKE      J/m/s      UFLXKE                1.0        0.0            0
+   VFLXKE      J/m/s      VFLXKE                1.0        0.0            0
+   UFLXQV      kg/m/s     UFLXQV                1.0        0.0            0
+   VFLXQV      kg/m/s     VFLXQV                1.0        0.0            0
+   UFLXQL      kg/m/s     UFLXQL                1.0        0.0            0
+   VFLXQL      kg/m/s     VFLXQL                1.0        0.0            0
+   UFLXQI      kg/m/s     UFLXQI                1.0        0.0            0
+   VFLXQI      kg/m/s     VFLXQI                1.0        0.0            0
+   TEFIXER     W/m2       TEFIXER               1.0        0.0            0
+   CONVCPT     W/m2       CONVCPT               1.0        0.0            0
+   CONVPHI     W/m2       CONVPHI               1.0        0.0            0
+   CONVKE      W/m2       CONVKE                1.0        0.0            0
+   CONVTHV     W/m2       CONVTHV               1.0        0.0            0
+   DKDT_GEN    W/m2       DKDT_GEN              1.0        0.0            0
+   DKDT_PG     W/m2       DKDT_PG               1.0        0.0            0
+   DKDT_REMAP  W/m2       DKDT_REMAP            1.0        0.0            0
+   DKDT_INRES  W/m2       DKDT_INRES            1.0        0.0            0
+   DKDT_PGRES  W/m2       DKDT_PGRES            1.0        0.0            0
+   DHDT_REMAP  W/m2       DHDT_REMAP            1.0        0.0            0
+   DPDT_REMAP  W/m2       DPDT_REMAP            1.0        0.0            0
+   DKDT_GWD    W/m2       DKDT_GWD              1.0        0.0            0
+   DKDT_RAY    W/m2       DKDT_RAY              1.0        0.0            0
+   DKDT_BKG    W/m2       DKDT_BKG              1.0        0.0            0
+   DKDT_ORO    W/m2       DKDT_ORO              1.0        0.0            0
+   DKDT_GWDRES W/m2       DKDT_GWDRES           1.0        0.0            0
+   BKGERR      W/m2       BKGERR                1.0        0.0            0
+   DHDT_GWD    W/m2       DHDT_GWD              1.0        0.0            0
+   DHDT_RAY    W/m2       DHDT_RAY              1.0        0.0            0
+   DHDT_BKG    W/m2       DHDT_BKG              1.0        0.0            0
+   DHDT_ORO    W/m2       DHDT_ORO              1.0        0.0            0
+   DKDT_TRB    W/m2       DKDT_TRB              1.0        0.0            0
+   DKDT_SRF    W/m2       DKDT_SRF              1.0        0.0            0
+   DKDT_INT    W/m2       DKDT_INT              1.0        0.0            0
+   DKDT_TOP    W/m2       DKDT_TOP              1.0        0.0            0
+   DKDT_MST    W/m2       DKDT_MST              1.0        0.0            0
+   DHDT_TRB    W/m2       DHDT_TRB              1.0        0.0            0
+   DHDT_MST    W/m2       DHDT_MST              1.0        0.0            0
+   DHDT_FRI    W/m2       DHDT_FRI              1.0        0.0            0
+   DHDT_RAD    W/m2       DHDT_RAD              1.0        0.0            0
+   DHDT_CUF    W/m2       DHDT_CUF              1.0        0.0            0
+   QTFILL      kg/m2/s    QTFILL                1.0        0.0            0
+   DQVDT_FIL   kg/m2/s    DQVDT_FIL             1.0        0.0            0
+   DQIDT_FIL   kg/m2/s    DQIDT_FIL             1.0        0.0            0
+   DQLDT_FIL   kg/m2/s    DQLDT_FIL             1.0        0.0            0
+   DOXDT_FIL   kg/m2/s    DOXDT_FIL             1.0        0.0            0
+   HFLUX       W/m2       HFLUX                 1.0        0.0            0
+   EVAP        kg/m2/s    EVAP                  1.0        0.0            0
+   PRECCU      kg/m2/s    PRECCU                1.0        0.0            0
+   PRECLS      kg/m2/s    PRECLS                1.0        0.0            0
+   PRECSN      kg/m2/s    PRECSN                1.0        0.0            0
+   DTHDT_ANA   K-kg/m2/s  DTHDT_ANA             1.0        0.0            0
+   DTHDT_PHY   K-kg/m2/s  DTHDT_PHY             1.0        0.0            0
+   DTHDT_DYN   K-kg/m2/s  DTHDT_DYN             1.0        0.0            0
+   DTHDT_REMAP K-kg/m2/s  DTHDT_REMAP           1.0        0.0            0
+   DTHDT_CONSV K-kg/m2/s  DTHDT_CONSV           1.0        0.0            0
+   DTHDT_FIL   K-kg/m2/s  DTHDT_FIL             1.0        0.0            0
+   LWTNET      W/m2       LWTNET                1.0        0.0            0
+   LWGNET      W/m2       LWGNET                1.0        0.0            0
+   SWNETTOA    W/m2       SWNETTOA              1.0        0.0            0
+   SWNETSRF    W/m2       SWNETSRF              1.0        0.0            0
+   LSCNVCL     kg/m2/s    LSCNVCL               1.0        0.0            0
+   LSCNVCI     kg/m2/s    LSCNVCI               1.0        0.0            0
+   LSCNVRN     kg/m2/s    LSCNVRN               1.0        0.0            0
+   CUCNVCL     kg/m2/s    CUCNVCL               1.0        0.0            0
+   CUCNVCI     kg/m2/s    CUCNVCI               1.0        0.0            0
+   CUCNVRN     kg/m2/s    CUCNVRN               1.0        0.0            0
+   EVPCL       kg/m2/s    EVPCL                 1.0        0.0            0
+   EVPRN       kg/m2/s    EVPRN                 1.0        0.0            0
+   SUBCI       kg/m2/s    SUBCI                 1.0        0.0            0
+   SUBSN       kg/m2/s    SUBSN                 1.0        0.0            0
+   AUTCNVRN    kg/m2/s    AUTCNVRN              1.0        0.0            0
+   SDMCI       kg/m2/s    SDMCI                 1.0        0.0            0
+   COLCNVRN    kg/m2/s    COLCNVRN              1.0        0.0            0
+   COLCNVSN    kg/m2/s    COLCNVSN              1.0        0.0            0
+   FRZCL       kg/m2/s    FRZCL                 1.0        0.0            0
+   FRZRN       kg/m2/s    FRZRN                 1.0        0.0            0
+::
+
+
+# Table for variable names and description:
+
+DMDT_DYN: Vertically integrated mass tendency due to dynamics
+DMDT_ANA: Vertically integrated mass tendency due to analysis
+DQVDT_DYN: Vertically integrated water vapor tendency due to dynamics
+DQVDT_PHY: Vertically integrated water vapor tendency due to physics
+DQVDT_ANA: Vertically integrated water vapor tendency due to analysis
+DQVDT_MST: Vertically integrated water vapor tendency due to moist processes
+DQVDT_TRB: Vertically integrated water vapor tendency due to turbulence
+DQVDT_CHM: Vertically integrated water vapor tendency due to chemistry
+DQLDT_DYN: Vertically integrated liquid water tendency due to dynamics
+DQLDT_PHY: Vertically integrated liquid water tendency due to physics
+DQLDT_ANA: Vertically integrated liquid water tendency due to analysis
+DQLDT_MST: Vertically integrated liquid water tendency due to moist processes
+DQIDT_DYN: Vertically integrated ice water tendency due to dynamics
+DQIDT_PHY: Vertically integrated ice tendency due to physics
+DQIDT_ANA: Vertically integrated ice water tendency due to analysis
+DQIDT_MST: Vertically integrated ice tendency due to moist processes
+DOXDT_DYN: Vertically integrated ozone tendency due to dynamics
+DOXDT_PHY: Vertically integrated odd oxygen tendency due to physics
+DOXDT_ANA: Vertically integrated ozone tendency due to analysis
+DOXDT_CHM: Vertically integrated odd oxygen tendency due to chemistry
+DKDT_DYN: Vertically integrated kinetic energy tendency due to dynamics
+DKDT_PHY: Vertically integrated kinetic energy tendency due to physics
+DKDT_ANA: Total kinetic energy tendency due to analysis
+DKDT_PHYPHY: Vertically integrated kinetic energy tendency across physics
+DHDT_DYN: Vertically integrated potential energy tendency due to dynamics
+DHDT_PHY: Total potential energy tendency due to physics
+DHDT_ANA: Total potential energy tendency due to analysis
+DHDT_RES: Vertically integrated cpt tendency residual
+DPDT_DYN: Mountain work tendency due to dynamics
+DPDT_PHY: Mountain work tendency due to physics
+DPDT_ANA: Mountain work tendency due to analysis
+UFLXCPT: Eastward flux of atmospheric enthalpy
+VFLXCPT: Northward flux of atmospheric enthalpy
+UFLXPHI: Eastward flux of atmospheric potential energy
+VFLXPHI: Northward flux of atmospheric potential energy
+UFLXKE: Eastward flux of atmospheric kinetic energy
+VFLXKE: Northward flux of atmospheric kinetic energy
+UFLXQV: Eastward flux of atmospheric water vapor
+VFLXQV: Northward flux of atmospheric water vapor
+UFLXQL: Eastward flux of atmospheric liquid water
+VFLXQL: Northward flux of atmospheric liquid water
+UFLXQI: Eastward flux of atmospheric ice
+VFLXQI: Northward flux of atmospheric ice
+TEFIXER: Vertically integrated potential energy tendency due to CONSV
+CONVCPT: Vertically integrated enthalpy convergence
+CONVPHI: Vertically integrated geopotential convergence
+CONVKE: Vertically integrated kinetic energy convergence
+CONVTHV: Vertically integrated thetav convergence
+DKDT_GEN: Vertically integrated generation of kinetic energy
+DKDT_PG: Vertically integrated kinetic energy tendency due to pressure gradient
+DKDT_REMAP: Vertically integrated kinetic energy tendency due to remap
+DKDT_INRES: Vertically integrated kinetic energy residual from inertial terms
+DKDT_PGRES: Vertically integrated kinetic energy residual from PG terms
+DHDT_REMAP: Vertically integrated potential energy tendency due to remap
+DPDT_REMAP: Mountain work tendency due to remap
+DKDT_GWD: Vertically integrated kinetic energy tendency across GWD
+DKDT_RAY: Vertically integrated kinetic energy dissipation due to Rayleigh friction
+DKDT_BKG: Vertically integrated kinetic energy dissipation due to gravity wave background
+DKDT_ORO: Vertically integrated kinetic energy dissipation due to orographic gravity waves
+DKDT_GWDRES: Vertically integrated kinetic energy residual for total energy conservation
+BKGERR: Vertically integrated kinetic energy residual for BKG energy conservation
+DHDT_GWD: Vertically integrated potential energy tendency across GWD
+DHDT_RAY: Vertically integrated potential energy tendency due to Rayleigh friction
+DHDT_BKG: Vertically integrated potential energy tendency due to gravity wave background
+DHDT_ORO: Vertically integrated potential energy tendency due to orographic gravity waves
+DKDT_TRB: Vertically integrated kinetic energy tendency across turbulence
+DKDT_SRF: Vertically integrated kinetic energy dissipation due to surface friction
+DKDT_INT: Vertically integrated kinetic energy dissipation due to diffusion
+DKDT_TOP: Vertically integrated kinetic energy dissipation due to topographic friction
+DKDT_MST: Vertically integrated kinetic energy tendency across moist
+DHDT_TRB: Vertically integrated potential energy tendency across turbulence
+DHDT_MST: Vertically integrated potential energy tendency across moist
+DHDT_FRI: Vertically integrated potential energy tendency due to friction
+DHDT_RAD: Vertically integrated potential energy tendency across radiation
+DHDT_CUF: Vertically integrated potential energy tendency due to cumulus friction
+QTFILL: Vertically integrated total water adjustment from filling
+DQVDT_FIL: Vertically integrated qv adjustment from filling
+DQIDT_FIL: Vertically integrated qi adjustment from filling
+DQLDT_FIL: Vertically integrated ql adjustment from filling
+DOXDT_FIL: Vertically integrated ox adjustment from filling
+HFLUX: Sensible heat flux from turbulence
+EVAP: Evaporation from turbulence
+PRECCU: Liquid water convective precipitation
+PRECLS: Liquid water large scale precipitation
+PRECSN: Snowfall
+DTHDT_ANA: Vertically integrated THV tendency due to analysis
+DTHDT_PHY: Vertically integrated THV tendency due to physics
+DTHDT_DYN: Vertically integrated THV tendency due to dynamics
+DTHDT_REMAP: Vertically integrated THV tendency due to vertical remapping
+DTHDT_CONSV: Vertically integrated THV tendency due to TE conservation
+DTHDT_FIL: Vertically integrated thv adjustment from filling
+LWTNET: Upwelling longwave flux at TOA
+LWGNET: Surface net downward longwave flux
+SWNETTOA: TOA net downward shortwave flux
+SWNETSRF: Surface net downward shortwave flux
+LSCNVCL: Statistical source of cloud water
+LSCNVCI: Statistical source of cloud ice
+LSCNVRN: Spurious rain from RH cleanup
+CUCNVCL: Convective source of cloud water
+CUCNVCI: Convective source of cloud ice
+CUCNVRN: Convective production of rain water
+EVPCL: Evaporation loss of cloud water
+EVPRN: Evaporation loss of precip water
+SUBCI: Sumblimation loss of cloud ice
+SUBSN: Sumblimation loss of precip ice
+AUTCNVRN: Autoconversion loss of cloud water
+SDMCI: Sedimentation loss of cloud ice
+COLCNVRN: Accretion loss of cloud water to rain
+COLCNVSN: Accretion loss of cloud water to snow
+FRZCL: Net freezing of cloud condensate
+FRZRN: Net freezing of precip condensate
+
+# Global meta data
+
+history:        File written by CFIO
+convention:     CF-1.0
+institution:    Global Modeling and Assimilation Office, NASA Goddard Space Flight Center, Greenbelt, MD 20771
+references:     http://gmao.gsfc.nasa.gov/research/merra/
+comment:        @PUBLICTAG
+source:         Global Modeling and Assimilation Office. GEOSops_5_2_0
+title:          MERRA reanalysis.  @PUBLICTAG
+contact:        http://gmao.gsfc.nasa.gov/

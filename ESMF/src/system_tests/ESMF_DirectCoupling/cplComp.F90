@@ -1,4 +1,4 @@
-! $Id: cplComp.F90,v 1.10 2009/05/29 19:24:42 theurich Exp $
+! $Id: cplComp.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
 !
 !-------------------------------------------------------------------------
 !-------------------------------------------------------------------------
@@ -6,7 +6,7 @@
 module cplCompMod
 
   ! ESMF Framework module
-  use ESMF_Mod
+  use ESMF
 
   implicit none
     
@@ -54,16 +54,16 @@ module cplCompMod
     rc = ESMF_SUCCESS
 
     ! Register Init, Finalize (this component does not provide Run)
-    call ESMF_CplCompSetEntryPoint(comp, ESMF_SETINIT, userRoutine=compInit1, &
+    call ESMF_CplCompSetEntryPoint(comp, ESMF_METHOD_INITIALIZE, userRoutine=compInit1, &
       phase=1, rc=rc)
     if (rc/=ESMF_SUCCESS) return ! bail out
-    call ESMF_CplCompSetEntryPoint(comp, ESMF_SETINIT, userRoutine=compInit2, &
+    call ESMF_CplCompSetEntryPoint(comp, ESMF_METHOD_INITIALIZE, userRoutine=compInit2, &
       phase=2, rc=rc)
     if (rc/=ESMF_SUCCESS) return ! bail out
-    call ESMF_CplCompSetEntryPoint(comp, ESMF_SETFINAL, userRoutine=compFinal1, &
+    call ESMF_CplCompSetEntryPoint(comp, ESMF_METHOD_FINALIZE, userRoutine=compFinal1, &
       phase=1, rc=rc)
     if (rc/=ESMF_SUCCESS) return ! bail out
-    call ESMF_CplCompSetEntryPoint(comp, ESMF_SETFINAL, userRoutine=compFinal2, &
+    call ESMF_CplCompSetEntryPoint(comp, ESMF_METHOD_FINALIZE, userRoutine=compFinal2, &
       phase=2, rc=rc)
     if (rc/=ESMF_SUCCESS) return ! bail out
 
@@ -88,9 +88,9 @@ module cplCompMod
     ! Reconcile import and export States
     call ESMF_CplCompGet(comp, vm=vm, rc=rc)
     if (rc/=ESMF_SUCCESS) return ! bail out
-    call ESMF_StateReconcile(importState, vm, rc=rc)
+    call ESMF_StateReconcile(importState, vm=vm, rc=rc)
     if (rc/=ESMF_SUCCESS) return ! bail out
-    call ESMF_StateReconcile(exportState, vm, rc=rc)
+    call ESMF_StateReconcile(exportState, vm=vm, rc=rc)
     if (rc/=ESMF_SUCCESS) return ! bail out
     
     ! Get access to src and dst Arrays in States
@@ -109,9 +109,9 @@ module cplCompMod
     if (rc/=ESMF_SUCCESS) return ! bail out
 
     ! Add RouteHandle to import and export State for direct coupling
-    call ESMF_StateAdd(importState, routehandle, rc=rc)
+    call ESMF_StateAdd(importState, (/routehandle/), rc=rc)
     if (rc/=ESMF_SUCCESS) return ! bail out
-    call ESMF_StateAdd(exportState, routehandle, rc=rc)
+    call ESMF_StateAdd(exportState, (/routehandle/), rc=rc)
     if (rc/=ESMF_SUCCESS) return ! bail out
     
   end subroutine
@@ -135,9 +135,9 @@ module cplCompMod
     ! Reconcile import and export States
     call ESMF_CplCompGet(comp, vm=vm, rc=rc)
     if (rc/=ESMF_SUCCESS) return ! bail out
-    call ESMF_StateReconcile(importState, vm, rc=rc)
+    call ESMF_StateReconcile(importState, vm=vm, rc=rc)
     if (rc/=ESMF_SUCCESS) return ! bail out
-    call ESMF_StateReconcile(exportState, vm, rc=rc)
+    call ESMF_StateReconcile(exportState, vm=vm, rc=rc)
     if (rc/=ESMF_SUCCESS) return ! bail out
     
     ! Get access to src and dst Arrays in States
@@ -156,9 +156,9 @@ module cplCompMod
     if (rc/=ESMF_SUCCESS) return ! bail out
 
     ! Add RouteHandle to import and export State for direct coupling
-    call ESMF_StateAdd(importState, routehandle, rc=rc)
+    call ESMF_StateAdd(importState, (/routehandle/), rc=rc)
     if (rc/=ESMF_SUCCESS) return ! bail out
-    call ESMF_StateAdd(exportState, routehandle, rc=rc)
+    call ESMF_StateAdd(exportState, (/routehandle/), rc=rc)
     if (rc/=ESMF_SUCCESS) return ! bail out
     
   end subroutine

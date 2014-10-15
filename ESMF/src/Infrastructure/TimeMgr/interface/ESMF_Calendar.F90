@@ -1,7 +1,7 @@
-! $Id: ESMF_Calendar.F90,v 1.105.2.1 2010/02/05 20:00:28 svasquez Exp $
+! $Id: ESMF_Calendar.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2010, University Corporation for Atmospheric Research,
+! Copyright 2002-2012, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -30,7 +30,7 @@
 ! !MODULE: ESMF_CalendarMod
 !
 ! !DESCRIPTION:
-! Part of Time Manager Fortran API wrapper of C++ implemenation.
+! Part of Time Manager Fortran API wrapper of C++ implementation.
 !
 ! Defines Fortran wrapper entry points for corresponding
 ! C++ class { \tt ESMC\_Calendar} implementation.
@@ -40,12 +40,11 @@
 !------------------------------------------------------------------------------
 ! !USES:
       ! inherit from ESMF base class
-      use ESMF_InitMacrosMod
-      use ESMF_UtilTypesMod
       use ESMF_BaseMod
-
-      ! for ReadRestart()/WriteRestart()
-      use ESMF_IOSpecMod
+      use ESMF_UtilTypesMod
+      use ESMF_InitMacrosMod
+      use ESMF_LogErrMod
+      use ESMF_IOUtilMod
 
       implicit none
 !
@@ -54,34 +53,33 @@
       private
 !------------------------------------------------------------------------------
 
-      integer, parameter :: MONTHS_PER_YEAR = 12
-
 !------------------------------------------------------------------------------
-!     ! ESMF_CalendarType
+!     ! ESMF_CalKind_Flag
 !
-!     ! Fortran "enum" type to match C++ ESMC_CalendarType enum
+!     ! Fortran "enum" type to match C++ ESMC_CalKind_Flag enum
 
-      ! TODO: add isInit init macro infrastructure to initialize calendartype ?
-      !       to 0 (to detect unset) or possibly 8 (default ESMF_CAL_NOCALENDAR)
-      type ESMF_CalendarType
+      ! TODO: add isInit init macro infrastructure to initialize calkindflag ?
+      !       to 0 (to detect unset) or possibly 8 (default 
+      !       ESMF_CALKIND_NOCALENDAR)
+      type ESMF_CalKind_Flag
       sequence
       private
-        integer :: calendartype
+        integer :: calkindflag
       end type
 
-      type(ESMF_CalendarType), parameter :: &
-                               ESMF_CAL_GREGORIAN =    ESMF_CalendarType(1), &
-                               ESMF_CAL_JULIAN =       ESMF_CalendarType(2), &
-                               ESMF_CAL_JULIANDAY =    ESMF_CalendarType(3), &
-                               ESMF_CAL_MODJULIANDAY = ESMF_CalendarType(4), &
+      type(ESMF_CalKind_Flag), parameter :: &
+                            ESMF_CALKIND_GREGORIAN =    ESMF_CalKind_Flag(1), &
+                            ESMF_CALKIND_JULIAN =       ESMF_CalKind_Flag(2), &
+                            ESMF_CALKIND_JULIANDAY =    ESMF_CalKind_Flag(3), &
+                            ESMF_CALKIND_MODJULIANDAY = ESMF_CalKind_Flag(4), &
                            ! like Gregorian, except Feb always has 28 days
-                               ESMF_CAL_NOLEAP =       ESMF_CalendarType(5), & 
+                            ESMF_CALKIND_NOLEAP =       ESMF_CalKind_Flag(5), & 
                            ! 12 months, 30 days each
-                               ESMF_CAL_360DAY =       ESMF_CalendarType(6), & 
+                            ESMF_CALKIND_360DAY =       ESMF_CalKind_Flag(6), & 
                            ! user defined
-                               ESMF_CAL_CUSTOM =       ESMF_CalendarType(7), &
+                            ESMF_CALKIND_CUSTOM =       ESMF_CalKind_Flag(7), &
                            ! track base time seconds only
-                               ESMF_CAL_NOCALENDAR =   ESMF_CalendarType(8)
+                            ESMF_CALKIND_NOCALENDAR =   ESMF_CalKind_Flag(8)
 
 !------------------------------------------------------------------------------
 !     ! ESMF_Calendar
@@ -95,15 +93,17 @@
 !
 !------------------------------------------------------------------------------
 ! !PUBLIC TYPES:
-      public MONTHS_PER_YEAR
-      public ESMF_CalendarType
-      public ESMF_CAL_GREGORIAN,    ESMF_CAL_JULIAN, ESMF_CAL_JULIANDAY, &
-             ESMF_CAL_MODJULIANDAY, ESMF_CAL_NOLEAP, ESMF_CAL_360DAY, &
-             ESMF_CAL_CUSTOM,       ESMF_CAL_NOCALENDAR
+      public ESMF_CalKind_Flag
+      public ESMF_CALKIND_GREGORIAN, ESMF_CALKIND_JULIAN, &
+             ESMF_CALKIND_JULIANDAY, ESMF_CALKIND_MODJULIANDAY, &
+             ESMF_CALKIND_NOLEAP,    ESMF_CALKIND_360DAY, &
+             ESMF_CALKIND_CUSTOM,    ESMF_CALKIND_NOCALENDAR
       public ESMF_Calendar
 !------------------------------------------------------------------------------
 !
 ! !PUBLIC MEMBER FUNCTIONS:
+
+! - ESMF-public methods:
       public operator(==)
       public operator(/=)
       public ESMF_CalendarCreate
@@ -118,19 +118,22 @@
       public ESMF_CalendarSetDefault
       public ESMF_CalendarValidate
       public ESMF_CalendarWriteRestart
-      public ESMF_CalendarGetInit       ! For Standardized Initialization
+
+! - ESMF-internal methods:
+      public ESMF_CalendarGetInit
       public ESMF_CalendarSetInitCreated
+
 !EOPI
 
 ! !PRIVATE MEMBER FUNCTIONS:
       private ESMF_CalendarEQ
       private ESMF_CalendarNE
-      private ESMF_CalendarTypeEQ
-      private ESMF_CalendarTypeNE
-      private ESMF_CalendarCalAndTypeEQ
-      private ESMF_CalendarCalAndTypeNE
-      private ESMF_CalendarTypeAndCalEQ
-      private ESMF_CalendarTypeAndCalNE
+      private ESMF_CalendarKindEQ
+      private ESMF_CalendarKindNE
+      private ESMF_CalendarCalAndKindEQ
+      private ESMF_CalendarCalAndKindNE
+      private ESMF_CalendarKindAndCalEQ
+      private ESMF_CalendarKindAndCalNE
       private ESMF_CalendarCreateBuiltIn
       private ESMF_CalendarCreateCopy
       private ESMF_CalendarCreateCustom
@@ -138,13 +141,13 @@
       private ESMF_CalendarIsLeapYearI8
       private ESMF_CalendarSetBuiltIn
       private ESMF_CalendarSetCustom
-      private ESMF_CalendarSetDefaultType
+      private ESMF_CalendarSetDefaultKind
       private ESMF_CalendarSetDefaultCal
 
 !------------------------------------------------------------------------------
 ! The following line turns the CVS identifier string into a printable variable.
       character(*), parameter, private :: version = &
-      '$Id: ESMF_Calendar.F90,v 1.105.2.1 2010/02/05 20:00:28 svasquez Exp $'
+      '$Id: ESMF_Calendar.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $'
 
 !==============================================================================
 ! 
@@ -152,281 +155,191 @@
 ! 
 !==============================================================================
 !BOP
-! !IROUTINE:  ESMF_CalendarOperator(==) - Test if Calendar 1 is equal to Calendar 2
+! !IROUTINE:  ESMF_CalendarAssignment(=) - Assign a Calendar to another Calendar
+!
+! !INTERFACE:
+!     interface assignment(=)
+!     calendar1 = calendar2
+!
+! !ARGUMENTS:
+!     type(ESMF_Calendar) :: calendar1
+!     type(ESMF_Calendar) :: calendar2
+! 
+!
+! !STATUS:
+! \begin{itemize}
+! \item\apiStatusCompatibleVersion{5.2.0r}
+! \end{itemize}
+!
+! !DESCRIPTION:
+!     Assign {\tt calendar1} as an alias to the same {\tt ESMF\_Calendar} 
+!     object in memory as {\tt calendar2}. If {\tt calendar2} is invalid, then 
+!     {\tt calendar1} will be equally invalid after the assignment.
+!
+!     The arguments are:
+!     \begin{description} 
+!     \item[calendar1] 
+!          The {\tt ESMF\_Calendar} object on the left hand side of the 
+!          assignment.
+!     \item[calendar2] 
+!          The {\tt ESMF\_Calendar} object on the right hand side of the 
+!          assignment.
+!     \end{description}
+!
+!EOP
+! !PRIVATE MEMBER FUNCTIONS:
+!     None, documentation only, to describe the behavior of the default 
+!     Fortran assignment(=).
+!
+! !REQUIREMENTS:
+!     API review 11/2010.
+! 
+!     end interface
+! 
+!------------------------------------------------------------------------------
+!BOP
+! !IROUTINE:  ESMF_CalendarOperator(==) - Test if Calendar argument 1 is equal to Calendar argument 2
 !
 ! !INTERFACE:
       interface operator(==)
-!     if (calendar1 == calendar2) then ... endif
-!                  OR
-!     result = (calendar1 == calendar2)
+!     if (<calendar argument 1> == <calendar argument 2>) then ... endif
+!                                 OR
+!     result = (<calendar argument 1> == <calendar argument 2>)
 !
 ! !RETURN VALUE:
 !     logical :: result
 !
 ! !ARGUMENTS:
-!     type(ESMF_Calendar), intent(in) :: calendar1
-!     type(ESMF_Calendar), intent(in) :: calendar2
+!     <calendar argument 1>, see below for supported values
+!     <calendar argument 2>, see below for supported values
 !
 ! !DESCRIPTION:
+!     \begin{sloppypar}
 !     Overloads the (==) operator for the {\tt ESMF\_Calendar} class.
-!     Compare two calendar objects for equality; return true if equal,
-!     false otherwise.  Comparison is based on the calendar type.
+!     Compare an {\tt ESMF\_Calendar} object or {\tt ESMF\_CalKind\_Flag} with
+!     another calendar object or calendar kind for equality.  Return
+!     {\tt .true.} if equal, {\tt .false.} otherwise.  Comparison is based on
+!     calendar kind, which is a property of a calendar object.
+!     \end{sloppypar}
+!
+!     If both arguments are {\tt ESMF\_Calendar} objects, and both are of  
+!     type {\tt ESMF\_CALKIND\_CUSTOM}, then all the calendar's properties, 
+!     except name, are compared.
+!
+!     If both arguments are {\tt ESMF\_Calendar} objects, and either of them
+!     is not in the {\tt ESMF\_INIT\_CREATED} status, an error will be logged.
+!     However, this does not affect the return value, which is {\tt .true.} 
+!     when both arguments are in the {\em same} status, and {\tt .false.}
+!     otherwise.
+!
+!     If one argument is an {\tt ESMF\_Calendar} object, and the other is an
+!     {\tt ESMF\_CalKind\_Flag}, and the calendar object is not in the
+!     {\tt ESMF\_INIT\_CREATED} status, an error will be logged and
+!     {\tt .false.} will be returned.
+!
+!     Supported values for <calendar argument 1> are:
+!     \begin{description}
+!     \item type(ESMF\_Calendar),     intent(in) :: calendar1
+!     \item type(ESMF\_CalKind\_Flag), intent(in) :: calkindflag1
+!     \end{description}
+!     Supported values for <calendar argument 2> are:
+!     \begin{description}
+!     \item type(ESMF\_Calendar),     intent(in) :: calendar2
+!     \item type(ESMF\_CalKind\_Flag), intent(in) :: calkindflag2
+!     \end{description}
 !
 !     The arguments are:
 !     \begin{description}   
-!     \item[calendar1]
-!          The first {\tt ESMF\_Calendar} in comparison.
-!     \item[calendar2]
-!          The second {\tt ESMF\_Calendar} in comparison.
+!     \item[<calendar argument 1>]
+!          The {\tt ESMF\_Calendar} object or {\tt ESMF\_CalKind\_Flag} on the
+!          left hand side of the equality operation.
+!     \item[<calendar argument 2>]
+!          The {\tt ESMF\_Calendar} object or {\tt ESMF\_CalKind\_Flag} on the
+!          right hand side of the equality operation.
 !     \end{description}
 !
 !EOP
 ! !PRIVATE MEMBER FUNCTIONS:
-       module procedure ESMF_CalendarEQ      ! internal implementation
+      module procedure ESMF_CalendarEQ              ! internal implementation
+      module procedure ESMF_CalendarKindEQ          ! internal implementation
+      module procedure ESMF_CalendarCalAndKindEQ    ! internal implementation
+      module procedure ESMF_CalendarKindAndCalEQ    ! internal implementation
+!
+      end interface
 !
 !
 !------------------------------------------------------------------------------
 !BOP
-! !IROUTINE:  ESMF_CalendarOperator(==) - Test if Calendar Type 1 is equal to Calendar Type 2
-!
-! !INTERFACE:
-!     interface operator(==)
-!     if (calendartype1 == calendartype2) then ... endif
-!                  OR
-!     result = (calendartype1 == calendartype2)
-!
-! !RETURN VALUE:
-!     logical :: result
-!
-! !ARGUMENTS:
-!     type(ESMF_CalendarType), intent(in) :: calendartype1
-!     type(ESMF_CalendarType), intent(in) :: calendartype2
-!
-! !DESCRIPTION:
-!     Overloads the (==) operator for the {\tt ESMF\_Calendar} class.
-!     Compare two calendar types for equality; return true if equal,
-!     false otherwise.
-!
-!     The arguments are:
-!     \begin{description}   
-!     \item[calendartype1]
-!          The first {\tt ESMF\_CalendarType} in comparison.
-!     \item[calendartype2]
-!          The second {\tt ESMF\_CalendarType} in comparison.
-!     \end{description}
-!
-!EOP
-! !PRIVATE MEMBER FUNCTIONS:
-       module procedure ESMF_CalendarTypeEQ      ! internal implementation
-!
-!------------------------------------------------------------------------------
-!BOP
-! !IROUTINE:  ESMF_CalendarOperator(==) - Test if Calendar is equal to Calendar Type
-!
-! !INTERFACE:
-!     interface operator(==)
-!     if (calendar == calendartype) then ... endif
-!                  OR
-!     result = (calendar == calendartype)
-!
-! !RETURN VALUE:
-!     logical :: result
-!
-! !ARGUMENTS:
-!     type(ESMF_Calendar),     intent(in) :: calendar
-!     type(ESMF_CalendarType), intent(in) :: calendartype
-!
-! !DESCRIPTION:
-!     Overloads the (==) operator for the {\tt ESMF\_Calendar} class.
-!     Compare a calendar object's type with a given calendar type for equality;
-!     return true if equal, false otherwise.
-!
-!     The arguments are:
-!     \begin{description}   
-!     \item[calendar]
-!          The {\tt ESMF\_Calendar} in comparison.
-!     \item[calendartype]
-!          The {\tt ESMF\_CalendarType} in comparison.
-!     \end{description}
-!
-!EOP
-! !PRIVATE MEMBER FUNCTIONS:
-       module procedure ESMF_CalendarCalAndTypeEQ      ! internal implementation
-!
-!------------------------------------------------------------------------------
-!BOP
-! !IROUTINE:  ESMF_CalendarOperator(==) - Test if Calendar Type is equal to Calendar
-!
-! !INTERFACE:
-!     interface operator(==)
-!     if (calendartype == calendar) then ... endif
-!                  OR
-!     result = (calendartype == calendar)
-!
-! !RETURN VALUE:
-!     logical :: result
-!
-! !ARGUMENTS:
-!     type(ESMF_CalendarType), intent(in) :: calendartype
-!     type(ESMF_Calendar),     intent(in) :: calendar
-!
-! !DESCRIPTION:
-!     Overloads the (==) operator for the {\tt ESMF\_Calendar} class.
-!     Compare a calendar type with a given calendar object's type for equality;
-!     return true if equal, false otherwise.
-!
-!     The arguments are:
-!     \begin{description}   
-!     \item[calendartype]
-!          The {\tt ESMF\_CalendarType} in comparison.
-!     \item[calendar]
-!          The {\tt ESMF\_Calendar} in comparison.
-!     \end{description}
-!
-!EOP
-! !PRIVATE MEMBER FUNCTIONS:
-       module procedure ESMF_CalendarTypeAndCalEQ      ! internal implementation
-!
-       end interface    
-!
-!------------------------------------------------------------------------------
-!BOP
-! !IROUTINE:  ESMF_CalendarOperator(/=) - Test if Calendar 1 is not equal to Calendar 2
+! !IROUTINE:  ESMF_CalendarOperator(/=) - Test if Calendar argument 1 is not equal to Calendar argument 2
 !
 ! !INTERFACE:
       interface operator(/=)
-!     if (calendar1 /= calendar2) then ... endif
-!                  OR
-!     result = (calendar1 /= calendar2)
+!     if (<calendar argument 1> /= <calendar argument 2>) then ... endif
+!                                 OR
+!     result = (<calendar argument 1> /= <calendar argument 2>)
 !
 ! !RETURN VALUE:
 !     logical :: result
 !
 ! !ARGUMENTS:
-!     type(ESMF_Calendar), intent(in) :: calendar1
-!     type(ESMF_Calendar), intent(in) :: calendar2
+!     <calendar argument 1>, see below for supported values
+!     <calendar argument 2>, see below for supported values
 !
 ! !DESCRIPTION:
+!     \begin{sloppypar}
 !     Overloads the (/=) operator for the {\tt ESMF\_Calendar} class.
-!     Compare two calendar objects for inequality; return true if not equal,
-!     false otherwise.  Comparison is based on the calendar type.
+!     Compare a {\tt ESMF\_Calendar} object or {\tt ESMF\_CalKind\_Flag} with
+!     another calendar object or calendar kind for inequality.  Return
+!     {\tt .true.} if not equal, {\tt .false.} otherwise.  Comparison is based
+!     on calendar kind, which is a property of a calendar object.
+!     \end{sloppypar}
+!
+!     If both arguments are {\tt ESMF\_Calendar} objects, and both are of  
+!     type {\tt ESMF\_CALKIND\_CUSTOM}, then all the calendar's properties,
+!     except name, are compared.
+!
+!     If both arguments are {\tt ESMF\_Calendar} objects, and either of them
+!     is not in the {\tt ESMF\_INIT\_CREATED} status, an error will be logged.
+!     However, this does not affect the return value, which is {\tt .true.} 
+!     when both arguments are {\em not} in the {\em same} status, and
+!     {\tt .false.} otherwise.
+!
+!     If one argument is an {\tt ESMF\_Calendar} object, and the other is an
+!     {\tt ESMF\_CalKind\_Flag}, and the calendar object is not in the
+!     {\tt ESMF\_INIT\_CREATED} status, an error will be logged and
+!     {\tt .true.} will be returned.
+!
+!     Supported values for <calendar argument 1> are:
+!     \begin{description}
+!     \item type(ESMF\_Calendar),     intent(in) :: calendar1
+!     \item type(ESMF\_CalKind\_Flag), intent(in) :: calkindflag1
+!     \end{description}
+!     Supported values for <calendar argument 2> are:
+!     \begin{description}
+!     \item type(ESMF\_Calendar),     intent(in) :: calendar2
+!     \item type(ESMF\_CalKind\_Flag), intent(in) :: calkindflag2
+!     \end{description}
 !
 !     The arguments are:
 !     \begin{description}   
-!     \item[calendar1]
-!          The first {\tt ESMF\_Calendar} in comparison.
-!     \item[calendar2]
-!          The second {\tt ESMF\_Calendar} in comparison.
+!     \item[<calendar argument 1>]
+!          The {\tt ESMF\_Calendar} object or {\tt ESMF\_CalKind\_Flag} on the
+!          left hand side of the non-equality operation.
+!     \item[<calendar argument 2>]
+!          The {\tt ESMF\_Calendar} object or {\tt ESMF\_CalKind\_Flag} on the
+!          right hand side of the non-equality operation.
 !     \end{description}
 !
 !EOP
 ! !PRIVATE MEMBER FUNCTIONS:
-       module procedure ESMF_CalendarNE      ! internal implementation
+      module procedure ESMF_CalendarNE              ! internal implementation
+      module procedure ESMF_CalendarKindNE          ! internal implementation
+      module procedure ESMF_CalendarCalAndKindNE    ! internal implementation
+      module procedure ESMF_CalendarKindAndCalNE    ! internal implementation
 !
-!------------------------------------------------------------------------------
-!BOP
-! !IROUTINE:  ESMF_CalendarOperator(/=) - Test if Calendar Type 1 is not equal to Calendar Type 2
+      end interface
 !
-! !INTERFACE:
-!     interface operator(/=)
-!     if (calendartype1 /= calendartype2) then ... endif
-!                  OR
-!     result = (calendartype1 /= calendartype2)
 !
-! !RETURN VALUE:
-!     logical :: result
-!
-! !ARGUMENTS:
-!     type(ESMF_CalendarType), intent(in) :: calendartype1
-!     type(ESMF_CalendarType), intent(in) :: calendartype2
-!
-! !DESCRIPTION:
-!     Overloads the (/=) operator for the {\tt ESMF\_Calendar} class.
-!     Compare two calendar types for inequality; return true if not equal,
-!     false otherwise.
-!
-!     The arguments are:
-!     \begin{description}   
-!     \item[calendartype1]
-!          The first {\tt ESMF\_CalendarType} in comparison.
-!     \item[calendartype2]
-!          The second {\tt ESMF\_CalendarType} in comparison.
-!     \end{description}
-!
-!EOP
-! !PRIVATE MEMBER FUNCTIONS:
-       module procedure ESMF_CalendarTypeNE      ! internal implementation
-!
-!------------------------------------------------------------------------------
-!BOP
-! !IROUTINE:  ESMF_CalendarOperator(/=) - Test if Calendar is not equal to Calendar Type
-!
-! !INTERFACE:
-!     interface operator(/=)
-!     if (calendar /= calendartype) then ... endif
-!                  OR
-!     result = (calendar /= calendartype)
-!
-! !RETURN VALUE:
-!     logical :: result
-!
-! !ARGUMENTS:
-!     type(ESMF_Calendar),     intent(in) :: calendar
-!     type(ESMF_CalendarType), intent(in) :: calendartype
-!
-! !DESCRIPTION:
-!     Overloads the (/=) operator for the {\tt ESMF\_Calendar} class.
-!     Compare a calendar object's type with a given calendar type for
-!     inequality; return true if equal, false otherwise.
-!
-!     The arguments are:
-!     \begin{description}   
-!     \item[calendar]
-!          The {\tt ESMF\_Calendar} in comparison.
-!     \item[calendartype]
-!          The {\tt ESMF\_CalendarType} in comparison.
-!     \end{description}
-!
-!EOP
-! !PRIVATE MEMBER FUNCTIONS:
-       module procedure ESMF_CalendarCalAndTypeNE      ! internal implementation
-!
-!------------------------------------------------------------------------------
-!BOP
-! !IROUTINE:  ESMF_CalendarOperator(/=) - Test if Calendar Type is not equal to Calendar
-!
-! !INTERFACE:
-!     interface operator(/=)
-!     if (calendartype /= calendar) then ... endif
-!                  OR
-!     result = (calendartype /= calendar)
-!
-! !RETURN VALUE:
-!     logical :: result
-!
-! !ARGUMENTS:
-!     type(ESMF_CalendarType), intent(in) :: calendartype
-!     type(ESMF_Calendar),     intent(in) :: calendar
-!
-! !DESCRIPTION:
-!     Overloads the (/=) operator for the {\tt ESMF\_Calendar} class.
-!     Compare a calendar type with a given calendar object's type for
-!     inequality; return true if equal, false otherwise.
-!
-!     The arguments are:
-!     \begin{description}   
-!     \item[calendartype]
-!          The {\tt ESMF\_CalendarType} in comparison.
-!     \item[calendar]
-!          The {\tt ESMF\_Calendar} in comparison.
-!     \end{description}
-!
-!EOP
-! !PRIVATE MEMBER FUNCTIONS:
-       module procedure ESMF_CalendarTypeAndCalNE      ! internal implementation
-!
-       end interface    
-
 !------------------------------------------------------------------------------
 !BOPI
 ! !IROUTINE: ESMF_CalendarCreate - Create an ESMF Calendar
@@ -490,7 +403,7 @@
       interface ESMF_CalendarSetDefault
 
 ! !PRIVATE MEMBER FUNCTIONS:
-      module procedure ESMF_CalendarSetDefaultType
+      module procedure ESMF_CalendarSetDefaultKind
       module procedure ESMF_CalendarSetDefaultCal
 
 ! !DESCRIPTION:
@@ -515,15 +428,15 @@
 !
 ! !ARGUMENTS:
       type(ESMF_Calendar), intent(in), optional :: d
-      ESMF_INIT_TYPE :: ESMF_CalendarGetInit
+      ESMF_INIT_TYPE                            :: ESMF_CalendarGetInit
 !
 ! !DESCRIPTION:
-!     Get the initialization status of the Deep class {\tt bundle}.
+!     Get the initialization status of the Deep class {\tt calendar}. 
 !
 !     The arguments are:
 !     \begin{description}
-!     \item [s]
-!           {\tt ESMF\_Calendar} from which to retreive status.
+!     \item [{[d]}]
+!           {\tt ESMF\_Calendar} from which to retrieve status.
 !     \end{description}
 !
 !EOPI
@@ -536,7 +449,7 @@
 
       end function ESMF_CalendarGetInit
 
-! -------------------------- ESMF-public method -------------------------------
+!------------------------------------------------------------------------------
 #undef  ESMF_METHOD
 #define ESMF_METHOD "ESMF_CalendarSetInitCreated()"
 !BOPI
@@ -546,16 +459,27 @@
       subroutine ESMF_CalendarSetInitCreated(c, rc)
 !
 ! !ARGUMENTS:
-      type(ESMF_Calendar), intent(inout)           :: c
-      integer,             intent(out),  optional  :: rc  
+      type(ESMF_Calendar), intent(inout),  optional :: c
+      integer,             intent(out),    optional :: rc  
 !         
 !
 ! !DESCRIPTION:
 !     Set init code in Calendar object to "CREATED".
+! 
+!     Used by other classes to set the isInit value of a calendar, since it
+!     is private to the {\tt ESMF\_Calendar} class.  Within the 
+!     {\tt ESMF\_Calendar} class, the macro {\tt ESMF\_INIT\_SET\_CREATED()}
+!     is used instead, since the {\tt ESMF\_Calendar} class and its methods
+!     are encapsulated within the same module.  This gives the calendar 
+!     methods direct access to the private isInit member.  Compare to the 
+!     other TimeMgr classes which have their types defined in separate
+!     modules from their methods, due to mutual dependencies.  They must
+!     call their own {\tt ESMF\_*Init*()} method rather than use the 
+!     {\tt ESMF\_INIT\_SET\_*()} macro.
 !
 !     The arguments are:
 !     \begin{description}
-!     \item[c] 
+!     \item[{[c]}] 
 !          Specified {\tt ESMF\_Calendar} object.
 !     \item[{[rc]}] 
 !          Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
@@ -563,18 +487,21 @@
 !
 !EOPI
 !------------------------------------------------------------------------------
+
       ! Set return code to not implemented
       if (present(rc)) rc = ESMF_RC_NOT_IMPL
     
       ! Set init code
-      ESMF_INIT_SET_CREATED(c)
+      if (present(c)) then
+        ESMF_INIT_SET_CREATED(c)
+      endif
 
       ! Return success
       if (present(rc)) rc = ESMF_SUCCESS
     
       end subroutine ESMF_CalendarSetInitCreated
-!------------------------------------------------------------------------------
 
+!------------------------------------------------------------------------------
 
 
 !==============================================================================
@@ -585,37 +512,53 @@
 
 ! !INTERFACE:
       ! Private name; call using ESMF_CalendarCreate()
-      function ESMF_CalendarCreateBuiltIn(name, calendartype, rc)
+      function ESMF_CalendarCreateBuiltIn(calkindflag, keywordEnforcer, &
+        name, rc)
 
 ! !RETURN VALUE:
       type(ESMF_Calendar) :: ESMF_CalendarCreateBuiltIn
 
 ! !ARGUMENTS:
+      type(ESMF_CalKind_Flag), intent(in)            :: calkindflag
+      type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
       character (len=*),       intent(in),  optional :: name
-      type(ESMF_CalendarType), intent(in)            :: calendartype
       integer,                 intent(out), optional :: rc
 
+!
+! !STATUS:
+! \begin{itemize}
+! \item\apiStatusCompatibleVersion{5.2.0r}
+! \end{itemize}
+!
 ! !DESCRIPTION:
 !     Creates and sets a {\tt calendar} to the given built-in
-!     {\tt ESMF\_CalendarType}. 
-!
-!     This is a private method; invoke via the public overloaded entry point
-!     {\tt ESMF\_CalendarCreate()}.
+!     {\tt ESMF\_CalKind\_Flag}. 
 !
 !     The arguments are:
 !     \begin{description}
+!     \item[calkindflag]
+!          The built-in {\tt ESMF\_CalKind\_Flag}.  Valid values are:
+!            \newline
+!            {\tt ESMF\_CALKIND\_360DAY}, 
+!            \newline
+!            {\tt ESMF\_CALKIND\_GREGORIAN},
+!            \newline
+!            {\tt ESMF\_CALKIND\_JULIAN}, 
+!            \newline
+!            {\tt ESMF\_CALKIND\_JULIANDAY},
+!            \newline
+!            {\tt ESMF\_CALKIND\_MODJULIANDAY}, 
+!            \newline
+!            {\tt ESMF\_CALKIND\_NOCALENDAR},
+!            \newline
+!            and {\tt ESMF\_CALKIND\_NOLEAP}.
+!            \newline
+!          See Section ~\ref{subsec:Calendar_options} for a description of each
+!          calendar kind.
 !     \item[{[name]}]
 !          The name for the newly created calendar.  If not specified, a
 !          default unique name will be generated: "CalendarNNN" where NNN
 !          is a unique sequence number from 001 to 999.
-!     \item[calendartype]
-!          The built-in {\tt ESMF\_CalendarType}.  Valid values are:
-!            {\tt ESMF\_CAL\_360DAY}, {\tt ESMF\_CAL\_GREGORIAN},
-!            {\tt ESMF\_CAL\_JULIAN}, {\tt ESMF\_CAL\_JULIANDAY},
-!            {\tt ESMF\_CAL\_MODJULIANDAY}, {\tt ESMF\_CAL\_NOCALENDAR},
-!            and {\tt ESMF\_CAL\_NOLEAP}.
-!          See Section ~\ref{subsec:Calendar_options} for a description of each
-!          calendar type.
 !     \item[{[rc]}]
 !          Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
 !     \end{description}
@@ -636,12 +579,13 @@
         nameLen = len_trim(name)
       end if
     
-!     invoke C to C++ entry point
+      ! invoke C to C++ entry point
       call c_ESMC_CalendarCreateBuiltIn(ESMF_CalendarCreateBuiltIn, nameLen, &
-                                        name, calendartype, localrc)
-      if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, &
+                                        name, calkindflag, localrc)
+      if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
         ESMF_CONTEXT, rcToReturn=rc)) return
     
+      ! mark output as successfully initialized
       ESMF_INIT_SET_CREATED(ESMF_CalendarCreateBuiltIn)
 
       ! Return success
@@ -656,20 +600,24 @@
 
 ! !INTERFACE:
       ! Private name; call using ESMF_CalendarCreate()
-      function ESMF_CalendarCreateCopy(calendar, rc)
+      function ESMF_CalendarCreateCopy(calendar, keywordEnforcer, rc)
 
 ! !RETURN VALUE:
       type(ESMF_Calendar) :: ESMF_CalendarCreateCopy
 
 ! !ARGUMENTS:
       type(ESMF_Calendar), intent(in)            :: calendar
+      type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
       integer,             intent(out), optional :: rc
 
-! !DESCRIPTION:
-!     Creates a copy of a given {\tt ESMF\_Calendar}.
 !
-!     This is a private method; invoke via the public overloaded entry point
-!     {\tt ESMF\_CalendarCreate()}.
+! !STATUS:
+! \begin{itemize}
+! \item\apiStatusCompatibleVersion{5.2.0r}
+! \end{itemize}
+!
+! !DESCRIPTION:
+!     Creates a complete (deep) copy of a given {\tt ESMF\_Calendar}.
 !
 !     The arguments are:
 !     \begin{description}
@@ -686,14 +634,15 @@
       if (present(rc)) rc = ESMF_RC_NOT_IMPL
       localrc = ESMF_RC_NOT_IMPL
 
-      ! check inputs
+      ! check input
       ESMF_INIT_CHECK_DEEP(ESMF_CalendarGetInit,calendar,rc)
 
-!     invoke C to C++ entry point to copy calendar
+      ! invoke C to C++ entry point to copy calendar
       call c_ESMC_CalendarCreateCopy(ESMF_CalendarCreateCopy, calendar, localrc)
-      if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, &
+      if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
         ESMF_CONTEXT, rcToReturn=rc)) return
 
+      ! mark output as successfully initialized
       ESMF_INIT_SET_CREATED(ESMF_CalendarCreateCopy)
 
       ! Return success
@@ -708,57 +657,60 @@
 
 ! !INTERFACE:
       ! Private name; call using ESMF_CalendarCreate()
-      function ESMF_CalendarCreateCustom(name, daysPerMonth, secondsPerDay, &
-                                         daysPerYear, daysPerYearDn, &
-                                         daysPerYearDd, rc)
+      function ESMF_CalendarCreateCustom(keywordEnforcer, &
+        daysPerMonth, secondsPerDay, &
+        daysPerYear, daysPerYearDn, daysPerYearDd, name, rc)
+
 ! !RETURN VALUE:
       type(ESMF_Calendar) :: ESMF_CalendarCreateCustom
 
 ! !ARGUMENTS:
-      character (len=*),     intent(in),  optional :: name
-      integer, dimension(:), intent(in),  optional :: daysPerMonth
+      type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
+      integer,               intent(in),  optional :: daysPerMonth(:)
       integer(ESMF_KIND_I4), intent(in),  optional :: secondsPerDay
-      integer(ESMF_KIND_I4), intent(in),  optional :: daysPerYear   ! not implemented
-      integer(ESMF_KIND_I4), intent(in),  optional :: daysPerYearDn ! not implemented
-      integer(ESMF_KIND_I4), intent(in),  optional :: daysPerYearDd ! not implemented
+      integer(ESMF_KIND_I4), intent(in),  optional :: daysPerYear
+      integer(ESMF_KIND_I4), intent(in),  optional :: daysPerYearDn
+      integer(ESMF_KIND_I4), intent(in),  optional :: daysPerYearDd
+      character (len=*),     intent(in),  optional :: name
       integer,               intent(out), optional :: rc
 
-! !DESCRIPTION:
-!     Creates a custom {\tt ESMF\_Calendar} and sets its properties.
 !
-!     This is a private method; invoke via the public overloaded entry point
-!     {\tt ESMF\_CalendarCreate()}.
+! !DESCRIPTION:
+!     Creates a custom {\tt ESMF\_Calendar} and sets its properties.  Not
+!     fully supported yet; see Section ~\ref{subsec:Calendar_rest}.
 !
 !     The arguments are:
 !     \begin{description}
-!     \item[{[name]}]
-!          The name for the newly created calendar.  If not specified, a
-!          default unique name will be generated: "CalendarNNN" where NNN
-!          is a unique sequence number from 001 to 999.
 !     \item[{[daysPerMonth]}]
 !          Integer array of days per month, for each month of the year.
 !          The number of months per year is variable and taken from the
 !          size of the array.  If unspecified, months per year = 0,
-!          with the days array undefined.
+!          with the days array undefined.  (Not implemented yet).
 !     \item[{[secondsPerDay]}]
 !          Integer number of seconds per day.  Defaults to 86400 if not 
-!          specified.
+!          specified.  (Not implemented yet).
 !     \item[{[daysPerYear]}]
 !          Integer number of days per year.  Use with daysPerYearDn and
 !          daysPerYearDd (see below) to specify a days-per-year calendar
 !          for any planetary body.  Default = 0.  (Not implemented yet).
 !     \item[{[daysPerYearDn]}]
+!          \begin{sloppypar}
 !          Integer numerator portion of fractional number of days per year
 !          (daysPerYearDn/daysPerYearDd).
 !          Use with daysPerYear (see above) and daysPerYearDd (see below) to
 !          specify a days-per-year calendar for any planetary body.
 !          Default = 0.  (Not implemented yet).
+!          \end{sloppypar}
 !     \item[{[daysPerYearDd]}]
 !          Integer denominator portion of fractional number of days per year
 !          (daysPerYearDn/daysPerYearDd).
 !          Use with daysPerYear and daysPerYearDn (see above) to
 !          specify a days-per-year calendar for any planetary body.
 !          Default = 1.  (Not implemented yet).
+!     \item[{[name]}]
+!          The name for the newly created calendar.  If not specified, a
+!          default unique name will be generated: "CalendarNNN" where NNN
+!          is a unique sequence number from 001 to 999.
 !     \item[{[rc]}]
 !          Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
 !     \end{description}
@@ -788,8 +740,7 @@
         monthsPerYear = size(daysPerMonth)
       end if
 
-!     invoke C to C++ entry point
-
+      ! invoke C to C++ entry point
       if (present(daysPerMonth)) then
         call c_ESMC_CalendarCreateCustom1(ESMF_CalendarCreateCustom, &
                                          nameLen, name, &
@@ -797,7 +748,7 @@
                                          secondsPerDay, &
                                          daysPerYear, daysPerYearDn, &
                                          daysPerYearDd, localrc)
-        if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, &
+        if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
           ESMF_CONTEXT, rcToReturn=rc)) return
       else
         call c_ESMC_CalendarCreateCustom0(ESMF_CalendarCreateCustom, &
@@ -806,10 +757,11 @@
                                          secondsPerDay, &
                                          daysPerYear, daysPerYearDn, &
                                          daysPerYearDd, localrc)
-        if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, &
+        if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
           ESMF_CONTEXT, rcToReturn=rc)) return
       end if
     
+      ! mark output as successfully initialized
       ESMF_INIT_SET_CREATED(ESMF_CalendarCreateCustom)
 
       ! Return success
@@ -820,22 +772,31 @@
 #undef  ESMF_METHOD
 #define ESMF_METHOD "ESMF_CalendarDestroy()"
 !BOP
-! !IROUTINE: ESMF_CalendarDestroy - Free resources associated with a Calendar
+! !IROUTINE: ESMF_CalendarDestroy - Release resources associated with a Calendar
 !
 ! !INTERFACE:
-      subroutine ESMF_CalendarDestroy(calendar, rc)
+      subroutine ESMF_CalendarDestroy(calendar, keywordEnforcer, rc)
 !
 ! !ARGUMENTS:
-      type(ESMF_Calendar)            :: calendar
-      integer, intent(out), optional :: rc
+      type(ESMF_Calendar), intent(inout)          :: calendar
+      type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
+      integer,             intent(out),  optional :: rc
+!
+!
+! !STATUS:
+! \begin{itemize}
+! \item\apiStatusCompatibleVersion{5.2.0r}
+! \end{itemize}
 !
 ! !DESCRIPTION:
-!     Releases all resources associated with this {\tt ESMF\_Calendar}.
+!     Releases resources associated with this {\tt ESMF\_Calendar}.
 !
 !     The arguments are:
 !     \begin{description}
 !     \item[calendar]
-!       Destroy contents of this {\tt ESMF\_Calendar}.
+!       Release resources associated with this {\tt ESMF\_Calendar} and mark the
+!       object as invalid.  It is an error to pass this object into any other
+!       routines after being destroyed.
 !     \item[[rc]]
 !       Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
 !     \end{description}
@@ -847,13 +808,15 @@
       if (present(rc)) rc = ESMF_RC_NOT_IMPL
       localrc = ESMF_RC_NOT_IMPL
 
+      ! check input
       ESMF_INIT_CHECK_DEEP(ESMF_CalendarGetInit,calendar,rc)
 
-!     invoke C to C++ entry point
+      ! invoke C to C++ entry point
       call c_ESMC_CalendarDestroy(calendar, localrc)
-      if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, &
+      if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
         ESMF_CONTEXT, rcToReturn=rc)) return
 
+      ! mark output as successfully deleted
       ESMF_INIT_SET_DELETED(calendar)
 
       ! Return success
@@ -867,9 +830,10 @@
 ! !IROUTINE: ESMF_CalendarFinalize
 !
 ! !INTERFACE:
-      subroutine ESMF_CalendarFinalize(rc)
+      subroutine ESMF_CalendarFinalize(keywordEnforcer, rc)
 !
 ! !ARGUMENTS:
+      type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
       integer, intent(out), optional :: rc
 !
 ! !DESCRIPTION:
@@ -888,9 +852,9 @@
       if (present(rc)) rc = ESMF_RC_NOT_IMPL
       localrc = ESMF_RC_NOT_IMPL
 
-!     invoke C to C++ entry point
+     ! invoke C to C++ entry point
       call c_ESMC_CalendarFinalize(localrc)
-      if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, &
+      if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
         ESMF_CONTEXT, rcToReturn=rc)) return
 
       ! Return success
@@ -904,24 +868,31 @@
 ! !IROUTINE: ESMF_CalendarGet - Get Calendar properties
 
 ! !INTERFACE:
-      subroutine ESMF_CalendarGet(calendar, name, calendartype, &
-                                  daysPerMonth, monthsPerYear, &
-                                  secondsPerDay, secondsPerYear, &
-                                  daysPerYear, &
-                                  daysPerYearDn, daysPerYearDd, rc)
-! !ARGUMENTS:
-      type(ESMF_Calendar),     intent(inout)         :: calendar
-      character (len=*),       intent(out), optional :: name
-      type(ESMF_CalendarType), intent(out), optional :: calendartype
-      integer, dimension(:),   intent(out), optional :: daysPerMonth
-      integer,                 intent(out), optional :: monthsPerYear
-      integer(ESMF_KIND_I4),   intent(out), optional :: secondsPerDay
-      integer(ESMF_KIND_I4),   intent(out), optional :: secondsPerYear
-      integer(ESMF_KIND_I4),   intent(out), optional :: daysPerYear   ! not implemented
-      integer(ESMF_KIND_I4),   intent(out), optional :: daysPerYearDn ! not implemented
-      integer(ESMF_KIND_I4),   intent(out), optional :: daysPerYearDd ! not implemented
-      integer,                 intent(out), optional :: rc
+      subroutine ESMF_CalendarGet(calendar, keywordEnforcer, &
+        name, calkindflag, daysPerMonth, monthsPerYear, &
+        secondsPerDay, secondsPerYear, &
+        daysPerYear, daysPerYearDn, daysPerYearDd, rc)
 
+! !ARGUMENTS:
+      type(ESMF_Calendar),    intent(in)            :: calendar
+      type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
+      type(ESMF_CalKind_Flag),intent(out), optional :: calkindflag
+      integer,                intent(out), optional :: daysPerMonth(:)
+      integer,                intent(out), optional :: monthsPerYear
+      integer(ESMF_KIND_I4),  intent(out), optional :: secondsPerDay
+      integer(ESMF_KIND_I4),  intent(out), optional :: secondsPerYear
+      integer(ESMF_KIND_I4),  intent(out), optional :: daysPerYear
+      integer(ESMF_KIND_I4),  intent(out), optional :: daysPerYearDn
+      integer(ESMF_KIND_I4),  intent(out), optional :: daysPerYearDd
+      character (len=*),      intent(out), optional :: name
+      integer,                intent(out), optional :: rc
+
+!
+! !STATUS:
+! \begin{itemize}
+! \item\apiStatusCompatibleVersion{5.2.0r}
+! \end{itemize}
+!
 ! !DESCRIPTION:
 !     Gets one or more of an {\tt ESMF\_Calendar}'s properties.
 !
@@ -929,11 +900,9 @@
 !     \begin{description}
 !     \item[calendar]
 !          The object instance to query.
-!     \item[{[name]}]
-!          The name of this calendar.
-!     \item[{[calendartype]}]
-!          The {\tt CalendarType} ESMF\_CAL\_GREGORIAN, ESMF\_CAL\_JULIAN,
-!          etc.
+!     \item[{[calkindflag]}]
+!          The {\tt CalKind\_Flag} ESMF\_CALKIND\_GREGORIAN, 
+!          ESMF\_CALKIND\_JULIAN, etc.
 !     \item[{[daysPerMonth]}]
 !          Integer array of days per month, for each month of the year.
 !     \item[{[monthsPerYear]}]
@@ -947,16 +916,19 @@
 !          Integer number of days per year.  For calendars with
 !          intercalations, daysPerYear is the number of days for years without
 !          an intercalation.  For other calendars, it is the number of days in
-!          every year.  (Not implemented yet).
+!          every year.
 !     \item[{[daysPerYearDn]}]
+!          \begin{sloppypar}
 !          Integer fractional number of days per year (numerator).
 !          For calendars with intercalations, daysPerYearDn/daysPerYearDd is
 !          the average fractional number of days per year (e.g. 25/100 for
 !          Julian 4-year intercalation).  For other calendars, it is zero.
-!          (Not implemented yet).
+!          \end{sloppypar}
 !     \item[{[daysPerYearDd]}]
 !          Integer fractional number of days per year (denominator).  See
-!          daysPerYearDn above.  (Not implemented yet).
+!          daysPerYearDn above.
+!     \item[{[name]}]
+!          The name of this calendar.
 !     \item[{[rc]}]
 !          Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
 !     \end{description}
@@ -977,12 +949,12 @@
       if (present(rc)) rc = ESMF_RC_NOT_IMPL
       localrc = ESMF_RC_NOT_IMPL
 
+      ! check input
+      ESMF_INIT_CHECK_DEEP(ESMF_CalendarGetInit,calendar,rc)
+
       nameLen = 0
       tempNameLen = 0
       sizeofDaysPerMonth = 0
-
-      ! check variables
-      ESMF_INIT_CHECK_DEEP(ESMF_CalendarGetInit,calendar,rc)
 
       ! get length of given name for C++ validation
       if (present(name)) then
@@ -994,23 +966,23 @@
         sizeofDaysPerMonth = size(daysPerMonth)
       end if
 
-!     invoke C to C++ entry point
+      ! invoke C to C++ entry point
 
       if (present(daysPerMonth)) then
         call c_ESMC_CalendarGet1(calendar, nameLen, tempNameLen, tempName, &
-                         calendartype, &
+                         calkindflag, &
                          daysPerMonth(1), sizeofDaysPerMonth, &
                          monthsPerYear, secondsPerDay, secondsPerYear, &
                          daysPerYear, daysPerYearDn, daysPerYearDd, localrc)
-        if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, &
+        if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
           ESMF_CONTEXT, rcToReturn=rc)) return
       else
         call c_ESMC_CalendarGet0(calendar, nameLen, tempNameLen, tempName, &
-                         calendartype, &
+                         calkindflag, &
                          sizeofDaysPerMonth, &
                          monthsPerYear, secondsPerDay, secondsPerYear, &
                          daysPerYear, daysPerYearDn, daysPerYearDd, localrc)
-        if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, &
+        if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
           ESMF_CONTEXT, rcToReturn=rc)) return
       end if
     
@@ -1028,13 +1000,14 @@
 #undef  ESMF_METHOD
 #define ESMF_METHOD "ESMF_CalendarInitialize()"
 !BOPI
-! !IROUTINE: ESMF_CalendarInitialize - Initialize the default Calendar type
+! !IROUTINE: ESMF_CalendarInitialize - Initialize the default Calendar kind
 
 ! !INTERFACE:
-      subroutine ESMF_CalendarInitialize(calendartype, rc)
+      subroutine ESMF_CalendarInitialize(keywordEnforcer, calkindflag, rc)
 
 ! !ARGUMENTS:
-      type(ESMF_CalendarType), intent(in),  optional :: calendartype
+      type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
+      type(ESMF_CalKind_Flag), intent(in),  optional :: calkindflag
       integer,                 intent(out), optional :: rc
 
 ! !DESCRIPTION:
@@ -1044,9 +1017,9 @@
 !
 !     The arguments are:
 !     \begin{description}
-!     \item[{[calendartype]}]
-!          The calendar type to initialize the default to.  If not specified,
-!          the default is set to {\tt ESMF\_CAL\_NOCALENDAR}.
+!     \item[{[calkindflag]}]
+!          The calendar kind to initialize the default to.  If not specified,
+!          the default is set to {\tt ESMF\_CALKIND\_NOCALENDAR}.
 !     \item[{[rc]}]
 !          Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
 !     \end{description}
@@ -1058,9 +1031,9 @@
       if (present(rc)) rc = ESMF_RC_NOT_IMPL
       localrc = ESMF_RC_NOT_IMPL
     
-!     invoke C to C++ entry point
-      call c_ESMC_CalendarInitialize(calendartype, localrc)
-      if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, &
+      ! invoke C to C++ entry point
+      call c_ESMC_CalendarInitialize(calkindflag, localrc)
+      if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
         ESMF_CONTEXT, rcToReturn=rc)) return
 
       ! Return success
@@ -1068,29 +1041,82 @@
       end subroutine ESMF_CalendarInitialize
     
 !------------------------------------------------------------------------------
+!BOP
+! !IROUTINE: ESMF_CalendarIsLeapYear - Determine if given year is a leap year
+!
+! !INTERFACE:
+!     ! Private name; call using ESMF_CalendarIsLeapYear()
+!     function ESMF_CalendarIsLeapYear<kind>(calendar, yy, keywordEnforcer, rc)
+!
+! !RETURN VALUE:
+!     logical :: ESMF_CalendarIsLeapYear<kind>
+!
+! !ARGUMENTS:
+!     type(ESMF_Calendar),       intent(in)            :: calendar
+!     integer(ESMF_KIND_<kind>), intent(in)            :: yy
+!     type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
+!     integer,                   intent(out), optional :: rc
+!
+!
+! !STATUS:
+! \begin{itemize}
+! \item\apiStatusCompatibleVersion{5.2.0r}
+! \end{itemize}
+!
+! !DESCRIPTION:
+!     \begin{sloppypar}
+!     Returns {\tt .true.} if the given year is a leap year within the given
+!     calendar, and {\tt .false.} otherwise.  Custom calendars are not yet 
+!     fully supported, so {\tt .false.} will always be returned in this case;
+!     see Section ~\ref{subsec:Calendar_rest}.
+!     See also {\tt ESMF\_TimeIsLeapYear()}.
+!     \end{sloppypar}
+!
+!     The arguments are:
+!     \begin{description}
+!     \item[calendar]
+!          {\tt ESMF\_Calendar} to determine leap year within.
+!     \item[yy]
+!          Year to check for leap year.  The type is integer and the <kind> can
+!          be either I4 or I8:  {\tt ESMF\_KIND\_I4} or {\tt ESMF\_KIND\_I8}.
+!     \item[{[rc]}]
+!          Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
+!     \end{description}
+!    
+!EOP
+!------------------------------------------------------------------------------
 #undef  ESMF_METHOD
 #define ESMF_METHOD "ESMF_CalendarIsLeapYearI4()"
-!BOP
+!BOPI
 ! !IROUTINE: ESMF_CalendarIsLeapYear - Determine if given year is a leap year
 
 ! !INTERFACE:
       ! Private name; call using ESMF_CalendarIsLeapYear()
-      function ESMF_CalendarIsLeapYearI4(calendar, yy, rc)
+      function ESMF_CalendarIsLeapYearI4(calendar, yy, keywordEnforcer, rc)
 
 ! !RETURN VALUE:
       logical :: ESMF_CalendarIsLeapYearI4
 
 ! !ARGUMENTS:
-      type(ESMF_Calendar),   intent(inout)         :: calendar
+      type(ESMF_Calendar),   intent(in)            :: calendar
       integer(ESMF_KIND_I4), intent(in)            :: yy
+      type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
       integer,               intent(out), optional :: rc
 
-! !DESCRIPTION:
-!     Returns true if the given year is a leap year within the given calendar,
-!     and false otherwise.  See also {\tt ESMF\_TimeIsLeapYear()}.
 !
-!     This is a private method; invoke via the public overloaded entry point
-!     {\tt ESMF\_CalendarIsLeapYear()}.
+! !STATUS:
+! \begin{itemize}
+! \item\apiStatusCompatibleVersion{5.2.0r}
+! \end{itemize}
+!
+! !DESCRIPTION:
+!     \begin{sloppypar}
+!     Returns {\tt .true.} if the given year is a leap year within the given
+!     calendar, and {\tt .false.} otherwise.  Custom calendars are not yet 
+!     fully supported, so {\tt .false.} will always be returned in this case;
+!     see Section ~\ref{subsec:Calendar_rest}.
+!     See also {\tt ESMF\_TimeIsLeapYear()}.
+!     \end{sloppypar}
 !
 !     The arguments are:
 !     \begin{description}
@@ -1102,20 +1128,23 @@
 !          Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
 !     \end{description}
 !    
-!EOP
+!EOPI
       integer :: localrc                        ! local return code
 
       ! Assume failure until success
       if (present(rc)) rc = ESMF_RC_NOT_IMPL
       localrc = ESMF_RC_NOT_IMPL
 
-      ! check variables
+      ! Initialize output value in case of error
+      ESMF_CalendarIsLeapYearI4 = .false.
+
+      ! check input
       ESMF_INIT_CHECK_DEEP(ESMF_CalendarGetInit,calendar,rc)
 
-!     invoke C to C++ entry point
+      ! invoke C to C++ entry point
       call c_ESMC_CalendarIsLeapYearI4(calendar, yy, &
                                        ESMF_CalendarIsLeapYearI4, localrc)
-      if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, &
+      if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
         ESMF_CONTEXT, rcToReturn=rc)) return
 
       ! Return success
@@ -1125,52 +1154,64 @@
 !------------------------------------------------------------------------------
 #undef  ESMF_METHOD
 #define ESMF_METHOD "ESMF_CalendarIsLeapYearI8()"
-!BOP
+!BOPI
 ! !IROUTINE: ESMF_CalendarIsLeapYear - Determine if given year is a leap year
 
 ! !INTERFACE:
       ! Private name; call using ESMF_CalendarIsLeapYear()
-      function ESMF_CalendarIsLeapYearI8(calendar, yy_i8, rc)
+      function ESMF_CalendarIsLeapYearI8(calendar, yy, keywordEnforcer, rc)
 
 ! !RETURN VALUE:
       logical :: ESMF_CalendarIsLeapYearI8
 
 ! !ARGUMENTS:
-      type(ESMF_Calendar),   intent(inout)         :: calendar
-      integer(ESMF_KIND_I8), intent(in)            :: yy_i8
+      type(ESMF_Calendar),   intent(in)            :: calendar
+      integer(ESMF_KIND_I8), intent(in)            :: yy
+      type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
       integer,               intent(out), optional :: rc
 
-! !DESCRIPTION:
-!     Returns true if the given year is a leap year within the given calendar,
-!     and false otherwise.  See also {\tt ESMF\_TimeIsLeapYear()}.
 !
-!     This is a private method; invoke via the public overloaded entry point
-!     {\tt ESMF\_CalendarIsLeapYear()}.
+! !STATUS:
+! \begin{itemize}
+! \item\apiStatusCompatibleVersion{5.2.0r}
+! \end{itemize}
+!
+! !DESCRIPTION:
+!     \begin{sloppypar}
+!     Returns {\tt .true.} if the given year is a leap year within the given
+!     calendar, and {\tt .false.} otherwise.  Custom calendars are not yet 
+!     fully supported, so {\tt .false.} will always be returned in this case;
+!     see Section ~\ref{subsec:Calendar_rest}.
+!     See also {\tt ESMF\_TimeIsLeapYear()}.
+!     \end{sloppypar}
 !
 !     The arguments are:
 !     \begin{description}
 !     \item[calendar]
 !          {\tt ESMF\_Calendar} to determine leap year within.
-!     \item[yy\_i8]
+!     \item[yy]
 !          Year to check for leap year.
 !     \item[{[rc]}]
 !          Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
 !     \end{description}
 !    
-!EOP
+!EOPI
       integer :: localrc                        ! local return code
 
       ! Assume failure until success
       if (present(rc)) rc = ESMF_RC_NOT_IMPL
       localrc = ESMF_RC_NOT_IMPL
-    
-      ! check variables
+ 
+      ! Initialize output value in case of error
+      ESMF_CalendarIsLeapYearI8 = .false.
+
+      ! check input
       ESMF_INIT_CHECK_DEEP(ESMF_CalendarGetInit,calendar,rc)
 
-!     invoke C to C++ entry point
-      call c_ESMC_CalendarIsLeapYearI8(calendar, yy_i8, &
+      ! invoke C to C++ entry point
+      call c_ESMC_CalendarIsLeapYearI8(calendar, yy, &
                                        ESMF_CalendarIsLeapYearI8, localrc)
-      if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, &
+      if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
         ESMF_CONTEXT, rcToReturn=rc)) return
 
       ! Return success
@@ -1181,26 +1222,21 @@
 #undef  ESMF_METHOD
 #define ESMF_METHOD "ESMF_CalendarPrint()"
 !BOP
-! !IROUTINE:  ESMF_CalendarPrint - Print the contents of a Calendar
+! !IROUTINE:  ESMF_CalendarPrint - Print Calendar information
 
 ! !INTERFACE:
       subroutine ESMF_CalendarPrint(calendar, options, rc)
 
 ! !ARGUMENTS:
-      type(ESMF_Calendar), intent(inout)         :: calendar
+      type(ESMF_Calendar), intent(in)            :: calendar
       character (len=*),   intent(in),  optional :: options
       integer,             intent(out), optional :: rc
 
+!
 ! !DESCRIPTION:
 !     Prints out an {\tt ESMF\_Calendar}'s properties to {\tt stdio}, 
 !     in support of testing and debugging.  The options control the 
 !     type of information and level of detail. \\
-!
-!     Note:  Many {\tt ESMF\_<class>Print} methods are implemented in C++.
-!     On some platforms/compilers there is a potential issue with interleaving
-!     Fortran and C++ output to {\tt stdout} such that it doesn't appear in
-!     the expected order.  If this occurs, the {\tt ESMF\_IOUnitFlush()} method
-!     may be used on unit 6 to get coherent output.  \\
 !
 !     The arguments are:
 !     \begin{description}
@@ -1209,8 +1245,8 @@
 !     \item[{[options]}]
 !          Print options. If none specified, prints all calendar property
 !                             values. \\
-!          "calendartype"   - print the calendar's type 
-!                               (e.g. ESMF\_CAL\_GREGORIAN). \\
+!          "calkindflag"    - print the calendar's type 
+!                               (e.g. ESMF\_CALKIND\_GREGORIAN). \\
 !          "daysPerMonth"   - print the array of number of days for
 !                               each month. \\
 !          "daysPerYear"    - print the number of days per year
@@ -1230,12 +1266,16 @@
       if (present(rc)) rc = ESMF_RC_NOT_IMPL
       localrc = ESMF_RC_NOT_IMPL
  
-      ! check variables
+      ! check input
       ESMF_INIT_CHECK_DEEP(ESMF_CalendarGetInit,calendar,rc)
 
-!     invoke C to C++ entry point
+      ! invoke C to C++ entry point
+      call ESMF_UtilIOUnitFlush (ESMF_UtilIOStdout, rc=localrc)
+      if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+        ESMF_CONTEXT, rcToReturn=rc)) return
+
       call c_ESMC_CalendarPrint(calendar, options, localrc)
-      if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, &
+      if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
         ESMF_CONTEXT, rcToReturn=rc)) return
 
       ! Return success
@@ -1249,14 +1289,14 @@
 ! !IROUTINE:  ESMF_CalendarReadRestart - Restore the contents of a Calendar (not implemented)
 
 ! !INTERFACE:
-      function ESMF_CalendarReadRestart(name, iospec, rc)
+      function ESMF_CalendarReadRestart(name, keywordEnforcer, rc)
 ! 
 ! !RETURN VALUE:
       type(ESMF_Calendar) :: ESMF_CalendarReadRestart
 !
 ! !ARGUMENTS:
       character (len=*),   intent(in)            :: name
-      type(ESMF_IOSpec),   intent(in),  optional :: iospec
+      type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
       integer,             intent(out), optional :: rc
 
 ! !DESCRIPTION:
@@ -1267,8 +1307,6 @@
 !     \begin{description}
 !     \item[name]
 !          The name of the object instance to restore.
-!     \item[{[iospec]}]
-!          The IO specification of the restart file.
 !     \item[{[rc]}]
 !          Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
 !     \end{description}
@@ -1283,12 +1321,13 @@
       ! get length of given name for C++ validation
       nameLen = len_trim(name)
 
-!     invoke C to C++ entry point to allocate and restore calendar
+      ! invoke C to C++ entry point to allocate and restore calendar
       call c_ESMC_CalendarReadRestart(ESMF_CalendarReadRestart, nameLen, name, &
-                                      iospec, localrc)
-      if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, &
+                                      localrc)
+      if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
         ESMF_CONTEXT, rcToReturn=rc)) return
 
+      ! mark output as successfully initialized
       ESMF_INIT_SET_CREATED(ESMF_CalendarReadRestart)
 
       ! Return success
@@ -1303,34 +1342,50 @@
 
 ! !INTERFACE:
       ! Private name; call using ESMF_CalendarSet()
-      subroutine ESMF_CalendarSetBuiltIn(calendar, name, calendartype, rc)
+      subroutine ESMF_CalendarSetBuiltIn(calendar, calkindflag, &
+        keywordEnforcer, name, rc)
 
 ! !ARGUMENTS:
       type(ESMF_Calendar),     intent(inout)         :: calendar
+      type(ESMF_CalKind_Flag), intent(in)            :: calkindflag
+      type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
       character (len=*),       intent(in),  optional :: name
-      type(ESMF_CalendarType), intent(in)            :: calendartype
       integer,                 intent(out), optional :: rc
 
-! !DESCRIPTION:
-!     Sets {\tt calendar} to the given built-in {\tt ESMF\_CalendarType}. 
 !
-!     This is a private method; invoke via the public overloaded entry point
-!     {\tt ESMF\_CalendarSet()}.
+! !STATUS:
+! \begin{itemize}
+! \item\apiStatusCompatibleVersion{5.2.0r}
+! \end{itemize}
+!
+! !DESCRIPTION:
+!     Sets {\tt calendar} to the given built-in {\tt ESMF\_CalKind\_Flag}. 
 !
 !     The arguments are:
 !     \begin{description}
 !     \item[calendar]
 !          The object instance to initialize.
+!     \item[calkindflag]
+!          The built-in {\tt CalKind\_Flag}.  Valid values are:
+!            \newline
+!            {\tt ESMF\_CALKIND\_360DAY}, 
+!            \newline
+!            {\tt ESMF\_CALKIND\_GREGORIAN},
+!            \newline
+!            {\tt ESMF\_CALKIND\_JULIAN}, 
+!            \newline
+!            {\tt ESMF\_CALKIND\_JULIANDAY},
+!            \newline
+!            {\tt ESMF\_CALKIND\_MODJULIANDAY}, 
+!            \newline
+!            {\tt ESMF\_CALKIND\_NOCALENDAR},
+!            \newline
+!            and {\tt ESMF\_CALKIND\_NOLEAP}.
+!            \newline
+!          See Section ~\ref{subsec:Calendar_options} for a description of each
+!          calendar kind.
 !     \item[{[name]}]
 !          The new name for this calendar.
-!     \item[calendartype]
-!          The built-in {\tt CalendarType}.  Valid values are:
-!            {\tt ESMF\_CAL\_360DAY}, {\tt ESMF\_CAL\_GREGORIAN},
-!            {\tt ESMF\_CAL\_JULIAN}, {\tt ESMF\_CAL\_JULIANDAY},
-!            {\tt ESMF\_CAL\_MODJULIANDAY}, {\tt ESMF\_CAL\_NOCALENDAR},
-!            and {\tt ESMF\_CAL\_NOLEAP}.
-!          See Section ~\ref{subsec:Calendar_options} for a description of each
-!          calendar type.
 !     \item[{[rc]}]
 !          Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
 !     \end{description}
@@ -1344,19 +1399,19 @@
       if (present(rc)) rc = ESMF_RC_NOT_IMPL
       localrc = ESMF_RC_NOT_IMPL
 
-      nameLen = 0
-
-      ! check variables
+      ! check input
       ESMF_INIT_CHECK_DEEP(ESMF_CalendarGetInit,calendar,rc)
+
+      nameLen = 0
 
       ! get length of given name for C++ validation
       if (present(name)) then
         nameLen = len_trim(name)
       end if
     
-!     invoke C to C++ entry point
-      call c_ESMC_CalendarSetBuiltIn(calendar, nameLen, name, calendartype, localrc)
-      if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, &
+      ! invoke C to C++ entry point
+      call c_ESMC_CalendarSetBuiltIn(calendar, nameLen, name, calkindflag, localrc)
+      if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
         ESMF_CONTEXT, rcToReturn=rc)) return
 
       ! Return success
@@ -1371,40 +1426,43 @@
 
 ! !INTERFACE:
       ! Private name; call using ESMF_CalendarSet()
-      subroutine ESMF_CalendarSetCustom(calendar, name, daysPerMonth, &
-                                        secondsPerDay, &
-                                        daysPerYear, daysPerYearDn, &
-                                        daysPerYearDd, rc)
-! !ARGUMENTS:
-      type(ESMF_Calendar),   intent(inout)         :: calendar
-      character (len=*),     intent(in),  optional :: name
-      integer, dimension(:), intent(in),  optional :: daysPerMonth
-      integer(ESMF_KIND_I4), intent(in),  optional :: secondsPerDay
-      integer(ESMF_KIND_I4), intent(in),  optional :: daysPerYear   ! not implemented
-      integer(ESMF_KIND_I4), intent(in),  optional :: daysPerYearDn ! not implemented
-      integer(ESMF_KIND_I4), intent(in),  optional :: daysPerYearDd ! not implemented
-      integer,               intent(out), optional :: rc
+      subroutine ESMF_CalendarSetCustom(calendar, keywordEnforcer, &
+        daysPerMonth, secondsPerDay, &
+        daysPerYear, daysPerYearDn, daysPerYearDd, name, rc)
 
-! !DESCRIPTION:
-!     Sets properties in a custom {\tt ESMF\_Calendar}.
+! !ARGUMENTS:
+      type(ESMF_Calendar),  intent(inout)         :: calendar
+      type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
+      integer,              intent(in),  optional :: daysPerMonth(:)
+      integer(ESMF_KIND_I4),intent(in),  optional :: secondsPerDay
+      integer(ESMF_KIND_I4),intent(in),  optional :: daysPerYear
+      integer(ESMF_KIND_I4),intent(in),  optional :: daysPerYearDn
+      integer(ESMF_KIND_I4),intent(in),  optional :: daysPerYearDd
+      character (len=*),    intent(in),  optional :: name
+      integer,              intent(out), optional :: rc
+
 !
-!     This is a private method; invoke via the public overloaded entry point
-!     {\tt ESMF\_CalendarSet()}.
+! !STATUS:
+! \begin{itemize}
+! \item\apiStatusCompatibleVersion{5.2.0r}
+! \end{itemize}
+!
+! !DESCRIPTION:
+!     Sets properties in a custom {\tt ESMF\_Calendar}.  Not fully 
+!     supported yet; see Section ~\ref{subsec:Calendar_rest}.
 !
 !     The arguments are:
 !     \begin{description}
 !     \item[calendar]
 !          The object instance to initialize.
-!     \item[{[name]}]
-!          The new name for this calendar.
 !     \item[{[daysPerMonth]}]
 !          Integer array of days per month, for each month of the year.
 !          The number of months per year is variable and taken from the
 !          size of the array.  If unspecified, months per year = 0,
-!          with the days array undefined.
+!          with the days array undefined.  (Not implemented yet).
 !     \item[{[secondsPerDay]}]
 !          Integer number of seconds per day.  Defaults to 86400 if not 
-!          specified.
+!          specified.  (Not implemented yet).
 !     \item[{[daysPerYear]}]
 !          Integer number of days per year.  Use with daysPerYearDn and
 !          daysPerYearDd (see below) to specify a days-per-year calendar
@@ -1416,11 +1474,15 @@
 !          specify a days-per-year calendar for any planetary body.
 !          Default = 0.  (Not implemented yet).
 !     \item[{[daysPerYearDd]}]
+!          \begin{sloppypar}
 !          Integer denominator portion of fractional number of days per year
 !          (daysPerYearDn/daysPerYearDd).
 !          Use with daysPerYear and daysPerYearDn (see above) to
 !          specify a days-per-year calendar for any planetary body.
 !          Default = 1.  (Not implemented yet).
+!          \end{sloppypar}
+!     \item[{[name]}]
+!          The new name for this calendar.
 !     \item[{[rc]}]
 !          Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
 !     \end{description}
@@ -1434,7 +1496,11 @@
       integer :: monthsPerYear
       integer :: localrc                        ! local return code
 
-      ! check variables
+      ! Assume failure until success
+      if (present(rc)) rc = ESMF_RC_NOT_IMPL
+      localrc = ESMF_RC_NOT_IMPL
+
+      ! check input
       ESMF_INIT_CHECK_DEEP(ESMF_CalendarGetInit,calendar,rc)
 
       nameLen = 0
@@ -1450,7 +1516,7 @@
         monthsPerYear = size(daysPerMonth)
       end if
 
-!     invoke C to C++ entry point
+      ! invoke C to C++ entry point
 
       if (present(daysPerMonth)) then
         call c_ESMC_CalendarSetCustom1(calendar, &
@@ -1459,7 +1525,7 @@
                                       secondsPerDay, &
                                       daysPerYear, daysPerYearDn, &
                                       daysPerYearDd, localrc)
-        if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, &
+        if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
           ESMF_CONTEXT, rcToReturn=rc)) return
       else
         call c_ESMC_CalendarSetCustom0(calendar, &
@@ -1468,7 +1534,7 @@
                                       secondsPerDay, &
                                       daysPerYear, daysPerYearDn, &
                                       daysPerYearDd, localrc)
-        if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, &
+        if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
           ESMF_CONTEXT, rcToReturn=rc)) return
       end if
 
@@ -1478,30 +1544,28 @@
     
 !------------------------------------------------------------------------------
 #undef  ESMF_METHOD
-#define ESMF_METHOD "ESMF_CalendarSetDefaultType()"
+#define ESMF_METHOD "ESMF_CalendarSetDefaultKind()"
 !BOP
-! !IROUTINE: ESMF_CalendarSetDefault - Set the default Calendar type
+! !IROUTINE: ESMF_CalendarSetDefault - Set the default Calendar kind
 
 ! !INTERFACE:
       ! Private name; call using ESMF_CalendarSetDefault()
-      subroutine ESMF_CalendarSetDefaultType(calendartype, rc)
+      subroutine ESMF_CalendarSetDefaultKind(calkindflag, rc)
 
 ! !ARGUMENTS:
-      type(ESMF_CalendarType), intent(in)            :: calendartype
+      type(ESMF_CalKind_Flag), intent(in)            :: calkindflag
       integer,                 intent(out), optional :: rc
 
+!
 ! !DESCRIPTION:
 !     Sets the default {\tt calendar} to the given type.  Subsequent Time
 !     Manager operations requiring a calendar where one isn't specified will
 !     use the internal calendar of this type.
 !
-!     This is a private method; invoke via the public overloaded entry point
-!     {\tt ESMF\_CalendarSetDefault()}.
-!
 !     The arguments are:
 !     \begin{description}
-!     \item[calendartype]
-!          The calendar type to be the default.
+!     \item[calkindflag]
+!          The calendar kind to be the default.
 !     \item[{[rc]}]
 !          Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
 !     \end{description}
@@ -1513,14 +1577,14 @@
       if (present(rc)) rc = ESMF_RC_NOT_IMPL
       localrc = ESMF_RC_NOT_IMPL
     
-!     invoke C to C++ entry point
-      call c_ESMC_CalendarSetDefaultType(calendartype, localrc)
-      if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, &
+      ! invoke C to C++ entry point
+      call c_ESMC_CalendarSetDefaultKind(calkindflag, localrc)
+      if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
         ESMF_CONTEXT, rcToReturn=rc)) return
 
       ! Return success
       if (present(rc)) rc = ESMF_SUCCESS
-      end subroutine ESMF_CalendarSetDefaultType
+      end subroutine ESMF_CalendarSetDefaultKind
     
 !------------------------------------------------------------------------------
 #undef  ESMF_METHOD
@@ -1533,16 +1597,14 @@
       subroutine ESMF_CalendarSetDefaultCal(calendar, rc)
 
 ! !ARGUMENTS:
-      type(ESMF_Calendar),     intent(inout)         :: calendar
+      type(ESMF_Calendar),     intent(in)            :: calendar
       integer,                 intent(out), optional :: rc
 
+!
 ! !DESCRIPTION:
 !     Sets the default {\tt calendar} to the one given.  Subsequent Time
 !     Manager operations requiring a calendar where one isn't specified will
 !     use this calendar.
-!
-!     This is a private method; invoke via the public overloaded entry point
-!     {\tt ESMF\_CalendarSetDefault()}.
 !
 !     The arguments are:
 !     \begin{description}
@@ -1559,12 +1621,12 @@
       if (present(rc)) rc = ESMF_RC_NOT_IMPL
       localrc = ESMF_RC_NOT_IMPL 
 
-      ! check variables
+      ! check input
       ESMF_INIT_CHECK_DEEP(ESMF_CalendarGetInit,calendar,rc)
 
-!     invoke C to C++ entry point
+      ! invoke C to C++ entry point
       call c_ESMC_CalendarSetDefaultCal(calendar, localrc)
-      if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, &
+      if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
         ESMF_CONTEXT, rcToReturn=rc)) return
 
       ! Return success
@@ -1578,41 +1640,46 @@
 ! !IROUTINE:  ESMF_CalendarValidate - Validate a Calendar's properties
 
 ! !INTERFACE:
-      subroutine ESMF_CalendarValidate(calendar, options, rc)
+      subroutine ESMF_CalendarValidate(calendar, keywordEnforcer, rc)
  
 ! !ARGUMENTS:
-      type(ESMF_Calendar), intent(inout)         :: calendar
-      character (len=*),   intent(in),  optional :: options
+      type(ESMF_Calendar), intent(in)            :: calendar
+      type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
       integer,             intent(out), optional :: rc
 
+!
+! !STATUS:
+! \begin{itemize}
+! \item\apiStatusCompatibleVersion{5.2.0r}
+! \end{itemize}
+!
 ! !DESCRIPTION:
 !     Checks whether a {\tt calendar} is valid.  
-!     Must be one of the defined calendar types.  daysPerMonth, daysPerYear,
+!     Must be one of the defined calendar kinds.  daysPerMonth, daysPerYear,
 !     secondsPerDay must all be greater than or equal to zero.
 ! 
 !     The arguments are:
 !     \begin{description}
 !     \item[calendar]
 !          {\tt ESMF\_Calendar} to be validated.
-!     \item[{[options]}]
-!          Validation options are not yet supported.
 !     \item[{[rc]}]
 !          Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
 !     \end{description}
 !
 !EOP
       integer :: localrc                        ! local return code
+      character :: options ! dummy options
 
       ! Assume failure until success
       if (present(rc)) rc = ESMF_RC_NOT_IMPL
       localrc = ESMF_RC_NOT_IMPL
       
-      ! check variables
+      ! check input
       ESMF_INIT_CHECK_DEEP(ESMF_CalendarGetInit,calendar,rc)
 
-!     invoke C to C++ entry point
+      ! invoke C to C++ entry point
       call c_ESMC_CalendarValidate(calendar, options, localrc)
-      if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, &
+      if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
         ESMF_CONTEXT, rcToReturn=rc)) return
 
       ! Return success
@@ -1626,11 +1693,11 @@
 ! !IROUTINE:  ESMF_CalendarWriteRestart - Save the contents of a Calendar (not implemented)
 
 ! !INTERFACE:
-      subroutine ESMF_CalendarWriteRestart(calendar, iospec, rc)
+      subroutine ESMF_CalendarWriteRestart(calendar, keywordEnforcer, rc)
 
 ! !ARGUMENTS:
-      type(ESMF_Calendar), intent(inout)         :: calendar
-      type(ESMF_IOSpec),   intent(in),  optional :: iospec
+      type(ESMF_Calendar), intent(in)            :: calendar
+      type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
       integer,             intent(out), optional :: rc
 
 ! !DESCRIPTION:  
@@ -1641,8 +1708,6 @@
 !     \begin{description}
 !     \item[calendar]
 !          The object instance to save.  
-!     \item[{[iospec]}]
-!          The IO specification of the restart file.
 !     \item[{[rc]}]
 !          Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
 !     \end{description}
@@ -1654,12 +1719,12 @@
       if (present(rc)) rc = ESMF_RC_NOT_IMPL
       localrc = ESMF_RC_NOT_IMPL
 
-      ! check variables
+      ! check input
       ESMF_INIT_CHECK_DEEP(ESMF_CalendarGetInit,calendar,rc)
 
-!     invoke C to C++ entry point 
-      call c_ESMC_CalendarWriteRestart(calendar, iospec, localrc)
-      if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, &
+      ! invoke C to C++ entry point 
+      call c_ESMC_CalendarWriteRestart(calendar, localrc)
+      if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
         ESMF_CONTEXT, rcToReturn=rc)) return
 
       ! Return success
@@ -1693,7 +1758,7 @@
       logical :: lval1, lval2
 
       ! Use the following logic, rather than "ESMF-INIT-CHECK-DEEP", to gain 
-      ! init checks on both args, and in the case where both are unintialized,
+      ! init checks on both args, and in the case where both are uninitialized,
       ! to distinguish equality based on uninitialized type (uncreated,
       ! deleted).
 
@@ -1720,46 +1785,46 @@
 
 !------------------------------------------------------------------------------
 #undef  ESMF_METHOD
-#define ESMF_METHOD "ESMF_CalendarTypeEQ()"
+#define ESMF_METHOD "ESMF_CalendarKindEQ()"
 !BOPI
-! !IROUTINE:  ESMF_CalendarTypeEQ - Compare two Calendar types for equality
+! !IROUTINE:  ESMF_CalendarKindEQ - Compare two Calendar kinds for equality
 !
 ! !INTERFACE:
-      function ESMF_CalendarTypeEQ(calendartype1, calendartype2)
+      function ESMF_CalendarKindEQ(calkindflag1, calkindflag2)
 ! 
 ! !RETURN VALUE:
-      logical :: ESMF_CalendarTypeEQ
+      logical :: ESMF_CalendarKindEQ
 
 ! !ARGUMENTS:
-      type(ESMF_CalendarType), intent(in) :: calendartype1
-      type(ESMF_CalendarType), intent(in) :: calendartype2
+      type(ESMF_CalKind_Flag), intent(in) :: calkindflag1
+      type(ESMF_CalKind_Flag), intent(in) :: calkindflag2
 
 ! !DESCRIPTION:
 !     This method overloads the (==) operator for the {\tt ESMF\_Calendar}
 !     class.  See "interface operator(==)" above for complete description.
 !             
 !EOPI
-!     invoke C to C++ entry point
-      call c_ESMC_CalendarTypeEQ(calendartype1, calendartype2, &
-                                 ESMF_CalendarTypeEQ)
+      ! invoke C to C++ entry point
+      call c_ESMC_CalendarKindEQ(calkindflag1, calkindflag2, &
+                                 ESMF_CalendarKindEQ)
 
-      end function ESMF_CalendarTypeEQ
+      end function ESMF_CalendarKindEQ
 
 !------------------------------------------------------------------------------
 #undef  ESMF_METHOD
-#define ESMF_METHOD "ESMF_CalendarCalAndTypeEQ()"
+#define ESMF_METHOD "ESMF_CalendarCalAndKindEQ()"
 !BOPI
-! !IROUTINE:  ESMF_CalendarCalAndTypeEQ - Compare a Calendar and Calendar type for equality
+! !IROUTINE:  ESMF_CalendarCalAndKindEQ - Compare a Calendar and Calendar kind for equality
 !
 ! !INTERFACE:
-      function ESMF_CalendarCalAndTypeEQ(calendar, calendartype)
+      function ESMF_CalendarCalAndKindEQ(calendar, calkindflag)
 ! 
 ! !RETURN VALUE:
-      logical :: ESMF_CalendarCalAndTypeEQ
+      logical :: ESMF_CalendarCalAndKindEQ
 
 ! !ARGUMENTS:
       type(ESMF_Calendar),     intent(in) :: calendar
-      type(ESMF_CalendarType), intent(in) :: calendartype
+      type(ESMF_CalKind_Flag), intent(in) :: calkindflag
 
 ! !DESCRIPTION:
 !     This method overloads the (==) operator for the {\tt ESMF\_Calendar}
@@ -1767,35 +1832,34 @@
 !             
 !EOPI
 
-      ! to satisfy macro
-      integer :: rc
+      integer :: localrc
 
-      ! if calendar uninitialized, return 'not equal'
-      ESMF_CalendarCalAndTypeEQ = .false.
+      ! Initialize output value in case of error
+      ESMF_CalendarCalAndKindEQ = .false.
 
       ! check input
-      ESMF_INIT_CHECK_DEEP(ESMF_CalendarGetInit,calendar,rc)
+      ESMF_INIT_CHECK_DEEP(ESMF_CalendarGetInit,calendar,localrc)
 
       ! invoke C to C++ entry point
-      call c_ESMC_CalendarCalAndTypeEQ(calendar, calendartype, &
-                                       ESMF_CalendarCalAndTypeEQ)
+      call c_ESMC_CalendarCalAndKindEQ(calendar, calkindflag, &
+                                       ESMF_CalendarCalAndKindEQ)
 
-      end function ESMF_CalendarCalAndTypeEQ
+      end function ESMF_CalendarCalAndKindEQ
 
 !------------------------------------------------------------------------------
 #undef  ESMF_METHOD
-#define ESMF_METHOD "ESMF_CalendarTypeAndCalEQ()"
+#define ESMF_METHOD "ESMF_CalendarKindAndCalEQ()"
 !BOPI
-! !IROUTINE:  ESMF_CalendarTypeAndCalEQ - Compare a Calendar type and Calendar for equality
+! !IROUTINE:  ESMF_CalendarKindAndCalEQ - Compare a Calendar kind and Calendar for equality
 !
 ! !INTERFACE:
-      function ESMF_CalendarTypeAndCalEQ(calendartype, calendar)
+      function ESMF_CalendarKindAndCalEQ(calkindflag, calendar)
 ! 
 ! !RETURN VALUE:
-      logical :: ESMF_CalendarTypeAndCalEQ
+      logical :: ESMF_CalendarKindAndCalEQ
 
 ! !ARGUMENTS:
-      type(ESMF_CalendarType), intent(in) :: calendartype
+      type(ESMF_CalKind_Flag), intent(in) :: calkindflag
       type(ESMF_Calendar),     intent(in) :: calendar
 
 ! !DESCRIPTION:
@@ -1804,20 +1868,19 @@
 !             
 !EOPI
 
-      ! to satisfy macro
-      integer :: rc
+      integer :: localrc
 
-      ! if calendar uninitialized, return 'not equal'
-      ESMF_CalendarTypeAndCalEQ = .false.
+      ! Initialize output value in case of error
+      ESMF_CalendarKindAndCalEQ = .false.
 
       ! check input
-      ESMF_INIT_CHECK_DEEP(ESMF_CalendarGetInit,calendar,rc)
+      ESMF_INIT_CHECK_DEEP(ESMF_CalendarGetInit,calendar,localrc)
 
       ! invoke C to C++ entry point
-      call c_ESMC_CalendarTypeAndCalEQ(calendartype, calendar, &
-                                       ESMF_CalendarTypeAndCalEQ)
+      call c_ESMC_CalendarKindAndCalEQ(calkindflag, calendar, &
+                                       ESMF_CalendarKindAndCalEQ)
 
-      end function ESMF_CalendarTypeAndCalEQ
+      end function ESMF_CalendarKindAndCalEQ
 
 !------------------------------------------------------------------------------
 #undef  ESMF_METHOD
@@ -1846,7 +1909,7 @@
       logical :: lval1, lval2
 
       ! Use the following logic, rather than "ESMF-INIT-CHECK-DEEP", to gain 
-      ! init checks on both args, and in the case where both are unintialized,
+      ! init checks on both args, and in the case where both are uninitialized,
       ! to distinguish equality based on uninitialized type (uncreated,
       ! deleted).
 
@@ -1873,46 +1936,46 @@
 
 !------------------------------------------------------------------------------
 #undef  ESMF_METHOD
-#define ESMF_METHOD "ESMF_CalendarTypeNE()"
+#define ESMF_METHOD "ESMF_CalendarKindNE()"
 !BOPI
-! !IROUTINE:  ESMF_CalendarTypeNE - Compare two Calendar types for inequality
+! !IROUTINE:  ESMF_CalendarKindNE - Compare two Calendar kinds for inequality
 !
 ! !INTERFACE:
-      function ESMF_CalendarTypeNE(calendartype1, calendartype2)
+      function ESMF_CalendarKindNE(calkindflag1, calkindflag2)
 ! 
 ! !RETURN VALUE:
-      logical :: ESMF_CalendarTypeNE
+      logical :: ESMF_CalendarKindNE
 
 ! !ARGUMENTS:
-      type(ESMF_CalendarType), intent(in) :: calendartype1
-      type(ESMF_CalendarType), intent(in) :: calendartype2
+      type(ESMF_CalKind_Flag), intent(in) :: calkindflag1
+      type(ESMF_CalKind_Flag), intent(in) :: calkindflag2
 
 ! !DESCRIPTION:
 !     This method overloads the (/=) operator for the {\tt ESMF\_Calendar}
 !     class.  See "interface operator(/=)" above for complete description.
 !             
 !EOPI
-!     invoke C to C++ entry point
-      call c_ESMC_CalendarTypeNE(calendartype1, calendartype2, &
-                                 ESMF_CalendarTypeNE)
+      ! invoke C to C++ entry point
+      call c_ESMC_CalendarKindNE(calkindflag1, calkindflag2, &
+                                 ESMF_CalendarKindNE)
 
-      end function ESMF_CalendarTypeNE
+      end function ESMF_CalendarKindNE
 
 !------------------------------------------------------------------------------
 #undef  ESMF_METHOD
-#define ESMF_METHOD "ESMF_CalendarCalAndTypeNE()"
+#define ESMF_METHOD "ESMF_CalendarCalAndKindNE()"
 !BOPI
-! !IROUTINE:  ESMF_CalendarCalAndTypeNE - Compare a Calendar and Calendar type for inequality
+! !IROUTINE:  ESMF_CalendarCalAndKindNE - Compare a Calendar and Calendar kind for inequality
 !
 ! !INTERFACE:
-      function ESMF_CalendarCalAndTypeNE(calendar, calendartype)
+      function ESMF_CalendarCalAndKindNE(calendar, calkindflag)
 ! 
 ! !RETURN VALUE:
-      logical :: ESMF_CalendarCalAndTypeNE
+      logical :: ESMF_CalendarCalAndKindNE
 
 ! !ARGUMENTS:
       type(ESMF_Calendar),     intent(in) :: calendar
-      type(ESMF_CalendarType), intent(in) :: calendartype
+      type(ESMF_CalKind_Flag), intent(in) :: calkindflag
 
 ! !DESCRIPTION:
 !     This method overloads the (/=) operator for the {\tt ESMF\_Calendar}
@@ -1920,35 +1983,34 @@
 !             
 !EOPI
 
-      ! to satisfy macro
-      integer :: rc
+      integer :: localrc
 
-      ! if calendar uninitialized, return 'not equal'
-      ESMF_CalendarCalAndTypeNE = .true.
+      ! Initialize output value in case of error
+      ESMF_CalendarCalAndKindNE = .true.
 
       ! check input
-      ESMF_INIT_CHECK_DEEP(ESMF_CalendarGetInit,calendar,rc)
+      ESMF_INIT_CHECK_DEEP(ESMF_CalendarGetInit,calendar,localrc)
 
       ! invoke C to C++ entry point
-      call c_ESMC_CalendarCalAndTypeNE(calendar, calendartype, &
-                                       ESMF_CalendarCalAndTypeNE)
+      call c_ESMC_CalendarCalAndKindNE(calendar, calkindflag, &
+                                       ESMF_CalendarCalAndKindNE)
 
-      end function ESMF_CalendarCalAndTypeNE
+      end function ESMF_CalendarCalAndKindNE
 
 !------------------------------------------------------------------------------
 #undef  ESMF_METHOD
-#define ESMF_METHOD "ESMF_CalendarTypeAndCalNE()"
+#define ESMF_METHOD "ESMF_CalendarKindAndCalNE()"
 !BOPI
-! !IROUTINE:  ESMF_CalendarTypeAndCalNE - Compare a Calendar type and Calendar for inequality
+! !IROUTINE:  ESMF_CalendarKindAndCalNE - Compare a Calendar kind and Calendar for inequality
 !
 ! !INTERFACE:
-      function ESMF_CalendarTypeAndCalNE(calendartype, calendar)
+      function ESMF_CalendarKindAndCalNE(calkindflag, calendar)
 ! 
 ! !RETURN VALUE:
-      logical :: ESMF_CalendarTypeAndCalNE
+      logical :: ESMF_CalendarKindAndCalNE
 
 ! !ARGUMENTS:
-      type(ESMF_CalendarType), intent(in) :: calendartype
+      type(ESMF_CalKind_Flag), intent(in) :: calkindflag
       type(ESMF_Calendar),     intent(in) :: calendar
 
 ! !DESCRIPTION:
@@ -1957,20 +2019,19 @@
 !             
 !EOPI
 
-      ! to satisfy macro
-      integer :: rc
+      integer :: localrc
 
-      ! if calendar uninitialized, return 'not equal'
-      ESMF_CalendarTypeAndCalNE = .true.
+      ! Initialize output value in case of error
+      ESMF_CalendarKindAndCalNE = .true.
 
       ! check input
-      ESMF_INIT_CHECK_DEEP(ESMF_CalendarGetInit,calendar,rc)
+      ESMF_INIT_CHECK_DEEP(ESMF_CalendarGetInit,calendar,localrc)
 
       ! invoke C to C++ entry point
-      call c_ESMC_CalendarTypeAndCalNE(calendartype, calendar, &
-                                       ESMF_CalendarTypeAndCalNE)
+      call c_ESMC_CalendarKindAndCalNE(calkindflag, calendar, &
+                                       ESMF_CalendarKindAndCalNE)
 
-      end function ESMF_CalendarTypeAndCalNE
+      end function ESMF_CalendarKindAndCalNE
 
 !------------------------------------------------------------------------------
 

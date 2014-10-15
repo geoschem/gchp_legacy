@@ -1,0 +1,196 @@
+#!/bin/csh -f
+
+set EXPORT   = $1
+set GC       = $2
+
+if( .$3 == . ) then
+     set source = $SOURCE
+else
+     set source = $3
+endif
+set arch = `uname`
+
+# Set Defaults
+# ------------
+set expdsc = NULL
+set alias  = NULL
+set output = NULL
+set format = NULL
+set scale  = 1.0
+@   ncoll  = 0
+
+
+# Create true comma-separated HISTORY variable
+# --------------------------------------------
+if(! -e HISTORY.T ) then
+   cat $HISTORYRC | sed -e 's/,/ , /g' | sed -e 's/*/@/g' > HISTORY.T
+endif
+    set expid    = `grep EXPID HISTORY.T | cut -d: -f 2`
+    set expid    = `echo $expid`  # to remove preceding blanks
+    set HISTORY  = `cat  HISTORY.T`
+    set numwords =     $#HISTORY
+
+
+# Find Experiment Description
+# ---------------------------
+@ n = 0
+      @ numword  = 1
+while( $numword <= $numwords )
+       set word = $HISTORY[$numword]
+      @ numword = $numword + 1
+@ n = $n + 1
+@ m = $n + 1
+if( $word == EXPDSC: )  then
+     set expdsc = $HISTORY[$m]
+endif
+end
+
+
+# Find Collections
+# ----------------
+set     collections = `$GEOSUTIL/post/get_streams HISTORY.T`
+set num_collections = $#collections
+
+
+# Find EXPORT and GC within Collection
+# ------------------------------------
+if( $arch == 'IRIX64' ) set catargs = "-ve"
+if( $arch == 'Linux'  ) set catargs = "-E"
+if( $arch == 'OSF1'   ) set catargs = "-E"
+                        set    temp = `cat $catargs HISTORY.T`
+                        set   ntemp = $#temp
+                        set   found = FALSE
+      @ n  = 1
+while( $n <= $ntemp )
+      @ m  = 0
+      foreach collection ($collections)
+        @ m = $m + 1
+        if( $temp[$n] == ${collection}.fields: )  then
+             set dum = ''
+             @ k = $n
+             while( "$dum" != "::" )
+               @ k = $k + 1 
+
+#                  Create String to End-Of-Line
+#                  ----------------------------
+                   set lastbit = ''
+                   set string = ''
+                   while( "$lastbit" != '$' )
+                   @ i = 1
+                   set bit = `echo $temp[$k] | cut -b${i}-${i}`
+                   while ( "$bit" != '' )
+                   @ i = $i + 1
+                   set bit = `echo $temp[$k] | cut -b${i}-${i}`
+                   end
+                   @ i = $i - 1
+                   set lastbit = `echo $temp[$k] | cut -b${i}-${i}`
+                   set string = `echo $string $temp[$k]`
+                   @ k = $k + 1 
+                   end
+                   
+                set numwords  = $#string
+                set  QEXPORT  = `echo $string[1] | sed -e "s/'//g"`
+                set  QGC      = `echo $string[3] | sed -e "s/'//g"`
+                if( $numwords >= 5 ) then
+                     if( $string[5] != '$' ) then
+                     set  QALIAS = `echo $string[5] | sed -e "s/'//g" | sed -e 's/\$//g'`
+                     else
+                     set  QALIAS = $QEXPORT
+                     endif
+                else
+                     set  QALIAS = $QEXPORT
+                endif
+                if( $numwords >= 7 ) then
+                     if( $string[7] != '$' ) then
+                     set  QSCALE = `echo $string[7] | sed -e 's/\$//g'`
+                     else
+                     set  QSCALE = $scale
+                     endif
+                else
+                     set  QSCALE = $scale
+                endif
+
+#               echo "k: $k  STRING: $string"
+#               echo "       EXPORT: $QEXPORT"
+#               echo "           GC: $QGC"
+#               echo "        ALIAS: $QALIAS"
+#               echo "        SCALE: $QSCALE"
+#               echo " "
+
+                set dum = `echo $temp[$k] | cut -b1-2`
+                @ k = $k - 1 
+                if( $EXPORT == $QEXPORT && $GC == $QGC ) then
+                     set found = TRUE
+                     set alias = $QALIAS
+                     set scale = $QSCALE
+                     @   ncoll = $m
+                endif
+             end
+        endif
+      end
+      if( $found == TRUE ) @ n = $ntemp
+@ n = $n + 1
+end
+
+
+# Find Collection Attributes (Note: Use xdf.tabl when SOURCE points to a CMPEXP)
+# ------------------------------------------------------------------------------
+if( $ncoll != 0 ) then
+set output = ''
+set format = ''
+foreach collection ($collections)
+                          set dummy  = `grep ${collection}.grads_ddf HISTORY.T | cut -d: -f2 | cut -d, -f1 | sed -e "s/'//g"`
+     if( "$dummy" == "" ) set dummy  = `grep ${collection}.grads_ctl HISTORY.T | cut -d: -f2 | cut -d, -f1 | sed -e "s/'//g"`
+     if( "$dummy" == "" ) then
+          if( -e ${source}/${collection}/clim.tabl && ( $TBEG == "NULL" && $TEND == "NULL" && .$3 == "." && $PLOT_QUAD == "false" ) ) then
+                          set dummy  = `echo ${source}/${collection}/clim.tabl`
+          else
+                   if( -e ${source}/${collection}/xdf.tabl ) then
+                          set dummy  = `echo ${source}/${collection}/xdf.tabl`
+                   else
+                          set dummy  = `echo ${source}/${collection}/clim.tabl`
+                   endif
+          endif
+     endif
+                          set output = `echo $output $dummy`
+
+                          set dummy  = `grep ${collection}.format    HISTORY.T | cut -d: -f2 | cut -d, -f1 | sed -e "s/'//g"`
+     if( "$dummy" == "" ) set dummy  =  flat
+                          set format = `echo $format $dummy`
+end
+else
+@ ncoll = 1
+endif
+
+
+# Export Results
+# --------------
+setenv EXPDSC $expdsc
+setenv ALIAS  $alias
+setenv OUTPUT $output[$ncoll]
+setenv FORMAT $format[$ncoll]
+setenv BASE   $expid
+
+        echo '   '
+        echo "Number of History Output Streams: $num_collections"
+if( $EXPORT == $ALIAS ) then 
+        echo "                           Found: $EXPORT from GC: $GC"
+        echo "                      CTL or DDF: ${OUTPUT}"
+        echo "                          Format: ${FORMAT}"
+        echo "                         Scaling: $scale"
+else
+        echo "                           Found: $EXPORT (aka: ${ALIAS}) from GC: $GC"
+        echo "                      CTL or DDF: ${OUTPUT}"
+        echo "                          Format: ${FORMAT}"
+        echo "                         Scaling: $scale"
+endif
+        echo '   '
+
+if( -e hist.txt ) /bin/rm hist.txt
+touch hist.txt
+echo $EXPDSC >> hist.txt
+echo $ALIAS  >> hist.txt
+echo $OUTPUT >> hist.txt
+echo $scale  >> hist.txt
+echo $FORMAT >> hist.txt
+echo $BASE   >> hist.txt

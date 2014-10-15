@@ -1,7 +1,7 @@
-! $Id: ESMF_GCompEx.F90,v 1.43.2.1 2010/02/05 20:03:51 svasquez Exp $
+! $Id: ESMF_GCompEx.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2010, University Corporation for Atmospheric Research,
+! Copyright 2002-2012, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -16,7 +16,7 @@
 
 !-------------------------------------------------------------------------
 !BOP
-!\subsubsection{Implementing a User-Code SetServices Routine}
+!\subsubsection{Implement a user-code {\tt SetServices} routine}
 ! 
 ! \label{sec:GridSetServ}
 !
@@ -47,7 +47,7 @@
     module ESMF_GriddedCompEx
     
     ! ESMF Framework module
-    use ESMF_Mod
+    use ESMF
     implicit none
     public GComp_SetServices
     public GComp_SetVM
@@ -59,9 +59,12 @@
       integer, intent(out)  :: rc     ! must not be optional
 
       ! Set the entry points for standard ESMF Component methods
-      call ESMF_GridCompSetEntryPoint(comp, ESMF_SETINIT, userRoutine=GComp_Init, rc=rc)
-      call ESMF_GridCompSetEntryPoint(comp, ESMF_SETRUN, userRoutine=GComp_Run, rc=rc)
-      call ESMF_GridCompSetEntryPoint(comp, ESMF_SETFINAL, userRoutine=GComp_Final, rc=rc)
+      call ESMF_GridCompSetEntryPoint(comp, ESMF_METHOD_INITIALIZE, &
+                                userRoutine=GComp_Init, rc=rc)
+      call ESMF_GridCompSetEntryPoint(comp, ESMF_METHOD_RUN, &
+                                userRoutine=GComp_Run, rc=rc)
+      call ESMF_GridCompSetEntryPoint(comp, ESMF_METHOD_FINALIZE, &
+                                userRoutine=GComp_Final, rc=rc)
 
       rc = ESMF_SUCCESS
 
@@ -69,7 +72,7 @@
 !EOC
 
 !BOP
-!\subsubsection{Implementing a User-Code Initialize Routine}
+!\subsubsection{Implement a user-code {\tt Initialize} routine}
 ! 
 ! \label{sec:GridInitialize}
 !
@@ -91,10 +94,11 @@
     
 !BOC
     subroutine GComp_Init(comp, importState, exportState, clock, rc)
-      type(ESMF_GridComp)   :: comp                       ! must not be optional
-      type(ESMF_State)      :: importState, exportState   ! must not be optional
-      type(ESMF_Clock)      :: clock                      ! must not be optional
-      integer, intent(out)  :: rc                         ! must not be optional
+      type(ESMF_GridComp)   :: comp                   ! must not be optional
+      type(ESMF_State)      :: importState            ! must not be optional
+      type(ESMF_State)      :: exportState            ! must not be optional
+      type(ESMF_Clock)      :: clock                  ! must not be optional
+      integer, intent(out)  :: rc                     ! must not be optional
 
       print *, "Gridded Comp Init starting"
 
@@ -111,7 +115,7 @@
 !EOC
 
 !BOP
-!\subsubsection{Implementing a User-Code Run Routine}
+!\subsubsection{Implement a user-code {\tt Run} routine}
 ! 
 ! \label{sec:GridRun}
 !
@@ -137,10 +141,11 @@
         
 !BOC    
     subroutine GComp_Run(comp, importState, exportState, clock, rc)
-      type(ESMF_GridComp)   :: comp                       ! must not be optional
-      type(ESMF_State)      :: importState, exportState   ! must not be optional
-      type(ESMF_Clock)      :: clock                      ! must not be optional
-      integer, intent(out)  :: rc                         ! must not be optional
+      type(ESMF_GridComp)   :: comp                   ! must not be optional
+      type(ESMF_State)      :: importState            ! must not be optional
+      type(ESMF_State)      :: exportState            ! must not be optional
+      type(ESMF_Clock)      :: clock                  ! must not be optional
+      integer, intent(out)  :: rc                     ! must not be optional
 
       print *, "Gridded Comp Run starting"
       ! call ESMF_StateGet(), etc to get fields, bundles, arrays
@@ -158,7 +163,7 @@
 !EOC
 
 !BOP
-!\subsubsection{Implementing a User-Code Finalize Routine}
+!\subsubsection{Implement a user-code {\tt Finalize} routine}
 ! 
 ! \label{sec:GridFinalize}
 !
@@ -177,10 +182,11 @@
 
 !BOC
     subroutine GComp_Final(comp, importState, exportState, clock, rc)
-      type(ESMF_GridComp)   :: comp                       ! must not be optional
-      type(ESMF_State)      :: importState, exportState   ! must not be optional
-      type(ESMF_Clock)      :: clock                      ! must not be optional
-      integer, intent(out)  :: rc                         ! must not be optional
+      type(ESMF_GridComp)   :: comp                   ! must not be optional
+      type(ESMF_State)      :: importState            ! must not be optional
+      type(ESMF_State)      :: exportState            ! must not be optional
+      type(ESMF_Clock)      :: clock                  ! must not be optional
+      integer, intent(out)  :: rc                     ! must not be optional
 
       print *, "Gridded Comp Final starting"
     
@@ -195,7 +201,7 @@
 
 !-------------------------------------------------------------------------
 !BOP
-!\subsubsection{Implementing a User-Code SetVM Routine}
+!\subsubsection{Implement a user-code {\tt SetVM} routine}
 ! 
 ! \label{sec:GridSetVM}
 !
@@ -251,7 +257,7 @@
     program ESMF_AppMainEx
     
 !   ! The ESMF Framework module
-    use ESMF_Mod
+    use ESMF
     
     ! User supplied modules
     use ESMF_GriddedCompEx, only: GComp_SetServices, GComp_SetVM
@@ -273,7 +279,8 @@
         
 !-------------------------------------------------------------------------
 !   ! Initialize the Framework and get the global VM
-    call ESMF_Initialize(vm=vm, rc=rc)
+    call ESMF_Initialize(vm=vm, defaultlogfilename="GCompEx.Log", &
+                    logkindflag=ESMF_LOGKIND_MULTI, rc=rc)
     if (rc .ne. ESMF_SUCCESS) then
         print *, "Unable to initialize ESMF Framework"
         print *, "FAIL: ESMF_GCompEx.F90"
@@ -292,14 +299,14 @@
      end if
 
     ! Optional user-supplied subroutine must be a public entry point.
-    call ESMF_GridCompSetVM(gcomp, GComp_SetVM, rc)
+    call ESMF_GridCompSetVM(gcomp, GComp_SetVM, rc=rc)
 
     if (rc.NE.ESMF_SUCCESS) then
        finalrc = ESMF_FAILURE
      end if
      
     ! This single user-supplied subroutine must be a public entry point.
-    call ESMF_GridCompSetServices(gcomp, GComp_SetServices, rc)
+    call ESMF_GridCompSetServices(gcomp, GComp_SetServices, rc=rc)
 
     if (rc.NE.ESMF_SUCCESS) then
        finalrc = ESMF_FAILURE
@@ -308,13 +315,15 @@
     print *, "Comp Create returned, name = ", trim(cname)
     ! Create the necessary import and export states used to pass data
     !  between components.
-    importState = ESMF_StateCreate(cname, ESMF_STATE_IMPORT, rc=rc)
+    importState = ESMF_StateCreate(name=cname,  &
+                                   stateintent=ESMF_STATEINTENT_IMPORT, rc=rc)
 
     if (rc.NE.ESMF_SUCCESS) then
        finalrc = ESMF_FAILURE
      end if
 
-    exportState = ESMF_StateCreate(cname, ESMF_STATE_EXPORT, rc=rc)
+    exportState = ESMF_StateCreate(name=cname,  &
+                                   stateintent=ESMF_STATEINTENT_EXPORT, rc=rc)
 
     if (rc.NE.ESMF_SUCCESS) then
        finalrc = ESMF_FAILURE
@@ -323,7 +332,7 @@
     ! See the TimeMgr document for the details on the actual code needed
     !  to set up a clock.
     ! initialize calendar to be Gregorian type
-    gregorianCalendar = ESMF_CalendarCreate("Gregorian", ESMF_CAL_GREGORIAN, rc)
+    gregorianCalendar = ESMF_CalendarCreate(ESMF_CALKIND_GREGORIAN, name="Gregorian", rc=rc)
 
     if (rc.NE.ESMF_SUCCESS) then
        finalrc = ESMF_FAILURE
@@ -357,7 +366,8 @@
 
 
     ! initialize the clock with the above values
-    tclock = ESMF_ClockCreate("top clock", timeStep, startTime, stopTime, rc=rc)
+    tclock = ESMF_ClockCreate(timeStep, startTime, stopTime=stopTime, &
+                              name="top clock", rc=rc)
 
     if (rc.NE.ESMF_SUCCESS) then
        finalrc = ESMF_FAILURE
@@ -366,7 +376,8 @@
      
     ! Call the Init routine.  There is an optional index number
     !  for those components which have multiple entry points.
-    call ESMF_GridCompInitialize(gcomp, importState, exportState, clock=tclock, rc=rc)
+    call ESMF_GridCompInitialize(gcomp, importState=importState, &
+      exportState=exportState, clock=tclock, rc=rc)
 
     if (rc.NE.ESMF_SUCCESS) then
        finalrc = ESMF_FAILURE
@@ -377,20 +388,22 @@
     ! Main run loop.
     finished = .false.
     do while (.not. finished)
-        call ESMF_GridCompRun(gcomp, importState, exportState, clock=tclock, rc=rc)
+        call ESMF_GridCompRun(gcomp, importState=importState, &
+          exportState=exportState, clock=tclock, rc=rc)
 
         if (rc.NE.ESMF_SUCCESS) then
            finalrc = ESMF_FAILURE
          end if
 
-        call ESMF_ClockAdvance(tclock, timestep)
+        call ESMF_ClockAdvance(tclock, timeStep=timestep)
         ! query clock for current time
         if (ESMF_ClockIsStopTime(tclock)) finished = .true.
     enddo
     print *, "Comp Run complete"
 
     ! Give the component a chance to write out final results, clean up.
-    call ESMF_GridCompFinalize(gcomp, importState, exportState, clock=tclock, rc=rc)
+    call ESMF_GridCompFinalize(gcomp, importState=importState, &
+      exportState=exportState, clock=tclock, rc=rc)
 
     if (rc.NE.ESMF_SUCCESS) then
        finalrc = ESMF_FAILURE

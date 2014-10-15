@@ -1,0 +1,10 @@
+function closefiles
+'getinfo numfiles'
+num = result
+if( num!=NULL )
+n = num
+while (n>0)
+'close 'n
+n = n - 1
+endwhile
+endif

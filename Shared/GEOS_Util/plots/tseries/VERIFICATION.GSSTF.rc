@@ -1,0 +1,14 @@
+
+OBSNAM: GSSTF
+OBSDSC: Goddard_V2_Sat-based_Surf_Turb_Fluxes
+
+        filename:   'VERIFICATION/GSSTF_V2_Surf_Flux/testv2b.ctl'
+        filetype:   'BIN'
+        fields:     'VENT'  , 'SURFACE' , 'S10'   , 1     ,
+                    'LHFX'  , 'SURFACE' , 'EFLUX' , 1     ,
+                    'SH'    , 'SURFACE' , 'HFLUX' , 1     ,
+                    'TAUX'  , 'SURFACE' , 'UFLUX' , 100   ,
+                    'TAUY'  , 'SURFACE' , 'VFLUX' , 100   ,
+                    'TQV'   , 'AGCM'    , 'TPWA'  , 10    ,
+                    'Q10M'  , 'SURFACE' , 'Q10M'  , 0.001 ,
+                    ::

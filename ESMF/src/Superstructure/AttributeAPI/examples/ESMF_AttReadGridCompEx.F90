@@ -1,7 +1,7 @@
-! $Id: ESMF_AttReadGridCompEx.F90,v 1.6.2.1 2010/02/05 20:03:28 svasquez Exp $
+! $Id$
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2010, University Corporation for Atmospheric Research,
+! Copyright 2002-2012, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -17,10 +17,16 @@ program ESMF_AttReadGridCompEx
 !==============================================================================
 
 !BOE
-! \subsubsection{Example: Reading an XML file-based ESG Attribute Package for a Gridded Component}
+! \subsubsection{Read an XML file-based ESG Attribute package for a Gridded Component}
 ! This example shows how to read an ESG Attribute Package for a Gridded
-! Component from an XML file; see
-! ESMF\_DIR/src/Superstructure/Component/etc/esmf\_gridcomp.xml.
+! Component from an XML file.  The XML file contains Attribute values filled-in
+! by the user.  The standard ESG Component Attribute Package is supplied with
+! ESMF and is defined in an XSD file, which is used to validate the XML file.
+! See
+! \begin{description}
+! \item ESMF\_DIR/src/Superstructure/Component/etc/esmf\_gridcomp.xml (Attribute Package values) and
+! \item ESMF\_DIR/src/Superstructure/Component/etc/esmf\_comp.xsd (Attribute Package definition).
+! \end{description}
 !EOE
 
 #include "ESMF.h"
@@ -39,7 +45,7 @@ program ESMF_AttReadGridCompEx
 
 !BOC
       ! ESMF Framework module
-      use ESMF_Mod
+      use ESMF
       implicit none
 
       ! local variables
@@ -59,17 +65,18 @@ program ESMF_AttReadGridCompEx
 
 !BOC
       ! initialize ESMF
-      call ESMF_Initialize(vm=vm, rc=rc)
+      call ESMF_Initialize(vm=vm, defaultlogfilename="AttReadGridCompEx.Log", &
+                    logkindflag=ESMF_LOGKIND_MULTI, rc=rc)
 !EOC
 
-      if (rc.ne.ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+      if (rc.ne.ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
 !BOC
       ! get the vm
       call ESMF_VMGet(vm, petCount=petCount, localPet=localPet, rc=rc)
 !EOC
 
-      if (rc.ne.ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+      if (rc.ne.ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
       if (localPet==0) then
         print *, "--------------------------------------- "
@@ -87,11 +94,15 @@ program ESMF_AttReadGridCompEx
       endif
 !EOC
 
-      if (rc.ne.ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+      if (rc.ne.ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
 !BOC
-      ! Read an XML file to populate the ESG Attribute package of a GridComp
-      call ESMF_AttributeRead(comp=gridcomp, fileName="esmf_gridcomp.xml", rc=rc)
+      ! Read an XML file to populate the ESG Attribute package of a GridComp.
+      ! The file is validated against an internal, ESMF-supplied XSD file
+      ! defining the standard ESG Component Attribute package (see file
+      ! pathnames above).
+      call ESMF_AttributeRead(comp=gridcomp, fileName="esmf_gridcomp.xml", &
+          rc=rc)
 !EOC
       if (rc==ESMF_RC_LIB_NOT_PRESENT) then
         xercesPresent = .false.
@@ -102,8 +113,9 @@ program ESMF_AttReadGridCompEx
 !print *, 'rc = ', rc
 
 !BOC
-      ! Get ESG "Name" Attribute from a GridComp
-      call ESMF_AttributeGet(gridcomp, name='Name', value=attrValue, &
+      ! Get ESG "ComponentShortName" Attribute from a GridComp
+      call ESMF_AttributeGet(gridcomp, name='ComponentShortName', &
+                             value=attrValue, &
                              convention='ESG', purpose='General', rc=rc)
 !EOC
 
@@ -113,8 +125,9 @@ program ESMF_AttReadGridCompEx
 !print *, 'attrvalue = ', attrvalue
 
 !BOC
-      ! Get ESG "FullName" Attribute from a GridComp
-      call ESMF_AttributeGet(gridcomp, name='FullName', value=attrValue, &
+      ! Get ESG "ComponentLongName" Attribute from a GridComp
+      call ESMF_AttributeGet(gridcomp, name='ComponentLongName', &
+                             value=attrValue, &
                              convention='ESG', purpose='General', rc=rc)
 !EOC
 
@@ -182,8 +195,9 @@ program ESMF_AttReadGridCompEx
 
 !BOC
       ! Get ESG "PhysicalDomain" Attribute from a GridComp
-      call ESMF_AttributeGet(gridcomp, name='PhysicalDomain', value=attrValue, &
-                             convention='ESG', purpose='General', rc=rc)
+      call ESMF_AttributeGet(gridcomp, name='PhysicalDomain', &
+                             value=attrValue, convention='ESG', &
+                             purpose='General', rc=rc)
 !EOC
 
       if (.not.((rc==ESMF_SUCCESS .and. attrvalue=='Earth System') &
@@ -193,8 +207,9 @@ program ESMF_AttReadGridCompEx
 
 !BOC
       ! Get ESG "CodingLanguage" Attribute from a GridComp Test
-      call ESMF_AttributeGet(gridcomp, name='CodingLanguage', value=attrValue, &
-                             convention='ESG', purpose='General', rc=rc)
+      call ESMF_AttributeGet(gridcomp, name='CodingLanguage', &
+                             value=attrValue,  convention='ESG', &
+                             purpose='General', rc=rc)
 !EOC
 
       if (.not.((rc==ESMF_SUCCESS .and. attrvalue=='Fortran 90') &
@@ -216,34 +231,10 @@ program ESMF_AttReadGridCompEx
 !print *, 'attrvalue = ', attrvalue
 
 !BOC
-      ! Get CF "Comment" Attribute from a GridComp
-      call ESMF_AttributeGet(gridcomp, name='Comment', value=attrValue, &
-                             convention='CF', purpose='General', rc=rc)
-!EOC
-
-      if (.not.((rc==ESMF_SUCCESS .and. &
-                 attrvalue=='ESMF GridComp Attribute IO Test') &
-                      .or. .not. xercesPresent)) finalrc = ESMF_FAILURE
-!print *, 'rc = ', rc
-!print *, 'attrvalue = ', attrvalue
-
-!BOC
-      ! Get CF "References" Attribute from a GridComp
-      call ESMF_AttributeGet(gridcomp, name='References', value=attrValue, &
-                             convention='CF', purpose='General', rc=rc)
-!EOC
-
-      if (.not.((rc==ESMF_SUCCESS .and. &
-                 attrvalue=='http://gmao.gsfc.nasa.gov/systems/geos5') &
-                      .or. .not. xercesPresent)) finalrc = ESMF_FAILURE
-!print *, 'rc = ', rc
-!print *, 'attrvalue = ', attrvalue
-
-!BOC
       call ESMF_GridCompDestroy(gridcomp, rc=rc)
 !EOC
 
-      if (rc .ne. ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+      if (rc .ne. ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
 !BOC
       ! finalize ESMF framework

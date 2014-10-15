@@ -1,7 +1,7 @@
-! $Id: ESMF_ArrayDataUTest.F90,v 1.17.2.1 2010/02/05 19:52:57 svasquez Exp $
+! $Id: ESMF_ArrayDataUTest.F90,v 1.1.5.1 2013-01-11 20:23:43 mathomp4 Exp $
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2010, University Corporation for Atmospheric Research,
+! Copyright 2002-2012, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -29,14 +29,14 @@ program ESMF_ArrayDataUTest
 !-----------------------------------------------------------------------------
 ! !USES:
   use ESMF_TestMod     ! test methods
-  use ESMF_Mod
+  use ESMF
 
   implicit none
 
 !------------------------------------------------------------------------------
 ! The following line turns the CVS identifier string into a printable variable.
   character(*), parameter :: version = &
-    '$Id: ESMF_ArrayDataUTest.F90,v 1.17.2.1 2010/02/05 19:52:57 svasquez Exp $'
+    '$Id: ESMF_ArrayDataUTest.F90,v 1.1.5.1 2013-01-11 20:23:43 mathomp4 Exp $'
 !------------------------------------------------------------------------------
     
   ! cumulative result: count failures; no failures equals "all pass"
@@ -73,9 +73,9 @@ program ESMF_ArrayDataUTest
 
   ! get global VM
   call ESMF_VMGetGlobal(vm, rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   call ESMF_VMGet(vm, petCount=petCount, rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
   ! prepare for Fortran allocatable array "data"
   allocate(fdata(-12:-6), stat=rc)
@@ -85,13 +85,13 @@ program ESMF_ArrayDataUTest
 
   ! prepare DistGrid
   distgrid = ESMF_DistGridCreate(minIndex=(/1/), maxIndex=(/7*petCount/), rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
   !-----------------------------------------------------------------------------
   !NEX_UTest
   write(name, *) "Creating an Array from allocated Fortran array pointer"
   write(failMsg, *) "Did not return ESMF_SUCCESS"
-  array = ESMF_ArrayCreate(fdata, distgrid, rc=rc)
+  array = ESMF_ArrayCreate(distgrid, fdata, rc=rc)
   call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
   !-----------------------------------------------------------------------------
 
@@ -163,9 +163,9 @@ program ESMF_ArrayDataUTest
 
   !-----------------------------------------------------------------------------
   !NEX_UTest
-  write(name, *) "Creating an Array from allocated Fortran array pointer using ESMF_DATA_COPY"
+  write(name, *) "Creating an Array from allocated Fortran array pointer using ESMF_DATACOPY_VALUE"
   write(failMsg, *) "Did not return ESMF_SUCCESS"
-  array = ESMF_ArrayCreate(fdata, distgrid, copyflag=ESMF_DATA_COPY, rc=rc)
+  array = ESMF_ArrayCreate(distgrid, fdata, datacopyflag=ESMF_DATACOPY_VALUE, rc=rc)
   call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
   !-----------------------------------------------------------------------------
 
@@ -242,7 +242,7 @@ program ESMF_ArrayDataUTest
   !NEX_UTest
   write(name, *) "Creating an Array from allocated Fortran array pointer slice"
   write(failMsg, *) "Did not return ESMF_SUCCESS"
-  array = ESMF_ArrayCreate(fdataSlice, distgrid, rc=rc)
+  array = ESMF_ArrayCreate(distgrid, fdataSlice, rc=rc)
   call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
   !-----------------------------------------------------------------------------
 
@@ -324,7 +324,7 @@ program ESMF_ArrayDataUTest
   !NEX_UTest
   write(name, *) "Creating an Array from allocated Fortran array pointer"
   write(failMsg, *) "Did not return ESMF_SUCCESS"
-  array = ESMF_ArrayCreate(fdataSlice, distgrid, rc=rc)
+  array = ESMF_ArrayCreate(distgrid, fdataSlice, rc=rc)
   call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
   !-----------------------------------------------------------------------------
 
@@ -398,7 +398,7 @@ program ESMF_ArrayDataUTest
   !NEX_UTest
   write(name, *) "Creating an Array from allocated Fortran array pointer"
   write(failMsg, *) "Did not return ESMF_SUCCESS"
-  array = ESMF_ArrayCreate(fdataSlice, distgrid, copyflag=ESMF_DATA_COPY, rc=rc)
+  array = ESMF_ArrayCreate(distgrid, fdataSlice, datacopyflag=ESMF_DATACOPY_VALUE, rc=rc)
   call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
   !-----------------------------------------------------------------------------
 
@@ -520,7 +520,7 @@ program ESMF_ArrayDataUTest
   deallocate(fdata, stat=rc)
 
   call ESMF_DistGridDestroy(distgrid, rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
   !-----------------------------------------------------------------------------
   call ESMF_TestEnd(result, ESMF_SRCLINE)

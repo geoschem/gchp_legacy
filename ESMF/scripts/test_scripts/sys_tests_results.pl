@@ -1,5 +1,5 @@
 #!/usr/bin/env perl
-# $Id: sys_tests_results.pl,v 1.15.2.1 2009/12/01 21:48:37 svasquez Exp $
+# $Id: sys_tests_results.pl,v 1.1.5.1 2013-01-11 20:23:43 mathomp4 Exp $
 # This script runs at the end of the system tests and "check_results" targets.
 # The purpose is to give the user the results of running the system tests.
 # The results are either complete results or a summary.
@@ -9,6 +9,35 @@ sub sys_tests_results($$$$) {
         my $TEST_DIR	= $_[0];
         my $ESMF_BOPT   = $_[1];
         my $SUMMARY     = $_[2];
+
+
+# This subroutine reads the number of pets from the *ST.Log files.
+sub get_pet_count {
+
+        my @logFile    = @_;
+
+        # Find # of processors string
+        $count=grep ( /NUMBER_OF_PROCESSORS/, @logFile);
+        if (($count == "") || ($count == 0)){
+                # Did not find the # of processors string
+                return(0);
+        }
+         # Create list of processor count strings
+        @num_procs = grep(/NUMBER_OF_PROCESSORS/, @file_lines);
+        $pet_count_found = 0;
+        foreach (@num_procs){
+                # remove all white spaces
+        	s/ //g;
+        	$pet_count = 0;
+        	($test_string,$pet_count) = split(/NUMBER_OF_PROCESSORS/, $_);
+		if ($pet_count != 0) {
+			# Read the number of pets from log file.
+        		return($pet_count);
+		}
+        }
+	#Could not read the number of pets from log file.
+	return(0);
+}
 
 
 use File::Find
@@ -49,7 +78,7 @@ use File::Find
         # processor = 0 for uni_processor
         # processor = 1 for multi_processor
         foreach $line (<F>){
-                        push(file_lines, $line);
+                        push(@file_lines, $line);
                         $count=grep(/Nontestmpmd/, @file_lines);
                         if ($count == 1) {
                                 $testmpmd=0;
@@ -77,10 +106,10 @@ use File::Find
         }
 
         #Find all files
-        find(\&allFiles, '.');
-        sub allFiles {
-                        # Put all files in a list
-                        push all_files, "$File::Find::name\n" if -T ;
+        find(\&wanted, '.');
+        sub wanted {
+                        ## Put all files in a list
+			push @all_files, "$File::Find::name\n" ;
         }
         # Get all system tests files
         @st_files=grep (/STest/, @all_files);
@@ -91,14 +120,14 @@ use File::Find
         foreach $file ( @st_files) {
                 open(F,$file);
                 foreach $line (<F>){
-                        push(file_lines, $line);
+                        push(@file_lines, $line);
                         }
                         close ($file);
 			if ( $processor == 0) {
 				# Get the uni-PET system tests
                         	$count=grep ( /ESMF_SYSTEM_TEST/, @file_lines);
                         	if ($count != 0) {
-                                	push (act_st_files, $file);
+                                	push (@act_st_files, $file);
                                        	$st_count=$st_count + 1;
                                 }
 			}
@@ -106,13 +135,13 @@ use File::Find
 				# Get the mult-PET only system_tests
                         	$count=grep ( /ESMF_MULTI_PROC_SYSTEM_TEST/, @file_lines);
                         	if ($count != 0) {
-                                	push (act_st_files, $file);
+                                	push (@act_st_files, $file);
                                         $st_count=$st_count + 1;
                                 }
 				# Include the uni-PET system tests
                         	$count=grep ( /ESMF_SYSTEM_TEST/, @file_lines);
                         	if ($count != 0) {
-                                	push (act_st_files, $file);
+                                	push (@act_st_files, $file);
                                        	$st_count=$st_count + 1;
                                 }
 			}
@@ -120,7 +149,7 @@ use File::Find
 			  # Include MPMD system tests only if running multi processor
                           $count=grep ( /ESMF_MPMD_SYSTEM_TEST/, @file_lines);
                           if ($count != 0) {
-                                push (act_st_files, $file);
+                                push (@act_st_files, $file);
                                         $st_count=$st_count + 1;
                                 }
                         }
@@ -128,7 +157,7 @@ use File::Find
 			  # Include Sharedobj system tests only if running multi processor
                           $count=grep ( /ESMF_SHAREDOBJ_SYSTEM_TEST/, @file_lines);
                           if ($count != 0) {
-                                push (act_st_files, $file);
+                                push (@act_st_files, $file);
                                         $st_count=$st_count + 1;
                                 }
                         }
@@ -182,7 +211,7 @@ use File::Find
                 find(\&wanted2, '.');
                 sub wanted2 {
                                 # Put all files in a list
-                                push all_files, "$File::Find::name\n"  if -e;
+                                push @all_files, "$File::Find::name\n"  if -e;
                 }
                 # Get *STest*.Log files in 2 steps
                 @tmp_Log_files=grep (/Log/, @all_files);
@@ -209,25 +238,28 @@ use File::Find
                 foreach $file ( @Log_st_files) {
                         open(F,$file);
                         foreach $line (<F>){
-                                push(file_lines, $line);
+                                push(@file_lines, $line);
                         }
                         close ($file);
-			$pet_count=grep ( /NUMBER_OF_PROCESSORS/, @file_lines);
-                        if ($pet_count == "") {
-                                $pet_count =0;
-                        }
-                        $count=grep ( /PASS/, @file_lines);
-			if (($count == $pet_count) and ($pet_count ne 0)){
-                                push (pass_tests, $file);
-                                $pass_count=$pass_count + 1;
-                        }
-                        @file_lines=();
+			#Read the pet count from Log file.
+			$pet_count = &get_pet_count(@file_lines);
+			if ($pet_count != 0) {
+				$count=grep ( /PASS/, @file_lines);
+				if ($count == $pet_count) {
+                               		push (@pass_tests, $file);
+                               		$pass_count=$pass_count + 1;
+				}
+				else {
+					push (@fail_tests, $file);
+				}			
+			}
+       		@file_lines=();
                 }
                 # Calculate fail_count
                 $fail_count = $st_count - $pass_count;
 		$system_test_count = $st_count;
                 if ($pass_count != 0) {
-                        #Strip the names of failed system_tests
+                        #Strip the names of passed system_tests
                         foreach (@pass_tests) {
                                 s/\.\///; # Delete "./"
                                 s/\./ /; # Break it into 2 fields
@@ -248,17 +280,23 @@ use File::Find
                         	print "\n\n";
                         	# Sort the pass_st_files
                         	@pass_st_files = sort (@pass_st_files);
-                        	print @pass_st_files;
+                                foreach $file ( @pass_st_files ) {
+					print ("PASS: $file");
+                                }
                         	print "\n\n";
                 	}
 		}
                 if ($fail_count != 0) {
-                        # Find the act_st_files fles that are in the pass_tests
-                        foreach $file ( @pass_st_files) {
+				# Find the act_st_files fles that are in the pass_tests
+				# to create list of failed system tests.
+                        	foreach $file ( @pass_st_files) {
                                 foreach (@act_st_files){
                                         s/$file//s;
                                 }
+
                         }
+
+
 			if (!$SUMMARY) { # Print only if full output requested
                         	if ($fail_count == 1) {
                                 	print "The following system test failed, did not build, or did not execute:\n";
@@ -267,9 +305,14 @@ use File::Find
                                 	print "The following system tests failed, did not build, or did not execute:\n";
                         	}
                         	print "\n\n";
-                        	# Sort the act_st_files
+                        	# Sort the fail_st_files
                         	@act_st_files = sort (@act_st_files);
-                        	print @act_st_files;
+                                foreach $file ( @act_st_files ) {
+					#Do not print empty lines
+					if (grep (/ESM/, $file)){
+				  		print ("FAIL: $file");
+					}
+                                }
                         	print "\n\n";
                 	}
 		}
@@ -280,7 +323,7 @@ use File::Find
                         find(\&wanted3, '.');
                         sub wanted3 {
                                         # Put all executable files in a list
-                                        push all_files, "$File::Find::name\n"  if -x;
+                                        push @all_files, "$File::Find::name\n"  if -x;
                         }
                         # Get *Ex files
                         @st_x_files=grep (/STest/, @all_files);

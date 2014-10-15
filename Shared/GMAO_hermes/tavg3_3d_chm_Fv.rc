@@ -1,0 +1,92 @@
+# fv2prs.rc
+#
+#  This is a resource file for the lcv2prs utility.
+#
+# !REVISION HISTORY:
+#
+#  Feb2007  B. Yin    First version.
+#
+#...........................................................................
+
+#                     ----------------------
+#                     Output File Resolution
+#                     ----------------------
+
+zonal_resolution: 288              # no. of zonal grid-points (im)
+west_most_longitude_in_deg: -180.0 # longitude of first point (i=1)
+meridional_resolution: 181          # no. meridional grid-points (jm)
+vertical_level_numbers: 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40 41 42 43 44 45 46 47 48 49 50 51 52 53 54 55 56 57 58 59 60 61 62 63 64 65 66 67 68 69 70 71 72
+
+#                       ----------------
+#                       Variable Classes
+#                       ----------------
+ 
+# A variable class lists the variable names that make up a file
+# type or product.
+
+
+### PRODUCT: tavg3_3d_chm_Fv (3-D instantaneous variables)
+VarClass*tavg3_3d_chm_Fv: DELP T QV QL QI U V CFLS CFAN CFCU DQRCON DQRLSC DQRANV DTRAIN TAUCLI TAUCLW 
+
+#                         --------------------
+#                         Variable Translation
+#                         --------------------
+
+Variable_translation_table::
+
+#      Output          |                       Input
+#  Name       Units    | Name             scale_factor  add_offset  Positive Check
+#  -------------------------------------------------------------------------------
+# For tavg3_3d_chm_Fv -- from ana.eta file
+   DELP       Pa         DELP                   1.0        0.0          0
+   T          K          T                      1.0        0.0          0
+   QV         kg/kg      QV                     1.0        0.0          0
+   QL         kg/kg      QL                     1.0        0.0          0
+   QI         kg/kg      QI                     1.0        0.0          0
+   U          m/s        U                      1.0        0.0          0
+   V          m/s        v                      1.0        0.0          0
+   CFLS       fraction   CFLS                   1.0        0.0          0
+   CFAN       fraction   CFAN                   1.0        0.0          0
+   CFCU       fraction   CFCU                   1.0        0.0          0
+   CMFMC      kg/m2/s    CMFMC                  1.0        0.0          0
+   DQRCON     kg/kg/s    DQRCON                 1.0        0.0          0
+   DQRLSC     kg/kg/s    DQRLSC                 1.0        0.0          0
+   DQRANV     kg/kg/s    DQRANV                 1.0        0.0          0
+   DTRAIN     kg/m2/s    DTRAIN                 1.0        0.0          0
+   TAUCLI     nondimensional  TAUCLI            1.0        0.0          0
+   TAUCLW     nondimensional  TAUCLW            1.0        0.0          0
+::
+
+#                         Variable Description
+#                         --------------------
+
+# Table for variable names and description:
+# For tavg3_3d_chm_Fv
+
+DELP:      Layer pressure thickness
+T:         Air temperature
+QV:        Specific humidity
+QL:        Cloud liquid water mixing ratio
+QI:        Cloud ice mixing ratio
+U:         Eastward component of wind
+V:         Northward component of wind
+CFLS:      Large-scale cloud fraction
+CFAN:      Anvil cloud fraction
+CFCU:      Convective cloud fraction
+CMFMC:     Upward moist convective mass flux
+DQRCON:    Precipitation production rate - convective
+DQRLSC:    Precipitation production rate - large-scale
+DQRANV:    Precipitation production rate - anvils
+DTRAIN:    Detraining cloud mass flux
+TAUCLI:    Layer ice cloud optical thickness
+TAUCLW:    Layer liquid cloud optical thickness
+
+history:        File written by CFIO
+convention:     CF-1.0
+institution:    Global Modeling and Assimilation Office, NASA Goddard Space Flight Center, Greenbelt, MD 20771
+references:     http://gmao.gsfc.nasa.gov
+comment:        First CFIO GEOS version
+source:         Global Modeling and Assimilation Office. @CVSTAG
+title:          File written by CFIO. @CVSTAG
+contact:        data@gmao.gsfc.nasa.gov
+

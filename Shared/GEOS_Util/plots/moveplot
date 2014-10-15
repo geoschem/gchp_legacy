@@ -1,0 +1,293 @@
+#!/bin/csh -f
+
+# ---------------------------
+# For USAGE, TYPE: move -help
+# ---------------------------
+
+set ext = gif
+
+# Check if BATCH job
+# ------------------
+if( $?PBS_NODEFILE ) then
+    if(! -e ~/.WEBSERVER ) then
+EXIT:
+       echo " "
+       echo "You must run -move- to create ~/.WEBID and ~/.WEBSERVER"
+       echo " "
+       exit
+   else
+       set   server  = `cat ~/.WEBSERVER`
+       if( .$server != .train.gsfc.nasa.gov && \
+           .$server != .polar.gsfc.nasa.gov ) goto EXIT
+   endif
+   if(! -e ~/.WEBID ) then
+       goto EXIT
+   else
+       set webid = `cat ~/.WEBID`
+   endif
+
+else  # Interactive Job
+
+# Initial setup of WEBID and WEBSERVER
+# ------------------------------------
+   if(! -e ~/.WEBSERVER ) then
+SERVER:
+     set server = NULL 
+     echo " "
+     echo "Enter WEB Server to use:  train"
+     echo "                          polar"
+     set dummy   = $<
+     if($dummy  == train ) set server = train.gsfc.nasa.gov
+     if($dummy  == polar ) set server = polar.gsfc.nasa.gov
+     if($server == NULL  ) then
+         goto SERVER
+     else
+         echo $server > ~/.WEBSERVER
+     endif
+   else
+     set   server  = `cat ~/.WEBSERVER`
+     if( .$server != .train.gsfc.nasa.gov && \
+         .$server != .polar.gsfc.nasa.gov ) goto SERVER
+   endif
+
+   if(! -e ~/.WEBID ) then
+WEBID:
+     echo " "
+     echo "Enter WEB ID to use on ${server}:"
+     set webid = $<
+     echo "Hit -ENTER- to confirm: $webid"
+     set dummy = $<
+     if($dummy != "" ) then
+         goto WEBID
+     else
+         echo $webid > ~/.WEBID
+     endif
+   else
+     set webid = `cat ~/.WEBID`
+   endif
+
+endif   # End BATCH JOB Test
+
+if($server == train.gsfc.nasa.gov ) set www = /gmao/intranet/research/modeling/agcm/geos5
+if($server == polar.gsfc.nasa.gov ) set www = /www/html/intranet/research/modeling/agcm/geos5
+
+# ---------------------------------------------------------------
+# ---------------------------------------------------------------
+
+@ nmax = $#argv
+
+set year   = 'CLIM'
+set expid  = 'NULL'
+set pltdir = 'NULL'
+set webdir = 'NULL'
+set season = ''
+
+@       n  = 1
+while( $n <= $nmax )
+       if( "$argv[$n]" == "-help"  ) goto USAGE
+       if( "$argv[$n]" == "-expid" ) then
+                    @ n = $n + 1
+             set expid  = $argv[$n]
+       endif
+       if( "$argv[$n]" == "-year" ) then
+                    @ n = $n + 1
+             set year   = $argv[$n]
+       endif
+       if( "$argv[$n]" == "-season" ) then
+                    @ n = $n + 1
+             set season = $argv[$n]
+       endif
+       if( "$argv[$n]" == "-pltdir" ) then
+                    @ n = $n + 1
+             set pltdir = $argv[$n]
+       endif
+       if( "$argv[$n]" == "-webdir" ) then
+                    @ n = $n + 1
+             set webdir = $argv[$n]
+       endif
+     @ n = $n + 1
+end
+
+# Extract EXPID from PLTDIR Directory (assuming 2nd-to-last node)
+# ---------------------------------------------------------------
+if( $pltdir == 'NULL' ) set pltdir = `pwd`
+   @ end     = 99
+   @ counter = 2
+   while ( $counter != $end )
+      set  dummy  = `echo $pltdir | cut -d"/" -f$counter`
+      if( $dummy != '' ) then
+         @ counter  = $counter + 1
+      else
+         @ counter  = $counter - 2
+                             set  source = `echo $pltdir | cut -d"/" -f1-$counter`
+      if( $expid == 'NULL' ) set   expid = `echo $pltdir | cut -d"/"   -f$counter`
+         @ counter = 99
+      endif
+   end
+
+if( $webdir == 'NULL' ) set webdir = $expid/$year
+
+# Copy Plots to Web Directory
+# ---------------------------
+
+if(-e $source/regress/regress_test ) then
+       rsync -avx $source/regress/regress_test \
+                                     $webid@${server}:${www}/$expid
+endif
+ 
+     if( -e $source/.HOMDIR ) then
+         set homdir = `cat $source/.HOMDIR`
+     else
+         set homdir = $source
+     endif
+
+  set rcfiles  = `/bin/ls -1         $homdir | grep .rc`
+if( $#rcfiles != 0      ) rsync -avx $homdir/*.rc         $webid@${server}:${www}/$expid/RC     
+if(-e $homdir/RC        ) rsync -avx $homdir/RC/          $webid@${server}:${www}/$expid/RC/RC/  
+if(-e $homdir/gcm_run.j ) rsync -avx $homdir/gcm_run.j    $webid@${server}:${www}/$expid/RC     
+
+
+# Total Plot Files
+# ----------------
+     set tfiles = `ls -1 | grep $ext`
+
+# Seasonal Plots
+# --------------
+if( .$season == . ) then
+      set seasons = `echo JAN FEB MAR APR MAY JUN JUL AUG SEP OCT NOV DEC DJF MAM JJA SON ANN`
+else
+      set seasons = $season
+endif
+foreach season ($seasons)
+     set files = `ls -1 | grep ${season} | grep $ext`
+     set   num = `ls -1 | grep ${season} | grep $ext | wc -l`
+     if( $num != 0 ) then
+         echo Number of plots for ${season}: $num
+         ssh $webid@${server} mkdir -p ${www}/${webdir}/${season}
+         @ n1 = 1
+         @ n2 = $n1 + 1000
+         if( $n2 > $num ) @ n2 = $num
+         while ( $n2 <= $num )
+             echo Syncing ${season} Files: $n1 $n2 to $webid@${server}:${www}/${webdir}/${season}
+             rsync -avx ${files[$n1-$n2]} $webid@${server}:${www}/${webdir}/${season}
+                 @ n = $n1
+                 while( $n <= $n2 )
+                 set tfiles = `echo $tfiles | grep -v ${files[$n]}`
+                 @ n  = $n  + 1
+                 end
+             @ n1 = $n2 + 1
+             @ n2 = $n1 + 1000
+             if( $n2 > $num ) @ n2 = $num
+             if( $n1 > $num ) @ n2 = $num + 1
+         end
+         /bin/rm -f awk_command
+         echo /bin/cat ${www}/${expid}/buttons/season.button.tmp \| awk \'\{ if \(\$6\~\"$season\"\) \{ sub\(\"//\",\"  \"\) \}\; print \}\' \> season.button > awk_command
+         chmod +x awk_command
+         scp awk_command $webid@${server}:${www}/${expid}/buttons
+         ssh $webid@${server} "cd ${www}/${expid}/buttons ; /bin/mv season.button season.button.tmp ; ./awk_command ; /bin/rm -f season.button.tmp ; /bin/rm -f awk_command"
+     endif
+end
+wait
+
+
+# Miscellanious Plots
+# -------------------
+    set MISC_PLOTS = `echo taylor SERIES QBO VORTEX`
+foreach MISC_PLOT ($MISC_PLOTS)
+     set files = `ls -1 | grep ${MISC_PLOT} | grep $ext`
+     set   num = `ls -1 | grep ${MISC_PLOT} | grep $ext | wc -l`
+     if( $num != 0 ) then
+     echo Number of plots for ${MISC_PLOT}: $num
+     @ n1 = 1
+     @ n2 = $n1 + 1000
+     if( $n2 > $num ) @ n2 = $num
+     while ( $n2 <= $num )
+         echo Syncing ${MISC_PLOT} Files: $n1 $n2 to $webid@${server}:${www}/${webdir}
+         rsync -avx ${files[$n1-$n2]} $webid@${server}:${www}/${webdir}
+             @ n = $n1
+             while( $n <= $n2 )
+             set tfiles = `echo $tfiles | grep -v ${files[$n]}`
+             @ n  = $n  + 1
+             end
+         @ n1 = $n2 + 1
+         @ n2 = $n1 + 1000
+         if( $n2 > $num ) @ n2 = $num
+         if( $n1 > $num ) @ n2 = $num + 1
+     end
+     endif
+end
+wait
+
+# Rest of Standard Plots
+# ----------------------
+     set files = `echo $tfiles`
+     set  num  = $#tfiles
+     if( $num != 0 ) then
+     echo Number of plots for REST: $num
+     @ n1 = 1
+     @ n2 = $n1 + 1000
+     if( $n2 > $num ) @ n2 = $num
+     while ( $n2 <= $num )
+         echo Syncing Files: $n1 $n2 to $webid@${server}:${www}/${webdir}
+         rsync -avx ${files[$n1-$n2]} $webid@${server}:${www}/${webdir}
+         @ n1 = $n2 + 1
+         @ n2 = $n1 + 1000
+         if( $n2 > $num ) @ n2 = $num
+         if( $n1 > $num ) @ n2 = $num + 1
+     end
+     endif
+
+# Test for MISCELLANEOUS Plots
+# ----------------------------
+     if( -e misc ) then
+         cd misc
+         set files = `ls -1 | grep $ext`
+         set  num  = $#files
+         if( $num != 0 ) then
+         echo Number of plots for MISC: $num
+         if( $year == 'CLIM' ) then
+              ssh $webid@${server} mkdir -p ${www}/${webdir}/misc
+         else
+              ssh $webid@${server} mkdir -p ${www}/${webdir}/misc/$year
+         endif
+         @ n1 = 1
+         @ n2 = $n1 + 1000
+         if( $n2 > $num ) @ n2 = $num
+         while ( $n2 <= $num )
+             if( $year == 'CLIM' ) then
+               echo Syncing Files: $n1 $n2 to $webid@${server}:${www}/${expid}/misc
+                 rsync -avx ${files[$n1-$n2]} $webid@${server}:${www}/${expid}/misc
+             else
+               echo Syncing Files: $n1 $n2 to $webid@${server}:${www}/${expid}/misc/$year
+                 rsync -avx ${files[$n1-$n2]} $webid@${server}:${www}/${expid}/misc/$year
+             endif
+             @ n1 = $n2 + 1
+             @ n2 = $n1 + 1000
+             if( $n2 > $num ) @ n2 = $num
+             if( $n1 > $num ) @ n2 = $num + 1
+         end
+     endif
+     endif
+exit
+
+USAGE:
+echo ' '
+echo "Current     WEBID: $webid"
+echo "Current WEBSERVER: $server"
+echo ' '
+echo ' ------------------------------------------------------------------'
+echo ' '
+echo '    Usage:  move [-expid  expid   EXPID on Web Page]'
+echo '                 [-year   year    YEAR directory containing plots on Web Page]'
+echo '                 [-season season  SEASON to send to Web Page]'
+echo '                 [-pltdir pltdir  Directory containing plots to move]'
+echo '                 [-webdir webdir  Web Directory (Starting with EXPID) to contain plots]'
+echo ' '
+echo '                 Default  expid (assumed to be 2nd-to-last node from pwd)'
+echo '                 Default   year (CLIM)'
+echo '                 Default season (ALL)'
+echo '                 Default pltdir (assumed to be pwd)'
+echo '                 Default webdir (assumed to be $expid/$year)'
+echo ' '
+echo ' ------------------------------------------------------------------'
+exit

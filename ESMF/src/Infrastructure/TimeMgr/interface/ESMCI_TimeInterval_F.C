@@ -1,7 +1,7 @@
-// $Id: ESMCI_TimeInterval_F.C,v 1.3.4.1 2010/02/05 20:00:13 svasquez Exp $
+// $Id$
 //
 // Earth System Modeling Framework
-// Copyright 2002-2010, University Corporation for Atmospheric Research, 
+// Copyright 2002-2012, University Corporation for Atmospheric Research, 
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
 // Laboratory, University of Michigan, National Centers for Environmental 
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
@@ -17,6 +17,8 @@
 //------------------------------------------------------------------------------
 // INCLUDES
 //------------------------------------------------------------------------------
+#include <cstdio>
+
 #include <ESMCI_F90Interface.h>
 #include <ESMCI_TimeInterval.h>
 #include <ESMCI_Fraction.h>
@@ -194,7 +196,7 @@ extern "C" {
                                  ESMC_R8 *ns_r8,
                                  ESMC_I4 *sN, ESMC_I8 *sN_i8,
                                  ESMC_I4 *sD, ESMC_I8 *sD_i8,
-                                 ESMC_CalendarType *calendarType,
+                                 ESMC_CalKind_Flag *calkindflag,
                                  int *status) {
           int rc = (ptr)->TimeInterval::set(
                        ESMC_NOT_PRESENT_FILTER(yy),
@@ -224,7 +226,7 @@ extern "C" {
                        ESMC_NULL_POINTER,
                        ESMC_NULL_POINTER,
                        ESMC_NULL_POINTER,
-                       ESMC_NOT_PRESENT_FILTER(calendarType) );
+                       ESMC_NOT_PRESENT_FILTER(calkindflag) );
           if (ESMC_PRESENT(status)) *status = rc;
        }
 
@@ -244,12 +246,14 @@ extern "C" {
                                  ESMC_I4 *sD, ESMC_I8 *sD_i8,
                                  Time *startTime,
                                  Calendar **calendar,
-                                 ESMC_CalendarType *calendarType,
+                                 ESMC_CalKind_Flag *calkindflag,
                                  int *timeStringLen, int *tempTimeStringLen,
                                  char *tempTimeString,
                                  int *timeStringLenISOFrac,
                                  int *tempTimeStringLenISOFrac,
-                                 char *tempTimeStringISOFrac, int *status) {
+                                 char *tempTimeStringISOFrac, int *status,
+                                 ESMCI_FortranStrLenArg tempTime_l,
+                                 ESMCI_FortranStrLenArg tempTimeISOFrac_l) {
           int rc = (ptr)->TimeInterval::get(
                        ESMC_NOT_PRESENT_FILTER(yy),
                        ESMC_NOT_PRESENT_FILTER(yy_i8),
@@ -278,7 +282,7 @@ extern "C" {
                        ESMC_NOT_PRESENT_FILTER(startTime),
                        ESMC_NULL_POINTER,
                        ESMC_NOT_PRESENT_FILTER(calendar), 
-                       ESMC_NOT_PRESENT_FILTER(calendarType), 
+                       ESMC_NOT_PRESENT_FILTER(calkindflag), 
                        ESMC_NULL_POINTER,
                        ESMC_NULL_POINTER,
                        ESMC_NULL_POINTER,
@@ -309,13 +313,15 @@ extern "C" {
                                  ESMC_I4 *sD, ESMC_I8 *sD_i8,
                                  Time *startTime,
                                  Calendar **calendar, 
-                                 ESMC_CalendarType *calendarType, 
+                                 ESMC_CalKind_Flag *calkindflag, 
                                  Time *startTimeIn,
                                  int *timeStringLen, int *tempTimeStringLen,
                                  char *tempTimeString,
                                  int *timeStringLenISOFrac,
                                  int *tempTimeStringLenISOFrac,
-                                 char *tempTimeStringISOFrac, int *status) {
+                                 char *tempTimeStringISOFrac, int *status,
+                                 ESMCI_FortranStrLenArg tempTime_l,
+                                 ESMCI_FortranStrLenArg tempTimeISOFrac_l) {
           int rc = (ptr)->TimeInterval::get(
                        ESMC_NOT_PRESENT_FILTER(yy),
                        ESMC_NOT_PRESENT_FILTER(yy_i8),
@@ -344,7 +350,7 @@ extern "C" {
                        ESMC_NOT_PRESENT_FILTER(startTime),
                        ESMC_NULL_POINTER,
                        ESMC_NOT_PRESENT_FILTER(calendar), 
-                       ESMC_NOT_PRESENT_FILTER(calendarType), 
+                       ESMC_NOT_PRESENT_FILTER(calkindflag), 
                        ESMC_NOT_PRESENT_FILTER(startTimeIn),
                        ESMC_NULL_POINTER,
                        ESMC_NULL_POINTER,
@@ -375,13 +381,15 @@ extern "C" {
                                  ESMC_I4 *sD, ESMC_I8 *sD_i8,
                                  Time *startTime,
                                  Calendar **calendar, 
-                                 ESMC_CalendarType *calendarType, 
+                                 ESMC_CalKind_Flag *calkindflag, 
                                  Calendar **calendarIn, 
                                  int *timeStringLen, int *tempTimeStringLen,
                                  char *tempTimeString,
                                  int *timeStringLenISOFrac,
                                  int *tempTimeStringLenISOFrac,
-                                 char *tempTimeStringISOFrac, int *status) {
+                                 char *tempTimeStringISOFrac, int *status,
+                                 ESMCI_FortranStrLenArg tempTime_l,
+                                 ESMCI_FortranStrLenArg tempTimeISOFrac_l) {
           int rc = (ptr)->TimeInterval::get(
                        ESMC_NOT_PRESENT_FILTER(yy),
                        ESMC_NOT_PRESENT_FILTER(yy_i8),
@@ -410,7 +418,7 @@ extern "C" {
                        ESMC_NOT_PRESENT_FILTER(startTime),
                        ESMC_NULL_POINTER,
                        ESMC_NOT_PRESENT_FILTER(calendar), 
-                       ESMC_NOT_PRESENT_FILTER(calendarType), 
+                       ESMC_NOT_PRESENT_FILTER(calkindflag), 
                        ESMC_NULL_POINTER,
                        ESMC_NULL_POINTER,
                        ESMC_NOT_PRESENT_FILTER(calendarIn),
@@ -441,13 +449,15 @@ extern "C" {
                                  ESMC_I4 *sD, ESMC_I8 *sD_i8,
                                  Time *startTime,
                                  Calendar **calendar, 
-                                 ESMC_CalendarType *calendarType, 
-                                 ESMC_CalendarType *calendarTypeIn, 
+                                 ESMC_CalKind_Flag *calkindflag, 
+                                 ESMC_CalKind_Flag *calkindflagIn, 
                                  int *timeStringLen, int *tempTimeStringLen,
                                  char *tempTimeString,
                                  int *timeStringLenISOFrac,
                                  int *tempTimeStringLenISOFrac,
-                                 char *tempTimeStringISOFrac, int *status) {
+                                 char *tempTimeStringISOFrac, int *status,
+                                 ESMCI_FortranStrLenArg tempTime_l,
+                                 ESMCI_FortranStrLenArg tempTimeISOFrac_l) {
           int rc = (ptr)->TimeInterval::get(
                        ESMC_NOT_PRESENT_FILTER(yy),
                        ESMC_NOT_PRESENT_FILTER(yy_i8),
@@ -476,11 +486,11 @@ extern "C" {
                        ESMC_NOT_PRESENT_FILTER(startTime),
                        ESMC_NULL_POINTER,
                        ESMC_NOT_PRESENT_FILTER(calendar), 
-                       ESMC_NOT_PRESENT_FILTER(calendarType), 
+                       ESMC_NOT_PRESENT_FILTER(calkindflag), 
                        ESMC_NULL_POINTER,
                        ESMC_NULL_POINTER,
                        ESMC_NULL_POINTER,
-                       ESMC_NOT_PRESENT_FILTER(calendarTypeIn),
+                       ESMC_NOT_PRESENT_FILTER(calkindflagIn),
                                           // always present internal arguments
                                               *timeStringLen,
 	                                       tempTimeStringLen,
@@ -629,28 +639,26 @@ extern "C" {
        void FTN(c_esmc_timeintervalreadrestart)(TimeInterval *ptr,
                                                 int *nameLen,
                                                 const char *name,
-                                                ESMC_IOSpec *iospec,
-                                                int *status) {
+                                                int *status,
+                                                ESMCI_FortranStrLenArg name_l) {
           int rc = (ptr)->TimeInterval::readRestart(
                                         *nameLen,  // always present
                                                    //   internal argument.
-                                         name,     // required.
-                 ESMC_NOT_PRESENT_FILTER(iospec) );
+                                         name);    // required.
 
           if (ESMC_PRESENT(status)) *status = rc;
        }
 
        void FTN(c_esmc_timeintervalwriterestart)(TimeInterval *ptr,
-                                                 ESMC_IOSpec *iospec,
                                                  int *status) {
-          int rc = (ptr)->TimeInterval::writeRestart(
-                                ESMC_NOT_PRESENT_FILTER(iospec) );
+          int rc = (ptr)->TimeInterval::writeRestart();
 
           if (ESMC_PRESENT(status)) *status = rc;
        }
 
        void FTN(c_esmc_timeintervalvalidate)(TimeInterval *ptr,
-                                             const char *options, int *status) {
+                                             const char *options, int *status,
+                                             ESMCI_FortranStrLenArg options_l) {
           int rc = (ptr)->TimeInterval::validate(
                             ESMC_NOT_PRESENT_FILTER(options) );
 
@@ -658,10 +666,12 @@ extern "C" {
        }
 
        void FTN(c_esmc_timeintervalprint)(TimeInterval *ptr,
-                                          const char *options, int *status) {
+                                          const char *options, int *status,
+                                          ESMCI_FortranStrLenArg options_l) {
           int rc = (ptr)->TimeInterval::print(
                          ESMC_NOT_PRESENT_FILTER(options) );
 
+          fflush (stdout);
           if (ESMC_PRESENT(status)) *status = rc;
        }
 };

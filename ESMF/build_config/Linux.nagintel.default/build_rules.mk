@@ -1,4 +1,4 @@
-# $Id: build_rules.mk,v 1.10.2.2 2010/04/30 22:09:09 theurich Exp $
+# $Id: build_rules.mk,v 1.1.5.1 2013-01-11 20:23:43 mathomp4 Exp $
 #
 # Linux.nagintel.default
 #
@@ -28,6 +28,7 @@ ESMF_MPIRUNDEFAULT      = $(ESMF_DIR)/src/Infrastructure/stubs/mpiuni/mpirun
 else
 ifeq ($(ESMF_COMM),mpich)
 # Mpich ----------------------------------------------------
+ESMF_F90COMPILECPPFLAGS+= -DESMF_MPICH
 ESMF_CXXCOMPILECPPFLAGS+= -DESMF_MPICH
 ESMF_F90DEFAULT         = mpif90
 ESMF_CXXDEFAULT         = mpiCC
@@ -53,6 +54,7 @@ ifeq ($(ESMF_COMM),openmpi)
 ESMF_CXXCOMPILECPPFLAGS+= -DESMF_NO_SIGUSR2
 ESMF_F90DEFAULT         = mpif90
 ESMF_CXXDEFAULT         = mpicxx
+ESMF_CXXLINKLIBS       += -lmpi_f77
 ESMF_MPIRUNDEFAULT      = mpirun $(ESMF_MPILAUNCHOPTIONS)
 ESMF_MPIMPMDRUNDEFAULT  = mpiexec $(ESMF_MPILAUNCHOPTIONS)
 else
@@ -110,10 +112,10 @@ ESMF_F90COMPILEFREENOCPP = -free
 ESMF_F90COMPILEFIXCPP    = -fixed -fpp
 
 ############################################################
-# Blank out variables to prevent rpath encoding
+# Set rpath syntax
 #
-ESMF_F90LINKRPATHS      =
-ESMF_CXXLINKRPATHS      =
+ESMF_F90RPATHPREFIX         = -Wl,-Wl,,-rpath,,
+ESMF_CXXRPATHPREFIX         = -Wl,-rpath,
 
 ############################################################
 # Determine where icpc's libraries are located

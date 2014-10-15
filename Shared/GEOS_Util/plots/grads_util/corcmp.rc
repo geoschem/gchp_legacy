@@ -1,0 +1,43 @@
+
+****************************************************************
+*****                                                      *****
+*****  This RC file describes the CONTROL and COMPARISON   *****
+*****  experiments for the corcmp set of scripts.          *****
+*****  CORCMP compares multiple experiments using          *****
+*****  paired T-tests.                                     *****
+*****                                                      *****
+*****  Usage:  corcmp.gs                                   *****
+*****                                                      *****
+*****  Optional Arguments: -field, -lev, -x                *****
+*****  Examples:                                           *****
+*****         1) corcmp.gs                                 *****
+*****         2) corcmp.gs -x 4                            *****
+*****         3) corcmp.gs -lev 200                        *****
+*****         4) corcmp.gs -field u                        *****
+*****         5) corcmp.gs -x 2 -field h -lev 500          *****
+*****                                                      *****
+*****  Note: The CONTROL experiment is denoted as EXP0     *****
+*****                                                      *****
+****************************************************************
+
+DESC: Forecasts_Statistics
+
+* --------
+EXP0: /discover/nobackup/ltakacs/control
+DSC0: Control
+
+EXP1: /discover/nobackup/ltakacs/exp001
+DSC1: Test01
+
+EXP2: /discover/nobackup/ltakacs/exp002
+DSC2: Test02
+
+EXP3: /discover/nobackup/ltakacs/exp003
+DSC3: Test03
+
+EXP4: /discover/nobackup/ltakacs/exp004
+DSC4: Test04
+
+EXP5: /discover/nobackup/ltakacs/exp005
+DSC5: Test05
+

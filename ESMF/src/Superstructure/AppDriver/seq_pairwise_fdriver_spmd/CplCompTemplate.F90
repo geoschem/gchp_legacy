@@ -1,4 +1,4 @@
-! $Id: CplCompTemplate.F90,v 1.6 2009/03/23 20:40:47 theurich Exp $
+! $Id: CplCompTemplate.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
 !
 ! Test code which supplies a user-written coupler component.
 
@@ -16,7 +16,7 @@
     module UserCplCompMod
     
 !   ! ESMF Framework module
-    use ESMF_Mod
+    use ESMF
     
     implicit none
     private
@@ -27,11 +27,11 @@
 
     subroutine UserCpl_SetServices(ccomp, rc)
        type(ESMF_CplComp) :: ccomp
-       integer :: rc
+       integer, intent(out) :: rc
 
-       call ESMF_CplCompSetEntryPoint(ccomp, ESMF_SETINIT, my_init, rc=rc)
-       call ESMF_CplCompSetEntryPoint(ccomp, ESMF_SETRUN, my_run, rc=rc)
-       call ESMF_CplCompSetEntryPoint(ccomp, ESMF_SETFINAL, my_final, rc=rc)
+       call ESMF_CplCompSetEntryPoint(ccomp, ESMF_METHOD_INITIALIZE, my_init, rc=rc)
+       call ESMF_CplCompSetEntryPoint(ccomp, ESMF_METHOD_RUN, my_run, rc=rc)
+       call ESMF_CplCompSetEntryPoint(ccomp, ESMF_METHOD_FINALIZE, my_final, rc=rc)
 
     end subroutine UserCpl_SetServices
 
@@ -40,16 +40,16 @@
       type(ESMF_CplComp) :: ccomp
       type(ESMF_State) :: importstate, exportstate
       type(ESMF_Clock) :: externalclock
-      integer :: rc
+      integer, intent(out) :: rc
      
       type(ESMF_State) :: state1, state2
 
-      call ESMF_LogWrite("Coupler Initialize routine called", ESMF_LOG_INFO)
+      call ESMF_LogWrite("Coupler Initialize routine called", ESMF_LOGMSG_INFO)
 
-      call ESMF_StateGet(importstate,  "GComp1 Import", state1, rc)
-      call ESMF_StateGet(importstate,  "GComp2 Import", state2, rc)
+      call ESMF_StateGet(importstate,  "GComp1 Import", state1, rc=rc)
+      call ESMF_StateGet(importstate,  "GComp2 Import", state2, rc=rc)
 
-      call ESMF_LogWrite("Coupler Initialize routine returning", ESMF_LOG_INFO)
+      call ESMF_LogWrite("Coupler Initialize routine returning", ESMF_LOGMSG_INFO)
       rc=ESMF_SUCCESS
 
     end subroutine my_init
@@ -59,11 +59,11 @@
       type(ESMF_CplComp) :: ccomp
       type(ESMF_State) :: importstate, exportstate
       type(ESMF_Clock) :: externalclock
-      integer :: rc
+      integer, intent(out) :: rc
      
-      call ESMF_LogWrite("Coupler Run routine called", ESMF_LOG_INFO)
+      call ESMF_LogWrite("Coupler Run routine called", ESMF_LOGMSG_INFO)
 
-      call ESMF_LogWrite("Coupler Run routine returning", ESMF_LOG_INFO)
+      call ESMF_LogWrite("Coupler Run routine returning", ESMF_LOGMSG_INFO)
       rc=ESMF_SUCCESS
 
     end subroutine my_run
@@ -73,11 +73,11 @@
       type(ESMF_CplComp) :: ccomp
       type(ESMF_State) :: importstate, exportstate
       type(ESMF_Clock) :: externalclock
-      integer :: rc
+      integer, intent(out) :: rc
      
-      call ESMF_LogWrite("Coupler Finalize routine called", ESMF_LOG_INFO)
+      call ESMF_LogWrite("Coupler Finalize routine called", ESMF_LOGMSG_INFO)
 
-      call ESMF_LogWrite("Coupler Finalize routine returning", ESMF_LOG_INFO)
+      call ESMF_LogWrite("Coupler Finalize routine returning", ESMF_LOGMSG_INFO)
       rc=ESMF_SUCCESS
 
     end subroutine my_final

@@ -1,0 +1,24 @@
+
+OBSNAM: era40
+OBSDSC: ERA40_ReAnalysis
+
+        filename:   'VERIFICATION/ERA40/monthly/prs/era40.prs.monthly.ddf '
+        filetype:   'HDF'
+        fields:     'ZLE'      , 'DYN'           , 'h'     , 1/9.80665
+                    'T'        , 'DYN'           , 't'     , 1
+                    'U'        , 'DYN'           , 'u'     , 1
+                    'V'        , 'DYN'           , 'v'     , 1
+                    'OMEGA'    , 'DYN'           , 'omega' , 1
+                    'RH2'      , 'MOIST'         , 'rh'    , 1
+                    'Q'        , 'MOIST'         , 'qv'    , 1
+                    ::
+
+        filename:   'VERIFICATION/ERA40/monthly/sfc/era40.sfc.monthly.ddf '
+        filetype:   'HDF'
+        fields:     'SLP'      , 'DYN'           , 'slp'    , 1
+                    'TQV'      , 'AGCM'          , 'tpw'    , 1
+                    'CLDTT'    , 'SOLAR'         , 'cldfrc' , 1
+                    'ZPBL'     , 'TURBULENCE'    , 'pbl'    , 1
+                    'TPREC'    , 'MOIST'         , 'precip' , 4000
+                    ::
+

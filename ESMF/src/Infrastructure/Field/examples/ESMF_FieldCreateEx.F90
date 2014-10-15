@@ -1,7 +1,7 @@
-! $Id: ESMF_FieldCreateEx.F90,v 1.89.2.1 2010/02/05 19:55:36 svasquez Exp $
+! $Id: ESMF_FieldCreateEx.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2010, University Corporation for Atmospheric Research,
+! Copyright 2002-2012, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -24,7 +24,7 @@
 #include "ESMF.h"
     ! ESMF Framework module
     use ESMF_TestMod
-    use ESMF_Mod
+    use ESMF
     implicit none
     
     ! Local variables
@@ -34,7 +34,7 @@
     real(ESMF_KIND_R8), dimension(:,:,:), allocatable   :: farray3d
     integer, dimension(3)                                :: gec, fa_shape
     integer, dimension(2)           :: gridToFieldMap2d
-    integer, dimension(2)           :: maxHaloLWidth2d, maxHaloUWidth2d
+    integer, dimension(2)           :: totalLWidth2d, totalUWidth2d
     type(ESMF_VM)                   :: vm
     type(ESMF_Field)                :: field, field1
     type(ESMF_Grid)                 :: grid
@@ -56,24 +56,25 @@
 !   !Set finalrc to success
     finalrc = ESMF_SUCCESS
 
-    call ESMF_Initialize(vm=vm, rc=rc)
-    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+    call ESMF_Initialize(vm=vm, defaultlogfilename="FieldCreateEx.Log", &
+                    logkindflag=ESMF_LOGKIND_MULTI, rc=rc)
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
     if (.not. ESMF_TestMinPETs(4, ESMF_SRCLINE)) &
-        call ESMF_Finalize(terminationflag=ESMF_ABORT)
+        call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
     ! get global VM
     call ESMF_VMGetGlobal(vm, rc=rc)
-    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
     call ESMF_VMGet(vm, localPet=localPet, petCount=petCount, rc=rc)
-    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
 !>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%
 !-------------------------------- Example -----------------------------
 !>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%
 !BOE
-!\subsubsection{Create 2D Field with 2D Grid and Fortran data array}
-!\label{sec:field:usage:create_2dptr}
+!\subsubsection{Create a 2D Field with a 2D Grid and a Fortran data array}
+!\label{sec:field:usage:create_2darray}
 !
 !  A user can create an {\tt ESMF\_Field} directly from an {\tt ESMF\_Grid} and an intrinsic 
 !  Fortran data array. This interface is overloaded for typekind and rank
@@ -119,20 +120,22 @@
 !  to retrieve the exclusive counts.  Next the user calculates the shape
 !  of each Fortran array dimension according to rule 1. The Fortran data array is allocated
 !  and initialized based on the computed shape.  A Field can either be created in one shot
-!  created empty and finished using {\tt ESMF\_FieldSetCommit}.
+!  created empty and finished using {\tt ESMF\_FieldEmptyComplete}.
 !
-!  There are important details that can be skipped but are good to know for {\tt ESMF\_FieldSetCommit}
+!  \begin{sloppypar}
+!  There are important details that can be skipped but are good to know for {\tt ESMF\_FieldEmptyComplete}
 !  and {\tt ESMF\_FieldCreate} from a Fortran data array. 1) these methods require {\em each PET contains
-!  exactly one DE}. This implies that a code using FieldCreate from a data array or FieldSetCommit must
+!  exactly one DE}. This implies that a code using FieldCreate from a data array or FieldEmptyComplete must
 !  have the same number of DEs and PETs, formally $n_{DE} = n_{PET}$. Violation of this condition
 !  will cause run time failures. 2) the bounds and counts retrieved from GridGet are DE specific
 !  or equivalently PET specific, which means that {\em the Fortran array shape could be different from one
 !  PET to another}. 
+!  \end{sloppypar}
 !  
 !EOE
 
 !BOC
-    grid = ESMF_GridCreateShapeTile(minIndex=(/1,1/), maxIndex=(/10,20/), &
+    grid = ESMF_GridCreateNoPeriDim(minIndex=(/1,1/), maxIndex=(/10,20/), &
           regDecomp=(/2,2/), name="atmgrid", rc=rc)
     if (rc.NE.ESMF_SUCCESS) finalrc = ESMF_FAILURE
 
@@ -155,7 +158,7 @@
 !-------------------------------- Example -----------------------------
 !>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%
 !BOE
-!\subsubsection{Create 2D Field with 2D Grid and Fortran data pointer}
+!\subsubsection{Create a 2D Field with a 2D Grid and a Fortran data pointer}
 !\label{sec:field:usage:create_2dptr}
 !
 ! The setup of this example is similar to the previous section except 
@@ -185,7 +188,7 @@
 !-------------------------------- Example -----------------------------
 !>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%
 !BOE
-!\subsubsection{Create 3D Field with 2D Grid and 3D Fortran data array}
+!\subsubsection{Create a 3D Field with a 2D Grid and a 3D Fortran data array}
 !\label{sec:field:usage:create_2dgrid_3dptr}
 !
 !  This example demonstrates a typical use of {\tt ESMF\_Field} combining
@@ -286,7 +289,7 @@
 !-------------------------------- Example -----------------------------
 !>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%
 !BOE
-!\subsubsection{Create 3D Field with 2D Grid and 3D Fortran data array with gridToFieldMap}
+!\subsubsection{Create a 3D Field with a 2D Grid and a 3D Fortran data array with gridToFieldMap argument}
 !\label{sec:field:usage:create_2dgrid_3dptr_map}
 !
 !  Building upon the previous example, we will create a 3D Field from
@@ -340,13 +343,13 @@
 !-------------------------------- Example -----------------------------
 !>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%
 !BOE
-!\subsubsection{Create 3D Field with 2D Grid and 3D Fortran data array with halos}
+!\subsubsection{Create a 3D Field with a 2D Grid and a 3D Fortran data array with halos}
 !\label{sec:field:usage:create_2dgrid_3dptr_map_halo}
 !
 !  This example is similar to example \ref{sec:field:usage:create_2dgrid_3dptr_map}, 
 !  in addition we will show
 !  a user can associate different halo width to a Fortran array to create
-!  a Field through the maxHaloLWidth and maxHaloUWdith optional arguments.
+!  a Field through the totalLWidth and totalUWidth optional arguments.
 !  A diagram of the dimension configuration from Grid, halos, and Fortran data array
 !  is shown here.
 !\begin{center}
@@ -364,21 +367,21 @@
 !  and by using halos, it also defines a bigger total region to contain 
 !  the entire contiguous memory block of the Fortran array.
 !
-!  The elements of maxHaloLWidth and maxHaloUWidth are applied in the order
+!  The elements of totalLWidth and totalUWidth are applied in the order
 !  distributed dimensions appear in the Fortran array. By definition, 
-!  maxHaloLWidth and maxHaloUWdith are 1 dimensional arrays of non-negative 
+!  totalLWidth and totalUWidth are 1 dimensional arrays of non-negative 
 !  integer values. The size of haloWidth arrays is equal to the number of distributed
 !  dimensions of the Fortran array, which is also equal to the number of
 !  distributed dimensions of the Grid used in the Field creation.
 !
-!  Because the order of maxHaloWidth (representing both maxHaloLWidth and
-!  maxHaloUWdith) element is applied to the order distributed dimensions
+!  Because the order of totalWidth (representing both totalLWidth and
+!  totalUWidth) element is applied to the order distributed dimensions
 !  appear in the Fortran array dimensions, it's quite simple to compute
 !  the shape of distributed dimensions of the Fortran array. They are done
 !  in a similar manner when applying ungriddedLBound and ungriddedUBound 
 !  to ungridded dimensions of the Fortran array defined by rule 2.
 !
-!  Assume we have the mapping from the dimension index of maxHaloWidth
+!  Assume we have the mapping from the dimension index of totalWidth
 !  to the dimension index of Fortran array, called mhw2fa; and we also
 !  have the mapping from dimension index of Fortran array to dimension
 !  index of the Grid, called fa2g. The shape of
@@ -387,8 +390,8 @@
 !  \begin{verbatim}
 !
 !  (4) fa_shape(mhw2fa(k)) = exclusiveCount(fa2g(mhw2fa(k)) + 
-!                            maxHaloUWidth(k) + maxHaloLWidth(k)
-!                        k = 1...size(maxHaloWidth) 
+!                            totalUWidth(k) + totalLWidth(k)
+!                        k = 1...size(totalWidth) 
 !
 !  \end{verbatim}
 !  
@@ -401,7 +404,7 @@
 !  do i = 1, farray_rank
 !     if i-th dimension of Fortran array is distributed
 !         fa_shape(i) = exclusiveCount(fa2g(i)) + 
-!                       maxHaloUWidth(fa_index) + maxHaloLWidth(fa_index)
+!                       totalUWidth(fa_index) + totalLWidth(fa_index)
 !         fa_index = fa_index + 1
 !     endif
 !  enddo
@@ -426,15 +429,15 @@
 !  \begin{verbatim}
 !
 !  (5) fa_shape(k) = exclusiveCount(k) + 
-!                    maxHaloUWidth(k) + maxHaloLWidth(k) 
-!                k = 1...size(maxHaloWidth)
+!                    totalUWidth(k) + totalLWidth(k) 
+!                k = 1...size(totalWidth)
 !
 !  \end{verbatim}
 !
 !  Let's examine an example on how to apply rule 5. Suppose we have a
 !  5D array and a 3D Grid that has its first 3 dimensions mapped to the first
-!  3 dimensions of the Fortran array. maxHaloLWidth=(/1,2,3/), 
-!  maxHaloUWdith=(/7,9,10/), then by rule 5, the following pseudo code
+!  3 dimensions of the Fortran array. totalLWidth=(/1,2,3/), 
+!  totalUWidth=(/7,9,10/), then by rule 5, the following pseudo code
 !  can be used to compute the shape of the first 3 dimensions of the Fortran
 !  array. The shape of the remaining two ungridded dimensions can be
 !  computed according to rule 2.
@@ -443,7 +446,7 @@
 !
 !  do k = 1, 3
 !      fa_shape(k) = exclusiveCount(k) + 
-!                    maxHaloUWidth(k) + maxHaloLWidth(k)) 
+!                    totalUWidth(k) + totalLWidth(k)) 
 !  enddo
 !
 !  \end{verbatim}
@@ -457,8 +460,8 @@
 !  \begin{verbatim}
 !
 !  (6) fa_shape(k+first_distdim_index-1) = exclusiveCount(k) +
-!                                          maxHaloUWidth(k) + maxHaloLWidth(k)
-!                                      k = 1...size(maxHaloWidth)
+!                                          totalUWidth(k) + totalLWidth(k)
+!                                      k = 1...size(totalWidth)
 !
 !  \end{verbatim}
 !
@@ -478,18 +481,18 @@
 !BOC
     gridToFieldMap2d(1) = 1
     gridToFieldMap2d(2) = 2
-    maxHaloLWidth2d(1) = 3
-    maxHaloLWidth2d(2) = 4
-    maxHaloUWidth2d(1) = 3
-    maxHaloUWidth2d(2) = 5
+    totalLWidth2d(1) = 3
+    totalLWidth2d(2) = 4
+    totalUWidth2d(1) = 3
+    totalUWidth2d(2) = 5
     do k = 1, 2
-        fa_shape(k) = gec(k) + maxHaloLWidth2d(k) + maxHaloUWidth2d(k)
+        fa_shape(k) = gec(k) + totalLWidth2d(k) + totalUWidth2d(k)
     end do
     fa_shape(3) = 7          ! 9-3+1
     allocate(farray3d(fa_shape(1), fa_shape(2), fa_shape(3)))
     field = ESMF_FieldCreate(grid, farray3d, ESMF_INDEX_DELOCAL, &
         ungriddedLBound=(/3/), ungriddedUBound=(/9/), &
-        maxHaloLWidth=maxHaloLWidth2d, maxHaloUWidth=maxHaloUWidth2d, &
+        totalLWidth=totalLWidth2d, totalUWidth=totalUWidth2d, &
         gridToFieldMap=gridToFieldMap2d, &
         rc=rc)
     if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
@@ -503,7 +506,37 @@
 !-------------------------------- Example -----------------------------
 !>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%
 !BOE
-!\subsubsection{Create a Field from a LocStream}
+!\subsubsection{Create a Field from a LocStream, typekind, and rank}
+!\label{sec:field:usage:create_locs_tkr}
+! 
+! In this example, an {\tt ESMF\_Field} is created from an {\tt ESMF\_LocStream} 
+! and typekind/rank.
+! The location stream object is uniformly distributed
+! in a 1 dimensional space on 4 DEs. The rank is 1 dimensional. 
+! Please refer to LocStream examples section for more information on LocStream creation.
+!
+!EOE  
+!BOC
+
+    locs = ESMF_LocStreamCreate(minIndex=1, maxIndex=16, rc=rc)
+    if (rc.NE.ESMF_SUCCESS) finalrc = ESMF_FAILURE
+
+    field = ESMF_FieldCreate(locs, typekind=ESMF_TYPEKIND_I4, &
+        rc=rc)
+    if (rc.NE.ESMF_SUCCESS) finalrc = ESMF_FAILURE
+
+!EOC
+    print *, "Field Create from a LocStream, typekind, and rank returned"
+    call ESMF_FieldDestroy(field,rc=rc)
+    if (rc.NE.ESMF_SUCCESS) finalrc = ESMF_FAILURE
+    call ESMF_LocStreamDestroy(locs,rc=rc)
+    if (rc.NE.ESMF_SUCCESS) finalrc = ESMF_FAILURE
+
+!>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%
+!-------------------------------- Example -----------------------------
+!>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%
+!BOE
+!\subsubsection{Create a Field from a LocStream and arrayspec}
 !\label{sec:field:usage:create_locs_arrayspec}
 ! 
 ! In this example, an {\tt ESMF\_Field} is created from an {\tt ESMF\_LocStream} 
@@ -531,20 +564,22 @@
     if (rc.NE.ESMF_SUCCESS) finalrc = ESMF_FAILURE
     call ESMF_LocStreamDestroy(locs,rc=rc)
     if (rc.NE.ESMF_SUCCESS) finalrc = ESMF_FAILURE
+
 !>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%
 !-------------------------------- Example -----------------------------
 !>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%
 !BOE
-!\subsubsection{Create a Field from a Mesh}
-!\label{sec:field:usage:create_mesh_arrayspec}
+!\subsubsection{Create a Field from a Mesh, typekind, and rank}
+!\label{sec:field:usage:create_mesh_tkr}
 ! 
 ! In this example, an {\tt ESMF\_Field} is created from an {\tt ESMF\_Mesh} 
-! and an {\tt ESMF\_Arrayspec}.
-! The mesh object is on a Euclidean surface that maps to a 2x2 rectangular
-! grid with 4 elements and 9 nodes. The nodal space is represented by
-! a distgrid with 9 indices. The mesh object can be represented by the picture
-! below. For more information on Mesh creation, user can go to the Mesh
-! examples section in the developer's guide.
+! and typekind/rank.
+! The mesh object is on a Euclidean surface that is partitioned to a 2x2 rectangular
+! space with 4 elements and 9 nodes. The nodal space is represented by
+! a distgrid with 9 indices. Field is created on locally owned nodes on each PET.
+! Therefore, the created Field has 9 data points globally.
+! The mesh object can be represented by the picture
+! below. For more information on Mesh creation, please see Section~\ref{sec:mesh:usage:meshCreation}.
 ! \begin{verbatim}
 !              Mesh Ids
 !
@@ -583,7 +618,6 @@
 !\end{verbatim} 
 !
 !EOE  
-!BOC
   ! Only do this if we have 4 PETs
    if (petCount .eq. 4) then
       ! Setup mesh data depending on PET
@@ -721,6 +755,7 @@
         elemConn=(/1,2,4,3/)  
       endif
 
+!BOC
       ! Create Mesh structure in 1 step
       mesh=ESMF_MeshCreate(parametricDim=2,spatialDim=2, &
              nodeIds=nodeIds, nodeCoords=nodeCoords, &
@@ -728,6 +763,12 @@
              elementTypes=elemTypes, elementConn=elemConn, &
              rc=rc)
       if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
+
+      ! Field is created on the 1 dimensinonal nodal distgrid. On
+      ! each PET, Field is created on the locally owned nodes.
+      field = ESMF_FieldCreate(mesh, typekind=ESMF_TYPEKIND_I4, rc=rc)
+      if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
+!EOC
 
       ! deallocate node data
       deallocate(nodeIds)
@@ -738,15 +779,193 @@
       deallocate(elemIds)
       deallocate(elemTypes)
       deallocate(elemConn)
+    ! endif for skip for != 4 procs
+    endif 
+    print *, "Field Create from a Mesh and typekind/rank returned"
+
+!>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%
+!-------------------------------- Example -----------------------------
+!>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%
+!BOE
+!\subsubsection{Create a Field from a Mesh and arrayspec}
+!\label{sec:field:usage:create_mesh_arrayspec}
+! 
+! In this example, an {\tt ESMF\_Field} is created from an {\tt ESMF\_Mesh} 
+! and an {\tt ESMF\_Arrayspec}.
+! The mesh object is on a Euclidean surface that is partitioned to a 2x2 rectangular
+! space with 4 elements and 9 nodes. The nodal space is represented by
+! a distgrid with 9 indices. Field is created on locally owned nodes on each PET.
+! Therefore, the created Field has 9 data points globally.
+! The mesh object can be represented by the picture
+! below. For more information on Mesh creation, please see Section~\ref{sec:mesh:usage:meshCreation}.
+!
+!EOE  
+  ! Only do this if we have 4 PETs
+   if (petCount .eq. 4) then
+      ! Setup mesh data depending on PET
+      if (localPet .eq. 0) then
+         ! Fill in node data
+         numNodes=4
+
+        !! node ids
+        allocate(nodeIds(numNodes))
+        nodeIds=(/1,2,4,5/) 
+
+        !! node Coords
+        allocate(nodeCoords(numNodes*2))
+        nodeCoords=(/0.0,0.0, &
+                     1.0,0.0, &
+                     0.0,1.0, &
+                     1.0,1.0/)
+
+        !! node owners
+        allocate(nodeOwners(numNodes))
+        nodeOwners=(/0,0,0,0/) ! everything on proc 0
+
+        ! Fill in elem data
+        numElems=1
+
+        !! elem ids
+        allocate(elemIds(numElems))
+        elemIds=(/1/) 
+
+        !! elem type
+        allocate(elemTypes(numElems))
+        elemTypes=ESMF_MESHELEMTYPE_QUAD
+
+        !! elem conn
+        allocate(elemConn(numElems*4))
+        elemConn=(/1,2,4,3/)
+      else if (localPet .eq. 1) then
+         ! Fill in node data
+         numNodes=4
+
+        !! node ids
+        allocate(nodeIds(numNodes))
+        nodeIds=(/2,3,5,6/) 
+
+        !! node Coords
+        allocate(nodeCoords(numNodes*2))
+        nodeCoords=(/1.0,0.0, &
+                     2.0,0.0, &
+                     1.0,1.0, &
+                     2.0,1.0/)
+
+        !! node owners
+        allocate(nodeOwners(numNodes))
+        nodeOwners=(/0,1,0,1/) 
+
+        ! Fill in elem data
+        numElems=1
+
+        !! elem ids
+        allocate(elemIds(numElems))
+        elemIds=(/2/) 
+
+        !! elem type
+        allocate(elemTypes(numElems))
+        elemTypes=ESMF_MESHELEMTYPE_QUAD
+
+        !! elem conn
+        allocate(elemConn(numElems*4))
+        elemConn=(/1,2,4,3/)
+      else if (localPet .eq. 2) then
+         ! Fill in node data
+         numNodes=4
+
+        !! node ids
+        allocate(nodeIds(numNodes))
+        nodeIds=(/4,5,7,8/) 
+
+        !! node Coords
+        allocate(nodeCoords(numNodes*2))
+        nodeCoords=(/0.0,1.0, &
+                     1.0,1.0, &
+                     0.0,2.0, &
+                     1.0,2.0/)
+
+        !! node owners
+        allocate(nodeOwners(numNodes))
+        nodeOwners=(/0,0,2,2/) 
+
+        ! Fill in elem data
+        numElems=1
+
+        !! elem ids
+        allocate(elemIds(numElems))
+        elemIds=(/3/) 
+
+        !! elem type
+        allocate(elemTypes(numElems))
+        elemTypes=ESMF_MESHELEMTYPE_QUAD
+
+        !! elem conn
+        allocate(elemConn(numElems*4))
+        elemConn=(/1,2,4,3/)  
+      else 
+         ! Fill in node data
+         numNodes=4
+
+        !! node ids
+        allocate(nodeIds(numNodes))
+        nodeIds=(/5,6,8,9/) 
+
+        !! node Coords
+        allocate(nodeCoords(numNodes*2))
+        nodeCoords=(/1.0,1.0, &
+                     2.0,1.0, &
+                     1.0,2.0, &
+                     2.0,2.0/)
+
+        !! node owners
+        allocate(nodeOwners(numNodes))
+        nodeOwners=(/0,1,2,3/) 
+
+        ! Fill in elem data
+        numElems=1
+
+        !! elem ids
+        allocate(elemIds(numElems))
+        elemIds=(/4/) 
+
+        !! elem type
+        allocate(elemTypes(numElems))
+        elemTypes=ESMF_MESHELEMTYPE_QUAD
+
+        !! elem conn
+        allocate(elemConn(numElems*4))
+        elemConn=(/1,2,4,3/)  
+      endif
+
+!BOC
+      ! Create Mesh structure in 1 step
+      mesh=ESMF_MeshCreate(parametricDim=2,spatialDim=2, &
+             nodeIds=nodeIds, nodeCoords=nodeCoords, &
+             nodeOwners=nodeOwners, elementIds=elemIds,&
+             elementTypes=elemTypes, elementConn=elemConn, &
+             rc=rc)
+      if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
+
       call ESMF_ArraySpecSet(arrayspec, 1, ESMF_TYPEKIND_I4, rc=rc)
       if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
 
+      ! Field is created on the 1 dimensinonal nodal distgrid. On
+      ! each PET, Field is created on the locally owned nodes.
       field = ESMF_FieldCreate(mesh, arrayspec, rc=rc)
       if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
+!EOC
 
+      ! deallocate node data
+      deallocate(nodeIds)
+      deallocate(nodeCoords)
+      deallocate(nodeOwners)
+
+      ! deallocate elem data
+      deallocate(elemIds)
+      deallocate(elemTypes)
+      deallocate(elemConn)
     ! endif for skip for != 4 procs
     endif 
-!EOC
     print *, "Field Create from a Mesh and an Arrayspec returned"
 
 !>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%

@@ -1,7 +1,7 @@
-! $Id: ESMF_StateSet.F90,v 1.2.4.1 2010/02/05 20:05:07 svasquez Exp $
+! $Id$
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2010, University Corporation for Atmospheric Research, 
+! Copyright 2002-2012, University Corporation for Atmospheric Research, 
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
 ! Laboratory, University of Michigan, National Centers for Environmental 
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
@@ -22,6 +22,8 @@
 ! INCLUDES
 !------------------------------------------------------------------------------
 #include "ESMF.h"
+
+#define ESMF_ENABLESTATENEEDED
 !------------------------------------------------------------------------------
 !BOPI
 ! !MODULE: ESMF_StateSetMod - State Set Module
@@ -52,14 +54,16 @@
 
 ! !PUBLIC MEMBER FUNCTIONS:
 
+#if defined (ESMF_ENABLESTATENEEDED)
       public ESMF_StateSetNeeded
+#endif
 
 !EOPI
 
 !------------------------------------------------------------------------------
 ! The following line turns the CVS identifier string into a printable variable.
       character(*), parameter, private :: version = &
-      '$Id: ESMF_StateSet.F90,v 1.2.4.1 2010/02/05 20:05:07 svasquez Exp $'
+      '$Id$'
 
 !==============================================================================
 ! 
@@ -76,18 +80,25 @@
 !------------------------------------------------------------------------------
 #undef  ESMF_METHOD
 #define ESMF_METHOD "ESMF_StateSetNeeded"
-!BOP
+!BOPI
 ! !IROUTINE: ESMF_StateSetNeeded - Set if a data item is needed
 !
 ! !INTERFACE:
-      subroutine ESMF_StateSetNeeded(state, itemName, neededflag, rc)
+      subroutine ESMF_StateSetNeeded(state, itemName, neededflag, keywordEnforcer, rc)
 !
 ! !ARGUMENTS:
-      type(ESMF_State), intent(inout) :: state
-      character (len=*), intent(in) :: itemName
-      type(ESMF_NeededFlag), intent(in) :: neededflag
-      integer, intent(out), optional :: rc             
+      type(ESMF_State),  intent(inout)   :: state
+      character (len=*), intent(in)      :: itemName
+      type(ESMF_NeededFlag), intent(in)  :: neededflag
+    type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
+      integer,    intent(out),  optional :: rc             
 
+!
+!
+! !STATUS:
+! \begin{itemize}
+! \item\apiStatusCompatibleVersion{5.2.0r}
+! \end{itemize}
 !
 ! !DESCRIPTION:
 !      Sets the status of the {\tt needed} flag for the data item
@@ -106,7 +117,7 @@
 !        Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
 !       \end{description}
 !
-!EOP
+!EOPI
 
       type(ESMF_StateItem), pointer :: dataitem
       logical :: exists
@@ -120,20 +131,20 @@
 
 
       call ESMF_StateValidate(state, rc=localrc)
-      if (ESMF_LogMsgFoundError(localrc, &
+      if (ESMF_LogFoundError(localrc, &
                                   ESMF_ERR_PASSTHRU, &
-                                  ESMF_CONTEXT, rc)) return
+                                  ESMF_CONTEXT, rcToReturn=rc)) return
 
-      exists = ESMF_StateClassFindData(state%statep, itemName, .true., &
-                                      dataitem, rc=localrc)
-      if (.not. exists) then
-          if (ESMF_LogMsgFoundError(ESMF_RC_NOT_FOUND, itemName, &
-                                      ESMF_CONTEXT, rc)) return
-      endif
-
-      dataitem%needed = neededflag
-
-      if (present(rc)) rc = ESMF_SUCCESS
+!      exists = ESMF_StateClassFindData(state%statep, itemName, .true., &
+!                                      dataitem=dataitem, rc=localrc)
+!      if (.not. exists) then
+!          if (ESMF_LogFoundError(ESMF_RC_NOT_FOUND, msg=itemName, &
+!                                      ESMF_CONTEXT, rcToReturn=rc)) return
+!      endif
+!
+!      dataitem%needed = neededflag
+!
+!      if (present(rc)) rc = ESMF_SUCCESS
 
       end subroutine ESMF_StateSetNeeded
 !------------------------------------------------------------------------------

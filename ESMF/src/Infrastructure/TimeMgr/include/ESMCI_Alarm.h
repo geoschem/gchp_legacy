@@ -1,7 +1,7 @@
-// $Id: ESMCI_Alarm.h,v 1.10.4.1 2010/02/05 20:00:07 svasquez Exp $
+// $Id$
 //
 // Earth System Modeling Framework
-// Copyright 2002-2010, University Corporation for Atmospheric Research,
+// Copyright 2002-2012, University Corporation for Atmospheric Research,
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 // Laboratory, University of Michigan, National Centers for Environmental
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -25,7 +25,8 @@
  // put any constants or macros which apply to the whole component in this file.
  // anything public or esmf-wide should be up higher at the top level
  // include files.
-#include "ESMC_Start.h"
+#include "ESMCI_Util.h"
+#include "ESMCI_Macros.h"
 #include "ESMF_TimeMgr.inc"
 
 //-------------------------------------------------------------------------
@@ -74,17 +75,15 @@
 //-------------------------------------------------------------------------
 //
 // !USES:
-#include "ESMC_Base.h"
-#include "ESMC_IOSpec.h"    // IOSpec class for ReadRestart()/WriteRestart()
 #include "ESMCI_TimeInterval.h"
 #include "ESMCI_Time.h"
 
- // alarm list types to query from clock
- enum ESMC_AlarmListType {ESMF_ALARMLIST_ALL = 1,
-                          ESMF_ALARMLIST_RINGING,   
-                          ESMF_ALARMLIST_NEXTRINGING,
-                          ESMF_ALARMLIST_PREVRINGING};
-
+ // alarm list flags to query from clock
+ enum ESMC_AlarmList_Flag {ESMF_ALARMLIST_ALL = 1,
+                           ESMF_ALARMLIST_RINGING,   
+                           ESMF_ALARMLIST_NEXTRINGING,
+                           ESMF_ALARMLIST_PREVRINGING};
+// type of Alarm list
 namespace ESMCI {
 
  class Clock;
@@ -228,10 +227,9 @@ class Alarm {
     // for persistence/checkpointing
 
     // friend to restore state
-    friend Alarm *ESMCI_alarmReadRestart(int, const char*,
-                                             ESMC_IOSpec*, int*);
+    friend Alarm *ESMCI_alarmReadRestart(int, const char*, int*);
     // save state
-    int writeRestart(ESMC_IOSpec *iospec=0) const;
+    int writeRestart(void) const;
 
     // internal validation
     int validate(const char *options=0) const;
@@ -258,6 +256,9 @@ class Alarm {
     // friend to de-allocate alarm
     friend int ESMCI_alarmDestroy(Alarm **);
 
+    // friend function to de-allocate clock, allowing a clock's alarm's
+    // clock pointers to be nullified
+    friend int ESMCI_ClockDestroy(Clock **);
 
 // !PRIVATE MEMBER FUNCTIONS:
 //
@@ -268,7 +269,7 @@ class Alarm {
     // check if time to turn on alarm
     bool checkTurnOn(bool timeStepPositive);
 
-    // reconstruct ringBegin during ESMF_MODE_REVERSE
+    // reconstruct ringBegin during ESMF_DIRECTION_REVERSE
     int resetRingBegin(bool timeStepPositive);
 
     // friend class alarm
@@ -307,7 +308,6 @@ class Alarm {
     // friend to restore state
     Alarm *ESMCI_alarmReadRestart(int nameLen,
                                       const char*  name=0,
-                                      ESMC_IOSpec* iospec=0,
                                       int*         rc=0);
 
  }  // namespace ESMCI

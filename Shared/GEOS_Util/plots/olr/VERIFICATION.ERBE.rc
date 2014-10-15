@@ -1,0 +1,14 @@
+
+OBSNAM: ERBE
+OBSDSC: ERBE_Monthly_Data
+
+        filename:   'VERIFICATION/Clouds_radiation/erbe/erbe2x25.tabl'
+        filetype:   'BIN'
+        fields:     'OLR'      , 'IRRAD'         , 'OLR'         , 1
+                    'OLC'      , 'IRRAD'         , 'OLRCLR'      , 1
+                    'OSR'      , 'SOLAR'         , 'OSR'         , 1
+                    'OSRCLR'   , 'SOLAR'         , 'OSRCLR'      , 1
+                    'RSR'      , 'SOLAR'         , 'NSR'         , 1
+                    'RSC'      , 'SOLAR'         , 'NSRCLR'      , 1
+                    ::
+

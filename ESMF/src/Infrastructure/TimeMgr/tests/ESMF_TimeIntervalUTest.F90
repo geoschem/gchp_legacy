@@ -1,7 +1,7 @@
-! $Id: ESMF_TimeIntervalUTest.F90,v 1.55.2.2 2010/04/27 20:15:35 eschwab Exp $
+! $Id: ESMF_TimeIntervalUTest.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2010, University Corporation for Atmospheric Research,
+! Copyright 2002-2012, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -31,13 +31,13 @@
 !-----------------------------------------------------------------------------
 ! !USES:
       use ESMF_TestMod      ! test methods
-      use ESMF_Mod
+      use ESMF
       implicit none
 
 !------------------------------------------------------------------------------
 ! The following line turns the CVS identifier string into a printable variable.
       character(*), parameter :: version = &
-      '$Id: ESMF_TimeIntervalUTest.F90,v 1.55.2.2 2010/04/27 20:15:35 eschwab Exp $'
+      '$Id: ESMF_TimeIntervalUTest.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $'
 !------------------------------------------------------------------------------
 
       ! cumulative result: count failures; no failures equals "all pass"
@@ -101,21 +101,21 @@
       ! Calendar Interval tests
       ! ----------------------------------------------------------------------------
       ! initialize calendars
-      gregorianCalendar = ESMF_CalendarCreate("Gregorian", &
-                                              ESMF_CAL_GREGORIAN, rc)
-      julianCalendar = ESMF_CalendarCreate("Julian", &
-                                              ESMF_CAL_JULIAN, rc)
-      noLeapCalendar = ESMF_CalendarCreate("No Leap", &
-                                              ESMF_CAL_NOLEAP, rc)
-      day360Calendar = ESMF_CalendarCreate("360 Day", &
-                                              ESMF_CAL_360DAY, rc)
-      julianDayCalendar = ESMF_CalendarCreate("Julian Day", &
-                                              ESMF_CAL_JULIANDAY, rc)
+      gregorianCalendar = ESMF_CalendarCreate(ESMF_CALKIND_GREGORIAN, &
+        name="Gregorian", rc=rc)
+      julianCalendar = ESMF_CalendarCreate(ESMF_CALKIND_JULIAN, &
+        name="Julian", rc=rc)
+      noLeapCalendar = ESMF_CalendarCreate(ESMF_CALKIND_NOLEAP, &
+        name="No Leap", rc=rc)
+      day360Calendar = ESMF_CalendarCreate(ESMF_CALKIND_360DAY, &
+        name="360 Day", rc=rc)
+      julianDayCalendar = ESMF_CalendarCreate(ESMF_CALKIND_JULIANDAY, &
+        name="Julian Day", rc=rc)
 
       ! ----------------------------------------------------------------------------
       ! Gregorian Leap year 2004 tests
       ! ----------------------------------------------------------------------------
-      !EX_UTest
+      !NEX_UTest
       ! Testing ESMF_TimeOperator(+)(time, timestep)
       write(name, *) "Gregorian Calendar Interval increment 1/29/2004 by mm=1 Test"
       write(failMsg, *) " Did not return 2/29/2004 12:17:58 or ESMF_SUCCESS"
@@ -137,6 +137,25 @@
       call ESMF_TimeIntervalValidate(timeStep, rc=rc)
       call ESMF_Test(( rc==ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
 
+      ! ----------------------------------------------------------------------------
+      !EX_UTest
+      ! Testing ESMF_TimeIntervalAssignment(=)(timeinterval, timeinterval)
+      write(name, *) "Assign one timeinterval to another test"
+      write(failMsg, *) " Did not return timeStep2=timeStep, yy=3, mm=5, d=30, h=7, m=8, s=18 or ESMF_SUCCESS"
+      call ESMF_TimeIntervalSet(timeStep, yy=3, mm=5, d=30, h=7, m=8, s=18, rc=rc)
+      timeStep2 = timeStep  ! exercise default F90 TimeInterval = assignment
+      call ESMF_TimeIntervalGet(timeStep2, yy=YY, mm=MM, d=D, &
+                                h=H, m=M, s=S, rc=rc)
+      call ESMF_Test((timeStep2.eq.timeStep .and. &
+                      YY.eq.3.and.MM.eq.5.and.D.eq.30.and. &
+                      H.eq.7.and.M.eq.8.and.S.eq.18.and. &
+                      rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+
+      !call ESMF_TimeIntervalPrint(timeStep2, rc=rc)
+      !call ESMF_TimeIntervalPrint(timeStep, rc=rc)
+      !print *,  "timeStep2.eq.timeStep = ", timeStep2.eq.timeStep
+      !print *, "rc=", rc
+      !print *, " yy,mm,d,h,m,s = ", YY, ",", MM, ",", D, ",", H, ",", M, ",", S
       ! ----------------------------------------------------------------------------
       !EX_UTest
       ! Testing ESMF_TimeOperator(+)(time, timestep)
@@ -2635,6 +2654,7 @@
                       H==8 .and. M==0 .and. S==0 .and. &
                       rc==ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
       !print *, "YY=", YY, " MM=", MM, " DD=", DD, " H=", H, " M=", M, " S=", S
+
       ! ----------------------------------------------------------------------------
       !EX_UTest
       ! Testing ESMF_TimeOperator(+)(time, timestep)
@@ -2792,10 +2812,10 @@
       ! ----------------------------------------------------------------------------
 
       ! can test with any of these types
-      call ESMF_CalendarSetDefault(ESMF_CAL_JULIANDAY, rc)
-      !call ESMF_CalendarSetDefault(ESMF_CAL_GREGORIAN, rc)
-      !call ESMF_CalendarSetDefault(ESMF_CAL_NOLEAP, rc)
-      !call ESMF_CalendarSetDefault(ESMF_CAL_360DAY, rc)
+      call ESMF_CalendarSetDefault(ESMF_CALKIND_JULIANDAY, rc=rc)
+      !call ESMF_CalendarSetDefault(ESMF_CALKIND_GREGORIAN, rc=rc)
+      !call ESMF_CalendarSetDefault(ESMF_CALKIND_NOLEAP, rc=rc)
+      !call ESMF_CalendarSetDefault(ESMF_CALKIND_360DAY, rc=rc)
 
       !EX_UTest
       write(name, *) "Day Calendar Time Interval conversion with s=172800 (2 days) Test"
@@ -2836,7 +2856,7 @@
       !print *, " secs = ", secs
 
       ! ----------------------------------------------------------------------------
-      call ESMF_CalendarSetDefault(ESMF_CAL_NOCALENDAR, rc)
+      call ESMF_CalendarSetDefault(ESMF_CALKIND_NOCALENDAR, rc=rc)
 
       !EX_UTest
       write(name, *) "No Calendar Time Interval conversion with yy=2, mm=30, d=720 Test"
@@ -2910,7 +2930,7 @@
 
       ! ----------------------------------------------------------------------------
       !EX_UTest
-      ! Testing ESMF_TimeIntervalOperator(x)(timestep, integer)
+      ! Testing ESMF_TimeIntervalOperator(*)(timestep, integer)
       write(name, *) "No Calendar multiplication of a Time interval Test 1"
       write(failMsg, *) " Did not return (yy=9, mm=-15, d=90, h=20, m=37, s=15) or ESMF_SUCCESS"
       call ESMF_TimeIntervalSet(timeStep, yy=3, mm=-5, d=30, h=7, m=-8, s=25, rc=rc)
@@ -2924,7 +2944,7 @@
 
       ! ----------------------------------------------------------------------------
       !EX_UTest
-      ! Testing ESMF_TimeIntervalOperator(x)(integer, timestep)
+      ! Testing ESMF_TimeIntervalOperator(*)(integer, timestep)
       write(name, *) "No Calendar multiplication of a Time interval Test 2"
       write(failMsg, *) " Did not return (yy=9, mm=-15, d=90, h=20, m=37, s=15) or ESMF_SUCCESS"
       call ESMF_TimeIntervalSet(timeStep, yy=3, mm=-5, d=30, h=7, m=-8, s=25, rc=rc)
@@ -3009,10 +3029,10 @@
       !print *, " Days = ", days
 
       ! ----------------------------------------------------------------------------
-      call ESMF_CalendarSetDefault(ESMF_CAL_GREGORIAN, rc)
-      !call ESMF_CalendarSetDefault(ESMF_CAL_JULIANDAY, rc)
-      !call ESMF_CalendarSetDefault(ESMF_CAL_NOLEAP, rc)
-      !call ESMF_CalendarSetDefault(ESMF_CAL_360DAY, rc)
+      call ESMF_CalendarSetDefault(ESMF_CALKIND_GREGORIAN, rc=rc)
+      !call ESMF_CalendarSetDefault(ESMF_CALKIND_JULIANDAY, rc=rc)
+      !call ESMF_CalendarSetDefault(ESMF_CALKIND_NOLEAP, rc=rc)
+      !call ESMF_CalendarSetDefault(ESMF_CALKIND_360DAY, rc=rc)
 
       !EX_UTest
 
@@ -3059,7 +3079,7 @@
       !print *, " Hours = ", hours
 
       ! ----------------------------------------------------------------------------
-      call ESMF_CalendarSetDefault(ESMF_CAL_NOCALENDAR, rc)
+      call ESMF_CalendarSetDefault(ESMF_CALKIND_NOCALENDAR, rc=rc)
 
       ! ----------------------------------------------------------------------------
       !EX_UTest
@@ -3342,7 +3362,7 @@
       ! ----------------------------------------------------------------------------
 
       !EX_UTest
-      ! Testing ESMF_TimeIntervalOperator(x)(timestep, integer)
+      ! Testing ESMF_TimeIntervalOperator(*)(timestep, integer)
       write(failMsg, *) "The time steps is not correct."
       write(name, *) "TimeInterval * operator Test"
       timeStep = timeStep2 * 86400  ! exercise TimeInterval x operator
@@ -3762,7 +3782,7 @@
 
       ! ----------------------------------------------------------------------------
       !EX_UTest
-      ! Testing ESMF_TimeIntervalOperator(x)(timestep, integer)
+      ! Testing ESMF_TimeIntervalOperator(*)(timestep, integer)
       write(name, *) "Multiply rational fraction Time Interval by an integer Test 1"
       write(failMsg, *) " Did not return 30 2/5 seconds and ESMF_SUCCESS"
       call ESMF_TimeIntervalSet(timeInterval1, s=7, sN=3, sD=5, rc=rc)
@@ -3773,7 +3793,7 @@
 
       ! ----------------------------------------------------------------------------
       !EX_UTest
-      ! Testing ESMF_TimeIntervalOperator(x)(timestep, integer)
+      ! Testing ESMF_TimeIntervalOperator(*)(timestep, integer)
       write(name, *) "Multiply rational fraction Time Interval by an integer Test 2"
       write(failMsg, *) " Did not return 3/4 seconds and ESMF_SUCCESS"
       call ESMF_TimeIntervalSet(timeInterval1, sN=1, sD=8, rc=rc)

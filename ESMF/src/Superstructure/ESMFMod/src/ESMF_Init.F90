@@ -1,7 +1,7 @@
-! $Id: ESMF_Init.F90,v 1.58.2.1 2010/02/05 20:04:40 svasquez Exp $
+! $Id: ESMF_Init.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2010, University Corporation for Atmospheric Research, 
+! Copyright 2002-2012, University Corporation for Atmospheric Research, 
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
 ! Laboratory, University of Michigan, National Centers for Environmental 
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
@@ -41,7 +41,6 @@
       use ESMF_UtilTypesMod
       use ESMF_BaseMod
       use ESMF_IOUtilMod
-      use ESMF_IOSpecMod
       use ESMF_LogErrMod
       use ESMF_ConfigMod
       use ESMF_VMMod
@@ -49,7 +48,7 @@
       use ESMF_CalendarMod
 
       implicit none
-
+      private
 
 !------------------------------------------------------------------------------
 !     ! Main program source
@@ -95,21 +94,27 @@
 ! !IROUTINE:  ESMF_Initialize - Initialize ESMF
 !
 ! !INTERFACE:
-      subroutine ESMF_Initialize(defaultConfigFileName, defaultCalendar, &
-        defaultLogFileName, defaultLogType, mpiCommunicator,  &
-        IOUnitLower, IOUnitUpper, vm, rc)
+      subroutine ESMF_Initialize(keywordEnforcer, defaultConfigFileName, defaultCalKind, &
+        defaultLogFileName, logkindflag, mpiCommunicator,  &
+        ioUnitLBound, ioUnitUBound, vm, rc)
 !
 ! !ARGUMENTS:
+type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
       character(len=*),        intent(in),  optional :: defaultConfigFileName
-      type(ESMF_CalendarType), intent(in),  optional :: defaultCalendar
+      type(ESMF_CalKind_Flag), intent(in),  optional :: defaultCalKind
       character(len=*),        intent(in),  optional :: defaultLogFileName
-      type(ESMF_LogType),      intent(in),  optional :: defaultLogType
+      type(ESMF_LogKind_Flag), intent(in),  optional :: logkindflag
       integer,                 intent(in),  optional :: mpiCommunicator
-      integer,                 intent(in),  optional :: IOUnitLower
-      integer,                 intent(in),  optional :: IOUnitUpper
+      integer,                 intent(in),  optional :: ioUnitLBound
+      integer,                 intent(in),  optional :: ioUnitUBound
       type(ESMF_VM),           intent(out), optional :: vm
       integer,                 intent(out), optional :: rc
 
+!
+! !STATUS:
+! \begin{itemize}
+! \item\apiStatusCompatibleVersion{5.2.0r}
+! \end{itemize}
 !
 ! !DESCRIPTION:
 !     This method must be called once on each PET before
@@ -141,10 +146,10 @@
 !     large number of log files and writing log messages from all the processors
 !     could become a performance bottleneck.  Therefore, it is recommended
 !     to turn the Error Log feature off in these situations by setting
-!     {\tt defaultLogType} to ESMF\_LOG\_NONE.
+!     {\tt logkindflag} to ESMF\_LOGKIND\_NONE.
 !
 !     When integrating ESMF with applications where Fortran unit number conflicts
-!     exist, the optional {\tt IOUnitLower} and {\tt IOUnitUpper} arguments may be
+!     exist, the optional {\tt ioUnitLBound} and {\tt ioUnitUBound} arguments may be
 !     used to specify an alternate unit number range.  See section \ref{fio:unitnumbers}
 !     for more information on how ESMF uses Fortran unit numbers.
 !
@@ -155,22 +160,22 @@
 !     \begin{description}
 !     \item [{[defaultConfigFilename]}]
 !           Name of the default configuration file for the entire application.
-!     \item [{[defaultCalendar]}]
+!     \item [{[defaultCalKind]}]
 !           Sets the default calendar to be used by ESMF Time Manager.
-!           See section \ref{opt:calendartype} for a list of valid options.
-!           If not specified, defaults to {\tt ESMF\_CAL\_NOCALENDAR}.
+!           See section \ref{const:calkindflag} for a list of valid options.
+!           If not specified, defaults to {\tt ESMF\_CALKIND\_NOCALENDAR}.
 !     \item [{[defaultLogFileName]}]
 !           Name of the default log file for warning and error messages.
 !           If not specified, defaults to {\tt ESMF\_ErrorLog}.
-!     \item [{[defaultLogType]}]
+!     \item [{[logkindflag]}]
 !           Sets the default Log Type to be used by ESMF Log Manager.
-!           See section \ref{opt:logtype} for a list of valid options.
-!           If not specified, defaults to {\tt ESMF\_LOG\_MULTI}.
+!           See section \ref{const:logkindflag} for a list of valid options.
+!           If not specified, defaults to {\tt ESMF\_LOGKIND\_MULTI}.
 !     \item [{[mpiCommunicator]}]
 !           MPI communicator defining the group of processes on which the
 !           ESMF application is running.
 !           If not specified, defaults to {\tt MPI\_COMM\_WORLD}.
-!     \item [{[IOUnitLower]}]
+!     \item [{[ioUnitLBound]}]
 !           Lower bound for Fortran unit numbers used within the ESMF library.
 !           Fortran units are primarily used for log files.  Legal unit numbers
 !           are positive integers.  A value higher than 10 is recommended
@@ -178,9 +183,9 @@
 !           reservations which are typically found on the first few units.
 !           If not specified, defaults to {\tt ESMF\_LOG\_FORT\_UNIT\_NUMBER},
 !           which is distributed with a value of 50.
-!     \item [{[IOUnitUpper]}]
+!     \item [{[ioUnitUBound]}]
 !           Upper bound for Fortran unit numbers used within the ESMF library.
-!           Must be set to a value at least 5 units higher than {\tt IOUnitLower}.
+!           Must be set to a value at least 5 units higher than {\tt ioUnitLBound}.
 !           If not specified, defaults to {\tt ESMF\_LOG\_UPPER}, which is
 !           distributed with a value of 99.
 !     \item [{[vm]}]
@@ -200,9 +205,9 @@
       ! initialize the framework
       call ESMF_FrameworkInternalInit(lang=ESMF_MAIN_F90, &
         defaultConfigFileName=defaultConfigFileName, &
-        defaultCalendar=defaultCalendar, defaultLogFileName=defaultLogFileName,&
-        defaultLogType=defaultLogType, mpiCommunicator=mpiCommunicator, &
-        IOUnitLower=IOUnitLower, IOUnitUpper=IOUnitUpper,  &
+        defaultCalKind=defaultCalKind, defaultLogFileName=defaultLogFileName,&
+        logkindflag=logkindflag, mpiCommunicator=mpiCommunicator, &
+        ioUnitLBound=ioUnitLBound, ioUnitUBound=ioUnitUBound,  &
         rc=localrc)
                                       
       ! on failure LogErr is not initialized -> explicit print on error
@@ -214,13 +219,13 @@
       
       ! obtain global VM
       call ESMF_VMGetGlobal(localvm, rc=localrc)
-      if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, &
+      if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
         ESMF_CONTEXT, rcToReturn=rc)) return
       if (present(vm)) vm=localvm
 
       ! block on all PETs
       call ESMF_VMBarrier(localvm, rc=localrc)
-      if (ESMF_LogMsgFoundError(localrc, ESMF_ERR_PASSTHRU, &
+      if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
         ESMF_CONTEXT, rcToReturn=rc)) return
 
       if (present(rc)) rc = ESMF_SUCCESS
@@ -234,18 +239,18 @@
 !
 ! !INTERFACE:
       subroutine ESMF_FrameworkInternalInit(lang, defaultConfigFileName, &
-        defaultCalendar, defaultLogFileName, defaultLogType, &
-        mpiCommunicator, IOUnitLower, IOUnitUpper, rc)
+        defaultCalKind, defaultLogFileName, logkindflag, &
+        mpiCommunicator, ioUnitLBound, ioUnitUBound, rc)
 !
 ! !ARGUMENTS:
       integer,                 intent(in)            :: lang     
       character(len=*),        intent(in),  optional :: defaultConfigFileName
-      type(ESMF_CalendarType), intent(in),  optional :: defaultCalendar     
+      type(ESMF_CalKind_Flag), intent(in),  optional :: defaultCalKind     
       character(len=*),        intent(in),  optional :: defaultLogFileName
-      type(ESMF_LogType),      intent(in),  optional :: defaultLogType  
+      type(ESMF_LogKind_Flag), intent(in),  optional :: logkindflag  
       integer,                 intent(in),  optional :: mpiCommunicator
-      integer,                 intent(in),  optional :: IOUnitLower
-      integer,                 intent(in),  optional :: IOUnitUpper
+      integer,                 intent(in),  optional :: ioUnitLBound
+      integer,                 intent(in),  optional :: ioUnitUBound
       integer,                 intent(out), optional :: rc     
 
 !
@@ -259,24 +264,24 @@
 !           related to initialization, such as starting MPI.
 !     \item [{[defaultConfigFilename]}]
 !           Name of the default config file for the entire application.
-!     \item [{[defaultCalendar]}]
+!     \item [{[defaultCalKind]}]
 !           Sets the default calendar to be used by ESMF Time Manager.
-!           If not specified, defaults to {\tt ESMF\_CAL\_NOCALENDAR}.
+!           If not specified, defaults to {\tt ESMF\_CALKIND\_NOCALENDAR}.
 !     \item [{[defaultLogFileName]}]
 !           Name of the default log file for warning and error messages.
 !           If not specified, defaults to "ESMF_ErrorLog".
-!     \item [{[defaultLogType]}]
+!     \item [{[logkindflag]}]
 !           Sets the default Log Type to be used by ESMF Log Manager.
-!           If not specified, defaults to "ESMF\_LOG\_MULTI".
+!           If not specified, defaults to "ESMF\_LOGKIND\_MULTI".
 !     \item [{[mpiCommunicator]}]
 !           MPI communicator defining the group of processes on which the
 !           ESMF application is running.
 !           If not sepcified, defaults to {\tt MPI\_COMM\_WORLD}
-!     \item [{[IOUnitLower]}]
+!     \item [{[ioUnitLBound]}]
 !           Lower bound for Fortran unit numbers used within the ESMF library.
 !           Fortran units are primarily used for log files.
 !           If not specified, defaults to {\tt ESMF\_LOG\_FORT\_UNIT\_NUMBER}
-!     \item [{[IOUnitUpper]}]
+!     \item [{[ioUnitUBound]}]
 !           Upper bound for Fortran unit numbers used within the ESMF library.
 !           If not specified, defaults to {\tt ESMF\_LOG\_UPPER}
 !     \item [{[rc]}]
@@ -288,7 +293,8 @@
       logical :: rcpresent                       ! Return code present   
       integer :: status
       logical, save :: already_init = .false.    ! Static, maintains state.
-      type(ESMF_LogType) :: defaultLogTypeUse
+      type(ESMF_LogKind_Flag) :: logkindflagUse
+      logical :: openflag
 
       ! Initialize return code
       rcpresent = .FALSE.
@@ -305,14 +311,23 @@
       ! If non-default Fortran unit numbers are to be used, set them
       ! prior to log files being created.
 
-      if (present (IOUnitLower) .or. present (IOUnitUpper)) then
-          call ESMF_IOUnitInit (lower=IOUnitLower, upper=IOUnitUpper, rc=status)
+      if (present (ioUnitLBound) .or. present (ioUnitUBound)) then
+          call ESMF_UtilIOUnitInit (lower=ioUnitLBound, upper=ioUnitUBound, rc=status)
           if (status /= ESMF_SUCCESS) then
               if (rcpresent) rc = status
               print *, "Error setting unit number bounds"
               return
           end if
       end if
+
+      ! Some compiler RTLs have a problem with flushing the unit used by
+      ! various ESMF Print routines when nothing has been written on the unit.
+      ! Intel 10.1.021 is an example, though the problem is fixed in later
+      ! releases.  Doing an inquire up front avoids the problem.
+
+      inquire (ESMF_UtilIOStdin,  opened=openflag)
+      inquire (ESMF_UtilIOStdout, opened=openflag)
+      inquire (ESMF_UtilIOStderr, opened=openflag)
 
       ! Initialize the VM. This creates the GlobalVM.
       ! Note that if VMKernel threading is to be used ESMF_VMInitialize() _must_
@@ -331,30 +346,30 @@
           return
       endif
 
-      ! check defaultLogType in case it is coming across from the C++ side with
+      ! check logkindflag in case it is coming across from the C++ side with
       ! an incorrect value
-      if (present(defaultLogType)) then
-        if (defaultLogType.eq.ESMF_LOG_SINGLE .OR. &
-            defaultLogType.eq.ESMF_LOG_MULTI .OR. &
-            defaultLogType.eq.ESMF_LOG_NONE) then
-          defaultLogTypeUse = defaultLogType
+      if (present(logkindflag)) then
+        if (logkindflag.eq.ESMF_LOGKIND_SINGLE .OR. &
+            logkindflag.eq.ESMF_LOGKIND_MULTI .OR. &
+            logkindflag.eq.ESMF_LOGKIND_NONE) then
+          logkindflagUse = logkindflag
         else
-          defaultLogTypeUse = ESMF_LOG_MULTI
+          logkindflagUse = ESMF_LOGKIND_MULTI
         endif
       else
-        defaultLogTypeUse = ESMF_LOG_MULTI
+        logkindflagUse = ESMF_LOGKIND_MULTI
       endif
 
       if (present(defaultLogFileName)) then
          if (len_trim(defaultLogFileName).ne.0) then
-           call ESMF_LogInitialize(defaultLogFileName, logType=defaultLogTypeUse, &
+           call ESMF_LogInitialize(defaultLogFileName, logkindflag=logkindflagUse, &
                                   rc=status)
          else
-           call ESMF_LogInitialize("ESMF_LogFile", logType=defaultLogTypeUse, &
+           call ESMF_LogInitialize("ESMF_LogFile", logkindflag=logkindflagUse, &
                                      rc=status)
          endif
       else
-         call ESMF_LogInitialize("ESMF_LogFile", logType=defaultLogTypeUse, &
+         call ESMF_LogInitialize("ESMF_LogFile", logkindflag=logkindflagUse, &
                                    rc=status)
       endif
       if (status .ne. ESMF_SUCCESS) then
@@ -365,14 +380,14 @@
       ! Write our version number out into the log
       call ESMF_LogWrite(&
         "Running with ESMF Version " // ESMF_VERSION_STRING, &
-        ESMF_LOG_INFO, rc=status)
+        ESMF_LOGMSG_INFO, rc=status)
       if (status .ne. ESMF_SUCCESS) then
           print *, "Error writing into the default log"
           return
       endif
 
       ! Initialize the default time manager calendar
-      call ESMF_CalendarInitialize(defaultCalendar, status)
+      call ESMF_CalendarInitialize(calkindflag=defaultCalKind, rc=status)
       if (status .ne. ESMF_SUCCESS) then
          print *, "Error initializing the default time manager calendar"
       return
@@ -419,33 +434,39 @@
 #undef  ESMF_METHOD
 #define ESMF_METHOD "ESMF_Finalize"
 !BOP
-! !IROUTINE:  ESMF_Finalize - Clean up and close ESMF
+! !IROUTINE:  ESMF_Finalize - Clean up and shut down ESMF
 !
 ! !INTERFACE:
-      subroutine ESMF_Finalize(terminationflag, rc)
+      subroutine ESMF_Finalize(keywordEnforcer, endflag, rc)
 !
 ! !ARGUMENTS:
-      type(ESMF_TerminationFlag), intent(in), optional  :: terminationflag
-      integer, intent(out), optional                    :: rc
+type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
+      type(ESMF_End_Flag), intent(in), optional  :: endflag
+      integer,             intent(out), optional :: rc
 
+!
+! !STATUS:
+! \begin{itemize}
+! \item\apiStatusCompatibleVersion{5.2.0r}
+! \end{itemize}
 !
 ! !DESCRIPTION:
 !     This must be called once on each PET before the application exits
 !     to allow ESMF to flush buffers, close open connections, and 
 !     release internal resources cleanly. The optional argument 
-!     {\tt terminationflag} may be used to indicate the mode of termination.  
+!     {\tt endflag} may be used to indicate the mode of termination.  
 !     Note that this call must be issued only once per PET with 
-!     {\tt terminationflag=ESMF\_FINAL}, and that this call may not be followed
+!     {\tt endflag=ESMF\_END\_NORMAL}, and that this call may not be followed
 !     by {\tt ESMF\_Initialize()}.  This last restriction means that it is not
 !     possible to restart ESMF within the same execution.
 !
 !     The arguments are:
 !     \begin{description}
-!     \item [{[terminationflag]}]
-!           Specify mode of termination. The default is {\tt ESMF\_FINAL}
+!     \item [{[endflag]}]
+!           Specify mode of termination. The default is {\tt ESMF\_END\_NORMAL}
 !           which waits for all PETs of the global VM to reach 
 !           {\tt ESMF\_Finalize()} before termination. See section 
-!           \ref{app:terminationflag} for a complete list and description of
+!           \ref{const:endflag} for a complete list and description of
 !           valid flags.
 !     \item [{[rc]}]
 !           Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
@@ -481,7 +502,7 @@
       endif
 
       ! Delete any internal built-in time manager calendars
-      call ESMF_CalendarFinalize(status)
+      call ESMF_CalendarFinalize(rc=status)
       if (status .ne. ESMF_SUCCESS) then
           print *, "Error finalizing the time manager calendars"
           return
@@ -496,9 +517,9 @@
 
       abortFlag = .false.
       keepMpiFlag = ESMF_FALSE
-      if (present(terminationflag)) then
-        if (terminationflag==ESMF_ABORT) abortFlag = .true.
-        if (terminationflag==ESMF_KEEPMPI) keepMpiFlag = ESMF_TRUE
+      if (present(endflag)) then
+        if (endflag==ESMF_END_ABORT) abortFlag = .true.
+        if (endflag==ESMF_END_KEEPMPI) keepMpiFlag = ESMF_TRUE
       endif
       
       if (abortFlag) then

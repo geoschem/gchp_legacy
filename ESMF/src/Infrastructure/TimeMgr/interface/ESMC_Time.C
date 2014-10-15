@@ -1,7 +1,7 @@
-// $Id: ESMC_Time.C,v 1.6.2.1 2010/02/05 20:00:13 svasquez Exp $
+// $Id$
 //
 // Earth System Modeling Framework
-// Copyright 2002-2010, University Corporation for Atmospheric Research,
+// Copyright 2002-2012, University Corporation for Atmospheric Research,
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 // Laboratory, University of Michigan, National Centers for Environmental
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -29,7 +29,7 @@
 // include ESMF headers
 #include "ESMCI_Arg.h"
 #include "ESMCI_LogErr.h"
-#include "ESMC_LogMacros.inc"             // for LogErr
+#include "ESMCI_LogMacros.inc"
 #include "ESMCI_Time.h"
 #include "ESMCI_Calendar.h"
 
@@ -37,7 +37,7 @@
 // leave the following line as-is; it will insert the cvs ident string
 // into the object file for tracking purposes.
 static const char *const version =
-  "$Id: ESMC_Time.C,v 1.6.2.1 2010/02/05 20:00:13 svasquez Exp $";
+  "$Id$";
 //-----------------------------------------------------------------------------
 
 // TODO: Implement more -native- C++ TimeMgr API alongside existing
@@ -56,7 +56,7 @@ int ESMC_TimeSet(ESMC_Time *time,
                  ESMC_I4 yy,
                  ESMC_I4 h,
                  ESMC_Calendar calendar,
-                 ESMC_CalendarType calendartype,
+                 ESMC_CalKind_Flag calkindflag,
                  int timeZone) {
 
   // initialize return code; assume routine not implemented
@@ -83,9 +83,9 @@ int ESMC_TimeSet(ESMC_Time *time,
              (ESMC_I4 *)NULL, (ESMC_I8 *)NULL,
              (ESMC_I4 *)NULL, (ESMC_I8 *)NULL,
                   (ESMCI::Calendar **)&(calendar.ptr),
-                                       &calendartype,
+                                       &calkindflag,
                                        &timeZone);
-  if (ESMC_LogDefault.MsgFoundError(localrc, ESMF_ERR_PASSTHRU, ESMC_CONTEXT,
+  if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, ESMC_CONTEXT,
                                     &rc)) return rc;  // bail out
   // return successfully
   rc = ESMF_SUCCESS;
@@ -102,7 +102,7 @@ int ESMC_TimeGet(ESMC_Time time,
                  ESMC_I4 *yy,
                  ESMC_I4 *h,
                  ESMC_Calendar *calendar,
-                 ESMC_CalendarType *calendartype,
+                 ESMC_CalKind_Flag *calkindflag,
                  int *timeZone) {
 
   // initialize return code; assume routine not implemented
@@ -117,7 +117,7 @@ int ESMC_TimeGet(ESMC_Time time,
   }
 
   // Note: Don't need to check for passed-thru NULL input pointers currently;
-  //       ESMCI::Time::get() intreprets them as "not desired".
+  //       ESMCI::Time::get() interprets them as "not desired".
   //       (designed to support F90 not-present args)
 
   // call into ESMCI method
@@ -133,12 +133,12 @@ int ESMC_TimeGet(ESMC_Time time,
              (ESMC_I4 *)NULL, (ESMC_I8 *)NULL,
              (ESMC_I4 *)NULL, (ESMC_I8 *)NULL,
                   (ESMCI::Calendar **)&(calendar->ptr),
-                                        calendartype,
+                                        calkindflag,
                                         timeZone,
              (int)0, (int *)NULL, (char *)NULL, (int)0, 
              (int *)NULL, (char *)NULL, (int *)NULL, (ESMCI::Time *)NULL,
              (ESMC_I4 *)NULL, (ESMC_R8 *)NULL, (ESMCI::TimeInterval *)NULL); 
-  if (ESMC_LogDefault.MsgFoundError(localrc, ESMF_ERR_PASSTHRU, ESMC_CONTEXT,
+  if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, ESMC_CONTEXT,
                                     &rc)) return rc;  // bail out
   // return successfully
   rc = ESMF_SUCCESS;
@@ -159,7 +159,7 @@ int ESMC_TimePrint(ESMC_Time time) {
 
   // call into ESMCI method
   localrc = ((ESMCI::Time *)&time)->print("string");
-  if (ESMC_LogDefault.MsgFoundError(localrc, ESMF_ERR_PASSTHRU, ESMC_CONTEXT,
+  if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, ESMC_CONTEXT,
                                     &rc)) return rc;  // bail out
   // return successfully
   rc = ESMF_SUCCESS;

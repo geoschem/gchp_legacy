@@ -1,7 +1,7 @@
-! $Id: ESMF_FieldSetEx.F90,v 1.8.4.1 2010/02/05 19:55:38 svasquez Exp $
+! $Id: ESMF_FieldSetEx.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2010, University Corporation for Atmospheric Research,
+! Copyright 2002-2012, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -23,7 +23,7 @@
 !-----------------------------------------------------------------------------
 
     ! ESMF Framework module
-    use ESMF_Mod
+    use ESMF
     use ESMF_FieldSetMod
     implicit none
     
@@ -44,7 +44,8 @@
 !   !Set finalrc to success
     finalrc = ESMF_SUCCESS
 
-    call ESMF_Initialize(rc=rc)
+    call ESMF_Initialize(defaultlogfilename="FieldSetEx.Log", &
+                    logkindflag=ESMF_LOGKIND_MULTI, rc=rc)
 
 !>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%
 !-------------------------------- Example -----------------------------
@@ -72,7 +73,7 @@
     ydim = 22
     zdim = 31
 
-    grid8 = ESMF_GridCreateShapeTile(minIndex=(/1,1,1/), maxIndex=(/4*xdim,ydim,zdim/), &
+    grid8 = ESMF_GridCreateNoPeriDim(minIndex=(/1,1,1/), maxIndex=(/4*xdim,ydim,zdim/), &
                               regDecomp=(/4,1,1/), name="grid", rc=rc)
     if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
 
@@ -116,7 +117,7 @@
 !
 !EremoveOE
 !BremoveOC
-    grid = ESMF_GridCreateShapeTile(minIndex=(/1,1,1/), maxIndex=(/4*xdim,ydim,zdim/), &
+    grid = ESMF_GridCreateNoPeriDim(minIndex=(/1,1,1/), maxIndex=(/4*xdim,ydim,zdim/), &
                               regDecomp=(/4,1,1/), name="grid", rc=rc)
     if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
     

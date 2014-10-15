@@ -1,7 +1,7 @@
-! $Id: ESMF_ArrayFarrayHaloEx.F90,v 1.17.2.1 2010/02/05 19:51:56 svasquez Exp $
+! $Id: ESMF_ArrayFarrayHaloEx.F90,v 1.1.5.1 2013-01-11 20:23:43 mathomp4 Exp $
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2010, University Corporation for Atmospheric Research,
+! Copyright 2002-2012, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -15,8 +15,9 @@
 !==============================================================================
 
 !BOE
-! \subsubsection{Array from native Fortran array with elements for halo}
-! 
+! \subsubsection{Array from native Fortran array with extra elements for halo or padding}
+! \label{Array:fpadding}
+!
 ! The example of the previous section showed how easy it is to create an Array
 ! object from existing PET-local Fortran arrays. The example did, however, not
 ! define any halo elements around the DE-local regions. The following code
@@ -25,7 +26,7 @@
 !BOC
 program ESMF_ArrayFarrayHaloEx
 
-  use ESMF_Mod
+  use ESMF
   
   implicit none
   
@@ -36,10 +37,10 @@ program ESMF_ArrayFarrayHaloEx
 !EOE
 !BOC
   ! local variables
-  real(ESMF_KIND_R8), allocatable :: farrayA(:,:)   ! allocatable Fortran array
-  real(ESMF_KIND_R8), pointer :: farrayPtr(:,:)     ! matching Fortran array pointer
-  type(ESMF_DistGrid)         :: distgrid           ! DistGrid object
-  type(ESMF_Array)            :: array              ! Array object
+  real(ESMF_KIND_R8), allocatable :: farrayA(:,:) ! allocatable Fortran array
+  real(ESMF_KIND_R8), pointer :: farrayPtr(:,:)   ! matching Fortran array ptr
+  type(ESMF_DistGrid)         :: distgrid         ! DistGrid object
+  type(ESMF_Array)            :: array            ! Array object
   integer                     :: rc, i, j
   real                        :: localSum
   
@@ -53,14 +54,15 @@ program ESMF_ArrayFarrayHaloEx
   finalrc = ESMF_SUCCESS
   
 !BOC
-  call ESMF_Initialize(rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  call ESMF_Initialize(defaultlogfilename="ArrayFarrayHaloEx.Log", &
+                    logkindflag=ESMF_LOGKIND_MULTI, rc=rc)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   
 !EOC
   call ESMF_VMGetGlobal(vm, rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   call ESMF_VMGet(vm, petCount=petCount, rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   
   if (petCount /= 4) then
     finalrc = ESMF_FAILURE
@@ -77,7 +79,7 @@ program ESMF_ArrayFarrayHaloEx
 !BOC
   distgrid = ESMF_DistGridCreate(minIndex=(/1,1/), maxIndex=(/40,10/), rc=rc)
 !EOC
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !BOE
 ! This DistGrid describes a 40 x 10 index space that will be decomposed into 
 ! 4 DEs when executed on 4 PETs, associating 1 DE per PET. Each DE-local 
@@ -110,7 +112,7 @@ program ESMF_ArrayFarrayHaloEx
   array = ESMF_ArrayCreate(farray=farrayA, distgrid=distgrid, &
     indexflag=ESMF_INDEX_DELOCAL, rc=rc)
 !EOC
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 call ESMF_ArrayPrint(array)
 !BOE
 ! The exclusive Array region on each PET can be accessed through a suitable
@@ -120,7 +122,7 @@ call ESMF_ArrayPrint(array)
 !BOC
   call ESMF_ArrayGet(array, farrayPtr=farrayPtr, rc=rc)
 !EOC
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !BOE
 ! Following Array bounds convention, which by default puts the beginning of 
 ! the exclusive region at (1, 1, ...), the following loop will add up the 

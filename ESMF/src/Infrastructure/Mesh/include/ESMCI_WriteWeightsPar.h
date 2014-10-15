@@ -1,6 +1,6 @@
-//
+// $Id$
 // Earth System Modeling Framework
-// Copyright 2002-2010, University Corporation for Atmospheric Research, 
+// Copyright 2002-2012, University Corporation for Atmospheric Research, 
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
 // Laboratory, University of Michigan, National Centers for Environmental 
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
@@ -13,6 +13,9 @@
 #define ESMCI_WRITEWEIGHTSPAR_H_
 
 #include <string>
+
+#include <Mesh/include/ESMCI_MEField.h>
+#include <Mesh/include/ESMCI_Mesh.h>
 
 namespace ESMCI {
 
@@ -36,6 +39,11 @@ void WriteNCMatFilePar(const std::string &src_ncfile,
                     const std::string &dst_ncfile,
                     const std::string &outfile,
                     const IWeights &w,
+                    Mesh &srcmesh,
+                    Mesh &dstmesh,
+                    Mesh &dstmeshcpy,
+                    int *regridConserve,
+                    int *regridMethod,
                     int ordering = NCMATPAR_ORDER_INTERLEAVE
                     );
 

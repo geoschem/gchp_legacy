@@ -1,7 +1,7 @@
-! $Id: ESMF_FieldSphereRegridEx.F90,v 1.22.2.1 2010/02/05 19:55:38 svasquez Exp $
+! $Id$
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2010, University Corporation for Atmospheric Research,
+! Copyright 2002-2012, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -32,7 +32,7 @@ program ESMF_FieldSphereRegridEx
 !
 !-----------------------------------------------------------------------------
 ! !USES:
-  use ESMF_Mod
+  use ESMF
   use ESMF_RegridMod
   use ESMF_FieldMod
   use ESMF_GridUtilMod
@@ -44,7 +44,7 @@ program ESMF_FieldSphereRegridEx
 !------------------------------------------------------------------------------
 ! The following line turns the CVS identifier string into a printable variable.
   character(*), parameter :: version = &
-    '$Id: ESMF_FieldSphereRegridEx.F90,v 1.22.2.1 2010/02/05 19:55:38 svasquez Exp $'
+    '$Id$'
 !------------------------------------------------------------------------------
     
   ! cumulative result: count failures; no failures equals "all pass"
@@ -69,9 +69,9 @@ program ESMF_FieldSphereRegridEx
   type(ESMF_RouteHandle) :: routeHandle1
   type(ESMF_ArraySpec) :: arrayspec
   type(ESMF_VM) :: vm
-  real(ESMF_KIND_R8), pointer :: fptrXC(:,:)
-  real(ESMF_KIND_R8), pointer :: fptrYC(:,:)
-  real(ESMF_KIND_R8), pointer :: fptr(:,:)
+  real(ESMF_KIND_R8), pointer :: farrayPtrXC(:,:)
+  real(ESMF_KIND_R8), pointer :: farrayPtrYC(:,:)
+  real(ESMF_KIND_R8), pointer :: farrayPtr(:,:)
   integer :: petMap2D(2,2,1)
   integer :: clbnd(2),cubnd(2)
   integer :: fclbnd(2),fcubnd(2)
@@ -98,10 +98,11 @@ program ESMF_FieldSphereRegridEx
   integer :: finalrc
   
   finalrc = ESMF_SUCCESS
-  call ESMF_Initialize(vm=vm, rc=localrc)
-  if (localrc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  call ESMF_Initialize(vm=vm, defaultlogfilename="FieldSphereRegridEx.Log", &
+                    logkindflag=ESMF_LOGKIND_MULTI, rc=localrc)
+  if (localrc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   call ESMF_VMGet(vm, localPet=localPet, petCount=petCount, rc=localrc)
-  if (localrc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (localrc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
   !-----------------------------------------------------------------------------
   !NEX_Ex
@@ -120,55 +121,53 @@ program ESMF_FieldSphereRegridEx
   src_ny = 50
 
   ! if petCount >1, setup petMap
-  gridSrc=ESMF_GridCreateShapeTile(minIndex=(/1,1/),maxIndex=(/src_nx,src_ny/),regDecomp=(/petCount,1/), &
-                              gridEdgeLWidth=(/0,0/), gridEdgeUWidth=(/0,0/), &
+  gridSrc=ESMF_GridCreate1PeriDim(minIndex=(/1,1/),maxIndex=(/src_nx,src_ny/),regDecomp=(/petCount,1/), &
                               indexflag=ESMF_INDEX_GLOBAL, &
                               rc=localrc)
-  if (localrc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (localrc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
-  gridDst=ESMF_GridCreateShapeTile(minIndex=(/1,1/),maxIndex=(/dst_nx,dst_ny/),regDecomp=(/1,petCount/), &
-                              gridEdgeLWidth=(/0,0/), gridEdgeUWidth=(/0,0/), &
+  gridDst=ESMF_GridCreate1PeriDim(minIndex=(/1,1/),maxIndex=(/dst_nx,dst_ny/),regDecomp=(/1,petCount/), &
                               indexflag=ESMF_INDEX_GLOBAL, &
                               rc=localrc)
-  if (localrc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (localrc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
   ! Create source/destination fields
-  call ESMF_ArraySpecSet(arrayspec, 2, ESMF_TYPEKIND_R8, rc)
+  call ESMF_ArraySpecSet(arrayspec, 2, ESMF_TYPEKIND_R8, rc=rc)
 
    srcField = ESMF_FieldCreate(gridSrc, arrayspec, &
                          staggerloc=ESMF_STAGGERLOC_CENTER, name="source", rc=localrc)
-  if (localrc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (localrc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
    dstField = ESMF_FieldCreate(gridDst, arrayspec, &
                          staggerloc=ESMF_STAGGERLOC_CENTER, name="dest", rc=localrc)
-  if (localrc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (localrc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
    dstField1 = ESMF_FieldCreate(gridDst, arrayspec, &
                          staggerloc=ESMF_STAGGERLOC_CENTER, name="dest1", rc=localrc)
-  if (localrc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (localrc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
   ! Allocate coordinates
   call ESMF_GridAddCoord(gridSrc, staggerloc=ESMF_STAGGERLOC_CENTER, rc=localrc)
-  if (localrc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (localrc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
   call ESMF_GridAddCoord(gridDst, staggerloc=ESMF_STAGGERLOC_CENTER, rc=localrc)
-  if (localrc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (localrc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
   ! Get number of local DEs
   call ESMF_GridGet(gridSrc, localDECount=localDECount, rc=localrc)
-  if (localrc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (localrc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
   ! Get arrays
   ! dstArray
   call ESMF_FieldGet(dstField, array=dstArray, rc=localrc)
-  if (localrc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (localrc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
   call ESMF_FieldGet(dstField1, array=dstArray1, rc=localrc)
-  if (localrc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (localrc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
   ! srcArray
   call ESMF_FieldGet(srcField, array=srcArray, rc=localrc)
-  if (localrc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (localrc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
 
   ! Write results to a mesh
@@ -188,16 +187,16 @@ program ESMF_FieldSphereRegridEx
  
      !! get coord 1
      call ESMF_GridGetCoord(gridSrc, localDE=lDE, staggerLoc=ESMF_STAGGERLOC_CENTER, coordDim=1, &
-                            computationalLBound=clbnd, computationalUBound=cubnd, fptr=fptrXC, rc=localrc)
-     if (localrc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+                            computationalLBound=clbnd, computationalUBound=cubnd, farrayPtr=farrayPtrXC, rc=localrc)
+     if (localrc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
      call ESMF_GridGetCoord(gridSrc, localDE=lDE, staggerLoc=ESMF_STAGGERLOC_CENTER, coordDim=2, &
-                            computationalLBound=clbnd, computationalUBound=cubnd, fptr=fptrYC, rc=localrc)
-     if (localrc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+                            computationalLBound=clbnd, computationalUBound=cubnd, farrayPtr=farrayPtrYC, rc=localrc)
+     if (localrc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
-     call ESMF_FieldGet(srcField, lDE, fptr, computationalLBound=fclbnd, &
+     call ESMF_FieldGet(srcField, lDE, farrayPtr, computationalLBound=fclbnd, &
                              computationalUBound=fcubnd,  rc=localrc)
-     if (localrc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+     if (localrc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
     if (clbnd(1) .ne. fclbnd(1)) print *, 'Error clbnd != fclbnd'
     if (clbnd(2) .ne. fclbnd(2)) print *, 'Error clbnd != fclbnd'
@@ -207,10 +206,10 @@ program ESMF_FieldSphereRegridEx
      !! set coords, interpolated function
      do i1=clbnd(1),cubnd(1)
      do i2=clbnd(2),cubnd(2)
-        fptrXC(i1,i2) = -180. + REAL((i1-1)*src_dx)
-        fptrYC(i1,i2) = -90. + REAL((i2-1)*src_dy + 0.5*src_dy)
-        x = fptrXC(i1, i2)
-        y = fptrYC(i1,i2)
+        farrayPtrXC(i1,i2) = -180. + REAL((i1-1)*src_dx)
+        farrayPtrYC(i1,i2) = -90. + REAL((i2-1)*src_dy + 0.5*src_dy)
+        x = farrayPtrXC(i1, i2)
+        y = farrayPtrYC(i1,i2)
      
        ! Set the source to be a sinusoidal function of x,y,z
 
@@ -220,7 +219,7 @@ program ESMF_FieldSphereRegridEx
         y = sin(theta)*sin(phi)
         z = cos(phi)
 
-        fptr(i1,i2) = sin(3*3.14*x) + cos(2*3.14*y) + z*z;
+        farrayPtr(i1,i2) = sin(3*3.14*x) + cos(2*3.14*y) + z*z;
 
 
      enddo
@@ -242,16 +241,16 @@ program ESMF_FieldSphereRegridEx
  
      !! get coord 1
      call ESMF_GridGetCoord(gridDst, localDE=lDE, staggerLoc=ESMF_STAGGERLOC_CENTER, coordDim=1, &
-                            computationalLBound=clbnd, computationalUBound=cubnd, fptr=fptrXC, rc=localrc)
-     if (localrc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+                            computationalLBound=clbnd, computationalUBound=cubnd, farrayPtr=farrayPtrXC, rc=localrc)
+     if (localrc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
      call ESMF_GridGetCoord(gridDst, localDE=lDE, staggerLoc=ESMF_STAGGERLOC_CENTER, coordDim=2, &
-                            computationalLBound=clbnd, computationalUBound=cubnd, fptr=fptrYC, rc=localrc)
-     if (localrc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+                            computationalLBound=clbnd, computationalUBound=cubnd, farrayPtr=farrayPtrYC, rc=localrc)
+     if (localrc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
-     call ESMF_FieldGet(dstField, lDE, fptr, computationalLBound=fclbnd, &
+     call ESMF_FieldGet(dstField, lDE, farrayPtr, computationalLBound=fclbnd, &
                              computationalUBound=fcubnd,  rc=localrc)
-     if (localrc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+     if (localrc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
     if (clbnd(1) .ne. fclbnd(1)) print *, 'Error dst clbnd != fclbnd'
     if (clbnd(2) .ne. fclbnd(2)) print *, 'Error dst clbnd != fclbnd'
@@ -279,10 +278,10 @@ program ESMF_FieldSphereRegridEx
         z = ztmp
 
         ! now back to lat lon
-        fptrXC(i1,i2) = atan2(y,x)*RAD2DEG
-        fptrYC(i1,i2) = asin(z)*RAD2DEG
+        farrayPtrXC(i1,i2) = atan2(y,x)*RAD2DEG
+        farrayPtrYC(i1,i2) = asin(z)*RAD2DEG
 
-        fptr(i1,i2) = 0.
+        farrayPtr(i1,i2) = 0.
      
      enddo
      enddo
@@ -292,11 +291,11 @@ program ESMF_FieldSphereRegridEx
 
 !BOE
 !
-!\subsubsection{Creating a Regrid Operator from two Fields}
+!\subsubsection{Precompute a regridding operation between two Fields}
 ! To create the sparse matrix regrid operator we call the
 ! {\tt ESMF\_FieldSphereRegridStore()} routine.  In this example we
 ! choose the {\tt ESMF_REGRID_METHOD_BILIONEAR} regridding method for
-! our first example, and {\tt ESMF_REGRID_METHOD_PATCH} for our
+! our first example, and {\tt ESMF_REGRIDMETHOD_PATCH} for our
 ! second example (The underlying C++ code process both matrices
 ! simultaneously, but we do not yet have fortran interfaces for this).
 ! This method creates two meshes, and a Rendezvous decomposition of these
@@ -305,32 +304,28 @@ program ESMF_FieldSphereRegridEx
 ! are then computed locally on each cell.  This matrix of weights is, finally,
 ! sent back to the destination grid's row decomposition and declared as a 
 ! sparse matrix.  This matrix is embedded in the routeHandle object.
-! the {\tt ESMF\_REGRID\_SCHEME\_FULL3D} option is used since the grid
-! represents a full sphere.  This causes the grids to be represented
-! as 3D manifolds, and avoids pole and branch cut issues usually
-! associated with regridding on the sphere.
 !EOE
 
 !BOC
   call ESMF_FieldRegridStore(srcField=srcField, dstField=dstField, &
           routeHandle=routeHandle, &
-          regridMethod=ESMF_REGRID_METHOD_BILINEAR, &
-          regridScheme=ESMF_REGRID_SCHEME_FULL3D, rc=localrc)
-  if (localrc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+          regridmethod=ESMF_REGRIDMETHOD_BILINEAR, &
+          rc=localrc)
+  if (localrc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
   ! The patch recovery interpolant
 #ifdef ESMF_LAPACK
   call ESMF_FieldRegridStore(srcField=srcField, dstField=dstField1, &
           routeHandle=routeHandle1, &
-          regridMethod=ESMF_REGRID_METHOD_PATCH, &
-          regridScheme=ESMF_REGRID_SCHEME_FULL3D, rc=localrc)
+          regridmethod=ESMF_REGRIDMETHOD_PATCH, &
+          rc=localrc)
 !EOC
-  if (localrc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (localrc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 #endif
 
 !BOE
 !
-!\subsubsection{Applying the Regrid Operator to a pair of Fields}
+!\subsubsection{Apply a regridding operation to a pair of Fields}
 ! The {\tt ESMF\_FieldSphereRegrid} subroutine calls {\tt ESMF\_ArraySparseMatMul}
 ! and performs a regrid from source to destination field.
 !EOE
@@ -339,16 +334,16 @@ program ESMF_FieldSphereRegridEx
 !BOC
   call ESMF_FieldRegrid(srcField, dstField, routeHandle, rc=localrc)
 !EOC
-  if (localrc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (localrc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
 #ifdef ESMF_LAPACK
   call ESMF_FieldRegrid(srcField, dstField1, routeHandle1, rc=localrc)
-  if (localrc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (localrc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 #endif
 
 !BOE
 ! 
-!\subsubsection{Release a Regrid Operator}
+!\subsubsection{Release the stored information for a regridding operation}
 !EOE
 
 !BOC
@@ -357,7 +352,7 @@ program ESMF_FieldSphereRegridEx
   call ESMF_FieldRegridRelease(routeHandle1, rc=localrc)
 #endif
 !EOC
-  if (localrc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (localrc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
 !  ! Uncomment these calls to see some actual regrid results
 !  spherical_grid = 1
@@ -370,13 +365,13 @@ program ESMF_FieldSphereRegridEx
 
    ! Free Fields
    call ESMF_FieldDestroy(srcField, rc=localrc)
-   if (localrc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+   if (localrc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
    call ESMF_FieldDestroy(dstField, rc=localrc)
-   if (localrc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+   if (localrc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
    call ESMF_FieldDestroy(dstField1, rc=localrc)
-   if (localrc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+   if (localrc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
 
   ! Free the grids

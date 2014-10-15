@@ -1,7 +1,7 @@
-! $Id: ESMF_AlarmType.F90,v 1.21.2.1 2010/02/05 20:00:28 svasquez Exp $
+! $Id: ESMF_AlarmType.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2010, University Corporation for Atmospheric Research,
+! Copyright 2002-2012, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -17,9 +17,9 @@
 !
 !==============================================================================
 !
-! This file contains the Alarm class data definition, as well as internal methods.
-! The Alarm class methods are defined in ESMF_Alarm.F90.  This split is to resolve 
-! mutual method dependency with ESMF_Clock.
+! This file contains the Alarm class data definition, as well as internal 
+! methods.  The Alarm class methods are defined in ESMF_Alarm.F90.  This split
+! is to resolve mutual method dependency with ESMF_Clock.
 !
 !------------------------------------------------------------------------------
 ! INCLUDES
@@ -31,7 +31,7 @@
 ! !MODULE: ESMF_AlarmTypeMod
 !
 ! !DESCRIPTION:
-! Part of Time Manager Fortran API wrapper of C++ implemenation.
+! Part of Time Manager Fortran API wrapper of C++ implementation.
 !
 ! Defines Fortran types for corresponding C++ class {\tt ESMCI\_Alarm}.
 !
@@ -39,31 +39,31 @@
 !
 !------------------------------------------------------------------------------
 ! !USES:
-      use ESMF_UtilTypesMod
+      ! inherit from ESMF base class
       use ESMF_BaseMod
+      use ESMF_UtilTypesMod
+
       implicit none
 
 !------------------------------------------------------------------------------
 ! !PRIVATE TYPES:
-!     None: all types defined in this file are public and propagated up
-!     via ESMF_AlarmMod in ESMF_Alarm.F90
-
+      private
 !------------------------------------------------------------------------------
-!     ! ESMF_AlarmListType
+!     ! ESMF_AlarmList_Flag
 !
-!     ! Fortran "enum" type to match C++ ESMC_AlarmListType enum
+!     ! Fortran "enum" type to match C++ ESMC_AlarmList_Flag enum
 
-      type ESMF_AlarmListType
+      type ESMF_AlarmList_Flag
       sequence
       private
-        integer :: alarmListType
+        integer :: alarmlistflag
       end type
 
-      type(ESMF_AlarmListType), parameter :: &
-                          ESMF_ALARMLIST_ALL         = ESMF_AlarmListType(1), &
-                          ESMF_ALARMLIST_RINGING     = ESMF_AlarmListType(2), &
-                          ESMF_ALARMLIST_NEXTRINGING = ESMF_AlarmListType(3), &
-                          ESMF_ALARMLIST_PREVRINGING = ESMF_AlarmListType(4)
+      type(ESMF_AlarmList_Flag), parameter :: &
+                          ESMF_ALARMLIST_ALL         = ESMF_AlarmList_Flag(1), &
+                          ESMF_ALARMLIST_RINGING     = ESMF_AlarmList_Flag(2), &
+                          ESMF_ALARMLIST_NEXTRINGING = ESMF_AlarmList_Flag(3), &
+                          ESMF_ALARMLIST_PREVRINGING = ESMF_AlarmList_Flag(4)
 
 !------------------------------------------------------------------------------
 !     ! ESMF_Alarm
@@ -80,13 +80,29 @@
 !     The types defined in this file are public and propagated up via
 !     ESMF_AlarmMod in ESMF_Alarm.F90
 
+      public ESMF_AlarmList_Flag
+      public ESMF_ALARMLIST_ALL, ESMF_ALARMLIST_RINGING, &
+             ESMF_ALARMLIST_NEXTRINGING, ESMF_ALARMLIST_PREVRINGING
+      public ESMF_Alarm
+
+!------------------------------------------------------------------------------
+! !PUBLIC METHODS:
+!     The methods defined in this file are public and propagated up via 
+!     ESMF_AlarmMod in ESMF_Alarm.F90
+
+      public ESMF_AlarmGetInit
+      public ESMF_AlarmSetInitCreated
+      public ESMF_AlarmSetInitDeleted
+      public ESMF_AlarmGetThis
+      public ESMF_AlarmSetThis
+
 !------------------------------------------------------------------------------
 !EOPI
 
 !------------------------------------------------------------------------------
 ! The following line turns the CVS identifier string into a printable variable.
       character(*), parameter, private :: version = &
-      '$Id: ESMF_AlarmType.F90,v 1.21.2.1 2010/02/05 20:00:28 svasquez Exp $'
+      '$Id: ESMF_AlarmType.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $'
 !------------------------------------------------------------------------------
 
       contains
@@ -96,7 +112,7 @@
 ! !IROUTINE:  ESMF_AlarmGetInit - Get initialization status.
 
 ! !INTERFACE:
-    function ESMF_AlarmGetInit(d)
+      function ESMF_AlarmGetInit(d)
 !
 ! !ARGUMENTS:
       type(ESMF_Alarm), intent(in), optional :: d
@@ -107,8 +123,8 @@
 !
 !     The arguments are:
 !     \begin{description}
-!     \item [s]
-!           {\tt ESMF\_Alarm} from which to retreive status.
+!     \item [{[d]}]
+!           {\tt ESMF\_Alarm} from which to retrieve status.
 !     \end{description}
 !
 !EOPI
@@ -119,7 +135,7 @@
         ESMF_AlarmGetInit = ESMF_INIT_CREATED
       endif
 
-    end function ESMF_AlarmGetInit
+      end function ESMF_AlarmGetInit
 
 !------------------------------------------------------------------------------
 
@@ -130,11 +146,11 @@
 ! !IROUTINE: ESMF_AlarmSetInitCreated - Set Alarm init code to "CREATED"
 
 ! !INTERFACE:
-  subroutine ESMF_AlarmSetInitCreated(alarm, rc)
+      subroutine ESMF_AlarmSetInitCreated(alarm, rc)
 !
 ! !ARGUMENTS:
-    type(ESMF_Alarm), intent(inout)         :: alarm
-    integer,          intent(out), optional :: rc  
+      type(ESMF_Alarm), intent(inout)         :: alarm
+      integer,          intent(out), optional :: rc  
 !         
 !
 ! !DESCRIPTION:
@@ -151,16 +167,17 @@
 !EOPI
 !------------------------------------------------------------------------------
 
-    ! Assume failure until success
-    if (present(rc)) rc = ESMF_RC_NOT_IMPL
+      ! Assume failure until success
+      if (present(rc)) rc = ESMF_RC_NOT_IMPL
     
-    ! Set init code
-    ESMF_INIT_SET_CREATED(alarm)
+      ! Set init code
+      ESMF_INIT_SET_CREATED(alarm)
 
-    ! Return success
-    if (present(rc)) rc = ESMF_SUCCESS
+      ! Return success
+      if (present(rc)) rc = ESMF_SUCCESS
     
-  end subroutine ESMF_AlarmSetInitCreated
+      end subroutine ESMF_AlarmSetInitCreated
+
 !------------------------------------------------------------------------------
 
 ! -------------------------- ESMF-public method -------------------------------
@@ -170,11 +187,11 @@
 ! !IROUTINE: ESMF_AlarmSetInitDeleted - Set Alarm init code to "DELETED"
 
 ! !INTERFACE:
-  subroutine ESMF_AlarmSetInitDeleted(alarm, rc)
+      subroutine ESMF_AlarmSetInitDeleted(alarm, rc)
 !
 ! !ARGUMENTS:
-    type(ESMF_Alarm), intent(inout)         :: alarm
-    integer,          intent(out), optional :: rc  
+      type(ESMF_Alarm), intent(inout)         :: alarm
+      integer,          intent(out), optional :: rc  
 !         
 !
 ! !DESCRIPTION:
@@ -191,28 +208,29 @@
 !EOPI
 !------------------------------------------------------------------------------
 
-    ! Assume failure until success
-    if (present(rc)) rc = ESMF_RC_NOT_IMPL
+      ! Assume failure until success
+      if (present(rc)) rc = ESMF_RC_NOT_IMPL
     
-    ! Set init code
-    ESMF_INIT_SET_DELETED(alarm)
+      ! Set init code
+      ESMF_INIT_SET_DELETED(alarm)
 
-    ! Return success
-    if (present(rc)) rc = ESMF_SUCCESS
+      ! Return success
+      if (present(rc)) rc = ESMF_SUCCESS
     
-  end subroutine ESMF_AlarmSetInitDeleted
+      end subroutine ESMF_AlarmSetInitDeleted
+
 !------------------------------------------------------------------------------
 
 ! -------------------------- ESMF-public method -------------------------------
 !BOPI
 ! !IROUTINE: ESMF_AlarmGetThis - Internal access routine for C++ pointer
 ! !INTERFACE:
-  subroutine ESMF_AlarmGetThis(alarm, this, rc)
+      subroutine ESMF_AlarmGetThis(alarm, this, rc)
 !
 ! !ARGUMENTS:
-    type(ESMF_Alarm),   intent(in)            :: alarm
-    type(ESMF_Pointer), intent(out)           :: this
-    integer,            intent(out), optional :: rc
+      type(ESMF_Alarm),   intent(in)            :: alarm
+      type(ESMF_Pointer), intent(out)           :: this
+      integer,            intent(out), optional :: rc
 !
 !
 ! !DESCRIPTION:
@@ -231,28 +249,29 @@
 !EOPI
 !------------------------------------------------------------------------------
 
-    ! Assume failure until success
-    if (present(rc)) rc = ESMF_RC_NOT_IMPL
+      ! Assume failure until success
+      if (present(rc)) rc = ESMF_RC_NOT_IMPL
 
-    ! Copy C++ pointer
-    this = alarm%this
+      ! Copy C++ pointer
+      this = alarm%this
 
-    ! Return success
-    if (present(rc)) rc = ESMF_SUCCESS
+      ! Return success
+      if (present(rc)) rc = ESMF_SUCCESS
 
-  end subroutine ESMF_AlarmGetThis
+      end subroutine ESMF_AlarmGetThis
+
 !------------------------------------------------------------------------------
 
 ! -------------------------- ESMF-public method -------------------------------
 !BOPI
 ! !IROUTINE: ESMF_AlarmSetThis - Set C++ pointer in Alarm
 ! !INTERFACE:
-  subroutine ESMF_AlarmSetThis(alarm, this, rc)
+      subroutine ESMF_AlarmSetThis(alarm, this, rc)
 !
 ! !ARGUMENTS:
-    type(ESMF_Alarm),   intent(inout)          :: alarm
-    type(ESMF_Pointer), intent(in)             :: this
-    integer,            intent(out), optional  :: rc
+      type(ESMF_Alarm),   intent(inout)          :: alarm
+      type(ESMF_Pointer), intent(in)             :: this
+      integer,            intent(out), optional  :: rc
 !
 !
 ! !DESCRIPTION:
@@ -271,18 +290,17 @@
 !EOPI
 !------------------------------------------------------------------------------
 
-    ! Assume failure until success
-    if (present(rc)) rc = ESMF_RC_NOT_IMPL
+      ! Assume failure until success
+      if (present(rc)) rc = ESMF_RC_NOT_IMPL
 
-    ! Copy C++ pointer
-    alarm%this = this
+      ! Copy C++ pointer
+      alarm%this = this
 
-    ! Return success
-    if (present(rc)) rc = ESMF_SUCCESS
+      ! Return success
+      if (present(rc)) rc = ESMF_SUCCESS
 
-  end subroutine ESMF_AlarmSetThis
+      end subroutine ESMF_AlarmSetThis
+
 !------------------------------------------------------------------------------
-
-
 
       end module ESMF_AlarmTypeMod

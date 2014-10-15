@@ -1,0 +1,10 @@
+/get_cmip_sst_sic.py/1.1/Fri Nov 15 17:13:08 2013//Tjk-G40-GEOSctm-advcore-update3
+/get_ls_mask.py/1.1/Fri Nov 15 17:13:08 2013//Tjk-G40-GEOSctm-advcore-update3
+/get_mean_sst_sic.py/1.1/Fri Nov 15 17:13:08 2013//Tjk-G40-GEOSctm-advcore-update3
+/get_mean_sst_sic_CLIM.py/1.1/Fri Nov 15 17:13:08 2013//Tjk-G40-GEOSctm-advcore-update3
+/make_cmip_daily.py/1.1/Fri Nov 15 17:13:08 2013//Tjk-G40-GEOSctm-advcore-update3
+/make_daily_mean.py/1.1/Fri Nov 15 17:13:08 2013//Tjk-G40-GEOSctm-advcore-update3
+/sst_sic_CMIP_mean.py/1.1/Fri Nov 15 17:13:08 2013//Tjk-G40-GEOSctm-advcore-update3
+/test_make_ls_mask.py/1.1/Fri Nov 15 17:13:08 2013//Tjk-G40-GEOSctm-advcore-update3
+/write_cmip_daily.py/1.1/Fri Nov 15 17:13:08 2013//Tjk-G40-GEOSctm-advcore-update3
+D/make_CLIM////

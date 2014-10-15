@@ -1,0 +1,110 @@
+function ke (args)
+                                                                                                                            
+expid    = subwrd(args,1)
+output   = subwrd(args,2)
+debug    = subwrd(args,3)
+                                                                                                                            
+
+* Initialize
+* ----------
+'reinit'
+'set display color white'
+'set clab off'
+'c'
+
+* Get KE Budget Variables
+* -----------------------
+'run getvar KEGEN DYN'
+        qname.1 = subwrd(result,1)
+        qfile.1 = subwrd(result,2)
+        scale.1 = subwrd(result,3)
+        expdsc  = subwrd(result,4)
+        alias.1 = kegen
+'run getvar KEDYN DYN'
+        qname.2 = subwrd(result,1)
+        qfile.2 = subwrd(result,2)
+        scale.2 = subwrd(result,3)
+        alias.2 = kedyn
+'run getvar TEDYN DYN'
+        qname.3 = subwrd(result,1)
+        qfile.3 = subwrd(result,2)
+        scale.3 = subwrd(result,3)
+        alias.3 = tedyn
+'run getvar KEPHY DYN'
+        qname.4 = subwrd(result,1)
+        qfile.4 = subwrd(result,2)
+        scale.4 = subwrd(result,3)
+        alias.4 = kephy
+'run getvar TEPHY DYN'
+        qname.5 = subwrd(result,1)
+        qfile.5 = subwrd(result,2)
+        scale.5 = subwrd(result,3)
+        alias.5 = tephy
+'run getvar KEANA DYN'
+        qname.6 = subwrd(result,1)
+        qfile.6 = subwrd(result,2)
+        scale.6 = subwrd(result,3)
+        alias.6 = keana
+'run getvar TEANA DYN'
+        qname.7 = subwrd(result,1)
+        qfile.7 = subwrd(result,2)
+        scale.7 = subwrd(result,3)
+        alias.7 = teana
+'run getvar KEPG  DYN'
+        qname.8 = subwrd(result,1)
+        qfile.8 = subwrd(result,2)
+        scale.8 = subwrd(result,3)
+        alias.8 = kepg
+
+numvar = 8
+
+rc = 0
+ n = 1
+while( n<=numvar )
+if( qname.n = 'NULL' ) ; rc = 1 ; endif
+ n = n + 1
+endwhile
+if( rc = 1 ) ; return ; endif
+
+
+* Get Environment Variables
+* -------------------------
+'run getenv "GEOSUTIL"'
+         geosutil = result
+                                                                                                                            
+
+* Experiment Datasets
+* -------------------
+n = 1
+while( n<=numvar )
+
+'set dfile 'qfile.n
+'setx'
+'sety'
+'sett'
+'set z 1'
+
+'make_ts -FUNCTION 'qname.n' -NAME 'alias.n
+  newfile = subwrd(result,1)
+  kdim    = subwrd(result,2)
+
+n = n+1
+endwhile
+'set x 1'
+'set y 1'
+'set z 1'
+
+* Make Plot
+* ---------
+        flag = ""
+while ( flag = "" )
+       'run 'geosutil'/plots/tseries/ke_1 'expdsc' 'output
+        if( debug = "debug" )
+            say "Hit  ENTER  to repeat plot"
+            say "Type 'next' for  next plot, 'done' for next field"
+                 pull flag
+        else
+                 flag = "next"
+        endif
+        'c'
+endwhile

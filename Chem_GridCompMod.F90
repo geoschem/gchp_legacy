@@ -2,12 +2,12 @@
 
 module Chem_GridCompMod
 
-  USE ESMF_Mod
-  USE ESMF_DistGridMod
+  use ESMF
+!  USE ESMF_DistGridMod
   USE MAPL_Mod
 
 !  USE Chem_GridCompMod,     ONLY : ChemSetServices   => SetServices
-  USE GC_Type_Mod
+  USE GIGC_Type_Mod
   USE GIGC_Input_Opt_Mod
   USE GIGC_State_Met_Mod
   USE GIGC_State_Chm_Mod
@@ -15,6 +15,8 @@ module Chem_GridCompMod
   USE GIGC_Chunk_Mod
   USE GIGC_ErrCode_Mod
   USE CharPak_Mod
+
+  USE WETSCAV_MOD
 
   implicit none
   PRIVATE
@@ -26,6 +28,9 @@ module Chem_GridCompMod
 !
   PRIVATE                          :: Initialize_     ! Init method
   PRIVATE                          :: Run_            ! Run method  
+  PRIVATE                          :: Run1            ! Run 1 method  
+  PRIVATE                          :: Run2            ! Run 2 method  
+  PRIVATE                          :: RunAll          ! Run 1+2 method  
   PRIVATE                          :: Finalize_       ! Finalize method
   PRIVATE                          :: Extract_        ! Get values from ESMF
 !
@@ -43,7 +48,6 @@ module Chem_GridCompMod
   END TYPE CHEM_Wrap
 
   ! Objects for GEOS-Chem
-  TYPE(Spec_2_Trac)                :: Coef            ! Species <-> tracer map  
   TYPE(OptInput)                   :: Input_Opt       ! Input Options
   TYPE(MetState)                   :: State_Met       ! Meteorology state
   TYPE(ChmState)                   :: State_Chm       ! Chemistry state
@@ -55,6 +59,13 @@ module Chem_GridCompMod
 contains
 
     subroutine SetServices ( GC, RC )
+!
+! !USES:
+!
+    USE HCOI_ESMF_MOD, ONLY : HCO_SetServices
+!
+! !PARAMETERS:
+!
 
     type(ESMF_GridComp), intent(INOUT) :: GC  ! gridded component
     integer, optional  , intent(  OUT) :: RC  ! return code
@@ -78,6 +89,8 @@ contains
     TYPE(CHEM_State), POINTER     :: myState        ! Legacy state
     TYPE(CHEM_Wrap)               :: wrap           ! Wrapper for myState
     CHARACTER(LEN=ESMF_MAXSTR)    :: compName       ! Gridded Component name
+    CHARACTER(LEN=ESMF_MAXSTR)    :: HcoConfigFile  ! HEMCO configuration file
+    LOGICAL                       :: am_I_Root
 
 ! Get my name and set-up traceback handle
 ! ---------------------------------------
@@ -98,11 +111,16 @@ contains
    ! Set the Initialize, Run and Finalize entry points
    !--------------------------------------------------
    
-   call MAPL_GridCompSetEntryPoint ( GC, ESMF_SETINIT, Initialize_, RC=STATUS )
+   call MAPL_GridCompSetEntryPoint ( GC, ESMF_METHOD_INITIALIZE, Initialize_, RC=STATUS )
    VERIFY_(STATUS)
-   call MAPL_GridCompSetEntryPoint ( GC, ESMF_SETRUN, Run_, RC=STATUS )
+   call MAPL_GridCompSetEntryPoint ( GC, ESMF_METHOD_RUN, RunAll, RC=STATUS )
    VERIFY_(STATUS)
-   call MAPL_GridCompSetEntryPoint ( GC, ESMF_SETFINAL, Finalize_, RC=STATUS )
+   ! For two phase runs:
+!   call MAPL_GridCompSetEntryPoint ( GC, ESMF_METHOD_RUN, Run1, RC=STATUS )
+!   VERIFY_(STATUS)
+!   call MAPL_GridCompSetEntryPoint ( GC, ESMF_METHOD_RUN, Run2, RC=STATUS )
+!   VERIFY_(STATUS)
+   call MAPL_GridCompSetEntryPoint ( GC, ESMF_METHOD_FINALIZE, Finalize_, RC=STATUS )
    VERIFY_(STATUS)
 
    !=======================================================================
@@ -131,26 +149,13 @@ contains
 ! from registry:
 #   include "GIGCchem_ImportSpec___.h"
 
-    ! Import from HEMCO
     call MAPL_AddImportSpec(GC,                                   &
-        SHORT_NAME         = 'EMISSIONS',                         &
-        LONG_NAME          = 'tracer_surface_emissions',          &
-        UNITS              = 'kg/m2/s',                           &
-        DIMS               = MAPL_DimsHorzVert,                   &
-        VLOCATION          = MAPL_VLocationCenter,                &
-        DATATYPE           = MAPL_BundleItem,                     &
+           SHORT_NAME = 'PLE',                                    &
+           LONG_NAME  = 'pressure_at_layer_edges',                &
+           UNITS      = 'Pa',                                     &
+           DIMS       = MAPL_DimsHorzVert,                        &
+           VLOCATION  = MAPL_VLocationEdge,                       &
                                                             __RC__ )
-
-!    call MAPL_AddImportSpec(GC,                                   &
-!        SHORT_NAME         = 'DRYDEP',                            &
-!        LONG_NAME          = 'tracer_surface_drydep_rates',       &
-!        UNITS              = 'm/s',                               &
-!        DIMS               = MAPL_DimsHorzOnly,                   &
-!        VLOCATION          = MAPL_VLocationNone,                  &
-!        DATATYPE           = MAPL_BundleItem,                     &
-!                                                            __RC__ )
-
-!
 !
 ! !INTERNAL STATE:
 !
@@ -176,6 +181,14 @@ contains
 
 ! Set services now
 ! ----------------
+
+   ! Set HEMCO services
+   CALL ESMF_ConfigGetAttribute( myState%myCF, HcoConfigFile, &
+                                 Label="HEMCO_CONFIG:", __RC__ )
+   am_I_Root = MAPL_Am_I_Root()
+   CALL HCO_SetServices( am_I_Root, GC, TRIM(HcoConfigFile), __RC__ )
+
+   ! Set generic services
    call MAPL_GenericSetServices  ( GC, RC=STATUS )
    VERIFY_(STATUS)
 
@@ -229,7 +242,10 @@ contains
 !
 ! LOCAL VARIABLES:
 !
-    ! Objects
+    type (MAPL_MetaComp),     pointer  :: State
+    TYPE(ESMF_State)                   :: Internal 
+
+   ! Objects
     TYPE(ESMF_Grid)             :: Grid        ! ESMF Grid object
     TYPE(ESMF_Config)           :: MaplCF      ! ESMF Config obj (MAPL.rc)
     TYPE(ESMF_Config)           :: GeosCF      ! ESMF Config obj (GIGC*.rc) 
@@ -290,8 +306,8 @@ contains
 
 !    ! Get my MAPL_Generic state
 !    !--------------------------
-!    call MAPL_GetObjectFromGC ( GC, STATE, RC=STATUS)
-!    VERIFY_(STATUS)
+    call MAPL_GetObjectFromGC ( GC, STATE, RC=STATUS)
+    VERIFY_(STATUS)
 
     ! Initialize MAPL Generic
     !--------------------------
@@ -458,10 +474,12 @@ contains
     !=======================================================================
 
     call ESMF_StateGet(Export, 'TRACERS', bundle, __RC__ )
+    call MAPL_Get ( State, INTERNAL_ESMF_STATE=INTERNAL, RC=STATUS )
+    VERIFY_(STATUS)
 
     DO N = 1, Input_Opt%N_TRACERS
 
-       call ESMF_StateGet ( Export,     &
+       call ESMF_StateGet ( Export,       &
             trim(State_Chm%Trac_Name(N)), &
             FIELD, __RC__ )
 
@@ -469,35 +487,39 @@ contains
 
        call ESMF_AttributeSet (field,      &
             NAME  = 'TCVV',                &
-            VALUE = Input_Opt%TCVV(trcID), &
+            VALUE = real(Input_Opt%TCVV(trcID),4), &
                     __RC__ )       
 
        call ESMF_AttributeSet (field,     &
             NAME  = 'TRAC_ID',            &
             VALUE = trcID,                &
                     __RC__ )       
-      
-       MW = Input_Opt%Tracer_MW_g(trcID) ! Real*8! 
-       call ESMF_AttributeSet (field,             &
-            NAME  = 'MW_g',                       &
-            VALUE = MW, & 
-                    __RC__ )       
- 
-       ID_EMIT = Input_Opt%ID_EMITTED(trcID)
-       IF ( ID_EMIT <= 0 ) THEN
-          MolecRatio = 1.0d0
-       ELSE
-          MolecRatio = Input_Opt%TRACER_COEFF(trcID,ID_EMIT)
-       ENDIF
-       call ESMF_AttributeSet (field,             &
-            NAME  = 'MolecRatio',                 &
-            VALUE = MolecRatio,                   &
-                    __RC__ )
 
-       ! TODO: Once new species structure is in place, also 
-       ! add Henry coefficients here
+!--------------------------------------------------------
+! This was HEMCO stuff, don't think this is needed anymore
+! (ckeller, 10/10/2014)
+!--------------------------------------------------------
+!       MW = Input_Opt%Tracer_MW_g(trcID) ! Real*8! 
+!       call ESMF_AttributeSet (field,             &
+!            NAME  = 'MW_g',                       &
+!            VALUE = real(MW,4), & 
+!                    __RC__ )       
+! 
+!       ID_EMIT = Input_Opt%ID_EMITTED(trcID)
+!       IF ( ID_EMIT <= 0 ) THEN
+!          MolecRatio = 1.0d0
+!       ELSE
+!          MolecRatio = Input_Opt%TRACER_COEFF(trcID,ID_EMIT)
+!       ENDIF
+!       call ESMF_AttributeSet (field,             &
+!            NAME  = 'MolecRatio',                 &
+!            VALUE = real(MolecRatio,4),                   &
+!                    __RC__ )
+!
+!       ! TODO: Once new species structure is in place, also 
+!       ! add Henry coefficients here
        
-       call ESMF_FieldBundleAdd ( BUNDLE, FIELD, __RC__ )
+       call MAPL_FieldBundleAdd ( BUNDLE, FIELD, __RC__ )
     ENDDO
 
     call ESMF_AttributeSet (bundle,    &
@@ -524,31 +546,6 @@ contains
        print *, trim(Iam)//': TRACERS Bundle during Initialize():' 
        call ESMF_FieldBundlePrint ( bundle )
    end if
-
-!    !=======================================================================
-!    ! Match HEMCO species from HEMCO bundle with GEOS-Chem tracers 
-!    !=======================================================================
-!
-!    call ESMF_StateGet(Import, 'EMISSIONS', hcoBUNDLE, __RC__ )
-!    call ESMF_FieldBundleGet( hcoBUNDLE, fieldCount=N, __RC__ )
-!
-!    DO IND = 1, N 
-!       call ESMF_FieldBundleGet(hcoBUNDLE, IND, hcoFIELD, __RC__ ) 
-!       call ESMF_FieldGet( hcoFIELD, NAME=hcoNAME, __RC__)
-!
-!       ! Get matching ID
-!       ModID = Get_Indx( hcoNAME,              &
-!                         Input_Opt%ID_Tracer,  &
-!                         Input_Opt%Tracer_Name  )
-!
-!       call ESMF_AttributeSet (hcoFIELD,  &
-!            NAME  = 'ModID',              &
-!            VALUE = ModID,                & 
-!                                    __RC__ )
-!
-!       ! eventually add more information here
-!       
-!    ENDDO
 
     !=======================================================================
     ! All done
@@ -584,6 +581,186 @@ contains
 !------------------------------------------------------------------------------
 !BOP
 !
+! !IROUTINE: Run1
+!
+! !DESCRIPTION: Run1 is a wrapper method for the phase 1 run phase of the 
+!  GEOSCHEMchem gridded component. It calls down to the Run method of the 
+!  GEOS-Chem column chemistry code.
+!\\
+!\\
+! !INTERFACE:
+!
+  SUBROUTINE Run1 ( GC, Import, Export, Clock, RC )
+!
+! !INPUT/OUTPUT PARAMETERS:
+!
+    TYPE(ESMF_GridComp), INTENT(INOUT) :: GC       ! Ref to this GridComp
+    TYPE(ESMF_State),    INTENT(INOUT) :: Import   ! Import State
+    TYPE(ESMF_State),    INTENT(INOUT) :: Export   ! Export State
+    TYPE(ESMF_Clock),    INTENT(INOUT) :: Clock    ! ESMF Clock object
+!
+! !OUTPUT PARAMETERS:
+!
+    INTEGER,             INTENT(OUT)   :: RC       ! Error return code
+!
+! !REMARKS:
+!
+! !REVISION HISTORY:
+!  22 Sep 2014 - C. Keller   - Initial version.
+!EOP
+!------------------------------------------------------------------------------
+!BOC
+!
+! !LOCAL VARIABLES:
+!
+    CHARACTER(LEN=ESMF_MAXSTR)  :: compName    ! Name of gridded component
+    CHARACTER(LEN=ESMF_MAXSTR)  :: Iam
+    INTEGER                     :: STATUS
+
+    !=======================================================================
+    ! Run1 starts here 
+    !=======================================================================
+
+    ! Set up traceback info
+    CALL ESMF_GridCompGet( GC, name=compName, __RC__ )
+
+    ! Identify this routine to MAPL
+    Iam = TRIM(compName)//'::Run1'
+
+    ! Call run routine stage 1
+    CALL Run_ ( GC, IMPORT, EXPORT, CLOCK, 1, __RC__ )
+
+    ! Return w/ success
+    RETURN_(ESMF_SUCCESS)
+
+  END SUBROUTINE Run1 
+!EOC
+!------------------------------------------------------------------------------
+!     NASA/GSFC, Global Modeling and Assimilation Office, Code 910.1 and      !
+!          Harvard University Atmospheric Chemistry Modeling Group            !
+!------------------------------------------------------------------------------
+!BOP
+!
+! !IROUTINE: Run2
+!
+! !DESCRIPTION: Run2 is a wrapper method for the phase 2 run phase of the 
+!  GEOSCHEMchem gridded component. It calls down to the Run method of the 
+!  GEOS-Chem column chemistry code.
+!\\
+!\\
+! !INTERFACE:
+!
+  SUBROUTINE Run2 ( GC, Import, Export, Clock, RC )
+!
+! !INPUT/OUTPUT PARAMETERS:
+!
+    TYPE(ESMF_GridComp), INTENT(INOUT) :: GC       ! Ref to this GridComp
+    TYPE(ESMF_State),    INTENT(INOUT) :: Import   ! Import State
+    TYPE(ESMF_State),    INTENT(INOUT) :: Export   ! Export State
+    TYPE(ESMF_Clock),    INTENT(INOUT) :: Clock    ! ESMF Clock object
+!
+! !OUTPUT PARAMETERS:
+!
+    INTEGER,             INTENT(OUT)   :: RC       ! Error return code
+!
+! !REMARKS:
+!
+! !REVISION HISTORY:
+!  22 Sep 2014 - C. Keller   - Initial version.
+!EOP
+!------------------------------------------------------------------------------
+!BOC
+!
+! !LOCAL VARIABLES:
+!
+    CHARACTER(LEN=ESMF_MAXSTR)  :: compName    ! Name of gridded component
+    CHARACTER(LEN=ESMF_MAXSTR)  :: Iam
+    INTEGER                     :: STATUS
+
+    !=======================================================================
+    ! Run2 starts here 
+    !=======================================================================
+
+    ! Set up traceback info
+    CALL ESMF_GridCompGet( GC, name=compName, __RC__ )
+
+    ! Identify this routine to MAPL
+    Iam = TRIM(compName)//'::Run2'
+
+    ! Call run routine stage 2
+    CALL Run_ ( GC, IMPORT, EXPORT, CLOCK, 2, __RC__ )
+
+    ! Return w/ success
+    RETURN_(ESMF_SUCCESS)
+
+  END SUBROUTINE Run2 
+!EOC
+!------------------------------------------------------------------------------
+!     NASA/GSFC, Global Modeling and Assimilation Office, Code 910.1 and      !
+!          Harvard University Atmospheric Chemistry Modeling Group            !
+!------------------------------------------------------------------------------
+!BOP
+!
+! !IROUTINE: RunAll
+!
+! !DESCRIPTION: RunAll is a wrapper method to run all run phases of the 
+!  GEOSCHEMchem gridded component. It calls down to the Run method of the 
+!  GEOS-Chem column chemistry code.
+!\\
+!\\
+! !INTERFACE:
+!
+  SUBROUTINE RunAll ( GC, Import, Export, Clock, RC )
+!
+! !INPUT/OUTPUT PARAMETERS:
+!
+    TYPE(ESMF_GridComp), INTENT(INOUT) :: GC       ! Ref to this GridComp
+    TYPE(ESMF_State),    INTENT(INOUT) :: Import   ! Import State
+    TYPE(ESMF_State),    INTENT(INOUT) :: Export   ! Export State
+    TYPE(ESMF_Clock),    INTENT(INOUT) :: Clock    ! ESMF Clock object
+!
+! !OUTPUT PARAMETERS:
+!
+    INTEGER,             INTENT(OUT)   :: RC       ! Error return code
+!
+! !REMARKS:
+!
+! !REVISION HISTORY:
+!  22 Sep 2014 - C. Keller   - Initial version.
+!EOP
+!------------------------------------------------------------------------------
+!BOC
+!
+! !LOCAL VARIABLES:
+!
+    CHARACTER(LEN=ESMF_MAXSTR)  :: compName    ! Name of gridded component
+    CHARACTER(LEN=ESMF_MAXSTR)  :: Iam
+    INTEGER                     :: STATUS
+
+    !=======================================================================
+    ! RunAll starts here 
+    !=======================================================================
+
+    ! Set up traceback info
+    CALL ESMF_GridCompGet( GC, name=compName, __RC__ )
+
+    ! Identify this routine to MAPL
+    Iam = TRIM(compName)//'::RunAll'
+
+    ! Call all run routines 
+    CALL Run_ ( GC, IMPORT, EXPORT, CLOCK, -1, __RC__ )
+
+    ! Return w/ success
+    RETURN_(ESMF_SUCCESS)
+
+  END SUBROUTINE RunAll
+!EOC
+!------------------------------------------------------------------------------
+!     NASA/GSFC, Global Modeling and Assimilation Office, Code 910.1 and      !
+!          Harvard University Atmospheric Chemistry Modeling Group            !
+!------------------------------------------------------------------------------
+!BOP
+!
 ! !IROUTINE: Run_
 !
 ! !DESCRIPTION: Run_ is the run method of the GEOSCHEMchem gridded component.  
@@ -593,7 +770,7 @@ contains
 !\\
 ! !INTERFACE:
 !
-  SUBROUTINE Run_( GC, Import, Export, Clock, RC )
+  SUBROUTINE Run_( GC, Import, Export, Clock, Phase, RC )
 !
 ! !USES:
 !
@@ -606,6 +783,7 @@ contains
     TYPE(ESMF_State),    INTENT(INOUT) :: Import      ! Import State
     TYPE(ESMF_State),    INTENT(INOUT) :: Export      ! Export State
     TYPE(ESMF_Clock),    INTENT(INOUT) :: Clock       ! ESMF Clock object
+    INTEGER,             INTENT(IN   ) :: Phase       ! Run phase (1 or 2)
 !
 ! !OUTPUT PARAMETERS:
 !
@@ -678,20 +856,21 @@ contains
     REAL,  ALLOCATABLE, TARGET   :: solar(:,:)    ! Solar insolation
 
     ! Pointer arrays
-    REAL(ESMF_KIND_R4), POINTER   :: lonCtr(:,:)   ! Lon centers, this CPU [rad]
-    REAL(ESMF_KIND_R4), POINTER   :: latCtr(:,:)   ! Lat centers, this CPU [rad]
+    REAL,               POINTER, DIMENSION(:,:,:) :: PLE ! INTERNAL: PEDGE
+    REAL(ESMF_KIND_R4), POINTER                   :: lonCtr(:,:)   ! Lon centers, this CPU [rad]
+    REAL(ESMF_KIND_R4), POINTER                   :: latCtr(:,:)   ! Lat centers, this CPU [rad]
     
     INTEGER :: IM_WORLD, JM_WORLD
     INTEGER :: I_LO,     J_LO
     INTEGER :: I_HI,     J_HI
     INTEGER :: IND
 
-    ! HEMCO bundle
+    ! Tracer & HEMCO bundle
     INTEGER :: N, trcID
     REAL    :: COEFF
-    CHARACTER(LEN=ESMF_MAXSTR)   :: hcoNAME
-    TYPE(ESMF_Field      )       :: hcoFIELD      ! HEMCO emission field
-    TYPE(ESMF_FieldBundle)       :: hcoBUNDLE     ! HEMCO bundle
+    CHARACTER(LEN=ESMF_MAXSTR)   :: trcNAME,hcoNAME
+    TYPE(ESMF_Field      )       :: trcFIELD      ! HEMCO emission field
+    TYPE(ESMF_FieldBundle)       :: trcBUNDLE     ! HEMCO bundle
     REAL              , POINTER  :: fPtrArray(:,:,:)
     REAL(ESMF_KIND_R8), POINTER  :: fPtrVal, fPtr1D(:)
 
@@ -715,6 +894,8 @@ contains
 
     ! Get pointers to fields in import, internal, and export states
 #   include "GIGCchem_GetPointer___.h"
+
+    call MAPL_GetPointer ( IMPORT, PLE,  'PLE', __RC__ )
 
     ! Add Input_Opt values to GridComponent attributed for passage to 
     ! other grid-comps. Godda be a better way!
@@ -813,27 +994,24 @@ contains
     Ident%ERRMSG      = ''
 
     !=======================================================================
-    ! Populate tracer tendency array in State_Chm 
-    ! ==> Get arrays from HEMCO via hcoBUNDLE
+    ! Populate tracer array in State_Chm 
+    ! ==> Get arrays from Chemisty Export State via trcBUNDLE
     !=======================================================================
 
-    call ESMF_StateGet(IMPORT, 'EMISSIONS', hcoBUNDLE,  __RC__ )    
-    call ESMF_FieldBundleGet(hcoBUNDLE, fieldCount=N,   __RC__ ) 
+    call ESMF_StateGet(EXPORT, 'TRACERS', trcBUNDLE,  __RC__ )    
+    call ESMF_FieldBundleGet(trcBUNDLE, fieldCount=N,   __RC__ ) 
     DO IND=1, N 
-       call ESMFL_BundleGetPointerToData( hcoBUNDLE, IND, fPtrArray, __RC__)
-       call ESMF_FieldBundleGet(hcoBUNDLE, IND, hcoFIELD, __RC__ ) 
-       call ESMF_FieldGet( hcoFIELD, NAME=hcoNAME, __RC__)
+       call ESMFL_BundleGetPointerToData( trcBUNDLE, IND, fPtrArray, __RC__)
+       call ESMF_FieldBundleGet(trcBUNDLE, IND, trcFIELD, __RC__ ) 
+       call ESMF_FieldGet( trcFIELD, NAME=trcNAME, __RC__)
      
        ! Extract species ID
-       call ESMF_AttributeGet (hcoFIELD,    &
+       call ESMF_AttributeGet (trcFIELD,    &
             NAME  = 'TRAC_ID',              &
             VALUE = trcID,            __RC__ )
 
-       ! Conversion factor (kg/m2/s -> molec/cm2/s)
-       COEFF = Input_Opt%XNUMOL(trcID) / 1.0d4
-
        ! Pass to State_Chm. 
-       State_Chm%Trac_Tend(:,:,LM:1:-1,trcID) = fPtrArray !* COEFF
+!       State_Chm%Tracers(:,:,:,trcID) = fPtrArray(:,:,LM:1:-1)
     END DO
 
     !=======================================================================
@@ -842,9 +1020,14 @@ contains
 
 #   include "Includes_Before_Run.H"
 
-    where (State_Chm%Tracers .eq. 0.e0)
-       State_Chm%Tracers = 1.e-36
+    where (State_Chm%Tracers .lt. 1.e-25 .or. State_Chm%Tracers .gt. 1.e36)
+       State_Chm%Tracers = 1.e-25
     end where
+
+    IND = 1 !Get_Indx( 'TRC_O3', State_Chm%Trac_Id, State_Chm%Trac_Name )
+!    IF( IND > 0 .and. hour .lt. 1. .and. am_I_Root ) &
+!         State_Chm%Tracers = 1e-12
+    IF( am_I_Root ) State_Chm%Tracers(10:12,10:12,1,:) = 1e-12
 
     !=======================================================================
     ! If import restart does not exist, wait until next pass to run GIGC
@@ -874,6 +1057,7 @@ contains
                           Input_Opt = Input_Opt,  &  ! Input Options object
                           State_Chm = State_Chm,  &  ! Chemistry State object
                           State_Met = State_Met,  &  ! Meteorology State object
+                          Phase     = Phase,      &  ! Run phase
                           RC        = error )        ! Success or failure?
 
     ! Trap the error from GEOS-Chem
@@ -882,7 +1066,23 @@ contains
      ENDIF
 
     END IF
-    !PRINT *,"Setting haveImpRst to TRUE"
+
+!-->    ! Fix negatives! In GEOS-5, Convection can cause small negative tracer values
+!-->    DO L = 1,LM
+!-->       DO J = 1, JM
+!-->          DO I = 1,IM
+!-->             DO N = 1,Input_Opt%n_tracers
+!-->                IF (State_Chm%tracers(I,J,L,N) .lt. 0.e0 ) THEN
+!-->                   State_Chm%tracers(I,J,L,N) = 1e-36
+!-->                ENDIF
+!-->             ENDDO
+!-->          ENDDO
+!-->       ENDDO
+!-->    ENDDO
+
+    ! Do wet deposition
+!-->    CALL DO_WETDEP( am_I_Root, Input_Opt, State_Met, State_Chm, RC )
+
     Input_Opt%haveImpRst = .TRUE.
 
     !=======================================================================
@@ -890,6 +1090,25 @@ contains
     !=======================================================================
 
 #   include "Includes_After_Run.H"
+
+    !=======================================================================
+    ! Copy tracer arrays back to the bundle
+    !=======================================================================
+
+    DO IND=1, N 
+       call ESMFL_BundleGetPointerToData( trcBUNDLE, IND, fPtrArray, __RC__)
+       call ESMF_FieldBundleGet(trcBUNDLE, IND, trcFIELD, __RC__ ) 
+       call ESMF_FieldGet( trcFIELD, NAME=trcNAME, __RC__)
+     
+       ! Extract species ID
+       call ESMF_AttributeGet (trcFIELD,    &
+            NAME  = 'TRAC_ID',              &
+            VALUE = trcID,            __RC__ )
+
+       ! Pass to State_Chm: Note, assumes State_Chm%Tracers 
+       ! is already flipped in vertical in "Includes_After_Run.H"
+!       fPtrArray = State_Chm%Tracers(:,:,LM:1:-1,trcID)
+    END DO
 
     !=======================================================================
     ! All done
@@ -911,6 +1130,7 @@ contains
                ' LocT = ', f9.4 )
 
   end subroutine Run_
+
 
   subroutine Finalize_
   end subroutine Finalize_
@@ -1077,7 +1297,7 @@ contains
 
     ! Get my name and set-up traceback handle
     CALL ESMF_GridCompGet( GC, name=compName, vm=VM, __RC__ )
-    Iam = TRIM( compName ) // '::' // TRIM( Iam )
+    Iam = TRIM( compName ) // '::' // TRIM( 'Extract' )
 
     ! Get the internal state which holds the private Config object
     CALL ESMF_UserCompGetInternalState( GC, 'CHEM_State', wrap, STATUS )
@@ -1450,8 +1670,8 @@ contains
     CALL ESMF_GridGet    ( GRID,                           &
                            dimCount        = gridRank,     &
                            distGrid        = distGrid,     &
-                           __RC__ )                    
- 
+                           __RC__ )
+
     ! Get ESMF DELayout object
     CALL ESMF_DistGridGet( distGRID,                       &
                            delayout        =layout,        &
@@ -1472,8 +1692,8 @@ contains
 
     ! Get the min/max lon/lat values on each PET
     CALL ESMF_DistGridGet( distgrid,                       &
-                           minIndexPDimPDe = AL,           &
-                           maxIndexPDimPDe = AU,           &
+                           minIndexPDe = AL,           &
+                           maxIndexPDe = AU,           &
                            __RC__ )
 
     ! Local Lon indices

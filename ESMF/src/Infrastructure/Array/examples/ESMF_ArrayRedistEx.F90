@@ -1,7 +1,7 @@
-! $Id: ESMF_ArrayRedistEx.F90,v 1.10.2.1 2010/02/05 19:51:56 svasquez Exp $
+! $Id: ESMF_ArrayRedistEx.F90,v 1.1.5.1 2013-01-11 20:23:43 mathomp4 Exp $
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2010, University Corporation for Atmospheric Research,
+! Copyright 2002-2012, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -16,7 +16,7 @@
 
 program ESMF_ArrayRedistEx
 
-  use ESMF_Mod
+  use ESMF
   
   implicit none
   
@@ -25,7 +25,9 @@ program ESMF_ArrayRedistEx
   type(ESMF_VM):: vm
   type(ESMF_DistGrid):: srcDistGrid, dstDistGrid
   type(ESMF_Array):: srcArray, dstArray
-  type(ESMF_ArraySpec):: arrayspec
+  type(ESMF_Array):: srcArray1, dstArray1
+  type(ESMF_Array):: srcArray2, dstArray2
+  type(ESMF_ArraySpec):: arrayspec, arrayspec3d
   type(ESMF_RouteHandle):: redistHandle
   integer :: finalrc
   
@@ -35,10 +37,11 @@ program ESMF_ArrayRedistEx
 ! ------------------------------------------------------------------------------
 ! ------------------------------------------------------------------------------
   finalrc = ESMF_SUCCESS
-  call ESMF_Initialize(vm=vm, rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  call ESMF_Initialize(vm=vm, defaultlogfilename="ArrayRedistEx.Log", &
+                    logkindflag=ESMF_LOGKIND_MULTI, rc=rc)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   call ESMF_VMGet(vm, localPet=localPet, petCount=petCount, rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   
   if (petCount /= 4) then
     finalrc = ESMF_FAILURE
@@ -62,12 +65,12 @@ program ESMF_ArrayRedistEx
   srcDistgrid = ESMF_DistGridCreate(minIndex=(/1,1/), maxIndex=(/10,20/), &
     regDecomp=(/4,1/), rc=rc)
 !EOC  
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !BOC
   dstDistgrid = ESMF_DistGridCreate(minIndex=(/1,1/), maxIndex=(/10,20/), &
     regDecomp=(/1,4/), rc=rc)
 !EOC  
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !BOE
 ! The number of elements covered by {\tt srcDistgrid} is identical to the number
 ! of elements covered by {\tt dstDistgrid} -- in fact the index space regions
@@ -76,15 +79,15 @@ program ESMF_ArrayRedistEx
 !BOC
   call ESMF_ArraySpecSet(arrayspec, typekind=ESMF_TYPEKIND_R8, rank=2, rc=rc)
 !EOC  
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !BOC
   srcArray = ESMF_ArrayCreate(arrayspec=arrayspec, distgrid=srcDistgrid, rc=rc)
 !EOC
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !BOC
   dstArray = ESMF_ArrayCreate(arrayspec=arrayspec, distgrid=dstDistgrid, rc=rc)
 !EOC
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !BOE
 ! By construction {\tt srcArray} and {\tt dstArray} are of identical type and
 ! kind. Further the number of exclusive elements matches between both Arrays.
@@ -96,7 +99,7 @@ program ESMF_ArrayRedistEx
   call ESMF_ArrayRedistStore(srcArray=srcArray, dstArray=dstArray, &
     routehandle=redistHandle, rc=rc)
 !EOC
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !BOE
 !BOE
 ! The {\tt redistHandle} can now be used repeatedly on the {\tt srcArray}, 
@@ -106,34 +109,107 @@ program ESMF_ArrayRedistEx
   call ESMF_ArrayRedist(srcArray=srcArray, dstArray=dstArray, &
     routehandle=redistHandle, rc=rc)
 !EOC
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !BOE
-! The use of the {\tt redistHandle} is {\em not} restricted to {\tt srcArray}
-! and {\tt dstArray}. The {\tt redistHandle} can be applied to redistribute data
-! between any Array pairs that are congruent to the Array pair used during
-! precomputation. Arrays are congruent if they are defined on matching DistGrids
-! and the shape of local array allocations match for all DEs.
-!
+! The use of the precomputed {\tt redistHandle} is {\em not} restricted to
+! {\tt srcArray} and {\tt dstArray}. The {\tt redistHandle} can be used to
+! redistribute data between any Array pairs that are weakly congruent to the
+! Array pair used during precomputation. Arrays are congruent if they are
+! defined on matching DistGrids and the shape of local array allocations match
+! for all DEs. For weakly congruent Arrays the sizes of the undistributed
+! dimensions, that vary faster with memory than the first distributed
+! dimension, are permitted to be different. This means that the same
+! {\tt redistHandle} can be applied to a large class of similar Arrays that
+! differ in the number of elements in the left most undistributed dimensions.
 !EOE
+
+  call ESMF_ArrayRedistRelease(routehandle=redistHandle, rc=rc)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
+
 !BOE
-! The resources held by {\tt redistHandle} need to be deallocated by the user
-! code before the handle becomes inaccessible.
+! Neither {\tt srcArray} nor {\tt dstArray} from above hold an undistributed
+! dimension. However, the following {\tt srcArray1} and {\tt dstArray1} objects
+! are constructed to have an undistributed dimension each, that varies fastest
+! with memory. There is only one element in the undistributed dimension in each
+! Array.
+!EOE
+!BOC
+  call ESMF_ArraySpecSet(arrayspec3d, typekind=ESMF_TYPEKIND_R8, rank=3, rc=rc)
+!EOC  
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
+!BOC
+  srcArray1 = ESMF_ArrayCreate(arrayspec=arrayspec3d, distgrid=srcDistgrid, &
+    distgridToArrayMap=(/2,3/), undistLBound=(/1/), undistUBound=(/1/), rc=rc)
+!EOC
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
+!BOC
+  dstArray1 = ESMF_ArrayCreate(arrayspec=arrayspec3d, distgrid=dstDistgrid, &
+    distgridToArrayMap=(/2,3/), undistLBound=(/1/), undistUBound=(/1/), rc=rc)
+!EOC
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
+!BOE
+!BOC
+  call ESMF_ArrayRedistStore(srcArray=srcArray1, dstArray=dstArray1, &
+    routehandle=redistHandle, rc=rc)
+!EOC
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
+
+!BOE
+! The weak congruency feature permits the {\tt redistHandle} to be used on Array
+! pairs that have the same arrangement of distributed and undistributed
+! dimensions, but where the first dimension is of different size, e.g. 10
+! elements instead of 1.
+!EOE
+
+!BOC
+  srcArray2 = ESMF_ArrayCreate(arrayspec=arrayspec3d, distgrid=srcDistgrid, &
+    distgridToArrayMap=(/2,3/), undistLBound=(/1/), undistUBound=(/10/), rc=rc)
+!EOC
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
+!BOC
+  dstArray2 = ESMF_ArrayCreate(arrayspec=arrayspec3d, distgrid=dstDistgrid, &
+    distgridToArrayMap=(/2,3/), undistLBound=(/1/), undistUBound=(/10/), rc=rc)
+!EOC
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
+!BOE
+
+!BOC
+  call ESMF_ArrayRedist(srcArray=srcArray2, dstArray=dstArray2, &
+    routehandle=redistHandle, rc=rc)
+!EOC
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
+
+!BOE
+! When done, the resources held by {\tt redistHandle} need to be deallocated
+! by the user code before the handle becomes inaccessible.
 !EOE
 !BOC
   call ESMF_ArrayRedistRelease(routehandle=redistHandle, rc=rc)
 !EOC
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   
+  call ESMF_ArrayDestroy(srcArray1, rc=rc) ! destroy the Array object
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
+  call ESMF_ArrayDestroy(dstArray1, rc=rc) ! destroy the Array object
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
+
+  call ESMF_ArrayDestroy(srcArray2, rc=rc) ! destroy the Array object
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
+  call ESMF_ArrayDestroy(dstArray2, rc=rc) ! destroy the Array object
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
+
   call ESMF_ArrayDestroy(dstArray, rc=rc) ! destroy the Array object
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   call ESMF_DistGridDestroy(dstDistgrid, rc=rc) ! destroy the DistGrid object
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   
 !BOE
+! \begin{sloppypar}
 ! In {\em default} mode, i.e. without providing the optional
 ! {\tt srcToDstTransposeMap} argument, {\tt ESMF\_ArrayRedistStore()} does not
 ! require equal number of dimensions in source and destination Array. Only the
 ! total number of elements must match.
+! \end{sloppypar}
 !
 ! Specifying {\tt srcToDstTransposeMap} switches {\tt ESMF\_ArrayRedistStore()}
 ! into {\em transpose} mode. In this mode each dimension of {\tt srcArray}
@@ -142,16 +218,17 @@ program ESMF_ArrayRedistEx
 ! 
 !EOE
 !BOC
-  dstDistgrid = ESMF_DistGridCreate(minIndex=(/1,1/), maxIndex=(/20,10/), rc=rc)
+  dstDistgrid = ESMF_DistGridCreate(minIndex=(/1,1/), maxIndex=(/20,10/), &
+      rc=rc)
 !EOC  
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !BOC
   dstArray = ESMF_ArrayCreate(arrayspec=arrayspec, distgrid=dstDistgrid, rc=rc)
 !EOC
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
   call ESMF_ArrayGet(srcArray, farrayPtr=farray2d, rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   counter = localPet*100
   do j=lbound(farray2d,2),ubound(farray2d,2)
     do i=lbound(farray2d,1),ubound(farray2d,1)
@@ -175,33 +252,35 @@ program ESMF_ArrayRedistEx
   call ESMF_ArrayRedistStore(srcArray=srcArray, dstArray=dstArray, &
     routehandle=redistHandle, srcToDstTransposeMap=(/2,1/), rc=rc)
 !EOC
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !BOC
   call ESMF_ArrayRedist(srcArray=srcArray, dstArray=dstArray, &
     routehandle=redistHandle, rc=rc)
 !EOC
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
 !  call ESMF_ArrayPrint(dstArray)
 
   call ESMF_ArrayRedistRelease(routehandle=redistHandle, rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   
   call ESMF_ArrayDestroy(srcArray, rc=rc) ! destroy the Array object
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   call ESMF_DistGridDestroy(srcDistgrid, rc=rc) ! destroy the DistGrid object
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   call ESMF_ArrayDestroy(dstArray, rc=rc) ! destroy the Array object
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   call ESMF_DistGridDestroy(dstDistgrid, rc=rc) ! destroy the DistGrid object
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
 !BOE
+! \begin{sloppypar}
 ! The transpose mode of {\tt ESMF\_ArrayRedist()} is not limited to
 ! distributed dimensions of Arrays. The {\tt srcToDstTransposeMap} argument
 ! can be used to transpose undistributed dimensions in the same manner.
 ! Furthermore transposing distributed and undistributed dimensions between
 ! Arrays is also supported.
+! \end{sloppypar}
 !
 ! The {\tt srcArray} used in the following examples is of rank 4 with 2 
 ! distributed and 2 undistributed dimensions. The distributed dimensions
@@ -213,17 +292,17 @@ program ESMF_ArrayRedistEx
 !BOC
   call ESMF_ArraySpecSet(arrayspec, typekind=ESMF_TYPEKIND_R8, rank=4, rc=rc)
 !EOC  
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !BOC
   srcDistgrid = ESMF_DistGridCreate(minIndex=(/1,1/), maxIndex=(/100,200/), &
     rc=rc)
 !EOC  
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !BOC
   srcArray = ESMF_ArrayCreate(arrayspec=arrayspec, distgrid=srcDistgrid, &
     undistLBound=(/1,1/), undistUBound=(/2,3/), rc=rc)
 !EOC
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
 !BOE
 ! The first {\tt dstArray} to consider is defined on a DistGrid that also 
@@ -237,12 +316,12 @@ program ESMF_ArrayRedistEx
   dstDistgrid = ESMF_DistGridCreate(minIndex=(/1,1/), maxIndex=(/100,200/), &
     rc=rc)
 !EOC  
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !BOC
   dstArray = ESMF_ArrayCreate(arrayspec=arrayspec, distgrid=dstDistgrid, &
     undistLBound=(/1,1/), undistUBound=(/3,2/), rc=rc)
 !EOC
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
 !BOE
 ! The desired mapping between {\tt srcArray} and {\tt dstArray} dimensions
@@ -253,18 +332,18 @@ program ESMF_ArrayRedistEx
   call ESMF_ArrayRedistStore(srcArray=srcArray, dstArray=dstArray, &
     routehandle=redistHandle, srcToDstTransposeMap=(/1,2,4,3/), rc=rc)
 !EOC
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !BOC
   call ESMF_ArrayRedist(srcArray=srcArray, dstArray=dstArray, &
     routehandle=redistHandle, rc=rc)
 !EOC
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
   call ESMF_ArrayRedistRelease(routehandle=redistHandle, rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   
   call ESMF_ArrayDestroy(dstArray, rc=rc) ! destroy the Array object
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
 !BOE
 ! Next consider a {\tt dstArray} that is defined on the same {\tt dstDistgrid},
@@ -280,7 +359,7 @@ program ESMF_ArrayRedistEx
     distgridToArrayMap=(/2,3/), undistLBound=(/1,1/), undistUBound=(/3,2/), &
     rc=rc)
 !EOC
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   
 !BOE
 ! Again the sizes of the undistributed dimensions are chosen in reverse order
@@ -292,20 +371,20 @@ program ESMF_ArrayRedistEx
   call ESMF_ArrayRedistStore(srcArray=srcArray, dstArray=dstArray, &
     routehandle=redistHandle, srcToDstTransposeMap=(/2,3,4,1/), rc=rc)
 !EOC
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !BOC
   call ESMF_ArrayRedist(srcArray=srcArray, dstArray=dstArray, &
     routehandle=redistHandle, rc=rc)
 !EOC
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
   call ESMF_ArrayRedistRelease(routehandle=redistHandle, rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   
   call ESMF_ArrayDestroy(dstArray, rc=rc) ! destroy the Array object
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   call ESMF_DistGridDestroy(dstDistgrid, rc=rc) ! destroy the DistGrid object
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
 !BOE
 ! Finally consider the case where {\tt dstArray} is constructed on a 
@@ -317,12 +396,12 @@ program ESMF_ArrayRedistEx
   dstDistgrid = ESMF_DistGridCreate(minIndex=(/1,1/), maxIndex=(/200,3/), &
     rc=rc)
 !EOC  
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !BOC
   dstArray = ESMF_ArrayCreate(arrayspec=arrayspec, distgrid=dstDistgrid, &
     undistLBound=(/1,1/), undistUBound=(/100,2/), rc=rc)
 !EOC
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
 !BOE
 ! By construction {\tt srcArray} and {\tt dstArray} hold the same number of
@@ -336,28 +415,29 @@ program ESMF_ArrayRedistEx
   call ESMF_ArrayRedistStore(srcArray=srcArray, dstArray=dstArray, &
     routehandle=redistHandle, srcToDstTransposeMap=(/3,1,4,2/), rc=rc)
 !EOC
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !BOC
   call ESMF_ArrayRedist(srcArray=srcArray, dstArray=dstArray, &
     routehandle=redistHandle, rc=rc)
 !EOC
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
   call ESMF_ArrayRedistRelease(routehandle=redistHandle, rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
 !-------------------------
 
   call ESMF_ArrayDestroy(srcArray, rc=rc) ! destroy the Array object
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   call ESMF_DistGridDestroy(srcDistgrid, rc=rc) ! destroy the DistGrid object
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   call ESMF_ArrayDestroy(dstArray, rc=rc) ! destroy the Array object
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   call ESMF_DistGridDestroy(dstDistgrid, rc=rc) ! destroy the DistGrid object
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
 !BOE
+! \begin{sloppypar}
 ! The default mode of Array redistribution, i.e. without providing a
 ! {\tt srcToDstTransposeMap} to {\tt ESMF\_ArrayRedistStore()}, also supports
 ! undistributed Array dimensions. The requirement in this case is that the 
@@ -365,33 +445,34 @@ program ESMF_ArrayRedistEx
 ! undistributed dimensions, be the same for source and destination Array.
 ! In this mode the number of undistributed dimensions need not match between
 ! source and destination.
+! \end{sloppypar}
 !EOE
 !BOC
   call ESMF_ArraySpecSet(arrayspec, typekind=ESMF_TYPEKIND_R8, rank=4, rc=rc)
 !EOC  
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !BOC
   srcDistgrid = ESMF_DistGridCreate(minIndex=(/1,1/), maxIndex=(/10,20/), &
     regDecomp=(/4,1/), rc=rc)
 !EOC  
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !BOC
   srcArray = ESMF_ArrayCreate(arrayspec=arrayspec, distgrid=srcDistgrid, &
     undistLBound=(/1,1/), undistUBound=(/2,4/), rc=rc)
 !EOC
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !BOC
   dstDistgrid = ESMF_DistGridCreate(minIndex=(/1,1/), maxIndex=(/10,20/), &
     regDecomp=(/1,4/), rc=rc)
 !EOC  
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !BOE
 !BOC
   dstArray = ESMF_ArrayCreate(arrayspec=arrayspec, distgrid=dstDistgrid, &
     distgridToArrayMap=(/2,3/), undistLBound=(/1,1/), undistUBound=(/2,4/), &
     rc=rc)
 !EOC
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !BOE
 ! Both {\tt srcArray} and {\tt dstArray} have two undistributed dimensions and
 ! a total count of undistributed elements of $ 2 \times 4 = 8$.
@@ -408,7 +489,7 @@ program ESMF_ArrayRedistEx
   call ESMF_ArrayRedistStore(srcArray=srcArray, dstArray=dstArray, &
     routehandle=redistHandle, rc=rc)
 !EOC
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !BOE
 !BOE
 ! The redistribution operation by default applies the identity operation between
@@ -423,12 +504,12 @@ program ESMF_ArrayRedistEx
   call ESMF_ArrayRedist(srcArray=srcArray, dstArray=dstArray, &
     routehandle=redistHandle, rc=rc)
 !EOC
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
   call ESMF_ArrayRedistRelease(routehandle=redistHandle, rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   call ESMF_ArrayDestroy(dstArray, rc=rc) ! destroy the Array object
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
 !BOE
 ! Array redistribution does {\em not} require the same number of undistributed
@@ -438,13 +519,13 @@ program ESMF_ArrayRedistEx
 !BOC
   call ESMF_ArraySpecSet(arrayspec, typekind=ESMF_TYPEKIND_R8, rank=3, rc=rc)
 !EOC  
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !BOC
   dstArray = ESMF_ArrayCreate(arrayspec=arrayspec, distgrid=dstDistgrid, &
     distgridToArrayMap=(/1,3/), undistLBound=(/11/), undistUBound=(/18/), &
     rc=rc)
 !EOC
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !BOE
 ! This {\tt dstArray} object only has a single undistributed dimension, while
 ! the {\tt srcArray}, defined further back, has two undistributed dimensions.
@@ -454,7 +535,7 @@ program ESMF_ArrayRedistEx
   call ESMF_ArrayRedistStore(srcArray=srcArray, dstArray=dstArray, &
     routehandle=redistHandle, rc=rc)
 !EOC
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !BOE
 !BOE
 ! In this case the default identity operation between the elements of
@@ -465,10 +546,10 @@ program ESMF_ArrayRedistEx
   call ESMF_ArrayRedist(srcArray=srcArray, dstArray=dstArray, &
     routehandle=redistHandle, rc=rc)
 !EOC
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
   call ESMF_ArrayRedistRelease(routehandle=redistHandle, rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !!!! THIS IS WHERE I NEED TO ADD:
@@ -478,13 +559,13 @@ program ESMF_ArrayRedistEx
 
 
   call ESMF_ArrayDestroy(srcArray, rc=rc) ! destroy the Array object
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   call ESMF_DistGridDestroy(srcDistgrid, rc=rc) ! destroy the DistGrid object
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   call ESMF_ArrayDestroy(dstArray, rc=rc) ! destroy the Array object
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   call ESMF_DistGridDestroy(dstDistgrid, rc=rc) ! destroy the DistGrid object
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   
 ! ------------------------------------------------------------------------------
 ! ------------------------------------------------------------------------------

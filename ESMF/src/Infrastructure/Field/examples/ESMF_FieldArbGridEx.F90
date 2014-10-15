@@ -1,7 +1,7 @@
-! $Id: ESMF_FieldArbGridEx.F90,v 1.4.2.1 2010/02/05 19:55:30 svasquez Exp $
+! $Id$
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2010, University Corporation for Atmospheric Research,
+! Copyright 2002-2012, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -24,7 +24,7 @@
 #include "ESMF.h"
     ! ESMF Framework module
     use ESMF_TestMod
-    use ESMF_Mod
+    use ESMF
     implicit none
     
     type(ESMF_Grid) :: grid3d
@@ -38,21 +38,22 @@
     integer                 :: finalrc, rc
     type(ESMF_Field)        :: field
     logical :: correct
-    integer :: memDimCount, dimCount
+    integer :: rank, dimCount
 
 !   !Set finalrc to success
     finalrc = ESMF_SUCCESS
 
-    call ESMF_Initialize(vm=vm, rc=rc)
-    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+    call ESMF_Initialize(vm=vm, defaultlogfilename="FieldArbGridEx.Log", &
+                    logkindflag=ESMF_LOGKIND_MULTI, rc=rc)
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
     ! Calculate localArbIndex and localArbIndexCount for a 100x200 2D arbitrary grid with 
     ! an optional undistributed 3rd dimenison of size 4
     ! get global VM
     call ESMF_VMGetGlobal(vm, rc=rc)
-    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
     call ESMF_VMGet(vm, petCount=petCount, localPet=myPet, rc=rc)
-    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(terminationflag=ESMF_ABORT)
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   
     ! grid dimension: xdim and ydim are arbitrarily distributed
     xdim = 100
@@ -115,19 +116,19 @@
 !-------------------------------- Example -----------------------------
 !>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%
 !BOE
-!\subsubsection{Field on arbitrarily distributed Grid}
+!\subsubsection{Create a Field on an arbitrarily distributed Grid}
 !\label{sec:field:usage:createArbGrid}
 !
 !  With the introduction of Field on arbitrarily distributed Grid, Field has two kinds of dimension
 !  count: one associated geometrical (or physical) dimensionality, the other one associated with its
 !  memory index space representation. Field and Grid dimCount reflect the physical index 
-!  space of the objects. A new type of dimCount  memDimCount should be added to both of these entities. 
-!  memDimCount gives the number of dimensions of the memory index space of the objects.
+!  space of the objects. A new type of dimCount  rank should be added to both of these entities. 
+!  rank gives the number of dimensions of the memory index space of the objects.
 !  This would be the dimension of the pointer pulled out of Field and the
 !  size of the bounds vector, for example. 
 !
-!  For non-arbitrary Grids memDimCount=dimCount, but for grids and fields with
-!  arbitrary dimensions memDimCount = dimCount - (number of Arb dims) + 1
+!  For non-arbitrary Grids rank=dimCount, but for grids and fields with
+!  arbitrary dimensions rank = dimCount - (number of Arb dims) + 1
 !  (Internally Field can use the Arb info from the grid to create the mapping
 !  from the Field Array to the DistGrid)
 !
@@ -149,10 +150,12 @@
 !EOE
 
 !BOC
-    ! create a 3D grid with the first 2 dimensions collapsed and arbitrarily distributed
-    grid3d = ESMF_GridCreateShapeTile("arb3dgrid", coordTypeKind=ESMF_TYPEKIND_R8, &
+    ! create a 3D grid with the first 2 dimensions collapsed 
+    ! and arbitrarily distributed
+    grid3d = ESMF_GridCreateNoPeriDim(coordTypeKind=ESMF_TYPEKIND_R8, &
       minIndex=(/1,1,1/), maxIndex=(/xdim, ydim,zdim/), &
-      localArbIndex=localArbIndex,localArbIndexCount=localArbIndexCount,rc=rc)
+      arbIndexList=localArbIndex,arbIndexCount=localArbIndexCount, &
+      name="arb3dgrid", rc=rc)
     if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
 
     ! create a 2D arrayspec
@@ -164,12 +167,14 @@
     field = ESMF_FieldCreate(grid3d, arrayspec2D, rc=rc)
     if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
   
-    call ESMF_FieldGet(field, memDimCount=memDimCount, dimCount=dimCount, rc=rc)
-    if (myPet .eq. 0) print *, 'Field memDimCount, dimCount', memDimCount, dimCount
+    call ESMF_FieldGet(field, rank=rank, dimCount=dimCount, &
+                       rc=rc)
+    if (myPet .eq. 0) print *, 'Field rank, dimCount', &
+                                rank, dimCount
     if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
   
     ! verify that the dimension counts are correct
-    if (memDimCount .ne. 2) correct = .false.
+    if (rank .ne. 2) correct = .false.
     if (dimCount .ne. 3) correct = .false.  
 !EOC
     call ESMF_FieldDestroy(field, rc=rc)
@@ -179,7 +184,7 @@
 !-------------------------------- Example -----------------------------
 !>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%
 !BOE
-!\subsubsection{Field on arbitrarily distributed Grid with replicated dimension and ungridded bounds}
+!\subsubsection{Create a Field on an arbitrarily distributed Grid with replicated dimensions \& ungridded bounds}
 !\label{sec:field:usage:createArbGridRep}
 !
 !  The next example is slightly more complicated in
@@ -201,11 +206,13 @@
             ungriddedLBound=(/1/), ungriddedUBound=(/10/),rc=rc)
     if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
   
-    call ESMF_FieldGet(field, memDimCount=memDimCount, dimCount=dimCount, rc=rc)
-    if (myPet .eq. 0) print *, 'Field memDimCount, dimCount', memDimCount, dimCount
+    call ESMF_FieldGet(field, rank=rank, dimCount=dimCount, &
+                       rc=rc)
+    if (myPet .eq. 0) print *, 'Field rank, dimCount', &
+                                rank, dimCount
     if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
   
-    if (memDimCount .ne. 2) correct = .false.
+    if (rank .ne. 2) correct = .false.
     if (dimCount .ne. 2) correct = .false.  
 !EOC
     print *, "Field with replicated dimension returned"

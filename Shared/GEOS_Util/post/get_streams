@@ -1,0 +1,84 @@
+#!/bin/csh -f
+
+set HISTORYRC = $1
+
+# Test for New HISTORY.rc Format
+# ------------------------------
+set   test   = `grep COLLECTIONS $HISTORYRC`
+if( "$test" != "" ) then
+
+# Find Collections
+# ----------------
+
+set collections = ''
+foreach line ("`cat $HISTORYRC`")
+   set firstword  = `echo $line | awk '{print $1}'`
+   set firstchar  = `echo $firstword | cut -c1`
+   set secondword = `echo $line | awk '{print $2}'`
+
+   if ( $firstword == "::" ) goto done
+
+   if ( $firstchar != "#" ) then
+      set collection  = `echo $firstword | sed -e "s/'//g"`
+      set collections = `echo $collections $collection`
+      if ( $secondword == :: ) goto done
+   endif
+
+   if ( $firstword == COLLECTIONS: ) then
+      set collections = `echo $secondword | sed -e "s/'//g"`
+   endif
+end
+done:
+echo ${collections}
+
+else
+
+# Determine Output Stream Names from HISTORY RC File
+# --------------------------------------------------
+set HISTORY = `cat $HISTORYRC | sed -e 's/,/ , /g'`
+set streams = ""
+set      filenames = `cat $HISTORY | grep -i filename | grep -v "/dev/null" | grep -v "#"`
+foreach  filename ( $filenames )
+  set    filename = `echo $filename | grep "'" `
+  if(   $filename != "" ) then
+         set filename = `echo $filename | cut -d "'" -f2`
+         set  streams = `echo $streams $filename`
+  endif
+end
+
+# Remove Template Syntax from Stream Names
+# ----------------------------------------
+set output_streams = ""
+foreach    stream ( $streams )
+set output_stream = ""
+    @ n = 1
+      set node = `echo $stream | cut -d "." -f$n`
+      while( "${node}" != '' )
+      set   add_node = TRUE
+            @ m = 1
+        set bit = `echo $node | cut -b $m`
+        while( "${bit}" != ''  )
+           if( "${bit}" != '%' ) then
+                  @ m = $m + 1
+                  set bit = `echo $node | cut -b $m`
+           else
+                  set add_node = FALSE
+                  set bit = ''
+           endif
+        end
+        if( ${add_node} == 'TRUE' ) then
+             if( "${output_stream}" == '' ) then
+               set  output_stream = ${node}
+             else
+               set  output_stream = `echo ${output_stream}.${node}`
+             endif
+        endif
+    @ n = $n + 1
+      set node = `echo $stream | cut -d "." -f$n`
+      if( $node == ${output_stream} ) set node = ''
+      end
+set output_streams = `echo ${output_streams}  ${output_stream}`
+end
+echo ${output_streams}
+
+endif

@@ -1,4 +1,4 @@
-! $Id: user_model2.F90,v 1.55 2009/09/29 16:53:07 feiliu Exp $
+! $Id: user_model2.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
 !
 ! Example/test code which shows User Component calls.
 
@@ -16,7 +16,7 @@
     module user_model2
 
     ! ESMF Framework module
-    use ESMF_Mod
+    use ESMF
 
     implicit none
     
@@ -38,11 +38,11 @@
 
         ! Register the callback routines.
 
-        call ESMF_GridCompSetEntryPoint(comp, ESMF_SETINIT, user_init, rc=rc)
+        call ESMF_GridCompSetEntryPoint(comp, ESMF_METHOD_INITIALIZE, user_init, rc=rc)
         if(rc/=ESMF_SUCCESS) return
-        call ESMF_GridCompSetEntryPoint(comp, ESMF_SETRUN, user_run, rc=rc)
+        call ESMF_GridCompSetEntryPoint(comp, ESMF_METHOD_RUN, user_run, rc=rc)
         if(rc/=ESMF_SUCCESS) return
-        call ESMF_GridCompSetEntryPoint(comp, ESMF_SETFINAL, user_final, rc=rc)
+        call ESMF_GridCompSetEntryPoint(comp, ESMF_METHOD_FINALIZE, user_final, rc=rc)
         if(rc/=ESMF_SUCCESS) return
 
         print *, "Registered Initialize, Run, and Finalize routines"
@@ -94,7 +94,7 @@
       dx = (max(1)-min(1))/(counts(1)-1)
       dy = (max(2)-min(2))/(counts(2)-1)
 
-      grid1 = ESMF_GridCreateShapeTile(minIndex=(/1,1/), maxIndex=counts, &
+      grid1 = ESMF_GridCreateNoPeriDim(minIndex=(/1,1/), maxIndex=counts, &
             gridEdgeLWidth=(/0,0/), gridEdgeUWidth=(/0,0/), &
             indexflag=ESMF_INDEX_GLOBAL, &
             regDecomp=(/ npets/2, 2/), name="dest grid", rc=rc)
@@ -102,10 +102,10 @@
       call ESMF_GridAddCoord(grid1, rc=rc)
       if(rc/=ESMF_SUCCESS) return
       call ESMF_GridGetCoord(grid1, localDE=0, coordDim=1, &
-                         fptr=coordX, computationalLBound=tlb, computationalUBound=tub, rc=rc)
+                         farrayPtr=coordX, computationalLBound=tlb, computationalUBound=tub, rc=rc)
       if(rc/=ESMF_SUCCESS) return
       call ESMF_GridGetCoord(grid1, localDE=0, coordDim=2, &
-                         fptr=coordY, rc=rc)
+                         farrayPtr=coordY, rc=rc)
       if(rc/=ESMF_SUCCESS) return
       do j   = tlb(2), tub(2)
         do i = tlb(1), tub(1)
@@ -121,7 +121,7 @@
 
       ! Create the field and have it create the array internally
       humidity = ESMF_FieldCreate(grid1, arrayspec, &
-                                  maxHaloLWidth=(/0,0/), maxHaloUWidth=(/0,0/), &
+                                  totalLWidth=(/0,0/), totalUWidth=(/0,0/), &
                                   name="humidity", rc=rc)
       if(rc/=ESMF_SUCCESS) return
   
@@ -129,7 +129,7 @@
       call ESMF_FieldGet(humidity, farrayPtr=idata, rc=rc)
       if(rc/=ESMF_SUCCESS) return
   
-      call ESMF_StateAdd(importState, humidity, rc)
+      call ESMF_StateAdd(importState, (/humidity/), rc=rc)
       if(rc/=ESMF_SUCCESS) return
       !   call ESMF_StatePrint(importState, rc=rc)
   
@@ -226,7 +226,7 @@
       integer, intent(out) :: rc
 
       ! Local variables
-      integer :: i, j, i1, j1, haloWidth, counts(2), haloUWidth(2), tlb(2), tub(2)
+      integer :: i, j, i1, j1, haloWidth, counts(2), haloUWidth(2,1), tlb(2), tub(2)
       type(ESMF_Grid) :: grid
       real(ESMF_KIND_R8) :: pi, error, maxError, maxPerError
       real(ESMF_KIND_R8) :: minCValue, maxCValue, minDValue, maxDValue
@@ -239,15 +239,15 @@
 
       ! get the grid and coordinates
       call ESMF_FieldGet(humidity, grid=grid, &
-                         maxHaloUWidth=haloUWidth, rc=rc)
+                         totalUWidth=haloUWidth, rc=rc)
       if(rc/=ESMF_SUCCESS) return
-      haloWidth=haloUWidth(1)
+      haloWidth=haloUWidth(1,1)
       call ESMF_GridGetCoord(grid, localDE=0, coordDim=1, &
                             computationalLBound=tlb, computationalUBound=tub, &
-                           fptr=coordX, rc=rc)
+                           farrayPtr=coordX, rc=rc)
       if(rc/=ESMF_SUCCESS) return
       call ESMF_GridGetCoord(grid, localDE=0, coordDim=2, &
-                           fptr=coordY, rc=rc)
+                           farrayPtr=coordY, rc=rc)
       if(rc/=ESMF_SUCCESS) return
 
       ! update field values here

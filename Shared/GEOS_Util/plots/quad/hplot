@@ -1,0 +1,282 @@
+function hplt (args)
+
+'numargs  'args
+ numargs = result
+
+        num = 0
+while ( num < numargs )
+        num = num + 1
+
+if( subwrd(args,num) = '-EXPID'   ) ; expid    = subwrd(args,num+1) ; endif
+if( subwrd(args,num) = '-EXPORT'  ) ; export   = subwrd(args,num+1) ; endif
+if( subwrd(args,num) = '-PFIELD'  ) ; pfield   = subwrd(args,num+1) ; endif
+if( subwrd(args,num) = '-OFIELD'  ) ; ofield   = subwrd(args,num+1) ; endif
+if( subwrd(args,num) = '-PFILE'   ) ; pfile    = subwrd(args,num+1) ; endif
+if( subwrd(args,num) = '-OFILE'   ) ; ofile    = subwrd(args,num+1) ; endif
+if( subwrd(args,num) = '-ONAME'   ) ; obsnam   = subwrd(args,num+1) ; endif
+if( subwrd(args,num) = '-OBDATE'  ) ; begdateo = subwrd(args,num+1) ; endif
+if( subwrd(args,num) = '-OEDATE'  ) ; enddateo = subwrd(args,num+1) ; endif
+if( subwrd(args,num) = '-NMOD'    ) ; nmod     = subwrd(args,num+1) ; endif
+if( subwrd(args,num) = '-NOBS'    ) ; nobs     = subwrd(args,num+1) ; endif
+if( subwrd(args,num) = '-ODESC'   ) ; odesc    = subwrd(args,num+1) ; endif
+if( subwrd(args,num) = '-OUTPUT'  ) ; output   = subwrd(args,num+1) ; endif
+if( subwrd(args,num) = '-SEASON'  ) ; season   = subwrd(args,num+1) ; endif
+if( subwrd(args,num) = '-LEV'     ) ; level    = subwrd(args,num+1) ; endif
+if( subwrd(args,num) = '-TYPE'    ) ; type     = subwrd(args,num+1) ; endif
+
+endwhile
+
+'uppercase 'type
+            TYPE = result
+
+say '-EXPID 'expid
+say '-EXPORT 'export
+say '-TYPE   'TYPE
+say '-PFILE 'pfile
+say '-OFILE 'ofile
+say '-ONAME 'obsnam
+say '-OBDATE 'begdateo
+say '-OEDATE 'enddateo
+say '-NMOD 'nmod
+say '-NOBS 'nobs
+say '-ODESC 'odesc
+say '-OUTPUT 'output
+say '-SEASON 'season
+say '-LEV    'level
+
+
+* Get Dates
+* ---------
+'run getenv "BEGDATE"'
+         begdate  = result
+'run getenv "ENDDATE"'
+         enddate  = result
+if( begdate = "NULL" )
+   'set dfile 1'
+   'set t    '1
+   'getinfo date'
+         begdate = result
+endif
+if( enddate = "NULL" )
+   'set dfile 1'
+   'getinfo tdim'
+            tdim = result
+   'set t  'tdim
+   'getinfo date'
+         enddate = result
+endif
+
+'run getenv "CLIMATE"'
+         climate = result
+if( begdate = begdateo & enddate = enddateo ) 
+         climate = 'Actual'
+endif
+
+
+* Get Plotting Values from Resource File
+* --------------------------------------
+'run getenv "GEOSUTIL"'
+         geosutil = result
+PLOTRC = geosutil'/plots/grads_util/plot.rc'
+
+
+say ''
+                        'getresource 'PLOTRC' 'export'_TITLE_'TYPE''level
+if( result = 'NULL' ) ; 'getresource 'PLOTRC' 'export'_TITLE_'TYPE ; endif
+                                                              name = result
+                        'getresource 'PLOTRC' 'export'_FACT_'TYPE''level
+if( result = 'NULL' ) ; 'getresource 'PLOTRC' 'export'_FACT_'TYPE ; endif
+                                                             fact = result
+
+'getresource 'PLOTRC' 'export'_CCOLS_H'           ; ccols = result
+'getresource 'PLOTRC' 'export'_CLEVS_'TYPE''level ; clevs = result
+'getresource 'PLOTRC' 'export'_DLEVS_'TYPE''level ; dlevs = result
+'getresource 'PLOTRC' 'export'_CINT_'TYPE''level  ; cint  = result
+'getresource 'PLOTRC' 'export'_BLACK'             ; black = result
+say ''
+
+if( fact = 'NULL' ) ; fact = 1 ; endif
+
+'rgbset'
+'set rgb 84 204 204 204'
+'set rgb 85 137 137 137'
+ dcols = '55  49  47  45  44  36  34  33  32  0  21  22  23  24  25  26  27  28 69'
+
+* Plot Transient Wave Field
+* -------------------------
+'c'
+'set display color white'
+'set vpage off'
+'set parea off'
+'set grid  off'
+'set mproj scaled'
+'set frame on'
+'set xlopts 1 3 .11'
+'set ylopts 1 3 .11'
+
+'define qmod  = q'type'q'type'm*'fact
+'define qobs  = q'type'q'type'o*'fact
+'define maskm = 1 + qmod-qmod'
+
+* Get Dimension of Environment
+* ----------------------------
+'getinfo lonmin'
+         lonbeg = result
+'getinfo lonmax'
+         lonend = result
+'getinfo latmin'
+         latbeg = result
+'getinfo latmax'
+         latend = result
+
+say 'Environment Dimension: 'lonbeg' 'lonend' 'latbeg' 'latend
+
+* Determine DLAT & DLON of Analysis
+* ---------------------------------
+'set dfile 'ofile
+'set z 1'
+'set t 1'
+'getinfo dlat'
+         dlat = result
+'getinfo dlon'
+         dlon = result
+'set gxout shaded'
+
+say 'Analysis DLAT: 'dlat
+say 'Analysis DLON: 'dlon
+
+'set lon 'lonbeg' 'lonend
+'set lat 'latbeg' 'latend
+
+say 'define masko = regrid2( maskm,'dlon','dlat',bs_p1,'lonbeg','latbeg' )'
+    'define masko = regrid2( maskm,'dlon','dlat',bs_p1,'lonbeg','latbeg' )'
+    'define qobso = regrid2( qobs ,'dlon','dlat',bs_p1,'lonbeg','latbeg' )'
+
+'set dfile 1'
+'set lon 'lonbeg' 'lonend
+'set lat 'latbeg' 'latend
+
+
+cint = subwrd(cint,1)
+
+'set vpage 0 8.5 0.0 11'
+'set parea 1.5 7.0 7.70 10.50'
+'set grads off'
+'set gxout shaded'
+'set ccols 'ccols
+'set clevs 'clevs
+'d qmod'
+'set gxout contour'
+'set ccolor 1'
+if(  cint != "NULL" )
+'set cint 'cint
+if( black != "NULL" ) ; 'black 'cint ; endif
+cmax =  10*cint
+cmin = -10*cint
+'set cmax 'cmax
+'set cmin 'cmin
+'d qmod'
+endif
+'set parea 0 8.5 7.0 11'
+'set parea off'
+
+'set vpage 0 8.5 0.0 11'
+'set parea 1.5 7.0 4.30 7.10'
+'set grads off'
+'set gxout shaded'
+'set ccols 'ccols
+'set clevs 'clevs
+'d maskout(qobso,masko)'
+'set gxout contour'
+'set ccolor 1'
+if(  cint != "NULL" )
+'set cint 'cint
+if( black != "NULL" ) ; 'black 'cint ; endif
+cmax =  10*cint
+cmin = -10*cint
+'set cmax 'cmax
+'set cmin 'cmin
+endif
+'d maskout(qobso,masko)'
+'set parea off'
+
+'set vpage 0 8.5 0.0 11'
+'set parea 1.5 7.0 0.90 3.70'
+'set grads off'
+'getinfo lon'
+         lon = result
+'define obsg = regrid2(  qobs,1,1,bs_p1,'lon',-90)'
+'define modg = regrid2(  qmod,1,1,bs_p1,'lon',-90)'
+'define mask = regrid2( maskm,1,1,bs_p1,'lon',-90)'
+'define obsg = maskout( obsg,mask )'
+
+'set gxout shaded'
+'set clevs 'dlevs
+'set ccols 'dcols
+'d modg-obsg'
+'cbarn -snum 0.70'
+
+'stats maskout(modg,abs(obsg))'
+ avgmod = subwrd(result,1)
+ stdmod = subwrd(result,2)
+'stats maskout(obsg,abs(obsg))'
+ avgobs = subwrd(result,1)
+ stdobs = subwrd(result,2)
+'stats maskout(modg-obsg,abs(obsg))'
+ avgdif = subwrd(result,1)
+ stddif = subwrd(result,2)
+
+'set vpage off'
+'set string 1 c 6'
+'xlabel 'pfile' 4.25 10.9'
+'set strsiz .11'
+
+'draw string 4.25 10.6 'expid'  'level'-mb 'name'  'season' ('nmod')'
+'draw string 4.25 7.2 'odesc'  'season' ('nobs')  ('climate')'
+'draw string 4.25 3.80 'level'-mb  Difference (Top-Middle)'
+
+'set string 1 c 4'
+'set strsiz .08'
+'draw string 0.52 10  Mean: 'avgmod
+'draw string 0.52 9.8  Std: 'stdmod
+'draw string 0.52 6.6 Mean: 'avgobs
+'draw string 0.52 6.4  Std: 'stdobs
+'draw string 0.52 3.2 Mean: 'avgdif
+'draw string 0.52 3.0  Std: 'stddif
+
+                date = getdate (begdate)
+bmnthm = subwrd(date,1)
+byearm = subwrd(date,2)
+                date = getdate (enddate)
+emnthm = subwrd(date,1)
+eyearm = subwrd(date,2)
+                date = getdate (begdateo)
+bmntho = subwrd(date,1)
+byearo = subwrd(date,2)
+                date = getdate (enddateo)
+emntho = subwrd(date,1)
+eyearo = subwrd(date,2)
+
+'set string 1 l 4'
+'set strsiz .08'
+'draw string 7.10 10  Beg: 'bmnthm' 'byearm
+'draw string 7.10 9.8 End: 'emnthm' 'eyearm
+'draw string 7.10 6.6 Beg: 'bmntho' 'byearo
+'draw string 7.10 6.4 End: 'emntho' 'eyearo
+
+'myprint -name 'output'/horiz_'obsnam'_'export''type'_'level'.'season
+
+'set mproj latlon'
+return
+
+function getdate (date,month,year)
+       num = 1
+       bit = substr(date,num,1)
+while( bit != '' )
+       num = num+1
+       bit = substr(date,num,1)
+endwhile
+       loc = num-7
+     month = substr(date,loc  ,3)
+      year = substr(date,loc+3,4)
+return month' 'year

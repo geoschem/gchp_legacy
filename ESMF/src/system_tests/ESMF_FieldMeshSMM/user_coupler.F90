@@ -1,4 +1,4 @@
-! $Id: user_coupler.F90,v 1.3 2009/10/21 22:30:01 feiliu Exp $
+! $Id$
 !
 ! Example/test code which shows User Component calls.
 
@@ -16,7 +16,7 @@
     module user_coupler
 
     ! ESMF Framework module
-    use ESMF_Mod
+    use ESMF
     
     implicit none
     
@@ -40,11 +40,11 @@
       print *, "in user setservices routine"
 
       ! Register the callback routines.
-      call ESMF_CplCompSetEntryPoint(comp, ESMF_SETINIT, user_init, rc=rc)
+      call ESMF_CplCompSetEntryPoint(comp, ESMF_METHOD_INITIALIZE, user_init, rc=rc)
       if(rc/=ESMF_SUCCESS) return
-      call ESMF_CplCompSetEntryPoint(comp, ESMF_SETRUN, user_run, rc=rc)
+      call ESMF_CplCompSetEntryPoint(comp, ESMF_METHOD_RUN, user_run, rc=rc)
       if(rc/=ESMF_SUCCESS) return
-      call ESMF_CplCompSetEntryPoint(comp, ESMF_SETFINAL, user_final, rc=rc)
+      call ESMF_CplCompSetEntryPoint(comp, ESMF_METHOD_FINALIZE, user_final, rc=rc)
       if(rc/=ESMF_SUCCESS) return
 
       print *, "Registered Initialize, Run, and Finalize routines"
@@ -83,10 +83,10 @@
       ! use a communications call (SMM) here, so first we must make a new
       ! call to reconcile the object lists in all the import and export states.
 
-      !call ESMF_StateReconcile(importState, vm, rc=rc)
+      !call ESMF_StateReconcile(importState, vm=vm, rc=rc)
       !if(rc/=ESMF_SUCCESS) return
 
-      !call ESMF_StateReconcile(exportState, vm, rc=rc)
+      !call ESMF_StateReconcile(exportState, vm=vm, rc=rc)
       !if(rc/=ESMF_SUCCESS) return
 
       call ESMF_StateGet(importState, itemcount=itemcount, rc=rc)
@@ -114,13 +114,19 @@
       ! up the SMM structure
 
       ! initialize factorList and factorIndexList
-      ! the diagonal of the 9x9 diagonal matrix on 4 PETs is ((1 2 3) (1 2) (1 2) (1 2))
+      ! Nodal distribution of indices:
+      ! 1 3 1
+      ! 2 4 2
+      ! 1 2 1
+      ! src data = ((1 2 3 4) (1 2) (1 2) (1))
+      ! the diagonal of the 9x9 diagonal matrix on 4 PETs is ((1 2 3) (1 2) (1 2) (1 4))
+      ! result = ((1 4 9) (1 4) (1 4) (1 4))
       if (localPet == 0) then
           ! 4 -> 3
           allocate(factorList(3))
           allocate(factorIndexList(2,3))
           factorList = (/1,2,3/)
-          factorIndexList(1,:) = (/1, 1, 1/)
+          factorIndexList(1,:) = (/1, 2, 4/)
           factorIndexList(2,:) = (/1, 2, 3/)
           call ESMF_FieldSMMStore(humidity1, humidity2, routehandle, &
               factorList, factorIndexList, rc=rc)
@@ -131,7 +137,7 @@
           allocate(factorList(2))
           allocate(factorIndexList(2,2))
           factorList = (/1,2/)
-          factorIndexList(1,:) = (/5, 6/)
+          factorIndexList(1,:) = (/3, 6/)
           factorIndexList(2,:) = (/4, 5/)
           call ESMF_FieldSMMStore(humidity1, humidity2, routehandle, &
               factorList, factorIndexList, rc=rc)
@@ -152,7 +158,7 @@
           ! 1 -> 2
           allocate(factorList(2))
           allocate(factorIndexList(2,2))
-          factorList = (/1,2/)
+          factorList = (/1,4/)
           factorIndexList(1,:) = (/9,9/)
           factorIndexList(2,:) = (/8,9/)
           call ESMF_FieldSMMStore(humidity1, humidity2, routehandle, &
@@ -223,7 +229,7 @@
       print *, "User Coupler Final starting"
    
       ! Release resources stored for the SMM
-      call ESMF_FieldSMMRelease(routehandle, rc)
+      call ESMF_FieldSMMRelease(routehandle, rc=rc)
       if(rc/=ESMF_SUCCESS) return
 
       print *, "User Coupler Final returning"
