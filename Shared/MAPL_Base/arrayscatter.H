@@ -1,4 +1,4 @@
-! $Id: arrayscatter.H,v 1.8 2009-01-26 13:23:24 trayanov Exp $
+! $Id: arrayscatter.H,v 1.8.124.1 2012-11-08 21:23:04 atrayano Exp $
 
 #ifdef NAME_
 #undef NAME_
@@ -91,7 +91,7 @@
     allocate (sendcounts(0:nDEs-1), stat=status)
     VERIFY_(STATUS)
     call ESMF_DistGridGet(distgrid, &
-         minIndexPDimPDe=AL, maxIndexPDimPDe=AU, rc=status)
+         minIndexPDe=AL, maxIndexPDe=AU, rc=status)
     VERIFY_(STATUS)
 
     ISZ = size(GLOBAL_ARRAY,1)

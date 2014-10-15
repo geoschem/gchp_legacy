@@ -22,7 +22,7 @@
    logical                         :: IsOk
    integer                         :: loc
    integer                         :: DIMS
-   logical                         :: isCommitted
+   type(ESMF_FieldStatus_Flag)     :: fieldStatus
 
    NULLIFY(ptr)
    if (present(notFoundOK)) then
@@ -54,9 +54,9 @@
       VERIFY_(STATUS)
    end if
 
-   call ESMF_FieldGet(field, isCommitted=isCommitted, rc=status)
+   call ESMF_FieldGet(field, status=fieldStatus, rc=status)
    VERIFY_(STATUS)
-   if (isCommitted) then
+     if (fieldStatus == ESMF_FIELDSTATUS_COMPLETE) then
       call ESMF_FieldGet(field, 0, Ptr, rc=status)
       VERIFY_(STATUS)
    end if

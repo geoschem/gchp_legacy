@@ -13,7 +13,7 @@
 !
 ! !USES:
 !
-   Use ESMF_Mod
+   Use ESMF
    Use MAPL_Mod
   
    IMPLICIT NONE
@@ -51,7 +51,6 @@
      integer, pointer                    :: halo(:)
 
      logical                    :: verbose=.FALSE.
-     logical                    :: debug=.FALSE.
      real, pointer              :: x(:,:), y(:,:)
      integer                    :: face
 
@@ -128,14 +127,13 @@ CONTAINS
     call ESMF_ConfigLoadFile ( self%CF,'MAPL_OrbGridComp.rc',rc=status)
     if (status == ESMF_SUCCESS) then 
     
-       call ESMF_ConfigGetAttribute(self%CF, self%verbose, Label='verbose:',  __RC__ )
-       call ESMF_ConfigGetAttribute(self%CF, self%debug,   Label='debug:',  __RC__ )
+       call ESMF_ConfigGetAttribute(self%CF, self%verbose, Label='verbose:', default=.false. ,  __RC__ )
 
 !                       ------------------------
 !                         Get Mask Definitions
 !                       ------------------------
 
-       call ESMF_ConfigGetDim(self%CF, self%no, nCols, 'Nominal_Orbits::',__RC__)
+       call ESMF_ConfigGetDim(self%CF, self%no, nCols, LABEL='Nominal_Orbits::',__RC__)
        ASSERT_(self%no>0)
        allocate(self%Instrument(self%no), self%Satellite(self%no), & 
           self%Swath(self%no), self%halo(self%no), __STAT__)
@@ -165,9 +163,9 @@ CONTAINS
 
 !   Set the Initialize, Run, Finalize entry points
 !   ----------------------------------------------
-    call MAPL_GridCompSetEntryPoint ( GC, ESMF_SETINIT, Initialize_, RC=STATUS)
+    call MAPL_GridCompSetEntryPoint ( GC, ESMF_METHOD_INITIALIZE, Initialize_, RC=STATUS)
     VERIFY_(STATUS)
-    call MAPL_GridCompSetEntryPoint ( GC, ESMF_SETRUN,   Run_,       RC=STATUS)
+    call MAPL_GridCompSetEntryPoint ( GC, ESMF_METHOD_RUN,   Run_,       RC=STATUS)
     VERIFY_(STATUS)
         
 !   Store internal state in GC
@@ -251,7 +249,7 @@ CONTAINS
     character(len=ESMF_MAXSTR)    :: gridtype
 !   extra things for cubed sphere
     integer                       :: IM, JM, face
-    real, pointer                 :: LONS(:,:), LATS(:,:)
+    real(ESMF_KIND_R8), pointer                 :: EdgeLons(:,:), EdgeLats(:,:)
 ! Begin... 
 
 ! Get the target components name and set-up traceback handle.
@@ -288,7 +286,7 @@ CONTAINS
      VERIFY_(STATUS)
      call MAPL_FieldAllocCommit(field, dims=dims, location=location, typekind=knd, hw=hw, RC=STATUS)
      VERIFY_(STATUS)
-     call ESMF_FieldBundleAdd(Bundle,Field,RC=STATUS)
+     call MAPL_FieldBundleAdd(Bundle,Field,RC=STATUS)
      VERIFY_(STATUS)
     enddo
 
@@ -297,19 +295,24 @@ CONTAINS
     call ESMF_AttributeGet(Grid,'GridType',gridtype,gridtype_default)
     if (gridtype=='Cubed-Sphere') then
 
-     call MAPL_GetObjectFromGC ( GC, MAPL_OBJ, RC=STATUS)
-     VERIFY_(STATUS)
-     call MAPL_Get(MAPL_OBJ,            &
-        IM                  = IM,     &
-        JM                  = JM,     &
-        LONS     = LONS,              &
-        LATS     = LATS,              &
-        RC=STATUS )
-     VERIFY_(STATUS)
-     call check_face(IM,JM,LONS,LATS,FACE)
-     self%face=face
-     allocate(self%x(IM,JM),self%y(IM,JM))
-     call cube_xy(IM,JM,self%x,self%y,LONS,LATS,face)
+       call MAPL_GetObjectFromGC(GC,MAPL_OBJ,rc=status)
+       VERIFY_(STATUS)
+       call MAPL_Get(MAPL_OBJ, im=im, jm=jm, rc=status)
+       VERIFY_(STATUS)
+ 
+       allocate(EdgeLons(IM+1,JM+1),stat=status)
+       VERIFY_(STATUS)
+       allocate(EdgeLats(IM+1,JM+1),stat=status)
+       VERIFY_(STATUS)
+       call MAPL_GridGet(Grid,gridCornerLons=EdgeLons,gridCornerLats=EdgeLats,rc=status)
+       VERIFY_(STATUS)
+       call check_face(IM+1,JM+1,EdgeLons,EdgeLats,FACE)
+       self%face=face
+       allocate(self%x(IM+1,JM+1),self%y(IM+1,JM+1))
+       call cube_xy(IM+1,JM+1,self%x,self%y,EdgeLons,EdgeLats,face)
+       deallocate(EdgeLons)
+       deallocate(EdgeLats)
+
     endif
 
     RETURN_(ESMF_SUCCESS)
@@ -433,14 +436,14 @@ CONTAINS
       imsize = IM_World
    endif
 !  swatch(3) is actually the size of the length to use for interpolation
-   if( imsize.le.200       ) call ESMF_ConfigGetAttribute(self%CF,swath(3),'INTERPOLATION_WIDTH:', DEFAULT= 10.0 ,RC=STATUS)
+   if( imsize.le.200       ) call ESMF_ConfigGetAttribute(self%CF,swath(3),LABEL='INTERPOLATION_WIDTH:', DEFAULT= 10.0 ,RC=STATUS)
    if( imsize.gt.200 .and. &
-       imsize.le.400       ) call ESMF_ConfigGetAttribute(self%CF,swath(3),'INTERPOLATION_WIDTH:', DEFAULT= 5.0 ,RC=STATUS)
+       imsize.le.400       ) call ESMF_ConfigGetAttribute(self%CF,swath(3),LABEL='INTERPOLATION_WIDTH:', DEFAULT= 5.0 ,RC=STATUS)
    if( imsize.gt.400 .and. &
-       imsize.le.800       ) call ESMF_ConfigGetAttribute(self%CF,swath(3),'INTERPOLATION_WIDTH:', DEFAULT= 2.0 ,RC=STATUS)
+       imsize.le.800       ) call ESMF_ConfigGetAttribute(self%CF,swath(3),LABEL='INTERPOLATION_WIDTH:', DEFAULT= 2.0 ,RC=STATUS)
    if( imsize.gt.800 .and. &
-       imsize.le.1600      ) call ESMF_ConfigGetAttribute(self%CF,swath(3),'INTERPOLATION_WIDTH:', DEFAULT=  1.0 ,RC=STATUS)
-   if( imsize.gt.1600      ) call ESMF_ConfigGetAttribute(self%CF,swath(3),'INTERPOLATION_WIDTH:', DEFAULT=  0.5 ,RC=STATUS)
+       imsize.le.1600      ) call ESMF_ConfigGetAttribute(self%CF,swath(3),LABEL='INTERPOLATION_WIDTH:', DEFAULT=  1.0 ,RC=STATUS)
+   if( imsize.gt.1600      ) call ESMF_ConfigGetAttribute(self%CF,swath(3),LABEL='INTERPOLATION_WIDTH:', DEFAULT=  0.5 ,RC=STATUS)
 
 !  define undef
    undef=MAPL_UNDEF
@@ -457,7 +460,7 @@ CONTAINS
 
 !  loop over each satellite and get it's mask
    do k=1,NORB
-    call ESMFL_BundleGetPointerToData(BUNDLE,K,PTR_TMP,RC=STATUS)
+    call ESMFL_BundleGetPointerToData(BUNDLE,trim(self%instrument(k)),PTR_TMP,RC=STATUS)
     VERIFY_(STATUS)
     call MAPL_GetPointer(EXPORT,PTR_TMP_EX,trim(self%instrument(k)),RC=STATUS)
     VERIFY_(STATUS)
@@ -660,8 +663,8 @@ CONTAINS
 
        integer, intent(in)            :: im, jm
        integer, intent(in)            :: ihalo(2), jhalo(2)
-       real, intent(in) :: x(im,jm)
-       real, intent(in) :: y(im,jm)
+       real, intent(in) :: x(im+1,jm+1)
+       real, intent(in) :: y(im+1,jm+1)
        real, intent(in) :: swath(3)
        real, intent(in) :: undef
 
@@ -809,13 +812,12 @@ CONTAINS
       INTEGER, PARAMETER :: dp=SELECTED_REAL_KIND(15,307)
 
       integer, intent(in) :: im, jm, nobs, jsegs
-      real, intent(in) :: x(im,jm)
-      real, intent(in) :: y(im,jm)
+      real, intent(in) :: x(im+1,jm+1)
+      real, intent(in) :: y(im+1,jm+1)
       real, intent(in) :: lb,ub
       integer, intent(in) :: face
       integer, optional :: rc
 
-      real, pointer  :: x_1d(:), y_1d(:)
       real, pointer  :: ex(:), ey(:)
       real(dp) :: tlons(nobs), tlats(nobs) 
       real(dp) :: beta, d2r, dx, dy, tol = 0.1
@@ -830,30 +832,22 @@ CONTAINS
       character*(11)       :: Iam="orb_mask_xy"
  
       switch = .false.
-      if (abs(x(1,1)-x(2,1)) < 0.0001) switch = .true.
+      if ( abs(x(1,1)-x(2,1)) < abs(x(1,1)-x(1,2)) ) switch = .true.
       if (.not.switch) then
-        allocate(x_1d(im),y_1d(jm),ex(im+1),ey(jm+1))
-        im_1d = im
-        jm_1d = jm
+        allocate(ex(im+1),ey(jm+1))
+        im_1d = im+1
+        jm_1d = jm+1
+        imp1 = im+1
+        jmp1 = jm+1
       endif
       if (switch) then
-       allocate(x_1d(jm),y_1d(im),ex(jm+1),ey(im+1))
-       im_1d = jm
-       jm_1d = im
-      endif
-      if (.not.switch) call flatten_xy(x,y,x_1d,y_1d,im,jm,im_1d,jm_1d,switch) 
-      if (switch) call flatten_xy(x,y,x_1d,y_1d,im,jm,im_1d,jm_1d,switch) 
-      call orb_edges_1d(ex,x_1d,im_1d)
-      call orb_edges_1d(ey,y_1d,jm_1d)
-!     since we will need these
-      if (.not.switch) then
-       imp1=im+1
-       jmp1=jm+1
-      else if (switch) then
-       imp1=jm+1
-       jmp1=im+1
-      endif
-
+       allocate(ex(jm+1),ey(im+1))
+       im_1d = jm+1
+       jm_1d = im+1
+       imp1 = im+1
+       jmp1 = jm+1
+      end if
+      call flatten_xy(x,y,ex,ey,imp1,jmp1,im_1d,jm_1d,switch)
       nfail = 0
 !     loop over each point
 !     first define corners of the world
@@ -888,8 +882,8 @@ CONTAINS
           inbox = pnt_in_rect(x_loc,y_loc,wcorner_x,wcorner_y)
           ! if we found the point in the box
           if (inbox == 1) then
-           i = ijsearch(ex,imp1,x_loc,.false.)
-           j = ijsearch(ey,jmp1,y_loc,.false.)
+           i = ijsearch(ex,im_1d,x_loc,.false.)
+           j = ijsearch(ey,jm_1d,y_loc,.false.)
            ! fill in mask for i,j
              if (switch) then
                 itmp = i
@@ -903,7 +897,7 @@ CONTAINS
          endif
        enddo
       enddo
-      deallocate(x_1d,y_1d,ex,ey)
+      deallocate(ex,ey)
 
       end subroutine orb_mask_xy
 
@@ -980,12 +974,11 @@ CONTAINS
       INTEGER, PARAMETER :: dp=SELECTED_REAL_KIND(15,307)
 
       integer, intent(in) :: im, jm, nobs, isegs, jsegs
-      real, intent(in) :: x(im,jm)
-      real, intent(in) :: y(im,jm)
+      real, intent(in) :: x(im+1,jm+1)
+      real, intent(in) :: y(im+1,jm+1)
       real, intent(in) :: lb,ub
       integer, intent(in) :: face
 
-      real, pointer :: x_1d(:),y_1d(:)
       real, pointer :: ex(:), ey(:)
       real(dp) :: slons(3,nobs), slats(3,nobs) 
       real(dp) :: alpha, beta, d2r, r2d, lon1, lon2, lat1, lat2
@@ -1010,28 +1003,22 @@ CONTAINS
       r2d = 180./MAPL_PI
 !     find indices have constant values of coordinate
       switch = .false.
-      if (abs(x(1,1)-x(2,1)) < 0.0001) switch = .true.
+      if ( abs(x(1,1)-x(2,1)) < abs(x(1,1)-x(1,2)) ) switch = .true.
       if (.not.switch) then
-        allocate(x_1d(im),y_1d(jm),ex(im+1),ey(jm+1))
-        im_1d = im
-        jm_1d = jm
+         allocate(ex(im+1),ey(jm+1))
+         im_1d = im+1
+         jm_1d = jm+1
+         imp1=im+1
+         jmp1=jm+1
       endif
       if (switch) then
-       allocate(x_1d(jm),y_1d(im),ex(jm+1),ey(im+1))
-       im_1d = jm
-       jm_1d = im
-      endif
-      if (.not.switch) call flatten_xy(x,y,x_1d,y_1d,im,jm,im_1d,jm_1d,switch)
-      if (switch) call flatten_xy(x,y,x_1d,y_1d,im,jm,im_1d,jm_1d,switch)
-      call orb_edges_1d(ex,x_1d,im_1d)
-      call orb_edges_1d(ey,y_1d,jm_1d)
-      if (.not.switch) then
-       imp1=im+1
-       jmp1=jm+1
-      else if (switch) then
-       imp1=jm+1
-       jmp1=im+1
-      endif
+         allocate(ex(jm+1),ey(im+1))
+         im_1d = jm+1
+         jm_1d = im+1
+         imp1=im+1
+         jmp1=jm+1
+      end if
+      call flatten_xy(x,y,ex,ey,imp1,jmp1,im_1d,jm_1d,switch)
 
 !     first define corners of the world
       wcorner_x(1)=minval(ex)
@@ -1133,8 +1120,8 @@ CONTAINS
                 call cube_xy_point(x_loc,y_loc,LAT,LON,face)
                 inbox = pnt_in_rect(x_loc,y_loc,wcorner_x,wcorner_y)
                 if (inbox == 1) then
-                 i = ijsearch(ex,imp1,x_loc,.false.)
-                 j = ijsearch(ey,jmp1,y_loc,.false.)
+                 i = ijsearch(ex,im_1d,x_loc,.false.)
+                 j = ijsearch(ey,jm_1d,y_loc,.false.)
                  if (switch) then 
                     itmp = i
                     i = j
@@ -1149,7 +1136,7 @@ CONTAINS
          end do    ! nobs
       end do       ! ksegs
 
-      deallocate(x_1d,y_1d,ex,ey)
+      deallocate(ex,ey)
 
       end subroutine orb_swath_mask_xy
 !...........................................................................................
@@ -1398,7 +1385,7 @@ CONTAINS
 
       subroutine check_face(IM,JM,LONS,LATS,face)
       integer, intent(in) :: im,jm
-      real, intent(in) :: LONS(IM,JM),LATS(IM,JM)
+      real(ESMF_KIND_R8), intent(in) :: LONS(IM,JM),LATS(IM,JM)
       integer, intent(inout) :: face
       real :: lon,lat
       integer :: i,j,k
@@ -1458,7 +1445,7 @@ CONTAINS
       subroutine cube_xy(IM,JM,x,y,LONS,LATS,face)
       integer, intent(in) :: IM,JM
       real, intent(inout) :: x(IM,JM),y(IM,JM)
-      real, intent(in) :: LATS(IM,JM),LONS(IM,JM)
+      real(ESMF_KIND_R8), intent(in) :: LATS(IM,JM),LONS(IM,JM)
       integer, intent(in) :: face
 
       real :: rsq3,LAT,LON

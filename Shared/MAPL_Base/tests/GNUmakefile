@@ -1,52 +1,45 @@
 #! /bin/make
 
-# Machine/Location specific part
+# Make sure ESMADIR is defined
+# ----------------------------
+ifndef ESMADIR
+       ESMADIR := $(shell pwd)/../../../
+endif
 
-# f90 compiler
-FC = ifort
-LD = $(FC)
-# include module
-M = -I
-ARCH = Linux
+THIS := $(shell basename `pwd`)
+LIB  = lib$(THIS).a
+LIB_STUBS  = lib$(THIS)_stubs.a
 
-DIR_MAPL = ../../../../$(ARCH)
-INC_MAPL = $(DIR_MAPL)/include/MAPL
-LIB_MAPL = $(DIR_MAPL)/lib
-
-DIR_NETCDF = /usr/local/pkg/netcdf/netcdf-3.6.1/icc
-INC_NETCDF = $(DIR_NETCDF)/include
-LIB_NETCDF = -L$(DIR_NETCDF)/lib -lnetcdf
-
-DIR_ESMF   = /home/cnh/src/esmf_builds/ESMF_2_2_2r/esmf/
-INC_ESMF   = $(DIR_ESMF)/mod/modg/Linux.intel.32.mpich.default
-MOD_ESMF   = $(INC_ESMF)
-LIB_ESMF   = $(DIR_ESMF)/lib/libg/Linux.intel.32.mpich.default/libesmf.a
+# Compilation rules, flags, etc
+# -----------------------------
+  include $(ESMADIR)/Config/ESMA_base.mk  # Generic stuff
+  include $(ESMADIR)/Config/ESMA_arch.mk  # System dependencies
+  include $(ESMADIR)/Config/GMAO_base.mk
 
 
-DIR_MPI    = /usr/local/pkg/mpich/mpich-intel
-INC_MPI    = $(DIR_MPI)/include
-LIB_MPI    = -L$(DIR_MPI)/lib -lpmpich -lpmpich++ -lmpich
 
-
-LIB_SYS    =  -lpthread -lrt
+LIB_SYS    =  -lpthread -lrt -lstd++ #-lefence
 
 .SUFFIXES: .F90
 
 
-SRCS = utCFIO_Bundle.F90
+SRCS = $(wildcard *.F90)
 OBJS = $(SRCS:.F90=.o) 
 BIN = $(SRCS:.F90=.x) 
 
-FINCS = -I$(INC_MAPL)
-FFLAGS = $(M). $(M)$(INC_MAPL) $(M)$(MOD_ESMF)
-            
-LIB_COMP = -L$(LIB_MAPL) -lMAPL -lMAPL_cfio_r4
+INC_DIRS = . $(INC_MAPL_BASE) $(INC_ESMF)
+MOD_DIRS = . $(INC_DIRS) $(INC_CFIO) $(INC_MPEU) 
+
+USER_FINCS  = $(foreach dir,$(INC_DIRS),$(I)$(dir))
+USER_FMODS  = $(foreach dir,$(MOD_DIRS),$(M)$(dir))
+         
+LIB_COMP = -L$(LIB_MAPL) -lMAPL_Base -lMAPL_Base_stubs -lMAPL_cfio_r4 -lGMAO_mpeu
 
 
-LIB_SDF = $(LIB_SDF)	   
+LIB_SDF = $(LIB_NETCDF)	   
 
 $(BIN) bin: $(OBJS)
-	$(LD) -o $(BIN) $(LDFLAGS) $(OBJS) $(LIB_COMP) $(LIB_ESMF) $(LIB_SDF) $(LIB_MPI) $(LIB_SCI) $(LIB_SYS)
+	$(LD) -o $(BIN) $(LDFLAGS) $(OBJS) $(LIB_COMP) $(LIB_ESMF) $(LIB_MPI) $(LIB_SDF) $(LIB_SCI) $(LIB_SYS) 
 
 #                  --------------------
 #                      Dependencies

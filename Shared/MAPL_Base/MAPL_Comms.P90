@@ -1,5 +1,5 @@
 
-!  $Id: MAPL_Comms.P90,v 1.19.8.10.2.4 2013-01-14 18:01:34 atrayano Exp $
+!  $Id: MAPL_Comms.P90,v 1.19.8.10.2.2.54.5.4.4.2.1 2013-12-18 22:07:46 bmauer Exp $
 
 #include "MAPL_ErrLog.h"
 
@@ -12,8 +12,9 @@
 
 module MAPL_CommsMod
 
-  use ESMF_Mod
+  use ESMF
   use MAPL_BaseMod
+  use MAPL_ShmemMod
   use MAPL_ConstantsMod
   implicit none
   private
@@ -39,10 +40,12 @@ module MAPL_CommsMod
   public MAPL_CreateRequest
   public MAPL_CommRequest
   public MAPL_ArrayIGather
+  public MAPL_ArrayIScatter
   public MAPL_CollectiveWait
   public MAPL_CollectiveScatter3D
   public MAPL_CollectiveGather3D
   public MAPL_RoundRobinPEList
+  public MAPL_BcastShared
 
   integer, parameter, public :: MAPL_Unknown   = 0
   integer, parameter, public :: MAPL_IsGather  = 1
@@ -60,12 +63,13 @@ module MAPL_CommsMod
      real, pointer    :: var(:)=>null()
      real, pointer    :: DstArray(:,:)=>null()
      real, pointer    :: Local_Array(:,:)=>null()
+     real, pointer    :: Trans_Array(:,:,:)=>null()
      type(ArrPtr), pointer :: Buff(:)
      integer          :: nDEs, MYPE, comm, root
      logical          :: active=.false., amRoot=.false.
      logical          :: IsPrePosted
      integer          :: RequestType=MAPL_Unknown
-     integer	      :: tag
+     integer	      :: tag, s_rqst
   end type MAPL_CommRequest
 
   interface MAPL_Am_I_Root
@@ -99,6 +103,11 @@ module MAPL_CommsMod
      module procedure MAPL_CommsBcastVm_I4_2
      module procedure MAPL_CommsBcastVm_R4_2
      module procedure MAPL_CommsBcastVm_R8_2
+  end interface
+
+  interface MAPL_BcastShared
+     module procedure MAPL_BcastShared_1DR4
+     module procedure MAPL_BcastShared_2DR4
   end interface
 
   interface MAPL_CommsScatterV
@@ -327,8 +336,8 @@ module MAPL_CommsMod
     allocate (AU(gridRank,0:nDEs-1), stat=STATUS)
     VERIFY_(STATUS)
 
-    call ESMF_DistGridGet (distgrid, minIndexPDimPDe=AL, RC=STATUS); VERIFY_(STATUS)
-    call ESMF_DistGridGet (distgrid, maxIndexPDimPDe=AU, RC=STATUS); VERIFY_(STATUS)
+    call ESMF_DistGridGet (distgrid, minIndexPDe=AL, RC=STATUS); VERIFY_(STATUS)
+    call ESMF_DistGridGet (distgrid, maxIndexPDe=AU, RC=STATUS); VERIFY_(STATUS)
 
 
 ! Allocate space for request variables
@@ -661,6 +670,7 @@ module MAPL_CommsMod
     integer                       :: LM, L, nc, npes, mype, dims(5)
     type(ESMF_VM)                 :: VM
     real, pointer                 :: X(:,:)
+    integer                       :: comm
     
 ! Begin
 !------
@@ -669,13 +679,14 @@ module MAPL_CommsMod
 
     call ESMF_VMGetCurrent(VM,         RC=STATUS)
     VERIFY_(STATUS)
-    call ESMF_VMGet(VM, petcount=npes, localpet=MYPE, RC=STATUS)
+    call ESMF_VMGet(VM, petcount=npes, localpet=MYPE, mpiCommunicator=comm, RC=STATUS)
     VERIFY_(STATUS)
 
     if(present(CoresPerNode)) then
        NumCores = CoresPerNode
     else
-       NumCores = 4
+       NumCores = MAPL_CoresPerNodeGet(comm,rc=status)
+       VERIFY_(STATUS)
     end if
 
     LM     = size(LocArray,3)
@@ -749,19 +760,21 @@ module MAPL_CommsMod
     integer                       :: nn, RequestType
     type(ESMF_VM)                 :: VM
     logical                       :: HaveGlobal
+    integer                       :: comm
     
 ! Begin
 !------
 
     call ESMF_VMGetCurrent(VM,         RC=STATUS)
     VERIFY_(STATUS)
-    call ESMF_VMGet(VM, petcount=npes, localpet=MYPE, RC=STATUS)
+    call ESMF_VMGet(VM, petcount=npes, localpet=MYPE, mpiCommunicator=comm, RC=STATUS)
     VERIFY_(STATUS)
 
     if(present(CoresPerNode)) then
        NumCores = CoresPerNode
     else
-       NumCores = 4
+       NumCores = MAPL_CoresPerNodeGet(comm,rc=status)
+       VERIFY_(STATUS)
     end if
 
     call MAPL_RoundRobinPEList(Root, Npes, NumCores, RC=STATUS)
@@ -868,12 +881,132 @@ module MAPL_CommsMod
 
 !--BCAST -----------------
 
-! Rank 0
-!---------------------------
-#define RANK_ 0
-#define VARTYPE_ 0
-#include "bcast.H"
+  subroutine MAPL_CommsBcast_STRING_0( layout, data, N, ROOT, RC)
+    type (ESMF_DELayout)                         :: layout
+    character(len=*),   intent(INOUT)            :: data
 
+    integer,            intent(in   )            :: N
+    integer,            intent(in   )            :: ROOT
+    integer         ,   intent(  out),  optional :: RC
+
+    character(len=ESMF_MAXSTR), parameter :: IAM='MAPL_Bcast'
+    integer                               :: status
+
+    type(ESMF_VM)                         :: vm
+
+    call ESMF_DELayoutGet(layout, vm=vm, rc=status)
+    VERIFY_(STATUS)
+
+    call MAPL_CommsBcast(vm, data=data, N=N, Root=Root, RC=status)
+    VERIFY_(STATUS)
+
+    RETURN_(ESMF_SUCCESS)
+
+  END SUBROUTINE MAPL_CommsBcast_STRING_0
+
+  subroutine MAPL_CommsBcastVM_STRING_0( vm, data, N, ROOT,RC)
+    type (ESMF_VM)                               :: vm
+    character(len=*),   intent(INOUT)            :: data
+
+    integer,            intent(in   )            :: N
+    integer,            intent(in   )            :: ROOT
+    integer         ,   intent(  out),  optional :: RC
+
+    character(len=ESMF_MAXSTR), parameter :: IAM='MAPL_BcastVM'
+    character(len=N)                      :: tmpString
+    integer                               :: slen
+    integer                               :: status
+    integer                               :: comm
+    integer                               :: deId
+
+    call ESMF_VMGet(vm, mpiCommunicator=COMM, localPet=deId, rc=status)
+    VERIFY_(STATUS)
+
+    tmpString = data
+    if (deId == Root) then
+       slen = len_trim(tmpString)
+    end if
+
+    call MPI_Bcast(slen, 1, MPI_INTEGER, ROOT, COMM, status)
+    VERIFY_(STATUS)
+
+    ASSERT_(slen <= N)
+
+    call MPI_Bcast(tmpString, slen, MPI_BYTE, ROOT, COMM, STATUS)
+    VERIFY_(STATUS)
+
+    data = ""
+    data = tmpString(1:slen)
+
+    RETURN_(ESMF_SUCCESS)
+
+  END SUBROUTINE MAPL_CommsBcastVM_STRING_0
+
+  subroutine MAPL_BcastShared_1DR4(VM, Data, N, Root, RootOnly, rc)
+    type(ESMF_VM) :: VM
+    real,    pointer,  intent(INOUT) :: Data(:)
+    integer,           intent(IN   ) :: N
+    integer, optional, intent(IN   ) :: Root
+    logical,           intent(IN   ) :: RootOnly
+    integer, optional, intent(  OUT) :: rc
+
+
+    integer :: status
+    character(len=ESMF_MAXSTR), parameter :: IAM='MAPL_BcastShared'
+
+
+    if(.not.MAPL_ShmInitialized) then
+       if (RootOnly) then
+          RETURN_(ESMF_SUCCESS)
+       end if
+       call MAPL_CommsBcast(vm, DATA=Data, N=N, ROOT=Root, RC=status)
+       RETURN_(STATUS)
+    else
+       call MAPL_SyncSharedMemory(RC=STATUS)
+       VERIFY_(STATUS)
+       call MAPL_BroadcastToNodes(Data, N=N, ROOT=Root, rc=status)
+       VERIFY_(STATUS)
+       call MAPL_SyncSharedMemory(RC=STATUS)
+       VERIFY_(STATUS)
+    endif
+
+    RETURN_(ESMF_SUCCESS)
+
+  end subroutine MAPL_BcastShared_1DR4
+
+  subroutine MAPL_BcastShared_2DR4(VM, Data, N, Root, RootOnly, rc)
+    type(ESMF_VM) :: VM
+    real,    pointer,  intent(INOUT) :: Data(:,:)
+    integer,           intent(IN   ) :: N
+    integer, optional, intent(IN   ) :: Root
+    logical,           intent(IN   ) :: RootOnly
+    integer, optional, intent(  OUT) :: rc
+
+
+    integer :: status
+    character(len=ESMF_MAXSTR), parameter :: IAM='MAPL_BcastShared'
+
+
+    if(.not.MAPL_ShmInitialized) then
+       if (RootOnly) then
+          RETURN_(ESMF_SUCCESS)
+       end if
+       call MAPL_CommsBcast(vm, DATA=Data, N=N, ROOT=Root, RC=status)
+       RETURN_(STATUS)
+    else
+       call MAPL_SyncSharedMemory(RC=STATUS)
+       VERIFY_(STATUS)
+       call MAPL_BroadcastToNodes(Data, N=N, ROOT=Root, rc=status)
+       VERIFY_(STATUS)
+       call MAPL_SyncSharedMemory(RC=STATUS)
+       VERIFY_(STATUS)
+    endif
+
+    RETURN_(ESMF_SUCCESS)
+
+  end subroutine MAPL_BcastShared_2DR4
+
+! Rank 0
 !---------------------------
 #define RANK_ 0
 #define VARTYPE_ 1
@@ -1246,8 +1379,9 @@ module MAPL_CommsMod
 #include "sendrecv.H"
 
     subroutine MAPL_Abort
-
-	call ESMF_Finalize(terminationFlag = ESMF_Abort)
+   
+   integer :: status 
+   call MPI_Abort(MPI_COMM_WORLD,status)
     end subroutine MAPL_Abort
 
 !---------------------------

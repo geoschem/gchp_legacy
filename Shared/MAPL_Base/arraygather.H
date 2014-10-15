@@ -1,4 +1,4 @@
-! $Id: arraygather.H,v 1.11 2013-01-11 22:44:21 atrayano Exp $
+! $Id: arraygather.H,v 1.10.124.2 2013-03-12 15:21:00 atrayano Exp $
 
 #ifdef NAME_
 #undef NAME_
@@ -85,7 +85,7 @@
     VERIFY_(STATUS)
 
     call ESMF_DistGridGet(distgrid, &
-         minIndexPDimPDe=AL, maxIndexPDimPDe=AU, rc=status)
+         minIndexPDe=AL, maxIndexPDe=AU, rc=status)
     VERIFY_(STATUS)
 
     allocate (recvcounts(nDEs), displs(0:nDEs), stat=status)

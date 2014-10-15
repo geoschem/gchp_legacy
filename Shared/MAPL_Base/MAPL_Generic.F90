@@ -1,7 +1,8 @@
-!  $Id: MAPL_Generic.F90,v 1.102 2013-01-31 18:13:15 ltakacs Exp $
+!  $Id: MAPL_Generic.F90,v 1.99.4.8.4.1.14.4 2014-07-25 15:59:04 bmauer Exp $
 
 #include "MAPL_ErrLog.h"
 #define GET_POINTER ESMFL_StateGetPointerToData
+
 ! MAT: The ftell function is a non-portable Fortran
 !      extension. While the 32-bit function has a
 !      common name, the 64-bit does not. So we select
@@ -100,7 +101,7 @@ module MAPL_GenericMod
 
 ! !USES:
 
-  use ESMF_Mod
+  use ESMF
   use ESMFL_Mod
   use MAPL_BaseMod
   use MAPL_IOMod
@@ -317,6 +318,7 @@ type MAPL_GenericGrid
    integer                                  :: Xcomm, Ycomm
    integer                                  :: readers_comm, IOscattercomm
    integer                                  :: writers_comm, IOgathercomm
+   integer                                  :: num_readers, num_writers
    integer, pointer                         :: i1(:), in(:), j1(:), jn(:)
 end type  MAPL_GenericGrid
 
@@ -368,6 +370,7 @@ type  MAPL_MetaComp
    integer                        , pointer :: phase_record(:)   => null()
    integer                        , pointer :: phase_coldstart(:)=> null()
    real                                     :: HEARTBEAT
+   type (MAPL_Communicators)                :: comm
 end type MAPL_MetaComp
 !EOC
 !EOP
@@ -694,35 +697,33 @@ type(ESMF_GridComp)               :: rootGC
 ! --------------------------------------------
 
    if (.not. associated(MAPLOBJ%phase_init)) then
-      call MAPL_GridCompSetEntrypoint(GC, ESMF_SETINIT, MAPL_GenericInitialize,  RC=STATUS)
+      call MAPL_GridCompSetEntrypoint(GC, ESMF_METHOD_INITIALIZE, MAPL_GenericInitialize,  RC=STATUS)
       VERIFY_(STATUS)
    endif
 
    if (.not. associated(MAPLOBJ%phase_run)) then
-      call MAPL_GridCompSetEntrypoint(GC, ESMF_SETRUN, MAPL_GenericRun,  RC=STATUS)
+      call MAPL_GridCompSetEntrypoint(GC, ESMF_METHOD_RUN, MAPL_GenericRun,  RC=STATUS)
       VERIFY_(STATUS)
    endif
 
 
    if (.not. associated(MAPLOBJ%phase_final)) then
-      call MAPL_GridCompSetEntrypoint(GC, ESMF_SETFINAL, MAPL_GenericFinalize,  RC=STATUS)
+      call MAPL_GridCompSetEntrypoint(GC, ESMF_METHOD_FINALIZE, MAPL_GenericFinalize,  RC=STATUS)
       VERIFY_(STATUS)
    endif
 
 !ALT check record!!!
    if (.not. associated(MAPLOBJ%phase_record)) then
-      call MAPL_GridCompSetEntryPoint ( GC, ESMF_SETWRITERESTART, MAPL_GenericRecord, RC=STATUS)
+      call MAPL_GridCompSetEntryPoint ( GC, ESMF_METHOD_WRITERESTART, MAPL_GenericRecord, RC=STATUS)
       VERIFY_(STATUS)
    end if
    ASSERT_(size(MAPLOBJ%phase_record)==1)  !ALT: currently we support only 1 record
    
 
-   if (associated(MAPLOBJ%phase_coldstart)) then
-      ASSERT_(size(MAPLOBJ%phase_coldstart)==1) !ALT: currently we support only 1 coldstart
-! ALT: this part is not implemented yet
-!   else
-!      call ESMF_GridCompSetEntryPoint(GC, ESMF_SETREADRESTART, &
-!                                      MAPL_Coldstart, status)
+   if (.not.associated(MAPLOBJ%phase_coldstart)) then
+!ALT: this part is not supported yet
+!      call MAPL_GridCompSetEntryPoint(GC, ESMF_METHOD_READRESTART, &
+!                                      MAPL_Coldstart, RC=status)
 !      VERIFY_(STATUS)
    endif
 
@@ -827,7 +828,6 @@ recursive subroutine MAPL_GenericInitialize ( GC, IMPORT, EXPORT, CLOCK, RC )
   type(ESMF_Time)               :: RefTime
   type(ESMF_TimeInterval)       :: Frequency
   character(len=ESMF_MAXSTR)    :: CHILD_NAME
-  type(ESMF_IOSpec)             :: iospec
   type(ESMF_Grid)               :: CHLGRID
   type(ESMF_DistGrid)           :: distGRID
 
@@ -854,10 +854,13 @@ recursive subroutine MAPL_GenericInitialize ( GC, IMPORT, EXPORT, CLOCK, RC )
   real(ESMF_KIND_R8), pointer      :: coordX(:,:)
   real(ESMF_KIND_R8), pointer      :: coordY(:,:)
   logical                          :: isGridValid
+  logical                          :: ChldGridValid
   integer                          :: reference_date
   integer                          :: reference_time
   integer                          :: yyyymmdd
   integer                          :: year, month, day, hh, mm, ss
+  character(len=ESMF_MAXSTR)       :: gridTypeAttribute
+  real(ESMF_KIND_R8)               :: fixedLons, fixedLats
   type(ESMF_GridComp)              :: GCCS ! this is needed as a workaround 
                                            ! for recursive ESMF method within method
                                            ! calls (see ESMF bug 3004440). 
@@ -900,28 +903,34 @@ recursive subroutine MAPL_GenericInitialize ( GC, IMPORT, EXPORT, CLOCK, RC )
   call ESMF_VmGet(VM, mpicommunicator=comm, rc=status)
   VERIFY_(STATUS)
 
+  isGridValid = .false.
   call ESMF_GridCompGet( GC, GRID = MYGRID%ESMFGRID, RC=STATUS )
-  VERIFY_(STATUS)
+  if(STATUS== ESMF_SUCCESS) then
+
+     call ESMF_GridValidate(MYGRID%ESMFGRID, RC=STATUS)
+     if (STATUS == ESMF_SUCCESS) then
+        isGridValid = .true.
+     end if
+  end if
 
 ! At this point, this component must have a valid grid!
 !------------------------------------------------------
-  isGridValid = .true.
-  call ESMF_GridValidate(MYGRID%ESMFGRID, RC=STATUS)
-  if (STATUS /= ESMF_SUCCESS) then
-     isGridValid = .false.
-  end if
-
   if (isGridValid) then
 ! Check children's grid. If they don't have a valid grid yet, put this one in their GC
 ! ------------------------------------------------------------------------------------
   if(associated(STATE%GCS)) then
       do I=1, size(STATE%GCS)
+         chldGridValid = .false.
          call ESMF_GridCompGet(STATE%GCS(I), grid=ChlGrid, rc=status)
-         VERIFY_(STATUS)
-         call ESMF_GridValidate(ChlGrid, RC=STATUS)
-         if (STATUS /= ESMF_SUCCESS) then
+         if (STATUS == ESMF_SUCCESS) then
+            call ESMF_GridValidate(ChlGrid, RC=STATUS)
+            if (STATUS == ESMF_SUCCESS) then
+               chldGridValid = .true.
+            end if
+         end if
+         if (.not. chldGridValid) then
 ! This child does not have a valid grid
-            call ESMF_GridCompset( STATE%GCS(I), GRID = MYGRID%ESMFGRID, RC=STATUS )
+            call ESMF_GridCompSet( STATE%GCS(I), GRID = MYGRID%ESMFGRID, RC=STATUS )
             VERIFY_(STATUS)
          end if
       end do
@@ -968,8 +977,8 @@ recursive subroutine MAPL_GenericInitialize ( GC, IMPORT, EXPORT, CLOCK, RC )
 !-----------------------------
 
   call ESMF_DistGridGet(distgrid, &
-       minIndexPDimPDe=minindex, &
-       maxIndexPDimPDe=maxindex, rc=status)
+       minIndexPDe=minindex, &
+       maxIndexPDe=maxindex, rc=status)
   VERIFY_(STATUS)
 
   call MAPL_GetImsJms(Imins=minindex(1,:),Imaxs=maxindex(1,:),&
@@ -1011,6 +1020,8 @@ recursive subroutine MAPL_GenericInitialize ( GC, IMPORT, EXPORT, CLOCK, RC )
   VERIFY_(STATUS)
 
   mygrid%comm = comm
+  mygrid%num_readers =  num_readers
+  mygrid%num_writers =  num_writers
 
 ! Y-dir communicators
   color =  MYGRID%NX0
@@ -1110,6 +1121,19 @@ recursive subroutine MAPL_GenericInitialize ( GC, IMPORT, EXPORT, CLOCK, RC )
                              RC       = STATUS                    )
   VERIFY_(STATUS)
 
+  gridTypeAttribute = ''
+  call ESMF_AttributeGet(MYGRID%ESMFGRID, name='GridType', value=gridTypeAttribute, RC=status)
+  if (status == ESMF_SUCCESS .and. gridTypeAttribute == 'Doubly-Periodic') then
+
+     ! this is special case: doubly periodic grid
+     ! we ignore ESMF grid coordinates and set LONS/LATS from resource
+     call MAPL_GetResource( STATE, fixedLons, Label="FIXED_LONS:", RC=STATUS)
+     VERIFY_(STATUS)
+     call MAPL_GetResource( STATE, fixedLats, Label="FIXED_LATS:", RC=STATUS)
+     VERIFY_(STATUS)
+     MYGRID%LONS = fixedLons * (MAPL_PI_R8/180._8)
+     MYGRID%LATS = fixedLats * (MAPL_PI_R8/180._8)
+  endif ! doubly-periodic
   end if ! isGridValid
 ! Put the clock passed down in the generic state
 !-----------------------------------------------
@@ -1175,8 +1199,8 @@ recursive subroutine MAPL_GenericInitialize ( GC, IMPORT, EXPORT, CLOCK, RC )
       ringTime = ringTime + TIMEINT
    end do
 
-   STATE%ALARM(0) = ESMF_AlarmCreate(trim(COMP_NAME) // "_Alarm" , &
-        CLOCK = CLOCK, &
+   STATE%ALARM(0) = ESMF_AlarmCreate(CLOCK = CLOCK, &
+        name = trim(COMP_NAME) // "_Alarm" , &
         RingInterval = TIMEINT  ,  &
         RingTime     = ringTime,  & 
 !        Enabled      = .true.   ,  &
@@ -1256,12 +1280,11 @@ recursive subroutine MAPL_GenericInitialize ( GC, IMPORT, EXPORT, CLOCK, RC )
 ! Create internal and initialize state variables
 ! -----------------------------------------------
 
-   STATE%INTERNAL = ESMF_StateCreate(statename = trim(COMP_NAME) // "_INTERNAL", &
+   STATE%INTERNAL = ESMF_StateCreate(name = trim(COMP_NAME) // "_INTERNAL", &
                               RC=STATUS)
    VERIFY_(STATUS)
 
    if (associated(STATE%INTERNAL_SPEC)) then
-      print*,'STATE%LOCSTREAM',MAPL_LocStreamIsAssociated(STATE%LOCSTREAM, RC=STATUS)
       if (MAPL_LocStreamIsAssociated(STATE%LOCSTREAM, RC=STATUS)) then
          call MAPL_StateCreateFromVarSpec(STATE%INTERNAL,STATE%INTERNAL_SPEC, &
                                         MYGRID%ESMFGRID,             &
@@ -1312,8 +1335,8 @@ recursive subroutine MAPL_GenericInitialize ( GC, IMPORT, EXPORT, CLOCK, RC )
             allocate(GCCS%compp, stat=status)
             VERIFY_(STATUS)
             GCCS%compp = GC%compp
-            call ESMF_GridCompReadRestart(GC, import, export, CLOCK, &
-                 userRC=userRC, RC=STATUS)
+            call ESMF_GridCompReadRestart(GC, importState=import, &
+                 exportState=export, clock=CLOCK, userRC=userRC, RC=STATUS)
             GC%compp = GCCS%compp
             deallocate(GCCS%compp)
             ASSERT_(userRC==ESMF_SUCCESS .and. STATUS==ESMF_SUCCESS)
@@ -1340,7 +1363,7 @@ recursive subroutine MAPL_GenericInitialize ( GC, IMPORT, EXPORT, CLOCK, RC )
    end if
 
 ! Create forcing state
-   STATE%FORCING = ESMF_StateCreate(statename = trim(COMP_NAME) // "_FORCING", &
+   STATE%FORCING = ESMF_StateCreate(name = trim(COMP_NAME) // "_FORCING", &
                               RC=STATUS)
    VERIFY_(STATUS)
 
@@ -1411,7 +1434,7 @@ endif
                RingTime = RingTime + (INT((currTime - RingTime)/frequency)+1)*frequency
             endif
 
-            RecordAlarm = ESMF_AlarmCreate( trim(AlarmName), clock=clock, RingInterval=Frequency, &
+            RecordAlarm = ESMF_AlarmCreate( name=trim(AlarmName), clock=clock, RingInterval=Frequency, &
                                              RingTime=RingTime, sticky=.false.,rc=status )
             VERIFY_(STATUS)
 
@@ -1458,10 +1481,12 @@ endif
 
 !ALT: export might have to be declared ESMF_STATELIST
    if(associated(STATE%GCS)) then
-      do I=1, size(STATE%GCS)
-         call ESMF_StateAdd(EXPORT, STATE%GEX(I), RC=STATUS)
-         VERIFY_(STATUS)
-      end do
+!      do I=1, size(STATE%GCS)
+!         call ESMF_StateAdd(EXPORT, STATE%GEX(I), RC=STATUS)
+!         VERIFY_(STATUS)
+!      end do
+      call ESMF_StateAdd(EXPORT, STATE%GEX, RC=STATUS)
+      VERIFY_(STATUS)
    end if
 
   call MAPL_GenericStateClockOff(STATE,"--GenInitMine")
@@ -1497,8 +1522,11 @@ endif
                VERIFY_(STATUS)
       
                call MAPL_GenericStateClockOn (STATE,trim(CHILD_NAME))
-               call ESMF_GridCompInitialize (STATE%GCS(I), STATE%GIM(I), STATE%GEX(I), &
-                    CLOCK, PHASE=CHLDMAPL(I)%PTR%PHASE_INIT(PHASE), userRC=userRC, RC=STATUS )
+               call ESMF_GridCompInitialize (STATE%GCS(I), &
+                    importState=STATE%GIM(I), &
+                    exportState=STATE%GEX(I), &
+                    clock=CLOCK, PHASE=CHLDMAPL(I)%PTR%PHASE_INIT(PHASE), &
+                    userRC=userRC, RC=STATUS )
                ASSERT_(userRC==ESMF_SUCCESS .and. STATUS==ESMF_SUCCESS)
                call MAPL_GenericStateClockOff(STATE,trim(CHILD_NAME))
             end if
@@ -1526,7 +1554,10 @@ endif
 !                    trim(comp_name) // " for " // &
 !                    trim(STATE%GCNameList(J)) // " and " // &
 !                    trim(STATE%GCNameList(I)))
-               call ESMF_CplCompInitialize (STATE%CCS(J,I), STATE%GEX(J), STATE%GIM(I), CLOCK, userRC=userRC, RC=STATUS )
+               call ESMF_CplCompInitialize (STATE%CCS(J,I), &
+                    importState=STATE%GEX(J), &
+                    exportState=STATE%GIM(I), &
+                    clock=CLOCK, userRC=userRC, RC=STATUS )
                ASSERT_(userRC==ESMF_SUCCESS .and. STATUS==ESMF_SUCCESS)
             endif
          enddo
@@ -1636,8 +1667,11 @@ if(associated(STATE%GCS)) then
             VERIFY_(STATUS)
       
             call MAPL_GenericStateClockOn (STATE,trim(CHILD_NAME))
-            call ESMF_GridCompRun (STATE%GCS(I), STATE%GIM(I), STATE%GEX(I), &
-                CLOCK, PHASE=CHLDMAPL(I)%PTR%PHASE_RUN(PHASE), userRC=userRC, RC=STATUS )
+            call ESMF_GridCompRun (STATE%GCS(I), &
+                 importState=STATE%GIM(I), &
+                 exportState=STATE%GEX(I), &
+                 clock=CLOCK, PHASE=CHLDMAPL(I)%PTR%PHASE_RUN(PHASE), &
+                 userRC=userRC, RC=STATUS )
             ASSERT_(userRC==ESMF_SUCCESS .and. STATUS==ESMF_SUCCESS)
             call MAPL_GenericStateClockOff(STATE,trim(CHILD_NAME))
          end if
@@ -1646,8 +1680,10 @@ if(associated(STATE%GCS)) then
          if (PHASE == NUMPHASES) then
             do J=1,NC
                if(STATE%CCcreated(I,J)) then
-                  call ESMF_CplCompRun (STATE%CCS(I,J), STATE%GEX(I), STATE%GIM(J), &
-                       CLOCK, userRC=userRC, RC=STATUS)
+                  call ESMF_CplCompRun (STATE%CCS(I,J), &
+                       importState=STATE%GEX(I), &
+                       exportState=STATE%GIM(J), &
+                       clock=CLOCK, userRC=userRC, RC=STATUS)
                   ASSERT_(userRC==ESMF_SUCCESS .and. STATUS==ESMF_SUCCESS)
                endif
             enddo
@@ -1742,8 +1778,10 @@ recursive subroutine MAPL_GenericFinalize ( GC, IMPORT, EXPORT, CLOCK, RC )
                VERIFY_(STATUS)
       
                call MAPL_GenericStateClockOn (STATE,trim(CHILD_NAME))
-               call ESMF_GridCompFinalize (STATE%GCS(I), STATE%GIM(I), STATE%GEX(I), &
-                    CLOCK, PHASE=CHLDMAPL(I)%PTR%PHASE_FINAL(PHASE), &
+               call ESMF_GridCompFinalize (STATE%GCS(I), &
+                    importState=STATE%GIM(I), &
+                    exportState=STATE%GEX(I), &
+                    clock=CLOCK, PHASE=CHLDMAPL(I)%PTR%PHASE_FINAL(PHASE), &
                     userRC=userRC, RC=STATUS )
                ASSERT_(userRC==ESMF_SUCCESS .and. STATUS==ESMF_SUCCESS)
                call MAPL_GenericStateClockOff(STATE,trim(CHILD_NAME))
@@ -1905,8 +1943,10 @@ end subroutine MAPL_GenericFinalize
         call ESMF_GridCompGet( STATE%GCS(I), NAME=CHILD_NAME, RC=STATUS )
         VERIFY_(STATUS)
         call MAPL_GenericStateClockOn (STATE,trim(CHILD_NAME))
-        call ESMF_GridCompWriteRestart (STATE%GCS(I), STATE%GIM(I), STATE%GEX(I), &
-             CLOCK, userRC=userRC, RC=STATUS ) ! number of phases is currently limited to 1
+        call ESMF_GridCompWriteRestart (STATE%GCS(I), &
+             importState=STATE%GIM(I), &
+             exportState=STATE%GEX(I), &
+             clock=CLOCK, userRC=userRC, RC=STATUS ) ! number of phases is currently limited to 1
         ASSERT_(userRC==ESMF_SUCCESS .and. STATUS==ESMF_SUCCESS)
         call MAPL_GenericStateClockOff(STATE,trim(CHILD_NAME))
      enddo
@@ -2058,6 +2098,8 @@ end subroutine MAPL_StateRecord
   integer                                     :: STATUS
   integer                                     :: I
   type (MAPL_MetaComp), pointer               :: STATE
+  integer                                     :: filetype
+  character(len=1)                            :: separator
 
 !=============================================================================
 
@@ -2099,14 +2141,22 @@ end subroutine MAPL_StateRecord
      call MAPL_DateStampGet(clock, datestamp, status)
      VERIFY_(STATUS)
 
+     filetype = STATE%RECORD%FILETYPE(1) !???
+
+     if (FILETYPE /= MAPL_Write2Disk) then
+        separator = '*'
+     else
+        separator = '.'
+     end if
+
      I=STATE%RECORD%IMP_LEN
      if (I > 0) then
-        STATE%RECORD%IMP_FNAME(I+1:) = '*' // DATESTAMP // '.bin'
+        STATE%RECORD%IMP_FNAME(I+1:) = separator // DATESTAMP // '.bin'
      end if
      
      I=STATE%RECORD%INT_LEN
      if (I > 0) then
-        STATE%RECORD%INT_FNAME(I+1:) = '*' // DATESTAMP // '.bin'
+        STATE%RECORD%INT_FNAME(I+1:) = separator // DATESTAMP // '.bin'
      end if
 
 ! call the actual record method
@@ -2310,8 +2360,7 @@ end subroutine MAPL_DateStampGet
 ! Initialize the config and grid in the generic state.
 !-----------------------------------------------------
 
-    call ESMF_GridCompGet( GC, CONFIG = MAPLOBJ%CF, &
-         GRID = MAPLOBJ%GRID%ESMFGRID, RC=STATUS )
+    call ESMF_GridCompGet( GC, CONFIG = MAPLOBJ%CF, RC=STATUS )
     VERIFY_(STATUS)
 
     RETURN_(ESMF_SUCCESS)
@@ -2525,8 +2574,9 @@ end subroutine MAPL_DateStampGet
   subroutine MAPL_StateAddImportSpec_(GC, SHORT_NAME, LONG_NAME,               &
                                       UNITS,  Dims, VLocation,                 &
                                       DATATYPE,NUM_SUBTILES, REFRESH_INTERVAL, &
-                                      AVERAGING_INTERVAL, HALOWIDTH, DEFAULT,  &
-                                      RESTART, UNGRIDDED_DIMS, FIELD_TYPE, RC)
+                                      AVERAGING_INTERVAL, HALOWIDTH, PRECISION, DEFAULT,  &
+                                      RESTART, UNGRIDDED_DIMS, FIELD_TYPE,     &
+                                      STAGGERING, ROTATION, RC)
 
     !ARGUMENTS:
     type (ESMF_GridComp)            , intent(INOUT)   :: GC
@@ -2540,10 +2590,13 @@ end subroutine MAPL_DateStampGet
     integer            , optional   , intent(IN)      :: REFRESH_INTERVAL
     integer            , optional   , intent(IN)      :: AVERAGING_INTERVAL
     integer            , optional   , intent(IN)      :: HALOWIDTH
+    integer            , optional   , intent(IN)      :: PRECISION
     real               , optional   , intent(IN)      :: DEFAULT
     logical            , optional   , intent(IN)      :: RESTART
     integer            , optional   , intent(IN)      :: UNGRIDDED_DIMS(:)
     integer            , optional   , intent(IN)      :: FIELD_TYPE
+    integer            , optional   , intent(IN)      :: STAGGERING
+    integer            , optional   , intent(IN)      :: ROTATION
     integer            , optional   , intent(OUT)     :: RC
     !EOPI
 
@@ -2594,10 +2647,13 @@ end subroutine MAPL_DateStampGet
        COUPLE_INTERVAL= usable_RI,                                           &
        VLOCATION  = VLOCATION,                                               &
        HALOWIDTH  = HALOWIDTH,                                               &
+       PRECISION  = PRECISION,                                               &
        RESTART    = usable_RS,                                               &
        DEFAULT    = DEFAULT,                                                 &
        UNGRIDDED_DIMS = UNGRIDDED_DIMS,                                      &
        FIELD_TYPE = FIELD_TYPE,                                              &
+       STAGGERING = STAGGERING,                                              &
+       ROTATION = ROTATION,                                                  &
        RC=STATUS  )
     VERIFY_(STATUS)
 
@@ -2665,8 +2721,8 @@ end subroutine MAPL_DateStampGet
                                       UNITS, Dims, VLocation,               &
                                       DATATYPE,NUM_SUBTILES,                &
                                       REFRESH_INTERVAL, AVERAGING_INTERVAL, &
-                                      HALOWIDTH, DEFAULT, UNGRIDDED_DIMS,   &
-                                      FIELD_TYPE, RC )
+                                      HALOWIDTH, PRECISION, DEFAULT, UNGRIDDED_DIMS,   &
+                                      FIELD_TYPE, STAGGERING, ROTATION, RC )
 
     !ARGUMENTS:
     type (ESMF_GridComp)            , intent(INOUT)   :: GC
@@ -2680,9 +2736,12 @@ end subroutine MAPL_DateStampGet
     integer            , optional   , intent(IN)      :: REFRESH_INTERVAL
     integer            , optional   , intent(IN)      :: AVERAGING_INTERVAL
     integer            , optional   , intent(IN)      :: HALOWIDTH
+    integer            , optional   , intent(IN)      :: PRECISION
     real               , optional   , intent(IN)      :: DEFAULT
     integer            , optional   , intent(IN)      :: UNGRIDDED_DIMS(:)
     integer            , optional   , intent(IN)      :: FIELD_TYPE
+    integer            , optional   , intent(IN)      :: STAGGERING
+    integer            , optional   , intent(IN)      :: ROTATION
     integer            , optional   , intent(OUT)     :: RC
 !EOPI
 
@@ -2728,9 +2787,12 @@ end subroutine MAPL_DateStampGet
        COUPLE_INTERVAL= usable_RI,                                           &
        VLOCATION  = VLOCATION,                                               &
        HALOWIDTH  = HALOWIDTH,                                               &
+       PRECISION  = PRECISION,                                               &
        DEFAULT    = DEFAULT,                                                 &
        UNGRIDDED_DIMS = UNGRIDDED_DIMS,                                      &
        FIELD_TYPE = FIELD_TYPE,                                              &
+       STAGGERING = STAGGERING,                                              &
+       ROTATION = ROTATION,                                                  &
        RC=STATUS  )
     VERIFY_(STATUS)
 
@@ -2790,6 +2852,8 @@ end subroutine MAPL_DateStampGet
     character (len=ESMF_MAXSTR)           :: LONG_NAME
     character (len=ESMF_MAXSTR)           :: UNITS
     integer                               :: FIELD_TYPE
+    integer                               :: STAGGERING
+    integer                               :: ROTATION
     integer                               :: DIMS
     integer                               :: VLOCATION
     integer                               :: NUM_SUBTILES
@@ -2819,6 +2883,8 @@ end subroutine MAPL_DateStampGet
                  LONG_NAME  = LONG_NAME,                                  &
                  UNITS      = UNITS,                                      &
                  FIELD_TYPE = FIELD_TYPE,                                 &
+                 STAGGERING = STAGGERING,                                 &
+                 ROTATION = ROTATION,                                     &
                  DIMS       = DIMS,                                       &
                  VLOCATION  = VLOCATION,                                  &
                  NUM_SUBTILES=NUM_SUBTILES,                               &
@@ -2837,6 +2903,8 @@ end subroutine MAPL_DateStampGet
                  LONG_NAME  = LONG_NAME,                                  &
                  UNITS      = UNITS,                                      &
                  FIELD_TYPE = FIELD_TYPE,                                 &
+                 STAGGERING = STAGGERING,                                 &
+                 ROTATION = ROTATION,                                     &
                  DIMS       = DIMS,                                       &
                  VLOCATION  = VLOCATION,                                  &
                  NUM_SUBTILES=NUM_SUBTILES,                               &
@@ -2897,6 +2965,8 @@ end subroutine MAPL_DateStampGet
                                        ATTR_IVALUES,       &
                                        UNGRIDDED_DIMS,     &
                                        FIELD_TYPE,         &
+                                       STAGGERING,         &
+                                       ROTATION,           &
                                        RC)
 
 ! !ARGUMENTS:
@@ -2923,6 +2993,8 @@ end subroutine MAPL_DateStampGet
     real               , optional   , intent(IN)      :: ATTR_RVALUES(:)
     integer            , optional   , intent(IN)      :: UNGRIDDED_DIMS(:)
     integer            , optional   , intent(IN)      :: FIELD_TYPE
+    integer            , optional   , intent(IN)      :: STAGGERING
+    integer            , optional   , intent(IN)      :: ROTATION
     integer            , optional   , intent(OUT)     :: RC
 
 ! !DESCRIPTION:
@@ -2970,6 +3042,8 @@ end subroutine MAPL_DateStampGet
        ATTR_RVALUES=ATTR_RVALUES, ATTR_IVALUES=ATTR_IVALUES,                 &
        UNGRIDDED_DIMS=UNGRIDDED_DIMS,                                        &
        FIELD_TYPE = FIELD_TYPE,                                              &
+       STAGGERING = STAGGERING,                                              &
+       ROTATION   = ROTATION,                                                &
        RC=STATUS  )
     VERIFY_(STATUS)
 
@@ -3007,7 +3081,7 @@ end subroutine MAPL_DateStampGet
 ! !DESCRIPTION:
 
 !  For each entry in {\tt NAMES} marks the export spec 
-!  to not be deferred during {\tt MAPL_GenericInitialize}.
+!  to not be deferred during {\tt MAPL\_GenericInitialize}.
 
 !EOPI
 
@@ -3047,7 +3121,7 @@ end subroutine MAPL_DateStampGet
 
     !ARGUMENTS:
     type(ESMF_GridComp),                  intent(INOUT) :: GC         ! Gridded component
-    type(ESMF_Method),                    intent(IN   ) :: subroutineType
+    type(ESMF_Method_Flag),               intent(IN   ) :: subroutineType
     external                                            :: subroutineName
     integer,                    optional, intent(  OUT) :: RC         ! Return code
     !EOPI
@@ -3061,15 +3135,15 @@ end subroutine MAPL_DateStampGet
     call MAPL_InternalStateRetrieve( GC, META, RC=STATUS)
     VERIFY_(STATUS)
 
-    if (subroutineType .eq. ESMF_SETINIT) then
+    if (subroutineType .eq. ESMF_METHOD_INITIALIZE) then
        phase = MAPL_AddMethod(META%phase_init, RC=STATUS)
-    else if (subroutineType == ESMF_SETRUN) then
+    else if (subroutineType == ESMF_METHOD_RUN) then
        phase = MAPL_AddMethod(META%phase_run, RC=STATUS)
-    else if (subroutineType == ESMF_SETFINAL) then
+    else if (subroutineType == ESMF_METHOD_FINALIZE) then
        phase = MAPL_AddMethod(META%phase_final, RC=STATUS)
-    else if (subroutineType == ESMF_SETWRITERESTART) then
+    else if (subroutineType == ESMF_METHOD_WRITERESTART) then
        phase = MAPL_AddMethod(META%phase_record, RC=STATUS)
-    else if (subroutineType == ESMF_SETREADRESTART) then
+    else if (subroutineType == ESMF_METHOD_READRESTART) then
        phase = MAPL_AddMethod(META%phase_coldstart, RC=STATUS)
     else
        RETURN_(ESMF_FAILURE)
@@ -3077,7 +3151,7 @@ end subroutine MAPL_DateStampGet
     VERIFY_(STATUS)
 
     call ESMF_GridCompSetEntryPoint(GC, subroutineType,  subroutineName, &
-                                    phase, status)
+                                    phase=phase, rc=status)
     VERIFY_(STATUS)
 
     RETURN_(ESMF_SUCCESS)
@@ -3173,7 +3247,7 @@ end subroutine MAPL_DateStampGet
                                    EXCHANGEGRID,                              &
                                    CLOCK,                                     &
                                    NumInitPhases,                             &
-                                   GCS, CCS, GIM, GEX, CF, HEARTBEAT, RC )
+                                   GCS, CCS, GIM, GEX, CF, HEARTBEAT, maplComm, RC )
 
     !ARGUMENTS:
     type (MAPL_MetaComp),           intent(INOUT) :: STATE
@@ -3206,6 +3280,7 @@ end subroutine MAPL_DateStampGet
     real                 ,optional, intent(  OUT) :: HEARTBEAT
     integer,              optional, intent(  OUT) :: NumInitPhases
     type (ESMF_Config),   optional, intent(  OUT) :: CF
+    type (MAPL_Communicators), optional, intent(OUT) :: maplComm
 
 ! !DESCRIPTION:
 ! This is the way of querying the opaque {\em MAPL\_Generic}
@@ -3414,6 +3489,10 @@ end subroutine MAPL_DateStampGet
         NumInitPhases = SIZE(STATE%PHASE_INIT)
      endif
 
+     if(present(maplComm)) then
+       maplComm = state%comm
+     end if
+
     RETURN_(ESMF_SUCCESS)
   end subroutine MAPL_GenericStateGet
 
@@ -3426,7 +3505,7 @@ end subroutine MAPL_DateStampGet
   !INTERFACE:
   subroutine MAPL_GenericStateSet (STATE, ORBIT, LM, RUNALARM, CHILDINIT, &
                                    LOCSTREAM, EXCHANGEGRID, CLOCK, NAME,  &
-                                   CF, ConfigFile, RC)
+                                   CF, ConfigFile, maplComm, RC)
 
     !ARGUMENTS:
     type (MAPL_MetaComp),            intent(INOUT) :: STATE
@@ -3440,6 +3519,7 @@ end subroutine MAPL_DateStampGet
     type (ESMF_Config)   , optional, intent(IN   ) :: CF
     character(len=*)     , optional, intent(IN   ) :: NAME
     character(len=*)     , optional, intent(IN   ) :: ConfigFile
+    type(MAPL_Communicators), optional, intent(IN) :: maplComm
     integer,               optional, intent(  OUT) :: RC
     !EOPI
 
@@ -3489,6 +3569,10 @@ end subroutine MAPL_DateStampGet
         call ESMF_ConfigLoadFile(State%CF,ConfigFile,rc=STATUS)
         VERIFY_(STATUS)
      endif
+
+     if (present(maplComm)) then
+        State%comm = maplComm
+     end if
 
     RETURN_(ESMF_SUCCESS)
   end subroutine MAPL_GenericStateSet
@@ -3551,8 +3635,10 @@ end subroutine MAPL_DateStampGet
     if(associated(STATE%GCS)) then
        do J=1,size(STATE%GCS)
           if(STATE%CCcreated(CHILD,J)) then
-             call ESMF_CplCompRun (STATE%CCS(CHILD,J), STATE%GEX(CHILD), STATE%GIM(J), &
-                  CLOCK, userRC=userRC, RC=STATUS )
+           call ESMF_CplCompRun (STATE%CCS(CHILD,J), &
+                importState=STATE%GEX(CHILD), &
+                exportState=STATE%GIM(J), &
+                clock=CLOCK, userRC=userRC, RC=STATUS )
              ASSERT_(userRC==ESMF_SUCCESS .and. STATUS==ESMF_SUCCESS)
           endif
        enddo
@@ -3760,15 +3846,15 @@ end subroutine MAPL_DateStampGet
 ! ----------------------------------
 
   META%GIM(I) = ESMF_StateCreate (                         & 
-       STATENAME = trim(META%GCNameList(I)) // '_Imports', &
-       STATETYPE = ESMF_STATE_IMPORT,                      &
+       NAME = trim(META%GCNameList(I)) // '_Imports', &
+       stateIntent = ESMF_STATEINTENT_IMPORT, &
        RC=STATUS )
   VERIFY_(STATUS)
 
 
   META%GEX(I) = ESMF_StateCreate (                         &
-       STATENAME = trim(META%GCNameList(I)) // '_Exports', &
-       STATETYPE = ESMF_STATE_EXPORT,                      &
+       NAME = trim(META%GCNameList(I)) // '_Exports', &
+       stateIntent = ESMF_STATEINTENT_EXPORT, &
        RC=STATUS )
   VERIFY_(STATUS)
 
@@ -3783,7 +3869,10 @@ end subroutine MAPL_DateStampGet
      CHILD_META%parentGC = parentGC
   end if
 
-  call ESMF_GridCompSetServices ( META%GCS(I), SS, status )
+! copy communicator to childs mapl_metacomp
+  CHILD_META%comm = META%comm
+
+  call ESMF_GridCompSetServices ( META%GCS(I), SS, RC=status )
   VERIFY_(STATUS)
 
   RETURN_(ESMF_SUCCESS)
@@ -4181,7 +4270,7 @@ end function MAPL_AddChildFromGC
     character(len=ESMF_MAXSTR) :: ANAME
 
     do I=0,STATE%ALARMLAST
-       call ESMF_AlarmGet(STATE%ALARM(I),ANAME,RC=STATUS)
+       call ESMF_AlarmGet(STATE%ALARM(I), name=ANAME, RC=STATUS)
        VERIFY_(STATUS)
        if(trim(NAME)/=trim(ANAME)) cycle
        ALARM=STATE%ALARM(I)
@@ -4280,7 +4369,6 @@ end function MAPL_AddChildFromGC
 !=============================================================================
 !=============================================================================
 
-
   subroutine MAPL_ESMFStateWriteToFile(STATE,CLOCK,FILENAME,FILETYPE,MPL,HDR,RC)
     type(ESMF_State),                 intent(INOUT) :: STATE
     type(ESMF_Clock),                 intent(IN   ) :: CLOCK
@@ -4293,9 +4381,7 @@ end function MAPL_AddChildFromGC
     character(len=ESMF_MAXSTR), parameter :: IAm="MAPL_ESMFStateWriteToFile"
     integer                               :: STATUS
 
-    type (ESMF_StateItemType), pointer    :: ITEMTYPES(:)
-    character(len=ESMF_MAXSTR ), pointer  :: ITEMNAMES(:)
-    integer                               :: ITEMCOUNT, FieldCount
+    integer                               :: FieldCount
     integer                               :: UNIT
     integer                               :: I, J, K, L, N
     integer                               :: YYYY, MM, DD, H, M, S
@@ -4311,46 +4397,21 @@ end function MAPL_AddChildFromGC
     logical                               :: AmWriter, skipWriting
     type(ArrDescr)                        :: ArrDes
     integer(kind=MPI_OFFSET_KIND)         :: offset
-    integer                               :: info, CMODE
+    integer                               :: info
     integer                               :: ndes
 
     type(ESMF_Grid)                       :: TILEGRID
     integer                               :: COUNTS(2), CCPD(3)
-    integer                               :: io_nodes, io_rank, ind
+    integer                               :: io_nodes, io_rank
     integer                               :: attr, varid
     type (ESMF_Array)                     :: array
     type (ESMF_Field)                     :: field
     type (ESMF_Grid)                      :: grid
-    type (ESMF_TypeKind)                  :: tk
-    type (ESMF_FieldBundle)               :: bundle
-    integer                               :: londim, lonid, latdim, latid, levdim, levid, edgedim, edgeid
-    integer                               :: tiledim, tileid, subtiledim, subtileid, tdim, tid
     integer                               :: arrayRank, KM_WORLD, DataType, RST
-    integer, allocatable                  :: LOCATION(:), DIMS(:)
-    logical                               :: Have_HorzOnly, Have_HorzVert, Have_VertOnly, Have_TileOnly
-    logical                               :: Have_TileTile, Have_VLocationCenter, Have_VLocationEdge
-    real(KIND=ESMF_KIND_R8),  allocatable :: lon(:), lat(:), lev(:), edges(:)
-    real(KIND=ESMF_KIND_R8)               :: dlon, dlat
     character(len=ESMF_MAXSTR )           :: STD_NAME, LONG_NAME, UNITS, FieldName, BundleName
     character(len=MPI_MAX_INFO_VAL )      :: romio_cb_write, cb_buffer_size, value
     character(len=MPI_MAX_INFO_KEY )      :: key
     integer                               :: nkeys, flag, valuelen=MPI_MAX_INFO_VAL
-
-! Get information from state
-!---------------------------
-
-    call ESMF_StateGet(STATE,ITEMCOUNT=ITEMCOUNT,RC=STATUS)
-    VERIFY_(STATUS)
-
-    ASSERT_(ITEMCOUNT>0)
-
-    allocate(ITEMNAMES(ITEMCOUNT),STAT=STATUS)
-    VERIFY_(STATUS)
-    allocate(ITEMTYPES(ITEMCOUNT),STAT=STATUS)
-    VERIFY_(STATUS)
-
-    call ESMF_StateGet(STATE,ITEMNAMELIST=ITEMNAMES,STATEITEMTYPELIST=ITEMTYPES,RC=STATUS)
-    VERIFY_(STATUS)
 
 ! Open file
 !----------
@@ -4360,13 +4421,18 @@ end function MAPL_AddChildFromGC
        filetype = 'binary'
     end if
 
+    if (mpl%grid%num_writers == 1 .and. filetype == 'pbinary') then
+       !ALT: this is a special case, we will treat the same as BINARY
+       filetype = 'binary'
+    end if
+
     if (filetype == 'binary' .or. filetype == 'BINARY') then
        UNIT = GETFILE(FILENAME, form="unformatted", rc=status)
        VERIFY_(STATUS)
     elseif(filetype=="formatted".or.filetype=="FORMATTED") then
        UNIT = GETFILE(FILENAME, form="formatted", rc=status)
        VERIFY_(STATUS)
-    elseif(filetype=='pbinary' .or. filetype=='pnc4') then
+    elseif(filetype=='pbinary') then
        call ESMF_GridGet(MPL%GRID%ESMFGRID, dimCount=dimCount, RC=STATUS)
        VERIFY_(STATUS)
 
@@ -4427,7 +4493,7 @@ end function MAPL_AddChildFromGC
 !@       call MPI_Barrier(mpl%grid%comm, status)
 !@       VERIFY_(STATUS)
        arrdes%offset = 0
-       if (AmWriter .and. filetype=='pbinary' ) then
+       if (AmWriter) then
 
           call MPI_Info_create(info, STATUS)
           VERIFY_(STATUS)
@@ -4452,555 +4518,33 @@ end function MAPL_AddChildFromGC
           VERIFY_(STATUS)
 !$$            call MPI_Barrier(mpl%grid%writers_comm, status)
 !$$            VERIFY_(STATUS)
-       elseif(AmWriter .and. filetype=='pnc4') then
-#ifndef H5_HAVE_PARALLEL
-          print*,trim(Iam),': pnc4 option not allowed unless HDF5 was built with -enable-parallel'
-          ASSERT_(.false.)
-#else
-          call ESMF_StateGet ( state,ITEMNAMES(1),field,rc=status )
-          VERIFY_(STATUS)
-          call ESMF_FieldGet ( field, grid=grid, rc=status )
-          VERIFY_(STATUS)
-          call MAPL_GridGet(GRID, globalCellCountPerDim=CCPD, RC=STATUS)
-          VERIFY_(STATUS)
-          KM_WORLD = CCPD(3)
-
-          call MPI_Info_create(info, STATUS)
-          VERIFY_(STATUS)
-! enable works best on GPFS but remains TBD for Lustre
-          call MAPL_GetResource(MPL, romio_cb_write, Label="ROMIO_CB_WRITE:", default="enable", RC=STATUS)
-          VERIFY_(STATUS)
-          call MPI_Info_set(info, "romio_cb_write", trim(romio_cb_write), STATUS)
-          VERIFY_(STATUS)
-! Optimal cb_buffer_size remains TBD
-          call MAPL_GetResource(MPL, cb_buffer_size, Label="CB_BUFFER_SIZE:", default="16777216", RC=STATUS)
-          VERIFY_(STATUS)
-          call MPI_Info_set(info, "cb_buffer_size", trim(cb_buffer_size), STATUS)
-          VERIFY_(STATUS)
-          if (io_rank == 0) then
-             print *,'Using parallel NetCDF for file: ',trim(FILENAME)
-!             print *,'lats from MPL is ',mpl%grid%lats(1,:)*(180._8/MAPL_PI_R8)
-!             print *,'lons from MPL is ',mpl%grid%lons(:,1)*(180._8/MAPL_PI_R8)
-
-!             call MPI_Info_get_nkeys(info, nkeys, STATUS)
-!             VERIFY_(STATUS)
-!             do i=0,nkeys-1
-!                call MPI_Info_get_nthkey(info, i, key, STATUS)
-!                VERIFY_(STATUS)
-!                call MPI_Info_get(info, key, valuelen, value, flag, STATUS)
-!                VERIFY_(STATUS)
-!                write(*,'("MPI_Info Key-Value pair ",a," -> ",a)') trim(key),trim(value)
-!             enddo
-          end if
-! Create a NetCDF4 file
-! This routine requires that the underlying HDF5 library was built with -enable-parallel
-          CMODE = IOR(NF_CLOBBER,NF_NETCDF4)
-!          status = nf_create_par(trim(FILENAME), IOR(CMODE,NF_MPIIO), mpl%grid%writers_comm, info, UNIT)
-          status = nf_create_par(trim(FILENAME), CMODE, mpl%grid%writers_comm, info, UNIT)
-          if(status /= nf_noerr) then
-             print*,'Error creating file ',status
-             print*, NF_STRERROR(status)
-             stop
-          endif
-
-! Determine the types of fields so we can create the proper dimensions in the NetCDF file
-! First count the number of fields in the STATE
-          FieldCount=0
-          do I = 1, ITEMCOUNT
-             if (ITEMTYPES(I) == ESMF_StateItem_FieldBundle) then
-                call ESMF_StateGet(STATE, ITEMNAMES(i), bundle, rc=status)
-                VERIFY_(STATUS)
-                skipWriting = .false.
-                call ESMF_AttributeGet(bundle, name='RESTART', value=RST, rc=status)
-                if (STATUS == ESMF_SUCCESS) then
-                   skipWriting = (RST == 0)
-                end if
-                if (skipWriting) cycle
-                call ESMF_FieldBundleGet(bundle, fieldCount=N,  rc=STATUS)
-                VERIFY_(STATUS)
-                FieldCount = FieldCount + N
-             elseif (ITEMTYPES(I) == ESMF_StateItem_Field) then
-                call ESMF_StateGet(STATE, ITEMNAMES(i), FIELD, rc=status)
-                VERIFY_(STATUS)
-
-                skipWriting = .false.
-                call ESMF_AttributeGet(field, name='RESTART', value=RST, rc=status)
-                if (STATUS == ESMF_SUCCESS) then
-                   skipWriting = (RST == 0)
-                end if
-                if (skipWriting) cycle
-                FieldCount = FieldCount + 1
-             endif
-          enddo
-
-          allocate(LOCATION(FieldCount), stat=STATUS)
-          VERIFY_(STATUS)
-          allocate(DIMS(FieldCount), stat=STATUS)
-          VERIFY_(STATUS)
-
-! Now determine the dimensionality and vertical structure of each field
-          K=1
-          do I = 1, ITEMCOUNT
-             if (ITEMTYPES(I) == ESMF_StateItem_FieldBundle) then
-                call ESMF_StateGet(STATE, ITEMNAMES(i), bundle, rc=status)
-                VERIFY_(STATUS)
-
-                skipWriting = .false.
-                call ESMF_AttributeGet(bundle, name='RESTART', value=RST, rc=status)
-                if (STATUS == ESMF_SUCCESS) then
-                   skipWriting = (RST == 0)
-                end if
-                if (skipWriting) cycle
-
-                call ESMF_FieldBundleGet(bundle, fieldCount=N,  rc=STATUS)
-                VERIFY_(STATUS)
-
-                DO J = 1, N
-                   call ESMF_FieldBundleGet(bundle, fieldIndex=J, field=field, rc=status)
-                   VERIFY_(STATUS)
-                   call ESMF_AttributeGet(field, NAME='DIMS'        , VALUE=DIMS(K)      , rc=status)
-                   VERIFY_(STATUS)
-                   call ESMF_AttributeGet(field, NAME="VLOCATION" , VALUE=LOCATION(K)  , RC=STATUS)
-                   if ( status /= 0 ) LOCATION(K) = MAPL_VLocationNone
-                   K = K+1
-                END DO
-
-             elseif (ITEMTYPES(I) == ESMF_StateItem_Field) then
-                call ESMF_StateGet(STATE, ITEMNAMES(i), FIELD, rc=status)
-                VERIFY_(STATUS)
-
-                skipWriting = .false.
-                call ESMF_AttributeGet(field, name='RESTART', value=RST, rc=status)
-                if (STATUS == ESMF_SUCCESS) then
-                   skipWriting = (RST == 0)
-                end if
-                if (skipWriting) cycle
-
-                call ESMF_AttributeGet(field, NAME='DIMS'        , VALUE=DIMS(K)      , rc=status)
-                VERIFY_(STATUS)
-                call ESMF_AttributeGet(field, NAME="VLOCATION" , VALUE=LOCATION(K)  , RC=STATUS)
-                if ( status /= 0 ) LOCATION(K) = MAPL_VLocationNone
-                K=K+1
-             endif
-          enddo
-          ASSERT_(K-1==FieldCount)
-
-          Have_HorzOnly = any(DIMS==MAPL_DimsHorzOnly)
-          Have_HorzVert = any(DIMS==MAPL_DimsHorzVert)
-          Have_VertOnly = any(DIMS==MAPL_DimsVertOnly)
-          Have_TileOnly = any(DIMS==MAPL_DimsTileOnly)
-          Have_TileTile = any(DIMS==MAPL_DimsTileTile)
-          Have_VLocationCenter = any(LOCATION==MAPL_VLocationCenter)
-          Have_VLocationEdge   = any(LOCATION==MAPL_VLocationEdge)
-          deallocate(DIMS)
-          deallocate(LOCATION)
-
-! Create dimensions as needed
-          if (Have_HorzVert .or. Have_HorzOnly) then
-
-! Longitude variable
-             status = NF_DEF_DIM(UNIT, 'lon'  ,   arrdes%IM_WORLD, londim)
-             status = nf_def_var(UNIT, "lon", NF_DOUBLE, 1, londim, lonid)
-             if(status /= nf_noerr) then
-                print*,'Error defining lon',status
-                print*, NF_STRERROR(status)
-                stop
-             endif
-             dlon = 360.d0/dble(arrdes%IM_WORLD)
-             allocate(lon(arrdes%IM_WORLD))
-             do i =1, arrdes%IM_WORLD
-                lon(i) = -180.d0 + (i-1)*dlon
-             end do
-             status = nf_put_var(UNIT, lonid, lon)
-             status = nf_put_att_text(UNIT, lonid, "units"    , 12, "degrees_east")
-             status = nf_put_att_text(UNIT, lonid, "long_name",  9, "Longitude")
-             deallocate(lon)
-
-! Latitude variable
-             status = NF_DEF_DIM(UNIT, 'lat'  ,   arrdes%JM_WORLD, latdim)
-             status = nf_def_var(UNIT, "lat", NF_DOUBLE, 1, latdim, latid)
-             if(status /= nf_noerr) then
-                print*,'Error defining lat',status
-                print*, NF_STRERROR(status)
-                stop
-             endif
-             dlat = 180.d0/dble(arrdes%JM_WORLD-1)
-             allocate(lat(arrdes%JM_WORLD))
-             do j =1, arrdes%JM_WORLD
-                lat(j) =  -90.d0 + (j-1)*dlat
-             end do
-             status = nf_put_var(UNIT, latid, lat)
-             status = nf_put_att_text(UNIT, latid, "units"    , 13, "degrees_north")
-             status = nf_put_att_text(UNIT, latid, "long_name",  8, "Latitude")
-             deallocate(lat)
-          endif
-
-          if(Have_HorzVert .or. Have_VertOnly) then
-             if (Have_VLocationCenter) then
-! Level variable
-                status = NF_DEF_DIM(UNIT, 'lev'  ,   KM_WORLD, levdim)
-                status = nf_def_var(UNIT, "lev", NF_DOUBLE, 1, levdim, levid)
-                if(status /= nf_noerr) then
-                   print*,'Error defining lev',status
-                   print*, NF_STRERROR(status)
-                   stop
-                endif
-                allocate(lev(KM_WORLD))
-                lev = (/(L, L=1,KM_WORLD)/)
-                status = nf_put_var(UNIT, levid, lev)
-                status = nf_put_att_text(UNIT, levid, "units"    ,  5, "layer")
-                status = nf_put_att_text(UNIT, levid, "long_name", 24, "sigma at layer midpoints")
-                status = nf_put_att_text(UNIT, levid, "standard_name", 43, "atmosphere_hybrid_sigma_pressure_coordinate")
-                status = nf_put_att_text(UNIT, levid, "coordinate", 3, "eta")
-                status = nf_put_att_text(UNIT, levid, "formulaTerms", 27, "ap: ak b: bk ps: ps p0: p00")
-                status = nf_put_att_text(UNIT, levid, "positive", 4, "down")
-                deallocate(lev)
-             endif
-
-             if (Have_VLocationEdge) then
-! Edges variable
-                status = NF_DEF_DIM(UNIT, 'edges', KM_WORLD+1, edgedim)
-                status = nf_def_var(UNIT, "edges", NF_DOUBLE, 1, edgedim, edgeid)
-                if(status /= nf_noerr) then
-                   print*,'Error defining edges',status
-                   print*, NF_STRERROR(status)
-                   stop
-                endif
-                allocate(edges(KM_WORLD+1))
-                edges = (/(L, L=1,KM_WORLD+1)/)
-                status = nf_put_var(UNIT, edgeid, edges)
-                if(status /= nf_noerr) then
-                   print*,'Error putting edges ',status
-                   print*, NF_STRERROR(status)
-                   stop
-                endif
-                status = nf_put_att_text(UNIT, edgeid, "units"    ,  5, "level")
-                if(status /= nf_noerr) then
-                   print*,'Error putting units on edges variable ',status
-                   print*, NF_STRERROR(status)
-                   stop
-                endif
-                status = nf_put_att_text(UNIT, edgeid, "long_name", 20, "sigma at layer edges")
-                status = nf_put_att_text(UNIT, edgeid, "standard_name", 43, "atmosphere_hybrid_sigma_pressure_coordinate")
-                status = nf_put_att_text(UNIT, edgeid, "coordinate", 3, "eta")
-                status = nf_put_att_text(UNIT, edgeid, "formulaTerms", 27, "ap: ak b: bk ps: ps p0: p00")
-                status = nf_put_att_text(UNIT, edgeid, "positive", 4, "down")
-                deallocate(edges)
-             endif
-          endif
-
-          if (Have_TileOnly .or. Have_TileTile) then
-             status = NF_DEF_DIM(UNIT, 'tile'   ,   arrdes%IM_WORLD, tiledim)
-            if(Have_TileTile) status = NF_DEF_DIM(UNIT, 'subtile'  ,   arrdes%JM_WORLD, subtiledim)
-          endif
-
-! Time variable
-          status = NF_DEF_DIM(UNIT, 'time' ,          1, tdim)
-          status = nf_def_var(UNIT, 'time', NF_DOUBLE, 1, tdim, tid)
-
-          call ESMF_ClockGet ( clock,  currTime=CurrentTime ,rc=STATUS )
-          VERIFY_(STATUS)
-          call ESMF_TimeGet  ( CurrentTime, timeString=TimeString, rc=status )
-          VERIFY_(STATUS)
-
-!          read(timestring( 1: 4),'(i4.4)') YYYY
-!          read(timestring( 6: 7),'(i2.2)') MM
-!          read(timestring( 9:10),'(i2.2)') DD
-!          read(timestring(12:13),'(i2.2)') H
-!          read(timestring(15:16),'(i2.2)') M
-          TimeUnits = "minutes since "//timestring( 1: 10)//" "//timestring(12:19)
-          status = nf_put_var(UNIT, tid, 0.d0)
-          status = nf_put_att_text(UNIT, tid, 'units', len_trim(TimeUnits), trim(TimeUnits))
-!          status = NF_PUT_ATT     (UNIT, tid, 'time_increment', NF_INT, 1, 60000)
-!          status = NF_PUT_ATT     (UNIT, tid, 'begin_date', NF_INT, 1, 20091001)
-!          status = NF_PUT_ATT     (UNIT, tid, 'begin_time', NF_INT, 1, 000000)
-
-          allocate(DIMS(1), stat=STATUS)
-          VERIFY_(STATUS)
-          allocate(LOCATION(1), stat=STATUS)
-          VERIFY_(STATUS)
-
-! Define variables with appropriate dimension and vertical structure
-          do I = 1, ITEMCOUNT
-             if (ITEMTYPES(I) == ESMF_StateItem_Field) then
-                call ESMF_StateGet(STATE, ITEMNAMES(i), FIELD, rc=status)
-                VERIFY_(STATUS)
-
-                skipWriting = .false.
-                call ESMF_AttributeGet(field, name='RESTART', value=RST, rc=status)
-                if (STATUS == ESMF_SUCCESS) then
-                   skipWriting = (RST == 0)
-                end if
-                if (skipWriting) cycle
-
-                call ESMF_AttributeGet(FIELD, NAME='LONG_NAME'   , VALUE=LONG_NAME , rc=status)
-                VERIFY_(STATUS)
-                call ESMF_AttributeGet(FIELD, NAME='UNITS'       , VALUE=UNITS     , rc=status)
-                VERIFY_(STATUS)
-                call ESMF_AttributeGet(field, NAME='DIMS'        , VALUE=DIMS(1)      , rc=status)
-                VERIFY_(STATUS)
-                call ESMF_AttributeGet(field, NAME="VLOCATION" , VALUE=LOCATION(1)  , RC=STATUS)
-                if ( status /= 0 ) LOCATION(1) = MAPL_VLocationNone
-                call ESMF_FieldGet    (FIELD, ARRAY=array, name=FieldName,  RC=STATUS)
-                VERIFY_(STATUS)
-! Check for old style aerosol names
-                ind= index(FieldName, '::')
-                if (ind> 0) then
-                   FieldName = trim(FieldName(ind+2:))
-                end if
-! Extract some info from the array and define variables accordingly
-                call ESMF_ArrayGet    (array, typekind=tk, rank=arrayRank,  RC=STATUS)
-                VERIFY_(STATUS)
-                if (tk .eq. ESMF_TYPEKIND_I1) DataType = NF_BYTE
-                if (tk .eq. ESMF_TYPEKIND_I2) DataType = NF_SHORT
-                if (tk .eq. ESMF_TYPEKIND_I4) DataType = NF_INT
-                if (tk .eq. ESMF_TYPEKIND_R4) DataType = NF_FLOAT
-                if (tk .eq. ESMF_TYPEKIND_R8) DataType = NF_DOUBLE
-
-                if (arrayRank == 1) then
-                   if(DIMS(1)==MAPL_DimsVertOnly) then
-                      if(LOCATION(1) == MAPL_VLocationCenter) then
-                          STATUS = NF_DEF_VAR(UNIT, trim(FieldName), DataType, 1, levdim, varid)
-                          if(status /= nf_noerr) then
-                             print*,'Error defining variable ',status, trim(FieldName)
-                             print*, NF_STRERROR(status)
-                             stop
-                          endif
-                      elseif(LOCATION(1) == MAPL_VLocationEdge) then
-                          STATUS = NF_DEF_VAR(UNIT, trim(FieldName), DataType, 1, edgedim, varid)
-                          if(status /= nf_noerr) then
-                             print*,'Error defining variable ',status, trim(FieldName)
-                             print*, NF_STRERROR(status)
-                             stop
-                          endif
-                      else
-                          print *, 'ERROR: LOCATION not recognized for rank 1'
-                          ASSERT_(.false.) 
-                      endif
-                   elseif(DIMS(1)==MAPL_DimsTileOnly) then
-                      STATUS = NF_DEF_VAR(UNIT, trim(FieldName), DataType, 1, tiledim, varid)
-                      if(status /= nf_noerr) then
-                         print*,'Error defining variable ',status, trim(FieldName)
-                         print*, NF_STRERROR(status)
-                         stop
-                      endif
-                   else
-                      print *, 'ERROR: blah blah blah'
-                      ASSERT_(.false.)
-                   endif
-                elseif(arrayRank == 2) then
-                   if(DIMS(1)==MAPL_DimsHorzOnly) then
-                      STATUS = NF_DEF_VAR(UNIT, trim(FieldName), DataType, 2, (/londim,latdim/), varid)
-                         if(status /= nf_noerr) then
-                            print*,'Error defining variable ',status, trim(FieldName)
-                            print*, NF_STRERROR(status)
-                            stop
-                         endif
-                   elseif(DIMS(1)==MAPL_DimsTileTile) then
-                          STATUS = NF_DEF_VAR(UNIT, trim(FieldName), DataType, 2, (/tiledim,subtiledim/), varid)
-                          if(status /= nf_noerr) then
-                             print*,'Error defining variable ',status, trim(FieldName)
-                             print*, NF_STRERROR(status)
-                             stop
-                          endif
-                   else
-                      print *, 'ERROR: DIMS not recognized for rank 2 variable ',trim(FieldName), DIMS(1)
-                      ASSERT_(.false.)
-                   endif
-                elseif(arrayRank == 3) then
-                   if(DIMS(1)==MAPL_DimsHorzVert) then
-                      if(LOCATION(1) == MAPL_VLocationCenter) then
-                          STATUS = NF_DEF_VAR(UNIT, trim(FieldName), DataType, 3, (/londim,latdim,levdim/), varid)
-                          if(status /= nf_noerr) then
-                             print*,'Error defining variable ',status, trim(FieldName)
-                             print*, NF_STRERROR(status)
-                             stop
-                          endif
-                      elseif(LOCATION(1) == MAPL_VLocationEdge) then
-                          STATUS = NF_DEF_VAR(UNIT, trim(FieldName), DataType, 3, (/londim,latdim,edgedim/), varid)
-                          if(status /= nf_noerr) then
-                             print*,'Error defining variable ',status, trim(FieldName)
-                             print*, NF_STRERROR(status)
-                             stop
-                          endif
-                      else
-                          print *, 'ERROR: LOCATION not recognized for rank 3'
-                          ASSERT_(.false.)
-                      endif
-                   elseif(DIMS(1)/=MAPL_DimsHorzVert) then
-                      print *, 'ERROR: What else could it be??'
-                      ASSERT_(.false.)
-                   endif
-                else
-                   print *, 'ERROR: arrayRank ',arrayRank, ' not supported'
-                   ASSERT_(.false.)
-                endif
-                   
-                STATUS = NF_PUT_ATT_TEXT(UNIT, varid, 'long_name', len_trim(LONG_NAME), trim(LONG_NAME) )
-                STATUS = NF_PUT_ATT_TEXT(UNIT, varid, 'units', len_trim(UNITS), trim(UNITS))
-                STATUS = NF_DEF_VAR_CHUNKING(UNIT, varid, NF_CONTIGUOUS, (/0,0,0,0/))
-                if(status /= nf_noerr) then
-                   print*,'Error setting contiguous ',status, trim(FieldName)
-                   print*, NF_STRERROR(status)
-                   stop
-                endif
-                STATUS = NF_DEF_VAR_FILL    (UNIT, varid, NF_NOFILL, C_NULL_PTR)
-                if(status /= nf_noerr) then
-                   print*,'Error setting no_fill ',status
-                   print*, NF_STRERROR(status)
-                   stop
-                endif
-             elseif (ITEMTYPES(I) == ESMF_StateItem_FieldBundle) then
-                call ESMF_StateGet(STATE, ITEMNAMES(i), bundle, rc=status)
-                VERIFY_(STATUS)
-
-                skipWriting = .false.
-                call ESMF_AttributeGet(bundle, name='RESTART', value=RST, rc=status)
-                if (STATUS == ESMF_SUCCESS) then
-                   skipWriting = (RST == 0)
-                end if
-                if (skipWriting) cycle
-
-                call ESMF_FieldBundleGet(bundle, fieldCount=N, name=BundleName, rc=STATUS)
-                VERIFY_(STATUS)
-
-                DO J = 1, N
-                   call ESMF_FieldBundleGet(bundle, fieldIndex=J, field=field, rc=status)
-                   VERIFY_(STATUS)
-                   call ESMF_AttributeGet(FIELD, NAME='LONG_NAME'   , VALUE=LONG_NAME , rc=status)
-                   VERIFY_(STATUS)
-                   call ESMF_AttributeGet(FIELD, NAME='UNITS'       , VALUE=UNITS     , rc=status)
-                   VERIFY_(STATUS)
-                   call ESMF_AttributeGet(field, NAME='DIMS'        , VALUE=DIMS(1)      , rc=status)
-                   VERIFY_(STATUS)
-                   call ESMF_AttributeGet(field, NAME="VLOCATION" , VALUE=LOCATION(1)  , RC=STATUS)
-                   if ( status /= 0 ) LOCATION(1) = MAPL_VLocationNone
-                   call ESMF_FieldGet    (FIELD, ARRAY=array, name=FieldName,  RC=STATUS)
-                   VERIFY_(STATUS)
-! Check for old style aerosol names
-                   ind= index(FieldName, '::')
-                   if (ind> 0) then
-                      FieldName = trim(FieldName(ind+2:))
-                   end if
-! Tack on BundleName to distiguish duplicate FieldNames in different Bundles (PCHEM for instance)
-                   FieldName = trim(BundleName) //'_'// trim(FieldName)
-
-! Extract some info from the array and define variables accordingly
-                   call ESMF_ArrayGet    (array, typekind=tk, rank=arrayRank, RC=STATUS)
-                   VERIFY_(STATUS)
-                   if (tk .eq. ESMF_TYPEKIND_I1) DataType = NF_BYTE
-                   if (tk .eq. ESMF_TYPEKIND_I2) DataType = NF_SHORT
-                   if (tk .eq. ESMF_TYPEKIND_I4) DataType = NF_INT
-                   if (tk .eq. ESMF_TYPEKIND_R4) DataType = NF_FLOAT
-                   if (tk .eq. ESMF_TYPEKIND_R8) DataType = NF_DOUBLE
-
-                   if (arrayRank == 1) then
-                      if(DIMS(1)==MAPL_DimsVertOnly) then
-                         if(LOCATION(1) == MAPL_VLocationCenter) then
-                             STATUS = NF_DEF_VAR(UNIT, trim(Fieldname), DataType, 1, levdim, varid)
-                             if(status /= nf_noerr) then
-                                print*,'Error defining variable ',status, trim(Fieldname)
-                                print*, NF_STRERROR(status)
-                                stop
-                             endif
-                         elseif(LOCATION(1) == MAPL_VLocationEdge) then
-                             STATUS = NF_DEF_VAR(UNIT, trim(Fieldname), DataType, 1, edgedim, varid)
-                             if(status /= nf_noerr) then
-                                print*,'Error defining variable ',status, trim(Fieldname)
-                                print*, NF_STRERROR(status)
-                                stop
-                             endif
-                         else
-                             print *, 'ERROR: LOCATION not recognized for rank 1'
-                             ASSERT_(.false.)
-                         endif
-                      elseif(DIMS(1)==MAPL_DimsTileOnly) then
-                         STATUS = NF_DEF_VAR(UNIT, trim(Fieldname), DataType, 1, tiledim, varid)
-                         if(status /= nf_noerr) then
-                            print*,'Error defining variable ',status, trim(Fieldname)
-                            print*, NF_STRERROR(status)
-                            stop
-                         endif
-                      else
-                         print *, 'ERROR: blah blah blah'
-                         ASSERT_(.false.)
-                      endif
-                   elseif(arrayRank == 2) then
-                      if(DIMS(1)==MAPL_DimsHorzOnly) then
-                         STATUS = NF_DEF_VAR(UNIT, trim(Fieldname), DataType, 2, (/londim,latdim/), varid)
-                            if(status /= nf_noerr) then
-                               print*,'Error defining variable ',status, trim(Fieldname)
-                               print*, NF_STRERROR(status)
-                               stop
-                            endif
-                      elseif(DIMS(1)==MAPL_DimsTileTile) then
-                             STATUS = NF_DEF_VAR(UNIT, trim(Fieldname), DataType, 2, (/tiledim,subtiledim/), varid)
-                             if(status /= nf_noerr) then
-                                print*,'Error defining variable ',status, trim(Fieldname)
-                                print*, NF_STRERROR(status)
-                                stop
-                             endif
-                      else
-                         print *, 'ERROR: LOCATION not recognized for rank 2'
-                         ASSERT_(.false.)
-                      endif
-                   elseif(arrayRank == 3) then
-                      if(DIMS(1)==MAPL_DimsHorzVert) then
-                         if(LOCATION(1) == MAPL_VLocationCenter) then
-                             STATUS = NF_DEF_VAR(UNIT, trim(Fieldname), DataType, 3, (/londim,latdim,levdim/), varid)
-                             if(status /= nf_noerr) then
-                                print*,'Error defining variable ',status, trim(Fieldname)
-                                print*, NF_STRERROR(status)
-                                stop
-                             endif
-                         elseif(LOCATION(1) == MAPL_VLocationEdge) then
-                             STATUS = NF_DEF_VAR(UNIT, trim(Fieldname), DataType, 3, (/londim,latdim,edgedim/), varid)
-                             if(status /= nf_noerr) then
-                                print*,'Error defining variable ',status, trim(Fieldname)
-                                print*, NF_STRERROR(status)
-                                stop
-                             endif
-                         else
-                             print *, 'ERROR: LOCATION not recognized for rank 3'
-                             ASSERT_(.false.)
-                         endif
-                      elseif(DIMS(I)/=MAPL_DimsHorzVert) then
-                         print *, 'ERROR: What else could it be??'
-                         ASSERT_(.false.)
-                      endif
-                   else
-                      print *, 'ERROR: Rank not supported'
-                      ASSERT_(.false.)
-                   endif
-
-                   STATUS = NF_PUT_ATT_TEXT(UNIT, varid, 'long_name', len_trim(LONG_NAME), trim(LONG_NAME) )
-                   STATUS = NF_PUT_ATT_TEXT(UNIT, varid, 'units', len_trim(UNITS), trim(UNITS))
-                   STATUS = NF_DEF_VAR_CHUNKING(UNIT, varid, NF_CONTIGUOUS, (/0,0,0,0/))
-                   if(status /= nf_noerr) then
-                      print*,'Error setting contiguous ',status, trim(Fieldname)
-                      print*, NF_STRERROR(status)
-                      stop
-                   endif
-                   STATUS = NF_DEF_VAR_FILL    (UNIT, varid, NF_NOFILL, C_NULL_PTR)
-                   if(status /= nf_noerr) then
-                      print*,'Error setting no_fill ',status
-                      print*, NF_STRERROR(status)
-                      stop
-                   endif
-                END DO
-             endif ! ITEMTYPES
-          enddo
-          STATUS = NF_ENDDEF(UNIT)
-          if(status /= nf_noerr) then
-             print*,'Error exiting define mode ',status
-             print*, NF_STRERROR(status)
-             stop
-          endif
-#endif
        else
           UNIT=0
        endif
-!       arrdes%offset = 0
+
+    else if (filetype=='pnc4') then
+#ifndef H5_HAVE_PARALLEL
+       print*,trim(Iam),': pnc4 option not allowed unless HDF5 was built with -enable-parallel'
+       ASSERT_(.false.)
+#else
+       AmWriter = mpl%grid%writers_comm/=MPI_COMM_NULL
+       call ESMF_AttributeGet(STATE, NAME = "MAPL_GridTypeBits", VALUE=ATTR, RC=STATUS)
+       VERIFY_(STATUS)
+       PNC4_TILE: if(IAND(ATTR, MAPL_AttrTile) /= 0) then
+          call ArrDescrSetNCPar(arrdes,MPL,tile=.TRUE.,RC=STATUS)
+          VERIFY_(STATUS)
+       else
+          call ArrDescrSetNCPar(arrdes,MPL,RC=STATUS)
+          VERIFY_(STATUS)
+       end if PNC4_TILE
+       if (AmWriter) then
+          call MPI_COMM_RANK(mpl%grid%writers_comm, io_rank, STATUS)
+          VERIFY_(STATUS)
+          if (io_rank == 0) then
+            print *,'Using parallel NetCDF for file: ',trim(FILENAME)
+          end if
+       endif
+#endif
     else
        UNIT=0
     end if
@@ -5066,25 +4610,15 @@ end function MAPL_AddChildFromGC
 !@       VERIFY_(STATUS)
 
     elseif(filetype=='pnc4') then
-       arrdes%ycomm = mpl%grid%Ycomm
-       call MAPL_VarWrite(UNIT=UNIT, STATE=STATE, arrdes=arrdes, filetype=filetype, rc=status)
+
+       call MAPL_VarWriteNCPar(filename,STATE,ArrDes,CLOCK,RC=STATUS)
        VERIFY_(STATUS)
 
-       if (AmWriter) then
-          STATUS = NF_CLOSE(UNIT)
-          if(status /= nf_noerr) then
-             print*,'Error closing file ',trim(FILENAME), status
-             print*, NF_STRERROR(status)
-             stop
-          endif
-          call MPI_Info_free(info, status)
-          VERIFY_(STATUS)
-       endif
     elseif(UNIT/=0) then
-       do J = 1, ITEMCOUNT
-          call MAPL_VarWrite(UNIT=UNIT, STATE=STATE, NAME=ITEMNAMES(J), rc=status)
-          VERIFY_(STATUS)
-       end do
+
+       call MAPL_VarWrite(UNIT=UNIT, STATE=STATE, rc=status)
+       VERIFY_(STATUS)
+
        call FREE_FILE(UNIT)
 
     else
@@ -5092,19 +4626,8 @@ end function MAPL_AddChildFromGC
        VERIFY_(STATUS)
     endif
 
-    deallocate(ITEMNAMES) 
-    deallocate(ITEMTYPES)
-
     RETURN_(ESMF_SUCCESS)
   end subroutine MAPL_ESMFStateWriteToFile
-
-!=============================================================================
-!=============================================================================
-!=============================================================================
-!=============================================================================
-
-
-
 
 !=============================================================================
 !=============================================================================
@@ -5121,9 +4644,7 @@ end function MAPL_AddChildFromGC
     logical,                          intent(IN   ) :: HDR
     integer, optional,                intent(  OUT) :: RC
 
-    type   (ESMF_StateItemType), pointer  :: ITEMTYPES(:)
-    character(len=ESMF_MAXSTR ), pointer  :: ITEMNAMES(:)
-    integer                               :: ITEMCOUNT, J, nvars
+    integer                               :: J, nvars
     character(len=ESMF_MAXSTR), parameter :: IAm="MAPL_ESMFStateReadFromFile"
     integer                               :: STATUS
     integer                               :: UNIT
@@ -5147,15 +4668,33 @@ end function MAPL_AddChildFromGC
     character(len=MPI_MAX_INFO_VAL )      :: romio_cb_read, cb_buffer_size, value
     character(len=MPI_MAX_INFO_KEY )      :: key
     integer                               :: nkeys, flag, valuelen=MPI_MAX_INFO_VAL
+    logical                               :: bootstrapable
+    logical                               :: ignoreEOF
 
 ! Implemented a suggestion by Arlindo to allow files beginning with "-" (dash)
 ! to be skipped if file does not exist and values defaulted
 
+! Implemented a suggestion by Larry to allow files beginning with "+" (plus)
+! to not fail if they do not contain enough variables or skipped alltogether
+! if file does not exist. In both case values are defaulted
+
     FNAME = adjustl(FILENAME)
-    
+    bootstrapable = .false.
+    ignoreEOF = .false.
+
     if (FNAME(1:1) == "-") then
+       bootstrapable = .true.
        TMP = FNAME(2:)
        FNAME = TMP
+    end if
+    if (FNAME(1:1) == "+") then
+       bootstrapable = .true.
+       ignoreEOF = .true.
+       TMP = FNAME(2:)
+       FNAME = TMP
+    end if
+
+    if (bootstrapable) then
        inquire(FILE = FNAME, EXIST=FileExists)
        if (.not. FileExists) then
           call WRITE_PARALLEL("Bootstrapping " // trim(FNAME))
@@ -5163,22 +4702,12 @@ end function MAPL_AddChildFromGC
        end if
     end if
 
-! Get information from state
-!---------------------------
+    if (ignoreEOF) then
+       if (filetype == 'pbinary' .or. filetype == 'PBINARY') then
+          filetype = 'binary'
+       end if
+    end if
 
-    call ESMF_StateGet(STATE,ITEMCOUNT=ITEMCOUNT,RC=STATUS)
-    VERIFY_(STATUS)
-    
-    ASSERT_(ITEMCOUNT>0)
-
-    allocate(ITEMNAMES(ITEMCOUNT),STAT=STATUS)
-    VERIFY_(STATUS)
-    allocate(ITEMTYPES(ITEMCOUNT),STAT=STATUS)
-    VERIFY_(STATUS)
-    
-    call ESMF_StateGet(STATE,ITEMNAMELIST=ITEMNAMES,STATEITEMTYPELIST=ITEMTYPES,RC=STATUS)
-    VERIFY_(STATUS)
-    
 ! Open file
 !----------
     if (index(filename,'*') /= 0) then
@@ -5186,6 +4715,11 @@ end function MAPL_AddChildFromGC
        filetype = 'binary'
     end if
     
+    if (mpl%grid%num_readers == 1 .and. filetype == 'pbinary') then
+       !ALT: this is a special case, we will treat the same as BINARY
+       filetype = 'binary'
+    end if
+
     if (filetype == 'binary' .or. filetype == 'BINARY') then
        UNIT = GETFILE(FNAME, form="unformatted", rc=status)
        VERIFY_(STATUS)
@@ -5194,7 +4728,7 @@ end function MAPL_AddChildFromGC
        UNIT = GETFILE(FNAME, form="formatted", rc=status)
        VERIFY_(STATUS)
 
-    elseif(filetype=='pbinary' .or. filetype=='pnc4' ) then
+    elseif(filetype=='pbinary') then
        call ESMF_GridGet(MPL%GRID%ESMFGRID, dimCount=dimCount, RC=STATUS)
        VERIFY_(STATUS)
 
@@ -5254,7 +4788,6 @@ end function MAPL_AddChildFromGC
 
        offset = 0
        if (AmReader) then
-          if( filetype=='pbinary' ) then
              call MPI_Info_create(info, STATUS)
              VERIFY_(STATUS)
 ! This need to be tested on GPFS and Lustre to determine best performance
@@ -5272,50 +4805,33 @@ end function MAPL_AddChildFromGC
              VERIFY_(STATUS)
              call MPI_Barrier(mpl%grid%readers_comm, status)
              VERIFY_(STATUS)
-          elseif(filetype=='pnc4' ) then
-#ifndef H5_HAVE_PARALLEL
-             print*,trim(Iam),': pnc4 option not allowed unless HDF5 was built with -enable-parallel'
-             ASSERT_(.false.)
-#else
-             call MPI_Info_create(info, STATUS)
-             VERIFY_(STATUS)
-! This need to be tested on GPFS and Lustre to determine best performance
-             call MAPL_GetResource(MPL, romio_cb_read, Label="ROMIO_CB_READ:", default="automatic", RC=STATUS)
-             VERIFY_(STATUS)
-             call MPI_Info_set(info, "romio_cb_read", trim(romio_cb_read), STATUS)
-             VERIFY_(STATUS)
-! Optimal cb_buffer_size remains TBD
-             call MAPL_GetResource(MPL, cb_buffer_size, Label="CB_BUFFER_SIZE:", default="16777216", RC=STATUS)
-             VERIFY_(STATUS)
-             call MPI_Info_set(info, "cb_buffer_size", trim(cb_buffer_size), STATUS)
-             VERIFY_(STATUS)
-             if (io_rank == 0) then
-                print *,'Using parallel NetCDF for file: ',trim(FNAME)
-!                   do i=0,nkeys-1
-!                      call MPI_Info_get_nthkey(info, i, key, STATUS)
-!                      VERIFY_(STATUS)
-!                      call MPI_Info_get(info, key, valuelen, value, flag, STATUS)
-!                      VERIFY_(STATUS)
-!                      write(*,'("MPI_Info Key-Value pair ",a," -> ",a)') trim(key),trim(value)
-!                   enddo
-             end if
-             STATUS = NF_OPEN_PAR(trim(FILENAME),NF_NOWRITE,mpl%grid%readers_comm,info,UNIT)
-             if(status /= nf_noerr) then
-                print*,'Error opening file ',trim(FILENAME), status
-                print*, NF_STRERROR(status)
-                stop
-             endif
-             STATUS = NF_INQ_NVARS(UNIT,nvars)
-             if(status /= nf_noerr) then
-                print*,'Error getting nvars ',trim(FILENAME), status
-                print*, NF_STRERROR(status)
-                stop
-             endif
-#endif
-          endif
        else
           UNIT=0
        endif ! AmReader
+       
+    else if (filetype=='pnc4') then
+#ifndef H5_HAVE_PARALLEL
+       print*,trim(Iam),': pnc4 option not allowed unless HDF5 was built with -enable-parallel'
+       ASSERT_(.false.)
+#else
+       AmReader = mpl%grid%readers_comm/=MPI_COMM_NULL
+       call ESMF_AttributeGet(STATE, NAME = "MAPL_GridTypeBits", VALUE=ATTR, RC=STATUS)
+       VERIFY_(STATUS)
+       PNC4_TILE: if(IAND(ATTR, MAPL_AttrTile) /= 0) then
+          call ArrDescrSetNCPar(arrdes,MPL,tile=.TRUE.,RC=STATUS)
+          VERIFY_(STATUS)
+       else
+          call ArrDescrSetNCPar(arrdes,MPL,RC=STATUS)
+          VERIFY_(STATUS)
+       end if PNC4_TILE
+       if (mpl%grid%readers_comm/=MPI_COMM_NULL) then
+          call MPI_COMM_RANK(mpl%grid%readers_comm, io_rank, STATUS)
+          VERIFY_(STATUS)
+          if (io_rank == 0) then
+            print *,'Using parallel NetCDF for file: ',trim(FNAME)
+          end if
+       endif
+#endif
     else
        UNIT=0
     end if
@@ -5350,20 +4866,12 @@ end function MAPL_AddChildFromGC
           VERIFY_(STATUS)
        endif
     elseif(filetype=='pnc4') then
-       arrdes%ycomm = mpl%grid%Ycomm
-! DSK I'm passing filetype so that I can distinguish pbinary from pnc4
-       call MAPL_VarRead(UNIT=UNIT, STATE=STATE, arrdes=arrdes, filetype=filetype, RC=STATUS)
+
+       call MAPL_VarReadNCPar(fname,STATE,ArrDes,bootstrapable,RC=STATUS)
        VERIFY_(STATUS)
-       if (AmReader) then
-          STATUS = NF_CLOSE(UNIT)
-          if(status /= nf_noerr) then
-             print*,'Error closing file ',trim(FILENAME), status
-             print*, NF_STRERROR(status)
-             stop
-          endif
-       endif
+
     elseif(UNIT/=0) then
-       call MAPL_VarRead(UNIT=UNIT, STATE=STATE, RC=STATUS)
+       call MAPL_VarRead(UNIT=UNIT, STATE=STATE, IgnoreEOF=ignoreEOF, RC=STATUS)
        VERIFY_(STATUS)
        call FREE_FILE(UNIT)
     else
@@ -5384,8 +4892,6 @@ end function MAPL_AddChildFromGC
 !=============================================================================
 !=============================================================================
 !=============================================================================
-
-
 
   subroutine MAPL_StateCreateFromVarSpec(STATE,SPEC,GRID,TILEGRID,DEFER,RC)
     type(ESMF_State),                 intent(INOUT) :: STATE
@@ -5411,6 +4917,7 @@ end function MAPL_AddChildFromGC
     integer               :: I
 
     do L=1,size(SPEC)
+
        call MAPL_VarSpecGet(SPEC(L), DIMS=DIMS, VLOCATION=LOCATION, STAT=STAT, RC=STATUS )
        VERIFY_(STATUS)
 !ALT we should also check if we have a valid grid in the spec so we do not overwrite it
@@ -5475,8 +4982,8 @@ end function MAPL_AddChildFromGC
     type(ESMF_DistGrid)   :: distgrid
     type (ESMF_Array)     :: Array
     type (ESMF_Field)     :: FIELD
-    type (ESMF_FieldBundle)    :: BUNDLE
-    type (ESMF_Field)     :: SPEC_FIELD
+    type (ESMF_FieldBundle) :: BUNDLE
+    type (ESMF_Field)       :: SPEC_FIELD
     type (ESMF_FieldBundle) :: SPEC_BUNDLE
     real(kind=ESMF_KIND_R4), pointer         :: VAR_1D(:), VAR_2D(:,:), VAR_3D(:,:,:)
     real(kind=ESMF_KIND_R8), pointer         :: VR8_1D(:), VR8_2D(:,:), VR8_3D(:,:,:)
@@ -5512,11 +5019,13 @@ end function MAPL_AddChildFromGC
     logical                                 :: defaultProvided
     integer                                 :: fieldRank
     real(kind=ESMF_KIND_R8)                 :: def_val_8
-    type(ESMF_TypeKind)                     :: typekind
+    type(ESMF_TypeKind_Flag)                :: typekind
     logical                                 :: has_ungrd
     logical                                 :: doNotAllocate
     logical                                 :: alwaysAllocate
     integer                                 :: field_type
+    integer                                 :: staggering
+    integer                                 :: rotation
 
 
    if (present(DEFER)) then
@@ -5549,6 +5058,8 @@ end function MAPL_AddChildFromGC
                            doNotAllocate=doNotAllocate, &
                            alwaysAllocate=alwaysAllocate, &
                            FIELD_TYPE=FIELD_TYPE, &
+                           STAGGERING=STAGGERING, &
+                           ROTATION=ROTATION, &
                            RC=STATUS )
       VERIFY_(STATUS)
       if(RESTART) then
@@ -5576,7 +5087,9 @@ end function MAPL_AddChildFromGC
          if (status /= ESMF_SUCCESS) then
 ! Create an empty BUNDLE
 ! ----------------------
-            bundle = ESMF_FieldBundleCreate(NAME=SHORT_NAME, GRID=GRID, RC=STATUS)
+            bundle = ESMF_FieldBundleCreate(NAME=SHORT_NAME, RC=STATUS)
+            VERIFY_(STATUS)
+            call ESMF_FieldBundleSet(bundle, GRID=GRID, RC=STATUS)
             VERIFY_(STATUS)
          else
             BUNDLE = SPEC_BUNDLE
@@ -5589,8 +5102,7 @@ end function MAPL_AddChildFromGC
       
 ! Put the BUNDLE in the state
 ! --------------------------
-      
-         call ESMF_StateAdd(STATE, BUNDLE, RC=STATUS )
+         call MAPL_StateAdd(STATE, bundle, rc=status)
          VERIFY_(STATUS)
 
          GOTO 10
@@ -5614,7 +5126,7 @@ end function MAPL_AddChildFromGC
 
          call ESMF_FieldGet(field, Array=array, rc=status)
          VERIFY_(STATUS)
-         call ESMF_AttributeGet(array, NAME="MAPL_InitStatus", VALUE=initStatus, RC=STATUS)
+         call ESMF_AttributeGet(field, NAME="MAPL_InitStatus", VALUE=initStatus, RC=STATUS)
          if (status /= ESMF_SUCCESS) then
             initStatus = MAPL_UnInitialized
          end if
@@ -5757,14 +5269,16 @@ end function MAPL_AddChildFromGC
 ! Put the FIELD in the MAPL FIELD (VAR SPEC)
 ! --------------------------------
 
-         call MAPL_VarSpecSet(SPEC(L),FIELD=FIELD,RC=STATUS)
-         VERIFY_(STATUS)
+!         call MAPL_VarSpecSet(SPEC(L),FIELD=FIELD,RC=STATUS)
+!         VERIFY_(STATUS)
 
       endif
+      call MAPL_VarSpecSet(SPEC(L),FIELD=FIELD,RC=STATUS)
+      VERIFY_(STATUS)
 ! and in the FIELD in the state
 ! --------------------------
-      
-      call ESMF_StateAdd(STATE, FIELD, RC=STATUS )
+
+      call MAPL_StateAdd(STATE, field, rc=status)
       VERIFY_(STATUS)
 
       if (deferAlloc) then
@@ -5795,6 +5309,10 @@ end function MAPL_AddChildFromGC
       call ESMF_AttributeSet(FIELD, NAME='RESTART', VALUE=RST, RC=STATUS)
       VERIFY_(STATUS)
       call ESMF_AttributeSet(FIELD, NAME='FIELD_TYPE', VALUE=FIELD_TYPE, RC=STATUS)
+      VERIFY_(STATUS)
+      call ESMF_AttributeSet(FIELD, NAME='STAGGERING', VALUE=STAGGERING, RC=STATUS)
+      VERIFY_(STATUS)
+      call ESMF_AttributeSet(FIELD, NAME='ROTATION', VALUE=ROTATION, RC=STATUS)
       VERIFY_(STATUS)
 
       if (associated(ATTR_RNAMES)) then
@@ -6214,6 +5732,7 @@ recursive subroutine MAPL_WireComponent(GC, RC)
                    VERIFY_(STATUS)
 
                 else
+                   ASSERT_(MAPL_VarSpecSamePrec(EX_SPECS(N), IM_SPECS(K)))
                    call MAPL_VarSpecSet(EX_SPECS(N), SHORT_NAME=ENAME, RC=STATUS)
                    VERIFY_(STATUS)
 ! coupler is needed
@@ -6303,7 +5822,7 @@ recursive subroutine MAPL_WireComponent(GC, RC)
 
                 call WRITE_PARALLEL("Coupler needed for "//trim(SRCNAME)// ' and ' //&
                                     trim(DSTNAME))
-                call ESMF_CplCompSetServices (CCS(J,I), GenericCplSetServices, STATUS )
+                call ESMF_CplCompSetServices (CCS(J,I), GenericCplSetServices, RC=STATUS )
                 VERIFY_(STATUS)
 
                 call MAPL_CplCompSetVarSpecs(CCS(J,I),SRCS(J,I)%SPEC,DSTS(J,I)%SPEC,RC=STATUS)
@@ -6397,8 +5916,7 @@ recursive subroutine MAPL_WireComponent(GC, RC)
        end if
 
 !ALT: alternatevly, we could get the field from the INTERNAL_ESMF_STATE
-
-       call ESMF_FieldBundleAdd(bundle, field, rc=status)
+       call MAPL_FieldBundleAdd(bundle, field, rc=status)
        VERIFY_(STATUS)
     end do
 
@@ -6870,11 +6388,16 @@ recursive subroutine MAPL_WireComponent(GC, RC)
     type (ESMF_State)                     :: INTERNAL
     type (ESMF_Field)                     :: FIELD
     character (len=ESMF_MAXSTR), pointer  :: itemNameList(:)
-    type(ESMF_StateItemType),    pointer  :: stateitemtypeList(:)
+    type(ESMF_StateItem_Flag),   pointer  :: itemtypeList(:)
     type(ESMF_FieldBundle)                     :: B
  
     integer                               :: I, N
     integer                               :: J, NF
+    integer, allocatable :: orderlist(:)
+    integer :: jj
+    character(len=ESMF_MAXSTR)           :: attrName
+    character(len=ESMF_MAXSTR), allocatable :: currList(:)
+    integer                                 :: natt
 
 ! Get my MAPL_Generic state
 !--------------------------
@@ -6889,22 +6412,54 @@ recursive subroutine MAPL_WireComponent(GC, RC)
 
     allocate(itemNameList(N)     ,STAT=STATUS)
     VERIFY_(STATUS)
-    allocate(stateitemtypeList(N),STAT=STATUS)
+    allocate(itemtypeList(N),STAT=STATUS)
     VERIFY_(STATUS)
 
-    call ESMF_StateGet(INTERNAL,ITEMNAMELIST=itemNamelist,STATEITEMTYPELIST=stateitemtypeList,RC=STATUS)
+    call ESMF_StateGet(INTERNAL,ITEMNAMELIST=itemNamelist,ITEMTYPELIST=itemtypeList,RC=STATUS)
     VERIFY_(STATUS)
 
-    do I=1,N
-       if(stateitemtypeList(I)==ESMF_STATEITEM_FIELD) then
+    attrName = MAPL_StateItemOrderList
+    call ESMF_AttributeGet(internal, NAME=attrName, itemcount=natt, RC=STATUS)
+    VERIFY_(STATUS)
+
+    if (natt == 0) then
+       RETURN_(ESMF_SUCCESS)
+    endif
+    allocate(orderlist(natt), stat=status)
+    VERIFY_(STATUS)
+    allocate(currList(natt), stat=status)
+    VERIFY_(STATUS)
+
+    ! get the current list
+    call ESMF_AttributeGet(internal, NAME=attrName, VALUELIST=currList, rc=status)
+    VERIFY_(STATUS)
+
+    orderList = -1 ! not found
+    do i = 1, natt
+       ! search loop
+       do jj = 1, N
+          if (itemNameList(jj) == currList(i)) then
+             orderList(i) = jj
+             exit
+          end if
+       end do
+    end do
+
+    deallocate(currList)
+
+    do JJ = 1, natt
+
+       I = ORDERLIST(JJ)
+!    do I=1,N
+       if(itemtypeList(I)==ESMF_STATEITEM_FIELD) then
           call ESMF_StateGet(INTERNAL,itemNameList(I),FIELD,RC=STATUS)
           VERIFY_(STATUS)
           call Am_I_Friendly_ ( FIELD, TO, RC=STATUS ) 
           if(STATUS==ESMF_SUCCESS) then
-             call ESMF_FieldBundleAdd(BUNDLE, FIELD, RC=STATUS )
+             call MAPL_FieldBundleAdd(BUNDLE, FIELD, RC=STATUS )
              VERIFY_(STATUS)
           end if
-       else if(stateitemtypeList(I)==ESMF_STATEITEM_FieldBundle) then
+       else if(itemtypeList(I)==ESMF_STATEITEM_FieldBundle) then
           call ESMF_StateGet(INTERNAL,itemNameList(I), B, RC=STATUS)
           VERIFY_(STATUS)
           call ESMF_FieldBundleGet(B,FieldCount=NF, RC=STATUS)
@@ -6913,19 +6468,19 @@ recursive subroutine MAPL_WireComponent(GC, RC)
           if(STATUS==ESMF_SUCCESS) then
 ! if the bundle is "friendly", copy every single field
              DO J=1,NF
-                call ESMF_FieldBundleGet(B,   J,   FIELD,  RC=STATUS)
+                call MAPL_FieldBundleGet(B,   J,   FIELD,  RC=STATUS)
                 VERIFY_(STATUS)
-                call ESMF_FieldBundleAdd (BUNDLE, FIELD, RC=STATUS )
+                call MAPL_FieldBundleAdd (BUNDLE, FIELD, RC=STATUS )
                 VERIFY_(STATUS)
              END DO
           else
 ! check the fields for "friendliness"
              DO J=1,NF
-                call ESMF_FieldBundleGet(B,   J,   FIELD,  RC=STATUS)
+                call MAPL_FieldBundleGet(B,   J,   FIELD,  RC=STATUS)
                 VERIFY_(STATUS)
                 call Am_I_Friendly_ ( FIELD, TO, RC=STATUS ) 
                 if(STATUS==ESMF_SUCCESS) then
-                   call ESMF_FieldBundleAdd  (BUNDLE, FIELD, RC=STATUS )
+                   call MAPL_FieldBundleAdd  (BUNDLE, FIELD, RC=STATUS )
                    VERIFY_(STATUS)
                 END if
              END DO
@@ -6933,9 +6488,11 @@ recursive subroutine MAPL_WireComponent(GC, RC)
        end if
     end do
 
+    deallocate(orderlist, stat=status)
+    VERIFY_(STATUS)
     deallocate(itemNameList     ,STAT=STATUS)
     VERIFY_(STATUS)
-    deallocate(stateitemtypeList,STAT=STATUS)
+    deallocate(itemtypeList,STAT=STATUS)
     VERIFY_(STATUS)
 
     RETURN_(ESMF_SUCCESS)
@@ -7243,7 +6800,7 @@ recursive subroutine MAPL_WireComponent(GC, RC)
           VERIFY_(STATUS)
           ASSERT_(TEND)
 #else
-          call ESMF_ConfigGetAttribute(STATE%CF, VALUE, size(Value), RC=STATUS )
+          call ESMF_ConfigGetAttribute(STATE%CF, valueList=VALUE, count=size(Value), RC=STATUS )
           VERIFY_(STATUS)
 #endif
           RETURN_(ESMF_SUCCESS)
@@ -7619,9 +7176,14 @@ recursive subroutine MAPL_WireComponent(GC, RC)
 
    character(len=ESMF_MAXSTR), parameter :: IAm="MAPL_ResourceC"
    integer                               :: STATUS
-   integer                               :: I
+   integer                               :: I,N,M
    character(len=ESMF_MAXSTR)            :: LBL(3)
    character(len=ESMF_MAXSTR)            :: TYPE 
+
+   character(len=ESMF_MAXSTR), pointer, save :: LABELS(:) => NULL()
+   character(len=ESMF_MAXSTR), pointer       :: DUMMYS(:)
+   integer                                   :: PRINTRC
+   logical                                   :: found
 
    TYPE = STATE%COMPNAME(index(STATE%COMPNAME,":")+1:)
    
@@ -7629,18 +7191,94 @@ recursive subroutine MAPL_WireComponent(GC, RC)
    LBL(2) = trim(TYPE)//'_'//trim(LABEL)
    LBL(3) = trim(LABEL)
 
+   call ESMF_ConfigFindLabel( STATE%CF, label='PRINTRC:', rc=status )
+   IF (STATUS == ESMF_SUCCESS) then
+   call ESMF_ConfigGetAttribute(STATE%CF, PRINTRC, label = 'PRINTRC:', default = 0, RC=STATUS )
+   else
+   PRINTRC = 0
+   endif
+
    DO I=1,SIZE(LBL)
       call ESMF_ConfigFindLabel( STATE%CF, label=trim(LBL(I)), rc=status )
       IF (STATUS == ESMF_SUCCESS) then
          call ESMF_ConfigGetAttribute(STATE%CF, VALUE, &
               label = trim(LBL(I)), &
               default = DEFAULT, RC=STATUS )
+
+                m = 1
+          if( .not.associated( LABELS ) ) then
+                   allocate  ( LABELS(m) )
+                               LABELS(m) = trim(LBL(I))
+                   if( present(default) ) then
+                       if( trim(value).ne.trim(default) .or. PRINTRC.eq.1 ) then
+                           if(MAPL_AM_I_ROOT()) write(6,1000) trim(LABELS(m)),trim(value)
+                       endif
+                   else
+                           if(MAPL_AM_I_ROOT()) write(6,1000) trim(LABELS(m)),trim(value)
+                   endif
+          else
+            found = .false.
+                m = size(LABELS)
+            do n=1,m
+               if( trim(LABELS(n)).eq.trim(LBL(I)) ) then
+                   found = .true.
+                   exit
+               endif
+            enddo
+            if( .not.found ) then
+                 allocate( DUMMYS(m) )
+                           DUMMYS = LABELS
+               deallocate( LABELS )
+                 allocate( LABELS(m+1) )
+                           LABELS(1:m) = DUMMYS
+                           LABELS(m+1) = trim(LBL(I))
+                   if( present(default) ) then
+                       if( trim(value).ne.trim(default) .or. PRINTRC.eq.1 ) then
+                           if(MAPL_AM_I_ROOT()) write(6,1000) trim(LABELS(m+1)),trim(value)
+                       endif
+                   else
+                           if(MAPL_AM_I_ROOT()) write(6,1000) trim(LABELS(m+1)),trim(value)
+                   endif
+               deallocate( DUMMYS )
+            endif
+          endif
+
          RETURN_(STATUS)
       END IF
    ENDDO
+ 1000 format(1x,'  Character Resource Parameter ',a,' ',a)
 
    if (present(DEFAULT)) then
-      VALUE = DEFAULT
+      VALUE = trim(DEFAULT)
+        if( PRINTRC.eq.1 ) then
+
+                m = 1
+          if( .not.associated( LABELS ) ) then
+                   allocate  ( LABELS(m) )
+                               LABELS(m) = trim(LABEL)
+                               if(MAPL_AM_I_ROOT()) write(6,1000) trim(LABELS(m)),trim(value)
+          else
+            found = .false.
+                m = size(LABELS)
+            do n=1,m
+               if( trim(LABELS(n)).eq.trim(LABEL) ) then
+                   found = .true.
+                   exit
+               endif
+            enddo
+            if( .not.found ) then
+                 allocate( DUMMYS(m) )
+                           DUMMYS = LABELS
+               deallocate( LABELS )
+                 allocate( LABELS(m+1) )
+                           LABELS(1:m) = DUMMYS
+                           LABELS(m+1) = trim(LABEL)
+                           if(MAPL_AM_I_ROOT()) write(6,1000) trim(LABELS(m+1)),trim(value)
+               deallocate( DUMMYS )
+            endif
+          endif
+
+        endif
       RETURN_(ESMF_SUCCESS)
    end if
 
@@ -7698,7 +7336,7 @@ recursive subroutine MAPL_WireComponent(GC, RC)
     type (MAPL_MetaComp),pointer     :: STATE 
     integer                          :: I
     integer                          :: ITEMCOUNT
-    type (ESMF_StateItemType), pointer  :: ITEMTYPES(:)
+    type (ESMF_StateItem_Flag), pointer :: ITEMTYPES(:)
     type (ESMF_Field)                   :: FIELD
     character(len=ESMF_MAXSTR ), pointer  :: ITEMNAMES(:)
 
@@ -7723,7 +7361,7 @@ recursive subroutine MAPL_WireComponent(GC, RC)
        allocate(ITEMTYPES(ITEMCOUNT),STAT=STATUS)
        VERIFY_(STATUS)
 
-       call ESMF_StateGet(EXPORT,ITEMNAMELIST=ITEMNAMES,STATEITEMTYPELIST=ITEMTYPES,RC=STATUS)
+       call ESMF_StateGet(EXPORT,ITEMNAMELIST=ITEMNAMES,ITEMTYPELIST=ITEMTYPES,RC=STATUS)
        VERIFY_(STATUS)
 
        deallocate(ITEMNAMES)
@@ -7766,14 +7404,14 @@ recursive subroutine MAPL_WireComponent(GC, RC)
     real(kind=4), dimension(:,:,:,:)  , pointer :: r4d4
 
     type(ESMF_Array)                        :: array
-    type(ESMF_TypeKind)                     :: tk
+    type(ESMF_TypeKind_Flag)                :: tk
     integer                                 :: rank
-    logical                                 :: isCommitted
+    type(ESMF_FieldStatus_Flag)             :: fieldStatus
 
-    call ESMF_FieldGet(field, isCommitted=isCommitted, rc=status)
+    call ESMF_FieldGet(field, status=fieldStatus, rc=status)
     VERIFY_(STATUS)
 
-    if (.not. isCommitted) then
+    if(fieldStatus /= ESMF_FIELDSTATUS_COMPLETE) then
        MAPL_IsFieldAllocated = .false.
     else
        call ESMF_FieldGet (FIELD, Array=ARRAY, RC=STATUS)
@@ -7913,7 +7551,7 @@ recursive subroutine MAPL_WireComponent(GC, RC)
     integer                               :: n, i, ni, k, j
     logical                               :: have_ens
     character(len=ESMF_MAXSTR)            :: sname
-    type (ESMF_StateItemType), pointer    :: ITEMTYPES(:)
+    type (ESMF_StateItem_Flag), pointer   :: ITEMTYPES(:)
     character(len=ESMF_MAXSTR ), pointer  :: ITEMNAMES(:)
     type (ESMF_State), pointer            :: exptmp(:)
    
@@ -7939,7 +7577,7 @@ recursive subroutine MAPL_WireComponent(GC, RC)
        allocate(itemtypes(ni), itemnames(ni), stat=status)
        VERIFY_(STATUS)
        
-       call ESMF_StateGet(export(i), ITEMNAMELIST=ITEMNAMES,STATEITEMTYPELIST=ITEMTYPES,RC=STATUS)
+       call ESMF_StateGet(export(i), ITEMNAMELIST=ITEMNAMES,ITEMTYPELIST=ITEMTYPES,RC=STATUS)
        VERIFY_(STATUS)
       
        j = 0
@@ -9101,7 +8739,7 @@ end subroutine MAPL_READFORCINGX
 
    ! Check to see if Cubed-Sphere
    !-----------------------------
-   if (date=='CF') then
+   if (date=='CF' .or. date=='DP') then
 
 #ifdef USE_CUBEDSPHERE
       grid = AppGridCreateF(IM_WORLD, JM_WORLD, LM, NX, NY, status)
@@ -9200,7 +8838,7 @@ end subroutine MAPL_READFORCINGX
     end if
 
     if (isRegular) then
-       GRID = ESMF_GridCreateShapeTile(    &
+       GRID = ESMF_GridCreate(             &
             name=gridname,                 &
             regDecomp = (/NX, NY/),        &
             maxIndex = (/IM_WORLD, JM_WORLD/), &
@@ -9214,7 +8852,7 @@ end subroutine MAPL_READFORCINGX
        VERIFY_(STATUS)
        call WRITE_PARALLEL("Using regularly decomposed grid:" // trim(gridname))
     else
-       GRID = ESMF_GridCreateShapeTile(    &
+       GRID = ESMF_GridCreate(             &
             name=gridname,                 &
             countsPerDEDim1=ims,           &
             countsPerDEDim2=jms,           &
@@ -9228,7 +8866,7 @@ end subroutine MAPL_READFORCINGX
        VERIFY_(STATUS)
     end if
 #else
-    GRID = ESMF_GridCreateShapeTile(    &
+    GRID = ESMF_GridCreate(             &
          name=gridname,                 &
          countsPerDEDim1=ims,           &
          countsPerDEDim2=jms,           &
@@ -9267,12 +8905,12 @@ end subroutine MAPL_READFORCINGX
 ! Retrieve the coordinates so we can set them
     call ESMF_GridGetCoord(grid, coordDim=1, localDE=0, &
          staggerloc=ESMF_STAGGERLOC_CENTER, &
-         fptr=centerX, rc=status)
+         farrayPtr=centerX, rc=status)
     VERIFY_(STATUS)
 
     call ESMF_GridGetCoord(grid, coordDim=2, localDE=0, &
          staggerloc=ESMF_STAGGERLOC_CENTER, &
-         fptr=centerY, rc=status)
+         farrayPtr=centerY, rc=status)
     VERIFY_(STATUS)
 
     call ESMF_GRID_INTERIOR(GRID,I1,IN,J1,JN)
@@ -9362,12 +9000,12 @@ end subroutine MAPL_READFORCINGX
   
     call ESMF_GridGetCoord(grid, localDE=0, coordDim=1, &
          staggerloc=ESMF_STAGGERLOC_CENTER, &
-         fptr=gridx, doCopy=ESMF_DATA_REF, rc=status)
+         farrayPtr=gridx, rc=status)
     VERIFY_(STATUS) 
 
     call ESMF_GridGetCoord(grid, localDE=0, coordDim=2, &
          staggerloc=ESMF_STAGGERLOC_CENTER, &
-         fptr=gridy, doCopy=ESMF_DATA_REF, rc=status)
+         farrayPtr=gridy, rc=status)
     VERIFY_(STATUS) 
 
     allocate(x(IM_WORLD, JM_WORLD), stat=status)
@@ -9442,7 +9080,7 @@ end subroutine MAPL_READFORCINGX
     integer :: status
     character(len=ESMF_MAXSTR), parameter :: Iam="MAPL_AddMethod"
 
-    MAPL_AddMethod = ESMF_SINGLEPHASE
+    MAPL_AddMethod = MAPL_FirstPhase
     if (.not.associated(PHASE)) then
      ! this is the method to be added
        I = 1
@@ -9510,10 +9148,10 @@ end subroutine MAPL_READFORCINGX
        r_filetype(1:K) = MAPLOBJ%RECORD%filetype
        found = .false.
        do I = 1, NRA
-          call ESMF_AlarmGet(ALARM(I),ANAME,RC=STATUS)
+          call ESMF_AlarmGet(ALARM(I), name=ANAME, RC=STATUS)
           VERIFY_(STATUS)
           do J = 1, NR
-             call ESMF_AlarmGet(MAPLOBJ%RECORD%ALARM(J),NAME,RC=STATUS)
+             call ESMF_AlarmGet(MAPLOBJ%RECORD%ALARM(J), name=NAME, RC=STATUS)
              VERIFY_(STATUS)
              if(ANAME == NAME .and. &
                 filetype(I) == MAPLOBJ%RECORD%FILETYPE(J)) then
@@ -9590,8 +9228,8 @@ end subroutine MAPL_READFORCINGX
 !-----------------------------
 
     call ESMF_DistGridGet(distgrid, &
-         minIndexPDimPDe=minindex, &
-         maxIndexPDimPDe=maxindex, rc=status)
+         minIndexPDe=minindex, &
+         maxIndexPDe=maxindex, rc=status)
     VERIFY_(STATUS)
 
     call MAPL_GetImsJms(Imins=minindex(1,:),Imaxs=maxindex(1,:),&
@@ -9607,15 +9245,15 @@ end subroutine MAPL_READFORCINGX
 ! Retrieve the coordinates so we can put them in the newly create SECTION
     call ESMF_GridGetCoord(GRID, coordDim=1, localDE=0, &
          staggerloc=ESMF_STAGGERLOC_CENTER, &
-         fptr=centerX, rc=status)
+         farrayPtr=centerX, rc=status)
     VERIFY_(STATUS)
 
     call ESMF_GridGetCoord(GRID, coordDim=2, localDE=0, &
          staggerloc=ESMF_STAGGERLOC_CENTER, &
-         fptr=centerY, rc=status)
+         farrayPtr=centerY, rc=status)
     VERIFY_(STATUS)
 
-    SECTION = ESMF_GridCreateShapeTile( &
+    SECTION = ESMF_GridCreate(          &
          name=name,                     &
          countsPerDEDim1=ims,           &
          countsPerDEDim2=jms,           &
@@ -9633,12 +9271,12 @@ end subroutine MAPL_READFORCINGX
 
     call ESMF_GridGetCoord(SECTION, coordDim=1, localDE=0, &
          staggerloc=ESMF_STAGGERLOC_CENTER, &
-         fptr=coordX, rc=status)
+         farrayPtr=coordX, rc=status)
     VERIFY_(STATUS)
     
     call ESMF_GridGetCoord(SECTION, coordDim=2, localDE=0, &
          staggerloc=ESMF_STAGGERLOC_CENTER, &
-         fptr=coordY, rc=status)
+         farrayPtr=coordY, rc=status)
     VERIFY_(STATUS)
 
     coordX = centerX
@@ -9723,8 +9361,8 @@ end subroutine MAPL_READFORCINGX
 !-----------------------------
 
     call ESMF_DistGridGet(distgrid, &
-         minIndexPDimPDe=minindex, &
-         maxIndexPDimPDe=maxindex, rc=status)
+         minIndexPDe=minindex, &
+         maxIndexPDe=maxindex, rc=status)
     VERIFY_(STATUS)
 
     call MAPL_GetImsJms(Imins=minindex(1,:),Imaxs=maxindex(1,:),&
@@ -9930,5 +9568,83 @@ end subroutine MAPL_READFORCINGX
 
      RETURN_(ESMF_SUCCESS)
    end subroutine MAPL_DoNotAllocateVar
+
+   subroutine ArrDescrSetNCPar(ArrDes, MPL, tile, offset, rc)
+
+     type(ArrDescr),                 intent(INOUT) :: ArrDes
+     type(MAPL_MetaComp),            intent(INOUT) :: MPL
+     logical, optional,              intent(in   ) :: tile
+     integer(kind=MPI_OFFSET_KIND), &
+                          optional,  intent(IN   ) :: offset
+     integer, optional,              intent(  OUT) :: RC
+
+     integer                       :: COUNTS(2),CCPD(3), km_world
+     integer                       :: status
+     integer(kind=MPI_OFFSET_KIND) :: offset_local
+     logical                       :: tile_loc
+     type(ESMF_Grid)               :: TILEGRID
+     character(len=MPI_MAX_INFO_VAL) :: romio_cb_read,cb_buffer_size,romio_cb_write
+     character(len=ESMF_MAXSTR)    :: Iam="ArrDescrSetNCPar"
+ 
+     if (present(tile)) then
+        tile_loc=tile
+     else
+        tile_loc=.false.
+     endif
+
+     if (present(offset)) then
+        offset_local = offset
+     else
+        offset_local = 0
+     endif
+      
+     if (tile_loc) then
+        call MAPL_LocStreamGet(MPL%LocStream, TILEGRID=TILEGRID,RC=STATUS)
+        VERIFY_(STATUS)
+        call MAPL_GridGet(TILEGRID,globalCellCountPerDim=COUNTS,RC=STATUS)
+        VERIFY_(STATUS)
+        call ArrDescrSet(arrdes, offset_local, &
+                    readers_comm  = mpl%grid%readers_comm,  &
+                    ioscattercomm = mpl%grid%comm, &
+                    writers_comm = mpl%grid%writers_comm, &
+                    iogathercomm = mpl%grid%comm, &
+                    i1 = mpl%grid%i1, in = mpl%grid%in,     &
+                    j1 = mpl%grid%j1, jn = mpl%grid%jn,     &
+                    im_world = COUNTS(1),                   &
+                    jm_world = COUNTS(2))
+        arrdes%ycomm = mpl%grid%Ycomm
+        arrdes%tile=.true.
+        arrdes%grid=tilegrid
+     else
+        call MAPL_GridGet(mpl%grid%ESMFGRID,globalCellCountPerDim=CCPD,RC=STATUS)
+        VERIFY_(STATUS)
+        km_world = CCPD(3)
+        call ArrDescrSet(arrdes, offset_local, &
+                    readers_comm  = mpl%grid%readers_comm,  &
+                    ioscattercomm = mpl%grid%ioscattercomm, &
+                    writers_comm = mpl%grid%writers_comm, &
+                    iogathercomm = mpl%grid%iogathercomm, &
+                    i1 = mpl%grid%i1, in = mpl%grid%in,     &
+                    j1 = mpl%grid%j1, jn = mpl%grid%jn,     &
+                    im_world = mpl%grid%im_world,           &
+                    jm_world = mpl%grid%jm_world,           &
+                    lm_world = km_world)
+        arrdes%ycomm = mpl%grid%Ycomm
+        arrdes%tile=.false.
+        arrdes%grid=MPL%GRID%ESMFGRID
+     endif
+     call MAPL_GetResource(MPL, romio_cb_read, Label="ROMIO_CB_READ:", default="automatic", RC=STATUS)
+     VERIFY_(STATUS)
+     arrdes%romio_cb_read = romio_cb_read
+     call MAPL_GetResource(MPL, romio_cb_write, Label="ROMIO_CB_WRITE:", default="enable", RC=STATUS)
+     VERIFY_(STATUS)
+     arrdes%romio_cb_write = romio_cb_write
+     call MAPL_GetResource(MPL, cb_buffer_size, Label="CB_BUFFER_SIZE:", default="16777216", RC=STATUS)
+     VERIFY_(STATUS)
+     arrdes%cb_buffer_size = cb_buffer_size
+
+     RETURN_(ESMF_SUCCESS)
+
+   end subroutine ArrDescrSetNCPar
 
 end module MAPL_GenericMod

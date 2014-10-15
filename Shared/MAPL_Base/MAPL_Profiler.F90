@@ -1,5 +1,5 @@
 
-!  $Id: MAPL_Profiler.F90,v 1.7 2012-08-22 22:02:27 atrayano Exp $ 
+!  $Id: MAPL_Profiler.F90,v 1.7.12.2 2013-05-30 17:57:31 atrayano Exp $ 
 
 #include "MAPL_ErrLog.h"
 
@@ -14,7 +14,7 @@
 
 ! !USES:
 
-  use ESMF_Mod
+  use ESMF
   use MAPL_BaseMod
   use MAPL_IOMod
 #ifdef _CUDA
@@ -39,6 +39,7 @@
   public MAPL_ProfClockOff
   public MAPL_ProfSet
   public MAPL_ProfDisable
+  public MAPL_ProfEnable
   public MAPL_ProfWrite
   public MAPL_ProfIsDisabled
 
@@ -228,6 +229,19 @@
       RETURN_(ESMF_SUCCESS)
       
     end subroutine MAPL_ProfDisable
+
+!********************************************************
+
+    subroutine MAPL_ProfEnable(RC)
+      integer, optional, intent(OUT)   :: RC
+
+      character(len=ESMF_MAXSTR), parameter :: IAm="MAPL_ProfEnable"
+
+      DISABLED = .false.
+
+      RETURN_(ESMF_SUCCESS)
+      
+    end subroutine MAPL_ProfEnable
 
 !********************************************************
 

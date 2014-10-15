@@ -51,7 +51,7 @@
 
 MODULE MAPL_NewArthParserMod
 
-  use ESMF_Mod
+  use ESMF
   use MAPL_BaseMod
   use MAPL_CommsMod
 
@@ -114,10 +114,17 @@ MODULE MAPL_NewArthParserMod
      INTEGER                            :: ByteCodeSize
      REAL,    DIMENSION(:), POINTER     :: Immed
      INTEGER                            :: ImmedSize
-     TYPE(ESMF_Field), DIMENSION(:), POINTER :: Stack
+     TYPE(Ptrs_Type), DIMENSION(:), POINTER :: Stack
      INTEGER                            :: StackSize, &
                                            StackPtr
   END TYPE tComp
+
+  type Ptrs_Type
+     integer:: rank
+     integer, dimension(ESMF_MAXDIM):: lb,ub
+     real, pointer:: Q2D(:,:  ) => null()
+     real, pointer:: Q3D(:,:,:) => null()
+  end type Ptrs_Type
 
 CONTAINS
  
@@ -130,12 +137,13 @@ CONTAINS
      integer      :: status
 
      do i=1,comp%StackSize
-        call MAPL_FieldDestroy(comp%Stack(i),rc=status)
-        VERIFY_(STATUS)
+        if (associated(comp%stack(i)%Q2D)) deallocate(comp%Stack(i)%Q2D)
+        if (associated(comp%stack(i)%Q3D)) deallocate(comp%Stack(i)%Q3D)
      end do
      deallocate(comp%Stack)
      deallocate(comp%ByteCode)
      deallocate(comp%Immed)
+     RETURN_(ESMF_SUCCESS)
 
   end subroutine bytecode_dealloc
 
@@ -154,9 +162,9 @@ CONTAINS
     type(tComp)                          :: pcode
     logical, allocatable                 :: needed(:)
     logical                              :: isConformal
-    character(len=ESMF_MAXSTR), parameter :: Iam="MAPL_EvalFieldFromState"
+    character(len=ESMF_MAXSTR), parameter :: Iam="MAPL_StateEval"
     integer :: status
-
+    
     call ESMF_StateGet(state,ITEMCOUNT=varCount,rc=status)
     VERIFY_(STATUS)   
     allocate(fieldnames(varCount),needed(varCount))   
@@ -178,7 +186,7 @@ CONTAINS
           end if
        end if
     end do
- 
+
     call parsef (pcode, expression, fieldNames, field, rc=status)
     VERIFY_(STATUS)
     call evalf(pcode,state,fieldNames,field,rc=status)
@@ -192,6 +200,9 @@ CONTAINS
     end subroutine MAPL_StateEval
   !
   SUBROUTINE parsef (Comp, FuncStr, Var, field, rc)
+    !----- -------- --------- --------- --------- --------- --------- --------- -------
+    ! Parse ith function string FuncStr and compile it into bytecode
+    !----- -------- --------- --------- --------- --------- --------- --------- -------
     IMPLICIT NONE
     TYPE (tComp)                   , INTENT(inout) :: Comp              ! Bytecode
     CHARACTER (LEN=*),               INTENT(in   ) :: FuncStr   ! Function string
@@ -215,6 +226,9 @@ CONTAINS
   END SUBROUTINE parsef
   !
   SUBROUTINE evalf (Comp, State, FieldNames, ResField, rc)
+    !----- -------- --------- --------- --------- --------- --------- --------- -------
+    ! Evaluate bytecode of ith function for the values passed in array Val(:)
+    !----- -------- --------- --------- --------- --------- --------- --------- -------
     IMPLICIT NONE
     TYPE (tComp),                   INTENT(inout) :: Comp
     TYPE(ESMF_State),               INTENT(in   ) :: state
@@ -257,11 +271,11 @@ CONTAINS
           ValNumber = CurrByte-VarBegin+1
           call ESMF_StateGet(state,FieldNames(ValNumber),state_field,rc=status)
           VERIFY_(STATUS)
-          call CopyFieldToField(state_field,Comp%Stack(SP),rc=status)
+          call CopyFieldToPtr(state_field,Comp%Stack(SP),rc=status)
           VERIFY_(STATUS)
        end if
     END DO
-    call CopyFieldToField(Comp%Stack(1),ResField,rc=status)
+    call CopyPtrToField(Comp%Stack(1),ResField,rc=status)
     VERIFY_(STATUS)
 
     RETURN_(ESMF_SUCCESS)
@@ -277,24 +291,27 @@ CONTAINS
      character(len=ESMF_MAXSTR), parameter :: Iam ="CheckIfConformal"
      integer                               :: status
      type(ESMF_Array)                      :: array_1,array_2
-     type(ESMF_LocalArray)                 :: larray_1,larray_2
+     type (ESMF_LocalArray), target        :: larrayList(1)
+     type(ESMF_LocalArray), pointer        :: larray_1,larray_2
      integer                               :: rank_1, rank_2
      integer                               :: lbnds_1(ESMF_MAXDIM), ubnds_1(ESMF_MAXDIM)
      integer                               :: lbnds_2(ESMF_MAXDIM), ubnds_2(ESMF_MAXDIM)
      integer                               :: i
-   
+
      call ESMF_FieldGet(field_1,array=array_1,rc=status)
      VERIFY_(STATUS)
-     call ESMF_ArrayGet(array_1,0,larray_1,rc=status)
-     VERIFY_(STATUS) 
-     call ESMF_LocalArrayGet(larray_1,rank=rank_1,lbounds=lbnds_1,ubounds=ubnds_1,rc=status)
+     call ESMF_ArrayGet(array_1, localarrayList=larrayList, rc=status)
+     VERIFY_(STATUS)
+     larray_1 => lArrayList(1) ! alias
+     call ESMF_LocalArrayGet(larray_1,rank=rank_1,totalLBound=lbnds_1,totalUBound=ubnds_1,rc=status)
      VERIFY_(STATUS)
 
      call ESMF_FieldGet(field_2,array=array_2,rc=status)
      VERIFY_(STATUS)
-     call ESMF_ArrayGet(array_2,0,larray_2,rc=status)
-     VERIFY_(STATUS) 
-     call ESMF_LocalArrayGet(larray_2,rank=rank_2,lbounds=lbnds_2,ubounds=ubnds_2,rc=status)
+     call ESMF_ArrayGet(array_2, localarrayList=larrayList, rc=status)
+     VERIFY_(STATUS)
+     larray_2 => lArrayList(1) ! alias
+     call ESMF_LocalArrayGet(larray_2,rank=rank_2,totalLBound=lbnds_2,totalUBound=ubnds_2,rc=status)
      VERIFY_(STATUS)
 
      if (rank_1 == 2 .and.  rank_2 == 2) then
@@ -346,162 +363,155 @@ CONTAINS
 
   END FUNCTION CheckIfConformal
 
-  SUBROUTINE CopyFieldtoField(field_in,field_out,rc)
+  SUBROUTINE CopyFieldtoPtr(field,ptrs,rc)
      ! take data from input field and copy to output field
      ! if input is 2D and output is 3D replicate 2D on each slice of 3D
-     TYPE(ESMF_Field),      intent(inout) :: field_in
-     TYPE(ESMF_Field),      intent(inout) :: field_out
+     TYPE(ESMF_Field),      intent(inout) :: field
+     TYPE(Ptrs_Type),      intent(inout) :: ptrs
      integer, optional,     intent(out  ) :: rc
 
-     real, pointer        :: var2d_in(:,:), var2d_out(:,:)
-     real, pointer        :: var3d_in(:,:,:), var3d_out(:,:,:)
+     real, pointer        :: var2d(:,:), var3d(:,:,:)
 
-     type(ESMF_Array)      :: array_in,array_out
+     type(ESMF_Array)      :: array
      type(ESMF_LocalArray) :: larray
-     integer               :: rank_in,rank_out
+     integer               :: rank
      integer               :: lbnds(ESMF_MAXDIM), ubnds(ESMF_MAXDIM)
      character(len=ESMF_MAXSTR), parameter :: Iam="CopyFieldtoField"
      integer :: status
      integer :: i
 
-     call ESMF_FieldGet(field_in,array=array_in,rc=status)
+     call ESMF_FieldGet(field,array=array,rc=status)
      VERIFY_(STATUS)
-     call ESMF_ArrayGet(array_in,rank=rank_in,rc=status)
+     call ESMF_ArrayGet(array,rank=rank,rc=status)
      VERIFY_(STATUS)
-     call ESMF_FieldGet(field_out,array=array_out,rc=status)
-     VERIFY_(STATUS)
-     call ESMF_ArrayGet(array_out,rank=rank_out,rc=status)
-     VERIFY_(STATUS)
-     if (rank_in == 3 .and. rank_out ==3) then
-        call ESMF_FieldGet(field_in,0,var3d_in,rc=status)
+     if (rank == 3 .and. ptrs%rank ==3) then
+        call ESMF_FieldGet(field,0,var3d,rc=status)
         VERIFY_(STATUS)
-        call ESMF_FieldGet(field_out,0,var3d_out,rc=status)
+        ptrs%Q3D=var3d
+     else if (rank == 2 .and. ptrs%rank ==2) then
+        call ESMF_FieldGet(field,0,var2d,rc=status)
         VERIFY_(STATUS)
-        var3d_out=var3d_in
-     else if (rank_in == 2 .and. rank_out ==2) then
-        call ESMF_FieldGet(field_in,0,var2d_in,rc=status)
+        ptrs%Q2D=var2d
+     else if (rank == 2 .and. ptrs%rank ==3) then
+        call ESMF_FieldGet(field,0,var2d,rc=status)
         VERIFY_(STATUS)
-        call ESMF_FieldGet(field_out,0,var2d_out,rc=status)
-        VERIFY_(STATUS)
-        var2d_out=var2d_in
-     else if (rank_in == 2 .and. rank_out ==3) then
-        call ESMF_FieldGet(field_in,0,var2d_in,rc=status)
-        VERIFY_(STATUS)
-        call ESMF_FieldGet(field_out,0,var3d_out,rc=status)
-        VERIFY_(STATUS)
-        ! we need more information if 3D field, does index start at 0 or 1
-        call ESMF_ArrayGet(array_out,0,larray,rc=status)
-        VERIFY_(STATUS)
-        call ESMF_LocalArrayGet(larray,lbounds=lbnds,ubounds=ubnds,rc=status)
-        VERIFY_(STATUS)
-        do i=lbnds(3),ubnds(3)
-           var3d_out(:,:,i)=var2d_in
+        do i=ptrs%lb(3),ptrs%ub(3)
+           ptrs%Q3D(:,:,i)=var2d
         end do
      end if
      RETURN_(ESMF_SUCCESS)
 
-  END SUBROUTINE CopyFieldToField
+  END SUBROUTINE CopyFieldToPtr
 
-  SUBROUTINE ArthFieldToField(field_1,field_2,arthcode,rc)
-     ! perform arthimetic operation indicated by input code between field_1 and field_2
-     ! result will overwrite data in field_2
-     TYPE(ESMF_Field),      intent(inout) :: field_1
-     TYPE(ESMF_Field),      intent(inout) :: field_2
-     integer,               intent(in   ) :: arthcode
+  SUBROUTINE CopyPtrtoField(ptrs,field,rc)
+     ! take data from input field and copy to output field
+     ! if input is 2D and output is 3D replicate 2D on each slice of 3D
+     TYPE(ESMF_Field),      intent(inout) :: field
+     TYPE(Ptrs_Type),      intent(inout) :: ptrs
      integer, optional,     intent(out  ) :: rc
 
-     real, pointer        :: var2d_1(:,:), var2d_2(:,:)
-     real, pointer        :: var3d_1(:,:,:), var3d_2(:,:,:)
+     real, pointer        :: var2d(:,:), var3d(:,:,:)
 
-     type(ESMF_Array)      :: array_1,array_2
-!     type(ESMF_LocalArray) :: larray
-     integer               :: rank_1,rank_2
-!     integer               :: lbnds(ESMF_MAXDIM), ubnds(ESMF_MAXDIM)
-     character(len=ESMF_MAXSTR), parameter :: Iam="ArthFieldToField"
+     type(ESMF_Array)      :: array
+     type(ESMF_LocalArray) :: larray
+     integer               :: rank
+     integer               :: lbnds(ESMF_MAXDIM), ubnds(ESMF_MAXDIM)
+     character(len=ESMF_MAXSTR), parameter :: Iam="CopyFieldtoField"
      integer :: status
      integer :: i
 
-     call ESMF_FieldGet(field_1,array=array_1,rc=status)
+     call ESMF_FieldGet(field,array=array,rc=status)
      VERIFY_(STATUS)
-     call ESMF_ArrayGet(array_1,rank=rank_1,rc=status)
+     call ESMF_ArrayGet(array,rank=rank,rc=status)
      VERIFY_(STATUS)
-     call ESMF_FieldGet(field_2,array=array_2,rc=status)
-     VERIFY_(STATUS)
-     call ESMF_ArrayGet(array_2,rank=rank_2,rc=status)
-     VERIFY_(STATUS)
+     if (rank == 3 .and. ptrs%rank ==3) then
+        call ESMF_FieldGet(field,0,var3d,rc=status)
+        VERIFY_(STATUS)
+        var3d=ptrs%Q3D
+     else if (rank == 2 .and. ptrs%rank ==2) then
+        call ESMF_FieldGet(field,0,var2d,rc=status)
+        VERIFY_(STATUS)
+        var2d=ptrs%Q2D
+     end if
+     RETURN_(ESMF_SUCCESS)
 
-     if (rank_1 == 3 .and. rank_2 ==3) then
-        call ESMF_FieldGet(field_1,0,var3d_1,rc=status)
-        VERIFY_(STATUS)
-        call ESMF_FieldGet(field_2,0,var3d_2,rc=status)
-        VERIFY_(STATUS)
+  END SUBROUTINE CopyPtrToField
+
+
+  SUBROUTINE ArthFieldToField(ptrs_1,ptrs_2,arthcode,rc)
+     ! perform arthimetic operation indicated by input code between field_1 and field_2
+     ! result will overwrite data in field_2
+     TYPE(Ptrs_Type),       intent(inout) :: ptrs_1
+     TYPE(Ptrs_Type),       intent(inout) :: ptrs_2
+     integer,               intent(in   ) :: arthcode
+     integer, optional,     intent(out  ) :: rc
+     Character(len=ESMF_MAXSTR), parameter    :: Iam="ArthFieldToField"
+     integer                                  :: status
+
+     if (ptrs_1%rank == 3 .and. ptrs_2%rank ==3) then
         select case(arthcode)
            case(cAdd)
-              where(var3d_1 /= MAPL_UNDEF .and. var3d_2 /= MAPL_UNDEF)
-                 var3d_2 = var3d_2 + var3d_1
+              where(ptrs_1%Q3D /= MAPL_UNDEF .and. ptrs_2%Q3D /= MAPL_UNDEF)
+                 ptrs_2%Q3D = ptrs_2%Q3D + ptrs_1%Q3D
               else where
-                 var3d_2 = MAPL_UNDEF
+                 ptrs_2%Q3D = MAPL_UNDEF
               end where
            case(cSub)
-              where(var3d_1 /= MAPL_UNDEF .and. var3d_2 /= MAPL_UNDEF)
-                 var3d_2 = var3d_2 - var3d_1
+              where(ptrs_1%Q3D /= MAPL_UNDEF .and. ptrs_2%Q3D /= MAPL_UNDEF)
+                 ptrs_2%Q3D = ptrs_2%Q3D - ptrs_1%Q3D
               else where
-                 var3d_2 = MAPL_UNDEF
+                 ptrs_2%Q3D = MAPL_UNDEF
               end where
            case(cMul)
-              where(var3d_1 /= MAPL_UNDEF .and. var3d_2 /= MAPL_UNDEF)
-                 var3d_2 = var3d_2 * var3d_1
+              where(ptrs_1%Q3D /= MAPL_UNDEF .and. ptrs_2%Q3D /= MAPL_UNDEF)
+                 ptrs_2%Q3D = ptrs_2%Q3D * ptrs_1%Q3D
               else where
-                 var3d_2 = MAPL_UNDEF
+                 ptrs_2%Q3D = MAPL_UNDEF
               end where
            case(cDiv)
-              where(var3d_1 /= MAPL_UNDEF .and. var3d_2 /= MAPL_UNDEF)
-                 var3d_2 = var3d_2 / var3d_1
+              where(ptrs_1%Q3D /= MAPL_UNDEF .and. ptrs_2%Q3D /= MAPL_UNDEF)
+                 ptrs_2%Q3D = ptrs_2%Q3D / ptrs_1%Q3D
               else where
-                 var3d_2 = MAPL_UNDEF
+                 ptrs_2%Q3D = MAPL_UNDEF
               end where
            case(cPow)
-              where(var3d_1 /= MAPL_UNDEF .and. var3d_2 /= MAPL_UNDEF)
-                 var3d_2 = var3d_2 ** var3d_1
+              where(ptrs_1%Q3D /= MAPL_UNDEF .and. ptrs_2%Q3D /= MAPL_UNDEF)
+                 ptrs_2%Q3D = ptrs_2%Q3D ** ptrs_1%Q3D
               else where
-                 var3d_2 = MAPL_UNDEF
+                 ptrs_2%Q3D = MAPL_UNDEF
               end where
         end select
-     else if (rank_1 == 2 .and. rank_2 ==2) then
-        call ESMF_FieldGet(field_1,0,var2d_1,rc=status)
-        VERIFY_(STATUS)
-        call ESMF_FieldGet(field_2,0,var2d_2,rc=status)
-        VERIFY_(STATUS)
+     else if (ptrs_1%rank == 2 .and. ptrs_2%rank ==2) then
         select case(arthcode)
            case(cAdd)
-              where(var2d_1 /= MAPL_UNDEF .and. var2d_2 /= MAPL_UNDEF)
-                 var2d_2 = var2d_2 + var2d_1
+              where(ptrs_1%Q2D /= MAPL_UNDEF .and. ptrs_2%Q2D /= MAPL_UNDEF)
+                 ptrs_2%Q2D = ptrs_2%Q2D + ptrs_1%Q2D
               else where
-                 var2d_2 = MAPL_UNDEF
+                 ptrs_2%Q2D = MAPL_UNDEF
               end where
            case(cSub)
-              where(var2d_1 /= MAPL_UNDEF .and. var2d_2 /= MAPL_UNDEF)
-                 var2d_2 = var2d_2 - var2d_1
+              where(ptrs_1%Q2D /= MAPL_UNDEF .and. ptrs_2%Q2D /= MAPL_UNDEF)
+                 ptrs_2%Q2D = ptrs_2%Q2D - ptrs_1%Q2D
               else where
-                 var2d_2 = MAPL_UNDEF
+                 ptrs_2%Q2D = MAPL_UNDEF
               end where
            case(cMul)
-              where(var2d_1 /= MAPL_UNDEF .and. var2d_2 /= MAPL_UNDEF)
-                 var2d_2 = var2d_2 * var2d_1
+              where(ptrs_1%Q2D /= MAPL_UNDEF .and. ptrs_2%Q2D /= MAPL_UNDEF)
+                 ptrs_2%Q2D = ptrs_2%Q2D * ptrs_1%Q2D
               else where
-                 var2d_2 = MAPL_UNDEF
+                 ptrs_2%Q2D = MAPL_UNDEF
               end where
            case(cDiv)
-              where(var2d_1 /= MAPL_UNDEF .and. var2d_2 /= MAPL_UNDEF)
-                 var2d_2 = var2d_2 / var2d_1
+              where(ptrs_1%Q2D /= MAPL_UNDEF .and. ptrs_2%Q2D /= MAPL_UNDEF)
+                 ptrs_2%Q2D = ptrs_2%Q2D / ptrs_1%Q2D
               else where
-                 var2d_2 = MAPL_UNDEF
+                 ptrs_2%Q2D = MAPL_UNDEF
               end where
            case(cPow)
-              where(var2d_1 /= MAPL_UNDEF .and. var2d_2 /= MAPL_UNDEF)
-                 var2d_2 = var2d_2 ** var2d_1
+              where(ptrs_1%Q2D /= MAPL_UNDEF .and. ptrs_2%Q2D /= MAPL_UNDEF)
+                 ptrs_2%Q2D = ptrs_2%Q2D ** ptrs_1%Q2D
               else where
-                 var2d_2 = MAPL_UNDEF
+                 ptrs_2%Q2D = MAPL_UNDEF
               end where
         end select
 !    maybe put in 2d + 3d, not needed for now
@@ -510,226 +520,212 @@ CONTAINS
    
   END SUBROUTINE ArthFieldToField
 
-  SUBROUTINE UnaryFuncField(field,funcCode,rc)
+  SUBROUTINE UnaryFuncField(ptrs,funcCode,rc)
      ! perform arthimetic operation indicated by input code between field_1 and field_2
      ! result will overwrite data in field_2
-     TYPE(ESMF_Field),      intent(inout) :: field
+     TYPE(ptrs_type),       intent(inout) :: ptrs
      integer,               intent(in   ) :: funcCode
      integer, optional,     intent(out  ) :: rc
 
-     real, pointer        :: var2d(:,:)
-     real, pointer        :: var3d(:,:,:)
-
-     type(ESMF_Array)      :: array
-     integer               :: rank
      character(len=ESMF_MAXSTR), parameter :: Iam="UnaryFuncField"
      integer :: status
 
-     call ESMF_FieldGet(field,array=array,rc=status)
-     VERIFY_(STATUS)
-     call ESMF_ArrayGet(array,rank=rank,rc=status)
-     VERIFY_(STATUS)
-
-     if (rank == 3) then
-        call ESMF_FieldGet(field,0,var3d,rc=status)
-        VERIFY_(STATUS)
+     if (ptrs%rank == 3) then
         select case(funcCode)
            case(cNeg)
-              where(var3d /= MAPL_UNDEF)
-                 var3d = -var3d
+              where(ptrs%Q3D /= MAPL_UNDEF)
+                 ptrs%Q3D = -ptrs%Q3D
               else where
-                 var3d = MAPL_UNDEF
+                 ptrs%Q3D = MAPL_UNDEF
               end where
            case(cAbs)
-              where(var3d /= MAPL_UNDEF)
-                 var3d = abs(var3d)
+              where(ptrs%Q3D /= MAPL_UNDEF)
+                 ptrs%Q3D = abs(ptrs%Q3D)
               else where
-                 var3d = MAPL_UNDEF
+                 ptrs%Q3D = MAPL_UNDEF
               end where
            case(cExp)
-              where(var3d /= MAPL_UNDEF)
-                 var3d = exp(var3d)
+              where(ptrs%Q3D /= MAPL_UNDEF)
+                 ptrs%Q3D = exp(ptrs%Q3D)
               else where
-                 var3d = MAPL_UNDEF
+                 ptrs%Q3D = MAPL_UNDEF
               end where
            case(cLog10)
-              where(var3d /= MAPL_UNDEF)
-                 var3d = log10(var3d)
+              where(ptrs%Q3D /= MAPL_UNDEF)
+                 ptrs%Q3D = log10(ptrs%Q3D)
               else where
-                 var3d = MAPL_UNDEF
+                 ptrs%Q3D = MAPL_UNDEF
               end where
            case(cLog)
-              where(var3d /= MAPL_UNDEF)
-                 var3d = log(var3d)
+              where(ptrs%Q3D /= MAPL_UNDEF)
+                 ptrs%Q3D = log(ptrs%Q3D)
               else where
-                 var3d = MAPL_UNDEF
+                 ptrs%Q3D = MAPL_UNDEF
               end where
            case(cSqrt)
-              where(var3d /= MAPL_UNDEF)
-                 var3d = sqrt(var3d)
+              where(ptrs%Q3D /= MAPL_UNDEF)
+                 ptrs%Q3D = sqrt(ptrs%Q3D)
               else where
-                 var3d = MAPL_UNDEF
+                 ptrs%Q3D = MAPL_UNDEF
               end where
            case(cSinh)
-              where(var3d /= MAPL_UNDEF)
-                 var3d = sinh(var3d)
+              where(ptrs%Q3D /= MAPL_UNDEF)
+                 ptrs%Q3D = sinh(ptrs%Q3D)
               else where
-                 var3d = MAPL_UNDEF
+                 ptrs%Q3D = MAPL_UNDEF
               end where
            case(cCosh)
-              where(var3d /= MAPL_UNDEF)
-                 var3d = cosh(var3d)
+              where(ptrs%Q3D /= MAPL_UNDEF)
+                 ptrs%Q3D = cosh(ptrs%Q3D)
               else where
-                 var3d = MAPL_UNDEF
+                 ptrs%Q3D = MAPL_UNDEF
               end where
            case(cTanh)
-              where(var3d /= MAPL_UNDEF)
-                 var3d = tanh(var3d)
+              where(ptrs%Q3D /= MAPL_UNDEF)
+                 ptrs%Q3D = tanh(ptrs%Q3D)
               else where
-                 var3d = MAPL_UNDEF
+                 ptrs%Q3D = MAPL_UNDEF
               end where
            case(cSin)
-              where(var3d /= MAPL_UNDEF)
-                 var3d = sin(var3d)
+              where(ptrs%Q3D /= MAPL_UNDEF)
+                 ptrs%Q3D = sin(ptrs%Q3D)
               else where
-                 var3d = MAPL_UNDEF
+                 ptrs%Q3D = MAPL_UNDEF
               end where
            case(cCos)
-              where(var3d /= MAPL_UNDEF)
-                 var3d = cos(var3d)
+              where(ptrs%Q3D /= MAPL_UNDEF)
+                 ptrs%Q3D = cos(ptrs%Q3D)
               else where
-                 var3d = MAPL_UNDEF
+                 ptrs%Q3D = MAPL_UNDEF
               end where
            case(cTan)
-              where(var3d /= MAPL_UNDEF)
-                 var3d = tan(var3d)
+              where(ptrs%Q3D /= MAPL_UNDEF)
+                 ptrs%Q3D = tan(ptrs%Q3D)
               else where
-                 var3d = MAPL_UNDEF
+                 ptrs%Q3D = MAPL_UNDEF
               end where
            case(cAsin)
-              where(var3d /= MAPL_UNDEF)
-                 var3d = asin(var3d)
+              where(ptrs%Q3D /= MAPL_UNDEF)
+                 ptrs%Q3D = asin(ptrs%Q3D)
               else where
-                 var3d = MAPL_UNDEF
+                 ptrs%Q3D = MAPL_UNDEF
               end where
            case(cAcos)
-              where(var3d /= MAPL_UNDEF)
-                 var3d = acos(var3d)
+              where(ptrs%Q3D /= MAPL_UNDEF)
+                 ptrs%Q3D = acos(ptrs%Q3D)
               else where
-                 var3d = MAPL_UNDEF
+                 ptrs%Q3D = MAPL_UNDEF
               end where
            case(cAtan)
-              where(var3d /= MAPL_UNDEF)
-                 var3d = atan(var3d)
+              where(ptrs%Q3D /= MAPL_UNDEF)
+                 ptrs%Q3D = atan(ptrs%Q3D)
               else where
-                 var3d = MAPL_UNDEF
+                 ptrs%Q3D = MAPL_UNDEF
               end where
            case(cHeav)
-              where(var3d /= MAPL_UNDEF)
-                 var3d = Heav3D(var3d)
+              where(ptrs%Q3D /= MAPL_UNDEF)
+                 ptrs%Q3D = Heav3D(ptrs%Q3D)
               else where
-                 var3d = MAPL_UNDEF
+                 ptrs%Q3D = MAPL_UNDEF
               end where
         end select
-     else if (rank == 2) then
-        call ESMF_FieldGet(field,0,var2d,rc=status)
-        VERIFY_(STATUS)
+     else if (ptrs%rank == 2) then
         select case(funcCode)
            case(cNeg)
-              where(var2d /= MAPL_UNDEF)
-                 var2d = -var2d
+              where(ptrs%Q2D /= MAPL_UNDEF)
+                 ptrs%Q2D = -ptrs%Q2D
               else where
-                 var2d = MAPL_UNDEF
+                 ptrs%Q2D = MAPL_UNDEF
               end where
            case(cAbs)
-              where(var2d /= MAPL_UNDEF)
-                 var2d = abs(var2d)
+              where(ptrs%Q2D /= MAPL_UNDEF)
+                 ptrs%Q2D = abs(ptrs%Q2D)
               else where
-                 var2d = MAPL_UNDEF
+                 ptrs%Q2D = MAPL_UNDEF
               end where
            case(cExp)
-              where(var2d /= MAPL_UNDEF)
-                 var2d = exp(var2d)
+              where(ptrs%Q2D /= MAPL_UNDEF)
+                 ptrs%Q2D = exp(ptrs%Q2D)
               else where
-                 var2d = MAPL_UNDEF
+                 ptrs%Q2D = MAPL_UNDEF
               end where
            case(cLog10)
-              where(var2d /= MAPL_UNDEF)
-                 var2d = log10(var2d)
+              where(ptrs%Q2D /= MAPL_UNDEF)
+                 ptrs%Q2D = log10(ptrs%Q2D)
               else where
-                 var2d = MAPL_UNDEF
+                 ptrs%Q2D = MAPL_UNDEF
               end where
            case(cLog)
-              where(var2d /= MAPL_UNDEF)
-                 var2d = log(var2d)
+              where(ptrs%Q2D /= MAPL_UNDEF)
+                 ptrs%Q2D = log(ptrs%Q2D)
               else where
-                 var2d = MAPL_UNDEF
+                 ptrs%Q2D = MAPL_UNDEF
               end where
            case(cSqrt)
-              where(var2d /= MAPL_UNDEF)
-                 var2d = sqrt(var2d)
+              where(ptrs%Q2D /= MAPL_UNDEF)
+                 ptrs%Q2D = sqrt(ptrs%Q2D)
               else where
-                 var2d = MAPL_UNDEF
+                 ptrs%Q2D = MAPL_UNDEF
               end where
            case(cSinh)
-              where(var2d /= MAPL_UNDEF)
-                 var2d = sinh(var2d)
+              where(ptrs%Q2D /= MAPL_UNDEF)
+                 ptrs%Q2D = sinh(ptrs%Q2D)
               else where
-                 var2d = MAPL_UNDEF
+                 ptrs%Q2D = MAPL_UNDEF
               end where
            case(cCosh)
-              where(var2d /= MAPL_UNDEF)
-                 var2d = cosh(var2d)
+              where(ptrs%Q2D /= MAPL_UNDEF)
+                 ptrs%Q2D = cosh(ptrs%Q2D)
               else where
-                 var2d = MAPL_UNDEF
+                 ptrs%Q2D = MAPL_UNDEF
               end where
            case(cTanh)
-              where(var2d /= MAPL_UNDEF)
-                 var2d = tanh(var2d)
+              where(ptrs%Q2D /= MAPL_UNDEF)
+                 ptrs%Q2D = tanh(ptrs%Q2D)
               else where
-                 var2d = MAPL_UNDEF
+                 ptrs%Q2D = MAPL_UNDEF
               end where
            case(cSin)
-              where(var2d /= MAPL_UNDEF)
-                 var2d = sin(var2d)
+              where(ptrs%Q2D /= MAPL_UNDEF)
+                 ptrs%Q2D = sin(ptrs%Q2D)
               else where
-                 var2d = MAPL_UNDEF
+                 ptrs%Q2D = MAPL_UNDEF
               end where
            case(cCos)
-              where(var2d /= MAPL_UNDEF)
-                 var2d = cos(var2d)
+              where(ptrs%Q2D /= MAPL_UNDEF)
+                 ptrs%Q2D = cos(ptrs%Q2D)
               else where
-                 var2d = MAPL_UNDEF
+                 ptrs%Q2D = MAPL_UNDEF
               end where
            case(cTan)
-              where(var2d /= MAPL_UNDEF)
-                 var2d = tan(var2d)
+              where(ptrs%Q2D /= MAPL_UNDEF)
+                 ptrs%Q2D = tan(ptrs%Q2D)
               else where
-                 var2d = MAPL_UNDEF
+                 ptrs%Q2D = MAPL_UNDEF
               end where
            case(cAsin)
-              where(var2d /= MAPL_UNDEF)
-                 var2d = asin(var2d)
+              where(ptrs%Q2D /= MAPL_UNDEF)
+                 ptrs%Q2D = asin(ptrs%Q2D)
               else where
-                 var2d = MAPL_UNDEF
+                 ptrs%Q2D = MAPL_UNDEF
               end where
            case(cAcos)
-              where(var2d /= MAPL_UNDEF)
-                 var2d = acos(var2d)
+              where(ptrs%Q2D /= MAPL_UNDEF)
+                 ptrs%Q2D = acos(ptrs%Q2D)
               else where
-                 var2d = MAPL_UNDEF
+                 ptrs%Q2D = MAPL_UNDEF
               end where
            case(cAtan)
-              where(var2d /= MAPL_UNDEF)
-                 var2d = atan(var2d)
+              where(ptrs%Q2D /= MAPL_UNDEF)
+                 ptrs%Q2D = atan(ptrs%Q2D)
               else where
-                 var2d = MAPL_UNDEF
+                 ptrs%Q2D = MAPL_UNDEF
               end where
            case(cHeav)
-              where(var2d /= MAPL_UNDEF)
-                 var2d = Heav2D(var2d)
+              where(ptrs%Q2D /= MAPL_UNDEF)
+                 ptrs%Q2D = Heav2D(ptrs%Q2D)
               else where
-                 var2d = MAPL_UNDEF
+                 ptrs%Q2D = MAPL_UNDEF
               end where
         end select
      end if
@@ -737,45 +733,32 @@ CONTAINS
    
   END SUBROUTINE UnaryFuncField
 
-  SUBROUTINE CopyScalarToField(field,rn,rc)
+  SUBROUTINE CopyScalarToField(ptrs,rn,rc)
      ! copy a scalar to ESMF field
-     TYPE(ESMF_Field),      intent(inout) :: field
+     TYPE(Ptrs_Type),      intent(inout)  :: ptrs
      real,                  intent(in   ) :: rn
      integer, optional,     intent(out  ) :: rc
 
-     real, pointer        :: var2d(:,:)
-     real, pointer        :: var3d(:,:,:)
-
-     type(ESMF_Array)     :: array
-     integer              :: rank
      character(len=ESMF_MAXSTR), parameter :: Iam="CopyScalarToField"
      integer :: status
-     integer :: i
 
-     call ESMF_FieldGet(field,array=array,rc=status)
-     VERIFY_(STATUS)
-     call ESMF_ArrayGet(array,rank=rank,rc=status)
-     VERIFY_(STATUS)
-     if (rank == 2) then
-        call ESMF_FieldGet(field,0,var2d,rc=status)
-        VERIFY_(STATUS)
-        var2d=rn
-     else if (rank == 3) then
-        call ESMF_FieldGet(field,0,var3d,rc=status)
-        VERIFY_(STATUS)
-        var3d=rn
+     if (ptrs%rank == 2) then
+        ptrs%Q2D=rn
+     else if (ptrs%rank == 3) then
+        ptrs%Q3D=rn
      end if
      RETURN_(ESMF_SUCCESS)
 
   END SUBROUTINE CopyScalarToField
   !
-  SUBROUTINE CheckSyntax (FuncStr,Var,needed,rc)
+  SUBROUTINE CheckSyntax (FuncStr,Var,needed,ExtVar,rc)
     !----- -------- --------- --------- --------- --------- --------- --------- -------
     ! Check syntax of function string,  returns 0 if syntax is ok
     !----- -------- --------- --------- --------- --------- --------- --------- -------
     IMPLICIT NONE
     CHARACTER (LEN=*),               INTENT(in) :: FuncStr   ! Original function string
     CHARACTER (LEN=*), DIMENSION(:), INTENT(in) :: Var       ! Array with variable names
+    CHARACTER (LEN=*), OPTIONAL,     INTENT(inout) :: ExtVar
     LOGICAL, OPTIONAL                           :: needed(:)
     INTEGER, OPTIONAL                           :: rc
     INTEGER                                     :: n
@@ -853,8 +836,12 @@ CONTAINS
              n = VariableIndex (Func(j:),Var,ib,in)
              if (present(needed).and.(n>0)) needed(n)=.true.
              IF (n == 0) THEN
-                CALL ParseErrMsg (j, FuncStr, ipos, 'Invalid element: '//Func(j+ib-1:j+in-2))
-                ASSERT_(.FALSE.)
+                IF (present(ExtVar)) then
+                   ExtVar = trim(ExtVar)//Func(j+ib-1:j+in-2)//","
+                ELSE
+                   CALL ParseErrMsg (j, FuncStr, ipos, 'Invalid element: '//Func(j+ib-1:j+in-2))
+                   ASSERT_(.FALSE.)
+                ENDIF
              END IF
              j = j+in-1
              IF (j > lFunc) EXIT
@@ -1010,7 +997,7 @@ CONTAINS
     INTEGER, OPTIONAL,              INTENT(out) :: ibegin, & ! Start position of variable name
                                                    inext     ! Position of character after name
     INTEGER                                     :: j,ib,in,lstr
-    CHARACTER (LEN=5)                           :: fun
+    CHARACTER (LEN=ESMF_MAXSTR)                 :: fun
     !----- -------- --------- --------- --------- --------- --------- --------- -------
     isUndef = .false.
     lstr = LEN_TRIM(str)
@@ -1022,7 +1009,7 @@ CONTAINS
           IF (SCAN(str(in:in),'+-*/^) ') > 0) EXIT
        END DO
        CALL LowCase (str(ib:in-1), fun)
-       IF (fun == 'undef') THEN                     
+       IF (trim(fun) == 'undef') THEN                     
              isUndef = .true.                           ! Variable name found
        END IF
     END IF
@@ -1079,7 +1066,12 @@ CONTAINS
     TYPE(ESMF_Field)               , INTENT(inout) :: field     ! resultant field, use to get its rank, etc . . . 
     INTEGER                        , INTENT(out  ) :: rc
     INTEGER                                     :: istat, i
-    TYPE(ESMF_Grid)                             :: grid
+    TYPE(ESMF_Array)                            :: Array
+    type (ESMF_LocalArray), target        :: larrayList(1)
+    TYPE(ESMF_LocalArray) ,pointer        :: lArray
+    INTEGER                          :: ResRank
+    INTEGER                          :: lb(ESMF_MAXDIM)
+    INTEGER                          :: ub(ESMF_MAXDIM)
     character(len=ESMF_MAXSTR), parameter       :: Iam = "Compile"
     integer                                     :: status
     !----- -------- --------- --------- --------- --------- --------- --------- -------
@@ -1096,11 +1088,22 @@ CONTAINS
                Comp%Stack(Comp%StackSize),       &
                STAT = istat                      )
 
-    call ESMF_FieldGet(field,grid=grid,rc=status)
+    call ESMF_FieldGet(field,array=array,rc=status)
+    VERIFY_(STATUS)
+    call ESMF_ArrayGet(array,localarrayList=larrayList,rc=status)
+    VERIFY_(STATUS)
+    lArray => lArrayList(1)
+    call ESMF_LocalArrayGet(larray,rank=ResRank,totallbound=lb,totalubound=ub,rc=status)
     VERIFY_(STATUS)
     DO i=1,Comp%StackSize
-       Comp%Stack(i)=MAPL_FieldCreate(FIELD, GRID, rc=status)
-       VERIFY_(STATUS)
+       Comp%Stack(i)%rank = ResRank
+       Comp%Stack(i)%lb = lb
+       Comp%Stack(i)%ub = ub
+       IF (ResRank == 2) then
+          allocate(Comp%Stack(i)%Q2D(lb(1):ub(1),lb(2):ub(2)) )
+       ELSE IF (ResRank == 3) then
+          allocate(Comp%Stack(i)%Q3D(lb(1):ub(1),lb(2):ub(2),lb(3):ub(3)) )
+       END IF
     END DO
 
     Comp%ByteCodeSize = 0
@@ -1412,7 +1415,7 @@ CONTAINS
        IF (k > 0) str2(j:j) = lc(k:k)
     END DO
   END SUBROUTINE LowCase
- 
+
   FUNCTION Heav2D(r) RESULT(res)
     IMPLICIT NONE
     real,   intent(in) :: r(:,:)
@@ -1436,5 +1439,5 @@ CONTAINS
        res = 1.0
     endwhere
   END FUNCTION Heav3D
- 
+
 END MODULE MAPL_NewArthParserMod

@@ -1,4 +1,4 @@
-! $Id: MAPL_Mod.F90,v 1.12 2009-07-09 01:46:39 trayanov Exp $
+! $Id: MAPL_Mod.F90,v 1.13 2013-03-16 00:09:04 atrayano Exp $
 
 
 module MAPL_Mod
@@ -23,5 +23,6 @@ module MAPL_Mod
   use MAPL_CapMod
   use MAPL_MemUtilsMod
   use MAPL_HashMod
+  use MAPL_LoadBalanceMod
 
 end module MAPL_Mod

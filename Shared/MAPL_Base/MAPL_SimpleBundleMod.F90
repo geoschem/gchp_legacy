@@ -21,7 +21,7 @@
 
 ! !USES:
 
-   use ESMF_Mod
+   use ESMF
    use ESMFL_Mod
    use MAPL_BaseMod
    use MAPL_CFIOMod
@@ -167,12 +167,13 @@ CONTAINS
 
     type(ESMF_Field) :: Field
     type(ESMF_Array) :: Array
-    type(ESMF_TypeKind) :: typeKind
+    type(ESMF_TypeKind_Flag) :: typeKind
     real(ESMF_KIND_R8), pointer :: LonsRad(:,:), LatsRad(:,:)
 
     integer :: arrayRank, I, n, n1d, n2d, n3d, NumVars, myKind_
     integer :: im, jm, km, dims(3)
-    logical :: isCommitted
+    type(ESMF_FieldStatus_Flag) :: fieldStatus
+    
 
     logical :: strict_match
     logical :: isPresent
@@ -230,7 +231,7 @@ CONTAINS
           isPresent = .false.
 
           do n = 1, NumVars
-             call ESMF_FieldBundleGet(BUNDLE, n, FIELD, __RC__)
+             call MAPL_FieldBundleGet(BUNDLE, n, FIELD, __RC__)
              call ESMF_FieldGet (FIELD, name=fieldName, __RC__)
 
              if (fieldName == var_list(i)) then
@@ -267,10 +268,10 @@ CONTAINS
 !   -----------------------------------------------------
    call ESMF_GridGetCoord (self%Grid, coordDim=1, localDE=0, &
                            staggerloc=ESMF_STAGGERLOC_CENTER, &
-                           fptr=LonsRad, __RC__)
+                           farrayPtr=LonsRad, __RC__)
    call ESMF_GridGetCoord (self%Grid, coordDim=2, localDE=0, &
                            staggerloc=ESMF_STAGGERLOC_CENTER, &
-                           fptr=LatsRad, __RC__)
+                           farrayPtr=LatsRad, __RC__)
    self%coords%Lons(:,:) = ( 180. / MAPL_PI) * LonsRad(:,:)
    self%coords%Lats(:,:) = ( 180. / MAPL_PI) * LatsRad(:,:)
 
@@ -299,13 +300,13 @@ CONTAINS
       self%coords%lcv%delp = delp
    else ! Look inside bundle for delp or DELP
       self%coords%lcv%delp => NULL() 
-      call ESMF_FieldBundleGet (Bundle, 'DELP', Field, RC=STATUS)
+      call ESMF_FieldBundleGet (Bundle, fieldName='DELP', field=Field, RC=STATUS)
       if ( STATUS /= 0 ) then
-           call ESMF_FieldBundleGet (Bundle, 'delp', Field, RC=STATUS)
+           call ESMF_FieldBundleGet (Bundle, fieldName='delp', field=Field, RC=STATUS)
       end if
       if ( STATUS == 0 ) then
-         call ESMF_FieldGet(Field, isCommitted, __RC__)
-         if (isCommitted) then
+         call ESMF_FieldGet(Field, status=fieldStatus, __RC__)
+         if (fieldStatus == ESMF_FIELDSTATUS_COMPLETE) then
             call ESMF_FieldGet(Field, 0, self%coords%lcv%delp, __RC__)
          end if
       end if
@@ -327,10 +328,10 @@ CONTAINS
     n3d = 0
     DO I = 1, NumVars
 
-       call ESMF_FieldBundleGet(BUNDLE, I, FIELD, __RC__)
-       call ESMF_FieldGet (FIELD, name=fieldName, isCommitted=isCommitted, __RC__)
+       call MAPL_FieldBundleGet(BUNDLE, I, FIELD, __RC__)
+       call ESMF_FieldGet (FIELD, name=fieldName, status=fieldStatus, __RC__)
 
-       if ( isCommitted .and. isRequested(I)) then
+       if (fieldStatus == ESMF_FIELDSTATUS_COMPLETE .and. isRequested(I)) then
           call ESMF_FieldGet (FIELD, ARRAY=array, __RC__ )
           call ESMF_ArrayGet (array, rank=arrayRank, typeKind = typeKind, __RC__ )
        else
@@ -630,7 +631,8 @@ CONTAINS
     allocate(Bundle, stat=STATUS)
     VERIFY_(STATUS)
 
-    Bundle = ESMF_FieldBundleCreate ( name=filename, grid=Grid, __RC__ )
+    Bundle = ESMF_FieldBundleCreate ( name=filename, __RC__ )
+    call ESMF_FieldBundleSet ( bundle, grid=Grid, __RC__ )
     call MAPL_CFIORead  ( filename, Time, Bundle, verbose=verbose, &
                           ONLY_VARS=only_vars, expid=expid, __RC__ )
     self = MAPL_SimpleBundleCreate ( Bundle, __RC__ )
@@ -708,7 +710,7 @@ CONTAINS
     __Iam__ ('MAPL_SimpleBundleWrite1')
 
     call ESMF_TimeIntervalSet( TimeStep, h=0, m=30, s=0, __RC__ )
-    CLOCK = ESMF_ClockCreate ( "Clock", timeStep=TimeStep, startTime=Time, __RC__ )
+    CLOCK = ESMF_ClockCreate ( name="Clock", timeStep=TimeStep, startTime=Time, __RC__ )
 
     call MAPL_CFIOCreate ( cfio, filename, clock, self%Bundle, __RC__)
     call MAPL_CFIOWrite  ( cfio, Clock, self%Bundle, verbose=verbose, __RC__)

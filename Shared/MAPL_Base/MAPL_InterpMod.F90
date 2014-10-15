@@ -1,7 +1,7 @@
 
 module MAPL_InterpMod
 
-  use ESMF_Mod
+  use ESMF
 
 implicit none
 private

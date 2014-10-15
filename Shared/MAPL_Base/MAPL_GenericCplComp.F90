@@ -1,4 +1,4 @@
-!  $Id: MAPL_GenericCplComp.F90,v 1.11 2011-02-03 22:57:54 atrayano Exp $
+!  $Id: MAPL_GenericCplComp.F90,v 1.11.72.2.2.1 2013-07-08 21:10:19 amolod Exp $
 
 #include "MAPL_Generic.h"
 
@@ -19,7 +19,7 @@ module MAPL_GenericCplCompMod
 
 ! !USES:
 
-  use ESMF_Mod
+  use ESMF
   use ESMFL_Mod
   use MAPL_BaseMod
   use MAPL_ConstantsMod
@@ -61,6 +61,7 @@ module MAPL_GenericCplCompMod
      type(MAPL_CplCnt), pointer   :: ARRAY_COUNT(:) => null()
      integer          , pointer   :: ACCUM_COUNT(:)
      integer          , pointer   :: ACCUM_RANK(:)
+     integer          , pointer   :: couplerType(:) => null()
   end type MAPL_GenericCplState
 
   type MAPL_GenericCplWrap
@@ -127,23 +128,23 @@ contains
 ! Register services for this component
 ! ------------------------------------
 
-    call ESMF_CplCompSetEntryPoint ( CC, ESMF_SETINIT,  Initialize, &
-                                     ESMF_SINGLEPHASE,    STATUS )
+    call ESMF_CplCompSetEntryPoint ( CC, ESMF_METHOD_INITIALIZE,  Initialize, &
+                                     rc=STATUS )
     VERIFY_(STATUS)
 
-    call ESMF_CplCompSetEntryPoint ( CC, ESMF_SETRUN,   Run,        &
-                                     ESMF_SINGLEPHASE,    STATUS )
+    call ESMF_CplCompSetEntryPoint ( CC, ESMF_METHOD_RUN,   Run,        &
+                                     rc=STATUS )
     VERIFY_(STATUS)
 
-    call ESMF_CplCompSetEntryPoint ( CC, ESMF_SETFINAL, Finalize,   &
-                                     ESMF_SINGLEPHASE,    STATUS )
+    call ESMF_CplCompSetEntryPoint ( CC, ESMF_METHOD_FINALIZE, Finalize,   &
+                                     rc=STATUS )
     VERIFY_(STATUS)
 
 ! Put the inherited configuration in the internal state
 ! -----------------------------------------------------
 
-    call ESMF_CplCompGet( CC, CONFIG=STATE%CF, RC=STATUS )
-    VERIFY_(STATUS)
+!ALT not_used    call ESMF_CplCompGet( CC, CONFIG=STATE%CF, RC=STATUS )
+!ALT not_used    VERIFY_(STATUS)
 
     RETURN_(ESMF_SUCCESS)
   end subroutine GenericCplSetServices
@@ -267,6 +268,8 @@ contains
     integer                               :: COUPLE
     integer, pointer                      :: ungrd(:)
     logical                               :: has_ungrd
+    type(ESMF_Field)                      :: field
+    integer                               :: minmax
 
 ! Begin...
 
@@ -301,6 +304,8 @@ contains
     allocate(STATE%ARRAY_COUNT (NCPLS), STAT=STATUS)
     VERIFY_(STATUS)
     allocate(STATE%ACCUM_RANK (NCPLS), STAT=STATUS)
+    VERIFY_(STATUS)
+    allocate(STATE%couplerType(NCPLS), STAT=STATUS)
     VERIFY_(STATUS)
 
 ! Allocate internal state objects
@@ -426,6 +431,14 @@ contains
 
        STATE%ACCUM_RANK(J) = DIMS
 
+       call ESMF_StateGet(src, NAME, field, rc=status)
+       VERIFY_(STATUS)
+       call ESMF_AttributeGet(field, NAME="MINMAX", VALUE=minmax, RC=STATUS)
+       if (status /= ESMF_SUCCESS) then
+          minmax = MAPL_CplAverage
+       end if
+       state%couplerType(J) = MinMax
+
 ! Create Accumulators for 3 dimensions
 !-------------------------------------
 
@@ -440,8 +453,12 @@ contains
           LN = UBOUND(PTR3,3)
           allocate(PTR30(size(PTR3,1),size(PTR3,2),L1:LN), STAT=STATUS)
           VERIFY_(STATUS)
+          if (STATE%couplerType(J) /= MAPL_CplAverage) then
+             PTR30 = MAPL_UNDEF
+          else
 ! Set accumulator values to zero
-          PTR30 = 0.0
+             PTR30 = 0.0
+          endif
 ! Put pointer in accumulator
           STATE%ACCUMULATORS(J)=ESMF_LocalArrayCreate( PTR30, RC=STATUS)
           VERIFY_(STATUS)
@@ -451,7 +468,11 @@ contains
           VERIFY_(STATUS)
           allocate(PTR20(size(PTR2,1),size(PTR2,2)), STAT=STATUS)
           VERIFY_(STATUS)
-          PTR20 = 0.0
+          if (STATE%couplerType(J) /= MAPL_CplAverage) then
+             PTR20 = MAPL_UNDEF
+          else
+             PTR20 = 0.0
+          end if
           STATE%ACCUMULATORS(J)=ESMF_LocalArrayCreate( PTR20, RC=STATUS)
           VERIFY_(STATUS)
 
@@ -460,7 +481,11 @@ contains
           VERIFY_(STATUS)
           allocate(PTR10(size(PTR1)), STAT=STATUS)
           VERIFY_(STATUS)
-          PTR10 = 0.0
+          if (STATE%couplerType(J) /= MAPL_CplAverage) then
+             PTR10 = MAPL_UNDEF
+          else
+             PTR10 = 0.0
+          end if
           STATE%ACCUMULATORS(J)=ESMF_LocalArrayCreate( PTR10, RC=STATUS)
           VERIFY_(STATUS)
 
@@ -566,6 +591,8 @@ contains
 ! local vars
 
     integer                               :: J
+    integer                               :: I1, I2, I3
+    integer                               :: couplerType
     character (len=ESMF_MAXSTR)           :: NAME
     integer                               :: DIMS
     real, pointer                         :: PTR1 (:)
@@ -582,6 +609,7 @@ contains
     integer                       :: STATUS
 
     do J = 1, size(STATE%SRC_SPEC)
+       couplerType = state%couplerType(J)
 
 ! Accumulate only if we are in the couplings averaging interval
 !--------------------------------------------------------------
@@ -604,7 +632,7 @@ contains
        case(3)
           call MAPL_GetPointer  (SRC, PTR3, NAME,            RC=STATUS)
           VERIFY_(STATUS)
-          call ESMF_LocalArrayGet(STATE%ACCUMULATORS(J),fptr=PTR30,RC=STATUS)
+          call ESMF_LocalArrayGet(STATE%ACCUMULATORS(J),farrayPtr=PTR30,RC=STATUS)
           VERIFY_(STATUS)
           PTR3c => STATE%ARRAY_COUNT(J)%PTR3C
 
@@ -619,19 +647,37 @@ contains
              end if
           end if
 
-          if(associated(PTR3C)) then
-             where (PTR3 /= MAPL_Undef)
+          if (couplerType == MAPL_CplAverage) then
+             if(associated(PTR3C)) then
+                where (PTR3 /= MAPL_Undef)
+                   PTR30 = PTR30 + PTR3
+                   PTR3c = PTR3c + 1
+                end where
+             else
                 PTR30 = PTR30 + PTR3
-                PTR3c = PTR3c + 1
-             end where
+             end if
           else
-             PTR30 = PTR30 + PTR3
+             DO I1=1,size(PTR3,1)
+                DO I2=1,size(PTR3,2)
+                   DO I3=1,size(PTR3,3)
+                      if (PTR30(I1,I2,I3)== MAPL_Undef) then
+                         PTR30(I1,I2,I3) = PTR3(I1,I2,I3)
+                      else 
+                         if (couplerType == MAPL_CplMax) then
+                            PTR30(I1,I2,I3) = max(PTR30(I1,I2,I3),PTR3(I1,I2,I3))
+                         else if (couplerType == MAPL_CplMin) then
+                            PTR30(I1,I2,I3) = min(PTR30(I1,I2,I3),PTR3(I1,I2,I3))
+                         end if
+                      end if
+                   end DO
+                end DO
+             end DO
           end if
 
        case(2)
           call MAPL_GetPointer  (SRC, PTR2, NAME,            RC=STATUS)
           VERIFY_(STATUS)
-          call ESMF_LocalArrayGet(STATE%ACCUMULATORS(J),fptr=PTR20,RC=STATUS)
+          call ESMF_LocalArrayGet(STATE%ACCUMULATORS(J),farrayPtr=PTR20,RC=STATUS)
           VERIFY_(STATUS)
           PTR2c => STATE%ARRAY_COUNT(J)%PTR2C
 
@@ -646,19 +692,35 @@ contains
              end if
           end if
 
-          if(associated(PTR2c)) then
-             where (PTR2 /= MAPL_Undef)
+          if (couplerType == MAPL_CplAverage) then
+             if(associated(PTR2C)) then
+                where (PTR2 /= MAPL_Undef)
+                   PTR20 = PTR20 + PTR2
+                   PTR2c = PTR2c + 1
+                end where
+             else
                 PTR20 = PTR20 + PTR2
-                PTR2c = PTR2c + 1
-             end where
+             end if
           else
-             PTR20 = PTR20 + PTR2
-          end if
+             DO I1=1,size(PTR2,1)
+                DO I2=1,size(PTR2,2)
+                   if (PTR20(I1,I2)== MAPL_Undef) then
+                      PTR20(I1,I2) = PTR2(I1,I2)
+                   else 
+                      if (couplerType == MAPL_CplMax) then
+                         PTR20(I1,I2) = max(PTR20(I1,I2),PTR2(I1,I2))
+                      else if (couplerType == MAPL_CplMin) then
+                         PTR20(I1,I2) = min(PTR20(I1,I2),PTR2(I1,I2))
+                      end if
+                   end if
+                end DO
+             end DO
+          endif
 
        case(1)
           call MAPL_GetPointer  (SRC, PTR1, NAME,            RC=STATUS)
           VERIFY_(STATUS)
-          call ESMF_LocalArrayGet(STATE%ACCUMULATORS(J),fptr=PTR10,RC=STATUS)
+          call ESMF_LocalArrayGet(STATE%ACCUMULATORS(J),farrayPtr=PTR10,RC=STATUS)
           VERIFY_(STATUS)
           PTR1c => STATE%ARRAY_COUNT(J)%PTR1C
 
@@ -673,21 +735,39 @@ contains
              end if
           end if
 
-          if(associated(PTR1C)) then
-             where (PTR1 /= MAPL_Undef)
+          if (couplerType == MAPL_CplAverage) then
+             if(associated(PTR1C)) then
+                where (PTR1 /= MAPL_Undef)
+                   PTR10 = PTR10 + PTR1
+                   PTR1c = PTR1c + 1
+                end where
+             else
                 PTR10 = PTR10 + PTR1
-                PTR1c = PTR1c + 1
-             end where
+             end if
           else
-             PTR10 = PTR10 + PTR1
-          end if
+             DO I1=1,size(PTR1,1)
+                if (PTR10(I1)== MAPL_Undef) then
+                   PTR10(I1) = PTR1(I1)
+                else 
+                   if (couplerType == MAPL_CplMax) then
+                      PTR10(I1) = max(PTR10(I1),PTR1(I1))
+                   else if (couplerType == MAPL_CplMin) then
+                      PTR10(I1) = min(PTR10(I1),PTR1(I1))
+                   end if
+                end if
+             end DO
+          endif
 
        case default
           RETURN_(ESMF_FAILURE)
 
        end select
 
-       STATE%ACCUM_COUNT(J) = STATE%ACCUM_COUNT(J) + 1
+       if(couplerType == MAPL_CplMax .or. couplerType == MAPL_CplMin) then
+        STATE%ACCUM_COUNT(J) = 1
+       else
+        STATE%ACCUM_COUNT(J) = STATE%ACCUM_COUNT(J) + 1
+       endif
 
     end do
 
@@ -731,21 +811,33 @@ contains
           select case(DIMS)
 
           case(3)
-             call ESMF_LocalArrayGet(STATE%ACCUMULATORS(J),fptr=PTR30,RC=STATUS)
+             call ESMF_LocalArrayGet(STATE%ACCUMULATORS(J),farrayPtr=PTR30,RC=STATUS)
              VERIFY_(STATUS)
-             PTR30 = 0.0
+             if (STATE%couplerType(J) /= MAPL_CplAverage) then
+                PTR30 = MAPL_UNDEF
+             else
+                PTR30 = 0.0
+             endif
              if (associated(STATE%ARRAY_COUNT(J)%PTR3C)) STATE%ARRAY_COUNT(J)%PTR3C = 0
 
           case(2)
-             call ESMF_LocalArrayGet(STATE%ACCUMULATORS(J),fptr=PTR20,RC=STATUS)
+             call ESMF_LocalArrayGet(STATE%ACCUMULATORS(J),farrayPtr=PTR20,RC=STATUS)
              VERIFY_(STATUS)
-             PTR20 = 0.0
+             if (STATE%couplerType(J) /= MAPL_CplAverage) then
+                PTR20 = MAPL_UNDEF
+             else
+                PTR20 = 0.0
+             endif
              if (associated(STATE%ARRAY_COUNT(J)%PTR2C)) STATE%ARRAY_COUNT(J)%PTR2C = 0
 
           case(1)
-             call ESMF_LocalArrayGet(STATE%ACCUMULATORS(J),fptr=PTR10,RC=STATUS)
+             call ESMF_LocalArrayGet(STATE%ACCUMULATORS(J),farrayPtr=PTR10,RC=STATUS)
              VERIFY_(STATUS)
-             PTR10 = 0.0
+             if (STATE%couplerType(J) /= MAPL_CplAverage) then
+                PTR10 = MAPL_UNDEF
+             else
+                PTR10 = 0.0
+             endif
              if (associated(STATE%ARRAY_COUNT(J)%PTR1C)) STATE%ARRAY_COUNT(J)%PTR1C = 0
 
           case default
@@ -806,7 +898,7 @@ contains
           select case(DIMS)
 
           case(3)
-             call ESMF_LocalArrayGet(STATE%ACCUMULATORS(J),fptr=PTR30,RC=STATUS)
+             call ESMF_LocalArrayGet(STATE%ACCUMULATORS(J),farrayPtr=PTR30,RC=STATUS)
              VERIFY_(STATUS)
              call MAPL_GetPointer  (DST, PTR3, NAME,            RC=STATUS)
              VERIFY_(STATUS)
@@ -828,7 +920,7 @@ contains
              PTR3 = PTR30
 
           case(2)
-             call ESMF_LocalArrayGet(STATE%ACCUMULATORS(J),fptr=PTR20,RC=STATUS)
+             call ESMF_LocalArrayGet(STATE%ACCUMULATORS(J),farrayPtr=PTR20,RC=STATUS)
              VERIFY_(STATUS)
              call MAPL_GetPointer  (DST, PTR2, NAME,            RC=STATUS)
              VERIFY_(STATUS)
@@ -850,7 +942,7 @@ contains
              PTR2 = PTR20
 
           case(1)
-             call ESMF_LocalArrayGet(STATE%ACCUMULATORS(J),fptr=PTR10,RC=STATUS)
+             call ESMF_LocalArrayGet(STATE%ACCUMULATORS(J),farrayPtr=PTR10,RC=STATUS)
              VERIFY_(STATUS)
              call MAPL_GetPointer  (DST, PTR1, NAME,            RC=STATUS)
              VERIFY_(STATUS)

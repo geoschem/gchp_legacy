@@ -100,7 +100,7 @@ CONTAINS
     CALL Cleanup_GIGC_State_Met( am_I_Root, State_Met, RC )
 
     ! Deallocate all other GEOS-Chem allocatable arrays
-    CALL CleanUp( am_I_Root, RC )
+!    CALL CleanUp( am_I_Root, RC )
 
   END SUBROUTINE GIGC_Finalize
 !EOC

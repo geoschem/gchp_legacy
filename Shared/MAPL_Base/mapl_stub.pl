@@ -28,7 +28,7 @@ use Getopt::Std;         # command line options
 ! do not edit or check in, change GNUmakefile instead.
 !
 module $NAME
-   use ESMF_Mod
+   use ESMF
    use $GCPROXY,  only:  ProxySetServices => $SETSERVICES
    private
    public SetServices

@@ -6,7 +6,7 @@
 
    Program utCFIO
 
-   use ESMF_Mod
+   use ESMF
 
    use MAPL_BaseMod
    use MAPL_CommsMod
@@ -74,7 +74,7 @@ CONTAINS
 
 !   Set the time as the one on the hardwired file name
 !   --------------------------------------------------
-    call ESMF_CalendarSetDefault ( ESMF_CAL_GREGORIAN, rc=status )
+    call ESMF_CalendarSetDefault ( ESMF_CALKIND_GREGORIAN, rc=status )
     VERIFY_(STATUS)
     call ESMF_TimeSet(Time2,  yy=2001, mm=1, dd=1,  h=0,  m=0, s=0, rc=status )
     VERIFY_(STATUS)
@@ -87,11 +87,9 @@ CONTAINS
 
 !   Get Local dimensions
 !   --------------------
-    call ESMF_GridGetDELocalInfo ( GRID3D, &
-                                   horzRelLoc=ESMF_CELL_CENTER, &
-                                   vertRelLoc=ESMF_CELL_CELL, &
-                                   localCellCountPerDim=DIMS,RC=STATUS)
-   VERIFY_(STATUS)
+    call MAPL_GridGet ( GRID3D, &
+                        localCellCountPerDim=DIMS,RC=STATUS)
+    VERIFY_(STATUS)
 
 !   Allocate arrays
 !   ---------------

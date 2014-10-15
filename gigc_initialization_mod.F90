@@ -128,7 +128,6 @@ CONTAINS
     DO I = 1, IIPAR
 
        ! Compute Delta-Longitudes [degrees]
-       IF ( IIPAR > 1  ) THEN
        IF ( I == IIPAR ) THEN
           dLon(I,J,L) = RoundOff( ( DBLE( lonCtr(IIPAR,  J) ) / PI_180 ), 4 ) &
                       - RoundOff( ( DBLE( lonCtr(IIPAR-1,J) ) / PI_180 ), 4 )
@@ -136,21 +135,14 @@ CONTAINS
           dLon(I,J,L) = RoundOff( ( DBLE( lonCtr(I+1,    J) ) / PI_180 ), 4 ) &
                       - RoundOff( ( DBLE( lonCtr(I,      J) ) / PI_180 ), 4 )
        ENDIF
-       ELSE
-          dLon(I,J,L) = 360.e0/IM_WORLD
-       ENDIF
 
        ! Compute Delta-Latitudes [degrees]
-       IF ( JJPAR > 1  ) THEN
        IF ( J == JJPAR ) THEN
           dLat(I,J,L) = RoundOff( ( DBLE( latCtr(I,JJPAR  ) ) / PI_180 ), 4 ) &
                       - RoundOff( ( DBLE( latCtr(I,JJPAR-1) ) / PI_180 ), 4 )
        ELSE
           dLat(I,J,L) = RoundOff( ( DBLE( latCtr(I,J+1    ) ) / PI_180 ), 4 ) &
                       - RoundOff( ( DBLE( latCtr(I,J      ) ) / PI_180 ), 4 )
-       ENDIF
-       ELSE
-          dLat(I,J,L) = 360.e0/JM_WORLD
        ENDIF
 
     ENDDO
@@ -183,7 +175,6 @@ CONTAINS
              CALL Debug_Msg( '### Root CPU, after LINOZ_READ' )
           ENDIF
        ENDIF
-
     ENDIF
 
   END SUBROUTINE GIGC_Get_Options
@@ -230,6 +221,7 @@ CONTAINS
     USE COMODE_LOOP_MOD       
     USE GCKPP_COMODE_MOD,     ONLY : Init_GCKPP_Comode
     USE ERROR_MOD,            ONLY : Debug_Msg
+    USE FAST_JX_MOD,          ONLY : Init_FJX
     USE Grid_Mod,             ONLY : Init_Grid
     USE Grid_Mod,             ONLY : Set_xOffSet
     USE Grid_Mod,             ONLY : Set_yOffSet
@@ -241,19 +233,16 @@ CONTAINS
     USE Olson_Landmap_Mod,    ONLY : Compute_Olson_Landmap
     USE Olson_Landmap_Mod,    ONLY : Cleanup_Olson_Landmap
     USE PBL_MIX_MOD,          ONLY : INIT_PBL_MIX
-    USE PRESSURE_MOD,         ONLY : INIT_PRESSURE, SET_FLOATING_PRESSURE
-    USE TRACER_MOD,           ONLY : ITS_A_FULLCHEM_SIM
-    USE TRACER_MOD,           ONLY : ITS_AN_AEROSOL_SIM
+    USE PRESSURE_MOD,         ONLY : INIT_PRESSURE
     USE TRACER_MOD,           ONLY : INIT_TRACER
     USE TRACERID_MOD,         ONLY : SETTRACE
-    USE TOMS_MOD,             ONLY : TO3_DAILY
     USE WETSCAV_MOD,          ONLY : INIT_WETSCAV
     USE DRYDEP_MOD,           ONLY : INIT_WEIGHTSS, INIT_DRYDEP
     USE DUST_MOD,             ONLY : INIT_DUST
     USE GIGC_MPI_WRAP
-    USE LOGICAL_MOD,          ONLY : LVARTROP
     USE TIME_MOD,             ONLY : SET_TIMESTEPS
     USE SEASALT_MOD,          ONLY : INIT_SEASALT
+    USE TOMS_MOD,             ONLY : INIT_TOMS
 !
 ! !INPUT PARAMETERS: 
 !
@@ -359,6 +348,7 @@ CONTAINS
                             value_LM_WORLD = value_LM_WORLD,                &
                             RC             = RC              )            
 
+    ! Allocate GEOS-Chem module arrays
 
     ! Save timing fields in Input_Opt for passing down to module
     ! GeosCore/input_mod.F via routine GIGC_Get_Options (bmy, 12/6/12)
@@ -404,6 +394,7 @@ CONTAINS
        ! We still need to call Initialize_Geos_Grid on all CPUs though.
        ! without having to read the "input.geos" file. (mlong, bmy, 2/26/13)
        CALL Initialize_Geos_Grid( am_I_Root = am_I_Root,                    &
+                                  Input_Opt = Input_Opt,                    &
                                   RC        =  RC )
 
        ! Initialize tracer quantities (in GeosCore/tracer_mod.F)
@@ -412,14 +403,14 @@ CONTAINS
                          RC        = RC           )
 
        ! Initialize dry deposition (in GeosCore/drydep_mod.F)
-       IF ( Input_Opt%LDRYD ) THEN
+!       IF ( Input_Opt%LDRYD ) THEN
           CALL Init_Drydep( am_I_Root = am_I_Root,                          &
                             Input_Opt = Input_Opt,                          &
                             RC        = RC         )
-       ENDIF
+!       ENDIF
 
        ! Working Kluge - MSL; Break this & Fix the result...
-       LVARTROP = Input_Opt%LVARTROP 
+!       LVARTROP = Input_Opt%LVARTROP 
 
        ! Set GEOS-Chem timesteps
        CALL SET_TIMESTEPS( am_I_Root  = am_I_Root,                          &
@@ -451,7 +442,7 @@ CONTAINS
 !    IF ( am_I_Root ) THEN
 !------------------------------------------------------------------------------
        ! Read from data file mglob.dat
-       CALL READER( .TRUE.,  am_I_Root )
+       CALL READER( .TRUE.,  am_I_Root, Input_Opt )
 
        !### Debug
        IF ( prtDebug ) THEN
@@ -464,7 +455,7 @@ CONTAINS
 !    ENDIF
 !
 !    ! Broadcast "mglob.dat"
-!    CALL GIGC_Reader_Bcast( RC )
+!       CALL GIGC_Reader_Bcast( RC )
 !    CALL DEBUG_MSG( '### GIGC_INIT_CHEMISTRY: after GIGC_Bcast_READER' )
 !------------------------------------------------------------------------------
 
@@ -498,14 +489,11 @@ CONTAINS
 ! to MPI broadcast later.  This could be very difficult. (bmy, mlong, 3/7/13)
 !    IF ( am_I_Root ) THEN
 !------------------------------------------------------------------------------
-       CALL INPHOT( LLPAR,       & ! # of layers for FAST-J photolysis
-                    NPHOT,       & ! # of rxns   for FAST-J photolysis
-                    Input_Opt,   & ! Input Options object
-                    am_I_Root  )  ! Are we on the root CPU?
+       CALL INIT_FJX( am_I_Root, Input_Opt, RC )  ! Are we on the root CPU?
 
        !### Debug
        IF ( prtDebug ) THEN
-          CALL DEBUG_MSG( '### GIGC_INIT_CHEMISTRY: after INPHOT' )        
+          CALL DEBUG_MSG( '### GIGC_INIT_CHEMISTRY: after INIT_FJX' )        
        ENDIF
 !------------------------------------------------------------------------------
 ! Prior to 3/7/13:
@@ -522,10 +510,10 @@ CONTAINS
     !-----------------------------------------------------------------------
 
     ! Zero diagnostic arrays
-    CALL Initialize( 2, am_I_Root )
+    CALL Initialize( am_I_Root, Input_Opt, 2, RC )
 
     ! Zero diagnostic counters
-    CALL Initialize( 3, am_I_root )
+    CALL Initialize( am_I_Root, Input_Opt, 3, RC )
 
     ! Initialize derived-type objects for meteorology & chemistry states
     CALL GIGC_Init_All( am_I_Root = am_I_Root,                              &
@@ -555,41 +543,39 @@ CONTAINS
     ! Initialize the GEOS-Chem pressure module (set Ap & Bp)
     CALL Init_Pressure( am_I_Root )
 
-    ! Initialize the GEOS-Chem FLoatinf Pressure
-!    write(*,'(a,e10.3)') 'PS1<> ', sum(State_Met%PS1)
-!    CALL Set_Floating_Pressure( State_Met%PS1 )
-
     ! Initialize the PBL mixing module
     CALL Init_PBL_Mix()
 
     ! Initialize arrays SO2s, H2O2s in wetscav_mod.F for use in sulfate chem
-!    CALL Init_WetScav &
-!       ( am_I_Root, Input_Opt, State_Met, State_Chm, RC )
+    CALL Init_WetScav &
+       ( am_I_Root, Input_Opt, State_Met, State_Chm, RC )
 
     !=======================================================================
     ! Initialize dry deposition 
     !=======================================================================
-    IF ( Input_Opt%LDRYD )  THEN
+!    IF ( Input_Opt%LDRYD )  THEN
 
        ! Initialize the derived type object containing
        ! mapping information for the MODIS LAI routines
        IF ( Input_Opt%USE_OLSON_2001 ) THEN
-          CALL Init_Mapping( 1440, 720, IIPAR, JJPAR, mapping )
+          CALL Init_Mapping( am_I_Root, Input_Opt, 1440, 720, IIPAR, JJPAR, mapping, RC )
        ELSE
-          CALL Init_Mapping(  720, 360, IIPAR, JJPAR, mapping )
+          CALL Init_Mapping( am_I_Root, Input_Opt,  720, 360, IIPAR, JJPAR, mapping, RC )
        ENDIF
 
+#if !defined( EXTERNAL_FORCING )
        ! Compute the Olson land types that occur in each grid box
        ! (i.e. this is a replacement for rdland.F and vegtype.global)
-       CALL Init_Olson_Landmap   ( am_I_Root, Input_Opt%DATA_DIR_1x1 )
-       CALL Compute_Olson_Landmap( am_I_Root, mapping, State_Met     )
-       CALL Cleanup_Olson_Landmap( am_I_Root                         )
+!       CALL Init_Olson_Landmap   ( am_I_Root, Input_Opt%DATA_DIR_1x1 )
+!       CALL Compute_Olson_Landmap( am_I_Root, mapping, State_Met     )
+!       CALL Cleanup_Olson_Landmap( am_I_Root                         )
+#endif
 
        !### Debug
        IF ( prtDebug ) THEN
           CALL DEBUG_MSG( '### GIGC_INIT_CHEMISTRY: after OLSON' )
        ENDIF
-    ENDIF
+!    ENDIF
 
     !=======================================================================
     ! Initialize chemistry mechanism
@@ -659,6 +645,11 @@ CONTAINS
        ! Reset NCS
        NCS = NCSURBAN
 
+       !### Debug
+       IF ( prtDebug ) THEN
+          CALL DEBUG_MSG( '### GIGC_INIT_CHEMISTRY: after SETTRACE' )
+       ENDIF
+       
        ! Register species (active + inactive) in the State_Chm object     
        DO I = 1, NTSPEC(NCS)
           CALL Register_Species( NAME      = NAMEGAS(I),                    &
@@ -684,10 +675,13 @@ CONTAINS
           CALL DEBUG_MSG( '### GIGC_INIT_CHEMISTRY: after SETEMDEP' )
        ENDIF
 
-       ! Initialize dry deposition (work in progress), add here
        ! Allocate array of overhead O3 columns for TOMS
-       ALLOCATE( TO3_DAILY( IIPAR, JJPAR ), STAT=AS )
-       TO3_DAILY = 0d0
+       CALL INIT_TOMS
+
+       !### Debug
+       IF ( prtDebug ) THEN
+          CALL DEBUG_MSG( '### GIGC_INIT_CHEMISTRY: after INIT_TOMS' )
+       ENDIF
 
     ENDIF
 

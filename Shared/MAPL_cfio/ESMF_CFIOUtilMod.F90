@@ -539,8 +539,6 @@
         if (err("DimInqure: could not get units for dimension",rc,-53)&
             .NE. 0) return
         myIndex = IdentifyDim (dimName, dimUnits)
-        if (trim(dimName) .eq. 'ap') myIndex = -1
-        if (trim(dimName) .eq. 'bp') myIndex = -1 
         if ( myIndex .EQ. 0 ) then
           im = dimSize
         else if ( myIndex .EQ. 1 ) then
@@ -2086,7 +2084,13 @@
       if (firstcolon .LE. 0) then
          
         ! If no colons, check for hour.
- 
+
+        ! Logic below assumes a null character or something else is after the hour
+        ! if we do not find a null character add one so that it correctly parses time
+        if (TimeUnits(strlen:strlen) /= char(0)) then
+           TimeUnits = trim(TimeUnits)//char(0)
+           strlen=len_trim(TimeUnits)
+        endif 
         lastspace = index(TRIM(TimeUnits), ' ', BACK=.TRUE.)
         if ((strlen-lastspace).eq.2 .or. (strlen-lastspace).eq.3) then
           hpos(1) = lastspace+1
@@ -2783,8 +2787,8 @@
       else
         print *, 'CFIO_GetVar: Currently, times must fall on minute ',&
                 'boundaries.'
-!        rc = -6
-!        return
+        rc = -6
+        return
       endif
 
 ! Determine the time index from the offset and time increment.
@@ -3168,8 +3172,8 @@
       else
         print *, 'CFIO_GetVar: Currently, times must fall on minute ',&
                 'boundaries.'
-!        rc = -6
-!        return
+        rc = -6
+        return
       endif
 
 ! Determine the time index from the offset and time increment.
@@ -3656,7 +3660,6 @@
       else if (HUGE(dummy) .EQ. HUGE(dummy64)) then   ! -r8
         if (type .EQ. NCFLOAT) then                     ! 32-bit
           allocate (grid_32(im,jm,kount))
-          write(*,'(a,72e10.3)') 'TRCO3 at History:', maxval(grid),minval(grid)
           do k=1,kount
             do j=1,jm
               do i=1,im

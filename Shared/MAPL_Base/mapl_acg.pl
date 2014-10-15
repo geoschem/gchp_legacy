@@ -1040,7 +1040,7 @@ sub gcF90code {
 !
 ! !USES:
 !
-   use ESMF_Mod
+   use ESMF
    use MAPL_Mod
 
    Implicit NONE
@@ -1123,9 +1123,9 @@ CONTAINS
 
 !   Set the Initialize, Run, Finalize entry points
 !   ----------------------------------------------
-    call MAPL_GridCompSetEntryPoint ( GC, ESMF_SETINIT,  Initialize_,  __RC__ )
-    call MAPL_GridCompSetEntryPoint ( GC,  ESMF_SETRUN,   Run_,        __RC__ )
-    call MAPL_GridCompSetEntryPoint ( GC,  ESMF_SETFINAL, Finalize_,   __RC__ )
+    call MAPL_GridCompSetEntryPoint ( GC, ESMF_METHOD_INITIALIZE,  Initialize_,  __RC__ )
+    call MAPL_GridCompSetEntryPoint ( GC,  ESMF_METHOD_RUN,   Run_,        __RC__ )
+    call MAPL_GridCompSetEntryPoint ( GC,  ESMF_METHOD_FINAL, Finalize_,   __RC__ )
 
 !   Wrap internal legacy state for storing in GC
 !   --------------------------------------------

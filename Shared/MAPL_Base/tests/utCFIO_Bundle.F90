@@ -13,18 +13,18 @@
 
    type(ESMF_Grid)     :: grid
    type (ESMF_VM)      :: VM
-   type(ESMF_DELayout) :: layout
 
    integer             :: nymd, nhms
    type(ESMF_Time)     :: fTime, dTime
    type(ESMF_TimeInterval)  :: fTimeStep, dTimeStep
    type(ESMF_Clock)    :: fClock, dClock
 
-   type(ESMF_Bundle)   :: fBundle, dBundle
+   type(ESMF_FieldBundle)   :: fBundle, dBundle
 
    type(MAPL_CFIO) :: cfio
 
-   integer :: IM_WORLD = 72, JM_WORLD = 46, KM_WORLD = 26   
+!   integer :: IM_WORLD = 72, JM_WORLD = 46, KM_WORLD = 26   
+   integer :: IM_WORLD = 540, JM_WORLD = 361, KM_WORLD = 72   
    integer :: i, j, k, im, jm, km                                      ! local
 
    character(len=*), parameter :: &
@@ -46,6 +46,9 @@ CONTAINS
 
     subroutine test_main()
 
+      character(len=ESMF_MAXSTR) :: string
+      integer                    :: I
+
 !   Initialize framework
 !   --------------------
     call ESMF_Initialize (vm=vm, rc=status)
@@ -58,6 +61,9 @@ CONTAINS
     call ESMF_VMGetGlobal(vm, rc=status)
     VERIFY_(status)
 
+    call MAPL_MemUtilsInit( rc=STATUS )
+    VERIFY_(STATUS)
+
 !   Create a grid
 !   -------------
     grid = MyGridCreate_ ( vm, rc=status )
@@ -65,16 +71,18 @@ CONTAINS
 
 !   Create empty bundles
 !   --------------------
-    fBundle = ESMF_BundleCreate ( name='Francesca', grid=grid, rc=status )
+!    fBundle = ESMF_FieldBundleCreate ( name='Francesca', grid=grid, rc=status )
+!    VERIFY_(status)
+    fBundle = ESMF_FieldBundleCreate ( name='PRECIP', grid=grid, rc=status )
     VERIFY_(status)
-    dBundle = ESMF_BundleCreate ( name='Denise',    grid=grid, rc=status )
+    dBundle = ESMF_FieldBundleCreate ( name='Denise',    grid=grid, rc=status )
     VERIFY_(status)
 
 !   Set the time as the one on the hardwired file name
 !   --------------------------------------------------
-    call ESMF_CalendarSetDefault ( ESMF_CAL_GREGORIAN, rc=status )
+    call ESMF_CalendarSetDefault ( ESMF_CALKIND_GREGORIAN, rc=status )
     VERIFY_(STATUS)
-    call ESMF_TimeSet( fTime, yy=2006, mm=8, dd=9, h=0, m=0, s=0, rc=status )
+    call ESMF_TimeSet( fTime, yy=2006, mm=8, dd=9, h=6, m=30, s=0, rc=status )
     VERIFY_(STATUS)
     call ESMF_TimeSet( dTime, yy=2006, mm=8, dd=9,  h=6, m=0, s=0, rc=status )
     VERIFY_(STATUS)
@@ -87,6 +95,31 @@ CONTAINS
 !   Read Bundle from file on a clean slate
 !   --------------------------------------
     if ( IamRoot ) print *, 'Reading ' // fFilename
+    call ESMF_TimeGet  ( fTime, TimeString=string  ,rc=STATUS )
+    VERIFY_(STATUS)
+    string(11:11)=" "
+    if ( IamRoot ) print *, 'time ' // trim(string)
+
+
+    DO I = 1, 30
+       call MAPL_CFIORead( fFilename, fTime, fBundle, NOREAD=.true., RC=STATUS)
+       VERIFY_(STATUS)
+
+       if (mod(I,10)==0) then
+          call MAPL_MemUtilsWrite( vm, 'noRead', RC=status )
+          VERIFY_(STATUS)
+       end if
+
+       call MAPL_CFIORead( fFilename, fTime, fBundle, RC=STATUS)
+       VERIFY_(STATUS)
+       if (mod(I,10)==0) then
+          call MAPL_MemUtilsWrite( vm, 'Read', RC=status )
+          VERIFY_(STATUS)
+       end if
+    end DO
+
+
+#if 0
 ! this the equivalent of ESMF_ioRead
     call MAPL_cfioRead  ( fFilename, fTime, fBundle, rc=status, &
                         verbose=.true., force_regrid=.true.   )
@@ -95,7 +128,7 @@ CONTAINS
 !   Next, create a bundle with same variables as the first one, and use
 !    that to determine which variables to read from the second file
 !   -------------------------------------------------------------------
-    if ( IamRoot ) print *, 'Scaning ' // fFilename
+
     call MAPL_cfioRead  ( fFilename, fTime, dBundle, rc=status, &
                         verbose=.true., noRead = .true.,      &
                         only_vars = 'phis,qv' )
@@ -124,6 +157,9 @@ CONTAINS
     VERIFY_(status)
 
     call MAPL_cfioDestroy ( cfio )
+#else
+    print *,'calling Finalize'
+#endif
 
 !   All done
 !   --------
@@ -135,8 +171,8 @@ CONTAINS
 !........................................................................
 
   function MyGridCreate_ ( vm, rc) result(grid)
-
-    type (ESMF_VM),    intent(IN   ) :: VM
+    
+    type (ESMF_VM),    intent(INOUT) :: VM
     integer, optional, intent(OUT)   :: rc
     type (ESMF_Grid)                 :: grid
 
@@ -144,80 +180,56 @@ CONTAINS
     integer                                 :: status
     character(len=ESMF_MAXSTR), parameter   :: IAm='MyGridCreate'
 
-    integer                         :: LM
-    integer                         :: L
-    integer                         :: NX, NY
-    integer, allocatable            :: IMXY(:), JMXY(:)
-    character(len=ESMF_MAXSTR)      :: gridname
-    real(ESMF_KIND_R8)              :: minCoord(3)
-    real(ESMF_KIND_R8)              :: deltaX, deltaY, deltaZ
-    real                            :: LON0, LAT0
+    type(MAPL_MetaComp)          :: MAPL
+    type(ESMF_Config)            :: config
+!    type(ESMF_VM)                :: vm
+    character(len=ESMF_MAXSTR)   :: gridname
+    integer                      :: ndes, nx, ny
 
-    real :: pi, d2r
+! fake MAPL
+    config = ESMF_ConfigCreate (rc=STATUS )
+    VERIFY_(STATUS)
+
+   call ESMF_ConfigLoadFile(config, 'CAP.rc', rc=STATUS )
+   VERIFY_(STATUS)
+    
+!>>>>>>>>>>>>
+! We will set-up a somewhat realistic resource "file"
+
+    call ESMF_VmGetCurrent(VM, rc=status)
+    VERIFY_(STATUS)
+    call ESMF_VmGet(VM, petCount=ndes, rc=status)
+    VERIFY_(STATUS)
+
+    nx = ndes
+    ny = 1
+    call ESMF_ConfigSetAttribute(config, value=nx, Label='NX:', rc=status)
+!    VERIFY_(STATUS)
+    call ESMF_ConfigSetAttribute(config, value=ny, Label='NY:', rc=status)
+!    VERIFY_(STATUS)
+!    call ESMF_ConfigSetAttribute(config, value=gridname, Label='GRIDNAME:', rc = status )
+    call ESMF_ConfigGetAttribute(config, value=gridname, Label='GRIDNAME:', rc = status )
+    VERIFY_(STATUS)
+    call ESMF_ConfigSetAttribute(config, value=KM_WORLD, Label='LM:', rc = status )
+!    VERIFY_(STATUS)
+
+    call ESMF_ConfigGetAttribute(config, value=nx, Label='NX:', rc=status)
+    VERIFY_(STATUS)
+    call ESMF_ConfigGetAttribute(config, value=ny, Label='NY:', rc=status)
+    VERIFY_(STATUS)
+    print *,'GRIDNAME=',trim(gridname)
+    print *,'NX=',nx
+    print *,'NX=',nY
+
+!<<<<<<<<<<<<   
+!  CAP's MAPL MetaComp
+!---------------------
+
+    call MAPL_Set (MAPL, name='CAP', cf=CONFIG,    rc=STATUS )
+    VERIFY_(STATUS)
 
 ! grid create
-
-    lm = KM_WORLD   ! no. vertical layers
-    nx = 2
-    ny = 2
-
-     pi  = 4.0 * atan ( 1.0 ) 
-    d2r  = pi / 180.
-    LON0 = -180  * d2r
-    LAT0 = -90.0 * d2r
-
-! Get the IMXY vector
-! -------------------
-    allocate( imxy(0:nx-1) )  
-    call MAPL_DecomposeDim ( IM_WORLD, imxy, nx )
-
-! Get the JMXY vector
-! -------------------
-    allocate( jmxy(0:ny-1) )  
-    call MAPL_DecomposeDim ( JM_WORLD, jmxy, ny )
-
-    deltaX = 2.0*pi/IM_WORLD
-    deltaY = pi/(JM_WORLD-1)
-    deltaZ = 1.0
-
-    if ( MAPL_Am_I_Root() ) then
-       print *, 'nx : imxy = ', nx, ' : ', imxy
-       print *, 'ny : jmxy = ', ny, ' : ', jmxy
-    endif
-
-! Define South-West Corner of First Grid-Box
-! ------------------------------------------
-    minCoord(1) = LON0 - deltaX/2 
-    minCoord(2) = LAT0 - deltaY/2
-    minCoord(3) = deltaZ/2.
-
-    layout = ESMF_DELayoutCreate(vm, deCountList=(/NX, NY/), rc=status)
-    VERIFY_(STATUS)
-
-    grid = ESMF_GridCreateHorzLatLonUni(         &
-         counts = (/IM_WORLD, JM_WORLD/),        &
-         minGlobalCoordPerDim=minCoord(1:2),     &
-         deltaPerDim=(/deltaX, deltaY /),        &
-         horzStagger=ESMF_Grid_Horz_Stagger_A,   &
-         periodic=(/ESMF_TRUE, ESMF_FALSE/),     &
-         name='Beatrice', rc=status)
-    VERIFY_(STATUS)
-
-    call ESMF_GridAddVertHeight(grid,            &
-         delta=(/(deltaZ, L=1,LM) /),            &
-         rc=status)
-    VERIFY_(STATUS)
-
-    call ESMF_GridDistribute(grid,               &
-         deLayout=layout,                        &
-         countsPerDEDim1=imxy,                   &
-         countsPerDEDim2=jmxy,                   &
-         rc=status)
-    VERIFY_(STATUS)
-
-    deallocate(imxy)
-    deallocate(jmxy)
-
+    call MAPL_GridCreate(MAPLOBJ=MAPL, ESMFGRID=grid, rc=status)
     RETURN_(STATUS)
 
   end function MyGridCreate_

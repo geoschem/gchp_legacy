@@ -441,7 +441,7 @@
 !
 ! !OUTPUT PARAMETERS:
 !
-      real,                  pointer :: field(:)             ! array contains data
+      real, pointer :: field(:)             ! array contains data
       integer, intent(out), OPTIONAL :: rc      ! Error return code:
                                                 ! 0   all is well
 ! !DESCRIPTION:
@@ -508,13 +508,13 @@
 !
 ! !INPUT PARAMETERS:
 !
-      type(ESMF_CFIO), intent(inOut):: cfio        ! a CFIO obj
-      character(len=*), intent(in)  :: vName       ! Variable name
-      real,             intent(in)  :: field(:,:,:)! array contains data
-      integer, intent(in), OPTIONAL :: date        ! yyyymmdd
-      integer, intent(in), OPTIONAL :: curTime     ! hhmmss
-      integer, intent(in), OPTIONAL :: kbeg        ! first level to write
-      integer, intent(in), OPTIONAL :: kount       ! number of levels to write
+      type(ESMF_CFIO), intent(inOut) :: cfio      ! a CFIO obj
+      character(len=*), intent(in) :: vName       ! Variable name
+      real, intent(in) :: field(:,:,:)            ! array contains data
+      integer, intent(in), OPTIONAL :: date       ! yyyymmdd
+      integer, intent(in), OPTIONAL :: curTime    ! hhmmss
+      integer, intent(in), OPTIONAL :: kbeg       ! first level to write
+      integer, intent(in), OPTIONAL :: kount      ! number of levels to write
       character(len=*), intent(in), OPTIONAL :: timeString
                                   ! string expression for date and time
       logical, intent(in), OPTIONAL :: doComp     ! do compression
@@ -1174,7 +1174,7 @@
                                                                                                               
 ! !INTERFACE:
       subroutine ESMF_CFIOVarReadT3D_ ( cfio, vName, field, date, curTime, &
-                                        timeString, cfio2, rc )
+                                        kbeg, kount, timeString, cfio2, rc )
 !
 ! !ARGUMENTS:
 !
@@ -1184,6 +1184,8 @@
       character(len=*), intent(in) :: vName       ! variable name
       integer, intent(in), OPTIONAL :: date       ! yyyymmdd
       integer, intent(in), OPTIONAL :: curTime    ! hhmmss
+      integer, intent(in), OPTIONAL :: kbeg       ! first level to read
+      integer, intent(in), OPTIONAL :: kount      ! number of levels to read
       type(ESMF_CFIO), intent(inOut), OPTIONAL :: cfio2  ! second CFIO obj
       character(len=*), intent(in), OPTIONAL :: timeString
                                   ! string expression for date and time
@@ -1234,7 +1236,7 @@
       end if
 
       call ESMF_CFIOVarReadT3D__ ( cfio, vName, date_, curTime_, field, & 
-                                   cfio2=cfio2, rc=rc )
+                                   kbeg, kount, cfio2=cfio2, rc=rc )
 
     end subroutine ESMF_CFIOVarReadT3D_
 
@@ -1244,7 +1246,8 @@
                                                                                                               
 ! !INTERFACE:
 
-      subroutine ESMF_CFIOVarReadT3D__(cfio, vName, date, curTime, field, rc, cfio2)
+      subroutine ESMF_CFIOVarReadT3D__(cfio, vName, date, curTime, field, &
+                                       kbeg, kount, rc, cfio2)
 !
 ! !ARGUMENTS:
 !
@@ -1254,6 +1257,8 @@
       character(len=*), intent(in) :: vName       ! variable name
       integer, intent(in) :: date                 ! yyyymmdd
       integer, intent(in) :: curTime              ! hhmmss
+      integer, intent(in), OPTIONAL :: kbeg       ! first level to read
+      integer, intent(in), OPTIONAL :: kount      ! number of levels to read
       type(ESMF_CFIO), intent(inOut), OPTIONAL :: cfio2  ! second CFIO obj
                                                                                                               
 !
@@ -1334,9 +1339,9 @@
  
 !     Read grids at first time with GetVar()
 !     --------------------------------------
-      call ESMF_CFIOVarRead(cfio, vName, field, date=nymd1, curtime=nhms1,  rc=rtcode)
+      call ESMF_CFIOVarRead(cfio, vName, field, date=nymd1, curtime=nhms1,  kbeg=kbeg, kount=kount, rc=rtcode)
       if ( rtcode .ne. 0 .and. present(cfio2) ) then
-         call ESMF_CFIOVarRead(cfio2, vName, field, date=nymd1, curtime=nhms1,  rc=rtcode)
+         call ESMF_CFIOVarRead(cfio2, vName, field, date=nymd1, curtime=nhms1, kbeg=kbeg, kount=kount, rc=rtcode)
       end if
       if ( rtcode .ne. 0 ) goto 999
                                                                     
@@ -1395,7 +1400,7 @@
                                                                                                               
 ! !INTERFACE:
       subroutine ESMF_CFIOVarReadT2D_ ( cfio, vName, field, date, curTime, &
-                                        timeString, cfio2, rc )
+                                        kbeg, kount, timeString, cfio2, rc )
 !
 ! !ARGUMENTS:
 !
@@ -1405,6 +1410,8 @@
       character(len=*), intent(in) :: vName       ! variable name
       integer, intent(in), OPTIONAL :: date       ! yyyymmdd
       integer, intent(in), OPTIONAL :: curTime    ! hhmmss
+      integer, intent(in), OPTIONAL :: kbeg       ! first level to read
+      integer, intent(in), OPTIONAL :: kount      ! number of levels to read
       type(ESMF_CFIO), intent(inOut), OPTIONAL :: cfio2  ! second CFIO obj
       character(len=*), intent(in), OPTIONAL :: timeString
                                   ! string expression for date and time
@@ -1455,7 +1462,7 @@
       end if
 
       call ESMF_CFIOVarReadT2D__ ( cfio, vName, date_, curTime_, field, &
-                                   cfio2=cfio2, rc=rc )
+                                   kbeg=kbeg, kount=kount, cfio2=cfio2, rc=rc )
 
     end subroutine ESMF_CFIOVarReadT2D_
 
@@ -1465,7 +1472,8 @@
                                                                                                               
 ! !INTERFACE:
 
-      subroutine ESMF_CFIOVarReadT2D__(cfio, vName, date, curTime, field, rc, cfio2)
+      subroutine ESMF_CFIOVarReadT2D__(cfio, vName, date, curTime, field, &
+                                       kbeg, kount, rc, cfio2)
 !
 ! !ARGUMENTS:
 !
@@ -1475,6 +1483,8 @@
       character(len=*), intent(in) :: vName       ! variable name
       integer, intent(in) :: date                 ! yyyymmdd
       integer, intent(in) :: curTime              ! hhmmss
+      integer, intent(in), OPTIONAL :: kbeg       ! first level to read
+      integer, intent(in), OPTIONAL :: kount      ! number of levels to read
       type(ESMF_CFIO), intent(inOut), OPTIONAL :: cfio2  ! second CFIO obj
                                                                                                               
 !
@@ -1554,9 +1564,9 @@
  
 !     Read grids at first time with GetVar()
 !     --------------------------------------
-      call ESMF_CFIOVarRead(cfio, vName, field, date=nymd1, curtime=nhms1,  rc=rtcode)
+      call ESMF_CFIOVarRead(cfio, vName, field, date=nymd1, curtime=nhms1,  kbeg=kbeg, kount=kount, rc=rtcode)
       if ( rtcode .ne. 0 .and. present(cfio2) ) then
-         call ESMF_CFIOVarRead(cfio2, vName, field, date=nymd1, curtime=nhms1,  rc=rtcode)
+         call ESMF_CFIOVarRead(cfio2, vName, field, date=nymd1, curtime=nhms1,  kbeg=kbeg, kount=kount, rc=rtcode)
       end if
       if ( rtcode .ne. 0 ) goto 999
                                                                     
@@ -1566,11 +1576,11 @@
                                                                                      
 !     Read grids at second time with GetVar()
 !     ---------------------------------------
-      call ESMF_CFIOVarRead(cfio, vName, field2, date=nymd2, curtime=nhms2, rc=rtcode)
+      call ESMF_CFIOVarRead(cfio, vName, field2, date=nymd2, curtime=nhms2, kbeg=kbeg, kount=kount, rc=rtcode)
       if ( rtcode .ne. 0 ) then
          if ( present(cfio2) )     &
             call ESMF_CFIOVarRead(cfio2, vName, field2, &
-                                  date=nymd2, curtime=nhms2, rc=rtcode)
+                                  date=nymd2, curtime=nhms2, kbeg=kbeg, kount=kount, rc=rtcode)
          if ( rtcode .ne. 0 ) return
       end if
                                                                                          

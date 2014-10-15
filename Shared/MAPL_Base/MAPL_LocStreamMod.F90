@@ -1,6 +1,8 @@
-!  $Id: MAPL_LocStreamMod.F90,v 1.56 2012-08-24 15:01:48 atrayano Exp $
+!  $Id: MAPL_LocStreamMod.F90,v 1.56.12.2.2.4 2014-02-15 16:34:25 atrayano Exp $
 
 #include "MAPL_ErrLog.h"
+
+#define DEALOC_(A) if(associated(A)) then;A=0;call MAPL_DeAllocNodeArray(A,rc=STATUS);if(STATUS==MAPL_NoShm) deallocate(A,stat=STATUS);VERIFY_(STATUS);NULLIFY(A);endif
 
 module MAPL_LocStreamMod
 
@@ -12,13 +14,14 @@ module MAPL_LocStreamMod
 
   ! !USES:
 
-use ESMF_Mod
+use ESMF
 use ESMFL_Mod
 use MAPL_BaseMod
 use MAPL_ConstantsMod
 use MAPL_IOMod
 use MAPL_CommsMod
 use MAPL_HashMod
+use MAPL_ShmemMod
 
 implicit none
 private
@@ -78,7 +81,7 @@ type MAPL_Tiling
    character(len=ESMF_MAXSTR)          :: NAME=""
    integer                             :: IM=0
    integer                             :: JM=0
-   type(MAPL_IndexLocation),  pointer  :: Global_IndexLocation(:)=>null() ! Locations in local PE
+!!   type(MAPL_IndexLocation),  pointer  :: Global_IndexLocation(:)=>null() ! Locations in local PE
 end type MAPL_Tiling
 
 type MAPL_LocStreamType
@@ -93,7 +96,7 @@ type MAPL_LocStreamType
    integer,                  pointer  :: GLOBAL_Id(:)           =>null() ! All Location Ids in file order
    integer,                  pointer  :: LOCAL_Id (:)           =>null() ! Location Ids on local PE
    type(MAPL_GeoLocation),   pointer  :: Global_GeoLocation  (:)=>null() ! All GeoLocations
-   type(MAPL_IndexLocation), pointer  :: Global_IndexLocation(:)=>null() ! All IndexLocations for attach grid
+!!   type(MAPL_IndexLocation), pointer  :: Global_IndexLocation(:)=>null() ! All IndexLocations for attach grid
    type(MAPL_GeoLocation),   pointer  :: Local_GeoLocation   (:)=>null() ! GeoLocations on local PE
    type(MAPL_IndexLocation), pointer  :: Local_IndexLocation (:)=>null() ! Local IndexLocations for attach grid
    type(MAPL_Tiling),        pointer  :: Tiling(:)              =>null() ! Grid associated tilings
@@ -275,7 +278,7 @@ contains
 ! !IIROUTINE: MAPL_LocStreamCreateFromFile --- Create from file
 
   ! !INTERFACE:
-  subroutine MAPL_LocStreamCreateFromFile(LocStream, LAYOUT, FILENAME, NAME, MASK, GRID, RC)
+  subroutine MAPL_LocStreamCreateFromFile(LocStream, LAYOUT, FILENAME, NAME, MASK, GRID, NewGridNames, RC)
 
     !ARGUMENTS:
     type(MAPL_LocStream),                 intent(  OUT) :: LocStream
@@ -284,6 +287,7 @@ contains
     character(len=*),                     intent(IN   ) :: NAME
     integer,                    optional, intent(IN   ) :: MASK(:)
     type(ESMF_Grid), optional,            intent(INout) :: GRID
+    logical,                    optional, intent(IN   ) :: NewGridNames
     integer,                    optional, intent(  OUT) :: RC  
 
 ! !DESCRIPTION: Creates a location stream from a file. This does
@@ -318,9 +322,15 @@ contains
     logical, pointer                  :: ISMINE(:)
     type(MAPL_Tiling       ), pointer :: TILING
     type (ESMF_VM)                            :: vm
+    logical                           :: NewGridNames_
 
 ! Begin
 !------
+
+    NewGridNames_ = .false.
+    if (present(NewGridNames)) then
+       NewGridNames_ = NewGridNames
+    end if
 
 ! Allocate the Location Stream
 !-----------------------------
@@ -391,6 +401,9 @@ contains
        do N=1,STREAM%N_GRIDS
           call READ_PARALLEL(layout, STREAM%TILING(N)%NAME, unit=UNIT, rc=status)
           VERIFY_(STATUS)
+          if (NewGridNames_) then
+             call GenOldGridName_(STREAM%TILING(N)%NAME)
+          end if
           call READ_PARALLEL(layout, STREAM%TILING(N)%IM, unit=UNIT, rc=status)
           VERIFY_(STATUS)
           call READ_PARALLEL(layout, STREAM%TILING(N)%JM, unit=UNIT, rc=status)
@@ -422,6 +435,7 @@ contains
 
        if(present(MASK)) then
           do N=1,NT
+             if (nint(AVR(N,1)) < 0) AVR(N,1) = MAPL_Ocean
              MSK(N) = any(nint(AVR(N,1))==MASK(:))
           end do
        else
@@ -498,10 +512,10 @@ contains
        allocate(STREAM%GLOBAL_GEOLOCATION(STREAM%NT_GLOBAL), STAT=STATUS)
        VERIFY_(STATUS)
 
-       do N=1,STREAM%N_GRIDS
-          allocate(STREAM%TILING(N)%GLOBAL_IndexLocation(STREAM%NT_GLOBAL), STAT=STATUS)
-          VERIFY_(STATUS)
-       end do
+!!       do N=1,STREAM%N_GRIDS
+!!          allocate(STREAM%TILING(N)%GLOBAL_IndexLocation(STREAM%NT_GLOBAL), STAT=STATUS)
+!!          VERIFY_(STATUS)
+!!       end do
 
 ! Fill global stream parameters subject to mask
 !----------------------------------------------
@@ -512,16 +526,17 @@ contains
              K = K + 1
              STREAM%GLOBAL_ID         (K)   = I
              STREAM%GLOBAL_GeoLocation(K)%T = nint(AVR(I,1))
+             !if (STREAM%GLOBAL_GeoLocation(K)%T < 0)  STREAM%GLOBAL_GeoLocation(K)%T = MAPL_Ocean
              STREAM%GLOBAL_GeoLocation(K)%A =      AVR(I,2)
              STREAM%GLOBAL_GeoLocation(K)%X =      AVR(I,3) * (MAPL_PI/180.)
              STREAM%GLOBAL_GeoLocation(K)%Y =      AVR(I,4) * (MAPL_PI/180.)
-             X = AVR(I,3)
-             Y = AVR(I,4)
-             do N=1,STREAM%N_GRIDS
-                STREAM%Tiling(N)%GLOBAL_IndexLocation(K)%I = nint(AVR(I,NumGlobalVars+1+NumLocalVars*(N-1)))
-                STREAM%Tiling(N)%GLOBAL_IndexLocation(K)%J = nint(AVR(I,NumGlobalVars+2+NumLocalVars*(N-1)))
-                STREAM%Tiling(N)%GLOBAL_IndexLocation(K)%W =      AVR(I,NumGlobalVars+3+NumLocalVars*(N-1))
-             end do
+!!             X = AVR(I,3)
+!!             Y = AVR(I,4)
+!!             do N=1,STREAM%N_GRIDS
+!!                STREAM%Tiling(N)%GLOBAL_IndexLocation(K)%I = nint(AVR(I,NumGlobalVars+1+NumLocalVars*(N-1)))
+!!                STREAM%Tiling(N)%GLOBAL_IndexLocation(K)%J = nint(AVR(I,NumGlobalVars+2+NumLocalVars*(N-1)))
+!!                STREAM%Tiling(N)%GLOBAL_IndexLocation(K)%W =      AVR(I,NumGlobalVars+3+NumLocalVars*(N-1))
+!!             end do
           end if
        end do
 
@@ -564,6 +579,9 @@ contains
             read(UNIT) STREAM%TILING(N)%JM
           endif
           call MAPL_CommsBcast(vm, DATA=STREAM%TILING(N)%NAME, N=ESMF_MAXSTR, ROOT=0, RC=status)
+          if (NewGridNames_) then
+             call GenOldGridName_(STREAM%TILING(N)%NAME)
+          end if
           call MAPL_CommsBcast(vm, DATA=STREAM%TILING(N)%IM, N=1, ROOT=0, RC=status)
           call MAPL_CommsBcast(vm, DATA=STREAM%TILING(N)%JM, N=1, ROOT=0, RC=status)
        enddo
@@ -571,32 +589,37 @@ contains
 ! Read location stream file into AVR
 !---------------------------------------
 
-       allocate(AVR(NT,1), STAT=STATUS)
+       call MAPL_AllocateShared(AVR, (/NT,1/), TransRoot=.true., RC=STATUS)
        VERIFY_(STATUS)
 
+       call MAPL_SyncSharedMemory(RC=STATUS); VERIFY_(STATUS)
        if ( MAPL_am_I_root() ) then
          read(UNIT) AVR
          read(unit)
          read(unit)
        endif
-       call MAPL_CommsBcast(vm, DATA=AVR, N=NT, ROOT=0, RC=status)
+       call MAPL_BcastShared(vm, DATA=AVR, N=NT, ROOT=0, RootOnly=.false., RC=status)
 
 ! Allocate msk for which tiles to include in the stream being created.
 !--------------------------------------------------------------------
 
-       allocate(MSK(NT), STAT=STATUS)
+       call MAPL_AllocateShared(MSK, (/NT/), TransRoot=.true., RC=STATUS)
        VERIFY_(STATUS)
 
 ! We include any tile whose type matches any element of the mask
 !---------------------------------------------------------------
 
-       if(present(MASK)) then
-          do N=1,NT
-             MSK(N) = any(nint(AVR(N,1))==MASK(:))
-          end do
-       else
-          MSK = .true.
+       if (.not. MAPL_ShmInitialized  .or. MAPL_AmNodeRoot) then
+          if(present(MASK)) then
+             do N=1,NT
+                if (nint(AVR(N,1)) < 0) AVR(N,1) = MAPL_Ocean
+                MSK(N) = any(nint(AVR(N,1))==MASK(:))
+             end do
+          else
+             MSK = .true.
+          end if
        end if
+       call MAPL_SyncSharedMemory(RC=STATUS); VERIFY_(STATUS)
 
 ! The number of tiles in the new stream
 !--------------------------------------
@@ -621,8 +644,9 @@ contains
     if (present(GRID)) then
        do N=1,STREAM%N_GRIDS
           if (read_always .or. gname == STREAM%TILING(N)%NAME) then
+             call MAPL_SyncSharedMemory(RC=STATUS); VERIFY_(STATUS)
              if ( MAPL_am_I_root() ) read(UNIT) AVR
-             call MAPL_CommsBcast(vm, DATA=AVR, N=NT, ROOT=0, RC=status)
+             call MAPL_BcastShared(vm, DATA=AVR, N=NT, ROOT=0, RootOnly=.false., RC=status)
              K = 0
              do I=1, NT
                 if(MSK(I)) then
@@ -632,8 +656,9 @@ contains
                    endif
                 end if
              end do
+             call MAPL_SyncSharedMemory(RC=STATUS); VERIFY_(STATUS)
              if ( MAPL_am_I_root() ) read(UNIT) AVR
-             call MAPL_CommsBcast(vm, DATA=AVR, N=NT, ROOT=0, RC=status)
+             call MAPL_BcastShared(vm, DATA=AVR, N=NT, ROOT=0, RootOnly=.false., RC=status)
              K = 0
              do I=1, NT
                 if(MSK(I)) then
@@ -678,8 +703,9 @@ contains
 
        do N=1,STREAM%N_GRIDS
           if (read_always .or. gname == STREAM%TILING(N)%NAME) then
+             call MAPL_SyncSharedMemory(RC=STATUS); VERIFY_(STATUS)
              if ( MAPL_am_I_root() ) read(UNIT) AVR
-             call MAPL_CommsBcast(vm, DATA=AVR, N=NT, ROOT=0, RC=status)
+             call MAPL_BcastShared(vm, DATA=AVR, N=NT, ROOT=0, RootOnly=.false., RC=status)
              K = 0
              L = 0
              do I=1, NT
@@ -692,8 +718,9 @@ contains
                 end if
              end do
              
+             call MAPL_SyncSharedMemory(RC=STATUS); VERIFY_(STATUS)
              if ( MAPL_am_I_root() ) read(UNIT) AVR
-             call MAPL_CommsBcast(vm, DATA=AVR, N=NT, ROOT=0, RC=status)
+             call MAPL_BcastShared(vm, DATA=AVR, N=NT, ROOT=0, RootOnly=.false., RC=status)
              K = 0
              L = 0
              do I=1, NT
@@ -706,8 +733,9 @@ contains
                 end if
              end do
              
+             call MAPL_SyncSharedMemory(RC=STATUS); VERIFY_(STATUS)
              if ( MAPL_am_I_root() ) read(UNIT) AVR
-             call MAPL_CommsBcast(vm, DATA=AVR, N=NT, ROOT=0, RC=status)
+             call MAPL_BcastShared(vm, DATA=AVR, N=NT, ROOT=0, RootOnly=.false., RC=status)
              K = 0
              L = 0
              do I=1, NT
@@ -779,8 +807,9 @@ contains
           end if
        end do
 
+       call MAPL_SyncSharedMemory(RC=STATUS); VERIFY_(STATUS)
        if ( MAPL_am_I_root() ) read(UNIT) AVR
-       call MAPL_CommsBcast(vm, DATA=AVR, N=NT, ROOT=0, RC=status)
+       call MAPL_BcastShared(vm, DATA=AVR, N=NT, ROOT=0, RootOnly=.false., RC=status)
        K = 0
        L = 0
        do I=1, NT
@@ -789,12 +818,14 @@ contains
              if (ISMINE(K)) then
                  L = L + 1
                  STREAM%LOCAL_GeoLocation(L)%T = nint(AVR(I,1))
+                 !if (STREAM%LOCAL_GeoLocation(L)%T < 0)  STREAM%LOCAL_GeoLocation(L)%T = MAPL_Ocean
              endif
           end if
        end do
 
+       call MAPL_SyncSharedMemory(RC=STATUS); VERIFY_(STATUS)
        if ( MAPL_am_I_root() ) read(UNIT) AVR
-       call MAPL_CommsBcast(vm, DATA=AVR, N=NT, ROOT=0, RC=status)
+       call MAPL_BcastShared(vm, DATA=AVR, N=NT, ROOT=0, RootOnly=.false., RC=status)
        K = 0
        L = 0
        do I=1, NT
@@ -807,8 +838,9 @@ contains
           end if
        end do
 
+       call MAPL_SyncSharedMemory(RC=STATUS); VERIFY_(STATUS)
        if ( MAPL_am_I_root() ) read(UNIT) AVR
-       call MAPL_CommsBcast(vm, DATA=AVR, N=NT, ROOT=0, RC=status)
+       call MAPL_BcastShared(vm, DATA=AVR, N=NT, ROOT=0, RootOnly=.false., RC=status)
        K = 0
        L = 0
        do I=1, NT
@@ -821,6 +853,7 @@ contains
           end if
        end do
 
+       call MAPL_SyncSharedMemory(RC=STATUS); VERIFY_(STATUS)
        if ( MAPL_am_I_root() ) then
           do I=1, 3*STREAM%N_GRIDS ! skip I,J,W
              read(UNIT)
@@ -832,7 +865,7 @@ contains
 
        STREAM%IsTileAreaValid = iostat == 0
        if (STREAM%IsTileAreaValid) then
-          call MAPL_CommsBcast(vm, DATA=AVR, N=NT, ROOT=0, RC=status)
+          call MAPL_BcastShared(vm, DATA=AVR, N=NT, ROOT=0, RootOnly=.false., RC=status)
           VERIFY_(STATUS)
           K = 0
           L = 0
@@ -849,8 +882,8 @@ contains
 
        call FREE_FILE(UNIT)
 
-       deallocate(MSK)
-       deallocate(AVR)
+       DEALOC_(MSK)
+       DEALOC_(AVR)
     else  ! .not.isascii
        if(present(GRID)) then
           STREAM%LOCAL_GeoLocation   = pack(STREAM%GLOBAL_GeoLocation,  ISMINE)
@@ -978,6 +1011,49 @@ contains
       RETURN_(ESMF_SUCCESS)
    end subroutine GetBilinearCoeffs
 
+   subroutine GenOldGridName_(name)
+     character(len=*) :: name
+
+     integer :: im, jm
+     integer :: nn, xpos
+     character(len=128) :: gridname
+     character(len=2)   :: dateline, pole
+     character(len=8)   :: imsz, jmsz
+     character(len=128) :: imstr, jmstr
+     
+
+     ! Parse name for grid info 
+     !-------------------------
+
+     Gridname = AdjustL(name)
+     nn   = len_trim(Gridname)
+     xpos = index(Gridname,'x')
+     imsz = Gridname(3:xpos-1)
+     dateline = Gridname(1:2)
+     pole = Gridname(xpos+1:xpos+2)
+
+
+     if (pole=='6C') then ! cubed-sphere
+        dateline='CF'
+        pole='PE'
+
+        read(IMSZ,*) IM
+        jm = 6*im
+     else
+        jmsz = Gridname(xpos+3:nn)
+        read(IMSZ,*) IM
+        read(JMSZ,*) JM
+     endif
+    
+     write(imstr,*) im
+     write(jmstr,*) jm
+     gridname =  pole // trim(adjustl(imstr))//'x'//&
+                 trim(adjustl(jmstr))//'-'//dateline
+
+     name = gridname
+
+   end subroutine GenOldGridName_
+
   end subroutine MAPL_LocStreamCreateFromFile
 
 
@@ -1081,7 +1157,7 @@ contains
     call ESMF_VMGetCurrent(vm, rc=status)
     VERIFY_(STATUS)
     call ESMF_VMAllFullReduce(vm, sendData=nt_local, recvData=STREAMOUT%NT_GLOBAL, &
-         count=1, reduceflag=ESMF_SUM, rc=STATUS)
+         count=1, reduceflag=ESMF_REDUCE_SUM, rc=STATUS)
     VERIFY_(STATUS)
 
 ! Allocate space for local versions of stream parameters
@@ -1176,7 +1252,7 @@ contains
 
     TILING => STREAM%TILING(STREAM%CURRENT_TILING)
 
-    STREAM%GLOBAL_INDEXLOCATION => TILING%GLOBAL_INDEXLOCATION
+!!    STREAM%GLOBAL_INDEXLOCATION => TILING%GLOBAL_INDEXLOCATION
 
 ! Put associated ESMF_LogRectGrid in stream and query grid info
 !--------------------------------------------------------------
@@ -1231,6 +1307,8 @@ contains
     type (ESMF_Grid)                  :: TILEGRID
     type (ESMF_DistGrid)              :: distgrid
     character(len=ESMF_MAXSTR)        :: GNAME
+    integer                           :: arbIndexCount
+    integer, allocatable              :: arbIndex(:,:)
     integer, parameter                :: DUMMY_NSUBTILES=1
     integer*8                         :: ADDR
 
@@ -1260,17 +1338,28 @@ contains
          arbSeqIndexList=STREAM%LOCAL_ID, rc=status)
     VERIFY_(STATUS)
   
-    TILEGRID = ESMF_GridCreateEmpty(rc=status)
+    TILEGRID = ESMF_GridEmptyCreate(rc=status)
     VERIFY_(STATUS)
          
+    arbIndexCount = size(STREAM%LOCAL_ID)
+    allocate(arbIndex(arbIndexCount,1), stat=status)
+    VERIFY_(STATUS)
+
+    arbIndex(:,1) = STREAM%LOCAL_ID
     call ESMF_GridSet(tilegrid,  &
          name="tile_grid_"//trim(Stream%NAME)//'@'//trim(GNAME),    &
          distgrid=distgrid, & 
          gridMemLBound=(/1/), &
          indexFlag=ESMF_INDEX_USER, &
+         distDim = (/1/), &
+         localArbIndexCount=arbIndexCount, &
+         localArbIndex=arbIndex, &
+         minIndex=(/1/), &
+         maxIndex=(/STREAM%NT_GLOBAL/), &
          rc=status)
     VERIFY_(STATUS)
 
+    deallocate(arbIndex)
     call ESMF_GridCommit(tilegrid, rc=status)
     VERIFY_(STATUS)
 
@@ -1545,6 +1634,9 @@ subroutine MAPL_LocStreamTransformT2G (LocStream, OUTPUT, INPUT, MASK, SAMPLE, T
       INPUT  = 0.0
   else
       OUTPUT = 0.0
+      if(uSample) then
+         OUTPUT = MAPL_Undef
+      end if
   endif
 
   do N = 1, size(INPUT)
@@ -2287,6 +2379,8 @@ subroutine MAPL_LocStreamCreateXform ( Xform, LocStreamOut, LocStreamIn, NAME, M
         end if
      end do
 
+     deallocate(PELens,Begs,Ends,IsNeeded)
+
      Xform%Ptr%InputLen = Last 
 
      call ESMF_VmGet(VM, localPet=MYID, rc=status)
@@ -2448,7 +2542,7 @@ subroutine MAPL_GridCoordAdjust(GRID, LOCSTREAM, RC)
   logical :: found
   integer :: COUNTS(3)
   integer :: rank, NT, IG
-  type(ESMF_TypeKind)       :: tk
+  type(ESMF_TypeKind_Flag)   :: tk
   character(len=ESMF_MAXSTR) :: GRIDNAME
   character(len=ESMF_MAXSTR), pointer :: GNAMES(:)
   type (ESMF_Array) :: carray(2)
@@ -2490,12 +2584,12 @@ subroutine MAPL_GridCoordAdjust(GRID, LOCSTREAM, RC)
 ! Retrieve the coordinates so we can set them
   call ESMF_GridGetCoord(grid, coordDim=1, localDE=0, &
        staggerloc=ESMF_STAGGERLOC_CENTER, &
-       fptr=gridX, rc=status)
+       farrayPtr=gridX, rc=status)
   VERIFY_(STATUS)
 
   call ESMF_GridGetCoord(grid, coordDim=2, localDE=0, &
        staggerloc=ESMF_STAGGERLOC_CENTER, &
-       fptr=gridY, rc=status)
+       farrayPtr=gridY, rc=status)
   VERIFY_(STATUS)
 
   allocate(sumxw(IM, JM), sumyw(IM, JM), sumw (IM, JM), stat=status)

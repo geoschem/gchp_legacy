@@ -14,12 +14,17 @@
     include 'mpif.h'
 
     public :: MAPL_GetNodeInfo
+    public :: MAPL_CoresPerNodeGet
     public :: MAPL_InitializeShmem
     public :: MAPL_FinalizeShmem
 
     public :: MAPL_AllocNodeArray
     public :: MAPL_DeAllocNodeArray
     public :: MAPL_ShmemAmOnFirstNode
+    public :: MAPL_SyncSharedMemory
+    public :: MAPL_BroadcastToNodes
+
+    public :: MAPL_AllocateShared
 
     integer, public, parameter :: MAPL_NoShm=255
 
@@ -31,9 +36,13 @@
     integer,        parameter :: CHUNK=256
 
     integer, public, save :: MAPL_NodeComm=-1
+    integer, public, save :: MAPL_NodeRootsComm=-1
     integer, public, save :: MAPL_MyNodeNum=-1
     logical, public, save :: MAPL_AmNodeRoot=.false.
     logical, public, save :: MAPL_ShmInitialized=.false.
+
+    integer,         save :: MAPL_CoresPerNodeUsed=-1
+    integer,         save :: MAPL_CoresPerNodeMax=-1
 
     type Segment_T
        integer (c_int) :: shmid=-1
@@ -82,6 +91,7 @@
     end interface
 
     interface MAPL_AllocNodeArray
+       module procedure MAPL_AllocNodeArray_1DL4
        module procedure MAPL_AllocNodeArray_1DI4
        module procedure MAPL_AllocNodeArray_2DI4
        module procedure MAPL_AllocNodeArray_3DI4
@@ -94,6 +104,7 @@
     end interface
 
     interface MAPL_DeAllocNodeArray
+       module procedure MAPL_DeAllocNodeArray_1DL4
        module procedure MAPL_DeAllocNodeArray_1DI4
        module procedure MAPL_DeAllocNodeArray_2DI4
        module procedure MAPL_DeAllocNodeArray_3DI4
@@ -104,7 +115,22 @@
        module procedure MAPL_DeAllocNodeArray_2DR8
        module procedure MAPL_DeAllocNodeArray_3DR8
     end interface
-    
+   
+    interface MAPL_BroadcastToNodes
+       module procedure MAPL_BroadcastToNodes_1DR4
+       module procedure MAPL_BroadcastToNodes_2DI4
+       module procedure MAPL_BroadcastToNodes_3DI4
+       module procedure MAPL_BroadcastToNodes_2DR4
+       module procedure MAPL_BroadcastToNodes_3DR8
+    end interface
+
+    interface MAPL_AllocateShared
+       module procedure MAPL_AllocateShared_1DL4
+       module procedure MAPL_AllocateShared_1DI4
+       module procedure MAPL_AllocateShared_1DR4
+       module procedure MAPL_AllocateShared_2DR4
+    end interface
+
   contains
 
     subroutine MAPL_GetNodeInfo(comm, rc)
@@ -113,13 +139,26 @@
 
       integer :: STATUS, RANK
 
-      MAPL_NodeComm = getNodeComm(comm, rc=STATUS)
-      VERIFY_(STATUS)
+      if (MAPL_NodeComm == -1) then ! make sure that we do this only once
+         MAPL_NodeComm = getNodeComm(comm, rc=STATUS)
+         VERIFY_(STATUS)
 
-      call MPI_Comm_rank(MAPL_NodeComm, rank, STATUS)
-      ASSERT_(STATUS==MPI_SUCCESS)
+!        we store the global Max of CoresPerNode (until we implement vector)
+         call MPI_AllReduce (MAPL_CoresPerNodeUsed, MAPL_CoresPerNodeMax, &
+                             1, MPI_INTEGER, MPI_MAX, comm, status )
+         VERIFY_(STATUS)
 
-      MAPL_AmNodeRoot = rank==0
+         call MPI_Comm_rank(MAPL_NodeComm, rank, STATUS)
+         ASSERT_(STATUS==MPI_SUCCESS)
+
+         MAPL_AmNodeRoot = rank==0
+      end if
+
+      if (MAPL_NodeRootsComm == -1) then ! make sure that we do this only once
+         MAPL_NodeRootsComm = getNodeRootsComm(comm, rc=STATUS)
+         VERIFY_(STATUS)
+      end if
+
       RETURN_(SHM_SUCCESS)
     end subroutine MAPL_GetNodeInfo
 
@@ -185,6 +224,25 @@
 
       RETURN_(SHM_SUCCESS)
     end subroutine MAPL_FinalizeShmem
+
+    subroutine MAPL_DeAllocNodeArray_1DL4(Ptr,rc)
+      logical,           intent(IN ) :: Ptr(:)
+      integer, optional, intent(OUT) :: rc
+
+      type(c_ptr) :: Caddr
+      integer     :: STATUS
+
+      if(.not.MAPL_ShmInitialized) then
+         RETURN_(MAPL_NoShm)
+      endif
+
+      Caddr = C_Loc(Ptr)
+
+      call ReleaseSharedMemory(Caddr,rc=STATUS)
+      VERIFY_(STATUS)
+
+      RETURN_(SHM_SUCCESS)
+    end subroutine MAPL_DeAllocNodeArray_1DL4
 
     subroutine MAPL_DeAllocNodeArray_1DI4(Ptr,rc)
       integer,           intent(IN ) :: Ptr(:)
@@ -358,6 +416,32 @@
 
       RETURN_(SHM_SUCCESS)
     end subroutine MAPL_DeAllocNodeArray_3DR8
+
+    subroutine MAPL_AllocNodeArray_1DL4(Ptr, Shp, lbd, rc)
+      logical, pointer,  intent(INOUT) :: Ptr(:)
+      integer,           intent(IN   ) :: Shp(1)
+      integer, optional, intent(IN   ) :: lbd(1)
+      integer, optional, intent(  OUT) :: rc
+
+      type(c_ptr) :: Caddr
+      integer len, STATUS
+
+      if(.not.MAPL_ShmInitialized) then
+         RETURN_(MAPL_NoShm)
+      endif
+
+      len = shp(1)
+
+      call GetSharedMemory(Caddr, len, rc=STATUS)
+      VERIFY_(STATUS)
+
+      call c_f_pointer(Caddr, Ptr, Shp) ! C ptr to Fortran ptr
+      ASSERT_(size(Ptr)==len)
+
+!     if(present(lbd)) Ptr(lbd(1):) => Ptr
+
+      RETURN_(SHM_SUCCESS)
+    end subroutine MAPL_AllocNodeArray_1DL4
 
     subroutine MAPL_AllocNodeArray_1DI4(Ptr, Shp, lbd, rc)
       integer, pointer,  intent(INOUT) :: Ptr(:)
@@ -599,8 +683,104 @@
     end subroutine MAPL_AllocNodeArray_3DR8
 
 
+    subroutine MAPL_AllocateShared_1DL4(Ptr, Shp, lbd, TransRoot, rc)
+      logical, pointer,  intent(INOUT) :: Ptr(:)
+      integer,           intent(IN   ) :: Shp(1)
+      integer, optional, intent(IN   ) :: lbd(1)
+      logical,           intent(IN   ) :: TransRoot
+      integer, optional, intent(  OUT) :: rc
+
+
+      integer :: status
+
+      call MAPL_AllocNodeArray(Ptr, Shp, lbd, rc=STATUS)
+      if(STATUS==MAPL_NoShm) then
+         if (TransRoot) then
+            allocate(Ptr(Shp(1)),stat=status)
+         else
+            allocate(Ptr(0),stat=status)
+         end if
+         VERIFY_(STATUS)
+      endif
+
+      RETURN_(STATUS)
+
+    end subroutine MAPL_AllocateShared_1DL4
+
+    subroutine MAPL_AllocateShared_1DI4(Ptr, Shp, lbd, TransRoot, rc)
+      integer, pointer,  intent(INOUT) :: Ptr(:)
+      integer,           intent(IN   ) :: Shp(1)
+      integer, optional, intent(IN   ) :: lbd(1)
+      logical,           intent(IN   ) :: TransRoot
+      integer, optional, intent(  OUT) :: rc
+
+
+      integer :: status
+
+      call MAPL_AllocNodeArray(Ptr, Shp, lbd, rc=STATUS)
+      if(STATUS==MAPL_NoShm) then 
+         if (TransRoot) then
+            allocate(Ptr(Shp(1)),stat=status)
+         else
+            allocate(Ptr(0),stat=status)
+         end if
+         VERIFY_(STATUS)
+      endif
+
+      RETURN_(STATUS)
+
+    end subroutine MAPL_AllocateShared_1DI4
+
+    subroutine MAPL_AllocateShared_1DR4(Ptr, Shp, lbd, TransRoot, rc)
+      real, pointer,     intent(INOUT) :: Ptr(:)
+      integer,           intent(IN   ) :: Shp(1)
+      integer, optional, intent(IN   ) :: lbd(1)
+      logical,           intent(IN   ) :: TransRoot
+      integer, optional, intent(  OUT) :: rc
+
+
+      integer :: status
+
+      call MAPL_AllocNodeArray(Ptr, Shp, lbd, rc=STATUS)
+      if(STATUS==MAPL_NoShm) then 
+         if (TransRoot) then
+            allocate(Ptr(Shp(1)),stat=status)
+         else
+            allocate(Ptr(0),stat=status)
+         end if
+         VERIFY_(STATUS)
+      endif
+
+      RETURN_(STATUS)
+
+    end subroutine MAPL_AllocateShared_1DR4
+
+    subroutine MAPL_AllocateShared_2DR4(Ptr, Shp, lbd, TransRoot, rc)
+      real,    pointer,  intent(INOUT) :: Ptr(:,:)
+      integer,           intent(IN   ) :: Shp(2)
+      integer, optional, intent(IN   ) :: lbd(2)
+      logical,           intent(IN   ) :: TransRoot
+      integer, optional, intent(  OUT) :: rc
+
+
+      integer :: status
+
+      call MAPL_AllocNodeArray(Ptr, Shp, lbd, rc=STATUS)
+      if(STATUS==MAPL_NoShm) then 
+         if (TransRoot) then
+            allocate(Ptr(Shp(1),Shp(2)),stat=status)
+         else
+            allocate(Ptr(0,0),stat=status)
+         end if
+         VERIFY_(STATUS)
+      endif
+
+      RETURN_(STATUS)
+
+    end subroutine MAPL_AllocateShared_2DR4
+
     subroutine ReleaseSharedMemory(Caddr,rc)
-      type(c_ptr),       intent(  OUT) :: Caddr
+      type(c_ptr),       intent(INOUT) :: Caddr
       integer, optional, intent(  OUT) :: rc
 
       integer        :: pos
@@ -619,6 +799,13 @@
 
       ASSERT_(pos<=size(Segs))
 
+!!! The root processor destroys the segment
+
+      if (MAPL_AmNodeRoot) then
+         STATUS = shmctl(Segs(pos)%shmid, IPC_RMID, buf)
+         ASSERT_(STATUS /= -1)
+      end if
+
 !!! Everyone detaches address from shared segment
 
       status = shmdt(Caddr)
@@ -630,11 +817,11 @@
       ASSERT_(STATUS==MPI_SUCCESS)
 
 !!! The root processor destroys the segment
-
-      if (MAPL_AmNodeRoot) then
-         STATUS = shmctl(Segs(pos)%shmid, IPC_RMID, buf)
-         ASSERT_(STATUS /= -1)
-      end if
+!
+!     if (MAPL_AmNodeRoot) then
+!        STATUS = shmctl(Segs(pos)%shmid, IPC_RMID, buf)
+!        ASSERT_(STATUS /= -1)
+!     end if
 
 !!! Free the position in the segment list
 
@@ -719,6 +906,138 @@
       RETURN_(SHM_SUCCESS)
     end subroutine GetSharedMemory
 
+    subroutine MAPL_BroadcastToNodes_1DR4(DATA,N,ROOT,rc)
+      real*4,            intent(INOUT) :: DATA(:)
+      integer,           intent(IN   ) :: N
+      integer,           intent(IN   ) :: ROOT
+      integer, optional, intent(  OUT) :: rc
+      integer :: STATUS
+
+      real*4, allocatable :: ldata(:)
+
+      if(.not.MAPL_ShmInitialized .or. MAPL_NodeRootsComm==MPI_COMM_NULL) THEN
+         RETURN_(SHM_SUCCESS)
+      end if
+
+      allocate(ldata(size(data,1)),stat=status)
+      VERIFY_(STATUS)
+      ldata = data
+      call MPI_Bcast(LDATA, N, MPI_REAL, ROOT, MAPL_NodeRootsComm, STATUS)
+      VERIFY_(STATUS)
+      data = ldata
+      deallocate(ldata)
+
+      RETURN_(SHM_SUCCESS)
+    end subroutine MAPL_BroadcastToNodes_1DR4
+
+    subroutine MAPL_BroadcastToNodes_2DR4(DATA,N,ROOT,rc)
+      real*4,            intent(INOUT) :: DATA(:,:)
+      integer,           intent(IN   ) :: N
+      integer,           intent(IN   ) :: ROOT
+      integer, optional, intent(  OUT) :: rc
+      integer :: STATUS
+
+      real*4, allocatable :: ldata(:,:)
+
+      if(.not.MAPL_ShmInitialized .or. MAPL_NodeRootsComm==MPI_COMM_NULL) THEN
+         RETURN_(SHM_SUCCESS)
+      end if
+
+      allocate(ldata(size(data,1),size(data,2)),stat=status)
+      VERIFY_(STATUS)
+      ldata = data
+      call MPI_Bcast(LDATA, N, MPI_REAL, ROOT, MAPL_NodeRootsComm, STATUS)
+      VERIFY_(STATUS)
+      data = ldata
+      deallocate(ldata)
+
+      RETURN_(SHM_SUCCESS)
+    end subroutine MAPL_BroadcastToNodes_2DR4
+
+    subroutine MAPL_BroadcastToNodes_3DR8(DATA,N,ROOT,rc)
+      real*8,            intent(INOUT) :: DATA(:,:,:)
+      integer,           intent(IN   ) :: N
+      integer,           intent(IN   ) :: ROOT
+      integer, optional, intent(  OUT) :: rc
+      integer :: STATUS
+
+      real*8, allocatable :: ldata(:,:,:)
+
+      if(.not.MAPL_ShmInitialized .or. MAPL_NodeRootsComm==MPI_COMM_NULL) THEN
+         RETURN_(SHM_SUCCESS)
+      endif
+
+      allocate(ldata(size(data,1),size(data,2),size(data,3)),stat=STATUS)
+      VERIFY_(STATUS)
+      ldata = data
+      call MPI_Bcast(LDATA, N, MPI_DOUBLE_PRECISION, ROOT, MAPL_NodeRootsComm, STATUS)
+      VERIFY_(STATUS)
+      data = ldata
+      deallocate(ldata)
+
+      RETURN_(SHM_SUCCESS)
+    end subroutine MAPL_BroadcastToNodes_3DR8
+
+    subroutine MAPL_BroadcastToNodes_3DI4(DATA,N,ROOT,rc)
+      integer,           intent(INOUT) :: DATA(:,:,:)
+      integer,           intent(IN   ) :: N
+      integer,           intent(IN   ) :: ROOT
+      integer, optional, intent(  OUT) :: rc
+      integer :: STATUS
+
+      integer, allocatable :: ldata(:,:,:)
+
+      if(.not.MAPL_ShmInitialized .or. MAPL_NodeRootsComm==MPI_COMM_NULL) THEN
+         RETURN_(SHM_SUCCESS)
+      endif
+
+      allocate(ldata(size(data,1),size(data,2),size(data,3)),stat=STATUS)
+      VERIFY_(STATUS)
+      ldata = data
+      call MPI_Bcast(LDATA, N, MPI_INTEGER, ROOT, MAPL_NodeRootsComm, STATUS)
+      VERIFY_(STATUS)
+      data = ldata
+      deallocate(ldata)
+
+      RETURN_(SHM_SUCCESS)
+    end subroutine MAPL_BroadcastToNodes_3DI4
+
+    subroutine MAPL_BroadcastToNodes_2DI4(DATA,N,ROOT,rc)
+      integer,           intent(INOUT) :: DATA(:,:)
+      integer,           intent(IN   ) :: N
+      integer,           intent(IN   ) :: ROOT
+      integer, optional, intent(  OUT) :: rc
+      integer :: STATUS
+
+      integer, allocatable :: ldata(:,:)
+
+      if(.not.MAPL_ShmInitialized .or. MAPL_NodeRootsComm==MPI_COMM_NULL) THEN
+         RETURN_(SHM_SUCCESS)
+      endif
+
+      allocate(ldata(size(data,1),size(data,2)),stat=STATUS)
+      VERIFY_(STATUS)
+      ldata = data
+      call MPI_Bcast(LDATA, N, MPI_INTEGER, ROOT, MAPL_NodeRootsComm, STATUS)
+      VERIFY_(STATUS)
+      data = ldata
+      deallocate(ldata)
+
+      RETURN_(SHM_SUCCESS)
+    end subroutine MAPL_BroadcastToNodes_2DI4
+
+    subroutine MAPL_SyncSharedMemory(rc)
+      integer, optional, intent(  OUT) :: rc
+      integer :: STATUS
+      if(.not.MAPL_ShmInitialized) then
+         RETURN_(SHM_SUCCESS)
+      endif
+!!! Make sure everyone on a node syncs
+      call MPI_Barrier(MAPL_NodeComm, STATUS)
+      ASSERT_(STATUS==MPI_SUCCESS)
+      RETURN_(SHM_SUCCESS)
+    end subroutine MAPL_SyncSharedMemory
+
     function getNodeComm(Comm, rc) result(NodeComm)
       integer,           intent( IN) :: Comm
       integer, optional, intent(OUT) :: rc
@@ -764,6 +1083,8 @@
       MAPL_MyNodeNum = rank/NumCores !ALT: this depends on affinity
                                      !     and breaks if round-robin
 
+      MAPL_CoresPerNodeUsed = NumCores
+
       if(rank==0) then
          print *
          print *, "In MAPL_InitializeShmem:"
@@ -797,6 +1118,53 @@
     
     end function getNodeComm
 
+    function getNodeRootsComm(Comm, rc) result(NodeRootsComm)
+      integer,           intent( IN) :: Comm
+      integer, optional, intent(OUT) :: rc
+      integer                        :: NodeRootsComm
+
+      integer, allocatable                  :: colors(:)
+
+      integer :: len, STATUS, MyColor, NumNodes, npes, rank
+
+      NodeRootsComm=MPI_COMM_NULL
+
+      call MPI_COMM_RANK(Comm, rank, STATUS)
+      ASSERT_(STATUS==MPI_SUCCESS)
+      call MPI_COMM_SIZE(Comm, npes, STATUS)
+      ASSERT_(STATUS==MPI_SUCCESS)
+
+      myColor = 0
+      if (MAPL_AmNodeRoot) myColor = 1
+
+      ! We are ready to split communicators
+
+      call MPI_COMM_SPLIT(Comm, MyColor, rank, NodeRootsComm, STATUS)
+      ASSERT_(NodeRootsComm/=MPI_COMM_NULL)
+
+      if (myColor==0) then
+      ! Set nodes outside of this comm back to null
+         NodeRootsComm=MPI_COMM_NULL
+      else
+      ! Confirm we have the proper communicator
+         call MPI_COMM_SIZE(NodeRootsComm, NumNodes, STATUS)
+         ASSERT_(STATUS==MPI_SUCCESS)
+         ASSERT_(MAPL_CoresPerNodeUsed*NumNodes == npes)
+      endif
+
+      if(rank==0) then
+         print *
+         print *, "In MAPL_InitializeShmem (NodeRootsComm):"
+         print *, "    NumNodes in use   = ", NumNodes
+         print *
+      end if
+
+      RETURN_(SHM_SUCCESS)
+
+    end function getNodeRootsComm
+
+
+
     function MAPL_ShmemAmOnFirstNode(comm, rc) result(a)
       integer,           intent(IN   ) :: comm
       integer, optional, intent(  OUT) :: RC
@@ -822,4 +1190,23 @@
 
       RETURN_(SHM_SUCCESS)
     end function MAPL_ShmemAmOnFirstNode
+
+    integer function MAPL_CoresPerNodeGet(comm, rc)
+      integer,           intent(IN   ) :: comm
+      integer, optional, intent(  OUT) :: RC
+      integer                          :: a
+
+      integer :: status, rank
+
+      if ( MAPL_NodeComm == -1 ) then
+           call MAPL_GetNodeInfo(comm, rc=STATUS )
+           VERIFY_(STATUS)
+      end if
+
+!      MAPL_CoresPerNodeGet = MAPL_CoresPerNodeUsed
+      MAPL_CoresPerNodeGet = MAPL_CoresPerNodeMax
+
+      RETURN_(SHM_SUCCESS)
+    end function MAPL_CoresPerNodeGet
+
   end module MAPL_ShmemMod

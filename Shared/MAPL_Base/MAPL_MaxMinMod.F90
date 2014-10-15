@@ -11,7 +11,7 @@
 
 ! !USES:
 
-      Use ESMF_Mod
+      Use ESMF
       Use MAPL_CommsMod
 
       implicit None

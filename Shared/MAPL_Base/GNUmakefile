@@ -17,16 +17,12 @@
 # Make sure ESMADIR is defined
 # ----------------------------
 ifndef ESMADIR
-       ESMADIR := $(shell pwd)/../
+       ESMADIR := $(shell pwd)/..
 endif
 
 THIS := $(shell basename `pwd`)
 LIB  = lib$(THIS).a
 LIB_STUBS  = lib$(THIS)_stubs.a
-
-#FDP         = ../Config/bin/fdp
-#FDP_FLAGS   = -v
-#PERL        = /usr/bin/perl
 
 # Compilation rules, flags, etc
 # -----------------------------
@@ -51,20 +47,17 @@ esma_help help:
 	@echo "         ARCH = $(ARCH)"
 	@echo "         SITE = $(SITE) "
 	@echo "         THIS = $(THIS) "
-	@echo "     DIR_ESMF = $(DIR_ESMF)"
-	@echo "     MOD_ESMF = $(MOD_ESMF)"
 
 #                  --------------------------------
 #                   Recurse Make in Sub-directories
 #                  --------------------------------
 
-#ALLDIRS = TeX
+ALLDIRS = TeX
 
 SUBDIRS = $(wildcard $(ALLDIRS))
 
 TARGETS = esma_install esma_clean esma_distclean esma_doc \
           install clean distclean doc 
-
 
 export ESMADIR BASEDIR ARCH SITE FREAL
 
@@ -75,8 +68,7 @@ $(TARGETS):
 	      echo ""; echo Making $$t in `pwd`          ;\
 	      $(MAKE) -e $$t ) \
 	  done
-	@echo $(PWD) $@
-	$(MAKE)  local_$@
+	$(MAKE) local_$@
 
 local_esma_install local_install: $(LIB) $(LIB_STUBS)
 	$(MKDIR) $(ESMALIB) $(ESMAINC)/$(THIS)
@@ -86,10 +78,10 @@ local_esma_install local_install: $(LIB) $(LIB_STUBS)
 
 
 local_esma_clean local_clean:
-	-$(RM) *~ *.[aoxd] *.[Mm][Oo][Dd] 
+	-$(RM) *~ *.[aox] *.[Mm][Oo][Dd] *___.f90
 
 local_esma_distclean local_distclean:
-	-$(RM) *~ *.[aoxd] *.[Mm][Oo][Dd] 
+	-$(RM) *~ *.[aoxd] *.[Mm][Oo][Dd] *___.f90
 
 local_esma_doc local_doc:
 	@echo "Target $@ not implemented in `pwd`"
@@ -119,7 +111,7 @@ SRCS :=  ESMFL_Mod.P90            MAPL_HeapMod.F90       MAPL_VarSpecMod.F90\
          memuse.c                 MAPL_MemUtils.F90      MAPL_Hash.F90 \
          CubeToLatLon.F90         MAPL_MaxMinMod.F90     MAPL_SimpleBundleMod.F90 \
          MAPL_OrbGridCompMod.F90  MAPL_NominalOrbitsMod.F90 MAPL_ExtDataGridCompMod.F90 \
-         MAPL_NewArthParser.F90   MAPL_ShmemMod.F90
+         MAPL_NewArthParser.F90   MAPL_ShmemMod.F90      MAPL_LoadBalance.F90 MAPL_CFIOServer.F90
 
 SRC_STUBS :=  MAPL_stubs.F90
 
@@ -135,7 +127,7 @@ DEPS := $(addsuffix .d, $(basename $(SRCS) $(SRC_STUBS)))
 OBJ_STUBS := $(addsuffix .o, $(basename $(SRC_STUBS)))
 
 INC_DIRS = . $(INC_ESMF) $(INC_MPI) /usr/include $(INC_SDF)
-MOD_DIRS = $(MOD_ESMF) $(INC_DIRS) $(INC_CFIO) $(INC_MPEU) $(INC_BASE)
+MOD_DIRS = $(INC_DIRS) $(INC_CFIO) $(INC_MPEU) $(MOD_ESMF)
 
 USER_FINCS = $(foreach dir,$(INC_DIRS),$(I)$(dir))
 USER_FMODS = $(foreach dir,$(MOD_DIRS),$(M)$(dir)) 
@@ -143,6 +135,23 @@ USER_FDEFS = $(D)MAPL $(D)DO_COMMAS $(D)TWO_SIDED_COMM
 
 FREAL = $(FREAL4) # for now, require 32 bit reals (R4)
 THIS_CFIO = MAPL_cfio_r4
+
+# this a somewhat sloppy way to bypass Cubed Sphere dependences:
+# we check our sandbox if FVdycoreCubed is in the sandbox. 
+# If yes, we compile with Cubed Sphere support 
+ifneq ( $(wildcard $(ESMADIR)/src/GEOSgcs_GridComp/GEOSgcm_GridComp/GEOSagcm_GridComp/GEOSsuperdyn_GridComp/FVdycoreCubed_GridComp ), $(null) ) 
+   USER_FFLAGS += -DUSE_CUBEDSPHERE
+endif
+
+#ifneq ( $(wildcard $(ESMADIR)/src/GEOSctm_GridComp/FVdycoreCubed_GridComp ), $(null) ) 
+   USER_FFLAGS += -DUSE_CUBEDSPHERE
+#endif
+#
+# more of the same
+#
+ifneq ( $(wildcard $(ESMADIR)/src/GEOSagcmPert_GridComp ), $(null) ) 
+   USER_FFLAGS += -DUSE_CUBEDSPHERE
+endif
 
 ifdef GPU_TARGET
   INC_DIRS += $(INC_PGI) # Needed to pick up CUDA libraries

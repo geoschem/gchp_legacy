@@ -1,4 +1,4 @@
-!  $Id: MAPL_VarSpecMod.F90,v 1.28 2012-11-30 15:03:41 atrayano Exp $
+!  $Id: MAPL_VarSpecMod.F90,v 1.27.12.4.16.2 2014-07-21 17:05:51 bmauer Exp $
 
 #include "MAPL_ErrLog.h"
 
@@ -13,7 +13,7 @@ module MAPL_VarSpecMod
 
 ! !USES:
 
-use ESMF_Mod
+use ESMF
 use MAPL_BaseMod
 use MAPL_IOMod
 use MAPL_CommsMod, only: MAPL_AM_I_ROOT
@@ -40,6 +40,7 @@ public MAPL_VarIsConnected
 public MAPL_VarIsListed
 public MAPL_ConnCheckUnused
 public MAPL_ConnCheckReq
+public MAPL_VarSpecSamePrec
 ! !OVERLOADED INTERFACES:
 
 public operator(.eq.)
@@ -108,6 +109,7 @@ type MAPL_VarSpecType
   character(len=ESMF_MAXSTR)               :: LONG_NAME
   character(len=ESMF_MAXSTR)               :: UNITS
   character(len=ESMF_MAXSTR)               :: FRIENDLYTO
+  character(len=ESMF_MAXSTR)               :: VECTOR_PAIR
   character(len=ESMF_MAXSTR), pointer      :: ATTR_INAMES(:)
   character(len=ESMF_MAXSTR), pointer      :: ATTR_RNAMES(:)
   integer,                    pointer      :: ATTR_IVALUES(:)
@@ -123,6 +125,9 @@ type MAPL_VarSpecType
   integer                                  :: HALOWIDTH
   integer                                  :: PRECISION
   integer                                  :: FIELD_TYPE
+  integer                                  :: VECTOR_ORDER
+  integer                                  :: STAGGERING
+  integer                                  :: ROTATION
   logical                                  :: RESTART
   logical                                  :: defaultProvided
   logical                                  :: doNotAllocate
@@ -165,6 +170,8 @@ contains
                              ATTR_RVALUES, ATTR_IVALUES, &
                              UNGRIDDED_DIMS, &
                              FIELD_TYPE, &
+                             STAGGERING, &
+                             ROTATION,   & 
                              GRID, &
                                                                    RC  )
 
@@ -191,6 +198,8 @@ contains
     real               , optional   , intent(IN)      :: ATTR_RVALUES(:)
     integer            , optional   , intent(IN)      :: UNGRIDDED_DIMS(:)
     integer            , optional   , intent(IN)      :: FIELD_TYPE
+    integer            , optional   , intent(IN)      :: STAGGERING
+    integer            , optional   , intent(IN)      :: ROTATION
     type(ESMF_Grid)    , optional   , intent(IN)      :: GRID
     integer            , optional   , intent(OUT)     :: RC
 
@@ -209,6 +218,8 @@ contains
     integer                    :: usableHALOWIDTH
     integer                    :: usablePRECISION
     integer                    :: usableFIELD_TYPE
+    integer                    :: usableSTAGGERING
+    integer                    :: usableROTATION
     logical                    :: usableRESTART
     character(len=ESMF_MAXSTR) :: usableLONG
     character(len=ESMF_MAXSTR) :: usableUNIT
@@ -310,10 +321,22 @@ contains
          usableFIELD_TYPE=MAPL_ScalarField 
       endif
 
+      if (present(STAGGERING)) then
+         usableSTAGGERING=STAGGERING
+      else
+         usableSTAGGERING=MAPL_AGrid
+      endif
+
+      if (present(ROTATION)) then
+         usableROTATION=ROTATION
+      else
+         usableROTATION=MAPL_RotateLL
+      endif
+
       if(present(GRID)) then
          usableGRID=GRID
       else
-         usableGRID = ESMF_GridCreateEmpty(RC=STATUS)
+         usableGRID = ESMF_GridEmptyCreate(RC=STATUS)
          VERIFY_(STATUS)
          call ESMF_GridDestroy(usableGRID) !ALT we do not need RC
       endif
@@ -323,7 +346,7 @@ contains
       else
          allocate(usableFIELD, STAT=STATUS)
          VERIFY_(STATUS)
-         usableFIELD = ESMF_FieldCreateEmpty(NAME=SHORT_NAME,RC=STATUS)
+         usableFIELD = ESMF_FieldEmptyCreate(NAME=SHORT_NAME,RC=STATUS)
          VERIFY_(STATUS)
          call ESMF_FieldDestroy(usableFIELD) !ALT we do not need RC
       endif
@@ -437,6 +460,8 @@ contains
       TMP(I+1)%SPECPtr%RESTART    =  usableRESTART
       TMP(I+1)%SPECPtr%PRECISION  =  usablePRECISION
       TMP(I+1)%SPECPtr%FIELD_TYPE =  usableFIELD_TYPE
+      TMP(I+1)%SPECPtr%STAGGERING =  usableSTAGGERING
+      TMP(I+1)%SPECPtr%ROTATION =  usableROTATION
       TMP(I+1)%SPECPtr%doNotAllocate    =  .false.
       TMP(I+1)%SPECPtr%alwaysAllocate   =  .false.
       if(associated(usableATTR_IVALUES)) then
@@ -730,6 +755,8 @@ contains
                                    ATTR_RVALUES    = ITEM%SPECPTR%ATTR_RVALUES,      &
                                    UNGRIDDED_DIMS  = ITEM%SPECPTR%UNGRIDDED_DIMS,    &
                                    FIELD_TYPE      = ITEM%SPECPTR%FIELD_TYPE,        &
+                                   STAGGERING      = ITEM%SPECPTR%STAGGERING,        &
+                                   ROTATION        = ITEM%SPECPTR%ROTATION,          &
                                    GRID            = ITEM%SPECPTR%GRID,              &
                                                                           RC=STATUS  )     
      VERIFY_(STATUS)
@@ -806,6 +833,8 @@ contains
                              LABEL,                                    &
                              FRIENDLYTO,                               &
                              FIELD_TYPE,                               &
+                             STAGGERING,                               &
+                             ROTATION,                                 &
                              GRID,                                     &
                              doNotAllocate,                            &
                              alwaysAllocate,                            &
@@ -825,6 +854,8 @@ contains
     type(ESMF_FieldBundle)  , optional   , intent(IN)      :: BUNDLE
     character(len=*)   , optional   , intent(IN)      :: FRIENDLYTO
     integer            , optional   , intent(in)      :: FIELD_TYPE
+    integer            , optional   , intent(in)      :: STAGGERING
+    integer            , optional   , intent(in)      :: ROTATION
     type(ESMF_Grid)    , optional   , intent(IN)      :: GRID
     logical            , optional   , intent(IN)      :: doNotAllocate
     logical            , optional   , intent(IN)      :: alwaysAllocate
@@ -894,6 +925,14 @@ contains
          SPEC%SPECPtr%FIELD_TYPE = FIELD_TYPE
       endif
 
+      if(present(STAGGERING)) then
+         SPEC%SPECPtr%STAGGERING = STAGGERING
+      endif
+
+      if(present(ROTATION)) then
+         SPEC%SPECPtr%ROTATION = ROTATION
+      endif
+
       if(present(doNotAllocate)) then
          SPEC%SPECPtr%doNotAllocate = doNotAllocate
       endif
@@ -961,6 +1000,8 @@ contains
                              ATTR_RVALUES, ATTR_IVALUES,               &
                              UNGRIDDED_DIMS,                           &
                              FIELD_TYPE,                               &
+                             STAGGERING,                               &
+                             ROTATION,                                 &
                              GRID,                                     &
                              doNotAllocate,                            &
                              alwaysAllocate,                           &
@@ -991,6 +1032,8 @@ contains
     real,                       optional, pointer     :: ATTR_RVALUES(:)
     integer,                    optional, pointer     :: UNGRIDDED_DIMS(:)
     integer,                    optional              :: FIELD_TYPE
+    integer,                    optional              :: STAGGERING
+    integer,                    optional              :: ROTATION
     type(ESMF_Grid)    , optional   , intent(OUT)     :: GRID
     logical            , optional   , intent(OUT)     :: doNotAllocate
     logical            , optional   , intent(OUT)     :: alwaysAllocate
@@ -1098,6 +1141,14 @@ contains
 
       if(present(FIELD_TYPE)) then
        FIELD_TYPE = SPEC%SPECPtr%FIELD_TYPE
+      endif
+
+      if(present(STAGGERING)) then
+       STAGGERING = SPEC%SPECPtr%STAGGERING
+      endif
+
+      if(present(ROTATION)) then
+       ROTATION = SPEC%SPECPtr%ROTATION
       endif
 
       if(present(GRID)) then
@@ -1266,7 +1317,19 @@ contains
       MAPL_VarSpecEQ = .TRUE.
       RETURN
     end function MAPL_VarSpecEQ
-    
+
+    function MAPL_VarSpecSamePrec(s1, s2)
+      type (MAPL_VarSpec ), intent(in) :: s1, s2
+      logical                          :: MAPL_VarSpecSamePrec
+
+      MAPL_VarSpecSamePrec = .FALSE.
+
+      if (S1%SPECPtr%PRECISION /= S2%SPECPtr%PRECISION       ) RETURN
+
+      MAPL_VarSpecSamePrec = .TRUE.
+      RETURN
+    end function MAPL_VarSpecSamePrec
+ 
   subroutine MAPL_VarConnCreate(CONN, SHORT_NAME, TO_NAME, &
        FROM_IMPORT, FROM_EXPORT, TO_IMPORT, TO_EXPORT, RC  )
 

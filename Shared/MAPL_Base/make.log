@@ -1,0 +1,8 @@
+GNUmakefile:166: warning: overriding recipe for target `lib'
+GNUmakefile:163: warning: ignoring old recipe for target `lib'
+MAPL_ExtDataGridCompMod.F90:1664:20: warning: missing terminating ' character [enabled by default]
+MAPL_ExtDataGridCompMod.F90:1818:21: warning: missing terminating ' character [enabled by default]
+Building dependency file MAPL_ExtDataGridCompMod.d
+GNUmakefile:166: warning: overriding recipe for target `lib'
+GNUmakefile:163: warning: ignoring old recipe for target `lib'
+make: *** No rule to make target `hpc'.  Stop.

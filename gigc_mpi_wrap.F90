@@ -29,7 +29,6 @@ MODULE GIGC_Mpi_Wrap
   PUBLIC :: GIGC_Bcast_Char 
   PUBLIC :: GIGC_Bcast_Int
   PUBLIC :: GIGC_Bcast_Real8
-  PUBLIC :: GIGC_Halo_NS_2d_R8
   PUBLIC :: mpiComm
 !
 ! !REMARKS:
@@ -52,7 +51,6 @@ MODULE GIGC_Mpi_Wrap
 !------------------------------------------------------------------------------
 !BOC
   INTEGER, SAVE :: mpiComm
-  INTEGER, SAVE :: northPET, southPET, eastPET, westPET
 
 CONTAINS
 !EOC
@@ -147,7 +145,7 @@ CONTAINS
     CALL MPI_Bcast( INPUT_OPT%GCAP_DIR, len(INPUT_OPT%GCAP_DIR), mpi_character, 0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%GEOS_4_DIR, len(INPUT_OPT%GEOS_4_DIR), mpi_character, 0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%GEOS_5_DIR, len(INPUT_OPT%GEOS_5_DIR), mpi_character, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%GEOS_57_DIR, len(INPUT_OPT%GEOS_57_DIR), mpi_character, 0, mpiComm, RC )
+    CALL MPI_Bcast( INPUT_OPT%GEOS_FP_DIR, len(INPUT_OPT%GEOS_FP_DIR), mpi_character, 0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%MERRA_DIR, len(INPUT_OPT%MERRA_DIR), mpi_character, 0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%DATA_DIR_1x1, len(INPUT_OPT%DATA_DIR_1x1), mpi_character, 0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%TEMP_DIR, len(INPUT_OPT%TEMP_DIR), mpi_character, 0, mpiComm, RC )
@@ -156,6 +154,7 @@ CONTAINS
     CALL MPI_Bcast( INPUT_OPT%LVARTROP, 1, mpi_logical, 0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%NESTED_I0, 1, mpi_integer, 0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%NESTED_J0, 1, mpi_integer, 0, mpiComm, RC )
+    CALL MPI_Bcast( INPUT_OPT%HcoConfigFile, len(INPUT_OPT%HcoConfigFile), mpi_character, 0, mpiComm, RC )
 
     !----------------------------------------
     ! TRACER MENU fields
@@ -173,7 +172,7 @@ CONTAINS
     CALL MPI_Bcast( INPUT_OPT%ID_EMITTED(:), INPUT_OPT%MAX_TRCS, mpi_integer, 0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%LSPLIT, 1, mpi_logical, 0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%ITS_A_RnPbBe_SIM, 1, mpi_logical, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%ITS_A_CH3I_SIM, 1, mpi_logical, 0, mpiComm, RC )
+!    CALL MPI_Bcast( INPUT_OPT%ITS_A_ORGHAL_SIM, 1, mpi_logical, 0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%ITS_A_FULLCHEM_SIM, 1, mpi_logical, 0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%ITS_A_HCN_SIM, 1, mpi_logical, 0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%ITS_A_TAGOX_SIM, 1, mpi_logical, 0, mpiComm, RC )
@@ -200,6 +199,14 @@ CONTAINS
     CALL MPI_Bcast( INPUT_OPT%LDICARB, 1, mpi_logical, 0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%SALA_REDGE_um(:), 2, mpi_real8, 0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%SALC_REDGE_um(:), 2, mpi_real8, 0, mpiComm, RC )
+    CALL MPI_Bcast( INPUT_OPT%LGRAVSTRAT, 1, mpi_logical, 0, mpiComm, RC )
+    CALL MPI_Bcast( INPUT_OPT%LSOLIDPSC,  1, mpi_logical, 0, mpiComm, RC )
+    CALL MPI_Bcast( INPUT_OPT%PSC_RST_FILE, len(Input_Opt%PSC_RST_FILE), mpi_character, 0, mpiComm, RC )
+    CALL MPI_Bcast( INPUT_OPT%LHOMNUCNAT, 1, mpi_logical, 0, mpiComm, RC )
+    CALL MPI_Bcast( INPUT_OPT%T_NAT_SUPERCOOL, 1, mpi_real8, 0, mpiComm, RC )
+    CALL MPI_Bcast( INPUT_OPT%P_ICE_SUPERSAT,  1, mpi_real8, 0, mpiComm, RC )
+    CALL MPI_Bcast( INPUT_OPT%LPSCCHEM, 1, mpi_logical, 0, mpiComm, RC )
+    CALL MPI_Bcast( INPUT_OPT%LSTRATOD, 1, mpi_logical, 0, mpiComm, RC )
 
     !----------------------------------------
     ! EMISSIONS MENU fields
@@ -245,8 +252,6 @@ CONTAINS
     CALL MPI_Bcast( INPUT_OPT%LSHIPSO2, 1, mpi_logical, 0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%LARCSHIP, 1, mpi_logical, 0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%LCOOKE, 1, mpi_logical, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%LAVHRRLAI, 1, mpi_logical, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%LMODISLAI, 1, mpi_logical, 0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%LHIST, 1, mpi_logical, 0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%HISTYR, 1, mpi_logical, 0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%LWARWICK_VSLS, 1, mpi_logical, 0, mpiComm, RC )
@@ -256,6 +261,32 @@ CONTAINS
     CALL MPI_Bcast( INPUT_OPT%LEDGARNOx, 1, mpi_logical, 0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%LEDGARCO, 1, mpi_logical, 0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%LEDGARSOX, 1, mpi_logical, 0, mpiComm, RC )
+    CALL MPI_Bcast( INPUT_OPT%LRCP, 1, mpi_logical, 0, mpiComm, RC )
+    CALL MPI_Bcast( INPUT_OPT%LRCPSHIP, 1, mpi_logical, 0, mpiComm, RC )
+    CALL MPI_Bcast( INPUT_OPT%LRCPAIR, 1, mpi_logical, 0, mpiComm, RC )
+    CALL MPI_Bcast( INPUT_OPT%LFIXEDYR, 1, mpi_logical, 0, mpiComm, RC )
+    CALL MPI_Bcast( INPUT_OPT%LCH4EMIS, 1, mpi_logical, 0, mpiComm, RC )
+    CALL MPI_Bcast( INPUT_OPT%LCH4SBC, 1, mpi_logical, 0, mpiComm, RC )
+    CALL MPI_Bcast( INPUT_OPT%LOCSEMIS, 1, mpi_logical, 0, mpiComm, RC )
+    CALL MPI_Bcast( INPUT_OPT%LCFCEMIS, 1, mpi_logical, 0, mpiComm, RC )
+    CALL MPI_Bcast( INPUT_OPT%LCLEMIS, 1, mpi_logical, 0, mpiComm, RC )
+    CALL MPI_Bcast( INPUT_OPT%LBREMIS, 1, mpi_logical, 0, mpiComm, RC )
+    CALL MPI_Bcast( INPUT_OPT%LN2OEMIS, 1, mpi_logical, 0, mpiComm, RC )
+    CALL MPI_Bcast( INPUT_OPT%LBASICEMIS, 1, mpi_logical, 0, mpiComm, RC )
+    CALL MPI_Bcast( INPUT_OPT%LSETH2O, 1, mpi_logical, 0, mpiComm, RC )
+    CALL MPI_Bcast( INPUT_OPT%LSETCH4, 1, mpi_logical, 0, mpiComm, RC )
+    CALL MPI_Bcast( INPUT_OPT%LSETOCS, 1, mpi_logical, 0, mpiComm, RC )
+    CALL MPI_Bcast( INPUT_OPT%LSETCFC, 1, mpi_logical, 0, mpiComm, RC )
+    CALL MPI_Bcast( INPUT_OPT%LSETCL, 1, mpi_logical, 0, mpiComm, RC )
+    CALL MPI_Bcast( INPUT_OPT%LBRGCCM, 1, mpi_logical, 0, mpiComm, RC )
+    CALL MPI_Bcast( INPUT_OPT%LSETBR, 1, mpi_logical, 0, mpiComm, RC )
+    CALL MPI_Bcast( INPUT_OPT%LSETBRSTRAT, 1, mpi_logical, 0, mpiComm, RC )
+    CALL MPI_Bcast( INPUT_OPT%LSETNOYSTRAT, 1, mpi_logical, 0, mpiComm, RC )
+    CALL MPI_Bcast( INPUT_OPT%LSETN2O, 1, mpi_logical, 0, mpiComm, RC )
+    CALL MPI_Bcast( INPUT_OPT%LSETH2SO4, 1, mpi_logical, 0, mpiComm, RC )
+    CALL MPI_Bcast( INPUT_OPT%CFCYEAR, 1, mpi_integer, 0, mpiComm, RC )
+    CALL MPI_Bcast( INPUT_OPT%LFUTURECFC, 1, mpi_logical, 0, mpiComm, RC )
+
 
     !----------------------------------------
     ! CO2 MENU fields
@@ -299,12 +330,15 @@ CONTAINS
     CALL MPI_Bcast( INPUT_OPT%LSVCSPEC,  1, mpi_logical, 0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%LKPP,      1, mpi_logical, 0, mpiComm, RC )
     CALL MPI_BCast( INPUT_OPT%GAMMA_HO2, 1, mpi_real8,   0, mpicomm, RC )
+    CALL MPI_Bcast( INPUT_OPT%LUCX,      1, mpi_logical, 0, mpiComm, RC )
+    CALL MPI_Bcast( INPUT_OPT%LCH4CHEM,  1, mpi_logical, 0, mpiComm, RC )
+    CALL MPI_Bcast( INPUT_OPT%LACTIVEH2O, 1, mpi_logical, 0, mpiComm, RC )
+    CALL MPI_Bcast( INPUT_OPT%LO3FJX,     1, mpi_logical, 0, mpiComm, RC )
 
     !----------------------------------------
-    ! CHEMISTRY MENU fields
+    ! TRANSPORT MENU fields
     !----------------------------------------
     CALL MPI_Bcast( INPUT_OPT%LTRAN, 1, mpi_logical, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%LMFCT, 1, mpi_logical, 0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%LFILL, 1, mpi_logical, 0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%TPCORE_IORD, 1, mpi_logical, 0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%TPCORE_JORD, 1, mpi_logical, 0, mpiComm, RC )
@@ -602,6 +636,7 @@ CONTAINS
     CALL MPI_Bcast( INPUT_OPT%WILD_CARD, len(INPUT_OPT%WILD_CARD), mpi_character, 0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%UNZIP_CMD, len(INPUT_OPT%UNZIP_CMD), mpi_character, 0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%ZIP_SUFFIX, len(INPUT_OPT%ZIP_SUFFIX), mpi_character, 0, mpiComm, RC )
+    CALL MPI_Bcast( INPUT_OPT%SPACE, len(INPUT_OPT%SPACE), mpi_character, 0, mpiComm, RC )
 
     !----------------------------------------
     ! NESTED GRID MENU fields
@@ -682,7 +717,7 @@ CONTAINS
     !----------------------------------------
     CALL MPI_Bcast( INPUT_OPT%POP_TYPE, 3, mpi_character, 0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%CHEM_PROCESS, 1, mpi_logical, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%POP_EMISFILE, 255, mpi_character, 0, mpiComm, RC )
+!    CALL MPI_Bcast( INPUT_OPT%POP_EMISFILE, 255, mpi_character, 0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%POP_XMW, 1, mpi_real8, 0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%POP_KOA, 1, mpi_real8, 0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%POP_KBC, 1, mpi_real8, 0, mpiComm, RC )
@@ -696,12 +731,20 @@ CONTAINS
     !----------------------------------------
     ! DRYDEP and DUST fields from input.geos
     !----------------------------------------
+    CALL MPI_Bcast( INPUT_OPT%N_DUST_BINS, 1, mpi_integer,   0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%NUMDEP,   1,         mpi_integer,   0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%NDVZIND,  Input_Opt%MAX_DEP,    mpi_integer,   0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%IDDEP,    NDSTBIN,   mpi_integer,   0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%DUSTREFF, NDSTBIN,   mpi_real8,     0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%DUSTDEN,  NDSTBIN,   mpi_integer,   0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%DEPNAME,  14*Input_Opt%MAX_DEP, mpi_character, 0, mpiComm, RC )
+!    CALL MPI_Bcast( INPUT_OPT%NTRAIND,  Input_Opt%MAX_DEP,    mpi_integer,   0, mpiComm, RC )
+!    CALL MPI_Bcast( INPUT_OPT%F0,       Input_Opt%MAX_DEP,    mpi_real8,     0, mpiComm, RC )
+!    CALL MPI_Bcast( INPUT_OPT%HSTAR,    Input_Opt%MAX_DEP,    mpi_real8,     0, mpiComm, RC )
+!    CALL MPI_Bcast( INPUT_OPT%XMW,      Input_Opt%MAX_DEP,    mpi_real8,     0, mpiComm, RC )
+!    CALL MPI_Bcast( INPUT_OPT%A_RADI,   Input_Opt%MAX_DEP,    mpi_real8,     0, mpiComm, RC )
+!    CALL MPI_Bcast( INPUT_OPT%A_DEN,    Input_Opt%MAX_DEP,    mpi_real8,     0, mpiComm, RC )
+!    CALL MPI_Bcast( INPUT_OPT%AIROSOL,  Input_Opt%MAX_DEP,    mpi_logical,   0, mpiComm, RC )
 
     !----------------------------------------
     ! GEOS-5 GCM INTERFACE fields
@@ -725,6 +768,11 @@ CONTAINS
           * INPUT_OPT%LINOZ_NFIELDS
 
     CALL MPI_Bcast( INPUT_OPT%LINOZ_TPARM, COUNT, mpi_real8, 0, mpiComm, RC )
+
+    !----------------------------------------
+    ! Overhead O3 fields
+    !----------------------------------------
+    CALL MPI_Bcast( INPUT_OPT%USE_O3_FROM_MET, 1, mpi_logical, 0, mpiComm, RC )
 
   END SUBROUTINE GIGC_Input_Bcast
 !EOC
@@ -781,6 +829,7 @@ CONTAINS
     CALL MPI_Bcast( IDNO3       , 1, mpi_integer, 0, mpiComm, RC ) 
     CALL MPI_Bcast( IDN2O5      , 1, mpi_integer, 0, mpiComm, RC )
     CALL MPI_Bcast( IDHNO4      , 1, mpi_integer, 0, mpiComm, RC )
+    CALL MPI_Bcast( IDO3        , 1, mpi_integer, 0, mpiComm, RC )
     CALL MPI_Bcast( IDHC1       , 1, mpi_integer, 0, mpiComm, RC )
     CALL MPI_Bcast( IDNO        , 1, mpi_integer, 0, mpiComm, RC )
     CALL MPI_Bcast( IDHNO2      , 1, mpi_integer, 0, mpiComm, RC )
@@ -871,8 +920,10 @@ CONTAINS
     !=======================================================================
 
     ! Standard simulation
+    CALL MPI_Bcast( IDTNO       , 1, mpi_integer, 0, mpiComm, RC )
     CALL MPI_Bcast( IDTNO2      , 1, mpi_integer, 0, mpiComm, RC )
     CALL MPI_Bcast( IDTNO3      , 1, mpi_integer, 0, mpiComm, RC )
+    CALL MPI_Bcast( IDTHNO2     , 1, mpi_integer, 0, mpiComm, RC )
     CALL MPI_Bcast( IDTO3       , 1, mpi_integer, 0, mpiComm, RC )  
     CALL MPI_Bcast( IDTPAN      , 1, mpi_integer, 0, mpiComm, RC )
     CALL MPI_Bcast( IDTCO       , 1, mpi_integer, 0, mpiComm, RC )
@@ -926,27 +977,21 @@ CONTAINS
     CALL MPI_Bcast( IDTCH3Br    , 1, mpi_integer, 0, mpiComm, RC )
 
     ! SOA mechanism
+!<<MSL>>    CALL MPI_Bcast( IDTALPH     , 1, mpi_integer, 0, mpiComm, RC )
     CALL MPI_Bcast( IDTLIMO     , 1, mpi_integer, 0, mpiComm, RC )
+!<<MSL>>    CALL MPI_Bcast( IDTALCO     , 1, mpi_integer, 0, mpiComm, RC )
+!<<MSL>>    CALL MPI_Bcast( IDTSOA1     , 1, mpi_integer, 0, mpiComm, RC )
+!<<MSL>>    CALL MPI_Bcast( IDTSOA2     , 1, mpi_integer, 0, mpiComm, RC )
+!<<MSL>>    CALL MPI_Bcast( IDTSOA3     , 1, mpi_integer, 0, mpiComm, RC )
+!<<MSL>>    CALL MPI_Bcast( IDTSOA4     , 1, mpi_integer, 0, mpiComm, RC )
+!<<MSL>>    CALL MPI_Bcast( IDTSOA5     , 1, mpi_integer, 0, mpiComm, RC )
     CALL MPI_Bcast( IDTSOAG     , 1, mpi_integer, 0, mpiComm, RC )
     CALL MPI_Bcast( IDTSOAM     , 1, mpi_integer, 0, mpiComm, RC )
-    CALL MPI_Bcast( IDTASOA1     , 1, mpi_integer, 0, mpiComm, RC )
-    CALL MPI_Bcast( IDTASOA2     , 1, mpi_integer, 0, mpiComm, RC )
-    CALL MPI_Bcast( IDTASOA3     , 1, mpi_integer, 0, mpiComm, RC )
-    CALL MPI_Bcast( IDTTSOA1     , 1, mpi_integer, 0, mpiComm, RC )
-    CALL MPI_Bcast( IDTTSOA2     , 1, mpi_integer, 0, mpiComm, RC )
-    CALL MPI_Bcast( IDTTSOA3     , 1, mpi_integer, 0, mpiComm, RC )
-    CALL MPI_Bcast( IDTISOA1     , 1, mpi_integer, 0, mpiComm, RC )
-    CALL MPI_Bcast( IDTISOA2     , 1, mpi_integer, 0, mpiComm, RC )
-    CALL MPI_Bcast( IDTISOA3     , 1, mpi_integer, 0, mpiComm, RC )
-    CALL MPI_Bcast( IDTASOG1     , 1, mpi_integer, 0, mpiComm, RC )
-    CALL MPI_Bcast( IDTASOG2     , 1, mpi_integer, 0, mpiComm, RC )
-    CALL MPI_Bcast( IDTASOG3     , 1, mpi_integer, 0, mpiComm, RC )
-    CALL MPI_Bcast( IDTTSOG1     , 1, mpi_integer, 0, mpiComm, RC )
-    CALL MPI_Bcast( IDTTSOG2     , 1, mpi_integer, 0, mpiComm, RC )
-    CALL MPI_Bcast( IDTTSOG3     , 1, mpi_integer, 0, mpiComm, RC )
-    CALL MPI_Bcast( IDTISOG1     , 1, mpi_integer, 0, mpiComm, RC )
-    CALL MPI_Bcast( IDTISOG2     , 1, mpi_integer, 0, mpiComm, RC )
-    CALL MPI_Bcast( IDTISOG3     , 1, mpi_integer, 0, mpiComm, RC )
+!<<MSL>>    CALL MPI_Bcast( IDTSOG1     , 1, mpi_integer, 0, mpiComm, RC )
+!<<MSL>>    CALL MPI_Bcast( IDTSOG2     , 1, mpi_integer, 0, mpiComm, RC )
+!<<MSL>>    CALL MPI_Bcast( IDTSOG3     , 1, mpi_integer, 0, mpiComm, RC )
+!<<MSL>>    CALL MPI_Bcast( IDTSOG4     , 1, mpi_integer, 0, mpiComm, RC )
+!<<MSL>>    CALL MPI_Bcast( IDTSOG5     , 1, mpi_integer, 0, mpiComm, RC )
 
     ! Crystalline tracers (not used)
     CALL MPI_Bcast( IDTAS       , 1, mpi_integer, 0, mpiComm, RC )
@@ -954,6 +999,9 @@ CONTAINS
     CALL MPI_Bcast( IDTNH4aq    , 1, mpi_integer, 0, mpiComm, RC )
     CALL MPI_Bcast( IDTLET      , 1, mpi_integer, 0, mpiComm, RC )
     CALL MPI_Bcast( IDTSO4aq    , 1, mpi_integer, 0, mpiComm, RC )
+
+    ! SOA tracers
+!<<MSL>>    CALL MPI_Bcast( IDTSOA5     , 1, mpi_integer, 0, mpiComm, RC )
 
     ! Dicarbonyls simulation
     CALL MPI_Bcast( IDTGLYX     , 1, mpi_integer, 0, mpiComm, RC )
@@ -995,7 +1043,7 @@ CONTAINS
     CALL MPI_Bcast( IDTBE7      , 1, mpi_integer, 0, mpiComm, RC )
 
     ! Tagged Ox simulation
-    CALL MPI_Bcast( IDTOxStrt   , 1, mpi_integer, 0, mpiComm, RC )
+    CALL MPI_Bcast( IDTO3Strt   , 1, mpi_integer, 0, mpiComm, RC )
 
     !=======================================================================
     ! MPI Broadcast the GEOS-CHEM Emission ID flags
@@ -1030,57 +1078,57 @@ CONTAINS
     CALL MPI_Bcast( IDECH2Br2   , 1, mpi_integer, 0, mpiComm, RC )
     CALL MPI_Bcast( IDEBr2      , 1, mpi_integer, 0, mpiComm, RC )
 
-    !=======================================================================
-    ! MPI Broadcast the IDBFxxxx flags for BIOFUELS
-    !=======================================================================
-    CALL MPI_Bcast( IDBFNO     , 1, mpi_integer, 0, mpiComm, RC )
-    CALL MPI_Bcast( IDBFCO      , 1, mpi_integer, 0, mpiComm, RC )
-    CALL MPI_Bcast( IDBFALK4    , 1, mpi_integer, 0, mpiComm, RC )
-    CALL MPI_Bcast( IDBFACET    , 1, mpi_integer, 0, mpiComm, RC )
-    CALL MPI_Bcast( IDBFMEK     , 1, mpi_integer, 0, mpiComm, RC )
-    CALL MPI_Bcast( IDBFALD2    , 1, mpi_integer, 0, mpiComm, RC )
-    CALL MPI_Bcast( IDBFPRPE    , 1, mpi_integer, 0, mpiComm, RC ) 
-    CALL MPI_Bcast( IDBFC3H8    , 1, mpi_integer, 0, mpiComm, RC )
-    CALL MPI_Bcast( IDBFCH2O    , 1, mpi_integer, 0, mpiComm, RC )
-    CALL MPI_Bcast( IDBFC2H6    , 1, mpi_integer, 0, mpiComm, RC )
-    CALL MPI_Bcast( IDBFBENZ    , 1, mpi_integer, 0, mpiComm, RC )
-    CALL MPI_Bcast( IDBFTOLU    , 1, mpi_integer, 0, mpiComm, RC )
-    CALL MPI_Bcast( IDBFXYLE    , 1, mpi_integer, 0, mpiComm, RC )
-    CALL MPI_Bcast( IDBFC2H2    , 1, mpi_integer, 0, mpiComm, RC )
-    CALL MPI_Bcast( IDBFC2H4    , 1, mpi_integer, 0, mpiComm, RC )
-    CALL MPI_Bcast( IDBFGLYC    , 1, mpi_integer, 0, mpiComm, RC )
-    CALL MPI_Bcast( IDBFGLYX    , 1, mpi_integer, 0, mpiComm, RC )
-    CALL MPI_Bcast( IDBFMGLY    , 1, mpi_integer, 0, mpiComm, RC )
-    CALL MPI_Bcast( IDBFHAC     , 1, mpi_integer, 0, mpiComm, RC )
-
-    !=======================================================================
-    ! MPI Broadcast the IDBxxxx flags for BIOMASS BURNING
-    !=======================================================================
-    CALL MPI_Bcast( IDBNO       , 1, mpi_integer, 0, mpiComm, RC )
-    CALL MPI_Bcast( IDBCO       , 1, mpi_integer, 0, mpiComm, RC )
-    CALL MPI_Bcast( IDBALK4     , 1, mpi_integer, 0, mpiComm, RC )
-    CALL MPI_Bcast( IDBACET     , 1, mpi_integer, 0, mpiComm, RC )
-    CALL MPI_Bcast( IDBMEK      , 1, mpi_integer, 0, mpiComm, RC )
-    CALL MPI_Bcast( IDBALD2     , 1, mpi_integer, 0, mpiComm, RC )
-    CALL MPI_Bcast( IDBPRPE     , 1, mpi_integer, 0, mpiComm, RC )
-    CALL MPI_Bcast( IDBC3H8     , 1, mpi_integer, 0, mpiComm, RC )
-    CALL MPI_Bcast( IDBCH2O     , 1, mpi_integer, 0, mpiComm, RC )
-    CALL MPI_Bcast( IDBC2H6     , 1, mpi_integer, 0, mpiComm, RC )
-    CALL MPI_Bcast( IDBSO2      , 1, mpi_integer, 0, mpiComm, RC )
-    CALL MPI_Bcast( IDBNH3      , 1, mpi_integer, 0, mpiComm, RC )
-    CALL MPI_Bcast( IDBBC       , 1, mpi_integer, 0, mpiComm, RC )
-    CALL MPI_Bcast( IDBOC       , 1, mpi_integer, 0, mpiComm, RC )
-    CALL MPI_Bcast( IDBCO2      , 1, mpi_integer, 0, mpiComm, RC )
-    CALL MPI_Bcast( IDBTOLU     , 1, mpi_integer, 0, mpiComm, RC )
-    CALL MPI_Bcast( IDBBENZ     , 1, mpi_integer, 0, mpiComm, RC )
-    CALL MPI_Bcast( IDBXYLE     , 1, mpi_integer, 0, mpiComm, RC )
-    CALL MPI_Bcast( IDBC2H2     , 1, mpi_integer, 0, mpiComm, RC )
-    CALL MPI_Bcast( IDBC2H4     , 1, mpi_integer, 0, mpiComm, RC )
-    CALL MPI_Bcast( IDBHAC      , 1, mpi_integer, 0, mpiComm, RC )
-    CALL MPI_Bcast( IDBGLYC     , 1, mpi_integer, 0, mpiComm, RC )
-    CALL MPI_Bcast( IDBGLYX     , 1, mpi_integer, 0, mpiComm, RC )
-    CALL MPI_Bcast( IDBMGLY     , 1, mpi_integer, 0, mpiComm, RC )
-    CALL MPI_Bcast( IDBCH4      , 1, mpi_integer, 0, mpiComm, RC )
+!<<>>    !=======================================================================
+!<<>>    ! MPI Broadcast the IDBFxxxx flags for BIOFUELS
+!<<>>    !=======================================================================
+!<<>>    CALL MPI_Bcast( IDBFNO      , 1, mpi_integer, 0, mpiComm, RC )
+!<<>>    CALL MPI_Bcast( IDBFCO      , 1, mpi_integer, 0, mpiComm, RC )
+!<<>>    CALL MPI_Bcast( IDBFALK4    , 1, mpi_integer, 0, mpiComm, RC )
+!<<>>    CALL MPI_Bcast( IDBFACET    , 1, mpi_integer, 0, mpiComm, RC )
+!<<>>    CALL MPI_Bcast( IDBFMEK     , 1, mpi_integer, 0, mpiComm, RC )
+!<<>>    CALL MPI_Bcast( IDBFALD2    , 1, mpi_integer, 0, mpiComm, RC )
+!<<>>    CALL MPI_Bcast( IDBFPRPE    , 1, mpi_integer, 0, mpiComm, RC ) 
+!<<>>    CALL MPI_Bcast( IDBFC3H8    , 1, mpi_integer, 0, mpiComm, RC )
+!<<>>    CALL MPI_Bcast( IDBFCH2O    , 1, mpi_integer, 0, mpiComm, RC )
+!<<>>    CALL MPI_Bcast( IDBFC2H6    , 1, mpi_integer, 0, mpiComm, RC )
+!<<>>    CALL MPI_Bcast( IDBFBENZ    , 1, mpi_integer, 0, mpiComm, RC )
+!<<>>    CALL MPI_Bcast( IDBFTOLU    , 1, mpi_integer, 0, mpiComm, RC )
+!<<>>    CALL MPI_Bcast( IDBFXYLE    , 1, mpi_integer, 0, mpiComm, RC )
+!<<>>    CALL MPI_Bcast( IDBFC2H2    , 1, mpi_integer, 0, mpiComm, RC )
+!<<>>    CALL MPI_Bcast( IDBFC2H4    , 1, mpi_integer, 0, mpiComm, RC )
+!<<>>    CALL MPI_Bcast( IDBFGLYC    , 1, mpi_integer, 0, mpiComm, RC )
+!<<>>    CALL MPI_Bcast( IDBFGLYX    , 1, mpi_integer, 0, mpiComm, RC )
+!<<>>    CALL MPI_Bcast( IDBFMGLY    , 1, mpi_integer, 0, mpiComm, RC )
+!<<>>    CALL MPI_Bcast( IDBFHAC     , 1, mpi_integer, 0, mpiComm, RC )
+!<<>>
+!<<>>    !=======================================================================
+!<<>>    ! MPI Broadcast the IDBxxxx flags for BIOMASS BURNING
+!<<>>    !=======================================================================
+!<<>>    CALL MPI_Bcast( IDBNO       , 1, mpi_integer, 0, mpiComm, RC )
+!<<>>    CALL MPI_Bcast( IDBCO       , 1, mpi_integer, 0, mpiComm, RC )
+!<<>>    CALL MPI_Bcast( IDBALK4     , 1, mpi_integer, 0, mpiComm, RC )
+!<<>>    CALL MPI_Bcast( IDBACET     , 1, mpi_integer, 0, mpiComm, RC )
+!<<>>    CALL MPI_Bcast( IDBMEK      , 1, mpi_integer, 0, mpiComm, RC )
+!<<>>    CALL MPI_Bcast( IDBALD2     , 1, mpi_integer, 0, mpiComm, RC )
+!<<>>    CALL MPI_Bcast( IDBPRPE     , 1, mpi_integer, 0, mpiComm, RC )
+!<<>>    CALL MPI_Bcast( IDBC3H8     , 1, mpi_integer, 0, mpiComm, RC )
+!<<>>    CALL MPI_Bcast( IDBCH2O     , 1, mpi_integer, 0, mpiComm, RC )
+!<<>>    CALL MPI_Bcast( IDBC2H6     , 1, mpi_integer, 0, mpiComm, RC )
+!<<>>    CALL MPI_Bcast( IDBSO2      , 1, mpi_integer, 0, mpiComm, RC )
+!<<>>    CALL MPI_Bcast( IDBNH3      , 1, mpi_integer, 0, mpiComm, RC )
+!<<>>    CALL MPI_Bcast( IDBBC       , 1, mpi_integer, 0, mpiComm, RC )
+!<<>>    CALL MPI_Bcast( IDBOC       , 1, mpi_integer, 0, mpiComm, RC )
+!<<>>    CALL MPI_Bcast( IDBCO2      , 1, mpi_integer, 0, mpiComm, RC )
+!<<>>    CALL MPI_Bcast( IDBTOLU     , 1, mpi_integer, 0, mpiComm, RC )
+!<<>>    CALL MPI_Bcast( IDBBENZ     , 1, mpi_integer, 0, mpiComm, RC )
+!<<>>    CALL MPI_Bcast( IDBXYLE     , 1, mpi_integer, 0, mpiComm, RC )
+!<<>>    CALL MPI_Bcast( IDBC2H2     , 1, mpi_integer, 0, mpiComm, RC )
+!<<>>    CALL MPI_Bcast( IDBC2H4     , 1, mpi_integer, 0, mpiComm, RC )
+!<<>>    CALL MPI_Bcast( IDBHAC      , 1, mpi_integer, 0, mpiComm, RC )
+!<<>>    CALL MPI_Bcast( IDBGLYC     , 1, mpi_integer, 0, mpiComm, RC )
+!<<>>    CALL MPI_Bcast( IDBGLYX     , 1, mpi_integer, 0, mpiComm, RC )
+!<<>>    CALL MPI_Bcast( IDBMGLY     , 1, mpi_integer, 0, mpiComm, RC )
+!<<>>    CALL MPI_Bcast( IDBCH4      , 1, mpi_integer, 0, mpiComm, RC )
 
     !=======================================================================
     ! MPI Broadcast the tagged Hg index arrays
@@ -1238,6 +1286,7 @@ CONTAINS
     CALL MPI_Bcast( NCSTROP     , 1,          mpi_integer,   0, mpiComm, RC )
     CALL MPI_Bcast( NCSSTRAT    , 1,          mpi_integer,   0, mpiComm, RC )
     CALL MPI_Bcast( NCSGAS      , 1,          mpi_integer,   0, mpiComm, RC )
+    CALL MPI_Bcast( NCS         , 1,          mpi_integer,   0, mpiComm, RC )
     CALL MPI_Bcast( NTLOOPNCS   , ICS,        mpi_integer,   0, mpiComm, RC )
     !CALL MPI_Bcast( NOUSE       , ICS,        mpi_integer,   0, mpiComm, RC )
     !CALL MPI_Bcast( NRATCUR     , ICS,        mpi_integer,   0, mpiComm, RC )
@@ -1471,188 +1520,5 @@ CONTAINS
     
   END SUBROUTINE GIGC_Bcast_Real8
 !EOC
-!------------------------------------------------------------------------------
-!          Harvard University Atmospheric Chemistry Modeling Group            !
-!------------------------------------------------------------------------------
-!BOP
-!
-! !IROUTINE: INIT_HALO
-!
-! !DESCRIPTION: Initialize halo parameters for the DE
-!\\
-!\\
-! !INTERFACE:
-!
-  SUBROUTINE INIT_GIGC_HALO(GRID, RC)
-!
-! !USES:
-!
-    USE GIGC_Errcode_Mod
-    USE MAPL_MOD
-    USE ESMF_MOD
-!
-! !INPUT PARAMETERS:
-!
-    TYPE(ESMF_Grid), INTENT(IN)   :: Grid        ! ESMF Grid object
-! 
-! !INPUT/OUTPUT PARAMETERS:
-!
-
-!
-! !OUTPUT PARAMETERS:
-!
-    INTEGER, INTENT(OUT)          :: RC          ! Success or failure?
-!
-! !REMARKS:
-!  Set
-!
-! !REVISION HISTORY:
-!  21 Nov 2013 - M. Long     - Initial version
-!EOP
-!------------------------------------------------------------------------------
-!BOC
-    
-    RC = GIGC_SUCCESS
-    
-  END SUBROUTINE INIT_GIGC_HALO
-!EOC
-!------------------------------------------------------------------------------
-!          Harvard University Atmospheric Chemistry Modeling Group            !
-!------------------------------------------------------------------------------
-!BOP
-!
-! !IROUTINE: GIGC_HALO_NS_2d_R8
-!
-! !DESCRIPTION: Wrapper routine to SEND/RECV & COPY halo region
-! within GIGC/ESMF DE's for a 2-dim REAL*8 variable only.
-!\\
-!\\
-! !INTERFACE:
-!
-  SUBROUTINE GIGC_HALO_NS_2d_R8(Q, JFIRST, JLAST, NS_HALOWIDTH, RC)
-!
-! !USES:
-!
-    USE CMN_SIZE_MOD, ONLY   : JM_WORLD
-    USE GIGC_Errcode_Mod
-    USE M_MPIF
-!
-! !INPUT PARAMETERS:
-!
-    ! Latitude indices for local first box and local last box
-    ! (NOTE: for global grids these are 1 and JM, respectively)
-    INTEGER, INTENT(IN)            :: JFIRST     
-    INTEGER, INTENT(IN)            :: JLAST 
-
-    ! N/S width of halo region to be sent & recv'd
-    INTEGER, INTENT(IN)            :: NS_HALOWIDTH
-
-! 
-! !INPUT/OUTPUT PARAMETERS:
-!
-    REAL*8,  INTENT(INOUT)         :: Q(:,:)   ! Variable to be broadcast
-!
-! !OUTPUT PARAMETERS:
-!
-    INTEGER, OPTIONAL, INTENT(OUT) :: RC          ! Success or failure?
-
-!
-! !LOCAL PARAMETERS:
-!
-    INTEGER                        :: sendPet, recvPet, myPet, IDIM, BUF_SIZE
-    INTEGER                        :: IERR
-    REAL*8, ALLOCATABLE            :: Q_BUF(:)
-    INTEGER                        :: status(MPI_STATUS_SIZE)
-
-! Set-up to/from ranks & params
-    call MPI_COMM_RANK (mpiComm, myPet, ierr)
-
-! Since N/S copy, sending longitudinal rows is implied
-    buf_size = SIZE(Q,1)*NS_HALOWIDTH
-    ALLOCATE(Q_BUF(BUF_SIZE))
-
-! 1) Send halo region
-!  a. If not at Southern grid boundary, send southern halo to nothern halo (2b)
-    if (jfirst > 1) then
-
-       ! Unrolling NS_HALOWIDTH non-halo (local) Southern longitudes 
-       CALL UNROLL_2DR8(Q(:,NS_HALOWIDTH+1:2*NS_HALOWIDTH), Q_BUF, SIZE(Q,1), NS_HALOWIDTH, BUF_SIZE)
-
-       recvPet = myPet-1 ! This dangerously assumes N/S decomposition.
-       CALL MPI_SEND(q_buf,buf_size, mpi_real8, recvPet, 1, mpiComm, ierr)
-    endif
-!  b. If not at Northern grid boundary, send northern halo to southern halo (2a)
-    if (jlast  < jm_world) then
-
-       ! Unrolling NS_HALOWIDTH non-halo (local) Northern longitudes 
-       CALL UNROLL_2DR8(Q(:,jlast-NS_HALOWIDTH+1:jlast), Q_BUF, SIZE(Q,1), NS_HALOWIDTH, BUF_SIZE)
-
-       recvPet = myPet+1 ! This dangerously assumes N/S decomposition.
-       CALL MPI_SEND(q_buf,buf_size, mpi_real8, recvPet, 1, mpiComm, ierr)
-    endif
-! 2) Receive halo region
-!  a. If not at Southern grid boundary, recv southern halo from northern halo (1b)
-    if (jfirst > 1) then
-       sendPet = myPet-1 ! This dangerously assumes N/S decomposition.
-       CALL MPI_RECV(q_buf,buf_size, mpi_real8, sendPet, 1, mpiComm, status, ierr)
-
-       CALL ROLL_2DR8(Q(:,1:NS_HALOWIDTH), Q_BUF, SIZE(Q,1), NS_HALOWIDTH, BUF_SIZE)
-
-    endif
-!  b. If not at Northern grid boundary, recv northern halo from southern halo (1a)
-    if (jlast  < jm_world) then
-       sendPet = myPet+1 ! This dangerously assumes N/S decomposition.
-       CALL MPI_RECV(q_buf,buf_size, mpi_real8, sendPet, 1, mpiComm, status, ierr)
-
-       CALL ROLL_2DR8(Q(:,jlast:jlast+NS_HALOWIDTH), Q_BUF, SIZE(Q,1), NS_HALOWIDTH, BUF_SIZE)
-
-    endif
-! 3) Copy halo to appropriate var
-!  a. If not at Southern grid boundary, copy southern halo
-    if (jfirst > 1) then
-    endif
-!  b. If not at Northern grid boundary, copy northern halo
-    if (jlast  < jm_world) then
-    endif
-
-    CONTAINS
-
-      SUBROUTINE UNROLL_2DR8(Q, Q_BUF, NI, NJ, B_SIZE)
-        REAL*8, INTENT(IN   ) :: Q(NI,NJ)
-        INTEGER, INTENT(IN  ) :: B_SIZE
-        REAL*8, INTENT(  OUT) :: Q_BUF(B_SIZE)
-        INTEGER NI, NJ, I, J, IND
-        
-        IND = 1
-        DO I=1,NI
-           DO J=1,NJ
-              Q_BUF(IND) = Q(I,J)
-              IND = IND+1
-           ENDDO
-        ENDDO
-        
-        RETURN
-
-      END SUBROUTINE UNROLL_2DR8
-
-      SUBROUTINE ROLL_2DR8(Q, Q_BUF, NI, NJ, B_SIZE)
-        REAL*8, INTENT(  OUT) :: Q(NI,NJ)
-        INTEGER, INTENT(IN  ) :: B_SIZE
-        REAL*8, INTENT(IN   ) :: Q_BUF(B_SIZE)
-        INTEGER NI, NJ, I, J, IND
-        
-        IND = 1
-        DO I=1,NI
-           DO J=1,NJ
-              Q(I,J) = Q_BUF(IND)
-              IND = IND+1
-           ENDDO
-        ENDDO
-        
-        RETURN
-      END SUBROUTINE ROLL_2DR8
-      
-  END SUBROUTINE GIGC_HALO_NS_2D_R8
-  !EOC
 END MODULE GIGC_Mpi_Wrap
 #endif

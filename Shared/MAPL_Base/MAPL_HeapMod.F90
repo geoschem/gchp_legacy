@@ -1,5 +1,5 @@
 
-!  $Id: MAPL_HeapMod.F90,v 1.1 2006-09-07 19:12:17 dasilva Exp $
+!  $Id: MAPL_HeapMod.F90,v 1.1.180.1 2012-11-08 21:23:04 atrayano Exp $
 
 #include "MAPL_ErrLog.h"
 #define ADDRS_POSITION 1
@@ -14,7 +14,7 @@
 
 ! !USES:
 
-  use ESMF_Mod
+  use ESMF
   use MAPL_BaseMod
 
   implicit none
