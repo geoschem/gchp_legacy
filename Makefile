@@ -286,6 +286,5 @@ gigc_chunk_mod.o            : gigc_chunk_mod.F90 gigc_finalization_mod.o \
 			      gigc_initialization_mod.o gc_land_interface.o
 
 gc_land_inteface.o          : gc_land_interface.F90
-gui
 #EOC
 
