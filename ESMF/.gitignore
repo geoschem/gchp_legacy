@@ -1,0 +1,12 @@
+Linux/*
+Linux/*/*
+Linux/*/*/*
+Linux/*/*/*/*
+Linux/lib/*
+Linux/lib/libg/*
+Linux/lib/libg/*/*
+Linux/lib/esmf.mk
+Linux/lib/libesmf.so
+obj/*
+obj/*/*
+a.out

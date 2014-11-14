@@ -163,10 +163,31 @@ ifeq ($(ARCH),Linux)
 #ams              CXX = icpc
           endif
     else
+    ifeq ($(IFORT_MAJOR), 12)
+          LIB_SYS := -lirc -lguide $(LIB_SYS)
+          ifneq ($(MACH), i686)
+              FPE += -fp-model precise
+              MPFLAG :=# -mp is incompatible with the -fp-model option
+#ams              CC  = icc
+#ams              CXX = icpc
+          endif
+    else
+    ifeq ($(IFORT_MAJOR), 13)
+          LIB_SYS := -lirc -liomp5 $(LIB_SYS)
+          ifneq ($(MACH), i686)
+              FPE += -fp-model precise
+              MPFLAG :=# -mp is incompatible with the -fp-model option
+#ams              CC  = icc
+#ams              CXX = icpc
+          endif
+    else
 #alt: cprts library conflicts with ESMF4
           LIB_SYS +=  -lunwind #-lcprts
     endif
     endif
+    endif
+    endif
+
 
 #   MKL math library
 #   ----------------

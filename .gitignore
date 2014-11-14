@@ -8,4 +8,7 @@
 *.so
 geos
 geostomas
-___.h
+*___.h
+*___.rc
+*___.F*
+
