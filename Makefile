@@ -237,9 +237,13 @@ the_nuclear_option:
 	@$(MAKE) wipeout_mapl
 	@$(MAKE) wipeout_fvdycore
 
-wipeout_esmf:
+clean_esmf:
 	rm -f $(ESMF_DIR)/esmf.install
 	make -C $(ESMF_DIR) distclean
+
+wipeout_esmf:
+	@$(MAKE) clean_esmf
+	make -C $(ESMF_DIR) deletelibs
 
 wipeout_mapl:
 	rm -f $(ESMADIR)/mapl.install
