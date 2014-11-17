@@ -442,6 +442,10 @@ install:
 	mkdir -p $(ESMF_INSTALL_HEADERDIR_ABSPATH)
 	cp -f $(ESMF_BUILD)/src/include/ESMC.h $(ESMF_INSTALL_HEADERDIR_ABSPATH)
 	cp -f $(ESMF_BUILD)/src/include/ESMC_*.h $(ESMF_INSTALL_HEADERDIR_ABSPATH)
+	#-----------------------
+	# bmy added this line
+	cp -f  $(ESMF_BUILD)/src/include/*.inc $(ESMF_INSTALL_HEADERDIR_ABSPATH)
+	#-----------------------
 	cp -f $(ESMF_DIR)/build_config/$(ESMF_OS).$(ESMF_COMPILER).$(ESMF_SITE)/ESMC_Conf.h $(ESMF_INSTALL_HEADERDIR_ABSPATH)
 	mkdir -p $(ESMF_INSTALL_MODDIR_ABSPATH)
 	cp -f $(ESMF_MODDIR)/*.mod $(ESMF_INSTALL_MODDIR_ABSPATH)
