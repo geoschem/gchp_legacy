@@ -4,6 +4,7 @@
 # REVISION HISTORY:
 #
 # 09Jun2003  da Silva  First crack.
+# 20 Nov 2014 - R. Yantosca - Add MOD_ESMF to the list of INC_DIRS
 #
 
 # Make sure ESMADIR is defined
@@ -67,7 +68,17 @@ SRCS_F   = $(wildcard PWSSSP.F)
 OBJS = $(SRCS_F90:.F90=.o) $(SRCS_F:.F=.o)
 DEPS = $(SRCS_F90:.F90=.d) $(SRCS_F:.F=.d)
 
-INC_DIRS = . $(INC_ESMF) $(INC_MPI) $(INC_GMAO_SHARED) 
+###############################################################################
+# %%%%% COMMENTED OUT BY BOB Y. (11/20/14) %%%%%
+#INC_DIRS = . $(INC_ESMF) $(INC_MPI) $(INC_GMAO_SHARED)
+###############################################################################
+#------------------------------------------------------------------------------
+# %%%%% ADDED BY BOB Y. (11/20/14) %%%%%
+#
+# ESMF modules now get put into the MOD_ESMF directory, 
+# so we have to add that to INC_DIRS now (bmy, 11/20/14)
+INC_DIRS = . $(INC_ESMF) $(MOD_ESMF) $(INC_MPI) $(INC_GMAO_SHARED)
+#------------------------------------------------------------------------------
 MOD_DIRS = . $(INC_DIRS) 
 
 USER_FINCS = $(foreach dir,$(INC_DIRS),$(I)$(dir))

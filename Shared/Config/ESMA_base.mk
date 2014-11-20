@@ -11,7 +11,7 @@
 # 26apr2005  da Silva  MADE BOPT=O the default
 # 08Jun2006  Stassi    Added Check Environment section
 # 26Jun2006  da SIlva  Removed Assert.pl related staff; see Assert.mk instead
-#
+# 20 Nov 2014 - R. Yantosca - Remove hardwiring for netCDF, MPI
 #--------------------------------------------------------------------------
 
 #                       ----------------
@@ -121,58 +121,99 @@ ESMA_TIMER_CO  = # command to end   timer (for user to backet code segments)
 LIB_SCI =
 LIB_SYS =
 
-DIR_HDF5 = $(GC_BIN)
-INC_HDF5 = $(DIR_HDF5)/../include
-LIB_HDF5 = $(wildcard $(foreach lib,hdf5_hl hdf5 z sz gpfs,\
-           $(BASELIB)/lib$(lib).a) )
+###############################################################################
+# %%%%% COMMENTED OUT BY BOB Y. (11/20/14) %%%%%
+#
+# We will get the netCDF include & lib paths from GC_INCLUDE and GC_LIB
+# which are set in the GEOS-Chem Makefile_header.mk 
+#DIR_HDF5 = $(GC_BIN)
+#INC_HDF5 = $(DIR_HDF5)/../include
+#LIB_HDF5 = $(wildcard $(foreach lib,hdf5_hl hdf5 z sz gpfs,\
+#           $(BASELIB)/lib$(lib).a) )
+#
+#DIR_NETCDF = $(GC_BIN)
+##./$(ARCH)
+#INC_NETCDF = $(GC_INCLUDE)
+##$(DIR_NETCDF)/../include
+##ifeq ($(wildcard $(BASEBIN)/nc-config), )
+##    LIB_NETCDF = $(BASELIB)/libnetcdf.a $(LIB_HDF5)
+##else
+#    LIB_NETCDF := $(shell $(GC_BIN)/nc-config --flibs)
+##endif
+#
+##	LIB_NETCDF = -L$(GC_LIB)
+##$(NCL)
+###############################################################################
+#------------------------------------------------------------------------------
+# %%%%% ADDED BY BOB Y. (11/20/14) %%%%%
+#
+# Always assume we are using netCDF-4.  Take the include & link
+# directory paths as computed from the Makefile_header.mk.
+INC_NETCDF :=$(GC_INCLUDE)
+LIB_NETCDF :=$(NCL)
+#------------------------------------------------------------------------------
 
-DIR_NETCDF = $(GC_BIN)
-#./$(ARCH)
-INC_NETCDF = $(GC_INCLUDE)
-#$(DIR_NETCDF)/../include
-#ifeq ($(wildcard $(BASEBIN)/nc-config), )
-#    LIB_NETCDF = $(BASELIB)/libnetcdf.a $(LIB_HDF5)
+###############################################################################
+# %%%%% COMMENTED OUT BY BOB Y. (11/20/14) %%%%%
+#
+# COMMENTED OUT BY BOB Y. (11/20/14)
+# We know that we are using netCDF for the data I/O, so we can skip
+# all of this HDF stuff.
+#DIR_HDF = $(GC_BIN)
+##./$(ARCH)
+#INC_HDF = $(DIR_HDF)/include/hdf
+#LIB_HDF = $(wildcard $(foreach lib,mfhdf df hdfjpeg jpeg hdfz z sz,\
+#          $(BASELIB)/lib$(lib).a) )
+#
+#ifeq ($(ESMA_SDF),hdf)
+#   INC_SDF = $(INC_HDF)
+#   LIB_SDF = $(LIB_HDF)
 #else
-    LIB_NETCDF := $(shell $(GC_BIN)/nc-config --flibs)
-#endif
-
-#	LIB_NETCDF = -L$(GC_LIB)
-#$(NCL)
-
-DIR_HDF = $(GC_BIN)
-#./$(ARCH)
-INC_HDF = $(DIR_HDF)/include/hdf
-LIB_HDF = $(wildcard $(foreach lib,mfhdf df hdfjpeg jpeg hdfz z sz,\
-          $(BASELIB)/lib$(lib).a) )
-
-ifeq ($(ESMA_SDF),hdf)
-   INC_SDF = $(INC_HDF)
-   LIB_SDF = $(LIB_HDF)
-else
-   INC_SDF = $(INC_NETCDF)
-   LIB_SDF = $(LIB_NETCDF)
-   ifneq ($(wildcard $(INC_SDF)/netcdf.inc), )
-     ifneq ($(shell grep -c netcdf4 $(INC_SDF)/netcdf.inc),0)
-        DEF_SDF += $(D)HAS_NETCDF4
-     endif
-     ifneq ($(shell grep -c 'netcdf version 3' $(INC_SDF)/netcdf.inc),0)
-        DEF_SDF += $(D)HAS_NETCDF3
-     endif
-#     ifneq ($(shell grep -c 'define H5_HAVE_PARALLEL 1' $(INC_HDF5)/H5pubconf.h),0)
-#        DEF_SDF += $(D)H5_HAVE_PARALLEL
+#   INC_SDF = $(INC_NETCDF)
+#   LIB_SDF = $(LIB_NETCDF)
+#   ifneq ($(wildcard $(INC_SDF)/netcdf.inc), )
+#     ifneq ($(shell grep -c netcdf4 $(INC_SDF)/netcdf.inc),0)
+#        DEF_SDF += $(D)HAS_NETCDF4
 #     endif
-   endif
-endif
-
+#     ifneq ($(shell grep -c 'netcdf version 3' $(INC_SDF)/netcdf.inc),0)
+#        DEF_SDF += $(D)HAS_NETCDF3
+#     endif
+##     ifneq ($(shell grep -c 'define H5_HAVE_PARALLEL 1' $(INC_HDF5)/H5pubconf.h),0)
+##        DEF_SDF += $(D)H5_HAVE_PARALLEL
+##     endif
+#   endif
+#endif
+###############################################################################
+#------------------------------------------------------------------------------
+# %%%%% ADDED BY BOB Y. (11/20/14) %%%%%
+#
+# Always assume we are using netCDF-4 (bmy, 11/20/14)
+INC_SDF = $(INC_NETCDF)
+LIB_SDF = $(LIB_NETCDF)
+DEF_SDF += $(D)HAS_NETCDF4
+#------------------------------------------------------------------------------
 
 DIR_ESMF := $(ESMF_DIR)
-#$(BASEDIR)/ESMF
-INC_ESMF := $(DIR_ESMF)/$(ARCH)/include/
+INC_ESMF := $(DIR_ESMF)/$(ARCH)/include/ 
 MOD_ESMF := $(DIR_ESMF)/$(ARCH)/mod/
 LIB_ESMF := $(DIR_ESMF)/$(ARCH)/lib/libesmf.so
 
-INC_MPI = /usr/include
-LIB_MPI = -lmpi
+###############################################################################
+# %%%%% COMMENTED OUT BY BOB Y. (11/20/14) %%%%%
+#
+# Don't rely on hardwired MPI paths & libraries.
+#INC_MPI = /usr/include
+#LIB_MPI = -lmpi
+###############################################################################
+#------------------------------------------------------------------------------
+# %%%%% ADDED BY BOB Y. (11/20/14) %%%%%
+#
+# Now query for the correct MPI info (bmy, 11/20/14)
+INC_MPI := $(shell mpif90 --showme:incdirs)
+LIB_MPI := $(shell mpif90 --showme:link)
+LIB_MPI += $(shell mpicxx --showme:link)
+#------------------------------------------------------------------------------
+
 
 DIR_THIS := $(shell basename `pwd`)
 INC_THIS = $(ESMAINC)/$(DIR_THIS)
@@ -247,7 +288,7 @@ FINCS     = $(foreach dir,$(INC_ESMF), $(I)$(dir)) $(USER_FINCS)
 FMODS     = $(foreach dir,$(MOD_ESMF), $(M)$(dir)) $(USER_FMODS)
 XFLAGS    = 
 
-FC        = f90
+#FC        = f90
 fFLAGS    = $(FDEFS) $(FINCS) $(FMODS) $(FOPT) $(FREAL) $(FINT) $(XFLAGS) $(USER_FFLAGS)
 f90FLAGS  = $(FDEFS) $(FINCS) $(FMODS) $(FOPT) $(FREAL) $(FINT) $(XFLAGS) $(USER_FFLAGS)
 FFLAGS    = $(FDEFS) $(FINCS) $(FMODS) $(FOPT) $(FREAL) $(FINT) $(XFLAGS) $(USER_FFLAGS)

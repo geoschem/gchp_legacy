@@ -1,10 +1,26 @@
+#------------------------------------------------------------------------------
+#                  GEOS-Chem Global Chemical Transport Model                  !
+#------------------------------------------------------------------------------
+#BOP
 #
-# Makefile for ESMA components.
+# !MODULE: Makefile
 #
-# REVISION HISTORY:
+# !DESCRIPTION: Makefile for the NASA/GMAO FVdycore transport component.
+#\\
+#\\
+# !REMARKS:
+#  The FVdycore build sequence will touch the fvdycore.install file even
+#  whem making distclean.  You can use "make wipeout_mapl" in the ../GIGC
+#  directory to remove the FVdycore code.  This will remove fvdycore.install
+#  after making distclean.
 #
-# 09Jun2003  da Silva  First crack.
-#
+# !REVISION HISTORY: 
+#  09Jun2003  da Silva         First crack.
+#  18 Sep 2013 - M. Long     - Initial version
+#  18 Nov 2014 - R. Yantosca - Cosmetic changes
+#EOP
+#------------------------------------------------------------------------------
+#BOC#
 
 # Make sure ESMADIR is defined
 # ----------------------------
@@ -64,16 +80,16 @@ ifeq ($(wildcard fvdycore.install),)
 	@touch fvdycore.install
 	$(MAKE) local_$@
 else
-	@echo "***************************************************************"
-	@echo "********The FV DyCore already appears to be compiled. *********"
-	@echo "********If you need to make changes, remove the file **********"
-	@echo ""
-	@echo "$(CURDIR)/fvdycore.install "
-	@echo ""
-	@echo "********and recompile. This file is created after  ************"
-	@echo "********each successful completion of the make command ********"
-	@echo "********M.S. Long - 8/25/2014 *********************************"
-	@echo "***************************************************************"
+	@echo "%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%"
+	@echo "%%%%%  The FV DyCore already appears to be compiled."
+	@echo "%%%%%  If you need to make changes, remove the file"
+	@echo "%%%%%"
+	@echo "%%%%%  $(CURDIR)/fvdycore.install "
+	@echo "%%%%%"
+	@echo "%%%%%  and recompile. This file is created after"
+	@echo "%%%%%  each successful completion of the make command"
+	@echo "%%%%%     M.S. Long - 8/25/2014"
+	@echo "%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%"
 endif
 
 local_esma_install local_install: $(LIB) $(BINS)
@@ -224,4 +240,4 @@ moist_interp_rst.x: moist_interp_rst.o
 #.
 
   -include $(ESMADIR)/Config/ESMA_post.mk  # ESMA additional targets, macros
-
+#EOC

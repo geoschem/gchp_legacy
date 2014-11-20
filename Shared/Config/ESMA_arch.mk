@@ -3,6 +3,8 @@
 # This fragment costumizes ESMF_base.mk for each each architecture. 
 #
 # REVISION HISTORY:
+# 20 Nov 2014 - R. Yantosca - Remove hardwiring for netCDF, MPI
+# 20 Nov 2014 - R. Yantosca - Simplify the IF statement for FOPT3
 #
 #--------------------------------------------------------------------------
 
@@ -53,92 +55,120 @@ ifeq ($(ARCH),Linux)
     FREAL4 =
     FREAL8 = -r8
     FOPT2 += 
+###############################################################################
+# %%%%% COMMENTED OUT BY BOB Y. (11/20/14) %%%%%
+#    ifeq ("$(BOPT)","g")
+#       FOPT = $(FOPTG) -O0 -ftz -traceback -debug -nolib-inline -check bounds -check uninit -fp-stack-check -ftrapuv
+#    else
+#       ifeq ($(IFORT_MAJOR), 8)
+#          FOPT = $(FOPT3)
+#       else
+#       ifeq ($(IFORT_MAJOR), 9)
+#          FOPT = $(FOPT3) -vec-report0 -ftz -align all -fno-alias
+##          FOPT = $(FOPT3) -vec-report0 -ftz -align all -fno-alias -fp-model precise
+#       else
+#       ifeq ($(IFORT_MAJOR),10)
+#          FOPT = $(FOPT3) -vec-report0 -ftz -align all -fno-alias
+##          FOPT = $(FOPT3) -vec-report0 -ftz -align all -fno-alias -fp-model precise -assume protect_parens
+##          FOPT = $(FOPT3) -vec-report0 -align all -fno-alias -fno-inline-functions -assume protect_parens,minus0 -prec-div -prec-sqrt -no-ftz 
+#       else
+#       ifeq ($(IFORT_MAJOR),11)
+#          FOPT = $(FOPT3) -vec-report0 -ftz -align all -fno-alias
+##          FOPT = $(FOPT3) -xSSE4.1 -vec-report0 -ftz -align all -fno-alias
+#       else
+#          FOPT = $(FOPT3)
+#       endif
+#       endif
+#       endif
+#       endif
+#    endif
+###############################################################################
+#------------------------------------------------------------------------------
+# %%%%% ADDED BY BOB Y. (11/20/14) %%%%%
+#
+# Radically Simplify the IF statement.  All of the IFORT versions used 
+# the same flags, so we really don't need all of these if/else statements.
     ifeq ("$(BOPT)","g")
        FOPT = $(FOPTG) -O0 -ftz -traceback -debug -nolib-inline -check bounds -check uninit -fp-stack-check -ftrapuv
     else
-       ifeq ($(IFORT_MAJOR), 8)
-          FOPT = $(FOPT3)
-       else
-       ifeq ($(IFORT_MAJOR), 9)
-          FOPT = $(FOPT3) -vec-report0 -ftz -align all -fno-alias
-#          FOPT = $(FOPT3) -vec-report0 -ftz -align all -fno-alias -fp-model precise
-       else
-       ifeq ($(IFORT_MAJOR),10)
-          FOPT = $(FOPT3) -vec-report0 -ftz -align all -fno-alias
-#          FOPT = $(FOPT3) -vec-report0 -ftz -align all -fno-alias -fp-model precise -assume protect_parens
-#          FOPT = $(FOPT3) -vec-report0 -align all -fno-alias -fno-inline-functions -assume protect_parens,minus0 -prec-div -prec-sqrt -no-ftz 
-       else
-       ifeq ($(IFORT_MAJOR),11)
-          FOPT = $(FOPT3) -vec-report0 -ftz -align all -fno-alias
-#          FOPT = $(FOPT3) -xSSE4.1 -vec-report0 -ftz -align all -fno-alias
-       else
-          FOPT = $(FOPT3)
-       endif
-       endif
-       endif
-       endif
+       FOPT = $(FOPT3) -vec-report0 -ftz -align all -fno-alias
     endif
+#------------------------------------------------------------------------------
 
 #    LIB_ESMF = $(BASELIB)/libesmf.so
 
     CC  = gcc
     CXX = g++
 
-#   Default MPI on i686
-#   -------------------
-    ifeq ($(MACH), i686)
-      FC := mpif90
-      INC_MPI := $(dir $(shell which mpif90))../include
-      LIB_MPI := -L$(dir $(shell which mpif90))../lib -lmpi -lmpi_cxx -lmpi_f77
-    endif
-
-#   Handle MPI on x86_64
-#   --------------------
-    ifdef I_MPI_ROOT
-        FC := mpiifort
-        ifeq ($(MACH), x86_64) 
-          INC_MPI := $(I_MPI_ROOT)/include64
-          LIB_MPI := -L$(I_MPI_ROOT)/lib64  -lmpi -lmpiif # Intel MPI
-        else
-          INC_MPI := $(I_MPI_ROOT)/include
-          LIB_MPI := -L$(I_MPI_ROOT)/lib  -lmpi -lmpiif # Intel MPI
-        endif
-    else
-    ifdef M_MPI_ROOT
-        FC := mpiifort
-        INC_MPI := $(M_MPI_ROOT)/include
-        LIB_MPI := -L$(M_MPI_ROOT)/lib  -lmpich
-    else
-    ifdef MPI_HOME
-        FC := mpif90
-        INC_MPI := $(MPI_HOME)/include
-        LIB_MPI := -L$(MPI_HOME)/lib  -lmpi -lmpi_cxx -lmpi_f77 #-lmpich
-    else
-    ifdef MVAPICH2
-        FC := mpif90
-        INC_MPI := $(MVAPICH2)/include
-        LIB_MPI := -L$(MVAPICH2)/lib  -lmpich
-    else
-    ifdef FPATH
-        FPATHS := $(subst :, ,$(FPATH))
-        ifeq ($(MACH), x86_64) 
-          INC_MPI := $(filter /nasa/sgi/mpt%,$(FPATHS)) \
-                     $(filter /opt/scali%,$(FPATHS))
-          INC_MPI := $(word 1,$(INC_MPI))
-          LIB_MPI := -L$(subst include,lib64,$(INC_MPI)) -lmpi -lmpi++
-        endif
-        ifeq ($(MACH), ia64)
-          INC_MPI := $(filter /opt/sgi/mpt%,$(FPATHS)) \
-                     $(filter /nasa/sgi/mpt%,$(FPATHS)) 
-          INC_MPI := $(word 1,$(INC_MPI))
-          LIB_MPI := -L$(subst include,lib,$(INC_MPI)) -lmpi -lmpi++
-         endif
-    else 
-    endif
-    endif
-    endif
-    endif
-    endif
+###############################################################################
+# %%%%% COMMENTED OUT BY BOB Y. (11/20/14) %%%%%
+#
+# Remove hardwiring; replace with portable declaration from OpenMPI.
+##   Default MPI on i686
+##   -------------------
+#    ifeq ($(MACH), i686)
+#      FC := mpif90
+#      INC_MPI := $(dir $(shell which mpif90))../include
+#      LIB_MPI := -L$(dir $(shell which mpif90))../lib -lmpi -lmpi_cxx -lmpi_f77
+#    endif
+#
+##   Handle MPI on x86_64
+##   --------------------
+#    ifdef I_MPI_ROOT
+#        FC := mpiifort
+#        ifeq ($(MACH), x86_64) 
+#          INC_MPI := $(I_MPI_ROOT)/include64
+#          LIB_MPI := -L$(I_MPI_ROOT)/lib64  -lmpi -lmpiif # Intel MPI
+#        else
+#          INC_MPI := $(I_MPI_ROOT)/include
+#          LIB_MPI := -L$(I_MPI_ROOT)/lib  -lmpi -lmpiif # Intel MPI
+#        endif
+#    else
+#    ifdef M_MPI_ROOT
+#        FC := mpiifort
+#        INC_MPI := $(M_MPI_ROOT)/include
+#        LIB_MPI := -L$(M_MPI_ROOT)/lib  -lmpich
+#    else
+#    ifdef MPI_HOME
+#        FC := mpif90
+#        INC_MPI := $(MPI_HOME)/include
+#        LIB_MPI := -L$(MPI_HOME)/lib  -lmpi -lmpi_cxx -lmpi_f77 #-lmpich
+#    else
+#    ifdef MVAPICH2
+#        FC := mpif90
+#        INC_MPI := $(MVAPICH2)/include
+#        LIB_MPI := -L$(MVAPICH2)/lib  -lmpich
+#    else
+#    ifdef FPATH
+#        FPATHS := $(subst :, ,$(FPATH))
+#        ifeq ($(MACH), x86_64) 
+#          INC_MPI := $(filter /nasa/sgi/mpt%,$(FPATHS)) \
+#                     $(filter /opt/scali%,$(FPATHS))
+#          INC_MPI := $(word 1,$(INC_MPI))
+#          LIB_MPI := -L$(subst include,lib64,$(INC_MPI)) -lmpi -lmpi++
+#        endif
+#        ifeq ($(MACH), ia64)
+#          INC_MPI := $(filter /opt/sgi/mpt%,$(FPATHS)) \
+#                     $(filter /nasa/sgi/mpt%,$(FPATHS)) 
+#          INC_MPI := $(word 1,$(INC_MPI))
+#          LIB_MPI := -L$(subst include,lib,$(INC_MPI)) -lmpi -lmpi++
+#         endif
+#    else 
+#    endif
+#    endif
+#    endif
+#    endif
+#    endif
+###############################################################################
+#------------------------------------------------------------------------------
+# %%%%% ADDED BY BOB Y. (11/20/14) %%%%%
+#
+# Now query the proper MPI settings
+FC      :=mpif90
+INC_MPI := $(shell mpif90 --showme:incdirs)
+LIB_MPI := $(shell mpif90 --showme:link)
+LIB_MPI += $(shell mpicxx --showme:link)
+#------------------------------------------------------------------------------
 
 #   Define LIB_SYS
 #   --------------
@@ -150,8 +180,6 @@ ifeq ($(ARCH),Linux)
           ifneq ($(MACH), i686)
               FPE := -fp-model precise
               MPFLAG :=# -mp is incompatible with the -fp-model option
-#ams              CC  = icc
-#ams              CXX = icpc
           endif
     else
     ifeq ($(IFORT_MAJOR), 11)
@@ -159,17 +187,17 @@ ifeq ($(ARCH),Linux)
           ifneq ($(MACH), i686)
               FPE += -fp-model precise
               MPFLAG :=# -mp is incompatible with the -fp-model option
-#ams              CC  = icc
-#ams              CXX = icpc
           endif
     else
+#------------------------------------------------------------------------------
+# %%%%% ADDED BY BOB Y. (11/20/14) %%%%%
+#
+# Extend for IFORT 12 and IFORT 13 
     ifeq ($(IFORT_MAJOR), 12)
           LIB_SYS := -lirc -lguide $(LIB_SYS)
           ifneq ($(MACH), i686)
               FPE += -fp-model precise
               MPFLAG :=# -mp is incompatible with the -fp-model option
-#ams              CC  = icc
-#ams              CXX = icpc
           endif
     else
     ifeq ($(IFORT_MAJOR), 13)
@@ -177,16 +205,20 @@ ifeq ($(ARCH),Linux)
           ifneq ($(MACH), i686)
               FPE += -fp-model precise
               MPFLAG :=# -mp is incompatible with the -fp-model option
-#ams              CC  = icc
-#ams              CXX = icpc
           endif
+#------------------------------------------------------------------------------
     else
 #alt: cprts library conflicts with ESMF4
           LIB_SYS +=  -lunwind #-lcprts
     endif
     endif
+#------------------------------------------------------------------------------
+# %%%%% ADDED BY BOB Y. (11/20/14) %%%%%
+#
+# Need to add 2 more endif's to balance out the extra ifeq's above.
     endif
     endif
+#------------------------------------------------------------------------------
 
 
 #   MKL math library
@@ -233,13 +265,19 @@ ifeq ($(ARCH),Linux)
     f90FLAGS += $(FPIC) $(FPE) $(OVERRIDE_LIMITS) $(ALIGNCOM)
     F90FLAGS += $(FPIC) $(FPE) $(OVERRIDE_LIMITS) $(ALIGNCOM)
 
-#   Some safeguards
-#   ---------------
-    ifeq ($(INC_MPI),)
-      FC := mpif90
-      INC_MPI := $(dir $(shell which mpif90))../include
-      LIB_MPI := -L$(dir $(shell which mpif90))../lib -lmpi -lmpi_cxx -lmpi_f77
-    endif
+##############################################################################
+# %%%%% COMMENTED OUT BY BOB Y. (11/20/14) %%%%%
+#
+# Comment this section out, it's not necessary, as we define
+# both INC_MPI and LIB_MPI above.  
+##   Some safeguards
+##   ---------------
+#    ifeq ($(INC_MPI),)
+#      FC := mpif90
+#      INC_MPI := $(dir $(shell which mpif90))../include
+#      LIB_MPI := -L$(dir $(shell which mpif90))../lib -lmpi -lmpi_cxx -lmpi_f77
+#    endif
+##############################################################################
 
   endif
 

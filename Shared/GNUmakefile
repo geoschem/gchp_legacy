@@ -1,6 +1,23 @@
+#------------------------------------------------------------------------------
+#                  GEOS-Chem Global Chemical Transport Model                  !
+#------------------------------------------------------------------------------
+#BOP
 #
-# recursive makefile for ESMA.
+# !MODULE: GNUmakefile
 #
+# !DESCRIPTION: Makefile to build MAPL and related libraries. 
+#\\
+#\\
+# !REMARKS:
+#  Originally from the GEOS-5 build sequence. 
+#
+# !REVISION HISTORY: 
+#  20 Nov 2014 - R. Yantosca - Build GMAO_mpeu before GMAO_gfio.
+#  20 Nov 2014 - R. Yantosca - Add more visible separators to text to 
+#                              indicate when we are building an new library
+#EOP
+#------------------------------------------------------------------------------
+#BOC
 
 # Make sure ESMADIR is defined
 # ----------------------------
@@ -31,22 +48,41 @@ esma_help :
 	@echo "         ARCH = $(ARCH)"
 	@echo "         SITE = $(SITE)"
 	@echo "     DIR_ESMF = $(DIR_ESMF)"
+	@echo "     MPI_INC  = $(MPI_INC)"
 
 
 #                  --------------------------------
 #                   Recurse Make in Sub-directories
 #                  --------------------------------
 
+###############################################################################
+# %%%%% COMMENTED OUT BY BOB Y. (11/20/14) %%%%%
+#ALLDIRS = arpack pnagpack \
+#	  GFDL_fms        \
+#	  GMAO_gfio       \
+#	  GMAO_hermes     \
+#	  GMAO_mpeu       \
+#	  GMAO_pilgrim    \
+#          MAPL_cfio       \
+#          MAPL_Base       \
+#	  GEOS_Shared     \
+#	  GEOS_Util
+###############################################################################
+#------------------------------------------------------------------------------
+# %%%%% ADDED BY BOB Y. (11/20/14) %%%%%
+#
+# Change order of Shared library builds.  Put GMAO_mpeu before GMAO_gfio.
 ALLDIRS = arpack pnagpack \
-	  GFDL_fms \
-	  GMAO_gfio \
-	  GMAO_hermes \
-	  GMAO_mpeu \
-	  GMAO_pilgrim \
-          MAPL_cfio \
-          MAPL_Base \
-	  GEOS_Shared \
+	  GFDL_fms        \
+	  GMAO_mpeu       \
+	  GMAO_gfio       \
+	  GMAO_hermes     \
+	  GMAO_pilgrim    \
+          MAPL_cfio       \
+          MAPL_Base       \
+	  GEOS_Shared     \
 	  GEOS_Util
+#------------------------------------------------------------------------------
 
 SUBDIRS = $(wildcard $(ALLDIRS) )
 
@@ -58,9 +94,11 @@ export ESMADIR BASEDIR ARCH SITE
 $(TARGETS): 
 	@echo "BPREC $(BPREC)"  
 	@ t=$@; argv="$(SUBDIRS)" ;\
-	  for d in $$argv; do			 \
-	    ( cd $$d				;\
-	      echo ""; echo Making $$t in `pwd`          ;\
+	  for d in $$argv; do \
+	    ( cd $$d ;\
+              echo '%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%';\
+	      echo "%%% Making $$t in ', `pwd`" ;\
+              echo '%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%';\
 	      $(MAKE) $$t ) \
 	  done
 

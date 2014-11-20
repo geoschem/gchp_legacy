@@ -43,6 +43,7 @@ esma_help help:
 	@echo "      BASEDIR = $(BASEDIR)"
 	@echo "         ARCH = $(ARCH)"
 	@echo "         SITE = $(SITE)"
+	@echo "      INC_MPI = $(INC_MPI)"
 
 THIS := $(shell basename `pwd`)
 LIB  = lib$(THIS).a
@@ -84,8 +85,20 @@ INC_DIRS = . ./shared/include ./shared/mpp/include  \
 MOD_DIRS = . $(INC_DIRS) 
 SRC_DIRS = $(sort $(dir $(SRCS)))
 
+#----------------------------------------------------------------------------
+# Prior to 11/19/14:
+# NOTE: Hardwire this because some directories already have -I 
 USER_FINCS  = $(foreach dir,$(INC_DIRS),$(I)$(dir))
 USER_FMODS  = $(foreach dir,$(MOD_DIRS),$(M)$(dir)) 
+#----------------------------------------------------------------------------
+#USER_FINCS  = $(I)./shared/include \
+#              $(I)./shared/mpp/include \
+#              $(I)$(INC_GMAO_SHARED) \
+#              $(I)$(INC_SDF) \
+#              $(I)$(INC_ESMF) \
+#              $(I)$(INC_MPI)
+#USER_FMODS  = $(USER_FINCS)
+
 
 vpath % $(SRC_DIRS) $(INC_DIRS) $(MOD_DIRS) /usr/include
 
@@ -93,7 +106,12 @@ USER_FFLAGS += $(BIG_ENDIAN)
 USER_FDEFS  = $(D)OVERLOAD_R4 $(D)MAPL_MODE $(D)EIGHT_BYTE $(D)SPMD $(D)TIMING \
               $(D)use_libMPI $(D)use_netCDF
 USER_CDEFS  = $(USER_FDEFS)
-USER_CINCS  += $(I)$(INC_SDF) $(I)$(INC_MPI)
+#----------------------------------------------------------------------------
+# Prior to 11/19/14:
+# $(INC_MPI) has the -I already since it comes out of mpif90 --showme etc.
+#USER_CINCS  += $(I)$(INC_SDF) $(I)$(INC_MPI)
+#----------------------------------------------------------------------------
+USER_CINCS  += $(I)$(INC_SDF) $(INC_MPI)
 
 FREAL = $(FREAL8)
 
@@ -131,6 +149,10 @@ echo:
 	@$(PERL) $(FDP) -i $< $(FDP_FLAGS) -c $*___.f90
 	@$(RM) $*___.f90
 
+
+bmy:
+	@echo "USER_FINCS = $(USER_FINCS)"
+	@echo "USER_FMODS = $(USER_FINCS)"
 
 #.
 

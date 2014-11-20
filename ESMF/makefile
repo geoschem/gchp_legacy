@@ -442,10 +442,14 @@ install:
 	mkdir -p $(ESMF_INSTALL_HEADERDIR_ABSPATH)
 	cp -f $(ESMF_BUILD)/src/include/ESMC.h $(ESMF_INSTALL_HEADERDIR_ABSPATH)
 	cp -f $(ESMF_BUILD)/src/include/ESMC_*.h $(ESMF_INSTALL_HEADERDIR_ABSPATH)
-	#-----------------------
-	# bmy added this line
+#------------------------------------------------------------------------------
+# %%%%% ADDED BY BOB Y. (11/20/14) %%%%%
+#
+# Force copying of Fortran *.inc header files to the $(ARCH)/include directory
+# because the MAPL build will look for this here.  Maybe this changed somehow
+# when ESMF was updated.
 	cp -f  $(ESMF_BUILD)/src/include/*.inc $(ESMF_INSTALL_HEADERDIR_ABSPATH)
-	#-----------------------
+#------------------------------------------------------------------------------
 	cp -f $(ESMF_DIR)/build_config/$(ESMF_OS).$(ESMF_COMPILER).$(ESMF_SITE)/ESMC_Conf.h $(ESMF_INSTALL_HEADERDIR_ABSPATH)
 	mkdir -p $(ESMF_INSTALL_MODDIR_ABSPATH)
 	cp -f $(ESMF_MODDIR)/*.mod $(ESMF_INSTALL_MODDIR_ABSPATH)
@@ -461,7 +465,7 @@ install:
 	-@echo " "
 	-@echo "ESMF installation complete."
 	-@echo " "
-        
+
 # ------------------------------------------------------------------
 # INSTALLCHECK target
 installcheck:

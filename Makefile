@@ -40,6 +40,8 @@
 #  17 Oct 2014 - R. Yantosca - Added "the_nuclear_option" target to totally
 #                              clean the ESMF, MAPL, and FVDYCORE directories
 #  17 Oct 2014 - R. Yantosca - Cosmetic changes
+#  18 Nov 2014 - R. Yantosca - Remove the fvdycore.install file again after
+#                              making distclean, for safety's sake.
 #EOP
 #------------------------------------------------------------------------------
 #BOC
@@ -157,9 +159,9 @@ endif
 baselibs_mapl:
 ifeq ($(wildcard $(ESMADIR)/mapl.install),)
 	$(MAKE) -C $(ESMADIR) install
-	#rm $(ESMADIR)/$(ARCH)/lib/libGMAO_gfio.a
+	rm -f $(ESMADIR)/$(ARCH)/lib/libGMAO_gfio.a
 	ln -sf $(ESMADIR)/$(ARCH)/lib/libGMAO_gfio_r4.a $(ESMADIR)/$(ARCH)/lib/libGMAO_gfio.a
-	#rm $(ESMADIR)/$(ARCH)/lib/libMAPL_cfio.a
+	rm -f $(ESMADIR)/$(ARCH)/lib/libMAPL_cfio.a
 	ln -sf $(ESMADIR)/$(ARCH)/lib/libMAPL_cfio_r4.a $(ESMADIR)/$(ARCH)/lib/libMAPL_cfio.a
 	@touch $(ESMADIR)/mapl.install
 endif
@@ -238,19 +240,32 @@ the_nuclear_option:
 	@$(MAKE) wipeout_fvdycore
 
 wipeout_esmf:
+	@echo '%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%'
+	@echo '%%%%%  Wiping out the ESMF installation    %%%%%'
+	@echo '%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%'
 	rm -f $(ESMF_DIR)/esmf.install
-	make -C $(ESMF_DIR) distclean
+	@$(MAKE) -C $(ESMF_DIR) distclean
+	rm -rf $(ESMF_DIR)/$(ARCH)
+	rm -f $(ESMF_DIR)/esmf.install
 
 wipeout_mapl:
+	@echo '%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%'
+	@echo '%%%%%  Wiping out the MAPL installation    %%%%%'
+	@echo '%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%'
 	rm -f $(ESMADIR)/mapl.install
-	rm -f $(ESMADIR)/Linux/lib/*.a
+	rm -f $(ESMADIR)/$(ARCH)/lib/*.a
 	rm -f $(ESMADIR)/Config/bin/*.x
 	rm -f ./*___.*
-	make -C $(ESMADIR) distclean
+	@$(MAKE) -C $(ESMADIR) distclean
+	rm -f $(ESMADIR)/mapl.install
 
 wipeout_fvdycore:
+	@echo '%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%'
+	@echo '%%%%%  Wiping out the FVDYCORE installation  %%%%%'
+	@echo '%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%'
 	rm -f $(FVDIR)/fvdycore.install
-	make -C $(FVDIR) ESMADIR=$(ESMADIR) distclean
+	@$(MAKE) -C $(FVDIR) ESMADIR=$(ESMADIR) distclean
+	rm -f $(FVDIR)/fvdycore.install
 
 ###############################################################################
 ###                                                                         ###
