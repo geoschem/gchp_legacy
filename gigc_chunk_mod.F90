@@ -612,7 +612,7 @@ CONTAINS
              ENDIF
      
              ! Get emissions from HEMCO (kg/m2/s)
-             CALL GetHcoVal( T, I, J, L, FND, Emis8=Emis8 )
+             CALL GetHcoVal( T, I, J, L, FND, Emis8 )
              IF ( FND ) THEN
                 ! kg/m2/s -> kg
                 FLX = FLX + ( Emis8 * HcoState%Grid%AREA_M2%Val(I,J) * DT )
@@ -622,7 +622,7 @@ CONTAINS
              IF ( L == 1 ) THEN
 
                 ! Get deposition rate from HEMCO (1/s)
-                CALL GetHcoVal( T, I, J, L, FND, Dep8 = Dep8 )
+                CALL GetHcoVal( T, I, J, L, FND, Dep8 )
                 IF ( FND ) DEP = DEP + Dep8
 
                 ! Also add deposition from drydep_mod.F [1/s].
@@ -748,7 +748,7 @@ CONTAINS
        ! Calculate TOMS O3 overhead. For now, always use it from the
        ! Met field. State_Met%TO3 is imported from PCHEM.
        ! (ckeller, 10/21/2014).
-       CALL COMPUTE_OVERHEAD_O3( DAY, .TRUE., State_Met%TO3 )
+       CALL COMPUTE_OVERHEAD_O3( am_I_Root, DAY, .TRUE., State_Met%TO3 )
 
        ! Do chemistry
        CALL Do_Chemistry( am_I_Root = am_I_Root,            & ! Root CPU?
