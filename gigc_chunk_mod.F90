@@ -226,18 +226,10 @@ CONTAINS
 !  for the following operations:
 !
 ! \begin{itemize}
-! \item Convection (Phase 1)
-! \item Dry deposition (Phase 1)
-! \item Emissions (Phase 1)
-! \item Turbulence (Phase 2)
-! \item Chemistry (Phase 2)
-! \item Wet deposition (Phase 2)
+! \item Dry deposition
+! \item Chemistry
 ! \end{itemize}
 !
-! Any of the operations is only executed if it is enabled in the input.geos
-! file. The input argument phase can be used for operator splitting, e.g. to
-! execute only phase 1 operations. If phase is set to -1, all operations are
-! executed.
 ! !INTERFACE:
 !
   SUBROUTINE GIGC_Chunk_Run( am_I_Root, IM,        JM,        LM,         &
@@ -269,11 +261,13 @@ CONTAINS
     USE WETSCAV_MOD,        ONLY : INIT_WETSCAV, DO_WETDEP
     USE DRYDEP_MOD,         ONLY : DEPSAV, NUMDEP, NTRAIND
     USE CONVECTION_MOD,     ONLY : DO_CONVECTION
+    USE TOMS_MOD,           ONLY : COMPUTE_OVERHEAD_O3
 
     ! HEMCO update
     USE HCO_ERROR_MOD
     USE HCO_STATE_MOD,      ONLY : HCO_STATE
     USE HCOI_GC_MAIN_MOD,   ONLY : HCOI_GC_RUN, GetHcoState
+    USE HCOI_GC_MAIN_MOD,   ONLY : GetHcoVal,   GetHcoID
 !
 ! !INPUT PARAMETERS:
 !
@@ -348,15 +342,21 @@ CONTAINS
 !BOC
     TYPE(HCO_STATE), POINTER       :: HcoState => NULL() 
     REAL*8                         :: DT
-    REAL(hp)                       :: FLX, DEP
+    REAL*8                         :: FLX, DEP
+    REAL*8                         :: Emis8, Dep8
     INTEGER                        :: I, J, L, T 
-    INTEGER                        :: N, NN
+    INTEGER                        :: N1, N2
     INTEGER                        :: ERROR
+    INTEGER                        :: HcoID
     CHARACTER(LEN=ESMF_MAXSTR)     :: Iam
+    LOGICAL                        :: FND
 
     ! Local logicals from input_opt
     LOGICAL                        :: LCONV, LDRYD, LEMIS
     LOGICAL                        :: LWETD, LCHEM, LTURB
+
+    ! Are tracers in mass or mixing ratio?
+    LOGICAL                        :: isMass
 
     ! Kludge to skip first phase one:
     LOGICAL, SAVE                  :: FIRST = .TRUE.
@@ -489,334 +489,309 @@ CONTAINS
     ! Call PBL quantities. Those are always needed
     CALL COMPUTE_PBL_HEIGHT( State_Met )
 
+    ! Data enters in v/v
+    isMass = .FALSE.
+
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 !!!                                PHASE 1                                 !!!
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-    ! Only if phase 1 is on...
-    IF ( Phase == 1 ) THEN
+    !=======================================================================
+    ! 1. Convection (in v/v)
+    ! 
+    ! Call GEOS-Chem internal convection routines if convection is enabled
+    ! in input.geos. This should only be done if convection is not covered
+    ! by another gridded component and/or the GC species are not made
+    ! friendly to this component!!
+    !=======================================================================
+    IF ( Input_Opt%LCONV ) THEN
 
        ! testing only
-       if(am_I_Root) write(*,*) 'GEOS-Chem: call run phase 1 now'
-
-       !=======================================================================
-       ! 1. Convection (in v/v)
-       ! 
-       ! Call GEOS-Chem internal convection routines if convection is enabled
-       ! in input.geos. This should only be done if convection is not covered
-       ! by another gridded component and/or the GC species are not made
-       ! friendly to this component!!
-       !=======================================================================
-       IF ( Input_Opt%LCONV ) THEN
-
-          ! testing only
-          if(am_I_Root) write(*,*) ' --- Do convection now'
+       if(am_I_Root) write(*,*) ' --- Do convection now'
   
-          CALL DO_CONVECTION ( am_I_Root, Input_Opt, State_Met, State_Chm, RC )
+       CALL DO_CONVECTION ( am_I_Root, Input_Opt, State_Met, State_Chm, RC )
  
-          ! testing only
-          if(am_I_Root) write(*,*) ' --- Convection done!'
-       ENDIF   
+       ! testing only
+       if(am_I_Root) write(*,*) ' --- Convection done!'
+    ENDIF   
 
-       !---------------------------------
-       ! Unit conversion [v/v] --> [kg]
-       !---------------------------------
+    !---------------------------------
+    ! Unit conversion [v/v] --> [kg]
+    !---------------------------------
+    IF ( Input_Opt%LDRYD .OR. Input_Opt%LEMIS ) THEN
        CALL Convert_Units  ( IFLAG     = 2,                    & ! [v/v] -> [kg]
                              N_TRACERS = Input_Opt%N_TRACERS,  & ! # of tracers
                              TCVV      = Input_Opt%TCVV,       & ! Molec / kg
                              AD        = State_Met%AD,         & ! Air mass [kg]
                              STT       = State_Chm%Tracers    )  ! Tracer array
-   
-       !=======================================================================
-       ! 2. Dry deposition.
-       !
-       ! This calculates the deposition rates in [s-1].
-       !=======================================================================
-       IF ( Input_Opt%LDRYD ) THEN
-   
-          ! testing only
-          if(am_I_Root) write(*,*) ' --- Do drydep now'
-   
-          ! Update & Remap Land-type arrays from Surface Grid-component
-          CALL GEOS5_TO_OLSON_LANDTYPE_REMAP( State_Met, RC )    
-       
-          ! Execute Dry deposition
-          CALL Do_DryDep   ( am_I_Root = am_I_Root,            & ! Root CPU?
-                             Input_Opt = Input_Opt,            & ! Input Options
-                             State_Chm = State_Chm,            & ! Chemistry State
-                             State_Met = State_Met,            & ! Met State
-                             RC        = RC                   )  ! Success?
-   
-          ! testing only
-          if(am_I_Root) write(*,*) ' --- Drydep done!'
+       IsMass = .TRUE.
+    ENDIF
 
-       ENDIF ! Do drydep
-   
-       !=======================================================================
-       ! 3. Emissions (HEMCO).
-       ! 
-       ! HEMCO adds emissions to State_Met%Trac_Tend [kg m-2 s-1] and
-       ! deposition to State_Met%DepSav [s-1].
-       !=======================================================================
-       IF ( Input_Opt%LEMIS ) THEN
-   
-          ! testing only
-          if(am_I_Root) write(*,*) ' --- Do emissions now'
-   
-          CALL HCOI_GC_RUN ( am_I_Root, Input_Opt, State_Met, State_Chm, ERROR )
-          ASSERT_(ERROR==HCO_SUCCESS)
-   
-          ! testing only
-          if(am_I_Root) write(*,*) ' --- Emissions done!'
-       ENDIF
-   
-       !=======================================================================
-       ! If physics covers turbulence, simply add the emisison and dry 
-       ! deposition fluxes calculated above to the tracer array, without caring
-       ! about the vertical distribution.
-       ! Set the emission and deposition values to zero to make sure that they
-       ! are not used again in chemistry (even if the non-local PBL scheme is 
-       ! used, emissions above the PBL are still added to the chemical solver).
-       !=======================================================================
-       IF ( .NOT. LTURB .AND. (Input_Opt%LEMIS .OR. Input_Opt%LDRYD) ) THEN
+    !=======================================================================
+    ! 2. Dry deposition.
+    !
+    ! This calculates the deposition rates in [s-1].
+    !=======================================================================
+    IF ( Input_Opt%LDRYD ) THEN
+
+       ! testing only
+       if(am_I_Root) write(*,*) ' --- Do drydep now'
+
+       ! Update & Remap Land-type arrays from Surface Grid-component
+       CALL GEOS5_TO_OLSON_LANDTYPE_REMAP( State_Met, RC )    
+    
+       ! Execute Dry deposition
+       CALL Do_DryDep   ( am_I_Root = am_I_Root,            & ! Root CPU?
+                          Input_Opt = Input_Opt,            & ! Input Options
+                          State_Chm = State_Chm,            & ! Chemistry State
+                          State_Met = State_Met,            & ! Met State
+                          RC        = RC                   )  ! Success?
+
+       ! testing only
+       if(am_I_Root) write(*,*) ' --- Drydep done!'
+
+    ENDIF ! Do drydep
+
+    !=======================================================================
+    ! 3. Emissions (HEMCO).
+    !=======================================================================
+    IF ( Input_Opt%LEMIS ) THEN
+
+       ! testing only
+       if(am_I_Root) write(*,*) ' --- Do emissions now'
+
+       CALL HCOI_GC_RUN ( am_I_Root, Input_Opt, State_Met, State_Chm, ERROR )
+       ASSERT_(ERROR==HCO_SUCCESS)
+
+       ! testing only
+       if(am_I_Root) write(*,*) ' --- Emissions done!'
+    ENDIF
+
+    !=======================================================================
+    ! If physics covers turbulence, simply add the emisison and dry 
+    ! deposition fluxes calculated above to the tracer array, without caring
+    ! about the vertical distribution.
+    ! Set the emission and deposition values to zero to make sure that they
+    ! are not used again in chemistry (even if the non-local PBL scheme is 
+    ! used, emissions above the PBL are still added to the chemical solver).
+    !=======================================================================
+    IF ( .NOT. Input_Opt%LTURB .AND. (Input_Opt%LEMIS .OR. Input_Opt%LDRYD) ) THEN
   
-          ! testing only
-          if(am_I_Root) write(*,*) ' --- Add emissions and drydep to tracers'
+       ! testing only
+       if(am_I_Root) write(*,*) ' --- Add emissions and drydep to tracers'
  
-          ! Get pointer to HEMCO state
-          CALL GetHcoState ( HcoState )
-          ASSERT_( ASSOCIATED(HcoState) )
-   
-          ! Emission time step in seconds
-          DT = HcoState%TS_EMIS
-   
-          ! Loop over all grid boxes 
-          DO L = 1, HcoState%NZ
-          DO J = 1, HcoState%NY
-          DO I = 1, HcoState%NX
+       ! Get pointer to HEMCO state
+       CALL GetHcoState ( HcoState )
+       ASSERT_( ASSOCIATED(HcoState) )
 
-          ! Do for all HEMCO species
-          DO T = 1, HcoState%nSpc
-     
+       ! Emission time step in seconds
+       DT = HcoState%TS_EMIS
+ 
+       ! Loop over all grid boxes 
+       DO L = 1, HcoState%NZ
+       DO J = 1, HcoState%NY
+       DO I = 1, HcoState%NX
+
+          ! Do for all species
+          DO T = 1, Input_Opt%N_TRACERS
+ 
              ! Reset
-             FLX = 0.0_hp
-             DEP = 0.0_hp
-      
-             ! Get GEOS-Chem species ID
-             NN = HcoState%Spc(T)%ModID
+             FLX = 0.0d0
+             DEP = 0.0d0
  
-             ! Error check (model species ID should never be zero!)
-             IF ( NN < 1 ) CYCLE
-
              ! testing only
              IF ( am_I_Root .and. i==1 .and. j==1 .and. l==1 ) THEN
-               write(*,*) '     Emissions for species: ', TRIM(HcoState%Spc(T)%SpcName),&
-                           SUM(State_Chm%Trac_Tend(:,:,:,NN))
+                ! Get HEMCO ID corresponding to this GC tracer
+                HcoID = GetHcoID( TrcID = T )
+                IF ( HcoID > 0 ) THEN
+                IF ( ASSOCIATED(HcoState%Spc(HcoID)%Emis%Val) ) THEN
+                   write(*,*) '     Emission range for species: ', TRIM(Input_Opt%TRACER_NAME(T)), &
+               MINVAL(HcoState%Spc(HcoID)%Emis%Val), MAXVAL(HcoState%Spc(HcoID)%Emis%Val)
+                ENDIF
+                ENDIF
              ENDIF
      
-             ! Get emissions from HEMCO. These values become stored in
-             ! State_Chm%Trac_Tend (in kg/m2/s, see hcoi_gc_main_mod.F90). Convert
-             ! to kg here.
-             FLX = State_Chm%Trac_Tend(I,J,L,NN) &
-                 * HcoState%Grid%AREA_M2%Val(I,J) * DT
-            
+             ! Get emissions from HEMCO (kg/m2/s)
+             CALL GetHcoVal( T, I, J, L, FND, Emis8=Emis8 )
+             IF ( FND ) THEN
+                ! kg/m2/s -> kg
+                FLX = FLX + ( Emis8 * HcoState%Grid%AREA_M2%Val(I,J) * DT )
+             ENDIF      
+ 
              ! Deposition (surface layer only)
              IF ( L == 1 ) THEN
-   
-                ! Get deposition from HEMCO. These values become stored in
-                ! State_Chm%DepSav (in 1/s, see hcoi_gc_main_mod.F90).
-                ! Convert to kg/m2/s. 
-                DEP = State_Chm%DepSav(I,J,NN)   &
-                    * State_Chm%Tracers(I,J,L,NN) &
-                    / HcoState%Grid%AREA_M2%Val(I,J)
+
+                ! Get deposition rate from HEMCO (1/s)
+                CALL GetHcoVal( T, I, J, L, FND, Dep8 = Dep8 )
+                IF ( FND ) DEP = DEP + Dep8
+
+                ! Also add deposition from drydep_mod.F [1/s].
+                ! Need to find drydep index N2 for current GC tracer.
+                N2 = 0
+                DO N1 = 1, NUMDEP
+                   IF ( NTRAIND(N1) == T ) THEN
+                      N2 = N1
+                      EXIT
+                   ENDIF
+                ENDDO
+                IF ( N2 > 0 ) THEN 
+                   DEP = DEP + DEPSAV(I,J,N2)
+                ENDIF
+
+                ! Deposition in kg (1/s --> kg)
+                DEP = DEP * State_Chm%Tracers(I,J,L,T) * DT
              ENDIF
- 
-             ! Add net flux to box.
-             State_Chm%Tracers(I,J,L,NN) = State_Chm%Tracers(I,J,L,NN) &
-                                         + FLX - DEP
-   
-             ! Make sure value is not negative.
-             IF ( State_Chm%Tracers(I,J,L,NN) < 0.0d0 ) THEN
-                ! testing only
-                IF ( am_I_Root ) THEN
-                   write(*,*) 'Net flux produces negative conc - set to zero: ', &
-                      I, J, L, NN
-                ENDIF 
-                State_Chm%Tracers(I,J,L,NN) = 0.0d0
-             ENDIF
+
+             ! Add to box. Make sure concentration is not negative.
+             State_Chm%Tracers(I,J,L,T) = State_Chm%Tracers(I,J,L,T) + FLX - DEP
+             IF ( State_Chm%Tracers(I,J,L,T) < 0.0d0 ) State_Chm%Tracers(I,J,L,T) = 0.0d0
+
           ENDDO !T
+       ENDDO !I
+       ENDDO !J
+       ENDDO !L
 
-
-          ! Also add deposition from drydep_mod.F [1/s].
-          ! Don't do that in the tracers loop above because not all dry dep
-          ! species are also HEMCO species!
-          DO T =1, NUMDEP
-             NN = NTRAIND(T)
-             IF ( NN < 1 ) CYCLE
-   
-             ! Convert 1/s to kg/m2/s
-             DEP = DEPSAV(I,J,NN)                &
-                 * State_Chm%Tracers(I,J,L,NN)   & 
-                 / HcoState%Grid%AREA_M2%Val(I,J)
-
-             ! Add to box.
-             State_Chm%Tracers(I,J,L,NN) = State_Chm%Tracers(I,J,L,NN) - DEP
-   
-             ! Make sure value is not negative.
-             IF ( State_Chm%Tracers(I,J,L,NN) < 0.0d0 ) THEN
-                ! testing only
-                IF ( am_I_Root ) THEN
-                   write(*,*) 'Net flux produces negative conc - set to zero: ', &
-                      I, J, L, NN
-                ENDIF 
-                State_Chm%Tracers(I,J,L,NN) = 0.0d0
-             ENDIF
-          ENDDO !T
-
-          ENDDO !I
-          ENDDO !J
-          ENDDO !L
-      
-          ! Free pointer
-          HcoState => NULL()
-   
-          ! Reset all arrays
-          State_Chm%Trac_Tend = 0.0d0
-          State_Chm%DepSav    = 0.0d0
-          DepSav              = 0.0d0
-   
-          ! testing only
-          if(am_I_Root) write(*,*) ' --- Done!' 
- 
-       ENDIF ! Turbulence
+       ! Reset all arrays
+       DepSav              = 0.0d0
+  
+       ! Clean up
+       HcoState => NULL()
 
        ! testing only
-       if(am_I_Root) write(*,*) 'GEOS-Chem: run phase 1 done!'
-   
+       if(am_I_Root) write(*,*) ' --- Fluxes applied to tracers!' 
+ 
+    ENDIF ! Turbulence
+
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-!!!                                 PHASE 2                                !!!
+!!!                              PHASE 2                                !!!
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-    ! Only if phase 2 is on...
-    ELSEIF ( Phase == 2 ) THEN
+    !=======================================================================
+    ! 4. Turbulence (v/v)
+    !
+    ! Call GEOS-Chem internal turbulence routines if turbulence is enabled
+    ! in input.geos. This should only be done if turbulence is not covered
+    ! by another gridded component and/or the GC species are not made
+    ! friendly to this component!!
+    !=======================================================================
+    IF ( Input_Opt%LTURB ) THEN
 
        ! testing only
-       if(am_I_Root) write(*,*) 'GEOS-Chem: call run phase 2 now'
+       if(am_I_Root) write(*,*) ' --- Do turbulence now'
 
-       !=======================================================================
-       ! 4. Turbulence (v/v)
-       !
-       ! Call GEOS-Chem internal turbulence routines if turbulence is enabled
-       ! in input.geos. This should only be done if turbulence is not covered
-       ! by another gridded component and/or the GC species are not made
-       ! friendly to this component!!
-       !=======================================================================
-       IF ( Input_Opt%LTURB ) THEN
-
-          ! testing only
-          if(am_I_Root) write(*,*) ' --- Do turbulence now'
-   
-          IF ( Input_Opt%LNLPBL ) THEN
-             ! testing only
-             if(am_I_Root) write(*,*) '     --> Use non-local PBL scheme'
-             CALL DO_PBL_MIX_2( am_I_Root, Input_Opt%LTURB, Input_Opt, &
-                                State_Met, State_Chm,       RC          )
-          ELSE
-             ! testing only
-             if(am_I_Root) write(*,*) '     --> Use full mixing scheme'
-             CALL DO_PBL_MIX( Input_Opt%LTURB, Input_Opt, State_Met, State_Chm )
-          ENDIF
-   
-          ! testing only
-          if(am_I_Root) write(*,*) ' --- Turbulence done!'
-   
+       ! Make sure tracers are in v/v
+       IF ( isMass ) THEN 
+          CALL Convert_Units  ( IFLAG     = 1,                    & ! [kg] --> [v/v]
+                                N_TRACERS = Input_Opt%N_TRACERS,  & ! # of tracers
+                                TCVV      = Input_Opt%TCVV,       & ! Molec / kg
+                                AD        = State_Met%AD,         & ! Air mass [kg]
+                                STT       = State_Chm%Tracers    )  ! Tracer array
+          IsMass = .FALSE.
        ENDIF
-   
-       !---------------------------------
-       ! Unit conversion [v/v] --> [kg]
-       !---------------------------------
+
+       IF ( Input_Opt%LNLPBL ) THEN
+          ! testing only
+          if(am_I_Root) write(*,*) '     --> Use non-local PBL scheme'
+          CALL DO_PBL_MIX_2( am_I_Root, Input_Opt%LTURB, Input_Opt, &
+                             State_Met, State_Chm,       RC          )
+       ELSE
+          ! testing only
+          if(am_I_Root) write(*,*) '     --> Use full mixing scheme'
+          CALL DO_PBL_MIX( Input_Opt%LTURB, Input_Opt, State_Met, State_Chm )
+       ENDIF
+
+       ! testing only
+       if(am_I_Root) write(*,*) ' --- Turbulence done!'
+
+    ENDIF
+
+    ! Chemistry and Wetdep need tracers in mass
+    IF ( .NOT. IsMass .AND. ( Input_Opt%LCHEM .OR. Input_Opt%LWETD ) ) THEN
        CALL Convert_Units  ( IFLAG     = 2,                    & ! [v/v] -> [kg]
                              N_TRACERS = Input_Opt%N_TRACERS,  & ! # of tracers
                              TCVV      = Input_Opt%TCVV,       & ! Molec / kg
                              AD        = State_Met%AD,         & ! Air mass [kg]
                              STT       = State_Chm%Tracers    )  ! Tracer array
-   
-       !=======================================================================
-       ! 5. Chemistry
-       !=======================================================================
-       IF ( Input_Opt%LCHEM ) THEN
+       IsMass = .TRUE.
+    ENDIF
 
-          ! testing only
-          if(am_I_Root) write(*,*) ' --- Do chemistry now'
-   
-          if (.not. associated(JLOP_PREV_loc)) THEN
-             ALLOCATE(JLOP_PREV_loc(ILONG,ILAT,IPVERT),STAT=RC)
-             ASSERT_(RC==0)
-             JLOP_PREV_loc = 0
-          endif
-      
-          !vartrop fix (dkh, 05/08/11)
-          if (allocated( JLOP ))             deallocate(JLOP)
-          if (allocated( JLOP_PREVIOUS ))    deallocate(JLOP_PREVIOUS)
-          ALLOCATE( JLOP( ILONG, ILAT, IPVERT ), STAT=RC )
-          JLOP = 0
-          ALLOCATE( JLOP_PREVIOUS( ILONG, ILAT, IPVERT ), STAT=RC )
-          JLOP_PREVIOUS = 0
-      
-          JLOP          = JLOP_PREV_loc
-          JLOP_PREVIOUS = JLOP_PREV_loc
-      
-          AREA_M2 = State_Met%AREA_M2
-   
-          ! Zero Rate arrays  
-          RRATE = 0.E0
-          TRATE = 0.E0
-   
-          ! Do chemistry
-          CALL Do_Chemistry( am_I_Root = am_I_Root,            & ! Root CPU?
-                             Input_Opt = Input_Opt,            & ! Input Options
-                             State_Chm = State_Chm,            & ! Chemistry State
-                             State_Met = State_Met,            & ! Met State
-                             RC        = RC                   )  ! Success?
-   
-          ! Store in internal variables
-          JLOP_PREV_loc = JLOP
-   
-          ! testing only
-          if(am_I_Root) write(*,*) ' --- Chemistry done!'
-       ENDIF
-   
-       !=======================================================================
-       ! 6. Wet deposition
-       !=======================================================================
-       IF ( Input_Opt%LWETD ) THEN
-   
-          ! testing only
-          if(am_I_Root) write(*,*) ' --- Do wetdep now'
-   
-          ! Do wet deposition
-          CALL DO_WETDEP( am_I_Root, Input_Opt, State_Met, State_Chm, RC )
-   
-          ! testing only
-          if(am_I_Root) write(*,*) ' --- Wetdep done!'
-       ENDIF
+    !=======================================================================
+    ! 5. Chemistry
+    !=======================================================================
+    IF ( Input_Opt%LCHEM ) THEN
 
        ! testing only
-       if(am_I_Root) write(*,*) 'GEOS-Chem: run phase 2 done!'
+       if(am_I_Root) write(*,*) ' --- Do chemistry now'
+
+       IF (.NOT. ASSOCIATED(JLOP_PREV_loc)) THEN
+          ALLOCATE(JLOP_PREV_loc(ILONG,ILAT,IPVERT),STAT=RC)
+          ASSERT_(RC==0)
+          JLOP_PREV_loc = 0
+       ENDIF
    
-    ! Phase 1/Phase 2 toggle 
+       !vartrop fix (dkh, 05/08/11)
+       IF (ALLOCATED( JLOP          ) ) DEALLOCATE( JLOP          )
+       IF (ALLOCATED( JLOP_PREVIOUS ) ) DEALLOCATE( JLOP_PREVIOUS )
+       ALLOCATE( JLOP( ILONG, ILAT, IPVERT ), STAT=RC )
+       ASSERT_(RC==0)
+       ALLOCATE( JLOP_PREVIOUS( ILONG, ILAT, IPVERT ), STAT=RC )
+       ASSERT_(RC==0)
+   
+       JLOP          = JLOP_PREV_loc
+       JLOP_PREVIOUS = JLOP_PREV_loc
+       AREA_M2 = State_Met%AREA_M2
+
+       ! Zero Rate arrays  
+       RRATE = 0.E0
+       TRATE = 0.E0
+
+       ! Calculate TOMS O3 overhead. For now, always use it from the
+       ! Met field. State_Met%TO3 is imported from PCHEM.
+       ! (ckeller, 10/21/2014).
+       CALL COMPUTE_OVERHEAD_O3( DAY, .TRUE., State_Met%TO3 )
+
+       ! Do chemistry
+       CALL Do_Chemistry( am_I_Root = am_I_Root,            & ! Root CPU?
+                          Input_Opt = Input_Opt,            & ! Input Options
+                          State_Chm = State_Chm,            & ! Chemistry State
+                          State_Met = State_Met,            & ! Met State
+                          RC        = RC                   )  ! Success?
+
+       ! Store in internal variables
+       JLOP_PREV_loc = JLOP
+
+       ! testing only
+       if(am_I_Root) write(*,*) ' --- Chemistry done!'
+    ENDIF
+
+    !=======================================================================
+    ! 6. Wet deposition
+    !=======================================================================
+    IF ( Input_Opt%LWETD ) THEN
+
+       ! testing only
+       if(am_I_Root) write(*,*) ' --- Do wetdep now'
+
+       ! Do wet deposition
+       CALL DO_WETDEP( am_I_Root, Input_Opt, State_Met, State_Chm, RC )
+
+       ! testing only
+       if(am_I_Root) write(*,*) ' --- Wetdep done!'
     ENDIF
 
     !=======================================================================
     ! Clean up
     !=======================================================================
 
-    ! Convert unit back: [kg] -> [v/v]
-    CALL Convert_Units  ( IFLAG     = 1,                    & ! [kg] -> [v/v]
-                          N_TRACERS = Input_Opt%N_TRACERS,  & ! # of tracers
-                          TCVV      = Input_Opt%TCVV,       & ! Molec / kg
-                          AD        = State_Met%AD,         & ! Air mass [kg]
-                          STT       = State_Chm%Tracers    )  ! Tracer array
+    ! Make sure tracers leave routine in v/v
+    IF ( IsMass ) THEN
+       CALL Convert_Units  ( IFLAG     = 1,                    & ! [kg] -> [v/v]
+                             N_TRACERS = Input_Opt%N_TRACERS,  & ! # of tracers
+                             TCVV      = Input_Opt%TCVV,       & ! Molec / kg
+                             AD        = State_Met%AD,         & ! Air mass [kg]
+                             STT       = State_Chm%Tracers    )  ! Tracer array
+       IsMass = .FALSE.
+    ENDIF
 
     ! Reset switches to orig. values
     Input_Opt%LCONV  = LCONV

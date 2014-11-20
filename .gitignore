@@ -11,4 +11,5 @@ geostomas
 *___.h
 *___.rc
 *___.F*
-
+log.*
+*.log*
