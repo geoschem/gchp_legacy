@@ -94,12 +94,7 @@ USER_FFLAGS += $(BIG_ENDIAN)
 USER_FDEFS  = $(D)OVERLOAD_R4 $(D)MAPL_MODE $(D)EIGHT_BYTE $(D)SPMD $(D)TIMING \
               $(D)use_libMPI $(D)use_netCDF
 USER_CDEFS  = $(USER_FDEFS)
-#----------------------------------------------------------------------------
-# Prior to 11/19/14:
-# $(INC_MPI) has the -I already since it comes out of mpif90 --showme etc.
-#USER_CINCS  += $(I)$(INC_SDF) $(I)$(INC_MPI)
-#----------------------------------------------------------------------------
-USER_CINCS  += $(I)$(INC_SDF) $(INC_MPI)
+USER_CINCS  += $(I)$(INC_SDF) $(I)$(INC_MPI)
 
 FREAL = $(FREAL8)
 
