@@ -85,20 +85,8 @@ INC_DIRS = . ./shared/include ./shared/mpp/include  \
 MOD_DIRS = . $(INC_DIRS) 
 SRC_DIRS = $(sort $(dir $(SRCS)))
 
-#----------------------------------------------------------------------------
-# Prior to 11/19/14:
-# NOTE: Hardwire this because some directories already have -I 
 USER_FINCS  = $(foreach dir,$(INC_DIRS),$(I)$(dir))
 USER_FMODS  = $(foreach dir,$(MOD_DIRS),$(M)$(dir)) 
-#----------------------------------------------------------------------------
-#USER_FINCS  = $(I)./shared/include \
-#              $(I)./shared/mpp/include \
-#              $(I)$(INC_GMAO_SHARED) \
-#              $(I)$(INC_SDF) \
-#              $(I)$(INC_ESMF) \
-#              $(I)$(INC_MPI)
-#USER_FMODS  = $(USER_FINCS)
-
 
 vpath % $(SRC_DIRS) $(INC_DIRS) $(MOD_DIRS) /usr/include
 

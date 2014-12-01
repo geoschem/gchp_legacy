@@ -15,6 +15,7 @@
 # !REVISION HISTORY:
 #  18 Nov 2014 - M. Long     - Initial version
 #  18 Nov 2014 - R. Yantosca - Now use env vars to specify MPI inc & lib dirs
+#  01 Dec 2014 - R. Yantosca - Now put FV_LIB before MPI_LIB in link command
 #EOP
 #------------------------------------------------------------------------------
 #BOC
@@ -71,7 +72,7 @@ MPI_LIB       := $(shell mpif90 --showme:link)
 MPI_LIB       += $(shell mpicxx --showme:link)
 
 # %%%%% Link command %%%%%
-LINK          := -lGIGC $(MAPL_LIB) $(ESMF_LIB) $(MPI_LIB) $(FV_LIB) $(LINK) -lGIGC 
+LINK          := -lGIGC $(MAPL_LIB) $(ESMF_LIB) $(FV_LIB) $(MPI_LIB) $(LINK) -lGIGC 
 
 # %%%%% Fortran flags %%%%%
 FFLAGS        := -double-size 32 -real-size 32 -r4
