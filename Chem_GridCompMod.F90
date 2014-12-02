@@ -213,12 +213,17 @@ contains
 !
   SUBROUTINE Initialize_( GC, Import, Export, Clock, RC )
 !
+! !USES:
+!
+    USE HCO_STATE_MOD,           ONLY : HCO_STATE
+    USE HCOI_GC_MAIN_MOD,        ONLY : GetHcoState
+!
 ! !INPUT/OUTPUT PARAMETERS:
 !
-    TYPE(ESMF_GridComp), INTENT(INOUT) :: GC          ! Ref. to this GridComp
-    TYPE(ESMF_State),    INTENT(INOUT) :: Import      ! Import state
-    TYPE(ESMF_State),    INTENT(INOUT) :: Export      ! Export state
-    TYPE(ESMF_Clock),    INTENT(INOUT) :: Clock       ! ESMF clock object
+    TYPE(ESMF_GridComp), INTENT(INOUT)         :: GC          ! Ref. to this GridComp
+    TYPE(ESMF_State),    INTENT(INOUT), TARGET :: Import      ! Import state
+    TYPE(ESMF_State),    INTENT(INOUT)         :: Export      ! Export state
+    TYPE(ESMF_Clock),    INTENT(INOUT)         :: Clock       ! ESMF clock object
 !                                                      
 ! !OUTPUT PARAMETERS:                                  
 !                                                      
@@ -281,6 +286,9 @@ contains
     REAL(ESMF_KIND_R4), POINTER :: latCtr(:,:) ! Lat centers on this CPU [rad]
     REAL, POINTER               :: PS1(:,:)    ! IMPORT: 
     INTEGER                     :: i,j
+
+    ! For HEMCO                                                                                                                                                                                                   
+    TYPE(HCO_STATE),    POINTER :: HcoState => NULL()
 
     ! Working variables
     TYPE(ESMF_Field)            :: field
@@ -468,6 +476,12 @@ contains
     IF ( error /= GIGC_SUCCESS ) THEN 
        CALL Error_Trap_( Ident, error, __RC__ )
     ENDIF
+
+    ! Pass IMPORT object to HEMCO state object                                                                                                                                                                    
+    CALL GetHcoState( HcoState )
+    ASSERT_(ASSOCIATED(HcoState))
+    HcoState%IMPORT => IMPORT
+    HcoState => NULL()
 
     !=======================================================================
     ! Create TRACERS bundle 
@@ -1024,10 +1038,10 @@ contains
        State_Chm%Tracers = 1.e-25
     end where
 
-    IND = 1 !Get_Indx( 'TRC_O3', State_Chm%Trac_Id, State_Chm%Trac_Name )
+!    IND = 1 !Get_Indx( 'TRC_O3', State_Chm%Trac_Id, State_Chm%Trac_Name )
 !    IF( IND > 0 .and. hour .lt. 1. .and. am_I_Root ) &
 !         State_Chm%Tracers = 1e-12
-    IF( am_I_Root ) State_Chm%Tracers(10:12,10:12,1,:) = 1e-12
+!    IF( am_I_Root ) State_Chm%Tracers(10:12,10:12,1,:) = 1e-12
 
     !=======================================================================
     ! If import restart does not exist, wait until next pass to run GIGC

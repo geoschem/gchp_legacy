@@ -244,7 +244,7 @@ CONTAINS
     USE COMODE_LOOP_MOD
     USE comode_mod
     USE Chemistry_Mod,      ONLY : Do_Chemistry
-    USE Dao_Mod,            ONLY : Convert_Units
+    USE Dao_Mod,            ONLY : Convert_Units, AirQnt
     USE DryDep_Mod,         ONLY : Do_DryDep
     USE GC_Land_Interface
     USE GIGC_ErrCode_Mod
@@ -254,20 +254,19 @@ CONTAINS
     USE GRID_MOD,           ONLY : AREA_M2
     USE PBL_MIX_MOD,        ONLY : DO_PBL_MIX, COMPUTE_PBL_HEIGHT
     USE VDIFF_MOD,          ONLY : DO_PBL_MIX_2
-    USE Pressure_Mod,       ONLY : Accept_External_Pedge
+    USE Pressure_Mod,       ONLY : Accept_External_Pedge, Set_Floating_Pressure
     USE Time_Mod,           ONLY : Accept_External_Date_Time
     USE Time_Mod,           ONLY : ITS_TIME_FOR_CHEM
+    USE TOMS_Mod,           ONLY : Compute_Overhead_O3
     USE TRACERID_MOD
     USE WETSCAV_MOD,        ONLY : INIT_WETSCAV, DO_WETDEP
     USE DRYDEP_MOD,         ONLY : DEPSAV, NUMDEP, NTRAIND
     USE CONVECTION_MOD,     ONLY : DO_CONVECTION
-    USE TOMS_MOD,           ONLY : COMPUTE_OVERHEAD_O3
 
     ! HEMCO update
     USE HCO_ERROR_MOD
     USE HCO_STATE_MOD,      ONLY : HCO_STATE
     USE HCOI_GC_MAIN_MOD,   ONLY : HCOI_GC_RUN, GetHcoState
-    USE HCOI_GC_MAIN_MOD,   ONLY : GetHcoVal,   GetHcoID
 !
 ! !INPUT PARAMETERS:
 !
@@ -343,13 +342,10 @@ CONTAINS
     TYPE(HCO_STATE), POINTER       :: HcoState => NULL() 
     REAL*8                         :: DT
     REAL*8                         :: FLX, DEP
-    REAL*8                         :: Emis8, Dep8
     INTEGER                        :: I, J, L, T 
     INTEGER                        :: N1, N2
     INTEGER                        :: ERROR
-    INTEGER                        :: HcoID
     CHARACTER(LEN=ESMF_MAXSTR)     :: Iam
-    LOGICAL                        :: FND
 
     ! Local logicals from input_opt
     LOGICAL                        :: LCONV, LDRYD, LEMIS
@@ -477,6 +473,8 @@ CONTAINS
                                     State_Met      = State_Met,  &
                                     RC             = RC         )
 
+    CALL Set_Floating_Pressure( State_Met%PS1 )
+
     ! Cap the polar tropopause pressures at 200 hPa, in order to avoid
     ! tropospheric chemistry from happening too high up (cf. J. Logan)
     CALL GIGC_Cap_Tropopause_Prs  ( am_I_Root      = am_I_Root,  &
@@ -485,6 +483,23 @@ CONTAINS
                                     Input_Opt      = Input_Opt,  &
                                     State_Met      = State_Met,  &
                                     RC             = RC         )
+
+!      IF ( ITS_A_FULLCHEM_SIM  .or.
+!     &     ITS_AN_AEROSOL_SIM  .or.
+!     &     ITS_A_CH3I_SIM     ) THEN
+
+         ! Only execute this if we are doing chemistry
+         ! and if it we are at a chemistry timestep
+         IF ( Input_Opt%LCHEM ) THEN
+             
+            ! Get the overhead O3 column for FAST-J.  Take either the
+            ! TOMS O3 data or the column O3 directly from the met fields
+            CALL COMPUTE_OVERHEAD_O3( DAY,                       &
+                                      .true., & ! Assumes GEOS-FP! <<>> msl
+                                      State_Met%TO3 )
+         ENDIF
+
+    CALL AIRQNT( State_Met )
 
     ! Call PBL quantities. Those are always needed
     CALL COMPUTE_PBL_HEIGHT( State_Met )
@@ -554,6 +569,9 @@ CONTAINS
 
     !=======================================================================
     ! 3. Emissions (HEMCO).
+    ! 
+    ! HEMCO adds emissions to State_Met%Trac_Tend [kg m-2 s-1] and
+    ! deposition to State_Met%DepSav [s-1].
     !=======================================================================
     IF ( Input_Opt%LEMIS ) THEN
 
@@ -601,32 +619,24 @@ CONTAINS
  
              ! testing only
              IF ( am_I_Root .and. i==1 .and. j==1 .and. l==1 ) THEN
-                ! Get HEMCO ID corresponding to this GC tracer
-                HcoID = GetHcoID( TrcID = T )
-                IF ( HcoID > 0 ) THEN
-                IF ( ASSOCIATED(HcoState%Spc(HcoID)%Emis%Val) ) THEN
-                   write(*,*) '     Emission range for species: ', TRIM(Input_Opt%TRACER_NAME(T)), &
-               MINVAL(HcoState%Spc(HcoID)%Emis%Val), MAXVAL(HcoState%Spc(HcoID)%Emis%Val)
-                ENDIF
-                ENDIF
+               write(*,*) '     Emission range for species: ', TRIM(Input_Opt%TRACER_NAME(T)), &
+               MINVAL(State_Chm%Trac_Tend(:,:,:,T)), MAXVAL(State_Chm%Trac_Tend(:,:,:,T))
              ENDIF
      
-             ! Get emissions from HEMCO (kg/m2/s)
-             CALL GetHcoVal( T, I, J, L, FND, Emis8 )
-             IF ( FND ) THEN
-                ! kg/m2/s -> kg
-                FLX = FLX + ( Emis8 * HcoState%Grid%AREA_M2%Val(I,J) * DT )
-             ENDIF      
- 
+             ! Get emissions from HEMCO. These values become stored in
+             ! State_Chm%Trac_Tend (in kg/m2/s, see hcoi_gc_main_mod.F90). Convert
+             ! to kg here.
+             FLX = State_Chm%Trac_Tend(I,J,L,T) &
+                 * HcoState%Grid%AREA_M2%Val(I,J) * DT !+ HCOTINY
+       
              ! Deposition (surface layer only)
              IF ( L == 1 ) THEN
-
-                ! Get deposition rate from HEMCO (1/s)
-                CALL GetHcoVal( T, I, J, L, FND, Dep8 )
-                IF ( FND ) DEP = DEP + Dep8
+   
+                ! Get deposition from HEMCO. These values become stored in
+                ! State_Chm%DepSav (in 1/s, see hcoi_gc_main_mod.F90).
+                DEP = State_Chm%DepSav(I,J,T) 
 
                 ! Also add deposition from drydep_mod.F [1/s].
-                ! Need to find drydep index N2 for current GC tracer.
                 N2 = 0
                 DO N1 = 1, NUMDEP
                    IF ( NTRAIND(N1) == T ) THEN
@@ -639,7 +649,7 @@ CONTAINS
                 ENDIF
 
                 ! Deposition in kg (1/s --> kg)
-                DEP = DEP * State_Chm%Tracers(I,J,L,T) * DT
+                DEP = DEP * State_Chm%Tracers(I,J,L,T) * DT !+ HCOTINY
              ENDIF
 
              ! Add to box. Make sure concentration is not negative.
@@ -652,6 +662,8 @@ CONTAINS
        ENDDO !L
 
        ! Reset all arrays
+       State_Chm%Trac_Tend = 0.0d0
+       State_Chm%DepSav    = 0.0d0
        DepSav              = 0.0d0
   
        ! Clean up
@@ -706,7 +718,7 @@ CONTAINS
     ENDIF
 
     ! Chemistry and Wetdep need tracers in mass
-    IF ( .NOT. IsMass .AND. ( Input_Opt%LCHEM .OR. Input_Opt%LWETD ) ) THEN
+    IF ( .NOT. IsMass .AND. ( Input_Opt%LCHEM .OR. Input_Opt%LWETD) ) THEN
        CALL Convert_Units  ( IFLAG     = 2,                    & ! [v/v] -> [kg]
                              N_TRACERS = Input_Opt%N_TRACERS,  & ! # of tracers
                              TCVV      = Input_Opt%TCVV,       & ! Molec / kg
@@ -723,32 +735,28 @@ CONTAINS
        ! testing only
        if(am_I_Root) write(*,*) ' --- Do chemistry now'
 
-       IF (.NOT. ASSOCIATED(JLOP_PREV_loc)) THEN
+       if (.not. associated(JLOP_PREV_loc)) THEN
           ALLOCATE(JLOP_PREV_loc(ILONG,ILAT,IPVERT),STAT=RC)
           ASSERT_(RC==0)
           JLOP_PREV_loc = 0
-       ENDIF
+       endif
    
        !vartrop fix (dkh, 05/08/11)
-       IF (ALLOCATED( JLOP          ) ) DEALLOCATE( JLOP          )
-       IF (ALLOCATED( JLOP_PREVIOUS ) ) DEALLOCATE( JLOP_PREVIOUS )
+       if (allocated( JLOP ))             deallocate(JLOP)
+       if (allocated( JLOP_PREVIOUS ))    deallocate(JLOP_PREVIOUS)
        ALLOCATE( JLOP( ILONG, ILAT, IPVERT ), STAT=RC )
-       ASSERT_(RC==0)
+       JLOP = 0
        ALLOCATE( JLOP_PREVIOUS( ILONG, ILAT, IPVERT ), STAT=RC )
-       ASSERT_(RC==0)
+       JLOP_PREVIOUS = 0
    
        JLOP          = JLOP_PREV_loc
        JLOP_PREVIOUS = JLOP_PREV_loc
+   
        AREA_M2 = State_Met%AREA_M2
 
        ! Zero Rate arrays  
        RRATE = 0.E0
        TRATE = 0.E0
-
-       ! Calculate TOMS O3 overhead. For now, always use it from the
-       ! Met field. State_Met%TO3 is imported from PCHEM.
-       ! (ckeller, 10/21/2014).
-       CALL COMPUTE_OVERHEAD_O3( am_I_Root, DAY, .TRUE., State_Met%TO3 )
 
        ! Do chemistry
        CALL Do_Chemistry( am_I_Root = am_I_Root,            & ! Root CPU?

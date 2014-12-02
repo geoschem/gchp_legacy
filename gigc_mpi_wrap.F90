@@ -154,7 +154,6 @@ CONTAINS
     CALL MPI_Bcast( INPUT_OPT%LVARTROP, 1, mpi_logical, 0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%NESTED_I0, 1, mpi_integer, 0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%NESTED_J0, 1, mpi_integer, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%HcoConfigFile, len(INPUT_OPT%HcoConfigFile), mpi_character, 0, mpiComm, RC )
 
     !----------------------------------------
     ! TRACER MENU fields
@@ -199,14 +198,6 @@ CONTAINS
     CALL MPI_Bcast( INPUT_OPT%LDICARB, 1, mpi_logical, 0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%SALA_REDGE_um(:), 2, mpi_real8, 0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%SALC_REDGE_um(:), 2, mpi_real8, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%LGRAVSTRAT, 1, mpi_logical, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%LSOLIDPSC,  1, mpi_logical, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%PSC_RST_FILE, len(Input_Opt%PSC_RST_FILE), mpi_character, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%LHOMNUCNAT, 1, mpi_logical, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%T_NAT_SUPERCOOL, 1, mpi_real8, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%P_ICE_SUPERSAT,  1, mpi_real8, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%LPSCCHEM, 1, mpi_logical, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%LSTRATOD, 1, mpi_logical, 0, mpiComm, RC )
 
     !----------------------------------------
     ! EMISSIONS MENU fields
@@ -261,32 +252,6 @@ CONTAINS
     CALL MPI_Bcast( INPUT_OPT%LEDGARNOx, 1, mpi_logical, 0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%LEDGARCO, 1, mpi_logical, 0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%LEDGARSOX, 1, mpi_logical, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%LRCP, 1, mpi_logical, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%LRCPSHIP, 1, mpi_logical, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%LRCPAIR, 1, mpi_logical, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%LFIXEDYR, 1, mpi_logical, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%LCH4EMIS, 1, mpi_logical, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%LCH4SBC, 1, mpi_logical, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%LOCSEMIS, 1, mpi_logical, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%LCFCEMIS, 1, mpi_logical, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%LCLEMIS, 1, mpi_logical, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%LBREMIS, 1, mpi_logical, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%LN2OEMIS, 1, mpi_logical, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%LBASICEMIS, 1, mpi_logical, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%LSETH2O, 1, mpi_logical, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%LSETCH4, 1, mpi_logical, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%LSETOCS, 1, mpi_logical, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%LSETCFC, 1, mpi_logical, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%LSETCL, 1, mpi_logical, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%LBRGCCM, 1, mpi_logical, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%LSETBR, 1, mpi_logical, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%LSETBRSTRAT, 1, mpi_logical, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%LSETNOYSTRAT, 1, mpi_logical, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%LSETN2O, 1, mpi_logical, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%LSETH2SO4, 1, mpi_logical, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%CFCYEAR, 1, mpi_integer, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%LFUTURECFC, 1, mpi_logical, 0, mpiComm, RC )
-
 
     !----------------------------------------
     ! CO2 MENU fields
@@ -330,13 +295,9 @@ CONTAINS
     CALL MPI_Bcast( INPUT_OPT%LSVCSPEC,  1, mpi_logical, 0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%LKPP,      1, mpi_logical, 0, mpiComm, RC )
     CALL MPI_BCast( INPUT_OPT%GAMMA_HO2, 1, mpi_real8,   0, mpicomm, RC )
-    CALL MPI_Bcast( INPUT_OPT%LUCX,      1, mpi_logical, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%LCH4CHEM,  1, mpi_logical, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%LACTIVEH2O, 1, mpi_logical, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%LO3FJX,     1, mpi_logical, 0, mpiComm, RC )
 
     !----------------------------------------
-    ! TRANSPORT MENU fields
+    ! CHEMISTRY MENU fields
     !----------------------------------------
     CALL MPI_Bcast( INPUT_OPT%LTRAN, 1, mpi_logical, 0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%LFILL, 1, mpi_logical, 0, mpiComm, RC )
@@ -636,7 +597,6 @@ CONTAINS
     CALL MPI_Bcast( INPUT_OPT%WILD_CARD, len(INPUT_OPT%WILD_CARD), mpi_character, 0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%UNZIP_CMD, len(INPUT_OPT%UNZIP_CMD), mpi_character, 0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%ZIP_SUFFIX, len(INPUT_OPT%ZIP_SUFFIX), mpi_character, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%SPACE, len(INPUT_OPT%SPACE), mpi_character, 0, mpiComm, RC )
 
     !----------------------------------------
     ! NESTED GRID MENU fields
@@ -731,20 +691,19 @@ CONTAINS
     !----------------------------------------
     ! DRYDEP and DUST fields from input.geos
     !----------------------------------------
-    CALL MPI_Bcast( INPUT_OPT%N_DUST_BINS, 1, mpi_integer,   0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%NUMDEP,   1,         mpi_integer,   0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%NDVZIND,  Input_Opt%MAX_DEP,    mpi_integer,   0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%IDDEP,    NDSTBIN,   mpi_integer,   0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%DUSTREFF, NDSTBIN,   mpi_real8,     0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%DUSTDEN,  NDSTBIN,   mpi_integer,   0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%DEPNAME,  14*Input_Opt%MAX_DEP, mpi_character, 0, mpiComm, RC )
-!    CALL MPI_Bcast( INPUT_OPT%NTRAIND,  Input_Opt%MAX_DEP,    mpi_integer,   0, mpiComm, RC )
-!    CALL MPI_Bcast( INPUT_OPT%F0,       Input_Opt%MAX_DEP,    mpi_real8,     0, mpiComm, RC )
-!    CALL MPI_Bcast( INPUT_OPT%HSTAR,    Input_Opt%MAX_DEP,    mpi_real8,     0, mpiComm, RC )
-!    CALL MPI_Bcast( INPUT_OPT%XMW,      Input_Opt%MAX_DEP,    mpi_real8,     0, mpiComm, RC )
-!    CALL MPI_Bcast( INPUT_OPT%A_RADI,   Input_Opt%MAX_DEP,    mpi_real8,     0, mpiComm, RC )
-!    CALL MPI_Bcast( INPUT_OPT%A_DEN,    Input_Opt%MAX_DEP,    mpi_real8,     0, mpiComm, RC )
-!    CALL MPI_Bcast( INPUT_OPT%AIROSOL,  Input_Opt%MAX_DEP,    mpi_logical,   0, mpiComm, RC )
+    CALL MPI_Bcast( INPUT_OPT%NTRAIND,  Input_Opt%MAX_DEP,    mpi_integer,   0, mpiComm, RC )
+    CALL MPI_Bcast( INPUT_OPT%F0,       Input_Opt%MAX_DEP,    mpi_real8,     0, mpiComm, RC )
+    CALL MPI_Bcast( INPUT_OPT%HSTAR,    Input_Opt%MAX_DEP,    mpi_real8,     0, mpiComm, RC )
+    CALL MPI_Bcast( INPUT_OPT%XMW,      Input_Opt%MAX_DEP,    mpi_real8,     0, mpiComm, RC )
+    CALL MPI_Bcast( INPUT_OPT%A_RADI,   Input_Opt%MAX_DEP,    mpi_real8,     0, mpiComm, RC )
+    CALL MPI_Bcast( INPUT_OPT%A_DEN,    Input_Opt%MAX_DEP,    mpi_real8,     0, mpiComm, RC )
+    CALL MPI_Bcast( INPUT_OPT%AIROSOL,  Input_Opt%MAX_DEP,    mpi_logical,   0, mpiComm, RC )
 
     !----------------------------------------
     ! GEOS-5 GCM INTERFACE fields
@@ -768,11 +727,6 @@ CONTAINS
           * INPUT_OPT%LINOZ_NFIELDS
 
     CALL MPI_Bcast( INPUT_OPT%LINOZ_TPARM, COUNT, mpi_real8, 0, mpiComm, RC )
-
-    !----------------------------------------
-    ! Overhead O3 fields
-    !----------------------------------------
-    CALL MPI_Bcast( INPUT_OPT%USE_O3_FROM_MET, 1, mpi_logical, 0, mpiComm, RC )
 
   END SUBROUTINE GIGC_Input_Bcast
 !EOC
