@@ -6350,6 +6350,7 @@ module MAPL_IOMod
       if (STATUS /= NF_NOERR) then
          print*,"Error opening file ", trim(filename), status
          print*, NF_STRERROR(STATUS)
+	 print*, arrdes%readers_comm, info, unit
          VERIFY_(STATUS)
       endif
     else

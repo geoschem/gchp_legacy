@@ -20,7 +20,7 @@ MODULE GIGC_Chunk_Mod
 !      
   USE MAPL_MOD
   use ESMF
-  USE Mapping_Mod, ONLY : MapWeight
+!  USE Mapping_Mod, ONLY : MapWeight
 
   IMPLICIT NONE
   PRIVATE
@@ -68,7 +68,7 @@ MODULE GIGC_Chunk_Mod
   TYPE(GC_DIAG)                 :: DIAG_COL
 
   ! Derived type objects
-  TYPE(MapWeight),      POINTER :: mapping(:,:) => NULL()
+!  TYPE(MapWeight),      POINTER :: mapping(:,:) => NULL()
 
   ! For chemistry
   INTEGER, POINTER              :: JLOP_PREV_loc(:,:,:)
@@ -126,8 +126,8 @@ CONTAINS
     INTEGER,            INTENT(IN)    :: nhmsB       ! hhmmss   @ start of run
     INTEGER,            INTENT(IN)    :: nymdE       ! YYYYMMDD @ end of run
     INTEGER,            INTENT(IN)    :: nhmsE       ! hhmmss   @ end of run
-    REAL,               INTENT(IN)    :: tsChem      ! Chemistry timestep
-    REAL,               INTENT(IN)    :: tsDyn       ! Chemistry timestep
+    REAL,               INTENT(IN)    :: tsChem      ! Chemistry timestep [s]
+    REAL,               INTENT(IN)    :: tsDyn       ! Chemistry timestep [s]
     REAL(ESMF_KIND_R4), INTENT(IN)    :: lonCtr(:,:) ! Lon centers [radians]
     REAL(ESMF_KIND_R4), INTENT(IN)    :: latCtr(:,:) ! Lat centers [radians]
 !
@@ -181,8 +181,8 @@ CONTAINS
                                nhmsB          = nhmsB,      & ! Time @ start
                                nymdE          = nymdE,      & ! Date @ end
                                nhmsE          = nhmsE,      & ! Time @ end
-                               tsChem         = tsChem,     & ! Chem step [min]
-                               tsDyn          = tsDyn,      & ! Dyn  step [min]
+                               tsChem         = tsChem,     & ! Chem step [s]
+                               tsDyn          = tsDyn,      & ! Dyn  step [s]
                                value_I_LO     = I_LO,       & ! Local min lon
                                value_J_LO     = J_LO,       & ! Local min lat
                                value_I_HI     = I_HI,       & ! Local max lon 
@@ -198,7 +198,7 @@ CONTAINS
                                Input_Opt      = Input_Opt,  & ! Input Options
                                State_Chm      = State_Chm,  & ! Chemistry State
                                State_Met      = State_Met,  & ! Met State
-                               mapping        = mapping,    & ! Olson map wts
+!                               mapping        = mapping,    & ! Olson map wts
                                RC             = RC         )  ! Success?
     IF ( RC /= GIGC_SUCCESS ) RETURN
 
@@ -210,6 +210,28 @@ CONTAINS
        RC = GIGC_SUCCESS+1
     ELSE
        RC = GIGC_SUCCESS
+    ENDIF
+
+    !=======================================================================
+    ! Make sure options are sane
+    !=======================================================================
+
+    ! In GEOS-5, we typically use the GEOS-5 online transport, convection 
+    ! and turbulence scheme to vertically distribute tracer concentrations.
+    ! In this case, emissions and dry deposition should only be applied to
+    ! the surface layer. This is similiar to the non-local PBL mixing scheme
+    ! used in GEOS-Chem. Since there are a lot of checks for the non-local
+    ! mixing scheme all over the GEOS-Chem code, we force it here to .TRUE.
+    ! if we are not doing turbulence within GEOS-Chem. This will make sure
+    ! that the dry deposition quantities are calculated w/r/t the surface
+    ! layer only (ckeller, 11/04/14).
+    IF ( .NOT. Input_Opt%LTURB .AND. .NOT. Input_Opt%LNLPBL ) THEN
+       Input_Opt%LNLPBL = .TRUE.
+       IF ( am_I_Root ) THEN
+          write(*,*) ' '
+          write(*,*) ' SET GEOS-CHEM NON-LOCAL PBL MIXING TO TRUE '
+          write(*,*) ' '
+       ENDIF
     ENDIF
 
   END SUBROUTINE GIGC_Chunk_Init
@@ -236,7 +258,8 @@ CONTAINS
                              nymd,      nhms,      year,      month,      &
                              day,       dayOfYr,   hour,      minute,     &
                              second,    utc,       hElapsed,  Input_Opt,  &
-                             State_Chm, State_Met, Phase,     RC           )
+                             State_Chm, State_Met, Phase,     IsChemTime, &
+                             RC                                            )
 !
 ! !USES:
 !
@@ -244,7 +267,7 @@ CONTAINS
     USE COMODE_LOOP_MOD
     USE comode_mod
     USE Chemistry_Mod,      ONLY : Do_Chemistry
-    USE Dao_Mod,            ONLY : Convert_Units
+    USE Dao_Mod,            ONLY : Convert_Units, AirQnt
     USE DryDep_Mod,         ONLY : Do_DryDep
     USE GC_Land_Interface
     USE GIGC_ErrCode_Mod
@@ -254,7 +277,7 @@ CONTAINS
     USE GRID_MOD,           ONLY : AREA_M2
     USE PBL_MIX_MOD,        ONLY : DO_PBL_MIX, COMPUTE_PBL_HEIGHT
     USE VDIFF_MOD,          ONLY : DO_PBL_MIX_2
-    USE Pressure_Mod,       ONLY : Accept_External_Pedge
+    USE Pressure_Mod,       ONLY : Accept_External_Pedge, Set_Floating_Pressure
     USE Time_Mod,           ONLY : Accept_External_Date_Time
     USE Time_Mod,           ONLY : ITS_TIME_FOR_CHEM
     USE TRACERID_MOD
@@ -287,6 +310,7 @@ CONTAINS
     REAL*4,         INTENT(IN)    :: utc         ! UTC time [hrs]
     REAL*4,         INTENT(IN)    :: hElapsed    ! Elapsed hours
     INTEGER,        INTENT(IN)    :: Phase       ! Run phase (1 or 2)
+    LOGICAL,        INTENT(IN)    :: IsChemTime  ! Time for chemistry? 
 !
 ! !INPUT/OUTPUT PARAMETERS:
 !
@@ -337,6 +361,7 @@ CONTAINS
 !  22 Sep 2014 - C. Keller   - Added run phase argument
 !  14 Oct 2014 - C. Keller   - Various updates to include drydep and emissions
 !                              to tracer arrays, etc.
+!  26 Nov 2014 - C. Keller   - Added IsChemTime variable.
 !EOP
 !------------------------------------------------------------------------------
 !BOC
@@ -360,6 +385,10 @@ CONTAINS
 
     ! Kludge to skip first phase one:
     LOGICAL, SAVE                  :: FIRST = .TRUE.
+   
+    ! # of times this routine has been called. Only temporary for printing 
+    ! processes on the first 10 calls.
+    INTEGER, SAVE                  :: NCALLS = 0
 
     !=======================================================================
     ! GIGC_CHUNK_RUN begins here 
@@ -375,6 +404,7 @@ CONTAINS
     ! variables are empty / invalid. Eventually need to bootstrap those
     ! values...
     IF ( FIRST ) THEN
+       AREA_M2 = State_Met%AREA_M2
        FIRST = .FALSE.
        RETURN
     ENDIF
@@ -428,11 +458,11 @@ CONTAINS
     LCHEM  = Input_Opt%LCHEM
     LWETD  = Input_Opt%LWETD
 
-    ! Define processes to be covered
+    ! Define processes being covered in current run phase.
     IF ( Phase == 1 ) THEN
        Input_Opt%LCONV  = LCONV 
-       Input_Opt%LDRYD  = LDRYD 
-       Input_Opt%LEMIS  = LEMIS
+       Input_Opt%LDRYD  = LDRYD .AND. IsChemTime
+       Input_Opt%LEMIS  = LEMIS .AND. IsChemTime
        Input_Opt%LTURB  = .FALSE.
        Input_Opt%LCHEM  = .FALSE.
        Input_Opt%LWETD  = .FALSE.
@@ -442,8 +472,8 @@ CONTAINS
        Input_Opt%LDRYD  = .FALSE. 
        Input_Opt%LEMIS  = .FALSE.
        Input_Opt%LTURB  = LTURB
-       Input_Opt%LCHEM  = LCHEM
-       Input_Opt%LWETD  = LWETD
+       Input_Opt%LCHEM  = LCHEM .AND. IsChemTime
+       Input_Opt%LWETD  = LWETD .AND. IsChemTime
     ENDIF
 
     !-------------------------------------------------------------------------
@@ -477,6 +507,8 @@ CONTAINS
                                     State_Met      = State_Met,  &
                                     RC             = RC         )
 
+    CALL Set_Floating_Pressure( State_Met%PS1 )
+
     ! Cap the polar tropopause pressures at 200 hPa, in order to avoid
     ! tropospheric chemistry from happening too high up (cf. J. Logan)
     CALL GIGC_Cap_Tropopause_Prs  ( am_I_Root      = am_I_Root,  &
@@ -485,6 +517,8 @@ CONTAINS
                                     Input_Opt      = Input_Opt,  &
                                     State_Met      = State_Met,  &
                                     RC             = RC         )
+
+    CALL AIRQNT( State_Met )
 
     ! Call PBL quantities. Those are always needed
     CALL COMPUTE_PBL_HEIGHT( State_Met )
@@ -507,12 +541,12 @@ CONTAINS
     IF ( Input_Opt%LCONV ) THEN
 
        ! testing only
-       if(am_I_Root) write(*,*) ' --- Do convection now'
+       if(am_I_Root.and.NCALLS<10) write(*,*) ' --- Do convection now'
   
        CALL DO_CONVECTION ( am_I_Root, Input_Opt, State_Met, State_Chm, RC )
  
        ! testing only
-       if(am_I_Root) write(*,*) ' --- Convection done!'
+       if(am_I_Root.and.NCALLS<10) write(*,*) ' --- Convection done!'
     ENDIF   
 
     !---------------------------------
@@ -535,7 +569,7 @@ CONTAINS
     IF ( Input_Opt%LDRYD ) THEN
 
        ! testing only
-       if(am_I_Root) write(*,*) ' --- Do drydep now'
+       if(am_I_Root.and.NCALLS<10) write(*,*) ' --- Do drydep now'
 
        ! Update & Remap Land-type arrays from Surface Grid-component
        CALL GEOS5_TO_OLSON_LANDTYPE_REMAP( State_Met, RC )    
@@ -548,7 +582,7 @@ CONTAINS
                           RC        = RC                   )  ! Success?
 
        ! testing only
-       if(am_I_Root) write(*,*) ' --- Drydep done!'
+       if(am_I_Root.and.NCALLS<10) write(*,*) ' --- Drydep done!'
 
     ENDIF ! Do drydep
 
@@ -558,13 +592,13 @@ CONTAINS
     IF ( Input_Opt%LEMIS ) THEN
 
        ! testing only
-       if(am_I_Root) write(*,*) ' --- Do emissions now'
+       if(am_I_Root.and.NCALLS<10) write(*,*) ' --- Do emissions now'
 
        CALL HCOI_GC_RUN ( am_I_Root, Input_Opt, State_Met, State_Chm, ERROR )
        ASSERT_(ERROR==HCO_SUCCESS)
 
        ! testing only
-       if(am_I_Root) write(*,*) ' --- Emissions done!'
+       if(am_I_Root.and.NCALLS<10) write(*,*) ' --- Emissions done!'
     ENDIF
 
     !=======================================================================
@@ -574,11 +608,14 @@ CONTAINS
     ! Set the emission and deposition values to zero to make sure that they
     ! are not used again in chemistry (even if the non-local PBL scheme is 
     ! used, emissions above the PBL are still added to the chemical solver).
+    ! 
+    ! Note: we need to use the LTURB switch here and not Input_Opt%LTURB, 
+    ! since Input_Opt%LTURB is set to false in phase 1 (when emissions occur).
     !=======================================================================
-    IF ( .NOT. Input_Opt%LTURB .AND. (Input_Opt%LEMIS .OR. Input_Opt%LDRYD) ) THEN
+    IF ( .NOT. LTURB .AND. (Input_Opt%LEMIS .OR. Input_Opt%LDRYD) ) THEN
   
        ! testing only
-       if(am_I_Root) write(*,*) ' --- Add emissions and drydep to tracers'
+       if(am_I_Root.and.NCALLS<10) write(*,*) ' --- Add emissions and drydep to tracers'
  
        ! Get pointer to HEMCO state
        CALL GetHcoState ( HcoState )
@@ -605,14 +642,14 @@ CONTAINS
                 HcoID = GetHcoID( TrcID = T )
                 IF ( HcoID > 0 ) THEN
                 IF ( ASSOCIATED(HcoState%Spc(HcoID)%Emis%Val) ) THEN
-                   write(*,*) '     Emission range for species: ', TRIM(Input_Opt%TRACER_NAME(T)), &
-               MINVAL(HcoState%Spc(HcoID)%Emis%Val), MAXVAL(HcoState%Spc(HcoID)%Emis%Val)
+!                   write(*,*) '- Emission maximum for species: ', TRIM(Input_Opt%TRACER_NAME(T)), MAXVAL(HcoState%Spc(HcoID)%Emis%Val)
+!                   write(*,*) '- Emissions for species: ', TRIM(Input_Opt%TRACER_NAME(T)), SUM(HcoState%Spc(HcoID)%Emis%Val)
                 ENDIF
                 ENDIF
              ENDIF
      
              ! Get emissions from HEMCO (kg/m2/s)
-             CALL GetHcoVal( T, I, J, L, FND, Emis8 )
+             CALL GetHcoVal( T, I, J, L, FND, Emis=Emis8 )
              IF ( FND ) THEN
                 ! kg/m2/s -> kg
                 FLX = FLX + ( Emis8 * HcoState%Grid%AREA_M2%Val(I,J) * DT )
@@ -622,7 +659,7 @@ CONTAINS
              IF ( L == 1 ) THEN
 
                 ! Get deposition rate from HEMCO (1/s)
-                CALL GetHcoVal( T, I, J, L, FND, Dep8 )
+                CALL GetHcoVal( T, I, J, L, FND, Dep = Dep8 )
                 IF ( FND ) DEP = DEP + Dep8
 
                 ! Also add deposition from drydep_mod.F [1/s].
@@ -658,7 +695,7 @@ CONTAINS
        HcoState => NULL()
 
        ! testing only
-       if(am_I_Root) write(*,*) ' --- Fluxes applied to tracers!' 
+       if(am_I_Root.and.NCALLS<10) write(*,*) ' --- Fluxes applied to tracers!' 
  
     ENDIF ! Turbulence
 
@@ -677,7 +714,7 @@ CONTAINS
     IF ( Input_Opt%LTURB ) THEN
 
        ! testing only
-       if(am_I_Root) write(*,*) ' --- Do turbulence now'
+       if(am_I_Root.and.NCALLS<10) write(*,*) ' --- Do turbulence now'
 
        ! Make sure tracers are in v/v
        IF ( isMass ) THEN 
@@ -691,17 +728,17 @@ CONTAINS
 
        IF ( Input_Opt%LNLPBL ) THEN
           ! testing only
-          if(am_I_Root) write(*,*) '     --> Use non-local PBL scheme'
+          if(am_I_Root.and.NCALLS<10) write(*,*) '     --> Use non-local PBL scheme'
           CALL DO_PBL_MIX_2( am_I_Root, Input_Opt%LTURB, Input_Opt, &
                              State_Met, State_Chm,       RC          )
        ELSE
           ! testing only
-          if(am_I_Root) write(*,*) '     --> Use full mixing scheme'
+          if(am_I_Root.and.NCALLS<10) write(*,*) '     --> Use full mixing scheme'
           CALL DO_PBL_MIX( Input_Opt%LTURB, Input_Opt, State_Met, State_Chm )
        ENDIF
 
        ! testing only
-       if(am_I_Root) write(*,*) ' --- Turbulence done!'
+       if(am_I_Root.and.NCALLS<10) write(*,*) ' --- Turbulence done!'
 
     ENDIF
 
@@ -721,8 +758,9 @@ CONTAINS
     IF ( Input_Opt%LCHEM ) THEN
 
        ! testing only
-       if(am_I_Root) write(*,*) ' --- Do chemistry now'
+       if(am_I_Root.and.NCALLS<10) write(*,*) ' --- Do chemistry now'
 
+       ! To be removed with FlexChem - MSL --------------
        IF (.NOT. ASSOCIATED(JLOP_PREV_loc)) THEN
           ALLOCATE(JLOP_PREV_loc(ILONG,ILAT,IPVERT),STAT=RC)
           ASSERT_(RC==0)
@@ -739,11 +777,14 @@ CONTAINS
    
        JLOP          = JLOP_PREV_loc
        JLOP_PREVIOUS = JLOP_PREV_loc
+
        AREA_M2 = State_Met%AREA_M2
 
        ! Zero Rate arrays  
        RRATE = 0.E0
        TRATE = 0.E0
+
+       ! To be removed with FlexChem - MSL --------------
 
        ! Calculate TOMS O3 overhead. For now, always use it from the
        ! Met field. State_Met%TO3 is imported from PCHEM.
@@ -761,7 +802,7 @@ CONTAINS
        JLOP_PREV_loc = JLOP
 
        ! testing only
-       if(am_I_Root) write(*,*) ' --- Chemistry done!'
+       if(am_I_Root.and.NCALLS<10) write(*,*) ' --- Chemistry done!'
     ENDIF
 
     !=======================================================================
@@ -770,13 +811,13 @@ CONTAINS
     IF ( Input_Opt%LWETD ) THEN
 
        ! testing only
-       if(am_I_Root) write(*,*) ' --- Do wetdep now'
+       if(am_I_Root.and.NCALLS<10) write(*,*) ' --- Do wetdep now'
 
        ! Do wet deposition
        CALL DO_WETDEP( am_I_Root, Input_Opt, State_Met, State_Chm, RC )
 
        ! testing only
-       if(am_I_Root) write(*,*) ' --- Wetdep done!'
+       if(am_I_Root.and.NCALLS<10) write(*,*) ' --- Wetdep done!'
     ENDIF
 
     !=======================================================================
@@ -800,6 +841,9 @@ CONTAINS
     Input_Opt%LEMIS  = LEMIS
     Input_Opt%LCHEM  = LCHEM
     Input_Opt%LWETD  = LWETD
+
+    ! testing only
+    IF (NCALLS<10) NCALLS = NCALLS + 1
 
     ! Return w/ success
     RC = GIGC_SUCCESS

@@ -159,6 +159,10 @@ CONTAINS
        ! (mlong, bmy, 2/26/13)
        CALL Read_Input_File( am_I_Root, Input_Opt, RC )
 
+       ! In the ESMF/MPI environment, we can get the total overhead ozone
+       ! either from the met fields (GIGCsa) or from the Import State (GEOS-5)
+       Input_Opt%USE_O3_FROM_MET = .TRUE.
+
        ! Echo info
        IF ( Input_Opt%LPRT ) THEN
           CALL Debug_Msg( '### Root CPU, after READ_INPUT_FILE' )
@@ -205,7 +209,8 @@ CONTAINS
                                    value_LM,        value_IM_WORLD,  &
                                    value_JM_WORLD,  value_LM_WORLD,  &
                                    Input_Opt,       State_Chm,       &
-                                   State_Met,       mapping,         &
+!                                   State_Met,       mapping,         &
+                                   State_Met,                        &
                                    RC                               )      
 !
 ! !USES:
@@ -227,11 +232,11 @@ CONTAINS
     USE Grid_Mod,             ONLY : Set_yOffSet
     USE Input_Mod,            ONLY : GIGC_Init_Extra
     USE Input_Mod,            ONLY : Initialize_Geos_Grid
-    USE Mapping_Mod,          ONLY : MapWeight
-    USE Mapping_Mod,          ONLY : Init_Mapping
-    USE Olson_Landmap_Mod,    ONLY : Init_Olson_Landmap
-    USE Olson_Landmap_Mod,    ONLY : Compute_Olson_Landmap
-    USE Olson_Landmap_Mod,    ONLY : Cleanup_Olson_Landmap
+!    USE Mapping_Mod,          ONLY : MapWeight
+!    USE Mapping_Mod,          ONLY : Init_Mapping
+!    USE Olson_Landmap_Mod,    ONLY : Init_Olson_Landmap
+!    USE Olson_Landmap_Mod,    ONLY : Compute_Olson_Landmap
+!    USE Olson_Landmap_Mod,    ONLY : Cleanup_Olson_Landmap
     USE PBL_MIX_MOD,          ONLY : INIT_PBL_MIX
     USE PRESSURE_MOD,         ONLY : INIT_PRESSURE
     USE TRACER_MOD,           ONLY : INIT_TRACER
@@ -271,7 +276,7 @@ CONTAINS
     TYPE(OptInput),  INTENT(INOUT) :: Input_Opt       ! Input Options
     TYPE(ChmState),  INTENT(INOUT) :: State_Chm       ! Chemistry State
     TYPE(MetState),  INTENT(INOUT) :: State_Met       ! Meteorology State
-    TYPE(MapWeight), POINTER       :: mapping(:,:)    ! Olson mapping object
+!    TYPE(MapWeight), POINTER       :: mapping(:,:)    ! Olson mapping object
 !
 !
 ! !OUTPUT PARAMETERS:
@@ -357,7 +362,9 @@ CONTAINS
     Input_Opt%NYMDe   = nymdE
     Input_Opt%NHMSe   = nhmsE
     Input_Opt%TS_CHEM = INT( tsChem ) / 60   ! Chemistry timestep [min]
-    Input_Opt%TS_DYN  = INT( tsDyn  ) / 60   ! Dynamic   timestep [mn]
+    Input_Opt%TS_EMIS = INT( tsChem ) / 60   ! Chemistry timestep [min]
+    Input_Opt%TS_DYN  = INT( tsDyn  ) / 60   ! Dynamic   timestep [min]
+    Input_Opt%TS_CONV = INT( tsDyn  ) / 60   ! Dynamic   timestep [min]
 
     !-----------------------------------------------------------------------
     ! Read info from the "input.geos" file into the Input_Opt object
@@ -412,17 +419,19 @@ CONTAINS
        ! Working Kluge - MSL; Break this & Fix the result...
 !       LVARTROP = Input_Opt%LVARTROP 
 
-       ! Set GEOS-Chem timesteps
-       CALL SET_TIMESTEPS( am_I_Root  = am_I_Root,                          &
-                           Chemistry  = Input_Opt%TS_CHEM,                  &
-                           Convection = Input_Opt%TS_CONV,                  &
-                           Dynamics   = Input_Opt%TS_DYN,                   &
-                           Emission   = Input_Opt%TS_EMIS,                  &
-                           Unit_Conv  = MAX( Input_Opt%TS_DYN,              &
-                                             Input_Opt%TS_CONV ),           &
-                           Diagnos    = Input_Opt%TS_DIAG         )
-       
     ENDIF
+
+    ! Set GEOS-Chem timesteps on all CPUs
+    CALL SET_TIMESTEPS( am_I_Root  = am_I_Root,                          &
+                        Chemistry  = Input_Opt%TS_CHEM,                  &
+                        Convection = Input_Opt%TS_CONV,                  &
+                        Dynamics   = Input_Opt%TS_DYN,                   &
+                        Emission   = Input_Opt%TS_EMIS,                  &
+                        Unit_Conv  = MAX( Input_Opt%TS_DYN,              &
+                                          Input_Opt%TS_CONV ),           &
+                        Diagnos    = Input_Opt%TS_DIAG         )
+       
+!    ENDIF
 
     ! After broadcasting Input_Opt to other CPUs, call GIGC_Init_Extra
     ! to initialize other modules (e.g. carbon_mod.F, dust_mod.F, 
@@ -525,11 +534,12 @@ CONTAINS
     ! Save tracer names and ID's into State_Chm
     DO N = 1, Input_Opt%N_TRACERS
        
-       ! Preface TRC_ to advected tracer names
-       Name = 'TRC_' // TRIM( Input_Opt%TRACER_NAME(N) )
+
+!       ! Preface TRC_ to advected tracer names
+!       Name = 'TRC_' // TRIM( Input_Opt%TRACER_NAME(N) )
 
        ! Call REGISTER_TRACER routine to 
-       CALL Register_Tracer( Name      = Name,                              &
+       CALL Register_Tracer( Name      = Input_Opt%TRACER_NAME(N),          &
                              ID        = Input_Opt%ID_TRACER(N),            &
                              State_Chm = State_Chm,                         &
                              Status    = STAT                    )
@@ -555,13 +565,13 @@ CONTAINS
     !=======================================================================
 !    IF ( Input_Opt%LDRYD )  THEN
 
-       ! Initialize the derived type object containing
-       ! mapping information for the MODIS LAI routines
-       IF ( Input_Opt%USE_OLSON_2001 ) THEN
-          CALL Init_Mapping( am_I_Root, Input_Opt, 1440, 720, IIPAR, JJPAR, mapping, RC )
-       ELSE
-          CALL Init_Mapping( am_I_Root, Input_Opt,  720, 360, IIPAR, JJPAR, mapping, RC )
-       ENDIF
+!       ! Initialize the derived type object containing
+!       ! mapping information for the MODIS LAI routines
+!       IF ( Input_Opt%USE_OLSON_2001 ) THEN
+!          CALL Init_Mapping( am_I_Root, Input_Opt, 1440, 720, IIPAR, JJPAR, mapping, RC )
+!       ELSE
+!          CALL Init_Mapping( am_I_Root, Input_Opt,  720, 360, IIPAR, JJPAR, mapping, RC )
+!       ENDIF
 
 #if !defined( EXTERNAL_FORCING )
        ! Compute the Olson land types that occur in each grid box
@@ -684,6 +694,9 @@ CONTAINS
        ENDIF
 
     ENDIF
+
+    ! Return w/ success
+    RC = GIGC_Success
 
   END SUBROUTINE GIGC_Init_Simulation
 !EOC

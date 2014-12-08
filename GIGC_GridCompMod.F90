@@ -156,6 +156,14 @@ contains
                DST_ID = ECTM, SRC_ID = ADV, __RC__  )
 
       CALL MAPL_AddConnectivity ( GC, &
+               SHORT_NAME  = (/'AIRDENS'/), &
+               DST_ID = CHEM, SRC_ID = ECTM, __RC__  )
+
+      CALL MAPL_AddConnectivity ( GC, &
+               SHORT_NAME  = (/'AREA'/), &
+               DST_ID = CHEM, SRC_ID = ADV, __RC__  )
+
+      CALL MAPL_AddConnectivity ( GC, &
                SRC_NAME  = (/ 'CXr8', 'CYr8', 'MFXr8', 'MFYr8', 'PLE0r8', 'PLE1r8' /), &
                DST_NAME  = (/ 'CX',   'CY',   'MFX',   'MFY',   'PLE0',   'PLE1'   /), &
                DST_ID = ADV, SRC_ID = ECTM, __RC__  )
@@ -449,7 +457,6 @@ contains
     call MAPL_TimerOff(STATE,GCNames(I))
 
     I=ADV
-    write(*,*) 'Running Dynamics GC'
     call MAPL_TimerOn (STATE,GCNames(I))
     call ESMF_GridCompRun (GCS(I), importState=GIM(I), &
          exportState=GEX(I), clock=CLOCK, userRC=STATUS );
@@ -462,7 +469,6 @@ contains
 !------------------
 
     I=CHEM   
-    write(*,*) 'Running Chemistry GC'
     call MAPL_TimerOn (STATE,GCNames(I))
      call ESMF_GridCompRun (GCS(I), importState=GIM(I), &
           exportState=GEX(I), clock=CLOCK, userRC=STATUS );
@@ -470,7 +476,6 @@ contains
      call MAPL_GenericRunCouplers (STATE, I, CLOCK, RC=STATUS );
      VERIFY_(STATUS)
     call MAPL_TimerOff(STATE,GCNames(I))
-    write(*,*) 'Fin'
 
 !    Use the following for two-phase runs (in this case, two run phases must
 !    be defined in Chem_GridCompMod!).
@@ -484,18 +489,14 @@ contains
 !     call MAPL_GenericRunCouplers (STATE, I, CLOCK, RC=STATUS );
 !     VERIFY_(STATUS)
 !    call MAPL_TimerOff(STATE,GCNames(I))
-!    write(*,*) 'Fin'
 !
-!    I=CHEM   
 !    write(*,*) 'Running Chemistry GC phase 2'
-!    call MAPL_TimerOn (STATE,GCNames(I))
 !     call ESMF_GridCompRun (GCS(I), importState=GIM(I), &
 !          exportState=GEX(I), clock=CLOCK, phase=2, userRC=STATUS );
 !     VERIFY_(STATUS)
 !     call MAPL_GenericRunCouplers (STATE, I, CLOCK, RC=STATUS );
 !     VERIFY_(STATUS)
 !    call MAPL_TimerOff(STATE,GCNames(I))
-!    write(*,*) 'Fin'
 
 ! Done With Sim
 !------------------
