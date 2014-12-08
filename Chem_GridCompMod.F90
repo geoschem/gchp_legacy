@@ -56,6 +56,14 @@ module Chem_GridCompMod
   INTEGER                          :: logLun          ! LUN for stdout logfile
   CHARACTER(LEN=ESMF_MAXSTR)       :: logFile         ! File for stdout redirect
 
+  ! Prefix of the tracer and species names in the internal state. Those have to match                                                                                                                             
+  ! the prefixes given in GEOSCHEMchem_Registry.rc.
+  CHARACTER(LEN=4), PARAMETER  :: TPFX = 'TRC_'
+  CHARACTER(LEN=4), PARAMETER  :: SPFX = 'SPC_'
+
+  ! Number of run phases. Can be set in the resource file (default is 2).
+  INTEGER                          :: NPHASE
+
 contains
 
     subroutine SetServices ( GC, RC )
@@ -429,7 +437,38 @@ contains
                                   Default = 55,                  &
                                   Label   = "MAX_DEP:",  __RC__ )   
 
-    !=======================================================================
+    ! # of levels in LINOZ climatology
+    CALL ESMF_ConfigGetAttribute( GeosCF, Input_Opt%LINOZ_NLEVELS,  &
+                                  Default = 25,                     &
+                                  Label   = "LINOZ_NLEVELS:",       &
+                                  __RC__                           )    
+
+    ! # of latitudes in LINOZ climatology
+    CALL ESMF_ConfigGetAttribute( GeosCF, Input_Opt%LINOZ_NLAT,     &
+                                  Default = 18,                     &
+                                  Label   = "LINOZ_NLAT:",          & 
+                                  __RC__                           )
+
+    ! # of months in LINOZ climatology
+    CALL ESMF_ConfigGetAttribute( GeosCF, Input_Opt%LINOZ_NMONTHS,  &
+                                  Default = 12,                     &
+                                  Label   = "LINOZ_NMONTHS:",       &
+                                  __RC__                           )
+
+    ! # of fields in LINOZ climatology
+    CALL ESMF_ConfigGetAttribute( GeosCF, Input_Opt%LINOZ_NFIELDS,  &
+                                  Default = 7,                      &
+                                  Label   = "LINOZ_NFIELDS:",       &
+                                  __RC__                           ) 
+
+    ! # of run phases
+    CALL ESMF_ConfigGetAttribute( GeosCF, NPHASE,                   & 
+                                  Default = 2,                      &
+                                  Label   = "RUN_PHASES:",          &
+                                  __RC__                           )
+    ASSERT_(NPHASE==1.OR.NPHASE==2) 
+ 
+   !===================================================
     ! Initialize GEOS-Chem
     !=======================================================================
 
@@ -494,7 +533,7 @@ contains
     DO N = 1, Input_Opt%N_TRACERS
 
        call ESMF_StateGet ( Export,       &
-            trim(State_Chm%Trac_Name(N)), &
+            trim(tpfx)//trim(State_Chm%Trac_Name(N)), &
             FIELD, __RC__ )
 
        trcID = State_Chm%Trac_ID(N)
@@ -509,30 +548,6 @@ contains
             VALUE = trcID,                &
                     __RC__ )       
 
-!--------------------------------------------------------
-! This was HEMCO stuff, don't think this is needed anymore
-! (ckeller, 10/10/2014)
-!--------------------------------------------------------
-!       MW = Input_Opt%Tracer_MW_g(trcID) ! Real*8! 
-!       call ESMF_AttributeSet (field,             &
-!            NAME  = 'MW_g',                       &
-!            VALUE = real(MW,4), & 
-!                    __RC__ )       
-! 
-!       ID_EMIT = Input_Opt%ID_EMITTED(trcID)
-!       IF ( ID_EMIT <= 0 ) THEN
-!          MolecRatio = 1.0d0
-!       ELSE
-!          MolecRatio = Input_Opt%TRACER_COEFF(trcID,ID_EMIT)
-!       ENDIF
-!       call ESMF_AttributeSet (field,             &
-!            NAME  = 'MolecRatio',                 &
-!            VALUE = real(MolecRatio,4),                   &
-!                    __RC__ )
-!
-!       ! TODO: Once new species structure is in place, also 
-!       ! add Henry coefficients here
-       
        call MAPL_FieldBundleAdd ( BUNDLE, FIELD, __RC__ )
     ENDDO
 
@@ -642,7 +657,11 @@ contains
     Iam = TRIM(compName)//'::Run1'
 
     ! Call run routine stage 1
-    CALL Run_ ( GC, IMPORT, EXPORT, CLOCK, 1, __RC__ )
+    ! Skip this step if only one phase is defined. In this case, we do all 
+    ! chemistry related processes in phase 2.
+    IF ( NPHASE == 2 ) THEN
+       CALL Run_ ( GC, IMPORT, EXPORT, CLOCK, 1, __RC__ )
+    ENDIF
 
     ! Return w/ success
     RETURN_(ESMF_SUCCESS)
@@ -677,6 +696,10 @@ contains
 !
     INTEGER,             INTENT(OUT)   :: RC       ! Error return code
 !
+! !LOCAL VARIABLES:
+!
+    INTEGER                            :: PHASE
+!
 ! !REMARKS:
 !
 ! !REVISION HISTORY:
@@ -701,8 +724,16 @@ contains
     ! Identify this routine to MAPL
     Iam = TRIM(compName)//'::Run2'
 
+    ! Set phase number: this is 2 for multi-phase runs, -1 otherwise. If
+    ! set to -1, all processes are called (drydep, emissions, chemistry, etc.)
+    IF ( NPHASE == 1 ) THEN
+       PHASE = -1
+    ELSE
+       PHASE = 2
+    ENDIF
+
     ! Call run routine stage 2
-    CALL Run_ ( GC, IMPORT, EXPORT, CLOCK, 2, __RC__ )
+    CALL Run_ ( GC, IMPORT, EXPORT, CLOCK, PHASE, __RC__ )
 
     ! Return w/ success
     RETURN_(ESMF_SUCCESS)
@@ -817,6 +848,11 @@ contains
 !                              and Includes_After_Run.H
 !  13 Feb 2013 - R. Yantosca - Now call MAPL_Get_SunInsolation to return
 !                              solar zenith angle and related properties
+!  22 Sep 2014 - C. Keller   - Added Phase argument
+!  24 Oct 2014 - C. Keller   - Now derive all O3 export quantities from Tracers
+!                              instead of Species (Species are zero in the 
+!                              stratosphere!). Removed species from internal
+!                              state as no physics was applied to them anyways.
 !EOP
 !------------------------------------------------------------------------------
 !BOC
@@ -828,9 +864,13 @@ contains
     TYPE(ESMF_Config)            :: MaplCF        ! Config (MAPL.rc)
     TYPE(ESMF_Config)            :: GeosCF        ! Config (GIGC*.rc)
     TYPE(GC_Ident)               :: Ident         ! G-C obj for ident info
-                                                  
-    ! Scalars                                     
+    TYPE(ESMF_Alarm)             :: ALARM
+
+    ! Scalars
     LOGICAL                      :: am_I_Root     ! Are we on the root CPU?
+    LOGICAL                      :: IsChemTime    ! Chemistry alarm proxy
+    LOGICAL                      :: IsRunTime     ! Time to call GEOS-Chem
+    LOGICAL                      :: IsTendTime    ! Time to calculate tendencies
     INTEGER                      :: IM            ! # of lons   on this PET
     INTEGER                      :: JM            ! # of lats   on this PET
     INTEGER                      :: LM            ! # of levels on this PET
@@ -870,10 +910,21 @@ contains
     REAL,  ALLOCATABLE, TARGET   :: solar(:,:)    ! Solar insolation
 
     ! Pointer arrays
-    REAL,               POINTER, DIMENSION(:,:,:) :: PLE ! INTERNAL: PEDGE
-    REAL(ESMF_KIND_R4), POINTER                   :: lonCtr(:,:)   ! Lon centers, this CPU [rad]
-    REAL(ESMF_KIND_R4), POINTER                   :: latCtr(:,:)   ! Lat centers, this CPU [rad]
-    
+    REAL,                POINTER, DIMENSION(:,:,:) :: PLE ! INTERNAL: PEDGE
+    REAL(ESMF_KIND_R4),  POINTER                   :: lonCtr(:,:)   ! Lon centers, this CPU [rad]
+    REAL(ESMF_KIND_R4),  POINTER                   :: latCtr(:,:)   ! Lat centers, this CPU [rad]
+    REAL, POINTER                                  :: Ptr3d (:,:,:) => NULL() ! Needed by Include_Before_Run.H
+    TYPE(MAPL_MetaComp), POINTER                   :: STATE    
+
+    ! For aero bundle                                                                                                                                                                                             
+    INTEGER                      :: nAero
+    TYPE(ESMF_FieldBundle)       :: AeroBdl
+    TYPE(ESMF_Field)             :: AeroFld
+    REAL, POINTER                :: GcPtr3d  (:,:,:) => NULL()
+    REAL, POINTER                :: AeroPtr3d(:,:,:) => NULL()
+    CHARACTER(LEN=ESMF_MAXSTR)   :: GcName
+    REAL                         :: GCMW, FRAC
+
     INTEGER :: IM_WORLD, JM_WORLD
     INTEGER :: I_LO,     J_LO
     INTEGER :: I_HI,     J_HI
@@ -887,6 +938,9 @@ contains
     TYPE(ESMF_FieldBundle)       :: trcBUNDLE     ! HEMCO bundle
     REAL              , POINTER  :: fPtrArray(:,:,:)
     REAL(ESMF_KIND_R8), POINTER  :: fPtrVal, fPtr1D(:)
+
+    ! First call?
+    LOGICAL, SAVE                :: FIRST = .TRUE.
 
     !=======================================================================
 
@@ -905,6 +959,28 @@ contains
     ! Traceback info
     CALL ESMF_GridCompGet( GC, name=compName, __RC__ )
     Iam = TRIM( compName ) // '::' // TRIM( Iam )
+
+    ! Get my MAPL_Generic state
+    ! -------------------------
+    CALL MAPL_GetObjectFromGC(GC, STATE, __RC__)
+
+    ! Query the chemistry alarm.
+    ! This checks if it's time to do chemistry, based on the time step
+    ! set in AGCM.rc (GEOSCHEMCHEM_DT:). If the GEOS-Chem time step is not
+    ! specified in AGCM.rc, the heartbeat will be taken (set in MAPL.rc).
+    ! ----------------------------------------------------------------------
+    CALL MAPL_Get(STATE, RUNALARM=ALARM, __RC__)
+    IsChemTime = ESMF_AlarmIsRinging(ALARM, __RC__)
+
+    ! Turn off alarm: only if it was on and this is phase 2 (don't turn off
+    ! after phase one since this would prevent phase 2 from being executed).
+    IF ( IsChemTime .AND. PHASE /= 1) THEN
+       CALL ESMF_AlarmRingerOff(ALARM, __RC__ )
+    ENDIF
+
+    ! Run when it's time to do so
+    ! ---------------------------
+    RunningGEOSChem: IF(IsChemTime) THEN
 
     ! Get pointers to fields in import, internal, and export states
 #   include "GIGCchem_GetPointer___.h"
@@ -951,13 +1027,6 @@ contains
                    petCount  = nPets,    &  ! Total # of CPUs
                    __RC__ )
 
-   ! Make sure we have proper dimension sizes
-    ASSERT_( IM >  0                )
-    ASSERT_( JM >  0                )
-!    ASSERT_( LM <= MAX_COLUMN       )
-!    ASSERT_( LM == DimInfo%L_COLUMN )
-
-
     ! Allocate GMAO_ZTH (declared at top of module)
     IF ( .not. ALLOCATED( zenith ) ) THEN
        ALLOCATE( zenith( IM, JM ), STAT=STATUS)
@@ -968,10 +1037,6 @@ contains
     IF ( .not. ALLOCATED( solar ) ) THEN
        ALLOCATE( solar( IM, JM ), STAT=STATUS)
        VERIFY_(STATUS)
-    ENDIF
-
-    IF (.not. ALLOCATED( Z ) ) THEN
-       ALLOCATE(Z(IM,JM,LM))
     ENDIF
 
     ! Call EXTRACT a second time to get the solar zenith
@@ -1038,66 +1103,37 @@ contains
        State_Chm%Tracers = 1.e-25
     end where
 
-!    IND = 1 !Get_Indx( 'TRC_O3', State_Chm%Trac_Id, State_Chm%Trac_Name )
-!    IF( IND > 0 .and. hour .lt. 1. .and. am_I_Root ) &
-!         State_Chm%Tracers = 1e-12
-!    IF( am_I_Root ) State_Chm%Tracers(10:12,10:12,1,:) = 1e-12
-
-    !=======================================================================
-    ! If import restart does not exist, wait until next pass to run GIGC
-    !=======================================================================
-
-    IF(Input_Opt%haveImpRst) THEN
     !=======================================================================
     ! Execute GEOS-Chem on multiple PETs
     !=======================================================================
 
     ! Run the GEOS-Chem column chemistry code
-     CALL GIGC_Chunk_Run( am_I_Root = am_I_Root,  &  ! Are we on the root CPU?
-                          IM        = IM,         &  ! # of lons on this CPU
-                          JM        = JM,         &  ! # of lats on this CPU
-                          LM        = LM,         &  ! # of levs on this CPU
-                          nymd      = nymd,       &  ! Current YYYY/MM/DD date
-                          nhms      = nhms,       &  ! Current hh:mm:ss time
-                          year      = year,       &  ! Current year
-                          month     = month,      &  ! Current month
-                          day       = day,        &  ! Current day
-                          dayOfYr   = dayOfYr,    &  ! Current day of year
-                          hour      = hour,       &  ! Current hour
-                          minute    = minute,     &  ! Current minute
-                          second    = second,     &  ! Current second
-                          utc       = utc,        &  ! Current UTC time [hrs]
-                          hElapsed  = hElapsed,   &  ! Elapsed hours
-                          Input_Opt = Input_Opt,  &  ! Input Options object
-                          State_Chm = State_Chm,  &  ! Chemistry State object
-                          State_Met = State_Met,  &  ! Meteorology State object
-                          Phase     = Phase,      &  ! Run phase
-                          RC        = error )        ! Success or failure?
+     CALL GIGC_Chunk_Run( am_I_Root  = am_I_Root,  &  ! Are we on the root CPU?
+                          IM         = IM,         &  ! # of lons on this CPU
+                          JM         = JM,         &  ! # of lats on this CPU
+                          LM         = LM,         &  ! # of levs on this CPU
+                          nymd       = nymd,       &  ! Current YYYY/MM/DD date
+                          nhms       = nhms,       &  ! Current hh:mm:ss time
+                          year       = year,       &  ! Current year
+                          month      = month,      &  ! Current month
+                          day        = day,        &  ! Current day
+                          dayOfYr    = dayOfYr,    &  ! Current day of year
+                          hour       = hour,       &  ! Current hour
+                          minute     = minute,     &  ! Current minute
+                          second     = second,     &  ! Current second
+                          utc        = utc,        &  ! Current UTC time [hrs]
+                          hElapsed   = hElapsed,   &  ! Elapsed hours
+                          Input_Opt  = Input_Opt,  &  ! Input Options object
+                          State_Chm  = State_Chm,  &  ! Chemistry State object
+                          State_Met  = State_Met,  &  ! Meteorology State object
+                          Phase      = Phase,      &  ! Run phase
+                          IsChemTime = IsChemTime, &  ! Is it time for chemistry?
+                          RC         = error )        ! Success or failure?
 
     ! Trap the error from GEOS-Chem
      IF ( error /= GIGC_SUCCESS ) THEN 
         CALL Error_Trap_( Ident, error, __RC__ )
      ENDIF
-
-    END IF
-
-!-->    ! Fix negatives! In GEOS-5, Convection can cause small negative tracer values
-!-->    DO L = 1,LM
-!-->       DO J = 1, JM
-!-->          DO I = 1,IM
-!-->             DO N = 1,Input_Opt%n_tracers
-!-->                IF (State_Chm%tracers(I,J,L,N) .lt. 0.e0 ) THEN
-!-->                   State_Chm%tracers(I,J,L,N) = 1e-36
-!-->                ENDIF
-!-->             ENDDO
-!-->          ENDDO
-!-->       ENDDO
-!-->    ENDDO
-
-    ! Do wet deposition
-!-->    CALL DO_WETDEP( am_I_Root, Input_Opt, State_Met, State_Chm, RC )
-
-    Input_Opt%haveImpRst = .TRUE.
 
     !=======================================================================
     ! post-Run method array assignments
@@ -1124,12 +1160,16 @@ contains
 !       fPtrArray = State_Chm%Tracers(:,:,LM:1:-1,trcID)
     END DO
 
+    END IF RunningGEOSChem
+
     !=======================================================================
     ! All done
     !=======================================================================
 
     IF ( ALLOCATED( zenith ) ) DEALLOCATE( zenith )
     IF ( ALLOCATED( solar  ) ) DEALLOCATE( solar  )
+
+    FIRST = .false.
 
     ! Close the file for stdout redirect.
     IF ( am_I_Root )  CLOSE ( UNIT=logLun )

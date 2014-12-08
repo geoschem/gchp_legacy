@@ -4918,7 +4918,7 @@ end function MAPL_AddChildFromGC
 
     do L=1,size(SPEC)
 
-       call MAPL_VarSpecGet(SPEC(L), DIMS=DIMS, VLOCATION=LOCATION, STAT=STAT, RC=STATUS )
+       call MAPL_VarSpecGet(SPEC(L), SHORT_NAME=SHORT_NAME, DIMS=DIMS, VLOCATION=LOCATION, STAT=STAT, RC=STATUS )
        VERIFY_(STATUS)
 !ALT we should also check if we have a valid grid in the spec so we do not overwrite it
 
@@ -4935,6 +4935,7 @@ end function MAPL_AddChildFromGC
              case(MAPL_VLocationEdge  )
                 GRD = GRID
              case default
+                CALL WRITE_PARALLEL("MAPL Err 1: Unable to set VLocation for import variable, " // trim(SHORT_NAME))
                 RETURN_(ESMF_FAILURE)
              end select
           case(MAPL_DimsHorzOnly)

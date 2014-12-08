@@ -362,7 +362,9 @@ CONTAINS
     Input_Opt%NYMDe   = nymdE
     Input_Opt%NHMSe   = nhmsE
     Input_Opt%TS_CHEM = INT( tsChem ) / 60   ! Chemistry timestep [min]
-    Input_Opt%TS_DYN  = INT( tsDyn  ) / 60   ! Dynamic   timestep [mn]
+    Input_Opt%TS_EMIS = INT( tsChem ) / 60   ! Chemistry timestep [min]
+    Input_Opt%TS_DYN  = INT( tsDyn  ) / 60   ! Dynamic   timestep [min]
+    Input_Opt%TS_CONV = INT( tsDyn  ) / 60   ! Dynamic   timestep [min]
 
     !-----------------------------------------------------------------------
     ! Read info from the "input.geos" file into the Input_Opt object
@@ -417,17 +419,19 @@ CONTAINS
        ! Working Kluge - MSL; Break this & Fix the result...
 !       LVARTROP = Input_Opt%LVARTROP 
 
-       ! Set GEOS-Chem timesteps
-       CALL SET_TIMESTEPS( am_I_Root  = am_I_Root,                          &
-                           Chemistry  = Input_Opt%TS_CHEM,                  &
-                           Convection = Input_Opt%TS_CONV,                  &
-                           Dynamics   = Input_Opt%TS_DYN,                   &
-                           Emission   = Input_Opt%TS_EMIS,                  &
-                           Unit_Conv  = MAX( Input_Opt%TS_DYN,              &
-                                             Input_Opt%TS_CONV ),           &
-                           Diagnos    = Input_Opt%TS_DIAG         )
-       
     ENDIF
+
+    ! Set GEOS-Chem timesteps on all CPUs
+    CALL SET_TIMESTEPS( am_I_Root  = am_I_Root,                          &
+                        Chemistry  = Input_Opt%TS_CHEM,                  &
+                        Convection = Input_Opt%TS_CONV,                  &
+                        Dynamics   = Input_Opt%TS_DYN,                   &
+                        Emission   = Input_Opt%TS_EMIS,                  &
+                        Unit_Conv  = MAX( Input_Opt%TS_DYN,              &
+                                          Input_Opt%TS_CONV ),           &
+                        Diagnos    = Input_Opt%TS_DIAG         )
+       
+!    ENDIF
 
     ! After broadcasting Input_Opt to other CPUs, call GIGC_Init_Extra
     ! to initialize other modules (e.g. carbon_mod.F, dust_mod.F, 
@@ -490,9 +494,8 @@ CONTAINS
     ! Initialize FAST-J photolysis
 !------------------------------------------------------------------------------
 ! Prior to 3/7/13:
-! NOTE: for now, just call INIT_FJX on all CPUs.  Try to figure out how
-! to MPI broadcast later.  This could be difficult & convoluted. Eeek.
-! (bmy, mlong, 3/7/13)
+! NOTE: for now, just call INPHOT on all CPUs.  Try to figure out how
+! to MPI broadcast later.  This could be very difficult. (bmy, mlong, 3/7/13)
 !    IF ( am_I_Root ) THEN
 !------------------------------------------------------------------------------
        CALL INIT_FJX( am_I_Root, Input_Opt, RC )  ! Are we on the root CPU?

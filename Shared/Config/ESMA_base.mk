@@ -190,7 +190,8 @@ LIB_NETCDF :=$(NCL)
 # Always assume we are using netCDF-4 (bmy, 11/20/14)
 INC_SDF = $(INC_NETCDF)
 LIB_SDF = $(LIB_NETCDF)
-DEF_SDF += $(D)HAS_NETCDF4
+DEF_SDF += $(D)HAS_NETCDF4 
+DEF_SDF += $(D)H5_HAVE_PARALLEL
 #------------------------------------------------------------------------------
 
 DIR_ESMF := $(ESMF_DIR)
