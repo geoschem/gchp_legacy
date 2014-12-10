@@ -857,8 +857,8 @@
          do ii = 1, cfio%attCharCnts(i)
             cfio%attChars(i)(ii:ii) = globalAtt(ii)
             if (ii .ge. MLEN) then
-               print *,"global attribute ",trim(cfio%attCharNames(i)), &
-                       " is longer than MLEN"
+!               print *,"global attribute ",trim(cfio%attCharNames(i)), &
+!                       " is longer than MLEN"
                exit
             end if
          end do

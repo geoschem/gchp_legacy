@@ -507,7 +507,10 @@ CONTAINS
                                     State_Met      = State_Met,  &
                                     RC             = RC         )
 
+#if !defined( EXTERNAL_FORCING)
     CALL Set_Floating_Pressure( State_Met%PS1 )
+    CALL AirQnt( State_Met )
+#endif 
 
     ! Cap the polar tropopause pressures at 200 hPa, in order to avoid
     ! tropospheric chemistry from happening too high up (cf. J. Logan)
@@ -517,8 +520,6 @@ CONTAINS
                                     Input_Opt      = Input_Opt,  &
                                     State_Met      = State_Met,  &
                                     RC             = RC         )
-
-    CALL AIRQNT( State_Met )
 
     ! Call PBL quantities. Those are always needed
     CALL COMPUTE_PBL_HEIGHT( State_Met )
