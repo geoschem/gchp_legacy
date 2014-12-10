@@ -101,8 +101,8 @@
 
      DO J = 1, JM
      DO I = 1, IM
-        State_Met%PEDGE(I,J,L) = PLE(  I, J, L) / 1d2  ! Pa -> hPa
-        State_Met%CMFMC(I,J,L) = CMFMC(I, J, L)    ! kg/m2/s
+        State_Met%PEDGE(I,J,L) = PLE(  I, J, LR) / 1d2  ! Pa -> hPa (mb)
+        State_Met%CMFMC(I,J,L) = CMFMC(I, J, LR)    ! kg/m2/s
      ENDDO
      ENDDO
   ENDDO

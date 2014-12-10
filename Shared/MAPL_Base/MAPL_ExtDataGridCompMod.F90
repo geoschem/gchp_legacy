@@ -1781,6 +1781,7 @@ CONTAINS
      type(ESMF_Time)                            :: readTime
    
      call ESMF_TimeIntervalSet(zero,__RC__)
+     UniFileClim = .false.
      if (frequency == zero) then
         ! if the file is constant, i.e. no tokens in in the template
         ! but it was marked as cyclic we must have a year long climatology 

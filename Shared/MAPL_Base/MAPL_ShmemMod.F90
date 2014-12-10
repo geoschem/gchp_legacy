@@ -1148,7 +1148,6 @@
       else
       ! Confirm we have the proper communicator
          call MPI_COMM_SIZE(NodeRootsComm, NumNodes, STATUS)
-         print *, "<>", MAPL_CoresPerNodeUsed,NumCores,NumNodes,npes
          ASSERT_(STATUS==MPI_SUCCESS)
          ASSERT_(MAPL_CoresPerNodeUsed*NumNodes == npes)
       endif

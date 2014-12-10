@@ -230,7 +230,7 @@ contains
 !
     TYPE(ESMF_GridComp), INTENT(INOUT)         :: GC          ! Ref. to this GridComp
     TYPE(ESMF_State),    INTENT(INOUT), TARGET :: Import      ! Import state
-    TYPE(ESMF_State),    INTENT(INOUT)         :: Export      ! Export state
+    TYPE(ESMF_State),    INTENT(INOUT), TARGET :: Export      ! Export state
     TYPE(ESMF_Clock),    INTENT(INOUT)         :: Clock       ! ESMF clock object
 !                                                      
 ! !OUTPUT PARAMETERS:                                  
@@ -383,6 +383,9 @@ contains
     Ident%ERRMSG     = ''
     Ident%VERBOSE    = .FALSE.
 
+!    Input_Opt%NPES   = NPES
+    Input_Opt%myPet  = myPet
+
     !=======================================================================
     ! Open a log file on each PET where stdout will be redirected
     !=======================================================================
@@ -520,6 +523,7 @@ contains
     CALL GetHcoState( HcoState )
     ASSERT_(ASSOCIATED(HcoState))
     HcoState%IMPORT => IMPORT
+    HcoState%EXPORT => EXPORT
     HcoState => NULL()
 
     !=======================================================================
@@ -1100,6 +1104,7 @@ contains
 #   include "Includes_Before_Run.H"
 
     where (State_Chm%Tracers .lt. 1.e-25 .or. State_Chm%Tracers .gt. 1.e36)
+!    where (State_Chm%Tracers .lt. 0e0 .or. State_Chm%Tracers .gt. 1.e36)
        State_Chm%Tracers = 1.e-25
     end where
 

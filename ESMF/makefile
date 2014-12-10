@@ -17,7 +17,8 @@ ifndef ARCH
 endif
 
 export ESMF_COMPILER=intel
-export ESMF_COMM=openmpi
+#export ESMF_COMM=openmpi
+export ESMF_COMM=mpi
 export ESMF_INSTALL_PREFIX=$(ESMF_DIR)/$(ARCH)
 export ESMF_INSTALL_LIBDIR=$(ESMF_DIR)/$(ARCH)/lib
 export ESMF_INSTALL_MODDIR=$(ESMF_DIR)/$(ARCH)/mod
