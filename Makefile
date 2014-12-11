@@ -111,7 +111,7 @@ export ESMF_F90COMPILEOPTS=-align all -fPIC -traceback
 export ESMF_CXXCOMPILEOPTS=-fPIC
 export ESMF_OPENMP=OFF
 export ESMF_OS=$(ARCH)
-export ESMF_BOPT=g
+export ESMF_BOPT=O
 
 # MAPL-specific settings
 export ESMA_FC=$(FC)
