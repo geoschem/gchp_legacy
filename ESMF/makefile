@@ -16,13 +16,15 @@ ifndef ARCH
   ARCH := $(shell uname -s)
 endif
 
-export ESMF_INSTALL_PREFIX=$(ESMF_DIR)/$(ARCH)
-export ESMF_INSTALL_LIBDIR=$(ESMF_DIR)/$(ARCH)/lib
-export ESMF_INSTALL_MODDIR=$(ESMF_DIR)/$(ARCH)/mod
-export ESMF_INSTALL_HEADERDIR=$(ESMF_DIR)/$(ARCH)/include
-export ESMF_F90COMPILEOPTS=-align all -fPIC -traceback 
-export ESMF_CXXCOMPILEOPTS=-fPIC
-export ESMF_OPENMP=OFF
+# Prior to 12/12/14:
+# These are defined in the GIGC/makefile one level higher (bmy, 12/12/14)
+#export ESMF_INSTALL_PREFIX=$(ESMF_DIR)/$(ARCH)
+#export ESMF_INSTALL_LIBDIR=$(ESMF_DIR)/$(ARCH)/lib
+#export ESMF_INSTALL_MODDIR=$(ESMF_DIR)/$(ARCH)/mod
+#export ESMF_INSTALL_HEADERDIR=$(ESMF_DIR)/$(ARCH)/include
+#export ESMF_F90COMPILEOPTS=-align all -fPIC -traceback 
+#export ESMF_CXXCOMPILEOPTS=-fPIC
+#export ESMF_OPENMP=OFF
 
 #-------------------------------------------------------------------------------
 

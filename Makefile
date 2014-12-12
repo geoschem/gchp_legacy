@@ -42,6 +42,8 @@
 #  17 Oct 2014 - R. Yantosca - Cosmetic changes
 #  18 Nov 2014 - R. Yantosca - Remove the fvdycore.install file again after
 #                              making distclean, for safety's sake.
+#  12 Dec 2014 - R. Yantosca - Define defaults for  ESMF, MAPL, FVdycore
+#                              that can be overridden by cmd line or env var
 #EOP
 #------------------------------------------------------------------------------
 #BOC
@@ -73,20 +75,57 @@ ifndef BASEDIR
  export BASEDIR=$(realpath $(ROOTDIR))
 endif 
 
+#-----------------------------------------------------------------------------
+# Settings for ESMF
+#-----------------------------------------------------------------------------
+
+# Directory where ESMF lives
+ifndef ESMF_DIR
+  export ESMF_DIR=$(CURDIR)/ESMF
+endif
+
+# Compiler for ESMF
+ifndef ESMF_COMPILER
+  export ESMF_COMPILER=intel
+endif
+
+# MPI type for ESMF
+ifndef ESMF_COMM
+  export ESMF_COMM=mpi
+endif
+
+# Operating system type for ESMF
+ifndef ESMF_OS
+  export ESMF_OS=$(ARCH)
+endif
+
+# Optimization level for ESMF
+ifndef ESMF_BOPT
+  export ESMF_BOPT=O
+endif
+
+# Other ESMF directory settings
+export ESMF_INSTALL_PREFIX=$(ESMF_DIR)/$(ARCH)
+export ESMF_INSTALL_LIBDIR=$(ESMF_DIR)/$(ARCH)/lib
+export ESMF_INSTALL_MODDIR=$(ESMF_DIR)/$(ARCH)/mod
+export ESMF_INSTALL_HEADERDIR=$(ESMF_DIR)/$(ARCH)/include
+
+# Other ESMF compilation settings
+export ESMF_F90COMPILEOPTS=-align all -fPIC -traceback 
+export ESMF_CXXCOMPILEOPTS=-fPIC
+export ESMF_OPENMP=OFF
+
+#-----------------------------------------------------------------------------
+# Settings for MAPL
+#-----------------------------------------------------------------------------
+
 # ESMADIR is the directory where MAPL lives
 ifndef ESMADIR
- ESMADIR:=$(CURDIR)/Shared
+  ESMADIR:=$(CURDIR)/Shared
 endif
 
-# ESMF_DIR is the directory where ESMF lives
-ifndef ESMF_DIR
- export ESMF_DIR=$(CURDIR)/ESMF
-endif
-
-# FVDIR is where the FVDycore lives
-ifndef FVDIR
- export FVDIR=$(CURDIR)/FVdycoreCubed_GridComp
-endif
+# Fortran compiler for MAPL
+export ESMA_FC=$(FC)
 
 # RCDIR is the directory where the registry files live
 export RCDIR=$(CURDIR)/Registry
@@ -100,21 +139,14 @@ else
   include ./Shared/Config/ESMA_arch.mk  # System dependencies
 endif
 
-# ESMF-specific settings
-export ESMF_COMPILER=intelgcc
-export ESMF_COMM=openmpi
-export ESMF_INSTALL_PREFIX=$(ESMF_DIR)/$(ARCH)
-export ESMF_INSTALL_LIBDIR=$(ESMF_DIR)/$(ARCH)/lib
-export ESMF_INSTALL_MODDIR=$(ESMF_DIR)/$(ARCH)/mod
-export ESMF_INSTALL_HEADERDIR=$(ESMF_DIR)/$(ARCH)/include
-export ESMF_F90COMPILEOPTS=-align all -fPIC -traceback 
-export ESMF_CXXCOMPILEOPTS=-fPIC
-export ESMF_OPENMP=OFF
-export ESMF_OS=$(ARCH)
-export ESMF_BOPT=O
+#-----------------------------------------------------------------------------
+# Settings for FVdycore
+#-----------------------------------------------------------------------------
 
-# MAPL-specific settings
-export ESMA_FC=$(FC)
+# FVDIR is where the FVDycore lives
+ifndef FVDIR
+ export FVDIR=$(CURDIR)/FVdycoreCubed_GridComp
+endif
 
 ###############################################################################
 ###                                                                         ###
@@ -203,26 +235,30 @@ gigc_debug gigc_help:
 	@echo "LIB                    : $(LIB)"
 	@echo "MOD                    : $(MOD)"
 	@echo "BASEDIR                : $(BASEDIR)"
-	@echo "ESMADIR                : $(ESMADIR)"
-	@echo "ESMF_DIR               : $(ESMF_DIR)"
-	@echo "FVDIR                  : $(FVDIR)"
-	@echo "RCDIR                  : $(RCDIR)"
 	@echo ""
-	@echo "ESMF settings"
+	@echo "Settings for ESMF"
 	@echo "----------------------------------------------------------"
+	@echo "ESMF_DIR               : $(ESMF_DIR)"
 	@echo "ESMF_COMPILER          : $(ESMF_COMPILER)"
 	@echo "ESMF_COMM              : $(ESMF_COMM)"
+	@echo "ESMF_OS                : $(ESMF_OS)"
+	@echo "ESMF_BOPT              : $(ESMF_BOPT)"
 	@echo "ESMF_INSTALL_PREFIX    : $(ESMF_INSTALL_PREFIX)"
 	@echo "ESMF_INSTALL_LIBDIR    : $(ESMF_INSTALL_LIBDIR)"
 	@echo "ESMF_INSTALL_MODDIR    : $(ESMF_INSTALL_MODDIR)"
 	@echo "ESMF_INSTALL_HEADERDIR : $(ESMF_INSTALL_HEADERDIR)"
 	@echo "ESMF_F90COMPILEOPTS    : $(ESMF_F90COMPILEOPTS)"
 	@echo "ESMF_CXXCOMPILEOPTS    : $(ESMF_CXXCOMPILEOPTS)"
-	@echo "ESMF_OPENMP            : $(ESMF_OPENMP)"
-	@echo "ESMF_OS                : $(ESMF_OS)"
 	@echo ""
-	@echo "FVdycore settings:"
+	@echo "Settings for MAPL"
 	@echo "----------------------------------------------------------"
+	@echo "ESMADIR                : $(ESMADIR)"
+	@echo "ESMA_FC                : $(ESMA_FC)"
+	@echo "RCDIR                  : $(RCDIR)"
+	@echo ""
+	@echo "Settings for FVdycore"
+	@echo "----------------------------------------------------------"
+	@echo "FVDIR                  : $(FVDIR)"
 	@$(MAKE) -C $(FVDIR) ESMADIR=$(ESMADIR) help
 
 ###############################################################################
