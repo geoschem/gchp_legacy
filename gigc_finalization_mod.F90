@@ -92,12 +92,15 @@ CONTAINS
 
     ! Deallocate fields of the Input Options object
     CALL Cleanup_GIGC_Input_Opt( am_I_Root, Input_Opt, RC )
+    IF (am_I_Root) write(*,'(a)') 'Chem::Input_Opt Finalize... OK.'
 
     ! Deallocate fields of the Chemistry State object
     CALL Cleanup_GIGC_State_Chm( am_I_Root, State_Chm, RC )
+    IF (am_I_Root) write(*,'(a)') 'Chem::State_Chm Finalize... OK.'
 
     ! Deallocate fields of the Meteorology State object
     CALL Cleanup_GIGC_State_Met( am_I_Root, State_Met, RC )
+    IF (am_I_Root) write(*,'(a)') 'Chem::State_Met Finalize... OK.'
 
     ! Deallocate all other GEOS-Chem allocatable arrays
 !    CALL CleanUp( am_I_Root, RC )

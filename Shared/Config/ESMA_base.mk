@@ -210,9 +210,22 @@ LIB_ESMF := $(DIR_ESMF)/$(ARCH)/lib/libesmf.so
 # %%%%% ADDED BY BOB Y. (11/20/14) %%%%%
 #
 # Now query for the correct MPI info (bmy, 11/20/14)
-INC_MPI := $(shell mpif90 --showme:incdirs)
-LIB_MPI := $(shell mpif90 --showme:link)
-LIB_MPI += $(shell mpicxx --showme:link)
+	FC := mpif90
+    ifdef MVAPICH2
+        FC := mpif90
+        INC_MPI := $(MVAPICH2)/include
+        LIB_MPI := -L$(MVAPICH2)/lib  -lmpich
+    else  # Assume OpenMPI
+    ifdef MPT_VERSION
+        FC := mpif90
+        INC_MPI := $(MPI_ROOT)/include
+        LIB_MPI := -L$(MPI_ROOT)/lib  -lmpi -lmpi++
+    else
+	INC_MPI := $(shell mpif90 --showme:incdirs)
+	LIB_MPI := $(shell mpif90 --showme:link)
+	LIB_MPI += $(shell mpicxx --showme:link)
+    endif	
+    endif
 #------------------------------------------------------------------------------
 
 

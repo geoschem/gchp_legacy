@@ -584,13 +584,8 @@
          PLE0(:,:,L) = 100.d0*(AP(L) + ( BP(L) * PS0(:,:) ))
          PLE1(:,:,L) = 100.d0*(AP(L) + ( BP(L) * PS1(:,:) ))
       END DO
-      IF (.true.) THEN ! Flip vertical
-         PLE0(:,:,:) = PLE0(:,:,LM+1:1:-1)
-         PLE1(:,:,:) = PLE1(:,:,LM+1:1:-1)
-      ELSE ! Don't flip vertical
-         !PLE0(:,:,:) = PLE0(:,:,1:LM+1) ! <<>> This is done in Includes_Before_Run.H
-         !PLE1(:,:,:) = PLE1(:,:,1:LM+1)
-      ENDIF
+      PLE0(:,:,:) = PLE0(:,:,LM+1:1:-1)
+      PLE1(:,:,:) = PLE1(:,:,LM+1:1:-1)
        UC0(:,:,:) =  UC0(:,:,LM:1:-1)
        VC0(:,:,:) =  VC0(:,:,LM:1:-1)
        UC1(:,:,:) =  UC1(:,:,LM:1:-1)

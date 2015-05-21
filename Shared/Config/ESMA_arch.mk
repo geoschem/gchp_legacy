@@ -46,7 +46,7 @@ ifeq ($(ARCH),Linux)
     EXTENDED_SOURCE := -extend_source
     FREE_SOURCE := -free
     FIXED_SOURCE := -fixed
-    MPFLAG  := -mp
+    MPFLAG  := #-mp
     OMPFLAG  := -openmp
     BIG_ENDIAN := -convert big_endian
     BYTERECLEN := -assume byterecl
@@ -165,9 +165,14 @@ ifeq ($(ARCH),Linux)
 #
 # Now query the proper MPI settings
 FC      :=mpif90
-INC_MPI := $(shell mpif90 --showme:incdirs)
-LIB_MPI := $(shell mpif90 --showme:link)
-LIB_MPI += $(shell mpicxx --showme:link)
+    ifdef MPT_VERSION
+        FC := mpif90
+        INC_MPI := $(MPI_ROOT)/include
+        LIB_MPI := -L$(MPI_ROOT)/lib  -lmpi -lmpi++
+    endif	
+#INC_MPI := $(shell mpif90 --showme:incdirs)
+#LIB_MPI := $(shell mpif90 --showme:link)
+#LIB_MPI += $(shell mpicxx --showme:link)
 #------------------------------------------------------------------------------
 
 #   Define LIB_SYS
@@ -208,8 +213,12 @@ LIB_MPI += $(shell mpicxx --showme:link)
           endif
 #------------------------------------------------------------------------------
     else
+    ifeq ($(IFORT_MAJOR),15)
+          FOPT = $(FOPT3) -qopt-report0 -ftz -align all -fno-alias
 #alt: cprts library conflicts with ESMF4
-          LIB_SYS +=  -lunwind #-lcprts
+     LIB_SYS := -lirc -ldl -lc -lpthread -lrt 
+#         LIB_SYS +=  -lunwind #-lcprts
+    endif
     endif
     endif
 #------------------------------------------------------------------------------

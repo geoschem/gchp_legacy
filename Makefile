@@ -86,12 +86,14 @@ endif
 
 # Compiler for ESMF
 ifndef ESMF_COMPILER
+#  export ESMF_COMPILER=intelgcc
   export ESMF_COMPILER=intel
 endif
 
 # MPI type for ESMF
 ifndef ESMF_COMM
-  export ESMF_COMM=mpi
+#  export ESMF_COMM=openmpi
+  export ESMF_COMM=mvapich2
 endif
 
 # Operating system type for ESMF
@@ -321,12 +323,17 @@ wipeout_fvdycore:
 ###                                                                         ###
 ###############################################################################
 
-Chem_GridCompMod.o          : Chem_GridCompMod.F90 gigc_mpi_wrap.o                      \
-		              gigc_chunk_mod.o 
+Chem_GridCompMod.o          : Chem_GridCompMod.F90 gigc_mpi_wrap.o     \
+		              gigc_chunk_mod.o gigc_diagnostics_mod.o  \
+	                      gigc_chem_utils.o
 
 GEOSChem.o		    : GEOSChem.F90 GIGC_GridCompMod.o
 
 GEOS_ctmEnvGridComp.o	    : GEOS_ctmEnvGridComp.F90
+
+gigc_chem_utils.o           : gigc_chem_utils.F90
+
+GIGC_Diagnostics_Mod.o      : GIGC_Diagnostics_Mod.F90
 
 GIGC_GridCompMod.o          : GIGC_GridCompMod.F90 Chem_GridCompMod.o \
 	                      GEOS_ctmEnvGridComp.o
@@ -334,7 +341,8 @@ GIGC_GridCompMod.o          : GIGC_GridCompMod.F90 Chem_GridCompMod.o \
 gigc_initialization_mod.o   : gigc_initialization_mod.F90 gigc_mpi_wrap.o 
 
 gigc_chunk_mod.o            : gigc_chunk_mod.F90 gigc_finalization_mod.o \
-			      gigc_initialization_mod.o gc_land_interface.o
+			      gigc_initialization_mod.o gc_land_interface.o \
+			      gigc_diagnostics_mod.o
 
 gc_land_inteface.o          : gc_land_interface.F90
 #EOC

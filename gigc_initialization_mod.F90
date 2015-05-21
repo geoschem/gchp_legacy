@@ -27,7 +27,6 @@ MODULE GIGC_Initialization_Mod
 !
 ! !PRIVATE MEMBER FUNCTIONS:
 !
-  PRIVATE :: RoundOff
 !
 ! !REVISION HISTORY: 
 !  16 Oct 2012 - M. Long     - Initial version
@@ -63,6 +62,7 @@ CONTAINS
 !
     USE CMN_GCTM_Mod       
     USE CMN_SIZE_Mod
+    USE Grid_Mod,           ONLY : RoundOff
     USE Error_Mod,          ONLY : Debug_Msg
     USE GIGC_ErrCode_Mod
     USE GIGC_Input_Opt_Mod, ONLY : OptInput
@@ -158,6 +158,7 @@ CONTAINS
        ! CPU so that we can broadcast to other CPUs in GIGC_Init_Simulation
        ! (mlong, bmy, 2/26/13)
        CALL Read_Input_File( am_I_Root, Input_Opt, RC )
+       IF ( RC /= GIGC_SUCCESS ) RETURN
 
        ! In the ESMF/MPI environment, we can get the total overhead ozone
        ! either from the met fields (GIGCsa) or from the Import State (GEOS-5)
@@ -173,6 +174,7 @@ CONTAINS
        ! (bmy, 3/18/13)
        IF ( Input_Opt%LLINOZ ) THEN
           CALL Linoz_Read( am_I_Root, Input_Opt, RC ) 
+          IF ( RC /= GIGC_SUCCESS ) RETURN
 
           ! Echo info
           IF ( Input_Opt%LPRT ) THEN
@@ -202,7 +204,7 @@ CONTAINS
                                    nymdB,           nhmsB,           &
                                    nymdE,           nhmsE,           &
                                    tsChem,          tsDyn,           &
-                                   lonCtr,          latCtr,          &      
+                                   lonCtr,          latCtr,          &     
                                    value_I_LO,      value_J_LO,      &
                                    value_I_HI,      value_J_HI,      &
                                    value_IM,        value_JM,        &
@@ -230,6 +232,7 @@ CONTAINS
     USE Grid_Mod,             ONLY : Init_Grid
     USE Grid_Mod,             ONLY : Set_xOffSet
     USE Grid_Mod,             ONLY : Set_yOffSet
+    USE Grid_Mod,             ONLY : SetGridFromCtr
     USE Input_Mod,            ONLY : GIGC_Init_Extra
     USE Input_Mod,            ONLY : Initialize_Geos_Grid
 !    USE Mapping_Mod,          ONLY : MapWeight
@@ -242,12 +245,17 @@ CONTAINS
     USE TRACER_MOD,           ONLY : INIT_TRACER
     USE TRACERID_MOD,         ONLY : SETTRACE
     USE WETSCAV_MOD,          ONLY : INIT_WETSCAV
+    USE WETSCAV_MOD,          ONLY : WETDEPID
     USE DRYDEP_MOD,           ONLY : INIT_WEIGHTSS, INIT_DRYDEP
     USE DUST_MOD,             ONLY : INIT_DUST
     USE GIGC_MPI_WRAP
     USE TIME_MOD,             ONLY : SET_TIMESTEPS
     USE SEASALT_MOD,          ONLY : INIT_SEASALT
     USE TOMS_MOD,             ONLY : INIT_TOMS
+    
+    ! Stratosphere 
+    USE UCX_MOD,              ONLY : INIT_UCX, SET_INITIAL_MIXRATIOS
+    USE STRAT_CHEM_MOD,       ONLY : INIT_STRAT_CHEM
 !
 ! !INPUT PARAMETERS: 
 !
@@ -317,6 +325,8 @@ CONTAINS
 !                              after we broadcast Input_Opt to non-root CPUs.
 !  07 Mar 2013 - R. Yantosca - Call READER on all CPUs until further notice
 !  07 Mar 2013 - R. Yantosca - Now use keyword arguments for clarity
+!  02 Jan 2014 - C. Keller   - Now call SetGridFromCtr to make sure that 
+!                              grid_mod.F90 stored the correct edges/mid-points.
 !EOP
 !------------------------------------------------------------------------------
 !BOC
@@ -352,6 +362,7 @@ CONTAINS
                             value_JM_WORLD = value_JM_WORLD,                &
                             value_LM_WORLD = value_LM_WORLD,                &
                             RC             = RC              )            
+    IF ( RC /= GIGC_SUCCESS ) RETURN
 
     ! Allocate GEOS-Chem module arrays
 
@@ -379,19 +390,22 @@ CONTAINS
                            Input_Opt = Input_Opt,                           &
                            State_Chm = State_Chm,                           &
                            RC        = RC           )
+    IF ( RC /= GIGC_SUCCESS ) RETURN
 
     ! Broadcast fields of Input_Opt from root to all other CPUs
     CALL GIGC_Input_Bcast( am_I_Root = am_I_Root,                           &
                            Input_Opt = Input_Opt,                           &
                            RC        = RC           )
+    IF ( RC /= GIGC_SUCCESS ) RETURN
 
     ! Broadcast IDTxxx etc. tracer flags from root to all other CPUs
     CALL GIGC_IDT_Bcast  ( am_I_Root = am_I_Root,                           &  
                            Input_Opt = Input_Opt,                           &  
                            RC        = RC           )
+    IF ( RC /= GIGC_SUCCESS ) RETURN
 
     ! Complete initialization ops on all threads
-    IF ( .not. am_I_Root ) THEN 
+    !IF ( .NOT. am_I_Root ) THEN 
 
        ! Make sure to reset I0 and J0 in grid_mod.F90 with
        ! the values carried in the Input Options object
@@ -403,23 +417,33 @@ CONTAINS
        CALL Initialize_Geos_Grid( am_I_Root = am_I_Root,                    &
                                   Input_Opt = Input_Opt,                    &
                                   RC        =  RC )
+       IF ( RC /= GIGC_SUCCESS ) RETURN
 
        ! Initialize tracer quantities (in GeosCore/tracer_mod.F)
        CALL Init_Tracer( am_I_Root = am_I_Root,                             &
                          Input_Opt = Input_Opt,                             &
                          RC        = RC           )
+       IF ( RC /= GIGC_SUCCESS ) RETURN
 
        ! Initialize dry deposition (in GeosCore/drydep_mod.F)
-!       IF ( Input_Opt%LDRYD ) THEN
+       
+       IF ( Input_Opt%LDRYD ) THEN
           CALL Init_Drydep( am_I_Root = am_I_Root,                          &
                             Input_Opt = Input_Opt,                          &
                             RC        = RC         )
-!       ENDIF
+          IF ( RC /= GIGC_SUCCESS ) RETURN
+       ENDIF
+
+       ! Initialize wet deposition tracer IDs
+       IF ( Input_Opt%LWETD .OR. Input_Opt%LCONV ) THEN
+          CALL WETDEPID( am_I_Root, Input_Opt, RC )
+          IF ( RC /= GIGC_SUCCESS ) RETURN
+       ENDIF
 
        ! Working Kluge - MSL; Break this & Fix the result...
 !       LVARTROP = Input_Opt%LVARTROP 
 
-    ENDIF
+    !ENDIF ! Not root
 
     ! Set GEOS-Chem timesteps on all CPUs
     CALL SET_TIMESTEPS( am_I_Root  = am_I_Root,                          &
@@ -430,14 +454,31 @@ CONTAINS
                         Unit_Conv  = MAX( Input_Opt%TS_DYN,              &
                                           Input_Opt%TS_CONV ),           &
                         Diagnos    = Input_Opt%TS_DIAG         )
-       
-!    ENDIF
+
+    !-----------------------------------------------------------------------
+    ! Enforce GEOS-Chem grid values to be compliant w/ the underlying GEOS-5 
+    ! grid. This is a kludge to correct for some misbehavior that can occur
+    ! in the original GEOS-Chem grid computation code in an ESMF environment.
+    ! For example, the calculation is based on the grid edges and starts at
+    ! -180 deg E, and the latitude values become zero everywhere. 
+    ! Here, we overwrite all the previously calculated grid values based upon 
+    ! lonCtr and latCtr, which have been obtained directly from GEOS-5.
+    ! 
+    ! This call does NOT update the previously calculated grid box areas of 
+    ! grid_mod.F90. These are imported from superdynamics and cannot be
+    ! updated in the init phase yet. Instead, the areas of grid_mod.F90 will
+    ! be updated on the first GC run call (in gigc_chunk_mod.F90).
+    ! (ckeller, 1/2/15)
+    !-----------------------------------------------------------------------
+    CALL SetGridFromCtr( am_I_Root, value_IM, value_JM, lonCtr, latCtr, RC )
+    IF ( RC /= GIGC_SUCCESS ) RETURN
 
     ! After broadcasting Input_Opt to other CPUs, call GIGC_Init_Extra
     ! to initialize other modules (e.g. carbon_mod.F, dust_mod.F, 
     ! seasalt_mod.F,  sulfate_mod.F).  We needed to move these init 
     ! calls out of the run stage and into the init stage. (bmy, 3/4/13)
     CALL GIGC_Init_Extra( am_I_Root, Input_Opt, RC ) 
+    IF ( RC /= GIGC_SUCCESS ) RETURN
 
     !-----------------------------------------------------------------------
     ! Read other ASCII files on the root CPU and broadcast to other CPUs
@@ -476,6 +517,7 @@ CONTAINS
 !    IF ( am_I_Root ) THEN
 !------------------------------------------------------------------------------
        CALL READCHEM( am_I_Root, Input_Opt, RC )
+       IF ( RC /= GIGC_SUCCESS ) RETURN
        
        !### Debug
        IF ( prtDebug ) THEN
@@ -499,6 +541,7 @@ CONTAINS
 !    IF ( am_I_Root ) THEN
 !------------------------------------------------------------------------------
        CALL INIT_FJX( am_I_Root, Input_Opt, RC )  ! Are we on the root CPU?
+       IF ( RC /= GIGC_SUCCESS ) RETURN
 
        !### Debug
        IF ( prtDebug ) THEN
@@ -520,9 +563,11 @@ CONTAINS
 
     ! Zero diagnostic arrays
     CALL Initialize( am_I_Root, Input_Opt, 2, RC )
+    IF ( RC /= GIGC_SUCCESS ) RETURN
 
     ! Zero diagnostic counters
     CALL Initialize( am_I_Root, Input_Opt, 3, RC )
+    IF ( RC /= GIGC_SUCCESS ) RETURN
 
     ! Initialize derived-type objects for meteorology & chemistry states
     CALL GIGC_Init_All( am_I_Root = am_I_Root,                              &
@@ -530,6 +575,7 @@ CONTAINS
                         State_Chm = State_Chm,                              &
                         State_Met = State_Met,                              &
                         RC        = RC         )
+    IF ( RC /= GIGC_SUCCESS ) RETURN
 
     ! Save tracer names and ID's into State_Chm
     DO N = 1, Input_Opt%N_TRACERS
@@ -559,6 +605,7 @@ CONTAINS
     ! Initialize arrays SO2s, H2O2s in wetscav_mod.F for use in sulfate chem
     CALL Init_WetScav &
        ( am_I_Root, Input_Opt, State_Met, State_Chm, RC )
+    IF ( RC /= GIGC_SUCCESS ) RETURN
 
     !=======================================================================
     ! Initialize dry deposition 
@@ -605,11 +652,13 @@ CONTAINS
        CALL INIT_COMODE( am_I_Root = am_I_Root,                             &
                          Input_Opt = Input_Opt,                             &
                          RC        = RC         )
+       IF ( RC /= GIGC_SUCCESS ) RETURN
 
        ! Initialize KPP (if necessary)
        IF ( Input_Opt%LKPP ) THEN
           CALL INIT_GCKPP_COMODE( am_I_Root, IIPAR,   JJPAR, LLTROP,        &
                                   ITLOOP,    NMTRATE, IGAS,  RC      )
+          IF ( RC /= GIGC_SUCCESS ) RETURN
        ENDIF
        
        ! Set NCS for urban chemistry only (since that is where we
@@ -651,6 +700,7 @@ CONTAINS
                       Input_Opt = Input_Opt,                                &
                       State_Chm = State_Chm,                                &
                       RC        = RC         )
+       IF ( RC /= GIGC_SUCCESS ) RETURN
 
        ! Reset NCS
        NCS = NCSURBAN
@@ -679,6 +729,7 @@ CONTAINS
        
        ! Flag emission & drydep rxns
        CALL SETEMDEP( am_I_Root, Input_Opt, RC )
+       IF ( RC /= GIGC_SUCCESS ) RETURN
        
        !### Debug
        IF ( prtDebug ) THEN
@@ -695,62 +746,26 @@ CONTAINS
 
     ENDIF
 
+    !-------------------------------------------------------------------------
+    ! Stratosphere 
+    !-------------------------------------------------------------------------
+    IF ( Input_Opt%LUCX ) THEN
+
+       ! Initialize stratospheric routines
+       CALL INIT_UCX( am_I_Root, Input_Opt )
+
+       ! Set simple initial tracer conditions
+       CALL SET_INITIAL_MIXRATIOS( am_I_Root, Input_Opt, State_Met, State_Chm )
+    ENDIF
+
+    IF ( Input_Opt%LSCHEM ) THEN
+       CALL INIT_STRAT_CHEM( am_I_Root, Input_Opt, State_Chm, RC )
+    ENDIF
+
     ! Return w/ success
     RC = GIGC_Success
 
   END SUBROUTINE GIGC_Init_Simulation
-!EOC
-!------------------------------------------------------------------------------
-!     NASA/GSFC, Global Modeling and Assimilation Office, Code 910.1 and      !
-!          Harvard University Atmospheric Chemistry Modeling Group            !
-!------------------------------------------------------------------------------
-!BOP
-!
-! !IROUTINE: RoundOff
-!
-! !DESCRIPTION: Rounds a number X to N decimal places of precision.
-!\\
-!\\
-! !INTERFACE:
-!
-  FUNCTION RoundOff( X, N ) RESULT( Y )
-!
-! !INPUT PARAMETERS:
-! 
-    REAL*8,  INTENT(IN) :: X   ! Number to be rounded
-    INTEGER, INTENT(IN) :: N   ! Number of decimal places to keep
-!
-! !RETURN VALUE:
-!
-    REAL*8              :: Y   ! Number rounded to N decimal places
-!
-! !REMARKS:
-!  The algorithm to round X to N decimal places is as follows:
-!  (1) Multiply X by 10**(N+1)
-!  (2) If X < 0, then add -5 to X; otherwise add 5 to X
-!  (3) Round X to nearest integer
-!  (4) Divide X by 10**(N+1)
-!  (5) Truncate X to N decimal places: INT( X * 10**N ) / 10**N
-!                                                                             .
-!  Rounding algorithm from: Hultquist, P.F, "Numerical Methods for Engineers 
-!   and Computer Scientists", Benjamin/Cummings, Menlo Park CA, 1988, p. 20.
-!                                                                             .
-!  Truncation algorithm from: http://en.wikipedia.org/wiki/Truncation
-!                                                                             .
-!  The two algorithms have been merged together for efficiency.
-!
-! !REVISION HISTORY:
-!  14 Jul 2010 - R. Yantosca - Initial version
-!EOP
-!------------------------------------------------------------------------------
-!BOC
-!
-! !LOCAL VARIABLES
-!
-    ! Round and truncate X to N decimal places
-    Y = INT( NINT( X*(10d0**(N+1)) + SIGN( 5d0, X ) ) / 10d0 ) / (10d0**N)
-
-  END FUNCTION RoundOff
 !EOC
 END MODULE GIGC_Initialization_Mod
 #endif

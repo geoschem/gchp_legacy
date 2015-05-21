@@ -10,15 +10,24 @@ endif
 # ----------------------
 ifeq ($(FCNAME),ifort)
 
-  USER_FFLAGS = -stack_temps -safe_cray_ptr -i_dynamic -assume byterecl \
-                -vec-report0 -fp-model precise -fp-model source \
-                -ftz -w95 -align all -fno-alias -align dcommons
+  USER_FFLAGS = -stack_temps -safe_cray_ptr -assume byterecl \
+                -fp-model source -ftz -align all -fno-alias -align dcommons
+  
+  # NOTE: This used to have -i_dynamic which would make a shared library. 
+  #       But it has been obsoleted since Intel 13. We do not use shared
+  #       libraries. 
 
 endif
 
 ifeq ($(FCNAME), GNU)  # gfortran
 
         USER_FFLAGS = -DNO_R16 -DNO_CRAY_POINTERS
+
+endif
+
+ifeq ($(ESMA_FC), gfortran)  # gfortran
+
+        USER_FFLAGS = -DNO_R16 -fcray-pointer
 
 endif
 

@@ -93,8 +93,8 @@ CONTAINS
                               J_HI,      IM,        JM,        LM,        &
                               IM_WORLD,  JM_WORLD,  LM_WORLD,  nymdB,     &
                               nhmsB,     nymdE,     nhmsE,     tsChem,    &
-                              tsDyn,     lonCtr,    latCtr,    Input_Opt, &
-                              State_Chm, State_Met, RC      )
+                              tsDyn,     lonCtr,    latCtr,               &
+                              Input_Opt, State_Chm, State_Met, RC      )
 !
 ! !USES:
 !
@@ -104,10 +104,8 @@ CONTAINS
     USE GIGC_Input_Opt_Mod,      ONLY : OptInput
     USE GIGC_State_Chm_Mod,      ONLY : ChmState
     USE GIGC_State_Met_Mod,      ONLY : MetState
-
-    ! HEMCO update
-    USE HCO_ERROR_MOD
-    USE HCOI_GC_MAIN_MOD,        ONLY : HCOI_GC_INIT
+    USE Diagnostics_Mod,         ONLY : Diagnostics_Init
+    USE EMISSIONS_MOD,           ONLY : EMISSIONS_INIT
 !
 ! !INPUT PARAMETERS:
 !
@@ -169,6 +167,18 @@ CONTAINS
 !EOP
 !------------------------------------------------------------------------------
 !BOC
+!
+! !LOCAL VARIABLES:
+!
+    INTEGER                        :: STATUS
+    CHARACTER(LEN=ESMF_MAXSTR)     :: Iam
+
+    !=======================================================================
+    ! GIGC_CHUNK_INIT begins here 
+    !=======================================================================
+
+    ! Error trap
+    Iam = 'GIGC_CHUNK_INIT (gigc_chunk_mod.F90)'
 
     ! Assume success
     RC = GIGC_SUCCESS
@@ -200,17 +210,17 @@ CONTAINS
                                State_Met      = State_Met,  & ! Met State
 !                               mapping        = mapping,    & ! Olson map wts
                                RC             = RC         )  ! Success?
-    IF ( RC /= GIGC_SUCCESS ) RETURN
+    ASSERT_(RC==GIGC_SUCCESS)
 
+    ! Initialize diagnostics.
+    CALL Diagnostics_Init( am_I_Root, Input_Opt, State_Met, State_Chm, RC )
+    ASSERT_(RC==GIGC_SUCCESS)
+ 
     !=======================================================================
     ! Initialize HEMCO
     !=======================================================================
-    CALL HCOI_GC_Init ( am_I_Root, Input_Opt, State_Met, State_Chm, RC )
-    IF ( RC /= HCO_SUCCESS ) THEN
-       RC = GIGC_SUCCESS+1
-    ELSE
-       RC = GIGC_SUCCESS
-    ENDIF
+    CALL EMISSIONS_INIT ( am_I_Root, Input_Opt, State_Met, State_Chm, RC )
+    ASSERT_(RC==GIGC_SUCCESS)
 
     !=======================================================================
     ! Make sure options are sane
@@ -225,14 +235,14 @@ CONTAINS
     ! if we are not doing turbulence within GEOS-Chem. This will make sure
     ! that the dry deposition quantities are calculated w/r/t the surface
     ! layer only (ckeller, 11/04/14).
-    IF ( .NOT. Input_Opt%LTURB .AND. .NOT. Input_Opt%LNLPBL ) THEN
-       Input_Opt%LNLPBL = .TRUE.
-       IF ( am_I_Root ) THEN
-          write(*,*) ' '
-          write(*,*) ' SET GEOS-CHEM NON-LOCAL PBL MIXING TO TRUE '
-          write(*,*) ' '
-       ENDIF
-    ENDIF
+!    IF ( .NOT. Input_Opt%LTURB .AND. .NOT. Input_Opt%LNLPBL ) THEN
+!       Input_Opt%LNLPBL = .TRUE.
+!       IF ( am_I_Root ) THEN
+!          write(*,*) ' '
+!          write(*,*) ' SET GEOS-CHEM NON-LOCAL PBL MIXING TO TRUE '
+!          write(*,*) ' '
+!       ENDIF
+!    ENDIF
 
   END SUBROUTINE GIGC_Chunk_Init
 !EOC
@@ -254,7 +264,7 @@ CONTAINS
 !
 ! !INTERFACE:
 !
-  SUBROUTINE GIGC_Chunk_Run( am_I_Root, IM,        JM,        LM,         &
+  SUBROUTINE GIGC_Chunk_Run( am_I_Root, GC, IM,    JM,        LM,         &
                              nymd,      nhms,      year,      month,      &
                              day,       dayOfYr,   hour,      minute,     &
                              second,    utc,       hElapsed,  Input_Opt,  &
@@ -274,27 +284,38 @@ CONTAINS
     USE GIGC_Input_Opt_Mod, ONLY : OptInput
     USE GIGC_State_Chm_Mod, ONLY : ChmState
     USE GIGC_State_Met_Mod, ONLY : MetState
-    USE GRID_MOD,           ONLY : AREA_M2
     USE PBL_MIX_MOD,        ONLY : DO_PBL_MIX, COMPUTE_PBL_HEIGHT
     USE VDIFF_MOD,          ONLY : DO_PBL_MIX_2
     USE Pressure_Mod,       ONLY : Accept_External_Pedge, Set_Floating_Pressure
     USE Time_Mod,           ONLY : Accept_External_Date_Time
     USE Time_Mod,           ONLY : ITS_TIME_FOR_CHEM
+    USE TIME_MOD,           ONLY : GET_TS_CHEM, GET_TS_DYN
     USE TRACERID_MOD
     USE WETSCAV_MOD,        ONLY : INIT_WETSCAV, DO_WETDEP
     USE DRYDEP_MOD,         ONLY : DEPSAV, NUMDEP, NTRAIND
     USE CONVECTION_MOD,     ONLY : DO_CONVECTION
     USE TOMS_MOD,           ONLY : COMPUTE_OVERHEAD_O3
+    USE GRID_MOD,           ONLY : AREA_M2
+    USE Diagnostics_Mod,    ONLY : Diagnostics_Write
+    USE EMISSIONS_MOD,      ONLY : EMISSIONS_RUN
+    USE UVALBEDO_MOD,       ONLY : GET_UVALBEDO
 
-    ! HEMCO update
+!    ! HEMCO update
     USE HCO_ERROR_MOD
     USE HCO_STATE_MOD,      ONLY : HCO_STATE
-    USE HCOI_GC_MAIN_MOD,   ONLY : HCOI_GC_RUN, GetHcoState
-    USE HCOI_GC_MAIN_MOD,   ONLY : GetHcoVal,   GetHcoID
+    USE HCOI_GC_MAIN_MOD,   ONLY : GetHcoState, SetHcoTime
+!    USE HCOI_GC_MAIN_MOD,   ONLY : GetHcoVal,   GetHcoID
+
+    ! Apply tracer tendencies
+    USE MIXING_MOD,         ONLY : DO_TEND, DO_MIXING
+
+    ! UCX
+    USE UCX_MOD,            ONLY : SET_H2O_TRAC
 !
 ! !INPUT PARAMETERS:
 !
     LOGICAL,        INTENT(IN)    :: am_I_Root   ! Are we on root CPU?
+    TYPE(ESMF_GridComp), INTENT(INOUT) :: GC       ! Ref to this GridComp
     INTEGER,        INTENT(IN)    :: IM          ! # of lons on this CPU
     INTEGER,        INTENT(IN)    :: JM          ! # of lats on this CPU
     INTEGER,        INTENT(IN)    :: LM          ! # of levs on this CPU
@@ -365,30 +386,42 @@ CONTAINS
 !EOP
 !------------------------------------------------------------------------------
 !BOC
+    TYPE(MAPL_MetaComp), POINTER   :: STATE
     TYPE(HCO_STATE), POINTER       :: HcoState => NULL() 
     REAL*8                         :: DT
-    REAL*8                         :: FLX, DEP
-    REAL*8                         :: Emis8, Dep8
-    INTEGER                        :: I, J, L, T 
-    INTEGER                        :: N1, N2
     INTEGER                        :: ERROR
-    INTEGER                        :: HcoID
+!    REAL*8                         :: FLX, DEP, FRAC
+!    REAL*8                         :: Emis8, Dep8
+!    INTEGER                        :: I, J, L, T 
+!    INTEGER                        :: N1, N2
+!    INTEGER                        :: HcoID
+    INTEGER                        :: STATUS
     CHARACTER(LEN=ESMF_MAXSTR)     :: Iam
-    LOGICAL                        :: FND
+!    LOGICAL                        :: FND
 
-    ! Local logicals from input_opt
-    LOGICAL                        :: LCONV, LDRYD, LEMIS
-    LOGICAL                        :: LWETD, LCHEM, LTURB
+    ! Local logicals to turn on/off individual components
+    ! The parts to be executed are based on the input options,
+    ! the time step and the phase.
+    LOGICAL                        :: DoConv 
+    LOGICAL                        :: DoDryDep
+    LOGICAL                        :: DoEmis
+    LOGICAL                        :: DoTend 
+    LOGICAL                        :: DoTurb 
+    LOGICAL                        :: DoChem
+    LOGICAL                        :: DoWetDep
 
     ! Are tracers in mass or mixing ratio?
     LOGICAL                        :: isMass
 
-    ! Kludge to skip first phase one:
+    ! First call?
     LOGICAL, SAVE                  :: FIRST = .TRUE.
-   
+
     ! # of times this routine has been called. Only temporary for printing 
     ! processes on the first 10 calls.
     INTEGER, SAVE                  :: NCALLS = 0
+
+    ! UV month
+    INTEGER, SAVE                  :: UVmonth = -999
 
     !=======================================================================
     ! GIGC_CHUNK_RUN begins here 
@@ -400,26 +433,27 @@ CONTAINS
     ! Assume success
     RC = GIGC_SUCCESS
 
-    ! Kludge: Don't do (phase one) on first call because a number of 
-    ! variables are empty / invalid. Eventually need to bootstrap those
-    ! values...
+    ! Get state object (needed for timers)
+    CALL MAPL_GetObjectFromGC(GC, STATE, __RC__)
+
+    ! Populate grid box areas from grid_mod.F on first call. We have to do 
+    ! this in the run phase and not in initialize because it seems like the
+    ! AREA pointer (imported from superdynamics) is only properly filled in
+    ! run.
     IF ( FIRST ) THEN
        AREA_M2 = State_Met%AREA_M2
-       FIRST = .FALSE.
-       RETURN
     ENDIF
 
     !=======================================================================
     ! Define processes to be covered in this phase
     !
     ! In the standard GEOS-Chem, the following operator sequence is used:
-    ! FULL mixing               Non-local PBL mixing
-    ! 1. Turbulence (v/v)       1. DryDep (kg)
-    ! 2. Convection (v/v)       2. Emissions (kg)
-    ! 3. DryDep (kg)            3. Turbulence (v/v)
-    ! 4. Emissions (kg)         4. Convection (v/v)
-    ! 5. Chemistry (kg)         5. Chemistry (kg)
-    ! 6. WetDep (kg)            6. Wetdep (kg)
+    ! 1. DryDep (kg)
+    ! 2. Emissions (kg)
+    ! 3. Turbulence (v/v)
+    ! 4. Convection (v/v)
+    ! 5. Chemistry (kg)
+    ! 6. Wetdep (kg)
     !
     ! The GEOS-5 operator sequence is:
     ! 1. Gravity wave drag
@@ -432,48 +466,68 @@ CONTAINS
     ! 8. Chemistry 2 (chemistry and wet deposition)
     ! 9. Radiation 
     !
-    !
     ! Here, we use the following operator sequence:
     ! 
-    ! 1. Convection (v/v) --> Phase 1
-    ! 2. DryDep (kg)      --> Phase 1
-    ! 3. Emissions (kg)   --> Phase 1
+    ! 1.  Convection (v/v) --> Phase 1
+    ! 2.  DryDep (kg)      --> Phase 1
+    ! 3.  Emissions (kg)   --> Phase 1
+    ! 4a. Tendencies (v/v) --> Phase 1
     ! -------------------------------
-    ! 4. Turbulence (v/v) --> Phase 2 
-    ! 5. Chemistry (kg)   --> Phase 2
-    ! 6. WetDep (kg)      --> Phase 2     
+    ! 4b. Turbulence (v/v) --> Phase 2 
+    ! 5.  Chemistry (kg)   --> Phase 2
+    ! 6.  WetDep (kg)      --> Phase 2     
     ! 
     ! Any of the listed processes is only executed if the corresponding switch
     ! in the input.geos file is enabled. If the physics component already
     ! covers convection or turbulence, they should not be applied here!
-    !
-    ! (ckeller, 10/14/14)
+    ! The tendencies are only applied if turbulence is not done within
+    ! GEOS-Chem (ckeller, 10/14/14).
     !=======================================================================
 
-    ! Mirror logical switches
-    LCONV  = Input_Opt%LCONV
-    LTURB  = Input_Opt%LTURB
-    LDRYD  = Input_Opt%LDRYD
-    LEMIS  = Input_Opt%LEMIS
-    LCHEM  = Input_Opt%LCHEM
-    LWETD  = Input_Opt%LWETD
+    ! By default, do processes as defined in input.geos. DoTend is defined
+    ! below. 
+    DoConv   = Input_Opt%LCONV                    ! dynamic time step
+    DoDryDep = Input_Opt%LDRYD .AND. IsChemTime   ! chemistry time step
+    DoEmis   = Input_Opt%LEMIS .AND. IsChemTime   ! chemistry time step
+    DoTurb   = Input_Opt%LTURB                    ! dynamic time step
+    DoChem   = Input_Opt%LCHEM .AND. IsChemTime   ! chemistry time step
+    DoWetDep = Input_Opt%LWETD                    ! dynamic time step 
 
-    ! Define processes being covered in current run phase.
+    ! Only do selected processes for given phases: 
+    ! Phase 1: disable turbulence, chemistry and wet deposition. 
     IF ( Phase == 1 ) THEN
-       Input_Opt%LCONV  = LCONV 
-       Input_Opt%LDRYD  = LDRYD .AND. IsChemTime
-       Input_Opt%LEMIS  = LEMIS .AND. IsChemTime
-       Input_Opt%LTURB  = .FALSE.
-       Input_Opt%LCHEM  = .FALSE.
-       Input_Opt%LWETD  = .FALSE.
+       DoTurb   = .FALSE.
+       DoChem   = .FALSE.
+       DoWetDep = .FALSE.
 
+    ! Phase 2: disable convection, drydep and emissions. 
     ELSEIF ( Phase == 2 ) THEN
-       Input_Opt%LCONV  = .FALSE.
-       Input_Opt%LDRYD  = .FALSE. 
-       Input_Opt%LEMIS  = .FALSE.
-       Input_Opt%LTURB  = LTURB
-       Input_Opt%LCHEM  = LCHEM .AND. IsChemTime
-       Input_Opt%LWETD  = LWETD .AND. IsChemTime
+       DoConv   = .FALSE.
+       DoDryDep = .FALSE.
+       DoEmis   = .FALSE. 
+    ENDIF
+
+    ! Check if tendencies need be applied. The drydep and emission calls
+    ! only calculates the emission / drydep rates, but do not apply the
+    ! tendencies to the tracer array yet. If turbulence is done as part of
+    ! GEOS-5, we need to make sure that these tendencies are applied to the
+    ! tracer array. If turbulence is explicitly covered by GEOS-Chem,
+    ! however, the tendencies become automatically applied within the PBL
+    ! mixing routines (DO_MIXING), so we should never apply the tendencies
+    ! in this case.
+    DoTend = ( DoEmis .OR. DoDryDep ) .AND. .NOT. Input_Opt%LTURB
+
+    ! testing only
+    IF ( am_I_Root .and. NCALLS < 10 ) THEN 
+       write(*,*) 'GEOS-Chem phase ', Phase, ':'
+       write(*,*) 'DoConv   : ', DoConv
+       write(*,*) 'DoDryDep : ', DoDryDep
+       write(*,*) 'DoEmis   : ', DoEmis
+       write(*,*) 'DoTend   : ', DoTend
+       write(*,*) 'DoTurb   : ', DoTurb
+       write(*,*) 'DoChem   : ', DoChem
+       write(*,*) 'DoWetDep : ', DoWetDep
+       write(*,*) ' '
     ENDIF
 
     !-------------------------------------------------------------------------
@@ -481,7 +535,7 @@ CONTAINS
     !-------------------------------------------------------------------------
 
     ! Eventually initialize/reset wetdep
-    IF ( Input_Opt%LCONV .OR. Input_Opt%LWETD ) THEN
+    IF ( DoConv .OR. DoChem .OR. DoWetDep ) THEN
        CALL INIT_WETSCAV( am_I_Root, Input_Opt, State_Met, State_Chm, RC )
     ENDIF
 
@@ -499,9 +553,9 @@ CONTAINS
                                     value_UTC      = utc,        &
                                     RC             = RC         )
 
-    ! If it is not a multiple of the chemistry timestep, return
-    !IF ( .not. ITS_TIME_FOR_CHEM() ) RETURN
-    
+    ! Set HEMCO time
+    CALL SetHcoTime ( am_I_Root, DoEmis, RC )
+
     ! Set the pressure at level edges [hPa] from the ESMF environment
     CALL Accept_External_Pedge    ( am_I_Root      = am_I_Root,  &
                                     State_Met      = State_Met,  &
@@ -524,8 +578,21 @@ CONTAINS
     ! Call PBL quantities. Those are always needed
     CALL COMPUTE_PBL_HEIGHT( State_Met )
 
-    ! Data enters in v/v
-    isMass = .FALSE.
+    ! Tracers enter in v/v. Convert to kg. 
+    CALL Convert_Units  ( IFLAG     = 2,                    & ! [v/v] -> [kg]
+                          N_TRACERS = Input_Opt%N_TRACERS,  & ! # of tracers
+                          TCVV      = Input_Opt%TCVV,       & ! Molec / kg
+                          AD        = State_Met%AD,         & ! Air mass [kg]
+                          STT       = State_Chm%Tracers    )  ! Tracer array
+    IsMass = .TRUE.
+    
+    ! SDE 05/28/13: Set H2O to STT if relevant
+    IF ( IDTH2O > 0 ) THEN
+       CALL SET_H2O_TRAC( ((.NOT. Input_Opt%LUCX) .OR. Input_Opt%LSETH2O ), &
+                          Input_Opt, State_Met, State_Chm )
+       ! Only force strat once if using UCX
+       IF (Input_Opt%LSETH2O) Input_Opt%LSETH2O = .FALSE.
+    ENDIF
 
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 !!!                                PHASE 1                                 !!!
@@ -539,48 +606,73 @@ CONTAINS
     ! by another gridded component and/or the GC species are not made
     ! friendly to this component!!
     !=======================================================================
-    IF ( Input_Opt%LCONV ) THEN
+    IF ( DoConv ) THEN
+
+       ! Timer on
+       CALL MAPL_TimerOn( STATE, 'GC_CONV' )
 
        ! testing only
        if(am_I_Root.and.NCALLS<10) write(*,*) ' --- Do convection now'
   
+       ! Make sure tracers are in v/v
+       IF ( isMass ) THEN 
+          CALL Convert_Units  ( IFLAG     = 1,                    & ! [kg] --> [v/v]
+                                N_TRACERS = Input_Opt%N_TRACERS,  & ! # of tracers
+                                TCVV      = Input_Opt%TCVV,       & ! Molec / kg
+                                AD        = State_Met%AD,         & ! Air mass [kg]
+                                STT       = State_Chm%Tracers    )  ! Tracer array
+          IsMass = .FALSE.
+       ENDIF
+
        CALL DO_CONVECTION ( am_I_Root, Input_Opt, State_Met, State_Chm, RC )
+       ASSERT_(RC==GIGC_SUCCESS)
  
+       ! Timer off
+       CALL MAPL_TimerOff( STATE, 'GC_CONV' )
+
        ! testing only
        if(am_I_Root.and.NCALLS<10) write(*,*) ' --- Convection done!'
     ENDIF   
-
-    !---------------------------------
-    ! Unit conversion [v/v] --> [kg]
-    !---------------------------------
-    IF ( Input_Opt%LDRYD .OR. Input_Opt%LEMIS ) THEN
-       CALL Convert_Units  ( IFLAG     = 2,                    & ! [v/v] -> [kg]
-                             N_TRACERS = Input_Opt%N_TRACERS,  & ! # of tracers
-                             TCVV      = Input_Opt%TCVV,       & ! Molec / kg
-                             AD        = State_Met%AD,         & ! Air mass [kg]
-                             STT       = State_Chm%Tracers    )  ! Tracer array
-       IsMass = .TRUE.
-    ENDIF
 
     !=======================================================================
     ! 2. Dry deposition.
     !
     ! This calculates the deposition rates in [s-1].
     !=======================================================================
-    IF ( Input_Opt%LDRYD ) THEN
+    IF ( DoDryDep ) THEN
+
+       ! Timer on
+       CALL MAPL_TimerOn( STATE, 'GC_DRYDEP' )
 
        ! testing only
-       if(am_I_Root.and.NCALLS<10) write(*,*) ' --- Do drydep now'
+       if(am_I_Root.and.NCALLS<10) THEN
+          write(*,*) ' --- Do drydep now'
+          write(*,*) '     Use FULL PBL: ', Input_Opt%PBL_DRYDEP
+       endif
+
+       ! Make sure tracers are in kg
+       IF ( .NOT. IsMass ) THEN
+          CALL Convert_Units  ( IFLAG     = 2,                    & ! [v/v] -> [kg]
+                                N_TRACERS = Input_Opt%N_TRACERS,  & ! # of tracers
+                                TCVV      = Input_Opt%TCVV,       & ! Molec / kg
+                                AD        = State_Met%AD,         & ! Air mass [kg]
+                                STT       = State_Chm%Tracers    )  ! Tracer array
+          IsMass = .TRUE.
+       ENDIF
 
        ! Update & Remap Land-type arrays from Surface Grid-component
-       CALL GEOS5_TO_OLSON_LANDTYPE_REMAP( State_Met, RC )    
+       !CALL GEOS5_TO_OLSON_LANDTYPE_REMAP( State_Met, RC )    
     
-       ! Execute Dry deposition
+       ! Calculate drydep rates 
        CALL Do_DryDep   ( am_I_Root = am_I_Root,            & ! Root CPU?
                           Input_Opt = Input_Opt,            & ! Input Options
                           State_Chm = State_Chm,            & ! Chemistry State
                           State_Met = State_Met,            & ! Met State
                           RC        = RC                   )  ! Success?
+       ASSERT_(RC==GIGC_SUCCESS)
+
+       ! Timer off
+       CALL MAPL_TimerOff( STATE, 'GC_DRYDEP' )
 
        ! testing only
        if(am_I_Root.and.NCALLS<10) write(*,*) ' --- Drydep done!'
@@ -588,117 +680,85 @@ CONTAINS
     ENDIF ! Do drydep
 
     !=======================================================================
-    ! 3. Emissions (HEMCO).
+    ! 3. Emissions (HEMCO). HEMCO must be called on first time step to make
+    ! sure that the HEMCO data lists are all properly set up. 
     !=======================================================================
-    IF ( Input_Opt%LEMIS ) THEN
+    IF ( DoEmis .OR. FIRST ) THEN
+
+       ! Timer on
+       CALL MAPL_TimerOn( STATE, 'GC_EMIS' )
 
        ! testing only
        if(am_I_Root.and.NCALLS<10) write(*,*) ' --- Do emissions now'
 
-       CALL HCOI_GC_RUN ( am_I_Root, Input_Opt, State_Met, State_Chm, ERROR )
-       ASSERT_(ERROR==HCO_SUCCESS)
+       ! Make sure tracers are in kg
+       IF ( .NOT. IsMass ) THEN
+          CALL Convert_Units  ( IFLAG     = 2,                    & ! [v/v] -> [kg]
+                                N_TRACERS = Input_Opt%N_TRACERS,  & ! # of tracers
+                                TCVV      = Input_Opt%TCVV,       & ! Molec / kg
+                                AD        = State_Met%AD,         & ! Air mass [kg]
+                                STT       = State_Chm%Tracers    )  ! Tracer array
+          IsMass = .TRUE.
+       ENDIF
+
+       ! Call HEMCO run interface 
+       CALL EMISSIONS_RUN ( am_I_Root, Input_Opt, State_Met, State_Chm, RC )
+       ASSERT_(RC==GIGC_SUCCESS)
+
+       ! Timer off
+       CALL MAPL_TimerOff( STATE, 'GC_EMIS' )
 
        ! testing only
        if(am_I_Root.and.NCALLS<10) write(*,*) ' --- Emissions done!'
     ENDIF
 
     !=======================================================================
-    ! If physics covers turbulence, simply add the emisison and dry 
+    ! If physics covers turbulence, simply add the emission and dry 
     ! deposition fluxes calculated above to the tracer array, without caring
-    ! about the vertical distribution.
-    ! Set the emission and deposition values to zero to make sure that they
-    ! are not used again in chemistry (even if the non-local PBL scheme is 
-    ! used, emissions above the PBL are still added to the chemical solver).
-    ! 
-    ! Note: we need to use the LTURB switch here and not Input_Opt%LTURB, 
-    ! since Input_Opt%LTURB is set to false in phase 1 (when emissions occur).
+    ! about the vertical distribution. The tracer tendencies are only added
+    ! to the tracers array after emissions, drydep. So we need to use the
+    ! emissions time step here.
+    ! Subroutine DO_TEND operates in mass units, e.g. the tracers must be 
+    ! in [kg]. 
     !=======================================================================
-    IF ( .NOT. LTURB .AND. (Input_Opt%LEMIS .OR. Input_Opt%LDRYD) ) THEN
+    IF ( DoTend ) THEN 
   
+       ! Timer on
+       CALL MAPL_TimerOn( STATE, 'GC_FLUXES' )
+
        ! testing only
        if(am_I_Root.and.NCALLS<10) write(*,*) ' --- Add emissions and drydep to tracers'
  
-       ! Get pointer to HEMCO state
-       CALL GetHcoState ( HcoState )
-       ASSERT_( ASSOCIATED(HcoState) )
+       ! Make sure tracers are in kg
+       IF ( .NOT. IsMass ) THEN
+          CALL Convert_Units  ( IFLAG     = 2,                    & ! [v/v] -> [kg]
+                                N_TRACERS = Input_Opt%N_TRACERS,  & ! # of tracers
+                                TCVV      = Input_Opt%TCVV,       & ! Molec / kg
+                                AD        = State_Met%AD,         & ! Air mass [kg]
+                                STT       = State_Chm%Tracers    )  ! Tracer array
+          IsMass = .TRUE.
+       ENDIF
 
-       ! Emission time step in seconds
-       DT = HcoState%TS_EMIS
- 
-       ! Loop over all grid boxes 
-       DO L = 1, HcoState%NZ
-       DO J = 1, HcoState%NY
-       DO I = 1, HcoState%NX
-
-          ! Do for all species
-          DO T = 1, Input_Opt%N_TRACERS
- 
-             ! Reset
-             FLX = 0.0d0
-             DEP = 0.0d0
- 
-             ! testing only
-             IF ( am_I_Root .and. i==1 .and. j==1 .and. l==1 ) THEN
-                ! Get HEMCO ID corresponding to this GC tracer
-                HcoID = GetHcoID( TrcID = T )
-                IF ( HcoID > 0 ) THEN
-                IF ( ASSOCIATED(HcoState%Spc(HcoID)%Emis%Val) ) THEN
-!                   write(*,*) '- Emission maximum for species: ', TRIM(Input_Opt%TRACER_NAME(T)), MAXVAL(HcoState%Spc(HcoID)%Emis%Val)
-!                   write(*,*) '- Emissions for species: ', TRIM(Input_Opt%TRACER_NAME(T)), SUM(HcoState%Spc(HcoID)%Emis%Val)
-                ENDIF
-                ENDIF
-             ENDIF
-     
-             ! Get emissions from HEMCO (kg/m2/s)
-             CALL GetHcoVal( T, I, J, L, FND, Emis=Emis8 )
-             IF ( FND ) THEN
-                ! kg/m2/s -> kg
-                FLX = FLX + ( Emis8 * HcoState%Grid%AREA_M2%Val(I,J) * DT )
-             ENDIF      
- 
-             ! Deposition (surface layer only)
-             IF ( L == 1 ) THEN
-
-                ! Get deposition rate from HEMCO (1/s)
-                CALL GetHcoVal( T, I, J, L, FND, Dep = Dep8 )
-                IF ( FND ) DEP = DEP + Dep8
-
-                ! Also add deposition from drydep_mod.F [1/s].
-                ! Need to find drydep index N2 for current GC tracer.
-                N2 = 0
-                DO N1 = 1, NUMDEP
-                   IF ( NTRAIND(N1) == T ) THEN
-                      N2 = N1
-                      EXIT
-                   ENDIF
-                ENDDO
-                IF ( N2 > 0 ) THEN 
-                   DEP = DEP + DEPSAV(I,J,N2)
-                ENDIF
-
-                ! Deposition in kg (1/s --> kg)
-                DEP = DEP * State_Chm%Tracers(I,J,L,T) * DT
-             ENDIF
-
-             ! Add to box. Make sure concentration is not negative.
-             State_Chm%Tracers(I,J,L,T) = State_Chm%Tracers(I,J,L,T) + FLX - DEP
-             IF ( State_Chm%Tracers(I,J,L,T) < 0.0d0 ) State_Chm%Tracers(I,J,L,T) = 0.0d0
-
-          ENDDO !T
-       ENDDO !I
-       ENDDO !J
-       ENDDO !L
-
-       ! Reset all arrays
-       DepSav              = 0.0d0
-  
-       ! Clean up
+       ! Get emission time step [s]. 
+       CALL GetHcoState( HcoState )
+       ASSERT_(ASSOCIATED(HcoState))
+       DT = HcoState%TS_EMIS 
        HcoState => NULL()
 
+       ! Apply tendencies over entire PBL. Use emission time step.
+       CALL DO_TEND ( am_I_Root, Input_Opt, State_Met, State_Chm, .FALSE., RC, DT=DT )
+       ASSERT_(RC==GIGC_SUCCESS)
+
+       ! testing only
+       if(am_I_Root.and.NCALLS<10) write(*,*) '     Tendency time step [s]: ', DT 
+ 
        ! testing only
        if(am_I_Root.and.NCALLS<10) write(*,*) ' --- Fluxes applied to tracers!' 
  
-    ENDIF ! Turbulence
+       ! Timer off
+       CALL MAPL_TimerOff( STATE, 'GC_FLUXES' )
+
+    ENDIF ! Tendencies 
 
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 !!!                              PHASE 2                                !!!
@@ -711,8 +771,13 @@ CONTAINS
     ! in input.geos. This should only be done if turbulence is not covered
     ! by another gridded component and/or the GC species are not made
     ! friendly to this component!!
+    ! Subroutine DO_MIXING operates in mixing ratios, e.g. the tracers must 
+    ! be in [v/v]. 
     !=======================================================================
-    IF ( Input_Opt%LTURB ) THEN
+    IF ( DoTurb ) THEN
+
+       ! Timer on
+       CALL MAPL_TimerOn( STATE, 'GC_TURB' )
 
        ! testing only
        if(am_I_Root.and.NCALLS<10) write(*,*) ' --- Do turbulence now'
@@ -727,41 +792,39 @@ CONTAINS
           IsMass = .FALSE.
        ENDIF
 
-       IF ( Input_Opt%LNLPBL ) THEN
-          ! testing only
-          if(am_I_Root.and.NCALLS<10) write(*,*) '     --> Use non-local PBL scheme'
-          CALL DO_PBL_MIX_2( am_I_Root, Input_Opt%LTURB, Input_Opt, &
-                             State_Met, State_Chm,       RC          )
-       ELSE
-          ! testing only
-          if(am_I_Root.and.NCALLS<10) write(*,*) '     --> Use full mixing scheme'
-          CALL DO_PBL_MIX( Input_Opt%LTURB, Input_Opt, State_Met, State_Chm )
-       ENDIF
+       ! Do mixing and apply tendencies. This will use the dynamic time step, which
+       ! is fine since this call will be executed on every time step. 
+       CALL DO_MIXING ( am_I_Root, Input_Opt, State_Met, State_Chm, RC )
+       ASSERT_(RC==GIGC_SUCCESS)
 
-       ! testing only
        if(am_I_Root.and.NCALLS<10) write(*,*) ' --- Turbulence done!'
 
-    ENDIF
+       ! Timer off
+       CALL MAPL_TimerOff( STATE, 'GC_TURB' )
 
-    ! Chemistry and Wetdep need tracers in mass
-    IF ( .NOT. IsMass .AND. ( Input_Opt%LCHEM .OR. Input_Opt%LWETD ) ) THEN
-       CALL Convert_Units  ( IFLAG     = 2,                    & ! [v/v] -> [kg]
-                             N_TRACERS = Input_Opt%N_TRACERS,  & ! # of tracers
-                             TCVV      = Input_Opt%TCVV,       & ! Molec / kg
-                             AD        = State_Met%AD,         & ! Air mass [kg]
-                             STT       = State_Chm%Tracers    )  ! Tracer array
-       IsMass = .TRUE.
     ENDIF
 
     !=======================================================================
     ! 5. Chemistry
     !=======================================================================
-    IF ( Input_Opt%LCHEM ) THEN
+    IF ( DoChem ) THEN
+
+       ! Timer on
+       CALL MAPL_TimerOn( STATE, 'GC_CHEM' )
 
        ! testing only
        if(am_I_Root.and.NCALLS<10) write(*,*) ' --- Do chemistry now'
 
-       ! To be removed with FlexChem - MSL --------------
+       ! Make sure tracers are in kg
+       IF ( .NOT. IsMass ) THEN
+          CALL Convert_Units  ( IFLAG     = 2,                    & ! [v/v] -> [kg]
+                                N_TRACERS = Input_Opt%N_TRACERS,  & ! # of tracers
+                                TCVV      = Input_Opt%TCVV,       & ! Molec / kg
+                                AD        = State_Met%AD,         & ! Air mass [kg]
+                                STT       = State_Chm%Tracers    )  ! Tracer array
+          IsMass = .TRUE.
+       ENDIF
+
        IF (.NOT. ASSOCIATED(JLOP_PREV_loc)) THEN
           ALLOCATE(JLOP_PREV_loc(ILONG,ILAT,IPVERT),STAT=RC)
           ASSERT_(RC==0)
@@ -779,18 +842,30 @@ CONTAINS
        JLOP          = JLOP_PREV_loc
        JLOP_PREVIOUS = JLOP_PREV_loc
 
-       AREA_M2 = State_Met%AREA_M2
-
        ! Zero Rate arrays  
        RRATE = 0.E0
        TRATE = 0.E0
-
-       ! To be removed with FlexChem - MSL --------------
 
        ! Calculate TOMS O3 overhead. For now, always use it from the
        ! Met field. State_Met%TO3 is imported from PCHEM.
        ! (ckeller, 10/21/2014).
        CALL COMPUTE_OVERHEAD_O3( am_I_Root, DAY, .TRUE., State_Met%TO3 )
+
+       ! Set H2O to STT if relevant
+       IF ( IDTH2O > 0 ) THEN
+          CALL SET_H2O_TRAC( (.not. Input_Opt%LUCX), Input_Opt, &
+                             State_Met, State_Chm )
+       ENDIF
+
+       ! For Fast-JX, update UV albedo data. These values are currently
+       ! read from a climatology (via HEMCO). We may eventually get them
+       ! from GEOS-5, but I don't know which field to use (ckeller, 3/9/15).
+       ! Note: now use ALBVF from GEOS-5.
+ !      IF ( UVmonth /= month ) THEN
+ !         CALL GET_UVALBEDO( am_I_Root, Input_Opt, State_Met, RC )
+ !         ASSERT_(RC==GIGC_SUCCESS)
+ !         UVmonth = month
+ !      ENDIF 
 
        ! Do chemistry
        CALL Do_Chemistry( am_I_Root = am_I_Root,            & ! Root CPU?
@@ -798,9 +873,13 @@ CONTAINS
                           State_Chm = State_Chm,            & ! Chemistry State
                           State_Met = State_Met,            & ! Met State
                           RC        = RC                   )  ! Success?
+       ASSERT_(RC==GIGC_SUCCESS)
 
        ! Store in internal variables
        JLOP_PREV_loc = JLOP
+
+       ! Timer off
+       CALL MAPL_TimerOff( STATE, 'GC_CHEM' )
 
        ! testing only
        if(am_I_Root.and.NCALLS<10) write(*,*) ' --- Chemistry done!'
@@ -809,17 +888,46 @@ CONTAINS
     !=======================================================================
     ! 6. Wet deposition
     !=======================================================================
-    IF ( Input_Opt%LWETD ) THEN
+    IF ( DoWetDep ) THEN
+
+       ! Timer on
+       CALL MAPL_TimerOn( STATE, 'GC_WETDEP' )
 
        ! testing only
        if(am_I_Root.and.NCALLS<10) write(*,*) ' --- Do wetdep now'
 
+       ! Make sure tracers are in kg
+       IF ( .NOT. IsMass ) THEN
+          CALL Convert_Units  ( IFLAG     = 2,                    & ! [v/v] -> [kg]
+                                N_TRACERS = Input_Opt%N_TRACERS,  & ! # of tracers
+                                TCVV      = Input_Opt%TCVV,       & ! Molec / kg
+                                AD        = State_Met%AD,         & ! Air mass [kg]
+                                STT       = State_Chm%Tracers    )  ! Tracer array
+          IsMass = .TRUE.
+       ENDIF
+
        ! Do wet deposition
        CALL DO_WETDEP( am_I_Root, Input_Opt, State_Met, State_Chm, RC )
+       ASSERT_(RC==GIGC_SUCCESS)
+
+       ! Timer off
+       CALL MAPL_TimerOff( STATE, 'GC_WETDEP' )
 
        ! testing only
        if(am_I_Root.and.NCALLS<10) write(*,*) ' --- Wetdep done!'
     ENDIF
+
+    !=======================================================================
+    ! Diagnostics 
+    ! In an ESMF environment, all diagnostics are passed to the MAPL 
+    ! HISTORY component every time step. Thus, we can call the diagnostics 
+    ! at the end of the call sequence even though we don't know yet what the
+    ! next step will be (e.g. we do not know yet if this is the last time 
+    ! step of this month, etc.).
+    !=======================================================================
+    CALL MAPL_TimerOn( STATE, 'GC_DIAGN' )
+    CALL Diagnostics_Write( am_I_Root, Input_Opt, .FALSE., RC )
+    CALL MAPL_TimerOff( STATE, 'GC_DIAGN' )
 
     !=======================================================================
     ! Clean up
@@ -835,16 +943,11 @@ CONTAINS
        IsMass = .FALSE.
     ENDIF
 
-    ! Reset switches to orig. values
-    Input_Opt%LCONV  = LCONV
-    Input_Opt%LTURB  = LTURB
-    Input_Opt%LDRYD  = LDRYD
-    Input_Opt%LEMIS  = LEMIS
-    Input_Opt%LCHEM  = LCHEM
-    Input_Opt%LWETD  = LWETD
-
     ! testing only
-    IF (NCALLS<10) NCALLS = NCALLS + 1
+    IF ( PHASE /= 1 .AND. NCALLS < 10 ) NCALLS = NCALLS + 1 
+
+    ! This is not the first call any more
+    FIRST = .FALSE.
 
     ! Return w/ success
     RC = GIGC_SUCCESS
@@ -874,6 +977,7 @@ CONTAINS
     USE GIGC_State_Chm_Mod,    ONLY : ChmState
     USE GIGC_State_Met_Mod,    ONLY : MetState
     USE HCOI_GC_MAIN_MOD,      ONLY : HCOI_GC_FINAL
+    USE Diagnostics_Mod,       ONLY : Diagnostics_Write
 !
 ! !INPUT PARAMETERS:
 !
@@ -903,6 +1007,9 @@ CONTAINS
 
     ! Assume succes
     RC = GIGC_SUCCESS
+
+    ! Diagnostics 
+    CALL Diagnostics_Write( am_I_Root, Input_Opt, .TRUE., RC )
 
     ! Finalize HEMCO
     CALL HCOI_GC_FINAL( am_I_Root )

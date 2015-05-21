@@ -131,13 +131,18 @@ contains
 
     ECTM = MAPL_AddChild(GC, NAME='GIGCenv' , SS=EctmSetServices,      RC=STATUS)
     VERIFY_(STATUS)
-    print*, 'GIGCenv added'
+
+!    if (am_I_Root) print*, 'GIGCenv added'
+
     CHEM = MAPL_AddChild(GC, NAME='GIGCchem', SS=AtmosChemSetServices, RC=STATUS)
     VERIFY_(STATUS)
-    print*, 'GIGCchem added'
+
+!    if (am_I_Root) print*, 'GIGCchem added'
+
     ADV  = MAPL_AddChild(GC, NAME='DYNAMICS',  SS=AtmosAdvSetServices,  RC=STATUS)
     VERIFY_(STATUS)
-    print*, 'GIGCadv added'
+
+!    if (am_I_Root) print*, 'GIGCadv added'
 
 !    DYN  = MAPL_AddChild(GC, NAME='GIGCdyn',  SS=AtmosDynSetServices,  RC=status)
 !    VERIFY_(STATUS)
@@ -440,12 +445,8 @@ contains
 ! Pointers to Exports
 !--------------------
 
-! Dynamics & Advection
-!------------------
-
-    !---------------------
-    ! Cinderella Component: to derive variables for other components
-    !---------------------
+! Cinderella Component: to derive variables for other components
+!---------------------
     I=ECTM
     call MAPL_TimerOn (STATE,GCNames(I))
     call ESMF_GridCompRun (GCS(I),               &
@@ -455,6 +456,9 @@ contains
          userRC      = STATUS  )
     VERIFY_(STATUS)
     call MAPL_TimerOff(STATE,GCNames(I))
+
+! Dynamics & Advection
+!------------------
 
     I=ADV
     call MAPL_TimerOn (STATE,GCNames(I))
@@ -470,11 +474,11 @@ contains
 
     I=CHEM   
     call MAPL_TimerOn (STATE,GCNames(I))
-     call ESMF_GridCompRun (GCS(I), importState=GIM(I), &
-          exportState=GEX(I), clock=CLOCK, userRC=STATUS );
-     VERIFY_(STATUS)
-     call MAPL_GenericRunCouplers (STATE, I, CLOCK, RC=STATUS );
-     VERIFY_(STATUS)
+    call ESMF_GridCompRun (GCS(I), importState=GIM(I), &
+         exportState=GEX(I), clock=CLOCK, userRC=STATUS );
+    VERIFY_(STATUS)
+    call MAPL_GenericRunCouplers (STATE, I, CLOCK, RC=STATUS );
+    VERIFY_(STATUS)
     call MAPL_TimerOff(STATE,GCNames(I))
 
 !    Use the following for two-phase runs (in this case, two run phases must
