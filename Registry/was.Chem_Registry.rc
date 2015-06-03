@@ -6,8 +6,9 @@
 # !REVISION HISTORY:
 #  16Aug2006  da Silva   First Version
 #  30Jun2012  Nielsen    For Ganymed
-#  10 Oct 2012 - R. Yantosca - Updated for GEOS-Chem v9-01-03, which has new
-#                              Bromine compounds as advected tracers & species
+#  10Oct2012  Yantosca   Updated for GEOS-Chem v9-01-03, which has new
+#                        Bromine compounds as advected tracers & species
+#  25Sep2013  Keller     Updated for GEOS-Chem v9-02l (NOx and Ox not lumped anymore, Isoprene                         update) 
 #
 # -----------------------------------------------------------------
 
@@ -22,11 +23,13 @@
 #				Import State
 #				------------
 
-<ImportSpec name="GIGCchem", cols="short_name,units,dims,vlocation,stat,refresh_interval,averaging_interval,num_subtiles,default,long_name">
+<ImportSpec name="GEOSCHEMCHEM", cols="short_name,units,dims,vlocation,stat,refresh_interval,averaging_interval,num_subtiles,default,long_name">
 # -------------------|-------------|-----|---|----|---|---|-----|------|--------------------------
 #  Short	     |  	   |	 | V |Item|Intervl| Sub | Def  |	Long
 #  Name 	     |   Units     | Dim |Loc|Type| R | A |Tiles| ault |	Name
 # -------------------|-------------|-----|---|----|---|---|-----|------|--------------------------
+  AIRDENS            |  kg m-3     | xyz | C |    |   |   |     |      | air_density
+  AREA               |     m2      | xy  |   |    |   |   |	|      | 
   FRLAKE             |     1	   | xy  |   |    |   |   |	|      | 
   FRLAND             |     1	   | xy  |   |    |   |   |	|      | 
   FRLANDIC           |     1	   | xy  |   |    |   |   |	|      | 
@@ -74,8 +77,8 @@
   USTAR              |     1	   | xy  |   |    |   |   |	|      | 
   V10M               |     1	   | xy  |   |    |   |   |	|      | 
   Z0                 |     1	   | xy  |   |    |   |   |	|      | 
-  PS1                |     1	   | xy  |   |    |   |   |	|      | 
-  PS2                |     1	   | xy  |   |    |   |   |	|      | 
+  PS1                |     1	   | xy  | E |    |   |   |	|      | 
+#  PS2                |     1	   | xy  |   |    |   |   |	|      | 
   OPTDEP             |     1	   | xyz | C |    |   |   |	|      | 
   CLDF               |     1	   | xyz | C |    |   |   |	|      | 
   QI                 |     1	   | xyz | C |    |   |   |	|      | 
@@ -97,13 +100,6 @@
   TMPU1              |     1	   | xyz | C |    |   |   |	|      | 
   SPHU2              |     1	   | xyz | C |    |   |   |	|      | 
   TMPU2              |     1	   | xyz | C |    |   |   |	|      | 
-#  BOXHEIGHT          |     m       | xyz | C |    |   |   |	|      | 
-#  AD                 |    kg       | xyz | C |    |   |   |	|      | 
-#  DELP               |    hPa	   | xyz | C |    |   |   |	|      | 
-#  AIRVOL             |    m3	   | xyz | C |    |   |   |	|      | 
-#  AIRDEN             |    kg m-3   | xyz | C |    |   |   |	|      | 
-#  AP		     |	   1	   | xyz | E |	  |   |	  |	|      |
-#  BP		     |	   1	   | xyz | E |	  |   |	  |	|      |
 # -------------------|-------------|-----|---|----|---|---|-----|------|--------------------------
 </ImportSpec>
 
@@ -111,225 +107,297 @@
 #				Export State
 #				------------
 
-<ExportSpec name="GIGCchem", cols="short_name,units,dims,vlocation,stat,refresh_interval,averaging_interval,num_subtiles,long_name">
+<ExportSpec name="GEOSCHEMCHEM", cols="short_name,units,dims,vlocation,stat,refresh_interval,averaging_interval,num_subtiles,long_name">
 # ------------------|----------------|-----|---|----|---|---|-----|---------------------------------
 #  Short	    |		     |     | V |Item|Intervl| Sub |	     Long
 #  Name 	    |   Units	     | Dim |Loc|Type| R | A |Tiles|	     Name
 # ------------------|----------------|-----|---|----|---|---|-----|---------------------------------
+#  OX                | mol mol-1      | xyz | C |    |   |   |     | ozone_volume_mixing_ratio
+  O3_EXP            | kg kg-1        | xyz | C |    |   |   |     | ozone_mass_mixing_ratio
   O3PPMV    	    | ppmv           | xyz | C |    |	|   |	  | ozone_volume_mixing_ratio_in_ppm
   OX_TEND    	    | kg kg-1 s-1    | xyz | C |    |	|   |	  | tendency_of_odd_oxygen_mixing_ratio_due_to_chemistry
   H2O_TEND    	    | kg kg-1 s-1    | xyz | C |    |	|   |	  | tendency_of_water_vapor_mixing_ratio_due_to_chemistry
-  AREA        	    | m2             | xyz | C |    |	|   |	  | tbd
-  PEDGE       	    | hPa            | xyz | E |    |	|   |	  | tbd
-  PCENTER     	    | hPa            | xyz | C |    |	|   |	  | tbd
-  BOXHEIGHT   	    | m              | xyz | C |    |	|   |	  | tbd
+  GCCTO3    	    | dobsons        | xy  |   |    |	|   |	  | total_ozone 
+  GCCTTO3           | dobsons        | xy  |   |    |	|   |	  | total_tropospheric_ozone 
 # ------------------|----------------|-----|---|----|---|---|-----|---------------------------------
 </ExportSpec>
-
 #                               --------------
 #                               Internal State
 #                               --------------
-
 #
-# Note: 1) For friendlies, use "D" for dynamics, "T" for turbulence and "C" for convection; leave blank otherwise
+# Note: 1) For friendlies, use "D" for dynamics, "T" for turbulence, "C" for convection, S=self (adds to export); leave blank otherwise
 #       2) If quantity requires no restart, put an 'x' in the No Rst column
 #       3) RO = Alkoxy radical, RO2 = Organic peroxy radical
-
-<InternalSpec name="GIGCchem", cols="short_name,units,dims,vlocation,stat,refresh_interval,averaging_interval,num_subtiles,default,norestart,halowidth,friendlyto,long_name">
+<InternalSpec name="GEOSCHEMCHEM", cols="short_name,units,dims,vlocation,stat,refresh_interval,averaging_interval,num_subtiles,default,norestart,halowidth,friendlyto,long_name">
 # --------------|------------|-----|---|----|---|---|-----|------|----|----|---------|---------------------------------
 #  Short        |            |     | V |Item|Intervl| Sub | Def  | No | Ha | Friends |            Long
 #  Name         |   Units    | Dim |Loc|Type| R | A |Tiles| ault | Rst| lo |         |            Name
 # --------------|------------|-----|---|----|---|---|-----|------|----|----|---------|---------------------------------
-   TRC_NO      |  mol/mol   | xyz | C |    |   |   |     |      |    |    | D,T,GIGCdyn | NO
-   TRC_O3      |  mol/mol   | xyz | C |    |   |   |     |      |    |    | D,T,GIGCdyn | O3
-   TRC_PAN     |  mol/mol   | xyz | C |    |   |   |     |      |    |    | D,T,GIGCdyn | peroxyacetyl nitrate
-   TRC_CO      |  mol/mol   | xyz | C |    |   |   |     |      |    |    | D,T,GIGCdyn | carbon monoxide
-   TRC_ALK4    |  mol/mol   | xyz | C |    |   |   |     |      |    |    | D,T,GIGCdyn | >=C4 alkanes
-   TRC_ISOP    |  mol/mol   | xyz | C |    |   |   |     |      |    |    | D,T,GIGCdyn | isoprene
-   TRC_HNO3    |  mol/mol   | xyz | C |    |   |   |     |      |    |    | D,T,GIGCdyn | nitric acid
-   TRC_H2O2    |  mol/mol   | xyz | C |    |   |   |     |      |    |    | D,T,GIGCdyn | hydrogen peroxide
-   TRC_ACET    |  mol/mol   | xyz | C |    |   |   |     |      |    |    | D,T,GIGCdyn | acetone
-   TRC_MEK     |  mol/mol   | xyz | C |    |   |   |     |      |    |    | D,T,GIGCdyn | methyl ethyl ketone
-   TRC_ALD2    |  mol/mol   | xyz | C |    |   |   |     |      |    |    | D,T,GIGCdyn | acetaldehyde
-   TRC_RCHO    |  mol/mol   | xyz | C |    |   |   |     |      |    |    | D,T,GIGCdyn | lumped aldehyde >=C3
-   TRC_MVK     |  mol/mol   | xyz | C |    |   |   |     |      |    |    | D,T,GIGCdyn | methyl vinyl ketone
-   TRC_MACR    |  mol/mol   | xyz | C |    |   |   |     |      |    |    | D,T,GIGCdyn | methacrolein
-   TRC_PMN     |  mol/mol   | xyz | C |    |   |   |     |      |    |    | D,T,GIGCdyn | peroxymethacryoyl nitrate
-   TRC_PPN     |  mol/mol   | xyz | C |    |   |   |     |      |    |    | D,T,GIGCdyn | lumped peroxyacyl nitrate
-   TRC_R4N2    |  mol/mol   | xyz | C |    |   |   |     |      |    |    | D,T,GIGCdyn | lumped alkyl nitrate
-   TRC_PRPE    |  mol/mol   | xyz | C |    |   |   |     |      |    |    | D,T,GIGCdyn | >=C3 alkenes
-   TRC_C3H8    |  mol/mol   | xyz | C |    |   |   |     |      |    |    | D,T,GIGCdyn | propane
-   TRC_CH2O    |  mol/mol   | xyz | C |    |   |   |     |      |    |    | D,T,GIGCdyn | formaldehyde
-   TRC_C2H6    |  mol/mol   | xyz | C |    |   |   |     |      |    |    | D,T,GIGCdyn | ethane
-   TRC_N2O5    |  mol/mol   | xyz | C |    |   |   |     |      |    |    | D,T,GIGCdyn | dinitrogen pentoxide
-   TRC_HNO4    |  mol/mol   | xyz | C |    |   |   |     |      |    |    | D,T,GIGCdyn | pernitric acid
-   TRC_MP      |  mol/mol   | xyz | C |    |   |   |     |      |    |    | D,T,GIGCdyn | methyl hydro peroxide
-   TRC_DMS     |  mol/mol   | xyz | C |    |   |   |     |      |    |    | D,T,GIGCdyn | dimethyl sulfide
-   TRC_SO2     |  mol/mol   | xyz | C |    |   |   |     |      |    |    | D,T,GIGCdyn | sulfur dioxide
-   TRC_SO4     |  mol/mol   | xyz | C |    |   |   |     |      |    |    | D,T,GIGCdyn | sulfate
-   TRC_SO4s    |  mol/mol   | xyz | C |    |   |   |     |      |    |    | D,T,GIGCdyn | sulfate on surface of sea salt aerosol
-   TRC_MSA     |  mol/mol   | xyz | C |    |   |   |     |      |    |    | D,T,GIGCdyn | methyl sulfionic acid
-   TRC_NH3     |  mol/mol   | xyz | C |    |   |   |     |      |    |    | D,T,GIGCdyn | ammonia
-   TRC_NH4     |  mol/mol   | xyz | C |    |   |   |     |      |    |    | D,T,GIGCdyn | ammonium
-   TRC_NIT     |  mol/mol   | xyz | C |    |   |   |     |      |    |    | D,T,GIGCdyn | aerosol nitrate ion
-   TRC_NITs    |  mol/mol   | xyz | C |    |   |   |     |      |    |    | D,T,GIGCdyn | aerosol nitrate ion on surface of sea salt aerosol
-   TRC_BCPI    |  mol/mol   | xyz | C |    |   |   |     |      |    |    | D,T,GIGCdyn | black carbon, hydrophilic
-   TRC_OCPI    |  mol/mol   | xyz | C |    |   |   |     |      |    |    | D,T,GIGCdyn | organic carbon, hydrophilic
-   TRC_BCPO    |  mol/mol   | xyz | C |    |   |   |     |      |    |    | D,T,GIGCdyn | black carbon, hydrophobic
-   TRC_OCPO    |  mol/mol   | xyz | C |    |   |   |     |      |    |    | D,T,GIGCdyn | organic carbon, hydrophobic
-   TRC_DST1    |  mol/mol   | xyz | C |    |   |   |     |      |    |    | D,T,GIGCdyn | dust aerosol, Reff = 0.7 microns
-   TRC_DST2    |  mol/mol   | xyz | C |    |   |   |     |      |    |    | D,T,GIGCdyn | dust aerosol, Reff = 1.4 microns
-   TRC_DST3    |  mol/mol   | xyz | C |    |   |   |     |      |    |    | D,T,GIGCdyn | dust aerosol, Reff = 2.4 microns
-   TRC_DST4    |  mol/mol   | xyz | C |    |   |   |     |      |    |    | D,T,GIGCdyn | dust aerosol, Reff = 4.5 microns
-   TRC_SALA    |  mol/mol   | xyz | C |    |   |   |     |      |    |    | D,T,GIGCdyn | sea salt aerosol, accumulation mode
-   TRC_SALC    |  mol/mol   | xyz | C |    |   |   |     |      |    |    | D,T,GIGCdyn | sea salt aerosol, coarse mode  
-   TRC_Br2     |  mol/mol   | xyz | C |    |   |   |     |      |    |    | D,T,GIGCdyn | Br2
-   TRC_Br      |  mol/mol   | xyz | C |    |   |   |     |      |    |    | D,T,GIGCdyn | Br
-   TRC_BrO     |  mol/mol   | xyz | C |    |   |   |     |      |    |    | D,T,GIGCdyn | BrO
-   TRC_HOBr    |  mol/mol   | xyz | C |    |   |   |     |      |    |    | D,T,GIGCdyn | HOBr
-   TRC_HBr     |  mol/mol   | xyz | C |    |   |   |     |      |    |    | D,T,GIGCdyn | HBr
-   TRC_BrNO2   |  mol/mol   | xyz | C |    |   |   |     |      |    |    | D,T,GIGCdyn | BrNO2
-   TRC_BrNO3   |  mol/mol   | xyz | C |    |   |   |     |      |    |    | D,T,GIGCdyn | BrNO3
-   TRC_CHBr3   |  mol/mol   | xyz | C |    |   |   |     |      |    |    | D,T,GIGCdyn | CHBr3 
-   TRC_CH2Br2  |  mol/mol   | xyz | C |    |   |   |     |      |    |    | D,T,GIGCdyn | CH2Br2 
-   TRC_CH3Br   |  mol/mol   | xyz | C |    |   |   |     |      |    |    | D,T,GIGCdyn | CH3Br 
-   TRC_MPN     |  mol/mol   | xyz | C |    |   |   |     |      |    |    | D,T,GIGCdyn | MPN
-   TRC_ISOPN   |  mol/mol   | xyz | C |    |   |   |     |      |    |    | D,T,GIGCdyn | ISOPN
-   TRC_MOBA    |  mol/mol   | xyz | C |    |   |   |     |      |    |    | D,T,GIGCdyn | MOBA
-   TRC_PROPNN  |  mol/mol   | xyz | C |    |   |   |     |      |    |    | D,T,GIGCdyn | PROPNN
-   TRC_HAC     |  mol/mol   | xyz | C |    |   |   |     |      |    |    | D,T,GIGCdyn | HAC
-   TRC_GLYC    |  mol/mol   | xyz | C |    |   |   |     |      |    |    | D,T,GIGCdyn | GLYC
-   TRC_MMN     |  mol/mol   | xyz | C |    |   |   |     |      |    |    | D,T,GIGCdyn | MMN
-   TRC_RIP     |  mol/mol   | xyz | C |    |   |   |     |      |    |    | D,T,GIGCdyn | RIP
-   TRC_IEPOX   |  mol/mol   | xyz | C |    |   |   |     |      |    |    | D,T,GIGCdyn | IEPOX
-   TRC_MAP     |  mol/mol   | xyz | C |    |   |   |     |      |    |    | D,T,GIGCdyn | MAP
-   TRC_NO2     |  mol/mol   | xyz | C |    |   |   |     |      |    |    | D,T,GIGCdyn | NO2
-   TRC_NO3     |  mol/mol   | xyz | C |    |   |   |     |      |    |    | D,T,GIGCdyn | NO3
-   TRC_HNO2    |  mol/mol   | xyz | C |    |   |   |     |      |    |    | D,T,GIGCdyn | HNO2
-#---------------------------------------------------------------------------------------------------------------------
-#                                         Chemical species (CSPEC)
-# -------------|------------|-----|---|----|---|---|-----|------|----|----|---------|---------------------------------
-#  Short       |            |     | V |Item|Intervl| Sub | Def  | No | Ha | Friends |            Long
-#  Name        |   Units    | Dim |Loc|Type| R | A |Tiles| ault | Rst| lo |         |            Name
-# -------------|------------|-----|---|----|---|---|-----|------|----|----|---------|---------------------------------
-   A3O2        |   cm-3     | xyz | C |    |   |   |     |1E-20 |    |    |         |
-   ACET        |   cm-3     | xyz | C |    |   |   |     |1E-20 |    |    |         |
-   ACTA        |   cm-3     | xyz | C |    |   |   |     |1E-20 |    |    |         |
-   ALD2        |   cm-3     | xyz | C |    |   |   |     |1E-20 |    |    |         |
-   ALK4        |   cm-3     | xyz | C |    |   |   |     |1E-20 |    |    |         |
-   ATO2        |   cm-3     | xyz | C |    |   |   |     |1E-20 |    |    |         |
-   B3O2        |   cm-3     | xyz | C |    |   |   |     |1E-20 |    |    |         |
-   Br          |   cm-3     | xyz | C |    |   |   |     |1E-20 |    |    |         |
-   Br2         |   cm-3     | xyz | C |    |   |   |     |1E-20 |    |    |         |
-   BrNO2       |   cm-3     | xyz | C |    |   |   |     |1E-20 |    |    |         |
-   BrNO3       |   cm-3     | xyz | C |    |   |   |     |1E-20 |    |    |         |
-   BrO         |   cm-3     | xyz | C |    |   |   |     |1E-20 |    |    |         |
-   C2H6        |   cm-3     | xyz | C |    |   |   |     |1E-20 |    |    |         |
-   C3H8        |   cm-3     | xyz | C |    |   |   |     |1E-20 |    |    |         |
-   CH2O        |   cm-3     | xyz | C |    |   |   |     |4E-15 |    |    |         |
-   CH2Br2      |   cm-3     | xyz | C |    |   |   |     |1E-20 |    |    |         |
-   CH3Br       |   cm-3     | xyz | C |    |   |   |     |1E-20 |    |    |         |
-   CH4         |   cm-3     | xyz | C |    |   |   |     |1.7E-6|    |    |         |
-   CHBr3       |   cm-3     | xyz | C |    |   |   |     |1E-20 |    |    |         |
-   CO          |   cm-3     | xyz | C |    |   |   |     |1E-07 |    |    |         |
-   DMS         |   cm-3     | xyz | C |    |   |   |     |1E-20 |    |    |         |
-   DRYBr2      |   cm-3     | xyz | C |    |   |   |     |1E-20 |    |    |         |
-   DRYBrNO3    |   cm-3     | xyz | C |    |   |   |     |1E-20 |    |    |         |
-   DRYCH2O     |   cm-3     | xyz | C |    |   |   |     |0E+00 |    |    |         |
-   DRYH2O2     |   cm-3     | xyz | C |    |   |   |     |0E+00 |    |    |         |
-   DRYHBr      |   cm-3     | xyz | C |    |   |   |     |0E+00 |    |    |         |
-   DRYHNO3     |   cm-3     | xyz | C |    |   |   |     |0E+00 |    |    |         |
-   DRYHOBr     |   cm-3     | xyz | C |    |   |   |     |0E+00 |    |    |         |
-   DRYN2O5     |   cm-3     | xyz | C |    |   |   |     |0E+00 |    |    |         |
-   DRYNO2      |   cm-3     | xyz | C |    |   |   |     |0E+00 |    |    |         |
-   DRYO3       |   cm-3     | xyz | C |    |   |   |     |0E+00 |    |    |         |
-   DRYPAN      |   cm-3     | xyz | C |    |   |   |     |0E+00 |    |    |         |
-   DRYPMN      |   cm-3     | xyz | C |    |   |   |     |0E+00 |    |    |         |
-   DRYPPN      |   cm-3     | xyz | C |    |   |   |     |0E+00 |    |    |         |
-   DRYR4N2     |   cm-3     | xyz | C |    |   |   |     |0E+00 |    |    |         |
-   DRYMVK      |   cm-3     | xyz | C |    |   |   |     |0E+00 |    |    |         |
-   DRYMACR     |   cm-3     | xyz | C |    |   |   |     |0E+00 |    |    |         |
-   EMISSION    |   cm-3     | xyz | C |    |   |   |     |1E+00 |    |    |         |
-   EOH         |   cm-3     | xyz | C |    |   |   |     |1E-20 |    |    |         |
-   ETO2        |   cm-3     | xyz | C |    |   |   |     |1E-20 |    |    |         |
-   ETP         |   cm-3     | xyz | C |    |   |   |     |1E-20 |    |    |         |
-   GCO3        |   cm-3     | xyz | C |    |   |   |     |1E-20 |    |    | S       | GCO3
-   GLYC        |   cm-3     | xyz | C |    |   |   |     |1E-20 |    |    |         |
-   GLYX        |   cm-3     | xyz | C |    |   |   |     |1E-20 |    |    |         |
-   GP          |   cm-3     | xyz | C |    |   |   |     |1E-20 |    |    |         |
-   H           |   cm-3     | xyz | C |    |   |   |     |4E-20 |    |    |         |
-   H2          |   cm-3     | xyz | C |    |   |   |     |5E-07 |    |    |         |
-   H2O         |   cm-3     | xyz | C |    |   |   |     |0.01839|   |    |         |
-   H2O2        |   cm-3     | xyz | C |    |   |   |     |4E-15 |    |    |         |
-   HAC         |   cm-3     | xyz | C |    |   |   |     |1E-20 |    |    |         |
-   HBr         |   cm-3     | xyz | C |    |   |   |     |1E-20 |    |    |         |
-   HOBr        |   cm-3     | xyz | C |    |   |   |     |1E-20 |    |    |         |
-   HCOOH       |   cm-3     | xyz | C |    |   |   |     |1E-20 |    |    |         |
-   HNO2        |   cm-3     | xyz | C |    |   |   |     |4E-15 |    |    |         |
-   HNO3        |   cm-3     | xyz | C |    |   |   |     |4E-15 |    |    |         |
-   HNO4        |   cm-3     | xyz | C |    |   |   |     |4E-15 |    |    |         |
-   HO2         |   cm-3     | xyz | C |    |   |   |     |4E-15 |    |    |         |
-   IALD        |   cm-3     | xyz | C |    |   |   |     |1E-20 |    |    |         |
-   IAO2        |   cm-3     | xyz | C |    |   |   |     |1E-20 |    |    |         |
-   IAP         |   cm-3     | xyz | C |    |   |   |     |1E-20 |    |    |         |
-   INO2        |   cm-3     | xyz | C |    |   |   |     |1E-20 |    |    |         |
-   INPN        |   cm-3     | xyz | C |    |   |   |     |1E-20 |    |    |         |
-   ISN1        |   cm-3     | xyz | C |    |   |   |     |1E-20 |    |    |         |
-   ISNP        |   cm-3     | xyz | C |    |   |   |     |1E-20 |    |    |         |
-   ISOP        |   cm-3     | xyz | C |    |   |   |     |1E-20 |    |    |         |
-   KO2         |   cm-3     | xyz | C |    |   |   |     |1E-20 |    |    |         |
-   M           |   cm-3     | xyz | C |    |   |   |     |0E+00 |    |    |         |
-   MACR        |   cm-3     | xyz | C |    |   |   |     |1E-20 |    |    |         |
-   MAN2        |   cm-3     | xyz | C |    |   |   |     |1E-20 |    |    |         |
-   MAO3        |   cm-3     | xyz | C |    |   |   |     |1E-20 |    |    |         |
-   MAOP        |   cm-3     | xyz | C |    |   |   |     |1E-20 |    |    |         |
-   MAP         |   cm-3     | xyz | C |    |   |   |     |1E-20 |    |    |         |
-   MCO3        |   cm-3     | xyz | C |    |   |   |     |1E-20 |    |    |         |
-   MEK         |   cm-3     | xyz | C |    |   |   |     |1E-20 |    |    |         |
-   MGLY        |   cm-3     | xyz | C |    |   |   |     |1E-20 |    |    |         |
-   MO2         |   cm-3     | xyz | C |    |   |   |     |4E-15 |    |    |         |
-   MOH         |   cm-3     | xyz | C |    |   |   |     |1E-20 |    |    |         |
-   MP          |   cm-3     | xyz | C |    |   |   |     |4E-15 |    |    |         |
-   MRO2        |   cm-3     | xyz | C |    |   |   |     |1E-20 |    |    |         |
-   MRP         |   cm-3     | xyz | C |    |   |   |     |1E-20 |    |    |         |
-   MSA         |   cm-3     | xyz | C |    |   |   |     |1E-20 |    |    |         |
-   MVK         |   cm-3     | xyz | C |    |   |   |     |1E-20 |    |    |         |
-   N2          |   cm-3     | xyz | C |    |   |   |     |0.7808|    |    |         |
-   N2O5        |   cm-3     | xyz | C |    |   |   |     |4E-15 |    |    |         |
-   NH2         |   cm-3     | xyz | C |    |   |   |     |1E-20 |    |    |         |
-   NH3         |   cm-3     | xyz | C |    |   |   |     |1E-20 |    |    |         |
-   NO          |   cm-3     | xyz | C |    |   |   |     |4E-13 |    |    |         |
-   NO2         |   cm-3     | xyz | C |    |   |   |     |4E-13 |    |    |         |
-   NO3         |   cm-3     | xyz | C |    |   |   |     |4E-15 |    |    |         |
-   O           |   cm-3     | xyz | C |    |   |   |     |4E-20 |    |    |         |
-   O2          |   cm-3     | xyz | C |    |   |   |     |0.2095|    |    |         |
-   O3          |   cm-3     | xyz | C |    |   |   |     |2E-08 |    |    |         |
-   OH          |   cm-3     | xyz | C |    |   |   |     |4E-15 |    |    |         |
-   PAN         |   cm-3     | xyz | C |    |   |   |     |1E-20 |    |    |         |
-   PMN         |   cm-3     | xyz | C |    |   |   |     |1E-20 |    |    |         |
-   PO2         |   cm-3     | xyz | C |    |   |   |     |1E-20 |    |    |         |
-   PP          |   cm-3     | xyz | C |    |   |   |     |1E-20 |    |    |         |
-   PPN         |   cm-3     | xyz | C |    |   |   |     |1E-20 |    |    |         |
-   PRN1        |   cm-3     | xyz | C |    |   |   |     |1E-20 |    |    |         |
-   PRPE        |   cm-3     | xyz | C |    |   |   |     |1E-20 |    |    |         |
-   PRPN        |   cm-3     | xyz | C |    |   |   |     |1E-20 |    |    |         |
-   R4N1        |   cm-3     | xyz | C |    |   |   |     |1E-20 |    |    |         |
-   R4N2        |   cm-3     | xyz | C |    |   |   |     |1E-20 |    |    |         |
-   R4O2        |   cm-3     | xyz | C |    |   |   |     |1E-20 |    |    |         |
-   R4P         |   cm-3     | xyz | C |    |   |   |     |1E-20 |    |    |         |
-   RA3P        |   cm-3     | xyz | C |    |   |   |     |1E-20 |    |    |         |
-   RB3P        |   cm-3     | xyz | C |    |   |   |     |1E-20 |    |    |         |
-   RCHO        |   cm-3     | xyz | C |    |   |   |     |1E-20 |    |    |         |
-   RCO3        |   cm-3     | xyz | C |    |   |   |     |1E-20 |    |    |         |
-   RCOOH       |   cm-3     | xyz | C |    |   |   |     |1E-20 |    |    |         |
-   RIO1        |   cm-3     | xyz | C |    |   |   |     |1E-20 |    |    |         |
-   RIO2        |   cm-3     | xyz | C |    |   |   |     |1E-20 |    |    |         |
-   RIP         |   cm-3     | xyz | C |    |   |   |     |1E-20 |    |    |         |
-   ROH         |   cm-3     | xyz | C |    |   |   |     |1E-20 |    |    |         |
-   RP          |   cm-3     | xyz | C |    |   |   |     |1E-20 |    |    |         |
-   SO2         |   cm-3     | xyz | C |    |   |   |     |1E-20 |    |    |         |
-   SO4         |   cm-3     | xyz | C |    |   |   |     |1E-20 |    |    |         |
-   VRO2        |   cm-3     | xyz | C |    |   |   |     |1E-20 |    |    |         |
-   VRP         |   cm-3     | xyz | C |    |   |   |     |1E-20 |    |    |         |
+   GCCTROPP     |    Pa      | xy  |   |    |   |   |     |      |    |    | S          | tropopause_pressure_used_in_GEOS-Chem
+ TRC_NO| mol mol-1 | xyz | C | | | | | | | | D,T,C | tmp
+ TRC_O3| mol mol-1 | xyz | C | | | | | | | | D,T,C | tmp
+ TRC_PAN| mol mol-1 | xyz | C | | | | | | | | D,T,C | tmp
+ TRC_CO| mol mol-1 | xyz | C | | | | | | | | D,T,C | tmp
+ TRC_ALK4| mol mol-1 | xyz | C | | | | | | | | D,T,C | tmp
+ TRC_ISOP| mol mol-1 | xyz | C | | | | | | | | D,T,C | tmp
+ TRC_HNO3| mol mol-1 | xyz | C | | | | | | | | D,T,C | tmp
+ TRC_H2O2| mol mol-1 | xyz | C | | | | | | | | D,T,C | tmp
+ TRC_ACET| mol mol-1 | xyz | C | | | | | | | | D,T,C | tmp
+ TRC_MEK| mol mol-1 | xyz | C | | | | | | | | D,T,C | tmp
+ TRC_ALD2| mol mol-1 | xyz | C | | | | | | | | D,T,C | tmp
+ TRC_RCHO| mol mol-1 | xyz | C | | | | | | | | D,T,C | tmp
+ TRC_MVK| mol mol-1 | xyz | C | | | | | | | | D,T,C | tmp
+ TRC_MACR| mol mol-1 | xyz | C | | | | | | | | D,T,C | tmp
+ TRC_PMN| mol mol-1 | xyz | C | | | | | | | | D,T,C | tmp
+ TRC_PPN| mol mol-1 | xyz | C | | | | | | | | D,T,C | tmp
+ TRC_R4N2| mol mol-1 | xyz | C | | | | | | | | D,T,C | tmp
+ TRC_PRPE| mol mol-1 | xyz | C | | | | | | | | D,T,C | tmp
+ TRC_C3H8| mol mol-1 | xyz | C | | | | | | | | D,T,C | tmp
+ TRC_CH2O| mol mol-1 | xyz | C | | | | | | | | D,T,C | tmp
+ TRC_C2H6| mol mol-1 | xyz | C | | | | | | | | D,T,C | tmp
+ TRC_N2O5| mol mol-1 | xyz | C | | | | | | | | D,T,C | tmp
+ TRC_HNO4| mol mol-1 | xyz | C | | | | | | | | D,T,C | tmp
+ TRC_MP| mol mol-1 | xyz | C | | | | | | | | D,T,C | tmp
+ TRC_DMS| mol mol-1 | xyz | C | | | | | | | | D,T,C | tmp
+ TRC_SO2| mol mol-1 | xyz | C | | | | | | | | D,T,C | tmp
+ TRC_SO4| mol mol-1 | xyz | C | | | | | | | | D,T,C | tmp
+ TRC_SO4s| mol mol-1 | xyz | C | | | | | | | | D,T,C | tmp
+ TRC_MSA| mol mol-1 | xyz | C | | | | | | | | D,T,C | tmp
+ TRC_NH3| mol mol-1 | xyz | C | | | | | | | | D,T,C | tmp
+ TRC_NH4| mol mol-1 | xyz | C | | | | | | | | D,T,C | tmp
+ TRC_NIT| mol mol-1 | xyz | C | | | | | | | | D,T,C | tmp
+ TRC_NITs| mol mol-1 | xyz | C | | | | | | | | D,T,C | tmp
+ TRC_BCPI| mol mol-1 | xyz | C | | | | | | | | D,T,C | tmp
+ TRC_OCPI| mol mol-1 | xyz | C | | | | | | | | D,T,C | tmp
+ TRC_BCPO| mol mol-1 | xyz | C | | | | | | | | D,T,C | tmp
+ TRC_OCPO| mol mol-1 | xyz | C | | | | | | | | D,T,C | tmp
+ TRC_DST1| mol mol-1 | xyz | C | | | | | | | | D,T,C | tmp
+ TRC_DST2| mol mol-1 | xyz | C | | | | | | | | D,T,C | tmp
+ TRC_DST3| mol mol-1 | xyz | C | | | | | | | | D,T,C | tmp
+ TRC_DST4| mol mol-1 | xyz | C | | | | | | | | D,T,C | tmp
+ TRC_SALA| mol mol-1 | xyz | C | | | | | | | | D,T,C | tmp
+ TRC_SALC| mol mol-1 | xyz | C | | | | | | | | D,T,C | tmp
+ TRC_Br2| mol mol-1 | xyz | C | | | | | | | | D,T,C | tmp
+ TRC_Br| mol mol-1 | xyz | C | | | | | | | | D,T,C | tmp
+ TRC_BrO| mol mol-1 | xyz | C | | | | | | | | D,T,C | tmp
+ TRC_HOBr| mol mol-1 | xyz | C | | | | | | | | D,T,C | tmp
+ TRC_HBr| mol mol-1 | xyz | C | | | | | | | | D,T,C | tmp
+ TRC_BrNO2| mol mol-1 | xyz | C | | | | | | | | D,T,C | tmp
+ TRC_BrNO3| mol mol-1 | xyz | C | | | | | | | | D,T,C | tmp
+ TRC_CHBr3| mol mol-1 | xyz | C | | | | | | | | D,T,C | tmp
+ TRC_CH2Br2| mol mol-1 | xyz | C | | | | | | | | D,T,C | tmp
+ TRC_CH3Br| mol mol-1 | xyz | C | | | | | | | | D,T,C | tmp
+ TRC_MPN| mol mol-1 | xyz | C | | | | | | | | D,T,C | tmp
+ TRC_ISOPN| mol mol-1 | xyz | C | | | | | | | | D,T,C | tmp
+ TRC_MOBA| mol mol-1 | xyz | C | | | | | | | | D,T,C | tmp
+ TRC_PROPNN| mol mol-1 | xyz | C | | | | | | | | D,T,C | tmp
+ TRC_HAC| mol mol-1 | xyz | C | | | | | | | | D,T,C | tmp
+ TRC_GLYC| mol mol-1 | xyz | C | | | | | | | | D,T,C | tmp
+ TRC_MMN| mol mol-1 | xyz | C | | | | | | | | D,T,C | tmp
+ TRC_RIP| mol mol-1 | xyz | C | | | | | | | | D,T,C | tmp
+ TRC_IEPOX| mol mol-1 | xyz | C | | | | | | | | D,T,C | tmp
+ TRC_MAP| mol mol-1 | xyz | C | | | | | | | | D,T,C | tmp
+ TRC_NO2| mol mol-1 | xyz | C | | | | | | | | D,T,C | tmp
+ TRC_NO3| mol mol-1 | xyz | C | | | | | | | | D,T,C | tmp
+ TRC_HNO2| mol mol-1 | xyz | C | | | | | | | | D,T,C | tmp
+ TRC_N2O| mol mol-1 | xyz | C | | | | | | | | D,T,C | tmp
+ TRC_OCS| mol mol-1 | xyz | C | | | | | | | | D,T,C | tmp
+ TRC_CH4| mol mol-1 | xyz | C | | | | | | | | D,T,C | tmp
+ TRC_BrCl| mol mol-1 | xyz | C | | | | | | | | D,T,C | tmp
+ TRC_HCl| mol mol-1 | xyz | C | | | | | | | | D,T,C | tmp
+ TRC_CCl4| mol mol-1 | xyz | C | | | | | | | | D,T,C | tmp
+ TRC_CH3Cl| mol mol-1 | xyz | C | | | | | | | | D,T,C | tmp
+ TRC_CH3CCl3| mol mol-1 | xyz | C | | | | | | | | D,T,C | tmp
+ TRC_CFCX| mol mol-1 | xyz | C | | | | | | | | D,T,C | tmp
+ TRC_HCFCX| mol mol-1 | xyz | C | | | | | | | | D,T,C | tmp
+ TRC_CFC11| mol mol-1 | xyz | C | | | | | | | | D,T,C | tmp
+ TRC_CFC12| mol mol-1 | xyz | C | | | | | | | | D,T,C | tmp
+ TRC_HCFC22| mol mol-1 | xyz | C | | | | | | | | D,T,C | tmp
+ TRC_H1211| mol mol-1 | xyz | C | | | | | | | | D,T,C | tmp
+ TRC_H1301| mol mol-1 | xyz | C | | | | | | | | D,T,C | tmp
+ TRC_H2402| mol mol-1 | xyz | C | | | | | | | | D,T,C | tmp
+ TRC_Cl| mol mol-1 | xyz | C | | | | | | | | D,T,C | tmp
+ TRC_ClO| mol mol-1 | xyz | C | | | | | | | | D,T,C | tmp
+ TRC_HOCl| mol mol-1 | xyz | C | | | | | | | | D,T,C | tmp
+ TRC_ClNO3| mol mol-1 | xyz | C | | | | | | | | D,T,C | tmp
+ TRC_ClNO2| mol mol-1 | xyz | C | | | | | | | | D,T,C | tmp
+ TRC_ClOO| mol mol-1 | xyz | C | | | | | | | | D,T,C | tmp
+ TRC_OClO| mol mol-1 | xyz | C | | | | | | | | D,T,C | tmp
+ TRC_Cl2| mol mol-1 | xyz | C | | | | | | | | D,T,C | tmp
+ TRC_Cl2O2| mol mol-1 | xyz | C | | | | | | | | D,T,C | tmp
+ TRC_H2O| mol mol-1 | xyz | C | | | | | | | | D,T,C | tmp
+ SPC_A3O2| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_ACET| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_ALD2| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_ALK4| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_ATO2| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_ATOOH| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_B3O2| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_Br| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_Br2| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_BrCl| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_BrNO2| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_BrNO3| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_BrO| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_C2H6| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_C3H8| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_CCl4| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_CFC11| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_CFC113| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_CFC114| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_CFC115| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_CFC12| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_CH2Br2| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_CH2O| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_CH3Br| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_CH3CCl3| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_CH3Cl| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_CH4| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_CHBr3| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_CO| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_Cl| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_Cl2| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_Cl2O2| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_ClNO2| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_ClNO3| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_ClO| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_ClOO| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_DHMOB| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_DIBOO| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_DMS| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_DRYACET| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_DRYACTA| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_DRYALD2| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_DRYBr2| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_DRYBrNO3| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_DRYCH2O| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_DRYH2O2| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_DRYHAC| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_DRYHBr| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_DRYHCOOH| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_DRYHCl| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_DRYHNO3| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_DRYHOBr| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_DRYIEPOX| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_DRYISOPNB| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_DRYISOPND| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_DRYMACR| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_DRYMACRN| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_DRYMVK| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_DRYMVKN| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_DRYN2O5| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_DRYNO2| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_DRYO3| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_DRYPAN| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_DRYPMN| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_DRYPMNN| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_DRYPPN| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_DRYPROPNN| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_DRYR4N2| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_DRYRIP| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_ETHLN| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_ETO2| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_ETP| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_GLYC| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_GLYX| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_H| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_H1211| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_H1301| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_H2402| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_H2O| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_H2O2| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_HAC| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_HBr| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_HC5| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_HC5OO| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_HCFC123| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_HCFC141b| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_HCFC142b| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_HCFC22| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_HCl| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_HNO2| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_HNO3| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_HNO4| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_HO2| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_HOBr| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_HOCl| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_IAP| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_IEPOX| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_IEPOXOO| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_INO2| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_INPN| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_ISN1| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_ISNOHOO| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_ISNOOA| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_ISNOOB| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_ISNP| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_ISOP| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_ISOPNB| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_ISOPNBO2| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_ISOPND| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_ISOPNDO2| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_KO2| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_LISOPOH| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_MACR| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_MACRN| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_MACRNO2| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_MAN2| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_MAO3| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_MAOP| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_MAOPO2| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_MAP| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_MCO3| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_MEK| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_MGLY| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_MO2| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_MOBA| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_MOBAOO| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_MP| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_MPN| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_MRO2| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_MRP| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_MSA| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_MVK| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_MVKN| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_N_ | cm-3 | xyz | C | | | | |1e-20 | | | S | Atomic Nitrogen (stratchem)
+ SPC_N2O| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_N2O5| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_NO| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_NO2| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_NO3| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_O| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_O1D| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_O3| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_OCS| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_OClO| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_OH| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_PAN| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_PMN| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_PMNN| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_PMNO2| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_PO2| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_PP| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_PPN| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_PRN1| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_PROPNN| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_PRPE| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_PRPN| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_PYAC| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_R4N1| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_R4N2| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_R4O2| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_R4P| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_RA3P| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_RB3P| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_RCHO| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_RCO3| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_RIO2| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_RIP| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_ROH| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_RP| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_SO2| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_SO4| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_VRO2| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
+ SPC_VRP| cm-3 | xyz | C | | | | |1e-20 | | | S | tmp
 # --------------|------------|-----|---|----|---|---|-----|------|----|----|---------|---------------------------------
 </InternalSpec>

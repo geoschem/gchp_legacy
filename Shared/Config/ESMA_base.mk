@@ -192,6 +192,7 @@ INC_SDF = $(INC_NETCDF)
 LIB_SDF = $(LIB_NETCDF)
 DEF_SDF += $(D)HAS_NETCDF4 
 DEF_SDF += $(D)H5_HAVE_PARALLEL
+#DEF_SDF += $(D)NETCDF_NEED_NF_MPIIO
 #------------------------------------------------------------------------------
 
 DIR_ESMF := $(ESMF_DIR)

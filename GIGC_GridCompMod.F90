@@ -178,6 +178,10 @@ contains
                DST_NAME = (/ 'PLE' /), &
                DST_ID   = CHEM, SRC_ID = ECTM, __RC__ )
 
+      CALL MAPL_TerminateImport    ( GC,    &
+               SHORT_NAME = (/'TRACERS'/),          &
+               CHILD = ADV,    __RC__  )
+
     ! AdvCore Imports
     ! ---------------
 !    CALL MAPL_AddConnectivity ( GC,                                   &
@@ -326,22 +330,17 @@ contains
     !----------------
     ! AdvCore Tracers
     !----------------
-    ! -- This code SEEMS to add all fields in the CHEM gridcomp
-    !    friendly to "DYNAMICS" to a bundle passed to dynamics
-    ! -- When enabled, it may permit a more elegant means
-    !    to control what gets transported, and what is simply 
-    !    reacted in chemistry - MSL
-    !call ESMF_StateGet( GIM(ADV), 'TRACERS', BUNDLE, RC=STATUS )
-    !VERIFY_(STATUS)
-    !
-    !call MAPL_GridCompGetFriendlies(GCS(CHEM), "DYNAMICS", BUNDLE, RC=STATUS )
-    !VERIFY_(STATUS)
+    call ESMF_StateGet( GIM(ADV), 'TRACERS', BUNDLE, RC=STATUS )
+    VERIFY_(STATUS)
+    
+    call MAPL_GridCompGetFriendlies(GCS(CHEM), "DYNAMICS", BUNDLE, RC=STATUS )
+    VERIFY_(STATUS)
     
     ! Count tracers
     !--------------
     
-    !    call ESMF_FieldBundleGet(BUNDLE,FieldCount=NUM_TRACERS, RC=STATUS)
-    !    VERIFY_(STATUS)
+        call ESMF_FieldBundleGet(BUNDLE,FieldCount=NUM_TRACERS, RC=STATUS)
+        VERIFY_(STATUS)
 
     ! Get the names of all tracers to fill other turbulence bundles.
     !---------------------------------------------------------------

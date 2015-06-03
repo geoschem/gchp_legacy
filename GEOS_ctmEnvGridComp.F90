@@ -545,27 +545,6 @@
       call MAPL_GetPointer ( IMPORT,      VC1,     'VC1', RC=STATUS )
       VERIFY_(STATUS)
 
-      ! Get to the internal pointers...
-      ! ---------------------
-      ! Get the internal state which holds the private Config object
-!      CALL ESMF_UserCompGetInternalState( GC, 'ctmEnv_State', INTERNAL, STATUS )
-!      VERIFY_(STATUS)
-!      call MAPL_GetPointer ( INTERNAL,     PLE0,     'PLE0', RC=STATUS )
-!      VERIFY_(STATUS)
-!      call MAPL_GetPointer ( INTERNAL,     PLE1,     'PLE1', RC=STATUS )
-!      VERIFY_(STATUS)
-
-      
-
-      !call MAPL_GetPointer ( IMPORT, cellArea,    'AREA', RC=STATUS )
-      !VERIFY_(STATUS)
-!      call MAPL_GetPointer ( IMPORT,       th,      'TH', RC=STATUS )
-!      VERIFY_(STATUS)
-!      call MAPL_GetPointer ( IMPORT,       q,        'Q', RC=STATUS )
-!      VERIFY_(STATUS)
-!      call MAPL_GetPointer ( IMPORT,     zle,      'ZLE', RC=STATUS )
-!      VERIFY_(STATUS)
-
       ! Get local dimensions
       is = lbound(UC1,1); ie = ubound(UC1,1)
       js = lbound(UC1,2); je = ubound(UC1,2)
@@ -617,19 +596,6 @@
       call MAPL_GetPointer ( EXPORT,  CYr8,  'CYr8', RC=STATUS )
       VERIFY_(STATUS)
 
-!--MSL
-!      call MAPL_GetPointer ( EXPORT, MFX, 'MFX', RC=STATUS )
-!      VERIFY_(STATUS)
-!      call MAPL_GetPointer ( EXPORT, MFY, 'MFY', RC=STATUS )
-!      VERIFY_(STATUS)
-!      call MAPL_GetPointer ( EXPORT,  CX,  'CX', RC=STATUS )
-!      VERIFY_(STATUS)
-!      call MAPL_GetPointer ( EXPORT,  CY,  'CY', RC=STATUS )
-!      VERIFY_(STATUS)
-!--
-
-      !IF (MAPL_AM_I_ROOT())
-
       ! Compute the courant numbers and mass fluxes
       !--------------------------------------------
       ALLOCATE( UCr8(is:ie,js:je,lm),   STAT=STATUS); VERIFY_(STATUS)
@@ -643,40 +609,7 @@
       call calcCourantNumberMassFlux(UCr8, VCr8, PLEr8, &
                                 MFXr8, MFYr8, CXr8, CYr8, dt)
 
-!      MFX = real(MFXr8,4); MFY = real(MFYr8,4)
-!      CX = real(CXr8,4); CY = real(CYr8,4)
- 
-!      MFX = 0.; MFY = 0.
-!      CX = 0.; CY=0.
-   
-!      write(*,*) 'dt<>: ', dt
-!      write(*,*) 'UCr8<>:',maxval(UCr8),minval(UCr8) 
-!      write(*,*) 'PLEr8<>:',maxval(PLEr8),minval(PLEr8) 
-!      write(*,*) 'ENV CX<>:',maxval(CXr8),minval(CXr8) 
-!      write(*,*) 'ENV MFX<>:',maxval(MFXr8),minval(MFXr8) 
-
-!      DEALLOCATE( PLE0, PLE1 )
       DEALLOCATE( UCr8, VCr8 )
-
-      ! Get to the exports...
-      ! ---------------------
-     !call MAPL_GetPointer ( EXPORT,  rho, 'AIRDENS', ALLOC=.TRUE., RC=STATUS )
-     !VERIFY_(STATUS)
-     !call MAPL_GetPointer ( EXPORT, mass,    'MASS', ALLOC=.TRUE., RC=STATUS )
-     !VERIFY_(STATUS)
-
-     !if ( associated(rho) .and. associated(mass)) then
-     !   ! Compute air density
-     !   ! -------------------
-     !   call airdens_ ( rho, PLE, th, q )
-!
-     !   ! Compute the total mass
-     !   !-----------------------
-     !   km = size(mass,3)
-     !   DO k = 1, km
-     !      mass(:,:,k) = rho(:,:,k)*cellArea(:,:)*(zle(:,:,k-1)-zle(:,:,k))
-     !   END DO
-     !end if
 
       call MAPL_TimerOff(ggState,"RUN")
       call MAPL_TimerOff(ggState,"TOTAL")

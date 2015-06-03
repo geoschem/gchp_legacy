@@ -47,12 +47,12 @@ endif
 # Hopefully this can be automated in future versions.
 #==============================================================================
 # %%%%% OpenMPI settings %%%%%
-MPI_LIB       := $(shell mpif90 --showme:link)
-MPI_LIB       += $(shell mpicxx --showme:link)
+#MPI_LIB       := $(shell mpif90 --showme:link)
+#MPI_LIB       += $(shell mpicxx --showme:link)
 # %%%%% OpenMPI manual setting %%%%%
 #MPI_LIB       := -L$(dir $(shell which mpif90))../lib -lmpi_mpifh -lmpi_cxx -lmpi -lopen-rte -lopen-pal
 # %%%%% MVAPICH %%%%% 
-#MPI_LIB       := -L$(dir $(shell which mpif90))../lib -lmpich -lmpichf90
+MPI_LIB       := -L$(dir $(shell which mpif90))../lib -lmpich -lmpichf90
 # %%%%% Generic MPI --- testing %%%%%
 #MPI_LIB       := -L$(dir $(shell which mpif90))../lib -lmpi -lmpi++
 

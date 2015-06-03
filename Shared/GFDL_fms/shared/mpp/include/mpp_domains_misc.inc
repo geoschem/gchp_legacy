@@ -84,7 +84,7 @@
          call init_nonblock_type(nonblock_data(n))
       enddo
 
-      call mpp_domains_set_stack_size(32768) !default, pretty arbitrary
+      call mpp_domains_set_stack_size(5032768) !default, pretty arbitrary; Changed from 32768 to 5032768 - 6/3/15 MSL
 #ifdef use_libSMA
       call mpp_malloc( ptr_info, 16, l )
 #endif 

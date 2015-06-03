@@ -451,6 +451,7 @@ CONTAINS
                         Convection = Input_Opt%TS_CONV,                  &
                         Dynamics   = Input_Opt%TS_DYN,                   &
                         Emission   = Input_Opt%TS_EMIS,                  &
+                        Radiation  = Input_Opt%TS_RAD,                   &
                         Unit_Conv  = MAX( Input_Opt%TS_DYN,              &
                                           Input_Opt%TS_CONV ),           &
                         Diagnos    = Input_Opt%TS_DIAG         )
@@ -737,7 +738,7 @@ CONTAINS
        ENDIF
 
        ! Allocate array of overhead O3 columns for TOMS
-       CALL INIT_TOMS
+       CALL INIT_TOMS( am_I_Root, Input_Opt, RC )
 
        !### Debug
        IF ( prtDebug ) THEN

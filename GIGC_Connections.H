@@ -16,11 +16,11 @@
 !         SRC_ID      = DYN,                                         &
 !                                                            __RC__   )
 
-    call MAPL_AddConnectivity ( GC,                                &
-	 SHORT_NAME  = (/'TRACERS'/),                              &
-         DST_ID      = ADV,                                        &
-         SRC_ID      = CHEM,                                       &
-                                                            __RC__  )
+!    call MAPL_AddConnectivity ( GC,                                &
+! 	 SHORT_NAME  = (/'AREA'/),                                 &
+!         DST_ID      = CHEM,                                       &
+!         SRC_ID      = ADV,                                        &
+!                                                            __RC__  )
 
 !    call MAPL_AddConnectivity ( GC,                                &
 !	 SHORT_NAME  = (/'TRACERS' /),                             &

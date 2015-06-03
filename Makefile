@@ -103,7 +103,7 @@ endif
 
 # Optimization level for ESMF
 ifndef ESMF_BOPT
-  export ESMF_BOPT=O
+  export ESMF_BOPT=g
 endif
 
 # Other ESMF directory settings
@@ -338,7 +338,7 @@ GIGC_Diagnostics_Mod.o      : GIGC_Diagnostics_Mod.F90
 GIGC_GridCompMod.o          : GIGC_GridCompMod.F90 Chem_GridCompMod.o \
 	                      GEOS_ctmEnvGridComp.o
 
-gigc_initialization_mod.o   : gigc_initialization_mod.F90 gigc_mpi_wrap.o 
+gigc_initialization_mod.o   : gigc_initialization_mod.F90 gigc_mpi_wrap.o
 
 gigc_chunk_mod.o            : gigc_chunk_mod.F90 gigc_finalization_mod.o \
 			      gigc_initialization_mod.o gc_land_interface.o \

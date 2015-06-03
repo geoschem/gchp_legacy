@@ -97,7 +97,7 @@ ifeq ($(ARCH),Linux)
 
 #    LIB_ESMF = $(BASELIB)/libesmf.so
 
-    CC  = gcc
+    CC  = icc
     CXX = g++
 
 ###############################################################################

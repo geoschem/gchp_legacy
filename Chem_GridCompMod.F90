@@ -105,6 +105,7 @@ MODULE Chem_GridCompMod
   TYPE Int2ChmMap
      CHARACTER(LEN=255)            :: TrcName
      INTEGER                       :: TrcID
+     REAL                          :: TCVV
      REAL, POINTER                 :: Internal(:,:,:) => NULL()
   END TYPE Int2ChmMap
 
@@ -195,9 +196,9 @@ MODULE Chem_GridCompMod
 
   ! -Analysis OX:
   REAL, POINTER     :: O3      (:,:,:) => NULL()
-  REAL, POINTER     :: O3PPMV  (:,:,:) => NULL()
+!  REAL, POINTER     :: O3PPMV  (:,:,:) => NULL()
   REAL, POINTER     :: OX      (:,:,:) => NULL()
-  REAL, POINTER     :: OX_TEND (:,:,:) => NULL()
+!  REAL, POINTER     :: OX_TEND (:,:,:) => NULL()
   REAL, POINTER     :: O3_HIST (:,:,:) => NULL()
 
   ! -RATS:
@@ -206,7 +207,7 @@ MODULE Chem_GridCompMod
   REAL, POINTER     :: CFC11   (:,:,:) => NULL()
   REAL, POINTER     :: CFC12   (:,:,:) => NULL()
   REAL, POINTER     :: HCFC22  (:,:,:) => NULL()
-  REAL, POINTER     :: H2O_TEND(:,:,:) => NULL()
+!  REAL, POINTER     :: H2O_TEND(:,:,:) => NULL()
   REAL, POINTER     :: H2O_HIST(:,:,:) => NULL()
 
   ! -Corresponding pointers to internal state. We now use these variables instead
@@ -1456,74 +1457,80 @@ CONTAINS
     ASSERT_(STATUS==0)
 
     ! Do for every tracer in State_Chm
-!<<>>    DO I = 1, nFlds
-!<<>>
-!<<>>       ! Pass tracer name
-!<<>>       Int2Chm(I)%TrcName = TRIM(State_Chm%Trac_Name(I))
-!<<>>
-!<<>>       ! Get tracer ID
-!<<>>       Int2Chm(I)%TrcID = Get_Indx( TRIM(Int2Chm(I)%TrcName), &
-!<<>>                                    State_Chm%Trac_Id, State_Chm%Trac_Name )
-!<<>>
-!<<>>       ! If tracer ID is not valid, make sure all variables are at least defined.
-!<<>>       IF ( Int2Chm(I)%TrcID <= 0 ) THEN
-!<<>>          Int2Chm(I)%Internal => NULL()
-!<<>>          CYCLE
-!<<>>       ENDIF
-!<<>>
-!<<>>       ! Get internal state field
-!<<>>       CALL ESMF_StateGet( INTSTATE, TRIM(TPFX)//TRIM(Int2Chm(I)%TrcName), GcFld, RC=STATUS )
-!<<>>       IF ( STATUS /= ESMF_SUCCESS ) THEN
-!<<>>          WRITE(*,*) 'Cannot find in internal state: '//TRIM(TPFX)//TRIM(Int2Chm(I)%TrcName)
-!<<>>          ASSERT_(.FALSE.)
-!<<>>       ENDIF
-!<<>>
-!<<>>       ! Check friendlieness of field: the field must not be friendly to moist and/or 
-!<<>>       ! turbulence if the corresponding GEOS-Chem switches are turned on!
-!<<>>
-!<<>>       ! Check for friendlieness to convection: only if GEOS-Chem convection is enabled
-!<<>>       IF ( Input_Opt%LCONV ) THEN
-!<<>>          FRIENDLY=.FALSE.
-!<<>>          CALL ESMF_AttributeGet( GcFld, NAME="FriendlyToMOIST", &
-!<<>>                                  VALUE=FRIENDLY, RC=STATUS )
-!<<>>          IF ( STATUS==ESMF_SUCCESS .AND. FRIENDLY ) THEN
-!<<>>             IF ( am_I_Root ) THEN
-!<<>>                WRITE(*,*) ' '
-!<<>>                WRITE(*,*) 'GEOS-Chem convection is turned on, but tracer is also'
-!<<>>                WRITE(*,*) 'friendly to MOIST. Cannot do both: ', TRIM(Int2Chm(I)%TrcName)
-!<<>>                WRITE(*,*) ' '
-!<<>>             ENDIF
-!<<>>             ASSERT_(.FALSE.)
-!<<>>          ENDIF
-!<<>>       ENDIF
-!<<>>
-!<<>>       ! Check for friendlieness to turbulence: only if GEOS-Chem turbulence is enabled
-!<<>>       IF ( Input_Opt%LTURB ) THEN
-!<<>>          FRIENDLY=.FALSE.
-!<<>>          CALL ESMF_AttributeGet( GcFld, NAME="FriendlyToTURBULENCE", &
-!<<>>                                  VALUE=FRIENDLY, RC=STATUS )
-!<<>>          IF ( STATUS==ESMF_SUCCESS .AND. FRIENDLY ) THEN
-!<<>>             IF ( am_I_Root ) THEN
-!<<>>                WRITE(*,*) ' '
-!<<>>                WRITE(*,*) 'GEOS-Chem turbulence is turned on, but tracer is also'
-!<<>>                WRITE(*,*) 'friendly to TURBULENCE. Cannot do both: ', TRIM(Int2Chm(I)%TrcName)
-!<<>>                WRITE(*,*) ' '
-!<<>>             ENDIF
-!<<>>             ASSERT_(.FALSE.)
-!<<>>          ENDIF
-!<<>>       ENDIF
-!<<>>
-!<<>>       ! Get pointer to field
-!<<>>       CALL ESMF_FieldGet( GcFld, 0, Ptr3D, __RC__ )
-!<<>>
-!<<>>       ! Get pointer to internal state and link it to Int2Chm object.
-!<<>>!       CALL MAPL_GetPointer( INTSTATE, Ptr3D, TRIM(TPFX)//TRIM(Int2Chm(I)%TrcName), __RC__ )
-!<<>>       Int2Chm(I)%Internal => Ptr3D
-!<<>>      
-!<<>>       ! Free pointers
-!<<>>       Ptr3D => NULL()
-!<<>>
-!<<>>    ENDDO
+    DO I = 1, nFlds
+
+       ! Pass tracer name
+       Int2Chm(I)%TrcName = TRIM(State_Chm%Trac_Name(I))
+
+       ! Get tracer ID
+       Int2Chm(I)%TrcID = Get_Indx( TRIM(Int2Chm(I)%TrcName), &
+                                    State_Chm%Trac_Id, State_Chm%Trac_Name )
+
+       ! If tracer ID is not valid, make sure all variables are at least defined.
+       IF ( Int2Chm(I)%TrcID <= 0 ) THEN
+          Int2Chm(I)%Internal => NULL()
+          CYCLE
+       ENDIF
+
+       ! Get internal state field
+       CALL ESMF_StateGet( INTSTATE, TRIM(TPFX)//TRIM(Int2Chm(I)%TrcName), GcFld, RC=STATUS )
+       IF ( STATUS /= ESMF_SUCCESS ) THEN
+          WRITE(*,*) 'Cannot find in internal state: '//TRIM(TPFX)//TRIM(Int2Chm(I)%TrcName)
+          ASSERT_(.FALSE.)
+       ENDIF
+
+       ! Check friendlieness of field: the field must not be friendly to moist and/or 
+       ! turbulence if the corresponding GEOS-Chem switches are turned on!
+
+       ! Check for friendlieness to convection: only if GEOS-Chem convection is enabled
+       ! -- THIS IS CURRENTLY NOT RELEVANT TO THE GCHP, BECAUSE THERE'S ONLY ONE 
+       !    CONVECTION ROUTINE. This code is still here, though, to permit the inclusion
+       !    of an external convection component. MSL
+       !IF ( Input_Opt%LCONV ) THEN
+       !   FRIENDLY=.FALSE.
+       !   CALL ESMF_AttributeGet( GcFld, NAME="FriendlyToMOIST", &
+       !                           VALUE=FRIENDLY, RC=STATUS )
+       !   IF ( STATUS==ESMF_SUCCESS .AND. FRIENDLY ) THEN
+       !      IF ( am_I_Root ) THEN
+       !         WRITE(*,*) ' '
+       !         WRITE(*,*) 'GEOS-Chem convection is turned on, but tracer is also'
+       !         WRITE(*,*) 'friendly to MOIST. Cannot do both: ', TRIM(Int2Chm(I)%TrcName)
+       !         WRITE(*,*) ' '
+       !      ENDIF
+       !      ASSERT_(.FALSE.)
+       !   ENDIF
+       !ENDIF
+
+       ! Check for friendlieness to turbulence: only if GEOS-Chem turbulence is enabled
+       ! -- THIS IS CURRENTLY NOT RELEVANT TO THE GCHP, BECAUSE THERE'S ONLY ONE 
+       !    TURBULENCE ROUTINE. This code is still here, though, to permit the inclusion
+       !    of an external turbulence/mixing component. MSL
+       !IF ( Input_Opt%LTURB ) THEN
+       !   FRIENDLY=.FALSE.
+       !   CALL ESMF_AttributeGet( GcFld, NAME="FriendlyToTURBULENCE", &
+       !                           VALUE=FRIENDLY, RC=STATUS )
+       !   IF ( STATUS==ESMF_SUCCESS .AND. FRIENDLY ) THEN
+       !      IF ( am_I_Root ) THEN
+       !         WRITE(*,*) ' '
+       !         WRITE(*,*) 'GEOS-Chem turbulence is turned on, but tracer is also'
+       !         WRITE(*,*) 'friendly to TURBULENCE. Cannot do both: ', TRIM(Int2Chm(I)%TrcName)
+       !         WRITE(*,*) ' '
+       !      ENDIF
+       !      ASSERT_(.FALSE.)
+       !   ENDIF
+       !ENDIF
+
+       ! Get pointer to field
+       CALL ESMF_FieldGet( GcFld, 0, Ptr3D, __RC__ )
+
+       ! Get pointer to internal state and link it to Int2Chm object.
+!       CALL MAPL_GetPointer( INTSTATE, Ptr3D, TRIM(TPFX)//TRIM(Int2Chm(I)%TrcName), __RC__ )
+       Int2Chm(I)%Internal => Ptr3D
+      
+       ! Free pointers
+       Ptr3D => NULL()
+
+    ENDDO
 
     !=======================================================================
     ! Error trap: make sure that chemistry / emission time step are same and
@@ -1563,73 +1570,6 @@ CONTAINS
        WRITE(*,*) ' --------------------------------------------------- '
        WRITE(*,*) ' '
     ENDIF
-
-    !=======================================================================
-    ! Create TRACERS bundle 
-    !=======================================================================
-
-    call ESMF_StateGet(Export, 'TRACERS', bundle, __RC__ )
-    call MAPL_Get ( State, INTERNAL_ESMF_STATE=INTERNAL, RC=STATUS )
-    VERIFY_(STATUS)
-
-    DO N = 1, Input_Opt%N_TRACERS
-
-       call ESMF_StateGet ( Internal,       &
-            trim(tpfx)//trim(State_Chm%Trac_Name(N)), &
-            FIELD, RC=RC )
-       IF ( RC /= ESMF_SUCCESS ) THEN
-          WRITE(*,*) 'Cannot fill TRACER bundle - field not found in ' // &
-               'internal state: ' //trim(tpfx)//trim(State_Chm%Trac_Name(N))
-          ASSERT_(.FALSE.)
-       ENDIF
-
-       trcID = State_Chm%Trac_ID(N)
-
-       call ESMF_AttributeSet (field,      &
-            NAME  = 'TCVV',                &
-            VALUE = real(Input_Opt%TCVV(trcID),4), &
-                    __RC__ )       
-
-       call ESMF_AttributeSet (field,     &
-            NAME  = 'TRAC_ID',            &
-            VALUE = trcID,                &
-                    __RC__ )       
-
-       call MAPL_FieldBundleAdd ( BUNDLE, FIELD, __RC__ )
-       IF ( RC .eq. ESMF_SUCCESS ) THEN
-          IF ( am_I_Root ) write(*,*) 'Added '//trim(tpfx)//trim(State_Chm%Trac_Name(N)) &
-               //' to TRACER bundle'
-       ENDIF
-    ENDDO
-
-    call ESMF_AttributeSet (bundle,    &
-         NAME  = 'LTRAN',              &
-         VALUE = Input_Opt%LTRAN,      &
-         RC = STATUS )       
-       
-    call ESMF_AttributeSet (bundle,    &
-         NAME  = 'N_TRACERS',          &
-         VALUE = Input_Opt%N_TRACERS,  &
-         RC = STATUS )       
-       
-    call ESMF_AttributeSet (bundle,    &
-         NAME  = 'LFILL',              &
-         VALUE = Input_Opt%LFILL,      &
-         RC = STATUS )       
-       
-    call ESMF_AttributeSet (bundle,    &
-         NAME  = 'LPRT',               &
-         VALUE = Input_Opt%LPRT,       &
-         RC = STATUS )       
-       
-   if (AM_I_ROOT .and. Input_Opt%LPRT) then
-       print *, trim(Iam)//': TRACERS Bundle during Initialize():' 
-       call ESMF_FieldBundlePrint ( bundle )
-   end if
-
-    !=======================================================================
-    ! All done
-    !=======================================================================
 
     ! Write a header before the timestepping begins
     IF ( am_I_Root ) THEN
@@ -2107,7 +2047,7 @@ CONTAINS
     ! per grid box).                                   (ckeller, 01/06/2015)
     !=======================================================================
     IF ( FIRST ) THEN
-       CALL LANDTYPE_REMAP ( am_I_Root, IMPORT, State_Met, __RC__ )
+!       CALL LANDTYPE_REMAP ( am_I_Root, IMPORT, State_Met, __RC__ )
     ENDIF
 
     ! Run when it's time to do so
@@ -2194,30 +2134,6 @@ CONTAINS
        STATUS = GIGC_FAILURE
        VERIFY_(STATUS)
     ENDIF
-
-    !=======================================================================
-    ! Populate tracer array in State_Chm 
-    ! ==> Get arrays from Chemisty Export State via trcBUNDLE
-    !=======================================================================
-
-    call ESMF_StateGet(EXPORT, 'TRACERS', trcBUNDLE,  __RC__ )    
-    call ESMF_FieldBundleGet(trcBUNDLE, fieldCount=N_TRC,   __RC__ ) 
-!    IF (.not. FIRST) THEN
-       DO IND=1, N_TRC 
-          call ESMFL_BundleGetPointerToData( trcBUNDLE, IND, fPtrArray, __RC__)
-          call ESMF_FieldBundleGet(trcBUNDLE, IND, trcFIELD, __RC__ ) 
-          !       call ESMF_FieldGet( trcFIELD, NAME=trcNAME, __RC__)
-          
-          ! Extract species ID
-          call ESMF_AttributeGet (trcFIELD,    &
-               NAME  = 'TRAC_ID',              &
-               VALUE = trcID,            __RC__ )
-          
-          ! Pass to State_Chm. 
-          State_Chm%Tracers(:,:,:,trcID) = fPtrArray(:,:,LM:1:-1)
-          !       nullify(fPtrArray)
-       END DO
-!    ENDIF
 
     !=======================================================================
     ! pre-Run method array assignments. This passes the tracer arrays from
@@ -2335,28 +2251,13 @@ CONTAINS
     !=======================================================================
 
     CALL MAPL_TimerOn(STATE, "CP_AFTR")
-#   include "Includes_After_Run.H"
+    State_Chm%Tracers = State_Chm%Tracers( :, :, LM:1:-1, : )
+    
+    DO I = 1, SIZE(Int2Chm,1)
+       IF ( Int2Chm(I)%TrcID <= 0 ) CYCLE
+       Int2Chm(I)%Internal = State_Chm%Tracers(:,:,:,Int2Chm(I)%TrcID)
+    ENDDO
     CALL MAPL_TimerOff(STATE, "CP_AFTR")
-
-    !=======================================================================
-    ! Copy tracer arrays back to the bundle
-    !=======================================================================
-
-!    call ESMF_StateGet(EXPORT, 'TRACERS', trcBUNDLE,  __RC__ )    
-    DO IND=1, N_TRC
-       call ESMFL_BundleGetPointerToData( trcBUNDLE, IND, fPtrArray, __RC__)
-       call ESMF_FieldBundleGet(trcBUNDLE, IND, trcFIELD, __RC__ ) 
-!       call ESMF_FieldGet( trcFIELD, NAME=trcNAME, __RC__)
-     
-       ! Extract species ID
-       call ESMF_AttributeGet (trcFIELD,    &
-            NAME  = 'TRAC_ID',              &
-            VALUE = trcID,            __RC__ )
-
-       ! Pass Tracers back to Internal State
-       fPtrArray = State_Chm%Tracers(:,:,LM:1:-1,trcID)
-!       nullify(fPtrArray)
-    END DO
 
     ! Stop timer
     ! ----------
@@ -2507,9 +2408,6 @@ CONTAINS
     ! ----------
     CALL MAPL_TimerOff(STATE, "TOTAL")
   
-    ! Update first flags
-    FIRST = .FALSE.
-
     ! The restart file should exist at least after the first full cycle,
     ! e.g. after phase 1 and phase 2 has been called once.
     IF ( FIRST .AND. Phase == 1 ) THEN
@@ -2517,6 +2415,9 @@ CONTAINS
     ELSE
        Input_Opt%haveImpRst = .TRUE.
     ENDIF
+
+    ! Update first flags
+    FIRST = .FALSE.
 
     ! Successful return
     RETURN_(ESMF_SUCCESS)
@@ -2550,8 +2451,6 @@ CONTAINS
   SUBROUTINE Finalize_( GC, Import, Export, Clock, RC )
 !
 ! !USES:
-!
-!#   include "GIGCchem_DeclarePointer___.h"     ! Ptr decls to states
 !
 ! !INPUT/OUTPUT PARAMETERS:
 !
@@ -3403,7 +3302,7 @@ CONTAINS
              ! Get diagnostics 
              DgnID = 44500 + TrcID
              CALL Diagn_Get( am_I_Root, .FALSE., DgnCont, FLAG, ERR, &
-                    cID=DgnID, AutoFill=-1, InclManual=.TRUE., &
+                    cID=DgnID, AutoFill=-1,                          &
                     COL=Input_Opt%DIAG_COLLECTION ) 
 
              ! Error check 
@@ -3442,7 +3341,7 @@ CONTAINS
 
                 ! Get diagnostics 
                 CALL Diagn_Get( am_I_Root, .FALSE., DgnCont, FLAG, ERR, &
-                       cID=DgnID, AutoFill=-1, InclManual=.TRUE., &
+                       cID=DgnID, AutoFill=-1,                          &
                        COL=Input_Opt%DIAG_COLLECTION ) 
 
                 ! Error check 

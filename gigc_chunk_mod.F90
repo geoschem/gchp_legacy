@@ -563,8 +563,9 @@ CONTAINS
 
 #if !defined( EXTERNAL_FORCING)
     CALL Set_Floating_Pressure( State_Met%PS1 )
-    CALL AirQnt( State_Met )
 #endif 
+
+    CALL AirQnt( State_Met )
 
     ! Cap the polar tropopause pressures at 200 hPa, in order to avoid
     ! tropospheric chemistry from happening too high up (cf. J. Logan)
@@ -702,7 +703,7 @@ CONTAINS
        ENDIF
 
        ! Call HEMCO run interface 
-       CALL EMISSIONS_RUN ( am_I_Root, Input_Opt, State_Met, State_Chm, RC )
+       CALL EMISSIONS_RUN ( am_I_Root, Input_Opt, State_Met, State_Chm, DoEmis, Phase, RC )
        ASSERT_(RC==GIGC_SUCCESS)
 
        ! Timer off
