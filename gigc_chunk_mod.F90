@@ -1013,7 +1013,7 @@ CONTAINS
     CALL Diagnostics_Write( am_I_Root, Input_Opt, .TRUE., RC )
 
     ! Finalize HEMCO
-    CALL HCOI_GC_FINAL( am_I_Root )
+    CALL HCOI_GC_FINAL( am_I_Root, .FALSE. )
 
     ! Finalize GEOS-Chem
     CALL GIGC_Finalize( am_I_Root = am_I_Root,  &  ! Are we on the root CPU?

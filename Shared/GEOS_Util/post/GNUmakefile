@@ -21,7 +21,7 @@ BINS = makeiau.x hdf2rs.x gg2fv.x eta2prs.x eta2rst.x stats.x rs_hinterp.x \
 UT = checkdate.x swapendian_FV.x swapendian_RST.x
 
 PKGS = 
-MOD_DIRS = $(INC_MAPL_BASE) $(INC_ESMF) $(INC_MPI)
+MOD_DIRS = $(INC_MAPL_BASE) $(INC_ESMF) $(MOD_ESMF) $(INC_MPI)
 PERLSCRIPTS = regrid.pl
 PERLPKGS = 
 SHELLSCRIPTS = 

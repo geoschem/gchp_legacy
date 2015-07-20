@@ -70,7 +70,7 @@
   State_Met%SST        = TS                                  ! K
   State_Met%SUNCOS     = zenith                              ! unitless
   State_Met%SUNCOSmid  = zenith                              ! unitless
-  State_Met%SUNCOSmid5 = zenith                              ! unitless
+!  State_Met%SUNCOSmid5 = zenith                              ! unitless
   State_Met%U10M       = U10M                                ! m/s
   State_Met%USTAR      = USTAR                               ! m/s
   State_Met%UVALBEDO   = ALBD   !*** NOTE Need to populate w/ real UVALBEDO ***
