@@ -234,6 +234,7 @@
  TRC_OClO| mol mol-1 | xyz | C | | | | | | | | D,T,C | tmp
  TRC_Cl2| mol mol-1 | xyz | C | | | | | | | | D,T,C | tmp
  TRC_Cl2O2| mol mol-1 | xyz | C | | | | | | | | D,T,C | tmp
- TRC_H2O| mol mol-1 | xyz | C | | | | | | | | D,T,C | tmp
+ TRC_H2O | mol mol-1 | xyz | C |    |   |   |     |      | | | D,T,C | tmp
+ JLOP_PREV |   1     | xyz | C |    |   |   |     |      | | |       | tmp
 # --------------|------------|-----|---|----|---|---|-----|------|----|----|---------|---------------------------------
 </InternalSpec>

@@ -3,12 +3,12 @@
 # Make sure ESMADIR is defined
 # ----------------------------
 ifndef ESMADIR
-       ESMADIR := $(shell pwd)/../../../
+       ESMADIR := $(shell pwd)/../../
 endif
 
 THIS := $(shell basename `pwd`)
-LIB  = lib$(THIS).a
-LIB_STUBS  = lib$(THIS)_stubs.a
+
+BINS := testhorz.x utCFIO_Bundle.x
 
 # Compilation rules, flags, etc
 # -----------------------------
@@ -16,38 +16,71 @@ LIB_STUBS  = lib$(THIS)_stubs.a
   include $(ESMADIR)/Config/ESMA_arch.mk  # System dependencies
   include $(ESMADIR)/Config/GMAO_base.mk
 
+TARGETS = esma_install esma_clean esma_distclean esma_doc \
+          install clean distclean doc 
 
+export ESMADIR BASEDIR ARCH SITE FREAL
 
-LIB_SYS    =  -lpthread -lrt -lstd++ #-lefence
+esma_install install: $(BINS)
+
+esma_clean clean:
+	-$(RM) *~ *.[aox] *.[Mm][Oo][Dd] *___.f90
+
+esma_distclean distclean:
+	-$(RM) *~ *.[aoxd] *.[Mm][Oo][Dd] *___.f90
+
+esma_doc doc:
+	@echo "Target $@ not implemented in `pwd`"
+
 
 .SUFFIXES: .F90
 
 
-SRCS = $(wildcard *.F90)
-OBJS = $(SRCS:.F90=.o) 
-BIN = $(SRCS:.F90=.x) 
+SRCS := testhorz.F90 tstsort.F90 utCFIO_Array.F90 utCFIO_Bundle.F90 utCFIO_Nbits.F90 utDistIO.F90 ut_ExtData.F90
 
-INC_DIRS = . $(INC_MAPL_BASE) $(INC_ESMF)
-MOD_DIRS = . $(INC_DIRS) $(INC_CFIO) $(INC_MPEU) 
+OBJS := $(addsuffix .o, $(basename $(SRCS)))
+DEPS := $(addsuffix .d, $(basename $(SRCS)))
+
+INC_DIRS = . $(INC_MAPL_BASE) $(INC_ESMF) $(INC_CFIO) $(INC_MPEU) $(INC_MPI) $(INC_GEOS_FV1)
+MOD_DIRS = . $(INC_DIRS) 
 
 USER_FINCS  = $(foreach dir,$(INC_DIRS),$(I)$(dir))
 USER_FMODS  = $(foreach dir,$(MOD_DIRS),$(M)$(dir))
          
-LIB_COMP = -L$(LIB_MAPL) -lMAPL_Base -lMAPL_Base_stubs -lMAPL_cfio_r4 -lGMAO_mpeu
-
-
-LIB_SDF = $(LIB_NETCDF)	   
-
-$(BIN) bin: $(OBJS)
-	$(LD) -o $(BIN) $(LDFLAGS) $(OBJS) $(LIB_COMP) $(LIB_ESMF) $(LIB_MPI) $(LIB_SDF) $(LIB_SCI) $(LIB_SYS) 
+FREAL = $(FREAL4)
+THIS_CFIO = MAPL_cfio_r4
 
 #                  --------------------
 #                      Dependencies
 #                  --------------------
-.F90.o:
-	$(FC) -c $(FFLAGS) $(FINCS) $<
 
-utCFIO_Bundle.o: utCFIO_Bundle.F90
+LIBS_NC := $(shell $(GC_BIN)/nc-config --flibs)
+LIBS_NC += $(shell $(GC_BIN)/nc-config --libs)
+
+testhorz.x : testhorz.o
+	$(FC) $(LDFLAGS) -o $@ $+ -L$(ESMALIB)/ -lFVdycoreCubed_GridComp -lfvdycore $(LIB_GFDL_FMS) $(LIB_MAPL_BASE) \
+              $(LIB_ESMF) $(LIB_CFIO) $(LIB_MPEU) \
+              $(wildcard $(LIB_MFHDF3)) $(LIB_SDF)\
+              $(LIB_MPI) $(LIB_SYS) $(LIBS_NC)
+
+utCFIO_Array.x : utCFIO_Array.o
+	$(FC) $(LDFLAGS) -o $@ $+ $(LIB_MAPL_BASE) $(LIB_MAPL_BASE_STUBS) \
+              $(LIB_ESMF) $(LIB_CFIO) $(LIB_MPEU) \
+              $(wildcard $(LIB_MFHDF3)) $(LIB_SDF)\
+              $(LIB_MPI) $(LIB_SYS)
+
+utCFIO_Bundle.x : utCFIO_Bundle.o
+	$(FC) $(LDFLAGS) -o $@ $+ $(LIB_MAPL_BASE) $(LIB_MAPL_BASE_STUBS) \
+              $(LIB_ESMF) $(LIB_CFIO) $(LIB_MPEU) \
+              $(wildcard $(LIB_MFHDF3)) $(LIB_SDF)\
+              $(LIB_MPI) $(LIB_SYS)
+
+utCFIO_Nbits.x : utCFIO_Nbits.o
+	$(FC) $(LDFLAGS) -o $@ $+ $(LIB_MAPL_BASE) $(LIB_MAPL_BASE_STUBS) \
+              $(LIB_ESMF) $(LIB_CFIO) $(LIB_MPEU) \
+              $(wildcard $(LIB_MFHDF3)) $(LIB_SDF)\
+              $(LIB_MPI) $(LIB_SYS)
+
 
   -include $(ESMADIR)/Config/ESMA_post.mk  # ESMA additional targets, macros
 

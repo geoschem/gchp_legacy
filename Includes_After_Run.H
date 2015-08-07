@@ -51,3 +51,13 @@
     IF ( Int2Chm(I)%TrcID <= 0 ) CYCLE
     Int2Chm(I)%Internal = State_Chm%Tracers(:,:,:,Int2Chm(I)%TrcID)
   ENDDO
+
+  IF ( IsChemTime .AND. Phase /= 1 ) THEN
+  write(*,*) '<> saving JLOP'
+  ! Also fill JLOP_PREV from internal state
+     CALL MAPL_GetPointer( INTSTATE, Ptr3D, 'JLOP_PREV', notFoundOK=.TRUE., __RC__ )
+     IF ( ASSOCIATED(Ptr3D) .AND. ALLOCATED(JLOP) ) THEN
+        Ptr3D = REAL(JLOP)
+     ENDIF
+     Ptr3D => NULL()
+  ENDIF

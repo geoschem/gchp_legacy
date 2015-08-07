@@ -70,9 +70,6 @@ MODULE GIGC_Chunk_Mod
   ! Derived type objects
 !  TYPE(MapWeight),      POINTER :: mapping(:,:) => NULL()
 
-  ! For chemistry
-  INTEGER, POINTER              :: JLOP_PREV_loc(:,:,:)
-
 CONTAINS
 !EOC
 !------------------------------------------------------------------------------
@@ -826,22 +823,12 @@ CONTAINS
           IsMass = .TRUE.
        ENDIF
 
-       IF (.NOT. ASSOCIATED(JLOP_PREV_loc)) THEN
-          ALLOCATE(JLOP_PREV_loc(ILONG,ILAT,IPVERT),STAT=RC)
-          ASSERT_(RC==0)
-          JLOP_PREV_loc = 0
-       ENDIF
-   
-       !vartrop fix (dkh, 05/08/11)
-       IF (ALLOCATED( JLOP          ) ) DEALLOCATE( JLOP          )
-       IF (ALLOCATED( JLOP_PREVIOUS ) ) DEALLOCATE( JLOP_PREVIOUS )
-       ALLOCATE( JLOP( ILONG, ILAT, IPVERT ), STAT=RC )
-       ASSERT_(RC==0)
-       ALLOCATE( JLOP_PREVIOUS( ILONG, ILAT, IPVERT ), STAT=RC )
-       ASSERT_(RC==0)
-   
-       JLOP          = JLOP_PREV_loc
-       JLOP_PREVIOUS = JLOP_PREV_loc
+       ! Write JLOP_PREVIOUS into JLOP to make sure that JLOP contains 
+       ! the current values of JLOP_PREVIOUS. In chemdr.F, JLOP_PREVIOUS is filled 
+       ! with JLOP before resetting JLOP to current values and we simply want to 
+       ! make sure that JLOP_PREVIOUS is not set to zero everywhere on the first
+       ! call (when JLOP is still all zero).
+       JLOP = JLOP_PREVIOUS
 
        ! Zero Rate arrays  
        RRATE = 0.E0
@@ -875,9 +862,6 @@ CONTAINS
                           State_Met = State_Met,            & ! Met State
                           RC        = RC                   )  ! Success?
        ASSERT_(RC==GIGC_SUCCESS)
-
-       ! Store in internal variables
-       JLOP_PREV_loc = JLOP
 
        ! Timer off
        CALL MAPL_TimerOff( STATE, 'GC_CHEM' )
@@ -1021,9 +1005,6 @@ CONTAINS
                         State_Chm = State_Chm,  &  ! Chemistry State
                         State_Met = State_Met,  &  ! Meteorology State
                         RC        = RC         )   ! Success or failure?
-
-    ! Deallocate module arrays
-    IF ( Associated(JLOP_PREV_loc) ) DEALLOCATE(JLOP_PREV_loc) 
 
   END SUBROUTINE GIGC_Chunk_Final
 !EOC

@@ -657,7 +657,7 @@ CONTAINS
 
        ! Initialize KPP (if necessary)
        IF ( Input_Opt%LKPP ) THEN
-          CALL INIT_GCKPP_COMODE( am_I_Root, IIPAR,   JJPAR, LLTROP,        &
+          CALL INIT_GCKPP_COMODE( am_I_Root, IIPAR,   JJPAR, LLPAR,        &
                                   ITLOOP,    NMTRATE, IGAS,  RC      )
           IF ( RC /= GIGC_SUCCESS ) RETURN
        ENDIF

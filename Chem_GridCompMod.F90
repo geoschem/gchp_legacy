@@ -373,7 +373,7 @@ CONTAINS
     ! as an "internal state" of the GEOSCHEMchem gridded component
     !=======================================================================
     myState%myCF = ESMF_ConfigCreate(__RC__)
-    call ESMF_ConfigLoadFile( myState%myCF, 'GIGC_GridComp.rc', __RC__)
+    call ESMF_ConfigLoadFile( myState%myCF, 'GIGC.rc', __RC__)
 
     ! Get generic state object
     CALL MAPL_GetObjectFromGC( GC, STATE, __RC__ )
@@ -1760,6 +1760,7 @@ CONTAINS
 !
 ! !USES:
 !
+    USE COMODE_MOD,              ONLY : JLOP, JLOP_PREVIOUS
     USE HCO_STATE_MOD,           ONLY : HCO_STATE
     USE HCOI_GC_MAIN_MOD,        ONLY : GetHcoState
     USE GC_LAND_INTERFACE,       ONLY : LANDTYPE_REMAP
@@ -1927,6 +1928,9 @@ CONTAINS
     IF ( IsChemTime .AND. PHASE /= 1 ) THEN
        CALL ESMF_AlarmRingerOff(ALARM, __RC__ )
     ENDIF
+
+    ! Get Internal state
+    CALL MAPL_Get ( STATE, INTERNAL_ESMF_STATE=INTSTATE, __RC__ )
 
     ! ----------------------------------------------------------------------
     ! Check if we need to call the GEOS-Chem driver. The GEOS-Chem driver 
@@ -2257,6 +2261,14 @@ CONTAINS
        IF ( Int2Chm(I)%TrcID <= 0 ) CYCLE
        Int2Chm(I)%Internal = State_Chm%Tracers(:,:,:,Int2Chm(I)%TrcID)
     ENDDO
+    IF ( IsChemTime .AND. Phase /= 1 ) THEN
+       ! Also fill JLOP_PREV from internal state
+       CALL MAPL_GetPointer( INTSTATE, Ptr3D, 'JLOP_PREV', notFoundOK=.TRUE., __RC__ )
+       IF ( ASSOCIATED(Ptr3D) .AND. ALLOCATED(JLOP) ) THEN
+          Ptr3D = REAL(JLOP)
+       ENDIF
+       Ptr3D => NULL()
+    ENDIF
     CALL MAPL_TimerOff(STATE, "CP_AFTR")
 
     ! Stop timer
@@ -2912,6 +2924,7 @@ CONTAINS
 ! 
     ! Objects
     TYPE(ESMF_Time)               :: startTime      ! ESMF start time obj
+    TYPE(ESMF_Time)               :: stopTime       ! ESMF stop time obj
     TYPE(ESMF_Time)               :: currTime       ! ESMF current time obj
     TYPE(ESMF_TimeInterval)       :: elapsedTime    ! ESMF elapsed time obj
     TYPE(ESMF_TimeInterval)       :: chemInterval   ! chemistry interval
@@ -3015,50 +3028,6 @@ CONTAINS
         END IF
     ENDIF
 
-    ! Start date
-    IF ( PRESENT( nymdb ) ) THEN
-       CALL ESMF_ConfigGetAttribute( GeosCF, nymdB,                       &
-                                     Label   = "UTC_START_DATE:", __RC__ )
-    ENDIF
-
-    ! Start time
-    IF ( PRESENT( nhmsB ) ) then
-       CALL ESMF_ConfigGetAttribute( GeosCF, nhmsB,                       &
-                                     LABEL   = "UTC_START_TIME:", __RC__ )
-    ENDIF
-
-    ! End date
-    IF ( PRESENT( nymdE ) ) THEN
-       CALL ESMF_ConfigGetAttribute( GeosCF, nymdE,                       &
-                                     Label   = "UTC_END_DATE:",   __RC__ )
-    ENDIF
-
-    ! End time
-    IF ( PRESENT( nhmsE ) ) THEN
-       CALL ESMF_ConfigGetAttribute( GeosCF, nhmsE,                       &
-                                     LABEL   = "UTC_END_TIME:",  __RC__ )
-    ENDIF
-
-    !=======================================================================
-    ! Does the import restart file exist?
-    !=======================================================================
-    
-    ! Import restart file name
-    CALL ESMF_ConfigGetAttribute( GeosCF, importRstFN,                    &
-                                  DEFAULT = "geoschemchem_import_rst",    &
-                                  LABEL   = "importRestartFileName:",     &
-                                  __RC__ )
-
-   
-    ! Test if it exists
-    IF ( PRESENT( haveImpRst ) ) THEN
-       INQUIRE( FILE=TRIM( importRstFN ), EXIST=haveImpRst )
-       IF( MAPL_AM_I_ROOT() ) THEN
-          PRINT *," ",TRIM( importRstFN )," exists: ", haveImpRst
-          PRINT *," "
-       END IF
-    END IF
-
     !=======================================================================
     ! Extract time/date information
     !=======================================================================
@@ -3066,6 +3035,7 @@ CONTAINS
     ! Get the ESMF time object
     CALL ESMF_ClockGet( Clock,                    &
                         startTime    = startTime, &
+                        stopTime     = stopTime,  &
                         currTime     = currTime,  &
                         advanceCount = count,     &
                          __RC__ )
@@ -3077,6 +3047,21 @@ CONTAINS
     ! Save fields for return
     IF ( PRESENT( nymd     ) ) CALL MAPL_PackTime( nymd, yyyy, mm, dd )
     IF ( PRESENT( nhms     ) ) CALL MAPL_PackTime( nhms, h,    m,  s  )
+
+    CALL ESMF_TimeGet( startTime, yy=yyyy, mm=mm, dd=dd, dayOfYear=doy, &
+                                 h=h,     m=m,   s=s,   __RC__ )
+
+    ! Save fields for return
+    IF ( PRESENT( nymdB    ) ) CALL MAPL_PackTime( nymdB, yyyy, mm, dd )
+    IF ( PRESENT( nhmsB    ) ) CALL MAPL_PackTime( nhmsB, h,    m,  s  )
+
+    CALL ESMF_TimeGet( stopTime, yy=yyyy, mm=mm, dd=dd, dayOfYear=doy, &
+                                 h=h,     m=m,   s=s,   __RC__ )
+
+    ! Save fields for return
+    IF ( PRESENT( nymdE    ) ) CALL MAPL_PackTime( nymdE, yyyy, mm, dd )
+    IF ( PRESENT( nhmsE    ) ) CALL MAPL_PackTime( nhmsE, h,    m,  s  )
+
     IF ( PRESENT( advCount ) ) advCount = count
     IF ( PRESENT( year     ) ) year     = yyyy
     IF ( PRESENT( month    ) ) month    = mm
