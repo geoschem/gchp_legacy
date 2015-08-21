@@ -622,6 +622,8 @@ CONTAINS
           IsMass = .FALSE.
        ENDIF
 
+       IF ( ANY(State_Chm%TRACERS(:,:,:,29) .ne.                     & 
+                State_Chm%TRACERS(:,:,:,29) )) write(*,*) '<> MSA 2'
        CALL DO_CONVECTION ( am_I_Root, Input_Opt, State_Met, State_Chm, RC )
        ASSERT_(RC==GIGC_SUCCESS)
  

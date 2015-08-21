@@ -1615,7 +1615,8 @@ CONTAINS
 ! !INTERFACE:
 !
   subroutine  dyn_get ( fname, nymd, nhms, w_f, rc, &
-                        nstep, timidx, freq, skipSPHU, vectype, forceflip ) ! optional
+                        nstep, timidx, freq, skipSPHU, vectype, forceflip, & ! optional
+                        ncf, pncf )                                          ! optional
 !
 ! !USES:
 !
@@ -1649,6 +1650,8 @@ CONTAINS
                                               !  >0 - errors
   integer, OPTIONAL,   intent(out)   :: nstep ! FVGCM step (for restarts)
   integer, OPTIONAL,   intent(out)   :: freq  ! time frequency on file
+  logical, OPTIONAL,   intent(in)    :: ncf   ! specify to read from non-compliant dyn file
+  logical, OPTIONAL,   intent(in)    :: pncf  ! specify to read from non-compliant dyn perturbation file
 
 !
 ! !DESCRIPTION: This routine reads GFIO files with one or more instances
@@ -1684,12 +1687,15 @@ CONTAINS
 !  28Aug2007 Todling   Add forceflip (needed in case field read in needs
 !                         to be converted to opposite of what is file)
 !  14Aug2009 Ravi      Modified check to nvars/lm to correct for missing hs_stdv
+!  20Feb2014 Todling   ncf knob to allow reading non-compliant (special) file
+!  06Mar2014 Todling   pncf knob to allow reading non-compliant perturbation file created by GSI
 !
 !EOP
 !-------------------------------------------------------------------------
 
    character(len=nch)              :: title, source, contact, levunits, varname
    character(len=nch), allocatable :: vname(:), vtitle(:), vunits(:)
+   character(len=nch)              :: fldname
 
    real,    allocatable :: lat(:), lon(:), lev(:)
    real,    allocatable :: valid_range(:,:), packing_range(:,:)
@@ -1703,7 +1709,7 @@ CONTAINS
    integer :: fid, err, ngatts
    integer :: vectype_
 
-   logical :: readSPHU, fliplon
+   logical :: readSPHU, fliplon, ncf_, pncf_
 
    rc = 0
 
@@ -1714,6 +1720,27 @@ CONTAINS
    else
         readSPHU = .true.
    end if
+
+!  Non-complaint file knob
+!  -----------------------
+   if ( present(ncf) ) then
+        ncf_ = ncf
+        if(ncf_) print*, 'dyn_get: handling non-compliant dyn-vector file'
+   else
+        ncf_ = .false.
+   end if
+   if ( present(pncf) ) then
+        pncf_ = pncf
+        if(pncf_) print*, 'dyn_get: handling non-compliant dyn-vector perturbation file'
+   else
+        pncf_ = .false.
+   end if
+
+   if( pncf_ .and. ncf_ ) then
+      rc = 1
+      print *, 'm_dyn_get: cannot handle two types of non-compliant files simultaneously, rc=', rc
+      return
+   endif
 
 !  Open the file
 !  -------------
@@ -1780,14 +1807,18 @@ CONTAINS
    endif
    if(vectype_==4) nfix=nfix4
    if(vectype_==5) nfix=nfix5
-   lm =  nvars - nfix                  ! lm now means the trace dimensions
-   if(lm == 3 ) then
-      lm = (nvars - nfix) + 1          ! fix for ana.eta missing hs_stdv
-   endif
-   if ( lm < 1 ) then
-      rc = 6
-      call clean_()
-      return
+   if (ncf_ .or. pncf_) then
+      lm = 4                              ! if non-compliant file, force lm to g5 lm 
+   else
+      lm =  nvars - nfix                  ! lm now means the trace dimensions
+      if(lm == 3 ) then
+         lm = (nvars - nfix) + 1          ! fix for ana.eta missing hs_stdv
+      endif
+      if ( lm < 1 ) then
+         rc = 6
+         call clean_()
+         return
+      end if
    end if
 
 
@@ -1841,6 +1872,15 @@ CONTAINS
             call clean_()
             return
    endif
+ 
+   if (ncf_ .or. pncf_) then
+      if (dynvectyp/=5 ) then
+         print *, 'm_dyn_get: error, non-complaint files must be g5-like (set dynvectype=5)'
+         rc = 99      
+         call clean_()
+         return
+      endif
+   endif
 
    if ( present(forceflip) ) then
         if (forceflip) fliplon = .true.
@@ -1863,75 +1903,107 @@ CONTAINS
 
 !  retrieve the variables
 !  ----------------------
-   call GFIO_GetVar ( fid, w_f%phism%name, nymd, nhms, &
-                      im, jm, 0, 1,  w_f%phis,   err )
-   if ( err .ne. 0 )                                        rc = 101
-   if (   fliplon  ) call hflip_ ( w_f%phis,im,jm )
-
-   call GFIO_GetVar ( fid, w_f%hs_stdvm%name, nymd, nhms, &
-                      im, jm, 0, 1,  w_f%hs_stdv,   err )
-   if ( dynvectyp==4 ) then
-       if ( err .ne. 0 ) rc = 102
-   else if ( dynvectyp==5 ) then
-          if ( err .ne. 0 ) then
-               print*, 'dyn_get: cannot find hs_stdv, zeroing out'
-               w_f%hs_stdv = 0.0
-          endif
-   else 
-          rc = 11
-          print *, 'm_dyn_get: cannot handle this vector type, rc=', rc
-          call clean_()
-          return
-   endif
-   if (   fliplon  ) call hflip_ ( w_f%hs_stdv,im,jm )
-
-   call GFIO_GetVar ( fid, w_f%tsm%name, nymd, nhms, &
-                      im, jm, 0, 1,  w_f%ts,   err )
-   if ( err .ne. 0 )                                        rc = 103
-   if (   fliplon  ) call hflip_ ( w_f%ts,im,jm )
-
-   if ( dynvectyp==4 ) then
-
-   call GFIO_GetVar ( fid, w_f%lwim%name, nymd, nhms, &
-                      im, jm, 0, 1,  w_f%lwi,   err )
-   if ( err .ne. 0 )                                        rc = 104
-   if (   fliplon  ) call hflip_ ( w_f%lwi,im,jm )
-
+   if (pncf_) then
+      w_f%phis = 0.0
    else
+      call GFIO_GetVar ( fid, w_f%phism%name, nymd, nhms, &
+                         im, jm, 0, 1,  w_f%phis,   err )
+      if ( err .ne. 0 )                                        rc = 101
+      if (   fliplon  ) call hflip_ ( w_f%phis,im,jm )
+   endif ! pncf
 
-   call GFIO_GetVar ( fid, w_f%frlandm%name, nymd, nhms, &
-                      im, jm, 0, 1,  w_f%frland,   err )
-   if ( err .ne. 0 )                                        rc = 104
-   if (   fliplon  ) call hflip_ ( w_f%frland,im,jm )
+   if (ncf_.or.pncf_) then
+      w_f%hs_stdv = 0.0
+   else ! ncf
+      call GFIO_GetVar ( fid, w_f%hs_stdvm%name, nymd, nhms, &
+                         im, jm, 0, 1,  w_f%hs_stdv,   err )
+      if ( dynvectyp==4 ) then
+          if ( err .ne. 0 ) rc = 102
+      else if ( dynvectyp==5 ) then
+             if ( err .ne. 0 ) then
+                  print*, 'dyn_get: cannot find hs_stdv, zeroing out'
+                  w_f%hs_stdv = 0.0
+             endif
+      else 
+             rc = 11
+             print *, 'm_dyn_get: cannot handle this vector type, rc=', rc
+             call clean_()
+             return
+      endif
+      if (   fliplon  ) call hflip_ ( w_f%hs_stdv,im,jm )
+   endif ! ncf
 
-   call GFIO_GetVar ( fid, w_f%frlandicem%name, nymd, nhms, &
-                      im, jm, 0, 1,  w_f%frlandice,   err )
-   if ( err .ne. 0 )                                        rc = 105
-   if (   fliplon  ) call hflip_ ( w_f%frlandice,im,jm )
+   if (ncf_) then
+       w_f%ts  = 0.0
+       w_f%frland = 0.0
+       w_f%frlandice = 0.0
+       w_f%frlake = 0.0
+       w_f%frocean = 0.0
+       w_f%frseaice = 0.0
+   else ! ncf
 
-   call GFIO_GetVar ( fid, w_f%frlakem%name, nymd, nhms, &
-                      im, jm, 0, 1,  w_f%frlake,   err )
-   if ( err .ne. 0 )                                        rc = 106
-   if (   fliplon  ) call hflip_ ( w_f%frlake,im,jm )
+      call GFIO_GetVar ( fid, w_f%tsm%name, nymd, nhms, &
+                         im, jm, 0, 1,  w_f%ts,   err )
+      if ( err .ne. 0 )                                        rc = 103
+      if (   fliplon  ) call hflip_ ( w_f%ts,im,jm )
 
-   call GFIO_GetVar ( fid, w_f%froceanm%name, nymd, nhms, &
-                      im, jm, 0, 1,  w_f%frocean,   err )
-   if ( err .ne. 0 )                                        rc = 107
-   if (   fliplon  ) call hflip_ ( w_f%frocean,im,jm )
+      if (pncf_) then ! perturbation files have ts but not fractions
+          w_f%frland = 0.0
+          w_f%frlandice = 0.0
+          w_f%frlake = 0.0
+          w_f%frocean = 0.0
+          w_f%frseaice = 0.0
+      else
 
-   call GFIO_GetVar ( fid, w_f%frseaicem%name, nymd, nhms, &
-                      im, jm, 0, 1,  w_f%frseaice,   err )
-   if ( err .ne. 0 )                                        rc = 108
-   if (   fliplon  ) call hflip_ ( w_f%frseaice,im,jm )
+         if ( dynvectyp==4 ) then
+   
+             call GFIO_GetVar ( fid, w_f%lwim%name, nymd, nhms, &
+                                im, jm, 0, 1,  w_f%lwi,   err )
+             if ( err .ne. 0 )                                        rc = 104
+             if (   fliplon  ) call hflip_ ( w_f%lwi,im,jm )
+   
+         else
+      
+             call GFIO_GetVar ( fid, w_f%frlandm%name, nymd, nhms, &
+                                im, jm, 0, 1,  w_f%frland,   err )
+             if ( err .ne. 0 )                                        rc = 104
+             if (   fliplon  ) call hflip_ ( w_f%frland,im,jm )
+      
+             call GFIO_GetVar ( fid, w_f%frlandicem%name, nymd, nhms, &
+                                im, jm, 0, 1,  w_f%frlandice,   err )
+             if ( err .ne. 0 )                                        rc = 105
+             if (   fliplon  ) call hflip_ ( w_f%frlandice,im,jm )
+       
+             call GFIO_GetVar ( fid, w_f%frlakem%name, nymd, nhms, &
+                                im, jm, 0, 1,  w_f%frlake,   err )
+             if ( err .ne. 0 )                                        rc = 106
+             if (   fliplon  ) call hflip_ ( w_f%frlake,im,jm )
+      
+             call GFIO_GetVar ( fid, w_f%froceanm%name, nymd, nhms, &
+                                im, jm, 0, 1,  w_f%frocean,   err )
+             if ( err .ne. 0 )                                        rc = 107
+             if (   fliplon  ) call hflip_ ( w_f%frocean,im,jm )
+   
+             call GFIO_GetVar ( fid, w_f%frseaicem%name, nymd, nhms, &
+                                im, jm, 0, 1,  w_f%frseaice,   err )
+             if ( err .ne. 0 )                                        rc = 108
+             if (   fliplon  ) call hflip_ ( w_f%frseaice,im,jm )
 
-   endif
+         endif
+
+      endif ! pncf
+
+   endif ! ncf
 
    call GFIO_GetVar ( fid, w_f%psm%name, nymd, nhms, &
                       im, jm, 0, 1,  w_f%ps,   err )
    if ( err .ne. 0 )                                        rc = 109
    if (   fliplon  ) call hflip_ ( w_f%ps,im,jm )
 
-   call GFIO_GetVar ( fid, w_f%delpm%name, nymd, nhms, &
+   fldname = w_f%delpm%name
+   if (ncf_ ) fldname = 'dp'
+   if (pncf_) fldname = 'delp'
+   call GFIO_GetVar ( fid, fldname, nymd, nhms, &
                       im, jm, 1, km, w_f%delp, err )
    if ( err .ne. 0 )                                        rc = 110
    if (   fliplon  ) call hflip_ ( w_f%delp,im,jm,km )
@@ -1967,18 +2039,31 @@ CONTAINS
         lbeg = min ( n3dtrc+1, lm ) ! do not
    end if 
 
-   do l = lbeg, lm
-        call GFIO_GetVar ( fid, w_f%qm(l)%name, nymd, nhms, &
-                           im, jm, 1, km, w_f%q(:,:,:,l), err )
-         if ( l .eq. 2  .and.  err .eq. -40 ) then
-              rc = 1113 + l       ! variable not found.
-         else if ( l .eq. 2  .and.  err .ne. 0 ) then
-              rc = 113 + l
-         else if ( l .gt. 2  .and.  err .ne. 0 ) then
-              w_f%q(:,:,:,l) = 0.0 ! for backward compatibility, if cloud fields not found, no problem
-         end if
-         if ( fliplon ) call hflip_ ( w_f%q(:,:,:,l),im,jm,km )
-    end do
+   if (ncf_.or.pncf_) then
+       w_f%q = 0.0
+       if (ncf_ ) fldname = 'qv'
+       if (pncf_) fldname = 'sphu'
+          call GFIO_GetVar ( fid, trim(fldname), nymd, nhms, &
+                             im, jm, 1, km, w_f%q(:,:,:,1), err )
+       if (pncf_) then ! pert files have ozone
+          fldname = 'ozone'
+          call GFIO_GetVar ( fid, trim(fldname), nymd, nhms, &
+                             im, jm, 1, km, w_f%q(:,:,:,2), err )
+       endif
+   else ! .not. ncf/pncf
+      do l = lbeg, lm
+           call GFIO_GetVar ( fid, w_f%qm(l)%name, nymd, nhms, &
+                              im, jm, 1, km, w_f%q(:,:,:,l), err )
+            if ( l .eq. 2  .and.  err .eq. -40 ) then
+                 rc = 1113 + l       ! variable not found.
+            else if ( l .eq. 2  .and.  err .ne. 0 ) then
+                 rc = 113 + l
+            else if ( l .gt. 2  .and.  err .ne. 0 ) then
+                 w_f%q(:,:,:,l) = 0.0 ! for backward compatibility, if cloud fields not found, no problem
+            end if
+            if ( fliplon ) call hflip_ ( w_f%q(:,:,:,l),im,jm,km )
+       end do
+    end if ! ncf/pncf
 
 !  Calculate LWI
 !  -------------

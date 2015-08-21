@@ -1,0 +1,113 @@
+#!/usr/bin/env perl
+########################################################################
+#
+#  Name: g5_modules_perl_wrapper
+#
+#  Purposes - This is a perl wrapper for the g5_modules csh script.
+#
+#  Notes:
+#  1. You cannot "source" the csh file, g5_modules, from a perl
+#     script.
+#  2. Instead use the following in your perl script:
+#     #--------------------------------
+#        do "g5_modules_perl_wrapper";
+#     #--------------------------------
+#  3. The environment variable, FVROOT, must be set prior to calling script.
+#
+#  REVISION HISTORY
+#  17Dec2007  Stassi  Initial version of code
+#  23Apr2009  Stassi  Broke scripts into subprograms 
+#
+########################################################################
+use strict;
+use warnings;
+
+my ($scriptname, $g5_modules);
+my ($BASEDIR, @libmods, $modinit, $loadmodules);
+my (@fields, $LD_LIBRARY_PATH);
+my ($arch, $node);
+my ($baselib, $status);
+
+# main program
+#-------------
+{
+    init();
+    get_expected_values();
+    set_env_variables();
+}
+
+#=======================================================================
+# name - init
+#=======================================================================
+sub init {
+    my ($FVROOT);
+    
+    # NOTE: Spell out scriptname--DO NOT USE $0 here!
+    #------------------------------------------------
+    $scriptname = "g5_modules_perl_wrapper";
+
+    # get architecture and node
+    #--------------------------
+    chomp($arch = `uname -s`);
+    chomp($node = `uname -n`);
+
+    # get FVROOT
+    #-----------
+    $FVROOT = $ENV{"FVROOT"};
+    die ">> Error << Environment variable, FVROOT not defined. " unless $FVROOT;
+
+    # find g5_modules csh script
+    #---------------------------
+    $g5_modules = "$FVROOT/bin/g5_modules";
+    die ">> Error << Cannot find $g5_modules. " unless (-e $g5_modules);
+}
+
+#=======================================================================
+# name - get_expected_values
+#=======================================================================
+sub get_expected_values {
+
+    # get expected values from g5_modules
+    #------------------------------------
+    chomp( $BASEDIR     = `$g5_modules basedir` );
+    chomp( @libmods     = (`$g5_modules modules`) );
+    chomp( $loadmodules = `$g5_modules loadmodules` );
+    chomp( $modinit     = `$g5_modules modinit` );
+
+    # convert modinit script to perl
+    #-------------------------------
+    @fields = split "/", $modinit;
+    pop @fields;
+    push @fields, "perl";
+    $modinit = join "/", @fields;
+}
+
+#=======================================================================
+# name - set_env_variables
+#=======================================================================
+sub set_env_variables {
+
+    # setenv BASEDIR
+    #---------------
+    print "$scriptname: Setting BASEDIR";
+    $ENV{"BASEDIR"} = $BASEDIR;
+
+    # add BASEDIR lib to LD_LIBRARY_PATH, if not already there
+    #---------------------------------------------------------
+    $LD_LIBRARY_PATH = $ENV{"LD_LIBRARY_PATH"};
+    $baselib = "$BASEDIR/$arch/lib";
+    $status = index($LD_LIBRARY_PATH, $baselib);
+    if ($status < 0) { $ENV{"LD_LIBRARY_PATH"} .= ":$baselib" };
+ 
+    # load library modules
+    #---------------------
+    if (-e $modinit) {
+        print " and modules";
+        do $modinit;
+        module ("purge");
+
+        if ($loadmodules) { module ("load modules") };
+        foreach ( @libmods ) { module ("load $_") };
+        print " for $node\n";
+    }
+}

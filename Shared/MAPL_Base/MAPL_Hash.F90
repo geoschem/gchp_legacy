@@ -2,7 +2,7 @@
 #define ASSERT_(A) if(.not.(A))call exit(1)
 #define INT_MAX 2147483647
 
-!  $Id: MAPL_Hash.F90,v 1.2 2012-06-13 18:19:19 ltakacs Exp $
+!  $Id: MAPL_Hash.F90,v 1.5 2014-08-28 17:47:42 msuarez Exp $
 
 !=============================================================================
 !BOP

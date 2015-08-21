@@ -632,7 +632,11 @@
            enddo
        endif
 
-!The following code solves a 2x2 system to get the interior parallel-to-edge uc,vc values near the corners (ex: for the sw corner ut(2,1) and vt(1,2) are solved for simultaneously). It then computes the halo uc, vc values so as to be consistent with the computations on the facing panel. 
+       !The following code solves a 2x2 system to get the interior
+       !parallel-to-edge uc,vc values near the corners (ex: for the sw corner
+       !ut(2,1) and vt(1,2) are solved for simultaneously). It then computes the
+       !halo uc, vc values so as to be consistent with the computations on the
+       !facing panel.
 
        !The system solved is:
        !  ut(2,1) = uc(2,1) - avg(vt)*cosa_u(2,1)

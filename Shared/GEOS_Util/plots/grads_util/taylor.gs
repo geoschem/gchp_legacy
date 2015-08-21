@@ -8,7 +8,7 @@ sea = subwrd(args,3)
 exp = subwrd(args,4)
 
 'fixname 'exp
-          tag = result
+          tag = substr(result,1,8)
 
 * Get x dimension
 * ---------------

@@ -27,6 +27,10 @@ Program GIGC_Main
 
    logical           :: AmIRoot
 
+   pause(0.05) ! With MVAPICH, the MPI procs were getting ahead of themselves.
+               ! This pause siezes operations just enough to let the prog. spin up.
+               ! It may have been lib or machine specific, but it wasn't
+               ! investigated further. M.Long - 8/21/15
    call MAPL_CAP(ROOT_SetServices, AmIRoot=AmIRoot, rc=STATUS)
    VERIFY_(STATUS)
 

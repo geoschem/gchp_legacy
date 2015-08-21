@@ -11,22 +11,19 @@ endif
 ifeq ($(FCNAME),ifort)
 
   USER_FFLAGS = -safe_cray_ptr -assume byterecl -fp-model source
-# USER_FFLAGS = -stack_temps -safe_cray_ptr -i_dynamic -assume byterecl \
-                -vec-report0 -fp-model precise -fp-model source \
-                -ftz -w95 -align all -fno-alias -align dcommons
 
 endif
 
-ifeq ($(FCNAME), GNU)  # gfortran
+ifeq ($(ESMA_FC), gfortran)  # gfortran
 
-        USER_FFLAGS = -DNO_R16 -DNO_CRAY_POINTERS
+        USER_FFLAGS = -DNO_R16 -fcray-pointer -DNO_QUAD_PRECISION
 
 endif
 
 ifeq ($(ESMA_FC), ftn)
-      USER_FFLAGS = -DNO_R16
+      USER_FFLAGS = -DNO_R16 -DNO_QUAD_PRECISION
 endif
 
 ifeq ($(ESMA_FC), pgfortran)
-      USER_FFLAGS = -DNO_R16
+      USER_FFLAGS = -DNO_R16 -DNO_QUAD_PRECISION
 endif

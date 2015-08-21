@@ -1,0 +1,16 @@
+
+OBSNAM: merrasc
+OBSDSC: GEOSdas-2_1_4_(MERRA_Scout)
+
+        filename:   'VERIFICATION/MERRA_Scout.NCDF3/inst3_3d_asm_Cp/inst3_3d_asm_Cp.ddf'
+        filetype:   'HDF'
+        fields:     'ZLE'      , 'DYN'           , 'H'     , 1
+                    'T'        , 'DYN'           , 'T'     , 1
+                    'U'        , 'DYN'           , 'U'     , 1
+                    'V'        , 'DYN'           , 'V'     , 1
+                    'RH2'      , 'MOIST'         , 'RH'    , 100
+                    'Q'        , 'MOIST'         , 'QV'    , 1
+                    'SLP'      , 'DYN'           , 'SLP'   , 1
+                    'OMEGA'    , 'DYN'           , 'OMEGA' , 1
+                    'DUM'      , 'DYN'           , 'DUM'   , 1
+                    ::

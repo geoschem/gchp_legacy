@@ -99,7 +99,7 @@ echo "---------------------------------"
                         echo "  $cmd $rst1 $rst2"
                                 $cmd $rst1 $rst2 | tee diffs
                                  set RC = $status
-                                if( "$cmd" == "cdo -s -diffn" ) set RC = `cat diffs | cut -do -f1`
+                                if( "$cmd" == "cdo -s -diffn" & $RC[1] == 0 ) set RC = `cat diffs | cut -do -f1`
                         if( -e diffs ) /bin/rm -rf diffs
                         if( $RC[1] == 0 ) then
                             echo "   Success!"
@@ -113,7 +113,11 @@ echo "---------------------------------"
                                                       set size = $size1
                                 if( $size1 > $size2 ) set size = $size2
                                 echo "   Comparing first $size bytes ..."
-                                $cmd -n $size $rst1 $rst2
+                                   if( "$cmd" == "cdo -s -diffn" ) then
+                                         cdo -n $size -s -diffn $rst1 $rst2
+                                   else
+                                         cmp -n $size $rst1 $rst2
+                                   endif
                                 if( $status == 0 ) then
                                     echo "   Success!"
                                     echo " "

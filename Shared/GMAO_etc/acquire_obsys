@@ -1,0 +1,573 @@
+#!/usr/bin/env perl
+# ./acquire_obsys 19990721 180000 060000 6 sonde_hirs
+# Script to make the acquire resource file and then call acquire script to get
+#  observation data.
+# See usage() of this script for more information.
+#
+# !REVISION HISTORY:
+#
+# 2001.07.31 Eueng-nan Yeh   Specs and man page.
+# 2001.08.06 Eueng-nan Yeh   Initial code.
+# 2001.10.02 Eueng-nan Yeh   obsys.rc format changed
+# 2001.10.17 Eueng-nan Yeh   Accept multiple obclasses
+# 2002.03.18 Eueng-nan Yeh   Added standard name output
+# 2002.08.12 Tommy Owens     Returned with Warning if no records found for a given class
+# 2002.08.14 Eueng-nan Yeh   Set the standard name after the old name
+#                            Removed look ahead calculation from subroutine mk_date 
+# 2004.10.21 Todling         Work around /bin/time command
+# 2013.09.30 Todling         Fix -h opt; add opt acqonly
+#=========================================================================
+      use warnings;
+      use Getopt::Long;             # command line options
+
+      @options = qw(cp d=s e=s f h lfn la=s p s=s ssh strict v drc=s acqfile=s acqonly);
+      $ENV{PATH} = "./:" . $ENV{PATH};
+      $tname = "obsys.rc";          # default dataBase table resource file
+      $acqout = "obsys.acq";        # default acq file
+      $exe_acquire = "acquire";     # file acquire
+#      if(!(-e $exe_acquire)) {msg("E", "File '$exe_acquire' not found.");}
+
+# Initialization
+# --------------
+      ($bymd,$bhms,$ihms,$nstep,$oclass,$acqonly,@opt_acq)=init($tname, @options);
+
+# Generate YYYYMMDD array @ymd1
+# -----------------------------
+      @ymd1 = mk_date($bymd,$bhms,$ihms,$nstep,$opt_la);
+      print("ymd1=@ymd1\n") if($opt_v);
+
+# Define $acqfile as acqfilepath+obsys.acq or from input
+# ----------------------------------------------------------
+      ($opt_d = $opt_d) or ($opt_d = "./");   #destination path
+      if( !(-e $opt_d) ) {                    #output dir not exist
+        $status = system("mkdir -p $opt_d");
+        if($status!= 0) {
+          msg("E", "Fail to make output $opt_d");
+        } else { msg("P", "Creating output path $opt_d");}
+      }
+      $acqpath = $opt_d;         #set $acqpath as $opt_d
+      @class = split(/,/, $oclass);
+      if($acqpath =~ /\/$/) {$acqfile = $acqpath . $acqout;
+      } else { $acqfile = $acqpath . "/" . $acqout; }
+      if($opt_acqfile) {          #user defined output acqfile full name
+        $acqfile = $opt_acqfile;
+        $i = rindex($acqfile, "/");
+        if($i >= 0) {
+          $i = substr($acqfile, 0, $i);
+          if( !(-e $i) ) {                    #output dir not exist
+            $status = system("mkdir -p $i");
+            if($status!= 0) {
+              msg("E", "Fail to make output $i");
+            } else { msg("P", "Creating output path $i");}
+          }
+        }
+      }
+      print("acqfile = $acqfile\n") if($opt_v);
+
+# Complete the acquire resource file $acqfile
+# -------------------------------------------
+      print(">> Creating acquire resource file $acqfile...\n") if($opt_v);
+      open(LUNO,">$acqfile") || die "Fail to open files:$acqfile $!\n";
+      for($i=0; $i<scalar(@class); $i++) {
+        mk_rc($i, $opt_drc, $acqfile, $class[$i], @ymd1);
+      }
+      close(LUNO)|| die "Couldn't close file:$acqfile $!\n";
+      print("Acquire file '$acqfile' completed.\n") if($opt_v);
+      push(@opt_acq, "-rc $acqfile");
+      push(@opt_acq, ($bymd,$bhms,$ihms,$nstep));
+
+# Processing acquire
+# ------------------
+      if ($acqonly) {    
+          print("Job finished.\n") if($opt_v);
+          exit(0);   #0 as a success exit
+      }
+      if ( -e "/bin/time" ) {
+      $com = "/bin/time $exe_acquire " . join(" ", @opt_acq);
+      } else {
+      $com = "$exe_acquire " . join(" ", @opt_acq);
+      }
+      print("com = $com\n") if($opt_v);
+      print(">> Processing acquire...\n") if($opt_v);
+      $status = system($com);
+      if($status != 0) {  # error
+        msg("E", "$com failed."); 
+      } 
+
+# All done
+# --------
+      print("Job finished.\n") if($opt_v);
+      exit(0);   #0 as a success exit
+
+#=========================================================================
+#
+# init: sets optional and required command line arguments
+#
+      sub init {
+        my ($tname, @opt) = @_;
+        my ($op1,$op2,$x,$rc,$bymd,$bhms,$ihms,$nste,$oclass,$acqonly,@opt_acq);
+        my ($i, $j, $k, $n, @mday, $y4, $m2, $d2);
+
+        @mday=(31,28,31,30,31,30,31,31,30,31,30,31);
+        $rc = GetOptions(@opt);
+        ($opt_h = $opt_h) or ($opt_h = 0);
+        usage() if ($opt_h);
+        ($opt_la = $opt_la) or ($opt_la = 0);
+        ($opt_drc = $opt_drc) or ($opt_drc = $tname);  
+        $acqonly=0; if($opt_acqonly) {$acqonly = 1};
+        if(!(-e $opt_drc)) {msg("E", "DataBase resource file '$opt_drc' not found.");}       
+        print("Database resource file = $opt_drc\n") if ($opt_v);
+        usage() if ( !$rc || ($#ARGV != 4));
+        ($bymd, $bhms, $ihms, $nstep, $oclass) =
+          ($ARGV[0], $ARGV[1], $ARGV[2], $ARGV[3], $ARGV[4]);
+        if(length($bymd) != 8) {msg("E","Beginning YYYYMMDD '$bymd' wrong");}
+        $y4=substr($bymd,0,4);  $m2=substr($bymd,4,2);  $d2=substr($bymd,6,2);
+        if($m2>12 || $m2<1) {msg("E","Beginning YYYYMMDD '$bymd' wrong");}
+        if(($y4%4 == 0 && $y4%100 != 0) || $y4%400==0 ) {$mday[1] = 29;}
+        if($d2>$mday[$m2-1] || $d2<1) {msg("E","Beginning YYYYMMDD '$bymd' wrong");}
+
+        if(length($bhms) != 6 || $bhms >= 240000) {
+          msg("E","Beginning HHMMSS '$bhms' wrong");
+        }
+   #     if(length($ihms) != 6 || $ihms>240000 || $ihms <=0) {
+        if(length($ihms) != 6 || $ihms <=0) {
+          msg("E","time step increment HHMMSS '$ihms' wrong");
+        }
+        if($nstep <= 0) {msg("E","Number of timesteps '$nstep' wrong");}
+
+#Creating optional list for acquire script to use
+        $n = scalar(@opt) - 3;    #do not include the last three options drc, acqfile
+        $j = 0;
+        for($i=0; $i<$n; $i++) {
+          $k=index($opt[$i], "=");
+          if($k >= 0) {    #with value
+            $op1 = substr($opt[$i], 0, $k);
+          } else { $op1 = $opt[$i]; }
+          $op2 = '$'.opt_ . $op1;
+          if( eval($op2) ) {     #option defined
+            $value = "";
+            if($k >= 0) {  #with value
+              $value = " " . eval($op2);
+            }
+            $opt_acq[$j] = "-" . $op1 . $value;
+            $j++
+          }
+        }   #End of for($i=0; $i<$n; $i++)
+        return($bymd, $bhms, $ihms, $nstep, $oclass, $acqonly, @opt_acq);
+      }
+
+#=========================================================================
+#
+# mk_date: Returns with array of unique records of YYYYMMDD.
+#
+      sub mk_date {
+        my($bymd,$bhms,$ihms,$nstep,$opt_la) = @_;
+        my(@mday,@ymd,@ymd1,$y4,$m2,$d2,$i,$n,$m);
+        @mday=(31,28,31,30,31,30,31,31,30,31,30,31);
+        $m = 0;    $ymd[$m]=$bymd;
+        $y4=substr($ymd[$m],0,4);  $m2=substr($ymd[$m],4,2);  $d2=substr($ymd[$m],6,2);
+        if(($y4%4 == 0 && $y4%100 != 0) || $y4%400==0 ) { $mday[1] = 29; }
+        $i = $nstep;
+   ##     if($opt_la) { $i += $opt_la; }  #look ahead option
+        for($n=1; $n<$i; $n++) {
+          $bhms += $ihms;
+          $m++;
+#          if($n == $nstep) {  #if opt_la defined
+#            $m = 0;
+#            @ymd=();
+#          }
+          while($bhms >= 240000 ) {
+            $bhms -= 240000;
+            $d2++;
+            if($d2>$mday[$m2-1]) {$d2 -= $mday[$m2-1];  $m2++;}
+            if($m2>12) {
+              $m2 -= 12;
+              $y4++;
+              if(($y4%4 == 0 && $y4%100 != 0) || $y4%400==0 ) {$mday[1] = 29; }
+              else { $mday[1] = 28; }
+            }
+          }  #End of while($bhms >= 240000 )
+          $ymd[$m]=$y4 . sprintf("%02d",$m2) . sprintf("%02d",$d2);
+        } #End of for($n=1; $n<$i; $n++)
+# make ymd unique.
+        $m = 0;
+        $ymd1[$m] = $ymd[0];
+        for($i=1; $i<scalar(@ymd); $i++) {
+          if($ymd[$i] > $ymd1[$m]) {
+            push(@ymd1, $ymd[$i]);
+            $m++;
+          }
+        }
+        return(@ymd1);
+      }
+
+#=========================================================================
+#
+# mk_rc: make resource acquired file $acqfile
+#
+      sub mk_rc {
+        my($nclass, $tname, $acqfile, $oclass, @ymd1) = @_;
+        my($dtime, $n, $i, @tokens, $user, $standard);
+        $n = 0;
+# Check out valid records from the template file $tname for given class
+#   $oclass and date $ymd1
+        ($standard,@data) = ck_table($tname, $oclass, @ymd1);
+      if ( scalar(@data) ){
+            for($i=0; $i<scalar(@data); $i++) {
+                if(length($data[$i]) > 10) {
+                    $n = 1;
+                    last;
+                }
+            }
+        if($n == 0 ) { msg("W", "No valid records found on $tname."); }
+   
+        if($opt_v) {
+           print("Acquired records:\n");
+           for($i=0; $i<scalar(@data); $i++) { print("$data[$i]\n"); }
+        }
+        if($nclass == 0 ) {
+          $user = $ENV{"USER"};
+          $user = getlogin() unless $user;
+          $dtime = `date '+%a %d %b %Y %H:%M:%S %p %Z'`;   chomp($dtime);
+          print(LUNO "#\n");
+          print(LUNO "# Acquiring rules                 $dtime\n");
+          print(LUNO "# Created by $user\n") if $user;
+          print(LUNO "#");  for($i=0; $i<64; $i++) {print(LUNO ".");}
+          print(LUNO "\n");
+        }
+        $n = length($oclass)+7;
+        print(LUNO "#\n");
+        print(LUNO "#      "); for($i=0;$i<$n;$i++) {print(LUNO "-");}  print(LUNO "\n");
+        print(LUNO "#       "); print(LUNO "$oclass Data\n");
+        print(LUNO "#      "); for($i=0;$i<$n;$i++) {print(LUNO "-");}
+ #       print(LUNO "\n# => $standard\n");
+        print(LUNO "\n");
+        for($i=0; $i<scalar(@data); $i++) { print(LUNO "$data[$i] => $standard\n"); }
+      }else{
+         msg("W", "No valid records found for $oclass."); 
+      }
+    }
+#=========================================================================
+#
+# ck_table: get valid records @data1 from database template file $tname
+#
+      sub ck_table {
+        my($tname, $oclass, @ymd1) = @_;
+        my($i, @arr,$data1, $nrcd, @field, @data, $m, @data1, @ar1);
+        $m = scalar(@ymd1);
+        $nrcd = 0;
+        $cdate = `date '+%Y%m%d'`;  chomp($cdate);  #current date YYYYMMDD
+        $warned = 0;
+        open(LUN,"$tname") || die "Fail to open file: $tname $!\n";
+LOOP1:  while( defined($rcd = <LUN>) ) {
+          chomp($rcd);
+          $rcd =~ tr/\t/ /s;   $rcd =~ tr/  / /s;   $rcd =~ s/^ | $//g;
+          @arr = split(/ /, $rcd);
+          if(length($rcd) <= 2  || $rcd =~ /#/ || scalar(@arr)<2) { next; };
+          if($rcd =~ /^BEGIN/i && ($arr[1] eq $oclass)) { #found
+            @ar1 = split(/=>/, $rcd);
+            $standard = ".";
+            if(scalar(@ar1) == 2) {$standard = $ar1[1]; }
+            $standard =~ s/ //g;
+            while( defined($rcd = <LUN>) ) {
+              chomp($rcd);
+              $rcd =~ tr/\t/ /s;   $rcd =~ tr/  / /s;   $rcd =~ s/^ | $//g;
+              if(length($rcd) <= 2  || ($rcd =~ /#/)) { next; };
+              if($rcd =~ /END/i) {  #end of block
+                if ($nrcd <= 0) {   #no records
+#TOWENS 8/5/2002  msg("E", "No valid record found for class '$oclass' from $ymd1[0] to $ymd1[$m-1] on $tname.");
+                  msg("W", "No valid record found for class '$oclass' from $ymd1[0] to $ymd1[$m-1] on $tname.");
+                  $warned = 1;
+                  push @data ,'#';
+                  last LOOP1;
+                } else {
+                  last LOOP1;
+                }
+              }
+              @field = split(/ /, $rcd);
+              if(scalar(@field) == 3 ) {   #for every 3 fields line Date Increment File
+                ($sdate, $edate) = ck_date($field[0]);      #return yyyymmddhh
+                $field[0] = substr($sdate, 0, 8);           # yyyymmdd format
+                $field[1] = substr($edate, 0, 8);           # yyyymmdd format
+                for($i=0; $i<$m; $i++) {   #looping through all ymd1
+                  if($ymd1[$i]>=$field[0] && $ymd1[$i]<=$field[1] && length($field[2])>10) {
+                    $data[$nrcd] = $field[2];
+                    $nrcd++;
+                    last;  #jump out this for loop
+                  }
+                }  #End of for($i=0; $i<$m; $i++)
+              }  #End of if(scalar(@field) == 3 )
+            }  #End of while( defined($rcd = <LUN>) )
+          }   #End of if ($rcd =~ /BEGIN/i && $rcd =~ /$oclass$/)
+        }  #LOOP1: End while( defined($rcd = <LUN>) )
+        close(LUN) || die "Couldn't close file: $tname $!\n";
+        if($nrcd <= 0) {
+           if ($warned == 1) {
+                     $warned = 0;
+           }else{
+                     msg("E", "Class name '$oclass' not found."); 
+           }
+        }
+
+# Unique data
+        @data = sort(@data);
+        $m = 0;    $data1[$m] = $data[0];
+        for($i=1; $i<scalar(@data); $i++) {
+          if($data[$i] gt $data1[$m]) {
+            push(@data1, $data[$i]);
+            $m++;
+          }
+        }
+        return($standard, @data1);
+      }
+
+#=========================================================================
+#
+# ck_date: subroutine to check and convert YYYYMMDD_HHz-YYYYMMDD_HHz(present)
+#          and return with start, end in YYYYMMDDHH format
+#
+      sub ck_date {
+        my($date_date) = @_;   #YYYYmmDD_HHz-YYYYmmDD_HHz(present)  HHz<24z
+        my(@mday) = (31, 28, 31, 30,31,30,31,31,30,31,30,31);
+        my($yyyy, $mm, $dd, $leap, $date, @arr, $m, $n, @d1, @t1, @x);
+
+        if(length($date_date) <= 15) {msg("E", "WrongFormat: $date_date");}
+        @arr = split(/-/, $date_date);
+        $m = scalar(@arr);
+        if($m != 2) {msg("E", "WrongFormat: $date_date");}
+        for($n=0; $n<$m; $n++) {
+          if($arr[$n] =~ /prese/i) {
+            $d1[$n] = 'present';    $t1[$n] = '18';
+          } else {
+            if(length($arr[$n]) != 12) {msg("E","WrongFormat: $date_date");}
+            @x = split(/_/, $arr[$n]);  #YYYYmmDD_HHz
+            $d1[$n] = $x[0];          $t1[$n] = substr($x[1], 0, 2);
+            if($t1[$n]>=24 || $t1[$n]<0){msg("E","WrongFormat: $arr[$n]");}
+          }
+          $date = $d1[$n];
+          $leap = 0;      #regiular year
+          if(length($date) <= 7 && $date =~ /pre/i ) { $date = $cdate; }
+          if(length($date) != 8) {msg("E", "WrongDate:'$date' $rcd."); }
+          $yyyy = substr($date, 0, 4);
+          $mm   = substr($date, 4, 2);
+          $dd   = substr($date, 6, 2);
+          if($mm>12 || $mm < 1) {msg("E", "WrongDate:'$date' $rcd."); }
+          if(($yyyy%4 == 0 && $yyyy%100 != 0) || $yyyy%400==0 )
+          {$leap = 1; }
+          if($mm == 2 ) {
+            if($dd > ($mday[1]+$leap) || ($dd < 1)) {
+              msg("E", "WrongDate:'$date' $rcd."); }
+          } else {
+            if($dd>$mday[$mm-1] || ($dd<1)) {
+              msg("E", "WrongDate:'$date' $rcd."); }
+          }
+          $d1[$n] = $date*100 + $t1[$n];  #yyyymmddhh
+        }
+        return($d1[0], $d1[1]);
+      }
+
+#=========================================================================
+#
+# msg: subroutine to print out error and warning messages.  Exit the
+#      software if the first input argument indicates an error "E".
+#
+       sub msg {
+         my ($a, $b) = @_;
+         $a =~ tr/a-z/A-Z/;
+         print("-$a: $b\n");
+         if($a =~ /^E/) { exit(1); };  # Exit for error
+       }
+
+#=========================================================================
+sub usage {
+
+   print <<"EOF";
+
+NAME
+     acquire_obsys - Makes an observation resource file and then calls acquire
+                     script to retrieve these observation data from mass
+                     storage with look-ahead capability
+
+SYNOPSIS
+
+     acquire_obsys [...options...]  bymd bhms ihms nstep obclass
+
+DESCRIPTION
+
+     Acquire is a general purpose utility for retrieving files from
+     mass storage with a look-ahead spooling capability. The full path
+     names of the files to be retrieved are specified in a resource file
+     (see RESOURCE FILE below) by means of GrADS-like templates which
+     will be generated by acquire_obsys.  For example, a resource file
+     could specify a file name of the form:
+
+      gatun:/silo3/dao_ops/conv+tovs/ods/Y%y4/M%m2/r4ods.t%y4%m2%d2_%h2z
+
+     The following parameters are required on input:
+
+     bymd     beginning year-month-day, e.g., 19980101
+     bhms     beginning hour-min-sec, e.g., 120000
+     ihms     time step increment in hour-min-sec format, e.g., 060000
+     nstep    number of timesteps for time looping, e.g., 6.
+     obclass  file class, e.g., conv_tovs, ers2, qscat, ssmi_wentz_tpw,
+              ssmi_wentz_wind, sonde_hirs, and tovs_l1b etc.
+              Note: You can enter multiple obclasses such as conv_tovs,ers2
+              (no blank spaces and comma is the separator)
+
+     For example,
+
+         acquir_obsys 19980107 120000 060000 6 conv_tovs
+
+     will generate the followings pairs of date/time
+
+          nymd       nhms
+         -------    -------
+         19980107   120000
+         19980107   180000
+         19980108   000000
+         19980108   060000
+         19980108   120000
+         19980108   180000
+
+    For each one of these dates/time, acquire will expand the
+    GrADS-like template and retrieve the corresponding files from
+    mass storage. For the examples above, the files to be retrieved
+    are:
+
+    gatun:/silo3/dao_ops/conv+tovs/ods/Y1998/M01/r4ods.t19980107_12z
+    gatun:/silo3/dao_ops/conv+tovs/ods/Y1998/M01/r4ods.t19980107_18z
+    gatun:/silo3/dao_ops/conv+tovs/ods/Y1998/M01/r4ods.t19980108_00z
+    gatun:/silo3/dao_ops/conv+tovs/ods/Y1998/M01/r4ods.t19980108_06z
+    gatun:/silo3/dao_ops/conv+tovs/ods/Y1998/M01/r4ods.t19980108_12z
+    gatun:/silo3/dao_ops/conv+tovs/ods/Y1998/M01/r4ods.t19980108_18z
+
+    Upon transfer from mass storage, these files are made available
+    at the user local directory (see "-d" option).
+
+    The look-ahead capability allows the user to retrieve files for
+    future use. For example,
+
+         acquir_obsys -la 4 19980107 120000 060000 6 conv_tovs
+
+    will generate 4 additional date/time pairs:
+
+          nymd       nhms
+         -------    -------
+         19980109   000000
+         19980109   060000
+         19980109   120000
+         19980109   180000
+
+   and transfer the files
+    gatun:/silo3/dao_ops/conv+tovs/ods/Y1998/M01/r4ods.t19980109_00z
+    gatun:/silo3/dao_ops/conv+tovs/ods/Y1998/M01/r4ods.t19980109_06z
+    gatun:/silo3/dao_ops/conv+tovs/ods/Y1998/M01/r4ods.t19980109_12z
+    gatun:/silo3/dao_ops/conv+tovs/ods/Y1998/M01/r4ods.t19980109_18z
+
+   to a spool directory. Next time the user issues an "acquire_obsys" to
+   retrieve these files, they will already be available locally.
+   For this "look-ahead" transfer acquire forks itself, performing
+   this task in the background.
+
+   Acquire is also smart enough to avoid retrieving the same file
+   more than once. If in the example above we replace the file name
+   template with
+
+     gatun:/silo3/dao_ops/conv+tovs/ods/Y%y4/M%m2/r4ods.t%y4%m2%d2
+
+   only the files
+
+    gatun:/silo3/dao_ops/conv+tovs/ods/Y1998/M01/r4ods.t19980107
+    gatun:/silo3/dao_ops/conv+tovs/ods/Y1998/M01/r4ods.t19980108
+
+   would be retrieved.
+
+OPTIONS
+
+     -cp            when files are to be preserved in spool directory
+                     (see -p) a copy is made to the user destination directory
+                     (the default is to make a symlink)
+     -d path        destination (local) directory (default: ./)
+     -e logfile     name of error log file. (default: no logging enabled)
+     -f             forces remote copy whether the file exists locally or not
+     -h             prints this page
+     -lfn           use long file names in spool directory to
+                     prevent file name conflicts
+     -la lstep      Look ahead lstep time steps, that is, future data
+                     can be pre-fetched and kept in spool directory
+                     (default: lstep=0)
+     -p             preserve files in spool directory, simply making
+                     a symlink() or copy to the local directory (see -cp);
+                     this is useful if the file is expected to be reused.
+                     In such cases one should monitor disk usage in the
+                     spool directory.
+     -s path        spool directory (default: /scratch1/$ENV{USER}/spool)
+     -ssh           use ssh and scp (default: rsh and rcp)
+     -strict        returns non-zero exit code if not all files
+                     specified in the rc file are acquired
+     -v             verbose mode (default is real quiet)
+     -drc fullName  user specified database resource file with file path
+                     (default: obsys.rc)
+     -acqfile fullName  The path and filename of the generated acq file.
+                        (the default path is the option "-d" and the
+                         default filename is obsys.acq)
+     -acqonly       creates acq file (from obsys.rc) but do not exec acquire
+
+RESOURCE FILES
+
+     The acquire_obsys will generate the resource file (with the file name
+     as the_given_obclass_name.acq) by extracting records from the given
+     obclass out of the observation database file which consists of
+     information blocks for each obclass.
+     Records defined by the obclass block show the remote file name template
+     (will be used to form the resource file) and the time range (start/end
+     date and time increment) which the remote file name template can be
+     applied to.  For examp;e:
+
+     BEGIN obclass
+       startYYYYMMDD_HHz-endYYYYMMDD_HHz incrementHHMMSS remote_file_name_template
+     END
+
+     Acquire resource files consist of comment lines starting with
+     '#' or a remote file name templates of the form
+
+           rhost:path/fname
+
+     This is better explained with an example:
+
+     helios1:/u/joiner/tovs/l1b/%y4%m2/l1c_new/hirs.nj.hdf.t%y4%m2%d2
+
+     In this example, the remote host (rhost) is "helios1", the path
+     is /u/joiner/tovs/l1b/%y4%m2/l1c_new, and the fname is
+     hirs.nj.hdf.t%y4%m2%d2.
+     This file name "template" is a GrADS like pattern for matching
+     remote file names (that is, files to be retrieved).
+     Supported tokens are:
+
+          %y4       year,  e.g., 1997
+          %y2       year,  e.g., 97
+          %m2       month, e.g., 12
+          %d2       day,   e.g., 31
+          %h2       hour,  e.g., 18
+          %c        matches any character [?]
+          %n        matches any single digit [0-9]
+
+    In addition to GrADS-like tokens, any defined environment variable
+    can be used in the remote file name template. For example,
+
+     \${MHOST}:/u/joiner/tovs/l1b/%y4%m2/l1c_new/hirs.nj.hdf.t%y4%m2%d2
+
+   would take the remote host name from the environment variable \$MHOST.
+
+SEE ALSO
+
+    acquire - Retrives files from mass storage with look-ahead capability
+
+AUTHORS
+
+     Eueng-nan Yeh (enyeh\@dao.gsfc.nasa.gov)
+
+EOF
+
+  exit(1)
+}

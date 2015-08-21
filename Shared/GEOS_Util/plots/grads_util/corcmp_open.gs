@@ -64,8 +64,14 @@ while( L <= numargs-1 )
                        nodes = nodes + 1
                    endif
                  endwhile
-                 n1 = nodes
                  n2 = nodes-3
+
+* For ctldate to use both beginning AND ending dates, use:
+* --------------------------------------------------------
+                 n1 = nodes
+* For ctldate to use ONLY beginning dates, use:
+* ---------------------------------------------
+                 n1 = n2 + 1
 
              '!remove ctldate.txt'
              '!basename 'cfile' | cut -d. -f'n2'-'n1' > ctldate.txt'
@@ -100,8 +106,14 @@ while( L <= numargs-1 )
                        nodes = nodes + 1
                    endif
                  endwhile
-                 n1 = nodes
                  n2 = nodes-3
+
+* For expdate to use both beginning AND ending dates, use:
+* --------------------------------------------------------
+                 n1 = nodes
+* For expdate to use ONLY beginning dates, use:
+* ---------------------------------------------
+                 n1 = n2 + 1
 
              '!remove expdate.txt'
              '!basename 'file' | cut -d. -f'n2'-'n1' > expdate.txt'

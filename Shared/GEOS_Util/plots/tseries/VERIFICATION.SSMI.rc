@@ -4,8 +4,7 @@ OBSDSC: SSMI_(1993-2002)
 
         filename:   'VERIFICATION/SSMI/ssmi.ctl'
         filetype:   'BIN'
-        fields:     'TPREC'  , 'MOIST' , 'TPREC'  , 1   ,
-                    'LWP'    , 'MOIST' , 'LWP'    , 1   ,
+        fields:     'LWP'    , 'MOIST' , 'LWP'    , 1   ,
                     'TQV'    , 'AGCM'  , 'TPW'    , 1   ,
                     'SPEED'  , 'DYN'   , 'SPEED'  , 1   ,
                     ::

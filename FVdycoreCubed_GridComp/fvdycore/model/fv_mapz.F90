@@ -150,79 +150,97 @@ CONTAINS
 
       if ( kord_tm < 0 ) then
            te_map = .false.
-      else
-           te_map = .true.
-      endif
-
-!$omp parallel do default(shared) private(z_rat, kp, k_next, bkh, deng, dp2, pe0, pe1, pe2, pe3, pk1, pk2, pn2, phis, q2, ze1, ze2)
-  do 1000 j=js,je+1
-
-     do k=1,km+1
-        do i=is,ie
-           pe1(i,k) = pe(i,k,j)
-        enddo
-     enddo
-
-     do i=is,ie
-        pe2(i,   1) = ptop
-        pe2(i,km+1) = pe(i,km+1,j)
-     enddo
-
-  if ( j /= (je+1) ) then
-       if ( kord_tm < 0 ) then
           if ( remap_t ) then
 ! Note: pt at this stage is cp*Theta_v
 ! Transform virtual pt to virtual Temp
              if ( hydrostatic ) then
+!$omp parallel do default(shared)
              do k=1,km
+                do j=js,je
                    do i=is,ie
                       pt(i,j,k) = pt(i,j,k) * (pk(i,j,k+1)-pk(i,j,k)) /  &
                                  (rg*(peln(i,k+1,j)-peln(i,k,j)) )
                    enddo
+                enddo
              enddo
              else
-               do k=1,km
+               if ( ktop>1 ) then
+!$omp parallel do default(shared)
+                 do k=1,ktop-1
+                    do j=js,je
+                    do i=is,ie
+                       pt(i,j,k) = pt(i,j,k) * (pk(i,j,k+1)-pk(i,j,k)) /  &
+                                  (rg*(peln(i,k+1,j)-peln(i,k,j)) )
+                    enddo
+                    enddo
+                 enddo
+               endif
+!$omp parallel do default(shared)
+               do k=ktop,km
+                  do j=js,je
                   do i=is,ie
                      pt(i,j,k) = rcp*pt(i,j,k)*exp(k1k*log(kapag*delp(i,j,k)/delz(i,j,k)*pt(i,j,k)))
+                  enddo
                   enddo
                enddo
              endif         ! hydro test
           endif            ! remap_t test
-       else
-           call pkez(km, is, ie, js, je, j, pe, pk, akap, peln, pkz, ptop)
+      else
+           te_map = .true.
+           call pkez(km, is, ie, js, je, pe, pk, akap, peln, pkz)
+!           call cubed_to_latlon(u, v, ua, va, dx, dy, rdxa, rdya, km, 1)
 ! Compute cp*T + KE
+!$omp parallel do default(shared) 
            do k=1,km
+              do j=js,je
                  do i=is,ie
                     te(i,j,k) = 0.25*rsin2(i,j)*(u(i,j,k)**2+u(i,j+1,k)**2 +  &
                                                  v(i,j,k)**2+v(i+1,j,k)**2 -  &
                                (u(i,j,k)+u(i,j+1,k))*(v(i,j,k)+v(i+1,j,k))*cosa_s(i,j))  &
                               +  pt(i,j,k)*pkz(i,j,k)
                  enddo
+              enddo
            enddo
-       endif
+     endif
 
-     if ( .not. hydrostatic ) then
+     if ( .not.hydrostatic ) then
         if ( hybrid_z ) then
            if ( km==32 ) then
                 call compute_dz_L32(km, ztop, dz1)
-!          else
-!               ztop = 18.E3
-!               call hybrid_z_dz(km, dz1, ztop, 1.)
-!               call mpp_error(FATAL,'==> Error from fv_mapz: hybrid_z works only with L32')
+           else
+                call mpp_error(FATAL,'==> Error from fv_mapz: hybrid_z works only with L32')
            endif
         else
+!$omp parallel do default(shared)
            do k=1,km
+              do j=js,je
                  do i=is,ie
                     delz(i,j,k) = -delz(i,j,k) / delp(i,j,k) ! ="specific volume"/grav
                  enddo
+              enddo
            enddo
         endif
-      endif
+     endif
 
+!$omp parallel do default(shared) private(z_rat, kp, k_next, bkh, deng, dp2, pe0, pe1, pe2, pe3, pk1, pk2, pn2, phis, q2, ze1, ze2)
+  do 1000 j=js,je+1
+
+        do k=1,km+1
+           do i=is,ie
+              pe1(i,k) = pe(i,k,j)
+           enddo
+        enddo
+
+        do i=is,ie
+           pe2(i,   1) = ptop
+           pe2(i,km+1) = pe(i,km+1,j)
+        enddo
+
+  if ( j < (je+1) )  then 
 ! update ps
-      do i=is,ie
-         ps(i,j) = pe1(i,km+1)
-      enddo
+        do i=is,ie
+            ps(i,j) = pe1(i,km+1)
+        enddo
 
    if ( hybrid_z ) then
 !--------------------------
@@ -299,7 +317,12 @@ CONTAINS
 !
 ! Hybrid sigma-P coordinate:
 !
-        do k=2,km
+        do k=2,ks+1
+           do i=is,ie
+              pe2(i,k) = ak(k)
+           enddo
+        enddo
+        do k=ks+2,km
            do i=is,ie
               pe2(i,k) = ak(k) + bk(k)*pe(i,km+1,j)
            enddo
@@ -413,7 +436,7 @@ CONTAINS
                  deng(i,k) = pt(i,j,k)
               enddo
            enddo
-           call remap_z(km, ze1, deng, km, ze2, deng, is, ie, 1, abs(kord_tm))
+           call remap_z(km, ze1, deng, km, ze2, deng, is, ie, 2, abs(kord_tm))
            do k=1,km
               do i=is,ie
                  pt(i,j,k) = deng(i,k)
@@ -493,16 +516,23 @@ CONTAINS
          enddo
       enddo
    else
+      if ( ktop>1 ) then
+         do k=1,ktop-1
+         do i=is,ie
+            pkz(i,j,k) = (pk2(i,k+1)-pk2(i,k))/(akap*(peln(i,k+1,j)-peln(i,k,j)))
+         enddo
+         enddo
+      endif
       if ( remap_t ) then
 ! Note: pt at this stage is T_v
-         do k=1,km
+         do k=ktop,km
          do i=is,ie
             pkz(i,j,k) = exp(akap*log(rrg*delp(i,j,k)/delz(i,j,k)*pt(i,j,k)))
          enddo
          enddo
       else
 ! Note: pt at this stage is cp*Theta_v
-         do k=1,km
+         do k=ktop,km
          do i=is,ie
             pkz(i,j,k) = exp( k1k*log(kapag*delp(i,j,k)/delz(i,j,k)*pt(i,j,k)) )
          enddo
@@ -548,7 +578,14 @@ CONTAINS
          enddo
       enddo
 
-      do k=1,km+1
+
+      do k=1,ks+1
+         do i=is,ie+1
+            pe3(i,k) = ak(k)
+         enddo
+      enddo
+
+      do k=ks+2,km+1
          bkh = 0.5*bk(k)
          do i=is,ie
             pe3(i,k) = ak(k) + bkh*(pe(i,km+1,j-1)+pe1(i,km+1))
@@ -568,14 +605,14 @@ CONTAINS
 !------
 ! map v
 !------
-       do i=is,ie+1
-          pe3(i,1) = ak(1)
-       enddo
-
        do k=2,km+1
+          do i=is,ie+1
+             pe0(i ,k) = 0.5*(pe(i-1,k,j)+pe(i,k,j))
+          enddo
+       enddo
+       do k=ks+2,km+1
           bkh = 0.5*bk(k)
           do i=is,ie+1
-             pe0(i,k) =         0.5*(pe(i-1,k,   j)+pe(i,k,   j))
              pe3(i,k) = ak(k) + bkh*(pe(i-1,km+1,j)+pe(i,km+1,j))
           enddo
        enddo
@@ -990,17 +1027,16 @@ endif
   end subroutine compute_total_energy
 
 
-  subroutine pkez(km, ifirst, ilast, jfirst, jlast, j, &
-                  pe, pk, akap, peln, pkz, ptop)
+  subroutine pkez(km, ifirst, ilast, jfirst, jlast, &
+                  pe, pk, akap, peln, pkz)
 
 ! !INPUT PARAMETERS:
-   integer, intent(in):: km, j
+   integer, intent(in):: km
    integer, intent(in):: ifirst, ilast        ! Latitude strip
    integer, intent(in):: jfirst, jlast        ! Latitude strip
    real(REAL8), intent(in):: akap
    real(REAL8), intent(in):: pe(ifirst-1:ilast+1,km+1,jfirst-1:jlast+1)
    real(REAL8), intent(in):: pk(ifirst:ilast,jfirst:jlast,km+1)
-   real, intent(IN):: ptop
 ! !OUTPUT
    real(REAL8), intent(out):: pkz(ifirst:ilast,jfirst:jlast,km)
    real(REAL8), intent(inout):: peln(ifirst:ilast, km+1, jfirst:jlast)   ! log (pe)
@@ -1009,10 +1045,12 @@ endif
    real(REAL8) pek
    real(REAL8) lnp
    real(REAL8) ak1
-   integer i, k
+   integer i, j, k
 
    ak1 = (akap + 1.) / akap
 
+!$omp parallel do default(shared) private(lnp, pek, pk2)
+   do j=jfirst, jlast
         pek = pk(ifirst,j,1)
         do i=ifirst, ilast
            pk2(i,1) = pek
@@ -1044,6 +1082,7 @@ endif
                           (akap*(peln(i,k+1,j) - peln(i,k,j)) )
           enddo
        enddo
+    enddo
 
  end subroutine pkez
 
@@ -1348,8 +1387,6 @@ endif
       real(REAL8)   pl, pr, qsum, dp, esl
 
       integer i, k, l, m, k0
-
-!      qsum = 1.d0
 
       do k=1,km
          do i=i1,i2
@@ -1726,6 +1763,7 @@ endif
   enddo
 
 ! Interior:
+  if ( abs(kord)<11 ) then
   do k=3,km-1
      do i=i1,i2
         if ( gam(i,k-1)*gam(i,k+1)>0. ) then
@@ -1744,6 +1782,36 @@ endif
         endif
      enddo
   enddo
+  else
+! abs(kord) >=11
+  do k=3,km-1
+     do i=i1,i2
+        if ( gam(i,k-1)*gam(i,k+1) > 0. ) then
+! Apply large-scale constraint to ALL fields if not local max/min
+             q(i,k) = min( q(i,k), max(a4(1,i,k-1),a4(1,i,k)) )
+             q(i,k) = max( q(i,k), min(a4(1,i,k-1),a4(1,i,k)) )
+        else
+          if ( gam(i,k-1) > 0. ) then
+! There exists a local max
+               q(i,k) = max(q(i,k), min(a4(1,i,k-1),a4(1,i,k)))
+               q(i,k) = min(q(i,k), a4(1,i,k-1)+0.5*gam(i,k-1),     &
+                                    a4(1,i,k  )-0.5*gam(i,k+1) )
+          else
+! There exists a local min
+            if ( iv==0 ) then
+                 q(i,k) = min(q(i,k), max(a4(1,i,k-1),a4(1,i,k)))
+                 q(i,k) = max(q(i,k), a4(1,i,k-1)+0.5*gam(i,k-1),     &
+                                  0., a4(1,i,k  )-0.5*gam(i,k+1) )
+            else
+                 q(i,k) = min(q(i,k), max(a4(1,i,k-1),a4(1,i,k)))
+                 q(i,k) = max(q(i,k), a4(1,i,k-1)+0.5*gam(i,k-1),     &
+                                      a4(1,i,k  )-0.5*gam(i,k+1) )
+            endif
+          endif
+        endif
+     enddo
+  enddo
+  endif
 
 ! Bottom:
   do i=i1,i2
@@ -1782,7 +1850,7 @@ endif
       do i=i1,i2
          if ( a4(2,i,1)*a4(1,i,1) <= 0. ) a4(2,i,1) = 0.
       enddo
-  elseif ( iv==2 ) then
+  elseif ( abs(iv)==2 ) then
      do i=i1,i2
         a4(2,i,1) = a4(1,i,1)
         a4(3,i,1) = a4(1,i,1)
@@ -1790,7 +1858,7 @@ endif
      enddo
   endif
 
-  if ( iv/=2 ) then
+  if ( abs(iv)/=2 ) then
      do i=i1,i2
         a4(4,i,1) = 3.*(2.*a4(1,i,1) - (a4(2,i,1)+a4(3,i,1)))
      enddo
@@ -1899,7 +1967,7 @@ endif
      do i=i1,i2
         a4(3,i,km) = max(0., a4(3,i,km))
      enddo
-  elseif ( iv .eq. -1 ) then 
+  elseif ( iv<0 ) then 
       do i=i1,i2
          if ( a4(3,i,km)*a4(1,i,km) <= 0. )  a4(3,i,km) = 0.
       enddo

@@ -1,5 +1,5 @@
 
-// $Id: hash.c,v 1.8 2012-08-22 16:51:40 adasilva Exp $
+// $Id: hash.c,v 1.11 2014-11-12 21:06:31 atrayano Exp $
 
 #ifndef sysAIX
 #include <stdio.h>
@@ -7,7 +7,7 @@
 #include <math.h>
 #include <limits.h>
 
-#define HASHCHUNK 32
+#define HASHCHUNK (1024*4)
 #define HEAPCHUNK 4
 
 #define FREE(A) (void)free(A); A=NULL
@@ -35,7 +35,7 @@ void init_hash(hash_t *h, int nbuckets) {
 
   h->bucket_list = (bucket_t *)malloc((size_t)(nbuckets*sizeof(bucket_t)));
   if(!h->bucket_list) {
-    printf("hash.c $Name: jk-G40-GEOSctm-advcore-update3 $ line=%d : Could not allocate bucket list\n",__LINE__);
+    printf("hash.c $Name: Heracles-3_1_CTM $ line=%d : Could not allocate bucket list\n",__LINE__);
     exit(1);
   }
   for(l=0; l<nbuckets; l++) {
@@ -52,7 +52,7 @@ void init_bucket(bucket_t *b) {
   b->next_entry = 0;
   b->entry_list = (entry_t *)malloc((size_t)(b->size*sizeof(entry_t)));
   if(!b->entry_list) {
-    printf("hash.c $Name: jk-G40-GEOSctm-advcore-update3 $ line=%d : Could not allocate entry list\n",__LINE__);
+    printf("hash.c $Name: Heracles-3_1_CTM $ line=%d : Could not allocate entry list\n",__LINE__);
     exit(1);
   }
 }
@@ -68,7 +68,7 @@ int create_hash(int nbuckets)
   if(!hash_heap) {
     hash_heap = (hash_t *)malloc(hash_heap_size*sizeof(hash_t));
     if(!hash_heap) {
-      printf("hash.c $Name: jk-G40-GEOSctm-advcore-update3 $ line=%d : Could not allocate hash_heap\n",__LINE__);
+      printf("hash.c $Name: Heracles-3_1_CTM $ line=%d : Could not allocate hash_heap\n",__LINE__);
       exit(1);
     }
     for(i=0;i<hash_heap_size;i++) hash_heap[i].bucket_list=(bucket_t *)NULL;
@@ -89,7 +89,7 @@ int create_hash(int nbuckets)
       (hash_t *)realloc(hash_heap,sizeof(hash_t)*(hash_heap_size+=HEAPCHUNK));
 
     if(!hash_heap) {
-      printf("hash.c $Name: jk-G40-GEOSctm-advcore-update3 $ line=%d : Could not expand hash_heap\n",__LINE__);
+      printf("hash.c $Name: Heracles-3_1_CTM $ line=%d : Could not expand hash_heap\n",__LINE__);
       exit(1);
     }
 
@@ -109,10 +109,10 @@ void destroy_hash(int h)
   int i;
 
   if(!hash_heap) {
-    printf("hash.c $Name: jk-G40-GEOSctm-advcore-update3 $ line=%d : Attempt to destroy hash from empty heap\n",__LINE__);
+    printf("hash.c $Name: Heracles-3_1_CTM $ line=%d : Attempt to destroy hash from empty heap\n",__LINE__);
     exit(1);
   } else if(!hash_heap[h].bucket_list) {
-    printf("hash.c $Name: jk-G40-GEOSctm-advcore-update3 $ line=%d : Attempt to destroy uninitalized hash\n",__LINE__);
+    printf("hash.c $Name: Heracles-3_1_CTM $ line=%d : Attempt to destroy uninitalized hash\n",__LINE__);
     exit(1);
   } else { 
     for(i=0;i<hash_heap[h].num_buckets;i++) {
@@ -126,16 +126,27 @@ void destroy_hash(int h)
 
 int hash_size(int h)
 {
-  int l, num;
+  int l, num, maxb, minb, ct, nb;
   bucket_t *bucket;
   hash_t   *hash;
 
-  hash = hash_heap+h;
-  num  = 0;
-  for(l=0; l<hash->num_buckets; l++) {
-    bucket = hash->bucket_list + l;
-    if(bucket->entry_list) num = num + bucket->next_entry;
-  }
+  hash   = hash_heap+h;
+  bucket = hash->bucket_list;
+  nb     = hash->num_buckets;
+
+  num    = 0;
+  maxb   = bucket->next_entry;
+  minb   = bucket->next_entry;
+
+  for(l=0; l<nb; l++,bucket++)
+    if(bucket->entry_list) {
+      ct   = bucket->next_entry;
+      num  = num + ct;
+      maxb = (ct>maxb)?ct:maxb;
+      minb = (ct<minb)?ct:minb;
+    }
+
+  printf("==> minb: %d maxb: %d Total: %d\n",minb,maxb,num);
   return num;
 }
 
@@ -174,12 +185,12 @@ int increment_hash(int h, int i, int j, int k)
 
   if(!hash_heap) {
 
-    printf("hash.c $Name: jk-G40-GEOSctm-advcore-update3 $ line=%d : Attempt to increment hash from empty heap\n",__LINE__);
+    printf("hash.c $Name: Heracles-3_1_CTM $ line=%d : Attempt to increment hash from empty heap\n",__LINE__);
     exit(1);
 
   } else if(!(hash_heap[h].bucket_list)) {
 
-    printf("hash.c $Name: jk-G40-GEOSctm-advcore-update3 $ line=%d : Attempt to increment uninitalized hash %d i=%d j=%d %ld\n",
+    printf("hash.c $Name: Heracles-3_1_CTM $ line=%d : Attempt to increment uninitalized hash %d i=%d j=%d %ld\n",
 	   __LINE__,h,i,j,hash_heap[h].bucket_list);
     exit(1);
 
@@ -211,7 +222,7 @@ int increment_hash(int h, int i, int j, int k)
     } else {
 
       int m;
-      for(m=0; m<bucket->next_entry; m++) {
+      for(m=bucket->next_entry-1; m>=0; m--) {
 	entry = (bucket->entry_list) + m;
 	if(entry->i==i && entry->j==j && entry->k==k)
 	  return entry->m;
@@ -222,7 +233,7 @@ int increment_hash(int h, int i, int j, int k)
 	bucket->entry_list = 
 	  (entry_t *)realloc(bucket->entry_list,sizeof(entry_t)*bucket->size);
 	if(!bucket->entry_list) {
-	  printf("hash.c $Name: jk-G40-GEOSctm-advcore-update3 $ %d : Could not reallocate entry list\n",__LINE__);
+	  printf("hash.c $Name: Heracles-3_1_CTM $ %d : Could not reallocate entry list\n",__LINE__);
 	  exit(1);
 	}
       }

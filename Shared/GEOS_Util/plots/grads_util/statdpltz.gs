@@ -29,6 +29,8 @@ if( tinc = "NULL" ) ; tinc = 6 ; endif
 if( hour < 10  ) ; hour = 0hour ; endif
 if( hour < 100 ) ; hour = 0hour ; endif
 
+                  scale = 1
+if( field = q ) ; scale = 1000 ; endif
 
 'set datawarn off'
 'set grid  off'
@@ -36,7 +38,7 @@ if( hour < 100 ) ; hour = 0hour ; endif
 'set gxout shaded'
 'set ccols 92 0'
 'set clevs 0.5'
-'define diff = 'field''type''tag1'z-'field''type''tag2'z'
+'define diff = ('field''type''tag1'z-'field''type''tag2'z)*'scale
 
 if( cint = '' )
         'set gxout stat'

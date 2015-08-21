@@ -32,31 +32,31 @@ subroutine GetWeightsC2C(npx, npy, npxout, npyout, index, weight, &
 end subroutine GetWeightsC2C
 
 !!!!!!!!!!!!!!!%%%%%%%%%%%%%%%%%%%%%%%!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!<<>>function AppGridCreateF(IM_WORLD, JM_WORLD, LM, NX, NY, rc) result(grid)
-!<<>>#include "MAPL_Generic.h"
-!<<>>
-!<<>>  use ESMF
-!<<>>  use MAPL_BaseMod
-!<<>>
-!<<>>  implicit none
-!<<>>  
-!<<>>! !ARGUMENTS:
-!<<>>  integer,           intent(IN)    :: IM_WORLD, JM_WORLD, LM
-!<<>>  integer,           intent(IN)    :: NX, NY
-!<<>>  integer, optional, intent(OUT)   :: rc
-!<<>>  type (ESMF_Grid)                 :: grid
-!<<>>  
-!<<>>! ErrLog variables
-!<<>>!-----------------
-!<<>>
-!<<>>  integer                      :: STATUS
-!<<>>  character(len=ESMF_MAXSTR), parameter :: Iam="AppGridCreateF"
-!<<>>
-!<<>>! Local variables
-!<<>>!-----------------
-!<<>>
-!<<>>  RETURN_(STATUS)
-!<<>>end function AppGridCreateF
+function AppGridCreateF(IM_WORLD, JM_WORLD, LM, NX, NY, rc) result(grid)
+#include "MAPL_Generic.h"
+
+  use ESMF
+  use MAPL_BaseMod
+
+  implicit none
+  
+! !ARGUMENTS:
+  integer,           intent(IN)    :: IM_WORLD, JM_WORLD, LM
+  integer,           intent(IN)    :: NX, NY
+  integer, optional, intent(OUT)   :: rc
+  type (ESMF_Grid)                 :: grid
+  
+! ErrLog variables
+!-----------------
+
+  integer                      :: STATUS
+  character(len=ESMF_MAXSTR), parameter :: Iam="AppGridCreateF"
+
+! Local variables
+!-----------------
+
+  RETURN_(STATUS)
+end function AppGridCreateF
 
 subroutine AppGridCreate (META, GRID, RC)
 

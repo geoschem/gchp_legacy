@@ -1,0 +1,217 @@
+#!/usr/bin/env perl
+#=====================================================================
+# name - lsfpL
+# purpose - display file(s) with full pathname and all links dereferenced.
+#
+# revision history
+# 08Dec2008  Stassi  Initial version of code
+# 18May2009  Stassi  Added sub condense() to remove "../" from path
+#=====================================================================
+use strict;
+use warnings;
+
+# global variables
+#-----------------
+my ($script, @fileARR);
+my ($check, $long, $help);
+
+# main program
+#-------------
+{
+    use Cwd;
+    my ($pwd, $orig, $trailslash, $file, $newfile, $cnt);
+
+    &init();
+
+    # get listing for each file
+    #--------------------------
+    foreach $file ( @fileARR ) {
+        $orig = $file;
+
+        # remove leading/trailing spaces and trailing slash
+        #--------------------------------------------------
+        $file = $1  if ($file =~ /\s*(\S*)\s*/);
+        if ($file =~ /(.+)\/$/) {
+            $file = $1;
+            $trailslash = 1;
+        }
+
+        # check for existence of file
+        #----------------------------
+        unless (-e $file) {
+            print STDERR "$script: $file: No such file or directory\n";
+            next;
+        }
+
+        # convert relative path to absolute path
+        #---------------------------------------
+        $pwd = cwd;
+        $file = &absolute_path($file, $pwd);
+
+        # loop until all links are dereferenced
+        #--------------------------------------
+        $cnt = 0;
+        while (1) {
+            $newfile = &dereference_links($file);
+            last if ($newfile eq $file);
+            $file = $newfile;
+            die "$script: >> ERROR << Excessive looping without convergence;"
+               if (++$cnt > 100);
+        }
+
+        # remove "." and ".." from path
+        # restore trailing slash
+        #------------------------------
+        $file = &condense($file);
+        $file .= "/" if $trailslash;
+
+        # display results
+        #----------------
+        print "$orig -> " if ($long);
+        print "$file";
+        if ($check) {
+            if (-e $file) { print "\n"; }
+            else          { print " : NOT FOUND\n"; }
+        } else { print "\n"; }
+    }
+}
+
+#=======================================================================
+# name - init
+# purpose - initialize values and get runtime options
+#=======================================================================
+sub init {
+    use File::Basename;
+    use Getopt::Long;
+
+    $script = basename $0;
+
+    GetOptions("c" => \$check,
+               "l" => \$long,
+               "h" => \$help);
+    &usage() if $help;
+
+    @fileARR = @ARGV;
+    @fileARR = <*> unless @fileARR;
+}
+
+#=======================================================================
+# name - absolute_path
+# purpose - Change the relative path in filename to an absolute path.
+#=======================================================================
+sub absolute_path {
+    my ($file, $basepath);
+
+    $file = shift @_;
+    $basepath = shift @_;
+
+    # remove spaces and add "/" to end of basepath
+    #---------------------------------------------
+    $basepath  = $1  if ($basepath =~ /\s*(\S*)\s*/);
+    $basepath .= "/" unless ($basepath =~ /\/$/);
+
+    # replace leading "./" with basepath
+    #-----------------------------------
+    $file =~ s/^\.\//$basepath/ if ($file =~ /^\.\/(\S*)/);
+
+    # add basepath to relative path or naked filename
+    #------------------------------------------------
+    $file = $basepath ."/" .$file unless ($file =~ /^\//);
+
+    return $file;
+}
+
+#=======================================================================
+# name - dereference_links
+# purpose - Dereference all links in a filename path 
+#=======================================================================
+sub dereference_links {
+    use File::Basename;
+    my ($file, @segments);
+    my ($name, $dir, $line, $dummy);
+
+    # input parameters
+    #-----------------
+    $file = shift @_;
+
+    return $file if ($file eq "/");
+
+    # check each segment of path/filename for links
+    #----------------------------------------------
+    @segments = split /\//, $file;
+    $name = "";
+
+    foreach (@segments) {
+
+        next unless $_;
+        $name .= "/$_";
+
+        # if a link, then dereference it
+        #-------------------------------
+        if (-l $name) {
+            
+            $dir = dirname $name;
+
+            $line = `ls -dl $name`;
+            ($dummy, $name) = split />/, $line;
+            $name = $1 if ($name =~ /\s*(\S*)\s*/);
+
+            # link could have relative path
+            #------------------------------
+            $name = &absolute_path($name, $dir);
+        }
+    }
+    return $name;
+}
+
+#=======================================================================
+# name - condense
+# purpose - Remove occurrences of "." and ".." from directory path
+#=======================================================================
+sub condense {
+    my ($file, $name);
+    my (@segments, @keepthese, $leadslash);
+
+    $file = shift @_;
+
+    # check for leading "/"
+    #----------------------
+    $leadslash  = 1 if $file =~ /^\s*\//;
+
+    # break down and rebuild, leaving out ".." entries    
+    #-------------------------------------------------
+    @segments = split /\//, $file;
+    $name = "";
+    foreach (@segments) {
+        next unless $_;
+        if ($_ eq ".")  { next; }
+        if ($_ eq "..") { pop @keepthese; next; } 
+        push @keepthese, $_;
+    }
+    $name = join "/", @keepthese;
+    $name = "/" .$name if $leadslash;
+
+    return $name;
+}
+
+#=======================================================================
+# name - usage
+# purpose - print usage information
+#=======================================================================
+sub usage {
+    print << "EOF";
+
+Usage: $script [OPTION] [files]
+  or:  $script -h
+
+OPTIONS
+   -c   gives message if dereferenced listing is not found
+   -l   displays "original file name -> dereferenced listing"
+   -h   print this usage information
+
+Dereferenced files are listed one per line.  If no files are given at the
+command line, then the command works on all files in the local directory.
+
+EOF
+exit;
+}

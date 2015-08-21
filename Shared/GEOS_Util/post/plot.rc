@@ -21,6 +21,9 @@
 #                                  Zonal Mean Plots are created for 3-D Variables
 #                                  Eg:    U:DYN  DQLDT:MOIST  DTDTTOT:PHYSICS  MISC
 #                                  Note:  U:DYN:950 will produce a Horizontal Plot of U:DYN at 950-mb
+#
+#        PLOT_MOVE:         ON ... Submits gcm_moveplot.j to populate Web Page (Assumes EXPID exists on Web Page)
+#                                  Note:  moveplot options may be appended (e.g., ON -expid NEWID )
 # ---------------------------------------------------------------------------------------------------
 
    PLOT_STATUS: ON
@@ -29,3 +32,4 @@ PLOT_FREQUENCY: CLIM
   PLOT_OPTIONS:
    PLOT_CMPEXP:
      PLOT_MISC: MISC
+     PLOT_MOVE: OFF

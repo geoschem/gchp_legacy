@@ -1,0 +1,10 @@
+
+OBSNAM: merra
+OBSDSC: GEOSdas-2_1_4_(MERRA)
+
+        filename:   'VERIFICATION/MERRA_MEANS/tavg1_2d_flx_Nx.ddf'
+        filetype:   'HDF'
+        fields:     'TPREC'    , 'MOIST'         , 'PRECTOT' , 86400
+                    'TAUY'     , 'SURFACE'       , 'TAUY'    , 100
+                    'TAUX'     , 'SURFACE'       , 'TAUX'    , 100
+                    ::

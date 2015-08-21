@@ -1,5 +1,5 @@
-/proc_cmip_sst_fraci.py/1.1/Fri Nov 15 17:08:05 2013//Tjk-G40-GEOSctm-advcore-update3
-/read_bin.f90/1.1/Fri Nov 15 17:08:05 2013//Tjk-G40-GEOSctm-advcore-update3
-/write_cmip_bin.f90/1.1/Fri Nov 15 17:08:05 2013//Tjk-G40-GEOSctm-advcore-update3
+/proc_cmip_sst_fraci.py/1.1/Fri Nov 15 17:08:05 2013//THeracles-3_1_CTM
+/read_bin.f90/1.1/Fri Nov 15 17:08:05 2013//THeracles-3_1_CTM
+/write_cmip_bin.f90/1.1/Fri Nov 15 17:08:05 2013//THeracles-3_1_CTM
 D/grads_util////
 D/process_cmip_raw////

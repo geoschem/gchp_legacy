@@ -1,4 +1,4 @@
-!  $Id: MAPL_GenericCplComp.F90,v 1.11.72.2.2.1 2013-07-08 21:10:19 amolod Exp $
+!  $Id: MAPL_GenericCplComp.F90,v 1.12 2014-12-12 15:30:03 bmauer Exp $
 
 #include "MAPL_Generic.h"
 
@@ -86,7 +86,7 @@ contains
 
 ! !ARGUMENTS:
 
-    type (ESMF_CplComp  ),           intent(INOUT) :: CC  
+    type (ESMF_CplComp  )                          :: CC  
     integer,                         intent(  OUT) :: RC
     
 !EOPI
@@ -249,6 +249,7 @@ contains
     type (ESMF_TimeInterval   )           :: TCPL
     type (ESMF_TimeInterval   )           :: TCLR
     type (ESMF_TimeInterval   )           :: TS
+    type (ESMF_TimeInterval   )           :: TOFF ! offset for alarms
     type (ESMF_Time           )           :: TM0 
     type (ESMF_Time           )           :: currTime ! current time of the clock
     type (ESMF_Time           )           :: rTime 
@@ -266,6 +267,7 @@ contains
     integer                               :: COUPLE_INTERVAL
     integer                               :: CLEAR
     integer                               :: COUPLE
+    integer                               :: OFFSET
     integer, pointer                      :: ungrd(:)
     logical                               :: has_ungrd
     type(ESMF_Field)                      :: field
@@ -344,6 +346,7 @@ contains
        call MAPL_VarSpecGet(STATE%DST_SPEC(J),        &
             ACCMLT_INTERVAL = STATE%CLEAR_INTERVAL(J), &
             COUPLE_INTERVAL = STATE%COUPLE_INTERVAL(J), &
+            OFFSET          = OFFSET, &
             SHORT_NAME      = NAME, &
                                             RC = STATUS )
        VERIFY_(STATUS)
@@ -355,7 +358,11 @@ contains
             calendar=cal, RC=STATUS)
        VERIFY_(STATUS)
 
-       rTime = TM0
+       call ESMF_TimeIntervalSet(TOFF, S=OFFSET, &
+            calendar=cal, RC=STATUS)
+       VERIFY_(STATUS)
+
+       rTime = TM0 + TOFF
 
        STATE%TIME_TO_COUPLE(J) = ESMF_AlarmCreate(NAME='TIME2COUPLE_' // trim(COMP_NAME) &
             // '_' // trim(NAME),   &
@@ -380,7 +387,7 @@ contains
 
        if (TCLR < TS) TCLR = TS
 
-       rTime = TM0 + TCPL - TCLR
+       rTime = TM0 + TOFF - TCLR
 
        do while (rTime < currTime) 
           rTime = rTime + TCPL

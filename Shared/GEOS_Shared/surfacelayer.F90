@@ -1,5 +1,5 @@
 ! $Id: surfacelayer.F90,v 1.2.4.1.10.3.22.1.2.6.2.1.2.1.2.1.2.5.6.3 2011-06-10 19:26:22 amolod Exp $
-! $Name: jk-G40-GEOSctm-advcore-update3 $
+! $Name: Heracles-3_1_CTM $
 
 module sfclayer
 

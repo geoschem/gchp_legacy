@@ -95,7 +95,10 @@ CONTAINS
 
    character(len=*), parameter	:: myname = 'FileResolv'
 
+#ifndef __GFORTRAN__
    integer, external  :: system
+#endif
+
    character(len=255) :: path, host, dirn, basen, head, tail, cmd, filen
 
    integer i, rc
@@ -310,7 +313,11 @@ CONTAINS
 
    integer rc, lu
    character(len=255) :: cmd
+
+#ifndef __GFORTRAN__
    integer, external  :: system
+#endif
+
    logical :: fexists
 
    if ( present(stat) ) stat = 0

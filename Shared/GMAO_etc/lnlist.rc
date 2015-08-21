@@ -1,0 +1,64 @@
+# link.rc file
+# should contain pairs of unique identifying file name 
+# nodes and the desired destination link
+# separated by '=>'
+# a1bn15=>amsua1b15
+#
+# convension is:  filename=>nickname_needed_by_gsi
+#
+# NOTE: SBUV is available in different form from diff
+#       sats for diff periods the link below is redundant
+#       allowing to cover all cases. though there better 
+#       be no periods where two or more types(forms) are available.
+#
+#  CAUTION: Names linked to (rhs) cannot exceed 10 CHARACTERS 
+#  ========================================================== 
+#
+prepbufr=>prepqc
+#prepbufr.nr=>prepbufr
+
+osbuv=>sbuvbufr
+sbuv8=>sbuv8bufr
+1bamua=>amsuabufr
+1bamub=>amsubbufr
+1bhrs2=>hirs2bufr
+1bhrs3=>hirs3bufr
+1bhrs4=>hirs4bufr
+1bmsu=>msubufr
+1bssu=>ssubufr
+
+gpsro=>gpsrobufr
+spssmi=>ssmirrbufr
+omto3=>omi
+goesnd=>gsndrbufr
+#goesnd1x1=>gsnd1bufr
+goesfv=>gsnd1bufr
+gome=>gomebufr
+1bmhs=>mhsbufr
+#gmaoairs=>airsbufr
+airs=>airsbufr
+#airsev=>airsbufr
+amsre=>amsrebufr
+ssmis=>ssmisbufr
+mtiasi=>iasibufr
+
+ncepssmit=>ssmitbufr
+ssmit08=>smit08bufr
+ssmit10=>smit10bufr
+ssmit11=>smit11bufr
+ssmit13=>smit13bufr
+ssmit14=>smit14bufr
+ssmit15=>smit15bufr
+
+gprofp08=>gprp08bufr
+gprofp10=>gprp10bufr
+gprofp11=>gprp11bufr
+gprofp13=>gprp13bufr
+gprofp14=>gprp14bufr
+gprofp15=>gprp15bufr
+
+wentzspd=>ssmiwspd
+sptrmm=>tmirrbufr
+tmilbufr=>tmilbufr
+tmiobufr=>tmiobufr
+

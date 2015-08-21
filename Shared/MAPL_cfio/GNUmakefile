@@ -73,6 +73,9 @@ local_esma_clean local_clean:
 esma_distclean distclean:
 	-$(RM) -r *~ *.[aoxd] *.[Mm][Oo][Dd] $(SUBDIRS)
 
+local_esma_doc local_doc:
+	@echo no documentation here
+
 #                  --------------------
 #                  User Defined Targets
 #                  --------------------

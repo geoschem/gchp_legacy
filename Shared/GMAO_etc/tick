@@ -1,0 +1,82 @@
+#!/usr/bin/env perl
+#=======================================================================
+# name - tick
+# purpose - Wrapper for tick subroutine in Manipulate_time.pm
+#
+# !Revision History
+# 20110114  Stassi  Moved tick routine from script to Manipulate_time package
+#=======================================================================
+use strict;
+use warnings;
+
+
+# main program
+#-------------
+{
+    use FindBin;
+    use lib "$FindBin::Bin";
+    use Manipulate_time "tick";
+    my @result;
+
+    usage() unless @ARGV;
+    @result = tick @ARGV;
+    print "@result\n";
+}
+
+#=======================================================================
+# name - usage
+# purpose - print usage information
+#=======================================================================
+sub usage {
+
+  print <<"EOF";
+NAME
+     tick - Increments date and time
+
+SYNOPSIS
+
+     tick yyyymmdd
+     tick yyyymmdd hhmmss
+     tick yyyymmdd hhmmss isecs
+     tick yyyymmdd hhmmss iyymmdd ihhmmss
+
+   where
+     yyyymmdd = initial 8-digit date
+     hhmmss   = initial 6-digit time
+
+     isecs   = number of seconds to add to initial date/time
+     iyymmdd = date increment to add to initial date/time
+     ihhmmss = time increment to add to initial date/time
+
+DESCRIPTION
+     Increments initial date/time (yyyymmdd/hhmmss) by isecs seconds,
+     where isecs is specified directly as an integer number of seconds
+     or indirectly as a time increment given by iyymmdd and ihms.
+
+NOTES
+     1. Using the date increment to add months and years is not recommended
+        since this will increment by generic 30-day months and 365-day years
+     2. hhmmss defaults to 000000 if not specified.
+     3. isecs defaults to 86400 (one day) if neither isecs
+        nor iyymmdd and ihms are specified.
+     4. All dates and times justify to the right; i.e. iyymmdd = 5
+        is equivalent to iyymmdd = 000005 (date increment of 5 days)
+
+EXAMPLES
+
+     tick 20000228                  ===>   20000229
+     tick 19990930 120000           ===>   19991001 120000
+     tick 19990930 060000 36000     ===>   19990930 160000
+     tick 19990930 060000 -36000    ===>   19990929 200000
+     tick 19990930 060000 5 0       ===>   19991005 060000
+     tick 19990930 060000 -5 0      ===>   19990925 060000
+     tick 19990930 060000 5 030000  ===>   19991005 090000
+     tick 19990930 060000 0 -120000 ===>   19990929 180000
+
+AUTHOR
+     Arlindo da Silva, dasilva\@dao.gsfc.nasa.gov
+
+EOF
+
+exit(1);
+}

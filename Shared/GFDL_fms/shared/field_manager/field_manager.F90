@@ -181,8 +181,8 @@ implicit none
 private
 
 
-character(len=128) :: version = '$Id: field_manager.F90,v 1.1.1.2 2012-11-16 16:00:09 atrayano Exp $'
-character(len=128) :: tagname = '$Name: jk-G40-GEOSctm-advcore-update3 $'
+character(len=128) :: version = '$Id: field_manager.F90,v 1.1.1.2.32.1 2014-03-27 17:22:30 mathomp4 Exp $'
+character(len=128) :: tagname = '$Name: Heracles-3_1_CTM $'
 logical            :: module_is_initialized  = .false.
 
 !+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
@@ -462,12 +462,12 @@ integer,           parameter :: MAX_FIELD_METHODS = MAXFIELDMETHODS_
 !        Private type definitions
 !+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 
-type, private :: field_type !{
+type, private :: fld_type !{
   character(len=fm_field_name_len)                    :: field_type
   character(len=fm_string_len)                    :: field_name
   integer                                             :: model, num_methods
   type(method_type)                                   :: methods(MAX_FIELD_METHODS)
-end type field_type !}
+end type fld_type !}
 
 type, private :: field_names_type !{
   character(len=fm_field_name_len)                    :: fld_type
@@ -502,7 +502,7 @@ end type field_def  !}
 !        Private types
 !+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 
-type(field_type), private :: fields(MAX_FIELDS)
+type(fld_type), private :: fields(MAX_FIELDS)
 
 
 !+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+

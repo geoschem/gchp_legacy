@@ -150,8 +150,12 @@ endif
 'rgbset'
 
 'set dfile 'qfile
-'set lat -90 90'
-'set lon 0'
+'setlats'
+'setlons'
+'getinfo  lonmin'
+          lonmin = result
+
+'set lon 'lonmin
 'set lev 1000 'ptop
 'set t 1'
 
@@ -173,8 +177,8 @@ if( EXPORT = "U" | EXPORT = "T" | EXPORT = "ZLE" ) ; 'setlevs' ; endif
 'set parea off'
 
 'set dfile 'ofile
-'set lat -90 90'
-'set lon 0'
+'setlats'
+'set lon 'lonmin
 'set lev 1000 'ptop
 'set t 1'
 'set vpage 0 8.5 0.0 11'
@@ -192,9 +196,13 @@ if( EXPORT = "U" | EXPORT = "T" | EXPORT = "ZLE" ) ; 'setlevs' ; endif
 'd obsz'
 'set parea off'
 
-'set dfile 'qfile
-'set lat -90 90'
-'set lon 0'
+'run getenv "ZDIFILE"'
+             zdifile = result
+ 'set dfile 'zdifile
+*'set dfile 'qfile
+
+'setlats'
+'set lon 'lonmin
 'set lev 1000 'ptop
 'set t 1'
 'set vpage 0 8.5 0.0 11'
@@ -202,15 +210,63 @@ if( EXPORT = "U" | EXPORT = "T" | EXPORT = "ZLE" ) ; 'setlevs' ; endif
 if( EXPORT = "U" | EXPORT = "T" | EXPORT = "ZLE" ) ; 'setlevs' ; endif
 'set grads off'
 'set gxout shaded'
-'set clevs 'dlevs
-'set ccols 'dcols
-'d qz'
+
+ dfact = 1
+'run getenv "CINTDIFF"'
+             CINTDIFF  = result
+if( CINTDIFF = 'NULL' )
+   'set clevs 'dlevs
+   'set ccols 'dcols
+   'd qz'
+   'set gxout contour'
+   'set ccolor 1'
+   'set clevs 'dlevs
+   'd qz'
+   'cbarn -snum 0.75'
+else
+   'stats qz'
+     avgdif = subwrd(result,1)
+     stddif = subwrd(result,2)
+       qmax = stddif/3
+   if( qmax > 0 )
+      'd log10('qmax')'
+       n = subwrd(result,4)
+   else
+       n = 0
+   endif
+   say '    Log Factor: 'n
+   if( n<0 ) ; n = n-2 ; endif
+   'getint 'n
+            n = result
+   if( n>0 )
+       if( n<=2 )
+           n = 0
+        else
+           n = n+2
+        endif
+   endif
+   say 'Diff Scaling Factor: 'n
+      'd 'qmax'/1e'n
+       cint = subwrd(result,4)
+      'shades 'cint
+      'define qzplt = qz/1e'n
+       dfact = "10**"n
+      'd qzplt'
+      'cbarn -snum 0.55'
+      'set gxout contour'
+      'set clevs -'cint' 'cint
+      'set ccolor 1'
+*     'set_clevs'
+      'd qzplt'
+endif
+
+'set dfile 'qfile
+'setlats'
+'set lon 'lonmin
+'set lev 1000 'ptop
+'set t 1'
+
 'draw ylab Pressure (mb)'
-'set gxout contour'
-'set ccolor 1'
-'set clevs 'dlevs
-'d qz'
-'cbarn -snum 0.75'
 
 'set vpage off'
 'set string 1 c 6'
@@ -220,7 +276,13 @@ if( EXPORT = "U" | EXPORT = "T" | EXPORT = "ZLE" ) ; 'setlevs' ; endif
 'set strsiz .11'
 'draw string 4.25 10.635 EXPID: 'expid'  'qdesc' 'season' ('nmod')'
 'draw string 4.25  7.235 'odesc' 'season' ('nobs') ('climate')'
-'draw string 4.25  3.850 Difference (Top-Middle)'
+
+if( dfact = 1 )
+'draw string 4.25 3.850 Difference (Top-Middle)'
+else
+'draw string 4.25 3.850 Difference (Top-Middle) (x 'dfact')'
+endif
+
 
                 date = getdate (begdate)
 bmnthm = subwrd(date,1)

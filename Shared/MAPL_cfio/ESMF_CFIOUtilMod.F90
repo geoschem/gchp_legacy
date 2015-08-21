@@ -23,6 +23,7 @@
 ! !USES:
 
       use ESMF_CFIOBaseMod
+      use netcdf
       implicit none
 
 #if defined(HDFEOS) || defined(HDFSD)
@@ -447,13 +448,13 @@
                          !
                          !  NetCDF Errors
                          !  -------------
-                         !  rc = -40  error from ncvid
-                         !  rc = -41  error from ncdid or ncdinq (lat or lon)
-                         !  rc = -42  error from ncdid or ncdinq (lev)
-                         !  rc = -43  error from ncvid (time variable)
-                         !  rc = -47  error from ncdid or ncdinq (time)
-                         !  rc = -48  error from ncinq
-                         !  rc = -53  error from ncagtc/ncagt
+                         !  rc = -40  error from NF90_INQ_VARID
+                         !  rc = -41  error from NF90_INQ_DIMID or NF90_INQUIRE_DIMENSION (lat or lon)
+                         !  rc = -42  error from NF90_INQ_DIMID or NF90_INQUIRE_DIMENSION (lev)
+                         !  rc = -43  error from NF90_INQ_VARID (time variable)
+                         !  rc = -47  error from NF90_INQ_DIMID or NF90_INQUIRE_DIMENSION (time)
+                         !  rc = -48  error from NF90_INQUIRE
+                         !  rc = -53  error from NF90_GET_ATT
 
 
 
@@ -487,10 +488,6 @@
       surfaceOnly = .FALSE.
       stationFile = .false.
 
-! Make NetCDF errors non-fatal, but issue warning messages.
-
-      call ncpopt(NCVERBOS)
-
 ! Check FID here.
 
 ! Check to make sure max string lengths are large enough.  NetCDF defines
@@ -504,14 +501,14 @@
 ! Get basic information from file.
  
     
-      call ncinq (fid, nDims, nvars, ngatts, dimId, rc)
-      if (err("DimInqure: ncinq failed",rc,-48) .NE. 0)return
+      rc = NF90_INQUIRE(fid, nDims, nvars, ngatts, dimId)
+      if (err("DimInqure: NF90_INQUIRE failed",rc,-48) .NE. 0)return
 
 ! Subtract dimension variables from the variable count.
 
       tmpNvar = nvars
       do i=1,nvars
-        call ncvinq (fid,i,vname,varType,nvDims,vDims,nvAtts,rc)
+        rc = NF90_INQUIRE_VARIABLE (fid,i,vname,varType,nvDims,vDims,nvAtts)
         if (err("DimInquire: variable inquire error",rc,-52) .NE. 0) &
            return
         if (nvDims .EQ. 1 .or. trim(vname) .eq. 'time_bnds') then
@@ -523,7 +520,7 @@
 ! Extract dimension information
 
       do i=1,nDims
-        call ncdinq (fid, i, dimName, dimSize, rc)  
+        rc = NF90_INQUIRE_DIMENSION (fid, i, dimName, dimSize)  
         if (err("DimInqure: can't get dim info",rc,-41) .NE. 0) return
         if (index(dimName,'station') .gt. 0) then
            stationFile = .true.
@@ -533,9 +530,9 @@
         end if
         if (trim(dimName) .eq. 'nv') cycle 
 
-        dimId = ncvid (fid, dimName, rc)
-        if (err("DimInqure: ncvid failed",rc,-40) .NE. 0) return
-        call ncagtc (fid, dimId, 'units', dimUnits, MAXCHR, rc)
+        rc = NF90_INQ_VARID (fid, dimName, dimId)
+        if (err("DimInqure: NF90_INQ_VARID failed",rc,-40) .NE. 0) return
+        rc = NF90_GET_ATT(fid,dimId,'units',dimUnits)
         if (err("DimInqure: could not get units for dimension",rc,-53)&
             .NE. 0) return
         myIndex = IdentifyDim (dimName, dimUnits)
@@ -621,27 +618,27 @@
       integer nDims, nvars, ngatts, dimId
 
 !     Time conversion local variables
-      real*4    rtime
-      real*8    dtime
-      integer*2 itime
-      integer*4 ltime
+      real*4    rtime, rtime_array(1) 
+      real*8    dtime, dtime_array(1)
+      integer*2 itime, itime_array(1)
+      integer*4 ltime, ltime_array(1)
       integer   t1, t2
 
 
 !     Start by determing the ID of the time coordinate variable
 !     ---------------------------------------------------------
       timeId = -1
-      call ncinq (fid, nDims, nvars, ngatts, dimId, rc)
-      if (err("GetBegDateTime: ncinq failed",rc,-48) .NE. 0)return
+      rc = NF90_INQUIRE (fid, nDims, nvars, ngatts, dimId)
+      if (err("GetBegDateTime: NF90_INQUIRE failed",rc,-48) .NE. 0)return
       do i=1,nDims
-        call ncdinq (fid, i, dimName, dimSize, rc)  
+        rc = NF90_INQUIRE_DIMENSION (fid, i, dimName, dimSize)  
         if (err("GetBegDateTime: can't get dim info",rc,-41) .NE. 0) return
         if (index(dimName,'station')  .gt. 0) cycle
         if (trim(dimName) .eq. 'nv') cycle
         if ( index(dimName,'edges') .gt. 0 ) cycle
-        dimId = ncvid (fid, dimName, rc)
-        if (err("GetBegDateTime: ncvid failed",rc,-40) .NE. 0) return
-        call ncagtc (fid, dimId, 'units', dimUnits, MAXCHR, rc)
+        rc = NF90_INQ_VARID (fid, dimName, dimId)
+        if (err("GetBegDateTime: NF90_INQ_VARID failed",rc,-40) .NE. 0) return
+        rc = NF90_GET_ATT(fid,dimId,'units',dimUnits)
         if (err("GetBegDateTime: could not get units for dimension",rc,-53)&
             .NE. 0) return
         if ( IdentifyDim (dimName, dimUnits) .eq. 3 ) then
@@ -657,19 +654,17 @@
          return
       end if
 
-      call ncpopt(0)  ! tell netcdf to shut up
-
 !     Try assuming this file has been written with CFIO
 !     -------------------------------------------------
-      call ncagt (fid, timeId, 'begin_date', begDate, rc)
+      rc = NF90_GET_ATT(fid,timeId,'begin_date',begDate)
       if ( rc .eq. 0 ) then
-           call ncagt (fid, timeId, 'begin_time', begTime, rc)
+           rc = NF90_GET_ATT(fid,timeId,'begin_time',begTime)
       end if
 
 !     Well, it must be a native CFIO file
 !     -----------------------------------
       if ( rc .eq. 0 ) then
-         call ncagt (fid, timeId, 'time_increment', timInc, rc)
+         rc = NF90_GET_ATT(fid,timeId,'time_increment',timInc)
          if (err("GetBegDateTime: missing time increment",rc,-44) .NE. 0)   &
              return
 !ams     write (strTmp,'(i6)') timinc
@@ -684,7 +679,7 @@
 !     then this is not a native CFIO file. In this case
 !     attempt to parse the COARDS compliant time units
 !     --------------------------------------------------
-!ams      call ncagtc (fid, timeId, 'units', timeUnits, MAXCHR, rc)
+!ams      rc = NF90_GET_ATT(fid,timeId,'units',timeUnits)
 !ams      if (err("GetBegDateTime: missing time.units",rc,-44) .NE. 0) return
       i = index(timeUnits,'since')
       if ( i .le. 0 ) then
@@ -701,40 +696,48 @@
 
 !     Determine time increment.
 !     -------------------------
-      call ncvinq (fid, timeID, varName, type, nvDims, vDims, &
-          nvAtts, rc)
+      rc = NF90_INQUIRE_VARIABLE (fid, timeID, varName, type, nvDims, vDims, &
+          nvAtts)
       if (err("GetBegDateTime: error in time variable inquire",&
          rc,-52) .NE. 0) return
      
-      if ( type .eq. NCFLOAT )  then
+      if ( type .eq. NF90_FLOAT )  then
            corner(1) = 1
-           call ncvgt1(fid,timeID,corner,rtime,rc)
+           rc = NF90_GET_VAR(fid,timeID,rtime_array,corner,(/1/))
+           rtime = rtime_array(1)
            t1 = int(rtime) 
            corner(1) = 2
-           call ncvgt1(fid,timeID,corner,rtime,rc)
+           rc = NF90_GET_VAR(fid,timeID,rtime_array,corner,(/1/))
+           rtime = rtime_array(1)
            t2 = int(rtime)
-      else if ( type .eq. NCDOUBLE ) then
+      else if ( type .eq. NF90_DOUBLE ) then
            corner(1) = 1
-           call ncvgt1(fid,timeID,corner,dtime,rc)
+           rc = NF90_GET_VAR(fid,timeID,dtime_array,corner,(/1/))
+           dtime = dtime_array(1)
            t1 = int(dtime)
 !ams       print *, t1, dtime, rc
            corner(1) = 2
-           call ncvgt1(fid,timeID,corner,dtime,rc)
+           rc = NF90_GET_VAR(fid,timeID,dtime_array,corner,(/1/))
+           dtime = dtime_array(1)
            t2 = int(dtime)
 !ams       print *, t2, dtime, rc
-      else if ( type .eq. NCSHORT  ) then
+      else if ( type .eq. NF90_SHORT  ) then
            corner(1) = 1
-           call ncvgt1(fid,timeID,corner,itime,rc)
+           rc = NF90_GET_VAR(fid,timeID,itime_array,corner,(/1/))
+           itime = itime_array(1)
            t1 = itime
            corner(1) = 2
-           call ncvgt1(fid,timeID,corner,itime,rc)
+           rc = NF90_GET_VAR(fid,timeID,itime_array,corner,(/1/))
+           itime = itime_array(1)
            t2 = itime
-      else if ( type .eq. NCLONG   ) then
+      else if ( type .eq. NF90_INT   ) then
            corner(1) = 1
-           call ncvgt1(fid,timeID,corner,ltime,rc)
+           rc = NF90_GET_VAR(fid,timeID,ltime_array,corner,(/1/))
+           ltime = ltime_array(1)
            t1 = ltime
            corner(1) = 2
-           call ncvgt1(fid,timeID,corner,ltime,rc)
+           rc = NF90_GET_VAR(fid,timeID,ltime_array,corner,(/1/))
+           ltime = ltime_array(1)
            t2 = ltime
       else
            if (err("GetBegDateTime: invalid time data type",&
@@ -761,7 +764,6 @@
       incSecs = max ( 1, incSecs )
 
       rc = 0 ! all done
-      call ncpopt(NCVERBOS)
 
       return
       end subroutine GetBegDateTime
@@ -1063,10 +1065,6 @@
 
       integer i
 
-! Make NetCDF errors non-fatal, but issue warning messages.
-
-      call ncpopt(NCVERBOS)
-
       call ncclos (fid, rc)
       if (err("Close: error closing file",rc,-54) .NE. 0) return
 
@@ -1110,9 +1108,9 @@
                          !
                          !  NetCDF Errors
                          !  -------------
-                         !   rc = -36  error from ncaptc/ncapt (global attribute)
-                         !   rc = -55  error from ncredf (enter define mode)
-                         !   rc = -56  error from ncedf (exit define mode)
+                         !   rc = -36  error from NF90_PUT_ATT (global attribute)
+                         !   rc = -55  error from NF90_REDEF (enter define mode)
+                         !   rc = -56  error from NF90_ENDDEF (exit define mode)
 
 ! !REVISION HISTORY:
 !
@@ -1131,19 +1129,19 @@
       integer*4, allocatable :: buf32(:)
       integer*8, allocatable :: buf64(:)
 
-      call ncredf ( fid, rc )
+      rc = NF90_REDEF ( fid )
       if (err("PutIntAtt: could not enter define mode",rc,-55) .NE. 0) &
          return
 
       if ( HUGE(dummy32) .EQ. HUGE(i) .AND. prec .EQ. 0 ) then     ! -i4
-        call ncapt ( fid, NCGLOBAL, name, NCLONG, count, buf, rc ) ! 32-bit out
+        rc = NF90_PUT_ATT ( fid, NF90_GLOBAL, name, buf) ! 32-bit out
 
       else if ( HUGE(dummy32) .EQ. HUGE(i) .AND. prec .EQ. 1 ) then  ! -i4
         allocate ( buf64(count) )                                    ! 64-bit out
         do i=1,count
           buf64(i) = buf(i)
         enddo
-        call ncapt ( fid, NCGLOBAL, name, NCDOUBLE, count, buf64, rc )
+        rc = NF90_PUT_ATT ( fid, NF90_GLOBAL, name, buf64 )
         deallocate (buf64)
 
       else if  (HUGE(dummy64) .EQ. HUGE(i) .AND. prec .EQ. 0 ) then  ! -i8
@@ -1151,11 +1149,11 @@
         do i=1,count
           buf32(i) = buf(i)
         enddo
-        call ncapt ( fid, NCGLOBAL, name, NCLONG, count, buf32, rc )
+        rc = NF90_PUT_ATT ( fid, NF90_GLOBAL, name, buf32 )
         deallocate (buf32)
 
       else if (HUGE(dummy64) .EQ. HUGE(i) .AND. prec .EQ. 1 ) then   ! -i8
-        call ncapt ( fid, NCGLOBAL, name, NCDOUBLE, count, buf, rc ) ! 64-bit out
+        rc = NF90_PUT_ATT ( fid, NF90_GLOBAL, name, buf ) ! 64-bit out
 
       else 
         rc = -12
@@ -1164,7 +1162,7 @@
       if (err("PutIntAtt: error writing attribute",rc,-36) .NE. 0) &
          return
 
-      call ncendf ( fid, rc )
+      rc = NF90_ENDDEF(fid)
       if (err("PutIntAtt: could not exit define mode",rc,-56) .NE. 0) &
          return
 
@@ -1208,9 +1206,9 @@
                          !
                          !  NetCDF Errors
                          !  -------------
-                         !   rc = -36  error from ncaptc/ncapt (global attribute)
-                         !   rc = -55  error from ncredf (enter define mode)
-                         !   rc = -56  error from ncedf (exit define mode)
+                         !   rc = -36  error from NF90_PUT_ATT (global attribute)
+                         !   rc = -55  error from NF90_REDEF (enter define mode)
+                         !   rc = -56  error from NF90_ENDDEF (exit define mode)
 
 ! !REVISION HISTORY:
 !
@@ -1229,19 +1227,19 @@
       real*4, allocatable :: buf32(:)
       real*8, allocatable :: buf64(:)
 
-      call ncredf ( fid, rc )
+      rc = NF90_REDEF ( fid )
       if (err("PutRealAtt: could not enter define mode",rc,-55) .NE. 0) &
          return
 
       if (HUGE(dummy32) .EQ. HUGE(r) .AND. prec .EQ. 0) then        ! -r4
-        call ncapt ( fid, NCGLOBAL, name, NCFLOAT, count, buf, rc ) ! 32-bit out
+        rc = NF90_PUT_ATT ( fid, NF90_GLOBAL, name, buf ) ! 32-bit out
 
       else if (HUGE(dummy32) .EQ. HUGE(r) .AND. prec .EQ. 1) then  ! -r4
         allocate (buf64(count))                                    ! 64-bit out
         do i=1,count
           buf64(i) = buf(i)
         enddo
-        call ncapt ( fid, NCGLOBAL, name, NCDOUBLE, count, buf64, rc )
+        rc = NF90_PUT_ATT ( fid, NF90_GLOBAL, name, buf64 )
         deallocate (buf64)
 
       else if (HUGE(dummy64) .EQ. huge(r) .AND. prec .EQ. 0) then  ! -r8
@@ -1249,11 +1247,11 @@
         do i=1,count
           buf32(i) = buf(i)
         enddo
-        call ncapt ( fid, NCGLOBAL, name, NCFLOAT, count, buf32, rc )
+        rc = NF90_PUT_ATT ( fid, NF90_GLOBAL, name, buf32 )
         deallocate (buf32)
        
       else if (HUGE(dummy64) .EQ. huge(r) .AND. prec .EQ. 1) then    ! -r8
-        call ncapt ( fid, NCGLOBAL, name, NCDOUBLE, count, buf, rc ) ! 64-bit out
+        rc = NF90_PUT_ATT ( fid, NF90_GLOBAL, name, buf ) ! 64-bit out
  
       else
         rc = -12
@@ -1262,7 +1260,7 @@
       if (err("PutRealAtt: error writing attribute",rc,-36) .NE. 0) &
          return
 
-      call ncendf ( fid, rc )
+      rc = NF90_ENDDEF(fid)
       if (err("PutRealAtt: could not exit define mode",rc,-56) .NE. 0) &
          return
 
@@ -1303,9 +1301,9 @@
                          !
                          !  NetCDF Errors
                          !  -------------
-                         !   rc = -36  error from ncaptc/ncapt (global attribute)
-                         !   rc = -55  error from ncredf (enter define mode)
-                         !   rc = -56  error from ncedf (exit define mode)
+                         !   rc = -36  error from NF90_PUT_ATT (global attribute)
+                         !   rc = -55  error from NF90_REDEF (enter define mode)
+                         !   rc = -56  error from NF90_ENDDEF (exit define mode)
 ! !REVISION HISTORY:
 !
 !  1998.07.30  Lucchesi           Initial interface design.
@@ -1315,13 +1313,13 @@
 !EOP
 !-------------------------------------------------------------------------
 
-      call ncredf ( fid, rc )
+      rc = NF90_REDEF ( fid )
       if (err("PutCharAtt: could not enter define mode",rc,-55) .NE. 0) &
          return
-      call ncaptc ( fid, NCGLOBAL, name, NCCHAR, count, buf, rc )
+      rc = NF90_PUT_ATT ( fid, NF90_GLOBAL, name, buf )
       if (err("PutCharAtt: error writing attribute",rc,-36) .NE. 0) &
          return
-      call ncendf ( fid, rc )
+      rc = NF90_ENDDEF(fid)
       if (err("PutCharAtt: could not exit define mode",rc,-56) .NE. 0) &
          return
 
@@ -1366,8 +1364,8 @@
                          !
                          !  NetCDF Errors
                          !  -------------
-                         !   rc = -48  error from ncinq
-                         !   rc = -57  error from ncanam
+                         !   rc = -48  error from NF90_INQUIRE
+                         !   rc = -57  error from NF90_INQ_ATTNAME
 
 ! !REVISION HISTORY:
 !
@@ -1381,14 +1379,10 @@
       integer ngattsFile, i
       integer nDims,dimSize,recDim 
 
-! Make NetCDF errors non-fatal, but issue warning messages.
-
-      call ncpopt(NCVERBOS)
-
 ! Check number of attributes against file
 
-      call ncinq (fid,nDims,dimSize,ngattsFile,recdim,rc)
-      if (err("GetAttNames: ncinq failed",rc,-48) .NE. 0) return
+      rc = NF90_INQUIRE (fid,nDims,dimSize,ngattsFile,recdim)
+      if (err("GetAttNames: NF90_INQUIRE failed",rc,-48) .NE. 0) return
       if (ngattsFile .NE. ngatts) then
         rc = -10
         ngatts = ngattsFile
@@ -1407,7 +1401,7 @@
 ! Read global attribute names
 
       do i=1,ngatts
-        call ncanam (fid, NCGLOBAL, i, aname(i), rc)
+        rc = NF90_INQ_ATTNAME(fid,NF90_GLOBAL,i,aname(i))
         if (err("GetAttNames: error reading attribute name",rc,-57) &
            .NE. 0) return
       enddo
@@ -1456,7 +1450,7 @@
                          !
                          !  NetCDF Errors
                          !  -------------
-                         !   rc = -58  error from ncainq
+                         !   rc = -58  error from NF90_INQUIRE_ATTRIBUTE
 
 !
 ! !NOTES:  The returned integer "type" for 64-bit integer is not supported
@@ -1480,16 +1474,16 @@
 
       integer nctype
 
-      call ncainq (fid, NCGLOBAL, name, nctype, count, rc)
+      rc = NF90_INQUIRE_ATTRIBUTE (fid, NF90_GLOBAL, name, nctype, count)
       if (err("AttInquire: error reading attribute info",rc,-58) &
            .NE. 0) return
-      if (nctype .EQ. NCLONG) then
+      if (nctype .EQ. NF90_INT) then
         type = 0
-      elseif (nctype .EQ. NCFLOAT) then
+      elseif (nctype .EQ. NF90_FLOAT) then
         type = 1
       elseif (nctype .EQ. NCCHAR) then
         type = 2
-      elseif (nctype .EQ. NCDOUBLE) then
+      elseif (nctype .EQ. NF90_DOUBLE) then
         type = 3
       else
         type = -1
@@ -1539,8 +1533,8 @@
                            !
                            !  NetCDF Errors
                            !  -------------
-                           !   rc = -36  error from ncaptc/ncapt (global attribute)
-                           !   rc = -51  error from ncagtc/ncagt (global attribute)
+                           !   rc = -36  error from NF90_PUT_ATT (global attribute)
+                           !   rc = -51  error from NF90_GET_ATT (global attribute)
 
 ! !REVISION HISTORY:
 !
@@ -1558,7 +1552,7 @@
       integer*4, allocatable :: buf32(:)
       integer*8, allocatable :: buf64(:)
 
-      call ncainq (fid, NCGLOBAL, name, type, length, rc)
+      rc = NF90_INQUIRE_ATTRIBUTE (fid, NF90_GLOBAL, name, type, length)
       if (err("GetIntAtt: error reading attribute info",rc,-58) &
            .NE. 0) return
 
@@ -1568,31 +1562,31 @@
         return
       endif
 
-      if ( type .NE. NCLONG .AND. type .NE. NCDOUBLE) then
+      if ( type .NE. NF90_INT .AND. type .NE. NF90_DOUBLE) then
         rc = -2
         return
       endif
       if ( HUGE(dummy32) .EQ. HUGE(i)) then
-        if ( type .EQ. NCLONG ) then          ! -i4 32bit
-          call ncagt ( fid, NCGLOBAL, name, buf, rc )
-        else            ! type .EQ. NCDOUBLE
+        if ( type .EQ. NF90_INT ) then          ! -i4 32bit
+          rc  = NF90_GET_ATT(fid,NF90_GLOBAL,name,buf)
+        else            ! type .EQ. NF90_DOUBLE
           allocate (buf64(count))             ! -i4 64bit
-          call ncagt ( fid, NCGLOBAL, name, buf64, rc )
+          rc  = NF90_GET_ATT(fid,NF90_GLOBAL,name,buf64)
           do i=1,count
             buf(i) = buf64(i)
           enddo
           deallocate (buf64)
         endif
       else if (HUGE(dummy64) .EQ. HUGE(i)) then
-        if ( type .EQ. NCLONG ) then
+        if ( type .EQ. NF90_INT ) then
           allocate (buf32(count))             ! -i8 32bit
-          call ncagt ( fid, NCGLOBAL, name, buf32, rc )
+          rc  = NF90_GET_ATT(fid,NF90_GLOBAL,name,buf32)
           do i=1,count
             buf(i) = buf32(i)
           enddo
           deallocate (buf32)
-        else            ! type .EQ. NCDOUBLE
-          call ncagt ( fid, NCGLOBAL, name, buf, rc )  ! -i8 64bit
+        else            ! type .EQ. NF90_DOUBLE
+          rc  = NF90_GET_ATT(fid,NF90_GLOBAL,name,buf)
         endif
       else
         rc = -12
@@ -1645,8 +1639,8 @@
                            !
                            !  NetCDF Errors
                            !  -------------
-                           !   rc = -36  error from ncaptc/ncapt (global attribute)
-                           !   rc = -51  error from ncagtc/ncagt (global attribute)
+                           !   rc = -36  error from NF90_PUT_ATT (global attribute)
+                           !   rc = -51  error from NF90_GET_ATT (global attribute)
 
 ! !REVISION HISTORY:
 !
@@ -1666,7 +1660,7 @@
       real*4, allocatable :: buf32(:)
       real*8, allocatable :: buf64(:)
 
-      call ncainq (fid, NCGLOBAL, name, type, length, rc)
+      rc = NF90_INQUIRE_ATTRIBUTE (fid, NF90_GLOBAL, name, type, length)
       if (err("GetRealAtt: error reading attribute info",rc,-58) &
            .NE. 0) return
 
@@ -1675,32 +1669,32 @@
         count = length
         return
       endif
-      if ( type .NE. NCFLOAT .AND. type .NE. NCDOUBLE) then
+      if ( type .NE. NF90_FLOAT .AND. type .NE. NF90_DOUBLE) then
         rc = -2
         return
       endif
 
       if ( HUGE(dummy32) .EQ. HUGE(r)) then
-        if ( type .EQ. NCFLOAT ) then         ! -r4 32bit
-          call ncagt ( fid, NCGLOBAL, name, buf, rc )
-        else            ! type .EQ. NCDOUBLE
+        if ( type .EQ. NF90_FLOAT ) then         ! -r4 32bit
+          rc  = NF90_GET_ATT(fid,NF90_GLOBAL,name,buf)
+        else            ! type .EQ. NF90_DOUBLE
           allocate (buf64(count))             ! -r4 64bit
-          call ncagt ( fid, NCGLOBAL, name, buf64, rc )
+          rc  = NF90_GET_ATT(fid,NF90_GLOBAL,name,buf64)
           do i=1,count
             buf(i) = buf64(i)
           enddo
           deallocate (buf64)
         endif
       else if (HUGE(dummy64) .EQ. HUGE(r)) then
-        if ( type .EQ. NCFLOAT ) then
+        if ( type .EQ. NF90_FLOAT ) then
           allocate (buf32(count))             ! -r8 32bit
-          call ncagt ( fid, NCGLOBAL, name, buf32, rc )
+          rc  = NF90_GET_ATT(fid,NF90_GLOBAL,name,buf32)
           do i=1,count
             buf(i) = buf32(i)
           enddo
           deallocate (buf32)
-        else            ! type .EQ. NCDOUBLE
-          call ncagt ( fid, NCGLOBAL, name, buf, rc )  ! -r8 64bit
+        else            ! type .EQ. NF90_DOUBLE
+          rc  = NF90_GET_ATT(fid,NF90_GLOBAL,name,buf)
         endif
       else
         rc = -12
@@ -1753,8 +1747,8 @@
                            !
                            !  NetCDF Errors
                            !  -------------
-                           !   rc = -36  error from ncaptc/ncapt (global attribute)
-                           !   rc = -51  error from ncagtc/ncagt (global attribute)
+                           !   rc = -36  error from NF90_PUT_ATT (global attribute)
+                           !   rc = -51  error from NF90_GET_ATT (global attribute)
 ! !REVISION HISTORY:
 !
 !  1998.07.30  Lucchesi           Initial interface design.
@@ -1765,8 +1759,9 @@
 !-------------------------------------------------------------------------
 
       integer length, type
+      character(len=count) :: chartmp 
 
-      call ncainq (fid, NCGLOBAL, name, type, length, rc)
+      rc = NF90_INQUIRE_ATTRIBUTE (fid, NF90_GLOBAL, name, type, length)
       if (err("GetCharAtt: error reading attribute info",rc,-58) &
            .NE. 0) return
       if ( count .NE. length ) then
@@ -1779,10 +1774,11 @@
         return
       endif
 
-      call ncagtc ( fid, NCGLOBAL, name, buf, count, rc )
+      rc  = NF90_GET_ATT(fid,NF90_GLOBAL,name,chartmp)
       if (err("GetCharAtt: error reading attribute value",rc,-51) &
            .NE. 0) return
-
+ 
+      buf = chartmp
       rc = 0
       return
       end subroutine CFIO_GetCharAtt
@@ -2189,16 +2185,16 @@
                          !
                          !  NetCDF Errors
                          !  -------------
-                         !  rc = -38  error from ncvpt (dimension variable)
-                         !  rc = -40  error from ncvid
-                         !  rc = -41  error from ncdid or ncdinq (lat or lon)
-                         !  rc = -42  error from ncdid or ncdinq (lev)
-                         !  rc = -43  error from ncvid (time variable)
-                         !  rc = -44  error from ncagt (time attribute)
-                         !  rc = -45  error from ncvpt
-                         !  rc = -46  error from ncvgt
-                         !  rc = -52  error from ncvinq
-                         !  rc = -53  error from ncagtc/ncagt
+                         !  rc = -38  error from NF90_PUT_VAR (dimension variable)
+                         !  rc = -40  error from NF90_INQ_VARID
+                         !  rc = -41  error from NF90_INQ_DIMID or NF90_INQUIRE_DIMENSION (lat or lon)
+                         !  rc = -42  error from NF90_INQ_DIMID or NF90_INQUIRE_DIMENSION (lev)
+                         !  rc = -43  error from NF90_INQ_VARID (time variable)
+                         !  rc = -44  error from NF90_GET_ATT (time attribute)
+                         !  rc = -45  error from NF90_PUT_VAR
+                         !  rc = -46  error from NF90_GET_VAR
+                         !  rc = -52  error from NF90_INQUIRE_VARIABLE
+                         !  rc = -53  error from NF90_GET_ATT
 
 ! !REVISION HISTORY: 
 !
@@ -2239,7 +2235,7 @@
       real*8 dummy64
       real   dummy
 
-! Variables for NCVINQ
+! Variables for NF90_INQUIRE_VARIABLE
 
       character*(MAXCHR) varName
       integer type, nvDims, vdims(MAXVDIMS), nvAtts
@@ -2258,10 +2254,6 @@
       outRange = .FALSE.
       outPRange = .FALSE.
 
-! Make NetCDF errors non-fatal, but issue warning messages.
-
-      call ncpopt(NCVERBOS)
-
 ! Check to make sure max string lengths are large enough.  NetCDF defines
 ! MAXNCNAM, but it can't be used in a character*MAXNCNAM statement.
 
@@ -2272,46 +2264,16 @@
 
 ! Determine NetCDF variable ID.
 
-      vid = ncvid (fid, vname, rc)
+      rc = NF90_INQ_VARID (fid, vname, vid)
       if (err("PutVar: variable not defined",rc,-40) .NE. 0) return
-
-! Basic error checking
-!      dimId = ncdid (fid, 'lon', rc)
-!      if (err("SPutVar: can't get ID for lon",rc,-41) .NE. 0) return
-!      call ncdinq (fid, dimId, dimName, dimSize, rc)
-!      if (err("SPutVar: can't get info for lon",rc,-41) .NE. 0) return
-!      if (dimSize .ne. im) then
-!        rc = -4
-!        return
-!      endif
-
-!      dimId = ncdid (fid, 'lat', rc)
-!      if (err("PutVar: can't get ID for lat",rc,-41) .NE. 0) return
-!      call ncdinq (fid, dimId, dimName, dimSize, rc)
-!      if (err("PutVar: can't get info for lat",rc,-41) .NE. 0) return
-!      if (dimSize .ne. jm) then
-!        rc = -5
-!        return
-!      endif
-
-!      if (kbeg .NE. 0) then
-!        dimId = ncdid (fid, 'lev', rc)
-!        if (err("PutVar: can't get ID for lev",rc,-42) .NE. 0) return
-!        call ncdinq (fid, dimId, dimName, dimSize, rc)
-! if (err("PutVar: can't get info for lev",rc,-42) .NE. 0) return
-!        if (kbeg-1 + kount .gt. dimSize) then
-!          rc = -3
-!          return
-!        endif
-!      endif
 
 ! Determine number of seconds since starting date/time.
 
-      timeId = ncvid (fid, 'time', rc)
+      rc = NF90_INQ_VARID (fid, 'time', timeId)
       if (err("PutVar: time not defined",rc,-43) .NE. 0) return
-      call ncagt (fid, timeId, 'begin_date', begDate, rc)
+      rc = NF90_GET_ATT(fid,timeId,'begin_date',begDate)
       if (err("PutVar: missing begin_date",rc,-44) .NE. 0) return
-      call ncagt (fid, timeId, 'begin_time', begTime, rc)
+      rc = NF90_GET_ATT(fid,timeId,'begin_time',begTime)
       if (err("PutVar: missing begin_time",rc,-44) .NE. 0) return
 
       seconds = DiffDate (begDate, begTime, yyyymmdd, hhmmss)
@@ -2334,7 +2296,7 @@
 ! Confirm that this time is consistent with the starting time coupled with
 ! the time increment.
 
-      call ncagt (fid, timeId, 'time_increment', timInc, rc)
+      rc = NF90_GET_ATT(fid,timeId,'time_increment',timInc)
       if (err("PutVar: missing time increment",rc,-44) .NE. 0) return
       
 ! Convert time increment to seconds.
@@ -2373,11 +2335,11 @@
 
 ! Check variable against valid range.
 
-      call ncagt (fid, vid, 'vmin', low_32, rc)
+      rc = NF90_GET_ATT(fid,vid,'vmin',low_32)
       if (err("PutVar: can't get vmin",rc,-53) .NE. 0) return
-      call ncagt (fid, vid, 'vmax', high_32, rc)
+      rc = NF90_GET_ATT(fid,vid,'vmax',high_32)
       if (err("PutVar: can't get vmax",rc,-53) .NE. 0) return
-      call ncagt (fid, vid, 'fmissing_value', amiss_32, rc)
+      rc = NF90_GET_ATT(fid,vid,'fmissing_value',amiss_32)
       if (err("PutVar: can't get fmissing_value",rc,-53) .NE. 0) return
       if (abs(low_32) .NE. amiss_32 .OR. high_32 .NE. amiss_32) then
         do k=1,kount
@@ -2394,31 +2356,31 @@
       
 ! Determine if we are writing single- or double-precision.
 
-      call ncvinq (fid, vid, varName, type, nvDims, vDims, nvAtts, rc)
+      rc = NF90_INQUIRE_VARIABLE (fid, vid, varName, type, nvDims, vDims, nvAtts)
       if (err("PutVar: error in variable inquire",rc,-52) .NE. 0) return
 
 ! Write variable in the appropriate precision.
 
       if (HUGE(dummy) .EQ. HUGE(dummy32)) then        ! -r4
-        if (type .EQ. NCFLOAT) then                     ! 32-bit
-          call ncvpt (fid, vid, corner, edges, grid, rc)
-        else if (type .EQ. NCDOUBLE) then               ! 64-bit
+        if (type .EQ. NF90_FLOAT) then                     ! 32-bit
+          rc = NF90_PUT_VAR(fid,vid,grid,corner,edges)
+        else if (type .EQ. NF90_DOUBLE) then               ! 64-bit
           allocate (grid_64(im,kount))
           do k=1,kount
               do i=1,im
                 grid_64(i,k) = grid(i,k)
               enddo
           enddo
-          call ncvpt (fid, vid, corner, edges, grid_64, rc)
+          rc = NF90_PUT_VAR(fid,vid,grid_64,corner,edges)
           deallocate (grid_64)
-        else if (type .EQ. NCSHORT) then
-          call ncagt (fid, vid, 'packmax', high_32, rc)
+        else if (type .EQ. NF90_SHORT) then
+          rc = NF90_GET_ATT(fid,vid,'packmax',high_32)
           if (err("PutVar: error getting packmax",rc,-53) .NE. 0) return
-          call ncagt (fid, vid, 'packmin', low_32, rc)
+          rc = NF90_GET_ATT(fid,vid,'packmin',low_32)
           if (err("PutVar: error getting packmin",rc,-53) .NE. 0) return
-          call ncagt (fid, vid, 'scale_factor', scale_32, rc)
+          rc = NF90_GET_ATT(fid,vid,'scale_factor',scale_32)
           if (err("PutVar: error getting scale",rc,-53) .NE. 0) return
-          call ncagt (fid, vid, 'add_offset', offset_32, rc)
+          rc = NF90_GET_ATT(fid,vid,'add_offset',offset_32)
           if (err("PutVar: error getting offset",rc,-53) .NE. 0) return
           allocate (grid_16(im,kount))
           do k=1,kount
@@ -2432,32 +2394,32 @@
                 endif
               enddo
           enddo
-          call ncvpt (fid, vid, corner, edges, grid_16, rc)
+          rc = NF90_PUT_VAR(fid,vid,grid_16,corner,edges)
           deallocate (grid_16)
         else
           rc = -13
           return
         endif
       else if (HUGE(dummy) .EQ. HUGE(dummy64)) then   ! -r8
-        if (type .EQ. NCFLOAT) then                     ! 32-bit
+        if (type .EQ. NF90_FLOAT) then                     ! 32-bit
           allocate (grid_32(im,kount))
           do k=1,kount
               do i=1,im
                 grid_32(i,k) = grid(i,k)
               enddo
           enddo
-          call ncvpt (fid, vid, corner, edges, grid_32, rc)
+          rc = NF90_PUT_VAR(fid, vid, grid_32, corner, edges)
           deallocate (grid_32)
-        else if (type .EQ. NCDOUBLE) then                ! 64-bit
-          call ncvpt (fid, vid, corner, edges, grid, rc)
-        else if (type .EQ. NCSHORT) then
-          call ncagt (fid, vid, 'packmax', high_32, rc)
+        else if (type .EQ. NF90_DOUBLE) then                ! 64-bit
+          rc = NF90_PUT_VAR(fid,vid,grid,corner,edges)
+        else if (type .EQ. NF90_SHORT) then
+          rc = NF90_GET_ATT(fid,vid,'packmax',high_32)
           if (err("PutVar: error getting packmax",rc,-53) .NE. 0) return
-          call ncagt (fid, vid, 'packmin', low_32, rc)
+          rc = NF90_GET_ATT(fid,vid,'packmin',low_32)
           if (err("PutVar: error getting packmin",rc,-53) .NE. 0) return
-          call ncagt (fid, vid, 'scale_factor', scale_32, rc)
+          rc = NF90_GET_ATT(fid,vid,'scale_factor',scale_32)
           if (err("PutVar: error getting scale",rc,-53) .NE. 0) return
-          call ncagt (fid, vid, 'add_offset', offset_32, rc)
+          rc = NF90_GET_ATT(fid,vid,'add_offset',offset_32)
           if (err("PutVar: error getting offset",rc,-53) .NE. 0) return
           allocate (grid_16(im,kount))
           do k=1,kount
@@ -2471,7 +2433,7 @@
                 endif
               enddo
           enddo
-          call ncvpt (fid, vid, corner, edges, grid_16, rc)
+          rc = NF90_PUT_VAR(fid,vid,grid_16,corner,edges)
           deallocate (grid_16)
         else
           rc = -13
@@ -2486,8 +2448,8 @@
 ! Read time dimension scale and fill all values up to the current time.
 ! This will insure missing times are defined with the proper time value.
 
-      timeDimId = ncdid (fid, 'time', rc)
-      call ncdinq (fid, timeDimId, dimName, dimSize, rc)
+      rc = NF90_INQ_DIMID(fid, 'time', timeDimId)
+      rc = NF90_INQUIRE_DIMENSION (fid, timeDimId, dimName, dimSize)
       dimSize = dimSize - 1           ! We've already written the 
                                       ! the new time.
       allocate ( allTimes (MAX(timeIndex,dimSize)) )
@@ -2500,14 +2462,14 @@
         corner(1)=1
         edges(1)=dimSize
 
-        call ncvinq (fid,timeId,dimName,timeType,nvDims,vDims,nvAtts,rc)
-        if (timeType .EQ. NCFLOAT) then
-          call ncvgt (fid,timeId,corner,edges,fminutes_32,rc)
+        rc = NF90_INQUIRE_VARIABLE (fid,timeId,dimName,timeType,nvDims,vDims,nvAtts)
+        if (timeType .EQ. NF90_FLOAT) then
+          rc = NF90_GET_VAR(fid,timeId,fminutes_32,corner,edges)
           do i=1,dimSize
             allTimes(i) = INT(fminutes_32(i))
           enddo
-        else if (timeType .EQ. NCLONG) then
-          call ncvgt (fid,timeId,corner,edges,allTimes,rc)
+        else if (timeType .EQ. NF90_INT) then
+          rc = NF90_GET_VAR(fid,timeId,allTimes,corner,edges)
         endif
         if (err("SPutVar: error reading times from file",rc,-46) .NE. 0) &
             return
@@ -2528,13 +2490,13 @@
       corner(1)=1
       edges(1)=timeIndex
 
-      if (timeType .EQ. NCFLOAT) then
+      if (timeType .EQ. NF90_FLOAT) then
         do i=1,timeIndex
           fminutes_32(i) = INT(allTimes(i))
         enddo
-        call ncvpt (fid,timeId,corner,edges,fminutes_32,rc)
-      else if (timeType .EQ. NCLONG) then
-        call ncvpt (fid,timeId,corner,edges,allTimes,rc)
+        rc = NF90_PUT_VAR(fid,timeId,fminutes_32,corner,edges)
+      else if (timeType .EQ. NF90_INT) then
+        rc = NF90_PUT_VAR(fid,timeId,allTimes,corner,edges)
       endif
       if (err("PutVar: error writing time",rc,-38) .NE. 0) return
 
@@ -2608,15 +2570,15 @@
                          !
                          !  NetCDF Errors
                          !  -------------
-                         !  rc = -38  error from ncvpt (dimension variable)
-                         !  rc = -40  error from ncvid
-                         !  rc = -41  error from ncdid or ncdinq (lat or lon)
-                         !  rc = -42  error from ncdid or ncdinq (lev)
-                         !  rc = -43  error from ncvid (time variable)
-                         !  rc = -44  error from ncagt (time attribute)
-                         !  rc = -46  error from ncvgt
-                         !  rc = -48  error from ncinq
-                         !  rc = -52  error from ncvinq
+                         !  rc = -38  error from NF90_PUT_VAR (dimension variable)
+                         !  rc = -40  error from NF90_INQ_VARID
+                         !  rc = -41  error from NF90_INQ_DIMID or NF90_INQUIRE_DIMENSION (lat or lon)
+                         !  rc = -42  error from NF90_INQ_DIMID or NF90_INQUIRE_DIMENSION (lev)
+                         !  rc = -43  error from NF90_INQ_VARID (time variable)
+                         !  rc = -44  error from NF90_GET_ATT (time attribute)
+                         !  rc = -46  error from NF90_GET_VAR
+                         !  rc = -48  error from NF90_INQUIRE
+                         !  rc = -52  error from NF90_INQUIRE_VARIABLE
 
 
 ! !REVISION HISTORY:
@@ -2659,7 +2621,7 @@
       real*8 dummy64
       real   dummy
 
-! Variables for NCVINQ
+! Variables for NF90_INQUIRE_VARIABLE
 
       integer type, nvDims, vdims(MAXVDIMS), nvAtts
 
@@ -2670,9 +2632,6 @@
       real*4 amiss_32
       real*4 scale_32, offset_32
 
-! Make NetCDF errors non-fatal, but issue warning messages.
-
-      call ncpopt(NCVERBOS)
 
 ! Check to make sure max string lengths are large enough.  NetCDF defines
 ! MAXNCNAM, but it can't be used in a character*MAXNCNAM statement.
@@ -2684,13 +2643,13 @@
 
 ! Get basic information from file.
 
-      call ncinq (fid, nDims, nvars, ngatts, dimId, rc)
-      if (err("DimInqure: ncinq failed",rc,-48) .NE. 0)return
+      rc = NF90_INQUIRE (fid, nDims, nvars, ngatts, dimId)
+      if (err("DimInqure: NF90_INQUIRE failed",rc,-48) .NE. 0)return
 
 ! Subtract dimension variables from the variable count.
 
       do i=1,nvars
-        call ncvinq (fid,i,varName,varType,nvDims,vDims,nvAtts,rc)
+        rc = NF90_INQUIRE_VARIABLE (fid,i,varName,varType,nvDims,vDims,nvAtts)
         if (err("DimInquire: variable inquire error",rc,-52) .NE. 0) &
            return
         if (nvDims .EQ. 1) then
@@ -2701,7 +2660,7 @@
 ! Extract dimension information
 
       do i=1,nDims
-        call ncdinq (fid, i, dimName, dimSize, rc)
+        rc = NF90_INQUIRE_DIMENSION (fid, i, dimName, dimSize)
         if (err("DimInqure: can't get dim info",rc,-41) .NE. 0) return
         if (index(dimName,'station')  .gt. 0) then
            stationFile = .true.
@@ -2709,9 +2668,9 @@
            jm = dimSize
            cycle
         end if
-        dimId = ncvid (fid, dimName, rc)
-        if (err("DimInqure: ncvid failed",rc,-40) .NE. 0) return
-        call ncagtc (fid, dimId, 'units', dimUnits, MAXCHR, rc)
+        rc = NF90_INQ_VARID (fid, dimName, dimId)
+        if (err("DimInqure: NF90_INQ_VARID failed",rc,-40) .NE. 0) return
+        rc = NF90_GET_ATT(fid,dimId,'units',dimUnits)
         if (err("DimInqure: could not get units for dimension",rc,-53) &
             .NE. 0) return
         myIndex = IdentifyDim (dimName, dimUnits)
@@ -2745,14 +2704,14 @@
 
 ! Determine NetCDF variable ID.
 
-      vid = ncvid (fid, vname, rc)
+      rc = NF90_INQ_VARID (fid, vname, vid)
       if (err("GetVar: variable not defined",rc,-40) .NE. 0) return
  
 ! Get beginning time & date.  Calculate offset seconds from start.
 
-!ams      call ncagt (fid, timeId, 'begin_date', begDate, rc)
+!ams  rc = NF90_GET_ATT(fid,timeId,'begin_date',begDate)
 !ams     if (err("GetVar: missing begin_date",rc,-44) .NE. 0) return
-!ams     call ncagt (fid, timeId, 'begin_time', begTime, rc)
+!ams  rc = NF90_GET_ATT(fid,timeId,'begin_time',begTime)
 !ams     if (err("GetVar: missing begin_time",rc,-44) .NE. 0) return
 
       call GetBegDateTime ( fid, begDate, begTime, incSecs, rc )
@@ -2793,7 +2752,7 @@
 
 ! Determine the time index from the offset and time increment.
 
-!ams      call ncagt (fid, timeId, 'time_increment', timInc, rc)
+!ams      rc = NF90_GET_ATT(fid,timeId,'time_increment',timInc)
 !ams      if (err("GetVar: missing time increment",rc,-44) .NE. 0) return
 
 ! Convert time increment to seconds.
@@ -2846,34 +2805,34 @@
 
 ! Determine data type.
 
-      call ncvinq (fid, vid, varName, type, nvDims, vDims, nvAtts, rc)
+      rc = NF90_INQUIRE_VARIABLE (fid, vid, varName, type, nvDims, vDims, nvAtts)
       if (err("GetVar: error in variable inquire",rc,-52) .NE. 0) return
 
 ! Read variable in the appropriate precision.
 
       if (HUGE(dummy) .EQ. HUGE(dummy32)) then        ! -r4
-        if (type .EQ. NCFLOAT) then                     ! 32-bit
-          call ncvgt (fid, vid, corner, edges, grid, rc)
-        else if (type .EQ. NCDOUBLE) then               ! 64-bit
+        if (type .EQ. NF90_FLOAT) then                     ! 32-bit
+          rc = NF90_GET_VAR(fid,vid,grid,corner,edges)
+        else if (type .EQ. NF90_DOUBLE) then               ! 64-bit
           allocate (grid_64(im,kount))
-          call ncvgt (fid, vid, corner, edges, grid_64, rc)
+          rc = NF90_GET_VAR(fid,vid,grid_64,corner,edges)
           do k=1,kount
               do i=1,im
                 grid(i,k) = grid_64(i,k)
               enddo
           enddo
           deallocate (grid_64)
-        else if (type .EQ. NCSHORT) then
-          call ncagt (fid, vid, 'scale_factor', scale_32, rc)
+        else if (type .EQ. NF90_SHORT) then
+          rc = NF90_GET_ATT(fid,vid,'scale_factor',scale_32)
           if (err("GetVar: error getting scale",rc,-53) .NE. 0) return
-          call ncagt (fid, vid, 'add_offset', offset_32, rc)
+          rc = NF90_GET_ATT(fid,vid,'add_offset',offset_32)
           if (err("GetVar: error getting offset",rc,-53) .NE. 0) return
-          call ncagt (fid, vid, 'missing_value', amiss_16, rc)
+          rc = NF90_GET_ATT(fid,vid,'missing_value',amiss_16)
           if (err("GetVar: error getting missing",rc,-53) .NE. 0) return
-          call ncagt (fid, vid, 'fmissing_value', amiss_32, rc)
+          rc = NF90_GET_ATT(fid,vid,'fmissing_value',amiss_32)
           if (err("GetVar: error getting fmissing",rc,-53) .NE. 0) return
           allocate (grid_16(im,kount))
-          call ncvgt (fid, vid, corner, edges, grid_16, rc)
+          rc = NF90_GET_VAR(fid,vid,grid_16,corner,edges)
           do k=1,kount
               do i=1,im
                 if ( grid_16(i,k) .EQ. amiss_16 ) then
@@ -2889,12 +2848,12 @@
           return
         endif
       else if (HUGE(dummy) .EQ. HUGE(dummy64)) then   ! -r8
-        if (type .EQ. NCFLOAT) then                     ! 32-bit
+        if (type .EQ. NF90_FLOAT) then                     ! 32-bit
           allocate (grid_32(im,kount))
 !          print *, "im,kount, varName,rc: ",im,kount,trim(varName), rc
 !          print *, "corner: ",corner
 !          print *, "edges: ", edges
-          call ncvgt (fid, vid, corner, edges, grid_32, rc)
+          rc = NF90_GET_VAR(fid,vid,grid_32,corner,edges)
 !          print *, "ts: ",grid_32
           do k=1,kount
               do i=1,im
@@ -2902,19 +2861,19 @@
               enddo
           enddo
           deallocate (grid_32)
-        elseif (type .EQ. NCDOUBLE) then                ! 64-bit
-          call ncvgt (fid, vid, corner, edges, grid, rc)
-        else if (type .EQ. NCSHORT) then
-          call ncagt (fid, vid, 'scale_factor', scale_32, rc)
+        elseif (type .EQ. NF90_DOUBLE) then                ! 64-bit
+          rc= NF90_GET_VAR(fid,vid,grid,corner,edges)
+        else if (type .EQ. NF90_SHORT) then
+          rc = NF90_GET_ATT(fid,vid,'scale_factor',scale_32)
           if (err("GetVar: error getting scale",rc,-53) .NE. 0) return
-          call ncagt (fid, vid, 'add_offset', offset_32, rc)
+          rc = NF90_GET_ATT(fid,vid,'add_offset',offset_32)
           if (err("GetVar: error getting offset",rc,-53) .NE. 0) return
-          call ncagt (fid, vid, 'missing_value', amiss_16, rc)
+          rc = NF90_GET_ATT(fid,vid,'missing_value',amiss_16)
           if (err("GetVar: error getting missing",rc,-53) .NE. 0) return
-          call ncagt (fid, vid, 'fmissing_value', amiss_32, rc)
+          rc = NF90_GET_ATT(fid,vid,'fmissing_value',amiss_32)
           if (err("GetVar: error getting fmissing",rc,-53) .NE. 0) return
           allocate (grid_16(im,kount))
-          call ncvgt (fid, vid, corner, edges, grid_16, rc)
+          rc = NF90_GET_VAR(fid,vid,grid_16,corner,edges)
           do k=1,kount
               do i=1,im
                 if ( grid_16(i,k) .EQ. amiss_16 ) then
@@ -2992,15 +2951,15 @@
                          !
                          !  NetCDF Errors
                          !  -------------
-                         !  rc = -38  error from ncvpt (dimension variable)
-                         !  rc = -40  error from ncvid
-                         !  rc = -41  error from ncdid or ncdinq (lat or lon)
-                         !  rc = -42  error from ncdid or ncdinq (lev)
-                         !  rc = -43  error from ncvid (time variable)
-                         !  rc = -44  error from ncagt (time attribute)
-                         !  rc = -46  error from ncvgt
-                         !  rc = -48  error from ncinq
-                         !  rc = -52  error from ncvinq
+                         !  rc = -38  error from NF90_PUT_VAR (dimension variable)
+                         !  rc = -40  error from NF90_INQ_VARID
+                         !  rc = -41  error from NF90_INQ_DIMID or NF90_INQUIRE_DIMENSION (lat or lon)
+                         !  rc = -42  error from NF90_INQ_DIMID or NF90_INQUIRE_DIMENSION (lev)
+                         !  rc = -43  error from NF90_INQ_VARID (time variable)
+                         !  rc = -44  error from NF90_GET_ATT (time attribute)
+                         !  rc = -46  error from NF90_GET_VAR
+                         !  rc = -48  error from NF90_INQUIRE
+                         !  rc = -52  error from NF90_INQUIRE_VARIABLE
 
 
 ! !REVISION HISTORY:
@@ -3042,7 +3001,7 @@
       real*8 dummy64
       real   dummy
 
-! Variables for NCVINQ
+! Variables for NF90_INQUIRE_VARIABLE
 
       integer type, nvDims, vdims(MAXVDIMS), nvAtts
 
@@ -3058,10 +3017,6 @@
       corner = 1
       edges  = 1
 
-! Make NetCDF errors non-fatal, but issue warning messages.
-
-      call ncpopt(NCVERBOS)
-
 ! Check to make sure max string lengths are large enough.  NetCDF defines
 ! MAXNCNAM, but it can't be used in a character*MAXNCNAM statement.
 
@@ -3072,13 +3027,13 @@
 
 ! Get basic information from file.
 
-      call ncinq (fid, nDims, nvars, ngatts, dimId, rc)
-      if (err("DimInqure: ncinq failed",rc,-48) .NE. 0)return
+      rc = NF90_INQUIRE (fid, nDims, nvars, ngatts, dimId)
+      if (err("DimInqure: NF90_INQUIRE failed",rc,-48) .NE. 0)return
 
 ! Subtract dimension variables from the variable count.
 
       do i=1,nvars
-        call ncvinq (fid,i,varName,varType,nvDims,vDims,nvAtts,rc)
+        rc = NF90_INQUIRE_VARIABLE (fid,i,varName,varType,nvDims,vDims,nvAtts)
         if (err("DimInquire: variable inquire error",rc,-52) .NE. 0)&
            return
         if (nvDims .EQ. 1 .or. trim(vname) .eq. 'time_bnds') then
@@ -3089,14 +3044,14 @@
 ! Extract dimension information
 
       do i=1,nDims
-        call ncdinq (fid, i, dimName, dimSize, rc)
+        rc = NF90_INQUIRE_DIMENSION (fid, i, dimName, dimSize)
         if (err("DimInqure: can't get dim info",rc,-41) .NE. 0) return
         if (trim(dimName) .eq. 'nv' ) cycle
         if (index(dimName,'edges') .gt. 0 ) cycle
         if (index(dimName,'station') .gt. 0 ) cycle
-        dimId = ncvid (fid, dimName, rc)
-        if (err("DimInqure: ncvid failed",rc,-40) .NE. 0) return
-        call ncagtc (fid, dimId, 'units', dimUnits, MAXCHR, rc)
+        rc = NF90_INQ_VARID (fid, dimName, dimId)
+        if (err("DimInqure: NF90_INQ_VARID failed",rc,-40) .NE. 0) return
+        rc = NF90_GET_ATT(fid,dimId,'units',dimUnits)
         if (err("DimInqure: could not get units for dimension",rc,-53)&
             .NE. 0) return
 !        myIndex = IdentifyDim (dimName, dimUnits)
@@ -3130,14 +3085,14 @@
 
 ! Determine NetCDF variable ID.
 
-      vid = ncvid (fid, vname, rc)
+      rc = NF90_INQ_VARID (fid, vname, vid)
       if (err("GetVar: variable not defined",rc,-40) .NE. 0) return
  
 ! Get beginning time & date.  Calculate offset seconds from start.
 
-!ams      call ncagt (fid, timeId, 'begin_date', begDate, rc)
+!ams     rc = NF90_GET_ATT(fid,timeId,'begin_date',begDate)
 !ams     if (err("GetVar: missing begin_date",rc,-44) .NE. 0) return
-!ams     call ncagt (fid, timeId, 'begin_time', begTime, rc)
+!ams     rc = NF90_GET_ATT(fid,timeId,'begin_time',begTime)
 !ams     if (err("GetVar: missing begin_time",rc,-44) .NE. 0) return
 
       call GetBegDateTime ( fid, begDate, begTime, incSecs, rc )
@@ -3178,7 +3133,7 @@
 
 ! Determine the time index from the offset and time increment.
 
-!ams      call ncagt (fid, timeId, 'time_increment', timInc, rc)
+!ams  rc = NF90_GET_ATT(fid,timeId,'time_increment',timInc)
 !ams      if (err("GetVar: missing time increment",rc,-44) .NE. 0) return
 
 ! Convert time increment to seconds.
@@ -3235,22 +3190,22 @@
 
 ! Determine data type.
 
-      call ncvinq (fid, vid, varName, type, nvDims, vDims, nvAtts, rc)
+      rc = NF90_INQUIRE_VARIABLE (fid, vid, varName, type, nvDims, vDims, nvAtts)
       if (err("GetVar: error in variable inquire",rc,-52) .NE. 0) return
 
 ! Read variable in the appropriate precision.
 
       if (HUGE(dummy) .EQ. HUGE(dummy32)) then        ! -r4
-        if (type .EQ. NCFLOAT) then                     ! 32-bit
-          call ncvgt (fid, vid, corner, edges, grid, rc)
+        if (type .EQ. NF90_FLOAT) then                     ! 32-bit
+          rc = NF90_GET_VAR(fid, vid, grid, corner, edges)
           if(rc /=0) then
-            print*,'Error reading variable using ncvgt',rc
+            print*,'Error reading variable using NF90_GET_VAR',rc
             print*, NF_STRERROR(rc)
             return
           endif
-        else if (type .EQ. NCDOUBLE) then               ! 64-bit
+        else if (type .EQ. NF90_DOUBLE) then               ! 64-bit
           allocate (grid_64(im,jm,kount))
-          call ncvgt (fid, vid, corner, edges, grid_64, rc)
+          rc = NF90_GET_VAR(fid, vid, grid_64, corner, edges)
           do k=1,kount
             do j=1,jm
               do i=1,im
@@ -3259,17 +3214,17 @@
             enddo
           enddo
           deallocate (grid_64)
-        else if (type .EQ. NCSHORT) then
-          call ncagt (fid, vid, 'scale_factor', scale_32, rc)
+        else if (type .EQ. NF90_SHORT) then
+          rc = NF90_GET_ATT(fid,vid,'scale_factor',scale_32)
           if (err("GetVar: error getting scale",rc,-53) .NE. 0) return
-          call ncagt (fid, vid, 'add_offset', offset_32, rc)
+          rc = NF90_GET_ATT(fid,vid,'add_offset',offset_32)
           if (err("GetVar: error getting offset",rc,-53) .NE. 0) return
-          call ncagt (fid, vid, 'missing_value', amiss_16, rc)
+          rc = NF90_GET_ATT(fid,vid,'missing_value',amiss_16)
           if (err("GetVar: error getting missing",rc,-53) .NE. 0) return
-          call ncagt (fid, vid, 'fmissing_value', amiss_32, rc)
+          rc = NF90_GET_ATT(fid,vid,'fmissing_value',amiss_32)
           if (err("GetVar: error getting fmissing",rc,-53) .NE. 0) return
           allocate (grid_16(im,jm,kount))
-          call ncvgt (fid, vid, corner, edges, grid_16, rc)
+          rc = NF90_GET_VAR(fid, vid, grid_16, corner, edges)
           do k=1,kount
             do j=1,jm
               do i=1,im
@@ -3287,9 +3242,9 @@
           return
         endif
       else if (HUGE(dummy) .EQ. HUGE(dummy64)) then   ! -r8
-        if (type .EQ. NCFLOAT) then                     ! 32-bit
+        if (type .EQ. NF90_FLOAT) then                     ! 32-bit
           allocate (grid_32(im,jm,kount))
-          call ncvgt (fid, vid, corner, edges, grid_32, rc)
+          rc = NF90_GET_VAR(fid, vid, grid_32, corner, edges)
           do k=1,kount
             do j=1,jm
               do i=1,im
@@ -3298,19 +3253,19 @@
             enddo
           enddo
           deallocate (grid_32)
-        elseif (type .EQ. NCDOUBLE) then                ! 64-bit
-          call ncvgt (fid, vid, corner, edges, grid, rc)
-        else if (type .EQ. NCSHORT) then
-          call ncagt (fid, vid, 'scale_factor', scale_32, rc)
+        elseif (type .EQ. NF90_DOUBLE) then                ! 64-bit
+          rc = NF90_GET_VAR(fid, vid, grid, corner, edges)
+        else if (type .EQ. NF90_SHORT) then
+          rc = NF90_GET_ATT(fid,vid,'scale_factor',scale_32)
           if (err("GetVar: error getting scale",rc,-53) .NE. 0) return
-          call ncagt (fid, vid, 'add_offset', offset_32, rc)
+          rc = NF90_GET_ATT(fid,vid,'add_offset',offset_32)
           if (err("GetVar: error getting offset",rc,-53) .NE. 0) return
-          call ncagt (fid, vid, 'missing_value', amiss_16, rc)
+          rc = NF90_GET_ATT(fid,vid,'missing_value',amiss_16)
           if (err("GetVar: error getting missing",rc,-53) .NE. 0) return
-          call ncagt (fid, vid, 'fmissing_value', amiss_32, rc)
+          rc = NF90_GET_ATT(fid,vid,'fmissing_value',amiss_32)
           if (err("GetVar: error getting fmissing",rc,-53) .NE. 0) return
           allocate (grid_16(im,jm,kount))
-          call ncvgt (fid, vid, corner, edges, grid_16, rc)
+          rc = NF90_GET_VAR(fid, vid, grid_16, corner, edges)
           do k=1,kount
             do j=1,jm
               do i=1,im
@@ -3396,16 +3351,16 @@
                          !
                          !  NetCDF Errors
                          !  -------------
-                         !  rc = -38  error from ncvpt (dimension variable)
-                         !  rc = -40  error from ncvid
-                         !  rc = -41  error from ncdid or ncdinq (lat or lon)
-                         !  rc = -42  error from ncdid or ncdinq (lev)
-                         !  rc = -43  error from ncvid (time variable)
-                         !  rc = -44  error from ncagt (time attribute)
-                         !  rc = -45  error from ncvpt
-                         !  rc = -46  error from ncvgt
-                         !  rc = -52  error from ncvinq
-                         !  rc = -53  error from ncagtc/ncagt
+                         !  rc = -38  error from NF90_PUT_VAR (dimension variable)
+                         !  rc = -40  error from NF90_INQ_VARID
+                         !  rc = -41  error from NF90_INQ_DIMID or NF90_INQUIRE_DIMENSION (lat or lon)
+                         !  rc = -42  error from NF90_INQ_DIMID or NF90_INQUIRE_DIMENSION (lev)
+                         !  rc = -43  error from NF90_INQ_VARID (time variable)
+                         !  rc = -44  error from NF90_GET_ATT (time attribute)
+                         !  rc = -45  error from NF90_PUT_VAR
+                         !  rc = -46  error from NF90_GET_VAR
+                         !  rc = -52  error from NF90_INQUIRE_VARIABLE
+                         !  rc = -53  error from NF90_GET_ATT
 
 ! !REVISION HISTORY: 
 !
@@ -3446,7 +3401,7 @@
       real*8 dummy64
       real   dummy
 
-! Variables for NCVINQ
+! Variables for NF90_INQUIRE_VARIABLE
 
       character*(MAXCHR) varName
       integer type, nvDims, vdims(MAXVDIMS), nvAtts
@@ -3465,10 +3420,6 @@
       outRange = .FALSE.
       outPRange = .FALSE.
 
-! Make NetCDF errors non-fatal, but issue warning messages.
-
-      call ncpopt(NCVERBOS)
-
 ! Check to make sure max string lengths are large enough.  NetCDF defines
 ! MAXNCNAM, but it can't be used in a character*MAXNCNAM statement.
 
@@ -3479,48 +3430,18 @@
 
 ! Determine NetCDF variable ID.
 
-      vid = ncvid (fid, vname, rc)
+      rc = NF90_INQ_VARID (fid, vname, vid)
       if (err("PutVar: variable not defined",rc,-40) .NE. 0) return
-
-! Basic error checking
-!      dimId = ncdid (fid, 'lon', rc)
-!      if (err("PutVar: can't get ID for lon",rc,-41) .NE. 0) return
-!      call ncdinq (fid, dimId, dimName, dimSize, rc)
-!      if (err("PutVar: can't get info for lon",rc,-41) .NE. 0) return
-!      if (dimSize .ne. im) then
-!        rc = -4
-!        return
-!      endif
-
-!      dimId = ncdid (fid, 'lat', rc)
-!      if (err("PutVar: can't get ID for lat",rc,-41) .NE. 0) return
-!      call ncdinq (fid, dimId, dimName, dimSize, rc)
-!      if (err("PutVar: can't get info for lat",rc,-41) .NE. 0) return
-!      if (dimSize .ne. jm) then
-!        rc = -5
-!        return
-!      endif
-
-!      if (kbeg .NE. 0) then
-!        dimId = ncdid (fid, 'lev', rc)
-!        if (err("PutVar: can't get ID for lev",rc,-42) .NE. 0) return
-!        call ncdinq (fid, dimId, dimName, dimSize, rc)
-!        if (err("PutVar: can't get info for lev",rc,-42) .NE. 0) return
-!       if (kbeg-1 + kount .gt. dimSize) then
-!          rc = -3
-!          return
-!        endif
-!      endif
 
 ! Determine number of seconds since starting date/time.
 
-      timeId = ncvid (fid, 'time', rc)
+      rc = NF90_INQ_VARID (fid, 'time', timeId)
       if (err("PutVar: time not defined",rc,-43) .NE. 0) return
-      timeDimId = ncdid (fid, 'time', rc)
-      call ncdinq (fid, timeDimId, dimName, dimSize, rc)
-      call ncagt (fid, timeId, 'begin_date', begDate, rc)
+      rc = NF90_INQ_DIMID(fid, 'time', timeDimId)
+      rc = NF90_INQUIRE_DIMENSION(fid, timeDimId, dimName, dimSize)
+      rc = NF90_GET_ATT(fid,timeId,'begin_date',begDate)
       if (err("PutVar: missing begin_date",rc,-44) .NE. 0) return
-      call ncagt (fid, timeId, 'begin_time', begTime, rc)
+      rc = NF90_GET_ATT(fid,timeId,'begin_time',begTime)
       if (err("PutVar: missing begin_time",rc,-44) .NE. 0) return
 
       seconds = DiffDate (begDate, begTime, yyyymmdd, hhmmss)
@@ -3543,7 +3464,7 @@
 ! Confirm that this time is consistent with the starting time coupled with
 ! the time increment.
 
-      call ncagt (fid, timeId, 'time_increment', timInc, rc)
+      rc = NF90_GET_ATT(fid,timeId,'time_increment',timInc)
       if (err("PutVar: missing time increment",rc,-44) .NE. 0) return
       
 ! Convert time increment to seconds.
@@ -3586,11 +3507,11 @@
 
 ! Check variable against valid range.
 
-      call ncagt (fid, vid, 'vmin', low_32, rc)
+      rc = NF90_GET_ATT(fid,vid,'vmin',low_32)
       if (err("PutVar: can't get vmin",rc,-53) .NE. 0) return
-      call ncagt (fid, vid, 'vmax', high_32, rc)
+      rc = NF90_GET_ATT(fid,vid,'vmax',high_32)
       if (err("PutVar: can't get vmax",rc,-53) .NE. 0) return
-      call ncagt (fid, vid, 'fmissing_value', amiss_32, rc)
+      rc = NF90_GET_ATT(fid,vid,'fmissing_value',amiss_32)
       if (err("PutVar: can't get fmissing_value",rc,-53) .NE. 0) return
       if (abs(low_32) .NE. amiss_32 .OR. high_32 .NE. amiss_32) then
         do k=1,kount
@@ -3609,15 +3530,15 @@
       
 ! Determine if we are writing single- or double-precision.
 
-      call ncvinq (fid, vid, varName, type, nvDims, vDims, nvAtts, rc)
+      rc = NF90_INQUIRE_VARIABLE (fid, vid, varName, type, nvDims, vDims, nvAtts)
       if (err("PutVar: error in variable inquire",rc,-52) .NE. 0) return
 
 ! Write variable in the appropriate precision.
 
       if (HUGE(dummy) .EQ. HUGE(dummy32)) then        ! -r4
-        if (type .EQ. NCFLOAT) then                     ! 32-bit
-          call ncvpt (fid, vid, corner, edges, grid, rc)
-        else if (type .EQ. NCDOUBLE) then               ! 64-bit
+        if (type .EQ. NF90_FLOAT) then                     ! 32-bit
+          rc = NF90_PUT_VAR(fid, vid, grid, corner, edges)
+        else if (type .EQ. NF90_DOUBLE) then               ! 64-bit
           allocate (grid_64(im,jm,kount))
           do k=1,kount
             do j=1,jm
@@ -3626,16 +3547,16 @@
               enddo
             enddo
           enddo
-          call ncvpt (fid, vid, corner, edges, grid_64, rc)
+          rc = NF90_PUT_VAR(fid, vid, grid_64, corner, edges)
           deallocate (grid_64)
-        else if (type .EQ. NCSHORT) then
-          call ncagt (fid, vid, 'packmax', high_32, rc)
+        else if (type .EQ. NF90_SHORT) then
+          rc = NF90_GET_ATT(fid,vid,'packmax',high_32)
           if (err("PutVar: error getting packmax",rc,-53) .NE. 0) return
-          call ncagt (fid, vid, 'packmin', low_32, rc)
+          rc = NF90_GET_ATT(fid,vid,'packmin',low_32)
           if (err("PutVar: error getting packmin",rc,-53) .NE. 0) return
-          call ncagt (fid, vid, 'scale_factor', scale_32, rc)
+          rc = NF90_GET_ATT(fid,vid,'scale_factor',scale_32)
           if (err("PutVar: error getting scale",rc,-53) .NE. 0) return
-          call ncagt (fid, vid, 'add_offset', offset_32, rc)
+          rc = NF90_GET_ATT(fid,vid,'add_offset',offset_32)
           if (err("PutVar: error getting offset",rc,-53) .NE. 0) return
           allocate (grid_16(im,jm,kount))
           do k=1,kount
@@ -3651,14 +3572,14 @@
               enddo
             enddo
           enddo
-          call ncvpt (fid, vid, corner, edges, grid_16, rc)
+          rc = NF90_PUT_VAR(fid, vid, grid_16, corner, edges)
           deallocate (grid_16)
         else
           rc = -13
           return
         endif
       else if (HUGE(dummy) .EQ. HUGE(dummy64)) then   ! -r8
-        if (type .EQ. NCFLOAT) then                     ! 32-bit
+        if (type .EQ. NF90_FLOAT) then                     ! 32-bit
           allocate (grid_32(im,jm,kount))
           do k=1,kount
             do j=1,jm
@@ -3667,18 +3588,18 @@
               enddo
             enddo
           enddo
-          call ncvpt (fid, vid, corner, edges, grid_32, rc)
+          rc= NF90_PUT_VAR(fid, vid, grid_32, corner, edges)
           deallocate (grid_32)
-        else if (type .EQ. NCDOUBLE) then                ! 64-bit
-          call ncvpt (fid, vid, corner, edges, grid, rc)
-        else if (type .EQ. NCSHORT) then
-          call ncagt (fid, vid, 'packmax', high_32, rc)
+        else if (type .EQ. NF90_DOUBLE) then                ! 64-bit
+          rc = NF90_PUT_VAR(fid, vid, grid, corner, edges)
+        else if (type .EQ. NF90_SHORT) then
+          rc = NF90_GET_ATT(fid,vid,'packmax',high_32)
           if (err("PutVar: error getting packmax",rc,-53) .NE. 0) return
-          call ncagt (fid, vid, 'packmin', low_32, rc)
+          rc = NF90_GET_ATT(fid,vid,'packmin',low_32)
           if (err("PutVar: error getting packmin",rc,-53) .NE. 0) return
-          call ncagt (fid, vid, 'scale_factor', scale_32, rc)
+          rc = NF90_GET_ATT(fid,vid,'scale_factor',scale_32)
           if (err("PutVar: error getting scale",rc,-53) .NE. 0) return
-          call ncagt (fid, vid, 'add_offset', offset_32, rc)
+          rc = NF90_GET_ATT(fid,vid,'add_offset',offset_32)
           if (err("PutVar: error getting offset",rc,-53) .NE. 0) return
           allocate (grid_16(im,jm,kount))
           do k=1,kount
@@ -3694,7 +3615,7 @@
               enddo
             enddo
           enddo
-          call ncvpt (fid, vid, corner, edges, grid_16, rc)
+          rc = NF90_PUT_VAR(fid, vid, grid_16, corner, edges)
           deallocate (grid_16)
         else
           rc = -13
@@ -3709,13 +3630,13 @@
 ! Read time dimension scale and fill all values up to the current time.
 ! This will insure missing times are defined with the proper time value.
 
-      call ncdinq (fid, timeDimId, dimName, dimSize, rc)
+      rc = NF90_INQUIRE_DIMENSION (fid, timeDimId, dimName, dimSize)
       dimSize = dimSize - 1                           ! We've already written the 
                                                       ! the new time.
       allocate ( allTimes (MAX(timeIndex,dimSize)) )
       allocate ( fminutes_32 (MAX(timeIndex,dimSize)) )
 
-      call ncvinq (fid,timeId,dimName,timeType,nvDims,vDims,nvAtts,rc)
+      rc = NF90_INQUIRE_VARIABLE (fid,timeId,dimName,timeType,nvDims,vDims,nvAtts)
 
       if (dimSize .GT. 0) then
         ! Depending on the version of CFIO used to write the file, the Time
@@ -3724,13 +3645,13 @@
         corner(1)=1
         edges(1)=dimSize
 
-        if (timeType .EQ. NCFLOAT) then
-          call ncvgt (fid,timeId,corner,edges,fminutes_32,rc)
+        if (timeType .EQ. NF90_FLOAT) then
+          rc = NF90_GET_VAR(fid, timeId, fminutes_32, corner, edges)
           do i=1,dimSize
             allTimes(i) = INT(fminutes_32(i))
           enddo
-        else if (timeType .EQ. NCLONG) then
-          call ncvgt (fid,timeId,corner,edges,allTimes,rc)
+        else if (timeType .EQ. NF90_INT) then
+          rc = NF90_GET_VAR(fid, timeId, allTimes, corner, edges)
         endif
         if (err("PutVar: error reading times from file",rc,-46) .NE. 0)&
            return
@@ -3751,13 +3672,13 @@
       corner(1)=1
       edges(1)=timeIndex
 
-      if (timeType .EQ. NCFLOAT) then
+      if (timeType .EQ. NF90_FLOAT) then
         do i=1,timeIndex
           fminutes_32(i) = INT(allTimes(i))
         enddo
-        call ncvpt (fid,timeId,corner,edges,fminutes_32,rc)
-      else if (timeType .EQ. NCLONG) then
-        call ncvpt (fid,timeId,corner,edges,allTimes,rc)
+        rc = NF90_PUT_VAR(fid,timeId,fminutes_32,corner,edges)
+      else if (timeType .EQ. NF90_INT) then
+        rc = NF90_PUT_VAR(fid,timeId,allTimes,corner,edges)
       endif
       if (err("PutVar: error writing time",rc,-38) .NE. 0) return
 
@@ -3957,26 +3878,24 @@
 
 ! Get basic information from the file
 
-      call ncpopt(0)
-
-      call ncinq (fid,nDims,allVars,ngatts,recdim,rc)
-      if (err("Inqure: ncinq failed",rc,-48) .NE. 0) return
+      rc = NF90_INQUIRE (fid,nDims,allVars,ngatts,recdim)
+      if (err("Inqure: NF90_INQUIRE failed",rc,-48) .NE. 0) return
 
       if (nDims .EQ. 3) then
         surfaceOnly = .TRUE.
       endif
 
       do i= 1, allVars
-        call ncvinq (fid,i,vnameTemp,varType,nvDims,vDims,nvAtts,rc)
+        rc = NF90_INQUIRE_VARIABLE (fid,i,vnameTemp,varType,nvDims,vDims,nvAtts)
         if (err("CFIO_GetMissing: variable inquire error",rc,-52) .NE. 0) return
         if (nvDims .EQ. 1) then   ! coord variable
           cycle
         else                      ! noon-coord variable
-           call ncagt (fid, i,'fmissing_value',amiss_32,rc)
+          rc = NF90_GET_ATT(fid,i,'fmissing_value',amiss_32)
            if (rc .NE. 0) then
-               call ncainq (fid, i, 'missing_value', attType, attLen, rc)
-              if (rc.eq.0 .and. attType .EQ. NCFLOAT) then
-                 call ncagt (fid, allVars, 'missing_value', amiss_32, rc)
+              rc = NF90_INQUIRE_ATTRIBUTE (fid, i, 'missing_value', attType, attLen)
+              if (rc.eq.0 .and. attType .EQ. NF90_FLOAT) then
+                 rc = NF90_GET_ATT(fid,allVars,'missing_value',amiss_32)
                  if (err("CFIO_GetMissing: error getting missing value",rc,-53) &
                      .NE. 0) return
               else
@@ -3990,8 +3909,6 @@
       end do
 
       CFIO_GetMissing = amiss_32
-
-      call ncpopt(NCVERBOS)
 
       rc = 0
       end function CFIO_GetMissing
@@ -4603,9 +4520,9 @@ end subroutine die
                          !
                          !  NetCDF Errors
                          !  -------------
-                         !   rc = -36  error from ncaptc/ncapt (global attribute)
-                         !   rc = -55  error from ncredf (enter define mode)
-                         !   rc = -56  error from ncedf (exit define mode)
+                         !   rc = -36  error from NF90_PUT_ATT (global attribute)
+                         !   rc = -55  error from NF90_REDEF (enter define mode)
+                         !   rc = -56  error from NF90_ENDDEF (exit define mode)
 
 ! !REVISION HISTORY:
 !
@@ -4718,9 +4635,9 @@ end subroutine die
                          !
                          !  NetCDF Errors
                          !  -------------
-                         !   rc = -36  error from ncaptc/ncapt (global attribute)
-                         !   rc = -55  error from ncredf (enter define mode)
-                         !   rc = -56  error from ncedf (exit define mode)
+                         !   rc = -36  error from NF90_PUT_ATT (global attribute)
+                         !   rc = -55  error from NF90_REDEF (enter define mode)
+                         !   rc = -56  error from NF90_ENDDEF (exit define mode)
 
 ! !REVISION HISTORY:
 !
@@ -4830,9 +4747,9 @@ end subroutine die
                          !
                          !  NetCDF Errors
                          !  -------------
-                         !   rc = -36  error from ncaptc/ncapt (global attribute)
-                         !   rc = -55  error from ncredf (enter define mode)
-                         !   rc = -56  error from ncedf (exit define mode)
+                         !   rc = -36  error from NF90_PUT_ATT (global attribute)
+                         !   rc = -55  error from NF90_REDEF (enter define mode)
+                         !   rc = -56  error from NF90_ENDDEF (exit define mode)
 ! !REVISION HISTORY:
 !
 !  1998.07.30  Lucchesi           Initial interface design.
@@ -4932,14 +4849,14 @@ end subroutine die
                          !  -------------
                          !  rc = -32  error detaching from grid
                          !  rc = -37  error attaching to grid (HDFEOS)
-                         !  rc = -38  error from ncvpt (dimension variable) NOTUSED
+                         !  rc = -38  error from NF90_PUT_VAR (dimension variable) NOTUSED
                          !  rc = -40  variable not defined
-                         !  rc = -41  error from ncdid or ncdinq (lat or lon) NOTUSED
-                         !  rc = -42  error from ncdid or ncdinq (lev) NOTUSED
-                         !  rc = -43  error from ncvid (time variable)
+                         !  rc = -41  error from NF90_INQ_DIMID or NF90_INQUIRE_DIMENSION (lat or lon) NOTUSED
+                         !  rc = -42  error from NF90_INQ_DIMID or NF90_INQUIRE_DIMENSION (lev) NOTUSED
+                         !  rc = -43  error from NF90_INQ_VARID (time variable)
                          !  rc = -44  error reading time information
                          !  rc = -45  error writing data
-                         !  rc = -52  error from ncvinq NOTUSED
+                         !  rc = -52  error from NF90_INQUIRE_VARIABLE NOTUSED
                          !  rc = -53  error getting variable attributes
 
 ! !REVISION HISTORY: 
@@ -4982,7 +4899,7 @@ end subroutine die
       real*8 dummy64
       real   dummy
 
-! Variables for NCVINQ
+! Variables for NF90_INQUIRE_VARIABLE
 
       character*(MAXCHR) varName
       integer type, nvDims, dimSizes(MAX_VAR_DIMS), nvAtts

@@ -1,0 +1,210 @@
+#!/usr/bin/env perl
+
+#--------------------------------------------------
+#
+# Purpose: to rename DAS files during the run
+#
+# Usage:
+#
+#  rndasfiles [options] EXPID TYPE NYMDB NHMSB
+#                                  NYMDE NHMSE DTMIN IDX
+#
+# !REVISION HISTORY:
+#
+#   11Nov2009 Todling  Initial code (very simple minded)
+#   04Dec2009 Todling  Add purge and sfx opts
+#   02Dec2011 Todling  Add opt clean
+#
+#--------------------------------------------------
+use Env;                 # make env vars readily available
+use File::Basename;      # for basename(), dirname()
+use File::Copy "cp";     # for cp()
+use Getopt::Long;        # load module with GetOptions function
+use Shell qw(cat rm);    # cat and rm commands
+use Time::Local;         # time functions
+use FindBin;             # so we can find where this script resides
+
+# look for perl packages in the following locations
+#--------------------------------------------------
+use lib ( "$FindBin::Bin", "$FVROOT/bin", "$ESMADIR/$ARCH/bin" );
+ 
+  GetOptions ( "sfx=s",
+               "purge",
+               "clean",
+               "debug",
+               "h" );
+
+  usage() if $opt_h;
+
+# Initialize variables
+# --------------------
+  init();
+
+# Special-handle first file
+# -------------------------
+$nymd = $nymdb;  $nhms = $nhmsb;
+$hh   = substr($nhms,0,2);
+$sfname = "$expid.$type.${nymd}_${hh}z.$suffix";
+$efname = "$expid.$type.${nymd}_${hh}z.iter${idx}.$suffix";
+if ( ! $opt_clean ) {
+  if (-e "$sfname" ) {
+     if ( $opt_purge ) {
+          rename("$sfname","$efname");
+          print "/bin/mv $sfname $efname \n";
+     } else {
+          cp("$sfname","$efname");
+          print "/bin/cp $sfname $efname \n";
+     }
+  } else {
+     if ( $opt_debug ) {
+         if ( $opt_purge ) {
+           print "/bin/mv $sfname $efname \n";
+         } else {
+           print "/bin/cp $sfname $efname \n";
+         }
+     } else { exit(1); }
+  }
+}
+
+# Loop over time for all other files
+# ----------------------------------
+while ( $nymd != $nymde || $nhms != $nhmse ) {
+   ($nymd,$nhms) = tick($nymd,$nhms,$dtmin*60);
+   $hh     = substr($nhms,0,2);
+   $sfname = "$expid.$type.${nymd}_${hh}z.$suffix";
+   $efname = "$expid.$type.${nymd}_${hh}z.iter${idx}.$suffix";
+   if ( $nymd == $nymde && $nhms == $nhmse ) { # special handle file at final time
+     if ( ! $opt_clean ) {
+        if (-e "$sfname") {
+          rename("$sfname","$efname");
+          print "/bin/mv $sfname $efname \n";
+        } else {
+           if ( $opt_debug ) {
+               print "/bin/mv $sfname $efname \n";
+           } else { exit(1); }
+        }
+     }
+   } else {
+     if (-e "$sfname") {
+       if ( $opt_clean ) {
+         rm("$sfname");
+         print "/bin/rm $sfname \n";
+       } else {
+         rename("$sfname","$efname");
+         print "/bin/mv $sfname $efname \n";
+       }
+     } else {
+        if ( $opt_debug ) {
+            if ( $opt_clean ) {
+               print "/bin/rm $sfname \n";
+            } else {
+               print "/bin/mv $sfname $efname \n";
+            }
+        } else { exit(1); }
+     }
+   }
+}
+ exit(0);
+
+#......................................................................
+sub init {
+
+   if ( $#ARGV  <  7 ) {
+     print STDERR " Improper input parameters ; see usage:\n";
+     usage();
+   } else {              # required command line args
+     $expid = $ARGV[0];
+     $type  = $ARGV[1];
+     $nymdb = $ARGV[2]; 
+     $nhmsb = sprintf("%6.6d",$ARGV[3]); 
+     $nymde = $ARGV[4]; 
+     $nhmse = sprintf("%6.6d",$ARGV[5]); 
+     $dtmin = $ARGV[6]; 
+     $idx   = $ARGV[7]; 
+   }
+ 
+   $suffix = $ENV{NCSUFFIX};
+   if ( $opt_sfx ) {
+        $suffix = $opt_sfx;
+   }
+   if ( ! $suffix ) {
+       if ( $opt_debug ) {
+          $suffix = "nc4";
+       } else {
+         print "env var NCSUFFIX must be defined. Aborting ...\n";
+         exit(1);
+      }
+   }
+}
+#......................................................................
+#
+# Tick - advance date/time by nsecs seconds
+#
+sub tick {
+    my ( $nymd, $nhms, $nsecs ) = @_;
+
+    if("$nsecs" == "0" ) {
+        return ($nymd, $nhms);
+    }
+
+    $yyyy1  = substr($nymd,0,4);
+    $mm1    = substr($nymd,4,2);
+    $dd1    = substr($nymd,6,2);
+
+    $hh1 = 0 unless ( $hh1 = substr($nhms,0,2));
+    $mn1 = 0 unless ( $mn1 = substr($nhms,2,2));
+    $ss1 = 0 unless ( $ss1 = substr($nhms,4,2));
+    $time1 = timegm($ss1,$mn1,$hh1,$dd1,$mm1-1,$yyyy1) + $nsecs;
+    ($ss1,$mn1,$hh1,$dd1,$mm1,$yyyy1,undef,undef,undef) = gmtime($time1);
+
+    $nymd = (1900+$yyyy1)*10000 + ($mm1+1)*100 + $dd1;
+    $nhms = sprintf("%6.6d",$hh1*10000 + $mn1*100 + $ss1);
+    return ($nymd, $nhms);
+
+}
+
+#......................................................................
+sub usage {
+   print <<"EOF";
+
+NAME
+     rndasfiles - renames DAS files
+          
+SYNOPSIS
+
+     rndasfiles  expid type nymdb nhmsb nymde nhmse dtmin idx
+     e.g.,
+     rndasfiles  d541  inc.eta 20090731 210000 20090731 210000 0 1
+          
+DESCRIPTION
+
+     This script renames files for DAS in the following manner:
+
+       EXPID.TYPE.NYMD_HHz.nc4  EXPID.TYPE.NYMD_HHz.iterIDX.nc4
+  
+     where the capitalize characters relate to the entries in the 
+     argument list
+
+     The following parameters are required 
+
+     expid  experiment id
+     type   file type, e.g., bkg.eta
+     nymdb  Starting date
+     nhmsb  Starting time
+     nymde  Ending date
+     nhmse  Ending time
+     dtmin  Time increment in minutes
+     idx    Index used for renaming
+
+    Optinal Arguents:
+
+    -h      help (echoes this usage)   
+    -purge  rename original file, move all and copying first
+    -clean  remove all files, without touching 1st and last
+    -sfx    filname suffix (default: env(NCSUFFIX))
+    -debug  does not copy/move file, simply echoes what it would be done
+
+EOF
+
+  exit(1);
+}

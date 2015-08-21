@@ -1,0 +1,1469 @@
+#!/usr/bin/env perl
+#=======================================================================
+# name - fln
+# purpose -
+#   Provide a set of commands for interfacing with a directory tree of
+#   flexlinks.
+#
+# Notes
+# 1. A flexlink is a text file ending in '@' which contains the name
+#    of another file/directory.  This is used to simulate symlinks
+#    in a portable way (say on Windows file systems, USB mem sticks). 
+# 2. There are two sets of commands: regular and admin
+# 3. admin commands are invoked by typing "admin" as the first
+#    runtime paramter
+# 4. admin commands are for setting up the flexlinks repository
+# 5. regular commands are those which will typically be used in the
+#    day-to-day maintenance of flexlink files
+# 6. This code is based on the concept of "flexlinks" developed by
+#    Arlindo daSilva (GSFC).
+#
+# !Revision History
+# 05Jun2009  Stassi  Initial version.
+# 09Apr2010  Stassi  new commands; admin commands separated out
+#=======================================================================
+use strict;
+use warnings;
+
+# global variables
+#-----------------
+my ($admin, $cmd, $script, $Xlabel, %aliases, %descr, %do_not_ask);
+my ($batch, %replace, $datankroot, $force, $quiet, $verbose, $noderef);
+my (%wHash, %dHash, %fHash);
+my ($this, @findResults);
+
+# main program
+#-------------
+{
+    init();
+    if ($admin) {
+        if ($cmd eq "create")  { create(); exit }
+        if ($cmd eq "help")    { help();   exit } 
+        if ($cmd eq "stage")   { stage();  exit }
+    }
+    else {
+        if ($cmd eq "update")  { update(); exit }
+        if ($cmd eq "help")    { help();   exit } 
+    }
+
+    # if code gets here, then $cmd is not correct
+    #--------------------------------------------
+    print "\n!!! Unknown $script command: $cmd !!!\n";
+    show_commands();
+}
+
+#......................................................................
+# name - init
+# purpose - get runtime flags, set global variables
+#......................................................................
+sub init {
+    use File::Basename;
+    use Getopt::Long;
+    my ($admflg, @anchor, @pattern);
+
+    # check for admin commands
+    #-------------------------
+    $admflg = alias($admflg) if ($admflg = $ARGV[0]);
+    $admflg = "" unless $admflg;
+
+    if ($admflg eq "admin") { $admin = " admin"; shift @ARGV }
+    else                    { $admin = ""                    }
+
+    $script = basename $0;
+    $script .= $admin;
+
+    # get runtime options
+    #-------------------------------------------------------
+    # THESE MUST BE SINGLE LETTER BECAUSE OF BUNDLING OPTION
+    #-------------------------------------------------------
+    Getopt::Long::Configure "bundling";
+    GetOptions("b"     => \$batch,
+               "A=s@"  => \@anchor,
+               "P=s@"  => \@pattern,
+               "R=s"   => \$datankroot,
+               "f"     => \$force,
+               "q"     => \$quiet,
+               "x"     => \$noderef);
+    if ($quiet) { $verbose = 0 }
+    else        { $verbose = 1 }
+
+    # hash containing command aliases
+    #--------------------------------
+    $aliases{"admin" } = "adm";
+    $aliases{"create"} = "cr cre";
+    $aliases{"help"  } = "he";
+    $aliases{"link"  } = "li ln";
+    $aliases{"stage" } = "st sta";
+    $aliases{"update"} = "up upd";
+
+    # hash containing command descriptions
+    #-------------------------------------
+    if ($admin) {
+        $descr{"create"} = "Create FlexLink tree from pre-existing "
+            .              "directory tree";
+        $descr{"help"  } = "Print help information";
+        #$descr{"link" } = "Create a FlexLink to a remote file";
+        $descr{"stage" } = "Stage a directory tree";
+    }
+    else {
+        $descr{"admin" } = "Run admin commands";
+        $descr{"help"  } = "Print help information";
+        $descr{"update"} = "Update FlexLinks with changes to staged data";
+    }
+
+    # get flexlink command
+    #---------------------
+    $cmd = shift @ARGV;
+    $cmd = alias($cmd);
+    show_commands() unless $cmd;
+
+    # place anchors and patterns into global %replace hash
+    #-----------------------------------------------------
+    if (scalar(@anchor) != scalar(@pattern)) {
+        die ">> Error << Number of anchors (" .scalar(@anchor) .") "
+            . "does not match number of patterns (" .scalar(@pattern) .");";
+    }
+    foreach (0..$#anchor) { $replace{$anchor[$_]} = $pattern[$_] }
+
+    # create label to use in abort messages
+    #--------------------------------------
+    $Xlabel = "$script [$cmd aborted]";
+}
+
+
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# CREATE command
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+#......................................................................
+# name - create
+# purpose - command for creating a set of flexlinks from a directory
+#           tree of data files
+#
+# Runtime arguments
+# => datahead: top directory of data for which to create flexlinks
+# => flexhead: top directory location for flexlinks
+#......................................................................
+sub create {
+    use Cwd "abs_path";
+    my ($datahead, $flexhead, $ans);
+
+    # runtime arguments
+    #------------------
+    wrongInputs() unless scalar(@ARGV) == 2;
+    $datahead = shift @ARGV;
+    $flexhead = shift @ARGV;
+
+    # verify before proceeding
+    #-------------------------
+    verify("Create flexlink files directly from a directory of data");
+
+    # clean directory names
+    #----------------------
+    $datahead = clean_dirname($datahead);
+    $flexhead = clean_dirname($flexhead);
+
+    # check for existence of datahead directory
+    #------------------------------------------
+    die ">> Error << $datahead: No such directory;" unless -d $datahead;
+    $datahead = abs_path($datahead);
+
+    # make a flexlink file for every file under datahead
+    #--------------------------------------------------
+    makepath($flexhead);
+    create_dirloop($datahead, $datahead, $flexhead);
+}
+
+#......................................................................
+# name - create_dirloop
+# purpose - create flexlinks for files within a directory
+#
+# input parameters
+# => datadir: directory of data for which to make flexlinks
+# => datahead: top directory of data for which to make flexlinks
+# => flexhead: top directory location for flexlinks
+#
+# Note:
+# 1. This routine calls itself recursively for subdirectories.
+# 2. This routine is intentionally structured to process files within
+#    a directory before moving to its subdirectories. This will keep
+#    the code from querying to clean a flexdir directory after
+#    flexlinks have been written to its subdirectories.
+#......................................................................
+sub create_dirloop {
+    my ($datadir, $datahead, $flexhead);
+    my ($name, @dirArr, @fileArr);
+
+    # input parameters
+    #-----------------
+    $datadir  = shift @_;
+    $datahead = shift @_;
+    $flexhead = shift @_;
+
+    # start with empty arrays
+    #------------------------
+    while (@dirArr)  { pop @dirArr  }
+    while (@fileArr) { pop @fileArr }
+
+    # separate directory files from plain files
+    #------------------------------------------
+    foreach $name (<$datadir/*>) {
+        if (-d $name) { push @dirArr,  $name }
+        else          { push @fileArr, $name }
+    }
+
+    # process plain files; recurse subdirectories
+    #--------------------------------------------
+    foreach $name (@fileArr) { create_flexlink($name, $datahead, $flexhead) }
+    foreach $name (@dirArr)  { create_dirloop ($name, $datahead, $flexhead) }
+}
+
+#......................................................................
+# name - create_flexlink
+# purpose - create a flexlink for a particular data file
+#
+# input parameters
+# => filename: name of data file for which to create a flexlink
+# => datahead: top directory of data for which flexlinks are being made
+# => flexhead: top directory location for flexlinks
+#......................................................................
+sub create_flexlink {
+    use File::Basename;
+    use File::Path;
+    my ($remotefile, $datahead, $flexhead, $flexname);
+    my ($flexlink, $flexdir, $template, $stub, $ans);
+
+    # input parameters
+    #-----------------
+    $remotefile = shift @_;
+    $datahead   = shift @_;
+    $flexhead   = shift @_;
+
+    # determine flexlink and flexdir
+    #-------------------------------
+    ($stub = $remotefile) =~ s/$datahead\///;
+    $flexlink = "$flexhead/$stub";
+    $flexlink = add_ampersand($flexlink);
+    $flexdir = dirname $flexlink;
+
+    # query before overwriting pre-existing file
+    #-------------------------------------------
+    if (-e $flexlink) {
+        unless ($force) {
+            print "$script: overwrite '$flexlink'? ";
+            chomp($ans = lc <STDIN>);
+            unless (($ans eq "y") or ($ans eq "yes")) {
+                $do_not_ask{$flexdir} = 1;
+                #----#
+                return;
+                #----#
+            }
+        }
+        rmtree($flexlink,$verbose) or die ">> Error << rmtree $flexlink: $!";
+    }
+
+    # get template info to write to flexlink
+    #---------------------------------------
+    $remotefile = deref_flexlink($remotefile) unless $noderef;
+    $template = substitute_patterns($remotefile);
+
+    # write template to flexlink
+    #---------------------------
+    makepath($flexdir);
+    print "$flexlink\n" unless $quiet;
+    open FLX, "> $flexlink" or die ">> Error << open $flexlink: $!";
+    print FLX "$template\n";
+    close FLX or warn ">> Warning << Error while closing $flexlink: $!";
+
+    return;
+}
+
+# end CREATE command
+
+
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# LINK command (NOT CURRENTLY IN USE)
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+#......................................................................
+# name - link1
+# purpose - create a flexlink for a single file
+#
+# input parameters
+# => remote: name of remote file for which to make a flexlink
+# => flex: (optional) name of directory and/or name for flexlink
+#
+# Notes:
+# 1. This command will not create a flexlink to a directory.
+# 2. If flexfile is not given, then it defaults to the local directory.
+# 3. If flexfile is a directory, then the flexlink  name defaults to
+#    same name as the remotefile.
+#......................................................................
+sub link1 {
+    use File::Basename;
+    my ($remotefile, $flexlink);
+    my ($remotename, $flexdir, $template, $ans);
+
+    # runtime arguments
+    #------------------
+    wrongInputs() unless scalar(@ARGV) >= 1;
+    $remotefile = shift @ARGV;
+    $flexlink   = shift @ARGV;
+    $flexlink   = "." unless $flexlink;
+
+    # cannot flexlink to a directory
+    #-------------------------------
+    helpme("link") if -d $remotefile;
+
+    # determine $flexlink and $flexdir
+    #---------------------------------
+    if (-d $flexlink) {
+        $flexlink = clean_dirname($flexlink);
+        $remotename = basename $remotefile;
+        $flexlink .= "/$remotename";
+    }
+    $flexlink = add_ampersand($flexlink);
+    $flexdir = dirname $flexlink;
+    $do_not_ask{$flexdir} = 1;   # do not give option to clean $flexdir
+    
+    # query before overwriting pre-existing file
+    #-------------------------------------------
+    if (-e $flexlink) {
+        unless ($force) {
+            print "$script: overwrite '$flexlink'? ";
+            chomp($ans = lc <STDIN>);
+            #----#
+            return unless ($ans eq "y") or ($ans eq "yes");
+            #----#
+        }
+        rmtree($flexlink,$verbose) or die ">> Error << rmtree $flexlink: $!";
+    }
+
+    # get template info to write to flexlink
+    #---------------------------------------
+    $remotefile = deref_flexlink($remotefile) unless $noderef;
+    $template = substitute_patterns($remotefile);
+
+    # write template info to flexlink
+    #--------------------------------
+    makepath($flexdir);
+    print "$flexlink\n" unless $quiet;
+    open FLX, "> $flexlink" or die ">> Error << open $flexlink: $!";
+    print FLX "$template\n";
+    close FLX or warn ">> Warning << Error while closing $flexlink: $!";
+    return;
+}
+
+# end LINK command
+
+
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# STAGE command
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+#......................................................................
+# name - stage
+# purpose - command for staging symbolic links from a set of flexlinks
+#
+# Runtime arguments
+# => flexhead: top directory location of flexlinks
+# => desthead: top destination directory location for staged data
+#......................................................................
+sub stage {
+    use Cwd "abs_path";
+    my ($flexhead, $desthead, $ans);
+
+    # runtime arguments
+    #------------------
+    wrongInputs() unless scalar(@ARGV) == 2;
+    $flexhead = shift @ARGV;
+    $desthead = shift @ARGV;
+
+    $flexhead = clean_dirname($flexhead);
+    $desthead = clean_dirname($desthead);
+    
+    # verify before proceeding
+    #-------------------------
+    verify("This command is typically called from the datank utility."
+           . "\nAre you sure you want to do this?");
+
+    # check for existence of flexhead directory
+    #------------------------------------------
+    unless (-d $flexhead) {
+        print "$script: $flexhead: No such directory\n";
+        helpme("stage");
+    }
+    $flexhead = abs_path($flexhead);
+
+    # make the destination directory
+    #-------------------------------
+    makepath($desthead);
+    $desthead = abs_path($desthead);
+
+    # make a file under the destination directory for each flexlink
+    #--------------------------------------------------------------
+    stage_dir($flexhead, $flexhead, $desthead);
+}
+
+#......................................................................
+# name - stage_dir
+# purpose - stage a directory of flexlinks
+#
+# input parameters
+# => dir: current directory being staged (within flexlink tree)
+# => flexhead: top directory location of flexlinks
+# => desthead: top destination directory location for staged data
+#
+# Notes:
+# 1. This routine calls itself recursively for subdirectories.
+# 2. This routine is intentionally structured to stage files within
+#    a directory before moving to its subdirectories. This will keep
+#    the code from querying to clean a directory of staged data after
+#    files have been staged to its subdirectories.
+#......................................................................
+sub stage_dir {
+    my ($dir, $flexhead, $desthead);
+    my ($name, @dirArr, @fileArr);
+
+    # input parameters
+    #-----------------
+    $dir      = shift @_;
+    $flexhead = shift @_;
+    $desthead = shift @_;
+
+    # separate directory files from plain files
+    #------------------------------------------
+    foreach $name (<$dir/*>) {
+        if (-d $name) { push @dirArr,  $name }
+        else          { push @fileArr, $name }
+    }
+
+    # process plain files; recurse subdirectories
+    #--------------------------------------------
+    foreach $name (@fileArr) { stage_file($name, $flexhead, $desthead) }
+    foreach $name (@dirArr)  { stage_dir ($name, $flexhead, $desthead) }
+}
+
+#......................................................................
+# name - stage_file
+# purpose - stage an individual flexlink
+#
+# input parameters
+# => filename: current file being staged
+# => flexhead: top directory location of flexlinks
+# => desthead: top destination directory location for staged data
+#......................................................................
+sub stage_file {
+    use File::Basename;
+    use File::Path;
+    my ($filename, $desthead, $flexhead);
+    my ($datafile, $stub, $symlnk, $symlnkdir, $ans);
+
+    # input parameters
+    #-----------------
+    $filename    = shift @_;
+    $flexhead = shift @_;
+    $desthead = shift @_;
+
+    # return if file is not a flexlink file
+    #--------------------------------------
+    return unless $filename =~ /\b\@$/;
+
+    # which data file is the flexlink pointing to?
+    #---------------------------------------------
+    $datafile = get_line($filename);
+    $datafile = expand_variables($datafile);
+    $datafile = deref_flexlink($datafile);
+
+    # staged file will be symbolic link pointing to data file
+    #--------------------------------------------------------
+    ($stub = $filename) =~ s/$flexhead\///;
+    $symlnk = remove_ampersand("$desthead/$stub");
+    $symlnkdir = dirname $symlnk;
+    makepath($symlnkdir);
+
+    # overwrite pre-existing symlink?
+    #--------------------------------
+    if (-e $symlnk) {
+        unless ($force) {
+            inquireYN("$script: $symlnk already exists\noverwrite", \$ans);
+            unless ($ans eq "y") { $do_not_ask{$symlnkdir} = 1; return }
+        }
+        rmtree($symlnk,$verbose) or die ">> Error << rmtree $symlnk: $!";
+    }
+
+    # create symbolic link
+    #---------------------
+    print "$symlnk\n" unless $quiet;
+    symlink $datafile, $symlnk
+        or warn ">> warn << unable to symlink $datafile, $symlnk";
+}
+
+# end STAGE command
+
+
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# UPDATE command
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+#......................................................................
+# name - update
+# purpose - command for updating links to a modified staged directory of data.
+#
+# Runtime arguments
+# => flexhead: top directory location of flexlinks
+# => desthead: (optional) top destination directory location for staged data
+#              defaults to current directory
+#......................................................................
+sub update {
+    use Cwd ("abs_path", "cwd");
+    my ($datahead, $flexhead, $flg);
+
+    # runtime arguments
+    #------------------
+    wrongInputs() unless scalar(@ARGV) >= 1;
+    $datahead = shift @ARGV;
+    $flexhead = shift @ARGV;
+    $flexhead = cwd unless $flexhead;
+
+    # standardize directory names
+    #----------------------------
+    $datahead = abs_path(clean_dirname($datahead));
+    $flexhead = abs_path(clean_dirname($flexhead));
+
+    # make lists of files
+    #--------------------
+    $flg = 2;
+    makeList($datahead, $flg);
+    %dHash = %wHash;
+
+    $flg = 1;
+    makeList($flexhead, $flg);
+    %fHash = %wHash;
+
+    # compare the lists to find changes
+    #----------------------------------
+    update_flexlinks();
+    new_flexlinks($flexhead);
+}
+    
+#......................................................................
+# name - update_flexlinks
+# purpose - loop through flexlinks; check whether any need to be
+#           updated to a different version
+#......................................................................
+sub update_flexlinks {
+    use Cwd "abs_path";
+    my ($dKey, $dTarget, $dFull, $dVersion);
+    my ($fKey, $fTarget, $fFull, $fVersion);
+    my ($fName, @notfound, @nochange, $ans);
+
+    # loop through flexlinks
+    #-----------------------
+    @notfound = (); @nochange = ();
+    foreach $fKey (keys %fHash) {
+
+        # check for corresponding symlink
+        #--------------------------------
+        ($dKey = $fKey) =~ s/^(.*)\@$/$1/; # remove trailing '@' for dKey
+        unless ($dHash{$dKey}) {
+            push @notfound, $dKey;
+            next;
+        }
+
+        # skip if the two targets are same
+        #---------------------------------
+        $fTarget = abs_path(deref_flexlink($fHash{$fKey}));
+        $dTarget = abs_path($dHash{$dKey});
+
+        if ($dTarget eq $fTarget) {
+            push @nochange, $dKey;
+            next;
+        }
+
+        # extract full target names and version numbers
+        #----------------------------------------------
+        ($fFull, $fVersion) = extract($fTarget);
+        ($dFull, $dVersion) = extract($dTarget);
+
+        # different targets (???)
+        #------------------------
+        if ($dFull ne $fFull) {
+            print "\nWARNING!! Files point to different targets\n"
+                . "    symlink -> $dTarget\n"
+                . "   flexlink -> $fTarget\n\n";
+            pause();
+            next;
+        }
+
+        # different versions
+        #-------------------
+        if ($dVersion ne $fVersion) {
+            inquireYN("Update $fKey;$fVersion->$dVersion", \$ans);
+
+            if ($ans eq "y") {
+                $fName = $fHash{$fKey};
+                $dTarget = substitute_patterns($dTarget);
+                writefl($fName, $dTarget);
+                print "file updates\n";
+            } else {
+                print "not updated\n";
+            }
+        }
+    }
+
+    # summary of files not found
+    #---------------------------
+    if (@notfound and $verbose) {
+        foreach (@notfound) { print "NOT FOUND: $_\n" }
+        pause();
+    }
+
+    # summary of files unchanged
+    #---------------------------
+    if (@nochange and $verbose) {
+        foreach (@nochange) { print "No change: $_\n" }
+        pause();
+    }
+}
+
+#......................................................................
+# name - extract
+# purpose - extract full file name and version from DataTank file name
+#......................................................................
+sub extract {
+    my $name;
+    my ($fullname, $version);
+
+    $name = shift @_;
+    ($fullname, $version) = split /;/, $name;
+    die "Xlabel: Not a Datank file: $name" unless $version =~ /^\d*$/;
+
+    return ($fullname, $version);
+}
+
+#......................................................................
+# name - new_flexlinks
+# purpose - loop through symlinks; see if any exist for which there
+#           is not a corresponding flexlink
+#
+# input parameter
+# => $flexhead: top directory location of flexlinks
+#......................................................................
+sub new_flexlinks {
+    my $flexhead;
+    my ($dKey, $fKey, $fSubdir);
+
+    # input parameter
+    #----------------
+    $flexhead = shift @_;
+
+    # loop through symbolic links
+    #----------------------------
+    foreach $dKey (keys %dHash) {
+
+        # does corresponding flexlink exist?
+        #-----------------------------------
+        ($fKey = $dKey) .= "@";
+        unless ($fHash{$fKey}) {
+            $fSubdir = whichSubdir($flexhead, $dHash{$dKey});
+            what2do($dKey, $fKey, $fSubdir);
+        }
+    }
+}
+
+#......................................................................
+# name - whichSubdir
+# purpose - figure out location for flexlink file corresponding
+#           to new symbolic link found under $datahead
+#
+# input parameters
+# => $flexhead: top directory location for flexlinks
+# => $fullname: full path filename of new symbolic link
+#
+# return value
+# => subdirectory location under $flexhead
+#    or =0 if unable to determine subdirectory location
+#......................................................................
+sub whichSubdir {
+    use File::Basename;
+    use File::Find;
+    my ($flexhead, $fullname);
+    my ($flexbase, $fulldir);
+    my (@segs, @new, $here);
+
+    # input parameters
+    #-----------------
+    $flexhead = shift @_;
+    $fullname = shift @_;
+
+    # look for an interception between $fullname path and $flexhead subdirs
+    #----------------------------------------------------------------------
+    $flexbase = basename $flexhead;
+    $fulldir = dirname $fullname;
+    @segs = split /\//, $fulldir;
+    @segs = removeBlankElements(@segs);
+
+    $here = 0;
+    @new = ();
+    @findResults = ();
+
+    while (@segs) {
+        $this = pop @segs;
+        if ($this eq $flexbase) { $here = $flexhead; last }
+        find(\&findThis, $flexhead);
+        if (@findResults) { $here = shift @findResults; last }
+        else              { push @new, $this                 }
+    }
+    if ($here) {
+        while (@new) { $here .= "/". pop @new }
+    }
+
+    return $here;
+}
+
+#......................................................................
+# name - what2do
+# purpose - determine, along with user, whether to create a flexlink
+#           file for the new data symlinks
+#
+# input parameters
+# => $dKey: name of data symlink used as key in hash to full name
+# => $fKey: name of flexlink used as key in hash to full name
+# => fSubdir: subdirectory location where to put new flexlink
+#             (=0 is unable to determine which subdirectory)
+#......................................................................
+sub what2do {
+    use Cwd "abs_path";
+    use File::Path;
+    my ($dKey, $fKey, $fSubdir);
+    my ($fName, $dTarget, $ans);
+
+    # input parameters
+    #-----------------
+    $dKey = shift @_;
+    $fKey = shift @_;
+    $fSubdir = shift @_;
+
+    # found symlink file for which there is no corresponding flexlink
+    #----------------------------------------------------------------
+    print "\nNEW DATA: " .$dHash{$dKey} ."\n";
+
+    # return if don't know where to put new flexlink file
+    #----------------------------------------------------
+    unless ($fSubdir) {
+        print "WARNING: unable to determine where to add flexlink\n";
+        pause();
+        return;
+    }
+
+    # determine flexlink file name
+    #-----------------------------
+    $fName = "$fSubdir/$fKey";
+
+    # query user whether to add new flexlink
+    #---------------------------------------
+    inquireYN("ADD FLEXLINK: $fName", \$ans);
+    unless ($ans eq "y") { print "not added\n"; return }
+
+    # create need new subdirectory, if necessary
+    #-------------------------------------------
+    unless (-d $fSubdir) {
+        inquireYN("MKDIR $fSubdir", \$ans);
+        unless ($ans eq "y") { print "not added\n"; return }
+        mkpath($fSubdir, 1, 0755) or die ">> Error mkpath $fSubdir: $!";
+    }
+
+    # write symlink target to the flexlink file
+    #------------------------------------------
+    $dTarget = abs_path(deref_flexlink($dHash{$dKey}));
+    $dTarget = substitute_patterns($dTarget);
+    writefl($fName, $dTarget);
+    print "file added\n";
+
+    return;
+}
+
+#......................................................................
+# name - writefl
+# purpose - write a flexlink file
+#
+# input parameters
+# => $fName: name of flexlink file
+# => $target: target to write to flexlink file
+#......................................................................
+sub writefl {
+    my ($fName, $target);
+
+    # input parameters
+    #-----------------
+    $fName  = shift @_;
+    $target = shift @_;
+
+    # write $target to $fName
+    #------------------------
+    open FLINK, "> $fName" or die ">> Error << Error open file: $fName: $!";
+    print FLINK "$target\n";
+    close FLINK;
+
+    return;
+}
+
+#......................................................................
+# name - findThis
+# purpose - look for a specific subdirectory location
+#
+# Note: used as \&wanted function in File::Find call from whichSubdir()
+#
+# global variables
+# => $FindThis: name of subdirectory to search for
+# => @FindResults: the found subdirectory(s) are put in this array
+#......................................................................
+sub findThis {
+    push @findResults, $File::Find::name if $this eq $_;
+}
+
+#......................................................................
+# name - removeBlankElements
+# purpose - remove blank elements from an array
+#
+# input parameters
+# => @arr: array to check
+#......................................................................
+sub removeBlankElements {
+    my (@arr, $size, $element);
+
+    @arr = @_;
+    $size = scalar @arr;
+
+    foreach (1..$size) {
+        $element = shift @arr;
+        push @arr, $element if $element;
+    }
+    return @arr;
+}
+
+#......................................................................
+# name - makeList
+# purpose - create a hash list of either symbolic links or flexlinks
+# input parameters
+# => $head: top directory to make search for links
+# => $flg: flag indicating what to check
+#          =1 check for flexlinks
+#          =2 check for symbolic links
+#......................................................................
+sub makeList {
+    use File::Find;
+    my ($head, $flg);
+    $head = shift @_;
+    $flg  = shift @_;
+
+    %wHash = (); # zero out global hash before calling "find"
+    find(\&findPlain, $head);
+    %wHash = checkH($head, $flg, %wHash);
+}
+
+#......................................................................
+# name - checkH
+# purpose - check hash values for either flexlinks or symbolic links
+# input parameters
+# => %myHash: hash containing values
+# => $flg: flag indicating what to check
+#          =1 check for flexlinks
+#          =2 check for symbolic links
+#......................................................................
+sub checkH {
+    my ($head, %myHash, $flg);
+    my ($type, $key, $label);
+
+    $head = shift @_;
+    $flg = shift @_;
+    %myHash = @_;
+
+    $type = "";
+    if ($flg == 1) { $type = "flexlink"      }
+    if ($flg == 2) { $type = "symbolic link" }
+    die "Xlabel: incorrect call to checkH()\n" unless $type;
+
+    # check for flexlinks
+    #--------------------
+    if ($flg == 1) {
+        foreach $key (keys %myHash) {
+            unless ($myHash{$key}=~/\@$/) {
+                print "IGNORING (not $type): $myHash{$key}\n";
+                delete $myHash{$key};
+            }
+        }
+    }
+
+    # check for symbolic links
+    #-------------------------
+    if ($flg == 2) {
+        foreach $key (keys %myHash) {
+            unless (-l $myHash{$key}) {
+                print "IGNORING (not $type): $myHash{$key}\n";
+                delete $myHash{$key};
+            }
+        }
+    }
+
+    # quit if no expected files found
+    #--------------------------------
+    die "Xlabel: no $type found in $head;" unless %myHash;
+
+    return %myHash;
+}
+
+#......................................................................
+# name - findPlain
+# purpose - add non-directory filename to a global hash list
+#
+# Note: used as \&wanted routine in File::Find call from makeList()
+#
+# inputs
+# => $_ is set to current file name
+# => $File::Find::dir is set to current directory
+# => $File::Find::name is set to "$File::Find::dir/$_"
+#
+#......................................................................
+sub findPlain {
+    my $name;
+
+    $name = $File::Find::name;
+
+    # ignore files: CVS, .repository, and .root
+    #------------------------------------------
+    $File::Find::prune = 1 if /^CVS$/;
+    return if /^CVS$/ or /^.repository$/ or /^.root$/;
+    return if -d $name;
+
+    # add file entry to hash
+    #-----------------------
+    $wHash{$_} = $name;
+}
+
+# end UPDATE command
+
+
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# UTILITY subroutines
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+#......................................................................
+# name - alias
+# purpose - recognize aliases for the flexlink commands
+#
+# input parameter
+# => cmd: flexlink command
+#
+# return value
+# => long version of command
+#
+# Notes:
+# 1. The aliases for each command are defined in a string in the %aliases hash
+#......................................................................
+sub alias {
+    my ($lcmd, $key, $string);
+
+    $lcmd = shift @_;
+    return unless $lcmd;
+
+    foreach $key (keys %aliases) {
+        $string = $aliases{$key};
+        if ($string =~ /\b$lcmd\b/) {
+            $lcmd = $key;
+            last;
+        }
+    }
+    return $lcmd;
+}
+
+#......................................................................
+# name - add_ampersand
+# purpose - add an ampersand to the end of a string
+#
+# input parameter
+# => string: string to which the ampersand will be appended
+#
+# return value
+# => string with ampersand appended
+#
+# Notes:
+# 1. If there is already an ampersand at the end of the string, then
+#    another is not added. The string is returned unchanged.
+#......................................................................
+sub add_ampersand {
+    my $string;
+    $string = shift @_;
+    $string .= "\@" unless $string =~ /\@$/;
+    return $string;
+}
+
+#......................................................................
+# name - clean_dirname
+# purpose - clean a directory name
+#
+# input parameter
+# => dirname: directory name to clean
+#
+# return value
+# => cleaned directory name
+#......................................................................
+sub clean_dirname {
+    my ($dirname, $cleanname);
+
+    $dirname = shift @_;
+
+    # remove <cr>, leading & trailing blanks, and trailing '/'
+    #---------------------------------------------------------
+    chomp($cleanname = $dirname);
+    $cleanname = $1 if $cleanname =~ /^\s*(\S+)\s*$/;
+    $cleanname = $1 if $cleanname =~ /^(.+)\/$/;
+    $cleanname =~ s/\/\//\//;
+
+    return $cleanname;
+}
+
+#......................................................................
+# name - deref_flexlink
+# purpose - dereference a flexlink
+#
+# input parameter
+# => filepath: a file reference which may or may not contain flexlink
+#              references
+#
+# return value
+# => dereferenced filepath
+#......................................................................
+sub deref_flexlink {
+    my ($filepath, $deref, $deref_FL);
+    my (@tokens, $tokn, $cur, $cnt);
+
+    # input parameter
+    #----------------
+    $filepath = shift @_;
+
+    $deref = "";
+    $deref = "/" if ( substr($filepath,0,1) eq "/" );
+    $cnt = 0;
+
+    @tokens = split "/", $filepath;
+    foreach $tokn (@tokens) {
+
+        # build new dereferenced filepath
+        #--------------------------------
+        if    ($deref eq "")  { $deref = $tokn          }
+        elsif ($deref eq "/") { $deref = "/$tokn"       }
+        else                  { $deref = "$deref/$tokn" }
+
+        # if file does not exist, then look for flexlink
+        #-----------------------------------------------
+        unless (-e $deref) {
+            $deref_FL = $deref ."@";
+            $deref = $deref_FL if -e $deref_FL;
+        }
+
+        # follow flexlinks to end
+        #------------------------
+        while ($deref =~ /\@$/) {
+            die ">> Error << excessive looping" if ++$cnt > 100;
+            $deref = get_line($deref) if -e $deref;
+            $deref = expand_variables($deref);
+            unless (-e $deref) {
+                $deref_FL = $deref ."@";
+                $deref = $deref_FL if -e $deref_FL;
+            }
+        }
+    }
+    return $deref;
+}
+
+#......................................................................
+# name - expand_variables
+# purpose - replace variables within a string with their values
+#
+# input parameter
+# => string: string with variables to expand
+#
+# return value
+# => expanded string
+#
+# Notes:
+# 1. Variable format can be either $name or ${name}
+# 2. All variables must be defined within the calling environment
+# 3. Variables without curly brackets must be replaced before variables
+#    with them.
+# 4. The "${" is replaced with "###{" while replacing variables without
+#    curly brackets (to keep the curly bracket variables from tripping
+#    the index test).
+#......................................................................
+sub expand_variables {
+    use Cwd "abs_path";
+    my ($string, $cnt, $p0, $p1, $a1, @notdefined);
+
+    $string = shift @_;
+
+    # replace $variables without curly brackets
+    #------------------------------------------
+    $string =~ s/\$\{/###{/g;     # deal with curly bracket variables later
+    $cnt = 0;
+    while (index($string,'$') >= 0) {
+        if ( $string =~ /\$(\w+)/ ) {
+            $p0 = $1;
+            $p1 = '\$'.$p0;  # must use single-quote here
+            $a1 = '#';       # if no value found for environment variable
+
+            if ($ENV{$p0}) { $a1 = $ENV{$p0}       }
+            else           { push @notdefined, $p0 }
+
+            $string =~ s/$p1/$a1/;
+            $a1 = abs_path($a1) if -e $a1;
+            $replace{$a1} = '$'.$p0;  # save anchor and replacement
+        }
+        die ">> Error << excessive looping ($string);" if ++$cnt > 100;
+    }
+
+    # replace curly-bracket ${variables}
+    #-----------------------------------
+    $string =~ s/###\{/\${/g;     # restore the curly bracket variables
+    $cnt = 0;
+    while (index($string,'${') >= 0) {
+        if ( $string =~ /\${(\w+)}/ ) {
+            $p0 = $1;
+            $p1 = '\${'.$p0.'}';
+            $a1 = '#';       # if no value found for environment variable
+
+            if ($ENV{$p0}) { $a1 = $ENV{$p0}       }
+            else           { push @notdefined, $p0 }
+
+            $string =~ s/$p1/$a1/;
+            $a1 = abs_path($a1) if -e $a1;
+            $replace{$a1} = '${'.$p0.'}';  # save anchor and replacement
+        }
+        die ">> Error << excessive looping ($string);" if ++$cnt > 100;
+    }
+
+    # quit if undefined environment variable(s) found
+    #------------------------------------------------
+    if (@notdefined) {
+        print "$Xlabel: Undefined environment variable(s): ";
+        foreach (@notdefined) { print " $_" }; print "\n";
+        die;
+    }
+    return $string;
+}
+
+#......................................................................
+# name - get_line
+# purpose - get a line from an input file
+#
+# input parameter
+# => infile: name of file to read
+#
+# return value
+# => top line read from file
+#
+# Notes:
+# 1. Only the top line of the file is read and returned
+#......................................................................
+sub get_line {
+    my ($infile, $line);
+
+    # input parameter
+    #----------------
+    $infile = shift @_;
+
+    # open file and read first line
+    #------------------------------
+    open(FILE, "< $infile" ) or die ">> Error << open $infile: $!";
+    chomp($line = <FILE>);
+    close(FILE);
+    die ">> Error << reading $infile: $!" unless defined($line);
+
+    return $line;
+}
+
+#......................................................................
+# name - inquireYN
+# purpose - get and return response to y/n question
+#
+# input parameters
+# => $prompt: string to prompt for user response
+# => $addr: address for variable $YN which contains a default response
+#           either "y" or "n"; will be set to "n" unless it equals "y"
+#
+# output
+# => sent back through address, $addr
+#......................................................................
+sub inquireYN {
+    my ($prompt, $addr, $YN, $ans);
+
+    while (1) {
+
+        # input parameters
+        #-----------------
+        $prompt = shift @_;
+        $addr   = shift @_; $YN = $$addr;
+
+        # default response is "n" unless user specified "y"
+        #-------------------------------------------------
+        $YN = "n" unless $YN;
+
+        # concatenate y/n choices and default to prompt
+        #----------------------------------------------
+        $prompt .= " (y/n) [$YN]? ";
+
+        # print prompt and get response
+        #------------------------------
+        print $prompt;
+        chomp($ans = lc <STDIN>); $ans = $YN unless $ans;
+        $ans = "n" if $ans eq "no";
+        $ans = "y" if $ans eq "yes";
+
+        last if $ans eq "y" or $ans eq "n";
+        print "Unrecognizable input.  Try again\n";
+    }
+    $$addr = $ans;
+}
+
+#......................................................................
+# name - makepath
+# purpose - fancy mkdir command
+#
+# input parameter
+# => dir: name of directory to mkdir
+#
+# Notes:
+# 1. If the directory already exists, then the user will be prompted
+#    whether or not to first clean the directory ...
+# 2. ... unless the user is already cd'ed into the directory; then
+#    (s)he will not be given the option to clean it first.
+# 3. The %do_not_ask hash is used to keep user from being queried
+#    multiple times for the same directory.
+#......................................................................
+sub makepath {
+    use File::Path;
+    my ($dir, $ans, $here);
+
+    $dir = shift @_;
+    chomp($here = `pwd`);
+
+    if (-d $dir) {
+        return if $do_not_ask{$dir};
+        return if $dir eq $here;
+        inquireYN("\nDirectory already exists: $dir\nclean directory", \$ans);
+        $do_not_ask{$dir} = 1;
+
+        unless ($ans eq "y") { return }
+        rmtree($dir,$verbose);
+    }
+    mkpath($dir,$verbose) or die ">> Error << mkpath $dir: $!";
+    $do_not_ask{$dir} = 1;
+}
+
+#......................................................................
+# name - pause
+# purpose - pause interactive processing
+# Note: useful with print statements when debugging code
+#......................................................................
+sub pause {
+    my $dummy;
+    print "Hit <cr> to continue ... ";
+    $dummy = <STDIN>;
+    return;
+}
+
+#......................................................................
+# name - remove_ampersand
+# purpose - remove ampersand from the end of a string
+#
+# input parameter
+# => string: string from which the ampersand will be removed
+#
+# return value
+# => string with trailing ampersand removed
+#
+# Notes:
+# 1. If the string does not have a trailing ampersand, then it is
+#    returned unchanged.
+#......................................................................
+sub remove_ampersand {
+    my $string;
+    $string = shift @_;
+    $string = $1 if $string =~/^(.+)\@$/;
+    return $string;
+}
+
+#......................................................................
+# name - substitute_patterns
+# purpose - substitute "anchors" within a string with corresponding "patterns"
+#
+# input parameter
+# => string: string in which to substitute patterns for anchors
+#
+# return value
+# => string after all substitutions are complete
+#
+# Notes:
+# 1. The global %replace hash contains archors and patterns. These values
+#    are set with the runtime flags, -anchor <value> -pattern <value> or
+#    were extracted in the expand_variables() subroutine.
+#......................................................................
+sub substitute_patterns {
+    use Cwd "abs_path";
+    my ($string, $template, $a1, $p1);
+
+    $string = shift @_;
+    $template = abs_path($string);
+
+    # substitute pattern(s) for anchor(s)
+    #------------------------------------
+    foreach (keys %replace) {
+        $a1 = $_;
+        $p1 = $replace{$_};
+        $a1 = abs_path($a1) if -e $a1;
+        $template =~ s/$a1/$p1/g;
+    }
+    return $template;
+}
+
+
+#......................................................................
+# name - verify
+# purpose - exit unless user gives positive affirmation
+#......................................................................
+sub verify {
+    my ($string, $ans);
+    $string = shift @_;
+
+    #----#
+    return if $batch;
+    #----#
+
+    inquireYN("$string", \$ans);
+    unless ($ans eq "y") { print "$Xlabel\n"; exit }
+    return;
+}
+
+#......................................................................
+# name - wrongInputs
+# purpose - Print message that input parameters are incorrect and then
+#           call the helpme subroutine.
+#......................................................................
+sub wrongInputs {
+    print "$Xlabel: incorrect number of input parameters.\n";
+    helpme($cmd);
+}
+
+# end UTILITY subroutines
+
+
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# HELP command
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+#......................................................................
+# name - help
+# purpose - print help information about flexlink commands
+#
+# Runtime arguments
+# => cmd (optional): flexlink command 
+#
+# Notes:
+# 1. If no argument is supplied, then a list of possible commands is printed.
+# 2. If an argument is supplied, then help for that particular command
+#    is printed.
+#......................................................................
+sub help {
+    my $lcmd;
+
+    $lcmd = shift @ARGV;
+
+    if ($lcmd) { helpme($lcmd)   }
+    else       { show_commands() }
+}
+
+#......................................................................
+# name - helpme
+# purpose - print command-specific help
+#
+# input parameter
+# => cmd: command for which to print help info
+#
+# Notes:
+# 1. If an unrecognized command is given, then the show_commands()
+#    subroutine is called.
+#......................................................................
+sub helpme {
+    my ($lcmd, $key, %help);
+
+    # input parameter
+    #----------------
+    $lcmd = shift @_;
+    $key  = alias($lcmd) if $lcmd;
+
+    # initialize hash containing command-specific help
+    #-------------------------------------------------
+    $help{"admin"} = "[command]\n"
+        .    "Type '$script admin help' to see list of commands";
+    $help{"create"} = "/path/to/data/dir /path/to/flexlink/dir [options]\n"
+        .    "Options:  -A replaceThis        anchor(s) in directory path\n"
+        .    "          -P withThis           replacement pattern(s)\n"
+        .    "          -f                    force overwrite of "
+        .                                     "pre-existing flexlinks\n"
+        .    "          -q                    quiet mode\n"
+        .    "          -x                    do not dereference flexlinks";
+    $help{"help"} = "[command]";
+    $help{"link"} = "remoteFile /path/to/flexlink/dir [flexfilename] [options]\n"
+        .    "Options:  -anchor  replaceThis   pattern(s) in directory path\n"
+        .    "          -pattern withThis      replacement pattern(s)\n"
+        .    "          -f                     force overwrite of "
+        .                                      "pre-existing flexlinks\n"
+        .    "          -q                     quiet mode\n"
+        .    "          -x                     do not dereference flexlinks\n"
+        .    "Note: flexfilename defaults to local directory";
+    $help{"stage"} = "/path/to/flexlink/dir /path/to/dest [options]\n"
+        .    "Options:  -f         force overwrite of "
+        .                          "pre-existing links\n"
+        .    "          -q         quiet mode";
+    $help{"update"} = "/path/to/staged/data [/path/to/flexlink/dir] [options]\n"
+        .    "Options:  -f         force overwrite of "
+        .                          "pre-existing links\n"
+        .    "          -q         quiet mode\n"
+        .    "Note: /path/to/flexlink/dir defaults to local directory";
+
+    # print help for specified command if available
+    #----------------------------------------------
+    if ($lcmd and defined($help{$key})) {
+        print "Usage: $script $key $help{$key}\n";
+        print "Aliases: $aliases{$key}\n" if $aliases{$key};
+        print "Purpose: ". $descr{$key} ."\n";
+        print "\n";
+        exit;
+    }
+
+    # else, print list of commands
+    #-----------------------------
+    print "\n!!! Unknown $script command: $lcmd !!!\n" if $lcmd;
+    show_commands();
+}
+
+#......................................................................
+# name - show commands
+# purpose - print the list of flexlink commands with a brief description of each
+#......................................................................
+sub show_commands {
+    my $key;
+
+    # print list of commands and descriptions
+    #----------------------------------------
+    print "Usage: $script command [command-options-and-arguments]\n"
+        . "$script commands are:\n";
+    foreach $key (sort keys %descr) {
+        printf "%8s%-13s%-s%s", "", $key, $descr{$key}, "\n";
+    }
+    print "Type \"$script help 'command'\" for command-specific help\n\n";
+    exit;
+}
+
+# end HELP command

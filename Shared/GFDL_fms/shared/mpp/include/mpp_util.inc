@@ -1,6 +1,6 @@
 
 ! -*-f90-*-
-! $Id: mpp_util.inc,v 1.2 2013-09-09 15:39:43 rtodling Exp $
+! $Id: mpp_util.inc,v 1.3.2.1 2014-08-11 16:17:44 mathomp4 Exp $
 
 
 #ifdef use_libSMA
@@ -1261,8 +1261,8 @@ end function rarray_to_char
   subroutine read_input_nml
 
 ! version and tagging information
-    character(len=128) :: version = '$Id: mpp_util.inc,v 1.2 2013-09-09 15:39:43 rtodling Exp $'
-    character(len=128) :: tagname = '$Name: jk-G40-GEOSctm-advcore-update3 $' 
+    character(len=128) :: version = '$Id: mpp_util.inc,v 1.3.2.1 2014-08-11 16:17:44 mathomp4 Exp $'
+    character(len=128) :: tagname = '$Name: Heracles-3_1_CTM $' 
 
 !private variables
     integer :: log_unit
@@ -1311,8 +1311,8 @@ end function rarray_to_char
     integer, intent(in), optional, dimension(:) :: PELIST
 
     ! version and tagging information
-    character(len=*), parameter :: VERSION = '$Id: mpp_util.inc,v 1.2 2013-09-09 15:39:43 rtodling Exp $'
-    character(len=*), parameter :: TAGNAME = '$Name: jk-G40-GEOSctm-advcore-update3 $' 
+    character(len=*), parameter :: VERSION = '$Id: mpp_util.inc,v 1.3.2.1 2014-08-11 16:17:44 mathomp4 Exp $'
+    character(len=*), parameter :: TAGNAME = '$Name: Heracles-3_1_CTM $' 
 
     character(len=LENGTH) :: str_tmp
     character(len=5) :: text
@@ -1409,7 +1409,7 @@ end function rarray_to_char
           end if
        else
 !         call mpp_error(FATAL, 'READ_ASCII_FILE: File '//trim(FILENAME)//' does not exist.')
-!         pnum_lines = -1
+          pnum_lines = -1
        end if
     end if
 
@@ -1428,6 +1428,6 @@ end function rarray_to_char
     endif
 
     ! Broadcast character array
-    call mpp_broadcast(Content, LENGTH, from_pe, PELIST=PELIST)
+    if (allocated(Content)) call mpp_broadcast(Content, LENGTH, from_pe, PELIST=PELIST)
   end subroutine read_ascii_file
   

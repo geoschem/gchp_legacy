@@ -32,7 +32,9 @@
 !  07Apr2004  Todling   Added realp option to handle pert in delp.
 !  25Mar2005  Todling   Added pureadd option
 !  27Apr2006  Elena N.  Added a check if the perturbation is of the same resolution as the state vector
-!                       If not, the perturbation will be interpolated to the resolution of teh state vector 
+!                       If not, the perturbation will be interpolated to the resolution of the state vector 
+!  06Mar2014  Todling   Add pncf to allow read of GSI non-complaint dyn-vector perturbation files
+!  07May2014  Todling   Correct implementation of interpolation of dw-res to state-resolution
 !
 !EOP
 !-----------------------------------------------------------------------
@@ -43,7 +45,7 @@
 !     ---------------
       integer :: rc, freq, dyntype
       integer :: nymd_s, nhms_s, nymd_p, nhms_p
-      logical :: fexists, zero, interp
+      logical :: fexists, zero, interp, pncf
 
       character(len=255) :: pertype
       integer :: ks
@@ -114,9 +116,9 @@
 !          Read from file
 !          --------------
            if ( pick ) then   ! specific time
-              call dyn_get ( dyn_pin, nymd_p, nhms_p, dwi, rc, timidx=0, freq=freq, vectype=dyntype )
+              call dyn_get ( dyn_pin, nymd_p, nhms_p, dwi, rc, timidx=0, freq=freq, vectype=dyntype, pncf=pncf )
            else               ! latest
-              call dyn_get ( dyn_pin, nymd_p, nhms_p, dwi, rc, freq=freq, vectype=dyntype )
+              call dyn_get ( dyn_pin, nymd_p, nhms_p, dwi, rc, freq=freq, vectype=dyntype, pncf=pncf )
            end if
            if ( rc .eq. 0 ) then
                 print *, myname//': read perturbation from file '//trim(dyn_pin)
@@ -161,7 +163,7 @@
 
       call dyn_null (dw)
 
-      call dyn_init ( dwi%grid%im, dwi%grid%jm, dwi%grid%km, dwi%grid%lm, dw, rc, ptop, ks, ak, bk, vectype=dyntype )
+      call dyn_init ( w%grid%im, w%grid%jm, w%grid%km, dwi%grid%lm, dw, rc, ptop, ks, ak, bk, vectype=dyntype )
 
       if ((dwi%grid%im.ne.w%grid%im)   .or. &
           (dwi%grid%jm.ne.w%grid%jm) ) then
@@ -422,6 +424,7 @@
 !     29Feb2008   Todling   Bug fix: index function creates redundancies
 !     21Apr2009   Todling   Update defaults resolution for GEOS-5
 !     19Jul2010   Todling   Update GEOS-5 d-/e-resolutions to GEOS-4-like
+!     06Mar2014   Todling   Add pncf for non-compliant perturbation files
 !
 !EOP
 !-----------------------------------------------------------------------
@@ -443,6 +446,7 @@
       geos4res = .false.
       gsires = .false.
       pertype = 'tlm'
+      pncf = .false.
 
       dyn_sout = 'NONE'
       dyn_pout = 'NONE'
@@ -473,6 +477,8 @@
             dyntype = 5
          case ("-stats")
             stats = .true.
+         case ("-pncf")
+            pncf = .true.
          case ("-pureadd")
             pureadd = .true.
          case ("-twoperts")

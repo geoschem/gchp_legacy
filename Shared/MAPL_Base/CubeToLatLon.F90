@@ -1,13 +1,13 @@
-!  $Id: CubeToLatLon.F90,v 1.2.12.5.2.6.4.5 2014-07-14 16:08:43 bmauer Exp $
+!  $Id: CubeToLatLon.F90,v 1.9 2014-12-12 15:55:27 bmauer Exp $
 
 #define SUCCESS 0
 #define VERIFY_(A) if((A)/=0) then; if(present(rc)) rc=A; PRINT *, Iam, __LINE__; return; endif
 #define ASSERT_(A) if(.not.(A)) then; if(present(rc)) rc=1; PRINT *, Iam, __LINE__; return; endif
 #define RETURN_(A) if(present(rc)) rc=A; return
 
-#define DEALOC_(A) if(associated(A)) then;A=0;call MAPL_DeAllocNodeArray(A,rc=STATUS);if(STATUS==MAPL_NoShm) deallocate(A,stat=STATUS);VERIFY_(STATUS);NULLIFY(A);endif
+#define DEALLOCGLOB_(A) if(associated(A)) then;A=0;call MAPL_DeAllocNodeArray(A,rc=STATUS);if(STATUS==MAPL_NoShm) deallocate(A,stat=STATUS);VERIFY_(STATUS);NULLIFY(A);endif
 
-#define DEALOC2_(A) if(associated(A)) then; deallocate(A, stat=STATUS); VERIFY_(STATUS); NULLIFY(A); endif
+#define DEALLOCLOCL_(A) if(associated(A)) then; deallocate(A, stat=STATUS); VERIFY_(STATUS); NULLIFY(A); endif
 
 #ifdef TAU_PROFILE
 #undef ASSERT_
@@ -60,20 +60,23 @@ Module CubeLatLonTransformMod
 
  type T_CubeLatLonTransform
      private
-     real(R8),pointer    :: weight(:,:,:),l2c(:,:,:)  
-     integer, pointer    :: index (:,:,:)
-     integer, pointer    :: id1(:,:), id2(:,:), jdc(:,:)
+     real(R8),pointer    :: weight(:,:,:) => null()
+     real(R8),pointer    :: l2c(:,:,:)   => null()
+     integer, pointer    :: index (:,:,:) => null()
+     integer, pointer    :: id1(:,:) => null()
+     integer, pointer    :: id2(:,:) => null()
+     integer, pointer    :: jdc(:,:) => null()
      logical             :: Created=.false.
      character(len=120)  :: name
      integer             :: npx, npy, nlon, nlat
-     real(R8), pointer   :: ee1(:,:,:) 
-     real(R8), pointer   :: ee2(:,:,:) 
-     real(R8), pointer   :: ff1(:,:,:) 
-     real(R8), pointer   :: ff2(:,:,:) 
-     real(R8), pointer   :: gg1(:,:,:) 
-     real(R8), pointer   :: gg2(:,:,:) 
-     real(R8), pointer   :: elon(:,:,:)
-     real(R8), pointer   :: elat(:,:,:)
+     real(R8), pointer   :: ee1(:,:,:)  => null()
+     real(R8), pointer   :: ee2(:,:,:)  => null()
+     real(R8), pointer   :: ff1(:,:,:)  => null()
+     real(R8), pointer   :: ff2(:,:,:)  => null()
+     real(R8), pointer   :: gg1(:,:,:)  => null()
+     real(R8), pointer   :: gg2(:,:,:)  => null()
+     real(R8), pointer   :: elon(:,:,:) => null()
+     real(R8), pointer   :: elat(:,:,:) => null()
 !
      logical             :: lsCreated = .false.
      type(MAPL_LocStream) :: locStIn
@@ -194,20 +197,21 @@ contains
 
     call MAPL_SyncSharedMemory(rc=STATUS)
     VERIFY_(STATUS)
-    DEALOC_(Tr%index)
-    DEALOC_(Tr%weight)
-    DEALOC_(Tr%l2c)
-    DEALOC_(Tr%id1)
-    DEALOC_(Tr%id2)
-    DEALOC_(Tr%jdc)
-    DEALOC2_(Tr%elon)
-    DEALOC2_(Tr%elat)
-    DEALOC2_(Tr%ee1)
-    DEALOC2_(Tr%ee2)
-    DEALOC2_(Tr%ff1)
-    DEALOC2_(Tr%ff2)
-    DEALOC2_(Tr%gg1)
-    DEALOC2_(Tr%gg2)
+    DEALLOCGLOB_(Tr%index)
+    DEALLOCGLOB_(Tr%weight)
+    DEALLOCGLOB_(Tr%l2c)
+    DEALLOCGLOB_(Tr%id1)
+    DEALLOCGLOB_(Tr%id2)
+    DEALLOCGLOB_(Tr%jdc)
+
+    DEALLOCLOCL_(Tr%elon)
+    DEALLOCLOCL_(Tr%elat)
+    DEALLOCLOCL_(Tr%ee1)
+    DEALLOCLOCL_(Tr%ee2)
+    DEALLOCLOCL_(Tr%ff1)
+    DEALLOCLOCL_(Tr%ff2)
+    DEALLOCLOCL_(Tr%gg1)
+    DEALLOCLOCL_(Tr%gg2)
 
     Tr%Created = .false.
 
@@ -242,6 +246,22 @@ contains
     type(T_CubeLatLonTransform)              :: Tr
     integer, optional,           intent(out) :: rc
 
+
+! npx      : inner dimension of global cube arrays (number of cells along cube edge) 
+! npy      : outer dimension of global cube arrays ( 6*npx )
+! nlon     : inner dimension of global LL arrays (Number of longitude points)
+! nlat     : outer dimension of global LL arrays (Number of latitude points)
+! lons     : the local nlon longitudes of LL grid, in radians
+! lats     : the local nlat latitudes of LL grid, in radians
+! doSubset : 
+! Tr       : The structure that holds the output transform
+! rc       : return code
+
+! Creates all necessary data to transform fields between Cube and LatLon grids,
+! in bothe directions.  Data is stored in the output transform Tr. The transform
+! can be limited to a subset of the given grids. The transforms, Tr,is 
+! transposable by the MAPL transforming routines.
+
 ! Locals
 !-------
 
@@ -251,15 +271,12 @@ contains
     real(R8), allocatable :: clon(:), clat(:)
 
 ! global vector rotations to be copied into local Tr versions
-    real(R8), pointer   :: ee1(:,:,:)
-    real(R8), pointer   :: ee2(:,:,:)
-    real(R8), pointer   :: ff1(:,:,:)
-    real(R8), pointer   :: ff2(:,:,:)
-    real(R8), pointer   :: gg1(:,:,:)
-    real(R8), pointer   :: gg2(:,:,:)
-
-! Real*8 are needed to make fv calls.
-!-----------------------------------
+    real(R8), pointer   :: ee1(:,:,:) => null()
+    real(R8), pointer   :: ee2(:,:,:) => null()
+    real(R8), pointer   :: ff1(:,:,:) => null()
+    real(R8), pointer   :: ff2(:,:,:) => null()
+    real(R8), pointer   :: gg1(:,:,:) => null()
+    real(R8), pointer   :: gg2(:,:,:) => null()
 
 ! Begin
 !------
@@ -279,20 +296,21 @@ contains
   ! allocate storage for weights and indeces for C2L
   !-------------------------------------------------
 
-    DEALOC_(Tr%index)
-    DEALOC_(Tr%weight)
-    DEALOC_(Tr%l2c)
-    DEALOC_(Tr%id1)
-    DEALOC_(Tr%id2)
-    DEALOC_(Tr%jdc)
-    DEALOC2_(Tr%elon)
-    DEALOC2_(Tr%elat)
-    DEALOC2_(Tr%ee1)
-    DEALOC2_(Tr%ee2)
-    DEALOC2_(Tr%ff1)
-    DEALOC2_(Tr%ff2)
-    DEALOC2_(Tr%gg1)
-    DEALOC2_(Tr%gg2)
+    DEALLOCGLOB_(Tr%index)
+    DEALLOCGLOB_(Tr%weight)
+    DEALLOCGLOB_(Tr%l2c)
+    DEALLOCGLOB_(Tr%id1)
+    DEALLOCGLOB_(Tr%id2)
+    DEALLOCGLOB_(Tr%jdc)
+
+    DEALLOCLOCL_(Tr%elon)
+    DEALLOCLOCL_(Tr%elat)
+    DEALLOCLOCL_(Tr%ee1)
+    DEALLOCLOCL_(Tr%ee2)
+    DEALLOCLOCL_(Tr%ff1)
+    DEALLOCLOCL_(Tr%ff2)
+    DEALLOCLOCL_(Tr%gg1)
+    DEALLOCLOCL_(Tr%gg2)
 
     call MAPL_AllocNodeArray(Tr%index,(/3,nlon,nlat/),rc=STATUS)
     if(STATUS==MAPL_NoShm) allocate(Tr%index(3,nlon,nlat),stat=status)
@@ -374,16 +392,18 @@ contains
      endif
 
 ! Deallocate large global vector rotation transforms
+
     call MAPL_SyncSharedMemory(rc=STATUS)
     VERIFY_(STATUS)
-    DEALOC_(ee1)
-    DEALOC_(ee2)
-    DEALOC_(ff1)
-    DEALOC_(ff2)
-    DEALOC_(gg1)
-    DEALOC_(gg2)
 
-!cartesian to latlon spherical on latlon grid
+    DEALLOCGLOB_(ee1)
+    DEALLOCGLOB_(ee2)
+    DEALLOCGLOB_(ff1)
+    DEALLOCGLOB_(ff2)
+    DEALLOCGLOB_(gg1)
+    DEALLOCGLOB_(gg2)
+
+! Cartesian to latlon spherical on latlon grid
 
        allocate(slat(size(lats)),clat(size(lats)))
        allocate(slon(size(lons)),clon(size(lons)))
@@ -422,12 +442,12 @@ contains
 
     integer :: status
 
-    DEALOC_(Tr%weight)
-    DEALOC_(Tr%index)
-    DEALOC_(Tr%ee1)
-    DEALOC_(Tr%ee2)
-    DEALOC_(Tr%ff1)
-    DEALOC_(Tr%ff2)
+    DEALLOCGLOB_(Tr%weight)
+    DEALLOCGLOB_(Tr%index)
+    DEALLOCGLOB_(Tr%ee1)
+    DEALLOCGLOB_(Tr%ee2)
+    DEALLOCGLOB_(Tr%ff1)
+    DEALLOCGLOB_(Tr%ff2)
 
     Tr%Created = .false.
 
@@ -477,12 +497,12 @@ contains
   ! allocate storage for weights and indeces for C2C
   !-------------------------------------------------
 
-    DEALOC_(Tr%weight)
-    DEALOC_(Tr%index)
-    DEALOC_(Tr%ee1)
-    DEALOC_(Tr%ee2)
-    DEALOC_(Tr%ff1)
-    DEALOC_(Tr%ff2)
+    DEALLOCGLOB_(Tr%weight)
+    DEALLOCGLOB_(Tr%index)
+    DEALLOCGLOB_(Tr%ee1)
+    DEALLOCGLOB_(Tr%ee2)
+    DEALLOCGLOB_(Tr%ff1)
+    DEALLOCGLOB_(Tr%ff2)
     
     ! ALT: index and weight are allocated at the output grid resolution
     call MAPL_AllocNodeArray(Tr%weight,(/4,npxout,npyout/),rc=STATUS)
@@ -1330,21 +1350,30 @@ contains
 ! and the other is lat-lon.
 
 
-  subroutine SphericalToCartesianR4(Tr, U, V, Uxyz, Transpose, SphIsLL)
+  subroutine SphericalToCartesianR4(Tr, U, V, Uxyz, Transpose, SphIsLL, Rotate, RC)
     type(T_CubeLatLonTransform), intent(IN ) :: Tr
     real,                        intent(IN ) :: U(:,:,:), V(:,:,:)
     real,                        intent(OUT) :: Uxyz(:,:,:)
     logical,                     intent(IN ) :: Transpose
     logical,                     intent(IN ) :: SphIsLL
+    logical,                     intent(IN ) :: Rotate
+    integer, optional,           intent(OUT) :: RC
 
     integer           :: K, LM
     real(R8), pointer :: e1(:,:,:), e2(:,:,:) 
+
+    if(.not.Rotate) then
+       ASSERT_(.not.Transpose .and. .not.SphIsLL)
+    end if
 
     if(SphIsLL) then
        e1=>Tr%elon
        e2=>Tr%elat
     else
-       if(.not.Transpose) then
+       if(.not.Rotate) then
+          e1=>Tr%gg1
+          e2=>Tr%gg2
+       elseif(.not.Transpose) then
           e1=>Tr%ff1
           e2=>Tr%ff2
        else
@@ -1364,21 +1393,30 @@ contains
     return
   end subroutine SphericalToCartesianR4
 
-  subroutine SphericalToCartesianR8(Tr, U, V, Uxyz, Transpose, SphIsLL)
+  subroutine SphericalToCartesianR8(Tr, U, V, Uxyz, Transpose, SphIsLL, Rotate, RC)
     type(T_CubeLatLonTransform), intent(IN ) :: Tr
     real(R8),                    intent(IN ) :: U(:,:,:), V(:,:,:)
-    real(R8),                   intent(OUT) :: Uxyz(:,:,:)
+    real(R8),                    intent(OUT) :: Uxyz(:,:,:)
     logical,                     intent(IN ) :: Transpose
     logical,                     intent(IN ) :: SphIsLL
+    logical,                     intent(IN ) :: Rotate
+    integer, optional,           intent(OUT) :: RC
 
     integer           :: K, LM
     real(R8), pointer :: e1(:,:,:), e2(:,:,:) 
+
+    if(.not.Rotate) then
+       ASSERT_(.not.Transpose .and. .not.SphIsLL)
+    end if
 
     if(SphIsLL) then
        e1=>Tr%elon
        e2=>Tr%elat
     else
-       if(.not.Transpose) then
+       if(.not.Rotate) then
+          e1=>Tr%gg1
+          e2=>Tr%gg2
+       elseif(.not.Transpose) then
           e1=>Tr%ff1
           e2=>Tr%ff2
        else
@@ -1404,26 +1442,21 @@ contains
     real,                        intent(IN ) :: Uxyz(:,:,:)
     logical,                     intent(IN ) :: Transpose
     logical,                     intent(IN ) :: SphIsLL
-    logical, optional,           intent(IN ) :: Rotate
+    logical,                     intent(IN ) :: Rotate
     integer, optional,           intent(OUT) :: RC
 
-    logical           :: Rotate_
     integer           :: K, LM
     real(R8), pointer :: e1(:,:,:), e2(:,:,:) 
 
-    Rotate_ = .true.
-    if(present(Rotate)) then
-       if(.not.Rotate) then
-          ASSERT_(.not.Transpose .and. .not.SphIsLL)
-          Rotate_ = Rotate
-       end if
+    if(.not.Rotate) then
+       ASSERT_(.not.Transpose .and. .not.SphIsLL)
     end if
 
     if(SphIsLL) then
        e1=>Tr%elon
        e2=>Tr%elat
     else
-       if(.not.Rotate_) then
+       if(.not.Rotate) then
           e1=>Tr%gg1
           e2=>Tr%gg2
        elseif(Transpose) then
@@ -1459,23 +1492,18 @@ contains
     logical, optional,           intent(IN ) :: Rotate
     integer, optional,           intent(OUT) :: RC
 
-    logical           :: Rotate_
     integer           :: K, LM
     real(R8), pointer :: e1(:,:,:), e2(:,:,:) 
 
-    Rotate_ = .true.
-    if(present(Rotate)) then
-       if(.not.Rotate) then
-          ASSERT_(.not.Transpose .and. .not.SphIsLL)
-          Rotate_ = Rotate
-       end if
+    if(.not.Rotate) then
+       ASSERT_(.not.Transpose .and. .not.SphIsLL)
     end if
 
     if(SphIsLL) then
        e1=>Tr%elon
        e2=>Tr%elat
     else
-       if(.not.Rotate_) then
+       if(.not.Rotate) then
           e1=>Tr%gg1
           e2=>Tr%gg2
        elseif(Transpose) then

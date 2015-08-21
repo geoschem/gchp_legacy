@@ -1,0 +1,248 @@
+#!/usr/bin/env perl
+#============================================================================
+# name - esma_mpirun
+# purpose - Wrapper for the mpirun command; filters out command-line flags
+#           which are not applicable for the loaded version of mpi, and loads
+#           other flags required for the operating environment.
+#
+# note -
+# 1. Any flag which has not been identified as potentially needing 
+#    to be filtered is passed directly through to the mpirun command.
+# 2. Specifically, the -h (or -help) flag is passed through to the
+#    mpirun command.
+#
+# revision history
+# 02Oct2008  Stassi     Initial version of code.
+# 23Jun2009  Stassi     Add $xtraflags for pleiades nodes
+# 03May2010  Todling    Quick fix to work under mvapich2
+# 13May2010  Stassi     Extended fix to work on NAS nodes as well as NCCS
+# 27Jul2010  Stassi     Modified to work with either intel-mpi or mvapich
+# 18May2011  Stassi     Capture status of cmd and die if not success
+#============================================================================
+use strict;
+use warnings;
+
+# global variables
+#-----------------
+my ($node, $mpi_type, $perhost);
+my ($progx, @mpiARGs, @progARGs);
+my ($mpicmd, $xtraflags);
+my ($scriptname);
+
+# main program
+#-------------
+{
+    init();
+    get_mpi_type();
+
+    parse_command_line();
+    which_mpi_cmd();
+    get_xtraflags();
+
+    run_mpicmd();
+}
+
+#============================================================================
+# name - init
+# purpose - get runtime inputs
+#
+# notes:
+# 1. -inherit_limits flag only valid for scali mpi
+# 2. -perhost flag only valid for intel mpi
+#============================================================================
+sub init {
+    use FindBin;
+    use Getopt::Long;
+    Getopt::Long::Configure("pass_through");
+    my ($inherit_limits_flag);
+
+    # get runtime flags
+    #------------------
+    GetOptions("inherit_limits" => \$inherit_limits_flag,
+               "perhost=i"      => \$perhost );
+
+    $scriptname = $0;
+}
+
+#============================================================================
+# name - get_mpi_type
+# purpose - try to determine the type of mpi library
+#============================================================================
+sub get_mpi_type {
+    my ($MPIHOME);
+
+    $mpi_type = "unknown";
+
+    # check MPI_ROOT env variable
+    #----------------------------
+    if    ( $ENV{"M_MPI_ROOT"} )             { $mpi_type = "mvapich2" }
+    elsif ( $ENV{"I_MPI_ROOT"} )             { $mpi_type = "intel"    }
+
+    # check $MPIHOME env variable
+    #----------------------------
+    elsif ( $MPIHOME = $ENV{"MPIHOME"} ) {
+        if    ( $MPIHOME =~ m[mvapich2] )    { $mpi_type = "mvapich2" }
+        elsif ( $MPIHOME =~ m[/intel/mpi/] ) { $mpi_type = "intel"    }
+    }
+
+    # check $MPI_HOME env variable
+    #-----------------------------
+    elsif ( $MPIHOME = $ENV{"MPI_HOME"} ) {
+        if    ( $MPIHOME =~ m[mvapich2] )    { $mpi_type = "mvapich2" }
+        elsif ( $MPIHOME =~ m[/intel/mpi/] ) { $mpi_type = "intel"    }
+    }
+
+    print "$scriptname: mpi_type = $mpi_type\n";
+    return;
+}
+
+#============================================================================
+# name - parse_command_line
+# purpose - extract the executable program from the argument list;
+#           divide all other arguments between those which belong to the
+#           mpi command and those which belong to the executable program
+#
+# note -
+# 1. arguments which precede the prog are @mpiARGs
+# 2. arguments which follow the prog are @progARGs
+#============================================================================
+sub parse_command_line {
+    my ($found, $num, $arg);
+
+    # extract executable program from argument list
+    #----------------------------------------------
+    $progx = undef;
+    $found = 0;
+
+    $num = scalar(@ARGV);
+    foreach (1..$num) {
+        $arg = shift @ARGV;
+        unless ($found) {
+            if (-x $arg) {
+                $progx = $arg;
+                $found = 1;
+                next;
+            }
+            push @mpiARGs, $arg;
+            next;
+        }
+        push @progARGs, $arg
+    }
+    die ">> Error << no executable program found in mpi command" unless $progx;
+}
+
+#============================================================================
+# name - which_mpi_cmd
+# purpose - determine which mpi command to use
+#============================================================================
+sub which_mpi_cmd {
+    my ($progname, $status);
+
+    # check for existence of mpirun or mpiexec command
+    #-------------------------------------------------
+    $mpicmd = "notfound";
+
+    foreach $progname ( "mpirun", "mpiexec" ) {
+        $status = system "which $progname >& /dev/null";
+        next if $status;
+
+        chomp($mpicmd = `which $progname`);
+        last;
+    }
+    die ">>> Error <<< Cannot find command to run mpi" unless -e $mpicmd;
+
+    return;
+}
+
+#============================================================================
+# name - get_xtraflags
+# purpose - set other flags needed by the node where executing.
+#
+# node types at NCCS (info from D.Kokron):
+# - borga      => Dempsey node ..... 4 core/node
+# - borg[bcde] => Woodcrest node ... 4 core/node
+# - borg[fghi] => Harpertown node .. 8 core/node 
+#
+# notes
+# 1. node-specific flags for different borg node types have been removed
+# 2. have not updated node info with addition of nehalem nodes
+#============================================================================
+sub get_xtraflags {
+    use FindBin qw($Bin);
+    use lib ("$Bin");
+    use GMAO_utils qw(get_siteID pbs_env);
+    my ($pbs_nodefile, $numnodes, $siteID);
+    $xtraflags = "";
+
+    # flags needed for mvapich2 mpi
+    #------------------------------
+    $xtraflags .= "-f \$PBS_NODEFILE" if $mpi_type eq "mvapich2";
+
+    # flags needed for intel mpi
+    #---------------------------
+    if ($mpi_type eq "intel") {
+
+        # perhost value
+        #--------------
+        $perhost = pbs_env("cpus_per_node") unless $perhost;
+        $siteID = get_siteID();
+
+        # nas site
+        #---------
+        if ($siteID eq "nas") {
+            if ($mpi_type eq "intel") {
+                $numnodes = pbs_env("num_nodes");
+                $xtraflags .= " --totalnum=$numnodes";
+                $xtraflags .= " --file=$pbs_nodefile";
+                $xtraflags .= " --rsh=ssh";
+            }
+        }
+        $xtraflags .= " -perhost $perhost";
+    }
+
+    # flags needed for scali mpi
+    #---------------------------
+    $xtraflags .= " -inherit_limits" if $mpi_type eq "scali";
+}
+
+#============================================================================
+# name - run_mpicmd
+# purpose - run the mpi command
+#============================================================================
+sub run_mpicmd {
+    use File::Basename;
+    my ($flags, $cmd, $status);
+    my ($PBS_NODEFILE, $num);
+
+    $flags = "";
+    $flags .= " $xtraflags"     if $xtraflags;
+    $flags .= " @mpiARGs"       if @mpiARGs;
+
+    if (basename($mpicmd) eq "mpiexec") {
+        $PBS_NODEFILE = $ENV{"PBS_NODEFILE"};
+        die ">> Error << Cannot find PBS_NODEFILE: $PBS_NODEFILE;"
+            unless -f $PBS_NODEFILE;
+        chomp($num = `cat $PBS_NODEFILE | uniq | wc -l`);
+        $cmd = "mpdboot -n $num -f $PBS_NODEFILE -r ssh -v";
+        my_system($cmd);
+    }
+    $cmd = "$mpicmd $flags $progx @progARGs";
+    my_system($cmd);
+}
+
+#============================================================================
+# name - my _system
+# purpose - print system command, then execute it and check its status
+#============================================================================
+sub my_system {
+    my ($cmd, $status);
+
+    $cmd = shift @_;
+    print "$cmd\n";
+    $status = system $cmd;
+
+    if ($status) {
+        $status = $status>>8;
+        die ">> Error << $cmd: status = $status;";
+    }
+}

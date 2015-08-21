@@ -81,6 +81,8 @@ c -----------------------------
       integer imout,jmout,lmout
       logical hdfcreate
       logical flip
+      integer imps,jmps,ntimeps
+      real    lonps,latps
 
       character*8 cdate
 
@@ -114,7 +116,7 @@ C **********************************************************************
        imout  = -999
        jmout  = -999
        lmout  = -999
-       psnetcdf = .false.
+       psnetcdf = .true.
 
           nargs = iargc()
       if( nargs.eq.0 ) then
@@ -197,34 +199,41 @@ C **********************************************************************
       nymd = yymmdd(n)
       nhms = hhmmss(n)
       print *, 'reading ',trim(psfile),' for: ',nymd,nhms
-          call gfio_getvar ( psid,'PS',nymd,nhms,im,jm,0,1,ps(1,1,n),rc )
+          call gfio_getvar ( psid,'ps',nymd,nhms,im,jm,0,1,ps(1,1,n),rc )
+          if (rc.ne.0) stop "variable not found. check case"
       enddo
       call gfio_close ( psid,rc )
+
+      imps = im
+      jmps = jm
+      ntimeps = ntime
+
+      lonps = lon(1)
+      latps = lat(1)
 
       deallocate ( lon,lat,lev,yymmdd,hhmmss,vname,names,vtitle,vunits )
       deallocate ( kmvar,vrange,prange )
 
       else
 
-! assume we know we have 12 months of ps data
-      allocate ( ps(288,181,12) )
-      allocate ( pstemp(288,181) )
+! assume we know we have 12 months of ps data and it is at imps by jmps
+
+      imps = 576
+      jmps = 361
+
+! what are the beginning lon and lat
+! User *MUST* set these for binary
+      lonps = -999
+      latps = -999
+
+      allocate ( ps(imps,jmps,12) )
+      allocate ( pstemp(imps,jmps) )
       open(33,file=psfile,access='DIRECT',convert='BIG_ENDIAN',
-     .  recl=288*181*4)
+     .  recl=imps*jmps*4)
 
       do n=1,12
        read(33,rec=n)pstemp
        ps(:,:,n)=pstemp
-
-       psmax = -5.
-       psmin = 1.e15
-       do j=1,181
-       do i=1,288
-        if(psmax.lt.pstemp(i,j))psmax=pstemp(i,j)
-        if(psmin.gt.pstemp(i,j))psmin=pstemp(i,j)
-       enddo
-       enddo
- 
       enddo
 
       endif
@@ -252,6 +261,42 @@ C **********************************************************************
       print *, 'Input Resolution IM: ',im
       print *, 'Input Resolution JM: ',jm
       print *, 'Input Resolution LM: ',lm,'  Flip: ',flip
+      print *
+      print *, 'Input PS Resolution IM: ',imps
+      print *, 'Input PS Resolution JM: ',jmps
+      print *
+
+      if (im.ne.imps) then
+         print *, 'ERROR: PS File Resolution IM does not match Input Resolution IM'
+         stop 
+      endif
+      if (jm.ne.jmps) then
+         print *, 'ERROR: PS File Resolution JM does not match Input Resolution JM'
+         stop 
+      endif
+
+      if (lonps.eq.-999) then
+         print *, 'ERROR: You are using binary PS. You must set the correct first longitude value'
+         stop 
+      endif
+      if (lon(1).ne.lonps) then
+         print *, '   Input First Longitude: ', lon(1)
+         print *, 'Input PS First Longitude: ', lonps
+         print *, 'WARNING: Shifting PS Longitudes to match Input'
+         call lonshift(ps,imps,jmps,ntimeps)
+      endif
+
+      if (latps.eq.-999) then
+         print *, 'ERROR: You are using binary PS. You must set the correct first latitude value'
+         stop 
+      endif
+      if (lat(1).ne.latps .and. latps.ne.-999) then
+         print *, '   Input First Latitude: ', lat(1)
+         print *, 'Input PS First Latitude: ', latps
+         print *, 'WARNING: Shifting PS Latitudes to match Input'
+         call latshift(ps,imps,jmps,ntimeps)
+      endif
+
       print *
       print *, '2-D Fields:'
       print *, '-----------'
@@ -2901,7 +2946,7 @@ c Top 2 and bottom 2 layers always use monotonic mapping
 
       if(kord == 7) then
 c****6***0*********0*********0*********0*********0*********0**********72
-C Huynh's 2nd constraint
+C Huynhs 2nd constraint
 c****6***0*********0*********0*********0*********0*********0**********72
       do k=2, km1
          do i=1,im
@@ -3030,18 +3075,33 @@ c Positive definite constraint
       return
       end
 
-      subroutine hflip ( q,im,jm,lm )
+      subroutine lonshift ( q,im,jm,lm )
       implicit none
       integer  im,jm,lm,i,j,L
       real   q(im,jm,lm),dum(im)
       do L=1,lm
-      do j=1,jm
-      do i=1,im/2
-         dum(i) = q(i+im/2,j,L)
-         dum(i+im/2) = q(i,j,L)
+         do j=1,jm
+            do i=1,im/2
+               dum(i) = q(i+im/2,j,L)
+               dum(i+im/2) = q(i,j,L)
+            enddo
+            q(:,j,L) = dum(:)
+         enddo
       enddo
-         q(:,j,L) = dum(:)
-      enddo
+      return
+      end
+
+      subroutine latshift ( q,im,jm,lm )
+      implicit none
+      integer  im,jm,lm,i,j,L
+      real   q(im,jm,lm),dum(jm)
+      do L=1,lm
+         do i=1,im
+            do j=1,jm
+               dum(j) = q(i,jm-j+1,L)
+            enddo
+            q(i,:,L) = dum(:)
+         enddo
       enddo
       return
       end

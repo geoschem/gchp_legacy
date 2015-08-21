@@ -56,6 +56,9 @@ if( mfile = "NULL" ) ; return ; endif
 'run getenv "ANALYSIS"'
          analysis = result
 
+'run getenv "CMPEXP_ONLY"'
+             cmpexp_only = result
+
 
 * Model Experiment Data
 * ---------------------
@@ -97,12 +100,33 @@ if( mfile = "NULL" ) ; return ; endif
 'run getenv "CMPEXP"'
          cmpexp = result
             num = 1
-            exp = subwrd( cmpexp,num )
+
+          dummy = get_cmpexp (cmpexp,num)
+            exp = subwrd(dummy,1)
+           type = subwrd(dummy,2)
+
 while( exp != 'NULL' )
 say ' '
 say 'Comparing with: 'exp
 
-'run setenv "LEVTYPE" 'A
+* analysis = false  EXP=M CMP=M  => ALEVS
+* analysis = false  EXP=M CMP=A  => DLEVS
+* analysis = true   EXP=A CMP=A  => ALEVS
+* analysis = true   EXP=A CMP=M  => DLEVS
+
+if( analysis != "false" )
+    if( type = A )
+       'run setenv "LEVTYPE" 'A
+    else
+       'run setenv "LEVTYPE" 'D
+    endif
+else
+    if( type = A )
+       'run setenv "LEVTYPE" 'D
+    else
+       'run setenv "LEVTYPE" 'A
+    endif
+endif
 
 '!chckfile 'exp'/.HOMDIR'
  'run getenv CHECKFILE'
@@ -114,7 +138,7 @@ say 'Comparing with: 'exp
      endif
 '!remove CHECKFILE.txt'
 
-'!cat HISTORY.rc | sed -e "s/,/ , /g" > HISTORY.T'
+'!cat HISTORY.rc | sed -e "s/,/ , /g" | sed -e "s/*/@/g" > HISTORY.T'
 
 if ( EXPORT = "HE" )
     'run getvar  ZLE      DYN 'exp
@@ -231,11 +255,15 @@ endwhile
 
 * Check next Comparison Experiment Dataset
 * ----------------------------------------
-  num = num + 1
-  exp = subwrd( cmpexp,num )
+    num = num + 1
+  dummy = get_cmpexp (cmpexp,num)
+    exp = subwrd(dummy,1)
+   type = subwrd(dummy,2)
+
 endwhile
 '!/bin/mv HISTORY.Tmp HISTORY.T'
 
+if( cmpexp_only = TRUE ) ; return ; endif
 
 *********************************************************************
 ****   Loop over Possible Verification Datasets for Comparison   ****
@@ -394,3 +422,32 @@ endwhile
      month = substr(date,loc  ,3)
       year = substr(date,loc+3,4)
 return month' 'year
+
+* Get Next EXP from CMPEXP List
+* -----------------------------
+function get_cmpexp (cmpexp,num)
+      exp  = subwrd(cmpexp,num)
+      len = get_length (exp)
+      bit = substr(exp,len-1,1)
+      if( bit = ":" )
+          type = substr(exp,len,1)
+          exp  = substr(exp,1,len-2)
+      else
+          type = M
+      endif
+return exp' 'type
+
+function get_length (string)
+tb = ""
+i = 1
+while (i<=256)
+blank = substr(string,i,1)
+if( blank = tb )
+length = i-1
+i = 999
+else
+i = i + 1
+endif
+endwhile
+return length
+

@@ -79,17 +79,17 @@
                       ! -12  error determining default precision
                       ! -18 incorrect time increment
                       ! -30 can't open file
-                      ! -31 error from ncddef
-                      ! -32 error from ncvdef (dimension variable)
-                      ! -33 error from ncapt(c) (dimension attribute)
-                      ! -34 error from ncvdef (variable)
-                      ! -35  error from ncapt(c) (variable attribute)
-                      ! -36  error from ncaptc/ncapt (global attribute)
-                      ! -37  error from ncendf
-                      ! -38  error from ncvpt (dimension variable)
+                      ! -31 error from NF90_DEF_DIM
+                      ! -32 error from NF90_DEF_VAR (dimension variable)
+                      ! -33 error from NF90_PUT_ATT (dimension attribute)
+                      ! -34 error from NF90_DEF_VAR (variable)
+                      ! -35  error from NF90_PUT_ATT (variable attribute)
+                      ! -36  error from NF90_PUT_ATT (global attribute)
+                      ! -37  error from NF90_ENDDEF
+                      ! -38  error from NF90_PUT_VAR (dimension variable)
                       ! -39 Num of real var elements and Cnt differ
-                      ! -55  error from ncredf (enter define mode)
-                      ! -56  error from ncedf (exit define mode)
+                      ! -55  error from NF90_REDEF (enter define mode)
+                      ! -56  error from NF90_ENDDEF (exit define mode)
 !
 ! !DESCRIPTION:
 !     Create a CFIO output file with meta data
@@ -329,16 +329,16 @@
                          !  rc = -15  data outside of valid range
                          !  rc = -16  data outside of packing range
                          !  rc = -17  data outside of pack and valid range
-                         !  rc = -38  error from ncvpt (dimension variable)
-                         !  rc = -40  error from ncvid
-                         !  rc = -41  error from ncdid or ncdinq (lat or lon)
-                         !  rc = -42  error from ncdid or ncdinq (lev)
-                         !  rc = -43  error from ncvid (time variable)
-                         !  rc = -44  error from ncagt (time attribute)
-                         !  rc = -45  error from ncvpt
-                         !  rc = -46  error from ncvgt
-                         !  rc = -52  error from ncvinq
-                         !  rc = -53  error from ncagtc/ncagt
+                         !  rc = -38  error from NF90_PUT_VAR (dimension variable)
+                         !  rc = -40  error from NF90_INQ_VARID
+                         !  rc = -41  error from NF90_INQ_DIMID or NF90_INQUIRE_DIMENSION (lat or lon)
+                         !  rc = -42  error from NF90_INQ_DIMID or NF90_INQUIRE_DIMENSION (lev)
+                         !  rc = -43  error from NF90_INQ_VARID (time variable)
+                         !  rc = -44  error from NF90_GET_ATT (time attribute)
+                         !  rc = -45  error from NF90_PUT_VAR
+                         !  rc = -46  error from NF90_GET_VAR
+                         !  rc = -52  error from NF90_INQUIRE_VARIABLE
+                         !  rc = -53  error from NF90_GET_ATT
 
 !
 ! !DESCRIPTION:
@@ -584,7 +584,7 @@
 !
       integer, intent(out), OPTIONAL :: rc      ! Error return code:
                                        ! 0   all is well
-                                       ! -54  error from ncclos (file close)
+                                       ! -54  error from NF90_CLOSE (file close)
 !
 ! !INPUT/OUTPUT PARAMETERS:
 !

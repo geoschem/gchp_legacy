@@ -22,6 +22,7 @@ endwhile
          level = result
 'run getenv GEOSUTIL'
         geosutil = result
+'set datawarn off'
 
 * Initialize Plot Values
 * ----------------------
@@ -133,25 +134,25 @@ if( field = "h" )
     FmCmean_CINT = 10
     FmCmean_LEVS = '-135 -120 -105 -90 -75 -60 -45 -30 -15 15 30 45 60 75 90 105 120 135'
     FmCmean_CINT = 15
-    if( level = 1000 )
+    if( level > 850                 )
         mean_cint  = 20
         mean_rbrange = '-200 200'
         FmAmean_LEVS = '-36 -32 -28 -24 -20 -16 -12 -8 -4 4 8 12 16 20 24 28 32 36'
         FmAmean_CINT = 4
     endif
-    if( level = 850 )
+    if( level > 700 & level <= 850 )
         mean_cint  = 40
         mean_rbrange = '1000 1600'
         FmAmean_LEVS = '-36 -32 -28 -24 -20 -16 -12 -8 -4 4 8 12 16 20 24 28 32 36'
         FmAmean_CINT = 4
     endif
-    if( level = 700 )
+    if( level > 500 & level <= 700 )
         mean_cint  = 50
         mean_rbrange = '2800 3100'
         FmAmean_LEVS = '-36 -32 -28 -24 -20 -16 -12 -8 -4 4 8 12 16 20 24 28 32 36'
         FmAmean_CINT = 4
     endif
-    if( level = 500 )
+    if( level > 400 & level <= 500 )
         mean_cint  = 25
         mean_rbrange = '-200 200'
         FmAmean_LEVS = '-18 -16 -14 -12 -10 -8 -6 -4 -2 2 4 6 8 10 12 14 16 18'
@@ -163,37 +164,37 @@ if( field = "h" )
         FmAmean_LEVS = '-36 -32 -28 -24 -20 -16 -12 -8 -4 4 8 12 16 20 24 28 32 36'
         FmAmean_CINT = 4
     endif
-    if( level = 400 )
+    if( level > 300 & level <= 400 )
         mean_cint  = 60
         mean_rbrange = '6400 7600'
         FmAmean_LEVS = '-36 -32 -28 -24 -20 -16 -12 -8 -4 4 8 12 16 20 24 28 32 36'
         FmAmean_CINT = 4
     endif
-    if( level = 300 )
+    if( level > 250 & level <= 300 )
         mean_cint  = 60
         mean_rbrange = '8200 9600'
         FmAmean_LEVS = '-36 -32 -28 -24 -20 -16 -12 -8 -4 4 8 12 16 20 24 28 32 36'
         FmAmean_CINT = 4
     endif
-    if( level = 250 )
+    if( level > 200 & level <= 250 )
         mean_cint  = 60
         mean_rbrange = '9400 10800'
         FmAmean_LEVS = '-45 -40 -35 -30 -25 -20 -15 -10 -5 5 10 15 20 25 30 35 40 45'
         FmAmean_CINT = 5
     endif
-    if( level = 200 )
+    if( level > 150 & level <= 200 )
         mean_cint  = 60
         mean_rbrange = '10800 12400'
         FmAmean_LEVS = '-45 -40 -35 -30 -25 -20 -15 -10 -5 5 10 15 20 25 30 35 40 45'
         FmAmean_CINT = 5
     endif
-    if( level = 150 )
+    if( level > 100 & level <= 150 )
         mean_cint  = 100
         mean_rbrange = '12400 14200'
         FmAmean_LEVS = '-45 -40 -35 -30 -25 -20 -15 -10 -5 5 10 15 20 25 30 35 40 45'
         FmAmean_CINT = 5
     endif
-    if( level = 100 )
+    if(               level <= 100 )
         mean_cint  = 100
         mean_rbrange = '14800 16600'
         FmAmean_LEVS = '-45 -40 -35 -30 -25 -20 -15 -10 -5 5 10 15 20 25 30 35 40 45'
@@ -210,61 +211,61 @@ if( field = "u" )
     FmAstd_CINT = 2
     FmCmean_LEVS = '-18 -16 -14 -12 -10 -8 -6 -4 -2 2  4 6   8 10 12 14 16 18'
     FmCmean_CINT = 2.0
-    if( level = 1000 )
+    if( level > 850 )
         mean_cint  = 2
         mean_rbrange = '-10 10'
-        FmAmean_LEVS = '-4.5 -4 -3.5 -3 -2.5 -2 -1.5 -1 -.5 .5 1 1.5 2 2.5 3 3.5 4 4.5'
-        FmAmean_CINT = 0.5
+        FmAmean_LEVS = '-0.9 -0.8 -0.7 -0.6 -0.5 -0.4 -0.3 -0.2 -0.1 .1 .2 .3 .4 .5 .6 .7 .8 .9'
+        FmAmean_CINT = 0.1
     endif
-    if( level = 850 )
+    if( level > 700 & level <= 850 )
+        mean_cint  = 5
+        mean_rbrange = '-10 30'
+        FmAmean_LEVS = '-0.9 -0.8 -0.7 -0.6 -0.5 -0.4 -0.3 -0.2 -0.1 .1 .2 .3 .4 .5 .6 .7 .8 .9'
+        FmAmean_CINT = 0.1
+    endif
+    if( level > 500 & level <= 700 )
+        mean_cint  = 5
+        mean_rbrange = '-10 30'
+        FmAmean_LEVS = '-2.7 -2.4 -2.1 -1.8 -1.5 -1.2 -0.9 -0.6 -0.3 .3 0.6 .9 1.2 1.5 1.8 2.1 2.4 2.7'
+        FmAmean_CINT = 0.3
+    endif
+    if( level > 400 & level <= 500 )
         mean_cint  = 5
         mean_rbrange = '-10 30'
         FmAmean_LEVS = '-4.5 -4 -3.5 -3 -2.5 -2 -1.5 -1 -.5 .5 1 1.5 2 2.5 3 3.5 4 4.5'
         FmAmean_CINT = 0.5
     endif
-    if( level = 700 )
+    if( level > 300 & level <= 400 )
         mean_cint  = 5
         mean_rbrange = '-10 30'
         FmAmean_LEVS = '-4.5 -4 -3.5 -3 -2.5 -2 -1.5 -1 -.5 .5 1 1.5 2 2.5 3 3.5 4 4.5'
         FmAmean_CINT = 0.5
     endif
-    if( level = 500 )
-        mean_cint  = 5
-        mean_rbrange = '-10 30'
-        FmAmean_LEVS = '-4.5 -4 -3.5 -3 -2.5 -2 -1.5 -1 -.5 .5 1 1.5 2 2.5 3 3.5 4 4.5'
-        FmAmean_CINT = 0.5
-    endif
-    if( level = 400 )
-        mean_cint  = 5
-        mean_rbrange = '-10 30'
-        FmAmean_LEVS = '-4.5 -4 -3.5 -3 -2.5 -2 -1.5 -1 -.5 .5 1 1.5 2 2.5 3 3.5 4 4.5'
-        FmAmean_CINT = 0.5
-    endif
-    if( level = 300 )
+    if( level > 250 & level <= 300 )
         mean_cint  = 5
         mean_rbrange = '-10 35'
         FmAmean_LEVS = '-4.5 -4 -3.5 -3 -2.5 -2 -1.5 -1 -.5 .5 1 1.5 2 2.5 3 3.5 4 4.5'
         FmAmean_CINT = 0.5
     endif
-    if( level = 250 )
+    if( level > 200 & level <= 250 )
         mean_cint  = 5
         mean_rbrange = '-10 50'
         FmAmean_LEVS = '-4.5 -4 -3.5 -3 -2.5 -2 -1.5 -1 -.5 .5 1 1.5 2 2.5 3 3.5 4 4.5'
         FmAmean_CINT = 0.5
     endif
-    if( level = 200 )
+    if( level > 150 & level <= 200 )
         mean_cint  = 5
         mean_rbrange = '-10 60'
         FmAmean_LEVS = '-4.5 -4 -3.5 -3 -2.5 -2 -1.5 -1 -.5 .5 1 1.5 2 2.5 3 3.5 4 4.5'
         FmAmean_CINT = 0.5
     endif
-    if( level = 150 )
+    if( level > 100 & level <= 150 )
         mean_cint  = 5
         mean_rbrange = '-10 50'
         FmAmean_LEVS = '-9 -8 -7 -6 -5 -4 -3 -2 -1 1 2 3 4 5 6 7 8 9'
         FmAmean_CINT = 1.0
     endif
-    if( level = 100 )
+    if(               level <= 100 )
         mean_cint  = 5
         mean_rbrange = '-10 40'
         FmAmean_LEVS = '-9 -8 -7 -6 -5 -4 -3 -2 -1 1 2 3 4 5 6 7 8 9'
@@ -279,7 +280,7 @@ if( field = "v" )
     FmAstd_COLS = '0  50  42  44  46  48  39  37  36  34  32  31  21  22  24  25  26  27  28   29'
     FmAstd_LEVS = '2  3  4   5   6   7   8   9  10  11  12  13  14  15   16   17   18 20'
     FmAstd_CINT = 2
-    if( level = 1000 )
+    if( level > 850 )
         mean_cint  = 2
         mean_rbrange = '-10 10'
         FmAmean_LEVS = '-4.5 -4 -3.5 -3 -2.5 -2 -1.5 -1 -.5 .5 1 1.5 2 2.5 3 3.5 4 4.5'
@@ -287,7 +288,7 @@ if( field = "v" )
         FmCmean_LEVS = '-18 -16 -14 -12 -10 -8 -6 -4 -2 2  4 6   8 10 12 14 16 18'
         FmCmean_CINT = 2.0
     endif
-    if( level = 850 )
+    if( level > 700 & level <= 850 )
         mean_cint  = 2
         mean_rbrange = '-10 10'
         FmAmean_LEVS = '-4.5 -4 -3.5 -3 -2.5 -2 -1.5 -1 -.5 .5 1 1.5 2 2.5 3 3.5 4 4.5'
@@ -295,7 +296,7 @@ if( field = "v" )
         FmCmean_LEVS = '-18 -16 -14 -12 -10 -8 -6 -4 -2 2  4 6   8 10 12 14 16 18'
         FmCmean_CINT = 2.0
     endif
-    if( level = 700 )
+    if( level > 500 & level <= 700 )
         mean_cint  = 2
         mean_rbrange = '-10 10'
         FmAmean_LEVS = '-4.5 -4 -3.5 -3 -2.5 -2 -1.5 -1 -.5 .5 1 1.5 2 2.5 3 3.5 4 4.5'
@@ -303,7 +304,7 @@ if( field = "v" )
         FmCmean_LEVS = '-18 -16 -14 -12 -10 -8 -6 -4 -2 2  4 6   8 10 12 14 16 18'
         FmCmean_CINT = 2.0
     endif
-    if( level = 500 )
+    if( level > 400 & level <= 500 )
         mean_cint  = 2
         mean_rbrange = '-10 10'
         FmAmean_LEVS = '-4.5 -4 -3.5 -3 -2.5 -2 -1.5 -1 -.5 .5 1 1.5 2 2.5 3 3.5 4 4.5'
@@ -311,7 +312,7 @@ if( field = "v" )
         FmCmean_LEVS = '-18 -16 -14 -12 -10 -8 -6 -4 -2 2  4 6   8 10 12 14 16 18'
         FmCmean_CINT = 2.0
     endif
-    if( level = 400 )
+    if( level > 300 & level <= 400 )
         mean_cint  = 2
         mean_rbrange = '-10 10'
         FmAmean_LEVS = '-4.5 -4 -3.5 -3 -2.5 -2 -1.5 -1 -.5 .5 1 1.5 2 2.5 3 3.5 4 4.5'
@@ -319,7 +320,7 @@ if( field = "v" )
         FmCmean_LEVS = '-18 -16 -14 -12 -10 -8 -6 -4 -2 2  4 6   8 10 12 14 16 18'
         FmCmean_CINT = 2.0
     endif
-    if( level = 300 )
+    if( level > 250 & level <= 300 )
         mean_cint  = 2
         mean_rbrange = '-10 10'
         FmAmean_LEVS = '-4.5 -4 -3.5 -3 -2.5 -2 -1.5 -1 -.5 .5 1 1.5 2 2.5 3 3.5 4 4.5'
@@ -327,7 +328,7 @@ if( field = "v" )
         FmCmean_LEVS = '-18 -16 -14 -12 -10 -8 -6 -4 -2 2  4 6   8 10 12 14 16 18'
         FmCmean_CINT = 2.0
     endif
-    if( level = 250 )
+    if( level > 200 & level <= 250 )
         mean_cint  = 2
         mean_rbrange = '-10 10'
         FmAmean_LEVS = '-4.5 -4 -3.5 -3 -2.5 -2 -1.5 -1 -.5 .5 1 1.5 2 2.5 3 3.5 4 4.5'
@@ -335,7 +336,7 @@ if( field = "v" )
         FmCmean_LEVS = '-18 -16 -14 -12 -10 -8 -6 -4 -2 2  4 6   8 10 12 14 16 18'
         FmCmean_CINT = 2.0
     endif
-    if( level = 200 )
+    if( level > 150 & level <= 200 )
         mean_cint  = 2
         mean_rbrange = '-10 10'
         FmAmean_LEVS = '-4.5 -4 -3.5 -3 -2.5 -2 -1.5 -1 -.5 .5 1 1.5 2 2.5 3 3.5 4 4.5'
@@ -343,7 +344,7 @@ if( field = "v" )
         FmCmean_LEVS = '-18 -16 -14 -12 -10 -8 -6 -4 -2 2  4 6   8 10 12 14 16 18'
         FmCmean_CINT = 2.0
     endif
-    if( level = 150 )
+    if( level > 100 & level <= 150 )
         mean_cint  = 3
         mean_rbrange = '-10 10'
         FmAmean_LEVS = '-4.5 -4 -3.5 -3 -2.5 -2 -1.5 -1 -.5 .5 1 1.5 2 2.5 3 3.5 4 4.5'
@@ -351,7 +352,7 @@ if( field = "v" )
         FmCmean_LEVS = '-18 -16 -14 -12 -10 -8 -6 -4 -2 2  4 6   8 10 12 14 16 18'
         FmCmean_CINT = 2.0
     endif
-    if( level = 100 )
+    if(               level <= 100 )
         mean_cint  = 3
         mean_rbrange = '-10 10'
         FmAmean_LEVS = '-4.5 -4 -3.5 -3 -2.5 -2 -1.5 -1 -.5 .5 1 1.5 2 2.5 3 3.5 4 4.5'
@@ -370,13 +371,13 @@ if( field = "t" )
     FmAstd_CINT = 0.2
     FmCmean_LEVS = '-4.5 -4 -3.5 -3 -2.5 -2 -1.5 -1 -.5 .5 1 1.5 2 2.5 3 3.5 4 4.5'
     FmCmean_CINT = 0.5
-    if( level = 1000 )
+    if( level > 850 )
         mean_cint  = 2
         mean_rbrange = '270 300'
         FmAmean_LEVS = '-1.8 -1.6 -1.4 -1.2 -1.0 -.8 -.6 -.4 -.2 .2 .4 .6 .8 1.0 1.2 1.4 1.6 1.8'
         FmAmean_CINT = 0.2
     endif
-    if( level = 850 )
+    if( level > 700 & level <= 850 )
         mean_cint  = 2
         mean_rbrange = '250 290'
         FmAmean_LEVS = '-3.6 -3.2 -2.8 -2.4 -2.0 -1.6 -1.2 -.8 -.4 .4 .8 1.2 1.6 2.0 2.4 2.8 3.2 3.6'
@@ -384,7 +385,7 @@ if( field = "t" )
         FmCmean_LEVS = '-4.5 -4 -3.5 -3 -2.5 -2 -1.5 -1 -.5 .5 1 1.5 2 2.5 3 3.5 4 4.5'
         FmCmean_CINT = 0.5
     endif
-    if( level = 700 )
+    if( level > 500 & level <= 700 )
         mean_cint  = 2
         mean_rbrange = '250 290'
         FmAmean_LEVS = '-3.6 -3.2 -2.8 -2.4 -2.0 -1.6 -1.2 -.8 -.4 .4 .8 1.2 1.6 2.0 2.4 2.8 3.2 3.6'
@@ -392,7 +393,7 @@ if( field = "t" )
         FmCmean_LEVS = '-4.5 -4 -3.5 -3 -2.5 -2 -1.5 -1 -.5 .5 1 1.5 2 2.5 3 3.5 4 4.5'
         FmCmean_CINT = 0.5
     endif
-    if( level = 500 )
+    if( level > 400 & level <= 500 )
         mean_cint  = 2
         mean_rbrange = '230 270'
         FmAmean_LEVS = '-1.8 -1.6 -1.4 -1.2 -1.0 -.8 -.6 -.4 -.2 .2 .4 .6 .8 1.0 1.2 1.4 1.6 1.8'
@@ -400,7 +401,7 @@ if( field = "t" )
         FmCmean_LEVS = '-4.5 -4 -3.5 -3 -2.5 -2 -1.5 -1 -.5 .5 1 1.5 2 2.5 3 3.5 4 4.5'
         FmCmean_CINT = 0.5
     endif
-    if( level = 400 )
+    if( level > 300 & level <= 400 )
         mean_cint  = 2
         mean_rbrange = '220 260'
         FmAmean_LEVS = '-1.8 -1.6 -1.4 -1.2 -1.0 -.8 -.6 -.4 -.2 .2 .4 .6 .8 1.0 1.2 1.4 1.6 1.8'
@@ -408,7 +409,7 @@ if( field = "t" )
         FmCmean_LEVS = '-4.5 -4 -3.5 -3 -2.5 -2 -1.5 -1 -.5 .5 1 1.5 2 2.5 3 3.5 4 4.5'
         FmCmean_CINT = 0.5
     endif
-    if( level = 300 )
+    if( level > 250 & level <= 300 )
         mean_cint  = 2
         mean_rbrange = '210 244'
         FmAmean_LEVS = '-1.8 -1.6 -1.4 -1.2 -1.0 -.8 -.6 -.4 -.2 .2 .4 .6 .8 1.0 1.2 1.4 1.6 1.8'
@@ -416,7 +417,7 @@ if( field = "t" )
         FmCmean_LEVS = '-4.5 -4 -3.5 -3 -2.5 -2 -1.5 -1 -.5 .5 1 1.5 2 2.5 3 3.5 4 4.5'
         FmCmean_CINT = 0.5
     endif
-    if( level = 250 )
+    if( level > 200 & level <= 250 )
         mean_cint  = 2
         mean_rbrange = '206 232'
         FmAmean_LEVS = '-1.8 -1.6 -1.4 -1.2 -1.0 -.8 -.6 -.4 -.2 .2 .4 .6 .8 1.0 1.2 1.4 1.6 1.8'
@@ -424,7 +425,7 @@ if( field = "t" )
         FmCmean_LEVS = '-4.5 -4 -3.5 -3 -2.5 -2 -1.5 -1 -.5 .5 1 1.5 2 2.5 3 3.5 4 4.5'
         FmCmean_CINT = 0.5
     endif
-    if( level = 200 )
+    if( level > 150 & level <= 200 )
         mean_cint  = 2
         mean_rbrange = '200 220'
         FmAmean_LEVS = '-2.7 -2.4 -2.1 -1.8 -1.5 -1.2 -.9 -.6 -.3 .3 .6 .9 1.2 1.5 1.8 2.1 2.4 2.7'
@@ -432,7 +433,7 @@ if( field = "t" )
         FmCmean_LEVS = '-4.5 -4 -3.5 -3 -2.5 -2 -1.5 -1 -.5 .5 1 1.5 2 2.5 3 3.5 4 4.5'
         FmCmean_CINT = 0.5
     endif
-    if( level = 150 )
+    if( level > 100 & level <= 150 )
         mean_cint  = 2
         mean_rbrange = '200 220'
         FmAmean_LEVS = '-2.7 -2.4 -2.1 -1.8 -1.5 -1.2 -.9 -.6 -.3 .3 .6 .9 1.2 1.5 1.8 2.1 2.4 2.7'
@@ -440,7 +441,7 @@ if( field = "t" )
         FmCmean_LEVS = '-4.5 -4 -3.5 -3 -2.5 -2 -1.5 -1 -.5 .5 1 1.5 2 2.5 3 3.5 4 4.5'
         FmCmean_CINT = 0.5
     endif
-    if( level = 100 )
+    if(               level <= 100 )
         mean_cint  = 2
         mean_rbrange = '195 225'
         FmAmean_LEVS = '-2.7 -2.4 -2.1 -1.8 -1.5 -1.2 -.9 -.6 -.3 .3 .6 .9 1.2 1.5 1.8 2.1 2.4 2.7'
@@ -458,7 +459,7 @@ if( field = "q" )
     FmAstd_COLS = '0  50  42  44  46  48  39  37  36  34  32  31  21  22  24  25  26  27  28   29'
     FmAstd_LEVS = '.2  .4  .6 .8  1  1.2 1.4 1.6 1.8 2 2.3 2.5 2.7  3   3.5  4   4.5  5.0  '
     FmAstd_CINT = 0.2
-    if( level = 1000 )
+    if( level > 850 )
         mean_cint  = 1
         mean_rbrange = '1 16'
         FmCmean_LEVS = '-4.5 -4 -3.5 -3 -2.5 -2 -1.5 -1 -.5 .5 1 1.5 2 2.5 3 3.5 4 4.5'
@@ -466,7 +467,7 @@ if( field = "q" )
         FmAmean_LEVS = '-3.6 -3.2 -2.8 -2.4 -2.0 -1.6 -1.2 -.8 -.4 .4 .8 1.2 1.6 2.0 2.4 2.8 3.2 3.6'
         FmAmean_CINT = 0.4
     endif
-    if( level = 850 )
+    if( level > 700 & level <= 850 )
         mean_cint  = 1
         mean_rbrange = '1 13'
         FmCmean_LEVS = '-4.5 -4 -3.5 -3 -2.5 -2 -1.5 -1 -.5 .5 1 1.5 2 2.5 3 3.5 4 4.5'
@@ -474,7 +475,7 @@ if( field = "q" )
         FmAmean_LEVS = '-3.6 -3.2 -2.8 -2.4 -2.0 -1.6 -1.2 -.8 -.4 .4 .8 1.2 1.6 2.0 2.4 2.8 3.2 3.6'
         FmAmean_CINT = 0.4
     endif
-    if( level = 700 )
+    if( level > 500 & level <= 700 )
         mean_cint  = 1
         mean_rbrange = '1 10'
         FmCmean_LEVS = '-4.5 -4 -3.5 -3 -2.5 -2 -1.5 -1 -.5 .5 1 1.5 2 2.5 3 3.5 4 4.5'
@@ -482,7 +483,7 @@ if( field = "q" )
         FmAmean_LEVS = '-3.6 -3.2 -2.8 -2.4 -2.0 -1.6 -1.2 -.8 -.4 .4 .8 1.2 1.6 2.0 2.4 2.8 3.2 3.6'
         FmAmean_CINT = 0.4
     endif
-    if( level = 500 )
+    if( level > 400 & level <= 500 )
         mean_cint  = 0.5
         mean_rbrange = '.5 4'
         FmCmean_LEVS = '-2.7 -2.4 -2.1 -1.8 -1.5 -1.2 -.9 -.6 -.3 .3 .6 .9 1.2 1.5 1.8 2.1 2.4 2.7'
@@ -492,7 +493,7 @@ if( field = "q" )
         FmAstd_LEVS = '.1  .2  .3  .4  .5  .6  .7  .8  .9  1.0 1.1   1.2  1.3  1.4  1.5  1.6   1.8   2.0'
         FmAstd_CINT = 0.1
     endif
-    if( level = 400 )
+    if( level > 300 & level <= 400 )
         mean_cint  = 0.2
         mean_rbrange = '.2 2'
         FmCmean_LEVS = '-1.8 -1.6 -1.4 -1.2 -1.0 -.8 -.6 -.4 -.2 .2 .4 .6 .8 1.0 1.2 1.4 1.6 1.8'
@@ -502,7 +503,7 @@ if( field = "q" )
         FmAstd_LEVS = '.1  .2  .3  .4  .5  .6  .7  .8  .9  1.0 1.1   1.2  1.3  1.4  1.5  1.6   1.8   2.0'
         FmAstd_CINT = 0.1
     endif
-    if( level = 300 )
+    if( level > 250 & level <= 300 )
         mean_cint  = 0.1
         mean_rbrange = '.1 1'
         FmCmean_LEVS = '-.9 -.8 -.7 -.6 -.5 -.4 -.3 -.2 -.1 .1 .2 .3 .4 .5 .6 .7 .8 .9'
@@ -512,7 +513,7 @@ if( field = "q" )
         FmAstd_LEVS = '.1  .2  .3  .4  .5  .6  .7  .8  .9  1.0 1.1   1.2  1.3  1.4  1.5  1.6   1.8   2.0'
         FmAstd_CINT = 0.1
     endif
-    if( level = 250 )
+    if( level > 200 & level <= 250 )
         mean_cint  = 0.1
         mean_rbrange = '.1 1'
         FmCmean_LEVS = '-.9 -.8 -.7 -.6 -.5 -.4 -.3 -.2 -.1 .1 .2 .3 .4 .5 .6 .7 .8 .9'
@@ -522,7 +523,7 @@ if( field = "q" )
         FmAstd_LEVS = '.1  .2  .3  .4  .5  .6  .7  .8  .9  1.0 1.1   1.2  1.3  1.4  1.5  1.6   1.8   2.0'
         FmAstd_CINT = 0.1
     endif
-    if( level = 200 )
+    if( level > 150 & level <= 200 )
         mean_cint  = 0.1
         mean_rbrange = '.1 1'
         FmCmean_LEVS = '-.9 -.8 -.7 -.6 -.5 -.4 -.3 -.2 -.1 .1 .2 .3 .4 .5 .6 .7 .8 .9'
@@ -532,7 +533,7 @@ if( field = "q" )
         FmAstd_LEVS = '.1  .2  .3  .4  .5  .6  .7  .8  .9  1.0 1.1   1.2  1.3  1.4  1.5  1.6   1.8   2.0'
         FmAstd_CINT = 0.1
     endif
-    if( level = 150 )
+    if( level > 100 & level <= 150 )
         mean_cint  = 0.1
         mean_rbrange = '.1 1'
         FmCmean_LEVS = '-.9 -.8 -.7 -.6 -.5 -.4 -.3 -.2 -.1 .1 .2 .3 .4 .5 .6 .7 .8 .9'
@@ -542,7 +543,7 @@ if( field = "q" )
         FmAstd_LEVS = '.1  .2  .3  .4  .5  .6  .7  .8  .9  1.0 1.1   1.2  1.3  1.4  1.5  1.6   1.8   2.0'
         FmAstd_CINT = 0.1
     endif
-    if( level = 100 )
+    if(               level <= 100 )
         mean_cint  = 0.1
         mean_rbrange = '.1 1'
         FmCmean_LEVS = '-.9 -.8 -.7 -.6 -.5 -.4 -.3 -.2 -.1 .1 .2 .3 .4 .5 .6 .7 .8 .9'

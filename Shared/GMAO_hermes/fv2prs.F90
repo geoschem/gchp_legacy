@@ -70,6 +70,8 @@
 !                     [-180 to 180], because the "Interp_Field" routine returns data
 !                     at [0 360].  This was not a problem with GEOS-4 data.
 !27Jan2014 Todling    Some sync with m_const/MAPL_const
+!03Jun2014 Thompson   Made all strings consistent at len=257 to work around issue
+!                     found by Carlo Wang. Adjust spacing for cleanliness.
 !--------------------------------------------------------------------------------
 !EOP
 
@@ -96,13 +98,13 @@
 
 
       integer            :: nFiles             ! Actual number of input files
-      character(len=255) :: inFiles(mFiles)    ! Input file names
-      character(len=255) :: inFile1            ! Input file names
-      character(len=255) :: inFile2            ! Input file names
-      character(len=255) :: outFile            ! Output file name 
-      character(len=255) :: outFile1           ! Output file name 
-      character(len=255) :: cvsFile            ! CVS file name containing CVS version
-      character(len=255) :: cvsV               ! CVS version
+      character(len=257) :: inFiles(mFiles)    ! Input file names
+      character(len=257) :: inFile1            ! Input file names
+      character(len=257) :: inFile2            ! Input file names
+      character(len=257) :: outFile            ! Output file name 
+      character(len=257) :: outFile1           ! Output file name 
+      character(len=257) :: cvsFile            ! CVS file name containing CVS version
+      character(len=257) :: cvsV               ! CVS version
 
       integer  :: cvsV_yes                     ! have a cvs version from command line
       integer  :: date                         ! yyyymmdd -- user specified from command line
@@ -125,13 +127,13 @@
  
       integer           :: nLevs = 0           ! total number of levels
       real, pointer     :: Levs(:)             ! vertical levels
-      character(len=256) :: cLevs(mLevs)        ! Character reprsentation of levels
+      character(len=257) :: cLevs(mLevs)       ! Character reprsentation of levels
 
       integer           :: nPsfs = 0           ! total number of input psf files
-      character(len=255):: srfFiles(mPsfs)     ! input psf files
+      character(len=257):: srfFiles(mPsfs)     ! input psf files
 
       integer           :: nbkg = 0            ! total number of input psf files
-      character(len=255):: bkgFiles(mPsfs)     ! input psf files
+      character(len=257):: bkgFiles(mPsfs)     ! input psf files
 
       integer           :: nVars               ! Actual number of variables
       character(len=64) :: inVars(mVars)       ! Input  variable names (nVars)
@@ -162,21 +164,21 @@
       real, pointer ::  inFieldw(:,:,:)        ! Input variable for V-wind
       real, pointer ::  write_out(:,:,:)       ! Input variable
       real, pointer ::  write_outw(:,:,:)      ! Input variable for V-wind
-      real, pointer :: outField(:,:,:)         ! Onput variable
-      real, pointer :: alt(:,:,:)              ! Onput variable
-      real, pointer :: alt1(:,:,:)              ! Onput variable
-      real, pointer :: outFieldw(:,:,:)        ! Onput variable for V-wind
-      real,  pointer ::  ps(:,:)               ! sfc pressure
-      real,  pointer ::  phis(:,:)
-      real,  pointer ::  wz(:,:,:)
-      real,  pointer ::  slp(:,:)
-      real,  pointer ::  delp(:,:,:)           ! pressure thickness
-      real,  pointer ::  work(:,:,:)           ! working arrary for vertical flip
-      real,  pointer ::  pt(:,:,:)             ! temperature
-      real,  pointer ::  sphu(:,:,:)           ! 
-      real,  pointer ::  pk(:,:,:)             ! 
-      real,  pointer ::  pkz(:,:,:)            ! 
-      real,  pointer ::  peln(:,:,:)           ! 
+      real, pointer :: outField(:,:,:)         ! Output variable
+      real, pointer :: alt(:,:,:)              ! Output variable
+      real, pointer :: alt1(:,:,:)             ! Output variable
+      real, pointer :: outFieldw(:,:,:)        ! Output variable for V-wind
+      real, pointer ::  ps(:,:)                ! sfc pressure
+      real, pointer ::  phis(:,:)
+      real, pointer ::  wz(:,:,:)
+      real, pointer ::  slp(:,:)
+      real, pointer ::  delp(:,:,:)            ! pressure thickness
+      real, pointer ::  work(:,:,:)            ! working arrary for vertical flip
+      real, pointer ::  pt(:,:,:)              ! temperature
+      real, pointer ::  sphu(:,:,:)            ! 
+      real, pointer ::  pk(:,:,:)              ! 
+      real, pointer ::  pkz(:,:,:)             ! 
+      real, pointer ::  peln(:,:,:)            ! 
       real, allocatable :: pmk(:,:)            ! working array for pm
       real, allocatable :: tfield(:,:)         ! working array for tmpu
       real, allocatable :: qsfield(:,:)        ! working array for RH
@@ -193,10 +195,10 @@
       real, pointer  :: lat3d_e(:)             ! latitudes in deg (im*jm*km)
       real, pointer  :: lev3d_e(:)             ! levels in hPa (im*jm*km)
       real, pointer  :: conf(:)                ! Confidence level (im*jm*km)
-      character(len=257)  :: var_name           ! Input variable name
-      character(len=257)  :: var_name_out       ! Onput variable name
-      character(len=257)  :: v_name             ! Input variable name for V-wind
-      character(len=257)  :: v_name_out         ! Onput variable name for V-wind
+      character(len=257)  :: var_name          ! Input variable name
+      character(len=257)  :: var_name_out      ! Output variable name
+      character(len=257)  :: v_name            ! Input variable name for V-wind
+      character(len=257)  :: v_name_out        ! Output variable name for V-wind
       character(len=64) :: inVarsg(mVars)      ! Input variable names for GFIO (tNames)
       character(len=64) :: outVarsg(mVars)     ! Output variable names for GFIO (tNames)
       character(len=64) :: outVarsgc(mVars)    ! Output variable names from rc.name table 
@@ -213,7 +215,7 @@
       real              :: pint                ! interface pressure level (not needed)
       integer           :: nlist               ! number of input variables for 
                                                ! computing hght, tmpu, slp and rh.
-      character(len=257) :: list(5)             ! array contains the above variables
+      character(len=257) :: list(5)            ! array contains the above variables
       character(len=257) :: name_tmp = ' '
       character(len=257) :: pt_name
       character(len=257) :: ze_name
@@ -228,15 +230,15 @@
       character(len=257) :: tmp_osr1, tmp_osr2, op1
       character(len=257) :: tmp_osrclr1, tmp_osrclr2, op2
       integer           :: imPs, jmPs, kmPs, lmPs, nvarsPs, ngattsPs, ips
-      character(len=255) :: titlePs            ! meta data title
-      character(len=255) :: sourcePs           ! data source
-      character(len=255) :: contactPs          ! contact org.   
-      character(len=255) :: levunitsPs         ! Vertical levels
-      character(len=255) :: vNamePs(mVars)       ! output variable names (nVars)
-      character(len=255) :: vtitlePs(mVars)      ! output title
-      character(len=255) :: vunitsPs(mVars)      ! output vertical level unit
-      integer, pointer :: yyyymmddPs(:)          ! Date
-      integer, pointer :: hhmmssPs(:)            !
+      character(len=257) :: titlePs            ! meta data title
+      character(len=257) :: sourcePs           ! data source
+      character(len=257) :: contactPs          ! contact org.   
+      character(len=257) :: levunitsPs         ! Vertical levels
+      character(len=257) :: vNamePs(mVars)     ! output variable names (nVars)
+      character(len=257) :: vtitlePs(mVars)    ! output title
+      character(len=257) :: vunitsPs(mVars)    ! output vertical level unit
+      integer, pointer :: yyyymmddPs(:)        ! Date
+      integer, pointer :: hhmmssPs(:)          !
       integer          :: timincPs             ! Time increment
       real              :: amissPs             ! Missing value
       real, pointer     :: lonPs(:)            ! longitudes in deg (im)
@@ -270,20 +272,20 @@
       logical        :: doRev = .false.
       integer  ymdTmp, ymdTmp1, hmsTmp1, ymdTmp2, hmsTmp2
       logical        :: templt = .false.
-      character(len=255):: srfFileTmp1
-      character(len=255):: srfFileTmp2
+      character(len=257):: srfFileTmp1
+      character(len=257):: srfFileTmp2
       real           ::  buf(56)
 
 !                              -----------------------
 !                                  Output Meta Data
 !                              -----------------------
 
-      character(len=255) :: title              ! meta data title
-      character(len=255) :: source             ! data source
-      character(len=255) :: title_cvs          ! meta data title
-      character(len=255) :: source_cvs         ! data source
-      character(len=255) :: contact            ! contact org.   
-      character(len=255) :: levunits           ! Vertical levels
+      character(len=257) :: title              ! meta data title
+      character(len=257) :: source             ! data source
+      character(len=257) :: title_cvs          ! meta data title
+      character(len=257) :: source_cvs         ! data source
+      character(len=257) :: contact            ! contact org.   
+      character(len=257) :: levunits           ! Vertical levels
       real               :: missing_val
 
       integer          :: in_fmode = 1         ! non-zero for READ-ONLY
@@ -301,8 +303,8 @@
 
       integer, pointer :: yyyymmdd(:)          ! Date
       integer, pointer :: hhmmss(:)            ! 
-      integer, pointer :: yyyymmdd2(:)          ! Date
-      integer, pointer :: hhmmss2(:)            ! 
+      integer, pointer :: yyyymmdd2(:)         ! Date
+      integer, pointer :: hhmmss2(:)           ! 
       integer          :: timinc2              ! Time increment
       integer          :: lm2                  ! num. of time steps in fid2
       integer, pointer :: hhmmss_bkg(:)        ! 
@@ -501,7 +503,7 @@ CONTAINS
                       scaleFactor, addOffset, isPos, inType,    &
                       outType, outPrec,nPsfs, srfFiles, nbkg,   &
                       bkgFiles, doInterp, date,                 &
-		      inc_hhmmss, startTime, outVarsgc,         &
+                      inc_hhmmss, startTime, outVarsgc,         &
                       longName, isForced, lonshift )
 
 !
@@ -528,48 +530,48 @@ CONTAINS
       character(len=*), intent(out) :: cvsFile      !  Output file name 
 
 
-      integer, intent(out)  :: im              !  zonal dimension
-      integer, intent(out)  :: jm              !  meridional dimension
-      integer, intent(out)  :: km              !  vertical dimension
+      integer, intent(out)  :: im                   !  zonal dimension
+      integer, intent(out)  :: jm                   !  meridional dimension
+      integer, intent(out)  :: km                   !  vertical dimension
 
-      real, pointer         :: lon(:)          ! longitudes in deg (im)
-      real, pointer         :: lat(:)          ! latitudes in deg (jm)
-      real, pointer         :: lev(:)          ! levels in hPa (km)
-      real, pointer         :: Levs(:)         ! actual levels
-      integer, intent(out)  :: nLevs           ! actual number of levels
+      real, pointer         :: lon(:)               ! longitudes in deg (im)
+      real, pointer         :: lat(:)               ! latitudes in deg (jm)
+      real, pointer         :: lev(:)               ! levels in hPa (km)
+      real, pointer         :: Levs(:)              ! actual levels
+      integer, intent(out)  :: nLevs                ! actual number of levels
       
 
       integer,          intent(out) :: nVars        ! Actual number of variables
       character(len=*), intent(out) :: inVars(:)    ! Input  variable names (nVars)
       character(len=*), intent(out) :: outVars(:)   ! output variable names (nVars)
       character(len=*), intent(out) :: outUnits(:)  ! Units of output variables (nVars)
-                                               ! Unit conversion factors:
-                                               !   OUT = scaleFactor * IN + addOffset
+                                                    ! Unit conversion factors:
+                                                    !   OUT = scaleFactor * IN + addOffset
     
-      real, intent(out) :: scaleFactor(:)      ! scaling (nVars) 
-      real, intent(out) :: addOffset(:)        ! offset (nVars)
-      integer, intent(out) :: isPos(:)         ! Do positive check
-      integer, intent(out) :: doInterp(:)      ! Do positive check
-      logical, intent(out) :: isForced         ! force to overwrite output file
-      logical, intent(out) :: lonshift         ! shift longitudes 180 when writing
+      real, intent(out) :: scaleFactor(:)           ! scaling (nVars) 
+      real, intent(out) :: addOffset(:)             ! offset (nVars)
+      integer, intent(out) :: isPos(:)              ! Do positive check
+      integer, intent(out) :: doInterp(:)           ! Do positive check
+      logical, intent(out) :: isForced              ! force to overwrite output file
+      logical, intent(out) :: lonshift              ! shift longitudes 180 when writing
 
       character(len=*), intent(out) :: outVarsgc(:) ! output variable names (nVars)
       character(len=*), intent(out) :: longName(:)  ! output variable names (nVars)
 
-      character(len=3), intent(out) :: inType  ! Input file type: 'eta' or 'lcv'
-      character(len=3), intent(out) :: outType ! Output file type: 'prs' or 'alt'
+      character(len=3), intent(out) :: inType       ! Input file type: 'eta' or 'lcv'
+      character(len=3), intent(out) :: outType      ! Output file type: 'prs' or 'alt'
 
-      integer, intent(out)          :: outPrec ! Output file precision:
-                                               ! 0 = 32 bits,  1 = 6 4bits
-      integer, intent(out)          :: nPsfs   ! number of input ps files
+      integer, intent(out)          :: outPrec      ! Output file precision:
+                                                    ! 0 = 32 bits,  1 = 6 4bits
+      integer, intent(out)          :: nPsfs        ! number of input ps files
       character(len=*), intent(out) :: srfFiles(:)  !  Output file name for ps or surfp
 
-      integer, intent(out)          :: nbkg    ! number of input ps files
+      integer, intent(out)          :: nbkg         ! number of input ps files
       character(len=*), intent(out) :: bkgFiles(:)  !  Output file name for ps or surfp
 
-      integer, intent(out)          :: date        ! User specified date   
-      integer, intent(out)          :: inc_hhmmss  !User specified increment hours(hhmmss)   
-      integer, intent(out)          :: startTime   !User specified increment hours(hhmmss)   
+      integer, intent(out)          :: date         ! User specified date   
+      integer, intent(out)          :: inc_hhmmss   ! User specified increment hours(hhmmss)   
+      integer, intent(out)          :: startTime    ! User specified increment hours(hhmmss)   
 
 ! !DESCRIPTION: This routine initializes {\tt fv2prs}. It parses the command 
 !               and loads necessary information from the resource file.
@@ -586,7 +588,7 @@ CONTAINS
    integer :: iargc
    character(len=4096)  argv, srfFile, bkgFile
 
-   character(len=255)   rcfile, label, var, Vars(mVars), tmp, tmp1
+   character(len=257)   rcfile, label, var, Vars(mVars), tmp, tmp1
 
    integer, parameter :: mKm = 256  ! max no of levels
    real levels(mKm)
@@ -897,7 +899,7 @@ print *
          if (trim(outUnits(n)) .eq. ":") then
             call i90_label ( lowercase(trim(outVars(n))), rc )
             if (rc .eq. 0) then
-		outVars(n) = lowercase(outVars(n))
+                outVars(n) = lowercase(outVars(n))
                 call i90_gtoken ( outUnits(n), rc )
                 if ( rc .ne. 0 ) call die(myname,'cannot get units' )
                 call i90_gtoken ( inVars(n), rc )
@@ -1486,7 +1488,7 @@ print *
         do ii = 1, tNames
            if ( outVarsg(i) .eq. outVarsgc(ii) ) then
               if ( len(trim(longName(ii))) .ge. 1 .and.                   &
-                   len(trim(longName(ii))) .lt. 255 ) then
+                   len(trim(longName(ii))) .lt. 257 ) then
                  vtitle_in(i) = trim(longName(ii))
               end if
            end if
@@ -2485,15 +2487,15 @@ print *
          if (num_levs .gt. 0 ) then
             do k = 1, km
               do j= 1, jm
-		      do i = 1, im
-			 if (inField(i,j,k) < 0) inField(i,j,k) = 0
-          end do
+                do i = 1, im
+                  if (inField(i,j,k) < 0) inField(i,j,k) = 0
+                end do
               end do
             end do
          else   
             do j= 1, jm
-		    do i = 1, im
-		       if (inField(i,j,1) < 0) inField(i,j,1) = 0
+              do i = 1, im
+                if (inField(i,j,1) < 0) inField(i,j,1) = 0
               end do
             end do
          end if
@@ -2579,7 +2581,7 @@ print *
                call Interp_Field ( grid, lon3d, lat3d, lev3d, nobs,  &
                     im_e, jm_e, km_e, inField, 0,     &
                     outField, conf, rc )
-		  end if
+            end if
             if ( rc /= 0 )  call die (myname, 'something wrong in interpolation')
          end if
       else 
@@ -2604,7 +2606,7 @@ print *
                call Interp_Field ( grid, lon3d, lat3d, lev3d, nobs,  &
                     im_e, jm_e, 1, inField, 0,        &
                     outField, conf, rc )
-		  end if
+            end if
             if ( rc /= 0 )  call die (myname, 'something wrong in interpolation')
          end if
       end if 
@@ -3453,8 +3455,8 @@ print *
 !              AIR FORCE GEOPHYSICS LABORATORY, USAF, 1985
 !         SMITHSONIAN METEOROLOGICAL TABLES, List, 1968
 !
-! 12Feb2003	P.Poli	original code (derived from routines written
-!			for GPS radio occultation)
+! 12Feb2003   P.Poli   original code (derived from routines written
+!                      for GPS radio occultation)
 !
 
       real, dimension (:), allocatable :: zg, zearthradius, &
@@ -3544,8 +3546,8 @@ print *
 !
 !-----------------------------------------------------------------------
 !
-! $Id: fv2prs.F90,v 1.6 2014-02-04 18:08:15 rtodling Exp $
-! $Author: rtodling $
+! $Id: fv2prs.F90,v 1.7 2014-06-03 16:18:36 mathomp4 Exp $
+! $Author: mathomp4 $
 !
 !
 ! Common block and statement functions for saturation vapor pressure
@@ -3652,8 +3654,8 @@ print *
 !
 !-----------------------------------------------------------------------
 !
-! $Id: fv2prs.F90,v 1.6 2014-02-04 18:08:15 rtodling Exp $
-! $Author: rtodling $
+! $Id: fv2prs.F90,v 1.7 2014-06-03 16:18:36 mathomp4 Exp $
+! $Author: mathomp4 $
 !
 !-----------------------------------------------------------------------
 !------------------------------Arguments--------------------------------
@@ -3683,8 +3685,8 @@ print *
 !
 !
 !
-! $Id: fv2prs.F90,v 1.6 2014-02-04 18:08:15 rtodling Exp $
-! $Author: rtodling $
+! $Id: fv2prs.F90,v 1.7 2014-06-03 16:18:36 mathomp4 Exp $
+! $Author: mathomp4 $
 !
 !
 ! Common block and statement functions for saturation vapor pressure
@@ -3837,8 +3839,8 @@ print *
 !
 !-----------------------------------------------------------------------
 !
-! $Id: fv2prs.F90,v 1.6 2014-02-04 18:08:15 rtodling Exp $
-! $Author: rtodling $
+! $Id: fv2prs.F90,v 1.7 2014-06-03 16:18:36 mathomp4 Exp $
+! $Author: mathomp4 $
 !
 !-----------------------------------------------------------------------
 !------------------------------Arguments--------------------------------
@@ -4091,7 +4093,7 @@ write(6,6000)
 ! !INPUT PARAMETERS:
 
     integer, intent(in)  :: nVars           
-    character(len=255), intent(in)  :: var_arr(mVars)      
+    character(len=257), intent(in)  :: var_arr(mVars)      
 
 ! !OUTPUT PARAMETERS:
 

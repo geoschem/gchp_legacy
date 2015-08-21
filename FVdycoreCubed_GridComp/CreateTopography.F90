@@ -51,8 +51,10 @@
       integer :: i,j,itile, j1,j2
 
       character(30) :: str_arg
+#ifndef __GFORTRAN__
       external :: getarg, iargc
       integer iargc
+#endif
 
       type(fv_atmos_type) :: Atm(1)
 

@@ -9,6 +9,7 @@
                             BITWISE_EXACT_SUM
  use mpp_parameter_mod, only: AGRID_PARAM=>AGRID, CGRID_NE_PARAM=>CGRID_NE, & 
                               CORNER, SCALAR_PAIR
+ use constants_mod, only: pi
 
  use fv_arrays_mod,   only: fv_atmos_type, FVPRC, REAL4, REAL8, CNVT
  use fv_eta_mod,      only: set_eta
@@ -102,7 +103,6 @@
  real, allocatable :: vlon(:,:,:), vlat(:,:,:)
  real, allocatable :: fC(:,:), f0(:,:)
  real :: deglat=15.
- real :: pi
 
  real, parameter:: ptop_min=1.E-8
  real    :: ptop
@@ -162,8 +162,6 @@
       real p1(3), p2(3), p3(3), p4(3), pp(3)
       real sin2, tmp1, tmp2
       integer i, j, k, n, ip
-
-      pi = 4.*atan(1.)
 
       npxx = npx;  npyy = npy
 
@@ -347,31 +345,6 @@
         endif
         enddo
      enddo
-  else
-     ec1(1,:,:)=1.
-     ec1(2,:,:)=0.
-     ec1(3,:,:)=0.
-
-     ec2(1,:,:)=0.
-     ec2(2,:,:)=1.
-     ec2(3,:,:)=0.
-
-     ew(1,:,:,1)=1.
-     ew(2,:,:,1)=0.
-     ew(3,:,:,1)=0.
-                                   
-     ew(1,:,:,2)=0.
-     ew(2,:,:,2)=1.
-     ew(3,:,:,2)=0.
-
-     es(1,:,:,1)=1.
-     es(2,:,:,1)=0.
-     es(3,:,:,1)=0.
-                                   
-     es(1,:,:,2)=0.
-     es(2,:,:,2)=1.
-     es(3,:,:,2)=0.
-  endif
 
 !     9---4---8
 !     |       |
@@ -462,9 +435,36 @@
               sin_sg(i,npy,2) = sin_sg(npx-1,i,3) 
            enddo
       endif
+   else
+     cos_sg(:,:,:) = 0.
+     sin_sg(:,:,:) = 1.
 
+     ec1(1,:,:)=1.
+     ec1(2,:,:)=0.
+     ec1(3,:,:)=0.
 
-     if ( non_ortho ) then
+     ec2(1,:,:)=0.
+     ec2(2,:,:)=1.
+     ec2(3,:,:)=0.
+
+     ew(1,:,:,1)=1.
+     ew(2,:,:,1)=0.
+     ew(3,:,:,1)=0.
+                                   
+     ew(1,:,:,2)=0.
+     ew(2,:,:,2)=1.
+     ew(3,:,:,2)=0.
+
+     es(1,:,:,1)=1.
+     es(2,:,:,1)=0.
+     es(3,:,:,1)=0.
+                                   
+     es(1,:,:,2)=0.
+     es(2,:,:,2)=1.
+     es(3,:,:,2)=0.
+   endif
+
+   if ( non_ortho ) then
            cosa_u = big_number
            cosa_v = big_number
            cosa_s = big_number
@@ -507,8 +507,8 @@
               cosa(i,j) = sign(min(1., abs(tmp1)), tmp1)
               sina(i,j) = sqrt(max(0.,1. -cosa(i,j)**2))
 #else
-              cosa(i,j) = cos_sg(i,j,6)
-              sina(i,j) = sin_sg(i,j,6)
+              cosa(i,j) = SIGN(MAX(tiny_number,ABS(cos_sg(i,j,6))),cos_sg(i,j,6))
+              sina(i,j) = SIGN(MAX(tiny_number,ABS(sin_sg(i,j,6))),sin_sg(i,j,6))
 #endif
            enddo
         enddo
@@ -620,9 +620,8 @@
 !------------------------------------
       do j=js,je+1
          do i=is,ie+1
-            if ( i==npx .and. j==npy ) then
-            else if ( i==1 .or. i==npx .or. j==1 .or. j==npy ) then
-                 rsina(i,j) = big_number
+            if ( i==1 .or. i==npx .or. j==1 .or. j==npy ) then
+                 rsina(i,j) = 1. / sina(i,j)
             else
                  rsina(i,j) = 1. / sina(i,j)**2
             endif
@@ -828,6 +827,7 @@
 
 ! Initialize cubed_sphere to lat-lon transformation:
      call init_cubed_to_latlon( agrid, grid_type, c2l_order )
+
 
      call global_mx(area, ng, da_min, da_max)
      if( gid==0 ) write(6,*) 'da_max/da_min=', da_max/da_min
@@ -1971,8 +1971,6 @@
  real, intent(out):: lon(im+1,im+1)
  real, intent(out):: lat(im+1,im+1)
  integer i, j
-
-  pi = 4.*atan(1.)
 
   if(grid_type==0) call gnomonic_ed(  im, lon, lat)
   if(grid_type==1) call gnomonic_dist(im, lon, lat)

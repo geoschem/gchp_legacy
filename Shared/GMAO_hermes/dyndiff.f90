@@ -151,6 +151,11 @@
 
 !  All done
 !  --------
+!  All done
+!  --------
+   close(999)
+   open (999,file='DYNDIFF_EGRESS',form='formatted')
+   close(999)
    call exit(0)
 
 CONTAINS

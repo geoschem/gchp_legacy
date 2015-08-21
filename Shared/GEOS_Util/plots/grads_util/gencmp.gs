@@ -160,7 +160,7 @@ endif
          lonmin = result
 'getinfo lonmax'
          lonmax = result
-'set lat -90 90'
+'setlats'
 
 * Create Environment Variables for Seasonal Utility
 * -------------------------------------------------
@@ -219,11 +219,33 @@ endif
 'run getenv "CMPEXP"'
          cmpexp = result
             num = 1
-            exp = subwrd( cmpexp,num )
+
+          dummy = get_cmpexp (cmpexp,num)
+            exp = subwrd(dummy,1)
+           type = subwrd(dummy,2)
+
 while( exp != 'NULL' )
 say ' '
 say 'Comparing with: 'exp
-    'run setenv "LEVTYPE" 'ALEVS
+
+* analysis = false  EXP=M CMP=M  => ALEVS
+* analysis = false  EXP=M CMP=A  => DLEVS
+* analysis = true   EXP=A CMP=A  => ALEVS
+* analysis = true   EXP=A CMP=M  => DLEVS
+
+if( analysis != "false" )
+    if( type = A )
+       'run setenv "LEVTYPE" 'ALEVS
+    else
+       'run setenv "LEVTYPE" 'DLEVS
+    endif
+else
+    if( type = A )
+       'run setenv "LEVTYPE" 'DLEVS
+    else
+       'run setenv "LEVTYPE" 'ALEVS
+    endif
+endif
 
 '!chckfile 'exp'/.HOMDIR'
  'run getenv CHECKFILE'
@@ -235,7 +257,7 @@ say 'Comparing with: 'exp
      endif
 '!remove CHECKFILE.txt'
 
-'!cat HISTORY.rc | sed -e "s/,/ , /g" > HISTORY.T'
+'!cat HISTORY.rc | sed -e "s/,/ , /g" | sed -e "s/*/@/g" > HISTORY.T'
 
 * Get CMPEXP Variables
 * --------------------
@@ -352,12 +374,43 @@ endif
 * ----------------------------------------
 endif
 
-  num = num + 1
-  exp = subwrd( cmpexp,num )
+    num = num + 1
+  dummy = get_cmpexp (cmpexp,num)
+    exp = subwrd(dummy,1)
+   type = subwrd(dummy,2)
+
 endwhile
 '!/bin/mv HISTORY.Tmp HISTORY.T'
 
 return
+
+* Get Next EXP from CMPEXP List
+* -----------------------------
+function get_cmpexp (cmpexp,num)
+      exp  = subwrd(cmpexp,num)
+      len = get_length (exp)
+      bit = substr(exp,len-1,1)
+      if( bit = ":" )
+          type = substr(exp,len,1)
+          exp  = substr(exp,1,len-2)
+      else
+          type = M
+      endif
+return exp' 'type
+
+function get_length (string)
+tb = ""
+i = 1
+while (i<=256)
+blank = substr(string,i,1)
+if( blank = tb )
+length = i-1
+i = 999
+else
+i = i + 1
+endif
+endwhile
+return length
 
 * To Prevent Problem with BIT: E
 * ------------------------------

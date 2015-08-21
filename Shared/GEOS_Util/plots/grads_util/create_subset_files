@@ -26,7 +26,21 @@ echo Creating List of Subset Files ...
 set subset = ''
 foreach file ($files0 )
 set base = `basename $file`
-set date = `echo $base | cut -d. -f2-`
+
+    # Find 'stats' node
+    # -----------------
+    @   statsnode = 0
+      set i  node = NULL
+    while ( $node != 'stats' )
+    @ statsnode = $statsnode + 1
+      set  node = `echo $base | cut -d. -f${statsnode}`
+    end
+    @ statsnode1 = $statsnode
+    @ statsnode2 = $statsnode + 1
+     
+#set date = `echo $base | cut -d. -f${statsnode1}-`                # date includes both beginning and ending times
+ set date = `echo $base | cut -d. -f${statsnode1}-${statsnode2}`   # date includes only beginning time (required when comparing forecasts of different lengths)
+
    set test = ''
    foreach dum ($allfiles)
      set   dum2 = `echo $dum | grep $date`

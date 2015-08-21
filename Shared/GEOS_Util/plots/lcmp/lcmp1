@@ -172,7 +172,7 @@ while( num <= numrc )
               oscale = subwrd(result,3)
               obsdsc = subwrd(result,4)
           obsnam.num = subwrd(result,5)
-      if( obsnam.num = "merrasc" ) ; merranum = num ; endif
+      if( obsnam.num = "MERRA2" ) ; merranum = num ; endif
 
  if( ofile.num != 'NULL' )
 'set dfile 'ofile.num

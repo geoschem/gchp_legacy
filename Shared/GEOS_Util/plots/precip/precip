@@ -183,13 +183,18 @@ if(      taylor = 'true' & obsnam = 'GPCP' )
 'taylor preaccmamgeos precipmamobs mam 'expid
 'taylor preaccanngeos precipannobs ann 'expid
 
-'taylor_write 'expid'  PRECIP 'output
-'taylor_read   GFDL    PRECIP 'verification
-'taylor_read   CAM3    PRECIP 'verification
-'taylor_read   e0203   PRECIP 'verification
-'taylor_read   merrasc PRECIP 'verification
+'taylor_write 'expid'    PRECIP 'output
+'taylor_read   ErosC72   PRECIP 'verification
+'taylor_read   F25d72    PRECIP 'verification
+'taylor_read   G40C180   PRECIP 'verification
+'taylor_read   MERRA     PRECIP 'verification
+'taylor_read   MERRA2    PRECIP 'verification
                                                                                                    
-"taylor_plt 5 merrasc CAM3 GFDL e0203 "expid" "output" PRECIP 'Total Precipitation vs "obsnam"' "debug
+*'taylor_read   RPIT     PRECIP 'verification
+*'taylor_read   GFDL     PRECIP 'verification
+*'taylor_read   CAM3     PRECIP 'verification
+
+"taylor_plt 6 MERRA2 MERRA G40C180 F25d72 ErosC72 "expid" "output" PRECIP 'Total Precipitation vs "obsnam"' "debug
 endif
 
 

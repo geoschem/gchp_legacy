@@ -122,6 +122,11 @@ CONTAINS
     RC = GIGC_SUCCESS
 
     !----------------------------------------
+    ! General Runtime & Distributed Comp Info
+    !----------------------------------------
+    ! none yet.
+
+    !----------------------------------------
     ! SIZE PARAMETER fields
     !----------------------------------------
     CALL MPI_Bcast( INPUT_OPT%MAX_DIAG, 1, mpi_integer, 0, mpiComm, RC )

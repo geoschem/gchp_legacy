@@ -1,97 +1,76 @@
-subroutine GetWeightsC2C( npx_in, npy_in, npx_out, npy_out, index, weight)
+#define R8 8
 
- use fv_arrays_mod,  only : REAL4, REAL8, FVPRC
- use CUB2CUB_mod,    only :  get_c2c_weight
- use mpp_mod,        only : mpp_pe
- use mpp_domains_mod, only :  domain2d, mpp_define_layout, mpp_define_domains,  &
-      mpp_get_compute_domain, mpp_get_data_domain
+subroutine GetWeightsC2C( npx_in, npy_in, npx_out, npy_out, index, weight, &
+     ee1, ee2, ff1, ff2)
 
+ use CUB2CUB_mod,     only : get_c2c_weight, get_c2c_weight_global
+ use mpp_mod,         only : FATAL, mpp_error
+
+ use ESMF
  implicit none
   integer, intent(in) :: npx_in, npy_in, npx_out, npy_out
-  integer, intent(out) :: index(:,:,:,:)
-  real(REAL8), intent(out) :: weight(:,:,:,:)
+  integer, intent(out) :: index(:,:,:)
+  real(R8), intent(out) :: weight(:,:,:)
+  real(R8), dimension(:,:,:), intent(out) :: ee1, ee2, ff1, ff2
+! Note that the shape of ee's and ff's is different
 
 
 ! local vars
   integer, parameter :: ntiles=6
 
-  type(domain2D) :: domain_i
-  integer :: layout(2)
-  integer :: npes, mype
   integer :: npy_i, npy_o
-  integer :: is, ie, js, je, ls, le
-  integer :: is_i,  ie_i,  js_i,  je_i
-  integer :: isd_i, ied_i, jsd_i, jed_i
-  real(REAL8), pointer :: sph_in(:,:,:,:) => null()
-  real(REAL8), pointer :: sph_out(:,:,:,:) => null()
+  real(R8), pointer :: sph_in(:,:,:,:) => null()
+  real(R8), pointer :: sph_out(:,:,:,:) => null()
 
   ! initialize cube_in and cube_out corners
   !----------------------------------------
 
   npy_i = npy_in/ntiles  ! should be the same as npx_in
   npy_o = npy_out/ntiles ! should be the same as npx_out
-  call init_cube_corners(npx_in, npy_i, sph_in)
-  call init_cube_corners(npx_out, npy_o, sph_out)
-
-! define a domain (global, on 1 PE), needed for the next call
-  npes = 1
-  mype = mpp_pe()
-
-  call mpp_define_layout( (/1,npx_in,1,npy_i/), npes, layout )
-  call mpp_define_domains( (/1,npx_in,1,npy_i/), layout, domain_i, &
-       pelist=(/ mype /), xhalo=1, yhalo=1 )
-  call mpp_get_compute_domain( domain_i, is_i,  ie_i,  js_i,  je_i  )
-  call mpp_get_data_domain   ( domain_i, isd_i, ied_i, jsd_i, jed_i )
-
-  is = 1
-  ie = npx_out
-  js = 1
-  je = npy_o
-  ls = 1
-  le = ntiles
+  call init_cube_corners(npx_in, npy_i, sph_in, ff1=ff1, ff2=ff2)
+  call init_cube_corners(npx_out, npy_o, sph_out, ee1=ee1, ee2=ee2)
 
   ! calculate weights for bilinear interpolation
   ! from cubed sphere to cubed sphere
   !---------------------------------------------
 
-  call get_c2c_weight(ntiles, npx_in+1, npy_i+1, &
-                      is_i, ie_i, js_i, je_i, isd_i, ied_i, jsd_i, jed_i, &
-                      sph_in(:,is_i:ie_i+1,js_i:je_i+1,:), &
-                      npx_out+1, npy_o+1, is, ie, js, je, ls,le, &
-                      sph_out(:,is:ie+1,js:je+1,:), &
-                      index,  weight, domain_i)
+  call get_c2c_weight_global(ntiles, npx_in+1, npy_i+1, sph_in,                &
+                      npx_out+1, npy_o+1, sph_out,                     &
+                      index,  weight)
 
   deallocate ( sph_in, sph_out )
-
 
   return
 
 contains
-  subroutine init_cube_corners(npx, npy, sph_corner)
+  subroutine init_cube_corners(npx, npy, sph_corner, ee1, ee2, ff1, ff2)
 
-    use fv_grid_utils_mod, only : gnomonic_grids !, cell_center2, mid_pt_sphere
+    use fv_grid_utils_mod, only : gnomonic_grids, cell_center2
     use fv_grid_tools_mod, only : mirror_grid
     use GHOST_CUBSPH_mod,  only : B_grid, A_grid, ghost_cubsph_update
 
 
     integer,  intent(in   ) :: npx,  npy
-    real(REAL8), pointer       :: sph_corner (:,:,:,:)
+    real(R8), pointer       :: sph_corner (:,:,:,:)
+    real(R8), dimension(:,:,:), optional :: ee1, ee2, ff1, ff2
 
     ! Locals
     !-------
 
-    integer :: npts, n, l, j, j1
+    integer :: npts, n, l, i, j, j1
 
     integer, parameter :: ntiles=6
     integer, parameter :: ndims=2
 
 
-    real, parameter :: PI=3.14159265358979323846
+    real(R8), parameter :: PI=3.14159265358979323846
+    real(R8), dimension(ndims) :: agrid
+    real(R8), dimension(3) :: e1, e2, f1, f2
 
     ! Real*8 are needed to make fv calls.
     !-----------------------------------
 
-    real(REAL8), allocatable :: grid_global(:,:,:,:)
+    real(R8), allocatable :: grid_global(:,:,:,:)
 
     npts = npx + 1
     
@@ -145,6 +124,37 @@ contains
     sph_corner(1,1:npts,1:npts,:) = grid_global(:,:,1,:)
     sph_corner(2,1:npts,1:npts,:) = grid_global(:,:,2,:)
 
+    ! Compute Vector Rotation arrays
+
+    do n=1,ntiles
+       do j=1,npy
+          j1 = npx*(n-1) + j
+          do i=1,npx
+             agrid = 1.e+25
+             call cell_center2(grid_global(i,  j,  1:2,n), &
+                               grid_global(i+1,j,  1:2,n),   &
+                               grid_global(i,  j+1,1:2,n), &
+                               grid_global(i+1,j+1,1:2,n),   &
+                               agrid(1:2) )
+             call CreateCube2LatLonRotation( &
+                  grid_global(i:i+1,j:j+1,:,n), agrid(1:2), &
+                  e1(:),e2(:),f1(:),f2(:))
+             if (present(ff1)) then
+                ff1(i,j1,:) = f1(:)
+             end if
+             if (present(ff2)) then
+                ff2(i,j1,:) = f2(:)
+             end if
+             if (present(ee1)) then
+                ee1(i,j1,:) = e1(:)
+             end if
+             if (present(ee2)) then
+                ee2(i,j1,:) = e2(:)
+             end if
+          enddo
+       enddo
+    enddo
+
     deallocate ( grid_global )
 
   ! do halo update                                                   !
@@ -165,5 +175,33 @@ contains
     return
   end subroutine init_cube_corners
 
+  subroutine CreateCube2LatLonRotation(grid, center, ee1, ee2, ff1, ff2)
+
+    use fv_grid_utils_mod, only : mid_pt_sphere
+    use fv_grid_tools_mod, only : get_unit_vector
+
+    real(R8), intent(IN)    :: grid(0:1,0:1,2), center(2)
+    real(R8), intent(OUT), dimension(3) :: ee1, ee2, ff1, ff2
+
+    real(R8), dimension(2) :: p1, p2, p3, p4
+    real :: H, F
+
+
+    call mid_pt_sphere(grid(0,0,:),grid(0,1,:), p1)
+    call mid_pt_sphere(grid(0,0,:),grid(1,0,:), p2)
+    call mid_pt_sphere(grid(1,0,:),grid(1,1,:), p3)
+    call mid_pt_sphere(grid(0,1,:),grid(1,1,:), p4)
+
+    call get_unit_vector(p3, center, p1, ee1)
+    call get_unit_vector(p4, center, p2, ee2)
+
+    H   = dot_product(ee1,ee2)
+    F   = 1.0/(H**2-1.0)
+
+    ff1 = F*(ee2*H-ee1)
+    ff2 = F*(ee1*H-ee2)
+
+    return
+  end subroutine CreateCube2LatLonRotation
 
 end subroutine GetWeightsC2C

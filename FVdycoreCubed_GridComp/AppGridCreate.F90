@@ -1,23 +1,28 @@
 
 !!!!!!!!!!!!!!!%%%%%%%%%%%%%%%%%%%%%%%!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-function AppGridCreateF(IM_WORLD, JM_WORLD, LM, NX, NY, rc) result(grid)
+function AppGridCreateF(IM_WORLD, JM_WORLD, LM, NX, NY, rc) result(esmfgrid)
 #include "MAPL_Generic.h"
+#define DEALLOCGLOB_(A) if(associated(A)) then;A=0;call MAPL_DeAllocNodeArray(A,rc=STATUS);if(STATUS==MAPL_NoShm) deallocate(A,stat=STATUS);NULLIFY(A);endif
 
   use ESMFL_Mod, only : ESMF_GRID_INTERIOR
   use ESMF
+  use MAPL_Mod
   use MAPL_BaseMod
   use MAPL_GenericMod
   use MAPL_ConstantsMod, only : pi=> MAPL_PI
+  use MAPL_ShmemMod
+
   use fv_arrays_mod,     only: REAL4, REAL8
   use fv_grid_utils_mod, only: gnomonic_grids, cell_center2
-  use fv_grid_tools_mod, only: mirror_grid, grid_type
+  use fv_grid_tools_mod, only: mirror_grid, fvgrid=>grid
+
   implicit none
 
 ! !ARGUMENTS:
     integer,           intent(IN)    :: IM_WORLD, JM_WORLD, LM
     integer,           intent(IN)    :: NX, NY
     integer, optional, intent(OUT)   :: rc
-    type (ESMF_Grid)                 :: grid
+    type (ESMF_Grid)                 :: esmfgrid
 
 ! ErrLog variables
 !-----------------
@@ -40,12 +45,12 @@ function AppGridCreateF(IM_WORLD, JM_WORLD, LM, NX, NY, rc) result(grid)
   integer                       :: js, je
   integer                       :: myTile
   integer                       :: npts
-  integer                       :: ntiles
+  integer                       :: ntiles, grid_type
   integer                       :: ndims=2
   integer                       :: I, J, N
   integer                       :: IG, JG
 
-  real(REAL8), allocatable :: grid_global(:,:,:,:)
+  real(REAL8) :: deglon=0.0
   type (ESMF_Array),  pointer     :: coords(:)
   real(REAL8), pointer     :: lons(:,:)
   real(REAL8), pointer     :: lats(:,:)
@@ -60,10 +65,13 @@ function AppGridCreateF(IM_WORLD, JM_WORLD, LM, NX, NY, rc) result(grid)
   real(REAL8), allocatable :: gridCornerLats(:)
   real(REAL8), allocatable :: gridCornerLons(:)
   integer                         :: idx
+  real(REAL8), pointer     :: grid_global(:,:,:,:) => null()
+  logical                  :: AppGridStandAlone
 
 ! We need the VM to create the grid ??
 !------------------------------------
 
+       AppGridStandAlone = .false.
        call ESMF_VMGetCurrent(vm, rc=STATUS)
        VERIFY_(STATUS)            
 
@@ -101,10 +109,10 @@ function AppGridCreateF(IM_WORLD, JM_WORLD, LM, NX, NY, rc) result(grid)
 ! We should have a much simpler create with the next ESMF grid design
 !--------------------------------------------------------------------
 
-       GRID = ESMF_GridCreate(             &
+       esmfgrid = ESMF_GridCreate(             &
             name=gridname,                 &
-            countsPerDEDim1=ims,           &
-            countsPerDEDim2=jms,           &
+            countsPerDEDim1=IMS,           &
+            countsPerDEDim2=JMS,           &
             indexFlag = ESMF_INDEX_USER,   &
             gridMemLBound = (/1,1/),       &
             gridEdgeLWidth = (/0,0/),      &
@@ -115,27 +123,27 @@ function AppGridCreateF(IM_WORLD, JM_WORLD, LM, NX, NY, rc) result(grid)
        VERIFY_(STATUS)
 
 ! Allocate coords at default stagger location
-       call ESMF_GridAddCoord(grid, rc=status)
+       call ESMF_GridAddCoord(esmfgrid, rc=status)
        VERIFY_(STATUS)
 
-       call ESMF_AttributeSet(grid, name='GRID_LM', value=LM, rc=status)
+       call ESMF_AttributeSet(esmfgrid, name='GRID_LM', value=LM, rc=status)
        VERIFY_(STATUS)
 
        if (grid_type <= 3) then
-          call ESMF_AttributeSet(GRID, 'GridType', 'Cubed-Sphere', rc=STATUS)
+          call ESMF_AttributeSet(esmfgrid, 'GridType', 'Cubed-Sphere', rc=STATUS)
           VERIFY_(STATUS)
        else
-          call ESMF_AttributeSet(GRID, 'GridType', 'Doubly-Periodic', rc=STATUS)
+          call ESMF_AttributeSet(esmfgrid, 'GridType', 'Doubly-Periodic', rc=STATUS)
           VERIFY_(STATUS)
        endif
 
 ! -------------
 
- NPES_X = size(ims)
- NPES_Y = size(jms)
+ NPES_X = size(IMS)
+ NPES_Y = size(JMS)
  NPES = NPES_X+NPES_Y
 
- call ESMF_GRID_INTERIOR(GRID,isg,ieg,jsg,jeg)
+ call ESMF_GRID_INTERIOR(esmfgrid,isg,ieg,jsg,jeg)
 
  npx = IM_WORLD
  npy = JM_WORLD
@@ -148,77 +156,79 @@ function AppGridCreateF(IM_WORLD, JM_WORLD, LM, NX, NY, rc) result(grid)
 
  npts = (npy/ntiles)
  if (npts /= npx) then
-    print*, 'Error npts /= npx', npts, npx, npy
+    print*, 'Error npts /= npx', npts, npx
     STATUS=1
  endif
  VERIFY_(STATUS)
 
- allocate( grid_global(npts+1,npts+1,ndims,ntiles) )
+ if (.not.allocated(fvgrid)) then 
 
- if (grid_type <= 3) then
-! Cubed-Sphere
-  call gnomonic_grids(grid_type, npts, grid_global(:,:,1,1), grid_global(:,:,2,1))
-! mirror_grid assumes that the tile=1 is centered on equator and greenwich meridian Lon[-pi,pi]
-  call mirror_grid(grid_global, 0, npts+1, npts+1, 2, 6)
+    AppGridStandAlone = .true.
+    call MAPL_AllocNodeArray(grid_global,Shp=(/npts+1,npts+1,ndims,ntiles/),rc=status)
+    if (status == MAPL_NoShm) then
+       allocate( grid_global(npts+1,npts+1,ndims,ntiles) )
+    end if
 
-  do n=1,ntiles
-     do j=1,npts+1
-        do i=1,npts+1
-!---------------------------------
-! Shift the corner away from Japan
-!---------------------------------
-! This will result in the corner close to east coast of China
-           grid_global(i,j,1,n) = grid_global(i,j,1,n) - pi/18.
-           if ( grid_global(i,j,1,n) < 0. )              &
-                grid_global(i,j,1,n) = grid_global(i,j,1,n) + 2.*pi
-           if (ABS(grid_global(i,j,1,n)) < 1.e-10) grid_global(i,j,1,n) = 0.0
-           if (ABS(grid_global(i,j,2,n)) < 1.e-10) grid_global(i,j,2,n) = 0.0
+    if (grid_type <= 3) then
+   ! Cubed-Sphere
+     call gnomonic_grids(grid_type, npts, grid_global(:,:,1,1), grid_global(:,:,2,1))
+   ! mirror_grid assumes that the tile=1 is centered on equator and greenwich meridian Lon[-pi,pi]
+     call mirror_grid(grid_global, 0, npts+1, npts+1, 2, 6)
+
+     do n=1,ntiles
+        do j=1,npts+1
+           do i=1,npts+1
+   !---------------------------------
+   ! Shift the corner away from Japan
+   !---------------------------------
+   ! This will result in the corner close to east coast of China
+              grid_global(i,j,1,n) = grid_global(i,j,1,n) - pi/18.
+              if ( grid_global(i,j,1,n) < 0. )              &
+                   grid_global(i,j,1,n) = grid_global(i,j,1,n) + 2.*pi
+              if (ABS(grid_global(i,j,1,n)) < 1.e-10) grid_global(i,j,1,n) = 0.0
+              if (ABS(grid_global(i,j,2,n)) < 1.e-10) grid_global(i,j,2,n) = 0.0
+           enddo
         enddo
      enddo
-  enddo
 
-!---------------------------------
-! Clean Up Corners
-!---------------------------------
-  grid_global(  1,1:npts+1,:,2)=grid_global(npts+1,1:npts+1,:,1)
-  grid_global(  1,1:npts+1,:,3)=grid_global(npts+1:1:-1,npts+1,:,1)
-  grid_global(1:npts+1,npts+1,:,5)=grid_global(1,npts+1:1:-1,:,1)
-  grid_global(1:npts+1,npts+1,:,6)=grid_global(1:npts+1,1,:,1)
-  grid_global(1:npts+1,  1,:,3)=grid_global(1:npts+1,npts+1,:,2)
-  grid_global(1:npts+1,  1,:,4)=grid_global(npts+1,npts+1:1:-1,:,2)
-  grid_global(npts+1,1:npts+1,:,6)=grid_global(npts+1:1:-1,1,:,2)
-  grid_global(  1,1:npts+1,:,4)=grid_global(npts+1,1:npts+1,:,3)
-  grid_global(  1,1:npts+1,:,5)=grid_global(npts+1:1:-1,npts+1,:,3)
-  grid_global(npts+1,1:npts+1,:,3)=grid_global(1,1:npts+1,:,4)
-  grid_global(1:npts+1,  1,:,5)=grid_global(1:npts+1,npts+1,:,4)
-  grid_global(1:npts+1,  1,:,6)=grid_global(npts+1,npts+1:1:-1,:,4)
-  grid_global(  1,1:npts+1,:,6)=grid_global(npts+1,1:npts+1,:,5)
- else
- ! Doubly Periodic
-  ! Setup an f-plane at LON=0 LAT=15
-    dx = 1.e-2/npx
-    dy = 1.e-2/npy
-    do j=1,npx+1
-       do i=1,npy+1
-          grid_global(i,j,1,1) = ( 0.0 + FLOAT(i)*dx)*pi/180.0 ! Radians 
-          grid_global(i,j,2,1) = (15.0 + FLOAT(j)*dy)*pi/180.0 ! Radians
-       enddo
-    enddo
- endif
+   !---------------------------------
+   ! Clean Up Corners
+   !---------------------------------
+     grid_global(  1,1:npts+1,:,2)=grid_global(npts+1,1:npts+1,:,1)
+     grid_global(  1,1:npts+1,:,3)=grid_global(npts+1:1:-1,npts+1,:,1)
+     grid_global(1:npts+1,npts+1,:,5)=grid_global(1,npts+1:1:-1,:,1)
+     grid_global(1:npts+1,npts+1,:,6)=grid_global(1:npts+1,1,:,1)
+     grid_global(1:npts+1,  1,:,3)=grid_global(1:npts+1,npts+1,:,2)
+     grid_global(1:npts+1,  1,:,4)=grid_global(npts+1,npts+1:1:-1,:,2)
+     grid_global(npts+1,1:npts+1,:,6)=grid_global(npts+1:1:-1,1,:,2)
+     grid_global(  1,1:npts+1,:,4)=grid_global(npts+1,1:npts+1,:,3)
+     grid_global(  1,1:npts+1,:,5)=grid_global(npts+1:1:-1,npts+1,:,3)
+     grid_global(npts+1,1:npts+1,:,3)=grid_global(1,1:npts+1,:,4)
+     grid_global(1:npts+1,  1,:,5)=grid_global(1:npts+1,npts+1,:,4)
+     grid_global(1:npts+1,  1,:,6)=grid_global(npts+1,npts+1:1:-1,:,4)
+     grid_global(  1,1:npts+1,:,6)=grid_global(npts+1,1:npts+1,:,5)
+    else
+      
+       if (MAPL_AM_I_ROOT()) write(*,*)'AppGridCreate can not make DP grid by itself'
+       ASSERT_(.false.)
+
+    end if
+
+ end if
 
 ! Fill lat/lons at cell center locations
 ! Retrieve the coordinates so we can set them
-       call ESMF_GridGetCoord(grid, coordDim=1, localDE=0, &
+       call ESMF_GridGetCoord(esmfgrid, coordDim=1, localDE=0, &
             staggerloc=ESMF_STAGGERLOC_CENTER, &
             farrayPtr=lons, rc=status)
        VERIFY_(STATUS)
 
-       call ESMF_GridGetCoord(grid, coordDim=2, localDE=0, &
+       call ESMF_GridGetCoord(esmfgrid, coordDim=2, localDE=0, &
             staggerloc=ESMF_STAGGERLOC_CENTER, &
             farrayPtr=lats, rc=status)
        VERIFY_(STATUS)
 
-! Save corners into the grid
+! Save corners into the esmfgrid
 !---------------------------
        allocate(gridCornerLons((size(lons,1)+1)*(size(lons,2)+1)), stat=status)
        VERIFY_(STATUS)
@@ -230,17 +240,21 @@ function AppGridCreateF(IM_WORLD, JM_WORLD, LM, NX, NY, rc) result(grid)
           do ig=isg,ieg+1
              i=ig
              j=jg-myTile*npts
-
              idx = idx + 1
-             gridCornerLons(idx) = grid_global(i, j, 1, myTile+1)
-             gridCornerLats(idx) = grid_global(i, j, 2, myTile+1)
+             if (AppGridStandAlone) then
+                gridCornerLons(idx) = grid_global(i, j, 1, myTile+1)
+                gridCornerLats(idx) = grid_global(i, j, 2, myTile+1)
+             else
+                gridCornerLons(idx) = fvgrid(i,j,1) 
+                gridCornerLats(idx) = fvgrid(i,j,2)
+             end if
           end do
        end do
 
-       call ESMF_AttributeSet(grid, name='GridCornerLons:', &
+       call ESMF_AttributeSet(esmfgrid, name='GridCornerLons:', &
             itemCount = idx, valueList=gridCornerLons, rc=status)
        VERIFY_(STATUS)
-       call ESMF_AttributeSet(grid, name='GridCornerLats:', &
+       call ESMF_AttributeSet(esmfgrid, name='GridCornerLats:', &
             itemCount = idx, valueList=gridCornerLats, rc=status)
        VERIFY_(STATUS)
 
@@ -253,9 +267,15 @@ function AppGridCreateF(IM_WORLD, JM_WORLD, LM, NX, NY, rc) result(grid)
      do ig=isg,ieg
         i=ig
         j=jg-myTile*npts
-        call cell_center2(grid_global(i,j,  1:2,myTile+1), grid_global(i+1,j,  1:2,myTile+1),   &
-                          grid_global(i,j+1,1:2,myTile+1), grid_global(i+1,j+1,1:2,myTile+1),   &
-                          alocs)
+        if (AppGridStandAlone) then
+           call cell_center2(grid_global(i,j,  1:2,myTile+1), grid_global(i+1,j,  1:2,myTile+1),   &
+                             grid_global(i,j+1,1:2,myTile+1), grid_global(i+1,j+1,1:2,myTile+1),   &
+                             alocs)
+        else
+           call cell_center2(fvgrid(i,j,  1:2), fvgrid(i+1,j,  1:2),   &
+                             fvgrid(i,j+1,1:2), fvgrid(i+1,j+1,1:2),   &
+                             alocs)
+        end if
         i=ig-isg+1
         j=jg-jsg+1
         lons(i,j) = alocs(1)
@@ -263,14 +283,16 @@ function AppGridCreateF(IM_WORLD, JM_WORLD, LM, NX, NY, rc) result(grid)
      enddo
   enddo
 
-  deallocate( grid_global )
-  deallocate( IMS )
-  deallocate( JMS )
+  if (AppGridStandAlone) then
+     DEALLOCGLOB_(grid_global)
+  end if
+  call MAPL_MemUtilsWrite(VM, trim(Iam), RC=STATUS )
+  VERIFY_(STATUS)
 
-    RETURN_(ESMF_SUCCESS)
-  end function AppGridCreateF
+  RETURN_(ESMF_SUCCESS)
+end function AppGridCreateF
 
-subroutine AppGridCreate (META, GRID, RC)
+subroutine AppGridCreate (META, esmfgrid, RC)
 
 #include "MAPL_Generic.h"
 
@@ -278,12 +300,13 @@ subroutine AppGridCreate (META, GRID, RC)
   use MAPL_Mod
   use MAPL_BaseMod
   use MAPL_GenericMod
+  use fv_arrays_mod,     only: REAL4, REAL8
   implicit none
 
 ! !ARGUMENTS:
 
  type(MAPL_MetaComp), intent(INOUT) :: META
- type (ESMF_Grid),    intent(  OUT) :: grid
+ type (ESMF_Grid),    intent(  OUT) :: esmfgrid
  integer, optional,   intent(  OUT) :: rc
 
 ! ErrLog variables
@@ -301,7 +324,18 @@ subroutine AppGridCreate (META, GRID, RC)
   integer                         :: NX, NY
   character(len=ESMF_MAXSTR)      :: tmpname, gridname
   character(len=ESMF_MAXSTR)      :: FMT, FMTIM, FMTJM
-  type (ESMF_Grid), EXTERNAL      :: AppGridCreateF
+  real(REAL8) :: deglon=0.0
+
+  interface
+     function AppGridCreateF(IM_WORLD, JM_WORLD, LM, NX, NY, rc)
+        use ESMF
+        implicit none
+        type(ESMF_Grid)                  :: AppGridCreateF
+        integer,           intent(IN)    :: IM_WORLD, JM_WORLD, LM
+        integer,           intent(IN)    :: NX, NY
+        integer, optional, intent(OUT)   :: rc
+     end function AppGridCreateF
+  end interface
 
 ! Get Decomposition from CF
 !--------------------------
@@ -337,7 +371,7 @@ subroutine AppGridCreate (META, GRID, RC)
        call MAPL_GetResource( META, GRIDNAME, 'AGCM_GRIDNAME:', default=trim(tmpname), rc = status )
        VERIFY_(STATUS)
 
-       grid = AppGridCreateF(IM_WORLD, JM_WORLD, LM, NX, NY, STATUS)
+       esmfgrid = AppGridCreateF(IM_WORLD, JM_WORLD, LM, NX, NY, STATUS)
        VERIFY_(STATUS)
 
     RETURN_(ESMF_SUCCESS)

@@ -1,0 +1,190 @@
+#!/usr/bin/env perl
+
+# The setting of the options and the module lookup paths will
+# be done first using the BEGIN subroutine.  This section of the
+# program executes before the rest of the program is even compiled.
+# This way, a new path set via the -P option can be used to locate
+# the modules to include at compile time while the remainder of the
+# program is compiled.
+
+BEGIN {
+
+# Keep track of errors within BEGIN block.
+
+   $die_away = 0;
+
+# This module contains the getopts() subroutine.
+
+   use Getopt::Std;
+
+# Get options and arguments
+
+   getopts('Dl:P:R:');
+
+# Debug option.
+
+   if ( defined( $opt_D ) ) { 
+      $debug = $opt_D;
+   } else {
+      $debug = 0;
+   }
+
+# User ID on gateway machines.
+
+   if ( defined( $opt_l ) ) { 
+      $USERID_ATM_GATEWAY = $opt_l;
+   } else {
+      $USERID_ATM_GATEWAY = getlogin || (getpwuid($<))[0] || die "(mkdir_remote) ERROR - can not get login ID";
+   }
+
+# Path to directory containing other GEOS DAS programs.
+# Directory $GEOSDAS_PATH/bin will be searched for these
+# programs.
+
+   if ( defined( $opt_P ) ) { 
+      $GEOSDAS_PATH = $opt_P;
+   } else {
+      $GEOSDAS_PATH = "DEFAULT";
+   }
+
+# Location of run-time configuration file.
+
+   if ( defined( $opt_R ) ) { 
+      $RUN_CONFIG_FILE = $opt_R;
+   } else {
+      $RUN_CONFIG_FILE = "DEFAULT";
+   }
+
+   if ( $#ARGV < 0 || $ARGV[0] eq 'help' ) {
+      print STDERR <<'ENDOFHELP';
+
+   Usage: 
+
+   mkdir_remote [-D] [-l userid] [-P GEOSDAS_Path] [-R Run_Config] 
+        remote_address:remote_path
+
+   Normal options and arguments:
+
+   -D
+         Print debug messages.
+
+   -l userid
+         User ID on ATM "gateway" machines.  Default is user ID on current
+         machine.
+
+
+   remote_address:remote_path
+         remote_address is the name of remote machine in the forms:
+            remote_user_id@remote_machine or
+            remote_machine
+         In the 2nd case the same user id as on the local (this)
+         machine is assumed (see rcp).
+
+         remote_file is the name to be given to the file on the remote
+         machine.
+
+   Options useful in development mode.  These are not necessary (and should not be
+   used) when running this program in the usual operational environment.
+
+   -P GEOSDAS_Path
+         Path to directory containing other GEOS DAS programs.  The path is 
+         $GEOSDAS_PATH, where $GEOSDAS_PATH/bin is the directory containing these
+         programs.  If -P GEOSDAS_Path is given, then other required programs not 
+         found in the directory where this program resides will be obtained from 
+         subdirectories in GEOSDAS_Path - the subdirectory structure is assumed 
+         to be the same as the operational subdirectory structure.  The default is 
+         to use the path to the subdirectory containing this program, which is what 
+         should be used in the operational environment.
+
+   -R Run_Config
+         Name of file (with path name, if necessary) to read to obtain the 
+         run-time (execution) configuration parameters.  mkdir_remote reads this
+         file to obtain configuration information at run time.  The information 
+         needed for mkdir_remote is the location of the ATESS working directory.
+
+         If given, mkdir_remote uses this file.  Otherwise, mkdir_remote looks for a 
+         file named "Run_Config" in the user's home directory, then the 
+         $GEOSDAS_PATH/bin directory.  $GEOSDAS_PATH is given by the -P option if
+         set, or it is taken to be the parent directory of the directory in which this
+         script resides.  It is an error if mkdir_remote does not find this file, 
+         but in the GEOS DAS production environment, a default Run_Config file is always 
+         present in the bin directory.
+
+ENDOFHELP
+      $die_away = 1;
+   }
+
+# This module locates the full path name to the location of this file.  Variable
+# $FindBin::Bin will contain that value.
+
+   use FindBin;
+
+# This module contains the dirname() subroutine.
+
+   use File::Basename;
+
+# If default GEOS DAS path, set path to parent directory of directory where this
+# script resides.  
+
+   if ( $GEOSDAS_PATH eq "DEFAULT" ) {
+      $GEOSDAS_PATH = dirname( $FindBin::Bin );
+   }
+
+# Set name of the bin directory to search for other programs needed by this one.
+
+   $BIN_DIR = "$GEOSDAS_PATH/bin";
+
+# Get the name of the directory where this script resides.  If it is different 
+# than BIN_DIR, then this directory will also be included in the list of 
+# directories to search for modules and programs.
+
+   $PROGRAM_PATH = $FindBin::Bin;
+
+# Now allow use of any modules in the bin directory, and (if not the same) the
+# directory where this program resides.  (The search order is set so that
+# the program's directory is searched first, then the bin directory.)
+
+   if ( $PROGRAM_PATH ne $BIN_DIR ) {
+      @SEARCH_PATH = ( $PROGRAM_PATH, $BIN_DIR );
+   } else {
+      @SEARCH_PATH = ( $BIN_DIR );
+   }
+
+}	# End BEGIN
+
+# Any reason to exit found during the BEGIN block?
+
+if ( $die_away == 1 ) {
+   exit 1;
+}
+
+# Include the directories to be searched for required modules.
+
+use lib ( @SEARCH_PATH );
+
+# Set the path to be searched for required programs.
+
+$ENV{'PATH'} = join( ':', @SEARCH_PATH, $ENV{'PATH'} );
+
+# This module contains the mkdir_remote() subroutine.
+
+use Remote_utils;
+
+# This module contains the move() subroutine.
+
+use File::Copy;
+
+# Set up the option list (stored as a hash array).
+
+%options = ( debug      => $debug, 
+             userid     => $USERID_ATM_GATEWAY,
+             run_config => $RUN_CONFIG_FILE );
+
+# Call mkdir_remote with the requested options and arguments.
+
+$mkdir_retcode = mkdir_remote( $ARGV[0], \%options );
+
+# Change the return code so that 0 indicates success.  (Scripts and script wrappers
+# return 0 on success, (unix convention), perl subroutines return "true" on success.)
+
+exit ! $mkdir_retcode;

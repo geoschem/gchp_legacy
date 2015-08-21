@@ -21,22 +21,22 @@ use WriteLog qw(symlink_ system_ unlink_ );
 
 # global variables
 #-----------------
-my ($bcsHEAD, $bcsTagIN, $bcsTagOUT, $bkgFLG, $capture, $c2c, $c2cX);
+my ($bcsHEAD, $bcsTagIN, $bcsTagOUT, $bkgFLG, $capture);
 my ($debug, $dbHash, $drymassFLG, $ESMABIN, $ESMATAG, $expid);
 my ($gcmFLG, $g5modules, $getsponsorX, $grIN, $grINocean, $grOUT, $grOUTocean);
 my ($hr, $interactive, $interp_restartsX, $landIceDT, $lblFLG, $lcvFLG);
-my ($logfile, $merra, $mk_RestartsX, $mkdrstdateX, $month, $newid, $node);
-my ($noprompt, $outdir, $regridj, $rs_hinterpX, $rsFLG, $rs_scaleX);
+my ($levsIN, $levsOUT, $logfile, $merra, $mk_RestartsX, $mkdrstdateX, $month);
+my ($newid, $node, $noprompt, $outdir, $regridj, $rs_hinterpX, $rsFLG, $rs_scaleX);
 my ($rstdir, $rst_template, $rstIN_template, $scale_catchX, $surfFLG, $surflay);
 my ($tagIN, $tagOUT, $upairFLG, $verbose, $workdir, $year, $ymd);
 my (%IN, %iceIN, %OUT);
-my (%CS, %im, %im4, %imo, %imo4, %jm, %jm4, %jm5, %jmo, %jmo4);
+my (%CS, %im, %im4, %imo, %imo4, %jm, %jm4, %jm5, %jmo, %jmo4, %atmLevs);
 my (@SURFACE, @UPPERAIR_OPT, @UPPERAIR_REQ, @anafiles, @warnings);
 
 # global tag variables
 #---------------------
-my $former_tag  = "Fortuna-2_1";       # default for input restarts
-my $current_tag = "Ganymed-2_0";       # default for output restarts
+my $former_tag  = "Ganymed-3_0";       # default for input restarts
+my $current_tag = "Ganymed-4_0";       # default for output restarts
 
 my (@GCMtags, @DAStags);
 my (@F14, @F20, @F21, @G10, @G10p, @G20, @G30, @G40);
@@ -52,6 +52,11 @@ $im{"D"} =  "540"; $jm{"D"} = "361";
 $im{"d"} =  "576"; $jm{"d"} = "361";
 $im{"E"} = "1080"; $jm{"E"} = "721";
 $im{"e"} = "1152"; $jm{"e"} = "721";
+
+# atmosphere levels
+#------------------
+$atmLevs{"72"}  = "072";
+$atmLevs{"137"} = "137";
 
 # ocean grids
 #------------
@@ -107,7 +112,7 @@ foreach (keys %jmo) { $jmo4{$_} = sprintf "%04i", $jmo{$_} }
     if ($upairFLG) {
         printlabel("\nUpperair Restarts");
 
-        if ($grIN eq $grOUT) {
+        if (($grIN eq $grOUT) and ($levsIN eq $levsOUT)) {
             copy_upperair_rsts();
         }
         else {
@@ -162,6 +167,7 @@ sub init {
     GetOptions("ymd=i"           => \$ymd,
                "hr=i"            => \$hr,
                "grout|gridout=s" => \$grOUT,
+               "levsout=s"       => \$levsOUT,
                "outdir=s"        => \$outdir,
                "merra"           => \$merra,
                "d=s"             => \$rstdir,
@@ -223,7 +229,7 @@ sub init {
 #=======================================================================
 sub check_inputs {
     my ($fvrst, $ans, $prompt, $len, $msg, $warnFLG);
-    my ($grINocean_dflt, $grOUTocean_dflt, $rstlcvIN);
+    my ($grINocean_dflt, $grOUTocean_dflt, $levsOUTdflt, $rstlcvIN);
     my ($newid_dflt, $bkg_dflt, $lcv_dflt, $lbl_dflt, $dflt);
     my ($landIceVERin, $landIceVERout);
 
@@ -271,7 +277,7 @@ sub check_inputs {
         elsif ($year < 1998) { $expid = "d5_merra_jan89" }
         else                 { $expid = "d5_merra_jan98" }
     }
-    die "\nCannot find restart dir: $rstdir" unless -d $rstdir;
+    die "\nError. Cannot find restart dir: $rstdir" unless -d $rstdir;
     $rstdir =~ s/\/*$//;    # remove trailing '/'s
 
     # get INPUT fvcore_internal_rst
@@ -302,6 +308,22 @@ sub check_inputs {
         }
     }
 
+    # check output atmospheric levels
+    #--------------------------------
+    if ($CS{$grOUT}) {
+        $levsOUT = -1 unless $levsOUT;
+        until ($atmLevs{$levsOUT}) {
+            print "\nAtmosphere levels\n"
+                .   "-----------------\n";
+            foreach (sort { $a <=> $b } keys %atmLevs) { print "$_\n" }
+
+            print "\nINPUT atmosphere levels: $levsIN\n";
+            $levsOUTdflt = $levsIN;
+            $levsOUT = query("Enter OUTPUT atmosphere levels:", $levsOUTdflt);
+        }
+    }
+    else { $levsOUT = $levsIN }
+        
     # check ocean grids: $grINocean and $grOUTocean
     #----------------------------------------------
     $grINocean_dflt  = "c";
@@ -349,11 +371,14 @@ sub check_inputs {
             print "\n";
         }
     }
-    until ($bcsTagIN) {
-        print_("\nType 'bcs' to see BCS tags or\n");
-        $tagIN = query("Enter GCM or DAS tag for inputs:", $former_tag);
-        $bcsTagIN = resolve_bcsTAG($tagIN, $grINocean, "in");
-        $tagIN = $bcsTagIN if $tagIN eq "bcs";
+    if ($bcsTagIN) { print_("\nINPUT tag: $bcsTagIN\n") }
+    else {
+        until ($bcsTagIN) {
+            print_("\nType 'bcs' to see BCS tags or\n");
+            $tagIN = query("Enter GCM or DAS tag for inputs:", $former_tag);
+            $bcsTagIN = resolve_bcsTAG($tagIN, $grINocean, "in");
+            $tagIN = $bcsTagIN if $tagIN eq "bcs";
+        }
     }
     until ($bcsTagOUT) {
         print_("\nType 'bcs' to see BCS tags or\n");
@@ -406,22 +431,10 @@ sub check_inputs {
     $upairFLG = 0 if $rsFLG == 2;
     $surfFLG  = 0 if $rsFLG == 1;
 
-    # checks needed for cubed-sphere inputs
-    #--------------------------------------
-    $c2c = 0;
-    if ($CS{$grIN}) {
-        $c2c = 1;
-
-        # cannot regrid cubed to higher resolution cubed
-        #-----------------------------------------------
-        if ($CS{$grOUT}) {
-            die "Error. Cannot regrid cubed-sphere to higher resolution;"
-                if $CS{$grOUT} > $CS{$grIN};
-        }
-
-        # cannot regrid upperair cubed to lat/lon
-        #----------------------------------------
-        elsif ($rsFLG == 1 or $rsFLG == 3) {
+    # cannot regrid upperair cubed to lat/lon
+    #----------------------------------------
+    if ($CS{$grIN} and ($rsFLG == 1 or $rsFLG == 3)) {
+        unless ($CS{$grOUT}) {
             print "\nWARNING. Cannot regrid cubed-sphere upperair to lat/lon\n";
             cleanup() if $rsFLG == 1;
 
@@ -429,7 +442,6 @@ sub check_inputs {
             cleanup() unless lc($ans) eq "y";
 
             print "WARNING. Upperair regrid turned off";
-            $c2c = 0;
             $rsFLG = 2;
             $upairFLG = 0;
         }
@@ -724,7 +736,7 @@ sub determine_fvcore_grid {
     $cmd = "$fvrstX -h $fvrst";
     print_($cmd) if $debug;
     ($fvrstXout = `$cmd`) =~ s/^\s+//;
-    ($im, $jm, $levs, $nymd, $nhms) = split /\s+/, $fvrstXout;
+    ($im, $jm, $levsIN, $nymd, $nhms) = split /\s+/, $fvrstXout;
 
     foreach (keys %im) { $grID = $_ if $im{$_} eq $im and $jm{$_} eq $jm }
     unless ($grID) { die "Error\n\nError. Cannot determine grID of $fvrst;" }
@@ -959,10 +971,6 @@ sub check_programs {
     if ($upairFLG) {
         $rs_scaleX = "$ESMABIN/rs_scale.x";
         die "Error. Program not found: $rs_scaleX;" unless -x $rs_scaleX;
-    }
-    if ($c2c) {
-        $c2cX = "$ESMABIN/c2c.x";
-        die "Error. Program not found: $c2cX;" unless -x $c2cX;
     }
     if ($CS{$grOUT}) {
         $interp_restartsX = "$ESMABIN/interp_restarts.x";
@@ -1322,6 +1330,9 @@ sub set_IN_OUT {
     $IN{"expid"}    = $expid;
     $OUT{"expid"}   = $newid;
 
+    $IN{"levs"}    = $levsIN;
+    $OUT{"levs"}   = $levsOUT;
+
     # ocean horizontal grid values
     #-----------------------------
     $IN{"ogrid"}  = $grINocean;
@@ -1521,6 +1532,7 @@ sub confirm_inputs {
     print_(  ". date:        $ymd\n"
            . ". hour:        $hr\n"
            . ". atmos grid:  $IN{atmos3} ($IN{agrid})\n"
+           . ". atmos levs:  $IN{levs}\n"
            . ". ocean grid:  $IN{ocean} ($IN{ogrid})\n"
            . ". BCS tag:     $IN{bcsTAG}\n"
            . ". rstdir:      " .display($rstdir) ."\n");
@@ -1541,6 +1553,7 @@ sub confirm_inputs {
            . ". date:        $ymd\n"
            . ". hour:        $hr\n"
            . ". atmos grid:  $OUT{atmos3} ($OUT{agrid})\n"
+           . ". atmos levs:  $OUT{levs}\n"
            . ". ocean grid:  $OUT{ocean} ($OUT{ogrid})\n"
            . ". BCS tag:     $OUT{bcsTAG}\n"
            . ". surflay:     $surflay\n"
@@ -1626,35 +1639,34 @@ sub copy_upperair_rsts {
 #           cubed-sphere upper-air restarts
 #=======================================================================
 sub regrid_upperair_rsts_CS {
-    my ($qsublog, $im, $NODES, $NPE, $QUEUE, $NCPUS, $MPIPROCS);
+    my ($qsublog, $im, $NPE, $QOS, $MEMPERCPU);
     my ($grpID, $grpIDflg, $type, $target, $FH);
     my ($DYN, $MOIST, $AGCM, $PCHEM, $GOCART);
     my ($moist, $newrst, $rst, $cmd, $status);
 
     $im = $im{$grOUT};
-    if    ($im eq   "48") { $NODES =  1; $NPE =  12; $QUEUE = "general_small" }
-    elsif ($im eq   "90") { $NODES =  1; $NPE =  12; $QUEUE = "general_small" }
-    elsif ($im eq  "180") { $NODES =  2; $NPE =  24; $QUEUE = "general"       }
-    elsif ($im eq  "360") { $NODES =  4; $NPE =  48; $QUEUE = "general"       }
-    elsif ($im eq  "500") { $NODES =  4; $NPE =  48; $QUEUE = "general"       }
-    elsif ($im eq  "720") { $NODES = 16; $NPE = 192; $QUEUE = "general"       }
-    elsif ($im eq "1000") { $NODES = 32; $NPE = 384; $QUEUE = "general"       }
-    elsif ($im eq "1440") { $NODES = 48; $NPE = 576; $QUEUE = "general"       }
-    elsif ($im eq "2000") { $NODES = 64; $NPE = 768; $QUEUE = "general"       }
-    elsif ($im eq "2880") { $NODES = 96; $NPE = 768; $QUEUE = "general_hi"    }
+    if    ($im eq   "48") { $NPE =  12; $QOS = ""             }
+    elsif ($im eq   "90") { $NPE =  12; $QOS = ""             }
+    elsif ($im eq  "180") { $NPE =  24; $QOS = ""             }
+    elsif ($im eq  "360") { $NPE =  96; $QOS = ""             }
+    elsif ($im eq  "500") { $NPE =  96; $QOS = ""             }
+    elsif ($im eq  "720") { $NPE = 192; $QOS = ""             }
+    elsif ($im eq "1000") { $NPE = 384; $QOS = ""             }
+    elsif ($im eq "1440") { $NPE = 576; $QOS = ""             }
+    elsif ($im eq "2000") { $NPE = 768; $QOS = ""             }
+    elsif ($im eq "2880") { $NPE = 768; $QOS = "--qos=high"   }
     else { die "Error; cannot recognize output grid: $grOUT;" }
 
-    $NCPUS = 12;
-    if ($im eq "2880") { $MPIPROCS =  8 }
-    else               { $MPIPROCS = 12 }
+    if ($im >= "2880") { $MEMPERCPU = "--mem-per-cpu=4G"}
+    else               { $MEMPERCPU = ""                }
 
     $regridj = "$workdir/regrid.j";
     $qsublog = "$outdir/$newid.upperair.${ymd}_${hr}z.log.o%j";
     unlink_($regridj) if -e $regridj; 
 
     chomp($grpID = `$getsponsorX -dflt`);
-    if ($grpID eq "") { $grpIDflg = ""                         }
-    else              { $grpIDflg = "PBS -W group_list=$grpID" }
+    if ($grpID eq "") { $grpIDflg = ""                        }
+    else              { $grpIDflg = "SBATCH --account=$grpID" }
 
     # copy the required restarts to work directory
     #---------------------------------------------
@@ -1688,9 +1700,8 @@ sub regrid_upperair_rsts_CS {
 #!/bin/csh -xf
 #$grpIDflg
 #PBS -l walltime=1:00:00
-#PBS -l select=${NODES}:ncpus=${NCPUS}:mpiprocs=${MPIPROCS}
+#SBATCH --ntasks=${NPE} ${QOS} ${MEMPERCPU}
 #PBS -N regrid
-#PBS -q ${QUEUE}
 #PBS -j oe
 
 cd $workdir
@@ -1703,11 +1714,9 @@ source $g5modules
 
 /bin/touch input.nml
 
-if(! $c2c) then
-   if( ".$AGCM"   != . ) /bin/ln -s $AGCM   agcm_import_restart_in
-   if( ".$PCHEM"  != . ) /bin/ln -s $PCHEM  pchem_internal_restart_in
-   if( ".$GOCART" != . ) /bin/ln -s $GOCART gocart_internal_restart_in
-endif
+if( ".$AGCM"   != . ) /bin/ln -s $AGCM   agcm_import_restart_in
+if( ".$PCHEM"  != . ) /bin/ln -s $PCHEM  pchem_internal_restart_in
+if( ".$GOCART" != . ) /bin/ln -s $GOCART gocart_internal_restart_in
 
 # The MERRA fvcore_internal_restarts don't include W or DZ, but we can add them by setting 
 # HYDROSTATIC = 0 which means HYDROSTATIC = FALSE
@@ -1736,13 +1745,13 @@ if (\$?I_MPI_ROOT) then
   setenv DAPL_MAX_CM_RETRIES 15
   #--setenv I_MPI_STATS 4
 
-  $ESMABIN/esma_mpirun -perhost $MPIPROCS -np $NPE $interp_restartsX -999 \$im \$im 72 \$HYDROSTATIC
+  $ESMABIN/esma_mpirun -np $NPE $interp_restartsX -999 \$im \$im $levsOUT \$HYDROSTATIC
 
 else
 
   if (\$?MVAPICH2) then
     setenv MV2_ENABLE_AFFINITY 0
-    $ESMABIN/esma_mpirun -np $NPE $interp_restartsX -999 \$im \$im 72 \$HYDROSTATIC
+    $ESMABIN/esma_mpirun -np $NPE $interp_restartsX -999 \$im \$im $levsOUT \$HYDROSTATIC
   endif
 endif
 
@@ -1756,18 +1765,6 @@ close REGRIDJ;
     print_("The CS regridding is MPI based; submitting job to PBS\n");
     system_("\nqsub -W block=true -o $qsublog $regridj");
     chdir_($workdir, $verbose);
-
-    if ($c2c) {
-        foreach $type (@UPPERAIR_OPT) {
-            $rst = rstname($expid, $type, $rstIN_template);
-            $newrst = rstnameI($workdir, $type);
-            next unless -e $rst;
-
-            $cmd = "$c2cX $rst $newrst $grOUT";
-            $status = system_("\n$cmd");
-            die "Error. $cmd;" if $status;
-        }
-    }
 }
 
 #=======================================================================
@@ -2217,11 +2214,54 @@ sub maxlength {
 #=======================================================================
 sub get_anafiles {
     use File::Basename;
-    my ($newname);
+    my ($newname, $subst281);
     printlabel("\nAnalysis Files") if @anafiles;
+    $subst281 = '"s/airs281SUBSET_aqua/airs281_aqua      /"';
+
     foreach ( @anafiles ) {
         ( my $newname = basename $_ ) =~ s/$expid/$newid/;
         copy_("\n$_", "$outdir/$newname");
+
+        # satbias file edit
+        #------------------
+        if ($newname =~ m/satbias/) {
+            if ($rank{$bcsTagOUT} >= $rank{"Ganymed-4_0_Reynolds"}) {
+                satbias_edit("$outdir/$newname");
+            }
+        }
+    }
+}
+
+#=======================================================================
+# name - satbias_edit
+# purpose - make known needed edits to satbias file
+#=======================================================================
+sub satbias_edit {
+    use File::Copy qw(move);
+    my ($satbias, $sbORIG, @biasNEW, %change);
+
+    $satbias = shift @_;
+
+    open SATBIAS, "< $satbias" or die "Error. Opening satbias: $satbias;";
+    while (<SATBIAS>) {
+
+        if (/airs281SUBSET_aqua/) {
+            $change{"airs281_aqua"} = 1;
+            s/airs281SUBSET_aqua/airs281_aqua      /;
+        }
+        push @biasNEW, $_;
+    }
+    close SATBIAS;
+
+    if (%change) {
+        $sbORIG = "$satbias.ORIG";
+        move_ $satbias, $sbORIG;
+        print_("new satbias: $satbias\n");
+
+        open NEW, "> $satbias" or die "Error. Opening new satbias: $satbias;";
+        foreach (@biasNEW) { print NEW $_ }
+        close NEW;
+        print_("( airs281SUBSET_aqua -> airs281_aqua )\n");
     }
 }
 
@@ -2250,6 +2290,8 @@ sub write_CMD_file {
     $capture .= " -hr $hr"                    if $capture !~ m/\s+\-hr\b/;
     $capture .= " -grout $grOUT"              if $capture !~ m/\s+\-grout\b/
         and                                      $capture !~ m/\s+\-gridout\b/;
+    $capture .= " -levsout $levsOUT"          if $capture !~ m/\s+\-levsout\b/
+        and                                      $CS{$grOUT};
     $capture .= " -outdir ". display($outdir) if $capture !~ m/\s+\-outdir\b/;
 
     if ($merra) {
@@ -2554,7 +2596,7 @@ sub rstnameI {
     my ($type, $dir);
     $dir = shift @_;
     $type = shift @_;
-    return "${dir}/${type}_c$im4{$grOUT}_072L";
+    return "${dir}/${type}_c$im4{$grOUT}_$atmLevs{$levsOUT}L";
 }    
 
 #=======================================================================

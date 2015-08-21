@@ -21,5 +21,6 @@ endif
          lonmin = result
 'getinfo lonmax'
          lonmax = result
-if( args != "" ) ; say 'Setting Lons: 'lonmin' 'lonmax ; endif
+
+say 'Setting Lons: 'lonmin' 'lonmax
 return

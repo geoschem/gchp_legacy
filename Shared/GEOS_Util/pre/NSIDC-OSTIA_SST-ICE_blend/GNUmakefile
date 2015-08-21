@@ -24,7 +24,7 @@ endif
 # Make sure ESMADIR is defined
 # -----------------------------
 ifndef ESMADIR
-   ESMADIR := $(PWD)/../../../../..
+   ESMADIR := $(PWD)/../../..
 endif
 
 #-------------------------------
@@ -41,7 +41,7 @@ LIB_LIST = $(LIB_NETCDF)
 
 ########################################################################
 
-BINS = proc_SST_FRACI.x proc_SST_FRACI_ostia_quart.x
+BINS = sst_sic_EIGTHdeg.x sst_sic_QUARTdeg.x
 
 UT =
 
@@ -72,17 +72,13 @@ THIS = $(shell basename `pwd`)
 ALLSRCS = \
          bin2bin.F90 \
          check.F90 \
-         convert_nsidc_grid.F90 \
          fill_Land.F90 \
-         fill_NPOLE.F90 \
-         get_nsidc_icec.F90 \
          hflip.F90 \
          interp_to_eight_deg.F90 \
          proc_SST_FRACI.F90 \
          proc_SST_FRACI_ostia_quart.F90 \
          read_input.F90 \
          read_input_quart.F90 \
-         read_nsidc_icec.F90 \
          read_Ostia.F90 \
          read_Ostia_quart.F90 \
          read_Reynolds.F90
@@ -129,6 +125,9 @@ local_esma_clean local_clean:
 
 local_esma_distclean local_distclean:
 	$(RM) *~ $(BINS) *.[aoxd] *.[Mm][Oo][Dd]
+
+local_esma_doc local_doc:
+	@echo No documentation here
 
 esma_help help:
 	@echo "Standard ESMA targets:"
@@ -284,7 +283,7 @@ FREAL      = $(FREAL4)
 FPE        =
 
 USER_FDEFS  = $(_D)
-USER_FFLAGS = $(BIG_ENDIAN) $(BYTERECLEN) # $(DGEOS5)
+USER_FFLAGS = $(BYTERECLEN) # $(DGEOS5)
 USER_FMODS  = $(foreach dir,$(INC_LIST),$(M)$(dir)) 
 USER_FINCS  = $(foreach dir,$(INC_LIST),$(I)$(dir)) 
 

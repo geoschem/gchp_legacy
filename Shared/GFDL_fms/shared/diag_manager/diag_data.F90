@@ -517,7 +517,7 @@ MODULE diag_data_mod
   CHARACTER(len=128),PRIVATE  :: version =&
        & '$Id: diag_data.F90,v 1.1.1.2 2012-11-16 16:00:09 atrayano Exp $'
   CHARACTER(len=128),PRIVATE  :: tagname =&
-       & '$Name: jk-G40-GEOSctm-advcore-update3 $'
+       & '$Name: Heracles-3_1_CTM $'
 
   ! <!-- Other public variables -->
   ! <DATA NAME="num_files" TYPE="INTEGER" DEFAULT="0">

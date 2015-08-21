@@ -35,7 +35,7 @@ endif
 rcfile = "stats.rc"
 fields = 'p h u v t q chi psi'
   exps = ''
-  levs = '1000 850 700 500 400 300 250 200 150 100'
+ levs0 = NULL
 
        num = 0
 while( num < numargs )
@@ -89,7 +89,7 @@ endif
 * Read LEVELS
 * -----------
 if( subwrd(args,num) = '-levels' )
-     levs = ''
+    levs0 = ''
            k = 1
     while( k > 0 )
            L = num + k
@@ -101,7 +101,7 @@ if( subwrd(args,num) = '-levels' )
         if( bit = "-" )
               k = -1
         else
-              levs = levs % ' ' % level
+              levs0 = levs0 % ' ' % level
               k = k+1
         endif
     endif
@@ -167,15 +167,15 @@ endif
 say ' '
 say '  EXPS: 'exps
 say 'FIELDS: 'fields
-say 'LEVELS: 'levs
 say ' '
 
 *******************************************************
 ****         Compute stats for kth-Experiment      ****
 *******************************************************
 
-k    = 0
-ktot = ntot
+    tdim = 1e15
+       k = 0
+    ktot = ntot
 
 while( k <= ktot )
 
@@ -188,15 +188,46 @@ while( k <= ktot )
 'pltsys_open 'desc.k' 'DESC.k
         numfiles = result
 
+'set dfile 1'
+'setlons'
+'sety'
+'getinfo zdim'
+         zdim.k = result
+'getinfo tdim'
+     if( tdim   > result )
+         tdim   = result
+     endif
+
+say DESC.k'  TDIM: 'result'  ZDIM: 'zdim.k
+
 'numargs  'fields
  numflds = result
 
 n = 1
 while ( n<=numflds )
-              field = subwrd(fields,n)
+        field = subwrd(fields,n)
 'set dfile 1'
 'setlons'
 'sety'
+
+if( levs0 = 'NULL' )
+       'getinfo zdim'
+                zdim = result
+       'set z 1'
+       'getinfo level'
+        levs = result
+        z = 2
+        while( z<=zdim )
+           'set z 'z
+           'getinfo level'
+                    lev  = result
+                    levs = levs' 'lev
+        z = z + 1
+        endwhile
+else
+        levs = levs0
+endif
+
 
   if( field = p   ) ; name = slp  ; levels = '1000' ; endif
   if( field = h   ) ; name = hght ; levels =  levs  ; endif
@@ -235,6 +266,25 @@ k = k + 1
 endwhile
 
 ****************************************************************
+****     Open Experiment Set with Fewest Vertical Levels    ****
+****************************************************************
+
+     zmin = 1e15
+     kmin = 0
+       k  = 0
+while( k <= ktot )
+     if( zdim.k < zmin )
+         zmin   = zdim.k
+         kmin   =      k
+     endif
+     k = k + 1
+endwhile
+
+say 'closing files 'result
+    'closefiles'
+    'pltsys_open 'desc.kmin' 'DESC.kmin
+
+****************************************************************
 ****                  Make Horizontal Plots                 ****
 ****************************************************************
 
@@ -254,6 +304,24 @@ while( k <= ktot )
        while ( n<=numflds )
                      field = subwrd(fields,n)
 
+         if( levs0 = 'NULL' )
+                'getinfo zdim'
+                         zdim = result
+                'set z 1'
+                'getinfo level'
+                 levs = result
+                 z = 2
+                 while( z<=zdim )
+                    'set z 'z
+                    'getinfo level'
+                             lev  = result
+                             levs = levs' 'lev
+                 z = z + 1
+                 endwhile
+         else
+                 levs = levs0
+         endif
+
          if( field = p   ) ; name = slp  ; levels = '1000' ; endif
          if( field = h   ) ; name = hght ; levels =  levs  ; endif
          if( field = u   ) ; name = uwnd ; levels =  levs  ; endif
@@ -270,7 +338,8 @@ while( k <= ktot )
                      while( z <= numlevs )
                      level = subwrd(levels,z)
                      'set lev 'level
-                     'movie statpltdrv "'field' 'desc.k' 'desc.kp1' 'numfiles'" -print -rotate 90 -name 'SOURCE'/'desc.k'.'desc.kp1'/stats_'name'_syscmp_GLO_'level'_'month
+                     'movie statpltdrv "'field' 'desc.k' 'desc.kp1' 'numfiles'" -tend 'tdim' -print -rotate 90 -name 'SOURCE'/'desc.k'.'desc.kp1'/stats_'name'_syscmp_GLO_'level'_'month
+                     '!sleep 15 ; convert -loop 0 -delay 30 'SOURCE'/'desc.k'.'desc.kp1'/stats_'name'_syscmp_GLO_'level'_'month'.*.gif 'SOURCE'/'desc.k'.'desc.kp1'/stats_'name'_syscmp_GLO_'level'_'month'.gif &'
                      z = z + 1
                      endwhile
 
@@ -310,7 +379,8 @@ while( k <= ktot )
          if( field  = chi ) ; name = chi  ; endif
          if( field  = psi ) ; name = psi  ; endif
 
-        'movie statpltdrvz "'field' 'desc.k' 'desc.kp1' 'numfiles'" -print -rotate 90 -name 'SOURCE'/'desc.k'.'desc.kp1'/stats_'name'_syscmp_GLO_z_'month
+        'movie statpltdrvz "'field' 'desc.k' 'desc.kp1' 'numfiles'" -tend 'tdim' -print -rotate 90 -name 'SOURCE'/'desc.k'.'desc.kp1'/stats_'name'_syscmp_GLO_z_'month
+        '!sleep 15 ; convert -loop 0 -delay 30 'SOURCE'/'desc.k'.'desc.kp1'/stats_'name'_syscmp_GLO_z_'month'.*.gif 'SOURCE'/'desc.k'.'desc.kp1'/stats_'name'_syscmp_GLO_z_'month'.gif &'
          endif
 
          n = n + 1

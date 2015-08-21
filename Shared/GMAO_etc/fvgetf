@@ -1,0 +1,1177 @@
+#!@DASPERL -w
+#
+# Script for retriving fvDAS files from mass-storage w/ conversion and collocation
+# See usage() for more info.
+#
+# !REVISION HISTORY:
+#
+#  24May2001  da Silva       Specs and man page.  
+#  18June2001 Eueng-nan Yeh  Initial code.
+#  23July2001 Joon S. Yoon   file conversion (using fv2prs / grads2grib ) 
+#                            and forecast collocation capabilities 
+#
+#.........................................................................
+
+use FindBin;                     # find location of the this script
+use lib "$FindBin::Bin";         # make perl libraries available
+use Env;                         # make env vars readily available
+use File::Basename;              # for basename(), dirname()
+use File::Copy;                  # for copy()
+use Getopt::Long;                # command line options
+use Time::Local;                 # time functions
+#use Tie::IxHash;                 # ordered hashing
+use Shell qw(cat rcp rsh scp ssh);   # make C-shell commands available
+
+      @options =
+      ("vars=s", "levs=s", "fmt=s", "fcstv", "n", "cp=s","d=s","H=s","help", "p", "prs","rsh=s","rcp=s","f=s","q", "zrev");
+      $mhost = "helios1.nas.nasa.gov";    #Temporary default for test
+      $mpath1 = "";                 #Temporary default for test
+      #$mpath1 = "DATA";                 #Temporary default for test
+
+# Initialize defaults, etc
+# ------------------------
+      init(@options);
+
+# Bring files over if not already here
+# ------------------------------------
+      fetch();
+
+      my $numofelements = scalar(@prs_list);
+      if ($numofelements == 0) { msg("E", "No Output Files Were Generated. EXITING");}
+
+      print "# of elements in prs_list : $numofelements \n " if ($opt_q);
+
+    print "+-----------------------+\n";
+    print "fvgetf: Output Files    :\n";
+    foreach $temp (@prs_list) {
+	$i++;
+        print "-> $i: $temp \n";
+    }
+    #print "  !!! OOPS !!! - No output files. " if (! $i );
+
+# What is the format of the input file?
+# -------------------------------------
+      
+#      @get_ext = split(/\./, $prs_list[0]);
+#      $last_item = scalar(@get_ext);
+#      $get_ext = $get_ext[$#get_ext];
+#      print "extention : get_ext = $get_ext \n" if ($opt_q);
+#      print "desired format : opt_fmt = $opt_fmt \n" if ($opt_q);
+
+# FCSTV : Forecast Verification / grads2grib
+# ------------------------------------
+
+      fcstv() if ($opt_fcstv);
+
+# All done
+# --------
+    print "\n+-----------------------------------+\n";
+    print   " GOOD BYE!               fvgetf 2001 \n";
+    print   " Questions? - jyoon\@dao, enyeh\@dao \n";
+    print   "+-----------------------------------+\n";
+
+    exit(0);   # 0 for success
+
+
+
+#=========================================================================
+#
+# init: This routine sets default options and acquires the command line
+#       options.
+# 
+
+sub init {
+
+        my (@options) = @_;
+        my ($rc, @a);
+
+        #tie %mlist, "Tie::IxHash";
+        #tie %namelist, "Tie::IxHash";
+
+# Define paths to executable codes
+# --------------------------------
+
+	$fv2prs 	= "fv2prs.x";
+	$fv2prsrc 	= "fv2prs.rc";
+	$lats4d 	= "lats4d";
+	$lats4dgs 	= "lats4d.gs";
+	$fcstv_path  	= "fcstv";
+	$FILE_LIST 	= "fcstv.filelist";
+	$RESOURCE_FILE 	= "fcstv.resource";
+  	$ncdump 	= "ncdump";
+	$grads  	= "gradshdf";
+	$myname		= "fvgetf";
+
+        @prs_list = ();            
+        $i        = 0;
+
+        print("processing get_files()...\n") if ($opt_q);
+       
+        $opt_f = $opt_help = $opt_fcstv = 0;
+	$opt_H = $rc = $opt_prs = $opt_n = $opt_p = $opt_levs = 0;
+        $opt_vars = $opt_fmt = $opt_rsh = $opt_rcp = $opt_cp = $opt_d = $opt_zrev = 0;
+
+        $rc = GetOptions( @options );
+        usage() if ($opt_help || !$rc || ($#ARGV != 2));
+        print("rc=$rc, opt_help=$opt_help, opt_H=$opt_H.\n") if ($opt_q);
+        ($opt_d = $opt_d) or ($opt_d = "./");  
+        ($opt_cp = $opt_cp) or ($opt_cp = "cp");  
+        ($opt_rcp = $opt_rcp) or ($opt_rcp = "scp");  
+        ($opt_rsh = $opt_rsh) or ($opt_rsh = "ssh");  
+
+        ($opt_fmt = lc($opt_fmt)) or ($opt_fmt = "hdf");
+        msg("E", "Format $opt_fmt not supported.") if ($opt_fmt !~ /hdf|grib|grb/);
+	($opt_fmt = "grb") if ($opt_fmt eq "grib");
+
+        ($opt_vars = $opt_vars ) or ($opt_vars = "");
+        ($opt_levs = $opt_levs) or ($opt_levs = "1000,975,950,925,900,875,850,825,800,750,700,650,600,550,500,450,400,350,300,250,200,150,100,70,50,40,30,20,10,7,5,3,2,1");
+#        ($opt_levs = $opt_levs) or ($opt_levs = "1000,975,950,925,900,875,850,825,800,750,700,650,600,550,500,450,400,350,300,250,200,150,100,70,50,40,30,20,10,7,5,3,2,1,0.4,0.2");
+
+        $expid  = $ARGV[0]; 
+        $fclass = $ARGV[1];
+        $period = $ARGV[2];
+        print("#ARGV:$#ARGV; expid:$expid; fclass:$fclass; period:$period\n") if ($opt_q);
+        if(length($period) < 6 || length($period) > 8 || (length($period) == 6 && $period =~ /\*/ ))
+        {
+          msg("W", "Command variable period '$period' not acceptable.");
+          usage(); 
+        }       
+
+# Check if utilities exist
+# ------------------------
+
+#ams        die ">>> ERROR <<< cannot find $lats4d" 	unless ( -e $lats4d );
+#ams        die ">>> ERROR <<< cannot find $fv2prs" 	unless ( -e $fv2prs );
+	if ($opt_fcstv) {
+            die ">>> ERROR <<< cannot find $fcstv" 	unless ( -e $fcstv );
+        }
+#ams        die ">>> ERROR <<< cannot find $FILE_LIST" 	unless ( -e $FILE_LIST );
+#ams        die ">>> ERROR <<< cannot find $RESOURCE_FILE" 	unless ( -e $RESOURCE_FILE );
+
+# Check fclass for *.prs and set opt_prs
+# --------------------------------------
+        if($fclass =~ /prs/) {
+          @a=split(/\./,$fclass);
+          if($a[0] =~ /ana/ || $a[0] =~ /bkg/ || $a[0] =~ /prog/ || $a[0] =~ /diag/) {
+            $fclass = $a[0] . ".eta";
+            $opt_prs = 1;      #turn prs option on
+          } else {
+            msg("W", "The fclass $fclass is undefined.");
+            usage();
+          }        
+        }
+
+# Get fclass type
+# ---------------
+        $type = get_type($fclass);
+        print("type = $type\n") if ($opt_q);
+        return();
+
+}
+
+#=========================================================================
+#
+# get_type: get data type from command line argument fclass
+#
+
+sub get_type {
+        $diag = 0;
+        if($fclass eq "ana.eta" || $fclass eq "bkg.eta" || 
+           $fclass eq "bias.eta" ) { return("ana");}
+        if($fclass eq "prog.eta" ) { return("prog"); }
+        if($fclass eq "diag.eta" ) { return("diag"); }
+        if($fclass eq "diag2d.sfc" ) { 
+		$diag = 2;
+		$fclass = "diag.eta";
+		return("diag"); 
+	}
+        if($fclass eq "ana.obs" ) { return("obs"); }
+        msg("W", "FileClass $fclass undefined.");
+        usage();
+} 
+
+#=========================================================================
+#
+# fetch: 1) Verify the input (massStorage) and output (local) paths.
+#        2) Using get_files() to copy files.
+#
+sub fetch {
+        my ($loc);
+        $userId = $ENV{USER}; #local userId
+        $host = `hostname`;   #local hostName
+        chomp($host);
+        $yyyy = "Y" . substr($period, 0, 4); 
+        $mm = "M" . substr($period, 4, 2);
+# Filename
+# --------
+        if(!($period =~ /\*$/)) { $period .= "*"; }
+        $fname = $expid.".".$fclass.".".$period;
+        print("fileName= $fname\n") if ($opt_q); 
+      
+#  make sure the output local path do exist
+# -----------------------------------------
+        $y4in = `date '+%Y'`;
+        #$opt = "-lL";
+        $opt = "-rlL";
+        print("processing check_output()...\n") if ($opt_q);
+        %llist = check_output();
+
+#  make sure the input massStorage path do exist
+# ----------------------------------------------
+        print("processing check_input()...\n") if ($opt_q);
+        %mlist = check_input();
+
+# get files from massStorage to local
+# and covert eta to prs if applicable
+# -----------------------------------
+        print("processing get_files()...\n") if ($opt_q);
+        ($rcd) = get_files();
+        print("A total of $rcd files copied.\n");
+        if ( $diag == 2 ) { exit(0); } 
+        return ();
+}
+
+#=========================================================================
+#
+# check_output: The actual working horse to check the output (local)
+#               path and create fileList, %llist
+#
+  sub check_output {
+        my (%llist, @list);
+        %llist = ();
+        if( !(-e $opt_d) ) {   #output dir not exist
+          $status = system("mkdir -p $opt_d");
+          if($status!= 0) {
+            msg("E", "Fail to make output $opt_d");
+          } else { msg("P", "Creating output path $opt_d");}
+        } else {
+          @list = `ls $opt $opt_d`; 
+          %llist = fileList($y4in, @list);
+        }
+        if ( !(-w $opt_d) ) {   #output dir not writable
+          msg("E", "Output $opt_d not writable.");
+        }
+        return(%llist);
+   }
+
+
+#=========================================================================
+#
+# check_input: The actual working horse to check the input (massStorage)
+#              path and create fileList, %mlist
+#
+sub check_input {
+        my (%mlist_tmp, @list, $rhost, $rpath, $full, $ix1, $ix2);
+	#tie %mlist_tmp, "Tie::IxHash";
+        %mlist_tmp = ();
+        print("check_input: mhost=$mhost, mpath1=$mpath1\n") if ($opt_q);
+        if(!$opt_H) {  # -H not defined
+#ams          $mpath = $mpath1 ."/". $expid ."/". $type ."/". $yyyy ."/". $mm;
+          $mpath = $mpath1 . $expid ."/". $type ."/". $yyyy ."/". $mm;
+          if($host eq $mhost) {
+            $local = 0;
+          } else { $local = 1; } 
+          if($local == 0) {   #local
+            $mlocation = $mpath;
+          } else {
+            $rhost = $mhost;
+            $ix1 = index($mhost, "@");
+            $ix2 = index($mhost, ":");
+            if($ix2 == -1) {$rhost .= ":";}
+            if($ix1 == -1) {$rhost = $userId . "\@$rhost";}
+            $mlocation = $rhost.$mpath;
+          }
+        } else {      # -H defined as muserId@mhost:/path
+          $local =  1;    # set as remote
+          $ix1 = index($opt_H, "@");
+          $ix2 = index($opt_H, ":");
+          if($ix2 == -1) {
+            $local = 0;
+          } else {    #mhost defined
+            $rhost = substr($opt_H, $ix1+1, $ix2-$ix1-1);
+            if($rhost eq $host) { $local = 0; }
+          }
+          if($local == 0) {   #local
+            $mlocation = $opt_H;
+          } else {
+            if($ix1 == -1) {
+              $mlocation = $userId."\@$opt_H";
+            } else {
+              $mlocation = $opt_H;
+            }
+          }
+        }  #end if(!$opt_H) {
+        print("check_input: local = $local.\n") if ($opt_q);
+        print("check_input: mlocation = $mlocation.\n") if ($opt_q);
+
+# check input path and list
+# -------------------------
+        if( $local == 0 && !(-e $mlocation) ) {   #local path
+          msg("E", "Input path $mlocation not exist.");
+        }
+        $full = $mlocation."/".$fname;
+        if ($local == 0) {      #local path
+          @list = `ls $opt $full`;
+          print "check input : local list = @list \n " if ($opt_q);
+        } else {                #remote path
+          $ix1 = index($full, ":");
+          $rhost = substr($full, 0, $ix1);
+          $rpath = substr($full, $ix1+1, length($full)-$ix1);
+          print("check_input: rhost=$rhost, rsh=$opt_rsh, opt=$opt, rpath=$rpath\n") if ($opt_q);
+          @list = `$opt_rsh $rhost ls $opt $rpath`;
+          print "check input remote list = @list \n " if ($opt_q);
+          if (scalar(@list)<1) { 
+            msg("E", "MassStorage $mlocation not accessible or no files found.");
+          }
+        }
+        print("Input list = @list\n") if ($opt_q);
+        print("loc = $local: full = $full\n") if ($opt_q);
+        %mlist_tmp = fileList($y4in, @list);
+        return(%mlist_tmp);
+}
+
+#=========================================================================
+#
+# fileList: create a fileName and yyyymo.ddhhmm pair hash from "ls -lL"
+#           for file with fileSize > 0.
+#
+sub fileList{
+       my($year, @lst) = @_;
+       my($nrc, $len, $y4, @a, @b, @mc, $i, $j, $mm, %namelist);
+       my @mo = qw(jan feb mar apr may jun jul aug sep oct nov dec);
+       %namelist = ();
+       $nrc = scalar(@lst);
+       for($i=0; $i<$nrc; $i++) {
+
+# FileSize/Mon/Day/Time(year)/FileName
+# ------------------------------------
+         chomp($lst[$i]);
+         #if(length($lst[$i]) <= 30) { next; }
+         if(length($lst[$i]) <= 15) { next; }
+         @a = split(/ /, $lst[$i]);
+         @b = ();
+         for($j=0; $j<scalar(@a); $j++) {
+           if(length($a[$j]) >= 1){ push(@b, $a[$j]); }
+         }
+         if(scalar(@b) < 9) { next; }
+
+# Exclude path from file name $b[8]
+# ---------------------------------
+         @c = split(/\//, $b[8]);
+         $b[8] = $c[scalar(@c)-1];
+
+# Month
+# -----
+         for($j=0; $j<12; $j++) {
+           $b[5] =~ tr/A-Z/a-z/;
+           if($b[5] =~ /^$mo[$j]/) { last; }
+         }
+         $mm = $j+1;
+
+# YYYY/TIME to final form as yyyymo.ddhhmm
+# ----------------------------------------
+         @mc = (0, 0);
+         if(length($b[7]) == 4) {
+             $y4 = $b[7] * 100;
+         } else {          #$b[7] = HH:SS
+             $y4 = $year * 100;
+             @mc = split(/:/, $b[7]);
+         }
+         $mc[0] = ($mc[0] * 100 + $mc[1]) / 1000000.;
+         $y4 += $mm;
+         $y4 += ($b[6]/100.+$mc[0]);
+         print("$y4, $b[4], $b[5], $b[6], $b[7], $b[8]\n") if ($opt_q);
+
+# create namelist (hash fileName/dateTime pair) output if filesize > 0
+# --------------------------------------------------------------------
+         if( $b[4] > 0 ) { $namelist{$b[8]} = $y4; }
+         else { print " Error Empty File : $b[8] excluded from list \n" if ($opt_q); }
+       }  #End of for($i=1; $i<$nrc; $i++) 
+       return(%namelist);
+ }
+
+#=========================================================================
+#
+# get_files: copy files $mlocation/$file to localPath/$file one by one.
+#            - File does not exist locally: copy it.
+#            - file exists locally:
+#              a) do not copy (default).
+#              b) -f yes option: overwrite it anyway.
+#              c) -f no option: do not copy if local file is newer;
+#                               otherwise, overwrite it.
+#
+sub get_files {
+	 my (@out_list) = ();
+         my ($rcd, @mkey, $file, $get, $from, $to, $temp);
+         @mkey = keys(%mlist);
+	 print "Files to get - BEGIN \n";
+         foreach $temp (@mkey) { print "- $temp \n"; }
+	 print "Files to get - END \n";
+
+         if(scalar(@mkey) < 1) {msg("E", "No files exist in massStorage $mlocation.");}
+
+         print("\nGet files from $mlocation to $opt_d...\n");
+         $rcd = 0;
+         if($local == 0 ) {   #from local
+           $get = $opt_cp;
+         } else { $get = $opt_rcp; }
+         foreach $file (sort(keys(%mlist)) ) {
+           $from = $mlocation . "/" . $file;
+           $to = $opt_d . "/" . $file;
+           if(-s $to) {     # this file do exist and size>0
+             if( $opt_f =~ /[Yy]/) {      # forced copy
+               # unlink($to) || warn "haveing trouble deleting $to: $!";; 
+               print("processing gets()...\n") if ($opt_q);
+               $rcd = gets($get, $from, $to, $rcd);
+             } elsif ($opt_f =~ /N/i) {   # local file newer no copy, else copy
+               if($llist{$file} >= $mlist{$file}) {
+                 next;   # newer no copy
+               } else {  # overwrite it
+                 print("processing gets()...\n") if ($opt_q);
+                 $rcd = gets($get, $from, $to, $rcd);
+               }         # End of if($llist{$file} >= $mlist{$file})
+             } else { next; }    # default (local exists don't copy)
+           } else {         # local file does not exist
+             ($rcd) = gets($get, $from, $to, $rcd);
+           } 
+             
+         }
+   return($rcd);
+}
+
+#=========================================================================
+#
+# gets: The actual working horse to copy file $from $to.
+#       If copied (local) file not exist or fileSize=0 send out warning
+#       message to identify the failed file.
+#
+
+sub gets {
+    my ($get, $from, $to, $rcd) = @_;
+    my ($com, $status);
+
+    print("from $from to $to\n") if ($opt_q);
+
+    $com = "$get $from $to";
+    if ($opt_n) { print " OPTION -n ENABLED, but would have run : $com  \n"; } 
+    else {
+	$status = system($com);
+	if(! (-s $to)) { msg("W", "File $com failed."); } 
+        else { 
+	   print " gets : successful....  \n " if ($opt_q);
+           &fv2prs_or_lats4d($from, $to);
+           $rcd++; 
+        }
+    }
+    return($rcd);
+}
+
+#=========================================================================
+# fv2prs_or_lats4d: wrapper function for $opt_prs  
+#
+# 1) fv2prs 
+# 2) lats4d
+
+sub fv2prs_or_lats4d {
+   my ($from, $to) = @_;
+   my ($lcl_opt_vars) 	= "";
+   my ($lcl_opt_levs) 	= "";
+   my ($skipprs) = 0;
+
+   # prs_list doesn't have to be accurate since we screen at convert and following,
+
+   if ($opt_prs) { 
+	if ($from =~ /\.bin$/) { print "$myname: $from SKIPPED"; $skipprs = 1; }
+	if ($to =~ /\diag2d\.sfc/) { print "$myname: $to SKIPPED"; $skipprs = 1; }
+	if ($to =~ /\.obs/) { print "$myname: $to SKIPPED"; $skipprs = 1; }
+        if (! ($skipprs)) {
+		print "$skipprs Convert eta2prs : $to \n " if ( $opt_q );
+		convert($to); 
+        }
+    } 
+    else { 
+        #($lcl_opt_vars, $lcl_opt_levs ) = &build_varlevlist();
+
+        &run_lats4d(build_varlevlist(), $to);
+    }
+    return ();
+}
+
+#=========================================================================
+# run_lats4d : set up conditions based on variables list, levels list
+#              and launch lats4d
+# 
+sub run_lats4d {
+    my ($lcl_opt_vars, $lcl_opt_levs, $to ) = @_;
+    my (@lcl_opt_levs_b,$lcl_opt_fmt, $out_file, $lev_tmp); my ($skip) = 0;
+    my (@lcl_opt_vars_a) = split(" ",$lcl_opt_vars);
+    my (@lcl_opt_levs_a) = split(" ",$lcl_opt_levs);
+    my ($status);
+    
+
+    print "run_lats4d : lcl_opt_vars = $lcl_opt_vars \n" if ($opt_q);
+    print "run_lats4d : lcl_opt_levs = $lcl_opt_levs \n" if ($opt_q);
+    print "run_lats4d : to           = $to           \n" if ($opt_q);
+
+    #check for invalid levels
+    foreach $lev_tmp (@lcl_opt_levs_a) {
+	   if ($lev_tmp < 1 ) { print "Invalid level $lev_tmp will not be used. (when running lats4d) \n"; } 
+           else { @lcl_opt_levs_b = ( @lcl_opt_levs_b, $lev_tmp); }
+    }
+    $lcl_opt_levs   = join (" ", @lcl_opt_levs_b);
+    $lcl_opt_fmt    = "-hdf " if ($opt_fmt eq "hdf");
+    $lcl_opt_fmt    = "-format grads_grib " if ($opt_fmt =~ /grb|grib/);
+
+    $out_file       = &strip_ext($to);
+
+    if ($diag == 2) 		{ $out_file =~ s/\.eta/2d\.sfc/;           }
+    if ($to =~ /\.bin$/) 	{ print "$myname: $to SKIPPED"; $skip = 1; }
+    if ($to =~ /\.ods$/) 	{ print "$myname: $to SKIPPED"; $skip = 1; }
+    if ($to =~ /\.obs/) 	{ print "$myname: $to SKIPPED"; $skip = 1; }
+    #if ($to =~ /\diag2d\.sfc/){ print "$myname: $to SKIPPED"; $skip = 1; }
+
+    if (! $skip) {
+           $com  = "$lats4d $lcl_opt_fmt -v -i $to -o $out_file";
+           $com .= " -xupper " if ($diag ==2);
+           $com .= " -levs $lcl_opt_levs " if ($lcl_opt_levs ne "");
+           $com .= " -vars $lcl_opt_vars " if ($lcl_opt_vars ne "");
+	   print "$com \n";
+           $status = system($com);
+           if ($status) { msg ("E", "$com failed."); } 
+           else { 
+		     ($rc, $return_file)  = filetype($to, $out_file); 
+		     if ($rc) { msg ("W", "file type conversion $to -> $out_file failed."); } 
+                     else { push (@prs_list, $return_file); } 
+	   } 
+    } 
+    else { push (@prs_list, $return_file); }
+
+    return ();
+} # sub run_lats4d 
+ 
+#=========================================================================
+# build_varlevlist : from the user provided variable list, this function
+#                    builds appropriate variable list and levels list
+#                     
+sub build_varlevlist { 
+
+   # my (@fv2prsresource);
+    my (@variable_list, @var_tmp_c, @lcl_opt_vars_a, @list_of_vars);
+    my ($var_tmp, $lcl_opt_tmp, $lcl_opt_levs, $lcl_opt_vars); my ($skip) = 0;
+
+    print "build_varlevlist: $opt_vars \n" if ($opt_q);
+
+    @variable_list = split(/,/, $opt_vars); 
+
+    foreach $var_tmp (@variable_list) {
+       print "var_tmp  = $var_tmp   \n" if ($opt_q);
+        if ($var_tmp =~ /^\@/) { 
+            $var_tmp =~ s/\@//g;
+            # scan resource file                                        #
+            #  ($list_of_vars, @fv2prsresource) = scan_rcfile($var_tmp);
+            # process_vars                                              #
+              @var_tmp_c = process_vars( &scan_rcfile($var_tmp));
+        } 
+        else { @var_tmp_c = split(/ /, $var_tmp); }
+
+	foreach $var_tmp ( @var_tmp_c) {
+		$var_tmp = lc($var_tmp);
+		$lcl_opt_tmp = join (" ", @lcl_opt_vars_a);
+		if ($lcl_opt_tmp =~ /$var_tmp/) {next; };
+		@lcl_opt_vars_a = (@lcl_opt_vars_a, $var_tmp);
+	}
+    }
+    @lcl_opt_levs_a = split(/,/, $opt_levs);	
+    $lcl_opt_vars   = join (" ", @lcl_opt_vars_a);
+    $lcl_opt_levs   = join (" ", @lcl_opt_levs_a);
+    print "build_varlevlist: lcl_opt_vars = $lcl_opt_vars\n" if ($opt_q);
+    print "build_varlevlist: lcl_opt_levs = $lcl_opt_levs\n" if ($opt_q);
+    return ($lcl_opt_vars, $lcl_opt_levs);
+}
+
+
+#=========================================================================
+# scan_rcfile :   scans through fv2prs.rc file (or as defined by $FV2PRSRC
+#                 global variable and builds @fv2prsresource array
+#                 it also preselects a list of variables if user
+#                 supplied variable class from command line
+sub scan_rcfile {
+    my ($var_tmp) = @_;
+    my (@fv2prsresource, @list_of_vars);
+    print "scan_rcfile: var_tmp = $var_tmp \n" if ($opt_q);
+
+    # look into fv2prs RC file
+	open (FV2PRSRC, "$fv2prsrc") || msg("E","can not open $fv2prsrc");
+	   while (<FV2PRSRC> ) {
+	      @fv2prsresource = (@fv2prsresource, $_);
+	      if ($_ =~ /VarClass\*${var_tmp}(.*)/ ) {
+		  @list_of_vars = split(' ', $1 ) ;
+		  print "found one : @list_of_vars \n" if ($opt_q);
+		  #shift(@list_of_vars);
+		  #print "found one : @list_of_vars \n" if ($opt_q);
+	      }
+	   }
+	close (FV2PRSRC);	
+	$list_of_vars_tmp4 = join(" ", @list_of_vars);
+	$list_of_vars_tmp4 =~ s/;/ /g;
+	$list_of_vars_tmp4 =~ s/:/ /g;
+        chomp($list_of_vars_tmp4);
+	#@list_of_vars = split(/ /, $list_of_vars_tmp4);
+        $list_of_vars = $list_of_vars_tmp4;
+	print "1 list_of_vars = $list_of_vars \n" if ($opt_q);
+	#$doh = scalar(@list_of_vars);
+	#print "1 list_of_vars  doh = $doh \n" if ($opt_q);
+   return ($list_of_vars,@fv2prsresource);
+}
+
+
+#=========================================================================
+#
+#  process_vars :  builds a clean variable list from the raw list 
+#  
+#  1) loop through list of user supplied variables, 
+#  2) lookup equivalent lats4d-understandable variable from resource file
+#  3) parse further to extract compatible variable if necessary
+#  4) store the list of new variables in an array called @var_tmp_c 
+					
+sub process_vars {
+        
+        my ($list_of_vars,@fv2prsresource) = @_;
+	my (@var_tmp_b, @var_tmp_c, @list_of_vars);
+
+	my $test = scalar(@fv2prsresource);
+	@list_of_vars = split(" ", $list_of_vars);
+	my $test2 = scalar(@list_of_vars);
+
+        print "process_vars: scalar(\@fv2prsresource) = $test" if ($opt_q);
+        print "process_vars: list_of_vars  = @list_of_vars \n" if ($opt_q);
+        print "process_vars: # of elements = $test2        \n" if ($opt_q);
+
+	foreach $var_tmp (@list_of_vars) {
+            chomp($var_tmp);
+	    print "LOOKING FOR var_tmp = $var_tmp \n" if ($opt_q);
+
+	    foreach $tmp (@fv2prsresource) {
+		$tmp =~ tr/  / /s;
+		$tmp =~ s/^ //;
+
+	     #print "### fv2prs.rc : $tmp" if ($opt_q); 
+
+	     if ( $tmp =~ /varclass/i) { next };
+	     if ( $tmp =~ /^#/       ) { next };
+	     if ( $tmp =~ /^$var_tmp/i) {
+
+		print "   ### MATCHED $var_tmp \n" if ($opt_q);
+		@var_tmp_a = split(/ /, $tmp);
+		print "var_tmp_a = @var_tmp_a \n" if ($opt_q);
+			
+		$var_tmp2 = $var_tmp_a[2];
+		print "var_tmp2 = $var_tmp2 \n" if ($opt_q);
+	
+		if ($var_tmp2 =~ /(\(.*\))/ ) {
+			$matched = $1;
+			$matched =~ s/\(//;
+			$matched =~ s/\)//;
+			@var_tmp_b = split(/,/, $matched);
+			
+			print "var_tmp_b = @var_tmp_b \n" if ($opt_q);
+			#@var_tmp_b =~ s/^\ //g;
+			@var_tmp_c = (@var_tmp_c, @var_tmp_b);
+			print "fv2prs.rc : var_tmp_c = @var_tmp_c" if ($opt_q); 
+			last;
+		} else {
+			if ($var_tmp2 =~ /\;/) { 
+				@var_tmp_b = split(/;/, $var_tmp2);
+			} else { 
+				@var_tmp_b = $var_tmp2;
+			}
+			@var_tmp_c = (@var_tmp_c, @var_tmp_b);
+		} # if $var_tmp2
+	     } # if $tmp =~ /^$var_tmp/i
+	  } # foreac $tmp
+        } # foreach $var_tmp
+
+  return (@var_tmp_c);
+}
+
+
+#=========================================================================
+#
+# convert: Converts eta -> prs using fv2prs utility
+#       Return 0 if successful, otherwise return same exit code resulting
+#       from the fv2prs utility.
+
+sub convert {
+      print "begin convert \n" if ($opt_q);
+      my ($file) = @_;
+      my ($prs_file, $com, $status );
+
+      ($prs_file = $file) =~ s/\.eta/\.prs/;
+
+      if ($file =~ /\.eta/) {
+           print " file = $file \n " if ($opt_q);
+           print " prs_file = $prs_file \n " if ($opt_q);
+           print " opt_vars = $opt_vars \n " if ($opt_q);
+           print " opt_levs = $opt_levs \n " if ($opt_q);
+
+           # conversion
+           $com = "$fv2prs -levels $opt_levs -vars \"$opt_vars\" $file";
+           print "$myname : com = $com \n " if ($opt_q);
+
+	   if ($opt_n) { print " OPTION -n ENABLED, but would have run : $com  \n"; }
+	   else {
+	   	$status = system($com);
+		if ($status) { msg("W", "$com failed. $file not added to prs_list array."); } 
+                else {
+			$prs_file_orig = $prs_file;
+			$prs_file = &strip_ext($prs_file);
+			if ($opt_fmt eq "grb" ) {
+			        $log      = "fvgetf" . ".$$" . ".log";
+				$out_file = $prs_file;
+				print "$myname : cmd = $cmd \n" if ($opt_q);
+		           	$cmd = "$grads -blc \'run $lats4dgs -q -v -i $prs_file_orig -o $out_file -format grads_grib\' ";
+				$rc = System ("$cmd", "$log");
+				msg("E",">>> ERROR <<< running $cmd" ) if ( $rc );
+
+				cat("$log" ) if ( $opt_v );
+
+				#       Check grads error code
+				#       ----------------------
+				open (LOG, "$log") || die ("Couldn't open $log file");
+					@log_file = <LOG>;
+				close (LOG);    
+				$SUCCESSFUL = 0;
+				foreach $temp3 (@log_file) {
+					#print ">$temp3 \n";
+					if ($temp3 =~ /SUCCESS/ ) { $SUCCESSFUL = 1 };  
+				}
+				msg("E",">>> ERROR <<< gribbing $out_file") unless ($SUCCESSFUL );
+				($rc, $return_file) = filetype($file,$prs_file); 
+			   msg ("E", "File convertion for $prs_file has failed") if ($rc);
+		        }
+			
+                        push (@prs_list, $prs_file_orig);
+		        print "prs_file = $prs_file \n" if ($opt_q);
+
+			# If fv2prs was successful, check if user wants to delete original file
+			# delete if neccessary
+
+		     	if ($opt_p) { print " PRESERVED File : $file \n" if ($opt_q); 
+                        } else { 
+			      if ($opt_n ) { 
+                                 print " OPTION -n ENABLED, but would have deleted $file \n"; 
+                              } else { unlink($file); }           # delete
+                        } # if not opt_p
+	       }  # if status successful
+           } # if not opt_n
+     } else {  msg("W", "$file is not an eta file."); } # if not eta
+     print "end convert \n" if ($opt_q);
+     return ();
+} # sub convert
+
+#=========================================================================
+#
+# strip_ext: remove extensions 
+# 
+# 1) generates a bare-filename by stripping extensions
+
+sub strip_ext {
+    my ($name) = @_;
+    print "strip_ext: name = $name\n" if ($opt_q);
+
+    if ($name =~ /\.hdf$/ ) { $name =~ s/\.hdf$//g;  }
+    if ($name =~ /\.nc4$/ ) { $name =~ s/\.nc4$//g;  }
+    if ($name =~ /\.nc$/  ) { $name =~ s/\.nc$//g;   }
+    if ($name =~ /\.grib$/) { $name =~ s/\.grib$//g; }
+    if ($name =~ /\.grb$/ ) { $name =~ s/\.grb$//g;  }
+    if ($name =~ /\.ctl$/ ) { $name =~ s/\.ctl$//g;  }
+
+    return ($name);
+}
+    
+
+
+#=========================================================================
+#
+# fcstv: forecast collocation utility
+# 
+# 1) generates a list of forecast files from prs_list
+# 2) get the name of output file specified in fcstv resource file
+# 3) collocate forecast files 
+
+	sub fcstv {
+
+           my ($i, $temp, $numofelements, $rcd) = (0,0,-1,0);
+	   my ($file_in, $file_out) = "";
+
+	   if ($opt_n) {
+           	print " OPTION -n ENABLED, colocation routine not executed.  \n";
+		return;
+           }
+
+# Generate fcstv forecast  filelist
+# ------------------------------------------------
+
+           open (FLIST, ">$FILE_LIST" ) || die ("Can not open $FILE_LIST");
+              flock (FLIST, 2);
+                foreach $file_temp (@prs_list) {
+
+                  if ($file_temp =~ /ctl|hdf/ ) { print FLIST "$file_temp\n"; }
+
+		}
+	      flock (FLIST, 8);
+	   close (FLIST);
+
+# Read output file name from fcstv resource file
+# ----------------------------------------------
+
+           open (RFLIST, "$RESOURCE_FILE" ) || die ("Can not open $RESOURCE_FILE");
+#		@RCFILE = <RFLIST>;
+		while (<RFLIST>) { 
+                    if ($_ =~ /^-o / ) {
+			   @temp2 = split(/ /, $_);
+			   $file_out = $temp2[1];
+                    }
+		}	
+	      flock (RFLIST, 8);
+	   close (RFLIST);
+	   if ($file_out eq "" ) { msg("E", "No output file designated in $RESOURCE_FILE"); }
+
+# Collocation
+# ----------------------
+
+           $com = "$fcstv_path -config $RESOURCE_FILE -f $FILE_LIST";
+
+ # current fcstv does write output in lats format
+
+#           $com .= " -format $opt_fmt"  if ($get_ext eq $opt_fmt);
+
+ # probably won't need the following -vars, -levs
+ # since the file obtained from fv2prs will already
+ # contain just the var/levs we specified.
+ #
+ #         $com .= " -vars $vars" if ($opt_vars != "all");
+ #         $com .= " -levs $levs";
+
+	   $status = system($com);
+	   if ($status) { msg("E", "$com failed."); $rcd++; } 
+
+	return (0);
+        }
+
+#=========================================================================
+#
+# filetype: convert file type
+# 
+#
+
+     sub filetype { 
+	  my ($to, $out_file ) = @_;
+          my ($rc, $file_in, $file_out);
+	  # user wants HDF file 
+	  if ($opt_n) { print " OPTION -n ENABLED, file name not renamed from \n"; 
+		msg("W", "File Type conversion not executed");
+	  }
+	  $rc = "";
+	  $file_in = $out_file;
+	  $file_out = $file_in;
+	  if ($file_in =~ /\.obs/) { print "$myname: $file_in SKIPPED conversion"; return; }
+	  if ($opt_fmt eq "hdf" ) { 
+	      $file_in  = $file_in . ".nc";
+	      $file_out = $file_out . ".hdf";
+	      $status = rename $file_in,$file_out;
+	      if ($status == 0 ) { msg ("W", "Can't rename $file_in to $file_out"); return 1; }
+	      else { 
+		print " Renamed $file_in to $file_out \n" if ($opt_q); 
+		unlink($to) if (! $opt_p);
+		return (0, $out_file);
+	      }
+          } else { 
+	     my $ctl  = $file_in . ".ctl";
+	     if (! -e $ctl ) { msg("W", "The file: $ctl does not exist"); return 1; }
+	     $rc = &fix_ctl_levels($to, $ctl, $file_in); 
+	     if ($rc ) { 
+	          msg("E", "Problem -->  fix_ctl_levels $ctl $file_in ");
+	     } else {
+		 unlink($to) if (! $opt_p);
+		 return (0, $ctl);
+	     }
+	  }
+
+   } 
+
+
+
+#=========================================================================
+#
+# fix_ctl_levels: subroutine to fix levels in grads_grib ctl output file.
+#      this routine is taken from a subroutine in the  'grads2grib' utility 
+#      coards2grib()
+#
+
+sub fix_ctl_levels {
+
+   if ($opt_n) { print " OPTION -n ENABLED, fix_ctl_levels  not executed.\n"; return; }
+
+     my ($to, $ctl, $file_in) = @_;
+     my ($log )  = $file_in . ".log";
+     my $cdl     = $file_in . ".cdl";
+     my $tempctl = $file_in . ".ctl_temp";
+     my ($rc ) = 0;
+    
+    #   Create CDL
+    #   ----------
+        # -c includes coordinate variables as well
+        $rc = System("$ncdump -c $to > $cdl" ,"$log");
+        msg("W", ">>> ERROR <<< running $ncdump") if ( $rc );
+	$problem = 1 if ($rc);
+
+    #   Fix levels
+    #   ----------
+        open(CDL, "$cdl") || msg ("E","Can't open $cdl file");
+                @cdl_file = <CDL>;
+        close(CDL);
+        $temp_num =0;
+        $level_start = 0;
+        $level_ttl = 0;
+        $firsttime = 1;
+        foreach $temp (@cdl_file) {
+                if ( $firsttime ) {
+                       if ( ($temp =~ /lev =/) || ($temp =~ /levels =/) ) {
+                        @temp_num = split (" ", $temp);
+                        $level_ttl = $temp_num[2];
+                        $firsttime=0;
+                       }
+                } elsif (($temp =~ /lev =/) || ($temp =~ /levels =/ )) {
+                        $level_start = $temp_num;
+                }
+                $temp_num++;
+        }
+        $temp_count=0;
+        $temp_count_mid = 0;
+        $levels = "";
+        foreach $temp_line (@cdl_file){
+                if ($temp_count >= $level_start) {
+                        @templine = split (" ", $temp_line);
+                        foreach $temp (@templine){
+                                $temp =~ s/,//sg;
+                                if ($temp_count_mid < $level_ttl ) {
+                                        if ($temp =~ /(\d+)/ ){
+                                                $temp_count_mid++;
+
+                                                $temp =~ s/\n//sg;
+                                                $temp =~ s/\r//sg;
+                                                $temp =~ s/^\n//sg;
+                                                $levels .= " $temp ";
+                                        }
+                                }
+                        }
+                }
+                $temp_count++;
+        }
+        $levels =~ s/}//sg;
+        $levels =~ s/,//sg;
+        $levels =~ s/;//sg;
+        @levels_a = split (" ", $levels);
+        $levels_r = "";
+
+        foreach $temp (@levels_a) {
+            if ( $opt_zrev ) {
+                 $levels_r = "$temp " . $levels_r;
+               } else {
+                 $levels_r = $levels_r . " $temp" 
+               }
+        }
+	
+        $stat = rename $ctl,$tempctl; 
+        if ($stat == 0 ) {
+                msg("W","Error while renaming $ctl to $tempctl");
+		$problem = 1;
+        }
+        open (TEMPCTL, "$tempctl") || die("Can't open $tempctl file");
+        open (CTL, ">$ctl") || die ("Can't open $ctl file");
+                while (<TEMPCTL>) {
+                        $temp_buff = $_;
+                        if ( ($temp_buff =~ /levels/ ) || ($temp_buff =~ /lev/)) {
+                                print CTL "$temp_buff";
+                                print CTL "$levels_r\n";
+                        } elsif ($temp_buff !~ /^\d/) {
+                                print CTL "$temp_buff";
+                        }
+                }
+        close (CTL);
+        close (TEMPCTL);
+	
+        if ($problem) { return 1; 
+        } else { 
+		print "level fixed successfully\n" if ( $opt_q);
+	#       Cleanup mess
+		unlink($tempctl);
+		unlink($cdl);
+		unlink(".grads.lats.table");
+		return 0;
+        }
+
+}
+
+#......................................................................
+
+#
+# System: This routine saves stdout/stderr, redirects it to a specified file, 
+#         runs a shell command using this new stdout/stderr, and finally 
+#         restores the original stdout/stderr.
+#
+
+sub System {
+
+    my ( $cmd, $logfile ) = @_;
+
+    print "$myname: $cmd\n" if ( $opt_v );
+
+    open SAVEOUT, ">&STDOUT";  # save stdout
+    open SAVEERR, ">&STDERR";  # save stderr
+
+    open STDOUT, ">>$logfile" or die "can't redirect stdout";
+    open STDERR, ">>$logfile" or die "can't redirect stderr";
+
+    select STDERR; $| = 1;     # make it unbuffered
+    select STDOUT; $| = 1;     # make it unbuffered
+
+    $rc = system ( $cmd );     # run the shell command
+
+    close STDOUT;
+    close STDERR;
+
+    open STDOUT, ">&SAVEOUT" ;  # restore stdout
+    open STDERR, ">&SAVEERR" ;  # restore stdout
+
+    close SAVEERR;
+    close SAVEOUT;
+
+    return $rc;
+
+  }
+
+
+
+#=========================================================================
+#
+# msg: subroutine to print out error and warning messages.  Exit the
+#      software if the first input argument indicates an error "E".
+#
+  sub msg {
+         my ($a, $b) = @_;
+         $a =~ tr/a-z/A-Z/;
+         print("-$a: $b\n");
+         if($a =~ /^E/) { exit(1); };  # Exit for error
+  }
+
+#=========================================================================
+sub usage {
+
+   print << "EOF";
+
+NAME
+     fvgetf - retrieves fvDAS files from mass-storage with conversion
+          
+SYNOPSIS
+     fvgetf  [OPTIONS]  expid  fclass  period
+          
+DESCRIPTION
+     fvgetf retrieves a group of fvDAS files from mass-storage, with
+     the option of converting eta/lcv files to pressure coordinates
+     on the fly, collocating the output forecast files, and
+     converting the final output format as user specifies in the cmd line.
+
+     (By default, the original eta/lcv files are deleted
+     from the local directory after conversion to prs). On input,
+
+     expid    fvDAS experiment id, e.g., v060b_b55
+
+     fclass   fvDAS file class; the following are currently supported
+
+                ana.eta      analysis
+                bias.eta     bias
+                bkg.eta      background
+                prog.eta     forecast
+                diag.eta     2D and 3D diagnostics
+                diag2d.sfc   2D diagnostics only
+                ana.obs      post analysis ODS
+
+              The following (shorthand) file classes are also recognized:
+
+                ana.prs      analysis in pressure
+                bkg.prs      background in pressure
+                prog.prs     forecast in pressure
+                diag.prs     2D and 3D diagnostics in pressure
+
+              These are equivalent to retrieving the corresponding *.eta
+              files and converting them to prs (-prs option; see below).
+
+     period   desired time period, e.g.,
+
+                20010521  bring data for 21 May 2001
+                2001051*  bring data for the period 10-19 May 2001
+                200105*   bring data for all of May 2001
+                200105    shorthand for 200105*
+
+OPTIONS
+ -cp prog     local copy program, default: cp
+ -d dir       local directory for output files; default: ./
+ -fmt fmt     format of output files: hdf or grib  (default hdf) 
+ -H path      experiment home location for input files;
+                remoteUserId\@remoteMassStorageHost:/path
+                default: \$mhost:\$expid
+              NOTE: if the input files reside on the local machine, by
+              default the files are cp'ed instead of being scp'ed.
+ -help        prints this usage notice
+ -n           dry-run mode: just print what it would do               [PARTIAL]
+ -p           preserve ETA files after conversion to PRS
+              (default is to delete these files)
+ -prs         convert eta/lcv files to pressure (prs) coordinates
+ -levs ...    list of levels (comma delimited); default: 36 standard
+              levels, from 1000 hPa to 0.2 hPa
+
+               -levs "1000 900 ..."
+
+ -vars ...    variable list; default: all variables on file
+
+               -vars \@Variable_Class 
+               -vars "uwnd vwnd ..." 
+
+ -rsh prog    remote shell program, default: ssh
+ -rcp prog    remote copy program, default: scp
+ -f yes|no    if local file does not exist copy the file from mass storage
+              if the file exists do not copy (default)
+              -f yes: forces to copy whether the file exists locally or not
+              -f no: do not copy it if the local file is newer; otherwise,
+                     overwrite it.
+ -fcstv       run forecast collocation utility
+ -zrev        reverse the levels in grib .ctl file. 
+ -q           verbose mode (default is quiet mode)
+
+EXAMPLES
+    fvgetf -prs v060b_b55 prog.eta 199908
+    fvgetf      v060b_b55 prog.prs "199908*"  (same as above)
+    fvgetf -vars \@tsyn3d_mis_p -fmt hdf -p -q -f yes v000_b55 ana.eta 199712
+    fvgetf -vars "phis delp uwnd vwnd" -fmt hdf -p -q -f yes v000_b55 ana.eta 199712
+
+
+SEE ALSO
+    bj:/u/dasilva/bin/getme - simpler script in the same spirit for GEOS.
+    grads2grib - file conversion utility
+    fcstv - forecast verification utility
+    fv2prs.x - converts eta files to prs format
+    lats4d   - file conversion and subsetting utility
+
+AUTHORS
+    Joon S. Yoon (jyoon\@dao.gsfc.nasa.gov), interfaced fv2prs.x, fcstv,lats4d,grads2grib
+    Eueng-nan Yeh (enyeh\@dao.gsfc.nasa.gov), initial code.
+    Arlindo da Silva (dasilva\@dao.gsfc.nasa.gov), requirements and 
+    interface design.
+
+EOF
+
+  exit(1);
+           }
+

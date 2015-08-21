@@ -93,10 +93,10 @@
   DQRLSAN            |     1	   | xyz | C |    |   |   |	|      | 
   REEVAPCN           |     1	   | xyz | C |    |   |   |	|      | 
   REEVAPLS           |     1	   | xyz | C |    |   |   |	|      | 
-  PFICU              |     1	   | xyz | C |    |   |   |	|      | 
-  PFILSAN            |     1	   | xyz | C |    |   |   |	|      | 
-  PFLCU              |     1	   | xyz | C |    |   |   |	|      | 
-  PFLLSAN            |     1	   | xyz | C |    |   |   |	|      | 
+  PFICU              |     1	   | xyz | E |    |   |   |	|      | 
+  PFILSAN            |     1	   | xyz | E |    |   |   |	|      | 
+  PFLCU              |     1	   | xyz | E |    |   |   |	|      | 
+  PFLLSAN            |     1	   | xyz | E |    |   |   |	|      | 
   SPHU1              |     1	   | xyz | C |    |   |   |	|      | 
   TMPU1              |     1	   | xyz | C |    |   |   |	|      | 
   SPHU2              |     1	   | xyz | C |    |   |   |	|      | 

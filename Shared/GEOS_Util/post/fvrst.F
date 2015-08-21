@@ -1,4 +1,7 @@
       program  main
+
+      use MAPL_IOMod
+ 
       implicit none
 
       integer headr1(6)
@@ -21,6 +24,8 @@
       character*512, allocatable :: arg(:)
       integer   nargs,iargc,n
       logical   HEADER
+      type(MAPL_NCIO) :: NCIO
+      integer :: filetype,rc
 
       HEADER = .false.
 
@@ -39,6 +44,19 @@
 ! **********************************************************************
 ! ****    Read dycore internal Restart for RSLV, Date and Time      ****
 ! **********************************************************************
+
+      call MAPL_NCIOGetFileType(dynrst,filetype)
+      if (filetype ==0) then
+         if (header) then
+            NCIO = MAPL_NCIOOpen(dynrst,rc=rc)
+            call MAPL_NCIOGetDimSizes(NCIO,lon=im,lat=jm,lev=lm,date=nymd,time=nhms)
+            print *, im,jm,lm,nymd,nhms
+            stop
+         else
+            write(*,*)"fvrst can not make gfio file from nc4 restart yet"
+            stop
+         end if
+      end if
 
       open (10,file=trim(dynrst),form='unformatted',access='sequential')
       read (10) headr1
@@ -197,20 +215,29 @@
 
 ! Compute grid
 ! ------------
-      dlon = 360.0/ im
-      dlat = 180.0/(jm-1)
+      if( jm.eq.6*im ) then
+          do j=1,jm
+          latsd(j) = j
+          enddo
+          do i=1,im
+          lonsd(i) = i
+          enddo
+      else
+          dlon = 360.0/ im
+          dlat = 180.0/(jm-1)
+          do j=1,jm
+          latsd(j) = -90.0  + (j-1)*dlat
+          enddo
+          do i=1,im
+          lonsd(i) = -180.0 + (i-1)*dlon
+          enddo
+      endif
 
-      do j=1,jm
-      latsd(j) = -90.0  + (j-1)*dlat
-      enddo
-      do i=1,im
-      lonsd(i) = -180.0 + (i-1)*dlon
-      enddo
+      lats = latsd
+      lons = lonsd
       do L=1,lm
       levs(L) = L
       enddo
-      lats = latsd
-      lons = lonsd
 
           ptop = ak(1)
        levs(1) = ptop + 0.5 * dpref(1)

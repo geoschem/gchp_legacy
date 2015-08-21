@@ -72,12 +72,14 @@ endif
 * Determine Number (num) of Experiments to Compare (5 Max)
 * --------------------------------------------------------
 num = subwrd(args,1)
+expid = subwrd(args,num+1)
 
 k = 1
 while( k <= num )
           name.k = subwrd(args,k+1)
 'fixname 'name.k
-          name.k = result
+          name.k = substr(result,1,8)
+say 'k = 'k' name.'k' = 'name.k
 k = k+1
 endwhile
 
@@ -184,6 +186,11 @@ while( n>=1 )
   'set line 'col.n' 1 6'
   'draw line 'xbeg' 'yloc' 'xend' 'yloc
   'draw mark 3 'xmid' 'yloc' 0.1'
+   if( n=num )
+      'draw string 'xloc' 'yloc' 'expid
+   else
+      'draw string 'xloc' 'yloc' 'name.n
+   endif
   'draw string 'xloc' 'yloc' 'name.n
    yloc = yloc-0.2
    n = n - 1

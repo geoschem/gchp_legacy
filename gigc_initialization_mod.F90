@@ -414,10 +414,20 @@ CONTAINS
 
        ! We still need to call Initialize_Geos_Grid on all CPUs though.
        ! without having to read the "input.geos" file. (mlong, bmy, 2/26/13)
+       IF (.not. am_I_Root) then
        CALL Initialize_Geos_Grid( am_I_Root = am_I_Root,                    &
                                   Input_Opt = Input_Opt,                    &
                                   RC        =  RC )
        IF ( RC /= GIGC_SUCCESS ) RETURN
+
+       ! Initialize dry deposition (in GeosCore/drydep_mod.F)
+       IF ( Input_Opt%LDRYD ) THEN
+          CALL Init_Drydep( am_I_Root = am_I_Root,                          &
+                            Input_Opt = Input_Opt,                          &
+                            RC        = RC         )
+          IF ( RC /= GIGC_SUCCESS ) RETURN
+       ENDIF
+       ENDIF ! am_I_Root
 
        ! Initialize tracer quantities (in GeosCore/tracer_mod.F)
        CALL Init_Tracer( am_I_Root = am_I_Root,                             &
@@ -425,14 +435,6 @@ CONTAINS
                          RC        = RC           )
        IF ( RC /= GIGC_SUCCESS ) RETURN
 
-       ! Initialize dry deposition (in GeosCore/drydep_mod.F)
-       
-       IF ( Input_Opt%LDRYD ) THEN
-          CALL Init_Drydep( am_I_Root = am_I_Root,                          &
-                            Input_Opt = Input_Opt,                          &
-                            RC        = RC         )
-          IF ( RC /= GIGC_SUCCESS ) RETURN
-       ENDIF
 
        ! Initialize wet deposition tracer IDs
        IF ( Input_Opt%LWETD .OR. Input_Opt%LCONV ) THEN

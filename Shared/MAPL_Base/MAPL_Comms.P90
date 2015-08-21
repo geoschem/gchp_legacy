@@ -1,5 +1,5 @@
 
-!  $Id: MAPL_Comms.P90,v 1.19.8.10.2.2.54.5.4.4.2.1 2013-12-18 22:07:46 bmauer Exp $
+!  $Id: MAPL_Comms.P90,v 1.24 2015-03-03 17:00:48 atrayano Exp $
 
 #include "MAPL_ErrLog.h"
 
@@ -55,6 +55,8 @@ module MAPL_CommsMod
      real, pointer :: A(:,:)
   end type ArrPtr
 
+  public ArrPtr
+
   type MAPL_CommRequest
      integer, pointer :: i1(:),in(:),j1(:),jn(:),im(:),jm(:)
      integer          :: im_world, jm_world, im0, jm0
@@ -84,6 +86,7 @@ module MAPL_CommsMod
 
   interface MAPL_CommsBcast
      module procedure MAPL_CommsBcast_STRING_0
+     module procedure MAPL_CommsBcast_L4_0
      module procedure MAPL_CommsBcast_I4_0
      module procedure MAPL_CommsBcast_R4_0
      module procedure MAPL_CommsBcast_R8_0
@@ -94,6 +97,7 @@ module MAPL_CommsMod
      module procedure MAPL_CommsBcast_R4_2
      module procedure MAPL_CommsBcast_R8_2
      module procedure MAPL_CommsBcastVm_STRING_0
+     module procedure MAPL_CommsBcastVm_L4_0
      module procedure MAPL_CommsBcastVm_I4_0
      module procedure MAPL_CommsBcastVm_R4_0
      module procedure MAPL_CommsBcastVm_R8_0
@@ -691,7 +695,8 @@ module MAPL_CommsMod
 
     LM     = size(LocArray,3)
 
-    call MAPL_RoundRobinPEList(Root, Npes, NumCores, RC=STATUS)
+    nNodes = size(MAPL_NodeRankList)
+    call MAPL_RoundRobinPEList(Root, nNodes, RC=STATUS)
     VERIFY_(STATUS)
 
     if(any(root==mype)) then
@@ -755,7 +760,7 @@ module MAPL_CommsMod
 
     type (MAPL_CommRequest)       :: reqs(size(LocArray,3))
     integer                       :: root(size(LocArray,3))
-    integer                       :: NumCores, II
+    integer                       :: NumCores, II, nNodes
     integer                       :: LM, L, nc, npes, mype
     integer                       :: nn, RequestType
     type(ESMF_VM)                 :: VM
@@ -777,7 +782,8 @@ module MAPL_CommsMod
        VERIFY_(STATUS)
     end if
 
-    call MAPL_RoundRobinPEList(Root, Npes, NumCores, RC=STATUS)
+    nNodes = size(MAPL_NodeRankList)
+    call MAPL_RoundRobinPEList(Root, nNodes, RC=STATUS)
     VERIFY_(STATUS)
 
     LM = size(LocArray,3)
@@ -816,35 +822,50 @@ module MAPL_CommsMod
     RETURN_(ESMF_SUCCESS)
   end subroutine MAPL_CollectiveScatter3D
 
-
-  subroutine MAPL_RoundRobinPEList(List,Npes,CoresPerNode,RC)
+  subroutine MAPL_RoundRobinPEList(List,nNodes,Root,RC)
     integer,           intent(  OUT) :: List(:)
-    integer,           intent(IN   ) :: Npes, CoresPerNode
+    integer,           intent(IN   ) :: nNodes
+    integer, optional, intent(IN   ) :: Root
     integer, optional, intent(  OUT) :: RC
 
     integer                    :: status
     character(len=ESMF_MAXSTR) :: IAm='MAPL_RoundRobinPEList'
-    integer                    :: N, L
+    integer, allocatable :: filled(:),nPerNode(:)
+    integer :: i,j,n,nlist,locRoot
 
-    ASSERT_(CoresPerNode>0)
+    if (present(Root)) then
+       locRoot = Root
+    else
+       locRoot = 1
+    endif
 
-    do L=1,size(List)
-       if(L==1) then
-          n       = 0
-          List(1) = 0
-       else
-          List(L) = List(L-1) + CoresPerNode
-          if(List(L)>=Npes) then
-             n = mod(n + 1, CoresPerNode)
-             List(L) = n
-          endif
-       end if
-    end do
+    allocate(filled(nNodes),nPerNode(nNodes),stat=status)
+    VERIFY_(STATUS)
+    do i=1,nNodes
+       nPerNode(i) = size(MAPL_NodeRankList(locRoot+i-1)%rank)
+    enddo
+    nlist = size(list)
+    filled=0
+    n=0
+    do
+       do i=1,nNodes
+          if (filled(i) < size(MAPL_NodeRankList(locRoot+i-1)%rank)) then
+             filled(i) = filled(i) + 1
+             n=n+1
+             list(n) = MAPL_NodeRankList(locRoot+i-1)%rank(filled(i))
+          end if
+
+          if (n == nlist) exit
+       enddo
+
+       if (n == nlist) exit
+       if (All(filled == nPerNode)) filled = 0
+    enddo
+
+    deallocate(filled,nPerNode)
 
     RETURN_(ESMF_SUCCESS)
   end subroutine MAPL_RoundRobinPEList
-
-
 
 !---------------------------
 !---------------------------
@@ -1010,6 +1031,11 @@ module MAPL_CommsMod
 !---------------------------
 #define RANK_ 0
 #define VARTYPE_ 1
+#include "bcast.H"
+
+!---------------------------
+#define RANK_ 0
+#define VARTYPE_ 2
 #include "bcast.H"
 
 !---------------------------

@@ -3,7 +3,8 @@
 !              1. REYNOLDS file name format changes-- cannot be hardcoded!
 !      .......................................................................
 !
-      SUBROUTINE read_input(inputFile, iDebug, today, tomrw, fileName, NLAT, NLON, iERR)
+      SUBROUTINE read_input(inputFile, iDebug, today, tomrw, fileName, NLAT, NLON, &
+                            iMerra, iERR)
 !---------------------------------------------------------------------------
           IMPLICIT NONE
 
@@ -12,6 +13,7 @@
           CHARACTER (LEN = *),  INTENT(OUT)   :: today, tomrw
           CHARACTER (LEN = *),  INTENT(OUT)   :: fileName(2)
           INTEGER,              INTENT(OUT)   :: NLAT, NLON
+          INTEGER,              INTENT(OUT)   :: iMerra
           INTEGER,              INTENT(OUT)   :: iERR
 
          
@@ -31,8 +33,9 @@
         READ (21, '(A)') tomrw
         READ (21, '(A)') fileName(1)                                 ! Reynolds file
         READ (21, '(A)') fileName(2)                                 ! OSTIA    file
-        READ (21, '(I)') NLAT
-        READ (21, '(I)') NLON
+        READ (21, '(I5)') NLAT
+        READ (21, '(I5)') NLON
+        READ (21, '(I5)') iMerra                                      ! process for MERRA?
         CLOSE(21)
 !      .......................................................................
 !      CHECK USER INPUT. Die if not correct
@@ -56,7 +59,7 @@
 !         PRINT *, '1st eight char of file name should be START date'
 !       END IF
 !      .......................................................................
-        IF( iDebug) THEN
+        IF( iDebug /= 0 ) THEN
           PRINT *, '---------------------------------------'
           PRINT *, 'From read_input: '
           PRINT *, 'Today:         ', today
@@ -64,6 +67,7 @@
           PRINT *, 'Reynolds file: ', fileName(1)
           PRINT *, 'OSTIA    file: ', fileName(2)
           PRINT *, 'NLAT & NLON:   ', NLAT, NLON
+          PRINT *, 'iMerra:        ', iMerra
           PRINT *, '---------------------------------------'
         END IF
 !---------------------------------------------------------------------------

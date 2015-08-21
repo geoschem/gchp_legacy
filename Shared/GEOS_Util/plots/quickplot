@@ -19,11 +19,17 @@ if( $nmax == 0 ) then
       echo "quickplot -source   SOURCE_DIRECTORY"
       echo "          -season   SEASON"
       echo "         [-cmpexp   CMPEXP_DIRECTORY]"
+      echo "         [-latbeg   LATBEG]"
+      echo "         [-latend   LATEND]"
+      echo "         [-lonbeg   LONBEG]"
+      echo "         [-lonend   LONEND]"
       echo "         [-begdate  BEGDATE]"
       echo "         [-enddate  ENDDATE]"
+      echo "         [-cintdiff CINTDIFF]"
       echo "         [-type     TYPE]"
       echo "         [-plots    PLOTS]"
       echo "         [-noplot   NOPLOTS]"
+      echo "         [-zlog     ZLOG]"
       echo "         [-plotsdir PLOTSDIR]"
       echo "         [-hist     HISTORY_DIRECTORY]"
       echo "         [-rc       HISTORY.rc]"
@@ -32,14 +38,21 @@ if( $nmax == 0 ) then
       echo "         [-ana      ANALYSIS]"
       echo "         [-std      STD_DEV ]"
       echo "         [-gradsx   GRADSX]"
+      echo "         [-cmpexp_only  CMPEXP_ONLY]"
       echo " "
       echo "where:    SOURCE_DIRECTORY: is the source directory for experiment"
       echo "                    SEASON: is the season to plot (eg. DJF, JAN)"
       echo "          CMPEXP_DIRECTORY: are the experiment directory(s) to be used for comparison  (Default: None)"
+      echo "                    LATBEG: is the beginning Latitude  (Default: -90)"
+      echo "                    LATEND: is the    ending Latitude  (Default:  90)"
+      echo "                    LONBEG: is the beginning Longitude (Default:   0)"
+      echo "                    LONEND: is the    ending Longitude (Default: 360)"
       echo "                   BEGDATE: is the YYYYMM to begin time average  (Default: Begin Date in File)"
       echo "                   ENDDATE: is the YYYYMM to end   time average  (Default: End   Date in File)"
+      echo "                  CINTDIFF: optional parameter for dynamic CINT calculation for difference plots  (Default: OFF)"
       echo "                      TYPE: L for Landscape, P for Portrait                 (Default: BOTH)"
       echo "                     PLOTS: prog surf moist turb rad gwd                    (Default: ALL)"
+      echo "                      ZLOG: Flag for Zonal Mean ZLOG Option (OFF or ON)     (Default: OFF)"
       echo "                   NOPLOTS: Any plot(s) you wish to skip (useful with ALL)  (Default: NONE)"
       echo "                  PLOTSDIR: is the directory to write plots into            (Default: SOURCE_DIRECTORY/plots)"
       echo "         HISTORY_DIRECTORY: is the directory containing the HISTORY.rc file (Default: SOURCE_DIRECTORY)"
@@ -49,7 +62,8 @@ if( $nmax == 0 ) then
       echo "                    TAYLOR: Logical for producing Taylor Plots              (Default: TAYLOR   = TRUE)"
       echo "                  ANALYSIS: Logical for producing Analysis Contour Levels   (Default: ANALYSIS = FALSE)"
       echo "                   STD_DEV: Logical for producing Standard Deviation Plots  (Default: STD_DEV  = FALSE)"
-      echo "                    GRADSX: GrADS executable to use for processing          (Default: GRADSX  = gradsnc4)"
+      echo "                    GRADSX: GrADS executable to use for processing          (Default: GRADSX   = gradsnc4)"
+      echo "               CMPEXP_ONLY: Logical for producing ONLY CMPEXP plots         (Default: CMPEXP_ONLY = FALSE)"
       echo " "
       exit 1
 endif
@@ -68,12 +82,25 @@ set clim     = true
 set taylor   = true
 set analysis = false
 set std_dev  = false
+set zlog     = OFF
 set begdate  = NULL
 set enddate  = NULL
 set cmpexp   = NULL
 set move     = false
 set gradsx   = gradsnc4
 set noplot   = ""
+set latbeg   = -90
+set latend   =  90
+set lonbeg   =   0
+set lonend   = 360
+set cintdiff = NULL
+set cmpexp_only = FALSE
+
+# Set Default OPS Comparison Experiments
+# --------------------------------------
+set cmpops = "$VERIFICATION/MERRA_MEANS:A   \
+              $VERIFICATION/MERRA2_MEANS:A"
+set cmpops = `echo $cmpops`
 
 # Parse command line
 # ------------------
@@ -100,17 +127,43 @@ while( $n <= $nmax )
                     @ n = $n + 1
              set expid  = $argv[$n]
        endif
-       if( "$argv[$n]" == "-begdate"   ) then
+       if( "$argv[$n]" == "-latbeg" | "$argv[$n]" == "-beglat" ) then
+                    @ n = $n + 1
+             set  latbeg = $argv[$n]
+       endif
+       if( "$argv[$n]" == "-latend" | "$argv[$n]" == "-endlat" ) then
+                    @ n = $n + 1
+             set  latend = $argv[$n]
+       endif
+       if( "$argv[$n]" == "-lonbeg" | "$argv[$n]" == "-beglon" ) then
+                    @ n = $n + 1
+             set  lonbeg = $argv[$n]
+       endif
+       if( "$argv[$n]" == "-lonend" | "$argv[$n]" == "-endlon" ) then
+                    @ n = $n + 1
+             set  lonend = $argv[$n]
+       endif
+       if( "$argv[$n]" == "-begdate" | "$argv[$n]" == "-datebeg" ) then
                     @ n = $n + 1
              set begdate = $argv[$n]
        endif
-       if( "$argv[$n]" == "-enddate"   ) then
+       if( "$argv[$n]" == "-enddate" | "$argv[$n]" == "-dateend" ) then
                     @ n = $n + 1
              set enddate = $argv[$n]
+       endif
+       if( "$argv[$n]" == "-cintdiff"  ) then
+                    @ n = $n + 1
+            set cintdiff = $argv[$n]
        endif
        if( "$argv[$n]" == "-clim"   ) then
                     @ n = $n + 1
              set clim   = $argv[$n]
+       endif
+       if( "$argv[$n]" == "-zlog"   ) then
+                    @ n = $n + 1
+             set  zlog  = $argv[$n]
+             set  zlog  = `echo $zlog   | tr "[:lower:]" "[:upper:]"`
+             if( $zlog != ON ) set zlog = OFF
        endif
        if( "$argv[$n]" == "-type"   ) then
                     @ n = $n + 1
@@ -130,6 +183,7 @@ while( $n <= $nmax )
        if( "$argv[$n]" == "-ana"    ) set analysis = true
        if( "$argv[$n]" == "-debug"  ) set debug    = true
        if( "$argv[$n]" == "-move"   ) set move     = true
+       if( "$argv[$n]" == "-cmpexp_only" ) set cmpexp_only = TRUE
        if( "$argv[$n]" == "-cmpexp" ) then
                     @ n = $n + 1
                                       set cmpexp  = ""
@@ -212,6 +266,18 @@ setenv STD_DEV        $std_dev
 setenv TBEG           $begdate
 setenv TEND           $enddate
 setenv GRADSX         $gradsx 
+setenv CMPEXP_ONLY    $cmpexp_only
+ 
+if( $lonbeg < 0 ) then
+   @ lonbeg = $lonbeg + 360
+   @ lonend = $lonend + 360
+endif
+setenv LONSENV "$lonbeg $lonend"
+setenv LATSENV "$latbeg $latend"
+
+if( $lonbeg != 0 | $lonend != 360 | $latbeg != -90 | $latend != 90 | $cintdiff != NULL ) then
+    setenv CINTDIFF ON
+endif
 
 if( -e $source/.HOMDIR ) then
     set homdir = `cat $source/.HOMDIR`
@@ -227,9 +293,19 @@ else
 endif
 
 if( $cmpexp[1] != "NULL" ) then
-    setenv CMPEXP "$cmpexp NULL"
+    if( $cmpexp_only == TRUE ) then
+         setenv CMPEXP "$cmpexp NULL"
+    else
+         setenv CMPEXP "$cmpexp $cmpops NULL"
+    endif
 else
-    setenv CMPEXP "$cmpexp"
+echo $cmpops
+    if( $cmpexp_only == TRUE ) then
+         setenv CMPEXP "$cmpexp"
+    else
+    echo setenv CMPEXP "$cmpops $cmpexp"
+         setenv CMPEXP "$cmpops $cmpexp"
+    endif
 endif
 
 if( $TBEG != NULL ) setenv CLIM false
@@ -488,6 +564,18 @@ echo "     STD_DEV = " $STD_DEV
 echo "        PLOT = " $plot
 echo " "
 
+set DUMMY = `echo $CMPEXP`
+if( "$DUMMY[1]" != "NULL" ) then
+  @  NDUMMY = $#DUMMY - 1
+  echo "Comparison Experiments: $DUMMY[1]"
+  @        N = 2
+  while( $N <= $NDUMMY )
+  echo "                        $DUMMY[$N]"
+  @        N = $N + 1
+  end
+  echo " "
+endif
+
 # Check Format of HISTORY.rc
 # --------------------------
    set   test   = `grep COLLECTIONS $HISTORYRC`
@@ -508,6 +596,7 @@ echo " "
                                            -output   $plots_dir \
                                            -geosutil $GEOSUTIL  \
                                            -grads    $GRADS     \
+                                           -zlog     $zlog      \
                                            -debug               \
                                            -season   $seasons    
        endif
@@ -518,6 +607,7 @@ echo " "
                                            -output   $plots_dir \
                                            -geosutil $GEOSUTIL  \
                                            -grads    $GRADS     \
+                                           -zlog     $zlog      \
                                            -debug               \
                                            -season   $seasons    
        endif
@@ -531,6 +621,7 @@ echo " "
                                            -output   $plots_dir \
                                            -geosutil $GEOSUTIL  \
                                            -grads    $GRADS     \
+                                           -zlog     $zlog      \
                                            -batch               \
                                            -season   $seasons   &
           sleep 5
@@ -542,6 +633,7 @@ echo " "
                                            -output   $plots_dir \
                                            -geosutil $GEOSUTIL  \
                                            -grads    $GRADS     \
+                                           -zlog     $zlog      \
                                            -batch               \
                                            -season   $seasons   &
           sleep 5

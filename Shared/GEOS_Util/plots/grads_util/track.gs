@@ -6,6 +6,14 @@ function track (args)
 ****
 ********************************************************
 
+'getinfo lons'
+         lonmin = subwrd(result,1)
+         lonmax = subwrd(result,2)
+'getinfo lats'
+         latmin = subwrd(result,1)
+         latmax = subwrd(result,2)
+
+manual = false
 
 * Determine if tracking file exists
 * ---------------------------------
@@ -26,10 +34,12 @@ else
        tend   = result
     endif
     ioflag = 1-sublin( read(name),1 )
+    say 'ioflag = 'ioflag
     if(ioflag!= 0)
        close  = close(name)
     else
-       write(name,tend)
+       tdiff = tend-tbeg+1
+       write(name,tdiff)
     endif
 endif
 
@@ -37,12 +47,12 @@ endif
 * -----------------------------
 if (ioflag!=0)
     dummy = sublin( read(name),2 )
-    t = 1
-    while (t<tbeg)
+    t = tbeg
+    while (t<=tend)
     lon.t = sublin( read(name),2 )
     lat.t = sublin( read(name),2 )
     slp.t = sublin( read(name),2 )
-    wmax  = sublin( read(name),2 )
+    say 'NAME: 'name'  T: 't'  Lat: 'lat.t'  Lon: 'lon.t'  SLP: 'slp.t
     t = t + 1
     endwhile
 else
@@ -85,7 +95,7 @@ while (t<tend+1)
 
 * Draw Track to Previous Position
 * -------------------------------
-  i = 1
+  i = tbeg
   while (i<t) 
     'q w2xy 'lon.i' 'lat.i
     x = subwrd(result,3)
@@ -94,7 +104,7 @@ while (t<tend+1)
     'draw mark 3 'x' 'y' 0.1'
     'set line 8'
     'draw mark 3 'x' 'y' 0.05'
-    if (i>1) 
+    if (i>tbeg) 
       'set line 1 1 3'
       'draw line 'xold' 'yold' 'x' 'y
       'set line 8 1 1'
@@ -113,32 +123,48 @@ while (t<tend+1)
     'set ccolor 0'
     'set clab  off'
     'set grads off'
-    'd slp'
+    'd slp/100'
     'set ccolor rainbow'
 
-* Draw Mark at Current Position
-* -----------------------------
-say 'Click on center position'
+if( manual = true )
+* For Manual Positioning, Use the Following Code
+* ----------------------------------------------
     'q pos'
      x = subwrd(result,3)
      y = subwrd(result,4)
     'q xy2w 'x' 'y
     lon.t = subwrd(result,3)
     lat.t = subwrd(result,6)
-   'define s = sqrt( us*us + vs*vs )'
    'set gxout stat'
    'set grads off'
    'd slp/100'
     tmp  = sublin(result,8)
     pmin = subwrd(tmp,4)
     slp.t = pmin
-   'd s'
-    tmp  = sublin(result,8)
-    wmax = subwrd(tmp,5)
+
+else
+* Draw Mark at Current Position
+* -----------------------------
+say 'Click on center position'
+    'minmax slp/100'
+    pmin = subwrd(result,2)
+    xmin = subwrd(result,5)
+    ymin = subwrd(result,6)
+    'set x 'xmin
+    'set y 'ymin
+    'getinfo lon'
+             lon.t = result
+    'getinfo lat'
+             lat.t = result
+             slp.t = pmin
+
+    'set lon 'lonmin' 'lonmax
+    'set lat 'latmin' 'latmax
+endif
+
     write(name,lon.t,append)
     write(name,lat.t,append)
     write(name,slp.t,append)
-    write(name,wmax ,append)
 
 * Final Picture
 * -------------
@@ -161,7 +187,7 @@ say 'Click on center position'
 
 * Draw Track to Previous Position
 * -------------------------------
-  i = 1
+  i = tbeg
   while (i<=t) 
     'q w2xy 'lon.i' 'lat.i
     x = subwrd(result,3)
@@ -170,7 +196,7 @@ say 'Click on center position'
     'draw mark 3 'x' 'y' 0.1'
     'set line 8'
     'draw mark 3 'x' 'y' 0.05'
-    if (i>1) 
+    if (i>tbeg) 
       'set line 1 1 3'
       'draw line 'xold' 'yold' 'x' 'y
       'set line 8 1 1'
@@ -188,7 +214,6 @@ t = t + 1
 
 endwhile 
 
-* 'wi geos1.'frame'.gif'
    close = close(name)
 
 endif
@@ -202,17 +227,15 @@ endif
 if (ioflag!=0)
 
 frame = 1000
+    t = tbeg
 
 while (t<tend+1)
   'set t 't
    frame = frame + 1
 
-* Retrieve Track Position
-* -----------------------
-    lon.t = sublin( read(name),2 )
-    lat.t = sublin( read(name),2 )
-    slp.t = sublin( read(name),2 )
-    wmax  = sublin( read(name),2 )
+* Echo Track Position
+* -------------------
+    say 'NAME: 'name'  T: 't'  Lat: 'lat.t'  Lon: 'lon.t'  SLP: 'slp.t
 
 * Draw Background BaseMap
 * -----------------------
@@ -231,7 +254,7 @@ while (t<tend+1)
 
 * Draw Track to Current Position
 * ------------------------------
-  i = 1
+  i = tbeg
   while (i<=t) 
     'q w2xy 'lon.i' 'lat.i
     x = subwrd(result,3)
@@ -240,7 +263,7 @@ while (t<tend+1)
     'draw mark 3 'x' 'y' 0.1'
     'set line 8'
     'draw mark 3 'x' 'y' 0.05'
-    if (i>1) 
+    if (i>tbeg) 
       'set line 1 1 3'
       'draw line 'xold' 'yold' 'x' 'y
       'set line 8 1 1'
@@ -256,9 +279,7 @@ while (t<tend+1)
 t = t + 1
 
 endwhile 
-
-* 'wi geos1.'frame'.gif'
-   close = close(name)
+close = close(name)
 
 * Write SLP Trace file
 * --------------------
@@ -290,10 +311,10 @@ endwhile
 'set gxout fwrite'
 'set fwrite 'name'.data'
 tdim = tend-tbeg+1
-i = 1
-while( i<=tdim )
-'d 'slp.i
-i = i + 1
+t = tbeg
+while( t<=tend )
+'d 'slp.t
+t = t + 1
 endwhile
 'disable fwrite'
 'set gxout contour'

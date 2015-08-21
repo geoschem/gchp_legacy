@@ -106,8 +106,12 @@ undef = result
 'set undef 'undef
 
 blank = " "
-qmin =  1e+15
-qmax = -1e+15
+
+'d abs('undef')'
+valu = subwrd(result,4)
+qmax = -1 * valu
+qmin =      valu
+
 xmin = 0
 ymin = 0
 zmin = 0
@@ -118,7 +122,11 @@ zmax = 0
 tmax = 0
 'getinfo file'
          file = result
-say 'Checking file: 'file' with undef value: 'undef' against 'qmin
+
+say 'Checking File: 'file
+say '        UNDEF: 'undef
+say ' Initial QMAX: 'qmax
+say ' Initial QMIN: 'qmin
 
 * Loop over all input fields
 * --------------------------
@@ -181,8 +189,10 @@ endwhile
 
 * Return output
 * -------------
-if( qmin =  1e+15 ) ; qmin = undef ; endif
-if( qmax = -1e+15 ) ; qmax = undef ; endif
+qmax0 = -1 * valu
+qmin0 =      valu
+if( qmin = qmin0 ) ; qmin = undef ; endif
+if( qmax = qmax0 ) ; qmax = undef ; endif
 
 say 'The max  value is 'field.nmax'('xmax','ymax','zmax') = 'qmax' for t = 'tmax
 say 'The min  value is 'field.nmin'('xmin','ymin','zmin') = 'qmin' for t = 'tmin

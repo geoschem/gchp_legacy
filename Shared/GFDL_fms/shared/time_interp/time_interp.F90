@@ -195,7 +195,7 @@ integer, public, parameter :: NONE=0, YEAR=1, MONTH=2, DAY=3
    logical :: mod_leapyear
 
    character(len=128) :: version='$Id: time_interp.F90,v 1.1.1.2 2012-11-16 16:00:10 atrayano Exp $'
-   character(len=128) :: tagname='$Name: jk-G40-GEOSctm-advcore-update3 $'
+   character(len=128) :: tagname='$Name: Heracles-3_1_CTM $'
 
    logical :: module_is_initialized=.FALSE.
    logical :: perthlike_behavior=.FALSE.

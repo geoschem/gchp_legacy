@@ -995,9 +995,8 @@ C **********************************************************************
             write(6,3102) trim(vname2(n)),plev,qming,qmaxg
          endif
          endif
-
- 3101    format(1x,'Primary Field: ',a20,' Level: ',f9.3,'  Min: ',g,'  Max: ',g)
- 3102    format(1x,'               ',a20,' Level: ',f9.3,'  Min: ',g,'  Max: ',g)
+ 3101    format(1x,'Primary Field: ',a20,' Level: ',f9.3,'  Min: ',g15.8,'  Max: ',g15.8)
+ 3102    format(1x,'               ',a20,' Level: ',f9.3,'  Min: ',g15.8,'  Max: ',g15.8)
          enddo
       call my_barrier (comm)
       if( root ) print *

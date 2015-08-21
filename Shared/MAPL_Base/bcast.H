@@ -1,4 +1,4 @@
-! $Id: bcast.H,v 1.3 2010-09-21 20:05:09 atrayano Exp $
+! $Id: bcast.H,v 1.4 2015-03-03 17:00:48 atrayano Exp $
 
 #ifdef NAME_
 #undef NAME_
@@ -11,10 +11,10 @@
   subroutine SUB_ ( layout, DATA, N, ROOT, RC)
 
     type (ESMF_DELayout)                         :: layout
-#if (VARTYPE_ > 0)
-    TYPE_(kind=EKIND_), intent(INOUT)            :: data DIMENSIONS_
+#if (VARTYPE_ == 2)
+    logical,   intent(INOUT)            :: data DIMENSIONS_
 #else
-    character(LEN=*),   intent(INOUT)            :: data DIMENSIONS_
+    TYPE_(kind=EKIND_), intent(INOUT)            :: data DIMENSIONS_
 #endif
 
     integer,            intent(in   )            :: N
@@ -45,10 +45,10 @@
   subroutine SUB_ ( vm, DATA, N, ROOT, RC)
 
     type (ESMF_VM)                               :: vm
-#if (VARTYPE_ > 0)
-    TYPE_(kind=EKIND_), intent(INOUT)            :: data DIMENSIONS_
+#if (VARTYPE_ == 2)
+    logical,   intent(INOUT)            :: data DIMENSIONS_
 #else
-    character(LEN=*),   intent(INOUT)            :: data DIMENSIONS_
+    TYPE_(kind=EKIND_), intent(INOUT)            :: data DIMENSIONS_
 #endif
 
     integer,            intent(in   )            :: N

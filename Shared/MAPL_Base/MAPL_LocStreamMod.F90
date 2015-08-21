@@ -1,4 +1,4 @@
-!  $Id: MAPL_LocStreamMod.F90,v 1.56.12.2.2.4 2014-02-15 16:34:25 atrayano Exp $
+!  $Id: MAPL_LocStreamMod.F90,v 1.58 2015-02-18 15:22:04 atrayano Exp $
 
 #include "MAPL_ErrLog.h"
 
@@ -204,13 +204,25 @@ contains
 
     character(len=ESMF_MAXSTR) :: IAm='MAPL_LocStreamGet'
     integer                    :: STATUS
+    integer                    :: n_ele, i
+    integer, pointer           :: tmp_iptr(:) => null()
+    real,    pointer           :: tmp_rptr(:) => null()
+    character(len=ESMF_MAXSTR), pointer       :: tmp_strptr(:) => null()
 
     if (present(NT_LOCAL)) then
        NT_LOCAL = locstream%Ptr%NT_LOCAL
     end if
 
     if (present(tiletype)) then
+#ifdef __GFORTRAN__
+       allocate(tmp_iptr(lbound(locstream%Ptr%Local_GeoLocation,1):ubound(locstream%Ptr%Local_GeoLocation,1)))
+       do i = lbound(locstream%Ptr%Local_GeoLocation,1), ubound(locstream%Ptr%Local_GeoLocation,1)
+         tmp_iptr(i) = locstream%Ptr%Local_GeoLocation(i)%t
+       enddo
+       tiletype => tmp_iptr
+#else
        tiletype => locstream%Ptr%Local_GeoLocation(:)%t
+#endif
     end if
 
     if (present(tilekind)) then
@@ -220,27 +232,67 @@ contains
     end if
 
     if (present(tilelons)) then
+#ifdef __GFORTRAN__
+       allocate(tmp_rptr(lbound(locstream%Ptr%Local_GeoLocation,1):ubound(locstream%Ptr%Local_GeoLocation,1)))
+       do i = lbound(locstream%Ptr%Local_GeoLocation,1), ubound(locstream%Ptr%Local_GeoLocation,1)
+         tmp_rptr(i) = locstream%Ptr%Local_GeoLocation(i)%x
+       enddo
+       tilelons => tmp_rptr
+#else
        tilelons => locstream%Ptr%Local_GeoLocation(:)%x
+#endif
     end if
 
     if (present(tilelats)) then
+#ifdef __GFORTRAN__
+       allocate(tmp_rptr(lbound(locstream%Ptr%Local_GeoLocation,1):ubound(locstream%Ptr%Local_GeoLocation,1)))
+       do i = lbound(locstream%Ptr%Local_GeoLocation,1), ubound(locstream%Ptr%Local_GeoLocation,1)
+         tmp_rptr(i) = locstream%Ptr%Local_GeoLocation(i)%y
+       enddo
+       tilelats => tmp_rptr
+#else
        tilelats => locstream%Ptr%Local_GeoLocation(:)%y
+#endif
     end if
 
     if (present(tilearea)) then
        if (locstream%Ptr%IsTileAreaValid) then
+#ifdef __GFORTRAN__
+          allocate(tmp_rptr(lbound(locstream%Ptr%Local_GeoLocation,1):ubound(locstream%Ptr%Local_GeoLocation,1)))
+          do i = lbound(locstream%Ptr%Local_GeoLocation,1), ubound(locstream%Ptr%Local_GeoLocation,1)
+            tmp_rptr(i) = locstream%Ptr%Local_GeoLocation(i)%a
+          enddo
+          tilearea => tmp_rptr
+#else
           tilearea => locstream%Ptr%Local_GeoLocation(:)%a
+#endif
        else
           tilearea => null()
        end if
     end if
 
     if (present(gridim)) then
+#ifdef __GFORTRAN__
+       allocate(tmp_iptr(lbound(locstream%Ptr%tiling,1):ubound(locstream%Ptr%tiling,1)))
+       do i = lbound(locstream%Ptr%tiling,1), ubound(locstream%Ptr%tiling,1)
+         tmp_iptr(i) = locstream%Ptr%tiling(i)%im
+       enddo
+       gridim => tmp_iptr
+#else
        gridim => locstream%Ptr%tiling(:)%im
+#endif
     end if
 
     if (present(gridjm)) then
+#ifdef __GFORTRAN__
+       allocate(tmp_iptr(lbound(locstream%Ptr%tiling,1):ubound(locstream%Ptr%tiling,1)))
+       do i = lbound(locstream%Ptr%tiling,1), ubound(locstream%Ptr%tiling,1)
+         tmp_iptr(i) = locstream%Ptr%tiling(i)%jm
+       enddo
+       gridjm => tmp_iptr
+#else
        gridjm => locstream%Ptr%tiling(:)%jm
+#endif
     end if
 
     if (present(local_id)) then
@@ -248,7 +300,15 @@ contains
     end if
 
     if (present(gridnames)) then
+#ifdef __GFORTRAN__
+       allocate(tmp_strptr(lbound(locstream%Ptr%tiling,1):ubound(locstream%Ptr%tiling,1)))
+       do i = lbound(locstream%Ptr%tiling,1), ubound(locstream%Ptr%tiling,1)
+         tmp_strptr(i) = locstream%Ptr%tiling(i)%name
+       enddo
+       gridnames => tmp_strptr
+#else
        gridnames => locstream%Ptr%tiling(:)%name
+#endif
     end if
 
     if (present(attachedgrid)) then
@@ -481,8 +541,6 @@ contains
           allocate(STREAM%LOCAL_IndexLocation(STREAM%NT_LOCAL), STAT=STATUS)
           VERIFY_(STATUS)
 
-          allocate(STREAM%LOCAL_IndexLocation(STREAM%NT_LOCAL), STAT=STATUS)
-          VERIFY_(STATUS)
           do N=1,STREAM%N_GRIDS
              if (gname == STREAM%TILING(N)%NAME) then
                 K = 0
@@ -2329,7 +2387,7 @@ subroutine MAPL_LocStreamCreateXform ( Xform, LocStreamOut, LocStreamIn, NAME, M
 ! Make a Hash of the tile locations by input order
 !-------------------------------------------------
 
-     Hash  = MAPL_HashCreate(80*1024)
+     Hash  = MAPL_HashCreate(8*1024)
      do M = 1, LocStreamIn%Ptr%NT_global
         n = MAPL_HashIncrement(Hash,Global_IdByPe(M))
         ASSERT_(N==M)

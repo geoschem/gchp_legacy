@@ -12,6 +12,7 @@
 
 
       character*256 dynrst, moistrst, bkgeta, topo
+      character*256, allocatable :: other_rst(:)
 
       integer headr1(6)
       integer headr2(5)
@@ -44,7 +45,9 @@
       real*8, allocatable ::   ps_out(:,:)
       real*8, allocatable ::   ak_out(:)
       real*8, allocatable ::   bk_out(:)
+
 ! Two extras if we are on the cubed sphere grid
+! ---------------------------------------------
       real*8, allocatable ::   dz_out(:,:,:)
       real*8, allocatable ::    w_out(:,:,:)
 
@@ -53,18 +56,24 @@
 
       character*256, allocatable :: arg(:)
       character*8    date
+      character*1    char
       character*2    hour
-      character*3    cim,cjm,clm
-      integer n,nargs,iargc,i,j,L,nymd0,nhms0
+      character*4    cim,cjm,clm
+      integer m,n,nargs,iargc,i,j,L,nymd0,nhms0,id
+      integer num,num_other_rst,nbeg,nend
+      integer, allocatable :: nt_other(:)
+      logical  verbose
 
 ! **********************************************************************
 ! ****                      Initialize Filenames                    ****
 ! **********************************************************************
 
+       verbose = .false.
         lm_out = -999
          undef = 1.0e15
         dynrst = 'fvcore_internal_restart'
       moistrst = 'moist_internal_restart'
+      num_other_rst = 0
 
          nargs = iargc()
       if(nargs == 0 ) call usage()
@@ -77,15 +86,38 @@
              if( trim(arg(n)).eq.'-help'     ) call usage()
              if( trim(arg(n)).eq.'-H'        ) call usage()
              if( trim(arg(n)).eq.'-Help'     ) call usage()
+             if( trim(arg(n)).eq.'-v'        ) verbose = .true.
+             if( trim(arg(n)).eq.'-verbose'  ) verbose = .true.
+
              if( trim(arg(n)).eq.'-dynrst'   ) then
                                    dynrst  = trim(arg(n+1))
              endif
+
              if( trim(arg(n)).eq.'-moistrst' ) then
                                    moistrst = trim(arg(n+1))
              endif
+
              if( trim(arg(n)).eq.'-topo'     ) then
                                    topo     = trim(arg(n+1))
              endif
+
+             if( trim(arg(n)).eq.'-other' ) then
+                 num = 1
+                 if( n+num.le.nargs ) then
+                 read(arg(n+num),fmt='(a1)') char
+                 do while (char.ne.'-' .and. n+num.ne.nargs )
+                 num = num+1
+                 read(arg(n+num),fmt='(a1)') char
+                 enddo
+                 if( char.eq.'-' ) num = num-1
+                 allocate ( other_rst(num) )
+                 do m=1,num
+                 other_rst(m) = arg(n+m)
+                 enddo
+                 num_other_rst = num
+                 endif
+             endif
+
              if( trim(arg(n)).eq.'-lm'       ) read(arg(n+1),*) lm_out
       enddo
       if( lm_out.eq.-999 ) then
@@ -99,6 +131,9 @@
       print *, '  dyn  restart filename: ',trim(dynrst)
       print *, 'moist  restart filename: ',trim(moistrst)
       print *, '          topo filename: ',trim(topo)
+      do n=1,num_other_rst
+      print *, ' other restart filename: ',trim(other_rst(n))
+      enddo
 
 ! **********************************************************************
 ! ****                   Read dycore internal Restart               ****
@@ -184,12 +219,63 @@
                  allocate( q_in (im,jm,lm_in,nt) )
                            q_in = q_out
              endif
-             print *, 'Reading Moist Restart for Field # ',nt
+             print '(a,i4)', 'Reading Moist Restart      for Field # ',nt-nbeg
              deallocate( q_out )
         endif
       enddo
+      print *
 
       close (10)
+
+! **********************************************************************
+! ****                   Read Other 3D-Restarts                     ****
+! **********************************************************************
+
+      allocate( nt_other(0:num_other_rst) )
+                nt_other(0) = nt
+
+      if( num_other_rst.ne.0 ) then
+
+       ! n = 0
+      nbeg = nt
+      do m=1,num_other_rst
+        !open (10,file=trim(other_rst(m)),form='unformatted',access='direct',recl=im*jm*4)
+         open (10,file=trim(other_rst(m)),form='unformatted',access='sequential')
+         rc =  0
+         do while (rc.eq.0)
+          ! n = n+1
+          !read (10,iostat=rc,rec=n) dum
+           read (10,iostat=rc)       dum
+           if( rc.eq.0 ) then
+               nt = nt + 1
+               allocate( q_out(im,jm,lm_in,nt) )
+                         q_out(:,:,1,nt)   = dum
+                         do L=2,lm_in
+                        !n = n+1
+                        !read (10,iostat=rc,rec=n) dum
+                         read (10,iostat=rc)       dum
+                         if( rc.eq.0 ) then
+                             q_out(:,:,L,nt)   = dum
+                         else
+                             print *, trim(other_rst(m)),' not 3D!'
+                             stop
+                         endif
+                         enddo
+                         q_out(:,:,:,1:nt-1) = q_in(:,:,:,1:nt-1)
+                  deallocate( q_in )
+                    allocate( q_in (im,jm,lm_in,nt) )
+                              q_in = q_out
+                print '(a,i2,a,i4)', 'Reading Other_Restart # ',m,' for Field # ',nt-nbeg
+                deallocate( q_out )
+           endif
+         enddo
+         nt_other(m) = nt-nbeg
+                nbeg = nt
+         print *
+         close (10)
+      enddo
+
+      endif
 
 ! **********************************************************************
 ! ****                    Read Topography Datasets                  ****
@@ -223,11 +309,15 @@
       allocate (   dz_out(im,jm,lm_out)    )
       allocate (    w_out(im,jm,lm_out)    )
 
+! ----------------------------------
+
       print *, 'Calling REMAP ...'
       call remap  ( ps_out,dp_out,u_out,v_out,thv_out,q_out,phis,lm_out, &
                     ps_in ,dp_in ,u_in ,v_in ,thv_in ,q_in ,phis,lm_in , &
-                    im,jm,nt,ak_out,bk_out )
+                    im,jm,nt,ak_out,bk_out,verbose )
       print *, '        REMAP Finished'
+
+! ----------------------------------
 
       kappa = MAPL_KAPPA
 
@@ -261,17 +351,13 @@
       write(clm ,103) lm_out
   101 format(i8.8)
   102 format(i2.2)
-  103 format(i3.3)
+  103 format(i4.4)
 
       dynrst = trim(dynrst) // '.r' // cim  // 'x' // cjm  // 'x' // clm //      &
                                '.e' // date // '_' // hour // 'z'
 
-      moistrst = trim(moistrst) // '.r' // cim  // 'x' // cjm  // 'x' // clm //  &
-                                   '.e' // date // '_' // hour // 'z'
-
       print *
       print *, '              Creating: ',trim(dynrst)
-      print *, '              Creating: ',trim(moistrst)
       print *, '     output resolution: ',im,jm,lm_out
       print *, '                  date: ',nymd,nhms
       print *
@@ -308,6 +394,7 @@
              write(10) ((  w_out(i,j,L),i=1,im),j=1,jm)
           enddo
           print *,' Cubed Sphere Grid: Writing zero fields of DZ and W '
+          print *
        endif
 
           close (10)
@@ -316,20 +403,56 @@
 ! ****                  Write moist internal Restart                ****
 ! **********************************************************************
 
+      moistrst = trim(moistrst) // '.r' // cim  // 'x' // cjm  // 'x' // clm //  &
+                                   '.e' // date // '_' // hour // 'z'
+      print *, '              Creating: ',trim(moistrst)
+
       open  (10,file=trim(moistrst),form='unformatted',access='sequential')
-      do n=1,nt
+      do n=1,nt_other(0)
+      print '(a,i4)',      '                         Writing Moist Restart      for Field # ',n
       do L=1,lm_out
          dum(:,:) = q_out(:,:,L,n)
          write(10)  dum
       enddo
       enddo
+      print *
       close (10)
+
+! **********************************************************************
+! ****                  Write Other Internal Restarts               ****
+! **********************************************************************
+
+      if( num_other_rst.ne.0 ) then
+
+      nbeg = nt_other(0) + 1
+      do m=1,num_other_rst
+         nend = nbeg + nt_other(m)-1
+
+         other_rst(m) = trim(other_rst(m)) // '.r' // cim  // 'x' // cjm  // 'x' // clm //  &
+                                              '.e' // date // '_' // hour // 'z'
+         print *, '              Creating: ',trim(other_rst(m))
+
+         open (10,file=trim(other_rst(m)),form='unformatted',access='sequential')
+
+         do n=nbeg,nend
+         print '(a,i2,a,i4)', '                         Writing Other_Restart # ',m,' for Field # ',n-nbeg+1
+         do L=1,lm_out
+            dum(:,:) = q_out(:,:,L,n)
+            write(10)  dum
+         enddo
+         enddo
+         close (10)
+         nbeg = nend + 1
+         print *
+      enddo
+
+      endif
 
       stop
       end
 
       subroutine remap  ( ps1,dp1,u1,v1,thv1,q1,phis1,lm1, &
-                          ps2,dp2,u2,v2,thv2,q2,phis2,lm2,im,jm,nt,ak1,bk1 )
+                          ps2,dp2,u2,v2,thv2,q2,phis2,lm2,im,jm,nt,ak1,bk1,verbose )
 
 ! *******************************************************************************
 ! *****                                                                     *****
@@ -340,6 +463,7 @@
 ! *******************************************************************************
 
       use MAPL_ConstantsMod
+      use m_set_eta, only: set_eta
       implicit none
       integer  im,jm,lm1,lm2,nt
 
@@ -368,6 +492,8 @@
       real     ak2(lm2+1)
       real     bk2(lm2+1)
 
+      logical  verbose
+
 ! Local variables
 ! ---------------
       real    pz(im,jm)
@@ -380,9 +506,11 @@
       real  pke2(im,jm,lm2+1)
       real  phi2(im,jm,lm2+1)
 
+      real, allocatable :: plevs(:)
+
       real    kappa,cp,pl,dum,dum1,dum2
       real    rgas,pref,tref,pkref,tstar,eps,rvap,grav
-      integer i,j,L
+      integer i,j,L,kdum
 
       kappa = MAPL_KAPPA
       rgas  = MAPL_RGAS
@@ -393,8 +521,28 @@
 
 ! Create AK & BK for each vertical dimension
 ! ------------------------------------------
-      call set_eta ( lm1,dum,ak1,bk1 )
-      call set_eta ( lm2,dum,ak2,bk2 )
+      call set_eta ( lm1,kdum,dum,dum,ak1,bk1 )
+      call set_eta ( lm2,kdum,dum,dum,ak2,bk2 )
+
+      if( verbose ) then
+          allocate( plevs(lm2) )
+          do L=1,lm2
+          plevs(L) = 0.5*( ak2(L)   + 100000.0*bk2(L)   &
+                         + ak2(L+1) + 100000.0*bk2(L+1) )
+          enddo
+          print *, 'Input PLEVS:'
+          print *, (plevs(L)/100,L=1,lm2)
+
+          deallocate( plevs )
+            allocate( plevs(lm1) )
+          do L=1,lm1
+          plevs(L) = 0.5*( ak1(L)   + 100000.0*bk1(L)   &
+                         + ak1(L+1) + 100000.0*bk1(L+1) )
+          enddo
+          print *, 'Output PLEVS:'
+          print *, (plevs(L)/100,L=1,lm1)
+          deallocate( plevs )
+      endif
 
 ! Create Pressure Variables
 ! -------------------------

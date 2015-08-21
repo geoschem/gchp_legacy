@@ -1,4 +1,4 @@
-! $Id: MAPL_Base.F90,v 1.43.2.6.2.1.2.2.10.1 2014-05-07 20:24:41 bmauer Exp $
+! $Id: MAPL_Base.F90,v 1.46 2015-02-20 22:50:36 atrayano Exp $
 
 #include "MAPL_ErrLog.h"
 
@@ -56,6 +56,7 @@ public MAPL_GetHorzIJIndex
 public MAPL_GenGridName
 public MAPL_GeosNameNew
 public MAPL_Communicators
+public MAPL_BundleCreate
 
 ! !PUBLIC PARAMETERS
 !
@@ -66,7 +67,8 @@ integer, public, parameter :: MAPL_CplNOTNEEDED      = 4
 integer, public, parameter :: MAPL_FriendlyVariable  = 8
 integer, public, parameter :: MAPL_FieldItem         = 8
 integer, public, parameter :: MAPL_BundleItem        = 16
-integer, public, parameter :: MAPL_NoRestart         = 32        
+integer, public, parameter :: MAPL_StateItem         = 32
+integer, public, parameter :: MAPL_NoRestart         = 64
 
 integer, public, parameter :: MAPL_Write2Disk        = 0
 integer, public, parameter :: MAPL_Write2RAM         = 1
@@ -81,6 +83,7 @@ integer, public, parameter :: MAPL_DimsHorzOnly    = 2
 integer, public, parameter :: MAPL_DimsHorzVert    = 3
 integer, public, parameter :: MAPL_DimsTileOnly    = 4
 integer, public, parameter :: MAPL_DimsTileTile    = 5
+integer, public, parameter :: MAPL_DimsNone        = 6
 
 integer, public, parameter :: MAPL_ScalarField     = 1
 integer, public, parameter :: MAPL_VectorField     = 2
@@ -140,12 +143,12 @@ type MAPL_Communicators
    integer :: ioComm
    integer :: maplCommSize
    integer :: esmfCommSize
+   integer :: globalCommSize
    integer :: ioCommSize
    integer :: ioCommRoot
    integer :: myGlobalRank
    integer :: myIoRank
-   integer :: CoresPerNode
-   integer :: maxMem ! maximum memory per node in megabytes
+   integer :: maxMem
 end type MAPL_Communicators
 
 #ifdef __PROTEX__
@@ -364,6 +367,46 @@ contains
 ! Horizontal and vertical
 ! -----------------------
 
+    case(MAPL_DimsNone)
+       szungrd = 0
+       if (present(UNGRID)) then
+          szungrd = size(UNGRID)
+       end if
+       rank = szungrd
+
+       !ALT: This is special case - array does not map any gridded dims
+       gridToFieldMap= 0 
+       if (typekind == ESMF_KIND_R4) then
+          select case (rank)
+          case (1)
+             allocate(VAR_1D(UNGRID(1)), STAT=STATUS)
+             VERIFY_(STATUS)
+             VAR_1D = INIT_VALUE
+             call ESMF_FieldEmptyComplete(FIELD, farrayPtr=VAR_1D,    &
+                  datacopyFlag = ESMF_DATACOPY_REFERENCE,             &
+                  gridToFieldMap=gridToFieldMap,                      &
+                  rc = status)
+          case default
+             ASSERT_(.FALSE.) !ALT for now
+          end select
+          
+       else
+          select case (rank)
+          case (1)
+             allocate(VR8_1D(UNGRID(1)), STAT=STATUS)
+             VERIFY_(STATUS)
+             VR8_1D = INIT_VALUE
+             call ESMF_FieldEmptyComplete(FIELD, farrayPtr=VR8_1D,    &
+                  datacopyFlag = ESMF_DATACOPY_REFERENCE,             &
+                  gridToFieldMap=gridToFieldMap,                      &
+                  rc = status)
+          case default
+             ASSERT_(.FALSE.) !ALT for now
+          end select
+          
+       endif
+       VERIFY_(STATUS)
+       
     case(MAPL_DimsHorzVert)
        rank = 3
        
@@ -1593,7 +1636,7 @@ real    :: IIR(NT*COUNT), JJR(NT*COUNT)
       integer, optional, intent(  OUT) :: RC
       type (ESMF_Field)                :: FIELD
 
-      character(len=ESMF_MAXSTR),parameter   :: IAm=" MAPL_CreateFieldEmpty"
+      character(len=ESMF_MAXSTR),parameter   :: IAm=" MAPL_FieldCreateEmpty"
       integer                                :: STATUS
 
       FIELD = ESMF_FieldEmptyCreate(name=name, rc=status)
@@ -3426,6 +3469,142 @@ and so on.
        end if
     end if
   end subroutine MAPL_GeosNameNew
+
+  ! From a grid and a list of fields create an allocated ESMF bundle with
+  ! these fields. By Default variables will be 3D at the center location
+  ! unless 2 optional arguements are passed in. Can also pass in a list
+  ! of long names and units if desired
+  function MAPL_BundleCreate(name,grid,fieldNames,is2D,isEdge,long_names,units,rc) result(B)
+  character(len=*),           intent(in   ) :: name
+  type(ESMF_Grid),            intent(inout) :: grid
+  character(len=*),           intent(in   ) :: fieldNames(:)
+  logical, optional,          intent(in   ) :: is2D(:)
+  logical, optional,          intent(in   ) :: isEdge(:)
+  character(len=*), optional, intent(in   ) :: long_names(:)
+  character(len=*), optional, intent(in   ) :: units(:)
+  integer, optional, intent(out  ) :: rc
+  type(ESMF_FieldBundle) :: B
+
+  character(len=ESMF_MAXSTR), parameter :: IAm='MAPL_BundleCreate'
+  integer :: status
+  integer :: i
+  logical, allocatable :: localIs2D(:)
+  logical, allocatable :: localIsEdge(:)
+  real, pointer :: PTR2(:,:) => null()
+  real, pointer :: PTR3(:,:,:) => null()
+  integer :: counts(5)
+  integer :: dims(3)
+  integer, allocatable :: gridToFieldMap(:)
+  integer :: gridRank
+  type(ESMF_Field) :: field
+
+  allocate(localIs2D(size(fieldNames)),stat=status)
+  VERIFY_(STATUS)
+  if (present(is2D)) then
+     ASSERT_(size(fieldNames) == size(is2D))
+     localIs2D = is2D
+  else
+     localIs2D = .false. 
+  end if
+  allocate(localIsEdge(size(fieldNames)),stat=status)
+  VERIFY_(STATUS)
+  if (present(isEdge)) then
+     ASSERT_(size(fieldNames) == size(isEdge))
+     localIsEdge = isEdge
+  else
+     localIsEdge = .false. 
+  end if
+  if (present(long_names)) then
+     ASSERT_(size(fieldNames) == size(long_names))
+  end if
+  if (present(units)) then
+     ASSERT_(size(fieldNames) == size(units))
+  end if
+
+  B = ESMF_FieldBundleCreate ( name=name, rc=STATUS )
+  VERIFY_(STATUS)
+  call ESMF_FieldBundleSet ( B, grid=GRID, rc=STATUS )
+  VERIFY_(STATUS)
+  call MAPL_GridGet(GRID, globalCellCountPerDim=COUNTS, &
+       localCellCountPerDim=DIMS, RC=STATUS)
+  VERIFY_(STATUS)
+  do i=1,size(fieldnames)
+     if (localIs2D(i)) then
+
+        allocate(PTR2(DIMS(1),DIMS(2)),stat=STATUS)
+        VERIFY_(STATUS)
+        PTR2  = 0.0
+        call ESMF_GridGet(GRID, dimCount=gridRank, rc=status)
+        VERIFY_(STATUS)
+        allocate(gridToFieldMap(gridRank), stat=status)
+        VERIFY_(STATUS)
+        if(gridRank == 2) then
+           gridToFieldMap(1) = 1
+           gridToFieldMap(2) = 2
+        else if (gridRank == 3) then
+           gridToFieldMap(1) = 1
+           gridToFieldMap(2) = 2
+           gridToFieldMap(3) = 0
+        else
+           RETURN_(ESMF_FAILURE)
+        end if
+        FIELD = ESMF_FieldCreate(grid=GRID, &
+                datacopyFlag = ESMF_DATACOPY_REFERENCE,   &
+                farrayPtr=PTR2, gridToFieldMap=gridToFieldMap, &
+                name=fieldNames(i), RC=STATUS)
+        VERIFY_(STATUS)
+        deallocate(gridToFieldMap)
+        call ESMF_AttributeSet(FIELD, NAME='DIMS', VALUE=MAPL_DimsHorzOnly, RC=STATUS)
+        VERIFY_(STATUS)
+        call ESMF_AttributeSet(FIELD, NAME='VLOCATION', VALUE=MAPL_VLocationNone, RC=STATUS)
+        VERIFY_(STATUS)
+
+     else
+        if (localIsEdge(i)) then
+           allocate(PTR3(Dims(1),Dims(2),0:counts(3)),stat=status)
+           VERIFY_(STATUS)
+        else
+           allocate(PTR3(Dims(1),Dims(2),counts(3)),stat=status)
+           VERIFY_(STATUS)
+        end if
+        PTR3 = 0.0
+        FIELD = ESMF_FieldCreate(grid=GRID, &
+                datacopyFlag = ESMF_DATACOPY_REFERENCE,   &
+                farrayPtr=PTR3, name=fieldNames(i), RC=STATUS)
+        call ESMF_AttributeSet(FIELD, NAME='DIMS', VALUE=MAPL_DimsHorzVert, RC=STATUS)
+        VERIFY_(STATUS)
+        if (localIsEdge(i)) then
+              call ESMF_AttributeSet(FIELD, NAME='VLOCATION', VALUE=MAPL_VLocationEdge, RC=STATUS)
+              VERIFY_(STATUS)
+           else
+              call ESMF_AttributeSet(FIELD, NAME='VLOCATION', VALUE=MAPL_VLocationCenter, RC=STATUS)
+              VERIFY_(STATUS)
+        end if
+
+     end if
+     if (present(long_names)) then
+        call ESMF_AttributeSet(FIELD, NAME='LONG_NAME', VALUE=long_names(i), RC=STATUS)
+        VERIFY_(STATUS)
+     else
+        call ESMF_AttributeSet(FIELD, NAME='LONG_NAME', VALUE="UNKNOWN", RC=STATUS)
+        VERIFY_(STATUS)
+     end if
+     if (present(units)) then
+        call ESMF_AttributeSet(FIELD, NAME='LONG_NAME', VALUE=units(i), RC=STATUS)
+        VERIFY_(STATUS)
+     else
+        call ESMF_AttributeSet(FIELD, NAME='LONG_NAME', VALUE="UNKNOWN", RC=STATUS)
+        VERIFY_(STATUS)
+     end if
+     call MAPL_FieldBundleAdd(B, FIELD, RC=STATUS)
+     VERIFY_(STATUS)
+  enddo
+ 
+  deallocate(localIs2D)
+  deallocate(localIsEdge)
+  RETURN_(ESMF_SUCCESS)
+
+  end function MAPL_BundleCreate
 
 end module MAPL_BaseMod
 

@@ -197,7 +197,7 @@ wetmin = wetave - 0.6* ddif
 'set cmark  0'
 'set cstyle 1'
 'set ccolor 4'
-'set cthick 6'
+'set cthick 10'
 'd qdry'
 'set cmark  0'
 'set cstyle 1'

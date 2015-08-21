@@ -1,8 +1,21 @@
-      subroutine windfix ( ua,va,plea, &
-                           ub,vb,pleb,im,jm,lm,lattice,grid,method )
-      use G3_MPI_Util_Mod
+      
+#include "MAPL_Generic.h"
+
+      subroutine windfix ( ua,va,plea,                            &
+                           ub,vb,pleb,im,jm,lm,VM,GRIDana,method, &
+                           vintdiva,vintdivb,vintdivc )
+
+      use ESMF
+      use MAPL_Mod
+
       implicit none
-      type ( dynamics_lattice_type ) lattice
+
+      type (ESMF_VM)   :: VM
+      type (ESMF_Grid) :: GRIDana
+      integer          :: DIMS(ESMF_MAXGRIDDIM)
+      integer          :: RC,STATUS
+
+      character(len=ESMF_MAXSTR) :: IAm
 
       integer    im,jm,lm,method
       real    ua(im,jm,lm)
@@ -19,7 +32,9 @@
       real  diva(im,jm,lm)
       real  divb(im,jm,lm)
 
-      character(*) grid
+      real  vintdiva(im,jm)
+      real  vintdivb(im,jm)
+      real  vintdivc(im,jm)
 
       integer index(lm),ierror
 
@@ -39,20 +54,25 @@
       real, allocatable :: dumchi(:,:)
 
       integer L, comm, myid, npes
-      integer img, jmg
+      integer img, jmg, imjmg
       integer imax,jmax,msgn
       real    undef
 
+      Iam   = "WINDFIX"
       imax  = 576  ! Maximum IMG size for Laplacian Solver
       jmax  = 361  ! Maximum JMG size for Laplacian Solver
       msgn  = 0    ! Scalar  Flag
       undef = 1e15
 
-      img  = lattice%imglobal
-      jmg  = lattice%jmglobal
-      comm = lattice%comm
-      myid = lattice%myid
-      npes = lattice%nx * lattice%ny
+      call ESMF_VMGet (VM, localpet=myid, petcount=NPES,  RC=STATUS)
+      VERIFY_(STATUS)
+      call ESMF_VmGet (VM, mpicommunicator=comm, rc=status)
+      VERIFY_(STATUS)
+
+      call  MAPL_GridGet(GRIDana, globalCellCountPerDim=DIMS, RC=STATUS)
+      img = DIMS(1) ! global grid dim
+      jmg = DIMS(2) ! global grid dim
+      imjmg = img*jmg
 
       do L=1,lm
       index(L) = mod(L-1,npes)
@@ -80,13 +100,22 @@
 
 ! Gather Winds for Background
 ! ---------------------------
-      call G3_GATHER (  uglo, ub,lattice )
-      call G3_GATHER (  vglo, vb,lattice )
-      call G3_GATHER ( dpglo,dpb,lattice )
+      do L=1,lm
+         call ArrayGather (local_array= ub(:,:,L),global_array= uglo(:,:,L), grid=GRIDana, rc=status)
+         VERIFY_(STATUS)
+         call ArrayGather (local_array= vb(:,:,L),global_array= vglo(:,:,L), grid=GRIDana, rc=status)
+         VERIFY_(STATUS)
+         call ArrayGather (local_array=dpb(:,:,L),global_array=dpglo(:,:,L), grid=GRIDana, rc=status)
+         VERIFY_(STATUS)
 
-      call mpi_bcast (  uglo,img*jmg*lm,lattice%mpi_rkind,0,comm,ierror )
-      call mpi_bcast (  vglo,img*jmg*lm,lattice%mpi_rkind,0,comm,ierror )
-      call mpi_bcast ( dpglo,img*jmg*lm,lattice%mpi_rkind,0,comm,ierror )
+         call MAPL_CommsBcast (VM, DATA= uglo(:,:,L), N=imjmg, Root=MAPL_Root, RC=status)
+         VERIFY_(STATUS)
+         call MAPL_CommsBcast (VM, DATA= vglo(:,:,L), N=imjmg, Root=MAPL_Root, RC=status)
+         VERIFY_(STATUS)
+         call MAPL_CommsBcast (VM, DATA=dpglo(:,:,L), N=imjmg, Root=MAPL_Root, RC=status)
+         VERIFY_(STATUS)
+      enddo
+
 
 ! Compute Vorticity and Divergence
 ! --------------------------------
@@ -95,20 +124,32 @@
       enddo
       call mpi_barrier (comm,ierror)
       do L=1,lm
-      call mpi_bcast ( dglo(1,1,L),img*jmg,lattice%mpi_rkind,index(L),comm,ierror )
+         call MAPL_CommsBcast(VM, DATA=dglo(:,:,L), N=imjmg, Root=index(L), RC=status)
+         VERIFY_(STATUS)
       enddo
       call mpi_barrier (comm,ierror)
-      call G3_SCATTER  (dglo,divb,lattice)
+      do L=1,lm
+         call ArrayScatter(local_array=divb(:,:,L), global_array=dglo(:,:,L), grid=GRIDana, rc=status)
+      enddo
+
 
 ! Gather Winds for Analysis
 ! -------------------------
-      call G3_GATHER (  uglo, ua,lattice )
-      call G3_GATHER (  vglo, va,lattice )
-      call G3_GATHER ( dpglo,dpa,lattice )
+      do L=1,lm
+         call ArrayGather (local_array= ua(:,:,L),global_array= uglo(:,:,L), grid=GRIDana, rc=status)
+         VERIFY_(STATUS)
+         call ArrayGather (local_array= va(:,:,L),global_array= vglo(:,:,L), grid=GRIDana, rc=status)
+         VERIFY_(STATUS)
+         call ArrayGather (local_array=dpa(:,:,L),global_array=dpglo(:,:,L), grid=GRIDana, rc=status)
+         VERIFY_(STATUS)
 
-      call mpi_bcast (  uglo,img*jmg*lm,lattice%mpi_rkind,0,comm,ierror )
-      call mpi_bcast (  vglo,img*jmg*lm,lattice%mpi_rkind,0,comm,ierror )
-      call mpi_bcast ( dpglo,img*jmg*lm,lattice%mpi_rkind,0,comm,ierror )
+         call MAPL_CommsBcast (VM, DATA= uglo(:,:,L), N=imjmg, Root=MAPL_Root, RC=status)
+         VERIFY_(STATUS)
+         call MAPL_CommsBcast (VM, DATA= vglo(:,:,L), N=imjmg, Root=MAPL_Root, RC=status)
+         VERIFY_(STATUS)
+         call MAPL_CommsBcast (VM, DATA=dpglo(:,:,L), N=imjmg, Root=MAPL_Root, RC=status)
+         VERIFY_(STATUS)
+      enddo
 
 ! Compute Vorticity and Divergence
 ! --------------------------------
@@ -117,10 +158,14 @@
       enddo
       call mpi_barrier (comm,ierror)
       do L=1,lm
-      call mpi_bcast ( dglo(1,1,L),img*jmg,lattice%mpi_rkind,index(L),comm,ierror )
+         call MAPL_CommsBcast(VM, DATA=dglo(:,:,L), N=imjmg, Root=index(L), RC=status)
+         VERIFY_(STATUS)
       enddo
       call mpi_barrier (comm,ierror)
-      call G3_SCATTER  (dglo,diva,lattice)
+      do L=1,lm
+         call ArrayScatter(local_array=diva(:,:,L), global_array=dglo(:,:,L), grid=GRIDana, rc=status)
+         VERIFY_(STATUS)
+      enddo
 
 
 ! Compute Divergence Increment (to force vanishing vertical integral)
@@ -172,31 +217,41 @@
           enddo
       endif
 
+      vintdiva = sum1
+      vintdivb = sum2
+      vintdivc = sum3
+
 !     call writit ( sum1,im,jm,1,55,lattice )
 !     call writit ( sum2,im,jm,1,55,lattice )
 !     call writit ( sum3,im,jm,1,55,lattice )
 
 ! Gather and Broadcast Divergence Increment
 ! -----------------------------------------
-      call G3_GATHER ( dglo,diva,lattice )
-      call mpi_bcast ( dglo,img*jmg*lm,lattice%mpi_rkind,0,comm,ierror )
+      do L=1,lm
+         call ArrayGather (local_array=diva(:,:,L),global_array=dglo(:,:,L), grid=GRIDana, rc=status)
+         VERIFY_(STATUS)
+         call MAPL_CommsBcast(VM, DATA= dglo(:,:,L), N=imjmg, Root=MAPL_Root, RC=status)
+         VERIFY_(STATUS)
+      enddo
+
 
 ! Compute Wind Increments Associated with Divergence Increment
 ! ------------------------------------------------------------
       do L=1,lm
       if( index(L).eq.myid ) then
 
-          if( img.gt.imax .or. jmg.gt.jmax ) then
-              allocate( dumdiv(imax,jmax) )
-              allocate( dumchi(imax,jmax) )
-              call regrid ( dglo(1,1,L),img,jmg,dumdiv,imax,jmax,undef,msgn )
-              call VELPOT (dumdiv,dumchi,imax,jmax)
-              call regrid ( dumchi,imax,jmax,chi,img,jmg,undef,msgn )
-              deallocate( dumdiv )
-              deallocate( dumchi )
-          else
-              call VELPOT (dglo(1,1,L),chi,img,jmg)
-          endif
+         !if( img.gt.imax .or. jmg.gt.jmax ) then
+         !    allocate( dumdiv(imax,jmax) )
+         !    allocate( dumchi(imax,jmax) )
+         !    call regrid ( dglo(1,1,L),img,jmg,dumdiv,imax,jmax,undef,msgn )
+         !    call VELPOT (dumdiv,dumchi,imax,jmax)
+         !    call regrid ( dumchi,imax,jmax,chi,img,jmg,undef,msgn )
+         !    deallocate( dumdiv )
+         !    deallocate( dumchi )
+         !else
+         !    call VELPOT (dglo(1,1,L),chi,img,jmg)
+         !endif
+              call VELPOT_SP (dglo(1,1,L),chi,img,jmg)
 
           call gradq  (chi,  uchi,vchi,img,jmg)
           uglo(:,:,L) = uglo(:,:,L) + uchi(:,:)/dpglo(:,:,L)
@@ -205,15 +260,21 @@
       enddo
       call mpi_barrier (comm,ierror)
       do L=1,lm
-      call mpi_bcast ( uglo(1,1,L),img*jmg,lattice%mpi_rkind,index(L),comm,ierror )
-      call mpi_bcast ( vglo(1,1,L),img*jmg,lattice%mpi_rkind,index(L),comm,ierror )
+         call MAPL_CommsBcast(VM, DATA= uglo(:,:,L), N=imjmg, Root=index(L), RC=status)
+         VERIFY_(STATUS)
+         call MAPL_CommsBcast(VM, DATA= vglo(:,:,L), N=imjmg, Root=index(L), RC=status)
+         VERIFY_(STATUS)
       enddo
       call mpi_barrier (comm,ierror)
 
 ! Scatter Winds
 ! -------------
-      call G3_SCATTER ( uglo,ua,lattice )
-      call G3_SCATTER ( vglo,va,lattice )
+      do L=1,lm
+         call ArrayScatter (local_array=ua(:,:,L), global_array=uglo(:,:,L), grid=GRIDana, rc=status)
+         VERIFY_(STATUS)
+         call ArrayScatter (local_array=va(:,:,L), global_array=vglo(:,:,L), grid=GRIDana, rc=status)
+         VERIFY_(STATUS)
+      enddo
 
       deallocate ( sum1,sum2,sum3,lambda )
       deallocate ( chi,uchi,vchi         )
@@ -347,6 +408,7 @@
 ! ****                                                 ****
 ! *********************************************************
 
+      use MAPL_ConstantsMod
       implicit none
       integer  im,jm
 
@@ -369,7 +431,7 @@
 ! ****               INITIALIZATION                    ****
 ! *********************************************************
 
-      a  = 6376.0E3
+      a  = MAPL_RADIUS
       pi = 4.0*atan(1.0)
       dl = 2.0*pi/im
       dp = pi/(jm-1)
@@ -509,6 +571,113 @@
 
       RETURN
       END
+
+      SUBROUTINE VELPOT_SP (DIV,VELP,im,jnp)
+      implicit none
+
+      integer        IM,JNP
+      real       DIV(IM,JNP)
+      real      VELP(IM,JNP)
+
+      real*8, allocatable :: VP(:,:)
+      real*8, allocatable :: even(:,:)
+      real*8, allocatable :: odd(:,:)
+      real*8              :: xlmbda(1)
+      real*8              :: pertrb(1)
+
+      real*8, allocatable :: wsha(:)
+      real*8, allocatable :: wshs(:)
+      real*8, allocatable :: work(:)
+    
+
+      integer             :: i,j,imp
+      integer             :: mtrunc,ntrunc
+      integer             :: lwsha, lwshs, lwork
+      integer             :: l1, l2, maxnt
+      integer             :: isym, nt, ierror
+ 
+      real*8  PI
+      real*8  RAD
+
+      imp    = im+1
+      mtrunc = (im+2)/2
+      ntrunc = jnp
+      l1     = jnp
+      l2     = (jnp+1)/2
+      maxnt  = 1
+      lwsha  = 2*jnp*l2+3*((l1-2)*(jnp+jnp-l1-1))/2+imp+15
+      lwshs  = 2*jnp*l2+3*((l1-2)*(jnp+jnp-l1-1))/2+imp+15
+      lwork  = jnp*(2*maxnt*imp+max0(6*l2,imp)+2*maxnt*l1+1)
+
+
+      allocate ( vp(jnp,im) )
+      allocate ( even(mtrunc,ntrunc) )
+      allocate ( odd(mtrunc,ntrunc) )
+
+      allocate ( wsha(lwsha) )
+      allocate ( wshs(lwshs) )
+      allocate ( work(lwork) ) 
+
+! Transpose the input array
+! -------------------------
+      do j=1,jnp
+      do i=1,im
+      vp(j,i)   = div(i,j)
+      enddo
+      enddo
+
+!     do j=1,jnp
+!        do i=1,im/2
+!           vp(j,i)   = div(i+im/2,jnp-j+1)
+!        enddo
+!        do i=im/2+1,im
+!           vp(j,i)   = div(i-im/2,jnp-j+1)
+!        enddo
+!     enddo
+
+! === SET THE INPUT VARIABLES
+      RAD = 6371000.0
+      PI  = 3.14159265358979D0
+      xlmbda(1) = 0.0
+      isym = 0
+      nt = 1
+
+      call SHAECI(jnp,im,wsha,lwsha,work,lwork,ierror)
+      call SHSECI(jnp,im,wshs,lwshs,work,lwork,ierror) 
+      call SHAEC(jnp,im,isym,nt,vp,jnp,imp,even,odd,mtrunc,ntrunc,wsha,lwsha,work,lwork,ierror)
+      call ISLAPEC(jnp,im,isym,nt,xlmbda,vp,jnp,imp,even,odd,mtrunc,ntrunc,wshs,lwshs,work,lwork,pertrb,ierror)
+ 
+! Scale by earth radius
+! ---------------------
+      do j=1,jnp
+      do i=1,im
+      VELP(I,J) = VP(J,I) * RAD * RAD
+      enddo
+      enddo
+ 
+!     do j=1,jnp
+!        do i=1,im/2
+!        VELP(I+im/2,jnp-J+1) = VP(J,I) * RAD * RAD
+!        enddo
+!        do i=im/2+1,im
+!        VELP(I-im/2,jnp-J+1) = VP(J,I) * RAD * RAD
+!        enddo
+!     enddo
+
+! Remove global mean
+! ------------------
+      CALL ZEROG (VELP,IM,JNP)
+ 
+      deallocate ( vp   )
+      deallocate ( even )
+      deallocate ( odd  )
+      deallocate ( wshs )
+      deallocate ( wsha )
+      deallocate ( work )
+      RETURN
+      END
+
+
       SUBROUTINE VELPOT (DIV,VELP,im,jnp)
 
       integer        IM,JNP

@@ -24,6 +24,7 @@ endwhile
 * ----------
 "reinit"
 'set display color white'
+'set csmooth on'
 'set clab off'
 'rgbset'
 'c'

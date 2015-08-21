@@ -12,7 +12,12 @@ set plots = "progz1_U progz1_V progz1_T progz1_RH2 gwd energy residual tseries \
 set plots = `echo $plots` # To remove blanks
 
 setenv ORIENTATION LANDSCAPE
-setenv LONSENV "0 360"
+if ( ! $?LONSENV ) then
+  setenv LONSENV "0 360"
+endif
+if ( ! $?LATSENV ) then
+  setenv LATSENV "-90 90"
+endif
 
 @ nmax = $#argv
 
@@ -55,6 +60,10 @@ while( $n <= $nmax )
        if( "$argv[$n]" == "-grads"   ) then
                     @ n = $n + 1
              set grads = $argv[$n]
+       endif
+       if( "$argv[$n]" == "-zlog"   ) then
+                    @ n = $n + 1
+             set zlog = $argv[$n]
        endif
        if( "$argv[$n]" == "-batch"   ) then
              set batch = "-b"
@@ -160,12 +169,15 @@ if( $plot == tseries ) then
     $grads $batch -l -c "run $GEOSUTIL/plots/tseries/ps         $expid $output $debug "
     $grads $batch -l -c "run $GEOSUTIL/plots/tseries/pme        $expid $output $debug "
     $grads $batch -l -c "run $GEOSUTIL/plots/tseries/tpw        $expid $output $debug "
-    $grads $batch -l -c "run $GEOSUTIL/plots/tseries/ke         $expid $output $debug "
     $grads $batch -l -c "run $GEOSUTIL/plots/tseries/rad        $expid $output $debug "
+    $grads $batch -l -c "run $GEOSUTIL/plots/tseries/ke         $expid $output $debug "
     $grads $batch -l -c "run $GEOSUTIL/plots/zcmp1/vortex U DYN $expid $output $debug "
     $grads $batch -l -c "run $GEOSUTIL/plots/zcmp1/qbo    U DYN $expid $output $debug "
 endif
 
+# Compute Landscape PLOTS for SOURCE Experiment
+# ---------------------------------------------
+if( $CMPEXP_ONLY != TRUE ) then
 
 # Energy
 # ----------
@@ -323,6 +335,8 @@ if( $plot == surf.1 ) then
     $grads $batch -l -c "run template  -EXPID $expid  -EXPORT     GUST:SURFACE  -SEASON $seasons  -OUTPUT $output  -DEBUG $debug "
     $grads $batch -l -c "run template  -EXPID $expid  -EXPORT     VENT:SURFACE  -SEASON $seasons  -OUTPUT $output  -DEBUG $debug "
     $grads $batch -l -c "run template  -EXPID $expid  -EXPORT       RI:SURFACE  -SEASON $seasons  -OUTPUT $output  -DEBUG $debug "
+    $grads $batch -l -c "run template  -EXPID $expid  -EXPORT      DMDTDYN:DYN  -SEASON $seasons  -OUTPUT $output  -DEBUG $debug "
+    $grads $batch -l -c "run template  -EXPID $expid  -EXPORT     DMDT:PHYSICS  -SEASON $seasons  -OUTPUT $output  -DEBUG $debug "
 endif
 
 # Gravity-Wave Drag
@@ -400,6 +414,8 @@ endif
 
 if( $plot == tend.5 ) then
     set levels = '1000 975 950 925 900 850 800 750 700 650 600 550 500 450 400 350 300 250 200 150 100'
+    $grads $batch -l -c "run template -EXPID $expid -EXPORT     DMDTANA:DYN                   -SEASON $seasons -OUTPUT $output           -DEBUG $debug "
+    $grads $batch -l -c "run template -EXPID $expid -EXPORT DQVDTANAINT:DYN                   -SEASON $seasons -OUTPUT $output           -DEBUG $debug "
     $grads $batch -l -c "run template -EXPID $expid -EXPORT       DUDT:AGCM   -LEVELS $levels -SEASON $seasons -OUTPUT $output -ZLOG OFF -DEBUG $debug "
     $grads $batch -l -c "run template -EXPID $expid -EXPORT       DVDT:AGCM   -LEVELS $levels -SEASON $seasons -OUTPUT $output -ZLOG OFF -DEBUG $debug "
     $grads $batch -l -c "run template -EXPID $expid -EXPORT       DTDT:AGCM   -LEVELS $levels -SEASON $seasons -OUTPUT $output -ZLOG OFF -DEBUG $debug "
@@ -537,8 +553,12 @@ set EXPORT = `echo $plot | cut -d: -f1`
 set GC     = `echo $plot | cut -d: -f2`
 set level  = `echo $plot | cut -d: -f3`
 if( $EXPORT != $GC ) then
-       if( $level == '' ) set level = misc
-       $grads $batch -l -c "run template -EXPID $expid -EXPORT ${EXPORT}:${GC} -LEVELS $level -SEASON $seasons -OUTPUT ${output}/misc -DEBUG $debug "
+       if( $level == '' | $level == 'Z' | $level == 'z' ) set level = misc
+       $grads $batch -l -c "run template -EXPID $expid -EXPORT ${EXPORT}:${GC} -LEVELS $level -SEASON $seasons -OUTPUT ${output}/misc -DEBUG $debug -ZLOG $zlog "
+endif
+
+# END CMPEXP_ONLY Test
+# --------------------
 endif
 
 exit

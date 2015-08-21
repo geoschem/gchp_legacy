@@ -1036,6 +1036,7 @@ CONTAINS
     ! Scalars                                   
     LOGICAL                     :: am_I_Root   ! Are we on the root PET?
     INTEGER                     :: myPet       ! # of the PET we are on 
+    INTEGER                     :: NPES        ! # of total PETs in MPI world
     INTEGER                     :: nymdB       ! GMT date @ start of simulation
     INTEGER                     :: nymdE       ! GMT date @ end of simulation
     INTEGER                     :: nymd        ! GMT date @ current time
@@ -1143,6 +1144,7 @@ CONTAINS
                    tsChem      = tsChem,      &  ! Chemistry timestep [seconds]
                    tsDyn       = tsDyn,       &  ! Dynamics timestep  [seconds]
                    localPet    = myPet,       &  ! PET # that we are on now
+                   petCount    = NPES,        &  ! Number of PETs in MPI World
                    mpiComm     = mpiComm,     &  ! MPI Communicator Handle
                    lonCtr      = lonCtr,      &  ! Lon centers on this PET [radians]
                    latCtr      = latCtr,      &  ! Lat centers on this PET [radians]
@@ -1249,9 +1251,6 @@ CONTAINS
                                   __RC__                           )
     ASSERT_(NPHASE==1.OR.NPHASE==2) 
 
-    ! Also save the PET # (aka CPU #) in the Input_Opt object
-    Input_Opt%myCpu = myPet
-
     !=======================================================================
     ! Initialize GEOS-Chem (will also initialize HEMCO)
     !=======================================================================
@@ -1283,6 +1282,13 @@ CONTAINS
 
     ! It's now save to store haveImpRst flag in Input_Opt
     Input_Opt%haveImpRst = haveImpRst
+
+    ! Also save the MPI & PET specs to Input_Opt
+    Input_Opt%myCpu   = myPet
+    Input_Opt%MPICOMM = MPICOMM
+    Input_Opt%NPES    = NPES
+    Input_Opt%HPC     = .true. ! Yes, this is an HPC (ESMF) sim.
+    if ( am_I_Root ) Input_Opt%RootCPU = .true.
 
     !=======================================================================
     ! If GEOS-Chem is the AERO provider, initialize the AERO bundle here.
@@ -2209,6 +2215,12 @@ CONTAINS
           ! Save the PET # (aka PET #) in Input_Opt
           Input_Opt%myCpu = myPet
     
+       IF ( ANY(State_Chm%TRACERS(:,:,:,29) .ne.                     & 
+                State_Chm%TRACERS(:,:,:,29) )) THEN
+          write(*,*) '<> MSA START'
+       ELSE
+       ENDIF
+
           ! Run the GEOS-Chem column chemistry code for the given phase
           CALL GIGC_Chunk_Run( am_I_Root  = am_I_Root,  & ! Is this the root PET?
                                GC         = GC,         & ! Gridded component ref. 
@@ -2246,6 +2258,11 @@ CONTAINS
           where( State_Met%HFLUX .eq. 0.) State_Met%HFLUX = 1e-5
        ENDIF 
 
+       IF ( ANY(State_Chm%TRACERS(:,:,:,29) .ne.                     & 
+                State_Chm%TRACERS(:,:,:,29) )) THEN
+          write(*,*) '<> MSA END'
+       ELSE
+       ENDIF
     ENDIF !IsRunTime
 
     !=======================================================================

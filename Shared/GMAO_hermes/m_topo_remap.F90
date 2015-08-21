@@ -118,6 +118,11 @@ CONTAINS
          do k=1,km
             ple(:,:,k+1) = ple(:,:,k) + w_f%delp(:,:,k)
          enddo
+         pke(:,:,:) = ple(:,:,:)**kappa
+         do k=1,km
+            pk(:,:,k) = ( pke(:,:,k+1)-pke(:,:,k) ) &
+                       / ( kappa*log(ple(:,:,k+1)/ple(:,:,k)) )
+         enddo
        ! convert virtual potential temperature to virtual temperature
          w_f%pt = thv*pk
          deallocate (  pk )

@@ -363,7 +363,7 @@ c ---------------
       character*256  source
       character*256  contact
 
-      integer nvars
+      integer nvars,idx
 
       character*256, allocatable ::  vname(:)
       character*256, allocatable :: vtitle(:)
@@ -400,7 +400,13 @@ c Defined Fields
 c --------------
       do m=1,n2d
              n  = m
+             idx=index(name2d(m),'=')
+       if(idx>0) then
+       vname(n) = name2d(m)(1:idx-1)
+       name2d(m) = trim(vname(n))
+       else
        vname(n) = name2d(m)
+       endif
       vtitle(n) = trim(titl2d(m))
       vunits(n) = 'unknown'
        lmvar(n) =  0
@@ -408,7 +414,13 @@ c --------------
 
       do m=1,n3d
              n  = n2d+m
+             idx=index(name3d(m),'=')
+       if(idx>0) then
+       vname(n) = name3d(m)(1:idx-1)
+       name3d(m) = trim(vname(n))
+       else
        vname(n) = name3d(m)
+       endif
       vtitle(n) = trim(titl3d(m))
       vunits(n) = 'unknown'
        lmvar(n) =  lm

@@ -386,7 +386,7 @@ end type xmap_type
 
 !-----------------------------------------------------------------------
  character(len=128) :: version = '$Id: xgrid.F90,v 1.1.1.2 2012-11-16 16:00:09 atrayano Exp $'
- character(len=128) :: tagname = '$Name: jk-G40-GEOSctm-advcore-update3 $'
+ character(len=128) :: tagname = '$Name: Heracles-3_1_CTM $'
 
  real, parameter                              :: EPS = 1.0e-10
  real, parameter                              :: LARGE_NUMBER = 1.e20
