@@ -126,6 +126,7 @@
   State_Met%TAUCLW    = TAUCLW         ! unitless
   State_Met%REEVAPCN  = REEVAPCN
   State_Met%REEVAPLS  = REEVAPLS
+  State_Met%DQRLSAN   = DQRLSAN
 
         ! Total optical depth [unitless]
   State_Met%OPTD      = ( State_Met%TAUCLI               &

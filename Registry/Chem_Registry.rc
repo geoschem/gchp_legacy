@@ -130,6 +130,7 @@
   GCCTTO3           | dobsons        | xy  |   |    |	|   |	  | total_tropospheric_ozone 
   DEPVEL_O3         |                | xy  |   |    |   |   |     |
   DEPFLUX_O3        |                | xy  |   |    |   |   |     |
+  WETDEP_LOSS_H2O2  |                | xy  |   |    |   |   |     |
 # ------------------|----------------|-----|---|----|---|---|-----|---------------------------------
 </ExportSpec>
 #                               --------------
