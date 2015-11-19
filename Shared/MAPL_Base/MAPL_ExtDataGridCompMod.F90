@@ -2051,6 +2051,7 @@ CONTAINS
         file_processed = file_tmpl
         call GetBracketTimeOnFile(file_tmpl,cTime,bSide,UniFileClim,interpTime,fileTime,rc=status)
         if (status /= ESMF_SUCCESS) then
+           write(*,*) '<> UpdateBracketTime: ', file_tmpl
            RETURN_(ESMF_FAILURE)
         end if
      else 
