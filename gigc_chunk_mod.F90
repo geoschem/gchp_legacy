@@ -851,11 +851,11 @@ CONTAINS
        ! read from a climatology (via HEMCO). We may eventually get them
        ! from GEOS-5, but I don't know which field to use (ckeller, 3/9/15).
        ! Note: now use ALBVF from GEOS-5.
- !      IF ( UVmonth /= month ) THEN
- !         CALL GET_UVALBEDO( am_I_Root, Input_Opt, State_Met, RC )
- !         ASSERT_(RC==GIGC_SUCCESS)
- !         UVmonth = month
- !      ENDIF 
+       IF ( UVmonth /= month ) THEN
+          CALL GET_UVALBEDO( am_I_Root, Input_Opt, State_Met, RC )
+          ASSERT_(RC==GIGC_SUCCESS)
+          UVmonth = month
+       ENDIF 
 
        ! Do chemistry
        CALL Do_Chemistry( am_I_Root = am_I_Root,            & ! Root CPU?
