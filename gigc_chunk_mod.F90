@@ -90,7 +90,7 @@ CONTAINS
                               J_HI,      IM,        JM,        LM,        &
                               IM_WORLD,  JM_WORLD,  LM_WORLD,  nymdB,     &
                               nhmsB,     nymdE,     nhmsE,     tsChem,    &
-                              tsDyn,     lonCtr,    latCtr,               &
+                              tsDyn,     lonCtr,    latCtr,    myPET,     &
                               Input_Opt, State_Chm, State_Met, RC      )
 !
 ! !USES:
@@ -117,6 +117,7 @@ CONTAINS
     INTEGER,            INTENT(IN)    :: IM_WORLD    ! # lons, global grid
     INTEGER,            INTENT(IN)    :: JM_WORLD    ! # lats, global grid
     INTEGER,            INTENT(IN)    :: LM_WORLD    ! # levs, global grid
+    INTEGER,            INTENT(IN)    :: myPET       ! Local PET
     INTEGER,            INTENT(IN)    :: nymdB       ! YYYYMMDD @ start of run
     INTEGER,            INTENT(IN)    :: nhmsB       ! hhmmss   @ start of run
     INTEGER,            INTENT(IN)    :: nymdE       ! YYYYMMDD @ end of run
@@ -205,6 +206,7 @@ CONTAINS
                                Input_Opt      = Input_Opt,  & ! Input Options
                                State_Chm      = State_Chm,  & ! Chemistry State
                                State_Met      = State_Met,  & ! Met State
+                               myPET          = myPET,      & ! Local PET
 !                               mapping        = mapping,    & ! Olson map wts
                                RC             = RC         )  ! Success?
     ASSERT_(RC==GIGC_SUCCESS)

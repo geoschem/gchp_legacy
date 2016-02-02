@@ -128,6 +128,8 @@
   H2O_TEND    	    | kg kg-1 s-1    | xyz | C |    |	|   |	  | tendency_of_water_vapor_mixing_ratio_due_to_chemistry
   GCCTO3    	    | dobsons        | xy  |   |    |	|   |	  | total_ozone 
   GCCTTO3           | dobsons        | xy  |   |    |	|   |	  | total_tropospheric_ozone 
+  DEPVEL_O3         |                | xy  |   |    |   |   |     |
+  DEPFLUX_O3        |                | xy  |   |    |   |   |     |
 # ------------------|----------------|-----|---|----|---|---|-----|---------------------------------
 </ExportSpec>
 #                               --------------

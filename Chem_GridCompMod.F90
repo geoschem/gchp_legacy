@@ -1151,6 +1151,11 @@ CONTAINS
 		   haveImpRst  = haveImpRst,  &  ! Does import restart exist? 
                    __RC__                      )
 
+    Input_Opt%myCpu   = myPet
+
+    ! MSL - shift from 0 - 360 to -180 - 180 degree grid
+    where (lonCtr .gt. MAPL_PI ) lonCtr = lonCtr - 2*MAPL_PI
+
     ! Name of logfile for stdout redirect
     CALL ESMF_ConfigGetAttribute( GeosCF, logFile,              &
                                   Label   = "STDOUT_LOGFILE:",  &
@@ -1278,10 +1283,8 @@ CONTAINS
                           Input_Opt = Input_Opt,  & ! Input Options obj
                           State_Met = State_Met,  & ! Meteorology State obj
                           State_Chm = State_Chm,  & ! Chemistry State obj
+                          myPET     = myPET,      & ! Local PET
                           __RC__                 )
-
-    ! It's now save to store haveImpRst flag in Input_Opt
-    Input_Opt%haveImpRst = haveImpRst
 
     ! Also save the MPI & PET specs to Input_Opt
     Input_Opt%myCpu   = myPet
@@ -1289,6 +1292,9 @@ CONTAINS
     Input_Opt%NPES    = NPES
     Input_Opt%HPC     = .true. ! Yes, this is an HPC (ESMF) sim.
     if ( am_I_Root ) Input_Opt%RootCPU = .true.
+
+    ! It's now save to store haveImpRst flag in Input_Opt
+    Input_Opt%haveImpRst = haveImpRst
 
     !=======================================================================
     ! If GEOS-Chem is the AERO provider, initialize the AERO bundle here.
@@ -2124,6 +2130,9 @@ CONTAINS
                    SLR       = solar,    &  ! Solar insolation
                    __RC__ )
 
+    ! MSL - shift from 0 - 360 to -180 - 180 degree grid
+    where (lonCtr .gt. MAPL_PI ) lonCtr = lonCtr - 2*MAPL_PI
+
     !=======================================================================
     ! Print timing etc. info to the log file outside of the (I,J) loop
     !=======================================================================
@@ -2211,9 +2220,6 @@ CONTAINS
        IF ( Input_Opt%haveImpRst ) THEN
 
           CALL MAPL_TimerOn(STATE, "DO_CHEM")
-   
-          ! Save the PET # (aka PET #) in Input_Opt
-          Input_Opt%myCpu = myPet
     
        IF ( ANY(State_Chm%TRACERS(:,:,:,29) .ne.                     & 
                 State_Chm%TRACERS(:,:,:,29) )) THEN
@@ -2246,7 +2252,7 @@ CONTAINS
                                __RC__                  )  ! Success or failure?
    
           CALL MAPL_TimerOff(STATE, "DO_CHEM")
-   
+
        ! Restart file does not exist:
        ELSE
           IF ( am_I_Root ) THEN
@@ -2257,12 +2263,6 @@ CONTAINS
           ENDIF
           where( State_Met%HFLUX .eq. 0.) State_Met%HFLUX = 1e-5
        ENDIF 
-
-       IF ( ANY(State_Chm%TRACERS(:,:,:,29) .ne.                     & 
-                State_Chm%TRACERS(:,:,:,29) )) THEN
-          write(*,*) '<> MSA END'
-       ELSE
-       ENDIF
     ENDIF !IsRunTime
 
     !=======================================================================

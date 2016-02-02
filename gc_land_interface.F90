@@ -16,7 +16,7 @@ MODULE GC_LAND_INTERFACE
 !
   ! Use GEOS-5 vegetation types? If set to FALSE, the GEOS-Chem
   ! dry-dep types (created from the OLSON land map), will be used instead.
-  LOGICAL, PARAMETER  :: UseGEOS5 = .TRUE.
+  LOGICAL, PARAMETER  :: UseGEOS5 = .FALSE.
 !
 ! !REMARKS:
 !  The routines in this module execute only when GEOS-Chem is connected
