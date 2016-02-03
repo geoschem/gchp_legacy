@@ -565,7 +565,7 @@ CONTAINS
     CALL Set_Floating_Pressure( State_Met%PS1 )
 #endif 
 
-    CALL AirQnt( State_Met )
+    CALL AirQnt( am_I_Root, State_Met, RC )
 
     ! Cap the polar tropopause pressures at 200 hPa, in order to avoid
     ! tropospheric chemistry from happening too high up (cf. J. Logan)
@@ -589,8 +589,8 @@ CONTAINS
     
     ! SDE 05/28/13: Set H2O to STT if relevant
     IF ( IDTH2O > 0 ) THEN
-       CALL SET_H2O_TRAC( ((.NOT. Input_Opt%LUCX) .OR. Input_Opt%LSETH2O ), &
-                          Input_Opt, State_Met, State_Chm )
+       CALL SET_H2O_TRAC( am_I_Root, ((.NOT. Input_Opt%LUCX) .OR. Input_Opt%LSETH2O ), &
+                          Input_Opt, State_Met, State_Chm, RC )
        ! Only force strat once if using UCX
        IF (Input_Opt%LSETH2O) Input_Opt%LSETH2O = .FALSE.
     ENDIF
@@ -854,8 +854,8 @@ CONTAINS
 
        ! Set H2O to STT if relevant
        IF ( IDTH2O > 0 ) THEN
-          CALL SET_H2O_TRAC( (.not. Input_Opt%LUCX), Input_Opt, &
-                             State_Met, State_Chm )
+          CALL SET_H2O_TRAC( am_I_Root, (.not. Input_Opt%LUCX), Input_Opt, &
+                             State_Met, State_Chm, RC )
        ENDIF
 
        ! For Fast-JX, update UV albedo data. These values are currently
