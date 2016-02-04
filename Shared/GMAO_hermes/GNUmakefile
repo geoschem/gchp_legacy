@@ -26,7 +26,7 @@ endif
 # Make sure ESMADIR is defined
 # -----------------------------
 ifndef ESMADIR
-   ESMADIR := $(PWD)/../../..
+   ESMADIR := $(PWD)/../..
 endif
 
 #-------------------------------
@@ -227,7 +227,7 @@ DEPS := $(addsuffix .d, $(basename $(SRCS))) \
 FOPT = $(FOPT3)
 COPT = $(COPT3)
 
-USER_FFLAGS = $(BIG_ENDIAN) $(MPFLAG)
+USER_FFLAGS = $(BIG_ENDIAN) $(MPFLAG) $(PP)
 USER_FDEFS  = $(D)HERMES $(D)DEBUG_SHAVE $(D)unix $(D)__unix__
 USER_CDEFS  = $(D)HERMES $(D)DEBUG_SHAVE $(D)unix $(D)__unix__
 USER_CFLAGS = $(BIG_ENDIAN) 

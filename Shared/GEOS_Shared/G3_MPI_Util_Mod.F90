@@ -6,28 +6,28 @@
 ! Define Lattice
 ! --------------
       type dynamics_lattice_type
-           integer            :: imglobal      ! Global  Size in X
-           integer            :: jmglobal      ! Global  Size in Y
-           integer            :: lm            ! Global  Size in Z (Note: Same as Local Size)
-           integer            :: imax          ! Maximum local im
-           integer            :: jmax          ! Maximum local jm
-           integer            :: comm          ! MPI Communicator
-           integer            :: nx,ny         ! Size of PE lattice
-           integer            :: pei,pej       ! Relative address of local PE on lattice
-           integer            :: myid          ! Absolute address of local PE
-           integer            :: mpi_rkind     ! mpi_real or mpi_double_precision based on kind
-           integer, pointer   :: npeg(:)       ! Number of pole PE ghosts per processor
-           integer, pointer   ::  img(:,:)     ! Number of grid-points associated with each pole PE ghost
-           integer, pointer   ::  im0(:,:)     ! Beginning address     associated with each pole PE ghost
-           integer, pointer   :: ppeg(:)       ! Relative address of pole PE ghost for each iglobal
-           integer, pointer   ::   im(:)       ! Array  of local zonal      dimension for each PE in x
-           integer, pointer   ::   jm(:)       ! Array  of local meridional dimension for each PE in y
-           integer, pointer   ::    ilocal(:)  ! Array  of  local i-index for global i-location
-           integer, pointer   ::    jlocal(:)  ! Array  of  local j-index for global j-location
-           integer, pointer   ::   iglobal(:)  ! Array  of global i-index for  local i-location
-           integer, pointer   ::   jglobal(:)  ! Array  of global j-index for  local j-location
-           integer, pointer   :: peiglobal(:)  ! Relative PE address associated with iglobal
-           integer, pointer   :: pejglobal(:)  ! Relative PE address associated with jglobal
+           integer            :: imglobal               ! Global  Size in X
+           integer            :: jmglobal               ! Global  Size in Y
+           integer            :: lm                     ! Global  Size in Z (Note: Same as Local Size)
+           integer            :: imax                   ! Maximum local im
+           integer            :: jmax                   ! Maximum local jm
+           integer            :: comm                   ! MPI Communicator
+           integer            :: nx,ny                  ! Size of PE lattice
+           integer            :: pei,pej                ! Relative address of local PE on lattice
+           integer            :: myid                   ! Absolute address of local PE
+           integer            :: mpi_rkind              ! mpi_real or mpi_double_precision based on kind
+           integer, pointer   :: npeg(:)      => NULL() ! Number of pole PE ghosts per processor
+           integer, pointer   ::  img(:,:)    => NULL() ! Number of grid-points associated with each pole PE ghost
+           integer, pointer   ::  im0(:,:)    => NULL() ! Beginning address     associated with each pole PE ghost
+           integer, pointer   :: ppeg(:)      => NULL() ! Relative address of pole PE ghost for each iglobal
+           integer, pointer   ::   im(:)      => NULL() ! Array  of local zonal      dimension for each PE in x
+           integer, pointer   ::   jm(:)      => NULL() ! Array  of local meridional dimension for each PE in y
+           integer, pointer   ::    ilocal(:) => NULL() ! Array  of  local i-index for global i-location
+           integer, pointer   ::    jlocal(:) => NULL() ! Array  of  local j-index for global j-location
+           integer, pointer   ::   iglobal(:) => NULL() ! Array  of global i-index for  local i-location
+           integer, pointer   ::   jglobal(:) => NULL() ! Array  of global j-index for  local j-location
+           integer, pointer   :: peiglobal(:) => NULL() ! Relative PE address associated with iglobal
+           integer, pointer   :: pejglobal(:) => NULL() ! Relative PE address associated with jglobal
       endtype dynamics_lattice_type
 
 interface G3_GMEAN

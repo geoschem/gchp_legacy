@@ -12,9 +12,9 @@ ifeq ($(ARCH),Linux)
 
   endif
 
-  ifeq ($(FC), gfortran)
+  ifeq ($(ESMA_FC), gfortran)
 
-        USER_FFLAGS = -DNO_R16 -DNO_CRAY_POINTERS
+        USER_FFLAGS = -DNO_R16 -fcray-pointer
 
   endif
 

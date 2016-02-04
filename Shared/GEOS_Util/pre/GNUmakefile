@@ -24,7 +24,7 @@ endif
 # Make sure ESMADIR is defined
 # -----------------------------
 ifndef ESMADIR
-   ESMADIR := $(PWD)/../../../..
+   ESMADIR := $(PWD)/../..
 endif
 
 #-------------------------------
@@ -36,7 +36,7 @@ include $(ESMADIR)/Config/GMAO_base.mk   # System dependencies
 
 ########################################################################
 
-ALLDIRS = OSTIA NSIDC-OSTIA_SST-ICE_blend
+ALLDIRS = NSIDC-OSTIA_SST-ICE_blend
 
 SUBDIRS = $(wildcard $(ALLDIRS))
 

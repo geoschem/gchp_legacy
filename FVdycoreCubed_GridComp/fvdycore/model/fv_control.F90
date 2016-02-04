@@ -1,4 +1,4 @@
-! $Id: fv_control.F90,v 1.1.2.1.2.2.2.1.22.1.22.4.10.1.36.3 2014-05-22 13:54:24 wputman Exp $
+! $Id: fv_control.F90,v 1.1.2.1.2.2.2.1.22.1.22.4.10.1.48.3 2015-02-24 20:51:03 mathomp4 Exp $
 !
 !----------------
 ! FV contro panel
@@ -43,6 +43,7 @@ module fv_control_mod
                                  ng, tile, npes_x, npes_y, gid, io_domain_layout
    use test_cases_mod,     only: test_case, alpha
    use fv_timing_mod,      only: timing_on, timing_off, timing_init, timing_prt
+   use memutils_mod,       only: print_memuse_stats
 
    implicit none
    private
@@ -88,7 +89,7 @@ module fv_control_mod
    integer :: kord_tr = 8    ! 
    real(REAL8)    :: kd3   = 0.1    ! coefficient for 3D divergence damping kd3*da_min**2
                              ! STG: Zetac uses the form: dx*dx/tau, where tau = 300 sec.
-   real(REAL8)    :: scale_z = 10.  ! diff_z = scale_z**2 * 0.25
+   real(REAL8)    :: scale_z = 0.  ! diff_z = scale_z**2 * 0.25
    real(REAL8)    :: zd_z1   = 0.   ! variable part of the background diff; dimensionless
    real(REAL8)    :: w_max = 75.    ! max w (m/s) threshold for hydostatiic adjustment 
    real(REAL8)    :: z_min = 0.05   ! min ration of dz_nonhydrostatic/dz_hydrostatic
@@ -147,6 +148,7 @@ module fv_control_mod
 !              stretching factor: 5-10
 !-----------------------------------------------------------------------------------------------
 
+   logical :: use_old_omega = .false.
    logical :: reset_beta = .true. 
    integer :: m_riem  = 0    ! Time scheme for Riem solver subcycling
    integer :: k_top   = 1    ! Starting layer for non-hydrostatic dynamics
@@ -154,6 +156,7 @@ module fv_control_mod
                              ! Default = 0 (automatic computation of best value)
    integer :: m_split = 0    ! Number of time splits for Riemann solver
    integer :: k_split = 1    ! Number of time splits for Remapping
+   real(REAL8) :: courant_max = 0.5  ! Maximum courant number for dynamics n_split
 
 !            For doubly periodic domain with sim_phys
 !                     5km        150         20 (7.5 s)  2
@@ -292,7 +295,7 @@ module fv_control_mod
    public :: npx,npy,npz, npz_rst, ntiles, ncnst, pnats, nwat
    public :: hord_mt, hord_vt, kord_mt, kord_wz, hord_tm, hord_dp, kord_tm, hord_tr, kord_tr
    public :: nord, fill_dp, fill_wz, inline_q, breed_vortex_inline, dwind_2d, filter_phys, tq_filter 
-   public :: k_split, n_split, m_split, q_split, master
+   public :: use_old_omega, courant_max, k_split, n_split, m_split, q_split, master
    public :: kd3, scale_z, zd_z1, t_fac, w_max, z_min, dddmp, d2_bg, d4_bg, d_ext, vtdm4, beta
    public :: k_top, m_riem, n_sponge, p_ref, mountain
    public :: uniform_ppm, te_method, remap_t,  z_tracer, fv_debug, reset_beta
@@ -310,8 +313,7 @@ module fv_control_mod
 
 #ifdef MARS_GCM
    public :: reference_sfc_pres, sponge_damp
-#endif
-!MARS
+#endif 
 
    integer, allocatable :: pelist(:)
    integer :: commID
@@ -323,7 +325,7 @@ module fv_control_mod
  subroutine fv_init(Atm, dt_atmos)
 
    type(fv_atmos_type), intent(inout) :: Atm(:)
-   real(REAL8),                intent(in)    :: dt_atmos
+   real(REAL8),         intent(in)    :: dt_atmos
 
    integer :: i, j, k, n
    integer :: isc, iec, jsc, jec
@@ -339,7 +341,6 @@ module fv_control_mod
       allocate( pelist(mpp_npes()) )
       call mpp_get_current_pelist( pelist, commID=commID )
       call mp_start(commID)  ! fv_mp_mod will eventually be eliminated
-
       master = gid==0
 
     ! Initialize timing routines
@@ -352,6 +353,7 @@ module fv_control_mod
 
       call run_setup(Atm(1),dt_atmos)   ! initializes domain_decomp
                                         ! needs modification for multiple tiles
+
       k_top = max(1, k_top)   ! to idiot proof
 
       target_lon = target_lon * pi/180.
@@ -429,20 +431,10 @@ module fv_control_mod
          d_ext = 0
       endif
 
+      call print_memuse_stats('fv_control:fv_init: calling read/init_grid')
 
 #ifdef MAPL_MODE
-      inquire(file=grid_file,exist=exists)
-      if ( master ) write(*,*) 'fv_init: Checking for cubed-grid mosaic: ', trim(grid_file)
-      if (exists) then
-         if ( master ) write(*,*) 'fv_init: Reading cubed-grid mosaic: ', trim(grid_file)
-#ifdef READ_GRID
-         call read_grid(Atm(1), grid_name, grid_file, npx, npy, npz, ndims, ntiles, ng)
-#else
-         call mpp_error(FATAL,'fv_init: Code not built with READ_GRID')
-#endif
-      else
-         call init_grid(Atm(1), grid_name, grid_file, npx, npy, npz, ndims, ntiles, ng)
-      endif
+      call init_grid(Atm(1), grid_name, grid_file, npx, npy, npz, ndims, ntiles, ng)
 #else
     ! Read Grid from GRID_FILE and setup grid descriptors
     ! needs modification for multiple tiles
@@ -456,6 +448,9 @@ module fv_control_mod
 #endif
       Atm(1)%ndims = ndims
       Atm(1)%ntiles = ntiles
+
+
+      call print_memuse_stats('fv_control:fv_init: calling grid_utils_init')
 
     ! Initialize the SW (2D) part of the model
       call grid_utils_init(Atm(1), Atm(1)%npx, Atm(1)%npy, Atm(1)%npz, Atm(1)%grid, Atm(1)%agrid,   &
@@ -585,7 +580,7 @@ module fv_control_mod
         Atm(n)%va = huge_number
 
       end do
-      
+     
     ! Initialize restart functions
       call fv_restart_init()
 
@@ -681,8 +676,7 @@ module fv_control_mod
                             hord_mt, hord_vt, hord_tm, hord_dp, hord_tr, shift_fac, stretch_fac, target_lat, target_lon, &
                             kord_mt, kord_wz, kord_tm, kord_tr, fv_debug, fv_land, do_adiabatic_init, nudge,  &
                             external_ic, ncep_ic, fv_diag_ic, res_latlon_dynamics, res_latlon_tracers, &
-                            kd3, scale_z, zd_z1, t_fac, w_max, z_min, dddmp, d2_bg, d4_bg, vtdm4, d_ext, &
-                            beta, non_ortho, n_sponge, &
+                            kd3, scale_z, zd_z1, t_fac, w_max, z_min, dddmp, d2_bg, d4_bg, vtdm4, d_ext, beta, non_ortho, n_sponge, &
                             warm_start, adjust_dry_mass, mountain, d_con, nord, convert_ke, &
                             dry_mass, grid_type, do_Held_Suarez, consv_te, fill, tq_filter, filter_phys, fill_dp, fill_wz, &
                             range_warn, dwind_2d, inline_q, z_tracer, reproduce_sum, adiabatic, do_vort_damp, no_dycore,   &
@@ -838,7 +832,7 @@ module fv_control_mod
       endif
 
       if ( (.not.hydrostatic) .and. (m_split==0) ) then
-           m_split = max(1., 0.5 + abs(dt_atmos)/(n_split*6.) )
+           m_split = max(1., 0.5 + abs(dt_atmos)/(k_split*n_split*3.) )
            if(master) write(*,198) 'm_split is set to ', m_split
       endif
 
@@ -856,7 +850,7 @@ module fv_control_mod
 
  197  format(A,l7)
  198  format(A,i2.2,A,i4.4,'x',i4.4,'x',i1.1,'-',f9.3)
- 199  format(A,i)
+ 199  format(A,i4)
 
       alpha = alpha*pi
 

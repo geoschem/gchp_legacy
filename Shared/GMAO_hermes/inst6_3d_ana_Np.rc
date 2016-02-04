@@ -12,7 +12,7 @@
 #                     Output File Resolution
 #                     ----------------------
 
-zonal_resolution: 540              # no. of zonal grid-points (im)
+zonal_resolution: 576              # no. of zonal grid-points (im)
 west_most_longitude_in_deg: -180.0 # longitude of first point (i=1)
 meridional_resolution: 361          # no. meridional grid-points (jm)
 vertical_levels_in_hPa: 1000 975 950 925 900 875 850 825 800 775 750 725 700 650 600 550 500 450 400 350 300 250 200 150 100 70 50 40 30 20 10 7 5 4 3 2 1 0.7 0.5 0.4 0.3 0.1
@@ -42,7 +42,7 @@ Variable_translation_table::
    PS         Pa         ps                     1.0        0.0          0
    H          m          hght(theta,phis)       1.0        0.0          0
    T          K          tmpu(theta,delp,sphu)  1.0        0.0          0
-   U;V        m/s        uwnd;vwnd              1.0        0.0          0
+   U;V        m/s        u;v                    1.0        0.0          0
    QV         kg/kg      sphu                   1.0        0.0          1 # kg/kg
    O3         kg/kg      ozone              0.00000166     0.0          0
 ::
@@ -76,9 +76,8 @@ StandardName:O3:   ozone_mixing_ratio
 history:        File written by CFIO
 convention:     CF-1.0
 institution:    Global Modeling and Assimilation Office, NASA Goddard Space Flight Center, Greenbelt, MD 20771
-references:     http://gmao.gsfc.nasa.gov/research/merra/
+references:     http://gmao.gsfc.nasa.gov/
 comment:        @PUBLICTAG
-source:         Global Modeling and Assimilation Office. GEOSops_5_2_0
-title:          MERRA reanalysis.  @PUBLICTAG
+source:         Global Modeling and Assimilation Office
+title:          MERRA2 reanalysis.  @PUBLICTAG
 contact:        http://gmao.gsfc.nasa.gov/
-

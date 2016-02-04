@@ -1,4 +1,5 @@
 #!/bin/csh -f
+alias MATH 'set \!:1 = `echo "\!:3-$" | bc -l`'
 
 if ( ! $?GEOSUTIL ) then
       echo " "
@@ -76,6 +77,12 @@ set TDEF = `grep  TDEF $files[1]`
 set TDEF = `echo $TDEF | sed -e "s/ /./g"`
 set TMAX = `echo $TDEF | cut -d'.' -f2`
 set TINC = `echo $TDEF | cut -d'.' -f5`
+@   bits = `printf $TINC | wc -c` - 2
+@   TINC = `echo   $TINC | cut -c1-$bits`
+MATH  TINC = ${TINC}
+MATH  NDAY = (${TMAX}-1)*${TINC}/24
+set   NDAY =  `echo ${NDAY} | cut -d. -f1`
+@     SDAY =  ${NDAY} * 86400
 
 if( $month == "01" ) set MM = JAN
 if( $month == "02" ) set MM = FEB
@@ -94,7 +101,7 @@ if( $month == "12" ) set MM = DEC
 # --------------
 while( $month == $month0 && $nymd <= $nymdf )
 
-set date  = `$GEOSUTIL/post/tick $nymd 0 432000`
+set date  = `$GEOSUTIL/post/tick $nymd 0 $SDAY`
 set nymde = $date[1]
 set day   = `echo $nymd | cut -b 7-8`
 

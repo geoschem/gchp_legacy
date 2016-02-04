@@ -10,8 +10,11 @@
 ! !INTERFACE:
 
     module m_zeit
+      use m_realkinds, only: zeit_kind => kind_r8
       implicit none
       private	! except
+
+      public :: zeit_kind	! e.g. real(kind=zeit_kind):: usertime
 
       public :: zeit_ci		! push a new name to the timer
       public :: zeit_co		! pop the current name on the timer
@@ -105,7 +108,7 @@
 !
 ! 10may96 - Jing Guo <guo@eramus>		-
 !
-!     + This `zeit' subroutine collection replaces original zeit files
+!     + This -zeit- subroutine collection replaces original zeit files
 !	used in PSAS on both systems, UNICOS and IRIX, with following
 !	changes:
 !
@@ -140,7 +143,7 @@
 !     +	The precision of "wall clock" time returned by syszeit_() is
 !	only required to be reliable upto seconds.
 !
-!     +	The "wall clock" time for individual `name' (clkknt) is
+!     +	The "wall clock" time for individual -name- (clkknt) is
 !	accumulated by adding the differences between two integer
 !	values, iclk and iclksv.  Care must be taken to compute the
 !	differences of iclk and iclksv first.  That is, doing
@@ -165,7 +168,7 @@
 !       were extended to include the use of this externally determined
 !       wallclock time.  Accordingly, these same routines were modified
 !       slightly to then use only the externally defined time and NOT the
-!       current wallclock time that would normally be returned by m_zeit's
+!       current wallclock time that would normally be returned by m_zeit''s
 !       get_zeits routine.
 !     + Additional columns were added to the output format statements in
 !       the sp_balances routine so reports could be generated for the
@@ -246,6 +249,7 @@ contains
       use m_stdio ,only : stderr
       use m_die   ,only : die
       use m_mpif90,only : MP_wtime
+      use m_sysclocks, only: get_zeits => sysclocks_get
       implicit none
       character(len=*), intent(in) :: name
       real*8, optional, intent(in) :: usrtime
@@ -287,7 +291,7 @@ contains
     zts(0:1)=usrtime
     zts(2:)=0.
   else
-    call get_zeits(zts(1))
+    call get_zeits(zts(1:5))
     zts(0)=MP_wtime()
   endif
 
@@ -357,6 +361,7 @@ end subroutine ci_
       use m_stdio ,only : stderr
       use m_die   ,only : die
       use m_mpif90,only : MP_wtime
+      use m_sysclocks, only: get_zeits => sysclocks_get
       implicit none
       character(len=*), intent(in) :: name	! account name
       real*8,optional,dimension(0:5,0:1),intent(out) :: tms ! timings
@@ -405,7 +410,7 @@ end subroutine ci_
     zts(0:1)=usrtime
     zts(2:)=0.
   else
-    call get_zeits(zts(1))
+    call get_zeits(zts(1:5))
     zts(0)=MP_wtime()
   endif
 
@@ -471,6 +476,7 @@ end subroutine co_
 
     subroutine reset_(usrtime,mytime)
       use m_mpif90,only : MP_wtime
+      use m_sysclocks, only: get_zeits => sysclocks_get
       implicit none
       real*8, optional,intent(in)::usrtime
       real*8, optional,dimension(0:),intent(in) :: mytime
@@ -498,7 +504,7 @@ end subroutine co_
     zts_sv(0:1)=usrtime
     zts_sv(2:)=0.
   else
-    call get_zeits(zts_sv(1))
+    call get_zeits(zts_sv(1:5))
     zts_sv(0)=MP_wtime()
   endif
 
@@ -592,17 +598,19 @@ end function lookup_
 !
 ! !INTERFACE:
 
-    subroutine flush_(lu,umask,usrtime,mytime,subname_at_end)
+    subroutine flush_(lu,umask,usrtime,mytime,subname_at_end,scale)
       use m_stdio ,only : stderr
       use m_ioutil,only : luflush
       use m_die   ,only : die
       use m_mpif90,only : MP_wtime
+      use m_sysclocks, only: get_zeits => sysclocks_get
       implicit none
       integer,intent(in) :: lu	! logical unit for the output
       integer,optional,intent(in) :: umask
       real*8, optional,intent(in) :: usrtime
       real*8, optional,dimension(0:),intent(in) :: mytime
       logical,optional,intent(in) :: subname_at_end
+      real*8, optional,intent(in) :: scale
 
 ! !REVISION HISTORY:
 !       14Mar2003 - Lang_ping Chang
@@ -653,7 +661,7 @@ end function lookup_
     zts(0:1)=usrtime
     zts(2:)=0.
   else
-    call get_zeits(zts(1))
+    call get_zeits(zts(1:5))
     zts(0)=MP_wtime()
   endif
 
@@ -661,7 +669,7 @@ end function lookup_
 
   do i=0,5
     if(iand(MASKS(i),imask) /= 0)	&
-      call sp_balances_(lu,i,zts(i),subname_at_end=subname_at_end)
+      call sp_balances_(lu,i,zts(i),subname_at_end=subname_at_end,scale=scale)
   end do
 #ifdef TODO
   if(iand(UWRATE,imask) /= 0) call sp_rate_(lu,zts)
@@ -682,12 +690,13 @@ end subroutine flush_
 !
 ! !INTERFACE:
 
-    subroutine sp_balances_(lu,itm,zti,subname_at_end)
+    subroutine sp_balances_(lu,itm,zti,subname_at_end,scale)
       implicit none
       integer,intent(in) :: lu
       integer,intent(in) :: itm
       real*8,intent(in) :: zti
       logical,optional,intent(in) :: subname_at_end
+      real*8,optional,intent(in) :: scale
 
 ! !REVISION HISTORY:
 !       14Mar2003 - Lang_ping Chang
@@ -716,17 +725,20 @@ end subroutine flush_
   real*8 :: sz0
   real*8 :: zt,zt_percent,zt_percall
   real*8 :: sz,sz_percent
+  real(kind=zeit_kind) :: scale_
 
   logical :: line_end_subname
 
   line_end_subname=.false.
   if(present(subname_at_end)) line_end_subname=subname_at_end
+  scale_=1._zeit_kind
+  if(present(scale)) scale_=scale
  
 	! The total time is given in the ZEIT bin
 
   sz0=szts_l(itm,0)
   if(level_l(0) /= 0) sz0=sz0 + zti - szts_sv(itm,0)
-  sz0=max(res,sz0)
+  sz0=max(res,sz0*scale_)
 
  If(.not.line_end_subname)then
   write(lu,'(a,t14,a,t24,a,t34,a,t58,a)')	&
@@ -763,6 +775,8 @@ end subroutine flush_
       sz=sz + zti - szts_sv(itm,l)
       tag='+'
     endif
+    zt=zt*scale_
+    sz=sz*scale_
 
     zt_percall=zt/max(1,knt_l(l))
 
@@ -836,7 +850,7 @@ end subroutine sp_balances_
 !
 ! !INTERFACE:
 
-    subroutine allflush_(comm,root,lu,umask,mytime,subname_at_end)
+    subroutine allflush_(comm,root,lu,umask,mytime,subname_at_end,scale)
       use m_stdio ,only : stderr
       use m_ioutil,only : luflush
       use m_die   ,only : die,MP_die
@@ -849,6 +863,7 @@ end subroutine sp_balances_
       use m_mergedList,only : ptr_indx
       use m_mergedList,only : ptr_list
       use m_mergedList,only : clean
+      use m_sysclocks, only: get_zeits => sysclocks_get
       implicit none
       integer,intent(in) :: comm
       integer,intent(in) :: root
@@ -856,6 +871,7 @@ end subroutine sp_balances_
       integer,optional,intent(in) :: umask
       real*8,optional,dimension(0:),intent(in) :: mytime
       logical,optional,intent(in) :: subname_at_end
+      real*8,optional,intent(in) :: scale
 
 ! !REVISION HISTORY:
 !       14Mar2003 - Lang_ping Chang
@@ -883,6 +899,7 @@ end subroutine sp_balances_
   integer         ,pointer,dimension(:  ) :: pindx
   character(len=1),pointer,dimension(:,:) :: plist
   type(mergedList) :: merged
+  real(kind=zeit_kind):: scale_
 
   integer :: i,k,l
   integer :: ntm
@@ -898,9 +915,12 @@ end subroutine sp_balances_
     zts(0:ntm)=mytime(0:ntm)
     zts(ntm+1:)=zts(ntm)
   else
-    call get_zeits(zts(1))
+    call get_zeits(zts(1:5))
     zts(0)=MP_wtime()
   endif
+
+  scale_=1._zeit_kind
+  if(present(scale)) scale_=scale
 
   mname=min(MXN,nname)
   call mergedList_init(name_l(0:mname),merged,root,comm)
@@ -963,7 +983,7 @@ end subroutine sp_balances_
     zts(0:ntm)=mytime(0:ntm)
     zts(ntm+1:)=zts(ntm)
   else
-    call get_zeits(zts(1))
+    call get_zeits(zts(1:5))
     zts(0)=MP_wtime()
   endif
 
@@ -1293,4 +1313,46 @@ end subroutine mp_balances_
 end subroutine allreduce_
 !=======================================================================
 end module m_zeit
+
+!_UTC_program tc_zeit
+!_UTC_  use m_zeit, only: zeit_ci,zeit_co,zeit_flush,zeit_allflush
+!_UTC_  use m_zeit, only: MWTIME,PUTIME
+!_UTC_  use m_die , only: warn
+!_UTC_  use m_mpif90, only: mp_init
+!_UTC_  use m_mpif90, only: mp_finalize
+!_UTC_  use m_mpif90, only: mp_comm_world
+!_UTC_  use m_mpif90, only: mp_comm_rank
+!_UTC_  implicit none
+!_UTC_  character(len=*),parameter:: myname='tc_zeit'
+!_UTC_  integer,parameter:: MAXI=(huge(MAXI)/1024+1023)/1024*1024
+!_UTC_  integer,parameter:: TMASK=ior(MWTIME,PUTIME)
+!_UTC_  integer:: i,j,ier,mype
+!_UTC_  integer,parameter:: ROOT=0
+!_UTC_
+!_UTC_  call mp_init(ier)
+!_UTC_  call mp_comm_rank(mp_comm_world,mype,ier)
+!_UTC_
+!_UTC_  call zeit_ci(myname//'.allPErun')
+!_UTC_  j=0
+!_UTC_  do i=1,maxi*100
+!_UTC_    j=2*sin(j+.1)
+!_UTC_  enddo
+!_UTC_  if(j>5) call warn(myname,'unexpected value, j =',j)	! this should never happen
+!_UTC_  call zeit_co(myname//'.allPErun')
+!_UTC_
+!_UTC_  call zeit_ci(myname//'.rootonly')
+!_UTC_  j=0
+!_UTC_  if(mype==ROOT) then
+!_UTC_    do i=1,maxi*100
+!_UTC_      j=2*sin(j+.1)
+!_UTC_    enddo
+!_UTC_  endif
+!_UTC_  if(j>5) call warn(myname,'unexpected value, j =',j)	! this should never happen
+!_UTC_  call zeit_co(myname//'.rootonly')
+!_UTC_
+!_UTC_  if(mype==ROOT) call zeit_flush(6,umask=TMASK,subname_at_end=.true.) !,scale=1000.D+00)
+!_UTC_  call zeit_allflush(mp_comm_world,0,6,umask=TMASK,subname_at_end=.true.) !,scale=1000.D+00)
+!_UTC_
+!_UTC_  call mp_finalize(ier)
+!_UTC_end program tc_zeit
 !.

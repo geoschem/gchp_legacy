@@ -104,7 +104,7 @@ contains
   real, allocatable :: data_ll(:,:), data_cs(:,:)
 
   integer :: numtasks
-  integer :: gid, pe0, pe1, pe2, pe3, pe4, pe5, pe6, pe7, pe8
+  integer :: gid, pe0, pe1, pe2, pe3, pe4, pe5, pe6, pe7
 
 ! Begin
 !------
@@ -140,7 +140,7 @@ contains
     call ESMF_VMGet(vm, petCount=numtasks, rc=status)
     call ESMF_VMGet(vm, localPet=gid, rc=status)
 
-    pe0 = -1 ; pe1 = -1 ; pe2 = -1 ; pe3 = -1 ; pe4 = -1 ; pe5 = -1 ; pe6 = -1 ; pe7 = 0 ; pe8 = 0
+    pe0 = 0 ; pe1 = 0 ; pe2 = 0 ; pe3 = 0 ; pe4 = 0 ; pe5 = 0 ; pe6 = 0
 
     if (gid == pe0) then
     nlon = 144
@@ -148,8 +148,7 @@ contains
     allocate ( data_ll(nlon,nlat) )
     allocate ( data_cs(npx ,npy ) )
     data_ll(:,:) = 1.0
-   !call latlon2cube(npx, npy, nlon, nlat, data_ll, data_cs, 1, npx, 1, npy)
-    call cube2latlon(npx, npy, nlon, nlat, data_cs, data_ll)
+    call latlon2cube(npx, npy, nlon, nlat, data_ll, data_cs, 1, npx, 1, npy)
     deallocate( data_ll, data_cs )
     endif
 
@@ -159,8 +158,7 @@ contains
     allocate ( data_ll(nlon,nlat) )
     allocate ( data_cs(npx ,npy ) )
     data_ll(:,:) = 1.0
-   !call latlon2cube(npx, npy, nlon, nlat, data_ll, data_cs, 1, npx, 1, npy)
-    call cube2latlon(npx, npy, nlon, nlat, data_cs, data_ll)
+    call latlon2cube(npx, npy, nlon, nlat, data_ll, data_cs, 1, npx, 1, npy)
     deallocate( data_ll, data_cs )
     endif
 
@@ -170,8 +168,7 @@ contains
     allocate ( data_ll(nlon,nlat) )
     allocate ( data_cs(npx ,npy ) )
     data_ll(:,:) = 1.0
-   !call latlon2cube(npx, npy, nlon, nlat, data_ll, data_cs, 1, npx, 1, npy)
-    call cube2latlon(npx, npy, nlon, nlat, data_cs, data_ll)
+    call latlon2cube(npx, npy, nlon, nlat, data_ll, data_cs, 1, npx, 1, npy)
     deallocate( data_ll, data_cs )
     endif
 
@@ -181,8 +178,7 @@ contains
     allocate ( data_ll(nlon,nlat) )
     allocate ( data_cs(npx ,npy ) )
     data_ll(:,:) = 1.0
-   !call latlon2cube(npx, npy, nlon, nlat, data_ll, data_cs, 1, npx, 1, npy)
-    call cube2latlon(npx, npy, nlon, nlat, data_cs, data_ll)
+    call latlon2cube(npx, npy, nlon, nlat, data_ll, data_cs, 1, npx, 1, npy)
     deallocate( data_ll, data_cs )
     endif
 
@@ -192,45 +188,31 @@ contains
     allocate ( data_ll(nlon,nlat) )
     allocate ( data_cs(npx ,npy ) )
     data_ll(:,:) = 1.0
-   !call latlon2cube(npx, npy, nlon, nlat, data_ll, data_cs, 1, npx, 1, npy)
-    call cube2latlon(npx, npy, nlon, nlat, data_cs, data_ll)
+    call latlon2cube(npx, npy, nlon, nlat, data_ll, data_cs, 1, npx, 1, npy)
     deallocate( data_ll, data_cs )
     endif
 
     if (gid == pe5) then
+    nlon = 1080
+    nlat = 721
+    allocate ( data_ll(nlon,nlat) )
+    allocate ( data_cs(npx ,npy ) )
+    data_ll(:,:) = 1.0
+    call latlon2cube(npx, npy, nlon, nlat, data_ll, data_cs, 1, npx, 1, npy)
+    deallocate( data_ll, data_cs )
+    endif
+
+    if (gid == pe6) then
     nlon = 1152
     nlat = 721
     allocate ( data_ll(nlon,nlat) )
     allocate ( data_cs(npx ,npy ) )
     data_ll(:,:) = 1.0
-   !call latlon2cube(npx, npy, nlon, nlat, data_ll, data_cs, 1, npx, 1, npy)
-    call cube2latlon(npx, npy, nlon, nlat, data_cs, data_ll)
-    deallocate( data_ll, data_cs )
-    endif
-
-    if (gid == pe6) then
-    nlon = 360
-    nlat = 180
-    allocate ( data_ll(nlon,nlat) )
-    allocate ( data_cs(npx ,npy ) )
-    data_ll(:,:) = 1.0
-   !call latlon2cube(npx, npy, nlon, nlat, data_ll, data_cs, 1, npx, 1, npy)
-    call cube2latlon(npx, npy, nlon, nlat, data_cs, data_ll)
+    call latlon2cube(npx, npy, nlon, nlat, data_ll, data_cs, 1, npx, 1, npy)
     deallocate( data_ll, data_cs )
     endif
 
     if (gid == pe7) then
-    nlon = 720
-    nlat = 361
-    allocate ( data_ll(nlon,nlat) )
-    allocate ( data_cs(npx ,npy ) )
-    data_ll(:,:) = 1.0
-   !call latlon2cube(npx, npy, nlon, nlat, data_ll, data_cs, 1, npx, 1, npy)
-    call cube2latlon(npx, npy, nlon, nlat, data_cs, data_ll)
-    deallocate( data_ll, data_cs )
-    endif
-
-    if (gid == pe8) then
     nlon = 4*npx
     nlat = nlon/2 + 1
     allocate ( data_ll(nlon,nlat) )

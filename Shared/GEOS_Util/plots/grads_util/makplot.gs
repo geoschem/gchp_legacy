@@ -112,6 +112,10 @@ if( result = 'NULL' ) ; 'getresource 'PLOTRC' 'name'_'gridcomp'_CLEVS' ; endif
                                                                 method = result
 endif
 
+'run getenv "CINTDIFF"'
+             CINTDIFF  = result
+         if( CINTDIFF != 'NULL' ) ; dcols = 'NULL' ; endif
+
 say ''
 if( factor = 'NULL' ) ; factor = 1 ; endif
 if( title  = 'NULL' )
@@ -250,8 +254,10 @@ endif
 'rgbset'
 'getinfo lon'
          lon = result
-'define obsg = regrid2( qobs,1,1,bs_p1,'lon',-90)'
-'define modg = regrid2( qmod,1,1,bs_p1,'lon',-90)'
+*'define obsg = regrid2( qobs,1,1,bs_p1,'lon',-90)'
+*'define modg = regrid2( qmod,1,1,bs_p1,'lon',-90)'
+'define obsg = qobs'
+'define modg = qmod'
 'define difg = maskout( modg-obsg,abs(obsg) )'
 
 n = 0

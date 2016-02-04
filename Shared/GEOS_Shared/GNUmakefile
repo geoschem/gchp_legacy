@@ -4,13 +4,12 @@
 # REVISION HISTORY:
 #
 # 09Jun2003  da Silva  First crack.
-# 20 Nov 2014 - R. Yantosca - Add MOD_ESMF to the list of INC_DIRS
 #
 
 # Make sure ESMADIR is defined
 # ----------------------------
 ifndef ESMADIR
-       ESMADIR := $(PWD)/..
+       ESMADIR := $(PWD)/../..
 endif
 
 # Compilation rules, flags, etc
@@ -63,23 +62,13 @@ esma_doc doc:
 SRCS_F90 = $(wildcard GEOS_Utilities.F90 DragCoefficients.F90 GEOS.F90 \
                   tropovars.F90 surfacelayer.F90 GEOS_TopoGet.F90 \
                   GEOS_GmapMod.F90 GEOS_RemapMod.F90 G3_MPI_Util_Mod.F90 windfix.F90 )
-SRCS_F   = $(wildcard PWSSSP.F)
+SRCS_F   = $(wildcard PWSSSP.F sphere.F)
 
 OBJS = $(SRCS_F90:.F90=.o) $(SRCS_F:.F=.o)
 DEPS = $(SRCS_F90:.F90=.d) $(SRCS_F:.F=.d)
 
-###############################################################################
-# %%%%% COMMENTED OUT BY BOB Y. (11/20/14) %%%%%
-#INC_DIRS = . $(INC_ESMF) $(INC_MPI) $(INC_GMAO_SHARED)
-###############################################################################
-#------------------------------------------------------------------------------
-# %%%%% ADDED BY BOB Y. (11/20/14) %%%%%
-#
-# ESMF modules now get put into the MOD_ESMF directory, 
-# so we have to add that to INC_DIRS now (bmy, 11/20/14)
-INC_DIRS = . $(INC_ESMF) $(MOD_ESMF) $(INC_MPI) $(INC_GMAO_SHARED)
-#------------------------------------------------------------------------------
-MOD_DIRS = . $(INC_DIRS) 
+INC_DIRS = . $(INC_ESMF) $(INC_MPI) $(INC_GMAO_SHARED) 
+MOD_DIRS = . $(MOD_ESMF) $(INC_DIRS) 
 
 USER_FINCS = $(foreach dir,$(INC_DIRS),$(I)$(dir))
 USER_FMODS = $(foreach dir,$(MOD_DIRS),$(M)$(dir)) 
@@ -94,6 +83,9 @@ $(LIB) lib : $(DEPS) $(OBJS)
 
 PWSSSP.o: PWSSSP.F
 	$(FC) -c $(FFLAGS) $(FREAL8) -I. PWSSSP.F
+
+sphere.o: sphere.F
+	$(FC) -c $(FFLAGS) $(FREAL8) -I. sphere.F
 
 GEOS_Utilities.o: qsatlqu.code qsatice.code esatlqu.code esatice.code
 DragCoefficients.o: getcds.code

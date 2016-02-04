@@ -1,4 +1,4 @@
-! $Id: arraygather.H,v 1.10.124.2 2013-03-12 15:21:00 atrayano Exp $
+! $Id: arraygather.H,v 1.10.124.2.60.3 2015-01-31 02:25:39 atrayano Exp $
 
 #ifdef NAME_
 #undef NAME_
@@ -45,20 +45,13 @@
     integer                                       :: destPE, myhw
     TYPE_(kind=EKIND_), allocatable               :: var(:)
     integer                               :: deList(1)
+    type(ESMF_VM) :: vm
     
 ! Works only on 1D and 2D arrays
 ! Note: for tile variables the gridRank is 1 
 ! and the case RANK_=2 needs additional attention 
 
     ASSERT_(RANK_ <= 2)
-
-    ISZ = size(GLOBAL_ARRAY,1)
-
-#if (RANK_ == 2)
-    JSZ = size(GLOBAL_ARRAY,2)
-#else
-    JSZ = 1
-#endif
 
     if(present(depe)) then
       destPE = depe 
@@ -78,6 +71,8 @@
     call ESMF_DELayoutGet(layout, deCount =nDEs, localDeList=deList, rc=status)
     VERIFY_(STATUS)
     deId = deList(1)
+    call ESMF_DELayoutGet(layout, vm=vm, rc=status)
+    VERIFY_(STATUS)
 
     allocate (AL(gridRank,0:nDEs-1),  stat=status)
     VERIFY_(STATUS)
@@ -91,8 +86,13 @@
     allocate (recvcounts(nDEs), displs(0:nDEs), stat=status)
     VERIFY_(STATUS)
 
-    allocate(VAR(0:size(GLOBAL_ARRAY)-1), stat=status)
-    VERIFY_(STATUS)
+    if (deId == destPE) then
+       allocate(VAR(0:size(GLOBAL_ARRAY)-1), stat=status)
+       VERIFY_(STATUS)
+    else
+       allocate(VAR(0), stat=status)
+       VERIFY_(STATUS)
+    end if
 
     displs(0) = 0
 #if (RANK_ > 1)
@@ -144,6 +144,14 @@
 
     if (deId == destPE) then
        if (present(mask)) then
+          ISZ = size(mask)
+
+#if (RANK_ == 2)
+          JSZ = size(GLOBAL_ARRAY,2)
+#else
+          JSZ = 1
+#endif
+
           allocate(KK (0:nDEs-1        ), stat=status)
           VERIFY_(STATUS)
           KK = DISPLS(0:nDEs-1)
@@ -191,6 +199,8 @@
     deallocate(recvcounts, displs, AU, AL, stat=status)
     VERIFY_(STATUS)
 
+    call ESMF_VmBarrier(vm, rc=status)
+    VERIFY_(STATUS)
     RETURN_(ESMF_SUCCESS)
   end subroutine SUB_
 

@@ -30,6 +30,9 @@ say ''
 'run getenv "GEOSUTIL"'
              geosutil = result
 
+'run getenv "LEVTYPE"'
+             CLEVS = result
+
 *******************************************************************
 ****                                                           ****
 ****                    Get Shading Land Mask                  ****
@@ -62,6 +65,7 @@ say ''
 
 PLOTRC = geosutil'/plots/grads_util/plot.rc'
 
+say 'LEVTYPE: 'CLEVS
                         'getresource 'PLOTRC' 'export'_'GC'_'level'_CBSCALE' 
 if( result = 'NULL' ) ; 'getresource 'PLOTRC' 'export'_'GC'_CBSCALE' ; endif
                                                             cbscale = result
@@ -78,7 +82,8 @@ if( result = 'NULL' ) ; 'getresource 'PLOTRC' 'export'_'GC'_TITLE' ; endif
 if( result = 'NULL' ) ; 'getresource 'PLOTRC' 'export'_'GC'_CCOLS' ; endif
                                                             ccols = result
 
-                        'getresource 'PLOTRC' 'export'_'GC'_'level'_CLEVS'
+                        'getresource 'PLOTRC' 'export'_'GC'_'level'_'CLEVS
+if( result = 'NULL' ) ; 'getresource 'PLOTRC' 'export'_'GC'_'CLEVS ; endif
 if( result = 'NULL' ) ; 'getresource 'PLOTRC' 'export'_'GC'_CLEVS' ; endif
                                                             clevs = result
 

@@ -1,5 +1,7 @@
       program  main
       use MAPL_ConstantsMod
+      use MAPL_IOMod
+
       implicit none
 
 ! **********************************************************************
@@ -65,6 +67,9 @@
       character*4    xdim ,ydim
       integer m,n,nmax,nargs,iargc,i,j,L,ID,rc
       integer nlots,nrem,num,num_other_rst
+      type(MAPL_NCIO) :: InNCIO, OutNCIO
+      integer :: filetype,nDims,dimSizes(3),counter,nVars
+      character*256 :: vname
 
 ! **********************************************************************
 ! ****                      Initialize Filenames                    ****
@@ -144,17 +149,31 @@
 ! ****    Read dycore internal Restart for RSLV, Date and Time      ****
 ! **********************************************************************
 
-      open (10,file=trim(dynrst),form='unformatted',access='sequential')
-      read (10) headr1
-      read (10) headr2
-      close(10)
+      call MAPL_NCIOGetFileType(dynrst,filetype,rc=rc)
 
-      nymd = headr1(1)*10000
-     .     + headr1(2)*100
-     .     + headr1(3)
-      nhms = headr1(4)*10000
-     .     + headr1(5)*100
-     .     + headr1(6)
+      if (filetype ==0) then
+
+         InNCIO = MAPL_NCIOOpen(dynrst,rc=rc)
+         call MAPL_NCIOGetDimSizes(InNCIO,lon=im,lat=jm,lev=lm,date=nymd,time=nhms)
+
+      else
+
+         open (10,file=trim(dynrst),form='unformatted',access='sequential')
+         read (10) headr1
+         read (10) headr2
+         close(10)
+
+         nymd = headr1(1)*10000
+     .        + headr1(2)*100
+     .        + headr1(3)
+         nhms = headr1(4)*10000
+     .        + headr1(5)*100
+     .        + headr1(6)
+
+         im = headr2(1)
+         jm = headr2(2)
+         lm = headr2(3)
+      end if
 
       if( nymd_ana.eq.-999 ) nymd_ana = nymd
       if( nhms_ana.eq.-999 ) nhms_ana = nhms
@@ -166,10 +185,6 @@
   101 format(i8.8)
   102 format(i2.2)
   103 format(i4.4)
-
-      im = headr2(1)
-      jm = headr2(2)
-      lm = headr2(3)
 
       print *
       print *, '   dyn restart filename: ',trim(dynrst)
@@ -225,32 +240,61 @@
 ! **********************************************************************
 
       allocate ( dum(im,jm) )
-      open (10,file=trim(dynrst),form='unformatted',access='sequential')
-      read (10) headr1
-      read (10) headr2
-      read (10) ak
-      read (10) bk
-          do L=1,lm
-             read(10)   dum
-             u(:,:,L) = dum(:,:)
-          enddo
-          do L=1,lm
-             read(10)   dum
-             v(:,:,L) = dum(:,:)
-          enddo
-          do L=1,lm
-             read(10)    dum
-             th(:,:,L) = dum(:,:)
-          enddo
-          do L=1,lm+1
-             read(10)     dum
-             ple(:,:,L) = dum(:,:)
-          enddo
-          do L=1,lm
-             read(10)    dum
-             pk(:,:,L) = dum(:,:)
-          enddo
-      close (10)
+
+      if (filetype == 0) then
+         call MAPL_VarRead(InNCIO,"AK",ak) 
+         call MAPL_VarRead(InNCIO,"BK",bk)
+         do L=1,lm
+            call MAPL_VarRead(InNCIO,"U",dum,lev=l)
+            u(:,:,L) = dum(:,:)
+         enddo
+         do L=1,lm
+            call MAPL_VarRead(InNCIO,"V",dum,lev=l)
+            v(:,:,L) = dum(:,:)
+         enddo
+         do L=1,lm
+            call MAPL_VarRead(InNCIO,"PT",dum,lev=l)
+            th(:,:,L) = dum(:,:)
+         enddo
+         do L=1,lm+1
+            call MAPL_VarRead(InNCIO,"PE",dum,lev=l)
+            ple(:,:,L) = dum(:,:)
+         enddo
+         do L=1,lm
+            call MAPL_VarRead(InNCIO,"PKZ",dum,lev=l)
+            pk(:,:,L) = dum(:,:)
+         enddo
+      else
+
+         open (10,file=trim(dynrst),form='unformatted',access='sequential')
+         read (10) headr1
+         read (10) headr2
+         read (10) ak
+         read (10) bk
+         do L=1,lm
+            read(10)   dum
+            u(:,:,L) = dum(:,:)
+         enddo
+         do L=1,lm
+            read(10)   dum
+            v(:,:,L) = dum(:,:)
+         enddo
+         do L=1,lm
+            read(10)    dum
+            th(:,:,L) = dum(:,:)
+         enddo
+         do L=1,lm+1
+            read(10)     dum
+            ple(:,:,L) = dum(:,:)
+         enddo
+         do L=1,lm
+            read(10)    dum
+            pk(:,:,L) = dum(:,:)
+         enddo
+         close (10)
+
+      end if
+
       deallocate ( dum )
 
 c compute ts based on mean theta in pbl (100-mb)
@@ -338,11 +382,44 @@ c ---------------------------------
       print *, 'Creating GEOS-5 fvcore_internal_restart: ',trim(anaeta)
 
       allocate ( dum(im_out,jm_out) )
-      open (20,file=trim(anaeta),form='unformatted',access='sequential')
-      write(20) headr1
-      write(20) headr2
-      write(20) ak
-      write(20) bk
+
+      if (filetype ==0) then
+
+         call MAPL_NCIOChangeRes(InNCIO,OutNCIO,latSize=jm_out,lonSize=im_out)
+         call MAPL_NCIOSet(OutNCIO,filename=anaeta)
+         call MAPL_NCIOCreateFile(OutNCIO)
+         call MAPL_VarWrite(OutNCIO,"AK",ak)
+         call MAPL_VarWrite(OutNCIO,"BK",bk)
+         do L=1,lm
+            dum(:,:) = unew(:,:,L)
+            call MAPL_VarWrite(OutNCIO,"U",dum,lev=L)
+         enddo
+         do L=1,lm
+            dum(:,:) = vnew(:,:,L)
+            call MAPL_VarWrite(OutNCIO,"V",dum,lev=L)
+         enddo
+         do L=1,lm
+            dum(:,:) = thnew(:,:,L)
+            call MAPL_VarWrite(OutNCIO,"PT",dum,lev=L)
+         enddo
+         do L=1,lm+1
+            dum(:,:) = plenew(:,:,L)
+            call MAPL_VarWrite(OutNCIO,"PE",dum,lev=L)
+         enddo
+         do L=1,lm
+            dum(:,:) = pknew(:,:,L)
+            call MAPL_VarWrite(OutNCIO,"PKZ",dum,lev=L)
+         enddo
+         call MAPL_NCIOClose(InNCIO,destroy=.true.)
+         call MAPL_NCIOClose(OutNCIO,destroy=.true.)
+
+      else
+
+         open (20,file=trim(anaeta),form='unformatted',access='sequential')
+         write(20) headr1
+         write(20) headr2
+         write(20) ak
+         write(20) bk
           do L=1,lm
                        dum(:,:) = unew(:,:,L)
              write(20) dum
@@ -363,7 +440,9 @@ c ---------------------------------
                        dum(:,:) = pknew(:,:,L)
              write(20) dum
           enddo
-      close (20)
+         close (20)
+
+      endif
       deallocate ( dum )
 
 ! **********************************************************************
@@ -372,52 +451,99 @@ c ---------------------------------
 
       anaeta = trim(moistrst) // '.' // xdim // 'x' // ydim
 
-      open  (10,file=trim(moistrst),form='unformatted',access='sequential')
-      open  (20,file=trim(anaeta)  ,form='unformatted',access='sequential')
+      call MAPL_NCIOGetFileType(moistrst,filetype,rc=rc)
 
-             nmax =  0
-               rc =  0
-      dowhile (rc.eq.0)
-         read (10,iostat=rc)
-      if( rc.eq.0 ) nmax = nmax + 1
-      enddo
-      rewind 10
+      if (filetype ==0) then
 
-      print *
-      write(6,1001) 'Creating GEOS-5  moist_internal_restart: ' // trim(moistrst),nmax
-      print *
- 1001 format(1x,a,\,1x,'(',i5,' 2-D Arrays)' )
-      nlots = nmax/100
-      nrem  = nmax - nlots*100
+         InNCIO = MAPL_NCIOOpen(moistrst,rc=rc)
+         call MAPL_NCIOGetDimSizes(InNCIO,nVars=nVars)
+         call MAPL_NCIOChangeRes(InNCIO,OutNCIO,latSize=jm_out,lonSize=im_out)
+         call MAPL_NCIOSet(OutNCIO,filename=anaeta)
+         call MAPL_NCIOCreateFile(OutNCIO)
+         nmax = 0
+         do n=1,nVars
+            nmax = nmax+lm
+         enddo
 
-      do  n=1,nlots+1
-          if( n.eq.1 ) then
-              nmax = nrem
-          else
-              nmax = 100
-          endif
-          deallocate ( q,qnew )
-            allocate ( q   (im,    jm,    nmax) )
-            allocate ( qnew(im_out,jm_out,nmax) )
+         deallocate ( q,qnew )
+           allocate ( q   (im,    jm,    nmax) )
+           allocate ( qnew(im_out,jm_out,nmax) )
 
-      print *, 'Interpolating MOIST Restart for ',nmax,' 2-D Arrays ...'
-      do L=1,nmax
-         read (10)  dumold
-         q(:,:,L) = dumold
-      enddo
+         counter = 0
+         do n=1,nVars
+            call MAPL_NCIOGetVarName(InNCIO,n,vname)
+            call MAPL_NCIOVarGetDims(InNCIO,vname,nDims,dimSizes)
+            do l=1,dimSizes(3)
+               call MAPL_VarRead(InNCIO,vname,dumold,lev=l)
+               counter = counter + 1
+               q(:,:,counter) = dumold
+            enddo
+         enddo
+         call hinterp ( q,im,jm,qnew,im_out,jm_out,nmax,undef, 1,-3,.false.)
+         counter = 0
+         do n=1,nVars
+            call MAPL_NCIOGetVarName(InNCIO,n,vname)
+            call MAPL_NCIOVarGetDims(InNCIO,vname,nDims,dimSizes)
+            do l=1,dimSizes(3)
+               counter = counter + 1
+               dumnew = qnew(:,:,counter)
+               call MAPL_VarWrite(OutNCIO,vname,dumnew,lev=l)
+            enddo
+         enddo
 
-      call hinterp ( q,im,jm,qnew,im_out,jm_out,nmax,undef, 1,-3,.false.)
+         call MAPL_NCIOClose(InNCIO,destroy=.true.)
+         call MAPL_NCIOClose(OutNCIO,destroy=.true.)
+ 
+      else
 
-      do L=1,nmax
-         dumnew = qnew(:,:,L)
-         write(20) dumnew
-      enddo
+         open  (10,file=trim(moistrst),form='unformatted',access='sequential')
+         open  (20,file=trim(anaeta)  ,form='unformatted',access='sequential')
 
-      enddo
-      print *
+                nmax =  0
+                  rc =  0
+         dowhile (rc.eq.0)
+            read (10,iostat=rc)
+         if( rc.eq.0 ) nmax = nmax + 1
+         enddo
+         rewind 10
 
-      close (10)
-      close (20)
+         print *
+         write(6,1001) 'Creating GEOS-5  moist_internal_restart: ' // trim(moistrst),nmax
+         print *
+ 1001    format(1x,a,/,1x,'(',i5,' 2-D Arrays)' )
+         nlots = nmax/100
+         nrem  = nmax - nlots*100
+
+         do  n=1,nlots+1
+             if( n.eq.1 ) then
+                 nmax = nrem
+             else
+                 nmax = 100
+             endif
+             deallocate ( q,qnew )
+               allocate ( q   (im,    jm,    nmax) )
+               allocate ( qnew(im_out,jm_out,nmax) )
+
+         print *, 'Interpolating MOIST Restart for ',nmax,' 2-D Arrays ...'
+         do L=1,nmax
+            read (10)  dumold
+            q(:,:,L) = dumold
+         enddo
+
+         call hinterp ( q,im,jm,qnew,im_out,jm_out,nmax,undef, 1,-3,.false.)
+
+         do L=1,nmax
+            dumnew = qnew(:,:,L)
+            write(20) dumnew
+         enddo
+
+         enddo
+         print *
+
+         close (10)
+         close (20)
+
+      endif
 
 ! **********************************************************************
 ! ****    Read, Interpolate, and Write Other Internal Restart       ****
@@ -426,51 +552,99 @@ c ---------------------------------
       do m=1,num_other_rst
       anaeta = trim(other_rst(m)) // '.' // xdim // 'x' // ydim
 
-      open  (10,file=trim(other_rst(m)),form='unformatted',access='sequential')
-      open  (20,file=trim(anaeta)      ,form='unformatted',access='sequential')
+      call MAPL_NCIOGetFileType(other_rst(m),filetype,rc=rc)
 
-             nmax =  0
-               rc =  0
-      dowhile (rc.eq.0)
-         read (10,iostat=rc)
-      if( rc.eq.0 ) nmax = nmax + 1
-      enddo
-      rewind 10
+      if (filetype ==0) then
 
-      write(6,1001) 'Creating GEOS-5  other_internal_restart: ' // trim(anaeta),nmax
-      print *
-      nlots = nmax/100
-      nrem  = nmax - nlots*100
+         InNCIO = MAPL_NCIOOpen(other_rst(m),rc=rc)
+         call MAPL_NCIOGetDimSizes(InNCIO,nVars=nVars)
+         call MAPL_NCIOChangeRes(InNCIO,OutNCIO,latSize=jm_out,lonSize=im_out)
+         call MAPL_NCIOSet(OutNCIO,filename=anaeta)
+         call MAPL_NCIOCreateFile(OutNCIO)
+         nmax = 0
+         do n=1,nVars
+            nmax = nmax+lm
+         enddo
 
-      do  n=1,nlots+1
-          if( n.eq.1 ) then
-              nmax = nrem
-          else
-              nmax = 100
-          endif
-          deallocate ( q,qnew )
-            allocate ( q   (im,    jm,    nmax) )
-            allocate ( qnew(im_out,jm_out,nmax) )
+         deallocate ( q,qnew )
+           allocate ( q   (im,    jm,    nmax) )
+           allocate ( qnew(im_out,jm_out,nmax) )
 
-      print *, 'Interpolating Other Restart for ',nmax,' 2-D Arrays ...'
-      do L=1,nmax
-         read (10)  dumold
-         q(:,:,L) = dumold
-      enddo
+         counter = 0
+         do n=1,nVars
+            call MAPL_NCIOGetVarName(InNCIO,n,vname)
+            call MAPL_NCIOVarGetDims(InNCIO,vname,nDims,dimSizes)
+            do l=1,dimSizes(3)
+               call MAPL_VarRead(InNCIO,vname,dumold,lev=l)
+               counter = counter + 1
+               q(:,:,counter) = dumold
+            enddo
+         enddo
+         call hinterp ( q,im,jm,qnew,im_out,jm_out,nmax,undef, 1,-3,.false.)
+         counter = 0
+         do n=1,nVars
+            call MAPL_NCIOGetVarName(InNCIO,n,vname)
+            call MAPL_NCIOVarGetDims(InNCIO,vname,nDims,dimSizes)
+            do l=1,dimSizes(3)
+               counter = counter + 1
+               dumnew = qnew(:,:,counter)
+               call MAPL_VarWrite(OutNCIO,vname,dumnew,lev=l)
+            enddo
+         enddo
 
-!     call hinterp ( q,im,jm,qnew,im_out,jm_out,nmax,undef, 1,-3,.false.)  ! For Positive-Definate Fields
-      call hinterp ( q,im,jm,qnew,im_out,jm_out,nmax,undef, 1, 3,.false.)  ! For General           Fields
+         call MAPL_NCIOClose(InNCIO,destroy=.true.)
+         call MAPL_NCIOClose(OutNCIO,destroy=.true.)
 
-      do L=1,nmax
-         dumnew = qnew(:,:,L)
-         write(20) dumnew
-      enddo
+      else
 
-      enddo
-      print *
+         open  (10,file=trim(other_rst(m)),form='unformatted',access='sequential')
+         open  (20,file=trim(anaeta)      ,form='unformatted',access='sequential')
 
-      close (10)
-      close (20)
+                nmax =  0
+                  rc =  0
+         dowhile (rc.eq.0)
+            read (10,iostat=rc)
+         if( rc.eq.0 ) nmax = nmax + 1
+         enddo
+         rewind 10
+
+         write(6,1001) 'Creating GEOS-5  other_internal_restart: ' // trim(anaeta),nmax
+         print *
+         nlots = nmax/100
+         nrem  = nmax - nlots*100
+
+         do  n=1,nlots+1
+             if( n.eq.1 ) then
+                 nmax = nrem
+             else
+                 nmax = 100
+             endif
+             deallocate ( q,qnew )
+               allocate ( q   (im,    jm,    nmax) )
+               allocate ( qnew(im_out,jm_out,nmax) )
+
+         print *, 'Interpolating Other Restart for ',nmax,' 2-D Arrays ...'
+         do L=1,nmax
+            read (10)  dumold
+            q(:,:,L) = dumold
+         enddo
+
+!        call hinterp ( q,im,jm,qnew,im_out,jm_out,nmax,undef, 1,-3,.false.)  ! For Positive-Definate Fields
+         call hinterp ( q,im,jm,qnew,im_out,jm_out,nmax,undef, 1, 3,.false.)  ! For General           Fields
+
+         do L=1,nmax
+            dumnew = qnew(:,:,L)
+            write(20) dumnew
+         enddo
+
+         enddo
+         print *
+
+         close (10)
+         close (20)
+
+      end if
+
       enddo
 
       stop
@@ -2452,3 +2626,4 @@ C *********************************************************
      .         )
       call exit(7)
       end subroutine usage
+

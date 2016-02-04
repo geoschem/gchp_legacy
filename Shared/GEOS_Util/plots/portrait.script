@@ -32,9 +32,15 @@ set plots = "cmpexpz.dyn cmpexph.dyn cmpexpz.moist cmpexph.moist.1 cmpexph.moist
              rad.sw rad.lw rad.net taylor"
 
 set plots = `echo $plots` # To remove blanks
+set FOUND = FALSE
 
 setenv ORIENTATION PORTRAIT
-setenv LONSENV "0 360"
+if ( ! $?LONSENV ) then
+  setenv LONSENV "0 360"
+endif
+if ( ! $?LATSENV ) then
+  setenv LATSENV "-90 90"
+endif
 
 @ nmax = $#argv
 
@@ -73,6 +79,10 @@ while( $n <= $nmax )
        endif
        if( "$argv[$n]" == "-debug"   ) then
              set debug = "debug"
+       endif
+       if( "$argv[$n]" == "-zlog"   ) then
+                    @ n = $n + 1
+             set zlog  = $argv[$n]
        endif
        if( "$argv[$n]" == "-grads"   ) then
                     @ n = $n + 1
@@ -133,7 +143,7 @@ endif
 
 # Taylor Plots
 # ------------
-if( $TAYLOR == "TRUE" & $plot == "taylor" ) then
+if( $TAYLOR == "TRUE" & $plot == "taylor" & $CMPEXP_ONLY == "FALSE" ) then
    $grads $batch -p -c "run $GEOSUTIL/plots/taylor/taylor_olr                $expid $output $debug "
    $grads $batch -p -c "run $GEOSUTIL/plots/taylor/taylor_cloud              $expid $output $debug "
    $grads $batch -p -c "run $GEOSUTIL/plots/taylor/taylor_lwp                $expid $output $debug "
@@ -161,249 +171,116 @@ if( $TAYLOR == "TRUE" & $plot == "taylor" ) then
    $grads $batch -p -c "run $GEOSUTIL/plots/taylor/taylor_prog ZLE DYN   300 $expid $output $debug "
    $grads $batch -p -c "run $GEOSUTIL/plots/taylor/taylor_prog ZLE DYN   500 $expid $output $debug "
    $grads $batch -p -c "run $GEOSUTIL/plots/taylor/taylor_prog SLP DYN  1000 $expid $output $debug "
+    set FOUND = TRUE
 endif
 
 
-# Loop over Variables for Zonal Mean Comparisons
-# ----------------------------------------------
-     set EXPORTS = `echo U   V   T   Q     RH2   ZLE OMEGA`
-     set GCS     = `echo DYN DYN DYN MOIST MOIST DYN DYN`
-     @ n = 1
-     foreach EXPORT ($EXPORTS)
-     set GC = $GCS[$n]
-     set this_plot = "progz2_$EXPORT"
-         if( $plot == ${this_plot} ) then
-             $grads $batch -p -c "run $GEOSUTIL/plots/zcmp/progz $EXPORT $GC $expid $output $debug $seasons "
-         endif
-     @ n = $n + 1
-     end
-
-# Prognostic Horizontal Mean Comparisons
-# --------------------------------------
-     if( $plot == progh_SLP:1000 ) $grads $batch -p -c "run $GEOSUTIL/plots/hcmp/hcmp2 SLP DYN 1000 $expid $output $debug $seasons "
-
-     if( $plot == progh_U:1000 ) $grads $batch -p -c "run $GEOSUTIL/plots/hcmp/hcmp2 U DYN 1000 $expid $output $debug $seasons "
-     if( $plot == progh_U:925  ) $grads $batch -p -c "run $GEOSUTIL/plots/hcmp/hcmp2 U DYN 925  $expid $output $debug $seasons "
-     if( $plot == progh_U:850  ) $grads $batch -p -c "run $GEOSUTIL/plots/hcmp/hcmp2 U DYN 850  $expid $output $debug $seasons "
-     if( $plot == progh_U:700  ) $grads $batch -p -c "run $GEOSUTIL/plots/hcmp/hcmp2 U DYN 700  $expid $output $debug $seasons "
-     if( $plot == progh_U:600  ) $grads $batch -p -c "run $GEOSUTIL/plots/hcmp/hcmp2 U DYN 600  $expid $output $debug $seasons "
-     if( $plot == progh_U:500  ) $grads $batch -p -c "run $GEOSUTIL/plots/hcmp/hcmp2 U DYN 500  $expid $output $debug $seasons "
-     if( $plot == progh_U:400  ) $grads $batch -p -c "run $GEOSUTIL/plots/hcmp/hcmp2 U DYN 400  $expid $output $debug $seasons "
-     if( $plot == progh_U:300  ) $grads $batch -p -c "run $GEOSUTIL/plots/hcmp/hcmp2 U DYN 300  $expid $output $debug $seasons "
-     if( $plot == progh_U:250  ) $grads $batch -p -c "run $GEOSUTIL/plots/hcmp/hcmp2 U DYN 250  $expid $output $debug $seasons "
-     if( $plot == progh_U:200  ) $grads $batch -p -c "run $GEOSUTIL/plots/hcmp/hcmp2 U DYN 200  $expid $output $debug $seasons "
-     if( $plot == progh_U:150  ) $grads $batch -p -c "run $GEOSUTIL/plots/hcmp/hcmp2 U DYN 150  $expid $output $debug $seasons "
-     if( $plot == progh_U:100  ) $grads $batch -p -c "run $GEOSUTIL/plots/hcmp/hcmp2 U DYN 100  $expid $output $debug $seasons "
-     if( $plot == progh_U:70   ) $grads $batch -p -c "run $GEOSUTIL/plots/hcmp/hcmp2 U DYN 70   $expid $output $debug $seasons "
-     if( $plot == progh_U:50   ) $grads $batch -p -c "run $GEOSUTIL/plots/hcmp/hcmp2 U DYN 50   $expid $output $debug $seasons "
-     if( $plot == progh_U:30   ) $grads $batch -p -c "run $GEOSUTIL/plots/hcmp/hcmp2 U DYN 30   $expid $output $debug $seasons "
-
-     if( $plot == progh_V:1000 ) $grads $batch -p -c "run $GEOSUTIL/plots/hcmp/hcmp2 V DYN 1000 $expid $output $debug $seasons "
-     if( $plot == progh_V:925  ) $grads $batch -p -c "run $GEOSUTIL/plots/hcmp/hcmp2 V DYN 925  $expid $output $debug $seasons "
-     if( $plot == progh_V:850  ) $grads $batch -p -c "run $GEOSUTIL/plots/hcmp/hcmp2 V DYN 850  $expid $output $debug $seasons "
-     if( $plot == progh_V:700  ) $grads $batch -p -c "run $GEOSUTIL/plots/hcmp/hcmp2 V DYN 700  $expid $output $debug $seasons "
-     if( $plot == progh_V:600  ) $grads $batch -p -c "run $GEOSUTIL/plots/hcmp/hcmp2 V DYN 600  $expid $output $debug $seasons "
-     if( $plot == progh_V:500  ) $grads $batch -p -c "run $GEOSUTIL/plots/hcmp/hcmp2 V DYN 500  $expid $output $debug $seasons "
-     if( $plot == progh_V:400  ) $grads $batch -p -c "run $GEOSUTIL/plots/hcmp/hcmp2 V DYN 400  $expid $output $debug $seasons "
-     if( $plot == progh_V:300  ) $grads $batch -p -c "run $GEOSUTIL/plots/hcmp/hcmp2 V DYN 300  $expid $output $debug $seasons "
-     if( $plot == progh_V:250  ) $grads $batch -p -c "run $GEOSUTIL/plots/hcmp/hcmp2 V DYN 250  $expid $output $debug $seasons "
-     if( $plot == progh_V:200  ) $grads $batch -p -c "run $GEOSUTIL/plots/hcmp/hcmp2 V DYN 200  $expid $output $debug $seasons "
-     if( $plot == progh_V:150  ) $grads $batch -p -c "run $GEOSUTIL/plots/hcmp/hcmp2 V DYN 150  $expid $output $debug $seasons "
-     if( $plot == progh_V:100  ) $grads $batch -p -c "run $GEOSUTIL/plots/hcmp/hcmp2 V DYN 100  $expid $output $debug $seasons "
-     if( $plot == progh_V:70   ) $grads $batch -p -c "run $GEOSUTIL/plots/hcmp/hcmp2 V DYN 70   $expid $output $debug $seasons "
-     if( $plot == progh_V:50   ) $grads $batch -p -c "run $GEOSUTIL/plots/hcmp/hcmp2 V DYN 50   $expid $output $debug $seasons "
-     if( $plot == progh_V:30   ) $grads $batch -p -c "run $GEOSUTIL/plots/hcmp/hcmp2 V DYN 30   $expid $output $debug $seasons "
-
-     if( $plot == progh_T:1000 ) $grads $batch -p -c "run $GEOSUTIL/plots/hcmp/hcmp2 T DYN 1000 $expid $output $debug $seasons "
-     if( $plot == progh_T:925  ) $grads $batch -p -c "run $GEOSUTIL/plots/hcmp/hcmp2 T DYN 925  $expid $output $debug $seasons "
-     if( $plot == progh_T:850  ) $grads $batch -p -c "run $GEOSUTIL/plots/hcmp/hcmp2 T DYN 850  $expid $output $debug $seasons "
-     if( $plot == progh_T:700  ) $grads $batch -p -c "run $GEOSUTIL/plots/hcmp/hcmp2 T DYN 700  $expid $output $debug $seasons "
-     if( $plot == progh_T:600  ) $grads $batch -p -c "run $GEOSUTIL/plots/hcmp/hcmp2 T DYN 600  $expid $output $debug $seasons "
-     if( $plot == progh_T:500  ) $grads $batch -p -c "run $GEOSUTIL/plots/hcmp/hcmp2 T DYN 500  $expid $output $debug $seasons "
-     if( $plot == progh_T:400  ) $grads $batch -p -c "run $GEOSUTIL/plots/hcmp/hcmp2 T DYN 400  $expid $output $debug $seasons "
-     if( $plot == progh_T:300  ) $grads $batch -p -c "run $GEOSUTIL/plots/hcmp/hcmp2 T DYN 300  $expid $output $debug $seasons "
-     if( $plot == progh_T:250  ) $grads $batch -p -c "run $GEOSUTIL/plots/hcmp/hcmp2 T DYN 250  $expid $output $debug $seasons "
-     if( $plot == progh_T:200  ) $grads $batch -p -c "run $GEOSUTIL/plots/hcmp/hcmp2 T DYN 200  $expid $output $debug $seasons "
-     if( $plot == progh_T:150  ) $grads $batch -p -c "run $GEOSUTIL/plots/hcmp/hcmp2 T DYN 150  $expid $output $debug $seasons "
-     if( $plot == progh_T:100  ) $grads $batch -p -c "run $GEOSUTIL/plots/hcmp/hcmp2 T DYN 100  $expid $output $debug $seasons "
-     if( $plot == progh_T:70   ) $grads $batch -p -c "run $GEOSUTIL/plots/hcmp/hcmp2 T DYN 70   $expid $output $debug $seasons "
-     if( $plot == progh_T:50   ) $grads $batch -p -c "run $GEOSUTIL/plots/hcmp/hcmp2 T DYN 50   $expid $output $debug $seasons "
-     if( $plot == progh_T:30   ) $grads $batch -p -c "run $GEOSUTIL/plots/hcmp/hcmp2 T DYN 30   $expid $output $debug $seasons "
-
-     if( $plot == progh_Q:1000 ) $grads $batch -p -c "run $GEOSUTIL/plots/hcmp/hcmp2 Q MOIST 1000 $expid $output $debug $seasons "
-     if( $plot == progh_Q:925  ) $grads $batch -p -c "run $GEOSUTIL/plots/hcmp/hcmp2 Q MOIST 925  $expid $output $debug $seasons "
-     if( $plot == progh_Q:850  ) $grads $batch -p -c "run $GEOSUTIL/plots/hcmp/hcmp2 Q MOIST 850  $expid $output $debug $seasons "
-     if( $plot == progh_Q:700  ) $grads $batch -p -c "run $GEOSUTIL/plots/hcmp/hcmp2 Q MOIST 700  $expid $output $debug $seasons "
-     if( $plot == progh_Q:600  ) $grads $batch -p -c "run $GEOSUTIL/plots/hcmp/hcmp2 Q MOIST 600  $expid $output $debug $seasons "
-     if( $plot == progh_Q:500  ) $grads $batch -p -c "run $GEOSUTIL/plots/hcmp/hcmp2 Q MOIST 500  $expid $output $debug $seasons "
-     if( $plot == progh_Q:400  ) $grads $batch -p -c "run $GEOSUTIL/plots/hcmp/hcmp2 Q MOIST 400  $expid $output $debug $seasons "
-     if( $plot == progh_Q:300  ) $grads $batch -p -c "run $GEOSUTIL/plots/hcmp/hcmp2 Q MOIST 300  $expid $output $debug $seasons "
-     if( $plot == progh_Q:250  ) $grads $batch -p -c "run $GEOSUTIL/plots/hcmp/hcmp2 Q MOIST 250  $expid $output $debug $seasons "
-     if( $plot == progh_Q:200  ) $grads $batch -p -c "run $GEOSUTIL/plots/hcmp/hcmp2 Q MOIST 200  $expid $output $debug $seasons "
-     if( $plot == progh_Q:150  ) $grads $batch -p -c "run $GEOSUTIL/plots/hcmp/hcmp2 Q MOIST 150  $expid $output $debug $seasons "
-     if( $plot == progh_Q:100  ) $grads $batch -p -c "run $GEOSUTIL/plots/hcmp/hcmp2 Q MOIST 100  $expid $output $debug $seasons "
-     if( $plot == progh_Q:70   ) $grads $batch -p -c "run $GEOSUTIL/plots/hcmp/hcmp2 Q MOIST 70   $expid $output $debug $seasons "
-     if( $plot == progh_Q:50   ) $grads $batch -p -c "run $GEOSUTIL/plots/hcmp/hcmp2 Q MOIST 50   $expid $output $debug $seasons "
-     if( $plot == progh_Q:30   ) $grads $batch -p -c "run $GEOSUTIL/plots/hcmp/hcmp2 Q MOIST 30   $expid $output $debug $seasons "
-
-     if( $plot == progh_ZLE:1000 ) $grads $batch -p -c "run $GEOSUTIL/plots/hcmp/hcmp2 ZLE DYN 1000 $expid $output $debug $seasons "
-     if( $plot == progh_ZLE:925  ) $grads $batch -p -c "run $GEOSUTIL/plots/hcmp/hcmp2 ZLE DYN 925  $expid $output $debug $seasons "
-     if( $plot == progh_ZLE:850  ) $grads $batch -p -c "run $GEOSUTIL/plots/hcmp/hcmp2 ZLE DYN 850  $expid $output $debug $seasons "
-     if( $plot == progh_ZLE:700  ) $grads $batch -p -c "run $GEOSUTIL/plots/hcmp/hcmp2 ZLE DYN 700  $expid $output $debug $seasons "
-     if( $plot == progh_ZLE:600  ) $grads $batch -p -c "run $GEOSUTIL/plots/hcmp/hcmp2 ZLE DYN 600  $expid $output $debug $seasons "
-     if( $plot == progh_ZLE:500  ) $grads $batch -p -c "run $GEOSUTIL/plots/hcmp/hcmp2 ZLE DYN 500  $expid $output $debug $seasons "
-     if( $plot == progh_ZLE:400  ) $grads $batch -p -c "run $GEOSUTIL/plots/hcmp/hcmp2 ZLE DYN 400  $expid $output $debug $seasons "
-     if( $plot == progh_ZLE:300  ) $grads $batch -p -c "run $GEOSUTIL/plots/hcmp/hcmp2 ZLE DYN 300  $expid $output $debug $seasons "
-     if( $plot == progh_ZLE:250  ) $grads $batch -p -c "run $GEOSUTIL/plots/hcmp/hcmp2 ZLE DYN 250  $expid $output $debug $seasons "
-     if( $plot == progh_ZLE:200  ) $grads $batch -p -c "run $GEOSUTIL/plots/hcmp/hcmp2 ZLE DYN 200  $expid $output $debug $seasons "
-     if( $plot == progh_ZLE:150  ) $grads $batch -p -c "run $GEOSUTIL/plots/hcmp/hcmp2 ZLE DYN 150  $expid $output $debug $seasons "
-     if( $plot == progh_ZLE:100  ) $grads $batch -p -c "run $GEOSUTIL/plots/hcmp/hcmp2 ZLE DYN 100  $expid $output $debug $seasons "
-     if( $plot == progh_ZLE:70   ) $grads $batch -p -c "run $GEOSUTIL/plots/hcmp/hcmp2 ZLE DYN 70   $expid $output $debug $seasons "
-     if( $plot == progh_ZLE:50   ) $grads $batch -p -c "run $GEOSUTIL/plots/hcmp/hcmp2 ZLE DYN 50   $expid $output $debug $seasons "
-     if( $plot == progh_ZLE:30   ) $grads $batch -p -c "run $GEOSUTIL/plots/hcmp/hcmp2 ZLE DYN 30   $expid $output $debug $seasons "
-
-     if( $plot == progh_HE:1000 ) $grads $batch -p -c "run $GEOSUTIL/plots/hcmp/hcmp2 HE DYN 1000 $expid $output $debug $seasons "
-     if( $plot == progh_HE:925  ) $grads $batch -p -c "run $GEOSUTIL/plots/hcmp/hcmp2 HE DYN 925  $expid $output $debug $seasons "
-     if( $plot == progh_HE:850  ) $grads $batch -p -c "run $GEOSUTIL/plots/hcmp/hcmp2 HE DYN 850  $expid $output $debug $seasons "
-     if( $plot == progh_HE:700  ) $grads $batch -p -c "run $GEOSUTIL/plots/hcmp/hcmp2 HE DYN 700  $expid $output $debug $seasons "
-     if( $plot == progh_HE:600  ) $grads $batch -p -c "run $GEOSUTIL/plots/hcmp/hcmp2 HE DYN 600  $expid $output $debug $seasons "
-     if( $plot == progh_HE:500  ) $grads $batch -p -c "run $GEOSUTIL/plots/hcmp/hcmp2 HE DYN 500  $expid $output $debug $seasons "
-     if( $plot == progh_HE:400  ) $grads $batch -p -c "run $GEOSUTIL/plots/hcmp/hcmp2 HE DYN 400  $expid $output $debug $seasons "
-     if( $plot == progh_HE:300  ) $grads $batch -p -c "run $GEOSUTIL/plots/hcmp/hcmp2 HE DYN 300  $expid $output $debug $seasons "
-     if( $plot == progh_HE:250  ) $grads $batch -p -c "run $GEOSUTIL/plots/hcmp/hcmp2 HE DYN 250  $expid $output $debug $seasons "
-     if( $plot == progh_HE:200  ) $grads $batch -p -c "run $GEOSUTIL/plots/hcmp/hcmp2 HE DYN 200  $expid $output $debug $seasons "
-     if( $plot == progh_HE:150  ) $grads $batch -p -c "run $GEOSUTIL/plots/hcmp/hcmp2 HE DYN 150  $expid $output $debug $seasons "
-     if( $plot == progh_HE:100  ) $grads $batch -p -c "run $GEOSUTIL/plots/hcmp/hcmp2 HE DYN 100  $expid $output $debug $seasons "
-     if( $plot == progh_HE:70   ) $grads $batch -p -c "run $GEOSUTIL/plots/hcmp/hcmp2 HE DYN 70   $expid $output $debug $seasons "
-     if( $plot == progh_HE:50   ) $grads $batch -p -c "run $GEOSUTIL/plots/hcmp/hcmp2 HE DYN 50   $expid $output $debug $seasons "
-     if( $plot == progh_HE:30   ) $grads $batch -p -c "run $GEOSUTIL/plots/hcmp/hcmp2 HE DYN 30   $expid $output $debug $seasons "
-
-     if( $plot == progh_OMEGA:1000 ) $grads $batch -p -c "run $GEOSUTIL/plots/hcmp/hcmp2 OMEGA DYN 1000 $expid $output $debug $seasons "
-     if( $plot == progh_OMEGA:925  ) $grads $batch -p -c "run $GEOSUTIL/plots/hcmp/hcmp2 OMEGA DYN 925  $expid $output $debug $seasons "
-     if( $plot == progh_OMEGA:850  ) $grads $batch -p -c "run $GEOSUTIL/plots/hcmp/hcmp2 OMEGA DYN 850  $expid $output $debug $seasons "
-     if( $plot == progh_OMEGA:700  ) $grads $batch -p -c "run $GEOSUTIL/plots/hcmp/hcmp2 OMEGA DYN 700  $expid $output $debug $seasons "
-     if( $plot == progh_OMEGA:600  ) $grads $batch -p -c "run $GEOSUTIL/plots/hcmp/hcmp2 OMEGA DYN 600  $expid $output $debug $seasons "
-     if( $plot == progh_OMEGA:500  ) $grads $batch -p -c "run $GEOSUTIL/plots/hcmp/hcmp2 OMEGA DYN 500  $expid $output $debug $seasons "
-     if( $plot == progh_OMEGA:400  ) $grads $batch -p -c "run $GEOSUTIL/plots/hcmp/hcmp2 OMEGA DYN 400  $expid $output $debug $seasons "
-     if( $plot == progh_OMEGA:300  ) $grads $batch -p -c "run $GEOSUTIL/plots/hcmp/hcmp2 OMEGA DYN 300  $expid $output $debug $seasons "
-     if( $plot == progh_OMEGA:250  ) $grads $batch -p -c "run $GEOSUTIL/plots/hcmp/hcmp2 OMEGA DYN 250  $expid $output $debug $seasons "
-     if( $plot == progh_OMEGA:200  ) $grads $batch -p -c "run $GEOSUTIL/plots/hcmp/hcmp2 OMEGA DYN 200  $expid $output $debug $seasons "
-     if( $plot == progh_OMEGA:150  ) $grads $batch -p -c "run $GEOSUTIL/plots/hcmp/hcmp2 OMEGA DYN 150  $expid $output $debug $seasons "
-     if( $plot == progh_OMEGA:100  ) $grads $batch -p -c "run $GEOSUTIL/plots/hcmp/hcmp2 OMEGA DYN 100  $expid $output $debug $seasons "
-     if( $plot == progh_OMEGA:70   ) $grads $batch -p -c "run $GEOSUTIL/plots/hcmp/hcmp2 OMEGA DYN 70   $expid $output $debug $seasons "
-     if( $plot == progh_OMEGA:50   ) $grads $batch -p -c "run $GEOSUTIL/plots/hcmp/hcmp2 OMEGA DYN 50   $expid $output $debug $seasons "
-     if( $plot == progh_OMEGA:30   ) $grads $batch -p -c "run $GEOSUTIL/plots/hcmp/hcmp2 OMEGA DYN 30   $expid $output $debug $seasons "
-
-     if( $plot == progh_RH2:1000 ) $grads $batch -p -c "run $GEOSUTIL/plots/hcmp/hcmp2 RH2 MOIST 1000 $expid $output $debug $seasons "
-     if( $plot == progh_RH2:925  ) $grads $batch -p -c "run $GEOSUTIL/plots/hcmp/hcmp2 RH2 MOIST 925  $expid $output $debug $seasons "
-     if( $plot == progh_RH2:850  ) $grads $batch -p -c "run $GEOSUTIL/plots/hcmp/hcmp2 RH2 MOIST 850  $expid $output $debug $seasons "
-     if( $plot == progh_RH2:700  ) $grads $batch -p -c "run $GEOSUTIL/plots/hcmp/hcmp2 RH2 MOIST 700  $expid $output $debug $seasons "
-     if( $plot == progh_RH2:600  ) $grads $batch -p -c "run $GEOSUTIL/plots/hcmp/hcmp2 RH2 MOIST 600  $expid $output $debug $seasons "
-     if( $plot == progh_RH2:500  ) $grads $batch -p -c "run $GEOSUTIL/plots/hcmp/hcmp2 RH2 MOIST 500  $expid $output $debug $seasons "
-     if( $plot == progh_RH2:400  ) $grads $batch -p -c "run $GEOSUTIL/plots/hcmp/hcmp2 RH2 MOIST 400  $expid $output $debug $seasons "
-     if( $plot == progh_RH2:300  ) $grads $batch -p -c "run $GEOSUTIL/plots/hcmp/hcmp2 RH2 MOIST 300  $expid $output $debug $seasons "
-     if( $plot == progh_RH2:250  ) $grads $batch -p -c "run $GEOSUTIL/plots/hcmp/hcmp2 RH2 MOIST 250  $expid $output $debug $seasons "
-     if( $plot == progh_RH2:200  ) $grads $batch -p -c "run $GEOSUTIL/plots/hcmp/hcmp2 RH2 MOIST 200  $expid $output $debug $seasons "
-     if( $plot == progh_RH2:150  ) $grads $batch -p -c "run $GEOSUTIL/plots/hcmp/hcmp2 RH2 MOIST 150  $expid $output $debug $seasons "
-     if( $plot == progh_RH2:100  ) $grads $batch -p -c "run $GEOSUTIL/plots/hcmp/hcmp2 RH2 MOIST 100  $expid $output $debug $seasons "
-     if( $plot == progh_RH2:70   ) $grads $batch -p -c "run $GEOSUTIL/plots/hcmp/hcmp2 RH2 MOIST 70   $expid $output $debug $seasons "
-     if( $plot == progh_RH2:50   ) $grads $batch -p -c "run $GEOSUTIL/plots/hcmp/hcmp2 RH2 MOIST 50   $expid $output $debug $seasons "
-     if( $plot == progh_RH2:30   ) $grads $batch -p -c "run $GEOSUTIL/plots/hcmp/hcmp2 RH2 MOIST 30   $expid $output $debug $seasons "
-
-     if( $plot == progh_CHI:1000 ) $grads $batch -p -c "run $GEOSUTIL/plots/hcmp/hcmp2 CHI DYN 1000 $expid $output $debug $seasons "
-     if( $plot == progh_CHI:925  ) $grads $batch -p -c "run $GEOSUTIL/plots/hcmp/hcmp2 CHI DYN 925  $expid $output $debug $seasons "
-     if( $plot == progh_CHI:850  ) $grads $batch -p -c "run $GEOSUTIL/plots/hcmp/hcmp2 CHI DYN 850  $expid $output $debug $seasons "
-     if( $plot == progh_CHI:700  ) $grads $batch -p -c "run $GEOSUTIL/plots/hcmp/hcmp2 CHI DYN 700  $expid $output $debug $seasons "
-     if( $plot == progh_CHI:600  ) $grads $batch -p -c "run $GEOSUTIL/plots/hcmp/hcmp2 CHI DYN 600  $expid $output $debug $seasons "
-     if( $plot == progh_CHI:500  ) $grads $batch -p -c "run $GEOSUTIL/plots/hcmp/hcmp2 CHI DYN 500  $expid $output $debug $seasons "
-     if( $plot == progh_CHI:400  ) $grads $batch -p -c "run $GEOSUTIL/plots/hcmp/hcmp2 CHI DYN 400  $expid $output $debug $seasons "
-     if( $plot == progh_CHI:300  ) $grads $batch -p -c "run $GEOSUTIL/plots/hcmp/hcmp2 CHI DYN 300  $expid $output $debug $seasons "
-     if( $plot == progh_CHI:250  ) $grads $batch -p -c "run $GEOSUTIL/plots/hcmp/hcmp2 CHI DYN 250  $expid $output $debug $seasons "
-     if( $plot == progh_CHI:200  ) $grads $batch -p -c "run $GEOSUTIL/plots/hcmp/hcmp2 CHI DYN 200  $expid $output $debug $seasons "
-     if( $plot == progh_CHI:150  ) $grads $batch -p -c "run $GEOSUTIL/plots/hcmp/hcmp2 CHI DYN 150  $expid $output $debug $seasons "
-     if( $plot == progh_CHI:100  ) $grads $batch -p -c "run $GEOSUTIL/plots/hcmp/hcmp2 CHI DYN 100  $expid $output $debug $seasons "
-     if( $plot == progh_CHI:70   ) $grads $batch -p -c "run $GEOSUTIL/plots/hcmp/hcmp2 CHI DYN 70   $expid $output $debug $seasons "
-     if( $plot == progh_CHI:50   ) $grads $batch -p -c "run $GEOSUTIL/plots/hcmp/hcmp2 CHI DYN 50   $expid $output $debug $seasons "
-     if( $plot == progh_CHI:30   ) $grads $batch -p -c "run $GEOSUTIL/plots/hcmp/hcmp2 CHI DYN 30   $expid $output $debug $seasons "
-
-     if( $plot == progh_PSI:1000 ) $grads $batch -p -c "run $GEOSUTIL/plots/hcmp/hcmp2 PSI DYN 1000 $expid $output $debug $seasons "
-     if( $plot == progh_PSI:925  ) $grads $batch -p -c "run $GEOSUTIL/plots/hcmp/hcmp2 PSI DYN 925  $expid $output $debug $seasons "
-     if( $plot == progh_PSI:850  ) $grads $batch -p -c "run $GEOSUTIL/plots/hcmp/hcmp2 PSI DYN 850  $expid $output $debug $seasons "
-     if( $plot == progh_PSI:700  ) $grads $batch -p -c "run $GEOSUTIL/plots/hcmp/hcmp2 PSI DYN 700  $expid $output $debug $seasons "
-     if( $plot == progh_PSI:600  ) $grads $batch -p -c "run $GEOSUTIL/plots/hcmp/hcmp2 PSI DYN 600  $expid $output $debug $seasons "
-     if( $plot == progh_PSI:500  ) $grads $batch -p -c "run $GEOSUTIL/plots/hcmp/hcmp2 PSI DYN 500  $expid $output $debug $seasons "
-     if( $plot == progh_PSI:400  ) $grads $batch -p -c "run $GEOSUTIL/plots/hcmp/hcmp2 PSI DYN 400  $expid $output $debug $seasons "
-     if( $plot == progh_PSI:300  ) $grads $batch -p -c "run $GEOSUTIL/plots/hcmp/hcmp2 PSI DYN 300  $expid $output $debug $seasons "
-     if( $plot == progh_PSI:250  ) $grads $batch -p -c "run $GEOSUTIL/plots/hcmp/hcmp2 PSI DYN 250  $expid $output $debug $seasons "
-     if( $plot == progh_PSI:200  ) $grads $batch -p -c "run $GEOSUTIL/plots/hcmp/hcmp2 PSI DYN 200  $expid $output $debug $seasons "
-     if( $plot == progh_PSI:150  ) $grads $batch -p -c "run $GEOSUTIL/plots/hcmp/hcmp2 PSI DYN 150  $expid $output $debug $seasons "
-     if( $plot == progh_PSI:100  ) $grads $batch -p -c "run $GEOSUTIL/plots/hcmp/hcmp2 PSI DYN 100  $expid $output $debug $seasons "
-     if( $plot == progh_PSI:70   ) $grads $batch -p -c "run $GEOSUTIL/plots/hcmp/hcmp2 PSI DYN 70   $expid $output $debug $seasons "
-     if( $plot == progh_PSI:50   ) $grads $batch -p -c "run $GEOSUTIL/plots/hcmp/hcmp2 PSI DYN 50   $expid $output $debug $seasons "
-     if( $plot == progh_PSI:30   ) $grads $batch -p -c "run $GEOSUTIL/plots/hcmp/hcmp2 PSI DYN 30   $expid $output $debug $seasons "
+# Prognostic Zonal Mean Comparisons
+# ---------------------------------
+     set  plotcheck = `echo $plot | cut -b1-7`
+     if( $plotcheck == progz2_ ) then
+         set EXPORTS = `echo U   V   T   Q     RH2   ZLE OMEGA`
+         set GCS     = `echo DYN DYN DYN MOIST MOIST DYN DYN`
+         @ n = 1
+         foreach EXPORT ($EXPORTS)
+         set GC = $GCS[$n]
+         set this_plot = "progz2_$EXPORT"
+             if( $plot == ${this_plot} ) then
+                 $grads $batch -p -c "run $GEOSUTIL/plots/zcmp/progz $EXPORT $GC $expid $output $debug $seasons "
+                 set FOUND = TRUE
+             endif
+         @ n = $n + 1
+         end
+     endif
 
 
-# Prognostic Horizontal Quadratic Comparisons
-# -------------------------------------------
-if( $plot == hquad_U_U:850 )  $grads $batch -p -c "run $GEOSUTIL/plots/quad/hquad -EXPID $expid -EXPORT1     U:DYN -EXPORT2     U:DYN -LEV 850  -SEASON $seasons  -OUTPUT $output -DEBUG $debug"
-if( $plot == hquad_U_U:500 )  $grads $batch -p -c "run $GEOSUTIL/plots/quad/hquad -EXPID $expid -EXPORT1     U:DYN -EXPORT2     U:DYN -LEV 500  -SEASON $seasons  -OUTPUT $output -DEBUG $debug"
-if( $plot == hquad_U_U:200 )  $grads $batch -p -c "run $GEOSUTIL/plots/quad/hquad -EXPID $expid -EXPORT1     U:DYN -EXPORT2     U:DYN -LEV 200  -SEASON $seasons  -OUTPUT $output -DEBUG $debug"
-if( $plot == hquad_U_U:20  )  $grads $batch -p -c "run $GEOSUTIL/plots/quad/hquad -EXPID $expid -EXPORT1     U:DYN -EXPORT2     U:DYN -LEV 20   -SEASON $seasons  -OUTPUT $output -DEBUG $debug"
+# Prognostic Horizontal Mean Dynamics Comparisons
+# -----------------------------------------------
+     set  plotcheck = `echo $plot | cut -b1-6`
+     if( $plotcheck == progh_ ) then
+         set EXPORTS = `echo SLP U V T ZLE HE OMEGA CHI PSI`
+         set LEVS    = '1000 925 850 700 600 500 400 300 250 200 150 100 70 50 30'
+         foreach EXPORT ($EXPORTS)
+         foreach LEV    ($LEVS)
+            if( $plot == progh_${EXPORT}:$LEV ) then
+                $grads $batch -p -c "run $GEOSUTIL/plots/hcmp/hcmp2 $EXPORT DYN $LEV $expid $output $debug $seasons "
+                set FOUND = TRUE
+            endif
+         end
+         end
+     endif
 
-if( $plot == hquad_V_V:850 )  $grads $batch -p -c "run $GEOSUTIL/plots/quad/hquad -EXPID $expid -EXPORT1     V:DYN -EXPORT2     V:DYN -LEV 850  -SEASON $seasons  -OUTPUT $output -DEBUG $debug"
-if( $plot == hquad_V_V:500 )  $grads $batch -p -c "run $GEOSUTIL/plots/quad/hquad -EXPID $expid -EXPORT1     V:DYN -EXPORT2     V:DYN -LEV 500  -SEASON $seasons  -OUTPUT $output -DEBUG $debug"
-if( $plot == hquad_V_V:200 )  $grads $batch -p -c "run $GEOSUTIL/plots/quad/hquad -EXPID $expid -EXPORT1     V:DYN -EXPORT2     V:DYN -LEV 200  -SEASON $seasons  -OUTPUT $output -DEBUG $debug"
-if( $plot == hquad_V_V:20  )  $grads $batch -p -c "run $GEOSUTIL/plots/quad/hquad -EXPID $expid -EXPORT1     V:DYN -EXPORT2     V:DYN -LEV 20   -SEASON $seasons  -OUTPUT $output -DEBUG $debug"
+# Prognostic Horizontal Mean Moist Comparisons
+# --------------------------------------------
+     set  plotcheck = `echo $plot | cut -b1-6`
+     if( $plotcheck == progh_ ) then
+         set EXPORTS = `echo Q RH2`
+         set LEVS    = '1000 925 850 700 600 500 400 300 250 200 150 100 70 50 30'
+         foreach EXPORT ($EXPORTS)
+         foreach LEV    ($LEVS)
+            if( $plot == progh_${EXPORT}:$LEV ) then
+                $grads $batch -p -c "run $GEOSUTIL/plots/hcmp/hcmp2 $EXPORT MOIST $LEV $expid $output $debug $seasons "
+                set FOUND = TRUE
+            endif
+         end
+         end
+     endif
 
-if( $plot == hquad_T_T:850 )  $grads $batch -p -c "run $GEOSUTIL/plots/quad/hquad -EXPID $expid -EXPORT1     T:DYN -EXPORT2     T:DYN -LEV 850  -SEASON $seasons  -OUTPUT $output -DEBUG $debug"
-if( $plot == hquad_T_T:500 )  $grads $batch -p -c "run $GEOSUTIL/plots/quad/hquad -EXPID $expid -EXPORT1     T:DYN -EXPORT2     T:DYN -LEV 500  -SEASON $seasons  -OUTPUT $output -DEBUG $debug"
-if( $plot == hquad_T_T:200 )  $grads $batch -p -c "run $GEOSUTIL/plots/quad/hquad -EXPID $expid -EXPORT1     T:DYN -EXPORT2     T:DYN -LEV 200  -SEASON $seasons  -OUTPUT $output -DEBUG $debug"
-if( $plot == hquad_T_T:20  )  $grads $batch -p -c "run $GEOSUTIL/plots/quad/hquad -EXPID $expid -EXPORT1     T:DYN -EXPORT2     T:DYN -LEV 20   -SEASON $seasons  -OUTPUT $output -DEBUG $debug"
+# Prognostic Horizontal Dynamics Variance Comparisons
+# ---------------------------------------------------
+     set  plotcheck = `echo $plot | cut -b1-6`
+     if( $plotcheck == hquad_ ) then
+         set VARS = `echo U_U V_V T_T ZLE_ZLE OMEGA_OMEGA KE_KE`
+         set LEVS = '850 500 200 20'
+         foreach VAR ($VARS)
+         foreach LEV ($LEVS)
+            if( $plot == hquad_${VAR}:$LEV ) then
+                set EXPORT = `echo $VAR | cut -d_ -f1`
+                $grads $batch -p -c "run $GEOSUTIL/plots/quad/hquad -EXPID $expid -EXPORT1 ${EXPORT}:DYN -EXPORT2 ${EXPORT}:DYN -LEV $LEV -SEASON $seasons  -OUTPUT $output -DEBUG $debug"
+                set FOUND = TRUE
+            endif
+         end
+         end
+     endif
 
-if( $plot == hquad_Q_Q:850 )  $grads $batch -p -c "run $GEOSUTIL/plots/quad/hquad -EXPID $expid -EXPORT1   Q:MOIST -EXPORT2   Q:MOIST -LEV 850  -SEASON $seasons  -OUTPUT $output -DEBUG $debug"
-if( $plot == hquad_Q_Q:500 )  $grads $batch -p -c "run $GEOSUTIL/plots/quad/hquad -EXPID $expid -EXPORT1   Q:MOIST -EXPORT2   Q:MOIST -LEV 500  -SEASON $seasons  -OUTPUT $output -DEBUG $debug"
-if( $plot == hquad_Q_Q:200 )  $grads $batch -p -c "run $GEOSUTIL/plots/quad/hquad -EXPID $expid -EXPORT1   Q:MOIST -EXPORT2   Q:MOIST -LEV 200  -SEASON $seasons  -OUTPUT $output -DEBUG $debug"
-if( $plot == hquad_Q_Q:20  )  $grads $batch -p -c "run $GEOSUTIL/plots/quad/hquad -EXPID $expid -EXPORT1   Q:MOIST -EXPORT2   Q:MOIST -LEV 20   -SEASON $seasons  -OUTPUT $output -DEBUG $debug"
+# Prognostic Horizontal Moist Variance Comparisons
+# ------------------------------------------------
+     set  plotcheck = `echo $plot | cut -b1-6`
+     if( $plotcheck == hquad_ ) then
+         set VARS = `echo Q_Q`
+         set LEVS = '850 500 200 20'
+         foreach VAR ($VARS)
+         foreach LEV ($LEVS)
+            if( $plot == hquad_${VAR}:$LEV ) then
+                set EXPORT = `echo $VAR | cut -d_ -f1`
+                $grads $batch -p -c "run $GEOSUTIL/plots/quad/hquad -EXPID $expid -EXPORT1 ${EXPORT}:MOIST -EXPORT2 ${EXPORT}:MOIST -LEV $LEV -SEASON $seasons  -OUTPUT $output -DEBUG $debug"
+                set FOUND = TRUE
+            endif
+         end
+         end
+     endif
 
-if( $plot == hquad_ZLE_ZLE:850 )  $grads $batch -p -c "run $GEOSUTIL/plots/quad/hquad -EXPID $expid -EXPORT1   ZLE:DYN -EXPORT2   ZLE:DYN -LEV 850  -SEASON $seasons  -OUTPUT $output -DEBUG $debug"
-if( $plot == hquad_ZLE_ZLE:500 )  $grads $batch -p -c "run $GEOSUTIL/plots/quad/hquad -EXPID $expid -EXPORT1   ZLE:DYN -EXPORT2   ZLE:DYN -LEV 500  -SEASON $seasons  -OUTPUT $output -DEBUG $debug"
-if( $plot == hquad_ZLE_ZLE:200 )  $grads $batch -p -c "run $GEOSUTIL/plots/quad/hquad -EXPID $expid -EXPORT1   ZLE:DYN -EXPORT2   ZLE:DYN -LEV 200  -SEASON $seasons  -OUTPUT $output -DEBUG $debug"
-if( $plot == hquad_ZLE_ZLE:20  )  $grads $batch -p -c "run $GEOSUTIL/plots/quad/hquad -EXPID $expid -EXPORT1   ZLE:DYN -EXPORT2   ZLE:DYN -LEV 20   -SEASON $seasons  -OUTPUT $output -DEBUG $debug"
+# Prognostic Horizontal Moist CoVariance Comparisons
+# --------------------------------------------------
+     set  plotcheck = `echo $plot | cut -b1-6`
+     if( $plotcheck == hquad_ ) then
+         set VARS = `echo U_V V_T V_Q OMEGA_T OMEGA_Q`
+         set LEVS = '850 500 200 20'
+         foreach VAR ($VARS)
+         foreach LEV ($LEVS)
+            if( $plot == hquad_${VAR}:$LEV ) then
+                set EXPORT1 = `echo $VAR | cut -d_ -f1`
+                set EXPORT2 = `echo $VAR | cut -d_ -f2`
+                set GRDCMP1 = DYN
+                set GRDCMP2 = DYN
+                if($EXPORT2 == Q ) set GRDCMP2 = MOIST
+                $grads $batch -p -c "run $GEOSUTIL/plots/quad/hquad -EXPID $expid -EXPORT1 ${EXPORT1}:${GRDCMP1} -EXPORT2 ${EXPORT2}:${GRDCMP2} -LEV $LEV -SEASON $seasons -OUTPUT $output -DEBUG $debug"
+                set FOUND = TRUE
+            endif
+         end
+         end
+     endif
 
-if( $plot == hquad_OMEGA_OMEGA:850 )  $grads $batch -p -c "run $GEOSUTIL/plots/quad/hquad -EXPID $expid -EXPORT1 OMEGA:DYN -EXPORT2 OMEGA:DYN -LEV 850  -SEASON $seasons  -OUTPUT $output -DEBUG $debug"
-if( $plot == hquad_OMEGA_OMEGA:500 )  $grads $batch -p -c "run $GEOSUTIL/plots/quad/hquad -EXPID $expid -EXPORT1 OMEGA:DYN -EXPORT2 OMEGA:DYN -LEV 500  -SEASON $seasons  -OUTPUT $output -DEBUG $debug"
-if( $plot == hquad_OMEGA_OMEGA:200 )  $grads $batch -p -c "run $GEOSUTIL/plots/quad/hquad -EXPID $expid -EXPORT1 OMEGA:DYN -EXPORT2 OMEGA:DYN -LEV 200  -SEASON $seasons  -OUTPUT $output -DEBUG $debug"
-if( $plot == hquad_OMEGA_OMEGA:20  )  $grads $batch -p -c "run $GEOSUTIL/plots/quad/hquad -EXPID $expid -EXPORT1 OMEGA:DYN -EXPORT2 OMEGA:DYN -LEV 20   -SEASON $seasons  -OUTPUT $output -DEBUG $debug"
-
-if( $plot == hquad_U_V:850 )  $grads $batch -p -c "run $GEOSUTIL/plots/quad/hquad -EXPID $expid -EXPORT1     U:DYN -EXPORT2     V:DYN -LEV 850  -SEASON $seasons  -OUTPUT $output -DEBUG $debug"
-if( $plot == hquad_U_V:500 )  $grads $batch -p -c "run $GEOSUTIL/plots/quad/hquad -EXPID $expid -EXPORT1     U:DYN -EXPORT2     V:DYN -LEV 500  -SEASON $seasons  -OUTPUT $output -DEBUG $debug"
-if( $plot == hquad_U_V:200 )  $grads $batch -p -c "run $GEOSUTIL/plots/quad/hquad -EXPID $expid -EXPORT1     U:DYN -EXPORT2     V:DYN -LEV 200  -SEASON $seasons  -OUTPUT $output -DEBUG $debug"
-if( $plot == hquad_U_V:20  )  $grads $batch -p -c "run $GEOSUTIL/plots/quad/hquad -EXPID $expid -EXPORT1     U:DYN -EXPORT2     V:DYN -LEV 20   -SEASON $seasons  -OUTPUT $output -DEBUG $debug"
-
-if( $plot == hquad_V_T:850 )  $grads $batch -p -c "run $GEOSUTIL/plots/quad/hquad -EXPID $expid -EXPORT1     V:DYN -EXPORT2     T:DYN -LEV 850  -SEASON $seasons  -OUTPUT $output -DEBUG $debug"
-if( $plot == hquad_V_T:500 )  $grads $batch -p -c "run $GEOSUTIL/plots/quad/hquad -EXPID $expid -EXPORT1     V:DYN -EXPORT2     T:DYN -LEV 500  -SEASON $seasons  -OUTPUT $output -DEBUG $debug"
-if( $plot == hquad_V_T:200 )  $grads $batch -p -c "run $GEOSUTIL/plots/quad/hquad -EXPID $expid -EXPORT1     V:DYN -EXPORT2     T:DYN -LEV 200  -SEASON $seasons  -OUTPUT $output -DEBUG $debug"
-if( $plot == hquad_V_T:20  )  $grads $batch -p -c "run $GEOSUTIL/plots/quad/hquad -EXPID $expid -EXPORT1     V:DYN -EXPORT2     T:DYN -LEV 20   -SEASON $seasons  -OUTPUT $output -DEBUG $debug"
-
-if( $plot == hquad_V_Q:850 )  $grads $batch -p -c "run $GEOSUTIL/plots/quad/hquad -EXPID $expid -EXPORT1     V:DYN -EXPORT2   Q:MOIST -LEV 850  -SEASON $seasons  -OUTPUT $output -DEBUG $debug"
-if( $plot == hquad_V_Q:500 )  $grads $batch -p -c "run $GEOSUTIL/plots/quad/hquad -EXPID $expid -EXPORT1     V:DYN -EXPORT2   Q:MOIST -LEV 500  -SEASON $seasons  -OUTPUT $output -DEBUG $debug"
-if( $plot == hquad_V_Q:200 )  $grads $batch -p -c "run $GEOSUTIL/plots/quad/hquad -EXPID $expid -EXPORT1     V:DYN -EXPORT2   Q:MOIST -LEV 200  -SEASON $seasons  -OUTPUT $output -DEBUG $debug"
-if( $plot == hquad_V_Q:20  )  $grads $batch -p -c "run $GEOSUTIL/plots/quad/hquad -EXPID $expid -EXPORT1     V:DYN -EXPORT2   Q:MOIST -LEV 20   -SEASON $seasons  -OUTPUT $output -DEBUG $debug"
-
-if( $plot == hquad_KE_KE:850 )  $grads $batch -p -c "run $GEOSUTIL/plots/quad/hquad -EXPID $expid -EXPORT1    KE:DYN -EXPORT2    KE:DYN -LEV 850  -SEASON $seasons  -OUTPUT $output -DEBUG $debug"
-if( $plot == hquad_KE_KE:500 )  $grads $batch -p -c "run $GEOSUTIL/plots/quad/hquad -EXPID $expid -EXPORT1    KE:DYN -EXPORT2    KE:DYN -LEV 500  -SEASON $seasons  -OUTPUT $output -DEBUG $debug"
-if( $plot == hquad_KE_KE:200 )  $grads $batch -p -c "run $GEOSUTIL/plots/quad/hquad -EXPID $expid -EXPORT1    KE:DYN -EXPORT2    KE:DYN -LEV 200  -SEASON $seasons  -OUTPUT $output -DEBUG $debug"
-if( $plot == hquad_KE_KE:20  )  $grads $batch -p -c "run $GEOSUTIL/plots/quad/hquad -EXPID $expid -EXPORT1    KE:DYN -EXPORT2    KE:DYN -LEV 20   -SEASON $seasons  -OUTPUT $output -DEBUG $debug"
-
-if( $plot == hquad_OMEGA_T:850 )  $grads $batch -p -c "run $GEOSUTIL/plots/quad/hquad -EXPID $expid -EXPORT1 OMEGA:DYN -EXPORT2     T:DYN -LEV 850  -SEASON $seasons  -OUTPUT $output -DEBUG $debug"
-if( $plot == hquad_OMEGA_T:500 )  $grads $batch -p -c "run $GEOSUTIL/plots/quad/hquad -EXPID $expid -EXPORT1 OMEGA:DYN -EXPORT2     T:DYN -LEV 500  -SEASON $seasons  -OUTPUT $output -DEBUG $debug"
-if( $plot == hquad_OMEGA_T:200 )  $grads $batch -p -c "run $GEOSUTIL/plots/quad/hquad -EXPID $expid -EXPORT1 OMEGA:DYN -EXPORT2     T:DYN -LEV 200  -SEASON $seasons  -OUTPUT $output -DEBUG $debug"
-if( $plot == hquad_OMEGA_T:20  )  $grads $batch -p -c "run $GEOSUTIL/plots/quad/hquad -EXPID $expid -EXPORT1 OMEGA:DYN -EXPORT2     T:DYN -LEV 20   -SEASON $seasons  -OUTPUT $output -DEBUG $debug"
-
-if( $plot == hquad_OMEGA_Q:850 )  $grads $batch -p -c "run $GEOSUTIL/plots/quad/hquad -EXPID $expid -EXPORT1 OMEGA:DYN -EXPORT2   Q:MOIST -LEV 850  -SEASON $seasons  -OUTPUT $output -DEBUG $debug"
-if( $plot == hquad_OMEGA_Q:500 )  $grads $batch -p -c "run $GEOSUTIL/plots/quad/hquad -EXPID $expid -EXPORT1 OMEGA:DYN -EXPORT2   Q:MOIST -LEV 500  -SEASON $seasons  -OUTPUT $output -DEBUG $debug"
-if( $plot == hquad_OMEGA_Q:200 )  $grads $batch -p -c "run $GEOSUTIL/plots/quad/hquad -EXPID $expid -EXPORT1 OMEGA:DYN -EXPORT2   Q:MOIST -LEV 200  -SEASON $seasons  -OUTPUT $output -DEBUG $debug"
-if( $plot == hquad_OMEGA_Q:20  )  $grads $batch -p -c "run $GEOSUTIL/plots/quad/hquad -EXPID $expid -EXPORT1 OMEGA:DYN -EXPORT2   Q:MOIST -LEV 20   -SEASON $seasons  -OUTPUT $output -DEBUG $debug"
 
 
 # Surface/2-D
@@ -435,6 +312,7 @@ if( $plot == surf2.misc ) then
    $grads $batch -p -c "run genplot -NAME NETHEATG  -EXPID $expid -EXPORT RADSRF:RADIATION LHFX:SURFACE SH:SURFACE -OBS QNET:RADIATION -OUTPUT $output -DEBUG $debug -SEASON $seasons "
 
    $grads $batch -p -c "run genplot -EXPORT EVAP:SURFACE CN_PRCP:MOIST LS_PRCP:MOIST AN_PRCP:MOIST -OBS EVAP:SURFACE TPREC:MOIST -NAME emp  -EXPID $expid -OUTPUT $output -DEBUG $debug -SEASON $seasons "
+   set FOUND = TRUE
 endif
 
 
@@ -447,6 +325,7 @@ if( $plot == surf2.cld ) then
    $grads $batch -p -c "run genplot -EXPORT CLDTT:SOLAR   -NAME cldtt   -EXPID $expid -OUTPUT $output -DEBUG $debug        -RC SRB   -SEASON $seasons "
    $grads $batch -p -c "run genplot -EXPORT CLDTT:SOLAR   -NAME cldtt   -EXPID $expid -OUTPUT $output -DEBUG $debug        -RC ISCCP -SEASON $seasons "
    $grads $batch -p -c "run genplot -EXPORT CLDTT:SOLAR   -NAME cldtt   -EXPID $expid -OUTPUT $output -DEBUG $debug -OCEAN -RC COADS -SEASON $seasons "
+   set FOUND = TRUE
 endif
 
 
@@ -470,6 +349,7 @@ if( $plot == rad.sw ) then
    $grads $batch -p -c "run genplot -NAME swgup    -EXPID $expid -EXPORT SLRSF:SOLAR  RSRS:SOLAR  -OUTPUT $output -DEBUG $debug -SEASON $seasons "
    $grads $batch -p -c "run genplot -NAME swgupc   -EXPID $expid -EXPORT SLRSFC:SOLAR RSCS:SOLAR -OBS ALBEDO:SOLAR SLRSFC:SOLAR -OUTPUT $output -DEBUG $debug -SEASON $seasons "
    $grads $batch -p -c "run genplot -NAME swgupcf  -EXPID $expid -EXPORT SLRSFC:SOLAR RSCS:SOLAR SLRSF:SOLAR RSRS:SOLAR -OBS ALBEDO:SOLAR SLRSFC:SOLAR SLRSF:SOLAR RSRS:SOLAR -OUTPUT $output -DEBUG $debug -SEASON $seasons "
+   set FOUND = TRUE
 endif
 
  
@@ -495,6 +375,7 @@ if( $plot == rad.lw ) then
    $grads $batch -p -c "run genplot -EXPORT SFCEM:IRRAD EMIS:SURFACE LWS:IRRAD -OBS SFCUP:IRRAD -NAME lwgup   -EXPID $expid -OUTPUT $output -DEBUG $debug -SEASON $seasons "
    $grads $batch -p -c "run genplot -EXPORT SFCEM:IRRAD EMIS:SURFACE LCS:IRRAD -OBS SFCUPC:IRRAD -NAME lwgupc  -EXPID $expid -OUTPUT $output -DEBUG $debug -SEASON $seasons "
    $grads $batch -p -c "run genplot -EXPORT LWS:IRRAD LCS:IRRAD EMIS:SURFACE -OBS SFCUP:IRRAD SFCUPC:IRRAD -NAME lwgupcf -EXPID $expid -OUTPUT $output -DEBUG $debug -SEASON $seasons "
+   set FOUND = TRUE
 endif
 
 
@@ -506,6 +387,7 @@ if( $plot == rad.net ) then
   $grads $batch -p -c "run genplot -NAME radnetgc -EXPID $expid -EXPORT RSCS:SOLAR FLNSC:IRRAD -OBS SLRSFC:SOLAR ALBEDO:SOLAR SFCUPC:IRRAD SFCDWNC:IRRAD -OUTPUT $output -DEBUG $debug -SEASON $seasons "
   $grads $batch -p -c "run genplot -NAME nettoa   -EXPID $expid -EXPORT RSR:SOLAR OLR:IRRAD    -OBS RSR:SOLAR OLR:IRRAD -OUTPUT $output -DEBUG $debug -SEASON $seasons "
   $grads $batch -p -c "run genplot -NAME nettoac  -EXPID $expid -EXPORT RSC:SOLAR OLC:IRRAD    -OBS RSC:SOLAR OLC:IRRAD -OUTPUT $output -DEBUG $debug -SEASON $seasons "
+   set FOUND = TRUE
 endif
 
 
@@ -528,6 +410,7 @@ if( $plot == aerosol.a ) then
   $grads $batch -p -c "run genplot -DIR aerosol -NAME TOTSCATAU -EXPID $expid  -EXPORT TOTSCATAU:GOCART  -MATH LOG  -OUTPUT $output -DEBUG $debug -SEASON $seasons "
   $grads $batch -p -c "run genplot -DIR aerosol -NAME TOTANGSTR -EXPID $expid  -EXPORT TOTANGSTR:GOCART             -OUTPUT $output -DEBUG $debug -SEASON $seasons "
   setenv LONSENV "0 360"
+  set FOUND = TRUE
 endif
 
 if( $plot == aerosol.b ) then
@@ -548,6 +431,7 @@ if( $plot == aerosol.b ) then
   $grads $batch -p -c "run genplot -DIR aerosol -NAME DUPD004   -EXPID $expid  -EXPORT   DUPD004:GOCART  -MATH LOG  -OUTPUT $output -DEBUG $debug -SEASON $seasons "
   $grads $batch -p -c "run genplot -DIR aerosol -NAME DUPD005   -EXPID $expid  -EXPORT   DUPD005:GOCART  -MATH LOG  -OUTPUT $output -DEBUG $debug -SEASON $seasons "
   setenv LONSENV "0 360"
+  set FOUND = TRUE
 endif
 
 if( $plot == aerosol.c ) then
@@ -565,6 +449,7 @@ if( $plot == aerosol.c ) then
   $grads $batch -p -c "run genplot -DIR aerosol -NAME DUSMASS   -EXPID $expid  -EXPORT   DUSMASS:GOCART  -MATH LOG  -OUTPUT $output -DEBUG $debug -SEASON $seasons "
   $grads $batch -p -c "run genplot -DIR aerosol -NAME DUCMASS   -EXPID $expid  -EXPORT   DUCMASS:GOCART  -MATH LOG  -OUTPUT $output -DEBUG $debug -SEASON $seasons "
   setenv LONSENV "0 360"
+  set FOUND = TRUE
 endif
 
 if( $plot == aerosol.d ) then
@@ -581,6 +466,7 @@ if( $plot == aerosol.d ) then
   $grads $batch -p -c "run genplot -DIR aerosol -NAME DUFLUXU   -EXPID $expid  -EXPORT   DUFLUXU:GOCART             -OUTPUT $output -DEBUG $debug -SEASON $seasons "
   $grads $batch -p -c "run genplot -DIR aerosol -NAME DUFLUXV   -EXPID $expid  -EXPORT   DUFLUXV:GOCART             -OUTPUT $output -DEBUG $debug -SEASON $seasons "
   setenv LONSENV "0 360"
+  set FOUND = TRUE
 endif
 
 if( $plot == aerosol.e ) then
@@ -601,6 +487,7 @@ if( $plot == aerosol.e ) then
   $grads $batch -p -c "run genplot -DIR aerosol -NAME SSDP004   -EXPID $expid  -EXPORT   SSDP004:GOCART             -OUTPUT $output -DEBUG $debug -SEASON $seasons "
   $grads $batch -p -c "run genplot -DIR aerosol -NAME SSDP005   -EXPID $expid  -EXPORT   SSDP005:GOCART             -OUTPUT $output -DEBUG $debug -SEASON $seasons "
   setenv LONSENV "0 360"
+  set FOUND = TRUE
 endif
 
 if( $plot == aerosol.f ) then
@@ -618,6 +505,7 @@ if( $plot == aerosol.f ) then
   $grads $batch -p -c "run genplot -DIR aerosol -NAME SSSMASS   -EXPID $expid  -EXPORT   SSSMASS:GOCART             -OUTPUT $output -DEBUG $debug -SEASON $seasons "
   $grads $batch -p -c "run genplot -DIR aerosol -NAME SSCMASS   -EXPID $expid  -EXPORT   SSCMASS:GOCART             -OUTPUT $output -DEBUG $debug -SEASON $seasons "
   setenv LONSENV "0 360"
+  set FOUND = TRUE
 endif
 
 if( $plot == aerosol.g ) then
@@ -637,6 +525,7 @@ if( $plot == aerosol.g ) then
   $grads $batch -p -c "run genplot -DIR aerosol -NAME SUEM003   -EXPID $expid  -EXPORT   SUEM003:GOCART  -MATH LOG  -OUTPUT $output -DEBUG $debug -SEASON $seasons "
   $grads $batch -p -c "run genplot -DIR aerosol -NAME SUEM004   -EXPID $expid  -EXPORT   SUEM004:GOCART             -OUTPUT $output -DEBUG $debug -SEASON $seasons "
   setenv LONSENV "0 360"
+  set FOUND = TRUE
 endif
 
 if( $plot == aerosol.h ) then
@@ -660,6 +549,7 @@ if( $plot == aerosol.h ) then
   $grads $batch -p -c "run genplot -DIR aerosol -NAME DMSSMASS  -EXPID $expid  -EXPORT  DMSSMASS:GOCART             -OUTPUT $output -DEBUG $debug -SEASON $seasons "
   $grads $batch -p -c "run genplot -DIR aerosol -NAME DMSCMASS  -EXPID $expid  -EXPORT  DMSCMASS:GOCART             -OUTPUT $output -DEBUG $debug -SEASON $seasons "
   setenv LONSENV "0 360"
+  set FOUND = TRUE
 endif
 
 if( $plot == aerosol.i ) then
@@ -680,6 +570,7 @@ if( $plot == aerosol.i ) then
   $grads $batch -p -c "run genplot -DIR aerosol -NAME SUFLUXU   -EXPID $expid  -EXPORT   SUFLUXU:GOCART             -OUTPUT $output -DEBUG $debug -SEASON $seasons "
   $grads $batch -p -c "run genplot -DIR aerosol -NAME SUFLUXV   -EXPID $expid  -EXPORT   SUFLUXV:GOCART             -OUTPUT $output -DEBUG $debug -SEASON $seasons "
   setenv LONSENV "0 360"
+  set FOUND = TRUE
 endif
 
 if( $plot == aerosol.j ) then
@@ -704,6 +595,7 @@ if( $plot == aerosol.j ) then
   $grads $batch -p -c "run genplot -DIR aerosol -NAME BCFLUXU   -EXPID $expid  -EXPORT   BCFLUXU:GOCART             -OUTPUT $output -DEBUG $debug -SEASON $seasons "
   $grads $batch -p -c "run genplot -DIR aerosol -NAME BCFLUXV   -EXPID $expid  -EXPORT   BCFLUXV:GOCART             -OUTPUT $output -DEBUG $debug -SEASON $seasons "
   setenv LONSENV "0 360"
+  set FOUND = TRUE
 endif
 
 if( $plot == aerosol.k ) then
@@ -728,6 +620,7 @@ if( $plot == aerosol.k ) then
   $grads $batch -p -c "run genplot -DIR aerosol -NAME OCFLUXU   -EXPID $expid  -EXPORT   OCFLUXU:GOCART             -OUTPUT $output -DEBUG $debug -SEASON $seasons "
   $grads $batch -p -c "run genplot -DIR aerosol -NAME OCFLUXV   -EXPID $expid  -EXPORT   OCFLUXV:GOCART             -OUTPUT $output -DEBUG $debug -SEASON $seasons "
   setenv LONSENV "0 360"
+  set FOUND = TRUE
 endif
 
 
@@ -740,17 +633,32 @@ if( "$CMPEXP" != "NULL" ) then
 # Surface/2-D Diagnostics
 # -----------------------
 if( $plot == cmpexph.surf) then
-      $grads $batch -p -c "run gencmp -EXPID $expid -EXPORT EVAP:SURFACE     -OUTPUT $output -DEBUG $debug -SEASON $seasons "
-      $grads $batch -p -c "run gencmp -EXPID $expid -EXPORT  T2M:SURFACE     -OUTPUT $output -DEBUG $debug -SEASON $seasons "
-      $grads $batch -p -c "run gencmp -EXPID $expid -EXPORT  Q2M:SURFACE     -OUTPUT $output -DEBUG $debug -SEASON $seasons "
-      $grads $batch -p -c "run gencmp -EXPID $expid -EXPORT  THAT:SURFACE    -OUTPUT $output -DEBUG $debug -SEASON $seasons "
-      $grads $batch -p -c "run gencmp -EXPID $expid -EXPORT  QHAT:SURFACE    -OUTPUT $output -DEBUG $debug -SEASON $seasons "
-      $grads $batch -p -c "run gencmp -EXPID $expid -EXPORT  WET1:SURFACE    -OUTPUT $output -DEBUG $debug -SEASON $seasons "
-      $grads $batch -p -c "run gencmp -EXPID $expid -EXPORT  CLDLO:SOLAR     -OUTPUT $output -DEBUG $debug -SEASON $seasons "
-      $grads $batch -p -c "run gencmp -EXPID $expid -EXPORT  CLDMD:SOLAR     -OUTPUT $output -DEBUG $debug -SEASON $seasons "
-      $grads $batch -p -c "run gencmp -EXPID $expid -EXPORT  CLDHI:SOLAR     -OUTPUT $output -DEBUG $debug -SEASON $seasons "
-      $grads $batch -p -c "run gencmp -EXPID $expid -EXPORT  CLDTT:SOLAR     -OUTPUT $output -DEBUG $debug -SEASON $seasons "
-      $grads $batch -p -c "run gencmp -EXPID $expid -EXPORT  ZPBL:TURBULENCE -OUTPUT $output -DEBUG $debug -SEASON $seasons "
+      $grads $batch -p -c "run gencmp -EXPID $expid -EXPORT TROPP_BLENDED:AGCM        -OUTPUT $output -DEBUG $debug -SEASON $seasons "
+      $grads $batch -p -c "run gencmp -EXPID $expid -EXPORT         TROPQ:AGCM        -OUTPUT $output -DEBUG $debug -SEASON $seasons "
+      $grads $batch -p -c "run gencmp -EXPID $expid -EXPORT         TROPT:AGCM        -OUTPUT $output -DEBUG $debug -SEASON $seasons "
+      $grads $batch -p -c "run gencmp -EXPID $expid -EXPORT            TS:SURFACE     -OUTPUT $output -DEBUG $debug -SEASON $seasons "
+      $grads $batch -p -c "run gencmp -EXPID $expid -EXPORT            Z0:SURFACE     -OUTPUT $output -DEBUG $debug -SEASON $seasons "
+      $grads $batch -p -c "run gencmp -EXPID $expid -EXPORT           Z0H:SURFACE     -OUTPUT $output -DEBUG $debug -SEASON $seasons "
+      $grads $batch -p -c "run gencmp -EXPID $expid -EXPORT          EMIS:SURFACE     -OUTPUT $output -DEBUG $debug -SEASON $seasons "
+      $grads $batch -p -c "run gencmp -EXPID $expid -EXPORT          VENT:SURFACE     -OUTPUT $output -DEBUG $debug -SEASON $seasons "
+      $grads $batch -p -c "run gencmp -EXPID $expid -EXPORT            US:DYN         -OUTPUT $output -DEBUG $debug -SEASON $seasons "
+      $grads $batch -p -c "run gencmp -EXPID $expid -EXPORT            VS:DYN         -OUTPUT $output -DEBUG $debug -SEASON $seasons "
+      $grads $batch -p -c "run gencmp -EXPID $expid -EXPORT        SNOMAS:SURFACE     -OUTPUT $output -DEBUG $debug -SEASON $seasons "
+      $grads $batch -p -c "run gencmp -EXPID $expid -EXPORT           LAI:SURFACE     -OUTPUT $output -DEBUG $debug -SEASON $seasons "
+      $grads $batch -p -c "run gencmp -EXPID $expid -EXPORT           GRN:SURFACE     -OUTPUT $output -DEBUG $debug -SEASON $seasons "
+      $grads $batch -p -c "run gencmp -EXPID $expid -EXPORT          EVAP:SURFACE     -OUTPUT $output -DEBUG $debug -SEASON $seasons "
+      $grads $batch -p -c "run gencmp -EXPID $expid -EXPORT           T2M:SURFACE     -OUTPUT $output -DEBUG $debug -SEASON $seasons "
+      $grads $batch -p -c "run gencmp -EXPID $expid -EXPORT           Q2M:SURFACE     -OUTPUT $output -DEBUG $debug -SEASON $seasons "
+      $grads $batch -p -c "run gencmp -EXPID $expid -EXPORT           THAT:SURFACE    -OUTPUT $output -DEBUG $debug -SEASON $seasons "
+      $grads $batch -p -c "run gencmp -EXPID $expid -EXPORT           QHAT:SURFACE    -OUTPUT $output -DEBUG $debug -SEASON $seasons "
+      $grads $batch -p -c "run gencmp -EXPID $expid -EXPORT           WET1:SURFACE    -OUTPUT $output -DEBUG $debug -SEASON $seasons "
+      $grads $batch -p -c "run gencmp -EXPID $expid -EXPORT           CLDLO:SOLAR     -OUTPUT $output -DEBUG $debug -SEASON $seasons "
+      $grads $batch -p -c "run gencmp -EXPID $expid -EXPORT           CLDMD:SOLAR     -OUTPUT $output -DEBUG $debug -SEASON $seasons "
+      $grads $batch -p -c "run gencmp -EXPID $expid -EXPORT           CLDHI:SOLAR     -OUTPUT $output -DEBUG $debug -SEASON $seasons "
+      $grads $batch -p -c "run gencmp -EXPID $expid -EXPORT           CLDTT:SOLAR     -OUTPUT $output -DEBUG $debug -SEASON $seasons "
+      $grads $batch -p -c "run gencmp -EXPID $expid -EXPORT           ZPBL:TURBULENCE -OUTPUT $output -DEBUG $debug -SEASON $seasons "
+      $grads $batch -p -c "run gencmp -EXPID $expid -EXPORT           DMDT:PHYSICS    -OUTPUT $output -DEBUG $debug -SEASON $seasons "
+      set FOUND = TRUE
 endif
 
 # Dynamics Diagnostics
@@ -761,9 +669,11 @@ if( $plot == cmpexpz.dyn ) then
       $grads $batch -p -c "run gencmpz -EXPID $expid -EXPORT  DTDTDYN:DYN    -SEASON $seasons -OUTPUT $output -ZLOG OFF -DEBUG $debug -PTOP 10"
       $grads $batch -p -c "run gencmpz -EXPID $expid -EXPORT DQVDTDYN:DYN    -SEASON $seasons -OUTPUT $output -ZLOG OFF -DEBUG $debug -PTOP 10"
       $grads $batch -p -c "run gencmpz -EXPID $expid -EXPORT    OMEGA:DYN    -SEASON $seasons -OUTPUT $output -ZLOG OFF -DEBUG $debug -PTOP 10"
+      set FOUND = TRUE
 endif
 
 if( $plot == cmpexph.dyn ) then
+      $grads $batch -p -c "run gencmp -EXPID $expid -SEASON $seasons -OUTPUT $output -DEBUG $debug -EXPORT  DMDTDYN:DYN -LEVEL 0"
       set LEVS = '1000 975 950 925 900 850 800 750 700 650 600 550 500 450 400 350 300 250 200 150 100'
       foreach LEV ($LEVS)
       $grads $batch -p -c "run gencmp -EXPID $expid -SEASON $seasons -OUTPUT $output -DEBUG $debug -EXPORT  DUDTDYN:DYN -LEVEL $LEV "
@@ -772,6 +682,7 @@ if( $plot == cmpexph.dyn ) then
       $grads $batch -p -c "run gencmp -EXPID $expid -SEASON $seasons -OUTPUT $output -DEBUG $debug -EXPORT DQVDTDYN:DYN -LEVEL $LEV "
       $grads $batch -p -c "run gencmp -EXPID $expid -SEASON $seasons -OUTPUT $output -DEBUG $debug -EXPORT    OMEGA:DYN -LEVEL $LEV "
       end
+      set FOUND = TRUE
 endif
 
 # Moist Processes Diagnostics
@@ -798,6 +709,7 @@ if( $plot == cmpexpz.moist ) then
       $grads $batch -p -c "run gencmpz -EXPID $expid -EXPORT RSU_CN:MOIST    -SEASON $seasons -OUTPUT $output -ZLOG OFF -DEBUG $debug -PTOP 10"
       $grads $batch -p -c "run gencmpz -EXPID $expid -EXPORT RSU_AN:MOIST    -SEASON $seasons -OUTPUT $output -ZLOG OFF -DEBUG $debug -PTOP 10"
       $grads $batch -p -c "run gencmpz -EXPID $expid -EXPORT RSU_LS:MOIST    -SEASON $seasons -OUTPUT $output -ZLOG OFF -DEBUG $debug -PTOP 10"
+      set FOUND = TRUE
 endif
 
 if( $plot == cmpexph.moist.1 ) then
@@ -808,6 +720,7 @@ if( $plot == cmpexph.moist.1 ) then
       $grads $batch -p -c "run gencmp -EXPID $expid -SEASON $seasons -OUTPUT $output -DEBUG $debug -EXPORT  TIM:PHYSICS   -LEVEL $LEV "
       $grads $batch -p -c "run gencmp -EXPID $expid -SEASON $seasons -OUTPUT $output -DEBUG $debug -EXPORT DQDT:MOIST     -LEVEL $LEV "
       end
+      set FOUND = TRUE
 endif
 
 if( $plot == cmpexph.moist.2 ) then
@@ -818,6 +731,7 @@ if( $plot == cmpexph.moist.2 ) then
       $grads $batch -p -c "run gencmp -EXPID $expid -SEASON $seasons -OUTPUT $output -DEBUG $debug -EXPORT RL:MOIST       -LEVEL $LEV "
       $grads $batch -p -c "run gencmp -EXPID $expid -SEASON $seasons -OUTPUT $output -DEBUG $debug -EXPORT RI:MOIST       -LEVEL $LEV "
       end
+      set FOUND = TRUE
 endif
 
 if( $plot == cmpexph.moist.3 ) then
@@ -828,6 +742,7 @@ if( $plot == cmpexph.moist.3 ) then
       $grads $batch -p -c "run gencmp -EXPID $expid -SEASON $seasons -OUTPUT $output -DEBUG $debug -EXPORT CNV_MFD:MOIST  -LEVEL $LEV "
       $grads $batch -p -c "run gencmp -EXPID $expid -SEASON $seasons -OUTPUT $output -DEBUG $debug -EXPORT CNV_MFC:MOIST  -LEVEL $LEV "
       end
+      set FOUND = TRUE
 endif
 
 if( $plot == cmpexph.moist.4 ) then
@@ -840,6 +755,7 @@ if( $plot == cmpexph.moist.4 ) then
       $grads $batch -p -c "run gencmp -EXPID $expid -SEASON $seasons -OUTPUT $output -DEBUG $debug -EXPORT RSU_AN:MOIST  -LEVEL $LEV "
       $grads $batch -p -c "run gencmp -EXPID $expid -SEASON $seasons -OUTPUT $output -DEBUG $debug -EXPORT RSU_LS:MOIST  -LEVEL $LEV "
       end
+      set FOUND = TRUE
 endif
 
 # Turbulence Diagnostics
@@ -861,6 +777,7 @@ if( $plot == cmpexpz.turb ) then
       $grads $batch -p -c "run gencmpz -EXPID $expid -EXPORT     RI:TURBULENCE   -SEASON $seasons -OUTPUT $output -ZLOG OFF -DEBUG $debug -PTOP 10"
       $grads $batch -p -c "run gencmpz -EXPID $expid -EXPORT INTDIS:TURBULENCE   -SEASON $seasons -OUTPUT $output -ZLOG OFF -DEBUG $debug -PTOP 10"
       $grads $batch -p -c "run gencmpz -EXPID $expid -EXPORT TOPDIS:TURBULENCE   -SEASON $seasons -OUTPUT $output -ZLOG OFF -DEBUG $debug -PTOP 10"
+      set FOUND = TRUE
 endif
 
 if( $plot == cmpexph.turb.1 ) then
@@ -872,6 +789,7 @@ if( $plot == cmpexph.turb.1 ) then
       $grads $batch -p -c "run gencmp -EXPID $expid -SEASON $seasons -OUTPUT $output -DEBUG $debug -EXPORT  KHLS:TURBULENCE -LEVEL $LEV "
       $grads $batch -p -c "run gencmp -EXPID $expid -SEASON $seasons -OUTPUT $output -DEBUG $debug -EXPORT KHSFC:TURBULENCE -LEVEL $LEV "
       end
+      set FOUND = TRUE
 endif
 
 if( $plot == cmpexph.turb.2 ) then
@@ -884,6 +802,7 @@ if( $plot == cmpexph.turb.2 ) then
       $grads $batch -p -c "run gencmp -EXPID $expid -SEASON $seasons -OUTPUT $output -DEBUG $debug -EXPORT INTDIS:TURBULENCE -LEVEL $LEV "
       $grads $batch -p -c "run gencmp -EXPID $expid -SEASON $seasons -OUTPUT $output -DEBUG $debug -EXPORT TOPDIS:TURBULENCE -LEVEL $LEV "
       end
+      set FOUND = TRUE
 endif
 
 if( $plot == cmpexph.turb.3 ) then
@@ -894,6 +813,7 @@ if( $plot == cmpexph.turb.3 ) then
       $grads $batch -p -c "run gencmp -EXPID $expid -SEASON $seasons -OUTPUT $output -DEBUG $debug -EXPORT   TIT:PHYSICS    -LEVEL $LEV "
       $grads $batch -p -c "run gencmp -EXPID $expid -SEASON $seasons -OUTPUT $output -DEBUG $debug -EXPORT  QVIT:PHYSICS    -LEVEL $LEV "
       end
+      set FOUND = TRUE
 endif
 
 # Gravity Wave Drag Diagnostics
@@ -910,6 +830,7 @@ if( $plot == cmpexpz.gwd ) then
       $grads $batch -p -c "run gencmpz -EXPID $expid -EXPORT  DUDT_ORO:GWD   -SEASON $seasons -OUTPUT $output -ZLOG ON  -DEBUG $debug -PTOP 1"
       $grads $batch -p -c "run gencmpz -EXPID $expid -EXPORT  DVDT_ORO:GWD   -SEASON $seasons -OUTPUT $output -ZLOG ON  -DEBUG $debug -PTOP 1"
       $grads $batch -p -c "run gencmpz -EXPID $expid -EXPORT  DTDT_ORO:GWD   -SEASON $seasons -OUTPUT $output -ZLOG ON  -DEBUG $debug -PTOP 1"
+      set FOUND = TRUE
 endif
 
 if( $plot == cmpexph.gwd ) then
@@ -927,6 +848,7 @@ if( $plot == cmpexph.gwd ) then
       $grads $batch -p -c "run gencmp -EXPID $expid -SEASON $seasons -OUTPUT $output -DEBUG $debug -EXPORT  DVDT_ORO:GWD -LEVEL $LEV "
       $grads $batch -p -c "run gencmp -EXPID $expid -SEASON $seasons -OUTPUT $output -DEBUG $debug -EXPORT  DTDT_ORO:GWD -LEVEL $LEV "
       end
+      set FOUND = TRUE
 endif
 
 # Radiation Diagnostics
@@ -934,6 +856,7 @@ endif
 if( $plot == cmpexpz.rad ) then
       $grads $batch -p -c "run gencmpz -EXPID $expid -EXPORT RADLW:RADIATION -SEASON $seasons -OUTPUT $output -ZLOG OFF -DEBUG $debug -PTOP 10"
       $grads $batch -p -c "run gencmpz -EXPID $expid -EXPORT RADSW:RADIATION -SEASON $seasons -OUTPUT $output -ZLOG OFF -DEBUG $debug -PTOP 10"
+      set FOUND = TRUE
 endif
 
 if( $plot == cmpexph.rad ) then
@@ -942,6 +865,7 @@ if( $plot == cmpexph.rad ) then
       $grads $batch -p -c "run gencmp -EXPID $expid -SEASON $seasons -OUTPUT $output -DEBUG $debug -EXPORT RADLW:RADIATION -LEVEL $LEV "
       $grads $batch -p -c "run gencmp -EXPID $expid -SEASON $seasons -OUTPUT $output -DEBUG $debug -EXPORT RADSW:RADIATION -LEVEL $LEV "
       end
+      set FOUND = TRUE
 endif
 
 if( $plot == cmpexph.aero) then
@@ -951,6 +875,7 @@ if( $plot == cmpexph.aero) then
       $grads $batch -p -c "run gencmp -EXPID $expid -EXPORT  RSC:SOLAR  RSCNA:SOLAR  -NAME SWTNETCAF -OUTPUT $output -DEBUG $debug -SEASON $seasons "
       $grads $batch -p -c "run gencmp -EXPID $expid -EXPORT RSRS:SOLAR RSRSNA:SOLAR  -NAME SWGNETAF  -OUTPUT $output -DEBUG $debug -SEASON $seasons "
       $grads $batch -p -c "run gencmp -EXPID $expid -EXPORT RSCS:SOLAR RSCSNA:SOLAR  -NAME SWGNETCAF -OUTPUT $output -DEBUG $debug -SEASON $seasons "
+      set FOUND = TRUE
 endif
 
 # Analysis Diagnostics
@@ -960,6 +885,11 @@ if( $plot == cmpexpz.ana ) then
       $grads $batch -p -c "run gencmpz -EXPID $expid -EXPORT  DVDT_ANA:AGCM  -SEASON $seasons -OUTPUT $output -ZLOG OFF -DEBUG $debug -PTOP 10"
       $grads $batch -p -c "run gencmpz -EXPID $expid -EXPORT  DTDT_ANA:AGCM  -SEASON $seasons -OUTPUT $output -ZLOG OFF -DEBUG $debug -PTOP 10"
       $grads $batch -p -c "run gencmpz -EXPID $expid -EXPORT DQVDT_ANA:AGCM  -SEASON $seasons -OUTPUT $output -ZLOG OFF -DEBUG $debug -PTOP 10"
+      $grads $batch -p -c "run gencmpz -EXPID $expid -EXPORT      DUDT:AGCM  -SEASON $seasons -OUTPUT $output -ZLOG OFF -DEBUG $debug -PTOP 10"
+      $grads $batch -p -c "run gencmpz -EXPID $expid -EXPORT      DVDT:AGCM  -SEASON $seasons -OUTPUT $output -ZLOG OFF -DEBUG $debug -PTOP 10"
+      $grads $batch -p -c "run gencmpz -EXPID $expid -EXPORT      DTDT:AGCM  -SEASON $seasons -OUTPUT $output -ZLOG OFF -DEBUG $debug -PTOP 10"
+      $grads $batch -p -c "run gencmpz -EXPID $expid -EXPORT     DQVDT:AGCM  -SEASON $seasons -OUTPUT $output -ZLOG OFF -DEBUG $debug -PTOP 10"
+      set FOUND = TRUE
 endif
 
 if( $plot == cmpexph.ana ) then
@@ -972,7 +902,12 @@ if( $plot == cmpexph.ana ) then
       $grads $batch -p -c "run gencmp -EXPID $expid -SEASON $seasons -OUTPUT $output -DEBUG $debug -EXPORT  DVDT_ANA:AGCM  -LEVEL $LEV "
       $grads $batch -p -c "run gencmp -EXPID $expid -SEASON $seasons -OUTPUT $output -DEBUG $debug -EXPORT  DTDT_ANA:AGCM  -LEVEL $LEV "
       $grads $batch -p -c "run gencmp -EXPID $expid -SEASON $seasons -OUTPUT $output -DEBUG $debug -EXPORT DQVDT_ANA:AGCM  -LEVEL $LEV "
+      $grads $batch -p -c "run gencmp -EXPID $expid -SEASON $seasons -OUTPUT $output -DEBUG $debug -EXPORT      DUDT:AGCM  -LEVEL $LEV "
+      $grads $batch -p -c "run gencmp -EXPID $expid -SEASON $seasons -OUTPUT $output -DEBUG $debug -EXPORT      DVDT:AGCM  -LEVEL $LEV "
+      $grads $batch -p -c "run gencmp -EXPID $expid -SEASON $seasons -OUTPUT $output -DEBUG $debug -EXPORT      DTDT:AGCM  -LEVEL $LEV "
+      $grads $batch -p -c "run gencmp -EXPID $expid -SEASON $seasons -OUTPUT $output -DEBUG $debug -EXPORT     DQVDT:AGCM  -LEVEL $LEV "
       end
+      set FOUND = TRUE
 endif
 
 # End Experiment Comparison Plots
@@ -980,51 +915,145 @@ endif
 endif
 
 
-# User-Specified 2-D Plots (eg., -type 2 -plots OLR:IRRAD )
-# ---------------------------------------------------------
+
+#######################################################################################
+#  User-Specified 2-D Plots that Match Existing Cases (eg., -type 2 -plots OLR:IRRAD )
+#######################################################################################
+
+echo " "
+echo "Starting TEST for Pre-Existing plots ..."
+
 set EXPORT = `echo $plot | cut -d: -f1`
 set GC     = `echo $plot | cut -d: -f2`
 set LEV    = `echo $plot | cut -d: -f3`
 
-set command = `grep ${EXPORT}:${GC} $GEOSUTIL/plots/portrait.script`
-set num = $#command
-    @ n = 2
-set dum = '$grads'
-while( $n <= $num )
- if( "$command[$n]" != '$grads' ) set dum = "$dum $command[$n]"
- if( "$command[$n]" == '$grads' | $n == $num ) then
-      /bin/rm -f command.file
-      touch      command.file
-      echo  \#\!/bin/tcsh -f            >> command.file
-      echo "set LEV     = $LEV"         >> command.file
-      echo "set grads   = $grads"       >> command.file
-      echo "set expid   = $expid"       >> command.file
-      echo "set output  = $output"      >> command.file
-      echo "set debug   = $debug"       >> command.file
-      echo "set batch   = $batch"       >> command.file
-      echo 'set seasons = "'$seasons'"' >> command.file
-      echo "$dum"                       >> command.file
-      chmod +x command.file
-      echo " "
-      cat command.file
-      echo " "
-      command.file
+echo " "
+echo "  PLOT: $plot"
+echo "EXPORT: $EXPORT"
+echo "    GC: $GC"
+echo "   LEV: $LEV"
+echo " "
+
+# Find Existing Command to Execute for $plot in the form: EXPORT:GC<:LEV>
+# -----------------------------------------------------------------------
+# DONE
+if( $plot =~ *:* & $FOUND == FALSE ) then
+    set numlines = `wc -l $GEOSUTIL/plots/portrait.script | cut -d' ' -f1`
+    @ m  = 1
+    while( $m <= $numlines )
+      set   line  = `awk -v ln=$m '{if (NR==ln) print $0}' $GEOSUTIL/plots/portrait.script`
+      if( "$line" == "# DONE") then
+          @ m  = $numlines
+      endif
+          set commands = ''
+      if( .$LEV == . ) then
+          set commands = `echo $line | grep ${EXPORT}:${GC}`
+      else
+          if( $LEV != '' & $LEV != 'Z' & $LEV != 'z' ) then 
+          set commands = `echo $line | grep ${EXPORT}:${GC} | grep $LEV`
+          endif
+      endif
+      set num = $#commands
+        @ n = 2
       set dum = '$grads'
- endif
-@ n = $n + 1
-end
+      while( $n <= $num )
+         set   command   =  $commands[$n]
+         if( "$command" != '$grads' ) set dum = "$dum $command"
+         if( "$command" == '$grads' | $n == $num ) then
+          /bin/rm -f command.file
+          touch      command.file
+          echo  \#\!/bin/tcsh -f            >> command.file
+          echo "set LEV     = $LEV"         >> command.file
+          echo "set grads   = $grads"       >> command.file
+          echo "set expid   = $expid"       >> command.file
+          echo "set output  = $output"      >> command.file
+          echo "set debug   = $debug"       >> command.file
+          echo "set batch   = $batch"       >> command.file
+          echo 'set seasons = "'$seasons'"' >> command.file
+          echo "$dum"                       >> command.file
+          chmod +x command.file
+          echo " "
+          echo "Issuing command.file: ${n}"
+          echo "---------------------"
+          cat command.file
+          echo " "
+            ./command.file
+          set dum = '$grads'
+         endif
+      @ n = $n + 1
+      end
+    @ m = $m + 1
+    end
+endif
+
+#######################################################################################
+#               Experiment Comparison Plots that are NOT Pre-Existing
+#######################################################################################
+
+echo " "
+echo "Starting TEST for NON Pre-Existing plots ..."
+
+set EXPORT = `echo $plot | cut -d: -f1`
+set GC     = `echo $plot | cut -d: -f2`
+set LEV    = `echo $plot | cut -d: -f3`
+
+echo " "
+echo "  PLOT: $plot"
+echo "EXPORT: $EXPORT"
+echo "    GC: $GC"
+echo "   LEV: $LEV"
+echo " "
 
 if( "$CMPEXP" != "NULL" ) then
-      set EXPORTS = `$GEOSUTIL/plots/get_exports  $homdir/HISTORY.rc  Check_ALL`
-      foreach pair ($EXPORTS)
-      if( "$pair" == "${EXPORT}:${GC}" ) then
-           if( $LEV == '' ) then 
-               $grads $batch -p -c "run gencmp -EXPID $expid -EXPORT ${EXPORT}:${GC} -OUTPUT ${output}/misc -DEBUG $debug -SEASON $seasons "
+      if( $debug == debug ) then
+
+           echo "Issuing gencmp for: ${EXPORT}:${GC}"
+           echo "------------------"
+           if( $LEV != '' & $LEV != 'Z' & $LEV != 'z' ) then 
+                   $grads $batch -p -c "run gencmp  -EXPID $expid -EXPORT ${EXPORT}:${GC} -OUTPUT ${output}/misc -DEBUG $debug -SEASON $seasons -LEVEL $LEV "
            else
-               $grads $batch -p -c "run gencmp -EXPID $expid -EXPORT ${EXPORT}:${GC} -OUTPUT ${output}/misc -DEBUG $debug -SEASON $seasons -LEVEL $LEV "
+                   $grads $batch -p -c "run getzdim ${EXPORT} ${GC}"
+                   set NLEVS = `cat ${EXPORT}:${GC}:NLEVS.txt`
+                   /bin/rm       -f ${EXPORT}:${GC}:NLEVS.txt
+               if( $NLEVS == 1 ) then 
+                   $grads $batch -p -c "run gencmp  -EXPID $expid -EXPORT ${EXPORT}:${GC} -OUTPUT ${output}/misc -DEBUG $debug -SEASON $seasons "
+               else
+                   $grads $batch -p -c "run gencmpz -EXPID $expid -EXPORT ${EXPORT}:${GC} -OUTPUT ${output}/misc -DEBUG $debug -SEASON $seasons -ZLOG $zlog "
+               endif
            endif
+
+      else
+
+          set EXPORTS = `$GEOSUTIL/plots/get_exports  $homdir/HISTORY.rc`
+          foreach pair ($EXPORTS)
+                 set doit    =  0
+             if( $plot == MISC ) then
+                 set EXPORT  = `echo $pair | cut -d: -f1`
+                 set GC      = `echo $pair | cut -d: -f2`
+                 set LEV     = ''
+                 set command = `grep ${EXPORT}:${GC} $GEOSUTIL/plots/portrait.script`
+                 set doit    =  $#command
+             endif
+
+             if( "$pair" == "${EXPORT}:${GC}" & $doit == 0 ) then
+                 echo "Issuing genmcp for: ${EXPORT}:${GC}"
+                 echo "------------------"
+                 if( $LEV != '' ) then 
+                         $grads $batch -p -c "run gencmp  -EXPID $expid -EXPORT ${EXPORT}:${GC} -OUTPUT ${output}/misc -DEBUG $debug -SEASON $seasons -LEVEL $LEV "
+                 else
+                         $grads $batch -p -c "run getzdim ${EXPORT} ${GC}"
+                         set NLEVS = `cat ${EXPORT}:${GC}:NLEVS.txt`
+                         /bin/rm       -f ${EXPORT}:${GC}:NLEVS.txt
+                     if( $NLEVS == 1 ) then 
+                         $grads $batch -p -c "run gencmp  -EXPID $expid -EXPORT ${EXPORT}:${GC} -OUTPUT ${output}/misc -DEBUG $debug -SEASON $seasons "
+                     else
+                         $grads $batch -p -c "run gencmpz -EXPID $expid -EXPORT ${EXPORT}:${GC} -OUTPUT ${output}/misc -DEBUG $debug -SEASON $seasons "
+                     endif
+                 endif
+             endif
+          end
+
       endif
-      end
 endif
 
 exit

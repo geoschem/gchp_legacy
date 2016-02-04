@@ -1,0 +1,10 @@
+
+OBSNAM: merrasc
+OBSDSC: GEOSdas-2_1_4_(MERRA_Scout)
+
+        filename:   'VERIFICATION/MERRA_Scout/residual.ctl'
+        filetype:   'BIN'
+        fields:     'STR'      , 'DYN'           , 'STR'  , 1
+                    'RES'      , 'DYN'           , 'RES'  , 1
+                    'DUM'      , 'DYN'           , 'DUM'  , 1
+                    ::

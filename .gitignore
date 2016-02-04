@@ -16,3 +16,4 @@ log.*
 *.clone
 ESMF/lib
 ESMF/Linux
+Shared/Linux

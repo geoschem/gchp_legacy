@@ -1,0 +1,1281 @@
+#            NCCS Specific Version
+#
+# This observation system resource file database will track 
+# the whereabout of observation files.
+#   It will be used by scripts require_obsys (hard check the 
+# existence of observation files)
+#   and acquire_obsys (will call acquire to get files).
+#
+# Syntax:
+# -------
+# BEGIN observation_file_class => StandardName
+#   startYYYYMMDD_HHz-endYYYYMMDD_HHz incrementHHMMSS remote_file_name_template
+# END
+# Note: set "endYYYYMMDD_HHz" as "present" if new files added to system daily.
+#
+# Modification History:
+# ---------------------
+# 2002.08.01 da Silva        NCCS specific version
+# 2002.09.13 E. Yeh          Set the starting date of DAOTOVS l1c llk as 2001.12.19         
+# 2002.10.07 E. Yeh          Set SSMI/TPW generic name as obsys.ssmi_tpw.f%c%c.%y4%m2%d2.ods 
+# 2002.10.31 E. Yeh          Updated qscat
+# 2003.03.31 D. Kokron       Add ERS1, ECMWF, and other obs from dao_it repository and ozone
+# 2003.04.01 D. Kokron       Add ssmi_speed_llk class 
+# 2003.04.01 D. Kokron       Extend ssmi_wentz_tpw and ssmi_tpw_llk classes with v5 tpw 
+# 2003.04.01 D. Kokron       Add f15 to ssmi_wentz_tpw class
+# 2003.04.01 D. Kokron       Correct qscat class to account for missing data on 20021119
+# 2003.04.02 D. Kokron       Add conv_ncep class
+# 2003.04.02 D. Kokron       Split conv_ncep and conv_ecmwf each into two classes
+# 2003.04.03 D. Kokron       Create ssmi_tpw_v5_v4, ssmi_speed_v5_v4 classes
+# 2003.04.03 D. Kokron       Split qscat class into jpl and llk specific classes
+# 2003.07.09 Todling         Added pointers to llk GADS observations
+# 2003.07.23 C. Cruz         Added NCEP observational data
+# 2003.08.19 Todling         Split NCEP classes into classes that need to be reblocked
+# 2003.12.05 Todling         Added ref to ODS files for Terra MODIS Winds
+# 2004.04.30 Todling         Added classes for latest NCEP data files
+# 2004.07.14 Todling         Added location of NCEP's operational observations under Karki's dir
+# 2004.09.24 Todling/daSilva Added SABER Level 2B data 
+# 2004.11.24 Todling         Added NCEP historic data files for G5DAS validation (200011-200112)
+# 2005.02.15 Kokron          Create this file from existing NAS version.  Remove all non-existent records
+# 2005.04.26 Kokron/Todling  Added location of AIRS and changed starting times from 06z to 00z
+# 2005.09.22 Todling         Added location tcvitals
+# 2006.03.23 Kokron          Added part of the MERRA observing system
+# 2006.09.27 Kokron          Added more MERRA observing system
+# 2006.10.06 Kokron          Added some AIRS and SSMI speed FLK obs for 2006
+# 2006.11.07 Kokron          Added SPTRMM and SPSSMI data
+# 2006.11.08 Kokron          extend MERRA obs to include Nov. 2000 also open profiler class
+# 2006.11.09 Kokron          workaround for behavior when start time is 18z not 00z
+# 2006.12.13 Todling         renamed local copy of gmao-airs file
+# 2007.01.12 Lucchesi/JCS    Correct merra_airs_bufr entry
+# 2007.01.16 Lucchesi/JCS    Updated SSMI wind speed entry
+# 2007.02.01 Lucchesi/JCS    Added merra_goesnd_prep_bufr + various corrections
+# 2007.03.30 Meta/JCS        Removed "prep-qc." from goesnd name
+# 2008.03.13 Kokron          Major update to merra and add ncep_ssmit observing system
+# 2009.02.24 Meta            Updated SPSSMI and SBUV data, added missing time stamps for some radiance types
+# 2009.04.06 Kokron          Major update to MERRA based on obsys.rc from MERRA '79 scout
+# 2009.06.22 Kokron          Added new onservation types for 5.4.0 DAS
+# 2009.07.24 Meta            Added SBUV in version 8 bufr format
+# 2009.09.11 Kokron          Major update to MERRA based on obsys.rc from MERRA '98 stream
+# 2010.08.23 Kokron          truncate merra_airs_bufr and update gmao_airs_bufr and others to reflect recent transfers
+# 2011.07.13 Kokron          No longer need to filter this file in fvsetup
+#                            Added classes for Aqua data from DISC NRT used in 5.7.2 system
+#                            Correct location of tcvitals and several dates to reflect recent transfers
+# 2011.08.09 Kokron          renamed SBUV classes to reflect that OPS uses V8 by default
+#
+#+BEGIN obclass data set description
+#+  ssi_obs_ieee:     NCEP Satellite Data in IEEE format (old format)
+#+  ncep_osbuv_bufr:  NCEP SBUV Data in bufr format
+#+  ncep_spssmi_bufr: NCEP SSMI Data in bufr format
+#+  ncep_sptrmm_bufr: NCEP TRMM Data in bufr format
+#+  ncep_1bamua_bufr: NCEP Satellite AMSUA Data (bufr)
+#+  ncep_1bamub_bufr: NCEP Satellite AMSUB Data (bufr)
+#+  ncep_1bhrs2_bufr: NCEP Satellite HIRS2 Data (bufr)
+#+  ncep_1bhrs3_bufr: NCEP Satellite HIRS3 Data (bufr)
+#+  ncep_1bmsu_bufr:  NCEP Satellite MSU Data (bufr)
+#+  ncep_ssmit_bufr:  NCEP Satellite SSM/I Data (bufr)
+#+  ncep_prep_bufr:   NCEP Conventional Data in bufr format (ops)
+#+  gmao_airs_bufr:   GMAO Version of NESDIS AMSU-A AIRS
+#+  disc_airs_bufr:   Aqua data from DISC NRT
+#+  disc_amsua_bufr:  Aqua data from DISC NRT
+#+  ncep_tcvitals:    NCEP Vital files for Tropical Storms
+#+  merra_ers1:        ERS-1 scatterometer for MERRA
+#+  merra_ers2:        ERS-2 scatterometer for MERRA
+#+  merra_wspd_bufr:   MERRA Wentz Speeds
+#+  merra_gprofp13_bufr:  MERRA GPROF F13 Precip
+#+  merra_gprofp14_bufr:  MERRA GPROF F14 Precip
+#+  merra_tmi2l_bufr:  MERRA TRMM Land  Precip (full resol.)
+#+  merra_tmi2o_bufr:  MERRA TRMM Ocean Precip (full resol.)
+#+  merra_tmil_bufr:   MERRA TRMM Land  Precip
+#+  merra_tmio_bufr:   MERRA TRMM Ocean Precip
+#+  merra_1bmhs_bufr:  MERRA - Satellite MHS Data (bufr)
+#+  merra_1bamua_bufr: MERRA - Satellite AMSUA Data (bufr)
+#+  merra_1bamub_bufr: MERRA - Satellite AMSUB Data (bufr)
+#+  merra_1bhrs2_bufr: MERRA - Satellite HIRS2 Data (bufr)
+#+  merra_1bhrs3_bufr: MERRA - Satellite HIRS3 Data (bufr)
+#+  merra_1bmsu_bufr:  MERRA - Satellite MSU Data (bufr)
+#+  merra_1bssu_bufr:  MERRA - Satellite SSU Data (bufr)
+#+  merra_wssmi_bufr:  MERRA - Superobbed Wentz SSM/I Rain Rate
+#+  merra_ssmit08_bufr: MERRA - F08 Wentz SSM/I brightness temperatures
+#+  merra_ssmit10_bufr: MERRA - F10 Wentz SSM/I brightness temperatures
+#+  merra_ssmit11_bufr: MERRA - F11 Wentz SSM/I brightness temperatures
+#+  merra_ssmit13_bufr: MERRA - F13 Wentz SSM/I brightness temperatures
+#+  merra_ssmit14_bufr: MERRA - F14 Wentz SSM/I brightness temperatures
+#+  merra_ssmit15_bufr: MERRA - F15 Wentz SSM/I brightness temperatures
+#+  merra_nmodis_prep_bufr: MERRA - NESDIS MODIS winds
+#+  merra_prof_prep_bufr: MERRA - Profilers
+#+  merra_cdas_prep_bufr:  NCEP Conventional Data in bufr format (ops)
+#+  merra_qscat_jpl:   QuickScat from JPL
+#+  merra_sbuv_prep_bufr:   SBUV Version 8
+#+  merra_airs_bufr:    MERRA Version of NESDIS AMSU-A AIRS
+#+  merra_sfcland_prep_bufr:  MERRA Surf Land Conv Obs
+#+  merra_upa_prep_bufr:  MERRA Upper-Air Conv Obs
+#+  merra_acars_prep_bufr:  MERRA ACARS Conv Obs
+#+  merra_aircft_prep_bufr:  MERRA AirCraft Conv Obs
+#+  merra_satwnd_prep_bufr:  MERRA Sat Winds Conv Obs
+#+  merra_sfcship_prep_bufr:  MERRA Ship Conv Obs
+#+  merra_sfcbog_prep_bufr:  MERRA Boggus Obs
+#+END
+#
+
+# NCEP satellite data (old ieee format - specific experiment)
+# NOTE: the sbvn11/sbuv16 do not overlap (one should be replacement of other)
+# -----------------------------------------------------------
+BEGIN ssi_obs_ieee
+  20001101_00z-20011231_18z 240000 lou-via-br2:/u/dkokron/NCEP/ieee/Y%y4/M%m2/D%d2/gdas1.d%y4%m2%d2.t%h2z.a1bn15.tm00.ieee_d
+  20001101_00z-20011231_18z 240000 lou-via-br2:/u/dkokron/NCEP/ieee/Y%y4/M%m2/D%d2/gdas1.d%y4%m2%d2.t%h2z.b1bn15.tm00.ieee_d
+  20001101_00z-20011231_18z 240000 lou-via-br2:/u/dkokron/NCEP/ieee/Y%y4/M%m2/D%d2/gdas1.d%y4%m2%d2.t%h2z.h1bn14.tm00.ieee_d
+  20001101_00z-20011231_18z 240000 lou-via-br2:/u/dkokron/NCEP/ieee/Y%y4/M%m2/D%d2/gdas1.d%y4%m2%d2.t%h2z.sbvn11.tm00.ieee_d
+  20001101_00z-20011231_18z 240000 lou-via-br2:/u/dkokron/NCEP/ieee/Y%y4/M%m2/D%d2/gdas1.d%y4%m2%d2.t%h2z.m1bn14.tm00.ieee_d
+END
+
+# NCEP unconventional observational data
+# ---------------------------------------
+BEGIN ncep_osbuv8_6_bufr => gdas1.%y4%m2%d2.t%h2z.osbuv.tm00.bufr_d.ublk
+  20040615_00z-20080204_18z 240000 lou-via-br2:/u/dkokron/NCEP/bufr/SBUV/Y%y4/M%m2/gdas1.%y2%m2%d2.t%h2z.osbuv.tm00.bufr_d
+  20080205_00z-present      240000 lou-via-br2:/u/dkokron/NCEP/bufr/SBUV8/Y%y4/M%m2/gdas1.%y2%m2%d2.t%h2z.osbuv8_6.tm00.bufr_d
+END
+BEGIN ncep_osbuv_bufr => gdas1.%y4%m2%d2.t%h2z.osbuv.tm00.bufr_d.ublk
+  20071215_00z-present      240000 lou-via-br2:/u/dkokron/NCEP/bufr/SBUV8/Y%y4/M%m2/gdas1.%y2%m2%d2.t%h2z.osbuv8.tm00.bufr_d
+END
+
+BEGIN ncep_spssmi_bufr => gdas1.%y4%m2%d2.t%h2z.spssmi.tm00.bufr_d.ublk
+  20021215_00z-20030131_18z 240000 lou-via-br2:/u/dkokron/ObservingSystem/ssmi_nesdis/bufr/wind/Y%y4/M%m2/gdas1.%y4%m2%d2.t%h2z.spssmi.tm00.bufr_d
+  20030903_00z-20061031_18z 240000 lou-via-br2:/u/dkokron/ObservingSystem/ssmi_nesdis/bufr/wind/Y%y4/M%m2/smi%y2%m2%d2.%h2z.bufr_d
+  20061101_00z-20091119_18z 240000 lou-via-br2:/u/dkokron/NCEP/bufr/SPSSMI/Y%y4/M%m2/gdas1.%y2%m2%d2.t%h2z.spssmi.tm00.bufr_d
+END
+BEGIN ncep_sptrmm_bufr => gdas1.%y4%m2%d2.t%h2z.sptrmm.tm00.bufr_d.ublk
+  20021215_00z-20021221_18z 240000 lou-via-br2:/u/dkokron/NCEP/bufr/TRMM/Y%y4/M%m2/gdas1.%y4%m2%d2.t%h2z.sptrmm.tm00.bufr_d
+  20031101_00z-20040713_18z 240000 lou-via-br2:/u/dkokron/NCEP/bufr/TRMM/Y%y4/M%m2/sptrmm.fnl.%y4%m2%d2%h2
+  20040714_00z-present      240000 lou-via-br2:/u/dkokron/NCEP/bufr/TRMM/Y%y4/M%m2/gdas1.%y2%m2%d2.t%h2z.sptrmm.tm00.bufr_d
+END
+
+# NCEP Operational (satellite) data
+# ---------------------------------
+BEGIN ncep_1bamua_bufr => gdas1.%y2%m2%d2.t%h2z.1bamua.tm00.bufr_d.ublk
+  20040615_00z-20041017_18z 240000 lou-via-br2:/u/dkokron/NCEP/bufr/AMSUA/Y%y4/M%m2/gdas1.%y2%m2%d2.t%h2z.1bamua.tm00.bufr_d
+  20041019_00z-present      240000 lou-via-br2:/u/dkokron/NCEP/bufr/AMSUA/Y%y4/M%m2/gdas1.%y2%m2%d2.t%h2z.1bamua.tm00.bufr_d
+END
+BEGIN ncep_1bamub_bufr => gdas1.%y2%m2%d2.t%h2z.1bamub.tm00.bufr_d.ublk
+  20040615_00z-present 240000 lou-via-br2:/u/dkokron/NCEP/bufr/AMSUB/Y%y4/M%m2/gdas1.%y2%m2%d2.t%h2z.1bamub.tm00.bufr_d
+END
+BEGIN ncep_1bhrs2_bufr => gdas1.%y2%m2%d2.t%h2z.1bhrs2.tm00.bufr_d.ublk
+  20040615_00z-present 240000 lou-via-br2:/u/dkokron/NCEP/bufr/HIRS2/Y%y4/M%m2/gdas1.%y2%m2%d2.t%h2z.1bhrs2.tm00.bufr_d
+END
+BEGIN ncep_1bhrs3_bufr => gdas1.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr_d.ublk
+  20040615_00z-present 240000 lou-via-br2:/u/dkokron/NCEP/bufr/HIRS3/Y%y4/M%m2/gdas1.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr_d
+END
+BEGIN ncep_1bmsu_bufr => gdas1.%y2%m2%d2.t%h2z.1bmsu.tm00.bufr_d.ublk
+  20040615_00z-present 240000 lou-via-br2:/u/dkokron/NCEP/bufr/MSU/Y%y4/M%m2/gdas1.%y2%m2%d2.t%h2z.1bmsu.tm00.bufr_d
+END
+BEGIN ncep_ssmit_bufr => gdas1.%y2%m2%d2.t%h2z.ssmitbufr.tm00.bufr_d.ublk
+#  20060217_00z-present 240000 lou-via-br2:/u/dkokron/NCEP/bufr/SSMIT/Y%y4/M%m2/gdas1.%y2%m2%d2.t%h2z.ssmit.tm00.bufr_d
+#  data available from 20060216, but we only use from 20060726 when merra_smmit ends.
+  20060726_00z-20091119_18z 240000 lou-via-br2:/u/dkokron/NCEP/bufr/SSMIT/Y%y4/M%m2/gdas1.%y2%m2%d2.t%h2z.ssmit.tm00.bufr_d
+END
+
+# NCEP Pre-bufr conventional data
+# -------------------------------
+BEGIN ncep_prep_bufr => gdas1.%y4%m2%d2.t%h2z.prepbufr.ublk
+  20040601_00z-present 240000 lou-via-br2:/u/dkokron/NCEP/bufr/PREPBUFR/Y%y4/M%m2/gdas1.%y2%m2%d2.t%h2z.prepbufr
+#  data available from 2002, but we only use from 2006 after merra data ends.
+#  20060101_00z-present 240000 lou-via-br2:/u/dkokron/NCEP/bufr/PREPBUFR/Y%y4/M%m2/gdas1.%y2%m2%d2.t%h2z.prepbufr
+END
+# NESDIS/GMAO AIRS/AMSU-A data
+# ----------------------------
+BEGIN gmao_airs_bufr => gmaoairs.%y4%m2%d2.t%h2z.bufr.ublk
+  20040723_00z-20040930_18z 240000 lou-via-br2:/u/dkokron/ObservingSystem/airs/bufr/C0300/Y%y4/M%m2/airs.%y4%m2%d2.t%h2z.bufr
+  20041216_00z-20050331_18z 240000 lou-via-br2:/u/dkokron/ObservingSystem/airs/bufr/C0300/Y%y4/M%m2/airs.%y4%m2%d2.t%h2z.bufr
+  20050601_00z-20050812_18z 240000 lou-via-br2:/u/dkokron/ObservingSystem/airs/bufr/C0300/Y%y4/M%m2/airs.%y4%m2%d2.t%h2z.bufr
+  20051216_00z-20060630_18z 240000 lou-via-br2:/u/dkokron/ObservingSystem/airs/bufr/C0300/Y%y4/M%m2/airs.%y4%m2%d2.t%h2z.bufr
+  20060928_00z-20070331_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/flk/airs/bufr/C0300/Y%y4/M%m2/airs.%y4%m2%d2.t%h2z.bufr
+  20070901_00z-20080401_18z 240000 lou-via-br2:/u/dkokron/ObservingSystem/airs/bufr/C0300/Y%y4/M%m2/airs.%y4%m2%d2.t%h2z.bufr
+  20090901_00z-20091231_18z 240000 lou-via-br2:/u/dkokron/ObservingSystem/airs/bufr/C0300/Y%y4/M%m2/airs.%y4%m2%d2.t%h2z.bufr
+# Prior to 20060907, use merra_airs_bufr.
+#  20060907_00z-20070903_18z 240000 lou-via-br2:/u/dkokron/ObservingSystem/airs/bufr/C0300/Y%y4/M%m2/airs.%y4%m2%d2.t%h2z.bufr
+#  20070904_00z-20070904_18z 240000 lou-via-br2:/u/dkokron/ObservingSystem/airs/bufr/C0300/Y%y4/M%m2/airs_fix.%y4%m2%d2.t%h2z.bufr
+#  20070905_00z-present      240000 lou-via-br2:/u/dkokron/ObservingSystem/airs/bufr/C0300/Y%y4/M%m2/airs.%y4%m2%d2.t%h2z.bufr
+END
+# TCVITALS
+# --------
+BEGIN ncep_tcvitals => tcvitals.%y4%m2%d2%h2
+  20060401_00z-present      240000 lou-via-br2:/u/dkokron/ObservingSystem/TCVITALS/Y%y4/M%m2/gfs.%y2%m2%d2.t%h2z.syndata.tcvitals
+END
+
+# New Aqua data from DISC NRT server
+#-----------------------------------
+BEGIN disc_airs_bufr => airs.%y4%m2%d2.t%h2z.bufr
+ 20101101_00z-20110727_18z  240000 lou-via-br2:/u/dkokron/ObservingSystem/aqua_disc/bufr/airs/Y%y4/M%m2/airsbufr_disc.%y4%m2%d2.t%h2z.bufr
+END
+BEGIN disc_amsua_bufr => eos_amsua.%y4%m2%d2.t%h2z.bufr
+ 20101101_00z-20110727_18z  240000 lou-via-br2:/u/dkokron/ObservingSystem/aqua_disc/bufr/amsu/Y%y4/M%m2/amsua_disc.%y4%m2%d2.t%h2z.bufr
+END
+
+# New observing systems for NCEP-Dec2008 GSI
+# ------------------------------------------
+BEGIN ncep_mhs_bufr => gdas1.%y2%m2%d2.t%h2z.1bmhs.tm00.bufr_d.ublk
+  20090501_00z-20091231_18z 240000 lou-via-br2:/u/dkokron/ObservingSystem/1BMHS/Y%y4/M%m2/gdas1.%y2%m2%d2.t%h2z.1bmhs.tm00.bufr_d
+  20100601_00z-20110705_18z 240000 lou-via-br2:/u/dkokron/ObservingSystem/1BMHS/Y%y4/M%m2/gdas1.%y2%m2%d2.t%h2z.1bmhs.tm00.bufr_d
+END
+BEGIN ncep_1bhrs4_bufr => gdas1.%y2%m2%d2.t%h2z.1bhrs4.tm00.bufr_d.ublk
+  20090501_00z-20091231_18z 240000 lou-via-br2:/u/dkokron/ObservingSystem/1BHRS4/Y%y4/M%m2/gdas1.%y2%m2%d2.t%h2z.1bhrs4.tm00.bufr_d
+  20100601_00z-20110705_18z 240000 lou-via-br2:/u/dkokron/ObservingSystem/1BHRS4/Y%y4/M%m2/gdas1.%y2%m2%d2.t%h2z.1bhrs4.tm00.bufr_d
+END
+BEGIN ncep_airs_bufr => gdas1.%y2%m2%d2.t%h2z.airsev.tm00.bufr_d.ublk
+#  20090501_00z-20090614_18z 240000 lou-via-br2:/u/dkokron/ObservingSystem/AIRS/Y%y4/M%m2/gdas1.%y2%m2%d2.t%h2z.airsev.tm00.bufr_d
+END
+BEGIN ncep_amsre_bufr => gdas1.%y2%m2%d2.t%h2z.amsre.tm00.bufr_d.ublk
+  20090501_00z-20091231_18z 240000 lou-via-br2:/u/dkokron/ObservingSystem/AMSRE/Y%y4/M%m2/gdas1.%y2%m2%d2.t%h2z.amsre.tm00.bufr_d
+  20100601_00z-20110705_18z 240000 lou-via-br2:/u/dkokron/ObservingSystem/AMSRE/Y%y4/M%m2/gdas1.%y2%m2%d2.t%h2z.amsre.tm00.bufr_d
+END
+BEGIN ncep_geoimr_bufr => gdas1.%y2%m2%d2.t%h2z.geoimr.tm00.bufr_d.ublk
+  20090501_00z-20091231_18z 240000 lou-via-br2:/u/dkokron/ObservingSystem/GEOIMR/Y%y4/M%m2/gdas1.%y2%m2%d2.t%h2z.geoimr.tm00.bufr_d
+  20100601_00z-20110705_18z 240000 lou-via-br2:/u/dkokron/ObservingSystem/GEOIMR/Y%y4/M%m2/gdas1.%y2%m2%d2.t%h2z.geoimr.tm00.bufr_d
+END
+BEGIN ncep_goesfv_bufr => gdas1.%y2%m2%d2.t%h2z.goesfv.tm00.bufr_d.ublk
+  20090501_00z-20091231_18z 240000 lou-via-br2:/u/dkokron/ObservingSystem/GOESFV/Y%y4/M%m2/gdas1.%y2%m2%d2.t%h2z.goesfv.tm00.bufr_d
+  20100601_00z-20110705_18z 240000 lou-via-br2:/u/dkokron/ObservingSystem/GOESFV/Y%y4/M%m2/gdas1.%y2%m2%d2.t%h2z.goesfv.tm00.bufr_d
+END
+BEGIN ncep_gome_bufr => gdas1.%y2%m2%d2.t%h2z.gome.tm00.bufr_d.ublk
+  20090501_00z-20091231_18z 240000 lou-via-br2:/u/dkokron/ObservingSystem/GOME/Y%y4/M%m2/gdas1.%y2%m2%d2.t%h2z.gome.tm00.bufr_d
+  20100601_00z-20110705_18z 240000 lou-via-br2:/u/dkokron/ObservingSystem/GOME/Y%y4/M%m2/gdas1.%y2%m2%d2.t%h2z.gome.tm00.bufr_d
+END
+BEGIN ncep_gpsipw_bufr => gdas1.%y2%m2%d2.t%h2z.gpsipw.tm00.bufr_d.ublk
+  20090501_00z-20091231_18z 240000 lou-via-br2:/u/dkokron/ObservingSystem/GPSIPW/Y%y4/M%m2/gdas1.%y2%m2%d2.t%h2z.gpsipw.tm00.bufr_d
+  20100601_00z-20110705_18z 240000 lou-via-br2:/u/dkokron/ObservingSystem/GPSIPW/Y%y4/M%m2/gdas1.%y2%m2%d2.t%h2z.gpsipw.tm00.bufr_d
+END
+BEGIN ncep_gpsro_bufr => gdas1.%y2%m2%d2.t%h2z.gpsro.tm00.bufr_d.ublk
+  20090501_00z-20091231_18z 240000 lou-via-br2:/u/dkokron/ObservingSystem/GPSRO/Y%y4/M%m2/gdas1.%y2%m2%d2.t%h2z.gpsro.tm00.bufr_d
+  20100601_00z-20110705_18z 240000 lou-via-br2:/u/dkokron/ObservingSystem/GPSRO/Y%y4/M%m2/gdas1.%y2%m2%d2.t%h2z.gpsro.tm00.bufr_d
+END
+BEGIN ncep_mtiasi_bufr => gdas1.%y2%m2%d2.t%h2z.mtiasi.tm00.bufr_d.ublk
+  20090501_00z-20091231_18z 240000 lou-via-br2:/u/dkokron/ObservingSystem/MTIASI/Y%y4/M%m2/gdas1.%y2%m2%d2.t%h2z.mtiasi.tm00.bufr_d
+  20100601_00z-20110705_18z 240000 lou-via-br2:/u/dkokron/ObservingSystem/MTIASI/Y%y4/M%m2/gdas1.%y2%m2%d2.t%h2z.mtiasi.tm00.bufr_d
+END
+
+
+###############################################################################################################
+###############################################################################################################
+#                                Modern Era Reanalysis Observing System
+###############################################################################################################
+###############################################################################################################
+
+# MERRA ERS-1 Scatterometer
+# --------------------------
+BEGIN merra_ers1-pre-qc => obsys.ers1.pre-qc.%y4%m2%d2.t%h2z.ublk
+  19910805_00z-19911022_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/ers1/prepbufr/Y%y4/M%m2/ers1.%y4%m2%d2.t%h2z.bufr
+  19911024_00z-19911103_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/ers1/prepbufr/Y%y4/M%m2/ers1.%y4%m2%d2.t%h2z.bufr
+  19911105_00z-19911209_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/ers1/prepbufr/Y%y4/M%m2/ers1.%y4%m2%d2.t%h2z.bufr
+  19911212_00z-19911213_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/ers1/prepbufr/Y%y4/M%m2/ers1.%y4%m2%d2.t%h2z.bufr
+  19911222_00z-19920108_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/ers1/prepbufr/Y%y4/M%m2/ers1.%y4%m2%d2.t%h2z.bufr
+  19920110_00z-19920112_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/ers1/prepbufr/Y%y4/M%m2/ers1.%y4%m2%d2.t%h2z.bufr
+  19920120_00z-19920201_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/ers1/prepbufr/Y%y4/M%m2/ers1.%y4%m2%d2.t%h2z.bufr
+  19920301_00z-19920331_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/ers1/prepbufr/Y%y4/M%m2/ers1.%y4%m2%d2.t%h2z.bufr
+  19920414_00z-19920625_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/ers1/prepbufr/Y%y4/M%m2/ers1.%y4%m2%d2.t%h2z.bufr
+  19920629_00z-19920719_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/ers1/prepbufr/Y%y4/M%m2/ers1.%y4%m2%d2.t%h2z.bufr
+  19920724_00z-19920902_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/ers1/prepbufr/Y%y4/M%m2/ers1.%y4%m2%d2.t%h2z.bufr
+  19920904_00z-19940101_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/ers1/prepbufr/Y%y4/M%m2/ers1.%y4%m2%d2.t%h2z.bufr
+  19940103_00z-19940131_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/ers1/prepbufr/Y%y4/M%m2/ers1.%y4%m2%d2.t%h2z.bufr
+  19940406_00z-19940426_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/ers1/prepbufr/Y%y4/M%m2/ers1.%y4%m2%d2.t%h2z.bufr
+  19940428_00z-19960525_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/ers1/prepbufr/Y%y4/M%m2/ers1.%y4%m2%d2.t%h2z.bufr
+END
+
+# Satellite Observational Data for MERRA
+# ---------------------------------------
+BEGIN merra_1bamua_bufr => gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr.ublk
+  19981101_00z-20030724_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20030725_00z-20030727_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20030728_00z-20030728_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20030729_00z-20030729_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20030730_00z-20030826_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20030827_00z-20030827_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20030828_00z-20030828_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20030829_00z-20030830_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20030831_00z-20030915_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20030916_00z-20030918_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20030919_00z-20030919_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20030920_00z-20030923_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20030924_00z-20041230_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20041231_00z-20041231_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20050101_00z-20050201_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20050202_00z-20050203_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20050204_00z-20050605_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20050606_00z-20050606_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20050607_00z-20050610_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20050611_00z-20050611_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20050612_00z-20050619_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20050620_00z-20050620_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20050621_00z-20050626_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20050627_00z-20050628_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20050629_00z-20050708_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20050709_00z-20050714_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20050715_00z-20050718_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20050719_00z-20050720_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20050721_00z-20050723_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20050724_00z-20050725_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20050726_00z-20050731_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20050801_00z-20050803_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20050804_00z-20050804_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20050805_00z-20050806_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20050807_00z-20050810_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20050811_00z-20050811_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20050812_00z-20050815_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20050816_00z-20050819_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20050820_00z-20050830_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20050831_00z-20050831_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20050901_00z-20050905_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20050906_00z-20050906_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20050907_00z-20050913_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20050914_00z-20050914_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20050915_00z-20050918_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20050919_00z-20050919_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20050920_00z-20050924_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20050925_00z-20050925_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20050926_00z-20050926_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20050927_00z-20050927_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20050928_00z-20050928_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20050929_00z-20050929_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20050930_00z-20050930_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20051001_00z-20051203_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20051204_00z-20051204_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20051205_00z-20051208_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20051209_00z-20051209_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20051210_00z-20051214_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20051215_00z-20051216_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20051217_00z-20051217_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20051218_00z-20051218_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20051219_00z-20051223_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20051224_00z-20051225_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20051226_00z-20060102_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20060103_00z-20060103_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20060104_00z-20060104_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20060105_00z-20060106_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20060107_00z-20060108_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20060109_00z-20060109_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20060110_00z-20060114_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20060115_00z-20060115_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20060116_00z-20060125_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20060126_00z-20060127_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20060128_00z-20060207_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20060208_00z-20060208_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20060209_00z-20060304_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20060305_00z-20060305_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20060306_00z-20060306_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20060307_00z-20060307_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20060308_00z-20060310_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20060311_00z-20060311_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20060312_00z-20060318_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20060319_00z-20060319_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20060320_00z-20060324_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20060325_00z-20060326_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20060327_00z-20060402_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20060403_00z-20060404_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20060405_00z-20060409_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20060410_00z-20060418_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20060419_00z-20060420_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20060421_00z-20060430_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20060501_00z-20060502_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20060503_00z-20060507_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20060508_00z-20060512_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20060513_00z-20060514_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20060515_00z-20060515_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20060516_00z-20060516_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20060517_00z-20060517_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20060518_00z-20060519_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20060520_00z-20060520_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20060521_00z-20060525_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20060526_00z-20060526_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20060527_00z-20060528_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20060529_00z-20060530_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20060531_00z-20060601_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20060602_00z-20060603_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20060604_00z-20060604_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20060605_00z-20060606_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20060607_00z-20060609_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20060610_00z-20060610_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20060611_00z-20060611_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20060612_00z-20060612_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20060613_00z-20060616_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20060617_00z-20060619_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20060620_00z-20060620_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20060621_00z-20060623_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20060624_00z-20060627_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20060628_00z-20060628_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20060629_00z-20060629_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20060630_00z-20060701_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20060702_00z-20060706_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20060707_00z-20060709_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20060710_00z-20060716_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20060717_00z-20060717_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20060718_00z-20060726_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20060727_00z-20060803_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20060804_00z-20060805_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20060806_00z-20060808_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20060809_00z-20060812_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20060813_00z-20060815_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20060816_00z-20060816_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20060817_00z-20060818_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20060819_00z-20060821_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20060822_00z-20060822_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20060823_00z-20060823_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20060824_00z-20060827_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20060828_00z-20060830_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20060831_00z-20060831_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20060901_00z-20060902_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20060903_00z-20060908_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20060909_00z-20060913_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20060914_00z-20060915_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20060916_00z-20060918_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20060919_00z-20060920_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20060921_00z-20060927_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20060928_00z-20060928_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20060929_00z-20060930_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20061001_00z-20061001_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20061002_00z-20061002_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20061003_00z-20061005_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20061006_00z-20061006_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20061007_00z-20061007_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20061008_00z-20061009_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20061010_00z-20061010_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20061011_00z-20061014_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20061015_00z-20061015_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20061016_00z-20061016_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20061017_00z-20061017_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20061018_00z-20061018_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20061019_00z-20061019_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20061020_00z-20061022_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20061023_00z-20061027_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20061028_00z-20061028_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20061029_00z-20061029_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20061030_00z-20061030_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20061031_00z-20061101_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20061102_00z-20061102_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20061103_00z-20061104_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20061105_00z-20061106_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20061107_00z-20061107_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20061108_00z-20061108_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20061109_00z-20061109_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20061110_00z-20061110_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20061111_00z-20061115_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20061116_00z-20061120_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20061121_00z-20061123_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20061124_00z-20061126_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20061127_00z-20061127_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20061128_00z-20061129_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20061130_00z-20061203_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20061204_00z-20061204_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20061205_00z-20061205_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20061206_00z-20061209_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20061210_00z-20061210_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20061211_00z-20061220_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20061221_00z-20061224_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20061225_00z-20061225_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20061226_00z-20061230_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+  20061231_00z-present      240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
+END
+BEGIN merra_1bamub_bufr => gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr.ublk
+  19981101_00z-20041104_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20041105_00z-20041106_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20041107_00z-20041128_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20041129_00z-20041129_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20041130_00z-20041202_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20041203_00z-20041203_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20041204_00z-20050109_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20050110_00z-20050111_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20050112_00z-20050521_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20050522_00z-20050522_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20050523_00z-20050205_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20050606_00z-20050606_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20050607_00z-20050608_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20050609_00z-20050611_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20050612_00z-20050619_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20050620_00z-20050620_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20050621_00z-20050626_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20050627_00z-20050628_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20050629_00z-20050630_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20050701_00z-20050702_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20050703_00z-20050708_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20050709_00z-20050714_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20050715_00z-20050718_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20050719_00z-20050720_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20050721_00z-20050730_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20050731_00z-20050801_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20050802_00z-20050810_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20050811_00z-20050811_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20050812_00z-20050815_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20050816_00z-20050816_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20050817_00z-20050817_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20050818_00z-20050819_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20050820_00z-20050821_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20050822_00z-20050822_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20050823_00z-20050824_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20050825_00z-20050829_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20050830_00z-20050905_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20050906_00z-20050906_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20050907_00z-20050910_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20050911_00z-20050912_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20050913_00z-20050913_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20050914_00z-20050914_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20050915_00z-20050918_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20050919_00z-20050919_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20050920_00z-20050920_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20050921_00z-20050922_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20050923_00z-20050924_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20050925_00z-20050925_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20050926_00z-20050926_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20050927_00z-20050929_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20050930_00z-20051003_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20051004_00z-20051006_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20051007_00z-20051007_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20051008_00z-20051010_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20051011_00z-20051011_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20051012_00z-20051012_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20051013_00z-20051015_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20051016_00z-20051016_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20051017_00z-20051018_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20051019_00z-20051024_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20051025_00z-20051025_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20051026_00z-20051104_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20051105_00z-20051108_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20051109_00z-20051109_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20051110_00z-20051111_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20051112_00z-20051113_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20051114_00z-20051121_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20051122_00z-20051124_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20051125_00z-20051125_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20051126_00z-20051127_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20051128_00z-20051128_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20051129_00z-20051129_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20051130_00z-20051130_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20051201_00z-20051203_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20051204_00z-20051206_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20051207_00z-20051208_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20051209_00z-20051209_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20051210_00z-20051210_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20051211_00z-20051212_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20051213_00z-20051213_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20051214_00z-20051215_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20051216_00z-20051224_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20051225_00z-20051225_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20051226_00z-20051227_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20051228_00z-20051231_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20060101_00z-20060104_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20060106_00z-20060106_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+#SHOULD_BE 20060105_00z-20060106_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20060107_00z-20060107_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20060108_00z-20060108_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20060109_00z-20060110_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20060111_00z-20060115_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20060116_00z-20060119_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20060120_00z-20060120_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20060121_00z-20060126_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20060127_00z-20060128_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20060129_00z-20060205_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20060206_00z-20060206_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20060207_00z-20060210_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20060211_00z-20060212_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20060213_00z-20060213_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20060214_00z-20060214_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20060215_00z-20060215_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20060216_00z-20060217_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20060218_00z-20060218_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20060219_00z-20060219_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20060220_00z-20060221_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20060222_00z-20060222_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20060223_00z-20060223_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20060224_00z-20060225_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20060226_00z-20060304_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20060305_00z-20060305_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20060306_00z-20060308_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20060309_00z-20060312_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20060313_00z-20060318_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20060319_00z-20060319_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20060320_00z-20060321_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20060322_00z-20060323_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20060324_00z-20060325_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20060326_00z-20060326_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20060327_00z-20060327_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20060328_00z-20060329_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20060330_00z-20060403_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20060404_00z-20060404_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20060405_00z-20060408_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20060409_00z-20060419_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20060420_00z-20060420_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20060421_00z-20060430_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20060501_00z-20060501_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20060502_00z-20060507_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20060508_00z-20060509_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20060510_00z-20060510_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20060511_00z-20060513_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20060514_00z-20060516_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20060517_00z-20060517_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20060518_00z-20060522_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20060523_00z-20060523_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20060524_00z-20060525_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20060526_00z-20060526_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20060527_00z-20060529_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20060530_00z-20060603_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20060604_00z-20060604_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20060605_00z-20060606_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20060607_00z-20060609_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20060610_00z-20060611_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20060612_00z-20060618_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20060619_00z-20060619_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20060620_00z-20060621_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20060622_00z-20060622_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20060623_00z-20060626_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20060627_00z-20060627_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20060628_00z-20060629_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20060630_00z-20060701_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20060702_00z-20060705_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20060706_00z-20060707_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20060708_00z-20060708_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20060709_00z-20060709_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20060710_00z-20060722_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20060723_00z-20060724_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20060725_00z-20060726_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20060727_00z-20060804_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20060805_00z-20060812_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20060813_00z-20060814_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20060815_00z-20060821_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20060822_00z-20060822_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20060823_00z-20060823_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20060824_00z-20060825_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20060826_00z-20060830_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20060831_00z-20061001_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20061002_00z-20061002_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20061003_00z-20061003_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20061004_00z-20061004_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20061005_00z-20061005_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20061006_00z-20061006_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20061007_00z-20061008_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20061009_00z-20061009_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20061010_00z-20061011_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20061012_00z-20061012_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20061013_00z-20061017_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20061018_00z-20061018_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20061019_00z-20061019_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20061020_00z-20061021_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20061022_00z-20061023_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20061024_00z-20061025_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20061026_00z-20061029_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20061030_00z-20061030_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20061031_00z-20061031_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20061101_00z-20061102_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20061103_00z-20061103_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20061104_00z-20061106_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20061107_00z-20061107_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20061108_00z-20061108_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20061109_00z-20061109_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20061110_00z-20061112_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20061113_00z-20061115_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20061116_00z-20061120_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20061121_00z-20061121_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20061122_00z-20061126_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20061127_00z-20061127_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20061128_00z-20061129_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20061130_00z-20061201_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20061202_00z-20061204_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20061205_00z-20061205_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20061206_00z-20061209_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20061210_00z-20061211_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20061212_00z-20061221_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20061222_00z-20061224_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20061225_00z-20061225_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20061226_00z-20061228_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20061229_00z-20061229_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20061230_00z-20061230_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20061231_00z-20081113_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20081114_00z-20081114_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  20081115_00z-present      240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+END
+BEGIN merra_1bhrs2_bufr => gmao.%y2%m2%d2.t%h2z.1bhrs2.tm00.bufr.ublk
+  19781101_00z-19791122_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/HIRS2/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs2.tm00.bufr
+  19791123_00z-19791130_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/HIRS2/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs2.tm00.bufr
+  19791201_00z-19800119_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/HIRS2/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs2.tm00.bufr
+  19800120_00z-19800120_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/HIRS2/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs2.tm00.bufr
+  19800121_00z-19820103_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/HIRS2/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs2.tm00.bufr
+  19820104_00z-19820104_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/HIRS2/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs2.tm00.bufr
+  19820105_00z-19910320_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/HIRS2/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs2.tm00.bufr
+  19910321_00z-19910321_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/HIRS2/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs2.tm00.bufr
+  19910322_00z-19910911_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/HIRS2/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs2.tm00.bufr
+  19910912_00z-19910912_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/HIRS2/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs2.tm00.bufr
+  19910913_00z-19911225_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/HIRS2/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs2.tm00.bufr
+  19911226_00z-19911226_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/HIRS2/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs2.tm00.bufr
+  19911227_00z-19920620_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/HIRS2/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs2.tm00.bufr
+  19920621_00z-19920621_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/HIRS2/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs2.tm00.bufr
+  19920622_00z-19930608_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/HIRS2/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs2.tm00.bufr
+  19930609_00z-19930609_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/HIRS2/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs2.tm00.bufr
+  19930610_00z-19930906_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/HIRS2/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs2.tm00.bufr
+  19930907_00z-19930911_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/HIRS2/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs2.tm00.bufr
+  19930912_00z-19970225_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/HIRS2/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs2.tm00.bufr
+  19970226_00z-19970301_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/HIRS2/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs2.tm00.bufr
+  19970302_00z-19970803_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/HIRS2/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs2.tm00.bufr
+  19970804_00z-19970804_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/HIRS2/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs2.tm00.bufr
+  19970805_00z-19970821_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/HIRS2/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs2.tm00.bufr
+  19970822_00z-19970822_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/HIRS2/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs2.tm00.bufr
+  19970823_00z-19980512_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/HIRS2/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs2.tm00.bufr
+  19980513_00z-19980514_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/HIRS2/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs2.tm00.bufr
+  19980515_00z-19980526_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/HIRS2/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs2.tm00.bufr
+  19980527_00z-19980528_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/HIRS2/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs2.tm00.bufr
+  19980529_00z-19981010_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/HIRS2/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs2.tm00.bufr
+  19981011_00z-19981013_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/HIRS2/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs2.tm00.bufr
+  19981014_00z-19981222_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/HIRS2/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs2.tm00.bufr
+  19981223_00z-19981223_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/HIRS2/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs2.tm00.bufr
+  19981224_00z-20040730_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/HIRS2/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs2.tm00.bufr
+  20040731_00z-20040731_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/HIRS2/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs2.tm00.bufr
+  20040801_00z-20040830_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/HIRS2/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs2.tm00.bufr
+  20040831_00z-20040831_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/HIRS2/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs2.tm00.bufr
+  20040901_00z-20040929_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/HIRS2/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs2.tm00.bufr
+  20040930_00z-20040930_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/HIRS2/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs2.tm00.bufr
+  20041001_00z-20041030_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/HIRS2/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs2.tm00.bufr
+  20041031_00z-20041031_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/HIRS2/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs2.tm00.bufr
+  20041101_00z-20060930_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/HIRS2/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs2.tm00.bufr
+END
+BEGIN merra_1bhrs3_bufr => gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr.ublk
+  19980721_00z-20041005_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20041006_00z-20041006_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20041007_00z-20041014_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20041015_00z-20041015_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20041016_00z-20041102_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20041103_00z-20041104_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20041105_00z-20041204_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20041205_00z-20041206_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20041207_00z-20050202_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20050203_00z-20050203_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20050204_00z-20050505_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20050506_00z-20050506_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20050507_00z-20050605_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20050606_00z-20050606_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20050607_00z-20060610_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20050611_00z-20050611_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20050612_00z-20060619_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20050620_00z-20050620_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20050621_00z-20060627_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20050628_00z-20050628_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20050629_00z-20050708_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20050709_00z-20050709_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20050710_00z-20050710_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20050711_00z-20050714_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20050715_00z-20050718_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20050719_00z-20050720_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20050721_00z-20050730_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20050731_00z-20050801_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20050802_00z-20050809_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20050810_00z-20050811_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20050812_00z-20050812_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20050813_00z-20050813_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20050814_00z-20050815_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20050816_00z-20050816_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20050817_00z-20050817_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20050818_00z-20050819_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20050820_00z-20050821_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20050822_00z-20050822_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20050823_00z-20050824_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20050825_00z-20050825_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20050826_00z-20050827_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20050828_00z-20050828_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20050829_00z-20050901_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20050902_00z-20050902_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20050903_00z-20050905_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20050906_00z-20050906_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20050907_00z-20050912_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20050913_00z-20050914_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20050915_00z-20050918_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20050919_00z-20050919_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20050920_00z-20050920_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20050921_00z-20050922_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20050923_00z-20050924_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20050925_00z-20050925_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20050926_00z-20050926_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20050927_00z-20050927_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20050928_00z-20050928_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20050929_00z-20050929_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20050930_00z-20051003_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20051004_00z-20051004_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20051005_00z-20051005_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20051006_00z-20051009_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20051010_00z-20051012_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20051013_00z-20051013_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20051014_00z-20051015_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20051016_00z-20051020_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20051021_00z-20051026_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20051027_00z-20051105_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20051106_00z-20051106_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20051107_00z-20051107_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20051108_00z-20051110_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20051111_00z-20051111_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20051112_00z-20051112_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20051113_00z-20051114_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20051115_00z-20051123_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20051124_00z-20051126_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20051127_00z-20051130_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20051201_00z-20051202_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20051203_00z-20051203_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20051204_00z-20051204_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20051205_00z-20051207_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20051208_00z-20051208_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20051209_00z-20051211_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20051212_00z-20051214_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20051215_00z-20051216_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20051217_00z-20051217_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20051218_00z-20051218_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20051219_00z-20051222_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20051223_00z-20051226_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20051227_00z-20051228_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20051229_00z-20051229_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20051230_00z-20060101_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20060102_00z-20060107_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20060108_00z-20060108_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20060109_00z-20060110_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20060111_00z-20060111_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20060112_00z-20060113_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20060114_00z-20060114_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20060115_00z-20060118_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20060119_00z-20060119_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20060120_00z-20060120_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20060121_00z-20060121_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20060122_00z-20060122_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20060123_00z-20060124_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20060125_00z-20060125_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20060126_00z-20060126_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20060127_00z-20060128_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20060129_00z-20060130_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20060131_00z-20060131_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20060201_00z-20060203_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20060204_00z-20060204_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20060205_00z-20060205_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20060206_00z-20060206_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20060207_00z-20060207_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20060208_00z-20060211_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20060212_00z-20060213_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20060214_00z-20060221_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20060222_00z-20060223_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20060224_00z-20060227_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20060228_00z-20060228_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20060301_00z-20060303_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20060304_00z-20060304_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20060305_00z-20060307_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20060308_00z-20060309_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20060310_00z-20060312_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20060313_00z-20060316_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20060317_00z-20060317_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20060318_00z-20060318_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20060319_00z-20060322_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20060323_00z-20060323_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20060324_00z-20060329_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20060330_00z-20060330_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20060331_00z-20060331_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20060401_00z-20060401_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20060402_00z-20060402_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20060403_00z-20060403_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20060404_00z-20060404_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20060405_00z-20060406_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20060407_00z-20060407_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20060408_00z-20060408_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20060409_00z-20060409_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20060410_00z-20060410_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20060411_00z-20060419_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20060420_00z-20060420_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20060421_00z-20060430_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20060501_00z-20060501_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20060502_00z-20060503_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20060504_00z-20060504_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20060505_00z-20060505_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20060506_00z-20060506_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20060507_00z-20060507_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20060508_00z-20060509_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20060510_00z-20060510_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20060511_00z-20060513_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20060514_00z-20060516_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20060517_00z-20060517_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20060518_00z-20060525_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20060526_00z-20060526_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20060527_00z-20060530_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20060531_00z-20060601_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20060602_00z-20060604_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20060605_00z-20060606_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20060607_00z-20060609_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20060610_00z-20060610_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20060611_00z-20060629_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20060630_00z-20060701_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20060702_00z-20060705_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20060706_00z-20060707_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20060708_00z-20060708_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20060709_00z-20060709_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20060710_00z-20060723_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20060724_00z-20060724_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20060725_00z-20060731_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20060801_00z-20060801_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20060802_00z-20060803_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20060804_00z-20060804_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20060805_00z-20060812_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20060813_00z-20060814_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20060815_00z-20060821_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20060822_00z-20060822_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20060823_00z-20060823_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20060824_00z-20060825_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20060826_00z-20060906_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20060907_00z-20060908_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20060909_00z-20060917_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20060918_00z-20060920_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20060921_00z-20060927_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20060928_00z-20060929_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20060930_00z-20060930_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20061001_00z-20061001_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20061002_00z-20061007_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20061008_00z-20061008_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20061009_00z-20061009_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20061010_00z-20061011_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20061012_00z-20061014_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20061015_00z-20061017_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20061018_00z-20061021_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20061022_00z-20061022_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20061023_00z-20061024_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20061025_00z-20061025_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20061026_00z-20061028_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20061029_00z-20061101_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20061102_00z-20061102_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20061103_00z-20061103_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20061104_00z-20061106_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20061107_00z-20061107_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20061108_00z-20061108_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20061109_00z-20061109_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20061110_00z-20061112_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20061113_00z-20061113_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20061114_00z-20061114_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20061115_00z-20061115_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20061116_00z-20061120_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20061121_00z-20061121_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20061122_00z-20061126_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20061127_00z-20061127_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20061128_00z-20061129_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20061130_00z-20061201_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20061202_00z-20061204_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20061205_00z-20061205_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20061206_00z-20061209_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20061210_00z-20061210_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20061211_00z-20061221_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20061222_00z-20061224_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20061225_00z-20061225_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20061226_00z-20061228_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20061229_00z-20061229_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20061230_00z-20061230_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20061231_00z-20081113_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20081114_00z-20081114_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  20081115_00z-present      240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+END
+BEGIN merra_1bmsu_bufr => gmao.%y2%m2%d2.t%h2z.1bmsu.tm00.bufr.ublk
+  19781101_00z-19791122_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/MSU/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bmsu.tm00.bufr
+  19791123_00z-19791130_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/MSU/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bmsu.tm00.bufr
+  19791201_00z-19800119_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/MSU/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bmsu.tm00.bufr
+  19800120_00z-19800120_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/MSU/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bmsu.tm00.bufr
+  19800121_00z-19810422_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/MSU/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bmsu.tm00.bufr
+  19810423_00z-19810428_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/MSU/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bmsu.tm00.bufr
+  19810429_00z-19820103_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/MSU/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bmsu.tm00.bufr
+  19820104_00z-19820104_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/MSU/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bmsu.tm00.bufr
+  19820105_00z-19861031_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/MSU/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bmsu.tm00.bufr
+  19861101_00z-20061010_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/MSU_RECALIBRATED/Y%y4/M%m2/ncep.%y2%m2%d2.t%h2z.1bmsu.tm00.bufr
+END
+BEGIN merra_1bmhs_bufr => gmao.%y2%m2%d2.t%h2z.1bmhs.tm00.bufr
+  20051101_00z-present      240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/MHS/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bmhs.tm00.bufr
+END
+# Use Jan 1-18 1995 tovs_fix data when constructing a post-MERRA obsys.rc file for future reanalysis.
+BEGIN merra_1bssu_bufr => gmao.%y2%m2%d2.t%h2z.1bssu.tm00.bufr.ublk
+  19781101_00z-19791122_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/SSU/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bssu.tm00.bufr
+  19791123_00z-19791130_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/SSU/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bssu.tm00.bufr
+  19791201_00z-19810109_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/SSU/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bssu.tm00.bufr
+  19810110_00z-19810110_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/SSU/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bssu.tm00.bufr
+  19810111_00z-19820103_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/SSU/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bssu.tm00.bufr
+  19820104_00z-19820104_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/SSU/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bssu.tm00.bufr
+  19820105_00z-19870917_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/SSU/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bssu.tm00.bufr
+  19870918_00z-19870918_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/SSU/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bssu.tm00.bufr
+  19870919_00z-19880131_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/SSU/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bssu.tm00.bufr
+  19880201_00z-19880201_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/SSU/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bssu.tm00.bufr
+  19880202_00z-19880309_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/SSU/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bssu.tm00.bufr
+  19880310_00z-19880310_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/SSU/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bssu.tm00.bufr
+  19880311_00z-19880508_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/SSU/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bssu.tm00.bufr
+  19880509_00z-19880509_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/SSU/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bssu.tm00.bufr
+  19880510_00z-19880516_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/SSU/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bssu.tm00.bufr
+  19880517_00z-19880517_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/SSU/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bssu.tm00.bufr
+  19880518_00z-19880811_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/SSU/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bssu.tm00.bufr
+  19880812_00z-19880812_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/SSU/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bssu.tm00.bufr
+  19880813_00z-19880819_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/SSU/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bssu.tm00.bufr
+  19880820_00z-19880820_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/SSU/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bssu.tm00.bufr
+  19880821_00z-19881102_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/SSU/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bssu.tm00.bufr
+  19881103_00z-19881103_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/SSU/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bssu.tm00.bufr
+  19881104_00z-19910201_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/SSU/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bssu.tm00.bufr
+  19910202_00z-19910202_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/SSU/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bssu.tm00.bufr
+  19910203_00z-19910911_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/SSU/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bssu.tm00.bufr
+  19910912_00z-19910912_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/SSU/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bssu.tm00.bufr
+  19910913_00z-19911225_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/SSU/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bssu.tm00.bufr
+  19911226_00z-19911226_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/SSU/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bssu.tm00.bufr
+  19911227_00z-19920620_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/SSU/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bssu.tm00.bufr
+  19920621_00z-19920621_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/SSU/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bssu.tm00.bufr
+  19920622_00z-19930608_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/SSU/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bssu.tm00.bufr
+  19930609_00z-19930609_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/SSU/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bssu.tm00.bufr
+  19930610_00z-19960407_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/SSU/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bssu.tm00.bufr
+  19960408_00z-19960519_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/SSU/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bssu.tm00.bufr
+  19960520_00z-19960522_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/SSU/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bssu.tm00.bufr
+  19960523_00z-19960523_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/SSU/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bssu.tm00.bufr
+  19960524_00z-20010730_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/SSU/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bssu.tm00.bufr
+# 20010731_00z-20010731_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/SSU/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bssu.tm00.bufr
+  20010731_00z-20010731_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/SSU/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bssu.tm00.bufr
+  20010801_00z-20040730_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/SSU/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bssu.tm00.bufr
+  20040731_00z-20040731_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/SSU/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bssu.tm00.bufr
+  20040801_00z-20040830_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/SSU/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bssu.tm00.bufr
+  20040831_00z-20040831_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/SSU/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bssu.tm00.bufr
+  20040901_00z-20040929_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/SSU/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bssu.tm00.bufr
+  20040930_00z-20040930_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/SSU/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bssu.tm00.bufr
+  20041001_00z-20041030_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/SSU/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bssu.tm00.bufr
+  20041031_00z-20041031_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs_fix/SSU/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bssu.tm00.bufr
+  20041101_00z-20060505_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/tovs/SSU/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bssu.tm00.bufr
+END
+BEGIN merra_ssmit08_bufr => wentz.ssmit08.%y4%m2%d2%h2.bfr.ublk
+  19870709_00z-19911230_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/SSMIRad/bufr_v6/F08/Y%y4/M%m2/wssmi.f08.%y4%m2%d2%h2.bfr
+END
+BEGIN merra_ssmit10_bufr => wentz.ssmit10.%y4%m2%d2%h2.bfr.ublk
+  19901208_00z-19971114_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/SSMIRad/bufr_v6/F10/Y%y4/M%m2/wssmi.f10.%y4%m2%d2%h2.bfr
+END
+BEGIN merra_ssmit11_bufr => wentz.ssmit11.%y4%m2%d2%h2.bfr.ublk
+  19911204_00z-20000515_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/SSMIRad/bufr_v6/F11/Y%y4/M%m2/wssmi.f11.%y4%m2%d2%h2.bfr
+END
+BEGIN merra_ssmit13_bufr => wentz.ssmit13.%y4%m2%d2%h2.bfr.ublk
+  19950503_00z-20080922_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/SSMIRad/bufr_v6/F13/Y%y4/M%m2/wssmi.f13.%y4%m2%d2%h2.bfr
+  20080923_00z-present      240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/llk/ssmirad/bfr/F13/Y%y4/M%m2/ssmirad.f13.%y4%m2%d2%h2.bfr
+END
+BEGIN merra_ssmit14_bufr => wentz.ssmit14.%y4%m2%d2%h2.bfr.ublk
+  19970508_00z-20080731_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/SSMIRad/bufr_v6/F14/Y%y4/M%m2/wssmi.f14.%y4%m2%d2%h2.bfr
+  20080801_00z-20080824_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/llk/ssmirad/bfr/F14/Y%y4/M%m2/ssmirad.f14.%y4%m2%d2%h2.bfr
+END
+BEGIN merra_ssmit15_bufr => wentz.ssmit15.%y4%m2%d2%h2.bfr.ublk
+  19991218_00z-20080731_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/SSMIRad/bufr_v6/F15/Y%y4/M%m2/wssmi.f15.%y4%m2%d2%h2.bfr
+  20080801_00z-present      240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/llk/ssmirad/bfr/F15/Y%y4/M%m2/ssmirad.f15.%y4%m2%d2%h2.bfr
+END
+
+
+# Superobbed SSM/I rain rate
+# --------------------------
+#BEGIN merra_wssmi_bufr => wentz_rr.spssmi.%y4%m2%d2.%h2z.bfr.ublk
+#  19870701_00z-20041231_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/ssmi_rain/prepbufr/Y%y4/M%m2/wentz_rr.%y4%m2%d2.%h2z.bfr
+#END
+
+# NCEP Pre-bufr conventional data
+# -------------------------------
+BEGIN merra_cdas_pre-qc_bufr => cdas.%y4%m2%d2.t%h2z.pre-qc.ublk
+  20010101_00z-20040915_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/conv/prepbufr/runh_PAOB_no_land/Y%y4/M%m2/RUNH_prepbufr_%y4%m2%d2%h2       
+  20040916_00z-20040916_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/conv/prepbufr/runh_gaps_filled_PAOB_no_land/Y%y4/M%m2/RUNH_prepbufr_%y4%m2%d2%h2       
+  20040917_00z-20050624_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/conv/prepbufr/runh_PAOB_no_land/Y%y4/M%m2/RUNH_prepbufr_%y4%m2%d2%h2       
+  20050625_00z-20050625_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/conv/prepbufr/runh_gaps_filled_PAOB_no_land/Y%y4/M%m2/RUNH_prepbufr_%y4%m2%d2%h2       
+  20050626_00z-20050714_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/conv/prepbufr/runh_PAOB_no_land/Y%y4/M%m2/RUNH_prepbufr_%y4%m2%d2%h2       
+  20050715_00z-20050721_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/conv/prepbufr/runh_gaps_filled_PAOB_no_land/Y%y4/M%m2/RUNH_prepbufr_%y4%m2%d2%h2       
+  20050722_00z-20051231_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/conv/prepbufr/runh_PAOB_no_land/Y%y4/M%m2/RUNH_prepbufr_%y4%m2%d2%h2       
+  20060101_00z-20081231_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/conv/prepbufr/runha/Y%y4/M%m2/prepbufr.gdas_red.%y4%m2%d2%h2
+  20090101_00z-present      240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/llk/conv/prepbufr/runha/Y%y4/M%m2/reanalysis.prepbufr.gdas_red.%y4%m2%d2%h2
+END
+#
+# NOTE: High-resolution data starts 20071205.
+BEGIN merra_goesnd_prep_bufr => goesnd.%y4%m2%d2.t%h2z.ublk
+  20010424_00z-20011231_18z 060000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/GOES_sounder/prepbufr/Y%y4/M%m2/goesnd.d%y4%m2%d2.t%h2z.bfr
+  20020101_00z-20020306_18z 060000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/GOES_sounder/prepbufr/Y%y4/M%m2/goesnd.%y4%m2%d2.%h2z.bfr
+  20020307_00z-20071204_18z 060000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/GOES_sounder/prepbufr/Y%y4/M%m2/goesnd.d%y4%m2%d2.t%h2z.bfr
+END
+#
+BEGIN merra_nmodis_pre-qc_bufr => modis.%y4%m2%d2.t%h2z.pre-qc.ublk
+# 20040623_00z-20051231_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/modisw/prepbufr/Y%y4/M%m2/modisw.%y4%m2%d2.t%h2z.bfr
+  20020701_00z-20040708_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/modisw_combined_runh/prepbufr/Y%y4/M%m2/modisw_c.%y4%m2%d2.t%h2z.bfr
+  20040709_00z-20040930_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/modisw_runh/prepbufr/Y%y4/M%m2/modisw.%y4%m2%d2.t%h2z.bfr
+END
+#
+# Starting Aug 1, 2008 profiler data should come from prepbufr.gdas_red file.
+BEGIN merra_prof_pre-qc_bufr => prof.%y4%m2%d2.t%h2z.pre-qc.ublk
+  19920510_00z-20001231_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/profiler/prepbfr/Y%y4/M%m2/profil.%y4%m2%d2.%h2.bfr
+  20010101_00z-20080731_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/profiler_runh/prepbfr/Y%y4/M%m2/profil.%y4%m2%d2.%h2.bfr
+END
+#
+
+# MERRA ERS-2 Scatterometer
+# -------------------------
+BEGIN merra_ers2_pre-qc => obsys.ers2.pre-qc.%y4%m2%d2.t%h2z.ublk
+  19970925_00z-19980603_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/ers2/prepbufr/Y%y4/M%m2/ers2.%y4%m2%d2.t%h2z.bufr
+  19980606_00z-19990307_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/ers2/prepbufr/Y%y4/M%m2/ers2.%y4%m2%d2.t%h2z.bufr 
+  19990309_00z-19991231_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/ers2/prepbufr/Y%y4/M%m2/ers2.%y4%m2%d2.t%h2z.bufr
+  20000102_00z-20000207_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/ers2/prepbufr/Y%y4/M%m2/ers2.%y4%m2%d2.t%h2z.bufr
+  20000210_00z-20000630_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/ers2/prepbufr/Y%y4/M%m2/ers2.%y4%m2%d2.t%h2z.bufr
+  20000705_00z-20001007_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/ers2/prepbufr/Y%y4/M%m2/ers2.%y4%m2%d2.t%h2z.bufr
+  20001010_00z-20001231_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/ers2/prepbufr/Y%y4/M%m2/ers2.%y4%m2%d2.t%h2z.bufr
+  20010101_00z-20010117_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/ers2_runh/prepbufr/Y%y4/M%m2/ers2.%y4%m2%d2.t%h2z.bufr
+END
+
+# MERRA SSMI Wentz Speed
+# ----------------------
+BEGIN merra_wspd_bufr => wentzspd.%y4%m2%d2.t%h2z.bufr.ublk
+#19870709_00z-20060831_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/ssmi_wind_wentz/prepbufr_v6/Y%y4/M%m2/ssmi_wind.%y4%m2%d2.%h2z.bfr
+# even though we have this data into 2006, switch to ncep_prep_bufr on 20060101 when the other conv data switches
+ 19870709_00z-20071231_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/ssmi_wind_wentz/prepbufr_v6/Y%y4/M%m2/ssmi_wind.%y4%m2%d2.%h2z.bfr
+ 20080101_00z-present      240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/llk/ssmi_wind_wentz/prepbufr_v6/ssmi_wind_wentz/Y%y4/M%m2/ssmiwnd.%y4%m2%d2.%h2z.bfr
+END
+
+# MERRA GPROF Precipitation
+# --------------------------
+BEGIN merra_gprofp08_bufr => gprofp08.%y4%m2%d2.t%h2z.bufr.ublk
+ 19870709_00z-19900226_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/gprof/bufr/Y%y4/M%m2/gprof.F08.%y4%m2%d2.%h2z.bufr
+END
+BEGIN merra_gprofp10_bufr => gprofp10.%y4%m2%d2.t%h2z.bufr.ublk
+ 19910105_00z-19971115_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/gprof/bufr/Y%y4/M%m2/gprof.F10.%y4%m2%d2.%h2z.bufr
+END
+BEGIN merra_gprofp11_bufr => gprofp11.%y4%m2%d2.t%h2z.bufr.ublk
+ 19920101_00z-19961130_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/gprof/bufr/Y%y4/M%m2/gprof.F11.%y4%m2%d2.%h2z.bufr
+END
+BEGIN merra_gprofp13_bufr => gprofp13.%y4%m2%d2.t%h2z.bufr.ublk
+ 19950503_00z-present      240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/gprof/bufr/Y%y4/M%m2/gprof.F13.%y4%m2%d2.%h2z.bufr
+END
+BEGIN merra_gprofp14_bufr => gprofp14.%y4%m2%d2.t%h2z.bufr.ublk
+ 19970508_00z-20080824_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/gprof/bufr/Y%y4/M%m2/gprof.F14.%y4%m2%d2.%h2z.bufr
+END
+# F15 data not available from Huffman/DISC
+#BEGIN merra_gprofp15_bufr => gprofp15.%y4%m2%d2.t%h2z.bufr.ublk
+# 20001201_00z-20020131_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/gprof/bufr/Y%y4/M%m2/gprof.F15.%y4%m2%d2.%h2z.bufr
+#END
+
+#BEGIN merra_tmi2l_bufr => tmi2l.%y4%m2%d2.%h2z.bufr.ublk
+# 20001201_00z-20020131_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/trmm/bufr/Y%y4/M%m2/tmi2.land.%y4%m2%d2.%h2z.bufr
+#END
+#BEGIN merra_tmi2o_bufr => tmi2o.%y4%m2%d2.%h2z.bufr.ublk
+# 20001201_00z-20020131_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/trmm/bufr/Y%y4/M%m2/tmi2.ocean.%y4%m2%d2.%h2z.bufr
+#END
+
+# MERRA reduced-resolution TRMM TMI
+#----------------------------------
+BEGIN merra_tmil_bufr => tmil.%y4%m2%d2.%h2z.bufr.ublk
+ 19980101_00z-20060430_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/trmm/bufr/Y%y4/BAD_minutes/M%m2/tmi.land.%y4%m2%d2.%h2z.bufr
+ 20060501_00z-present      240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/trmm/bufr/Y%y4/M%m2/tmi.land.%y4%m2%d2.%h2z.bufr
+END
+BEGIN merra_tmio_bufr => tmio.%y4%m2%d2.%h2z.bufr.ublk
+ 19980101_00z-20060430_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/trmm/bufr/Y%y4/BAD_minutes/M%m2/tmi.ocean.%y4%m2%d2.%h2z.bufr
+ 20060501_00z-present      240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/trmm/bufr/Y%y4/M%m2/tmi.ocean.%y4%m2%d2.%h2z.bufr
+END
+
+# MERRA Quick SCAT Data   (ms - added 2003,2004)
+# ---------------
+BEGIN merra_qscat_jpl_pre-qc => obsys.qscat.pre-qc.%y4%m2%d2.t%h2z.ublk
+ 19990719_00z-19991117_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/qscat/prepbufr/Y%y4/M%m2/jpl_qscat.%y4%m2%d2.t%h2z.bufr
+ 19991119_00z-20000101_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/qscat/prepbufr/Y%y4/M%m2/jpl_qscat.%y4%m2%d2.t%h2z.bufr
+ 20000103_00z-20001116_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/qscat/prepbufr/Y%y4/M%m2/jpl_qscat.%y4%m2%d2.t%h2z.bufr
+ 20001118_00z-20001231_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/qscat/prepbufr/Y%y4/M%m2/jpl_qscat.%y4%m2%d2.t%h2z.bufr
+ 20010101_00z-20010511_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/qscat_runh/prepbufr/Y%y4/M%m2/jpl_qscat.%y4%m2%d2.t%h2z.bufr
+ 20010514_00z-20010707_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/qscat_runh/prepbufr/Y%y4/M%m2/jpl_qscat.%y4%m2%d2.t%h2z.bufr
+ 20010709_00z-20011117_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/qscat_runh/prepbufr/Y%y4/M%m2/jpl_qscat.%y4%m2%d2.t%h2z.bufr
+ 20011119_00z-20020319_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/qscat_runh/prepbufr/Y%y4/M%m2/jpl_qscat.%y4%m2%d2.t%h2z.bufr
+ 20020321_00z-20021118_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/qscat_runh/prepbufr/Y%y4/M%m2/jpl_qscat.%y4%m2%d2.t%h2z.bufr
+ 20021120_00z-20021231_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/qscat_runh/prepbufr/Y%y4/M%m2/jpl_qscat.%y4%m2%d2.t%h2z.bufr
+ 20030101_00z-20030519_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/qscat_runh/prepbufr/Y%y4/M%m2/jpl_qscat.%y4%m2%d2.t%h2z.bufr
+ 20030520_00z-20031231_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/qscat_runh/prepbufr/Y%y4/M%m2/jpl_qscat.%y4%m2%d2.t%h2z.bufr
+ 20040101_00z-20081029_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/qscat_runh/prepbufr/Y%y4/M%m2/jpl_qscat.%y4%m2%d2.t%h2z.bufr
+ 20081030_00z-present      240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/llk/jplqscat/bfr/jplqscat/Y%y4/M%m2/jplqscat.%y4%m2%d2%h2.bfr
+END
+
+# MERRA SBUV-8
+# ------------
+BEGIN merra_sbuv_prep_bufr => gmao.sbuv8.%y4%m2%d2.%h2z.bufr.ublk
+ 19781101_00z-19891231_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/sbuv8/prepbufr/Y%y4/M%m2/sbuv8_n07.%y4%m2%d2.%h2z.bufr
+ 19900101_00z-19950228_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/sbuv8/prepbufr/Y%y4/M%m2/sbuv8_n11.%y4%m2%d2.%h2z.bufr
+ 19950301_00z-19970630_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/sbuv8/prepbufr/Y%y4/M%m2/sbuv8_n09.%y4%m2%d2.%h2z.bufr
+ 19970701_00z-20001231_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/sbuv8/prepbufr/Y%y4/M%m2/sbuv8_n11.%y4%m2%d2.%h2z.bufr
+#20010101_00z-20010127_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/sbuv8/prepbufr/Y%y4/M%m2/sbuv8_n16.%y4%m2%d2.%h2z.bufr
+ 20010101_00z-20010127_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/sbuv8/prepbufr/Y%y4/M%m2/sbuv8_n16_p1d.%y4%m2%d2.%h2z.bufr
+ 20010128_00z-20010129_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/sbuv8/prepbufr/Y%y4/M%m2/sbuv8_n11.%y4%m2%d2.%h2z.bufr
+#20010130_00z-20010216_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/sbuv8/prepbufr/Y%y4/M%m2/sbuv8_n16.%y4%m2%d2.%h2z.bufr
+ 20010130_00z-20010216_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/sbuv8/prepbufr/Y%y4/M%m2/sbuv8_n16_p1d.%y4%m2%d2.%h2z.bufr
+ 20010217_00z-20010218_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/sbuv8/prepbufr/Y%y4/M%m2/sbuv8_n11.%y4%m2%d2.%h2z.bufr
+#20010219_00z-20021116_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/sbuv8/prepbufr/Y%y4/M%m2/sbuv8_n16.%y4%m2%d2.%h2z.bufr
+ 20010219_00z-20021116_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/sbuv8/prepbufr/Y%y4/M%m2/sbuv8_n16_p1d.%y4%m2%d2.%h2z.bufr
+ 20021117_00z-20021118_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/sbuv8/prepbufr/Y%y4/M%m2/sbuv8_n17.%y4%m2%d2.%h2z.bufr
+#20021119_00z-20030725_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/sbuv8/prepbufr/Y%y4/M%m2/sbuv8_n16.%y4%m2%d2.%h2z.bufr
+ 20021119_00z-20030725_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/sbuv8/prepbufr/Y%y4/M%m2/sbuv8_n16_p1d.%y4%m2%d2.%h2z.bufr
+ 20030726_00z-20030727_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/sbuv8/prepbufr/Y%y4/M%m2/sbuv8_n17.%y4%m2%d2.%h2z.bufr
+#20030728_00z-20051231_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/sbuv8/prepbufr/Y%y4/M%m2/sbuv8_n16.%y4%m2%d2.%h2z.bufr
+ 20030728_00z-20051231_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/sbuv8/prepbufr/Y%y4/M%m2/sbuv8_n16_p1d.%y4%m2%d2.%h2z.bufr
+ 20060101_00z-present      240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/sbuv8/prepbufr/Y%y4/M%m2/sbuv8_n17.%y4%m2%d2.%h2z.bufr
+END
+
+BEGIN merra_airs_bufr => airs.%y4%m2%d2.t%h2z.bufr.ublk
+  20021012_00z-20040420_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/airs/bufr/Y%y4/M%m2/airs.%y4%m2%d2.t%h2z.bufr
+  20040421_00z-20040426_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/airs_ncep/bufr/Y%y4/M%m2/gdas1.d%y4%m2%d2.t%h2z.airs.tm00.bufr_d
+  20040427_00z-20040428_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/airs/bufr/Y%y4/M%m2/airs.%y4%m2%d2.t%h2z.bufr
+  20040429_00z-20040723_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/airs_ncep/bufr/Y%y4/M%m2/gdas1.d%y4%m2%d2.t%h2z.airs.tm00.bufr_d
+  20040724_00z-20060906_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/airs/bufr/Y%y4/M%m2/airs.%y4%m2%d2.t%h2z.bufr
+  20060907_00z-20060927_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/airs_ncep/bufr/Y%y4/M%m2/gdas1.d%y4%m2%d2.t%h2z.airs.tm00.bufr_d
+  20060928_00z-20070331_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/flk/airs/bufr/C0300/Y%y4/M%m2/airs.%y4%m2%d2.t%h2z.bufr
+END
+
+# MERRA CONV OBS (IN PIECES)
+# -------------------------
+BEGIN merra_sfcland_pre-qc_bufr => adpsfc.%y4%m2%d2.t%h2z.pre-qc.ublk
+ 19480101_00z-19971231_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/conv/prepbufr/adpsfc/Y%y4/M%m2/MERG_ADPSFC_prepbufr_%y4%m2%d2%h2
+ 19980101_00z-19991231_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/conv/prepbufr/adpsfc_gaps_filled_plus_METAR/Y%y4/M%m2/MERG_ADPSFC_prepbufr_%y4%m2%d2%h2
+ 20000101_00z-20001231_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/conv/prepbufr/adpsfc/Y%y4/M%m2/MERG_ADPSFC_prepbufr_%y4%m2%d2%h2
+END
+
+BEGIN merra_upa_pre-qc_bufr => adpupa.%y4%m2%d2.t%h2z.pre-qc.ublk
+ 19700101_00z-19721231_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/conv/prepbufr/adpupa/Y%y4/M%m2/MERG_ADPUPA_prepbufr_%y4%m2%d2%h2
+ 19730101_00z-19841231_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/conv/prepbufr/adpupa_with_stationID/Y%y4/M%m2/MERG_ADPUPA_prepbufr_%y4%m2%d2%h2
+ 19850101_00z-19971231_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/conv/prepbufr/adpupa_fixvai/Y%y4/M%m2/MERG_ADPUPA_prepbufr_%y4%m2%d2%h2
+ 19980101_00z-20001231_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/conv/prepbufr/adpupa_fixvai_ITP/Y%y4/M%m2/MERG_ADPUPA_prepbufr_%y4%m2%d2%h2
+END
+
+BEGIN merra_acars_pre-qc_bufr => aircar.%y4%m2%d2.t%h2z.pre-qc.ublk
+ 19910417_00z-19970531_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/conv/prepbufr/aircar/Y%y4/M%m2/MERG_AIRCAR_prepbufr_%y4%m2%d2%h2
+ 19970601_00z-19970831_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/conv/prepbufr/aircar_gaps_filled/Y%y4/M%m2/MERG_AIRCAR_prepbufr_%y4%m2%d2%h2
+ 19970901_00z-19980930_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/conv/prepbufr/aircar/Y%y4/M%m2/MERG_AIRCAR_prepbufr_%y4%m2%d2%h2
+ 19981001_00z-19981031_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/conv/prepbufr/aircar_gaps_filled/Y%y4/M%m2/MERG_AIRCAR_prepbufr_%y4%m2%d2%h2
+ 19981101_00z-19981231_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/conv/prepbufr/aircar/Y%y4/M%m2/MERG_AIRCAR_prepbufr_%y4%m2%d2%h2
+ 19990101_00z-19990131_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/conv/prepbufr/aircar_gaps_filled/Y%y4/M%m2/MERG_AIRCAR_prepbufr_%y4%m2%d2%h2
+ 19990201_00z-20001231_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/conv/prepbufr/aircar/Y%y4/M%m2/MERG_AIRCAR_prepbufr_%y4%m2%d2%h2
+END
+
+BEGIN merra_aircft_pre-qc_bufr => aircft.%y4%m2%d2.t%h2z.pre-qc.ublk
+ 19710101_00z-20001231_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/conv/prepbufr/aircft/Y%y4/M%m2/MERG_AIRCFT_prepbufr_%y4%m2%d2%h2
+END
+
+#NOTE: MERRA used satwnd data that was missing GOES data that is now available for the last week of March 1996.
+#      Any post-MERRA reanalysis could use this data, but here we have it windowed out.
+BEGIN merra_satwnd_pre-qc_bufr => satwnd.%y4%m2%d2.t%h2z.pre-qc.ublk
+ 19850912_00z-19960229_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/conv/prepbufr/satwnd/Y%y4/M%m2/MERG_SATWND_prepbufr_%y4%m2%d2%h2
+ 19960301_00z-19960401_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/conv/prepbufr/satwnd_GOES_dropped/Y%y4/M%m2/MERG_SATWND_prepbufr_%y4%m2%d2%h2
+ 19960402_00z-20001231_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/conv/prepbufr/satwnd/Y%y4/M%m2/MERG_SATWND_prepbufr_%y4%m2%d2%h2
+END
+BEGIN merra_satwnd00_pre-qc_bufr => satwnd.%y4%m2%d2.t00z.pre-qc.ublk
+ 19770101_00z-19850911_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/conv/prepbufr/satwnd/Y%y4/M%m2/MERG_SATWND_prepbufr_%y4%m2%d200
+END
+BEGIN merra_satwnd12_pre-qc_bufr => satwnd.%y4%m2%d2.t12z.pre-qc.ublk
+ 19770101_00z-19850911_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/conv/prepbufr/satwnd/Y%y4/M%m2/MERG_SATWND_prepbufr_%y4%m2%d212
+END
+BEGIN merra_satwnd18_pre-qc_bufr => satwnd.%y4%m2%d2.t18z.pre-qc.ublk
+ 19770101_00z-19850911_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/conv/prepbufr/satwnd/Y%y4/M%m2/MERG_SATWND_prepbufr_%y4%m2%d218
+END
+
+BEGIN merra_sfcship_pre-qc_bufr => sfcshp.%y4%m2%d2.t%h2z.pre-qc.ublk
+ 19700101_00z-20001231_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/conv/prepbufr/sfcshp_gaps_filled/Y%y4/M%m2/COAD_SFCSHP_prepbufr_%y4%m2%d2%h2
+END
+
+#NOTE: To faithfully reproduce the d5_merra_jan89 run, you MUST comment the 1st line below and uncomment the two
+#      commented lines.  This data was not used from 19890101 to 19920622 of the d5_merra_jan89 run.
+BEGIN merra_atlas_buoy_pre-qc_bufr => atlas.%y4%m2%d2.t%h2z.pre-qc.ublk
+ 19850601_00z-20001231_18z 240000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/conv/prepbufr/sfcshp_taob/Y%y4/M%m2/TAOB_SFCSHP_prepbufr_%y4%m2%d2%h2
+END
+
+BEGIN merra_sfcbog00_pre-qc_bufr => sfcbog.%y4%m2%d2.t00z.pre-qc.ublk
+ 19781001_00z-19841231_18z 120000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/conv/prepbufr/sfcbog_no_land/Y%y4/M%m2/REAN_SFCBOG_prepbufr_%y4%m2%d200
+ 19850101_00z-19931231_18z 120000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/conv/prepbufr/sfcbog_jaob/Y%y4/M%m2/JAOB_SFCBOG_prepbufr_%y4%m2%d200
+ 19940101_00z-19941231_18z 120000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/conv/prepbufr/sfcbog_jaob/Y%y4/M%m2/ER40_SFCBOG_prepbufr_%y4%m2%d200
+ 19950101_00z-19950117_18z 120000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/conv/prepbufr/sfcbog_no_land/Y%y4/M%m2/REAN_SFCBOG_prepbufr_%y4%m2%d200
+ 19950118_00z-20001231_18z 120000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/conv/prepbufr/sfcbog_jaob/Y%y4/M%m2/JAOB_SFCBOG_prepbufr_%y4%m2%d200
+END
+
+BEGIN merra_sfcbog12_pre-qc_bufr => sfcbog.%y4%m2%d2.t12z.pre-qc.ublk
+ 19781001_00z-19841231_18z 120000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/conv/prepbufr/sfcbog_no_land/Y%y4/M%m2/REAN_SFCBOG_prepbufr_%y4%m2%d212
+ 19850101_00z-19931231_18z 120000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/conv/prepbufr/sfcbog_jaob/Y%y4/M%m2/JAOB_SFCBOG_prepbufr_%y4%m2%d212
+ 19940101_00z-19941231_18z 120000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/conv/prepbufr/sfcbog_jaob/Y%y4/M%m2/ER40_SFCBOG_prepbufr_%y4%m2%d212
+ 19950101_00z-19950117_18z 120000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/conv/prepbufr/sfcbog_no_land/Y%y4/M%m2/REAN_SFCBOG_prepbufr_%y4%m2%d212
+ 19950118_00z-20001231_18z 120000 lou-via-br2:/nobackup2i/dkokron/ObservingSystem/merra/conv/prepbufr/sfcbog_jaob/Y%y4/M%m2/JAOB_SFCBOG_prepbufr_%y4%m2%d212
+END

@@ -591,16 +591,29 @@ c            ----------------------------------------------
       cp    = MAPL_CP
       beta  = 6.5e-3
 
+!       Writing variable: Mean_sea_level_pressure
+!       Writing variable: Surface_pressure
+!       Writing variable: Total_cloud_cover
+!       Writing variable: Height
+!       Writing variable: Relative_humidity
+!       Writing variable: Temperature
+!       Writing variable: U_velocity
+!       Writing variable: V_velocity
+
 c Read ANA Variables
 c ------------------
-      call gfio_getvar ( id,'mean_sea_level_',nymd,nhms,imana,jmana,0,1 ,dum2d,rc )
+      call gfio_getvar ( id,'Mean_sea_level_pressure',nymd,nhms,imana,jmana,0,1 ,dum2d,rc )
+      if( rc.ne.0 ) then
+          print *, 'Could not find ECMWF SLP variable'
+          call exit(7)
+      endif
       if( im.ne.imana .or. jm.ne.jmana ) then
               call hinterp ( dum2d,imana,jmana,slp,im,jm,1,undef )
       else
               slp = dum2d
       endif
 
-      call gfio_getvar     ( id,'surface_pressur',nymd,nhms,imana,jmana,0,1 ,dum2d ,rc )  ! New ECMWF Format 2011/05/11 06z
+      call gfio_getvar     ( id,'Surface_pressure',nymd,nhms,imana,jmana,0,1 ,dum2d ,rc )  ! New ECMWF Format 2011/05/11 06z
       if( rc.ne.0 ) then
           call gfio_getvar ( id,'logarithm_of_su',nymd,nhms,imana,jmana,0,1 ,dum2d ,rc )  ! Old ECMWF Format
           if( rc.eq.0 ) then
@@ -616,7 +629,7 @@ c ------------------
               ps = dum2d
       endif
 
-      call gfio_getvar ( id,'height',nymd,nhms,imana,jmana,1,lmana,dum3d,rc )
+      call gfio_getvar ( id,'Height',nymd,nhms,imana,jmana,1,lmana,dum3d,rc )
       if( rc.ne.0 ) then
           print *, 'Could not find ECMWF Height variable'
           call exit(7)
@@ -630,12 +643,12 @@ c ------------------
 
 c Winds
 c -----
-      call gfio_getvar ( id,'u_velocity',nymd,nhms,imana,jmana,1,lmana,dumu,rc )
+      call gfio_getvar ( id,'U_velocity',nymd,nhms,imana,jmana,1,lmana,dumu,rc )
       if( rc.ne.0 ) then
           print *, 'Could not find ECMWF U-Wind variable'
           call exit(7)
       endif
-      call gfio_getvar ( id,'v_velocity',nymd,nhms,imana,jmana,1,lmana,dumv,rc )
+      call gfio_getvar ( id,'V_velocity',nymd,nhms,imana,jmana,1,lmana,dumv,rc )
       if( rc.ne.0 ) then
           print *, 'Could not find ECMWF V-Wind variable'
           call exit(7)
@@ -657,7 +670,7 @@ c -----
 
 c Temperature
 c -----------
-      call gfio_getvar ( id,'temperature',nymd,nhms,imana,jmana,1,lmana,dum3d,rc )
+      call gfio_getvar ( id,'Temperature',nymd,nhms,imana,jmana,1,lmana,dum3d,rc )
       if( rc.ne.0 ) then
           print *, 'Could not find ECMWF Temperature variable'
           call exit(7)
@@ -671,7 +684,7 @@ c -----------
 
 c Relative Humidity
 c -----------------
-      call gfio_getvar ( id,'relative_humidi',nymd,nhms,imana,jmana,1,lmana,dum3d,rc )
+      call gfio_getvar ( id,'Relative_humidity',nymd,nhms,imana,jmana,1,lmana,dum3d,rc )
       if( rc.ne.0 ) then
           print *, 'Could not find ECMWF Rel.Hum. variable'
           call exit(7)
@@ -981,30 +994,17 @@ c ------------------------------------
       subroutine usage()
       print *, "Usage:  "
       print *
-      print *, " ec2fv.x [-ecmwf ecmwf.data]"
-      print *, "         [-ctl   ecmwf.ctl]"
-      print *, "         [-bkg   bkg.data]"
-      print *, "         [-nymd  nymd]"
-      print *, "         [-nhms  nhms]"
-      print *, "         [-plow  plow]"
-      print *, "         [-phigh phigh]"
-      print *, "         [-tag   tag]"
-      print *, "         [-ozone]"
+      print *, " ec_prs2eta.x  -ecmwf ecmwf.data "
+      print *, "              [-im    im]"
+      print *, "              [-jm    jm]"
+      print *, "              [-tag   tag]"
       print *
       print *, "where:"
       print *
       print *, "  -ecmwf ecmwf.data: Filename of ECMWF Pressure-Level analysis data"
-      print *, "  -ctl   ecmwf.ctl : Filename of ECMWF Pressure-Level analysis ctl"
-      print *, "  -bkg     bkg.data: Filename of GMAO Background Data (ana.eta format)"
-      print *
-      print *, "  -plow        plow:  Pressure Level to begin blending"
-      print *, "  -phigh      phigh:  Pressure Level to   end blending"
-      print *
-      print *, "  -nymd        nymd:  Desired date in yyyymmdd format"
-      print *, "  -nhms        nhms:  Desired time in   hhmmss format"
-      print *
-      print *, "  -tag          tag:  Optional Prefix tag for output files"
-      print *, "  -ozone              Optional Flag to add ozone"
+      print *, "  -im            im:  Optional Zonal      Dimenstion for Output (Default: IM from File)"
+      print *, "  -jm            jm:  Optional Meridional Dimenstion for Output (Default: JM from File)"
+      print *, "  -tag          tag:  Optional Prefix tag            for Output (Default: ec_prs2eta)"
       print *
       call exit(7)
       end
@@ -1847,7 +1847,7 @@ c -------------------------------
 
 c String and vars settings
 c ------------------------
-      title    = 'FVGCM Dynamics State Vector (Hybrid Coordinates)'
+      title    = 'EC_PRS2ETA Data'
       source   = 'Goddard Modeling and Assimilation Office, NASA/GSFC'
       contact  = 'data@gmao.gsfc.nasa.gov'
       levunits = 'hPa'

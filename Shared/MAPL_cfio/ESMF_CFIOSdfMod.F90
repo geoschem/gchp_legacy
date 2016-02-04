@@ -24,6 +24,8 @@
       use ESMF_CFIOFileMod
       use ESMF_CFIOwGrADSMod, only : CFIO_wGrADS
       use ESMF_CFIOrGrADSMod, only : CFIO_rGrADS
+      use netcdf
+
       implicit none
 !------------------------------------------------------------------------------
 ! !PRIVATE TYPES:
@@ -88,17 +90,17 @@
                       ! -12  error determining default precision
                       ! -18 incorrect time increment
                       ! -30 can't open file
-                      ! -31 error from ncddef
-                      ! -32 error from ncvdef (dimension variable)
-                      ! -33 error from ncapt(c) (dimension attribute)
-                      ! -34 error from ncvdef (variable)
-                      ! -35  error from ncapt(c) (variable attribute)
-                      ! -36  error from ncaptc/ncapt (global attribute)
-                      ! -37  error from ncendf
-                      ! -38  error from ncvpt (dimension variable)
+                      ! -31 error from NF90_DEF_DIM
+                      ! -32 error from NF90_DEF_VAR (dimension variable)
+                      ! -33 error from NF90_PUT_ATT (dimension attribute)
+                      ! -34 error from NF90_DEF_VAR (variable)
+                      ! -35  error from NF90_PUT_ATT (variable attribute)
+                      ! -36  error from NF90_PUT_ATT (global attribute)
+                      ! -37  error from NF90_ENDDEF
+                      ! -38  error from NF90_VAR_PUT (dimension variable)
                       ! -39 Num of real var elements and Cnt differ
-                      ! -55  error from ncredf (enter define mode)
-                      ! -56  error from ncedf (exit define mode)
+                      ! -55  error from NF90_REDEF (enter define mode)
+                      ! -56  error from NF90_ENDDEF (exit define mode)
 !
 ! !DESCRIPTION:
 !     Create a CFIO output file with meta data
@@ -325,19 +327,19 @@
                          ! -10  ngatts is incompatible with file
                          ! -11  character string not long enough
                          ! -19  unable to identify coordinate variable
-                         ! -36  error from ncaptc/ncapt (global attribute)
+                         ! -36  error from NF90_PUT_ATT (global attribute)
                          ! -39  error from ncopn (file open)
-                         ! -40  error from ncvid
-                         ! -41  error from ncdid or ncdinq (lat or lon)
-                         ! -42  error from ncdid or ncdinq (lev)
-                         ! -43  error from ncvid (time variable)
-                         ! -47  error from ncdid or ncdinq (time)
-                         ! -48  error from ncinq
-                         ! -51  error from ncagtc/ncagt (global attribute)
-                         ! -52  error from ncvinq
-                         ! -53  error from ncagtc/ncagt
-                         ! -57  error from ncanam
-                         ! -58  error from ncainq
+                         ! -40  error from NF90_INQ_VARID
+                         ! -41  error from NF90_INQ_DIMID (lat or lon)
+                         ! -42  error from NF90_INQ_DIMID (lev)
+                         ! -43  error from NF90_INQ_VARID (time variable)
+                         ! -47  error from NF90_INQ_DIMID (time)
+                         ! -48  error from NF90_INQUIRE
+                         ! -51  error from NF90_GET_ATT (global attribute)
+                         ! -52  error from NF90_INQUIRE_VARIABLE
+                         ! -53  error from NF90_GET_ATT
+                         ! -57  error from NF90_INQ_ATTNAME
+                         ! -58  error from NF90_INQUIRE_ATTRIBUTE
 
 !
 ! !INPUT/OUTPUT PARAMETERS:
@@ -354,9 +356,9 @@
       real*4 :: vRange32(2)
       real*4, pointer :: lon(:), lat(:), lev(:)
       real*8, pointer :: lon_64(:), lat_64(:), lev_64(:)
-      integer :: coXType = NCFLOAT
-      integer :: coYType = NCFLOAT
-      integer :: coZType = NCFLOAT
+      integer :: coXType = NF90_FLOAT
+      integer :: coYType = NF90_FLOAT
+      integer :: coZType = NF90_FLOAT
       character(len=MVARLEN) :: levunits
       character(len=MVARLEN) :: vAttName
       character(len=MVARLEN), pointer :: vname(:) 
@@ -393,13 +395,12 @@
       integer :: icount
       real*4, pointer :: ak(:), bk(:)
       real*4 :: ptop
+      real*4 :: ptop_array(1)
       real*4 :: scale, offset
       character, pointer ::  globalAtt(:)
       character(len=MLEN) :: fNameTmp     ! file name
       character(len=MVARLEN),dimension(:),pointer :: grads_vars
   
-      call ncpopt(0)
-
       fNameTmp = ''                                                                                   
 !     checking file name template
       if (present(expid)) cfio%expid = expid
@@ -445,8 +446,8 @@
       end if
       cfio%tSteps = lm
 
-      call ncinq (cfio%fid,nDims,allVars,ngatts,recdim,rtcode)
-      if (err("FileOpen: ncinq failed",rtcode,-48) .NE. 0) then  
+      rtcode = NF90_INQUIRE (cfio%fid,nDims,allVars,ngatts,recdim)
+      if (err("FileOpen: NF90_INQUIRE failed",rtcode,-48) .NE. 0) then  
          if ( present(rc) ) rc = rtcode
          return
       end if
@@ -454,11 +455,12 @@
       allocate(cfio%varObjs(cfio%mVars))
       do i=1,cfio%mVars
          cfio%varObjs(i)=ESMF_CFIOVarInfoCreate(rc=rc)
+         cfio%varObjs(i)%timAve = .false.
       end do
       nVars = 0
       cfio%mGrids = 0
       do i=1,allVars
-        call ncvinq (fid,i,vnameTemp,vtype,nvDims,vDims,nvAtts,rtcode)
+        rtcode = NF90_INQUIRE_VARIABLE(fid,i,vnameTemp,vtype,nvDims,vDims,nvAtts)
         if (err("Inquire: variable inquire error",rtcode,-52) .NE. 0) then  
            if ( present(rc) ) rc = rtcode
            return
@@ -477,7 +479,14 @@
            coZType = vtype
         end if
 
-        cfio%varObjs(nVars+1)%timAve = .false.
+      end do
+
+      do i=1,allVars
+        rtcode = NF90_INQUIRE_VARIABLE(fid,i,vnameTemp,vtype,nvDims,vDims,nvAtts)
+        if (err("Inquire: variable inquire error",rtcode,-52) .NE. 0) then  
+           if ( present(rc) ) rc = rtcode
+           return
+        end if
         if (trim(vnameTemp) .eq. 'time_bnds') then 
            cfio%varObjs(nVars)%timAve = .true.
            cycle
@@ -489,8 +498,8 @@
 !        cfio%varObjs(nVars)%grid%km = 1
         cfio%varObjs(nVars)%grid%stnGrid = .false.
         do iv = 1, nvDims
-           call ncdinq(fid, vDims(iv), dimName(iv), dimSize(iv), rtcode)
-           if (err("problem in ncdinq",rtcode,-41) .NE. 0) then  
+           rtcode = NF90_INQUIRE_DIMENSION(fid, vDims(iv), dimName(iv), dimSize(iv))
+           if (err("problem in NF90_INQUIRE_DIMENSION",rtcode,-41) .NE. 0) then  
               if ( present(rc) ) rc = rtcode
               return
            end if
@@ -500,10 +509,10 @@
               cfio%varObjs(nVars)%grid%stnGrid = .true.
               cycle
            end if
-           varId = ncvid (fid, dimName(iv), rtcode)
+           rtcode = NF90_INQ_VARID(fid,dimName(iv),varId)
            dimUnits(iv) = ' '
-           call ncagtc(fid,varId,'units',dimUnits(iv),MAXCHR,rtcode)
-           if (err("problem in ncagtc",rtcode,-53) .NE. 0) then  
+           rtcode = NF90_GET_ATT(fid,varId,'units',dimUnits(iv))
+           if (err("problem in NF90_GET_ATT",rtcode,-53) .NE. 0) then  
               if ( present(rc) ) rc = rtcode
               return
            end if
@@ -514,16 +523,15 @@
                  allocate(cfio%varObjs(nVars)%grid%lon(dimSize(iv)))
               end if
               allocate(lon(dimSize(iv)))
-!              call ncvgt (fid, vDims(iv), 1, dimSize(iv), lon, rtcode)
-              if ( coXType .eq. NCFLOAT ) then
-                 call ncvgt (fid, varId, 1, dimSize(iv), lon, rtcode)
+              if ( coXType .eq. NF90_FLOAT ) then
+                 rtcode =  NF90_GET_VAR (fid, varId, lon, (/1/), (/dimSize(iv)/))
               else
                  allocate(lon_64(dimSize(iv)))
-                 call ncvgt (fid, varId, 1, dimSize(iv), lon_64, rtcode)
+                 rtcode = NF90_GET_VAR (fid, varId, lon_64, (/1/), (/dimSize(iv)/))
                  lon =lon_64
                  deallocate(lon_64)
               end if
-              if (err("problem in ncvgt",rtcode,-53) .NE. 0) then  
+              if (err("problem in NF90_GET_VAR",rtcode,-53) .NE. 0) then  
                  if ( present(rc) ) rc = rtcode
                  return
               end if
@@ -536,18 +544,17 @@
                  allocate(cfio%varObjs(nVars)%grid%lat(dimSize(iv)))
               end if
               allocate(lat(dimSize(iv)))
-              if ( coYType .eq. NCFLOAT ) then
-                 call ncvgt (fid, varId, 1, dimSize(iv), lat, rtcode)
+              if ( coYType .eq. NF90_FLOAT ) then
+                 rtcode = NF90_GET_VAR(fid, varId, lat, (/1/), (/dimSize(iv)/))
               else
                  allocate(lat_64(dimSize(iv)))
-                 call ncvgt (fid, varId, 1, dimSize(iv), lat_64, rtcode)
+                 rtcode = NF90_GET_VAR(fid, varId, lat_64, (/1/), (/dimSize(iv)/))
                  lat = lat_64
                  deallocate(lat_64)
               end if
-!              call ncvgt (fid, vDims(iv), 1, dimSize(iv), lat, rtcode)
 !print *, "vDims(iv) varId: ", vDims(iv), varId
 !print *, "dimName dimUnits: ", trim(dimName(iv)), trim(dimUnits(iv))
-              if (err("problem in ncvgt",rtcode,-51) .NE. 0) then  
+              if (err("problem in NF90_GET_VAR",rtcode,-51) .NE. 0) then  
                  if ( present(rc) ) rc = rtcode
                  return
               end if
@@ -556,10 +563,7 @@
            end if
            if (myIndex .EQ. 2) then
               cfio%varObjs(nVars)%grid%km = dimSize(iv)
-              call ncpopt(0)
-              call ncagtc(fid,varId,'standard_name',                   &
-                          cfio%varObjs(nVars)%grid%standardName,           &
-                          MAXCHR, rtcode)
+              rtcode = NF90_GET_ATT(fid,varId,'standard_name',cfio%varObjs(nVars)%grid%standardName)
               if (rtcode /= 0) cfio%varObjs(nVars)%grid%standardName="pressure"
               if ( index(cfio%varObjs(nVars)%grid%standardName,        &
                    'atmosphere_sigma_coordinate') .gt. 0  .or.         &
@@ -567,9 +571,7 @@
                    'atmosphere_hybrid_sigma_pressure_coordinate' )     &
                    .gt.  0 ) then
 
-                 call ncagtc(fid,varId,'formula_term',                 &
-                          cfio%varObjs(nVars)%grid%formulaTerm,            &
-                          MAXCHR, rtcode)
+                 rtcode = NF90_GET_ATT(fid,varId,'formula_term',cfio%varObjs(nVars)%grid%formulaTerm)
                  if ( index(cfio%varObjs(nVars)%grid%standardName,     &
                    'atmosphere_sigma_coordinate') .gt. 0 ) then
                     loc1 = index(cfio%varObjs(nVars)%grid%formulaTerm,'ptop:')
@@ -580,9 +582,12 @@
                     end do
                     namePtop=trim(cfio%varObjs(nVars)%grid%formulaTerm    &
                          (icount:len(cfio%varObjs(nVars)%grid%formulaTerm)))
-                    ptopid = ncvid(cfio%fid, trim(namePtop), rtcode)
-                    if (rtcode .ne. 0) print *, "problem in getting ptopid in ncvid"
-                    if (rtcode .eq. 0) call ncvgt(cfio%fid,ptopid,1, 1, ptop, rtcode)
+                    rtcode = NF90_INQ_VARID(cfio%fid,trim(namePtop),ptopid)
+                    if (rtcode .ne. 0) print *, "problem in getting ptopid in NF90_INQ_VARID"
+                    if (rtcode .eq. 0) then
+                       rtcode = NF90_GET_VAR(cfio%fid,ptopid,ptop_array,(/1/), (/1/))
+                       ptop=ptop_array(1)
+                    end if
                     if (rtcode .eq. 0) cfio%varObjs(nVars)%grid%ptop = ptop
                  end if
               end if
@@ -611,50 +616,45 @@
                  namePtop=trim(cfio%varObjs(nVars)%grid%formulaTerm        &
                          (icount:len(cfio%varObjs(nVars)%grid%formulaTerm)))
 
-                 akid = ncvid(cfio%fid, trim(nameAk), rtcode)
-                 if (rtcode .ne. 0) print *, "problem in getting akid in ncvid"
+                 rtcode = NF90_INQ_VARID(cfio%fid, trim(nameAk), akid)
+                 if (rtcode .ne. 0) print *, "problem in getting akid in NF90_INQ_VARID"
 
                  allocate(cfio%varObjs(nVars)%grid%ak                      &
                           (cfio%varObjs(nVars)%grid%km+1),                 &
                           ak(cfio%varObjs(nVars)%grid%km+1))
-                 call ncvgt(cfio%fid,akid,1,cfio%varObjs(nVars)%grid%km+1, &
-                            ak, rtcode)
-                 if (rtcode .ne. 0) print *, "problem in getting ak in ncvgt"
+                 rtcode = NF90_GET_VAR(cfio%fid,akid,ak,(/1/),(/cfio%varObjs(nVars)%grid%km+1/))
+                 if (rtcode .ne. 0) print *, "problem in getting ak in NF90_GET_VAR"
                  cfio%varObjs(nVars)%grid%ak = ak
                  deallocate(ak)
-                 bkid = ncvid(cfio%fid, trim(nameBk), rtcode)
-                 if (rtcode .ne. 0) print *, "problem in getting bkid in ncvid"
+                 rtcode = NF90_INQ_VARID(cfio%fid, trim(nameBk), bkid)
+                 if (rtcode .ne. 0) print *, "problem in getting bkid in NF90_INQ_VARID"
                  allocate(cfio%varObjs(nVars)%grid%bk                      &
                           (cfio%varObjs(nVars)%grid%km+1),                 &
                           bk(cfio%varObjs(nVars)%grid%km+1))
-                 call ncvgt(cfio%fid,bkid,1,cfio%varObjs(nVars)%grid%km+1, &
-                            bk, rtcode)
-                 if (rtcode .ne. 0) print *, "problem in getting bk in ncvgt"
+                 rtcode = NF90_GET_VAR(cfio%fid,bkid,bk,(/1/),(/cfio%varObjs(nVars)%grid%km+1/))
+                 if (rtcode .ne. 0) print *, "problem in getting bk in NF90_GET_VAR"
                  cfio%varObjs(nVars)%grid%bk = bk
                  deallocate(bk)
 
-                 ptopid = ncvid(cfio%fid, trim(namePtop), rtcode)
-                 if (rtcode .ne. 0) print *, "problem in getting ptopid in ncvid"
-                 call ncvgt(cfio%fid,ptopid,1, 1, ptop, rtcode)
-                 if (rtcode .ne. 0) print *, "problem in getting ptop in ncvgt"
+                 rtcode = NF90_INQ_VARID(cfio%fid, trim(namePtop), ptopid)
+                 if (rtcode .ne. 0) print *, "problem in getting ptopid in NF90_INQ_VARID"
+                 rtcode = NF90_GET_VAR(cfio%fid,ptopid,ptop_array,(/1/), (/1/))
+                 ptop = ptop_array(1)
+                 if (rtcode .ne. 0) print *, "problem in getting ptop in NF90_GET_VAR"
                  cfio%varObjs(nVars)%grid%ptop = ptop
              end if
-              call ncpopt(0)
-              call ncagtc(fid,varId,'coordinate',                      &
-                          cfio%varObjs(nVars)%grid%coordinate,             &
-                          MAXCHR, rtcode)
+              rtcode = NF90_GET_ATT(fid,varId,'coordinate',cfio%varObjs(nVars)%grid%coordinate)
               if (rtcode .ne. 0) cfio%varObjs(nVars)%grid%coordinate = "pressure"  
               cfio%varObjs(nVars)%grid%levUnits = trim(dimUnits(iv))
 
               allocate(cfio%varObjs(nVars)%grid%lev(dimSize(iv)), &
                        lev(dimSize(iv)))
-              call ncpopt(0)
-              if ( coZType .eq. NCFLOAT ) then
-                 call ncvgt (fid, varId, 1, dimSize(iv), lev, rtcode) 
+              if ( coZType .eq. NF90_FLOAT ) then
+                 rtcode = NF90_GET_VAR(fid, varId, lev, (/1/), (/dimSize(iv)/)) 
 !print *, "Lev from CFIO SDFFileOpen: ", lev
               else
                  allocate(lev_64(dimSize(iv)))
-                 call ncvgt (fid, varId, 1, dimSize(iv), lev_64, rtcode) 
+                 rtcode = NF90_GET_VAR(fid, varId, lev_64, (/1/), (/dimSize(iv)/)) 
                  lev =lev_64
                  deallocate(lev_64)
               end if
@@ -664,56 +664,50 @@
               deallocate(lev)
            end if
         end do
-        varId = ncvid (cfio%fid, cfio%varObjs(nVars)%vName, rtcode)
+        rtcode = NF90_INQ_VARID (cfio%fid, cfio%varObjs(nVars)%vName, varId)
         if (rtcode .ne. 0) then 
-           print *, "problem in getting varId in ncvid"
+           print *, "problem in getting varId in NF90_INQ_VARID"
            if ( present(rc) ) rc = -40    
            return
         end if
-        call ncagtc(fid,varId,'units',cfio%varObjs(nVars)%vunits,            &
-                    MAXCHR,rtcode)
+       rtcode = NF90_GET_ATT(fid,varId,'units',cfio%varObjs(nVars)%vunits)
         if (rtcode .ne. 0) then
-           print *, "ncagtc failed for units"
+           print *, "NF90_GET_ATT failed for units"
            if ( present(rc) ) rc = -53   
            return
         end if
         cfio%varObjs(nVars)%vtitle = ' '
-        call ncpopt(0)
-        call ncagtc(fid,varId,'long_name',cfio%varObjs(nVars)%vtitle,        &
-                    MLEN,rtcode)
-        call ncagtc(fid,varId,'standard_name',cfio%varObjs(nVars)%standardName,        &
-                    MLEN,rtcode)
+       rtcode = NF90_GET_ATT(fid,varId,'long_name',cfio%varObjs(nVars)%vtitle)
+       rtcode = NF90_GET_ATT(fid,varId,'standard_name',cfio%varObjs(nVars)%standardName)
         if ( cfio%varObjs(nVars)%grid%km .gt. 0 ) then
             cfio%varObjs(nVars)%twoDimVar = .false.
         else
             cfio%varObjs(nVars)%twoDimVar = .true.
         end if
-        call ncagt (fid, varId, '_FillValue', amiss, rtcode)
+        rtcode = NF90_GET_ATT(fid,varId,'_FillValue',amiss)
         if (rtcode .NE. 0) then
-           call ncagt (fid, varId, 'missing_value', amiss, rtcode)
+           rtcode = NF90_GET_ATT(fid,varId,'missing_value',amiss)
         end if
         cfio%varObjs(nVars)%amiss = amiss
-        call ncpopt(0)
-        call ncagt (fid, varId, 'scale_factor', scale, rtcode)
+        rtcode = NF90_GET_ATT(fid,varId,'scale_factor',scale)
         if (rtcode .NE. 0) then
            cfio%varObjs(nVars)%scaleFactor = 1.0
         else
            cfio%varObjs(nVars)%scaleFactor = scale
         end if
-        call ncpopt(0)
-        call ncagt (fid, varId, 'add_offset', offset, rtcode)
+        rtcode = NF90_GET_ATT(fid,varId,'add_offset',offset)
         if (rtcode .NE. 0) then
            cfio%varObjs(nVars)%addOffset = 0.0
         else
            cfio%varObjs(nVars)%addOffset = offset
         end if
-        call ncagt (fid, varId, 'vmin', vRange32(1), rtcode)
+        rtcode = NF90_GET_ATT(fid,varId,'vmin',vRange32(1))
         if (rtcode .NE. 0) then
           cfio%varObjs(nVars)%validRange(1) = cfio%varObjs(nVars)%amiss
         else
           cfio%varObjs(nVars)%validRange(1) = vRange32(1)
         endif
-        call ncagt (fid, varId, 'vmax', vRange32(2), rtcode)
+        rtcode = NF90_GET_ATT(fid,varId,'vmax',vRange32(2))
         if (rtcode .NE. 0) then
           cfio%varObjs(nVars)%validRange(2) = cfio%varObjs(nVars)%amiss
         else
@@ -857,8 +851,11 @@
          do ii = 1, cfio%attCharCnts(i)
             cfio%attChars(i)(ii:ii) = globalAtt(ii)
             if (ii .ge. MLEN) then
-!               print *,"global attribute ",trim(cfio%attCharNames(i)), &
-!                       " is longer than MLEN"
+               !bma commented out this warning as merra1 hdf4 files
+               !have really long global attributes which prints too
+               !many warnings
+               !print *,"global attribute ",trim(cfio%attCharNames(i)), &
+                       !" is longer than MLEN"
                exit
             end if
          end do
@@ -888,14 +885,14 @@
 
 !     get variable meta data
       do i = 1, cfio%mVars
-         varId = ncvid (cfio%fid, cfio%varObjs(i)%vName, rtcode)
-         if (err("ncvid failed for vName",rtcode,rtcode) .lt. 0) then   
+         rtcode = NF90_INQ_VARID (cfio%fid, cfio%varObjs(i)%vName, varId)
+         if (err("NF90_INQ_VARID failed for vName",rtcode,rtcode) .lt. 0) then   
             if ( present(rc) ) rc = -40
             return
          end if
-         call ncvinq(cfio%fid, varId, cfio%varObjs(i)%vName, datatype, &
-                     nvdims, vdims, nvatts, rtcode)
-         if (err("ncvinq failed for vName",rtcode,rtcode) .lt. 0) then  
+         rtcode = NF90_INQUIRE_VARIABLE(cfio%fid, varId, cfio%varObjs(i)%vName, datatype, &
+                     nvdims, vdims, nvatts)
+         if (err("NF90_INQUIRE_VARIABLE failed for vName",rtcode,rtcode) .lt. 0) then  
             if ( present(rc) ) rc = -52
             return
          end if
@@ -908,30 +905,30 @@
 
 !        get variable int/real/char attribute count
          do iv =1, nvatts
-            call ncanam (cfio%fid, varId, iv, vAttName, rtcode)
-            if (err("ncanam failed for vName",rtcode,rtcode) .lt. 0) then  
+            rtcode = NF90_INQ_ATTNAME(cfio%fid,varId,iv, vAttName)
+            if (err("NF90_INQ_ATTNAME failed for vName",rtcode,rtcode) .lt. 0) then  
                if ( present(rc) ) rc = -57   
                return
             end if
-            call ncainq (cfio%fid,varId,vAttName,vtype,count,rtcode)
-            if (err("ncainq failed for vName",rtcode,rtcode) .lt. 0) then
+            rtcode = NF90_INQUIRE_ATTRIBUTE (cfio%fid,varId,vAttName,vtype,count)
+            if (err("NF90_INQUIRE_ATTRIBUTE failed for vName",rtcode,rtcode) .lt. 0) then
                if ( present(rc) ) rc = -58   
                return
             end if
             select case  (vtype)
-               case ( NCSHORT )
+               case ( NF90_SHORT )
                   iCnt = iCnt + 1
                   if ( count .gt. iMaxLen ) iMaxLen = count
-               case ( NCFLOAT )
+               case ( NF90_FLOAT )
                   rCnt = rCnt + 1
                   if ( count .gt. rMaxLen ) rMaxLen = count
-               case ( NCCHAR )
+               case ( NF90_CHAR )
                   cCnt = cCnt + 1
                   if ( count .gt. cMaxLen ) cMaxLen = count
-               case ( NCDOUBLE )
+               case ( NF90_DOUBLE )
                   rCnt = rCnt + 1
                   if ( count .gt. rMaxLen ) rMaxLen = count
-               case ( NCLONG )
+               case ( NF90_INT )
                   iCnt = iCnt + 1
                   if ( count .gt. iMaxLen ) iMaxLen = count
             end select
@@ -953,34 +950,34 @@
          cCnt = 0
 !        get variable int/real/char attribute names and counts
          do iv =1, nvatts
-            call ncanam (cfio%fid, varId, iv, vAttName, rtcode)
-            if (err("ncanam failed for vName",rtcode,rtcode) .lt. 0) then  
+            rtcode = NF90_INQ_ATTNAME (cfio%fid, varId, iv, vAttName)
+            if (err("NF90_INQ_ATTNAME failed for vName",rtcode,rtcode) .lt. 0) then  
                if ( present(rc) ) rc = -57
                return
             end if
-            call ncainq (cfio%fid,varId,vAttName,vtype,count,rtcode)
-            if (err("ncainq failed for vName",rtcode,rtcode) .lt. 0) then   
+            rtcode = NF90_INQUIRE_ATTRIBUTE (cfio%fid,varId,vAttName,vtype,count)
+            if (err("NF90_INQUIRE_ATTRIBUTE failed for vName",rtcode,rtcode) .lt. 0) then   
                if ( present(rc) ) rc = -58
                return
             end if
             select case  (vtype)
-               case ( NCSHORT )
+               case ( NF90_SHORT )
                   iCnt = iCnt + 1
                   cfio%varObjs(i)%attIntNames(iCnt) = vAttName
                   cfio%varObjs(i)%attIntCnts(iCnt) = count   
-               case ( NCFLOAT )
+               case ( NF90_FLOAT )
                   rCnt = rCnt + 1
                   cfio%varObjs(i)%attRealNames(rCnt) = vAttName
                   cfio%varObjs(i)%attRealCnts(rCnt) = count   
-               case ( NCCHAR )
+               case ( NF90_CHAR )
                   cCnt = cCnt + 1
                   cfio%varObjs(i)%attCharNames(cCnt) = vAttName
                   cfio%varObjs(i)%attCharCnts(cCnt) = count   
-               case ( NCDOUBLE )
+               case ( NF90_DOUBLE )
                   rCnt = rCnt + 1
                   cfio%varObjs(i)%attRealNames(rCnt) = vAttName
                   cfio%varObjs(i)%attRealCnts(rCnt) = count   
-               case ( NCLONG )
+               case ( NF90_INT )
                   iCnt = iCnt + 1
                   cfio%varObjs(i)%attIntNames(iCnt) = vAttName
                   cfio%varObjs(i)%attIntCnts(iCnt) = count   
@@ -994,9 +991,8 @@
 !        get int variable attributes
          do ii = 1, iCnt
             allocate(itmp(cfio%varObjs(i)%attIntCnts(ii)))
-            call ncagt(cfio%fid,varId,cfio%varObjs(i)%attIntNames(ii),&
-                       itmp, rtcode)
-            if (err("ncagt failed for attIntNames",rtcode,rtcode) .lt. 0) then
+            rtcode = NF90_GET_ATT(cfio%fid,varId,cfio%varObjs(i)%attIntNames(ii),itmp)
+            if (err("NF90_GET_ATT failed for attIntNames",rtcode,rtcode) .lt. 0) then
                if ( present(rc) ) rc = -53   
                return
             end if
@@ -1008,9 +1004,8 @@
 !        get real variable attributes
          do ii = 1, rCnt
             allocate(rtmp(cfio%varObjs(i)%attRealCnts(ii)))
-            call ncagt(cfio%fid,varId,cfio%varObjs(i)%attRealNames(ii),      &
-                       rtmp, rtcode)
-            if (err("ncagt failed for attRealNames",rtcode,rtcode) .lt. 0) then
+            rtcode = NF90_GET_ATT(cfio%fid,varId,cfio%varObjs(i)%attRealNames(ii),rtmp)
+            if (err("NF90_GET_ATT failed for attRealNames",rtcode,rtcode) .lt. 0) then
                if ( present(rc) ) rc = -53
                return
             end if
@@ -1021,10 +1016,8 @@
 
 !        get char variable attributes
          do ii = 1, cCnt
-            call ncagtc(cfio%fid,varId,cfio%varObjs(i)%attCharNames(ii),     &
-                       cfio%varObjs(i)%varAttChars(ii),                      &
-                       cfio%varObjs(i)%attCharCnts(ii), rtcode)
-            if (err("ncagt failed for attCharNames",rtcode,rtcode) .lt. 0) then
+            rtcode = NF90_GET_ATT(cfio%fid,varId,cfio%varObjs(i)%attCharNames(ii),cfio%varObjs(i)%varAttChars(ii))
+            if (err("NF90_GET_ATT failed for attCharNames",rtcode,rtcode) .lt. 0) then
                if ( present(rc) ) rc = -53   
                return
             end if
@@ -1103,16 +1096,16 @@
                          !  rc = -15  data outside of valid range
                          !  rc = -16  data outside of packing range
                          !  rc = -17  data outside of pack and valid range
-                         !  rc = -38  error from ncvpt (dimension variable)
-                         !  rc = -40  error from ncvid
-                         !  rc = -41  error from ncdid or ncdinq (lat or lon)
-                         !  rc = -42  error from ncdid or ncdinq (lev)
-                         !  rc = -43  error from ncvid (time variable)
-                         !  rc = -44  error from ncagt (time attribute)
-                         !  rc = -45  error from ncvpt
-                         !  rc = -46  error from ncvgt
-                         !  rc = -52  error from ncvinq
-                         !  rc = -53  error from ncagtc/ncagt
+                         !  rc = -38  error from NF90_VAR_PUT (dimension variable)
+                         !  rc = -40  error from NF90_INQ_VARID
+                         !  rc = -41  error from NF90_INQ_DIMID (lat or lon)
+                         !  rc = -42  error from NF90_INQ_DIMID (lev)
+                         !  rc = -43  error from NF90_INQ_VARID (time variable)
+                         !  rc = -44  error from NF90_GET_ATT (time attribute)
+                         !  rc = -45  error from NF90_VAR_PUT
+                         !  rc = -46  error from NF90_GET_VAR
+                         !  rc = -52  error from NF90_INQUIRE_VARIABLE
+                         !  rc = -53  error from NF90_GET_ATT
 
 !
 ! !DESCRIPTION:
@@ -1417,15 +1410,15 @@
                          !  rc = -12  error determining default precision
                          !  rc = -13  error determining variable type
                          !  rc = -19  unable to identify coordinate variable
-                         !  rc = -38  error from ncvpt (dimension variable)
-                         !  rc = -40  error from ncvid
-                         !  rc = -41  error from ncdid or ncdinq (lat or lon)
-                         !  rc = -42  error from ncdid or ncdinq (lev)
-                         !  rc = -43  error from ncvid (time variable)
-                         !  rc = -44  error from ncagt (time attribute)
-                         !  rc = -46  error from ncvgt
-                         !  rc = -48  error from ncinq
-                         !  rc = -52  error from ncvinq
+                         !  rc = -38  error from NF90_VAR_PUT (dimension variable)
+                         !  rc = -40  error from NF90_INQ_VARID
+                         !  rc = -41  error from NF90_INQ_DIMID (lat or lon)
+                         !  rc = -42  error from NF90_INQ_DIMID (lev)
+                         !  rc = -43  error from NF90_INQ_VARID (time variable)
+                         !  rc = -44  error from NF90_GET_ATT (time attribute)
+                         !  rc = -46  error from NF90_GET_VAR
+                         !  rc = -48  error from NF90_INQUIRE
+                         !  rc = -52  error from NF90_INQUIRE_VARIABLE
 !
 ! !DESCRIPTION:
 !     Read a variable from an existing file
@@ -1591,15 +1584,15 @@
                          !  rc = -12  error determining default precision
                          !  rc = -13  error determining variable type
                          !  rc = -19  unable to identify coordinate variable
-                         !  rc = -38  error from ncvpt (dimension variable)
-                         !  rc = -40  error from ncvid
-                         !  rc = -41  error from ncdid or ncdinq (lat or lon)
-                         !  rc = -42  error from ncdid or ncdinq (lev)
-                         !  rc = -43  error from ncvid (time variable)
-                         !  rc = -44  error from ncagt (time attribute)
-                         !  rc = -46  error from ncvgt
-                         !  rc = -48  error from ncinq
-                         !  rc = -52  error from ncvinq
+                         !  rc = -38  error from NF90_VAR_PUT (dimension variable)
+                         !  rc = -40  error from NF90_INQ_VARID
+                         !  rc = -41  error from NF90_INQ_DIMID (lat or lon)
+                         !  rc = -42  error from NF90_INQ_DIMID (lev)
+                         !  rc = -43  error from NF90_INQ_VARID (time variable)
+                         !  rc = -44  error from NF90_GET_ATT (time attribute)
+                         !  rc = -46  error from NF90_GET_VAR
+                         !  rc = -48  error from NF90_INQUIRE
+                         !  rc = -52  error from NF90_INQUIRE_VARIABLE
 
 !
 ! !DESCRIPTION:
@@ -1913,14 +1906,14 @@
                              ! -1 Time increment is 0
                              ! -18 incorrect time increment
                              ! -30 can't open file
-                             ! -31 error from ncddef
-                             ! -32 error from ncvdef (dimension variable)
-                             ! -33 error from ncapt(c) (dimension attribute)
-                             ! -34 error from ncvdef (variable)
-                             ! -35  error from ncapt(c) (variable attribute)
-                             ! -36  error from ncaptc/ncapt (global attribute)
-                             ! -37  error from ncendf
-                             ! -38  error from ncvpt (dimension variable)
+                             ! -31 error from NF90_DEF_DIM
+                             ! -32 error from NF90_DEF_VAR (dimension variable)
+                             ! -33 error from NF90_PUT_ATT (dimension attribute)
+                             ! -34 error from NF90_DEF_VAR (variable)
+                             ! -35  error from NF90_PUT_ATT (variable attribute)
+                             ! -36  error from NF90_PUT_ATT (global attribute)
+                             ! -37  error from NF90_ENDDEF
+                             ! -38  error from NF90_VAR_PUT (dimension variable)
                              ! -39 Num of real var elements and Cnt differ
                              ! -40 error setting deflate compression routine
                              ! -41 error setting fletcher checksum routine
@@ -2085,21 +2078,13 @@
         endif
       enddo
 
-! Make NetCDF errors non-fatal, and do not warning messages.
-
-      call ncpopt(0)
-
 ! Create the new NetCDF file. [ Enter define mode. ]
 
-#if defined(HAS_NETCDF4)
       if (isFileExtensionNetCDF4(trim(cfio%fName))) then
-         rc = nf_create (trim(cfio%fName), IOR(NF_CLOBBER,NF_NETCDF4), fid)
+         rc = nf90_create (trim(cfio%fName), IOR(NF90_CLOBBER,NF90_NETCDF4), fid)
       else
-         rc = nf_create (trim(cfio%fName), IOR(IOR(NF_CLOBBER,NF_NETCDF4),NF_CLASSIC_MODEL), fid) !NETCDF4/HDF5
+         rc = nf90_create (trim(cfio%fName), IOR(IOR(NF90_CLOBBER,NF90_NETCDF4),NF90_CLASSIC_MODEL), fid) !NETCDF4/HDF5
       end if
-#else
-      fid = nccre (trim(cfio%fName), NCCLOB, rc)
-#endif
 
       if (err("Create: can't create file",rc,-30) .LT. 0) return
 
@@ -2161,26 +2146,22 @@
       end if
 
       if (index(cfio%grids(ig)%gName,'station') .gt. 0) then
-         stationdim(ig) = ncddef (fid, nameStation, im, rc)
+         rc = NF90_DEF_DIM(fid, nameStation, im, stationdim(ig))
          if (err("Create: error defining station",rc,-31) .LT. 0) return
-!         londim(ig) = ncddef (fid, nameLon, im, rc)
-!         if (err("Create: error defining lon",rc,-31) .LT. 0) return
-!         latdim(ig) = ncddef (fid, nameLat, jm, rc)
-!         if (err("Create: error defining lat",rc,-31) .LT. 0) return
       else
-         londim(ig) = ncddef (fid, nameLon, im, rc)
+         rc = NF90_DEF_DIM(fid, nameLon, im, londim(ig))
          if (err("Create: error defining lon",rc,-31) .LT. 0) return
-         latdim(ig) = ncddef (fid, nameLat, jm, rc)
+         rc = NF90_DEF_DIM(fid, nameLat, jm, latdim(ig))
          if (err("Create: error defining lat",rc,-31) .LT. 0) return
       end if
 
       if (.NOT. surfaceOnly) then
-        levdim(ig) = ncddef (fid, nameLev, km, rc)
+        rc = NF90_DEF_DIM(fid, nameLev,km,levdim(ig))
         if (err("Create: error defining lev",rc,-31) .LT. 0) return
       endif
       if ( trim(cfio%grids(ig)%standardName) .eq. &
            'atmosphere_hybrid_sigma_pressure_coordinate' ) then
-         layerdim(ig) = ncddef (fid, nameEdge, km+1, rc)
+         rc = NF90_DEF_DIM(fid, nameEdge, km+1, layerdim(ig))
          if (err("Create: error defining edges",rc,-31) .LT. 0) return
       endif
 
@@ -2188,117 +2169,98 @@
 ! Define dimension variables.
 
       if (index(cfio%grids(ig)%gName,'station') .gt. 0) then
-!         stationid(ig) = ncvdef (fid, nameStation, NCDOUBLE, 1,       &
-!                                 stationdim(ig), rc)
-!         if (err("Create: error defining station",rc,-32) .LT. 0) return
-         lonid(ig) = ncvdef (fid, nameLon, NCDOUBLE, 1, stationdim(ig), rc)
+         rc = NF90_DEF_VAR (fid, nameLon, NF90_DOUBLE, stationdim(ig), lonid(ig))
          if (err("Create: error creating lon",rc,-32) .LT. 0) return
-         latid(ig) = ncvdef (fid, nameLat, NCDOUBLE, 1, stationdim(ig), rc)
+         rc = NF90_DEF_VAR (fid, nameLat, NF90_DOUBLE, stationdim(ig), latid(ig))
          if (err("Create: error creating lat",rc,-32) .LT. 0) return
       else
-         lonid(ig) = ncvdef (fid, nameLon, NCDOUBLE, 1, londim(ig), rc)
+         rc = NF90_DEF_VAR (fid, nameLon, NF90_DOUBLE, londim(ig), lonid(ig))
          if (err("Create: error creating lon",rc,-32) .LT. 0) return
-         latid(ig) = ncvdef (fid, nameLat, NCDOUBLE, 1, latdim(ig), rc)
+         rc = NF90_DEF_VAR (fid, nameLat, NF90_DOUBLE, latdim(ig), latid(ig))
          if (err("Create: error creating lat",rc,-32) .LT. 0) return
          if (cfio%grids(ig)%twoDimLat) then
             dims2D(2) = latdim(ig)
             dims2D(1) = londim(ig)
-            lon2id(ig) = ncvdef (fid, nameLonDim, NCDOUBLE, 2, dims2D(1:2), rc)
+            rc = NF90_DEF_VAR (fid, nameLonDim, NF90_DOUBLE, dims2D(1:2), lon2id(ig))
             if (err("Create: error creating lon2d",rc,-32) .LT. 0) return
-            lat2id(ig) = ncvdef (fid, nameLatDim, NCDOUBLE, 2, dims2D(1:2), rc)
+            rc = NF90_DEF_VAR (fid, nameLatDim, NF90_DOUBLE, dims2D(1:2), lat2id(ig))
             if (err("Create: error creating lat2d",rc,-32) .LT. 0) return
          end if
       end if
 
       if (.NOT. surfaceOnly) then
-        levid(ig) = ncvdef (fid, nameLev, NCDOUBLE, 1, levdim(ig), rc)
+        rc = NF90_DEF_VAR (fid, nameLev, NF90_DOUBLE, levdim(ig), levid(ig))
         if (err("Create: error creating lev",rc,-32) .LT. 0) return
       endif
       if ( trim(cfio%grids(ig)%standardName) .eq. &
            'atmosphere_hybrid_sigma_pressure_coordinate' ) then
-         layerid(ig) = ncvdef (fid, nameEdge, NCDOUBLE, 1, layerdim(ig), rc)
+         rc = NF90_DEF_VAR (fid, nameEdge, NF90_DOUBLE, layerdim(ig), layerid(ig))
          if (err("Create: error creating edges",rc,-32) .LT. 0) return
       endif
 
 ! Set attributes for dimensions.
 
-      call ncaptc (fid,lonid(ig),'long_name',NCCHAR,LEN_TRIM(lonDimName), &
-                  lonDimName,rc)
+      rc = NF90_PUT_ATT(fid,lonid(ig),'long_name',lonDimName)
       if (err("Create: error creating lon attribute",rc,-33) .LT. 0) &
         return
-      call ncaptc (fid,lonid(ig),'units',NCCHAR,LEN_TRIM(lonUnits), &
-                  lonUnits,rc)
+      rc = NF90_PUT_ATT(fid,lonid(ig),'units',lonUnits)
       if (err("Create: error creating lon attribute",rc,-33) .LT. 0)  &
         return
 
-      call ncaptc (fid,latid(ig),'long_name',NCCHAR,LEN_TRIM(latDimName),&
-                  latDimName,rc)
+      rc = NF90_PUT_ATT(fid,latid(ig),'long_name',latDimName)
       if (err("Create: error creating lat attribute",rc,-33) .LT. 0) &
         return
-      call ncaptc (fid,latid(ig),'units',NCCHAR,LEN_TRIM(latUnits),&
-                  latUnits,rc)
+      rc = NF90_PUT_ATT(fid,latid(ig),'units',latUnits)
       if (err("Create: error creating lat attribute",rc,-33) .LT. 0) &
         return
 
       if (cfio%grids(ig)%twoDimLat) then
-         call ncaptc (fid,lon2id(ig),'long_name',NCCHAR,LEN_TRIM(lonName), &
-                      lonName,rc)
+         rc = NF90_PUT_ATT(fid,lon2id(ig),'long_name',lonName)
          if (err("Create: error creating lon2 attribute",rc,-33) .LT. 0) &
               return
-         call ncaptc (fid,lon2id(ig),'units',NCCHAR,LEN_TRIM(lonUnits), &
-                      lonUnits,rc)
+         rc = NF90_PUT_ATT(fid,lon2id(ig),'units',lonUnits)
          if (err("Create: error creating lon2 attribute",rc,-33) .LT. 0)  &
               return
 
-         call ncaptc (fid,lat2id(ig),'long_name',NCCHAR,LEN_TRIM(latName),&
-                      latName,rc)
+         rc = NF90_PUT_ATT(fid,lat2id(ig),'long_name',latName)
          if (err("Create: error creating lat2 attribute",rc,-33) .LT. 0) &
               return
-         call ncaptc (fid,lat2id(ig),'units',NCCHAR,LEN_TRIM(latUnits),&
-                      latUnits,rc)
+         rc = NF90_PUT_ATT(fid,lat2id(ig),'units',latUnits)
          if (err("Create: error creating lat2 attribute",rc,-33) .LT. 0) &
               return
       end if
 
       if ( trim(cfio%grids(ig)%standardName) .eq. &
            'atmosphere_hybrid_sigma_pressure_coordinate' ) then
-         call ncaptc (fid,layerid(ig),'long_name',NCCHAR,LEN_TRIM(layerName),&
-                    layerName,rc)
+         rc = NF90_PUT_ATT(fid,layerid(ig),'long_name',layerName)
          if (err("Create: error creating layer attribute",rc,-33) .LT. 0)&
             return
-         call ncaptc (fid,layerid(ig),'units',NCCHAR,LEN_TRIM(layerUnits),&
-                      layerUnits, rc)
+         rc = NF90_PUT_ATT(fid,layerid(ig),'units',layerUnits)
          if (err("Create: error creating layer attribute",rc,-33) .LT. 0)&
            return
       endif
       if (.NOT. surfaceOnly) then
-        call ncaptc (fid,levid(ig),'long_name',NCCHAR,LEN_TRIM(levName),&
-                    levName,rc)
+        rc = NF90_PUT_ATT(fid,levid(ig),'long_name',levName)
         if (err("Create: error creating lev attribute",rc,-33) .LT. 0)&
            return
-        call ncaptc (fid,levid(ig),'units',NCCHAR,LEN_TRIM(levunits),&
-                    levunits,rc)
+        rc = NF90_PUT_ATT(fid,levid(ig),'units',levunits)
         if (err("Create: error creating lev attribute",rc,-33) .LT. 0)&
            return
-        call ncaptc (fid,levid(ig),'positive',NCCHAR,LEN_TRIM('down'),&
-                    'down',rc)
+        rc = NF90_PUT_ATT(fid,levid(ig),'positive','down')
         if (err("Create: error creating lev attribute",rc,-33) .LT. 0)&
            return
-        call ncaptc (fid,levid(ig),'coordinate',NCCHAR,LEN_TRIM(  & 
-                     cfio%grids(ig)%coordinate), cfio%grids(ig)%coordinate &
-                     , rc)
+        rc = NF90_PUT_ATT(fid,levid(ig),'coordinate', &
+               cfio%grids(ig)%coordinate)
         if (err("Create: error creating lev attribute",rc,-33) .LT. 0)&
            return
-        call ncaptc (fid,levid(ig),'standard_name',NCCHAR,LEN_TRIM(  & 
-                     cfio%grids(ig)%standardName),cfio%grids(ig)%standardName&
-                     , rc)
+        rc = NF90_PUT_ATT(fid,levid(ig),'standard_name', &
+             cfio%grids(ig)%standardName)
         if (err("Create: error creating lev attribute",rc,-33) .LT. 0)&
            return
         if ( len(cfio%grids(ig)%formulaTerm) .gt. 0 .and. &
              trim(cfio%grids(ig)%formulaTerm) .ne. 'unknown') then
-           call ncaptc (fid,levid(ig),'formula_term',NCCHAR,LEN_TRIM(  & 
-                     cfio%grids(ig)%formulaTerm), cfio%grids(ig)%formulaTerm &
-                     , rc)
+           rc = NF90_PUT_ATT(fid,levid(ig),'formula_term', &
+              cfio%grids(ig)%formulaTerm)
            if (err("Create: error creating lev attribute",rc,-33) .LT. 0)&
            return
         end if
@@ -2306,15 +2268,15 @@
 ! end of mGrid loop
   end do
 
-      if( tm .LE. 0 ) then 
-         timedim = ncddef(fid, 'time', NCUNLIM, rc)
+      if( tm .LE. 0 ) then
+         rc = NF90_DEF_DIM(fid, 'time', NF90_UNLIMITED, timedim) 
       else
-         timedim = ncddef(fid, 'time', tm, rc)
+         rc = NF90_DEF_DIM(fid, 'time', tm, timedim) 
          bTimeSet = .TRUE.
       endif
       if (err("Create: error defining time",rc,-31) .LT. 0) return
       if ( aveFile ) then
-         bndsdim = ncddef(fid, 'nv', 2, rc)
+         rc = NF90_DEF_DIM(fid, 'nv', 2, bndsdim)
          if (err("Create: error defining time bounds",rc,-31) .LT. 0)&
               return
       end if
@@ -2325,18 +2287,17 @@
            'atmosphere_sigma_coordinate' ) then
             if (ig .eq. 1) then
               if (cfio%mGrids .eq. 1) then
-                 ptopdim = ncddef (fid, "ptop", 1, rc)
+                 rc = NF90_DEF_DIM(fid, "ptop", 1, ptopdim)
               else
-                 ptopdim = ncddef (fid, "ptop0", 1, rc)
+                 rc = NF90_DEF_DIM(fid, "ptop0", 1, ptopdim)
               end if
             end if
         endif
       end do
 
-      timeid = ncvdef (fid, 'time', NCLONG, 1, timedim, rc)
+      rc = NF90_DEF_VAR (fid, 'time', NF90_INT, timedim, timeid)
       if (err("Create: error creating time",rc,-32) .LT. 0) return
-      call ncaptc (fid, timeid, 'long_name', NCCHAR, LEN_TRIM(timeName),&
-                  timeName, rc)
+      rc = NF90_PUT_ATT(fid,timeid,'long_name',timeName)
       if (err("Create: error creating time attribute",rc,-33) .LT. 0)&
         return
 
@@ -2351,8 +2312,7 @@
       write (timeUnits,202) year,mon,day,hour,minute,sec
 202   format ('minutes since ',I4.4,'-',I2.2,'-',I2.2,' ',I2.2,':', &
               I2.2,':',I2.2)
-      call ncaptc (fid, timeid, 'units', NCCHAR, LEN_TRIM(timeUnits),  &
-                  timeUnits, rc)
+      rc = NF90_PUT_ATT(fid,timeid,'units',timeUnits)
       if (err("Create: error creating time attribute",rc,-33) .LT. 0) &
         return
       
@@ -2369,18 +2329,18 @@
         rc = -18
         return
       endif
-      call ncapt (fid, timeid, 'time_increment', NCLONG, 1, timInc, rc)
+      rc = NF90_PUT_ATT(fid,timeid,'time_increment',timInc)
       if (err("Create: error creating time attribute",rc,-33) .LT. 0) &
         return
-      call ncapt (fid,timeid,'begin_date',NCLONG,1,yyyymmdd_beg,rc)
+      rc = NF90_PUT_ATT(fid,timeid,'begin_date',yyyymmdd_beg)
       if (err("Create: error creating time attribute",rc,-33) .LT. 0) &
         return
-      call ncapt (fid,timeid,'begin_time',NCLONG,1,hhmmss_beg,rc)
+      rc = NF90_PUT_ATT(fid,timeid,'begin_time',hhmmss_beg)
       if (err("Create: error creating time attribute",rc,-33) .LT. 0) &
         return
 
       if ( aveFile ) then
-         call ncaptc (fid,timeid,'bounds',NCCHAR,9,'time_bnds',rc)
+         rc = NF90_PUT_ATT(fid,timeid,'bounds','time_bnds')
          if (err("Create: error creating time attribute",rc,-33) .LT. 0) &
              return
       end if
@@ -2438,50 +2398,46 @@
 
          dims1D = layerdim(ig)
 
-         akid(ig) = ncvdef (fid, nameAk, NCFLOAT, 1, dims1D, rc)
-         call ncaptc (fid,akid(ig),'long_name',NCCHAR,34,&
-                     'ak component of hybrid coordinate',rc)
+         rc = NF90_DEF_VAR (fid, nameAk, NF90_FLOAT, dims1D, akid(ig))
+         rc = NF90_PUT_ATT(fid,akid(ig),'long_name',&
+                     'ak component of hybrid coordinate')
          if (err("Create: error creating ak attribute",rc,-33) .LT. 0)&
             return
-         call ncaptc (fid,akid(ig),'units',NCCHAR,14,&
-                     'dimensionless',rc)
+         rc = NF90_PUT_ATT(fid,akid(ig),'units','dimensionless')
          if (err("Create: error creating ak attribute",rc,-33) .LT. 0)&
             return
 
-         bkid(ig) = ncvdef (fid, nameBk, NCFLOAT, 1, dims1D, rc)
-         call ncaptc (fid,bkid(ig),'long_name',NCCHAR,34,&
-                     'bk component of hybrid coordinate',rc)
+         rc = NF90_DEF_VAR (fid, nameBk, NF90_FLOAT, dims1D, bkid(ig))
+         rc = NF90_PUT_ATT(fid,bkid(ig),'long_name',&
+                     'bk component of hybrid coordinate')
          if (err("Create: error creating bk attribute",rc,-33) .LT. 0)&
             return
-         call ncaptc (fid,bkid(ig),'units',NCCHAR,14,&
-                     'dimensionless',rc)
+         rc = NF90_PUT_ATT(fid,bkid(ig),'units','dimensionless')
          if (err("Create: error creating bk attribute",rc,-33) .LT. 0)&
             return
 
-         ptopid(ig) = ncvdef (fid, namePtop, NCFLOAT, 1, ptopdim, rc)
+         rc = NF90_DEF_VAR (fid, namePtop, NF90_FLOAT, ptopdim, ptopid(ig))
          if (err("Create: error define ptopid",rc,-34) .LT. 0) return
-         call ncaptc (fid,ptopid(ig),'long_name',NCCHAR,36,&
-                     'ptop component of hybrid coordinate',rc)
+         rc = NF90_PUT_ATT(fid,ptopid(ig),'long_name',&
+                     'ptop component of hybrid coordinate')
          if (err("Create: error creating ptop attribute",rc,-33) .LT. 0)&
             return
-         call ncaptc (fid,ptopid(ig),'units',NCCHAR,       &
-                      len(trim(cfio%grids(ig)%ptopUnit)), &
-                     trim(cfio%grids(ig)%ptopUnit),rc)
+         rc = NF90_PUT_ATT(fid,ptopid(ig),'units',     &
+                     trim(cfio%grids(ig)%ptopUnit))
          if (err("Create: error creating ptop attribute",rc,-33) .LT. 0)&
             return
       end if
 
       if ( trim(cfio%grids(ig)%standardName) .eq. &
            'atmosphere_sigma_coordinate' ) then
-         ptopid(ig) = ncvdef (fid, namePtop, NCFLOAT, 1, ptopdim, rc)
+         rc = NF90_DEF_VAR (fid, namePtop, NF90_FLOAT, ptopdim, ptopid(ig))
          if (err("Create: error define ptopid",rc,-34) .LT. 0) return
-         call ncaptc (fid,ptopid(ig),'long_name',NCCHAR,36,&
-                     'ptop component of sigma coordinate',rc)
+         rc = NF90_PUT_ATT(fid,ptopid(ig),'long_name',&
+                     'ptop component of sigma coordinate')
          if (err("Create: error creating ptop attribute",rc,-33) .LT. 0)&
             return
-         call ncaptc (fid,ptopid(ig),'units',NCCHAR,      &
-                     len(trim(cfio%grids(ig)%ptopUnit)), &
-                     trim(cfio%grids(ig)%ptopUnit),rc)
+         rc = NF90_PUT_ATT(fid,ptopid(ig),'units',    &
+                     trim(cfio%grids(ig)%ptopUnit))
          if (err("Create: error creating ptop attribute",rc,-33) .LT. 0)&
             return
       end if
@@ -2532,34 +2488,34 @@
           ndim = 3
           if (index(cfio%varObjs(i)%grid%gName,'station') .gt. 0) ndim = 2
           if (packflag) then
-            vid(i) = ncvdef (fid, vname(i), NCSHORT, ndim, dims2D, rc)
+            rc = NF90_DEF_VAR (fid, vname(i), NF90_SHORT, dims2D, vid(i))
           else if (cfio%prec .EQ. 1) then
-            vid(i) = ncvdef (fid, vname(i), NCDOUBLE, ndim, dims2D, rc)
+            rc = NF90_DEF_VAR (fid, vname(i), NF90_DOUBLE, dims2D, vid(i))
           else
-            vid(i) = ncvdef (fid, vname(i), NCFLOAT, ndim, dims2D, rc)
+            rc = NF90_DEF_VAR (fid, vname(i), NF90_FLOAT, dims2D, vid(i))
           endif
         else
           ndim = 4
           if (index(cfio%varObjs(i)%grid%gName,'station') .gt. 0) ndim = 3
           if (packflag) then
-            vid(i) = ncvdef (fid, vname(i), NCSHORT, ndim, dims3D, rc)
+            rc = NF90_DEF_VAR (fid, vname(i), NF90_SHORT, dims3D, vid(i))
           else if (cfio%prec .EQ. 1) then
-            vid(i) = ncvdef (fid, vname(i), NCDOUBLE, ndim, dims3D, rc)
+            rc = NF90_DEF_VAR (fid, vname(i), NF90_DOUBLE, dims3D, vid(i))
           else
-            vid(i) = ncvdef (fid, vname(i), NCFLOAT, ndim, dims3D, rc)
+            rc = NF90_DEF_VAR (fid, vname(i), NF90_FLOAT, dims3D, vid(i))
           endif
         endif
         if (err("Create: error defining variable",rc,-34) .LT. 0)  &
          return
 
-#if defined(HAS_NETCDF4)
+!#if defined(HAS_NETCDF4)
 
 !
 ! Chunksize is set to IM,JM,1,1 works for 2D and 3D variables
 !
         if ( (associated(cfio%varObjs(i)%ChunkSize)) ) then 
-           rc=NF_DEF_VAR_CHUNKING(fid, vid(i), &
-                NF_CHUNKED, cfio%varObjs(i)%ChunkSize)
+           rc=NF90_DEF_VAR_CHUNKING(fid, vid(i), &
+                NF90_CHUNKED, cfio%varObjs(i)%ChunkSize)
            if (err("Create: error setting Chunked variable",rc,-40) .LT. 0) &
            return
         else
@@ -2567,12 +2523,12 @@
 ! Set Chunsize to IM,JM,1,1 by default 
 ! If Time (tm) has been set in grid, set the file to contiguous
 !
-           if( bTimeSet .eq. .FALSE.) then
+           if( bTimeSet .eqv. .FALSE. ) then
               nDefaultChunkSize(1)=im
               nDefaultChunkSize(2)=jm
               nDefaultChunkSize(3)=1
               nDefaultChunkSize(4)=1
-              rc=NF_DEF_VAR_CHUNKING(fid, vid(i), NF_CHUNKED,  & 
+              rc=NF90_DEF_VAR_CHUNKING(fid, vid(i), NF90_CHUNKED,  & 
                    nDefaultChunkSize)
            endif
 
@@ -2581,64 +2537,62 @@
 ! Handle deflation
 !
         if (cfio%deflate > 0 .and. cfio%deflate <= 9) then
-           rc = nf_def_var_deflate(fid, vid(i), 1, 1, cfio%deflate)
+           rc = NF90_DEF_VAR_deflate(fid, vid(i), 1, 1, cfio%deflate)
            if (err("Create: error setting deflate filter",rc,-40) .LT. 0) return
         end if
 
 ! enable error checking
-!        rc = nf_def_var_fletcher32(fid, vid(i), 1)
+!        rc = NF90_DEF_VAR_fletcher32(fid, vid(i), 1)
 !        if (err("Create: error setting fletcher",rc,-41) .LT. 0) return
-#endif
+!#endif
 
-        call ncaptc (fid, vid(i), 'long_name', NCCHAR,  &
-                    LEN_TRIM(vtitle(i)),vtitle(i), rc)
+        rc = NF90_PUT_ATT(fid, vid(i), 'long_name',vtitle(i))
         if (err("Create: error defining long_name attribute",rc,-35) &
           .LT. 0) return
-        call ncaptc (fid, vid(i), 'units', NCCHAR,  &
-                    LEN_TRIM(vunits(i)),vunits(i), rc)
+        rc = NF90_PUT_ATT(fid, vid(i), 'units',vunits(i))
         if (err("Create: error defining units attribute",rc,-35) &
           .LT. 0) return
 
         if (packflag) then
-          call ncapt (fid,vid(i),'_FillValue',NCFLOAT,1,amiss_32,rc)
+          rc = NF90_PUT_ATT(fid,vid(i),'_FillValue',amiss_32)
           if (err("Create: error defining FillValue attribute",rc,-35) &
           .LT. 0) return
           if ( scale_32 .ne. 1.0 .or. offset_32 .ne. 0.0 ) then
-          call ncapt (fid,vid(i),'scale_factor',NCFLOAT,1,scale_32,rc)
+          rc = NF90_PUT_ATT(fid,vid(i),'scale_factor',scale_32)
           if (err("Create: error defining scale_factor attribute",rc,-35) &
               .LT. 0) return
-          call ncapt (fid,vid(i),'add_offset',NCFLOAT,1,offset_32,rc)
+          rc = NF90_PUT_ATT(fid,vid(i),'add_offset',offset_32)
           if (err("Create: error defining add_offset attribute",rc,-35) &
               .LT. 0) return
-          call ncapt (fid,vid(i),'packmin',NCFLOAT,1,low_32,rc)
+          rc = NF90_PUT_ATT(fid,vid(i),'packmin',low_32)
           if (err("Create: error defining packmin attribute",rc,-35)  &
              .LT. 0) return
-          call ncapt (fid,vid(i),'packmax',NCFLOAT,1,high_32,rc)
+          rc = NF90_PUT_ATT(fid,vid(i),'packmax',high_32)
           if (err("Create: error defining packmax attribute",rc,-35) &
              .LT. 0) return
           end if
-          call ncapt (fid,vid(i),'missing_value',NCSHORT,1,amiss_16,rc)
+          rc = NF90_PUT_ATT(fid,vid(i),'missing_value',amiss_16)
           if (err("Create: error defining missing_value attribute",rc,-35) &
           .LT. 0) return
-          call ncapt (fid,vid(i),'fmissing_value',NCFLOAT,1,amiss_32,rc)
+          rc = NF90_PUT_ATT(fid,vid(i),'fmissing_value',amiss_32)
           if (err("Create: error defining fmissing_value attribute",rc,-35) &
           .LT. 0) return
         else
-          call ncapt (fid,vid(i),'_FillValue',NCFLOAT,1,amiss_32,rc)
+          rc = NF90_PUT_ATT(fid,vid(i),'_FillValue',amiss_32)
           if (err("Create: error defining FillValue attribute",rc,-35) &
           .LT. 0) return
           if ( scale_32 .ne. 1.0 .or. offset_32 .ne. 0.0 ) then
-          call ncapt (fid,vid(i),'scale_factor',NCFLOAT,1,scale_32,rc)
+          rc = NF90_PUT_ATT(fid,vid(i),'scale_factor',scale_32)
           if (err("Create: error defining scale_factor attribute",rc,-35) &
               .LT. 0) return
-          call ncapt (fid,vid(i),'add_offset',NCFLOAT,1,offset_32,rc)
+          rc = NF90_PUT_ATT(fid,vid(i),'add_offset',offset_32)
           if (err("Create: error defining add_offset attribute",rc,-35) &
               .LT. 0) return
           end if
-          call ncapt (fid,vid(i),'missing_value',NCFLOAT,1,amiss_32,rc)
+          rc = NF90_PUT_ATT(fid,vid(i),'missing_value',amiss_32)
           if (err("Create: error defining missing_value attribute",rc,-35) &
           .LT. 0) return
-          call ncapt (fid,vid(i),'fmissing_value',NCFLOAT,1,amiss_32,rc)
+          rc = NF90_PUT_ATT(fid,vid(i),'fmissing_value',amiss_32)
           if (err("Create: error defining fmissing_value attribute",rc,-35) &
           .LT. 0) return
 
@@ -2669,10 +2623,9 @@
               rc=err("FileCreate: Num of real var elements and Cnt differ",-39,-39) 
               return
             end if
-            call ncapt (cfio%fid,vid(i),cfio%varObjs(i)%attRealNames(iCnt),&
-                        NCFLOAT, cfio%varObjs(i)%attRealCnts(iCnt),        &
-                        realVarAtt, rc)
-            if (err("FileCreate: error from ncapt for real att",rc,-35) &
+            rc = NF90_PUT_ATT(cfio%fid,vid(i),cfio%varObjs(i)%attRealNames(iCnt),&
+                        realVarAtt)
+            if (err("FileCreate: error from NF90_PUT_ATT for real att",rc,-35) &
                 .LT. 0) return
             deallocate(realVarAtt)
          end do
@@ -2702,10 +2655,8 @@
               rc=err("FileCreate: Num of int var elements and Cnt differ",-39,-39) 
               return
             end if
-            call ncapt (cfio%fid,vid(i),cfio%varObjs(i)%attIntNames(iCnt),&
-                        NCLONG, cfio%varObjs(i)%attIntCnts(iCnt),         &
-                        intVarAtt, rc)
-            if (err("FileCreate: error from ncapt for int att",rc,-35) &
+            rc = NF90_PUT_ATT(cfio%fid,vid(i),cfio%varObjs(i)%attIntNames(iCnt),intVarAtt)
+            if (err("FileCreate: error from NF90_PUT_ATT for int att",rc,-35) &
                 .LT. 0) return
             deallocate(intVarAtt)
          end do
@@ -2728,10 +2679,9 @@
 
 !        write char variable attributes to output file
          do iCnt = 1, cfio%varObjs(i)%nVarAttChar
-            call ncapt (cfio%fid,vid(i),cfio%varObjs(i)%attCharNames(iCnt),&
-                        NCCHAR, cfio%varObjs(i)%attCharCnts(iCnt),         &
-                        cfio%varObjs(i)%varAttChars(iCnt), rc)
-            if (err("FileCreate: error from ncapt for char att",rc,-35) &
+            rc = NF90_PUT_ATT(cfio%fid,vid(i),cfio%varObjs(i)%attCharNames(iCnt),&
+                        cfio%varObjs(i)%varAttChars(iCnt))
+            if (err("FileCreate: error from NF90_PUT_ATT for char att",rc,-35) &
                 .LT. 0) return
          end do
 
@@ -2739,24 +2689,21 @@
 
 !         if ( cfio%varObjs(i)%scaleFactor /= 0 ) then
             scale_factor = cfio%varObjs(i)%scaleFactor 
-            call ncapt (cfio%fid, vid(i), 'scale_factor', NCFLOAT,   &
-                        1, scale_factor, rc)
-            if (err("FileCreate: error from ncapt for scale_factor",rc,-35) &
+            rc = NF90_PUT_ATT(cfio%fid, vid(i), 'scale_factor', scale_factor)
+            if (err("FileCreate: error from NF90_PUT_ATT for scale_factor",rc,-35) &
                 .LT. 0) return
 !         end if
 !         if ( cfio%varObjs(i)%addOffSet /= 0 ) then
             add_offset = cfio%varObjs(i)%addOffSet   
-            call ncapt (cfio%fid, vid(i), 'add_offset', NCFLOAT,   &
-                        1, add_offset, rc)
-            if (err("FileCreate: error from ncapt for add_offset",rc,-35) &
+            rc = NF90_PUT_ATT(cfio%fid, vid(i), 'add_offset', add_offset)
+            if (err("FileCreate: error from NF90_PUT_ATT for add_offset",rc,-35) &
                 .LT. 0) return
 !           end if
               
          if ( LEN_TRIM(cfio%varObjs(i)%standardName) .gt. 0 ) then
-            call ncaptc (cfio%fid, vid(i), 'standard_name', NCCHAR,   &
-                        LEN_TRIM(cfio%varObjs(i)%standardName),       &
-                        cfio%varObjs(i)%standardName, rc)
-            if (err("FileCreate: error from ncapt for standard_name",rc,-35) &
+            rc = NF90_PUT_ATT(cfio%fid, vid(i), 'standard_name', &
+                        cfio%varObjs(i)%standardName)
+            if (err("FileCreate: error from NF90_PUT_ATT for standard_name",rc,-35) &
                 .LT. 0) return
          end if
         end if
@@ -2770,30 +2717,29 @@
             high_32 = vRange_32(2,i)
             low_32  = vRange_32(1,i)
           endif
-          call ncapt (fid,vid(i),'vmin',NCFLOAT,1,low_32,rc)
+          rc = NF90_PUT_ATT(fid,vid(i),'vmin',low_32)
           if (err("Create: error defining vmin attribute",rc,-35) &
              .LT. 0) return
-          call ncapt (fid,vid(i),'vmax',NCFLOAT,1,high_32,rc)
+          rc = NF90_PUT_ATT(fid,vid(i),'vmax',high_32)
           if (err("Create: error defining vmax attribute",rc,-35) &
              .LT. 0) return
         else
-          call ncapt (fid,vid(i),'vmin',NCFLOAT,1,amiss_32,rc)
+          rc = NF90_PUT_ATT(fid,vid(i),'vmin',amiss_32)
           if (err("Create: error defining vmin attribute",rc,-35) &
              .LT. 0) return
-          call ncapt (fid,vid(i),'vmax',NCFLOAT,1,amiss_32,rc)
+          rc = NF90_PUT_ATT(fid,vid(i),'vmax',amiss_32)
           if (err("Create: error defining vmax attribute",rc,-35) &
              .LT. 0) return
 
         endif
 
-        call ncapt (fid,vid(i),'valid_range',NCFLOAT,2,vRange_32(:,i),rc)
+        rc = NF90_PUT_ATT(fid,vid(i),'valid_range',vRange_32(:,i))
         if (err("Create: error defining valid_range attribute",rc,-35) &
            .LT. 0) return
 
         if ( cfio%varObjs(i)%timAve ) then
-           call ncaptc (fid, vid(i), 'cell_methods', NCCHAR,  &
-                    len(trim(cfio%varObjs(i)%cellMthd))+6,     &
-                    'time: '//trim(cfio%varObjs(i)%cellMthd), rc)
+           rc = NF90_PUT_ATT(fid, vid(i), 'cell_methods',  &
+                    'time: '//trim(cfio%varObjs(i)%cellMthd))
            if (err("Create: error defining cell_methods attribute",rc,-35) &
                    .LT. 0) return
         end if
@@ -2801,8 +2747,8 @@
         if (cfio%mGrids == 1) then
            ig = 1
            if (cfio%grids(ig)%twoDimLat) then
-              call ncaptc (fid, vid(i), 'coordinates', NCCHAR,  &
-                   LEN_TRIM(coordinatesName), coordinatesName, rc)
+              rc = NF90_PUT_ATT(fid, vid(i), 'coordinates',  &
+                   coordinatesName)
               if (err("Create: error defining coordinates attribute",rc,-35) &
                    .LT. 0) return
            end if
@@ -2813,12 +2759,12 @@
       if ( aveFile ) then
          dimsbnd(1) = bndsdim
          dimsbnd(2) = timedim
-         bndsid = ncvdef (fid, 'time_bnds', NCFLOAT, 2, dimsbnd, rc)
+         rc =  NF90_DEF_VAR (fid, 'time_bnds', NF90_FLOAT, dimsbnd, bndsid)
       end if
 
 ! Exit define mode.
 
-      call ncendf (fid, rc)
+      rc = NF90_ENDDEF (fid)
       if (err("Create: error exiting define mode",rc,-37) .LT. 0)  &
        return
 
@@ -2880,36 +2826,36 @@
       if (cfio%grids(ig)%twoDimLat) then
          corner(1) = 1
          edges(1) = im
-         call ncvpt (fid, lonid(ig), corner, edges, lon2_64, rc)
+         rc = NF90_PUT_VAR(fid,lonid(ig),lon2_64,corner,edges)
          if (err("Create: error writing lons2",rc,-38) .LT. 0) return
 
          corner(1) = 1
          edges(1) = jm
-         call ncvpt (fid, latid(ig), corner, edges, lat2_64, rc)
+         rc = NF90_PUT_VAR(fid,latid(ig),lat2_64,corner,edges)
          if (err("Create: error writing lats2",rc,-38) .LT. 0) return
 
          corner2d = 1
          edges2d(1) = im
          edges2d(2) = jm
-         call ncvpt (fid, lon2id(ig), corner2d, edges2d, lon_64, rc)
+         rc = NF90_PUT_VAR(fid, lon2id(ig), lon_64,corner2d, edges2d)
          if (err("Create: error writing lons",rc,-38) .LT. 0) return
 
          corner2d = 1
          edges2d(1) = im
          edges2d(2) = jm
-         call ncvpt (fid, lat2id(ig), corner2d, edges2d, lat_64, rc)
+         rc = NF90_PUT_VAR(fid, lat2id(ig), lat_64,corner2d, edges2d)
          if (err("Create: error writing lats",rc,-38) .LT. 0) return
          deallocate(lon2_64, stat = rtcode)
          deallocate(lat2_64, stat = rtcode)
       else
          corner(1) = 1
          edges(1) = im
-         call ncvpt (fid, lonid(ig), corner, edges, lon_64, rc)
+         rc = NF90_PUT_VAR(fid, lonid(ig), lon_64, corner, edges)
          if (err("Create: error writing lons",rc,-38) .LT. 0) return
 
          corner(1) = 1
          edges(1) = jm
-         call ncvpt (fid, latid(ig), corner, edges, lat_64, rc)
+         rc = NF90_PUT_VAR(fid, latid(ig), lat_64, corner, edges)
          if (err("Create: error writing lats",rc,-38) .LT. 0) return
       end if
       deallocate(lon_64, stat = rtcode)
@@ -2918,7 +2864,7 @@
       if (.NOT. surfaceOnly) then
         corner(1) = 1
         edges(1) = km
-        call ncvpt (fid, levid(ig), corner, edges, levs_64, rc)
+        rc = NF90_PUT_VAR(fid, levid(ig), levs_64, corner, edges)
         if (err("Create: error writing levs",rc,-38) .LT. 0) return
       endif
       deallocate(levs_64, stat = rtcode)
@@ -2927,14 +2873,14 @@
            'atmosphere_hybrid_sigma_pressure_coordinate' ) then
         corner(1) = 1
         edges(1) = 1
-        call ncvpt (fid, ptopid(ig), corner, edges, ptop_32, rc)
+        rc = NF90_PUT_VAR(fid, ptopid(ig), ptop_32, corner, edges)
         if (err("Create: error writing ptopid prs",rc,-38) .LT. 0) return
         corner(1) = 1
         edges(1) = km+1
-        call ncvpt (fid, layerid(ig), corner, edges, layer, rc)
+        rc = NF90_PUT_VAR(fid, layerid(ig), layer, corner, edges)
         if (err("Create: error writing layers",rc,-38) .LT. 0) return
-        call ncvpt (fid, akid(ig), corner, edges, ak_32, rc)
-        call ncvpt (fid, bkid(ig), corner, edges, bk_32, rc)
+        rc = NF90_PUT_VAR(fid, akid(ig), ak_32, corner, edges)
+        rc = NF90_PUT_VAR(fid, bkid(ig), bk_32, corner, edges)
         if (err("Create: error writing ak/bk",rc,-38) .LT. 0) return
       endif
       deallocate(layer, stat = rtcode)
@@ -2945,14 +2891,14 @@
            'atmosphere_sigma_coordinate' ) then
         corner(1) = 1
         edges(1) = 1
-        call ncvpt (fid, ptopid(ig), corner, edges, ptop_32, rc)
+        rc = NF90_PUT_VAR(fid, ptopid(ig), ptop_32, corner, edges)
       endif
 
 ! end of mGrids loop
  end do
       corner(1) = 1
       edges(1) = 1
-      call ncvpt (fid, timeid, corner, edges, 0, rc)
+      rc = NF90_PUT_VAR(fid, timeid, (/0/), corner, edges)
       if (err("Create: error writing times",rc,-38) .LT. 0) return
 
       deallocate(latid, stat = rtcode)
@@ -3084,15 +3030,15 @@ contains
             bndsdata(2) = (incSecs + curSecs)/60.
          end if
 
-         vid = ncvid (cfio%fid, 'time_bnds', rtcode)
+         rtcode = NF90_INQ_VARID (cfio%fid, 'time_bnds', vid)
          if ( rtcode .ne. 0 ) then 
-            print *, "ncvid failed in ncvid for time_bnds"
+            print *, "NF90_INQ_VARID failed in NF90_INQ_VARID for time_bnds"
             if ( present(rc) ) rc = rtcode
             return
          end if
-         call ncvpt (cfio%fid, vid, corner, edges, bndsdata, rtcode)
+         rtcode = NF90_PUT_VAR(cfio%fid,vid,bndsdata,corner,edges)
          if ( rtcode .ne. 0 ) then 
-            print *, "ncvid failed in ncvpt for time_bnds"
+            print *, "NF90_PUT_VAR failed in NF90_PUT_VAR for time_bnds"
             if ( present(rc) ) rc = rtcode
             return
          end if
@@ -3135,15 +3081,15 @@ contains
                          !  rc = -12  error determining default precision
                          !  rc = -13  error determining variable type
                          !  rc = -19  unable to identify coordinate variable
-                         !  rc = -38  error from ncvpt (dimension variable)
-                         !  rc = -40  error from ncvid
-                         !  rc = -41  error from ncdid or ncdinq (lat or lon)
-                         !  rc = -42  error from ncdid or ncdinq (lev)
-                         !  rc = -43  error from ncvid (time variable)
-                         !  rc = -44  error from ncagt (time attribute)
-                         !  rc = -46  error from ncvgt
-                         !  rc = -48  error from ncinq
-                         !  rc = -52  error from ncvinq
+                         !  rc = -38  error from NF90_VAR_PUT (dimension variable)
+                         !  rc = -40  error from NF90_INQ_VARID
+                         !  rc = -41  error from NF90_INQ_DIMID (lat or lon)
+                         !  rc = -42  error from NF90_INQ_DIMID (lev)
+                         !  rc = -43  error from NF90_INQ_VARID (time variable)
+                         !  rc = -44  error from NF90_GET_ATT (time attribute)
+                         !  rc = -46  error from NF90_GET_VAR
+                         !  rc = -48  error from NF90_INQUIRE
+                         !  rc = -52  error from NF90_INQUIRE_VARIABLE
                          !  rc = -99  must specify date/curTime of timeString
 !
 ! !DESCRIPTION:
@@ -3202,15 +3148,15 @@ contains
                          !  rc = -12  error determining default precision
                          !  rc = -13  error determining variable type
                          !  rc = -19  unable to identify coordinate variable
-                         !  rc = -38  error from ncvpt (dimension variable)
-                         !  rc = -40  error from ncvid
-                         !  rc = -41  error from ncdid or ncdinq (lat or lon)
-                         !  rc = -42  error from ncdid or ncdinq (lev)
-                         !  rc = -43  error from ncvid (time variable)
-                         !  rc = -44  error from ncagt (time attribute)
-                         !  rc = -46  error from ncvgt
-                         !  rc = -48  error from ncinq
-                         !  rc = -52  error from ncvinq
+                         !  rc = -38  error from NF90_VAR_PUT (dimension variable)
+                         !  rc = -40  error from NF90_INQ_VARID
+                         !  rc = -41  error from NF90_INQ_DIMID (lat or lon)
+                         !  rc = -42  error from NF90_INQ_DIMID (lev)
+                         !  rc = -43  error from NF90_INQ_VARID (time variable)
+                         !  rc = -44  error from NF90_GET_ATT (time attribute)
+                         !  rc = -46  error from NF90_GET_VAR
+                         !  rc = -48  error from NF90_INQUIRE
+                         !  rc = -52  error from NF90_INQUIRE_VARIABLE
 !
 ! !DESCRIPTION:
 !     Read a variable from an existing file
@@ -3354,15 +3300,15 @@ contains
                          !  rc = -12  error determining default precision
                          !  rc = -13  error determining variable type
                          !  rc = -19  unable to identify coordinate variable
-                         !  rc = -38  error from ncvpt (dimension variable)
-                         !  rc = -40  error from ncvid
-                         !  rc = -41  error from ncdid or ncdinq (lat or lon)
-                         !  rc = -42  error from ncdid or ncdinq (lev)
-                         !  rc = -43  error from ncvid (time variable)
-                         !  rc = -44  error from ncagt (time attribute)
-                         !  rc = -46  error from ncvgt
-                         !  rc = -48  error from ncinq
-                         !  rc = -52  error from ncvinq
+                         !  rc = -38  error from NF90_VAR_PUT (dimension variable)
+                         !  rc = -40  error from NF90_INQ_VARID
+                         !  rc = -41  error from NF90_INQ_DIMID (lat or lon)
+                         !  rc = -42  error from NF90_INQ_DIMID (lev)
+                         !  rc = -43  error from NF90_INQ_VARID (time variable)
+                         !  rc = -44  error from NF90_GET_ATT (time attribute)
+                         !  rc = -46  error from NV_GET_VARA
+                         !  rc = -48  error from NF90_INQUIRE
+                         !  rc = -52  error from NF90_INQUIRE_VARIABLE
                          !  rc = -99  must specify date/curTime of timeString
 !
 ! !DESCRIPTION:
@@ -3420,15 +3366,15 @@ contains
                          !  rc = -12  error determining default precision
                          !  rc = -13  error determining variable type
                          !  rc = -19  unable to identify coordinate variable
-                         !  rc = -38  error from ncvpt (dimension variable)
-                         !  rc = -40  error from ncvid
-                         !  rc = -41  error from ncdid or ncdinq (lat or lon)
-                         !  rc = -42  error from ncdid or ncdinq (lev)
-                         !  rc = -43  error from ncvid (time variable)
-                         !  rc = -44  error from ncagt (time attribute)
-                         !  rc = -46  error from ncvgt
-                         !  rc = -48  error from ncinq
-                         !  rc = -52  error from ncvinq
+                         !  rc = -38  error from NF90_VAR_PUT (dimension variable)
+                         !  rc = -40  error from NF90_INQ_VARID
+                         !  rc = -41  error from NF90_INQ_DIMID (lat or lon)
+                         !  rc = -42  error from NF90_INQ_DIMID (lev)
+                         !  rc = -43  error from NF90_INQ_VARID (time variable)
+                         !  rc = -44  error from NF90_GET_ATT (time attribute)
+                         !  rc = -46  error from NF90_GET_VAR
+                         !  rc = -48  error from NF90_INQUIRE
+                         !  rc = -52  error from NF90_INQUIRE_VARIABLE
 !
 ! !DESCRIPTION:
 !     Read a variable from an existing file

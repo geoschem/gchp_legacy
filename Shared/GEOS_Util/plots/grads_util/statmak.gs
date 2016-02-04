@@ -46,13 +46,19 @@ tag    = subwrd  (args,2)
 
 * Define Number of Forecast Days and Time Interval (hrs)
 * ------------------------------------------------------
-'run getenv "NDAY"'
-             nday = result
 'run getinfo tinc'
              tinc = result
-if( nday = "NULL" ) ; nday = 5 ; endif
-if( tinc = "NULL" ) ; tinc = 6 ; endif
-                      nmax = 1 + nday*(24/tinc)
+         if( tinc = "NULL" ) ; tinc = 6 ; endif
+
+'run getinfo tdim'
+             tdum = result - 1
+             ndaymax = tdum * tinc / 24
+                nmax = 1 + ndaymax*(24/tinc)
+
+'run getenv "NDAY"'
+             nday = result
+         if( nday = "NULL" ) ; nday = ndaymax ; endif
+         if( nday > ndaymax) ; nday = ndaymax ; endif
 
 'getinfo tdim'
          tdim = result

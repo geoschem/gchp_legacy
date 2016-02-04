@@ -43,7 +43,6 @@ esma_help help:
 	@echo "      BASEDIR = $(BASEDIR)"
 	@echo "         ARCH = $(ARCH)"
 	@echo "         SITE = $(SITE)"
-	@echo "      INC_MPI = $(INC_MPI)"
 
 THIS := $(shell basename `pwd`)
 LIB  = lib$(THIS).a
@@ -70,7 +69,7 @@ esma_doc doc:
 #                  --------------------
 #                  User Defined Targets
 #                  --------------------
-.SUFFIXES:$(.SUFFIXES) .inc
+.SUFFIXES: += .inc
 ALLSRCS := $(shell cat path_names)
 HEADERS = $(shell cat path_names |grep "\.h")
 INCFILES = $(shell cat path_names |grep "\.inc")
@@ -108,6 +107,15 @@ ifeq ($(ESMA_FC),pgfortran)
  endif
 endif
 
+# There seems to be a bug with oda_core and PGI using
+# -fast. O3 works
+ifeq ($(ESMA_FC),gfortran)
+
+ ifeq ("$(BOPT)","Og")
+    diag_axis.o: FOPT := -Og
+ endif
+endif
+
 $(LIB) lib : $(DEPS) $(OBJS)
 	$(AR) $(AR_FLAGS) $(LIB) $(OBJS)
 
@@ -132,10 +140,6 @@ echo:
 	@$(PERL) $(FDP) -i $< $(FDP_FLAGS) -c $*___.f90
 	@$(RM) $*___.f90
 
-
-bmy:
-	@echo "USER_FINCS = $(USER_FINCS)"
-	@echo "USER_FMODS = $(USER_FINCS)"
 
 #.
 

@@ -100,8 +100,12 @@ endwhile
 
 'run getenv "GEOSUTIL"'
          geosutil = result
+
 'run getenv "VERIFICATION"'
          verification = result
+
+'run getenv "CMPEXP_ONLY"'
+             cmpexp_only = result
 
 
 * Get Model Primary Fields
@@ -249,10 +253,19 @@ endif
 'run getenv "CMPEXP"'
          cmpexp = result
          numexp = 1
-            exp = subwrd( cmpexp,numexp )
+
+          dummy = get_cmpexp (cmpexp,numexp)
+            exp = subwrd(dummy,1)
+           type = subwrd(dummy,2)
+
 while( exp != 'NULL' )
 say ' '
 say 'Comparing with: 'exp
+
+* analysis = false  EXP=M CMP=M  => ALEVS
+* analysis = false  EXP=M CMP=A  => DLEVS
+* analysis = true   EXP=A CMP=A  => ALEVS
+* analysis = true   EXP=A CMP=M  => DLEVS
 
 '!chckfile 'exp'/.HOMDIR' 
  'run getenv CHECKFILE'
@@ -263,7 +276,7 @@ say 'Comparing with: 'exp
         '!/bin/cp 'exp'/HISTORY.rc .'
      endif
 '!remove CHECKFILE.txt'
-'!cat HISTORY.rc | sed -e "s/,/ , /g" > HISTORY.T'
+'!cat HISTORY.rc | sed -e "s/,/ , /g" | sed -e "s/*/@/g" > HISTORY.T'
 
 * Get CMPEXP Primary Fields
 * -------------------------
@@ -568,10 +581,14 @@ endwhile
 * Check next Comparison Experiment Dataset
 * ----------------------------------------
   numexp = numexp + 1
-     exp = subwrd( cmpexp,numexp )
+   dummy = get_cmpexp (cmpexp,numexp)
+     exp = subwrd(dummy,1)
+    type = subwrd(dummy,2)
+
 endwhile
 '!/bin/mv HISTORY.Tmp HISTORY.T'
 
+if( cmpexp_only = TRUE ) ; return ; endif
 
 *********************************************************************
 ****   Loop over Possible Verification Datasets for Comparison   ****
@@ -940,3 +957,32 @@ function setname (name1,name2,cfile1,tag)
     endif
 
 return cname
+
+* Get Next EXP from CMPEXP List
+* -----------------------------
+function get_cmpexp (cmpexp,num)
+      exp  = subwrd(cmpexp,num)
+      len = get_length (exp)
+      bit = substr(exp,len-1,1)
+      if( bit = ":" )
+          type = substr(exp,len,1)
+          exp  = substr(exp,1,len-2)
+      else
+          type = M
+      endif
+return exp' 'type
+
+function get_length (string)
+tb = ""
+i = 1
+while (i<=256)
+blank = substr(string,i,1)
+if( blank = tb )
+length = i-1
+i = 999
+else
+i = i + 1
+endif
+endwhile
+return length
+

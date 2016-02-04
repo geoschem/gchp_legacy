@@ -40,7 +40,7 @@ namelist / get_cal_time_nml / allow_calendar_conversion
 ! </NAMELIST>
 
 character(len=128) :: version='$Id: get_cal_time.F90,v 1.1.1.2 2012-11-16 16:00:10 atrayano Exp $'
-character(len=128) :: tagname='$Name: jk-G40-GEOSctm-advcore-update3 $'
+character(len=128) :: tagname='$Name: Heracles-3_1_CTM $'
 
 contains
 !------------------------------------------------------------------------

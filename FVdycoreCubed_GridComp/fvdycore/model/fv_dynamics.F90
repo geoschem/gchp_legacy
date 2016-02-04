@@ -403,23 +403,24 @@ contains
 
                                                   call timing_off('Remapping')
          if( last_step )  then
+
+           !if( hydrostatic ) then
 !--------------------------
 ! Filter omega for physics:
 !--------------------------
-            if(nf_omega>0) call del2_cubed(omga, 0.20*da_min, npx, npy, npz, nf_omega)
-            if(.not.hydrostatic .and. replace_w) then
-!$omp parallel do default(shared) 
-               do k=1,npz
-                  do j=js,je
-                     do i=is,ie
-!                       dz/dt = - omega / (g*density)
-                        w(i,j,k) = delz(i,j,k)/delp(i,j,k) * omga(i,j,k)
-                     enddo
-                  enddo
-               enddo
-               if( gid==0 ) write(6,*) 'Warning: W-wind replaced by scaled Omega'
-               replace_w = .false.
-            endif
+                if(nf_omega>0)    &
+                call del2_cubed(omga, 0.20*da_min, npx, npy, npz, nf_omega)
+           !else
+!$OMP parallel do default(none) shared(is,ie,js,je,npz,omga,delp,delz,w)
+           !   do k=1,npz
+           !      do j=js,je
+           !         do i=is,ie
+           !            omga(i,j,k) = delp(i,j,k)/delz(i,j,k)*w(i,j,k)
+           !         enddo
+           !      enddo
+           !   enddo
+           !endif
+
          endif
 
       endif

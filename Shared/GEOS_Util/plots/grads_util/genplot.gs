@@ -179,6 +179,9 @@ endif
 'run uppercase 'seasons
                 seasons = result
 
+'run getenv "CMPEXP_ONLY"'
+             cmpexp_only = result
+
 **************************************************
 ****            Echo Calling Sequence         ****
 **************************************************
@@ -251,7 +254,7 @@ endwhile
 * ---------------------------------------------
 'set dfile 'qfile.1
 'setlons'
-'set lat -90 90'
+'setlats'
 'getinfo dlon'
          dlon = result
 'getinfo dlat'
@@ -305,9 +308,11 @@ endif
 * Land/Water Masks
 * ----------------
 if( LAND = 'TRUE' | OCEAN = 'TRUE' )
+   'set t 1'
    'setmask     mod'
-   'define omaskmod = maskout( 1, lwmaskmod-0.5 )'
-   'define lmaskmod = maskout( 1, 0.5-lwmaskmod )'
+   'define lwmaskmod = regrid2( lwmaskmod,0.25,0.25,bs_p1,'lonmin','latmin')'
+   'define  omaskmod = maskout( 1, lwmaskmod-0.5 )'
+   'define  lmaskmod = maskout( 1, 0.5-lwmaskmod )'
 endif
 
 
@@ -348,7 +353,7 @@ else
       'define qmod = 'NAME'.1'
     endif
 endif
-
+                          'define qmod = regrid2( qmod,0.25,0.25,bs_p1,'lonmin','latmin')'
 if(    LAND  = 'TRUE'   |  OCEAN = 'TRUE' )
    if( LAND  = 'TRUE' ) ; 'define qmod = maskout( 'SCALE'*qmod,lmaskmod )' ; endif
    if( OCEAN = 'TRUE' ) ; 'define qmod = maskout( 'SCALE'*qmod,omaskmod )' ; endif
@@ -358,7 +363,17 @@ endif
 
 'seasonal qmod'
 
-
+* Create Dummy File with REGRID Dimensions
+* ----------------------------------------
+  'define qmodr = qmod'
+  'getinfo undef'
+           undef = result
+  'set sdfwrite -5d regrid.nc4'
+  'set undef 'undef
+  'sdfwrite qmodr'
+  'sdfopen regrid.nc4'
+  'getinfo    numfiles'
+              rgfile = result
 
 
 * Loop over Possible Experiment Datasets for Comparison
@@ -367,10 +382,33 @@ endif
 'run getenv "CMPEXP"'
          cmpexp = result
             num = 1
-            exp = subwrd( cmpexp,num )
+
+          dummy = get_cmpexp (cmpexp,num)
+            exp = subwrd(dummy,1)
+           type = subwrd(dummy,2)
+
 while( exp != 'NULL' )
 say ' '
 say 'Comparing with: 'exp
+
+* analysis = false  EXP=M CMP=M  => ALEVS
+* analysis = false  EXP=M CMP=A  => DLEVS
+* analysis = true   EXP=A CMP=A  => ALEVS
+* analysis = true   EXP=A CMP=M  => DLEVS
+
+if( analysis != "false" )
+    if( type = A )
+       'run setenv "LEVTYPE" 'ALEVS
+    else
+       'run setenv "LEVTYPE" 'DLEVS
+    endif
+else
+    if( type = A )
+       'run setenv "LEVTYPE" 'DLEVS
+    else
+       'run setenv "LEVTYPE" 'ALEVS
+    endif
+endif
 
 '!chckfile 'exp'/.HOMDIR'
  'run getenv CHECKFILE'
@@ -382,7 +420,7 @@ say 'Comparing with: 'exp
      endif
 '!remove CHECKFILE.txt'
 
-'!cat HISTORY.rc | sed -e "s/,/ , /g" > HISTORY.T'
+'!cat HISTORY.rc | sed -e "s/,/ , /g" | sed -e "s/*/@/g" > HISTORY.T'
 
 * Get EXP Comparison Variables
 * ----------------------------
@@ -401,7 +439,7 @@ endwhile
 
 if( FOUND = TRUE )
 'setlons'
-'set lat -90 90'
+'setlats'
 
 * Land/Water Masks
 * ----------------
@@ -413,9 +451,11 @@ else
    'set lev 'LEVEL
 endif
    'set t 1'
-   'setmask     obs'
-   'define omaskobs = maskout( 1, lwmaskobs-0.5 )'
-   'define lmaskobs = maskout( 1, 0.5-lwmaskobs )'
+*  'setmask     obs'
+*  'define lwmaskobs = regrid2( lwmaskobs,0.25,0.25,bs_p1,'lonmin','latmin')'
+   'define lwmaskobs = lwmaskmod'
+   'define  omaskobs = maskout( 1, lwmaskobs-0.5 )'
+   'define  lmaskobs = maskout( 1, 0.5-lwmaskobs )'
 endif
 
 'set dfile 'ofile.1
@@ -463,6 +503,7 @@ endif
          xdim = result
 if( xdim != 540 )
 
+                              'define qobs = regrid2( qobs,0.25,0.25,bs_p1,'lonmin','latmin')'
     if(    LAND  = 'TRUE'   |  OCEAN = 'TRUE' )
        if( LAND  = 'TRUE' ) ; 'define qobs = maskout( 'SCALE'*qobs,lmaskobs )' ; endif
        if( OCEAN = 'TRUE' ) ; 'define qobs = maskout( 'SCALE'*qobs,omaskobs )' ; endif
@@ -472,10 +513,11 @@ if( xdim != 540 )
 
 else
 
-   'define qobs = regrid2( qobs,'dlon','dlat',bs_p1,'lonmin','latmin')'
+*                             'define qobs = regrid2( qobs,'dlon','dlat',bs_p1,'lonmin','latmin')'
+                              'define qobs = regrid2( qobs,0.25,0.25,bs_p1,'lonmin','latmin')'
     if(    LAND  = 'TRUE'   |  OCEAN = 'TRUE' )
-       if( LAND  = 'TRUE' ) ; 'define qobs = maskout( 'SCALE'*qobs,lmaskmod )' ; endif
-       if( OCEAN = 'TRUE' ) ; 'define qobs = maskout( 'SCALE'*qobs,omaskmod )' ; endif
+       if( LAND  = 'TRUE' ) ; 'define qobs = maskout( 'SCALE'*qobs,lmaskobs )' ; endif
+       if( OCEAN = 'TRUE' ) ; 'define qobs = maskout( 'SCALE'*qobs,omaskobs )' ; endif
     else
                               'define qobs =          'SCALE'*qobs'
     endif
@@ -504,7 +546,6 @@ else
 'set dfile 'qfile.1
 'set gxout shaded'
 'rgbset'
-'run setenv "LEVTYPE" 'ALEVS
 
 * Horizontal Plot
 * ---------------
@@ -524,7 +565,7 @@ endwhile
 * ---------------
         flag = ""
 while ( flag = "" )
-'makplotz 'NAME'  'EXPID' 'PREFIX' 'season' 'OUTPUT' 'qfile.1' 'qdesc.1' 'ofile.1' 'otag.1' 'odesc.1' 'begdate' 'enddate' 'begdateo' 'enddateo' 'climate' 'GC.1' 'MATH
+'makplotz 'NAME'  'EXPID' 'PREFIX' 'season' 'OUTPUT' 'qfile.1' 'qdesc.1' 'ofile.1' 'otag.1' 'odesc.1' 'rgfile' 'begdate' 'enddate' 'begdateo' 'enddateo' 'climate' 'GC.1' 'MATH
  if( DEBUG = "debug" )
      say "Hit ENTER to repeat plot, or NON-BLANK to continue"
      pull flag
@@ -547,11 +588,15 @@ endif
 
 * Check next Comparison Experiment Dataset
 * ----------------------------------------
-  num = num + 1
-  exp = subwrd( cmpexp,num )
+    num = num + 1
+  dummy = get_cmpexp (cmpexp,num)
+    exp = subwrd(dummy,1)
+   type = subwrd(dummy,2)
+
 endwhile
 '!/bin/mv HISTORY.Tmp HISTORY.T'
 
+if( cmpexp_only = TRUE ) ; return ; endif
 
 
 
@@ -595,7 +640,7 @@ endwhile
 
 if( FOUND = TRUE )
 'setlons'
-'set lat -90 90'
+'setlats'
 
 * Land/Water Masks
 * ----------------
@@ -608,8 +653,9 @@ else
 endif
    'set t 1'
    'setmask     obs'
-   'define omaskobs = maskout( 1, lwmaskobs-0.5 )'
-   'define lmaskobs = maskout( 1, 0.5-lwmaskobs )'
+   'define lwmaskobs = regrid2( lwmaskobs,0.25,0.25,bs_p1,'lonmin','latmin')'
+   'define  omaskobs = maskout( 1, lwmaskobs-0.5 )'
+   'define  lmaskobs = maskout( 1, 0.5-lwmaskobs )'
 endif
 
 
@@ -657,6 +703,7 @@ endif
          xdim = result
 if( xdim != 540 )
 
+                              'define qobs = regrid2( qobs,0.25,0.25,bs_p1,'lonmin','latmin')'
     if(    LAND  = 'TRUE'   |  OCEAN = 'TRUE' )
        if( LAND  = 'TRUE' ) ; 'define qobs = maskout( qobs,lmaskobs )' ; endif
        if( OCEAN = 'TRUE' ) ; 'define qobs = maskout( qobs,omaskobs )' ; endif
@@ -664,7 +711,8 @@ if( xdim != 540 )
 
 else
 
-   'define qobs = regrid2( qobs,'dlon','dlat',bs_p1,'lonmin','latmin')'
+*                             'define qobs = regrid2( qobs,'dlon','dlat',bs_p1,'lonmin','latmin')'
+                              'define qobs = regrid2( qobs,0.25,0.25,bs_p1,'lonmin','latmin')'
     if(    LAND  = 'TRUE'   |  OCEAN = 'TRUE' )
        if( LAND  = 'TRUE' ) ; 'define qobs = maskout( qobs,lmaskmod )' ; endif
        if( OCEAN = 'TRUE' ) ; 'define qobs = maskout( qobs,omaskmod )' ; endif
@@ -736,7 +784,7 @@ endwhile
 * ---------------
         flag = ""
 while ( flag = "" )
-'makplotz 'NAME'  'EXPID' 'PREFIX' 'season' 'OUTPUT' 'qfile.1' 'qdesc.1' 'ofile.1' 'otag.1' 'odesc.1' 'begdate' 'enddate' 'begdateo' 'enddateo' 'climate' 'GC.1' 'MATH
+'makplotz 'NAME'  'EXPID' 'PREFIX' 'season' 'OUTPUT' 'qfile.1' 'qdesc.1' 'ofile.1' 'otag.1' 'odesc.1' 'rgfile' 'begdate' 'enddate' 'begdateo' 'enddateo' 'climate' 'GC.1' 'MATH
  if( DEBUG = "debug" )
      say "Hit ENTER to repeat plot, or NON-BLANK to continue"
      pull flag
@@ -835,6 +883,34 @@ endwhile
 endif
 'quit'
 return
+
+* Get Next EXP from CMPEXP List
+* -----------------------------
+function get_cmpexp (cmpexp,num)
+      exp  = subwrd(cmpexp,num)
+      len = get_length (exp)
+      bit = substr(exp,len-1,1)
+      if( bit = ":" )
+          type = substr(exp,len,1)
+          exp  = substr(exp,1,len-2)
+      else
+          type = M
+      endif
+return exp' 'type
+
+function get_length (string)
+tb = ""
+i = 1
+while (i<=256)
+blank = substr(string,i,1)
+if( blank = tb )
+length = i-1
+i = 999
+else
+i = i + 1
+endif
+endwhile
+return length
 
 * To Prevent Problem with BIT: E
 * ------------------------------

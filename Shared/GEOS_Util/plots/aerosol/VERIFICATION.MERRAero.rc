@@ -1,13 +1,13 @@
 OBSNAM: MERRAero
 OBSDSC: MERRA_Aerosol_Reanalysis_Rel-2
 
-        filename:   '/discover/nobackup/projects/gmao/iesa/aerosol/experiments/dR_MERRA-AA-r2/inst2d_gaas_x_monthly.ddf'
+        filename:   'VERIFICATION/dR_MERRA-AA-r2/inst2d_gaas_x_monthly.ddf'
         filetype:   'HDF'
         fields:     'AODANA'    , 'GAAS'     , 'AODANA'    , 1 ,
                     'AODINC'    , 'GAAS'     , 'AODINC'    , 1 ,
                     ::
 
-        filename:   '/discover/nobackup/projects/gmao/iesa/aerosol/experiments/dR_MERRA-AA-r2/inst2d_gaas_v_monthly.ddf'
+        filename:   'VERIFICATION/dR_MERRA-AA-r2/inst2d_gaas_v_monthly.ddf'
         filetype:   'HDF'
         fields:     'DUINC'     , 'GAAS'     , 'DUINC'     , 1 ,
                     'SSINC'     , 'GAAS'     , 'SSINC'     , 1 ,
@@ -16,7 +16,7 @@ OBSDSC: MERRA_Aerosol_Reanalysis_Rel-2
                     'OCINC'     , 'GAAS'     , 'OCINC'     , 1 ,
                     ::
 
-        filename:   '/discover/nobackup/projects/gmao/iesa/aerosol/experiments/dR_MERRA-AA-r2/geosgcm_surf_monthly.ddf'
+        filename:   'VERIFICATION/dR_MERRA-AA-r2/geosgcm_surf_monthly.ddf'
         filetype:   'HDF'
         fields:     'TTAUDU'   , 'SOLAR'         , 'TTAUDU'   , 1 ,
                     'TTAUSS'   , 'SOLAR'         , 'TTAUSS'   , 1 ,
@@ -30,7 +30,7 @@ OBSDSC: MERRA_Aerosol_Reanalysis_Rel-2
                     'TOC'      , 'SOLAR'         , 'TOC'      , 1 ,
                     ::
 
-        filename:   '/discover/nobackup/projects/gmao/iesa/aerosol/experiments/dR_MERRA-AA-r2/tavg2d_aer_x_monthly.ddf'
+        filename:   'VERIFICATION/dR_MERRA-AA-r2/tavg2d_aer_x_monthly.ddf'
         filetype:   'HDF'
         fields:     'TOTEXTTAU'   , 'GOCART'      , 'TOTEXTTAU'   , 1 ,
                     'TOTSCATAU'   , 'GOCART'      , 'TOTSCATAU'   , 1 ,
@@ -191,7 +191,7 @@ OBSDSC: MERRA_Aerosol_Reanalysis_Rel-2
                     'OCFLUXV'     , 'GOCART'      , 'OCFLUXV'     , 1 ,
                     ::   
 
-        filename:   '/discover/nobackup/projects/gmao/iesa/aerosol/experiments/dR_MERRA-AA-r2/inst3d_aer_v_monthly.ddf'
+        filename:   'VERIFICATION/dR_MERRA-AA-r2/inst3d_aer_v_monthly.ddf'
         filetype:   'HDF'
         fields:     'GOCART::du001',    'GOCART'  , 'du001'     , 1 ,
                     'GOCART::du002',    'GOCART'  , 'du002'     , 1 ,
@@ -213,7 +213,7 @@ OBSDSC: MERRA_Aerosol_Reanalysis_Rel-2
                     'GOCART::OCphilic', 'GOCART'  , 'OCphilic'  , 1 ,
                     ::
 
-        filename:   '/discover/nobackup/projects/gmao/iesa/aerosol/experiments/dR_MERRA-AA-r2/inst2d_force_x_monthly.ddf'
+        filename:   'VERIFICATION/dR_MERRA-AA-r2/inst2d_force_x_monthly.ddf'
         filetype:   'HDF'
         fields:     'OLA'	      , 'IRRAD'	      ,  'olr_clr_na'        , 1 ,
 		    'OLC'	      , 'IRRAD'	      ,  'olr_clr'	     , 1 ,

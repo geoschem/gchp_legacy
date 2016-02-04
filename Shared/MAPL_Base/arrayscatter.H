@@ -1,4 +1,4 @@
-! $Id: arrayscatter.H,v 1.8.124.1 2012-11-08 21:23:04 atrayano Exp $
+! $Id: arrayscatter.H,v 1.9.2.1 2015-01-31 02:25:39 atrayano Exp $
 
 #ifdef NAME_
 #undef NAME_
@@ -94,7 +94,10 @@
          minIndexPDe=AL, maxIndexPDe=AU, rc=status)
     VERIFY_(STATUS)
 
-    ISZ = size(GLOBAL_ARRAY,1)
+! Compute count to be sent to each PE
+
+    if(present(mask)) then
+       ISZ = size(mask)
 
 #if (RANK_ == 2)
        JSZ = size(GLOBAL_ARRAY,2)
@@ -102,9 +105,6 @@
        JSZ = 1
 #endif
 
-! Compute count to be sent to each PE
-
-    if(present(mask)) then
        sendcounts = 0
        do II = 1,ISZ
           sendcounts(mask(ii)) = sendcounts(mask(ii)) + 1
@@ -149,6 +149,8 @@
        
 #if (RANK_ == 2)
        if (myhw > 0) then
+          ISZ = size(GLOBAL_ARRAY,1)
+          JSZ = size(GLOBAL_ARRAY,2)
           allocate(myglob(1-myhw:isz+myhw,1-myhw:jsz+myhw), stat=status)
           VERIFY_(STATUS)
           myglob(1:isz,1:jsz) = GLOBAL_ARRAY

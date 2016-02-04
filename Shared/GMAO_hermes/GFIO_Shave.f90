@@ -419,7 +419,9 @@ CONTAINS
 !-------------------------------------------------------------------------
 
    integer             iarg, argc
+#ifndef __GFORTRAN__
    integer, external :: iargc
+#endif
    character(len=2048)  argv
 
    character(len=256)   rcfile, label, var, Vars(mVars)

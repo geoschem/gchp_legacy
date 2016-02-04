@@ -35,6 +35,11 @@ if( field = t )
      if( type = mes ) ; cint = 0.2 ;endif
  endif
 endif
+if( field = q )
+ if( cint = '' )
+     cint = 0.1
+ endif
+endif
 
 'set parea off'
 'set vpage 0 11 0 8.5'

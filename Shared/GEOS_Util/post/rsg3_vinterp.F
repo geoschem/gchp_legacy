@@ -484,6 +484,7 @@ c *****                                                                     ****
 c *******************************************************************************
 
       use MAPL_ConstantsMod
+      use m_set_eta, only: set_eta
       implicit none
       integer  im,jm,lm1,lm2,nt
 
@@ -541,7 +542,7 @@ c ---------------
 
 c Construct Analysis Edge-Pressures from Input PS and DP
 c ------------------------------------------------------
-      call set_eta ( lm2,dum,ak,bk )
+      call set_eta ( lm2,L,dum,dum,ak,bk )
 
       do L=lm2+1,1,-1
       pe2(:,:,L) = ak(L) + bk(L)*ps2(:,:)
@@ -1123,7 +1124,7 @@ c Positive definite constraint
       subroutine usage()
       print *, "Usage:  "
       print *
-      print *, " rs_vinterp.x   [-dynrst     dynrst_fname]  Default: fvcore_internal_restart"
+      print *, " rsg3_vinterp.x [-dynrst     dynrst_fname]  Default: fvcore_internal_restart"
       print *, "                [-moistrst moistrst_fname]  Default: moist_internal_restart"
       print *, "                [-topo         topo_fname]  "
       print *

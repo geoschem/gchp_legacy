@@ -357,12 +357,12 @@ C **********************************************************************
               print *, 'Reading nymd: ',nymdr,' nhms: ',nhmsr
 	      if( nopres ) then
 		  call read_hdf_data  ( idpr,dp,ps,q2d,q3d,n2dp,n3dp,name2dp,name3dp,.true.,.false.,
-     .                                  im,jm,lm,nymdr,nhmsr,rc,ntime,ntimes,edges,ftype )
+     .                                  im,jm,lm,nymdr,nhmsr,rc,ntime,ntimes,edges,ftype,ptop )
 		  call read_hdf_data  ( id,dum3d,dum2d,q2d,q3d,n2d,n3d,name2d,name3d,.false.,.true.,
-     .                                  im,jm,lm,nymdr,nhmsr,rc,ntime,ntimes,edges,ftype )
+     .                                  im,jm,lm,nymdr,nhmsr,rc,ntime,ntimes,edges,ftype,ptop )
               else
                   call read_hdf_data  ( id,dp,ps,q2d,q3d,n2d,n3d,name2d,name3d,.true.,.true.,
-     .                                  im,jm,lm,nymdr,nhmsr,rc,ntime,ntimes,edges,ftype )
+     .                                  im,jm,lm,nymdr,nhmsr,rc,ntime,ntimes,edges,ftype,ptop )
 	      endif
 
               if( rc.eq.0 ) then
@@ -519,12 +519,13 @@ C **********************************************************************
       end subroutine read_hdf_meta
 
       subroutine read_hdf_data ( id,dp,ps,q2d,q3d,n2d,n3d,name2d,name3d,lprs,leta,
-     .                           im,jm,lm,nymd,nhms,rc,ntime,ntimes,edges,ftype )
+     .                           im,jm,lm,nymd,nhms,rc,ntime,ntimes,edges,ftype,ptop )
       implicit none
       include 'alias.com'
 
       integer   im,jm,lm,nymd,nhms,id,idpr,rc
       integer   n2d,n3d,ntime,ntimes
+      real   ptop
       real   ps(im,jm)
       real   dp(im,jm,lm)
       real  q2d(im,jm   ,n2d)
@@ -572,6 +573,12 @@ c -------------------------------
                   if( dp(1,1,1).gt.dp(1,1,lm) ) then
                       dp(:,:,1:lm) = dp(:,:,lm:1:-1)
                       zflip = .true.
+                  endif
+                  if( ps(1,1).eq.-999 ) then
+                      ps(:,:) = ptop
+                      do L=1,LM
+                      ps(:,:) = ps(:,:) + dp(:,:,L)
+                      enddo
                   endif
               endif
           enddo

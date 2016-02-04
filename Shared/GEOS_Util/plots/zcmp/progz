@@ -62,6 +62,9 @@ if( mfile = "NULL" ) ; return ; endif
 'run getenv "STD_DEV"'
          std_dev  = result
 
+'run getenv "CMPEXP_ONLY"'
+             cmpexp_only = result
+
 
 
 * Model Experiment Data
@@ -72,8 +75,10 @@ if( mfile = "NULL" ) ; return ; endif
              begdate  = result
 'run getenv "ENDDATE"'
              enddate  = result
-'setlons'
-'sety'
+*'setlons'
+*'setlats'
+'set lon 0 360'
+'set lat -90 90'
 'setz'
 'sett'
 
@@ -102,12 +107,41 @@ if( mfile = "NULL" ) ; return ; endif
 'run getenv "CMPEXP"'
          cmpexp = result
             num = 1
-            exp = subwrd( cmpexp,num )
+
+          dummy = get_cmpexp (cmpexp,num)
+            exp = subwrd(dummy,1)
+           type = subwrd(dummy,2)
+
 while( exp != 'NULL' )
 say ' '
 say 'Comparing with: 'exp
 
-'run setenv "LEVTYPE" 'A
+* analysis = false  EXP=M CMP=M  => ALEVS
+* analysis = false  EXP=M CMP=A  => DLEVS
+* analysis = true   EXP=A CMP=A  => ALEVS
+* analysis = true   EXP=A CMP=M  => DLEVS
+
+* INPUT Experiment is an Analysis
+*********************************
+if( analysis != "false" )
+    if( type = A )
+*   CMP Experiment is an Analysis
+       'run setenv "LEVTYPE" 'A
+    else
+*   CMP Experiment is an Model
+       'run setenv "LEVTYPE" 'D
+    endif
+else
+* INPUT Experiment is a Model
+*********************************
+    if( type = A )
+*   CMP Experiment is an Analysis
+       'run setenv "LEVTYPE" 'D
+    else
+*   CMP Experiment is an Model
+       'run setenv "LEVTYPE" 'A
+    endif
+endif
 
 '!chckfile 'exp'/.HOMDIR'
  'run getenv CHECKFILE'
@@ -119,7 +153,7 @@ say 'Comparing with: 'exp
      endif
 '!remove CHECKFILE.txt'
 
-'!cat HISTORY.rc | sed -e "s/,/ , /g" > HISTORY.T'
+'!cat HISTORY.rc | sed -e "s/,/ , /g" | sed -e "s/*/@/g" > HISTORY.T'
 
 if ( EXPORT = "HE" )
     'run getvar  ZLE      DYN 'exp
@@ -184,8 +218,10 @@ faco = facm
 * Create Temporary File at 1x1 degree resolution with consistent levels
 * ---------------------------------------------------------------------
 'set dfile 'mfile
+*'setlons'
+*'setlats'
+'set lon 0 360'
 'set lat -90 90'
-'setlons'
 
 'set dfile 'modfile
 'setz'
@@ -232,11 +268,35 @@ endwhile
 
 * Check next Comparison Experiment Dataset
 * ----------------------------------------
-  num = num + 1
-  exp = subwrd( cmpexp,num )
+
+'undefine exp'num'clim'
+'undefine exp'num'jan'
+'undefine exp'num'feb'
+'undefine exp'num'mar'
+'undefine exp'num'apr'
+'undefine exp'num'may'
+'undefine exp'num'jun'
+'undefine exp'num'jul'
+'undefine exp'num'aug'
+'undefine exp'num'sep'
+'undefine exp'num'oct'
+'undefine exp'num'nov'
+'undefine exp'num'dec'
+'undefine exp'num'djf'
+'undefine exp'num'jja'
+'undefine exp'num'mam'
+'undefine exp'num'son'
+'undefine exp'num'ann'
+
+    num = num + 1
+  dummy = get_cmpexp (cmpexp,num)
+    exp = subwrd(dummy,1)
+   type = subwrd(dummy,2)
+
 endwhile
 '!/bin/mv HISTORY.Tmp HISTORY.T'
 
+if( cmpexp_only = TRUE ) ; return ; endif
 
 *********************************************************************
 ****   Loop over Possible Verification Datasets for Comparison   ****
@@ -324,8 +384,10 @@ say 'Processing Season: 'season
 * Create Temporary File at 1x1 degree resolution with consistent levels
 * ---------------------------------------------------------------------
 'set dfile 'mfile
+*'setlons'
+*'setlats'
+'set lon 0 360'
 'set lat -90 90'
-'setlons'
 
 'set dfile 'modfile
 'setz'
@@ -374,6 +436,26 @@ endif
 
 * Check next Verification Dataset
 * -------------------------------
+
+'undefine obs'num'clim'
+'undefine obs'num'jan'
+'undefine obs'num'feb'
+'undefine obs'num'mar'
+'undefine obs'num'apr'
+'undefine obs'num'may'
+'undefine obs'num'jun'
+'undefine obs'num'jul'
+'undefine obs'num'aug'
+'undefine obs'num'sep'
+'undefine obs'num'oct'
+'undefine obs'num'nov'
+'undefine obs'num'dec'
+'undefine obs'num'djf'
+'undefine obs'num'jja'
+'undefine obs'num'mam'
+'undefine obs'num'son'
+'undefine obs'num'ann'
+
 num = num + 1
 endwhile
 
@@ -390,3 +472,32 @@ endwhile
      month = substr(date,loc  ,3)
       year = substr(date,loc+3,4)
 return month' 'year
+
+* Get Next EXP from CMPEXP List
+* -----------------------------
+function get_cmpexp (cmpexp,num)
+      exp  = subwrd(cmpexp,num)
+      len = get_length (exp)
+      bit = substr(exp,len-1,1)
+      if( bit = ":" )
+          type = substr(exp,len,1)
+          exp  = substr(exp,1,len-2)
+      else
+          type = M
+      endif
+return exp' 'type
+
+function get_length (string)
+tb = ""
+i = 1
+while (i<=256)
+blank = substr(string,i,1)
+if( blank = tb )
+length = i-1
+i = 999
+else
+i = i + 1
+endif
+endwhile
+return length
+

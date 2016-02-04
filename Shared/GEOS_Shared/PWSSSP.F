@@ -1489,5 +1489,5 @@ C     PRINT 10,I,S,APXEPS
       IF (S.LE.DUM) RETURN
    20 APXEPS = APXEPS *.1
       RETURN
-   10 FORMAT (10X,'I = ',I4,' S = ',F20.18,' EPS = ',F20.18)
+   10 FORMAT (10X,'I = ',I4,' S = ',F22.18,' EPS = ',F22.18)
       END

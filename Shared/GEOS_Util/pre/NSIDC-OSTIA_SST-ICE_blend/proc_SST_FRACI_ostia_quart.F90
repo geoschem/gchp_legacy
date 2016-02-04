@@ -111,7 +111,7 @@ PROGRAM proc_SST_FRACI_quart
               IF( (ostia_ICE_quart(iLon,iLat) .eq. myUNDEF) .or. (ostia_ICE_quart(iLon,iLat) <= Ice_thr))       &
                    ostia_ICE_quart(iLon,iLat) = MIN( 1.0d0, MAX(-0.017451*((ostia_SST_quart(iLon,iLat)- 271.38)/0.052747) + 0.96834, 0.0d0)) 
 
-              IF( iDebug) PRINT *, ostia_SST_quart(iLon,iLat), ostia_ICE_quart(iLon,iLat)
+              IF( iDebug /= 0 ) PRINT *, ostia_SST_quart(iLon,iLat), ostia_ICE_quart(iLon,iLat)
             END IF  ! IF( ostia_SST_quart(iLon,iLat) <= 275.0d0)
 
             IF( reynolds_SST(iLon,iLat) <= 275.0d0) THEN

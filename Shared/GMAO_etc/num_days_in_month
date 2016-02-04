@@ -1,0 +1,57 @@
+#!/usr/bin/env perl
+#=======================================================================
+# name - num_days_in_month
+# purpose - wrapper script for num_days_in_month() in Manipulate_time.pm
+#=======================================================================
+use strict;
+use warnings;
+
+# global variables
+#-----------------
+my ($year, $month);
+
+# main program
+#-------------
+{
+    use FindBin;
+    use lib "$FindBin::Bin";
+    use Manipulate_time ("num_days_in_month");
+    my $num_days;
+
+    init();
+    $num_days = num_days_in_month($year, $month);
+    print "$num_days\n";
+}
+
+#=======================================================================
+# name - init
+# purpose - get runtime parameters
+#=======================================================================
+sub init {
+    use Getopt::Long;
+    my ($help);
+
+    GetOptions( "h|help" => \$help );
+    usage() if $help;
+
+    # get inputs
+    #-----------
+    ($year, $month) = @ARGV;
+    unless ($year and $month) { warn "Warning. Incorrect inputs;"; usage() }
+}
+
+#=======================================================================
+# name - usage
+# purpose - print usage information
+#=======================================================================
+sub usage {
+    use File::Basename ("basename");
+    my $name = basename $0;
+    print <<"EOF";
+
+usage: $name year month
+purpose: prints number of days in the specified year/month
+
+EOF
+exit;
+}

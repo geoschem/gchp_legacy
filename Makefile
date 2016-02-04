@@ -103,7 +103,7 @@ endif
 
 # Optimization level for ESMF
 ifndef ESMF_BOPT
-  export ESMF_BOPT=g
+  export ESMF_BOPT=O
 endif
 
 # Other ESMF directory settings
@@ -113,7 +113,7 @@ export ESMF_INSTALL_MODDIR=$(ESMF_DIR)/$(ARCH)/mod
 export ESMF_INSTALL_HEADERDIR=$(ESMF_DIR)/$(ARCH)/include
 
 # Other ESMF compilation settings
-export ESMF_F90COMPILEOPTS=-align all -fPIC -traceback 
+export ESMF_F90COMPILEOPTS=-align all -fPIC #-traceback 
 export ESMF_CXXCOMPILEOPTS=-fPIC
 export ESMF_OPENMP=OFF
 

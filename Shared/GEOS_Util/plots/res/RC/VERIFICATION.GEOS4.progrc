@@ -1,0 +1,20 @@
+
+OBSNAM: ceresg4
+OBSDSC: CERES_(GEOS4-DAS)_Processing
+
+        filename:   'VERIFICATION/GEOS4_CERES/tsyn3d_mis_p/tsyn3d_mis_p.template.ddf'
+        filetype:   'HDF'
+        fields:     'ZLE'      , 'DYN'           , 'HGHT'    , 1
+                    'T'        , 'DYN'           , 'TMPU'    , 1
+                    'U'        , 'DYN'           , 'UWND'    , 1
+                    'V'        , 'DYN'           , 'VWND'    , 1
+                    'RH2'      , 'MOIST'         , 'RH'      , 1
+                    'Q'        , 'MOIST'         , 'SPHU'    , 0.001
+                    'DUM'      , 'DYN'           , 'DUM'     , 1
+                    ::
+
+        filename:   'VERIFICATION/GEOS4_CERES/tsyn2d_mis_x/tsyn2d_mis_x.template.ddf'
+        filetype:   'HDF'
+        fields:     'SLP'      , 'DYN'           , 'SLP'     , 100
+                    'DUM'      , 'DYN'           , 'DUM'     , 1
+                    ::

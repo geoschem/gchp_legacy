@@ -93,10 +93,10 @@
   DQRLSAN            |     1	   | xyz | C |    |   |   |	|      | 
   REEVAPCN           |     1	   | xyz | C |    |   |   |	|      | 
   REEVAPLS           |     1	   | xyz | C |    |   |   |	|      | 
-  PFICU              |     1	   | xyz | C |    |   |   |	|      | 
-  PFILSAN            |     1	   | xyz | C |    |   |   |	|      | 
-  PFLCU              |     1	   | xyz | C |    |   |   |	|      | 
-  PFLLSAN            |     1	   | xyz | C |    |   |   |	|      | 
+  PFICU              |     1	   | xyz | E |    |   |   |	|      | 
+  PFILSAN            |     1	   | xyz | E |    |   |   |	|      | 
+  PFLCU              |     1	   | xyz | E |    |   |   |	|      | 
+  PFLLSAN            |     1	   | xyz | E |    |   |   |	|      | 
   SPHU1              |     1	   | xyz | C |    |   |   |	|      | 
   TMPU1              |     1	   | xyz | C |    |   |   |	|      | 
   SPHU2              |     1	   | xyz | C |    |   |   |	|      | 
@@ -128,6 +128,9 @@
   H2O_TEND    	    | kg kg-1 s-1    | xyz | C |    |	|   |	  | tendency_of_water_vapor_mixing_ratio_due_to_chemistry
   GCCTO3    	    | dobsons        | xy  |   |    |	|   |	  | total_ozone 
   GCCTTO3           | dobsons        | xy  |   |    |	|   |	  | total_tropospheric_ozone 
+  DEPVEL_O3         |                | xy  |   |    |   |   |     |
+  DEPFLUX_O3        |                | xy  |   |    |   |   |     |
+  WETDEP_LOSS_H2O2  |                | xy  |   |    |   |   |     |
 # ------------------|----------------|-----|---|----|---|---|-----|---------------------------------
 </ExportSpec>
 #                               --------------
@@ -234,6 +237,7 @@
  TRC_OClO| mol mol-1 | xyz | C | | | | | | | | D,T,C | tmp
  TRC_Cl2| mol mol-1 | xyz | C | | | | | | | | D,T,C | tmp
  TRC_Cl2O2| mol mol-1 | xyz | C | | | | | | | | D,T,C | tmp
- TRC_H2O| mol mol-1 | xyz | C | | | | | | | | D,T,C | tmp
+ TRC_H2O | mol mol-1 | xyz | C |    |   |   |     |      | | | D,T,C | tmp
+ JLOP_PREV |   1     | xyz | C |    |   |   |     |      | | |       | tmp
 # --------------|------------|-----|---|----|---|---|-----|------|----|----|---------|---------------------------------
 </InternalSpec>

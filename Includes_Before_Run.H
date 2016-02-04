@@ -100,8 +100,13 @@
 
      DO J = 1, JM
      DO I = 1, IM
-        State_Met%PEDGE(I,J,L) = PLE(  I, J, LR) / 1d2  ! Pa -> hPa (mb)
-        State_Met%CMFMC(I,J,L) = CMFMC(I, J, L )    ! kg/m2/s
+        State_Met%PEDGE(I,J,L)   = PLE(  I, J, LR) / 1d2  ! Pa -> hPa (mb)
+        State_Met%CMFMC(I,J,L)   = CMFMC(I, J, L )        ! kg/m2/s
+        State_Met%DQRCU(I,J,L)   = DQRCU( I, J, L )
+        State_Met%PFICU(I,J,L)   = PFICU(I, J, L )
+        State_Met%PFILSAN(I,J,L) = PFILSAN(I, J, L )
+        State_Met%PFLCU(I,J,L)   = PFLCU(I, J, L )
+        State_Met%PFLLSAN(I,J,L) = PFLLSAN(I, J, L )
      ENDDO
      ENDDO
   ENDDO
@@ -111,7 +116,7 @@
   !=========================================================================
 
   State_Met%CLDF      = CLDF           ! unitless
-  State_Met%DTRAIN    = CMFMC          ! kg/m2/s
+  State_Met%DTRAIN    = DTRAIN         ! kg/m2/s
   State_Met%QI        = QI             ! kg/kg
   State_Met%QL        = QL             ! kg/kg
   State_Met%RH        = RH      * 1d2  ! unitless->[%]
@@ -119,6 +124,9 @@
   State_Met%T         = TMPU1          ! K
   State_Met%TAUCLI    = TAUCLI         ! unitless
   State_Met%TAUCLW    = TAUCLW         ! unitless
+  State_Met%REEVAPCN  = REEVAPCN
+  State_Met%REEVAPLS  = REEVAPLS
+  State_Met%DQRLSAN   = DQRLSAN
 
         ! Total optical depth [unitless]
   State_Met%OPTD      = ( State_Met%TAUCLI               &
@@ -132,12 +140,20 @@
   !=========================================================================
   DO I = 1, SIZE(Int2Chm,1)
      IF ( Int2Chm(I)%TrcID <= 0 ) CYCLE
-!     Input_Opt%TCVV(Int2Chm(I)%TrcID) = Int2Chm(I)%TCVV
      State_Chm%Tracers(:,:,:,Int2Chm(I)%TrcID) = Int2Chm(I)%Internal
   ENDDO
 
-  ! Flip in the vertical
+     ! Flip in the vertical
   State_Chm%Tracers   = State_Chm%Tracers( :, :, LM:1:-1, : )
+
+  IF ( IsChemTime .AND. Phase /= 1 ) THEN
+     ! Also fill JLOP_PREVIOUS from internal state
+     CALL MAPL_GetPointer( INTSTATE, Ptr3D, 'JLOP_PREV', notFoundOK=.TRUE., __RC__ )
+     IF ( ASSOCIATED(Ptr3D) .AND. ALLOCATED(JLOP_PREVIOUS) ) THEN
+         JLOP_PREVIOUS = NINT(Ptr3D)
+     ENDIF
+     Ptr3D => NULL()
+  ENDIF
 
   !=========================================================================
   ! On first call, also need to initialize the species from restart file.
@@ -175,6 +191,7 @@
            IF ( MAPL_am_I_Root()) WRITE(*,*) &
               'Could not find species in INTERNAL state - will be initialized to zero: ', &
               TRIM(SPFX), TRIM(State_Chm%Spec_Name(I))
+           State_Chm%Species(:,:,:,State_Chm%Spec_ID(I)) = 1e-26
            CYCLE
         ENDIF
         State_Chm%Species(:,:,:,State_Chm%Spec_ID(I)) = Ptr3D(:,:,LM:1:-1)

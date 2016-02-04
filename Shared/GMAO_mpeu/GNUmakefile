@@ -13,7 +13,7 @@
 # Make sure ESMADIR is defined
 # ----------------------------
 ifndef ESMADIR
-       ESMADIR := $(PWD)/../../..
+       ESMADIR := $(PWD)/..
 endif
 
 # Compilation rules, flags, etc
@@ -105,6 +105,7 @@ SRCS_F90	= m_date.F90			\
 		  m_showDistrib.F90		\
 		  m_stdio.F90			\
 		  m_zeit.F90			\
+		  m_sysclocks.F90		\
 		  m_ior4.F90			\
 		  m_rGrADS.F90			\
 		  m_wGrADS.F90			\
@@ -158,7 +159,7 @@ MODS_OBJ        = m_chars.o		\
 
 USER_FINCS  = $(I). $(I)$(INC_MPI)
 USER_CINCS  = $(I). $(I)$(INC_MPI)
-USER_FFLAGS = $(BIG_ENDIAN) $(M). 
+USER_FFLAGS = $(BIG_ENDIAN) $(M). $(PP)
 
 MOD_DIRS = . $(INC_MPI)
 FREAL = $(FREAL4)

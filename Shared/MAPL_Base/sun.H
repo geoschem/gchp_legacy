@@ -1,4 +1,4 @@
-! $Id: sun.H,v 1.8.98.2 2013-03-16 00:04:19 atrayano Exp $
+! $Id: sun.H,v 1.11 2014-12-09 17:20:55 atrayano Exp $
 
 
       type(MAPL_SunOrbit),               intent(IN ) :: ORBIT
@@ -88,24 +88,20 @@
 
          case(MAPL_SunAnnualMean)
 
-            if(YEAR==0) then
-               L=1
-            else
-               L=0
-            endif
             SLR  = 0.0
             ZTH  = 0.0
-            do IDAY = YEAR*ORBIT%DAYS_PER_CYCLE+(2-L),(YEAR+1)*ORBIT%DAYS_PER_CYCLE+L
+
+            do IDAY = 1,ORBIT%DAYS_PER_CYCLE
                SLT  = sin(LATS)*ORBIT%ZS(IDAY)
                ZTT  = cos(LATS)*ORBIT%ZC(IDAY)
                Y    =  max(-1.0,-SLT/ZTT)
                where (Y < 1.0)
                   Y   = ACOS(Y)
-                  SLT = (4.0*ORBIT%PP(IDAY)/MAPL_PI) * (Y *SLR + SIN(Y)*ZTH)
+                  SLT = (4.0*ORBIT%PP(IDAY)/MAPL_PI) * (Y *SLT + SIN(Y)*ZTT)
                   ZTT = SLR*MAPL_PI / (4.0*Y)
                elsewhere
                   SLT = 0.0
-                  ZTH = 0.0
+                  ZTT = 0.0
                endwhere
                SLR = SLR + SLT
                ZTH = ZTH + ZTT

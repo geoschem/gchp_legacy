@@ -113,7 +113,7 @@
 #define use_libMPI
 #endif
 
-#if defined(__INTEL_COMPILER) || defined(__PGI)
+#if defined(__INTEL_COMPILER) || defined(__PGI) || defined(__GFORTRAN__)
 #define _F95
 #define _F2000
 #endif

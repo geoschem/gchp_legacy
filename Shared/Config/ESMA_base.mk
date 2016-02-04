@@ -81,7 +81,7 @@ RM          = /bin/rm -f
 SED         = /bin/sed                       
 TAR         = /bin/tar
 GZIP        = gzip -v
-BOPT        = g
+BOPT        = O
 M4          = m4
 FDP         = $(ESMABIN)/fdp
 FDP_FLAGS   = -v
@@ -99,8 +99,10 @@ F2PYEXT     = so     # extension for python extensions
 #                     ----------------------
 
 PROTEX       = $(ESMABIN)/protex
-PROTEX_FLAGS = -g
+PROTEX_FLAGS = -g -b -f
 LATEX        = latex
+PDFLATEX     = pdflatex
+MKINDX       = makeindex
 DVIPS        = dvips -Ppdf -G0 -f 
 PS2PDF       = ps2pdf
 

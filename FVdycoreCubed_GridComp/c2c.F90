@@ -28,11 +28,13 @@ program gmao_regrid
   integer                :: filetype
   logical                :: changeResolution
 
+#ifndef __GFORTRAN__
   integer*4              :: iargc
   external               :: iargc
 
   integer(kind=8)         :: _FTELL
   external      :: _FTELL
+#endif
 
 ! ErrLog variables
 !-----------------
@@ -56,7 +58,7 @@ program gmao_regrid
   integer                       :: nargs
 
   integer                       :: unit_r, unit_w
-  integer                       :: i
+  integer                       :: i,j,k,n
   integer                       :: ic
   integer                       :: im
   integer                       :: ndes, myid
@@ -82,6 +84,9 @@ program gmao_regrid
          576, 361,   & ! D - 1/2 degree
         1152, 721] , &  ! E - 1/4 degree
        SHAPE = [2,6] )
+
+  type(MAPL_NCIO) :: inNCIO,outNCIO
+  integer           :: nDims, dimSizes(3)
 
 ! Begin
    
@@ -120,9 +125,15 @@ program gmao_regrid
   gi%filename = f_in
 
   ! determine grid type, and compute/guess im,im
-
-  call GetGridInfo(gi, filetype, rc=status)
-  VERIFY_(STATUS)
+  if (filetype ==0) then
+     InNCIO = MAPL_NCIOOpen(f_in,rc=status)
+     VERIFY_(STATUS)
+     call GetGridInfo(gi, filetype, ncinfo=InNCIO, rc=status)
+     VERIFY_(STATUS)   
+  else
+     call GetGridInfo(gi, filetype, rc=status)
+     VERIFY_(STATUS)
+  end if
 
   call getarg(2,str)
   gout%filename = str
@@ -168,6 +179,7 @@ program gmao_regrid
   changeResolution =  gi%im /= gout%im .or. gi%jm /= gout%jm
 
   if (changeResolution) then
+
      ! create horz transform
      call MAPL_HorzTransformCreate (Trans, im_in=gi%im, jm_in=gi%jm, &
           im_out=gout%im, jm_out=gout%jm, rc=STATUS)
@@ -179,43 +191,71 @@ program gmao_regrid
      allocate(var_out(gout%im, gout%jm), stat=status)
      VERIFY_(STATUS)
 
-     ! open files
-     UNIT_R = GetFile(gi%filename, rc=status)
-     VERIFY_(STATUS)
+     if (filetype ==0) then
 
-     UNIT_W = GetFile(gout%filename, rc=status)
-     VERIFY_(STATUS)
-
-     i=0
-     ! do until EOF
-     do while (.true.)
-
-     !  read record (level, slice, etc)
-        read(unit_r, err=100, end=200) var_in
-        i = i+1
-     !  if not VertOnly
-     !    transform
-     !  write
-        call MAPL_HorzTransformRun(Trans, var_in, var_out, RC=status)
+        call MAPL_NCIOChangeRes(InNCIO,OutNCIO,latSize=gout%jm,lonSize=gout%im,rc=status)
         VERIFY_(STATUS)
-        write(unit_w) var_out
-!        print *,'record ',i
-        cycle
+        call MAPL_NCIOSet(OutNCIO,filename=gout%filename)
+        call MAPL_NCIOCreateFile(OutNCIO)
+        do n=1,InNCIO%nVars
+           call MAPL_NCIOVarGetDims(InNCIO,InNCIO%vars(n)%name,nDims,dimSizes)
+           if (ndims ==1) then
+ 
+           else if (ndims ==2) then
+              call MAPL_VarRead(InNCIO,InNCIO%vars(n)%name,var_in)
+              call MAPL_HorzTransformRun(Trans, var_in, var_out, RC=status)
+              VERIFY_(STATUS)
+              call MAPL_VarWrite(OutNCIO,InNCIO%vars(n)%name,var_out)
+           else if (ndims ==3) then
+              do i=1,dimSizes(3) 
+                 call MAPL_VarRead(InNCIO,InNCIO%vars(n)%name,var_in,lev=i)
+                 call MAPL_HorzTransformRun(Trans, var_in, var_out, RC=status)
+                 VERIFY_(STATUS)
+                 call MAPL_VarWrite(OutNCIO,InNCIO%vars(n)%name,var_out,lev=i)
+              end do
+           end if
+        enddo
+        call MAPL_NCIOClose(OutNCIO)
+     else
+        ! open files
+        UNIT_R = GetFile(gi%filename, rc=status)
+        VERIFY_(STATUS)
 
-100     continue
-        RecEnd = _FTELL(unit_r)
-        backspace(unit_r)
-        RecStart = _FTELL(unit_r)
-        ASSERT_(4*((LM+1)+2) == RecEnd-RecStart)
-        print *,'WARNING: encoutered shorter record, assuming PREF'
-        read (unit_r) pref
-        write(unit_w) pref
-     end do
-200  continue
-     ! end do
-     ! close files
-     call FREE_FILE(UNIT_R)
-     call FREE_FILE(UNIT_W)
+        UNIT_W = GetFile(gout%filename, rc=status)
+        VERIFY_(STATUS)
+
+        i=0
+        ! do until EOF
+        do while (.true.)
+
+        !  read record (level, slice, etc)
+           read(unit_r, err=100, end=200) var_in
+           i = i+1
+        !  if not VertOnly
+        !    transform
+        !  write
+           call MAPL_HorzTransformRun(Trans, var_in, var_out, RC=status)
+           VERIFY_(STATUS)
+           write(unit_w) var_out
+   !        print *,'record ',i
+           cycle
+
+   100     continue
+           RecEnd = _FTELL(unit_r)
+           backspace(unit_r)
+           RecStart = _FTELL(unit_r)
+           ASSERT_(4*((LM+1)+2) == RecEnd-RecStart)
+           print *,'WARNING: encoutered shorter record, assuming PREF'
+           read (unit_r) pref
+           write(unit_w) pref
+        end do
+   200  continue
+        ! end do
+        ! close files
+        call FREE_FILE(UNIT_R)
+        call FREE_FILE(UNIT_W)
+
+     end if
 
      deallocate(var_out, var_in)
 
@@ -309,14 +349,16 @@ program gmao_regrid
 
     end subroutine GuessFileType
 
-    subroutine GetGridInfo(gi, filetype, rc)
+    subroutine GetGridInfo(gi, filetype, ncinfo, rc)
       use ESMF
       use MAPL_Mod
+      use MAPL_IOMod
 
       implicit none
 
       type(Regrid_GridInfo)         :: gi
       integer                       :: filetype
+      type(MAPL_NCIO), optional, intent(in) :: ncinfo
       integer, optional, intent(OUT):: RC
 
       integer :: i6, im, jm
@@ -325,11 +367,23 @@ program gmao_regrid
 
       gi%gridtype = GridType_Unknown
       if (filetype == 0) then
-         print *, ""
-         print *, "ERROR: netCDF inputs not supported yet"
-         print *, ""
-!         gi%filetype = 1
-         RETURN_(ESMF_FAILURE)
+         gi%im=-1
+         gi%jm=-1
+         do i=1,ncinfo%ndims
+            if ( trim(ncinfo%dims(i)%name) == "lon" ) then
+               gi%im = ncinfo%dims(i)%len
+            else if (trim(ncinfo%dims(i)%name) == "lat" ) then
+               gi%jm = ncinfo%dims(i)%len
+            end if
+         enddo
+         ASSERT_(gi%im /= -1)
+         ASSERT_(gi%jm /= -1)
+         if (gi%jm == gi%im*6) then
+            gi%gridtype = GridType_CubedSphere
+         else
+            gi%gridtype = GridType_LatLon
+         end if
+         RETURN_(ESMF_SUCCESS)
       end if
 
       if (filetype == 6) then

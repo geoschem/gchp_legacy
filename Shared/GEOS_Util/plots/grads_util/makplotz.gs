@@ -10,6 +10,7 @@ mdesc    = subwrd(args,k) ; k = k+1
 ofile    = subwrd(args,k) ; k = k+1
 oname    = subwrd(args,k) ; k = k+1
 odesc    = subwrd(args,k) ; k = k+1
+rfile    = subwrd(args,k) ; k = k+1
 bdate    = subwrd(args,k) ; k = k+1
 edate    = subwrd(args,k) ; k = k+1
 bdateo   = subwrd(args,k) ; k = k+1
@@ -191,18 +192,25 @@ endif
          xdim = result
 if( xdim = 540 ) ; 'set dfile 'mfile ; endif
 
+* Set DFILE to REGRID File to enable zonal averages with proper dimensions
+* ------------------------------------------------------------------------
+'set dfile 'rfile
 'setlons'
-'set lat -90 90'
+'setlats'
 'makez qobs z'
 
 'set dfile 'mfile
 'count "'season'" 'bdate' 'edate
  nmod = result
 
+* Set DFILE to REGRID File to enable zonal averages with proper dimensions
+* ------------------------------------------------------------------------
+'set dfile 'rfile
 'setlons'
-'set lat -90 90'
+'setlats'
 'makez qmod z'
 
+'set dfile 'mfile
 'set t   1'
 'set lon 0'
 

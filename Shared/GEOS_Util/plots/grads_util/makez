@@ -22,7 +22,7 @@ if( xfreq = 'varying' )
        lontot   = lonmax - lonmin + dlon/2
 
 *'setz'
-'sety'
+'setlats'
 
 * Variable is in File
 * -------------------
@@ -75,6 +75,6 @@ endif
 
 else
 *'setz'
-'sety'
+'setlats'
 'define 'name''tag' = 'alias
 endif

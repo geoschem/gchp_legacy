@@ -219,7 +219,7 @@
        ! call mpp_domains_set_stack_size(10000)
        ! call mpp_domains_set_stack_size(900000)
        ! call mpp_domains_set_stack_size(1500000)
-         call mpp_domains_set_stack_size(4000000)
+       ! call mpp_domains_set_stack_size(3000000)
 
          select case(nregions)
          case ( 1 )  ! Lat-Lon "cyclic"

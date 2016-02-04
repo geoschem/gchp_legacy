@@ -276,7 +276,7 @@
 !  All done
 !  --------
    close(999)
-   open (999,file='DYNRECENTER_EGRESS',form='formatted')
+   open (999,file='DYN_RANKHIST',form='formatted')
    close(999)
    call exit(0)
 

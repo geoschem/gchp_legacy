@@ -160,6 +160,15 @@ say ' '
 'run getenv "GEOSUTIL"'
              geosutil = result
 
+'run getenv "ANALYSIS"'
+             analysis  = result
+
+if( analysis != "false" )
+   'run setenv "LEVTYPE" 'ALEVS
+else
+   'run setenv "LEVTYPE" 'CLEVS
+endif
+
 * Initialize
 * ----------
 'reinit'
@@ -187,7 +196,7 @@ endwhile
 * ----------------
 'set dfile 'qfile.1
 'setlons'
-'set lat -90 90'
+'setlats'
 
       do_h = true
       do_z = true
@@ -372,7 +381,7 @@ endif
               'makez     'EXPORT''season' z'
               'set dfile 'qfile.1
               'set lon 0'
-              'run zplot 'EXPID' 'NAME' 'GC' 'EXPORT' 'season' 'OUTPUT' 'ZLOG' 'num' 'expdsc.1' 'qname.1
+              'run zplot 'EXPID' 'NAME' 'GC' 'EXPORT' 'season' 'OUTPUT' 'ZLOG' 'num' 'begdate' 'enddate' 'expdsc.1' 'qname.1
                 if( DEBUG = "debug" )
                     say "Hit  ENTER  to repeat plot"
                     say "Type 'next' for  next plot, 'done' for next field"

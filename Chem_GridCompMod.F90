@@ -373,7 +373,7 @@ CONTAINS
     ! as an "internal state" of the GEOSCHEMchem gridded component
     !=======================================================================
     myState%myCF = ESMF_ConfigCreate(__RC__)
-    call ESMF_ConfigLoadFile( myState%myCF, 'GIGC_GridComp.rc', __RC__)
+    call ESMF_ConfigLoadFile( myState%myCF, 'GIGC.rc', __RC__)
 
     ! Get generic state object
     CALL MAPL_GetObjectFromGC( GC, STATE, __RC__ )
@@ -1036,6 +1036,7 @@ CONTAINS
     ! Scalars                                   
     LOGICAL                     :: am_I_Root   ! Are we on the root PET?
     INTEGER                     :: myPet       ! # of the PET we are on 
+    INTEGER                     :: NPES        ! # of total PETs in MPI world
     INTEGER                     :: nymdB       ! GMT date @ start of simulation
     INTEGER                     :: nymdE       ! GMT date @ end of simulation
     INTEGER                     :: nymd        ! GMT date @ current time
@@ -1143,11 +1144,17 @@ CONTAINS
                    tsChem      = tsChem,      &  ! Chemistry timestep [seconds]
                    tsDyn       = tsDyn,       &  ! Dynamics timestep  [seconds]
                    localPet    = myPet,       &  ! PET # that we are on now
+                   petCount    = NPES,        &  ! Number of PETs in MPI World
                    mpiComm     = mpiComm,     &  ! MPI Communicator Handle
                    lonCtr      = lonCtr,      &  ! Lon centers on this PET [radians]
                    latCtr      = latCtr,      &  ! Lat centers on this PET [radians]
 		   haveImpRst  = haveImpRst,  &  ! Does import restart exist? 
                    __RC__                      )
+
+    Input_Opt%myCpu   = myPet
+
+    ! MSL - shift from 0 - 360 to -180 - 180 degree grid
+    where (lonCtr .gt. MAPL_PI ) lonCtr = lonCtr - 2*MAPL_PI
 
     ! Name of logfile for stdout redirect
     CALL ESMF_ConfigGetAttribute( GeosCF, logFile,              &
@@ -1249,9 +1256,6 @@ CONTAINS
                                   __RC__                           )
     ASSERT_(NPHASE==1.OR.NPHASE==2) 
 
-    ! Also save the PET # (aka CPU #) in the Input_Opt object
-    Input_Opt%myCpu = myPet
-
     !=======================================================================
     ! Initialize GEOS-Chem (will also initialize HEMCO)
     !=======================================================================
@@ -1279,7 +1283,15 @@ CONTAINS
                           Input_Opt = Input_Opt,  & ! Input Options obj
                           State_Met = State_Met,  & ! Meteorology State obj
                           State_Chm = State_Chm,  & ! Chemistry State obj
+                          myPET     = myPET,      & ! Local PET
                           __RC__                 )
+
+    ! Also save the MPI & PET specs to Input_Opt
+    Input_Opt%myCpu   = myPet
+    Input_Opt%MPICOMM = MPICOMM
+    Input_Opt%NPES    = NPES
+    Input_Opt%HPC     = .true. ! Yes, this is an HPC (ESMF) sim.
+    if ( am_I_Root ) Input_Opt%RootCPU = .true.
 
     ! It's now save to store haveImpRst flag in Input_Opt
     Input_Opt%haveImpRst = haveImpRst
@@ -1760,6 +1772,7 @@ CONTAINS
 !
 ! !USES:
 !
+    USE COMODE_MOD,              ONLY : JLOP, JLOP_PREVIOUS
     USE HCO_STATE_MOD,           ONLY : HCO_STATE
     USE HCOI_GC_MAIN_MOD,        ONLY : GetHcoState
     USE GC_LAND_INTERFACE,       ONLY : LANDTYPE_REMAP
@@ -1927,6 +1940,9 @@ CONTAINS
     IF ( IsChemTime .AND. PHASE /= 1 ) THEN
        CALL ESMF_AlarmRingerOff(ALARM, __RC__ )
     ENDIF
+
+    ! Get Internal state
+    CALL MAPL_Get ( STATE, INTERNAL_ESMF_STATE=INTSTATE, __RC__ )
 
     ! ----------------------------------------------------------------------
     ! Check if we need to call the GEOS-Chem driver. The GEOS-Chem driver 
@@ -2114,6 +2130,9 @@ CONTAINS
                    SLR       = solar,    &  ! Solar insolation
                    __RC__ )
 
+    ! MSL - shift from 0 - 360 to -180 - 180 degree grid
+    where (lonCtr .gt. MAPL_PI ) lonCtr = lonCtr - 2*MAPL_PI
+
     !=======================================================================
     ! Print timing etc. info to the log file outside of the (I,J) loop
     !=======================================================================
@@ -2201,10 +2220,13 @@ CONTAINS
        IF ( Input_Opt%haveImpRst ) THEN
 
           CALL MAPL_TimerOn(STATE, "DO_CHEM")
-   
-          ! Save the PET # (aka PET #) in Input_Opt
-          Input_Opt%myCpu = myPet
     
+       IF ( ANY(State_Chm%TRACERS(:,:,:,29) .ne.                     & 
+                State_Chm%TRACERS(:,:,:,29) )) THEN
+          write(*,*) '<> MSA START'
+       ELSE
+       ENDIF
+
           ! Run the GEOS-Chem column chemistry code for the given phase
           CALL GIGC_Chunk_Run( am_I_Root  = am_I_Root,  & ! Is this the root PET?
                                GC         = GC,         & ! Gridded component ref. 
@@ -2230,7 +2252,7 @@ CONTAINS
                                __RC__                  )  ! Success or failure?
    
           CALL MAPL_TimerOff(STATE, "DO_CHEM")
-   
+
        ! Restart file does not exist:
        ELSE
           IF ( am_I_Root ) THEN
@@ -2241,7 +2263,6 @@ CONTAINS
           ENDIF
           where( State_Met%HFLUX .eq. 0.) State_Met%HFLUX = 1e-5
        ENDIF 
-
     ENDIF !IsRunTime
 
     !=======================================================================
@@ -2257,6 +2278,14 @@ CONTAINS
        IF ( Int2Chm(I)%TrcID <= 0 ) CYCLE
        Int2Chm(I)%Internal = State_Chm%Tracers(:,:,:,Int2Chm(I)%TrcID)
     ENDDO
+    IF ( IsChemTime .AND. Phase /= 1 ) THEN
+       ! Also fill JLOP_PREV from internal state
+       CALL MAPL_GetPointer( INTSTATE, Ptr3D, 'JLOP_PREV', notFoundOK=.TRUE., __RC__ )
+       IF ( ASSOCIATED(Ptr3D) .AND. ALLOCATED(JLOP) ) THEN
+          Ptr3D = REAL(JLOP)
+       ENDIF
+       Ptr3D => NULL()
+    ENDIF
     CALL MAPL_TimerOff(STATE, "CP_AFTR")
 
     ! Stop timer
@@ -2912,6 +2941,7 @@ CONTAINS
 ! 
     ! Objects
     TYPE(ESMF_Time)               :: startTime      ! ESMF start time obj
+    TYPE(ESMF_Time)               :: stopTime       ! ESMF stop time obj
     TYPE(ESMF_Time)               :: currTime       ! ESMF current time obj
     TYPE(ESMF_TimeInterval)       :: elapsedTime    ! ESMF elapsed time obj
     TYPE(ESMF_TimeInterval)       :: chemInterval   ! chemistry interval
@@ -3015,50 +3045,6 @@ CONTAINS
         END IF
     ENDIF
 
-    ! Start date
-    IF ( PRESENT( nymdb ) ) THEN
-       CALL ESMF_ConfigGetAttribute( GeosCF, nymdB,                       &
-                                     Label   = "UTC_START_DATE:", __RC__ )
-    ENDIF
-
-    ! Start time
-    IF ( PRESENT( nhmsB ) ) then
-       CALL ESMF_ConfigGetAttribute( GeosCF, nhmsB,                       &
-                                     LABEL   = "UTC_START_TIME:", __RC__ )
-    ENDIF
-
-    ! End date
-    IF ( PRESENT( nymdE ) ) THEN
-       CALL ESMF_ConfigGetAttribute( GeosCF, nymdE,                       &
-                                     Label   = "UTC_END_DATE:",   __RC__ )
-    ENDIF
-
-    ! End time
-    IF ( PRESENT( nhmsE ) ) THEN
-       CALL ESMF_ConfigGetAttribute( GeosCF, nhmsE,                       &
-                                     LABEL   = "UTC_END_TIME:",  __RC__ )
-    ENDIF
-
-    !=======================================================================
-    ! Does the import restart file exist?
-    !=======================================================================
-    
-    ! Import restart file name
-    CALL ESMF_ConfigGetAttribute( GeosCF, importRstFN,                    &
-                                  DEFAULT = "geoschemchem_import_rst",    &
-                                  LABEL   = "importRestartFileName:",     &
-                                  __RC__ )
-
-   
-    ! Test if it exists
-    IF ( PRESENT( haveImpRst ) ) THEN
-       INQUIRE( FILE=TRIM( importRstFN ), EXIST=haveImpRst )
-       IF( MAPL_AM_I_ROOT() ) THEN
-          PRINT *," ",TRIM( importRstFN )," exists: ", haveImpRst
-          PRINT *," "
-       END IF
-    END IF
-
     !=======================================================================
     ! Extract time/date information
     !=======================================================================
@@ -3066,6 +3052,7 @@ CONTAINS
     ! Get the ESMF time object
     CALL ESMF_ClockGet( Clock,                    &
                         startTime    = startTime, &
+                        stopTime     = stopTime,  &
                         currTime     = currTime,  &
                         advanceCount = count,     &
                          __RC__ )
@@ -3077,6 +3064,21 @@ CONTAINS
     ! Save fields for return
     IF ( PRESENT( nymd     ) ) CALL MAPL_PackTime( nymd, yyyy, mm, dd )
     IF ( PRESENT( nhms     ) ) CALL MAPL_PackTime( nhms, h,    m,  s  )
+
+    CALL ESMF_TimeGet( startTime, yy=yyyy, mm=mm, dd=dd, dayOfYear=doy, &
+                                 h=h,     m=m,   s=s,   __RC__ )
+
+    ! Save fields for return
+    IF ( PRESENT( nymdB    ) ) CALL MAPL_PackTime( nymdB, yyyy, mm, dd )
+    IF ( PRESENT( nhmsB    ) ) CALL MAPL_PackTime( nhmsB, h,    m,  s  )
+
+    CALL ESMF_TimeGet( stopTime, yy=yyyy, mm=mm, dd=dd, dayOfYear=doy, &
+                                 h=h,     m=m,   s=s,   __RC__ )
+
+    ! Save fields for return
+    IF ( PRESENT( nymdE    ) ) CALL MAPL_PackTime( nymdE, yyyy, mm, dd )
+    IF ( PRESENT( nhmsE    ) ) CALL MAPL_PackTime( nhmsE, h,    m,  s  )
+
     IF ( PRESENT( advCount ) ) advCount = count
     IF ( PRESENT( year     ) ) year     = yyyy
     IF ( PRESENT( month    ) ) month    = mm

@@ -161,7 +161,7 @@ endwhile
       ywid = ywid*sbar*scaley
     if(ymid = '') ; ymid = ysiz/2 ; endif
     yb = ymid - ywid*cint/2
-    'set string 1 l 5'
+    'set string 1 l 4'
     vert = 1
 
   else
@@ -183,7 +183,7 @@ endwhile
 
     xwid = xwid*sbar*scalex
     xl = xmid - xwid*cint/2
-    'set string 1 tc 5'
+    'set string 1 tc 4'
     vert = 0
   endif
 

@@ -2460,7 +2460,7 @@ end interface
   character(len=128), public :: version= &
        '$Id: mpp_domains.F90,v 1.1.1.2 2012-11-16 16:00:10 atrayano Exp $'
   character(len=128), public :: tagname= &
-       '$Name: jk-G40-GEOSctm-advcore-update3 $'
+       '$Name: Heracles-3_1_CTM $'
 
 
 contains

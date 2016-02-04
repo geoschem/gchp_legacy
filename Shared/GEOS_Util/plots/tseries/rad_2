@@ -11,12 +11,28 @@ output = subwrd(args,3)
          year = result
 'set time JAN'year' DEC'year
 
+'run minmax radlwgclim'
+       radmax = subwrd(result,1)
+       radmin = subwrd(result,2)
+'run minmax radswgclim'
+       dummax = subwrd(result,1)
+       dummin = subwrd(result,2)
+
+if( dummax > radmax ) ; radmax = dummax ; endif
+if( dummin < radmin ) ; radmin = dummin ; endif
+
+radave = (radmax+radmin)/2
+raddif = 1.1*(radmax-radave)
+
+radmax = radave + raddif
+radmin = radave - raddif
+
 * Plot Global Mean Values
 * -----------------------
 'set vpage 0 11 3.5 8'
 'set grads off'
 'set ylab %.0f'
-'set axlim 230 250'
+'set axlim 'radmin' 'radmax
 
 'set cmark  0'
 'set cstyle 1'

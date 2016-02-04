@@ -1,0 +1,467 @@
+#!/usr/bin/env perl
+#
+#   Pesto - (P)ut (E)xperiment in Mass [Sto]rage
+#
+# !REVISION HISTORY:
+#
+# 26Dec1999  da Silva  Initial code.
+# 27Dec1999  da Silva  Added "-d" option
+# 13jan1999  da Silva  Changed: pesto.rc -> pesto.arc, etc
+# 29jan2000  da Silva  Changed MHOST --> PESTOROOT
+# 18Feb2000  da Silva  Added "-clean" option
+# 03May2000  da Silva  Added support for %n (number) and %c (character).
+# 02Nov2000  da Silva  Made scp/ssh defaults
+# 22Aug2001  Owens     Added support for processing data only for supplied date
+# 18Oct2001  Owens     Added support for processing data only for supplied synoptic time
+# 17May2002  Owens     Added support for non-zero exit status
+# 20May2003  Owens     port to Perl v5.6.0
+# 01Dec2006  Owens     parallel transfers for multiple pesto.arc matches  
+# 17Jun2013  Lucchesi  Allow archive of files whose names don't start w/ experiment ID
+#------------------------------------------------------------------------
+
+BEGIN{
+ $VERSION = "Version 1.0.beta.3 of 18Feb2000";
+
+# Standard modules  (local modules defined below)
+# ----------------
+  use Env;                 # make env vars available
+  use Cwd;                 # make env vars available
+  use FindBin;             # so we can find where this script resides
+  use File::Basename;      # for basename(), dirname()
+  use File::Path;          # for mkpath
+  use File::Copy;          # for copy() and move()
+  use Getopt::Long;        # extended getopt function
+
+  my %dirlist;
+
+# Default values
+# ---------------
+  $myname   = basename($0);
+  $clean    = 0;
+  $date     = '';
+  $die_away = 0;
+  $help1 = 0;
+  $help2 = 0;
+  $dryrun   = 0; 
+  $local_dir = $workdir = cwd();
+  $dirmode   = 755;
+  $mode     = 644;
+  $syntime  = '';
+  $verbose  = "0";
+  $local    = "0";
+  $dolinks  = "0";
+  GetOptions ('arc=s' => \$pestorc, 'clean' => \$clean, 'd=s' => \$local_dir, 'date=i' => \$date,
+              'fvhome=s' => \$fvhome, 'fvroot=s' => \$fvroot, 'mode=s' => \$mode, 'r=s' => \$pestoroot, 
+              'h'=> \$help1, 'help' => \$help2, 'l'  => \$local, 'ln' => \$dolinks, 'n' => \$dryrun, 
+              'syntime=s' => \$syntime, 'verbose' => \$verbose, 'cp' => \$null, 'rcp' => \$null, 
+              'rsh' => \$null, 'srb' => \$srb, 'expid=s' => \$expid );  
+
+   if ( !defined $expid ) {
+    if ( exists $ENV{'EXPID'} ) {
+       $expid = $ENV{'EXPID'};
+    }else{
+       print "($myname) ERROR: No -expid or EXPID is set.\n\n";
+       $die_away = 1;
+    }
+  }
+  if ( !defined $pestorc ) {
+    if ( exists $ENV{'PESTOARC'} ) {
+       $pestorc = $ENV{'PESTOARC'};
+    }else{
+       print "($myname) ERROR: No -arc or PESTOARC is set.\n\n";
+       $die_away = 1;
+    }
+  }
+  if ( !defined $pestoroot ) {
+     if ( exists $ENV{'PESTOROOT'} ) {
+        $pestoroot = $ENV{'PESTOROOT'};
+     }else{
+        print "($myname) ERROR: No -r or PESTOROOT set.\n\n";
+        $die_away = 1;
+     }
+  }
+  if ( !defined $fvhome ) {
+    if ( exists $ENV{'FVHOME'} ) {
+       $fvhome = $ENV{'FVHOME'};
+    }else{
+       $fvhome = "null";
+    }
+  }
+  if ( !defined $fvroot ) {
+     if ( exists $ENV{'FVROOT'} ) {
+        $fvroot = $ENV{'FVROOT'};
+     }else{
+        $fvroot = "NONE";
+     }
+  }
+
+#-Set the path to be searched for required programs.
+
+   $PROGRAM_PATH = $FindBin::Bin;
+   @SEARCH_PATH = ( "${fvhome}/run", "${PROGRAM_PATH}", "${fvroot}/bin" );
+
+   if ( exists $ENV{'PATH'} ) {
+        $ENV{'PATH'} = join( ':', @SEARCH_PATH, $ENV{'PATH'} );
+   }else{
+        $ENV{'PATH'} = join( ':', @SEARCH_PATH );
+   }
+   $ENV{'PATH'} = join( ':', $ENV{'PATH'}, $ENV{'PBS_O_PATH'} )  if ( exists $ENV{'PBS_O_PATH'} );
+
+}#End BEGIN block
+
+  print "\@SEARCH_PATH = @SEARCH_PATH\n" if ( $verbose );
+  use lib (  @SEARCH_PATH );
+
+# DAO Perl libraries
+# --------------
+  use Remote_utils;        # DAO file transfer routines
+  use Manipulate_time;     # For token resolve
+
+# Prevent the accumulation of zombies if the parent fails to wait.
+# See www.perldoc.com/perl5.6.1/pod/func/fork.html
+  $SIG{CHLD} = 'IGNORE';
+
+# Record current environment
+# --------------------------
+
+#  system("/sbin/env") if ( $verbose );
+
+  if ( "$die_away" || "$help1" || "$help2" ) { warn "($0) errors encountered BEGIN block\n";usage();}
+
+  if ( $verbose ) {
+     print "\$verbose = $verbose\n";
+     print "\$pestorc = $pestorc\n";
+     print "\$clean = $clean\n"; 
+     print "\$pestoroot = $pestoroot\n"; 
+     print "\$date = $date\n";
+     print "\$dryrun  = $dryrun\n"; 
+     print "\$local_dir = $local_dir\n";
+     print "\$mode     = $mode\n";
+     print "\$syntime  = $syntime\n";
+     print "\$verbose  = $verbose\n";
+     print "\$workdir = $workdir\n";
+  }
+
+
+#-Change to local directory if different from cwd
+  if ( $local_dir ne $workdir ) {
+     chdir $local_dir or die "($0) FATAL ERROR: Unable to chdir to $local_dir\n";
+  }
+
+#-Check for .no_archiving file
+  if ( -e ".no_archiving" ) {
+     print ".no_archiving file detected - Nothing to do here\n";
+     exit 0;
+  }
+
+#-Look for arc file
+  if (! -e $pestorc ) {
+      $pestorc_test = "$workdir/".basename($pestorc);
+      if (! -e $pestorc_test ) {
+           die "($myname): Unable to locate $pestorc or $pestorc_test\n";
+      }
+  $pestorc = $pestorc_test;
+  }  
+
+# Reset PESTOROOT environment variable
+# ------------------------------------
+  $ENV{'PESTOROOT'} = $pestoroot;
+  print "PESTOROOT  = $ENV{'PESTOROOT'}\n" if ( $verbose );
+
+# Echo input parameters
+# ---------------------
+  if ( $verbose ){ print << "EOD";
+
+        Pesto - (P)ut (E)xperiment in Mass [Sto]rage
+    
+          Resource file name: $pestorc
+       Archiving Destination: $pestoroot
+             Local directory: $local_dir
+                   File mode: $mode
+    
+       Resource file contents:
+   ..............................................................
+
+EOD
+}
+
+  open( RCFILE, $pestorc ) or die  "($myname) ERROR: Configuration file '", $pestorc, "' can not be opened.\n";
+  while ( <RCFILE> ){
+       print $_ if ( $verbose );
+       chomp;
+       push( @url_list, $_ ) if ((! /^#/ )&&(/.{1,}/));
+  }
+  close( RCFILE );
+ 
+  print "\n . . . . . END of RC FILE . . . . . \n\n" if ( $verbose );
+# 
+# Process list of URLs
+# --------------------  
+  foreach $url ( @url_list ){
+       ( $url = $url ) =~ ( s/\${PESTOROOT}/$pestoroot\//g ); 
+       ( $ruser, $rhost, $file_path ) = splitrfile ( $url );
+       print "($myname):Processing $url\n";
+       $file = basename($file_path);
+       $dir  = dirname( $file_path);
+       $regexp = token_resolve($file, $date, $syntime);
+       print "($myname):Regular expression to match = $regexp\n";
+       @matchfiles =  glob("$regexp") or print "($myname):No match\n";
+       @files = @matchfiles;
+       if(($#files == 0)&&((! -l $files[0])||($dolinks))){
+          print "Single file case $files[0]\n";
+          &mkdir($verbose, $dir, $dirmode, $files[0], $mode, $myname, $file, $rhost, $ruser);
+          &pastina($verbose, $clean, $dryrun, $dir, $dirmode, $files[0], $mode, $myname, $file, $rhost, $ruser);
+       }
+       if ( $#files > 0 ) {
+           $found = $#files + 1; 
+           print "Multiple matches: $found files \n";
+           $counter = 0;
+           foreach $filename ( @files ){
+               # check if file is a link
+               if ((! -l $filename )||($dolinks)){
+                   $rc=&mkdir($verbose, $dir, $dirmode, $files[$counter], $mode, $myname, $file, $rhost, $ruser);
+                   print "(pesto): mkdir result = $rc\n";   
+                   die "error creating directory " if ( !$rc ); 
+                    # prevent scp blocking by host
+                    sleep(1) if  (! $local );
+                    sleep(4) if ( ($counter) && ( ($counter % 4) == 0 ) && (! $local ) ); 
+                    print "Forking $filename\n";
+                    $counter ++;
+                    $pid = fork;
+
+                    die "Can't fork!\n" if (!defined $pid);
+
+                    if ($pid == 0)
+                    {
+                    # child (clone) process
+                      &pastina($verbose, $clean, $dryrun, $dir, $dirmode, $filename, $mode, $myname, $file, $rhost, $ruser);
+                      exit(0);
+                    }#End child
+               }#End link check
+           }#End foreach
+
+# -------- Wait for spawned shells to complete
+           print "Parent waiting for children to complete\n";
+           1 while (wait() != -1);
+       }
+       if ( -e "${local_dir}/PESTO_FAILURE" ){
+         warn "pesto failed\n"; 
+         print "PESTO_FAILURE\n";
+         open( LISTING, "<${local_dir}/PESTO_FAILURE" ) or warn "cannot read ${local_dir}/PESTO_FAILURE\n";
+         while ( <LISTING> ) {
+           $line =$_;
+           print "PESTO_FAILURE: $line\n";
+         }
+         print "PESTO_FAILURE\n";
+         close(LISTING);
+         unlink( "${local_dir}/PESTO_FAILURE");
+         die "${local_dir}/PESTO_FAILURE\n";
+      }
+ 
+  }
+exit(0);
+
+# -----------------
+sub mkdir{
+           my ($verbose,$dir,$dirmode,$filename,$mode,$myname,$file,$rhost,$ruser) = @_;
+           my $pasta_out = `pasta $filename $file`;
+           my ( $y4val, $y2val, $m2val, $m3val, $d2val, $h2val, $sval, $n2val ) = split / /,$pasta_out;
+           $d2val = "01" if ( $d2val eq "dy" );
+           $dir_date = "$y4val"."$m2val"."$d2val";
+           $dir_time = 0;
+           $dir_time = "$h2val" if ( "$h2val" ne "hr" );
+           ( $dir = $dir ) =~ ( s/%s/$expid/g );
+           if ( $dir =~ /%/ ) {
+                $archive_dir = token_resolve( $dir, $dir_date, $dir_time);
+           }else{
+                $archive_dir = $dir;
+           }
+           unless ( $dirlist{$archive_dir} ) {
+                  print "(pesto): $archive_dir not found - Creating\n"; 
+                  print "($myname): Doing mkdir of $archive_dir\n"  if ( $verbose );
+                  if ($archive_dir =~ m/\[/) {
+                      print "(debug): dir      = [$dir]\n"
+                          . "(debug): dir_date = [$dir_date]\n"
+                          . "(debug): dir_time = [$dir_time]\n"
+                          . "(debug): filename = [$filename]\n"
+                          . "(debug): file     = [$file]\n"
+                          . "(debug): verbose  = [$verbose]\n"
+                          . "(debug): dirmode  = [$dirmode]\n"
+                          . "(debug): mode     = [$mode]\n"
+                          . "(debug): myname   = [$myname]\n"
+                          . "(debug): rhose    = [$rhost]\n"
+                          . "(debug): ruser    = [$ruser]\n";
+                  }
+                  $mkdir_rc=mkdir_remote( ${ruser},${rhost},${archive_dir}, {'debug' => $verbose});
+                  print "($myname): mkdir_rc=${mkdir_rc} Error doing mkdir of $archive_dir\n"  if ( ! $mkdir_rc );
+                  $chmod_rc=chmod_remote( ${ruser},${rhost},${archive_dir},${dirmode},{ 
+                                                    'recursive' => 0, 'debug' => $verbose});
+                  print "($myname): chmod_rc=${chmod_rc} Error doing chmod on $archive_dir\n" if ( $chmod_rc );
+                  $dirlist{$archive_dir} = 1;
+           } 
+           else{
+
+             $mkdir_rc = 1;
+           }
+           return ($mkdir_rc);
+}
+sub pastina{
+           my ($verbose,$clean,$dryrun,$dir,$dirmode,$filename,$mode,$myname,$file,$rhost,$ruser) = @_;
+           local $SIG{CHLD} = 'DEFAULT';
+           my $pasta_out = `pasta $filename $file`;
+           my ( $y4val, $y2val, $m2val, $m3val, $d2val, $h2val, $sval, $n2val ) = split / /,$pasta_out;
+           $d2val = "01" if ( $d2val eq "dy" );
+           $dir_date = "$y4val"."$m2val"."$d2val";
+           $dir_time = 0;
+           $dir_time = "$h2val" if ( "$h2val" ne "hr" );
+           ( $dir = $dir ) =~ ( s/%s/$expid/g );
+           if ( $dir =~ /%/ ) {
+                $archive_dir = token_resolve( $dir, $dir_date, $dir_time);
+           }else{
+                $archive_dir = $dir;
+           }
+           if ( $dryrun ) {
+                print "\n($myname):Will archive ${filename} to  ${ruser},${rhost},$archive_dir\n";
+           }else{
+                print "Doing rput of ${filename} to ${ruser}\@${rhost}:${archive_dir}\n";
+                $rput_rc=rput( "${filename}", "${ruser}\@${rhost}:${archive_dir}/${filename}",
+                                                                  {'direct' => '1',
+                                                                   'clean'  => $clean,
+                                                                   'mode'   => $mode,
+                                                                   'debug'  => $verbose});
+                 $error = $? >>8;
+                 if ( $error || (! $rput_rc) ){
+                      open ( ERROR, "+>> ${local_dir}/PESTO_FAILURE" ) or die "cannot open ${local_dir}/PESTO_FAILURE\n"; 
+                      print ERROR "FATAL ERROR REMOTE COPY STATUS for ${filename} =  $rput_rc\n";
+                      close ( ERROR ); 
+                      print "($myname):rput error = $error\n";
+                      warn "($myname):rput error = $error\n";
+                 }else{
+                       print "REMOTE COPY STATUS for ${filename} =  $rput_rc\n";
+                       $rc=unlink ${filename} if ( $rput_rc && $clean );
+                 }
+           }
+              return(0);
+}
+# -----------------
+sub usage {
+
+print  << "EOF";
+
+NAME
+     Pesto - (P)ut (E)xperiment in Mass [Sto]rage 
+          
+SYNOPSIS
+
+     pesto [-arc fname] [-d -ldir] [-h] [-n] [-r pestoroot] [-v] 
+           [-cp prog] [-rcp prog] [-rsh prog] [-m mode]
+          
+DESCRIPTION
+
+     Pesto is a general purpose script for archiving experiments
+     on mass storage. It requires the utility "pasta" and
+     a resource file (see RESOURCE FILE below).
+
+          
+OPTIONS
+
+ -arc fname     archiving resource file name (default: $pestorc)
+ -clean         delete files after transfer
+ -d ldir        local directory for files being archived
+ -date date     date of files to process
+ -h or -help    displays this man page.
+ -n             dry-run mode, does not copy anything, just print
+                what it would do
+ -r pestoroot   destination for archiving files (default: $pestoroot) 
+ -syntime  time synoptic time of files to process
+ -v             verbose mode; default is real quiet
+ -m mode        destination files will have this mode (default: $mode);
+                if "0", it does not change default file mode.
+
+RESOURCE FILE
+
+     Pesto resource files consist of comment lines starting with
+     '#' or a pesto archiving rule of the form:
+
+           [pestoroot][remotedir]/template
+
+     This is better explained with an example:
+
+           \${PESTOROOT}%s/anal/%m3%y4/%s.prog.t%y4%m2%d2
+
+     \$PESTOROOT is an enviroment variables which can be redefined
+     with the "-r" command line options; you can also use any other
+     environment variable of your choice.  For this particular example
+     we have:
+
+     pestoroot =  \$PESTOROOT
+     remotedir =  %s/anal/%m3%y4
+     template  =  %s.prog.t%y4%m2%d2
+
+     The "template" is a GrADS like pattern for matching
+     local file names (that is, files to be archived).
+     Supported tokens are:
+
+          %s        experiment ID (a string followed by ".")
+          %y4       year,   e.g., 1997
+          %y2       year,   e.g., 97
+          %m2       month,  e.g., 12
+          %d2       day,    e.g., 31
+          %h2       hour,   e.g., 18
+          %n2       minute, e.g., 30  
+
+          %n        a single digit number: 0, 1, ..., 9
+          %c        a single character
+
+     Notice that there is no "%m3" allowed on input.
+     The "%s" token is not part of the  standard GrADS
+     templates and stand for the experiment ID. So,
+     we issue
+
+          pesto -r dasilva\@gatun.gsfc.nasa.gov:
+
+     and there is a file named "efake.prog.t19971231" in
+     the local directory, pesto will generate the following
+     archive (remote copy) command:
+
+      $rcp efake.prog.t19971231 dasilva\@gatun:efake/anal/dec1997
+
+     Now, if you enter
+
+          pesto -r /scratch1/dasilva/
+
+     pesto will generate the following archiving command:
+
+      $cp efake.prog.t19971231 /scratch1/dasilva/efake/anal/dec1997
+
+RESTRICTIONS
+
+     1. The local file name/template must contain enough information
+        for deriving the remote directory name.
+
+     2. The token "%m3" is not allowed in the "template" but
+        can appear in "remotedir".
+
+     3. The experiment id must be followed by a ".":
+
+        template  =  %s.prog.t%y4%m2%d2     is OK
+        template  =  %sprog.t%y4%m2%d2      is NOT
+
+
+ENVIRONMENT
+
+     The following enviroment variables are recognized:
+
+ PESTOARC     default resource file name
+ PESTOROOT    default name for archiving destination
+
+VERSION
+
+     $VERSION
+
+AUTHOR
+     Arlindo da Silva (dasilva\@gsfc.nasa.gov), NASA/GSFC 
+     Tommy Owens (towens\@gmao.gsfc.nasa.gov), SAIC/GSFC
+EOF
+exit 1;
+}

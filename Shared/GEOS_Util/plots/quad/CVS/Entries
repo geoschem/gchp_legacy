@@ -1,11 +1,11 @@
-/VERIFICATION.ERA40.rc/1.2/Mon Jan 27 19:00:56 2014//Tjk-G40-GEOSctm-advcore-update3
-/VERIFICATION.MERRA.rc/1.2/Tue Jun 11 20:26:26 2013//Tjk-G40-GEOSctm-advcore-update3
-/VERIFICATION.MERRAsc.rc/1.2/Tue Apr 28 18:13:06 2009//Tjk-G40-GEOSctm-advcore-update3
-/hplot/1.4/Tue Nov 29 21:07:06 2011//Tjk-G40-GEOSctm-advcore-update3
-/hquad/1.12/Fri Feb 15 18:09:20 2013//Tjk-G40-GEOSctm-advcore-update3
-/lplot/1.5/Tue Nov 29 21:07:06 2011//Tjk-G40-GEOSctm-advcore-update3
-/mk_text/1.1/Tue Aug 12 18:05:41 2008//Tjk-G40-GEOSctm-advcore-update3
-/zonal.vint.tmpl/1.1/Tue Aug 12 18:05:41 2008//Tjk-G40-GEOSctm-advcore-update3
-/zplot/1.5/Tue Nov 29 21:07:06 2011//Tjk-G40-GEOSctm-advcore-update3
-/zquad/1.18/Fri Feb 15 18:09:20 2013//Tjk-G40-GEOSctm-advcore-update3
-D
+/VERIFICATION.ERA40.rc/1.2/Mon Jan 27 19:00:56 2014//THeracles-3_1_CTM
+/VERIFICATION.MERRA.rc/1.2/Tue Jun 11 20:26:26 2013//THeracles-3_1_CTM
+/VERIFICATION.MERRAsc.rc/1.2/Tue Apr 28 18:13:06 2009//THeracles-3_1_CTM
+/hplot/1.4/Tue Nov 29 21:07:06 2011//THeracles-3_1_CTM
+/hquad/1.16/Thu May  7 19:21:08 2015//THeracles-3_1_CTM
+/lplot/1.5/Tue Nov 29 21:07:06 2011//THeracles-3_1_CTM
+/mk_text/1.1/Tue Aug 12 18:05:41 2008//THeracles-3_1_CTM
+/zonal.vint.tmpl/1.1/Tue Aug 12 18:05:41 2008//THeracles-3_1_CTM
+/zplot/1.5/Tue Nov 29 21:07:06 2011//THeracles-3_1_CTM
+/zquad/1.22/Thu May  7 19:21:08 2015//THeracles-3_1_CTM
+D/RC////

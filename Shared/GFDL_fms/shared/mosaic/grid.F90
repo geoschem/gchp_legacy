@@ -48,7 +48,7 @@ end interface
 character(len=*), parameter :: &
      module_name = 'grid_mod', &
      version     = '$Id: grid.F90,v 1.1.1.2 2012-11-16 16:00:09 atrayano Exp $', &
-     tagname     = '$Name: jk-G40-GEOSctm-advcore-update3 $'
+     tagname     = '$Name: Heracles-3_1_CTM $'
 
 character(len=*), parameter :: &
      grid_dir  = 'INPUT/',     &      ! root directory for all grid files

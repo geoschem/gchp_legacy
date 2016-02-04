@@ -139,8 +139,8 @@
 # define r4 selected_real_kind( 6)
 # define i8 selected_int_kind(13)
 # define i4 selected_int_kind( 6)
-# define PLON       1080
-# define PLAT        721
+# define PLON        144
+# define PLAT         91
 # define PLEV         72
 # define PCNST         1
 #else
@@ -305,10 +305,10 @@
 ! Beginning Global Array variable declaration:
 !------------------------------------------------------------------------------
 
-      type (window) :: r8_win
-      type (window) :: r4_win
-      type (window) :: i4_win
-      type (window) :: t1_win
+      type (window), save :: r8_win
+      type (window), save :: r4_win
+      type (window), save :: i4_win
+      type (window), save :: t1_win
 
 ! Upper bound on ratio of local to average storage over subdomains.
 ! This takes into account different sized subdomains.

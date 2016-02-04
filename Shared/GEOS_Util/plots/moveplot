@@ -80,6 +80,7 @@ set year   = 'CLIM'
 set expid  = 'NULL'
 set pltdir = 'NULL'
 set webdir = 'NULL'
+set plotrc = 'NULL'
 set season = ''
 
 @       n  = 1
@@ -104,6 +105,10 @@ while( $n <= $nmax )
        if( "$argv[$n]" == "-webdir" ) then
                     @ n = $n + 1
              set webdir = $argv[$n]
+       endif
+       if( "$argv[$n]" == "-plotrc" ) then
+                    @ n = $n + 1
+             set plotrc = $argv[$n]
        endif
      @ n = $n + 1
 end
@@ -146,10 +151,17 @@ if( $#rcfiles != 0      ) rsync -avx $homdir/*.rc         $webid@${server}:${www
 if(-e $homdir/RC        ) rsync -avx $homdir/RC/          $webid@${server}:${www}/$expid/RC/RC/  
 if(-e $homdir/gcm_run.j ) rsync -avx $homdir/gcm_run.j    $webid@${server}:${www}/$expid/RC     
 
+if( -e $source/src ) then
+     set srcfiles  = `/bin/ls -1 $source/src`
+   if( $#srcfiles != 0 ) then
+         rsync -avx $source/src/*      $webid@${server}:${www}/$expid/SRC    
+         scp $source/src/.AGCM_VERSION $webid@${server}:${www}/$expid/TAG
+   endif
+endif
 
 # Total Plot Files
 # ----------------
-     set tfiles = `ls -1 | grep $ext`
+     set tfiles = `/bin/ls -1 | grep $ext`
 
 # Seasonal Plots
 # --------------
@@ -159,8 +171,8 @@ else
       set seasons = $season
 endif
 foreach season ($seasons)
-     set files = `ls -1 | grep ${season} | grep $ext`
-     set   num = `ls -1 | grep ${season} | grep $ext | wc -l`
+     set files = `/bin/ls -1 | grep ${season} | grep $ext`
+     set   num = `/bin/ls -1 | grep ${season} | grep $ext | wc -l`
      if( $num != 0 ) then
          echo Number of plots for ${season}: $num
          ssh $webid@${server} mkdir -p ${www}/${webdir}/${season}
@@ -180,22 +192,46 @@ foreach season ($seasons)
              if( $n2 > $num ) @ n2 = $num
              if( $n1 > $num ) @ n2 = $num + 1
          end
-         /bin/rm -f awk_command
-         echo /bin/cat ${www}/${expid}/buttons/season.button.tmp \| awk \'\{ if \(\$6\~\"$season\"\) \{ sub\(\"//\",\"  \"\) \}\; print \}\' \> season.button > awk_command
-         chmod +x awk_command
-         scp awk_command $webid@${server}:${www}/${expid}/buttons
-         ssh $webid@${server} "cd ${www}/${expid}/buttons ; /bin/mv season.button season.button.tmp ; ./awk_command ; /bin/rm -f season.button.tmp ; /bin/rm -f awk_command"
+         lockfile -3 LOCKFILE
+         set datetime = `date +%Y%m%d_%H%M%S`
+         /bin/rm -f awk_command.$datetime
+         touch      awk_command.$datetime
+         echo lockfile -3 LOCKFILE                                                                                                       >> awk_command.$datetime
+         echo /bin/mv     season.button season.button.tmp                                                                                >> awk_command.$datetime
+         echo /bin/cat    season.button.tmp \| awk \'\{ if \(\$6\~\"$season\"\) \{ sub\(\"//\",\"  \"\) \}\; print \}\' \> season.button >> awk_command.$datetime
+         echo /bin/rm -f  season.button.tmp                                                                                              >> awk_command.$datetime
+         echo /bin/rm -f  LOCKFILE                                                                                                       >> awk_command.$datetime
+         chmod +x awk_command.$datetime
+         scp awk_command.$datetime $webid@${server}:${www}/${expid}/buttons
+         ssh $webid@${server} "cd ${www}/${expid}/buttons ; ./awk_command.$datetime ; /bin/rm -f awk_command.$datetime"
+         /bin/rm -f awk_command.$datetime
+         /bin/rm -f LOCKFILE
      endif
 end
 wait
 
+# Update year button
+# ------------------
+         lockfile -3 LOCKFILE
+         set datetime = `date +%Y%m%d_%H%M%S`
+         /bin/rm -f                                             awk_command.$datetime
+         touch                                                  awk_command.$datetime
+         echo "#! /bin/csh -f"                               >> awk_command.$datetime
+         echo lockfile -3 LOCKFILE                           >> awk_command.$datetime
+         echo "if( -e add_years.csh ) ./add_years.csh $year" >> awk_command.$datetime
+         echo /bin/rm -f  LOCKFILE                           >> awk_command.$datetime
+         chmod +x awk_command.$datetime
+         scp awk_command.$datetime $webid@${server}:${www}/${expid}/buttons
+         ssh $webid@${server} "cd ${www}/${expid}/buttons ; ./awk_command.$datetime ; /bin/rm -f awk_command.$datetime"
+         /bin/rm -f awk_command.$datetime
+         /bin/rm -f LOCKFILE
 
 # Miscellanious Plots
 # -------------------
     set MISC_PLOTS = `echo taylor SERIES QBO VORTEX`
 foreach MISC_PLOT ($MISC_PLOTS)
-     set files = `ls -1 | grep ${MISC_PLOT} | grep $ext`
-     set   num = `ls -1 | grep ${MISC_PLOT} | grep $ext | wc -l`
+     set files = `/bin/ls -1 | grep ${MISC_PLOT} | grep $ext`
+     set   num = `/bin/ls -1 | grep ${MISC_PLOT} | grep $ext | wc -l`
      if( $num != 0 ) then
      echo Number of plots for ${MISC_PLOT}: $num
      @ n1 = 1
@@ -268,6 +304,32 @@ wait
          end
      endif
      endif
+
+# Update set_exps button
+# ----------------------
+if( $plotrc != NULL ) then
+    set   CMPDIRS  = `grep PLOT_CMPEXP: $plotrc | cut -d'#' -f1 | cut -d':' -f2 `
+    if( $#CMPDIRS != 0 ) then
+        foreach cmpdir ($CMPDIRS)
+            set cmpexp = `grep EXPID: $cmpdir/HISTORY.rc | cut -d'#' -f1 | cut -d: -f 2`
+            set cmpexp = `echo $cmpexp`  # to remove preceding blanks
+            lockfile -3 LOCKFILE
+            set datetime = `date +%Y%m%d_%H%M%S`
+            /bin/rm -f                                             awk_command.$datetime
+            touch                                                  awk_command.$datetime
+            echo "#! /bin/csh -f"                               >> awk_command.$datetime
+            echo lockfile -3 LOCKFILE                           >> awk_command.$datetime
+            echo "if( -e add_exps.csh ) ./add_exps.csh $cmpexp" >> awk_command.$datetime
+            echo /bin/rm -f  LOCKFILE                           >> awk_command.$datetime
+            chmod +x awk_command.$datetime
+            scp awk_command.$datetime $webid@${server}:${www}/${expid}/buttons
+            ssh $webid@${server} "cd ${www}/${expid}/buttons ; ./awk_command.$datetime ; /bin/rm -f awk_command.$datetime"
+            /bin/rm -f awk_command.$datetime
+            /bin/rm -f LOCKFILE
+        end
+    endif
+endif
+
 exit
 
 USAGE:
@@ -282,6 +344,7 @@ echo '                 [-year   year    YEAR directory containing plots on Web P
 echo '                 [-season season  SEASON to send to Web Page]'
 echo '                 [-pltdir pltdir  Directory containing plots to move]'
 echo '                 [-webdir webdir  Web Directory (Starting with EXPID) to contain plots]'
+echo '                 [-plotrc plotrc  The plot.rc file to use for setting CMPEXP'
 echo ' '
 echo '                 Default  expid (assumed to be 2nd-to-last node from pwd)'
 echo '                 Default   year (CLIM)'

@@ -67,24 +67,24 @@
          integer :: nAttChar ! Number of char attributes
          integer :: nAttReal ! Number of Real attributes
          integer :: nAttInt  ! Number of int attributes
-         integer, pointer :: attCharCnts(:)       ! length of char attributes
-         integer, pointer :: attRealCnts(:)       ! length of real attributes
-         integer, pointer :: attIntCnts(:)        ! length of int attributes
-         character(len=MLEN), pointer :: attCharNames(:)! User defined char
+         integer, pointer :: attCharCnts(:) => NULL()       ! length of char attributes
+         integer, pointer :: attRealCnts(:) => NULL()       ! length of real attributes
+         integer, pointer :: attIntCnts(:) => NULL()        ! length of int attributes
+         character(len=MLEN), pointer :: attCharNames(:) => NULL()! User defined char
                                                        ! attribute name
-         character(len=MLEN), pointer :: attRealNames(:)! Real attribute name
-         character(len=MLEN), pointer :: attIntNames(:) ! int attribute name
-         character(len=MLEN), pointer :: attChars(:) ! char attributes
-         real, pointer :: attReals(:,:)           ! global real attributes
-         integer, pointer :: attInts(:,:)         ! global integer attributes
+         character(len=MLEN), pointer :: attRealNames(:) => NULL()! Real attribute name
+         character(len=MLEN), pointer :: attIntNames(:) => NULL() ! int attribute name
+         character(len=MLEN), pointer :: attChars(:) => NULL() ! char attributes
+         real, pointer :: attReals(:,:) => NULL()           ! global real attributes
+         integer, pointer :: attInts(:,:) => NULL()         ! global integer attributes
 
          integer :: prec                         ! Desired precision of data
          integer :: fid                          ! file ID for internal use
          integer :: sd_id                        ! file ID for EOS
          logical :: isGridSet           ! True only if grid was passed in
-         type(iNode), pointer :: iList
-         type(rNode), pointer :: rList
-         type(cNode), pointer :: cList
+         type(iNode), pointer :: iList => NULL()
+         type(rNode), pointer :: rList => NULL()
+         type(cNode), pointer :: cList => NULL()
          logical :: isOpen              ! flag to check fName is opened or not
 !         integer :: nSteps
          logical :: isCyclic            ! flag for cyclic for input files
@@ -574,13 +574,13 @@
                          ! -11  can't allocate mem: attInts
                          ! -12  can't allocate mem: attInt
                          !  rc = -19  unable to identify coordinate variable
-                         !  rc = -40  error from ncvid
-                         !  rc = -41  error from ncdid or ncdinq (lat or lon)
-                         !  rc = -42  error from ncdid or ncdinq (lev)
-                         !  rc = -43  error from ncvid (time variable)
-                         !  rc = -47  error from ncdid or ncdinq (time)
-                         !  rc = -48  error from ncinq
-                         !  rc = -53  error from ncagtc/ncagt
+                         !  rc = -40  error from NF90_INQ_VARID
+                         !  rc = -41  error from NF90_INQ_DIMID or NF90_INQUIRE_DIMENSION (lat or lon)
+                         !  rc = -42  error from NF90_INQ_DIMID or NF90_INQUIRE_DIMENSION (lev)
+                         !  rc = -43  error from NF90_INQ_VARID (time variable)
+                         !  rc = -47  error from NF90_INQ_DIMID or NF90_INQUIRE_DIMENSION (time)
+                         !  rc = -48  error from NF90_INQUIRE
+                         !  rc = -53  error from NF90_GET_ATT
 !
 ! !DESCRIPTION:
 !     Get meta data from a CFIO file

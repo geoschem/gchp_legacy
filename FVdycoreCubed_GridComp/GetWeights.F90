@@ -1,5 +1,5 @@
 
-!  $Id: GetWeights.F90,v 1.1.2.7.8.1.6.2.4.1.2.2 2014-07-22 15:46:53 bmauer Exp $
+!  $Id: GetWeights.F90,v 1.1.2.7.8.1.6.2.4.1.10.6.2.1 2014-11-03 21:56:22 bmauer Exp $
 
 #define REAL8 8
 
@@ -16,7 +16,11 @@ subroutine GetWeights_init (in_ntiles,in_ncnst,in_npx,in_npy,in_npz,&
   integer,intent(in) :: in_nx,in_ny
   logical,intent(in) :: in_hydro,in_mknh
   integer            :: comm
-  real(REAL8), parameter :: dt_who_cares = 1800.
+#ifdef SINGLE_FV
+  real,    parameter :: dt_who_cares = 1800.
+#else
+  real*8,  parameter :: dt_who_cares = 1800.d0
+#endif
   type(fv_atmos_type), target :: FVUseless(1)
   
   ntiles = in_ntiles
@@ -42,8 +46,10 @@ end subroutine GetWeights_init
 
 subroutine GetWeights(npx, npy, nlat, nlon, index, weight, id1, id2, jdc, l2c, &
      ee1, ee2, ff1, ff2, gg1, gg2, e1, e2, f1, f2, g1, g2, sublons, sublats, AmNodeRoot, WriteNetcdf) 
+#include "MAPL_Generic.h"
 
-  use MAPL_Mod
+  use MAPL_BaseMod
+  use MAPL_GenericMod
   use MAPL_ShmemMod
   use fv_grid_utils_mod, only : gnomonic_grids, cell_center2, mid_pt_sphere
   use fv_grid_tools_mod, only : mirror_grid
@@ -91,13 +97,15 @@ subroutine GetWeights(npx, npy, nlat, nlon, index, weight, id1, id2, jdc, l2c, &
   integer :: INDEX_ID,WEIGTH_ID,L2C_ID
   integer :: ID1_ID,ID2_ID,JDC_ID
   integer :: EE1_ID,EE2_ID,FF1_ID,FF2_ID,GG1_ID,GG2_ID
-  integer :: RC, STATUS
+  integer :: STATUS
 
   integer :: npts, n, l, j, j1
 
   integer, parameter :: ntiles=6
   integer, parameter :: ndims=2
 
+  character(len=128), parameter :: Iam="GetWeights"
+  integer :: rc
 
   real(REAL8), parameter :: PI=3.14159265358979323846
 
@@ -313,10 +321,10 @@ subroutine GetWeights(npx, npy, nlat, nlon, index, weight, id1, id2, jdc, l2c, &
    endif
    endif
 
-  else  ! c2l_file_exists, so read in the weights
+  else  ! NOT WriteNetcdf, so read in the weights
 
-   if (MAPL_AM_I_ROOT()) then
   !print*, 'Reading weights for ', TRIM(c2l_fname)
+
   ! read NETCDF weights file            
   !---------------------------------------------
    STATUS = NF_OPEN (trim(c2l_fname), NF_NOWRITE, c2l_unit)
@@ -352,23 +360,6 @@ subroutine GetWeights(npx, npy, nlat, nlon, index, weight, id1, id2, jdc, l2c, &
    STATUS = NF_GET_VARA_DOUBLE  (c2l_unit,    GG2_ID, (/1,1,1/), (/npx,npy,3/)  ,    gg2)
 
    STATUS = NF_CLOSE (c2l_unit)
-   endif
-
-   ! Broadcast to Nodes
-   call MAPL_BroadcastToNodes( index, N=size( index), ROOT=MAPL_Root, RC=RC)
-   call MAPL_BroadcastToNodes(weight, N=size(weight), ROOT=MAPL_Root, RC=RC)
-   call MAPL_BroadcastToNodes(   l2c, N=size(   l2c), ROOT=MAPL_Root, RC=RC)
-
-   call MAPL_BroadcastToNodes(   id1, N=size(   id1), ROOT=MAPL_Root, RC=RC)
-   call MAPL_BroadcastToNodes(   id2, N=size(   id2), ROOT=MAPL_Root, RC=RC)
-   call MAPL_BroadcastToNodes(   jdc, N=size(   jdc), ROOT=MAPL_Root, RC=RC)
-
-   call MAPL_BroadcastToNodes(   ee1, N=size(   ee1), ROOT=MAPL_Root, RC=RC)
-   call MAPL_BroadcastToNodes(   ee2, N=size(   ee2), ROOT=MAPL_Root, RC=RC)
-   call MAPL_BroadcastToNodes(   ff1, N=size(   ff1), ROOT=MAPL_Root, RC=RC)
-   call MAPL_BroadcastToNodes(   ff2, N=size(   ff2), ROOT=MAPL_Root, RC=RC)
-   call MAPL_BroadcastToNodes(   gg1, N=size(   gg1), ROOT=MAPL_Root, RC=RC)
-   call MAPL_BroadcastToNodes(   gg2, N=size(   gg2), ROOT=MAPL_Root, RC=RC)
 
   endif ! WriteNetcdf
 
@@ -377,7 +368,7 @@ subroutine GetWeights(npx, npy, nlat, nlon, index, weight, id1, id2, jdc, l2c, &
  ! Everyone Needs their copy of the Vector Rotation arrays
  !--------------------------------------------------------
    call MAPL_SyncSharedMemory(rc=STATUS)
-  !VERIFY_(STATUS)
+   VERIFY_(STATUS)
    allocate(e1(is:ie,js:je,3))
    allocate(e2(is:ie,js:je,3))
    allocate(f1(is:ie,js:je,3))
@@ -521,7 +512,7 @@ subroutine A2CnoRotate(U, V)
   use fv_control_mod,    only: npx,npy
   use fv_mp_mod,         only: domain, tile, &
                                is,js,ie,je,isd,jsd,ied,jed, ng
-  use fv_grid_tools_mod, only: atoc
+  use fv_grid_tools_mod, only: atoc, atoc_v2
   implicit none
   real, intent(INOUT) :: U(:,:,:)
   real, intent(INOUT) :: V(:,:,:)
@@ -538,8 +529,9 @@ subroutine A2CnoRotate(U, V)
 
      call mpp_update_domains(uatmp, vatmp, domain, gridtype=AGRID)
 
-    call atoc(uin=uatmp, vin=vatmp, uout=uc, vout=vc, &
-              npx=npx, npy=npy, ng=ng, noComm=.true.)
+     !call atoc(uin=uatmp, vin=vatmp, uout=uc, vout=vc, &
+     !          npx=npx, npy=npy, ng=ng, noComm=.true.)
+     call atoc_v2(uatmp,vatmp,uc,vc,npx,npy)
      u(:,:,k) = uc(is:ie,js:je)
      v(:,:,k) = vc(is:ie,js:je)
 

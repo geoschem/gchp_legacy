@@ -43,12 +43,12 @@
          integer :: jm              ! size of latitudinal  dimension
          integer :: km              ! size of vertical dimension
          integer :: tm              ! size of time dimension
-         real*8, pointer :: lon(:)    ! longitude of center of gridbox in
+         real*8, pointer :: lon(:) => NULL()    ! longitude of center of gridbox in
                                     ! degrees east of Greenwich (can be
                                     ! -180 -> 180 or 0 -> 360)
-         real*8, pointer :: lat(:)    ! latitude of center of gridbox in
+         real*8, pointer :: lat(:) => NULL()    ! latitude of center of gridbox in
                                     ! degrees north of equator
-         real*8, pointer :: lev(:)    ! Level (units given by levUnits) of
+         real*8, pointer :: lev(:) => NULL()    ! Level (units given by levUnits) of
                                     ! center of gridbox
          character(len=MLEN) :: levUnits   ! units of level dimension, e.g.,
                                            ! "hPa", "sigma_level"
@@ -56,9 +56,9 @@
                                            ! (pressure, sigma, pressure_sigma)
          character(len=MLEN) :: standardName ! string for CF standard name
          character(len=MLEN) :: formulaTerm  ! string for CF formula terms
-         real, pointer :: ak(:)     ! parameter for hybrid sigma prs coord.
-         real, pointer :: bk(:)     ! parameter for hybrid sigma prs coord.
-         real, pointer :: sigma(:)  ! parameter for sigma coordinate
+         real, pointer :: ak(:) => NULL()     ! parameter for hybrid sigma prs coord.
+         real, pointer :: bk(:) => NULL()     ! parameter for hybrid sigma prs coord.
+         real, pointer :: sigma(:) => NULL()  ! parameter for sigma coordinate
          real :: ptop               ! parameter for sigma/eta coordinate
          character(len=MVARLEN) :: ptopUnit !  unit of ptop
          logical :: twoDimLat       ! support 2D lat/lon or not

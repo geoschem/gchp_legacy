@@ -11,6 +11,7 @@ function writegrads(args)
 'setx'
 'sety'
 'set gxout fwrite'
+'set undef 1e15'
 
 'getinfo tdim'
          tdim  = result

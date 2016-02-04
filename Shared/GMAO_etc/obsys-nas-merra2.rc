@@ -1,0 +1,292 @@
+# =================  MERRA2  =================== 
+# This observation system resource file database will track the whereabout of observation files.
+#   It will be used by scripts require_obsys (hard check the existence of observation files)
+#   and acquire_obsys (will call acquire to get files).
+#
+# Syntax:
+# -------
+# BEGIN observation_file_class => StandardName
+#   startYYYYMMDD_HHz-endYYYYMMDD_HHz incrementHHMMSS remote_file_name_template
+# END
+#
+# Modification History:
+# ---------------------
+# 2014.02.04 jstassi   initial version
+############################################################
+
+
+
+# NCEP Pre-bufr conventional data
+# -------------------------------
+
+BEGIN merra2_cdas0_pre-qc_bufr => cdas.%y4%m2%d2.t%h2z.pre-qc.ublk
+ 19790101_00z-19841231_18z 240000 lou-via-br2:/nobackup/gmao_SIteam/ObservingSystem/reanalysis/conv/prepbufr/Y%y4/M%m2/ncep2013.gdas.prepbufr.%y4%m2%d2.t%h2z.bufr
+ 19850101_00z-19970430_18z 240000 lou-via-br2:/nobackup/gmao_SIteam/ObservingSystem/reanalysis/conv/prepbufr_fixvai/Y%y4/M%m2/ncep2013_fixvai.gdas.prepbufr.%y4%m2%d2.t%h2z.bufr
+ 19970501_00z-20001231_18z 240000 lou-via-br2:/nobackup/gmao_SIteam/ObservingSystem/reanalysis/conv/prepbufr_fixvai_no_npn/Y%y4/M%m2/ncep2013_fixvai_no_npn.gdas.prepbufr.%y4%m2%d2.t%h2z.bufr
+END
+
+BEGIN merra2_cdas_pre-qc_bufr => cdas.%y4%m2%d2.t%h2z.pre-qc.ublk
+ 20010101_00z-20040915_18z 240000 lou-via-br2:/nobackup/gmao_SIteam/ObservingSystem/merra/conv/prepbufr/runh_PAOB_no_land/Y%y4/M%m2/RUNH_prepbufr_%y4%m2%d2%h2
+ 20040916_00z-20040916_18z 240000 lou-via-br2:/nobackup/gmao_SIteam/ObservingSystem/merra/conv/prepbufr/runh_gaps_filled_PAOB_no_land/Y%y4/M%m2/RUNH_prepbufr_%y4%m2%d2%h2
+ 20040917_00z-20050624_18z 240000 lou-via-br2:/nobackup/gmao_SIteam/ObservingSystem/merra/conv/prepbufr/runh_PAOB_no_land/Y%y4/M%m2/RUNH_prepbufr_%y4%m2%d2%h2
+ 20050625_00z-20050625_18z 240000 lou-via-br2:/nobackup/gmao_SIteam/ObservingSystem/merra/conv/prepbufr/runh_gaps_filled_PAOB_no_land/Y%y4/M%m2/RUNH_prepbufr_%y4%m2%d2%h2
+ 20050626_00z-20050714_18z 240000 lou-via-br2:/nobackup/gmao_SIteam/ObservingSystem/merra/conv/prepbufr/runh_PAOB_no_land/Y%y4/M%m2/RUNH_prepbufr_%y4%m2%d2%h2
+ 20050715_00z-20050721_18z 240000 lou-via-br2:/nobackup/gmao_SIteam/ObservingSystem/merra/conv/prepbufr/runh_gaps_filled_PAOB_no_land/Y%y4/M%m2/RUNH_prepbufr_%y4%m2%d2%h2
+ 20050722_00z-20051231_18z 240000 lou-via-br2:/nobackup/gmao_SIteam/ObservingSystem/merra/conv/prepbufr/runh_PAOB_no_land/Y%y4/M%m2/RUNH_prepbufr_%y4%m2%d2%h2
+ 20060101_00z-20080915_18z 240000 lou-via-br2:/nobackup/gmao_SIteam/ObservingSystem/merra/conv/prepbufr/runha/Y%y4/M%m2/prepbufr.gdas_red.%y4%m2%d2%h2
+ 20080916_00z-20081231_18z 240000 lou-via-br2:/nobackup/gmao_SIteam/ObservingSystem/reanalysis/conv/prepbufr_tamdarKXfix/runha/Y%y4/M%m2/prepbufr.gdas_red.%y4%m2%d2%h2
+ 20090101_00z-20111231_18z 240000 lou-via-br2:/nobackup/gmao_SIteam/ObservingSystem/reanalysis/conv/prepbufr_tamdarKXfix/runha/Y%y4/M%m2/reanalysis.prepbufr.gdas_red.%y4%m2%d2%h2
+ 20120101_00z-21001231_18z 240000 lou-via-br2:/nobackup/gmao_SIteam/ObservingSystem/llk/conv/prepbufr/runha/Y%y4/M%m2/reanalysis.prepbufr.gdas_red.%y4%m2%d2%h2
+END
+
+# AVHRR polar AMV data (prepbufr stream)
+BEGIN merra2_avhrrwnd_pre-qc_bufr => avhrr.%y4%m2%d2.t%h2z.pre-qc.ublk
+ 19821001_00z-20100630_18z 240000 lou-via-br2:/nobackup/gmao_SIteam/ObservingSystem/reanalysis/avhrr_winds/Y%y4/M%m2/avh_wnd.%y4%m2%d2.%h2z.bufr
+END
+# AVHRR polar AMV data (satwndbufr stream)
+BEGIN merra2_avhrr_satwnd_bufr => avhrr.%y4%m2%d2.t%h2z.satwnd.tm00.bufr_d
+ 20100701_00z-21001231_18z 240000 lou-via-br2:/nobackup/gmao_SIteam/ObservingSystem/reanalysis/avhrr_winds/bufr/Y%y4/M%m2/satwndavhrr.%y4%m2%d2%h2
+END
+
+BEGIN merra2_satwnd_bufr => gdas1.%y4%m2%d2.t%h2z.satwnd.tm00.bufr_d.ublk
+ 20100701_00z-21001231_18z 240000 lou-via-br2:/nobackup/gmao_SIteam/ObservingSystem/flk/ncep_NotUsed/bufr/SATWND/Y%y4/M%m2/gdas1.%y4%m2%d2.t%h2z.satwnd.tm00.bufr_d
+END
+
+
+# ASCAT Scatterometer (prepbufr)
+# -------------------
+BEGIN merra2_ascat_pre-qc_bufr => obsys.ascat.pre-qc.%y4%m2%d2_%h2z.bufr.ublk
+ 20080916_00z-21001231_18z 240000 lou-via-br2:/nobackup/gmao_SIteam/ObservingSystem/reanalysis/conv/ascat/prepbufr/Y%y4/M%m2/ascat.%y4%m2%d2.t%h2z.prepbufr
+END
+
+# MERRA ERS-1 Scatterometer
+# --------------------------
+BEGIN merra2_ers1_pre-qc_bufr => obsys.ers1.pre-qc.%y4%m2%d2.t%h2z.ublk
+ 19910805_00z-19911022_18z 240000 lou-via-br2:/nobackup/gmao_SIteam/ObservingSystem/merra/ers1/prepbufr/Y%y4/M%m2/ers1.%y4%m2%d2.t%h2z.bufr
+ 19911024_00z-19911103_18z 240000 lou-via-br2:/nobackup/gmao_SIteam/ObservingSystem/merra/ers1/prepbufr/Y%y4/M%m2/ers1.%y4%m2%d2.t%h2z.bufr
+ 19911105_00z-19911209_18z 240000 lou-via-br2:/nobackup/gmao_SIteam/ObservingSystem/merra/ers1/prepbufr/Y%y4/M%m2/ers1.%y4%m2%d2.t%h2z.bufr
+ 19911212_00z-19911213_18z 240000 lou-via-br2:/nobackup/gmao_SIteam/ObservingSystem/merra/ers1/prepbufr/Y%y4/M%m2/ers1.%y4%m2%d2.t%h2z.bufr
+ 19911222_00z-19920108_18z 240000 lou-via-br2:/nobackup/gmao_SIteam/ObservingSystem/merra/ers1/prepbufr/Y%y4/M%m2/ers1.%y4%m2%d2.t%h2z.bufr
+ 19920110_00z-19920112_18z 240000 lou-via-br2:/nobackup/gmao_SIteam/ObservingSystem/merra/ers1/prepbufr/Y%y4/M%m2/ers1.%y4%m2%d2.t%h2z.bufr
+ 19920120_00z-19920201_18z 240000 lou-via-br2:/nobackup/gmao_SIteam/ObservingSystem/merra/ers1/prepbufr/Y%y4/M%m2/ers1.%y4%m2%d2.t%h2z.bufr
+ 19920301_00z-19920331_18z 240000 lou-via-br2:/nobackup/gmao_SIteam/ObservingSystem/merra/ers1/prepbufr/Y%y4/M%m2/ers1.%y4%m2%d2.t%h2z.bufr
+ 19920414_00z-19920625_18z 240000 lou-via-br2:/nobackup/gmao_SIteam/ObservingSystem/merra/ers1/prepbufr/Y%y4/M%m2/ers1.%y4%m2%d2.t%h2z.bufr
+ 19920629_00z-19920719_18z 240000 lou-via-br2:/nobackup/gmao_SIteam/ObservingSystem/merra/ers1/prepbufr/Y%y4/M%m2/ers1.%y4%m2%d2.t%h2z.bufr
+ 19920724_00z-19920902_18z 240000 lou-via-br2:/nobackup/gmao_SIteam/ObservingSystem/merra/ers1/prepbufr/Y%y4/M%m2/ers1.%y4%m2%d2.t%h2z.bufr
+ 19920904_00z-19940101_18z 240000 lou-via-br2:/nobackup/gmao_SIteam/ObservingSystem/merra/ers1/prepbufr/Y%y4/M%m2/ers1.%y4%m2%d2.t%h2z.bufr
+ 19940103_00z-19940131_18z 240000 lou-via-br2:/nobackup/gmao_SIteam/ObservingSystem/merra/ers1/prepbufr/Y%y4/M%m2/ers1.%y4%m2%d2.t%h2z.bufr
+ 19940406_00z-19940426_18z 240000 lou-via-br2:/nobackup/gmao_SIteam/ObservingSystem/merra/ers1/prepbufr/Y%y4/M%m2/ers1.%y4%m2%d2.t%h2z.bufr
+ 19940428_00z-19960525_18z 240000 lou-via-br2:/nobackup/gmao_SIteam/ObservingSystem/merra/ers1/prepbufr/Y%y4/M%m2/ers1.%y4%m2%d2.t%h2z.bufr
+END
+# ERS-2 data. (Original processing through 19970519.  Reprocessing after 19970519.)
+BEGIN merra2_repro_ers2_pre-qc_bufr => obsys.ers2.pre-qc.%y4%m2%d2.t%h2z.ublk
+ 19960319_00z-19970519_18z 240000 lou-via-br2:/nobackup/gmao_SIteam/ObservingSystem/merra/ers2/prepbufr/Y%y4/M%m2/ers2.%y4%m2%d2.t%h2z.bufr
+ 19970520_00z-20030217_18z 240000 lou-via-br2:/nobackup/gmao_SIteam/ObservingSystem/merra/ers2_asps20n/bufr/Y%y4/M%m2/ers2_asps20n.%y4%m2%d2.t%h2z.bufr
+ 20030813_00z-20110329_18z 240000 lou-via-br2:/nobackup/gmao_SIteam/ObservingSystem/merra/ers2_wsc/bufr/Y%y4/M%m2/ers2_wsc.%y4%m2%d2.t%h2z.bufr
+END
+# MERRA Quick SCAT Data   (ms - added 2003,2004)
+# ---------------
+BEGIN merra2_qscat_jpl_pre-qc_bufr => obsys.qscat.pre-qc.%y4%m2%d2.t%h2z.ublk
+ 19990719_00z-20001231_18z 240000 lou-via-br2:/nobackup/gmao_SIteam/ObservingSystem/merra/qscat/prepbufr/Y%y4/M%m2/jpl_qscat.%y4%m2%d2.t%h2z.bufr
+ 20010101_00z-20081029_18z 240000 lou-via-br2:/nobackup/gmao_SIteam/ObservingSystem/merra/qscat_runh/prepbufr/Y%y4/M%m2/jpl_qscat.%y4%m2%d2.t%h2z.bufr
+ 20081030_00z-20091122_18z 240000 lou-via-br2:/nobackup/gmao_SIteam/ObservingSystem/llk/jplqscat/bfr/jplqscat/Y%y4/M%m2/jplqscat.%y4%m2%d2%h2.bfr
+END
+# MERRA SSMI Wentz Speed
+BEGIN merra2_wspd_pre-qc_bufr => wentzspd.%y4%m2%d2.t%h2z.pre-qc.bufr.ublk
+ 19870709_00z-20131029_18z 240000 lou-via-br2:/nobackup/gmao_SIteam/ObservingSystem/reanalysis/SSMIwind_wentz/v7/prepbufr/Y%y4/M%m2/ssmiwnd.%y4%m2%d2.%h2z.bufr
+END
+
+BEGIN merra2_nmodis_pre-qc_bufr => modis.%y4%m2%d2.t%h2z.pre-qc.ublk
+ 20020701_00z-20040708_18z 240000 lou-via-br2:/nobackup/gmao_SIteam/ObservingSystem/merra/modisw_combined_runh/prepbufr/Y%y4/M%m2/modisw_c.%y4%m2%d2.t%h2z.bfr
+ 20040709_00z-20040930_18z 240000 lou-via-br2:/nobackup/gmao_SIteam/ObservingSystem/merra/modisw_runh/prepbufr/Y%y4/M%m2/modisw.%y4%m2%d2.t%h2z.bfr
+END
+BEGIN merra2_prof_pre-qc_bufr => prof.%y4%m2%d2.t%h2z.pre-qc.ublk
+ 19920510_00z-20001231_18z 240000 lou-via-br2:/nobackup/gmao_SIteam/ObservingSystem/merra/profiler/prepbfr/Y%y4/M%m2/profil.%y4%m2%d2.%h2.bfr
+ 20010101_00z-20080731_18z 240000 lou-via-br2:/nobackup/gmao_SIteam/ObservingSystem/merra/profiler_runh/prepbfr/Y%y4/M%m2/profil.%y4%m2%d2.%h2.bfr
+END
+
+#--------------------------------- BELOW THIS POINT: NO PRE-QC OBSERVATIONS -----------------------------
+
+BEGIN merra2_ncep_tcvitals => tcvitals.%y4%m2%d2%h2
+ 19790101_00z-20061231_18z 240000 lou-via-br2:/nobackup/gmao_SIteam/ObservingSystem/reanalysis/tcvitals/text/Y%y4/M%m2/gdas1.%y4%m2%d2.t%h2z.syndata.tcvitals
+ 20070101_00z-21001231_18z 240000 lou-via-br2:/nobackup/gmao_SIteam/ObservingSystem/flk/tcvitals/text/TCVITALS/Y%y4/M%m2/gfs.%y2%m2%d2.t%h2z.syndata.tcvitals
+END
+
+# MERRA GPROF Precipitation
+# --------------------------
+BEGIN merra2_gprofp08_bufr => gprofp08.%y4%m2%d2.t%h2z.bufr.ublk
+ 19870709_00z-19900226_18z 240000 lou-via-br2:/nobackup/gmao_SIteam/ObservingSystem/merra/gprof/bufr/Y%y4/M%m2/gprof.F08.%y4%m2%d2.%h2z.bufr
+END
+BEGIN merra2_gprofp10_bufr => gprofp10.%y4%m2%d2.t%h2z.bufr.ublk
+ 19910105_00z-19971115_18z 240000 lou-via-br2:/nobackup/gmao_SIteam/ObservingSystem/merra/gprof/bufr/Y%y4/M%m2/gprof.F10.%y4%m2%d2.%h2z.bufr
+END
+BEGIN merra2_gprofp11_bufr => gprofp11.%y4%m2%d2.t%h2z.bufr.ublk
+ 19920101_00z-19961130_18z 240000 lou-via-br2:/nobackup/gmao_SIteam/ObservingSystem/merra/gprof/bufr/Y%y4/M%m2/gprof.F11.%y4%m2%d2.%h2z.bufr
+END
+BEGIN merra2_gprofp13_bufr => gprofp13.%y4%m2%d2.t%h2z.bufr.ublk
+ 19950503_00z-20090916_18z 240000 lou-via-br2:/nobackup/gmao_SIteam/ObservingSystem/merra/gprof/bufr/Y%y4/M%m2/gprof.F13.%y4%m2%d2.%h2z.bufr
+END
+BEGIN merra2_gprofp14_bufr => gprofp14.%y4%m2%d2.t%h2z.bufr.ublk
+ 19970508_00z-20080824_18z 240000 lou-via-br2:/nobackup/gmao_SIteam/ObservingSystem/merra/gprof/bufr/Y%y4/M%m2/gprof.F14.%y4%m2%d2.%h2z.bufr
+END
+
+
+# MERRA reduced-resolution TRMM TMI
+#----------------------------------
+BEGIN merra2_tmil_bufr => tmil.%y4%m2%d2.%h2z.bufr.ublk
+ 19980101_00z-20091130_18z 240000 lou-via-br2:/nobackup/gmao_SIteam/ObservingSystem/merra/trmm/bufr/Y%y4/M%m2/tmi.land.%y4%m2%d2.%h2z.bufr
+ 20091201_00z-21001231_18z 240000 lou-via-br2:/nobackup/gmao_SIteam/ObservingSystem/llk/trmm/bufr/trmm/Y%y4/M%m2/tmi.land.%y4%m2%d2.%h2z.bufr
+END
+BEGIN merra2_tmio_bufr => tmio.%y4%m2%d2.%h2z.bufr.ublk
+ 19980101_00z-20091130_18z 240000 lou-via-br2:/nobackup/gmao_SIteam/ObservingSystem/merra/trmm/bufr/Y%y4/M%m2/tmi.ocean.%y4%m2%d2.%h2z.bufr
+ 20091201_00z-21001231_18z 240000 lou-via-br2:/nobackup/gmao_SIteam/ObservingSystem/llk/trmm/bufr/trmm/Y%y4/M%m2/tmi.ocean.%y4%m2%d2.%h2z.bufr
+END
+
+# GPS Radio Occultation Data
+# 2001 - Mid-Dec 2007 CHAMP in monthly files
+# Mid-Dec 2007 - onward, the start of the COSMIC constellation
+#-------------------------------------------------------------
+BEGIN merra2_gpsro_bufr => gdas1.%y2%m2%d2.t%h2z.gpsro.tm00.bufr_d.ublk
+ 20010519_00z-21001231_18z 240000 lou-via-br2:/nobackup/gmao_SIteam/ObservingSystem/flk/ncep_g5obs/bufr/GPSRO/Y%y4/M%m2/gdas1.%y2%m2%d2.t%h2z.gpsro.tm00.bufr_d
+END
+
+# GOES Sounder Radiances
+# 5x5 averaged in goesnd.* files
+# 1x1 single FOVs in *goesfv* files
+# Control of usage set in satinfo_db 
+#  - Switch occurs on 20070401_00z in MERRA2
+#-------------------------------------------
+BEGIN merra2_goesnd_prep_bufr => goesnd.%y4%m2%d2.t%h2z.ublk
+ 20010424_00z-20071204_18z 060000 lou-via-br2:/nobackup/gmao_SIteam/ObservingSystem/merra/GOES_sounder/prepbufr/Y%y4/M%m2/goesnd.%y4%m2%d2.t%h2z.bufr
+END
+BEGIN merra2_goesfv_bufr => gdas1.%y2%m2%d2.t%h2z.goesfv.tm00.bufr_d.ublk
+ 20070222_00z-21001231_18z 240000 lou-via-br2:/nobackup/gmao_SIteam/ObservingSystem/flk/ncep_g5obs/bufr/GOESFV/Y%y4/M%m2/gdas1.%y2%m2%d2.t%h2z.goesfv.tm00.bufr_d
+END
+
+# SEVIRI radiances 
+#-----------------
+BEGIN merra2_sevcsr_bufr => gdas1.%y4%m2%d2.t%h2z.sevcsr.tm00.bufr_d.ublk
+ 20120215_00z-21001231_18z 240000 lou-via-br2:/nobackup/gmao_SIteam/ObservingSystem/flk/ncep_g5obs/bufr/SEVCSR/Y%y4/M%m2/gdas1.%y4%m2%d2.t%h2z.sevcsr.tm00.bufr_d
+END
+
+#
+
+
+
+###############################################################################################################
+#                    TOVS best data for reanalysis (replaces the old MERRA tovs data)
+###############################################################################################################
+
+BEGIN merra2_1bamua_bufr => gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr.ublk
+ 19981101_00z-20130731_18z 240000 lou-via-br2:/nobackup/gmao_SIteam/ObservingSystem/merra/tovs_best/AMSUA/Y%y4/M%m2/gmao.%y4%m2%d2.t%h2z.1bamua.tm00.bufr
+ 20130801_00z-21001231_18z 240000 lou-via-br2:/nobackup/gmao_SIteam/ObservingSystem/reanalysis/tovs/bufr/AMSUA/Y%y4/M%m2/gmao.%y4%m2%d2.t%h2z.1bamua.tm00.bufr
+END
+BEGIN merra2_1bamub_bufr => gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr.ublk
+ 19981101_00z-20130731_18z 240000 lou-via-br2:/nobackup/gmao_SIteam/ObservingSystem/merra/tovs_best/AMSUB/Y%y4/M%m2/gmao.%y4%m2%d2.t%h2z.1bamub.tm00.bufr
+ 20130801_00z-21001231_18z 240000 lou-via-br2:/nobackup/gmao_SIteam/ObservingSystem/reanalysis/tovs/bufr/AMSUB/Y%y4/M%m2/gmao.%y4%m2%d2.t%h2z.1bamub.tm00.bufr
+END
+BEGIN merra2_1bhrs2_bufr => gmao.%y2%m2%d2.t%h2z.1bhrs2.tm00.bufr.ublk
+ 19781101_00z-20060930_00z 240000 lou-via-br2:/nobackup/gmao_SIteam/ObservingSystem/merra/tovs_best/HIRS2/Y%y4/M%m2/gmao.%y4%m2%d2.t%h2z.1bhrs2.tm00.bufr
+END
+BEGIN merra2_1bhrs3_bufr => gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr.ublk
+ 19980721_00z-20130731_18z 240000 lou-via-br2:/nobackup/gmao_SIteam/ObservingSystem/merra/tovs_best/HIRS3/Y%y4/M%m2/gmao.%y4%m2%d2.t%h2z.1bhrs3.tm00.bufr
+ 20130801_00z-21001231_18z 240000 lou-via-br2:/nobackup/gmao_SIteam/ObservingSystem/reanalysis/tovs/bufr/HIRS3/Y%y4/M%m2/gmao.%y4%m2%d2.t%h2z.1bhrs3.tm00.bufr
+END
+BEGIN merra2_1bhrs4_bufr => gmao.%y2%m2%d2.t%h2z.1bhrs4.tm00.bufr.ublk
+ 20090401_00z-20130731_18z 240000 lou-via-br2:/nobackup/gmao_SIteam/ObservingSystem/merra/tovs_best/HIRS4/Y%y4/M%m2/gmao.%y4%m2%d2.t%h2z.1bhrs4.tm00.bufr
+ 20130801_00z-21001231_18z 240000 lou-via-br2:/nobackup/gmao_SIteam/ObservingSystem/reanalysis/tovs/bufr/HIRS4/Y%y4/M%m2/gmao.%y4%m2%d2.t%h2z.1bhrs4.tm00.bufr
+END
+BEGIN merra2_1bmsu_bufr => gmao.%y2%m2%d2.t%h2z.1bmsu.tm00.bufr.ublk
+ 19781101_00z-19861031_18z 240000 lou-via-br2:/nobackup/gmao_SIteam/ObservingSystem/merra/tovs_best/MSU/Y%y4/M%m2/gmao.%y4%m2%d2.t%h2z.1bmsu.tm00.bufr
+ 19861101_00z-20061010_18z 240000 lou-via-br2:/nobackup/gmao_SIteam/ObservingSystem/merra/tovs/MSU_RECALIBRATED/Y%y4/M%m2/ncep.%y2%m2%d2.t%h2z.1bmsu.tm00.bufr
+END
+BEGIN merra2_1bmhs_bufr => gmao.%y2%m2%d2.t%h2z.1bmhs.tm00.bufr.ublk
+ 20051101_00z-20130731_18z 240000 lou-via-br2:/nobackup/gmao_SIteam/ObservingSystem/merra/tovs_best/MHS/Y%y4/M%m2/gmao.%y4%m2%d2.t%h2z.1bmhs.tm00.bufr
+ 20130801_00z-21001231_18z 240000 lou-via-br2:/nobackup/gmao_SIteam/ObservingSystem/reanalysis/tovs/bufr/MHS/Y%y4/M%m2/gmao.%y4%m2%d2.t%h2z.1bmhs.tm00.bufr
+END
+BEGIN merra2_1bssu_bufr => gmao.%y2%m2%d2.t%h2z.1bssu.tm00.bufr.ublk
+ 19781101_00z-20060505_18z 240000 lou-via-br2:/nobackup/gmao_SIteam/ObservingSystem/merra/tovs_best/SSU/Y%y4/M%m2/gmao.%y4%m2%d2.t%h2z.1bssu.tm00.bufr
+END
+
+BEGIN merra2_eosairs_bufr => eos_airs.%y4%m2%d2.t%h2z.bufr
+ 20020901_00z-21001231_18z 240000 lou-via-br2:/nobackup/gmao_SIteam/ObservingSystem/reanalysis/aqua_disc/bufr/airs/Y%y4/M%m2/airs_disc_final.%y4%m2%d2.t%h2z.bufr
+END
+
+BEGIN merra2_eosamsua_bufr => eos_amsua.%y4%m2%d2.t%h2z.bufr
+ 20020901_00z-21001231_18z 240000 lou-via-br2:/nobackup/gmao_SIteam/ObservingSystem/reanalysis/aqua_disc/bufr/amsu/Y%y4/M%m2/amsua_disc_final.%y4%m2%d2.t%h2z.bufr
+END
+
+BEGIN merra2_mtiasi_bufr => gdas1.%y2%m2%d2.t%h2z.mtiasi.tm00.bufr_d.ublk
+ 20080917_00z-21001231_18z 240000 lou-via-br2:/nobackup/gmao_SIteam/ObservingSystem/flk/ncep_g5obs/bufr/MTIASI/Y%y4/M%m2/gdas1.%y2%m2%d2.t%h2z.mtiasi.tm00.bufr_d
+END
+
+BEGIN merra2_atms_bufr => gdas1.%y4%m2%d2.t%h2z.atms.tm00.bufr_d.ublk
+ 20111116_00z-21001231_18z 240000 lou-via-br2:/nobackup/gmao_SIteam/ObservingSystem/flk/ncep_g5obs/bufr/ATMS/Y%y4/M%m2/gdas1.%y4%m2%d2.t%h2z.atms.tm00.bufr_d
+END
+
+BEGIN merra2_cris_bufr => gdas1.%y4%m2%d2.t%h2z.cris.tm00.bufr_d.ublk
+ 20120407_00z-21001231_18z 240000 lou-via-br2:/nobackup/gmao_SIteam/ObservingSystem/flk/ncep_NotUsed/bufr/CRIS/Y%y4/M%m2/gdas1.%y4%m2%d2.t%h2z.cris.tm00.bufr_d
+END
+
+
+# Wentz SSMI Radiances
+#---------------------
+BEGIN merra2_ssmit08_bufr => wentz.ssmit08.%y4%m2%d2%h2.bfr.ublk
+ 19870709_00z-19911231_18z 240000 lou-via-br2:/nobackup/gmao_SIteam/ObservingSystem/reanalysis/SSMIrad_wentz/v7/bufr/F08/Y%y4/M%m2/wentz_ssmit.f08.%y4%m2%d2%h2.bufr
+END
+BEGIN merra2_ssmit10_bufr => wentz.ssmit10.%y4%m2%d2%h2.bfr.ublk
+ 19901208_00z-19970811_18z 240000 lou-via-br2:/nobackup/gmao_SIteam/ObservingSystem/reanalysis/SSMIrad_wentz/v7/bufr/F10/Y%y4/M%m2/wentz_ssmit.f10.%y4%m2%d2%h2.bufr
+END
+BEGIN merra2_ssmit11_bufr => wentz.ssmit11.%y4%m2%d2%h2.bfr.ublk
+ 19911203_00z-20000516_18z 240000 lou-via-br2:/nobackup/gmao_SIteam/ObservingSystem/reanalysis/SSMIrad_wentz/v7/bufr/F11/Y%y4/M%m2/wentz_ssmit.f11.%y4%m2%d2%h2.bufr
+END
+BEGIN merra2_ssmit13_bufr => wentz.ssmit13.%y4%m2%d2%h2.bfr.ublk
+ 19950503_00z-20091104_18z 240000 lou-via-br2:/nobackup/gmao_SIteam/ObservingSystem/reanalysis/SSMIrad_wentz/v7/bufr/F13/Y%y4/M%m2/wentz_ssmit.f13.%y4%m2%d2%h2.bufr
+END
+BEGIN merra2_ssmit14_bufr => wentz.ssmit14.%y4%m2%d2%h2.bfr.ublk
+ 19970508_00z-20080808_18z 240000 lou-via-br2:/nobackup/gmao_SIteam/ObservingSystem/reanalysis/SSMIrad_wentz/v7/bufr/F14/Y%y4/M%m2/wentz_ssmit.f14.%y4%m2%d2%h2.bufr
+END
+BEGIN merra2_ssmit15_bufr => wentz.ssmit15.%y4%m2%d2%h2.bfr.ublk
+ 19991218_00z-20060826_18z 240000 lou-via-br2:/nobackup/gmao_SIteam/ObservingSystem/reanalysis/SSMIrad_wentz/v7/bufr/F15/Y%y4/M%m2/wentz_ssmit.f15.%y4%m2%d2%h2.bufr
+END
+
+# NCEP SSMI/S Radiances
+#----------------------
+BEGIN merra2_ssmis_bufr => gdas1.%y2%m2%d2.t%h2z.ssmisu.tm00.bufr_d.ublk
+ 20110228_00z-21001231_18z 240000 lou-via-br2:/nobackup/gmao_SIteam/ObservingSystem/flk/ncep_gps/bufr/SSMISU/Y%y4/M%m2/gdas1.%y2%m2%d2.t%h2z.ssmisu.tm00.bufr_d
+END
+
+###################################################################################################
+##                 Ozone data (from K Wargan moved to different place??)                         ## 
+###################################################################################################
+# SBUV ozone data
+# Intentionally not needed (used) past 20040930
+BEGIN merra2_osbuv8_bufr => gmao.%y4%m2%d2.t%h2z.osbuv.tm00.bufr_d.ublk
+ 19781031_00z-20040930_18z 240000 lou-via-br2:/nobackup/gmao_SIteam/ObservingSystem/merra/sbuv8r6/bufr/Y%y4/M%m2/gmao.sbuv8r6.%y4%m2%d2.%h2z.bufr
+END
+
+# AURA MLS near real time
+#BEGIN mls_nrt_nc => mlsnc.%y4%m2%d2.t%h2z.nc
+# 20121231_18z-21001231_18z 240000 /archive/u/kwargan/data/MLS_NRT/Y%y4/M%m2/MLSNRToz.%y4%m2%d2_%h2z.nc
+#END
+
+#MLS ozone BUFR data
+#-------------------------
+BEGIN merra2_aura_mlsoz_bufr => mlsoz.%y4%m2%d2.t%h2z.bufr
+ 20041001_00z-21001231_18z 240000 lou-via-br2:/nobackup/gmao_SIteam/ObservingSystem/reanalysis/mls/oz/bufr/Y%y4/M%m2/MLSo3lev.%y4%m2%d2.t%h2z.bufr
+END
+
+#AURA OMI totoz+eff., NetCDF data
+#-------------------------
+BEGIN merra2_aura_omieff_nc => omieff.%y4%m2%d2.t%h2z.nc
+ 20041001_00z-21001231_18z 240000 lou-via-br2:/nobackup/gmao_SIteam/ObservingSystem/reanalysis/omi_eff/netcdf/Y%y4/M%m2/OMIeff.%y4%m2%d2_%h2z.nc
+END
+
+##-----------------------------------------------------------------------------
+
+# EOSMLSt level 2b in BUFR
+# --------------
+# Note this is the same data as in aura_mlst_bufr
+BEGIN merra2_gmao_mlst_bufr => MLSt.%y4%m2%d2.t%h2z.bufr
+ 20040813_00z-21001231_18z 240000 lou-via-br2:/nobackup/gmao_SIteam/ObservingSystem/reanalysis/mls/temperature_v3/bufr/Y%y4/M%m2/MLSt.%y4%m2%d2.t%h2z.bufr
+END 

@@ -61,6 +61,7 @@ endif
          geosutil = result
 PLOTRC = geosutil'/plots/grads_util/plot.rc'
 
+say 'LEVTYPE: 'CLEVS
                         'getresource 'PLOTRC' 'EXPORT'_'GC'_'level'_CBSCALE'
 if( result = 'NULL' ) ; 'getresource 'PLOTRC' 'EXPORT'_'GC'_CBSCALE' ; endif
                                                             cbscale = result
@@ -77,7 +78,8 @@ if( result = 'NULL' ) ; 'getresource 'PLOTRC' 'EXPORT'_'GC'_TITLE' ; endif
 if( result = 'NULL' ) ; 'getresource 'PLOTRC' 'EXPORT'_'GC'_CCOLS' ; endif
                                                             ccols = result
 
-                        'getresource 'PLOTRC' 'EXPORT'_'GC'_'level'_CLEVS'
+                        'getresource 'PLOTRC' 'EXPORT'_'GC'_'level'_'CLEVS
+if( result = 'NULL' ) ; 'getresource 'PLOTRC' 'EXPORT'_'GC'_'CLEVS ; endif
 if( result = 'NULL' ) ; 'getresource 'PLOTRC' 'EXPORT'_'GC'_CLEVS' ; endif
                                                             clevs = result
 
@@ -85,6 +87,7 @@ if( result = 'NULL' ) ; 'getresource 'PLOTRC' 'EXPORT'_'GC'_CLEVS' ; endif
                                                             method = result
                         'getresource 'PLOTRC' 'EXPORT'_'GC'_MASK'
                                                             mask   = result
+
 * Remove possible BLANKS from mask
 * --------------------------------
 DUMMY = ''
@@ -154,7 +157,7 @@ if( fact    = 'NULL' ) ; fact    = 1         ; endif
 
 'set dfile 'expfile
 'setlons'
-'set lat -90 90'
+'setlats'
 if( level = 0 )
    'set z 1'
 else
@@ -163,24 +166,6 @@ endif
 'set t 1'
 'q dims'
 say 'EXP DIMS Environment: 'result
-
-'define qmod  = mod'season'*'fact
-
-if( mask != NULL )
-   'setmask'
-   if( mask = 'LAND' )
-   say 'define qmod = maskout( qmod, 0.5-lwmask )'
-   'define qmod = maskout( qmod, 0.5-lwmask )'
-   endif
-   if( mask = 'OCEAN' )
-   say 'define qmod = maskout( qmod, lwmask-0.5 )'
-   'define qmod = maskout( qmod, lwmask-0.5 )'
-   endif
-endif
-
-'define maskm = 1 + qmod-qmod'
-
-
 
 * Get Dimension of Environment
 * ----------------------------
@@ -194,6 +179,26 @@ endif
          latend = result
 
 say 'Environment Dimension: 'lonbeg' 'lonend' 'latbeg' 'latend
+
+'define qmod  = mod'season'*'fact
+'define qmod  = regrid2( qmod,0.25,0.25,bs_p1,'lonbeg','latbeg')'
+
+if( mask != NULL )
+   'setmask'
+   'define lwmask = regrid2( lwmask,0.25,0.25,bs_p1,'lonbeg','latbeg')'
+   if( mask = 'LAND' )
+       say 'define qmod = maskout( qmod, 0.5-lwmask )'
+           'define qmod = maskout( qmod, 0.5-lwmask )'
+   endif
+   if( mask = 'OCEAN' )
+       say 'define qmod = maskout( qmod, lwmask-0.5 )'
+           'define qmod = maskout( qmod, lwmask-0.5 )'
+   endif
+endif
+
+'define maskm = 1 + qmod-qmod'
+
+
 
 * Determine DLAT & DLON of Analysis
 * ---------------------------------
@@ -212,6 +217,8 @@ say 'Analysis DLON: 'dlon
 'set lon 'lonbeg' 'lonend
 'set lat 'latbeg' 'latend
 'define qobs  = obs'season'*'fact
+'define qobs  = regrid2( qobs,0.25,0.25,bs_p1,'lonbeg','latbeg')'
+'define qobs  = maskout(qobs,maskm)'
 
 m = 0
 if( ccols = NULL )
@@ -248,9 +255,6 @@ if( ccols = NULL )
    'define qobs = qobs / 1e'm
 endif
 
-say 'define masko = regrid2( maskm,'dlon','dlat',bs_p1,'lonbeg','latbeg' )'
-    'define masko = regrid2( maskm,'dlon','dlat',bs_p1,'lonbeg','latbeg' )'
-    'define qobso = regrid2( qobs ,'dlon','dlat',bs_p1,'lonbeg','latbeg' )'
 
 'set dfile 'expfile
 'set lon 'lonbeg' 'lonend
@@ -288,7 +292,7 @@ if( ccols != NULL )
 else
    'shades 'qmod' 0'
 endif
-   'd maskout(qobso,masko)'
+   'd qobs'
 
    'cbarn -vert -snum 0.8 -ymid 6.4 -scaley 0.9 '
 
@@ -308,23 +312,20 @@ else
 endif
 'set t 1'
 'q dims'
-say 'DIMS before Final Regridding: 'result
-'define obsg = regrid2(  qobs,1,1,bs_p1,'lon',-90)'
-'define modg = regrid2(  qmod,1,1,bs_p1,'lon',-90)'
-'define mask = regrid2( maskm,1,1,bs_p1,'lon',-90)'
-'define obsg = maskout( obsg,mask )'
-'set gxout shaded'
 
-'stats maskout(modg,abs(obsg))'
+'stats maskout(qmod,abs(qobs))'
  avgmod = subwrd(result,1)
  stdmod = subwrd(result,2)
-'stats maskout(obsg,abs(obsg))'
+
+'stats maskout(qobs,abs(qobs))'
  avgobs = subwrd(result,1)
  stdobs = subwrd(result,2)
-'stats maskout(modg-obsg,abs(obsg))'
+
+'stats maskout(qmod-qobs,abs(qobs))'
  avgdif = subwrd(result,1)
  stddif = subwrd(result,2)
 
+'set gxout shaded'
        qmax = stddif/3
    if( qmax > 0 )
       'd log10('qmax')'
@@ -347,9 +348,14 @@ say 'DIMS before Final Regridding: 'result
       'd 'qmax'/1e'n
        cint = subwrd(result,4)
       'shades 'cint
+      'define qdif = (qmod-qobs)/1e'n
+      'd qdif'
+      'cbarn -snum 0.55'
 
-'d (modg-obsg)/1e'n
-'cbarn -snum 0.55'
+'stats maskout(qdif,abs(qobs))'
+ avgdif = subwrd(result,1)
+ stddif = subwrd(result,2)
+
 k = m + n
 
 'set vpage off'

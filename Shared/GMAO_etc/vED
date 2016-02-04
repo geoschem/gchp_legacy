@@ -1,0 +1,256 @@
+#!/usr/bin/env perl
+#=======================================================================
+# name - vED (variable editor)
+# purpose - this script assigns values to variables and/or substitutes
+#           values for variables within a file (see usage for details)
+#
+# !Revision History
+# 20110624  J.Stassi  Initial version
+#=======================================================================
+use strict;
+use warnings;
+
+# global variables
+#-----------------
+my ($infil, $outfl, $verbose, $envFlg, %varVal);
+
+# main program
+#-------------
+{
+    use File::Copy ("move");
+    my (@var1, @var2, $var, $val, $line, @lineArr);
+
+    init();
+
+    # read and edit lines from input file
+    #------------------------------------
+    open INFIL, "< $infil" or die "Error: opening infile, $infil: $!";
+    foreach (<INFIL>) {
+        chomp($line = $_);
+        foreach $var (keys %varVal) {
+            $val = $varVal{$var};
+            flagged_variable_subst(\$line, $var, $val);
+        }
+        
+        @var1 = ( $line =~ /\$(\w+)\b/g );
+        @var2 = ( $line =~ /\${(\w+)}/g );
+
+        foreach $var (@var1) { variable_subst(\$line, $var, 0) }
+        foreach $var (@var2) { variable_subst(\$line, $var, 1) }
+        push @lineArr, "$line\n";
+    }
+    close INFIL;
+
+    # write to output file ...
+    #-------------------------
+    if ($outfl) {
+        move $infil, "$infil~" if $outfl eq $infil;
+        open OUTFL, "> $outfl" or die "Error: opening outfile, $outfl: $!";
+        foreach (@lineArr) { print OUTFL $_ }
+        close OUTFL;
+    }
+
+    # ... or to STDOUT
+    #-----------------
+    else {
+        foreach (@lineArr) { print $_ }
+    }
+}
+
+#=======================================================================
+# name - init
+# purpose - get input parameters
+#
+# Note:
+# The -var flag is maintained for backward compatibility, even though
+# the -vv flag is the advertised option in the usage message.
+#=======================================================================
+sub init {
+    use Getopt::Long;
+    my ($help, $inplace, $ans);
+    my (@varValStr, @varValArr, $str, $num, $vv, $var, $val);
+
+    GetOptions( "h|help"    => \$help,
+                "i"         => \$inplace,
+                "o=s"       => \$outfl,
+                "var|vv=s@" => \@varValStr,
+                "v"         => \$verbose,
+                "env"       => \$envFlg );
+    usage() if $help;
+    usage() unless @ARGV;
+
+    # get input file name
+    #--------------------
+    $infil = shift @ARGV;
+    die "Error: Cannot find input file: $infil;" unless -e $infil;
+    if (-B $infil) {
+        print "File appears to be a binary: $infil\n"
+            . "Do you want to continue? (y/n) [n] ";
+        chomp($ans = lc <STDIN>);
+        unless ($ans eq "y") { print "Quitting\n"; exit }
+    }
+
+    # output file
+    #------------
+    if ($inplace) { $outfl = $infil unless $outfl }
+
+    # extract $var=$val combinations
+    #-------------------------------
+    foreach (@varValStr) {
+        s/^\s*//; s/\s*$//;        # remove leading/trailing blanks
+        s/^,*//;  s/,*$//;         # remove leading/trailing commas
+
+        # count number of assignments
+        #----------------------------
+        $num = (s/=/=/g);
+        if ($num < 1) {
+            warn "WARNING: No variable assignment found in expression: $_;";
+            next;
+        }
+
+        # split bundled assignments
+        #--------------------------
+        if ($num > 1) { @varValArr = split /[,]/ }
+        else          { @varValArr = ( $_ )    }
+
+        # store assignments in %varVal hash
+        #----------------------------------
+        foreach $vv (@varValArr) {
+            unless ($vv =~ /=/) {
+                warn "WARNING: No variable assignment found in expression: $vv;";
+                next;
+            }
+            ($var, $val) = split /[=]/, $vv;
+            $varVal{$var} = $val;
+        }
+    }
+}
+
+#=======================================================================
+# name - flagged_variable_subst
+# purpose - set values for variables in "variable[:|=]value" format
+#=======================================================================
+sub flagged_variable_subst {
+    my ($strAddr, $var, $val);
+    my ($comment, @P);
+
+    # input parameters
+    #-----------------
+    $strAddr = shift @_;
+    $var = shift @_;
+    $val = shift @_;
+
+    $comment = $1 if $$strAddr =~ m/(\s*\#.*)$/;
+
+    # variable/value separated by 1 or 2 chars from {':', '='}
+    # (check delimiter character pairs until good one found)
+    #-------------------------------------------------------
+    @P = ( $$strAddr =~ m/^(\s*)($var)(\s*)([:|=]{1,2})(\s*)\S*/ );
+
+    if (@P) {
+        $$strAddr = $P[0].$P[1].$P[2].$P[3].$P[4].$val;
+        $$strAddr .= $comment if $comment;
+    }
+}
+
+#=======================================================================
+# name - variable_subst
+# purpose - substitute $variable/${variable} variables in a string with
+#           their values.
+#
+# input parameters
+# => $strAddr: address of string potentially containing variable
+# => $varName: name of variable to substitute value for
+# => $flg:
+#       if =0 (false), then variable format is $varName (*default)
+#       if =1 (true), then variable format is ${varName}
+#=======================================================================
+sub variable_subst {
+    my ($strAddr, $varName, $flg);
+    my ($val, $var);
+
+    # input parameters
+    #-----------------
+    $strAddr = shift @_;
+    $varName = shift @_;
+    $flg = shift @_;
+
+    # short-circuit, if user does not want to automatically expand env variables
+    #---------------------------------------------------------------------------
+    unless ($envFlg) { return unless $varVal{$varName} }
+
+    # get value from %valVar or from ENV; return if not found
+    #--------------------------------------------------------
+    $val = undef;
+    $val = $varVal{$varName};
+    $val = $ENV{$varName} unless defined($val);
+
+    unless (defined($val)) {
+        warn "Variable, $varName, in $infil, not defined in environment;"
+            if $verbose;
+        return;
+    }
+
+    # define variable to replace
+    #---------------------------
+    if ($flg) { $var = "\\\${$varName}" }
+    else      { $var = "\\\$$varName"   }
+
+    # replace variable with its value
+    #--------------------------------
+    $$strAddr =~ s/$var/$val/g;
+}
+
+#=======================================================================
+# name - usage
+# purpose - print usage information
+#=======================================================================
+sub usage {
+    use File::Basename;
+    my $name = basename $0;
+
+    print <<"EOF";
+
+Usage: $name infile [options]
+       $name -h
+where
+   infile is file to be read
+
+options
+   -h                print usage information
+   -i                edit file "in place", i.e. overwrite input file with output
+   -o outfl          name of output file; defaults to STDOUT
+   -vv varname=val   set or substitute variable "varname" with value "val"
+   -v                verbose; warn if undefined environment variables are found
+   -env              substitute values for all defined environment variables
+
+Description:
+   This script replaces variable assignment lines in the following formats, if
+   the "varname" and "value" are given with -vv flag:
+
+       varname:   value
+       varname =  value
+       varname := value
+       varname =: value
+
+       \$varname or \${varname}    (replaced by "value")
+
+   If the -env flag is given, then environment variables of the format \$varname
+   or \${varname} will be replaced by their values defined in the environment.
+   Environment variables which are not defined will not be changed.
+
+Notes:
+1. The number of spaces before and after ":", "=", ":=", "=:" in the infile
+   is irrelevant and will be preserved in the output.
+2. For environment variables, the value assigned with the -vv flag takes
+   precedence over the value defined in the environment.
+3. Multiple variable assignments or substitutions can be made either by using
+   multiple occurrences of the -vv flag or by bundling, i.e. using a single
+   -vv flag followed by multiple assignments separated by commas (no spaces)
+4. Do not bundle a variable assignment with others if the assigned value contains
+   a comma (','); otherwise, the comma will be interpreted as a separator between
+   assignments.
+
+EOF
+exit;
+}

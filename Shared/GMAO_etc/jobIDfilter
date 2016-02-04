@@ -1,0 +1,133 @@
+#!/usr/bin/env perl
+#=======================================================================
+# name - jobIDfilter
+# purpose - this script filters out job IDs which no longer exist
+#
+# Notes:
+# 1. This script can be used for checking the existence of job IDs
+#    prior to including them as part of the dependency for another qsub.
+# 2. The system aborts a qsub request if it is dependent on jobs which
+#    no longer exist.
+#=======================================================================
+use strict;
+use warnings;
+
+# global variables
+#-----------------
+my ($colons, $wait, %ids, $qstat);
+
+# main program
+#-------------
+{
+    use File::Basename;
+    my ($qstatStr, $id, @idFound, $idStr);
+    my ($name, $first);
+    my $cnt;
+
+    $name = basename $0;
+    init();
+
+    $first = 1;
+    while (1) {
+        # get qstat output
+        #-----------------
+        $qstatStr = `qstat -u $ENV{"USER"}`;
+
+        # which IDs are found in qstat output
+        #------------------------------------
+        @idFound = ();
+        foreach $id (reverse sort keys %ids) {
+            push @idFound, $id if $qstatStr =~ $id;
+        }
+        unless (@idFound) {
+            if ($wait and (! $first)) {
+                print "$name: waiting complete.\n";
+                system("date");
+            }
+            exit;
+        }
+
+        # loop again (after nap) if waiting for jobs to complete
+        #-------------------------------------------------------
+        last unless $wait;
+        if ($first) {
+            system("date");
+            print "$name: waiting for jobs to complete:";
+            foreach (@idFound) { print " $_" }; print "\n";
+            $first = 0;
+        }
+        system("sleep $wait");
+    }
+
+    # return the job IDs that were found
+    #-----------------------------------
+    if ($colons) {
+        $idStr = join ":", sort @idFound;
+        print "$idStr\n";
+    }
+    else {
+        foreach $id (sort @idFound) { print "$id " }
+        print "\n";
+    }        
+}
+
+#=======================================================================
+# name - init
+# purpose - get input parameters
+#
+# Note: The NCCS qstat information typically updates every couple of
+#       minutes, so it does not make a lot of sense to check much more
+#       often than that.
+#=======================================================================
+sub init {
+    use Getopt::Long;
+    my (@arr, $id, $help);
+
+    # runtime flags
+    #--------------
+    GetOptions( "h|help" => \$help,
+                "s"      => \$colons,
+                "w"      => \$wait );  
+    usage() if $help;
+    $wait = 20 if $wait;
+
+    # runtime parameters
+    #-------------------
+    foreach (@ARGV) {
+        @arr = split /[:]/, $_;
+        foreach $id (@arr) { $ids{$id} = 1 }
+    }
+    usage() unless %ids;
+
+    # get qstat command
+    #------------------
+    $qstat = `which qstat` or exit 1;
+}
+
+#=======================================================================
+# name - usage
+# purpose - print usage information
+#=======================================================================
+sub usage {
+    use File::Basename;
+    my $name = basename $0;
+
+    print << "EOF";
+
+Usage: $name [options] idStr [idStr ...]
+  where idStr = "jobID"
+     or idStr = "jobID:jobID[:jobID...]"
+
+Options:
+  -h    print usage information
+  -s    return job IDs joined by colons in a single string;
+        default is to return jobIDs separated by spaces
+  -w    wait until all listed jobs complete
+
+Description:
+  This script takes a group of jobs IDs, filters out those which no longer
+  exist, and returns those which are found.
+
+EOF
+exit;
+}

@@ -35,7 +35,7 @@ MODULE diag_axis_mod
   CHARACTER(len=128), PARAMETER :: version =&
        & '$Id: diag_axis.F90,v 1.1.1.2 2012-11-16 16:00:09 atrayano Exp $'
   CHARACTER(len=128), PARAMETER :: tagname =&
-       & '$Name: jk-G40-GEOSctm-advcore-update3 $'
+       & '$Name: Heracles-3_1_CTM $'
 
   ! counter of number of axes defined
   INTEGER, DIMENSION(:), ALLOCATABLE :: num_subaxes

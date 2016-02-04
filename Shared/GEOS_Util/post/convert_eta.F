@@ -213,7 +213,7 @@ C **********************************************************************
       if( jmout.eq.-999 ) jmout = jm 
       if( lmout.eq.-999 ) lmout = lm 
 
-      if( imout.ne.im .or. jmout.ne.jm .or. lmout.ne.lm ) then
+      if( imout.ne.im .or. jmout.ne.jm ) then
            if( trim(topo).eq.'NULL' ) then
                print *
                print *, 'You must supply Output resolution TOPOGRAPHY file!'
@@ -422,6 +422,9 @@ c ------------------------------------------------
      .                     levunits,im,jm,lm,nt,lat,lon,lev,nymd,nhms,ninc,
      .                     id,create,filename,imo,jmo,lmo,grid,
      .                     psname,dpname,uname,vname,tname,qname,ozname,phisname,topo,Ldtoa)
+
+      use MAPL_ConstantsMod
+      use m_set_eta, only: set_eta
       implicit none
 
 c Input Variables
@@ -477,9 +480,10 @@ c ---------------
 c Local Variables
 c ---------------
       integer i,j,k,L,n,m
-      integer nu,nv
+      integer nu,nv,kdum
 
-      real    undef, pi,dx,dy, ptop
+      real    undef, pi,dx,dy
+      real*8  ptop, rdum
       integer precision,id,timeinc,rc,nhmsf
 
       character*256  title
@@ -495,27 +499,14 @@ c ---------------
       real,          allocatable :: vrange(:,:)
       real,          allocatable :: prange(:,:)
 
-      real, allocatable ::    ple(:,:,:)
-      real, allocatable ::  logpl(:,:,:)
-      real, allocatable :: logplo(:,:,:)
-      real, allocatable ::     ak(:)
-      real, allocatable ::     bk(:)
+      real,   allocatable ::    ple(:,:,:)
+      real,   allocatable ::  logpl(:,:,:)
+      real,   allocatable :: logplo(:,:,:)
+      real*8, allocatable ::     ak(:)
+      real*8, allocatable ::     bk(:)
 
       real   dpref 
              dpref(L) = ( ak(L+1)-ak(L) ) + ( bk(L+1)-bk(L) ) * 98400.0
-
-C **********************************************************************
-C ****                 Read TOPO File (if needed)                   ****
-C **********************************************************************
- 
-      if( imo.ne.im .or. jmo.ne.jm .or. lmo.ne.lm ) then
-          close(55)
-          open (55,file=trim(topo),form='unformatted',access='sequential')
-          read (55) phiso
-                    phiso = phiso*9.8
-          close(55)
-          if( lon(1).eq.0.0 ) call hflip ( phiso,imo,jmo,1 )
-      endif
 
 C **********************************************************************
 C ****           Initialize Constants And Local Arrays              ****
@@ -610,12 +601,23 @@ C **********************************************************************
              if( trim(name3d(n)).eq.trim( ozname) )  q(:,:,:,2) = z3d(:,:,:,n)
           enddo
 
+          if( imo.ne.im .or. jmo.ne.jm .or. trim(topo).ne.'NULL' ) then
+              close(55)
+              open (55,file=trim(topo),form='unformatted',access='sequential')
+              read (55) phiso
+                        phiso = phiso*MAPL_GRAV
+              close(55)
+              if( lon(1).eq.0.0 ) call hflip ( phiso,imo,jmo,1 )
+          else
+              phiso = phis
+          endif
+
 
           allocate(   ak (lm+1) )
           allocate(   bk (lm+1) )
           allocate(   ple(imo,jmo,lm+1) )
           allocate( logpl(imo,jmo,lm)   )
-          call set_eta ( lm,ptop,ak,bk )
+          call set_eta ( lm,kdum,ptop,rdum,ak,bk )
           do L=1,lm+1
           ple(:,:,L) = ak(L) + ps(:,:)*bk(L)
           enddo
@@ -628,8 +630,8 @@ C **********************************************************************
           allocate(     ak(lmo+1) )
           allocate(     bk(lmo+1) )
           allocate(    ple(imo,jmo,lmo+1) )
-          allocate( logplo(imo,jmo,lm)   )
-          call set_eta ( lmo,ptop,ak,bk )
+          allocate( logplo(imo,jmo,lmo)   )
+          call set_eta ( lmo,kdum,ptop,rdum,ak,bk )
           pso = ps
           do L=1,lmo+1
           ple(:,:,L) = ak(L) + pso(:,:)*bk(L)
@@ -643,7 +645,7 @@ C **********************************************************************
           print *, 'Calling REMAP ...'
           call remap  ( pso,dpo,uo,vo,to,qo,phiso,lmo,
      .                  ps ,dp ,u ,v ,t ,q ,phis ,lm ,
-     .                  imo,jmo,2,ak,bk )
+     .                  imo,jmo,2 )
           print *, '        REMAP Finished'
 
 
@@ -860,8 +862,11 @@ C **********************************************************************
       n2d = 0
       n3d = 0
       do n=1,nvars
-         if( kmvar(n).eq.0 ) then
-             n2d = n2d + 1
+         if(      kmvar(n) .eq. 0    .or. 
+     .       trim(vname(n)).eq.'LON' .or. 
+     .       trim(vname(n)).eq.'LAT') then
+                  n2d = n2d + 1
+             kmvar(n) = 0
          else
              n3d = n3d + 1
          endif
@@ -2806,17 +2811,18 @@ c -------------------------------------------
       end subroutine sigtopl
 
       subroutine remap  ( ps1,dp1,u1,v1,thv1,q1,phis1,lm1,
-     .                    ps2,dp2,u2,v2,thv2,q2,phis2,lm2,im,jm,nt,ak,bk )
+     .                    ps2,dp2,u2,v2,thv2,q2,phis2,lm2,im,jm,nt )
 
 c *******************************************************************************
 c *****                                                                     *****
 c *****   Program to remap Target analysis variables (ps2,dp2,u2,v2,t2,q2)  *****
 c *****   onto Model grid variables (ps1,dp1,u1,v1,thv1,q1).  Program       *****
-c *****   allows for differenct topographies between Analysis and Model.    *****
+c *****   allows for different topographies between Analysis and Model.     *****
 c *****                                                                     *****
 c *******************************************************************************
 
       use MAPL_ConstantsMod
+      use m_set_eta, only: set_eta
       implicit none
       integer  im,jm,lm1,lm2,nt
 
@@ -2841,8 +2847,6 @@ c -------------------------
       real      q2(im,jm,lm2,nt)
       real     ps2(im,jm)
       real   phis2(im,jm)
-      real      ak(lm2+1)
-      real      bk(lm2+1)
 
 c Local variables
 c ---------------
@@ -2857,9 +2861,13 @@ c ---------------
       real  phi2(im,jm,lm2+1)
       real ptop1(im,jm)
 
+      real*8  rdum
       real    kappa,cp,pl,dum,dum1,dum2
       real    rgas,pref,tref,pkref,tstar,eps,rvap,grav
-      integer i,j,L
+      integer i,j,L,kdum
+
+      real*8, allocatable :: ak(:)
+      real*8, allocatable :: bk(:)
 
       kappa = MAPL_KAPPA
       rgas  = MAPL_RGAS
@@ -2867,28 +2875,29 @@ c ---------------
       grav  = MAPL_GRAV
       cp    = MAPL_CP
       eps   = rvap/rgas-1.0
+ 
+c Compute Input Edge-Level Pressures
+c ----------------------------------
 
-c Compute edge-level pressures
-c ----------------------------
-      pe1(:,:,lm1+1) = ps1(:,:)
-      do L=lm1,1,-1
-      pe1(:,:,L) = pe1(:,:,L+1)-dp1(:,:,L)
+      allocate(   ak (lm1+1) )
+      allocate(   bk (lm1+1) )
+      call set_eta ( lm1,kdum,rdum,rdum,ak,bk )
+      do L=1,lm1+1
+         pe1(:,:,L) = ak(L) + ps1(:,:)*bk(L)
       enddo
+      deallocate( ak,bk )
+
       ptop1(:,:) = pe1(:,:,1)
 
-c Construct target analysis pressure variables
-c --------------------------------------------
-      pe2(:,:,lm2+1) = ps2(:,:)
-
-      do L=lm2,1,-1
-      pe2(:,:,L) = pe2(:,:,L+1) - dp2(:,:,L)
+c Compute Output Edge-Level Pressures
+c -----------------------------------
+      allocate(   ak (lm2+1) )
+      allocate(   bk (lm2+1) )
+      call set_eta ( lm2,kdum,rdum,rdum,ak,bk )
+      do L=1,lm2+1
+         pe2(:,:,L) = ak(L) + ps2(:,:)*bk(L)
       enddo
-
-      do j=1,jm
-      do i=1,im
-      if( pe2(i,j,1).eq.0.0 ) pe2(i,j,1) = 0.01*pe2(i,j,2) ! Prohibit ptop = 0
-      enddo
-      enddo
+      deallocate( ak,bk )
 
       pke2(:,:,:) = pe2(:,:,:)**kappa
 
@@ -2920,7 +2929,9 @@ c ------------------------------------------------------------------------------
 c Construct model pressure variables using new surface pressure
 c -------------------------------------------------------------
       print *
-      call set_eta ( lm1,dum,ak,bk )
+      allocate( ak (lm1+1) )
+      allocate( bk (lm1+1) )
+      call set_eta ( lm1,kdum,rdum,rdum,ak,bk )
          L = 1
       dum1 = (ak(L)+bk(L)*100000.0)/100
       write(6,1000) L,ak(L),bk(L),dum1
@@ -2958,6 +2969,7 @@ c -------------------------------------------------------------
      .            lm2,  pke2,  pe2, u2,  v2,  thv2,  q2,
      .            lm1,  pke1,  pe1, u1,  v1,  thv1,  q1 )
 
+      deallocate( ak,bk )
       return
       end
 

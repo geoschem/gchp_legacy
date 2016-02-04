@@ -91,7 +91,7 @@ if( $NCPUS == "NULL"  ) then
      set BATCHJOB  = `qstat | grep $BATCHNAME | grep $LOGNAME | cut -d' ' -f1`
      set  numjobs  = $#BATCHJOB
      if( $numjobs != 0 ) then
-        set  NCPUS = `qstat -f $BATCHJOB[1] | grep -i Resource_List.ncpus | cut -d'=' -f2`
+        set  NCPUS = `cat $PBS_NODEFILE | wc -l`
      endif
   endif
 endif
@@ -200,7 +200,10 @@ end
 
 # Get POST Resource Parameters
 # ----------------------------
-    if(! -e $source/post/post.rc ) ln -sf $GEOSUTIL/post/post.rc $source/post/post.rc
+    if(! -e $source/post/post.rc ) then
+          mkdir  -p                         $source/post
+         /bin/ln -sf $GEOSUTIL/post/post.rc $source/post/post.rc
+    endif
     set SEASONS = `grep POST_SEASONS: $source/post/post.rc | cut -d'#' -f1 | cut -d':' -f2 | tr "[:lower:]" "[:upper:]"`
 
 

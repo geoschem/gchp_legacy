@@ -1,0 +1,552 @@
+#!/usr/bin/env perl
+#
+# r_dist is a utility for distributing data files to remote locations
+# 
+#
+# !REVISION HISTORY:
+#------------------------------------------------------------------
+#  11Oct2000 Owens     First prototype
+#  13Nov2000 Owens     Modified error messages and trapping
+#  27Dec2000 Owens     Fixed problem with STDERR redirect
+#  01Mar2001 Owens     Added error message after each failed transfer
+#  27Mar2002 Owens     Added ability to specify log file location
+#  11Aug2003 Owens     Modified error messages   
+#  16May2005 Owens     Fixed problem with error reporting
+
+use FindBin;                     # find location of the this script
+use lib "$FindBin::Bin";         # make perl libraries available
+use Env;                         # make env vars readily available
+use File::Basename;              # for basename(), dirname()
+use File::Copy;                  # for copy()
+use Getopt::Long;                # command line options
+use Sys::Hostname;               # determines local host machine
+use Err_Log;                     # GEOS error logging routine
+use Remote_utils;
+
+#......................................................................
+# MAIN BLOCK
+   $ret_code=initialize();
+    if ( $#list > -1 ) {
+     foreach my $file (@list) {
+          $put_status=put_file($LOCALROOT,$REMOTEROOT,$expno,$yyyy,$yy,$mm,$dd,$hh,$file,$dirmode,$filemode );
+          $ret_code = ($put_status + $ret_code);
+          if ($put_status) {
+               if  ( ($REMOTEROOT eq "" ) || ( $file !=~ /$REMOTEROOT/) ) {
+                    chomp(my @host_split = split(/ / ,$file));
+                    ( $remote_id, $remote_machine, $remote_file ) = splitrfile( $host_split[1] );
+                    $prob_mach = "$remote_machine:$remote_file";
+               }else{
+                    $prob_mach = $REMOTEROOT;
+               }
+               if (!$nolog) {
+               chomp(my @efile_pair = split(/ / ,  $file));
+               my $efile = basename($efile_pair[0]);
+               my $edest = dirname($efile_pair[1]);
+               err_log (5, "r_dist", "${date}","${opt_x}","-1",
+                     {'err_desc' => "$0: FATAL ERROR: ${efile} not successfully copied to $prob_mach",
+                      'log_name' => "$error_log" });
+                     print "($0):ERROR: Problem transferring ${efile} to ${prob_mach}\n";
+               }
+          }
+          if ($verbose) { 
+               print "put_status = $put_status\n";
+               print "ret_code = $ret_code\n";
+          }
+     }
+     if ($ret_code) {
+          if (!$nolog) {
+               err_log (5, "r_dist", "${date}","${opt_x}","-1",
+                     {'err_desc' => "$0: FATAL ERROR: One or more files were not successfully copied",
+                      'log_name' => "$error_log" });
+          }
+          print "($0): FATAL ERROR: One or more files were not successfully copied.\n";
+     }else{
+          if (!$nolog) {
+               err_log (0, "r_dist", "${date}","${opt_x}","-1",
+                   {'err_desc' => "$0: SUCCESS -- all files successfully copied!",,
+                    'log_name' => "$error_log"});
+          }
+          print "($0): SUCCESS -- all files successfully copied!\n";
+     }
+ }else{
+ print "($0): WARNING  -- no files found in rc file!\n";
+ $ret_code = 1;
+ }
+exit($ret_code); 
+
+#......................................................................
+
+sub initialize {
+#initialize command line options to defaul values
+   $opt_c = 0;
+   $opt_d = 0;
+   $opt_dm = 755;
+   $opt_ne = 0;
+   $opt_fm = 644;
+   $opt_h = 0;
+   $opt_local = 0;
+   $opt_o = 0;
+   $opt_rc = 0;
+   $opt_remote = 0;
+   $opt_t  = 99;
+   $opt_u = 0;
+   $opt_v = 0;
+   $opt_x = 0;
+#Get options from command line
+   $opt_status=GetOptions( "c", "d=i", "dm=i", "fm=i", "h", "local=s", "L=s", "ne", "o=s", "rc=s", "remote=s", "t=i", "u=s", "v", "x=s" );
+#Check for any unprocessed arguments
+   $numargs = @ARGV;
+
+   usage() if ( $numargs || $opt_h || !$opt_status || !$opt_d );
+   $date = $opt_d;
+   $clean = $opt_c;
+   $nolog = $opt_ne;
+   $yyyy  = substr($date,0,4);
+   $yy    = substr($date,2,2);
+   $mm    = substr($date,4,2);
+   $dd    = substr($date,6,2);
+   $dirmode = $opt_dm;
+   $filemode = $opt_fm;
+
+   if ( $opt_t eq 99 ) {
+         $hh = '*';
+   }else{
+         $hh = $opt_t;   
+   }
+   if ( !$opt_x ) {
+        $expno = '';
+   }else{
+        $expno = $opt_x;
+   }
+   if ( !$opt_rc ) {
+        $rc_file = "/home/${USER}/${expno}/R_DIST_Config";
+   }else {
+        $rc_file = $opt_rc;
+   }
+   if ( !$opt_local ) {
+        $LOCALROOT = '';
+   }else{
+        $LOCALROOT = $opt_local;
+   }
+   if ( !$opt_L ) {
+        $error_log = 'DEFAULT';
+   }else{
+        $error_log = $opt_L;
+   }
+   if ( !$opt_remote ) {
+        $REMOTEROOT = '';
+   }else{
+        $REMOTEROOT = $opt_remote;
+   }
+   if ( !$opt_u ) {
+        $user = "${USER}";
+   }else{
+        $user = "${opt_u}";
+   }
+   if ( $opt_v ) {
+        $verbose = 1;
+   }else{
+        $verbose = 0;
+   }
+   if ( $opt_o ) {
+# Get GMT and add leading zeroes to single digit numbers
+#zpad adds a leading zero to single digit integers
+        my ($sec,$min,$hour,$mday,$mon,$year,$null,$null,$null)=gmtime(time);
+        $year= $year+1900;
+        $mon= zpad($mon+1);
+        $mday= zpad($mday);
+        $hour= zpad($hour);
+        $min= zpad($min);
+        $sec= zpad($sec);
+        $now= join '',$year,$mon,$mday,$hour,$min,$sec;
+
+# Location for output listings
+   
+        system ("mkdir -p $opt_o");
+        system ("/bin/chmod 755 $opt_o");
+        if ( -w "$opt_o" ) {
+             $output_listing = "${opt_o}/r_dist.${now}.listing";
+             print "Standard output redirecting to ${output_listing}\n";
+             open (STDOUT, ">$output_listing");
+             open (STDERR, ">&" . STDOUT);
+        }elsif (!$nolog) {
+             err_log (2, "r_dist", "${date}","${opt_x}","-1",
+                {'err_desc' => "$0: WARNING: $output_path/r_dist.$now.listing is not writable for listing.",
+                 'log_name' => "$error_log"});
+             print "($0): WARNING: $output_path/r_dist.$now.listing is not writable for listing.\n";
+             $opt_status ++;
+        }
+   }
+   @list = &read_rc($rc_file);
+
+return (! $opt_status);
+}
+
+#......................................................................
+#
+# put_file:
+# Determine if transfer requires the network and transfer accordingly
+#
+
+sub put_file {
+     my ($LOCALROOT,$REMOTEROOT,$expno,$yyyy,$yy,$mm,$dd,$hh,$file,$dirmode,$filemode) = @_;
+     my $put_file_rc;
+     my $host = &hostname();
+     my $remote_machine;
+     my $resolved = &resolve( $LOCALROOT,$REMOTEROOT,$expno,$yyyy,$yy,$mm,$dd,$hh,$file);
+     chomp(my @sd_pair = split(/ / ,  $resolved));
+     my ( $source_file,$source_path) = fileparse( $sd_pair[0] );
+     my @dest_pair  =  split(/:/ ,  $sd_pair[1]);
+     if ( $dest_pair[0] eq $sd_pair[1] ) {
+          if ($verbose) {
+               print "DOING LOCAL PUT\n";
+          }
+          $put_file_rc = put_local( $source_file, $source_path, $sd_pair[1],$dirmode,$filemode);
+     }else{
+           my @machine_nodes = split(/\./, $dest_pair[0] );
+           if ($machine_nodes[0] eq $host) {
+                if ($verbose) {
+                     print "SAME MACHINE doing local put\n";
+                }
+                $put_file_rc = put_local( $source_file, $source_path, $dest_pair[1],$dirmode,$filemode);
+           }else{
+                $remote_machine = $dest_pair[0];
+                my $remote_path = $dest_pair[1];
+                if ($verbose) {
+                     print "DOING REMOTE PUT\n";
+                     print "put_remote( $source_file, $source_path, $remote_machine, $remote_path)\n";
+                }  
+                $put_file_rc = put_remote( $source_file, $source_path, $remote_machine, $remote_path);
+           }
+      }
+return $put_file_rc;
+} 
+
+
+#......................................................................
+#
+# put_remote:
+# Transfer files to a remote loaction using network
+#
+
+sub put_remote {
+     my ($source_file, $source_path, $remote_machine, $remote_path ) = @_;
+     my @source_file_list;
+     my $multi_put_rc;
+     my $rput_rc;
+     my $put_rc = 0;
+     my $chdir_ret=chdir($source_path);
+     print " mkdir_remote( '${user}','${remote_machine}','${remote_path}')\n";
+     my $mkdir_rc = mkdir_remote( "${user}","${remote_machine}","${remote_path}");
+     print "\$mkdir_rc = $mkdir_rc\n"; 
+     my $chmod_rc = chmod_remote( "${user}","${remote_machine}","${remote_path}","${dirmode}",{ 'recursive'  => 1,
+                                                                                                'verbose'    => $verbose}); 
+     print "\$chmod_rc = $chmod_rc\n";
+     if ( ! $chmod_rc ) { print "Error doing chmod on $remote_path\n"; }
+     if (  $mkdir_rc  && $chdir_ret ) {
+          if (( $source_file =~ /\*/ )||($source_file =~ /\[/ ) ||( $source_file =~ /\?/ )){
+               if ($verbose) {
+                    print "POSSIBLE MULTIPLE MATCH -- building list\n";
+               }
+               chomp (@source_file_list = (`ls ${source_file}`));
+               foreach my $file ( @source_file_list ){
+                    my $multi_put_rc = 1;
+                    $multi_put_rc=rput("${file}", "${user}\@${remote_machine}:${remote_path}", {'direct' => '1',
+                                                                                                'mode'   => "$filemode",
+                                                                                                'debug'  => "$verbose"});
+                    if (! $multi_put_rc ) {
+                        $put_rc ++;
+                    }
+                    if ($verbose) {
+                        print "REMOTE COPY STATUS for ${source_path}/${file} =  $multi_put_rc\n";
+                    }
+                    if ( $clean && $multi_put_rc ) {
+                           unlink(${file});
+                    }
+
+               }
+          }else{
+                $rput_rc=rput( "${source_file}", "${user}\@${remote_machine}:${remote_path}", {'direct' => '1',
+                                                                                               'mode'   => "$filemode",
+                                                                                               'debug'  => "$verbose"});
+                if (! $rput_rc ) {
+                    $put_rc ++;
+                }
+                if ($verbose) {
+                    print "REMOTE COPY STATUS for ${source_file} =  $rput_rc\n";
+                }
+                if ( $clean && $rput_rc ) {
+                     unlink(${source_file});
+                }
+
+          }
+     }else{
+          if ( !$chdir_ret ) {
+               print "($0): ERROR : Unable to cd to $source_path \n";
+          }
+          if ( ! $mkdir_rc ){
+               print "($0): ERROR : mkdir_remote( ${user}, ${remote_machine}, ${remote_path} ) FAILED\n";
+          }
+          $put_rc ++;
+     }
+return $put_rc;
+}
+
+
+#......................................................................
+#
+# put_local:
+# Transfer files locally - don't use the network
+#
+
+    sub put_local {
+         my ($source_file, $source_path, $destination_path, $dirmode, $filemode ) = @_;
+         my $put_rc = 0;
+         my @source_file_list = '';
+         my $file = '';
+         my $dest_file ='null';
+         my $chdir_stat=chdir( $source_path);
+         my $mkdir_rc = system("mkdir -p -m $dirmode ${destination_path}");
+         if ( !$mkdir_rc && $chdir_stat) {
+               if (( $source_file =~ /\*/ )||($source_file =~ /\[/ )) {
+                    if ($verbose) {
+                         print "POSSIBLE MULTIPLE MATCH -- building list\n";
+                    }
+                    chomp (@source_file_list = (`ls ${source_file}`));
+                    foreach $file ( @source_file_list ){
+                         $dest_file = $destination_path."/".$file;
+                          my $multi_put_rc =  system("cp ${file}  ${dest_file}");
+                          my $multi_chmd_rc = system("chmod $filemode ${dest_file}"); 
+                          if ($verbose) {
+                               print "local copy status for ${source_path}/${file} =  $multi_put_rc\n";
+                               print "local chmod status for ${dest_file} = $multi_chmd_rc\n";
+                          }
+                          if ($multi_put_rc){
+                              print "($0): ERROR: copy failed for ${source_path}/${file}\n";
+                              $put_rc ++;
+                          }
+                          if ($multi_chmd_rc){
+                               print "($0): ERROR: chmod failed for ${dest_file}\n";
+                               $put_rc ++;
+                          }
+                          if ( $clean && !$put_rc ) {
+                                unlink(${file});
+                          }
+
+                    }
+               }else{    
+                          print "$source_file\n";
+                          print "${destination_path}\n";
+                          my $dest_file = join /\//,${destination_path},${source_file};
+
+                          $put_rc =  system("cp ${source_file} ${dest_file}");
+                          my $chmod_rc =   system("chmod ${filemode} ${dest_file}");
+                          if ($put_rc){
+                              print "($0): ERROR: copy failed for ${source_file}\n";
+                          }
+                          if ($chmod_rc){
+                               print "($0): ERROR: chmod failed for ${dest_file}\n";
+                          }
+                          if ( $clean && !$put_rc ) {
+                                unlink(${source_file});
+                          }
+ 
+                          if ($verbose) {
+                               print "local copy status for ${source_file} =  $put_rc\n";
+                               print "local chmod status for ${dest_file} = $chmod_rc\n";
+                          }
+
+              } 
+         }else{ 
+                   print "($0): ERROR: mkdir -p -m $dirmode  ${destination_path} FAILED\n";
+                   $put_rc ++;
+                    
+         }
+     return $put_rc;
+         
+     }
+
+#......................................................................
+#
+# resolve:
+# Resolves the file name tokens.
+#
+
+sub resolve {
+
+    my ( $LOCALROOT,$REMOTEROOT,$expno,$yyyy,$yy,$mm,$dd,$hh,$file ) = @_;
+    $file =~ s/\${REMOTEROOT}/$REMOTEROOT/g;
+    $file =~ s/\${LOCALROOT}/$LOCALROOT/g;
+    $file =~ s/%y4/$yyyy/g;
+    $file =~ s/%y2/$yy/g;
+    $file =~ s/%m2/$mm/g;
+    $file =~ s/%d2/$dd/g;
+    $file =~ s/%h2/$hh/g;
+    $file =~ s/%s/*/g;
+    $file =~ s/%x/$expno/g;
+    $file =~ s/%c/?/g;
+    $file =~ s/%n2/[0-9][0-9]/g;
+    $file =~ s/%n/[0-9]/g;
+return ($file);
+}
+
+
+#......................................................................
+#
+# read_rc:
+#  Gets a list of tokenized file names from the specified rc file
+#
+#
+
+sub read_rc {
+
+     my ( $rcfile ) = @_;
+     undef  @rc_file_list;
+     unless ( open( RCFILE, $rcfile ) ) {
+         print  "(r_dist) ERROR: Configuration file '", $rcfile, "' can not be opened.\n";
+         exit (1);
+      }
+
+      my $count = 0;
+      my $line = '';
+      while ( <RCFILE> ) {
+         chop;
+         if ((! /^#/ )&&(/.{1,}/))  { #if not a comment and not a blank line
+             chomp( $line = $_ );
+             $line =~ s/^ *(.*) *$/$1/; # compress any leading, trailing
+             $line =~ s/\s+/ /g; # and multiple embedded spaces
+             $rc_file_list[$count] = $line;
+             $count ++;
+         }
+      }
+      close( RCFILE );
+      return (@rc_file_list);
+}
+
+#......................................................................
+
+sub zpad {
+  if ($_[0]<10){
+      $out="0".$_[0];
+     }
+     else {$out=$_[0];
+     }
+  return($out);
+
+}
+
+#......................................................................
+sub usage {
+
+   print <<"EOF";
+
+NAME
+     r_dist - distribute files to remote locations
+
+SYNOPSIS
+
+     r_dist - [options]
+
+DESCRIPTION
+
+     Acquire is a general purpose utility for distributing files.
+     The full path names of the files to be distributed and their 
+     destination paths are specified in a resource file (see RESOURCE
+     FILE below) by means of GrADS-like templates. For example, a 
+     resource file could specify a file name of the form:
+
+     /scratch1/dao_ops/scratch1/%x/anal/Y%y4/M%m2/%x.pre-anal.prs.t%y4%m2%d2 \
+     tropic.gsfc.nasa.gov:/scratch/dao_ops/%x/anal/Y%y4/M%m2/
+
+     The following parameters are required on input:
+
+
+     -d  date ie. 20001010
+     -t  synoptic_time [only required if %h2 is used]
+     -x  expno         [only required if %x is used ]
+
+
+     For example,
+
+         r_dist -d 19980107 -t 12 -rc /scratch1/dao_ops/r_dist.rc
+
+
+    For each one of the lines in the resource file, r_dist will expand the
+    GrADS-like template and distribute the corresponding files 
+    For the example above, the file to be distributed is:
+
+    /scratch1/dao_ops/scratch/a_flk_01/anal/Y2000/M10/a_flk_01.pre-anal.prs.t20001010
+
+    and its destination is: 
+ 
+    tropic.gsfc.nasa.gov:/scratch/dao_ops/a_flk_01/anal/Y2000/M10
+    
+OPTIONS
+     -c            cleans (deletes) files from source location after they are
+                    successfully copied to destination.
+     -d            date
+     -dm mode      directory mode to use [default 755]
+     -fm mode      file mode to use [default 644]
+     -h            prints this page
+     -local path   LOCALROOT directory
+     -L logfile    Fully resolved path and name of event log [default is  ~$user/GEOS_EVENT_LOG]
+     -ne           suppress error logging
+     -o file       fully resolved name of output file [default = STDOUT]
+     -remote path  REMOTEROOT directory 
+     -rc rc_file   fully resolved name of config file [default is /u/\$user/\$expno/R_DIST_Config]
+     -u user       remote user account [default =\$user]
+     -v            verbose mode 
+
+
+RESOURCE FILES
+
+     Acquire resource files consist of comment lines starting with
+     '#' or a file name templates of the form
+
+     local_path/local_file rhost:path
+
+     Example:
+
+     /scratch1/dao_ops/%x.pre-anal.prs.t%y4%m2%d2  tropic.gsfc.nasa.gov:/pub/anal/Y%y4/M%m2/
+
+
+     In this example, the remote host (rhost) is "tropic".
+     This file name "template" is a GrADS like pattern for matching
+     remote file names (that is, files to be distributed).
+     Supported tokens are:
+
+          %y4       year,  e.g., 1997
+          %y2       year,  e.g., 97
+          %m2       month, e.g., 12
+          %d2       day,   e.g., 31
+          %h2       hour,  e.g., 18
+          %x        expno, e.g., a_flk_01
+          %s        any string (*)
+          %c        any character (?)
+          %n        any digit [0-9]
+
+    In addition to GrADS-like tokens, any defined environment variable
+    can be used in the file name template. For example:
+
+     /scratch1/dao_ops/%x.pre-anal.prs.t%y4%m2%d2 \${MHOST}:/pub/anal/Y%y4/M%m2/
+
+   would take the remote host name from the environment variable \$MHOST.
+
+   A warning about the use of wildcards in the templates: If the source template matches
+   more than 1 file, be sure that the destination locaton is correct for ALL of the files
+   since it is only resolved once.
+
+
+SEE ALSO
+
+    pesto - (P)ut (E)xperiments in Mass (Sto)rage
+
+AUTHORS
+
+     Tommy Owens (towens\@dao.gsfc.nasa.gov)
+     Rob Lucchesi (rob\@dao.gsfc.nasa.gov)
+
+EOF
+
+  exit(1)
+}

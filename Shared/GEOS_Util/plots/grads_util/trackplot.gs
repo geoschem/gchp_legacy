@@ -1,7 +1,6 @@
   'set grid off'
   'set gxout shaded'
   'black'
-* 'd (cn_prcp+ls_prcp)*86400'
   'set gxout contour'
   'set ccolor rainbow'
   'set rbrange 990 1020'
@@ -12,9 +11,5 @@
   'set grads off'
   'd slp/100'
 
-* 'set ccolor 1'
-* 'set cthick 3'
-* 'set arrscl 0.5 15'
-* 'd us;vs'
   'date 1'
 

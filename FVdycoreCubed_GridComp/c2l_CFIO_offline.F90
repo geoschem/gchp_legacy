@@ -69,8 +69,11 @@
    integer, pointer :: resolution(:)  ! for output fie
 
    character(len=120) :: str_arg
+#ifndef __GFORTRAN__
    external :: getarg, iargc
-   integer nargs, iargc
+   integer iargc
+#endif
+   integer nargs
 
 !  Defined required local variables for MAPL_Exceptions
 !  ----------------------------------------------------

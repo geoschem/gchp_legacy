@@ -23,7 +23,7 @@ module FV_StateMod
 
    use fv_grid_utils_mod,  only: inner_prod, mid_pt_sphere, cubed_to_latlon, &
                           vlon, vlat, es, ew, edge_vect_s,edge_vect_n,edge_vect_w,edge_vect_e, &
-                          f0, fC, ptop, ptop_min
+                          f0, fC, ptop, ptop_min, deglat
    use fv_grid_tools_mod,  only: rarea, area, globalarea, globalsum, dx, dy, dxc, dyc, &
                           dxa, dya, rdxa, rdya, rotate_winds, atob_s, grid_type, &
                           get_unit_vector
@@ -42,6 +42,7 @@ private
 #include "mpif.h"
 
   real(REAL8), save :: elapsed_time = 0
+  real(REAL8), save :: psmo0 = -999.0
 
 ! !PUBLIC DATA MEMBERS:
 
@@ -51,11 +52,13 @@ private
   logical :: SW_DYNAMICS = .false.
   logical :: ADIABATIC = .false.
   logical :: FV_HYDROSTATIC = .true.
+  logical :: check_surface_pressure = .false.
   integer :: CASE_ID = 11
   integer :: AdvCore_Advection = 0
 
+  public FV_Setup, FV_InitState, FV_Run, FV_Finalize
   public FV_HYDROSTATIC, ADIABATIC, DEBUG, COLDSTART, CASE_ID, SW_DYNAMICS, AdvCore_Advection
-  public FV_RESET_CONSTANTS, FV_InitState, FV_Run, FV_Finalize
+  public FV_RESET_CONSTANTS
   public FV_To_State, State_To_FV
   public T_TRACERS, T_FVDYCORE_VARS, T_FVDYCORE_GRID, T_FVDYCORE_STATE
   public fv_getTopography
@@ -65,6 +68,7 @@ private
   public fv_getPK
   public fv_getOmega
   public fv_getVorticity
+  public fv_getDivergence
   public fv_getEPV
   public fv_getDELZ
   public fv_getPKZ
@@ -87,6 +91,8 @@ private
    MODULE PROCEDURE a2d2d    ! 2d to 2d
 
   END INTERFACE
+
+  logical, save :: Init_FV_Domain = .true.
 
   integer,  parameter :: ntiles_per_pe = 1
   type(fv_atmos_type), save :: FV_Atm(ntiles_per_pe)
@@ -152,8 +158,8 @@ private
     integer                         :: KS              ! Number of true pressure levels (out of NPZ+1)
     real(REAL8)                        :: PTOP            ! pressure at top (ak(1))
     real(REAL8)                        :: PINT            ! initial pressure (ak(npz+1))
-    real(REAL8), dimension(:), pointer :: AK              ! Sigma mapping
-    real(REAL8), dimension(:), pointer :: BK              ! Sigma mapping
+    real(REAL8), dimension(:), pointer :: AK => NULL()    ! Sigma mapping
+    real(REAL8), dimension(:), pointer :: BK => NULL()    ! Sigma mapping
     integer                         :: N_SPONGE        ! Number of sponge layers at top-of-atmosphere
     real(REAL8)                        :: f_coriolis_angle = 0
 !
@@ -278,19 +284,17 @@ contains
  end subroutine FV_RESET_CONSTANTS
 !
 !-----------------------------------------------------------------------
-
- subroutine FV_InitState (STATE, CLOCK, INTERNAL, IMPORT, GC, LAYOUT_FILE, RC)
+ subroutine FV_Setup(GC,LAYOUT_FILE, RC)
 
   use fv_control_mod, only : npx,npy,npz, ntiles, ncnst, nwat
   use fv_control_mod, only : hord_mt, hord_vt, hord_tm, hord_dp, hord_tr
   use fv_control_mod, only : kord_mt, kord_tm, kord_tr, kord_wz
-  use fv_control_mod, only : n_split, m_split, k_split, q_split, master
-  use fv_control_mod, only : nord, dddmp, d2_bg, d4_bg, d_con, d_ext, vtdm4, beta
+  use fv_control_mod, only : use_old_omega, courant_max, n_split, m_split, k_split, q_split, master
+  use fv_control_mod, only : nord, dddmp, d2_bg, d4_bg, do_vort_damp, d_con, d_ext, vtdm4, beta
   use fv_control_mod, only : k_top, m_riem, p_ref
   use fv_control_mod, only : uniform_ppm, te_method, remap_t,  inline_q, z_tracer, fv_debug
   use fv_control_mod, only : external_ic, ncep_ic, res_latlon_dynamics, res_latlon_tracers, fv_land
   use fv_control_mod, only : consv_te, fv_sg_adj, tau, tau_h2o, rf_center
-  use fv_control_mod, only : fv_init
   use fv_control_mod, only : nf_omega, moist_phys
   use fv_control_mod, only : hydrostatic, phys_hydrostatic,  hybrid_z, m_grad_p
   use fv_control_mod, only : Make_NH
@@ -299,80 +303,34 @@ contains
   use fv_control_mod, only : t_fac, kd3, w_max, z_min, replace_w
   use fv_control_mod, only : fill_dp, fill_wz
   use fv_control_mod, only : n_sponge, d2_bg_k1, d2_bg_k2
-  use test_cases_mod, only : test_case, init_double_periodic 
+  use test_cases_mod, only : test_case, init_double_periodic
 
-  type (T_FVDYCORE_STATE),pointer              :: STATE
-
-  type (ESMF_Clock), target,     intent(INOUT) :: CLOCK
   type (ESMF_GridComp)         , intent(INOUT) :: GC
-  type (ESMF_State)            , intent(INOUT) :: INTERNAL
-  type (ESMF_State)            , intent(INOUT) :: IMPORT
   character(LEN=*)             , intent(IN   ) :: LAYOUT_FILE
   integer, optional            , intent(OUT  ) :: RC
-
+! Local
+   character(len=ESMF_MAXSTR)       :: IAm='FV_StateMod:FV_Setup'
 ! Local variables
 
-! Pointers to geography info in the MAPL MetaComp
-
-  real,                 pointer :: LATS (:,:)
-  real,                 pointer :: LONS (:,:)
-
-  type (ESMF_Time)     :: currentTime
-  type (ESMF_TimeInterval)     :: Time2Run
-  type (ESMF_TimeInterval)     :: CheckMaxMin
   type (ESMF_Config)           :: cf
   type (ESMF_VM)               :: VM
-  type (T_FVDYCORE_GRID) , pointer :: GRID
   integer              :: status
-  integer              :: len
   real(REAL8) :: DT
 
-  integer :: nstep, nymd, nhms
-  integer :: yr, mm, dd, h, m, s
-  integer :: INT_PACK(6)
-
-  integer   :: is ,ie , js ,je    !  Local dims
-  integer   :: isc,iec, jsc,jec   !  Local dims
-  integer   :: isd,ied, jsd,jed   !  Local dims
   integer   :: ks                 !  True # press. levs
-  integer   :: k                  !  Vertical loop index
-  integer   :: ntotq
-  integer   :: ng
   integer   :: ndt,nx,ny
 
-  integer   :: i,j,n
+  type (MAPL_MetaComp),          pointer :: MAPL  => NULL()
 
-  type (ESMF_Time) :: fv_time
-  integer :: days, seconds
-
-  character(len=ESMF_MAXSTR)       :: IAm='FV:FV_InitState'
-
-  real(REAL8), pointer                   :: AK(:) => NULL()
-  real(REAL8), pointer                   :: BK(:) => NULL()
-  real(REAL8), dimension(:,:,:), pointer :: U     => NULL()
-  real(REAL8), dimension(:,:,:), pointer :: V     => NULL()
-  real(REAL8), dimension(:,:,:), pointer :: PT    => NULL()
-  real(REAL8), dimension(:,:,:), pointer :: PE    => NULL()
-  real(REAL8), dimension(:,:,:), pointer :: PKZ   => NULL()
-  real(REAL8), dimension(:,:,:), pointer :: DZ    => NULL()
-  real(REAL8), dimension(:,:,:), pointer :: W     => NULL()
-  type (MAPL_MetaComp),          pointer :: mapl  => NULL()
-
-  real(REAL8), ALLOCATABLE :: UA(:,:,:)
-  real(REAL8), ALLOCATABLE :: VA(:,:,:)
-  real(REAL8), ALLOCATABLE :: UD(:,:,:)
-  real(REAL8), ALLOCATABLE :: VD(:,:,:)
-
-  real(REAL8):: p2(2), p3(2), p4(2)
-  real(REAL8):: e1(3), e2(3), ex(3), ey(3)
-  real(REAL8):: utmp, vtmp
-  integer    :: comm
-  logical    :: hybrid
-
-  real(REAL8), allocatable           :: DEBUG_ARRAY(:,:,:)
-  real(REAL8) :: fac1    = 1.0
+  integer :: comm
 
 ! BEGIN
+
+  call ESMF_VMGetCurrent(VM, rc=STATUS)
+  VERIFY_(STATUS)
+
+    call MAPL_MemUtilsWrite(VM, trim(IAm), RC=STATUS )
+    VERIFY_(STATUS)
 
 ! Retrieve the pointer to the state
 ! ---------------------------------
@@ -380,16 +338,10 @@ contains
   call MAPL_GetObjectFromGC (GC, MAPL,  RC=STATUS )
   VERIFY_(STATUS)
 
-! Save the mapl state for FVperf_module
-! -------------------------------------
-
-  STATE%GRID%FVgenstate => MAPL
-
 ! READ LAYOUT FILE
 !
 ! Get the layout and store directly in the GRID data structure
 !
-  GRID => STATE%GRID     ! For convenience
 
   cf = ESMF_ConfigCreate(rc=rc)
   call ESMF_ConfigLoadFile( cf, LAYOUT_FILE, rc = rc )
@@ -400,7 +352,7 @@ contains
   call ESMF_ConfigGetAttribute( cf,  dx_const, label='dx_const:' , default=dx_const , rc = rc )
   call ESMF_ConfigGetAttribute( cf,  dy_const, label='dy_const:' , default=dy_const , rc = rc )
   ASSERT_( dx_const == dy_const )
-  call ESMF_ConfigGetAttribute( cf, test_case, label='test_case:', default=test_case, rc = rc )
+  call ESMF_ConfigGetAttribute( cf, test_case, label='test_case:', default=11, rc = rc )
 
   call ESMF_ConfigGetAttribute( cf, npx, label='npx:', RC=STATUS )
   if (STATUS /= ESMF_SUCCESS) then
@@ -430,8 +382,12 @@ contains
   if (STATUS /= ESMF_SUCCESS) then
       call MAPL_GetResource( MAPL, ny, 'NY:', default=0, RC=STATUS )
       VERIFY_(STATUS)
-      npes_y = ny / 6
-      ASSERT_( 6*npes_y == ny )
+      if (grid_type == 4) then
+         npes_y = ny
+      else
+         npes_y = ny / 6
+         ASSERT_( 6*npes_y == ny )
+      end if
   endif
 
 ! Get other scalars
@@ -446,6 +402,10 @@ contains
   call MAPL_GetResource( MAPL, AdvCore_Advection, label='AdvCore_Advection:', default=AdvCore_Advection, rc=status )
   VERIFY_(STATUS)
 
+! Setup Doubly Periodic Domain Info
+  call MAPL_GetResource( MAPL, deglat, label='FIXED_LATS:', default=deglat, rc=status )
+  VERIFY_(STATUS)
+
   call ESMF_ConfigGetAttribute( cf, hord_mt, label='hord_mt:', default= hord_mt, rc = rc )
   call ESMF_ConfigGetAttribute( cf, hord_vt, label='hord_vt:', default= hord_vt, rc = rc )
   call ESMF_ConfigGetAttribute( cf, hord_tm, label='hord_tm:', default= hord_tm, rc = rc )
@@ -456,34 +416,31 @@ contains
   call ESMF_ConfigGetAttribute( cf, kord_wz, label='kord_wz:', default= kord_wz, rc = rc )
   call ESMF_ConfigGetAttribute( cf, kord_tr, label='kord_tr:', default= kord_tr, rc = rc )
 
-    nord  = 0
-    dddmp = 0.2
-    d2_bg = 0.0075
-    d4_bg = 0.0
+! Default GEOS-5 FV3 2nd order divergence damping setup
+  nord  = 0
+  dddmp = 0.2
+  d2_bg = 0.0075
+  d4_bg = 0.0
+! method for non-hydrostatic grad-p
+! m_grad_p=1:  one-stage full pressure for grad_p; this option is faster
+!              but it is not suitable for low horizontal resolution
+! m_grad_p=0:  two-stage grad computation (best for low resolution runs)
   m_grad_p = 0
-  if (npx >= 720) m_grad_p = 1
-
-! Non-Hydrostatic and 3-D divergence damping parameters
-    t_fac = 0.2
-    w_max = 30.
-    z_min = 0.5
-  if (npx >=  360) kd3 = 0.00125
-  if (npx >=  720) kd3 = 0.025
-  if (npx >= 1440) kd3 = 0.05
-  if (npx >= 2880) kd3 = 0.05
-
+  if (npx >= 2880) m_grad_p = 1
   call ESMF_ConfigGetAttribute( cf,    nord, label='nord:'   , default= nord, rc = rc )
   call ESMF_ConfigGetAttribute( cf,   dddmp, label='dddmp:'  , default= dddmp, rc = rc )
   call ESMF_ConfigGetAttribute( cf,   d2_bg, label='d2_bg:'  , default= d2_bg, rc = rc )
   call ESMF_ConfigGetAttribute( cf,   d4_bg, label='d4_bg:'  , default= d4_bg, rc = rc )
   call ESMF_ConfigGetAttribute( cf, m_grad_p , label='m_grad_p:' , default=m_grad_p, rc = rc )
 
+  call ESMF_ConfigGetAttribute( cf,   do_vort_damp, label='do_vort_damp:'  , default= do_vort_damp, rc = rc )
   call ESMF_ConfigGetAttribute( cf,   vtdm4, label='vtdm4:'  , default= vtdm4, rc = rc )
   call ESMF_ConfigGetAttribute( cf,    beta, label='beta:'   , default= beta, rc = rc )
   call ESMF_ConfigGetAttribute( cf,   d_ext, label='d_ext:'  , default= d_ext, rc = rc )
   call ESMF_ConfigGetAttribute( cf,   d_con, label='d_con:'  , default= d_con, rc = rc )
   call ESMF_ConfigGetAttribute( cf,     tau, label='tau:'    , default= tau, rc = rc )
 
+  kd3=0 ! Disable 3D divergence damping by default
   call ESMF_ConfigGetAttribute( cf,   t_fac, label='t_fac:' , default= t_fac, rc = rc )
   call ESMF_ConfigGetAttribute( cf,     kd3, label='kd3:'   , default= kd3, rc = rc )
   call ESMF_ConfigGetAttribute( cf,   w_max, label='w_max:' , default= w_max, rc = rc )
@@ -492,28 +449,39 @@ contains
 ! It's possible that we need to replace the 
 ! W generated from Hydrostatic State with Omega 
 ! after one interation to get a good non-hydrostatic W
-  call ESMF_ConfigGetAttribute( cf, replace_w, label='replace_w:' , default= replace_w, rc = rc )
+  call ESMF_ConfigGetAttribute( cf, replace_w, label='replace_w:' , default= .false., rc = rc )
 
 ! Mix Delp or WZ
-  call ESMF_ConfigGetAttribute( cf, fill_dp, label='fill_dp:' , default= fill_dp, rc = rc )
-  call ESMF_ConfigGetAttribute( cf, fill_wz, label='fill_wz:' , default= fill_wz, rc = rc )
+  call ESMF_ConfigGetAttribute( cf, fill_dp, label='fill_dp:' , default= .false., rc = rc )
+  call ESMF_ConfigGetAttribute( cf, fill_wz, label='fill_wz:' , default= .false., rc = rc )
 
   if (SW_DYNAMICS) then
-     call ESMF_ConfigGetAttribute( cf, n_sponge, label='n_sponge:', default=0, rc = rc )
+     call ESMF_ConfigGetAttribute( cf, n_sponge, label='n_sponge:', default=-1, rc = rc )
   else
-     call ESMF_ConfigGetAttribute( cf, n_sponge, label='n_sponge:', default=9, rc = rc )
+     call ESMF_ConfigGetAttribute( cf, n_sponge, label='n_sponge:', default=0, rc = rc )
      call WRITE_PARALLEL(n_sponge ,format='("Number of Sponge Layers : ",(   I3))')
+  endif
+  if (n_sponge==0) then
+    d2_bg_k1=0.2
+    d2_bg_k2=0.07
   endif
   call ESMF_ConfigGetAttribute( cf, d2_bg_k1, label='d2_bg_k1:', default= d2_bg_k1, rc = rc )
   call ESMF_ConfigGetAttribute( cf, d2_bg_k2, label='d2_bg_k2:', default= d2_bg_k2, rc = rc )
 
+  call ESMF_ConfigGetAttribute( cf, use_old_omega, label='use_old_omega:', default=.true., rc = rc )
+
+  courant_max=0.05 ! when n_split is negative dynamic subcycling is enabled to allow this maximum courant number
+  call ESMF_ConfigGetAttribute( cf, courant_max, label='courant_max:', default=courant_max, rc = rc )
   call ESMF_ConfigGetAttribute( cf, n_split, label='nsplit:', default=0, rc = rc )
   call ESMF_ConfigGetAttribute( cf, m_split, label='msplit:', default=0, rc = rc )
   call ESMF_ConfigGetAttribute( cf, k_split, label='ksplit:', default=1, rc = rc )
   call ESMF_ConfigGetAttribute( cf, q_split, label='qsplit:', default=0, rc = rc )
-  call ESMF_ConfigGetAttribute( cf, ntotq  , label='ntotq:' , default=1, rc = rc )
-  call ESMF_ConfigGetAttribute( cf,  m_riem, label='m_riem:', default=0, rc = rc )
+  call ESMF_ConfigGetAttribute( cf, ncnst  , label='ncnst:' , default=1, rc = rc )
   call ESMF_ConfigGetAttribute( cf,   k_top, label='k_top:' , default=1, rc = rc )
+! m_riem is the time scheme for Riem solver subcycling
+! The default is 0, options range 0:5
+! Note: iad=2 or 4 appear to be more stable than other options
+  call ESMF_ConfigGetAttribute( cf,  m_riem, label='m_riem:', default=0, rc = rc )
 
   call ESMF_ConfigGetAttribute( cf, nwat     , label='nwat:'     , default=1     , rc = rc )
   call ESMF_ConfigGetAttribute( cf, consv_te , label='consv_te:' , default=consv_te, rc = rc )
@@ -529,6 +497,9 @@ contains
   call ESMF_ConfigGetAttribute( cf, DEBUG , label='fv_debug:' , default=fv_debug, rc = rc )
   fv_debug=DEBUG
 
+  call ESMF_ConfigGetAttribute( cf, check_surface_pressure, label='check_surface_pressure:', &
+                                default= check_surface_pressure, rc = rc )
+
   call ESMF_ConfigGetAttribute( cf, ADIABATIC, label='ADIABATIC:', default=adiabatic, rc = rc )
   call ESMF_ConfigGetAttribute( cf, FV_OFF   , label='FV_OFF:', default=.false., rc = rc )
 
@@ -538,26 +509,10 @@ contains
   call ESMF_ConfigGetAttribute( cf, hybrid_z      , label='hybrid_z:'     , default=.false., rc = rc )
   call ESMF_ConfigGetAttribute( cf, Make_NH       , label='Make_NH:'      , default=.false., rc = rc )
   FV_HYDROSTATIC = hydrostatic
-
-!*** remap_t is NOT yet supported for non-hydrostatic option *****
-! if ( .not. hydrostatic ) remap_t = .false.
-
-!
-  GRID%NG     = 3 ; ng = 3
-  GRID%NPX    = NPX
-  GRID%NPY    = NPY
-  GRID%NPZ    = NPZ
-  GRID%NPZ_P1 = NPZ+1
-  GRID%NTILES = 6
-  GRID%N_SPONGE  = N_SPONGE
-  GRID%NTOTQ  = MAX(1,NTOTQ)
-  GRID%NQ     = MAX(1,NTOTQ)
-  ncnst       = MAX(1,NTOTQ)
 !
 ! FV likes npx;npy in terms of cell vertices
 !
   npx=npx+1 ; npy=npy+1
-
 ! 
 ! Constants
 !
@@ -576,12 +531,8 @@ contains
 ! All done with configuration
 !
   call ESMF_ConfigDestroy( cf, rc = rc )
-! 
-! Get the main GRIDXY grid from the application (no longer set in this module)
-! 
-  call ESMF_GridCompGet(gc, grid=GRID%GRID, vm=vm, rc=STATUS)
 
-!
+! WMP This is all done in FV_INIT now.... 
 ! Calculate N_SPLIT if it was specified as 0
  !if ( N_SPLIT == 0 ) n_split= INIT_NSPLIT(dt,npx-1,npy-1)
  !call WRITE_PARALLEL ( n_split ,format='("Dynamics NSPLIT: ",(i3))' )
@@ -601,9 +552,9 @@ contains
  !call WRITE_PARALLEL ( m_split ,format='("Dynamics MSPLIT: ",(i3))' )
  !endif
  !call WRITE_PARALLEL ( q_split ,format='("Dynamics QSPLIT: ",(i3))' )
+! WMP This is all done in FV_INIT now.... 
 
     call MAPL_TimerOn(MAPL,"--FMS_INIT")
-! Start up FMS/MPP
     call ESMF_VMGet(VM,mpiCommunicator=comm,rc=status)
     VERIFY_(STATUS)
     call fms_init(comm)
@@ -623,16 +574,6 @@ contains
   call WRITE_PARALLEL(NPES_X    ,format='("NPES_X  : ",(   I3))')
   call WRITE_PARALLEL(NPES_Y    ,format='("NPES_Y  : ",(   I3))')
 
-  STATE%DOTIME= .TRUE.
-  STATE%DT        = DT
-  STATE%NSPLIT    = N_SPLIT
-
-  call WRITE_PARALLEL(' ')
-  call WRITE_PARALLEL(STATE%DT,format='("Dynamics time step : ",(F10.4))')
-  call WRITE_PARALLEL(' ')
-
-! Get size, grid, and coordinate specifications
-
   call WRITE_PARALLEL((/npx,npy,npz/)       , &
     format='("Resolution of dynamics restart     =",3I5)'  )
 
@@ -643,6 +584,182 @@ contains
   ASSERT_(ks <= NPZ+1)
   call WRITE_PARALLEL(ks                          , &
      format='("Number of true pressure levels =", I5)'   )
+
+  call MAPL_MemUtilsWrite(VM, trim(Iam), RC=STATUS )
+  VERIFY_(STATUS)
+
+  RETURN_(ESMF_SUCCESS)
+
+contains
+
+!-----------------------------------------------------------------------
+! BOP
+! !IROUTINE:  init_nsplit --- find proper value for nsplit if not specified
+!
+! !INTERFACE:
+  integer function INIT_NSPLIT(dtime,npx,npy)
+!
+! !USES:
+    use fv_control_mod,    only: k_split
+
+    implicit none
+
+! !INPUT PARAMETERS:
+    real (REAL8), intent(in) :: dtime      !  time step
+    integer, intent(in)   :: npx,npy    !  Global horizontal resolution
+
+! !DESCRIPTION:
+! 
+!    If nsplit=0 (module variable) then determine a good value
+!    for ns (used in fvdycore) based on resolution and the large-time-step
+!    (dtime). The user may have to set this manually if instability occurs.
+! 
+! !REVISION HISTORY:
+!   00.10.19   Lin     Creation
+!   01.03.26   Sawyer  ProTeX documentation
+!   01.06.10   Sawyer  Modified for dynamics_init framework
+!   03.12.04   Sawyer  Moved here from dynamics_vars.  Now a function
+!   07.16.07   Putman  Modified for cubed-sphere
+!
+! EOP
+!-----------------------------------------------------------------------
+! !LOCAL VARIABLES:
+    real (REAL8)   umax
+    real (REAL8)   dimx
+    real (REAL8)   dim0                      ! base dimension
+    real (REAL8)   dt0                       ! base time step              
+    real (REAL8)   ns0                       ! base nsplit for base dimension
+    integer     ns                        ! final value to be returned
+                     
+    parameter ( dim0 = 180.  )
+    parameter ( dt0  = 1800. )
+    parameter ( umax = 350.  )
+ 
+    ns0  = 7.
+    dimx = 4.0*npx
+    if (grid_type < 4) then
+       ns = nint ( ns0*abs(dtime)*dimx/(dt0*dim0) + 0.49 )
+       if (.not. hydrostatic) ns = ns*1.5 ! time-step needs to be shortened for NH stabilitiy
+       ns = max ( 1, ns )
+    else
+      !ns = nint ( 2.*umax*dtime/sqrt(dx_const**2 + dy_const**2) + 0.49 )
+       ns = nint ( ns0*dtime/sqrt(dx_const**2 + dy_const**2) + 0.49 )
+    endif
+
+    init_nsplit = ns/k_split
+
+    return
+  end function INIT_NSPLIT
+!---------------------------------------------------------------------
+
+ end subroutine FV_Setup
+
+ subroutine FV_InitState (STATE, CLOCK, INTERNAL, IMPORT, GC, RC)
+
+  use fv_control_mod, only : npx,npy,npz, ntiles, ncnst, nwat
+  use fv_control_mod, only : hord_mt, hord_vt, hord_tm, hord_dp, hord_tr
+  use fv_control_mod, only : kord_mt, kord_tm, kord_tr, kord_wz
+  use fv_control_mod, only : courant_max, n_split, m_split, k_split, q_split, master
+  use fv_control_mod, only : nord, dddmp, d2_bg, d4_bg, d_con, d_ext, vtdm4, beta
+  use fv_control_mod, only : k_top, m_riem, p_ref
+  use fv_control_mod, only : uniform_ppm, te_method, remap_t,  inline_q, z_tracer, fv_debug
+  use fv_control_mod, only : external_ic, ncep_ic, res_latlon_dynamics, res_latlon_tracers, fv_land
+  use fv_control_mod, only : consv_te, fv_sg_adj, tau, tau_h2o, rf_center
+  use fv_control_mod, only : nf_omega, moist_phys
+  use fv_control_mod, only : hydrostatic, phys_hydrostatic,  hybrid_z, m_grad_p
+  use fv_control_mod, only : Make_NH
+  use fv_control_mod, only : nt_prog, nt_phys
+  use fv_control_mod, only : grid_file
+  use fv_control_mod, only : t_fac, kd3, w_max, z_min, replace_w
+  use fv_control_mod, only : fill_dp, fill_wz
+  use fv_control_mod, only : n_sponge, d2_bg_k1, d2_bg_k2
+  use test_cases_mod, only : test_case, init_double_periodic 
+
+  type (T_FVDYCORE_STATE),pointer              :: STATE
+
+  type (ESMF_Clock), target,     intent(INOUT) :: CLOCK
+  type (ESMF_GridComp)         , intent(INOUT) :: GC
+  type (ESMF_State)            , intent(INOUT) :: INTERNAL
+  type (ESMF_State)            , intent(INOUT) :: IMPORT
+  integer, optional            , intent(OUT  ) :: RC
+
+! Local variables
+
+! Pointers to geography info in the MAPL MetaComp
+
+  real,                 pointer :: LATS (:,:)
+  real,                 pointer :: LONS (:,:)
+
+  type (ESMF_TimeInterval)     :: Time2Run
+  type (ESMF_VM)               :: VM
+  type (T_FVDYCORE_GRID) , pointer :: GRID
+  integer              :: status
+  real(REAL8) :: DT
+
+  integer   :: is ,ie , js ,je    !  Local dims
+  integer   :: isc,iec, jsc,jec   !  Local dims
+  integer   :: isd,ied, jsd,jed   !  Local dims
+  integer   :: k                  !  Vertical loop index
+  integer   :: ng
+  integer   :: ndt
+
+  integer   :: i,j
+
+  type (ESMF_Time) :: fv_time
+  integer :: days, seconds
+
+  character(len=ESMF_MAXSTR)       :: IAm='FV:FV_InitState'
+
+  real(REAL8), pointer                   :: AK(:) => NULL()
+  real(REAL8), pointer                   :: BK(:) => NULL()
+  real(REAL8), dimension(:,:,:), pointer :: U     => NULL()
+  real(REAL8), dimension(:,:,:), pointer :: V     => NULL()
+  real(REAL8), dimension(:,:,:), pointer :: PT    => NULL()
+  real(REAL8), dimension(:,:,:), pointer :: PE    => NULL()
+  real(REAL8), dimension(:,:,:), pointer :: PKZ   => NULL()
+  real(REAL8), dimension(:,:,:), pointer :: DZ    => NULL()
+  real(REAL8), dimension(:,:,:), pointer :: W     => NULL()
+  type (MAPL_MetaComp),          pointer :: mapl  => NULL()
+
+  real(REAL8), ALLOCATABLE :: UA(:,:,:)
+  real(REAL8), ALLOCATABLE :: VA(:,:,:)
+  real(REAL8), ALLOCATABLE :: UD(:,:,:)
+  real(REAL8), ALLOCATABLE :: VD(:,:,:)
+
+  logical    :: hybrid
+
+! BEGIN
+
+! Retrieve the pointer to the state
+! ---------------------------------
+
+  call MAPL_GetObjectFromGC (GC, MAPL,  RC=STATUS )
+  VERIFY_(STATUS)
+
+  call MAPL_GetResource( MAPL, ndt, 'RUN_DT:', default=0, RC=STATUS )
+  VERIFY_(STATUS)
+  DT = ndt
+
+  STATE%GRID%FVgenstate => MAPL
+  GRID => STATE%GRID     ! For convenience
+  STATE%DOTIME= .TRUE.
+  STATE%DT        = DT
+  STATE%NSPLIT    = N_SPLIT
+  GRID%NG     = 3 ; ng = 3
+  GRID%NPX    = NPX-1
+  GRID%NPY    = NPY-1
+  GRID%NPZ    = NPZ
+  GRID%NPZ_P1 = NPZ+1
+  GRID%NTILES = 6
+  GRID%N_SPONGE  = N_SPONGE
+  GRID%NTOTQ  = MAX(1,ncnst)
+  GRID%NQ     = MAX(1,ncnst)
+  call ESMF_GridCompGet(gc, grid=GRID%GRID, VM=VM, rc=STATUS)
+    VERIFY_(STATUS)
+
+  call WRITE_PARALLEL(' ')
+  call WRITE_PARALLEL(STATE%DT,format='("Dynamics time step : ",(F10.4))')
+  call WRITE_PARALLEL(' ')
 
 ! Get pointers to internal state vars
   call MAPL_GetPointer(internal, ak, "AK",rc=status)
@@ -711,6 +828,10 @@ contains
   GRID%AREA = area(IS:IE,JS:JE)
   GRID%GLOBALAREA = globalarea
 
+  if (grid_type == 4) then
+     fC(:,:) = 2.*MAPL_OMEGA*sin(deglat/180.*MAPL_PI_R8)
+     f0(:,:) = 2.*MAPL_OMEGA*sin(deglat/180.*MAPL_PI_R8)
+  else
    if (GRID%f_coriolis_angle == -999) then
      fC(:,:) = 0.0
      f0(:,:) = 0.0
@@ -728,8 +849,7 @@ contains
         enddo
      enddo
    endif
-  !fC_FVPRC=CNVT(fC)
-  !f0_FVPRC=CNVT(f0)
+  endif
 
 
 ! Check coordinate information from MAPL_MetaComp
@@ -784,16 +904,13 @@ contains
        endif
        call init_double_periodic(FV_Atm(1)%u,FV_Atm(1)%v,FV_Atm(1)%w,FV_Atm(1)%pt,FV_Atm(1)%delp,FV_Atm(1)%q,FV_Atm(1)%phis, &
                                  FV_Atm(1)%ps,FV_Atm(1)%pe, &
-                                 FV_Atm(1)%peln,FV_Atm(1)%pk,FV_Atm(1)%pkz, FV_Atm(1)%uc, &
-                                 FV_Atm(1)%vc, FV_Atm(1)%ua,FV_Atm(1)%va,        &
-                                 FV_Atm(1)%ak, FV_Atm(1)%bk, FV_Atm(1)%npx, FV_Atm(1)%npy, &
-                                 npz, FV_Atm(1)%ng, ncnst, FV_Atm(1)%nwat,  &
-                                 FV_Atm(1)%k_top, FV_Atm(1)%ndims, FV_Atm(1)%ntiles, &
-                                 FV_Atm(1)%dry_mass, FV_Atm(1)%mountain,       &
+                                 FV_Atm(1)%peln,FV_Atm(1)%pk,FV_Atm(1)%pkz, FV_Atm(1)%uc,FV_Atm(1)%vc, FV_Atm(1)%ua,FV_Atm(1)%va,        &
+                                 FV_Atm(1)%ak, FV_Atm(1)%bk, FV_Atm(1)%npx, FV_Atm(1)%npy, npz, FV_Atm(1)%ng, ncnst, FV_Atm(1)%nwat,  &
+                                 FV_Atm(1)%k_top, FV_Atm(1)%ndims, FV_Atm(1)%ntiles, FV_Atm(1)%dry_mass, FV_Atm(1)%mountain,       &
                                  FV_Atm(1)%moist_phys, FV_Atm(1)%hydrostatic, hybrid, FV_Atm(1)%delz, FV_Atm(1)%ze0)
      ! Copy FV to internal State
        call FV_To_State ( STATE )
-       if( gid==masterproc ) write(*,*) 'Doubly Periodic IC generated'
+       if( gid==masterproc ) write(*,*) 'Doubly Periodic IC generated LAT:', deglat
    else
      ALLOCATE( UA(isc:iec  ,jsc:jec  ,1:npz) )
      ALLOCATE( VA(isc:iec  ,jsc:jec  ,1:npz) )
@@ -880,69 +997,6 @@ contains
 
   RETURN_(ESMF_SUCCESS)
 
-contains
-
-!-----------------------------------------------------------------------
-! BOP
-! !IROUTINE:  init_nsplit --- find proper value for nsplit if not specified
-!
-! !INTERFACE:
-  integer function INIT_NSPLIT(dtime,npx,npy)
-!
-! !USES:
-    use fv_control_mod,    only: k_split
-
-    implicit none
-
-! !INPUT PARAMETERS:
-    real (REAL8), intent(in) :: dtime      !  time step
-    integer, intent(in)   :: npx,npy    !  Global horizontal resolution
-
-! !DESCRIPTION:
-! 
-!    If nsplit=0 (module variable) then determine a good value
-!    for ns (used in fvdycore) based on resolution and the large-time-step
-!    (dtime). The user may have to set this manually if instability occurs.
-! 
-! !REVISION HISTORY:
-!   00.10.19   Lin     Creation
-!   01.03.26   Sawyer  ProTeX documentation
-!   01.06.10   Sawyer  Modified for dynamics_init framework
-!   03.12.04   Sawyer  Moved here from dynamics_vars.  Now a function
-!   07.16.07   Putman  Modified for cubed-sphere
-!
-! EOP
-!-----------------------------------------------------------------------
-! !LOCAL VARIABLES:
-    real (REAL8)   umax
-    real (REAL8)   dimx
-    real (REAL8)   dim0                      ! base dimension
-    real (REAL8)   dt0                       ! base time step              
-    real (REAL8)   ns0                       ! base nsplit for base dimension
-    integer     ns                        ! final value to be returned
-                     
-    parameter ( dim0 = 180.  )
-    parameter ( dt0  = 1800. )
-    parameter ( umax = 350.  )
- 
-    ns0  = 7.
-    dimx = 4.0*npx
-    if (grid_type < 4) then
-       ns = nint ( ns0*abs(dtime)*dimx/(dt0*dim0) + 0.49 )
-       if (.not. hydrostatic) ns = ns*1.5 ! time-step needs to be shortened for NH stabilitiy
-       ns = max ( 1, ns )
-    else
-      !ns = nint ( 2.*umax*dtime/sqrt(dx_const**2 + dy_const**2) + 0.49 )
-       ns = nint ( ns0*dtime/sqrt(dx_const**2 + dy_const**2) + 0.49 )
-    endif
-
-
-    init_nsplit = ns/k_split
-
-    return
-  end function INIT_NSPLIT
-!---------------------------------------------------------------------
-
 end subroutine FV_InitState
 
 subroutine FV_Run (STATE, CLOCK, RC)
@@ -960,13 +1014,12 @@ subroutine FV_Run (STATE, CLOCK, RC)
   integer  :: days, seconds
   real(REAL8) :: time_total, psmo
 
-  integer :: i,j,n,k,nn
+  integer :: n,nn
   integer :: isc,iec,jsc,jec,ng
   integer :: isd,ied,jsd,jed
   integer :: npx,npy,npz
 
 ! Splitting for Pure Advection
-  integer  :: myLOOPS, myNSPLIT
   real(REAL8) :: myDT
 
 ! Begin
@@ -995,7 +1048,7 @@ subroutine FV_Run (STATE, CLOCK, RC)
    if (fv_first_run) then
     ! Set surface geopotential
      FV_Atm(1)%phis(isc:iec,jsc:jec) = real(phis,kind=REAL8)
-     call mpp_update_domains(FV_Atm(1)%phis, domain)
+     call mpp_update_domains(FV_Atm(1)%phis, domain, complete=.true.)
     ! How many tracers do we really have?
      if (AdvCore_Advection/=0) then
         if (.not. ADIABATIC) then
@@ -1090,21 +1143,17 @@ subroutine FV_Run (STATE, CLOCK, RC)
     endif ! AdvCore_Advection
   endif
 
-   myDT = state%dt
-   myNSPLIT = FV_Atm(1)%n_split
-   myLOOPS = 1
-
-   do n=1,myLOOPS
+    myDT = state%dt
 
     elapsed_time = elapsed_time + myDT
 
     if (DEBUG) call debug_fv_state('Before Dynamics Execution',STATE)
 
-   if (.not. FV_OFF) then
 
 ! Update FV with Internal State
     call State_To_FV( STATE )
 
+    if (.not. FV_OFF) then
     call set_domain(FV_Atm(1)%domain)  ! needed for diagnostic output done in fv_dynamics
     call fv_dynamics(FV_Atm(1)%npx, FV_Atm(1)%npy, FV_Atm(1)%npz, FV_Atm(1)%ncnst, FV_Atm(1)%ng,   &
                      myDT, FV_Atm(1)%consv_te, FV_Atm(1)%fill, FV_Atm(1)%reproduce_sum, kappa,   &
@@ -1116,16 +1165,17 @@ subroutine FV_Run (STATE, CLOCK, RC)
                      FV_Atm(1)%ak, FV_Atm(1)%bk, FV_Atm(1)%mfx, FV_Atm(1)%mfy, FV_Atm(1)%cx, FV_Atm(1)%cy,    &
                      FV_Atm(1)%ze0, FV_Atm(1)%hybrid_z, time_total)
     call nullify_domain()
+    endif
 
 ! Check Surface Pressure
-!    psmo = globalsum(FV_Atm(1)%ps(isc:iec,jsc:jec), npx, npy, isc,iec, jsc,jec)
-!    if(gid==masterproc) write(6,*) '         Total surface pressure =', 0.01*psmo
+    if (check_surface_pressure) then
+     psmo = globalsum(FV_Atm(1)%ps(isc:iec,jsc:jec), npx, npy, isc,iec, jsc,jec)
+     if (psmo0 == -999.0) psmo0=psmo
+     if(gid==masterproc) write(6,*) '         Total surface pressure change =', (psmo-psmo0)/psmo0
+    endif
 
 ! Copy FV to internal State
    call FV_To_State ( STATE )
-   endif
-
-  enddo
 
  ! Push Tracers
   if (.not. ADIABATIC) then
@@ -1217,7 +1267,7 @@ end subroutine FV_Run
 
   integer isc, iec, jsc, jec
   integer isd, ied, jsd, jed
-  integer npz, ng, n
+  integer npz, ng
 
   isc = FV_Atm(1)%isc
   iec = FV_Atm(1)%iec
@@ -1249,11 +1299,10 @@ subroutine State_To_FV ( STATE )
 
    type(T_FVDYCORE_STATE),      pointer   :: STATE
 
-    integer               :: IL1, IL2, JL1, JL2
     integer               :: ISC,IEC, JSC,JEC
     integer               :: ISD,IED, JSD,JED 
-    integer               :: IM,JM,KM, NG
-    integer               :: I,J,K,N
+    integer               :: KM, NG
+    integer               :: I,J,K
     real(REAL8)              :: akap
 
     real(REAL8) :: uatemp(state%grid%isd:state%grid%ied, &
@@ -1265,10 +1314,6 @@ subroutine State_To_FV ( STATE )
     real(REAL8) :: sbuffer(state%grid%is:state%grid%ie,state%grid%npz)
     real(REAL8) :: ebuffer(state%grid%js:state%grid%je,state%grid%npz)
     real(REAL8) :: nbuffer(state%grid%is:state%grid%ie,state%grid%npz)
-
-    real(REAL8) :: rdg, vir_effect
-
-    character(len=ESMF_MAXSTR)         :: IAm="State_To_FV"
 
     ISC = state%grid%is
     IEC = state%grid%ie
@@ -1306,7 +1351,7 @@ subroutine State_To_FV ( STATE )
     call mpp_get_boundary(FV_Atm(1)%u, FV_Atm(1)%v, domain, &
                           wbuffery=wbuffer, ebuffery=ebuffer, &
                           sbufferx=sbuffer, nbufferx=nbuffer, &
-                          gridtype=DGRID_NE )
+                          gridtype=DGRID_NE, complete=.true. )
     do k=1,km
        do i=isc,iec
           FV_Atm(1)%u(i,jec+1,k) = nbuffer(i,k)
@@ -1386,14 +1431,9 @@ subroutine State_To_FV ( STATE )
        if (.not. FV_Atm(1)%hydrostatic) FV_Atm(1)%delz(isc:iec,jsc:jec,:) = STATE%VARS%DZ
 
 !------------------------------------------------------------------------------
-! Get full non-hydrostatic pkz based on new T if (.not. FV_Atm(1)%hydrostatic)
+! Get pkz
 !------------------------------------------------------------------------------
-       FV_Atm(1)%pkz(:,:,:) = tiny_number
-       if (.not. FV_Atm(1)%hydrostatic) then
-       call fv_getPKZ(FV_Atm(1)%pkz(isc:iec,jsc:jec,:),FV_Atm(1)%pt(isc:iec,jsc:jec,:),FV_Atm(1)%q(isc:iec,jsc:jec,1:km,1),STATE%VARS%PE,FV_Atm(1)%delz(isc:iec,jsc:jec,:),FV_Atm(1)%hydrostatic) 
-       else
        FV_Atm(1)%pkz(isc:iec,jsc:jec,:) = STATE%VARS%PKZ
-       endif
 
     endif
 
@@ -1409,12 +1449,8 @@ subroutine FV_To_State ( STATE )
 
    type(T_FVDYCORE_STATE),      pointer   :: STATE
 
-    integer               :: ISC,IEC, JSC,JEC, IM,JM,KM
-    integer               :: I,J,K,N
-
-    real(REAL8)              :: rdg
-
-    character(len=ESMF_MAXSTR)         :: IAm="FV_To_State"
+    integer               :: ISC,IEC, JSC,JEC, KM
+    integer               :: I,J
 
     ISC = state%grid%is
     IEC = state%grid%ie
@@ -1448,13 +1484,9 @@ subroutine FV_To_State ( STATE )
        if (.not. FV_Atm(1)%hydrostatic) STATE%VARS%DZ = FV_Atm(1)%delz(isc:iec,jsc:jec,:)
        
 !--------------------------------
-! Get the hydrostatic pkz
+! Get pkz from FV3
 !--------------------------------
-       if (.not. FV_Atm(1)%hydrostatic) then
-       call fv_getPKZ(STATE%VARS%PKZ,STATE%VARS%PT,FV_Atm(1)%q(isc:iec,jsc:jec,1:km,1),STATE%VARS%PE,STATE%VARS%DZ,.true.)
-       else
        STATE%VARS%PKZ = FV_Atm(1)%pkz(isc:iec,jsc:jec,:)
-       endif
 
 !---------------------------------------------------------------------
 ! Convert to Dry Temperature to PT with hydrostatic pkz
@@ -1479,7 +1511,7 @@ return
 end subroutine fv_getDELZ
 
 subroutine fv_getQ(Q, qNAME)
-  real(REAL4), intent(OUT) :: Q(FV_Atm(1)%isc:FV_Atm(1)%iec,FV_Atm(1)%jsc:FV_Atm(1)%jec,1:FV_Atm(1)%npz)
+  real(REAL8), intent(OUT) :: Q(FV_Atm(1)%isc:FV_Atm(1)%iec,FV_Atm(1)%jsc:FV_Atm(1)%jec,1:FV_Atm(1)%npz)
   character(LEN=*), intent(IN) :: qNAME
   integer :: isc,iec, jsc,jec, npz
   isc = FV_Atm(1)%isc
@@ -1590,7 +1622,6 @@ subroutine a2d3d(ua, va, ud, vd)
       integer :: is ,ie , js ,je 
       integer :: npx, npy, npz
       integer :: i,j,k, im2,jm2
-      real(REAL8) :: p1(2), p2(2), p3(2), p4(2)
 
       real(REAL8) :: uatemp(FV_Atm(1)%isd:FV_Atm(1)%ied,FV_Atm(1)%jsd:FV_Atm(1)%jed,FV_Atm(1)%npz)
       real(REAL8) :: vatemp(FV_Atm(1)%isd:FV_Atm(1)%ied,FV_Atm(1)%jsd:FV_Atm(1)%jed,FV_Atm(1)%npz)
@@ -1775,8 +1806,7 @@ subroutine a2d2d(ua, va, ud, vd)
 ! !Local Variables
       integer :: is ,ie , js ,je
       integer :: npx, npy
-      integer :: i,j,k, im2,jm2
-      real(REAL8) :: p1(2), p2(2), p3(2), p4(2)
+      integer :: i,j, im2,jm2
 
       real(REAL8) :: uatemp(FV_Atm(1)%isd:FV_Atm(1)%ied,FV_Atm(1)%jsd:FV_Atm(1)%jed)
       real(REAL8) :: vatemp(FV_Atm(1)%isd:FV_Atm(1)%ied,FV_Atm(1)%jsd:FV_Atm(1)%jed)
@@ -1951,7 +1981,7 @@ subroutine fv_getTopography(phis)
 
   call surfdrv(npx, npy, grid, agrid, area, dx, dy, dxc, dyc,  &
                m_phis, gid==masterproc)
-  call mpp_update_domains( m_phis, domain )
+  call mpp_update_domains( m_phis, domain, complete=.true. )
 
   phis = m_phis(FV_Atm(1)%isc:FV_Atm(1)%iec,FV_Atm(1)%jsc:FV_Atm(1)%jec)
 
@@ -1971,7 +2001,7 @@ subroutine fv_computeMassFluxes(ucI, vcI, ple, mfx, mfy, cx, cy, dt)
   real(REAL8), intent(INOUT) ::   cx(is:ie,js:je,1:npz)
   real(REAL8), intent(INOUT) ::   cy(is:ie,js:je,1:npz)
   real(REAL8), intent(IN   ) :: dt
-  integer i,j,k,n
+  integer i,j,k
 
 ! Local ghosted arrays
   real(REAL8) ::  uc(isd:ied+1,jsd:jed  ,1:npz)
@@ -1995,7 +2025,7 @@ subroutine fv_computeMassFluxes(ucI, vcI, ple, mfx, mfy, cx, cy, dt)
   real(REAL8) :: ebuffer(js:je,npz)
   real(REAL8) :: nbuffer(is:ie,npz)
 
-  real(REAL8) :: cmax, frac, zfac, psmo, psmoD, psmo3
+  real(REAL8) :: cmax, frac
   integer     :: it, nsplt
 
 ! Fill Ghosted arrays and update halos
@@ -2162,16 +2192,39 @@ subroutine fv_getVerticalMassFlux(mfx, mfy, mfz, dt)
   real(REAL8), intent(IN   ) :: mfy(FV_Atm(1)%isc:FV_Atm(1)%iec,FV_Atm(1)%jsc:FV_Atm(1)%jec,1:FV_Atm(1)%npz)
   real(REAL8), intent(  OUT) :: mfz(FV_Atm(1)%isc:FV_Atm(1)%iec,FV_Atm(1)%jsc:FV_Atm(1)%jec,1:FV_Atm(1)%npz+1)
   real(REAL8), intent(IN)  :: dt
-  integer isc,iec,jsc,jec,npz,i,j,k
 
   real(REAL8) :: conv(FV_Atm(1)%isc:FV_Atm(1)%iec,FV_Atm(1)%jsc:FV_Atm(1)%jec,1:FV_Atm(1)%npz)
   real(REAL8) :: pit(FV_Atm(1)%isc:FV_Atm(1)%iec,FV_Atm(1)%jsc:FV_Atm(1)%jec)
 
   real(REAL8) :: fac
 
+  real(REAL8) :: wbuffer(FV_Atm(1)%jsc:FV_Atm(1)%jec,FV_Atm(1)%npz)
+  real(REAL8) :: sbuffer(FV_Atm(1)%isc:FV_Atm(1)%iec,FV_Atm(1)%npz)
+  real(REAL8) :: ebuffer(FV_Atm(1)%jsc:FV_Atm(1)%jec,FV_Atm(1)%npz)
+  real(REAL8) :: nbuffer(FV_Atm(1)%isc:FV_Atm(1)%iec,FV_Atm(1)%npz)
+  real(REAL8) :: xfx(FV_Atm(1)%isd:FV_Atm(1)%ied+1,FV_Atm(1)%jsd:FV_Atm(1)%jed  ,1:FV_Atm(1)%npz)
+  real(REAL8) :: yfx(FV_Atm(1)%isd:FV_Atm(1)%ied  ,FV_Atm(1)%jsd:FV_Atm(1)%jed+1,1:FV_Atm(1)%npz)
+
+  integer isc,iec,jsc,jec,npz,i,j,k
   isc=FV_Atm(1)%isc ; iec=FV_Atm(1)%iec
   jsc=FV_Atm(1)%jsc ; jec=FV_Atm(1)%jec
   npz=FV_Atm(1)%npz
+
+! Fill Ghosted arrays and update halos
+  xfx(isc:iec,jsc:jec,:) = mfx
+  yfx(isc:iec,jsc:jec,:) = mfy
+  call mpp_get_boundary(xfx, yfx, domain, &
+                        wbufferx=wbuffer, ebufferx=ebuffer, &
+                        sbuffery=sbuffer, nbuffery=nbuffer, &
+                        gridtype=CGRID_NE, complete=.true. )
+  do k=1,npz
+     do j=jsc,jec
+        xfx(iec+1,j,k) = ebuffer(j,k)
+     enddo
+     do i=isc,iec
+        yfx(i,jec+1,k) = nbuffer(i,k)
+     enddo
+  enddo
 
   fac = 1.0/(dt*MAPL_GRAV)
 !
@@ -2181,8 +2234,8 @@ subroutine fv_getVerticalMassFlux(mfx, mfy, mfz, dt)
     do k=1,npz
        do j=jsc,jec
           do i=isc,iec
-             conv(i,j,k) = ( mfx(i,j,k) - mfx(i+1,j,k) +  &
-                             mfy(i,j,k) - mfy(i,j+1,k) ) * fac
+             conv(i,j,k) = ( xfx(i,j,k) - xfx(i+1,j,k) +  &
+                             yfx(i,j,k) - yfx(i,j+1,k) ) * fac
           enddo
        enddo
     enddo
@@ -2229,7 +2282,7 @@ subroutine compute_utvt(uc, vc, ut, vt, dt)
   real(REAL8), intent(IN   ) :: dt
 ! Local vars
   real(REAL8) :: damp
-  integer i,j,k
+  integer i,j
 
   if ( grid_type < 3 ) then
 
@@ -2445,12 +2498,13 @@ subroutine fv_getPK(pkxyz)
 end subroutine fv_getPK
 
 subroutine fv_getVorticity(u, v, vort)
-  real(REAL8), intent(IN)  ::  u(FV_Atm(1)%isc:FV_Atm(1)%iec,FV_Atm(1)%jsc:FV_Atm(1)%jec,1:FV_Atm(1)%npz)
-  real(REAL8), intent(IN)  ::  v(FV_Atm(1)%isc:FV_Atm(1)%iec,FV_Atm(1)%jsc:FV_Atm(1)%jec,1:FV_Atm(1)%npz)
+  real(REAL8), intent(IN)  ::     u(FV_Atm(1)%isc:FV_Atm(1)%iec,FV_Atm(1)%jsc:FV_Atm(1)%jec,1:FV_Atm(1)%npz)
+  real(REAL8), intent(IN)  ::     v(FV_Atm(1)%isc:FV_Atm(1)%iec,FV_Atm(1)%jsc:FV_Atm(1)%jec,1:FV_Atm(1)%npz)
   real(REAL8), intent(OUT) ::  vort(FV_Atm(1)%isc:FV_Atm(1)%iec,FV_Atm(1)%jsc:FV_Atm(1)%jec,1:FV_Atm(1)%npz)
 
-  real(REAL8) ::  utemp(FV_Atm(1)%isd:FV_Atm(1)%ied,FV_Atm(1)%jsd:FV_Atm(1)%jed+1,1:FV_Atm(1)%npz)
-  real(REAL8) ::  vtemp(FV_Atm(1)%isd:FV_Atm(1)%ied+1,FV_Atm(1)%jsd:FV_Atm(1)%jed,1:FV_Atm(1)%npz)
+  real(REAL8) ::  utemp(FV_Atm(1)%isd:FV_Atm(1)%ied  ,FV_Atm(1)%jsd:FV_Atm(1)%jed+1,1:FV_Atm(1)%npz)
+  real(REAL8) ::  vtemp(FV_Atm(1)%isd:FV_Atm(1)%ied+1,FV_Atm(1)%jsd:FV_Atm(1)%jed  ,1:FV_Atm(1)%npz)
+
   real(REAL8) :: uatemp(FV_Atm(1)%isd:FV_Atm(1)%ied,FV_Atm(1)%jsd:FV_Atm(1)%jed,1:FV_Atm(1)%npz)
   real(REAL8) :: vatemp(FV_Atm(1)%isd:FV_Atm(1)%ied,FV_Atm(1)%jsd:FV_Atm(1)%jed,1:FV_Atm(1)%npz)
 
@@ -2485,29 +2539,116 @@ subroutine fv_getVorticity(u, v, vort)
     call mpp_get_boundary(utemp, vtemp, domain, &
                           wbuffery=wbuffer, ebuffery=ebuffer, &
                           sbufferx=sbuffer, nbufferx=nbuffer, &
-                          gridtype=DGRID_NE )
+                          gridtype=DGRID_NE, complete=.true. )
     do k=1,npz
        do i=isc,iec
           utemp(i,jec+1,k) = nbuffer(i,k)
        enddo
-    enddo
-    do k=1,npz
        do j=jsc,jec
           vtemp(iec+1,j,k) = ebuffer(j,k)
        enddo
     enddo
   endif
 ! Calc Vorticity
-! Convert winds to circulation elements:
     do k=1,npz
        do j=jsc,jec
           do i=isc,iec
              vort(i,j,k) = rarea(i,j)*(utemp(i,j,k)*dx(i,j)-utemp(i,j+1,k)*dx(i,j+1) - &
                                        vtemp(i,j,k)*dy(i,j)+vtemp(i+1,j,k)*dy(i+1,j))
-          enddo
+         enddo
        enddo
     enddo
 end subroutine fv_getVorticity
+
+subroutine fv_getDivergence(uc, vc, divg)
+  use fv_grid_utils_mod, only: sin_sg,  cos_sg
+  real(REAL8), intent(IN)  ::    uc(FV_Atm(1)%isc:FV_Atm(1)%iec,FV_Atm(1)%jsc:FV_Atm(1)%jec,1:FV_Atm(1)%npz)
+  real(REAL8), intent(IN)  ::    vc(FV_Atm(1)%isc:FV_Atm(1)%iec,FV_Atm(1)%jsc:FV_Atm(1)%jec,1:FV_Atm(1)%npz)
+  real(REAL8), intent(OUT) ::  divg(FV_Atm(1)%isc:FV_Atm(1)%iec,FV_Atm(1)%jsc:FV_Atm(1)%jec,1:FV_Atm(1)%npz)
+
+  real(REAL8) :: uctemp(FV_Atm(1)%isd:FV_Atm(1)%ied+1,FV_Atm(1)%jsd:FV_Atm(1)%jed  ,1:FV_Atm(1)%npz)
+  real(REAL8) :: vctemp(FV_Atm(1)%isd:FV_Atm(1)%ied  ,FV_Atm(1)%jsd:FV_Atm(1)%jed+1,1:FV_Atm(1)%npz)
+
+  real(REAL8) :: uatemp(FV_Atm(1)%isd:FV_Atm(1)%ied,FV_Atm(1)%jsd:FV_Atm(1)%jed,1:FV_Atm(1)%npz)
+  real(REAL8) :: vatemp(FV_Atm(1)%isd:FV_Atm(1)%ied,FV_Atm(1)%jsd:FV_Atm(1)%jed,1:FV_Atm(1)%npz)
+
+  real(REAL8) :: ut(FV_Atm(1)%isd:FV_Atm(1)%ied+1,FV_Atm(1)%jsd:FV_Atm(1)%jed  )
+  real(REAL8) :: vt(FV_Atm(1)%isd:FV_Atm(1)%ied  ,FV_Atm(1)%jsd:FV_Atm(1)%jed+1)
+
+  real(REAL8) :: wbuffer(FV_Atm(1)%jsc:FV_Atm(1)%jec,FV_Atm(1)%npz)
+  real(REAL8) :: sbuffer(FV_Atm(1)%isc:FV_Atm(1)%iec,FV_Atm(1)%npz)
+  real(REAL8) :: ebuffer(FV_Atm(1)%jsc:FV_Atm(1)%jec,FV_Atm(1)%npz)
+  real(REAL8) :: nbuffer(FV_Atm(1)%isc:FV_Atm(1)%iec,FV_Atm(1)%npz)
+
+  integer isd,ied,jsd,jed
+  integer isc,iec,jsc,jec
+  integer npz
+  integer i,j,k
+
+  isd=FV_Atm(1)%isd ; ied=FV_Atm(1)%ied
+  jsd=FV_Atm(1)%jsd ; jed=FV_Atm(1)%jed
+  isc=FV_Atm(1)%isc ; iec=FV_Atm(1)%iec
+  jsc=FV_Atm(1)%jsc ; jec=FV_Atm(1)%jec
+  npz = FV_Atm(1)%npz
+
+  uctemp  = 0d0
+  vctemp  = 0d0
+  if (grid_type>=4) then
+  ! Doubly Periodic
+    uatemp(isc:iec,jsc:jec,:) = uc
+    vatemp(isc:iec,jsc:jec,:) = vc
+    call mpp_update_domains(uatemp, domain, &
+                            whalo=1, ehalo=1, shalo=1, nhalo=1, complete=.false.)
+    call mpp_update_domains(vatemp, domain, &
+                            whalo=1, ehalo=1, shalo=1, nhalo=1, complete=.true.)
+    uctemp(isc:iec+1,jsc:jec,:) = uatemp(isc:iec+1,jsc:jec,:)
+    vctemp(isc:iec,jsc:jec+1,:) = vatemp(isc:iec,jsc:jec+1,:)
+  else
+    uctemp(isc:iec,jsc:jec,:) = uc
+    vctemp(isc:iec,jsc:jec,:) = vc
+    call mpp_get_boundary(uctemp, vctemp, domain, &
+                          wbufferx=wbuffer, ebufferx=ebuffer, &
+                          sbuffery=sbuffer, nbuffery=nbuffer, &
+                          gridtype=CGRID_NE, complete=.true.)
+    do k=1,npz
+       do j=jsc,jec
+          uctemp(iec+1,j,k) = ebuffer(j,k)
+       enddo
+       do i=isc,iec
+          vctemp(i,jec+1,k) = nbuffer(i,k)
+       enddo
+    enddo
+  endif
+  call mpp_update_domains( uctemp, vctemp, domain, gridtype=CGRID_NE, complete=.true.)
+! Calc Divergence
+    do k=1,npz
+        call compute_utvt(uctemp(isd,jsd,k), vctemp(isd,jsd,k), ut(isd,jsd), vt(isd,jsd), 1.d0)
+        do j=jsc,jec
+           do i=isc,iec+1
+              if ( ut(i,j) > 0. ) then
+                   ut(i,j) = dy(i,j)*ut(i,j)*sin_sg(i-1,j,3)
+              else
+                   ut(i,j) = dy(i,j)*ut(i,j)*sin_sg(i,j,1)
+             endif
+           enddo
+        enddo
+        do j=jsc,jec+1
+           do i=isc,iec
+              if ( vt(i,j) > 0. ) then
+                   vt(i,j) = dx(i,j)*vt(i,j)*sin_sg(i,j-1,4)
+              else
+                   vt(i,j) = dx(i,j)*vt(i,j)*sin_sg(i,j,2)
+              endif
+           enddo
+        enddo
+        do j=jsc,jec
+           do i=isc,iec
+              divg(i,j,k) = rarea(i,j)*( ut(i+1,j)-ut(i,j) + &
+                                         vt(i,j+1)-vt(i,j) )
+           enddo
+        enddo
+    enddo
+end subroutine fv_getDivergence
 
 subroutine fv_getEPV(pt, vort, epv)
   real(REAL8), intent(IN)  ::    pt(FV_Atm(1)%isc:FV_Atm(1)%iec,FV_Atm(1)%jsc:FV_Atm(1)%jec,1:FV_Atm(1)%npz)
@@ -2558,8 +2699,8 @@ subroutine fv_getAgridWinds_3D(u, v, ua, va, uc, vc, rotate)
   logical, optional, intent(IN) :: rotate
 ! 
 ! !OUTPUT PARAMETERS:
-  real(REAL8), intent(OUT) :: ua(FV_Atm(1)%isc:FV_Atm(1)%iec,FV_Atm(1)%jsc:FV_Atm(1)%jec,1:FV_Atm(1)%npz)
-  real(REAL8), intent(OUT) :: va(FV_Atm(1)%isc:FV_Atm(1)%iec,FV_Atm(1)%jsc:FV_Atm(1)%jec,1:FV_Atm(1)%npz)
+  real(REAL8),           intent(OUT) :: ua(FV_Atm(1)%isc:FV_Atm(1)%iec,FV_Atm(1)%jsc:FV_Atm(1)%jec,1:FV_Atm(1)%npz)
+  real(REAL8),           intent(OUT) :: va(FV_Atm(1)%isc:FV_Atm(1)%iec,FV_Atm(1)%jsc:FV_Atm(1)%jec,1:FV_Atm(1)%npz)
   real(REAL8), optional, intent(OUT) :: uc(FV_Atm(1)%isc:FV_Atm(1)%iec,FV_Atm(1)%jsc:FV_Atm(1)%jec,1:FV_Atm(1)%npz)
   real(REAL8), optional, intent(OUT) :: vc(FV_Atm(1)%isc:FV_Atm(1)%iec,FV_Atm(1)%jsc:FV_Atm(1)%jec,1:FV_Atm(1)%npz)
 !
@@ -2576,17 +2717,15 @@ subroutine fv_getAgridWinds_3D(u, v, ua, va, uc, vc, rotate)
   integer npz
   integer i,j,k
   
-  real(REAL8) :: p1(2), p2(2), p3(2), p4(2)
-
   real(FVPRC) :: ut(FV_Atm(1)%isd:FV_Atm(1)%ied, FV_Atm(1)%jsd:FV_Atm(1)%jed)
   real(FVPRC) :: vt(FV_Atm(1)%isd:FV_Atm(1)%ied, FV_Atm(1)%jsd:FV_Atm(1)%jed)
 
-  real(REAL8) ::  utemp(FV_Atm(1)%isd:FV_Atm(1)%ied,FV_Atm(1)%jsd:FV_Atm(1)%jed+1,1:FV_Atm(1)%npz)
-  real(REAL8) ::  vtemp(FV_Atm(1)%isd:FV_Atm(1)%ied+1,FV_Atm(1)%jsd:FV_Atm(1)%jed,1:FV_Atm(1)%npz)
-  real(FVPRC) :: uatemp(FV_Atm(1)%isd:FV_Atm(1)%ied,FV_Atm(1)%jsd:FV_Atm(1)%jed,1:FV_Atm(1)%npz)
-  real(FVPRC) :: vatemp(FV_Atm(1)%isd:FV_Atm(1)%ied,FV_Atm(1)%jsd:FV_Atm(1)%jed,1:FV_Atm(1)%npz)
-  real(FVPRC) :: uctemp(FV_Atm(1)%isd:FV_Atm(1)%ied+1,FV_Atm(1)%jsd:FV_Atm(1)%jed,1:FV_Atm(1)%npz)
-  real(FVPRC) :: vctemp(FV_Atm(1)%isd:FV_Atm(1)%ied,FV_Atm(1)%jsd:FV_Atm(1)%jed+1,1:FV_Atm(1)%npz)
+  real(REAL8) ::  utemp(FV_Atm(1)%isd:FV_Atm(1)%ied  ,FV_Atm(1)%jsd:FV_Atm(1)%jed+1,1:FV_Atm(1)%npz)
+  real(REAL8) ::  vtemp(FV_Atm(1)%isd:FV_Atm(1)%ied+1,FV_Atm(1)%jsd:FV_Atm(1)%jed  ,1:FV_Atm(1)%npz)
+  real(FVPRC) :: uatemp(FV_Atm(1)%isd:FV_Atm(1)%ied  ,FV_Atm(1)%jsd:FV_Atm(1)%jed  ,1:FV_Atm(1)%npz)
+  real(FVPRC) :: vatemp(FV_Atm(1)%isd:FV_Atm(1)%ied  ,FV_Atm(1)%jsd:FV_Atm(1)%jed  ,1:FV_Atm(1)%npz)
+  real(FVPRC) :: uctemp(FV_Atm(1)%isd:FV_Atm(1)%ied+1,FV_Atm(1)%jsd:FV_Atm(1)%jed  ,1:FV_Atm(1)%npz)
+  real(FVPRC) :: vctemp(FV_Atm(1)%isd:FV_Atm(1)%ied  ,FV_Atm(1)%jsd:FV_Atm(1)%jed+1,1:FV_Atm(1)%npz)
 !EOP
 !------------------------------------------------------------------------------
 !BOC
@@ -2620,7 +2759,7 @@ subroutine fv_getAgridWinds_3D(u, v, ua, va, uc, vc, rotate)
     call mpp_get_boundary(utemp, vtemp, domain, &
                           wbuffery=wbuffer, ebuffery=ebuffer, &
                           sbufferx=sbuffer, nbufferx=nbuffer, &
-                          gridtype=DGRID_NE )
+                          gridtype=DGRID_NE, complete=.true. )
     do k=1,npz
        do i=isc,iec
           utemp(i,jec+1,k) = nbuffer(i,k)
@@ -2631,7 +2770,7 @@ subroutine fv_getAgridWinds_3D(u, v, ua, va, uc, vc, rotate)
     enddo   
   endif
 
-  call mpp_update_domains(utemp, vtemp, domain, gridtype=DGRID_NE)
+  call mpp_update_domains(utemp, vtemp, domain, gridtype=DGRID_NE, complete=.true.)
   do k=1,npz
    call d2a2c_vect(utemp(:,:,k),  vtemp(:,:,k), &
                    uatemp(:,:,k), vatemp(:,:,k), &
@@ -2680,8 +2819,6 @@ subroutine fv_getAgridWinds_2D(u, v, ua, va, rotate)
   integer isc,iec,jsc,jec
   integer i,j, npz
 
-  real(REAL8) :: p1(2), p2(2), p3(2), p4(2)
-
   real(FVPRC) :: ut(FV_Atm(1)%isd:FV_Atm(1)%ied, FV_Atm(1)%jsd:FV_Atm(1)%jed)
   real(FVPRC) :: vt(FV_Atm(1)%isd:FV_Atm(1)%ied, FV_Atm(1)%jsd:FV_Atm(1)%jed)
 
@@ -2722,7 +2859,7 @@ subroutine fv_getAgridWinds_2D(u, v, ua, va, rotate)
     call mpp_get_boundary(utemp, vtemp, domain, &
                           wbuffery=wbuffer, ebuffery=ebuffer, &
                           sbufferx=sbuffer, nbufferx=nbuffer, &
-                          gridtype=DGRID_NE )
+                          gridtype=DGRID_NE, complete=.true. )
     do i=isc,iec
        utemp(i,jec+1) = nbuffer(i)
     enddo
@@ -2731,7 +2868,7 @@ subroutine fv_getAgridWinds_2D(u, v, ua, va, rotate)
     enddo
   endif
 
-  call mpp_update_domains(utemp, vtemp, domain, gridtype=DGRID_NE)
+  call mpp_update_domains(utemp, vtemp, domain, gridtype=DGRID_NE, complete=.true.)
   call d2a2c_vect( utemp(:,:),  vtemp(:,:), &
                   uatemp(:,:), vatemp(:,:), &
                   uctemp(:,:), vctemp(:,:), ut, vt, .true.)

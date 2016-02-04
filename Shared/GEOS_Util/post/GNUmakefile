@@ -16,15 +16,16 @@ SHELL=/bin/sh
 
 BINS = makeiau.x hdf2rs.x gg2fv.x eta2prs.x eta2rst.x stats.x rs_hinterp.x \
        time_ave.x time_ave_nompi.x binarytile.x convert_eta.x rs2hdf.x \
-       ec_prs2fv.x flat2hdf.x fvrst.x rs_scale.x gg2eta.x ec_prs2eta.x
+       ec_prs2fv.x flat2hdf.x fvrst.x rs_scale.x gg2eta.x ec_prs2eta.x \
+       merra2scm.x
 
 UT = checkdate.x swapendian_FV.x swapendian_RST.x
 
 PKGS = 
-MOD_DIRS = $(INC_MAPL_BASE) $(INC_ESMF) $(MOD_ESMF) $(INC_MPI)
-PERLSCRIPTS = regrid.pl
+MOD_DIRS = $(INC_MAPL_BASE) $(MOD_ESMF) $(INC_ESMF) $(INC_MPI) $(INC_GMAO_SHARED)
+PERLSCRIPTS = regrid.pl ncep2geos.pl ecmwf2geos.pl
 PERLPKGS = 
-SHELLSCRIPTS = 
+SHELLSCRIPTS = ec2grd.csh
 RCFILES = time_ave.rc regrid.rc
 NMLFILES = 
 SUBDIRS = 
@@ -215,16 +216,16 @@ $(LIBZ) : $(OBJZ)
 %.o : %.F
 	$(FC) -c $(FFLAGS) $(D)mpi $*.F
 
-stats.o : stats.F
-	$(FC) -c $(FFLAGS) $(BIG_ENDIAN) $*.F
+stats.o : stats.F90
+	$(FC) -c $(FFLAGS) $(BIG_ENDIAN) $*.F90
 
 %_nompi.o : %.o
 	$(FC) -c $(FFLAGS) -o $@ $*.F
 
 # Generic definition of dependent libraries
 # -----------------------------------------
-LIBS = $(LIB_CFIO) $(LIB_GFIO) $(LIB_MFHDF3) $(LIB_SDF) \
-			 $(LIB_MAPL_BASE) $(LIB_ESMF) $(LIB_MPI) $(LIB_SYS)
+LIBS = $(LIB_CFIO) $(LIB_GFIO) $(LIB_MFHDF3) \
+			 $(LIB_MAPL_BASE) $(LIB_SDF) $(LIB_ESMF) $(LIB_MPI) $(LIB_SYS)
 
 # Generic rule for mpi builds
 # ---------------------------
@@ -232,7 +233,7 @@ LIBS = $(LIB_CFIO) $(LIB_GFIO) $(LIB_MFHDF3) $(LIB_SDF) \
 	$(LD) $(LDFLAGS) -o $@ $+ $(LIBS)
 
 convert_eta.x: convert_eta.o $(LIB)
-	$(LD) $(LDFLAGS) -o $@ $+ $(LIBS)
+	$(LD) $(LDFLAGS) -o $@ $+ $(LIBS) $(LIB_HERMES)
 
 eta2prs.x: eta2prs.o timer_nompi.o $(LIB)
 	$(LD) $(LDFLAGS) -o $@ $+ $(LIBS)
@@ -258,8 +259,26 @@ time_ave_nompi.x: time_ave_nompi.o $(LIBZ)
 PWSSSP.o: PWSSSP.F
 	$(FC) -c $(FFLAGS) $(FREAL8) -I. PWSSSP.F
 
+rsg3_vinterp.o: rsg3_vinterp.F
+	$(FC) -c $(FFLAGS) $(FREAL8) -I. rsg3_vinterp.F
+
+rsg3_vinterp.x: rsg3_vinterp.o $(LIB)
+	$(LD) $(LDFLAGS) -o $@ $+ $(LIBS) $(LIB_HERMES)
+
+rs_vinterp.o: rs_vinterp.F90
+	$(FC) -c $(FFLAGS) $(FREAL8) -I. rs_vinterp.F90
+
+rs_vinterp.x: rs_vinterp.o $(LIB)
+	$(LD) $(LDFLAGS) -o $@ $+ $(LIBS) $(LIB_HERMES)
+
 swapendian_%.x : swapendian_%.o 
 	$(LD) $(LDFLAGS) -o $@ $(EXTENDED_SOURCE) $<
+
+rs_vinterp_scm.o: rs_vinterp_scm.F90
+	$(FC) -c $(FFLAGS) $(FREAL8) -I. rs_vinterp_scm.F90
+
+rs_vinterp_scm.x: rs_vinterp_scm.o $(LIB)
+	$(LD) $(LDFLAGS) -o $@ $+ $(LIBS) $(LIB_HERMES)
 
 
 #----------------------------------------------------

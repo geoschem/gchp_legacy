@@ -4,7 +4,6 @@ subroutine latlon2cube(npx, npy, nlon, nlat, data_ll, data_cs)
  use MAPL_Mod, only : MAPL_UNDEF
  use MAPL_IOMod, only : GETFILEUNIT, FREE_FILE
  use MAPL_ConstantsMod, only : pi=> MAPL_PI
- use fv_arrays_mod    , only : REAL8
  use fv_grid_utils_mod, only : gnomonic_grids, cell_center2
  use fv_grid_tools_mod, only : mirror_grid
 
@@ -17,10 +16,10 @@ subroutine latlon2cube(npx, npy, nlon, nlat, data_ll, data_cs)
  integer :: ntiles=6
  integer :: npts
  integer :: ndims=2
- real(REAL8), allocatable :: grid_global(:,:,:,:)
- real(REAL8), allocatable :: agrid(:,:,:)
+ real(ESMF_KIND_R8), allocatable :: grid_global(:,:,:,:)
+ real(ESMF_KIND_R8), allocatable :: agrid(:,:,:)
 
- real(REAL8), allocatable :: xlon(:), ylat(:)
+ real(ESMF_KIND_R8), allocatable :: xlon(:), ylat(:)
 
  real, dimension(nlon, nlat)           :: dll_flipped
 
@@ -32,7 +31,7 @@ subroutine latlon2cube(npx, npy, nlon, nlat, data_ll, data_cs)
  integer           , allocatable :: id1(:,:), id2(:,:), jdc(:,:)
  logical, save :: do_init=.true.
 
- real(REAL8) :: varmisval=1.e25
+ real(ESMF_KIND_R8) :: varmisval=1.e25
 
  real    :: dlon, dlat
 
@@ -212,14 +211,14 @@ contains
 
   integer,   intent(in):: npx, npy
   integer,   intent(in):: im, jm
-  real(REAL8), intent(in):: agrid(npx,npy,2)
-  real(REAL8), intent(in):: lon(im), lat(jm)
+  real(ESMF_KIND_R8), intent(in):: agrid(npx,npy,2)
+  real(ESMF_KIND_R8), intent(in):: lon(im), lat(jm)
   real(ESMF_KIND_R4), intent(out):: l2c(npx,npy,4)
   integer,   intent(out), dimension(npx,npy):: id1, id2, jdc
 ! local:
-  real(REAL8) :: rdlon(im)
-  real(REAL8) :: rdlat(jm)
-  real(REAL8) :: a1, b1
+  real(ESMF_KIND_R8) :: rdlon(im)
+  real(ESMF_KIND_R8) :: rdlat(jm)
+  real(ESMF_KIND_R8) :: a1, b1
   integer i,j, i1, i2, jc, i0, j0
 
   do i=1,im-1

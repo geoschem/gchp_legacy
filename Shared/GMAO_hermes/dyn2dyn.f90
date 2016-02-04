@@ -49,6 +49,8 @@
 !                                 converting from lcv to eta coordinates. 
 !  05Jan2006  Todling             Added fakedate option  
 !  19Nov2007  Todling             A-grid handle for GEOS-5 support
+!  20Feb2014  Todling             Knob for non-complaint file
+!
 !-------------------------------------------------------------------------
 !EOP
 
@@ -82,6 +84,7 @@
       integer in, jn, kn
       integer vectype
       logical verbose, pick, dophys, oldana, force, fakedate, dgrid, ncep72
+      logical ncf,pncf
  
 
 !                                 *******
@@ -93,7 +96,7 @@
                                 prec, in, jn, kn, pick, nymd, nhms, myfreq,  &
                                 fakedate, nymdf, nhmsf, &
                                 dophys, expid, RCfile, verbose, oldana, force, &
-                                vectype, dgrid, ncep72 )
+                                vectype, dgrid, ncep72, ncf, pncf )
 
 
 !  Loop over input eta files
@@ -124,18 +127,18 @@
 !        --------------------------
          if ( oldana ) then
               if ( pick ) then
-                 call dyn_get ( etafile, nymd, nhms, w_e, ier, timidx=0, freq=freq, vectype=vectype )
+                 call dyn_get ( etafile, nymd, nhms, w_e, ier, timidx=0, freq=freq, vectype=vectype, ncf=ncf, pncf=pncf )
                  if ( myfreq/=0 ) freq = myfreq  ! reset frequency to whatever user's want
               else
-                 call dyn_get ( etafile, nymd, nhms, w_e, ier, timidx=n, freq=freq, vectype=vectype )
+                 call dyn_get ( etafile, nymd, nhms, w_e, ier, timidx=n, freq=freq, vectype=vectype, ncf=ncf, pncf=pncf )
               endif
               nstep = mynstep
          else
               if ( pick ) then
-                 call dyn_get ( etafile, nymd, nhms, w_e, ier, timidx=0, freq=freq, nstep=nstep, vectype=vectype )
+                 call dyn_get ( etafile, nymd, nhms, w_e, ier, timidx=0, freq=freq, nstep=nstep, vectype=vectype, ncf=ncf, pncf=pncf )
                  if ( myfreq/=0 ) freq = myfreq  ! reset frequency to whatever user's want
               else
-                 call dyn_get ( etafile, nymd, nhms, w_e, ier, timidx=n, freq=freq, nstep=nstep, vectype=vectype )
+                 call dyn_get ( etafile, nymd, nhms, w_e, ier, timidx=n, freq=freq, nstep=nstep, vectype=vectype, ncf=ncf, pncf=pncf )
               endif
          endif
          if ( ier .ne. 0 ) then
@@ -203,7 +206,7 @@ CONTAINS
                          prec, in, jn, kn, pick, nymd, nhms, myfreq, &
                          fakedate, nymdf, nhmsf,                     &
                          dophys, expid, RCfile, verbose, oldana, force, &
-                         vectype, dgrid, ncep72 )
+                         vectype, dgrid, ncep72, ncf, pncf )
 
       implicit NONE
 
@@ -233,6 +236,8 @@ CONTAINS
       integer,       intent(out) :: vectype ! GEOS-4 or GEOS-5 dyn vect
       logical,       intent(out) :: dgrid   ! GEOS-4 or GEOS-5 switch for winds grid
       logical,       intent(out) :: ncep72  ! Set NCEP-like-levels, but 72 of them
+      logical,       intent(out) :: ncf     ! non-complaint dyn-file knob
+      logical,       intent(out) :: pncf    ! non-complaint dyn-perturbation file knob
       
 !
 ! !REVISION HISTORY:
@@ -242,6 +247,7 @@ CONTAINS
 !       08Jul2005  Todling            Added logics to handle geos4/5 hor res diffs
 !       05Jan2006  Todling            Added fakedate option
 !       21Apr2009  Todling            Updated default hor/ver resolutions of GEOS-5
+!       20Feb2014  Todling            Knob for non-complaint file
 !
 !EOP
 !BOC
@@ -284,6 +290,8 @@ CONTAINS
       vectype = 4          ! default: assume vector is GEOS-4-type
       dgrid   = .true.     ! default: in GEOS-4 dyn-vector winds are on D-grid
       ncep72  = .false.    ! default: use usual GMAO-72 level
+      ncf     = .false.    ! default: handle usual dyn-complaint file
+      pncf    = .false.    ! default: handle usual dyn-complaint file
 
 !     Parse command line
 !     ------------------
@@ -382,6 +390,10 @@ CONTAINS
            case ('-g5')
                vectype = 5
                dgrid   = .false.
+           case ('-ncf')
+               ncf = .true.
+           case ('-pncf')
+               pncf = .true.
            case ('-prec')
             if ( iarg+1 .gt. argc ) call usage()
             iarg = iarg + 1

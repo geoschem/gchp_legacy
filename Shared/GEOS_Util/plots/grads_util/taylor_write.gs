@@ -16,7 +16,7 @@ season.5 = ann
        n = 1
 while( n<= 5 )
          'fixname 'expid
-                   alias = result
+                   alias = substr(result,1,8)
            std = "std"  % season.n % alias
            cor = "corr" % season.n % alias
        'd 'std

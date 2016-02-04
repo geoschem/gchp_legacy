@@ -6,13 +6,13 @@ module dyn_core_mod
   use mpp_domains_mod,    only: CGRID_NE, DGRID_NE, mpp_get_boundary,   &
                                 mpp_update_domains
   use mpp_parameter_mod,  only: CORNER
-  use fv_mp_mod,          only: domain, isd, ied, jsd, jed, is, ie, js, je, gid, square_domain
+  use fv_mp_mod,          only: domain, isd, ied, jsd, jed, is, ie, js, je, gid, square_domain, mp_reduce_max
   use fv_control_mod,     only: hord_mt, hord_vt, hord_tm, hord_dp, hord_tr, n_sponge,  &
                                 dddmp, d2_bg, d4_bg, d_ext, vtdm4, reset_beta, beta, m_grad_p, &
                                 a2b_ord, master, fv_debug, d_con, kd3, scale_z, zd_z1, do_vort_damp, nord, &
                                 fill_dp, nwat, inline_q, breed_vortex_inline,    &
                                 d2_bg_k1, d2_bg_k2, d2_divg_max_k1, d2_divg_max_k2, damp_k_k1, damp_k_k2, &
-                                w_max, z_min, fill_wz, convert_ke, shallow_water
+                                w_max, z_min, fill_wz, convert_ke, shallow_water, courant_max, use_old_omega
   use sw_core_mod,        only: c_sw, d_sw, divergence_corner, d2a2c_vect
   use a2b_edge_mod,       only: a2b_ord2, a2b_ord4
   use nh_core_mod,        only: Riem_Solver_C, Riem_Solver, update_dz_c, update_dz_d
@@ -25,7 +25,7 @@ module dyn_core_mod
   use fv_timing_mod,      only: timing_on, timing_off
   use fv_diagnostics_mod, only: prt_maxmin, id_zratio, fv_time
 #ifndef MAPL_MODE
-!  use fv_nwp_nudge_mod,   only: breed_slp_inline
+  use fv_nwp_nudge_mod,   only: breed_slp_inline
 #endif
 !---
   use diag_manager_mod,   only: send_data
@@ -65,21 +65,21 @@ public :: dyn_core, del2_cubed
                                            zh, divg3, pk3, pkc, gz, &
                                            du, dv, delpc, ptc, wc
     real(FVPRC), allocatable, dimension(:,:,:) :: ut, vt, crx, cry, xfx, yfx, &
-                                           heat_source
+                                           pem, heat_source
 contains
 
 !-----------------------------------------------------------------------
 !     dyn_core :: FV Lagrangian dynamics driver
 !-----------------------------------------------------------------------
  
- subroutine dyn_core(npx, npy, npz, ng, sphum, nq, bdt, n_split, zvir, cp, akap, grav, hydrostatic,  &
+ subroutine dyn_core(npx, npy, npz, ng, sphum, nq, bdt, n_split_in, zvir, cp, akap, grav, hydrostatic,  &
                      u,  v,  w, delz, pt, q, delp, pe, pk, phis, omga, ptop, pfull, ua, va, & 
                      uc, vc, mfx, mfy, cx, cy, pkz, peln, ak, bk, init_step, end_step, time_total)
     integer, intent(IN) :: npx
     integer, intent(IN) :: npy
     integer, intent(IN) :: npz
     integer, intent(IN) :: ng, nq, sphum
-    integer, intent(IN) :: n_split
+    integer, intent(IN) :: n_split_in
     real(REAL8)   , intent(IN) :: bdt
     real(REAL8)   , intent(IN) :: zvir, cp, akap, grav
     real(REAL8)   , intent(IN) :: ptop
@@ -130,6 +130,7 @@ contains
 
 ! Auto 1D & 2D arrays:
     real(REAL8):: zs(is:ie,js:je)        ! surface height (m)
+    real(REAL8):: om2d(is:ie,npz)
     real(REAL8) wbuffer(npy+2,npz)
     real(REAL8) ebuffer(npy+2,npz)
     real(REAL8) nbuffer(npx+2,npz)
@@ -145,26 +146,19 @@ contains
     integer :: nord_v(npz)
     integer :: hord_m, hord_v, hord_t, hord_p, nord_k
     integer :: i,j,k, it, iq, n_con, status
-    integer :: iep1, jep1
+    integer :: iep1, jep1, n_split
     real(REAL8)    :: beta_c, beta_d, alpha, damp_k, d_con_k
-    real(REAL8)    :: dt, dt2, rdt, t1, t2
+    real(REAL8)    :: cmax, dt, dt2, rdt, t1, t2
     real(REAL8)    :: d2_divg, dd_divg, d3_divg
     real(REAL8)    :: diff_z0, k1k, kapag, tmcp
     logical :: last_step
 
     ptk  = ptop ** akap
-    dt   = bdt / real(n_split)
-    dt2  = 0.5*dt
-    rdt  = 1.0/dt
     rgrav = 1.0/grav
 
       k1k =  akap / (1.-akap)    ! rg/Cv=0.4
     kapag = -akap / grav
 
-! New 3D form: 10-min time-scale
-     d3_divg = kd3 * (dt/600.)
-     d3_damp = d3_divg * da_min_c
-     diff_z0 = 0.25 * scale_z**2
 ! Indexes:
       iep1 = ie + 1
       jep1 = je + 1
@@ -180,17 +174,30 @@ contains
       if ( init_step ) then  ! Start of the big dynamic time stepping
 
            allocate(    gz(isd:ied  ,jsd:jed  ,npz+1) )
+           call init_ijk_mem(isd,ied,jsd,jed,npz+1,gz,r0_0)
            allocate(   pkc(isd:ied  ,jsd:jed  ,npz+1) )
+           call init_ijk_mem(isd,ied,jsd,jed,npz+1,pkc,r0_0)
            allocate(   ptc(isd:ied  ,jsd:jed  ,npz  ) )
+           call init_ijk_mem(isd,ied,jsd,jed,npz,ptc,r0_0)
            allocate( delzc(is :ie   ,js:je    ,npz  ) )
+           call init_ijk_mem(is,ie,js,je,npz,delzc,r0_0)
            allocate(   crx(is :ie+1 ,jsd:jed  ,npz  ) )
+           call init_ijk_mem(is,ie+1,jsd,jed,npz,crx,r0_0)
            allocate(   xfx(is :ie+1 ,jsd:jed  ,npz  ) )
+           call init_ijk_mem(is,ie+1,jsd,jed,npz,xfx,r0_0)
            allocate(   cry(isd:ied  ,js :je+1 ,npz  ) )
+           call init_ijk_mem(isd,ied,js,je+1,npz,cry,r0_0)
            allocate(   yfx(isd:ied  ,js :je+1 ,npz  ) )
+           call init_ijk_mem(isd,ied,js,je+1,npz,yfx,r0_0)
            allocate(  divg(isd:ied  ,jsd:jed  ,npz  ) )
+           call init_ijk_mem(isd,ied,jsd,jed,npz,divg,r0_0)
            allocate( divgd(isd:ied+1,jsd:jed+1,npz  ) )
+           call init_ijk_mem(isd,ied+1,jsd,jed+1,npz,divgd,r0_0)
+           
            allocate( delpc(isd:ied  ,jsd:jed  ,npz  ) )
+           call init_ijk_mem(isd,ied,jsd,jed,npz,delpc,r0_0)
            allocate(    wc(isd:ied  ,jsd:jed  ,npz  ) )
+           call init_ijk_mem(isd,ied,jsd,jed,npz,wc,r0_0)
 
            allocate( ut(isd:ied, jsd:jed, npz) )
                      call init_ijk_mem(isd,ied, jsd,jed, npz, ut, r0_0)
@@ -271,6 +278,37 @@ contains
        n_con = n_damp
   endif
 
+! Dynamic n_split when < 0
+    if (n_split_in < 0) then
+      call timing_on("DYNAMIC_NSPLIT")
+      cmax = 0.0
+      do k=1,npz
+        do j=js,je
+          do i=is,ie+1
+            cmax = MAX(cmax, ABS(v(i,j,k))*bdt*rdy(i,j))
+          enddo
+        enddo
+        do j=js,je+1
+          do i=is,ie
+            cmax = MAX(cmax, ABS(u(i,j,k))*bdt*rdx(i,j))
+          enddo
+        enddo
+      enddo
+      call mp_reduce_max(cmax)
+      n_split = MAX(1,CEILING(cmax/courant_max))
+     !if (gid==0) write(6,*) 'Dynamic Sub-Cycling for Stability = ', n_split, bdt, cmax
+      if (gid==0) write(6,*) ' [dyn_core]  dynamic n_split=', n_split
+      call timing_off("DYNAMIC_NSPLIT")
+    else
+      n_split=n_split_in
+    endif
+    dt   = bdt / real(n_split)
+    dt2  = 0.5*dt
+    rdt  = 1.0/dt
+! New 3D form: 10-min time-scale
+    d3_divg = kd3 * (dt/600.)
+    d3_damp = d3_divg * da_min_c
+    diff_z0 = 0.25 * scale_z**2
 
 !-----------------------------------------------------
   do it=1,n_split
@@ -285,6 +323,20 @@ contains
      endif
 
      if ( it==n_split .and. end_step ) then
+       if ( use_old_omega ) then
+          allocate ( pem(is-1:ie+1,npz+1,js-1:je+1) )
+!$OMP parallel do default(none) shared(is,ie,js,je,npz,pem,delp,ptop)
+         do j=js-1,je+1
+            do i=is-1,ie+1
+               pem(i,1,j) = ptop
+            enddo
+            do k=1,npz
+               do i=is-1,ie+1
+                  pem(i,k+1,j) = pem(i,k,j) + delp(i,j,k)
+               enddo
+            enddo
+         enddo
+       endif
           last_step = .true.
      else
           last_step = .false.
@@ -390,6 +442,7 @@ contains
          call prt_maxmin('DELPC', delpc, is, ie, js, je, ng, npz, r1eM2, master)
          call prt_maxmin('   UC', DBLE(uc), is, ie+1, js, je, ng, npz, r1_0, master)
          call prt_maxmin('   VC', DBLE(vc), is, ie, js, je+1, ng, npz, r1_0, master)
+         call prt_maxmin('   PT',   ptc, is, ie, js, je, ng, npz, r1_0, master)
       endif
 
       if (shallow_water .and. test_case==9) call case9_forcing2(phis)
@@ -504,6 +557,16 @@ contains
        endif
        damp_k = max(damp_k, dddmp)
 
+
+       if( (.not.use_old_omega) .and. last_step ) then
+! Average horizontal "convergence" to cell center
+            do j=js,je
+               do i=is,ie
+                  omga(i,j,k) = delp(i,j,k)
+               enddo
+            enddo
+       endif
+
 !--- external mode divergence damping ---
        if ( d_ext > 0. )  &
             call a2b_ord2(delp(isd,jsd,k), wk, npx, npy, is,    &
@@ -519,18 +582,18 @@ contains
                   d2_divg, dd_divg, damp_vt(k), d_con_k, hydrostatic)
 
      if (.not. shallow_water) then
+       if( (.not.use_old_omega) .and. last_step ) then
+! Average horizontal "convergence" to cell center
+            do j=js,je
+               do i=is,ie
+                  omga(i,j,k) = omga(i,j,k)*(xfx(i,j,k)-xfx(i+1,j,k)+yfx(i,j,k)-yfx(i,j+1,k))*rarea(i,j)*rdt
+               enddo
+            enddo
+       endif
        if ( d_ext > 0. ) then
             do j=js,jep1
                do i=is,iep1
                   ptc(i,j,k) = wk(i,j)    ! delp at cell corners
-               enddo
-            enddo
-       endif
-       if( kd3 > near0 .or. last_step ) then
-! Average horizontal "convergence" to cell center
-            do j=js,je
-               do i=is,ie
-                  omga(i,j,k) = 0.25*(divg(i,j,k)+divg(i+1,j,k)+divg(i,j+1,k)+divg(i+1,j+1,k))*delp(i,j,k)
                enddo
             enddo
        endif
@@ -750,17 +813,6 @@ contains
            enddo
       endif
 
-! Compute omega
-      if ( last_step ) then
-!$omp parallel do default(shared)
-         do j=js,je
-            do k=2,npz
-               do i=is,ie
-                  omga(i,j,k) = omga(i,j,k-1) + omga(i,j,k)
-               enddo
-            enddo
-         enddo
-      endif
 ! Note: for non-hydrostatic and beta/=0 case, the current code works only if m_grad_p==1
      if ( .not.hydrostatic .and. m_grad_p == 0 ) then
 ! divg:     horizontal "convergence" at cell corners (original)
@@ -937,6 +989,43 @@ contains
          call prt_maxmin('DELP', delp, is, ie, js, je, ng, npz, r1eM2, master)
          call prt_maxmin('   U',    u, is, ie, js, je+1, ng, npz, r1_0, master)
          call prt_maxmin('   V',    v, is, ie+1, js, je, ng, npz, r1_0, master)
+         call prt_maxmin('  PT',   pt, is, ie, js, je, ng, npz, r1_0, master)
+    endif
+
+    if ( last_step ) then
+      if ( use_old_omega ) then
+!$OMP parallel do default(none) shared(is,ie,js,je,npz,omga,pe,pem,rdt)
+         do k=1,npz
+            do j=js,je
+               do i=is,ie
+                  omga(i,j,k) = (pe(i,k+1,j) - pem(i,k+1,j)) * rdt
+               enddo
+            enddo
+         enddo
+!------------------------------
+! Compute the "advective term"
+!------------------------------
+         call adv_pe(ua, va, pem, omga, npx, npy,  npz, ng)
+      else
+!$OMP parallel do default(none) shared(is,ie,js,je,npz,omga) private(om2d)
+         do j=js,je
+            do k=1,npz
+               do i=is,ie
+                  om2d(i,k) = omga(i,j,k)
+               enddo
+            enddo
+            do k=2,npz
+               do i=is,ie
+                  om2d(i,k) = om2d(i,k-1) + omga(i,j,k)
+               enddo
+            enddo
+            do k=2,npz
+               do i=is,ie
+                  omga(i,j,k) = om2d(i,k)
+               enddo
+            enddo
+         enddo
+      endif
     endif
 
 !-----------------------------------------------------
@@ -1007,11 +1096,9 @@ contains
          if( allocated(divg3) ) deallocate( divg3 )
     endif
 
-   !if ( d_con > 1.0E-5 ) then
-   !   deallocate( heat_source )
-   !endif
   endif
   if (allocated(heat_source)) deallocate( heat_source ) !If ncon == 0 but d_con > 1.e-5, this would not be deallocated in earlier versions of the code
+  if( allocated(pem) )   deallocate ( pem )
 
   if ( fv_debug ) then
        if(master) write(*,*) 'End of dyn_core'
@@ -1397,11 +1484,11 @@ contains
 !$omp parallel do default(shared) private(wk1, wk)
     do k=1,npz
 
-       wk1 = delp(:,:,k)
+       !wk1 = delp(:,:,k)
        if ( a2b_ord==4 ) then
-            call a2b_ord4(wk1, wk1, npx, npy, is, ie, js, je, ng)
+            call a2b_ord4(delp(isd,jsd,k), wk1, npx, npy, is, ie, js, je, ng)
        else
-            call a2b_ord2(wk1, wk1, npx, npy, is, ie, js, je, ng)
+            call a2b_ord2(delp(isd,jsd,k), wk1, npx, npy, is, ie, js, je, ng)
        endif
 
        do j=js,jep1
@@ -1519,11 +1606,11 @@ contains
                enddo
             enddo
        else
-         wk = delp(:,:,k)
+         !wk = delp(:,:,k)
          if ( a2b_ord==4 ) then
-            call a2b_ord4(wk, wk, npx, npy, is, ie, js, je, ng)
+            call a2b_ord4(delp(isd,jsd,k), wk, npx, npy, is, ie, js, je, ng)
          else
-            call a2b_ord2(wk, wk, npx, npy, is, ie, js, je, ng)
+            call a2b_ord2(delp(isd,jsd,k), wk, npx, npy, is, ie, js, je, ng)
          endif
        endif
 
@@ -2217,5 +2304,96 @@ contains
 
  end subroutine init_ijk_mem_r8
 
+ subroutine adv_pe(ua, va, pem, om, npx, npy, npz, ng)
+
+ integer, intent(in) :: npx, npy, npz, ng
+! Contra-variant wind components:
+ real(REAL8), intent(in), dimension(isd:ied,jsd:jed,npz):: ua, va
+! Pressure at edges:
+ real(REAL8), intent(in) :: pem(is-1:ie+1,1:npz+1,js-1:je+1)
+ real(REAL8), intent(inout) :: om(isd:ied,jsd:jed,npz)
+
+! Local:
+ real(REAL8), dimension(is:ie,js:je):: up, vp
+ real(REAL8) v3(3,is:ie,js:je)
+
+ real(REAL8) pin(isd:ied,jsd:jed)
+ real(REAL8)  pb(isd:ied,jsd:jed)
+
+ real(REAL8) grad(3,is:ie,js:je)
+ real(REAL8) pdx(3,is:ie,js:je+1)
+ real(REAL8) pdy(3,is:ie+1,js:je)
+ integer :: i,j,k, n
+
+!$omp parallel do default(shared) private(i, j, k, n, pdx, pdy, pin, pb, up, vp, grad, v3)
+ do k=1,npz
+    if ( k==npz ) then
+       do j=js,je
+          do i=is,ie
+             up(i,j) = ua(i,j,npz)
+             vp(i,j) = va(i,j,npz)
+          enddo
+       enddo
+    else
+       do j=js,je
+          do i=is,ie
+             up(i,j) = 0.5*(ua(i,j,k)+ua(i,j,k+1))
+             vp(i,j) = 0.5*(va(i,j,k)+va(i,j,k+1))
+          enddo
+       enddo
+    endif
+
+! Compute Vect wind:
+    do j=js,je
+       do i=is,ie
+          do n=1,3
+             v3(n,i,j) = up(i,j)*ec1(n,i,j) + vp(i,j)*ec2(n,i,j) 
+          enddo
+       enddo
+    enddo
+
+    do j=js-1,je+1
+       do i=is-1,ie+1
+          pin(i,j) = pem(i,k+1,j)
+       enddo
+    enddo
+
+! Compute pe at 4 cell corners:
+    call a2b_ord2(pin, pb, npx, npy, is, ie, js, je, ng)
+
+    do j=js,je+1
+       do i=is,ie
+          do n=1,3
+             pdx(n,i,j) = (pb(i,j)+pb(i+1,j))*dx(i,j)*en1(n,i,j)
+          enddo
+       enddo
+    enddo
+    do j=js,je
+       do i=is,ie+1
+          do n=1,3
+             pdy(n,i,j) = (pb(i,j)+pb(i,j+1))*dy(i,j)*en2(n,i,j)
+          enddo
+       enddo
+    enddo
+
+! Compute grad (pe) by Green's theorem
+    do j=js,je
+       do i=is,ie
+          do n=1,3
+             grad(n,i,j) = pdx(n,i,j+1) - pdx(n,i,j) - pdy(n,i,j) + pdy(n,i+1,j)
+          enddo
+       enddo
+    enddo
+
+! Compute inner product: V3 * grad (pe)
+       do j=js,je
+          do i=is,ie
+             om(i,j,k) = om(i,j,k) + 0.5*rarea(i,j)*(v3(1,i,j)*grad(1,i,j) +   &
+                         v3(2,i,j)*grad(2,i,j) + v3(3,i,j)*grad(3,i,j))
+          enddo
+       enddo
+ enddo
+
+ end subroutine adv_pe 
 
 end module dyn_core_mod

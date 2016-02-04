@@ -1,0 +1,58 @@
+/Aod-550nm_Registry.rc/1.15/Thu Feb 13 15:45:24 2014//THeracles-3_1_CTM
+/Aod3d_1064nm.rc/1.13/Thu Feb 13 15:45:24 2014//THeracles-3_1_CTM
+/Aod3d_355nm.rc/1.13/Thu Feb 13 15:45:24 2014//THeracles-3_1_CTM
+/Aod3d_532nm.rc/1.13/Thu Feb 13 15:45:24 2014//THeracles-3_1_CTM
+/AodBands_Registry.rc/1.14/Thu Feb 13 15:45:24 2014//THeracles-3_1_CTM
+/Aod_CALIPSO.rc/1.16/Thu Feb 13 15:45:24 2014//THeracles-3_1_CTM
+/Aod_EOS.rc/1.15/Thu Feb 13 15:45:24 2014//THeracles-3_1_CTM
+/Aod_MODIS.rc/1.16/Thu Feb 13 15:45:24 2014//THeracles-3_1_CTM
+/Aod_Registry.rc/1.17/Thu Feb 13 15:45:24 2014//THeracles-3_1_CTM
+/Chem_AerRegistry.rc/1.1/Fri Feb 11 21:24:10 2011//THeracles-3_1_CTM
+/Chem_Aod.F90/1.32/Sat Jan 26 03:36:01 2013//THeracles-3_1_CTM
+/Chem_Aod3d.F90/1.33/Thu Jan  8 15:24:51 2015//THeracles-3_1_CTM
+/Chem_AodMod.F90/1.19/Fri Jun 14 16:24:07 2013//THeracles-3_1_CTM
+/Chem_ArrayMod.F90/1.6/Wed Mar 10 16:19:08 2010//THeracles-3_1_CTM
+/Chem_BundleMod.F90/1.41/Thu Jan  8 16:24:22 2015//THeracles-3_1_CTM
+/Chem_BundleToG5rs.F90/1.4/Thu Oct  5 17:01:38 2006//THeracles-3_1_CTM
+/Chem_ExtRegistry.rc/1.1/Wed Jun 22 19:28:03 2011//THeracles-3_1_CTM
+/Chem_Init.F90/1.4/Thu Sep  6 14:22:18 2007//THeracles-3_1_CTM
+/Chem_Init.rc/1.2/Fri Feb 25 18:37:13 2005//THeracles-3_1_CTM
+/Chem_InitMod.F90/1.2/Fri Feb 25 18:37:13 2005//THeracles-3_1_CTM
+/Chem_Mie-550nm.rc/1.8/Thu Feb 13 15:45:24 2014//THeracles-3_1_CTM
+/Chem_Mie.F90/1.6/Thu Apr 15 15:51:55 2010//THeracles-3_1_CTM
+/Chem_Mie.rc/1.13/Thu Feb 13 15:45:24 2014//THeracles-3_1_CTM
+/Chem_MieMod.F90/1.48.2.1.12.1.16.1/Thu Feb 20 19:26:14 2014//THeracles-3_1_CTM
+/Chem_MieRegistry.rc/1.12.74.1/Wed Feb 11 14:23:33 2015//THeracles-3_1_CTM
+/Chem_MieTableMod.F90/1.15.10.1/Thu Feb 20 19:26:14 2014//THeracles-3_1_CTM
+/Chem_Mod.F90/1.6/Fri Jul 29 16:05:04 2005//THeracles-3_1_CTM
+/Chem_Registry.rc/1.57.40.2.2.1/Wed Feb 11 14:23:33 2015//THeracles-3_1_CTM
+/Chem_RegistryMod---stub.F90/1.1/Wed Oct 21 20:37:18 2009//THeracles-3_1_CTM
+/Chem_RegistryMod.F90/1.24.124.1/Wed Jul  2 20:49:35 2014//THeracles-3_1_CTM
+/Chem_SimpleBundleMod.F90/1.7/Fri Jun 14 16:24:07 2013//THeracles-3_1_CTM
+/GNUmakefile/1.62/Wed Apr  8 19:16:29 2015//THeracles-3_1_CTM
+/HOWTO_ChemRestarts.txt/1.6/Tue Jan  5 20:03:33 2010//THeracles-3_1_CTM
+/MieObs_py.F90/1.3/Tue Apr  8 21:10:51 2014//THeracles-3_1_CTM
+/SCChem_Init.F90/1.2/Fri Feb 25 18:37:13 2005//THeracles-3_1_CTM
+/backscatter_calculator.csh/1.2/Wed Jul  2 16:27:51 2008//THeracles-3_1_CTM
+/ctl_crst.F90/1.9/Thu Jan  6 16:24:38 2011//THeracles-3_1_CTM
+/edit_crst.F90/1.4/Wed Feb  1 14:19:14 2006//THeracles-3_1_CTM
+/ext.rc/1.7/Thu Feb 13 15:45:24 2014//THeracles-3_1_CTM
+/ext_calculator.F90/1.2/Fri Jun 14 16:24:07 2013//THeracles-3_1_CTM
+/ext_calculator.py/1.1/Wed Jun 22 19:28:03 2011//THeracles-3_1_CTM
+/extinction_calculator.csh/1.6/Wed Feb 18 21:05:06 2009//THeracles-3_1_CTM
+/gogo.F90/1.3.2.1/Tue Aug  5 17:07:42 2014//THeracles-3_1_CTM
+/merge_crst.F90/1.1/Wed Feb 22 20:12:08 2006//THeracles-3_1_CTM
+/mieobs.py/1.4/Thu Apr 24 17:54:12 2014//THeracles-3_1_CTM
+/reff.py/1.1/Fri Feb 11 21:24:10 2011//THeracles-3_1_CTM
+/reff.rc/1.7/Thu Feb 13 15:45:24 2014//THeracles-3_1_CTM
+/reff_calculator.F90/1.2/Fri Jun 14 16:24:07 2013//THeracles-3_1_CTM
+/reloc_crst.F90/1.1/Mon May 29 16:07:32 2006//THeracles-3_1_CTM
+/tavg3d_ext_p.rc/1.1/Thu Jun 26 14:54:35 2008//THeracles-3_1_CTM
+/ut_Bundle.f90/1.5/Thu Sep  6 19:58:42 2007//THeracles-3_1_CTM
+/ut_Mie.F90/1.5/Wed Aug 11 19:15:46 2010//THeracles-3_1_CTM
+/ut_Registry.f90/1.5/Wed Oct 21 20:44:14 2009//THeracles-3_1_CTM
+D/CMIP////
+D/MERRA2////
+D/MERRA2-DD////
+D/NR////
+D/PIESA////

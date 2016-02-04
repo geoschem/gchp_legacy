@@ -5,6 +5,7 @@
 # ----------------------
 set arch  = `uname`
 set host  = `hostname`
+set cdir  = `pwd`
 
 set name  = `echo $host`; if ( ($name =~ pfe*) || ($name =~ p4fe*) || ($name =~ r[0-9]*i[0-9]*n[0-9]*) || ($name =~ bridge*) ) set host = pleiades
 
@@ -22,7 +23,8 @@ set name  = `echo $host | cut -b 1-4` ; if( $name == 'dali'     ) set host = dis
 
 if( $arch == 'Linux'    ) then
     if( $host == 'pleiades' ) then
-                              setenv VERIFICATION /nobackup/ltakacs/verification
+                              setenv TOPODIR      /nobackup/gmao_SIteam/ModelData/bcs/Ganymed-4_0/TOPO
+                              setenv VERIFICATION /nobackup/gmao_SIteam/ModelData/verification
                               setenv OPENGADIR    /nobackup/gmao_SIteam/Utilities/opengrads/Contents
                               setenv GAVERSION    2.0.1.oga.1
                               setenv GRADS_LOC    ${OPENGADIR}
@@ -38,6 +40,7 @@ if( $arch == 'Linux'    ) then
                               set    path =     ( ${path} ${ImagMag_bin} )
     endif
     if( $host == 'discover' ) then
+                              setenv TOPODIR      /discover/nobackup/ltakacs/bcs/Ganymed-4_0/TOPO
                               setenv NCCS_SHARE   ${SHARE}/gmao_ops/
                               setenv VERIFICATION ${NCCS_SHARE}/verification
                               setenv OPENGADIR    ${SHARE}/gmao_ops/opengrads/Contents
@@ -80,6 +83,13 @@ foreach file ($files)
    endif
 end
 
+# Link Cubed-Sphere FRAC Dataset for dc.gs Utility and CONST_2d Dataset for TopoShade
+# -----------------------------------------------------------------------------------
+cd $GEOSUTIL/plots/grads_util
+/bin/ln -sf $TOPODIR/TOPO_CF0720x6C/FRAC_720x4320.nc4 .
+/bin/ln -sf $TOPODIR/TOPO_CF0720x6C/CONST_2D.2880x1441.nc4 .
+/bin/ln -sf $TOPODIR/TOPO_CF1440x6C/CONST_2D.5760x2881.nc4 .
+cd $cdir
 
 # Create .cshrc for QuickPlot (Note: unsetenv GAUDXT to removed Arlindo Setup Conflicts)
 # --------------------------------------------------------------------------------------

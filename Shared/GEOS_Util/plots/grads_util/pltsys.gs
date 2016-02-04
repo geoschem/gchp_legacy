@@ -191,8 +191,18 @@ while ( n<=numflds )
 if( level0 = 'NULL' )
         numlevs = levs.n
     if( numlevs > 1 )
-        levels = '1000 850 700 500 400 300 250 200 150 100'
-       'setz'
+        'set z 1'
+        'getinfo level'
+        levels = result
+        z = 2
+        while( z<=numlevs )
+           'set z 'z
+           'getinfo level'
+                    level  = result
+                    levels = levels' 'level
+        z = z + 1
+        endwhile
+        'setz'
     else
         numlevs = 1
         levels = '1000'
@@ -203,6 +213,8 @@ else
         levels = level0
        'set lev 'level0
 endif
+say 'NUMLEVS = 'numlevs
+say '   LEVS = 'levels
 
 'statmak 'field
 
@@ -213,13 +225,14 @@ z = 1
 while ( z<=numlevs )
               level = subwrd(levels,z)
 'set dfile 1'
-'set z 'z
-'getinfo level'
-         level = result
+'set lev 'level
+say 'Z: 'z
+say 'LEVEL: 'level
 'c'
 'movie statplt "'field' -desc 'DESC' -nfcst 'numfiles'" -print -rotate 90 -name 'SOURCE'/'DESC'/stats_'name'_all_GLO_'level'_'month
 'c'
 z = z + 1
+'!sleep 15 ; convert -loop 0 -delay 30 'SOURCE'/'DESC'/stats_'name'_all_GLO_'level'_'month'.*.gif 'SOURCE'/'DESC'/stats_'name'_all_GLO_'level'_'month'.gif &'
 endwhile
 
 * Zonal Mean Plots
@@ -232,6 +245,7 @@ if( numlevs > 1 )
 'c'
 'movie statpltz "'field' -desc 'DESC' -nfcst 'numfiles'" -print -rotate 90 -name 'SOURCE'/'DESC'/stats_'name'_all_GLO_z_'month
 'c'
+'!sleep 15 ; convert -loop 0 -delay 30 'SOURCE'/'DESC'/stats_'name'_all_GLO_z_'month'.*.gif 'SOURCE'/'DESC'/stats_'name'_all_GLO_z_'month'.gif &'
 endif
 
 n = n + 1

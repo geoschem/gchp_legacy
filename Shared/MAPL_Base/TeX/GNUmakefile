@@ -9,7 +9,7 @@
 # Make sure ESMADIR is defined
 # ----------------------------
 ifndef ESMADIR
-       ESMADIR := $(shell pwd)/../../../..
+       ESMADIR := $(shell pwd)/../..
 endif
 
 THIS := $(shell basename `pwd`)

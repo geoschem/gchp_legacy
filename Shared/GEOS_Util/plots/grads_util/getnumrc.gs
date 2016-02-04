@@ -7,16 +7,9 @@ DIR = subwrd(args,1)
 '!/bin/ls -1 'DIR'/VERIFICATION*.rc        >> rcfiles'
 numrc = sublin( read(rcfiles),2 )
 
-num = ' '
-cnt = 1
-while ( cnt <= 100 & num = ' ' )
-        num = substr(numrc,cnt,1)
-        cnt = cnt + 1
-endwhile
-
-     string  = num
+     string  = numrc
         cnt  = 1
-while ( cnt <= num )
+while ( cnt <= numrc )
      rcfile  = sublin( read(rcfiles),2 )
      string  = string' 'rcfile
         cnt  = cnt + 1

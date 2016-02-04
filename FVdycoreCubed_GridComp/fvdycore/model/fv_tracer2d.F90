@@ -460,7 +460,7 @@ subroutine offline_tracer_advection(q, ple0, ple1, mfx, mfy, cx, cy, ak, bk, pto
       real(REAL8) ::  dpL(is :ie   ,js :je   ,npz)  ! Pressure Thickness
       real(REAL8) ::  dpA(is :ie   ,js :je   ,npz)  ! Pressure Thickness
 ! Local Tracer Arrays
-      real(REAL8) ::   q1(is :ie           , npz   )! 1D Tracers
+      real(REAL8) ::   q1(is:ie  ,js:je, npz   )! 2D Tracers
       real(REAL8) ::   q2(isd:ied  ,jsd:jed     ,nq)! 2D Tracers
       real(REAL8) ::   q3(isd:ied  ,jsd:jed, npz,nq)! 3D Tracers
 ! Local Buffer Arrarys
@@ -471,11 +471,13 @@ subroutine offline_tracer_advection(q, ple0, ple1, mfx, mfy, cx, cy, ak, bk, pto
 ! Local Remap Arrays
       real(REAL8)  pe1(is:ie,npz+1)
       real(REAL8)  pe2(is:ie,npz+1)
-      real(REAL8)  dp2(is:ie,npz)
+      real(REAL8)  dp2(is:ie,js:je,npz)
 ! Local indices
       integer     :: i,j,k,n,iq
       real(REAL8) :: dtR8
 
+      real(REAL8) :: scalingFactor
+      !real(REAL8) :: scalingFactors(npz)
 ! Time-step
     dtR8=dt
 
@@ -547,25 +549,117 @@ subroutine offline_tracer_advection(q, ple0, ple1, mfx, mfy, cx, cy, ak, bk, pto
                  pe2(:  ,k) = ak(k) + bk(k)*pe1(:,npz+1) 
              enddo
              do k=1,npz
-                dp2(:,k) = pe2(:,k+1) - pe2(:,k)
+                dp2(:,j,k) = pe2(:,k+1) - pe2(:,k)
              enddo
              call map1_q2(npz, pe1, q3(isd,jsd,1,iq),     &
-                          npz, pe2, q1, dp2,              &
+                          npz, pe2, q1(:,j,:), dp2(:,j,:),              &
                           is, ie, 0, kord, j, isd, ied, jsd, jed) !, .true.)
-             if (fill) call fillz(ie-is+1, npz, 1, q1, dp2)
-           ! rescale tracers based on ple1 at destination timestep
-             do k=1,npz
-                q1(:,k) = q1(:,k)*dp2(:,k)/(ple1(:,j,k+1) - ple1(:,j,k))
-             enddo
-           ! return tracers
-             do k=1,npz
-                do i=is,ie
-                   q(i,j,k,iq) = q1(i,k)
-                enddo
-             enddo
+             if (fill) call fillz(ie-is+1, npz, 1, q1(:,j,:), dp2(:,j,:))
           enddo
-       enddo
+
+          ! Rescale tracers based on ple1 at destination timestep
+          !------------------------------------------------------
+          scalingFactor = calcScalingFactor(q1, dp2, ple1, npx, npy, npz)
+          !scalingFactors = computeScalingFactors(q1, dp2, ple1, npx, npy, npz)
+
+          ! Return tracers
+          !---------------
+          q(is:ie,js:je,1:npz,iq) = q1(is:ie,js:je,1:npz) * scalingFactor
+          !do k = 1,npz
+          !   do j = js,je
+          !      do i = is,ie
+          !         q(i,j,k,iq) = q1(i,j,k) * scalingFactors(k)
+          !      enddo
+          !   enddo
+          !enddo
+
+        end do ! nq loop
 
 end subroutine offline_tracer_advection
+
+!------------------------------------------------------------------------------------
+
+         function calcScalingFactor(q1, dp2, ple1, npx, npy, npz) result(scaling)
+         use mpp_mod, only: mpp_sum
+         integer, intent(in) :: npx
+         integer, intent(in) :: npy
+         integer, intent(in) :: npz
+         real(REAL8), intent(in) :: q1(:,:,:)
+         real(REAL8), intent(in) :: dp2(:,:,:)
+         real(REAL8), intent(in) :: ple1(:,:,:)
+         real(REAL8) :: scaling
+
+         integer :: k
+         real(REAL8) :: partialSums(2,npz), globalSums(2)
+         real(REAL8), parameter :: TINY_DENOMINATOR = tiny(1.d0)
+
+         !-------
+         ! Compute partial sum on local array first to minimize communication.
+         ! This algorithm will not be strongly repdroducible under changes do domain
+         ! decomposition, but uses far less communication bandwidth (and memory BW)
+         ! then the preceding implementation.
+         !-------
+         do k = 1, npz
+            ! numerator
+            partialSums(1,k) = sum(q1(:,:,k)*dp2(:,:,k)*area(is:ie,js:je))
+            ! denominator
+            partialSums(2,k) = sum(q1(:,:,k)*(ple1(:,:,k+1)-ple1(:,:,k))*area(is:ie,js:je))
+         end do
+
+         globalSums(1) = sum(partialSums(1,:))
+         globalSums(2) = sum(partialSums(2,:))
+
+         call mpp_sum(globalSums, 2)
+
+         if (globalSums(2) > TINY_DENOMINATOR) then
+            scaling =  globalSums(1) / globalSums(2)
+         else
+            scaling = 1.d0
+         end if
+
+         end function calcScalingFactor
+
+!------------------------------------------------------------------------------------
+
+      function computeScalingFactors(q1, dp2, ple1, npx, npy, npz) result(scaling)
+         use mpp_mod, only: mpp_sum
+         integer, intent(in) :: npx
+         integer, intent(in) :: npy
+         integer, intent(in) :: npz
+         real(REAL8), intent(in) :: q1(:,:,:)
+         real(REAL8), intent(in) :: dp2(:,:,:)
+         real(REAL8), intent(in) :: ple1(:,:,:)
+         real(REAL8) :: scaling(npz)
+         
+         integer :: k
+         real(REAL8) :: partialSums(2,npz), globalSums(2,npz)
+         real(REAL8), parameter :: TINY_DENOMINATOR = tiny(1.d0)
+         
+         !-------
+         ! Compute partial sum on local array first to minimize communication.
+         ! This algorithm will not be strongly repdroducible under changes do domain
+         ! decomposition, but uses far less communication bandwidth (and memory BW)
+         ! then the preceding implementation.
+         !-------
+         do k = 1, npz
+            ! numerator
+            partialSums(1,k) = sum(q1(:,:,k)*dp2(:,:,k)*area(is:ie,js:je))
+            ! denominator
+            partialSums(2,k) = sum(q1(:,:,k)*(ple1(:,:,k+1)-ple1(:,:,k))*area(is:ie,js:je))
+         end do
+
+         call mpp_sum(partialSums, 2*npz)
+         globalSums = partialSums
+
+         do k = 1, npz
+            if (partialSums(2,k) > TINY_DENOMINATOR) then
+               scaling(k) =  globalSums(1,k) / globalSums(2,k)
+            else
+               scaling(k) = 1.d0
+            end if
+         end do
+
+      end function computeScalingFactors
+
 
 end module fv_tracer2d_mod

@@ -65,8 +65,14 @@ endwhile
          undef = result
 'getinfo dlat' 
          dlat  = result
+     if( dlat  < 0 )
+         dlat  = -dlat
+     endif
 'getinfo dlon' 
          dlon  = result
+     if( dlon  < 0 )
+         dlon  = -dlon
+     endif
        lontot  = lonmax - lonmin + dlon/2
 
 

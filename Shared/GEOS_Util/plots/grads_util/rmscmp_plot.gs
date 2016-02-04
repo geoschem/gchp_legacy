@@ -64,16 +64,6 @@ say 'FPM: 'files_per_month
 'run setenv "ANTIALIAS" NULL'
 
 
-* Define Number of Forecast Days and Time Interval (hrs)
-* ------------------------------------------------------
-'run getenv "NDAY"'
-             nday = result
-'run getinfo tinc'
-             tinc = result
-if( nday = "NULL" ) ; nday = 5 ; endif
-if( tinc = "NULL" ) ; tinc = 6 ; endif
-
-
 * Initialize Plot Values
 * ----------------------
 if( field = "p" )
@@ -146,6 +136,31 @@ fileend  = filebeg + files_per_month - 1
 numfiles = fileend-filebeg+1
 
 
+* Define NDAY and NDAYMAX across ALL Experiments
+* ----------------------------------------------
+ ndaymax = 999
+       m = 0
+while( m<=mexps )
+            n   = filebeg
+            n.m = n + m*numfiles
+'set dfile 'n.m
+
+'run getinfo tinc'
+             tinc = result
+         if( tinc = "NULL" ) ; tinc = 6 ; endif
+
+'run getinfo tdim'
+             tdum = result - 1
+             nday = tdum * tinc / 24
+         if( nday < ndaymax ) ; ndaymax = nday ; endif
+m = m+1
+endwhile
+
+'run getenv "NDAY"'
+             nday = result
+         if( nday = "NULL" ) ; nday = ndaymax ; endif
+         if( nday > ndaymax) ; nday = ndaymax ; endif
+
 * Determine TDIM based on TINC from Experiment Files for Diff Calculations
 * ------------------------------------------------------------------------
    m = 0
@@ -157,10 +172,12 @@ while( m<=mexps )
          tdim = result
 'getinfo tinc'
          tinc = result
-         tmax = 1 + 5*(24/tinc)
+
+         ndayloc = (tdim-1) * tinc / 24
+
+         tmax = 1 + ndayloc*(24/tinc)
          tbeg.m = 1 -(tmax-tdim)
          tdim.m = tbeg.m + nday*(24/tinc)
-         tmax.m = tbeg.m +    5*(24/tinc)
 
 if( tdim.m < tdim.0 )
     tdif.m = tdim.m
@@ -515,9 +532,13 @@ while( m<=mexps )
 valrUp.m = subwrd(result,4)
 'd rLp'm
 valrLp.m = subwrd(result,4)
-'d rave'm'-rave0'
-raveMX.m = subwrd(result,4)
-say 'tdif.'m': 'tdif.m' rUp: 'valrUp.m' rLp: 'valrLp.m
+
+'set t 'tbeg.m' 'tdif.m
+'minmax rave'm'-rave0'
+raveMX.m = subwrd(result,1)
+raveMN.m = subwrd(result,2)
+'set t 'tdif.m
+say 'tdif.'m': 'tdif.m' rUp: 'valrUp.m' rLp: 'valrLp.m' raveMN: 'raveMN.m'  raveMX: 'raveMX.m
 m = m + 1
 endwhile
 
@@ -535,15 +556,19 @@ if( valrUp.m*axfac > axmax ) ; axmax = valrUp.m*axfac ; endif
 if( valrLp.m*axfac < axmin ) ; axmin = valrLp.m*axfac ; endif
 m = m + 1
 endwhile
+say 'EXP 0: axmin: 'axmin'  axmax: 'axmax
 m = 1
 while( m<=mexps )
 if( raveMX.m*axfac > axmax ) ; axmax = raveMX.m*axfac ; endif
-if( raveMX.m*axfac < axmin ) ; axmin = raveMX.m*axfac ; endif
+if( raveMN.m*axfac < axmin ) ; axmin = raveMN.m*axfac ; endif
+say 'EXP 'm': axmin: 'axmin'  axmax: 'axmax
 m = m + 1
 endwhile
 
 axmax = axmax * 1000
 axmin = axmin * 1000
+say 'AXmax: 'axmax
+say 'AXmin: 'axmin
 
 m = 1
 while( m<=mexps )
@@ -602,24 +627,24 @@ endwhile
 'draw string 6.0 8.15 'desc
 'draw string 6.0 7.8 'level'-mb 'name'  'region
 
-'!remove corcmp.stk'
-'!touch  corcmp.stk'
-'!echo 'numexp' >> corcmp.stk'
+'!remove rmscmp.stk'
+'!touch  rmscmp.stk'
+'!echo 'numexp' >> rmscmp.stk'
 m = 0
 while( m<=mexps )
-'!echo 1 6 'expcol.m'                >> corcmp.stk'
-'!echo     'expdsc.m' \('numfiles'\) >> corcmp.stk'
+'!echo 1 6 'expcol.m'                >> rmscmp.stk'
+'!echo     'expdsc.m' \('numfiles'\) >> rmscmp.stk'
 m = m + 1
 endwhile
-'!echo 6.41 >> corcmp.stk'
-'!echo 4.05 >> corcmp.stk'
-'!echo 9.71 >> corcmp.stk'
-'!echo 5.45 >> corcmp.stk'
-'lines         corcmp.stk 1'
+'!echo 2.32 >> rmscmp.stk'
+'!echo 6.03 >> rmscmp.stk'
+'!echo 5.62 >> rmscmp.stk'
+'!echo 7.43 >> rmscmp.stk'
+'lines         rmscmp.stk 1'
 
 '!/bin/mkdir -p 'SOURCE'/corcmp'
 
-if( nday = 5 )
+if( nday = ndaymax )
    'myprint -name 'SOURCE'/corcmp/stats_'label'_rmscmp_'reg'_'level'_'month' -rotate 90 -density 100x100'
 else
    'myprint -name 'SOURCE'/corcmp/stats_'label'_rmscmp_'reg'_'level'_'month'_'nday'DAY -rotate 90 -density 100x100'

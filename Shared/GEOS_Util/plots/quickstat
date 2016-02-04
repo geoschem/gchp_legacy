@@ -43,7 +43,7 @@ set output   = NULL
 set gradsx   = grads
 set exps     = ALL
 set plots    = "corcmp pltsys syscmp"
-set fields   = "p u v t q h chi psi"
+set fields   = "p u v t q h"
 
 # Parse command line
 # ------------------

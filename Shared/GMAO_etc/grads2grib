@@ -1,0 +1,393 @@
+#!@DASPERL
+# Simple perl script to convert HDF files to GRID. Uses lats4d.
+#
+# Revision history:
+#
+# 10feb2000 da Silva  First crack. (in sh script)
+# 6/19/2000 Joon Yoon Completely Rewritten in Perl
+# 07May2001 da Silva  Clean up.
+#
+
+use FindBin;                     # find location of the this script
+use lib "$FindBin::Bin";         # make perl libraries available
+use Env;                         # make env vars readily available
+use File::Basename;              # for basename(), dirname()
+use File::Copy;                  # for copy()
+use Getopt::Long;                # command line options
+use Time::Local;                 # time functions
+use Shell qw(cat rcp rsh scp ssh);   # make C-shell commands available
+
+# command line options
+# --------------------
+  $rc = GetOptions("v", "d", "zrev" ); 
+  manpage() if ( $#ARGV < 0 || $ARGV[0] eq 'help' || !$rc ); 
+
+  $myname 	= basename ("$0");
+
+  init();
+
+  foreach $nextarg ( @ARGV ) {
+	$doh = `file $nextarg`;
+	@doh = split ":", $doh;
+	$doh =  @doh[$#doh];
+	if ($doh =~ /data/) {
+		print "Looks like an HDF data file...\n";
+		coards2grib($nextarg);
+	} else {
+		print "Looks like an ascii text file...\n";
+		ieee2grib($nextarg); 
+	}
+}
+exit 0;
+
+# -----------------------------------------------------------------------
+
+sub init { 
+
+  $fvroot  = dirname($FindBin::Bin);
+
+  $ncdump 	= "ncdump";
+  $grads  	= "gradshdf";
+  $lats4d 	= "$fvroot/lib/grads/lats4d.gs";
+  $log    	= "$myname" . ".$$" . ".log";
+  $args   	= $#ARGV + 1 ;
+  $hybrid 	= "";
+
+  die ">>> ERROR <<< cannot find $lats4d" unless ( -e $lats4d );
+
+  $increment = 0;
+  $time_steps = 0;
+
+}
+
+#..........................................................................
+
+sub ieee2grib {
+
+# For each file on input
+# ----------------------
+	my ($temp)   	= @_;
+	$basen 		= basename ("$temp");
+	$ctl 		= $basen; 
+	open (NONHDF, "$temp") || die (" can't open $temp file ");
+		$first_line = <NONHDF>;
+	close (NONHDF);
+	$bin 		= ((split " ",$first_line)[1]);
+	if ( $ctl =~ m/\.ctl/ ) { 
+		print "ctl is already attached at end \n";
+	} else { 
+		print "ctl has been attached at end \n";
+		$ctl	.= ".ctl"; 
+	}
+	$basen          =~ s/\.ctl//g;
+	$tempctl 	= $basen . ".ctl_temp";
+	$cdl   		= $basen . ".cdl";
+
+	$temp_num = $level_start = $level_ttl = $temp_count = 0;
+	$firsttime 	= 1;
+
+#   Do the actual grib conversion
+#   -----------------------------
+        if ( $opt_d ) {
+	  print "bin 	= $bin    \n";
+	  print "basen    = $basen  \n";
+	  print "ctl      = $ctl    \n";
+	  print "log      = $log    \n";
+	  print "HYBRID   = $HYBRID \n";
+        }
+
+	$cmd = "$grads -blc \'run $lats4d -q -v -i $ctl -o $basen -format ieee\'";
+	$rc = System ($cmd, $log);
+        die ">>> ERROR <<< running GrADS" if ( $rc );
+
+	open (LOG, "$log") || die ("Couldn't open $log file");
+		@log_file = <LOG>;
+	close (LOG);	
+        $SUCCESSFUL = 0;
+	foreach $temp3 (@log_file) {
+		if ($temp3 =~ /SUCCESS/ ) { $SUCCESSFUL = 1 }; 
+	}
+        die ">>> ERROR <<< gribbing $hdf" if ( $SUCCESSFUL );
+
+
+	$levelfile = $ctl;
+	open  (LEVELFILE, "$levelfile") || die ("Can't open $levelfile file");
+		@level_file = <LEVELFILE>;
+	close (LEVELFILE);
+	foreach $temp_z (@level_file) {
+		if (($temp_z =~ /levels =/) && $firsttime ) {
+			$level_ttl = $temp_num;
+			$firsttime=0;
+		} elsif ($temp_z =~ /levels =/) {
+			$level_start = $temp_num;
+		}
+		$temp_num++;
+	}
+	$levels = ();
+	foreach $temp_z (@level_file){
+		if ($temp_count > $level_start) {
+			$temp_z =~ s/\n//sg;
+			$temp_z =~ s/\r//sg;
+			$temp_z =~ s/^\n//sg;
+			$levels = $levels . $temp_z;
+		}
+		$temp_count++;
+	}
+	$levels =~ s/}//sg;
+	$levels =~ s/,//sg;
+	$levels =~ s/;//sg;
+	@levels_a = split (" ", $levels);
+	$levels_r = "";
+	foreach $temp_z (@levels_a) {
+		$levels_r = "$temp_z " . $levels_r;
+	}
+	$stat = rename $ctl,$tempctl; 
+	if ($stat == 0 ) {
+		print "Error while renameing $ctl to $tempctl";
+		exit 2;
+	}
+	open (TEMPCTL, "$tempctl") || die("Can't open $tempctl file");
+	open (CTL, ">$ctl") || die ("Can't open $ctl file");
+		while (<TEMPCTL>) {
+			$temp_buff = $_;
+			if ($temp_buff =~ /levels/ ) {
+				print CTL "$temp_buff";
+				print CTL "$levels_r\n";
+			} elsif ($temp_buff !~ /^\d/) {
+				print CTL "$temp_buff";
+			}
+		}
+	close (CTL);
+	close (TEMPCTL);
+
+        print "$myname: completed successfully\n" if ( $opt_v);
+
+#       Cleanup mess
+#       ------------
+        unlink($tempctl);
+        unlink($log);
+        unlink(".grads.lats.table");
+
+}
+
+#..........................................................................
+
+sub coards2grib {
+
+	my ($hdf) = @_;
+        my $basen = basename ("$hdf");
+	$basen =~ s/\.nc4//g;
+	my $hdf   = $basen . ".nc4";
+        my $cdl   = $basen . ".cdl";
+        my $ctl   = $basen . ".ctl";
+        my $tempctl = $basen . ".ctl_temp";
+        
+#   Create CDL
+#   ----------
+        # -c includes coordinate variables as well
+        $rc = system ("$ncdump -c $hdf > $cdl");
+        die ">>> ERRORR <<< running $ncdump" if ( $rc ); 
+
+#   Do the actual grib conversion
+#   -----------------------------
+	if ( $opt_d ) {
+             print "grads   = $grads  \n";
+             print "hdf     = $hdf    \n";
+             print "basen   = $basen  \n";
+             print "ctl     = $ctl    \n";
+             print "tempctl = $tempctl    \n";
+             print "log     = $log    \n";
+        }
+        $cmd = "$grads -blc \'run $lats4d -q -v -i $hdf -o $basen -format grads_grib\' ";
+        $rc = System ("$cmd", "$log");
+        die ">>> ERROR <<< running $cmd" if ( $rc );
+
+        cat("$log" ) if ( $opt_v );
+
+#       Check grads error code
+#       ----------------------
+        open (LOG, "$log") || die ("Couldn't open $log file");
+                        @log_file = <LOG>;
+        close (LOG);    
+        $SUCCESSFUL = 0;
+        foreach $temp3 (@log_file) {
+                #print "$temp3 \n";
+                if ($temp3 =~ /SUCCESS/ ) { $SUCCESSFUL = 1 };  
+        }
+        die ">>> ERROR <<< gribbing $hdf" unless ($SUCCESSFUL );
+        
+
+#       Fix levels
+#       ----------
+        open(CDL, "$cdl") || die ("Can't open $cdl file");
+                @cdl_file = <CDL>;
+        close(CDL);
+        $temp_num =0;
+        $level_start = 0;
+        $level_ttl = 0;
+        $firsttime = 1;
+        foreach $temp (@cdl_file) {
+                if ( $firsttime ) {
+                       if ( ($temp =~ /lev =/) || ($temp =~ /levels =/) ) {
+			@temp_num = split (" ", $temp);
+			$level_ttl = @temp_num[2];
+                        $firsttime=0;
+		       }
+                } elsif (($temp =~ /lev =/) || ($temp =~ /levels =/ )) {
+                        $level_start = $temp_num;
+                }
+                $temp_num++;
+        }
+        $temp_count=0;
+	$temp_count_mid = 0;
+        $levels = ();
+        foreach $temp_line (@cdl_file){
+                if ($temp_count >= $level_start) {
+			@templine = split (" ", $temp_line);
+			foreach $temp (@templine){
+				$temp =~ s/,//sg;
+				if ($temp_count_mid < $level_ttl ) {
+					if ($temp =~ /(\d+)/ ){
+						$temp_count_mid++;
+
+						$temp =~ s/\n//sg;
+						$temp =~ s/\r//sg;
+						$temp =~ s/^\n//sg;
+						$levels .= " $temp ";
+					}
+				}
+			}
+                }
+                $temp_count++;
+        }
+        $levels =~ s/}//sg;
+        $levels =~ s/,//sg;
+        $levels =~ s/;//sg;
+        @levels_a = split (" ", $levels);
+        $levels_r = "";
+        foreach $temp (@levels_a) {
+            if ( $opt_zrev ) {
+                 $levels_r = "$temp " . $levels_r;
+	       } else {
+                 $levels_r = $levels_r . " $temp" 
+               }
+        }
+        $stat = rename $ctl,$tempctl; 
+        if ($stat == 0 ) {
+                die "Error while renaming $ctl to $tempctl";
+        }
+        open (TEMPCTL, "$tempctl") || die("Can't open $tempctl file");
+        open (CTL, ">$ctl") || die ("Can't open $ctl file");
+                while (<TEMPCTL>) {
+                        $temp_buff = $_;
+                        if ( ($temp_buff =~ /levels/ ) || ($temp_buff =~ /lev/)) {
+                                print CTL "$temp_buff";
+                                print CTL "$levels_r\n";
+                        } elsif ($temp_buff !~ /^\d/) {
+                                print CTL "$temp_buff";
+                        }
+                }
+        close (CTL);
+        close (TEMPCTL);
+        print "$myname: completed successfully\n" if ( $opt_v);
+
+#       Cleanup mess
+#       ------------
+        unlink($tempctl);
+        unlink($log);
+        unlink(".grads.lats.table");
+
+}
+
+
+#......................................................................
+
+#
+# System: This routine saves stdout/stderr, redirects it to a specified file, 
+#         runs a shell command using this new stdout/stderr, and finally 
+#         restores the original stdout/stderr.
+#
+
+sub System {
+
+    my ( $cmd, $logfile ) = @_;
+
+    print "$myname: $cmd\n" if ( $opt_v );
+
+    open SAVEOUT, ">&STDOUT";  # save stdout
+    open SAVEERR, ">&STDERR";  # save stderr
+
+    open STDOUT, ">>$logfile" or die "can't redirect stdout";
+    open STDERR, ">>$logfile" or die "can't redirect stderr";
+
+    select STDERR; $| = 1;     # make it unbuffered
+    select STDOUT; $| = 1;     # make it unbuffered
+
+    $rc = system ( $cmd );     # run the shell command
+
+    close STDOUT;
+    close STDERR;
+
+    open STDOUT, ">&SAVEOUT" ;  # restore stdout
+    open STDERR, ">&SAVEERR" ;  # restore stdout
+
+    return $rc;
+
+  }
+
+
+
+#--------------
+sub manpage {	
+	
+print <<EOF1;
+
+NAME
+	grads2grib - converts COARDS HDF/NetCDF files to GRIB
+
+SYNOPSIS
+	grads2grib [-v] [-d] [-clean] hdf_file(s)
+
+OPTIONS
+ -clean remove input file if GRIB conversion sucessfull
+ -d     debug mode
+ -v     verbose mode
+ -zrev  reverse z coordinates
+
+DESCRIPTION
+	Given one or more COARDS compliant HDF/NetCDF files,
+	this script uses GrADS adnt he lats4d.gs scrip to convert
+	the input files to GRIB. In addition to the GRIB
+	data file, GrADS control (ctl) and GRIB map (gmp)
+	files are also produced, that is, the output files
+	are GrADS readable. Since some of the original metadata
+	on the original HDF/NetCDF files are not preserved on
+	the GRIB output, an ASCII CDL ("Control Data Language")
+	file containing all the relevant metadata is also
+	generated.
+
+EXAMPLE
+	The command
+
+	% grads2grib myfile.nc4
+	
+	produces the following files:
+
+	myfile.ctl	GrADS control file
+	myfile.gmp	GrADS GRIB map
+	myfile.grb	actual GRIB data
+	myufile.cdl 	ASCII output of "ncdump -c myfile.nc4";
+			it shows all relevant metadata in the 
+			original file.
+	
+AUTHOR
+	Arlindo da Silva, NASA/GSFC/DAO, dasilva\@gsfc.nasa.gov
+
+	Joon Yoon, jyoon\@dao 		Port to PERL / Minor updates
+
+SEE ALSO
+	http://dao.gsfc.nasa.gov/software/grads/lats4d
+
+EOF1
+exit 1;
+}

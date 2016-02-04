@@ -212,6 +212,7 @@ CONTAINS
                                    value_JM_WORLD,  value_LM_WORLD,  &
                                    Input_Opt,       State_Chm,       &
 !                                   State_Met,       mapping,         &
+                                   myPET,                            &
                                    State_Met,                        &
                                    RC                               )      
 !
@@ -235,11 +236,11 @@ CONTAINS
     USE Grid_Mod,             ONLY : SetGridFromCtr
     USE Input_Mod,            ONLY : GIGC_Init_Extra
     USE Input_Mod,            ONLY : Initialize_Geos_Grid
-!    USE Mapping_Mod,          ONLY : MapWeight
-!    USE Mapping_Mod,          ONLY : Init_Mapping
-!    USE Olson_Landmap_Mod,    ONLY : Init_Olson_Landmap
-!    USE Olson_Landmap_Mod,    ONLY : Compute_Olson_Landmap
-!    USE Olson_Landmap_Mod,    ONLY : Cleanup_Olson_Landmap
+    USE Mapping_Mod,          ONLY : MapWeight
+    USE Mapping_Mod,          ONLY : Init_Mapping
+    USE Olson_Landmap_Mod,    ONLY : Init_Olson_Landmap
+    USE Olson_Landmap_Mod,    ONLY : Compute_Olson_Landmap
+    USE Olson_Landmap_Mod,    ONLY : Cleanup_Olson_Landmap
     USE PBL_MIX_MOD,          ONLY : INIT_PBL_MIX
     USE PRESSURE_MOD,         ONLY : INIT_PRESSURE
     USE TRACER_MOD,           ONLY : INIT_TRACER
@@ -260,6 +261,7 @@ CONTAINS
 ! !INPUT PARAMETERS: 
 !
     LOGICAL,         INTENT(IN)    :: am_I_Root       ! Is this the root CPU?
+    INTEGER,         INTENT(IN)    :: myPET           ! Local PET
     INTEGER,         INTENT(IN)    :: nymdB           ! GMT date (YYYY/MM/DD)
     INTEGER,         INTENT(IN)    :: nhmsB           ! GMT time (hh:mm:ss)
     INTEGER,         INTENT(IN)    :: nymdE           ! GMT date (YYYY/MM/DD)
@@ -284,7 +286,7 @@ CONTAINS
     TYPE(OptInput),  INTENT(INOUT) :: Input_Opt       ! Input Options
     TYPE(ChmState),  INTENT(INOUT) :: State_Chm       ! Chemistry State
     TYPE(MetState),  INTENT(INOUT) :: State_Met       ! Meteorology State
-!    TYPE(MapWeight), POINTER       :: mapping(:,:)    ! Olson mapping object
+    TYPE(MapWeight), POINTER       :: mapping(:,:) => null() ! Olson mapping object
 !
 !
 ! !OUTPUT PARAMETERS:
@@ -377,6 +379,8 @@ CONTAINS
     Input_Opt%TS_DYN  = INT( tsDyn  ) / 60   ! Dynamic   timestep [min]
     Input_Opt%TS_CONV = INT( tsDyn  ) / 60   ! Dynamic   timestep [min]
 
+    Input_Opt%myCPU = myPET
+
     !-----------------------------------------------------------------------
     ! Read info from the "input.geos" file into the Input_Opt object
     ! on the root CPU.  MPI broadcast Input_Opt to non-root CPUs.
@@ -407,41 +411,43 @@ CONTAINS
     ! Complete initialization ops on all threads
     !IF ( .NOT. am_I_Root ) THEN 
 
-       ! Make sure to reset I0 and J0 in grid_mod.F90 with
-       ! the values carried in the Input Options object
-       CALL Set_xOffSet( Input_Opt%Nested_I0 )
-       CALL Set_yOffSet( Input_Opt%Nested_J0 )
+    ! Make sure to reset I0 and J0 in grid_mod.F90 with
+    ! the values carried in the Input Options object
+    CALL Set_xOffSet( Input_Opt%NESTED_I0 )
+    CALL Set_yOffSet( Input_Opt%NESTED_J0 )
 
-       ! We still need to call Initialize_Geos_Grid on all CPUs though.
-       ! without having to read the "input.geos" file. (mlong, bmy, 2/26/13)
-       CALL Initialize_Geos_Grid( am_I_Root = am_I_Root,                    &
-                                  Input_Opt = Input_Opt,                    &
-                                  RC        =  RC )
+    ! We still need to call Initialize_Geos_Grid on all CPUs though.
+    ! without having to read the "input.geos" file. (mlong, bmy, 2/26/13)
+    !IF (.not. am_I_Root) then
+    CALL Initialize_Geos_Grid( am_I_Root = am_I_Root,                    &
+         Input_Opt = Input_Opt,                    &
+         RC        =  RC )
+    IF ( RC /= GIGC_SUCCESS ) RETURN
+
+    CALL SetGridFromCtr( am_I_Root, value_IM, value_JM, lonCtr, latCtr, RC )
+    IF ( RC /= GIGC_SUCCESS ) RETURN
+
+    ! Initialize dry deposition (in GeosCore/drydep_mod.F)
+    IF ( Input_Opt%LDRYD ) THEN
+       CALL Init_Drydep( am_I_Root = am_I_Root,                          &
+            Input_Opt = Input_Opt,                          &
+            RC        = RC         )
        IF ( RC /= GIGC_SUCCESS ) RETURN
+    ENDIF
+    !ENDIF ! am_I_Root
 
-       ! Initialize tracer quantities (in GeosCore/tracer_mod.F)
-       CALL Init_Tracer( am_I_Root = am_I_Root,                             &
-                         Input_Opt = Input_Opt,                             &
-                         RC        = RC           )
+    ! Initialize tracer quantities (in GeosCore/tracer_mod.F)
+    CALL Init_Tracer( am_I_Root = am_I_Root,                             &
+         Input_Opt = Input_Opt,                             &
+         RC        = RC           )
+    IF ( RC /= GIGC_SUCCESS ) RETURN
+
+
+    ! Initialize wet deposition tracer IDs
+    IF ( Input_Opt%LWETD .OR. Input_Opt%LCONV ) THEN
+       CALL WETDEPID( am_I_Root, Input_Opt, RC )
        IF ( RC /= GIGC_SUCCESS ) RETURN
-
-       ! Initialize dry deposition (in GeosCore/drydep_mod.F)
-       
-       IF ( Input_Opt%LDRYD ) THEN
-          CALL Init_Drydep( am_I_Root = am_I_Root,                          &
-                            Input_Opt = Input_Opt,                          &
-                            RC        = RC         )
-          IF ( RC /= GIGC_SUCCESS ) RETURN
-       ENDIF
-
-       ! Initialize wet deposition tracer IDs
-       IF ( Input_Opt%LWETD .OR. Input_Opt%LCONV ) THEN
-          CALL WETDEPID( am_I_Root, Input_Opt, RC )
-          IF ( RC /= GIGC_SUCCESS ) RETURN
-       ENDIF
-
-       ! Working Kluge - MSL; Break this & Fix the result...
-!       LVARTROP = Input_Opt%LVARTROP 
+    ENDIF
 
     !ENDIF ! Not root
 
@@ -455,24 +461,6 @@ CONTAINS
                         Unit_Conv  = MAX( Input_Opt%TS_DYN,              &
                                           Input_Opt%TS_CONV ),           &
                         Diagnos    = Input_Opt%TS_DIAG         )
-
-    !-----------------------------------------------------------------------
-    ! Enforce GEOS-Chem grid values to be compliant w/ the underlying GEOS-5 
-    ! grid. This is a kludge to correct for some misbehavior that can occur
-    ! in the original GEOS-Chem grid computation code in an ESMF environment.
-    ! For example, the calculation is based on the grid edges and starts at
-    ! -180 deg E, and the latitude values become zero everywhere. 
-    ! Here, we overwrite all the previously calculated grid values based upon 
-    ! lonCtr and latCtr, which have been obtained directly from GEOS-5.
-    ! 
-    ! This call does NOT update the previously calculated grid box areas of 
-    ! grid_mod.F90. These are imported from superdynamics and cannot be
-    ! updated in the init phase yet. Instead, the areas of grid_mod.F90 will
-    ! be updated on the first GC run call (in gigc_chunk_mod.F90).
-    ! (ckeller, 1/2/15)
-    !-----------------------------------------------------------------------
-    CALL SetGridFromCtr( am_I_Root, value_IM, value_JM, lonCtr, latCtr, RC )
-    IF ( RC /= GIGC_SUCCESS ) RETURN
 
     ! After broadcasting Input_Opt to other CPUs, call GIGC_Init_Extra
     ! to initialize other modules (e.g. carbon_mod.F, dust_mod.F, 
@@ -611,29 +599,29 @@ CONTAINS
     !=======================================================================
     ! Initialize dry deposition 
     !=======================================================================
-!    IF ( Input_Opt%LDRYD )  THEN
+    IF ( Input_Opt%LDRYD )  THEN
 
 !       ! Initialize the derived type object containing
 !       ! mapping information for the MODIS LAI routines
-!       IF ( Input_Opt%USE_OLSON_2001 ) THEN
-!          CALL Init_Mapping( am_I_Root, Input_Opt, 1440, 720, IIPAR, JJPAR, mapping, RC )
-!       ELSE
-!          CALL Init_Mapping( am_I_Root, Input_Opt,  720, 360, IIPAR, JJPAR, mapping, RC )
-!       ENDIF
+       IF ( Input_Opt%USE_OLSON_2001 ) THEN
+          CALL Init_Mapping( am_I_Root, Input_Opt, 1440, 720, IIPAR, JJPAR, mapping, RC )
+       ELSE
+          CALL Init_Mapping( am_I_Root, Input_Opt,  720, 360, IIPAR, JJPAR, mapping, RC )
+       ENDIF
 
 #if !defined( EXTERNAL_FORCING )
        ! Compute the Olson land types that occur in each grid box
        ! (i.e. this is a replacement for rdland.F and vegtype.global)
-!       CALL Init_Olson_Landmap   ( am_I_Root, Input_Opt%DATA_DIR_1x1 )
-!       CALL Compute_Olson_Landmap( am_I_Root, mapping, State_Met     )
-!       CALL Cleanup_Olson_Landmap( am_I_Root                         )
+       CALL Init_Olson_Landmap   ( am_I_Root, Input_Opt, RC      )
+       CALL Compute_Olson_Landmap( am_I_Root, mapping, State_Met )
+       CALL Cleanup_Olson_Landmap( am_I_Root                     )
 #endif
 
        !### Debug
        IF ( prtDebug ) THEN
           CALL DEBUG_MSG( '### GIGC_INIT_CHEMISTRY: after OLSON' )
        ENDIF
-!    ENDIF
+    ENDIF
 
     !=======================================================================
     ! Initialize chemistry mechanism
@@ -657,7 +645,7 @@ CONTAINS
 
        ! Initialize KPP (if necessary)
        IF ( Input_Opt%LKPP ) THEN
-          CALL INIT_GCKPP_COMODE( am_I_Root, IIPAR,   JJPAR, LLTROP,        &
+          CALL INIT_GCKPP_COMODE( am_I_Root, IIPAR,   JJPAR, LLPAR,        &
                                   ITLOOP,    NMTRATE, IGAS,  RC      )
           IF ( RC /= GIGC_SUCCESS ) RETURN
        ENDIF

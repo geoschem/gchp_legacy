@@ -9,38 +9,18 @@
 !
 ! !INTERFACE: */
  /*
-  System times() dependencies:
+  System times() and sysconf() dependencies:
  */
-
 
 #include <sys/types.h>
 #include <sys/times.h>
-
-#include <time.h>             /* CLK_TCK is usually here */
-
-#if !defined(CLK_TCK)
-#  include <limits.h>         /* if not, try here */
-#endif
-
-#if !defined(CLK_TCK)
-#define CLK_TCK  CLOCKS_PER_SEC
-#endif
-
-
-/*
-Kept the difference for reference.
-=======
-#if defined(__osf__) || defined(sysAIX)
-#  include <time.h>
-#else
-#  include <limits.h>
->>>>>>> 1.1.2.2
-*/
+#include <unistd.h>           /* This is required by sysconf() */
 
  /*
   The default is FORTRAN_UNDERSCORE_, but not explicitly used.
  */
 
+/*
 #ifdef _UNICOS
 #  define FORTRAN_CAPS_
 #endif
@@ -54,7 +34,7 @@ Kept the difference for reference.
 #  define	get_zeits_		get_zeits
 #  define	get_ztick_		get_ztick
 #endif
-
+*/
 
  /*  Prototype: */
 
@@ -64,29 +44,35 @@ Kept the difference for reference.
 /*!REVISION HISTORY:
 ! 	12Mar98 - Jing Guo <guo@thunder> - initial prototype/prolog/code
 ! 	06Jul99 - J.W. Larson <jlarson@dao> - support for AIX platform
+!	20Jun12 - Jing Guo <jing.guo@nasa.gov> -
+!               . Fixed absolete CLK_TCK value, which was incorrectly
+!                 defined to CLOCKS_PER_SEC, a useless and fixed wrong
+!		  constant 1000000.  The correct value is to get from
+!                 system function sysconf(_SC_CLK_TCK).  
+!               . Removed unneccesary code.  Hope it is still portable.
+!		  The objective is to support Fortran usages through a
+!		  C-Binding module.
 !EOP */
 
 /*  Implementations: */
 
-void get_zeits_(zts)
-  double *zts;
+void get_zeits_(double *zts)
 {
 
   struct tms tm;
   double secs;
 
-  secs=1./CLK_TCK;
+  secs=1./sysconf(_SC_CLK_TCK);	/* seconds per clock tick */
 
-  zts[0]=times(&tm)*secs;
-  zts[1]=tm.tms_utime*secs;
-  zts[2]=tm.tms_stime*secs;
-  zts[3]=tm.tms_cutime*secs;
-  zts[4]=tm.tms_cstime*secs;
+  zts[0]=times(&tm)*secs;	/* (real time in ticks)/hertz */
+  zts[1]=tm.tms_utime*secs;	/* (process user ticks)/hertz */
+  zts[2]=tm.tms_stime*secs;	/* (process system ticks)/hertz */
+  zts[3]=tm.tms_cutime*secs;	/* (child process(es) user ticks)/hertz */
+  zts[4]=tm.tms_cstime*secs;	/* (child process(es) system ticks)/hertz */
 
 }
 
-void get_ztick_(tic)
-  double *tic;
+void get_ztick_(double *tic)
 {
-  tic[0]=1./CLK_TCK;
+  tic[0]=1./sysconf(_SC_CLK_TCK);
 }

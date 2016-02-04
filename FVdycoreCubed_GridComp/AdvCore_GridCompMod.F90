@@ -46,17 +46,7 @@
 !    state. Each Field in the Bundle is tested for ``Friendliness'' to
 !    advection; if friendly it is advected and its values updated.
 !
-!  \paragraph{Import State:}
-!
-!  The following variables are part of the import state:
-!  \begin{description}
-!  \item[CX]:   Courant Number X-Dir
-!  \item[CY]:   Courant Number Y-Dir
-!  \item[MFX]:  Mass Flux X-Dir
-!  \item[MFY]:  Mass Flux Y-Dir
-!  \item[PLE0]: DELP (pressure thickness) before dyn\_core
-!  \item[PLE]:  DELP (pressure thickness) after  dyn\_core
-!  \end{description}
+!    Currently no Export capability is implemented. 
 !
 ! !INTERFACE:
 
@@ -79,10 +69,9 @@ module AdvCore_GridCompMod
       USE FV_StateMod,     only: AdvCoreTracers => T_TRACERS
       USE fv_grid_tools_mod, only: gridCellArea => area
 
-      IMPLICIT NONE
+      implicit none
+      private
 
-      PRIVATE
-!
       integer     :: nx, ny
       integer     :: hord_tr, kord_tr
       integer     :: q_split
@@ -230,16 +219,16 @@ contains
      VERIFY_(STATUS)
 
 ! 3D Tracers
-!     do ntracer=1,ntracers
-!        write(myTracer, "('TEST_TRACER',i1.1)") ntracer-1
-!        call MAPL_AddExportSpec ( gc,                             &
-!             SHORT_NAME = TRIM(myTracer),                         &
-!             LONG_NAME  = TRIM(myTracer),                         &
-!             UNITS      = '1',                                    &
-!             DIMS       = MAPL_DimsHorzVert,                      &
-!             VLOCATION  = MAPL_VLocationCenter,               RC=STATUS  )
-!        VERIFY_(STATUS)
-!     enddo
+     do ntracer=1,ntracers
+        write(myTracer, "('TEST_TRACER',i1.1)") ntracer-1
+        call MAPL_AddExportSpec ( gc,                             &
+             SHORT_NAME = TRIM(myTracer),                         &
+             LONG_NAME  = TRIM(myTracer),                         &
+             UNITS      = '1',                                    &
+             DIMS       = MAPL_DimsHorzVert,                      &
+             VLOCATION  = MAPL_VLocationCenter,               RC=STATUS  )
+        VERIFY_(STATUS)
+     enddo
 
       ! Set the Profiling timers
       !-------------------------
@@ -336,11 +325,6 @@ contains
       VERIFY_(STATUS)
       Iam = trim(COMP_NAME) // trim(Iam)
 
-      ! Call Generic Initialize 
-      ! -----------------------
-      call MAPL_GenericInitialize(GC, IMPORT, EXPORT, CLOCK, RC=STATUS)
-      VERIFY_(STATUS)
-
       ! Retrieve the pointer to the state
       ! ---------------------------------
       call MAPL_GetObjectFromGC (GC, MAPL,  RC=STATUS )
@@ -430,6 +414,10 @@ contains
          call fv_init(FV_Atm, dt)
       endif
 
+      ! Call Generic Initialize 
+      ! -----------------------
+      call MAPL_GenericInitialize(GC, IMPORT, EXPORT, CLOCK, RC=STATUS)
+      VERIFY_(STATUS)
       ! Compute Grid-Cell Area
       ! ----------------------
       if (.NOT. FV3_DynCoreIsRunning) then
@@ -541,7 +529,6 @@ contains
       VERIFY_(STATUS)
       AllOCATE( BK(LM+1) ,stat=STATUS )
       VERIFY_(STATUS)
-
       call set_eta(LM,LS,PTOP,PINT,AK,BK)
 
       CALL MAPL_GetPointer(IMPORT, PLE0, 'PLE0', ALLOC = .TRUE., RC=STATUS)
@@ -571,10 +558,7 @@ contains
          !-------------------------------------------------------------------------
          ALLOCATE( TRACERS(IM,JM,LM,NQ),stat=STATUS )
          VERIFY_(STATUS)
-
-         ! We allocate a list of tracers big enough to hold all items in the bundle
-         !-------------------------------------------------------------------------
-         allocate( advTracers(NQ),stat=STATUS )
+         ALLOCATE( advTracers(NQ),stat=STATUS )
          VERIFY_(STATUS)
 
          ! Go through the bundle copying the friendlies into the tracer list.
@@ -632,7 +616,7 @@ contains
          endif
 
          if (chk_mass .and. gid==masterproc) then
-!#ifdef PRINT_MASS
+#ifdef PRINT_MASS
             write(6,100)  MASS0   , &
                          TMASS0(2), &
                          TMASS0(3), &
@@ -643,7 +627,7 @@ contains
                          TMASS1(3), &
                          TMASS1(4), &
                          TMASS1(5)
-!#endif
+#endif
             write(6,103) ( MASS1   - MASS0   )/ MASS0   , &
                          (TMASS1(2)-TMASS0(2))/TMASS0(2), &
                          (TMASS1(3)-TMASS0(3))/TMASS0(3), &
@@ -664,12 +648,12 @@ contains
                advTracers(N)%content    = TRACERS(:,:,:,N)
             end if 
 ! Fill Export States
-!            write(myTracer, "('TEST_TRACER',i1.1)") N-1
-!            call MAPL_GetPointer(EXPORT, temp3D, TRIM(myTracer), rc=status)
-!            VERIFY_(STATUS)
-!            if ((associated(temp3D)) .and. (N<=ntracers)) then
-!               temp3D = TRACERS(:,:,:,N)
-!            endif
+            write(myTracer, "('TEST_TRACER',i1.1)") N-1
+            call MAPL_GetPointer(EXPORT, temp3D, TRIM(myTracer), rc=status)
+            VERIFY_(STATUS)
+            if ((associated(temp3D)) .and. (N<=ntracers)) then
+               temp3D = TRACERS(:,:,:,N)
+            endif
          enddo
 
          ! Deallocate the list of tracers
@@ -677,11 +661,10 @@ contains
          DEALLOCATE( TRACERS,stat=STATUS )
          VERIFY_(STATUS)
 
-         DEALLOCATE( advTracers, stat=STATUS )
-         VERIFY_(STATUS)
-
       end if ! NQ > 0
 
+      deallocate( advTracers, stat=STATUS )
+      VERIFY_(STATUS)
       DEALLOCATE( AK ,stat=STATUS )
       VERIFY_(STATUS)
       DEALLOCATE( BK ,stat=STATUS )

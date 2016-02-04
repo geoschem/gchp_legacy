@@ -446,7 +446,7 @@
 ! ---------------------------
       dgrid_ = dgrid_def
       if ( present(dgrid) ) then
-           if ( dgrid_ /= dgrid ) then
+           if ( dgrid_ .neqv. dgrid ) then
                 dgrid_ = dgrid
                 print *, ' Treating winds as on A-grid '
            endif

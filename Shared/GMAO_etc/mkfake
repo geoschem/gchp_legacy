@@ -1,0 +1,23 @@
+#!/bin/csh
+#
+#   Create fake data files for testing archiving scripts.
+#
+
+set expid = efake
+foreach ym ( 199712 199801 )
+     set day = 1
+     while ( $day < 32 )
+	set nymd = $ym$day
+        foreach ftype ( ods prog diag )
+	   set fname = $expid.$ftype.t$nymd
+	   touch $fname
+        end        
+        foreach ftype ( dyn )
+	   foreach hour ( 00Z 06Z 12Z 18Z )
+	   set fname = $expid.$ftype.t$nymd.$hour
+	   touch $fname
+        end
+        @ day++
+     end # while
+end
+

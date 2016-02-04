@@ -1,4 +1,4 @@
-! $Id: ESMFL_Mod.P90,v 1.28 2014-01-31 16:11:09 atrayano Exp $
+! $Id: ESMFL_Mod.P90,v 1.29 2014-12-12 15:23:36 bmauer Exp $
 #include "MAPL_ErrLog.h"
 
 #if 0
@@ -426,7 +426,7 @@ subroutine ESMFL_GridCoordGet(GRID, coord, name, Location, Units, rc)
          call ESMF_AttributeGet  (FIELD, NAME="Needed",VALUE=NEEDED, RC=STATUS)
          if(STATUS /= ESMF_SUCCESS) NEEDED = .false.
 
-         if(NEEDED==.false.) then
+         if( NEEDED .eqv. .false. ) then
             call ESMF_FieldGet(FIELD, Array=ARRAY, RC=STATUS)
             VERIFY_(STATUS)
             call ESMF_ArrayGet     (ARRAY, rank=RANK,   RC=STATUS)

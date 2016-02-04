@@ -70,9 +70,6 @@ MODULE GIGC_Chunk_Mod
   ! Derived type objects
 !  TYPE(MapWeight),      POINTER :: mapping(:,:) => NULL()
 
-  ! For chemistry
-  INTEGER, POINTER              :: JLOP_PREV_loc(:,:,:)
-
 CONTAINS
 !EOC
 !------------------------------------------------------------------------------
@@ -93,7 +90,7 @@ CONTAINS
                               J_HI,      IM,        JM,        LM,        &
                               IM_WORLD,  JM_WORLD,  LM_WORLD,  nymdB,     &
                               nhmsB,     nymdE,     nhmsE,     tsChem,    &
-                              tsDyn,     lonCtr,    latCtr,               &
+                              tsDyn,     lonCtr,    latCtr,    myPET,     &
                               Input_Opt, State_Chm, State_Met, RC      )
 !
 ! !USES:
@@ -120,6 +117,7 @@ CONTAINS
     INTEGER,            INTENT(IN)    :: IM_WORLD    ! # lons, global grid
     INTEGER,            INTENT(IN)    :: JM_WORLD    ! # lats, global grid
     INTEGER,            INTENT(IN)    :: LM_WORLD    ! # levs, global grid
+    INTEGER,            INTENT(IN)    :: myPET       ! Local PET
     INTEGER,            INTENT(IN)    :: nymdB       ! YYYYMMDD @ start of run
     INTEGER,            INTENT(IN)    :: nhmsB       ! hhmmss   @ start of run
     INTEGER,            INTENT(IN)    :: nymdE       ! YYYYMMDD @ end of run
@@ -208,6 +206,7 @@ CONTAINS
                                Input_Opt      = Input_Opt,  & ! Input Options
                                State_Chm      = State_Chm,  & ! Chemistry State
                                State_Met      = State_Met,  & ! Met State
+                               myPET          = myPET,      & ! Local PET
 !                               mapping        = mapping,    & ! Olson map wts
                                RC             = RC         )  ! Success?
     ASSERT_(RC==GIGC_SUCCESS)
@@ -826,22 +825,12 @@ CONTAINS
           IsMass = .TRUE.
        ENDIF
 
-       IF (.NOT. ASSOCIATED(JLOP_PREV_loc)) THEN
-          ALLOCATE(JLOP_PREV_loc(ILONG,ILAT,IPVERT),STAT=RC)
-          ASSERT_(RC==0)
-          JLOP_PREV_loc = 0
-       ENDIF
-   
-       !vartrop fix (dkh, 05/08/11)
-       IF (ALLOCATED( JLOP          ) ) DEALLOCATE( JLOP          )
-       IF (ALLOCATED( JLOP_PREVIOUS ) ) DEALLOCATE( JLOP_PREVIOUS )
-       ALLOCATE( JLOP( ILONG, ILAT, IPVERT ), STAT=RC )
-       ASSERT_(RC==0)
-       ALLOCATE( JLOP_PREVIOUS( ILONG, ILAT, IPVERT ), STAT=RC )
-       ASSERT_(RC==0)
-   
-       JLOP          = JLOP_PREV_loc
-       JLOP_PREVIOUS = JLOP_PREV_loc
+       ! Write JLOP_PREVIOUS into JLOP to make sure that JLOP contains 
+       ! the current values of JLOP_PREVIOUS. In chemdr.F, JLOP_PREVIOUS is filled 
+       ! with JLOP before resetting JLOP to current values and we simply want to 
+       ! make sure that JLOP_PREVIOUS is not set to zero everywhere on the first
+       ! call (when JLOP is still all zero).
+       JLOP = JLOP_PREVIOUS
 
        ! Zero Rate arrays  
        RRATE = 0.E0
@@ -862,11 +851,11 @@ CONTAINS
        ! read from a climatology (via HEMCO). We may eventually get them
        ! from GEOS-5, but I don't know which field to use (ckeller, 3/9/15).
        ! Note: now use ALBVF from GEOS-5.
- !      IF ( UVmonth /= month ) THEN
- !         CALL GET_UVALBEDO( am_I_Root, Input_Opt, State_Met, RC )
- !         ASSERT_(RC==GIGC_SUCCESS)
- !         UVmonth = month
- !      ENDIF 
+       IF ( UVmonth /= month ) THEN
+          CALL GET_UVALBEDO( am_I_Root, Input_Opt, State_Met, RC )
+          ASSERT_(RC==GIGC_SUCCESS)
+          UVmonth = month
+       ENDIF 
 
        ! Do chemistry
        CALL Do_Chemistry( am_I_Root = am_I_Root,            & ! Root CPU?
@@ -875,9 +864,6 @@ CONTAINS
                           State_Met = State_Met,            & ! Met State
                           RC        = RC                   )  ! Success?
        ASSERT_(RC==GIGC_SUCCESS)
-
-       ! Store in internal variables
-       JLOP_PREV_loc = JLOP
 
        ! Timer off
        CALL MAPL_TimerOff( STATE, 'GC_CHEM' )
@@ -1021,9 +1007,6 @@ CONTAINS
                         State_Chm = State_Chm,  &  ! Chemistry State
                         State_Met = State_Met,  &  ! Meteorology State
                         RC        = RC         )   ! Success or failure?
-
-    ! Deallocate module arrays
-    IF ( Associated(JLOP_PREV_loc) ) DEALLOCATE(JLOP_PREV_loc) 
 
   END SUBROUTINE GIGC_Chunk_Final
 !EOC

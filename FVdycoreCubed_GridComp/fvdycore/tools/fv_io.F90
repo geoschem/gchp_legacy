@@ -70,7 +70,7 @@ module fv_io_mod
 
   !--- version information variables ----
   character(len=128) :: version = '$Id: fv_io.F90,v 1.2.2.1.2.1.120.1 2014-02-21 21:00:40 wputman Exp $'
-  character(len=128) :: tagname = '$Name: jk-G40-GEOSctm-advcore-update3 $'
+  character(len=128) :: tagname = '$Name: Heracles-3_1_CTM $'
 
 contains 
 

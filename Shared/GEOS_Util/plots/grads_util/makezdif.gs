@@ -100,13 +100,14 @@ say ''
 * Create Temporary File at 1x1 degree resolution with consistent levels
 * ---------------------------------------------------------------------
 'setlons'
+*'setx'
 'getinfo lon'
          lon = result
 if( lon < 0 )
-   'set lon   -180 179'
+   'set lon   -180 179.75'
         lon = -180
 else
-   'set lon   0 359'
+   'set lon   0 359.75'
         lon = 0
 endif
 'set lat -90 90'
@@ -119,7 +120,7 @@ while( z<=nlev )
       'set dfile 'file2
       'set lev 'level.z
       'define qtmp = 'q2' + lon-lon'
-      'define qobs = regrid2( qtmp,1,1,bs_p1,0,-90)'
+      'define qobs = regrid2( qtmp,0.25,0.25,bs_p1,0,-90)'
     'undefine qtmp'
        if( z=1 )
           'set gxout stat'
@@ -148,7 +149,7 @@ while( z<=nlev )
              say 'Using Level  :'k' ('level')'
              say '-----------  '
             'define qtmp = 'q1' + lon-lon'
-            'define qmod = regrid2( qtmp,1,1,bs_p1,0,-90)'
+            'define qmod = regrid2( qtmp,0.25,0.25,bs_p1,0,-90)'
           'undefine qtmp'
             '     d qmod-qobs'
        else
@@ -172,7 +173,7 @@ while( z<=nlev )
                  say 'Using Levels :'k' ('level') and 'kp1' ('levp1')'
                  say '------------ '
              endif
-            'define qmod = regrid2( qint,1,1,bs_p1,0,-90)'
+            'define qmod = regrid2( qint,0.25,0.25,bs_p1,0,-90)'
             '     d qmod-qobs'
        endif
              say ' '
@@ -195,6 +196,8 @@ endwhile
 'set t 1'
 'setx'
 'sety'
+'setlons'
+'setlats'
 'setz'
 'makez q z'
 'define 'name'z = qz'
@@ -213,7 +216,9 @@ minval =  1e15
  z = z + 1
  endwhile
 
-'close 'newfile
+*'close 'newfile
+'!remove ZDIFILE.txt'
+'run setenv "ZDIFILE" 'newfile
 
 * Reset Initial Environment Settings
 * ----------------------------------

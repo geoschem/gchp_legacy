@@ -24,7 +24,7 @@ endif
 # Make sure ESMADIR is defined
 # -----------------------------
 ifndef ESMADIR
-   ESMADIR := $(PWD)/../../../../..
+   ESMADIR := $(PWD)/../../..
 endif
 
 #-------------------------------

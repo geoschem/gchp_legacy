@@ -1,0 +1,19 @@
+#
+#
+# sample bacon resource file
+
+
+%s.bkg.eta.%y4%m2%d2.nc4	dyn2prs.x -o %s.ana.prs.%y4%m2%d2.nc4 %file 
+%s.ana.eta.%y4%m2%d2.nc4	dyn2prs.x -o %s.ana.prs.%y4%m2%d2.nc4 %file 
+
+##
+#  Compression
+##
+
+%s.bkg.eta.%y4%m2%d2.nc4        coards2grib  %file &
+%s.ana.eta.%y4%m2%d2.nc4        coards2grib  %file &
+%s.bkg.prs.%y4%m2%d2.nc4        coards2grib  %file
+%s.ana.prs.%y4%m2%d2.nc4        coards2grib  %file
+%s.ana.obs.%y4%m2%d2.ods        gzip -v %file
+%s.ana.obs.%y4%m2%d2.ods        gzip -v -i %file
+%s.ana.obs.%y4%m2%d2.ods        gzip -v -h %file

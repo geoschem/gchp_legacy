@@ -1,6 +1,7 @@
 !
       SUBROUTINE read_Reynolds(ncFileName, NLAT, NLON, LAT, LON, &
-                               SST, ICE, MASK, myUNDEF)
+                               SST, ICE, myUNDEF)
+!                              SST, ICE, MASK, myUNDEF)
 !---------------------------------------------------------------------------
           USE netcdf
           IMPLICIT NONE
@@ -10,7 +11,7 @@
           REAL,                            INTENT(IN)    :: myUNDEF
           REAL, DIMENSION(NLAT),           INTENT(OUT)   :: LAT
           REAL, DIMENSION(NLON),           INTENT(OUT)   :: LON
-          REAL, DIMENSION(NLON,NLAT),      INTENT(OUT)   :: MASK
+!         REAL, DIMENSION(NLON,NLAT),      INTENT(OUT)   :: MASK
           REAL, DIMENSION(NLON,NLAT),      INTENT(OUT)   :: SST
           REAL, DIMENSION(NLON,NLAT),      INTENT(OUT)   :: ICE
 
@@ -74,10 +75,10 @@
 !         CALL hflip( ICE, NLON, NLAT)
 !         CALL hflip( SST, NLON, NLAT)
 
-          MASK = 1.0d0
-          WHERE (SST == myUNDEF)
-              MASK = 0.0d0                     ! Zero over land. ONE over water
-          ENDWHERE
+!         MASK = 1.0d0
+!         WHERE (SST == myUNDEF)
+!             MASK = 0.0d0                     ! Zero over land. ONE over water
+!         ENDWHERE
 !---------------------------------------------------------------------------
       END SUBROUTINE read_Reynolds
 !

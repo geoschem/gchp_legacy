@@ -32,40 +32,40 @@
 !
 ! !INPUT PARAMETERS: 
 !
-                                                 ! ------- Global Metadata ------
-      character(len=*), intent(in) :: fname      ! File name
-      character(len=*), intent(in) :: title      ! A title for the data set
-      character(len=*), intent(in) :: source     ! Source of data, e.g. NASA/DAO
-      character(len=*), intent(in) :: contact    ! Who to contact about the data set, e.g.,
-                                                 ! 'Contact data@gmao.gsfc.nasa.gov'
-      real, intent(in) ::            amiss       ! Missing value such as 1.0E15
+                                                   ! ------- Global Metadata ------
+      character(len=*), intent(in) :: fname        ! File name
+      character(len=*), intent(in) :: title        ! A title for the data set
+      character(len=*), intent(in) :: source       ! Source of data, e.g. NASA/DAO
+      character(len=*), intent(in) :: contact      ! Who to contact about the data set, e.g.,
+                                                   !   'Contact data@gmao.gsfc.nasa.gov'
+      real, intent(in) ::            amiss         ! Missing value such as 1.0E15
 
-                                                 ! ------- Dimension Metadata -------
-      integer, intent(in) ::         im          ! size of longitudinal dimension
-      integer, intent(in) ::         jm          ! size of latitudinal  dimension
-      integer, intent(in) ::         km          ! size of vertical     dimension 
-                                                 ! (surface only=1)
-      real, intent(in) ::            lon(im)     ! longitude of center of gridbox in 
-                                                 ! degrees east of Greenwich (can be 
-                                                 ! -180 -> 180 or 0 -> 360)
-      real, intent(in) ::            lat(jm)     ! latitude of center of gridbox in 
-                                                 ! degrees north of equator
-      real, intent(in) ::            levs(km)    ! Level (units given by levunits) of
-                                                 !   center of gridbox
-      character(len=*), intent(in) ::   levunits    ! units of level dimension, e.g.,
-                                                 !   "millibar", "hPa", or "sigma_level"
-      integer, intent(in) ::        yyyymmdd_beg ! First year-month-day to be written 
-      integer, intent(in) ::          hhmmss_beg ! First hour-minute-second to be written
-      integer, intent(in) ::         timinc      ! Increment between output times (HHMMSS)
+                                                   ! ------- Dimension Metadata -------
+      integer, intent(in) ::         im            ! size of longitudinal dimension
+      integer, intent(in) ::         jm            ! size of latitudinal  dimension
+      integer, intent(in) ::         km            ! size of vertical     dimension 
+                                                   !   (surface only=1)
+      real, intent(in) ::            lon(im)       ! longitude of center of gridbox in 
+                                                   !   degrees east of Greenwich (can be 
+                                                   !   -180 -> 180 or 0 -> 360)
+      real, intent(in) ::            lat(jm)       ! latitude of center of gridbox in 
+                                                   !   degrees north of equator
+      real, intent(in) ::            levs(km)      ! Level (units given by levunits) of
+                                                   !   center of gridbox
+      character(len=*), intent(in) ::   levunits   ! units of level dimension, e.g.,
+                                                   !   "millibar", "hPa", or "sigma_level"
+      integer, intent(in) ::        yyyymmdd_beg   ! First year-month-day to be written 
+      integer, intent(in) ::          hhmmss_beg   ! First hour-minute-second to be written
+      integer, intent(in) ::         timinc        ! Increment between output times (HHMMSS)
 
                                                    ! ------- Variable Metadata -------
       integer, intent(in) ::         nvars         ! number of variables in file
-      character(len=4096), intent(in) ::   vname  ! variable short name, e.g., "hght"
-      character(len=4096), intent(in) ::   vtitle ! variable long name, e.g.,
+      character(len=8192), intent(in) ::   vname   ! variable short name, e.g., "hght"
+      character(len=8192), intent(in) ::   vtitle  ! variable long name, e.g.,
                                                    !   "Geopotential Height"
-      character(len=4096), intent(in) ::   vunits ! variable units, e.g., "meter/second"
+      character(len=8192), intent(in) ::   vunits  ! variable units, e.g., "meter/second"
       integer, intent(in) ::         kmvar(nvars)  ! number of levels for variable; it can
-                                                   !  either be 0 (2-D fields) or equal to km
+                                                   !   either be 0 (2-D fields) or equal to km
 
       real, intent(in) ::    valid_range(2,nvars)  ! Variable valid range; GFIO_PutVar
                                                    ! will return a non-fatal error if a value is 
@@ -141,9 +141,9 @@
       character(len=MAXCHR) ::   vunits_(nvars) ! variable units, e.g., "meter/second"
 
       integer :: i
-      character(len=4096) ::   vname__
-      character(len=4096) ::   vtitle__
-      character(len=4096) ::   vunits__
+      character(len=8192) ::   vname__
+      character(len=8192) ::   vtitle__
+      character(len=8192) ::   vunits__
 
       vname__ = vname
       vtitle__ = vtitle
@@ -168,7 +168,7 @@
 
       contains
         subroutine getnext_(str,value,rc)
-          character(len=4096), intent(inout) :: str
+          character(len=8192), intent(inout) :: str
           character(len=MAXCHR), intent(out) :: value
           integer, intent(out) :: rc
           integer :: i
@@ -217,9 +217,9 @@
 !
 
       character(len=*), intent(in) ::  fname  ! File name
-      integer,       intent(in) ::  fmode  ! File mode:  
-                                           !   0 for READ-WRITE 
-                                           !   non-zero for READ-ONLY
+      integer,          intent(in) ::  fmode  ! File mode:  
+                                              !   0 for READ-WRITE 
+                                              !   non-zero for READ-ONLY
 
 !
 ! !OUTPUT PARAMETERS:
@@ -507,63 +507,63 @@
 !
 ! !OUTPUT PARAMETERS:
 !
-      character(len=MAXCHR), intent(out) ::   title         ! Title of the data set
-      character(len=MAXCHR), intent(out) ::   source        ! Where it came from
-      character(len=MAXCHR), intent(out) ::   contact       ! Who to contact about the data set
-      real, intent(out) ::            amiss         ! Missing value 
+      character(len=MAXCHR), intent(out) ::   title    ! Title of the data set
+      character(len=MAXCHR), intent(out) ::   source   ! Where it came from
+      character(len=MAXCHR), intent(out) ::   contact  ! Who to contact about the data set
+      real, intent(out) ::            amiss            ! Missing value 
 
-                                    ! ------- Dimension Metadata -------
-      real, intent(out) ::            lon(im)       ! longitude of center of gridbox in
-                                    ! degrees east of Greenwich (can be
-                                    ! -180 -> 180 or 0 -> 360)
-      real, intent(out) ::            lat(jm)       ! latitude of center of gridbox in
-                                    ! degrees north of equator
-      real, intent(out) ::            levs(km)      ! Level (units given by levunits) of
-                                    !   center of gridbox
-      character(len=MAXCHR), intent(out) ::   levunits      ! units of level dimension, e.g.,
-                                    !   "hPa", "sigma_level"
-      integer, intent(out) ::        yyyymmdd(lm)   ! Year-month-day on file 
-      integer, intent(out) ::          hhmmss(lm)   ! Hour-minute-second on file 
-      integer, intent(out) ::            timinc     ! Time increment. 
+                                                       ! ------- Dimension Metadata -------
+      real, intent(out) ::            lon(im)          ! longitude of center of gridbox in
+                                                       !   degrees east of Greenwich (can be
+                                                       !   -180 -> 180 or 0 -> 360)
+      real, intent(out) ::            lat(jm)          ! latitude of center of gridbox in
+                                                       !   degrees north of equator
+      real, intent(out) ::            levs(km)         ! Level (units given by levunits) of
+                                                       !   center of gridbox
+      character(len=MAXCHR), intent(out) ::   levunits ! units of level dimension, e.g.,
+                                                       !   "hPa", "sigma_level"
+      integer, intent(out) ::        yyyymmdd(lm)      ! Year-month-day on file 
+      integer, intent(out) ::          hhmmss(lm)      ! Hour-minute-second on file 
+      integer, intent(out) ::            timinc        ! Time increment. 
 
-                                    ! ------- Variable Metadata -------
-      character(len=4096), intent(out) ::   vname  ! variable short name, e.g., "hght"
-      character(len=4096), intent(out) ::   vtitle ! variable long name, e.g.,
-                                               !   "Geopotential Height"
-      character(len=4096), intent(out) ::   vunits ! variable units, e.g., "meter/second"
-      integer, intent(out) ::         kmvar(nvars)  ! number of levels for variable; it can
-                                    !  either be 0 (2-D fields) or equal to km
-      real, intent(out) ::    valid_range(2,nvars)  ! Variable valid range; set to
-                                    !   "amiss" if not known.
+                                                       ! ------- Variable Metadata -------
+      character(len=8192), intent(out) ::   vname      ! variable short name, e.g., "hght"
+      character(len=8192), intent(out) ::   vtitle     ! variable long name, e.g.,
+                                                                  !   "Geopotential Height"
+      character(len=8192), intent(out) ::   vunits     ! variable units, e.g., "meter/second"
+      integer, intent(out) ::         kmvar(nvars)     ! number of levels for variable; it can
+                                                       !  either be 0 (2-D fields) or equal to km
+      real, intent(out) ::    valid_range(2,nvars)     ! Variable valid range; set to
+                                                       !   "amiss" if not known.
  
-                                    ! ------ Packing Metadata ----
-      real, intent(out) ::  packing_range(2,nvars)  ! Variable packing range used
-                                    !  for 16-bit packing. If packing was not
-                                    !  used then returned values will be amiss. 
-                                    ! NOTE: all unpacking is done transparently
-                                    !       by GFIO_GetVar(). 
+                                                       ! ------ Packing Metadata ----
+      real, intent(out) ::  packing_range(2,nvars)     ! Variable packing range used
+                                                       !  for 16-bit packing. If packing was not
+                                                       !  used then returned values will be amiss. 
+                                                       !  NOTE: all unpacking is done transparently
+                                                       !       by GFIO_GetVar(). 
     
-      integer, intent(out) ::    rc      ! Error return code:
-                         !   rc = 0    all is well
-                         !   rc = -3  number of levels is incompatible with file
-                         !   rc = -4  im is incompatible with file
-                         !   rc = -5  jm is incompatible with file
-                         !   rc = -8  lm is incompatible with file
-                         !   rc = -9  nvars is incompatible with file
-                         !   rc = -14  error in getdate
-                         !   rc = -20  vname strings too short
-                         !
-                         !  NetCDF Errors
-                         !  -------------
-                         !  rc = -41  error from ncdid or ncdinq (lat or lon)
-                         !  rc = -42  error from ncdid or ncdinq (lev)
-                         !  rc = -43  error from ncvid (time variable)
-                         !  rc = -47  error from ncdid or ncdinq (time)
-                         !  rc = -48  error from ncinq
-                         !  rc = -50  error from ncagtc (level attribute)
-                         !  rc = -51  error from ncagtc/ncagt (global attribute)
-                         !  rc = -52  error from ncvinq
-                         !  rc = -53  error from ncagtc/ncagt
+      integer, intent(out) ::    rc                    ! Error return code:
+                                                       !   rc = 0    all is well
+                                                       !   rc = -3  number of levels is incompatible with file
+                                                       !   rc = -4  im is incompatible with file
+                                                       !   rc = -5  jm is incompatible with file
+                                                       !   rc = -8  lm is incompatible with file
+                                                       !   rc = -9  nvars is incompatible with file
+                                                       !   rc = -14  error in getdate
+                                                       !   rc = -20  vname strings too short
+                                                       !
+                                                       !  NetCDF Errors
+                                                       !  -------------
+                                                       !  rc = -41  error from ncdid or ncdinq (lat or lon)
+                                                       !  rc = -42  error from ncdid or ncdinq (lev)
+                                                       !  rc = -43  error from ncvid (time variable)
+                                                       !  rc = -47  error from ncdid or ncdinq (time)
+                                                       !  rc = -48  error from ncinq
+                                                       !  rc = -50  error from ncagtc (level attribute)
+                                                       !  rc = -51  error from ncagtc/ncagt (global attribute)
+                                                       !  rc = -52  error from ncvinq
+                                                       !  rc = -53  error from ncagtc/ncagt
 
 ! !FUTURE ENHANCEMENT:
 !                   Next release should include a flag for precision.
@@ -577,7 +577,7 @@
 !     ---------------------------------------------------
       character(len=MAXCHR) ::   vname_(nvars)  ! variable short name, e.g., "hght"
       character(len=MAXCHR) ::   vtitle_(nvars) ! variable long name, e.g.,
-                                               !   "Geopotential Height"
+                                                !   "Geopotential Height"
       character(len=MAXCHR) ::   vunits_(nvars) ! variable units, e.g., "meter/second"
 
       integer :: i, im_, jm_, km_, lm_, nvars_

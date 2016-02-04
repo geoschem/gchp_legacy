@@ -104,7 +104,7 @@ contains
       ! AdvCore Imports
       ! ---------------
       CALL MAPL_AddConnectivity ( GC,                                   &
-                 SHORT_NAME  = (/'MFX', 'MFY', 'CX' , 'CY', 'PLE0', 'PLE1'/),   &
+                 SHORT_NAME  = (/'MFX ', 'MFY ', 'CX  ' , 'CY  ', 'PLE0', 'PLE1'/),   &
                  DST_ID      = AdvCore,                                 &
                  SRC_ID      = DynCore,                                 &
                                                              RC=STATUS  )

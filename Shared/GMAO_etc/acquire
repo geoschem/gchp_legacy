@@ -1,0 +1,1166 @@
+#!/usr/bin/env perl
+#
+# acquire is a utility for retrieving data files from mass storage
+# with caching.
+#
+# !REVISION HISTORY:
+#
+#  02May2000  da Silva  Initial code, man page.
+#  06Jun2000  Owens     First prototype
+#  29Jun2000  Owens     Error trapping and logging
+#  20Sep2000  da Silva  Several mods.
+#  29Sep2000  Owens     Added wildcard token support
+#  11Oct2000  da Silva  Fixed bug in get_remote_list(): needed
+#                       "undef return_list" in order to avoid
+#                       current files to be refetched during
+#                       future fetch.
+#  09Mar2001  Owens     added -L to 'ls -l' commands, fixed 
+#                       bug in two digit year, cleaned up 
+#                       -strict operation
+#  20Jun2001  Owens     linked functions to Remote_utils.pm
+#  12Jul2001  Owens     fixed bug in Look Ahead
+#  21Aug2001  Owens     added support for user@machine in rc file 
+#  10Sep2001  Owens     added logic to clean spool directory
+#  14Aug2002  E. Yeh    rename the oldName to standardName
+#  17Sep2002  E. Yeh    set the default spool directory
+#  25Jul2003  Owens     Mods to support MODIS cloud assimilation
+#  20Jan2004  Owens     Added check for DO_DMGET env variable
+#                       Fixed bug found in -li option (P. Norris)       
+#             Lucchesi  Changed default dmget location 
+#  02Feb2005  Owens     Modified Error handling to catch missing files 
+#                       when running in ignore_obs mode (PR 1269)  
+#  01Mar2005  Todling   On halem, use /gmao/das for spool area
+#  30Jun2006  Owens     Added support for command line file template
+#  31Aug2006  Owens     Added ignore_0 option to ignore zero-length files 
+#  11Oct2007  Owens     Fix rename bug when file names are the same 
+#  18Apr2008  Owens     Changed error_log messages to report unique error code
+#------------------------------------------------------------------
+
+use FindBin;                     # find location of the this script
+use lib "$FindBin::Bin";         # make perl libraries available
+use Err_Log;                     # enable error logging 
+use Env;                         # make env vars readily available
+use File::Basename;              # for basename(), dirname()
+use File::Copy;                  # for copy()
+use Getopt::Long;                # command line options
+use Remote_utils;                # rget and rdmget
+use Manipulate_time;
+
+# Initialize the beast
+# --------------------
+  initialize();
+
+# File lists
+# ----------
+  @current_dtg = make_dtg($nymd.":".$nhms, $increment, $time_steps , 0);
+  ($p_1, $p_2) = make_listSTD(\@current_dtg, \@file_list, \@name_STD);
+  @current_files = @$p_1;   # userId+machine+path+oldName (ymd)
+  @name_std = @$p_2;        # oldName stdName pair (ymd)
+# Retrieve current files
+# ----------------------
+  $fetch_err=fetch_remote(\@current_files , $user_dir, 0);
+  if ($fetch_err) {
+      if ($verbose){
+        print "acquire: >>> $ERROR <<< fetch_remote(strict=$strict), fetch_err =  $fetch_err\n";
+      }
+      if ($strict) {
+        exit ($fetch_err); 
+      }
+      if ($verbose){
+        print "acquire: >>> $ERROR <<< fetch_remote() exception is ignored\n";
+      }
+  }
+  @missing_files=fetch_local(\@current_files, \%REMSIZE);
+  while (($retry_attempts <= $retry) && ($retry) && ($missing_files[1])) {
+       fetch_remote(\@missing_files, $user_dir, 0);
+       @missing_files = fetch_local(\@current_files, \%REMSIZE);
+       $retry_attempts ++;
+       if ($verbose) {
+            print "Retry # $retry_attempts to retrieve @missing_files.\n";
+       }
+       if ($error_logging) {
+            err_log (4, "acquire", "${nymd}","${expid}","99.2",
+            {'err_desc' => "$0:retry $retry_attempts to retrieve @missing_files.",
+             'log_name' => "$error_log" } );
+       }
+  }
+# to rename oldName to standardName
+#----------------------------------
+  $exit_code = rname($p_1, $p_2);
+
+# error checking
+#---------------
+
+  if  (($missing_files[1])&&($strict)){
+       print "MISSING FILES:@missing_files\n";
+       $exit_code = $#missing_files + 1;
+  }else{
+       $exit_code = 0;
+  }
+
+# Retrieve future files
+# ---------------------
+  if ($look_ahead) {
+      if ( $look_inc ) {
+           my $hh_inc  = int($look_inc/10000);
+           my $mm_inc  = ( $look_inc % 10000 ) / 100;
+           my $sec_inc = (60 * $mm_inc) + (3600 * $hh_inc) ;
+         ( $next_nymd, $next_nhms ) = tick ($nymd, $nhms, $sec_inc);
+      } 
+      @future_dtg = make_dtg( $next_nymd.":".$next_nhms, $increment, $look_ahead , 1);
+      @future_files = make_list(\@future_dtg, \@file_list);
+      fetch_remote(\@future_files, $spool_dir, 1);
+  }
+
+exit ($exit_code);
+
+#......................................................................
+
+#
+# Initialize : This routine sets default options, acquires the command line options, verifies
+#              the specified directories for writing  and  checks for any incompatible option 
+#              selections.
+
+sub initialize {
+     my ($status);
+# Set default options
+
+     $exit_code = 0;
+     $retry_attempts = 0;
+     $error_logging = 0;
+     $opt_cp = 0;
+     $opt_d = "./";
+     $opt_dmc = "/usr/bin/dmget";
+     $opt_e = 0;
+     $opt_f = 0;
+     $opt_h = 0;
+     $opt_lfn = 0;
+     $opt_la = 0;
+     $opt_li = 0;
+     $opt_nd = 0;
+     $opt_p = 0;
+     $opt_rc = "acquire.rc";
+     $opt_rcfg = "DEFAULT";
+     $opt_rt = 1;
+     $opt_strict = 0;
+     $opt_ignore_0 = 0;
+     $opt_ssh = "deprecated";
+     $opt_template = 0;
+     $opt_v = 0;
+     $opt_s = "/tmp/$USER/spool/";
+
+# Command line options
+# --------------------
+    my $rc= GetOptions( "cp", "d=s", "dmc=s", "e=s", "f", "h", "lfn", "la=i", "li=i",
+                        "nd", "p", "rc=s", "rcfg=s", "rt=i", "s=s","template=s", "ssh", "v", "strict","ignore_0");
+     usage() if ( $opt_h || $#ARGV <3 || $ARGV[0] eq 'help' || !$rc );
+
+     $user_dir = $opt_d if ($opt_d );
+     $preserve = $opt_p;
+     $copy = $opt_cp;
+     $dmget_cmd = $opt_dmc;
+     $dmget_cmd = $ENV{'FVDMGET'} if ( exists ($ENV{'FVDMGET'}));
+     $error_log = $opt_e;
+     if (( exists ($ENV{'ERROR_LOG_NAME'})) || ( $opt_e) ){
+          $error_logging = 1;
+          ($error_log = $ENV{'ERROR_LOG_NAME'})=~ s/-L // if ( exists ($ENV{'ERROR_LOG_NAME'}));
+          $error_log = $opt_e if ( $opt_e );
+          $error_logging = 0 if ( $opt_e == "999" );
+          $expid = "x";
+          $expid = $ENV{'EXPID'} if ( exists ($ENV{'EXPID'}));
+     }
+     $force = $opt_f;
+     $look_ahead = $opt_la;
+     $look_inc = $opt_li;
+     $lfn = $opt_lfn;
+     if ( ($opt_nd) || ( (exists ($ENV{'DO_DMGET'})) && ($ENV{'DO_DMGET'} == 0 ) ) ){
+         $do_dmget = 0;
+     }else{
+         $do_dmget = 1;
+     }
+     $rcfile = $opt_rc;
+     $retry = $opt_rt;
+     $run_config = $opt_rcfg;
+     $verbose = $opt_v;
+     $strict = $opt_strict;
+     $ignore_0 = $opt_ignore_0;
+     $ignore_0 = $ENV{'IGNORE_0'} if ( exists ($ENV{'IGNORE_0'}));
+     $spool_dir = $opt_s;
+     if( verify_dir($opt_s) == 1 ) {    #failure
+        $opt_s = "/tmp/$USER/spool/";
+        if ( verify_dir($opt_s) == 1 ) { $opt_s = "/tmp/$USER/spool"; }
+     }
+     $tmplt = $opt_template;
+     $nymd = $ARGV[0];
+     $nhms = $ARGV[1];
+     $increment = $ARGV[2];
+     $time_steps = $ARGV[3];
+     %REMSIZE={};
+     $ERROR = "WARNING"; if($strict) { $ERROR = "ERROR" };
+
+# check status of directories
+ 
+     $status = verify_dir($user_dir);  if($status == 1) { exit (1); };   #failure
+     $status = verify_dir($spool_dir); if($status == 1) { exit (1); };
+
+# get list of files from rc file
+     print "opt_template = $opt_template\n";
+     if ( $opt_template eq "0" ) {    
+          @file_list = read_rc( "$rcfile" );
+     }else{
+          @file_list = push( @file_list, $tmplt );
+     }
+
+# initialize listed files
+     @listed_files ='';
+# check for conflicting option settings
+
+     if ($lfn && !$opt_p) {
+         $lfn = 0;
+          print "(acquire) WARNING: -lfn option requires -p option -- long file names will not be used.\n";
+          if ($error_logging) {
+                err_log (4, "acquire", "${nymd}","${expid}","99.3",
+                {'err_desc' => "$0:WARNING: -p option incompatible with -lfn option -- long file names will not be used.",
+                 'log_name' => "$error_log" });
+          }
+     }
+}
+
+#..........................................................................
+
+#
+# fetch_remote:
+# Checks for files in the local spool directory and fetches them from 
+# the remote location if they are not spooled locally.
+#
+
+sub fetch_remote {
+
+     my ( $files, $destination, $bg ) = @_;
+     
+     undef @dmf_machine_list;
+     undef @dmf_file_list;
+     $dmf_file_list = '';
+     my $fetch_needed = 0;
+     my $fetch_error  = 0;
+     my @mss_files = ();
+     foreach my $file ( @$files){
+          $size_remote = 0;
+          if ($verbose){
+               print "CHECKING: $file \n";
+          }
+          $size_remote = $REMSIZE{$file} if (exists($REMSIZE{$file}));
+          if ( ! $size_remote ) {
+               @size = rflist($file ,{ 'size' => "1", 'run_config' => "$run_config" });
+               $size_remote = $size[0];
+               $REMSIZE{"$file"} = $size_remote;
+               print "REMSIZE{$file} = $REMSIZE{$file}\n";
+          }
+          if ($size_remote != -1) {
+               if ( $force ) {
+                    $size_user  = -1;
+                    $size_spool = -1;
+               }else{
+                    $size_spool = get_local_size($file, $spool_dir );
+                    $size_user  = get_local_size($file, $user_dir );
+	       }
+               if (( $size_user eq $size_remote ) && ( !$bg )) {
+                    if ($verbose){
+                         print "FOUND IN USER DIRECTORY:  $file \n";
+                    }
+               }else{
+                    if ( $size_spool ne $size_remote ) {
+                         my ($remote_user, $remote_machine, $remote_file) = splitrfile($file);
+                         my $dmf_count = 0;
+                         my $stored = 0;
+          
+                 if (! @dmf_machine_list){
+                              $fetch_needed = 1;
+                              push (@dmf_user_list, $remote_user);
+                              push (@dmf_machine_list, ${remote_machine});
+                              push (@{$dmf_file_list[0]}, $remote_file);
+
+                         }else{
+                              foreach $machine (@dmf_machine_list) {
+                                   if ( ($machine eq ${remote_machine}) && (! $stored) ){
+                                        push (@{$dmf_file_list[$dmf_count]}, $remote_file);
+                                        $stored = 1;
+                                        $dmf_count ++;
+                                   }else{
+                                        $dmf_count ++;
+                                   }
+                              }
+                              if (! $stored ) {
+                                   push (@dmf_user_list, $remote_user); 
+                                   push (@dmf_machine_list,  "${remote_machine}");
+                                   push (@{$dmf_file_list[$dmf_count]}, $remote_file);
+                              }
+                         }
+                         if ($verbose){
+                              print "- REMOTE FETCH REQUIRED: $file\n";
+                              print "- LOCAL  SIZE: $size_spool \n" unless ( $size_spool == -1 );
+                              print "- REMOTE SIZE: $size_remote \n";
+                         }
+                         remove_local($verbose, $file, $spool_dir );
+                    }else{
+                         if ($verbose){
+                              print "FOUND IN SPOOL DIRECTORY:  $file \n";
+                         }
+                    }
+               } 
+          }else{ 
+               if ($verbose) {
+                 print "acquire.fetch_remote: >>> $ERROR <<< PROBLEM DETERMINING REMOTE SIZE, $file\n";
+               }
+               $fetch_error ++;
+               push (@mss_files, $file);
+          }              
+     } # end foreach
+     if ($fetch_needed) {
+          if ( $preserve ) {
+              $dest_dir = $spool_dir;     # fetch to spool dir for preservation
+	  }else{
+              $dest_dir = $destination;   # fetch to wherever calling sub desires
+	  }
+          if ( $bg ){
+               if ($verbose){
+                    print "Doing background fetch.\n";
+               }
+               dmfetch_bg(\@dmf_file_list, \@dmf_machine_list, \@dmf_user_list, $dest_dir );
+          }else{
+               if ($verbose){
+                    print "Doing foreground fetch.\n";
+               }
+               dmfetch_fg(\@dmf_file_list, \@dmf_machine_list, \@dmf_user_list, $dest_dir );
+          }
+     }else{
+          if ($verbose && $fetch_error) {
+               print "ERROR - MISSING REMOTE FILES!\n";
+          }else{
+               print "NO FETCH NEEDED -- all files found locally\n";
+          }
+    }
+    if ($fetch_error && $error_logging) {
+            if ($verbose) {
+              print "acquire.fetch_remote: >>> $ERROR <<< fetch_error = $fetch_error\n";
+            }
+            $log_rc=err_log (5, "acquire", "${nymd}","${expid}","99",
+                  {'err_desc' => "MISSING: @mss_files",
+                   'log_name' => "$error_log" } );
+            if ($verbose && $log_rc) {
+              print "acquire.fetch_remote: >>> $ERROR <<< err_log(), log_rc = $log_rc\n";
+            }
+          }
+return ($fetch_error);
+}
+
+#............................................................................
+
+#
+# dmfetch_fg:
+# Acquires dmf_file_list files from each machine in dmf_machine_list in the foreground. 
+#
+
+sub dmfetch_fg {
+     
+     my ( $dmf_file_list, $dmf_machine_list, $dmf_user_list, $destination ) = @_;
+     my $count = 0;
+     if ($do_dmget) {
+          foreach $dmf_file_ref (@$dmf_file_list) {
+               print " DOING DMGET OF REMOTE FILES on @$dmf_machine_list[$count] \n";
+               rdmget(@$dmf_user_list[$count], @$dmf_machine_list[$count], \@${dmf_file_ref},
+                                                                            { 'verbose'  => "$verbose",
+                                                                              'dmget_bin' => "$dmget_cmd",
+                                                                              'run_config' => "$run_config" } );
+               $count++;
+          }
+          $count = 0;
+     }else{
+          if ( $verbose ) {
+               print "NOT DOING DMGET OF REMOTE FILES \n";
+          }
+     }
+     foreach $dmf_file_ref (@$dmf_file_list) {
+          $remote_machine = @$dmf_machine_list[$count];
+          $remote_user = @$dmf_user_list[$count];
+          foreach $file_name ( @${dmf_file_ref} ){
+              chomp($file_name);
+              if ($lfn) {
+                   $file_name = long_fn(${file_name});
+                   $destination = ${destination}."/".${remote_machine}."%".${long_file_name} ;
+              }
+              $rget_retcode = rget( "${remote_user}\@$remote_machine:${file_name}", "$destination",
+                                                                            {'debug' => "$verbose",
+                                                                             'run_config' => "$run_config" });
+          }
+          $count ++;
+     }
+
+}
+
+#.............................................................................
+
+#
+# dmfetch_bg:
+# Issues a background dmget on the remote archive machine and acquires dmf_file_list files
+# from each machine in dmf_machine_list in the foreground.
+#
+
+sub dmfetch_bg {
+
+     my ( $dmf_file_list, $dmf_machine_list, $dmf_user_list, $destination ) = @_;
+     my $count = 0;
+
+     FORK: {
+          if ( $pid = fork() ) { #parent here
+               exit(0);  # parent is all done
+
+          }elsif ( defined $pid) {
+                open (SAVEOUT, ">&STDOUT");  # save stdout
+                open (SAVEERR, ">&STDERR");  # save stderr
+                open (STDOUT, ">$destination/logfile") or die "can't redirect stdout";
+                open (STDERR, ">&" . STDOUT)    or die "can't redirect stderr";
+
+                select STDERR; $| = 1;     # make it unbuffered
+                select STDOUT; $| = 1;     # make it unbuffered
+
+               if ($do_dmget) {
+                    my $dmget_stat = 0;
+                    foreach $dmf_file_ref (@$dmf_file_list) {
+                        $rdmget_retcode=rdmget(@$dmf_user_list[count], @$dmf_machine_list[$count], \@${dmf_file_ref},
+                                { 'verbose'    => "$verbose",
+                                  'dmget_bin'  => "$dmget_cmd", 
+                                  'run_config' => "$run_config" } );
+                         print "ERROR in DMGET on @$dmf_machine_list[$count]\n" if ( ! $rdmget_retcode ); 
+                         $count++;
+                    }
+                    $count = 0;
+               }
+               foreach $dmf_file_ref (@$dmf_file_list) {
+                    $remote_machine = @$dmf_machine_list[$count];
+                    $remote_user    = @$dmf_user_list[$count];
+                    foreach $file_name ( @${dmf_file_ref} ){
+                         if ($lfn) {
+                              $file_name = long_fn(${file_name});
+                              $destination = ${destination}."/".${remote_machine}."%".${long_file_name} ;
+                         }
+                         $rget_retcode = rget( "${remote_user}\@$remote_machine:${file_name}", "$destination",
+                                                { 'debug'    => "$verbose",
+                                                  'run_config' => "$run_config" } );
+                         
+                    }
+                   $count ++;
+               
+               }
+               close STDOUT;
+               close STDERR;
+
+               open (STDOUT, ">&SAVEOUT");  # restore stdout
+               open (STDERR, ">&SAVEERR");  # restore stdout
+  
+               exit(0);# fork is finished 
+          }elsif ( $! =~ /No more processes/) {  # recoverable error
+               sleep 5;
+               redo FORK;
+          }else{
+               die "Can't fork: $!\n";
+          }
+     }# end FORK
+}
+
+#......................................................................
+
+#
+# fetch_local:
+# Verifies the user file size compared to the remote file size.
+# If file sizes are different, checks the spool directory. If the
+# file sizes in the spool directory matches those on the remote 
+# system, then (move|symlink|copy) the file to the user directory.
+#
+
+sub fetch_local{
+    my  %REMSIZE = %{ pop( @_ ) };
+    my ( $files ) = @_; 
+    my $file_failure;
+    
+    undef @failed_files;
+    print "VERIFYING LOCAL COPIES\n" if ($verbose);
+    $file_failure = 0;
+    foreach my $file ( @$files){
+       my $size_user   = get_local_size( $file, $user_dir );
+       my $size_remote = $REMSIZE{$file};
+       print "\$size_user = $size_user \$REMSIZE{$file} = $REMSIZE{$file} ignore_0 = $ignore_0 \n";
+       unless ( ( $size_user == $REMSIZE{"$file"} ) || ( ( $REMSIZE{"$file"} == 0 ) && ( $ignore_0 ) ) ){
+            my $size_spool  = get_local_size($file, $spool_dir );
+            print "\$size_spool = $size_spool \$size_remote = $size_remote\n"; 
+            if ( $size_spool == $size_remote ) {
+	         my $base_file = basename($file);
+	         my $dest_file =  ${user_dir}."/".${base_file};
+
+                 if ( $lfn ) {
+	              $long_file = long_fn($file);
+	              $src_file = ${spool_dir}."/".${long_file};
+                 }else{
+                      $src_file = ${spool_dir}."/".${base_file};
+                 }
+
+#            If preserving files on spool...
+#            -------------------------------
+	         if ( $preserve ) {
+                      if ($copy) {
+                           print "COPYING: $src_file to $dest_file\n" if ($verbose);
+                           my $rc = copy ( $src_file, $dest_file );
+                           if (! $rc ) { 
+                                print "ERROR: copy of $src_file to $dest_file failed!\n";
+                                print "Return status is $!\n";
+                                if ($error_logging) {
+                                    err_log (5, "acquire", "${nymd}","${expid}","99.4",
+                                            {'err_desc' => "$0:ERROR copy of $src_file to $dest_file failed!",
+                                             'log_name' => "$error_log" } );
+                                }
+			   }
+                      }else{
+                           print "LINKING: $src_file to $dest_file\n" if ( $verbose );
+                           symlink ( $src_file, $dest_file );
+		      }
+
+#            Otherwise simply move the file to user directory
+#            ------------------------------------------------
+	         }else{
+
+                      if ($verbose){
+                           print "MOVING: $src_file to $dest_file\n";
+                      }
+                      $rc = move($src_file, $dest_file);
+                      if ( ! $rc ) { 
+                           print "ERROR: failed when moving $src_file to $dest_file!\n";
+                           print "       Return status is $!\n";
+                           if ($error_logging) {
+                                err_log (5, "acquire", "${nymd}","sub fetch_local","99.5",
+                                        {'err_desc' => "$0:ERROR moving of $src_file to $dest_file failed!",
+                                         'log_name' => "$error_log" } );
+                           }
+                           $exit_code ++;
+                      } 
+
+		 }
+            }else{
+                 print "File size ERROR: $file is wrong size. Will try again.\n" if ( $retry );
+                 push (@failed_files, $file);
+                 print "failed files = @failed_files\n";
+                 $file_failure ++;
+
+            }
+
+      } # end unless     
+
+    } # end foreach
+    
+    if ($file_failure) {
+        return(@failed_files);
+    } else { 
+      return(0);
+    }
+}
+
+#......................................................................
+
+#
+# remove_local:
+# Deletes local files that need to be fetched. 
+#
+
+sub remove_local {
+     
+     my ( $verbose, $local, $spool ) = @_;
+     undef $local_file;
+     if ( $lfn ){ 
+          $local_file = long_fn($local);
+     } else {
+          $local_file = basename($local);
+           
+     }
+     $local_file = join "/", ${spool},${local_file};
+     if ( -e $local_file ) {
+          if ($verbose) {
+               print "DELETING INCORRECT SIZE LOCAL FILE\n";
+          }
+          $rc=unlink<${local_file}>;
+          if ( !($rc) && ($verbose) ) {
+              print "ERROR DELETING LOCAL FILE\n";
+          }
+     }
+return;
+}
+
+
+#......................................................................
+
+#
+# get_local_size:
+# Returns size in bytes of specified file or -1 if the size can not be determined.
+#
+
+sub get_local_size {
+
+     my ( $local, $spool ) = @_;
+     undef @local_size;
+     undef $local_file;
+     if ( $lfn ){
+          $local_file = long_fn($local);
+     } else {
+          $local_file = basename($local);
+
+     }
+     $local_file = join "/", ${spool},${local_file};
+     $local_size = ( -s $local_file );
+
+     return  ( $local_size || -1 );
+}
+
+#.......................................................................
+
+#
+# verify_dir:
+# check write status of directory and create if needed 
+#
+
+sub verify_dir {
+
+     my ( $dir ) = @_;
+     if  ( ( -d $dir ) && ( -w $dir ) ) {
+          if ($verbose) {
+               print " $dir exists.\n";
+          }
+     } else {
+          if ($verbose) {
+               print "Creating  $dir.\n";
+          }
+          system ("mkdir -p $dir");
+          system ("/bin/chmod 755 $dir");
+     }
+
+     if (( ! -d $dir ) || ( ! -w  $dir ) ) {
+          if ($error_logging) {
+               err_log (5, "acquire", "${nymd}","${expid}","99.1",
+               {'err_desc' => "$0:FATAL ERROR  - can not write to $dir.",
+                'log_name' => "$error_log" } );
+          }
+          print "FATAL ERROR Could not write to $dir.\n";
+          return(1);      #failure
+     } else {
+          if ($verbose) {
+               print "Using  $dir. \n";
+          }
+     }
+     return(0);           #success
+}
+
+
+#......................................................................
+
+#
+# get_remote_list:
+# Uses the specified remote shell command to obtain a list of the files
+# matching the wildcards in the tokenized file name.
+#
+
+sub get_remote_list {
+
+     my ( $remote ) = @_;
+     my $file_name ='';
+     my $full_name ='';
+     my @remote_list = '';
+     my ($remote_user, $remote_machine, $remote_file ) = splitrfile($remote);
+     my $listed = 0;
+     undef @return_list;
+     foreach $test (@listed_files){
+         if ( $test eq $remote_file ){ $listed = 1;}
+     }
+     if (! $listed ){   
+           print "GET REMOTE LIST for $remote_file\n"; 
+           @remote_list = rflist( "${remote}" );
+           $error_code = $?;
+           if (! $error_code ) {
+                 chomp(@remote_list);
+                 foreach $file_name (@remote_list) {
+                     $full_name = "$remote_user"."@"."$remote_machine".":"."$file_name";
+                     push @return_list, $full_name;
+                     push @listed_files, $remote_file;
+                 }
+                 return (@return_list);
+           }else{
+                 print "NO REMOTE MATCHES\n" if $verbose;
+                 return;
+          }
+     }else{
+            return;
+     }
+}
+#......................................................................
+#
+# read_rc:
+#  Gets a list of tokenized file names from the specified rc file
+#
+
+sub read_rc {
+
+     my ( $rcfile ) = @_;
+     my (@arr,  $oldname, $stdname, $line, $count);
+     @name_STD = ();         #standard name array( = . if undefined)
+     unless ( open( RCFILE, $rcfile ) ) {
+         print  "(acquire) ERROR: Configuration file '", $rcfile, "' can not be opened.\n";
+         exit (1);
+      }
+
+      $rc_file_list = "";
+      $count = 0;
+      while ( <RCFILE> ) {
+         chomp;
+         if ((! /^#/ )&&(/.{1,}/))  {             # if not a comment and not a blank line
+             $_ =~ tr/\t/ /s;   $_ =~ s/ //g;     # remove all white spaces
+             @arr = split ("=>", $_);
+             if(scalar(@arr) <= 1) {              # input acq file doesn't have stdname
+               $stdname = ".";
+               $oldname = $arr[0];
+             } else {
+               $stdname = $arr[1];                # stdname (with % and no path)
+               $oldname = $arr[0];                # in machine+path+oldname (%) format
+             } 
+             chomp( $line = $oldname );           # remove any return characters
+             ($line = $line) =~ s/^ *(.*) *$/$1/; # compress any leading, trailing
+             ($line = $line) =~ s/\s+/ /g;        # and multiple embedded spaces
+             $rc_file_list[$count] =  $line;
+             $name_STD[$count] = $stdname;
+             $count ++;
+         }
+      }
+      close( RCFILE );
+
+      return (@rc_file_list);
+}
+
+#......................................................................
+#
+# Makes a list of all possible file names for a particular date/time group.
+#
+
+    sub make_dtg_list {
+
+    my ($nymd, $nhms ,$list ) = @_;
+    undef @resolved_files;
+    my $file;
+    foreach $token_file (@$list){
+         $file = token_resolve($token_file, $nymd, $nhms);
+         if ( ($token_file =~ /%c/) || ($token_file =~ /%n/) ){
+               push @resolved_files, get_remote_list( $file );
+         }else{
+               push @resolved_files, $file;
+         }
+    }
+    return (@resolved_files);
+}
+
+#......................................................................
+# will  mv oldname to the stdname after oldName file copied.
+# oldlist is userId+machine+path+oldName.
+# stdlist is oldName stdName pair.
+sub rname {
+    my ($oldlist, $stdlist) = @_;
+    my (@a, $rcd, $oldname, $stdname, $old, $m, $n, $k, $l);
+    $m = $l = 0;
+# go through the oldlist
+    for ($n = 0; $n < scalar(@$oldlist); $n++) {
+      $k = rindex($$oldlist[$n], "/");
+      $oldname = substr($$oldlist[$n], $k+1);
+# go through the stdlist for the matching pair
+      if(-e $oldname) {  # if oldname exist
+        $l++;
+        foreach $rcd (@$stdlist) {
+          if(($rcd =~ /$oldname/) && (-e $oldname) ) {  # found
+            ($old, $stdname) = split(/ /, $rcd);
+# skip rm and ln if stdname is undefined 
+            if(length($stdname) <= 3) {last;} # found but undefined
+# Check for .gz 
+            if(($oldname =~ /\.gz$/) && !($stdname  =~ /\.gz$/) ) {
+              $stdname .= '.gz';
+            } 
+            if(!($oldname =~ /\.gz$/) && ($stdname  =~ /\.gz$/) ) {
+              @a = split(".gz", $stdname);
+              $stdname = $a[0];
+            }
+            if("$stdname" ne "$oldname") {
+                if (-e $stdname) { unlink $stdname };
+                rename $oldname, $stdname;
+            }
+            $m++;
+            last;
+          }
+        }   #end of foreach $rcd
+      }    #end of if(-e $oldname) {  
+    }
+    if($verbose) {  print(
+      "Rename = $m and actual files = $l\n");  # m = l if every file found
+    }
+    return(0);
+}
+
+#......................................................................
+#
+# will return with old fileName and standard fileName pair
+# $file  old format of fileName (with ymd no machine no path)
+# $std   standard format (in % format no machine no path)
+# Note: need to be updated if new std pattern added.
+ 
+sub make_dtg_listSTD {
+
+    my ($nymd, $nhms, $file, $std) = @_;
+    my ($name_std, $sub1, @ar);
+
+# Special pattern (updated for new std pattern):
+#-----------------------------------------------
+# ssmi_wentz_tpw pattern:   .f??. for std .f%c%c.
+    if ( $std =~ /.f%c%c./ ) {
+      $file =~ /.f(\d{2})./;
+      $sub1 = $1; 
+      $std =~ s/%c%c/$sub1/g;
+    }
+# tovs_l1c pattern:   *.n?. for std .$1_l1c.$2.
+    if ($std =~ /.\$1_l1c.\$2./ ) {
+      @ar = split(/\./, $file); 
+      $std =~ s/\$1/$ar[0]/;  #first field (instrument name) for $1
+      $std =~ s/\$2/$ar[1]/;  #character (sat) from 2nd field
+    }
+    $std = token_resolve( $std, $nymd, $nhms );
+# set up return pair
+#-------------------
+    $name_std = $file . " " . $std; 
+    return ($name_std);
+}
+
+#......................................................................
+
+#
+# make_dtg:
+# Writes an array of all date:time pairs for a given starting point and interval.
+#
+
+sub make_dtg {
+
+    my ( $dtg_pair, $increment, $time_step , $l_ahead ) = @_;
+    my ($nymd, $nhms) = split /:/, $dtg_pair;
+    undef @dtg_array ;
+    my $counter = 0;
+    my $hh = int($increment/10000);
+    my $mm =  ( $increment % 10000 ) / 100;
+    my $num_seconds =  (60 * $mm) + (3600 * $hh) ;
+    my  @new_dtg = ( $nymd, $nhms );
+    my  $new_pair = $new_dtg[0].":".$new_dtg[1];
+    print "CURRENT DATE LIST: " if ( $verbose && !$l_ahead );
+    print "FUTURE  DATE LIST: " if ( $verbose &&  $l_ahead );
+    while ( $counter < $time_step ){
+           push @dtg_array , $new_pair;
+           $nymd = $new_dtg[0];
+           $nhms = $new_dtg[1];
+           print "$nymd/$nhms " if ( $verbose );
+           @new_dtg = (tick( $nymd, $nhms, $num_seconds ) );
+           $new_pair = $new_dtg[0].":".$new_dtg[1];
+           $counter ++;
+    }
+   print "\n" if ( $verbose );
+
+#   Save this for look-ahead feature
+    $next_nymd = $new_dtg[0];
+    $next_nhms = $new_dtg[1];
+
+    return (@dtg_array);
+
+}
+#.......................................................................
+
+#
+# sort_unique:
+# Sorts an array in ascii order and removes any duplicate entries.
+#
+sub sort_unique {
+
+     my ( $raw_files ) = @_;
+     undef %saw;
+     my @unique = grep(!$saw{$_}++, @$raw_files);
+     my @sorted = sort { $a cmp $b } @unique;
+
+     return  (@sorted);
+}
+
+#.......................................................................
+
+#
+# make_list:
+# Returns a sorted unique list of all possible file & date/time combinations
+# from given lists of tokenized file names and dtg pairs.
+# 
+
+
+sub make_list {
+     
+     my ( $local_dtg , $file_list ) = @_;
+     undef @raw_list;
+     foreach my $dtg ( @$local_dtg ){
+         my  @fields = split /:/, $dtg;
+         my  @dtg_segment = make_dtg_list( $fields[0] , $fields[1] , \@$file_list );
+         @raw_list = ( @raw_list, @dtg_segment);
+     }
+     my @sorted_list = sort_unique(\@raw_list);
+     chomp (@sorted_list);
+     return (@sorted_list);
+}
+
+#.......................................................................
+#
+# make_listSTD:
+# Returns a sorted unique list of all possible file & date/time combinations
+# from given lists of tokenized file names and dtg pairs and an unsorted
+# not unique list of oldName stdName (ymd) pair (no userId no machine no path)
+# Note: the second returned array may be longer (more records) than the
+#       first one which is a sorted unique list.
+
+sub make_listSTD {
+
+     my ( $local_dtg, $file_list, $std_list ) = @_;
+     undef @raw_list;
+     my ($name, @std, $name_std, $m, $n, $m2, $x, @z, @sorted_list);
+     $m2 = $n = 0;
+
+     foreach my $dtg ( @$local_dtg ){   # dtg in yyyymmdd:hhmmss format
+       my  @fields = split /:/, $dtg;   # yyyymmdd and hhmmss
+       for ($m = 0; $m < scalar(@$file_list); $m++) {  
+#original filename $z[0] is machine+path+filename (% form)
+#            dtg_segment is userID+machine+path+name (ymd)
+#standard filename $$std_list is  stdName (%form no machine no path) 
+#               name_std[$m2] is oldName, stdName (ymd) pair (no machine no path)
+         $z[0] = $$file_list[$m];  #machine+path+filename(%)
+         my  @dtg_segment = make_dtg_list( $fields[0], $fields[1], \@z );
+         for ($n = 0; $n < scalar(@dtg_segment); $n++) {
+           $k = rindex($dtg_segment[$n], "/");
+           $name = substr($dtg_segment[$n], $k+1);
+           $name_std[$m2] = make_dtg_listSTD($fields[0],$fields[1],$name,$$std_list[$m]);
+           $m2++;
+         }
+         @raw_list = ( @raw_list, @dtg_segment);
+       }
+     }
+     my @sorted_list = sort_unique(\@raw_list);
+     chomp (@sorted_list);
+     return (\@sorted_list, \@name_std);
+}
+
+#.......................................................................
+
+#
+# long_fn:
+# Concatenates remote file paths and names substituting "_" for "/" and "%" for ":"
+# to create unique long file names for local files.
+#
+
+sub long_fn {
+     my ( $file ) = @_;
+     ($file = $file) =~ s?/?_?g;
+     ($file = $file) =~ s/:/%/g;
+
+     return ($file);
+}
+#.......................................................................
+
+sub usage {
+
+   print <<"EOF";
+
+NAME
+     acquire - Retrives files from mass storage with look-ahead capability
+
+SYNOPSIS
+
+     acquire [...options...]  bymd bhms ihms nstep
+
+DESCRIPTION
+
+     Acquire is a general purpose utility for retrieving files from
+     mass storage with a look-ahead spooling capability. The full path
+     names of the files to be retrieved are specified in a resource file
+     (see RESOURCE FILE below) by means of GrADS-like templates. For
+     example, a resource file could specify a file name of the form:
+
+      gatun:/silo3/dao_ops/conv+tovs/ods/Y%y4/M%m2/r4ods.t%y4%m2%d2_%h2z
+
+     The following parameters are required on input:
+
+     bymd    beginning year-month-day, e.g., 19980101
+     bhms    beginning hour-min-sec, e.g., 120000
+     ihms    time step increment in hour-min-sec format
+     nstep   number of timesteps for time looping.
+
+     For example,
+
+         acquire 19980107 120000 060000 6
+
+     will generate the followings pairs of date/time
+
+          nymd       nhms
+         -------    -------
+         19980107   120000
+         19980107   180000
+         19980108   000000
+         19980108   060000
+         19980108   120000
+         19980108   180000
+
+    For each one of these dates/time, acquire will expand the
+    GrADS-like template and retrieve the corresponding files from
+    mass storage. For the examples above, the files to be retrieved
+    are:
+
+    gatun:/silo3/dao_ops/conv+tovs/ods/Y1998/M01/r4ods.t19980107_12z
+    gatun:/silo3/dao_ops/conv+tovs/ods/Y1998/M01/r4ods.t19980107_18z
+    gatun:/silo3/dao_ops/conv+tovs/ods/Y1998/M01/r4ods.t19980108_00z
+    gatun:/silo3/dao_ops/conv+tovs/ods/Y1998/M01/r4ods.t19980108_06z
+    gatun:/silo3/dao_ops/conv+tovs/ods/Y1998/M01/r4ods.t19980108_12z
+    gatun:/silo3/dao_ops/conv+tovs/ods/Y1998/M01/r4ods.t19980108_18z
+
+    Upon transfer from mass storage, these files are made available
+    at the user local directory (see "-d" option).
+
+    The look-ahead capability allows the user to retrieve files for
+    future use. For example,
+
+         acquire -la 4 19980107 120000 060000 6
+
+    will generate 4 additional date/time pairs:
+
+          nymd       nhms
+         -------    -------
+         19980109   000000
+         19980109   060000
+         19980109   120000
+         19980109   180000
+
+   and transfer the files
+    gatun:/silo3/dao_ops/conv+tovs/ods/Y1998/M01/r4ods.t19980109_00z
+    gatun:/silo3/dao_ops/conv+tovs/ods/Y1998/M01/r4ods.t19980109_06z
+    gatun:/silo3/dao_ops/conv+tovs/ods/Y1998/M01/r4ods.t19980109_12z
+    gatun:/silo3/dao_ops/conv+tovs/ods/Y1998/M01/r4ods.t19980109_18z
+
+   to a spool directory. Next time the user issues an "acquire" to
+   retrieve these files, they will already be available locally.
+   For this "look-ahead" transfer acquire forks itself, performing
+   this task in the background.
+
+   Acquire is also smart enough to avoid retrieving the same file
+   more than once. If in the example above we replace the file name
+   template with
+
+     gatun:/silo3/dao_ops/conv+tovs/ods/Y%y4/M%m2/r4ods.t%y4%m2%d2
+
+   only the files
+
+    gatun:/silo3/dao_ops/conv+tovs/ods/Y1998/M01/r4ods.t19980107
+    gatun:/silo3/dao_ops/conv+tovs/ods/Y1998/M01/r4ods.t19980108
+
+   would be retrieved.
+
+OPTIONS
+
+     -cp           when files are to be preserved in spool directory
+                    (see -p) a copy is made to the user destination directory
+                    (the default is to make a symlink)
+     -d path       destination (local) directory (default: ./)
+     -dmc          dmget command to use on remote system, default 
+                    is /usr/bin/dmget
+     -e logfile    name of error log file. (default: no logging enabled)
+     -f            forces remote copy whether the file exists locally or not
+     -h            prints this page
+     -lfn          use long file names in spool directory to
+                    prevent file name conflicts
+     -la lstep     Look ahead lstep time steps, that is, future data
+                    can be pre-fetched and kept in spool directory
+                    (default: lstep=0)
+     -li hhmmss    interval to add to initial date and time before looking ahead
+                     useful if there are data you want to skip over.  (default: 000000)
+     -nd           remote file system is not DMF managed, do not use dmget
+     -ignore_0     ignore zero length data files. 
+     -p            preserve files in spool directory, simply making
+                    a symlink() or copy to the local directory (see -cp); 
+                    this is useful if the file is expected to be reused. 
+                    In such cases one should monitor disk usage in the 
+                    spool directory.
+     -rc fname     resource file name (default: acquire.rc)
+     -ru rem_user  user name on remote machine if different than local machine
+                     (default:\$USER)
+     -rt num_retry number of time to attempt transefers (default: 1)
+     -s path       spool directory (default: /scratch1/\$USER/spool)
+     -strict       returns non-zero exit code if not all files 
+                    specified in the rc file are acquired
+     -v            verbose mode (default is real quiet)
+
+
+RESOURCE FILES
+
+     Acquire resource files consist of comment lines starting with
+     '#' or a remote file name templates of the form
+
+           rhost:path
+
+     This is better explained with an example:
+
+     helios1:/u/joiner/tovs/l1b/%y4%m2/l1c_new/hirs.nj.hdf.t%y4%m2%d2
+
+     In this example, the remote host (rhost) is "helios1".
+     This file name "template" is a GrADS like pattern for matching
+     remote file names (that is, files to be retrieved).
+     Supported tokens are:
+
+          %y4       year,  e.g., 1997
+          %y2       year,  e.g., 97
+          %m2       month, e.g., 12
+          %d2       day,   e.g., 31
+          %h2       hour,  e.g., 18
+          %c        matches any character [?]
+          %n        matches any single digit [0-9]
+
+    In addition to GrADS-like tokens, any defined environment variable
+    can be used in the remote file name template. For example,
+
+     \${MHOST}:/u/joiner/tovs/l1b/%y4%m2/l1c_new/hirs.nj.hdf.t%y4%m2%d2
+
+   would take the remote host name from the environment variable \$MHOST.
+
+   In addition, a remote user can be specified using user\@machine
+
+     dao_user\@gatun:/silo3/dao_ops/conv+tovs/ods/Y%y4/M%m2/r4ods.t%y4%m2%d2
+
+
+ADDITIONAL FILES
+
+     Acquire requires the libraries found in:
+     Remote_utils.pm
+     Extract_config.pm
+     Err_Log.pm
+    
+     and it uses the remote shell specified in:
+     Run_Config
+
+SEE ALSO
+
+    pesto - (P)ut (E)xperiments in Mass (Sto)rage
+
+AUTHORS
+
+     Tommy Owens (towens\@dao.gsfc.nasa.gov)
+     Arlindo da Silva (dasilva\@dao.gsfc.nasa.gov)
+     Rob Lucchesi (rob\@dao.gsfc.nasa.gov)
+
+EOF
+
+  exit(1)
+
+}
+

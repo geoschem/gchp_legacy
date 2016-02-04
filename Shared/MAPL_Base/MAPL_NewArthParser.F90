@@ -110,11 +110,11 @@ MODULE MAPL_NewArthParserMod
                                                                        'atan ', &
                                                                        'heav ' /)
   TYPE tComp
-     INTEGER, DIMENSION(:), POINTER     :: ByteCode
+     INTEGER, DIMENSION(:), POINTER     :: ByteCode => NULL()
      INTEGER                            :: ByteCodeSize
-     REAL,    DIMENSION(:), POINTER     :: Immed
+     REAL,    DIMENSION(:), POINTER     :: Immed => NULL()
      INTEGER                            :: ImmedSize
-     TYPE(Ptrs_Type), DIMENSION(:), POINTER :: Stack
+     TYPE(Ptrs_Type), DIMENSION(:), POINTER :: Stack => NULL()
      INTEGER                            :: StackSize, &
                                            StackPtr
   END TYPE tComp

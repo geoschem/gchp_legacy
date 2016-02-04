@@ -13,12 +13,28 @@ output = subwrd(args,3)
 'getint 'tann 
          tann = result*12
 
+'run minmax radlwg'
+       radmax = subwrd(result,1)
+       radmin = subwrd(result,2)
+'run minmax radswg'
+       dummax = subwrd(result,1)
+       dummin = subwrd(result,2)
+
+if( dummax > radmax ) ; radmax = dummax ; endif
+if( dummin < radmin ) ; radmin = dummin ; endif
+
+radave = (radmax+radmin)/2
+raddif = 1.1*(radmax-radave)
+
+radmax = radave + raddif
+radmin = radave - raddif
+
 * Plot Global Mean Values
 * -----------------------
 'set vpage 0 11 3.5 8'
 'set grads off'
 'set ylab %.0f'
-'set axlim 230 250'
+'set axlim 'radmin' 'radmax
 
 'set cmark  0'
 'set cstyle 1'

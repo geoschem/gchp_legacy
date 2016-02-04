@@ -65,21 +65,21 @@
          integer :: nVarAttInt    ! number of variable int attributes
          integer :: nVarAttReal   ! number of variable real attributes
          integer :: nVarAttChar   ! number of variable char attributes
-         integer, pointer :: attCharCnts(:)       ! length of char attributes
-         integer, pointer :: attRealCnts(:)       ! length of real attributes
-         integer, pointer :: attIntCnts(:)        ! length of int attributes
-         character(len=MLEN), pointer :: attCharNames(:)! char attribute name
-         character(len=MLEN), pointer :: attRealNames(:)! Real attribute name
-         character(len=MLEN), pointer :: attIntNames(:) ! int attribute name
-         character(len=MLEN), pointer :: varAttChars(:) ! char attributes
-         real, pointer :: varAttReals(:,:)   ! User defined real attributes
-         integer, pointer :: varAttInts(:,:) ! User defined integer attributes
+         integer, pointer :: attCharCnts(:) => NULL()        ! length of char attributes
+         integer, pointer :: attRealCnts(:) => NULL()        ! length of real attributes
+         integer, pointer :: attIntCnts(:) => NULL()         ! length of int attributes
+         character(len=MLEN), pointer :: attCharNames(:) => NULL() ! char attribute name
+         character(len=MLEN), pointer :: attRealNames(:) => NULL() ! Real attribute name
+         character(len=MLEN), pointer :: attIntNames(:) => NULL()  ! int attribute name
+         character(len=MLEN), pointer :: varAttChars(:) => NULL()  ! char attributes
+         real, pointer :: varAttReals(:,:) => NULL()    ! User defined real attributes
+         integer, pointer :: varAttInts(:,:) => NULL()  ! User defined integer attributes
          character(len=MVARLEN) :: ordering ! (time, lev, lat, lon) (default)
                                             ! can be any combination of xyzt
          type(iNode), pointer :: iList=>NULL()
          type(rNode), pointer :: rList=>NULL()
          type(cNode), pointer :: cList=>NULL()
-         integer, pointer  :: ChunkSize(:)  ! ChunkSize for each variable
+         integer, pointer  :: ChunkSize(:) => NULL()   ! ChunkSize for each variable
 
       end type ESMF_CFIOVarInfo
 

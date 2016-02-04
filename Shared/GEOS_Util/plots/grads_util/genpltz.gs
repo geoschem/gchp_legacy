@@ -3,8 +3,8 @@ function genpltz (args)
 'numargs  'args
  numargs = result
 
-qmax = NULL
-qmin = NULL
+dqmax = NULL
+dqmin = NULL
 
         num = 0
 while ( num < numargs )
@@ -26,8 +26,8 @@ if( subwrd(args,num) = '-ODESC'   ) ; odesc    = subwrd(args,num+1) ; endif
 if( subwrd(args,num) = '-OUTPUT'  ) ; output   = subwrd(args,num+1) ; endif
 if( subwrd(args,num) = '-SEASON'  ) ; season   = subwrd(args,num+1) ; endif
 if( subwrd(args,num) = '-PTOP'    ) ; ptop     = subwrd(args,num+1) ; endif
-if( subwrd(args,num) = '-MAX'     ) ; qmax     = subwrd(args,num+1) ; endif
-if( subwrd(args,num) = '-MIN'     ) ; qmin     = subwrd(args,num+1) ; endif
+if( subwrd(args,num) = '-MAX'     ) ; dqmax    = subwrd(args,num+1) ; endif
+if( subwrd(args,num) = '-MIN'     ) ; dqmin    = subwrd(args,num+1) ; endif
 if( subwrd(args,num) = '-ZLOG'    ) ; zlog     = subwrd(args,num+1) ; endif
 
 endwhile
@@ -53,8 +53,10 @@ say '-QDESC 'qdesc
 say '-ODESC 'odesc
 say '-OUTPUT 'output
 say '-SEASON 'season
-say '-MAX    'qmax
-say '-MIN    'qmin
+say '-MAX    'dqmax
+say '-MIN    'dqmin
+say '-PTOP   'ptop
+say '-ZLOG   'zlog
 
 * Get Dates for Plots
 * -------------------
@@ -111,16 +113,22 @@ if( result = 'NULL' ) ; 'getresource 'PLOTRC' 'EXPORT'_'GC'_CLEVS' ; endif
 if( result = 'NULL' ) ; 'getresource 'PLOTRC' 'EXPORT'_'GC'_'LEVTYPE'LEVS' ; endif
                                                              dlevs = result
 
-say ''
-say 'CLEVS: 'clevs
-say 'DLEVS: 'dlevs
-say 'DCOLS: 'dcols
-
 if( fact    = 'NULL' ) ; fact    = 1            ; endif
 if( title   = 'NULL' )
-  'getdesc 'EXPORT
-     title  = result
+  'getdesc 'alias
+     title  = alias': 'result
 endif
+
+'getenv "CINTDIFF"'
+         CINTDIFF = result
+
+say ''
+say 'TITLE: 'title
+say ' FACT: 'fact
+say 'CLEVS: 'clevs
+say 'CCOLS: 'ccols
+say 'DLEVS: 'dlevs
+say 'DCOLS: 'dcols
 
     oname = '/hdiag_'obsnam'_'EXPORT'.'GC'_z'
 
@@ -143,7 +151,88 @@ endwhile
 fact = DESC
 
 
+* Find QMIN and QMAX for MODEL Field
+* ----------------------------------
+'set dfile 'qfile
+'set lat -90 90'
+'set lon 0'
+'set lev 1000 'ptop
+'set t 1'
 
+  gg = xyz (xmin,xmax,ymin,ymax,zmin,zmax)
+xmin = subwrd(gg,1)
+xmax = subwrd(gg,2)
+ymin = subwrd(gg,3)
+ymax = subwrd(gg,4)
+zmin = subwrd(gg,5)
+zmax = subwrd(gg,6)
+
+say ' XMIN: 'xmin'   XMAX: 'xmax
+say ' YMIN: 'ymin'   YMAX: 'ymax
+say ' ZMIN: 'zmin'   ZMAX: 'zmax
+
+'set x 'xmin' 'xmax
+'set y 'ymin' 'ymax
+'set z 'zmin' 'zmax
+
+* Determine QMIN and QMAX for Model Field and Corresponding Levels
+* ----------------------------------------------------------------
+     z = zmin
+'set z 'z
+'minmax.simple modz*'fact
+   qmax = subwrd(result,1)
+   qmin = subwrd(result,2)
+  qzmax = zmin
+  qzmin = zmin
+       z = z + 1
+ while( z <= zmax )
+'set z 'z
+'minmax.simple modz*'fact
+ dmax = subwrd(result,1)
+ dmin = subwrd(result,2)
+ if( dmax > qmax ) ; qmax = dmax ; qzmax = z ; endif
+ if( dmin < qmin ) ; qmin = dmin ; qzmin = z ; endif
+ z = z + 1
+ endwhile
+* ------------------------------------------------
+
+say ' QMIN: 'qmin'   QMAX: 'qmax
+say 'QZMIN: 'qzmin'  QZMAX: 'qzmax
+
+'d abs('qmin')'
+        qmin = subwrd(result,4)
+'d abs('qmax')'
+        qmax = subwrd(result,4)
+
+if( qmin > qmax )
+    qmax = qmin
+   'd abs('qzmin')'
+           qzmin = subwrd(result,4)
+   'd abs('qzmax')'
+           qzmax = subwrd(result,4)
+    if( qzmin > qzmax ) ; qzmax = qzmin ; endif
+endif
+
+
+* Determin if ZLOG is appropriate
+* -------------------------------
+if( zlog = NULL )
+   'set z 'zmin' 'zmax
+    if( zmin < zmax ) then
+       'set lev 100'
+       'getinfo zpos'
+                zpos = result
+       'set z 'zmin' 'zmax
+       if( qzmax > zpos )
+           zlog = ON
+       else
+           zlog = OFF
+       endif
+    endif
+say 'Setting ZLOG = 'zlog
+endif
+
+* -------------------------------
 
 
 * Make Mean Plot
@@ -155,6 +244,10 @@ fact = DESC
 'set xlopts 1 3 .11'
 'set ylopts 1 3 .11'
 'rgbset'
+
+************************************************************
+*                         Top Plot
+************************************************************
 
 'set dfile 'qfile
 'set lat -90 90'
@@ -168,23 +261,83 @@ fact = DESC
 'set gxout shaded'
 'set zlog 'zlog
  if( zlog = ON ) ; 'setlevs' ; endif
+say ' '
+say 'Top Plot:'
+say '---------'
 
+       qn = 0
+       qm = 0
 if( ccols = NULL )
-   'shades modz*'fact' 0'
+* ----------------
+
+   'd abs('qmin')'
+           qmin = subwrd(result,4)
+   'd abs('qmax')'
+           qmax = subwrd(result,4)
+   if( qmin > qmax ) ; qmax = qmin ; endif
+   if( qmax > 0 )
+      'd log10('qmax')'
+       qn = subwrd(result,4)
+   else
+       qn = 0
+   endif
+   say '    Log Factor: 'qn
+   if( qn<0 ) ; qn = qn-2 ; endif
+   'getint 'qn
+            qn = result
+   if( qn>0 )
+       if( qn<=2 )
+           qn = 0
+        else
+           qn = qn+2
+        endif
+   endif
+   if( qn<0 )
+       qm = -qn
+   else
+       qm =  qn
+   endif
+
+   say 'Scaling Factor: 'qn
+     if( qn>0 )
+       'shades modz*'fact'/1e'qm' 0'
+       'd      modz*'fact'/1e'qm
+     else
+       'shades modz*'fact'*1e'qm' 0'
+       'd      modz*'fact'*1e'qm
+     endif
+
+* ----------------
 else
+* ----------------
+
    'set clevs 'clevs
    'set ccols 'ccols
-endif
+   'd modz*'fact
 
-'d modz*'fact
+endif
+* ----------------
+
+'set_clevs'
+
+if( ccols = NULL )
+    if( qn>0 )
+       'd modz*'fact'/1e'qm
+    else
+       'd modz*'fact'*1e'qm
+    endif
+else
+   'd modz*'fact
+endif
 'draw ylab Pressure (mb)'
-'set gxout contour'
-'set ccolor 1'
-'set clevs 'clevs
-'d modz*'fact
+
 'set parea 0 8.5 7.0 11'
 'cbarn -vert'
 'set parea off'
+
+************************************************************
+*                        Middle Plot
+************************************************************
 
 'set dfile 'ofile
 'set lat -90 90'
@@ -197,21 +350,41 @@ endif
 'set gxout shaded'
 'set zlog 'zlog
  if( zlog = ON ) ; 'setlevs' ; endif
+say ' '
+say 'Middle Plot:'
+say '------------'
 
 if( ccols = NULL )
-   'shades modz*'fact' 0'
+    if( qn>0 )
+       'shades modz*'fact'/1e'qm' 0'
+       'd      obsz*'fact'/1e'qm
+    else
+       'shades modz*'fact'*1e'qm' 0'
+       'd      obsz*'fact'*1e'qm
+    endif
 else
    'set clevs 'clevs
    'set ccols 'ccols
+   'd obsz*'fact
 endif
 
-'d obsz*'fact
+'set_clevs'
+
+if( ccols = NULL )
+    if( qn>0 )
+       'd obsz*'fact'/1e'qm
+    else
+       'd obsz*'fact'*1e'qm
+    endif
+else
+   'd obsz*'fact
+endif
 'draw ylab Pressure (mb)'
-'set gxout contour'
-'set clevs 'clevs
-'set ccolor 1'
-'d obsz*'fact
 'set parea off'
+
+************************************************************
+*                        Bottom Plot
+************************************************************
 
 'set dfile 'qfile
 'set lat -90 90'
@@ -224,52 +397,98 @@ endif
 'set gxout shaded'
 'set zlog 'zlog
  if( zlog = ON ) ; 'setlevs' ; endif
+say ' '
+say 'Bottom Plot:'
+say '------------'
 
-        n = 0
-if( dcols = NULL )
-   'd abs('qmin'*'fact')'
-           qmin = subwrd(result,4)
-   'd abs('qmax'*'fact')'
-           qmax = subwrd(result,4)
-   if( qmin > qmax ) ; qmax = qmin ; endif
-   if( qmax > 0 )
-      'd log10('qmax')'
-       n = subwrd(result,4)
+       dn = 0
+       dm = 0
+
+if( dcols = NULL | CINTDIFF != NULL )
+* -----------------------------------
+
+   'd 'dqmax'*'fact
+       dqmax = subwrd(result,4)
+   'd 'dqmin'*'fact
+       dqmin = subwrd(result,4)
+
+    say 'DQMAX * FACT: 'dqmax
+    say 'DQMIN * FACT: 'dqmin
+
+   'd abs('dqmin')'
+           dqmin = subwrd(result,4)
+   'd abs('dqmax')'
+           dqmax = subwrd(result,4)
+   if( dqmin > dqmax ) ; dqmax = dqmin ; endif
+   if( dqmax > 0 )
+      'd log10('dqmax')'
+       dn = subwrd(result,4)
    else
-       n = 0
+       dn = 0
    endif
-   say '    Log Factor: 'n
-   if( n<0 ) ; n = n-2 ; endif
-   'getint 'n
-            n = result
-   if( n>0 )
-       if( n<=2 )
-           n = 0
+   say '    Log Factor: 'dn
+   if( dn<0 ) ; dn = dn-2 ; endif
+   'getint 'dn
+            dn = result
+   if( dn>0 )
+       if( dn<=2 )
+           dn = 0
         else
-           n = n+2
+           dn = dn+2
         endif
    endif
-   say 'Scaling Factor: 'n
-      'd 0.1*'qmax'/1e'n
-       cint = subwrd(result,4)
-      'shades 'cint
-      'd qz*'fact'/1e'n
+   if( dn<0 )
+       dm = -dn
+   else
+       dm =  dn
+   endif
+
+   say 'Scaling Factor: 'dn
+
+     if( dn>0 )
+       'd 0.1*'dqmax'/1e'dm
+        cint = subwrd(result,4)
+        say 'dn> 0,  CINT: 'cint
+       'shades 'cint
+       'd qz*'fact'/1e'dm
+     else
+       'd 0.1*'dqmax'*1e'dm
+        cint = subwrd(result,4)
+        say 'dn< 0,  CINT: 'cint
+       'shades 'cint
+       'd qz*'fact'*1e'dm
+     endif
+
+* ----------------
 else
+* ----------------
+
       'set clevs 'dlevs
       'set ccols 'dcols
       'd qz*'fact
+
 endif
+* -------------------------------------------
+
+'cbarn -snum 0.55'
 
 'draw ylab Pressure (mb)'
 'set gxout contour'
 'set ccolor 1'
-if( dcols = NULL )
+if( dcols = NULL | CINTDIFF != NULL )
    'set clevs -'cint' 'cint
+    if( dn>0 )
+      'd qz*'fact'/1e'dm
+    else
+      'd qz*'fact'*1e'dm
+    endif
 else
    'set clevs 'dlevs
+   'd qz*'fact
 endif
-'d qz*'fact'/1e'n
-'cbarn -snum 0.55'
+
+************************************************************
+************************************************************
 
 'set vpage off'
 'set string 1 c 6'
@@ -277,10 +496,17 @@ endif
 'draw string 4.25 10.85 'title
 
 'set strsiz .11'
+
+if( qn != 0 )
+'draw string 4.25 10.635 EXPID: 'expid'  'qdesc' 'season' ('nmod') (x 10**'qn')'
+else
 'draw string 4.25 10.635 EXPID: 'expid'  'qdesc' 'season' ('nmod')'
+endif
+
 'draw string 4.25  7.235 'odesc' 'season' ('nobs') ('climate')'
-if( n != 0 )
-'draw string 4.25  3.850 Difference (Top-Middle) (x 10**'n')'
+
+if( dn != 0 )
+'draw string 4.25  3.850 Difference (Top-Middle) (x 10**'dn')'
 else
 'draw string 4.25  3.850 Difference (Top-Middle)'
 endif
@@ -335,4 +561,49 @@ i = i + 1
 endif
 endwhile
 return length
+
+function xyz (xmin,xmax,ymin,ymax,zmin,zmax)
+'getinfo xfreq'
+         xfreq = result
+     if( xfreq = 'varying' )
+         'getinfo xmin'
+                  xmin = result
+         'getinfo xmax'
+                  xmax = result
+     endif
+     if( xfreq = 'fixed' )
+         'getinfo xpos'
+                  xmin = result
+                  xmax = result
+     endif
+
+'getinfo yfreq'
+         yfreq = result
+     if( yfreq = 'varying' )
+         'getinfo ymin'
+                  ymin = result
+         'getinfo ymax'
+                  ymax = result
+     endif
+     if( yfreq = 'fixed' )
+         'getinfo ypos'
+                  ymin = result
+                  ymax = result
+     endif
+
+'getinfo zfreq'
+         zfreq = result
+     if( zfreq = 'varying' )
+         'getinfo zmin'
+                  zmin = result
+         'getinfo zmax'
+                  zmax = result
+     endif
+     if( zfreq = 'fixed' )
+         'getinfo zpos'
+                  zmin = result
+                  zmax = result
+     endif
+
+return xmin' 'xmax' 'ymin' 'ymax' 'zmin' 'zmax
 

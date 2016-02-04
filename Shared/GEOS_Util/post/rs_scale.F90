@@ -1,4 +1,5 @@
       program  main
+      use MAPL_IOMod
       implicit none
 
 ! ************************************************************************
@@ -32,6 +33,8 @@
       real*8,   allocatable :: dum8(:,:)
       real*8,   allocatable ::   ak(:)
       real*8,   allocatable ::   bk(:)
+      real*8,   allocatable :: delz(:,:,:)
+      real*8,   allocatable ::    w(:,:,:)
 
       real,   allocatable ::   qv(:,:,:)
       real,   allocatable :: qlls(:,:,:)
@@ -55,6 +58,10 @@
       real*8              :: pdrynew_ave
       real                :: kappa
 
+      type(MAPL_NCIO) :: InNCIODyn, OutNCIODyn
+      type(MAPL_NCIO) :: InNCIOMoist, OutNCIOMoist
+      integer         :: filetypeDyn, filetypeMoist, nVars,nVarsMoist
+
       kappa = 2.0/7.0
 
 ! **********************************************************************
@@ -73,33 +80,52 @@
 ! Open Dynamics and Moist Internal Restarts
 ! -----------------------------------------
      read(arg(1),'(a)') dynrst
-     open(unit=10, file=trim(dynrst), form='unformatted')
-
      read(arg(2),'(a)') mstrst
-     open(unit=20, file=trim(mstrst), form='unformatted')
 
-     if( nargs.eq.3 ) then
-     read(arg(3),'(a)') afile
-     open(unit=30, file=trim(afile), form='unformatted')
-     endif
+     call MAPL_NCIOGetFileType(dynrst,filetypeDyn)
+     call MAPL_NCIOGetFileType(mstrst,filetypeMoist)
+     if (filetypeDyn /= filetypeMoist) stop
+
+     if (filetypeDyn == 0) then
+
+        InNCIODyn = MAPL_NCIOOpen(dynrst,rc=rc)
+        InNCIOMoist = MAPL_NCIOOpen(mstrst,rc=rc)
+        call MAPL_NCIOGetDimSizes(InNCIODyn,lon=im,lat=jm,lev=lm,nVars=nVars)
+        call MAPL_NCIOGetDimSizes(InNCIOMoist,nVars=nVarsMoist)
+        
+
+        nymd=0
+        nhms=0
+
+     else
+
+        open(unit=10, file=trim(dynrst), form='unformatted')
+        open(unit=20, file=trim(mstrst), form='unformatted')
  
 ! **********************************************************************
 ! ****                  Read dycore internal Restart                ****
 ! **********************************************************************
 
-      read (10) headr1
-      read (10) headr2
+        read (10) headr1
+        read (10) headr2
 
-      nymd = headr1(1)*10000 &
-           + headr1(2)*100   &
-           + headr1(3)
-      nhms = headr1(4)*10000 &
-           + headr1(5)*100   &
-           + headr1(6)
+        nymd = headr1(1)*10000 &
+             + headr1(2)*100   &
+             + headr1(3)
+        nhms = headr1(4)*10000 &
+             + headr1(5)*100   &
+             + headr1(6)
 
-      im = headr2(1)
-      jm = headr2(2)
-      lm = headr2(3)
+        im = headr2(1)
+        jm = headr2(2)
+        lm = headr2(3)
+
+     end if
+
+     if( nargs.eq.3 ) then
+     read(arg(3),'(a)') afile
+     open(unit=30, file=trim(afile), form='unformatted')
+     endif
 
       print *
       print *, '   dyn restart filename: ',trim(dynrst)
@@ -110,10 +136,6 @@
 
       allocate (   ak(lm+1)       )
       allocate (   bk(lm+1)       )
-
-      read (10) ak
-      read (10) bk
-
       allocate (    u(im,jm,lm)   )
       allocate (    v(im,jm,lm)   )
       allocate (   th(im,jm,lm)   )
@@ -121,23 +143,61 @@
       allocate (  ple(im,jm,lm+1) )
       allocate (  pke(im,jm,lm+1) )
 
-      do L=1,lm
-         read(10)  u(:,:,L)
-      enddo
-      do L=1,lm
-         read(10)  v(:,:,L)
-      enddo
-      do L=1,lm
-         read(10)  th(:,:,L)
-      enddo
-      do L=1,lm+1
-         read(10) ple(:,:,L)
-      enddo
-      do L=1,lm
-         read(10)  pk(:,:,L)
-      enddo
+      if (filetypeDyn == 0) then
 
-      close (10)
+         call MAPL_VarRead(InNCIODyn,"AK",ak)
+         call MAPL_VarRead(InNCIODyn,"BK",bk)
+         do L=1,lm
+            call MAPL_VarRead(InNCIODyn,"U",u(:,:,L),lev=l)
+         enddo
+         do L=1,lm
+            call MAPL_VarRead(InNCIODyn,"V",v(:,:,L),lev=l)
+         enddo
+         do L=1,lm
+            call MAPL_VarRead(InNCIODyn,"PT",th(:,:,L),lev=l)
+         enddo
+         do L=1,lm+1
+            call MAPL_VarRead(InNCIODyn,"PE",ple(:,:,L),lev=l)
+         enddo
+         do L=1,lm
+            call MAPL_VarRead(InNCIODyn,"PKZ",pk(:,:,L),lev=l)
+         enddo
+         ! check if we have delz and w
+         if (nvars == 9) then
+            allocate( delz(im,jm,lm ) )
+            allocate(    w(im,jm,lm ) )
+            do L=1,lm
+               call MAPL_VarRead(InNCIODyn,"DZ",delz(:,:,L),lev=l)
+            enddo
+            do L=1,lm
+               call MAPL_VarRead(InNCIODyn,"W",w(:,:,L),lev=l)
+            enddo
+         end if
+
+      else
+
+         read (10) ak
+         read (10) bk
+
+         do L=1,lm
+            read(10)  u(:,:,L)
+         enddo
+         do L=1,lm
+            read(10)  v(:,:,L)
+         enddo
+         do L=1,lm
+            read(10)  th(:,:,L)
+         enddo
+         do L=1,lm+1
+            read(10) ple(:,:,L)
+         enddo
+         do L=1,lm
+            read(10)  pk(:,:,L)
+         enddo
+
+         close (10)
+
+      endif
 
       allocate ( dp(im,jm,lm) )
       do L=1,lm
@@ -156,29 +216,57 @@
       allocate ( qils(im,jm,lm) )
       allocate ( qicn(im,jm,lm) )
 
-      do L=1,lm
-         read(20)   qv(:,:,L)
-      enddo
-      do L=1,lm
-         read(20) qlls(:,:,L)
-      enddo
-      do L=1,lm
-         read(20) qlcn(:,:,L)
-      enddo
-      do L=1,lm
-         read(20) cfls(:,:,L)
-      enddo
-      do L=1,lm
-         read(20) cfcn(:,:,L)
-      enddo
-      do L=1,lm
-         read(20) qils(:,:,L)
-      enddo
-      do L=1,lm
-         read(20) qicn(:,:,L)
-      enddo
+      if (filetypeMoist == 0) then
+
+         do L=1,lm
+            call MAPL_VarRead(InNCIOMoist,"Q",qv(:,:,l),lev=l)
+         enddo
+         do L=1,lm
+            call MAPL_VarRead(InNCIOMoist,"QLLS",qlls(:,:,l),lev=l)
+         enddo
+         do L=1,lm
+            call MAPL_VarRead(InNCIOMoist,"QLCN",qlcn(:,:,l),lev=l)
+         enddo
+         do L=1,lm
+            call MAPL_VarRead(InNCIOMoist,"CLLS",cfls(:,:,l),lev=l)
+         enddo
+         do L=1,lm
+            call MAPL_VarRead(InNCIOMoist,"CLCN",cfcn(:,:,l),lev=l)
+         enddo
+         do L=1,lm
+            call MAPL_VarRead(InNCIOMoist,"QILS",qils(:,:,l),lev=l)
+         enddo
+         do L=1,lm
+            call MAPL_VarRead(InNCIOMoist,"QICN",qicn(:,:,l),lev=l)
+         enddo
+
+      else
+
+         do L=1,lm
+            read(20)   qv(:,:,L)
+         enddo
+         do L=1,lm
+            read(20) qlls(:,:,L)
+         enddo
+         do L=1,lm
+            read(20) qlcn(:,:,L)
+         enddo
+         do L=1,lm
+            read(20) cfls(:,:,L)
+         enddo
+         do L=1,lm
+            read(20) cfcn(:,:,L)
+         enddo
+         do L=1,lm
+            read(20) qils(:,:,L)
+         enddo
+         do L=1,lm
+            read(20) qicn(:,:,L)
+         enddo
 
       close (20)
+
+      end if
 
 ! **********************************************************************
 ! ****                 Compute/Import Grid-Cell Area                ****
@@ -278,111 +366,195 @@
       call AreaMean( pdrynew, area, pdrynew_ave, im,jm )
 
       write(6,1001) pdrynew_ave/100,pdryold_ave/100,pdrynew_ave/pdryold_ave
- 1001 format(1x,'PSDRY_NEW: ',g,'  PSDRY_OLD: ',g,'  RATIO: ',g)
+ 1001 format(1x,'PSDRY_NEW: ',g20.10,'  PSDRY_OLD: ',g20.10,'  RATIO: ',g20.10)
 
 ! **********************************************************************
 ! ****                 Write dycore internal Restart                ****
 ! **********************************************************************
 
-      allocate ( dum8(im,jm) )
+      if (filetypeDyn == 0) then
 
-      open (10,file=trim(dynrst),form='unformatted',access='sequential')
+         dynrst = trim(dynrst) // '.scaled'
+         call MAPL_NCIOChangeRes(InNCIODyn,OutNCIODyn,latSize=jm,lonSize=im)
+         call MAPL_NCIOSet(OutNCIODyn,filename=dynrst)
+         call MAPL_NCIOCreateFile(OutNCIODyn)
 
-      dynrst = trim(dynrst) // '.scaled'
-      print *
-      print *, 'Creating GEOS-5 fvcore_internal_restart: ',trim(dynrst)
-      open (20,file=trim(dynrst),form='unformatted',access='sequential')
+         call MAPL_VarWrite(OutNCIODyn,"AK",ak)
+         call MAPL_VarWrite(OutNCIODyn,"BK",bk)
+         do L=1,lm
+            call MAPL_VarWrite(OutNCIODyn,"U",u(:,:,L),lev=L)
+         enddo
+         do L=1,lm
+            call MAPL_VarWrite(OutNCIODyn,"V",v(:,:,L),lev=L)
+         enddo
+         do L=1,lm
+            call MAPL_VarWrite(OutNCIODyn,"PT",th(:,:,L),lev=L)
+         enddo
+         do L=1,lm+1
+            call MAPL_VarWrite(OutNCIODyn,"PE",ple(:,:,L),lev=L)
+         enddo
+         do L=1,lm
+            call MAPL_VarWrite(OutNCIODyn,"PKZ",pk(:,:,L),lev=L)
+         enddo
+         if (nvars==9) then
+            do L=1,lm
+               call MAPL_VarWrite(OutNCIODyn,"DZ",delz(:,:,L),lev=L)
+            enddo
+            do L=1,lm
+               call MAPL_VarWrite(OutNCIODyn,"W",w(:,:,L),lev=L)
+            enddo
+         end if
 
-      read (10) headr1
-      read (10) headr2
-      read (10) ak
-      read (10) bk
+      else
 
-      write(20) headr1
-      write(20) headr2
-      write(20) ak
-      write(20) bk
+         allocate ( dum8(im,jm) )
 
-          do L=1,lm
-             read (10) dum8
-             write(20) u(:,:,L)
-          enddo
-          do L=1,lm
-             read (10) dum8
-             write(20) v(:,:,L)
-          enddo
-          do L=1,lm
-             read (10) dum8
-             write(20) th(:,:,L)
-          enddo
-          do L=1,lm+1
-             read (10) dum8
-             write(20) ple(:,:,L)
-          enddo
-          do L=1,lm
-             read (10) dum8
-             write(20) pk(:,:,L)
-          enddo
+         open (10,file=trim(dynrst),form='unformatted',access='sequential')
 
-                rc =  0
-      do while (rc.eq.0)
-         read (10,iostat=rc)     dum8
-         if( rc.eq.0 ) write(20) dum8
-      enddo
+         dynrst = trim(dynrst) // '.scaled'
+         print *
+         print *, 'Creating GEOS-5 fvcore_internal_restart: ',trim(dynrst)
+         open (20,file=trim(dynrst),form='unformatted',access='sequential')
 
-      close (10)
-      close (20)
+         read (10) headr1
+         read (10) headr2
+         read (10) ak
+         read (10) bk
+
+         write(20) headr1
+         write(20) headr2
+         write(20) ak
+         write(20) bk
+
+             do L=1,lm
+                read (10) dum8
+                write(20) u(:,:,L)
+             enddo
+             do L=1,lm
+                read (10) dum8
+                write(20) v(:,:,L)
+             enddo
+             do L=1,lm
+                read (10) dum8
+                write(20) th(:,:,L)
+             enddo
+             do L=1,lm+1
+                read (10) dum8
+                write(20) ple(:,:,L)
+             enddo
+             do L=1,lm
+                read (10) dum8
+                write(20) pk(:,:,L)
+             enddo
+
+                   rc =  0
+         do while (rc.eq.0)
+            read (10,iostat=rc)     dum8
+            if( rc.eq.0 ) write(20) dum8
+         enddo
+
+         close (10)
+         close (20)
+
+      end if
 
 ! **********************************************************************
 ! ****                  Write moist internal Restart                ****
 ! **********************************************************************
 
-      allocate ( dum4(im,jm) )
+      if (fileTypeMoist == 0) then
 
-      open (10,file=trim(mstrst),form='unformatted',access='sequential')
+         mstrst = trim(mstrst) // '.scaled'
+         call MAPL_NCIOChangeRes(InNCIOMoist,OutNCIOMoist,latSize=jm,lonSize=im)
+         call MAPL_NCIOSet(OutNCIOMoist,filename=mstrst)
+         call MAPL_NCIOCreateFile(OutNCIOMoist)
 
-      mstrst = trim(mstrst) // '.scaled'
-      print *
-      print *, 'Creating GEOS-5  moist_internal_restart: ',trim(mstrst)
-      open (20,file=trim(mstrst),form='unformatted',access='sequential')
+         do L=1,lm
+            call MAPL_VarWrite(OutNCIOMoist,"Q",qv(:,:,l),lev=l)
+         enddo
+         do L=1,lm
+            call MAPL_VarWrite(OutNCIOMoist,"QLLS",qlls(:,:,l),lev=l)
+         enddo
+         do L=1,lm
+            call MAPL_VarWrite(OutNCIOMoist,"QLCN",qlcn(:,:,l),lev=l)
+         enddo
+         do L=1,lm
+            call MAPL_VarWrite(OutNCIOMoist,"CLLS",cfls(:,:,l),lev=l)
+         enddo
+         do L=1,lm
+            call MAPL_VarWrite(OutNCIOMoist,"CLCN",cfcn(:,:,l),lev=l)
+         enddo
+         do L=1,lm
+            call MAPL_VarWrite(OutNCIOMoist,"QILS",qils(:,:,l),lev=l)
+         enddo
+         do L=1,lm
+            call MAPL_VarWrite(OutNCIOMoist,"QICN",qicn(:,:,l),lev=l)
+         enddo
+         ! check if we have ncpl and ncpi
+         if (nVarsMoist == 9) then
+            allocate( dum4(im,jm) )
+               
+            do L=1,lm
+               call MAPL_VarRead(InNCIOMoist,"NCPL",dum4,lev=l)
+               call MAPL_VarWrite(OutNCIOMoist,"NCPL",dum4,lev=l)
+            enddo
+            do L=1,lm
+               call MAPL_VarRead(InNCIOMoist,"NCPI",dum4,lev=l)
+               call MAPL_VarWrite(OutNCIOMoist,"NCPI",dum4,lev=l)
+            enddo
 
-      do L=1,lm
-         read (10) dum4
-         write(20)   qv(:,:,L)
-      enddo
-      do L=1,lm
-         read (10) dum4
-         write(20) qlls(:,:,L)
-      enddo
-      do L=1,lm
-         read (10) dum4
-         write(20) qlcn(:,:,L)
-      enddo
-      do L=1,lm
-         read (10) dum4
-         write(20) cfls(:,:,L)
-      enddo
-      do L=1,lm
-         read (10) dum4
-         write(20) cfcn(:,:,L)
-      enddo
-      do L=1,lm
-         read (10) dum4
-         write(20) qils(:,:,L)
-      enddo
-      do L=1,lm
-         read (10) dum4
-         write(20) qicn(:,:,L)
-      enddo
+         end if
 
-                rc =  0
-      do while (rc.eq.0)
-         read (10,iostat=rc)     dum4
-         if( rc.eq.0 ) write(20) dum4
-      enddo
+      else
 
-      close (10)
-      close (20)
+         allocate ( dum4(im,jm) )
+
+         open (10,file=trim(mstrst),form='unformatted',access='sequential')
+
+         mstrst = trim(mstrst) // '.scaled'
+         print *
+         print *, 'Creating GEOS-5  moist_internal_restart: ',trim(mstrst)
+         open (20,file=trim(mstrst),form='unformatted',access='sequential')
+
+         do L=1,lm
+            read (10) dum4
+            write(20)   qv(:,:,L)
+         enddo
+         do L=1,lm
+            read (10) dum4
+            write(20) qlls(:,:,L)
+         enddo
+         do L=1,lm
+            read (10) dum4
+            write(20) qlcn(:,:,L)
+         enddo
+         do L=1,lm
+            read (10) dum4
+            write(20) cfls(:,:,L)
+         enddo
+         do L=1,lm
+            read (10) dum4
+            write(20) cfcn(:,:,L)
+         enddo
+         do L=1,lm
+            read (10) dum4
+            write(20) qils(:,:,L)
+         enddo
+         do L=1,lm
+            read (10) dum4
+            write(20) qicn(:,:,L)
+         enddo
+
+                   rc =  0
+         do while (rc.eq.0)
+            read (10,iostat=rc)     dum4
+            if( rc.eq.0 ) write(20) dum4
+         enddo
+
+         close (10)
+         close (20)
+
+      end if
 
       stop
       end

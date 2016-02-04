@@ -3573,6 +3573,9 @@
          real(REAL8):: dz1(npz)
         integer :: i, j, k, m, icenter, jcenter
 
+        integer :: seed_size
+        integer, allocatable :: THE_SEED(:)
+
         f0_const = 2.*omega*sin(deglat/180.*pi)
         f0(:,:) = f0_const
         fC(:,:) = f0_const
@@ -3630,6 +3633,83 @@
            pt(:,:,:)=1.
            delp(:,:,:)=1500.
 
+        case ( 13 )
+!---------------------------
+! Doubly periodic Aqua-plane RCE
+!---------------------------
+           u(:,:,:) = 0.
+           v(:,:,:) = 0.
+           do j=jsd,jed
+              do i=isd,ied
+                 phis(i,j) = 0.
+                   ps(i,j) = 1000.E2
+              enddo
+           enddo
+
+           do k=1,npz
+              do j=jsd,jed
+                 do i=isd,ied
+                    pt(i,j,k) = 250.  ! real(REAL8)ly cold start
+                    delp(i,j,k) = ak(k+1)-ak(k) + ps(i,j)*(bk(k+1)-bk(k))
+                 enddo
+              enddo
+           enddo
+
+! *** Add Initial perturbation ***
+           r0 = 20.*sqrt(dx_const**2 + dy_const**2)
+!          icenter = npx/2
+!          jcenter = npy/2
+! Off center for spin up hurricanes
+           icenter = npx/2 + 1
+           jcenter = npy/2 + 1
+
+           call random_seed(size=seed_size)
+           allocate(THE_SEED(seed_size))
+
+           THE_SEED=gid*npx
+
+           call random_seed(PUT=THE_SEED)
+
+           do j=js,je
+              do i=is,ie
+                !dist = ( 10000*(REAL(i)/REAL(j)) - INT( 10000*(REAL(i)/REAL(j)) ) )
+                !dist = dist * ( 10000*(REAL(j)/REAL(i)) - INT( 10000*(REAL(j)/REAL(i)) ) )
+                !dist = MIN(r0 , r0 * ( 10000*(dist) - INT( 10000*(dist) ) ) )
+                 call random_number ( dist )
+                 dist = MIN(r0 , r0*dist)
+                 do k=1,npz
+                    prf = ak(k) + ps(i,j)*bk(k)
+                    if ( prf > 100.E2 ) then
+                        !pt(i,j,k) = pt(i,j,k) + 50.*(1. - (dist/r0)) * prf/ps(i,j)
+                         pt(i,j,k) = pt(i,j,k) + 0.1*(1. - (dist/r0)) * prf/ps(i,j)
+                    endif
+                 enddo
+              enddo
+           enddo
+
+          call p_var(npz, is, ie, js, je, ptop, ptop_min, delp, delz, pt, ps,   &
+                     pe, peln, pk, pkz, kappa, q, ng, ncnst, dry_mass, .false., .false., &
+                     moist_phys, hydrostatic, k_top, nwat, .true.)
+
+          q = 0.
+         do k=3,npz
+            do j=js,je
+               do i=is,ie
+                  pm(i) = delp(i,j,k)/(peln(i,k+1,j)-peln(i,k,j))
+               enddo
+               call qsmith(ie-is+1, 1, 1, pt(is:ie,j,k), pm, q(is:ie,j,k,1), qs)
+               do i=is,ie
+                  if ( pm(i)>100.E2 ) then
+                       q(i,j,k,1) = 0.99*qs(i)
+                  else
+                       q(i,j,k,1) = 3.E-6
+                  endif
+               enddo
+            enddo
+         enddo
+
+         deallocate(THE_SEED)
+
         case ( 14 )
 !---------------------------
 ! Doubly periodic Aqua-plane
@@ -3663,7 +3743,7 @@
            do j=js,je
               do i=is,ie
                  dist = (i-icenter)*dx_const*(i-icenter)*dx_const   &
-                         +(j-jcenter)*dy_const*(j-jcenter)*dy_const
+                       +(j-jcenter)*dy_const*(j-jcenter)*dy_const
                  dist = min(r0,sqrt(dist))
                  do k=1,npz
                     prf = ak(k) + ps(i,j)*bk(k)
