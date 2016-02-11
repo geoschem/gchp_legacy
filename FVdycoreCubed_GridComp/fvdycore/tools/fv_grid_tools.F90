@@ -15,8 +15,7 @@ module fv_grid_tools_mod
                            project_sphere_v,  cell_center2,    &
                            get_area, inner_prod, deglat,       &
                            sw_corner, se_corner, ne_corner, nw_corner, fill_ghost, &
-                           Gnomonic_grid, direct_transform,&
-                           rsin2, rsin_u, rsin_v, cosa_s
+                           Gnomonic_grid, direct_transform
   use fv_timing_mod,  only: timing_on, timing_off
   use fv_mp_mod,      only: gid, masterproc, domain, tile, &
                             is,js,ie,je,isd,jsd,ied,jed, ng, &
@@ -140,7 +139,7 @@ module fv_grid_tools_mod
             rdxa, rdya, d2a2c, ctoa, atod, dtoa, atoc, atob_s,   &
             mp_update_dwinds, rotate_winds, &
             spherical_to_cartesian, globalsum, &
-            get_unit_vector, unit_vect2, atoc_v2
+            get_unit_vector, unit_vect2
   public :: grid_type, dx_const, dy_const
   public :: deglon_start, deglon_stop, deglat_start, deglat_stop
   public :: debug_message_size, write_grid_char_file
@@ -2137,190 +2136,6 @@ contains
 !
 ! ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ !
 !-------------------------------------------------------------------------------
-
-!-------------------------------------------------------------------------------
-! vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv !
-!
-!     atoc_v2 :: interpolate from the A-Grid to the C-grid with high-order
-!                edge handling. Adapted from d2a2c_vect used in c_sw (FV3)
-!
-subroutine atoc_v2(ua, va, uc, vc, npx, npy )
-  real, intent(in)    :: ua(isd:ied,jsd:jed)
-  real, intent(in)    :: va(isd:ied,jsd:jed)
-  real, intent(inout) :: uc(isd:ied+1,jsd:jed  )
-  real, intent(inout) :: vc(isd:ied  ,jsd:jed+1)
-  integer, intent(in) :: npx, npy
-  ! Local
-  real                :: utmp(isd:ied,jsd:jed)
-  real                :: vtmp(isd:ied,jsd:jed)
-  integer             :: npt, i, j, ifirst, ilast, id
-  real                :: subFac
-  real, parameter     :: a1 =  0.5625
-  real, parameter     :: a2 = -0.0625
-  real, parameter     :: c1 = -2./14.
-  real, parameter     :: c2 = 11./14.
-  real, parameter     :: c3 =  5./14.
-  real, parameter     :: t11=27./28.
-  real, parameter     :: t12=-13./28.
-  real, parameter     :: t13=3./7.
-  real, parameter     :: t14=6./7.
-  real, parameter     :: t15=3./28.
-
-  ! Assume dord4 was false (true gives id = 1)
-  id = 0
-  
-  if (grid_type < 3) then
-    npt = 4
-  else
-    npt = -2
-  endif
-
-  ! Initialize
-  utmp = 1.e35
-  vtmp = 1.e35
-
-  do j=jsd,jed
-  do i=isd,ied
-    utmp(i,j) = ua(i,j)
-    vtmp(i,j) = va(i,j)
-  enddo
-  enddo
-
-!--------------
-! Fix the edges
-!--------------
-! Xdir:
-     if( sw_corner ) then
-         do i=-2,0
-            utmp(i,0) = -vtmp(0,1-i)
-         enddo
-     endif
-     if( se_corner ) then
-         do i=0,2
-            utmp(npx+i,0) = vtmp(npx,i+1)
-         enddo
-     endif
-     if( ne_corner ) then
-         do i=0,2
-            utmp(npx+i,npy) = -vtmp(npx,je-i)
-         enddo
-     endif
-     if( nw_corner ) then
-         do i=-2,0
-            utmp(i,npy) = vtmp(0,je+i)
-         enddo
-     endif
-
-  if (grid_type < 3) then
-     ifirst = max(3,    is-1)
-     ilast  = min(npx-2,ie+2)
-  else
-     ifirst = is-1
-     ilast  = ie+2
-  endif
-!---------------------------------------------
-! 4th order interpolation for interior points:
-!---------------------------------------------
-     do j=js-1,je+1
-        do i=ifirst,ilast
-           uc(i,j) = a1*(utmp(i-1,j)+utmp(i,j))+a2*(utmp(i-2,j)+utmp(i+1,j))
-        enddo
-     enddo
-
-     if (grid_type < 3) then
-
-     if( is==1 ) then
-        do j=js-1,je+1
-           uc(0,j) = c1*utmp(-2,j) + c2*utmp(-1,j) + c3*utmp(0,j) 
-! 3-pt extrapolation --------------------------------------------------
-           uc(1,j) = ( t14*(utmp( 0,j)+utmp(1,j))    &
-                     + t12*(utmp(-1,j)+utmp(2,j))    &
-                     + t15*(utmp(-2,j)+utmp(3,j)) )*rsin_u(1,j)
-           uc(2,j) = c1*utmp(3,j) + c2*utmp(2,j) + c3*utmp(1,j)
-        enddo
-     endif
-
-     if( (ie+1)==npx ) then
-        do j=js-1,je+1
-           uc(npx-1,j) = c1*utmp(npx-3,j)+c2*utmp(npx-2,j)+c3*utmp(npx-1,j) 
-! 3-pt extrapolation --------------------------------------------------------
-           uc(npx,j) = (t14*(utmp(npx-1,j)+utmp(npx,j))+      &
-                        t12*(utmp(npx-2,j)+utmp(npx+1,j))     &
-                      + t15*(utmp(npx-3,j)+utmp(npx+2,j)))*rsin_u(npx,j)
-           uc(npx+1,j) = c3*utmp(npx,j)+c2*utmp(npx+1,j)+c1*utmp(npx+2,j) 
-        enddo
-     endif
-
-     endif
-
-!------
-! Ydir:
-!------
-     if( sw_corner ) then
-         do j=-2,0
-            vtmp(0,j) = -utmp(1-j,0)
-         enddo
-     endif
-     if( nw_corner ) then
-         do j=0,2
-            vtmp(0,npy+j) = utmp(j+1,npy)
-         enddo
-     endif
-     if( se_corner ) then
-         do j=-2,0
-            vtmp(npx,j) = utmp(ie+j,0)
-         enddo
-     endif
-     if( ne_corner ) then
-         do j=0,2
-            vtmp(npx,npy+j) = -utmp(ie-j,npy)
-         enddo
-     endif
-
-     if (grid_type < 3) then
-
-     do j=js-1,je+2
-      if ( j==1 ) then
-        do i=is-1,ie+1
-! 3-pt extrapolation -----------------------------------------
-           vc(i,1) = (t14*(vtmp(i, 0)+vtmp(i,1))    &
-                    + t12*(vtmp(i,-1)+vtmp(i,2))    &
-                    + t15*(vtmp(i,-2)+vtmp(i,3)))*rsin_v(i,1)
-        enddo
-      elseif ( j==0 .or. j==(npy-1) ) then
-        do i=is-1,ie+1
-           vc(i,j) = c1*vtmp(i,j-2) + c2*vtmp(i,j-1) + c3*vtmp(i,j)
-        enddo
-      elseif ( j==2 .or. j==(npy+1) ) then
-        do i=is-1,ie+1
-           vc(i,j) = c1*vtmp(i,j+1) + c2*vtmp(i,j) + c3*vtmp(i,j-1)
-        enddo
-      elseif ( j==npy ) then
-        do i=is-1,ie+1
-! 3-pt extrapolation --------------------------------------------------------
-           vc(i,npy) = (t14*(vtmp(i,npy-1)+vtmp(i,npy))    &
-                      + t12*(vtmp(i,npy-2)+vtmp(i,npy+1))  &
-                      + t15*(vtmp(i,npy-3)+vtmp(i,npy+2)))*rsin_v(i,npy)
-        enddo
-      else
-! 4th order interpolation for interior points:
-        do i=is-1,ie+1
-           vc(i,j) = a2*(vtmp(i,j-2)+vtmp(i,j+1))+a1*(vtmp(i,j-1)+vtmp(i,j))
-        enddo
-      endif
-     enddo
-
-    else
-       ! grid_type >= 3
-! 4th order interpolation:
-       do j=js-1,je+2
-          do i=is-1,ie+1
-             vc(i,j) = a2*(vtmp(i,j-2)+vtmp(i,j+1))+a1*(vtmp(i,j-1)+vtmp(i,j))
-          enddo
-       enddo
-    endif
-
-end subroutine atoc_v2
 
 !-------------------------------------------------------------------------------
 ! vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv !

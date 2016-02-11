@@ -512,7 +512,7 @@ subroutine A2CnoRotate(U, V)
   use fv_control_mod,    only: npx,npy
   use fv_mp_mod,         only: domain, tile, &
                                is,js,ie,je,isd,jsd,ied,jed, ng
-  use fv_grid_tools_mod, only: atoc, atoc_v2
+  use fv_grid_tools_mod, only: atoc
   implicit none
   real, intent(INOUT) :: U(:,:,:)
   real, intent(INOUT) :: V(:,:,:)
@@ -529,9 +529,8 @@ subroutine A2CnoRotate(U, V)
 
      call mpp_update_domains(uatmp, vatmp, domain, gridtype=AGRID)
 
-     !call atoc(uin=uatmp, vin=vatmp, uout=uc, vout=vc, &
-     !          npx=npx, npy=npy, ng=ng, noComm=.true.)
-     call atoc_v2(uatmp,vatmp,uc,vc,npx,npy)
+    call atoc(uin=uatmp, vin=vatmp, uout=uc, vout=vc, &
+              npx=npx, npy=npy, ng=ng, noComm=.true.)
      u(:,:,k) = uc(is:ie,js:je)
      v(:,:,k) = vc(is:ie,js:je)
 
