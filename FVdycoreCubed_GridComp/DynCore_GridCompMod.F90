@@ -1103,7 +1103,7 @@ contains
     call MAPL_AddExportSpec ( gc,                                      &
          SHORT_NAME = 'DOXDTDYN',                                      &
          LONG_NAME  = 'tendency_of_ozone_due_to_dynamics',             &
-         UNITS      = 'kg/kg/s',                                     &
+         UNITS      = 'mol mol-1 s-1',                                 &
          DIMS       = MAPL_DimsHorzVert,                               &
          VLOCATION  = MAPL_VLocationCenter,                 RC=STATUS  )
      VERIFY_(STATUS)
@@ -2050,6 +2050,7 @@ contains
          UNITS      = 'Pa',                                        &
          PRECISION  = ESMF_KIND_R8,                                &
          DIMS       = MAPL_DimsVertOnly,                           &
+         RESTART    = MAPL_RestartRequired,                        &
          VLOCATION  = MAPL_VLocationEdge,               RC=STATUS  )
      VERIFY_(STATUS)
 
@@ -2059,6 +2060,7 @@ contains
          UNITS      = '1',                                         &
          PRECISION  = ESMF_KIND_R8,                                &
          DIMS       = MAPL_DimsVertOnly,                           &
+         RESTART    = MAPL_RestartRequired,                        &
          VLOCATION  = MAPL_VLocationEdge,               RC=STATUS  )
      VERIFY_(STATUS)
 
@@ -2068,6 +2070,7 @@ contains
          UNITS      = 'm s-1',                                     &
          PRECISION  = ESMF_KIND_R8,                                &
          DIMS       = MAPL_DimsHorzVert,                           &
+         RESTART    = MAPL_RestartRequired,                        &
          VLOCATION  = MAPL_VLocationCenter,             RC=STATUS  )
      VERIFY_(STATUS)
 
@@ -2077,6 +2080,7 @@ contains
          UNITS      = 'm s-1',                                     &
          PRECISION  = ESMF_KIND_R8,                                &
          DIMS       = MAPL_DimsHorzVert,                           &
+         RESTART    = MAPL_RestartRequired,                        &
          VLOCATION  = MAPL_VLocationCenter,             RC=STATUS  )
      VERIFY_(STATUS)
 
@@ -2086,6 +2090,7 @@ contains
          UNITS      = 'K Pa$^{-\kappa}$',                          &
          PRECISION  = ESMF_KIND_R8,                                &
          DIMS       = MAPL_DimsHorzVert,                           &
+         RESTART    = MAPL_RestartRequired,                        &
          VLOCATION  = MAPL_VLocationCenter,             RC=STATUS  )
      VERIFY_(STATUS)
 
@@ -2095,6 +2100,7 @@ contains
          UNITS      = 'Pa',                                        &
          PRECISION  = ESMF_KIND_R8,                                &
          DIMS       = MAPL_DimsHorzVert,                           &
+         RESTART    = MAPL_RestartRequired,                        &
          VLOCATION  = MAPL_VLocationEdge,               RC=STATUS  )
      VERIFY_(STATUS)
 
@@ -2104,10 +2110,11 @@ contains
          UNITS      = 'Pa$^\kappa$',                               &
          PRECISION  = ESMF_KIND_R8,                                &
          DIMS       = MAPL_DimsHorzVert,                           &
+         RESTART    = MAPL_RestartRequired,                        &
          VLOCATION  = MAPL_VLocationCenter,             RC=STATUS  )
 
     call MAPL_AddInternalSpec ( gc,                                &
-         SHORT_NAME = 'DELZ',                                      &
+         SHORT_NAME = 'DZ',                                      &
          LONG_NAME  = 'height_thickness',                          &
          UNITS      = 'm',                                         &
          PRECISION  = ESMF_KIND_R8,                                &
@@ -3982,7 +3989,7 @@ subroutine Run(gc, import, export, clock, rc)
                  endif
              endif
           enddo
-          temp2d = temp2d/(grav*dt)
+          temp2d = temp2d * (MAPL_O3MW/MAPL_AIRMW) / (MAPL_GRAV*DT)
       endif
 
 ! Fill Surface and Near-Surface Variables

@@ -1,5 +1,5 @@
 
-!  $Id: GetWeights.F90,v 1.1.2.7.8.1.6.2.4.1.10.6.2.1 2014-11-03 21:56:22 bmauer Exp $
+!  $Id$
 
 #define REAL8 8
 

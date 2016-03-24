@@ -99,6 +99,8 @@ module AdvCore_GridCompMod
 
       public SetServices
 
+!EOP
+
 !------------------------------------------------------------------------------
 contains
 !------------------------------------------------------------------------------
@@ -139,11 +141,10 @@ contains
       VERIFY_(STATUS)
       Iam = trim(COMP_NAME) // 'SetServices'
 
-!BOP
+!BOS
 
-! !PARAMETERS:
+! !IMPORT STATE:
 !
-!  (IMPORT STATE)
     call MAPL_AddImportSpec ( gc,                                  &
          SHORT_NAME = 'MFX',                                       &
          LONG_NAME  = 'pressure_weighted_eastward_mass_flux',      &
@@ -200,8 +201,8 @@ contains
 
     call MAPL_AddImportSpec(GC,                                  &
        SHORT_NAME         = 'TRACERS',                           &
-       LONG_NAME          = 'tracer_volume_mixing_ratios',       &
-       units              = 'mol/mol',                           &
+       LONG_NAME          = 'advected_quantities',               &
+       units              = 'X',                                 &
        DIMS               = MAPL_DimsHorzVert,                   &
        VLOCATION          = MAPL_VLocationCenter,                &
        DATATYPE           = MAPL_BundleItem,                     &
@@ -229,6 +230,8 @@ contains
              VLOCATION  = MAPL_VLocationCenter,               RC=STATUS  )
         VERIFY_(STATUS)
      enddo
+
+!EOS
 
       ! Set the Profiling timers
       !-------------------------

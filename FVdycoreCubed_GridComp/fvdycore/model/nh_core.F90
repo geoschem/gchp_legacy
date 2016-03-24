@@ -321,7 +321,7 @@ CONTAINS
 
   real(REAL8) :: fastexp, fexp
 
-   m_split_c = max(1, m_split/2)
+   m_split_c = max(1, ABS(m_split)/2)
     gama = 1./(1.-akap)
    rgrav = 1./grav
 
@@ -581,10 +581,10 @@ CONTAINS
   end subroutine Riem_Solver
 
 
-  subroutine Riem_3D(ns, bdt, is, ie, js, je, ng, j, km, cp, gama, cappa, p3, dm2,    &
+  subroutine Riem_3D(nsI, bdt, is, ie, js, je, ng, j, km, cp, gama, cappa, p3, dm2,    &
                      pm2, w2, dz2, pt2, pp2, first_call, c_core, ktop, iad)
 
-  integer, intent(in):: ns, is, ie, js, je, ng,  km, j
+  integer, intent(in):: nsI, is, ie, js, je, ng,  km, j
   integer, intent(in):: iad      ! time step scheme 
   integer, intent(in):: ktop     ! starting layer for non-hydrostatic dynamics
                                  ! 1: All non-hydrostatic
@@ -609,13 +609,11 @@ CONTAINS
   real(REAL8), parameter:: dzmx = -1.0
   real(REAL8)    :: dt, rdt, grg, z_frac, ptmp1, ptmp2
   real(REAL8)    :: rcp
-  real(REAL8)    :: seq(ns)       ! time stepping sequence
+  real(REAL8)    :: seq(ABS(nsI)+6)       ! time stepping sequence
   integer :: k2(km+1)
-  integer :: i, k, n, ke, kt, k0, k1, k3, kmax
+  integer :: i, k, n, ke, kt, k0, k1, k3, kmax, msplit(is:ie), ns
 
-   real(REAL8) :: fastexp, fexp
-
-  call time_sequence( iad, ns, bdt, seq )
+   real(REAL8) :: fastexp, fexp, wfac(is:ie)
 
   grg = gama * rdgas  
   rcp = 1. / cp
@@ -626,12 +624,36 @@ CONTAINS
   r_p(:) = 1.E15
   dts(:) = 1.E15
 
-  do k=1,km+1
-     wbar(k) = 0.
-     pbar(k) = 0.
-  enddo
+ do k=1,km+1
+    wbar(k) = 0.
+    pbar(k) = 0.
+ enddo
+
+ if (nsI < 0) then
+! dynamically adapt m_split based on vertical velocities
+   wfac(:) = 0.0
+   do k=1,km
+     do i=is,ie
+        wfac(i) = MAX(wfac(i),ABS(w2(i,k)))
+     enddo
+   enddo
+   msplit(:) = ABS(nsI)
+   do i=is,ie
+      if (wfac(i) >  5.0) msplit(i) = msplit(i)+1
+      if (wfac(i) >  7.5) msplit(i) = msplit(i)+1
+      if (wfac(i) > 10.0) msplit(i) = msplit(i)+1
+      if (wfac(i) > 12.5) msplit(i) = msplit(i)+1
+      if (wfac(i) > 15.0) msplit(i) = msplit(i)+1
+      if (wfac(i) > 17.5) msplit(i) = msplit(i)+1
+   enddo
+ else
+   msplit(:) = ABS(nsI)
+ endif
 
  do 6000 i=is,ie
+
+    ns = msplit(i)
+    call time_sequence( iad, ns, bdt, seq )
 
     do k=ktop,km
        dz(k) = dz2(i,k)

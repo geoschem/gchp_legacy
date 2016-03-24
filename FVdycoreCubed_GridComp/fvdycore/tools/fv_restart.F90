@@ -78,8 +78,8 @@ module fv_restart_mod
   logical                       :: module_is_initialized = .FALSE.
 
   !--- version information variables ----
-  character(len=128) :: version = '$Id: fv_restart.F90,v 1.2.2.1.2.2.30.1.88.1 2014-02-21 21:00:42 wputman Exp $'
-  character(len=128) :: tagname = '$Name: Heracles-3_1_CTM $'
+  character(len=128) :: version = '$Id$'
+  character(len=128) :: tagname = '$Name$'
 
 contains 
 

@@ -5,8 +5,10 @@
 !-------------------------------------------------------------------------
 !BOP
 !
-! !MODULE: DynCoreFVadvcore_GridCompMod
+! !MODULE: StandAlone_DynAdvCore_GridCompMod
 !
+! !INTERFACE:
+
       module StandAlone_DynAdvCore_GridCompMod 
 !
 ! !USES:
@@ -28,7 +30,7 @@
 
 ! !DESCRIPTION: 
 !
-!  {\tt DynCoreFVadvcore_GridCompMod} is an ESMF gridded component implementing
+!  {\tt StandAlone\_DynAdvCore\_GridCompMod} is an ESMF gridded component implementing
 !  DynCore and AdvCore.
 !
 ! !REVISION HISTORY:
@@ -153,8 +155,11 @@ contains
                                                  !  1 - 
 
 ! !DESCRIPTION: This is a simple ESMF wrapper.
+
+!EOP
+
 !
-! !LOCAL VIABLES:
+! !LOCAL VARIABLES:
       character(len=ESMF_MAXSTR)         :: IAm
       integer                            :: STATUS
       type(ESMF_Grid)               :: GRID        ! Grid
@@ -175,7 +180,6 @@ contains
       type (MAPL_MetaComp), pointer :: MAPL
       INTEGER :: numTracers, I
       type (ESMF_Field)            :: field
-!EOP
 !-------------------------------------------------------------------------
 !BOC
       Iam = 'Initialize'

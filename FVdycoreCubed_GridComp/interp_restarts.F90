@@ -15,7 +15,7 @@ program interp_restarts
    use external_ic_mod,only: get_external_ic
    use constants_mod,  only: pi, omega, grav, kappa, rdgas, rvgas, cp_air
    use fv_diagnostics_mod,only: prt_maxmin
-   use fv_eta_mod,     only: set_eta
+! use fv_eta_mod,     only: set_eta
    use memutils_mod, only: print_memuse_stats
    use MAPL_IOMod
    use MAPL_ShmemMod
@@ -37,8 +37,8 @@ program interp_restarts
 
    logical :: do_grads = .false.
    real(ESMF_KIND_R4), allocatable :: r4_ll(:,:)
-   real(ESMF_KIND_R8), allocatable :: r8_ak(:)
-   real(ESMF_KIND_R8), allocatable :: r8_bk(:)
+   real(ESMF_KIND_R4), allocatable :: r4_ak(:)
+   real(ESMF_KIND_R4), allocatable :: r4_bk(:)
    real(ESMF_KIND_R8), allocatable :: r8_akbk(:)
 
    real(ESMF_KIND_R8), pointer :: r8_global(:,:,:)
@@ -47,7 +47,7 @@ program interp_restarts
    real(ESMF_KIND_R4), pointer :: varo_r4(:,:)
 
    integer i,j,k,l,iiq,iq, j1,j2, ks, itmp
-   integer im,jm,km,nlon,nlat,nq,ntracers(4)
+   integer im,jm,km,nlon,nlat,nq,ntracers(3)
    real(ESMF_KIND_R8) :: ptop
    real(ESMF_KIND_R8), allocatable :: ua(:,:,:), va(:,:,:)
 
@@ -71,14 +71,17 @@ program interp_restarts
 
    real :: xmod, ymod
 
-   integer :: nmoist,ngocart,npchem,nagcm
-   logical :: isBinFV, isBinMoist, isBinGocart, isBinPchem, isBinAgcm
+   integer :: nmoist,ngocart,npchem
+   logical :: isBinFV, isBinMoist, isBinGocart, isBinPchem
    integer :: ftype
    type(MAPL_NCIO) :: ncio,ncioOut
-   integer :: nVars,nDims,dimSizes(3),n,ll,imc,jmc,lonid,latid,levid,edgeid
+   integer :: nVars,nDims,dimSizes(3),n,lvar,imc,jmc,lonid,latid,levid,edgeid
    character(62) :: vname
    ! bma added
-   character(len=128) :: moist_order(7) = (/"Q   ","QLLS","QLCN","CLLS","CLCN","QILS","QICN"/) 
+   character(len=128) :: moist_order(9) = (/"Q   ","QLLS","QLCN","CLLS","CLCN","QILS","QICN","NCPL","NCPI"/)
+   integer :: iq_moist0 , iq_moist1
+   integer :: iq_gocart0, iq_gocart1
+   integer :: iq_pchem0 , iq_pchem1 
 
 ! Start up FMS/MPP
    print_memory_usage = .true.
@@ -124,12 +127,10 @@ program interp_restarts
    nmoist  = 0
    ngocart = 0
    npchem  = 0
-   nagcm   = 0
    isBinFV     = .true.
    isBinMoist  = .true.
    isBinGocart = .true.
    isBinPchem  = .true.
-   isBinAgcm   = .true.
    if( file_exist("moist_internal_restart_in") .and. (gid==masterproc) ) then
       call MAPL_NCIOGetFileType("moist_internal_restart_in",ftype)
       if (ftype == 0) then
@@ -172,20 +173,6 @@ program interp_restarts
    call print_memuse_stats('interp_restarts: rs_count - npchem')
    call mpp_broadcast(npchem, masterproc)
    call mpp_broadcast(isBinPchem, masterproc)
-   if( file_exist("agcm_import_restart_in") .and. (gid==masterproc) ) then
-      call MAPL_NCIOGetFileType("agcm_import_restart_in",ftype)
-      if (ftype == 0) then
-         isBinAgcm = .false.
-         NCIO = MAPL_NCIOOpen("agcm_import_restart_in")
-         call MAPL_NCIOGetDimSizes(NCIO,slices=nagcm)
-         call MAPL_NCIOClose(NCIO,destroy=.true.)
-      else
-         call rs_count( "agcm_import_restart_in",nagcm )
-      end if
-   endif
-   call print_memuse_stats('interp_restarts: rs_count - nagcm')
-   call mpp_broadcast(nagcm, masterproc)
-   call mpp_broadcast(isBinAgcm, masterproc)
 
 !  if (npx > 2880) use_mpiio = .true.
 
@@ -234,22 +221,22 @@ program interp_restarts
          call MAPL_NCIOClose(NCIO,destroy=.true.)
       end if    
 
-      allocate ( r8_ak(npz+1) )
-      allocate ( r8_bk(npz+1) )
-      call set_eta(npz,nq,ptop,r8_ak,r8_bk)
-      Atm(1)%ak = real(r8_ak)
-      Atm(1)%bk = real(r8_bk)
-      ntracers(1) = nmoist
-      ntracers(2) = ngocart
-      ntracers(3) = npchem
-      ntracers(4) = nagcm
-      nmoist  = npz*nmoist/km
-      ngocart = npz*ngocart/km
-      npchem  = npz*npchem/km
-      nagcm   = npz*nagcm/km
-      nq = nmoist + ngocart + npchem + nagcm + (npz-1) ! Add (npz-1) to ensure sufficient memory allocation
-      nq = nq/npz
-      Atm(1)%ncnst = nq
+      allocate ( r4_ak(npz+1) )
+      allocate ( r4_bk(npz+1) )
+      call set_eta(npz,ptop,r4_ak,r4_bk)
+      Atm(1)%ak = r4_ak
+      Atm(1)%bk = r4_bk
+      ntracers(1) = nmoist/km
+      ntracers(2) = ngocart/km
+      ntracers(3) = npchem/km
+      nq = nmoist + ngocart + npchem
+      iq_moist0 =           1
+      iq_moist1 =           ntracers(1)
+      iq_gocart0=iq_moist1 +1
+      iq_gocart1=iq_moist1 +ntracers(2)
+      iq_pchem0 =iq_gocart1+1
+      iq_pchem1 =iq_gocart1+ntracers(3) 
+      Atm(1)%ncnst = nq/km
       if( gid==0 ) then
          print *
          write(6,100)
@@ -265,10 +252,9 @@ program interp_restarts
 101      format(2x,i3,2x,f10.6,2x,f8.4,2x,f10.4)
 102      format(2x,i3,2x,f10.6,2x,f8.4,2x,f10.4,3x,f8.4)
 103      format(2x,a,i6,3x,a,f7.2,a)
-         write(6,103) 'Total Number of Tracers in  MOIST: ',nmoist ,'(/KM = ',float(nmoist) /float(npz),')'
-         write(6,103) 'Total Number of Tracers in GOCART: ',ngocart,'(/KM = ',float(ngocart)/float(npz),')'
-         write(6,103) 'Total Number of Tracers in  PCHEM: ',npchem ,'(/KM = ',float(npchem) /float(npz),')'
-         write(6,103) 'Total Number of Tracers in   AGCM: ',nagcm  ,'(/KM = ',float(nagcm)  /float(npz),')'
+         write(6,103) 'Total Number of Tracers in  MOIST: ',nmoist ,'(/KM = ',float(nmoist) /float(km),')'
+         write(6,103) 'Total Number of Tracers in GOCART: ',ngocart,'(/KM = ',float(ngocart)/float(km),')'
+         write(6,103) 'Total Number of Tracers in  PCHEM: ',npchem ,'(/KM = ',float(npchem) /float(km),')'
          print *
       endif
 !endif
@@ -280,7 +266,7 @@ program interp_restarts
    if (jm == 6*im) then
       call get_external_ic( Atm, domain, use_geos_cubed_restart=.true., ntracers=ntracers )
    else
-      call get_external_ic( Atm, domain, use_geos_latlon_restart=.true. )
+      call get_external_ic( Atm, domain, use_geos_latlon_restart=.true. ,ntracers=ntracers )
    endif
 
    is = Atm(1)%isc
@@ -503,7 +489,7 @@ program interp_restarts
             if (gid==0) then
                imc = npx-1
                jmc = imc*6
-               call MAPL_NCIOChangeRes(ncio,ncioOut,lonSize=imc,latSize=jmc)
+               call MAPL_NCIOChangeRes(ncio,ncioOut,lonSize=imc,latSize=jmc,levSize=npz)
                call MAPL_NCIOSet(ncioOut,filename=fname1,nVars=9,overwriteVars=.true.)
                !start creating file. Can not simply use input because if it is lat-lon will not have dz or w
                call MAPL_NCIOGetDimSizes(ncioOut,lonid=lonid,latid=latid,levid=levid,edgeid=edgeid)
@@ -986,99 +972,79 @@ program interp_restarts
          if (gid==0) print*, 'Writing : ', TRIM(fname1)
          if (isBinMoist) then
             if (gid==0) open(OUNIT,file=fname1,access='sequential',form='unformatted')
-            iiq=0
-            do iq=1,nmoist
-               k = mod(iq,npz) ; if (k.eq.1) iiq=iiq+1
-               r4_global(is:ie,js:je,tile) = Atm(1)%q(is:ie,js:je,iq,1)
-               call mp_gather(r4_global, is, ie, js, je, npx-1, npy-1, 6)
-               if (gid==0) then ! DSK global variable only valid on masterproc
-                  if (k==1) print*, 'Writing : ', TRIM(fname1), ' ', iiq
-                  do l=1,6
-                     j1 = (npy-1)*(l-1) + 1
-                     j2 = (npy-1)*(l-1) + npy-1
-                     do j=j1,j2
-                        do i=1,npx-1
-                           varo_r4(i,j)=r4_global(i,j-j1+1,l)
-                        enddo
-                     enddo
-                  enddo
-                  write(OUNIT) varo_r4
-               endif
-            enddo
-! Write 2 extra vars for moist
-            if (iiq==7) then
-            do iq=1,2*npz
-               k = mod(iq,npz)
-               r4_global(is:ie,js:je,tile) = 0.0
-               if (gid==0) then ! DSK global variable only valid on masterproc
-                  if (k==1) print*, 'Writing : ', TRIM(fname1), ' Extra moist var'
-                  do l=1,6
-                     j1 = (npy-1)*(l-1) + 1
-                     j2 = (npy-1)*(l-1) + npy-1
-                     do j=j1,j2
-                        do i=1,npx-1
-                           varo_r4(i,j)=r4_global(i,j-j1+1,l)
-                        enddo
-                     enddo
-                  enddo
-                  write(OUNIT) varo_r4
-               endif
-            enddo
-            endif
-! Write 2 extra vars for moist
-            if (gid==0) close (OUNIT)
          else
-            ncio = MAPL_NCIOOpen("moist_internal_restart_in",rc=status)
-            call MAPL_NCIOGetDimSizes(ncio,nVars=nVars)
             if (gid==0) then
+               ncio = MAPL_NCIOOpen("moist_internal_restart_in",rc=status)
                imc = npx-1
                jmc = imc*6
-               call MAPL_NCIOChangeRes(ncio,ncioOut,lonSize=imc,latSize=jmc)
+               call MAPL_NCIOChangeRes(ncio,ncioOut,lonSize=imc,latSize=jmc,levSize=npz)
                call MAPL_NCIOSet(ncioOut,filename=fname1)
                call MAPL_NCIOCreateFile(ncioOut,rc=status)
+               call MAPL_NCIOClose(ncio,destroy=.true.,rc=status)
             end if
-            iq = 0
-            do n=1,nVars
-               call MAPL_NCIOGetVarName(ncio,n,vname)
-               vname = trim(moist_order(n)) ! bma added
-               call MAPL_NCIOVarGetDims(ncio,vname,nDims,dimSizes)
-               do ll=1,dimSizes(3)
-                  iq=iq+1
-                  r4_global(is:ie,js:je,tile) = Atm(1)%q(is:ie,js:je,iq,1)
-                  call mp_gather(r4_global, is, ie, js, je, npx-1, npy-1, 6)
-                  if (gid==0) then ! DSK global variable only valid on masterproc
-                     do l=1,6
-                        j1 = (npy-1)*(l-1) + 1
-                        j2 = (npy-1)*(l-1) + npy-1
-                        do j=j1,j2
-                           do i=1,npx-1
-                              varo_r4(i,j)=r4_global(i,j-j1+1,l)
-                           enddo
+         end if
+         do iq=iq_moist0,iq_moist1
+            if (gid==0) print*, 'Writing : ', TRIM(fname1), ' ', iq
+            do k=1,npz
+               r4_global(is:ie,js:je,tile) = Atm(1)%q(is:ie,js:je,k,iq)
+               call mp_gather(r4_global, is, ie, js, je, npx-1, npy-1, 6)
+               if (gid==0) then ! DSK global variable only valid on masterproc
+                  do l=1,6
+                     j1 = (npy-1)*(l-1) + 1
+                     j2 = (npy-1)*(l-1) + npy-1
+                     do j=j1,j2
+                        do i=1,npx-1
+                           varo_r4(i,j)=r4_global(i,j-j1+1,l)
                         enddo
                      enddo
-                     call MAPL_VarWrite(ncioOut,vname,varo_r4,lev=ll)
-                  endif
-               enddo
-            enddo
-            call MAPL_NCIOClose(ncio,destroy=.true.,rc=status)
-            if (gid==0) call MAPL_NCIOClose(ncioOut,destroy=.true.,rc=status)
-         end if 
-      endif
+                  enddo
+                  if (isBinMoist) then
+                      write(OUNIT) varo_r4
+                  else
+                     vname = trim(moist_order(iq))
+                     call MAPL_VarWrite(ncioOut,vname,varo_r4,lev=k)
+                  end if
+               endif
+            end do
+         end do
+         if (gid==0) then 
+           if (isBinMoist) then
+              close (OUNIT)
+           else
+              call MAPL_NCIOClose(ncioOut,destroy=.true.,rc=status)
+           end if
+         end if
+      end if
+
 !
-!  GOCART
+! GOCART
 !
       if( file_exist("gocart_internal_restart_in") ) then
          write(fname1, "('gocart_internal_rst_c',i4.4,'_',i3.3,'L')") npx-1,npz
          if (gid==0) print*, 'Writing : ', TRIM(fname1)
          if (isBingocart) then
             if (gid==0) open(OUNIT,file=fname1,access='sequential',form='unformatted')
-            iiq=0
-            do iq=1,ngocart
-               k = mod(iq,npz) ; if (k.eq.1) iiq=iiq+1
-               r4_global(is:ie,js:je,tile) = Atm(1)%q(is:ie,js:je,iq+nmoist,1)
+         else
+            lvar=0
+            if (gid==0) then
+               ncio = MAPL_NCIOOpen("gocart_internal_restart_in",rc=status)
+               imc = npx-1
+               jmc = imc*6
+               call MAPL_NCIOChangeRes(ncio,ncioOut,lonSize=imc,latSize=jmc,levSize=npz)
+               call MAPL_NCIOSet(ncioOut,filename=fname1)
+               call MAPL_NCIOCreateFile(ncioOut,rc=status)
+            end if
+         end if
+         do iq=iq_gocart0,iq_gocart1
+            if (gid==0) print*, 'Writing : ', TRIM(fname1), ' ', iq
+            if (.not.isBinGocart .and. gid==0) then
+               lvar=lvar+1
+               call MAPL_NCIOGetVarName(ncio,lvar,vname) 
+            end if
+            do k=1,npz
+               r4_global(is:ie,js:je,tile) = Atm(1)%q(is:ie,js:je,k,iq)
                call mp_gather(r4_global, is, ie, js, je, npx-1, npy-1, 6)
                if (gid==0) then ! DSK global variable only valid on masterproc
-                  if (k==1) print*, 'Writing : ', TRIM(fname1), ' ', iiq
                   do l=1,6
                      j1 = (npy-1)*(l-1) + 1
                      j2 = (npy-1)*(l-1) + npy-1
@@ -1088,62 +1054,52 @@ program interp_restarts
                         enddo
                      enddo
                   enddo
-                  write(OUNIT) varo_r4
-             endif
-            enddo
-            if (gid==0) close (OUNIT)
-         else
-            ncio = MAPL_NCIOOpen("gocart_internal_restart_in",rc=status)
-            call MAPL_NCIOGetDimSizes(ncio,nVars=nVars)
-            if (gid==0) then
-               imc = npx-1
-               jmc = imc*6
-               call MAPL_NCIOChangeRes(ncio,ncioOut,lonSize=imc,latSize=jmc)
-               call MAPL_NCIOSet(ncioOut,filename=fname1)
-               call MAPL_NCIOCreateFile(ncioOut,rc=status)
-            end if
-            iq = 0
-            do n=1,nVars
-               call MAPL_NCIOGetVarName(ncio,n,vname)
-               call MAPL_NCIOVarGetDims(ncio,vname,nDims,dimSizes)
-               do ll=1,dimSizes(3)
-                  iq=iq+1
-                  r4_global(is:ie,js:je,tile) = Atm(1)%q(is:ie,js:je,iq+nmoist,1)
-                  call mp_gather(r4_global, is, ie, js, je, npx-1, npy-1, 6)
-                  if (gid==0) then ! DSK global variable only valid on masterproc
-                     do l=1,6
-                        j1 = (npy-1)*(l-1) + 1
-                        j2 = (npy-1)*(l-1) + npy-1
-                        do j=j1,j2
-                           do i=1,npx-1
-                              varo_r4(i,j)=r4_global(i,j-j1+1,l)
-                           enddo
-                        enddo
-                     enddo
-                     call MAPL_VarWrite(ncioOut,vname,varo_r4,lev=ll)
-                  endif
-               enddo
-            enddo
-            call MAPL_NCIOClose(ncio,destroy=.true.,rc=status)
-            if (gid==0) call MAPL_NCIOClose(ncioOut,destroy=.true.,rc=status)
-         end if 
-      endif
-
+                  if (isBingocart) then
+                      write(OUNIT) varo_r4
+                  else
+                     call MAPL_VarWrite(ncioOut,vname,varo_r4,lev=k)
+                  end if
+               endif
+            end do
+         end do
+         if (gid==0) then 
+           if (isBingocart) then
+              close (OUNIT)
+           else
+              call MAPL_NCIOClose(ncio,destroy=.true.,rc=status)
+              call MAPL_NCIOClose(ncioOut,destroy=.true.,rc=status)
+           end if
+         end if
+      end if
 !
-!  PCHEM
+! pchem
 !
       if( file_exist("pchem_internal_restart_in") ) then
          write(fname1, "('pchem_internal_rst_c',i4.4,'_',i3.3,'L')") npx-1,npz
          if (gid==0) print*, 'Writing : ', TRIM(fname1)
          if (isBinpchem) then
             if (gid==0) open(OUNIT,file=fname1,access='sequential',form='unformatted')
-            iiq=0
-            do iq=1,npchem
-               k = mod(iq,npz) ; if (k.eq.1) iiq=iiq+1
-               r4_global(is:ie,js:je,tile) = Atm(1)%q(is:ie,js:je,iq+nmoist+ngocart,1)
+         else
+            lvar=0
+            if (gid==0) then
+               ncio = MAPL_NCIOOpen("pchem_internal_restart_in",rc=status)
+               imc = npx-1
+               jmc = imc*6
+               call MAPL_NCIOChangeRes(ncio,ncioOut,lonSize=imc,latSize=jmc,levSize=npz)
+               call MAPL_NCIOSet(ncioOut,filename=fname1)
+               call MAPL_NCIOCreateFile(ncioOut,rc=status)
+            end if
+         end if
+         do iq=iq_pchem0,iq_pchem1
+            if (gid==0) print*, 'Writing : ', TRIM(fname1), ' ', iq
+            if (.not.isBinpchem .and. gid==0) then
+               lvar=lvar+1
+               call MAPL_NCIOGetVarName(ncio,lvar,vname) 
+            end if
+            do k=1,npz
+               r4_global(is:ie,js:je,tile) = Atm(1)%q(is:ie,js:je,k,iq)
                call mp_gather(r4_global, is, ie, js, je, npx-1, npy-1, 6)
                if (gid==0) then ! DSK global variable only valid on masterproc
-                  if (k==1) print*, 'Writing : ', TRIM(fname1), ' ', iiq
                   do l=1,6
                      j1 = (npy-1)*(l-1) + 1
                      j2 = (npy-1)*(l-1) + npy-1
@@ -1153,114 +1109,23 @@ program interp_restarts
                         enddo
                      enddo
                   enddo
-                  write(OUNIT) varo_r4
+                  if (isBinpchem) then
+                      write(OUNIT) varo_r4
+                  else
+                     call MAPL_VarWrite(ncioOut,vname,varo_r4,lev=k)
+                  end if
                endif
-            enddo
-            if (gid==0) close (OUNIT)
-         else
-            ncio = MAPL_NCIOOpen("pchem_internal_restart_in",rc=status)
-            call MAPL_NCIOGetDimSizes(ncio,nVars=nVars)
-            if (gid==0) then
-               imc = npx-1
-               jmc = imc*6
-               call MAPL_NCIOChangeRes(ncio,ncioOut,lonSize=imc,latSize=jmc)
-               call MAPL_NCIOSet(ncioOut,filename=fname1)
-               call MAPL_NCIOCreateFile(ncioOut,rc=status)
-            end if
-            iq = 0
-            do n=1,nVars
-               call MAPL_NCIOGetVarName(ncio,n,vname)
-               call MAPL_NCIOVarGetDims(ncio,vname,nDims,dimSizes)
-               do ll=1,dimSizes(3)
-                  iq=iq+1
-                  r4_global(is:ie,js:je,tile) = Atm(1)%q(is:ie,js:je,iq+nmoist+ngocart,1)
-                  call mp_gather(r4_global, is, ie, js, je, npx-1, npy-1, 6)
-                  if (gid==0) then ! DSK global variable only valid on masterproc
-                     do l=1,6
-                        j1 = (npy-1)*(l-1) + 1
-                        j2 = (npy-1)*(l-1) + npy-1
-                        do j=j1,j2
-                           do i=1,npx-1
-                              varo_r4(i,j)=r4_global(i,j-j1+1,l)
-                           enddo
-                        enddo
-                     enddo
-                     call MAPL_VarWrite(ncioOut,vname,varo_r4,lev=ll)
-                  endif
-               enddo
-            enddo
-            call MAPL_NCIOClose(ncio,destroy=.true.,rc=status)
-            if (gid==0) call MAPL_NCIOClose(ncioOut,destroy=.true.,rc=status)
-         end if 
-      endif
-
-!
-!  AGCM
-!
-      if( file_exist("agcm_import_restart_in") ) then
-         write(fname1, "('agcm_import_rst_c',i4.4,'_',i3.3,'L')") npx-1,npz
-         if (gid==0) print*, 'Writing : ', TRIM(fname1)
-         if (isBinagcm) then
-            if (gid==0) open(OUNIT,file=fname1,access='sequential',form='unformatted')
-            iiq=0
-            do iq=1,nagcm
-               k = mod(iq,npz) ; if (k.eq.1) iiq=iiq+1
-               r4_global(is:ie,js:je,tile) = Atm(1)%q(is:ie,js:je,iq+nmoist+ngocart+npchem,1)
-               call mp_gather(r4_global, is, ie, js, je, npx-1, npy-1, 6)
-               if (gid==0) then ! DSK global variable only valid on masterproc
-                  if (k==1) print*, 'Writing : ', TRIM(fname1), ' ', iiq
-                  do l=1,6
-                     j1 = (npy-1)*(l-1) + 1
-                     j2 = (npy-1)*(l-1) + npy-1
-                     do j=j1,j2
-                        do i=1,npx-1
-                           varo_r4(i,j)=r4_global(i,j-j1+1,l)
-                        enddo
-                     enddo
-                  enddo
-                  write(OUNIT) varo_r4
-               endif
-            enddo
-            if (gid==0) close (OUNIT)
-         else
-            ncio = MAPL_NCIOOpen("agcm_import_restart_in",rc=status)
-            call MAPL_NCIOGetDimSizes(ncio,nVars=nVars)
-            if (gid==0) then
-               imc = npx-1
-               jmc = imc*6
-               call MAPL_NCIOChangeRes(ncio,ncioOut,lonSize=imc,latSize=jmc)
-               call MAPL_NCIOSet(ncioOut,filename=fname1)
-               call MAPL_NCIOCreateFile(ncioOut,rc=status)
-            end if
-            iq = 0
-            do n=1,nVars
-               call MAPL_NCIOGetVarName(ncio,n,vname)
-               call MAPL_NCIOVarGetDims(ncio,vname,nDims,dimSizes)
-               do ll=1,dimSizes(3)
-                  iq=iq+1
-                  r4_global(is:ie,js:je,tile) = Atm(1)%q(is:ie,js:je,iq+nmoist+ngocart+npchem,1)
-                  call mp_gather(r4_global, is, ie, js, je, npx-1, npy-1, 6)
-                  if (gid==0) then ! DSK global variable only valid on masterproc
-                     do l=1,6
-                        j1 = (npy-1)*(l-1) + 1
-                        j2 = (npy-1)*(l-1) + npy-1
-                        do j=j1,j2
-                           do i=1,npx-1
-                              varo_r4(i,j)=r4_global(i,j-j1+1,l)
-                           enddo
-                        enddo
-                     enddo
-                     call MAPL_VarWrite(ncioOut,vname,varo_r4,lev=ll)
-                  endif
-               enddo
-            enddo
-            call MAPL_NCIOClose(ncio,destroy=.true.,rc=status)
-            if (gid==0) call MAPL_NCIOClose(ncioOut,destroy=.true.,rc=status)
-         end if 
-      endif
-
-      if (gid==0) deallocate (varo_r4)
-      deallocate (r4_global)
+            end do
+         end do
+         if (gid==0) then 
+           if (isBinpchem) then
+              close (OUNIT)
+           else
+              call MAPL_NCIOClose(ncio,destroy=.true.,rc=status)
+              call MAPL_NCIOClose(ncioOut,destroy=.true.,rc=status)
+           end if
+         end if
+      end if
 
    endif
 

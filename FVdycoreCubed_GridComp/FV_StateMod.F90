@@ -417,10 +417,16 @@ contains
   call ESMF_ConfigGetAttribute( cf, kord_tr, label='kord_tr:', default= kord_tr, rc = rc )
 
 ! Default GEOS-5 FV3 2nd order divergence damping setup
-  nord  = 0
-  dddmp = 0.2
-  d2_bg = 0.0075
-  d4_bg = 0.0
+! nord  = 0
+! dddmp = 0.2
+! d2_bg = 0.0075
+! d4_bg = 0.0
+! Default GEOS-5 FV3 4th order divergence damping setup
+  nord  = 1
+  dddmp = 0.0
+  d2_bg = 0.0
+  d4_bg = 0.16
+  d_ext = 0.0
 ! method for non-hydrostatic grad-p
 ! m_grad_p=1:  one-stage full pressure for grad_p; this option is faster
 !              but it is not suitable for low horizontal resolution
@@ -483,16 +489,12 @@ contains
 ! Note: iad=2 or 4 appear to be more stable than other options
   call ESMF_ConfigGetAttribute( cf,  m_riem, label='m_riem:', default=0, rc = rc )
 
+  consv_te=1.0
   call ESMF_ConfigGetAttribute( cf, nwat     , label='nwat:'     , default=1     , rc = rc )
   call ESMF_ConfigGetAttribute( cf, consv_te , label='consv_te:' , default=consv_te, rc = rc )
   call ESMF_ConfigGetAttribute( cf, remap_t  , label='remap_t:'  , default=remap_t , rc = rc )
   call ESMF_ConfigGetAttribute( cf, z_tracer , label='z_tracer:' , default=z_tracer, rc = rc )
   call ESMF_ConfigGetAttribute( cf, inline_q , label='inline_q:' , default=inline_q, rc = rc )
-
- !! te_method=0 : PPM
- !! te_method=1 : cubic 
-  call ESMF_ConfigGetAttribute( cf, te_method, label='te_method:', default=te_method, rc = rc )
-  if (te_method == 1) kord_tm = ABS(kord_tm) !cubic - force remap to use total energy ABS(kord_tm)
 
   call ESMF_ConfigGetAttribute( cf, DEBUG , label='fv_debug:' , default=fv_debug, rc = rc )
   fv_debug=DEBUG
@@ -509,6 +511,12 @@ contains
   call ESMF_ConfigGetAttribute( cf, hybrid_z      , label='hybrid_z:'     , default=.false., rc = rc )
   call ESMF_ConfigGetAttribute( cf, Make_NH       , label='Make_NH:'      , default=.false., rc = rc )
   FV_HYDROSTATIC = hydrostatic
+
+ !! te_method=0 : PPM
+ !! te_method=1 : cubic 
+  if (FV_HYDROSTATIC) te_method=1
+  call ESMF_ConfigGetAttribute( cf, te_method, label='te_method:', default=te_method, rc = rc )
+  if (te_method == 1) kord_tm = ABS(kord_tm) !cubic - force remap to use total energy ABS(kord_tm)
 !
 ! FV likes npx;npy in terms of cell vertices
 !
@@ -776,17 +784,30 @@ contains
   VERIFY_(STATUS)
   call MAPL_GetPointer(internal, pkz, "PKZ",rc=status)
   VERIFY_(STATUS)
+
   if ( .not. hydrostatic ) then
-    call MAPL_GetPointer(internal, dz, "DELZ",rc=status)
+    call MAPL_GetPointer(internal, dz, "DZ",rc=status)
     VERIFY_(STATUS)
     call MAPL_GetPointer(internal, w, "W",rc=status)
     VERIFY_(STATUS)
-  endif
 
-  call CREATE_VARS ( FV_Atm(1)%isc, FV_Atm(1)%iec, FV_Atm(1)%jsc, FV_Atm(1)%jec,     &
-                     1, npz, npz+1,            &
-                     U, V, PT, PE, PKZ, DZ, W, &
-                     STATE%VARS )
+    call CREATE_VARS ( FV_Atm(1)%isc, FV_Atm(1)%iec, FV_Atm(1)%jsc, FV_Atm(1)%jec,     &
+                        1, npz, npz+1,            &
+                        U, V, PT, PE, PKZ, DZ, W, &
+                        VARS=STATE%VARS )
+  else
+    call CREATE_VARS ( FV_Atm(1)%isc, FV_Atm(1)%iec, FV_Atm(1)%jsc, FV_Atm(1)%jec,     &
+                        1, npz, npz+1,            &
+                        U, V, PT, PE, PKZ,        &
+                        VARS=STATE%VARS )
+  end if
+
+  ! MAT Two different CREATE_VARS calls are needed due to an issue with PGI. Namely, if
+  !     the we are hydrostatic then DZ and W are NULL() pointers. But CREATE_VARS says
+  !     they are (I1:IN,J1:JN,K1:KN). The compiler then makes bad memory choices and the
+  !     code crashes. By making DZ and W optionals, we avoid the issue with the 
+  !     hydrostatic dynamics.
+
   call MAPL_MemUtilsWrite(VM, 'FV_StateMod: CREATE_VARS', RC=STATUS )
   VERIFY_(STATUS)
 
@@ -1504,9 +1525,13 @@ subroutine fv_getDELZ(delz,temp,pe)
   real(REAL8), intent( IN) ::   pe(FV_Atm(1)%isc:FV_Atm(1)%iec,FV_Atm(1)%jsc:FV_Atm(1)%jec,1:FV_Atm(1)%npz+1)
   real(REAL8) :: peln(FV_Atm(1)%isc:FV_Atm(1)%iec,FV_Atm(1)%jsc:FV_Atm(1)%jec,1:FV_Atm(1)%npz+1)
   real(REAL8) :: rdg
+  integer     :: npz
+
+  npz = FV_Atm(1)%npz
+
   peln = log(pe)
   rdg   = -rgas / grav
-  delz = rdg*temp*(peln(:,:,2:)-peln(:,:,1:))
+  delz = rdg*temp*(peln(:,:,2:npz+1)-peln(:,:,1:npz))
 return 
 end subroutine fv_getDELZ
 
@@ -1552,7 +1577,7 @@ subroutine fv_getPKZ(pkz,temp,qv,pe,delz,HYDROSTATIC)
   rdg  = -rgas / grav
   peln = log(pe)
   pk   = exp( kappa*peln )
-  delp = pe(:,:,2:)-pe(:,:,1:)
+  delp = pe(:,:,2:npz+1)-pe(:,:,1:npz)
 
 !OLD
 ! if (HYDROSTATIC) then
@@ -1642,6 +1667,9 @@ subroutine a2d3d(ua, va, ud, vd)
 
       im2 = (npx-1)/2
       jm2 = (npy-1)/2
+
+      uatemp = 0.0
+      vatemp = 0.0
 
     uatemp(is:ie,js:je,:) = ua
     vatemp(is:ie,js:je,:) = va
@@ -2919,14 +2947,14 @@ end subroutine latlon_to_cubed_winds
   subroutine CREATE_VARS (I1, IN, J1, JN, K1, KN, KP, &
        U, V, PT, PE, PKZ, DZ, W, VARS )
 
-    integer, intent(IN   ) :: I1, IN, J1, JN, K1, KN, KP
-    real(REAL8), target ::   U(I1:IN,J1:JN,K1:KN  )
-    real(REAL8), target ::   V(I1:IN,J1:JN,K1:KN  )
-    real(REAL8), target ::  PT(I1:IN,J1:JN,K1:KN  )
-    real(REAL8), target ::  PE(I1:IN,J1:JN,K1:KP  )
-    real(REAL8), target :: PKZ(I1:IN,J1:JN,K1:KN  )
-    real(REAL8), target ::  DZ(I1:IN,J1:JN,K1:KN  )
-    real(REAL8), target ::   W(I1:IN,J1:JN,K1:KN  )
+    integer, intent(IN)           :: I1, IN, J1, JN, K1, KN, KP
+    real(REAL8), target           ::   U(I1:IN,J1:JN,K1:KN  )
+    real(REAL8), target           ::   V(I1:IN,J1:JN,K1:KN  )
+    real(REAL8), target           ::  PT(I1:IN,J1:JN,K1:KN  )
+    real(REAL8), target           ::  PE(I1:IN,J1:JN,K1:KP  )
+    real(REAL8), target           :: PKZ(I1:IN,J1:JN,K1:KN  )
+    real(REAL8), target, optional ::  DZ(I1:IN,J1:JN,K1:KN  )
+    real(REAL8), target, optional ::   W(I1:IN,J1:JN,K1:KN  )
 
     type (T_FVDYCORE_VARS), intent(INOUT) :: VARS
 
@@ -2935,8 +2963,8 @@ end subroutine latlon_to_cubed_winds
     VARS%PT => PT
     VARS%PE => PE
     VARS%PKZ => PKZ
-    if (.not. FV_Atm(1)%hydrostatic) VARS%DZ => DZ
-    if (.not. FV_Atm(1)%hydrostatic) VARS%W => W
+    if (present(DZ)) VARS%DZ => DZ
+    if (present(W )) VARS%W => W
 
     return
   end subroutine CREATE_VARS

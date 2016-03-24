@@ -80,7 +80,7 @@ contains
       type(domain2d),      intent(inout) :: fv_domain
       logical, optional,   intent(in)    :: use_geos_latlon_restart
       logical, optional,   intent(in)    :: use_geos_cubed_restart
-      integer, optional,   intent(in)    :: ntracers(4)
+      integer, optional,   intent(in)    :: ntracers(3)
       real:: alpha = 0.
       integer i,j,k,nq
 
@@ -114,7 +114,7 @@ contains
       if ( present(use_geos_latlon_restart)) then
          if (allocated(Atm(1)%q)) deallocate( Atm(1)%q )
          allocate  ( Atm(1)%q(isd:ied,jsd:jed,Atm(1)%npz,Atm(1)%ncnst) )
-         call get_geos_latlon_ic( Atm, fv_domain, Atm(1)%ncnst )
+         call get_geos_latlon_ic( Atm, fv_domain, Atm(1)%ncnst, ntracers )
       elseif ( present(use_geos_cubed_restart)) then
          if (allocated(Atm(1)%q)) deallocate( Atm(1)%q )
          allocate  ( Atm(1)%q(isd:ied,jsd:jed,Atm(1)%npz,Atm(1)%ncnst) )
@@ -444,7 +444,7 @@ contains
             interpolate_c2c
       type(fv_atmos_type), intent(inout) :: Atm(:)
       type(domain2d),      intent(inout) :: fv_domain
-      integer, intent(in):: nq, ntracers(4)
+      integer, intent(in):: nq, ntracers(3)
 
       character(len=128) :: fname, fname1
       real(REAL8), allocatable:: pkz0(:,:)
@@ -455,7 +455,6 @@ contains
       integer :: iq_moist0 , iq_moist1
       integer :: iq_gocart0, iq_gocart1
       integer :: iq_pchem0 , iq_pchem1
-      integer :: iq_agcm0  , iq_agcm1
       integer :: ntiles=6
       logical found
       integer :: header(6)
@@ -489,8 +488,7 @@ contains
       integer (kind=MPI_OFFSET_KIND) :: slice_2d
       integer (kind=MPI_OFFSET_KIND) :: offset
       character(len=64) :: strTxt
-      integer :: nmoist, ngocart, npchem, nagcm,nqmap
-      integer :: nmoist1, ngocart1, npchem1, nagcm1
+      integer :: nmoist, ngocart, npchem, nqmap
 
       integer            :: filetype
       logical            :: isNC4
@@ -499,10 +497,10 @@ contains
       character(len=128) :: vname
       real,   allocatable  :: gslice_r4(:,:)
       real*8, allocatable  :: gslice_r8(:,:)
-      integer            :: tileoff
+      integer            :: tileoff,lvar_cnt
 
 !bma added
-      character(len=128) :: moist_order(7) = (/"Q   ","QLLS","QLCN","CLLS","CLCN","QILS","QICN"/)
+      character(len=128) :: moist_order(9) = (/"Q   ","QLLS","QLCN","CLLS","CLCN","QILS","QICN","NCPL","NCPI"/)
 
       iq_moist0 =           1
       iq_moist1 =           ntracers(1)
@@ -510,16 +508,9 @@ contains
       iq_gocart1=iq_moist1 +ntracers(2)
       iq_pchem0 =iq_gocart1+1
       iq_pchem1 =iq_gocart1+ntracers(3)
-      iq_agcm0  =iq_pchem1 +1
-      iq_agcm1  =iq_pchem1 +ntracers(4)
       nmoist  = ntracers(1)
       ngocart = ntracers(2)
       npchem  = ntracers(3)
-      nagcm   = ntracers(4)
-      ngocart1 = 0
-      npchem1  = 0
-      nmoist1  = 0
-      nagcm1   = 0
 
       npx = Atm(1)%npx
       npy = Atm(1)%npy
@@ -797,75 +788,67 @@ contains
             enddo
          enddo
          deallocate ( gz0 )
+
 ! Horiz Interp for Q
          allocate ( q0(isd_i:ied_i,jsd_i:jed_i,km) )
          allocate ( qp(is:ie,js:je,km,nq) )
          q0(:,:,:) = 0.0
          qp(:,:,:,:) = 0.0
+
+! Horiz Interp for moist tracers
 ! is there a moist restart file to interpolate?
 ! Read in tracers: only sphum at this point
-         if( file_exist("moist_internal_restart_in") .and. (ntracers(1)>0) ) then
-            if (gid==0) print*, 'Trying to interpolate moist_internal_restart_in', km, nq
+         if( file_exist("moist_internal_restart_in") .and. ntracers(1) > 0 ) then
+            if (gid==0) print*, 'Trying to interpolate moist_internal_restart_in'
+
             call MAPL_NCIOGetFileType("moist_internal_restart_in",filetype)
+
             if (filetype /= 0) then
                offset=4
-               do iq=iq_moist0,iq_moist1
-                  k = mod(iq,km) ; if (k.eq.0) k=km
-                  call parallel_read_file_r4('moist_internal_restart_in', npts, is_i,ie_i, js_i,je_i, 1, offset, q0(is_i:ie_i,js_i:je_i,k))
+            else
+               lvar_cnt = 0
+               allocate(gslice_r4(im,jm))
+               NCIO = MAPL_NCIOOpen("moist_internal_restart_in")
+               call MAPL_NCIOGetDimSizes(NCIO,nVars=nVars)
+               if (nVars /= iq_moist1-iq_moist0+1) call mpp_error(FATAL,'Wrong number of variables in moist file') 
+               tileoff = (tile-1)*(jm/ntiles)
+            end if
+
+            do ivar=iq_moist0,iq_moist1
+               if (filetype ==0) lvar_cnt=lvar_cnt+1
+               do k=1,km
+                  if (filetype /= 0) then
+                     call parallel_read_file_r4('moist_internal_restart_in', npts, is_i,ie_i, js_i,je_i, 1, offset, q0(is_i:ie_i,js_i:je_i,k))
+                     call mpp_update_domains(q0(:,:,k), domain_i)
+                  else
+                     vname = trim(moist_order(lvar_cnt))
+                     call MAPL_VarRead(NCIO,vname,gslice_r4,lev=k)
+                     q0(is_i:ie_i,js_i:je_i,k)=gslice_r4(is_i:ie+i,tileoff+js_i:tileoff+je_i)
+                  end if
                   call mpp_update_domains(q0(:,:,k), domain_i)
                   do j=js,je
                      do i=is,ie
                         ic=index_c2c(1,i,j,tile)
                         jc=index_c2c(2,i,j,tile)
-                        qp(i,j,iq,1)=weight_c2c(1,i,j,tile)*q0(ic  ,jc  ,k)  &
+                        qp(i,j,k,ivar)=weight_c2c(1,i,j,tile)*q0(ic  ,jc  ,k)  &
                               +weight_c2c(2,i,j,tile)*q0(ic  ,jc+1,k)  &
                               +weight_c2c(3,i,j,tile)*q0(ic+1,jc+1,k)  &
                               +weight_c2c(4,i,j,tile)*q0(ic+1,jc  ,k)
                      enddo
                   enddo
-                  if (k.eq.km) call prt_maxmin( 'Q_geos', q0, is_i, ie_i, js_i, je_i, ng_i, km, 1.d0, gid==0)
-! t0 needs to be just temperature with no virtual effect
-                  if(iq==km) t0(is_i:ie_i,js_i:je_i,:) = (t0(is_i:ie_i,js_i:je_i,:)/(1.0 + zvir*q0(is_i:ie_i,js_i:je_i,:)))
-               enddo
-            else
-               allocate(gslice_r4(im,jm))
-               NCIO = MAPL_NCIOOpen("moist_internal_restart_in")
-               call MAPL_NCIOGetDimSizes(NCIO,nVars=nVars)
-               iq = 0
-               tileoff = (tile-1)*(jm/ntiles)
-               do ivar=1,nVars
-                  vname = trim(moist_order(ivar))
-                  call MAPL_NCIOVarGetDims(NCIO,vname,nDims,dimSizes)
-                  do k=1,dimSizes(3)
-                     iq=iq+1
-                     call MAPL_VarRead(NCIO,vname,gslice_r4,lev=k)
-                     q0(is_i:ie_i,js_i:je_i,k)=gslice_r4(is_i:ie+i,tileoff+js_i:tileoff+je_i)
-                     call mpp_update_domains(q0(:,:,k), domain_i)
-                     do j=js,je
-                        do i=is,ie
-                           ic=index_c2c(1,i,j,tile)
-                           jc=index_c2c(2,i,j,tile)
-                           qp(i,j,iq,1)=weight_c2c(1,i,j,tile)*q0(ic  ,jc  ,k)  &
-                                 +weight_c2c(2,i,j,tile)*q0(ic  ,jc+1,k)  &
-                                 +weight_c2c(3,i,j,tile)*q0(ic+1,jc+1,k)  &
-                                 +weight_c2c(4,i,j,tile)*q0(ic+1,jc  ,k)
-                        enddo
-                     enddo
-                  enddo
-                  if (ivar == 1) t0(is_i:ie_i,js_i:je_i,:) = (t0(is_i:ie_i,js_i:je_i,:)/(1.0 + zvir*q0(is_i:ie_i,js_i:je_i,:)))
-                  call prt_maxmin( 'Q_geos', q0, is_i, ie_i, js_i, je_i, ng_i, km, 1., gid==0)
-
 
                enddo
+               if (ivar == 1) t0(is_i:ie_i,js_i:je_i,:) = (t0(is_i:ie_i,js_i:je_i,:)/(1.0 + zvir*q0(is_i:ie_i,js_i:je_i,:)))
+               call prt_maxmin( 'Q_geos', q0, is_i, ie_i, js_i, je_i, ng_i, km, 1., gid==0)
+            enddo
+
+            if (filetype == 0) then
                call MAPL_NCIOClose(NCIO,destroy=.true.)
                deallocate(gslice_r4)
-               nmoist1 = iq
             end if
-         else
-            q0 = 0.
-! t0 needs to be just temperature with no virtual effect
-            t0(is_i:ie_i,js_i:je_i,:) = (t0(is_i:ie_i,js_i:je_i,:)/(1.0 + zvir*q0(is_i:ie_i,js_i:je_i,:)))
-         endif
+
+         end if
+
 ! Horiz Interp for GOCART tracers
 ! is there a gocart restart file to interpolate?
 ! Read in tracers: only sphum at this point
@@ -876,177 +859,101 @@ contains
 
             if (filetype /= 0) then
                offset=4
-               do iq=iq_gocart0,iq_gocart1
-                  k = mod(iq,km) ; if (k.eq.0) k=km
-                  call parallel_read_file_r4('gocart_internal_restart_in', npts, is_i,ie_i, js_i,je_i, 1, offset, q0(is_i:ie_i,js_i:je_i,k))
+            else
+               lvar_cnt = 0 
+               allocate(gslice_r4(im,jm))
+               NCIO = MAPL_NCIOOpen("gocart_internal_restart_in")
+               call MAPL_NCIOGetDimSizes(NCIO,nVars=nVars)
+               if (nVars /= iq_gocart1-iq_gocart0+1) call mpp_error(FATAL,'Wrong number of variables in gocart file') 
+               tileoff = (tile-1)*(jm/ntiles)
+            end if
+
+            do ivar=iq_gocart0,iq_gocart1
+               if (filetype ==0) lvar_cnt=lvar_cnt+1
+               do k=1,km
+                  if (filetype /= 0) then
+                     call parallel_read_file_r4('gocart_internal_restart_in', npts, is_i,ie_i, js_i,je_i, 1, offset, q0(is_i:ie_i,js_i:je_i,k))
+                     call mpp_update_domains(q0(:,:,k), domain_i)
+                  else
+                     call MAPL_NCIOGetVarName(NCIO,lvar_cnt,vname)
+                     call MAPL_VarRead(NCIO,vname,gslice_r4,lev=k)
+                     q0(is_i:ie_i,js_i:je_i,k)=gslice_r4(is_i:ie+i,tileoff+js_i:tileoff+je_i)
+                  end if
                   call mpp_update_domains(q0(:,:,k), domain_i)
                   do j=js,je
                      do i=is,ie
                         ic=index_c2c(1,i,j,tile)
                         jc=index_c2c(2,i,j,tile)
-                        qp(i,j,iq,1)=weight_c2c(1,i,j,tile)*q0(ic  ,jc  ,k)  &
+                        qp(i,j,k,ivar)=weight_c2c(1,i,j,tile)*q0(ic  ,jc  ,k)  &
                               +weight_c2c(2,i,j,tile)*q0(ic  ,jc+1,k)  &
                               +weight_c2c(3,i,j,tile)*q0(ic+1,jc+1,k)  &
                               +weight_c2c(4,i,j,tile)*q0(ic+1,jc  ,k)
                      enddo
                   enddo
-                  if (k.eq.km) call prt_maxmin( 'Q_geos', q0, is_i, ie_i, js_i, je_i, ng_i, km, 1., gid==0)
+
                enddo
-            else
-               allocate(gslice_r4(im,jm))
-               NCIO = MAPL_NCIOOpen("gocart_internal_restart_in")
-               call MAPL_NCIOGetDimSizes(NCIO,nVars=nVars)
-               iq = nmoist1
-               tileoff = (tile-1)*(jm/ntiles)
-               do ivar=1,nVars
-                  call MAPL_NCIOGetVarName(NCIO,ivar,vname)
-                  call MAPL_NCIOVarGetDims(NCIO,vname,nDims,dimSizes)
-                  do k=1,dimSizes(3)
-                     iq=iq+1
-                     call MAPL_VarRead(NCIO,vname,gslice_r4,lev=k)
-                     q0(is_i:ie_i,js_i:je_i,k)=gslice_r4(is_i:ie+i,tileoff+js_i:tileoff+je_i)
-                     call mpp_update_domains(q0(:,:,k), domain_i)
-                     do j=js,je
-                        do i=is,ie
-                           ic=index_c2c(1,i,j,tile)
-                           jc=index_c2c(2,i,j,tile)
-                           qp(i,j,iq,1)=weight_c2c(1,i,j,tile)*q0(ic  ,jc  ,k)  &
-                                 +weight_c2c(2,i,j,tile)*q0(ic  ,jc+1,k)  &
-                                 +weight_c2c(3,i,j,tile)*q0(ic+1,jc+1,k)  &
-                                 +weight_c2c(4,i,j,tile)*q0(ic+1,jc  ,k)
-                        enddo
-                     enddo
-                  enddo
-                  call prt_maxmin( 'Q_geos', q0, is_i, ie_i, js_i, je_i, ng_i, km, 1., gid==0)
-               enddo
+               call prt_maxmin( 'Q_geos', q0, is_i, ie_i, js_i, je_i, ng_i, km, 1., gid==0)
+            enddo
+
+            if (filetype == 0) then
                call MAPL_NCIOClose(NCIO,destroy=.true.)
                deallocate(gslice_r4)
-               ngocart1 = iq - nmoist1
             end if
-         endif
-! Horiz Interp for PCHEM tracers
-! is there a pchem restart file to interpolate?
+
+         end if
+! Horiz Interp for pchem tracers
+! is there a gocart restart file to interpolate?
 ! Read in tracers: only sphum at this point
-         if( file_exist("pchem_internal_restart_in") .and. (ntracers(3)>0) ) then
+         if( file_exist("pchem_internal_restart_in") .and. ntracers(3) > 0 ) then
             if (gid==0) print*, 'Trying to interpolate pchem_internal_restart_in'
 
             call MAPL_NCIOGetFileType("pchem_internal_restart_in",filetype)
 
-            if (filetype /=0) then
-
+            if (filetype /= 0) then
                offset=4
-               do iq=iq_pchem0,iq_pchem1
-                  k = mod(iq,km) ; if (k.eq.0) k=km
-                  call parallel_read_file_r4('pchem_internal_restart_in', npts, is_i,ie_i, js_i,je_i, 1, offset, q0(is_i:ie_i,js_i:je_i,k))
-                  call mpp_update_domains(q0(:,:,k), domain_i)
-                  do j=js,je
-                     do i=is,ie
-                        ic=index_c2c(1,i,j,tile)
-                        jc=index_c2c(2,i,j,tile)
-                        qp(i,j,iq,1)=weight_c2c(1,i,j,tile)*q0(ic  ,jc  ,k)  &
-                              +weight_c2c(2,i,j,tile)*q0(ic  ,jc+1,k)  &
-                              +weight_c2c(3,i,j,tile)*q0(ic+1,jc+1,k)  &
-                              +weight_c2c(4,i,j,tile)*q0(ic+1,jc  ,k)
-                     enddo
-                  enddo
-                  if (k.eq.km) call prt_maxmin( 'Q_geos', q0, is_i, ie_i, js_i, je_i, ng_i, km, 1.d0, gid==0)
-               enddo
             else
-
+               lvar_cnt = 0 
                allocate(gslice_r4(im,jm))
                NCIO = MAPL_NCIOOpen("pchem_internal_restart_in")
                call MAPL_NCIOGetDimSizes(NCIO,nVars=nVars)
-               iq = nmoist1 + ngocart1
+               if (nVars /= iq_pchem1-iq_pchem0+1) call mpp_error(FATAL,'Wrong number of variables in pchem file') 
                tileoff = (tile-1)*(jm/ntiles)
-               do ivar=1,nVars
-                  call MAPL_NCIOGetVarName(NCIO,ivar,vname)
-                  call MAPL_NCIOVarGetDims(NCIO,vname,nDims,dimSizes)
-                  do k=1,dimSizes(3)
-                     iq=iq+1
-                     call MAPL_VarRead(NCIO,vname,gslice_r4,lev=k)
-                     q0(is_i:ie_i,js_i:je_i,k)=gslice_r4(is_i:ie+i,tileoff+js_i:tileoff+je_i)
-                     call mpp_update_domains(q0(:,:,k), domain_i)
-                     do j=js,je
-                        do i=is,ie
-                           ic=index_c2c(1,i,j,tile)
-                           jc=index_c2c(2,i,j,tile)
-                           qp(i,j,iq,1)=weight_c2c(1,i,j,tile)*q0(ic  ,jc  ,k)  &
-                                 +weight_c2c(2,i,j,tile)*q0(ic  ,jc+1,k)  &
-                                 +weight_c2c(3,i,j,tile)*q0(ic+1,jc+1,k)  &
-                                 +weight_c2c(4,i,j,tile)*q0(ic+1,jc  ,k)
-                        enddo
-                     enddo
-                  enddo
-                  call prt_maxmin( 'Q_geos', q0, is_i, ie_i, js_i, je_i, ng_i, km, 1., gid==0)
-               enddo
-               call MAPL_NCIOClose(NCIO,destroy=.true.)
-               deallocate(gslice_r4)
-               npchem1 = iq - nmoist1 - ngocart1
-
             end if
 
-         endif
-! Horiz Interp for AGCM tracers
-! is there a agcm restart file to interpolate?
-! Read in tracers: only sphum at this point
-         if( file_exist("agcm_import_restart_in") .and. (ntracers(4)>0) ) then
-            if (gid==0) print*, 'Trying to interpolate agcm_import_restart_in'
-            call MAPL_NCIOGetFileType("agcm_import_restart_in",filetype)
-
-            if (filetype /=0) then
-
-               offset=4
-               do iq=iq_agcm0,iq_agcm1
-                  k = mod(iq,km) ; if (k.eq.0) k=km
-                  call parallel_read_file_r4('agcm_import_restart_in', npts, is_i,ie_i, js_i,je_i, 1, offset, q0(is_i:ie_i,js_i:je_i,k))
+            do ivar=iq_pchem0,iq_pchem1
+               if (filetype == 0) lvar_cnt=lvar_cnt+1
+               do k=1,km
+                  if (filetype /= 0) then
+                     call parallel_read_file_r4('pchem_internal_restart_in', npts, is_i,ie_i, js_i,je_i, 1, offset, q0(is_i:ie_i,js_i:je_i,k))
+                     call mpp_update_domains(q0(:,:,k), domain_i)
+                  else
+                     call MAPL_NCIOGetVarName(NCIO,lvar_cnt,vname)
+                     call MAPL_VarRead(NCIO,vname,gslice_r4,lev=k)
+                     q0(is_i:ie_i,js_i:je_i,k)=gslice_r4(is_i:ie+i,tileoff+js_i:tileoff+je_i)
+                  end if
                   call mpp_update_domains(q0(:,:,k), domain_i)
                   do j=js,je
                      do i=is,ie
                         ic=index_c2c(1,i,j,tile)
                         jc=index_c2c(2,i,j,tile)
-                        qp(i,j,iq,1)=weight_c2c(1,i,j,tile)*q0(ic  ,jc  ,k)  &
+                        qp(i,j,k,ivar)=weight_c2c(1,i,j,tile)*q0(ic  ,jc  ,k)  &
                               +weight_c2c(2,i,j,tile)*q0(ic  ,jc+1,k)  &
                               +weight_c2c(3,i,j,tile)*q0(ic+1,jc+1,k)  &
                               +weight_c2c(4,i,j,tile)*q0(ic+1,jc  ,k)
                      enddo
                   enddo
-                  if (k.eq.km) call prt_maxmin( 'Q_geos', q0, is_i, ie_i, js_i, je_i, ng_i, km, 1.d0, gid==0)
-               enddo
-            else
 
-               allocate(gslice_r4(im,jm))
-               NCIO = MAPL_NCIOOpen("agcm_import_restart_in")
-               call MAPL_NCIOGetDimSizes(NCIO,nVars=nVars)
-               iq = nmoist1 + ngocart1 + npchem1
-               tileoff = (tile-1)*(jm/ntiles)
-               do ivar=1,nVars
-                  call MAPL_NCIOGetVarName(NCIO,ivar,vname)
-                  call MAPL_NCIOVarGetDims(NCIO,vname,nDims,dimSizes)
-                  do k=1,dimSizes(3)
-                     iq=iq+1
-                     call MAPL_VarRead(NCIO,vname,gslice_r4,lev=k)
-                     q0(is_i:ie_i,js_i:je_i,k)=gslice_r4(is_i:ie+i,tileoff+js_i:tileoff+je_i)
-                     call mpp_update_domains(q0(:,:,k), domain_i)
-                     do j=js,je
-                        do i=is,ie
-                           ic=index_c2c(1,i,j,tile)
-                           jc=index_c2c(2,i,j,tile)
-                           qp(i,j,iq,1)=weight_c2c(1,i,j,tile)*q0(ic  ,jc  ,k)  &
-                                 +weight_c2c(2,i,j,tile)*q0(ic  ,jc+1,k)  &
-                                 +weight_c2c(3,i,j,tile)*q0(ic+1,jc+1,k)  &
-                                 +weight_c2c(4,i,j,tile)*q0(ic+1,jc  ,k)
-                        enddo
-                     enddo
-                  enddo
-                  call prt_maxmin( 'Q_geos', q0, is_i, ie_i, js_i, je_i, ng_i, km, 1., gid==0)
                enddo
+               call prt_maxmin( 'Q_geos', q0, is_i, ie_i, js_i, je_i, ng_i, km, 1., gid==0)
+            enddo
+
+            if (filetype == 0) then
                call MAPL_NCIOClose(NCIO,destroy=.true.)
                deallocate(gslice_r4)
-               npchem1 = iq - nmoist1 - ngocart1 - npchem1
-
             end if
 
-         endif
+         end if
+                   
 ! Horiz Interp for T
          deallocate ( q0 )
          call mpp_update_domains(t0, domain_i)
@@ -1069,28 +976,9 @@ contains
          deallocate( weight_c2c )
 
 ! Horz/Vert remap for scalars
-         if( ( km*(nmoist /km) .eq. nmoist  )  .and. &
-               ( km*(ngocart/km) .eq. ngocart )  .and. &
-               ( km*(npchem /km) .eq. npchem  ) ) then
-            nqmap = ( nmoist + ngocart + npchem )/km
-         else
-            call mpp_error(FATAL,'MOIST, GOCART, PCHEM Tracers NOT divisible by KM')
-         endif
+         nqmap =  nmoist + ngocart + npchem 
 
          call remap_scalar(im, jm, km, npz, nqmap, nqmap, ak0, bk0, psc, gzc, tp, qp, Atm)
-
-         if( nagcm.ne.0 .and. km.ne.npz ) then
-            call mpp_error(FATAL,'Cannot create AGCM_IMPORT for KM.ne.NPZ')
-         else
-            offset = nmoist+ngocart+npchem  ! No Remapping for Non-Divisible AGCM_IMPORT
-            do iq=1,nagcm
-               do j=js,je
-                  do i=is,ie
-                     Atm(1)%q(i,j,iq+offset,1) = qp(i,j,iq+offset,1)
-                  enddo
-               enddo
-            enddo
-         endif
 
          deallocate ( tp )
          deallocate ( qp )
@@ -1119,23 +1007,25 @@ contains
       call prt_maxmin('PT_model', Atm(1)%pt, is, ie, js, je, ng, npz, 1.d0, gid==0)
 ! Range check the MOIST tracers
       do iq=iq_moist0,iq_moist1
-         do j=js,je
-            do i=is,ie
-               Atm(1)%q(i,j,iq,1) = MIN(Atm(1)%q(i,j,iq,1),1.d0)
-               Atm(1)%q(i,j,iq,1) = MAX(Atm(1)%q(i,j,iq,1),0.d0)
+         do k=1,npz
+            do j=js,je
+               do i=is,ie
+                  Atm(1)%q(i,j,k,iq) = MIN(Atm(1)%q(i,j,k,iq),1.d0)
+                  Atm(1)%q(i,j,k,iq) = MAX(Atm(1)%q(i,j,k,iq),0.d0)
+               enddo
             enddo
          enddo
       enddo
-      do iq=1,nq
+      do iq=1,nmoist+npchem+ngocart
          call prt_maxmin('QP_model', Atm(1)%q(is:ie,js:je,1:npz,iq), is, ie, js, je, 0, npz, 1., gid==0)
       enddo
 
    end subroutine get_geos_cubed_ic
 
-   subroutine get_geos_latlon_ic( Atm, fv_domain, nq )
+   subroutine get_geos_latlon_ic( Atm, fv_domain, nq, ntracers)
       type(fv_atmos_type), intent(inout) :: Atm(:)
       type(domain2d),      intent(inout) :: fv_domain
-      integer, intent(in):: nq
+      integer, intent(in):: nq,ntracers(3)
 
       character(len=128) :: fname, fname1
       real(REAL8), allocatable:: pkz0(:,:)
@@ -1148,7 +1038,7 @@ contains
       integer :: header(6)
       character (len=8) :: imc, jmc
 
-      integer:: i1, i2, nmoist, ngocart, npchem, nagcm, nqmap, offset
+      integer:: i1, i2, nmoist, ngocart, npchem, nqmap, offset
       real(REAL8):: s2c(is:ie,js:je,4)
       integer, dimension(is:ie,js:je):: id1, id2, jdc
       real(REAL8) psc(is:ie,js:je)
@@ -1169,9 +1059,22 @@ contains
       type(MAPL_NCIO)    :: ncio
       integer            :: nDims, nVars, ivar, dimSizes(3)
       character(len=128) :: vname
-
+      integer :: iq_moist0 , iq_moist1
+      integer :: iq_gocart0, iq_gocart1
+      integer :: iq_pchem0 , iq_pchem1
+      integer :: lvar_cnt
 !bma added
-      character(len=128) :: moist_order(7) = (/"Q   ","QLLS","QLCN","CLLS","CLCN","QILS","QICN"/)
+      character(len=128) :: moist_order(9) = (/"Q   ","QLLS","QLCN","CLLS","CLCN","QILS","QICN","NCPL","NCPI"/)
+
+      iq_moist0 =           1
+      iq_moist1 =           ntracers(1)
+      iq_gocart0=iq_moist1 +1
+      iq_gocart1=iq_moist1 +ntracers(2)
+      iq_pchem0 =iq_gocart1+1
+      iq_pchem1 =iq_gocart1+ntracers(3)
+      nmoist  = ntracers(1)
+      ngocart = ntracers(2)
+      npchem  = ntracers(3)
 
       npz = Atm(1)%npz
 
@@ -1422,350 +1325,157 @@ contains
          allocate (  q0(im,jm,km) )
          allocate ( qp(is:ie,js:je,km,nq) )
          qp = 0.0
+
+! Horiz Interp for moist tracers
 ! is there a moist restart file to interpolate?
 ! Read in tracers: only sphum at this point
-         nmoist = 0
-         if( file_exist("moist_internal_restart_in") ) then
-            if (gid==0) then
-               print*
-               print*, 'Trying to interpolate moist_internal_restart_in'
-               print*, '-----------------------------------------------'
-            endif
+         if( file_exist("moist_internal_restart_in") .and. ntracers(1) > 0 ) then
+            if (gid==0) print*, 'Trying to interpolate moist_internal_restart_in'
             allocate ( r4latlon(im,jm) )
+
             call MAPL_NCIOGetFileType("moist_internal_restart_in",filetype)
 
             if (filetype /= 0) then
-
                open(IUNIT,file="moist_internal_restart_in" ,access='sequential',form='unformatted',status='old')
-               iq =  0
-               status =  0
-               do while (status.eq.0)
-                  read (IUNIT, IOSTAT=status) r4latlon
-                  if( status.eq.0 ) then
-                     iq = 1 + iq
-                     k = mod(iq,km) ; if( k.eq.0 ) k = km
-                     q0(1       :im/2,:,k) = r4latlon(im/2 + 1 :im  , :) ! Regrid from -180:180 to 0:360
-                     q0(im/2 + 1:im  ,:,k) = r4latlon(1        :im/2, :) ! Regrid from -180:180 to 0:360
-                     do j=js,je
-                        do i=is,ie
-                           i1 = id1(i,j)
-                           i2 = id2(i,j)
-                           j1 = jdc(i,j)
-                           qp(i,j,iq,1) = s2c(i,j,1)*q0(i1,j1  ,k) + s2c(i,j,2)*q0(i2,j1  ,k) +  &
-                                 s2c(i,j,3)*q0(i2,j1+1,k) + s2c(i,j,4)*q0(i1,j1+1,k)
-                        enddo
-                     enddo
-
-                     if(gid==0 .and. k.eq.km) then
-                        write (cid,101) iq/km
-                        tag = 'MOIST_Q_' // cid
-                        call pmaxmin( trim(tag),  q0(:,:,:), im*jm, km, 1.d0)
-                     endif
-                     if(iq==km) t0 = (t0/(1.0 + zvir*q0(:,:,:)))   ! t0 needs to be just temperature with no virtual effect
-
-                  else
-                     exit
-                  endif
-
-               enddo
-
-               nmoist = iq
-               close (IUNIT)
-
             else
-
+               lvar_cnt = 0
                NCIO = MAPL_NCIOOpen("moist_internal_restart_in")
                call MAPL_NCIOGetDimSizes(NCIO,nVars=nVars)
-               iq = 0
-               do ivar=1,nVars
-                  vname = trim(moist_order(ivar))
-                  call MAPL_NCIOVarGetDims(NCIO,vname,nDims,dimSizes)
-                  do k=1,dimSizes(3)
-                     iq = iq + 1
-                     call MAPL_VarRead(NCIO,vname,r4latlon,lev=k)
-                     q0(1       :im/2,:,k) = r4latlon(im/2 + 1 :im  , :) ! Regrid from -180:180 to 0:360
-                     q0(im/2 + 1:im  ,:,k) = r4latlon(1        :im/2, :) ! Regrid from -180:180 to 0:360
-                     do j=js,je
-                        do i=is,ie
-                           i1 = id1(i,j)
-                           i2 = id2(i,j)
-                           j1 = jdc(i,j)
-                           qp(i,j,iq,1) = s2c(i,j,1)*q0(i1,j1  ,k) + s2c(i,j,2)*q0(i2,j1  ,k) +  &
-                                 s2c(i,j,3)*q0(i2,j1+1,k) + s2c(i,j,4)*q0(i1,j1+1,k)
-                        enddo
-                     enddo
-                  enddo
-                  if(gid==0) then
-                     write (cid,101) ivar
-                     tag = 'MOIST_Q_' // cid
-                     call pmaxmin( trim(tag),  q0(:,:,:), im*jm, km, 1.)
-                  endif
-                  if (ivar == 1) t0 = (t0/(1.0 + zvir*q0(:,:,:)))
-               end do
-
-               call MAPL_NCIOClose(NCIO,destroy=.true.)
-
+               if (nVars /= iq_moist1-iq_moist0+1) call mpp_error(FATAL,'Wrong number of variables in moist file')
             end if
 
-            nmoist = iq
+            do ivar=iq_moist0,iq_moist1
+               if (filetype ==0) lvar_cnt=lvar_cnt+1
+               do k=1,km
+                  if (filetype /= 0) then
+                     read (IUNIT, IOSTAT=status) r4latlon
+                  else
+                     vname = trim(moist_order(lvar_cnt))
+                     call MAPL_VarRead(NCIO,vname,r4latlon,lev=k)
+                  end if
+                  q0(1       :im/2,:,k) = r4latlon(im/2 + 1 :im  , :) ! Regrid from -180:180 to 0:360
+                  q0(im/2 + 1:im  ,:,k) = r4latlon(1        :im/2, :) ! Regrid from -180:180 to 0:360
+                  do j=js,je
+                     do i=is,ie
+                        i1 = id1(i,j)
+                        i2 = id2(i,j)
+                        j1 = jdc(i,j)
+                        qp(i,j,k,ivar) = s2c(i,j,1)*q0(i1,j1  ,k) + s2c(i,j,2)*q0(i2,j1  ,k) +  &
+                              s2c(i,j,3)*q0(i2,j1+1,k) + s2c(i,j,4)*q0(i1,j1+1,k)
+                     enddo
+                  enddo
+               enddo
+               if (ivar == 1) t0 = (t0/(1.0 + zvir*q0(:,:,:)))
+               if (gid==0) call pmaxmin( 'MOIST_Q_',  q0(:,:,:), im*jm, km, 1.d0)
+            enddo
+            if (filetype == 0) then
+               call MAPL_NCIOClose(NCIO,destroy=.true.)
+            else
+               close(IUNIT)
+            end if
+            deallocate(r4latlon)
 
-            deallocate ( r4latlon )
-            if(gid==0) print*
-         else
-            q0 = 0.
-            t0 = (t0/(1.0 + zvir*q0(:,:,:))) ! t0 needs to be just temperature with no virtual effect
-         endif
-101      format(i3.3)
+         end if
 
 ! Horiz Interp for GOCART tracers
-! -------------------------------
 ! is there a gocart restart file to interpolate?
-         ngocart = 0
-         if( file_exist("gocart_internal_restart_in") ) then
-            if (gid==0) then
-               print*, 'Trying to interpolate gocart_internal_restart_in'
-               print*, '------------------------------------------------'
-            endif
+! Read in tracers: only sphum at this point
+         if( file_exist("gocart_internal_restart_in") .and. ntracers(2) > 0 ) then
+            if (gid==0) print*, 'Trying to interpolate gocart_internal_restart_in'
             allocate ( r4latlon(im,jm) )
-
             call MAPL_NCIOGetFileType("gocart_internal_restart_in",filetype)
 
             if (filetype /= 0) then
-
                open(IUNIT,file="gocart_internal_restart_in" ,access='sequential',form='unformatted',status='old')
-               iq =  nmoist
-               status =  0
-               do while (status.eq.0)
-                  read (IUNIT, IOSTAT=status) r4latlon
-                  if( status.eq.0 ) then
-                     iq = iq + 1
-                     k = mod(iq,km) ; if( k.eq.0 ) k = km
-                     q0(1       :im/2,:,k) = r4latlon(im/2 + 1 :im  , :) ! Regrid from -180:180 to 0:360
-                     q0(im/2 + 1:im  ,:,k) = r4latlon(1        :im/2, :) ! Regrid from -180:180 to 0:360
-                     do j=js,je
-                        do i=is,ie
-                           i1 = id1(i,j)
-                           i2 = id2(i,j)
-                           j1 = jdc(i,j)
-                           qp(i,j,iq,1) = s2c(i,j,1)*q0(i1,j1  ,k) + s2c(i,j,2)*q0(i2,j1  ,k) +  &
-                                 s2c(i,j,3)*q0(i2,j1+1,k) + s2c(i,j,4)*q0(i1,j1+1,k)
-                        enddo
-                     enddo
-                     if(gid==0 .and. k.eq.km) then
-                        write (cid,101) (iq-nmoist)/km
-                        tag = 'GOCART_Q_' // cid
-                        call pmaxmin( trim(tag),   q0(:,:,:), im*jm, km, 1.d0)
-                     endif
-                  else
-                     exit
-                  endif
-
-               enddo
-
             else
-
+               lvar_cnt = 0
                NCIO = MAPL_NCIOOpen("gocart_internal_restart_in")
                call MAPL_NCIOGetDimSizes(NCIO,nVars=nVars)
-               iq = nmoist
-               do ivar=1,nVars
-                  call MAPL_NCIOGetVarName(NCIO,ivar,vname)
-                  call MAPL_NCIOVarGetDims(NCIO,vname,nDims,dimSizes)
-                  do k=1,dimSizes(3)
-                     iq = iq + 1
-                     call MAPL_VarRead(NCIO,vname,r4latlon,lev=k)
-                     q0(1       :im/2,:,k) = r4latlon(im/2 + 1 :im  , :) ! Regrid from -180:180 to 0:360
-                     q0(im/2 + 1:im  ,:,k) = r4latlon(1        :im/2, :) ! Regrid from -180:180 to 0:360
-                     do j=js,je
-                        do i=is,ie
-                           i1 = id1(i,j)
-                           i2 = id2(i,j)
-                           j1 = jdc(i,j)
-                           qp(i,j,iq,1) = s2c(i,j,1)*q0(i1,j1  ,k) + s2c(i,j,2)*q0(i2,j1  ,k) +  &
-                                 s2c(i,j,3)*q0(i2,j1+1,k) + s2c(i,j,4)*q0(i1,j1+1,k)
-                        enddo
-                     enddo
-                  enddo
-                  if(gid==0) then
-                     write (cid,101) ivar
-                     tag = 'GOCART_Q_' // cid
-                     call pmaxmin( trim(tag),  q0(:,:,:), im*jm, km, 1.)
-                  endif
-               end do
-
-               call MAPL_NCIOClose(NCIO,destroy=.true.)
-
+               if (nVars /= iq_gocart1-iq_gocart0+1) call mpp_error(FATAL,'Wrong number of variables in gocart file')
             end if
 
-            ngocart = iq - nmoist
-            deallocate ( r4latlon )
-            if(gid==0) print*
+            do ivar=iq_gocart0,iq_gocart1
+               if (filetype ==0) lvar_cnt=lvar_cnt+1
+               do k=1,km
+                  if (filetype /= 0) then
+                     read (IUNIT, IOSTAT=status) r4latlon
+                  else
+                     call MAPL_NCIOGetVarName(NCIO,lvar_cnt,vname)
+                     call MAPL_VarRead(NCIO,vname,r4latlon,lev=k)
+                  end if
+                  q0(1       :im/2,:,k) = r4latlon(im/2 + 1 :im  , :) ! Regrid from -180:180 to 0:360
+                  q0(im/2 + 1:im  ,:,k) = r4latlon(1        :im/2, :) ! Regrid from -180:180 to 0:360
+                  do j=js,je
+                     do i=is,ie
+                        i1 = id1(i,j)
+                        i2 = id2(i,j)
+                        j1 = jdc(i,j)
+                        qp(i,j,k,ivar) = s2c(i,j,1)*q0(i1,j1  ,k) + s2c(i,j,2)*q0(i2,j1  ,k) +  &
+                              s2c(i,j,3)*q0(i2,j1+1,k) + s2c(i,j,4)*q0(i1,j1+1,k)
+                     enddo
+                  enddo
 
-         endif
+               enddo
+               if (gid==0) call pmaxmin( 'GOCART_Q_',  q0(:,:,:), im*jm, km, 1.d0)
+            enddo
 
-! Horiz Interp for PCHEM tracers
-! ------------------------------
+            if (filetype == 0) then
+               call MAPL_NCIOClose(NCIO,destroy=.true.)
+            else
+               close(IUNIT)
+            end if
+            deallocate(r4latlon)
+         end if
+
+! Horiz Interp for pchem tracers
 ! is there a pchem restart file to interpolate?
-         npchem = 0
-         if( file_exist("pchem_internal_restart_in") ) then
-            if (gid==0) then
-               print*, 'Trying to interpolate pchem_internal_restart_in'
-               print*, '-----------------------------------------------'
-            endif
+! Read in tracers: only sphum at this point
+         if( file_exist("pchem_internal_restart_in") .and. ntracers(3) > 0 ) then
+            if (gid==0) print*, 'Trying to interpolate pchem_internal_restart_in'
             allocate ( r4latlon(im,jm) )
-
             call MAPL_NCIOGetFileType("pchem_internal_restart_in",filetype)
 
             if (filetype /= 0) then
                open(IUNIT,file="pchem_internal_restart_in" ,access='sequential',form='unformatted',status='old')
-               iq = nmoist + ngocart
-               status =  0
-               do while (status.eq.0)
-                  read (IUNIT, IOSTAT=status) r4latlon
-                  if( status.eq.0 ) then
-                     iq = iq + 1
-                     k = mod(iq,km) ; if( k.eq.0 ) k = km
-                     q0(1       :im/2,:,k) = r4latlon(im/2 + 1 :im  , :) ! Regrid from -180:180 to 0:360
-                     q0(im/2 + 1:im  ,:,k) = r4latlon(1        :im/2, :) ! Regrid from -180:180 to 0:360
-                     do j=js,je
-                        do i=is,ie
-                           i1 = id1(i,j)
-                           i2 = id2(i,j)
-                           j1 = jdc(i,j)
-                           qp(i,j,iq,1) = s2c(i,j,1)*q0(i1,j1  ,k) + s2c(i,j,2)*q0(i2,j1  ,k) +  &
-                                 s2c(i,j,3)*q0(i2,j1+1,k) + s2c(i,j,4)*q0(i1,j1+1,k)
-                        enddo
-                     enddo
-                     if(gid==0 .and. k.eq.km) then
-                        write (cid,101) (iq-nmoist-ngocart)/km
-                        tag = 'PCHEM_Q_' // cid
-                        call pmaxmin( trim(tag),   q0(:,:,:), im*jm, km, 1.d0)
-                     endif
-                  else
-                     exit
-                  endif
-               enddo
-
             else
-
+               lvar_cnt = 0
                NCIO = MAPL_NCIOOpen("pchem_internal_restart_in")
                call MAPL_NCIOGetDimSizes(NCIO,nVars=nVars)
-               iq = nmoist + ngocart
-               do ivar=1,nVars
-                  call MAPL_NCIOGetVarName(NCIO,ivar,vname)
-                  call MAPL_NCIOVarGetDims(NCIO,vname,nDims,dimSizes)
-                  do k=1,dimSizes(3)
-                     iq = iq + 1
-                     call MAPL_VarRead(NCIO,vname,r4latlon,lev=k)
-                     q0(1       :im/2,:,k) = r4latlon(im/2 + 1 :im  , :) ! Regrid from -180:180 to 0:360
-                     q0(im/2 + 1:im  ,:,k) = r4latlon(1        :im/2, :) ! Regrid from -180:180 to 0:360
-                     do j=js,je
-                        do i=is,ie
-                           i1 = id1(i,j)
-                           i2 = id2(i,j)
-                           j1 = jdc(i,j)
-                           qp(i,j,iq,1) = s2c(i,j,1)*q0(i1,j1  ,k) + s2c(i,j,2)*q0(i2,j1  ,k) +  &
-                                 s2c(i,j,3)*q0(i2,j1+1,k) + s2c(i,j,4)*q0(i1,j1+1,k)
-                        enddo
-                     enddo
-                  enddo
-                  if(gid==0) then
-                     write (cid,101) ivar
-                     tag = 'PCHEM_Q_' // cid
-                     call pmaxmin( trim(tag),  q0(:,:,:), im*jm, km, 1.)
-                  endif
-               end do
-
-               call MAPL_NCIOClose(NCIO,destroy=.true.)
-
+               if (nVars /= iq_pchem1-iq_pchem0+1) call mpp_error(FATAL,'Wrong number of variables in pchem file')
             end if
 
-            npchem = iq - nmoist - ngocart
-            deallocate ( r4latlon )
-            if (gid==0) print*
-         endif
-
-! Horiz Interp for AGCM Import Tracers (Note: not all fields are IM,JM,KM)
-! ------------------------------------------------------------------------
-! is there an AGCM IMPORT restart file to interpolate?
-         nagcm = 0
-         if( file_exist("agcm_import_restart_in") ) then
-            if (gid==0) then
-               print*, 'Trying to interpolate agcm_import_restart_in'
-               print*, '--------------------------------------------'
-            endif
-            allocate ( r4latlon(im,jm) )
-
-            call MAPL_NCIOGetFileType("agcm_import_restart_in",filetype)
-
-            if (filetype /= 0) then
-
-               open(IUNIT,file="agcm_import_restart_in" ,access='sequential',form='unformatted',status='old')
-               iq = nmoist + ngocart + npchem
-               status =  0
-               do while (status.eq.0)
-                  read (IUNIT, IOSTAT=status) r4latlon
-                  if( status.eq.0 ) then
-                     iq = iq + 1
-                     k = mod(iq,km) ; if( k.eq.0 ) k = km
-                     q0(1       :im/2,:,k) = r4latlon(im/2 + 1 :im  , :) ! Regrid from -180:180 to 0:360
-                     q0(im/2 + 1:im  ,:,k) = r4latlon(1        :im/2, :) ! Regrid from -180:180 to 0:360
-                     do j=js,je
-                        do i=is,ie
-                           i1 = id1(i,j)
-                           i2 = id2(i,j)
-                           j1 = jdc(i,j)
-                           qp(i,j,iq,1) = s2c(i,j,1)*q0(i1,j1  ,k) + s2c(i,j,2)*q0(i2,j1  ,k) +  &
-                                 s2c(i,j,3)*q0(i2,j1+1,k) + s2c(i,j,4)*q0(i1,j1+1,k)
-                        enddo
-                     enddo
-                     if(gid==0 .and. k.eq.km) then
-                        write (cid,101) (iq-nmoist-ngocart-npchem)/km
-                        tag = 'AGCM_Q_' // cid
-                        call pmaxmin( trim(tag),   q0(:,:,:), im*jm, km, 1.d0)
-                     endif
+            do ivar=iq_pchem0,iq_pchem1
+               if (filetype ==0) lvar_cnt=lvar_cnt+1
+               do k=1,km
+                  if (filetype /= 0) then
+                     read (IUNIT, IOSTAT=status) r4latlon
                   else
-                     exit
-                  endif
-               enddo
-
-            else
-
-               NCIO = MAPL_NCIOOpen("agcm_import_restart_in")
-               call MAPL_NCIOGetDimSizes(NCIO,nVars=nVars)
-               iq = nmoist + ngocart + npchem
-               do ivar=1,nVars
-                  call MAPL_NCIOGetVarName(NCIO,ivar,vname)
-                  call MAPL_NCIOVarGetDims(NCIO,vname,nDims,dimSizes)
-                  do k=1,dimSizes(3)
-                     iq = iq + 1
+                     call MAPL_NCIOGetVarName(NCIO,lvar_cnt,vname)
                      call MAPL_VarRead(NCIO,vname,r4latlon,lev=k)
-                     q0(1       :im/2,:,k) = r4latlon(im/2 + 1 :im  , :) ! Regrid from -180:180 to 0:360
-                     q0(im/2 + 1:im  ,:,k) = r4latlon(1        :im/2, :) ! Regrid from -180:180 to 0:360
-                     do j=js,je
-                        do i=is,ie
-                           i1 = id1(i,j)
-                           i2 = id2(i,j)
-                           j1 = jdc(i,j)
-                           qp(i,j,iq,1) = s2c(i,j,1)*q0(i1,j1  ,k) + s2c(i,j,2)*q0(i2,j1  ,k) +  &
-                                 s2c(i,j,3)*q0(i2,j1+1,k) + s2c(i,j,4)*q0(i1,j1+1,k)
-                        enddo
+                  end if
+                  q0(1       :im/2,:,k) = r4latlon(im/2 + 1 :im  , :) ! Regrid from -180:180 to 0:360
+                  q0(im/2 + 1:im  ,:,k) = r4latlon(1        :im/2, :) ! Regrid from -180:180 to 0:360
+                  do j=js,je
+                     do i=is,ie
+                        i1 = id1(i,j)
+                        i2 = id2(i,j)
+                        j1 = jdc(i,j)
+                        qp(i,j,k,ivar) = s2c(i,j,1)*q0(i1,j1  ,k) + s2c(i,j,2)*q0(i2,j1  ,k) +  &
+                              s2c(i,j,3)*q0(i2,j1+1,k) + s2c(i,j,4)*q0(i1,j1+1,k)
                      enddo
                   enddo
-                  if(gid==0) then
-                     write (cid,101) ivar
-                     tag = 'AGCM_Q_' // cid
-                     call pmaxmin( trim(tag),  q0(:,:,:), im*jm, km, 1.)
-                  endif
-               end do
 
+               enddo
+               if (gid==0) call pmaxmin( 'PCHEM_Q_',  q0(:,:,:), im*jm, km, 1.d0)
+            enddo
+
+            if (filetype == 0) then
                call MAPL_NCIOClose(NCIO,destroy=.true.)
-
+            else
+               close(IUNIT)
             end if
-
-            nagcm = iq - nmoist - ngocart - npchem
-            deallocate ( r4latlon )
-            if (gid==0) print*
-         endif
+            deallocate(r4latlon)
+         end if
 
          call print_memuse_stats('get_geos_latlon_ic: remap_tracers')
          deallocate ( q0 )
@@ -1789,28 +1499,9 @@ contains
 
 ! Horz/Vert remap for MOIST, GOCART, and PCHEM scalars (Assuming Total Number is divisible by KM)
 ! -----------------------------------------------------------------------------------------------
-         if( ( km*(nmoist /km) .eq. nmoist  )  .and. &
-               ( km*(ngocart/km) .eq. ngocart )  .and. &
-               ( km*(npchem /km) .eq. npchem  ) ) then
-            nqmap = ( nmoist + ngocart + npchem )/km
-         else
-            call mpp_error(FATAL,'MOIST, GOCART, PCHEM Tracers NOT divisible by KM')
-         endif
+         nqmap = nmoist + ngocart + npchem 
 
          call remap_scalar(im, jm, km, npz, nqmap, nqmap, ak0, bk0, psc, gzc, tp, qp, Atm)
-
-         if( nagcm.ne.0 .and. km.ne.npz ) then
-            call mpp_error(FATAL,'Cannot create AGCM_IMPORT for KM.ne.NPZ')
-         else
-            offset = nmoist+ngocart+npchem  ! No Remapping for Non-Divisible AGCM_IMPORT
-            do iq=1,nagcm
-               do j=js,je
-                  do i=is,ie
-                     Atm(1)%q(i,j,iq+offset,1) = qp(i,j,iq+offset,1)
-                  enddo
-               enddo
-            enddo
-         endif
 
          deallocate ( tp )
          deallocate ( qp ) 
@@ -1842,62 +1533,29 @@ contains
       call prt_maxmin('PT_model', Atm(1)%pt  , is, ie, js, je, ng, npz, 1.d0, gid==0)
 
 ! Range check the MOIST tracers
-      do iq=1,npz*(nmoist/km)
-         do j=js,je
-            do i=is,ie
-               Atm(1)%q(i,j,iq,1) = MIN(Atm(1)%q(i,j,iq,1),1.d0)
-               Atm(1)%q(i,j,iq,1) = MAX(Atm(1)%q(i,j,iq,1),0.d0)
+      do iq=iq_moist0,iq_moist1
+         do k=1,npz
+            do j=js,je
+               do i=is,ie
+                  Atm(1)%q(i,j,k,iq) = MIN(Atm(1)%q(i,j,k,iq),1.d0)
+                  Atm(1)%q(i,j,k,iq) = MAX(Atm(1)%q(i,j,k,iq),0.d0)
+               enddo
             enddo
          enddo
       enddo
 
       if (gid==0) print*
-      do iq=1,npz*(nmoist/km),npz
-         i1 = iq 
-         i2 = iq+npz-1 
-         write (cid,101) 1+(iq-1)/npz
-         tag = 'QP_MOIST_Q_' // cid
-         if( i2.le.npz*(nmoist/km) ) then
-            call prt_maxmin(trim(tag), Atm(1)%q(:,:,i1:i2,1), is, ie, js, je, ng, npz, 1.d0, gid==0)
-         endif
-      enddo
-
-      if (gid==0) print*
-      offset = npz*(nmoist/km)
-      do iq=1,npz*(ngocart/km),npz
-         i1 = iq+offset 
-         i2 = iq+offset+npz-1 
-         write (cid,101) 1+(iq-1)/npz
-         tag = 'QP_GOCART_Q_' // cid
-         if( i2-offset.le.npz*(ngocart/km) ) then
-            call prt_maxmin(trim(tag), Atm(1)%q(:,:,i1:i2,1), is, ie, js, je, ng, npz, 1.d0, gid==0)
-         endif
-      enddo
-
-      if (gid==0) print*
-      offset = npz*(nmoist+ngocart)/km
-      do iq=1,npz*(npchem/km),npz
-         i1 = iq+offset
-         i2 = iq+offset+npz-1 
-         write (cid,101) 1+(iq-1)/npz
-         tag = 'QP_PCHEM_Q_' // cid
-         if( i2-offset.le.npz*(npchem/km) ) then
-            call prt_maxmin(trim(tag), Atm(1)%q(:,:,i1:i2,1), is, ie, js, je, ng, npz, 1.d0, gid==0)
-         endif
-      enddo
-
-      if (gid==0) print*
-      offset = npz*(nmoist+ngocart+npchem)/km
-      do iq=1,npz*(nagcm/km),npz
-         i1 = iq+offset
-         i2 = iq+offset+npz-1 
-         write (cid,101) 1+(iq-1)/npz
-         tag = 'QP_AGCM_Q_' // cid
-         if( i2-offset.le.npz*(nagcm/km) ) then
-            call prt_maxmin(trim(tag), Atm(1)%q(:,:,i1:i2,1), is, ie, js, je, ng, npz, 1.d0, gid==0)
-         endif
+      do iq=iq_moist0,iq_moist1
+         call prt_maxmin('QP_MOIST_Q', Atm(1)%q(is:ie,js:je,1:npz,iq), is, ie, js, je, 0, npz, 1., gid==0)
       enddo
       if (gid==0) print*
+      do iq=iq_gocart0,iq_gocart1
+         call prt_maxmin('QP_GOCART_Q', Atm(1)%q(is:ie,js:je,1:npz,iq), is, ie, js, je, 0, npz, 1., gid==0)
+      enddo
+      if (gid==0) print*
+      do iq=iq_pchem0,iq_pchem1
+         call prt_maxmin('QP_PCHEM_Q', Atm(1)%q(is:ie,js:je,1:npz,iq), is, ie, js, je, 0, npz, 1., gid==0)
+      enddo
 
    end subroutine get_geos_latlon_ic
 

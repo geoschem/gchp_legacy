@@ -1,26 +1,10 @@
-#------------------------------------------------------------------------------
-#                  GEOS-Chem Global Chemical Transport Model                  !
-#------------------------------------------------------------------------------
-#BOP
 #
-# !MODULE: Makefile
+# Makefile for ESMA components.
 #
-# !DESCRIPTION: Makefile for the NASA/GMAO FVdycore transport component.
-#\\
-#\\
-# !REMARKS:
-#  The FVdycore build sequence will touch the fvdycore.install file even
-#  whem making distclean.  You can use "make wipeout_mapl" in the ../GIGC
-#  directory to remove the FVdycore code.  This will remove fvdycore.install
-#  after making distclean.
+# REVISION HISTORY:
 #
-# !REVISION HISTORY: 
-#  09Jun2003  da Silva         First crack.
-#  18 Sep 2013 - M. Long     - Initial version
-#  18 Nov 2014 - R. Yantosca - Cosmetic changes
-#EOP
-#------------------------------------------------------------------------------
-#BOC#
+# 09Jun2003  da Silva  First crack.
+#
 
 # Make sure ESMADIR is defined
 # ----------------------------
@@ -63,34 +47,20 @@ SUBDIRS = $(wildcard $(ALLDIRS))
 TARGETS = esma_install esma_clean esma_distclean esma_doc \
           install clean distclean doc 
 
-export ESMADIR BASEDIR ARCH SITE FC
+export ESMADIR BASEDIR ARCH SITE
 
 PROTEX_FLAGS = -bM
 
 export ESMADIR BASEDIR ARCH SITE
 
 $(TARGETS): 
-ifeq ($(wildcard fvdycore.install),)
 	@ t=$@; argv="$(SUBDIRS)" ;\
 	  for d in $$argv; do			 \
 	    ( cd $$d				;\
 	      echo ""; echo Making $$t in `pwd`          ;\
 	      $(MAKE) -e $$t ) \
 	  done
-	@touch fvdycore.install
 	$(MAKE) local_$@
-else
-	@echo "%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%"
-	@echo "%%%%%  The FV DyCore already appears to be compiled."
-	@echo "%%%%%  If you need to make changes, remove the file"
-	@echo "%%%%%"
-	@echo "%%%%%  $(CURDIR)/fvdycore.install "
-	@echo "%%%%%"
-	@echo "%%%%%  and recompile. This file is created after"
-	@echo "%%%%%  each successful completion of the make command"
-	@echo "%%%%%     M.S. Long - 8/25/2014"
-	@echo "%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%"
-endif
 
 local_esma_install local_install: $(LIB) $(BINS)
 	$(MKDIR) $(ESMALIB) $(ESMAETC) $(ESMAINC)/$(THIS)
@@ -116,6 +86,7 @@ local_esma_doc local_doc:
 SRCS := sw.f90 jw.f90 testcases_3_4_5_6_stand_alone.f90 \
 	GetWeightsC2C.F90 \
 	GetWeights.F90 \
+	CubeHalo.F90 \
         Cube2LatLon.F90 LatLon2Cube.F90 AppGridCreate.F90 FV_StateMod.F90 \
         AdvCore_GridCompMod.F90 \
         DynCore_GridCompMod.F90 CreateInterpWeights_GridCompMod.F90 \
@@ -133,7 +104,7 @@ USER_FMODS  = $(foreach dir,$(MOD_DIRS),$(M)$(dir))
 vpath % $(INC_DIRS) $(MOD_DIRS)
 
 #USER_FFLAGS += $(BIG_ENDIAN) 
-FDEFS       += $(D)SPMD $(D)MAPL_MODE $(D)GLOBAL_GRID_CREATE
+FDEFS       += $(D)SPMD $(D)MAPL_MODE
 
 # MAT This option is used to enable single-precision
 #     FV code in the dycore
@@ -153,69 +124,66 @@ LIB_SHARED = $(wildcard \
 LIB_FV     = $(ESMALIB)/libfvdycore.a
 LIB_SHARED += $(LIB) $(LIB_FV)
 
-FREAL = 
-#$(FREAL4)
-#$(FREAL8)  # avoid the nasty -r4 and -r8 flags at all costs
+FREAL = #$(FREAL8)  # avoid the nasty -r4 and -r8 flags at all costs
 
 $(LIB) lib : $(DEPS) $(OBJS)
 	$(AR) $(AR_FLAGS) $(LIB) $(OBJS)
 
 StandAlone_DynAdvCore.x: StandAlone_DynAdvCore.o AppGridCreate.o LatLon2Cube.o Cube2LatLon.o $(LIB)
 	$(LD) -o $@ $+ $(LDFLAGS) $(LIB_FV) \
-				   $(LIB_SHARED) $(LIB_HERMES) $(LIB_MPEU) $(LIB_ESMF) \
+				   $(LIB_HERMES) $(LIB_SHARED) $(LIB_MPEU) $(LIB_ESMF) \
 				   $(LIB_GFDL_FMS)  \
 				   $(LIB_SDF) $(LIB_MPI)  \
-				   $(LIB_SYS) $(NCL) 
+				   $(LIB_SYS)
 
 StandAlone_AdvCore.x: StandAlone_AdvCore.o AppGridCreate.o LatLon2Cube.o Cube2LatLon.o $(LIB)
 	$(LD) -o $@ $+ $(LDFLAGS) $(LIB_FV) \
-				   $(LIB_SHARED) $(LIB_HERMES) $(LIB_MPEU) $(LIB_ESMF) \
+				   $(LIB_HERMES) $(LIB_SHARED) $(LIB_MPEU) $(LIB_ESMF) \
 				   $(LIB_GFDL_FMS)  \
 				   $(LIB_SDF) $(LIB_MPI)  \
-				   $(LIB_SYS) $(NCL) 
+				   $(LIB_SYS)
 
 StandAlone_FV3_Dycore.x: StandAlone_FV3_Dycore.o AppGridCreate.o LatLon2Cube.o Cube2LatLon.o $(LIB)
 	$(LD) -o $@ $+ $(LDFLAGS) $(LIB_FV) \
-				   $(LIB_SHARED) $(LIB_HERMES) $(LIB_MPEU) $(LIB_ESMF) \
+				   $(LIB_HERMES) $(LIB_SHARED) $(LIB_MPEU) $(LIB_ESMF) \
 				   $(LIB_GFDL_FMS)  \
 				   $(LIB_SDF) $(LIB_MPI)  \
-				   $(LIB_SYS) $(NCL) 
+				   $(LIB_SYS)
 
-CreateTopography.x: CreateTopography.o $(LIB)
+CreateTopography.x: CreateTopography.o AppGridCreate.o $(LIB)
 	$(LD) -o $@ $+ $(LDFLAGS) $(LIB_FV) \
-			  	   $(LIB_SHARED) $(LIB_HERMES) $(LIB_MPEU) $(LIB_ESMF) \
+			  	   $(LIB_HERMES) $(LIB_SHARED) $(LIB_MPEU) $(LIB_ESMF) \
 				   $(LIB_GFDL_FMS)  \
 				   $(LIB_SDF) $(LIB_MPI) \
-				   $(LIB_SYS) $(NCL) 
+				   $(LIB_SYS)
 
 CreateInterpWeights.x: CreateInterpWeights.o CreateInterpWeights_GridCompMod.o AppGridCreate.o $(LIB)
 	$(LD) -o $@ $+ $(LDFLAGS) $(LIB_FV) \
-				   $(LIB_SHARED) $(LIB_HERMES) $(LIB_MPEU) $(LIB_ESMF) \
+				   $(LIB_HERMES) $(LIB_SHARED) $(LIB_MPEU) $(LIB_ESMF) \
 				   $(LIB_GFDL_FMS)  \
 				   $(LIB_SDF) $(LIB_MPI)  \
-				   $(LIB_SYS) $(NCL) 
+				   $(LIB_SYS)
 
 c2l_CFIO_offline.x: c2l_CFIO_offline.o AppGridCreate.o LatLon2Cube.o Cube2LatLon.o $(LIB)
 	$(LD) -o $@ $+ $(LDFLAGS) $(LIB_FV) \
-				   $(LIB_SHARED) $(LIB_HERMES) $(LIB_MPEU) $(LIB_ESMF) \
+				   $(LIB_HERMES) $(LIB_SHARED) $(LIB_MPEU) $(LIB_ESMF) \
 				   $(LIB_GFDL_FMS)  \
 				   $(LIB_SDF) $(LIB_MPI)  \
-				   $(LIB_SYS) $(NCL) 
+				   $(LIB_SYS)
 
-c2c.x: c2c.o $(LIB)
+c2c.x: c2c.o AppGridCreate.o $(LIB)
 	$(LD) -o $@ $+ $(LDFLAGS) $(LIB_FV) \
 				   $(LIB_SHARED) $(LIB_ESMF) \
 				   $(LIB_GFDL_FMS)  \
 				   $(LIB_SDF) $(LIB_MPI)  \
-				   $(LIB_SYS) $(NCL)
+				   $(LIB_SYS)
 
 interp_restarts.x: interp_restarts.o AppGridCreate.o LatLon2Cube.o Cube2LatLon.o $(LIB)
 	$(LD) -o $@ $+ $(LDFLAGS) $(LIB_FV) \
-				   $(LIB_SHARED) $(LIB_HERMES) $(LIB_MPEU) $(LIB_ESMF) \
+				   $(LIB_HERMES) $(LIB_SHARED) $(LIB_MPEU) $(LIB_ESMF) \
 				   $(LIB_GFDL_FMS)  \
-				   $(LIB_SDF) $(LIB_MPI) $(NCL) \
-				   $(LIB_SYS) 
-#$(ESMALIB)/../../GEOS_Util/post/set_eta.o
+				   $(LIB_SDF) $(LIB_MPI) \
+				   $(LIB_SYS) $(ESMALIB)/../../GEOS_Util/post/set_eta.o
 
 dyn_interp_rst.x: dyn_interp_rst.o $(LIB)
 	$(LD) -o $@ $+ $(LDFLAGS)  $(LIB_FV) \
@@ -240,4 +208,4 @@ moist_interp_rst.x: moist_interp_rst.o
 #.
 
   -include $(ESMADIR)/Config/ESMA_post.mk  # ESMA additional targets, macros
-#EOC
+

@@ -1,3 +1,112 @@
+! routine to create the global edges and centers of the cubed-sphere grid
+! but not the ESMF grid
+subroutine AppCSEdgeCreateF(IM_WORLD, LonEdge,LatEdge, LonCenter, LatCenter, rc)
+#include "MAPL_Generic.h"
+
+  use ESMF
+  use MAPL_BaseMod
+  use MAPL_GenericMod
+  use MAPL_ConstantsMod, only : pi=> MAPL_PI
+  use fv_grid_utils_mod, only: gnomonic_grids, cell_center2
+  use fv_grid_tools_mod, only: mirror_grid
+  implicit none
+
+! !ARGUMENTS:
+    integer,           intent(IN)     :: IM_WORLD
+    integer, optional, intent(OUT)    :: rc
+    real(ESMF_KIND_R8), intent(inout) :: LonEdge(IM_World+1,IM_World+1,6)
+    real(ESMF_KIND_R8), intent(inout) :: LatEdge(IM_World+1,IM_World+1,6)
+    real(ESMF_KIND_R8), optional, intent(inout) :: LonCenter(IM_World,IM_World)
+    real(ESMF_KIND_R8), optional, intent(inout) :: LatCenter(IM_World,IM_World)
+
+! ErrLog variables
+!-----------------
+
+ integer                      :: STATUS
+ character(len=ESMF_MAXSTR), parameter :: Iam="AppCSEdgeCreateF"
+
+! Local variables
+!-----------------
+#ifdef EIGHT_BYTE
+  integer, parameter:: f_p = selected_real_kind(15)   ! same as 12 on Altix
+#else
+! Higher precisions for grid geometrical factors:
+  integer, parameter:: f_p = selected_real_kind(20)
+#endif
+
+  integer, parameter            :: grid_type = 0
+  integer                       :: npts
+  integer                       :: ntiles=6
+  integer                       :: ndims=2
+  integer                       :: I, J, N
+  integer                       :: IG, JG
+  real(ESMF_KIND_R8)            :: alocs(2)
+
+  real(ESMF_KIND_R8), allocatable :: grid_global(:,:,:,:)
+
+  integer                         :: L
+
+  npts = IM_World
+  allocate( grid_global(npts+1,npts+1,ndims,ntiles) )
+  call gnomonic_grids(grid_type, npts, grid_global(:,:,1,1), grid_global(:,:,2,1))
+! mirror_grid assumes that the tile=1 is centered on equator and greenwich meridian Lon[-pi,pi]
+  call mirror_grid(grid_global, 0, npts+1, npts+1, 2, 6)
+
+  do n=1,ntiles
+     do j=1,npts+1
+        do i=1,npts+1
+!---------------------------------
+! Shift the corner away from Japan
+!---------------------------------
+! This will result in the corner close to east coast of China
+           grid_global(i,j,1,n) = grid_global(i,j,1,n) - pi/18.
+           if ( grid_global(i,j,1,n) < 0. )              &
+                grid_global(i,j,1,n) = grid_global(i,j,1,n) + 2.*pi
+           if (ABS(grid_global(i,j,1,n)) < 1.e-10) grid_global(i,j,1,n) = 0.0
+           if (ABS(grid_global(i,j,2,n)) < 1.e-10) grid_global(i,j,2,n) = 0.0
+        enddo
+     enddo
+  enddo
+!---------------------------------
+! Clean Up Corners
+!---------------------------------
+  grid_global(  1,1:npts+1,:,2)=grid_global(npts+1,1:npts+1,:,1)
+  grid_global(  1,1:npts+1,:,3)=grid_global(npts+1:1:-1,npts+1,:,1)
+  grid_global(1:npts+1,npts+1,:,5)=grid_global(1,npts+1:1:-1,:,1)
+  grid_global(1:npts+1,npts+1,:,6)=grid_global(1:npts+1,1,:,1)
+  grid_global(1:npts+1,  1,:,3)=grid_global(1:npts+1,npts+1,:,2)
+  grid_global(1:npts+1,  1,:,4)=grid_global(npts+1,npts+1:1:-1,:,2)
+  grid_global(npts+1,1:npts+1,:,6)=grid_global(npts+1:1:-1,1,:,2)
+  grid_global(  1,1:npts+1,:,4)=grid_global(npts+1,1:npts+1,:,3)
+  grid_global(  1,1:npts+1,:,5)=grid_global(npts+1:1:-1,npts+1,:,3)
+  grid_global(npts+1,1:npts+1,:,3)=grid_global(1,1:npts+1,:,4)
+  grid_global(1:npts+1,  1,:,5)=grid_global(1:npts+1,npts+1,:,4)
+  grid_global(1:npts+1,  1,:,6)=grid_global(npts+1,npts+1:1:-1,:,4)
+  grid_global(  1,1:npts+1,:,6)=grid_global(npts+1,1:npts+1,:,5)
+
+  if (present(LonCenter) .and. present(LatCenter)) then
+     do n=1,ntiles
+        do j=1,npts
+           do i=1,npts
+              call cell_center2(grid_global(i,j,  1:2,n), grid_global(i+1,j,  1:2,n),   &
+                                grid_global(i,j+1,1:2,n), grid_global(i+1,j+1,1:2,n),   &
+                                alocs)
+              jg = (n-1)*npts + j
+              LonCenter(i,jg) = alocs(1)
+              LatCenter(i,jg) = alocs(2)
+           enddo
+        enddo
+     enddo
+  end if
+
+  LonEdge = grid_global(:,:,1,:)
+  LatEdge = grid_global(:,:,2,:)
+
+  deallocate( grid_global )
+
+  RETURN_(ESMF_SUCCESS)
+  end subroutine AppCSEdgeCreateF
+
 
 !!!!!!!!!!!!!!!%%%%%%%%%%%%%%%%%%%%%%%!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 function AppGridCreateF(IM_WORLD, JM_WORLD, LM, NX, NY, rc) result(esmfgrid)

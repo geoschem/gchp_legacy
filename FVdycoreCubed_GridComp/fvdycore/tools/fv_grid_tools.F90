@@ -706,16 +706,16 @@ contains
     allocate ( grid_g(1:npx,1:npy,1:ndims) )
 #endif
 
-    if ( masterproc .and. (grid_type<=0) ) write(*,*) 'create_grid: Looking for cubed-grid mosaic: ', trim(grid_file)
+    if ( (gid==masterproc) .and. (grid_type<=0) ) write(*,*) 'create_grid: Looking for cubed-grid mosaic: ', trim(grid_file)
     inquire(file=grid_file,exist=exists)
     if (grid_type<=0 .and. exists) then
 ! Read Grid.....
-      if ( masterproc ) write(*,*) 'create_grid: Reading cubed-grid mosaic: ', trim(grid_file)
+      if ( gid==masterproc ) write(*,*) 'create_grid: Reading cubed-grid mosaic: ', trim(grid_file)
       call read_grid(grid_name, grid_file, npx, npy, ndims, nregions, ng, is, ie, js, je)
     else
 
 ! Global Grid Create.....
-      if ( masterproc ) write(*,*) 'create_grid: Creating Global cubed-grid '
+      if ( gid==masterproc ) write(*,*) 'create_grid: Creating Global cubed-grid '
       call print_memuse_stats('create_grid:init_grid: before grid_global alloc')
 
 #ifdef MAPL_MODE
