@@ -32,12 +32,12 @@ echo    PWD $pwd
 /bin/rm -f $tmpdir/*globl*data
 /bin/rm -f $tmpdir/*globl*ctl
 /bin/rm -f $tmpdir/*globl*ctl1
-/bin/ln -s $expdir/*globl*data $tmpdir
-/bin/ln -s $expdir/*globl*ctl  $tmpdir
+/bin/ln -s `/bin/ls -1 $expdir/*globl*data | grep -v aerosol ` $tmpdir
+/bin/ln -s `/bin/ls -1 $expdir/*globl*ctl  | grep -v aerosol ` $tmpdir
  
 cd $tmpdir
 
-set files = `/bin/ls -1 *globl*ctl`
+set files = `/bin/ls -1 *globl*ctl | grep -v aerosol `
 set num   = $#files
 set expid = `echo $files[1]    | cut -d. -f1`
 
@@ -84,6 +84,23 @@ MATH  NDAY = (${TMAX}-1)*${TINC}/24
 set   NDAY =  `echo ${NDAY} | cut -d. -f1`
 @     SDAY =  ${NDAY} * 86400
 
+if( $month == "01" ) set MM0 = JAN
+if( $month == "02" ) set MM0 = FEB
+if( $month == "03" ) set MM0 = MAR
+if( $month == "04" ) set MM0 = APR
+if( $month == "05" ) set MM0 = MAY
+if( $month == "06" ) set MM0 = JUN
+if( $month == "07" ) set MM0 = JUL
+if( $month == "08" ) set MM0 = AUG
+if( $month == "09" ) set MM0 = SEP
+if( $month == "10" ) set MM0 = OCT
+if( $month == "11" ) set MM0 = NOV
+if( $month == "12" ) set MM0 = DEC
+
+# Loop over Days
+# --------------
+while( $nymd <= $nymdf )
+
 if( $month == "01" ) set MM = JAN
 if( $month == "02" ) set MM = FEB
 if( $month == "03" ) set MM = MAR
@@ -96,10 +113,6 @@ if( $month == "09" ) set MM = SEP
 if( $month == "10" ) set MM = OCT
 if( $month == "11" ) set MM = NOV
 if( $month == "12" ) set MM = DEC
-
-# Loop over Days
-# --------------
-while( $month == $month0 && $nymd <= $nymdf )
 
 set date  = `$GEOSUTIL/post/tick $nymd 0 $SDAY`
 set nymde = $date[1]
@@ -134,9 +147,9 @@ end
     if( -e zzz ) /bin/rm zzz
     touch  zzz
 
-    echo "#\!/bin/csh -f" >> zzz
+    echo "#\!/bin/csh -f"      >> zzz
     echo "cat $fname.tmp1 | \" >> zzz
-    echo  "awk '{ sub(/00:00Z${day}${MM}${year}/,@00:00Z01${MM}${year}@) ; print }' > \" >> zzz
+    echo  "awk '{ sub(/00:00Z${day}${MM}${year}/,@00:00Z01${MM0}${year}@) ; print }' > \" >> zzz
     echo  "$fname.ctl1" >> zzz
 
     /bin/rm -f sedfile

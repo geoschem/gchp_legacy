@@ -35,6 +35,7 @@ NAME    = NULL
 XDIM    = NULL
 YDIM    = NULL
 TYPE    = png
+EXT     = gif
 ROTATE  = 0
 
         n   = 0
@@ -44,6 +45,7 @@ while ( num < numargs )
 
 if( subwrd(args,num) = '-name'    ) ; NAME    = subwrd(args,num+1) ; endif
 if( subwrd(args,num) = '-type'    ) ; TYPE    = subwrd(args,num+1) ; endif
+if( subwrd(args,num) = '-ext'     ) ; EXT     = subwrd(args,num+1) ; endif
 if( subwrd(args,num) = '-xdim'    ) ; XDIM    = subwrd(args,num+1) ; endif
 if( subwrd(args,num) = '-ydim'    ) ; YDIM    = subwrd(args,num+1) ; endif
 if( subwrd(args,num) = '-rotate'  ) ; ROTATE  = subwrd(args,num+1) ; endif
@@ -57,8 +59,8 @@ if( NAME = 'NULL' ) ; return ; endif
 
 if( XDIM = 'NULL' & YDIM = 'NULL' )
     if( ORIENTATION = 'PORTRAIT' )
-               XDIM =  675
-               YDIM =  900
+               XDIM =  753
+               YDIM =  1000
              ROTATE =    0
     endif
     if( ORIENTATION = 'LANDSCAPE' )
@@ -99,9 +101,9 @@ else
 'print'
 'disable print'
 if( BW = 'NULL' )
-    '!'GEOSUTIL'/plots/grads_util/make_gif -name 'NAME' -rotate 'ROTATE' 'ANTIALIAS' -density 'DENSITY'     -xdim 'XDIM' -ydim 'YDIM' &'
+    '!'GEOSUTIL'/plots/grads_util/make_gif -name 'NAME' -rotate 'ROTATE' 'ANTIALIAS' -density 'DENSITY'     -xdim 'XDIM' -ydim 'YDIM' -ext 'EXT' &'
 else
-    '!'GEOSUTIL'/plots/grads_util/make_gif -name 'NAME' -rotate 'ROTATE' 'ANTIALIAS' -density 'DENSITY' -bw -xdim 'XDIM' -ydim 'YDIM' &'
+    '!'GEOSUTIL'/plots/grads_util/make_gif -name 'NAME' -rotate 'ROTATE' 'ANTIALIAS' -density 'DENSITY' -bw -xdim 'XDIM' -ydim 'YDIM' -ext 'EXT' &'
 endif
 
 endif

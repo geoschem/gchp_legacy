@@ -45,7 +45,7 @@
       integer, parameter :: MAXCHR = 256
       integer, parameter :: PACK_BITS = 32766
       integer, parameter :: PACK_FILL = 32767
-      integer, parameter :: MLEN = 256      ! Max. length of an attribute
+      integer, parameter :: MLEN = 1024     ! Max. length of an attribute
       integer, parameter :: MVARLEN = 256   ! Max. length of a variable name
 
 ! Define a new data type "List" -- private data type for variable and 

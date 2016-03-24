@@ -2,6 +2,10 @@ function minmax (args)
 
 field = subwrd(args,1)
 
+'q gxout'
+   gxout = sublin(result,4)
+   gxout = subwrd(gxout,6)
+
 'set gxout stat'
 'd 'field
 stuff = sublin(result,8)
@@ -10,5 +14,5 @@ max   = subwrd(stuff,5)
 
 *say 'The min = 'min
 *say 'The max = 'max
-'set gxout shaded'
+'set gxout 'gxout
 return max' 'min

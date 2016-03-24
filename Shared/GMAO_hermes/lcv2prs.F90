@@ -778,7 +778,7 @@
                   end if
                   if ( rc /= 0 )  call die (myNewName, 'can not read DELP')
                end if
-               if (lon_e(1) < 0 ) call lon_shift(delp, im_e, jm_e, km_e)
+               if (lon_e(1) < 0 .and. .not. doSubset ) call lon_shift(delp, im_e, jm_e, km_e)
                call Interp_Init(im_e, jm_e, km_e, ptop, grid, rc, delp=delp)
          end if
          if  ( onEdges ) then
@@ -790,7 +790,7 @@
             else
                call ESMF_CFIOVarReadT2(cfio_in, 'ple', curDate, curTime, ple, rc= rc, cfio2=cfio_in2)
             end if
-            if (lon_e(1) < 0 ) call lon_shift(ple, im_e, jm_e, km_e)
+            if (lon_e(1) < 0 .and. .not. doSubset ) call lon_shift(ple, im_e, jm_e, km_e)
             call Interp_Init(im_e, jm_e, km_e-1, ptop, grid, rc, pe=ple*0.01)
          end if
 
@@ -874,7 +874,7 @@
                      call ESMF_CFIOVarReadT2(cfio_in, uWind, curDate, curTime, inField, rc=rc, cfio2=cfio_in2)
                      allocate ( vField(im_e,jm_e,km_e), stat=rc )
                      call ESMF_CFIOVarReadT2(cfio_in, vWind, curDate, curTime, vField, rc=rc, cfio2=cfio_in2)
-                     if ( lon_e(1) < 0 ) call lon_shift(vField, im_e, jm_e, km_e)
+                     if ( lon_e(1) < 0 .and. .not. doSubset ) call lon_shift(vField, im_e, jm_e, km_e)
                   else   
                      if ( rc /= 0 .and. (trim(outVars(iv)) .eq. 'QC' .or. trim(outVars(iv)) .eq. 'qc') ) then
                         allocate ( tql(im_e,jm_e,km_e), stat=rc )
@@ -915,7 +915,7 @@
                      call ESMF_CFIOVarReadT2(cfio_in, uWind, curDate, curTime, inField, rc=rc, cfio2=cfio_in2)
                      allocate ( vField(im_e,jm_e,1), stat=rc )
                      call ESMF_CFIOVarReadT2(cfio_in, vWind, curDate, curTime, vField, rc=rc, cfio2=cfio_in2)
-                     if ( lon_e(1) < 0 ) call lon_shift(vField, im_e, jm_e, 1)
+                     if ( lon_e(1) < 0 .and. .not. doSubset ) call lon_shift(vField, im_e, jm_e, 1)
                   else
                      if ( rc /= 0 .and. (trim(outVars(iv)) .eq. 'TQC' .or. trim(outVars(iv)) .eq. 'tqc') ) then
                         allocate ( tql(im_e,jm_e,1), stat=rc )
@@ -2554,7 +2554,7 @@ subroutine compHght(cfio_in, curDate, curTime, delp, im, jm, km, lon_min, wz, sl
 
      allocate(phis(im,jm), phis3d(im,jm,1), theta(im,jm,km), sphu(im,jm,km))
      call ESMF_CFIOVarReadT2(cfio_in, 'phis', curDate, curTime, phis3d, rc=rc,cfio2=cfio_in2)
-     if (lon_min < 0) call lon_shift(phis3d, im, jm, 1)
+     if (lon_min < 0 .and. .not. doSubset ) call lon_shift(phis3d, im, jm, 1)
      phis = phis3d(:,:,1)
      deallocate(phis3d)
      call ESMF_CFIOVarReadT2(cfio_in, 'theta', curDate, curTime, theta, rc=rc,cfio2=cfio_in2)
@@ -2566,7 +2566,7 @@ subroutine compHght(cfio_in, curDate, curTime, delp, im, jm, km, lon_min, wz, sl
          print*,'... found TV instead'
      endif
      call ESMF_CFIOVarReadT2(cfio_in, 'sphu', curDate, curTime, sphu, rc=rc,cfio2=cfio_in2)
-     if (lon_min < 0) then
+     if (lon_min < 0 .and. .not. doSubset ) then
         call lon_shift(theta, im, jm, km)
         call lon_shift(sphu, im, jm, km)
      end if

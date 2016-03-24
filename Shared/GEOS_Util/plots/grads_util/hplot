@@ -416,7 +416,15 @@ if( n>0 )
     endif
 endif
 say 'Scaling Factor: 'n
-'define qmod2 = qmod2 / 1e'n
+
+if( n>0 )
+say 'define qmod2 = qmod2 / 1e'n
+    'define qmod2 = qmod2 / 1e'n
+else
+m = -1 * n
+say 'define qmod2 = qmod2 * 1e'm
+    'define qmod2 = qmod2 * 1e'm
+endif
       'shades 'qmod2' 0'
        cint = result*2
 endif

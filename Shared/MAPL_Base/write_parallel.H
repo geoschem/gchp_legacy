@@ -1,4 +1,4 @@
-! $Id: write_parallel.H,v 1.3 2009-04-29 16:01:51 wputman Exp $
+! $Id$
 
 #ifdef NAME_
 #undef NAME_

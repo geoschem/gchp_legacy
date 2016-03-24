@@ -1,4 +1,4 @@
-#!/bin/csh -x
+#!/bin/csh -f
 
 # Note: Variable GEOSgcm should point to a recently compiled version of the GEOS model
 # ------------------------------------------------------------------------------------

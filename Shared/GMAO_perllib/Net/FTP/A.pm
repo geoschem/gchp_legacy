@@ -10,7 +10,7 @@ use Carp;
 require Net::FTP::dataconn;
 
 @ISA = qw(Net::FTP::dataconn);
-$VERSION = "1.13"; # $Id: A.pm,v 1.1 2002-01-30 20:42:22 lucchesi Exp $
+$VERSION = "1.13"; # $Id$
 
 sub read {
   my    $data 	 = shift;

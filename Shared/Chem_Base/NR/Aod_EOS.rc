@@ -17,7 +17,7 @@
 n_channels: 12
 r_channels: .340e-6 .380e-6 .440e-6 .470e-6 .500e-6 .55e-6 .670e-6 .865e-6 1.02e-6 1.24e-6 1.64e-6 2.13e-6
 
-filename_optical_properties_DU: ExtData/AeroCom/x/optics_DU.v14_2.nc
+filename_optical_properties_DU: ExtData/AeroCom/x/optics_DU.v15_3.nc
 filename_optical_properties_SS: ExtData/AeroCom/x/optics_SS.v3_3.nc
 filename_optical_properties_OC: ExtData/AeroCom/x/optics_OC.v1_3.nc
 filename_optical_properties_BC: ExtData/AeroCom/x/optics_BC.v1_3.nc

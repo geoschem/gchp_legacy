@@ -215,6 +215,11 @@
        w_o%phis    =  w_i%phis
        w_o%hs_stdv =  w_i%hs_stdv
        w_o%ts      =  w_i%ts
+       if(associated(w_i%frland))    w_o%frland=w_i%frland
+       if(associated(w_i%frlandice)) w_o%frlandice=w_i%frlandice
+       if(associated(w_i%frlake))    w_o%frlake=w_i%frlake
+       if(associated(w_i%frocean))   w_o%frocean=w_i%frocean
+       if(associated(w_i%frseaice))  w_o%frseaice=w_i%frseaice
 
        w_o%ps      =  w_i%ps
         psn        => w_o%ps  ! ps could be changed in drymadj (though this feature not on)

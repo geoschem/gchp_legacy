@@ -90,8 +90,8 @@ C
 C
 C-----------------------------------------------------------------------
 c
-c $Id: m_qsat.F,v 1.1.2.1 2002-01-22 16:34:43 jchern Exp $
-c $Author: jchern $
+c $Id$
+c $Author$
 c
 C
 C Common block and statement functions for saturation vapor pressure
@@ -199,8 +199,8 @@ C                    J. Hack, Aug 1992
 C
 C-----------------------------------------------------------------------
 c
-c $Id: m_qsat.F,v 1.1.2.1 2002-01-22 16:34:43 jchern Exp $
-c $Author: jchern $
+c $Id$
+c $Author$
 c
 C-----------------------------------------------------------------------
 C------------------------------Arguments--------------------------------
@@ -230,8 +230,8 @@ C---------------------------Statement function--------------------------
 C
 C
 c
-c $Id: m_qsat.F,v 1.1.2.1 2002-01-22 16:34:43 jchern Exp $
-c $Author: jchern $
+c $Id$
+c $Author$
 c
 C
 C Common block and statement functions for saturation vapor pressure
@@ -392,8 +392,8 @@ C                    J. Hack, Feb 1996
 C
 C-----------------------------------------------------------------------
 c
-c $Id: m_qsat.F,v 1.1.2.1 2002-01-22 16:34:43 jchern Exp $
-c $Author: jchern $
+c $Id$
+c $Author$
 c
 C-----------------------------------------------------------------------
 C------------------------------Arguments--------------------------------

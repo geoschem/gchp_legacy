@@ -553,7 +553,7 @@ CONTAINS
 
        if (.not. MAPL_ShmInitialized) &
        call MAPL_CommsBcast(vm, gridnamef, &
-            N=len_trim(gridnamef), ROOT=MAPL_Root, RC=RC)
+            N=len(gridnamef), ROOT=MAPL_Root, RC=RC)
 
        if (.not. geosGridNames) call MAPL_GeosNameNew(gridname)
 
@@ -828,7 +828,7 @@ CONTAINS
           VERIFY_(STATUS)
        else
           if ( verb ) write(6,*), myname // ': Interpolating... '
-          call hinterp ( Gptr2file,im,jm, Gptr2bundle,im0,jm0,1,MAPL_Undef )
+          call hinterp2 ( Gptr2file,im,jm, Gptr2bundle,im0,jm0,1,MAPL_Undef )
        end if ! coarsening
 !@       Gptr2bundle = r4_Gptr2bundle
     else

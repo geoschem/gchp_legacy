@@ -9,5 +9,5 @@ OBSDSC: NCEP_OPNL_gdas1
                     'T'        , 'DYN'           , 'TMPU'   , 1
                     'U'        , 'DYN'           , 'UWND'   , 1
                     'V'        , 'DYN'           , 'VWND'   , 1
-                    'RH2'      , 'MOIST'         , 'RH'     , 1
+                    'RH2'      , 'MOIST'         , 'RH'     , 1/100
                     ::

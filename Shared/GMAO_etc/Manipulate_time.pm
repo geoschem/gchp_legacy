@@ -22,8 +22,9 @@ my $MINS_PER_DAY  = $MINS_PER_HOUR * $HOURS_PER_DAY;
 
 # generic MONTH and YEAR definitions
 #-----------------------------------
+my $DAYS_PER_WEEK  = 7;
 my $DAYS_PER_MONTH = 30;
-my $DAYS_PER_YEAR = 365;
+my $DAYS_PER_YEAR  = 365;
 
 #.........................................
 sub z_time {
@@ -653,11 +654,18 @@ sub cpad{
 sub tick {
     my ($numargs, $nymd, $nhms, $isecs);
     my ($iymd, $ihms, $hh, $mm, $ss);
-    my ($yr, $mnth, $dy, $idays);
+    my ($yr, $mnth, $dy, $wk, $idays);
+    my (%valid, $flg);
 
     $numargs = scalar @_;
-    if ($numargs < 1 or $numargs > 4) {
-        die ">> Error << incorrect number of calling arguments to tick;";
+    if ($numargs < 1 or $numargs > 5) {
+        die ">> Error << incorrect number of calling arguments: $numargs;"
+    }
+    if ($numargs == 5) {
+        $flg = $_[4];
+        foreach (-2..-1) { $valid{$_} = 1 };
+        die ">> Error << invalid flag value: $flg;"
+            unless $valid{$flg};
     }
     $nymd = shift @_;
     $nhms = shift @_;
@@ -672,6 +680,25 @@ sub tick {
         ($hh, $mm, $ss) = parseIntTime($ihms);
         ($yr, $mnth, $dy) = parseIntTime($iymd);
         $idays = $dy + $mnth*$DAYS_PER_MONTH + $yr*$DAYS_PER_YEAR;
+
+        $isecs = $ss;
+        $isecs += $SECS_PER_MIN  * $mm;
+        $isecs += $SECS_PER_HOUR * $hh;
+        $isecs += $SECS_PER_DAY  * $idays;
+    }
+    elsif ($numargs == 5) {
+        $incr = shift @_;
+        $ihms = shift @_;
+        $flg  = shift @_;
+
+        if ($flg == -1) {
+            $idays = $incr;
+        }
+        elsif ($flg == -2) {
+            ($wk, $dy) = parseIntTime2($incr);
+            $idays = $dy + $wk*$DAYS_PER_WEEK;
+        }
+        ($hh, $mm, $ss) = parseIntTime($ihms);
 
         $isecs = $ss;
         $isecs += $SECS_PER_MIN  * $mm;
@@ -777,6 +804,23 @@ sub parseIntTime {
     $last2 = $sign * substr($intTime, -2, 2);
 
     return ($front, $next2, $last2);
+}
+
+#...................................................................
+sub parseIntTime2 {
+    my ($intTime, $sign, $front, $back);
+
+    $intTime = shift @_;
+    $intTime =~ s/^\s*|\s*$//g;   # remove leading/trailing blanks
+
+
+    if ($intTime < 0) { $sign = -1; $intTime *= -1 } else { $sign = 1 }
+    $intTime = sprintf "%06i", $intTime;
+
+    $front = $sign * substr($intTime, 0, -2);
+    $back  = $sign * substr($intTime, -2, 2);
+
+    return ($front, $back);
 }
 
 #...................................................................

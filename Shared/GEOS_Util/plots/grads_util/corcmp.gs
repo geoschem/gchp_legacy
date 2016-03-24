@@ -39,6 +39,7 @@ while( num < numargs )
 if( subwrd(args,num)='-field'  ) ; field  = subwrd(args,num+1) ; endif
 if( subwrd(args,num)='-x'      ) ; x      = subwrd(args,num+1) ; endif
 if( subwrd(args,num)='-lev'    ) ; lev    = subwrd(args,num+1) ; endif
+if( subwrd(args,num)='-level'  ) ; lev    = subwrd(args,num+1) ; endif
 if( subwrd(args,num)='-desc'   ) ; desc   = subwrd(args,num+1) ; endif
 if( subwrd(args,num)='-rc'     ) ; rcfile = subwrd(args,num+1) ; endif
 if( subwrd(args,num)='-debug'  ) ; debug  = subwrd(args,num+1) ; endif

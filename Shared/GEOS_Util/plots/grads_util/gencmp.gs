@@ -180,7 +180,7 @@ while ( m<nexp+1 )
      say 'Alias #'m' = 'alias.m
       if( qname.m != alias.m )
          'set lon -180 360'
-         'rename 'qname.m ' 'alias.m
+         'rename 'qname.m ' 'alias.m''qfile.m
          'setlons'
       endif
       m = m+1
@@ -197,13 +197,21 @@ if( nexp = 1 )
       NAME = EXPORT.1
         GC =     GC.1
     EXPORT = EXPORT.1
-   'seasonalf -FUNCTION 'alias.1'*'qscale.1' -NAME 'mod
+    if( qname.1 != alias.1 )
+       'seasonalf -FUNCTION 'alias.1''qfile.1'*'qscale.1' -NAME 'mod
+    else
+       'seasonalf -FUNCTION 'alias.1'.'qfile.1'*'qscale.1' -NAME 'mod
+    endif
     climfile = result
 else
     mstring = mod
     m  = 1
     while ( m <= nexp )
+       if( qname.m != alias.m )
+           mstring = mstring' 'alias.m''qfile.m'*'qscale.m
+       else
            mstring = mstring' 'alias.m'.'qfile.m'*'qscale.m
+       endif
            m  = m + 1
     endwhile
    'run 'geosutil'/plots/formulas/'NAME'.gs 'mstring
@@ -261,6 +269,7 @@ endif
 
 * Get CMPEXP Variables
 * --------------------
+     found = TRUE
         n  = 1
 while ( n <= nexp )
 'run getvar 'EXPORT.n' 'GC.n' 'exp
@@ -269,12 +278,13 @@ while ( n <= nexp )
        oscale.n = subwrd(result,3)
        obsdsc.n = subwrd(result,4)
        obsnam.n = subwrd(result,5)
+   if(  oname.n = "NULL" ) ; found = FALSE ; endif
          n  = n + 1
 endwhile
 
-* Skip if EXPORT not found
-* ------------------------
-if( obsfile.1 != "NULL" )
+* Continue if all EXPORT(s) are found
+* -----------------------------------
+if( found = "TRUE" )
 
            'set dfile 'obsfile.1
             if( LEVEL = 0 )
@@ -299,7 +309,7 @@ while ( m<nexp+1 )
           olias.m = result
       if( oname.m != olias.m )
          'set lon -180 360'
-         'rename 'oname.m ' 'olias.m
+         'rename 'oname.m ' 'olias.m''obsfile.m
          'setlons'
       endif
       m = m+1
@@ -316,13 +326,21 @@ if( nexp = 1 )
       NAME = EXPORT.1
         GC =     GC.1
     EXPORT = EXPORT.1
-   'seasonalf -FUNCTION 'olias.1'*'oscale.1' -NAME 'obs
+    if( oname.1 != olias.1 )
+       'seasonalf -FUNCTION 'olias.1''obsfile.1'*'oscale.1' -NAME 'obs
+    else
+       'seasonalf -FUNCTION 'olias.1'.'obsfile.1'*'oscale.1' -NAME 'obs
+    endif
     climfile = result
 else
     mstring = obs
     m  = 1
     while ( m <= nexp )
+       if( oname.m != olias.m )
+           mstring = mstring' 'olias.m''obsfile.m'*'oscale.m
+       else
            mstring = mstring' 'olias.m'.'obsfile.m'*'oscale.m
+       endif
            m  = m + 1
     endwhile
    'run 'geosutil'/plots/formulas/'NAME'.gs 'mstring

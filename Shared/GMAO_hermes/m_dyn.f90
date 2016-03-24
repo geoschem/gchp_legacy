@@ -502,7 +502,8 @@ CONTAINS
 !  15May2006 Todling   Back to handling qi and ql for cloud water variables
 !  21Apr2007 Todling   Handling g4/g5 dyn-vector types
 !  17Sep2007 Todling   Slight modification of tracer-handle
-!  05Mar2009  Todling   Add fraction of land/water/ice
+!  05Mar2009 Todling   Add fraction of land/water/ice
+!  17Jun2015 Todling   Define 5th and 6th tracers as qr/qs (had done for MJKim earlier)
 !
 !EOP
 !-------------------------------------------------------------------------
@@ -603,6 +604,18 @@ CONTAINS
      if (lm >= lbeg) then   ! This assumes 4th tracer to be cloud liquid water
          w_f%qm(4)%name = 'qltot';  w_f%qm(4)%long_name = 'Mass Fraction Cloud Liquid Water'
          w_f%qm(4)%units = 'kg/kg'
+         lbeg = lbeg + 1
+     endif
+
+     if (lm >= lbeg) then   ! This assumes 5th tracer to be cloud liquid water
+         w_f%qm(5)%name = 'qrtot';  w_f%qm(5)%long_name = 'Mass Fraction Falling Rain'
+         w_f%qm(5)%units = 'kg/kg'
+         lbeg = lbeg + 1
+     endif
+
+     if (lm >= lbeg) then   ! This assumes 6th tracer to be cloud liquid water
+         w_f%qm(6)%name = 'qstot';  w_f%qm(6)%long_name = 'Mass Fraction Falling Snow'
+         w_f%qm(6)%units = 'kg/kg'
          lbeg = lbeg + 1
      endif
 
@@ -1147,6 +1160,13 @@ CONTAINS
    im = w_f%grid%im; jm = w_f%grid%jm
    km = w_f%grid%km; lm = w_f%grid%lm
    nvars = nfix + lm                  ! q + tracers
+   if(present(vectype)) then
+      vectype_=vectype
+   else
+      vectype_=dynvectyp_def
+   endif
+   if(vectype_==4) nfix=nfix4
+   if(vectype_==5) nfix=nfix5
    if ( present(epv) ) nvars = nvars+1 ! additional EPV output
 
 
@@ -1196,12 +1216,6 @@ CONTAINS
    end if
    source = 'Global Modeling and Assimilation Office, NASA/GSFC'
    contact = 'data@gmao.gsfc.nasa.gov'
-
-   if (present(vectype)) then
-     vectype_=vectype
-   else
-     vectype_=dynvectyp
-   endif
 
 !  Allow reset of variable names
 !  -----------------------------
@@ -1689,6 +1703,7 @@ CONTAINS
 !  14Aug2009 Ravi      Modified check to nvars/lm to correct for missing hs_stdv
 !  20Feb2014 Todling   ncf knob to allow reading non-compliant (special) file
 !  06Mar2014 Todling   pncf knob to allow reading non-compliant perturbation file created by GSI
+!  16Oct2015 Todling   For too long now MAP-written files have upset m_dyn; patch fix
 !
 !EOP
 !-------------------------------------------------------------------------
@@ -1782,6 +1797,13 @@ CONTAINS
         freq = timinc
    end if
 
+!  Look for non-compliant fields
+!  -----------------------------
+   if (ANY(vname=='LON').or.ANY(vname=='LAT')) then
+      print *, 'dyn_get: detect MAPL-written file nvars=', nvars, ' change to ', nvars-2
+      nvars=nvars-2
+   endif
+!
 !  Pick time to return
 !  -------------------
    if ( present(timidx) ) then
@@ -1811,9 +1833,9 @@ CONTAINS
       lm = 4                              ! if non-compliant file, force lm to g5 lm 
    else
       lm =  nvars - nfix                  ! lm now means the trace dimensions
-      if(lm == 3 ) then
-         lm = (nvars - nfix) + 1          ! fix for ana.eta missing hs_stdv
-      endif
+      if (vectype_==5 .and. &
+          mod(lm,2)/=0) lm=lm+1           ! hack to adjust discrepancy between ana.eta
+                                          ! and dynvect (former misses hs_stdv)
       if ( lm < 1 ) then
          rc = 6
          call clean_()

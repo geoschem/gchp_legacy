@@ -33,7 +33,7 @@
           call getarg(n,arg(n))
           enddo
           do n=1,nargs
-             if( trim(arg(n)).eq.'-tag' ) tag = '_' // arg(n+1)
+             if( trim(arg(n)).eq.'-tag' ) tag = '.' // arg(n+1)
           enddo
        else
           tag = ""
@@ -154,7 +154,7 @@ c ------------------------
       write(30,103) nt,trim(begdate),lm,lm,lm,lm
   101 format('dset  ',a,/,
      .       'title ',a,/,
-     .       'options sequential template',/,
+     .       'options sequential ',/,
      .       'undef ',e15.6,/,
      .       'xdef  1 linear -180 1',/,
      .       'ydef ',i4,' linear ',f8.3,2x,f8.3,/,

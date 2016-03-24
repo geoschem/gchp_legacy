@@ -1652,8 +1652,8 @@ C
 C
 C-----------------------------------------------------------------------
 c
-c $Id: m_insitu.F,v 1.1.2.10.2.1.2.1 2004-09-02 10:34:30 todling Exp $
-c $Author: todling $
+c $Id$
+c $Author$
 c
 C
 C Common block and statement functions for saturation vapor pressure
@@ -1761,8 +1761,8 @@ C                    J. Hack, Aug 1992
 C
 C-----------------------------------------------------------------------
 c
-c $Id: m_insitu.F,v 1.1.2.10.2.1.2.1 2004-09-02 10:34:30 todling Exp $
-c $Author: todling $
+c $Id$
+c $Author$
 c
 C-----------------------------------------------------------------------
 C------------------------------Arguments--------------------------------
@@ -1792,8 +1792,8 @@ C---------------------------Statement function--------------------------
 C
 C
 c
-c $Id: m_insitu.F,v 1.1.2.10.2.1.2.1 2004-09-02 10:34:30 todling Exp $
-c $Author: todling $
+c $Id$
+c $Author$
 c
 C
 C Common block and statement functions for saturation vapor pressure
@@ -1954,8 +1954,8 @@ C                    J. Hack, Feb 1996
 C
 C-----------------------------------------------------------------------
 c
-c $Id: m_insitu.F,v 1.1.2.10.2.1.2.1 2004-09-02 10:34:30 todling Exp $
-c $Author: todling $
+c $Id$
+c $Author$
 c
 C-----------------------------------------------------------------------
 C------------------------------Arguments--------------------------------

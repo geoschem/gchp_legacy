@@ -1,6 +1,6 @@
 
 ! -*-f90-*-
-! $Id: mpp_data_nocomm.inc,v 1.1.1.2 2012-11-16 16:00:10 atrayano Exp $
+! $Id$
 
 !----------------------------------------------------------------!
 ! The following data is used in mpp_mod and its components       !

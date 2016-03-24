@@ -1,5 +1,5 @@
 
-!  $Id: dqsat_fast.code,v 1.1 2005-06-06 17:18:25 f4mjs Exp $
+!  $Id$
 
 
       real    :: TT, DQ, DD, QQ

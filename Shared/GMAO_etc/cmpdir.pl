@@ -44,10 +44,12 @@ sub init {
     use File::Basename;
     use Getopt::Long;
     my ($bwiFLG, $help, %patterns, $fcstflg, $rsflg, $runflg, $subdirname);
+    my ($cvsX, @excludeList, $line, @names, $name);
 
     # get runtime flags
     #------------------
     GetOptions("bwi"      => \$bwiFLG,
+               "cvsX"     => \$cvsX,
                "db|debug" => \$debug,
                "ext=s"    => \$ext,
                "fcst"     => \$fcstflg,
@@ -64,9 +66,21 @@ sub init {
                "run"      => \$runflg,
                "subdir=s" => \$subdir,
                "v"        => \$verbose,
-               "X=s"      => \@exclude );
+               "X=s"      => \@excludeList );
     usage() if $help;
     $list = 1 if $listx;
+
+    # exclude list
+    #-------------
+    foreach $line (@excludeList) {
+        @names = split ',', $line;
+        foreach $name (@names) { push @exclude, $name if $name }
+    }
+    if ($cvsX) {
+        push @exclude, "Entries";
+        push @exclude, "Root";
+        push @exclude, "Tag";
+    }
 
     # shortcuts for checking fcst, run, or rs directory 
     #--------------------------------------------------
@@ -234,7 +248,7 @@ sub cmp_files {
         else         { $file2 = namechange("$dir2/$base1")         }
         print "(2) checking $file2\n\n" if $verbose;
 
-        if (-e $file2) { $found{$file1} =  display($file2,2) }
+        if (-e $file2) { $found{$file1} =  $file2 }
         else           { push @unmatched1, display($file1,1) }
     }
 
@@ -282,7 +296,7 @@ sub cmp_files {
     #------------------------------------
     %Rfound = reverse %found;
     foreach $file2 (@files2) {
-        push @unmatched2, display($file2,2) unless $Rfound{display($file2,2)};
+        push @unmatched2, display($file2,2) unless $Rfound{$file2};
     }
 
     @unmatched1 = sort @unmatched1;
@@ -417,7 +431,7 @@ sub find_common_label {
     }
     if ($debug) {
         foreach (0..$#p1) { print "p1/p2 = $p1[$_]/$p2[$_]\n" };
-        print "<cr> to continue ... "; my $dummy = <STDIN>;
+        pause();
     }
     return;
 }
@@ -466,8 +480,9 @@ sub show_results {
                 . "choose option: [$dflt] ";
 
             chomp($opt = <STDIN>);
+            $opt =~ s/\s//g;
         }
-        $opt = $dflt if $opt =~ /^\s*$/;
+        $opt = $dflt if $opt eq "";
         exit unless $opt;
 
         $first = 0;
@@ -590,7 +605,9 @@ sub show_binary_diffs {
         }
 
         print "Compare files: [$dflt] ";
-        chomp( $sel = <STDIN> ); $sel = $dflt unless $sel =~ /\S+/;
+        chomp( $sel = <STDIN> );
+        $sel =~ s/\s//g;
+        $sel = $dflt if $sel eq "";
 
         if ($sel ==  0) { return }
         if ($sel == -1) { $show_menu = 1; next }
@@ -689,7 +706,10 @@ sub show_text_diffs {
         else           { printf $fmt1, "b", "toggle diff -bwi flag ON\n"  }
 
         print "Make Selection: [$dflt] ";
-        chomp( $sel = <STDIN> ); $sel = $dflt unless $sel =~ /\S+/;
+        chomp( $sel = <STDIN> );
+        $sel =~ s/\s//g;
+        $sel = $dflt if $sel eq "";
+        
 
         return if $sel eq "0";
 
@@ -1277,11 +1297,13 @@ sub mybase {
 
     if ($flag eq "1") {
         $ddir = display($dir1,1);
+        $ddir = "\'.\'" if $ddir eq ".";
         $name =~ s/$dir1\///;
         $name =~ s/$ddir\///;
     }
     elsif ($flag eq "2") {
         $ddir = display($dir2,2);
+        $ddir = "\'.\'" if $ddir eq ".";
         $name =~ s/$dir2\///;
         $name =~ s/$ddir\///;
     }
@@ -1424,6 +1446,7 @@ where
 
 options
   -bwi               ignore blanks, white space, and case when doing file diffs
+  -cvsX              do not compare CVS files: Entries, Root, Tag
   -ext extension     compare all files with this extension (recursive)
   -fcst              shortcut for "-subdir fcst -r"
   -h(elp)            print usage information
@@ -1436,8 +1459,8 @@ options
   -run               shortcut for "-subdir run -r"
   -subdir name       start comparison in specified subdirectory
   -v                 verbose mode
-  -X  string         filenames which include this string will be excluded
-                     from the comparison
+  -X  str1[,str2,..] exclude filenames which include str1; can list multiple
+                     multiple string entries separated by commas (no spaces)
 pattern options
   -p1 pattern1       ignore these pattern differences in dir1/dir2 filenames
   -p2 pattern2

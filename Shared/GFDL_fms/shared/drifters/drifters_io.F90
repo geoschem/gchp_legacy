@@ -1,4 +1,4 @@
-! $Id: drifters_io.F90,v 1.1.1.1 2010-03-19 21:18:54 atrayano Exp $
+! $Id$
 
 !!#include <fms_platform.h>
 
@@ -13,7 +13,7 @@ module drifters_io_mod
   ! Globals
   integer, parameter, private   :: MAX_STR_LEN = 128
   character(MAX_STR_LEN), parameter, private :: &
-       & version = '$Id: drifters_io.F90,v 1.1.1.1 2010-03-19 21:18:54 atrayano Exp $'
+       & version = '$Id$'
 
   real :: drfts_eps_t = 10*epsilon(1.)
   

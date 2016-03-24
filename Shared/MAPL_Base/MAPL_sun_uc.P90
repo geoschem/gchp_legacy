@@ -1,4 +1,4 @@
-! $Id: MAPL_sun_uc.P90,v 1.7 2014-12-12 16:33:29 bmauer Exp $
+! $Id$
 
 #include "MAPL_ErrLog.h"
 

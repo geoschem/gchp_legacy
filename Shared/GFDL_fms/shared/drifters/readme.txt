@@ -1,7 +1,7 @@
 Drifters
 ========
 
-$Id: readme.txt,v 1.1.1.2 2012-11-16 16:00:09 atrayano Exp $
+$Id$
 
 Alexander.Pletzer
 

@@ -46,20 +46,20 @@ endif
 'set parea 0.6 5.2  4.55 7.55'
 'set grads off'
 'set grid  off'
-'run statdpltz 'field' rmes 'tag1' 'tag2' 'numf' 'cint
+'run statdpltz 'field' dbia 'tag1' 'tag2' 'numf' 'cint
 
 'set parea off'
 'set vpage 0 11 0 8.5'
 'set parea 6.1 10.6  4.55 7.55'
 'set grads off'
 'set grid  off'
-'run statdpltz 'field' std 'tag1' 'tag2' 'numf' 'cint
+'run statdpltz 'field' dstd 'tag1' 'tag2' 'numf' 'cint
 
 'set parea off'
 'set vpage 0 11 0 8.5'
 'set parea 3.35 7.85  0.75 3.75'
 'set grads off'
 'set grid  off'
-'run statdpltz 'field' rms 'tag1' 'tag2' 'numf' 'cint
+'run statdpltz 'field' drms 'tag1' 'tag2' 'numf' 'cint
 
 return

@@ -1,7 +1,7 @@
 !===============================================================================
-! CVS: $Id: shr_kind_mod.F90,v 1.3 2008-04-13 20:26:51 wsawyer Exp $
-! CVS: $Source: /cvsroot/esma/esma/src/Shared/GMAO_pilgrim/shr_kind_mod.F90,v $
-! CVS: $Name: Heracles-3_1_CTM $
+! CVS: $Id$
+! CVS: $Source$
+! CVS: $Name$
 !===============================================================================
 
 MODULE shr_kind_mod

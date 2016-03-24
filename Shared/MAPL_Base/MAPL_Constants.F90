@@ -1,6 +1,6 @@
 module MAPL_ConstantsMod
 
-!  $Id: MAPL_Constants.F90,v 1.6 2014-01-29 20:51:36 ltakacs Exp $
+!  $Id$
 
 implicit none
 private
@@ -57,6 +57,10 @@ real, parameter, public :: MAPL_SRFPRS = 98470                  ! Pa
 real, parameter, public :: MAPL_KARMAN = 0.40                   ! --
 real, parameter, public :: MAPL_USMIN  = 1.00                   ! m/s
 real, parameter, public :: MAPL_AVOGAD = 6.023E26               ! 1/kmol
+
+real, parameter, public :: MAPL_RHO_SEAWATER  = 1026.0          ! sea water density [kg/m^3]. SA: should it be = 1026 kg/m^3?
+real, parameter, public :: MAPL_RHO_SEAICE    = 917.0           ! sea ice   density [kg/m^3]. SA: should it be = 917  kg/m^3?
+real, parameter, public :: MAPL_RHO_SNOW      = 330.0           ! snow density      [kg/m^3]. SA: should it be = 330  kg/m^3?
 
 integer,parameter, public :: MAPL_R8 = selected_real_kind(12) ! 8 byte real
 integer,parameter, public :: MAPL_R4 = selected_real_kind( 6) ! 4 byte real

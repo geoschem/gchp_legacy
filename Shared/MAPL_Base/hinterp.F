@@ -1,4 +1,4 @@
-      subroutine hinterp ( qin,iin,jin,qout,iout,jout,mlev,undef )
+      subroutine hinterp2 ( qin,iin,jin,qout,iout,jout,mlev,undef )
       implicit   none
       integer    iin,jin,       iout,jout, mlev
       real   qin(iin,jin,mlev), qout(iout,jout,mlev)
@@ -73,7 +73,7 @@ c --------------------------
       integer i,j,loc,rc
       real lon_min
 
-      character(len=*), parameter :: Iam='hinterp_'
+      character(len=*), parameter :: Iam='hhinterp'
       integer :: i1, i2, i3, i4, n1, n2, n3, n4, imh, k
       real lons_save(iin)
 

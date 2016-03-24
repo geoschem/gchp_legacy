@@ -1,12 +1,12 @@
-/VERIFICATION.ERA40.rc/1.2/Mon Jan 27 19:00:56 2014//THeracles-3_1_CTM
-/VERIFICATION.NCEP.rc/1.2/Thu Dec  3 18:21:26 2009//THeracles-3_1_CTM
-/taylor_cloud.gs/1.5/Sun Jan 15 15:28:48 2012//THeracles-3_1_CTM
-/taylor_eflux.gs/1.4/Thu Jan  5 18:15:38 2012//THeracles-3_1_CTM
-/taylor_hflux.gs/1.4/Thu Jan  5 18:15:38 2012//THeracles-3_1_CTM
-/taylor_lwp.gs/1.5/Sun Jan 15 15:28:48 2012//THeracles-3_1_CTM
-/taylor_olr.gs/1.4/Thu Jan  5 18:15:38 2012//THeracles-3_1_CTM
-/taylor_prog.gs/1.5/Fri Feb 15 18:09:20 2013//THeracles-3_1_CTM
-/taylor_tpw.gs/1.5/Sun Jan 15 15:28:48 2012//THeracles-3_1_CTM
-/taylor_tskin.gs/1.4/Thu Jan  5 18:15:38 2012//THeracles-3_1_CTM
-/taylor_uflux.gs/1.5/Sun Jan 15 15:28:48 2012//THeracles-3_1_CTM
+/VERIFICATION.ERA40.rc/1.2/Mon Jan 27 19:00:56 2014/-kk/THeracles-5_1_CTM
+/VERIFICATION.NCEP.rc/1.2/Thu Dec  3 18:21:26 2009/-kk/THeracles-5_1_CTM
+/taylor_cloud.gs/1.5/Sun Jan 15 15:28:48 2012/-kk/THeracles-5_1_CTM
+/taylor_eflux.gs/1.4/Thu Jan  5 18:15:38 2012/-kk/THeracles-5_1_CTM
+/taylor_hflux.gs/1.4/Thu Jan  5 18:15:38 2012/-kk/THeracles-5_1_CTM
+/taylor_lwp.gs/1.5/Sun Jan 15 15:28:48 2012/-kk/THeracles-5_1_CTM
+/taylor_olr.gs/1.4/Thu Jan  5 18:15:38 2012/-kk/THeracles-5_1_CTM
+/taylor_prog.gs/1.5/Fri Feb 15 18:09:20 2013/-kk/THeracles-5_1_CTM
+/taylor_tpw.gs/1.5/Sun Jan 15 15:28:48 2012/-kk/THeracles-5_1_CTM
+/taylor_tskin.gs/1.4/Thu Jan  5 18:15:38 2012/-kk/THeracles-5_1_CTM
+/taylor_uflux.gs/1.5/Sun Jan 15 15:28:48 2012/-kk/THeracles-5_1_CTM
 D

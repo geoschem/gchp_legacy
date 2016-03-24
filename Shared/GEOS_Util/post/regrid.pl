@@ -27,15 +27,15 @@ my ($gcmFLG, $g5modules, $getsponsorX, $grIN, $grINocean, $grOUT, $grOUTocean);
 my ($hr, $interactive, $interp_restartsX, $landIceDT, $lblFLG, $lcvFLG);
 my ($levsIN, $levsOUT, $logfile, $merra, $mk_RestartsX, $mkdrstdateX, $month);
 my ($newid, $node, $noprompt, $outdir, $regridj, $rs_hinterpX, $rsFLG, $rs_scaleX);
-my ($rstdir, $rst_template, $rstIN_template, $scale_catchX, $surfFLG, $surflay);
-my ($tagIN, $tagOUT, $upairFLG, $verbose, $workdir, $year, $ymd);
+my ($rstdir, $rst_template, $rstIN_template, $slurmjob, $scale_catchX, $surfFLG);
+my ($surflay, $tagIN, $tagOUT, $upairFLG, $verbose, $workdir, $year, $ymd);
 my (%IN, %iceIN, %OUT);
 my (%CS, %im, %im4, %imo, %imo4, %jm, %jm4, %jm5, %jmo, %jmo4, %atmLevs);
 my (@SURFACE, @UPPERAIR_OPT, @UPPERAIR_REQ, @anafiles, @warnings);
 
 # global tag variables
 #---------------------
-my $former_tag  = "Ganymed-3_0";       # default for input restarts
+my $former_tag  = "Ganymed-4_0";       # default for input restarts
 my $current_tag = "Ganymed-4_0";       # default for output restarts
 
 my (@GCMtags, @DAStags);
@@ -66,7 +66,7 @@ $imo{"f"} = "2880"; $jmo{"f"} = "1440";    # Reynolds
 
 # atmosphere cubed-sphere grids
 #------------------------------
-foreach (qw/ 48 90 180 360 500 720 1000 1440 2000 2880 /) {
+foreach (qw/ 24 48 90 180 360 500 720 1000 1440 2000 2880 /) {
     $CS{"C$_"} = $_;
     $im{"C$_"} = $_;
     $jm{"C$_"} = 6*$_;
@@ -86,7 +86,10 @@ foreach (keys %jmo) { $jmo4{$_} = sprintf "%04i", $jmo{$_} }
 @UPPERAIR_OPT = ( "agcm_import_rst",
                   "agcm_internal_rst",
                   "gocart_internal_rst",
-                  "pchem_internal_rst" );
+                  "pchem_internal_rst",
+                  "geosachem_internal_rst",
+                  "mam_internal_rst",
+                  "matrix_internal_rst ");
 
 @SURFACE      = ( "catch_internal_rst",
                   "landice_internal_rst",
@@ -142,7 +145,7 @@ foreach (keys %jmo) { $jmo4{$_} = sprintf "%04i", $jmo{$_} }
 sub init {
     use File::Basename ("basename");
     use Getopt::Long;
-    my ($help, $prompt, $ESMAETC);
+    my ($help, $prompt, $merra2, $ESMAETC);
 
     $| = 1;    # flush STDOUT buffer
 
@@ -154,9 +157,11 @@ sub init {
     # identify platform
     #------------------
     chomp($node = `uname -n`);
-    if ( $node =~ /^borg/ or $node =~ /^dirac/ or
+    if ( $node =~ /^borg/ or $node =~ /^dirac/ or $node =~ /^warp/ or
          $node =~ /^dali/ or $node =~ /^discover/ ) { $node = "nccs" }
     die "Error. This script runs on NCCS machines only;\n" unless $node eq "nccs";
+
+    $slurmjob = 1 if defined($ENV{"SLURM_JOBID"});
 
     # initialize tag arrays and hashes
     #---------------------------------
@@ -169,7 +174,8 @@ sub init {
                "grout|gridout=s" => \$grOUT,
                "levsout=s"       => \$levsOUT,
                "outdir=s"        => \$outdir,
-               "merra"           => \$merra,
+               "merra|merra1"    => \$merra,
+               "merra2"          => \$merra2,
                "d=s"             => \$rstdir,
                "expid=s"         => \$expid,
                "i"               => \$interactive,
@@ -185,7 +191,7 @@ sub init {
                "lbl!"            => \$lblFLG,
                "lcv!"            => \$lcvFLG,
                "gcm"             => \$gcmFLG,
-               "np"              => \$noprompt,
+               "np|noprompt"     => \$noprompt,
                "db|debug|nc"     => \$debug,
                "dbh"             => \$dbHash,
                "v"               => \$verbose,
@@ -193,6 +199,10 @@ sub init {
 
     usage() if $help;
     setprompt(0) if $noprompt;
+
+    $merra = 1 if $merra;
+    $merra = 2 if $merra2;
+    $merra = 0 unless $merra;
 
     # check for inputs as runtime parameters
     #---------------------------------------
@@ -228,22 +238,39 @@ sub init {
 #           not supplied (if interactive mode)
 #=======================================================================
 sub check_inputs {
-    my ($fvrst, $ans, $prompt, $len, $msg, $warnFLG);
+    my ($arcdir, $fvrst, $ans, $prompt, $len, $msg, $warnFLG, @TEMP);
     my ($grINocean_dflt, $grOUTocean_dflt, $levsOUTdflt, $rstlcvIN);
     my ($newid_dflt, $bkg_dflt, $lcv_dflt, $lbl_dflt, $dflt);
     my ($landIceVERin, $landIceVERout);
 
-    # location of input restarts
-    #---------------------------
-    until ($merra or ($rstdir and -d $rstdir)) {
-        $prompt = "Do you want script to select MERRA input restarts for you";
+    # use MERRA input restarts?
+    #--------------------------
+    unless ($merra or ($rstdir and -d $rstdir)) {
+        $prompt = "Do you want script to select MERRA-2 input restarts for you";
         $ans = query("\n$prompt (y/n)?", "n");
         if (lc($ans) eq "y") {
-            $merra = 1;
-        } else {
-            $rstdir = query("Enter INPUT restart directory:");
-            print "\nCannot find restart dir: $rstdir\n" unless -d $rstdir;
+            $merra = 2;
         }
+        else {
+            $prompt = "Do you want script to select MERRA-1 restarts for you";
+            $ans = query("\n$prompt (y/n)?", "n");
+            if (lc($ans) eq "y") {
+                $merra = 1;
+            }
+        }
+    }
+
+    # location of input restarts
+    #---------------------------
+    until (($rstdir and -d $rstdir) or ($merra and ! $slurmjob)) {
+        if ($slurmjob) {
+            print "\n==================================================\n"
+                .   "NOTE: You are running on SLURM interactive nodes. \n"
+                .   "Inputs from archive directories are not available.\n"
+                .   "==================================================\n";
+        }
+        $rstdir = query("Enter INPUT restart directory:");
+        print "\nCannot find restart dir: $rstdir\n" unless -d $rstdir;
     }
     if ($rstdir) {
         $rstdir =~ s/\/*$//;    # remove trailing '/'s
@@ -266,8 +293,8 @@ sub check_inputs {
 
     # set values for MERRA restarts
     #------------------------------
-    if ($merra) {
-        $rstdir = "/archive/g_proj5/production/GEOSdas-2_1_4";
+    if ($merra == 1) {
+        $rstdir = "/archive/g_proj5/production/GEOSdas-2_1_4" unless $slurmjob;
         $tagIN  = "Fortuna-1_4";
         $grIN      = "d";
         $grINocean = "c";
@@ -276,6 +303,21 @@ sub check_inputs {
         elsif ($year < 1989) { $expid = "d5_merra_jan79" }
         elsif ($year < 1998) { $expid = "d5_merra_jan89" }
         else                 { $expid = "d5_merra_jan98" }
+    }
+    if ($merra == 2) {
+        $arcdir = "/archive/users/gmao_ops/MERRA2/gmao_ops/GEOSadas-5_12_4";
+        $rstdir = $arcdir unless $slurmjob;
+        $tagIN  = "Ganymed-4_0";
+        $grIN      = "C180";
+        $grINocean = "e";
+
+        if ("$year$month" < 197901) {
+            die "Error. MERRA-2 data < 1979 not available\n"
+        }
+        elsif ("$year$month" < 199201) { $expid = "d5124_m2_jan79" }
+        elsif ("$year$month" < 200106) { $expid = "d5124_m2_jan91" }
+        elsif ("$year$month" < 201101) { $expid = "d5124_m2_jan00" }
+        else                           { $expid = "d5124_m2_jan10" }
     }
     die "\nError. Cannot find restart dir: $rstdir" unless -d $rstdir;
     $rstdir =~ s/\/*$//;    # remove trailing '/'s
@@ -289,9 +331,10 @@ sub check_inputs {
     printlabel("\nAtmosphere Grids");
     print_("\nLat/Lon Grids       Cubed-Sphere Grids\n"
         .    "-------------       ------------------\n"
-        .    "b = 2 deg           C48     C360     C1000\n"
-        .    "c = 1 deg           C90     C500     C1440\n"
-        .    "d = 1/2 deg         C180    C720     C2880\n"
+        .    "a = 4 deg           C24     C360     C1000\n"
+        .    "b = 2 deg           C48     C500     C1440\n"
+        .    "c = 1 deg           C90     C720     C2880\n"
+        .    "d = 1/2 deg         C180                  \n"
         .    "e = 1/4 deg\n\n");
 
     print "FVCORE: $fvrst\n"
@@ -323,6 +366,18 @@ sub check_inputs {
         }
     }
     else { $levsOUT = $levsIN }
+
+    # cannot regrid agcm_import_rst to different number of atmosphere levels
+    #-----------------------------------------------------------------------
+    if ($levsOUT != $levsIN) {
+        @TEMP = ();
+        foreach (@UPPERAIR_OPT) { push @TEMP, $_ unless $_ eq "agcm_import_rst" }
+        @UPPERAIR_OPT = @TEMP;
+
+        $msg = "Cannot regrid agcm_import_rst from $levsIN "
+            .  "to $levsOUT atmospheric levels.";
+        push @warnings, $msg;
+    }
         
     # check ocean grids: $grINocean and $grOUTocean
     #----------------------------------------------
@@ -905,8 +960,14 @@ sub init_tag_arrays_and_hashes {
 
     # BCS Tags: Ganymed-4_0_Reynolds, Ganymed-4_0_MERRA-2, and Ganymed-4_0_Ostia
     #---------------------------------------------------------------------------
-    @G40  = qw( G40                    Ganymed-4_0 );
-    @D512 = qw( 512                    GEOSadas-5_12_2 );
+    @G40  = qw( G40                    Ganymed-4_0            Ganymed-4_0_p1
+                Ganymed-4_1            Heracles-1_0           Heracles-1_1
+                Heracles-2_0           Heracles-2_1           Heracles-3_0
+                Heracles-4_0 );
+    @D512 = qw( 512                    GEOSadas-5_12_2        GEOSadas-5_12_4
+                GEOSadas-5_12_4_p1     GEOSadas-5_12_4_p2     GEOSadas-5_12_4_p3
+                GEOSadas-5_12_5        GEOSadas-5_13_0_p1     GEOSadas-5_13_0_p2
+                GEOSadas-5_13_1 );
 
     foreach (@F14)   { $landIceVER{$_} = 1; $bcsTAG{$_} = "Fortuna-1_4" }
     foreach (@F20)   { $landIceVER{$_} = 1; $bcsTAG{$_} = "Fortuna-2_0" }
@@ -1641,11 +1702,12 @@ sub copy_upperair_rsts {
 sub regrid_upperair_rsts_CS {
     my ($qsublog, $im, $NPE, $QOS, $MEMPERCPU);
     my ($grpID, $grpIDflg, $type, $target, $FH);
-    my ($DYN, $MOIST, $AGCM, $PCHEM, $GOCART);
+    my ($DYN, $MOIST, $AGCM, $PCHEM, $GOCART, $ACHEM, $MAM, $MATRIX);
     my ($moist, $newrst, $rst, $cmd, $status);
 
     $im = $im{$grOUT};
-    if    ($im eq   "48") { $NPE =  12; $QOS = ""             }
+    if    ($im eq   "24") { $NPE =  12; $QOS = ""             }
+    elsif ($im eq   "48") { $NPE =  12; $QOS = ""             }
     elsif ($im eq   "90") { $NPE =  12; $QOS = ""             }
     elsif ($im eq  "180") { $NPE =  24; $QOS = ""             }
     elsif ($im eq  "360") { $NPE =  96; $QOS = ""             }
@@ -1659,6 +1721,10 @@ sub regrid_upperair_rsts_CS {
 
     if ($im >= "2880") { $MEMPERCPU = "--mem-per-cpu=4G"}
     else               { $MEMPERCPU = ""                }
+
+    # MAT Workaround C180 -> C720 cannot run on 192
+    # ---------------------------------------------
+    if ( ($im{$grIN} eq "180") and ($im eq "720") ) { $NPE = 96 }
 
     $regridj = "$workdir/regrid.j";
     $qsublog = "$outdir/$newid.upperair.${ymd}_${hr}z.log.o%j";
@@ -1684,13 +1750,20 @@ sub regrid_upperair_rsts_CS {
         next unless -e $target;
         copy_($target, $workdir, $verbose);
     }
-    $AGCM   = rstname($expid, "agcm_import_rst",     $rstIN_template);
-    $PCHEM  = rstname($expid, "pchem_internal_rst",  $rstIN_template);
-    $GOCART = rstname($expid, "gocart_internal_rst", $rstIN_template);
+    $AGCM   = rstname($expid, "agcm_import_rst",        $rstIN_template);
+    $PCHEM  = rstname($expid, "pchem_internal_rst",     $rstIN_template);
+    $GOCART = rstname($expid, "gocart_internal_rst",    $rstIN_template);
+    $ACHEM  = rstname($expid, "geosachem_internal_rst", $rstIN_template);
+    $MAM    = rstname($expid, "mam_internal_rst",       $rstIN_template);
+    $MATRIX = rstname($expid, "matrix_internal_rst",    $rstIN_template);
+
 
     $AGCM   = "" unless -e $AGCM;
     $PCHEM  = "" unless -e $PCHEM;
     $GOCART = "" unless -e $GOCART;
+    $ACHEM  = "" unless -e $ACHEM;
+    $MAM    = "" unless -e $MAM;
+    $MATRIX = "" unless -e $MATRIX;
 
     open REGRIDJ, "> $regridj" or die "Error. Unable to open $regridj; $!";
     $FH = select;
@@ -1699,10 +1772,9 @@ sub regrid_upperair_rsts_CS {
     print <<"EOF";
 #!/bin/csh -xf
 #$grpIDflg
-#PBS -l walltime=1:00:00
+#SBATCH --time=1:00:00
 #SBATCH --ntasks=${NPE} ${QOS} ${MEMPERCPU}
-#PBS -N regrid
-#PBS -j oe
+#SBATCH --job-name=regrid
 
 cd $workdir
 source $g5modules
@@ -1717,6 +1789,9 @@ source $g5modules
 if( ".$AGCM"   != . ) /bin/ln -s $AGCM   agcm_import_restart_in
 if( ".$PCHEM"  != . ) /bin/ln -s $PCHEM  pchem_internal_restart_in
 if( ".$GOCART" != . ) /bin/ln -s $GOCART gocart_internal_restart_in
+if( ".$ACHEM"  != . ) /bin/ln -s $ACHEM  geosachem_internal_restart_in
+if( ".$MAM"    != . ) /bin/ln -s $MAM    mam_internal_restart_in
+if( ".$MATRIX" != . ) /bin/ln -s $MATRIX matrix_internal_restart_in
 
 # The MERRA fvcore_internal_restarts don't include W or DZ, but we can add them by setting 
 # HYDROSTATIC = 0 which means HYDROSTATIC = FALSE
@@ -1725,35 +1800,35 @@ set HYDROSTATIC = 0
 set im = $im{$grOUT}
 
 if (\$?I_MPI_ROOT) then
-  setenv I_MPI_FABRICS "shm:ofa"
-  setenv I_MPI_RDMA_SCALABLE_PROGRESS enable
-  setenv I_MPI_USE_DYNAMIC_CONNECTIONS disable
-  setenv I_MPI_JOB_STARTUP_TIMEOUT 10000
-  setenv DAPL_ACK_RETRY 7
-  setenv DAPL_ACK_TIMER 23
-  setenv DAPL_RNR_RETRY 7
-  setenv DAPL_RNR_TIMER 28
-  setenv I_MPI_RDMA_RNDV_WRITE enable
 
   # intel scaling suggestions
   #--------------------------
-  setenv DAPL_CM_ARP_TIMEOUT_MS 8000
-  setenv DAPL_CM_ARP_RETRY_COUNT 25
-  setenv DAPL_CM_ROUTE_TIMEOUT_MS 20000
-  setenv DAPL_CM_ROUTE_RETRY_COUNT 15
-  setenv DAPL_MAX_CM_RESPONSE_TIME 20
-  setenv DAPL_MAX_CM_RETRIES 15
-  #--setenv I_MPI_STATS 4
+  
+  setenv I_MPI_DAPL_UD on
 
-  $ESMABIN/esma_mpirun -np $NPE $interp_restartsX -999 \$im \$im $levsOUT \$HYDROSTATIC
+  setenv DAPL_UCM_CQ_SIZE 4096
+  setenv DAPL_UCM_QP_SIZE 4096
 
-else
+  setenv I_MPI_DAPL_UD_SEND_BUFFER_NUM 4096
+  setenv I_MPI_DAPL_UD_RECV_BUFFER_NUM 4096
+  setenv I_MPI_DAPL_UD_ACK_SEND_POOL_SIZE 4096
+  setenv I_MPI_DAPL_UD_ACK_RECV_POOL_SIZE 4096
+  setenv I_MPI_DAPL_UD_RNDV_EP_NUM 2
+  setenv I_MPI_DAPL_UD_REQ_EVD_SIZE 2000
 
-  if (\$?MVAPICH2) then
-    setenv MV2_ENABLE_AFFINITY 0
-    $ESMABIN/esma_mpirun -np $NPE $interp_restartsX -999 \$im \$im $levsOUT \$HYDROSTATIC
-  endif
+  setenv DAPL_UCM_REP_TIME 2000
+  setenv DAPL_UCM_RTU_TIME 2000
+  setenv DAPL_UCM_RETRY 7
+  setenv DAPL_ACK_RETRY 7
+  setenv DAPL_ACK_TIMER 20
+  setenv DAPL_UCM_RETRY 10
+  setenv DAPL_ACK_RETRY 10
+
+else if (\$?MVAPICH2) then
+  setenv MV2_ENABLE_AFFINITY 0
 endif
+
+$ESMABIN/esma_mpirun -np $NPE $interp_restartsX -999 \$im \$im $levsOUT \$HYDROSTATIC
 
 exit
 
@@ -1762,8 +1837,22 @@ close REGRIDJ;
 
     select $FH;
     chdir_($outdir, $verbose);
-    print_("The CS regridding is MPI based; submitting job to PBS\n");
-    system_("\nqsub -W block=true -o $qsublog $regridj");
+    if ($slurmjob) {
+      print_("The CS regridding is MPI based; found SLURM_JOBID; assuming interactive job, running interactively\n");
+
+      # Make regridj executable
+      # -----------------------
+      chmod 0755, $regridj;
+
+      # Remove the .o%j from the qsublog file
+      # -------------------------------------
+      $qsublog =~ s/.o%j//g;
+
+      system_("\n$regridj 1>$qsublog 2>&1");
+    } else {
+      print_("The CS regridding is MPI based; submitting job to PBS\n");
+      system_("\nqsub -W block=true -o $qsublog $regridj");
+    }
     chdir_($workdir, $verbose);
 }
 
@@ -2294,8 +2383,11 @@ sub write_CMD_file {
         and                                      $CS{$grOUT};
     $capture .= " -outdir ". display($outdir) if $capture !~ m/\s+\-outdir\b/;
 
-    if ($merra) {
-        $capture .= " -merra"              if $capture !~ m/\s+\-merra\b/;
+    if ($merra == 1) {
+        $capture .= " -merra1"             if $capture !~ m/\s+\-merra\b/;
+    }
+    if ($merra == 2) {
+        $capture .= " -merra2"             if $capture !~ m/\s+\-merra\b/;
     }
     else {
         $capture .= " -d $rstdir"          if $capture !~ m/\s+\-d\b/;
@@ -2656,7 +2748,9 @@ REQUIRED INPUTS
    -outdir   outdir
 
 REQUIRED OPTION FOR MERRA INPUTS
-   -merra             get input restarts from OPS MERRA data archives
+   -merra             (same as -merra1)
+   -merra1            get input restarts from OPS MERRA-1 data archives
+   -merra2            get input restarts from OPS MERRA-2 data archives
 
 REQUIRED OPTIONS FOR NON-MERRA INPUTS
    -d        rstdir   location of input restart files
@@ -2720,7 +2814,7 @@ GRID IDENTIFIERS
 
    cubed-sphere grids
    ------------------
-   Cn, where n = {48, 90, 180, 360, 500, 720, 1000, 1440, 2000, 2880}
+   Cn, where n = {24, 48, 90, 180, 360, 500, 720, 1000, 1440, 2000, 2880}
 
    Ocean Horizontal Grids
    ======================
@@ -2733,23 +2827,24 @@ TAGS
 
       Sample GCM tags
       ---------------
-      F14  : $F14[1]  .........  $F14[-1]
-      F21  : $F21[1]  .........  $F21[-1]
-      G10  : $G10[1]  .........  $G10[-1]
-      G10p : $G10p[1]  ......  $G10p[-1]
-      G20  : $G20[1]  .........  $G20[-1]
-      G30  : $G30[1]  .........  $G30[-1]
-      G40  : $G40[1]  .........  $G40[-1]
+      F14  : $F14[1]  ............  $F14[-1]
+      F21  : $F21[1]  ............  $F21[-1]
+      G10  : $G10[1]  ............  $G10[-1]
+      G10p : $G10p[1]  .........  $G10p[-1]
+      G20  : $G20[1]  ............  $G20[-1]
+      G30  : $G30[1]  ............  $G30[-1]
+      G40  : $G40[1]  ............  $G40[-1]
 
       Sample DAS tags
       ---------------
-      214  : $D214[1]  .......  $D214[-1]
-      540  : $D540[1]  ......  $D540[-1]
-      561  : $D561[1]  ......  $D561[-1]
-      580  : $D580[1]  ......  $D580[-1]
-      591p : $D591p[1]  ...  $D591p[-1]
-      5A0  : $D5A0[1]  .....  $D5A0[-1]
+      214  : $D214[1]  ..........  $D214[-1]
+      540  : $D540[1]  .........  $D540[-1]
+      561  : $D561[1]  .........  $D561[-1]
+      580  : $D580[1]  .........  $D580[-1]
+      591p : $D591p[1]  ......  $D591p[-1]
+      5A0  : $D5A0[1]  ........  $D5A0[-1]
       5B0  : $D5B0[1]  .....  $D5B0[-1]
+      512  : $D512[1]  ........  $D512[-1]
 
 AUTHOR
    Joe Stassi, SAIC (joe.stassi\@nasa.gov)

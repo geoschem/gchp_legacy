@@ -358,8 +358,8 @@ logical           :: debug_mask_list     = .false.
 
 integer            :: pack_size  ! = 1 for double = 2 for float
 
-character(len=128) :: version = '$Id: fms_io.F90,v 1.1.1.2 2012-11-16 16:00:09 atrayano Exp $'
-character(len=128) :: tagname = '$Name: Heracles-3_1_CTM $'
+character(len=128) :: version = '$Id$'
+character(len=128) :: tagname = '$Name$'
 
 contains
 

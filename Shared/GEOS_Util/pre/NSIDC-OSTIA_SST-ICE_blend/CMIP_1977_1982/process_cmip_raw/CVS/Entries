@@ -1,10 +1,10 @@
-/get_cmip_sst_sic.py/1.1/Fri Nov 15 17:13:08 2013//THeracles-3_1_CTM
-/get_ls_mask.py/1.1/Fri Nov 15 17:13:08 2013//THeracles-3_1_CTM
-/get_mean_sst_sic.py/1.1/Fri Nov 15 17:13:08 2013//THeracles-3_1_CTM
-/get_mean_sst_sic_CLIM.py/1.1/Fri Nov 15 17:13:08 2013//THeracles-3_1_CTM
-/make_cmip_daily.py/1.1/Fri Nov 15 17:13:08 2013//THeracles-3_1_CTM
-/make_daily_mean.py/1.1/Fri Nov 15 17:13:08 2013//THeracles-3_1_CTM
-/sst_sic_CMIP_mean.py/1.1/Fri Nov 15 17:13:08 2013//THeracles-3_1_CTM
-/test_make_ls_mask.py/1.1/Fri Nov 15 17:13:08 2013//THeracles-3_1_CTM
-/write_cmip_daily.py/1.1/Fri Nov 15 17:13:08 2013//THeracles-3_1_CTM
 D/make_CLIM////
+/get_cmip_sst_sic.py/1.1/Fri Nov 15 17:13:08 2013/-kk/THeracles-5_1_CTM
+/get_ls_mask.py/1.1/Fri Nov 15 17:13:08 2013/-kk/THeracles-5_1_CTM
+/get_mean_sst_sic.py/1.1/Fri Nov 15 17:13:08 2013/-kk/THeracles-5_1_CTM
+/get_mean_sst_sic_CLIM.py/1.1/Fri Nov 15 17:13:08 2013/-kk/THeracles-5_1_CTM
+/make_cmip_daily.py/1.1/Fri Nov 15 17:13:08 2013/-kk/THeracles-5_1_CTM
+/make_daily_mean.py/1.1/Fri Nov 15 17:13:08 2013/-kk/THeracles-5_1_CTM
+/sst_sic_CMIP_mean.py/1.1/Fri Nov 15 17:13:08 2013/-kk/THeracles-5_1_CTM
+/test_make_ls_mask.py/1.1/Fri Nov 15 17:13:08 2013/-kk/THeracles-5_1_CTM
+/write_cmip_daily.py/1.1/Fri Nov 15 17:13:08 2013/-kk/THeracles-5_1_CTM

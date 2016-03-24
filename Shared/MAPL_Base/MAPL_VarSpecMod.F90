@@ -1,4 +1,4 @@
-!  $Id: MAPL_VarSpecMod.F90,v 1.29 2014-12-12 15:51:14 bmauer Exp $
+!  $Id$
 
 #include "MAPL_ErrLog.h"
 
@@ -134,7 +134,7 @@ type MAPL_VarSpecType
   integer                                  :: VECTOR_ORDER
   integer                                  :: STAGGERING
   integer                                  :: ROTATION
-  logical                                  :: RESTART
+  integer                                  :: RESTART
   logical                                  :: defaultProvided
   logical                                  :: doNotAllocate
   logical                                  :: alwaysAllocate ! meant for export specs
@@ -204,7 +204,7 @@ contains
     type(ESMF_State)   , optional   , intent(IN), target :: STATE
     integer            , optional   , intent(IN)      :: HALOWIDTH
     integer            , optional   , intent(IN)      :: PRECISION
-    logical            , optional   , intent(IN)      :: RESTART
+    integer            , optional   , intent(IN)      :: RESTART
     character (len=*)  , optional   , intent(IN)      :: ATTR_INAMES(:)
     character (len=*)  , optional   , intent(IN)      :: ATTR_RNAMES(:)
     integer            , optional   , intent(IN)      :: ATTR_IVALUES(:)
@@ -237,7 +237,7 @@ contains
     integer                    :: usableFIELD_TYPE
     integer                    :: usableSTAGGERING
     integer                    :: usableROTATION
-    logical                    :: usableRESTART
+    integer                    :: usableRESTART
     character(len=ESMF_MAXSTR) :: usableLONG
     character(len=ESMF_MAXSTR) :: usableUNIT
     character(len=ESMF_MAXSTR) :: usableFRIENDLYTO
@@ -407,7 +407,7 @@ contains
       if(present(RESTART)) then
        usableRESTART=RESTART
       else
-       usableRESTART=.true. ! default
+       usableRESTART=MAPL_RestartOptional ! default
       endif
 
       if(present(PRECISION)) then
@@ -1127,7 +1127,7 @@ contains
     character(len=*)   , optional   , intent(OUT)     :: FRIENDLYTO
     integer            , optional   , intent(OUT)     :: HALOWIDTH
     integer            , optional   , intent(OUT)     :: PRECISION
-    logical            , optional   , intent(OUT)     :: RESTART
+    integer            , optional   , intent(OUT)     :: RESTART
     character(len=ESMF_MAXSTR), optional, pointer     :: ATTR_INAMES(:)
     character(len=ESMF_MAXSTR), optional, pointer     :: ATTR_RNAMES(:)
     integer,                    optional, pointer     :: ATTR_IVALUES(:)

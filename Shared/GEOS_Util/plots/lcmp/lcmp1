@@ -58,7 +58,7 @@ if( EXPORT = "V"     ) ; facm = 1     ; faco = 1     ; endif
 if( EXPORT = "T"     ) ; facm = 1     ; faco = 1     ; endif
 if( EXPORT = "ZLE"   ) ; facm = 1     ; faco = 1     ; endif
 if( EXPORT = "Q"     ) ; facm = 1000  ; faco = 1000  ; endif
-if( EXPORT = "RH2"   ) ; facm = 100   ; faco = 1     ; endif
+if( EXPORT = "RH2"   ) ; facm = 100   ; faco = 100   ; endif
 if( EXPORT = "SLP"   ) ; facm = 0.01  ; faco = 0.01  ; endif
 
 

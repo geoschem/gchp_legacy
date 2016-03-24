@@ -11,7 +11,7 @@ use strict;
 use FileHandle;
 use vars qw($VERSION);
 
-$VERSION = "2.10"; # $Id: Netrc.pm,v 1.1 2002-01-30 20:42:21 lucchesi Exp $
+$VERSION = "2.10"; # $Id$
 
 my %netrc = ();
 

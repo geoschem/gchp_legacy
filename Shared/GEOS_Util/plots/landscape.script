@@ -141,7 +141,7 @@ endif
 
 if( $plot == residual ) then
                              $GEOSUTIL/plots/res/makeres      $source
-    $grads $batch -l -c "run $GEOSUTIL/plots/res/res   $expid $source $output $GEOSUTIL $seasons "
+    $grads $batch -l -c "run $GEOSUTIL/plots/res/res   $expid $output $debug $seasons "
     $grads $batch -l -c "run $GEOSUTIL/plots/zcmp/zcmp $expid $output $seasons "
 endif
 
@@ -337,6 +337,9 @@ if( $plot == surf.1 ) then
     $grads $batch -l -c "run template  -EXPID $expid  -EXPORT       RI:SURFACE  -SEASON $seasons  -OUTPUT $output  -DEBUG $debug "
     $grads $batch -l -c "run template  -EXPID $expid  -EXPORT      DMDTDYN:DYN  -SEASON $seasons  -OUTPUT $output  -DEBUG $debug "
     $grads $batch -l -c "run template  -EXPID $expid  -EXPORT     DMDT:PHYSICS  -SEASON $seasons  -OUTPUT $output  -DEBUG $debug "
+
+    $grads $batch -l -c "run template -EXPID $expid -EXPORT DMDTDYN:DYN  DMDTANA:DYN              -NAME DMDTDYNANA     -SEASON $seasons -OUTPUT $output -DEBUG $debug "
+    $grads $batch -l -c "run template -EXPID $expid -EXPORT DMDTDYN:DYN  DMDTANA:DYN DMDT:PHYSICS -NAME DMDTDYNANAPHY  -SEASON $seasons -OUTPUT $output -DEBUG $debug "
 endif
 
 # Gravity-Wave Drag

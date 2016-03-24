@@ -61,7 +61,7 @@
 ! !INTERFACE:
 !
    subroutine  h_map_pert_ ( w_i, w_o, rc, &
-                            phis_yes, ts_yes, verbose, lwifile ) ! optionals
+                            phis_yes, ts_yes, adm, verbose, lwifile ) ! optionals
 !
 ! !USES:
 !
@@ -72,7 +72,7 @@
    type(dyn_vect), intent(in)    :: w_i    ! original state vector
 
    logical, optional, intent(in) :: verbose          ! when .t., echoes summary information
-   logical, optional, intent(in) :: phis_yes, ts_yes
+   logical, optional, intent(in) :: phis_yes, ts_yes, adm
    character(len=*), optional, intent(in) :: lwifile ! filename with LWI field
 !
 ! !OUTPUT PARAMETERS:
@@ -97,8 +97,8 @@
 
       integer im, jm, km, lm
       integer in, jn, kn, ln
-      integer ierr
-      logical verb, phis_flag, ts_flag
+      integer k,ierr
+      logical verb, phis_flag, ts_flag, adm_flag
 
 ! Declare pointers
 ! ----------------
@@ -132,6 +132,10 @@
       if (present(phis_yes)) phis_flag = phis_yes 
       ts_flag = .false.
       if (present(ts_yes)) ts_flag = ts_yes
+      adm_flag = .false.
+      if (present(adm)) then
+         adm_flag = adm
+      end if
 ! -------------------------------------------
 
       im = w_i%grid%im
@@ -236,6 +240,18 @@
     w_o%phis   => phisn
  w_o%hs_stdv   => hsn
       w_o%ts   => tsn
+
+      if ( adm_flag ) then
+         w_o%ps = 0.0
+         do k=1,size(w_o%delp,3)
+            w_o%ps = w_o%ps + (w_o%grid%bk(k+1)-w_o%grid%bk(k))*w_o%delp(:,:,k)
+         enddo
+      else
+         w_o%ps = 0.0
+         do k=1,size(w_o%delp,3)
+            w_o%ps = w_o%ps + w_o%delp(:,:,k)
+         enddo
+      endif
 
       end subroutine h_map_pert_ 
 

@@ -4,12 +4,19 @@ field = subwrd (args,1)
 'numargs  'args
  numargs = result
 
+'getinfo tdim'
+         tdim = result
+'getinfo time'
+         time = result
+
         num = 0
 while ( num < numargs )
         num = num + 1
-if( subwrd(args,num) = '-desc'   ) ; DESC  = subwrd(args,num+1) ; endif
+if( subwrd(args,num) = '-desc'   ) ; DESC0 = subwrd(args,num+1) ; endif
 if( subwrd(args,num) = '-nfcst'  ) ; nfcst = subwrd(args,num+1) ; endif
 endwhile
+'fixname 'DESC0
+          DESC = result
 
 'getinfo pagex'
          pagex = result
@@ -26,134 +33,110 @@ endwhile
     CLAB  =  off
 
     scale = 1.0
+     cint = NULL
 
 if( field = "h" )
     name  = "Heights"
     unit  = "(m)"
     label = "hght"
-    RCOLS = '0  50  42  44  46  48  39  37  36  34  32  31  21  22  24  25  26  27  28   29'
-    cint  = 1000
-    rbrange = '1000 16000'
-    CLEVS = '-135 -120 -105 -90 -75 -60 -45 -30 -15 15 30 45 60 75 90 105 120 135'
-    CCINT = 15
-    DLEVS = '-18 -16 -14 -12 -10 -8 -6 -4 -2 2 4 6 8 10 12 14 16 18'
-    DCINT = 2
-    RLEVS = '2  4  6  8  10  15  20  25  30  40  50  60  70  80  90  100  120  140'
-    RCINT = 2
 endif
 
 if( field = "u" )
     name  = "U-Wind"
     unit  = "(m/sec)"
     label = "uwnd"
-    cint  = 5
-    rbrange = '-10 30'
-    RCOLS = '0  50  42  44  46  48  39  37  36  34  32  31  21  22  24  25  26  27  28   29'
-    CLEVS = '-9 -8 -7 -6 -5 -4 -3 -2 -1 1 2 3 4 5 6 7 8 9'
-    CCINT = 1
-    DLEVS = '-0.9 -0.8 -0.7 -0.6 -0.5 -0.4 -0.3 -0.2 -0.1 .1 .2 .3 .4 .5 .6 .7 .8 .9'
-    DCINT = 0.1
-    RLEVS = '1  2  3   4   5   6   7   8  9  10  11  12  13  14   15   16   17 18'
-    RCINT = 1
 endif
 
 if( field = "v" )
     name  = "V-Wind"
     unit  = "(m/sec)"
     label = "vwnd"
-    cint  = 0.5
-    rbrange = '-3 3'
-    RCOLS = '0  50  42  44  46  48  39  37  36  34  32  31  21  22  24  25  26  27  28   29'
-    CLEVS = '-1.35 -1.20 -1.05 -.90 -.75 -.60 -.45 -.30 -.15 .15 .30 .45 .60 .75 .90 1.05 1.20 1.35'
-    CCINT = 0.15
-    DLEVS = '-.9 -.8 -.7 -.6 -.5 -.4 -.3 -.2 -.1 .1 .2 .3 .4 .5 .6 .7 .8 .9'
-    DCINT = 0.1
-    RLEVS = '1  2  3   4   5   6   7   8  9  10  11  12  13  14   15   16   17 18'
-    RCINT = 1
 endif
 
 if( field = "t" )
     name  = "Temperature"
     unit  = "(K)"
     label = "tmpu"
-    RCOLS = '0  50  42  44  46  48  39  37  36  34  32  31  21  22  24  25  26  27  28   29'
-    cint  = 5
-    rbrange = '230 270'
-    CLEVS = '-2.7 -2.4 -2.1 -1.8 -1.5 -1.2 -.9 -.6 -.3 .3 .6 .9 1.2 1.5 1.8 2.1 2.4 2.7'
-    CCINT = 0.3
-    DLEVS = '-1.35 -1.20 -1.05 -.90 -.75 -.60 -.45 -.30 -.15 .15 .30 .45 .60 .75 .90 1.05 1.20 1.35'
-    DCINT = 0.15
-    RLEVS = '.2  .4  .6 .8  1  1.2 1.4 1.6 1.8 2 2.3 2.5 2.7  3   3.5  4   4.5  5.0  '
-    RCINT = 0.2
 endif
 
 if( field = "q" )
     name  = "Specific Humidity"
     unit  = "(g/g)"
     label = "sphu"
-    scale = 1000
-    RCOLS = '0  50  42  44  46  48  39  37  36  34  32  31  21  22  24  25  26  27  28   29'
-    cint  = 1
-    rbrange = '1 16'
-    CLEVS = '-1.35 -1.20 -1.05 -.90 -.75 -.60 -.45 -.30 -.15 .15 .30 .45 .60 .75 .90 1.05 1.20 1.35'
-    CCINT = 0.15
-    DLEVS = '-1.35 -1.20 -1.05 -.90 -.75 -.60 -.45 -.30 -.15 .15 .30 .45 .60 .75 .90 1.05 1.20 1.35'
-    DCINT = 0.15
-    DLEVS = '-.9 -.8 -.7 -.6 -.5 -.4 -.3 -.2 -.1 .1 .2 .3 .4 .5 .6 .7 .8 .9'
-    DCINT = 0.1
-    RLEVS = '.1  .2  .3   .4   .5   .6   .7   .8  .9  1.0  1.2  1.4  1.6  1.8   2.0   2.2   2.4 2.6'
-    RCINT = 0.1
 endif
 
 
 'set mproj latlon'
 'set vpage off'
 'set parea off'
-*'set xlopts 1 3 .14'
-*'set ylopts 1 3 .14'
+'set xlopts 1 3 .14'
+'set ylopts 1 3 .14'
 
+*****************************************************************************************
+****                                  Make Plots
+*****************************************************************************************
 
 'vpage 1 1 2 2'
 'set grads off'
 'set grid  off'
 'set clab 'CLAB
 'set gxout contour'
+'set t 'tdim
+   dummy = getstuff( field'fm'DESC'z' )
+   F_CINT  = subwrd(dummy,1)
+   F_scale = subwrd(dummy,2)
+        Fm = subwrd(dummy,3)
+      cmax = subwrd(dummy,4)
+      cmin = subwrd(dummy,5)
+'set t 'time
 'set ccolor rainbow'
-'set cint 'cint
-'set rbrange 'rbrange
-'d 'field'fmeanz*'scale
+'set cint 'F_CINT
+'set rbrange 'cmin' 'cmax
+'d 'field'fm'DESC'z*'F_scale
 
 
-'define diff = 'field'fmcz'
 'vpage 2 1 2 2'
 'set grads off'
 'set grid  off'
 'set gxout shaded'
-'set CCOLS 'CCOLS
-'set CLEVS 'CLEVS
-'d diff*'scale
+'set t 'tdim
+   dummy = getstuff( field'fmc'DESC'z' )
+   FMC_CINT  = subwrd(dummy,1)
+   FMC_scale = subwrd(dummy,2)
+        FMCm = subwrd(dummy,3)
+'set t 'time
+'shades 'FMC_CINT
+'d 'field'fmc'DESC'z*'FMC_scale
 'cbarn -xmid 6.0'
 
 
-'define diff = 'field'fmaz'
 'vpage 1 2 2 2'
 'set grads off'
 'set grid  off'
 'set gxout shaded'
-'set CCOLS 'CCOLS
-'set CLEVS 'DLEVS
-'d diff*'scale
+'set t 'tdim
+   dummy = getstuff( field'fma'DESC'z' )
+   FMA_CINT  = subwrd(dummy,1)
+   FMA_scale = subwrd(dummy,2)
+        FMAm = subwrd(dummy,3)
+'set t 'time
+'shades 'FMA_CINT
+'d 'field'fma'DESC'z*'FMA_scale
 'cbarn -xmid 6.0'
 
 
-'define diff = 'field'stdz'
 'vpage 2 2 2 2'
 'set grads off'
 'set grid  off'
 'set gxout shaded'
-'set CCOLS 'RCOLS
-'set CLEVS 'RLEVS
-'d diff*'scale
+'set t 'tdim
+   dummy = getstuff( field'std'DESC'z' )
+   STD_CINT  = subwrd(dummy,1)
+   STD_scale = subwrd(dummy,2)
+        STDm = subwrd(dummy,3)
+'set t 'time
+'shades 'field'std'DESC'z*'STD_scale' 0 -minval 0 -cint 'STD_CINT
+'d 'field'std'DESC'z*'STD_scale
 'cbarn -xmid 6.0'
 
 
@@ -172,11 +155,84 @@ endif
 'getinfo year'
          year  = result
 
-'draw string 5.5  8.4 'DESC'   'month' 'year'   'nfcst'-member Ensemble'
+'draw string 5.5  8.4 'DESC0'   'month' 'year'   'nfcst'-member Ensemble'
 'draw string 5.5  8.12 Field: 'field'  (Zonal Average)   Hour: 'hour
 
 'set strsiz .10'
-'draw string 3.12 7.86 Forecast'
-'draw string 8.46 7.86 Forecast-Climatology'
-'draw string 3.12 3.89 Mean (Forecast-Analysis)'
-'draw string 8.46 3.89 Standard Deviation (F-A)'
+'draw string 3.12 7.86 Forecast  (x10**'Fm')  CINT: 'F_CINT'  CMIN: 'cmin
+'draw string 8.46 7.86 Forecast-Climatology  (x10**'FMCm')'
+'draw string 3.12 3.89 Mean (Forecast-Analysis)  (x10**'FMAm')'
+'draw string 8.46 3.89 Standard Deviation (F-A)  (x10**'STDm')'
+
+*say 'Hit Enter to Continue ...'
+*pull flag
+
+return
+
+function getstuff( q )
+
+'q gxout'
+   gxout = sublin(result,4)
+   gxout = subwrd(gxout,6)
+
+'set gxout shaded'
+'shades 'q' 0'
+         cint = result
+
+say 'Inside getstuff for 'q', cint: 'cint
+if( cint = 0 )
+    fact = 1
+   icint = 0
+   scale = 0
+    cmax = 0
+    cmin = 0
+else
+
+'d log10('cint')'
+   log10cint = subwrd(result,4)
+'getint 'log10cint
+         scale = result
+
+if( scale <= 0 )
+   'd pow(10,abs('scale'))'
+    fact = subwrd(result,4)
+else
+   'd pow(10,-'scale')'
+    fact = subwrd(result,4)
+endif
+
+     'getint 'cint*fact
+      icint = result
+
+say ' scale: 'scale'  fact: 'fact'  icint: 'icint
+while( icint < 1  )
+   if( scale <= 0 )
+       fact = fact*10
+      scale = scale - 1
+   else
+       fact = fact/10
+      scale = scale + 1
+   endif
+
+   'getint 'cint*fact
+     icint = result
+say ' scale: 'scale'  fact: 'fact'  icint: 'icint
+endwhile
+
+'minmax.simple 'q
+   qmax = subwrd(result,1)
+   qmin = subwrd(result,2)
+
+'getint 'qmax*fact/icint
+        dqmax = result
+'getint 'qmin*fact/icint
+        dqmin = result
+cmax = icint*dqmax
+cmin = icint*dqmin
+
+say 'qmax: 'qmax'  cmax: 'cmax
+say 'qmin: 'qmin'  cmin: 'cmin
+
+endif
+'set gxout 'gxout
+return icint' 'fact' 'scale' 'cmax' 'cmin

@@ -256,8 +256,8 @@
 
       call ESMF_CFIOGet(cfio, nVars=nVars,  rc=rtcode)
       if ( rtcode .ne. 0 ) print *, "problem in GrADS_read in ESMF_CFIOGet"
-      allocate(vars(nVars), stat=rtcode)
-      if ( rtcode .ne. 0 ) print *, "problem in allocate in GrADS_read"
+      !ALT allocate(vars(nVars), stat=rtcode)
+      !ALT if ( rtcode .ne. 0 ) print *, "problem in allocate in GrADS_read"
       call ESMF_CFIOGet(cfio, varObjs=vars, format=format, rc=rtcode)
       if ( rtcode .ne. 0 ) print *, "problem in GrADS_read in ESMF_CFIOGet"
 
@@ -270,6 +270,7 @@
          if (km .lt. 1) km = 1
          if ( trim(vName) .eq. trim(myName) ) exit
       end do
+      deallocate(vars)
 
       myKbeg = 1
       myKount = km
@@ -466,12 +467,14 @@
       allocate(grid, stat=rtcode)
       call ESMF_CFIOGet(cfio, nVars=nVars, grid=grid, rc=rtcode)
       if ( rtcode .ne. 0 ) print *, "problem in GrADS_read in ESMF_CFIOGet"
-      allocate(vars(nVars), stat=rtcode)
-      if ( rtcode .ne. 0 ) print *, "problem in allocate in ESMF_CFIORead"
+!ALT      allocate(vars(nVars), stat=rtcode)
+!ALT      if ( rtcode .ne. 0 ) print *, "problem in allocate in ESMF_CFIORead"
       call ESMF_CFIOGet(cfio, varObjs=vars, format=format, rc=rtcode)
       if ( rtcode .ne. 0 ) print *, "problem in allocate in ESMF_CFIOGet"
       call ESMF_CFIOGridGet(grid, im=im, rc=rtcode)
       if ( rtcode .ne. 0 ) print *, "problem in calling ESMF_CFIORead"
+
+      deallocate(vars)
 
       myXbeg = 1
       myXount = im
@@ -1276,6 +1279,7 @@
                          !  rc = -12  error determining default precision
                          !  rc = -13  error determining variable type
                          !  rc = -19  unable to identify coordinate variable
+                         !  rc = -20  unable to find variable
                          !  rc = -38  error from NF90_PUT_VAR (dimension variable)
                          !  rc = -40  error from NF90_INQ_VARID
                          !  rc = -41  error from NF90_INQ_DIMID or NF90_INQUIRE_DIMENSION (lat or lon)
@@ -1298,6 +1302,7 @@
       integer im, jm, km
       character*8 :: strBuf
       integer :: hour, min, sec
+      logical ialloc,foundvar
                                                                                          
       real    alpha, amiss
       real, pointer ::  field2(:,:,:) => null() ! workspace for interpolation
@@ -1305,15 +1310,27 @@
       rtcode = 0
 
 !     find the right variable obj.
+      foundvar=.false.
       do i = 1, cfio%mVars
-         if ( trim(vName) .eq. trim(cfio%varObjs(i)%vName) ) exit
+         if ( trim(vName) .eq. trim(cfio%varObjs(i)%vName) ) then
+            foundvar=.true.
+            exit
+         endif
       end do
+      if (.not.foundvar) then
+         rc=-20
+         return
+      endif
       im = cfio%varObjs(i)%grid%im
       jm = cfio%varObjs(i)%grid%jm
       km = cfio%varObjs(i)%grid%km
       if (km .lt. 1) km = 1
 
-      if ( .not. associated(field) ) allocate(field(im,jm,km))
+      ialloc=.false.
+      if ( .not. associated(field) ) then
+         allocate(field(im,jm,km))
+         ialloc=.true.
+      endif
 
 !     Get beginning time & date.  Calculate offset seconds from start.
 !     ----------------------------------------------------------------
@@ -1347,16 +1364,19 @@
                                                                     
       if ( secs1 .eq. secs ) goto 999   ! no interpolation needed
 
-      allocate(field2(im,jm,km))
-                                                                                     
+      allocate(field2(size(field,1),size(field,2),size(field,3))) 
 !     Read grids at second time with GetVar()
 !     ---------------------------------------
-      call ESMF_CFIOVarRead(cfio, vName, field2, date=nymd2, curtime=nhms2, rc=rtcode)
+      call ESMF_CFIOVarRead(cfio, vName, field2, date=nymd2, curtime=nhms2, kbeg=kbeg, kount=kount, rc=rtcode)
       if ( rtcode .ne. 0 ) then
          if ( present(cfio2) )     &
             call ESMF_CFIOVarRead(cfio2, vName, field2, &
-                                  date=nymd2, curtime=nhms2, rc=rtcode)
-         if ( rtcode .ne. 0 ) return
+                                  date=nymd2, curtime=nhms2, kbeg=kbeg, kount=kount, rc=rtcode)
+         if ( rtcode .ne. 0 ) then
+            if(ialloc) deallocate(field)
+            deallocate(field2)
+            return
+         endif
       end if
                                                                                          
 !     Get missing value
@@ -1366,12 +1386,9 @@
 !     Do interpolation
 !     ----------------
       alpha = float(secs - secs1)/float(secs2 - secs1)
-!ams  print *, ' nymd = ', nymd1, nymd2
-!ams  print *, ' nhms = ', nhms1, nhms2
-!ams  print *, 'alpha = ', alpha
-      do k = 1, km
-         do j = 1, jm
-            do i = 1, im
+      do k = 1, size(field,3)!km
+         do j = 1, size(field,2)!jm
+            do i = 1, size(field,1)!im
                if ( abs(field(i,j,k)-amiss) .gt. 0.001 .and.   &
                     abs(field2(i,j,k)-amiss) .gt. 0.001 ) then
                   field(i,j,k) = field(i,j,k)        &
@@ -1384,6 +1401,7 @@
       end do
                                                         
       if ( associated(field2) ) deallocate(field2)
+      if ( ialloc ) deallocate(field)
       rtcode = 0
 
 !     All done

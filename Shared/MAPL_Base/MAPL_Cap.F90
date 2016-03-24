@@ -1,4 +1,4 @@
-!  $Id: MAPL_Cap.F90,v 1.50 2015-05-07 16:31:39 bmauer Exp $
+!  $Id$
 
 #include "MAPL_Generic.h"
 
@@ -34,6 +34,7 @@ module MAPL_CapMod
 ! !PUBLIC MEMBER FUNCTIONS:
 
   public MAPL_Cap
+  public MAPL_ConfigSetAttribute
 
 ! !DESCRIPTION: 
 
@@ -150,10 +151,9 @@ contains
    type (ESMF_Field)                     :: field
    type (ESMF_FieldBundle)               :: bundle
    integer                               :: useShmem
-   integer                               :: esmfcommsize,MaxMem
+   integer                               :: esmfcommsize
    integer                               :: myRank, ioColor, esmfColor, esmfComm, ioComm, tmpioCommRoot,tRank
    type(MAPL_Communicators)              :: mapl_Comm
-   logical                               :: lexist
    character(len=ESMF_MAXSTR )           :: DYCORE
    integer                               :: snglcol
    integer                               :: NX, NY
@@ -165,6 +165,8 @@ contains
    type (T_ExtData_STATE), pointer       :: ExtData_internal_state => null()
    type (ExtData_wrap)                   :: wrap
    type (ESMF_VM)                        :: gcmVM
+   character(len=ESMF_MAXSTR )           :: timerModeStr
+   integer                               :: timerMode
 
 
 ! Begin
@@ -461,18 +463,38 @@ contains
       call MAPL_GetResource(MAPLOBJ, enableMemUtils, "MAPL_ENABLE_MEMUTILS:", default='NO',             RC=STATUS )
       VERIFY_(STATUS)
    !EOR
-      if (enableTimers /= 'YES' .and. enableTimers /= 'yes') then
+      call ESMF_StringUpperCase(enableTimers)
+      if (enableTimers /= 'YES') then
          call MAPL_ProfDisable( rc=STATUS )
          VERIFY_(STATUS)
+      else
+         call MAPL_GetResource(MAPLOBJ, timerModeStr, "MAPL_TIMER_MODE:", &
+                               default='MAX', RC=STATUS )
+         VERIFY_(STATUS)
+         call ESMF_StringUpperCase(timerModeStr)
+
+         TestTimerMode: select case(timerModeStr)
+         case("OLD")
+            timerMode = MAPL_TimerModeOld      ! this has barriers
+         case("ROOTONLY")
+            timerMode = MAPL_TimerModeRootOnly ! this is the fastest
+         case("MAX")
+            timerMode = MAPL_TimerModeMax      ! this is the default
+         case default
+            ASSERT_(.false.)
+         end select TestTimerMode
+         call MAPL_TimerModeSet(timerMode, RC=status)
+         VERIFY_(status)
       end if
 
-     if (enableMemUtils /= 'YES' .and. enableMemUtils /= 'yes') then
-        call MAPL_MemUtilsDisable( rc=STATUS )
-        VERIFY_(STATUS)
-     else
-        call MAPL_MemUtilsInit( rc=STATUS )
-        VERIFY_(STATUS)
-     end if
+      call ESMF_StringUpperCase(enableMemUtils)
+      if (enableMemUtils /= 'YES') then
+         call MAPL_MemUtilsDisable( rc=STATUS )
+         VERIFY_(STATUS)
+      else
+         call MAPL_MemUtilsInit( rc=STATUS )
+         VERIFY_(STATUS)
+      end if
 
       call MAPL_GetResource( MAPLOBJ, printSpec, label='PRINTSPEC:', default = 0, rc=STATUS )
       VERIFY_(STATUS)
@@ -1485,7 +1507,7 @@ contains
 ! EOPI -------------------------------------------------------------------
 
        integer,   parameter :: LSZ = 256  ! Maximum line size
-       integer,   parameter :: MSZ = 512  ! Used to size buffer; this is
+       integer,   parameter :: MSZ = 5120 ! Used to size buffer; this is
                                           ! usually *less* than the number
                                           ! of non-blank/comment lines
                                           ! (because most lines are shorter
@@ -1558,9 +1580,8 @@ contains
 
         ! check if enough space left in config buffer
         if (j .ge. NBUF_MAX) then   ! room for EOB if necessary
-           write(logmsg, *) ", attribute label & value require ", j-i+1, &
-               " characters (including EOL & EOB), only ", NBUF_MAX-i, &
-               " characters left in config buffer"
+            write(logmsg, *) ", conf buffer needs ", j-i+1, &
+               " chars, only ", NBUF_MAX-i, " left!"
            RETURN_(ESMC_RC_LONG_STR)
         endif
       endif
@@ -1591,9 +1612,8 @@ contains
 
             ! check if enough space left in config buffer to extend line
             if (j+1 .ge. NBUF_MAX) then   ! room for EOB if necessary
-               write(logmsg, *) ", attribute label & value require ", j-m+1, &
-                   " characters (including EOL & EOB), only ", NBUF_MAX-i, &
-                   " characters left in config buffer"
+               write(logmsg, *) ", conf buffer needs ", j-i+1, &
+               " chars, only ", NBUF_MAX-i, " left!"
                RETURN_(ESMC_RC_LONG_STR)
             endif
 
@@ -1666,7 +1686,7 @@ contains
 ! EOPI -------------------------------------------------------------------
 
        integer,   parameter :: LSZ = 256  ! Maximum line size
-       integer,   parameter :: MSZ = 512  ! Used to size buffer; this is
+       integer,   parameter :: MSZ = 5120 ! Used to size buffer; this is
                                           ! usually *less* than the number
                                           ! of non-blank/comment lines
                                           ! (because most lines are shorter
@@ -1739,9 +1759,8 @@ contains
 
         ! check if enough space left in config buffer
         if (j .ge. NBUF_MAX) then   ! room for EOB if necessary
-           write(logmsg, *) ", attribute label & value require ", j-i+1, &
-               " characters (including EOL & EOB), only ", NBUF_MAX-i, &
-               " characters left in config buffer"
+           write(logmsg, *) ", conf buffer needs ", j-i+1, &
+               " chars, only ", NBUF_MAX-i, " left!"
            RETURN_(ESMC_RC_LONG_STR)
         endif
       endif

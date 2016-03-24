@@ -9,9 +9,11 @@ label = field
         num = 0
 while ( num < numargs )
         num = num + 1
-if( subwrd(args,num) = '-desc'   ) ; DESC  = subwrd(args,num+1) ; endif
+if( subwrd(args,num) = '-desc'   ) ; DESC0 = subwrd(args,num+1) ; endif
 if( subwrd(args,num) = '-nfcst'  ) ; nfcst = subwrd(args,num+1) ; endif
 endwhile
+'fixname 'DESC0
+          DESC = result
 
 'getinfo pagex'
          pagex = result
@@ -20,6 +22,11 @@ endwhile
 
 'getinfo level'
          level = result
+'getinfo tdim'
+         tdim  = result
+'getinfo time'
+         time  = result
+
 'run getenv GEOSUTIL'
         geosutil = result
 'set datawarn off'
@@ -453,7 +460,7 @@ endif
 
 if( field = "q" )
     name  = "Specific Humidity"
-    unit  = "(g/g)"
+    unit  = "(g/kg)"
     label = "sphu"
     Fmean_scale = 1000
     FmAstd_COLS = '0  50  42  44  46  48  39  37  36  34  32  31  21  22  24  25  26  27  28   29'
@@ -600,6 +607,9 @@ endif
 
 'set mproj latlon'
 
+**********************************************************************************************
+****                                       Make Plots
+**********************************************************************************************
 
 * Forecast (MEAN)
 * ---------------
@@ -611,22 +621,42 @@ endif
 'set ccols 92 0'
 'set clevs 0.5'
 'd mask'
+
+'set t 'tdim
+dummy = getstuff( field'fm'DESC )
+Fmean_CINT  = subwrd(dummy,1)
+Fmean_scale = subwrd(dummy,2)
+         fm = subwrd(dummy,3)
+       cmax = subwrd(dummy,4)
+       cmin = subwrd(dummy,5)
+'set t 'time
+
 'set clab 'CLAB
 'set gxout contour'
 'set ccolor rainbow'
-'set cint    'mean_cint
-'set rbrange 'mean_rbrange
-'d 'field'fmean*'Fmean_scale
+'set cint  'Fmean_CINT
+'set rbrange 'cmin' 'cmax
+'set cmin    'cmin
+'set cmax    'cmax
+'d 'field'fm'DESC'*'Fmean_scale
 
 
 * Forecast-Climatology (MEAN)
 * ---------------------------
+'set t 'tdim
 if( aerosol = 'true' )
-   'define aerosol = exp('field'fmean) - 0.01'
-   'define diff = regrid2( aerosol, .25, .25, bs_p1, 'lon', 'lat' )*'FmCmean_scale
+     string = 'exp('field'fm'DESC')-0.01'
 else
-   'define diff = regrid2( 'field'fmean-'field'cmean, .25, .25, bs_p1, 'lon', 'lat' )*'FmCmean_scale
+     string = field'fm'DESC'-'field'cm'DESC
 endif
+
+dummy = getstuff( string )
+FmCmean_CINT  = subwrd(dummy,1)
+FmCmean_scale = subwrd(dummy,2)
+         fmcm = subwrd(dummy,3)
+'set t 'time
+
+'define diff = regrid2( 'string', .25, .25, bs_p1, 'lon', 'lat' )*'FmCmean_scale
 
 'set parea off'
 'set vpage 0 11 0 8.5'
@@ -639,20 +669,26 @@ endif
 'd mask'
 'set gxout shaded'
 if( aerosol = 'true' )
-   'shades aerosol 0 -cint 'FmCmean_CINT
+   'shades 'string' 0 -cint 'FmCmean_CINT
 else
    'set CCOLS 'FmCmean_COLS
    'set CLEVS 'FmCmean_LEVS
-*  'black'
+   'shades    'FmCmean_CINT
 endif
    'd maskout( diff,abs(diff)-'FmCmean_CINT')'
-*  'd diff'
 'cbarn -scalex 0.55 -scaley 0.4 -xmid 8.45 -ymid 4.4 -snum 0.5'
 
 
 * Forecast-Analysis (MEAN)
 * ------------------------
-'define diff = regrid2( 'field'fmean-'field'amean, .25, .25, bs_p1, 'lon', 'lat' )*'FmAmean_scale
+'set t 'tdim
+dummy = getstuff( field'fm'DESC'-'field'am'DESC )
+FmAmean_CINT  = subwrd(dummy,1)
+FmAmean_scale = subwrd(dummy,2)
+         fmam = subwrd(dummy,3)
+'set t 'time
+
+'define diff = regrid2( 'field'fm'DESC'-'field'am'DESC', .25, .25, bs_p1, 'lon', 'lat' )*'FmAmean_scale
 
 'set parea off'
 'set vpage 0 11 0 8.5'
@@ -664,17 +700,21 @@ endif
 'set clevs 0.5'
 'd  mask'
 'set gxout shaded'
-'set CCOLS 'FmCmean_COLS
-'set CLEVS 'FmAmean_LEVS
-*'black'
+'shades 'FmAmean_CINT
 'd maskout( diff,abs(diff)-'FmAmean_CINT')'
-*'d diff'
 'cbarn -scale 0.55 -xmid 2.95'
 
 
 * Forecast-Analysis (STD)
 * -----------------------
-'define diff = regrid2( 'field'std, .25, .25, bs_p1, 'lon', 'lat' )*'FmAstd_scale
+'set t 'tdim
+dummy = getstuff( field'std'DESC )
+FmAstd_CINT  = subwrd(dummy,1)
+FmAstd_scale = subwrd(dummy,2)
+        stdm = subwrd(dummy,3)
+'set t 'time
+
+'define diff = regrid2( 'field'std'DESC', .25, .25, bs_p1, 'lon', 'lat' )*'FmAstd_scale
 
 'set parea off'
 'set vpage 0 11 0 8.5'
@@ -685,11 +725,8 @@ endif
 'set ccols 92 0'
 'set clevs 0.5'
 'd mask'
-'set CCOLS 'FmAstd_COLS
-'set CLEVS 'FmAstd_LEVS
-*'black'
+'shades diff 0 -cint 'FmAstd_CINT' -minval 0'
 'd maskout( diff,abs(diff)-'FmAstd_CINT')'
-*'d diff'
 'cbarn -sbar 0.55 -snum 0.45 -xmid 8.45'
 
 
@@ -707,15 +744,86 @@ endif
          tinc  = result
          hour  = (time-1)*tinc
 
-'draw string 5.5  8.4 'DESC'   'month' 'year'   'nfcst'-member Ensemble'
+'draw string 5.5  8.4 'DESC0'   'month' 'year'   'nfcst'-member Ensemble'
 'draw string 5.5  8.12 Field: 'name'  Level: 'level' mb   Hour: 'hour
 
 'set strsiz .10'
-'draw string 2.8  7.85 Forecast'
-'draw string 2.8  4.10 Mean (Forecast-Analysis)  CINT: 'FmAmean_CINT
-'draw string 8.2  4.10 Standard Deviation (F-A)'
+'draw string 2.8  7.85 Forecast  (x 10**'fm')  CINT: 'Fmean_CINT'  CMIN: 'cmin
+'draw string 2.8  4.10 Mean (Forecast-Analysis)  (x 10**'fmam')'
+'draw string 8.2  4.10 Standard Deviation (F-A)  (x 10**'stdm')'
 if( aerosol = 'true' )
    'draw string 8.2  7.85 Aerosol: EXP(x)-0.01'
 else
-   'draw string 8.2  7.85 Forecast-Climatology'
+   'draw string 8.2  7.85 Forecast-Climatology  (x 10**'fmcm')'
 endif
+*    say 'Hit ENTER to continue'
+*    pull flag
+return
+
+function getstuff( q )
+
+'q gxout'
+   gxout = sublin(result,4)
+   gxout = subwrd(gxout,6)
+
+'set gxout shaded'
+'shades 'q' 0'
+         cint = result
+
+say 'Inside getstuff for 'q', cint: 'cint
+if( cint = 0 )
+    fact = 1
+   icint = 0
+   scale = 0
+    cmax = 0
+    cmin = 0
+else
+
+'d log10('cint')'
+   log10cint = subwrd(result,4)
+'getint 'log10cint
+         scale = result
+
+if( scale <= 0 )
+   'd pow(10,abs('scale'))'
+    fact = subwrd(result,4)
+else
+   'd pow(10,-'scale')'
+    fact = subwrd(result,4)
+endif
+
+     'getint 'cint*fact
+      icint = result
+
+say ' scale: 'scale'  fact: 'fact'  icint: 'icint
+while( icint < 1  )
+   if( scale <= 0 )
+       fact = fact*10
+      scale = scale - 1
+   else
+       fact = fact/10
+      scale = scale + 1
+   endif
+
+   'getint 'cint*fact
+     icint = result
+say ' scale: 'scale'  fact: 'fact'  icint: 'icint
+endwhile
+
+'minmax.simple 'q
+   qmax = subwrd(result,1)
+   qmin = subwrd(result,2)
+
+'getint 'qmax*fact/icint
+        dqmax = result
+'getint 'qmin*fact/icint
+        dqmin = result
+cmax = icint*dqmax
+cmin = icint*dqmin
+
+say 'qmax: 'qmax'  cmax: 'cmax
+say 'qmin: 'qmin'  cmin: 'cmin
+
+endif
+'set gxout 'gxout
+return icint' 'fact' 'scale' 'cmax' 'cmin

@@ -82,8 +82,8 @@ while( L <= numargs-1 )
 * ---------------------------
           SETEXP = EXPDSC.L'.setup'
 '!remove 'SETEXP
-'!/bin/ls -1 'EXPDIR.L'/*stats*.ctl1 | wc -l > 'SETEXP
-'!/bin/ls -1 'EXPDIR.L'/*stats*.ctl1        >> 'SETEXP
+'!/bin/ls -1 'EXPDIR.L'/*stats*.ctl1 | grep -v aero | wc -l > 'SETEXP
+'!/bin/ls -1 'EXPDIR.L'/*stats*.ctl1 | grep -v aero        >> 'SETEXP
 
           NUMFILES = sublin( read(SETEXP),2 )
             status = 999

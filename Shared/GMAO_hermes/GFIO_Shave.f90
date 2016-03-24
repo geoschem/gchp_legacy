@@ -418,10 +418,8 @@ CONTAINS
 !EOP
 !-------------------------------------------------------------------------
 
-   integer             iarg, argc
-#ifndef __GFORTRAN__
-   integer, external :: iargc
-#endif
+   integer              iarg, argc
+
    character(len=2048)  argv
 
    character(len=256)   rcfile, label, var, Vars(mVars)
@@ -435,7 +433,7 @@ CONTAINS
    character (len=1) resolution
 
 
-   argc = iargc()
+   argc = command_argument_count()
    if ( argc < 1 ) call usage_()
 
 !  Defaults

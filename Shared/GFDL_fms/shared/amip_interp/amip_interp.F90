@@ -100,8 +100,8 @@ public i_sst, j_sst, sst_ncep, sst_anom, forecast_mode, use_ncep_sst
 
 !  ---- version number -----
 
-character(len=128) :: version = '$Id: amip_interp.F90,v 1.1.1.2 2012-11-16 16:00:09 atrayano Exp $'
-character(len=128) :: tagname = '$Name: Heracles-3_1_CTM $'
+character(len=128) :: version = '$Id$'
+character(len=128) :: tagname = '$Name$'
 
    real, allocatable:: temp1(:,:), temp2(:,:)
 

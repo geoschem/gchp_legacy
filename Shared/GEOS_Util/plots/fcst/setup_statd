@@ -31,9 +31,10 @@ endif
 
 'numargs  'args
  numargs = result
+say 'ARGS: 'args
 
 rcfile = "stats.rc"
-fields = 'p h u v t q chi psi'
+fields = 'p h u v t q'
   exps = ''
  levs0 = NULL
 
@@ -101,7 +102,7 @@ if( subwrd(args,num) = '-levels' )
         if( bit = "-" )
               k = -1
         else
-              levs0 = levs0 % ' ' % level
+              levs0 = levs0 % '' % level
               k = k+1
         endif
     endif
@@ -174,6 +175,7 @@ say ' '
 *******************************************************
 
     tdim = 1e15
+    zdim = 1e15
        k = 0
     ktot = ntot
 
@@ -193,12 +195,21 @@ while( k <= ktot )
 'sety'
 'getinfo zdim'
          zdim.k = result
+     if( zmin   > result )
+         zmin   = result
+        'q file 1'
+         zminfile = sublin(result,2)
+         zminfile = subwrd(zminfile,2)
+        'run setenv "ZMINFILE" 'zminfile
+     endif
 'getinfo tdim'
      if( tdim   > result )
          tdim   = result
      endif
 
-say DESC.k'  TDIM: 'result'  ZDIM: 'zdim.k
+say DESC.k'  Current TDIM: 'result'  Saved TDIM: 'tdim'  ZDIM: 'zdim.k
+'run setenv "SYSCMP_TDIM" 'tdim
+
 
 'numargs  'fields
  numflds = result
@@ -221,13 +232,14 @@ if( levs0 = 'NULL' )
            'set z 'z
            'getinfo level'
                     lev  = result
+                 if(lev >= 100 )
                     levs = levs' 'lev
+                 endif
         z = z + 1
         endwhile
 else
         levs = levs0
 endif
-
 
   if( field = p   ) ; name = slp  ; levels = '1000' ; endif
   if( field = h   ) ; name = hght ; levels =  levs  ; endif
@@ -242,19 +254,30 @@ endif
  numlevs = result
 
 if( numlevs > 1 )
-   'setz'
+   'set lev 1000 100'
 else
    'set lev 'levels
+   'getinfo  level'
+             levelcheck = result
+    if( levels != levelcheck )
+        say 'Level: 'levels' not found in dataset'
+        return
+    endif
 endif
 say 'Set LEVS: 'levels
 
-'statmak 'field' 'DESC.k
+*'statmak 'field' 'DESC.k' 'DESC.0
+if( k = 0 )
+   'statmak 'field' CTL CTL'
+else
+   'statmak 'field' EXP CTL'
+endif
 
 n = n + 1
 endwhile
 
-say '   k: 'k
-say 'ktot: 'ktot
+say 'EXP   k: 'k
+say '   ktot: 'ktot
 if( k != ktot )
 'q files'
 say 'closing files 'result
@@ -315,7 +338,9 @@ while( k <= ktot )
                     'set z 'z
                     'getinfo level'
                              lev  = result
+                          if(lev >= 100 )
                              levs = levs' 'lev
+                          endif
                  z = z + 1
                  endwhile
          else
@@ -337,9 +362,11 @@ while( k <= ktot )
                      z = 1
                      while( z <= numlevs )
                      level = subwrd(levels,z)
+                  if(level >= 100)
                      'set lev 'level
                      'movie statpltdrv "'field' 'desc.k' 'desc.kp1' 'numfiles'" -tend 'tdim' -print -rotate 90 -name 'SOURCE'/'desc.k'.'desc.kp1'/stats_'name'_syscmp_GLO_'level'_'month
                      '!sleep 15 ; convert -loop 0 -delay 30 'SOURCE'/'desc.k'.'desc.kp1'/stats_'name'_syscmp_GLO_'level'_'month'.*.gif 'SOURCE'/'desc.k'.'desc.kp1'/stats_'name'_syscmp_GLO_'level'_'month'.gif &'
+                  endif
                      z = z + 1
                      endwhile
 
@@ -353,10 +380,12 @@ endwhile
 ****                  Make Zonal Mean Plots                 ****
 ****************************************************************
 
+if( numlevs > 1 )
+
 'set dfile 1'
 'set x 1'
 'sety'
-'setz'
+'set lev 1000 100'
 'getinfo month'
          month = result
 
@@ -388,6 +417,8 @@ while( k <= ktot )
 
 k = k + 1
 endwhile
+
+endif
 
 return
 

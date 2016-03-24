@@ -1,5 +1,5 @@
 
-! $Id: MAPL_HistoryGridComp.F90,v 1.67 2015-04-22 13:03:42 mathomp4 Exp $
+! $Id$
 
 #include "MAPL_Generic.h"
 
@@ -96,6 +96,9 @@ module MAPL_HistoryGridCompMod
      character(len=ESMF_MAXSTR),pointer :: PExtraFields(:) => null()
      character(len=ESMF_MAXSTR),pointer :: PExtraGridComp(:) => null() 
      character(len=ESMF_MAXSTR),pointer :: vectorList(:,:) => null() 
+     logical, pointer                   :: r8_to_r4(:) => null()
+     type(ESMF_FIELD), pointer          :: r8(:) => null()
+     type(ESMF_FIELD), pointer          :: r4(:) => null()
   endtype history_list
 
   type SpecWrapper
@@ -371,7 +374,7 @@ contains
     
     integer :: nlist,unit,nsecf,nfield,nstatelist
     integer :: k,m,n,sec,rank,nhms,size0
-    integer :: year,month,day,hour,minute,second,nymd0,nhms0
+    integer :: year,month,day,hour,minute,second,nymd0,nhms0,nymdc,nhmsc
     integer :: ref_time(6)
     integer :: len, i, j, mype, npes
 
@@ -383,6 +386,7 @@ contains
     type (MAPL_LocStream)                     :: exch
     type (MAPL_LocStream)                     :: locstream
     type (ESMF_VM)                            :: vm
+    type(ESMF_TypeKind_Flag)                  :: tk
     logical                                   :: use_this_gridname
     logical                                   :: ontiles
     logical                                   :: disableSubVmChecks
@@ -449,6 +453,8 @@ contains
     integer              :: nslices
     integer              :: distRank
 
+    type(ESMF_Field)     :: r4field
+
 ! Fortran statement function
     nsecf(nhms) = nhms/10000*3600 + mod(nhms,10000)/100*60 + mod(nhms,100)
 
@@ -500,6 +506,18 @@ contains
     
     nymd0 =  year*10000 +  month*100 + day
     nhms0 =  hour*10000 + minute*100 + second
+
+    call ESMF_TimeGet  ( CurrTime, TimeString=string  ,rc=STATUS ) ; VERIFY_(STATUS)
+    
+    read(string( 1: 4),'(i4.4)') year
+    read(string( 6: 7),'(i2.2)') month
+    read(string( 9:10),'(i2.2)') day
+    read(string(12:13),'(i2.2)') hour
+    read(string(15:16),'(i2.2)') minute
+    read(string(18:18),'(i2.2)') second
+    
+    nymdc =  year*10000 +  month*100 + day
+    nhmsc =  hour*10000 + minute*100 + second
 
 ! Read User-Supplied History Lists from Config File
 ! -------------------------------------------------
@@ -675,7 +693,7 @@ contains
 	                              label=trim(string) // 'acc_interval:',rc=status )
        VERIFY_(STATUS)
 
-       call ESMF_ConfigGetAttribute ( cfg, list(n)%ref_date, default=nymd0, &
+       call ESMF_ConfigGetAttribute ( cfg, list(n)%ref_date, default=nymdc, &
 	                              label=trim(string) // 'ref_date:',rc=status )
        VERIFY_(STATUS)
        call ESMF_ConfigGetAttribute ( cfg, list(n)%ref_time, default=000000, &
@@ -1185,7 +1203,7 @@ contains
        if (RefTime == startTime) then
            RingTime = RefTime + Frequency
        end if
-
+!
        if (RingTime < currTime .and. sec /= 0 ) then
            RingTime = RingTime + (INT((currTime - RingTime)/frequency)+1)*frequency
        endif
@@ -1271,6 +1289,9 @@ contains
 
 
     do n=1,nlist
+       m=list(n)%nfield
+       allocate(list(n)%r4(m), list(n)%r8(m), list(n)%r8_to_r4(m), stat=status)  
+       VERIFY_(STATUS)
        do m=1,list(n)%nfield
           k=1
           if (scan(trim(list(n)%fields(1,m)),'()^/*+-')==0)then
@@ -2024,6 +2045,20 @@ ENDDO PARSER
                              trim(list(n)%fields(1,m)), field, rc=status )
          VERIFY_(STATUS)
 
+         call ESMF_FieldGet(FIELD, typekind=tk, RC=STATUS)
+         VERIFY_(STATUS)
+         if (tk == ESMF_TypeKind_R8) then
+            list(n)%r8_to_r4(m) = .true.
+            list(n)%r8(m) = field
+            ! Create a new field with R4 precision
+            r4field = MAPL_FieldCreate(field,RC=status)
+            VERIFY_(STATUS)
+            field=r4field
+            list(n)%r4(m) = field
+         else
+            list(n)%r8_to_r4(m) = .false.
+         end if
+
          if (.not.list(n)%rewrite(m) .or.list(n)%fields(4,m) /= BLANK ) then
           f = MAPL_FieldCreate(field, name=list(n)%fields(3,m), rc=status) 
          else
@@ -2391,6 +2426,7 @@ ENDDO PARSER
        end if
     end do
     deallocate(Vvarn)
+    deallocate (export)
 
     do n=1,nlist
        if (list(n)%disabled) cycle
@@ -2621,9 +2657,6 @@ ENDDO PARSER
       if (list(n)%backwards .eqv. FWD) Ignore(n) = .true.
    end do
 
-! Couplers are done here for now
-!-------------------------------
-
 !  Perform arithemetic parser operations
    do n=1,nlist
     if(Ignore(n)) cycle
@@ -2643,10 +2676,34 @@ ENDDO PARSER
     endif
    end do
 
+! We could make a copy for precision conversion here, if needed
+! However, this is not very efficient. Copy is needed if it is
+! time-averaged (i.e. couplers will be run), or if it is time to
+! write instantaneous collection
+!@   do n=1,nlist
+!@      do m=1,list(n)%nfield
+!@         if (list(n)%r8_to_r4(m)) then
+!@            call MAPL_FieldCopy(from=list(n)%r8(m), to=list(n)%r4(m), rc=status)
+!@            VERIFY_(status)
+!@         end if
+!@      end do
+!@   end do
+
+! Couplers are done here for now
+!-------------------------------
+
     call MAPL_TimerOn(GENSTATE,"--Couplers")
     do n = 1, nlist
        if(Ignore(n)) cycle
        if (.not.list(n)%disabled .and. IntState%average(n)) then
+          ! R8 to R4 copy (if needed!)
+          do m=1,list(n)%nfield
+             if (list(n)%r8_to_r4(m)) then
+                call MAPL_FieldCopy(from=list(n)%r8(m), &
+                                    to=list(n)%r4(m), rc=status)
+                VERIFY_(status)
+             end if
+          end do
           
           call ESMF_CplCompRun (INTSTATE%CCS(n), &
                                 importState=INTSTATE%CIM(n), &
@@ -2693,6 +2750,17 @@ ENDDO PARSER
             VERIFY_(STATUS)
          end if
       end if
+
+       if (writing(n) .and. .not.IntState%average(n)) then
+          ! R8 to R4 copy (if needed!)
+          do m=1,list(n)%nfield
+             if (list(n)%r8_to_r4(m)) then
+                call MAPL_FieldCopy(from=list(n)%r8(m), &
+                                    to=list(n)%r4(m), rc=status)
+                VERIFY_(status)
+             end if
+          end do
+       end if
 
    end do
 
@@ -3029,6 +3097,7 @@ ENDDO PARSER
 ! -----------------------------------
 
    do n=1,nlist
+      deallocate(list(n)%r4, list(n)%r8, list(n)%r8_to_r4)
       if (list(n)%disabled) cycle
       IF (list(n)%format == 'CFIO' .or. list(n)%format == 'GRADS') then
          if( MAPL_CFIOIsCreated(list(n)%mcfio) ) then

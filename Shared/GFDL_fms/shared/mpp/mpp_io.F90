@@ -818,9 +818,9 @@ type :: atttype
   integer :: pack_size ! = 1 when compiling with -r8 and = 2 when compiling with -r4.
 
   character(len=128) :: version= &
-       '$Id: mpp_io.F90,v 1.1.1.2 2012-11-16 16:00:10 atrayano Exp $'
+       '$Id$'
   character(len=128) :: tagname= &
-       '$Name: Heracles-3_1_CTM $'
+       '$Name$'
 
 contains
 

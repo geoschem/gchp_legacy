@@ -477,7 +477,10 @@
          if ( associated(w_c%qa(n)%data3d)  ) &
               deallocate(w_c%qa(n)%data3d, stat=ier)
       end do
-      deallocate( w_c%grid%lon, w_c%grid%lat, w_c%grid%lev, w_c%qa, stat=ier) 
+      if(associated(w_c%grid%lon)) deallocate( w_c%grid%lon )
+      if(associated(w_c%grid%lat)) deallocate( w_c%grid%lat )
+      if(associated(w_c%grid%lev)) deallocate( w_c%grid%lev )
+      if(associated(w_c%qa))       deallocate( w_c%qa )
       
    else
 
@@ -506,7 +509,7 @@
 ! !INTERFACE:
 !
   subroutine  Chem_BundleWrite ( fname, nymd, nhms, prec, w_c, rc, &
-                                 verbose, new, freq  )   ! optional
+                                 verbose, new, freq, gfio_prec )   ! optional
 !
 ! !USES:
 !
@@ -529,6 +532,8 @@
   integer, intent(in), OPTIONAL     :: freq    ! time frequency (HHMMSS) for
                                                ! multiple instance files
                                                ! (default: 060000)
+  integer, OPTIONAL,   intent(in)   :: gfio_prec    ! specify user precision
+
 !
 ! !OUTPUT PARAMETERS:
 !
@@ -545,6 +550,7 @@
 ! !REVISION HISTORY: 
 !
 !  20Sep2002 da Silva  Initial code based dyn_put()
+!  04Nov2015 Todling/Buchard add underlying gfio precision as option
 !
 !EOP
 !-------------------------------------------------------------------------
@@ -556,10 +562,16 @@
    real,    allocatable :: valid_range(:,:), packing_range(:,:)
    integer, allocatable :: kmvar(:)
 
+   real(8),allocatable :: lon8(:),lat8(:),lev8(:)
+   real(8),allocatable :: valid_range8(:,:), packing_range8(:,:)
+   real(8),allocatable,dimension(:,:,:)::rank3
+
    integer :: i1, i2, j1, j2, im, jm, km, lm, nq, nvars
    real    :: p, ptop, pint
    integer :: i, j, k, l, timeinc
    integer :: fid, err
+   integer :: gfio_prec_
+
 
    logical verb, creating, fexists
 
@@ -607,6 +619,12 @@
       creating = .false.
    end if
 
+   gfio_prec_ = 32 ! default precision
+   if ( present(gfio_prec) ) then
+      gfio_prec_= gfio_prec
+   end if
+
+
 ! Check whether file exists
 ! -------------------------
   inquire ( file=trim(fname), exist=fexists )
@@ -625,15 +643,23 @@
 
 !  Create coordinate variables
 !  ---------------------------
-   lat = w_c%grid%lat(1,:)
-   lon = w_c%grid%lon(:,1)
+
+   if ( gfio_prec_==64 ) then
+      lat8 = w_c%grid%lat(1,:)
+      lon8 = w_c%grid%lon(:,1)
+   else
+      lat = w_c%grid%lat(1,:)
+      lon = w_c%grid%lon(:,1)
+   endif
 
 !  Vertical coordinates: fake something for GrADS sake
 !  ---------------------------------------------------
-   if ( associated(w_c%grid%lev) ) then
-        lev = w_c%grid%lev
-        levUnits = w_c%grid%levUnits
-   else
+  
+
+  if ( associated(w_c%grid%lev) ) then
+      lev =  w_c%grid%lev
+      levUnits = w_c%grid%levUnits
+  else
       ptop = w_c%grid%ptop
       i = im / 2
       j = jm / 2
@@ -646,6 +672,9 @@
       lev(1:km) = lev(1:km) / 100.
       levunits = 'hPa'
    end if
+   if ( gfio_prec_==64 ) then
+      lev8 = lev
+    endif
    
    kmvar = km
 
@@ -657,13 +686,21 @@
 
 !  For now, do not exercise packing/valid range feature
 !  -----------------------------------------------------
-   do j = 1, nvars
-      do i = 1, 2
-         valid_range(i,j) = w_c%missing_value
-         packing_range(i,j) = w_c%missing_value
+   if ( gfio_prec_== 64 ) then
+      do j = 1, nvars
+         do i = 1, 2
+            valid_range8(i,j) = w_c%missing_value
+            packing_range8(i,j) = w_c%missing_value
+         end do
       end do
-   end do
-
+   else
+      do j = 1, nvars
+         do i = 1, 2
+            valid_range(i,j) = w_c%missing_value
+            packing_range(i,j) = w_c%missing_value
+         end do
+      end do
+   endif
 !  Time attributes
 !  ---------------
    if ( present(freq) ) then
@@ -675,16 +712,25 @@
 !  Create new GFIO file ...
 !  ------------------------
    if ( creating ) then
-
-    if (verb) print *, '	[] creating GFIO file ', trim(fname)
-    call GFIO_Create ( fname, title, source, contact, &
+      if (verb) print *, '	[] creating GFIO file ', trim(fname)
+        if ( gfio_prec_ == 64 ) then
+         call GFIO_Create ( fname, title, source, contact, &
+                            real(w_c%missing_value,8),  &
+                            im, jm, km, lon8, lat8, lev8, levunits,      & 
+                            nymd, nhms, timeinc,                         &
+                            nvars, vname, vtitle, vunits,                &
+                            kmvar, valid_range8, packing_range8, prec,   &
+                            fid, err )
+       else
+        call GFIO_Create ( fname, title, source, contact, &
                        w_c%missing_value,  &
                        im, jm, km, lon, lat, lev, levunits,         & 
                        nymd, nhms, timeinc,                         &
                        nvars, vname, vtitle, vunits,                &
                        kmvar, valid_range, packing_range, prec,     &
                        fid, err )
-
+       endif
+      
 !  ... or open existing GFIO file ...
 !  ----------------------------------
    else
@@ -703,20 +749,47 @@
 
 !   Write the data to GFIO file
 !   ---------------------------
-    if (verb) print *, '	[] writing ', trim(vname(1))
-    call GFIO_PutVar ( fid, vname(1), nymd, nhms, im, jm, 1, km, &
+    if  ( gfio_prec_ == 64 ) then
+        if (verb) print *, '	[] writing ', trim(vname(1))
+           rank3 = w_c%delp
+           call GFIO_PutVar ( fid, vname(1), nymd, nhms, im, jm, 1, km, &
+                       rank3, err )
+           if ( err .ne. 0 ) rc = 101
+
+        if (verb) print *, '	[] writing ', trim(vname(2))
+           rank3 = w_c%rh
+           call GFIO_PutVar ( fid, vname(2), nymd, nhms, im, jm, 1, km, &
+                       rank3, err )
+           if ( err .ne. 0 ) rc = 102
+
+        do i = 3, nvars
+        if (verb) print *, '	[] writing ', trim(vname(i))
+           rank3 = w_c%qa(i-2)%data3d(:,:,:)
+           call GFIO_PutVar ( fid, vname(i), nymd, nhms, im, jm, 1, km, &
+                          rank3, err )
+           if ( err .ne. 0 ) rc = 100 + i-1
+        end do
+        
+    else
+
+        if (verb) print *, '	[] writing ', trim(vname(1))
+           call GFIO_PutVar ( fid, vname(1), nymd, nhms, im, jm, 1, km, &
                        w_c%delp, err )
-    if ( err .ne. 0 ) rc = 101
-    if (verb) print *, '	[] writing ', trim(vname(2))
-    call GFIO_PutVar ( fid, vname(2), nymd, nhms, im, jm, 1, km, &
+           if ( err .ne. 0 ) rc = 101
+   
+        if (verb) print *, '	[] writing ', trim(vname(2))
+           call GFIO_PutVar ( fid, vname(2), nymd, nhms, im, jm, 1, km, &
                        w_c%rh, err )
-    if ( err .ne. 0 ) rc = 102
-    do i = 3, nvars
-       if (verb) print *, '	[] writing ', trim(vname(i))
-       call GFIO_PutVar ( fid, vname(i), nymd, nhms, im, jm, 1, km, &
+           if ( err .ne. 0 ) rc = 102
+
+        do i = 3, nvars
+        if (verb) print *, '	[] writing ', trim(vname(i))
+           call GFIO_PutVar ( fid, vname(i), nymd, nhms, im, jm, 1, km, &
                           w_c%qa(i-2)%data3d(:,:,:), err )
-       if ( err .ne. 0 ) rc = 100 + i-1
-    end do
+           if ( err .ne. 0 ) rc = 100 + i-1
+        end do
+
+    endif
 
 !   Now save vertical grid info as attributes
 !   -----------------------------------------
@@ -744,6 +817,15 @@
      allocate ( kmvar(nvars), vname(nvars), vtitle(nvars), stat=err2 )
      allocate ( vunits(nvars), stat=err3 )
      allocate ( packing_range(2,nvars), valid_range(2,nvars), stat=err4 )
+     if (gfio_prec_==64) then
+        allocate(lon8(im))
+        allocate(lat8(jm))
+        allocate(lev8(km))
+        allocate(packing_range8(2,nvars))
+        allocate(valid_range8(2,nvars))
+        allocate(rank3(im,jm,km))
+     end if
+
      err = err1 + err2 + err3 + err4 
      if ( err /= 0 ) return
      vname(1) = 'delp'
@@ -762,6 +844,15 @@
      subroutine clean_()             ! de-allocates local memory
      deallocate ( lat, lon, lev, kmvar, vname, vtitle, vunits, stat=err )
      deallocate ( valid_range, packing_range, stat=err )
+     if (gfio_prec_==64) then
+        deallocate(rank3)
+        deallocate(lon8)
+        deallocate(lat8)
+        deallocate(lev8)
+        deallocate(packing_range8)
+        deallocate(valid_range8)
+     endif
+
      end subroutine clean_
 
   end Subroutine Chem_BundleWrite
@@ -776,7 +867,7 @@
 ! !INTERFACE:
 !
   subroutine  Chem_BundleRead ( fname, nymd, nhms, w_c, rc, &
-                                timidx, freq, chemReg )         ! optional
+                                timidx, freq, chemReg, gfio_prec )         ! optional
 !
 ! !USES:
 !
@@ -787,6 +878,9 @@
   character(len=*),    intent(in)   :: fname  ! output file name
   integer, OPTIONAL,   intent(in)   :: timidx ! time index; by default
                                               ! last time index is returned
+  integer, OPTIONAL,   intent(in)   :: gfio_prec   ! specify user precision
+                                                   ! 32 or 64 bits
+                                              
   type(Chem_Registry), OPTIONAL, intent(in) :: chemReg ! Chemistry Registry
 !
 ! !INPUT/OUTPUT PARAMETERS:
@@ -824,6 +918,8 @@
 ! !REVISION HISTORY: 
 !
 !  20Sep2001 da Silva  Initial code.
+!  04Nov2015 Todling/Buchard - add underlying gfio precision as option
+!                              all bug fix in lat/lon handle to BundleCreate
 !
 !EOP
 !-------------------------------------------------------------------------
@@ -840,15 +936,24 @@
    integer :: im, jm, km, lm, nvars, nq
    integer :: i1, i2, ig, j1, j2, jg
    integer :: l, timinc, i, j, n
-   real    :: amiss, ptop, buf(1)
+   real    :: amiss, ptop, buf(1), buf8(1)
 
    integer, parameter :: READ_ONLY = 1
+   integer :: gfio_prec_
    integer :: fid, err, ngatts
 
+   real(8) amiss8
+   real(8),allocatable :: lon8(:),lat8(:),lev8(:)
+   real(8),allocatable :: valid_range8(:,:), packing_range8(:,:)
+   real(8),allocatable,dimension(:,:,:)::rank3
    type(Chem_registry) :: Reg
    logical :: all_upper ! whether all variables are upper case
 
    rc = 0
+   gfio_prec_ = 32 ! default precision
+   if ( present(gfio_prec) ) then
+      gfio_prec_= gfio_prec
+   end if
 
 !  Open the file
 !  -------------
@@ -883,12 +988,22 @@
 
 !  Get file attributes
 !  -------------------
-   call GFIO_Inquire ( fid, im, jm, km, lm, nvars,     &
-                       title, source, contact, amiss,  &
-                       lon, lat, lev, levunits,        &
-                       yyyymmdd, hhmmss, timinc,       &
-                       vname, vtitle, vunits,          &
-                       kmvar, valid_range , packing_range, err )
+   if ( gfio_prec_== 64 ) then
+      call GFIO_Inquire ( fid, im, jm, km, lm, nvars,     &
+                          title, source, contact, amiss8, &
+                          lon8, lat8, lev8, levunits,     &
+                          yyyymmdd, hhmmss, timinc,       &
+                          vname, vtitle, vunits,          &
+                          kmvar, valid_range8, packing_range8, err )
+      amiss=amiss8;lon=lon8;lat=lat8;lev=lev8
+   else
+      call GFIO_Inquire ( fid, im, jm, km, lm, nvars,     &
+                          title, source, contact, amiss,  &
+                          lon, lat, lev, levunits,        &
+                          yyyymmdd, hhmmss, timinc,       &
+                          vname, vtitle, vunits,          &
+                          kmvar, valid_range , packing_range, err )
+   end if
    if ( err .ne. 0 ) then
       call clean_()
       rc = 5
@@ -933,6 +1048,7 @@
       call clean_()
       return
    end if
+
 
 !  Allocate memory if necessary 
 !  ----------------------------
@@ -1004,26 +1120,56 @@
 
 !  retrieve the variables
 !  ----------------------
-   call GFIO_GetVar ( fid, 'DELP', nymd, nhms,     &
-                      im, jm, 1, km, w_c%delp, err )
-   if( err .ne. 0 ) then
-      call GFIO_GetVar ( fid, 'delp', nymd, nhms,     &
-                         im, jm, 1, km, w_c%delp, err )
-   endif
-   if ( err .ne. 0 )                                        rc = 101
+   if ( gfio_prec_== 64 ) then
+      if ( all_upper ) then 
+         call GFIO_GetVar ( fid, 'DELP', nymd, nhms,     &
+                            im, jm, 1, km, rank3, err )
+      else
+         call GFIO_GetVar ( fid, 'delp', nymd, nhms,     &
+                            im, jm, 1, km, rank3, err )
+      endif
+      if ( err .ne. 0 ) then
+         rc = 101
+      else
+         w_c%delp=rank3
+      end if
 
-   call GFIO_GetVar ( fid, 'RH', nymd, nhms,     &
-                      im, jm, 1, km, w_c%rh, err )
-   if ( err .ne. 0 ) then
-      call GFIO_GetVar ( fid, 'rh', nymd, nhms,     &
-                         im, jm, 1, km, w_c%rh, err )
-   end if
-   if ( err .ne. 0 ) then
-        w_c%rh = w_c%missing_value
+      call GFIO_GetVar ( fid, 'RH', nymd, nhms,     &
+                         im, jm, 1, km, rank3, err )
+      if ( err .ne. 0 ) then
+         call GFIO_GetVar ( fid, 'rh', nymd, nhms,     &
+                            im, jm, 1, km, rank3, err )
+      end if
+      if ( err .ne. 0 ) then
+           w_c%rh = w_c%missing_value
         w_c%has_rh = .false.
+      else
+           w_c%has_rh = .true.  ! for backward compatibility
+           w_c%rh = rank3
+      end if
    else
-        w_c%has_rh = .true.  ! for backward compatibility
-   end if
+      if ( all_upper ) then 
+         call GFIO_GetVar ( fid, 'DELP', nymd, nhms,     &
+                            im, jm, 1, km, w_c%delp, err )
+      else
+         call GFIO_GetVar ( fid, 'delp', nymd, nhms,     &
+                            im, jm, 1, km, w_c%delp, err )
+      endif
+
+      if ( err .ne. 0 )                                        rc = 101
+      call GFIO_GetVar ( fid, 'RH', nymd, nhms,     &
+                         im, jm, 1, km, w_c%rh, err )
+      if ( err .ne. 0 ) then
+         call GFIO_GetVar ( fid, 'rh', nymd, nhms,     &
+                            im, jm, 1, km, w_c%rh, err )
+      end if
+      if ( err .ne. 0 ) then
+           w_c%rh = w_c%missing_value
+        w_c%has_rh = .false.
+      else
+           w_c%has_rh = .true.  ! for backward compatibility
+      end if
+   end if ! <prec_>
    do n = 1, reg%nq
         l = ivar(n)
         if ( all_upper ) then
@@ -1031,16 +1177,27 @@
         else
              vname_ = trim(vname(l))
         end if
-        call GFIO_GetVar ( fid, vname_, nymd, nhms,         & 
-                           im, jm, 1, km, w_c%qa(n)%data3d(:,:,:), err )
-         if ( err .ne. 0 )                                  rc = 100 + l
+        if ( gfio_prec_== 64 ) then
+           call GFIO_GetVar ( fid, vname_, nymd, nhms,         & 
+                              im, jm, 1, km, rank3, err )
+           w_c%qa(n)%data3d(:,:,:)=rank3
+        else
+           call GFIO_GetVar ( fid, vname_, nymd, nhms,         & 
+                              im, jm, 1, km, w_c%qa(n)%data3d(:,:,:), err )
+        endif
+        if ( err .ne. 0 )                                  rc = 100 + l
    end do
 
 
 !  Retrieve vertical grid attributes
 !  ---------------------------------
-    call GFIO_GetRealAtt ( fid, 'ptop',   1, buf, err )
-    w_c%grid%ptop = buf(1)
+    if ( gfio_prec_==64 ) then
+       call GFIO_GetRealAtt ( fid, 'ptop',   1, buf8, err )
+       w_c%grid%ptop = buf8(1)
+    else
+       call GFIO_GetRealAtt ( fid, 'ptop',   1, buf , err )
+       w_c%grid%ptop = buf(1)
+    endif
     if ( err .ne. 0 ) then
        w_c%grid%ptop = 1. ! do not fuss about this
        rc = 0
@@ -1063,12 +1220,28 @@
      allocate( hhmmss(lm),vname(nvars), vunits(nvars), stat=err2 )
      allocate( vtitle(nvars),kmvar(nvars),valid_range(2,nvars),stat=err3 )
      allocate( packing_range(2,nvars),ivar(nvars),stat=err4) 
+     if (gfio_prec_==64) then
+        allocate(lon8(im))
+        allocate(lat8(jm))
+        allocate(lev8(km))
+        allocate(packing_range8(2,nvars))
+        allocate(valid_range8(2,nvars))
+        allocate(rank3(im,jm,km))
+     end if
      err = err1 + err2 + err3 + err4 
      end subroutine init_
 
      subroutine clean_()             ! de-allocates local memory
      deallocate (lat,lon,lev, yyyymmdd, hhmmss, vname, vunits, stat=err)
      deallocate (vtitle,kmvar,valid_range,packing_range, ivar, stat=err)
+     if (gfio_prec_==64) then
+        deallocate(rank3)
+        deallocate(lon8)
+        deallocate(lat8)
+        deallocate(lev8)
+        deallocate(packing_range8)
+        deallocate(valid_range8)
+     endif
      end subroutine clean_
 
    end subroutine Chem_BundleRead

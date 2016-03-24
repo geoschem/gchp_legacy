@@ -99,9 +99,9 @@ endif
 if( EXPORT = "U"     ) ; facm = 1    ; faco = 1    ; endif
 if( EXPORT = "V"     ) ; facm = 1    ; faco = 1    ; endif
 if( EXPORT = "T"     ) ; facm = 1    ; faco = 1    ; endif
-if( EXPORT = "Q"     ) ; facm = 1000 ; faco = 1000 ; endif
-if( EXPORT = "RH2"   ) ; facm = 100  ; faco = 1    ; endif
-if( EXPORT = "SLP"   ) ; facm = 0.01 ; faco = 0.01 ; endif
+if( EXPORT = "Q"     ) ; facm = 1    ; faco = 1    ; endif
+if( EXPORT = "RH2"   ) ; facm = 1    ; faco = 1    ; endif
+if( EXPORT = "SLP"   ) ; facm = 1    ; faco = 1    ; endif
 
 if( EXPORT = "SLP" & level != 1000  ) ; return ; endif
 
@@ -400,9 +400,9 @@ if( cmpexp_only = TRUE ) ; return ; endif
 if( EXPORT = "U"     ) ; facm = 1    ; faco = 1    ; endif
 if( EXPORT = "V"     ) ; facm = 1    ; faco = 1    ; endif
 if( EXPORT = "T"     ) ; facm = 1    ; faco = 1    ; endif
-if( EXPORT = "Q"     ) ; facm = 1000 ; faco = 1000 ; endif
-if( EXPORT = "RH2"   ) ; facm = 100  ; faco = 1    ; endif
-if( EXPORT = "SLP"   ) ; facm = 0.01 ; faco = 0.01 ; endif
+if( EXPORT = "Q"     ) ; facm = 1    ; faco = 1    ; endif
+if( EXPORT = "RH2"   ) ; facm = 1    ; faco = 1    ; endif
+if( EXPORT = "SLP"   ) ; facm = 1    ; faco = 1    ; endif
 
                                      fact = faco
 if( EXPORT = "Q"   & level < 400 ) ; fact = fact*1000  ; endif

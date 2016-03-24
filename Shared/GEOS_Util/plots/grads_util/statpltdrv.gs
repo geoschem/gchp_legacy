@@ -18,7 +18,7 @@ flag = 1
 'set grads off'
 'set grid  off'
 if( flag = 1 )
-   'run statdplt 'field' rmes 'tag1' 'tag2' 'numf' 'cint
+   'run statdplt 'field' dbia 'tag1' 'tag2' 'numf' 'cint
 else
    'run statdplt 'field' mes 'tag1' 'tag2' 'numf' 'cint
 endif
@@ -29,7 +29,7 @@ endif
 'set grads off'
 'set grid  off'
 if( flag = 1 )
-   'run statdplt 'field' std 'tag1' 'tag2' 'numf' 'cint
+   'run statdplt 'field' dstd 'tag1' 'tag2' 'numf' 'cint
 else
    'run statdplt 'field' var 'tag1' 'tag2' 'numf' 'cint
 endif
@@ -40,10 +40,11 @@ endif
 'set grads off'
 'set grid  off'
 if( flag = 1 )
-   'run statdplt 'field' rms 'tag1' 'tag2' 'numf' 'cint
+   'run statdplt 'field' drms 'tag1' 'tag2' 'numf' 'cint
 else
    'run statdplt 'field' mse 'tag1' 'tag2' 'numf' 'cint
 endif
+
 
 'set vpage off'
 'set parea off'

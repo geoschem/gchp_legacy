@@ -135,3 +135,38 @@ subroutine A2DnoRotate(U, V)
   real, intent(INOUT) :: U(:,:,:)
   real, intent(INOUT) :: V(:,:,:)
 end subroutine A2DnoRotate
+
+subroutine AppCSEdgeCreateF(IM_WORLD, LonEdge, LatEdge, LonCenter, LatCenter, rc)
+#include "MAPL_Generic.h"
+
+  use ESMF
+  use MAPL_BaseMod
+
+  implicit none
+
+! !ARGUMENTS:
+    integer,           intent(IN)     :: IM_WORLD
+    integer, optional, intent(OUT)    :: rc
+    real(ESMF_KIND_R8), intent(inout) :: LonEdge(IM_World+1,IM_World+1,6)
+    real(ESMF_KIND_R8), intent(inout) :: LatEdge(IM_World+1,IM_World+1,6)
+    real(ESMF_KIND_R8), optional, intent(inout) :: LonCenter(IM_World,IM_World)
+    real(ESMF_KIND_R8), optional, intent(inout) :: LatCenter(IM_World,IM_World)
+
+! ErrLog variables
+!-----------------
+
+ integer                      :: STATUS
+ character(len=ESMF_MAXSTR), parameter :: Iam="AppCSEdgeCreateF"
+
+  RETURN_(STATUS)
+end subroutine AppCSEdgeCreateF
+
+subroutine CubeHaloInit(comm, im_world, npes, nx, ny, domainIdx)
+  integer :: comm, im_world, npes, nx, ny
+  integer :: domainIdx
+end subroutine CubeHaloInit
+
+subroutine CubeHalo(domainIdx, input)
+  integer :: domainIdx
+  real *4 :: input(:,:)
+end subroutine CubeHalo

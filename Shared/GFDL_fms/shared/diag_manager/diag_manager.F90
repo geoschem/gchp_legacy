@@ -211,9 +211,9 @@ MODULE diag_manager_mod
 
   ! version number of this module
   CHARACTER(len=128), PARAMETER :: version =&
-       & '$Id: diag_manager.F90,v 1.1.1.2 2012-11-16 16:00:09 atrayano Exp $'
+       & '$Id$'
   CHARACTER(len=128), PARAMETER :: tagname =&
-       & '$Name: Heracles-3_1_CTM $'  
+       & '$Name$'  
 
   type(time_type) :: Time_end
 

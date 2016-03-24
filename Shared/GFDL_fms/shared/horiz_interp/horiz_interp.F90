@@ -216,8 +216,8 @@ use horiz_interp_spherical_mod, only: horiz_interp_spherical_new, horiz_interp_s
 ! </INTERFACE>
 
 !-----------------------------------------------------------------------
- character(len=128) :: version = '$Id: horiz_interp.F90,v 1.1.1.2 2012-11-16 16:00:09 atrayano Exp $'
- character(len=128) :: tagname = '$Name: Heracles-3_1_CTM $'
+ character(len=128) :: version = '$Id$'
+ character(len=128) :: tagname = '$Name$'
  logical            :: module_is_initialized = .FALSE.
 !-----------------------------------------------------------------------
 

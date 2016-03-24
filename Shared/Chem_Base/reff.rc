@@ -38,7 +38,7 @@ aer_reff_filename: /nobackup/1/ARCTAS/Y2008/M06/d5_arctas_02.inst3d_ref_v.200806
 NUM_BANDS: 4
     BANDS: 470.E-9  550.E-9 660.E-9   870.E-9
 
-DU_OPTICS: ExtData/PIESA/x/optics_DU.v14_2.nc
+DU_OPTICS: ExtData/PIESA/x/optics_DU.v15_3.nc
 SS_OPTICS: ExtData/PIESA/x/optics_SS.v3_3.nc
 SU_OPTICS: ExtData/PIESA/x/optics_SU.v1_3.nc
 OC_OPTICS: ExtData/PIESA/x/optics_OC.v1_3.nc

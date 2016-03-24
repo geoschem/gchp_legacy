@@ -37,6 +37,7 @@
       interface  interpack_terpv; module procedure
      &           terpv_,
      &           terpv2d_,
+     &           terpv2dr4_,
      &           terpv3d_,
      &           terpv3dr4_
       end interface
@@ -101,6 +102,32 @@
       enddo
 
       end subroutine terpv3d_
+
+      subroutine terpv2dr4_ ( im1, jm1, f, im2, jm2, fint,
+     &                        lon0, fill ) ! optionals
+
+      implicit none
+
+      integer, intent(in)    :: im1, jm1     ! dim of input vector
+      integer, intent(in)    :: im2, jm2     ! dim to interpolate to
+      real(4), intent(in)    ::    f(im1,jm1)
+      real(4), intent(inout) :: fint(im2,jm2)
+      real, intent(in), optional :: lon0
+      real, intent(in), optional :: fill
+
+      real, allocatable, dimension(:,:) :: f_r8, fint_r8
+    
+      allocate(f_r8(im1,jm1))
+      allocate(fint_r8(im2,jm2))
+
+      f_r8=f
+      call terpv2d_ ( im1, jm1, f_r8, im2, jm2, fint_r8,
+     &                lon0=lon0, fill=fill )
+      fint=fint_r8
+      deallocate(fint_r8)
+      deallocate(f_r8)
+
+      end subroutine terpv2dr4_
 
       subroutine terpv2d_ ( im1, jm1, f, im2, jm2, fint,
      &                      lon0, fill ) ! optionals

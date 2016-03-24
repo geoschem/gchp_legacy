@@ -309,7 +309,7 @@ if( EXPORT = "V"     ) ; facm = 1     ; faco = 1     ; endif
 if( EXPORT = "T"     ) ; facm = 1     ; faco = 1     ; endif
 if( EXPORT = "Q"     ) ; facm = 1000  ; faco = 1000  ; endif
 if( EXPORT = "ZLE"   ) ; facm = 1     ; faco = 1     ; endif
-if( EXPORT = "RH2"   ) ; facm = 100   ; faco = 1     ; endif
+if( EXPORT = "RH2"   ) ; facm = 100   ; faco = 100   ; endif
 if( EXPORT = "OMEGA" ) ; facm = 864   ; faco = 864   ; endif
 
 * Get Plotting Values from Resource File

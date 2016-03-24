@@ -32,29 +32,29 @@ END
 # MODIS Terra NNR Data
 #--------------------- 
 BEGIN mod04_land_nnr => nnr_002.MOD04_L2a.land.%y4%m2%d2_%h200z.ods
-  20000301_00z-20131231_21z 030000 lou-via-br2:/nobackup/gmao_SIteam/ObservingSystem/reanalysis/modis/NNR/051.nnr_002/Level2/MOD04/Y%y4/M%m2/nnr_002.MOD04_L2a.land.%y4%m2%d2_%h200z.ods
+  20000301_00z-21001231_21z 030000 lou-via-br2:/nobackup/gmao_SIteam/ObservingSystem/reanalysis/modis/NNR/051.nnr_002/Level2/MOD04/Y%y4/M%m2/nnr_002.MOD04_L2a.land.%y4%m2%d2_%h200z.ods
 END
 BEGIN mod04_ocean_nnr => nnr_002.MOD04_L2a.ocean.%y4%m2%d2_%h200z.ods
-  20000301_00z-20131231_21z 030000 lou-via-br2:/nobackup/gmao_SIteam/ObservingSystem/reanalysis/modis/NNR/051.nnr_002/Level2/MOD04/Y%y4/M%m2/nnr_002.MOD04_L2a.ocean.%y4%m2%d2_%h200z.ods
+  20000301_00z-21001231_21z 030000 lou-via-br2:/nobackup/gmao_SIteam/ObservingSystem/reanalysis/modis/NNR/051.nnr_002/Level2/MOD04/Y%y4/M%m2/nnr_002.MOD04_L2a.ocean.%y4%m2%d2_%h200z.ods
 END
 
 # MODIS Aqua NNR Data
 #--------------------
 BEGIN myd04_land_nnr => nnr_002.MYD04_L2a.land.%y4%m2%d2_%h200z.ods
-  20020801_00z-20131231_21z 030000 lou-via-br2:/nobackup/gmao_SIteam/ObservingSystem/reanalysis/modis/NNR/051.nnr_002/Level2/MYD04/Y%y4/M%m2/nnr_002.MYD04_L2a.land.%y4%m2%d2_%h200z.ods
+  20020801_00z-21001231_21z 030000 lou-via-br2:/nobackup/gmao_SIteam/ObservingSystem/reanalysis/modis/NNR/051.nnr_002/Level2/MYD04/Y%y4/M%m2/nnr_002.MYD04_L2a.land.%y4%m2%d2_%h200z.ods
 END
 BEGIN myd04_ocean_nnr => nnr_002.MYD04_L2a.ocean.%y4%m2%d2_%h200z.ods
-  20020801_00z-20131231_21z 030000 lou-via-br2:/nobackup/gmao_SIteam/ObservingSystem/reanalysis/modis/NNR/051.nnr_002/Level2/MYD04/Y%y4/M%m2/nnr_002.MYD04_L2a.ocean.%y4%m2%d2_%h200z.ods
+  20020801_00z-21001231_21z 030000 lou-via-br2:/nobackup/gmao_SIteam/ObservingSystem/reanalysis/modis/NNR/051.nnr_002/Level2/MYD04/Y%y4/M%m2/nnr_002.MYD04_L2a.ocean.%y4%m2%d2_%h200z.ods
 END
 
 # MISR over land
 #---------------
 BEGIN misr_F12_bright => misr_F12_0022.bright_tc8.obs.%y4%m2%d2.ods
-  20000301_00z-20131231_00z 240000 lou-via-br2:/nobackup/gmao_SIteam/ObservingSystem/reanalysis/misr/Level2/ODS_Bright/Y%y4/M%m2/misr_F12_0022.bright_tc8.obs.%y4%m2%d2.ods
+  20000301_00z-20140630_21z 240000 lou-via-br2:/nobackup/gmao_SIteam/ObservingSystem/reanalysis/misr/Level2/ODS_Bright/Y%y4/M%m2/misr_F12_0022.bright_tc8.obs.%y4%m2%d2.ods
 END
 
 # AERONET Data
 #-------------
 BEGIN aeronet_obs => aeronet.obs.%y4%m2%d2.ods
-  19990101_00z-20131231_00z 240000 lou-via-br2:/nobackup/gmao_SIteam/ObservingSystem/reanalysis/aeronet/ods/Y%y4/M%m2/aeronet.obs.%y4%m2%d2.ods
+  19990101_00z-20141029_00z 240000 lou-via-br2:/nobackup/gmao_SIteam/ObservingSystem/reanalysis/aeronet/ods/Y%y4/M%m2/aeronet.obs.%y4%m2%d2.ods
 END

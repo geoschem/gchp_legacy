@@ -1,4 +1,4 @@
-! $Id: arraygather.H,v 1.10.124.2.60.3 2015-01-31 02:25:39 atrayano Exp $
+! $Id$
 
 #ifdef NAME_
 #undef NAME_

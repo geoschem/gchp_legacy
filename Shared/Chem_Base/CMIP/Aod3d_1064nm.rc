@@ -10,7 +10,7 @@ n_channels: 1
 
 r_channels: 1.064e-6 
 
-filename_optical_properties_DU: ExtData/CMIP/x/optics_DU.v14_2.nc
+filename_optical_properties_DU: ExtData/CMIP/x/optics_DU.v15_3.nc
 filename_optical_properties_SS: ExtData/CMIP/x/optics_SS.v3_3.nc
 filename_optical_properties_OC: ExtData/CMIP/x/optics_OC.v1_3.nc
 filename_optical_properties_BC: ExtData/CMIP/x/optics_BC.v1_3.nc

@@ -3,7 +3,7 @@
 set plots = "cmpexpz.dyn cmpexph.dyn cmpexpz.moist cmpexph.moist.1 cmpexph.moist.2 cmpexph.moist.3 cmpexph.moist.4 \
              cmpexpz.turb cmpexph.turb.1 cmpexph.turb.2 cmpexph.turb.3 cmpexpz.gwd cmpexph.gwd cmpexpz.rad cmpexph.rad \
              cmpexph.aero cmpexpz.ana cmpexph.ana cmpexph.surf \
-             surf2.misc surf2.cld \
+             surf2.misc surf2.cld residual \
              progh_CHI:1000 progh_CHI:925 progh_CHI:850 progh_CHI:700 progh_CHI:600 progh_CHI:500 progh_CHI:400 progh_CHI:300 progh_CHI:250 progh_CHI:200 progh_CHI:150 progh_CHI:100 progh_CHI:70 progh_CHI:50 progh_CHI:30 \
              progh_PSI:1000 progh_PSI:925 progh_PSI:850 progh_PSI:700 progh_PSI:600 progh_PSI:500 progh_PSI:400 progh_PSI:300 progh_PSI:250 progh_PSI:200 progh_PSI:150 progh_PSI:100 progh_PSI:70 progh_PSI:50 progh_PSI:30 \
              progh_SLP:1000 \
@@ -281,6 +281,14 @@ endif
          end
      endif
 
+
+# Residual Circulation
+# --------------------
+if( $plot == residual ) then
+                             $GEOSUTIL/plots/res/makeres      $source
+    $grads $batch -p -c "run $GEOSUTIL/plots/res/res   $expid $output $debug $seasons "
+    set FOUND = TRUE
+endif
 
 
 # Surface/2-D
@@ -673,7 +681,9 @@ if( $plot == cmpexpz.dyn ) then
 endif
 
 if( $plot == cmpexph.dyn ) then
-      $grads $batch -p -c "run gencmp -EXPID $expid -SEASON $seasons -OUTPUT $output -DEBUG $debug -EXPORT  DMDTDYN:DYN -LEVEL 0"
+      $grads $batch -p -c "run gencmp -EXPID $expid -SEASON $seasons -OUTPUT $output -DEBUG $debug -EXPORT  DMDTDYN:DYN  DMDTANA:DYN  DMDT:PHYSICS  -NAME DMDTDYNANAPHY  -LEVEL 0"
+      $grads $batch -p -c "run gencmp -EXPID $expid -SEASON $seasons -OUTPUT $output -DEBUG $debug -EXPORT  DMDTDYN:DYN  DMDTANA:DYN                -NAME DMDTDYNANA     -LEVEL 0"
+      $grads $batch -p -c "run gencmp -EXPID $expid -SEASON $seasons -OUTPUT $output -DEBUG $debug -EXPORT  DMDTDYN:DYN                                                  -LEVEL 0"
       set LEVS = '1000 975 950 925 900 850 800 750 700 650 600 550 500 450 400 350 300 250 200 150 100'
       foreach LEV ($LEVS)
       $grads $batch -p -c "run gencmp -EXPID $expid -SEASON $seasons -OUTPUT $output -DEBUG $debug -EXPORT  DUDTDYN:DYN -LEVEL $LEV "
@@ -914,7 +924,9 @@ endif
 # -------------------------------
 endif
 
+#######################################################################################
 
+if( $FOUND == FALSE ) then
 
 #######################################################################################
 #  User-Specified 2-D Plots that Match Existing Cases (eg., -type 2 -plots OLR:IRRAD )
@@ -1012,7 +1024,8 @@ if( "$CMPEXP" != "NULL" ) then
            if( $LEV != '' & $LEV != 'Z' & $LEV != 'z' ) then 
                    $grads $batch -p -c "run gencmp  -EXPID $expid -EXPORT ${EXPORT}:${GC} -OUTPUT ${output}/misc -DEBUG $debug -SEASON $seasons -LEVEL $LEV "
            else
-                   $grads $batch -p -c "run getzdim ${EXPORT} ${GC}"
+                   $grads     -b -p -c "run getzdim ${EXPORT} ${GC}" &
+                   wait
                    set NLEVS = `cat ${EXPORT}:${GC}:NLEVS.txt`
                    /bin/rm       -f ${EXPORT}:${GC}:NLEVS.txt
                if( $NLEVS == 1 ) then 
@@ -1054,6 +1067,10 @@ if( "$CMPEXP" != "NULL" ) then
           end
 
       endif
+endif
+
+#######################################################################################
+
 endif
 
 exit

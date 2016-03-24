@@ -3,7 +3,7 @@
 #   available channels
 #
 
-Chem_Mie::du_optics_file: ExtData/AeroCom/x/opticsBands_DU.v14_2.nc
+Chem_Mie::du_optics_file: ExtData/AeroCom/x/opticsBands_DU.v15_3.nc
 Chem_Mie::ss_optics_file: ExtData/AeroCom/x/opticsBands_SS.v3_3.nc
 Chem_Mie::su_optics_file: ExtData/AeroCom/x/opticsBands_SU.v1_3.nc
 Chem_Mie::oc_optics_file: ExtData/AeroCom/x/opticsBands_OC.v1_3.nc

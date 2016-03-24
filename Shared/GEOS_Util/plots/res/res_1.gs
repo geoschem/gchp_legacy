@@ -101,4 +101,3 @@ function  res_1 (args)
 
 'myprint -name 'output'/zonal_'obsid'_str_res.'season
 'set clab on'
-'c'

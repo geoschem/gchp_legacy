@@ -1,6 +1,6 @@
 
 ! -*-f90-*-
-! $Id: mpp_util.inc,v 1.3.2.1 2014-08-11 16:17:44 mathomp4 Exp $
+! $Id$
 
 
 #ifdef use_libSMA
@@ -1261,8 +1261,8 @@ end function rarray_to_char
   subroutine read_input_nml
 
 ! version and tagging information
-    character(len=128) :: version = '$Id: mpp_util.inc,v 1.3.2.1 2014-08-11 16:17:44 mathomp4 Exp $'
-    character(len=128) :: tagname = '$Name: Heracles-3_1_CTM $' 
+    character(len=128) :: version = '$Id$'
+    character(len=128) :: tagname = '$Name$' 
 
 !private variables
     integer :: log_unit
@@ -1311,8 +1311,8 @@ end function rarray_to_char
     integer, intent(in), optional, dimension(:) :: PELIST
 
     ! version and tagging information
-    character(len=*), parameter :: VERSION = '$Id: mpp_util.inc,v 1.3.2.1 2014-08-11 16:17:44 mathomp4 Exp $'
-    character(len=*), parameter :: TAGNAME = '$Name: Heracles-3_1_CTM $' 
+    character(len=*), parameter :: VERSION = '$Id$'
+    character(len=*), parameter :: TAGNAME = '$Name$' 
 
     character(len=LENGTH) :: str_tmp
     character(len=5) :: text

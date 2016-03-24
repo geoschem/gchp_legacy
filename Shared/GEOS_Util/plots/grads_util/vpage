@@ -6,14 +6,25 @@ function vpage (args)
 *****                                                   *****
 *************************************************************
 
+'numargs  'args
+ numargs = result
+
 xloc = subwrd(args,1)
 yloc = subwrd(args,2)
 xmax = subwrd(args,3)
 ymax = subwrd(args,4)
-ytop = subwrd(args,5)
-if( ytop = "" )
-ytop = 0.5
-endif
+
+  ytop = 0.5
+scalex = 1
+scaley = 1
+
+       num = 0
+while( num < numargs )
+       num = num + 1
+if( subwrd(args,num)='-scalex' ) ; scalex = subwrd(args,num+1) ; endif
+if( subwrd(args,num)='-scaley' ) ; scaley = subwrd(args,num+1) ; endif
+if( subwrd(args,num)='-ytop'   ) ; ytop   = subwrd(args,num+1) ; endif
+endwhile
 
 'set vpage off'
 'getinfo page'
@@ -26,13 +37,41 @@ pagey = subwrd(result,2)-ytop
 *diff  = (pagex-pagey/1.75)*0.5
 *pagex = pagey/1.65
 
-dx = pagex/xmax
-dy = pagey/ymax
+dx = pagex / xmax
+dy = pagey / ymax
 
-x1 = (xloc-1)*dx
-x2 = (xloc-0)*dx
-y2 =  pagey - (yloc-1)*dy
-y1 =  pagey - (yloc-0)*dy
+delx = dx * (scalex - 1)
+dely = dy * (scaley - 1)
+
+if( xloc = 1 )
+      x1 = (xloc-1)*dx
+      x2 = (xloc-0)*dx + delx
+*     say 'a  x1: 'x1'  x2: 'x2'  delx: 'x2-x1'  xloc: 'xloc' xmax: 'xmax'  dx: 'dx
+endif
+if( xloc = xmax )
+      x1 = (xloc-1)*dx - delx
+      x2 = (xloc-0)*dx
+*     say 'b  x1: 'x1'  x2: 'x2'  delx: 'x2-x1'  xloc: 'xloc' xmax: 'xmax'  dx: 'dx
+endif
+if( xloc != 1 & xloc != xmax )
+      x1 = (xloc-1)*dx - (delx/2)
+      x2 = (xloc-0)*dx + (delx/2)
+*     say 'c  x1: 'x1'  x2: 'x2' x2-x1: 'x2-x1'  xloc: 'xloc' xmax: 'xmax'  dx: 'dx'  delx: 'delx
+endif
+
+if( yloc = 1 )
+      y2 = pagey - (yloc-1)*dy
+      y1 = pagey - (yloc-0)*dy - dely
+endif
+if( yloc = ymax )
+      y2 = pagey - (yloc-1)*dy + dely
+      y1 = pagey - (yloc-0)*dy
+endif
+if( yloc != 1 & yloc != ymax )
+      y2 = pagey - (yloc-1)*dy + dely/2
+      y1 = pagey - (yloc-0)*dy - dely/2
+endif
+*say 'delx: 'x2-x1'  dely: 'y2-y1'  xloc: 'xloc' yloc: 'yloc'  xmax: 'xmax'  ymax: 'ymax' dx: 'dx'  dy: 'dy' x1: 'x1' x2: 'x2' y1: 'y1' y2: 'y2'  pagex: 'pagex'  pagey: 'pagey
 
 if( x1 < 0 )
 x1 = 0
@@ -47,7 +86,7 @@ if( y2 > pagey )
 y2 = pagey
 endif
 
-say 'vpage 'x1' 'x2' 'y1' 'y2
-'set vpage 'x1' 'x2' 'y1' 'y2
-'set grads off'
+ say 'vpage 'x1' 'x2' 'y1' 'y2
+'set  vpage 'x1' 'x2' 'y1' 'y2
+'set  grads off'
 

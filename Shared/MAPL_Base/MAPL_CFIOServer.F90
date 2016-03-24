@@ -349,13 +349,6 @@ contains
             globalRank(i), MAPL_TAG_WORKEREXIT, globalComm, status)
        VERIFY_(status)
     end do
-    ! wait for their reply
-    do i = 1, n_workers
-       call MPI_Recv(rank, 1, MPI_INTEGER, &
-            globalRank(i), MAPL_TAG_WORKEREXITED, globalComm, &
-            MPI_STATUS_IGNORE, status)
-       VERIFY_(status)
-    end do
 
     DONE = .true.
     ! reply to HISTORY, send to root?
@@ -497,9 +490,6 @@ contains
 
       else if (mpistatus(MPI_TAG) == MAPL_TAG_WORKEREXIT) then
 
-         rank = mapl_comm%myIoRank
-         call MPI_Send(rank,1,MPI_INTEGER,mapl_comm%iocommroot,MAPL_TAG_WORKEREXITED,globalComm,status)
-         VERIFY_(STATUS)
          exit
 
       end if 

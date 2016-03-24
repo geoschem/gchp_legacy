@@ -1,4 +1,4 @@
-!  $Id: MAPL_Generic.F90,v 1.109 2015-05-13 19:58:44 bmauer Exp $
+!  $Id$
 
 #include "MAPL_ErrLog.h"
 #define GET_POINTER ESMFL_StateGetPointerToData
@@ -855,6 +855,7 @@ recursive subroutine MAPL_GenericInitialize ( GC, IMPORT, EXPORT, CLOCK, RC )
   type (MAPL_MetaComp), pointer    :: PMAPL
   integer                          :: hdr
   integer                          :: DELTSEC
+  integer                          :: DTSECS
   type(ESMF_TimeInterval)          :: DELT
   integer                          :: color
   integer                          :: ndes
@@ -1159,6 +1160,7 @@ recursive subroutine MAPL_GenericInitialize ( GC, IMPORT, EXPORT, CLOCK, RC )
    VERIFY_(STATUS)
    call ESMF_TimeIntervalGet(DELT, S=DELTSEC, RC=STATUS)
    VERIFY_(STATUS)
+   ASSERT_(DELTSEC /= 0)
    STATE%HEARTBEAT = DELTSEC
 
 ! We get our calling interval from the configuration,
@@ -1169,11 +1171,23 @@ recursive subroutine MAPL_GenericInitialize ( GC, IMPORT, EXPORT, CLOCK, RC )
    VERIFY_(STATUS)
    call ESMF_ConfigGetAttribute( state%CF, DEFDT, Label="RUN_DT:", RC=STATUS)
    VERIFY_(STATUS)
+
+   DTSECS = nint(DEFDT)
+   ! Make sure this component clock's DT is multiple of RUN_DT (heartbeat)
+   ! It should be the same unless we have create a special clock for this
+   ! component
+   ASSERT_(MOD(DELTSEC,DTSECS)==0)
+
    call MAPL_GetResource( STATE   , DT, Label="DT:", default=DEFDT, RC=STATUS)
    VERIFY_(STATUS)
 
    ASSERT_(DT /= 0.0)
-   call ESMF_TimeIntervalSet(TIMEINT,  S=nint(DT) , calendar=cal, RC=STATUS)
+
+   DTSECS = nint(DT)
+   ! Make sure this component's DT is multiple of CLOCK's timestep
+   ASSERT_(MOD(DTSECS,DELTSEC)==0)
+
+   call ESMF_TimeIntervalSet(TIMEINT,  S=DTSECS , calendar=cal, RC=STATUS)
    VERIFY_(STATUS)
 
    ! get current time from clock and create a reference time with optonal override
@@ -1241,6 +1255,189 @@ recursive subroutine MAPL_GenericInitialize ( GC, IMPORT, EXPORT, CLOCK, RC )
       VERIFY_(STATUS)
 
    endif
+
+! Copy RECORD struct from parent
+
+   if (associated(STATE%parentGC)) then
+      call MAPL_GetObjectFromGC(STATE%parentGC, PMAPL, RC=STATUS)
+      VERIFY_(STATUS)
+      if (associated(PMAPL%RECORD)) then
+         call MAPL_AddRecord(STATE, PMAPL%RECORD%ALARM, PMAPL%RECORD%FILETYPE, RC=STATUS)
+         VERIFY_(STATUS)
+      end if
+   end if
+! Add this component's own RECORD
+
+   call ESMF_ConfigFindLabel( STATE%CF, LABEL="RECORD_FREQUENCY:", RC=STATUS)
+   if (STATUS==ESMF_SUCCESS) then
+      nra = ESMF_ConfigGetLen( STATE%CF, RC = STATUS)
+      ASSERT_( NRA > 0 .and. NRA < 10)
+
+      allocate (ref_date(NRA), ref_time(NRA), ref_freq(NRA), stat=STATUS)
+      VERIFY_(STATUS)
+
+      call ESMF_ConfigFindLabel( STATE%CF, LABEL="RECORD_FREQUENCY:", RC=STATUS)
+      call ESMF_ConfigGetAttribute( STATE%CF, valueList=ref_freq, count=NRA, RC=STATUS)
+      VERIFY_(STATUS)
+
+      call ESMF_ConfigFindLabel( STATE%CF, LABEL="RECORD_REF_DATE:", RC=STATUS)
+      VERIFY_(STATUS)
+!      ASSERT_(NRA == ESMF_ConfigGetLen(STATE%CF))
+      call ESMF_ConfigGetAttribute( STATE%CF, valueList=ref_date, count=NRA, RC=STATUS)
+      VERIFY_(STATUS)
+
+      call ESMF_ConfigFindLabel( STATE%CF, LABEL="RECORD_REF_TIME:", RC=STATUS)
+      VERIFY_(STATUS)
+!      ASSERT_(NRA == ESMF_ConfigGetLen(STATE%CF))
+      call ESMF_ConfigGetAttribute( STATE%CF, valueList=ref_time, count=NRA, RC=STATUS)
+      VERIFY_(STATUS)
+
+      allocate (R_ALARM(NRA), STAT=STATUS)
+      VERIFY_(STATUS)
+
+      allocate (R_FILETYPE(NRA), STAT=STATUS)
+      VERIFY_(STATUS)
+
+      DO  I = 1, NRA
+         AlarmName = "RecordAlarm" // CHAR(I+ICHAR('0')) 
+         call ESMF_ClockGetAlarm(clock, trim(AlarmName), recordAlarm, rc=status)
+         if (STATUS/=ESMF_SUCCESS) then
+            ! create alarm
+            call ESMF_TimeSet( RefTime, YY = ref_date(I)/10000, &
+                               MM = mod(ref_date(I),10000)/100, &
+                               DD = mod(ref_date(I),100), &
+                               H = ref_time(I)/10000, &
+                               M = mod(ref_time(I),10000)/100, &
+                               S = mod(ref_time(I),100), calendar=cal, rc=status )
+if (status /= 0) then
+   print *,'Error: ref_date/time ',ref_date(i), ref_time(i)
+endif
+            VERIFY_(STATUS)
+
+            nhms = ref_freq(I)
+            sec = nhms/10000*3600 + mod(nhms,10000)/100*60 + mod(nhms,100)
+            call ESMF_TimeIntervalSet( frequency, S=sec, rc=status )
+            VERIFY_(STATUS)
+            RingTime = RefTime
+            if (RingTime < currTime .and. sec /= 0) then
+               RingTime = RingTime + (INT((currTime - RingTime)/frequency)+1)*frequency
+            endif
+
+            RecordAlarm = ESMF_AlarmCreate( name=trim(AlarmName), clock=clock, RingInterval=Frequency, &
+                                             RingTime=RingTime, sticky=.false.,rc=status )
+            VERIFY_(STATUS)
+
+            if(ringTime == currTime) then
+               call ESMF_AlarmRingerOn(RecordAlarm, rc=status); VERIFY_(STATUS)
+            end if
+
+         end if
+         R_ALARM(I) = recordAlarm
+         R_FILETYPE(I) = MAPL_Write2DIsk ! default
+      END DO
+      call MAPL_AddRecord(STATE, R_ALARM, R_FILETYPE, RC=STATUS)
+      VERIFY_(STATUS)
+      deallocate (ref_freq, ref_time, ref_date)
+      deallocate(R_FILETYPE, R_ALARM)
+   endif
+
+   if (associated(STATE%RECORD)) then
+      call MAPL_GetResource( STATE, FILENAME,         &
+                             LABEL="IMPORT_CHECKPOINT_FILE:", &
+                             RC=STATUS)
+      if(STATUS==ESMF_SUCCESS) then
+         STATE%RECORD%IMP_FNAME = FILENAME
+         STATE%RECORD%IMP_LEN = LEN_TRIM(FILENAME)
+      else
+         STATE%RECORD%IMP_LEN = 0
+      end if
+         
+      call MAPL_GetResource( STATE, FILENAME,         &
+                             LABEL="INTERNAL_CHECKPOINT_FILE:", &
+                             RC=STATUS)
+      if(STATUS==ESMF_SUCCESS) then
+         STATE%RECORD%INT_FNAME = FILENAME
+         STATE%RECORD%INT_LEN = LEN_TRIM(FILENAME)
+      else
+         STATE%RECORD%INT_LEN = 0
+      end if
+   end if
+   call MAPL_GenericStateClockOff(STATE,"--GenInitMine")
+
+! Initialize the children
+! -----------------------
+
+   if(associated(STATE%GCS)) then
+      NC = size(STATE%GCS)
+      if (STATE%ChildInit) then
+         allocate(CHLDMAPL(NC), stat=status)
+         MAXPHASES = 0
+         do I=1,NC
+            call MAPL_GetObjectFromGC(STATE%GCS(I), CHLDMAPL(I)%PTR, RC=STATUS)
+            VERIFY_(STATUS)
+            MAXPHASES = MAX(MAXPHASES, SIZE(CHLDMAPL(I)%PTR%PHASE_INIT))
+         end do
+         if (MAXPHASES > 1) then
+            call WRITE_PARALLEL( &
+                 "WARNING: multiple INITIALIZE methods detected " // &
+                 "for the children of " // &
+                 trim(COMP_NAME)// ". " // &
+                 "Although this is allowed, MAPL is currently restricted " //&
+                 "to the default PHASE=1 and no longer will " // &
+                 "automatically execute all of them" )
+         end if
+
+         PHASE = 1
+         do I=1,NC
+            NUMPHASES = SIZE(CHLDMAPL(I)%PTR%PHASE_INIT)
+            if (PHASE .le. NUMPHASES) then
+               call ESMF_GridCompGet( STATE%GCS(I), NAME=CHILD_NAME, RC=STATUS )
+               VERIFY_(STATUS)
+      
+               call MAPL_GenericStateClockOn (STATE,trim(CHILD_NAME))
+               call ESMF_GridCompInitialize (STATE%GCS(I), &
+                    importState=STATE%GIM(I), &
+                    exportState=STATE%GEX(I), &
+                    clock=CLOCK, PHASE=CHLDMAPL(I)%PTR%PHASE_INIT(PHASE), &
+                    userRC=userRC, RC=STATUS )
+               ASSERT_(userRC==ESMF_SUCCESS .and. STATUS==ESMF_SUCCESS)
+               call MAPL_GenericStateClockOff(STATE,trim(CHILD_NAME))
+            end if
+         end do
+         deallocate(CHLDMAPL)
+      end if
+
+!ALT addition for ExtData component. 
+! We are doing this after all children have been initialized
+!----------------------------------
+      if (.not. isGridValid) then
+         if (associated(STATE%IMPORT_SPEC)) then
+            call MAPL_StateCreateFromSpec(IMPORT,STATE%IMPORT_SPEC,RC=STATUS)
+            VERIFY_(STATUS)
+         end if
+      end if
+
+! Initialize all needed couplers
+! ---------------------------------------------------
+
+      do I=1,NC
+         do J=1,NC
+            if(STATE%CCcreated(J,I)) then
+!               call WRITE_PARALLEL( "DEBUG: initilaizing CPL in " // &
+!                    trim(comp_name) // " for " // &
+!                    trim(STATE%GCNameList(J)) // " and " // &
+!                    trim(STATE%GCNameList(I)))
+               call ESMF_CplCompInitialize (STATE%CCS(J,I), &
+                    importState=STATE%GEX(J), &
+                    exportState=STATE%GIM(I), &
+                    clock=CLOCK, userRC=userRC, RC=STATUS )
+               ASSERT_(userRC==ESMF_SUCCESS .and. STATUS==ESMF_SUCCESS)
+            endif
+         enddo
+! ---------------------------------------------------
+      enddo
+   endif
+   call MAPL_GenericStateClockOn(STATE,"--GenInitMine")
 
 ! Create import and initialize state variables
 ! --------------------------------------------
@@ -1387,113 +1584,6 @@ recursive subroutine MAPL_GenericInitialize ( GC, IMPORT, EXPORT, CLOCK, RC )
                               RC=STATUS)
    VERIFY_(STATUS)
 
-! Copy RECORD struct from parent
-
-   if (associated(STATE%parentGC)) then
-      call MAPL_GetObjectFromGC(STATE%parentGC, PMAPL, RC=STATUS)
-      VERIFY_(STATUS)
-      if (associated(PMAPL%RECORD)) then
-         call MAPL_AddRecord(STATE, PMAPL%RECORD%ALARM, PMAPL%RECORD%FILETYPE, RC=STATUS)
-         VERIFY_(STATUS)
-      end if
-   end if
-! Add this component's own RECORD
-
-   call ESMF_ConfigFindLabel( STATE%CF, LABEL="RECORD_FREQUENCY:", RC=STATUS)
-   if (STATUS==ESMF_SUCCESS) then
-      nra = ESMF_ConfigGetLen( STATE%CF, RC = STATUS)
-      ASSERT_( NRA > 0 .and. NRA < 10)
-
-      allocate (ref_date(NRA), ref_time(NRA), ref_freq(NRA), stat=STATUS)
-      VERIFY_(STATUS)
-
-      call ESMF_ConfigFindLabel( STATE%CF, LABEL="RECORD_FREQUENCY:", RC=STATUS)
-      call ESMF_ConfigGetAttribute( STATE%CF, valueList=ref_freq, count=NRA, RC=STATUS)
-      VERIFY_(STATUS)
-
-      call ESMF_ConfigFindLabel( STATE%CF, LABEL="RECORD_REF_DATE:", RC=STATUS)
-      VERIFY_(STATUS)
-!      ASSERT_(NRA == ESMF_ConfigGetLen(STATE%CF))
-      call ESMF_ConfigGetAttribute( STATE%CF, valueList=ref_date, count=NRA, RC=STATUS)
-      VERIFY_(STATUS)
-
-      call ESMF_ConfigFindLabel( STATE%CF, LABEL="RECORD_REF_TIME:", RC=STATUS)
-      VERIFY_(STATUS)
-!      ASSERT_(NRA == ESMF_ConfigGetLen(STATE%CF))
-      call ESMF_ConfigGetAttribute( STATE%CF, valueList=ref_time, count=NRA, RC=STATUS)
-      VERIFY_(STATUS)
-
-      allocate (R_ALARM(NRA), STAT=STATUS)
-      VERIFY_(STATUS)
-
-      allocate (R_FILETYPE(NRA), STAT=STATUS)
-      VERIFY_(STATUS)
-
-      DO  I = 1, NRA
-         AlarmName = "RecordAlarm" // CHAR(I+ICHAR('0')) 
-         call ESMF_ClockGetAlarm(clock, trim(AlarmName), recordAlarm, rc=status)
-         if (STATUS/=ESMF_SUCCESS) then
-            ! create alarm
-            call ESMF_TimeSet( RefTime, YY = ref_date(I)/10000, &
-                               MM = mod(ref_date(I),10000)/100, &
-                               DD = mod(ref_date(I),100), &
-                               H = ref_time(I)/10000, &
-                               M = mod(ref_time(I),10000)/100, &
-                               S = mod(ref_time(I),100), calendar=cal, rc=status )
-if (status /= 0) then
-   print *,'Error: ref_date/time ',ref_date(i), ref_time(i)
-endif
-            VERIFY_(STATUS)
-
-            nhms = ref_freq(I)
-            sec = nhms/10000*3600 + mod(nhms,10000)/100*60 + mod(nhms,100)
-            call ESMF_TimeIntervalSet( frequency, S=sec, rc=status )
-            VERIFY_(STATUS)
-            RingTime = RefTime
-            if (RingTime < currTime .and. sec /= 0) then
-               RingTime = RingTime + (INT((currTime - RingTime)/frequency)+1)*frequency
-            endif
-
-            RecordAlarm = ESMF_AlarmCreate( name=trim(AlarmName), clock=clock, RingInterval=Frequency, &
-                                             RingTime=RingTime, sticky=.false.,rc=status )
-            VERIFY_(STATUS)
-
-            if(ringTime == currTime) then
-               call ESMF_AlarmRingerOn(RecordAlarm, rc=status); VERIFY_(STATUS)
-            end if
-
-         end if
-         R_ALARM(I) = recordAlarm
-         R_FILETYPE(I) = MAPL_Write2DIsk ! default
-      END DO
-      call MAPL_AddRecord(STATE, R_ALARM, R_FILETYPE, RC=STATUS)
-      VERIFY_(STATUS)
-      deallocate (ref_freq, ref_time, ref_date)
-      deallocate(R_FILETYPE, R_ALARM)
-   endif
-
-   if (associated(STATE%RECORD)) then
-      call MAPL_GetResource( STATE, FILENAME,         &
-                             LABEL="IMPORT_CHECKPOINT_FILE:", &
-                             RC=STATUS)
-      if(STATUS==ESMF_SUCCESS) then
-         STATE%RECORD%IMP_FNAME = FILENAME
-         STATE%RECORD%IMP_LEN = LEN_TRIM(FILENAME)
-      else
-         STATE%RECORD%IMP_LEN = 0
-      end if
-         
-      call MAPL_GetResource( STATE, FILENAME,         &
-                             LABEL="INTERNAL_CHECKPOINT_FILE:", &
-                             RC=STATUS)
-      if(STATUS==ESMF_SUCCESS) then
-         STATE%RECORD%INT_FNAME = FILENAME
-         STATE%RECORD%INT_LEN = LEN_TRIM(FILENAME)
-      else
-         STATE%RECORD%INT_LEN = 0
-      end if
-   end if
-
 ! Put the Export state of each child into my export
 ! -------------------------------------------------
 
@@ -1508,80 +1598,6 @@ endif
    end if
 
   call MAPL_GenericStateClockOff(STATE,"--GenInitMine")
-
-! Initialize the children
-! -----------------------
-
-   if(associated(STATE%GCS)) then
-      NC = size(STATE%GCS)
-      if (STATE%ChildInit) then
-         allocate(CHLDMAPL(NC), stat=status)
-         MAXPHASES = 0
-         do I=1,NC
-            call MAPL_GetObjectFromGC(STATE%GCS(I), CHLDMAPL(I)%PTR, RC=STATUS)
-            VERIFY_(STATUS)
-            MAXPHASES = MAX(MAXPHASES, SIZE(CHLDMAPL(I)%PTR%PHASE_INIT))
-         end do
-         if (MAXPHASES > 1) then
-            call WRITE_PARALLEL( &
-                 "WARNING: multiple INITIALIZE methods detected " // &
-                 "for the children of " // &
-                 trim(COMP_NAME)// ". " // &
-                 "Although this is allowed, MAPL is currently restricted " //&
-                 "to the default PHASE=1 and no longer will " // &
-                 "automatically execute all of them" )
-         end if
-
-         PHASE = 1
-         do I=1,NC
-            NUMPHASES = SIZE(CHLDMAPL(I)%PTR%PHASE_INIT)
-            if (PHASE .le. NUMPHASES) then
-               call ESMF_GridCompGet( STATE%GCS(I), NAME=CHILD_NAME, RC=STATUS )
-               VERIFY_(STATUS)
-      
-               call MAPL_GenericStateClockOn (STATE,trim(CHILD_NAME))
-               call ESMF_GridCompInitialize (STATE%GCS(I), &
-                    importState=STATE%GIM(I), &
-                    exportState=STATE%GEX(I), &
-                    clock=CLOCK, PHASE=CHLDMAPL(I)%PTR%PHASE_INIT(PHASE), &
-                    userRC=userRC, RC=STATUS )
-               ASSERT_(userRC==ESMF_SUCCESS .and. STATUS==ESMF_SUCCESS)
-               call MAPL_GenericStateClockOff(STATE,trim(CHILD_NAME))
-            end if
-         end do
-         deallocate(CHLDMAPL)
-      end if
-
-!ALT addition for ExtData component. 
-! We are doing this after all children have been initialized
-!----------------------------------
-      if (.not. isGridValid) then
-         if (associated(STATE%IMPORT_SPEC)) then
-            call MAPL_StateCreateFromSpec(IMPORT,STATE%IMPORT_SPEC,RC=STATUS)
-            VERIFY_(STATUS)
-         end if
-      end if
-
-! Initialize all needed couplers
-! ---------------------------------------------------
-
-      do I=1,NC
-         do J=1,NC
-            if(STATE%CCcreated(J,I)) then
-!               call WRITE_PARALLEL( "DEBUG: initilaizing CPL in " // &
-!                    trim(comp_name) // " for " // &
-!                    trim(STATE%GCNameList(J)) // " and " // &
-!                    trim(STATE%GCNameList(I)))
-               call ESMF_CplCompInitialize (STATE%CCS(J,I), &
-                    importState=STATE%GEX(J), &
-                    exportState=STATE%GIM(I), &
-                    clock=CLOCK, userRC=userRC, RC=STATUS )
-               ASSERT_(userRC==ESMF_SUCCESS .and. STATUS==ESMF_SUCCESS)
-            endif
-         enddo
-! ---------------------------------------------------
-      enddo
-   endif
 
    if (.not. associated(STATE%parentGC)) then
       call MAPL_AdjustIsNeeded(GC, EXPORT, RC=STATUS)
@@ -2615,7 +2631,7 @@ end subroutine MAPL_DateStampGet
     integer            , optional   , intent(IN)      :: HALOWIDTH
     integer            , optional   , intent(IN)      :: PRECISION
     real               , optional   , intent(IN)      :: DEFAULT
-    logical            , optional   , intent(IN)      :: RESTART
+    integer            , optional   , intent(IN)      :: RESTART
     integer            , optional   , intent(IN)      :: UNGRIDDED_DIMS(:)
     integer            , optional   , intent(IN)      :: FIELD_TYPE
     integer            , optional   , intent(IN)      :: STAGGERING
@@ -2627,7 +2643,7 @@ end subroutine MAPL_DateStampGet
     integer                               :: STATUS
     integer                               :: usable_AI
     integer                               :: usable_RI
-    logical                               :: usable_RS
+    integer                               :: usable_RS
     real                                  :: dt
     type (ESMF_Config)                    :: CF
     type (MAPL_MetaComp), pointer         :: STATE
@@ -2656,7 +2672,7 @@ end subroutine MAPL_DateStampGet
     if (present(Restart)) then
        usable_RS  = Restart
     else
-       usable_RS = .true.
+       usable_RS = MAPL_RestartOptional
     endif
 
     if (present(DIMS)) then
@@ -3069,7 +3085,7 @@ end subroutine MAPL_DateStampGet
     integer            , optional   , intent(IN)      :: AVERAGING_INTERVAL
     integer            , optional   , intent(IN)      :: PRECISION
     real               , optional   , intent(IN)      :: DEFAULT
-    logical            , optional   , intent(IN)      :: RESTART
+    integer            , optional   , intent(IN)      :: RESTART
     character (len=*)  , optional   , intent(IN)      :: HALOWIDTH
     character (len=*)  , optional   , intent(IN)      :: FRIENDLYTO
     logical            , optional   , intent(IN)      :: ADD2EXPORT
@@ -3091,7 +3107,7 @@ end subroutine MAPL_DateStampGet
 
     character(len=ESMF_MAXSTR), parameter :: IAm="MAPL_StateAddInternalSpec"
     integer                               :: STATUS
-    logical                               :: usable_RS
+    integer                               :: usable_RS
     integer                               :: usable_HW
     integer                               :: I
     type (MAPL_MetaComp), pointer         :: STATE
@@ -3106,7 +3122,7 @@ end subroutine MAPL_DateStampGet
     if (present(Restart)) then
        usable_RS  = Restart
     else
-       usable_RS = .true.
+       usable_RS = MAPL_RestartOptional
     endif
 
     if (present(HALOWIDTH)) then
@@ -4533,7 +4549,7 @@ end function MAPL_AddChildFromGC
     type (ESMF_Array)                     :: array
     type (ESMF_Field)                     :: field
     type (ESMF_Grid)                      :: grid
-    integer                               :: arrayRank, KM_WORLD, DataType, RST
+    integer                               :: arrayRank, KM_WORLD, DataType
     character(len=ESMF_MAXSTR )           :: STD_NAME, LONG_NAME, UNITS, FieldName, BundleName
     character(len=MPI_MAX_INFO_VAL )      :: romio_cb_write, cb_buffer_size, value
     character(len=MPI_MAX_INFO_KEY )      :: key
@@ -4800,8 +4816,13 @@ end function MAPL_AddChildFromGC
     character(len=MPI_MAX_INFO_KEY )      :: key
     integer                               :: nkeys, flag, valuelen=MPI_MAX_INFO_VAL
     logical                               :: bootstrapable
-    logical                               :: ignoreEOF
+    logical                               :: restartRequired
     logical                               :: nwrgt1
+    character(len=ESMF_MAXSTR)            :: rstBoot
+    integer                               :: rstReq
+    logical                               :: amIRoot
+    type (ESMF_VM)                        :: vm
+    character(len=1)                      :: firstChar
 
 ! Implemented a suggestion by Arlindo to allow files beginning with "-" (dash)
 ! to be skipped if file does not exist and values defaulted
@@ -4812,33 +4833,65 @@ end function MAPL_AddChildFromGC
 
     FNAME = adjustl(FILENAME)
     bootstrapable = .false.
-    ignoreEOF = .false.
 
-    if (FNAME(1:1) == "-") then
-       bootstrapable = .true.
+    ! check resource for restart mode (strict would require restarts regardless of the specs)
+    call MAPL_GetResource( MPL, rstBoot, Label='MAPL_ENABLE_BOOTSTRAP:', &
+         Default='NO', RC=STATUS)
+    VERIFY_(STATUS)
+
+    call ESMF_StringUpperCase(rstBoot)
+
+    bootstrapable = (rstBoot /= 'NO')
+
+    firstChar = FNAME(1:1)
+
+    if (firstChar == "-" .or. firstChar == '+') then
        TMP = FNAME(2:)
        FNAME = TMP
-    end if
-    if (FNAME(1:1) == "+") then
+       if (.not. bootstrapable) then
+          call WRITE_PARALLEL("WARNING: use of '+' or '-' in the restart name '"//&
+               trim(FNAME)//"' allows bootstrapping!")
+       end if
        bootstrapable = .true.
-       ignoreEOF = .true.
-       TMP = FNAME(2:)
-       FNAME = TMP
     end if
 
-    if (bootstrapable) then
-       inquire(FILE = FNAME, EXIST=FileExists)
-       if (.not. FileExists) then
+    ! get the "required restart" attribute from the state
+    call ESMF_AttributeGet(STATE, NAME="MAPL_RestartRequired", VALUE=rstReq, RC=STATUS)
+    if (STATUS /= ESMF_SUCCESS) then
+       rstReq = 0
+    end if
+    restartRequired = (rstReq /= 0)
+
+    call ESMF_VmGetCurrent(vm, rc=status)
+    VERIFY_(status)
+    
+    amIRoot = MAPL_AM_I_Root(vm)
+    if(INDEX(FNAME,'*') == 0) then
+       if (AmIRoot) then
+          inquire(FILE = FNAME, EXIST=FileExists)
+       end if
+
+       call MAPL_CommsBcast(vm, fileExists, n=1, ROOT=MAPL_Root, rc=status)
+       VERIFY_(status)
+    else
+       FileExists = MAPL_MemFileInquire(NAME=FNAME)
+    end if
+
+    if (.not. FileExists) then
+       if (.not. bootstrapable .or. restartRequired) then
+          call WRITE_PARALLEL('ERROR: Required restart '//trim(FNAME)//' does not exist!')
+          RETURN_(ESMF_FAILURE)
+       else
           call WRITE_PARALLEL("Bootstrapping " // trim(FNAME))
           RETURN_(ESMF_SUCCESS)
        end if
     end if
 
-    if (ignoreEOF) then
-       if (filetype == 'pbinary' .or. filetype == 'PBINARY') then
-          filetype = 'binary'
-       end if
-    end if
+!    if (ignoreEOF) then
+!       if (filetype == 'pbinary' .or. filetype == 'PBINARY') then
+!          filetype = 'binary'
+!       end if
+!    end if
 
 ! Open file
 !----------
@@ -5007,7 +5060,7 @@ end function MAPL_AddChildFromGC
        VERIFY_(STATUS)
 
     elseif(UNIT/=0) then
-       call MAPL_VarRead(UNIT=UNIT, STATE=STATE, IgnoreEOF=ignoreEOF, RC=STATUS)
+       call MAPL_VarRead(UNIT=UNIT, STATE=STATE, bootstrapable=bootstrapable, RC=STATUS)
        VERIFY_(STATUS)
        call FREE_FILE(UNIT)
     else
@@ -5144,8 +5197,7 @@ end function MAPL_AddChildFromGC
     logical               ::  done
     integer               :: N, N1, N2, NE
     integer               :: HW
-    integer               :: RST
-    logical               :: RESTART
+    integer               :: RESTART
     integer               :: maplist(ESMF_MAXDIM)          ! mapping between array and grid
     character(len=ESMF_MAXSTR), pointer     :: ATTR_INAMES(:)
     character(len=ESMF_MAXSTR), pointer     :: ATTR_RNAMES(:)
@@ -5170,6 +5222,7 @@ end function MAPL_AddChildFromGC
     character(ESMF_MAXSTR)                  :: ungridded_name
     real,                    pointer        :: ungridded_coords(:)
     integer                                 :: szUngrd
+    integer                                 :: rstReq
 
 
    if (present(DEFER)) then
@@ -5179,6 +5232,7 @@ end function MAPL_AddChildFromGC
    end if
 
    attr = 0
+   rstReq = 0
    do L=1,size(SPEC)
 
       call MAPL_VarSpecGet(SPEC(L),DIMS=DIMS,VLOCATION=LOCATION,   &
@@ -5210,11 +5264,6 @@ end function MAPL_AddChildFromGC
                            ROTATION=ROTATION, &
                            RC=STATUS )
       VERIFY_(STATUS)
-      if(RESTART) then
-         RST = 1
-      else
-         RST = 0
-      end if
 
       I=MAPL_VarSpecGetIndex(SPEC, SHORT_NAME, RC=STATUS)
       if (I /= L) then
@@ -5222,6 +5271,10 @@ end function MAPL_AddChildFromGC
          CALL WRITE_PARALLEL(trim(Iam) //": var "// trim(SHORT_NAME) // " already exists. Skipping ...")
          cycle
       endif
+
+      if (RESTART == MAPL_RestartRequired) then
+         rstReq = 1
+      end if
 
       if (DIMS == MAPL_DimsTileOnly .OR. DIMS == MAPL_DimsTileTile) then
          ATTR = IOR(ATTR, MAPL_AttrTile)
@@ -5242,7 +5295,7 @@ end function MAPL_AddChildFromGC
          call MAPL_VarSpecSet(SPEC(L),STATE=nestState,RC=STATUS)
          VERIFY_(STATUS)
 
-         call ESMF_AttributeSet(nestState, NAME='RESTART', VALUE=RST, RC=STATUS)
+         call ESMF_AttributeSet(nestState, NAME='RESTART', VALUE=RESTART, RC=STATUS)
          VERIFY_(STATUS)
       
 ! Put the BUNDLE in the state
@@ -5269,7 +5322,7 @@ end function MAPL_AddChildFromGC
          call MAPL_VarSpecSet(SPEC(L),BUNDLE=BUNDLE,RC=STATUS)
          VERIFY_(STATUS)
 
-         call ESMF_AttributeSet(BUNDLE, NAME='RESTART', VALUE=RST, RC=STATUS)
+         call ESMF_AttributeSet(BUNDLE, NAME='RESTART', VALUE=RESTART, RC=STATUS)
          VERIFY_(STATUS)
       
 ! Put the BUNDLE in the state
@@ -5478,7 +5531,7 @@ end function MAPL_AddChildFromGC
       VERIFY_(STATUS)
       call ESMF_AttributeSet(FIELD, NAME='HALOWIDTH', VALUE=HW, RC=STATUS)
       VERIFY_(STATUS)
-      call ESMF_AttributeSet(FIELD, NAME='RESTART', VALUE=RST, RC=STATUS)
+      call ESMF_AttributeSet(FIELD, NAME='RESTART', VALUE=RESTART, RC=STATUS)
       VERIFY_(STATUS)
       call ESMF_AttributeSet(FIELD, NAME='FIELD_TYPE', VALUE=FIELD_TYPE, RC=STATUS)
       VERIFY_(STATUS)
@@ -5552,6 +5605,8 @@ end function MAPL_AddChildFromGC
 
    enddo
    call ESMF_AttributeSet(STATE, NAME="MAPL_GridTypeBits", VALUE=ATTR, RC=STATUS)
+   VERIFY_(STATUS)
+   call ESMF_AttributeSet(STATE, NAME="MAPL_RestartRequired", VALUE=rstReq, RC=STATUS)
    VERIFY_(STATUS)
 
    RETURN_(ESMF_SUCCESS)

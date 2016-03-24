@@ -1,4 +1,4 @@
-! $Id: arrayscatter.H,v 1.9.2.1 2015-01-31 02:25:39 atrayano Exp $
+! $Id$
 
 #ifdef NAME_
 #undef NAME_
@@ -168,8 +168,8 @@
 
 ! Fill the VAR vector
        
-       alloc_var = .true.
        if (present(mask)) then
+          alloc_var = .true.
           allocate(VAR(0:displs(nDEs)-1), stat=status)
           VERIFY_(STATUS)
           allocate(KK (0:nDEs-1        ), stat=status)
@@ -196,9 +196,10 @@
        else
 
 #if (RANK_ == 1)
-          var => myglob
           alloc_var = .false.
+          var => myglob
 #else
+          alloc_var = .true.
           allocate(VAR(0:displs(nDEs)-1), stat=status)
           VERIFY_(STATUS)
 
@@ -232,6 +233,7 @@
        end if
     
      else
+        alloc_var = .true.
         allocate(var(0:1), stat=status)
         VERIFY_(STATUS)
         allocate(DISPLS(0:nDEs), stat=status)

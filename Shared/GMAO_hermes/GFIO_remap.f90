@@ -2018,10 +2018,6 @@ CONTAINS
 
       integer             iarg, argc
 
-#ifndef __GFORTRAN__
-      integer, external :: iargc
-#endif
-
       character(len=2048)  argv
 
       integer, parameter :: mKm = 256  ! max no of levels
@@ -2037,7 +2033,7 @@ CONTAINS
       print *, "-------------------------------------------------------------------"
       print *
 
-      argc = iargc()
+      argc = command_argument_count()
       if ( argc < 1 ) call usage_()
 
 !  Defaults
@@ -2217,6 +2213,10 @@ CONTAINS
       if(resolution == 'E' .or. resolution == 'e') then
          im = 1152
          jm = 721
+      endif
+      if(resolution == 'F' .or. resolution == 'f') then
+         im = 2304
+         jm = 1441
       endif
 
       if(resolution == '1') then

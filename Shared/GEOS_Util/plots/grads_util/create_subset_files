@@ -6,7 +6,7 @@ set EXPDIRS = `echo $argv`
 
 # Create list of files in Control Experiment
 # ------------------------------------------
-set files0 = `/bin/ls -1 $EXPDIRS[1]/*stats*ctl1`
+set files0 = `/bin/ls -1 $EXPDIRS[1]/*stats*ctl1 | grep -v aero`
 
 
 # Create list of files in ALL Experiments
@@ -14,7 +14,7 @@ set files0 = `/bin/ls -1 $EXPDIRS[1]/*stats*ctl1`
 set allfiles = ''
        @   n = 1
    while( $n <= $num )
-   set fnew = `/bin/ls -1 $EXPDIRS[$n]/*stats*ctl1`
+   set fnew = `/bin/ls -1 $EXPDIRS[$n]/*stats*ctl1 | grep -v aero`
    set allfiles = `echo $allfiles $fnew`
        @   n = $n + 1
    end

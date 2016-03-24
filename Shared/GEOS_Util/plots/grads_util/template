@@ -197,6 +197,8 @@ endwhile
 'set dfile 'qfile.1
 'setlons'
 'setlats'
+'sett'
+'setz'
 
       do_h = true
       do_z = true
@@ -217,14 +219,18 @@ endif
 while ( m<nexp+1 )
 'fixname 'qname.m
           alias.m = result
-say 'Alias #'m' = 'alias.m
-        m = m+1
+     say 'Alias #'m' = 'alias.m
+      if( qname.m != alias.m )
+         'set lon -180 360'
+         'rename 'qname.m ' 'alias.m''qfile.m
+         'setlons'
+      endif
+      m = m+1
 endwhile
 
 
 * Extract Beginning and Ending Dates for Plots
 * --------------------------------------------
-'set dfile 'qfile.1
 'setdates'
 'run getenv "BEGDATE"'
              begdate  = result
@@ -266,15 +272,23 @@ say ' '
 if( nexp = 1 )
       NAME = EXPORT.1
         GC =     GC.1
-    EXPORT =  alias.1'1'
-   'seasonalf -FUNCTION 'qname.1'*'scale.1' -NAME 'EXPORT
+    EXPORT =  alias.1
+    if( qname.1 != alias.1 )
+       'seasonalf -FUNCTION 'alias.1''qfile.1'*'scale.1' -NAME 'EXPORT
+    else
+       'seasonalf -FUNCTION 'alias.1'.'qfile.1'*'scale.1' -NAME 'EXPORT
+    endif
     climfile = result
 else
     mstring = NAME
     m  = 1
     while ( m <= nexp )
-           mstring = mstring' 'qname.m'.'qfile.m'*'scale.m
-           m  = m + 1
+       if( qname.m != alias.m )
+           mstring = mstring' 'alias.m''qfile.m'*'scale.m
+       else
+           mstring = mstring' 'alias.m'.'qfile.m'*'scale.m
+       endif
+       m = m + 1
     endwhile
    'run 'geosutil'/plots/formulas/'NAME'.gs 'mstring
     climfile = result
@@ -346,15 +360,23 @@ endif
 if( nexp = 1 )
       NAME = EXPORT.1
         GC =     GC.1
-    EXPORT =  alias.1'1'
-   'seasonalf -FUNCTION 'qname.1'*'scale.1' -NAME 'EXPORT
+    EXPORT =  alias.1
+    if( qname.1 != alias.1 )
+       'seasonalf -FUNCTION 'alias.1''qfile.1'*'scale.1' -NAME 'EXPORT
+    else
+       'seasonalf -FUNCTION 'alias.1'.'qfile.1'*'scale.1' -NAME 'EXPORT
+    endif
     climfile = result
 else
     mstring = NAME
     m  = 1
     while ( m <= nexp )
-           mstring = mstring' 'qname.m'.'qfile.m'*'scale.m
-           m  = m + 1
+       if( qname.m != alias.m )
+           mstring = mstring' 'alias.m''qfile.m'*'scale.m
+       else
+           mstring = mstring' 'alias.m'.'qfile.m'*'scale.m
+       endif
+       m = m + 1
     endwhile
    'run 'geosutil'/plots/formulas/'NAME'.gs 'mstring
     climfile = result

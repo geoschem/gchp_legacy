@@ -43,8 +43,8 @@ module axis_utils_mod
   integer, parameter :: maxatts = 100
   real, parameter    :: epsln= 1.e-10
   real, parameter    :: fp5 = 0.5, f360 = 360.0
-  character(len=256) :: version = '$Id: axis_utils.F90,v 1.1.1.2 2012-11-16 16:00:09 atrayano Exp $'
-  character(len=256) :: tagname = '$Name: Heracles-3_1_CTM $'   
+  character(len=256) :: version = '$Id$'
+  character(len=256) :: tagname = '$Name$'   
 
   interface interp_1d
      module procedure interp_1d_1d

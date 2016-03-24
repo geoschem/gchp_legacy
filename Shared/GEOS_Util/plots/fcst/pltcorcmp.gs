@@ -58,8 +58,9 @@ endif
             geosutil = result
 
 if( DESC = '' )
-'getresource 'SOURCE'/'rcfile' DESC' ;   DESC = result
-if( DESC = "NULL" ) ; DESC = '' ; endif
+   'getresource 'SOURCE'/'rcfile' DESC'
+                                  DESC = result
+            if( DESC = "NULL" ) ; DESC = 'Forecast_Statisitcs' ; endif
 endif
 
 *******************************************************

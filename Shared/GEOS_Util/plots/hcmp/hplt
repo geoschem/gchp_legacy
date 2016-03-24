@@ -80,10 +80,6 @@ PLOTRC = geosutil'/plots/grads_util/plot.rc'
 if( result = 'NULL' ) ; 'getresource 'PLOTRC' 'field'_'GC'_FACTOR' ; endif
                                                            fact = result
 
-                        'getresource 'PLOTRC' 'field'_'GC'_'level'_'DIFFTYPE'FACTOR'
-if( result = 'NULL' ) ; 'getresource 'PLOTRC' 'field'_'GC'_'DIFFTYPE'FACTOR' ; endif
-                                                           dfact = result
-
                         'getresource 'PLOTRC' 'field'_'GC'_'level'_TITLE'
 if( result = 'NULL' ) ; 'getresource 'PLOTRC' 'field'_'GC'_TITLE' ; endif
                                                            desc = result
@@ -119,17 +115,16 @@ if( result = 'NULL' ) ; 'getresource 'PLOTRC' 'field'_'GC'_CBSCALE' ; endif
 if( cbscale = 'NULL' ) ; cbscale =  0.8      ; endif
 if( clab    = 'NULL' ) ; clab    =  on       ; endif
 
-say ''
-
 * Set Default Plotting Variables
 ********************************
 
-if( fact    = 'NULL' ) ; fact    = 1         ; endif
-if( dfact   = 'NULL' ) ; dfact   = 1         ; endif
-if( ccols   = 'NULL' ) ; ccols   = "84 0 85" ; endif
+                         dfact = 1
+if( fact    = 'NULL' ) ;  fact = 1         ; endif
+if( ccols   = 'NULL' ) ; ccols = "84 0 85" ; endif
+say ''
 
-* Remove possible BLANKS from FACT and DFACT
-* ------------------------------------------
+* Remove possible BLANKS from FACT
+* --------------------------------
 dum = ''
 length = getlength(fact)
 i = 1
@@ -146,28 +141,11 @@ i = i+1
 endwhile
 fact = dum
 
-dum = ''
-length = getlength(dfact)
-i = 1
-while( i<=length )
-  bit = substr(dfact,i,1)
-  if( bit != ' ' )
-      if( dum = '' )
-          dum = bit
-      else
-          dum = dum''bit
-      endif
-  endif
-i = i+1
-endwhile
-dfact = dum / fact
-
 * Sea-Level Pressure
 * ------------------
 if( field = 'SLP' )
         cvals = "988 1020"
         ccols = "84 0 85"
-         fact = 1
     std_cint  = 2  
     std_cvals = '4 8'
     std_dlevs = "-3 -2.6 -2.3 -2 -1.6 -1.3 -1 -.6  -.3 .3 .6 1 1.3 1.6 2 2.3 2.6 3"
@@ -556,7 +534,7 @@ say 'DIMS before Final Regridding: 'result
 'define obsg = maskout( obsg,mask )'
 
 'set gxout shaded'
-'define delg = (modg-obsg)*'dfact
+'define delg = (modg-obsg)'
 
 'run getenv "CINTDIFF"'
              CINTDIFF  = result

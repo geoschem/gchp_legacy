@@ -6,10 +6,10 @@ RCFILE = subwrd(args,3)
 
 * Ensure UpperCase EXPORT and GC
 * ------------------------------
-'run uppercase 'EXPORT
-                EXPORT = result
-'run uppercase 'GC
-                GC     = result
+*'run uppercase 'EXPORT
+*                EXPORT = result
+*'run uppercase 'GC
+*                GC     = result
 
 * Get Info from RCFILE
 * --------------------

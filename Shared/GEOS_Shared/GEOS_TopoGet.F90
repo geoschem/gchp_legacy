@@ -1,4 +1,4 @@
-! $Id: GEOS_TopoGet.F90,v 1.5 2013-03-25 15:59:33 ltakacs Exp $
+! $Id$
 ! VERIFY_ and RETURN_ macros for error handling
 
 #include "MAPL_Generic.h"

@@ -14,9 +14,6 @@
       character*256 dynrst, moistrst, topo, datmodynrst
       character*256, allocatable :: other_rst(:)
 
-      integer headr1(6)
-      integer headr2(5)
-      integer nymd,nhms
       integer im,jm,lm_in,lm_out,nt,rc
       real    undef, kappa, grav
 
@@ -30,8 +27,6 @@
       real*8, allocatable ::  ple_in(:,:,:)
       real*8, allocatable ::    q_in(:,:,:,:)
       real*8, allocatable ::   ps_in(:,:)
-      real*8, allocatable ::   ak_in(:)
-      real*8, allocatable ::   bk_in(:)
       real*8, allocatable ::    phis(:,:)
       real*8, allocatable ::  pke_in(:,:,:)
 
@@ -71,48 +66,23 @@
       real*8, allocatable ::  oml_out(:,:,:)
       real*8, allocatable :: pref_out(:)
 
-      real*8, allocatable ::   dp_fv_in(:,:,:)
-      real*8, allocatable ::    u_fv_in(:,:,:)
-      real*8, allocatable ::    v_fv_in(:,:,:)
-      real*8, allocatable ::  thv_fv_in(:,:,:)
-      real*8, allocatable ::   pk_fv_in(:,:,:)
-      real*8, allocatable ::  ple_fv_in(:,:,:)
-      real*8, allocatable ::   ps_fv_in(:,:)
-      real*8, allocatable ::  pke_fv_in(:,:,:)
-      real*8, allocatable ::  oml_fv_in(:,:,:)
-
-      real*8, allocatable ::   dp_fv_out(:,:,:)
-      real*8, allocatable ::    u_fv_out(:,:,:)
-      real*8, allocatable ::    v_fv_out(:,:,:)
-      real*8, allocatable ::  thv_fv_out(:,:,:)
-      real*8, allocatable ::   pk_fv_out(:,:,:)
-      real*8, allocatable ::  ple_fv_out(:,:,:)
-      real*8, allocatable ::   ps_fv_out(:,:)
-      real*8, allocatable ::  pke_fv_out(:,:,:)
-      real*8, allocatable ::  oml_fv_out(:,:,:)
-
       character*256, allocatable :: arg(:)
-      character*8    date
       character*1    char
-      character*2    hour
       character*4    cim,cjm,clm
       integer m,n,nargs,iargc,i,j,L
       integer num,num_other_rst,nbeg,nend
       integer, allocatable :: nt_other(:)
       logical  verbose
-
-      real eps, dums
-      real*8 dums8
-      integer im_fv, jm_fv
+      real eps
 
 ! **********************************************************************
 ! ****                      Initialize Filenames                    ****
 ! **********************************************************************
 
        verbose = .false.
+         lm_in = -999
         lm_out = -999
          undef = 1.0e15
-        dynrst = 'fvcore_internal_rst'
    datmodynrst = 'datmodyn_internal_rst'
       moistrst = 'moist_internal_rst'
       num_other_rst = 0
@@ -164,8 +134,16 @@
                  endif
              endif
 
-             if( trim(arg(n)).eq.'-lm'       ) read(arg(n+1),*) lm_out
+             if( trim(arg(n)).eq.'-lm_in'        ) read(arg(n+1),*) lm_in
+             if( trim(arg(n)).eq.'-lm_out'       ) read(arg(n+1),*) lm_out
       enddo
+      if( lm_in.eq.-999 ) then
+          print *
+          print *, 'You must supply Input Vertical Resolution!'
+          print *
+          stop
+      endif
+
       if( lm_out.eq.-999 ) then
           print *
           print *, 'You must supply Output Vertical Resolution!'
@@ -183,72 +161,6 @@
       enddo
 
 ! **********************************************************************
-! ****                   Read dycore internal Restart               ****
-! **********************************************************************
-
-      open (10,file=trim(dynrst),form='unformatted',access='sequential')
-      read (10) headr1
-      read (10) headr2
-
-      nymd = headr1(1)*10000 + headr1(2)*100 + headr1(3)
-      nhms = headr1(4)*10000 + headr1(5)*100 + headr1(6)
-
-      im = 1
-      jm = 1
-      lm_in = headr2(3)
-
-      print *, '   input FV resolution: ',im,jm,lm_in
-      print *, '                  date: ',nymd,nhms
-      print *
-
-      allocate (    u_fv_in(im,jm,lm_in)    )
-      allocate (    v_fv_in(im,jm,lm_in)    )
-      allocate (  thv_fv_in(im,jm,lm_in)    )
-      allocate (   dp_fv_in(im,jm,lm_in)    )
-      allocate (   pk_fv_in(im,jm,lm_in)    )
-      allocate (  ple_fv_in(im,jm,lm_in+1)  )
-      allocate (  pke_fv_in(im,jm,lm_in+1)  )
-      allocate (   ps_fv_in(im,jm)       )
-      allocate (   ak_in(lm_in+1)        )
-      allocate (   bk_in(lm_in+1)        )
-      allocate (  oml_fv_in(im,jm,lm_in  )  )
-
-      read (10) ak_in
-      read (10) bk_in
-      if (verbose) write (*,*) "ak_in: ", ak_in
-      if (verbose) write (*,*) "bk_in: ", bk_in
-
-      do L=1,lm_in
-         read(10) u_fv_in(1,1,L)
-      enddo
-      if (verbose) write (*,*) "u_fv_in: ", u_fv_in
-      do L=1,lm_in
-         read(10) v_fv_in(1,1,L)
-      enddo
-      if (verbose) write (*,*) "v_fv_in: ", v_fv_in
-      do L=1,lm_in
-         read(10) thv_fv_in(1,1,L)
-      enddo
-      if (verbose) write (*,*) "thv_fv_in: ", thv_fv_in
-      do L=1,lm_in+1
-         read(10) ple_fv_in(1,1,L)
-      enddo
-      if (verbose) write (*,*) "ple_fv_in: ", ple_fv_in
-      do L=1,lm_in
-         read(10) pk_fv_in(1,1,L) 
-      enddo
-      if (verbose) write (*,*) "pk_fv_in: ", pk_fv_in
-
-      close (10)
-
-      ps_fv_in(:,:) = ple_fv_in(:,:,lm_in+1)
-      do L=lm_in,1,-1
-      dp_fv_in(:,:,L) = ple_fv_in(:,:,L+1) - ple_fv_in(:,:,L)
-      enddo
-
-      oml_fv_in = 0.0
-
-! **********************************************************************
 ! ****                 Read datmodyn internal Restart               ****
 ! **********************************************************************
 
@@ -256,10 +168,8 @@
 
       im    = 1
       jm    = 1
-      !lm_in is from the fv restart
 
       print *, ' input datmo resolution: ',im,jm,lm_in
-      print *, '                   date: ',nymd,nhms
       print *
 
       allocate ( pref_in(      lm_in+1)  )
@@ -448,52 +358,6 @@
       allocate (   dz_out(im,jm,lm_out)    )
       allocate (    w_out(im,jm,lm_out)    )
 
-      allocate (    u_fv_out(im,jm,lm_out)    )
-      allocate (    v_fv_out(im,jm,lm_out)    )
-      allocate (  thv_fv_out(im,jm,lm_out)    )
-      allocate (   dp_fv_out(im,jm,lm_out)    )
-      allocate (   pk_fv_out(im,jm,lm_out)    )
-      allocate (  ple_fv_out(im,jm,lm_out+1)  )
-      allocate (  pke_fv_out(im,jm,lm_out+1)  )
-      allocate (   ps_fv_out(im,jm)       )
-      allocate (  oml_fv_out(im,jm,lm_out)    )
-
-! ------------------
-! MAT First remap FV
-! ------------------
-
-! ----------------------------------
-
-      print *, 'Calling REMAP for fvcore...'
-      call remap  ( ps_fv_out,dp_fv_out,u_fv_out,v_fv_out,oml_fv_out,thv_fv_out,q_out,phis,lm_out, &
-                    ps_fv_in ,dp_fv_in ,u_fv_in ,v_fv_in ,oml_fv_in, thv_fv_in ,q_in ,phis,lm_in , &
-                    im,jm,nt,ak_out,bk_out,pref_out,verbose )
-      print *, '        REMAP Finished'
-
-! ----------------------------------
-
-      kappa = MAPL_KAPPA
-
-      ple_fv_out(:,:,lm_out+1) = ps_fv_out(:,:)
-      do L=lm_out,1,-1
-      ple_fv_out(:,:,L) = ple_fv_out(:,:,L+1)-dp_fv_out(:,:,L)
-      enddo
-      dz_out = 0.
-       w_out = 0.
-
-! Ensure top edge = ptop
-! ----------------------
-       dp_fv_out(:,:,1) = ple_fv_out(:,:,2)-ak_out(1)
-      ple_fv_out(:,:,1) = ple_fv_out(:,:,2)-dp_fv_out(:,:,1)
-
-      pke_fv_out(:,:,:) = ple_fv_out(:,:,:)**kappa
-
-      do L=1,lm_out
-      pk_fv_out(:,:,L) = ( pke_fv_out(:,:,L+1)-pke_fv_out(:,:,L) ) &
-                       / ( kappa*log(ple_fv_out(:,:,L+1)/ple_fv_out(:,:,L)) )
-      enddo
-
-
 ! -----------------------------------------------------------------
 ! MAT Before calling REMAP, we must have THV. Construct this from T
 ! -----------------------------------------------------------------
@@ -567,73 +431,6 @@
       om_out(:,:,lm_out+1) = 0.0
 
 ! **********************************************************************
-! ****                  Write dycore internal Restart               ****
-! **********************************************************************
-
-      write(date,101) nymd
-      write(hour,102) nhms/10000
-      write(cim ,103) im
-      write(cjm ,103) jm
-      write(clm ,103) lm_out
-  101 format(i8.8)
-  102 format(i2.2)
-  103 format(i4.4)
-
-      dynrst = trim(dynrst) // '.r' // cim  // 'x' // cjm  // 'x' // clm //      &
-                               '.e' // date // '_' // hour // 'z'
-
-      print *
-      print *, '              Creating: ',trim(dynrst)
-      print *, '     output resolution: ',im,jm,lm_out
-      print *, '                  date: ',nymd,nhms
-      print *
-      open (10,file=trim(dynrst),form='unformatted',access='sequential')
-
-      headr2(3) = lm_out
-      write(10) headr1
-      write(10) headr2
-
-      write(10) ak_out
-      write(10) bk_out
-      if (verbose) write(*,*) "ak_out: ", ak_out
-      if (verbose) write(*,*) "bk_out: ", bk_out
-
-      do L=1,lm_out
-         write(10) u_fv_out(1,1,L)
-      enddo
-      if (verbose) write(*,*) "u_fv_out: ", u_fv_out
-      do L=1,lm_out
-         write(10) v_fv_out(1,1,L)
-      enddo
-      if (verbose) write(*,*) "v_fv_out: ", v_fv_out
-      do L=1,lm_out
-         write(10) thv_fv_out(1,1,L)
-      enddo
-      if (verbose) write(*,*) "thv_fv_out: ", thv_fv_out
-      do L=1,lm_out+1
-         write(10) ple_fv_out(1,1,L)
-      enddo
-      if (verbose) write(*,*) "ple_fv_out: ", ple_fv_out
-      do L=1,lm_out
-         write(10) pk_fv_out(1,1,L) 
-      enddo
-      if (verbose) write(*,*) "pk_fv_out: ", pk_fv_out
-
-! if we are on the cube (check for jm being equal to im*6) write out dz and w
-      if(jm.eq.im*6) then
-         do L=1,lm_out
-            write(10) dz_out(1,1,L)
-         enddo
-         do L=1,lm_out
-            write(10) w_out(1,1,L)
-         enddo
-         print *,' Cubed Sphere Grid: Writing zero fields of DZ and W '
-         print *
-      endif
-
-      close (10)
-
-! **********************************************************************
 ! ****                Write datmodyn internal Restart               ****
 ! **********************************************************************
 
@@ -641,8 +438,6 @@
       allocate (   dum3l(im,jm,lm_out  )  )
       allocate (   dum3e(im,jm,lm_out+1)  )
 
-      write(date,201) nymd
-      write(hour,202) nhms/10000
       write(cim ,203) im
       write(cjm ,203) jm
       write(clm ,203) lm_out
@@ -650,13 +445,11 @@
   202 format(i2.2)
   203 format(i4.4)
 
-      datmodynrst = trim(datmodynrst) // '.r' // cim  // 'x' // cjm  // 'x' // clm //      &
-                               '.e' // date // '_' // hour // 'z'
+      datmodynrst = trim(datmodynrst) // '.r' // cim  // 'x' // cjm  // 'x' // clm
 
       print *
       print *, '              Creating: ',trim(datmodynrst)
       print *, '     output resolution: ',im,jm,lm_out
-      print *, '                  date: ',nymd,nhms
       print *
       open (10,file=trim(datmodynrst),form='unformatted',access='sequential')
 
@@ -699,8 +492,7 @@
 ! ****                  Write moist internal Restart                ****
 ! **********************************************************************
 
-      moistrst = trim(moistrst) // '.r' // cim  // 'x' // cjm  // 'x' // clm //  &
-                                   '.e' // date // '_' // hour // 'z'
+      moistrst = trim(moistrst) // '.r' // cim  // 'x' // cjm  // 'x' // clm
       print *, '              Creating: ',trim(moistrst)
 
       open  (10,file=trim(moistrst),form='unformatted',access='sequential')
@@ -725,8 +517,7 @@
       do m=1,num_other_rst
          nend = nbeg + nt_other(m)-1
 
-         other_rst(m) = trim(other_rst(m)) // '.r' // cim  // 'x' // cjm  // 'x' // clm //  &
-                                              '.e' // date // '_' // hour // 'z'
+         other_rst(m) = trim(other_rst(m)) // '.r' // cim  // 'x' // cjm  // 'x' // clm
          print *, '              Creating: ',trim(other_rst(m))
 
          open (10,file=trim(other_rst(m)),form='unformatted',access='sequential')
@@ -1488,24 +1279,25 @@
       return
       end
       subroutine usage()
-      write (*,*) "Usage:  "
-      write (*,*)
-      write (*,*) " rs_vinterp.x -dynrst      dynrst_fname      Default: fvcore_internal_restart"
-      write (*,*) "              -datmodynrst datmodynrst_fname Default: datmodyn_internal_restart"
-      write (*,*) "              -moistrst    moistrst_fname    Default: moist_internal_restart"
-      write (*,*) "              -topo        topo_fname"
-      write (*,*) "              -lm LM"
-      write (*,*)
-      write (*,*) "where:"
-      write (*,*) "-----"
-      write (*,*) "  -dynrst           dynrst_fname:  Filename of dynamics internal restart"
-      write (*,*) "  -datmodynrst datmodynrst_fname:  Filename of datmodyn internal restart"
-      write (*,*) "  -moistrst       moistrst_fname:  Filename of    moist internal restart"
-      write (*,*) "  -topo               topo_fname:  Filename of    topography"
-      write (*,*) "  -lm                         LM:  Output Veritcal Resolution"
-      write (*,*)
-      write (*,*) "creates updated restarts at new LM resolution"
-      write (*,*) "---------------------------------------------"
-      write (*,*)
+      write (*,1001) "Usage:  "
+      write (*,1001)
+      write (*,1001) " rs_vinterp_scm.x -datmodynrst datmodynrst_fname Default: datmodyn_internal_rst"
+      write (*,1001) "                  -moistrst    moistrst_fname    Default: moist_internal_rst"
+      write (*,1001) "                  -topo        topo_fname"
+      write (*,1001) "                  -lm_in       INPUT_LM"
+      write (*,1001) "                  -lm_out      OUTPUT_LM"
+      write (*,1001)
+      write (*,1001) "where:"
+      write (*,1001) "-----"
+      write (*,1001) "  -datmodynrst datmodynrst_fname:  Filename of datmodyn internal restart"
+      write (*,1001) "  -moistrst       moistrst_fname:  Filename of    moist internal restart"
+      write (*,1001) "  -topo               topo_fname:  Filename of    topography"
+      write (*,1001) "  -lm_in                INPUT_LM:  Input  Vertical Resolution"
+      write (*,1001) "  -lm_out              OUTPUT_LM:  Output Vertical Resolution"
+      write (*,1001)
+      write (*,1001) "creates updated restarts at new LM resolution"
+      write (*,1001) "---------------------------------------------"
+      write (*,1001)
+1001 format (A)
       call exit(7)
       end

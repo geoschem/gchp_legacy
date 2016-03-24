@@ -150,8 +150,11 @@
             return
         endif
 
-      call dyn2dyn_do1_ ( dynfile, lwifile, w_e, nymd, nhms, lprec, freq, nstep, &
-                          in, jn, kn, verbose, ier, dophys=dophys, expid=expid,&
+      call dyn2dyn_do1_ ( w_e, &
+                          in, jn, kn, verbose, ier, &
+                          dynfile=dynfile, lwifile=lwifile, &
+                          nymd=nymd, nhms=nhms, prec=lprec, freq=freq, nstep=nstep, &
+                          dophys=dophys, expid=expid,&
                           force=force_it, dgrid=dgrid_, vectype=vectype )
         if (ier/=0) then
             rc = 2
@@ -169,28 +172,32 @@
 !
 ! !INTERFACE:
 
-      subroutine dyn2dyn_do1_ ( dynfile, lwifile, w_e, nymd, nhms, prec, freq, nstep, &
+      subroutine dyn2dyn_do1_ ( w_e, &
                                 in, jn, kn, verbose, rc, &
+                                dynfile, lwifile, w_out, &
+                                nymd, nhms, prec, freq, nstep, &
                                 dophys, expid, force, dgrid, vectype )
  
 ! !USES:
+      use m_set_eta, only: set_eta
 
       implicit NONE
 
 ! !INPUT PARAMETERS:
 
       type(dyn_vect) w_e  ! dynamics vector in eta (input)
+      type(dyn_vect), optional :: w_out ! dynamics vector in eta (output)
 
-      character(len=*), intent(in) :: dynfile     ! output filename
-      character(len=*), intent(in) :: lwifile     ! filename containing LWI
+      character(len=*),optional, intent(in) :: dynfile     ! output filename
+      character(len=*),optional, intent(in) :: lwifile     ! filename containing LWI
       integer, intent(inout) :: in, jn, kn        ! dim for output
-      integer, intent(in)    :: prec              ! precision of output file 0=32;1=64
-      integer, intent(in)    :: freq              ! frequency of times in file
-      integer, intent(in)    :: nstep             ! gcm-phys control parameter
-      logical, intent(in)    :: verbose           ! echo msgs
+      integer, intent(in),optional :: prec              ! precision of output file 0=32;1=64
+      integer, intent(in),optional :: freq              ! frequency of times in file
+      integer, intent(in),optional :: nstep             ! gcm-phys control parameter
+      logical, intent(in) :: verbose                    ! echo msgs
 
-      integer, intent(in)    :: nymd              ! date (YYYYMMDD)
-      integer, intent(in)    :: nhms              ! time (HHMMSS)
+      integer, intent(in),optional :: nymd              ! date (YYYYMMDD)
+      integer, intent(in),optional :: nhms              ! time (HHMMSS)
 
       logical,          intent(in), optional :: dophys      ! controls call oft vdc2vdc
       character(len=*), intent(in), optional :: expid       ! experiment name
@@ -217,6 +224,7 @@
 !
 !  27Sep2004  Todling   Initial independed code; stripped off dyn2dyn.
 !  04Feb2005  Gelaro/RT Added phys trajectory output when no interpolation
+!  27Jan2015  Todling   Add call to set eta for proper vertical interpolation
 !
 !----------------------------------------------------------------------------------
 !EOP
@@ -232,8 +240,9 @@
 !     Locals
 !     ------
       integer ier
-      integer ntimes, n
+      integer ntimes, n, ks, k
       integer im, jm, km
+      real,allocatable:: ak(:),bk(:)
       logical interp, zinterp, hinterp, zint_done, do_phys, force_it, dgrid_
 
       if (present(dophys)) then 
@@ -281,12 +290,23 @@
 
 !               Initialize dimension of vertically interpolated vector
 !               -------------------------------------------------------
-                call dyn_init ( w_e%grid%im, w_e%grid%jm, kn, w_e%grid%lm, w_v, ier, vectype=vectype )
+                allocate(ak(kn+1),bk(kn+1))
+                call set_eta ( kn,ks,w_v%grid%ptop,w_v%grid%pint,ak,bk )
+                call dyn_init ( w_e%grid%im, w_e%grid%jm, kn, w_e%grid%lm, w_v, ier, vectype=vectype, ks=ks, ak=ak, bk=bk )
                    if ( ier/=0 ) then
                         print *, trim(myname_), ': Error initializing dyn vector(w_v), ier=', ier
                         rc = 1
                         return
                    endif
+                !following is helpful sometimes ... (RT)
+                do k=kn+1,1,-1
+                   write(6,*) kn-k+2, ak(k)/1000.d0,bk(k)
+                enddo
+                print *
+                do k=1,kn+1
+                   write(6,*) k, ak(k)/1000.d0,bk(k)
+                enddo
+                deallocate(ak,bk)
 
 !               Map to desired resolution
 !               -------------------------
@@ -362,16 +382,27 @@
 
 !               Write out horizontally (and maybe vertically) interpolated vector
 !               -----------------------------------------------------------------
-                write(*,'(a,i8,i3,a,i8)') trim(myname_) // ': writing ' // trim(dynfile) // &
-                                       ' on ', nymd, nhms/10000, 'Z, freq = ', freq 
-                call dyn_put ( dynfile, nymd, nhms, prec, w_o, ier, &
-                               freq=freq, nstep=nstep, vectype=vectype )
-                  if ( ier .ne. 0 ) then
-                       call dyn_clean ( w_o )
-                       print *, trim(myname_), ': cannot write interpolated ETA file'
-                       rc = 3
-                       return
-                  endif
+                if (present(dynfile)) then
+                   write(*,'(a,i8,i3,a,i8)') trim(myname_) // ': writing ' // trim(dynfile) // &
+                                          ' on ', nymd, nhms/10000, 'Z, freq = ', freq 
+                   call dyn_put ( dynfile, nymd, nhms, prec, w_o, ier, &
+                                  freq=freq, nstep=nstep, vectype=vectype )
+                     if ( ier .ne. 0 ) then
+                          call dyn_clean ( w_o )
+                          print *, trim(myname_), ': cannot write interpolated ETA file'
+                          rc = 3
+                          return
+                     endif
+                endif
+                if (present(w_out)) then
+                   call dyn_init (w_o, w_out, ier, copy=.true.)
+                     if ( ier .ne. 0 ) then
+                          call dyn_clean ( w_o )
+                          print *, trim(myname_), ': cannot copy result to output vector'
+                          rc = 3
+                          return
+                     endif
+                endif
 
 !               Try and interpolate vertical diffusion coefficients ... though they may not be available
 !               ----------------------------------------------------------------------------------------
@@ -393,16 +424,27 @@
 
 !               Write out vertically interpolated state vector
 !               ----------------------------------------------
-                write(*,'(a,i8,i3,a,i8)') trim(myname_) // ': writing ' // trim(dynfile) // &
-                                       ' on ', nymd, nhms/10000, 'Z, freq = ', freq 
-                call dyn_put ( dynfile, nymd, nhms, prec, w_v, ier, &
-                               freq=freq, nstep=nstep, vectype=vectype )
-                   if ( ier .ne. 0 ) then
-                        print *, trim(myname_), ': cannot write interpolated ETA file'
-                        rc = 3
-                        return
-                   endif
-
+                if (present(dynfile)) then
+                   write(*,'(a,i8,i3,a,i8)') trim(myname_) // ': writing ' // trim(dynfile) // &
+                                          ' on ', nymd, nhms/10000, 'Z, freq = ', freq 
+                   call dyn_put ( dynfile, nymd, nhms, prec, w_v, ier, &
+                                  freq=freq, nstep=nstep, vectype=vectype )
+                      if ( ier .ne. 0 ) then
+                           print *, trim(myname_), ': cannot write interpolated ETA file'
+                           rc = 3
+                           return
+                      endif
+                endif
+                if (present(w_out)) then
+                   call dyn_init (w_v, w_out, ier, copy=.true.)
+                     if ( ier .ne. 0 ) then
+                          call dyn_clean ( w_v )
+                          print *, trim(myname_), ': cannot copy result to output vector'
+                          rc = 3
+                          return
+                     endif
+                endif
+  
 !               Try and interpolate vertical diffusion coefficients ... though they may not be available
 !               ----------------------------------------------------------------------------------------
                 if (do_phys) then
@@ -424,15 +466,27 @@
 
 !           Write out pressure file
 !           -----------------------
-            write(*,'(a,i8,i3,a,i8)') trim(myname_) // ': writing ' // trim(dynfile) // &
-                                   ' on ', nymd, nhms/10000, 'Z, freq = ', freq
-            call dyn_put ( dynfile, nymd, nhms, prec, w_e, ier, &
-                           freq=freq, nstep=nstep, vectype=vectype )
-               if ( ier .ne. 0 ) then
-                    print *, trim(myname_), ':cannot write ETA file'
-                    rc = 3
-                    return
-               endif
+            if (present(dynfile)) then
+               write(*,'(a,i8,i3,a,i8)') trim(myname_) // ': writing ' // trim(dynfile) // &
+                                      ' on ', nymd, nhms/10000, 'Z, freq = ', freq
+               call dyn_put ( dynfile, nymd, nhms, prec, w_e, ier, &
+                              freq=freq, nstep=nstep, vectype=vectype )
+                  if ( ier .ne. 0 ) then
+                       print *, trim(myname_), ':cannot write ETA file'
+                       rc = 3
+                       return
+                  endif
+            endif
+            if (present(w_out)) then
+               call dyn_init (w_e, w_out, ier, copy=.true.)
+                 if ( ier .ne. 0 ) then
+                      call dyn_clean ( w_e )
+                      print *, trim(myname_), ': cannot copy result to output vector'
+                      rc = 3
+                      return
+                 endif
+            endif
+  
 
             if (do_phys) then
                 call vdc2vdc ( w_e%grid%im, w_e%grid%jm, w_e%grid%km, w_e%grid%ptop, w_e%pt, w_e%delp, &

@@ -183,10 +183,10 @@ endwhile
 
 '!remove sedfile'
 '!remove 'name'.ctl'
-'!echo "s?GRADSDATA?"'name'.data?g > sedfile'
-'!echo "s?UNDEF?"'undef'?g >> sedfile'
-'!echo "s?ZDIM2?"'nlev'?g  >> sedfile'
-'!echo "s?LEVS?"'levs'?g   >> sedfile'
+'!echo "s@GRADSDATA@"'name'.data@g > sedfile'
+'!echo "s@UNDEF@"'undef'@g        >> sedfile'
+'!echo "s@ZDIM2@"'nlev'@g         >> sedfile'
+'!echo "s@LEVS@"'levs'@g          >> sedfile'
 '!sed -f  sedfile 'geosutil'/plots/grads_util/zdiff.template > 'name'.ctl'
 
 'open 'name'.ctl'

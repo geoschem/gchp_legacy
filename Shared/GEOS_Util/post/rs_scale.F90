@@ -10,10 +10,10 @@
 ! ************************************************************************
 ! ************************************************************************
 
-      character*256 :: Usage="rs_scale.x  fv_internal_rst  moist_internal_rst  <grid_cell_area>"
-      character*256 :: dynrst, mstrst
-      character*256 :: afile="NULL"
-      character*256 :: arg(3)
+      character*1024 :: Usage="rs_scale.x  fv_internal_rst  moist_internal_rst  <grid_cell_area>"
+      character*1024 :: dynrst, mstrst
+      character*1024 :: afile="NULL"
+      character*1024 :: arg(3)
 
       integer headr1(6)
       integer headr2(5)
@@ -565,8 +565,8 @@
       implicit   none
       integer    im,jm
       real  area(im,jm)
-      character*256 :: afile
-      character*256 :: Usage="rs_scale.x  fv_internal_rst  moist_internal_rst  <grid_cell_area>"
+      character*1024 :: afile
+      character*1024 :: Usage="rs_scale.x  fv_internal_rst  moist_internal_rst  <grid_cell_area>"
 
       real*8, allocatable :: cosp(:)
       real*8, allocatable ::   da(:,:)

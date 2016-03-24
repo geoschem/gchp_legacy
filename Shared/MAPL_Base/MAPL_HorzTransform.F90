@@ -31,7 +31,7 @@
 
 module MAPL_HorzTransformMod
 
-!  $Id: MAPL_HorzTransform.F90,v 1.12.12.6.4.1.4.4.4.2.2.2.2.4.2.3.2.2 2015-01-29 18:42:53 atrayano Exp $
+!  $Id$
 
 
   use ESMF
@@ -363,56 +363,51 @@ contains
        GridTypeOut = 'UNKNOWN'
     endif
 
-    if (GridTypeIn == 'Cubed-Sphere' .or. GridTypeOut == 'Cubed-Sphere') then
+    if (Conservative_) then
+       call ESMF_GridGet(gridIn, name = gridNameIn, rc=status)
+       VERIFY_(STATUS)
 
-       if (Conservative_) then
-          call ESMF_GridGet(gridIn, name = gridNameIn, rc=status)
-          VERIFY_(STATUS)
+       call ESMF_GridGet(gridout, name = gridNameOut, rc=status)
+       VERIFY_(STATUS)
 
-          call ESMF_GridGet(gridout, name = gridNameOut, rc=status)
-          VERIFY_(STATUS)
-
-          if (GridTypeIn == 'Cubed-Sphere') then
-             ASSERT_(GridTypeOut /= 'Cubed-Sphere')
-             gridNameCS = gridNameIn
-             gridNameLL = gridNameOut
-          else
-             gridNameCS = gridNameOut
-             gridNameLL = gridNameIn
-          end if
-
-          call MAPL_GeosNameNew(gridnamell)
-          call MAPL_GeosNameNew(gridnamecs)
-          !be careful which is first (latlon)
-
-          filename=trim(adjustl(gridnamell)) // '_' // &
-               trim(adjustl(gridnamecs))  // '.bin'
+       if (GridTypeIn == 'Cubed-Sphere') then
+          gridNameCS = gridNameIn
+          gridNameLL = gridNameOut
+       else
+          gridNameCS = gridNameOut
+          gridNameLL = gridNameIn
        end if
 
-       do i=1,MAX_AvailableTransforms
-          if(AvailableTransforms(i)%created) then
+       call MAPL_GeosNameNew(gridnamell)
+       call MAPL_GeosNameNew(gridnamecs)
+       !be careful which is first (latlon)
 
-             Trans = AvailableTransforms(i)
-
-             if (.not. Conservative_) then
-                if (Trans%runTile) cycle
-             else
-                if (.not. Trans%runTile) cycle
-                if (.not. Trans%ConsrvRotate) cycle
-                if (.not. Trans%ConsrvTrans%created .or. &
-                     Trans%ConsrvTrans%tilefile /= filename) cycle
-             end if
-
-             if(  all(Trans%N_in       ==N_in    )   .and. &
-                  all(Trans%N_out      ==N_out   )   .and. &
-                  Trans%GridTypeIn     ==GridTypeIn  .and. &
-                  Trans%GridTypeOut    ==GridTypeOut .and. &
-                 (Trans%parallel   .eqv. .true.) ) return
-
-          end if
-       enddo
-
+       filename=trim(adjustl(gridnamell)) // '_' // &
+                trim(adjustl(gridnamecs)) // '.bin'
     end if
+
+    do i=1,MAX_AvailableTransforms
+       if(AvailableTransforms(i)%created) then
+
+          Trans = AvailableTransforms(i)
+
+          if (.not. Conservative_) then
+             if (Trans%runTile) cycle
+          else
+             if (.not. Trans%runTile) cycle
+             if (.not. Trans%ConsrvRotate) cycle
+             if (.not. Trans%ConsrvTrans%created .or. &
+                       Trans%ConsrvTrans%tilefile /= filename) cycle
+          end if
+
+          if(  all(Trans%N_in       ==N_in    )   .and. &
+               all(Trans%N_out      ==N_out   )   .and. &
+               Trans%GridTypeIn     ==GridTypeIn  .and. &
+               Trans%GridTypeOut    ==GridTypeOut .and. &
+               (Trans%parallel   .eqv. .true.) ) return
+
+       end if
+    enddo
 
     if    ( GridTypeIn =='Cubed-Sphere') then
        call ESMF_GridGetCoord (GridOut, coordDim=1, localDE=0, &
@@ -2170,6 +2165,7 @@ contains
     type(MAPL_RegridConserv), pointer  :: ConsrvTrans
     type(GlobalTileTrans),    pointer  :: GlobalTrans
     type(ESMF_VM)                      :: usableVM
+    logical                            :: LocGlobMatch
 
     if (present(VM)) then
        usableVM = VM
@@ -2184,10 +2180,29 @@ contains
           Trans = AvailableTransforms(i)
           ConsrvTrans => Trans%ConsrvTrans
           GlobalTrans => ConsrvTrans%GlobalTrans
+
           if (Trans%runTile) then
+             ! if the conv transform is created check whether the way this routine was called
+             ! matches the global or local tile on the created transform
+             if (present(i1)) then 
+                ASSERT_(present(IN))
+                ASSERT_(present(J1))
+                ASSERT_(present(JN))
+                if (ConsrvTrans%created .and. (ConsrvTrans%useTileGlobal .eqv. .false.)) then
+                   LocGlobMatch = .true.
+                else
+                   LocGlobMatch = .false.
+                endif
+             else
+                if (ConsrvTrans%created .and. (ConsrvTrans%useTileGlobal .eqv. .true. )) then
+                   LocGlobMatch = .true.
+                else
+                   LocGlobMatch = .false.
+                endif
+             end if
              if (ConsrvTrans%created .and. &
                  ConsrvTrans%tilefile == filename .and. &
-                 GlobalTrans%GInfo(1)%GridName == GridIn ) then
+                 GlobalTrans%GInfo(1)%GridName == GridIn .and. LocGlobMatch) then
                 if (present(GridOut)) then
                    ASSERT_(GlobalTrans%GInfo(2)%GridName == GridOut)
                 end if

@@ -397,10 +397,16 @@ end
          end
      endif
 
+
 # Move Current Files within Holding Directory to proper YYYYMM Sub-Directories
 # ----------------------------------------------------------------------------
+
+     cd $SOURCE/holding
+     if( -e LOCKFILE ) /bin/echo "Waiting for LOCKFILE ... "
+                                     lockfile LOCKFILE
      set    dates = ''
      set numdates = ''
+     set numlocs  = ''
      @    nstream = 0
      foreach collection (  $collections )
      @    nstream =                   $nstream  + 1
@@ -416,10 +422,10 @@ end
           else
             set locals  = `/bin/ls -1  | grep ${expid}.${collection} | grep -v monthly | grep -v diurnal`
           endif
-            set numlocs = $#locals
+            set numlocs = `echo $numlocs $#locals`
             set numdate = 0
 
-            if( $numlocs != 0 ) then
+            if( $numlocs[$nstream] != 0 ) then
 
               # Extract Extension (last node) from Typical Local File 
               # -----------------------------------------------------
@@ -453,6 +459,9 @@ end
 
      set numdates = `echo $numdates $numdate`
      end
+     cd $SOURCE/holding
+     /bin/rm -f LOCKFILE
+
 
 # Echo Dates for Each Collection to Check
 # ---------------------------------------
@@ -903,9 +912,9 @@ end
 
 endif  # Endif for monthlies NUM = 0 check
 
-# Create/Update Climatology Files for 2 or more years
-# ---------------------------------------------------
-if( $num >= 24 && ( $RECDATE == "NULL" || $CLIMO == "TRUE" ) ) then
+# Create/Update Climatology Files for 2 or more years if locals were processed
+# ----------------------------------------------------------------------------
+if( $numlocs[$nstream] != 0 && $num >= 24 && ( $RECDATE == "NULL" || $CLIMO == "TRUE" ) ) then
     set date  = `echo $monthlies[$num] | cut -d "." -f${date_node}`
     set month = `echo $date            | cut -c5-6`
            $GEOSUTIL/post/gcmclim.script -source $SOURCE -collection $collection -month $month
@@ -1072,15 +1081,15 @@ endif
          /bin/rm -f LIST_$datetime
          touch      LIST_$datetime
 
-         set   ntypes = "L P"
+         set   ntypes = "P L"
 foreach type ($ntypes)
 
     if( $type == "L" ) then
          set   nplots = `$GEOSUTIL/plots/landscape.script -plots`
-         set   nplots = "$nplots $MISC"
+         set   nplots = "$MISC $nplots"
     else if ( $type == "P" ) then
          set   nplots = `$GEOSUTIL/plots/portrait.script -plots`
-         set   nplots = "$cmpexp $nplots $MISC"
+         set   nplots = "$MISC $cmpexp $nplots"
     endif
     set nplots = `echo $nplots` # To remove blanks
 

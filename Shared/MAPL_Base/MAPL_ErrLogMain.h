@@ -1,5 +1,5 @@
 
-!  $Id: MAPL_ErrLogMain.h,v 1.3 2008-11-12 20:21:34 dasilva Exp $ 
+!  $Id$ 
 
 ! The error logging may eventually evolve into a module based
 ! on the ESMF logger.  For now these macros provide simple

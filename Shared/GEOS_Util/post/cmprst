@@ -98,8 +98,12 @@ echo "---------------------------------"
                         if( -e diffs ) /bin/rm -rf diffs
                         echo "  $cmd $rst1 $rst2"
                                 $cmd $rst1 $rst2 | tee diffs
-                                 set RC = $status
-                                if( "$cmd" == "cdo -s -diffn" & $RC[1] == 0 ) set RC = `cat diffs | cut -do -f1`
+                                set size0 = `/bin/ls -l diffs | cut -d' ' -f5`
+                                if( $size0 == 0 ) then
+                                    set RC =  0
+                                else
+                                    set RC =  1
+                                endif
                         if( -e diffs ) /bin/rm -rf diffs
                         if( $RC[1] == 0 ) then
                             echo "   Success!"
@@ -114,11 +118,17 @@ echo "---------------------------------"
                                 if( $size1 > $size2 ) set size = $size2
                                 echo "   Comparing first $size bytes ..."
                                    if( "$cmd" == "cdo -s -diffn" ) then
-                                         cdo -n $size -s -diffn $rst1 $rst2
+                                         cdo -n $size -s -diffn $rst1 $rst2 | tee diffs
                                    else
-                                         cmp -n $size $rst1 $rst2
+                                         cmp -n $size $rst1 $rst2 | tee diffs
                                    endif
-                                if( $status == 0 ) then
+                                set size0 = `/bin/ls -l diffs | cut -d' ' -f5`
+                                if( $size0 == 0 ) then
+                                    set RC =  0
+                                else
+                                    set RC =  1
+                                endif
+                                if( $RC == 0 ) then
                                     echo "   Success!"
                                     echo " "
                                 else

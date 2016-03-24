@@ -1,6 +1,6 @@
 
 package Net::Config;
-# $Id: Config.pm,v 1.1 2002-01-30 20:42:21 lucchesi Exp $
+# $Id$
 
 require Exporter;
 use vars qw(@ISA @EXPORT %NetConfig $VERSION $CONFIGURE $LIBNET_CFG);

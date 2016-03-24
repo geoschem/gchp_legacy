@@ -1,4 +1,4 @@
-! $Id: allgather.H,v 1.2 2008-08-28 20:34:14 trayanov Exp $
+! $Id$
 
 #ifdef NAME_
 #undef NAME_

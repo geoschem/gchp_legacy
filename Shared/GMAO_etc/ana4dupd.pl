@@ -12,6 +12,8 @@
 # !REVISION HISTORY:
 #
 #   05Feb2014 Todling  Initial code
+#   21Sep2015 Todling  Add a version of an incremental update machinery
+#                      (not quite justifiable in practice)
 #
 # !TO DO:
 #
@@ -52,9 +54,13 @@ use Manipulate_time "tick";
 # --------------------
   init();
 
-# Update backgrounds
-# ------------------
-  upd();
+# Increment update
+# ----------------
+  iupd();
+
+# Analysis update
+# ---------------
+  aupd();
 
 # Create IAU tendencies
 # ---------------------
@@ -65,7 +71,39 @@ use Manipulate_time "tick";
   exit(0);
 
 #......................................................................
-sub upd {
+sub iupd {
+  return unless ($do_iupd);
+  return unless ($iter > 0);
+
+# Special-handle first file
+# -------------------------
+  my $nymd = $nymdb;  $nhms = $nhmsb;
+  my $hh   = substr($nhms,0,2);
+  if ( $rcdir ) {
+      $ifile = `$fvroot/bin/echorc.x -rc $rcdir/fvpsas.rc -template $expid $nymd $nhms upper-air_xinc_filename`; chomp($ifile);
+      my $rcopt = "-rc $rcdir/fvpsas.rc";
+  } else {
+      $ifile = "$expid.$itype.${nymd}_${hh}z.$ncsuffix";
+      my $rcopt = "";
+  }
+  my ($fname, $ext) = &fname_fext ($ifile); 
+  $Ifile = "${fname}.iter${iter}.$ext";
+  if ( ! -e $Ifile ) {
+       $errcode = 99;
+       die ">>> ERROR <<< cannot find file $Ifile " if ( $errcode );
+  }
+  $cmd = $fvroot . "/bin/dyn_iupd.x $Ifile $ifile";
+  print "Begin $cmd \n";
+  if ( ! $opt_debug ) {
+      $errcode = system($cmd);
+      die ">>> ERROR <<< cannot update increment at time ($nymd,$nhms) " if ( $errcode );
+      if ( ! -e "$afile" ) {
+         die ">>> ERROR <<< did not increment update at time ($nymd,$nhms) " if ( $errcode );
+      }
+  }
+}
+#......................................................................
+sub aupd {
 
 # Special-handle first file
 # -------------------------
@@ -81,6 +119,17 @@ sub upd {
       $ifile = "$expid.$itype.${nymd}_${hh}z.$ncsuffix";
       $afile = "$expid.$atype.${nymd}_${hh}z.$ncsuffix";
       my $rcopt = "";
+  }
+# In case of multiple outer loops, the analysis is formed by adding 
+# the total increment # at interation iter to the original background
+# at iteration 1
+  if ( $do_iupd && $iter > 0 ) {
+     my ($bname, $ext) = &fname_fext ($bfile); 
+     $bfile = "${bname}.iter1.$ext";
+     if ( ! -e $bfile ) {
+          $errcode = 99;
+          die ">>> ERROR <<< cannot find file $bfile " if ( $errcode );
+     }
   }
 
 # Create ana for this time
@@ -107,6 +156,14 @@ sub upd {
          $bfile = "$expid.$btype.${nymd}_${hh}z.$ncsuffix";
          $ifile = "$expid.$itype.${nymd}_${hh}z.$ncsuffix";
          $afile = "$expid.$atype.${nymd}_${hh}z.$ncsuffix";
+     }
+     if ( $do_iupd && $iter > 0 ) {
+        my ($bname, $ext) = &fname_fext ($bfile); 
+        $bfile = "${bname}.iter1.$ext";
+        if ( ! -e $bfile ) {
+             $errcode = 99;
+             die ">>> ERROR <<< cannot find file $bfile " if ( $errcode );
+        }
      }
      $cmd = $fvroot . "/bin/dynp.x $rcopt -s $bfile -p $ifile -a 1 -ainc -g5 -pncf -pureadd -realp -os $afile";
      if ( $nymd == $nymde && $nhms == $nhmse ) { # special handle file at final time
@@ -150,6 +207,14 @@ sub iau {
       $afile = "$expid.$atype.${nymd}_${hh}z.$ncsuffix";
       my $rcopt = "";
   }
+  if ( $do_iupd && $iter > 0 ) {
+     my ($bname, $ext) = &fname_fext ($bfile); 
+     $bfile = "${bname}.iter1.$ext";
+     if ( ! -e $bfile ) {
+          $errcode = 99;
+          die ">>> ERROR <<< cannot find file $bfile " if ( $errcode );
+     }
+  }
 
  ed_mkiau_rc ($bfile,$afile,$nymd,$nhms);
 
@@ -163,6 +228,7 @@ sub iau {
          die ">>> ERROR <<< did not create IAU tendency at time ($nymd,$nhms) " if ( $errcode );
       }
       $iaufname = `$fvroot/bin/echorc.x -rc $rcdir/fvpsas.rc -template $expid $nymd $nhms iau_tendency_filename`; chomp($iaufname);
+      print "copying agcm_import_rst to $iaufname ...\n";
       rename("agcm_import_rst","$iaufname");
   }
 
@@ -177,6 +243,14 @@ sub iau {
      } else {
          $bfile = "$expid.$btype.${nymd}_${hh}z.$ncsuffix";
          $afile = "$expid.$atype.${nymd}_${hh}z.$ncsuffix";
+     }  
+     if ( $do_iupd && $iter > 0 ) {
+        my ($bname, $ext) = &fname_fext ($bfile); 
+        $bfile = "${bname}.iter1.$ext";
+        if ( ! -e $bfile ) {
+             $errcode = 99;
+             die ">>> ERROR <<< cannot find file $bfile " if ( $errcode );
+        }
      }
      ed_mkiau_rc ($bfile,$afile,$nymd,$nhms);
      $cmd = "$MPIRUN_IAU";
@@ -189,6 +263,7 @@ sub iau {
               die ">>> ERROR <<< did not create IAU tendency at time ($nymd,$nhms) " if ( $errcode );
            }
            $iaufname = `$fvroot/bin/echorc.x -rc $rcdir/fvpsas.rc -template $expid $nymd $nhms iau_tendency_filename`; chomp($iaufname);
+           print "copying agcm_import_rst to $iaufname ...\n";
            rename("agcm_import_rst","$iaufname");
          }
      } else {
@@ -200,6 +275,7 @@ sub iau {
               die ">>> ERROR <<< did not create IAU tendency at time ($nymd,$nhms) " if ( $errcode );
            }
            $iaufname = `$fvroot/bin/echorc.x -rc $rcdir/fvpsas.rc -template $expid $nymd $nhms iau_tendency_filename`; chomp($iaufname);
+           print "copying agcm_import_rst to $iaufname ...\n";
            rename("agcm_import_rst","$iaufname");
          }
      }
@@ -263,12 +339,12 @@ sub init {
    }
 
    $ncsuffix = "nc4";
+   $do_iupd = 0;  # formally, it makes no sense to apply an incremental update to the IAU tendencies
 
    $iter = 0;
    if ( $opt_iter ) {
       $iter = $opt_iter;
    }
-   die ">>> ERROR <<< cannot yet handle iter>0 " if ( $iter>0 );
 
    if ( $opt_rcdir ) {
        $rcdir = $opt_rcdir;
@@ -285,6 +361,16 @@ sub init {
    $btype = "bkg.eta";
    $itype = "xinc.eta";
    $atype = "ana.eta";
+}
+#......................................................................
+sub fname_fext {
+    local $_ = reverse $_[0] or 
+        die "no filename supplied to fname_fext!\n";
+    #no period or ext found, return original arg
+    return $_[0] unless /(.*?)\.(.+)/; 
+    my $fname = reverse$2;
+    my $ext= reverse $1;
+    return ($fname, $ext);    
 }
 #......................................................................
 sub usage {

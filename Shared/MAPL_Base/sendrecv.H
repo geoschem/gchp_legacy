@@ -1,4 +1,4 @@
-! $Id: sendrecv.H,v 1.3 2008-08-28 20:24:07 trayanov Exp $
+! $Id$
 
 #ifdef NAME_
 #undef NAME_

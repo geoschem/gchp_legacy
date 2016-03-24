@@ -616,7 +616,7 @@ m = m + 1
 endwhile
 
 'draw ylab Difference (x10`a-3`n)'
-'draw xlab Forecast Day ('month' 'year')'
+*'draw xlab Forecast Day ('month' 'year')'
 
 * Plot Labels
 * -----------
@@ -626,6 +626,15 @@ endwhile
 'set  strsiz .17'
 'draw string 6.0 8.15 'desc
 'draw string 6.0 7.8 'level'-mb 'name'  'region
+'set  strsiz .12'
+'draw string 6.0 0.72 Forecast Day'
+
+'set  string 1 c 6 90'
+'set  strsiz .18'
+'draw string 0.80 4.1 'month' 'year
+
+'set  string 1 l 6 0'
+
 
 '!remove rmscmp.stk'
 '!touch  rmscmp.stk'
@@ -640,7 +649,65 @@ endwhile
 '!echo 6.03 >> rmscmp.stk'
 '!echo 5.62 >> rmscmp.stk'
 '!echo 7.43 >> rmscmp.stk'
-'lines         rmscmp.stk 1'
+*'lines         rmscmp.stk 1'
+
+maxlength = 0
+m = 0
+while( m<=mexps )
+length = getlength(expdsc.m' ('numfiles')')
+say ''m'  'length
+if( length > maxlength )
+             maxlength = length
+endif
+m = m + 1
+endwhile
+say 'maxlength: 'maxlength
+
+nplotx = 3
+nploty = 3
+pagex  = 9.000
+pagey  = 0.375
+footer = 0.150
+bordrx = 3.500
+deltax = 0.700
+deltay = 0.300
+
+xsize = maxlength * 0.9/16 + deltax
+ysize = ( pagey-footer - (nploty-1)*deltay )/nploty
+
+say 'xsize = 'xsize
+say 'ysize = 'xsize
+
+'set  string 1 l 5'
+'set  strsiz .09'
+
+nx = 1
+while (nx <= nplotx)
+ny = 1
+while (ny <= nploty)
+
+nplot = ny + (nx-1)*nploty
+    m = nplot-1
+if( m <= mexps )
+
+xbeg = bordrx + (nx-1)*(xsize+deltax)
+yend = pagey  - (ny-1)*(ysize+deltay)
+xend = xbeg + xsize
+ybeg = yend - ysize
+
+if( xbeg < bordrx ) ; xbeg = bordrx ; endif
+if( xend > pagex  ) ; xend = pagex  ; endif
+if( ybeg < footer ) ; ybeg = footer ; endif
+
+'set  line 'expcol.m' 1 6'
+'draw line 'xbeg-0.5' 'ybeg' 'xbeg-0.1' 'ybeg
+'draw string 'xbeg' 'ybeg' 'expdsc.m' ('numfiles')'
+
+endif
+ny = ny + 1
+endwhile
+nx = nx + 1
+endwhile
 
 '!/bin/mkdir -p 'SOURCE'/corcmp'
 
@@ -657,3 +724,18 @@ endif
 'c'
 
 return
+
+function getlength (string)
+tb = ""
+i = 1
+while (i<=80)
+blank = substr(string,i,1)
+if( blank = tb )
+length = i-1
+i = 81
+else
+i = i + 1
+endif
+endwhile
+return length
+

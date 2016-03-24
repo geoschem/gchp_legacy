@@ -1,5 +1,5 @@
 
-!  $Id: MAPL_Profiler.F90,v 1.8 2014-12-12 16:18:10 bmauer Exp $ 
+!  $Id$ 
 
 #include "MAPL_ErrLog.h"
 
@@ -17,6 +17,7 @@
   use ESMF
   use MAPL_BaseMod
   use MAPL_IOMod
+  use MAPL_CommsMod
 #ifdef _CUDA
   use cudafor
 #endif
@@ -42,14 +43,20 @@
   public MAPL_ProfEnable
   public MAPL_ProfWrite
   public MAPL_ProfIsDisabled
+  public MAPL_TimerModeSet
 
 !EOP
+
+  integer, public, parameter  :: MAPL_TimerModeOld = 0
+  integer, public, parameter  :: MAPL_TimerModeRootOnly = 1
+  integer, public, parameter  :: MAPL_TimerModeMax = 2
 
   type(ESMF_VM), save :: VM
   integer,       save :: COUNT_MAX, COUNT_RATE
   real(kind=8),  save :: CRI
   logical,       save :: FIRSTTIME = .true.
   logical,       save :: DISABLED  = .false.
+  integer,       save :: timerMode = MAPL_TimerModeMax
 
   contains
 
@@ -83,15 +90,17 @@
             I=I+1
          enddo
 
-         if(I==NN+1) then
-            print *, NAME
+         if(I>NN) then
+            print *, 'ERROR: Timer '//trim(NAME)//' needs to be set first'
             RETURN_(ESMF_FAILURE)
          end if
      
 #ifdef _CUDA
          status = cudaDeviceSynchronize()
 #endif
-         call ESMF_VMBarrier(VM, rc=status)
+         if (timerMode == MAPL_TimerModeOld) then
+            call ESMF_VMBarrier(VM, rc=status)
+         end if
          call SYSTEM_CLOCK(TIMES(I)%START_TIME)  
 
       end if
@@ -126,14 +135,16 @@
          enddo
 
          if(I>NN) then
-            print *, NAME
+            print *, 'ERROR: Timer '//trim(NAME)//' needs to be set first'
             RETURN_(ESMF_FAILURE)
          end if
 
 #ifdef _CUDA
          status = cudaDeviceSynchronize()
 #endif
-         call ESMF_VMBarrier(VM, rc=status)
+         if (timerMode == MAPL_TimerModeOld) then
+            call ESMF_VMBarrier(VM, rc=status)
+         end if
          call SYSTEM_CLOCK(COUNTS)
 
          COUNTS = COUNTS-TIMES(I)%START_TIME
@@ -195,22 +206,62 @@
       integer, optional, intent(OUT)   :: RC
 
       character(len=ESMF_MAXSTR), parameter :: IAm="MAPL_ProfWrite"
+      integer :: status
+
       integer :: I
+      integer :: N
+      logical :: amIroot
+      logical :: writing
+      real(kind=8), allocatable :: MAX_CUMM_TIME(:)  
+
+      amIroot = MAPL_AM_I_Root(vm)
+
+!ALT: Currently, only root PE writes the Prof report
+!     If we adopt other modes, we need to change next line
+      writing = amIroot
 
       if (associated(TIMES)) then
-         do I=1,size(TIMES)
-            if(trim(TIMES(I)%name)=='TOTAL') then
-               call WRITE_PARALLEL(TIMES(I)%CUMM_TIME,format='("'//TIMES(I)%NAME(1:24)//':",F12.3)')
-               exit
-            end if
-         enddo
-         do I=1,size(TIMES)
-            if(trim(TIMES(I)%name)=='TOTAL') then
-               cycle
+         if (timerMode == MAPL_TimerModeMax) then
+            if(amIroot) then
+               N=size(TIMES)
             else
-               call WRITE_PARALLEL(TIMES(I)%CUMM_TIME,format='("'//TIMES(I)%NAME(1:24)//':",F12.3)')
+               N=0
             end if
-         enddo
+            allocate(MAX_CUMM_TIME(N), stat=status)
+            VERIFY_(status)
+
+            call ESMF_VmReduce(vm, sendData=TIMES(:)%CUMM_TIME, &
+                 recvData=max_cumm_time, count=size(TIMES), &
+                 reduceFlag=ESMF_Reduce_Max, RootPet=MAPL_Root, RC=status)
+            VERIFY_(STATUS)
+         end if
+
+         if (writing) then
+            ! We do the loop twice to make sure TOTAL is reported first
+            do I=1,size(TIMES)
+               if(trim(TIMES(I)%name)=='TOTAL') then
+                  WRITE(*,'("'//TIMES(I)%NAME(1:24)//':",F12.3)') TIMES(I)%CUMM_TIME
+                  exit
+               end if
+            enddo
+            do I=1,size(TIMES)
+               if(trim(TIMES(I)%name)=='TOTAL') then
+                  cycle
+               else
+                  WRITE(*,'("'//TIMES(I)%NAME(1:24)//':",F12.3)') TIMES(I)%CUMM_TIME
+               end if
+            enddo
+         end if ! writing
+
+         if (timerMode == MAPL_TimerModeMax) then
+            ! Restore cummulative time on root
+            if (amIroot) then
+               do I=1,size(TIMES)
+                  TIMES(I)%CUMM_TIME = MAX_CUMM_TIME(I)
+               end do
+            end if
+            deallocate(MAX_CUMM_TIME)
+         end if
       end if
 
       RETURN_(ESMF_SUCCESS)
@@ -242,6 +293,22 @@
       RETURN_(ESMF_SUCCESS)
       
     end subroutine MAPL_ProfEnable
+
+!********************************************************
+
+    subroutine MAPL_TimerModeSet(MODE, RC)
+      integer,           intent(IN )   :: MODE
+      integer, optional, intent(OUT)   :: RC
+
+      character(len=ESMF_MAXSTR), parameter :: IAm="MAPL_ProfModeSet"
+
+      ! Sanity check
+      ASSERT_(timerMode >= MAPL_TimerModeOld .and. timerMode <= MAPL_TimerModeMax)
+      timerMode = mode
+
+      RETURN_(ESMF_SUCCESS)
+      
+    end subroutine MAPL_TimerModeSet
 
 !********************************************************
 

@@ -7,7 +7,7 @@ OBSDSC: ECMWF_INTERIM_ANA
                     'T'        , 'DYN'           , 'T'   , 1
                     'U'        , 'DYN'           , 'U'   , 1
                     'V'        , 'DYN'           , 'V'   , 1
-                    'RH2'      , 'MOIST'         , 'R'   , 0.01
+                    'RH2'      , 'MOIST'         , 'R'   , 1/100
                     'Q'        , 'MOIST'         , 'Q'   , 1
                     'OMEGA'    , 'DYN'           , 'W'   , 1
                     ::

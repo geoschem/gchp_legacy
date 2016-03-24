@@ -1,4 +1,4 @@
-! $Id: sun.H,v 1.11 2014-12-09 17:20:55 atrayano Exp $
+! $Id$
 
 
       type(MAPL_SunOrbit),               intent(IN ) :: ORBIT
@@ -57,12 +57,29 @@
          VERIFY_(STATUS)
       end if
 
+!#define DP_SUN
+#ifdef DP_SUN
+! WMP- Hack for Doubly Period Constant Solar Insolation
+            call WRITE_PARALLEL('--- WARNING --- sun.H --- Doubly Periodic Using Daily Mean Solar Insolation')
+            TIME_=MAPL_SunDailyMean
+! WMP- Hack for Doubly Period Constant Solar Insolation
+#endif
+
       MEAN_OR_INST: if(.not.present(INTV) .or. TIME_==MAPL_SunDailyMean &
                        .or.  TIME_==MAPL_SunAnnualMean) then
 
          call ESMF_TimeGet(CURRENTTIME, YY=YEAR, S=SEC_OF_DAY, &
               dayOfYear=DAY_OF_YEAR, RC=STATUS)
          VERIFY_(STATUS)
+
+#ifdef DP_SUN
+! WMP- Hack for Doubly Period Constant Solar Insolation
+         TIME_=10
+         YEAR=2005
+         SEC_OF_DAY=86400/2
+         DAY_OF_YEAR=31*7
+! WMP- Hack for Doubly Period Constant Solar Insolation
+#endif
 
          YEAR = mod(YEAR-1,ORBIT%YEARS_PER_CYCLE)
          IDAY = YEAR*int(ORBIT%YEARLEN)+DAY_OF_YEAR

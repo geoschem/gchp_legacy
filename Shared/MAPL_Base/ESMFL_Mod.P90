@@ -1,4 +1,4 @@
-! $Id: ESMFL_Mod.P90,v 1.29 2014-12-12 15:23:36 bmauer Exp $
+! $Id$
 #include "MAPL_ErrLog.h"
 
 #if 0
@@ -137,6 +137,20 @@ module ESMFL_MOD
   interface MAPL_AreaMean
      module procedure MAPL_AreaMean_2d_r8_bitrep
      module procedure MAPL_AreaMean_2d_r8
+  end interface
+
+  interface
+     subroutine CubeHaloInit(comm, im_world, npes, nx, ny, domainIdx)
+       integer :: comm, im_world, npes, nx, ny
+       integer :: domainIdx
+     end subroutine CubeHaloInit
+  end interface
+
+  interface
+     subroutine CubeHalo(domainIdx, input)
+       integer :: domainIdx
+       real *4 :: input(:,:)
+     end subroutine CubeHalo
   end interface
 
   Logical            :: verbose
@@ -3665,7 +3679,7 @@ CONTAINS
 !-------------------------------------------------------------------------
   SUBROUTINE ESMFL_HALO_R4_2D(GRID, INPUT, RC)
 !-------------------------------------------------------------------------
-     TYPE(ESMF_Grid),         INTENT(IN)    :: GRID
+     TYPE(ESMF_Grid),         INTENT(INout) :: GRID
      REAL,                    INTENT(INOUT) :: INPUT(:,:)
      integer, optional,       intent(OUT)   :: RC
 
@@ -3694,20 +3708,69 @@ CONTAINS
      integer, pointer                         :: jms(:) => null()
      type (ESMF_VM)                           :: VM
      type (ESMF_DistGrid)                     :: distGrid
+     integer                                  :: IM, JM, DIMS(3)
 
+#define MAX_HALOTYPES 2
+     type HaloType
+        character(len=ESMF_MAXSTR)            :: gridname = ""
+        type(ESMF_DELayout)                   :: layout
+        integer                               :: NX = -1
+        integer                               :: NY = -1
+        integer                               :: domainIdx = -1
+        integer                               :: myId
+        logical                               :: isCube = .false.
+        logical                               :: inUse = .false.
+     end type HaloType
+     
+     type(HaloType), save                     :: myHaloTypes(MAX_HALOTYPES)
+     type(HaloType)                           :: thisHaloType
+     logical                                  :: found
+     integer                                  :: I, vmcomm
+     integer                                  :: isd, ied
+     integer                                  :: jsd, jed
+     character(len=ESMF_MAXSTR)               :: gridname
 
-     call ESMF_GridGet    (GRID,   distGrid=distGrid, dimCount=dimCount, RC=STATUS)
+     call ESMF_GridGet    (GRID,   name=gridname, RC=STATUS)
      VERIFY_(STATUS)
-     call ESMF_DistGridGet(distGRID, delayout=layout, rc=STATUS)
-     VERIFY_(STATUS)
 
-     call ESMF_DELayoutGet (layout, VM=vm, RC=STATUS)
-     VERIFY_(STATUS)
+     found = .false.
+     DO I = 1, MAX_HALOTYPES
+        if (gridname == myHaloTypes(I)%gridname) then
+           found = .true.
+           thisHaloType = myHaloTypes(I)
+           exit
+        end if
+     END DO
 
-     call ESMF_VmGet(VM, localPet=MYID, petCount=ndes, rc=status)
-     VERIFY_(STATUS)
+     if (.not. found) then
 
-     if (NX < 0 .or. NY < 0) then
+! try to find unused slot to save this Halo for future use
+        DO I = 1, MAX_HALOTYPES
+           if(.not.myHaloTypes(I)%inUse) then
+              found = .true.
+              thisHaloType%domainIdx = I
+              exit
+           end if
+        END DO
+
+        if (.not.found) then
+           print *, "Error: need bigger MAX_HALOTYPES value"
+           ASSERT_(.false.)
+        end if
+
+        call ESMF_GridGet(GRID,   distGrid=distGrid, dimCount=dimCount, RC=STATUS)
+        VERIFY_(STATUS)
+        call ESMF_DistGridGet(distGRID, delayout=layout, rc=STATUS)
+        VERIFY_(STATUS)
+
+        call ESMF_DELayoutGet (layout, VM=vm, RC=STATUS)
+        VERIFY_(STATUS)
+
+        call ESMF_VmGet(VM, localPet=MYID, petCount=ndes, rc=status)
+        VERIFY_(STATUS)
+
+        thisHaloType%myId = MyId
+
 !    Layout sizes
 !    ------------
 
@@ -3731,7 +3794,51 @@ CONTAINS
 
         deallocate(jms, ims)
         deallocate(maxindex, minindex)
+
+        thisHaloType%gridname = gridname
+        thisHaloType%inUse    = .true.
+        thisHaloType%NX = NX
+        thisHaloType%NY = NY
+        thisHaloType%layout = layout
+
+        call MAPL_GridGet(grid, globalCellCountPerDim=DIMS, RC=status)
+        VERIFY_(STATUS)
+        IM = DIMS(1)
+        JM = DIMS(2)
+        if (JM == 6*IM) then
+           thisHaloType%isCube = .true.
+           call ESMF_VmGet(VM, mpicommunicator=vmcomm, rc=status)
+           VERIFY_(STATUS)
+           call CubeHaloInit(vmcomm, IM, ndes, NX, NY, thisHaloType%domainIdx)
+        else
+           thisHaloType%isCube = .false.
+        end if
+
+        myHaloTypes(thisHaloType%domainIdx) = thisHaloType
+
      end if
+
+     if (thisHaloType%isCube) then
+        isd = lbound(input,1)
+        ied = ubound(input,1)
+        jsd = lbound(input,2)
+        jed = ubound(input,2)
+        ! fill the corners with MAPL_UNDEF, they will be overwritten
+        ! by the CubeHalo, unless these are the actual cube corners 
+        input(isd,jsd) = MAPL_UNDEF
+        input(ied,jsd) = MAPL_UNDEF
+        input(isd,jed) = MAPL_UNDEF
+        input(ied,jed) = MAPL_UNDEF
+        call CubeHalo(thisHaloType%domainIdx, input)
+        RETURN_(ESMF_SUCCESS)
+     end if
+
+! This is section of the code is valid ONLY for rectilinear grids!!!
+
+     NX = thisHaloType%NX
+     NY = thisHaloType%NY
+     myId = thisHaloType%myId
+     layout = thisHaloType%layout
 
 !    My processor coordinates
 !    -------------------------
@@ -3746,14 +3853,12 @@ CONTAINS
      i_east  = MOD(NX0   +1,NX)
      i_west  = MOD(NX0+NX-1,NX)
 
-!ALT help
+     ! Nearest neighbors processor' ids
 
      nn_north = NX0 + NX*j_north
      nn_south = NX0 + NX*j_south
      nn_west  = i_west + NX*NY0
      nn_east  = i_east + NX*NY0
-
-!  The default for FROM is to do all four sides.
 
 !  Fill NORTHERN ghost region
 
@@ -4095,6 +4200,12 @@ CONTAINS
        ASSERT_(qdum2 /= 0.0_8)
 
        qave = qdum1 / qdum2
+
+       !ALT: convert the the result to single precision
+       !     This technically is not needed here, but is is done to be in sync
+       !     with the parallel method below
+       qave = real(qave, kind=4)
+
     end if
     deallocate(qglobal)
 
@@ -4172,6 +4283,10 @@ CONTAINS
     ASSERT_(qdum2 /= 0.0_8)
 
     qave = qdum1 / qdum2
+
+    !ALT: convert the the result to single precision to get rid of
+    !     numerical non-associativity in floating point numbers
+    qave = real(qave, kind=4)
 
     RETURN_(ESMF_SUCCESS)
   end subroutine MAPL_AreaMean_2d_r8

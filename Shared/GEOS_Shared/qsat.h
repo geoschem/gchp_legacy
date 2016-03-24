@@ -1,5 +1,5 @@
 
-!  $Id: qsat.h,v 1.4 2005-06-02 14:42:49 f4mjs Exp $
+!  $Id$
 
       real, parameter :: ESFAC = GEOS_H2OMW/GEOS_AIRMW
       real, parameter :: ERFAC = (1.0-ESFAC)/ESFAC

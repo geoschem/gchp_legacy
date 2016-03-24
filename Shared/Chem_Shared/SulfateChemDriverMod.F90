@@ -1,3 +1,4 @@
+#include "MAPL_Generic.h"
 !-------------------------------------------------------------------------
 !         NASA/GSFC, Data Assimilation Office, Code 910.3, GEOS/DAS      !
 !-------------------------------------------------------------------------
@@ -841,37 +842,32 @@ CONTAINS
 !             IF from GMI read as is
 !
 ! !INTERFACE:
-   subroutine SulfateUpdateOxidants ( i1, i2, im, j1, j2, jm, km, cdt, &
+   subroutine SulfateUpdateOxidants ( impChem,iName, i1, i2, im, j1, j2, jm, km, cdt, &
                                       using_GMI_OH, using_GMI_NO3, &
                                       using_GMI_H2O2, &
                                       GMI_OHmr, GMI_NO3mr, GMI_H2O2mr, &
                                       nymd_current, nhms_current, &
                                       grid, lonRad, latRad, &
                                       rhoa, &
-                                      nymd_last, nymd_oh, nymd_no3, nymd_h2o2, &
-                                      oh_concfilen, no3_mrfilen, h2o2_mrfilen, &
+                                      nymd_last, &
 				      oh_clim, no3_clim, h2o2_clim, &
                                       xoh, xno3, xh2o2 )
 
 !
 !  Input
+   type(ESMF_State), intent(inout) :: impChem
+   character(len=*), intent(in   ) :: iName
    integer :: i1, i2, im, j1, j2, jm, km
    real    :: cdt
    integer :: nymd_current, &   ! current model NYMD
               nhms_current, &   ! current model NHMS
-              nymd_last, &      ! NYMD of last emission update
-              nymd_oh, &        ! NYMD nominal first date of OH climatology
-              nymd_no3, &       ! NYMD nominal first date of NO3 climatology
-              nymd_h2o2
+              nymd_last         ! NYMD of last emission update
    logical :: using_GMI_OH, &
               using_GMI_NO3, &
               using_GMI_H2O2
    type(ESMF_Grid)  :: grid
    real, pointer, dimension(:,:) :: lonRad, latRad
 
-   character(len=*) :: oh_concfilen, &
-                       no3_mrfilen, &
-                       h2o2_mrfilen
    real, pointer, dimension(:,:,:) :: oh_clim, &
                                       no3_clim, &
                                       h2o2_clim, &
@@ -889,46 +885,34 @@ CONTAINS
    real    :: cossza(i1:i2,j1:j2), sza(i1:i2,j1:j2)
    real    :: tcosz(i1:i2,j1:j2), tday(i1:i2,j1:j2), tnight(i1:i2,j1:j2)
    integer :: n, ndystep
+   real, pointer :: ptr2d(:,:)   => null()
+   real, pointer :: ptr3d(:,:,:) => null()
 
 ! Update emissions/production if necessary (daily)
 !  -----------------------------------------------
-   UpdateOxidants: if(nymd_last .ne. nymd_current) then
-    nymd_last = nymd_current
 !   Oxidant fields
 !   The expectation here is that OH is being read in the form
 !   volume mixing ratio from a file (so, like GMI would provide).
 !   Below, in the scaling by solar zenith angle, we convert from
 !   VMR to # cm-3 expected by the chemistry.
     IF(.NOT. using_GMI_OH) THEN
-     nymd1 = (nymd_oh/10000)*10000 + mod ( nymd_current, 10000 )
-     if(index(oh_concfilen,'%') .gt. 0) nymd1 = nymd_current
-     nhms1 = 120000
-     call Chem_UtilMPread ( oh_concfilen, 'oh', nymd1, nhms1, &
-                            i1, i2, 0, im, j1, j2, 0, jm, km, &
-                            var3d=oh_clim, cyclic=.true., grid = grid )
+     call MAPL_GetPointer(impChem,ptr3d,"SU_OH"//trim(iName),rc=status)
+     oh_clim = ptr3d
      where(1.01*oh_clim(i1:i2,j1:j2,1:km) > undefval) oh_clim(i1:i2,j1:j2,1:km) = 0.
      where(     oh_clim(i1:i2,j1:j2,1:km) < 0       ) oh_clim(i1:i2,j1:j2,1:km) = 0.
     END IF
 
 
     IF(.NOT. using_GMI_NO3) THEN
-     nymd1 = (nymd_no3/10000)*10000 + mod ( nymd_current, 10000 )
-     if(index(no3_mrfilen,'%') .gt. 0) nymd1 = nymd_current
-     nhms1 = 120000
-     call Chem_UtilMPread ( no3_mrfilen, 'no3', nymd1, nhms1, &
-                            i1, i2, 0, im, j1, j2, 0, jm, km, &
-                            var3d=no3_clim, cyclic=.true., grid = grid )
+     call MAPL_GetPointer(impChem,ptr3d,"SU_NO3"//trim(iName),rc=status)
+     no3_clim = ptr3d
      where(1.01*no3_clim(i1:i2,j1:j2,1:km) > undefval) no3_clim(i1:i2,j1:j2,1:km) = 0.
      where(     no3_clim(i1:i2,j1:j2,1:km) < 0       ) no3_clim(i1:i2,j1:j2,1:km) = 0.
     END IF
 
     IF(.NOT. using_GMI_H2O2) THEN
-     nymd1 = (nymd_h2o2/10000)*10000 + mod ( nymd_current, 10000 )
-     if(index(h2o2_mrfilen,'%') .gt. 0) nymd1 = nymd_current
-     nhms1 = 120000
-     call Chem_UtilMPread ( h2o2_mrfilen, 'h2o2', nymd1, nhms1, &
-                            i1, i2, 0, im, j1, j2, 0, jm, km, &
-                            var3d=h2o2_clim, cyclic=.true., grid = grid )
+     call MAPL_GetPointer(impChem,ptr3d,"SU_H2O2"//trim(iName),rc=status)
+     h2o2_clim = ptr3d
      where(1.01*h2o2_clim(i1:i2,j1:j2,1:km) > undefval) h2o2_clim(i1:i2,j1:j2,1:km) = 0.
      where(     h2o2_clim(i1:i2,j1:j2,1:km) < 0       ) h2o2_clim(i1:i2,j1:j2,1:km) = 0.
     END IF
@@ -936,9 +920,11 @@ CONTAINS
 !   The first time through the reads we will save the h2o2 monthly
 !   average in the instantaneous field
 !   ---------------------------------
-    IF(.NOT. using_GMI_H2O2) xh2o2 = h2o2_clim
 
-   endif UpdateOxidants
+    if (nymd_last == nymd_current .and. (.not. using_GMI_H2O2)) then
+       xh2o2 = h2o2_clim
+       nymd_last = nymd_current
+    end if
 
 !  Find the day number of the year and hour (needed for later doing sza)
 !  ----------------------------------
@@ -1066,47 +1052,35 @@ CONTAINS
 !             from anthropogenic sources (by mass) goes directly to SO4.
 !
 ! !INTERFACE:
-   subroutine SulfateUpdateEmissions ( i1, i2, im, j1, j2, jm, km, cdt, &
+   subroutine SulfateUpdateEmissions ( impChem, iName, i1, i2, im, j1, j2, jm, km, cdt, &
                                        nymd_current, nhms_current, &
                                        grid, lonRad, latRad, &
-                                       nymd_last, nymd_bb, nymd_sanl1, &
-                                       nymd_sanl2, nymd_dmso, nymd_aircraft, &
+                                       nymd_last,  &
                                        diurnal_bb, &
-                                       bb_srcfilen, so2biomass_src, so2biomass_src_, &
-                                       so2anthro_l1_src, so2anthro_l1_srcfilen, &
-                                       so2anthro_l2_src, so2anthro_l2_srcfilen, &
-                                       so2ship_src, so2ship_srcfilen, &
-                                       so4ship_src, so4ship_srcfilen, &
-                                       dmso_conc, dmso_concfilen, &
-                                       aircraft_fuel_srcfilen, &
+                                       so2biomass_src, so2biomass_src_, &
+                                       so2anthro_l1_src,  &
+                                       so2anthro_l2_src,  &
+                                       so2ship_src,  &
+                                       so4ship_src, &
+                                       dmso_conc,  &
                                        aircraft_fuel_src, &
                                        volcano_srcfilen, &
                                        nvolc, vLat, vLon, vElev, vCloud, vSO2, &
                                        maskString, gridMask )
 !
 !  Input
+   type(ESMF_State), intent(inout) :: impChem
+   character(len=*), intent(in   ) :: iName
    integer :: i1, i2, im, j1, j2, jm, km
    real    :: cdt
    integer :: nymd_current, &   ! current model NYMD
               nhms_current, &   ! current model NHMS
-              nymd_last, &      ! NYMD of last emission update
-              nymd_bb, &        ! NYMD nominal first date of BB climatology
-              nymd_sanl1, &     ! NYMD nominal first date of climatology
-              nymd_sanl2, &     ! NYMD nominal first date of climatology
-              nymd_dmso, &      ! NYMD nominal of DMS climatology
-              nymd_aircraft     ! NYMD nominal of aircraft fuel climatology
+              nymd_last         ! NYMD of last emission update
    logical :: diurnal_bb
    type(ESMF_Grid)  :: grid
    real, pointer, dimension(:,:) :: lonRad, latRad
 
-   character(len=*) :: bb_srcfilen, &
-                       so2anthro_l1_srcfilen, &
-                       so2anthro_l2_srcfilen, &
-                       so2ship_srcfilen, &
-                       so4ship_srcfilen, &
-                       dmso_concfilen, &
-                       aircraft_fuel_srcfilen, &
-                       volcano_srcfilen
+   character(len=*) :: volcano_srcfilen
 
    real, pointer, dimension(:,:) :: so2biomass_src, &
                                     so2biomass_src_, &
@@ -1143,6 +1117,9 @@ CONTAINS
   integer :: nymd1, nhms1, rc, ijl, ijkl
   integer :: i, ios
   real    :: qmin, qmax
+  real, pointer :: ptr2d(:,:)   => null()
+  real, pointer :: ptr3d(:,:,:) => null()
+  integer       :: status
 
   ijl  = ( i2 - i1 + 1 ) * ( j2 - j1 + 1 )
   ijkl = ijl * km
@@ -1162,24 +1139,8 @@ CONTAINS
 
 !   Biomass Burning -- select on known inventories
 !   ----------------------------------------------
-    nymd1 = (nymd_bb/10000)*10000 + mod ( nymd_current, 10000 )
-    nhms1 = 120000
-    do_cyclic = .true.
-
-!   Using files valid at the current model time
-    if (  index(bb_srcfilen,'%') .gt. 0 .or. &
-          index(bb_srcfilen,'A2_ACCMIP') .gt. 0 .or. &
-         (index(bb_srcfilen,'gfed') .gt. 0 .and. &
-          index(bb_srcfilen,'v2')   .gt. 0) ) then  
-       nymd1 = nymd_current
-       do_cyclic = .false.
-    end if
-
-    call Chem_UtilMPread ( bb_srcfilen, 'biomass', nymd1, nhms1, &
-                           i1, i2, 0, im, j1, j2, 0, jm, 0, &
-                           var2d = so2biomass_src, cyclic=do_cyclic, &
-                           grid  = grid, maskString=trim(maskString), gridMask=gridMask ) 
-
+    call MAPL_GetPointer(impChem,ptr2d,"SU_BIOMASS"//trim(iName),rc=status)
+    so2biomass_src = ptr2d
 !   Save read in emissions if doing diurnal BB
 !   ------------------------------------------
     if ( diurnal_bb ) then
@@ -1188,81 +1149,31 @@ CONTAINS
 
 !   Anthropogenic emissions
 !   -----------------------
-    if ( (nymd_sanl1 .eq. 0) .or. &
-         (index(so2anthro_l1_srcfilen, 'A2_ACCMIP')                 .gt. 0) .or. &
-         (index(so2anthro_l1_srcfilen, '19750703T12z_20210703T00z') .gt. 0) .or. &
-         (index(so2anthro_l1_srcfilen, '19700703T12z_20200703T00z') .gt. 0) ) then
-     nymd1 = nymd_current
-    else
-     nymd1 = nymd_sanl1
-    endif
-    nhms1 = 120000
-    do_cyclic = .true.
-    call Chem_UtilMPread ( so2anthro_l1_srcfilen, 'sanl1', nymd1, nhms1, &
-                           i1, i2, 0, im, j1, j2, 0, jm, 0, &
-                           var2d=so2anthro_l1_src, cyclic=do_cyclic, &
-                           grid = grid, maskString=trim(maskString), gridMask=gridMask )
+    call MAPL_GetPointer(impChem,ptr2d,"SU_ANTHROL1"//trim(iName),rc=status)
+    so2anthro_l1_src = ptr2d
 
-    if ( (nymd_sanl2 .eq. 0) .or. &
-         (index(so2anthro_l2_srcfilen, 'A2_ACCMIP')                 .gt. 0) .or. &
-         (index(so2anthro_l2_srcfilen, '19750703T12z_20210703T00z') .gt. 0) .or. &
-         (index(so2anthro_l2_srcfilen, '19700703T12z_20200703T00z') .gt. 0) ) then
-     nymd1 = nymd_current
-    else
-     nymd1 = nymd_sanl2
-    endif
-    nhms1 = 120000   
-    do_cyclic = .true.
-    call Chem_UtilMPread ( so2anthro_l2_srcfilen, 'sanl2', nymd1, nhms1, &
-                           i1, i2, 0, im, j1, j2, 0, jm, 0, &
-                           var2d=so2anthro_l2_src, cyclic=do_cyclic, &
-                           grid = grid, maskString=trim(maskString), gridMask=gridMask )
+    call MAPL_GetPointer(impChem,ptr2d,"SU_ANTHROL2"//trim(iName),rc=status)
+    so2anthro_l2_src = ptr2d
 
 !   Ship based emissions of SO2 and SO4
 !   -----------------------------------
-!    nymd1 = nymd_so2ship
-    nymd1 = nymd_current
-    nhms1 = 120000
-    do_cyclic = .true.
-    call Chem_UtilMPread ( so2ship_srcfilen, 'so2_ship', nymd1, nhms1, &
-                           i1, i2, 0, im, j1, j2, 0, jm, 0, &
-                           var2d=so2ship_src, cyclic=do_cyclic, &
-                           grid = grid, maskString=trim(maskString), gridMask=gridMask )
+    call MAPL_GetPointer(impChem,ptr2d,"SU_SHIPSO2"//trim(iName),rc=status)
+    so2ship_src = ptr2d
 
-!    nymd1 = nymd_so4ship
-    nymd1 = nymd_current
-    nhms1 = 120000
-    do_cyclic = .true.
-    call Chem_UtilMPread ( so4ship_srcfilen, 'so4_ship', nymd1, nhms1, &
-                           i1, i2, 0, im, j1, j2, 0, jm, 0, &
-                           var2d=so4ship_src, cyclic=do_cyclic, &
-                           grid = grid, maskString=trim(maskString), gridMask=gridMask )
+    call MAPL_GetPointer(impChem,ptr2d,"SU_SHIPSO4"//trim(iName),rc=status)
+    so4ship_src = ptr2d
 
 
 
 !   DMS concentrations (from climatology)
 !   -------------------------------------
-    nymd1 = (nymd_dmso/10000)*10000 + mod ( nymd_current, 10000 )
-    nhms1 = 120000
-    do_cyclic = .true.
-    call Chem_UtilMPread ( dmso_concfilen, 'conc', nymd1, nhms1, &
-                           i1, i2, 0, im, j1, j2, 0, jm, 0, &
-                           var2d=dmso_conc, cyclic=do_cyclic, &
-                           grid = grid, maskString=trim(maskString), gridMask=gridMask )
+    call MAPL_GetPointer(impChem,ptr2d,"SU_DMSO"//trim(iName),rc=status)
+    dmso_conc = ptr2d
 
 !   Aircraft fuel source
 !   --------------------
-    nymd1 = (nymd_aircraft/10000)*10000 + mod ( nymd_current, 10000 )
-    nhms1 = 120000
-    do_cyclic = .true.
-    if (  index(aircraft_fuel_srcfilen,'%') .gt. 0 ) then
-       nymd1 = nymd_current
-       do_cyclic = .false.
-    endif
-    call Chem_UtilMPread ( aircraft_fuel_srcfilen, 'fuel', nymd1, nhms1, &
-                           i1, i2, 0, im, j1, j2, 0, jm, km, &
-                           var3d=aircraft_fuel_src, cyclic=do_cyclic, &
-                           grid = grid, maskString=trim(maskString), gridMask=gridMask )
+    call MAPL_GetPointer(impChem,ptr3d,"SU_AIRCRAFT"//trim(iName),rc=status)
+    aircraft_fuel_src = ptr3d
 
 !   As a safety check, where values are undefined set to 0
     where(1.01*so2biomass_src(i1:i2,j1:j2)  > undefval)     so2biomass_src(i1:i2,j1:j2) = 0.
@@ -1700,7 +1611,7 @@ CONTAINS
 
  !    Get indices for volcanic emissions
  !    ----------------------------------
-      call MAPL_GetHorzIJIndex(vLon/radToDeg,vLat/radToDeg,nvolc,Grid,iVolc,jVolc,rc)
+      call MAPL_GetHorzIJIndex(nvolc,iVolc,jVolc,Grid=Grid,lon=vLon/radToDeg,lat=vLat/radToDeg,rc=rc)
       if ( rc /= 0 ) call die(myname,'cannot get indices for volcanic emissions')
 
       do it = 1, nvolc

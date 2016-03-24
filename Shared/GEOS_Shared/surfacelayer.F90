@@ -1,5 +1,5 @@
-! $Id: surfacelayer.F90,v 1.2.4.1.10.3.22.1.2.6.2.1.2.1.2.1.2.5.6.3 2011-06-10 19:26:22 amolod Exp $
-! $Name: Heracles-3_1_CTM $
+! $Id$
+! $Name$
 
 module sfclayer
 
@@ -311,16 +311,16 @@ end subroutine louissurface
 
 ! Argument List Declarations
       integer n,irun,CHOOSEZ0
-      real VUS(IRUN),VVS(IRUN),VT1(IRUN),VT2(IRUN),VSH1(IRUN),VSH2(IRUN)
-      real VPE(IRUN),VP(IRUN),VZ0(IRUN),LAI(IRUN),VHS(IRUN)
-      integer IVWATER(IRUN)
-      real VRHO(IRUN)
-      real VKM(IRUN),VKH(IRUN),VUSTAR(IRUN),VXX(IRUN)
-      real VYY(IRUN),VCU(IRUN),VCT(IRUN),VRIB(IRUN)
-      real VZETA(IRUN),VWS(IRUN)
-      real, intent(OUT) :: t2m(irun),q2m(irun),u2m(irun),v2m(irun)
-      real, intent(OUT) :: t10m(irun),q10m(irun),u10m(irun),v10m(irun)
-      real, intent(OUT) :: u50m(irun),v50m(irun)
+      real VUS(:),VVS(:),VT1(:),VT2(:),VSH1(:),VSH2(:)
+      real VPE(:),VP(:),VZ0(:),LAI(:),VHS(:)
+      integer IVWATER(:)
+      real VRHO(:)
+      real VKM(:),VKH(:),VUSTAR(:),VXX(:)
+      real VYY(:),VCU(:),VCT(:),VRIB(:)
+      real VZETA(:),VWS(:)
+      real, intent(OUT) :: t2m(:),q2m(:),u2m(:),v2m(:)
+      real, intent(OUT) :: t10m(:),q10m(:),u10m(:),v10m(:)
+      real, intent(OUT) :: u50m(:),v50m(:)
       LOGICAL LWATER
       integer IVBITRIB(irun)
 
@@ -676,7 +676,7 @@ end subroutine helfsurface
 
 ! Argument List Declarations
       integer n,iflag
-      real PHIM(N),PHIH(N),Z(N)
+      real PHIM(:),PHIH(:),Z(:)
 
 ! Local Variables
       integer I1(N),I2(N)
@@ -967,8 +967,8 @@ end subroutine phi
 
 ! Argument List Declarations
       integer irun,iflag
-      real VZZ(IRUN),VZH(IRUN),VPSIM(IRUN),VPSIH(IRUN), &
-           VX(IRUN),VXS(IRUN),VY(IRUN),VYS(IRUN)
+      real VZZ(:),VZH(:),VPSIM(:),VPSIH(:), &
+           VX(:),VXS(:),VY(:),VYS(:)
  
 ! Local Variables
       real ZWM,RZWM,Z0M,ZCM,RZCM,CM1,CM2,CM6,CM7,CM8ARG,YCM
@@ -1287,23 +1287,23 @@ end subroutine psi
 
 ! Argument List Declarations
       integer irun,itype,CHOOSEZ0
-      real VRIB1(IRUN),VRIB2(IRUN)
-      real VWS1(IRUN),VWS2(IRUN),VZ1(IRUN),VUSTAR(IRUN)
-      integer IWATER(IRUN)
-      real VAPSIM(IRUN),VAPSIHG(IRUN)
-      real VPSIH(IRUN),VPSIG(IRUN),VX(IRUN)
-      real VX0(IRUN),VY(IRUN),VY0(IRUN)
+      real VRIB1(:),VRIB2(:)
+      real VWS1(:),VWS2(:),VZ1(:),VUSTAR(:)
+      integer IWATER(:)
+      real VAPSIM(:),VAPSIHG(:)
+      real VPSIH(:),VPSIG(:),VX(:)
+      real VX0(:),VY(:),VY0(:)
       LOGICAL LWATER
-      real VDZETA(IRUN),VDZ0(IRUN),VDPSIM(IRUN)
-      real VDPSIH(IRUN)
-      integer INTRIB(IRUN)
-      real VX0PSIM(irun),VG(irun),VG0(irun),VR1MG0(irun)
-      real VZ2(irun),VDZSEA(irun),VAZ0(irun),VXNUM1(irun)
-      real VPSIGB2(irun),VDX(irun),VDXPSIM(irun),VDY(irun)
-      real VXNUM2(irun),VDEN(irun),VAWS1(irun),VXNUM3(irun)
-      real VXNUM(irun),VDZETA1(irun),VDZETA2(irun)
-      real VZCOEF2(irun),VZCOEF1(irun),VTEMPLIN(irun)
-      real VDPSIMC(irun),VDPSIHC(irun),bmdl(irun)
+      real VDZETA(:),VDZ0(:),VDPSIM(:)
+      real VDPSIH(:)
+      integer INTRIB(:)
+      real VX0PSIM(:),VG(:),VG0(:),VR1MG0(:)
+      real VZ2(:),VDZSEA(:),VAZ0(:),VXNUM1(:)
+      real VPSIGB2(:),VDX(:),VDXPSIM(:),VDY(:)
+      real VXNUM2(:),VDEN(:),VAWS1(:),VXNUM3(:)
+      real VXNUM(:),VDZETA1(:),VDZETA2(:)
+      real VZCOEF2(:),VZCOEF1(:),VTEMPLIN(:)
+      real VDPSIMC(:),VDPSIHC(:),bmdl(:)
 
 ! Local Variables
       real xx0max,prfac,xpfac,difsqt,ustz0s,h0byz0,usth0s
@@ -1546,8 +1546,8 @@ end subroutine linadj
 
 ! Argument List Delcarations
       integer irun, CHOOSEZ0
-      real VZSEA(IRUN),VUSTAR(IRUN),VDZSEA(IRUN)
-      integer IWATER(IRUN)
+      real VZSEA(:),VUSTAR(:),VDZSEA(:)
+      integer IWATER(:)
       LOGICAL LDZSEA
 
 ! Local Variables

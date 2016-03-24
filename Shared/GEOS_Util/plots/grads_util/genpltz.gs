@@ -113,6 +113,11 @@ if( result = 'NULL' ) ; 'getresource 'PLOTRC' 'EXPORT'_'GC'_CLEVS' ; endif
 if( result = 'NULL' ) ; 'getresource 'PLOTRC' 'EXPORT'_'GC'_'LEVTYPE'LEVS' ; endif
                                                              dlevs = result
 
+                        'getresource 'PLOTRC' 'EXPORT'_'GC'_DIFFMAX'
+                                                            diffmax = result
+                        'getresource 'PLOTRC' 'EXPORT'_'GC'_DIFFMIN'
+                                                            diffmin = result
+
 if( fact    = 'NULL' ) ; fact    = 1            ; endif
 if( title   = 'NULL' )
   'getdesc 'alias
@@ -407,10 +412,18 @@ say '------------'
 if( dcols = NULL | CINTDIFF != NULL )
 * -----------------------------------
 
+  if( diffmax = NULL ) 
    'd 'dqmax'*'fact
        dqmax = subwrd(result,4)
+  else
+       dqmax = diffmax
+  endif
+  if( diffmin = NULL ) 
    'd 'dqmin'*'fact
        dqmin = subwrd(result,4)
+  else
+       dqmin = diffmin
+  endif
 
     say 'DQMAX * FACT: 'dqmax
     say 'DQMIN * FACT: 'dqmin

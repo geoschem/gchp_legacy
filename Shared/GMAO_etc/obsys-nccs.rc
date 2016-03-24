@@ -73,6 +73,9 @@
 # 2013.12.04 Sienkiewicz     Change SBUV class names to be consistent with NAS obsys.rc and with OPS 
 #                              - old V6 format now ncep_osbuv8_6_bufr
 #                              - current V8 format now ncep_osbuv_bufr
+# 2015.05.06 McCarty         Add entry for ISS-RapidScat
+# 2015.06.16 Wargn           Add entry for OMPS-LP
+# 2015.07.28 Sienkiewicz     End date for ncep_sptrmm_bufr 
 #
 #+BEGIN obclass data set description
 #+  upabufr_val:      NCEP Upper Air BUFR
@@ -136,6 +139,8 @@
 #+  aura_omieff_nc:	OMI Ozone from AURA with efficiency factors in NetCDF ("omieff")
 #+  nim07_tomseff_nc:	Ozone from NIMBUS-07 TOMS in NetCDF ("tomseff")
 #+  ep_tomseff_nc:	Ozone from Earth-Probe TOMS in NetCDF ("tomseff")
+#+  rscat_bufr:	RapidScat sfc winds from instrument onboard ISS
+#+  ompslp_nc:	        Ozone from OMPS-Limb Profiler ("ompslp")
 #+END
 #
 
@@ -195,7 +200,7 @@ BEGIN ncep_sptrmm_bufr => gdas1.%y4%m2%d2.t%h2z.sptrmm.tm00.bufr_d.ublk
 # 20040415_00z-20040415_18z 240000 /archive/u/rtodling/obs/ncep/%y4%m2%d2/gdas1.t%h2z.sptrmm.tm00.bufr_d
 # 20040714_00z-21001231_18z 240000 /archive/input/dao_ops/ops/flk/ncep_g5obs/bufr/TRMM/Y%y4/M%m2/gdas1.%y2%m2%d2.t%h2z.sptrmm.tm00.bufr_d
 # Use merra_tmio_bufr & merra_tmil_bufr prior to 20060101
-  20060101_00z-21001231_18z 240000 /archive/input/dao_ops/ops/flk/ncep_g5obs/bufr/TRMM/Y%y4/M%m2/gdas1.%y2%m2%d2.t%h2z.sptrmm.tm00.bufr_d
+  20060101_00z-20150114_18z 240000 /archive/input/dao_ops/ops/flk/ncep_g5obs/bufr/TRMM/Y%y4/M%m2/gdas1.%y2%m2%d2.t%h2z.sptrmm.tm00.bufr_d
 # 20040714_00z-21001231_18z 240000 /discover/nobackup/dao_ops/intermediate/flk/stage/gdas1/trmm/gdas1.%y2%m2%d2.t%h2z.sptrmm.tm00.bufr_d
 END
 
@@ -294,13 +299,13 @@ BEGIN merra_1bamua_bufr => gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr.ublk
   19981101_00z-21001231_18z 240000 /archive/input/dao_ops/obs/merra/tovs/AMSUA/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr
 END
 BEGIN merra_1bamub_bufr => gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr.ublk
-  19981101_00z-21001231_18z 240000 /archive/input/dao_ops/obs/merra/tovs/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
+  19981101_00z-20140606_18z 240000 /archive/input/dao_ops/obs/merra/tovs/AMSUB/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr
 END
 BEGIN merra_1bhrs2_bufr => gmao.%y2%m2%d2.t%h2z.1bhrs2.tm00.bufr.ublk
   19781101_00z-20060930_18z 240000 /archive/input/dao_ops/obs/merra/tovs/HIRS2/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs2.tm00.bufr
 END
 BEGIN merra_1bhrs3_bufr => gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr.ublk
-  19980721_00z-21001231_18z 240000 /archive/input/dao_ops/obs/merra/tovs/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
+  19980721_00z-20140606_18z 240000 /archive/input/dao_ops/obs/merra/tovs/HIRS3/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr
 END
 BEGIN merra_1bmsu_bufr => gmao.%y2%m2%d2.t%h2z.1bmsu.tm00.bufr.ublk
   19781101_00z-19861031_18z 240000 /archive/input/dao_ops/obs/merra/tovs/MSU/Y%y4/M%m2/gmao.%y2%m2%d2.t%h2z.1bmsu.tm00.bufr
@@ -685,7 +690,10 @@ END
 
 # AURA MLS near real time
 BEGIN mls_nrt_nc => mlsnc.%y4%m2%d2.t%h2z.nc
-  20121231_18z-21001231_18z 240000 /archive/u/kwargan/data/MLS_NRT/Y%y4/M%m2/MLSNRToz.%y4%m2%d2_%h2z.nc
+# 20140723_00z-20140815_18z 240000  /discover/nobackup/dao_ops/intermediate/flk/stage/mls_oz_nrt/MLSNRToz.%y4%m2%d2_%h2z.nc
+# 20140818_00z-21001231_18z 240000  /discover/nobackup/dao_ops/intermediate/flk/stage/mls_oz_nrt/MLSNRToz.%y4%m2%d2_%h2z.nc
+  20140723_00z-20140815_18z 240000  /archive/input/dao_ops/ops/flk/mls_oz_nrt/netcdf/mls_oz_nrt/Y%y4/M%m2/MLSNRToz.%y4%m2%d2_%h2z.nc
+  20140818_00z-21001231_18z 240000  /archive/input/dao_ops/ops/flk/mls_oz_nrt/netcdf/mls_oz_nrt/Y%y4/M%m2/MLSNRToz.%y4%m2%d2_%h2z.nc
 END
 
 # TRMM TMI 1B11 brightness temperature
@@ -703,5 +711,22 @@ END
 BEGIN gmis2_bufr => gmis2.%y4%m2%d2.t%h2z.bufr
  20140416_00z-20140520_12z 240000 /archive/u/jjin3/obs_data/gmi/gmi_bufr_data/V01D/1B/Y%y4/M%m2/gmi_nrt_L1B_S2.%y4%m2%d2.t%h2z.bufr
  20140520_18z-21001231_18z 240000 /archive/u/jjin3/obs_data/gmi/gmi_bufr_data/V02A/1B/Y%y4/M%m2/gmi_nrt_L1B_S2.%y4%m2%d2.t%h2z.bufr
+END
+# GPM GMI 1CR brightness temperature
+#-------------------------
+BEGIN gmao_gmi_bufr => gmi.%y4%m2%d2.t%h2z.bufr
+# V03A
+ 20140304_18z-21001231_18z 240000  /archive/u/jjin3/obs_data/gmi/gmi_bufr_data/V03/1CR/Y%y4/M%m2/gmi_L1CR.%y4%m2%d2.t%h2z.bufr
+END 
+
+# RapidScat Scatterometer Surface Winds onboard ISS
+#-------------------------
+BEGIN rscat_bufr => rscat.%y4%m2%d2.t%h2z.bufr_d.ublk
+  20150501_00z-21001231_18z 240000 /discover/nobackup/dao_ops/intermediate/flk/stage/rapidscat/rscat.%y4%m2%d2.%h2z.bufr
+END
+
+# Suomi NPP OMPS-Limb Profiler near real time
+BEGIN ompslp_nc => ompslpnc.%y4%m2%d2.t%h2z.nc
+  20110101_18z-present  240000  /archive/u/kwargan/data/OMPS-LP/NetCDF_error_x_1.5/Y%y4/M%m2/OMPS-LPoz.%y4%m2%d2_%h2z.nc
 END
 

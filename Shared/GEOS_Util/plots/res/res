@@ -1,34 +1,25 @@
 function res (args)
 
-expid    = subwrd(args,1)
-source   = subwrd(args,2)
-output   = subwrd(args,3)
-geosutil = subwrd(args,4)
+'numargs  'args
+ numargs = result
+
+                          k = 1
+expid  = subwrd(args,k) ; k = k+1
+output = subwrd(args,k) ; k = k+1
+debug  = subwrd(args,k) ; k = k+1
 
 * Define Seasons to Process
 * -------------------------
-seasons  = ''
-       k = 5
-while( k > 0 )
-    season = subwrd(args,k)
-if( season = '' )
-    k = -1
-else
+seasons = ''
+while(   k <= numargs )
+    season  = subwrd(args,k)
     seasons = seasons % ' ' % season
-k = k+1
-endif
+         k  = k+1
 endwhile
 'uppercase 'seasons
           seasons = result
 
 'reinit'
-
-* File 1 (Model Experiment)
-* -------------------------
-'open residual.ctl'
-
-'run getenv  "VERIFICATION"'
-
 'set display color white'
 'set csmooth on'
 'c'
@@ -36,19 +27,42 @@ endwhile
 
 * File 1 (Model Experiment)
 * -------------------------
-'set dfile 1'
+'run getobs STR DYN VERIFICATION.'expid'.rc'
+        str     = subwrd(result,1)
+        modfil1 = subwrd(result,2)
+        expdsc  = subwrd(result,4)
+'run getobs RES DYN VERIFICATION.'expid'.rc'
+        res     = subwrd(result,1)
+        modfil2 = subwrd(result,2)
+
+'run getenv "GEOSUTIL"'
+             geosutil = result
+
+'run getenv "ORIENTATION"'
+             orientation = result
+
+'set dfile 'modfil1
+'sety'
+'setz'
 'getdates'
 'run getenv "BEGDATE"'
              begdate  = result
 'run getenv "ENDDATE"'
              enddate  = result
 'seasonal str mod'
+
+'set dfile 'modfil2
+'sety'
+'setz'
 'seasonal res mod'
 
 
 * Loop over Possible Verification Datasets
 * ----------------------------------------
-'getnumrc 'geosutil'/plots/res'
+'getpwd'
+    pwd = result
+
+'getnumrc 'pwd
      rcinfo = result
      numrc  = subwrd( rcinfo,1 )
        num  = 1
@@ -59,25 +73,31 @@ while( num <= numrc )
 
 
 'run getobs STR DYN 'rcfile
-        str    = subwrd(result,1)
-        sfile  = subwrd(result,2)
-        sscale = subwrd(result,3)
-        obsdsc = subwrd(result,4)
-        obsid  = subwrd(result,5)
+        str     = subwrd(result,1)
+        obsfil1 = subwrd(result,2)
+        obsdsc  = subwrd(result,4)
+        obsid   = subwrd(result,5)
 'run getobs RES DYN 'rcfile
-        res    = subwrd(result,1)
-        rfile  = subwrd(result,2)
+        res     = subwrd(result,1)
+        obsfil2 = subwrd(result,2)
 
-'set dfile 'sfile
+if( obsid != expid )
+
+'set dfile 'obsfil1
 'sety'
 'setz'
 'seasonal str obs'
 
-'set dfile 'rfile
+'set dfile 'obsfil2
 'sety'
 'setz'
 'seasonal res obs'
  
+'sett'
+'getdates'
+ begdateo = subwrd(result,1)
+ enddateo = subwrd(result,2)
+
 
 * Loop over Seasons to Process
 * ----------------------------
@@ -91,19 +111,86 @@ else
          say 'Processing Season: 'season
 
 
-'set dfile 'sfile
+'set dfile 'obsfil1
 'count "'season'"'
  nobs = result
 
-'set dfile 1'
+'set dfile 'modfil1
 'count "'season'" 'begdate' 'enddate
  nmod = result
 
-'run 'geosutil'/plots/res/res_1 'expid' 'season' 'output' 'obsid' 'obsdsc' 'nmod' 'nobs
-'c'
+* Make Plot
+* ---------
+   if( orientation = PORTRAIT )
+      'makezdif -q1 str'season'mod -file1 'modfil1' -q2 str'season'obs -file2 'obsfil1' -name strdif -ptop 1'
+      'makezdif -q1 res'season'mod -file1 'modfil2' -q2 res'season'obs -file2 'obsfil2' -name resdif -ptop 1'
+   endif
+   'q define'
+   say 'Defined Variables: 'result
 
+   if( orientation = LANDSCAPE )
+              flag = ""
+      while ( flag = "" )
+             'run 'geosutil'/plots/res/res_1 'expid' 'season' 'output' 'obsid' 'obsdsc' 'nmod' 'nobs
+          if( debug = "debug" )
+              say "Hit  ENTER  to repeat plot"
+              say "Type 'next' for  next plot, 'done' for next field"
+                   pull flag
+          else
+                   flag = "next"
+          endif
+         'c'
+      endwhile
+   endif
+
+   if( orientation = PORTRAIT )
+              flag = ""
+      while ( flag = "" )
+             'run 'geosutil'/plots/res/res_2 'expid' 'season' 'output' 'obsid' 'obsdsc' 'nmod' 'nobs' 'expdsc' 'begdateo' 'enddateo
+              if( debug = "debug" )
+                  say "Hit  ENTER  to repeat plot"
+                  say "Type 'next' for  next plot, 'done' for next field"
+                       pull flag
+              else
+                       flag = "next"
+              endif
+             'c'
+      endwhile
+              flag = ""
+      while ( flag = "" )
+             'run 'geosutil'/plots/res/res_3 'expid' 'season' 'output' 'obsid' 'obsdsc' 'nmod' 'nobs' 'expdsc' 'begdateo' 'enddateo
+              if( debug = "debug" )
+                  say "Hit  ENTER  to repeat plot"
+                  say "Type 'next' for  next plot, 'done' for next field"
+                       pull flag
+              else
+                       flag = "next"
+              endif
+             'c'
+      endwhile
+   endif
+
+* End SEASON to PLOT Test
+* -----------------------
 endif
+* End SEASON LOOP
+* ---------------
 endwhile
 
+* End OBSID = EXPID Test
+* ----------------------
+endif
+
+* Check for Next VERIFICATION
+* ---------------------------
 num = num + 1
 endwhile
+
+
+* Move DATA for Archive
+* ---------------------
+if( orientation = PORTRAIT )
+'!/bin/mv -f residual*ctl    ../'
+'!/bin/mv -f residual*data   ../'
+'!/bin/mv -f VERIFICATION*rc ../'
+endif

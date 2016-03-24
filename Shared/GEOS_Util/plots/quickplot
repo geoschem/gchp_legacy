@@ -96,12 +96,6 @@ set lonend   = 360
 set cintdiff = NULL
 set cmpexp_only = FALSE
 
-# Set Default OPS Comparison Experiments
-# --------------------------------------
-set cmpops = "$VERIFICATION/MERRA_MEANS:A   \
-              $VERIFICATION/MERRA2_MEANS:A"
-set cmpops = `echo $cmpops`
-
 # Parse command line
 # ------------------
 
@@ -290,22 +284,6 @@ if( $rc   == HISTORY.rc ) then
     setenv   HISTORYRC    ${hist}/$rc
 else
     setenv   HISTORYRC            $rc
-endif
-
-if( $cmpexp[1] != "NULL" ) then
-    if( $cmpexp_only == TRUE ) then
-         setenv CMPEXP "$cmpexp NULL"
-    else
-         setenv CMPEXP "$cmpexp $cmpops NULL"
-    endif
-else
-echo $cmpops
-    if( $cmpexp_only == TRUE ) then
-         setenv CMPEXP "$cmpexp"
-    else
-    echo setenv CMPEXP "$cmpops $cmpexp"
-         setenv CMPEXP "$cmpops $cmpexp"
-    endif
 endif
 
 if( $TBEG != NULL ) setenv CLIM false
@@ -551,6 +529,32 @@ foreach plot ($plots)
 $GEOSUTIL/plots/configure
 source $plots_dir/$plot.$datetime.$type/.quickplotrc
 
+# Set Default OPS Comparison Experiments
+# --------------------------------------
+set cmpops = "$VERIFICATION/MERRA_MEANS:A   \
+              $VERIFICATION/MERRA2_MEANS:A"
+set cmpops = `echo $cmpops`
+
+# Update CMPEXP
+# -------------
+if( $cmpexp[1] != "NULL" ) then
+    if( $cmpexp_only == TRUE ) then
+         setenv CMPEXP "$cmpexp NULL"
+    else
+         setenv CMPEXP "$cmpexp $cmpops NULL"
+    endif
+else
+echo $cmpops
+    if( $cmpexp_only == TRUE ) then
+         setenv CMPEXP "$cmpexp"
+    else
+    echo setenv CMPEXP "$cmpops $cmpexp"
+         setenv CMPEXP "$cmpops $cmpexp"
+    endif
+endif
+
+# ECHO Setup
+# ----------
 echo "       GRADS = " $GRADS
 echo "        ARCH = " `uname`
 echo "        HOST = " `hostname`

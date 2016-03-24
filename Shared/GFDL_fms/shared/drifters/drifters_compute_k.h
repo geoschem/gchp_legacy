@@ -1,5 +1,5 @@
 ! -*-f90-*-
-! $Id: drifters_compute_k.h,v 1.1.1.1 2010-03-19 21:18:54 atrayano Exp $
+! $Id$
 
 subroutine drifters_compute_k_XXX(self, positions, u, v, &
 #if _DIMS >= 3

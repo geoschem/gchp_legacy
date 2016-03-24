@@ -427,7 +427,7 @@ EOF
      $norst = $r{norestart};
      if ( "$norst" eq "x" ) {
         print FILE <<EOF;
-        RESTART            = .FALSE.,   &
+        RESTART            = MAPL_RestartSkip,   &
 EOF
       }
 

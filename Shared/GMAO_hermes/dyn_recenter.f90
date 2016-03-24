@@ -40,7 +40,6 @@
 !
 !  30sep2011   Todling    Initial code
 !  11nov2011   Todling    Handle variable resolution
-!  24nov2011   Todling    Hack lm to avoid issue when file has slp
 !  27jan2012   Todling    Add relaxation to central analysis above given level
 !  21apr2012   Todling    Add capability to apply additive inflation
 !  14may2012   ElAkkraoui Modify damping of additive inflation and avoid inflating ozone
@@ -51,6 +50,8 @@
 !                          (i)  remaps both ensmean and member to central topo
 !                          (ii) remaps both ensmean and central to member topo
 !  25feb2013   ElAkkraoui/RT  Reset threshold of inf to mesh top of blending
+!  01Jul2015   Todling    Revisit handling of tracers
+!  16Jul2015   Todling    Revisit handling of surface pressure
 !
 ! Remarks:
 !   1) For the purpose of diagnostics it seems more appropriate to remap
@@ -70,7 +71,6 @@
 
 !     File names
 !     ----------
-      integer, parameter :: lm_hack = 4  ! this is as bad as it gets
       integer, parameter :: MFILES = 3   ! at least 3 files as input
       character(len=255) :: files(MFILES)! hold names of files involved
 
@@ -93,17 +93,19 @@
       integer ntimes, k, freq, nymd, nhms, nymd0, nhms0, prec
       integer im, jm, km, lm, system, dyntype
       integer imm, jmm, kmm, lmm
+      integer lm_mean,lm_pert,lm_central
       real    pkthresh, alpha
       real,allocatable:: phis(:,:)
       logical remap2central,remap2member
       logical damp
       logical verbose
       logical gotphis
+      logical pncf
       character(len=30) :: remapinfo
       
 !  Initialize
 !  ----------     
-   call Init_ ( dyntype, mfiles, files, damp, remap2central, remap2member, pkthresh, alpha, verbose )
+   call Init_ ( dyntype, mfiles, files, damp, remap2central, remap2member, pkthresh, alpha, pncf, verbose )
 
 !  Determine how many time levels in file
 !  --------------------------------------
@@ -131,6 +133,11 @@
 
    allocate(phis(x_e%grid%im,x_e%grid%jm))
    gotphis = getphis_(phis,remapinfo)
+   imm=x_e%grid%im
+   jmm=x_e%grid%jm
+   kmm=x_e%grid%km
+   lmm=x_e%grid%lm
+   lm_mean=lmm
 
 !  Get original (ensemble) mean
 !  ----------------------------
@@ -142,6 +149,7 @@
          print *, trim(myname), ': km/lm central mean= ', kmm,lmm
          call die(myname,'inconsistent km/lm')
       endif
+      lm_mean=lmm
 
       if(im/=imm.or.jm/=jmm) then ! handle case when resolution of ensemble mean
                                   ! differs from members; this only happens in dual
@@ -165,8 +173,7 @@
 
 !        Interpolate to required resolution
 !        ----------------------------------
-         x_m%grid%lm = lm_hack     ! fix lm
-         x_x%grid%lm = x_m%grid%lm ! hack lm
+         x_m%grid%lm = min(lm_mean,lm) ! only interp minimal set of fields (others are zero)
          call h_map ( x_x, x_m, rc, lwifile='NONE', dgrid=.false. )
               if ( rc/=0 ) then
                    call dyn_clean ( x_x )
@@ -176,8 +183,10 @@
               else
                    call dyn_clean ( x_x )
               endif
+         x_m%grid%lm = lm ! reset lm-dim(x_m)
          print*, myname, ': interpolated ensemble mean analysis to member resolution'
          print*, myname, ': from ', imm, 'x', jmm, ' to ', im, 'x', jm
+         print*, myname, ': mean lm= ', lm_mean, ', member lm=', lm
 
       else
 
@@ -223,9 +232,10 @@
       call dyn_getdim ( trim(dyn_inflate), imm, jmm, kmm, lmm, rc )
       if(km/=kmm) then ! ignore diff in lm for now
          print *, trim(myname), ': km/lm members     = ', km ,lm
-         print *, trim(myname), ': km/lm central mean= ', kmm,lmm
+         print *, trim(myname), ': km/lm perturbation= ', kmm,lmm
          call die(myname,'inconsistent km/lm')
       endif
+      lm_pert=lmm
 
       if(im/=imm.or.jm/=jmm) then
  
@@ -239,15 +249,14 @@
    
 !        Read full resolution perturbation
 !        ---------------------------------
-         call dyn_get ( trim(dyn_inflate), nymd0, nhms0, x_x, rc, timidx=1, freq=freq, vectype=dyntype )
+         call dyn_get ( trim(dyn_inflate), nymd0, nhms0, x_x, rc, timidx=1, freq=freq, vectype=dyntype, pncf=pncf )
          if ( rc .ne. 0 ) then
             call die(myname,'cannot read new mean file')
          end if
 
 !        Interpolate to required resolution
 !        ----------------------------------
-         x_m%grid%lm = lm_hack     ! fix lm
-         x_x%grid%lm = x_m%grid%lm ! hack lm
+         x_m%grid%lm=min(lm_pert,lm) ! only interp minimal set of fields (others are zero) 
          call h_map_pert ( x_x, x_m, rc )
               if ( rc/=0 ) then
                    call dyn_clean ( x_x )
@@ -257,6 +266,7 @@
               else
                    call dyn_clean ( x_x )
               endif
+         x_m%grid%lm = lm ! reset lm-dim(x_m)
          print*, myname, ': interpolated additive perturbation to member resolution'
          print*, myname, ': from ', imm, 'x', jmm, ' to ', im, 'x', jm
 
@@ -264,17 +274,18 @@
 
 !        Initialize dimension of output (interpolated) vector
 !        ----------------------------------------------------
-         call dyn_init ( imm, jmm, kmm, lmm, x_m, rc, &
+         call dyn_init ( imm, jmm, kmm, lm, x_m, rc, &
                          x_e%grid%ptop, x_e%grid%ks, x_e%grid%ak, x_e%grid%bk, vectype=dyntype )
               if ( rc/=0 ) then
                    call die (myname, ': Error initializing dyn vector(x_m)')
               endif
 
-         call dyn_get ( trim(dyn_inflate), nymd0, nhms0, x_m, rc, timidx=1, freq=freq, vectype=dyntype )
+         x_m%grid%lm = lm_pert ! read only q variables in file
+         call dyn_get ( trim(dyn_inflate), nymd0, nhms0, x_m, rc, timidx=1, freq=freq, vectype=dyntype, pncf=pncf )
          if ( rc .ne. 0 ) then
             call die(myname,'cannot read inflating perturbation file')
          end if
-         x_m%grid%lm = lm_hack ! hack fix lm
+         x_m%grid%lm = lm ! reset number of q variables to total dim
 
       endif
 
@@ -298,6 +309,8 @@
          print *, trim(myname), ': km/lm central mean= ', kmm,lmm
          call die(myname,'inconsistent km/lm')
       endif
+      lm_central=lmm
+
       if(im/=imm.or.jm/=jmm) then
 
 !        Initialize dimension of output (interpolated) vector
@@ -317,8 +330,8 @@
 
 !        Interpolate to required resolution
 !        ----------------------------------
-         x_m%grid%lm = lm_hack     ! fix lm
-         x_x%grid%lm = x_m%grid%lm ! hack lm
+         x_m%grid%lm = min(lm_central,lm) ! fix lm of interpolated fields 
+         x_x%grid%lm = x_m%grid%lm        ! fix lm of input fields
          call h_map ( x_x, x_m, rc, lwifile='NONE', dgrid=.false. )
               if ( rc/=0 ) then
                    call dyn_clean ( x_x )
@@ -328,6 +341,7 @@
               else
                    call dyn_clean ( x_x )
               endif
+         x_m%grid%lm = lm ! reset lm_dim(x_m)
          print*, myname, ': interpolated central analysis to member resolution'
          print*, myname, ': from ', imm, 'x', jmm, ' to ', im, 'x', jm
 
@@ -337,17 +351,18 @@
 
 !        Initialize dimension of output (interpolated) vector
 !        ----------------------------------------------------
-         call dyn_init ( imm, jmm, kmm, lmm, x_m, rc, &
+         call dyn_init ( imm, jmm, kmm, lm, x_m, rc, &
                          x_e%grid%ptop, x_e%grid%ks, x_e%grid%ak, x_e%grid%bk, vectype=dyntype )
               if ( rc/=0 ) then
                    call die (myname, ': Error initializing dyn vector(x_m)')
               endif
 
+         x_m%grid%lm = lm_central
          call dyn_get ( files(3), nymd, nhms, x_m, rc, timidx=1, freq=freq, vectype=dyntype )
          if ( rc .ne. 0 ) then
             call die(myname,'cannot read new mean file')
          end if
-         x_m%grid%lm = lm_hack ! hack fix lm
+         x_m%grid%lm = lm
 
       endif
 
@@ -368,13 +383,6 @@
 
    endif
 
-!  Recalculate ps for consistency w/ delp
-!  --------------------------------------
-   x_e%ps = x_e%grid%ptop
-   do k=1,size(x_e%delp,3)
-      x_e%ps = x_e%ps + x_e%delp(:,:,k)
-   enddo
-
 !  When requested, summarize results
 !  ---------------------------------
    if (verbose) then
@@ -383,7 +391,6 @@
           call die(myname,'cannot process dyn_stat')
        end if
    end if
-   x_e%grid%lm = lm_hack ! hack fix lm 
 
 !  If requested write *.hdf file with a header from dyn(1)
 !  -------------
@@ -418,7 +425,7 @@ CONTAINS
 ! !INTERFACE:
 !
       subroutine Init_ ( dyntype, mfiles, files, damp, remap2central, remap2member, &
-                         pkthresh, alpha, &
+                         pkthresh, alpha, pncf, &
                          verbose )
 
       implicit NONE
@@ -434,6 +441,7 @@ CONTAINS
                                             !   no additive inflation is applied
       real   , intent(out) :: alpha         ! multiplicative parameter to scale
                                             !   perturbations used for inflation
+      logical, intent(out) :: pncf          ! perturbation is non-compliant dyn-field
       
 !
 ! !REVISION HISTORY:
@@ -462,6 +470,7 @@ CONTAINS
       remap2central = .false. ! remap ensmean and member to central topography
       remap2member  = .true.  ! remap ensmean and central to member topography
       doremap = .true.
+      pncf = .false.
       verbose = .false.
 
       print *
@@ -503,6 +512,8 @@ CONTAINS
              if ( iarg+1 .gt. argc ) call usage()
            case ("-verbose")
              verbose =.true.
+           case ("-pncf")
+             pncf =.true.
            case ("-damp")
              damp =.true.
            case ("-noremap")
@@ -599,6 +610,12 @@ CONTAINS
 !.................................................................
       subroutine my_saxpy_(add,x,y,z,pklim)
       implicit none
+!
+! !REVISION HISTORY:
+!    
+!  16jul2015   Todling    Revisit ps - recalc after delp change
+!  10oct2015   Todling    Bug fix in ps inc (ptop was incorrect); spotted by Wei Gu
+!    
 
       logical, intent(in)         :: add
       type(dyn_vect), intent(in)  :: x,y
@@ -606,12 +623,13 @@ CONTAINS
       real   ,intent(in),optional :: pklim
 !     logical var might seem foolish, but it avoids floating point
 !     operator that would be required by passing 1.0 or -1.0
-      integer k,km
+      integer k,km,lm_min
       real,allocatable,dimension(:)::pref
       real alf,pk,pabove,pbelow,pklim_
       pklim_ = 0.0
       pabove = 100.0 ! 1-mb
       pbelow = 500.0 ! 5-mb
+      lm_min=min(x%grid%lm,y%grid%lm)
       if (present(pklim)) then
           pklim_=pklim
       endif
@@ -626,19 +644,19 @@ CONTAINS
           enddo
           do k=1,km
              pk =0.5*(pref(k+1)+pref(k))
-            if( pk.lt.pklim_ ) cycle  ! do not add perturbation above pklim
+             if( pk.lt.pklim_ ) cycle  ! do not add perturbation above pklim
              if( pk.lt.pbelow .and. damp )  then
                alf=max( 0.0, (pk-pabove)/(pbelow-pabove) )
-               if(verbose) write(6,'(1x,a,i3,a,f6.2,a,f6.4)') 'Level: ',k,&
+               if(verbose) write(6,'(1x,a,i3,a,f6.2,a,f7.4)') 'Level: ',k,&
                                     ' Pmid: ',pk/100,' Damping Coef: ',alf
                z%delp(:,:,k)        = alf*x%delp(:,:,k)        + y%delp(:,:,k)
                z%u(:,:,k)           = alf*x%u(:,:,k)           + y%u(:,:,k)
                z%v(:,:,k)           = alf*x%v(:,:,k)           + y%v(:,:,k)
                z%pt(:,:,k)          = alf*x%pt(:,:,k)          + y%pt(:,:,k)
                if(present(pklim)) then
-                 z%q(:,:,k,1)         = alf*x%q(:,:,k,1)         + y%q(:,:,k,1)
+                  z%q(:,:,k,1)        = alf*x%q(:,:,k,1)       + y%q(:,:,k,1)
                else
-                 z%q(:,:,k,1:lm_hack) = alf*x%q(:,:,k,1:lm_hack) + y%q(:,:,k,1:lm_hack)
+                  z%q(:,:,k,1:lm_min) = alf*x%q(:,:,k,1:lm_min) + y%q(:,:,k,1:lm_min)
                endif
              else
                z%delp(:,:,k)        = x%delp(:,:,k)            + y%delp(:,:,k)
@@ -646,9 +664,9 @@ CONTAINS
                z%v(:,:,k)           = x%v(:,:,k)               + y%v(:,:,k)
                z%pt(:,:,k)          = x%pt(:,:,k)              + y%pt(:,:,k)
                if(present(pklim)) then
-                z%q(:,:,k,1)         = x%q(:,:,k,1)         + y%q(:,:,k,1)
+                 z%q(:,:,k,1)         = x%q(:,:,k,1)       + y%q(:,:,k,1)
                else
-                z%q(:,:,k,1:lm_hack) = x%q(:,:,k,1:lm_hack) + y%q(:,:,k,1:lm_hack)
+                 z%q(:,:,k,1:lm_min) = x%q(:,:,k,1:lm_min) + y%q(:,:,k,1:lm_min)
                endif
              endif
           enddo
@@ -659,8 +677,15 @@ CONTAINS
           z%u         = x%u    - y%u
           z%v         = x%v    - y%v
           z%pt        = x%pt   - y%pt
-          z%q(:,:,:,1:lm_hack) = x%q(:,:,:,1:lm_hack) - y%q(:,:,:,1:lm_hack)
+          z%q(:,:,:,1:lm_min) = x%q(:,:,:,1:lm_min) - y%q(:,:,:,1:lm_min)
       endif
+
+!     Recalculate ps for consistency w/ delp
+!     --------------------------------------
+      z%ps = 0.0
+      do k=1,size(z%delp,3)
+         z%ps = z%ps + z%delp(:,:,k)
+      enddo
       end subroutine my_saxpy_
 !.................................................................
       subroutine my_sscal_(alpha,z)
@@ -668,11 +693,12 @@ CONTAINS
       type(dyn_vect), intent(inout) :: z
       if(alpha<-990.) return
       z%ts        = alpha*z%ts
+      z%ps        = alpha*z%ps
       z%delp      = alpha*z%delp
       z%u         = alpha*z%u
       z%v         = alpha*z%v
       z%pt        = alpha*z%pt
-      z%q(:,:,:,1:lm_hack) = alpha*z%q(:,:,:,1:lm_hack)
+      z%q(:,:,:,:) = alpha*z%q(:,:,:,:)
       end subroutine my_sscal_
 !.................................................................
 
@@ -732,8 +758,8 @@ CONTAINS
 
 !        Interpolate to required resolution
 !        ----------------------------------
-         x_a%grid%lm = lm_hack     ! fix lm
-         x_x%grid%lm = x_a%grid%lm ! hack lm
+         x_a%grid%lm = min(x_a%grid%lm,x_x%grid%lm)  ! fix lm
+         x_x%grid%lm = x_a%grid%lm ! fix lm
          call h_map ( x_x, x_a, rc, lwifile='NONE', dgrid=.false. )
               if ( rc/=0 ) then
                    call dyn_clean ( x_x )
@@ -761,7 +787,6 @@ CONTAINS
          if ( rc .ne. 0 ) then
             call die(myname,'cannot read new mean file')
          end if
-         x_a%grid%lm = lm_hack ! hack fix lm
 
       endif
 

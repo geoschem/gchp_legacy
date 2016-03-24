@@ -44,7 +44,6 @@
 
 !     File names
 !     ----------
-      integer, parameter :: lm_hack = 4  ! this is as bad as it gets
       integer, parameter :: MFILES = 2   ! at least 3 files as input
       integer, parameter :: stride = 1   ! TBD: ought do better than this  
       character(len=255) :: files(MFILES)! hold names of files involved
@@ -133,8 +132,8 @@
  
 !        Remap to required resolution
 !        ----------------------------
-         x_c%grid%lm = lm_hack     ! fix lm
-         x_x%grid%lm = x_c%grid%lm ! hack lm
+         x_c%grid%lm = min(x_c%grid%lm,x_x%grid%lm) ! fix lm
+         x_x%grid%lm = x_c%grid%lm ! fix lm
          call h_map_pert ( x_x, x_c, rc )
               if ( rc/=0 ) then
                    call dyn_clean ( x_x )
@@ -144,6 +143,7 @@
               else
                    call dyn_clean ( x_x )
               endif
+         x_c%grid%lm = lm ! reset lm-dim(x_c)
          print*, myname, ': interpolated member to desired resolution'
          print*, myname, ': from ', imc, 'x', jmc, ' to ', im, 'x', jm
 
@@ -256,7 +256,7 @@
 
    write(7,'(2(2x,a))') trim(fnout), trim(fnout)
    do nm=1,members+1
-      write(7,'(i6,2x,f7.5)') nm, hist(nm)/float(icnt)
+      write(7,'(i6,2x,f8.5)') nm, hist(nm)/float(icnt)
    enddo
    close(7)
 

@@ -8,7 +8,7 @@ OBSDSC: GEOSdas-2_1_4_(MERRA)
                     'T'        , 'DYN'           , 'T'      , 1
                     'U'        , 'DYN'           , 'U'      , 1
                     'V'        , 'DYN'           , 'V'      , 1
-                    'RH2'      , 'MOIST'         , 'RH'     , 100
+                    'RH2'      , 'MOIST'         , 'RH'     , 1
                     'Q'        , 'MOIST'         , 'QV'     , 1
                     'SLP'      , 'DYN'           , 'SLP'    , 1
                     'OMEGA'    , 'DYN'           , 'OMEGA'  , 1

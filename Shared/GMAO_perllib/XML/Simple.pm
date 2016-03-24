@@ -1,4 +1,4 @@
-# $Id: Simple.pm,v 1.1 2006-10-12 17:52:40 dasilva Exp $
+# $Id$
 
 package XML::Simple;
 

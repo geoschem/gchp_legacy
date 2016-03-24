@@ -1,4 +1,4 @@
-! $Id: GEOS.F90,v 1.15 2007-10-04 20:38:23 dasilva Exp $
+! $Id$
 
 module GEOS_Mod
 

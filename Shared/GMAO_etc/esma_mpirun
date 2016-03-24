@@ -75,7 +75,8 @@ sub get_mpi_type {
 
     # check MPI_ROOT env variable
     #----------------------------
-    if    ( $ENV{"M_MPI_ROOT"} )             { $mpi_type = "mvapich2" }
+    if    ( $ENV{"OPENMPI"} )                { $mpi_type = "openmpi"  }
+    elsif ( $ENV{"M_MPI_ROOT"} )             { $mpi_type = "mvapich2" }
     elsif ( $ENV{"I_MPI_ROOT"} )             { $mpi_type = "intel"    }
 
     # check $MPIHOME env variable
@@ -83,6 +84,7 @@ sub get_mpi_type {
     elsif ( $MPIHOME = $ENV{"MPIHOME"} ) {
         if    ( $MPIHOME =~ m[mvapich2] )    { $mpi_type = "mvapich2" }
         elsif ( $MPIHOME =~ m[/intel/mpi/] ) { $mpi_type = "intel"    }
+        elsif ( $MPIHOME =~ m[/sgi/mpi/] )   { $mpi_type = "mpt"      }
     }
 
     # check $MPI_HOME env variable
@@ -142,7 +144,7 @@ sub which_mpi_cmd {
     #-------------------------------------------------
     $mpicmd = "notfound";
 
-    foreach $progname ( "mpirun", "mpiexec" ) {
+    foreach $progname ( "mpiexec_mpt", "mpirun", "mpiexec" ) {
         $status = system "which $progname >& /dev/null";
         next if $status;
 
@@ -171,7 +173,7 @@ sub get_xtraflags {
     use FindBin qw($Bin);
     use lib ("$Bin");
     use GMAO_utils qw(get_siteID pbs_env);
-    my ($pbs_nodefile, $numnodes, $siteID);
+    my ($cpus_per_node, $numnodes, $siteID, $label);
     $xtraflags = "";
 
     # flags needed for mvapich2 mpi
@@ -184,7 +186,16 @@ sub get_xtraflags {
 
         # perhost value
         #--------------
-        $perhost = pbs_env("cpus_per_node") unless $perhost;
+        $cpus_per_node = pbs_env("cpus_per_node");
+        if ($perhost and $cpus_per_node) {
+            $label = "WARNING; perhost ($perhost) and cpus_per_node "
+                . "($cpus_per_node) differ; using $cpus_per_node;";
+            warn $label if $perhost != $cpus_per_node;
+        }
+
+        $perhost = $cpus_per_node if $cpus_per_node;
+        die "Error; no value for perhost;" unless $perhost;
+
         $siteID = get_siteID();
 
         # nas site
@@ -193,7 +204,7 @@ sub get_xtraflags {
             if ($mpi_type eq "intel") {
                 $numnodes = pbs_env("num_nodes");
                 $xtraflags .= " --totalnum=$numnodes";
-                $xtraflags .= " --file=$pbs_nodefile";
+                $xtraflags .= " --file=\$PBS_NODEFILE";
                 $xtraflags .= " --rsh=ssh";
             }
         }

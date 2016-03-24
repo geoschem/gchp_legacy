@@ -1,4 +1,4 @@
-! $Id: bcast.H,v 1.4 2015-03-03 17:00:48 atrayano Exp $
+! $Id$
 
 #ifdef NAME_
 #undef NAME_

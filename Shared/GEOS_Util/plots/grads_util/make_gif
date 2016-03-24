@@ -45,6 +45,10 @@ while( $n <= $nmax )
                     @ n = $n + 1
                set ydim = $argv[$n]
        endif
+       if( "$argv[$n]" == "-ext"  ) then
+                    @ n = $n + 1
+                set ext = $argv[$n]
+       endif
        if( "$argv[$n]" == "-bw"        ) set        bw = true
        if( "$argv[$n]" == "-antialias" ) set antialias = true
      @ n = $n + 1
@@ -72,23 +76,23 @@ if( .$output != .. ) set file = ${output}/${file}
 # Create Postscript from Grads
 # ----------------------------
         if( -e $file.out ) then
-             if( $rotate == 0   ) $GXYAT  -y $dim1 -x $dim2 -i $file.out -o $file.gif
-             if( $rotate == 90  ) $GXYAT  -x $dim1 -y $dim2 -i $file.out -o $file.gif
+             if( $rotate == 0   ) $GXYAT  -y $dim1 -x $dim2 -i $file.out -o $file.$ext
+             if( $rotate == 90  ) $GXYAT  -x $dim1 -y $dim2 -i $file.out -o $file.$ext
         endif
 
 # Create GIF from Postscript
 # --------------------------
         if( -e $file.ps ) then
-           if( $antialias == 'false' )  convert            -seed 1 -rotate $rotate -density $density $file.ps $file.gif
-           if( $antialias == 'true'  )  convert +antialias -seed 1 -rotate $rotate -density $density $file.ps $file.gif
+           if( $antialias == 'false' )  convert            -seed 1 -rotate $rotate -density $density $file.ps $file.$ext
+           if( $antialias == 'true'  )  convert +antialias -seed 1 -rotate $rotate -density $density $file.ps $file.$ext
         endif
 
 # Remove Intermediate Files
 # -------------------------
-        if( -e $file.gif ) then
+        if( -e $file.$ext ) then
                if( -e $file.out ) /bin/rm $file.out
                if( -e $file.ps  ) /bin/rm $file.ps
-               chmod 644 $file.gif
-               echo Finished Creating:  $file.gif
+               chmod 644 $file.$ext
+               echo Finished Creating:  $file.$ext
         endif
 

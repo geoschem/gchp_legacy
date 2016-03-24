@@ -14,7 +14,7 @@ OBSDSC: NCEP_REANAL_Ver-2_Jan_1982-Dec_1998
 
         filename:   'VERIFICATION/NCEP_REANAL-2/ncep_sphu.ctl'
         filetype:   'BIN'
-        fields:     'RH2'      , 'MOIST'         , 'RH'     , 1
+        fields:     'RH2'      , 'MOIST'         , 'RH'     , 1/100
                     'Q'        , 'MOIST'         , 'SPHU'   , 1
                     ::
 

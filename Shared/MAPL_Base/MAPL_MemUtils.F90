@@ -315,11 +315,11 @@ module MAPL_MemUtilsMod
     logical, intent(in), optional :: always
     integer, optional, intent(OUT  ) :: RC
 
-    real :: mhwm, mrss, mjswp, memused, swapused
-    real :: mmin, mmax, mavg, mtot, mstd
-    real :: gmin, gmax, gavg, gtot, gstd
+    real :: mhwm, mrss, memused, swapused
+    real :: mmin, mmax, mavg, mstd
+    real :: gmin, gmax, gavg, gstd
     real :: lhwm, ghwm
-    real :: lmem, gmem, ljswp, gjswp, lswap, gswap
+    real :: lmem, gmem, lswap, gswap
 
 !memuse is an external function: works on SGI
 !use #ifdef to generate equivalent on other platforms.
@@ -342,7 +342,7 @@ module MAPL_MemUtilsMod
 #if defined(__sgi) || defined(__aix) || defined(__SX)
     m = memuse()*1e-3
 #else
-    call mem_dump(mhwm, mrss, mjswp, memused, swapused)
+    call mem_dump(mhwm, mrss, memused, swapused)
 #endif 
     lhwm = mhwm; call MAPL_CommsAllReduceMax(vm, lhwm, ghwm, 1, rc=status)
     VERIFY_(STATUS)
@@ -350,17 +350,15 @@ module MAPL_MemUtilsMod
     VERIFY_(STATUS)
     mmax = mrss; call MAPL_CommsAllReduceMax(vm, mmax, gmax, 1, rc=status)
     VERIFY_(STATUS)
-    mtot = mrss; call MAPL_CommsAllReduceSum(vm, mtot, gtot, 1, rc=status)
+    mavg = mrss; call MAPL_CommsAllReduceSum(vm, mavg, gavg, 1, rc=status)
     VERIFY_(STATUS)
-    ljswp = mjswp; call MAPL_CommsAllReduceSum(vm, ljswp, gjswp, 1, rc=status)
-    VERIFY_(STATUS)
-    gavg = gtot/MAPL_NPES(vm)
+    gavg = gavg/MAPL_NPES(vm)
     mstd = (mrss-gavg)**2; call MAPL_CommsAllReduceSum(vm, mstd, gstd, 1, rc=status)
     gstd = sqrt( gstd/MAPL_NPES(vm) )
  !  write(outString,'(a64,5es11.3)') &
  !       'Memuse(MB) at '//trim(text)//'=', gmin, gmax, gstd, gavg, gmax-gmax_save
-    write(outString,'(a30,7es11.3)') &
-         'Memuse(MB) at '//trim(text)//'=', gtot, gjswp, ghwm, gmax, gmin, gavg, gmax-gmax_save
+    write(outString,'(a64,5es11.3)') &
+         'Memuse(MB) at '//trim(text)//'=', ghwm, gmax, gmin, gavg, gmax-gmax_save
     gmax_save = gmax
     call WRITE_PARALLEL(trim(outString),format='(a132)')
 
@@ -377,9 +375,9 @@ module MAPL_MemUtilsMod
 
 !#######################################################################
 
-subroutine mem_dump ( memhwm, memrss, memswap, memused, swapused, RC )
+subroutine mem_dump ( memhwm, memrss, memused, swapused, RC )
 
-real, intent(out) ::  memhwm, memrss, memswap, memused, swapused
+real, intent(out) :: memhwm, memrss, memused, swapused
 integer, optional, intent(OUT  ) :: RC
 
 ! This routine returns the memory usage on Linux systems.
@@ -395,9 +393,8 @@ real    :: multiplier
 character(len=ESMF_MAXSTR), parameter :: IAm="MAPL_MemUtils:mem_dump"
 integer :: status
 
-  memhwm  = 0.0
-  memrss  = 0.0
-  memswap = 0.0
+  memhwm = 0.0
+  memrss = 0.0
   multiplier = 1.0
 
   call get_unit(mem_unit)
@@ -415,12 +412,6 @@ integer :: status
       if (TRIM(string(LEN_TRIM(string)-1:)) == "kB" ) &
         multiplier = 1.0/1024. ! Convert from kB to MB
       memrss = memrss * multiplier
-    endif
-    if ( INDEX ( string, 'VmSwap:' ) == 1 ) then  ! Local swap mem used !MSL
-      read (string(8:LEN_TRIM(string)-2),*) memswap
-      if (TRIM(string(LEN_TRIM(string)-1:)) == "kB" ) &
-        multiplier = 1.0/1024. ! Convert from kB to MB
-      memswap = memswap * multiplier
     endif
   enddo
 10 close(mem_unit)

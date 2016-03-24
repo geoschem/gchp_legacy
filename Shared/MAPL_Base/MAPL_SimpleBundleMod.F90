@@ -92,6 +92,7 @@
       integer :: n1d=-1
       integer :: n2d=-1
       integer :: n3d=-1
+      logical :: bundleAlloc = .false.
       type(SimpleArray_1D), pointer :: r1(:) => null()
       type(SimpleArray_2D), pointer :: r2(:) => null()
       type(SimpleArray_3D), pointer :: r3(:) => null()
@@ -188,6 +189,8 @@ CONTAINS
                                 __Iam__('MAPL_SimpleBundleCreate')
 
     self%Bundle => Bundle ! remember where it came from
+
+    self%bundleAlloc = .false. ! this is the default. We can overwrite it later
 
     call ESMF_FieldBundleGet (BUNDLE, name=bundleName, &
                                       grid=self%grid, &
@@ -297,7 +300,8 @@ CONTAINS
 !  ---------------------------------------
    if ( present(ptop) ) self%coords%lcv%ptop = ptop
    if ( present(delp) ) then ! User specied
-      self%coords%lcv%delp = delp
+!ALT      self%coords%lcv%delp = delp
+      self%coords%lcv%delp => delp
    else ! Look inside bundle for delp or DELP
       self%coords%lcv%delp => NULL() 
       call ESMF_FieldBundleGet (Bundle, fieldName='DELP', field=Field, RC=STATUS)
@@ -399,6 +403,8 @@ CONTAINS
     self%n1d = n1d
     self%n2d = n2d
     self%n3d = n3d
+
+    deallocate(isRequested, __STAT__)
   
   contains
 
@@ -588,7 +594,14 @@ CONTAINS
 
     __Iam__('MAPL_SimpleBundleDestroy')
 
-    call ESMF_FieldBundleDestroy(self%bundle, __RC__)
+    deallocate(self%coords%Lons, self%coords%Lats, self%coords%Levs, __STAT__) 
+    deallocate(self%r1, self%r2, self%r3, __STAT__)
+
+    call MAPL_FieldBundleDestroy(self%bundle, __RC__)
+
+    if (self%bundleAlloc) then
+       deallocate(self%bundle, __STAT__)
+    end if
 
   end subroutine MAPL_SimpleBundleDestroy
 
@@ -627,15 +640,32 @@ CONTAINS
 
     __Iam__('MAPL_SimpleBundleRead')
     type(ESMF_FieldBundle),  pointer :: Bundle
+    integer                          :: k,n
+    character(len=ESMF_MAXSTR)       :: fname
 
     allocate(Bundle, stat=STATUS)
     VERIFY_(STATUS)
 
-    Bundle = ESMF_FieldBundleCreate ( name=filename, __RC__ )
+!ALT: ESMF object name cannot exceed length of ESMF_MAXSTR(=128) 
+    k = len_trim(filename)
+    if (k > ESMF_MAXSTR) then
+       n = index(filename,'/',back=.true.)
+       ! An attempt to trim the absolute path
+       if (n >= k) then ! n+1 has potential to overflow
+          fname = filename
+       else
+          fname = filename(n+1+max(0,k-n-ESMF_MAXSTR):k)
+       end if
+    else
+       fname = filename
+    end if
+
+    Bundle = ESMF_FieldBundleCreate ( name=fname, __RC__ )
     call ESMF_FieldBundleSet ( bundle, grid=Grid, __RC__ )
     call MAPL_CFIORead  ( filename, Time, Bundle, verbose=verbose, &
                           ONLY_VARS=only_vars, expid=expid, __RC__ )
     self = MAPL_SimpleBundleCreate ( Bundle, __RC__ )
+    self%bundleAlloc = .true.
 
   end function MAPL_SimpleBundleRead
 

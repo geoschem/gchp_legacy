@@ -103,8 +103,13 @@ while( k <= ktot )
 'rgbset'
 'c'
 
-'!'geosutil'/plots/grads_util/make_globl_ctl1 'exp.k
-'pltsys_open 'desc.k
+'fixname 'desc.k
+          DESC.k = result
+
+* Open Files
+* ----------
+'!'geosutil'/plots/grads_util/make_globl_ctl1 'exp.k' 'DESC.k
+'pltsys_open 'desc.k' 'DESC.k
         numfiles = result
 
 * Remove possible BLANKS from Experiment Description
@@ -199,10 +204,12 @@ if( level0 = 'NULL' )
            'set z 'z
            'getinfo level'
                     level  = result
+                 if(level >= 100 )
                     levels = levels' 'level
+                 endif
         z = z + 1
         endwhile
-        'setz'
+       'set lev 1000 100' 
     else
         numlevs = 1
         levels = '1000'
@@ -216,7 +223,7 @@ endif
 say 'NUMLEVS = 'numlevs
 say '   LEVS = 'levels
 
-'statmak 'field
+'statmak_sys 'field' 'DESC.k
 
 
 * Horizonal Plots
@@ -224,15 +231,17 @@ say '   LEVS = 'levels
 z = 1
 while ( z<=numlevs )
               level = subwrd(levels,z)
+           if(level >= 100 )
 'set dfile 1'
 'set lev 'level
-say 'Z: 'z
-say 'LEVEL: 'level
+ say 'Z: 'z
+ say 'LEVEL: 'level
 'c'
 'movie statplt "'field' -desc 'DESC' -nfcst 'numfiles'" -print -rotate 90 -name 'SOURCE'/'DESC'/stats_'name'_all_GLO_'level'_'month
 'c'
-z = z + 1
 '!sleep 15 ; convert -loop 0 -delay 30 'SOURCE'/'DESC'/stats_'name'_all_GLO_'level'_'month'.*.gif 'SOURCE'/'DESC'/stats_'name'_all_GLO_'level'_'month'.gif &'
+           endif
+z = z + 1
 endwhile
 
 * Zonal Mean Plots
@@ -241,7 +250,7 @@ if( numlevs > 1 )
 'set dfile 1'
 'set x 1'
 'sety'
-'setz'
+'set lev 1000 100'
 'c'
 'movie statpltz "'field' -desc 'DESC' -nfcst 'numfiles'" -print -rotate 90 -name 'SOURCE'/'DESC'/stats_'name'_all_GLO_z_'month
 'c'

@@ -79,6 +79,7 @@ if( result = 'NULL' ) ; 'getresource 'PLOTRC' 'EXPORT'_'GC'_CCOLS' ; endif
                                                             ccols = result
 
                         'getresource 'PLOTRC' 'EXPORT'_'GC'_'level'_'CLEVS
+if( result = 'NULL' ) ; 'getresource 'PLOTRC' 'EXPORT'_'GC'_'level'_CLEVS' ; endif
 if( result = 'NULL' ) ; 'getresource 'PLOTRC' 'EXPORT'_'GC'_'CLEVS ; endif
 if( result = 'NULL' ) ; 'getresource 'PLOTRC' 'EXPORT'_'GC'_CLEVS' ; endif
                                                             clevs = result
@@ -115,6 +116,12 @@ endif
 if( cbscale = 'NULL' ) ; cbscale =  0.8         ; endif
 if( clab    = 'NULL' ) ; clab    =  on          ; endif
 
+say ''
+say 'title: 'title
+say ' fact: ' fact
+say 'ccols: 'ccols
+say 'clevs: 'clevs
+say ' mask: ' mask
 say ''
 
 * Remove possible BLANKS from FACTOR

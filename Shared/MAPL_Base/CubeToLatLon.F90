@@ -1,4 +1,4 @@
-!  $Id: CubeToLatLon.F90,v 1.9 2014-12-12 15:55:27 bmauer Exp $
+!  $Id$
 
 #define SUCCESS 0
 #define VERIFY_(A) if((A)/=0) then; if(present(rc)) rc=A; PRINT *, Iam, __LINE__; return; endif

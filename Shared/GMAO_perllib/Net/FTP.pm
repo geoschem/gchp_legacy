@@ -21,7 +21,7 @@ use Net::Cmd;
 use Net::Config;
 # use AutoLoader qw(AUTOLOAD);
 
-$VERSION = "2.56"; # $Id: FTP.pm,v 1.1 2002-01-30 20:42:21 lucchesi Exp $
+$VERSION = "2.56"; # $Id$
 @ISA     = qw(Exporter Net::Cmd IO::Socket::INET);
 
 # Someday I will "use constant", when I am not bothered to much about

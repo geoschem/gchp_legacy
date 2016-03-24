@@ -32,6 +32,7 @@ while(n<=nvars)
 
    if( zdim = 0 )
        say 'Writing Variable: 'name
+      'set z 1'
       'd 'name
    else
 

@@ -1,5 +1,5 @@
 
-!  $Id: dqsat_new.code,v 1.2 2005-06-02 14:42:49 f4mjs Exp $
+!  $Id$
 
 
       real    :: URAMP, URI, QXW, DQQ,DDQ

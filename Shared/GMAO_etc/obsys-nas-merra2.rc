@@ -12,6 +12,7 @@
 # Modification History:
 # ---------------------
 # 2014.02.04 jstassi   initial version
+# 2014.09.19 mccarty   updated to turn GPS on as of 15 Jul 2004.  See comment at that point
 ############################################################
 
 
@@ -49,7 +50,8 @@ BEGIN merra2_avhrr_satwnd_bufr => avhrr.%y4%m2%d2.t%h2z.satwnd.tm00.bufr_d
 END
 
 BEGIN merra2_satwnd_bufr => gdas1.%y4%m2%d2.t%h2z.satwnd.tm00.bufr_d.ublk
- 20100701_00z-21001231_18z 240000 lou-via-br2:/nobackup/gmao_SIteam/ObservingSystem/flk/ncep_NotUsed/bufr/SATWND/Y%y4/M%m2/gdas1.%y4%m2%d2.t%h2z.satwnd.tm00.bufr_d
+ 20100701_00z-20150114_18z 240000 lou-via-br2:/nobackup/gmao_SIteam/ObservingSystem/flk/ncep_g5obs/bufr/SATWND/Y%y4/M%m2/gdas1.%y4%m2%d2.t%h2z.satwnd.tm00.bufr_d
+ 20150115_00z-21001231_18z 240000 lou-via-br2:/nobackup/gmao_SIteam/ObservingSystem/flk/ncep_g5obs/bufr/SATWND/Y%y4/M%m2/gdas1.%y4%m2%d2.t%h2z.satwnd_tw.tm00.bufr_d
 END
 
 
@@ -146,8 +148,12 @@ END
 # 2001 - Mid-Dec 2007 CHAMP in monthly files
 # Mid-Dec 2007 - onward, the start of the COSMIC constellation
 #-------------------------------------------------------------
+# The full dataset exists for:
+# 20010519_00z-21001231_18z 240000 dirac:/archive/input/dao_ops/obs/flk/ncep_g5obs/bufr/GPSRO/Y%y4/M%m2/gdas1.%y2%m2%d2.t%h2z.gpsro.tm00.bufr_d
+# but MERRA-2 was inadvertently run without it.  Since it was deemed unnecessary to rerun, it was turned on from 15 Jul 2004-onward.  Only CHAMP
+# data was missed between 20010519 and 20040714
 BEGIN merra2_gpsro_bufr => gdas1.%y2%m2%d2.t%h2z.gpsro.tm00.bufr_d.ublk
- 20010519_00z-21001231_18z 240000 lou-via-br2:/nobackup/gmao_SIteam/ObservingSystem/flk/ncep_g5obs/bufr/GPSRO/Y%y4/M%m2/gdas1.%y2%m2%d2.t%h2z.gpsro.tm00.bufr_d
+ 20040715_00z-21001231_18z 240000 lou-via-br2:/nobackup/gmao_SIteam/ObservingSystem/flk/ncep_g5obs/bufr/GPSRO/Y%y4/M%m2/gdas1.%y2%m2%d2.t%h2z.gpsro.tm00.bufr_d
 END
 
 # GOES Sounder Radiances
@@ -183,14 +189,14 @@ BEGIN merra2_1bamua_bufr => gmao.%y2%m2%d2.t%h2z.1bamua.tm00.bufr.ublk
 END
 BEGIN merra2_1bamub_bufr => gmao.%y2%m2%d2.t%h2z.1bamub.tm00.bufr.ublk
  19981101_00z-20130731_18z 240000 lou-via-br2:/nobackup/gmao_SIteam/ObservingSystem/merra/tovs_best/AMSUB/Y%y4/M%m2/gmao.%y4%m2%d2.t%h2z.1bamub.tm00.bufr
- 20130801_00z-21001231_18z 240000 lou-via-br2:/nobackup/gmao_SIteam/ObservingSystem/reanalysis/tovs/bufr/AMSUB/Y%y4/M%m2/gmao.%y4%m2%d2.t%h2z.1bamub.tm00.bufr
+ 20130801_00z-20140606_18z 240000 lou-via-br2:/nobackup/gmao_SIteam/ObservingSystem/reanalysis/tovs/bufr/AMSUB/Y%y4/M%m2/gmao.%y4%m2%d2.t%h2z.1bamub.tm00.bufr
 END
 BEGIN merra2_1bhrs2_bufr => gmao.%y2%m2%d2.t%h2z.1bhrs2.tm00.bufr.ublk
  19781101_00z-20060930_00z 240000 lou-via-br2:/nobackup/gmao_SIteam/ObservingSystem/merra/tovs_best/HIRS2/Y%y4/M%m2/gmao.%y4%m2%d2.t%h2z.1bhrs2.tm00.bufr
 END
 BEGIN merra2_1bhrs3_bufr => gmao.%y2%m2%d2.t%h2z.1bhrs3.tm00.bufr.ublk
  19980721_00z-20130731_18z 240000 lou-via-br2:/nobackup/gmao_SIteam/ObservingSystem/merra/tovs_best/HIRS3/Y%y4/M%m2/gmao.%y4%m2%d2.t%h2z.1bhrs3.tm00.bufr
- 20130801_00z-21001231_18z 240000 lou-via-br2:/nobackup/gmao_SIteam/ObservingSystem/reanalysis/tovs/bufr/HIRS3/Y%y4/M%m2/gmao.%y4%m2%d2.t%h2z.1bhrs3.tm00.bufr
+ 20130801_00z-20140606_18z 240000 lou-via-br2:/nobackup/gmao_SIteam/ObservingSystem/reanalysis/tovs/bufr/HIRS3/Y%y4/M%m2/gmao.%y4%m2%d2.t%h2z.1bhrs3.tm00.bufr
 END
 BEGIN merra2_1bhrs4_bufr => gmao.%y2%m2%d2.t%h2z.1bhrs4.tm00.bufr.ublk
  20090401_00z-20130731_18z 240000 lou-via-br2:/nobackup/gmao_SIteam/ObservingSystem/merra/tovs_best/HIRS4/Y%y4/M%m2/gmao.%y4%m2%d2.t%h2z.1bhrs4.tm00.bufr

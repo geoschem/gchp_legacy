@@ -612,8 +612,8 @@ C		values.  This code was also stripped of the use of the
 C		land index array location.
 C-----------------------------------------------------------------------
 c
-c $Id: rout2prs.f,v 1.1.2.2 2002-02-06 17:51:31 jchern Exp $
-c $Author: jchern $
+c $Id$
+c $Author$
 c
 C-----------------------------------------------------------------------
       implicit none
@@ -639,8 +639,8 @@ C
 C
 C-----------------------------------------------------------------------
 c
-c $Id: rout2prs.f,v 1.1.2.2 2002-02-06 17:51:31 jchern Exp $
-c $Author: jchern $
+c $Id$
+c $Author$
 c
 C
 C Common block and statement functions for saturation vapor pressure
@@ -754,8 +754,8 @@ C                    J. Hack, Aug 1992
 C
 C-----------------------------------------------------------------------
 c
-c $Id: rout2prs.f,v 1.1.2.2 2002-02-06 17:51:31 jchern Exp $
-c $Author: jchern $
+c $Id$
+c $Author$
 c
 C-----------------------------------------------------------------------
 C------------------------------Arguments--------------------------------
@@ -785,8 +785,8 @@ C---------------------------Statement function--------------------------
 C
 C
 c
-c $Id: rout2prs.f,v 1.1.2.2 2002-02-06 17:51:31 jchern Exp $
-c $Author: jchern $
+c $Id$
+c $Author$
 c
 C
 C Common block and statement functions for saturation vapor pressure
@@ -947,8 +947,8 @@ C                    J. Hack, Feb 1996
 C
 C-----------------------------------------------------------------------
 c
-c $Id: rout2prs.f,v 1.1.2.2 2002-02-06 17:51:31 jchern Exp $
-c $Author: jchern $
+c $Id$
+c $Author$
 c
 C-----------------------------------------------------------------------
 C------------------------------Arguments--------------------------------

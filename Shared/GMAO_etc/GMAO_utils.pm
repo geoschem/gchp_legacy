@@ -130,7 +130,7 @@ sub pbs_env {
 
             foreach (keys %cnt) { $retval = $cnt{$_}; last }
         }
-        $retval = 8 unless $retval;
+        $retval = 0 unless $retval;
     }
     return $retval;
 }

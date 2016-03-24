@@ -1,4 +1,4 @@
-!  $Id: MAPL_IO.P90,v 1.56.2.8 2015-04-28 18:57:39 atrayano Exp $
+!  $Id$
 
 #include "MAPL_ErrLog.h"
 #define DEALOC_(A) if(associated(A))then;if(MAPL_ShmInitialized)then;call MAPL_SyncSharedMemory(rc=STATUS);call MAPL_DeAllocNodeArray(A,rc=STATUS);else;deallocate(A,stat=STATUS);endif;VERIFY_(STATUS);NULLIFY(A);endif
@@ -55,7 +55,7 @@ module MAPL_IOMod
 
   type MAPL_NCIO
     character(len=ESMF_MAXSTR)     :: name
-    character(len=ESMF_MAXSTR)     :: filename
+    character(len=ESMF_MAXPATHLEN) :: filename
     integer                        :: ncid
     integer                        :: nVars    ! number of variables on file
     integer                        :: nDimVars ! number of dimension variables
@@ -99,6 +99,7 @@ module MAPL_IOMod
   public MAPL_NCIOGetFileType
   public MAPL_NCIOGetVarid
   public MAPL_NCIOGetVarName
+  public MAPL_NCIOParseTimeUnits
 
   ! public routines
   public GETFILEUNIT
@@ -118,6 +119,7 @@ module MAPL_IOMod
   public MAPL_TileMaskGet
   public MAPL_VarReadNCPar
   public MAPL_VarWriteNCPar
+  public MAPL_MemFileInquire
 
 ! Interfaces:
 ! -----------
@@ -203,6 +205,10 @@ module MAPL_IOMod
   interface ArrayScatterShm
      module procedure ArrayScatterShmR4D1
   end interface ArrayScatterShm
+
+  interface MAPL_MemFileInquire
+     module procedure InqFileMem
+  end interface
 
   include "mpif.h"
   include "netcdf.inc"
@@ -338,6 +344,24 @@ module MAPL_IOMod
     if(present(rc)) rc = 0
     return
   end function getfilemem
+
+  LOGICAL FUNCTION INQFILEMEM(name)
+    IMPLICIT NONE
+    character(LEN=*), intent(in   )           :: Name
+
+    integer :: i
+    logical :: found
+
+    found = .false.
+    do i = 3, last_unit
+       if(name==Mname(i)) then
+          found = .true.
+          exit
+       end if
+    end do
+    InqFileMem = found
+    return
+  end FUNCTION INQFILEMEM
 
   INTEGER FUNCTION GETFILEUNIT(name,  RC )
     IMPLICIT NONE
@@ -670,12 +694,12 @@ module MAPL_IOMod
 ! Read routines
 !---------------------------
 
-  subroutine MAPL_StateVarRead(UNIT, STATE, NAME, arrdes, ignoreEOF, RC)
+  subroutine MAPL_StateVarRead(UNIT, STATE, NAME, arrdes, bootstrapable, RC)
     integer                     , intent(IN   ) :: UNIT
     type (ESMF_State)           , intent(INOUT) :: STATE
     character(len=*),   optional, intent(IN   ) :: NAME
     type(ArrDescr),     optional, intent(INOUT) :: ARRDES
-    logical,            optional, intent(IN   ) :: ignoreEOF
+    logical,            optional, intent(IN   ) :: bootstrapable
     integer,            optional, intent(  OUT) :: RC
 
 ! Local vars
@@ -696,6 +720,9 @@ module MAPL_IOMod
     integer                            :: rank, varid, ind
     logical                            :: skipReading
     integer                            :: RST
+    integer                            :: dna
+    logical                            :: ignoreEOF
+    logical                            :: bootstrapable_
     character(len=ESMF_MAXSTR)         :: FieldName
 
     integer, allocatable :: orderlist(:)
@@ -703,7 +730,6 @@ module MAPL_IOMod
     character(len=ESMF_MAXSTR)           :: attrName
     character(len=ESMF_MAXSTR), allocatable :: currList(:)
     integer                                 :: natt
-
     
     call ESMF_StateGet(STATE,ITEMCOUNT=ITEMCOUNT,RC=STATUS)
     VERIFY_(STATUS)
@@ -755,6 +781,12 @@ module MAPL_IOMod
 
     deallocate(currList)
 
+    if (present(bootstrapable)) then
+       bootstrapable_ = bootstrapable
+    else
+       bootstrapable_ = .false.
+    end if
+
     do JJ = 1, natt
 
        I = ORDERLIST(JJ)
@@ -771,12 +803,17 @@ module MAPL_IOMod
 
              skipReading = .false.
              call ESMF_AttributeGet(bundle, name='RESTART', value=RST, rc=status)
-             if (STATUS == ESMF_SUCCESS) then
-                skipReading = (RST == 0)
+             if (STATUS /= ESMF_SUCCESS) then
+                RST = MAPL_RestartOptional
              end if
+             skipReading = (RST == MAPL_RestartSkip)
              if (skipReading) cycle
 
-             call MAPL_BundleRead(unit, bundle, arrdes=arrdes, rc=status)
+             if (RST == MAPL_RestartRequired) then
+                bootstrapable_ = .true.
+             end if
+             call MAPL_BundleRead(unit, bundle, arrdes=arrdes, &
+                  bootstrapable=bootstrapable_, rc=status)
              VERIFY_(STATUS)
 
           else if (ITEMTYPES(I) == ESMF_StateItem_Field) then
@@ -785,15 +822,22 @@ module MAPL_IOMod
 
              skipReading = .false.
              call ESMF_AttributeGet(field, name='RESTART', value=RST, rc=status)
+             if (STATUS /= ESMF_SUCCESS) then
+                RST = MAPL_RestartOptional
+             end if
+             skipReading = (RST == MAPL_RestartSkip)
+
+             if (skipReading) cycle
+             call ESMF_AttributeGet(field, name='doNotAllocate', value=dna, rc=status)
              if (STATUS == ESMF_SUCCESS) then
-                skipReading = (RST == 0)
+                skipReading = (dna /= 0)
              end if
              if (skipReading) cycle
-             call ESMF_AttributeGet(field, name='doNotAllocate', value=RST, rc=status)
-             if (STATUS == ESMF_SUCCESS) then
-                skipReading = (RST /= 0)
+
+             ignoreEOF = .false.
+             if (bootstrapable_ .and. (RST == MAPL_RestartOptional)) then
+                ignoreEOF = .true.
              end if
-             if (skipReading) cycle
 
              if(.not.associated(MASK)) then
                 call ESMF_AttributeGet(field, name='DIMS', value=DIMS, rc=status)
@@ -833,10 +877,11 @@ module MAPL_IOMod
 !---------------------------
 
 
-  subroutine MAPL_BundleRead(UNIT,BUNDLE, ARRDES, RC)
+  subroutine MAPL_BundleRead(UNIT,BUNDLE, ARRDES, BOOTSTRAPABLE, RC)
     integer                     , intent(IN   ) :: UNIT
     type (ESMF_FieldBundle)     , intent(INOUT) :: BUNDLE
     type(ArrDescr),    optional , intent(INOUT) :: ARRDES
+    logical,           optional , intent(IN   ) :: BOOTSTRAPABLE
     integer,           optional , intent(  OUT) :: RC
 
     integer                            :: status
@@ -845,6 +890,10 @@ module MAPL_IOMod
     type (ESMF_Field)                  :: field
     character(len=ESMF_MAXSTR),allocatable  :: nameList(:)
     character(len=ESMF_MAXSTR)              :: FieldName, BundleName
+    integer                            :: RST
+    logical                            :: ignoreEOF
+    logical                            :: skipReading
+    logical                            :: bootstrapable_
 
     call ESMF_FieldBundleGet(bundle, fieldCount=N, name=BundleName, rc=STATUS)
     VERIFY_(STATUS)
@@ -854,11 +903,29 @@ module MAPL_IOMod
     VERIFY_(STATUS)
     ASSERT_(N==fieldCount)
 
+    if (present(bootstrapable)) then
+       bootstrapable_ = bootstrapable
+    else
+       bootstrapable_ = .false.
+    end if
+
     do J = 1, N
        call MAPL_FieldBundleGet(bundle, fieldIndex=J, field=field, rc=status)
        VERIFY_(STATUS)
 
-       call MAPL_FieldRead     (unit, field, arrdes=ARRDES,        rc=status)
+       call ESMF_AttributeGet(field, name='RESTART', value=RST, rc=status)
+       if (STATUS /= ESMF_SUCCESS) then
+          RST = MAPL_RestartOptional
+       end if
+       skipReading = (RST == MAPL_RestartSkip)
+       if (skipReading) cycle
+       
+       ignoreEOF=.false.
+       if (bootstrapable_ .and. (RST == MAPL_RestartOptional)) then
+          ignoreEOF = .true.
+       end if
+       
+       call MAPL_FieldRead(unit, field, arrdes=ARRDES,  ignoreEOF=ignoreEOF, rc=status)
        VERIFY_(STATUS)
 
     end do
@@ -1090,7 +1157,7 @@ module MAPL_IOMod
     call ESMF_DistGridGet(distGrid, delayout=layout, rc=STATUS)
     VERIFY_(STATUS)
 
-    if (ignoreEOF_) then
+    if (ignoreEOF_ .and. (unit > 0)) then
        ! test for end-of-file by 
        ! making a blank read followed by backspace
 
@@ -2427,7 +2494,7 @@ module MAPL_IOMod
     logical, pointer                     :: DOIT(:)
     character(len=ESMF_MAXSTR)           :: IAm='MAPL_StateVarWrite'
     logical                              :: skipWriting
-    integer                              :: RST
+    integer                              :: RST, dna
     character(len=ESMF_MAXSTR)           :: FieldName
     logical                              :: forceWriteNoRestart_
     integer                              :: DIMS
@@ -2510,7 +2577,7 @@ module MAPL_IOMod
              if (.not. forceWriteNoRestart_) then
                 call ESMF_AttributeGet(bundle, name='RESTART', value=RST, rc=status)
                 if (STATUS == ESMF_SUCCESS) then
-                   skipWriting = (RST == 0)
+                   skipWriting = (RST == MAPL_RestartSkip)
                 end if
              end if
              if (skipWriting) cycle
@@ -2526,14 +2593,14 @@ module MAPL_IOMod
              if (.not. forceWriteNoRestart_) then
                 call ESMF_AttributeGet(field, name='RESTART', value=RST, rc=status)
                 if (STATUS == ESMF_SUCCESS) then
-                   skipWriting = (RST == 0)
+                   skipWriting = (RST == MAPL_RestartSkip)
                 end if
              end if
              if (skipWriting) cycle
 
-             call ESMF_AttributeGet(field, name='doNotAllocate', value=RST, rc=status)
+             call ESMF_AttributeGet(field, name='doNotAllocate', value=dna, rc=status)
              if (STATUS == ESMF_SUCCESS) then
-                skipWriting = (RST /= 0)
+                skipWriting = (dna /= 0)
              endif
              if (skipWriting) cycle
 
@@ -7529,6 +7596,8 @@ module MAPL_IOMod
     character(len=ESMF_MAXSTR), pointer :: VarNamesFile(:) => null()
     type(ESMF_VM)                      :: VM
     logical                            :: foundInFile
+    integer                            :: dna
+    logical                            :: bootstrapable_
     
     ! get a list of variables in the file so we can skip if the 
     ! variable in the state is not in the file and it is bootstrapable
@@ -7603,10 +7672,12 @@ module MAPL_IOMod
 
              skipReading = .false.
              call ESMF_AttributeGet(bundle, name='RESTART', value=RST, rc=status)
-             if (STATUS == ESMF_SUCCESS) then
-                skipReading = (RST == 0)
+             if (STATUS /= ESMF_SUCCESS) then
+                RST = MAPL_RestartOptional
              end if
+             skipReading = (RST == MAPL_RestartSkip)
              if (skipReading) cycle
+             bootstrapable_ = bootstrapable .and. (RST == MAPL_RestartOptional)
 
              call ESMF_FieldBundleGet(bundle, fieldCount=nBundle, rc=STATUS)
              VERIFY_(STATUS)
@@ -7617,6 +7688,14 @@ module MAPL_IOMod
                VERIFY_(STATUS)
                call ESMF_FieldGet(field,name=FieldName,rc=status)
                VERIFY_(STATUS)
+
+               skipReading = .false.
+               call ESMF_AttributeGet(field, name='RESTART', value=RST, rc=status)
+               if (STATUS /= ESMF_SUCCESS) then
+                  RST = MAPL_RestartOptional
+               end if
+               skipReading = (RST == MAPL_RestartSkip)
+               if (skipReading) cycle
 
                ind= index(FieldName, '::')
                if (ind> 0) then
@@ -7642,7 +7721,7 @@ module MAPL_IOMod
                   call MAPL_FieldBundleAdd(bundle_read,new_field,rc=status)
                   VERIFY_(STATUS)
                else
-                  if (bootStrapable) then
+                  if (bootStrapable_ .and. (RST == MAPL_RestartOptional)) then
                      call WRITE_PARALLEL("  Bootstrapping Variable: "//trim(FieldName)//" in "//trim(filename))
                   else
                      call WRITE_PARALLEL("  Could not find field "//trim(FieldName)//" in "//trim(filename))
@@ -7663,13 +7742,14 @@ module MAPL_IOMod
 
              skipReading = .false.
              call ESMF_AttributeGet(field, name='RESTART', value=RST, rc=status)
-             if (STATUS == ESMF_SUCCESS) then
-                skipReading = (RST == 0)
+             if (STATUS /= ESMF_SUCCESS) then
+                RST = MAPL_RestartOptional
              end if
+             skipReading = (RST == MAPL_RestartSkip)
              if (skipReading) cycle
-             call ESMF_AttributeGet(field, name='doNotAllocate', value=RST, rc=status)
+             call ESMF_AttributeGet(field, name='doNotAllocate', value=DNA, rc=status)
              if (STATUS == ESMF_SUCCESS) then
-                skipReading = (RST /= 0)
+                skipReading = (DNA /= 0)
              end if
              if (skipReading) cycle
             
@@ -7687,7 +7767,7 @@ module MAPL_IOMod
                 call MAPL_FieldBundleAdd(bundle_read,field,rc=status)
                 VERIFY_(STATUS)
              else
-                if (bootStrapable) then
+                if (bootStrapable .and. (RST == MAPL_RestartOptional)) then
                     call WRITE_PARALLEL("  Bootstrapping Variable: "//trim(FieldName)//" in "//trim(filename))
                 else
                     call WRITE_PARALLEL("  Could not find field "//trim(Fieldname)//" in "//trim(filename))
@@ -8342,7 +8422,7 @@ module MAPL_IOMod
     logical, pointer                     :: DOIT(:)
     character(len=ESMF_MAXSTR)           :: IAm='MAPL_StateVarWriteNCPar'
     logical                              :: skipWriting
-    integer                              :: RST
+    integer                              :: RST, dna
     character(len=ESMF_MAXSTR)           :: FieldName,BundleName,StateName
     logical                              :: forceWriteNoRestart_
 
@@ -8398,7 +8478,7 @@ module MAPL_IOMod
              if (.not. forceWriteNoRestart_) then
                 call ESMF_AttributeGet(bundle, name='RESTART', value=RST, rc=status)
                 if (STATUS == ESMF_SUCCESS) then
-                   skipWriting = (RST == 0)
+                   skipWriting = (RST == MAPL_RestartSkip)
                 end if
              else
                 skipWriting = .true.
@@ -8429,16 +8509,16 @@ module MAPL_IOMod
              if (.not. forceWriteNoRestart_) then
                 call ESMF_AttributeGet(field, name='RESTART', value=RST, rc=status)
                 if (STATUS == ESMF_SUCCESS) then
-                   skipWriting = (RST == 0)
+                   skipWriting = (RST == MAPL_RestartSkip)
                 end if
              else
                 skipWriting = .true.
              end if
              if (skipWriting) cycle
 
-             call ESMF_AttributeGet(field, name='doNotAllocate', value=RST, rc=status)
+             call ESMF_AttributeGet(field, name='doNotAllocate', value=dna, rc=status)
              if (STATUS == ESMF_SUCCESS) then
-                skipWriting = (RST /= 0)
+                skipWriting = (dna /= 0)
              endif
              if (skipWriting) cycle
 
@@ -8509,7 +8589,7 @@ module MAPL_IOMod
    NCIO%filename = filename
    fparallel = .false.
    if (present(comm) .and. present(info) ) then 
-      status = nf90_open(filename,NF90_WRITE,ncid,comm=comm,info=info)
+      status = nf90_open(filename,IOR(writeMode,NF90_MPIIO),ncid,comm=comm,info=info)
       fparallel = .true.
    else
       status = nf90_open(filename,writeMode,ncid)
@@ -8881,11 +8961,11 @@ module MAPL_IOMod
 
      if (.not.NCIO%isOpen) then
         if (present(comm) .and. present(info)) then
-           status = NF90_Create(NCIO%filename,(NF90_CLOBBER), &
+           status = NF90_Create(NCIO%filename,IOR(NF90_NETCDF4,IOR(NF90_CLOBBER,NF90_MPIIO)), &
                                 NCIO%ncid,comm=comm,info=info)
            VERIFY_(STATUS)
         else
-           status = NF90_Create(NCIO%filename,NF90_CLOBBER,NCIO%ncid)
+           status = NF90_Create(NCIO%filename,IOR(NF90_NETCDF4,NF90_CLOBBER),NCIO%ncid)
            VERIFY_(STATUS)
         end if
         NCIO%isOpen=.true.
@@ -8973,19 +9053,20 @@ module MAPL_IOMod
 
    end subroutine MAPL_NCIOCreateFile
 
-   subroutine MAPL_NCIOChangeRes(NCIOOld,NCIONew,tileSize,latSize,lonSize,rc)
+   subroutine MAPL_NCIOChangeRes(NCIOOld,NCIONew,tileSize,latSize,lonSize,levSize,rc)
      type(MAPL_NCIO), intent(inout) :: NCIOOld
      type(MAPL_NCIO), intent(inout) :: NCIONew
      integer, optional, intent(in   ) :: tileSize
      integer, optional, intent(in   ) :: latSize
      integer, optional, intent(in   ) :: lonSize
+     integer, optional, intent(in   ) :: levSize
      integer, optional, intent(out  ) :: rc
 
      integer :: status
      character(len=ESMF_MAXSTR) :: Iam
 
-     logical :: presentTile,presentLat,presentLon
-     integer :: i,tileDim,lonDim,latDim
+     logical :: presentTile,presentLat,presentLon,presentLev
+     integer :: i,tileDim,lonDim,latDim,levDim,EdgeDim
      real(kind=ESMF_KIND_R4) :: flon,flat
      real(kind=ESMF_KIND_R8) :: dlon,dlat
 
@@ -8997,6 +9078,7 @@ module MAPL_IOMod
      presentTile = present(tileSize)
      presentLon = present(lonSize)
      presentLat = present(latSize)
+     presentLev = present(levSize)
 
      if (presentLon .and. presentLat) then
         if (latSize == 6*lonSize) then
@@ -9033,6 +9115,21 @@ module MAPL_IOMod
               exit
            end if
         end do
+        levDim = -1
+        do i=1,NCIONew%ndims
+           if (NCIONew%dims(i)%dimType == MAPL_NCIODimLev) then
+              levDim = i
+              exit
+           end if
+        end do
+        edgeDim = -1
+        do i=1,NCIONew%ndims
+           if (NCIONew%dims(i)%dimType == MAPL_NCIODimEdge) then
+              edgeDim = i
+              exit
+           end if
+        end do
+
         NCIONew%dims(lonDim)%len = lonSize
         NCIONew%dims(latDim)%len = latSize
         if (NCIONew%dims(lonDim)%ncDataType == NF90_FLOAT) then
@@ -9098,6 +9195,50 @@ module MAPL_IOMod
               enddo
            end if
         endif
+
+        if (presentLev) then
+
+           if (levDim /= -1) then
+              NCIONew%dims(levDim)%len = levSize
+              if (NCIONew%dims(levDim)%ncDataType == NF90_FLOAT) then
+                 deallocate(NCIONew%dims(levDim)%dimPtrR4,stat=status)
+                 VERIFY_(status)
+                 allocate(NCIONew%dims(levDim)%dimPtrR4(levSize),stat=status)
+                 VERIFY_(status)
+                 do i=1,levSize
+                    NCIONew%dims(levDim)%dimPtrR4(i)=i
+                 enddo
+               else if (NCIONew%dims(levDim)%ncDataType == NF90_DOUBLE) then
+                 deallocate(NCIONew%dims(levDim)%dimPtrR8,stat=status)
+                 VERIFY_(status)
+                 allocate(NCIONew%dims(levDim)%dimPtrR8(levSize),stat=status)
+                 VERIFY_(status)
+                 do i=1,levSize
+                    NCIONew%dims(levDim)%dimPtrR8(i)=i
+                 enddo
+               end if
+           end if
+           if (edgeDim /= -1) then
+              NCIONew%dims(EdgeDim)%len = levSize+1
+              if (NCIONew%dims(EdgeDim)%ncDataType == NF90_FLOAT) then
+                 deallocate(NCIONew%dims(edgeDim)%dimPtrR4,stat=status)
+                 VERIFY_(status)
+                 allocate(NCIONew%dims(edgeDim)%dimPtrR4(levSize+1),stat=status)
+                 VERIFY_(status)
+                 do i=1,levSize+1
+                    NCIONew%dims(edgeDim)%dimPtrR4(i)=i
+                 enddo
+               else if (NCIONew%dims(edgeDim)%ncDataType == NF90_DOUBLE) then
+                 deallocate(NCIONew%dims(edgeDim)%dimPtrR8,stat=status)
+                 VERIFY_(status)
+                 allocate(NCIONew%dims(edgeDim)%dimPtrR8(levSize+1),stat=status)
+                 VERIFY_(status)
+                 do i=1,levSize+1
+                    NCIONew%dims(edgeDim)%dimPtrR8(i)=i
+                 enddo
+               end if
+           end if
+        end if
 
      else
         write(*,*)"No grid found, do not know what rescale"
@@ -9637,11 +9778,11 @@ module MAPL_IOMod
 
       ypos(2) = firstdash - 1
       mpos(1) = firstdash + 1
-      ypos(1) = ypos(2) - 4
+      ypos(1) = ypos(2) - 3
 
       mpos(2) = lastdash - 1
       dpos(1) = lastdash + 1
-      dpos(2) = dpos(1) + 2
+      dpos(2) = dpos(1) + 1
 
       read ( TimeUnits(ypos(1):ypos(2)), * ) year
       read ( TimeUnits(mpos(1):mpos(2)), * ) month

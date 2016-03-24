@@ -1,4 +1,4 @@
-! $Id: gather.H,v 1.4 2012-08-23 19:55:28 atrayano Exp $
+! $Id$
 
 #ifdef NAME_
 #undef NAME_

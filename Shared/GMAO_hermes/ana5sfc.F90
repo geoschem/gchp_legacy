@@ -1388,6 +1388,7 @@ end subroutine fix_names_
       print *, ' anal.eta    input ana.eta file name'
       print *, ' bkg.eta     input bkg.eta file name'
       print *, ' bkg.sfc     input nkg.sfc file name'
+      print *, ' -g5         needed to handle geos-5 bkg/ana.eta files'
       print *, ' -o ana.sfc  optional output ana.sfc file name; default is'
       print *, '             $expid.ana.sfc.$time.nc4, where $expid and'
       print *, '             $time are derived from the input "ana.eta" file'

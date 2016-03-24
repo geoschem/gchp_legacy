@@ -16,5 +16,6 @@
 ifeq ($(ARCH),Linux)
 
 FPE =
+LATEX = pdflatex
 
 endif  #    Linux
