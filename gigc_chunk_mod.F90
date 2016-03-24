@@ -594,6 +594,15 @@ CONTAINS
        IF (Input_Opt%LSETH2O) Input_Opt%LSETH2O = .FALSE.
     ENDIF
 
+    !=======================================================================
+    ! EMISSIONS phase 1. Should be called every time to make sure that the
+    ! HEMCO clock and the HEMCO data list are up to date.
+    !=======================================================================
+    CALL EMISSIONS_RUN( am_I_Root, Input_Opt, State_Met, &
+                        State_Chm, DoEmis,    1, RC       )
+
+
+
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 !!!                                PHASE 1                                 !!!
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -683,7 +692,7 @@ CONTAINS
     ! 3. Emissions (HEMCO). HEMCO must be called on first time step to make
     ! sure that the HEMCO data lists are all properly set up. 
     !=======================================================================
-    IF ( DoEmis .OR. FIRST ) THEN
+    IF ( DoEmis ) THEN
 
        ! Timer on
        CALL MAPL_TimerOn( STATE, 'GC_EMIS' )
