@@ -512,7 +512,7 @@ subroutine A2CnoRotate(U, V)
   use fv_control_mod,    only: npx,npy
   use fv_mp_mod,         only: domain, tile, &
                                is,js,ie,je,isd,jsd,ied,jed, ng
-  use fv_grid_tools_mod, only: atoc
+  use fv_grid_tools_mod, only: atoc, atoc_v2
   implicit none
   real, intent(INOUT) :: U(:,:,:)
   real, intent(INOUT) :: V(:,:,:)
@@ -523,14 +523,27 @@ subroutine A2CnoRotate(U, V)
   real(REAL8)         :: uc(isd:ied+1,jsd:jed)
   real(REAL8)         :: vc(isd:ied,jsd:jed+1)
 
+  !---------------------------------------------
+  ! Initialize uatmp & vatmp to zero to avoid
+  ! accessing non initialized ghost zone values.
+  !---------------------------------------------
+  uatmp = 0.0d0
+  vatmp = 0.0d0
+
   DO k=1,size(u,3)
      uatmp(is:ie,js:je) = u(:,:,k)
      vatmp(is:ie,js:je) = v(:,:,k)
 
      call mpp_update_domains(uatmp, vatmp, domain, gridtype=AGRID)
 
+#define FIX_ATOC
+#if defined( FIX_ATOC )
+    call atoc_v2(uatmp, vatmp, uc, vc, &
+              npx, npy, ng, noComm=.true.)
+#else
     call atoc(uin=uatmp, vin=vatmp, uout=uc, vout=vc, &
               npx=npx, npy=npy, ng=ng, noComm=.true.)
+#endif
      u(:,:,k) = uc(is:ie,js:je)
      v(:,:,k) = vc(is:ie,js:je)
 
