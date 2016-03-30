@@ -26,17 +26,17 @@
 
 # %%%%% Root dir for MAPL etc %%%%%
 ifndef ESMADIR
-export ESMADIR=$(PWD)/GIGC/Shared
+export ESMADIR=$(PWD)/GCHP/Shared
 endif
 
 # %%%%% Root dir for ESMF %%%%%
 ifndef ESMF_DIR
-export ESMF_DIR=$(PWD)/GIGC/ESMF
+export ESMF_DIR=$(PWD)/GCHP/ESMF
 endif
 
 # %%%%% Root dir for FVdycore %%%%%
 ifndef FVDIR
- export FVDIR=$(PWD)/GIGC/FVdycoreCubed_GridComp
+ export FVDIR=$(PWD)/GCHP/FVdycoreCubed_GridComp
 endif
 
 #==============================================================================
@@ -92,5 +92,8 @@ LINK          := -lGIGC  $(MAPL_LIB) $(FV_LIB) $(ESMF_LIB) $(MPI_LIB)  $(LINK) -
 FFLAGS        := -double-size 32 -real-size 32 -r4
 USER_FFLAGS   += -DESMF_ -DSPMD -DMAPL_MODE -DGLOBAL_GRID_CREATE
 USER_DEFS     += -DESMF_
+
+# %%%%% SDE 2013-03-26: Let HEMCO standalone see MAPL
+LINK_HCO      += $(MAPL_LIB) $(FV_LIB) $(ESMF_LIB) $(MPI_LIB)
 
 #EOC

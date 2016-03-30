@@ -66,9 +66,15 @@ HELP=$(ROOTDIR)/help
 LIB=$(ROOTDIR)/lib
 MOD=$(ROOTDIR)/mod
 
+# SDE 2016-03-26: The "include" command fails because it cannot find FC.
+export OLD_FC=$(FC)
+export FC=ifort
+
 # Include header file.  This returns variables CC, F90, FREEFORM, LD, R8,
 # as well as the default Makefile compilation rules for source code files.
 include $(ROOTDIR)/Makefile_header.mk
+
+export FC=$(OLD_FC)
 
 # BASEDIR is a synonym for ROOTDIR
 ifndef BASEDIR
@@ -216,10 +222,10 @@ $(ACGS) : $(REGDIR)/Chem_Registry.rc $(REGDIR)/HEMCO_Registry.rc $(ACG) #$(REGDI
 	@$(ACG) $(ACG_FLAGS) $(REGDIR)/HEMCO_Registry.rc
 
 libesmf:
-	@$(MAKE) -C $(GIGC) esmf
+	@$(MAKE) -C $(GCHP) esmf
 
 libmapl:
-	@$(MAKE) -C $(GIGC) mapl
+	@$(MAKE) -C $(GCHP) mapl
 
 clean:
 	rm -f *.o *.mod *___.h *___.rc

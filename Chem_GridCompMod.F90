@@ -102,6 +102,7 @@ MODULE Chem_GridCompMod
   END TYPE GEOSCHEM_Wrap
 
   ! For passing from internal state to Chm_State and vice versa
+  ! SDE 2016-03-28: Assume that Int2Chm is held as v/v dry
   TYPE Int2ChmMap
      CHARACTER(LEN=255)            :: TrcName
      INTEGER                       :: TrcID
@@ -373,7 +374,7 @@ CONTAINS
     ! as an "internal state" of the GEOSCHEMchem gridded component
     !=======================================================================
     myState%myCF = ESMF_ConfigCreate(__RC__)
-    call ESMF_ConfigLoadFile( myState%myCF, 'GIGC.rc', __RC__)
+    call ESMF_ConfigLoadFile( myState%myCF, 'GCHP.rc', __RC__)
 
     ! Get generic state object
     CALL MAPL_GetObjectFromGC( GC, STATE, __RC__ )
@@ -2161,6 +2162,8 @@ CONTAINS
     ! restart file (and stored in the internal state).
     !=======================================================================
 
+    ! SDE: This will overwrite State_Chm%Tracers and State_Chm%Species with
+    !      data in units of v/v dry (2016-03-28)
     CALL MAPL_TimerOn(STATE, "CP_BFRE")
 #   include "Includes_Before_Run.H"
     CALL MAPL_TimerOff(STATE, "CP_BFRE")
@@ -2221,11 +2224,11 @@ CONTAINS
 
           CALL MAPL_TimerOn(STATE, "DO_CHEM")
     
-       IF ( ANY(State_Chm%TRACERS(:,:,:,29) .ne.                     & 
-                State_Chm%TRACERS(:,:,:,29) )) THEN
-          write(*,*) '<> MSA START'
-       ELSE
-       ENDIF
+          IF ( ANY(State_Chm%TRACERS(:,:,:,29) .ne.                     & 
+                   State_Chm%TRACERS(:,:,:,29) )) THEN
+             write(*,*) '<> MSA START'
+          ELSE
+          ENDIF
 
           ! Run the GEOS-Chem column chemistry code for the given phase
           CALL GIGC_Chunk_Run( am_I_Root  = am_I_Root,  & ! Is this the root PET?

@@ -135,6 +135,8 @@
   
   State_Met%AREA_M2 (:,:,1)  = AREA    ! m2
 
+  ! Set the State_Chm units to v/v dry (restart file units)
+
   !=========================================================================
   ! Pass advected tracers from internal state to GEOS-Chem tracers array
   !=========================================================================

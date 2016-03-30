@@ -276,7 +276,7 @@ CONTAINS
     USE COMODE_LOOP_MOD
     USE comode_mod
     USE Chemistry_Mod,      ONLY : Do_Chemistry
-    USE Dao_Mod,            ONLY : Convert_Units, AirQnt
+    USE Dao_Mod,            ONLY : AirQnt
     USE DryDep_Mod,         ONLY : Do_DryDep
     USE GC_Land_Interface
     USE GIGC_ErrCode_Mod
@@ -290,7 +290,7 @@ CONTAINS
     USE Time_Mod,           ONLY : ITS_TIME_FOR_CHEM
     USE TIME_MOD,           ONLY : GET_TS_CHEM, GET_TS_DYN
     USE TRACERID_MOD
-    USE WETSCAV_MOD,        ONLY : INIT_WETSCAV, DO_WETDEP
+    USE WETSCAV_MOD,        ONLY : SETUP_WETSCAV, DO_WETDEP
     USE DRYDEP_MOD,         ONLY : DEPSAV, NUMDEP, NTRAIND
     USE CONVECTION_MOD,     ONLY : DO_CONVECTION
     USE TOMS_MOD,           ONLY : COMPUTE_OVERHEAD_O3
@@ -310,6 +310,9 @@ CONTAINS
 
     ! UCX
     USE UCX_MOD,            ONLY : SET_H2O_TRAC
+
+    ! Unit conversion (SE 2016-03-27)
+    Use UnitConv_Mod
 !
 ! !INPUT PARAMETERS:
 !
@@ -410,7 +413,10 @@ CONTAINS
     LOGICAL                        :: DoWetDep
 
     ! Are tracers in mass or mixing ratio?
-    LOGICAL                        :: isMass
+    Integer                        :: CellUnit
+    Integer, Parameter             :: VVDry_Type=0
+    Integer, Parameter             :: KgKgDry_Type=1
+    Integer, Parameter             :: Kg_Type=2
 
     ! First call?
     LOGICAL, SAVE                  :: FIRST = .TRUE.
@@ -533,9 +539,9 @@ CONTAINS
     ! Pre-Run assignments
     !-------------------------------------------------------------------------
 
-    ! Eventually initialize/reset wetdep
+    !! Eventually initialize/reset wetdep
     IF ( DoConv .OR. DoChem .OR. DoWetDep ) THEN
-       CALL INIT_WETSCAV( am_I_Root, Input_Opt, State_Met, State_Chm, RC )
+       CALL SETUP_WETSCAV( am_I_Root, Input_Opt, State_Met, State_Chm, RC )
     ENDIF
 
     ! Pass time values obtained from the ESMF environment to GEOS-Chem
@@ -564,7 +570,7 @@ CONTAINS
     CALL Set_Floating_Pressure( State_Met%PS1 )
 #endif 
 
-    CALL AirQnt( am_I_Root, State_Met, RC )
+    CALL AirQnt( am_I_Root, Input_opt, State_Met, State_Chm, RC, (.not.FIRST) )
 
     ! Cap the polar tropopause pressures at 200 hPa, in order to avoid
     ! tropospheric chemistry from happening too high up (cf. J. Logan)
@@ -578,13 +584,22 @@ CONTAINS
     ! Call PBL quantities. Those are always needed
     CALL COMPUTE_PBL_HEIGHT( State_Met )
 
-    ! Tracers enter in v/v. Convert to kg. 
-    CALL Convert_Units  ( IFLAG     = 2,                    & ! [v/v] -> [kg]
-                          N_TRACERS = Input_Opt%N_TRACERS,  & ! # of tracers
-                          TCVV      = Input_Opt%TCVV,       & ! Molec / kg
-                          AD        = State_Met%AD,         & ! Air mass [kg]
-                          STT       = State_Chm%Tracers    )  ! Tracer array
-    IsMass = .TRUE.
+    ! Check what unit the tracers are in - need kg/kg dry for emissions
+    Select Case (Trim(State_Chm%Trac_Units))
+        Case ('kg/kg dry')
+            ! Do nothing
+        Case ('kg')
+            CALL Convert_Kg_to_KgKgDry( am_I_Root, Input_Opt,&
+                                         State_Met, State_Chm, RC )
+        Case ('v/v dry')
+            CALL Convert_VVDry_to_KgKgDry( am_I_Root, Input_Opt,&
+                                            State_Chm, RC )
+        Case Default
+            Write(6,'(a,a,a)') 'Tracer units (', State_Chm%Trac_Units, ') not recognized'
+            RC = GIGC_FAILURE
+            ASSERT_(RC==GIGC_SUCCESS)
+    End Select
+    CellUnit = KgKgDry_Type
     
     ! SDE 05/28/13: Set H2O to STT if relevant
     IF ( IDTH2O > 0 ) THEN
@@ -600,8 +615,6 @@ CONTAINS
     !=======================================================================
     CALL EMISSIONS_RUN( am_I_Root, Input_Opt, State_Met, &
                         State_Chm, DoEmis,    1, RC       )
-
-
 
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 !!!                                PHASE 1                                 !!!
@@ -623,14 +636,16 @@ CONTAINS
        ! testing only
        if(am_I_Root.and.NCALLS<10) write(*,*) ' --- Do convection now'
   
-       ! Make sure tracers are in v/v
-       IF ( isMass ) THEN 
-          CALL Convert_Units  ( IFLAG     = 1,                    & ! [kg] --> [v/v]
-                                N_TRACERS = Input_Opt%N_TRACERS,  & ! # of tracers
-                                TCVV      = Input_Opt%TCVV,       & ! Molec / kg
-                                AD        = State_Met%AD,         & ! Air mass [kg]
-                                STT       = State_Chm%Tracers    )  ! Tracer array
-          IsMass = .FALSE.
+       ! Make sure tracers are in kg/kg
+       IF ( CellUnit.ne.KgKgDry_Type ) Then
+          If ( CellUnit .eq. Kg_Type ) Then
+             CALL Convert_Kg_to_KgKgDry( am_I_Root, Input_Opt,&
+                                         State_Met, State_Chm, RC )
+          ElseIf ( CellUnit .eq. VVDry_Type) Then
+             CALL Convert_VVDry_to_KgKgDry( am_I_Root, Input_Opt,&
+                                            State_Chm, RC )
+          EndIf
+          CellUnit = KgKgDry_Type
        ENDIF
 
        CALL DO_CONVECTION ( am_I_Root, Input_Opt, State_Met, State_Chm, RC )
@@ -660,13 +675,15 @@ CONTAINS
        endif
 
        ! Make sure tracers are in kg
-       IF ( .NOT. IsMass ) THEN
-          CALL Convert_Units  ( IFLAG     = 2,                    & ! [v/v] -> [kg]
-                                N_TRACERS = Input_Opt%N_TRACERS,  & ! # of tracers
-                                TCVV      = Input_Opt%TCVV,       & ! Molec / kg
-                                AD        = State_Met%AD,         & ! Air mass [kg]
-                                STT       = State_Chm%Tracers    )  ! Tracer array
-          IsMass = .TRUE.
+       IF ( CellUnit.ne.Kg_Type ) Then
+          If ( CellUnit .eq. KgKgDry_Type ) Then
+             CALL Convert_KgKgDry_to_Kg( am_I_Root, Input_Opt,&
+                                         State_Met, State_Chm, RC )
+          ElseIf ( CellUnit .eq. VVDry_Type) Then
+             CALL Convert_VVDry_to_Kg( am_I_Root, Input_Opt,&
+                                            State_Met, State_Chm, RC )
+          EndIf
+          CellUnit = Kg_Type
        ENDIF
 
        ! Update & Remap Land-type arrays from Surface Grid-component
@@ -700,14 +717,16 @@ CONTAINS
        ! testing only
        if(am_I_Root.and.NCALLS<10) write(*,*) ' --- Do emissions now'
 
-       ! Make sure tracers are in kg
-       IF ( .NOT. IsMass ) THEN
-          CALL Convert_Units  ( IFLAG     = 2,                    & ! [v/v] -> [kg]
-                                N_TRACERS = Input_Opt%N_TRACERS,  & ! # of tracers
-                                TCVV      = Input_Opt%TCVV,       & ! Molec / kg
-                                AD        = State_Met%AD,         & ! Air mass [kg]
-                                STT       = State_Chm%Tracers    )  ! Tracer array
-          IsMass = .TRUE.
+       ! Make sure tracers are in kg/kg dry
+       IF ( CellUnit.ne.KgKgDry_Type ) Then
+          If ( CellUnit .eq. Kg_Type ) Then
+             CALL Convert_Kg_to_KgKgDry( am_I_Root, Input_Opt,&
+                                         State_Met, State_Chm, RC )
+          ElseIf ( CellUnit .eq. VVDry_Type) Then
+             CALL Convert_VVDry_to_KgKgDry( am_I_Root, Input_Opt,&
+                                            State_Chm, RC )
+          EndIf
+          CellUnit = KgKgDry_Type
        ENDIF
 
        ! Call HEMCO run interface 
@@ -739,13 +758,15 @@ CONTAINS
        if(am_I_Root.and.NCALLS<10) write(*,*) ' --- Add emissions and drydep to tracers'
  
        ! Make sure tracers are in kg
-       IF ( .NOT. IsMass ) THEN
-          CALL Convert_Units  ( IFLAG     = 2,                    & ! [v/v] -> [kg]
-                                N_TRACERS = Input_Opt%N_TRACERS,  & ! # of tracers
-                                TCVV      = Input_Opt%TCVV,       & ! Molec / kg
-                                AD        = State_Met%AD,         & ! Air mass [kg]
-                                STT       = State_Chm%Tracers    )  ! Tracer array
-          IsMass = .TRUE.
+       IF ( CellUnit.ne.Kg_Type ) Then
+          If ( CellUnit .eq. KgKgDry_Type ) Then
+             CALL Convert_KgKgDry_to_Kg( am_I_Root, Input_Opt,&
+                                         State_Met, State_Chm, RC )
+          ElseIf ( CellUnit .eq. VVDry_Type) Then
+             CALL Convert_VVDry_to_Kg( am_I_Root, Input_Opt,&
+                                            State_Met, State_Chm, RC )
+          EndIf
+          CellUnit = Kg_Type
        ENDIF
 
        ! Get emission time step [s]. 
@@ -791,14 +812,16 @@ CONTAINS
        ! testing only
        if(am_I_Root.and.NCALLS<10) write(*,*) ' --- Do turbulence now'
 
-       ! Make sure tracers are in v/v
-       IF ( isMass ) THEN 
-          CALL Convert_Units  ( IFLAG     = 1,                    & ! [kg] --> [v/v]
-                                N_TRACERS = Input_Opt%N_TRACERS,  & ! # of tracers
-                                TCVV      = Input_Opt%TCVV,       & ! Molec / kg
-                                AD        = State_Met%AD,         & ! Air mass [kg]
-                                STT       = State_Chm%Tracers    )  ! Tracer array
-          IsMass = .FALSE.
+       ! Make sure tracers are in kg/kg
+       IF ( CellUnit.ne.KgKgDry_Type ) Then
+          If ( CellUnit .eq. VVDry_Type ) Then
+             CALL Convert_VVDry_to_KgKgDry( am_I_Root, Input_Opt,&
+                                         State_Chm, RC )
+          ElseIf ( CellUnit .eq. Kg_Type) Then
+             CALL Convert_Kg_to_KgKgDry( am_I_Root, Input_Opt,&
+                                            State_Met, State_Chm, RC )
+          EndIf
+          CellUnit = KgKgDry_Type
        ENDIF
 
        ! Do mixing and apply tendencies. This will use the dynamic time step, which
@@ -825,13 +848,15 @@ CONTAINS
        if(am_I_Root.and.NCALLS<10) write(*,*) ' --- Do chemistry now'
 
        ! Make sure tracers are in kg
-       IF ( .NOT. IsMass ) THEN
-          CALL Convert_Units  ( IFLAG     = 2,                    & ! [v/v] -> [kg]
-                                N_TRACERS = Input_Opt%N_TRACERS,  & ! # of tracers
-                                TCVV      = Input_Opt%TCVV,       & ! Molec / kg
-                                AD        = State_Met%AD,         & ! Air mass [kg]
-                                STT       = State_Chm%Tracers    )  ! Tracer array
-          IsMass = .TRUE.
+       IF ( CellUnit.ne.KgKgDry_Type ) Then
+          If ( CellUnit .eq. VVDry_Type ) Then
+             CALL Convert_VVDry_to_KgKgDry( am_I_Root, Input_Opt,&
+                                         State_Chm, RC )
+          ElseIf ( CellUnit .eq. Kg_Type) Then
+             CALL Convert_Kg_to_KgKgDry( am_I_Root, Input_Opt,&
+                                            State_Met, State_Chm, RC )
+          EndIf
+          CellUnit = KgKgDry_Type
        ENDIF
 
        ! Write JLOP_PREVIOUS into JLOP to make sure that JLOP contains 
@@ -892,15 +917,18 @@ CONTAINS
        ! testing only
        if(am_I_Root.and.NCALLS<10) write(*,*) ' --- Do wetdep now'
 
-       ! Make sure tracers are in kg
-       IF ( .NOT. IsMass ) THEN
-          CALL Convert_Units  ( IFLAG     = 2,                    & ! [v/v] -> [kg]
-                                N_TRACERS = Input_Opt%N_TRACERS,  & ! # of tracers
-                                TCVV      = Input_Opt%TCVV,       & ! Molec / kg
-                                AD        = State_Met%AD,         & ! Air mass [kg]
-                                STT       = State_Chm%Tracers    )  ! Tracer array
-          IsMass = .TRUE.
+       ! Make sure tracers are in kg/kg dry
+       IF ( CellUnit.ne.KgKgDry_Type ) Then
+          If ( CellUnit .eq. VVDry_Type ) Then
+             CALL Convert_VVDry_to_KgKgDry( am_I_Root, Input_Opt,&
+                                         State_Chm, RC )
+          ElseIf ( CellUnit .eq. Kg_Type) Then
+             CALL Convert_Kg_to_KgKgDry( am_I_Root, Input_Opt,&
+                                            State_Met, State_Chm, RC )
+          EndIf
+          CellUnit = KgKgDry_Type
        ENDIF
+
 
        ! Do wet deposition
        CALL DO_WETDEP( am_I_Root, Input_Opt, State_Met, State_Chm, RC )
@@ -930,13 +958,15 @@ CONTAINS
     !=======================================================================
 
     ! Make sure tracers leave routine in v/v
-    IF ( IsMass ) THEN
-       CALL Convert_Units  ( IFLAG     = 1,                    & ! [kg] -> [v/v]
-                             N_TRACERS = Input_Opt%N_TRACERS,  & ! # of tracers
-                             TCVV      = Input_Opt%TCVV,       & ! Molec / kg
-                             AD        = State_Met%AD,         & ! Air mass [kg]
-                             STT       = State_Chm%Tracers    )  ! Tracer array
-       IsMass = .FALSE.
+    IF ( CellUnit.ne.VVDry_Type ) Then
+       If ( CellUnit .eq. KgKgDry_Type ) Then
+          CALL Convert_KgKgDry_to_VVDry( am_I_Root, Input_Opt,&
+                                      State_Chm, RC )
+       ElseIf ( CellUnit .eq. Kg_Type) Then
+          CALL Convert_Kg_to_VVDry( am_I_Root, Input_Opt,&
+                                         State_Met, State_Chm, RC )
+       EndIf
+       CellUnit = VVDry_Type
     ENDIF
 
     ! testing only

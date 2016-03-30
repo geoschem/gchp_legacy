@@ -60,7 +60,7 @@ CONTAINS
 !
 ! !USES:
 !
-    USE CMN_GCTM_Mod       
+    USE PhysConstants       
     USE CMN_SIZE_Mod
     USE Grid_Mod,           ONLY : RoundOff
     USE Error_Mod,          ONLY : Debug_Msg
@@ -223,7 +223,7 @@ CONTAINS
     USE GIGC_Input_Opt_Mod
     USE GIGC_State_Chm_Mod
     USE GIGC_State_Met_Mod
-    USE CMN_GCTM_Mod
+    USE PhysConstants
     USE CMN_SIZE_MOD
     USE COMODE_MOD
     USE COMODE_LOOP_MOD       
@@ -243,10 +243,12 @@ CONTAINS
     USE Olson_Landmap_Mod,    ONLY : Cleanup_Olson_Landmap
     USE PBL_MIX_MOD,          ONLY : INIT_PBL_MIX
     USE PRESSURE_MOD,         ONLY : INIT_PRESSURE
+#if defined( APM )
     USE TRACER_MOD,           ONLY : INIT_TRACER
+#endif
     USE TRACERID_MOD,         ONLY : SETTRACE
     USE WETSCAV_MOD,          ONLY : INIT_WETSCAV
-    USE WETSCAV_MOD,          ONLY : WETDEPID
+    USE WETSCAV_MOD,          ONLY : Get_WetDep_IDWetD
     USE DRYDEP_MOD,           ONLY : INIT_WEIGHTSS, INIT_DRYDEP
     USE DUST_MOD,             ONLY : INIT_DUST
     USE GIGC_MPI_WRAP
@@ -418,36 +420,40 @@ CONTAINS
 
     ! We still need to call Initialize_Geos_Grid on all CPUs though.
     ! without having to read the "input.geos" file. (mlong, bmy, 2/26/13)
-    !IF (.not. am_I_Root) then
-    CALL Initialize_Geos_Grid( am_I_Root = am_I_Root,                    &
-         Input_Opt = Input_Opt,                    &
-         RC        =  RC )
-    IF ( RC /= GIGC_SUCCESS ) RETURN
+    IF (.not. am_I_Root) then
+      CALL Initialize_Geos_Grid( am_I_Root = am_I_Root,                    &
+           Input_Opt = Input_Opt,                    &
+           RC        =  RC )
+      IF ( RC /= GIGC_SUCCESS ) RETURN
 
-    CALL SetGridFromCtr( am_I_Root, value_IM, value_JM, lonCtr, latCtr, RC )
-    IF ( RC /= GIGC_SUCCESS ) RETURN
+      CALL SetGridFromCtr( am_I_Root, value_IM, value_JM, lonCtr, latCtr, RC )
+      IF ( RC /= GIGC_SUCCESS ) RETURN
+    End If
 
     ! Initialize dry deposition (in GeosCore/drydep_mod.F)
-    IF ( Input_Opt%LDRYD ) THEN
-       CALL Init_Drydep( am_I_Root = am_I_Root,                          &
-            Input_Opt = Input_Opt,                          &
-            RC        = RC         )
-       IF ( RC /= GIGC_SUCCESS ) RETURN
-    ENDIF
+    ! SDE 2016-03-27: This is now performed in GIGC_Init_Extra (as of v11-01)
+    !IF ( Input_Opt%LDRYD .and. (.not. am_I_Root) ) THEN
+    !   CALL Init_Drydep( am_I_Root = am_I_Root,                          &
+    !        Input_Opt = Input_Opt,                          &
+    !        State_Chm = State_Chm,                          &
+    !        RC        = RC         )
+    !   IF ( RC /= GIGC_SUCCESS ) RETURN
+    !ENDIF
     !ENDIF ! am_I_Root
 
     ! Initialize tracer quantities (in GeosCore/tracer_mod.F)
+#if defined( APM )
     CALL Init_Tracer( am_I_Root = am_I_Root,                             &
          Input_Opt = Input_Opt,                             &
          RC        = RC           )
     IF ( RC /= GIGC_SUCCESS ) RETURN
+#endif
 
-
-    ! Initialize wet deposition tracer IDs
-    IF ( Input_Opt%LWETD .OR. Input_Opt%LCONV ) THEN
-       CALL WETDEPID( am_I_Root, Input_Opt, RC )
-       IF ( RC /= GIGC_SUCCESS ) RETURN
-    ENDIF
+    ! Initialize wet deposition tracer IDs - now obsolete
+    !IF ( Input_Opt%LWETD .OR. Input_Opt%LCONV ) THEN
+    !   CALL WETDEPID( am_I_Root, Input_Opt, RC )
+    !   IF ( RC /= GIGC_SUCCESS ) RETURN
+    !ENDIF
 
     !ENDIF ! Not root
 
@@ -462,11 +468,19 @@ CONTAINS
                                           Input_Opt%TS_CONV ),           &
                         Diagnos    = Input_Opt%TS_DIAG         )
 
+    ! Initialize derived-type objects for meteorology & chemistry states
+    CALL GIGC_Init_All( am_I_Root = am_I_Root,                              &
+                        Input_Opt = Input_Opt,                              &
+                        State_Chm = State_Chm,                              &
+                        State_Met = State_Met,                              &
+                        RC        = RC         )
+    IF ( RC /= GIGC_SUCCESS ) RETURN
+
     ! After broadcasting Input_Opt to other CPUs, call GIGC_Init_Extra
     ! to initialize other modules (e.g. carbon_mod.F, dust_mod.F, 
     ! seasalt_mod.F,  sulfate_mod.F).  We needed to move these init 
     ! calls out of the run stage and into the init stage. (bmy, 3/4/13)
-    CALL GIGC_Init_Extra( am_I_Root, Input_Opt, RC ) 
+    CALL GIGC_Init_Extra( am_I_Root, Input_Opt, State_Chm, RC ) 
     IF ( RC /= GIGC_SUCCESS ) RETURN
 
     !-----------------------------------------------------------------------
@@ -487,6 +501,7 @@ CONTAINS
        IF ( prtDebug ) THEN
           CALL DEBUG_MSG( '### GIGC_INIT_CHEMISTRY: after READER' )
        ENDIF
+
 !------------------------------------------------------------------------------
 ! Prior to 3/7/13:
 ! For now, just call READER on all CPUs.  It may be difficult to try to MPI
@@ -507,7 +522,7 @@ CONTAINS
 !------------------------------------------------------------------------------
        CALL READCHEM( am_I_Root, Input_Opt, RC )
        IF ( RC /= GIGC_SUCCESS ) RETURN
-       
+
        !### Debug
        IF ( prtDebug ) THEN
           CALL DEBUG_MSG( '### GIGC_INIT_CHEMISTRY: after READCHEM' )        
@@ -557,14 +572,9 @@ CONTAINS
     ! Zero diagnostic counters
     CALL Initialize( am_I_Root, Input_Opt, 3, RC )
     IF ( RC /= GIGC_SUCCESS ) RETURN
-
-    ! Initialize derived-type objects for meteorology & chemistry states
-    CALL GIGC_Init_All( am_I_Root = am_I_Root,                              &
-                        Input_Opt = Input_Opt,                              &
-                        State_Chm = State_Chm,                              &
-                        State_Met = State_Met,                              &
-                        RC        = RC         )
-    IF ( RC /= GIGC_SUCCESS ) RETURN
+      
+    ! Set State_Chm units
+    State_Chm%Trac_Units = 'kg/kg dry'
 
     ! Save tracer names and ID's into State_Chm
     DO N = 1, Input_Opt%N_TRACERS
@@ -592,9 +602,10 @@ CONTAINS
     CALL Init_PBL_Mix()
 
     ! Initialize arrays SO2s, H2O2s in wetscav_mod.F for use in sulfate chem
-    CALL Init_WetScav &
-       ( am_I_Root, Input_Opt, State_Met, State_Chm, RC )
-    IF ( RC /= GIGC_SUCCESS ) RETURN
+    ! Now called in GIGC_Init_Extra
+    !CALL Init_WetScav &
+    !   ( am_I_Root, Input_Opt, State_Chm, RC )
+    !IF ( RC /= GIGC_SUCCESS ) RETURN
 
     !=======================================================================
     ! Initialize dry deposition 
@@ -663,7 +674,7 @@ CONTAINS
        NLOOP   = NLAT  * NLONG
        NTLOOP  = NLOOP * NVERT
        NTTLOOP = NTLOOP
-       
+      
        ! Set NCS=NCSURBAN here since we have defined our tropospheric
        ! chemistry mechanism in the urban slot of SMVGEAR II (bmy, 4/21/03)
        NCS     = NCSURBAN
@@ -747,8 +758,9 @@ CONTAINS
        CALL SET_INITIAL_MIXRATIOS( am_I_Root, Input_Opt, State_Met, State_Chm )
     ENDIF
 
+    ! Note: Init_Strat_Chem expects units of kg/kg dry
     IF ( Input_Opt%LSCHEM ) THEN
-       CALL INIT_STRAT_CHEM( am_I_Root, Input_Opt, State_Chm, RC )
+       CALL INIT_STRAT_CHEM( am_I_Root, Input_Opt, State_Chm, State_Met, RC )
     ENDIF
 
     ! Return w/ success
