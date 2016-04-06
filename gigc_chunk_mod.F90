@@ -747,7 +747,8 @@ CONTAINS
     ! to the tracers array after emissions, drydep. So we need to use the
     ! emissions time step here.
     ! Subroutine DO_TEND operates in mass units, e.g. the tracers must be 
-    ! in [kg]. 
+    ! in [kg].
+    ! SDE 2016-04-05: Input units should now be v/v dry. 
     !=======================================================================
     IF ( DoTend ) THEN 
   
@@ -757,16 +758,16 @@ CONTAINS
        ! testing only
        if(am_I_Root.and.NCALLS<10) write(*,*) ' --- Add emissions and drydep to tracers'
  
-       ! Make sure tracers are in kg
-       IF ( CellUnit.ne.Kg_Type ) Then
+       ! Make sure tracers are in v/v
+       IF ( CellUnit.ne.VVDry_Type ) Then
           If ( CellUnit .eq. KgKgDry_Type ) Then
-             CALL Convert_KgKgDry_to_Kg( am_I_Root, Input_Opt,&
-                                         State_Met, State_Chm, RC )
-          ElseIf ( CellUnit .eq. VVDry_Type) Then
-             CALL Convert_VVDry_to_Kg( am_I_Root, Input_Opt,&
+             CALL Convert_KgKgDry_to_VVDry( am_I_Root, Input_Opt,&
+                                         State_Chm, RC )
+          ElseIf ( CellUnit .eq. Kg_Type) Then
+             CALL Convert_Kg_to_VVDry( am_I_Root, Input_Opt,&
                                             State_Met, State_Chm, RC )
           EndIf
-          CellUnit = Kg_Type
+          CellUnit = VVDry_Type
        ENDIF
 
        ! Get emission time step [s]. 
