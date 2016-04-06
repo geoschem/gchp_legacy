@@ -60,7 +60,7 @@
   State_Met%PBLH       = PBLH                                ! m
   State_Met%PRECCON    = PRECCON  * 86400d0                  ! kg/m2/s -> mm/day
   State_Met%PRECTOT    = PRECTOT  * 86400d0                  ! kg/m2/s -> mm/day
-  State_Met%TROPP      = TROPP / 100d0                       ! Pa      -> hPa
+  State_Met%TROPP      = TROPP                               ! hPa
   State_Met%PS1        = PS1                                 ! hPa
   State_Met%TS         = TS                                  ! K
   State_Met%TSKIN      = TSKIN                               ! K
