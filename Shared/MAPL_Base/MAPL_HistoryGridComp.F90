@@ -3504,7 +3504,7 @@ ENDDO PARSER
     type (ESMF_State)        , intent(IN   ) :: STATE_IN
     type (ESMF_State)        , intent(INOUT) :: STATE_OUT
     type(MAPL_LocStreamXform), intent(IN   ) :: XFORM
-    type(MAPL_LocStream)     , intent(IN   ) :: LS_IN, LS_OUT
+    type(MAPL_LocStream)     , intent(INOUT) :: LS_IN, LS_OUT
     integer                  , intent(IN   ) :: NTILES_IN, NTILES_OUT
     integer, optional        , intent(  OUT) :: RC
 
@@ -3636,7 +3636,7 @@ ENDDO PARSER
     type (ESMF_State)        , intent(IN   ) :: STATE_IN
     type (ESMF_State)        , intent(INOUT) :: STATE_OUT
     type(MAPL_LocStreamXform), intent(IN   ) :: XFORM, XFORMntv
-    type(MAPL_LocStream)     , intent(IN   ) :: LS_IN, LS_OUT, LS_NTV
+    type(MAPL_LocStream)     , intent(INOUT) :: LS_IN, LS_OUT, LS_NTV
     integer                  , intent(IN   ) :: NTILES_IN, NTILES_OUT
     integer, optional        , intent(  OUT) :: RC
 

@@ -1669,7 +1669,7 @@ contains
     !ARGUMENTS:
     type(ESMF_Field),          intent(OUT) :: OUTPUT
     type(ESMF_Field),          intent(INout) :: INPUT
-    type(MAPL_LocStream),      intent(IN ) :: LocStream
+    type(MAPL_LocStream),      intent(INOUT) :: LocStream
     integer, optional,         intent(IN ) :: MASK(:)
     logical, optional,         intent(IN ) :: ISMINE(:), INTERP
     logical, optional,         intent(IN ) :: GLOBAL
@@ -1943,7 +1943,7 @@ subroutine MAPL_LocStreamTransformG2T ( LocStream, OUTPUT, INPUT,      &
                                         INTERP, TRANSPOSE, RC )
 
   !ARGUMENTS:
-  type(MAPL_LocStream),      intent(IN ) :: LocStream
+  type(MAPL_LocStream),      intent(INOUT) :: LocStream
   real,                      intent(INOUT) :: OUTPUT(:)
   real,                      intent(INOUT) :: INPUT(:,:)
   logical, optional,         intent(IN ) :: MASK(:), ISMINE(:), INTERP

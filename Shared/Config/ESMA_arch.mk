@@ -199,7 +199,7 @@ FC      :=mpif90
 #
 # Extend for IFORT 12 and IFORT 13 
     ifeq ($(IFORT_MAJOR), 12)
-          LIB_SYS := -lirc -lguide $(LIB_SYS)
+          LIB_SYS := -lirc -liomp5 $(LIB_SYS)
           ifneq ($(MACH), i686)
               FPE += -fp-model precise
               MPFLAG :=# -mp is incompatible with the -fp-model option
