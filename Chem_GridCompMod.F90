@@ -2176,12 +2176,12 @@ CONTAINS
        CALL ESMF_ConfigGetAttribute( GeosCF, InitZero, Default=0, &
                                      Label = "INIT_ZERO:", __RC__ ) 
        IF ( InitZero == 1 ) THEN
-          State_Chm%Tracers = 1.0d-26
-          State_Chm%Species = 1.0d-26
+          State_Chm%Tracers = 1.0e-26
+          State_Chm%Species = 1.0e-26
           IF ( am_I_Root ) THEN
              write(*,*) ' '
              write(*,*) ' '
-             write(*,*) '### ALL GEOS-CHEM CONCENTRATIONS INITIALIZED TO ZERO (1d-26)!!! ###'
+             write(*,*) '### ALL GEOS-CHEM CONCENTRATIONS INITIALIZED TO ZERO (1e-26)!!! ###'
              write(*,*) ' '
              write(*,*) ' '
           ENDIF
