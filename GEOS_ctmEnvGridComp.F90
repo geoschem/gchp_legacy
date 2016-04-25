@@ -115,16 +115,8 @@
       VERIFY_(STATUS)
 
       call MAPL_AddImportSpec ( gc,                                  &
-           SHORT_NAME = 'PS0',                                       &
-           LONG_NAME  = 'pressure_at_surface_before_advection',      &
-           UNITS      = 'hPa',                                       &
-           DIMS       = MAPL_DimsHorzOnly,                           &
-           VLOCATION  = MAPL_VLocationEdge,             RC=STATUS  )
-      VERIFY_(STATUS)
-
-      call MAPL_AddImportSpec ( gc,                                  &
-           SHORT_NAME = 'PS1',                                       &
-           LONG_NAME  = 'pressure_at_surfaces_after_advection',      &
+           SHORT_NAME = 'PS',                                        &
+           LONG_NAME  = 'pressure_at_surface',                       &
            UNITS      = 'hPa',                                       &
            DIMS       = MAPL_DimsHorzOnly,                           &
            VLOCATION  = MAPL_VLocationEdge,             RC=STATUS  )
@@ -163,8 +155,8 @@
 !      VERIFY_(STATUS)
 
       call MAPL_AddImportSpec ( gc,                                  &
-           SHORT_NAME = 'UC0',                                       &
-           LONG_NAME  = 'eastward_wind_on_C-Grid_before_advection',  &
+           SHORT_NAME = 'UC',                                        &
+           LONG_NAME  = 'eastward_wind_on_C-Grid',                   &
            UNITS      = 'm s-1',                                     &
            STAGGERING = MAPL_CGrid,                                  &
            ROTATION   = MAPL_RotateCube,                             & 
@@ -173,28 +165,8 @@
       VERIFY_(STATUS)
 
       call MAPL_AddImportSpec ( gc,                                  &
-           SHORT_NAME = 'UC1',                                       &
-           LONG_NAME  = 'eastward_wind_on_C-Grid_after_advection',   &
-           UNITS      = 'm s-1',                                     &
-           STAGGERING = MAPL_CGrid,                                  &
-           ROTATION   = MAPL_RotateCube,                             &
-           DIMS       = MAPL_DimsHorzVert,                           &
-           VLOCATION  = MAPL_VLocationCenter,             RC=STATUS  )
-      VERIFY_(STATUS)
-
-      call MAPL_AddImportSpec ( gc,                                  &
-           SHORT_NAME = 'VC0',                                       &
-           LONG_NAME  = 'northward_wind_on_C-Grid_before_advection', &
-           UNITS      = 'm s-1',                                     &
-           STAGGERING = MAPL_CGrid,                                  &
-           ROTATION   = MAPL_RotateCube,                             &
-           DIMS       = MAPL_DimsHorzVert,                           &
-           VLOCATION  = MAPL_VLocationCenter,             RC=STATUS  )
-      VERIFY_(STATUS)
-
-      call MAPL_AddImportSpec ( gc,                                  &
-           SHORT_NAME = 'VC1',                                       &
-           LONG_NAME  = 'northward_wind_on_C-Grid_after_advection',  &
+           SHORT_NAME = 'VC',                                        &
+           LONG_NAME  = 'northward_wind_on_C-Grid',                  &
            UNITS      = 'm s-1',                                     &
            STAGGERING = MAPL_CGrid,                                  &
            ROTATION   = MAPL_RotateCube,                             &
@@ -468,12 +440,9 @@
 
       ! Imports
       !--------
-      real, pointer, dimension(:,:)   ::       PS1 => null()
-      real, pointer, dimension(:,:)   ::       PS0 => null()
-      real, pointer, dimension(:,:,:) ::       UC0 => null()
-      real, pointer, dimension(:,:,:) ::       UC1 => null()
-      real, pointer, dimension(:,:,:) ::       VC0 => null()
-      real, pointer, dimension(:,:,:) ::       VC1 => null()
+      real, pointer, dimension(:,:)   ::        PS => null()
+      real, pointer, dimension(:,:,:) ::        UC => null()
+      real, pointer, dimension(:,:,:) ::        VC => null()
       real, pointer, dimension(:,:,:) ::        th => null()
       real, pointer, dimension(:,:,:) ::         q => null()
       real, pointer, dimension(:,:,:) ::       zle => null()
@@ -532,23 +501,17 @@
 
       ! Get to the imports...
       ! ---------------------
-      call MAPL_GetPointer ( IMPORT,      PS0,     'PS0', RC=STATUS )
+      call MAPL_GetPointer ( IMPORT,      PS,     'PS', RC=STATUS )
       VERIFY_(STATUS)
-      call MAPL_GetPointer ( IMPORT,      PS1,     'PS1', RC=STATUS )
+      call MAPL_GetPointer ( IMPORT,      UC,     'UC', RC=STATUS )
       VERIFY_(STATUS)
-      call MAPL_GetPointer ( IMPORT,      UC0,     'UC0', RC=STATUS )
-      VERIFY_(STATUS)
-      call MAPL_GetPointer ( IMPORT,      UC1,     'UC1', RC=STATUS )
-      VERIFY_(STATUS)
-      call MAPL_GetPointer ( IMPORT,      VC0,     'VC0', RC=STATUS )
-      VERIFY_(STATUS)
-      call MAPL_GetPointer ( IMPORT,      VC1,     'VC1', RC=STATUS )
+      call MAPL_GetPointer ( IMPORT,      VC,     'VC', RC=STATUS )
       VERIFY_(STATUS)
 
       ! Get local dimensions
-      is = lbound(UC1,1); ie = ubound(UC1,1)
-      js = lbound(UC1,2); je = ubound(UC1,2)
-      lm = size  (UC1,3)
+      is = lbound(UC,1); ie = ubound(UC,1)
+      js = lbound(UC,2); je = ubound(UC,2)
+      lm = size  (UC,3)
 
       ! Calcaulate PLE0/1 - M.Long
       ! ---------------------
@@ -560,15 +523,12 @@
       ! Reverse PLE0/1 because the 
       ! daggum models flip the atmosphere.
       DO L=1,LM+1
-         PLE0(:,:,L) = 100.d0*(AP(L) + ( BP(L) * PS0(:,:) ))
-         PLE1(:,:,L) = 100.d0*(AP(L) + ( BP(L) * PS1(:,:) ))
+         PLE0(:,:,L) = 100.d0*(AP(L) + ( BP(L) * PS(:,:) ))
       END DO
       PLE0(:,:,:) = PLE0(:,:,LM+1:1:-1)
       PLE1(:,:,:) = PLE1(:,:,LM+1:1:-1)
-       UC0(:,:,:) =  UC0(:,:,LM:1:-1)
-       VC0(:,:,:) =  VC0(:,:,LM:1:-1)
-       UC1(:,:,:) =  UC1(:,:,LM:1:-1)
-       VC1(:,:,:) =  VC1(:,:,LM:1:-1)
+       UC(:,:,:) =  UC(:,:,LM:1:-1)
+       VC(:,:,:) =  VC(:,:,LM:1:-1)
 
       DEALLOCATE( AP, BP )
 
@@ -602,8 +562,8 @@
       ALLOCATE( VCr8(is:ie,js:je,lm),   STAT=STATUS); VERIFY_(STATUS)
       ALLOCATE(PLEr8(is:ie,js:je,lm+1), STAT=STATUS); VERIFY_(STATUS)
 
-      UCr8  = 0.50d0*(UC1  + UC0)
-      VCr8  = 0.50d0*(VC1  + VC0)
+      UCr8  = 1.00d0*(UC)
+      VCr8  = 1.00d0*(VC)
       PLEr8 = 0.50d0*(PLE1 + PLE0)
 
       call calcCourantNumberMassFlux(UCr8, VCr8, PLEr8, &
