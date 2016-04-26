@@ -115,8 +115,17 @@
       VERIFY_(STATUS)
 
       call MAPL_AddImportSpec ( gc,                                  &
-           SHORT_NAME = 'PS',                                        &
-           LONG_NAME  = 'pressure_at_surface',                       &
+           SHORT_NAME = 'PS0',                                       &
+           LONG_NAME  = 'pressure_at_surface_before_advection',      &
+           UNITS      = 'hPa',                                       &
+           DIMS       = MAPL_DimsHorzOnly,                           &
+           VLOCATION  = MAPL_VLocationEdge,             RC=STATUS  )
+      VERIFY_(STATUS)
+
+
+      call MAPL_AddImportSpec ( gc,                                  &
+           SHORT_NAME = 'PS1',                                       &
+           LONG_NAME  = 'pressure_at_surface_after_advection',       &
            UNITS      = 'hPa',                                       &
            DIMS       = MAPL_DimsHorzOnly,                           &
            VLOCATION  = MAPL_VLocationEdge,             RC=STATUS  )
@@ -440,7 +449,8 @@
 
       ! Imports
       !--------
-      real, pointer, dimension(:,:)   ::        PS => null()
+      real, pointer, dimension(:,:)   ::       PS0 => null()
+      real, pointer, dimension(:,:)   ::       PS1 => null()
       real, pointer, dimension(:,:,:) ::        UC => null()
       real, pointer, dimension(:,:,:) ::        VC => null()
       real, pointer, dimension(:,:,:) ::        th => null()
@@ -501,7 +511,9 @@
 
       ! Get to the imports...
       ! ---------------------
-      call MAPL_GetPointer ( IMPORT,      PS,     'PS', RC=STATUS )
+      call MAPL_GetPointer ( IMPORT,     PS0,    'PS0', RC=STATUS )
+      VERIFY_(STATUS)
+      call MAPL_GetPointer ( IMPORT,     PS1,    'PS1', RC=STATUS )
       VERIFY_(STATUS)
       call MAPL_GetPointer ( IMPORT,      UC,     'UC', RC=STATUS )
       VERIFY_(STATUS)
@@ -523,7 +535,8 @@
       ! Reverse PLE0/1 because the 
       ! daggum models flip the atmosphere.
       DO L=1,LM+1
-         PLE0(:,:,L) = 100.d0*(AP(L) + ( BP(L) * PS(:,:) ))
+         PLE0(:,:,L) = 100.d0*(AP(L) + ( BP(L) * PS0(:,:) ))
+         PLE1(:,:,L) = 100.d0*(AP(L) + ( BP(L) * PS1(:,:) ))
       END DO
       PLE0(:,:,:) = PLE0(:,:,LM+1:1:-1)
       PLE1(:,:,:) = PLE1(:,:,LM+1:1:-1)
