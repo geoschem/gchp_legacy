@@ -75,6 +75,7 @@ MODULE Chem_GridCompMod
 ! !PUBLIC MEMBER FUNCTIONS:
 !
   PUBLIC                           :: SetServices    ! Sets ESMF entry points
+  PUBLIC                           :: Get_Transport  ! Returns InputOpt%LTRAN.
 !
 ! !PRIVATE MEMBER FUNCTIONS:
 !
@@ -276,6 +277,7 @@ MODULE Chem_GridCompMod
 !  17 Oct 2014 - C. Keller   - Various updates to fill provider fields.
 !  26 Nov 2014 - C. Keller   - Added H2O_HIST and O3_HIST. 
 !  22 Feb 2015 - C. Keller   - Now check if geoschemchem_import_rst exist
+!  06 Jun 2016 - M. Yannetti - Added Get_Transport.
 !EOP
 !------------------------------------------------------------------------------
 !BOC
@@ -964,6 +966,46 @@ CONTAINS
     RETURN_(ESMF_SUCCESS)
 
   END SUBROUTINE SetServices
+!EOC
+!------------------------------------------------------------------------------
+!     NASA/GSFC, Global Modeling and Assimilation Office, Code 910.1 and      !
+!          Harvard University Atmospheric Chemistry Modeling Group            !
+!------------------------------------------------------------------------------
+!BOP
+!
+! !IROUTINE: Get_Transport
+!
+! !DESCRIPTION: Returns the LTRAN variable of Input_Opt, so ESMF can know
+!  if transport should run or not.
+!\\
+!\\
+! !INTERFACE:
+!
+      FUNCTION GET_TRANSPORT() RESULT( L_TRAN )
+!
+! !USES:
+!
+!
+! !RETURN VALUE:
+!
+      LOGICAL :: L_TRAN    ! Result of LTRAN.
+!
+! !REVISION HISTORY: 
+!  06 Jun 2016 - M. Yannetti   - Initial version
+!EOP
+!------------------------------------------------------------------------------
+!BOC
+
+      !=================================================================
+      ! GETTRANSPORT begins here!
+      !=================================================================
+
+      L_TRAN = Input_Opt%LTRAN
+
+      END FUNCTION GET_TRANSPORT
+
+
+
 !EOC
 !------------------------------------------------------------------------------
 !     NASA/GSFC, Global Modeling and Assimilation Office, Code 910.1 and      !

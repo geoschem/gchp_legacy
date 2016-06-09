@@ -45,6 +45,7 @@ module GIGC_GridCompMod
   use GEOS_ctmEnvGridComp,        only : EctmSetServices          => SetServices
 !  use FVDyCoreCubed_GridComp,     only : AtmosDynSetServices      => SetServices
   use GIGC_Input_Opt_Mod
+  use Chem_GridCompMod,           only : Get_Transport
 
   implicit none
   private
@@ -403,7 +404,7 @@ contains
    integer                             :: I, L
    integer                             :: IM, JM, LM
    real                                :: DT
-   TYPE(OptInput)                      :: Input_Opt   ! Input Options object
+   logical                             :: LTRANS
   
 !=============================================================================
 
@@ -465,7 +466,8 @@ contains
     call MAPL_TimerOn (STATE,GCNames(I))
 
     ! this shouldn't run if transport is disabled in input.geos.
-    IF ( Input_Opt%LTRAN ) THEN
+    LTRANS = Get_Transport()
+    IF ( LTRANS ) THEN
       call ESMF_GridCompRun (GCS(I), importState=GIM(I), &
            exportState=GEX(I), clock=CLOCK, userRC=STATUS );
       VERIFY_(STATUS)
