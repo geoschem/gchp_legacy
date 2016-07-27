@@ -1,5 +1,5 @@
    
-!  $Id: GetWeights.F90,v 1.1.2.7.8.1.6.2.4.1.10.6.2.3 2016-04-04 18:26:04 bmauer Exp $
+!  $Id: GetWeights.F90,v 1.1.2.7.8.1.6.2.4.1.10.6.2.1.14.1 2016-02-29 18:07:12 jkouatch Exp $
    
 #define REAL8 8
    
@@ -705,8 +705,6 @@
 
          ! Now we have D-Grid winds, need to make call to d2a2c_vect
 
-         utemp = 0.0d0
-         vtemp = 0.0d0
          utemp(is:ie,js:je,:) = ud(is:ie,js:je,:)
          vtemp(is:ie,js:je,:) = vd(is:ie,js:je,:)
 

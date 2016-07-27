@@ -1,4 +1,4 @@
-!  $Id$
+!  $Id: MAPL_IO.P90,v 1.56.2.10.2.7 2016-05-17 18:09:33 bmauer Exp $
 
 #include "MAPL_ErrLog.h"
 #define DEALOC_(A) if(associated(A))then;if(MAPL_ShmInitialized)then;call MAPL_SyncSharedMemory(rc=STATUS);call MAPL_DeAllocNodeArray(A,rc=STATUS);else;deallocate(A,stat=STATUS);endif;VERIFY_(STATUS);NULLIFY(A);endif
@@ -45,6 +45,7 @@ module MAPL_IOMod
      logical                     :: hasVar
      real(ESMF_KIND_R4), allocatable :: dimPtrR4(:)
      real(ESMF_KIND_R8), allocatable :: dimPtrR8(:)
+     integer,            allocatable :: dimPtrI4(:)
      character(len=ESMF_MAXSTR)  :: units
      character(len=ESMF_MAXSTR)  :: long_name
      character(len=ESMF_MAXSTR)  :: standard_name
@@ -63,6 +64,7 @@ module MAPL_IOMod
     integer                        :: gridType
     integer                        :: date
     integer                        :: time
+    integer                        :: time_increment = -999
     type (NCIO_Var), allocatable :: vars(:)
     type (NCIO_Dim), allocatable :: dims(:)
     logical                        :: isOpen = .false.
@@ -8679,6 +8681,11 @@ module MAPL_IOMod
                VERIFY_(STATUS)
                status = NF90_Get_Var(ncid,varid,NCIO%dims(j)%dimPtrR8)
                VERIFY_(STATUS)
+            else if (NCIO%dims(j)%ncDataType == NF90_INT) then
+               allocate(NCIO%dims(j)%dimPtrI4(NCIO%dims(j)%len),stat=status)
+               VERIFY_(STATUS)
+               status = NF90_Get_Var(ncid,varid,NCIO%dims(j)%dimPtrI4)
+               VERIFY_(STATUS)
             end if
 
             if (NCIO%dims(j)%dimType == MAPL_NCIODimLon .or. NCIO%dims(j)%dimType == MAPL_NCIODimLat) then
@@ -8723,9 +8730,12 @@ module MAPL_IOMod
                   NCIO%dims(j)%units = ctemp
                   call MAPL_NCIOParseTimeUnits(ctemp,year,month,day,hour,min,sec,status)
                   NCIO%date = year*10000 + month*100 + day
-                  NCIO%time = hour*10000 + min*100   + sec 
+                  NCIO%time = hour*10000 + min*100   + sec
                end if
-
+               status = nf90_get_att(ncid,varid,"time_increment",sec)
+               if (status == NF90_NoErr) then
+                  NCIO%time_increment = sec
+               end if
             end if
 
          end if
@@ -8949,6 +8959,7 @@ module MAPL_IOMod
      character(len=ESMF_MAXSTR) :: Iam
 
      integer :: i,j,tindex
+     integer :: year, month, day, hour, min, sec, date, time
      integer, allocatable :: dimids(:)
 
      Iam = "MAPL_NCIOCreateFile"
@@ -9009,6 +9020,20 @@ module MAPL_IOMod
            else if (NCIO%dims(i)%dimType == MAPL_NCIODimTime) then
               status = nf90_put_att(NCIO%ncid,NCIO%dims(i)%varid,"units",NCIO%dims(i)%units)
               VERIFY_(STATUS)
+              status = nf90_put_att(NCIO%ncid,NCIO%dims(i)%varid,"long_name","time")
+              VERIFY_(STATUS) 
+              call MAPL_NCIOParseTimeUnits(trim(NCIO%dims(i)%units),year,month,day,hour,min,sec,status)
+              VERIFY_(STATUS)
+              date = year*10000 + month*100 + day
+              time = hour*10000 + min*100   + sec
+              status = nf90_put_att(NCIO%ncid,NCIO%dims(i)%varid,"begin_date",date)
+              VERIFY_(STATUS)
+              status = nf90_put_att(NCIO%ncid,NCIO%dims(i)%varid,"begin_time",time)
+              VERIFY_(STATUS)
+              if (NCIO%time_increment /= -999) then
+                 status = nf90_put_att(NCIO%ncid,NCIO%dims(i)%varid,"time_increment",NCIO%time_increment)
+                 VERIFY_(STATUS)
+              end if 
            end if
         end if
      enddo
@@ -9044,6 +9069,9 @@ module MAPL_IOMod
               VERIFY_(STATUS)
            else if (NCIO%dims(i)%ncDataType == NF90_DOUBLE) then
               status = nf90_put_var(NCIO%ncid,NCIO%dims(i)%varid,NCIO%dims(i)%dimPtrR8)
+              VERIFY_(STATUS)
+           else if (NCIO%dims(i)%ncDataType == NF90_INT) then
+              status = nf90_put_var(NCIO%ncid,NCIO%dims(i)%varid,NCIO%dims(i)%dimPtrI4)
               VERIFY_(STATUS)
            end if
         end if
@@ -9443,9 +9471,9 @@ module MAPL_IOMod
      integer :: status
      character(len=ESMF_MAXSTR) :: Iam
 
-     integer :: i
-     logical :: found
-     integer :: nDims,dimSizes(3)
+     integer :: i,j,vertDim
+     logical :: found,foundLev
+     integer :: nDims,dimSizes(4),dimType(4)
 
      Iam = "MAPL_NCIOGetDimSizes"
 
@@ -9453,11 +9481,19 @@ module MAPL_IOMod
         slices = 0
         if (NCIO%gridType == MAPL_NCIOGridLL .or. NCIO%gridType == MAPL_NCIOGridCS) then
            do i=1,NCIO%nVars
-              call MAPL_NCIOVarGetDims(NCIO,NCIO%vars(i)%name,nDims,dimSizes)
-              if (dimSizes(3) == 0) then
-                 slices = slices + 1
+              call MAPL_NCIOVarGetDims(NCIO,NCIO%vars(i)%name,nDims,dimSizes,dimType)
+              foundLev = .false.
+              do j=1,nDims
+                 if (dimType(j) == MAPL_NCIODimLev .or. dimType(j) == MAPL_NCIODimEdge) then
+                    foundLev = .true.
+                    vertDim = j
+                    exit
+                 end if
+              enddo
+              if (foundLev) then
+                 slices = slices + dimSizes(vertDim)
               else
-                 slices = slices + dimSizes(3)
+                 slices = slices + 1
               end if
            enddo
         end if
@@ -9592,11 +9628,13 @@ module MAPL_IOMod
   end subroutine MAPL_NCIOGetDimSizes
 
 
-  subroutine MAPL_NCIOVarGetDims(NCIO,name,ndims,dimSize,rc)
+  subroutine MAPL_NCIOVarGetDims(NCIO,name,ndims,dimSize,dimType,nSpatialDims,rc)
      type(MAPL_NCIO), intent(inout) :: NCIO
      character(len=*), intent(in   ) :: name
      integer, intent(out  ) :: ndims
-     integer, intent(out  ) :: dimSize(3)
+     integer, intent(out  ) :: dimSize(:)
+     integer, optional, intent(out) :: dimType(:)
+     integer, optional, intent(out) :: nSpatialDims
      integer, optional, intent(out  ) :: rc
 
      integer :: status
@@ -9609,13 +9647,20 @@ module MAPL_IOMod
 
      dimSize = 0
      found = .false.
+     
      do i=1,NCIO%nVars
         if (trim(name) == trim(NCIO%vars(i)%name)) then
            ndims = NCIO%vars(i)%ndims
+           ASSERT_(size(dimSize) >= ndims)
+           if (present(dimType)) then
+              ASSERT_(size(dimType) >= ndims)
+           end if
            do j=1,NCIO%vars(i)%ndims
               dimid = NCIO%vars(i)%dimids(j)
               dimSize(j) = NCIO%dims(dimid)%len
+              if (present(dimType)) dimType(j) = NCIO%dims(dimid)%dimType
            enddo
+           if (present(nSpatialDims)) nSpatialDims = NCIO%vars(i)%spatialDims
            found = .true.
            exit
         end if

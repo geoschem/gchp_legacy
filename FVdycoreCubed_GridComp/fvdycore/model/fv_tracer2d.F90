@@ -613,6 +613,10 @@ end subroutine offline_tracer_advection
 
          if (globalSums(2) > TINY_DENOMINATOR) then
             scaling =  globalSums(1) / globalSums(2)
+            !#################################################################
+            ! This line was added to ensure strong reproducibility of the code
+            !#################################################################
+            scaling = REAL(scaling, KIND=REAL4)
          else
             scaling = 1.d0
          end if

@@ -1,5 +1,5 @@
 
-!  $Id$
+!  $Id: MAPL_Comms.P90,v 1.26 2016-04-20 15:07:37 bmauer Exp $
 
 #include "MAPL_ErrLog.h"
 
@@ -280,13 +280,14 @@ module MAPL_CommsMod
 
 
   subroutine MAPL_CreateRequest(grid, Root, request, tag, RequestType, &
-                                DstArray, PrePost, rc)
+                                DstArray, PrePost, hw, rc)
     type (ESMF_Grid),        intent(IN   ) :: grid
     integer,                 intent(IN   ) :: Root
     type (MAPL_CommRequest), intent(INOUT) :: request
     integer,                 intent(IN   ) :: tag, RequestType
     real, target, optional,  intent(IN   ) :: DstArray(:,:)
     logical,      optional,  intent(IN   ) :: PrePost
+    integer,      optional,  intent(IN   ) :: hw
     integer,      optional,  intent(  OUT) :: rc
     
 ! Local variables
@@ -304,9 +305,16 @@ module MAPL_CommsMod
     integer                    :: myPE, nDEs
     integer                    :: gridRank
     integer                    :: comm, req
+    integer                    :: hw_
 
 ! Begin
 !------
+
+    if (present(hw)) then
+       hw_ = hw
+    else
+       hw_ = 0
+    end if
 
     ASSERT_(.not.request%active)
 
@@ -376,15 +384,15 @@ module MAPL_CommsMod
     request%RequestType   =  RequestType
     request%tag           =  tag
    
-    request%I1 = AL(1,:)
-    request%In = AU(1,:)
-    request%J1 = AL(2,:)
-    request%Jn = AU(2,:)
+    request%I1 = AL(1,:)-hw_
+    request%In = AU(1,:)+hw_
+    request%J1 = AL(2,:)-hw_
+    request%Jn = AU(2,:)+hw_
     request%IM = request%IN-request%I1+1
     request%JM = request%JN-request%J1+1
 
-    request%IM_WORLD = request%IN(nDEs-1)- request%I1(0) + 1
-    request%JM_WORLD = request%JN(nDEs-1)- request%J1(0) + 1
+    request%IM_WORLD = request%IN(nDEs-1)- request%I1(0) + 1 - (2*hw_)
+    request%JM_WORLD = request%JN(nDEs-1)- request%J1(0) + 1 - (2*hw_)
     request%IM0      = request%IN(mype  )- request%I1(mype) + 1
     request%JM0      = request%JN(mype  )- request%J1(mype) + 1
 
@@ -414,7 +422,7 @@ module MAPL_CommsMod
           request%DstArray => DstArray
           ASSERT_(all(shape(DstArray)==(/ request%IM0     , request%JM0     /)))
        else
-          allocate(request%DstArray(request%IM0     , request%JM0     ),stat=STATUS)
+          allocate(request%DstArray(request%IM0 , request%JM0 ),stat=STATUS)
           VERIFY_(STATUS)
        end if
     else
@@ -504,9 +512,10 @@ module MAPL_CommsMod
 
 !===================================================================
 
-  subroutine MAPL_ArrayIScatter_R4_2(global_array, request, rc)
+  subroutine MAPL_ArrayIScatter_R4_2(global_array, request, hw, rc)
     real,                    intent(IN   ) :: global_array (:,:)
     type (MAPL_CommRequest), intent(INOUT) :: request
+    integer, optional,       intent(   IN) :: hw
     integer, optional,       intent(  OUT) :: rc
     
 ! Local variables
@@ -516,29 +525,58 @@ module MAPL_CommsMod
 
 
     integer                    :: displs,i1,in,j1,jn
-    integer                    :: n, count
+    integer                    :: n, count, hw_, j
+    real, allocatable          :: global_array_(:,:)
+
+    if (present(hw)) then
+       hw_ = hw
+    else
+       hw_ = 0
+    end if
 
 ! Post sends from all processors except root
 !-------------------------------------------
 
     if(request%amRoot) then
+       !if have halo, make local copy and halo global
+       if (hw_ > 0) then
+          allocate(Global_Array_(1-hw_:request%im_world+hw_,1-hw_:request%jm_world+hw_))
+          Global_Array_(1:request%im_world,1:request%jm_world) = Global_Array
+          do j=1,hw_
+             ! x-direction
+             Global_Array_(1-j,:) = Global_Array_(request%im_world-j+1,:)
+             Global_Array_(request%im_world+j,:) = Global_Array_(j,:)
+             ! y-direction
+             Global_Array_(:,1-j) = Global_Array_(:,1)
+             Global_Array_(:,request%jm_world+j) = Global_Array_(:,request%jm_world)
+          enddo
+       endif
        allocate(request%Buff(0:request%nDEs-1))
        PEs: do n=0,request%nDEs-1
-             count = request%IM(n)*request%JM(n)
+          count = request%IM(n)*request%JM(n)
           i1 = request%i1(n)
           in = request%in(n)
           j1 = request%j1(n)
           jn = request%jn(n)
           if(n == request%mype) then
-             request%DstArray = Global_Array(i1:in,j1:jn)
+             if (hw_ > 0) then
+                 request%DstArray = Global_Array_(i1:in,j1:jn)
+             else
+                 request%DstArray = Global_Array(i1:in,j1:jn)
+             end if
           else
-             allocate(request%Buff(n)%A(request%im(n), request%jm(n)))
-             request%Buff(n)%A = Global_Array(i1:in,j1:jn)
+             allocate(request%Buff(n)%A(request%im(n), request%jm(n))) 
+             if (hw_ > 0) then
+                  request%Buff(n)%A = Global_Array_(i1:in,j1:jn)
+             else
+                  request%Buff(n)%A = Global_Array(i1:in,j1:jn)
+             end if
              call MPI_ISend(request%Buff(n)%A, count, MPI_REAL, &
                   n, request%tag, request%comm, request%send(n),  status)
              VERIFY_(STATUS)
           end if
        end do PEs
+       if (hw_ > 0) deallocate(Global_Array_)
     end if
 
     RETURN_(ESMF_SUCCESS)
@@ -556,7 +594,7 @@ module MAPL_CommsMod
 
     integer               :: i,j,k,n
     integer               :: count
-
+ 
     REQUEST_TYPE: if(request%RequestType==MAPL_IsGather) then
 
        ROOT_GATH: if(request%amRoot) then
@@ -743,13 +781,12 @@ module MAPL_CommsMod
   end subroutine MAPL_CollectiveGather3D
 
 
-  subroutine MAPL_CollectiveScatter3D(Grid, GlobArray, LocArray, &
-                                     CoresPerNode, rc)
+  subroutine MAPL_CollectiveScatter3D(Grid, GlobArray, LocArray, hw, rc)
 
     type (ESMF_Grid),        intent(IN   ) :: Grid
     real,                    intent(  OUT) :: LocArray(:,:,:)
     real,                    intent(IN   ) :: GlobArray(:,:,:)
-    integer, optional,       intent(IN   ) :: CoresPerNode
+    integer, optional,       intent(IN   ) :: hw
     integer, optional,       intent(  OUT) :: rc
 
 ! Locals
@@ -760,12 +797,13 @@ module MAPL_CommsMod
 
     type (MAPL_CommRequest)       :: reqs(size(LocArray,3))
     integer                       :: root(size(LocArray,3))
-    integer                       :: NumCores, II, nNodes
-    integer                       :: LM, L, nc, npes, mype
+    integer                       :: II, nNodes
+    integer                       :: LM, L, nc, npes, mype, im, jm
     integer                       :: nn, RequestType
     type(ESMF_VM)                 :: VM
     logical                       :: HaveGlobal
     integer                       :: comm
+    integer                       :: hw_
     
 ! Begin
 !------
@@ -775,12 +813,11 @@ module MAPL_CommsMod
     call ESMF_VMGet(VM, petcount=npes, localpet=MYPE, mpiCommunicator=comm, RC=STATUS)
     VERIFY_(STATUS)
 
-    if(present(CoresPerNode)) then
-       NumCores = CoresPerNode
+    if(present(hw)) then
+       hw_ = hw
     else
-       NumCores = MAPL_CoresPerNodeGet(comm,rc=status)
-       VERIFY_(STATUS)
-    end if
+       hw_ = 0
+    endif
 
     nNodes = size(MAPL_NodeRankList)
     call MAPL_RoundRobinPEList(Root, nNodes, RC=STATUS)
@@ -795,7 +832,7 @@ module MAPL_CommsMod
        call MAPL_CreateRequest(GRID, Root(L), reqs(L), tag=L,       &
                                RequestType=MAPL_IsScatter,          &
                                DstArray=LocArray(:,:,L),            &
-                               PrePost=.true.,             RC=STATUS)
+                               PrePost=.true., hw=hw_, RC=STATUS)
        VERIFY_(STATUS)
     enddo
 
@@ -807,7 +844,7 @@ module MAPL_CommsMod
           if(Root(L)==mype) then
 
              nn = nn + 1
-             call MAPL_ArrayIScatter (GlobArray(:,:,nn), reqs(L),  RC=STATUS)
+             call MAPL_ArrayIScatter (GlobArray(:,:,nn), reqs(L), hw=hw_, RC=STATUS)
              VERIFY_(STATUS)
              if(nn==NC) exit
           endif

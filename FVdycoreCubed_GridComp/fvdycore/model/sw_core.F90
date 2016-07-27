@@ -838,8 +838,8 @@
 
       call timing_on("fv_tp_2d")
       call fv_tp_2d(delp, crx_adv, cry_adv, npx, npy, hord_dp, fx, fy,  &
-                    xfx_adv,yfx_adv, ra_x, ra_y)
-!                   xfx_adv,yfx_adv, ra_x, ra_y, nord=nord_v, damp_c=vtdm4)
+                    xfx_adv,yfx_adv, ra_x, ra_y, nord=nord_v, damp_c=vtdm4)
+!                   xfx_adv,yfx_adv, ra_x, ra_y)
       call timing_off("fv_tp_2d")
 
      if (shallow_water) then
@@ -911,8 +911,8 @@
 
         call timing_on("fv_tp_2d")
         call fv_tp_2d(pt, crx_adv,cry_adv, npx, npy, hord_tm, gx, gy,  &
-                      xfx_adv,yfx_adv, ra_x, ra_y, mfx=fx, mfy=fy)
-!                     xfx_adv,yfx_adv, ra_x, ra_y, mfx=fx, mfy=fy, mass=delp, nord=nord_v, damp_c=vtdm4)
+                      xfx_adv,yfx_adv, ra_x, ra_y, mfx=fx, mfy=fy, mass=delp, nord=nord_v, damp_c=vtdm4)
+!                     xfx_adv,yfx_adv, ra_x, ra_y, mfx=fx, mfy=fy)
         call timing_off("fv_tp_2d")
 
      if ( inline_q ) then
@@ -1585,6 +1585,13 @@
  real(FVPRC) pmp_1, lac_1, pmp_2, lac_2
  real(FVPRC) x0, x1, x0L, x0R
  integer i, j
+ integer is3, ie3
+
+ if ( grid_type>3 ) then
+    is3 = is-1        ; ie3 = ie+1
+ else
+    is3 = max(3,is-1) ; ie3 = min(npx-3,ie+1)
+ end if
 
  select case ( iord )
 
@@ -1757,88 +1764,64 @@
      enddo
 
  case (6)
-
      do j=js,je+1
-
-        do i=is-3,ie+2
-           dq(i) = u(i+1,j) - u(i,j)
+!            is3 = max(3,is-1) ; ie3 = min(npx-3,ie+1)
+        do i=is3,ie3+1
+           al(i) = p1*(u(i-1,j)+u(i,j)) + p2*(u(i-2,j)+u(i+1,j))
         enddo
-
-        do i=is-2, ie+2
-           if ( dq(i-1)*dq(i) > 0. ) then
-                extm(i) = .false.
-           else
-                extm(i) = .true.
-           endif
-        enddo
-        do i=max(3,is-1),min(npx-3,ie+1)
-!!!!          if ( extm(i) .and. (extm(i-1) .or. extm(i+1)) ) then
-           if ( extm(i-1) .and. extm(i) .and. extm(i+1) ) then
-                bl(i) = 0.
-                br(i) = 0.
-           else
-                bl(i) = b5*u(i-2,j) + b4*u(i-1,j) + b3*u(i,j) + b2*u(i+1,j) + b1*u(i+2,j)
-                br(i) = b1*u(i-2,j) + b2*u(i-1,j) + b3*u(i,j) + b4*u(i+1,j) + b5*u(i+2,j)
-           endif
+        do i=is3,ie3
+           bl(i) = al(i  ) - u(i,j)
+           br(i) = al(i+1) - u(i,j)
         enddo
 
         if (grid_type < 3) then
         if ( is==1 ) then
-             br(2) = p1*(u(2,j)+u(3,j)) + p2*(u(1,j)+u(4,j)) - u(2,j)
-                xt = c3*u(1,j) + c2*u(2,j) + c1*u(3,j)
-             bl(2) = xt - u(2,j)
              if( j==1 .or. j==npy ) then
                  bl(0) = 0.   ! out
                  br(0) = 0.   ! edge
                  bl(1) = 0.   ! edge
                  br(1) = 0.   ! in
+                 bl(2) = c3*u(1,j) + c2*u(2,j) + c1*u(3,j) - u(2,j)
              else
-             br(1) = xt - u(1,j)
-              x0L = 0.5*((2.*dx(0,j)+dx(-1,j))*(u(0,j))   &
-                 - dx(0,j)*(u(-1,j)))/(dx(0,j)+dx(-1,j))
-              x0R = 0.5*((2.*dx(1,j)+dx(2,j))*(u(1,j))   &
-                 - dx(1,j)*(u(2,j)))/(dx(1,j)+dx(2,j))
-             xt = x0L + x0R
-             bl(1) = xt - u(1,j)
-             br(0) = xt - u(0,j)
-                xt = c1*u(-2,j) + c2*u(-1,j) + c3*u(0,j)
-             bl(0) = xt - u(0,j)
+                 bl(0) = c1*u(-2,j) + c2*u(-1,j) + c3*u(0,j) - u(0,j)
+             xt = 0.5*( ((2.*dx(0,j)+dx(-1,j))*(u(0,j))-dx(0,j)*u(-1,j))/(dx(0,j)+dx(-1,j))  &
+                +       ((2.*dx(1,j)+dx( 2,j))*(u(1,j))-dx(1,j)*u( 2,j))/(dx(1,j)+dx( 2,j)) )
+                 br(0) = xt - u(0,j)
+                 bl(1) = xt - u(1,j)
+                 xt = c3*u(1,j) + c2*u(2,j) + c1*u(3,j)
+                 br(1) = xt - u(1,j)
+                 bl(2) = xt - u(2,j)
              endif
+             br(2) = al(3) - u(2,j)
         endif
-
         if ( (ie+1)==npx ) then
-             bl(npx-2) = p1*(u(npx-2,j)+u(npx-3,j)) + p2*(u(npx-4,j)+u(npx-1,j)) - u(npx-2,j)
+             bl(npx-2) = al(npx-2) - u(npx-2,j)
              xt = c1*u(npx-3,j) + c2*u(npx-2,j) + c3*u(npx-1,j)
              br(npx-2) = xt - u(npx-2,j)
+             bl(npx-1) = xt - u(npx-1,j)
              if( j==1 .or. j==npy ) then
                  bl(npx-1) = 0.  ! in
                  br(npx-1) = 0.  ! edge
                  bl(npx  ) = 0.  ! edge
                  br(npx  ) = 0.  ! out
              else
-                 bl(npx-1) = xt - u(npx-1,j)
-                 x0L = 0.5*( (2.*dx(npx-1,j)+dx(npx-2,j))*(u(npx-1,j))  &
-                      - dx(npx-1,j)*(u(npx-2,j)))/(dx(npx-1,j)+dx(npx-2,j))
-                 x0R = 0.5*( (2.*dx(npx,j)+dx(npx+1,j))*(u(npx,j))  &
-                      - dx(npx,j)*(u(npx+1,j)))/(dx(npx,j)+dx(npx+1,j))
-                 xt = x0L + x0R
+             xt = 0.5*( ( (2.*dx(npx-1,j)+dx(npx-2,j))*u(npx-1,j)-dx(npx-1,j)*u(npx-2,j))/(dx(npx-1,j)+dx(npx-2,j)) &
+                +       ( (2.*dx(npx  ,j)+dx(npx+1,j))*u(npx  ,j)-dx(npx  ,j)*u(npx+1,j))/(dx(npx  ,j)+dx(npx+1,j)) )
                  br(npx-1) = xt - u(npx-1,j)
                  bl(npx  ) = xt - u(npx  ,j)
-                      xt = c3*u(npx,j) + c2*u(npx+1,j) + c1*u(npx+2,j)
-                 br(npx) = xt - u(npx,j)
+                 br(npx) = c3*u(npx,j) + c2*u(npx+1,j) + c1*u(npx+2,j) - u(npx,j)
              endif
         endif
-        endif
-
-        do i=is,ie+1
-           if( c(i,j)>0. ) then
-                     cfl = c(i,j)*rdx(i-1,j)
-               flux(i,j) = u(i-1,j) + (1.-cfl)*(br(i-1)-cfl*(bl(i-1)+br(i-1)))
-           else
-                     cfl = c(i,j)*rdx(i,j)
-               flux(i,j) = u(i,  j) + (1.+cfl)*(bl(i  )+cfl*(bl(i  )+br(i  )))
-           endif
-        enddo
+      endif
+       do i=is,ie+1
+          if( c(i,j)>0. ) then
+              cfl = c(i,j)*rdx(i-1,j)
+              flux(i,j) = u(i-1,j) + (1.-cfl)*(br(i-1)-cfl*(bl(i-1)+br(i-1)))
+          else
+              cfl = c(i,j)*rdx(i,j)
+              flux(i,j) = u(i,  j) + (1.+cfl)*(bl(i  )+cfl*(bl(i  )+br(i  )))
+          endif
+       enddo
      enddo
 
  case default
@@ -2024,6 +2007,13 @@
  real(FVPRC) pmp_1, lac_1, pmp_2, lac_2
  real(FVPRC) x0, x1, x0R, x0L
  integer i, j
+ integer js3, je3
+
+ if ( grid_type>3 ) then
+    js3 = js-1;        je3 = je+1
+ else
+    js3 = max(3,js-1); je3 = min(npy-3,je+1)
+ end if
 
  select case ( jord )
  case (1)
@@ -2226,51 +2216,30 @@
 
  case (6)
 
-   do j=js-3,je+2
+   do j=js3,je3+1
       do i=is,ie+1
-         dq(i,j) = v(i,j+1) - v(i,j)
+         al(i,j) = p1*(v(i,j-1)+v(i,j)) + p2*(v(i,j-2)+v(i,j+1))
       enddo
    enddo
-   do j=js-2,je+2
+   do j=js3,je3
       do i=is,ie+1
-         if ( dq(i,j-1)*dq(i,j) > 0. ) then
-              extm(i,j) = .false.
-         else
-              extm(i,j) = .true.
-         endif
-      enddo
-   enddo
-   do j=max(3,js-1),min(npy-3,je+1)
-      do i=is,ie+1
-!!!!        if ( extm(i,j) .and. (extm(i,j-1) .or. extm(i,j+1)) ) then
-         if ( extm(i,j-1) .and. extm(i,j) .and. extm(i,j+1) ) then
-              bl(i,j) = 0.
-              br(i,j) = 0.
-         else
-              bl(i,j) = b5*v(i,j-2) + b4*v(i,j-1) + b3*v(i,j) + b2*v(i,j+1) + b1*v(i,j+2)
-              br(i,j) = b1*v(i,j-2) + b2*v(i,j-1) + b3*v(i,j) + b4*v(i,j+1) + b5*v(i,j+2)
-         endif
+          bl(i,j) = al(i,j  ) - v(i,j)
+          br(i,j) = al(i,j+1) - v(i,j)
       enddo
    enddo
 
    if (grid_type < 3) then
    if( js==1 ) then
        do i=is,ie+1
-          br(i,2) = p1*(v(i,2)+v(i,3)) + p2*(v(i,1)+v(i,4)) - v(i,2)
-               xt = c3*v(i,1) + c2*v(i,2) + c1*v(i,3)
+          bl(i,0) = c1*v(i,-2) + c2*v(i,-1) + c3*v(i,0) - v(i,0)
+          xt = 0.5*( ((2.*dy(i,0)+dy(i,-1))*v(i,0)-dy(i,0)*v(i,-1))/(dy(i,0)+dy(i,-1)) &
+             +       ((2.*dy(i,1)+dy(i, 2))*v(i,1)-dy(i,1)*v(i, 2))/(dy(i,1)+dy(i, 2)) )
+          br(i,0) = xt - v(i,0)
+          bl(i,1) = xt - v(i,1)
+          xt = c3*v(i,1) + c2*v(i,2) + c1*v(i,3)
           br(i,1) = xt - v(i,1)
           bl(i,2) = xt - v(i,2)
-
-          bl(i,0) = c1*v(i,-2) + c2*v(i,-1) + c3*v(i,0) - v(i,0)
-
-            x0L = 0.5*( (2.*dy(i,0)+dy(i,-1))*(v(i,0))   &
-               - dy(i,0)*(v(i,-1)))/(dy(i,0)+dy(i,-1))
-            x0R = 0.5*( (2.*dy(i,1)+dy(i,2))*(v(i,1))   &
-               - dy(i,1)*(v(i,2)))/(dy(i,1)+dy(i,2))
-            xt = x0L + x0R
-
-          bl(i,1) = xt - v(i,1)
-          br(i,0) = xt - v(i,0)
+          br(i,2) = al(i,3) - v(i,2)
        enddo
        if ( is==1 ) then
             bl(1,0) = 0.  ! out
@@ -2285,24 +2254,17 @@
             br(npx,1) = 0.   ! in
        endif
    endif
-
    if( (je+1)==npy ) then
        do i=is,ie+1
-            bl(i,npy-2) = p1*(v(i,npy-3)+v(i,npy-2)) + p2*(v(i,npy-4)+v(i,npy-1)) - v(i,npy-2)
-            xt = c1*v(i,npy-3) + c2*v(i,npy-2) + c3*v(i,npy-1)
-
-            br(i,npy-2) = xt - v(i,npy-2)
-            bl(i,npy-1) = xt - v(i,npy-1)
-            br(i,npy) = c3*v(i,npy)+ c2*v(i,npy+1) + c1*v(i,npy+2) - v(i,npy)
-            !xt = 0.5*((2.*dy(i,npy-1)+dy(i,npy-2))*(v(i,npy-1)+v(i,npy)) -  &
-            !     dy(i,npy-1)*(v(i,npy-2)+v(i,npy+1)))/(dy(i,npy-1)+dy(i,npy-2))
-            x0L= 0.5*((2.*dy(i,npy-1)+dy(i,npy-2))*(v(i,npy-1)) -  &
-                 dy(i,npy-1)*(v(i,npy-2)))/(dy(i,npy-1)+dy(i,npy-2))
-            x0R= 0.5*((2.*dy(i,npy)+dy(i,npy+1))*(v(i,npy)) -  &
-                 dy(i,npy)*(v(i,npy+1)))/(dy(i,npy)+dy(i,npy+1))
-            xt = x0L + x0R
-            br(i,npy-1) = xt - v(i,npy-1)
-            bl(i,npy  ) = xt - v(i,npy)
+          bl(i,npy-2) = al(i,npy-2) - v(i,npy-2)
+          xt = c1*v(i,npy-3) + c2*v(i,npy-2) + c3*v(i,npy-1)
+          br(i,npy-2) = xt - v(i,npy-2)
+          bl(i,npy-1) = xt - v(i,npy-1)
+          xt = 0.5*( ((2.*dy(i,npy-1)+dy(i,npy-2))*v(i,npy-1)-dy(i,npy-1)*v(i,npy-2))/(dy(i,npy-1)+dy(i,npy-2)) &
+             +       ((2.*dy(i,npy  )+dy(i,npy+1))*v(i,npy  )-dy(i,npy  )*v(i,npy+1))/(dy(i,npy  )+dy(i,npy+1)) )
+          br(i,npy-1) = xt - v(i,npy-1)
+          bl(i,npy  ) = xt - v(i,npy)
+          br(i,npy) = c3*v(i,npy)+ c2*v(i,npy+1) + c1*v(i,npy+2) - v(i,npy)
        enddo
        if ( is==1 ) then
             bl(1,npy-1) = 0.  ! in

@@ -1,5 +1,5 @@
 
-! $Id$
+! $Id: MAPL_HistoryGridComp.F90,v 1.71 2016-05-19 15:06:00 bmauer Exp $
 
 #include "MAPL_Generic.h"
 
@@ -148,6 +148,7 @@ module MAPL_HistoryGridCompMod
      integer                             :: AvoidRootNodeThreshold
      integer                             :: blocksize
      integer                             :: MarkDone
+     integer                             :: PrePost
   end type HISTORY_STATE
   
   type HISTORY_wrap
@@ -548,6 +549,10 @@ contains
     call ESMF_ConfigGetAttribute(config, value=INTSTATE%MarkDone,          &
                                          label='MarkDone:', default=0, rc=status)
     VERIFY_(STATUS)
+    call ESMF_ConfigGetAttribute(config, value=INTSTATE%PrePost,          &
+                                         label='PrePost:', default=1, rc=status)
+    VERIFY_(STATUS)
+
 
     call ESMF_ConfigGetAttribute(config, value=snglcol,          &
                                          label='SINGLE_COLUMN:', default=0, rc=status)
@@ -560,6 +565,7 @@ contains
        print *, 'DisableSubVmChecks:', disableSubVmChecks
        print *, 'BlockSize: '        , INTSTATE%blocksize
        print *, 'MarkDone:  '        , INTSTATE%MarkDone
+       print *, 'PrePost:   '        , INTSTATE%PrePost
        print *
     endif
 
@@ -2605,6 +2611,7 @@ ENDDO PARSER
     integer                        :: IM,JM,IOnode
     character(len=ESMF_MAXSTR)     :: timestring
     integer                        :: nNodes
+    logical                        :: PrePost_
 
 !   variables for "backwards" mode
     logical                        :: fwd
@@ -2929,10 +2936,16 @@ ENDDO PARSER
                state_out = INTSTATE%GIM(n)
             end if
 
-            IOTYPE: if (list(n)%unit < 0) then    ! CFIO 
-               call MAPL_CFIOWriteBundlePost( list(n)%MCFIO,  RC=status)
-               VERIFY_(STATUS)
+            IOTYPE: if (list(n)%unit < 0) then    ! CFIO
 
+               if (INTSTATE%PrePost == 0) then
+                  PrePost_ = .false.
+               else
+                  PrePost_ = .true.
+               end if 
+               call MAPL_CFIOWriteBundlePost( list(n)%MCFIO,  PrePost = PrePost_, RC=status)
+               VERIFY_(STATUS)
+ 
             else
 
                if( INTSTATE%LCTL(n) ) then
@@ -3504,7 +3517,7 @@ ENDDO PARSER
     type (ESMF_State)        , intent(IN   ) :: STATE_IN
     type (ESMF_State)        , intent(INOUT) :: STATE_OUT
     type(MAPL_LocStreamXform), intent(IN   ) :: XFORM
-    type(MAPL_LocStream)     , intent(INOUT) :: LS_IN, LS_OUT
+    type(MAPL_LocStream)     , intent(IN   ) :: LS_IN, LS_OUT
     integer                  , intent(IN   ) :: NTILES_IN, NTILES_OUT
     integer, optional        , intent(  OUT) :: RC
 
@@ -3636,7 +3649,7 @@ ENDDO PARSER
     type (ESMF_State)        , intent(IN   ) :: STATE_IN
     type (ESMF_State)        , intent(INOUT) :: STATE_OUT
     type(MAPL_LocStreamXform), intent(IN   ) :: XFORM, XFORMntv
-    type(MAPL_LocStream)     , intent(INOUT) :: LS_IN, LS_OUT, LS_NTV
+    type(MAPL_LocStream)     , intent(IN   ) :: LS_IN, LS_OUT, LS_NTV
     integer                  , intent(IN   ) :: NTILES_IN, NTILES_OUT
     integer, optional        , intent(  OUT) :: RC
 
@@ -4612,7 +4625,7 @@ ENDDO PARSER
     type(ESMF_Field), intent(inout) :: field
     integer, optional, intent(out  ) :: rc
 
-    character(len=ESMF_MAXSTR) :: Iam
+    character(len=ESMF_MAXSTR), parameter :: Iam='MAPL_StateGet'
     integer :: status
     character(len=ESMF_MAXSTR) :: bundlename, fieldname
     type(ESMF_FieldBundle) :: bundle

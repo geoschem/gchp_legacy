@@ -1,4 +1,4 @@
-!  $Id$
+!  $Id: MAPL_GenericCplComp.F90,v 1.12 2014-12-12 15:30:03 bmauer Exp $
 
 #include "MAPL_Generic.h"
 

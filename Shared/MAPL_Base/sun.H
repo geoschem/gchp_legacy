@@ -1,4 +1,4 @@
-! $Id$
+! $Id: sun.H,v 1.14 2015-04-02 14:22:22 mathomp4 Exp $
 
 
       type(MAPL_SunOrbit),               intent(IN ) :: ORBIT

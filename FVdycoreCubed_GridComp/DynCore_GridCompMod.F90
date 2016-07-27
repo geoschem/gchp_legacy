@@ -22,6 +22,7 @@
    use ESMF                ! ESMF base class
    use MAPL_Mod            ! GEOS base class
    use m_set_eta,       only: set_eta
+   use m_chars,         only: uppercase
 
 ! FV Specific Module
    use fv_arrays_mod,  only: REAL4, REAL8
@@ -2219,9 +2220,23 @@ contains
 
   type (ESMF_Field)                  :: field
   real, pointer                      :: pref(:), ak4(:), bk4(:)
-  real(r8), pointer                  :: ak(:), bk(:)
+
+  real(r8), pointer                  ::  ak(:)
+  real(r8), pointer                  ::  bk(:)
+  real(r8), pointer                  ::  ud(:,:,:)
+  real(r8), pointer                  ::  vd(:,:,:)
   real(r8), pointer                  ::  pe(:,:,:)
+  real(r8), pointer                  ::  pt(:,:,:)
+  real(r8), pointer                  ::  pk(:,:,:)
+
+  real(r8), allocatable              ::  ua(:,:,:)
+  real(r8), allocatable              ::  va(:,:,:)
+
   real(r4), pointer                  :: ple(:,:,:)
+  real(r4), pointer                  ::   u(:,:,:)
+  real(r4), pointer                  ::   v(:,:,:)
+  real(r4), pointer                  ::   t(:,:,:)
+
   character(len=ESMF_MAXSTR)         :: ReplayMode
   real                               :: DNS_INTERVAL
   type (ESMF_TimeInterval)           :: Intv
@@ -2236,6 +2251,12 @@ contains
   type (DynGrid),  pointer           :: DycoreGrid
   real, pointer                      :: temp2d(:,:)
   
+  integer                            :: ifirst
+  integer                            :: ilast
+  integer                            :: jfirst
+  integer                            :: jlast
+  integer                            :: km
+
 ! Begin
 !------
 
@@ -2319,12 +2340,46 @@ contains
      BK4 = BK
     PREF = AK + BK * P00
 
-    call MAPL_GetPointer(EXPORT,PLE,'PLE',ALLOC=.true.,RC=STATUS)
+    call MAPL_GetPointer(INTERNAL,UD,'U'  ,RC=STATUS)
     VERIFY_(STATUS)
-    call MAPL_GetPointer(INTERNAL,PE,'PE',RC=STATUS)
+    call MAPL_GetPointer(INTERNAL,VD,'V'  ,RC=STATUS)
+    VERIFY_(STATUS)
+    call MAPL_GetPointer(INTERNAL,PE,'PE' ,RC=STATUS)
+    VERIFY_(STATUS)
+    call MAPL_GetPointer(INTERNAL,PT,'PT' ,RC=STATUS)
+    VERIFY_(STATUS)
+    call MAPL_GetPointer(INTERNAL,PK,'PKZ',RC=STATUS)
     VERIFY_(STATUS)
 
+    call MAPL_GetPointer(EXPORT,PLE,'PLE',ALLOC=.true.,RC=STATUS)
+    VERIFY_(STATUS)
+    call MAPL_GetPointer(EXPORT,U,  'U',  ALLOC=.true.,RC=STATUS)
+    VERIFY_(STATUS)
+    call MAPL_GetPointer(EXPORT,V,  'V',  ALLOC=.true.,RC=STATUS)
+    VERIFY_(STATUS)
+    call MAPL_GetPointer(EXPORT,T,  'T',  ALLOC=.true.,RC=STATUS)
+    VERIFY_(STATUS)
+
+! Create A-Grid Winds
+! -------------------
+    ifirst = state%grid%is
+    ilast  = state%grid%ie
+    jfirst = state%grid%js
+    jlast  = state%grid%je
+    km     = state%grid%npz
+
+    allocate( UA(ifirst:ilast,jfirst:jlast,km) )
+    allocate( VA(ifirst:ilast,jfirst:jlast,km) )
+
+    call getAgridWinds( UD, VD, UA, VA, rotate=.true.)
+
+      U = UA
+      V = VA
+      T = PT*PK
     PLE = PE
+
+    deallocate( UA )
+    deallocate( VA )
 
 ! Fill Grid-Cell Area Delta-X/Y
 ! -----------------------------
@@ -2351,14 +2406,27 @@ contains
 ! ======================================================================
     call ESMF_StateGet(EXPORT, 'PREF', FIELD, RC=STATUS)
     VERIFY_(STATUS)
-    call MAPL_AttributeSet(field, NAME="MAPL_InitStatus", &
-                           VALUE=MAPL_InitialRestart, RC=STATUS)
+    call MAPL_AttributeSet(field, NAME="MAPL_InitStatus", VALUE=MAPL_InitialRestart, RC=STATUS)
     VERIFY_(STATUS)      
 
     call ESMF_StateGet(EXPORT, 'PLE', FIELD, RC=STATUS)
     VERIFY_(STATUS)
-    call MAPL_AttributeSet(field, NAME="MAPL_InitStatus", &
-                           VALUE=MAPL_InitialRestart, RC=STATUS)
+    call MAPL_AttributeSet(field, NAME="MAPL_InitStatus", VALUE=MAPL_InitialRestart, RC=STATUS)
+    VERIFY_(STATUS)
+
+    call ESMF_StateGet(EXPORT, 'U', FIELD, RC=STATUS)
+    VERIFY_(STATUS)
+    call MAPL_AttributeSet(field, NAME="MAPL_InitStatus", VALUE=MAPL_InitialRestart, RC=STATUS)
+    VERIFY_(STATUS)
+
+    call ESMF_StateGet(EXPORT, 'V', FIELD, RC=STATUS)
+    VERIFY_(STATUS)
+    call MAPL_AttributeSet(field, NAME="MAPL_InitStatus", VALUE=MAPL_InitialRestart, RC=STATUS)
+    VERIFY_(STATUS)
+
+    call ESMF_StateGet(EXPORT, 'T', FIELD, RC=STATUS)
+    VERIFY_(STATUS)
+    call MAPL_AttributeSet(field, NAME="MAPL_InitStatus", VALUE=MAPL_InitialRestart, RC=STATUS)
     VERIFY_(STATUS)
 
 !=====Begin intemittent replay=======================
@@ -2626,6 +2694,8 @@ subroutine Run(gc, import, export, clock, rc)
     real                  :: sclinc
     integer               :: rc_blend
 
+    character(len=ESMF_MAXSTR) :: ANA_IS_WEIGHTED
+    logical                    ::     IS_WEIGHTED
 
     type(DynTracers)            :: qqq       ! Specific Humidity
     type(DynTracers)            :: ooo       ! ox
@@ -3205,7 +3275,14 @@ subroutine Run(gc, import, export, clock, rc)
       ! --------------------------------------------------------------
       call glosum   ( STATE,TEMP2D,ESMFGRID,NQ,TRSUM1 )
 
-      call ADD_INCS ( STATE,IMPORT,DT )
+      call MAPL_GetResource(MAPL, ANA_IS_WEIGHTED, Label="ANA_IS_WEIGHTED:", default='YES', RC=STATUS)
+      VERIFY_(STATUS)
+           ANA_IS_WEIGHTED = uppercase(ANA_IS_WEIGHTED)
+               IS_WEIGHTED =   adjustl(ANA_IS_WEIGHTED)=="YES" .or. adjustl(ANA_IS_WEIGHTED)=="NO"
+      ASSERT_( IS_WEIGHTED )
+               IS_WEIGHTED =   adjustl(ANA_IS_WEIGHTED)=="YES"
+
+      call ADD_INCS ( STATE,IMPORT,DT,IS_WEIGHTED=IS_WEIGHTED )
 
       ! Update Specific Mass of Aerosol Constituents Keeping Mixing_Ratio Constant WRT_Dry_Air After ANA Updates
       ! --------------------------------------------------------------------------------------------------------
@@ -4753,7 +4830,7 @@ subroutine dump_n_splash_
           ! convert the lat-lon A-grid wind increment back to the cubed
           call WRITE_PARALLEL('Replaying winds')
           call MAPL_HorzTransformRun(L2C,   UAtmpR4,    VAtmpR4, &
-                                         cubeTEMP3d, cubeVTMP3d, rotate=.true., RC=STATUS)
+                                         cubeTEMP3d, cubeVTMP3d, rotate=.false., RC=STATUS)
           ! convert cubed wind increment to D-grid
           allocate( UDtmp(grid%is:grid%ie  ,grid%js:grid%je+1,km) )
           allocate( VDtmp(grid%is:grid%ie+1,grid%js:grid%je  ,km) )
@@ -6184,7 +6261,7 @@ end subroutine RUN
 end subroutine RunAddIncs
 
 !-----------------------------------------------------------------------
-  subroutine ADD_INCS ( STATE,IMPORT,DT,RC )
+  subroutine ADD_INCS ( STATE,IMPORT,DT,IS_WEIGHTED,RC )
 
    use fv_diagnostics_mod, only: prt_maxmin
 
@@ -6195,6 +6272,7 @@ end subroutine RunAddIncs
    type(ESMF_State),       intent(INOUT)  :: IMPORT
    real(r8),               intent(IN   )  :: DT
    integer,  optional,     intent(OUT  )  :: RC
+   logical,  optional,     intent(IN   )  :: is_weighted
 
 !
 ! !DESCRIPTION:  This routine adds the tendencies to the state,
@@ -6203,13 +6281,13 @@ end subroutine RunAddIncs
 !                All tendencies are on the A-grid, and have an XY decomposition.
 !
 
-    integer                          :: status
+    integer               :: status
+    logical               :: is_weighted_
 
     integer               :: is,ie, js,je, km
-    integer               :: KL, KU
     real(r4), allocatable :: fvQOLD(:,:,:), QTEND(:,:,:)
-    real(r8), allocatable :: DUM(:,:,:), PKZOLD(:,:,:)
-    real(r8), allocatable :: DPINV(:,:,:)
+    real(r8), allocatable :: DUM(:,:,:)
+    real(r8), allocatable :: DPNEW(:,:,:),DPOLD(:,:,:)
     real(r8), allocatable :: tend_ua(:,:,:), tend_va(:,:,:)
     real(r8), allocatable :: tend_un(:,:,:), tend_vn(:,:,:)
     real(kind=4), pointer :: tend(:,:,:)
@@ -6219,62 +6297,23 @@ end subroutine RunAddIncs
 
     character(len=ESMF_MAXSTR)         :: IAm="ADD_INCS"
 
+    if(present(is_weighted)) then
+       is_weighted_ = is_weighted
+    else
+       is_weighted_ = .true.
+    endif
+
     is = state%grid%is
     ie = state%grid%ie
     js = state%grid%js
     je = state%grid%je
     km = state%grid%npz
 
-! **********************************************************************
-! ****                      Wind Tendencies                         ****
-! ****         Note: State Variables are on the D-Grid,             ****
-! ****        while IMPORT Tendencies are on the A-Grid             ****
-! **********************************************************************
-
-    ALLOCATE( tend_ua(is:ie  ,js:je  ,km) )
-    ALLOCATE( tend_va(is:ie  ,js:je  ,km) )
-    ALLOCATE( tend_un(is:ie  ,js:je+1,km) )
-    ALLOCATE( tend_vn(is:ie+1,js:je  ,km) )
-
-    call ESMFL_StateGetPointerToData ( IMPORT,TEND,'DUDT',RC=STATUS )
-    VERIFY_(STATUS)
-    if (ADIABATIC) TEND(:,:,:) = 0.0
-    tend_ua(is:ie,js:je,1:km) = tend
-
-    call ESMFL_StateGetPointerToData ( IMPORT,TEND,'DVDT',RC=STATUS )
-    VERIFY_(STATUS)
-    if (ADIABATIC) TEND(:,:,:) = 0.0
-    tend_va(is:ie,js:je,1:km) = tend
-
-! Put the wind tendencies on the Native Dynamics grid
-! ---------------------------------------------------
-    call Agrid_To_Native( tend_ua, tend_va, tend_un, tend_vn )
-
-! Add the wind tendencies to the control variables
-! ------------------------------------------------
-    STATE%VARS%U = STATE%VARS%U + DT*TEND_UN(is:ie,js:je,1:km)
-    STATE%VARS%V = STATE%VARS%V + DT*TEND_VN(is:ie,js:je,1:km)
-
-    DEALLOCATE( tend_ua )
-    DEALLOCATE( tend_va )
-    DEALLOCATE( tend_un )
-    DEALLOCATE( tend_vn )
-
-! **********************************************************************
-! ****                     Update Edge Pressures                    ****
-! **********************************************************************
-
-    call ESMFL_StateGetPointerToData ( IMPORT,TEND,'DPEDT',RC=STATUS )
-    VERIFY_(STATUS)
-    if (ADIABATIC) TEND(:,:,:) = 0.0
-    KL = lbound( tend,3 )
-    KU = ubound( tend,3 )
-    STATE%VARS%PE = STATE%VARS%PE + DT*TEND
-
 
 ! **********************************************************************
 ! ****  Use QV from FV3 init when coldstarting idealized cases      ****
 ! **********************************************************************
+
     ALLOCATE( Q(is:ie,js:je,1:km) )
     call PULL_Q ( STATE, IMPORT, qqq, NXQ, InFieldName='Q', RC=rc )
     if (DYN_COLDSTART .and. overwrite_Q) then
@@ -6298,68 +6337,132 @@ end subroutine RunAddIncs
     endif
 
     if (.not. ADIABATIC) then
-! **********************************************************************
-! ****           Compute Pressure Thickness Inverse                 ****
-! **********************************************************************
-    ALLOCATE( DPINV(is:ie,js:je,km) )
-    do k=1,km
-       DPINV(:,:,k) = 1.0/( state%vars%pe(:,:,k+1)-state%vars%pe(:,:,k) )
-    enddo
 
-! *********************************************************************
-! ****                  Dry Temperature Tendency                   ****
-! ****                  ------------------------                   ****
-! ****  Note: State Variable is Potential Temperature T/P**kappa   ****
-! ****             while IMPORT Coupling is (Delta_P)*DTDt         ****
-! *********************************************************************
-    call ESMFL_StateGetPointerToData ( IMPORT,TEND,'DTDT',RC=STATUS )
-    VERIFY_(STATUS)
-    if (ADIABATIC) TEND(:,:,:) = 0.0
-    ! Take the Pressure factor out of the PT tendency
-    TEND = TEND*DPINV
-    KL = lbound( tend,3 )
-    KU = ubound( tend,3 )
 
-   !if (DYN_DEBUG) then
-   !   call prt_maxmin('AI PT1', STATE%VARS%PT ,  is, ie, js, je, 0, km, 1.d00, MAPL_AM_I_ROOT())
-   !endif
+       ! **********************************************************************
+       ! ****                      Wind Tendencies                         ****
+       ! ****         Note: State Variables are on the D-Grid,             ****
+       ! ****        while IMPORT Tendencies are on the A-Grid             ****
+       ! **********************************************************************
 
-    ! Get OLD PKZ
-    ALLOCATE( PKZOLD(is:ie,js:je,1:km) )
-    PKZOLD = STATE%VARS%PKZ
+       ALLOCATE( tend_ua(is:ie  ,js:je  ,km) )
+       ALLOCATE( tend_va(is:ie  ,js:je  ,km) )
+       ALLOCATE( tend_un(is:ie  ,js:je+1,km) )
+       ALLOCATE( tend_vn(is:ie+1,js:je  ,km) )
 
-    if (.not. HYDROSTATIC ) then
-    ! Make previous PT into just T
-       STATE%VARS%PT = STATE%VARS%PT*PKZOLD
-    ! remove old T from DZ
-       STATE%VARS%DZ = STATE%VARS%DZ / STATE%VARS%PT
-    ! Update T
-       STATE%VARS%PT = STATE%VARS%PT + DT*TEND
-    ! update DZ with new T
-       STATE%VARS%DZ = STATE%VARS%DZ * STATE%VARS%PT
-    endif
+       call ESMFL_StateGetPointerToData ( IMPORT,TEND,'DUDT',RC=STATUS )
+       VERIFY_(STATUS)
 
-    ! Update PKZ from pressures (include new TA[stored in PT], Q & DZ if non-hydrostatic)
-    call getPKZ(STATE%VARS%PKZ,STATE%VARS%PT,Q,STATE%VARS%PE,STATE%VARS%DZ,HYDROSTATIC)
+       tend_ua(is:ie,js:je,1:km) = tend
 
-    if (HYDROSTATIC) then
-      ALLOCATE( DUM(is:ie,js:je,KL:KU) )
-      DUM = DT*TEND/STATE%VARS%PKZ                   &
-          + STATE%VARS%PT*( PKZOLD/STATE%VARS%PKZ - 1.0 )
-      STATE%VARS%PT = STATE%VARS%PT + DUM
-      DEALLOCATE (DUM)
-    else
-    ! Make T back into PT 
-       STATE%VARS%PT = STATE%VARS%PT/PKZOLD  
-    endif
+       call ESMFL_StateGetPointerToData ( IMPORT,TEND,'DVDT',RC=STATUS )
+       VERIFY_(STATUS)
 
-   !if (DYN_DEBUG) then
-   !call prt_maxmin('AI PT2', STATE%VARS%PT ,  is, ie, js, je, 0, km, 1.d00, MAPL_AM_I_ROOT())
-   !endif                  
-  
-    DEALLOCATE (DPINV)
-    DEALLOCATE (PKZOLD)
+       tend_va(is:ie,js:je,1:km) = tend
+
+       ! Put the wind tendencies on the Native Dynamics grid
+       ! ---------------------------------------------------
+       call Agrid_To_Native( tend_ua, tend_va, tend_un, tend_vn )
+
+       ! Add the wind tendencies to the control variables
+       ! ------------------------------------------------
+       STATE%VARS%U = STATE%VARS%U + DT*TEND_UN(is:ie,js:je,1:km)
+       STATE%VARS%V = STATE%VARS%V + DT*TEND_VN(is:ie,js:je,1:km)
+
+       DEALLOCATE( tend_ua )
+       DEALLOCATE( tend_va )
+       DEALLOCATE( tend_un )
+       DEALLOCATE( tend_vn )
+
+       ! **********************************************************************
+       ! ****           Compute Old Pressure Thickness                     ****
+       ! **********************************************************************
+
+       ALLOCATE( DPOLD(is:ie,js:je,km) )
+
+       if(is_weighted_) then
+          do k=1,km
+             DPOLD(:,:,k) = ( state%vars%pe(:,:,k+1)-state%vars%pe(:,:,k) )
+          enddo
+       else
+          DPOLD = 1.0
+       end if
+
+       ! **********************************************************************
+       ! ****                     Update Edge Pressures                    ****
+       ! **********************************************************************
+
+       call ESMFL_StateGetPointerToData ( IMPORT,TEND,'DPEDT',RC=STATUS )
+       VERIFY_(STATUS)
+
+       STATE%VARS%PE = STATE%VARS%PE + DT*TEND
+
+       ! **********************************************************************
+       ! ****           Compute New Pressure Thickness                     ****
+       ! **********************************************************************
+
+       ALLOCATE( DPNEW(is:ie,js:je,km) )
+
+       if(is_weighted_) then
+          do k=1,km
+             DPNEW(:,:,k) = ( state%vars%pe(:,:,k+1)-state%vars%pe(:,:,k) )
+          enddo
+       else
+          DPNEW = 1.0
+       end if
+
+       ! *********************************************************************
+       ! ****                  Dry Temperature Tendency                   ****
+       ! ****                  ------------------------                   ****
+       ! ****  Note: State  Variable is Potential Temperature T/P**kappa  ****
+       ! ****        IMPORT Variable is a) D/Dt (T)     , IS_WEIGHTED=.F. ****
+       ! ****                           b) D/Dt (T*DELP), IS_WEIGHTED=.T. ****
+       ! *********************************************************************
+
+       call ESMFL_StateGetPointerToData ( IMPORT,TEND,'DTDT',RC=STATUS )
+       VERIFY_(STATUS)
+
+       !if (DYN_DEBUG) then
+       !   call prt_maxmin('AI PT1', STATE%VARS%PT ,  is, ie, js, je, 0, km, 1.d00, MAPL_AM_I_ROOT())
+       !endif
+
+       ! Make previous PT into just T
+
+       STATE%VARS%PT = STATE%VARS%PT*STATE%VARS%PKZ
+
+       if (.not. HYDROSTATIC ) then
+          ! remove old T from DZ
+          STATE%VARS%DZ = STATE%VARS%DZ / STATE%VARS%PT
+
+          ! Update T
+          STATE%VARS%PT =  STATE%VARS%PT           *DPOLD
+          STATE%VARS%PT = (STATE%VARS%PT + DT*TEND)/DPNEW 
+
+          ! update DZ with new T
+          STATE%VARS%DZ = STATE%VARS%DZ * STATE%VARS%PT
+       else
+          ! Update T
+          STATE%VARS%PT =  STATE%VARS%PT           *DPOLD
+          STATE%VARS%PT = (STATE%VARS%PT + DT*TEND)/DPNEW 
+       endif
+
+       ! Update PKZ from pressures
+       !           (if non-hydrostatic, include new TA[stored in PT], Q & DZ )
+
+       call getPKZ(STATE%VARS%PKZ,STATE%VARS%PT,Q,STATE%VARS%PE,STATE%VARS%DZ,HYDROSTATIC)
+
+       ! Make T back into PT
+
+       STATE%VARS%PT = STATE%VARS%PT/STATE%VARS%PKZ
+
+       !if (DYN_DEBUG) then
+       !call prt_maxmin('AI PT2', STATE%VARS%PT ,  is, ie, js, je, 0, km, 1.d00, MAPL_AM_I_ROOT())
+       !endif                  
+
+       DEALLOCATE (DPNEW)
+       DEALLOCATE (DPOLD)
     endif ! .not. Adiabatic
+
     DEALLOCATE( Q )
 
    return

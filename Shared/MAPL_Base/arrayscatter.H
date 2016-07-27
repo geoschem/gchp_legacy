@@ -1,4 +1,4 @@
-! $Id$
+! $Id: arrayscatter.H,v 1.9.2.1.22.1 2015-08-05 15:58:03 atrayano Exp $
 
 #ifdef NAME_
 #undef NAME_

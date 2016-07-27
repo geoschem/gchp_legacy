@@ -126,15 +126,12 @@ subroutine GetWeights(npx, npy, nlat, nlon, &
   logical , optional      :: WriteNetcdf
 end subroutine GetWeights
 
-subroutine A2CnoRotate(U, V)
-  real, intent(INOUT) :: U(:,:,:)
-  real, intent(INOUT) :: V(:,:,:)
-end subroutine A2CnoRotate
-
-subroutine A2DnoRotate(U, V)
-  real, intent(INOUT) :: U(:,:,:)
-  real, intent(INOUT) :: V(:,:,:)
-end subroutine A2DnoRotate
+subroutine A2D2C(U, V, lm, getC)
+   real,    intent(INOUT)           :: U(:,:,:)
+   real,    intent(INOUT)           :: V(:,:,:)
+   integer, intent(   IN)           :: lm
+   logical, intent(   IN), optional :: getC
+end subroutine A2D2C
 
 subroutine AppCSEdgeCreateF(IM_WORLD, LonEdge, LatEdge, LonCenter, LatCenter, rc)
 #include "MAPL_Generic.h"

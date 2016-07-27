@@ -1,4 +1,4 @@
-!  $Id$
+!  $Id: MAPL_Cap.F90,v 1.53 2016-02-03 16:51:04 bmauer Exp $
 
 #include "MAPL_Generic.h"
 
@@ -480,6 +480,8 @@ contains
             timerMode = MAPL_TimerModeRootOnly ! this is the fastest
          case("MAX")
             timerMode = MAPL_TimerModeMax      ! this is the default
+         case("MINMAX")
+            timerMode = MAPL_TimerModeMinMax      ! this is the default
          case default
             ASSERT_(.false.)
          end select TestTimerMode
@@ -1507,7 +1509,7 @@ contains
 ! EOPI -------------------------------------------------------------------
 
        integer,   parameter :: LSZ = 256  ! Maximum line size
-       integer,   parameter :: MSZ = 5120 ! Used to size buffer; this is
+       integer,   parameter :: MSZ = 512  ! Used to size buffer; this is
                                           ! usually *less* than the number
                                           ! of non-blank/comment lines
                                           ! (because most lines are shorter
@@ -1580,8 +1582,9 @@ contains
 
         ! check if enough space left in config buffer
         if (j .ge. NBUF_MAX) then   ! room for EOB if necessary
-            write(logmsg, *) ", conf buffer needs ", j-i+1, &
-               " chars, only ", NBUF_MAX-i, " left!"
+           write(logmsg, *) ", attribute label & value require ", j-i+1, &
+               " characters (including EOL & EOB), only ", NBUF_MAX-i, &
+               " characters left in config buffer"
            RETURN_(ESMC_RC_LONG_STR)
         endif
       endif
@@ -1612,8 +1615,9 @@ contains
 
             ! check if enough space left in config buffer to extend line
             if (j+1 .ge. NBUF_MAX) then   ! room for EOB if necessary
-               write(logmsg, *) ", conf buffer needs ", j-i+1, &
-               " chars, only ", NBUF_MAX-i, " left!"
+               write(logmsg, *) ", attribute label & value require ", j-m+1, &
+                   " characters (including EOL & EOB), only ", NBUF_MAX-i, &
+                   " characters left in config buffer"
                RETURN_(ESMC_RC_LONG_STR)
             endif
 
@@ -1686,7 +1690,7 @@ contains
 ! EOPI -------------------------------------------------------------------
 
        integer,   parameter :: LSZ = 256  ! Maximum line size
-       integer,   parameter :: MSZ = 5120 ! Used to size buffer; this is
+       integer,   parameter :: MSZ = 512  ! Used to size buffer; this is
                                           ! usually *less* than the number
                                           ! of non-blank/comment lines
                                           ! (because most lines are shorter
@@ -1759,8 +1763,9 @@ contains
 
         ! check if enough space left in config buffer
         if (j .ge. NBUF_MAX) then   ! room for EOB if necessary
-           write(logmsg, *) ", conf buffer needs ", j-i+1, &
-               " chars, only ", NBUF_MAX-i, " left!"
+           write(logmsg, *) ", attribute label & value require ", j-i+1, &
+               " characters (including EOL & EOB), only ", NBUF_MAX-i, &
+               " characters left in config buffer"
            RETURN_(ESMC_RC_LONG_STR)
         endif
       endif

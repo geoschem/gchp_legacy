@@ -229,7 +229,7 @@
            incomingRank = localRank_gcomsize(source)
            ! return resources
            freeWorkers(incomingRank) = .true.
-           loadPerNode(workerNode(incomingRank)) = loadPerNode(workerNode(incomingRank)) - wsize 
+           loadPerNode(workerNode(incomingRank)) = loadPerNode(workerNode(incomingRank)) - wsize
            ! decrement current_work_load
            current_work_load = current_work_load - 1
            ! check if there are any queued work requests, fullfill as many as possible
@@ -483,7 +483,7 @@ contains
          deallocate(krank)
 
          ! send message to acknowledge we are done, will send my rank in io communicator
-         rwsize = ioinfo%nlevs*levsize*4/1024/1024
+         rwsize = real(ioinfo%nlevs)*levsize*4/1024/1024
          wsize = ceiling(rwsize)
          call MPI_SEND(wsize,1,MPI_INTEGER,mapl_comm%iocommroot,MAPL_TAG_WORKERDONE,globalComm,status)
          VERIFY_(STATUS)
@@ -564,7 +564,7 @@ contains
 
    dest = mapl_comm%ioCommRoot
    comm = mapl_comm%maplcomm
-   rwsize = nslices*IM*JM*4/1024/1024
+   rwsize = real(nslices)*IM*JM*4/1024/1024
    wsize = ceiling(rwsize)
    call MPI_Send(wsize,1,MPI_INTEGER,dest, &
        MAPL_TAG_GETWORK,comm,status)

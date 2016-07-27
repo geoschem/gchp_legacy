@@ -1,4 +1,4 @@
-! $Id$
+! $Id: MAPL_sun_uc.P90,v 1.11 2016-02-22 16:39:59 mathomp4 Exp $
 
 #include "MAPL_ErrLog.h"
 
@@ -22,6 +22,7 @@ module MAPL_SunMod
   use ESMF
   use MAPL_ConstantsMod
   use MAPL_BaseMod
+  use MAPL_IOMod
 
   implicit none
   private
@@ -322,6 +323,8 @@ subroutine  MAPL_SunOrbitQuery(ORBIT,           &
                                YEARS_PER_CYCLE, &
                                DAYS_PER_CYCLE,  &
                                CLOCK,           & 
+                               ZS,              &
+                               ZC,              &
                                              RC )
 
 ! !ARGUMENTS:
@@ -335,6 +338,8 @@ subroutine  MAPL_SunOrbitQuery(ORBIT,           &
        integer,             optional, intent(OUT) :: YEARS_PER_CYCLE
        integer,             optional, intent(OUT) :: DAYS_PER_CYCLE
        type(ESMF_Clock   ), optional, intent(OUT) :: CLOCK
+       real,                optional, pointer, dimension(:) :: ZS
+       real,                optional, pointer, dimension(:) :: ZC
        integer,             optional, intent(OUT) :: RC
 
 !EOPI
@@ -353,6 +358,8 @@ subroutine  MAPL_SunOrbitQuery(ORBIT,           &
        if(present(YEAR_LENGTH    )) YEAR_LENGTH     = ORBIT%YEARLEN
        if(present(DAYS_PER_CYCLE )) DAYS_PER_CYCLE  = ORBIT%DAYS_PER_CYCLE
        if(present(YEARS_PER_CYCLE)) YEARS_PER_CYCLE = ORBIT%YEARS_PER_CYCLE
+       if(present(ZS             )) ZS => ORBIT%ZS
+       if(present(ZC             )) ZC => ORBIT%ZC
 
        RETURN_(ESMF_SUCCESS)
 

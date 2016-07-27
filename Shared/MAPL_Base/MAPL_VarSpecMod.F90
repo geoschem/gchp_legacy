@@ -1,4 +1,4 @@
-!  $Id$
+!  $Id: MAPL_VarSpecMod.F90,v 1.31 2016-02-21 14:17:09 atrayano Exp $
 
 #include "MAPL_ErrLog.h"
 
@@ -1947,6 +1947,11 @@ contains
        end if
 
        if (IMP /= MAPL_ConnUnknown) then
+          ! check if the component has an import spec
+          if(.not. associated(ImSpecPtr(IMP)%Spec)) then
+             CONN(I)%CONNptr%notRequired = .true.
+             cycle
+          end if
           if(MAPL_VarSpecGetIndex(ImSpecPtr(IMP)%Spec, NAME)==-1) then
 
              FE = CONN(I)%CONNptr%FROM%EXPORT

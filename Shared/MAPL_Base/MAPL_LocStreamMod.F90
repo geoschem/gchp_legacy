@@ -1,4 +1,4 @@
-!  $Id$
+!  $Id: MAPL_LocStreamMod.F90,v 1.61 2016-04-21 15:12:11 atrayano Exp $
 
 #include "MAPL_ErrLog.h"
 
@@ -1162,8 +1162,8 @@ contains
      
        if (DY0 >= 0.0) then
         
-          DX0 = DX0/dot_product(dpx,dpx)
-          DY0 = DY0/dot_product(dpy,dpy)
+          if (DX0 /= 0.0) DX0 = DX0/dot_product(dpx,dpx)
+          if (DY0 /= 0.0) DY0 = DY0/dot_product(dpy,dpy)
         
           if(lons(1,1) /= MAPL_UNDEF) then
              D( 0, 0) = (1.0-DX0)*(1.0-DY0)
@@ -1183,8 +1183,8 @@ contains
           
           DY0 = dot_product(dp,dpy)
           
-          DX0 = DX0/dot_product(dpx,dpx)
-          DY0 = DY0/dot_product(dpy,dpy)
+          if (DX0 /= 0.0) DX0 = DX0/dot_product(dpx,dpx)
+          if (DY0 /= 0.0) DY0 = DY0/dot_product(dpy,dpy)
           
           if(lons(1,-1) /= MAPL_UNDEF) then
              D( 0, 0) = (1.0-DX0)*(1.0-DY0)
@@ -1208,7 +1208,7 @@ contains
      
        if(DY0 >= 0.0) then
           
-          DX0 = DX0/dot_product(dpx,dpx)
+          if (DX0 /= 0.0) DX0 = DX0/dot_product(dpx,dpx)
           if (DY0 /= 0.0) DY0 = DY0/dot_product(dpy,dpy)
           
           if(lons(-1,1) /= MAPL_UNDEF) then
@@ -1228,7 +1228,7 @@ contains
           dpy = ToXYZ(lons(0,-1), lats(0,-1)) - p0
           DY0 = dot_product(dp,dpy)
         
-          DX0 = DX0/dot_product(dpx,dpx)
+          if (DX0 /= 0.0) DX0 = DX0/dot_product(dpx,dpx)
           if (DY0 /= 0.0) DY0 = DY0/dot_product(dpy,dpy)
            
           if(lons(-1,-1) /= MAPL_UNDEF) then
@@ -1669,7 +1669,7 @@ contains
     !ARGUMENTS:
     type(ESMF_Field),          intent(OUT) :: OUTPUT
     type(ESMF_Field),          intent(INout) :: INPUT
-    type(MAPL_LocStream),      intent(INOUT) :: LocStream
+    type(MAPL_LocStream),      intent(IN ) :: LocStream
     integer, optional,         intent(IN ) :: MASK(:)
     logical, optional,         intent(IN ) :: ISMINE(:), INTERP
     logical, optional,         intent(IN ) :: GLOBAL
@@ -1943,7 +1943,7 @@ subroutine MAPL_LocStreamTransformG2T ( LocStream, OUTPUT, INPUT,      &
                                         INTERP, TRANSPOSE, RC )
 
   !ARGUMENTS:
-  type(MAPL_LocStream),      intent(INOUT) :: LocStream
+  type(MAPL_LocStream),      intent(IN ) :: LocStream
   real,                      intent(INOUT) :: OUTPUT(:)
   real,                      intent(INOUT) :: INPUT(:,:)
   logical, optional,         intent(IN ) :: MASK(:), ISMINE(:), INTERP

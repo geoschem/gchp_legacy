@@ -1,4 +1,4 @@
-! $Id$
+! $Id: MAPL_Base.F90,v 1.49.10.1 2016-05-19 21:10:27 bmauer Exp $
 
 #include "MAPL_ErrLog.h"
 
@@ -134,6 +134,7 @@ integer, public, parameter :: MAPL_RotateCube = 1
 
 integer, public, parameter :: MAPL_HorzTransOrderBinning  = 0
 integer, public, parameter :: MAPL_HorzTransOrderBilinear = 1
+integer, public, parameter :: MAPL_HorzTransOrderFraction = 98
 integer, public, parameter :: MAPL_HorzTransOrderSample   = 99
 
 integer, public, parameter :: MAPL_RestartOptional = 0

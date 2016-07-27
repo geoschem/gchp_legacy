@@ -1,4 +1,4 @@
-! $Id$
+! $Id: scatter.H,v 1.2 2008-08-28 20:30:48 trayanov Exp $
 
 #ifdef NAME_
 #undef NAME_

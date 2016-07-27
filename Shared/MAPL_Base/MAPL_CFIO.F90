@@ -1,4 +1,4 @@
-!  $Id$
+!  $Id: MAPL_CFIO.F90,v 1.146 2016-05-19 20:38:24 bmauer Exp $
 
 #include "MAPL_Generic.h"
 
@@ -33,6 +33,9 @@ module MAPL_CFIOMod
   use ESMFL_Mod
   use MAPL_ShmemMod
   use MAPL_CFIOServerMod
+  use MAPL_ProfMod
+
+  use, intrinsic :: ISO_C_BINDING
 
   implicit none
   private
@@ -58,6 +61,7 @@ module MAPL_CFIOMod
   public MAPL_CFIOGetTimeString
   public MAPL_CFIOStartAsyncColl
   public MAPL_CFIOBcastIONode
+  public MAPL_CFIOTimerWrite
 
   ! ESMF-style names
   ! ----------------
@@ -186,6 +190,13 @@ module MAPL_CFIOMod
   !EOC
   !EOP
   integer, parameter :: trans_tag=9999
+
+  type(MAPL_Prof), pointer :: times(:) => null()
+  integer, save :: HasRun = -1
+
+  integer, parameter :: CFIOMaxAge=50
+  integer,dimension(CFIOMaxAge) :: CFIOAge
+  type(ESMF_CFIO),dimension(CFIOMaxAge),target :: CFIORegister
 
   include "mpif.h"
 
@@ -1629,11 +1640,12 @@ contains
 
 ! !INTERFACE:
 !
-  subroutine MAPL_CFIOWriteBundlePost( MCFIO, RC )
+  subroutine MAPL_CFIOWriteBundlePost( MCFIO, PrePost, RC )
 !
 ! !ARGUMENTS:
 !
     type(MAPL_CFIO  ),               intent(INOUT) :: MCFIO
+    logical,               optional, intent(IN   ) :: PrePost
     integer,               optional, intent(  OUT) :: RC
 !
 #ifdef ___PROTEX___
@@ -1686,11 +1698,18 @@ contains
     real,         allocatable  :: Pl3d(:,:,:)
     real,         allocatable  :: Ptrx(:,:,:)
     real,             pointer  :: layer(:,:)
+    logical                    :: PrePost_
     
 
 !                              ---
 
     ASSERT_(MCFIO%CREATED)
+
+    if (present(PrePost)) then
+       PrePost_ = PrePost
+    else
+       PrePost_ = .true.
+    end if
 
 !  Set centers and edges of interpolating field
 !----------------------------------------------
@@ -1844,7 +1863,7 @@ contains
        do K=1,LM
           nn    = nn + 1
           call MAPL_CreateRequest(MCFIO%GRID, MCFIO%Krank(nn), MCFIO%reqs(nn), &
-                                  tag=nn, RequestType=MAPL_IsGather, RC=STATUS)
+                                  tag=nn, RequestType=MAPL_IsGather, PrePost = PrePost_, RC=STATUS)
           VERIFY_(STATUS)
        enddo
     end do POSTRECV
@@ -2090,7 +2109,6 @@ contains
   contains
     
     subroutine TransShaveAndSend(PtrIn,PtrOut,request,doTrans,idxOut)
-      use, intrinsic :: ISO_C_BINDING
       type(Ptr2Arr) :: PtrIn(:)
       type(Ptr2Arr) :: PtrOut(:)
       integer       :: request
@@ -2101,6 +2119,8 @@ contains
       real, pointer :: Gout(:,:)
       real, dimension(:,:,:), pointer :: uin, uout, vin, vout
       integer :: im, jm
+
+      type(c_ptr)   :: cptr
 
       if (size(PtrIn) == 1) then
          ASSERT_(idxOut ==1)
@@ -2142,15 +2162,27 @@ contains
             if (MAPL_HorzTransformIsCreated(mCFIO%Trans)) then
                im = size(PtrIn(1)%ptr,1)
                jm = size(PtrIn(1)%ptr,2)
-               call C_F_POINTER (C_LOC(PtrIn(1)%ptr(1,1)), uin,[im,jm,1])
-               call C_F_POINTER (C_LOC(PtrIn(2)%ptr(1,1)), vin,[im,jm,1])
+
+               ! MAT PGI cannot handle C_LOC call inside C_F_POINTER
+               cptr = C_LOC(PtrIn(1)%ptr(1,1))
+               call C_F_POINTER (cptr, uin,[im,jm,1])
+
+               cptr = C_LOC(PtrIn(2)%ptr(1,1))
+               call C_F_POINTER (cptr, vin,[im,jm,1])
+
 !@#               allocate(uin(im,jm,1), vin(im,jm,1))
 !@#               uin(:,:,1) = PtrIn(1)%ptr
 !@#               vin(:,:,1) = PtrIn(2)%ptr
+
                im = size(PtrOut(1)%ptr,1)
                jm = size(PtrOut(1)%ptr,2)
-               call C_F_POINTER (C_LOC(PtrOut(1)%ptr(1,1)), uout,[im,jm,1])
-               call C_F_POINTER (C_LOC(PtrOut(2)%ptr(1,1)), vout,[im,jm,1])
+
+               cptr = C_LOC(PtrOut(1)%ptr(1,1))
+               call C_F_POINTER (cptr, uout,[im,jm,1])
+
+               cptr = C_LOC(PtrOut(2)%ptr(1,1))
+               call C_F_POINTER (cptr, vout,[im,jm,1])
+
 !@#               allocate(uout(im,jm,1), vout(im,jm,1))
                call MAPL_HorzTransformRun(mCFIO%Trans, &
                     uin, vin, uout, vout, &
@@ -2587,6 +2619,17 @@ contains
 
  end subroutine MAPL_CFIOWriteState
 
+ subroutine MAPL_CFIOTimerWrite(rc)
+ integer, optional, intent(out) :: rc
+ 
+ integer :: status
+ character(len=ESMF_MAXSTR) :: Iam
+ Iam = "MAPL_CFIOTimerWrite"
+ call MAPL_ProfWrite(times,rc=status)
+ VERIFY_(STATUS)
+ 
+ end subroutine MAPL_CFIOTimerWrite
+  
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 !BOP
@@ -2599,7 +2642,7 @@ contains
   subroutine MAPL_CFIOReadBundle ( FILETMPL, TIME, BUNDLE, NOREAD, RC, &
                                    VERBOSE, FORCE_REGRID, ONLY_VARS, ONLY_LEVS, &
                                    TIME_IS_CYCLIC, TIME_INTERP, conservative, &
-                                   voting, ignoreCase, doParallel, EXPID )
+                                   voting, getFrac, ignoreCase, doParallel, EXPID )
 !
 ! !ARGUMENTS:
 !
@@ -2614,6 +2657,7 @@ contains
     logical, optional,           intent(IN)    :: TIME_INTERP
     logical, optional,           intent(IN)    :: conservative
     logical, optional,           intent(IN)    :: voting
+    integer, optional,           intent(IN)    :: getFrac
     logical, optional,           intent(IN)    :: doParallel
     character(len=*), optional,  intent(IN)    :: ONLY_VARS 
     real,    optional,           intent(IN)    :: ONLY_LEVS(:)
@@ -2702,7 +2746,7 @@ contains
 ! Locals
 
 
-    type(ESMF_CFIO)              :: CFIO
+    type(ESMF_CFIO), pointer     :: CFIO
     type(ESMF_CFIOGrid), pointer :: CFIOGRID
     type(ESMF_GRID)              :: ESMFGRID
     type(ESMF_FIELD)             :: FIELD
@@ -2750,7 +2794,7 @@ contains
     character(len=ESMF_MAXSTR) :: gridnamef, gridname, tileFile
     logical :: geosGridNames = .false.
     logical :: RegridCnv
-    logical :: Voting_, doingMasking
+    logical :: Voting_, doingMasking, ldoFrac
     logical :: runParallel
     integer :: order
     logical :: ignoreCase_
@@ -2767,9 +2811,24 @@ contains
     logical :: kreverse
     integer :: i1w,inw,j1w,jnw
     integer :: xy
+    ! For CFIO register management
+    integer :: iCFIO, targCFIO
+    logical :: CFIOPreExist, CFIOEmptyFound, CFIOOldFound
+    character(len=256) :: CFIOFName
 
 !                              ---
-    
+    if (hasRun==-1) then
+       hasRun = 1
+       call MAPL_ProfSet(times,name="MAPL_CFIOOpen",rc=status)
+       VERIFY_(STATUS)   
+       call MAPL_ProfSet(times,name="MAPL_CFIOPostOpen",rc=status)
+       VERIFY_(STATUS)   
+       call MAPL_ProfSet(times,name="MAPL_CFIORegrid",rc=status)
+       VERIFY_(STATUS)   
+       call MAPL_ProfSet(times,name="MAPL_CFIORead",rc=status)
+       VERIFY_(STATUS)   
+    end if
+ 
     if ( present(VERBOSE) )     VERB = VERBOSE
     if ( present(TIME_INTERP) ) timeInterp = TIME_INTERP
     if (present(conservative) ) then
@@ -2781,6 +2840,11 @@ contains
          Voting_ = Voting
     else
          Voting_ = .false.
+    endif
+    if ( present(getFrac) ) then
+         ldoFrac = .true.
+    else
+         ldoFrac = .false.
     endif
     if ( present(ignoreCase) ) then
          ignoreCase_ = ignoreCase
@@ -2803,10 +2867,12 @@ contains
 
 ! Create a CFIO object named after the bundle
 !--------------------------------------------
-    call ESMF_FieldBundleGet(Bundle, name=NAME, RC=STATUS)
+    call MAPL_ProfClockOn(times,"MAPL_CFIOOpen",rc=status)
     VERIFY_(STATUS)
-    cfio =  ESMF_CFIOCreate (cfioObjName=trim(Name), RC=STATUS)
-    VERIFY_(STATUS)
+    !call ESMF_FieldBundleGet(Bundle, name=NAME, RC=STATUS)
+    !VERIFY_(STATUS)
+    !cfio =  ESMF_CFIOCreate (cfioObjName=trim(Name), RC=STATUS)
+    !VERIFY_(STATUS)
 
 ! Transform ESMF time to string for use in CFIO
 !----------------------------------------------
@@ -2820,14 +2886,74 @@ contains
     !call WRITE_PARALLEL("CFIO: Reading " // trim(filename))
     if (mapl_am_i_root()) write(*,*)"CFIO: Reading ",trim(filename)," at ",nymd," ",nhms
 
+!   CFIO Registry
+!   -------------
+    CFIOPreExist=.FALSE.
+    iCFIO = 0
+    do while ((iCFIO.lt.CFIOMaxAge).and.(.not.CFIOPreExist))
+      ! Increment counter
+      iCFIO = iCFIO + 1
+      ! Only access the object if it has actually been used
+      if (CFIOAge(iCFIO).gt.0) then
+        call ESMF_CFIOGet( CFIORegister(iCFIO), fName=CFIOFName )
+        CFIOPreExist = ( trim(fileName) .eq. trim(CFIOFName) )
+      endif
+    enddo
+
+    ! Was one found?
+    if (CFIOPreExist) then
+      ! Point to element in the registry
+      cfio => CFIORegister(iCFIO)
+      targCFIO = iCFIO
+    else
+      ! Find the oldest entry
+      iCFIO = 0
+      CFIOEmptyFound = .FALSE.
+      CFIOOldFound = .FALSE.
+      do while ((iCFIO.lt.CFIOMaxAge).and.(.not.(CFIOEmptyFound.or.CFIOOldFound)))
+      ! Increment counter
+        iCFIO = iCFIO + 1
+        ! Has this entry been used yet?
+        CFIOEmptyFound = (CFIOAge(iCFIO).lt.1)
+        ! Is this entry at the maximum age?
+        if (CFIOAge(iCFIO).ge.CFIOMaxAge) then
+          CFIOOldFound = .TRUE.
+        endif
+      enddo
+      ! Store the target index
+      targCFIO = iCFIO
+
+      if (CFIOOldFound) then
+        ! Destroy the CFIO in the target slot
+        call ESMF_CFIODestroy(CFIORegister(iCFIO), rc=status)
+        VERIFY_(STATUS)
+      elseif (.not.CFIOEmptyFound) then
+        ! This shouldn't happen..
+        STATUS = ESMF_FAILURE
+        VERIFY_(STATUS)
+      endif
+
+      CFIORegister(iCFIO) =  ESMF_CFIOCreate (cfioObjName=trim(Name), RC=STATUS)
+      VERIFY_(STATUS)
+      CFIO => CFIORegister(iCFIO)
+!--------------------------------
+! End of CFIO register management
+
+
 ! Set its filename and open it for reading
 !-----------------------------------------
-    call ESMF_CFIOSet(CFIO, fName=trim(fileName), RC=STATUS)
+      call ESMF_CFIOSet(CFIO, fName=trim(fileName), RC=STATUS)
+      VERIFY_(STATUS)
+
+      call ESMF_CFIOFileOpen  (CFIO, FMODE=1, cyclic=TIME_IS_CYCLIC, RC=STATUS)
+      VERIFY_(STATUS)
+
+    end if
+    call MAPL_ProfClockOff(times,"MAPL_CFIOOpen",rc=status)
     VERIFY_(STATUS)
 
-    call ESMF_CFIOFileOpen  (CFIO, FMODE=1, cyclic=TIME_IS_CYCLIC, RC=STATUS)
+    call MAPL_ProfClockOn(times,"MAPL_CFIOPostOpen",rc=status)
     VERIFY_(STATUS)
-
 ! Get info from the bundle
 !-------------------------
     call ESMF_VMGetCurrent(VM, RC=STATUS)
@@ -3076,6 +3202,27 @@ contains
        if(NOREAD) goto 10
     end if
 
+    ! Set the age of the target CFIO to 1 and increment any files which were
+    ! younger than the target
+    if ((CFIOAge(targCFIO).eq.CFIOMaxAge).or.(CFIOAge(targCFIO).eq.0)) then
+      ! File is not from registry - age every registered file
+      do iCFIO = 1, CFIOMaxAge
+        if (CFIOAge(iCFIO).gt.0) then
+          CFIOAge(iCFIO) = CFIOAge(iCFIO) + 1
+        endif
+      enddo
+    else
+      ! File was already in the registry; only age files that were younger
+      do iCFIO = 1, CFIOMaxAge
+        if ((CFIOAge(iCFIO).gt.0).and.(CFIOAge(iCFIO).lt.CFIOAge(targCFIO))) then
+          CFIOAge(iCFIO) = CFIOAge(iCFIO) + 1
+        endif
+      enddo
+    endif
+
+    ! This is now the newest file
+    CFIOAge(targCFIO) = 1
+
 !   Do we have to run a transform?
 !   ------------------------------
     IM0 = counts(1)
@@ -3120,6 +3267,10 @@ contains
        if (.not.fcubed) do_xshift = abs(LONSfile(1)+180._8) .GT. abs(LONSfile(2)-LONSfile(1))
     end if
 
+    call MAPL_ProfClockOff(times,"MAPL_CFIOPostOpen",rc=status)
+    VERIFY_(STATUS)
+    call MAPL_ProfClockOn(times,"MAPL_CFIORegrid",rc=status)
+    VERIFY_(STATUS)
     if (change_resolution .and. RegridCnv) then
 
        runParallel = .false. ! override input, conservative regridding now done distributed
@@ -3132,9 +3283,13 @@ contains
        call MAPL_HorzTransformCreate (Trans, tileFile, gridnamef, gridname, RootOnly=.false., &
                 vm=vm, i1=i1w, in=inw, j1=j1w, jn=jnw, rc=rc)
 
+       call MAPL_HorzTransformGet(Trans, order=order)
        if (Voting_) then
           call MAPL_HorzTransformSet(Trans, order=MAPL_HorzTransOrderSample, rc=rc)
        endif
+       if (ldoFrac) then
+          call MAPL_HorzTransformSet(Trans, order=MAPL_HorzTransOrderFraction, val=getFrac, rc=rc)
+       end if
 
     else if ( change_resolution .and. (.not.RegridCnv)) then
        if (amOnFirstNode .or. runParallel) then
@@ -3239,6 +3394,10 @@ contains
        JSTAR = 1 + (LATSbundle(1)+90.)/( 180. / (JM-1) )
     endif
 
+    call MAPL_ProfClockOff(times,"MAPL_CFIORegrid",rc=status)
+    VERIFY_(STATUS)
+    call MAPL_ProfClockOn(times,"MAPL_CFIORead",rc=status)
+    VERIFY_(STATUS)
 ! Read each variable
 !-------------------
     do L=1,NumVars
@@ -3391,7 +3550,7 @@ contains
              ptr3(1,1,:) = Gptr3bundle(1,1,:)
           else
              if ( (.not.RegridCnv) .and. runParallel) then
-                call MAPL_CollectiveScatter3D(esmfgrid,Gptr3bundle(:,:,:nn),ptr3,CoresPerNode=CoresPerNode,rc=status)
+                call MAPL_CollectiveScatter3D(esmfgrid,Gptr3bundle(:,:,:nn),ptr3,rc=status)
                 VERIFY_(STATUS)
              else if ( (.not.RegridCnv) .and. (.not.RunParallel) ) then
                 do K=1,LM
@@ -3423,6 +3582,9 @@ contains
 
     if (amOnFirstNode .or. runParallel .or. RegridCnv) then
        if ( change_resolution ) then
+          if (Voting_) then
+             call MAPL_HorzTransformSet(Trans, order=order, rc=rc)
+          endif
           call MAPL_HorzTransformDestroy(Trans,rc=STATUS)
           VERIFY_(STATUS)
        end if
@@ -3441,7 +3603,9 @@ contains
        end if
     end if
 
-    call ESMF_CFIODestroy(CFIO, rc=status)
+    !call ESMF_CFIODestroy(CFIO, rc=status)
+    !VERIFY_(STATUS)
+    call MAPL_ProfClockOff(times,"MAPL_CFIORead",rc=status)
     VERIFY_(STATUS)
     
     RETURN_(ESMF_SUCCESS)
@@ -3648,7 +3812,7 @@ CONTAINS
   subroutine MAPL_CFIOReadField     ( VARN, FILETMPL, TIME,       FIELD, RC, &
                                       VERBOSE, FORCE_REGRID, TIME_IS_CYCLIC, &
                                       TIME_INTERP,                           &
-                                      conservative , voting, ignoreCase, doParallel)
+                                      conservative , voting, getFrac, ignoreCase, doParallel)
 !
 ! !ARGUMENTS:
 !
@@ -3663,6 +3827,7 @@ CONTAINS
     logical, optional,           intent(IN)    :: TIME_INTERP
     logical, optional,           intent(IN)    :: conservative
     logical, optional,           intent(IN)    :: voting
+    integer, optional,           intent(IN)    :: getFrac
     logical, optional,           intent(IN)    :: ignoreCase
     logical, optional,           intent(IN)    :: doParallel
 !
@@ -3756,15 +3921,15 @@ CONTAINS
 !   Now, we read the variable into the bundle, which in turn will put
 !    the data inside the input array
 !   -----------------------------------------------------------------
-    call MAPL_CFIOReadBundle( FILETMPL, TIME, BUNDLE,                    &
-                              VERBOSE=VERBOSE,                           &
-                              FORCE_REGRID=FORCE_REGRID,                 &
-                              ONLY_VARS = trim(varn),                    &
-                              TIME_IS_CYCLIC=TIME_IS_CYCLIC,             &
-                              TIME_INTERP=TIME_INTERP,                   &
-                              conservative=conservative,                 &
-                              voting = voting, ignoreCase = ignoreCase,  &
-                              doParallel = doParallel,                   &
+    call MAPL_CFIOReadBundle( FILETMPL, TIME, BUNDLE,                     &
+                              VERBOSE=VERBOSE,                            &
+                              FORCE_REGRID=FORCE_REGRID,                  &
+                              ONLY_VARS = trim(varn),                     &
+                              TIME_IS_CYCLIC=TIME_IS_CYCLIC,              &
+                              TIME_INTERP=TIME_INTERP,                    &
+                              conservative=conservative,                  & 
+                              voting = voting, ignoreCase = ignoreCase,   &
+                              getFrac = getFrac, doParallel = doParallel, &
                               RC=STATUS)
     VERIFY_(STATUS)    
 
@@ -3788,7 +3953,7 @@ CONTAINS
 !
   subroutine MAPL_CFIOReadArray3D ( VARN, FILETMPL, TIME, GRID, farrayPtr, RC, &
                                     VERBOSE, FORCE_REGRID, TIME_IS_CYCLIC,     &
-                                    TIME_INTERP, conservative, voting, ignoreCase, doParallel )
+                                    TIME_INTERP, conservative, voting, getFrac, ignoreCase, doParallel )
 !
 ! !ARGUMENTS:
 !
@@ -3804,6 +3969,7 @@ CONTAINS
     logical, optional,           intent(IN)    :: TIME_INTERP
     logical, optional,           intent(IN)    :: conservative
     logical, optional,           intent(IN)    :: voting
+    integer, optional,           intent(IN)    :: getFrac
     logical, optional,           intent(IN)    :: ignoreCase
     logical, optional,           intent(IN)    :: doParallel
 !
@@ -3914,7 +4080,7 @@ CONTAINS
                               TIME_INTERP=TIME_INTERP,                    &
                               conservative=conservative,                  &
                               voting=voting, ignoreCase = ignoreCase,     &
-                              doParallel = doParallel,                    &
+                              getFrac = getFrac, doParallel = doParallel, &
                               RC=STATUS)
     VERIFY_(STATUS)
 
@@ -3936,7 +4102,7 @@ CONTAINS
 !
   subroutine MAPL_CFIOReadArray2D ( VARN, FILETMPL, TIME, GRID, farrayPtr, RC, &
                                     VERBOSE, FORCE_REGRID, TIME_IS_CYCLIC,     &
-                                    TIME_INTERP , conservative, voting, ignoreCase, doParallel)
+                                    TIME_INTERP , conservative, voting, getFrac, ignoreCase, doParallel)
 !
 ! !ARGUMENTS:
 !
@@ -3952,6 +4118,7 @@ CONTAINS
     logical, optional,           intent(IN)  :: TIME_INTERP
     logical, optional,           intent(IN)    :: conservative
     logical, optional,           intent(IN)    :: voting
+    integer, optional,           intent(IN)    :: getFrac
     logical, optional,           intent(IN)    :: ignoreCase
     logical, optional,           intent(IN)    :: doParallel
 !
@@ -4082,7 +4249,7 @@ CONTAINS
                               TIME_IS_CYCLIC=TIME_IS_CYCLIC,              &
                               conservative=conservative,                  &
                               voting = voting, ignoreCase = ignoreCase,   &
-                              doParallel = doParallel,                    &
+                              getFrac = getFrac, doParallel = doParallel, &
                               RC=STATUS)
     VERIFY_(STATUS)
 

@@ -76,17 +76,19 @@ program gmao_regrid
   integer, parameter            :: i0=ichar('0')
   integer, parameter            :: i9=ichar('9')
 
-  integer, parameter :: LatLonRes(2,6) = RESHAPE( SOURCE =&
+  integer, parameter :: LatLonRes(2,8) = RESHAPE( SOURCE =&
        [  72,  46,   & ! A - 4 degree
          144,  91,   & ! B - 2 degree
          288, 181,   & ! C - 1 degree
          540, 361,   & ! D - 1/2 degree MERRA
          576, 361,   & ! D - 1/2 degree
-        1152, 721] , &  ! E - 1/4 degree
-       SHAPE = [2,6] )
+        1152, 721,   & ! E - 1/4 degree
+        1440, 721,   & ! F - 1/4 degree rectangular
+        2880, 1441], & ! G - 1/8 degree rectangular  
+       SHAPE = [2,8] )
 
   type(MAPL_NCIO) :: inNCIO,outNCIO
-  integer           :: nDims, dimSizes(3)
+  integer           :: nDims, dimSizes(4),nSpatialDims
 
 ! Begin
    
@@ -172,6 +174,32 @@ program gmao_regrid
      gout%gridtype = GridType_LatLon
      gout%IM = 1152
      gout%JM = 721
+  else if (str(1:1) == 'F') then
+     if (str(2:2) /= ' ') then 
+        ic = ichar(str(2:2))
+        ASSERT_(ic >= i0 .and. ic <= i9) ! Must be a number
+        read(str(2:),*) im
+        gout%gridtype = GridType_CubedSphere
+        gout%IM = im
+        gout%JM = 6*im
+     else
+        gout%gridtype = GridType_LatLon
+        gout%IM = 1440
+        gout%JM = 721
+     end if
+  else if (str(1:1) == 'G') then
+     if (str(2:2) /= ' ') then 
+        ic = ichar(str(2:2))
+        ASSERT_(ic >= i0 .and. ic <= i9) ! Must be a number
+        read(str(2:),*) im
+        gout%gridtype = GridType_CubedSphere
+        gout%IM = im
+        gout%JM = 6*im
+     else
+        gout%gridtype = GridType_LatLon
+        gout%IM = 2880
+        gout%JM = 1441
+     end if
   else
      VERIFY_(999)
   end if
@@ -198,15 +226,14 @@ program gmao_regrid
         call MAPL_NCIOSet(OutNCIO,filename=gout%filename)
         call MAPL_NCIOCreateFile(OutNCIO)
         do n=1,InNCIO%nVars
-           call MAPL_NCIOVarGetDims(InNCIO,InNCIO%vars(n)%name,nDims,dimSizes)
-           if (ndims ==1) then
+           call MAPL_NCIOVarGetDims(InNCIO,InNCIO%vars(n)%name,nDims,dimSizes,nSpatialDims=nSpatialDims)
  
-           else if (ndims ==2) then
+           if (nSpatialDims == 2) then
               call MAPL_VarRead(InNCIO,InNCIO%vars(n)%name,var_in)
               call MAPL_HorzTransformRun(Trans, var_in, var_out, RC=status)
               VERIFY_(STATUS)
               call MAPL_VarWrite(OutNCIO,InNCIO%vars(n)%name,var_out)
-           else if (ndims ==3) then
+           else if (nSpatialDims ==3) then
               do i=1,dimSizes(3) 
                  call MAPL_VarRead(InNCIO,InNCIO%vars(n)%name,var_in,lev=i)
                  call MAPL_HorzTransformRun(Trans, var_in, var_out, RC=status)

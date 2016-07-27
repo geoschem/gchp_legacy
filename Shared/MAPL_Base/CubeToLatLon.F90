@@ -1,4 +1,4 @@
-!  $Id$
+!  $Id: CubeToLatLon.F90,v 1.10 2016-04-25 18:51:18 atrayano Exp $
 
 #define SUCCESS 0
 #define VERIFY_(A) if((A)/=0) then; if(present(rc)) rc=A; PRINT *, Iam, __LINE__; return; endif
@@ -69,12 +69,21 @@ Module CubeLatLonTransformMod
      logical             :: Created=.false.
      character(len=120)  :: name
      integer             :: npx, npy, nlon, nlat
+! global
      real(R8), pointer   :: ee1(:,:,:)  => null()
      real(R8), pointer   :: ee2(:,:,:)  => null()
      real(R8), pointer   :: ff1(:,:,:)  => null()
      real(R8), pointer   :: ff2(:,:,:)  => null()
      real(R8), pointer   :: gg1(:,:,:)  => null()
      real(R8), pointer   :: gg2(:,:,:)  => null()
+! local
+     real(R8), pointer   :: e1(:,:,:)  => null()
+     real(R8), pointer   :: e2(:,:,:)  => null()
+     real(R8), pointer   :: f1(:,:,:)  => null()
+     real(R8), pointer   :: f2(:,:,:)  => null()
+     real(R8), pointer   :: g1(:,:,:)  => null()
+     real(R8), pointer   :: g2(:,:,:)  => null()
+!
      real(R8), pointer   :: elon(:,:,:) => null()
      real(R8), pointer   :: elat(:,:,:) => null()
 !
@@ -203,15 +212,21 @@ contains
     DEALLOCGLOB_(Tr%id1)
     DEALLOCGLOB_(Tr%id2)
     DEALLOCGLOB_(Tr%jdc)
+    DEALLOCGLOB_(Tr%ee1)
+    DEALLOCGLOB_(Tr%ee2)
+    DEALLOCGLOB_(Tr%ff1)
+    DEALLOCGLOB_(Tr%ff2)
+    DEALLOCGLOB_(Tr%gg1)
+    DEALLOCGLOB_(Tr%gg2)
 
     DEALLOCLOCL_(Tr%elon)
     DEALLOCLOCL_(Tr%elat)
-    DEALLOCLOCL_(Tr%ee1)
-    DEALLOCLOCL_(Tr%ee2)
-    DEALLOCLOCL_(Tr%ff1)
-    DEALLOCLOCL_(Tr%ff2)
-    DEALLOCLOCL_(Tr%gg1)
-    DEALLOCLOCL_(Tr%gg2)
+    DEALLOCLOCL_(Tr%e1)
+    DEALLOCLOCL_(Tr%e2)
+    DEALLOCLOCL_(Tr%f1)
+    DEALLOCLOCL_(Tr%f2)
+    DEALLOCLOCL_(Tr%g1)
+    DEALLOCLOCL_(Tr%g2)
 
     Tr%Created = .false.
 
@@ -271,12 +286,12 @@ contains
     real(R8), allocatable :: clon(:), clat(:)
 
 ! global vector rotations to be copied into local Tr versions
-    real(R8), pointer   :: ee1(:,:,:) => null()
-    real(R8), pointer   :: ee2(:,:,:) => null()
-    real(R8), pointer   :: ff1(:,:,:) => null()
-    real(R8), pointer   :: ff2(:,:,:) => null()
-    real(R8), pointer   :: gg1(:,:,:) => null()
-    real(R8), pointer   :: gg2(:,:,:) => null()
+!    real(R8), pointer   :: ee1(:,:,:) => null()
+!    real(R8), pointer   :: ee2(:,:,:) => null()
+!    real(R8), pointer   :: ff1(:,:,:) => null()
+!    real(R8), pointer   :: ff2(:,:,:) => null()
+!    real(R8), pointer   :: gg1(:,:,:) => null()
+!    real(R8), pointer   :: gg2(:,:,:) => null()
 
 ! Begin
 !------
@@ -305,12 +320,12 @@ contains
 
     DEALLOCLOCL_(Tr%elon)
     DEALLOCLOCL_(Tr%elat)
-    DEALLOCLOCL_(Tr%ee1)
-    DEALLOCLOCL_(Tr%ee2)
-    DEALLOCLOCL_(Tr%ff1)
-    DEALLOCLOCL_(Tr%ff2)
-    DEALLOCLOCL_(Tr%gg1)
-    DEALLOCLOCL_(Tr%gg2)
+    DEALLOCLOCL_(Tr%e1)
+    DEALLOCLOCL_(Tr%e2)
+    DEALLOCLOCL_(Tr%f1)
+    DEALLOCLOCL_(Tr%f2)
+    DEALLOCLOCL_(Tr%g1)
+    DEALLOCLOCL_(Tr%g2)
 
     call MAPL_AllocNodeArray(Tr%index,(/3,nlon,nlat/),rc=STATUS)
     if(STATUS==MAPL_NoShm) allocate(Tr%index(3,nlon,nlat),stat=status)
@@ -342,28 +357,28 @@ contains
     allocate(Tr%elat(size(lons),size(lats),3),stat=STATUS)
     VERIFY_(STATUS)
 
-    call MAPL_AllocNodeArray(ee1,(/npx,npy,3/),rc=STATUS)
-    if(STATUS==MAPL_NoShm) allocate(ee1(npx,npy,3),stat=status)
+    call MAPL_AllocNodeArray(Tr%ee1,(/npx,npy,3/),rc=STATUS)
+    if(STATUS==MAPL_NoShm) allocate(Tr%ee1(npx,npy,3),stat=status)
     VERIFY_(STATUS)
 
-    call MAPL_AllocNodeArray(ee2,(/npx,npy,3/),rc=STATUS)
-    if(STATUS==MAPL_NoShm) allocate(ee2(npx,npy,3),stat=status)
+    call MAPL_AllocNodeArray(Tr%ee2,(/npx,npy,3/),rc=STATUS)
+    if(STATUS==MAPL_NoShm) allocate(Tr%ee2(npx,npy,3),stat=status)
     VERIFY_(STATUS)
 
-    call MAPL_AllocNodeArray(ff1,(/npx,npy,3/),rc=STATUS)
-    if(STATUS==MAPL_NoShm) allocate(ff1(npx,npy,3),stat=status)
+    call MAPL_AllocNodeArray(Tr%ff1,(/npx,npy,3/),rc=STATUS)
+    if(STATUS==MAPL_NoShm) allocate(Tr%ff1(npx,npy,3),stat=status)
     VERIFY_(STATUS)
 
-    call MAPL_AllocNodeArray(ff2,(/npx,npy,3/),rc=STATUS)
-    if(STATUS==MAPL_NoShm) allocate(ff2(npx,npy,3),stat=status)
+    call MAPL_AllocNodeArray(Tr%ff2,(/npx,npy,3/),rc=STATUS)
+    if(STATUS==MAPL_NoShm) allocate(Tr%ff2(npx,npy,3),stat=status)
     VERIFY_(STATUS)
 
-    call MAPL_AllocNodeArray(gg1,(/npx,npy,3/),rc=STATUS)
-    if(STATUS==MAPL_NoShm) allocate(gg1(npx,npy,3),stat=status)
+    call MAPL_AllocNodeArray(Tr%gg1,(/npx,npy,3/),rc=STATUS)
+    if(STATUS==MAPL_NoShm) allocate(Tr%gg1(npx,npy,3),stat=status)
     VERIFY_(STATUS)
 
-    call MAPL_AllocNodeArray(gg2,(/npx,npy,3/),rc=STATUS)
-    if(STATUS==MAPL_NoShm) allocate(gg2(npx,npy,3),stat=status)
+    call MAPL_AllocNodeArray(Tr%gg2,(/npx,npy,3/),rc=STATUS)
+    if(STATUS==MAPL_NoShm) allocate(Tr%gg2(npx,npy,3),stat=status)
     VERIFY_(STATUS)
 
 ! Argument AmNodeRoot passed to GetWeights identifies if we're using SHMEM
@@ -372,8 +387,8 @@ contains
      if (doSubSet) then
        call GetWeights(npx, npy, nlat, nlon, Tr%index, Tr%weight, &
             Tr%id1, Tr%id2, Tr%jdc, Tr%l2c,  &
-               ee1,    ee2,    ff1,    ff2,    gg1,    gg2, &
-            Tr%ee1, Tr%ee2, Tr%ff1, Tr%ff2, Tr%gg1, Tr%gg2, lons, lats, &
+            Tr%ee1, Tr%ee2, Tr%ff1, Tr%ff2,  Tr%gg1, Tr%gg2, &
+            Tr%e1, Tr%e2, Tr%f1, Tr%f2, Tr%g1, Tr%g2, lons, lats, &
             AmNodeRoot = (MAPL_AmNodeRoot .or. (.not. MAPL_ShmInitialized))   &
 #ifdef WRITE_WEIGHTS_TO_FILE
             , WriteNetcdf = MAPL_am_I_root() &
@@ -382,8 +397,8 @@ contains
      else
        call GetWeights(npx, npy, nlat, nlon, Tr%index, Tr%weight, &
             Tr%id1, Tr%id2, Tr%jdc, Tr%l2c,  &
-               ee1,    ee2,    ff1,    ff2,    gg1,    gg2, &
             Tr%ee1, Tr%ee2, Tr%ff1, Tr%ff2, Tr%gg1, Tr%gg2, &
+            Tr%e1, Tr%e2, Tr%f1, Tr%f2, Tr%g1, Tr%g2, &
             AmNodeRoot = (MAPL_AmNodeRoot .or. (.not. MAPL_ShmInitialized))   &
 #ifdef WRITE_WEIGHTS_TO_FILE
             , WriteNetcdf = MAPL_am_I_root() &
@@ -396,12 +411,12 @@ contains
     call MAPL_SyncSharedMemory(rc=STATUS)
     VERIFY_(STATUS)
 
-    DEALLOCGLOB_(ee1)
-    DEALLOCGLOB_(ee2)
-    DEALLOCGLOB_(ff1)
-    DEALLOCGLOB_(ff2)
-    DEALLOCGLOB_(gg1)
-    DEALLOCGLOB_(gg2)
+!    DEALLOCGLOB_(Tr%ee1)
+!    DEALLOCGLOB_(Tr%ee2)
+!    DEALLOCGLOB_(Tr%ff1)
+!    DEALLOCGLOB_(Tr%ff2)
+!    DEALLOCGLOB_(Tr%gg1)
+!    DEALLOCGLOB_(Tr%gg2)
 
 ! Cartesian to latlon spherical on latlon grid
 
@@ -1371,11 +1386,27 @@ contains
        e2=>Tr%elat
     else
        if(.not.Rotate) then
-          e1=>Tr%gg1
-          e2=>Tr%gg2
+          if (size(U,1) == size(Tr%gg1,1) .and. &
+              size(U,2) == size(Tr%gg1,2) .and. &
+              size(V,1) == size(Tr%gg2,1) .and. &
+              size(V,2) == size(Tr%gg2,2)) then
+             e1=>Tr%gg1
+             e2=>Tr%gg2
+          else
+             e1=>Tr%g1
+             e2=>Tr%g2
+          end if
        elseif(.not.Transpose) then
-          e1=>Tr%ff1
-          e2=>Tr%ff2
+          if (size(U,1) == size(Tr%ff1,1) .and. &
+              size(U,2) == size(Tr%ff1,2) .and. &
+              size(V,1) == size(Tr%ff2,1) .and. &
+              size(V,2) == size(Tr%ff2,2)) then
+             e1=>Tr%ff1
+             e2=>Tr%ff2
+          else
+             e1=>Tr%f1
+             e2=>Tr%f2
+          endif
        else
           e1=>Tr%ee1
           e2=>Tr%ee2
@@ -1385,9 +1416,15 @@ contains
     LM = size(U,3)
 
     do k=1,LM
-       Uxyz(:,:,k     ) = U(:,:,k)*e1(:,:,1) + V(:,:,k)*e2(:,:,1)
-       Uxyz(:,:,k+  LM) = U(:,:,k)*e1(:,:,2) + V(:,:,k)*e2(:,:,2)
-       Uxyz(:,:,k+2*LM) = U(:,:,k)*e1(:,:,3) + V(:,:,k)*e2(:,:,3)
+       where(U(:,:,k) == MAPL_UNDEF .or. V(:,:,k) == MAPL_UNDEF)
+          Uxyz(:,:,k     ) = MAPL_UNDEF
+          Uxyz(:,:,k+  LM) = MAPL_UNDEF
+          Uxyz(:,:,k+2*LM) = MAPL_UNDEF
+       elsewhere
+          Uxyz(:,:,k     ) = U(:,:,k)*e1(:,:,1) + V(:,:,k)*e2(:,:,1)
+          Uxyz(:,:,k+  LM) = U(:,:,k)*e1(:,:,2) + V(:,:,k)*e2(:,:,2)
+          Uxyz(:,:,k+2*LM) = U(:,:,k)*e1(:,:,3) + V(:,:,k)*e2(:,:,3)
+       end where
     end do
 
     return
@@ -1414,11 +1451,27 @@ contains
        e2=>Tr%elat
     else
        if(.not.Rotate) then
-          e1=>Tr%gg1
-          e2=>Tr%gg2
+          if (size(U,1) == size(Tr%gg1,1) .and. &
+              size(U,2) == size(Tr%gg1,2) .and. &
+              size(V,1) == size(Tr%gg2,1) .and. &
+              size(V,2) == size(Tr%gg2,2)) then
+             e1=>Tr%gg1
+             e2=>Tr%gg2
+          else
+             e1=>Tr%g1
+             e2=>Tr%g2
+          end if
        elseif(.not.Transpose) then
-          e1=>Tr%ff1
-          e2=>Tr%ff2
+          if (size(U,1) == size(Tr%ff1,1) .and. &
+              size(U,2) == size(Tr%ff1,2) .and. &
+              size(V,1) == size(Tr%ff2,1) .and. &
+              size(V,2) == size(Tr%ff2,2)) then
+             e1=>Tr%ff1
+             e2=>Tr%ff2
+          else
+             e1=>Tr%f1
+             e2=>Tr%f2
+          endif
        else
           e1=>Tr%ee1
           e2=>Tr%ee2
@@ -1428,9 +1481,15 @@ contains
     LM = size(U,3)
 
     do k=1,LM
-       Uxyz(:,:,k     ) = U(:,:,k)*e1(:,:,1) + V(:,:,k)*e2(:,:,1)
-       Uxyz(:,:,k+  LM) = U(:,:,k)*e1(:,:,2) + V(:,:,k)*e2(:,:,2)
-       Uxyz(:,:,k+2*LM) = U(:,:,k)*e1(:,:,3) + V(:,:,k)*e2(:,:,3)
+       where(U(:,:,k) == MAPL_UNDEF .or. V(:,:,k) == MAPL_UNDEF)
+          Uxyz(:,:,k     ) = MAPL_UNDEF
+          Uxyz(:,:,k+  LM) = MAPL_UNDEF
+          Uxyz(:,:,k+2*LM) = MAPL_UNDEF
+       elsewhere
+          Uxyz(:,:,k     ) = U(:,:,k)*e1(:,:,1) + V(:,:,k)*e2(:,:,1)
+          Uxyz(:,:,k+  LM) = U(:,:,k)*e1(:,:,2) + V(:,:,k)*e2(:,:,2)
+          Uxyz(:,:,k+2*LM) = U(:,:,k)*e1(:,:,3) + V(:,:,k)*e2(:,:,3)
+       end where
     end do
 
     return
@@ -1457,27 +1516,50 @@ contains
        e2=>Tr%elat
     else
        if(.not.Rotate) then
-          e1=>Tr%gg1
-          e2=>Tr%gg2
+          if (size(Uxyz,1) == size(Tr%gg1,1) &
+               .and. size(Uxyz,2) == size(Tr%gg1,2) &
+               .and. size(Uxyz,1) == size(Tr%gg2,1) &
+               .and. size(Uxyz,2) == size(Tr%gg2,2)) then
+             e1=>Tr%gg1
+             e2=>Tr%gg2
+          else
+             e1=>Tr%g1
+             e2=>Tr%g2
+          endif
        elseif(Transpose) then
-          e1=>Tr%ff1
-          e2=>Tr%ff2
+          e1=>Tr%f1
+          e2=>Tr%f2
        else
-          e1=>Tr%ee1
-          e2=>Tr%ee2
+          if (size(Uxyz,1) == size(Tr%ee1,1) &
+               .and. size(Uxyz,2) == size(Tr%ee1,2) &
+               .and. size(Uxyz,1) == size(Tr%ee2,1) &
+               .and. size(Uxyz,2) == size(Tr%ee2,2)) then
+             e1=>Tr%ee1
+             e2=>Tr%ee2
+          else
+             e1=>Tr%e1
+             e2=>Tr%e2
+          end if
        end if
     end if
 
     LM = size(U,3)
     
     do k=1,LM
-       U(:,:,k) = Uxyz(:,:,k     )*e1(:,:,1) + &
-                  Uxyz(:,:,k+  LM)*e1(:,:,2) + &
-                  Uxyz(:,:,k+2*LM)*e1(:,:,3)
+       where (Uxyz(:,:,k) == MAPL_UNDEF .or. Uxyz(:,:,k+LM) == MAPL_UNDEF &
+            .or. Uxyz(:,:,k+2*LM) == MAPL_UNDEF)
+          U(:,:,k) = MAPL_UNDEF
+          V(:,:,k) = MAPL_UNDEF
+       elsewhere
+ 
+          U(:,:,k) = Uxyz(:,:,k     )*e1(:,:,1) + &
+                     Uxyz(:,:,k+  LM)*e1(:,:,2) + &
+                     Uxyz(:,:,k+2*LM)*e1(:,:,3)
 
-       V(:,:,k) = Uxyz(:,:,k     )*e2(:,:,1) + &
-                  Uxyz(:,:,k+  LM)*e2(:,:,2) + &
-                  Uxyz(:,:,k+2*LM)*e2(:,:,3)
+          V(:,:,k) = Uxyz(:,:,k     )*e2(:,:,1) + &
+                     Uxyz(:,:,k+  LM)*e2(:,:,2) + &
+                     Uxyz(:,:,k+2*LM)*e2(:,:,3)
+       end where
     end do
 
     return
@@ -1504,27 +1586,50 @@ contains
        e2=>Tr%elat
     else
        if(.not.Rotate) then
-          e1=>Tr%gg1
-          e2=>Tr%gg2
+          if (size(Uxyz,1) == size(Tr%gg1,1) &
+               .and. size(Uxyz,2) == size(Tr%gg1,2) &
+               .and. size(Uxyz,1) == size(Tr%gg2,1) &
+               .and. size(Uxyz,2) == size(Tr%gg2,2)) then
+             e1=>Tr%gg1
+             e2=>Tr%gg2
+          else
+             e1=>Tr%g1
+             e2=>Tr%g2
+          endif
        elseif(Transpose) then
-          e1=>Tr%ff1
-          e2=>Tr%ff2
+          e1=>Tr%f1
+          e2=>Tr%f2
        else
-          e1=>Tr%ee1
-          e2=>Tr%ee2
+          if (size(Uxyz,1) == size(Tr%ee1,1) &
+               .and. size(Uxyz,2) == size(Tr%ee1,2) &
+               .and. size(Uxyz,1) == size(Tr%ee2,1) &
+               .and. size(Uxyz,2) == size(Tr%ee2,2)) then
+             e1=>Tr%ee1
+             e2=>Tr%ee2
+          else
+             e1=>Tr%e1
+             e2=>Tr%e2
+          end if
        end if
     end if
 
     LM = size(U,3)
     
     do k=1,LM
-       U(:,:,k) = Uxyz(:,:,k     )*e1(:,:,1) + &
-                  Uxyz(:,:,k+  LM)*e1(:,:,2) + &
-                  Uxyz(:,:,k+2*LM)*e1(:,:,3)
+       where (Uxyz(:,:,k) == MAPL_UNDEF .or. Uxyz(:,:,k+LM) == MAPL_UNDEF &
+            .or. Uxyz(:,:,k+2*LM) == MAPL_UNDEF)
+          U(:,:,k) = MAPL_UNDEF
+          V(:,:,k) = MAPL_UNDEF
+       elsewhere
+ 
+          U(:,:,k) = Uxyz(:,:,k     )*e1(:,:,1) + &
+                     Uxyz(:,:,k+  LM)*e1(:,:,2) + &
+                     Uxyz(:,:,k+2*LM)*e1(:,:,3)
 
-       V(:,:,k) = Uxyz(:,:,k     )*e2(:,:,1) + &
-                  Uxyz(:,:,k+  LM)*e2(:,:,2) + &
-                  Uxyz(:,:,k+2*LM)*e2(:,:,3)
+          V(:,:,k) = Uxyz(:,:,k     )*e2(:,:,1) + &
+                     Uxyz(:,:,k+  LM)*e2(:,:,2) + &
+                     Uxyz(:,:,k+2*LM)*e2(:,:,3)
+       end where
     end do
 
     return

@@ -1,4 +1,4 @@
-! $Id$
+! $Id: arraygatherRcvCnt.H,v 1.3 2013-01-17 14:54:55 atrayano Exp $
 
 #ifdef NAME_
 #undef NAME_

@@ -1,4 +1,4 @@
-! $Id$
+! $Id: allreducemax.H,v 1.1 2009-02-23 20:01:21 trayanov Exp $
 
 #ifdef NAME_
 #undef NAME_

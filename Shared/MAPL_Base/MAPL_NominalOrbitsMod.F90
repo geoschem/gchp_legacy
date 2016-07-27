@@ -1,4 +1,4 @@
-!  $Id$
+!  $Id: MAPL_NominalOrbitsMod.F90,v 1.1 2011-02-25 21:48:02 adasilva Exp $
 
   MODULE MAPL_NominalOrbitsMod 
 

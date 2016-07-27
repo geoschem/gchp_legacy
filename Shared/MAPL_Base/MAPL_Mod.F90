@@ -1,4 +1,4 @@
-! $Id$
+! $Id: MAPL_Mod.F90,v 1.14 2015-05-07 16:36:34 bmauer Exp $
 
 
 module MAPL_Mod

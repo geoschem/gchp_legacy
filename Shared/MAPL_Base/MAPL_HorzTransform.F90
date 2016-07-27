@@ -31,7 +31,7 @@
 
 module MAPL_HorzTransformMod
 
-!  $Id$
+!  $Id: MAPL_HorzTransform.F90,v 1.17.10.1.2.1 2016-05-19 21:10:27 bmauer Exp $
 
 
   use ESMF
@@ -42,6 +42,7 @@ module MAPL_HorzTransformMod
   use CubeLatLonTransformMod
   use MAPL_ShmemMod
   use MAPL_CommsMod
+  use MAPL_ConstantsMod
 
   implicit none
   private
@@ -192,7 +193,8 @@ module MAPL_HorzTransformMod
      type(T_CubeLatLonTransform) :: CubeTrans
      type(T_CubeCubeTransform)   :: C2CTrans
      type(MAPL_RegridConserv) :: ConsrvTrans
-     integer                 :: subset(4)
+     integer                :: subset(4)
+     integer                :: val
   end type MAPL_HorzTransform
 
 !==========
@@ -259,15 +261,20 @@ contains
 
 !==============================================================
 
-  subroutine MAPL_HorzTransformSet  (Trans, order, rc)
+  subroutine MAPL_HorzTransformSet  (Trans, order, val, rc)
 
     type (MAPL_HorzTransform), intent(INout) :: Trans
     integer, optional,         intent(IN   ) :: order
+    integer, optional,         intent(IN   ) :: val
     integer, optional,         intent(  OUT) :: rc
 
     if (present(order)) then
        ASSERT_(Trans%runTile)
        Trans%order = order
+       if (order == MAPL_HorzTransOrderFraction) then
+          ASSERT_(present(val))
+          if (present(val)) Trans%val = val
+       end if
     end if
 
   end subroutine MAPL_HorzTransformSet
@@ -783,11 +790,15 @@ contains
 
           Trans%N_out(1) = IMSUB
           Trans%N_out(2) = JMSUB
+          xsub = xsub * (MAPL_PI_R8/180.d0)
+          ysub = ysub * (MAPL_PI_R8/180.d0)
           Trans%CubeTrans =  CubeLatLonCreate(N_in(1), N_in(2), IMSUB, JMSUB, xsub(IMBEG:IMEND), ysub(JMBEG:JMEND), .true.  , rc=STATUS)
           VERIFY_(STATUS)
           call CubeLatLonSubset(trans%cubetrans, .true.)
           deallocate(xsub,ysub)
        else
+          xll = xll * (MAPL_PI_R8/180.d0)
+          yll = yll * (MAPL_PI_R8/180.d0)
           Trans%CubeTrans =  CubeLatLonCreate(N_in(1), N_in(2), N_out(1), N_out(2), xll, yll, .false. , rc=STATUS)
           VERIFY_(STATUS)
        endif
@@ -1207,6 +1218,8 @@ contains
 
           if (Trans%order == MAPL_HorzTransOrderSample) then
              call MAPL_RegridConservativeRun(Trans%consrvTrans, QIN, QOUT, SAMPLE=.true., rc=STATUS )
+          else if (Trans%order == MAPL_HorzTransOrderFraction) then
+             call MAPL_RegridConservativeRun(Trans%consrvTrans, QIN, QOUT, GETFRAC=Trans%val, rc=STATUS )
           else
              call MAPL_RegridConservativeRun(Trans%consrvTrans, QIN, QOUT, rc=STATUS )
           endif
@@ -1406,8 +1419,8 @@ contains
 
        InputIsLL = Trans%gridtypeOut == 'Cubed-Sphere'
 
-       RotateBefore = .true.
-       RotateAfter  = .true.
+       RotateBefore = InputIsLL
+       RotateAfter  = .not.InputIsLL
 
        if(present(Rotate)) then
           if(.not.Rotate) then
@@ -1418,6 +1431,9 @@ contains
                 RotateAfter  = .true.
                 RotateBefore = .false.
              end if
+         else
+             RotateBefore = .true.
+             RotateAfter  = .true.
           end if
        end if
 
@@ -2642,12 +2658,13 @@ contains
 
   end subroutine MAPL_RegridConservativeDestroy
 
-  subroutine MAPL_RegridConservativeRun(ConsrvTrans, INPUT, OUTPUT,SAMPLE, RC)
+  subroutine MAPL_RegridConservativeRun(ConsrvTrans, INPUT, OUTPUT,SAMPLE, GETFRAC, RC)
 ! args
     type(MAPL_RegridConserv), TARGET :: ConsrvTrans
     real,              intent(IN   ) :: INPUT(:,:)
     real,              intent(INOUT) :: OUTPUT(:,:)
     logical, optional, intent(IN   ) :: SAMPLE
+    integer, optional, intent(IN   ) :: GETFRAC
     integer, optional, intent(  OUT) :: RC
 
 ! local args
@@ -2660,6 +2677,9 @@ contains
     real                            :: W, VALI
     logical                         :: uSAMPLE
     integer                         :: ii1,ii2, jj1,jj2
+    real                            :: GetFrac_
+    logical                         :: doFrac
+    real, parameter                 :: eps = 1.0e-4
     
 
 ! Aliases
@@ -2680,6 +2700,12 @@ contains
        uSAMPLE = SAMPLE
     else
        uSAMPLE = .false.
+    end if
+    if (present(GETFRAC)) then
+       doFrac = .true.
+       GetFrac_ = GETFRAC
+    else
+       doFrac = .false.
     end if
 
     II1 = lbound(OUTPUT,1)
@@ -2710,6 +2736,11 @@ contains
                 OUTPUT(IO,JO) = VALI
                 FF    (IO,JO) = W
              end if
+          else if (doFrac) then
+             if (VALI .gt. GetFrac_-eps .and. VALI .lt. GetFrac_+eps) then
+                OUTPUT(IO,JO) = OUTPUT(IO,JO)+W
+             end if
+             FF(IO,JO)=FF(IO,JO)+W
           else
              OUTPUT(IO,JO) = OUTPUT(IO,JO) + W * VALI
              FF    (IO,JO) = FF    (IO,JO) + W

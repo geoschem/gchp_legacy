@@ -1,5 +1,5 @@
 
-// $Id$
+// $Id: hash.c,v 1.11 2014-11-12 21:06:31 atrayano Exp $
 
 #ifndef sysAIX
 #include <stdio.h>
@@ -35,7 +35,7 @@ void init_hash(hash_t *h, int nbuckets) {
 
   h->bucket_list = (bucket_t *)malloc((size_t)(nbuckets*sizeof(bucket_t)));
   if(!h->bucket_list) {
-    printf("hash.c $Name$ line=%d : Could not allocate bucket list\n",__LINE__);
+    printf("hash.c $Name: Heracles-UNSTABLE $ line=%d : Could not allocate bucket list\n",__LINE__);
     exit(1);
   }
   for(l=0; l<nbuckets; l++) {
@@ -52,7 +52,7 @@ void init_bucket(bucket_t *b) {
   b->next_entry = 0;
   b->entry_list = (entry_t *)malloc((size_t)(b->size*sizeof(entry_t)));
   if(!b->entry_list) {
-    printf("hash.c $Name$ line=%d : Could not allocate entry list\n",__LINE__);
+    printf("hash.c $Name: Heracles-UNSTABLE $ line=%d : Could not allocate entry list\n",__LINE__);
     exit(1);
   }
 }
@@ -68,7 +68,7 @@ int create_hash(int nbuckets)
   if(!hash_heap) {
     hash_heap = (hash_t *)malloc(hash_heap_size*sizeof(hash_t));
     if(!hash_heap) {
-      printf("hash.c $Name$ line=%d : Could not allocate hash_heap\n",__LINE__);
+      printf("hash.c $Name: Heracles-UNSTABLE $ line=%d : Could not allocate hash_heap\n",__LINE__);
       exit(1);
     }
     for(i=0;i<hash_heap_size;i++) hash_heap[i].bucket_list=(bucket_t *)NULL;
@@ -89,7 +89,7 @@ int create_hash(int nbuckets)
       (hash_t *)realloc(hash_heap,sizeof(hash_t)*(hash_heap_size+=HEAPCHUNK));
 
     if(!hash_heap) {
-      printf("hash.c $Name$ line=%d : Could not expand hash_heap\n",__LINE__);
+      printf("hash.c $Name: Heracles-UNSTABLE $ line=%d : Could not expand hash_heap\n",__LINE__);
       exit(1);
     }
 
@@ -109,10 +109,10 @@ void destroy_hash(int h)
   int i;
 
   if(!hash_heap) {
-    printf("hash.c $Name$ line=%d : Attempt to destroy hash from empty heap\n",__LINE__);
+    printf("hash.c $Name: Heracles-UNSTABLE $ line=%d : Attempt to destroy hash from empty heap\n",__LINE__);
     exit(1);
   } else if(!hash_heap[h].bucket_list) {
-    printf("hash.c $Name$ line=%d : Attempt to destroy uninitalized hash\n",__LINE__);
+    printf("hash.c $Name: Heracles-UNSTABLE $ line=%d : Attempt to destroy uninitalized hash\n",__LINE__);
     exit(1);
   } else { 
     for(i=0;i<hash_heap[h].num_buckets;i++) {
@@ -185,12 +185,12 @@ int increment_hash(int h, int i, int j, int k)
 
   if(!hash_heap) {
 
-    printf("hash.c $Name$ line=%d : Attempt to increment hash from empty heap\n",__LINE__);
+    printf("hash.c $Name: Heracles-UNSTABLE $ line=%d : Attempt to increment hash from empty heap\n",__LINE__);
     exit(1);
 
   } else if(!(hash_heap[h].bucket_list)) {
 
-    printf("hash.c $Name$ line=%d : Attempt to increment uninitalized hash %d i=%d j=%d %ld\n",
+    printf("hash.c $Name: Heracles-UNSTABLE $ line=%d : Attempt to increment uninitalized hash %d i=%d j=%d %ld\n",
 	   __LINE__,h,i,j,hash_heap[h].bucket_list);
     exit(1);
 
@@ -233,7 +233,7 @@ int increment_hash(int h, int i, int j, int k)
 	bucket->entry_list = 
 	  (entry_t *)realloc(bucket->entry_list,sizeof(entry_t)*bucket->size);
 	if(!bucket->entry_list) {
-	  printf("hash.c $Name$ %d : Could not reallocate entry list\n",__LINE__);
+	  printf("hash.c $Name: Heracles-UNSTABLE $ %d : Could not reallocate entry list\n",__LINE__);
 	  exit(1);
 	}
       }

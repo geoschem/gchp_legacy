@@ -115,6 +115,7 @@
        module procedure MAPL_AllocNodeArray_2DR8
        module procedure MAPL_AllocNodeArray_3DR8
        module procedure MAPL_AllocNodeArray_4DR8
+       module procedure MAPL_AllocNodeArray_5DR8
     end interface
 
     interface MAPL_DeAllocNodeArray
@@ -130,6 +131,7 @@
        module procedure MAPL_DeAllocNodeArray_2DR8
        module procedure MAPL_DeAllocNodeArray_3DR8
        module procedure MAPL_DeAllocNodeArray_4DR8
+       module procedure MAPL_DeAllocNodeArray_5DR8
     end interface
    
     interface MAPL_BroadcastToNodes
@@ -492,6 +494,24 @@
       RETURN_(SHM_SUCCESS)
     end subroutine MAPL_DeAllocNodeArray_4DR8
 
+    subroutine MAPL_DeAllocNodeArray_5DR8(Ptr,rc)
+      real*8,  pointer               :: Ptr(:,:,:,:,:)
+      integer, optional, intent(OUT) :: rc
+
+      type(c_ptr) :: Caddr
+      integer     :: STATUS
+
+      if(.not.MAPL_ShmInitialized) then
+         RETURN_(MAPL_NoShm)
+      endif
+
+      Caddr = C_Loc(Ptr(lbound(Ptr,1),lbound(Ptr,2),lbound(Ptr,3),lbound(Ptr,4),lbound(Ptr,5)))
+      call ReleaseSharedMemory(Caddr,rc=STATUS)
+      VERIFY_(STATUS)
+
+      RETURN_(SHM_SUCCESS)
+    end subroutine MAPL_DeAllocNodeArray_5DR8    
+
     subroutine MAPL_AllocNodeArray_1DL4(Ptr, Shp, lbd, rc)
       logical, pointer,  intent(INOUT) :: Ptr(:)
       integer,           intent(IN   ) :: Shp(1)
@@ -723,7 +743,7 @@
       VERIFY_(STATUS)
 
       call c_f_pointer(Caddr, Ptr, Shp) ! C ptr to Fortran ptr
-      ASSERT_(size(Ptr)==len)
+!      ASSERT_(size(Ptr)==len)   ! Thomas Clune suggested that this ASSERT is unnecessary.
 
       if(present(lbd)) Ptr(lbd(1):) => Ptr
 
@@ -808,6 +828,32 @@
 
       RETURN_(SHM_SUCCESS)
     end subroutine MAPL_AllocNodeArray_4DR8
+
+    subroutine MAPL_AllocNodeArray_5DR8(Ptr, Shp, lbd, rc)
+      real*8, pointer,   intent(INOUT) :: Ptr(:,:,:,:,:)
+      integer,           intent(IN   ) :: Shp(5)
+      integer, optional, intent(IN   ) :: lbd(5)
+      integer, optional, intent(  OUT) :: rc
+
+      type(c_ptr) :: Caddr
+      integer len, STATUS
+
+      if(.not.MAPL_ShmInitialized) then
+         RETURN_(MAPL_NoShm)
+      endif
+
+      len=product(Shp)*2
+
+      call GetSharedMemory(Caddr, len, rc=STATUS)
+      VERIFY_(STATUS)
+
+      call c_f_pointer(Caddr, Ptr, Shp) ! C ptr to Fortran ptr
+      ASSERT_(all(shape(Ptr)==Shp))
+
+!     if(present(lbd)) Ptr(lbd(1):,lbd(2):,lbd(3):,lbd(4):,lbd(5):) => Ptr
+
+      RETURN_(SHM_SUCCESS)
+    end subroutine MAPL_AllocNodeArray_5DR8    
 
 
     subroutine MAPL_AllocateShared_1DL4(Ptr, Shp, lbd, TransRoot, rc)
@@ -1384,7 +1430,12 @@
       end do
       NumColors = n
       MAPL_NumNodes = NumColors
-      MAPL_MyNodeNum = colors(ranks(rank+1)+1)
+      do i=1,size(ranks)
+         if (ranks(i) == rank) then 
+            MAPL_MyNodeNum = colors(i)
+            exit
+         end if
+      end do
 
       newNode(NumColors+1) = npes+1
       allocate(MAPL_NodeRankList(NumColors), stat=status)

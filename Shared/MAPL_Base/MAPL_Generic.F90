@@ -1,4 +1,4 @@
-!  $Id$
+!  $Id: MAPL_Generic.F90,v 1.115 2016-04-25 18:53:52 atrayano Exp $
 
 #include "MAPL_ErrLog.h"
 #define GET_POINTER ESMFL_StateGetPointerToData
@@ -105,7 +105,6 @@ module MAPL_GenericMod
   use ESMFL_Mod
   use MAPL_BaseMod
   use MAPL_IOMod
-  use MAPL_CFIOMod
   use MAPL_ProfMod
   use MAPL_MemUtilsMod
   use MAPL_CommsMod
@@ -258,6 +257,7 @@ module MAPL_GenericMod
      module procedure MAPL_DoNotConnect
      module procedure MAPL_DoNotConnectMany
      module procedure MAPL_DoNotConnectAnyImport
+     module procedure MAPL_TerminateImportAllBut
      module procedure MAPL_TerminateImportAll
   end interface
   
@@ -4327,6 +4327,56 @@ end function MAPL_AddChildFromGC
     RETURN_(ESMF_SUCCESS)
   end subroutine MAPL_DoNotConnectAnyImport
 
+  !BOPI
+  ! !IIROUTINE: MAPL_TerminateImportAll --- Terminate import all except those specified
+
+  !INTERFACE:
+  subroutine MAPL_TerminateImportAllBut ( GC, SHORT_NAMES, CHILD_IDS, RC )
+
+    !ARGUMENTS:
+    type(ESMF_GridComp),            intent(INOUT) :: GC ! Gridded component
+    character(len=*),               intent(IN   ) :: SHORT_NAMES(:)
+    integer,                        intent(IN   ) :: CHILD_IDS(:)
+    integer,              optional, intent(  OUT) :: RC     ! Error code:
+    !EOPI
+
+    character(len=ESMF_MAXSTR), parameter :: IAm="MAPL_TerminateImportAllBut"
+    integer                               :: STATUS
+    type(MAPL_MetaComp), pointer          :: META
+    type(MAPL_MetaComp), pointer          :: META_CHILD
+    character(len=ESMF_MAXSTR)            :: SHORT_NAME
+    integer                               :: I,J
+    logical                               :: SKIP
+    character(len=ESMF_MAXSTR), allocatable :: SNAMES(:)
+
+    ASSERT_(size(SHORT_NAMES)==size(CHILD_IDS))
+
+    call MAPL_GetObjectFromGC(GC, META, RC=STATUS)
+    VERIFY_(STATUS)
+
+    allocate(SNAMES(size(SHORT_NAMES)))
+    do I=1, size(SHORT_NAMES(:))
+       SNAMES(I) = trim(SHORT_NAMES(I))
+    enddo
+
+    if (associated(META%GCS)) then
+       do I=1, size(META%GCS)
+          call MAPL_GetObjectFromGC(META%GCS(I), META_CHILD, RC=STATUS)
+          VERIFY_(STATUS)
+          do J=1 ,size(META_CHILD%Import_Spec)
+             call MAPL_VarSpecGet(META_CHILD%Import_Spec(J),SHORT_NAME=SHORT_NAME,RC=STATUS)
+             SKIP = ANY(SNAMES==TRIM(SHORT_NAME)) .and. (ANY(CHILD_IDS==I))
+             if (.not.SKIP) then
+                call MAPL_DoNotConnect(GC, SHORT_NAME, I, RC=status)
+                VERIFY_(STATUS)
+             end if
+          enddo
+       end do
+    end if
+
+    deallocate(SNAMES)
+    RETURN_(ESMF_SUCCESS)
+  end subroutine MAPL_TerminateImportAllBut
 
   !BOPI
   ! !IIROUTINE: MAPL_TerminateImportAll --- Terminate import all

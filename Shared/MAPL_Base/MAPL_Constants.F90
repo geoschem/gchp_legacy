@@ -1,6 +1,6 @@
 module MAPL_ConstantsMod
 
-!  $Id$
+!  $Id: MAPL_Constants.F90,v 1.6.74.1 2015-07-24 21:05:48 sakella Exp $
 
 implicit none
 private

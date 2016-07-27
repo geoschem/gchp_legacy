@@ -17,7 +17,7 @@
 
 module MAPL_HorzTransMod
 
-!  $Id$
+!  $Id: HorzBinning.F90,v 1.5 2007-02-09 02:52:08 trayanov Exp $
 
   implicit none
   private

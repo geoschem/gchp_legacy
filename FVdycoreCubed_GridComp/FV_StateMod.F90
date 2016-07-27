@@ -2056,6 +2056,14 @@ subroutine fv_computeMassFluxes(ucI, vcI, ple, mfx, mfy, cx, cy, dt)
   real(REAL8) :: cmax, frac
   integer     :: it, nsplt
 
+      !--------------------------------------------
+      ! Initialize uc and vc to zero to avoid
+      ! accessing non initialized ghost zone values.
+      !---------------------------------------------
+      uc = 0.0d0
+      vc = 0.0d0
+
+
 ! Fill Ghosted arrays and update halos
   uc(is:ie,js:je,:) = ucI
   vc(is:ie,js:je,:) = vcI
