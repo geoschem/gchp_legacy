@@ -1944,6 +1944,9 @@ CONTAINS
 
     ! Initialize everything to zero (from registry file)?
     INTEGER                      :: InitZero 
+
+    ! Initialize from GC Classic restart file (see registry file)?
+    INTEGER                      :: InitGCC
  
     ! For HEMCO
     TYPE(HCO_STATE),     POINTER :: HcoState => NULL()
@@ -2228,6 +2231,69 @@ CONTAINS
              write(*,*) ' '
           ENDIF
        ENDIF
+       CALL ESMF_ConfigGetAttribute( GeosCF, InitGCC, Default=0, &
+                                     Label = "INIT_GCC:", __RC__ ) 
+       If ( InitGCC == 1 ) Then
+          If (am_I_Root) Write(6,'(a)') 'Attempting initialization from GC-Classic NetCDF restart file'
+          !=============================================================================================
+          ! Comment out the second section of this code once State_Chm%Tracers
+          ! has been removed. Need both sections for now to ensure that 
+          ! tracers such as SO4s are found.
+          !=============================================================================================
+          ! For every species in State_Chm, try to find an ExtData field
+          J = 0 ! Number of SPECIES read in from restart
+          L = 0 ! Number of TRACERS read in from restart
+          DO I = 1, SIZE(State_Chm%Spec_ID,1)
+
+             ! Skip if empty
+             IF ( TRIM(State_Chm%Spec_Name(I)) == '' ) Cycle
+             If ( State_Chm%Spec_ID(I).le.0) Cycle
+
+             ! Is this a tracer?
+             IND = Get_Indx( TRIM(State_Chm%Spec_Name(I)), State_Chm%Trac_Id, State_Chm%Trac_Name )
+
+             ! Does TRC_NAME exist in the import state as GCC_NAME?
+             CALL MAPL_GetPointer ( IMPORT, Ptr3D, 'GCC_'//TRIM(State_Chm%Spec_Name(I)), notFoundOK=.TRUE., __RC__ )
+             If (Associated(Ptr3D)) Then
+                If (Ind.gt.0)  Then
+                   If (am_I_Root) Write(6,'(a40,a10)') ' ### Reading TRC/SPC from GCC restart: ', TRIM(State_Chm%Spec_Name(I))
+                   State_Chm%Tracers(:,:,:,IND) = Ptr3D(:,:,LM:1:-1)
+                   L = L + 1
+                Else
+                   If (am_I_Root) Write(6,'(a40,a10)') ' ### Reading SPECIES from GCC restart: ', TRIM(State_Chm%Spec_Name(I))
+                End If
+                State_Chm%Species(:,:,:,State_Chm%Spec_ID(I)) = Ptr3D(:,:,LM:1:-1)
+                J = J + 1
+                Ptr3D => NULL()
+             End If
+          End Do
+          !=============================================================================================
+          ! For every tracer in State_Chm, try to find an ExtData field
+          DO IND = 1, SIZE(State_Chm%Trac_ID,1)
+
+             ! Skip if empty
+             IF ( TRIM(State_Chm%Trac_Name(IND)) == '' ) Cycle
+
+             ! Is this a species?
+             I = Get_Indx( TRIM(State_Chm%Trac_Name(IND)), State_Chm%Spec_ID, State_Chm%Spec_Name )
+
+             ! Combined species/tracers already found in the previous loop
+             If (I.gt.0) Cycle
+
+             ! Does TRC_NAME exist in the import state as GCC_NAME?
+             CALL MAPL_GetPointer ( IMPORT, Ptr3D, 'GCC_'//TRIM(State_Chm%Trac_Name(IND)), notFoundOK=.TRUE., __RC__ )
+             If (Associated(Ptr3D)) Then
+                If (am_I_Root) Write(6,'(a40,a10)') ' ### Reading TRACER  from GCC restart: ', TRIM(State_Chm%Trac_Name(IND))
+                State_Chm%Tracers(:,:,:,State_Chm%Trac_ID(IND)) = Ptr3D(:,:,LM:1:-1)
+                L = L + 1
+                Ptr3D => NULL()
+             End If
+          End Do
+          !=============================================================================================
+          If (am_I_Root) Write(6,'(a,I4,a,I4,a)') ' ### Read in ', J, ' species and ', L, ' tracers from GCC restart'
+       Else
+          If (am_I_Root) Write(6,'(a)') 'GC-Classic NetCDF restart file will not be used for initialization'
+       End If
     ENDIF
 
     !=======================================================================
