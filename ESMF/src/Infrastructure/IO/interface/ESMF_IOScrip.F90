@@ -77,10 +77,10 @@
 ! !ARGUMENTS:
  
     character(len=*), intent(in)  :: filename
-    integer, intent(out), optional :: grid_size
-    integer, intent(out), optional :: grid_corners
+    integer, intent(inout), optional :: grid_size
+    integer, intent(inout), optional :: grid_corners
     integer, pointer, optional     :: grid_dims(:)
-    integer, intent(out), optional :: grid_rank
+    integer, intent(inout), optional :: grid_rank
     integer, intent(out), optional :: rc
 
     integer:: localrc, ncStatus
@@ -216,7 +216,7 @@ subroutine ESMF_ScripInqUnits(filename, units, rc)
 ! !ARGUMENTS:
 
     character(len=*), intent(in)   :: filename
-    character(len=*), intent(out)   :: units
+    character(len=*), intent(inout)   :: units
     integer, intent(out), optional :: rc
 
     integer:: localrc, ncStatus
@@ -1752,10 +1752,10 @@ subroutine ESMF_EsmfInq(filename, nodeCount, elementCount, &
 ! !ARGUMENTS:
 
     character(len=*), intent(in)   :: filename
-    integer, intent(out), optional :: nodeCount
-    integer, intent(out), optional :: elementCount
-    integer, intent(out), optional :: maxNodePElement
-    integer, intent(out), optional :: coordDim
+    integer, intent(inout), optional :: nodeCount
+    integer, intent(inout), optional :: elementCount
+    integer, intent(inout), optional :: maxNodePElement
+    integer, intent(inout), optional :: coordDim
     integer, intent(out), optional :: rc
 
     integer:: localrc, ncStatus
@@ -1857,7 +1857,7 @@ subroutine ESMF_EsmfInqUnits(filename, units, rc)
 ! !ARGUMENTS:
 
     character(len=*), intent(in)   :: filename
-    character(len=*), intent(out)   :: units
+    character(len=*), intent(inout)   :: units
     integer, intent(out), optional :: rc
 
     integer:: localrc, ncStatus
@@ -1920,7 +1920,7 @@ subroutine ESMF_GetMeshFromFile (filename, nodeCoords, elementConn, &
     real(ESMF_KIND_R8), pointer    :: nodeCoords (:,:)
     integer(ESMF_KIND_I4), pointer :: elementConn (:,:)
     integer(ESMF_KIND_I4), pointer :: elmtNums (:)
-    integer,           intent(out) :: startElmt
+    integer,           intent(inout) :: startElmt
     logical, intent(in), optional  :: convertToDeg
     integer, intent(out), optional :: rc
 

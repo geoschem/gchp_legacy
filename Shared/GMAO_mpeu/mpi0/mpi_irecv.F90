@@ -20,7 +20,7 @@
       integer,             intent(in) :: tag
       integer,		   intent(in) :: comm
       integer,             intent(out):: request
-      integer,		   intent(out):: ierror
+      integer,		   intent(inout):: ierror
 
 ! !REVISION HISTORY:
 ! 	04Jun02	- Tom Clune <Thomas.L.Clune.1@gsfc.nasa.gov>

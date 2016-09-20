@@ -149,7 +149,7 @@ contains
 !===================================================================
 
   logical function MAPL_LocStreamIsAssociated(LocStream, RC)
-    type(MAPL_LocStream),                 intent(IN   ) :: LocStream
+    type(MAPL_LocStream),                 intent(INOUT) :: LocStream
     integer, optional,                    intent(  OUT) :: RC  
     
     character(len=ESMF_MAXSTR) :: IAm='MAPL_LocStreamIsAssocited'
@@ -183,7 +183,7 @@ contains
                                TILEGRID, &
                                GRIDIM, GRIDJM, GRIDNAMES, &
                                ATTACHEDGRID, LOCAL_ID, RC)
-    type(MAPL_LocStream),                 intent(IN   ) :: LocStream
+    type(MAPL_LocStream),                 intent(INOUT) :: LocStream
     integer, optional,                    intent(  OUT) :: NT_LOCAL  
     integer, optional,                    pointer       :: TILETYPE(:)
     integer, optional,                    pointer       :: TILEKIND(:)
@@ -1668,8 +1668,8 @@ contains
 
     !ARGUMENTS:
     type(ESMF_Field),          intent(OUT) :: OUTPUT
-    type(ESMF_Field),          intent(INout) :: INPUT
-    type(MAPL_LocStream),      intent(IN ) :: LocStream
+    type(ESMF_Field),          intent(INOUT) :: INPUT
+    type(MAPL_LocStream),      intent(INOUT) :: LocStream
     integer, optional,         intent(IN ) :: MASK(:)
     logical, optional,         intent(IN ) :: ISMINE(:), INTERP
     logical, optional,         intent(IN ) :: GLOBAL
@@ -1756,7 +1756,7 @@ contains
 end subroutine MAPL_LocStreamTransformField
 
 subroutine MAPL_LocStreamFracArea (LocStream, TYPE, AREA, RC )
-  type(MAPL_LocStream),      intent(IN ) :: LocStream
+  type(MAPL_LocStream),      intent(INOUT) :: LocStream
   integer,                   intent(IN ) :: TYPE
   real,                      intent(OUT) :: AREA(:,:)
   integer, optional,         intent(OUT) :: RC  
@@ -1803,7 +1803,7 @@ end subroutine MAPL_LocStreamFracArea
 subroutine MAPL_LocStreamTransformT2G (LocStream, OUTPUT, INPUT, MASK, SAMPLE, TRANSPOSE, RC )
   
   !ARGUMENTS:
-  type(MAPL_LocStream),      intent(IN ) :: LocStream
+  type(MAPL_LocStream),      intent(INOUT) :: LocStream
   real,                      intent(INOUT) :: OUTPUT(:,:)
   real,                      intent(INOUT) :: INPUT(:)
   logical, optional,         intent(IN ) :: MASK(:) 
@@ -1943,7 +1943,7 @@ subroutine MAPL_LocStreamTransformG2T ( LocStream, OUTPUT, INPUT,      &
                                         INTERP, TRANSPOSE, RC )
 
   !ARGUMENTS:
-  type(MAPL_LocStream),      intent(IN ) :: LocStream
+  type(MAPL_LocStream),      intent(INOUT) :: LocStream
   real,                      intent(INOUT) :: OUTPUT(:)
   real,                      intent(INOUT) :: INPUT(:,:)
   logical, optional,         intent(IN ) :: MASK(:), ISMINE(:), INTERP
@@ -2104,7 +2104,7 @@ subroutine MAPL_LocStreamTransformG2T ( LocStream, OUTPUT, INPUT,      &
 end subroutine MAPL_LocStreamTransformG2T
 
 subroutine MAPL_LocStreamTileWeight ( LocStream, OUTPUT, INPUT, RC )
-  type(MAPL_LocStream),      intent(IN ) :: LocStream
+  type(MAPL_LocStream),      intent(INOUT) :: LocStream
   real,                      intent(OUT) :: OUTPUT(:)
   real,                      intent(IN ) :: INPUT(:,:)
   integer, optional,         intent(OUT) :: RC  
@@ -2771,7 +2771,7 @@ end function GRIDINDEX
 
 subroutine MAPL_GridCoordAdjust(GRID, LOCSTREAM, RC)
   type(ESMF_Grid),               intent(INout ) :: Grid
-  type(MAPL_LocStream),          intent(IN ) :: Locstream
+  type(MAPL_LocStream),          intent(INOUT) :: Locstream
   integer, optional,             intent(OUT) :: RC  
 
 ! local vars

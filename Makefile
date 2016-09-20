@@ -66,15 +66,27 @@ HELP=$(ROOTDIR)/help
 LIB=$(ROOTDIR)/lib
 MOD=$(ROOTDIR)/mod
 
-# SDE 2016-03-26: The "include" command fails because it cannot find FC.
-export OLD_FC=$(FC)
-export FC=ifort
+# This code here should get the exact number of the intel version (MDY)
+INTELVERSIONTEXT :=$(shell ifort --version))
+INTELVERSIONTEXT :=$(sort $(INTELVERSIONTEXT))
+LONGVERSION      :=$(word 3, $(INTELVERSIONTEXT))
+MAJORVERSION     :=$(subst ., ,$(LONGVERSION))
+MAJORVERSION     :=$(firstword $(MAJORVERSION))
+MAJORVERSION     :=$(strip $(MAJORVERSION))
 
-# Include header file.  This returns variables CC, F90, FREEFORM, LD, R8,
-# as well as the default Makefile compilation rules for source code files.
-include $(ROOTDIR)/Makefile_header.mk
-
-export FC=$(OLD_FC)
+ifeq ($(MAJORVERSION),12)
+ # Include header file.  This returns variables CC, F90, FREEFORM, LD, R8,
+ # as well as the default Makefile compilation rules for source code files. 
+ include $(ROOTDIR)/Makefile_header.mk
+else
+ # SDE 2016-03-26: The "include" command fails because it cannot find FC.
+ export OLD_FC=$(FC)
+ export FC=ifort
+ # Include header file.  This returns variables CC, F90, FREEFORM, LD, R8,
+ # as well as the default Makefile compilation rules for source code files.
+ include $(ROOTDIR)/Makefile_header.mk
+ export FC=$(OLD_FC)
+endif
 
 # BASEDIR is a synonym for ROOTDIR
 ifndef BASEDIR
