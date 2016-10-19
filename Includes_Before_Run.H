@@ -37,6 +37,8 @@
 !  27 Oct 2014 - C. Keller   - Fill species only on first call (only those
 !                              that are not advected - others will be 
 !                              initialized from tracers).
+!  19 Oct 2016 - R. Yantosca - Now avoid out of bounds errors.  Also reference
+!                              MAPL pointers to edged data with (:,:,0:LM).
 !EOP
 !------------------------------------------------------------------------------
 !BOC
@@ -45,97 +47,112 @@
   ! Two-dimensional fields
   !=========================================================================
 
-  State_Met%ALBD       = ALBD                                ! unitless
-  State_Met%CLDFRC     = CLDFRC                              ! unitless
-  State_Met%HFLUX      = HFLUX                               ! W/m2
-  State_Met%FRCLND     = FRLAND                              ! unitless
-  State_Met%FRLAND     = FRLAND                              ! unitless
-  State_Met%FROCEAN    = FROCEAN                             ! unitless
-  State_Met%FRLAKE     = FRLAKE                              ! unitless
-  State_Met%FRLANDIC   = FRLANDIC                            ! unitless
-  State_Met%GWETTOP    = GWETTOP                             ! unitless
-  State_Met%LWI        = LWI                                 ! unitless
-  State_Met%PARDR      = PARDR                               ! W/m2
-  State_Met%PARDF      = PARDF                               ! W/m2
-  State_Met%PBLH       = PBLH                                ! m
-  State_Met%PRECCON    = PRECCON  * 86400d0                  ! kg/m2/s -> mm/day
-  State_Met%PRECTOT    = PRECTOT  * 86400d0                  ! kg/m2/s -> mm/day
-  State_Met%TROPP      = TROPP                               ! hPa
-  State_Met%PS1        = PS1                                 ! hPa
-  State_Met%TS         = TS                                  ! K
-  State_Met%TSKIN      = TSKIN                               ! K
-  State_Met%RADSWG     = RADSWG                              ! W/m2
-  State_Met%SNODP      = SNODP                               ! m
-  State_Met%SNOMAS     = SNOMAS                              ! kg/m2
-  State_Met%SST        = TS                                  ! K
-  State_Met%SUNCOS     = zenith                              ! unitless
-  State_Met%SUNCOSmid  = zenith                              ! unitless
-!  State_Met%SUNCOSmid5 = zenith                              ! unitless
-  State_Met%U10M       = U10M                                ! m/s
-  State_Met%USTAR      = USTAR                               ! m/s
-  State_Met%UVALBEDO   = ALBD   !*** NOTE Need to populate w/ real UVALBEDO ***
-  State_Met%V10M       = V10M                                ! m/s
-  State_Met%Z0         = Z0                                  ! m
+  State_Met%ALBD                = ALBD                       ! 1
+  State_Met%AREA_M2(:,:,1)      = AREA                       ! m2
+  State_Met%CLDFRC              = CLDFRC                     ! 1
+  State_Met%HFLUX               = HFLUX                      ! W/m2
+  State_Met%FRCLND              = FRLAND                     ! 1
+  State_Met%FRLAND              = FRLAND                     ! 1
+  State_Met%FROCEAN             = FROCEAN                    ! 1
+  State_Met%FRLAKE              = FRLAKE                     ! 1
+  State_Met%FRLANDIC            = FRLANDIC                   ! 1
+  State_Met%GWETTOP             = GWETTOP                    ! 1
+  State_Met%LWI                 = LWI                        ! 1
+  State_Met%PARDR               = PARDR                      ! W/m2
+  State_Met%PARDF               = PARDF                      ! W/m2
+  State_Met%PBLH                = PBLH                       ! m
+  State_Met%PRECCON             = PRECCON  * 86400d0         ! kg/m2/s -> mm/day
+  State_Met%PRECTOT             = PRECTOT  * 86400d0         ! kg/m2/s -> mm/day
+  State_Met%TROPP               = TROPP                      ! hPa
+  State_Met%PS1                 = PS1                        ! hPa
+  State_Met%TS                  = TS                         ! K
+  State_Met%TSKIN               = TSKIN                      ! K
+  State_Met%RADSWG              = RADSWG                     ! W/m2
+  State_Met%SNODP               = SNODP                      ! m
+  State_Met%SNOMAS              = SNOMAS                     ! kg/m2
+  State_Met%SST                 = TS                         ! K
+  State_Met%SUNCOS              = zenith                     ! unitless
+  State_Met%SUNCOSmid           = zenith                     ! 1
+  State_Met%U10M                = U10M                       ! m/s
+  State_Met%USTAR               = USTAR                      ! m/s
+  !**** NOTE Need to populate w/ real UVALBEDO ***
+  State_Met%UVALBEDO            = ALBD                       ! 1
+  State_Met%V10M                = V10M                       ! m/s
+  State_Met%Z0                  = Z0                         ! m
 
   ! Calculate the Monin-Obukhov Length
-  WHERE(ABS(State_Met%HFLUX) > 1.00E-32)
-    State_Met%MOLENGTH(:,:) = &
-         -AIRDENS(:,:,LM) * MAPL_CP * TS * ustar**3. / (MAPL_KARMAN * MAPL_GRAV * State_Met%HFLUX)
+  WHERE( ABS( State_Met%HFLUX ) > 1.00E-32 )
+     State_Met%MOLENGTH(:,:)    = -AIRDENS(:,:,LM) * MAPL_CP * TS * ustar**3. &
+                                / ( MAPL_KARMAN * MAPL_GRAV * State_Met%HFLUX )
   ELSEWHERE
-    State_Met%MOLENGTH(:,:) = 1.00E+05
-  END WHERE
+     State_Met%MOLENGTH(:,:)    = 1.00E+05
+  ENDWHERE
 
   ! Same LAI for all 50 biomes?!??
   DO I = 1, 50
-     State_Met%XLAI(:,:,I)  = LAI                                 ! unitless
+     State_Met%XLAI(:,:,I)      = LAI                        ! 1
   ENDDO
 
   !=========================================================================
   ! Three-dimensional fields on level edges
   !=========================================================================
-  DO L = 1, LM+1
-     
-     ! Reversed level index
-     LR = LM - L + 1
 
-     DO J = 1, JM
-     DO I = 1, IM
-        State_Met%PEDGE(I,J,L)   = PLE(  I, J, LR) / 1d2  ! Pa -> hPa (mb)
-        State_Met%CMFMC(I,J,L)   = CMFMC(I, J, L )        ! kg/m2/s
-        State_Met%DQRCU(I,J,L)   = DQRCU( I, J, L )
-        State_Met%PFICU(I,J,L)   = PFICU(I, J, L )
-        State_Met%PFILSAN(I,J,L) = PFILSAN(I, J, L )
-        State_Met%PFLCU(I,J,L)   = PFLCU(I, J, L )
-        State_Met%PFLLSAN(I,J,L) = PFLLSAN(I, J, L )
-     ENDDO
-     ENDDO
-  ENDDO
+  State_Met%CMFMC  (:,:,1:LM+1) = CMFMC  (:,:,0:LM   )       ! kg/m2/s
+  State_Met%PFICU  (:,:,1:LM+1) = PFICU  (:,:,0:LM   )       ! kg/m2/s
+  State_Met%PFILSAN(:,:,1:LM+1) = PFILSAN(:,:,0:LM   )       ! kg/m2/s
+  State_Met%PFLCU  (:,:,1:LM+1) = PFLCU  (:,:,0:LM   )       ! kg/m2/s
+  State_Met%PFLLSAN(:,:,1:LM+1) = PFLLSAN(:,:,0:LM   )       ! kg/m2/s 
 
+  ! NOTE: PLE is reversed in the vertical!
+  State_Met%PEDGE  (:,:,1:LM+1) = PLE    (:,:,LM:0:-1) / 1d2 ! Pa -> hPa
+ 
   !=========================================================================
   ! Three-dimensional fields on level centers
   !=========================================================================
+  State_Met%CLDF                = CLDF                       ! 1
+  State_Met%DTRAIN              = DTRAIN                     ! kg/m2/s
+  State_Met%DQRCU               = DQRCU                      ! kg/kg/s
+  State_Met%DQRLSAN             = DQRLSAN                    ! kg/kg/s
+  State_Met%QI                  = QI                         ! kg/kg
+  State_Met%QL                  = QL                         ! kg/kg
+  State_Met%RH                  = RH      * 1d2              ! 1 -> %
+  State_Met%SPHU                = SPHU1   * 1d3              ! kg/kg -> g/kg
+  State_Met%T                   = TMPU1                      ! K
+  State_Met%TAUCLI              = TAUCLI                     ! 1
+  State_Met%TAUCLW              = TAUCLW                     ! 1
+  State_Met%REEVAPCN            = REEVAPCN                   ! kg/kg/s
+  State_Met%REEVAPLS            = REEVAPLS                   ! kg/kg/s
 
-  State_Met%CLDF      = CLDF           ! unitless
-  State_Met%DTRAIN    = DTRAIN         ! kg/m2/s
-  State_Met%QI        = QI             ! kg/kg
-  State_Met%QL        = QL             ! kg/kg
-  State_Met%RH        = RH      * 1d2  ! unitless->[%]
-  State_Met%SPHU      = SPHU1   * 1d3  ! kg/kg -> g/kg
-  State_Met%T         = TMPU1          ! K
-  State_Met%TAUCLI    = TAUCLI         ! unitless
-  State_Met%TAUCLW    = TAUCLW         ! unitless
-  State_Met%REEVAPCN  = REEVAPCN
-  State_Met%REEVAPLS  = REEVAPLS
-  State_Met%DQRLSAN   = DQRLSAN
-
-        ! Total optical depth [unitless]
-  State_Met%OPTD      = ( State_Met%TAUCLI               &
-				 +   State_Met%TAUCLW  ) &
-                                 *   State_Met%CLDF
+  ! Create total optical depth field                         ! 1
+  State_Met%OPTD                = ( State_Met%TAUCLI    &
+                                +   State_Met%TAUCLW  ) &
+                                *   State_Met%CLDF
   
-  State_Met%AREA_M2 (:,:,1)  = AREA    ! m2
-
   ! Set the State_Chm units to v/v dry (restart file units)
+ 
+  !!### Debug printout
+  !IF ( am_I_root ) THEN
+  !   print*, '### LM      : ', LM
+  !   print*, '### CMFMC    ', State_Met%CMFMC   (10,10,:)
+  !   print*, '### PFICU    ', State_Met%PFICU   (10,10,:)
+  !   print*, '### PFILSAN  ', State_Met%PFILSAN (10,10,:)
+  !   print*, '### PFLCU    ', State_Met%PFLCU   (10,10,:)
+  !   print*, '### PFLLSAN  ', State_Met%PFLLSAN (10,10,:)
+  !   print*, '### PEDGE    ', State_Met%PEDGE   (10,10,:)
+  !   print*, '### CLDF     ', State_Met%CLDF    (10,10,:) 
+  !   print*, '### DTRAIN   ', State_Met%DTRAIN  (10,10,:) 
+  !   print*, '### DQRCU    ', State_Met%DQRCU   (10,10,:) 
+  !   print*, '### DQRLSAN  ', State_Met%DQRLSAN (10,10,:) 
+  !   print*, '### QI       ', State_Met%QI      (10,10,:) 
+  !   print*, '### QL       ', State_Met%QL      (10,10,:) 
+  !   print*, '### RH       ', State_Met%RH      (10,10,:) 
+  !   print*, '### SPHU     ', State_Met%SPHU    (10,10,:) 
+  !   print*, '### T        ', State_Met%T       (10,10,:) 
+  !   print*, '### OPTD     ', State_Met%OPTD    (10,10,:)
+  !   print*, '### REEVAPCN ', State_Met%REEVAPCN(10,10,:) 
+  !   print*, '### REEVAPLS ', State_Met%REEVAPLS(10,10,:) 
+  !   print*, '### AREA_M2  ', State_Met%AREA_M2 (10,10,1)
+  !ENDIF
 
   !=========================================================================
   ! Pass advected tracers from internal state to GEOS-Chem tracers array
