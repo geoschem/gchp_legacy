@@ -298,6 +298,7 @@ CONTAINS
     USE Diagnostics_Mod,    ONLY : Diagnostics_Write
     USE EMISSIONS_MOD,      ONLY : EMISSIONS_RUN
     USE UVALBEDO_MOD,       ONLY : GET_UVALBEDO
+    USE Strat_Chem_Mod,     ONLY : Set_Init_Conc_Strat_Chem
 
 !    ! HEMCO update
     USE HCO_ERROR_MOD
@@ -385,6 +386,8 @@ CONTAINS
 !  14 Oct 2014 - C. Keller   - Various updates to include drydep and emissions
 !                              to tracer arrays, etc.
 !  26 Nov 2014 - C. Keller   - Added IsChemTime variable.
+!  19 Oct 2016 - R. Yantosca - Now call Set_Init_Cond_Strat_Chem after the
+!                              1st call to AIRQNT to save initial conditions
 !EOP
 !------------------------------------------------------------------------------
 !BOC
@@ -570,7 +573,20 @@ CONTAINS
     CALL Set_Floating_Pressure( State_Met%PS1 )
 #endif 
 
+    ! Define airmass and related quantities
     CALL AirQnt( am_I_Root, Input_opt, State_Met, State_Chm, RC, (.not.FIRST) )
+
+    ! Save the initial tracer concentrations in the MINIT variable of
+    ! GeosCore/strat_chem_mod.F90.  This has to be done here, after the
+    ! very first call to AIRQNT, because we need State_Chm%AD to have been
+    ! populated with non-zero values.  Otherwise the unit conversions will
+    ! blow up and cause GCHP to crash. (bmy, 10/19/16)
+    IF ( FIRST ) THEN
+       IF ( Input_Opt%LSCHEM ) THEN
+          CALL Set_Init_Conc_Strat_Chem( am_I_Root, Input_Opt,     &
+                                         State_Met, State_Chm, RC )
+       ENDIF
+    ENDIF
 
     ! Cap the polar tropopause pressures at 200 hPa, in order to avoid
     ! tropospheric chemistry from happening too high up (cf. J. Logan)

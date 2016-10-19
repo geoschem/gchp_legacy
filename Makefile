@@ -74,28 +74,6 @@ MAJORVERSION     :=$(subst ., ,$(LONGVERSION))
 MAJORVERSION     :=$(firstword $(MAJORVERSION))
 MAJORVERSION     :=$(strip $(MAJORVERSION))
 
-#------------------------------------------------------------------------------
-# Prior to 10/17/16:
-# We have now fixed an issue in the Makefile_header.mk, which will set the
-# compile command to "mpifort" if HPC=yes.  This was not being done previously,
-# which is why Seb implemented the kludge below. (bmy, 10/17/16)
-#ifeq ($(MAJORVERSION),12)
-# # Include header file.  This returns variables CC, F90, FREEFORM, LD, R8,
-# # as well as the default Makefile compilation rules for source code files. 
-# include $(ROOTDIR)/Makefile_header.mk
-#else
-## NOTE: Comment this out to get it to work on Acenet, and also
-## set the FC as mpifort etc. in the .my_personal_settings.  Not sure why.
-### SDE 2016-03-26: The "include" command fails because it cannot find FC.
-##export OLD_FC=$(FC)
-##export FC=ifort
-# # Include header file.  This returns variables CC, F90, FREEFORM, LD, R8,
-# # as well as the default Makefile compilation rules for source code files.
-# include $(ROOTDIR)/Makefile_header.mk
-##export FC=$(OLD_FC)
-#endif
-#------------------------------------------------------------------------------
-
 # Include header file.  This returns variables CC, F90, FREEFORM, LD, R8,
 # as well as the default Makefile compilation rules for source code files.
 include $(ROOTDIR)/Makefile_header.mk
