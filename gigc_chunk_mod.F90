@@ -20,7 +20,6 @@ MODULE GIGC_Chunk_Mod
 !      
   USE MAPL_MOD
   use ESMF
-!  USE Mapping_Mod, ONLY : MapWeight
 
   IMPLICIT NONE
   PRIVATE
@@ -66,9 +65,6 @@ MODULE GIGC_Chunk_Mod
 
   ! Derived type object for saving concentration diagnostics
   TYPE(GC_DIAG)                 :: DIAG_COL
-
-  ! Derived type objects
-!  TYPE(MapWeight),      POINTER :: mapping(:,:) => NULL()
 
 CONTAINS
 !EOC
@@ -207,7 +203,6 @@ CONTAINS
                                State_Chm      = State_Chm,  & ! Chemistry State
                                State_Met      = State_Met,  & ! Met State
                                myPET          = myPET,      & ! Local PET
-!                               mapping        = mapping,    & ! Olson map wts
                                RC             = RC         )  ! Success?
     ASSERT_(RC==GIGC_SUCCESS)
 
@@ -299,6 +294,7 @@ CONTAINS
     USE EMISSIONS_MOD,      ONLY : EMISSIONS_RUN
     USE UVALBEDO_MOD,       ONLY : GET_UVALBEDO
     USE Strat_Chem_Mod,     ONLY : Set_Init_Conc_Strat_Chem
+    USE MODIS_LAI_Mod,      ONLY : Compute_Modis_GCHP
 
 !    ! HEMCO update
     USE HCO_ERROR_MOD
@@ -388,6 +384,7 @@ CONTAINS
 !  26 Nov 2014 - C. Keller   - Added IsChemTime variable.
 !  19 Oct 2016 - R. Yantosca - Now call Set_Init_Cond_Strat_Chem after the
 !                              1st call to AIRQNT to save initial conditions
+!  01 Dec 2016 - E. Lundgren - Calculate LAI using new routine for GCHP
 !EOP
 !------------------------------------------------------------------------------
 !BOC
@@ -564,6 +561,10 @@ CONTAINS
     ! Set HEMCO time
     CALL SetHcoTime ( am_I_Root, DoEmis, RC )
 
+    ! Calculate MODIS leaf area indexes needed for dry deposition
+    ! (passing false as 2nd arg calculates chlorophyll-a instead)
+    CALL Compute_Modis_GCHP( am_I_Root, .TRUE., State_Met, RC )
+
     ! Set the pressure at level edges [hPa] from the ESMF environment
     CALL Accept_External_Pedge    ( am_I_Root      = am_I_Root,  &
                                     State_Met      = State_Met,  &
@@ -611,7 +612,8 @@ CONTAINS
             CALL Convert_VVDry_to_KgKgDry( am_I_Root, Input_Opt,&
                                             State_Chm, RC )
         Case Default
-            Write(6,'(a,a,a)') 'Tracer units (', State_Chm%Trac_Units, ') not recognized'
+            Write(6,'(a,a,a)') 'Tracer units (', State_Chm%Trac_Units, &
+                               ') not recognized'
             RC = GIGC_FAILURE
             ASSERT_(RC==GIGC_SUCCESS)
     End Select
@@ -619,7 +621,8 @@ CONTAINS
     
     ! SDE 05/28/13: Set H2O to STT if relevant
     IF ( IDTH2O > 0 ) THEN
-       CALL SET_H2O_TRAC( am_I_Root, ((.NOT. Input_Opt%LUCX) .OR. Input_Opt%LSETH2O ), &
+       CALL SET_H2O_TRAC( am_I_Root,                                &
+                  ((.NOT. Input_Opt%LUCX) .OR. Input_Opt%LSETH2O ), &
                           Input_Opt, State_Met, State_Chm, RC )
        ! Only force strat once if using UCX
        IF (Input_Opt%LSETH2O) Input_Opt%LSETH2O = .FALSE.
@@ -702,9 +705,6 @@ CONTAINS
           CellUnit = Kg_Type
        ENDIF
 
-       ! Update & Remap Land-type arrays from Surface Grid-component
-       !CALL GEOS5_TO_OLSON_LANDTYPE_REMAP( State_Met, RC )    
-    
        ! Calculate drydep rates 
        CALL Do_DryDep   ( am_I_Root = am_I_Root,            & ! Root CPU?
                           Input_Opt = Input_Opt,            & ! Input Options
@@ -746,7 +746,8 @@ CONTAINS
        ENDIF
 
        ! Call HEMCO run interface 
-       CALL EMISSIONS_RUN ( am_I_Root, Input_Opt, State_Met, State_Chm, DoEmis, Phase, RC )
+       CALL EMISSIONS_RUN ( am_I_Root, Input_Opt, State_Met, &
+                            State_Chm, DoEmis, Phase, RC )
        ASSERT_(RC==GIGC_SUCCESS)
 
        ! Timer off
@@ -772,7 +773,8 @@ CONTAINS
        CALL MAPL_TimerOn( STATE, 'GC_FLUXES' )
 
        ! testing only
-       if(am_I_Root.and.NCALLS<10) write(*,*) ' --- Add emissions and drydep to tracers'
+       if(am_I_Root.and.NCALLS<10) write(*,*)   &
+                           ' --- Add emissions and drydep to tracers'
  
        ! Make sure tracers are in v/v
        IF ( CellUnit.ne.VVDry_Type ) Then
@@ -793,14 +795,17 @@ CONTAINS
        HcoState => NULL()
 
        ! Apply tendencies over entire PBL. Use emission time step.
-       CALL DO_TEND ( am_I_Root, Input_Opt, State_Met, State_Chm, .FALSE., RC, DT=DT )
+       CALL DO_TEND ( am_I_Root, Input_Opt, State_Met, State_Chm,  &
+                      .FALSE., RC, DT=DT )
        ASSERT_(RC==GIGC_SUCCESS)
 
        ! testing only
-       if(am_I_Root.and.NCALLS<10) write(*,*) '     Tendency time step [s]: ', DT 
+       if(am_I_Root.and.NCALLS<10) write(*,*)   &
+                                 '     Tendency time step [s]: ', DT 
  
        ! testing only
-       if(am_I_Root.and.NCALLS<10) write(*,*) ' --- Fluxes applied to tracers!' 
+       if(am_I_Root.and.NCALLS<10) write(*,*)   &
+                                 ' --- Fluxes applied to tracers!' 
  
        ! Timer off
        CALL MAPL_TimerOff( STATE, 'GC_FLUXES' )
@@ -841,8 +846,9 @@ CONTAINS
           CellUnit = KgKgDry_Type
        ENDIF
 
-       ! Do mixing and apply tendencies. This will use the dynamic time step, which
-       ! is fine since this call will be executed on every time step. 
+       ! Do mixing and apply tendencies. This will use the dynamic time 
+       ! step, which is fine since this call will be executed on every 
+       ! time step. 
        CALL DO_MIXING ( am_I_Root, Input_Opt, State_Met, State_Chm, RC )
        ASSERT_(RC==GIGC_SUCCESS)
 
@@ -877,10 +883,10 @@ CONTAINS
        ENDIF
 
        ! Write JLOP_PREVIOUS into JLOP to make sure that JLOP contains 
-       ! the current values of JLOP_PREVIOUS. In chemdr.F, JLOP_PREVIOUS is filled 
-       ! with JLOP before resetting JLOP to current values and we simply want to 
-       ! make sure that JLOP_PREVIOUS is not set to zero everywhere on the first
-       ! call (when JLOP is still all zero).
+       ! the current values of JLOP_PREVIOUS. In chemdr.F, JLOP_PREVIOUS 
+       ! is filled with JLOP before resetting JLOP to current values and 
+       ! we simply want to make sure that JLOP_PREVIOUS is not set to zero 
+       ! everywhere on the first call (when JLOP is still all zero).
        JLOP = JLOP_PREVIOUS
 
        ! Zero Rate arrays  

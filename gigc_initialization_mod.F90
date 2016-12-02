@@ -240,6 +240,7 @@ CONTAINS
     USE Mapping_Mod,          ONLY : Init_Mapping
     USE Olson_Landmap_Mod,    ONLY : Init_Olson_Landmap
     USE Olson_Landmap_Mod,    ONLY : Compute_Olson_Landmap
+    USE Olson_Landmap_Mod,    ONLY : Compute_Olson_Landmap_GCHP
     USE Olson_Landmap_Mod,    ONLY : Cleanup_Olson_Landmap
     USE PBL_MIX_MOD,          ONLY : INIT_PBL_MIX
     USE PRESSURE_MOD,         ONLY : INIT_PRESSURE
@@ -331,6 +332,7 @@ CONTAINS
 !  07 Mar 2013 - R. Yantosca - Now use keyword arguments for clarity
 !  02 Jan 2014 - C. Keller   - Now call SetGridFromCtr to make sure that 
 !                              grid_mod.F90 stored the correct edges/mid-points.
+!  01 Dec 2016 - E. Lundgren - Replace GC classic Olson rtns with one for GCHP
 !EOP
 !------------------------------------------------------------------------------
 !BOC
@@ -611,22 +613,7 @@ CONTAINS
     ! Initialize dry deposition 
     !=======================================================================
     IF ( Input_Opt%LDRYD )  THEN
-
-!       ! Initialize the derived type object containing
-!       ! mapping information for the MODIS LAI routines
-       IF ( Input_Opt%USE_OLSON_2001 ) THEN
-          CALL Init_Mapping( am_I_Root, Input_Opt, 1440, 720, IIPAR, JJPAR, mapping, RC )
-       ELSE
-          CALL Init_Mapping( am_I_Root, Input_Opt,  720, 360, IIPAR, JJPAR, mapping, RC )
-       ENDIF
-
-#if !defined( EXTERNAL_FORCING )
-       ! Compute the Olson land types that occur in each grid box
-       ! (i.e. this is a replacement for rdland.F and vegtype.global)
-       CALL Init_Olson_Landmap   ( am_I_Root, Input_Opt, RC      )
-       CALL Compute_Olson_Landmap( am_I_Root, mapping, State_Met )
-       CALL Cleanup_Olson_Landmap( am_I_Root                     )
-#endif
+       CALL Compute_Olson_Landmap_GCHP( am_I_Root, State_Met, RC )
 
        !### Debug
        IF ( prtDebug ) THEN

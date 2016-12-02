@@ -2146,115 +2146,6 @@ CONTAINS
        ENDIF
     ENDIF
 
-    !=======================================================================
-    ! Set land types in State_Met from GEOS5 vegetation type fractions or
-    ! OLSON land type fractions. For now, the land types are treated as 
-    ! static and obtained from offline fields. The routine below thus needs
-    ! to be called only once.
-    ! Once the GEOS-5 land types are dynamic, we should import those from
-    ! the surface component (field ITY, or better: vegetation type fractions
-    ! per grid box).                                   (ckeller, 01/06/2015)
-    !
-    ! We are currently using land type fractions derived from the 2001
-    ! Olson land map instead of GEOS5 vegetation type fractions. The fractions
-    ! are calculated by ExtData using conservate fractional regridding of
-    ! the native 0.25x0.25 resolution file. (ewl, 11/29/16)
-    !=======================================================================
-    IF ( FIRST ) THEN
-       ! Get GEOS5 vegetation types (not used)
-       !CALL LANDTYPE_REMAP ( am_I_Root, IMPORT, State_Met, __RC__ )
-       
-       ! Set Olson fractional land type and MODIS LAI and CHLR from imports
-       If (am_I_Root) Write(6,'(a)') 'Initializing land type' // &
-                        'fractions from Olson imports'
-       Ptr2d => NULL()
-       DO T = 1, NSURFTYPE
-
-          ! Create two-char string for land type
-          landTypeInt = T-1
-          IF ( landTypeInt < 10 ) THEN
-             WRITE ( landTypeStr, "(A1,I1)" ) '0', landTypeInt
-          ELSE
-             WRITE ( landTypeStr, "(I2)" ) landTypeInt  
-          ENDIF
-          importName = 'OLSON' // TRIM(landTypeStr)
-
-          ! Get pointer and set populate State_Met variable
-          CALL MAPL_GetPointer ( IMPORT, Ptr2D, TRIM(importName),  &
-                                 notFoundOK=.TRUE., __RC__ )
-          If ( Associated(Ptr2D) ) Then
-             If (am_I_Root) Write(6,*)                                &
-                  ' ### Reading ' // TRIM(importName) // ' from imports'
-             State_Met%LandTypeFrac(:,:,T) = Ptr2D(:,:)
-          ELSE
-             Write(6,*) TRIM(importName) // ' pointer is not associated'
-          ENDIF
-
-          ! Nullify pointer
-          Ptr2D => NULL()
-       END DO
-    ENDIF
-
-    !=======================================================================
-    ! Set MODIS leaf area index (LAI) and chlorophyll-a (CHLR) from
-    ! imports of post-processed MODIS files. Each file is monthly and 
-    ! contains one variable for each land type. All grid cells for the
-    ! variable-specific land type have original LAI or CHLR values, while
-    ! all other grid cells are zero. ExtData regrids these native resolution
-    ! files to yield average values per GC grid cell (not area-weighted).
-    ! These are later used in conjunction with the Olson fractional land type
-    ! to construct area-weighted LAI and CHLR per land type per grid cell.
-    ! (ewl, 11/29/16)
-    ! NOTE: Currently one year is hard-coded in ExtData. Eventually edit to
-    !       use first and last year as climatology for years outside of the
-    !       data range.
-    !=======================================================================
-    If (am_I_Root) Write(6,'(a)') 'Initializing LAI and CHLR ' // &
-                     'variables from imports'
-    Ptr2d => NULL()
-    DO T = 1, NSURFTYPE
-
-       ! Create two-char string for land type
-       landTypeInt = T-1
-       IF ( landTypeInt < 10 ) THEN
-          WRITE ( landTypeStr, "(A1,I1)" ) '0', landTypeInt
-       ELSE
-          WRITE ( landTypeStr, "(I2)" ) landTypeInt  
-       ENDIF
-
-       ! Loop over variable types: land type, leaf area index, chlorophyll-a
-       !DO V = 1, 2
-       !
-       !   ! Define import name
-       !   SELECT CASE ( V )
-       !      CASE (1)
-       !         varName = 'XLAI'
-       !      CASE (2)
-       !         varName = 'XCHLR'
-       !   END SELECT
-       !   importName = varName // TRIM(landTypeStr)
-
-       ! For now, only read in LAI
-          importName = 'XLAI' // TRIM(landTypeStr)
-
-          ! Get pointer and set populate State_Met variable
-          CALL MAPL_GetPointer ( IMPORT, Ptr2D, TRIM(importName),  &
-                                 notFoundOK=.TRUE., __RC__ )
-          If ( Associated(Ptr2D) ) Then
-             If (am_I_Root) Write(6,*)                                &
-                  ' ### Reading ' // TRIM(importName) // ' from imports'
-             State_Met%LandTypeFrac(:,:,T) = Ptr2D(:,:)
-          ELSE
-             Write(6,*) TRIM(importName) // ' pointer is not associated'
-          ENDIF
-
-          ! Nullify pointer
-          Ptr2D => NULL()
-
-       !END DO
-    END DO
-
-
     ! Run when it's time to do so
     ! Always run on first call to make sure that all variables become
     ! properly specified and initialized.
@@ -2457,6 +2348,129 @@ CONTAINS
        End If
 
     ENDIF
+
+    !=======================================================================
+    ! Set Olson land map types from import of Olson file. 
+    !=======================================================================
+    ! We are currently using land type fractions derived from the 2001
+    ! Olson land map instead of GEOS5 vegetation type fractions. The fractions
+    ! are calculated by ExtData using conservate fractional regridding of
+    ! the native 0.25x0.25 resolution file. (ewl, 11/29/16)
+    !
+    ! Previous:
+    ! Set land types in State_Met from GEOS5 vegetation type fractions or
+    ! OLSON land type fractions. For now, the land types are treated as 
+    ! static and obtained from offline fields. The routine below thus needs
+    ! to be called only once.
+    ! Once the GEOS-5 land types are dynamic, we should import those from
+    ! the surface component (field ITY, or better: vegetation type fractions
+    ! per grid box).                                   (ckeller, 01/06/2015)
+    !
+    !=======================================================================
+    IF ( FIRST ) THEN
+
+       ! Get GEOS5 vegetation types (ckeller)
+       !CALL LANDTYPE_REMAP ( am_I_Root, IMPORT, State_Met, __RC__ )
+       
+       ! Set Olson fractional land type from import (ewl)
+       If (am_I_Root) Write(6,'(a)') 'Initializing land type ' // &
+                        'fractions from Olson imports'
+       Ptr2d => NULL()
+       DO T = 1, NSURFTYPE
+
+          ! Create two-char string for land type
+          landTypeInt = T-1
+          IF ( landTypeInt < 10 ) THEN
+             WRITE ( landTypeStr, "(A1,I1)" ) '0', landTypeInt
+          ELSE
+             WRITE ( landTypeStr, "(I2)" ) landTypeInt  
+          ENDIF
+          importName = 'OLSON' // TRIM(landTypeStr)
+
+          ! Get pointer and set populate State_Met variable
+          CALL MAPL_GetPointer ( IMPORT, Ptr2D, TRIM(importName),  &
+                                 notFoundOK=.TRUE., __RC__ )
+          If ( Associated(Ptr2D) ) Then
+             If (am_I_Root) Write(6,*)                                &
+                  ' ### Reading ' // TRIM(importName) // ' from imports'
+             State_Met%LandTypeFrac(:,:,T) = Ptr2D(:,:)
+          ELSE
+             WRITE(6,*) TRIM(importName) // ' pointer is not associated'
+          ENDIF
+
+          ! Nullify pointer
+          Ptr2D => NULL()
+       END DO
+    ENDIF
+
+    !=======================================================================
+    ! Set MODIS leaf area index (LAI) (and eventually chlorophyll-a (CHLR))
+    ! from imports of post-processed MODIS files. 
+    !=======================================================================
+    ! DESCRIPTION:
+    ! Each file is monthly and contains one variable for each land type. 
+    ! All grid cells for the variable-specific land type have original 
+    ! LAI or CHLR values, while all other grid cells are zero. ExtData 
+    ! regrids these native resolution files to yield average values per GC 
+    ! grid cell (not area-weighted). These are later used in conjunction 
+    ! with the Olson fractional land type to construct area-weighted LAI 
+    ! and CHLR per land type per grid cell. (ewl, 11/29/16)
+    ! 
+    ! IMPORTANT NOTES: 
+    !   (1) Currently one year and month is hard-coded in ExtData for XLAI.
+    !       Using variable month tag causes an error. 
+    !   (2) XCHLRxx is turned off in HEMCO_Config.rc and commented out in
+    !       ExtData.rc due to a suspected memory problem when reading in. 
+    !   (3) Eventually edit to XLAI config files and code to use first and 
+    !       last year as climatology for years outside of the data range,
+    !       and variable years otherwise.
+    !   (4) Right now LAI is read every time step. We want it to read every
+    !       month and interpolate to the day daily. This is not yet 
+    !       configured. Also, it currently uses the first of the month as
+    !       the start date. This should be changed to the middle of the month.
+    !=======================================================================
+    If (am_I_Root) Write(6,'(a)') 'Initializing leaf area index ' // &
+                     'variable from imports'
+    Ptr2d => NULL()
+    DO T = 1, NSURFTYPE
+
+       ! Create two-char string for land type
+       landTypeInt = T-1
+       IF ( landTypeInt < 10 ) THEN
+          WRITE ( landTypeStr, "(A1,I1)" ) '0', landTypeInt
+       ELSE
+          WRITE ( landTypeStr, "(I2)" ) landTypeInt  
+       ENDIF
+
+       ! Get pointer and populate State_Met variable for XLAI_NATIVE
+       importName = 'XLAI' // TRIM(landTypeStr)
+
+       CALL MAPL_GetPointer ( IMPORT, Ptr2D, TRIM(importName),  &
+                              notFoundOK=.TRUE., __RC__ )
+       If ( Associated(Ptr2D) ) Then
+          If (am_I_Root) Write(6,*)                                &
+               ' ### Reading ' // TRIM(importName) // ' from imports'
+          State_Met%XLAI_NATIVE(:,:,T) = Ptr2D(:,:)
+       ELSE
+          WRITE(6,*) TRIM(importName) // ' pointer is not associated'
+       ENDIF
+       Ptr2D => NULL()
+
+       !! Get pointer and populate State_Met variable for XCHLR_NATIVE
+       !importName = 'XCHLR' // TRIM(landTypeStr)
+       !
+       !CALL MAPL_GetPointer ( IMPORT, Ptr2D, TRIM(importName),  &
+       !                       notFoundOK=.TRUE., __RC__ )
+       !If ( Associated(Ptr2D) ) Then
+       !   If (am_I_Root) Write(6,*)                                &
+       !        ' ### Reading ' // TRIM(importName) // ' from imports'
+       !   State_Met%CHLR_NATIVE(:,:,T) = Ptr2D(:,:)
+       !ELSE
+       !   WRITE(6,*) TRIM(importName) // ' pointer is not associated'
+       !ENDIF
+       !Ptr2D => NULL()
+
+    END DO
 
     !=======================================================================
     ! Get total ozone column from GEOS-Chem export variable.
