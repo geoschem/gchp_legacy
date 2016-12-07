@@ -51,6 +51,7 @@
 !
 !-------------------------------------------------------------------------
 
+  integer            :: Ext_Debug
   integer, parameter :: MAPL_ExtDataVectorItem    = 32
   integer, parameter :: MAPL_ExtDataNullFrac      = -9999
   logical            :: hasRun
@@ -452,6 +453,9 @@ CONTAINS
 !                         ---------------------------
 
    call ESMF_ConfigGetAttribute(CF_Master,value=EXTDATA_CF,Label="CF_EXTDATA:",rc=status)
+   VERIFY_(STATUS)
+
+   call ESMF_ConfigGetAttribute(CF_Master,value=Ext_Debug,Label="DEBUG_LEVEL:",rc=status)
    VERIFY_(STATUS)
 
    CFtemp = ESMF_ConfigCreate (rc=STATUS )
@@ -1197,6 +1201,12 @@ CONTAINS
       item => self%primary%item(i)
 
       if (item%isConst) cycle
+      ! Debug level 1
+      If (Ext_Debug > 0) Then
+         If (MAPL_AM_I_ROOT()) Then
+            Write(*,'(a,3(x,a))') '>> Reading ', trim(item%var), 'from', trim(item%file)
+         End If
+      End If
 
       NotSingle = .true.
       if (trim(item%cyclic) == 'single') NotSingle = .false.
@@ -1258,9 +1268,6 @@ CONTAINS
                call ESMF_ConfigGetAttribute(cf, value = NY, Label="NY:", __RC__)
                call MAPL_ExtDataReadVector(file_processed1,item%fcomp1,item%fcomp2, &
                                            item%time1,item%v1_finterp1,item%v2_finterp1,NX,NY,self%ignoreCase,__RC__)
-               ! debug
-               WRITE(*,*) '>> READING VAR: ', trim(item%var)
-               !CALL FLUSH()
 
                if (NotSingle) then
                   call MAPL_ExtDataReadVector(file_processed2,item%fcomp1,item%fcomp2, &
@@ -2105,6 +2112,15 @@ CONTAINS
         climSize = 1
      end if   
 
+     ! Debug level 3
+     If (Ext_Debug > 2) Then
+        If (Mapl_Am_I_Root()) Then
+           Write(*,'(a,a)') '  >> >> Reading times from ', Trim(file)
+           call ESMF_TimeGet(cTime,yy=iyr,mm=imm,dd=idd,h=ihr,m=imn,s=isc,__RC__)
+           Write(*,'(a,I0.4,5(a,I0.2))') ' >> >> Time requested: ',iYr,'-',iMM,'-',iDD,' ',iHr,':',iMn,':',iSc
+        End If
+     End If
+
      allocate(tSeries(cfio%tSteps))
      do i=1,cfio%tSteps
         iCurrInterval = (i-1)*incSecs
@@ -2112,6 +2128,13 @@ CONTAINS
         call MAPL_UnpackTime(nymdB,iyr,imm,idd)
         call MAPL_UnpackTime(nhmsB,ihr,imn,isc)
         call ESMF_TimeSet(tSeries(i), yy=iyr, mm=imm, dd=idd,  h=ihr,  m=imn, s=isc,__RC__)
+        ! Debug output
+        If (Mapl_Am_I_Root()) Then
+           If ((Ext_Debug > 4).or.((Ext_Debug > 3).and.((i.eq.1).or.(i.eq.cfio%tSteps)))) Then
+              call ESMF_TimeGet(cTime,yy=iyr,mm=imm,dd=idd,h=ihr,m=imn,s=isc,__RC__)
+              Write(*,'(a,I0.6,a,I0.4,5(a,I0.2))') ' >> >> Sample ',i,':  ',iYr,'-',iMM,'-',iDD,' ',iHr,':',iMn,':',iSc
+           End If
+        End If
      enddo
      found = .false.
      ! we will have to specially handle a climatology in one file

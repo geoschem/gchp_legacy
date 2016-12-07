@@ -2884,7 +2884,7 @@ contains
                                 xid=EXPID, nymd=nymd, nhms=nhms, stat=status )
     VERIFY_(STATUS)
     !call WRITE_PARALLEL("CFIO: Reading " // trim(filename))
-    if (mapl_am_i_root()) write(*,*)"CFIO: Reading ",trim(filename)," at ",nymd," ",nhms
+    if (mapl_am_i_root()) write(*,'(a,a,a,I0.8,a,I0.6)')"CFIO: Reading ",trim(filename)," at ",nymd," ",nhms
 
 !   CFIO Registry
 !   -------------
