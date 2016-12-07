@@ -51,10 +51,11 @@
 !
 !-------------------------------------------------------------------------
 
-  integer            :: Ext_Debug
-  integer, parameter :: MAPL_ExtDataVectorItem    = 32
-  integer, parameter :: MAPL_ExtDataNullFrac      = -9999
-  logical            :: hasRun
+  integer                    :: Ext_Debug
+  character(len=ESMF_MAXSTR) :: Ext_TilePath
+  integer, parameter         :: MAPL_ExtDataVectorItem    = 32
+  integer, parameter         :: MAPL_ExtDataNullFrac      = -9999
+  logical                    :: hasRun
 
   type Diurnal
      PRIVATE
@@ -456,6 +457,13 @@ CONTAINS
    VERIFY_(STATUS)
 
    call ESMF_ConfigGetAttribute(CF_Master,value=Ext_Debug,Label="DEBUG_LEVEL:",rc=status)
+   VERIFY_(STATUS)
+
+   call ESMF_ConfigGetAttribute(CF_Master,value=Ext_TilePath,Label="TILEPATH:",rc=status)
+   VERIFY_(STATUS)
+
+   ! Pass these to MAPL_HorzTransformMod
+   Call MAPL_HorzTransformModInit(Ext_Debug,Ext_TilePath,rc=status)
    VERIFY_(STATUS)
 
    CFtemp = ESMF_ConfigCreate (rc=STATUS )

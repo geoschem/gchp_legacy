@@ -66,6 +66,7 @@ module MAPL_HorzTransformMod
   public MAPL_DimTopoEdge
   public MAPL_DimTopoCenter
   public Get_conservative_transform !JK patch for conservative transform
+  public MAPL_HorzTransformModInit
 
 !  public MAPL_RegridConserv
 !  public MAPL_RegridConservativeCreate
@@ -113,6 +114,11 @@ module MAPL_HorzTransformMod
   integer, parameter :: MAPL_DimTopoCyclic = 0
   integer, parameter :: MAPL_DimTopoEdge   = -1
   integer, parameter :: MAPL_DimTopoCenter = 1
+
+! Now allow ExtDataGridCompMod to pass the debug level and tile file directory
+! path to HorzTransformMod through an initialization routine
+  character(ESMF_MAXSTR) :: HorzTrans_TilePath='.'
+  integer                :: HorzTrans_Debug
 
 ! The code is mostly general for N dimensions, but in fact works only
 ! for transformations of 2-dimensional arrays.
@@ -171,6 +177,7 @@ module MAPL_HorzTransformMod
      logical                :: runWithLS=.false. ! this assumes distributed data
      logical                :: useTileGlobal=.true.
      character(ESMF_MAXSTR) :: TileFile
+     character(ESMF_MAXSTR) :: TilePath
      type(GlobalTileTrans)  :: GlobalTrans
 !ALT: to be incorporated     type(DistributedTileTrans) :: DistTrans
   end type MAPL_RegridConserv
@@ -1076,6 +1083,17 @@ contains
     endif
 
   end subroutine ComputeDimBinWeights
+
+  subroutine MAPL_HorzTransformModInit(DebugLevel,TilePath,rc)
+    character(ESMF_MAXSTR), Intent( In) :: TilePath
+    integer,                Intent( In) :: DebugLevel
+    integer, optional,      Intent(Out) :: rc
+
+    HorzTrans_Debug = DebugLevel
+    HorzTrans_TilePath = Trim(TilePath)
+
+    RETURN_(SUCCESS)
+  end subroutine MAPL_HorzTransformModInit
 
   subroutine DestroyMapping(MAP, rc)
     type (Mapping),    intent(INOUT) :: Map
@@ -2267,9 +2285,9 @@ contains
     RETURN_(ESMF_SUCCESS)
   end subroutine MAPL_HorzTransformCreateConservative
 
-  subroutine MAPL_RegridConservativeCreate(FILENAME, GridIn, GridOut, RootOnly, ConsrvTrans, VM, I1, IN, J1, JN, RC)
+  subroutine MAPL_RegridConservativeCreate(FILENAME_IN, GridIn, GridOut, RootOnly, ConsrvTrans, VM, I1, IN, J1, JN, RC)
 ! args
-    character (len=*), intent(IN   ) :: FILENAME
+    character (len=*), intent(IN   ) :: FILENAME_IN
     character (len=*), intent(IN   ) :: GridIn
     character (len=*), optional, intent(IN   ) :: GridOut
     logical,           optional, intent(IN   ) :: RootOnly
@@ -2296,6 +2314,10 @@ contains
     logical :: ISMINE
     integer, allocatable :: localTileIdx(:)
     integer, allocatable :: localTileIdxGrow(:)
+    character(len=ESMF_MAXSTR) :: FILENAME
+
+    ! Copy input argument
+    filename=TRIM(filename_in)
 
     if (present(I1)) then
        ASSERT_(present(IN))
@@ -2333,7 +2355,15 @@ contains
        TransRoot = .true.
     end if
 
-    ConsrvTrans%tilefile = filename
+    ConsrvTrans%tilefile = trim(filename)
+    ConsrvTrans%TilePath = Trim(HorzTrans_TilePath)
+    If (Trim(ConsrvTrans%TilePath) .ne. '.') Then
+       FileName=Trim(ConsrvTrans%TilePath)//'/'//Trim(FileName)
+    End If
+
+    If ((amIRoot).and.(HorzTrans_Debug > 4)) Then
+       Write(*,'(a,a)') ' >> Reading tile file from ', FileName
+    End If
 
     UNIT = GETFILE(FILENAME, form='UNFORMATTED', RC=status)
     VERIFY_(STATUS)
