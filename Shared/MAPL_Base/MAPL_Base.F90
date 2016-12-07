@@ -3625,6 +3625,7 @@ and so on.
     integer           :: I
     real, parameter   :: eps=1.0e-4
     character(len=16) :: imstr, jmstr
+    real              :: dlat
 
     logical :: old_style
     if (present(geos_style)) then
@@ -3638,11 +3639,26 @@ and so on.
        dateline='UU' ! Undefined
        pole='UU'     ! Undefined
        if (present(LON) .and. present(LAT)) then
-          if(abs(LAT(1) + 90.0) < eps) then
+          ! There are two ways that a half-polar grid could be specified
+          ! Either the grid center is specified as being at the pole, or it is
+          ! specified accurately. If the location of the first grid center is
+          ! correctly specified then the grid will fail both of the following
+          ! tests, because the grid spacing is not correctly captured by
+          ! LAT(2) - LAT(1). That can be rectified by this change.
+          !==============================================================
+          !if(abs(LAT(1) + 90.0) < eps) then
+          !   pole='PC'
+          !else if (abs(LAT(1) + 90.0 - 0.5*(LAT(2)-LAT(1))) < eps) then
+          !   pole='PE'
+          !end if
+          !==============================================================
+          dlat = LAT(4) - LAT(3)
+          if ((abs(LAT(1) + 90.0) < eps).or.(abs(LAT(1) + 90.0 - 0.25*dLat) < eps)) then
              pole='PC'
-          else if (abs(LAT(1) + 90.0 - 0.5*(LAT(2)-LAT(1))) < eps) then
+          else if (abs(LAT(1) + 90.0 - 0.5*dLat) < eps) then
              pole='PE'
           end if
+          !==============================================================
           do I=0,1
              if(abs(LON(1) + 180.0*I) < eps) then
                 dateline='DC'
