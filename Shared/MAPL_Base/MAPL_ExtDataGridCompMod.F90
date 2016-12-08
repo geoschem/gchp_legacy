@@ -2100,11 +2100,14 @@ CONTAINS
      type(ESMF_Time)                    :: climTime
      logical                            :: found
      integer                            :: climSize
+     integer, allocatable               :: tSeriesInt(:)
 
      cfio =  ESMF_CFIOCreate (cfioObjName='cfio_obj',__RC__)
      call ESMF_CFIOSet(CFIO, fName=trim(file),__RC__)
      call ESMF_CFIOFileOpen  (CFIO, FMODE=1, __RC__)
-     call GetBegDateTime(cfio%fid,begDate,begTime,incSecs,__RC__)
+     !call GetBegDateTime(cfio%fid,begDate,begTime,incSecs,__RC__)
+     allocate(tSeriesInt(cfio%tSteps))
+     call getDateTimeVec(cfio%fid,begDate,begTime,tSeriesInt,__RC__)
      
      if (UniFileClim) then
         call MAPL_UnpackTime(begDate,iyr,imm,idd)
@@ -2114,6 +2117,15 @@ CONTAINS
         if (idd == 29 .and. imm == 2) idd = 28
         call ESMF_TimeSet(climTime,yy=iyr,mm=imm,dd=idd,h=ihr,m=imn,s=isc,__RC__)
         climSize = cfio%tSteps
+        ! Debug output
+        If (Mapl_Am_I_Root().and.((Ext_Debug > 5).or.(climSize.ne.12))) Then
+           Do i=1,cfio%tsteps
+              Write(*,'(a,I0.6,a,I0.4,5(a,I0.2))') ' >> >> Sample ',i,':  ',iYr,'-',iMM,'-',iDD,' ',iHr,':',iMn,':',iSc
+           End Do
+        End If
+        If (climsize.ne.12) Then
+           Write(*,'(a,a,a,I)') 'File ', Trim(file), ' is designated as 12-sample climatology. Sample count: ', climSize
+        End If
         ASSERT_(climsize == 12) 
      else
         climTime = cTime
@@ -2124,6 +2136,8 @@ CONTAINS
      If (Ext_Debug > 2) Then
         If (Mapl_Am_I_Root()) Then
            Write(*,'(a,a)') '  >> >> Reading times from ', Trim(file)
+           !Write(*,'(a,2(x,I0.10),x,F10.4)') '  >> >> File timing info:', begDate, begTime, Real(incSecs)/(60.0*60.0*24.0)
+           Write(*,'(a,2(x,I0.10),x,I0.4)') '  >> >> File timing info:', begDate, begTime, cfio%tSteps
            call ESMF_TimeGet(cTime,yy=iyr,mm=imm,dd=idd,h=ihr,m=imn,s=isc,__RC__)
            Write(*,'(a,I0.4,5(a,I0.2))') ' >> >> Time requested: ',iYr,'-',iMM,'-',iDD,' ',iHr,':',iMn,':',iSc
         End If
@@ -2131,18 +2145,18 @@ CONTAINS
 
      allocate(tSeries(cfio%tSteps))
      do i=1,cfio%tSteps
-        iCurrInterval = (i-1)*incSecs
+        !iCurrInterval = (i-1)*incSecs
+        iCurrInterval = tSeriesInt(i)
         call GetDate ( begDate, begTime, iCurrInterval, nymdB, nhmsB, status )
         call MAPL_UnpackTime(nymdB,iyr,imm,idd)
         call MAPL_UnpackTime(nhmsB,ihr,imn,isc)
-        call ESMF_TimeSet(tSeries(i), yy=iyr, mm=imm, dd=idd,  h=ihr,  m=imn, s=isc,__RC__)
         ! Debug output
         If (Mapl_Am_I_Root()) Then
            If ((Ext_Debug > 4).or.((Ext_Debug > 3).and.((i.eq.1).or.(i.eq.cfio%tSteps)))) Then
-              call ESMF_TimeGet(cTime,yy=iyr,mm=imm,dd=idd,h=ihr,m=imn,s=isc,__RC__)
               Write(*,'(a,I0.6,a,I0.4,5(a,I0.2))') ' >> >> Sample ',i,':  ',iYr,'-',iMM,'-',iDD,' ',iHr,':',iMn,':',iSc
            End If
         End If
+        call ESMF_TimeSet(tSeries(i), yy=iyr, mm=imm, dd=idd,  h=ihr,  m=imn, s=isc,__RC__)
      enddo
      found = .false.
      ! we will have to specially handle a climatology in one file
@@ -2198,6 +2212,7 @@ CONTAINS
      end if              
      call ESMF_CFIODestroy(CFIO,__RC__)
      deallocate(tSeries)
+     deallocate(tSeriesInt)
      if (found) then
         rc=ESMF_SUCCESS
         return
@@ -3037,6 +3052,7 @@ CONTAINS
      type(ESMF_CFIO)            :: cfio
      integer                    :: i, begDate, begTime, incSecs
      integer                    :: iCurrInterval, nymdB, nhmsB
+     integer, allocatable       :: tSeriesInt(:)
 
      Iam = "MAPL_ExtDataUpdateDiurnalBracket"
 
@@ -3055,12 +3071,15 @@ CONTAINS
      cfio =  ESMF_CFIOCreate (cfioObjName='cfio_obj',__RC__)
      call ESMF_CFIOSet(CFIO, fName=trim(file_processed),__RC__)
      call ESMF_CFIOFileOpen  (CFIO, FMODE=1, __RC__)        
-     call GetBegDateTime(cfio%fid,begDate,begTime,incSecs,__RC__)
+     !call GetBegDateTime(cfio%fid,begDate,begTime,incSecs,__RC__)
+     allocate(tSeriesInt(cfio%tSteps))
+     call getDateTimeVec(cfio%fid,begDate,begTime,tSeriesInt,__RC__)
      ASSERT_(cfio%tsteps == item%diurnal_data%ntimes)
 
      do i=1,item%diurnal_data%ntimes
 
-        iCurrInterval = (i-1)*incSecs
+        !iCurrInterval = (i-1)*incSecs
+        iCurrInterval = tSeriesInt(i)
         call GetDate ( begDate, begTime, iCurrInterval, nymdB, nhmsB, status )
         call MAPL_UnpackTime(nymdB,YY,MM,DD)
         call MAPL_UnpackTime(nhmsB,H,M,S)
@@ -3072,6 +3091,8 @@ CONTAINS
            ASSERT_(.false.)
         end if
      enddo
+ 
+     deallocate(tSeriesInt)
 
      RETURN_(ESMF_SUCCESS)
 
