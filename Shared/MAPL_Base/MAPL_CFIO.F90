@@ -991,6 +991,10 @@ contains
 
        if (regridConservative) then
           call MAPL_GenGridName(imo, jmo, xyoffset=mcfio%xyoffset, gridname=gridnameOut, geos_style=.false.)
+          !=======================================
+          ! SDE DEBUG
+          if (mapl_am_i_root()) write(*,'(a,2(x,a),2(x,I0.5),x,I0.2)')"CFIO: Generating grid name. F/G/I/J/XYO:",trim(mCFIO%fName),trim(gridNameOut),imo,jmo,mCFIO%XYOffset
+          !=======================================
           gridnameIn = gridname
           call MAPL_GeosNameNew(gridnameIn)
 
@@ -3277,6 +3281,10 @@ contains
 
        call ESMF_GRID_INTERIOR(ESMFGRID,I1w,INw,J1w,JNw)
        call MAPL_GenGridName(im, jm, LONSfile, LATSfile, gridname=gridnamef, geos_style=geosGridNames)
+       !=======================================
+       ! SDE DEBUG
+       if (mapl_am_i_root()) write(*,'(a,2(x,a),4(x,E16.4E4),x,I0.2)')"CFIO: Generating grid name. F/G/LONS/LATS:",trim(FileName),trim(GridNameF),LonsFile(1),LonsFile(2),LatsFile(1),LatsFile(2)
+       !=======================================
        if (.not. geosGridNames) call MAPL_GeosNameNew(gridname)
 
        tileFile=trim(adjustl(gridnamef)) // '_' //trim(adjustl(gridname))  // '.bin'
