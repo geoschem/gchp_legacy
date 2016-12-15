@@ -3260,6 +3260,16 @@ contains
         fcubed = .false.
     end if
 
+!   The code will generate the wrong tile file name if, for example, the NetCDF
+!   file has a longitude vector which starts at the date line but where 185 is
+!   used instead of -175 to represent 175 W.
+
+    If (.not.fCubed) Then
+       Where(LonsFile>180.0) LonsFile = LonsFile-360.0
+       ! Special case
+       If (LonsFile(1).ge.179.9999) LonsFile(1) = LonsFile(1) - 360.0
+    End If
+
     do_xshift = .FALSE. ! Initialize: do not shift
 
     if ( IM0==1 .AND. JM0==1 ) then
