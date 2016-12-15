@@ -2365,6 +2365,10 @@ contains
        Write(*,'(a,a)') ' >> Reading tile file from ', FileName
     End If
 
+    ! Does the file exist?
+    Inquire( FILE=FILENAME, EXIST=found )
+    ASSERT_( FOUND )
+
     UNIT = GETFILE(FILENAME, form='UNFORMATTED', RC=status)
     VERIFY_(STATUS)
 
