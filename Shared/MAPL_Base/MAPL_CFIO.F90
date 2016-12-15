@@ -3148,7 +3148,15 @@ contains
           VERIFY_(STATUS)
           ! Assert compatibility of file and bundle
           !----------------------------------------
-          ASSERT_( LM==0 .or. counts(3) == 0 .or. LM==counts(3) .or. lm == (counts(3)+1) )
+          If (.not.(LM==0.or.counts(3)==0.or.LM==counts(3).or.LM==(counts(3)+1))) Then
+             !ASSERT_( LM==0 .or. counts(3) == 0 .or. LM==counts(3) .or. lm == (counts(3)+1) )
+             If (IamRoot) Then
+                Write(*,'(a,a,a,2(I0.4,a),I0.4)') 'Error while reading ', &
+                   Trim(BundleVarName), '. Expected either 1, ', Counts(3), &
+                   ' or ',Counts(3)+1,' levels, but found ', LM
+             End If
+             ASSERT_(.False.)
+          End If
 
           ! Get lat/lons of input bundle
           ! ----------------------------
