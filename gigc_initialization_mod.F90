@@ -211,7 +211,6 @@ CONTAINS
                                    value_LM,        value_IM_WORLD,  &
                                    value_JM_WORLD,  value_LM_WORLD,  &
                                    Input_Opt,       State_Chm,       &
-!                                   State_Met,       mapping,         &
                                    myPET,                            &
                                    State_Met,                        &
                                    RC                               )      
@@ -238,10 +237,6 @@ CONTAINS
     USE Input_Mod,            ONLY : Initialize_Geos_Grid
     USE Mapping_Mod,          ONLY : MapWeight
     USE Mapping_Mod,          ONLY : Init_Mapping
-    USE Olson_Landmap_Mod,    ONLY : Init_Olson_Landmap
-    USE Olson_Landmap_Mod,    ONLY : Compute_Olson_Landmap
-    USE Olson_Landmap_Mod,    ONLY : Compute_Olson_Landmap_GCHP
-    USE Olson_Landmap_Mod,    ONLY : Cleanup_Olson_Landmap
     USE PBL_MIX_MOD,          ONLY : INIT_PBL_MIX
     USE PRESSURE_MOD,         ONLY : INIT_PRESSURE
 #if defined( APM )
@@ -289,7 +284,6 @@ CONTAINS
     TYPE(OptInput),  INTENT(INOUT) :: Input_Opt       ! Input Options
     TYPE(ChmState),  INTENT(INOUT) :: State_Chm       ! Chemistry State
     TYPE(MetState),  INTENT(INOUT) :: State_Met       ! Meteorology State
-    TYPE(MapWeight), POINTER       :: mapping(:,:) => null() ! Olson mapping object
 !
 !
 ! !OUTPUT PARAMETERS:
@@ -332,7 +326,7 @@ CONTAINS
 !  07 Mar 2013 - R. Yantosca - Now use keyword arguments for clarity
 !  02 Jan 2014 - C. Keller   - Now call SetGridFromCtr to make sure that 
 !                              grid_mod.F90 stored the correct edges/mid-points.
-!  01 Dec 2016 - E. Lundgren - Replace GC classic Olson rtns with one for GCHP
+!  01 Dec 2016 - E. Lundgren - Remove GC classic Olson routine calls
 !EOP
 !------------------------------------------------------------------------------
 !BOC
@@ -613,7 +607,7 @@ CONTAINS
     ! Initialize dry deposition 
     !=======================================================================
     IF ( Input_Opt%LDRYD )  THEN
-       CALL Compute_Olson_Landmap_GCHP( am_I_Root, State_Met, RC )
+       ! Placeholder
 
        !### Debug
        IF ( prtDebug ) THEN

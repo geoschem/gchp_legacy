@@ -1844,11 +1844,12 @@ CONTAINS
 !
 ! !USES:
 !
+    USE CMN_SIZE_MOD,            ONLY : NSURFTYPE
     USE COMODE_MOD,              ONLY : JLOP, JLOP_PREVIOUS
     USE HCO_STATE_MOD,           ONLY : HCO_STATE
     USE HCOI_GC_MAIN_MOD,        ONLY : GetHcoState
     USE GC_LAND_INTERFACE,       ONLY : LANDTYPE_REMAP
-    USE CMN_SIZE_MOD,            ONLY : NSURFTYPE
+    USE Olson_Landmap_Mod,       ONLY : Compute_Olson_Landmap_GCHP
 !
 ! !INPUT/OUTPUT PARAMETERS:
 !
@@ -2401,6 +2402,9 @@ CONTAINS
           ! Nullify pointer
           Ptr2D => NULL()
        END DO
+       
+       ! Compute State_Met variables IREG, ILAND, IUSE, and FRCLND
+       CALL Compute_Olson_Landmap_GCHP( am_I_Root, State_Met, RC )
     ENDIF
 
     !=======================================================================
