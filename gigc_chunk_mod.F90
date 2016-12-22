@@ -294,7 +294,7 @@ CONTAINS
     USE EMISSIONS_MOD,      ONLY : EMISSIONS_RUN
     USE UVALBEDO_MOD,       ONLY : GET_UVALBEDO
     USE Strat_Chem_Mod,     ONLY : Set_Init_Conc_Strat_Chem
-    USE MODIS_LAI_Mod,      ONLY : Compute_Modis_GCHP
+    USE MODIS_LAI_Mod,      ONLY : Compute_XLAI_GCHP
 
 !    ! HEMCO update
     USE HCO_ERROR_MOD
@@ -563,14 +563,14 @@ CONTAINS
 
     ! Calculate MODIS leaf area indexes needed for dry deposition
     ! (passing false as 2nd arg calculates chlorophyll-a instead)
-    CALL Compute_Modis_GCHP( am_I_Root, .TRUE., State_Met, RC )
+    CALL Compute_XLAI_GCHP( am_I_Root, State_Met, RC )
 
     ! Set the pressure at level edges [hPa] from the ESMF environment
     CALL Accept_External_Pedge    ( am_I_Root      = am_I_Root,  &
                                     State_Met      = State_Met,  &
                                     RC             = RC         )
 
-#if !defined( EXTERNAL_FORCING)
+#if !defined( EXTERNAL_FORCING )
     CALL Set_Floating_Pressure( State_Met%PS1 )
 #endif 
 
