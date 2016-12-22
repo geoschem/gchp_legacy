@@ -34,6 +34,8 @@ MODULE GIGC_Chunk_Mod
 ! !PRIVATE MEMBER FUNCTIONS:
 !
   PRIVATE :: GIGC_Cap_Tropopause_Prs
+  PRIVATE :: GIGC_Revert_Units
+  PRIVATE :: GIGC_Assert_Units
 !
 ! !REMARKS:
 !  The routines in this module execute only when GEOS-Chem is connected
@@ -415,12 +417,6 @@ CONTAINS
     LOGICAL                        :: DoChem
     LOGICAL                        :: DoWetDep
 
-    ! Are tracers in mass or mixing ratio?
-    Integer                        :: CellUnit
-    Integer, Parameter             :: VVDry_Type=0
-    Integer, Parameter             :: KgKgDry_Type=1
-    Integer, Parameter             :: Kg_Type=2
-
     ! First call?
     LOGICAL, SAVE                  :: FIRST = .TRUE.
 
@@ -600,22 +596,11 @@ CONTAINS
     ! Call PBL quantities. Those are always needed
     CALL COMPUTE_PBL_HEIGHT( State_Met )
 
-    ! Check what unit the tracers are in - need kg/kg dry for emissions
-    Select Case (Trim(State_Chm%Trac_Units))
-        Case ('kg/kg dry')
-            ! Do nothing
-        Case ('kg')
-            CALL Convert_Kg_to_KgKgDry( am_I_Root, Input_Opt,&
-                                         State_Met, State_Chm, RC )
-        Case ('v/v dry')
-            CALL Convert_VVDry_to_KgKgDry( am_I_Root, Input_Opt,&
-                                            State_Chm, RC )
-        Case Default
-            Write(6,'(a,a,a)') 'Tracer units (', State_Chm%Trac_Units, ') not recognized'
-            RC = GIGC_FAILURE
-            ASSERT_(RC==GIGC_SUCCESS)
-    End Select
-    CellUnit = KgKgDry_Type
+    ! Force units to standard
+    If (.not.GIGC_Assert_Units(am_I_Root, State_Chm)) Then
+       Call GIGC_Revert_Units( am_I_Root, Input_Opt, State_Chm, State_Met, RC )
+       ASSERT_(RC==GIGC_SUCCESS)
+    End If
     
     ! SDE 05/28/13: Set H2O to STT if relevant
     IF ( IDTH2O > 0 ) THEN
@@ -650,19 +635,7 @@ CONTAINS
        CALL MAPL_TimerOn( STATE, 'GC_CONV' )
 
        ! testing only
-       if(am_I_Root.and.NCALLS<10) write(*,*) ' --- Do convection now'
-  
-       ! Make sure tracers are in kg/kg
-       IF ( CellUnit.ne.KgKgDry_Type ) Then
-          If ( CellUnit .eq. Kg_Type ) Then
-             CALL Convert_Kg_to_KgKgDry( am_I_Root, Input_Opt,&
-                                         State_Met, State_Chm, RC )
-          ElseIf ( CellUnit .eq. VVDry_Type) Then
-             CALL Convert_VVDry_to_KgKgDry( am_I_Root, Input_Opt,&
-                                            State_Chm, RC )
-          EndIf
-          CellUnit = KgKgDry_Type
-       ENDIF
+       if(am_I_Root.and.NCALLS<10) write(*,*) ' --- Do convection now' 
 
        CALL DO_CONVECTION ( am_I_Root, Input_Opt, State_Met, State_Chm, RC )
        ASSERT_(RC==GIGC_SUCCESS)
@@ -673,6 +646,9 @@ CONTAINS
        ! testing only
        if(am_I_Root.and.NCALLS<10) write(*,*) ' --- Convection done!'
     ENDIF   
+
+    ! Check that units are correct
+    ASSERT_(GIGC_Assert_Units(am_I_Root, State_Chm))
 
     !=======================================================================
     ! 2. Dry deposition.
@@ -691,16 +667,7 @@ CONTAINS
        endif
 
        ! Make sure tracers are in kg
-       IF ( CellUnit.ne.Kg_Type ) Then
-          If ( CellUnit .eq. KgKgDry_Type ) Then
-             CALL Convert_KgKgDry_to_Kg( am_I_Root, Input_Opt,&
-                                         State_Met, State_Chm, RC )
-          ElseIf ( CellUnit .eq. VVDry_Type) Then
-             CALL Convert_VVDry_to_Kg( am_I_Root, Input_Opt,&
-                                            State_Met, State_Chm, RC )
-          EndIf
-          CellUnit = Kg_Type
-       ENDIF
+       CALL Convert_KgKgDry_to_Kg( am_I_Root, Input_Opt, State_Met, State_Chm, RC )
 
        ! Update & Remap Land-type arrays from Surface Grid-component
        !CALL GEOS5_TO_OLSON_LANDTYPE_REMAP( State_Met, RC )    
@@ -713,6 +680,10 @@ CONTAINS
                           RC        = RC                   )  ! Success?
        ASSERT_(RC==GIGC_SUCCESS)
 
+       ! Revert units
+       Call GIGC_Revert_Units( am_I_Root, Input_Opt, State_Chm, State_Met, RC )
+       ASSERT_(RC==GIGC_SUCCESS)
+
        ! Timer off
        CALL MAPL_TimerOff( STATE, 'GC_DRYDEP' )
 
@@ -720,6 +691,9 @@ CONTAINS
        if(am_I_Root.and.NCALLS<10) write(*,*) ' --- Drydep done!'
 
     ENDIF ! Do drydep
+
+    ! Check that units are correct
+    ASSERT_(GIGC_Assert_Units(am_I_Root, State_Chm))
 
     !=======================================================================
     ! 3. Emissions (HEMCO). HEMCO must be called on first time step to make
@@ -733,18 +707,6 @@ CONTAINS
        ! testing only
        if(am_I_Root.and.NCALLS<10) write(*,*) ' --- Do emissions now'
 
-       ! Make sure tracers are in kg/kg dry
-       IF ( CellUnit.ne.KgKgDry_Type ) Then
-          If ( CellUnit .eq. Kg_Type ) Then
-             CALL Convert_Kg_to_KgKgDry( am_I_Root, Input_Opt,&
-                                         State_Met, State_Chm, RC )
-          ElseIf ( CellUnit .eq. VVDry_Type) Then
-             CALL Convert_VVDry_to_KgKgDry( am_I_Root, Input_Opt,&
-                                            State_Chm, RC )
-          EndIf
-          CellUnit = KgKgDry_Type
-       ENDIF
-
        ! Call HEMCO run interface 
        CALL EMISSIONS_RUN ( am_I_Root, Input_Opt, State_Met, State_Chm, DoEmis, Phase, RC )
        ASSERT_(RC==GIGC_SUCCESS)
@@ -755,6 +717,9 @@ CONTAINS
        ! testing only
        if(am_I_Root.and.NCALLS<10) write(*,*) ' --- Emissions done!'
     ENDIF
+
+    ! Check that units are correct
+    ASSERT_(GIGC_Assert_Units(am_I_Root, State_Chm))
 
     !=======================================================================
     ! If physics covers turbulence, simply add the emission and dry 
@@ -775,16 +740,8 @@ CONTAINS
        if(am_I_Root.and.NCALLS<10) write(*,*) ' --- Add emissions and drydep to tracers'
  
        ! Make sure tracers are in v/v
-       IF ( CellUnit.ne.VVDry_Type ) Then
-          If ( CellUnit .eq. KgKgDry_Type ) Then
-             CALL Convert_KgKgDry_to_VVDry( am_I_Root, Input_Opt,&
-                                         State_Chm, RC )
-          ElseIf ( CellUnit .eq. Kg_Type) Then
-             CALL Convert_Kg_to_VVDry( am_I_Root, Input_Opt,&
-                                            State_Met, State_Chm, RC )
-          EndIf
-          CellUnit = VVDry_Type
-       ENDIF
+       CALL Convert_KgKgDry_to_VVDry( am_I_Root, Input_Opt,&
+                                   State_Chm, RC )
 
        ! Get emission time step [s]. 
        CALL GetHcoState( HcoState )
@@ -794,6 +751,10 @@ CONTAINS
 
        ! Apply tendencies over entire PBL. Use emission time step.
        CALL DO_TEND ( am_I_Root, Input_Opt, State_Met, State_Chm, .FALSE., RC, DT=DT )
+       ASSERT_(RC==GIGC_SUCCESS)
+
+       ! Revert units
+       Call GIGC_Revert_Units( am_I_Root, Input_Opt, State_Chm, State_Met, RC )
        ASSERT_(RC==GIGC_SUCCESS)
 
        ! testing only
@@ -806,6 +767,9 @@ CONTAINS
        CALL MAPL_TimerOff( STATE, 'GC_FLUXES' )
 
     ENDIF ! Tendencies 
+
+    ! Check that units are correct
+    ASSERT_(GIGC_Assert_Units(am_I_Root, State_Chm))
 
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 !!!                              PHASE 2                                !!!
@@ -829,18 +793,6 @@ CONTAINS
        ! testing only
        if(am_I_Root.and.NCALLS<10) write(*,*) ' --- Do turbulence now'
 
-       ! Make sure tracers are in kg/kg
-       IF ( CellUnit.ne.KgKgDry_Type ) Then
-          If ( CellUnit .eq. VVDry_Type ) Then
-             CALL Convert_VVDry_to_KgKgDry( am_I_Root, Input_Opt,&
-                                         State_Chm, RC )
-          ElseIf ( CellUnit .eq. Kg_Type) Then
-             CALL Convert_Kg_to_KgKgDry( am_I_Root, Input_Opt,&
-                                            State_Met, State_Chm, RC )
-          EndIf
-          CellUnit = KgKgDry_Type
-       ENDIF
-
        ! Do mixing and apply tendencies. This will use the dynamic time step, which
        ! is fine since this call will be executed on every time step. 
        CALL DO_MIXING ( am_I_Root, Input_Opt, State_Met, State_Chm, RC )
@@ -853,6 +805,9 @@ CONTAINS
 
     ENDIF
 
+    ! Check that units are correct
+    ASSERT_(GIGC_Assert_Units(am_I_Root, State_Chm))
+
     !=======================================================================
     ! 5. Chemistry
     !=======================================================================
@@ -863,18 +818,6 @@ CONTAINS
 
        ! testing only
        if(am_I_Root.and.NCALLS<10) write(*,*) ' --- Do chemistry now'
-
-       ! Make sure tracers are in kg
-       IF ( CellUnit.ne.KgKgDry_Type ) Then
-          If ( CellUnit .eq. VVDry_Type ) Then
-             CALL Convert_VVDry_to_KgKgDry( am_I_Root, Input_Opt,&
-                                         State_Chm, RC )
-          ElseIf ( CellUnit .eq. Kg_Type) Then
-             CALL Convert_Kg_to_KgKgDry( am_I_Root, Input_Opt,&
-                                            State_Met, State_Chm, RC )
-          EndIf
-          CellUnit = KgKgDry_Type
-       ENDIF
 
        ! Write JLOP_PREVIOUS into JLOP to make sure that JLOP contains 
        ! the current values of JLOP_PREVIOUS. In chemdr.F, JLOP_PREVIOUS is filled 
@@ -923,6 +866,9 @@ CONTAINS
        if(am_I_Root.and.NCALLS<10) write(*,*) ' --- Chemistry done!'
     ENDIF
 
+    ! Check that units are correct
+    ASSERT_(GIGC_Assert_Units(am_I_Root, State_Chm))
+
     !=======================================================================
     ! 6. Wet deposition
     !=======================================================================
@@ -934,19 +880,6 @@ CONTAINS
        ! testing only
        if(am_I_Root.and.NCALLS<10) write(*,*) ' --- Do wetdep now'
 
-       ! Make sure tracers are in kg/kg dry
-       IF ( CellUnit.ne.KgKgDry_Type ) Then
-          If ( CellUnit .eq. VVDry_Type ) Then
-             CALL Convert_VVDry_to_KgKgDry( am_I_Root, Input_Opt,&
-                                         State_Chm, RC )
-          ElseIf ( CellUnit .eq. Kg_Type) Then
-             CALL Convert_Kg_to_KgKgDry( am_I_Root, Input_Opt,&
-                                            State_Met, State_Chm, RC )
-          EndIf
-          CellUnit = KgKgDry_Type
-       ENDIF
-
-
        ! Do wet deposition
        CALL DO_WETDEP( am_I_Root, Input_Opt, State_Met, State_Chm, RC )
        ASSERT_(RC==GIGC_SUCCESS)
@@ -957,6 +890,9 @@ CONTAINS
        ! testing only
        if(am_I_Root.and.NCALLS<10) write(*,*) ' --- Wetdep done!'
     ENDIF
+
+    ! Check that units are correct
+    ASSERT_(GIGC_Assert_Units(am_I_Root, State_Chm))
 
     !=======================================================================
     ! Diagnostics 
@@ -974,17 +910,8 @@ CONTAINS
     ! Clean up
     !=======================================================================
 
-    ! Make sure tracers leave routine in v/v
-    IF ( CellUnit.ne.VVDry_Type ) Then
-       If ( CellUnit .eq. KgKgDry_Type ) Then
-          CALL Convert_KgKgDry_to_VVDry( am_I_Root, Input_Opt,&
-                                      State_Chm, RC )
-       ElseIf ( CellUnit .eq. Kg_Type) Then
-          CALL Convert_Kg_to_VVDry( am_I_Root, Input_Opt,&
-                                         State_Met, State_Chm, RC )
-       EndIf
-       CellUnit = VVDry_Type
-    ENDIF
+    ! Make sure tracers leave routine in v/v dry
+    CALL Convert_KgKgDry_to_VVDry( am_I_Root, Input_Opt, State_Chm, RC )
 
     ! testing only
     IF ( PHASE /= 1 .AND. NCALLS < 10 ) NCALLS = NCALLS + 1 
@@ -1155,6 +1082,121 @@ CONTAINS
     ENDDO
 
   END SUBROUTINE GIGC_Cap_Tropopause_Prs
+!EOC
+!------------------------------------------------------------------------------
+!          Harvard University Atmospheric Chemistry Modeling Group            !
+!------------------------------------------------------------------------------
+!BOP
+!
+! !IROUTINE: gigc_revert_units
+!
+! !DESCRIPTION: Subroutine GIGC\_REVERT\_UNITS forces the units back to kg/kg dry
+!\\
+!\\
+! !INTERFACE:
+!
+  SUBROUTINE GIGC_Revert_Units( am_I_Root, Input_Opt, State_Chm, State_Met, RC )
+!
+! !USES:
+!
+    USE GIGC_ErrCode_Mod
+    USE GIGC_Input_Opt_Mod,    ONLY : OptInput
+    USE GIGC_State_Chm_Mod,    ONLY : ChmState
+    USE GIGC_State_Met_Mod,    ONLY : MetState
+    Use UnitConv_Mod
+!
+! !INPUT PARAMETERS:
+!
+    LOGICAL,        INTENT(IN)    :: am_I_Root     ! Are we on the root CPU?
+!
+! !INPUT/OUTPUT PARAMETERS:
+!
+    TYPE(OptInput), INTENT(INOUT) :: Input_Opt     ! Input Options object
+    TYPE(ChmState), INTENT(INOUT) :: State_Chm     ! Chemistry State object
+    TYPE(MetState), INTENT(INOUT) :: State_Met     ! Meteorology State object
+!
+! !OUTPUT PARAMETERS:
+!
+    INTEGER,        INTENT(OUT)   :: RC            ! Success or failure
+!
+! !REVISION HISTORY: 
+!  21 Dec 2016 - S. D. Eastham - Initial Version
+!EOP
+!------------------------------------------------------------------------------
+!BOC
+!
+! !LOCAL VARIABLES:
+!
+
+    ! Are tracers in mass or mixing ratio?
+    !Integer                        :: CellUnit
+
+    ! Assume succes
+    RC = GIGC_SUCCESS
+
+    ! Check what unit the tracers are in - hold as kg/kg dry throughout
+    Select Case (Trim(State_Chm%Trac_Units))
+        Case ('kg/kg dry')
+            ! Do nothing
+        Case ('kg')
+            CALL Convert_Kg_to_KgKgDry( am_I_Root, Input_Opt,&
+                                         State_Met, State_Chm, RC )
+        Case ('v/v dry')
+            CALL Convert_VVDry_to_KgKgDry( am_I_Root, Input_Opt,&
+                                            State_Chm, RC )
+        Case Default
+            Write(6,'(a,a,a)') 'Tracer units (', State_Chm%Trac_Units, ') not recognized'
+            RC = GIGC_FAILURE
+    End Select
+
+  END SUBROUTINE GIGC_Revert_Units
+!EOC
+!------------------------------------------------------------------------------
+!          Harvard University Atmospheric Chemistry Modeling Group            !
+!------------------------------------------------------------------------------
+!BOP
+!
+! !IROUTINE: gigc_assert_units
+!
+! !DESCRIPTION: Function ASSERT\_UNITS checks to make sure the units are
+! correct
+!\\
+!\\
+! !INTERFACE:
+!
+  FUNCTION GIGC_Assert_Units( am_I_Root, State_Chm ) RESULT( isOK )
+!
+! !USES:
+!
+    USE GIGC_State_Chm_Mod,    ONLY : ChmState
+!
+! !INPUT PARAMETERS:
+!
+    LOGICAL,        INTENT(IN)    :: am_I_Root     ! Are we on the root CPU?
+!
+! !INPUT/OUTPUT PARAMETERS:
+!
+    TYPE(ChmState), INTENT(INOUT) :: State_Chm     ! Chemistry State object
+!
+! !OUTPUT PARAMETERS:
+!
+    LOGICAL                       :: isOK          ! True if correct unit
+!
+! !REVISION HISTORY: 
+!  21 Dec 2016 - S. D. Eastham - Initial Version
+!EOP
+!------------------------------------------------------------------------------
+!BOC
+
+    ! Check what unit the tracers are in - hold as kg/kg dry throughout
+    Select Case (Trim(State_Chm%Trac_Units))
+        Case ('kg/kg dry')
+            isOK = .True.
+        Case Default
+            isOK = .False.
+    End Select
+
+  END FUNCTION GIGC_Assert_Units
 !EOC
 END MODULE GIGC_Chunk_Mod
 #endif
