@@ -51,9 +51,11 @@
 !
 !-------------------------------------------------------------------------
 
-  integer, parameter :: MAPL_ExtDataVectorItem    = 32
-  integer, parameter :: MAPL_ExtDataNullFrac      = -9999
-  logical            :: hasRun
+  integer                    :: Ext_Debug
+  character(len=ESMF_MAXSTR) :: Ext_TilePath
+  integer, parameter         :: MAPL_ExtDataVectorItem    = 32
+  integer, parameter         :: MAPL_ExtDataNullFrac      = -9999
+  logical                    :: hasRun
 
   type Diurnal
      PRIVATE
@@ -452,6 +454,16 @@ CONTAINS
 !                         ---------------------------
 
    call ESMF_ConfigGetAttribute(CF_Master,value=EXTDATA_CF,Label="CF_EXTDATA:",rc=status)
+   VERIFY_(STATUS)
+
+   call ESMF_ConfigGetAttribute(CF_Master,value=Ext_Debug,Label="DEBUG_LEVEL:",rc=status)
+   VERIFY_(STATUS)
+
+   call ESMF_ConfigGetAttribute(CF_Master,value=Ext_TilePath,Label="TILEPATH:",rc=status)
+   VERIFY_(STATUS)
+
+   ! Pass these to MAPL_HorzTransformMod
+   Call MAPL_HorzTransformModInit(Ext_Debug,Ext_TilePath,rc=status)
    VERIFY_(STATUS)
 
    CFtemp = ESMF_ConfigCreate (rc=STATUS )
@@ -1197,6 +1209,12 @@ CONTAINS
       item => self%primary%item(i)
 
       if (item%isConst) cycle
+      ! Debug level 1
+      If (Ext_Debug > 0) Then
+         If (MAPL_AM_I_ROOT()) Then
+            Write(*,'(a,3(x,a))') '>> Reading ', trim(item%var), 'from', trim(item%file)
+         End If
+      End If
 
       NotSingle = .true.
       if (trim(item%cyclic) == 'single') NotSingle = .false.
@@ -1258,9 +1276,6 @@ CONTAINS
                call ESMF_ConfigGetAttribute(cf, value = NY, Label="NY:", __RC__)
                call MAPL_ExtDataReadVector(file_processed1,item%fcomp1,item%fcomp2, &
                                            item%time1,item%v1_finterp1,item%v2_finterp1,NX,NY,self%ignoreCase,__RC__)
-               ! debug
-               WRITE(*,*) '>> READING VAR: ', trim(item%var)
-               !CALL FLUSH()
 
                if (NotSingle) then
                   call MAPL_ExtDataReadVector(file_processed2,item%fcomp1,item%fcomp2, &
@@ -2085,11 +2100,14 @@ CONTAINS
      type(ESMF_Time)                    :: climTime
      logical                            :: found
      integer                            :: climSize
+     integer, allocatable               :: tSeriesInt(:)
 
      cfio =  ESMF_CFIOCreate (cfioObjName='cfio_obj',__RC__)
      call ESMF_CFIOSet(CFIO, fName=trim(file),__RC__)
      call ESMF_CFIOFileOpen  (CFIO, FMODE=1, __RC__)
-     call GetBegDateTime(cfio%fid,begDate,begTime,incSecs,__RC__)
+     !call GetBegDateTime(cfio%fid,begDate,begTime,incSecs,__RC__)
+     allocate(tSeriesInt(cfio%tSteps))
+     call getDateTimeVec(cfio%fid,begDate,begTime,tSeriesInt,__RC__)
      
      if (UniFileClim) then
         call MAPL_UnpackTime(begDate,iyr,imm,idd)
@@ -2099,18 +2117,44 @@ CONTAINS
         if (idd == 29 .and. imm == 2) idd = 28
         call ESMF_TimeSet(climTime,yy=iyr,mm=imm,dd=idd,h=ihr,m=imn,s=isc,__RC__)
         climSize = cfio%tSteps
+        ! Debug output
+        If (climsize.ne.12) Then
+           Write(*,'(a,a,a,I)') 'File ', Trim(file), ' is designated as 12-sample climatology. Sample count: ', climSize
+        End If
         ASSERT_(climsize == 12) 
      else
         climTime = cTime
         climSize = 1
      end if   
 
+     ! Debug level 3
+     If (Ext_Debug > 2) Then
+        If (Mapl_Am_I_Root()) Then
+           Write(*,'(a,a)') '  >> >> Reading times from ', Trim(file)
+           !Write(*,'(a,2(x,I0.10),x,F10.4)') '  >> >> File timing info:', begDate, begTime, Real(incSecs)/(60.0*60.0*24.0)
+           Write(*,'(a,2(x,I0.10),x,I0.4)') '  >> >> File timing info:', begDate, begTime, cfio%tSteps
+           call ESMF_TimeGet(cTime,yy=iyr,mm=imm,dd=idd,h=ihr,m=imn,s=isc,__RC__)
+           Write(*,'(a,I0.4,5(a,I0.2))') ' >> >> Time requested: ',iYr,'-',iMM,'-',iDD,' ',iHr,':',iMn,':',iSc
+           If (UniFileClim) Then
+              call ESMF_TimeGet(climTime,yy=iyr,mm=imm,dd=idd,h=ihr,m=imn,s=isc,__RC__)
+              Write(*,'(a,I0.4,5(a,I0.2))') ' >> >> Offset time   : ',iYr,'-',iMM,'-',iDD,' ',iHr,':',iMn,':',iSc
+           End If
+        End If
+     End If
+
      allocate(tSeries(cfio%tSteps))
      do i=1,cfio%tSteps
-        iCurrInterval = (i-1)*incSecs
+        !iCurrInterval = (i-1)*incSecs
+        iCurrInterval = tSeriesInt(i)
         call GetDate ( begDate, begTime, iCurrInterval, nymdB, nhmsB, status )
         call MAPL_UnpackTime(nymdB,iyr,imm,idd)
         call MAPL_UnpackTime(nhmsB,ihr,imn,isc)
+        ! Debug output
+        If (Mapl_Am_I_Root()) Then
+           If ((Ext_Debug > 4).or.((Ext_Debug > 3).and.((i.eq.1).or.(i.eq.cfio%tSteps)))) Then
+              Write(*,'(a,I0.6,a,I0.4,5(a,I0.2))') ' >> >> STD Sample ',i,':  ',iYr,'-',iMM,'-',iDD,' ',iHr,':',iMn,':',iSc
+           End If
+        End If
         call ESMF_TimeSet(tSeries(i), yy=iyr, mm=imm, dd=idd,  h=ihr,  m=imn, s=isc,__RC__)
      enddo
      found = .false.
@@ -2167,6 +2211,7 @@ CONTAINS
      end if              
      call ESMF_CFIODestroy(CFIO,__RC__)
      deallocate(tSeries)
+     deallocate(tSeriesInt)
      if (found) then
         rc=ESMF_SUCCESS
         return
@@ -2337,12 +2382,57 @@ CONTAINS
      integer                    :: fieldRank,i,j,k
      character(len=ESMF_MAXSTR) :: name
 
+     integer :: yr,mm,dd,hr,mn,sc,nhms1,nymd1,nhms2,nymd2
 
      Iam = "MAPL_ExtDataInterpField"
      tinv1 = time - item%interp_time1
      tinv2 = item%interp_time2 - item%interp_time1
      alpha = tinv1/tinv2
      call ESMF_FieldGet(FIELD, dimCount=fieldRank,name=name,__RC__)
+     If (Mapl_Am_I_Root()) Then
+        If (Ext_Debug > 9) Then
+           call ESMF_TimeGet(item%interp_time1,yy=yr,mm=mm,dd=dd,h=hr,m=mn,s=sc,__RC__)
+           call MAPL_PackTime(nhms1,hr,mn,sc)
+           call MAPL_PackTime(nymd1,yr,mm,dd)
+           If (item%doInterpolate) Then
+              ! Getting odd behavoir?
+              !Write(*,'(a,a)') 'DEBUG FOR FIELD: ',Trim(item%name)
+              !Write(*,'(a,I0.8,x,I0.6)') 'T1: ', nymd1, nhms1
+              !!Write(*,'(a,I)') 'T2%YR: ',item%interp_time2%YR
+              !Write(*,'(a,E20.10E4)') 'ALPHA: ', alpha
+              If (alpha .gt. 0.0) Then
+                 call ESMF_TimeGet(item%interp_time2,yy=yr,mm=mm,dd=dd,h=hr,m=mn,s=sc,__RC__)
+                 call MAPL_PackTime(nhms2,hr,mn,sc)
+                 call MAPL_PackTime(nymd2,yr,mm,dd)
+              Else
+                 nhms2=0
+                 nymd2=0
+              End If
+           Else
+              nhms2=0
+              nymd2=0
+           End If
+
+           If (.not.(item%doInterpolate)) Then
+              Write(*,'(a,a,a,a,I0.8,x,I0.6)') ' >> >> >> ', &
+                'Uninterpolated field ', Trim(item%name), &
+                ' set to sample L: ', nymd1, nhms1
+           Else If (time == item%interp_time1) Then
+              Write(*,'(a,a,a,a,I0.8,x,I0.6)') ' >> >> >> ', &
+                '  Interpolated field ', Trim(item%name), &
+                ' set to sample L: ', nymd1, nhms1
+           Else If (time == item%interp_time2) Then
+              Write(*,'(a,a,a,a,I0.8,x,I0.6)') ' >> >> >> ', &
+                '  Interpolated field ', Trim(item%name), &
+                ' set to sample R: ', nymd2, nhms2
+           Else
+              Write(*,'(a,a,a,a,2(I0.8,x,I0.6,a),F10.6,a)') ' >> >> >> ', &
+                '  Interpolated field ', Trim(item%name), &
+                ' between ', nymd1,nhms1,' and ',nymd2,nhms2,' (', &
+                alpha,' fraction)'
+           End If
+        End If
+     End If
      if (fieldRank == 2) then
            if (item%vartype == MAPL_FieldItem) then
               call ESMF_FieldGet(item%finterp1, localDE=0, farrayPtr=var2d_prev, __RC__)
@@ -3006,6 +3096,7 @@ CONTAINS
      type(ESMF_CFIO)            :: cfio
      integer                    :: i, begDate, begTime, incSecs
      integer                    :: iCurrInterval, nymdB, nhmsB
+     integer, allocatable       :: tSeriesInt(:)
 
      Iam = "MAPL_ExtDataUpdateDiurnalBracket"
 
@@ -3024,12 +3115,15 @@ CONTAINS
      cfio =  ESMF_CFIOCreate (cfioObjName='cfio_obj',__RC__)
      call ESMF_CFIOSet(CFIO, fName=trim(file_processed),__RC__)
      call ESMF_CFIOFileOpen  (CFIO, FMODE=1, __RC__)        
-     call GetBegDateTime(cfio%fid,begDate,begTime,incSecs,__RC__)
+     !call GetBegDateTime(cfio%fid,begDate,begTime,incSecs,__RC__)
+     allocate(tSeriesInt(cfio%tSteps))
+     call getDateTimeVec(cfio%fid,begDate,begTime,tSeriesInt,__RC__)
      ASSERT_(cfio%tsteps == item%diurnal_data%ntimes)
 
      do i=1,item%diurnal_data%ntimes
 
-        iCurrInterval = (i-1)*incSecs
+        !iCurrInterval = (i-1)*incSecs
+        iCurrInterval = tSeriesInt(i)
         call GetDate ( begDate, begTime, iCurrInterval, nymdB, nhmsB, status )
         call MAPL_UnpackTime(nymdB,YY,MM,DD)
         call MAPL_UnpackTime(nhmsB,H,M,S)
@@ -3041,6 +3135,8 @@ CONTAINS
            ASSERT_(.false.)
         end if
      enddo
+ 
+     deallocate(tSeriesInt)
 
      RETURN_(ESMF_SUCCESS)
 

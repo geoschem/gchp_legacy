@@ -141,6 +141,8 @@ contains
    integer                      :: N,NSTEPS
    integer                      :: NPES,CoresPerNode
 
+   integer                      :: Debug_Level
+   character(len=ESMF_MAXSTR)   :: TileFileDir
 
    integer*8, pointer           :: LSADDR(:) => null()
    type(HISTORY_ExchangeListWrap) :: lswrap
@@ -455,6 +457,14 @@ contains
       call MAPL_GetResource(MAPLOBJ, EXTDATA_CF,   "EXTDATA_CF:", default='ExtData.rc',     RC=STATUS ) 
       VERIFY_(STATUS)
 
+   ! !RESOURCE_ITEM: integer :: MAPL debug level
+      call MAPL_GetResource(MAPLOBJ, Debug_Level, "DEBUG_LEVEL:", default=0,                RC=STATUS )
+      VERIFY_(STATUS)
+
+   ! !RESOURCE_ITEM: integer :: MAPL debug level
+      call MAPL_GetResource(MAPLOBJ, TileFileDir, "TILEPATH:", default='.',                RC=STATUS )
+      VERIFY_(STATUS)
+
    ! !RESOURCE_ITEM: string :: Control Timers 
       call MAPL_GetResource(MAPLOBJ, enableTimers, "MAPL_ENABLE_TIMERS:", default='NO',             RC=STATUS )
       VERIFY_(STATUS)
@@ -633,6 +643,10 @@ contains
       call MAPL_ConfigSetAttribute(cf_ext, value=NY,  Label="NY:",  rc=status)
       VERIFY_(STATUS)
       call MAPL_ConfigSetAttribute(cf_ext, value=EXTDATA_CF,  Label="CF_EXTDATA:",  rc=status)
+      VERIFY_(STATUS)
+      call MAPL_ConfigSetAttribute(cf_ext, value=DEBUG_LEVEL, Label="DEBUG_LEVEL:",  rc=status)
+      VERIFY_(STATUS)
+      call MAPL_ConfigSetAttribute(cf_ext, value=TileFileDir, Label="TILEPATH:",  rc=status)
       VERIFY_(STATUS)
 
    !  Query MAPL for the the children's for GCS, IMPORTS, EXPORTS

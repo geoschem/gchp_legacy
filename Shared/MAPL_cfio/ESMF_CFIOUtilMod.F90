@@ -95,6 +95,13 @@
 	'JAN','FEB','MAR','APR','MAY','JUN',	&
 	'JUL','AUG','SEP','OCT','NOV','DEC'	/)
 
+! !METHOD OVERLOADING:
+
+  interface GetDate
+     module procedure GetDateInt8
+     module procedure GetDateInt4
+  end interface
+
 !------------------------------------------------------------------------------
 
       contains
@@ -573,6 +580,195 @@
 !-------------------------------------------------------------------------
 !BOP
 !
+! !ROUTINE:  GetDateTimeVec - Get date/time of file samples
+!
+! !DESCRIPTION: This routine returns the date/times on file.
+!
+! !INTERFACE:
+!
+      subroutine GetDateTimeVec ( fid, begDate, begTime, incVec, rc )
+!
+! !USES:
+!
+      Implicit NONE
+!
+! !INPUT PARAMETERS:
+!
+      integer fid      ! file ID
+!
+! !OUTPUT PARAMETERS:
+!
+      integer :: begDate   ! Beginning date
+      integer :: begTime   ! Beginning time
+      integer :: incVec(:) ! Vector of offsets (seconds)
+      integer :: rc        ! error return code
+!
+! !REVISION HISTORY:
+!
+!  1999.11.01  da Silva  Initial code.
+!  1999.11.08  da Silva  Generic time coordinate variable (no name assumed).
+!  2000.10.18  Lucchesi  Added ParseTimeUnits subroutine to handle a wider
+!                        variety of Units formats.
+!  2016.12.06  Eastham   Adapted to return the vector of offsets instead
+!
+!EOP
+!-------------------------------------------------------------------------
+
+      integer i, timeId, hour, min, sec, corner(1), timInc, incSecs
+      integer year, month, day
+      character(len=MAXCHR) timeUnits, strTmp, dimUnits
+
+      character*(MAXCHR) varName, dimName
+      integer type, nvDims, vdims(MAXVDIMS), nvAtts, dimSize
+      integer nDims, nvars, ngatts, dimId
+
+!     Time conversion local variables
+      real*4    rtime, rtime_array(1) 
+      real*8    dtime, dtime_array(1)
+      integer*2 itime, itime_array(1)
+      integer*4 ltime, ltime_array(1)
+      integer   t1, t2, tMult, newDate, newTime
+
+!     We now have the possibility of a very large interval
+      integer*8 :: t1Long, t2Long, tMax, tMultLong, incSecsLong
+      integer*8,allocatable :: incVecLong(:) ! Vector of offsets (seconds)
+
+!     Get the starting date and time
+!     ---------------------------------------------------------
+      !Call GetDateTimeVec ( fid, begDate, begTime, incSecs, rc )
+
+!     Start by determing the ID of the time coordinate variable
+!     ---------------------------------------------------------
+      timeId = -1
+      rc = NF90_INQUIRE (fid, nDims, nvars, ngatts, dimId)
+      if (err("GetDateTimeVec: NF90_INQUIRE failed",rc,-48) .NE. 0)return
+      do i=1,nDims
+        rc = NF90_INQUIRE_DIMENSION (fid, i, dimName, dimSize)  
+        if (err("GetDateTimeVec: can't get dim info",rc,-41) .NE. 0) return
+        if (index(dimName,'station')  .gt. 0) cycle
+        if (trim(dimName) .eq. 'nv') cycle
+        if ( index(dimName,'edges') .gt. 0 ) cycle
+        rc = NF90_INQ_VARID (fid, dimName, dimId)
+        if (err("GetDateTimeVec: NF90_INQ_VARID failed",rc,-40) .NE. 0) return
+        rc = NF90_GET_ATT(fid,dimId,'units',dimUnits)
+        if (err("GetDateTimeVec: could not get units for dimension",rc,-53)&
+            .NE. 0) return
+        if ( IdentifyDim (dimName, dimUnits) .eq. 3 ) then
+             timeId = dimId
+             timeUnits = dimUnits
+             exit
+        end if
+      end do
+
+      if ( timeId .lt. 0 ) then
+         rc = -43
+         print *, "GetDateTimeVec: could not find time coord"
+         return
+      end if
+
+!     Attempt to parse the COARDS compliant time units
+!     --------------------------------------------------
+!ams      rc = NF90_GET_ATT(fid,timeId,'units',timeUnits)
+!ams      if (err("GetDateTimeVec: missing time.units",rc,-44) .NE. 0) return
+      i = index(timeUnits,'since')
+      if ( i .le. 0 ) then
+          if (err("GetDateTimeVec: invalid time units",1,-44) .NE. 0) return
+      endif
+
+!     Call to ParseTimeUnits replaces an internal read, that made assumptions
+!     about the format of the Time Units string that were not always true.  
+!     (RL: 10/2000)
+
+      call ParseTimeUnits ( timeUnits, year, month, day, hour, min, sec, rc )
+      begDate = year*10000 + month*100 + day
+      begTime = hour*10000 + min*100   + sec
+
+!     Retreive time vector.
+!     -------------------------
+      rc = NF90_INQUIRE_VARIABLE (fid, timeID, varName, type, nvDims, vDims, &
+          nvAtts)
+      if (err("GetDateTimeVec: error in time variable inquire",&
+         rc,-52) .NE. 0) return
+    
+      allocate(incVecLong(dimSize))
+      incVecLong(:) = 0
+      do i=1,dimsize
+           if ( type .eq. NF90_FLOAT )  then
+                corner(1) = i
+                rc = NF90_GET_VAR(fid,timeID,rtime_array,corner,(/1/))
+                rtime = rtime_array(1)
+                incVecLong(i) = int(rtime,8) 
+           else if ( type .eq. NF90_DOUBLE ) then
+                corner(1) = i
+                rc = NF90_GET_VAR(fid,timeID,dtime_array,corner,(/1/))
+                dtime = dtime_array(1)
+                incVecLong(i) = int(dtime,8)
+           else if ( type .eq. NF90_SHORT  ) then
+                corner(1) = i
+                rc = NF90_GET_VAR(fid,timeID,itime_array,corner,(/1/))
+                itime = itime_array(1)
+                incVecLong(i) = int(itime,8)
+           else if ( type .eq. NF90_INT   ) then
+                corner(1) = i
+                rc = NF90_GET_VAR(fid,timeID,ltime_array,corner,(/1/))
+                ltime = ltime_array(1)
+                incVecLong(i) = int(ltime,8)
+           else
+                if (err("GetDateTimeVec: invalid time data type",&
+                   1,-44) .NE. 0) return
+           endif
+      end do
+
+!     Convert time increment to seconds if necessary
+!     ----------------------------------------------
+      if ( timeUnits(1:6) .eq.  'minute' ) then
+           tMultLong = 60 
+      else if ( timeUnits(1:4) .eq. 'hour'   ) then
+           tMultLong = 60 * 60 
+      else if ( timeUnits(1:3) .eq.  'day' ) then
+           tMultLong = 60 * 60 * 24
+      else
+           if (err("GetDateTimeVec: invalid time unit name",&
+              1,-44) .NE. 0) return
+      endif
+
+!     Combine the first time offset with the reference time to get the beginning
+!     date and time
+!     -----------------------------------------------------------------------------
+      t1Long = incVecLong(1)
+      Call GetDate(begDate,begTime,t1Long*tMultLong,newDate,newTime,rc)
+      begDate=newDate
+      begTime=newTime
+
+!     Convert all the offsets to reference the first sample
+!     -----------------------------------------------------------------------------
+      incVec(:) = 0
+      do i=1,dimsize
+         t2Long = incVecLong(i)
+         incSecsLong = (t2Long - t1Long)*tMultLong
+         ! If (incSecsLong.gt.huge(t1)) Then
+         !   print *, 'Time interval too large'
+         !   rc = -10
+         !   return
+         ! End If
+         incSecs = int(incSecsLong,4)
+         incVec(i) = incSecs
+      end do
+      deallocate(incVecLong)
+!ams  print *, 'begdate, begtime, incsecs: ',begdate, begtime, incsecs
+
+      rc = 0 ! all done
+
+      return
+      end subroutine GetDateTimeVec
+
+
+
+!-------------------------------------------------------------------------
+!         NASA/GSFC, Data Assimilation Office, Code 910.3, GEOS/DAS      !
+!-------------------------------------------------------------------------
+!BOP
+!
 ! !ROUTINE:  GetBegDateTime - Get begin date/time of file
 !
 ! !DESCRIPTION: This routine returns the begin date/begin time on file.
@@ -622,7 +818,7 @@
       real*8    dtime, dtime_array(1)
       integer*2 itime, itime_array(1)
       integer*4 ltime, ltime_array(1)
-      integer   t1, t2
+      integer   t1, t2, tMult, newDate, newTime
 
 
 !     Start by determing the ID of the time coordinate variable
@@ -744,20 +940,28 @@
               1,-44) .NE. 0) return
       endif
 
-
 !     Convert time increment to seconds if necessary
 !     ----------------------------------------------
       incSecs = t2 - t1
       if ( timeUnits(1:6) .eq.  'minute' ) then
-           incSecs = incSecs * 60 
+           tMult = 60 
       else if ( timeUnits(1:4) .eq. 'hour'   ) then
-           incSecs = incSecs * 60 * 60 
+           tMult = 60 * 60 
       else if ( timeUnits(1:3) .eq.  'day' ) then
-           incSecs = incSecs * 60 * 60 * 24
+           tMult = 60 * 60 * 24
       else
            if (err("GetBegDateTime: invalid time unit name",&
               1,-44) .NE. 0) return
       endif
+
+      incSecs = incSecs*tMult
+
+!     Combine the first time offset with the reference time to get the beginning
+!     date and time
+!     -----------------------------------------------------------------------------
+      Call GetDate(begDate,begTime,t1*tMult,newDate,newTime,rc)
+      begDate=newDate
+      begTime=newTime
 
 !ams  print *, 'begdate, begtime, incsecs: ',begdate, begtime, incsecs
 
@@ -2602,6 +2806,7 @@
       character*8 strBuf
       integer hour,min,sec,incSecs
       logical stationFile
+      integer, allocatable :: incVec(:)
 
 ! Variables for working with dimensions
 
@@ -2714,7 +2919,11 @@
 !ams  rc = NF90_GET_ATT(fid,timeId,'begin_time',begTime)
 !ams     if (err("GetVar: missing begin_time",rc,-44) .NE. 0) return
 
-      call GetBegDateTime ( fid, begDate, begTime, incSecs, rc )
+      allocate(incVec(lm))
+      call GetDateTimeVec ( fID, begDate, begTime, incVec, rc )
+
+      ! Old method - assumes constant increment
+      !call GetBegDateTime ( fid, begDate, begTime, incSecs, rc )
       if (err("GetVar: could not determine begin_date/begin_time",rc,-44)& 
          .NE. 0) return
 
@@ -2750,6 +2959,31 @@
         return
       endif
 
+! Determine the time index from the time vector.
+      timeIndex=-1
+      j=0
+      Do While (timeIndex.lt.1)
+         j=j+1
+         do i=1,lm
+            if ((seconds.le.incVec(i)).and.(timeIndex.lt.1)) timeIndex=i
+         end do
+         if (timeIndex.lt.1) then
+            if (cyclic) then
+               seconds = seconds - (incVec(2)-incVec(1))*lm
+            else
+               j=j+1000
+            end if
+         end if
+         if (j.gt.1000) then
+            Write(*,'(a,L1,a,I0.6)') 'CFIO_Sgetvar: failed to find a valid sample (C', cyclic, &
+                                     '). Total iterations: ', j
+            rc = -20
+            return
+         end if
+      End Do
+      deallocate(incVec)
+
+      ! Old method - assumes constant increment
 ! Determine the time index from the offset and time increment.
 
 !ams      rc = NF90_GET_ATT(fid,timeId,'time_increment',timInc)
@@ -2763,27 +2997,27 @@
 !ams 204   format (3I2)
 !ams       incSecs = hour*3600 + min*60 + sec
 
-      if ( MOD (seconds, incSecs) .ne. 0 ) then
-        print *, 'CFIO_getvar: Absolute time of ',seconds,' not ',&
-                'possible with an interval of ',incSecs
-        rc = -2
-        return
-      else
-        timeIndex = seconds/incSecs + 1
-      endif
+      !if ( MOD (seconds, incSecs) .ne. 0 ) then
+      !  print *, 'CFIO_getvar: Absolute time of ',seconds,' not ',&
+      !          'possible with an interval of ',incSecs
+      !  rc = -2
+      !  return
+      !else
+      !  timeIndex = seconds/incSecs + 1
+      !endif
 
 ! Wrap time index around if time dimension is periodic
 
 !ams  print *, '--- Time Index: ', timeIndex
 
-      if ( cyclic ) then
-         timeShift = mod ( timeIndex, lm )
-         if ( timeShift > 0 ) then
-            timeIndex = timeShift 
-         else 
-            timeIndex = lm + timeShift
-         end if
-      end if
+      !if ( cyclic ) then
+      !   timeShift = mod ( timeIndex, lm )
+      !   if ( timeShift > 0 ) then
+      !      timeIndex = timeShift 
+      !   else 
+      !      timeIndex = lm + timeShift
+      !   end if
+      !end if
 
 !ams  print *, '+++ Time Index, timeShift: ', timeIndex, timeShift
 
@@ -2983,6 +3217,7 @@
       integer i,j,k
       character*8 strBuf
       integer hour,min,sec,incSecs
+      integer, allocatable :: incVec(:)
 
 ! Variables for working with dimensions
 
@@ -3095,7 +3330,11 @@
 !ams     rc = NF90_GET_ATT(fid,timeId,'begin_time',begTime)
 !ams     if (err("GetVar: missing begin_time",rc,-44) .NE. 0) return
 
-      call GetBegDateTime ( fid, begDate, begTime, incSecs, rc )
+      allocate(incVec(lm))
+      call GetDateTimeVec ( fID, begDate, begTime, incVec, rc )
+      ! Old method - assumes constant increment
+      !call GetBegDateTime ( fid, begDate, begTime, incSecs, rc )
+
       if (err("GetVar: could not determine begin_date/begin_time",rc,-44) &
          .NE. 0) return
 
@@ -3108,6 +3347,9 @@
 
       if ( .not. cyclic ) then
          if (seconds .LT. 0) then
+            ! SDE DEBUG
+            Write(6,'(a,2(x,I0.8,x,I0.6),x,I0.12)') 'BD/BT/TD/TT/S:',&
+                  begDate,begTime,yyyymmdd,hhmmss,seconds
             print *, 'CFIO_GetVar: Error code from diffdate.  Problem with', &
                 ' date/time.'
             rc = -7
@@ -3131,6 +3373,31 @@
         return
       endif
 
+! Determine the time index from the time vector.
+      timeIndex=-1
+      j=0
+      Do While (timeIndex.lt.1)
+         j=j+1
+         do i=1,lm
+            if ((seconds.le.incVec(i)).and.(timeIndex.lt.1)) timeIndex=i
+         end do
+         if (timeIndex.lt.1) then
+            if (cyclic) then
+               seconds = seconds - (incVec(2)-incVec(1))*lm
+            else
+               j=j+1000
+            end if
+         end if
+         if (j.gt.1000) then
+            Write(*,'(a,L1,a,I0.6)') 'CFIO_getvar: failed to find a valid sample (C', cyclic, &
+                                     '). Total iterations: ', j
+            rc = -20
+            return
+         end if
+      End Do
+      deallocate(incVec)
+
+      ! Old method - assumes constant increment
 ! Determine the time index from the offset and time increment.
 
 !ams  rc = NF90_GET_ATT(fid,timeId,'time_increment',timInc)
@@ -3144,27 +3411,27 @@
 !ams 204   format (3I2)
 !ams       incSecs = hour*3600 + min*60 + sec
 
-      if ( MOD (seconds, incSecs) .ne. 0 ) then
-        print *, 'CFIO_getvar: Absolute time of ',seconds,' not ',&
-                'possible with an interval of ',incSecs
-        rc = -2
-        return
-      else
-        timeIndex = seconds/incSecs + 1
-      endif
+      !if ( MOD (seconds, incSecs) .ne. 0 ) then
+      !  print *, 'CFIO_getvar: Absolute time of ',seconds,' not ',&
+      !          'possible with an interval of ',incSecs
+      !  rc = -2
+      !  return
+      !else
+      !  timeIndex = seconds/incSecs + 1
+      !endif
 
 ! Wrap time index around if time dimension is periodic
 
 !ams  print *, '--- Time Index: ', timeIndex
 
-      if ( cyclic ) then
-         timeShift = mod ( timeIndex, lm )
-         if ( timeShift > 0 ) then
-            timeIndex = timeShift 
-         else 
-            timeIndex = lm + timeShift
-         end if
-      end if
+      !if ( cyclic ) then
+      !   timeShift = mod ( timeIndex, lm )
+      !   if ( timeShift > 0 ) then
+      !      timeIndex = timeShift 
+      !   else 
+      !      timeIndex = lm + timeShift
+      !   end if
+      !end if
 
 !ams  print *, '+++ Time Index, timeShift: ', timeIndex, timeShift
 
@@ -3718,13 +3985,130 @@
 !-------------------------------------------------------------------------
 !BOP
 !
-! !ROUTINE: GetDate --- Returns a new date/time from an initial date/time 
+! !ROUTINE: GetDateInt8 --- Returns a new date/time from an initial date/time 
 !                       and offset
 !
 ! !INTERFACE:
 !
 
-       subroutine GetDate (yyyymmdd_1,hhmmss_1,offset, &
+       subroutine GetDateInt8 (yyyymmdd_1,hhmmss_1,offset, &
+                          yyyymmdd_2,hhmmss_2,rc)
+
+! 
+! !USES:
+!
+
+       implicit none
+
+!
+! !INPUT PARAMETERS:
+!
+       
+       integer         yyyymmdd_1       ! Initial date in YYYYYMMDD format
+       integer         hhmmss_1         ! Initial time in HHMMSS format
+       integer(kind=8) offset           ! Offset to add (in seconds)
+
+!
+! !OUTPUT PARAMETERS:
+!
+       integer yyyymmdd_2               ! New date in YYYYMMDD format
+       integer hhmmss_2                 ! New time in HHMMSS format
+       integer rc                       ! Return code. (<0 = error)
+!
+! !DESCRIPTION:   This subroutine returns a new date and time in yyyymmdd
+!                 and hhmmss format given and initial date, time, and
+!                 offset in seconds.  The routine converts the input date
+!                 and time to julian seconds, adds the offset, and converts
+!                 back to yyyymmdd and hhmmss format.  This routine has been
+!                 tested for Y2K compiance.
+!
+! !REVISION HISTORY:
+!
+!  1998.07.20  Lucchesi    Initial version.
+!  2010.05.11  Lucchesi  Integer for julian seconds changed to 64-bit. StartDate
+!                        constant no longer needed.
+!
+!EOP
+!-------------------------------------------------------------------------
+
+      integer year1,mon1,day1,hour1,min1,sec1
+      integer year2,mon2,day2,hour2,min2,sec2
+      integer seconds1, seconds2
+      integer(kind=8) julian1, julian2
+      integer(kind=8) julsec, remainder
+      character*8 dateString
+
+! Error checking.
+
+      if (yyyymmdd_1 .lt. 19000000 .or. yyyymmdd_1 .gt. 21000000 ) then
+         rc=-1
+         return
+      endif
+      if (hhmmss_1 .lt. 0 .or. hhmmss_1 .ge. 240000 ) then
+         rc=-1
+         return
+      endif
+
+! Convert Date/Time strings to integer variables.
+
+!ams       write (dateString, 200) yyyymmdd_1
+!ams 200   format (I8)
+!ams       read (dateString, 201) year1, mon1, day1
+!ams 201   format (I4,2I2)
+!ams       write (dateString, 202) hhmmss_1
+!ams 202   format (I6)
+!ams       read (dateString, 203) hour1, min1, sec1
+!ams 203   format (3I2)
+
+      call CFIO_parseIntTime ( yyyymmdd_1, year1, mon1, day1 )
+      call CFIO_parseIntTime ( hhmmss_1, hour1, min1, sec1 )
+
+! Get Julian Day and subtract off a constant (Julian days since 7/14/66)
+ 
+      julian1 = julday (mon1, day1, year1)
+       
+! Calculcate Julian seconds
+
+      julsec = (julian1-1)*86400 + hour1*3600 + min1*60 + sec1
+
+! Add offset and calculate new julian day.
+
+      julsec = julsec + offset
+      julian1 = INT(julsec/86400) + 1
+      remainder = MOD(julsec,86400)
+ 
+! Convert julian day to YYYYMMDD.
+
+      call caldat (julian1, mon2, day2, year2)
+
+! Calculate HHMMSS from the remainder.
+
+      hour2 = INT(remainder/3600)
+      remainder = MOD(remainder,3600)
+      min2 = INT(remainder/60)
+      sec2 = MOD(remainder,60)
+
+! Build YYYYMMDD and HHMMSS variables.
+
+      yyyymmdd_2 = year2*10000 + mon2*100 + day2
+      hhmmss_2 = hour2*10000 + min2*100 + sec2
+
+      rc = 0
+      return
+      end subroutine GetDateInt8
+
+!-------------------------------------------------------------------------
+!         NASA/GSFC, Data Assimilation Office, Code 910.3, GEOS/DAS      !
+!-------------------------------------------------------------------------
+!BOP
+!
+! !ROUTINE: GetDateInt4 --- Returns a new date/time from an initial date/time 
+!                       and offset
+!
+! !INTERFACE:
+!
+
+       subroutine GetDateInt4 (yyyymmdd_1,hhmmss_1,offset, &
                           yyyymmdd_2,hhmmss_2,rc)
 
 ! 
@@ -3828,7 +4212,7 @@
 
       rc = 0
       return
-      end subroutine GetDate
+      end subroutine GetDateInt4
 
 !-------------------------------------------------------------------------
 !         NASA/GSFC, Data Assimilation Office, Code 910.3, GEOS/DAS      !

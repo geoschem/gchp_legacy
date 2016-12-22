@@ -991,6 +991,10 @@ contains
 
        if (regridConservative) then
           call MAPL_GenGridName(imo, jmo, xyoffset=mcfio%xyoffset, gridname=gridnameOut, geos_style=.false.)
+          !=======================================
+          ! SDE DEBUG
+          if (mapl_am_i_root()) write(*,'(a,2(x,a),2(x,I0.5),x,I0.2)')"CFIO: Generating grid name. F/G/I/J/XYO:",trim(mCFIO%fName),trim(gridNameOut),imo,jmo,mCFIO%XYOffset
+          !=======================================
           gridnameIn = gridname
           call MAPL_GeosNameNew(gridnameIn)
 
@@ -2884,7 +2888,7 @@ contains
                                 xid=EXPID, nymd=nymd, nhms=nhms, stat=status )
     VERIFY_(STATUS)
     !call WRITE_PARALLEL("CFIO: Reading " // trim(filename))
-    if (mapl_am_i_root()) write(*,*)"CFIO: Reading ",trim(filename)," at ",nymd," ",nhms
+    if (mapl_am_i_root()) write(*,'(a,a,a,I0.8,a,I0.6)')"CFIO: Reading ",trim(filename)," at ",nymd," ",nhms
 
 !   CFIO Registry
 !   -------------
@@ -3144,7 +3148,15 @@ contains
           VERIFY_(STATUS)
           ! Assert compatibility of file and bundle
           !----------------------------------------
-          ASSERT_( LM==0 .or. counts(3) == 0 .or. LM==counts(3) .or. lm == (counts(3)+1) )
+          If (.not.(LM==0.or.counts(3)==0.or.LM==counts(3).or.LM==(counts(3)+1))) Then
+             !ASSERT_( LM==0 .or. counts(3) == 0 .or. LM==counts(3) .or. lm == (counts(3)+1) )
+             If (IamRoot) Then
+                Write(*,'(a,a,a,2(I0.4,a),I0.4)') 'Error while reading ', &
+                   Trim(BundleVarName), '. Expected either 1, ', Counts(3), &
+                   ' or ',Counts(3)+1,' levels, but found ', LM
+             End If
+             ASSERT_(.False.)
+          End If
 
           ! Get lat/lons of input bundle
           ! ----------------------------
@@ -3256,6 +3268,16 @@ contains
         fcubed = .false.
     end if
 
+!   The code will generate the wrong tile file name if, for example, the NetCDF
+!   file has a longitude vector which starts at the date line but where 185 is
+!   used instead of -175 to represent 175 W.
+
+    If (.not.fCubed) Then
+       Where(LonsFile>180.0) LonsFile = LonsFile-360.0
+       ! Special case
+       If (LonsFile(1).ge.179.9999) LonsFile(1) = LonsFile(1) - 360.0
+    End If
+
     do_xshift = .FALSE. ! Initialize: do not shift
 
     if ( IM0==1 .AND. JM0==1 ) then
@@ -3277,6 +3299,10 @@ contains
 
        call ESMF_GRID_INTERIOR(ESMFGRID,I1w,INw,J1w,JNw)
        call MAPL_GenGridName(im, jm, LONSfile, LATSfile, gridname=gridnamef, geos_style=geosGridNames)
+       !=======================================
+       ! SDE DEBUG
+       if (mapl_am_i_root()) write(*,'(a,2(x,a),4(x,E16.4E4),x,I0.2)')"CFIO: Generating grid name. F/G/LONS/LATS:",trim(FileName),trim(GridNameF),LonsFile(1),LonsFile(2),LatsFile(1),LatsFile(2)
+       !=======================================
        if (.not. geosGridNames) call MAPL_GeosNameNew(gridname)
 
        tileFile=trim(adjustl(gridnamef)) // '_' //trim(adjustl(gridname))  // '.bin'

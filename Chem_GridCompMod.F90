@@ -2518,6 +2518,15 @@ CONTAINS
           ELSE
           ENDIF
 
+          ! SDE 2016-12-22: Force these to zero for dry deposition. If these
+          ! aren't set to zero and the land types aren't set, then the surface
+          ! type can end up being interpreted differently on different nodes due
+          ! to the lack of initialization of the variables.
+          State_Met%IREG(:,:)    = 1
+          State_Met%IUSE(:,:,1)  = 1
+          State_Met%ILAND(:,:,1) = 0
+          State_Met%XLAI(:,:,1)  = 0.0
+
           ! Run the GEOS-Chem column chemistry code for the given phase
           CALL GIGC_Chunk_Run( am_I_Root  = am_I_Root,  & ! Is this root PET?
                                GC         = GC,         & ! Gridded comp ref. 
