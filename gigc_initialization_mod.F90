@@ -495,7 +495,7 @@ CONTAINS
 
        !### Debug
        IF ( prtDebug ) THEN
-          CALL DEBUG_MSG( '### GIGC_INIT_CHEMISTRY: after READER' )
+          CALL DEBUG_MSG( '### GIGC_INIT_SIMULATION: after READER' )
        ENDIF
 
 !------------------------------------------------------------------------------
@@ -506,7 +506,7 @@ CONTAINS
 !
 !    ! Broadcast "mglob.dat"
 !       CALL GIGC_Reader_Bcast( RC )
-!    CALL DEBUG_MSG( '### GIGC_INIT_CHEMISTRY: after GIGC_Bcast_READER' )
+!    CALL DEBUG_MSG( '### GIGC_INIT_SIMULATION: after GIGC_Bcast_READER' )
 !------------------------------------------------------------------------------
 
     ! Read "globchem.dat" chemistry mechanism
@@ -521,7 +521,7 @@ CONTAINS
 
        !### Debug
        IF ( prtDebug ) THEN
-          CALL DEBUG_MSG( '### GIGC_INIT_CHEMISTRY: after READCHEM' )        
+          CALL DEBUG_MSG( '### GIGC_INIT_SIMULATION: after READCHEM' )        
        ENDIF
 !------------------------------------------------------------------------------
 ! Prior to 3/7/13:
@@ -545,7 +545,7 @@ CONTAINS
 
        !### Debug
        IF ( prtDebug ) THEN
-          CALL DEBUG_MSG( '### GIGC_INIT_CHEMISTRY: after INIT_FJX' )        
+          CALL DEBUG_MSG( '### GIGC_INIT_SIMULATION: after INIT_FJX' )        
        ENDIF
 !------------------------------------------------------------------------------
 ! Prior to 3/7/13:
@@ -611,7 +611,7 @@ CONTAINS
 
        !### Debug
        IF ( prtDebug ) THEN
-          CALL DEBUG_MSG( '### GIGC_INIT_CHEMISTRY: after OLSON' )
+          CALL DEBUG_MSG( '### GIGC_INIT_SIMULATION: initialize drydep' )
        ENDIF
     ENDIF
 
@@ -648,7 +648,7 @@ CONTAINS
  
        !### Debug
        IF ( prtDebug ) THEN
-          CALL DEBUG_MSG( '### GIGC_INIT_CHEMISTRY: after READER' )        
+          CALL DEBUG_MSG( '### GIGC_INIT_SIMULATION: after READER' )        
        ENDIF
        
        ! Redefine NTLOOP since READER defines it initially (bmy, 9/28/04)
@@ -673,7 +673,7 @@ CONTAINS
 
        !### Debug
        IF ( prtDebug ) THEN
-          CALL DEBUG_MSG( '### GIGC_INIT_CHEMISTRY: after GET_GLOBAL_CH4' )
+          CALL DEBUG_MSG( '### GIGC_INIT_SIMULATION: after GET_GLOBAL_CH4' )
        ENDIF
        
        ! Call SETTRACE to set up chemical species flags
@@ -688,7 +688,7 @@ CONTAINS
 
        !### Debug
        IF ( prtDebug ) THEN
-          CALL DEBUG_MSG( '### GIGC_INIT_CHEMISTRY: after SETTRACE' )
+          CALL DEBUG_MSG( '### GIGC_INIT_SIMULATION: after SETTRACE' )
        ENDIF
        
        ! Register species (active + inactive) in the State_Chm object     
@@ -705,7 +705,7 @@ CONTAINS
 
        !### Debug
        IF ( prtDebug ) THEN
-          CALL DEBUG_MSG( '### GIGC_INIT_CHEMISTRY: after SETTRACE' )
+          CALL DEBUG_MSG( '### GIGC_INIT_SIMULATION: after SETTRACE' )
        ENDIF
        
        ! Flag emission & drydep rxns
@@ -714,7 +714,7 @@ CONTAINS
        
        !### Debug
        IF ( prtDebug ) THEN
-          CALL DEBUG_MSG( '### GIGC_INIT_CHEMISTRY: after SETEMDEP' )
+          CALL DEBUG_MSG( '### GIGC_INIT_SIMULATION: after SETEMDEP' )
        ENDIF
 
        ! Allocate array of overhead O3 columns for TOMS
@@ -722,7 +722,7 @@ CONTAINS
 
        !### Debug
        IF ( prtDebug ) THEN
-          CALL DEBUG_MSG( '### GIGC_INIT_CHEMISTRY: after INIT_TOMS' )
+          CALL DEBUG_MSG( '### GIGC_INIT_SIMULATION: after INIT_TOMS' )
        ENDIF
 
     ENDIF
