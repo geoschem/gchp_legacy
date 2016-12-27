@@ -2080,13 +2080,14 @@ CONTAINS
     
   end subroutine UpdateBracketTime
 
-  subroutine GetBracketTimeOnFile(file,cTime,bSide,UniFileClim,interpTime,fileTime,rc)
+  subroutine GetBracketTimeOnFile(file,cTime,bSide,UniFileClim,interpTime,fileTime,Extrap_In,rc)
      character(len=ESMF_MAXSTR),          intent(in   ) :: file
      type(ESMF_Time),                     intent(inout) :: cTime
      character(len=1),                    intent(in   ) :: bSide
      logical,                             intent(in   ) :: UniFileClim
      type(ESMF_TIME),                     intent(inout) :: interpTime
      type(ESMF_TIME),                     intent(inout) :: fileTime
+     logical, optional,                   intent(in)    :: Extrap_In
      integer, optional,                   intent(out  ) :: rc
 
      __Iam__('GetBracketTimeOnFile')
@@ -2098,11 +2099,32 @@ CONTAINS
      integer                            :: begDate, begTime
      type(ESMF_Time), pointer           :: tSeries(:)
      type(ESMF_Time)                    :: climTime
-     logical                            :: found
+     logical                            :: found, outOfBounds, srcLeap, targLeap
+     logical                            :: extrapOK
+     integer                            :: yrOffset
      integer                            :: climSize
      integer, allocatable               :: tSeriesInt(:)
 
+     If (Present(Extrap_In)) Then
+        ExtrapOK = Extrap_In
+     Else
+        ExtrapOK = .False.
+     End If
+
+     ! Assume that the requested time is within range
+     yrOffset = 0
+
+     Inquire(FILE=trim(file),EXIST=found)
+     If (.not.found) Then
+        Write(6,'(a,a)') 'ERROR: File not found while updating time brackets: ',&
+                         Trim(file)
+        RC = ESMF_FAILURE
+        Return
+     Else If (Mapl_Am_I_Root().and.(Ext_Debug > 9)) Then
+        Write(6,'(a,a)') 'DEBUG: Opening file: ', Trim(file)
+     End If
      cfio =  ESMF_CFIOCreate (cfioObjName='cfio_obj',__RC__)
+
      call ESMF_CFIOSet(CFIO, fName=trim(file),__RC__)
      call ESMF_CFIOFileOpen  (CFIO, FMODE=1, __RC__)
      !call GetBegDateTime(cfio%fid,begDate,begTime,incSecs,__RC__)
@@ -2161,6 +2183,9 @@ CONTAINS
      ! we will have to specially handle a climatology in one file
      ! might be better way but can not think of one
      if (bSide == "L") then
+        If (Mapl_Am_I_Root().and.(.not.UniFileClim).and.(cLimTime < tSeries(1))) Then
+           Write(6,'(a,a)') 'DEBUG: Requested time is before first available sample in file ', trim(file)
+        End If
         if ( UniFileClim .and. (climTime < tSeries(1)) ) then
            fileTime = tSeries(climsize)
            call ESMF_TimeGet(tSeries(climsize),yy=iyr,mm=imm,dd=idd,h=ihr,m=imn,s=isc,__RC__)
@@ -2169,6 +2194,89 @@ CONTAINS
            call ESMF_TimeSet(interpTime,yy=iyr,mm=imm,dd=idd,h=ihr,m=imn,s=isc,__RC__)
            found = .true.
         else
+           OutOfBounds = (cLimTime < tSeries(1))
+           If (Mapl_Am_I_Root().and.(cLimTime < tSeries(1))) Then
+              Write(6,'(a,a)') 'DEBUG: Requested time is before last available sample in file ', trim(file)
+           End If
+           ! Is the requested time outside the range of the given samples?
+           If (OutOfBounds) Then
+              !=====SDE DEBUG=====
+              If (Mapl_Am_I_Root()) Then
+                 call ESMF_TimeGet(tSeries(1),yy=iyr,mm=imm,dd=idd,h=ihr,m=imn,s=isc,__RC__)
+                 Write(*,'(a,I0.4,a,I0.2,a,I0.2,a,I0.2,a,I0.2,a,a)') &
+                    'DEBUG:  Start time is ', iYr, '-', iMm, '-', iDd, &
+                    ' ', iHr, ':', iMn, ' for file ', Trim(File)
+                 call ESMF_TimeGet(tSeries(cfio%tSteps),yy=iyr,mm=imm,dd=idd,h=ihr,m=imn,s=isc,__RC__)
+                 Write(*,'(a,I0.4,a,I0.2,a,I0.2,a,I0.2,a,I0.2,a,a)') &
+                    'DEBUG:    End time is ', iYr, '-', iMm, '-', iDd, &
+                    ' ', iHr, ':', iMn, ' for file ', Trim(File)
+                 call ESMF_TimeGet(cLimTime,yy=iyr,mm=imm,dd=idd,h=ihr,m=imn,s=isc,__RC__)
+                 Write(*,'(a,I0.4,a,I0.2,a,I0.2,a,I0.2,a,I0.2,a,a)') &
+                    'DEBUG: Target time is ', iYr, '-', iMm, '-', iDd, &
+                    ' ', iHr, ':', iMn, ' for file ', Trim(File)
+              End If
+              If (ExtrapOK) Then
+                 !=====SDE DEBUG=====
+                 ! Increase the year offset until the first sample is within range.
+                 ! Start by breaking down the target time, then keep subtracting
+                 ! years until the final sample of the current file is within
+                 ! range. This could be done algebraically but this is safe. Need
+                 ! to then set the interpTime to use the current year, rather than
+                 ! the file year.
+                 call ESMF_TimeGet(cLimTime,yy=iyr,mm=imm,dd=idd,h=ihr,m=imn,s=isc,__RC__)
+                 ! Is the target date Feb 29th of a leap year?
+                 targLeap = ((imm.eq.2).and.(idd.eq.29))
+                 ! climYear: Year of the first sample as stored in file
+                 call ESMF_TimeGet(tSeries(1),yy=climYear)
+                 found = .false.
+                 OutOfBounds = cLimTime > tSeries(cfio%tSteps)
+                 Do While ((.not.found) .and. (.not.OutOfBounds))
+                    yrOffset = yrOffset - 1
+                    iyr = iyr + 1
+                    ! Could have a problem if the target day is Feb 29th but
+                    ! the offset year is not a leap year
+                    if (targLeap) then
+                       if (iyr.lt.1582) then
+                          srcLeap = .False.
+                       else if (modulo(iYr,4).ne.0) then
+                          srcLeap = .False.
+                       else if (modulo(iYr,100).ne.0) then
+                          srcLeap = .True.
+                       else if (modulo(iYr,400).ne.0) then
+                          srcLeap = .False.
+                       else
+                          srcLeap = .True.
+                       end if
+                    else
+                       srcLeap = .False.
+                    endif
+                    if (targLeap.and.(.not.srcLeap)) then
+                       call ESMF_TimeSet(cLimTime,yy=iyr,mm=imm,dd=28,h=ihr,m=imn,s=isc,__RC__)
+                    else
+                       call ESMF_TimeSet(cLimTime,yy=iyr,mm=imm,dd=idd,h=ihr,m=imn,s=isc,__RC__)
+                    end if
+                    OutOfBounds = cLimTime > tSeries(cfio%tSteps)
+                    found = (cLimTime >= tSeries(1))
+                    !=====SDE DEBUG=====
+                    If (Mapl_Am_I_Root()) Then
+                       Write(*,'(a,I0.4,a,I0.4,a,I0.2,a,I0.2,a,I0.2,a,I0.2,a,a,a,L1,x,L1)') &
+                          'DEBUG: Offset of ',yrOffset,' tested (', iYr, '-', iMm, '-', iDd, &
+                          ' ', iHr, ':', iMn, ') for bracket ', bSide,&
+                          '. Flags: ',found,OutOfBounds
+                    End If
+                    !=====SDE DEBUG=====
+                 End Do
+                 If (OutOfBounds) Then
+                    Write(*,'(a,a,a,a)') 'WARNING: Could not bring target file into alignment (',&
+                       bSide, '): ', Trim(file)
+                    RC = ESMF_FAILURE
+                    Return
+                 End If
+              Else
+                 RC = ESMF_FAILURE
+                 Return
+              End If
+           End If
            do i=cfio%tSteps,1,-1
               if (climTime >= tSeries(i)) then
                  fileTime = tSeries(i)
@@ -2176,6 +2284,10 @@ CONTAINS
                     call ESMF_TimeGet(cTime,yy=curYear,__RC__)
                     call ESMF_TimeGet(fileTime,yy=iyr,mm=imm,dd=idd,h=ihr,m=imn,s=isc,__RC__)
                     call ESMF_TimeSet(interpTime,yy=curYear,mm=imm,dd=idd,h=ihr,m=imn,s=isc,__RC__)
+                 elseif (yrOffset .ne. 0) Then
+                    call ESMF_TimeGet(fileTime,yy=iyr,mm=imm,dd=idd,h=ihr,m=imn,s=isc,__RC__)
+                    iYr = iYr + yrOffset
+                    call ESMF_TimeSet(interpTime,yy=iYr,mm=imm,dd=idd,h=ihr,m=imn,s=isc,__RC__)
                  else
                     interpTime = tSeries(i)
                  end if
@@ -2193,6 +2305,88 @@ CONTAINS
            call ESMF_TimeSet(interpTime,yy=iyr,mm=imm,dd=idd,h=ihr,m=imn,s=isc,__RC__)
            found = .true.
         else
+           If (Mapl_Am_I_Root().and.(cLimTime >= tSeries(cfio%tSteps))) Then
+              Write(6,'(a,a)') 'DEBUG: Requested time is after last available sample in file ', trim(file)
+           End If
+           ! Is the requested time outside the range of the given samples?
+           If (cLimTime >= tSeries(cfio%tSteps)) Then
+              !=====SDE DEBUG=====
+              If (Mapl_Am_I_Root()) Then
+                 call ESMF_TimeGet(tSeries(1),yy=iyr,mm=imm,dd=idd,h=ihr,m=imn,s=isc,__RC__)
+                 Write(*,'(a,I0.4,a,I0.2,a,I0.2,a,I0.2,a,I0.2,a,a)') &
+                    'DEBUG:  Start time is ', iYr, '-', iMm, '-', iDd, &
+                    ' ', iHr, ':', iMn, ' for file ', Trim(File)
+                 call ESMF_TimeGet(tSeries(cfio%tSteps),yy=iyr,mm=imm,dd=idd,h=ihr,m=imn,s=isc,__RC__)
+                 Write(*,'(a,I0.4,a,I0.2,a,I0.2,a,I0.2,a,I0.2,a,a)') &
+                    'DEBUG:    End time is ', iYr, '-', iMm, '-', iDd, &
+                    ' ', iHr, ':', iMn, ' for file ', Trim(File)
+                 call ESMF_TimeGet(cLimTime,yy=iyr,mm=imm,dd=idd,h=ihr,m=imn,s=isc,__RC__)
+                 Write(*,'(a,I0.4,a,I0.2,a,I0.2,a,I0.2,a,I0.2,a,a)') &
+                    'DEBUG: Target time is ', iYr, '-', iMm, '-', iDd, &
+                    ' ', iHr, ':', iMn, ' for file ', Trim(File)
+              End If
+              If (ExtrapOK) Then
+                 !=====SDE DEBUG=====
+                 ! Increase the year offset until the last sample is within range.
+                 ! Start by breaking down the target time, then keep subtracting
+                 ! years until the final sample of the current file is within
+                 ! range. This could be done algebraically but this is safe. Need
+                 ! to then set the interpTime to use the current year, rather than
+                 ! the file year.
+                 call ESMF_TimeGet(cLimTime,yy=iyr,mm=imm,dd=idd,h=ihr,m=imn,s=isc,__RC__)
+                 ! Is the target date Feb 29th of a leap year?
+                 targLeap = ((imm.eq.2).and.(idd.eq.29))
+                 ! climYear: Year of the final sample as stored in file
+                 call ESMF_TimeGet(tSeries(cfio%tSteps),yy=climYear)
+                 found = .false.
+                 OutOfBounds = cLimTime < tSeries(1)
+                 Do While ((.not.found) .and. (.not.OutOfBounds))
+                    yrOffset = yrOffset + 1
+                    iyr = iyr - 1
+                    ! Could have a problem if the target day is Feb 29th but
+                    ! the offset year is not a leap year
+                    if (targLeap) then
+                       if (iyr.lt.1582) then
+                          srcLeap = .False.
+                       else if (modulo(iYr,4).ne.0) then
+                          srcLeap = .False.
+                       else if (modulo(iYr,100).ne.0) then
+                          srcLeap = .True.
+                       else if (modulo(iYr,400).ne.0) then
+                          srcLeap = .False.
+                       else
+                          srcLeap = .True.
+                       end if
+                    else
+                       srcLeap = .False.
+                    endif
+                    if (targLeap.and.(.not.srcLeap)) then
+                       call ESMF_TimeSet(cLimTime,yy=iyr,mm=imm,dd=28,h=ihr,m=imn,s=isc,__RC__)
+                    else
+                       call ESMF_TimeSet(cLimTime,yy=iyr,mm=imm,dd=idd,h=ihr,m=imn,s=isc,__RC__)
+                    end if
+                    OutOfBounds = cLimTime < tSeries(1)
+                    found = (cLimTime < tSeries(cfio%tSteps))
+                    !=====SDE DEBUG=====
+                    If (Mapl_Am_I_Root()) Then
+                       Write(*,'(a,I0.4,a,I0.4,a,I0.2,a,I0.2,a,I0.2,a,I0.2,a,a,a,L1,x,L1)') &
+                          'DEBUG: Offset of ',yrOffset,' tested (', iYr, '-', iMm, '-', iDd, &
+                          ' ', iHr, ':', iMn, ') for bracket ', bSide,&
+                          '. Flags: ',found,OutOfBounds
+                    End If
+                    !=====SDE DEBUG=====
+                 End Do
+                 If (OutOfBounds) Then
+                    Write(*,'(a,a,a,a)') 'WARNING: Could not bring target file into alignment (',&
+                       bSide, '): ', Trim(file)
+                    RC = ESMF_FAILURE
+                    Return
+                 End If
+              Else
+                 RC = ESMF_FAILURE
+                 Return
+              End If
+           End If
            do i=1,cfio%tSteps
               if (climTime < tSeries(i)) then
                  fileTime = tSeries(i)
@@ -2200,6 +2394,10 @@ CONTAINS
                     call ESMF_TimeGet(cTime,yy=curYear,__RC__)
                     call ESMF_TimeGet(fileTime,yy=iyr,mm=imm,dd=idd,h=ihr,m=imn,s=isc,__RC__)
                     call ESMF_TimeSet(interpTime,yy=curYear,mm=imm,dd=idd,h=ihr,m=imn,s=isc,__RC__)
+                 elseif (yrOffset .ne. 0) Then
+                    call ESMF_TimeGet(fileTime,yy=iyr,mm=imm,dd=idd,h=ihr,m=imn,s=isc,__RC__)
+                    iYr = iYr + yrOffset
+                    call ESMF_TimeSet(interpTime,yy=iYr,mm=imm,dd=idd,h=ihr,m=imn,s=isc,__RC__)
                  else
                     interpTime = tSeries(i)
                  end if
@@ -2213,9 +2411,23 @@ CONTAINS
      deallocate(tSeries)
      deallocate(tSeriesInt)
      if (found) then
+        If (Mapl_Am_I_Root().and.(Ext_Debug > 15)) Then
+           call ESMF_TimeGet(fileTime,yy=iyr,mm=imm,dd=idd,h=ihr,m=imn,s=isc,__RC__)
+           Write(*,'(a,I0.4,a,I0.2,a,I0.2,a,I0.2,a,I0.2,a,a,a,a)') &
+              'DEBUG: Data from time ', iYr, '-', iMm, '-', iDd, &
+              ' ', iHr, ':', iMn, ' set for bracket ', bSide,&
+              ' of file ', Trim(File)
+           If (yrOffset .ne. 0) Then
+              call ESMF_TimeGet(interpTime,yy=iyr,mm=imm,dd=idd,h=ihr,m=imn,s=isc,__RC__)
+              Write(*,'(a,I0.4,a,I0.2,a,I0.2,a,I0.2,a,I0.2)') &
+                 'DEBUG: ==> Mapped to: ', iYr, '-', iMm, '-', iDd, &
+                 ' ', iHr, ':', iMn
+           End If
+        End If
         rc=ESMF_SUCCESS
         return
      else
+        Write(6,'(a,a)') 'WARNING: Requested sample not found in file ', trim(file)
         rc=ESMF_FAILURE
         return
      endif
@@ -2395,11 +2607,6 @@ CONTAINS
            call MAPL_PackTime(nhms1,hr,mn,sc)
            call MAPL_PackTime(nymd1,yr,mm,dd)
            If (item%doInterpolate) Then
-              ! Getting odd behavoir?
-              !Write(*,'(a,a)') 'DEBUG FOR FIELD: ',Trim(item%name)
-              !Write(*,'(a,I0.8,x,I0.6)') 'T1: ', nymd1, nhms1
-              !!Write(*,'(a,I)') 'T2%YR: ',item%interp_time2%YR
-              !Write(*,'(a,E20.10E4)') 'ALPHA: ', alpha
               If (alpha .gt. 0.0) Then
                  call ESMF_TimeGet(item%interp_time2,yy=yr,mm=mm,dd=dd,h=hr,m=mn,s=sc,__RC__)
                  call MAPL_PackTime(nhms2,hr,mn,sc)
