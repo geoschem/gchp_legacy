@@ -64,7 +64,7 @@
   State_Met%PRECCON             = PRECCON  * 86400d0         ! kg/m2/s -> mm/day
   State_Met%PRECTOT             = PRECTOT  * 86400d0         ! kg/m2/s -> mm/day
   State_Met%TROPP               = TROPP                      ! hPa
-  State_Met%PS1                 = PS1                        ! hPa
+  State_Met%PS1_WET             = PS1                        ! hPa
   State_Met%TS                  = TS                         ! K
   State_Met%TSKIN               = TSKIN                      ! K
   State_Met%RADSWG              = RADSWG                     ! W/m2
@@ -159,20 +159,20 @@
   !=========================================================================
   DO I = 1, SIZE(Int2Chm,1)
      IF ( Int2Chm(I)%TrcID <= 0 ) CYCLE
-     State_Chm%Tracers(:,:,:,Int2Chm(I)%TrcID) = Int2Chm(I)%Internal
+     State_Chm%Species(:,:,:,Int2Chm(I)%TrcID) = Int2Chm(I)%Internal
   ENDDO
 
      ! Flip in the vertical
-  State_Chm%Tracers   = State_Chm%Tracers( :, :, LM:1:-1, : )
+  State_Chm%Species   = State_Chm%Species( :, :, LM:1:-1, : )
 
-  IF ( IsChemTime .AND. Phase /= 1 ) THEN
-     ! Also fill JLOP_PREVIOUS from internal state
-     CALL MAPL_GetPointer( INTSTATE, Ptr3D, 'JLOP_PREV', notFoundOK=.TRUE., __RC__ )
-     IF ( ASSOCIATED(Ptr3D) .AND. ALLOCATED(JLOP_PREVIOUS) ) THEN
-         JLOP_PREVIOUS = NINT(Ptr3D)
-     ENDIF
-     Ptr3D => NULL()
-  ENDIF
+!<<GONE>>  IF ( IsChemTime .AND. Phase /= 1 ) THEN
+!<<GONE>>     ! Also fill JLOP_PREVIOUS from internal state
+!<<GONE>>     CALL MAPL_GetPointer( INTSTATE, Ptr3D, 'JLOP_PREV', notFoundOK=.TRUE., __RC__ )
+!<<GONE>>     IF ( ASSOCIATED(Ptr3D) .AND. ALLOCATED(JLOP_PREVIOUS) ) THEN
+!<<GONE>>         JLOP_PREVIOUS = NINT(Ptr3D)
+!<<GONE>>     ENDIF
+!<<GONE>>     Ptr3D => NULL()
+!<<GONE>>  ENDIF
 
   !=========================================================================
   ! On first call, also need to initialize the species from restart file.
@@ -196,28 +196,31 @@
      ! Loop over all species
      DO I = 1, SIZE(State_Chm%Spec_ID,1)
 
+        ThisSpc => State_Chm%SpcData(I)%Info
+
         ! Skip if empty
-        IF ( TRIM(State_Chm%Spec_Name(I)) == '' ) CYCLE
+        IF ( TRIM(ThisSpc%Name) == '' ) CYCLE
 
         ! Is this a tracer?
-        IND = Get_Indx( TRIM(State_Chm%Spec_Name(I)), State_Chm%Trac_Id, State_Chm%Trac_Name )
+        IND = IND_( TRIM(ThisSpc%Name ) )
         IF ( IND < 0 ) CYCLE
 
         ! Get data from internal state and copy to species array. 
-        CALL MAPL_GetPointer( INTERNAL, Ptr3D, TRIM(SPFX)//TRIM(State_Chm%Spec_Name(I)), &
+        CALL MAPL_GetPointer( INTERNAL, Ptr3D, TRIM(SPFX)//TRIM(ThisSpc%Name), &
                               notFoundOK=.TRUE., __RC__ )
         IF ( .NOT. ASSOCIATED(Ptr3D) ) THEN
            IF ( MAPL_am_I_Root()) WRITE(*,*) &
               'Could not find species in INTERNAL state - will be initialized to zero: ', &
-              TRIM(SPFX), TRIM(State_Chm%Spec_Name(I))
-           State_Chm%Species(:,:,:,State_Chm%Spec_ID(I)) = 1e-26
+              TRIM(SPFX), TRIM(ThisSpc%Name)
+           State_Chm%Species(:,:,:,IND) = 1e-26
            CYCLE
         ENDIF
-        State_Chm%Species(:,:,:,State_Chm%Spec_ID(I)) = Ptr3D(:,:,LM:1:-1)
+        State_Chm%Species(:,:,:,IND) = Ptr3D(:,:,LM:1:-1)
 
         ! testing only
         if ( MAPL_am_I_Root()) write(*,*) &
-        'Initialized species from INTERNAL state: ', TRIM(State_Chm%Spec_Name(I))
+        'Initialized species from INTERNAL state: ', TRIM(ThisSpc%Name)
+        ThisSpc => NULL()
 
      ENDDO
   ENDIF

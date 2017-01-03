@@ -44,7 +44,7 @@ module GIGC_GridCompMod
   use AdvCore_GridCompMod,        only : AtmosAdvSetServices      => SetServices
   use GEOS_ctmEnvGridComp,        only : EctmSetServices          => SetServices
 !  use FVDyCoreCubed_GridComp,     only : AtmosDynSetServices      => SetServices
-  use GIGC_Input_Opt_Mod
+  use Input_Opt_Mod
   use Chem_GridCompMod,           only : Get_Transport
 
   implicit none

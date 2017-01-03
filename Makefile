@@ -100,8 +100,8 @@ endif
 
 # MPI type for ESMF
 ifndef ESMF_COMM
-  export ESMF_COMM=openmpi
-#  export ESMF_COMM=mvapich2
+#  export ESMF_COMM=openmpi
+  export ESMF_COMM=mvapich2
 endif
 
 # Operating system type for ESMF
@@ -121,7 +121,7 @@ export ESMF_INSTALL_MODDIR=$(ESMF_DIR)/$(ARCH)/mod
 export ESMF_INSTALL_HEADERDIR=$(ESMF_DIR)/$(ARCH)/include
 
 # Other ESMF compilation settings
-export ESMF_F90COMPILEOPTS=-align all -fPIC #-traceback 
+export ESMF_F90COMPILEOPTS=-align all -fPIC -traceback 
 export ESMF_CXXCOMPILEOPTS=-fPIC
 export ESMF_OPENMP=OFF
 
@@ -210,6 +210,7 @@ endif
 
 baselibs_fvdycore:
 ifeq ($(wildcard $(FVDIR)/fvdycore.install),)
+	@echo "<><>"
 	$(MAKE) -C $(FVDIR) ESMADIR=$(ESMADIR) install
 	@touch $(FVDIR)/fvdycore.install
 endif

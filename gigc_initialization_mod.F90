@@ -64,9 +64,9 @@ CONTAINS
     USE CMN_SIZE_Mod
     USE Grid_Mod,           ONLY : RoundOff
     USE Error_Mod,          ONLY : Debug_Msg
-    USE GIGC_ErrCode_Mod
-    USE GIGC_Input_Opt_Mod, ONLY : OptInput
-    USE GIGC_State_Chm_Mod, ONLY : ChmState
+    USE ErrCode_Mod
+    USE Input_Opt_Mod,      ONLY : OptInput
+    USE State_Chm_Mod,      ONLY : ChmState
     USE Input_Mod,          ONLY : Read_Input_File
     USE Linoz_Mod,          ONLY : Linoz_Read
 !
@@ -113,7 +113,7 @@ CONTAINS
     INTEGER :: I, J, L
   
     ! Assume success
-    RC = GIGC_SUCCESS
+    RC = GC_SUCCESS
 
     !========================================================================
     ! Compute the DLON and DLAT values.  NOTE, this is a kludge since to do
@@ -158,7 +158,7 @@ CONTAINS
        ! CPU so that we can broadcast to other CPUs in GIGC_Init_Simulation
        ! (mlong, bmy, 2/26/13)
        CALL Read_Input_File( am_I_Root, Input_Opt, RC )
-       IF ( RC /= GIGC_SUCCESS ) RETURN
+       IF ( RC /= GC_SUCCESS ) RETURN
 
        ! In the ESMF/MPI environment, we can get the total overhead ozone
        ! either from the met fields (GIGCsa) or from the Import State (GEOS-5)
@@ -174,7 +174,7 @@ CONTAINS
        ! (bmy, 3/18/13)
        IF ( Input_Opt%LLINOZ ) THEN
           CALL Linoz_Read( am_I_Root, Input_Opt, RC ) 
-          IF ( RC /= GIGC_SUCCESS ) RETURN
+          IF ( RC /= GC_SUCCESS ) RETURN
 
           ! Echo info
           IF ( Input_Opt%LPRT ) THEN
@@ -218,23 +218,23 @@ CONTAINS
 !
 ! !USES:
 !
-    USE GIGC_Environment_Mod
-    USE GIGC_ErrCode_Mod  
-    USE GIGC_Input_Opt_Mod
-    USE GIGC_State_Chm_Mod
-    USE GIGC_State_Met_Mod
+    USE GC_Environment_Mod
+    USE ErrCode_Mod  
+    USE Input_Opt_Mod
+    USE State_Chm_Mod
+    USE State_Met_Mod
     USE PhysConstants
     USE CMN_SIZE_MOD
-    USE COMODE_MOD
-    USE COMODE_LOOP_MOD       
-    USE GCKPP_COMODE_MOD,     ONLY : Init_GCKPP_Comode
+!    USE COMODE_MOD
+!    USE COMODE_LOOP_MOD       
+!    USE GCKPP_COMODE_MOD,     ONLY : Init_GCKPP_Comode
     USE ERROR_MOD,            ONLY : Debug_Msg
     USE FAST_JX_MOD,          ONLY : Init_FJX
     USE Grid_Mod,             ONLY : Init_Grid
     USE Grid_Mod,             ONLY : Set_xOffSet
     USE Grid_Mod,             ONLY : Set_yOffSet
     USE Grid_Mod,             ONLY : SetGridFromCtr
-    USE Input_Mod,            ONLY : GIGC_Init_Extra
+    USE Input_Mod,            ONLY : GC_Init_Extra
     USE Input_Mod,            ONLY : Initialize_Geos_Grid
     USE Mapping_Mod,          ONLY : MapWeight
     USE Mapping_Mod,          ONLY : Init_Mapping
@@ -246,9 +246,8 @@ CONTAINS
 #if defined( APM )
     USE TRACER_MOD,           ONLY : INIT_TRACER
 #endif
-    USE TRACERID_MOD,         ONLY : SETTRACE
     USE WETSCAV_MOD,          ONLY : INIT_WETSCAV
-    USE WETSCAV_MOD,          ONLY : Get_WetDep_IDWetD
+!    USE WETSCAV_MOD,          ONLY : Get_WetDep_IDWetD
     USE DRYDEP_MOD,           ONLY : INIT_WEIGHTSS, INIT_DRYDEP
     USE DUST_MOD,             ONLY : INIT_DUST
     USE GIGC_MPI_WRAP
@@ -259,6 +258,9 @@ CONTAINS
     ! Stratosphere 
     USE UCX_MOD,              ONLY : INIT_UCX, SET_INITIAL_MIXRATIOS
     USE STRAT_CHEM_MOD,       ONLY : INIT_STRAT_CHEM
+
+    USE MIXING_MOD,           ONLY : INIT_MIXING
+    USE CHEMISTRY_MOD,        ONLY : INIT_CHEMISTRY
 !
 ! !INPUT PARAMETERS: 
 !
@@ -346,14 +348,14 @@ CONTAINS
     !=======================================================================
 
     ! Initialize
-    RC       = GIGC_SUCCESS
+    RC       = GC_SUCCESS
     DTIME    = tsChem
 
     ! Determine if we have to print debug output
     prtDebug = ( Input_Opt%LPRT .and. am_I_Root )
 
     ! Allocate GEOS-Chem module arrays
-    CALL GIGC_Allocate_All( am_I_Root      = am_I_Root,                     &
+    CALL GC_Allocate_All  ( am_I_Root      = am_I_Root,                     &
                             Input_Opt      = Input_Opt,                     &
                             value_I_LO     = value_I_LO,                    &
                             value_J_LO     = value_J_LO,                    &
@@ -366,7 +368,7 @@ CONTAINS
                             value_JM_WORLD = value_JM_WORLD,                &
                             value_LM_WORLD = value_LM_WORLD,                &
                             RC             = RC              )            
-    IF ( RC /= GIGC_SUCCESS ) RETURN
+    IF ( RC /= GC_SUCCESS ) RETURN
 
     ! Allocate GEOS-Chem module arrays
 
@@ -396,19 +398,19 @@ CONTAINS
                            Input_Opt = Input_Opt,                           &
                            State_Chm = State_Chm,                           &
                            RC        = RC           )
-    IF ( RC /= GIGC_SUCCESS ) RETURN
+    IF ( RC /= GC_SUCCESS ) RETURN
 
     ! Broadcast fields of Input_Opt from root to all other CPUs
     CALL GIGC_Input_Bcast( am_I_Root = am_I_Root,                           &
                            Input_Opt = Input_Opt,                           &
                            RC        = RC           )
-    IF ( RC /= GIGC_SUCCESS ) RETURN
+    IF ( RC /= GC_SUCCESS ) RETURN
 
     ! Broadcast IDTxxx etc. tracer flags from root to all other CPUs
     CALL GIGC_IDT_Bcast  ( am_I_Root = am_I_Root,                           &  
                            Input_Opt = Input_Opt,                           &  
                            RC        = RC           )
-    IF ( RC /= GIGC_SUCCESS ) RETURN
+    IF ( RC /= GC_SUCCESS ) RETURN
 
     ! Complete initialization ops on all threads
     !IF ( .NOT. am_I_Root ) THEN 
@@ -424,10 +426,10 @@ CONTAINS
       CALL Initialize_Geos_Grid( am_I_Root = am_I_Root,                    &
            Input_Opt = Input_Opt,                    &
            RC        =  RC )
-      IF ( RC /= GIGC_SUCCESS ) RETURN
+      IF ( RC /= GC_SUCCESS ) RETURN
 
       CALL SetGridFromCtr( am_I_Root, value_IM, value_JM, lonCtr, latCtr, RC )
-      IF ( RC /= GIGC_SUCCESS ) RETURN
+      IF ( RC /= GC_SUCCESS ) RETURN
     End If
 
     ! Initialize dry deposition (in GeosCore/drydep_mod.F)
@@ -437,7 +439,7 @@ CONTAINS
     !        Input_Opt = Input_Opt,                          &
     !        State_Chm = State_Chm,                          &
     !        RC        = RC         )
-    !   IF ( RC /= GIGC_SUCCESS ) RETURN
+    !   IF ( RC /= GC_SUCCESS ) RETURN
     !ENDIF
     !ENDIF ! am_I_Root
 
@@ -446,13 +448,13 @@ CONTAINS
     CALL Init_Tracer( am_I_Root = am_I_Root,                             &
          Input_Opt = Input_Opt,                             &
          RC        = RC           )
-    IF ( RC /= GIGC_SUCCESS ) RETURN
+    IF ( RC /= GC_SUCCESS ) RETURN
 #endif
 
     ! Initialize wet deposition tracer IDs - now obsolete
     !IF ( Input_Opt%LWETD .OR. Input_Opt%LCONV ) THEN
     !   CALL WETDEPID( am_I_Root, Input_Opt, RC )
-    !   IF ( RC /= GIGC_SUCCESS ) RETURN
+    !   IF ( RC /= GC_SUCCESS ) RETURN
     !ENDIF
 
     !ENDIF ! Not root
@@ -469,19 +471,19 @@ CONTAINS
                         Diagnos    = Input_Opt%TS_DIAG         )
 
     ! Initialize derived-type objects for meteorology & chemistry states
-    CALL GIGC_Init_All( am_I_Root = am_I_Root,                              &
-                        Input_Opt = Input_Opt,                              &
-                        State_Chm = State_Chm,                              &
-                        State_Met = State_Met,                              &
-                        RC        = RC         )
-    IF ( RC /= GIGC_SUCCESS ) RETURN
+    CALL GC_Init_All( am_I_Root = am_I_Root,                              &
+                      Input_Opt = Input_Opt,                              &
+                      State_Chm = State_Chm,                              &
+                      State_Met = State_Met,                              &
+                      RC        = RC         )
+    IF ( RC /= GC_SUCCESS ) RETURN
 
     ! After broadcasting Input_Opt to other CPUs, call GIGC_Init_Extra
     ! to initialize other modules (e.g. carbon_mod.F, dust_mod.F, 
     ! seasalt_mod.F,  sulfate_mod.F).  We needed to move these init 
     ! calls out of the run stage and into the init stage. (bmy, 3/4/13)
-    CALL GIGC_Init_Extra( am_I_Root, Input_Opt, State_Chm, RC ) 
-    IF ( RC /= GIGC_SUCCESS ) RETURN
+    CALL GC_Init_Extra( am_I_Root, Input_Opt, State_Chm, RC ) 
+    IF ( RC /= GC_SUCCESS ) RETURN
 
     !-----------------------------------------------------------------------
     ! Read other ASCII files on the root CPU and broadcast to other CPUs
@@ -495,12 +497,12 @@ CONTAINS
 !    IF ( am_I_Root ) THEN
 !------------------------------------------------------------------------------
        ! Read from data file mglob.dat
-       CALL READER( .TRUE.,  am_I_Root, Input_Opt )
+!       CALL READER( .TRUE.,  am_I_Root, Input_Opt )
 
        !### Debug
-       IF ( prtDebug ) THEN
-          CALL DEBUG_MSG( '### GIGC_INIT_CHEMISTRY: after READER' )
-       ENDIF
+!       IF ( prtDebug ) THEN
+!          CALL DEBUG_MSG( '### GIGC_INIT_CHEMISTRY: after READER' )
+!       ENDIF
 
 !------------------------------------------------------------------------------
 ! Prior to 3/7/13:
@@ -520,8 +522,8 @@ CONTAINS
 ! to MPI broadcast later.  This could be very difficult. (bmy, mlong, 3/7/13)
 !    IF ( am_I_Root ) THEN
 !------------------------------------------------------------------------------
-       CALL READCHEM( am_I_Root, Input_Opt, RC )
-       IF ( RC /= GIGC_SUCCESS ) RETURN
+!       CALL READCHEM( am_I_Root, Input_Opt, RC )
+!       IF ( RC /= GC_SUCCESS ) RETURN
 
        !### Debug
        IF ( prtDebug ) THEN
@@ -545,7 +547,7 @@ CONTAINS
 !    IF ( am_I_Root ) THEN
 !------------------------------------------------------------------------------
        CALL INIT_FJX( am_I_Root, Input_Opt, RC )  ! Are we on the root CPU?
-       IF ( RC /= GIGC_SUCCESS ) RETURN
+       IF ( RC /= GC_SUCCESS ) RETURN
 
        !### Debug
        IF ( prtDebug ) THEN
@@ -567,33 +569,33 @@ CONTAINS
 
     ! Zero diagnostic arrays
     CALL Initialize( am_I_Root, Input_Opt, 2, RC )
-    IF ( RC /= GIGC_SUCCESS ) RETURN
+    IF ( RC /= GC_SUCCESS ) RETURN
 
     ! Zero diagnostic counters
     CALL Initialize( am_I_Root, Input_Opt, 3, RC )
-    IF ( RC /= GIGC_SUCCESS ) RETURN
+    IF ( RC /= GC_SUCCESS ) RETURN
       
     ! Set State_Chm units
-    State_Chm%Trac_Units = 'kg/kg dry'
+!    State_Chm%Trac_Units = 'kg/kg dry'
 
-    ! Save tracer names and ID's into State_Chm
-    DO N = 1, Input_Opt%N_TRACERS
-       
-
-!       ! Preface TRC_ to advected tracer names
-!       Name = 'TRC_' // TRIM( Input_Opt%TRACER_NAME(N) )
-
-       ! Call REGISTER_TRACER routine to 
-       CALL Register_Tracer( Name      = Input_Opt%TRACER_NAME(N),          &
-                             ID        = Input_Opt%ID_TRACER(N),            &
-                             State_Chm = State_Chm,                         &
-                             Status    = STAT                    )
-
-       IF ( am_I_Root .and. STAT > 0 ) THEN
-          WRITE( 6, 200 ) Input_Opt%TRACER_NAME(N), STAT
- 200      FORMAT( 'Registered Tracer : ', a14, i5 )
-       ENDIF
-    ENDDO
+!<<GONE>>    ! Save tracer names and ID's into State_Chm
+!<<GONE>>    DO N = 1, Input_Opt%N_TRACERS
+!<<GONE>>       
+!<<GONE>>
+!<<GONE>>!       ! Preface TRC_ to advected tracer names
+!<<GONE>>!       Name = 'TRC_' // TRIM( Input_Opt%TRACER_NAME(N) )
+!<<GONE>>
+!<<GONE>>       ! Call REGISTER_TRACER routine to 
+!<<GONE>>       CALL Register_Tracer( Name      = Input_Opt%TRACER_NAME(N),          &
+!<<GONE>>                             ID        = Input_Opt%ID_TRACER(N),            &
+!<<GONE>>                             State_Chm = State_Chm,                         &
+!<<GONE>>                             Status    = STAT                    )
+!<<GONE>>
+!<<GONE>>       IF ( am_I_Root .and. STAT > 0 ) THEN
+!<<GONE>>          WRITE( 6, 200 ) Input_Opt%TRACER_NAME(N), STAT
+!<<GONE>> 200      FORMAT( 'Registered Tracer : ', a14, i5 )
+!<<GONE>>       ENDIF
+!<<GONE>>    ENDDO
        
     ! Initialize the GEOS-Chem pressure module (set Ap & Bp)
     CALL Init_Pressure( am_I_Root )
@@ -605,7 +607,7 @@ CONTAINS
     ! Now called in GIGC_Init_Extra
     !CALL Init_WetScav &
     !   ( am_I_Root, Input_Opt, State_Chm, RC )
-    !IF ( RC /= GIGC_SUCCESS ) RETURN
+    !IF ( RC /= GC_SUCCESS ) RETURN
 
     !=======================================================================
     ! Initialize dry deposition 
@@ -634,108 +636,26 @@ CONTAINS
        ENDIF
     ENDIF
 
+
+    ! Initialize PBL quantities but do not do mixing
+    ! Add option for non-local PBL (Lin, 03/31/09) 
+    !CALL INIT_MIXING ( am_I_Root, Input_Opt, &
+    !                   State_Met, State_Chm, RC ) 
+    
     !=======================================================================
     ! Initialize chemistry mechanism
     !=======================================================================
 
-    ! Set some size variables
-    NLAT   = JJPAR
-    NLONG  = IIPAR
-    NVERT  = IVERT 
-    NPVERT = NVERT
-    NPVERT = NVERT + IPLUME
+    ! Moved here (from chemistry_mod.F and chemdr.F) because some
+    ! of the variables are used for non-local PBL mixing BEFORE 
+    ! the first call of the chemistry routines (ckeller, 05/19/14).
+    IF ( Input_Opt%ITS_A_FULLCHEM_SIM .OR. Input_Opt%ITS_AN_AEROSOL_SIM ) THEN
+       CALL INIT_CHEMISTRY ( am_I_Root, Input_Opt, State_Chm, RC )
+    ENDIF
 
     ! If we are doing chemistry ...
     IF ( Input_Opt%LCHEM ) THEN
-
-       ! Initialize arrays in comode_mod.F
-       CALL INIT_COMODE( am_I_Root = am_I_Root,                             &
-                         Input_Opt = Input_Opt,                             &
-                         RC        = RC         )
-       IF ( RC /= GIGC_SUCCESS ) RETURN
-
-       ! Initialize KPP (if necessary)
-       IF ( Input_Opt%LKPP ) THEN
-          CALL INIT_GCKPP_COMODE( am_I_Root, IIPAR,   JJPAR, LLPAR,        &
-                                  ITLOOP,    NMTRATE, IGAS,  RC      )
-          IF ( RC /= GIGC_SUCCESS ) RETURN
-       ENDIF
        
-       ! Set NCS for urban chemistry only (since that is where we
-       ! have defined the GEOS-CHEM mechanism) (bdf, bmy, 4/21/03)
-       NCS = NCSURBAN
- 
-       !### Debug
-       IF ( prtDebug ) THEN
-          CALL DEBUG_MSG( '### GIGC_INIT_CHEMISTRY: after READER' )        
-       ENDIF
-       
-       ! Redefine NTLOOP since READER defines it initially (bmy, 9/28/04)
-       NLOOP   = NLAT  * NLONG
-       NTLOOP  = NLOOP * NVERT
-       NTTLOOP = NTLOOP
-      
-       ! Set NCS=NCSURBAN here since we have defined our tropospheric
-       ! chemistry mechanism in the urban slot of SMVGEAR II (bmy, 4/21/03)
-       NCS     = NCSURBAN
-
-       ! Get CH4 [ppbv] in 4 latitude bins for each year
-       YEAR = NYMDb / 10000
-       CALL GET_GLOBAL_CH4( YEAR,         & ! Year
-                            .TRUE.,       & ! Let CH4 vary by year?
-                            C3090S,       & ! CH4 90S -30S
-                            C0030S,       & ! CH4 30S - 00
-                            C0030N,       & ! CH4 00  - 30N
-                            C3090N,       & ! CH4 30N - 90N
-                            am_I_Root,    & ! Are we on root CPU?
-                            Input_Opt  )    ! Input Options object
-
-       !### Debug
-       IF ( prtDebug ) THEN
-          CALL DEBUG_MSG( '### GIGC_INIT_CHEMISTRY: after GET_GLOBAL_CH4' )
-       ENDIF
-       
-       ! Call SETTRACE to set up chemical species flags
-       CALL SETTRACE( am_I_Root = am_I_Root,                                &
-                      Input_Opt = Input_Opt,                                &
-                      State_Chm = State_Chm,                                &
-                      RC        = RC         )
-       IF ( RC /= GIGC_SUCCESS ) RETURN
-
-       ! Reset NCS
-       NCS = NCSURBAN
-
-       !### Debug
-       IF ( prtDebug ) THEN
-          CALL DEBUG_MSG( '### GIGC_INIT_CHEMISTRY: after SETTRACE' )
-       ENDIF
-       
-       ! Register species (active + inactive) in the State_Chm object     
-       DO I = 1, NTSPEC(NCS)
-          CALL Register_Species( NAME      = NAMEGAS(I),                    &
-                                 ID        = I,                             &
-                                 State_Chm = State_Chm,                     &
-                                 Status    = STAT        )
-          IF ( am_I_Root .and. STAT > 0 ) THEN
-             WRITE( 6, 205 ) NAMEGAS(I), STAT
- 205         FORMAT( 'Registered Species : ', a14, i5 )
-          ENDIF
-       ENDDO
-
-       !### Debug
-       IF ( prtDebug ) THEN
-          CALL DEBUG_MSG( '### GIGC_INIT_CHEMISTRY: after SETTRACE' )
-       ENDIF
-       
-       ! Flag emission & drydep rxns
-       CALL SETEMDEP( am_I_Root, Input_Opt, RC )
-       IF ( RC /= GIGC_SUCCESS ) RETURN
-       
-       !### Debug
-       IF ( prtDebug ) THEN
-          CALL DEBUG_MSG( '### GIGC_INIT_CHEMISTRY: after SETEMDEP' )
-       ENDIF
-
        ! Allocate array of overhead O3 columns for TOMS
        CALL INIT_TOMS( am_I_Root, Input_Opt, RC )
 
@@ -752,19 +672,19 @@ CONTAINS
     IF ( Input_Opt%LUCX ) THEN
 
        ! Initialize stratospheric routines
-       CALL INIT_UCX( am_I_Root, Input_Opt )
+       CALL INIT_UCX( am_I_Root, Input_Opt, State_Chm )
 
        ! Set simple initial tracer conditions
        CALL SET_INITIAL_MIXRATIOS( am_I_Root, Input_Opt, State_Met, State_Chm )
     ENDIF
 
-    ! Note: Init_Strat_Chem expects units of kg/kg dry
-    IF ( Input_Opt%LSCHEM ) THEN
-       CALL INIT_STRAT_CHEM( am_I_Root, Input_Opt, State_Chm, State_Met, RC )
-    ENDIF
+!    ! Note: Init_Strat_Chem expects units of kg/kg dry
+!    IF ( Input_Opt%LSCHEM ) THEN
+!       CALL INIT_STRAT_CHEM( am_I_Root, Input_Opt, State_Chm, State_Met, RC )
+!    ENDIF
 
     ! Return w/ success
-    RC = GIGC_Success
+    RC = GC_Success
 
   END SUBROUTINE GIGC_Init_Simulation
 !EOC

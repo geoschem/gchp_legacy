@@ -52,10 +52,10 @@ CONTAINS
 !
 ! !USES:
 !
-    USE GIGC_ErrCode_Mod
-    USE GIGC_Input_Opt_Mod
-    USE GIGC_State_Chm_Mod
-    USE GIGC_State_Met_Mod
+    USE ErrCode_Mod
+    USE Input_Opt_Mod
+    USE State_Chm_Mod
+    USE State_Met_Mod
 !
 ! !INPUT PARAMETERS: 
 !
@@ -88,18 +88,18 @@ CONTAINS
 ! !LOCAL VARIABLES:
 !
     ! Assume success
-    RC = GIGC_SUCCESS
+    RC = GC_SUCCESS
 
     ! Deallocate fields of the Input Options object
-    CALL Cleanup_GIGC_Input_Opt( am_I_Root, Input_Opt, RC )
+    CALL Cleanup_Input_Opt( am_I_Root, Input_Opt, RC )
     IF (am_I_Root) write(*,'(a)') 'Chem::Input_Opt Finalize... OK.'
 
     ! Deallocate fields of the Chemistry State object
-    CALL Cleanup_GIGC_State_Chm( am_I_Root, State_Chm, RC )
+    CALL Cleanup_State_Chm( am_I_Root, State_Chm, RC )
     IF (am_I_Root) write(*,'(a)') 'Chem::State_Chm Finalize... OK.'
 
     ! Deallocate fields of the Meteorology State object
-    CALL Cleanup_GIGC_State_Met( am_I_Root, State_Met, RC )
+    CALL Cleanup_State_Met( am_I_Root, State_Met, RC )
     IF (am_I_Root) write(*,'(a)') 'Chem::State_Met Finalize... OK.'
 
     ! Deallocate all other GEOS-Chem allocatable arrays

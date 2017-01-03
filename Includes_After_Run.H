@@ -39,25 +39,14 @@
   ! (Coge generated with Perl script gcIncAft)
   !=========================================================================
 
-!  LOADTIME  = State_Chm%LOADTIME(:,:,LM:1:-1)
   !=========================================================================
   ! Pass advected tracers from GEOS-Chem tracers array to internal state
   !=========================================================================
 
   ! Flip tracers & species in the vertical
-  State_Chm%Tracers = State_Chm%Tracers( :, :, LM:1:-1, : )
+  State_Chm%Species = State_Chm%Species( :, :, LM:1:-1, : )
 
   DO I = 1, SIZE(Int2Chm,1)
     IF ( Int2Chm(I)%TrcID <= 0 ) CYCLE
-    Int2Chm(I)%Internal = State_Chm%Tracers(:,:,:,Int2Chm(I)%TrcID)
+    Int2Chm(I)%Internal = State_Chm%Species(:,:,:,Int2Chm(I)%TrcID)
   ENDDO
-
-  IF ( IsChemTime .AND. Phase /= 1 ) THEN
-  write(*,*) '<> saving JLOP'
-  ! Also fill JLOP_PREV from internal state
-     CALL MAPL_GetPointer( INTSTATE, Ptr3D, 'JLOP_PREV', notFoundOK=.TRUE., __RC__ )
-     IF ( ASSOCIATED(Ptr3D) .AND. ALLOCATED(JLOP) ) THEN
-        Ptr3D = REAL(JLOP)
-     ENDIF
-     Ptr3D => NULL()
-  ENDIF

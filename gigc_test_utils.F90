@@ -66,25 +66,6 @@ CONTAINS
    
     IF ( am_I_Root ) THEN 
 
-!<<>>       !%%%% Aerosols %%%%
-!<<>>       WRITE(*,*) 'LCARB: ',    LCARB         ! Use carbon aerosol tracers?
-!<<>>       WRITE(*,*) 'LCRYST: ',   LCRYST        ! Use Crystalline aerosols?
-!<<>>       WRITE(*,*) 'LDEAD: ',    LDEAD         ! Use the DEAD/Zender dust?
-!<<>>       WRITE(*,*) 'LDUST: ',    LDUST         ! Use dust aerosol tracers?
-!<<>>       WRITE(*,*) 'LSULF: ',    LSULF         ! Use sulfate aerosol tracers?
-!<<>>       WRITE(*,*) 'LSOA: ',     LSOA          ! Use SOA tracers?
-!<<>>       WRITE(*,*) 'LSSALT: ',   LSSALT        ! Use sea-salt aerosol tracers?
-!<<>>       WRITE(*,*) 'LDICARB: ',  LDICARB       ! Use dicarbonyl chemistry
-!<<>>                                   
-!<<>>       !%%%% Chemistry %%%%stry %%%
-!<<>>       WRITE(*,*) 'LCHEM: ',    LCHEM         ! Use chemistry?
-!<<>>       WRITE(*,*) 'LKPP: ',     LKPP          ! Use KPP solver>?
-!<<>>                                   
-!<<>>       WRITE(*,*) 'LDRYD: ',    LDRYD         ! Use dry deposition?
-!<<>>                                   
-!<<>>       !%%%% Variable Tropoble Troppause %%%%
-!<<>>       WRITE(*,*) 'LVARTROP: ', LVARTROP      ! Use dynamic tropopause option?
-
     ENDIF
 
   END SUBROUTINE GIGC_Dump_Config

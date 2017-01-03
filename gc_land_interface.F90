@@ -59,8 +59,8 @@ CONTAINS
 !
     USE ESMF
     USE MAPL_MOD
-    USE GIGC_ErrCode_Mod
-    USE GIGC_State_Met_Mod, ONLY : MetState
+    USE ErrCode_Mod
+    USE State_Met_Mod, ONLY : MetState
 
 # include "MAPL_Generic.h"
 !
@@ -237,7 +237,7 @@ CONTAINS
     ENDDO !I
 
     ! Return w/ success
-    RC = GIGC_SUCCESS
+    RC = GC_SUCCESS
     
   END SUBROUTINE LANDTYPE_REMAP 
 !EOC
@@ -259,8 +259,8 @@ CONTAINS
 !
 ! !USES:
 !
-    USE GIGC_ErrCode_Mod
-    USE GIGC_State_Met_Mod, ONLY : MetState
+    USE ErrCode_Mod
+    USE State_Met_Mod, ONLY : MetState
 !
 ! !INPUT/OUTPUT PARAMETERS:
 !
@@ -281,7 +281,7 @@ CONTAINS
 ! !LOCAL VARIABLES:
 !
     ! Assume success
-    RC = GIGC_FAILURE
+    RC = GC_FAILURE
 
     ! Note: ILAND is initialized to 100% water earth
     !       The remapping below thus acts as a mask atop
@@ -321,7 +321,7 @@ CONTAINS
 ! 7:         Not Used in GEOS-5.
 ! 13:        Ice/Glacier                                   13
 
-    RC = GIGC_SUCCESS
+    RC = GC_SUCCESS
 
   END SUBROUTINE GEOS5_TO_OLSON_LANDTYPE_REMAP
 !EOC
