@@ -2353,6 +2353,8 @@ CONTAINS
           State_Met%XLAI(:,:,1)  = 0.0
 
           ! Run the GEOS-Chem column chemistry code for the given phase
+          ! NOTE: Second was not extracted previously; set to 0 for now
+          second = 0
           CALL GIGC_Chunk_Run( am_I_Root  = am_I_Root,  & ! Is this the root PET?
                                GC         = GC,         & ! Gridded component ref. 
                                IM         = IM,         & ! # of lons on this PET
@@ -3190,6 +3192,18 @@ CONTAINS
     IF ( PRESENT( nymd     ) ) CALL MAPL_PackTime( nymd, yyyy, mm, dd )
     IF ( PRESENT( nhms     ) ) CALL MAPL_PackTime( nhms, h,    m,  s  )
 
+    ! SDE 2017-01-03: Return these now before they are overwritten
+    IF ( PRESENT( year     ) ) year     = yyyy
+    IF ( PRESENT( month    ) ) month    = mm
+    IF ( PRESENT( day      ) ) day      = dd
+    IF ( PRESENT( dayOfYr  ) ) dayOfYr  = doy
+    IF ( PRESENT( hour     ) ) hour     = h
+    IF ( PRESENT( minute   ) ) minute   = m
+    IF ( PRESENT( second   ) ) second   = s
+    IF ( PRESENT( utc      ) ) utc      = ( DBLE( h )        ) + & 
+                                          ( DBLE( m )/60d0   ) + &
+                                          ( DBLE( s )/3600d0 )
+
     CALL ESMF_TimeGet( startTime, yy=yyyy, mm=mm, dd=dd, dayOfYear=doy, &
                                  h=h,     m=m,   s=s,   __RC__ )
 
@@ -3205,16 +3219,6 @@ CONTAINS
     IF ( PRESENT( nhmsE    ) ) CALL MAPL_PackTime( nhmsE, h,    m,  s  )
 
     IF ( PRESENT( advCount ) ) advCount = count
-    IF ( PRESENT( year     ) ) year     = yyyy
-    IF ( PRESENT( month    ) ) month    = mm
-    IF ( PRESENT( day      ) ) day      = dd
-    IF ( PRESENT( dayOfYr  ) ) dayOfYr  = doy
-    IF ( PRESENT( hour     ) ) hour     = h
-    IF ( PRESENT( minute   ) ) minute   = m
-    IF ( PRESENT( second   ) ) second   = s
-    IF ( PRESENT( utc      ) ) utc      = ( DBLE( h )        ) + & 
-                                          ( DBLE( m )/60d0   ) + &
-                                          ( DBLE( s )/3600d0 )
  
     ! Compute elapsed time since start of simulation
     elapsedTime = currTime - startTime
