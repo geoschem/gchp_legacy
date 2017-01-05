@@ -1337,6 +1337,10 @@ CONTAINS
     if ( am_I_Root ) Input_Opt%RootCPU = .true.
 
     ! It's now save to store haveImpRst flag in Input_Opt
+    ! SDE DEBUG 2017-01-01: Overwrite this? The Extract_ routine does not seem
+    ! to actually set this, and it being false results in everything being
+    ! thrown off by 1 timestep
+    haveImpRst = .True.
     Input_Opt%haveImpRst = haveImpRst
 
     !=======================================================================
