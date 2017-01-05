@@ -1343,6 +1343,10 @@ CONTAINS
     if ( am_I_Root ) Input_Opt%RootCPU = .true.
 
     ! It's now save to store haveImpRst flag in Input_Opt
+    ! SDE DEBUG 2017-01-01: Overwrite this? The Extract_ routine does not seem
+    ! to actually set this, and it being false results in everything being
+    ! thrown off by 1 timestep
+    haveImpRst = .True.
     Input_Opt%haveImpRst = haveImpRst
 
     !=======================================================================
@@ -2267,6 +2271,11 @@ CONTAINS
              write(*,*) ' '
           ENDIF
        ENDIF
+
+       !=============================================================================================
+       ! This code reads initial conditions from the GCC restart (in v/v dry)
+       ! and applies them to the state arrays (in v/v dry)
+       !=============================================================================================
        CALL ESMF_ConfigGetAttribute( GeosCF, InitGCC, Default=0, &
                                      Label = "INIT_GCC:", __RC__ ) 
        If ( InitGCC == 1 ) Then
@@ -2528,13 +2537,15 @@ CONTAINS
           State_Met%XLAI(:,:,1)  = 0.0
 
           ! Run the GEOS-Chem column chemistry code for the given phase
+          ! NOTE: Second was not extracted previously; set to 0 for now
+          second = 0
           CALL GIGC_Chunk_Run( am_I_Root  = am_I_Root,  & ! Is this root PET?
-                               GC         = GC,         & ! Gridded comp ref. 
-                               IM         = IM,         & ! this PET's # lons
-                               JM         = JM,         & ! this PET's # lats
-                               LM         = LM,         & ! this PET's # levs
+                               GC         = GC,         & ! Gridded comp ref 
+                               IM         = IM,         & ! # lons on this PET
+                               JM         = JM,         & ! # lats on this PET
+                               LM         = LM,         & ! # levs on this PET
                                nymd       = nymd,       & ! Current YYYYMMDD
-                               nhms       = nhms,       & ! Current hhmmss
+                               nhms       = nhms,       & ! Current hhmmss time
                                year       = year,       & ! Current year
                                month      = month,      & ! Current month
                                day        = day,        & ! Current day
@@ -3378,6 +3389,18 @@ CONTAINS
     IF ( PRESENT( nymd     ) ) CALL MAPL_PackTime( nymd, yyyy, mm, dd )
     IF ( PRESENT( nhms     ) ) CALL MAPL_PackTime( nhms, h,    m,  s  )
 
+    ! SDE 2017-01-03: Return these now before they are overwritten
+    IF ( PRESENT( year     ) ) year     = yyyy
+    IF ( PRESENT( month    ) ) month    = mm
+    IF ( PRESENT( day      ) ) day      = dd
+    IF ( PRESENT( dayOfYr  ) ) dayOfYr  = doy
+    IF ( PRESENT( hour     ) ) hour     = h
+    IF ( PRESENT( minute   ) ) minute   = m
+    IF ( PRESENT( second   ) ) second   = s
+    IF ( PRESENT( utc      ) ) utc      = ( DBLE( h )        ) + & 
+                                          ( DBLE( m )/60d0   ) + &
+                                          ( DBLE( s )/3600d0 )
+
     CALL ESMF_TimeGet( startTime, yy=yyyy, mm=mm, dd=dd, dayOfYear=doy, &
                                  h=h,     m=m,   s=s,   __RC__ )
 
@@ -3393,16 +3416,6 @@ CONTAINS
     IF ( PRESENT( nhmsE    ) ) CALL MAPL_PackTime( nhmsE, h,    m,  s  )
 
     IF ( PRESENT( advCount ) ) advCount = count
-    IF ( PRESENT( year     ) ) year     = yyyy
-    IF ( PRESENT( month    ) ) month    = mm
-    IF ( PRESENT( day      ) ) day      = dd
-    IF ( PRESENT( dayOfYr  ) ) dayOfYr  = doy
-    IF ( PRESENT( hour     ) ) hour     = h
-    IF ( PRESENT( minute   ) ) minute   = m
-    IF ( PRESENT( second   ) ) second   = s
-    IF ( PRESENT( utc      ) ) utc      = ( DBLE( h )        ) + & 
-                                          ( DBLE( m )/60d0   ) + &
-                                          ( DBLE( s )/3600d0 )
  
     ! Compute elapsed time since start of simulation
     elapsedTime = currTime - startTime
