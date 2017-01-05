@@ -105,6 +105,7 @@ CONTAINS
     USE GIGC_State_Met_Mod,      ONLY : MetState
     USE Diagnostics_Mod,         ONLY : Diagnostics_Init
     USE EMISSIONS_MOD,           ONLY : EMISSIONS_INIT
+    USE UnitConv_Mod
 !
 ! !INPUT PARAMETERS:
 !
@@ -244,6 +245,11 @@ CONTAINS
 !          write(*,*) ' '
 !       ENDIF
 !    ENDIF
+
+    ! GCHP expects units of v/v dry...
+    CALL Convert_KgKgDry_to_VVDry( am_I_Root, Input_Opt,&
+                                            State_Chm, RC )
+    ASSERT_(RC==GIGC_SUCCESS)
 
   END SUBROUTINE GIGC_Chunk_Init
 !EOC
@@ -596,7 +602,7 @@ CONTAINS
     ! Call PBL quantities. Those are always needed
     CALL COMPUTE_PBL_HEIGHT( State_Met )
 
-    ! Force units to standard
+    ! Force units to standard (kg/kg dry)
     If (.not.GIGC_Assert_Units(am_I_Root, State_Chm)) Then
        Call GIGC_Revert_Units( am_I_Root, Input_Opt, State_Chm, State_Met, RC )
        ASSERT_(RC==GIGC_SUCCESS)
@@ -1129,25 +1135,37 @@ CONTAINS
 !
 
     ! Are tracers in mass or mixing ratio?
-    !Integer                        :: CellUnit
+    Logical                        :: LPrt, LConvert
+    Character(Len=20)              :: oldUnits
 
     ! Assume succes
     RC = GIGC_SUCCESS
 
+    LPrt = (am_I_Root .and. (Input_Opt%LPrt) )
+    oldUnits = Trim(State_Chm%Trac_Units)
+    LConvert = .False.
+
     ! Check what unit the tracers are in - hold as kg/kg dry throughout
-    Select Case (Trim(State_Chm%Trac_Units))
+    Select Case (Trim(oldUnits))
         Case ('kg/kg dry')
             ! Do nothing
         Case ('kg')
+            LConvert = .True.
             CALL Convert_Kg_to_KgKgDry( am_I_Root, Input_Opt,&
                                          State_Met, State_Chm, RC )
         Case ('v/v dry')
+            LConvert = .True.
             CALL Convert_VVDry_to_KgKgDry( am_I_Root, Input_Opt,&
                                             State_Chm, RC )
         Case Default
             Write(6,'(a,a,a)') 'Tracer units (', State_Chm%Trac_Units, ') not recognized'
             RC = GIGC_FAILURE
     End Select
+
+    ! Debug information
+    If (LConvert.and.LPrt) Then
+       Write(6,'(a,a,a)') ' GIGC: Tracer units reverted from ', oldUnits, ' to kg/kg dry'
+    End If
 
   END SUBROUTINE GIGC_Revert_Units
 !EOC

@@ -2231,6 +2231,11 @@ CONTAINS
              write(*,*) ' '
           ENDIF
        ENDIF
+
+       !=============================================================================================
+       ! This code reads initial conditions from the GCC restart (in v/v dry)
+       ! and applies them to the state arrays (in v/v dry)
+       !=============================================================================================
        CALL ESMF_ConfigGetAttribute( GeosCF, InitGCC, Default=0, &
                                      Label = "INIT_GCC:", __RC__ ) 
        If ( InitGCC == 1 ) Then
