@@ -578,6 +578,12 @@ CONTAINS
     ! Define airmass and related quantities
     CALL AirQnt( am_I_Root, Input_opt, State_Met, State_Chm, RC, (.not.FIRST) )
 
+    ! Force units to standard (kg/kg dry). We expect to receive them in v/v dry
+    If (.not.GIGC_Assert_Units(am_I_Root, State_Chm)) Then
+       Call GIGC_Revert_Units( am_I_Root, Input_Opt, State_Chm, State_Met, RC )
+       ASSERT_(RC==GIGC_SUCCESS)
+    End If
+    
     ! Save the initial tracer concentrations in the MINIT variable of
     ! GeosCore/strat_chem_mod.F90.  This has to be done here, after the
     ! very first call to AIRQNT, because we need State_Chm%AD to have been
@@ -602,12 +608,6 @@ CONTAINS
     ! Call PBL quantities. Those are always needed
     CALL COMPUTE_PBL_HEIGHT( State_Met )
 
-    ! Force units to standard (kg/kg dry)
-    If (.not.GIGC_Assert_Units(am_I_Root, State_Chm)) Then
-       Call GIGC_Revert_Units( am_I_Root, Input_Opt, State_Chm, State_Met, RC )
-       ASSERT_(RC==GIGC_SUCCESS)
-    End If
-    
     ! SDE 05/28/13: Set H2O to STT if relevant
     IF ( IDTH2O > 0 ) THEN
        CALL SET_H2O_TRAC( am_I_Root, ((.NOT. Input_Opt%LUCX) .OR. Input_Opt%LSETH2O ), &
