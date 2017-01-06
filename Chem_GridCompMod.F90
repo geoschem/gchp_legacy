@@ -184,7 +184,6 @@ MODULE Chem_GridCompMod
 
   ! Prefix of the tracer and species names in the internal state. Those have to match
   ! the prefixes given in GEOSCHEMchem_Registry.rc. 
-  CHARACTER(LEN=4), PARAMETER  :: TPFX = 'TRC_'
   CHARACTER(LEN=4), PARAMETER  :: SPFX = 'SPC_'
  
   ! Pointers to import, export and internal state data. Declare them as 
@@ -308,7 +307,9 @@ CONTAINS
 !
 ! !USES:
 !
-    USE HCOI_ESMF_MOD, ONLY : HCO_SetServices
+    USE HCOI_ESMF_MOD,   ONLY : HCO_SetServices
+    USE GCHP_Utils,      ONLY : READ_SPECIES_FROM_FILE ! WE DON'T WANT TO HAVE TO DO THIS!
+    USE GCKPP_Model
 !
 ! !INPUT/OUTPUT PARAMETERS:
 !
@@ -346,7 +347,10 @@ CONTAINS
     CHARACTER(LEN=ESMF_MAXSTR)    :: compName      ! Gridded Component name
     CHARACTER(LEN=ESMF_MAXSTR)    :: COMP_NAME     ! This syntax for mapl_acg.pl
     CHARACTER(LEN=ESMF_MAXSTR)    :: HcoConfigFile ! HEMCO configuration file
-    INTEGER                       :: I
+    CHARACTER(LEN=ESMF_MAXSTR)    :: SpcName       ! Registered species name
+    CHARACTER(LEN=40)             :: AdvSpc(500)
+    INTEGER                       :: I, J, NAdv
+    LOGICAL                       :: FOUND = .false.
 
     __Iam__('SetServices')
 
@@ -412,6 +416,33 @@ CONTAINS
 ! !INTERNAL STATE:
 !
 #   include "GIGCchem_InternalSpec___.h"
+!-- Read in species from input.geos and set FRIENDLYTO
+    CALL READ_SPECIES_FROM_FILE( GC, MAPL_am_I_Root(), AdvSpc, Nadv, RC )
+!-- Add all additional species in KPP (careful not to add dummy species)
+    DO I=1,NSPEC
+       FOUND = .false.
+
+       ! Skip dummy RR species for prod/loss diagnostic (mps, 8/23/16)
+       SpcName = ADJUSTL( Spc_Names(I) )
+       IF ( SpcName(1:2) == 'RR' ) CYCLE
+
+       DO J=1,Nadv !Size of AdvSpc
+          IF (trim(AdvSpc(J)) .eq. trim(SpcName)) FOUND = .true.
+       END DO
+       
+       IF (Found .ne. .true.) Then
+       call MAPL_AddInternalSpec(GC, &
+            SHORT_NAME         = SpcName,  &
+            LONG_NAME          = SpcName,  &
+            UNITS              = 'mol mol-1', &
+            DIMS               = MAPL_DimsHorzVert,    &
+            VLOCATION          = MAPL_VLocationCenter,    &
+!            FRIENDLYTO         = 'DYNAMICS:TURBULENCE:MOIST',    &
+            RC                 = STATUS  )
+       IF (MAPL_am_I_Root()) write(*,*) 'Registered species ', SpcName
+       Endif
+    ENDDO
+
 !
 ! !EXTERNAL STATE:
 !
@@ -1370,7 +1401,7 @@ CONTAINS
           IF ( GCID > 0 ) THEN
 
              ! This is the name in the internal state
-             GCName = TRIM(TPFX) // TRIM(GcNames(I))
+             GCName = TRIM(GcNames(I))
 
              ! Get field from internal state
              CALL ESMF_StateGet( INTSTATE, TRIM(GCName), GcFld, RC=RC )
@@ -1483,7 +1514,7 @@ CONTAINS
     ENDIF ! DoAERO
 
     IF ( DoANOX ) THEN
-       CALL MAPL_GetPointer( INTSTATE, PTR_O3, TRIM(TPFX)//'O3', __RC__ )
+       CALL MAPL_GetPointer( INTSTATE, PTR_O3, 'O3', __RC__ )
 
        ! O3_HIST is needed to store O3 field from previous chemistry time step
        ALLOCATE( O3_HIST(IM,JM,LM), STAT=STATUS )
@@ -1491,12 +1522,12 @@ CONTAINS
     ENDIF
 
     IF ( DoRATS ) THEN
-       CALL MAPL_GetPointer( INTSTATE,    PTR_CH4, TRIM(TPFX)//'CH4',    __RC__ )
-       CALL MAPL_GetPointer( INTSTATE,    PTR_N2O, TRIM(TPFX)//'N2O',    __RC__ )
-       CALL MAPL_GetPointer( INTSTATE,  PTR_CFC11, TRIM(TPFX)//'CFC11',  __RC__ )
-       CALL MAPL_GetPointer( INTSTATE,  PTR_CFC12, TRIM(TPFX)//'CFC12',  __RC__ )
-       CALL MAPL_GetPointer( INTSTATE, PTR_HCFC22, TRIM(TPFX)//'HCFC22', __RC__ )
-       CALL MAPL_GetPointer( INTSTATE,    PTR_H2O, TRIM(TPFX)//'H2O',    __RC__ )
+       CALL MAPL_GetPointer( INTSTATE,    PTR_CH4, 'CH4',    __RC__ )
+       CALL MAPL_GetPointer( INTSTATE,    PTR_N2O, 'N2O',    __RC__ )
+       CALL MAPL_GetPointer( INTSTATE,  PTR_CFC11, 'CFC11',  __RC__ )
+       CALL MAPL_GetPointer( INTSTATE,  PTR_CFC12, 'CFC12',  __RC__ )
+       CALL MAPL_GetPointer( INTSTATE, PTR_HCFC22, 'HCFC22', __RC__ )
+       CALL MAPL_GetPointer( INTSTATE,    PTR_H2O, 'H2O',    __RC__ )
 
        ! H2O_HIST is needed to store H2O field from previous chemistry time step
        ALLOCATE( H2O_HIST(IM,JM,LM), STAT=STATUS )
@@ -1532,9 +1563,9 @@ CONTAINS
        ENDIF
 
        ! Get internal state field
-       CALL ESMF_StateGet( INTSTATE, TRIM(TPFX)//TRIM(Int2Chm(I)%TrcName), GcFld, RC=STATUS )
+       CALL ESMF_StateGet( INTSTATE, TRIM(Int2Chm(I)%TrcName), GcFld, RC=STATUS )
        IF ( STATUS /= ESMF_SUCCESS ) THEN
-          WRITE(*,*) 'Cannot find in internal state: '//TRIM(TPFX)//TRIM(Int2Chm(I)%TrcName)
+          WRITE(*,*) 'Cannot find in internal state: '//TRIM(Int2Chm(I)%TrcName)
           ASSERT_(.FALSE.)
        ENDIF
 
@@ -1582,8 +1613,6 @@ CONTAINS
        ! Get pointer to field
        CALL ESMF_FieldGet( GcFld, 0, Ptr3D, __RC__ )
 
-       ! Get pointer to internal state and link it to Int2Chm object.
-!       CALL MAPL_GetPointer( INTSTATE, Ptr3D, TRIM(TPFX)//TRIM(Int2Chm(I)%TrcName), __RC__ )
        Int2Chm(I)%Internal => Ptr3D
       
        ! Free pointers
@@ -1952,9 +1981,6 @@ CONTAINS
     ! Initialize from GC Classic restart file (see registry file)?
     INTEGER                      :: InitGCC
  
-    ! For HEMCO
-    TYPE(HCO_STATE),     POINTER :: HcoState => NULL()
-
     ! First call?
     LOGICAL, SAVE                :: FIRST    = .TRUE.
 
@@ -2258,48 +2284,18 @@ CONTAINS
              IF ( TRIM(State_Chm%Spec_Name(I)) == '' ) Cycle
              If ( State_Chm%Spec_ID(I).le.0) Cycle
 
-             ! Is this a tracer?
-             IND = Get_Indx( TRIM(State_Chm%Spec_Name(I)), State_Chm%Trac_Id, State_Chm%Trac_Name )
+             IND = IND_(State_Chm%Spec_Name(I))
 
-             ! Does TRC_NAME exist in the import state as GCC_NAME?
+             ! Does SPC_NAME exist in the import state as GCC_NAME?
              CALL MAPL_GetPointer ( IMPORT, Ptr3D, 'GCC_'//TRIM(State_Chm%Spec_Name(I)), notFoundOK=.TRUE., __RC__ )
              If (Associated(Ptr3D)) Then
-                If (Ind.gt.0)  Then
-                   If (am_I_Root) Write(6,'(a40,a10)') ' ### Reading TRC/SPC from GCC restart: ', TRIM(State_Chm%Spec_Name(I))
-                   State_Chm%Tracers(:,:,:,IND) = Ptr3D(:,:,LM:1:-1)
-                   L = L + 1
-                Else
-                   If (am_I_Root) Write(6,'(a40,a10)') ' ### Reading SPECIES from GCC restart: ', TRIM(State_Chm%Spec_Name(I))
-                End If
                 State_Chm%Species(:,:,:,State_Chm%Spec_ID(I)) = Ptr3D(:,:,LM:1:-1)
                 J = J + 1
                 Ptr3D => NULL()
              End If
           End Do
           !=============================================================================================
-          ! For every tracer in State_Chm, try to find an ExtData field
-          DO IND = 1, SIZE(State_Chm%Trac_ID,1)
-
-             ! Skip if empty
-             IF ( TRIM(State_Chm%Trac_Name(IND)) == '' ) Cycle
-
-             ! Is this a species?
-             I = Get_Indx( TRIM(State_Chm%Trac_Name(IND)), State_Chm%Spec_ID, State_Chm%Spec_Name )
-
-             ! Combined species/tracers already found in the previous loop
-             If (I.gt.0) Cycle
-
-             ! Does TRC_NAME exist in the import state as GCC_NAME?
-             CALL MAPL_GetPointer ( IMPORT, Ptr3D, 'GCC_'//TRIM(State_Chm%Trac_Name(IND)), notFoundOK=.TRUE., __RC__ )
-             If (Associated(Ptr3D)) Then
-                If (am_I_Root) Write(6,'(a40,a10)') ' ### Reading TRACER  from GCC restart: ', TRIM(State_Chm%Trac_Name(IND))
-                State_Chm%Tracers(:,:,:,State_Chm%Trac_ID(IND)) = Ptr3D(:,:,LM:1:-1)
-                L = L + 1
-                Ptr3D => NULL()
-             End If
-          End Do
-          !=============================================================================================
-          If (am_I_Root) Write(6,'(a,I4,a,I4,a)') ' ### Read in ', J, ' species and ', L, ' tracers from GCC restart'
+          If (am_I_Root) Write(6,'(a,I4,a,I4,a)') ' ### Read in ', J, ' species from GCC restart'
        Else
           If (am_I_Root) Write(6,'(a)') 'GC-Classic NetCDF restart file will not be used for initialization'
        End If
@@ -2343,7 +2339,6 @@ CONTAINS
     
           IF ( ANY(State_Chm%TRACERS(:,:,:,29) .ne.                     & 
                    State_Chm%TRACERS(:,:,:,29) )) THEN
-             write(*,*) '<> MSA START'
           ELSE
           ENDIF
 
@@ -2740,7 +2735,7 @@ CONTAINS
        IF ( IND > 0 ) CYCLE
 
        ! Get data from internal state and copy to species array
-       CALL MAPL_GetPointer( INTSTATE, Ptr3D, TRIM(SPFX)//TRIM(State_Chm%Spec_Name(I)), &
+       CALL MAPL_GetPointer( INTSTATE, Ptr3D, TRIM(State_Chm%Spec_Name(I)), &
                              notFoundOK=.TRUE., __RC__ )
        IF ( .NOT. ASSOCIATED(Ptr3D) ) CYCLE
        Ptr3D = State_Chm%Species(:,:,LM:1:-1,State_Chm%Spec_ID(I))

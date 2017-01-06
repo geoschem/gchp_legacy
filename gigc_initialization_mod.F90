@@ -576,46 +576,21 @@ CONTAINS
     IF ( RC /= GC_SUCCESS ) RETURN
       
     ! Set State_Chm units
-!    State_Chm%Trac_Units = 'kg/kg dry'
+    State_Chm%Spc_Units = 'kg/kg dry'
 
-!<<GONE>>    ! Save tracer names and ID's into State_Chm
-!<<GONE>>    DO N = 1, Input_Opt%N_TRACERS
-!<<GONE>>       
-!<<GONE>>
-!<<GONE>>!       ! Preface TRC_ to advected tracer names
-!<<GONE>>!       Name = 'TRC_' // TRIM( Input_Opt%TRACER_NAME(N) )
-!<<GONE>>
-!<<GONE>>       ! Call REGISTER_TRACER routine to 
-!<<GONE>>       CALL Register_Tracer( Name      = Input_Opt%TRACER_NAME(N),          &
-!<<GONE>>                             ID        = Input_Opt%ID_TRACER(N),            &
-!<<GONE>>                             State_Chm = State_Chm,                         &
-!<<GONE>>                             Status    = STAT                    )
-!<<GONE>>
-!<<GONE>>       IF ( am_I_Root .and. STAT > 0 ) THEN
-!<<GONE>>          WRITE( 6, 200 ) Input_Opt%TRACER_NAME(N), STAT
-!<<GONE>> 200      FORMAT( 'Registered Tracer : ', a14, i5 )
-!<<GONE>>       ENDIF
-!<<GONE>>    ENDDO
-       
     ! Initialize the GEOS-Chem pressure module (set Ap & Bp)
     CALL Init_Pressure( am_I_Root )
 
     ! Initialize the PBL mixing module
     CALL Init_PBL_Mix()
 
-    ! Initialize arrays SO2s, H2O2s in wetscav_mod.F for use in sulfate chem
-    ! Now called in GIGC_Init_Extra
-    !CALL Init_WetScav &
-    !   ( am_I_Root, Input_Opt, State_Chm, RC )
-    !IF ( RC /= GC_SUCCESS ) RETURN
-
     !=======================================================================
     ! Initialize dry deposition 
     !=======================================================================
     IF ( Input_Opt%LDRYD )  THEN
 
-!       ! Initialize the derived type object containing
-!       ! mapping information for the MODIS LAI routines
+       ! Initialize the derived type object containing
+       ! mapping information for the MODIS LAI routines
        IF ( Input_Opt%USE_OLSON_2001 ) THEN
           CALL Init_Mapping( am_I_Root, Input_Opt, 1440, 720, IIPAR, JJPAR, mapping, RC )
        ELSE

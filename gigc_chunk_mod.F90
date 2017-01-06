@@ -19,8 +19,8 @@ MODULE GIGC_Chunk_Mod
 ! !USES:
 !      
   USE MAPL_MOD
-  use ESMF
-!  USE Mapping_Mod, ONLY : MapWeight
+  USE ESMF
+  USE GCHP_Utils
 
   IMPLICIT NONE
   PRIVATE
@@ -605,7 +605,7 @@ CONTAINS
     ! Force units to standard (kg/kg dry)
     If (.not.GIGC_Assert_Units(am_I_Root, State_Chm)) Then
        Call GIGC_Revert_Units( am_I_Root, Input_Opt, State_Chm, State_Met, RC )
-       ASSERT_(RC==GIGC_SUCCESS)
+       ASSERT_(RC==GC_SUCCESS)
     End If
     
     ! SDE 05/28/13: Set H2O to STT if relevant
@@ -673,7 +673,7 @@ CONTAINS
        endif
 
        ! Make sure tracers are in kg
-       CALL Convert_KgKgDry_to_Kg( am_I_Root, Input_Opt, State_Met, State_Chm, RC )
+       CALL ConvertSpc_KgKgDry_to_Kg( am_I_Root, State_Met, State_Chm, RC )
 
        ! Update & Remap Land-type arrays from Surface Grid-component
        !CALL GEOS5_TO_OLSON_LANDTYPE_REMAP( State_Met, RC )    
@@ -688,7 +688,7 @@ CONTAINS
 
        ! Revert units
        Call GIGC_Revert_Units( am_I_Root, Input_Opt, State_Chm, State_Met, RC )
-       ASSERT_(RC==GIGC_SUCCESS)
+       ASSERT_(RC==GC_SUCCESS)
 
        ! Timer off
        CALL MAPL_TimerOff( STATE, 'GC_DRYDEP' )
@@ -715,7 +715,7 @@ CONTAINS
 
        ! Call HEMCO run interface 
        CALL EMISSIONS_RUN ( am_I_Root, Input_Opt, State_Met, State_Chm, DoEmis, Phase, RC )
-       ASSERT_(RC==GIGC_SUCCESS)
+       ASSERT_(RC==GC_SUCCESS)
 
        ! Timer off
        CALL MAPL_TimerOff( STATE, 'GC_EMIS' )
@@ -746,14 +746,12 @@ CONTAINS
        if(am_I_Root.and.NCALLS<10) write(*,*) ' --- Add emissions and drydep to tracers'
  
        ! Make sure tracers are in v/v
-       CALL Convert_KgKgDry_to_VVDry( am_I_Root, Input_Opt,&
-                                   State_Chm, RC )
+       CALL ConvertSpc_KgKgDry_to_VVDry( am_I_Root, State_Chm, RC )
 
        ! Get emission time step [s]. 
        CALL GetHcoState( HcoState )
        ASSERT_(ASSOCIATED(HcoState))
        DT = HcoState%TS_EMIS 
-       HcoState => NULL()
 
        ! Apply tendencies over entire PBL. Use emission time step.
        CALL DO_TEND ( am_I_Root, Input_Opt, State_Met, State_Chm, .FALSE., RC, DT=DT )
@@ -761,7 +759,7 @@ CONTAINS
 
        ! Revert units
        Call GIGC_Revert_Units( am_I_Root, Input_Opt, State_Chm, State_Met, RC )
-       ASSERT_(RC==GIGC_SUCCESS)
+       ASSERT_(RC==GC_SUCCESS)
 
        ! testing only
        if(am_I_Root.and.NCALLS<10) write(*,*) '     Tendency time step [s]: ', DT 
@@ -824,17 +822,6 @@ CONTAINS
 
        ! testing only
        if(am_I_Root.and.NCALLS<10) write(*,*) ' --- Do chemistry now'
-
-       ! Write JLOP_PREVIOUS into JLOP to make sure that JLOP contains 
-       ! the current values of JLOP_PREVIOUS. In chemdr.F, JLOP_PREVIOUS is filled 
-       ! with JLOP before resetting JLOP to current values and we simply want to 
-       ! make sure that JLOP_PREVIOUS is not set to zero everywhere on the first
-       ! call (when JLOP is still all zero).
-       JLOP = JLOP_PREVIOUS
-
-       ! Zero Rate arrays  
-       RRATE = 0.E0
-       TRATE = 0.E0
 
        ! Calculate TOMS O3 overhead. For now, always use it from the
        ! Met field. State_Met%TO3 is imported from PCHEM.
@@ -917,7 +904,16 @@ CONTAINS
     !=======================================================================
 
     ! Make sure tracers leave routine in v/v dry
-    CALL Convert_KgKgDry_to_VVDry( am_I_Root, Input_Opt, State_Chm, RC )
+    CALL ConvertSpc_KgKgDry_to_VVDry( am_I_Root, State_Chm, RC )
+
+    ! check for negatives
+    IF ( am_I_Root .and. .false.) THEN
+    DO N=1,State_Chm%nSpecies
+       IF ( ANY(State_Chm%Species(:,:,:,N)<0.0) ) THEN
+        write(*,*) 'B negatives for species ',N
+       ENDIF
+    ENDDO
+    ENDIF
 
     ! testing only
     IF ( PHASE /= 1 .AND. NCALLS < 10 ) NCALLS = NCALLS + 1 
@@ -998,223 +994,6 @@ CONTAINS
                         RC        = RC         )   ! Success or failure?
 
   END SUBROUTINE GIGC_Chunk_Final
-!EOC
-!------------------------------------------------------------------------------
-!          Harvard University Atmospheric Chemistry Modeling Group            !
-!------------------------------------------------------------------------------
-!BOP
-!
-! !IROUTINE: gigc_cap_tropopause_prs
-!
-! !DESCRIPTION: Subroutine GIGC\_CAP\_TROPOPAUSE\_PRS caps the tropopause
-!  pressure in polar latitudes to 200 hPa, so that we don't end up doing
-!  tropopsheric chemistry too high over the poles.  This is done in the
-!  standalone GEOS-Chem, and we also need to apply this when running
-!  GEOS-Chem within the GEOS-5 GCM.
-!\\
-!\\
-! !INTERFACE:
-!
-  SUBROUTINE GIGC_Cap_Tropopause_Prs( am_I_Root, IM,        JM,  &
-                                      Input_Opt, State_Met, RC  )
-!
-! !USES:
-!
-    USE GIGC_ErrCode_Mod
-    USE GIGC_Input_Opt_Mod, ONLY : OptInput
-    USE GIGC_State_Met_Mod, ONLY : MetState
-    USE Grid_Mod,           ONLY : Get_XEdge
-    USE Grid_Mod,           ONLY : Get_YEdge
-!
-! !INPUT PARAMETERS:
-!
-    LOGICAL,        INTENT(IN)    :: am_I_Root     ! Are we on the root CPU?
-    INTEGER,        INTENT(IN)    :: IM            ! # of lons on this CPU
-    INTEGER,        INTENT(IN)    :: JM            ! # of lats on this CPU
-    TYPE(OptInput), INTENT(IN)    :: Input_Opt     ! Input Options object
-!
-! !INPUT/OUTPUT PARAMETERS:
-!
-    TYPE(MetState), INTENT(INOUT) :: State_Met     ! Meteorology State object
-!
-! !OUTPUT PARAMETERS:
-!
-    INTEGER,        INTENT(OUT)   :: RC            ! Success or failure
-!
-! !REMARKS:
-!  Jennifer Logan (see correspondence below) suggested that we should cap the 
-!  variable tropopause at 200hPa in near-polar regions (90-60S and 60-90N), 
-!  to avoid the problem with anomalously high tropopause heights at high 
-!  latitudes. This fix was standardized in GEOS-Chem v7-04-13.
-!                                                                             .
-!  Jennifer Logan wrote:
-!     I think we should restrict the tropopause at latitudes > 60 deg. to 
-!     pressures greater than 200 mb (about 11 km). From Fig. 3 in Seidel and 
-!     Randel, there are tropopause (TP) heights as high as 13.5 km in the 
-!     Antarctic (median height is ~9.8 km, 250 mb), but I don't think we want 
-!     to be doing trop. chem there. The median TP pressure at ~80 N is ~300 mb, 
-!     compared to ~250 mb at 70-85 S. The extratropical TP heights are higher
-!     (lower pressure) in the SH than in the NH according to Fig. 3. 
-!     This approach is also very easy to explain in a paper. 
-! 
-! !REVISION HISTORY: 
-!  14 Mar 2013 - R. Yantosca - Initial version
-!EOP
-!------------------------------------------------------------------------------
-!BOC
-!
-! !LOCAL VARIABLES:
-!
-    INTEGER :: I,       J
-    REAL*8  :: YSOUTH,  YNORTH
-
-    ! Assume success
-    RC = GIGC_SUCCESS
-
-    ! Loop over grid boxes on this PET
-    DO J = 1, JM
-    DO I = 1, IM
-
-       ! North & south edges of box
-       YSOUTH = GET_YEDGE( I, J,   1 )
-       YNORTH = GET_YEDGE( I, J+1, 1 )
-
-       ! Cap tropopause height at 200 hPa polewards of 60N and 60S
-!       IF ( YSOUTH >= 60d0 .or. YNORTH <= -60d0 ) THEN
-!          State_Met%TROPP(I,J) = MAX( State_Met%TROPP(I,J), 200d0 )
-!       ENDIF
-
-    ENDDO
-    ENDDO
-
-  END SUBROUTINE GIGC_Cap_Tropopause_Prs
-!EOC
-!------------------------------------------------------------------------------
-!          Harvard University Atmospheric Chemistry Modeling Group            !
-!------------------------------------------------------------------------------
-!BOP
-!
-! !IROUTINE: gigc_revert_units
-!
-! !DESCRIPTION: Subroutine GIGC\_REVERT\_UNITS forces the units back to kg/kg dry
-!\\
-!\\
-! !INTERFACE:
-!
-  SUBROUTINE GIGC_Revert_Units( am_I_Root, Input_Opt, State_Chm, State_Met, RC )
-!
-! !USES:
-!
-    USE GIGC_ErrCode_Mod
-    USE GIGC_Input_Opt_Mod,    ONLY : OptInput
-    USE GIGC_State_Chm_Mod,    ONLY : ChmState
-    USE GIGC_State_Met_Mod,    ONLY : MetState
-    Use UnitConv_Mod
-!
-! !INPUT PARAMETERS:
-!
-    LOGICAL,        INTENT(IN)    :: am_I_Root     ! Are we on the root CPU?
-!
-! !INPUT/OUTPUT PARAMETERS:
-!
-    TYPE(OptInput), INTENT(INOUT) :: Input_Opt     ! Input Options object
-    TYPE(ChmState), INTENT(INOUT) :: State_Chm     ! Chemistry State object
-    TYPE(MetState), INTENT(INOUT) :: State_Met     ! Meteorology State object
-!
-! !OUTPUT PARAMETERS:
-!
-    INTEGER,        INTENT(OUT)   :: RC            ! Success or failure
-!
-! !REVISION HISTORY: 
-!  21 Dec 2016 - S. D. Eastham - Initial Version
-!EOP
-!------------------------------------------------------------------------------
-!BOC
-!
-! !LOCAL VARIABLES:
-!
-
-    ! Are tracers in mass or mixing ratio?
-    Logical                        :: LPrt, LConvert
-    Character(Len=20)              :: oldUnits
-
-    ! Assume succes
-    RC = GIGC_SUCCESS
-
-    LPrt = (am_I_Root .and. (Input_Opt%LPrt) )
-    oldUnits = Trim(State_Chm%Trac_Units)
-    LConvert = .False.
-
-    ! Check what unit the tracers are in - hold as kg/kg dry throughout
-    Select Case (Trim(oldUnits))
-        Case ('kg/kg dry')
-            ! Do nothing
-        Case ('kg')
-            LConvert = .True.
-            CALL Convert_Kg_to_KgKgDry( am_I_Root, Input_Opt,&
-                                         State_Met, State_Chm, RC )
-        Case ('v/v dry')
-            LConvert = .True.
-            CALL Convert_VVDry_to_KgKgDry( am_I_Root, Input_Opt,&
-                                            State_Chm, RC )
-        Case Default
-            Write(6,'(a,a,a)') 'Tracer units (', State_Chm%Trac_Units, ') not recognized'
-            RC = GIGC_FAILURE
-    End Select
-
-    ! Debug information
-    If (LConvert.and.LPrt) Then
-       Write(6,'(a,a,a)') ' GIGC: Tracer units reverted from ', oldUnits, ' to kg/kg dry'
-    End If
-
-  END SUBROUTINE GIGC_Revert_Units
-!EOC
-!------------------------------------------------------------------------------
-!          Harvard University Atmospheric Chemistry Modeling Group            !
-!------------------------------------------------------------------------------
-!BOP
-!
-! !IROUTINE: gigc_assert_units
-!
-! !DESCRIPTION: Function ASSERT\_UNITS checks to make sure the units are
-! correct
-!\\
-!\\
-! !INTERFACE:
-!
-  FUNCTION GIGC_Assert_Units( am_I_Root, State_Chm ) RESULT( isOK )
-!
-! !USES:
-!
-    USE GIGC_State_Chm_Mod,    ONLY : ChmState
-!
-! !INPUT PARAMETERS:
-!
-    LOGICAL,        INTENT(IN)    :: am_I_Root     ! Are we on the root CPU?
-!
-! !INPUT/OUTPUT PARAMETERS:
-!
-    TYPE(ChmState), INTENT(INOUT) :: State_Chm     ! Chemistry State object
-!
-! !OUTPUT PARAMETERS:
-!
-    LOGICAL                       :: isOK          ! True if correct unit
-!
-! !REVISION HISTORY: 
-!  21 Dec 2016 - S. D. Eastham - Initial Version
-!EOP
-!------------------------------------------------------------------------------
-!BOC
-
-    ! Check what unit the tracers are in - hold as kg/kg dry throughout
-    Select Case (Trim(State_Chm%Trac_Units))
-        Case ('kg/kg dry')
-            isOK = .True.
-        Case Default
-            isOK = .False.
-    End Select
-
-  END FUNCTION GIGC_Assert_Units
 !EOC
 END MODULE GIGC_Chunk_Mod
 #endif
