@@ -334,13 +334,13 @@ wipeout_fvdycore:
 
 Chem_GridCompMod.o          : Chem_GridCompMod.F90 gigc_mpi_wrap.o     \
 		              gigc_chunk_mod.o gigc_diagnostics_mod.o  \
-	                      gigc_chem_utils.o
+	                      gchp_utils.o
 
 GEOSChem.o		    : GEOSChem.F90 GIGC_GridCompMod.o
 
 GEOS_ctmEnvGridComp.o	    : GEOS_ctmEnvGridComp.F90
 
-gigc_chem_utils.o           : gigc_chem_utils.F90
+gchp_utils.o                : gchp_utils.F90
 
 GIGC_Diagnostics_Mod.o      : GIGC_Diagnostics_Mod.F90
 
@@ -351,7 +351,7 @@ gigc_initialization_mod.o   : gigc_initialization_mod.F90 gigc_mpi_wrap.o
 
 gigc_chunk_mod.o            : gigc_chunk_mod.F90 gigc_finalization_mod.o \
 			      gigc_initialization_mod.o gc_land_interface.o \
-			      gigc_diagnostics_mod.o
+			      gigc_diagnostics_mod.o gchp_utils.o
 
 gc_land_inteface.o          : gc_land_interface.F90
 #EOC

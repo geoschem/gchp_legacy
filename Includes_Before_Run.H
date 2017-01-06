@@ -159,6 +159,7 @@
   !=========================================================================
   DO I = 1, SIZE(Int2Chm,1)
      IF ( Int2Chm(I)%TrcID <= 0 ) CYCLE
+!  write(*,*) '<>', 
      State_Chm%Species(:,:,:,Int2Chm(I)%TrcID) = Int2Chm(I)%Internal
   ENDDO
 
@@ -206,7 +207,7 @@
         IF ( IND < 0 ) CYCLE
 
         ! Get data from internal state and copy to species array. 
-        CALL MAPL_GetPointer( INTERNAL, Ptr3D, TRIM(SPFX)//TRIM(ThisSpc%Name), &
+        CALL MAPL_GetPointer( INTERNAL, Ptr3D, TRIM(ThisSpc%Name), &
                               notFoundOK=.TRUE., __RC__ )
         IF ( .NOT. ASSOCIATED(Ptr3D) ) THEN
            IF ( MAPL_am_I_Root()) WRITE(*,*) &
