@@ -481,6 +481,7 @@
       integer timeid, dimId, i
       integer attType, attLen
       character*(MAXCHR) dimName
+      character*(MAXCHR) stdName
       character*(MAXCHR) dimUnits
       character*(MAXCHR) vname
       integer dimSize
@@ -540,10 +541,13 @@
 
         rc = NF90_INQ_VARID (fid, dimName, dimId)
         if (err("DimInqure: NF90_INQ_VARID failed",rc,-40) .NE. 0) return
+        ! If it has the standard_name attribute, use that instead
+        rc = NF90_GET_ATT(fid,dimId,'standard_name',stdName)
+        if (rc .ne. 0) stdName = Trim(dimName)
         rc = NF90_GET_ATT(fid,dimId,'units',dimUnits)
         if (err("DimInqure: could not get units for dimension",rc,-53)&
             .NE. 0) return
-        myIndex = IdentifyDim (dimName, dimUnits)
+        myIndex = IdentifyDim (stdName, dimUnits)
         if ( myIndex .EQ. 0 ) then
           im = dimSize
         else if ( myIndex .EQ. 1 ) then
@@ -619,7 +623,7 @@
       integer year, month, day
       character(len=MAXCHR) timeUnits, strTmp, dimUnits
 
-      character*(MAXCHR) varName, dimName
+      character*(MAXCHR) varName, dimName, stdName
       integer type, nvDims, vdims(MAXVDIMS), nvAtts, dimSize
       integer nDims, nvars, ngatts, dimId
 
@@ -651,10 +655,13 @@
         if ( index(dimName,'edges') .gt. 0 ) cycle
         rc = NF90_INQ_VARID (fid, dimName, dimId)
         if (err("GetDateTimeVec: NF90_INQ_VARID failed",rc,-40) .NE. 0) return
+        ! If it has the standard_name attribute, use that instead
+        rc = NF90_GET_ATT(fid,dimId,'standard_name',stdName)
+        if (rc .ne. 0) stdName = Trim(dimName)
         rc = NF90_GET_ATT(fid,dimId,'units',dimUnits)
         if (err("GetDateTimeVec: could not get units for dimension",rc,-53)&
             .NE. 0) return
-        if ( IdentifyDim (dimName, dimUnits) .eq. 3 ) then
+        if ( IdentifyDim (stdName, dimUnits) .eq. 3 ) then
              timeId = dimId
              timeUnits = dimUnits
              exit
@@ -812,7 +819,7 @@
       integer year, month, day
       character(len=MAXCHR) timeUnits, strTmp, dimUnits
 
-      character*(MAXCHR) varName, dimName
+      character*(MAXCHR) varName, dimName, stdName
       integer type, nvDims, vdims(MAXVDIMS), nvAtts, dimSize
       integer nDims, nvars, ngatts, dimId
 
@@ -837,10 +844,13 @@
         if ( index(dimName,'edges') .gt. 0 ) cycle
         rc = NF90_INQ_VARID (fid, dimName, dimId)
         if (err("GetBegDateTime: NF90_INQ_VARID failed",rc,-40) .NE. 0) return
+        ! If it has the standard_name attribute, use that instead
+        rc = NF90_GET_ATT(fid,dimId,'standard_name',stdName)
+        if (rc .ne. 0) stdName = Trim(dimName)
         rc = NF90_GET_ATT(fid,dimId,'units',dimUnits)
         if (err("GetBegDateTime: could not get units for dimension",rc,-53)&
             .NE. 0) return
-        if ( IdentifyDim (dimName, dimUnits) .eq. 3 ) then
+        if ( IdentifyDim (stdName, dimUnits) .eq. 3 ) then
              timeId = dimId
              timeUnits = dimUnits
              exit
@@ -2815,6 +2825,7 @@
 ! Variables for working with dimensions
 
       character*(MAXCHR) dimName
+      character*(MAXCHR) stdName
       character*(MAXCHR) dimUnits 
       character*(MAXCHR) varName
       integer dimSize, dimId
@@ -2879,10 +2890,13 @@
         end if
         rc = NF90_INQ_VARID (fid, dimName, dimId)
         if (err("DimInqure: NF90_INQ_VARID failed",rc,-40) .NE. 0) return
+        ! If it has the standard_name attribute, use that instead
+        rc = NF90_GET_ATT(fid,dimId,'standard_name',stdName)
+        if (rc .ne. 0) stdName = Trim(dimName)
         rc = NF90_GET_ATT(fid,dimId,'units',dimUnits)
         if (err("DimInqure: could not get units for dimension",rc,-53) &
             .NE. 0) return
-        myIndex = IdentifyDim (dimName, dimUnits)
+        myIndex = IdentifyDim (stdName, dimUnits)
         if ( myIndex .EQ. 0 ) then
           if (dimSize .ne. im) then
             rc = -4
@@ -5272,6 +5286,7 @@ end subroutine die
 
       integer timeid, dimSize, dimId
       character*(MAXCHR) dimName
+      character*(MAXCHR) stdName
       character*(MAXCHR) attrName
       character*(MAXCHR) dimUnits
       integer attrType, attrCount
@@ -5420,7 +5435,11 @@ end subroutine die
         ! try to identify the dimension based on the name and the units
         ! then do appropriate error checking
 
-        idx = IdentifyDim (dimName, dimUnits)
+        ! If it has the standard_name attribute, use that instead
+        rc = NF90_GET_ATT(fid,dimId,'standard_name',stdName)
+        if (rc .ne. 0) stdName = Trim(dimName)
+
+        idx = IdentifyDim (stdName, dimUnits)
         if (idx .EQ. 0) then
           if (dimSize .ne. im) then
             rc = -4
