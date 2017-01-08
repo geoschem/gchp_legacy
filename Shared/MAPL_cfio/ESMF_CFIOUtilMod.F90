@@ -47,6 +47,7 @@
       integer, parameter :: PACK_FILL = 32767
       integer, parameter :: MLEN = 1024     ! Max. length of an attribute
       integer, parameter :: MVARLEN = 256   ! Max. length of a variable name
+      integer, parameter :: ModLong=selected_int_kind(13)
 
 ! Define a new data type "List" -- private data type for variable and 
 ! global attributes
@@ -598,10 +599,10 @@
 !
 ! !OUTPUT PARAMETERS:
 !
-      integer :: begDate   ! Beginning date
-      integer :: begTime   ! Beginning time
-      integer :: incVec(:) ! Vector of offsets (seconds)
-      integer :: rc        ! error return code
+      integer               :: begDate   ! Beginning date
+      integer               :: begTime   ! Beginning time
+      integer(Kind=ModLong) :: incVec(:) ! Vector of offsets (seconds)
+      integer               :: rc        ! error return code
 !
 ! !REVISION HISTORY:
 !
@@ -630,8 +631,8 @@
       integer   t1, t2, tMult, newDate, newTime
 
 !     We now have the possibility of a very large interval
-      integer*8 :: t1Long, t2Long, tMax, tMultLong, incSecsLong
-      integer*8,allocatable :: incVecLong(:) ! Vector of offsets (seconds)
+      integer(Kind=ModLong) :: t1Long, t2Long, tMax, tMultLong, incSecsLong
+      integer(Kind=ModLong),allocatable :: incVecLong(:) ! Vector of offsets (seconds)
 
 !     Get the starting date and time
 !     ---------------------------------------------------------
@@ -751,8 +752,10 @@
          !   rc = -10
          !   return
          ! End If
-         incSecs = int(incSecsLong,4)
-         incVec(i) = incSecs
+         ! Sometimes we actually do need to return this as a longlong..
+         !incSecs = int(incSecsLong,4)
+         !incVec(i) = incSecs
+         incVec(i) = incSecsLong
       end do
       deallocate(incVecLong)
 !ams  print *, 'begdate, begtime, incsecs: ',begdate, begtime, incsecs
@@ -2043,7 +2046,7 @@
 ! !INTERFACE:
 !
 
-       integer function DiffDate (yyyymmhh_1,hhmmss_1,yyyymmhh_2,hhmmss_2)
+       integer(kind=ModLong) function DiffDate (yyyymmhh_1,hhmmss_1,yyyymmhh_2,hhmmss_2)
 
 ! 
 ! !USES:
@@ -2091,7 +2094,7 @@
 
        integer year1,mon1,day1,hour1,min1,sec1
        integer year2,mon2,day2,hour2,min2,sec2
-       integer(kind=8) julian1, julian2, julsec1, julsec2
+       integer(kind=ModLong) julian1, julian2, julsec1, julsec2
 
        character*8 dateString
 
@@ -2165,7 +2168,7 @@
 !C   TO CONVERT MODIFIED JULIAN DAY, CALL THIS ROUTINE WITH              
 !C     JULIAN = MJD + 2400001                              
 !C                                                          
-      integer(kind=8) JULIAN
+      integer(kind=ModLong) JULIAN
       integer IGREG
       integer JALPHA, JA, JB, JC, JD, JE, ID, MM, IYYY
       PARAMETER (IGREG=2299161)                             
@@ -2422,7 +2425,8 @@
       character*(MAXCHR) dimName
       integer corner(3), edges(3)
       integer vid
-      integer seconds, timeIndex
+      integer(Kind=ModLong) seconds
+      integer timeIndex
       integer minutes                       ! added as a work-around
       integer idx, i, j, k
       integer begDate, begTime, timInc
@@ -2806,7 +2810,7 @@
       character*8 strBuf
       integer hour,min,sec,incSecs
       logical stationFile
-      integer, allocatable :: incVec(:)
+      integer(KIND=ModLong), allocatable :: incVec(:)
 
 ! Variables for working with dimensions
 
@@ -3217,7 +3221,7 @@
       integer i,j,k
       character*8 strBuf
       integer hour,min,sec,incSecs
-      integer, allocatable :: incVec(:)
+      integer(Kind=ModLong), allocatable :: incVec(:)
 
 ! Variables for working with dimensions
 
@@ -3651,7 +3655,8 @@
       character*(MAXCHR) dimName
       integer corner(4), edges(4)
       integer vid
-      integer seconds, timeIndex
+      integer(Kind=ModLong) seconds
+      integer timeIndex
       integer minutes                       ! added as a work-around
       integer idx, i, j, k
       integer begDate, begTime, timInc
@@ -4006,7 +4011,7 @@
        
        integer         yyyymmdd_1       ! Initial date in YYYYYMMDD format
        integer         hhmmss_1         ! Initial time in HHMMSS format
-       integer(kind=8) offset           ! Offset to add (in seconds)
+       integer(kind=ModLong) offset           ! Offset to add (in seconds)
 
 !
 ! !OUTPUT PARAMETERS:
@@ -4034,8 +4039,8 @@
       integer year1,mon1,day1,hour1,min1,sec1
       integer year2,mon2,day2,hour2,min2,sec2
       integer seconds1, seconds2
-      integer(kind=8) julian1, julian2
-      integer(kind=8) julsec, remainder
+      integer(kind=ModLong) julian1, julian2
+      integer(kind=ModLong) julsec, remainder
       character*8 dateString
 
 ! Error checking.
@@ -4148,67 +4153,73 @@
 !EOP
 !-------------------------------------------------------------------------
 
-      integer year1,mon1,day1,hour1,min1,sec1
-      integer year2,mon2,day2,hour2,min2,sec2
-      integer seconds1, seconds2
-      integer(kind=8) julian1, julian2
-      integer(kind=8) julsec, remainder
-      character*8 dateString
+       integer(Kind=ModLong) offsetLong
 
-! Error checking.
+       offsetLong = INT(offset,Kind=ModLong)
+       call GetDateInt8(yyyymmdd_1,hhmmss_1,offsetLong,yyyymmdd_2,hhmmss_2,rc)
+       return
 
-      if (yyyymmdd_1 .lt. 19000000 .or. yyyymmdd_1 .gt. 21000000 ) then
-         rc=-1
-         return
-      endif
-      if (hhmmss_1 .lt. 0 .or. hhmmss_1 .ge. 240000 ) then
-         rc=-1
-         return
-      endif
-
-! Convert Date/Time strings to integer variables.
-
-!ams       write (dateString, 200) yyyymmdd_1
-!ams 200   format (I8)
-!ams       read (dateString, 201) year1, mon1, day1
-!ams 201   format (I4,2I2)
-!ams       write (dateString, 202) hhmmss_1
-!ams 202   format (I6)
-!ams       read (dateString, 203) hour1, min1, sec1
-!ams 203   format (3I2)
-
-      call CFIO_parseIntTime ( yyyymmdd_1, year1, mon1, day1 )
-      call CFIO_parseIntTime ( hhmmss_1, hour1, min1, sec1 )
-
-! Get Julian Day and subtract off a constant (Julian days since 7/14/66)
- 
-      julian1 = julday (mon1, day1, year1)
-       
-! Calculcate Julian seconds
-
-      julsec = (julian1-1)*86400 + hour1*3600 + min1*60 + sec1
-
-! Add offset and calculate new julian day.
-
-      julsec = julsec + offset
-      julian1 = INT(julsec/86400) + 1
-      remainder = MOD(julsec,86400)
- 
-! Convert julian day to YYYYMMDD.
-
-      call caldat (julian1, mon2, day2, year2)
-
-! Calculate HHMMSS from the remainder.
-
-      hour2 = INT(remainder/3600)
-      remainder = MOD(remainder,3600)
-      min2 = INT(remainder/60)
-      sec2 = MOD(remainder,60)
-
-! Build YYYYMMDD and HHMMSS variables.
-
-      yyyymmdd_2 = year2*10000 + mon2*100 + day2
-      hhmmss_2 = hour2*10000 + min2*100 + sec2
+!      integer year1,mon1,day1,hour1,min1,sec1
+!      integer year2,mon2,day2,hour2,min2,sec2
+!      integer seconds1, seconds2
+!      integer(kind=ModLong) julian1, julian2
+!      integer(kind=ModLong) julsec, remainder
+!      character*8 dateString
+!
+!! Error checking.
+!
+!      if (yyyymmdd_1 .lt. 19000000 .or. yyyymmdd_1 .gt. 21000000 ) then
+!         rc=-1
+!         return
+!      endif
+!      if (hhmmss_1 .lt. 0 .or. hhmmss_1 .ge. 240000 ) then
+!         rc=-1
+!         return
+!      endif
+!
+!! Convert Date/Time strings to integer variables.
+!
+!!ams       write (dateString, 200) yyyymmdd_1
+!!ams 200   format (I8)
+!!ams       read (dateString, 201) year1, mon1, day1
+!!ams 201   format (I4,2I2)
+!!ams       write (dateString, 202) hhmmss_1
+!!ams 202   format (I6)
+!!ams       read (dateString, 203) hour1, min1, sec1
+!!ams 203   format (3I2)
+!
+!      call CFIO_parseIntTime ( yyyymmdd_1, year1, mon1, day1 )
+!      call CFIO_parseIntTime ( hhmmss_1, hour1, min1, sec1 )
+!
+!! Get Julian Day and subtract off a constant (Julian days since 7/14/66)
+! 
+!      julian1 = julday (mon1, day1, year1)
+!       
+!! Calculcate Julian seconds
+!
+!      julsec = (julian1-1)*86400 + hour1*3600 + min1*60 + sec1
+!
+!! Add offset and calculate new julian day.
+!
+!      julsec = julsec + offset
+!      julian1 = INT(julsec/86400) + 1
+!      remainder = MOD(julsec,86400)
+! 
+!! Convert julian day to YYYYMMDD.
+!
+!      call caldat (julian1, mon2, day2, year2)
+!
+!! Calculate HHMMSS from the remainder.
+!
+!      hour2 = INT(remainder/3600)
+!      remainder = MOD(remainder,3600)
+!      min2 = INT(remainder/60)
+!      sec2 = MOD(remainder,60)
+!
+!! Build YYYYMMDD and HHMMSS variables.
+!
+!      yyyymmdd_2 = year2*10000 + mon2*100 + day2
+!      hhmmss_2 = hour2*10000 + min2*100 + sec2
 
       rc = 0
       return
@@ -5267,7 +5278,8 @@ end subroutine die
       integer corner(4), edges(4), stride(4)
       integer dim_chunk(4), origin(4)
       integer vid
-      integer seconds, timeIndex
+      integer(Kind=ModLong) seconds
+      integer timeIndex
       integer minutes                       ! added as a work-around
       integer idx, i, j, k
       integer begDate, begTime, timInc
