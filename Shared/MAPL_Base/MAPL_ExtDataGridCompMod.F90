@@ -2423,6 +2423,15 @@ CONTAINS
      return
   end subroutine
 
+  subroutine preProcessFullFile()
+! ------------------------------------------------------------------------- 
+! Purpose: Cache metadata from netCDF file where all variables in said file
+!          are to be loaded and read as ExtData exports
+!
+! Jan 9, 2017 - M.Long        - Initial Version
+! ------------------------------------------------------------------------- 
+  end subroutine preProcessFullFile
+
   subroutine GetTimesOnFile(cfio,tSeries,UniFileClim,rc)
      type(ESMF_CFIO)                           :: cfio
      type(ESMF_Time), pointer                  :: tSeries(:)
@@ -3846,7 +3855,7 @@ CONTAINS
 
      integer :: iCnt
      logical :: inBlock
-     character(len=ESMF_MAXSTR) :: thisLine
+     character(len=ESMF_MAXSTR) :: thisLine, dummy, fileTempl
      integer :: status
      character(len=ESMF_MAXSTR) :: Iam
      Iam = "AdvanceAndCount"
@@ -3858,9 +3867,10 @@ CONTAINS
          VERIFY_(STATUS)
          call ESMF_ConfigGetAttribute(CF,thisLine,rc=status)
          VERIFY_(STATUS)
-         if (trim(thisLine) == "%%") then
+         ! Conditional line test: What is in this line & what does it mean?
+         if (trim(thisLine) == "%%") then ! End of block
             inBlock = .false.
-         else
+         else ! Regular entry
             iCnt = iCnt + 1
          end if
      end do

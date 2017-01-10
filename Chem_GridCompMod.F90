@@ -64,10 +64,12 @@ MODULE Chem_GridCompMod
   USE GIGC_MPI_Wrap, ONLY : mpiComm
   USE GIGC_Chem_Utils                                ! Functions
   USE GIGC_Chunk_Mod                                 ! GIGC IRF methods
-  USE GIGC_ErrCode_Mod                               ! Error numbers
-  USE GIGC_Input_Opt_Mod                             ! Input Options obj
-  USE GIGC_State_Chm_Mod                             ! Chemistry State obj
-  USE GIGC_State_Met_Mod                             ! Meteorology State obj
+  USE ErrCode_Mod                                    ! Error numbers
+  USE Input_Opt_Mod                                  ! Input Options obj
+  USE State_Chm_Mod                                  ! Chemistry State obj
+  USE State_Met_Mod                                  ! Meteorology State obj
+  USE Species_Mod,   ONLY : Species
+  USE HCO_TYPES_MOD, ONLY : ConfigObj
 
   IMPLICIT NONE
   PRIVATE
@@ -115,10 +117,12 @@ MODULE Chem_GridCompMod
   TYPE(Int2ChmMap), POINTER        :: Int2Chm(:) => NULL()
 
   ! Objects for GEOS-Chem
-  TYPE(Spec_2_Trac)                :: Coef           ! Species <-> tracer map  
   TYPE(OptInput)                   :: Input_Opt      ! Input Options
   TYPE(MetState)                   :: State_Met      ! Meteorology state
   TYPE(ChmState)                   :: State_Chm      ! Chemistry state
+  TYPE(Species), POINTER           :: ThisSpc => NULL()
+
+  TYPE(ConfigObj), POINTER         :: HcoConfig
 
   ! Scalars
   INTEGER                          :: logLun         ! LUN for stdout logfile
@@ -277,6 +281,7 @@ MODULE Chem_GridCompMod
 !  26 Nov 2014 - C. Keller   - Added H2O_HIST and O3_HIST. 
 !  22 Feb 2015 - C. Keller   - Now check if geoschemchem_import_rst exist
 !  06 Jun 2016 - M. Yannetti - Added Get_Transport.
+!  19 Dec 2016 - M. Long     - Update for v11-01k
 !EOP
 !------------------------------------------------------------------------------
 !BOC
@@ -437,9 +442,14 @@ CONTAINS
             UNITS              = 'mol mol-1', &
             DIMS               = MAPL_DimsHorzVert,    &
             VLOCATION          = MAPL_VLocationCenter,    &
-!            FRIENDLYTO         = 'DYNAMICS:TURBULENCE:MOIST',    &
             RC                 = STATUS  )
-       IF (MAPL_am_I_Root()) write(*,*) 'Registered species ', SpcName
+       call MAPL_AddImportSpec(GC, &
+            SHORT_NAME         = 'GCC_'//SpcName,  &
+            LONG_NAME          = 'GCC_'//SpcName,  &
+            UNITS              = 'mol mol-1', &
+            DIMS               = MAPL_DimsHorzVert,    &
+            VLOCATION          = MAPL_VLocationCenter,    &
+            RC                 = STATUS  )
        Endif
     ENDDO
 
@@ -956,7 +966,7 @@ CONTAINS
     ! --------------------
     CALL ESMF_ConfigGetAttribute( myState%myCF, HcoConfigFile, Label="HEMCO_CONFIG:", &
                                   Default="HEMCO_Config.rc", __RC__ )
-    CALL HCO_SetServices( MAPL_am_I_Root(), GC, TRIM(HcoConfigFile), __RC__ )    
+    CALL HCO_SetServices( MAPL_am_I_Root(), GC, HcoConfig, TRIM(HcoConfigFile), __RC__ )    
 
     ! Set the Profiling timers
     ! ------------------------
@@ -1357,6 +1367,7 @@ CONTAINS
                           Input_Opt = Input_Opt,  & ! Input Options obj
                           State_Met = State_Met,  & ! Meteorology State obj
                           State_Chm = State_Chm,  & ! Chemistry State obj
+                          HcoConfig = HcoConfig,  & ! HEMCO Configuration Object
                           myPET     = myPET,      & ! Local PET
                           __RC__                 )
 
@@ -1367,7 +1378,7 @@ CONTAINS
     Input_Opt%HPC     = .true. ! Yes, this is an HPC (ESMF) sim.
     if ( am_I_Root ) Input_Opt%RootCPU = .true.
 
-    ! It's now save to store haveImpRst flag in Input_Opt
+    ! It's now safe to store haveImpRst flag in Input_Opt
     ! SDE DEBUG 2017-01-01: Overwrite this? The Extract_ routine does not seem
     ! to actually set this, and it being false results in everything being
     ! thrown off by 1 timestep
@@ -1395,7 +1406,7 @@ CONTAINS
        DO I = 1, NumAERO
 
           ! Get GEOS-Chem tracer ID
-          GCID = Get_Indx( TRIM(GcNames(I)), State_Chm%Trac_Id, State_Chm%Trac_Name )
+          GCID = IND_(TRIM(GcNames(I)))
 
           ! If species is defined, copy field and add to AERO bundle
           IF ( GCID > 0 ) THEN
@@ -1431,7 +1442,7 @@ CONTAINS
                                             DoCopy=.TRUE., __RC__  )
       
                 ! Get molecular weight (g/mol)
-                GCMW = Input_Opt%Tracer_MW_G(GCID)
+                GCMW = State_Chm%SpcData(GCID)%Info%MW_g
       
                 ! Fraction of the GC field to be used in the AERO field
                 FRAC = 1.0
@@ -1542,19 +1553,22 @@ CONTAINS
     ! (as specified in input.geos.rc), the tracers must not be friendly to
     ! the GEOS-5 moist / turbulence components!
     !=======================================================================
-    nFlds = SIZE(State_Chm%Trac_Name,1)
+    nFlds = State_Chm%nAdvect
     ALLOCATE( Int2Chm(nFlds), STAT=STATUS )
     ASSERT_(STATUS==0)
 
     ! Do for every tracer in State_Chm
     DO I = 1, nFlds
 
+       ! Get info about this species from the species database
+       N = State_Chm%Map_Advect(I)
+       ThisSpc => State_Chm%SpcData(N)%Info
+
        ! Pass tracer name
-       Int2Chm(I)%TrcName = TRIM(State_Chm%Trac_Name(I))
+       Int2Chm(I)%TrcName = TRIM(ThisSpc%Name)
 
        ! Get tracer ID
-       Int2Chm(I)%TrcID = Get_Indx( TRIM(Int2Chm(I)%TrcName), &
-                                    State_Chm%Trac_Id, State_Chm%Trac_Name )
+       Int2Chm(I)%TrcID = IND_( TRIM(Int2Chm(I)%TrcName) )
 
        ! If tracer ID is not valid, make sure all variables are at least defined.
        IF ( Int2Chm(I)%TrcID <= 0 ) THEN
@@ -1616,7 +1630,8 @@ CONTAINS
        Int2Chm(I)%Internal => Ptr3D
       
        ! Free pointers
-       Ptr3D => NULL()
+       Ptr3D   => NULL()
+       ThisSpc => NULL()
 
     ENDDO
 
@@ -1848,9 +1863,10 @@ CONTAINS
 !
 ! !USES:
 !
-    USE COMODE_MOD,              ONLY : JLOP, JLOP_PREVIOUS
-    USE HCO_STATE_MOD,           ONLY : HCO_STATE
-    USE HCOI_GC_MAIN_MOD,        ONLY : GetHcoState
+!<<GONE>>    USE COMODE_MOD,              ONLY : JLOP, JLOP_PREVIOUS
+!    USE HCO_STATE_MOD,           ONLY : HCO_STATE
+!    USE HCOI_GC_MAIN_MOD,        ONLY : GetHcoState
+    USE HCO_INTERFACE_MOD,       ONLY : HcoState
     USE GC_LAND_INTERFACE,       ONLY : LANDTYPE_REMAP
 !
 ! !INPUT/OUTPUT PARAMETERS:
@@ -1977,10 +1993,10 @@ CONTAINS
 
     ! Initialize everything to zero (from registry file)?
     INTEGER                      :: InitZero 
-
+ 
     ! Initialize from GC Classic restart file (see registry file)?
     INTEGER                      :: InitGCC
- 
+
     ! First call?
     LOGICAL, SAVE                :: FIRST    = .TRUE.
 
@@ -2101,12 +2117,12 @@ CONTAINS
        CALL MAPL_GetPointer ( EXPORT, PTR_GCCTTO3, 'GCCTTO3', notFoundOK=.TRUE., __RC__ )
 
        ! Pass IMPORT/EXPORT object to HEMCO state object
-       CALL GetHcoState( HcoState )
+       !CALL GetHcoState( HcoState )
        ASSERT_(ASSOCIATED(HcoState))
        HcoState%GRIDCOMP => GC
        HcoState%IMPORT   => IMPORT
        HcoState%EXPORT   => EXPORT
-       HcoState => NULL()
+!       HcoState => NULL()
 
        ! To use archived convection fields
        IF ( ArchivedConv ) THEN
@@ -2226,7 +2242,7 @@ CONTAINS
     ! If any values in GCCTROPP are undefined, stop the run
     IF ( ANY( GCCTROPP == MAPL_UNDEF ) ) THEN
        PRINT *,TRIM(Iam)//": At least one invalid tropopause pressure."
-       STATUS = GIGC_FAILURE
+       STATUS = GC_FAILURE
        VERIFY_(STATUS)
     ENDIF
 
@@ -2237,7 +2253,7 @@ CONTAINS
     ! restart file (and stored in the internal state).
     !=======================================================================
 
-    ! SDE: This will overwrite State_Chm%Tracers and State_Chm%Species with
+    ! SDE: This will overwrite and State_Chm%Species with
     !      data in units of v/v dry (2016-03-28)
     CALL MAPL_TimerOn(STATE, "CP_BFRE")
 #   include "Includes_Before_Run.H"
@@ -2251,7 +2267,6 @@ CONTAINS
        CALL ESMF_ConfigGetAttribute( GeosCF, InitZero, Default=0, &
                                      Label = "INIT_ZERO:", __RC__ ) 
        IF ( InitZero == 1 ) THEN
-          State_Chm%Tracers = 1.0e-26
           State_Chm%Species = 1.0e-26
           IF ( am_I_Root ) THEN
              write(*,*) ' '
@@ -2268,6 +2283,7 @@ CONTAINS
        !=============================================================================================
        CALL ESMF_ConfigGetAttribute( GeosCF, InitGCC, Default=0, &
                                      Label = "INIT_GCC:", __RC__ ) 
+
        If ( InitGCC == 1 ) Then
           If (am_I_Root) Write(6,'(a)') 'Attempting initialization from GC-Classic NetCDF restart file'
           !=============================================================================================
@@ -2280,19 +2296,27 @@ CONTAINS
           L = 0 ! Number of TRACERS read in from restart
           DO I = 1, SIZE(State_Chm%Spec_ID,1)
 
-             ! Skip if empty
-             IF ( TRIM(State_Chm%Spec_Name(I)) == '' ) Cycle
-             If ( State_Chm%Spec_ID(I).le.0) Cycle
+             ThisSpc => State_Chm%SpcData(I)%Info
 
-             IND = IND_(State_Chm%Spec_Name(I))
+             if (am_I_Root) write(*,*) 'Looking for '//'GCC_'//TRIM(ThisSpc%Name)
+
+             ! Skip if empty
+             IF ( TRIM(ThisSpc%Name) == '' ) Cycle
+             ! Is this a species?
+             IND = IND_(ThisSpc%Name)
+             If ( IND.le.0) Cycle
 
              ! Does SPC_NAME exist in the import state as GCC_NAME?
-             CALL MAPL_GetPointer ( IMPORT, Ptr3D, 'GCC_'//TRIM(State_Chm%Spec_Name(I)), notFoundOK=.TRUE., __RC__ )
+             if (am_I_Root) write(*,*) 'Fetching '//'GCC_'//TRIM(ThisSpc%Name)
+             CALL MAPL_GetPointer ( IMPORT, Ptr3D, 'GCC_'//TRIM(ThisSpc%Name), notFoundOK=.TRUE., __RC__ )
              If (Associated(Ptr3D)) Then
-                State_Chm%Species(:,:,:,State_Chm%Spec_ID(I)) = Ptr3D(:,:,LM:1:-1)
+                State_Chm%Species(:,:,:,IND) = Ptr3D(:,:,:)
                 J = J + 1
                 Ptr3D => NULL()
+             else
+                if (am_I_Root) write(*,*) TRIM(ThisSpc%Name)//' $1$ xyz C N N - 0.0 1.0 SPC_'//TRIM(ThisSpc%Name)//'     RDD'
              End If
+             ThisSpc => NULL()
           End Do
           !=============================================================================================
           If (am_I_Root) Write(6,'(a,I4,a,I4,a)') ' ### Read in ', J, ' species from GCC restart'
@@ -2316,8 +2340,8 @@ CONTAINS
     
     ! Fix negatives!
     ! These can be brought in as an artifact of convection.
-    WHERE ( State_Chm%Tracers < 0.0e0 )
-       State_Chm%Tracers = 1.0e-36
+    WHERE ( State_Chm%Species < 0.0e0 )
+       State_Chm%Species = 1.0e-36
     END WHERE 
 
     ! Execute GEOS-Chem if it's time to run it
@@ -2337,11 +2361,6 @@ CONTAINS
 
           CALL MAPL_TimerOn(STATE, "DO_CHEM")
     
-          IF ( ANY(State_Chm%TRACERS(:,:,:,29) .ne.                     & 
-                   State_Chm%TRACERS(:,:,:,29) )) THEN
-          ELSE
-          ENDIF
-
           ! SDE 2016-12-22: Force these to zero for dry deposition. If these
           ! aren't set to zero and the land types aren't set, then the surface
           ! type can end up being interpreted differently on different nodes due
@@ -2351,9 +2370,9 @@ CONTAINS
           State_Met%ILAND(:,:,1) = 0
           State_Met%XLAI(:,:,1)  = 0.0
 
-          ! Run the GEOS-Chem column chemistry code for the given phase
           ! NOTE: Second was not extracted previously; set to 0 for now
           second = 0
+          ! Run the GEOS-Chem column chemistry code for the given phase
           CALL GIGC_Chunk_Run( am_I_Root  = am_I_Root,  & ! Is this the root PET?
                                GC         = GC,         & ! Gridded component ref. 
                                IM         = IM,         & ! # of lons on this PET
@@ -2398,20 +2417,20 @@ CONTAINS
     !=======================================================================
 
     CALL MAPL_TimerOn(STATE, "CP_AFTR")
-    State_Chm%Tracers = State_Chm%Tracers( :, :, LM:1:-1, : )
+    State_Chm%Species = State_Chm%Species( :, :, LM:1:-1, : )
     
     DO I = 1, SIZE(Int2Chm,1)
        IF ( Int2Chm(I)%TrcID <= 0 ) CYCLE
-       Int2Chm(I)%Internal = State_Chm%Tracers(:,:,:,Int2Chm(I)%TrcID)
+       Int2Chm(I)%Internal = State_Chm%Species(:,:,:,Int2Chm(I)%TrcID)
     ENDDO
-    IF ( IsChemTime .AND. Phase /= 1 ) THEN
-       ! Also fill JLOP_PREV from internal state
-       CALL MAPL_GetPointer( INTSTATE, Ptr3D, 'JLOP_PREV', notFoundOK=.TRUE., __RC__ )
-       IF ( ASSOCIATED(Ptr3D) .AND. ALLOCATED(JLOP) ) THEN
-          Ptr3D = REAL(JLOP)
-       ENDIF
-       Ptr3D => NULL()
-    ENDIF
+!<<GONE>>    IF ( IsChemTime .AND. Phase /= 1 ) THEN
+!<<GONE>>       ! Also fill JLOP_PREV from internal state
+!<<GONE>>       CALL MAPL_GetPointer( INTSTATE, Ptr3D, 'JLOP_PREV', notFoundOK=.TRUE., __RC__ )
+!<<GONE>>       IF ( ASSOCIATED(Ptr3D) .AND. ALLOCATED(JLOP) ) THEN
+!<<GONE>>          Ptr3D = REAL(JLOP)
+!<<GONE>>       ENDIF
+!<<GONE>>       Ptr3D => NULL()
+!<<GONE>>    ENDIF
     CALL MAPL_TimerOff(STATE, "CP_AFTR")
 
     ! Stop timer
@@ -2731,8 +2750,8 @@ CONTAINS
        IF ( TRIM(State_Chm%Spec_Name(I)) == '' ) CYCLE
 
        ! Is this a tracer?
-       IND = Get_Indx( TRIM(State_Chm%Spec_Name(I)), State_Chm%Trac_Id, State_Chm%Trac_Name )
-       IF ( IND > 0 ) CYCLE
+       IND = IND_( TRIM(State_Chm%Spec_Name(I)) )
+       IF ( IND >= 0 ) CYCLE
 
        ! Get data from internal state and copy to species array
        CALL MAPL_GetPointer( INTSTATE, Ptr3D, TRIM(State_Chm%Spec_Name(I)), &
@@ -3218,7 +3237,7 @@ CONTAINS
     IF ( PRESENT( nhmsE    ) ) CALL MAPL_PackTime( nhmsE, h,    m,  s  )
 
     IF ( PRESENT( advCount ) ) advCount = count
- 
+
     ! Compute elapsed time since start of simulation
     elapsedTime = currTime - startTime
 
@@ -3323,7 +3342,9 @@ CONTAINS
 ! !USES:
 !
     USE HCO_ERROR_MOD
-    USE HCO_DIAGN_MOD,   ONLY : DiagnCont, Diagn_Get
+    USE HCO_DIAGN_MOD,     ONLY : Diagn_Get
+    USE HCO_INTERFACE_MOD, ONLY : HcoState
+    USE HCO_TYPES_MOD,     ONLY : DiagnCont
 !
 ! !INPUT PARAMETERS:
 !
@@ -3403,7 +3424,7 @@ CONTAINS
        END SELECT
 
        ! Get GEOS-Chem tracer ID
-       TrcID = Get_Indx( TRIM(TrcName), State_Chm%Trac_ID, State_Chm%Trac_Name )
+       TrcID = IND_( TRIM(TrcName) )
 
        ! Only if tracer is defined...
        IF ( TrcID <= 0 ) CYCLE 
@@ -3431,7 +3452,7 @@ CONTAINS
             
              ! Get diagnostics 
              DgnID = 44500 + TrcID
-             CALL Diagn_Get( am_I_Root, .FALSE., DgnCont, FLAG, ERR, &
+             CALL Diagn_Get( am_I_Root, HcoState, .FALSE., DgnCont, FLAG, ERR, &
                     cID=DgnID, AutoFill=-1,                          &
                     COL=Input_Opt%DIAG_COLLECTION ) 
 
@@ -3470,7 +3491,7 @@ CONTAINS
                 END SELECT
 
                 ! Get diagnostics 
-                CALL Diagn_Get( am_I_Root, .FALSE., DgnCont, FLAG, ERR, &
+                CALL Diagn_Get( am_I_Root, HcoState, .FALSE., DgnCont, FLAG, ERR, &
                        cID=DgnID, AutoFill=-1,                          &
                        COL=Input_Opt%DIAG_COLLECTION ) 
 
@@ -3833,7 +3854,7 @@ CONTAINS
     DEALLOCATE(AU, AL)
    
     ! Return successfully
-    RC = GIGC_SUCCESS
+    RC = GC_SUCCESS
 
   END SUBROUTINE GridGetInterior
 !EOC

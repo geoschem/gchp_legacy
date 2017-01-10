@@ -159,21 +159,11 @@
   !=========================================================================
   DO I = 1, SIZE(Int2Chm,1)
      IF ( Int2Chm(I)%TrcID <= 0 ) CYCLE
-!  write(*,*) '<>', 
      State_Chm%Species(:,:,:,Int2Chm(I)%TrcID) = Int2Chm(I)%Internal
   ENDDO
 
      ! Flip in the vertical
   State_Chm%Species   = State_Chm%Species( :, :, LM:1:-1, : )
-
-!<<GONE>>  IF ( IsChemTime .AND. Phase /= 1 ) THEN
-!<<GONE>>     ! Also fill JLOP_PREVIOUS from internal state
-!<<GONE>>     CALL MAPL_GetPointer( INTSTATE, Ptr3D, 'JLOP_PREV', notFoundOK=.TRUE., __RC__ )
-!<<GONE>>     IF ( ASSOCIATED(Ptr3D) .AND. ALLOCATED(JLOP_PREVIOUS) ) THEN
-!<<GONE>>         JLOP_PREVIOUS = NINT(Ptr3D)
-!<<GONE>>     ENDIF
-!<<GONE>>     Ptr3D => NULL()
-!<<GONE>>  ENDIF
 
   !=========================================================================
   ! On first call, also need to initialize the species from restart file.

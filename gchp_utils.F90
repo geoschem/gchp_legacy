@@ -209,7 +209,7 @@ MODULE GCHP_Utils
     DO WHILE( INDEX( LINE, 'TRANSPORT MENU' ) .le. 0) 
        ! Read next and Split line into substrings
       CALL SPLIT_ONE_LINE( SUBSTRS, N, -1, 'read_adv_spec_menu:4', LINE )
-      IF ( INDEX( LINE, 'Species' ) > 0 ) THEN
+      IF ( INDEX( LINE, 'Species #' ) > 0 ) THEN
          ! Save advected species name
          call MAPL_AddInternalSpec(GC, &
               SHORT_NAME         = TRIM(SUBSTRS(1)),  &
@@ -219,9 +219,15 @@ MODULE GCHP_Utils
               VLOCATION          = MAPL_VLocationCenter,    &
               FRIENDLYTO         = 'DYNAMICS:TURBULENCE:MOIST',    &
               RC                 = RC  )
+         call MAPL_AddImportSpec(GC, &
+              SHORT_NAME         = 'GCC_'//TRIM(SUBSTRS(1)),  &
+              LONG_NAME          = 'GCC_'//TRIM(SUBSTRS(1)),  &
+              UNITS              = 'mol mol-1', &
+              DIMS               = MAPL_DimsHorzVert,    &
+              VLOCATION          = MAPL_VLocationCenter,    &
+              RC                 = RC  )
          NADV = NADV+1
          AdvSpc(NADV) = TRIM(SUBSTRS(1))
-         if (am_I_Root) write(*,*) 'Registered Advected species ', SUBSTRS(1)
       ENDIF
     ENDDO
 
@@ -467,10 +473,16 @@ MODULE GCHP_Utils
 !
 
     ! Are tracers in mass or mixing ratio?
-    !Integer                        :: CellUnit
+    ! Are tracers in mass or mixing ratio?
+    Logical                        :: LPrt, LConvert
+    Character(Len=20)              :: oldUnits
 
     ! Assume succes
     RC = GC_SUCCESS
+
+    LPrt = (am_I_Root .and. (Input_Opt%LPrt) )
+    oldUnits = Trim(State_Chm%Spc_Units)
+    LConvert = .False.
 
     ! Check what unit the tracers are in - hold as kg/kg dry throughout
     Select Case (Trim(State_Chm%Spc_Units))
@@ -481,9 +493,14 @@ MODULE GCHP_Utils
         Case ('v/v dry')
             CALL ConvertSpc_VVDry_to_KgKgDry( am_I_Root, State_Chm, RC )
         Case Default
-            Write(6,'(a,a,a)') 'Tracer units (', State_Chm%Spc_Units, ') not recognized'
+            Write(6,'(a,a,a)') 'Species units (', State_Chm%Spc_Units, ') not recognized'
             RC = GC_FAILURE
     End Select
+
+    ! Debug information
+    If (LConvert.and.LPrt) Then
+       Write(6,'(a,a,a)') ' GIGC: Species units reverted from ', oldUnits, ' to kg/kg dry'
+    End If
 
   END SUBROUTINE GIGC_Revert_Units
 !EOC

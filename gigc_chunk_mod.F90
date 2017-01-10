@@ -93,18 +93,19 @@ CONTAINS
                               IM_WORLD,  JM_WORLD,  LM_WORLD,  nymdB,     &
                               nhmsB,     nymdE,     nhmsE,     tsChem,    &
                               tsDyn,     lonCtr,    latCtr,    myPET,     &
-                              Input_Opt, State_Chm, State_Met, RC      )
+                              Input_Opt, State_Chm, State_Met, HcoConfig, RC      )
 !
 ! !USES:
 !
     USE ESMF,                    ONLY : ESMF_KIND_R4
     USE GIGC_Initialization_Mod, ONLY : GIGC_Init_Simulation
-    USE GIGC_ErrCode_Mod
-    USE GIGC_Input_Opt_Mod,      ONLY : OptInput
-    USE GIGC_State_Chm_Mod,      ONLY : ChmState
-    USE GIGC_State_Met_Mod,      ONLY : MetState
+    USE ErrCode_Mod
+    USE Input_Opt_Mod,           ONLY : OptInput
+    USE State_Chm_Mod,           ONLY : ChmState
+    USE State_Met_Mod,           ONLY : MetState
     USE Diagnostics_Mod,         ONLY : Diagnostics_Init
     USE EMISSIONS_MOD,           ONLY : EMISSIONS_INIT
+    USE HCO_TYPES_MOD,           ONLY : ConfigObj
     USE UnitConv_Mod
 !
 ! !INPUT PARAMETERS:
@@ -135,6 +136,7 @@ CONTAINS
     TYPE(OptInput),     INTENT(INOUT) :: Input_Opt   ! Input Options object
     TYPE(ChmState),     INTENT(INOUT) :: State_Chm   ! Chemistry State object
     TYPE(MetState),     INTENT(INOUT) :: State_Met   ! Meteorology State object
+    TYPE(ConfigObj),    POINTER       :: HcoConfig   ! HEMCO config obj 
 !
 ! !OUTPUT PARAMETERS:
 !
@@ -182,7 +184,7 @@ CONTAINS
     Iam = 'GIGC_CHUNK_INIT (gigc_chunk_mod.F90)'
 
     ! Assume success
-    RC = GIGC_SUCCESS
+    RC = GC_SUCCESS
 
     !======================================================================
     ! Initialize the G-C simulation and chemistry mechanism
@@ -212,17 +214,19 @@ CONTAINS
                                myPET          = myPET,      & ! Local PET
 !                               mapping        = mapping,    & ! Olson map wts
                                RC             = RC         )  ! Success?
-    ASSERT_(RC==GIGC_SUCCESS)
+    ASSERT_(RC==GC_SUCCESS)
 
-    ! Initialize diagnostics.
-    CALL Diagnostics_Init( am_I_Root, Input_Opt, State_Met, State_Chm, RC )
-    ASSERT_(RC==GIGC_SUCCESS)
- 
     !=======================================================================
     ! Initialize HEMCO
     !=======================================================================
-    CALL EMISSIONS_INIT ( am_I_Root, Input_Opt, State_Met, State_Chm, RC )
-    ASSERT_(RC==GIGC_SUCCESS)
+    CALL EMISSIONS_INIT ( am_I_Root, Input_Opt, State_Met, State_Chm, RC, &
+                          HcoConfig=HcoConfig )
+    ASSERT_(RC==GC_SUCCESS)
+
+
+    ! Initialize diagnostics.
+    CALL Diagnostics_Init( am_I_Root, Input_Opt, State_Met, State_Chm, RC )
+    ASSERT_(RC==GC_SUCCESS)
 
     !=======================================================================
     ! Make sure options are sane
@@ -247,9 +251,8 @@ CONTAINS
 !    ENDIF
 
     ! GCHP expects units of v/v dry...
-    CALL Convert_KgKgDry_to_VVDry( am_I_Root, Input_Opt,&
-                                            State_Chm, RC )
-    ASSERT_(RC==GIGC_SUCCESS)
+    CALL ConvertSpc_KgKgDry_to_VVDry( am_I_Root, State_Chm, RC )
+    ASSERT_(RC==GC_SUCCESS)
 
   END SUBROUTINE GIGC_Chunk_Init
 !EOC
@@ -280,24 +283,20 @@ CONTAINS
 !
 ! !USES:
 !
-!    USE COMODE_MOD,         ONLY : CSPEC_FULL
-    USE COMODE_LOOP_MOD
-    USE comode_mod
     USE Chemistry_Mod,      ONLY : Do_Chemistry
-    USE Dao_Mod,            ONLY : AirQnt
+    USE Dao_Mod,            ONLY : AirQnt,  SET_DRY_SURFACE_PRESSURE
     USE DryDep_Mod,         ONLY : Do_DryDep
     USE GC_Land_Interface
-    USE GIGC_ErrCode_Mod
-    USE GIGC_Input_Opt_Mod, ONLY : OptInput
-    USE GIGC_State_Chm_Mod, ONLY : ChmState
-    USE GIGC_State_Met_Mod, ONLY : MetState
+    USE ErrCode_Mod
+    USE Input_Opt_Mod,      ONLY : OptInput
+    USE State_Chm_Mod,      ONLY : ChmState, IND_
+    USE State_Met_Mod,      ONLY : MetState
     USE PBL_MIX_MOD,        ONLY : DO_PBL_MIX, COMPUTE_PBL_HEIGHT
     USE VDIFF_MOD,          ONLY : DO_PBL_MIX_2
-    USE Pressure_Mod,       ONLY : Accept_External_Pedge, Set_Floating_Pressure
+    USE Pressure_Mod,       ONLY : Accept_External_Pedge, Set_Floating_Pressures
     USE Time_Mod,           ONLY : Accept_External_Date_Time
     USE Time_Mod,           ONLY : ITS_TIME_FOR_CHEM
     USE TIME_MOD,           ONLY : GET_TS_CHEM, GET_TS_DYN
-    USE TRACERID_MOD
     USE WETSCAV_MOD,        ONLY : SETUP_WETSCAV, DO_WETDEP
     USE DRYDEP_MOD,         ONLY : DEPSAV, NUMDEP, NTRAIND
     USE CONVECTION_MOD,     ONLY : DO_CONVECTION
@@ -306,13 +305,13 @@ CONTAINS
     USE Diagnostics_Mod,    ONLY : Diagnostics_Write
     USE EMISSIONS_MOD,      ONLY : EMISSIONS_RUN
     USE UVALBEDO_MOD,       ONLY : GET_UVALBEDO
-    USE Strat_Chem_Mod,     ONLY : Set_Init_Conc_Strat_Chem
+    USE STRAT_CHEM_MOD,     ONLY : INIT_STRAT_CHEM, Minit_is_set
 
 !    ! HEMCO update
     USE HCO_ERROR_MOD
-    USE HCO_STATE_MOD,      ONLY : HCO_STATE
-    USE HCOI_GC_MAIN_MOD,   ONLY : GetHcoState, SetHcoTime
-!    USE HCOI_GC_MAIN_MOD,   ONLY : GetHcoVal,   GetHcoID
+    USE HCO_STATE_MOD,      ONLY : Hco_GetHcoID
+    USE HCO_INTERFACE_MOD,  ONLY : HcoState, SetHcoTime
+    USE HCO_INTERFACE_MOD,  ONLY : GetHcoVal 
 
     ! Apply tracer tendencies
     USE MIXING_MOD,         ONLY : DO_TEND, DO_MIXING
@@ -400,7 +399,6 @@ CONTAINS
 !------------------------------------------------------------------------------
 !BOC
     TYPE(MAPL_MetaComp), POINTER   :: STATE
-    TYPE(HCO_STATE), POINTER       :: HcoState => NULL() 
     REAL*8                         :: DT
     INTEGER                        :: ERROR
 !    REAL*8                         :: FLX, DEP, FRAC
@@ -441,7 +439,7 @@ CONTAINS
     Iam = 'GIGC_CHUNK_RUN (gigc_chunk_mod.F90)'
 
     ! Assume success
-    RC = GIGC_SUCCESS
+    RC = GC_SUCCESS
 
     ! Get state object (needed for timers)
     CALL MAPL_GetObjectFromGC(GC, STATE, __RC__)
@@ -571,9 +569,20 @@ CONTAINS
                                     State_Met      = State_Met,  &
                                     RC             = RC         )
 
-#if !defined( EXTERNAL_FORCING)
-    CALL Set_Floating_Pressure( State_Met%PS1 )
-#endif 
+    ! Set dry surface pressure (PS1_DRY) from State_Met%PS1_WET
+    ! and compute avg surface pressures near polar caps
+    CALL SET_DRY_SURFACE_PRESSURE( State_Met, 1 )
+
+    ! Set dry surface pressure (PS2_DRY) from State_Met%PS2_WET
+    ! and average as polar caps
+    CALL SET_DRY_SURFACE_PRESSURE( State_Met, 2 )
+
+    ! Initialize surface pressures prior to interpolation
+    ! to allow initialization of floating pressures
+    State_Met%PSC2_WET = State_Met%PS1_WET
+    State_Met%PSC2_DRY = State_Met%PS1_DRY
+    CALL SET_FLOATING_PRESSURES( am_I_Root, State_Met, RC )
+    IF ( RC /= GC_SUCCESS ) RETURN
 
     ! Define airmass and related quantities
     CALL AirQnt( am_I_Root, Input_opt, State_Met, State_Chm, RC, (.not.FIRST) )
@@ -585,8 +594,9 @@ CONTAINS
     ! blow up and cause GCHP to crash. (bmy, 10/19/16)
     IF ( FIRST ) THEN
        IF ( Input_Opt%LSCHEM ) THEN
-          CALL Set_Init_Conc_Strat_Chem( am_I_Root, Input_Opt,     &
-                                         State_Met, State_Chm, RC )
+          ! Note: Init_Strat_Chem expects units of kg/kg dry
+          CALL INIT_STRAT_CHEM( am_I_Root, Input_Opt, State_Chm, State_Met, RC )
+          Minit_is_set = .true.
        ENDIF
     ENDIF
 
@@ -609,7 +619,7 @@ CONTAINS
     End If
     
     ! SDE 05/28/13: Set H2O to STT if relevant
-    IF ( IDTH2O > 0 ) THEN
+    IF ( IND_('H2O','T') > 0 ) THEN
        CALL SET_H2O_TRAC( am_I_Root, ((.NOT. Input_Opt%LUCX) .OR. Input_Opt%LSETH2O ), &
                           Input_Opt, State_Met, State_Chm, RC )
        ! Only force strat once if using UCX
@@ -644,7 +654,7 @@ CONTAINS
        if(am_I_Root.and.NCALLS<10) write(*,*) ' --- Do convection now' 
 
        CALL DO_CONVECTION ( am_I_Root, Input_Opt, State_Met, State_Chm, RC )
-       ASSERT_(RC==GIGC_SUCCESS)
+       ASSERT_(RC==GC_SUCCESS)
  
        ! Timer off
        CALL MAPL_TimerOff( STATE, 'GC_CONV' )
@@ -684,7 +694,7 @@ CONTAINS
                           State_Chm = State_Chm,            & ! Chemistry State
                           State_Met = State_Met,            & ! Met State
                           RC        = RC                   )  ! Success?
-       ASSERT_(RC==GIGC_SUCCESS)
+       ASSERT_(RC==GC_SUCCESS)
 
        ! Revert units
        Call GIGC_Revert_Units( am_I_Root, Input_Opt, State_Chm, State_Met, RC )
@@ -749,13 +759,12 @@ CONTAINS
        CALL ConvertSpc_KgKgDry_to_VVDry( am_I_Root, State_Chm, RC )
 
        ! Get emission time step [s]. 
-       CALL GetHcoState( HcoState )
        ASSERT_(ASSOCIATED(HcoState))
        DT = HcoState%TS_EMIS 
 
        ! Apply tendencies over entire PBL. Use emission time step.
        CALL DO_TEND ( am_I_Root, Input_Opt, State_Met, State_Chm, .FALSE., RC, DT=DT )
-       ASSERT_(RC==GIGC_SUCCESS)
+       ASSERT_(RC==GC_SUCCESS)
 
        ! Revert units
        Call GIGC_Revert_Units( am_I_Root, Input_Opt, State_Chm, State_Met, RC )
@@ -800,7 +809,7 @@ CONTAINS
        ! Do mixing and apply tendencies. This will use the dynamic time step, which
        ! is fine since this call will be executed on every time step. 
        CALL DO_MIXING ( am_I_Root, Input_Opt, State_Met, State_Chm, RC )
-       ASSERT_(RC==GIGC_SUCCESS)
+       ASSERT_(RC==GC_SUCCESS)
 
        if(am_I_Root.and.NCALLS<10) write(*,*) ' --- Turbulence done!'
 
@@ -829,7 +838,7 @@ CONTAINS
        CALL COMPUTE_OVERHEAD_O3( am_I_Root, DAY, .TRUE., State_Met%TO3 )
 
        ! Set H2O to STT if relevant
-       IF ( IDTH2O > 0 ) THEN
+       IF ( IND_('H2O','T') > 0 ) THEN
           CALL SET_H2O_TRAC( am_I_Root, (.not. Input_Opt%LUCX), Input_Opt, &
                              State_Met, State_Chm, RC )
        ENDIF
@@ -840,7 +849,7 @@ CONTAINS
        ! Note: now use ALBVF from GEOS-5.
        IF ( UVmonth /= month ) THEN
           CALL GET_UVALBEDO( am_I_Root, Input_Opt, State_Met, RC )
-          ASSERT_(RC==GIGC_SUCCESS)
+          ASSERT_(RC==GC_SUCCESS)
           UVmonth = month
        ENDIF 
 
@@ -850,7 +859,7 @@ CONTAINS
                           State_Chm = State_Chm,            & ! Chemistry State
                           State_Met = State_Met,            & ! Met State
                           RC        = RC                   )  ! Success?
-       ASSERT_(RC==GIGC_SUCCESS)
+       ASSERT_(RC==GC_SUCCESS)
 
        ! Timer off
        CALL MAPL_TimerOff( STATE, 'GC_CHEM' )
@@ -875,7 +884,7 @@ CONTAINS
 
        ! Do wet deposition
        CALL DO_WETDEP( am_I_Root, Input_Opt, State_Met, State_Chm, RC )
-       ASSERT_(RC==GIGC_SUCCESS)
+       ASSERT_(RC==GC_SUCCESS)
 
        ! Timer off
        CALL MAPL_TimerOff( STATE, 'GC_WETDEP' )
@@ -896,7 +905,7 @@ CONTAINS
     ! step of this month, etc.).
     !=======================================================================
     CALL MAPL_TimerOn( STATE, 'GC_DIAGN' )
-    CALL Diagnostics_Write( am_I_Root, Input_Opt, .FALSE., RC )
+    CALL Diagnostics_Write ( am_I_Root, Input_Opt, State_Chm, .FALSE., RC ) 
     CALL MAPL_TimerOff( STATE, 'GC_DIAGN' )
 
     !=======================================================================
@@ -906,15 +915,6 @@ CONTAINS
     ! Make sure tracers leave routine in v/v dry
     CALL ConvertSpc_KgKgDry_to_VVDry( am_I_Root, State_Chm, RC )
 
-    ! check for negatives
-    IF ( am_I_Root .and. .false.) THEN
-    DO N=1,State_Chm%nSpecies
-       IF ( ANY(State_Chm%Species(:,:,:,N)<0.0) ) THEN
-        write(*,*) 'B negatives for species ',N
-       ENDIF
-    ENDDO
-    ENDIF
-
     ! testing only
     IF ( PHASE /= 1 .AND. NCALLS < 10 ) NCALLS = NCALLS + 1 
 
@@ -922,7 +922,7 @@ CONTAINS
     FIRST = .FALSE.
 
     ! Return w/ success
-    RC = GIGC_SUCCESS
+    RC = GC_SUCCESS
 
   END SUBROUTINE GIGC_Chunk_Run
 !EOC
@@ -943,11 +943,11 @@ CONTAINS
 !
 ! !USES:
 !
-    USE GIGC_ErrCode_Mod
+    USE ErrCode_Mod
     USE GIGC_Finalization_Mod
-    USE GIGC_Input_Opt_Mod,    ONLY : OptInput
-    USE GIGC_State_Chm_Mod,    ONLY : ChmState
-    USE GIGC_State_Met_Mod,    ONLY : MetState
+    USE Input_Opt_Mod,         ONLY : OptInput
+    USE State_Chm_Mod,         ONLY : ChmState
+    USE State_Met_Mod,         ONLY : MetState
     USE HCOI_GC_MAIN_MOD,      ONLY : HCOI_GC_FINAL
     USE Diagnostics_Mod,       ONLY : Diagnostics_Write
 !
@@ -978,10 +978,10 @@ CONTAINS
 !BOC
 
     ! Assume succes
-    RC = GIGC_SUCCESS
+    RC = GC_SUCCESS
 
     ! Diagnostics 
-    CALL Diagnostics_Write( am_I_Root, Input_Opt, .TRUE., RC )
+    CALL Diagnostics_Write( am_I_Root, Input_Opt, State_Chm, .TRUE., RC )
 
     ! Finalize HEMCO
     CALL HCOI_GC_FINAL( am_I_Root, .FALSE. )
