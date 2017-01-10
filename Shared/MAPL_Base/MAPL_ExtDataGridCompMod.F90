@@ -2055,7 +2055,8 @@ CONTAINS
            ftime = reffTime
            n = 0
            do while (.not.found)
-              found = ((ftime + frequency) >= ctime)
+              ! SDE: This needs to be ">"
+              found = ((ftime + frequency) > ctime)
               if (.not.found) then
                  n = n + 1
                  ftime = fTime+frequency
@@ -2166,7 +2167,8 @@ CONTAINS
               ftime = reffTime
               n = 0
               do while (.not.found)
-                 found = ((ftime + frequency) >= newtime)
+                 ! SDE: Unconfirmed - but I think this should be ">"
+                 found = ((ftime + frequency) > newtime)
                  if (.not.found) then
                     n = n + 1
                     ftime = fTime+frequency
@@ -2365,11 +2367,11 @@ CONTAINS
            call GetTimesOnFile(cfioA,tSeriesA,rc=rc)
            ! try to get bracketing time on file using new time
            call GetBracketTimeOnFile(cfioA,tSeriesA,readTime,bSide,UniFileClim,interpTime,fileTime,yrOffsetInt=yrOffset,rc=status)
-
+           found = (status == ESMF_SUCCESS)
            ! Regardless of success/failure, tidy up after ourselves
            call ESMF_CFIODestroy(cfioA,__RC__)
            deallocate(tSeriesA)
-           if (status /= ESMF_SUCCESS) then
+           if (.not.found) then
               if (mapl_am_I_root()) write(*,*)'ExtData could not find bracketing data from file template ',trim(file_tmpl),' for side ',bSide
               RETURN_(ESMF_FAILURE)
 
@@ -2432,10 +2434,11 @@ CONTAINS
      __Iam__('GetTimesOnFile')
 
      integer(ESMF_KIND_I4)              :: iyr,imm,idd,ihr,imn,isc
-     integer                            :: iCurrInterval,i
+     integer                            :: i
+     integer(ESMF_KIND_I8)              :: iCurrInterval
      integer                            :: nhmsB, nymdB
      integer                            :: begDate, begTime
-     integer, allocatable               :: tSeriesInt(:)
+     integer(ESMF_KIND_I8),allocatable  :: tSeriesInt(:)
      logical                            :: monotonic
      logical                            :: force12
 
@@ -2546,7 +2549,8 @@ CONTAINS
      __Iam__('GetBracketTimeOnSingleFile')
 
      integer(ESMF_KIND_I4)              :: iyr,imm,idd,ihr,imn,isc,curYear,climYear
-     integer                            :: iCurrInterval,i
+     integer                            :: i
+     integer(ESMF_KIND_I8)              :: iCurrInterval
      integer                            :: nhmsB, nymdB, incSecs
      integer                            :: begDate, begTime
      type(ESMF_Time)                    :: climTime
@@ -2556,7 +2560,7 @@ CONTAINS
      integer                            :: yrOffset, yrOffsetNeg, targYear
      integer                            :: climSize
      integer                            :: iEntry
-     integer, allocatable               :: tSeriesInt(:)
+     integer(ESMF_KIND_I8), allocatable :: tSeriesInt(:)
 
      ! Store the target time which was actually requested
      call ESMF_TimeGet(cTime,yy=targYear,mm=imm,dd=idd,h=ihr,m=imn,s=isc,__RC__)
@@ -2713,7 +2717,8 @@ CONTAINS
      __Iam__('GetBracketTimeOnFile')
 
      integer(ESMF_KIND_I4)              :: iyr,imm,idd,ihr,imn,isc,curYear,climYear
-     integer                            :: iCurrInterval,i
+     integer                            :: i
+     integer(ESMF_KIND_I8)              :: iCurrInterval
      integer                            :: nhmsB, nymdB, incSecs
      integer                            :: begDate, begTime
      type(ESMF_Time)                    :: climTime
@@ -2721,7 +2726,7 @@ CONTAINS
      logical                            :: extrapOK
      integer                            :: yrOffset, yrOffsetNeg
      integer                            :: climSize
-     integer, allocatable               :: tSeriesInt(:)
+     integer(ESMF_KIND_I8), allocatable :: tSeriesInt(:)
 
      ! Assume that the requested time is within range
      If (Present(yrOffsetInt)) Then
@@ -3681,14 +3686,15 @@ CONTAINS
      character(len=ESMF_MAXSTR) :: Iam
      integer                    :: status
 
-     integer                    :: YY, MM, DD, H, M, S
-     type(ESMF_Time)            :: newTime
-     integer                    :: readMonth, curDate, curTime
-     character(len=ESMF_MAXPATHLEN) :: file_processed
-     type(ESMF_CFIO)            :: cfio
-     integer                    :: i, begDate, begTime, incSecs
-     integer                    :: iCurrInterval, nymdB, nhmsB
-     integer, allocatable       :: tSeriesInt(:)
+     integer                            :: YY, MM, DD, H, M, S
+     type(ESMF_Time)                    :: newTime
+     integer                            :: readMonth, curDate, curTime
+     character(len=ESMF_MAXPATHLEN)     :: file_processed
+     type(ESMF_CFIO)                    :: cfio
+     integer                            :: i, begDate, begTime, incSecs
+     integer                            :: nymdB, nhmsB
+     integer(ESMF_KIND_I8)              :: iCurrInterval
+     integer(ESMF_KIND_I8), allocatable :: tSeriesInt(:)
 
      Iam = "MAPL_ExtDataUpdateDiurnalBracket"
 

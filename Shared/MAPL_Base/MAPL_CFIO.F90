@@ -3288,8 +3288,24 @@ contains
        change_resolution = .FALSE. ! does not make sense in SCM mode
     else
        single_point = .FALSE. ! Normal case, not SCM
-       ! never shift if cubed
-       if (.not.fcubed) do_xshift = abs(LONSfile(1)+180._8) .GT. abs(LONSfile(2)-LONSfile(1))
+       ! never shift if cubed; start by assuming no shift
+       do_xshift = .false.
+       if (.not.fcubed) then
+          ! The x-shift algorithm can only handle a 360 degree file which starts at
+          ! or around the Prime Meridian. It will also wrongly be used on regional
+          ! data, so disable it if we are handling a subgrid. Assume a regular
+          ! longitude delta
+          ! Find a place where the longitudes are increasing
+          L = 1
+          Do While ((L.lt.IM).and.(LONSfile(L+1).le.LONSfile(L)))
+             L = L + 1
+          End Do
+          ASSERT_(L.lt.IM)
+          ASSERT_(LONSfile(L+1).gt.LONSfile(L))
+          if (((LONSfile(L+1)-LONSfile(L))*Dble(IM)).ge.355.0) then
+             do_xshift = abs(LONSfile(1)+180._8) .GT. abs(LONSfile(2)-LONSfile(1))
+          end if
+       end if
     end if
 
     call MAPL_ProfClockOff(times,"MAPL_CFIOPostOpen",rc=status)

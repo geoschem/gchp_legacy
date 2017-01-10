@@ -3256,6 +3256,7 @@ CONTAINS
 !  30 Nov 2012 - R. Yantosca - Now return local indices I_LO, J_LO, I_HI, J_HI
 !  05 Dec 2012 - R. Yantosca - Removed latEdg argument; cosmetic changes
 !  13 Feb 2013 - E. Nielsen  - Restart file inquiry for GEOS-5
+!  05 Jan 2016 - S. D. Eastham - Fixed order of time calls
 !EOP
 !------------------------------------------------------------------------------
 !BOC
@@ -3381,15 +3382,41 @@ CONTAINS
                         advanceCount = count,     &
                          __RC__ )
 
-    ! Get individual fields from the time object
+    ! Get starting-time fields from the time object
+    CALL ESMF_TimeGet( startTime, yy=yyyy, mm=mm, dd=dd, dayOfYear=doy, &
+                                 h=h,     m=m,   s=s,   __RC__ )
+
+    ! Save packed fields for return
+    IF ( PRESENT( nymdB    ) ) CALL MAPL_PackTime( nymdB, yyyy, mm, dd )
+    IF ( PRESENT( nhmsB    ) ) CALL MAPL_PackTime( nhmsB, h,    m,  s  )
+
+    ! Get ending-time fields from the time object
+    CALL ESMF_TimeGet( stopTime, yy=yyyy, mm=mm, dd=dd, dayOfYear=doy, &
+                                 h=h,     m=m,   s=s,   __RC__ )
+
+    ! Save packed fields for return
+    IF ( PRESENT( nymdE    ) ) CALL MAPL_PackTime( nymdE, yyyy, mm, dd )
+    IF ( PRESENT( nhmsE    ) ) CALL MAPL_PackTime( nhmsE, h,    m,  s  )
+
+    IF ( PRESENT( advCount ) ) advCount = count
+ 
+    !=======================================================================
+    ! SDE 2017-01-05: The following calls must be kept as a single block,
+    ! or the wrong date/time elements will be returned (the yyyy/mm/dd    
+    ! etc variables are re-used). Specifically, the output variables must
+    ! be set now, before the variables are re-used.
+    !=======================================================================
+    ! Start of current-time block
+    !=======================================================================
+    ! Get current-time fields from the time object
     CALL ESMF_TimeGet( currTime, yy=yyyy, mm=mm, dd=dd, dayOfYear=doy, &
                                  h=h,     m=m,   s=s,   __RC__ )
 
-    ! Save fields for return
+    ! Save packed fields for return
     IF ( PRESENT( nymd     ) ) CALL MAPL_PackTime( nymd, yyyy, mm, dd )
     IF ( PRESENT( nhms     ) ) CALL MAPL_PackTime( nhms, h,    m,  s  )
 
-    ! SDE 2017-01-03: Return these now before they are overwritten
+    ! Save the various extacted current-time fields for return
     IF ( PRESENT( year     ) ) year     = yyyy
     IF ( PRESENT( month    ) ) month    = mm
     IF ( PRESENT( day      ) ) day      = dd
@@ -3400,23 +3427,10 @@ CONTAINS
     IF ( PRESENT( utc      ) ) utc      = ( DBLE( h )        ) + & 
                                           ( DBLE( m )/60d0   ) + &
                                           ( DBLE( s )/3600d0 )
+    !=======================================================================
+    ! End of current-time block
+    !=======================================================================
 
-    CALL ESMF_TimeGet( startTime, yy=yyyy, mm=mm, dd=dd, dayOfYear=doy, &
-                                 h=h,     m=m,   s=s,   __RC__ )
-
-    ! Save fields for return
-    IF ( PRESENT( nymdB    ) ) CALL MAPL_PackTime( nymdB, yyyy, mm, dd )
-    IF ( PRESENT( nhmsB    ) ) CALL MAPL_PackTime( nhmsB, h,    m,  s  )
-
-    CALL ESMF_TimeGet( stopTime, yy=yyyy, mm=mm, dd=dd, dayOfYear=doy, &
-                                 h=h,     m=m,   s=s,   __RC__ )
-
-    ! Save fields for return
-    IF ( PRESENT( nymdE    ) ) CALL MAPL_PackTime( nymdE, yyyy, mm, dd )
-    IF ( PRESENT( nhmsE    ) ) CALL MAPL_PackTime( nhmsE, h,    m,  s  )
-
-    IF ( PRESENT( advCount ) ) advCount = count
- 
     ! Compute elapsed time since start of simulation
     elapsedTime = currTime - startTime
 
