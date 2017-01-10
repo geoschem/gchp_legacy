@@ -896,6 +896,10 @@ CONTAINS
     ! Check that units are correct
     ASSERT_(GIGC_Assert_Units(am_I_Root, State_Chm))
 
+    ! SDE 2017-01-06: Archive the specific humidity to allow tracers to be
+    ! modified currectly after SPHU is updated
+    State_Met%SPHU_prev = State_Met%SPHU
+
     !=======================================================================
     ! Diagnostics 
     ! In an ESMF environment, all diagnostics are passed to the MAPL 
