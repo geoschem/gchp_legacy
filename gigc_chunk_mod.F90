@@ -69,9 +69,6 @@ MODULE GIGC_Chunk_Mod
   ! Derived type object for saving concentration diagnostics
   TYPE(GC_DIAG)                 :: DIAG_COL
 
-  ! Derived type objects
-!  TYPE(MapWeight),      POINTER :: mapping(:,:) => NULL()
-
 CONTAINS
 !EOC
 !------------------------------------------------------------------------------
@@ -212,7 +209,6 @@ CONTAINS
                                State_Chm      = State_Chm,  & ! Chemistry State
                                State_Met      = State_Met,  & ! Met State
                                myPET          = myPET,      & ! Local PET
-!                               mapping        = mapping,    & ! Olson map wts
                                RC             = RC         )  ! Success?
     ASSERT_(RC==GC_SUCCESS)
 
@@ -306,6 +302,7 @@ CONTAINS
     USE EMISSIONS_MOD,      ONLY : EMISSIONS_RUN
     USE UVALBEDO_MOD,       ONLY : GET_UVALBEDO
     USE STRAT_CHEM_MOD,     ONLY : INIT_STRAT_CHEM, Minit_is_set
+    USE MODIS_LAI_Mod,      ONLY : Compute_XLAI_GCHP
 
 !    ! HEMCO update
     USE HCO_ERROR_MOD
@@ -395,6 +392,7 @@ CONTAINS
 !  26 Nov 2014 - C. Keller   - Added IsChemTime variable.
 !  19 Oct 2016 - R. Yantosca - Now call Set_Init_Cond_Strat_Chem after the
 !                              1st call to AIRQNT to save initial conditions
+!  01 Dec 2016 - E. Lundgren - Calculate LAI using new routine for GCHP
 !EOP
 !------------------------------------------------------------------------------
 !BOC
@@ -564,11 +562,16 @@ CONTAINS
     ! Set HEMCO time
     CALL SetHcoTime ( am_I_Root, DoEmis, RC )
 
+    ! Calculate MODIS leaf area indexes needed for dry deposition
+    ! (passing false as 2nd arg calculates chlorophyll-a instead)
+    CALL Compute_XLAI_GCHP( am_I_Root, State_Met, RC )
+
     ! Set the pressure at level edges [hPa] from the ESMF environment
     CALL Accept_External_Pedge    ( am_I_Root      = am_I_Root,  &
                                     State_Met      = State_Met,  &
                                     RC             = RC         )
 
+<<<<<<< HEAD
     ! Set dry surface pressure (PS1_DRY) from State_Met%PS1_WET
     ! and compute avg surface pressures near polar caps
     CALL SET_DRY_SURFACE_PRESSURE( State_Met, 1 )
@@ -583,6 +586,11 @@ CONTAINS
     State_Met%PSC2_DRY = State_Met%PS1_DRY
     CALL SET_FLOATING_PRESSURES( am_I_Root, State_Met, RC )
     IF ( RC /= GC_SUCCESS ) RETURN
+=======
+#if !defined( EXTERNAL_FORCING )
+    CALL Set_Floating_Pressure( State_Met%PS1 )
+#endif 
+>>>>>>> master
 
     ! Define airmass and related quantities
     CALL AirQnt( am_I_Root, Input_opt, State_Met, State_Chm, RC, (.not.FIRST) )
@@ -685,9 +693,6 @@ CONTAINS
        ! Make sure tracers are in kg
        CALL ConvertSpc_KgKgDry_to_Kg( am_I_Root, State_Met, State_Chm, RC )
 
-       ! Update & Remap Land-type arrays from Surface Grid-component
-       !CALL GEOS5_TO_OLSON_LANDTYPE_REMAP( State_Met, RC )    
-    
        ! Calculate drydep rates 
        CALL Do_DryDep   ( am_I_Root = am_I_Root,            & ! Root CPU?
                           Input_Opt = Input_Opt,            & ! Input Options
@@ -753,7 +758,8 @@ CONTAINS
        CALL MAPL_TimerOn( STATE, 'GC_FLUXES' )
 
        ! testing only
-       if(am_I_Root.and.NCALLS<10) write(*,*) ' --- Add emissions and drydep to tracers'
+       if(am_I_Root.and.NCALLS<10) write(*,*)   &
+                           ' --- Add emissions and drydep to tracers'
  
        ! Make sure tracers are in v/v
        CALL ConvertSpc_KgKgDry_to_VVDry( am_I_Root, State_Chm, RC )
@@ -771,10 +777,12 @@ CONTAINS
        ASSERT_(RC==GC_SUCCESS)
 
        ! testing only
-       if(am_I_Root.and.NCALLS<10) write(*,*) '     Tendency time step [s]: ', DT 
+       if(am_I_Root.and.NCALLS<10) write(*,*)   &
+                                 '     Tendency time step [s]: ', DT 
  
        ! testing only
-       if(am_I_Root.and.NCALLS<10) write(*,*) ' --- Fluxes applied to tracers!' 
+       if(am_I_Root.and.NCALLS<10) write(*,*)   &
+                                 ' --- Fluxes applied to tracers!' 
  
        ! Timer off
        CALL MAPL_TimerOff( STATE, 'GC_FLUXES' )

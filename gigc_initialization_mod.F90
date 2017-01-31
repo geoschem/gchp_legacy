@@ -211,7 +211,6 @@ CONTAINS
                                    value_LM,        value_IM_WORLD,  &
                                    value_JM_WORLD,  value_LM_WORLD,  &
                                    Input_Opt,       State_Chm,       &
-!                                   State_Met,       mapping,         &
                                    myPET,                            &
                                    State_Met,                        &
                                    RC                               )      
@@ -238,9 +237,6 @@ CONTAINS
     USE Input_Mod,            ONLY : Initialize_Geos_Grid
     USE Mapping_Mod,          ONLY : MapWeight
     USE Mapping_Mod,          ONLY : Init_Mapping
-    USE Olson_Landmap_Mod,    ONLY : Init_Olson_Landmap
-    USE Olson_Landmap_Mod,    ONLY : Compute_Olson_Landmap
-    USE Olson_Landmap_Mod,    ONLY : Cleanup_Olson_Landmap
     USE PBL_MIX_MOD,          ONLY : INIT_PBL_MIX
     USE PRESSURE_MOD,         ONLY : INIT_PRESSURE
 #if defined( APM )
@@ -290,7 +286,6 @@ CONTAINS
     TYPE(OptInput),  INTENT(INOUT) :: Input_Opt       ! Input Options
     TYPE(ChmState),  INTENT(INOUT) :: State_Chm       ! Chemistry State
     TYPE(MetState),  INTENT(INOUT) :: State_Met       ! Meteorology State
-    TYPE(MapWeight), POINTER       :: mapping(:,:) => null() ! Olson mapping object
 !
 !
 ! !OUTPUT PARAMETERS:
@@ -333,6 +328,7 @@ CONTAINS
 !  07 Mar 2013 - R. Yantosca - Now use keyword arguments for clarity
 !  02 Jan 2014 - C. Keller   - Now call SetGridFromCtr to make sure that 
 !                              grid_mod.F90 stored the correct edges/mid-points.
+!  01 Dec 2016 - E. Lundgren - Remove GC classic Olson routine calls
 !EOP
 !------------------------------------------------------------------------------
 !BOC
@@ -504,9 +500,9 @@ CONTAINS
 !       CALL READER( .TRUE.,  am_I_Root, Input_Opt )
 
        !### Debug
-!       IF ( prtDebug ) THEN
-!          CALL DEBUG_MSG( '### GIGC_INIT_CHEMISTRY: after READER' )
-!       ENDIF
+       IF ( prtDebug ) THEN
+          CALL DEBUG_MSG( '### GIGC_INIT_SIMULATION: after READER' )
+       ENDIF
 
 !------------------------------------------------------------------------------
 ! Prior to 3/7/13:
@@ -516,7 +512,7 @@ CONTAINS
 !
 !    ! Broadcast "mglob.dat"
 !       CALL GIGC_Reader_Bcast( RC )
-!    CALL DEBUG_MSG( '### GIGC_INIT_CHEMISTRY: after GIGC_Bcast_READER' )
+!    CALL DEBUG_MSG( '### GIGC_INIT_SIMULATION: after GIGC_Bcast_READER' )
 !------------------------------------------------------------------------------
 
     ! Read "globchem.dat" chemistry mechanism
@@ -531,7 +527,7 @@ CONTAINS
 
        !### Debug
        IF ( prtDebug ) THEN
-          CALL DEBUG_MSG( '### GIGC_INIT_CHEMISTRY: after READCHEM' )        
+          CALL DEBUG_MSG( '### GIGC_INIT_SIMULATION: after READCHEM' )        
        ENDIF
 !------------------------------------------------------------------------------
 ! Prior to 3/7/13:
@@ -555,7 +551,7 @@ CONTAINS
 
        !### Debug
        IF ( prtDebug ) THEN
-          CALL DEBUG_MSG( '### GIGC_INIT_CHEMISTRY: after INIT_FJX' )        
+          CALL DEBUG_MSG( '### GIGC_INIT_SIMULATION: after INIT_FJX' )        
        ENDIF
 !------------------------------------------------------------------------------
 ! Prior to 3/7/13:
@@ -592,26 +588,11 @@ CONTAINS
     ! Initialize dry deposition 
     !=======================================================================
     IF ( Input_Opt%LDRYD )  THEN
-
-       ! Initialize the derived type object containing
-       ! mapping information for the MODIS LAI routines
-       IF ( Input_Opt%USE_OLSON_2001 ) THEN
-          CALL Init_Mapping( am_I_Root, Input_Opt, 1440, 720, IIPAR, JJPAR, mapping, RC )
-       ELSE
-          CALL Init_Mapping( am_I_Root, Input_Opt,  720, 360, IIPAR, JJPAR, mapping, RC )
-       ENDIF
-
-#if !defined( EXTERNAL_FORCING )
-       ! Compute the Olson land types that occur in each grid box
-       ! (i.e. this is a replacement for rdland.F and vegtype.global)
-       CALL Init_Olson_Landmap   ( am_I_Root, Input_Opt, RC      )
-       CALL Compute_Olson_Landmap( am_I_Root, mapping, State_Met )
-       CALL Cleanup_Olson_Landmap( am_I_Root                     )
-#endif
+       ! Placeholder
 
        !### Debug
        IF ( prtDebug ) THEN
-          CALL DEBUG_MSG( '### GIGC_INIT_CHEMISTRY: after OLSON' )
+          CALL DEBUG_MSG( '### GIGC_INIT_SIMULATION: initialize drydep' )
        ENDIF
     ENDIF
 
@@ -640,7 +621,7 @@ CONTAINS
 
        !### Debug
        IF ( prtDebug ) THEN
-          CALL DEBUG_MSG( '### GIGC_INIT_CHEMISTRY: after INIT_TOMS' )
+          CALL DEBUG_MSG( '### GIGC_INIT_SIMULATION: after INIT_TOMS' )
        ENDIF
 
     ENDIF

@@ -88,10 +88,10 @@
      State_Met%MOLENGTH(:,:)    = 1.00E+05
   ENDWHERE
 
-  ! Same LAI for all 50 biomes?!??
-  DO I = 1, 50
-     State_Met%XLAI(:,:,I)      = LAI                        ! 1
-  ENDDO
+  ! Same LAI for all 50 biomes?!?? (commented out by ewl, 12/16/16)
+  !DO I = 1, 50
+  !   State_Met%XLAI(:,:,I)      = LAI                        ! 1
+  !ENDDO
 
   !=========================================================================
   ! Three-dimensional fields on level edges
