@@ -302,7 +302,7 @@ CONTAINS
     USE EMISSIONS_MOD,      ONLY : EMISSIONS_RUN
     USE UVALBEDO_MOD,       ONLY : GET_UVALBEDO
     USE STRAT_CHEM_MOD,     ONLY : INIT_STRAT_CHEM, Minit_is_set
-    USE MODIS_LAI_Mod,      ONLY : Compute_XLAI_GCHP
+!>>MSL    USE MODIS_LAI_Mod,      ONLY : Compute_XLAI_GCHP
 
 !    ! HEMCO update
     USE HCO_ERROR_MOD
@@ -564,14 +564,13 @@ CONTAINS
 
     ! Calculate MODIS leaf area indexes needed for dry deposition
     ! (passing false as 2nd arg calculates chlorophyll-a instead)
-    CALL Compute_XLAI_GCHP( am_I_Root, State_Met, RC )
+    !>>MSL UNTIL IT'S BROUGHT INTO GC>> CALL Compute_XLAI_GCHP( am_I_Root, State_Met, RC )
 
     ! Set the pressure at level edges [hPa] from the ESMF environment
     CALL Accept_External_Pedge    ( am_I_Root      = am_I_Root,  &
                                     State_Met      = State_Met,  &
                                     RC             = RC         )
 
-<<<<<<< HEAD
     ! Set dry surface pressure (PS1_DRY) from State_Met%PS1_WET
     ! and compute avg surface pressures near polar caps
     CALL SET_DRY_SURFACE_PRESSURE( State_Met, 1 )
@@ -586,11 +585,6 @@ CONTAINS
     State_Met%PSC2_DRY = State_Met%PS1_DRY
     CALL SET_FLOATING_PRESSURES( am_I_Root, State_Met, RC )
     IF ( RC /= GC_SUCCESS ) RETURN
-=======
-#if !defined( EXTERNAL_FORCING )
-    CALL Set_Floating_Pressure( State_Met%PS1 )
-#endif 
->>>>>>> master
 
     ! Define airmass and related quantities
     CALL AirQnt( am_I_Root, Input_opt, State_Met, State_Chm, RC, (.not.FIRST) )

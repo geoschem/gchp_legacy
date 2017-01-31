@@ -646,9 +646,9 @@ CONTAINS
     ! DRYDEP and DUST fields from input.geos
     !----------------------------------------
     CALL MPI_Bcast( INPUT_OPT%N_DUST_BINS, 1, mpi_integer,   0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%NUMDEP,   1,         mpi_integer,   0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%NDVZIND,  Input_Opt%MAX_DEP,   mpi_integer,   0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%IDEP,     NSURFTYPE,  mpi_integer,   0, mpiComm, RC )
+ !   CALL MPI_Bcast( INPUT_OPT%NUMDEP,   1,         mpi_integer,   0, mpiComm, RC )
+ !   CALL MPI_Bcast( INPUT_OPT%NDVZIND,  Input_Opt%MAX_DEP,   mpi_integer,   0, mpiComm, RC )
+    CALL MPI_Bcast( INPUT_OPT%IDEP,     NVEGTYPE,  mpi_integer,   0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%IDDEP,    NDSTBIN,   mpi_integer,   0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%DUSTREFF, NDSTBIN,   mpi_real8,     0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%DUSTDEN,  NDSTBIN,   mpi_integer,   0, mpiComm, RC )

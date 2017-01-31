@@ -430,7 +430,7 @@ CONTAINS
 
     ! This call should be made on all CPUs
     CALL SetGridFromCtr( am_I_Root, value_IM, value_JM, lonCtr, latCtr, RC )
-    IF ( RC /= GIGC_SUCCESS ) RETURN
+    IF ( RC /= GC_SUCCESS ) RETURN
 
     ! Initialize dry deposition (in GeosCore/drydep_mod.F)
     ! SDE 2016-03-27: This is now performed in GIGC_Init_Extra (as of v11-01)
