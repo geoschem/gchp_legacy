@@ -358,8 +358,8 @@ MODULE GCHP_Utils
     USE ErrCode_Mod
     USE Input_Opt_Mod,      ONLY : OptInput
     USE State_Met_Mod,      ONLY : MetState
-    USE Grid_Mod,           ONLY : Get_XEdge
-    USE Grid_Mod,           ONLY : Get_YEdge
+    USE GC_Grid_Mod,        ONLY : Get_XEdge
+    USE GC_Grid_Mod,        ONLY : Get_YEdge
 !
 ! !INPUT PARAMETERS:
 !

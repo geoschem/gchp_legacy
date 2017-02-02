@@ -297,12 +297,12 @@ CONTAINS
     USE DRYDEP_MOD,         ONLY : DEPSAV, NUMDEP, NTRAIND
     USE CONVECTION_MOD,     ONLY : DO_CONVECTION
     USE TOMS_MOD,           ONLY : COMPUTE_OVERHEAD_O3
-    USE GRID_MOD,           ONLY : AREA_M2
+    USE GC_GRID_MOD,        ONLY : AREA_M2
     USE Diagnostics_Mod,    ONLY : Diagnostics_Write
     USE EMISSIONS_MOD,      ONLY : EMISSIONS_RUN
     USE UVALBEDO_MOD,       ONLY : GET_UVALBEDO
     USE STRAT_CHEM_MOD,     ONLY : INIT_STRAT_CHEM, Minit_is_set
-!>>MSL    USE MODIS_LAI_Mod,      ONLY : Compute_XLAI_GCHP
+    USE MODIS_LAI_Mod,      ONLY : Compute_XLAI_GCHP
 
 !    ! HEMCO update
     USE HCO_ERROR_MOD
@@ -442,7 +442,7 @@ CONTAINS
     ! Get state object (needed for timers)
     CALL MAPL_GetObjectFromGC(GC, STATE, __RC__)
 
-    ! Populate grid box areas from grid_mod.F on first call. We have to do 
+    ! Populate grid box areas from gc_grid_mod.F on first call. We have to do 
     ! this in the run phase and not in initialize because it seems like the
     ! AREA pointer (imported from superdynamics) is only properly filled in
     ! run.
@@ -564,7 +564,7 @@ CONTAINS
 
     ! Calculate MODIS leaf area indexes needed for dry deposition
     ! (passing false as 2nd arg calculates chlorophyll-a instead)
-    !>>MSL UNTIL IT'S BROUGHT INTO GC>> CALL Compute_XLAI_GCHP( am_I_Root, State_Met, RC )
+    CALL Compute_XLAI_GCHP( am_I_Root, State_Met, RC )
 
     ! Set the pressure at level edges [hPa] from the ESMF environment
     CALL Accept_External_Pedge    ( am_I_Root      = am_I_Root,  &

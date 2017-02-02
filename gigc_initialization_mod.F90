@@ -62,7 +62,7 @@ CONTAINS
 !
     USE PhysConstants       
     USE CMN_SIZE_Mod
-    USE Grid_Mod,           ONLY : RoundOff
+    USE GC_Grid_Mod,        ONLY : RoundOff
     USE Error_Mod,          ONLY : Debug_Msg
     USE ErrCode_Mod
     USE Input_Opt_Mod,      ONLY : OptInput
@@ -229,10 +229,10 @@ CONTAINS
 !    USE GCKPP_COMODE_MOD,     ONLY : Init_GCKPP_Comode
     USE ERROR_MOD,            ONLY : Debug_Msg
     USE FAST_JX_MOD,          ONLY : Init_FJX
-    USE Grid_Mod,             ONLY : Init_Grid
-    USE Grid_Mod,             ONLY : Set_xOffSet
-    USE Grid_Mod,             ONLY : Set_yOffSet
-    USE Grid_Mod,             ONLY : SetGridFromCtr
+    USE GC_Grid_Mod,          ONLY : Init_Grid
+    USE GC_Grid_Mod,          ONLY : Set_xOffSet
+    USE GC_Grid_Mod,          ONLY : Set_yOffSet
+    USE GC_Grid_Mod,          ONLY : SetGridFromCtr
     USE Input_Mod,            ONLY : GC_Init_Extra
     USE Input_Mod,            ONLY : Initialize_Geos_Grid
     USE Mapping_Mod,          ONLY : MapWeight
