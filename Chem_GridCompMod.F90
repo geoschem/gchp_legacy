@@ -62,7 +62,7 @@ MODULE Chem_GridCompMod
   USE Charpak_Mod                                    ! String functions
   USE GIGC_Type_Mod                                  ! Derived type defs
   USE GIGC_MPI_Wrap, ONLY : mpiComm
-  USE GIGC_Chem_Utils                                ! Functions
+  USE GCHP_Utils                                     ! Functions
   USE GIGC_Chunk_Mod                                 ! GIGC IRF methods
   USE ErrCode_Mod                                    ! Error numbers
   USE Input_Opt_Mod                                  ! Input Options obj

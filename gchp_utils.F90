@@ -4,7 +4,7 @@
 !------------------------------------------------------------------------------
 !BOP
 !
-! !MODULE: GIGC_Chem_Utils
+! !MODULE: GCHP_Utils
 !
 ! !DESCRIPTION: Utility module for the ESMF interface to GEOS-Chem.
 !\\
