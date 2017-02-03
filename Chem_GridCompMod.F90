@@ -442,15 +442,8 @@ CONTAINS
        
        IF (Found .ne. .true.) Then
        call MAPL_AddInternalSpec(GC, &
-            SHORT_NAME         = SpcName,  &
+            SHORT_NAME         = 'SPC_'//SpcName,  &
             LONG_NAME          = SpcName,  &
-            UNITS              = 'mol mol-1', &
-            DIMS               = MAPL_DimsHorzVert,    &
-            VLOCATION          = MAPL_VLocationCenter,    &
-            RC                 = STATUS  )
-       call MAPL_AddImportSpec(GC, &
-            SHORT_NAME         = 'GCC_'//SpcName,  &
-            LONG_NAME          = 'GCC_'//SpcName,  &
             UNITS              = 'mol mol-1', &
             DIMS               = MAPL_DimsHorzVert,    &
             VLOCATION          = MAPL_VLocationCenter,    &
@@ -1587,9 +1580,9 @@ CONTAINS
        ENDIF
 
        ! Get internal state field
-       CALL ESMF_StateGet( INTSTATE, TRIM(Int2Chm(I)%TrcName), GcFld, RC=STATUS )
+       CALL ESMF_StateGet( INTSTATE, 'SPC_'//TRIM(Int2Chm(I)%TrcName), GcFld, RC=STATUS )
        IF ( STATUS /= ESMF_SUCCESS ) THEN
-          WRITE(*,*) 'Cannot find in internal state: '//TRIM(Int2Chm(I)%TrcName)
+          WRITE(*,*) 'Cannot find in internal state: SPC_'//TRIM(Int2Chm(I)%TrcName)
           ASSERT_(.FALSE.)
        ENDIF
 

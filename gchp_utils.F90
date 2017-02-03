@@ -212,19 +212,12 @@ MODULE GCHP_Utils
       IF ( INDEX( LINE, 'Species #' ) > 0 ) THEN
          ! Save advected species name
          call MAPL_AddInternalSpec(GC, &
-              SHORT_NAME         = TRIM(SUBSTRS(1)),  &
+              SHORT_NAME         = 'SPC_'//TRIM(SUBSTRS(1)),  &
               LONG_NAME          = TRIM(SUBSTRS(1)),  &
               UNITS              = 'mol mol-1', &
               DIMS               = MAPL_DimsHorzVert,    &
               VLOCATION          = MAPL_VLocationCenter,    &
               FRIENDLYTO         = 'DYNAMICS:TURBULENCE:MOIST',    &
-              RC                 = RC  )
-         call MAPL_AddImportSpec(GC, &
-              SHORT_NAME         = 'GCC_'//TRIM(SUBSTRS(1)),  &
-              LONG_NAME          = 'GCC_'//TRIM(SUBSTRS(1)),  &
-              UNITS              = 'mol mol-1', &
-              DIMS               = MAPL_DimsHorzVert,    &
-              VLOCATION          = MAPL_VLocationCenter,    &
               RC                 = RC  )
          NADV = NADV+1
          AdvSpc(NADV) = TRIM(SUBSTRS(1))
