@@ -197,7 +197,7 @@
         IF ( IND < 0 ) CYCLE
 
         ! Get data from internal state and copy to species array. 
-        CALL MAPL_GetPointer( INTERNAL, Ptr3D, TRIM(ThisSpc%Name), &
+        CALL MAPL_GetPointer( INTERNAL, Ptr3D, 'SPC_'//TRIM(ThisSpc%Name), &
                               notFoundOK=.TRUE., __RC__ )
         IF ( .NOT. ASSOCIATED(Ptr3D) ) THEN
            IF ( MAPL_am_I_Root()) WRITE(*,*) &
