@@ -112,6 +112,12 @@
      ! the corresponding names of the two vector components on file
      character(len=ESMF_MAXSTR)   :: fcomp1, fcomp2
 
+     ! Experimental: store CFIO and time vectors for each file
+     type(ESMF_CFIO)              :: cfio1, cfio2
+     type(ESMF_Time), Allocatable :: tSeries1(:), tSeries2(:)
+     logical                      :: isAssigned1 = .False.
+     logical                      :: isAssigned2 = .False.
+     
      logical                      :: ExtDataAlloc
      ! time shifting during continuous update
      type(ESMF_TimeInterval)      :: tshift
@@ -1233,12 +1239,12 @@ CONTAINS
             if (NotSingle) then
                ! update left time
                call UpdateBracketTime(item%file,time,item%reff_time,item%frequency,"L",item%cyclic,item%climYear,item%interp_time1, & 
-                    item%time1,file_processed1,rc=status)
+                    item%time1,file_processed1,item%isAssigned1,item%cfio1,item%tSeries1,rc=status)
                VERIFY_(status)
 
                ! update right time
                call UpdateBracketTime(item%file,time,item%reff_time,item%frequency,"R",item%cyclic,item%climYear,item%interp_time2, &
-                    item%time2,file_processed2,rc=status)
+                    item%time2,file_processed2,item%isAssigned2,item%cfio2,item%tSeries2,rc=status)
                VERIFY_(STATUS)
             else
                ! just get time on the file
@@ -1374,7 +1380,7 @@ CONTAINS
 
             call MAPL_TimerOn(MAPLSTATE,'--Bracket')
                call UpdateBracketTime(item%file,time,item%reff_time,item%frequency,"R",item%cyclic,item%climYear,item%interp_time2, &
-                    item%time2, file_processed, __RC__)
+                    item%time2,file_processed,item%isAssigned2,item%cfio2,item%tSeries2,rc=status)
             call MAPL_TimerOff(MAPLSTATE,'--Bracket')
 
                call MAPL_TimerOn(MAPLSTATE,"--Read")
@@ -1405,7 +1411,7 @@ CONTAINS
 
             call MAPL_TimerOn(MAPLSTATE,'--Bracket')
                call UpdateBracketTime(item%file,time,item%reff_time,item%frequency,"L",item%cyclic,item%climYear,item%interp_time1, &
-                    item%time1, file_processed, __RC__)
+                    item%time1,file_processed,item%isAssigned1,item%cfio1,item%tSeries1,rc=status)
             call MAPL_TimerOff(MAPLSTATE,'--Bracket')
 
                call MAPL_TimerOn(MAPLSTATE,"--Read")
@@ -1607,6 +1613,22 @@ CONTAINS
          end if
 
       end do
+
+!  Destroy CFIO associated with each item
+         if (self%primary%item(i)%isAssigned1) then
+            call ESMF_CFIODestroy(self%primary%item(i)%cfio1,__RC__)
+            if (allocated(self%primary%item(i)%tSeries1)) then
+               deallocate(self%primary%item(i)%tSeries1)
+            end if
+            self%primary%item(i)%isAssigned1 = .False.
+         end if
+         if (self%primary%item(i)%isAssigned2) then
+            call ESMF_CFIODestroy(self%primary%item(i)%cfio2,__RC__)
+            if (allocated(self%primary%item(i)%tSeries2)) then
+               deallocate(self%primary%item(i)%tSeries2)
+            end if
+            self%primary%item(i)%isAssigned2 = .False.
+         end if
 
 !  Free the memory used to hold the primary export items
 !  -----------------------------------------------------
@@ -1958,7 +1980,7 @@ CONTAINS
 
   end subroutine GetClimYear
 
-  subroutine UpdateBracketTime(file_tmpl,cTime,reffTime,frequency,bSide,cyclic,climYear,interpTime,fileTime,file_processed,rc)
+  subroutine UpdateBracketTime(file_tmpl,cTime,reffTime,frequency,bSide,cyclic,climYear,interpTime,fileTime,file_processed,isAssigned,xCFIO,xTSeries,rc)
      character(len=*          ),          intent(in   ) :: file_tmpl
      type(ESMF_Time),                     intent(inout) :: cTime
      type(ESMF_Time),                     intent(inout) :: reffTime
@@ -1969,6 +1991,9 @@ CONTAINS
      type(ESMF_TIME),                     intent(inout) :: interpTime
      type(ESMF_TIME),                     intent(inout) :: fileTime
      character(len=*),                    intent(inout) :: file_processed
+     type(ESMF_CFIO),                     intent(inout) :: xCFIO
+     type(ESMF_Time), Allocatable,        intent(inout) :: xTSeries(:)
+     logical,                             intent(inout) :: isAssigned
      integer, optional,                   intent(out  ) :: rc
 
      __Iam__('UpdateBracketTime')
@@ -1981,10 +2006,6 @@ CONTAINS
      type(ESMF_Time)                            :: fTime
      logical                                    :: UniFileClim
      type(ESMF_Time)                            :: readTime
-
-     ! New method
-     type(ESMF_CFIO)                            :: cfioA, cfioB
-     type(ESMF_Time), Pointer                   :: tSeriesA(:), tSeriesB(:)
 
      ! Allow for extrapolation.. up to a limit
      integer                                    :: xFlag
@@ -2010,20 +2031,21 @@ CONTAINS
         ! on one file, set UniFileClim to true
         if (trim(cyclic)=='y') UniFileClim = .true.
         file_processed = file_tmpl
-        ! Generate CFIO
-        call MakeCFIO(file_processed,cfioA,found,rc=status)
-        ! Retrieve the time series
-        allocate(tSeriesA(cfioA%tSteps))
-        call GetTimesOnFile(cfioA,tSeriesA,UniFileClim=UniFileClim,rc=status)
+        ! Generate CFIO if needed
+        If (.not.isAssigned) Then
+           call MakeCFIO(file_processed,xCFIO,found,rc=status)
+           ! Retrieve the time series
+           allocate(xTSeries(xCFIO%tSteps))
+           call GetTimesOnFile(xCFIO,xTSeries,UniFileClim=UniFileClim,rc=status)
+           isAssigned = .True.
+        End If
         If (status /= ESMF_SUCCESS) then
            if (mapl_am_I_root()) Then
               write(*,'(a,a)') ' ERROR: Time vector retrieval failed on fixed file ',trim(file_tmpl)
            end if
            RETURN_(ESMF_FAILURE)
         end if
-        call GetBracketTimeOnSingleFile(cfioA,tSeriesA,cTime,bSide,UniFileClim,interpTime,fileTime,rc=status)
-        call ESMF_CFIODestroy(cfioA,__RC__)
-        deallocate(tSeriesA)
+        call GetBracketTimeOnSingleFile(xCFIO,xTSeries,cTime,bSide,UniFileClim,interpTime,fileTime,rc=status)
         if (status /= ESMF_SUCCESS) then
            if (mapl_am_I_root()) Then
               write(*,'(a,a,a,a)') ' ERROR: Bracket timing request failed on fixed file ',trim(file_tmpl),' for side ',bSide
@@ -2054,6 +2076,11 @@ CONTAINS
            !n=floor(tint/frequency)
            ftime = reffTime
            n = 0
+           ! SDE DEBUG: This caused problems in the past but the
+           ! alternative is far too slow... need to keep an eye 
+           ! on this but the Max(0,...) should help.
+           n = max(0,floor((cTime-reffTime)/frequency))
+           if (n>0) fTime = fTime + (n*frequency)
            do while (.not.found)
               ! SDE: This needs to be ">"
               found = ((ftime + frequency) > ctime)
@@ -2133,24 +2160,33 @@ CONTAINS
               end if
               RETURN_(ESMF_FAILURE)
            End If
-           ! Generate CFIO
-           call MakeCFIO(file_processed,cfioA,found,rc=status)
-           ! Retrieve the time series
-           allocate(tSeriesA(cfioA%tSteps))
-           call GetTimesOnFile(cfioA,tSeriesA,rc=rc)
+           If (isAssigned) Then
+              ! Do we still have the right file?
+              If (Trim(xCFIO%fNAME) .ne. Trim(file_processed)) Then
+                 isAssigned = .False.
+                 If (allocated(xTSeries)) Deallocate(xTSeries)
+                 Call ESMF_CFIODestroy(xCFIO,__RC__)
+              End If
+           End If
+           If (.not.isAssigned) Then
+              ! Generate CFIO
+              call MakeCFIO(file_processed,xCFIO,found,rc=status)
+              ! Retrieve the time series
+              allocate(xTSeries(xCFIO%tSteps))
+              call GetTimesOnFile(xCFIO,xTSeries,rc=rc)
+              isAssigned = .True.
+           End If
            ! Is this before or after our target time?
            LSide   = (bSide == "L")
            RSide   = (.not.LSide)
-           LExact  = (cTime == tSeriesA(1))
-           LExtrap = (cTime <  tSeriesA(1))
-           RExact  = (cTime == tSeriesA(cfioA%tSteps))
-           RExtrap = (cTime >  tSeriesA(cfioA%tSteps))
-           ! These aren't needed any longer
-           call ESMF_CFIODestroy(cfioA,__RC__)
+           LExact  = (cTime == xTSeries(1))
+           LExtrap = (cTime <  xTSeries(1))
+           RExact  = (cTime == xTSeries(xCFIO%tSteps))
+           RExtrap = (cTime >  xTSeries(xCFIO%tSteps))
            found = .false.
            If (LExtrap.or.(LExact.and.RSide)) Then
               if (mapl_am_I_root()) Then
-                 write(*,'(a,a,a,a)') ' ERROR: LEXTRAP on file ',trim(file_tmpl),' for side ',bSide
+                 write(*,'(a,a,a,a)') ' Extrapolating BACKWARD for bracket ', bSide', for file ',trim(file_tmpl)
               end if
               ! We have data from future years
               ! Advance the target time until we can have what we want
@@ -2167,7 +2203,6 @@ CONTAINS
               ftime = reffTime
               n = 0
               do while (.not.found)
-                 ! SDE: Unconfirmed - but I think this should be ">"
                  found = ((ftime + frequency) > newtime)
                  if (.not.found) then
                     n = n + 1
@@ -2185,12 +2220,11 @@ CONTAINS
                  if (mapl_am_I_root()) Then
                     write(*,'(a,a,a,a)') ' ERROR: Failed to project data from ',trim(file_tmpl),' for side ',bSide
                  end if
-                 deallocate(tSeriesA)
                  RETURN_(ESMF_FAILURE)
               End If
            ElseIf (RExtrap.or.(RExact.and.RSide)) Then
               if (mapl_am_I_root()) Then
-                 write(*,'(a,a,a,a)') ' ERROR: REXTRAP on file ',trim(file_tmpl),' for side ',bSide
+                 write(*,'(a,a,a,a)') ' Extrapolating FORWARD for bracket ', bSide', for file ',trim(file_tmpl)
               end if
               ! We have data from past years
               ! Rewind the target time until we can have what we want
@@ -2204,7 +2238,7 @@ CONTAINS
                  call ESMF_TimeSet(newTime,yy=iyr,mm=imm,dd=idd,h=ihr,m=imn,s=isc,__RC__)
                  ! Error check - if the new time is before the first file time,
                  ! all is lost
-                 If (newTime.lt.tSeriesA(1)) exit
+                 If (newTime.lt.xTSeries(1)) exit
                  do while (ftime > newTime)
                     fTime = fTime - frequency
                     n = n - 1
@@ -2223,16 +2257,12 @@ CONTAINS
                  if (mapl_am_I_root()) Then
                     write(*,'(a,a,a,a)') ' ERROR: Could not determine upper bounds on ',trim(file_tmpl),' for side ',bSide
                  end if
-                 deallocate(tSeriesA)
                  RETURN_(ESMF_FAILURE)
               End If
-              ! Don't need this any more
-              deallocate(tSeriesA)
            Else
               if (mapl_am_I_root()) Then
                  write(*,'(a,a,a,a)') ' ERROR: Unkown error while scanning ',trim(file_tmpl),' for side ',bSide
               end if
-              deallocate(tSeriesA)
               RETURN_(ESMF_FAILURE)
            End If
         End If
@@ -2240,18 +2270,26 @@ CONTAINS
         ! Should now have the "correct" time
         ! Generate CFIO for the "current" file
         If (MAPL_Am_I_Root().and.(Ext_Debug > 19)) Write(*,'(a,a)') ' DEBUG: Generating CFIO for ', trim(file_processed)
-        call MakeCFIO(file_processed,cfioA,found,rc=status)
-        ! Retrieve the time series
-        allocate(tSeriesA(cfioA%tSteps))
-        call GetTimesOnFile(cfioA,tSeriesA,rc=rc)
+        If (isAssigned) Then
+           ! Do we still have the right file?
+           If (Trim(xCFIO%fNAME) .ne. Trim(file_processed)) Then
+              isAssigned = .False.
+              If (allocated(xTSeries)) Deallocate(xTSeries)
+              Call ESMF_CFIODestroy(xCFIO,__RC__)
+           End If
+        End If
+        If (.not.isAssigned) Then
+           ! Generate CFIO
+           call MakeCFIO(file_processed,xCFIO,found,rc=status)
+           ! Retrieve the time series
+           allocate(xTSeries(xCFIO%tSteps))
+           call GetTimesOnFile(xCFIO,xTSeries,rc=rc)
+           isAssigned = .True.
+        End If
 
         ! try to get bracketing time on file using current time
-        call GetBracketTimeOnFile(cfioA,tSeriesA,readTime,bSide,UniFileClim,interpTime,fileTime,yrOffsetInt=yrOffset,rc=status)
+        call GetBracketTimeOnFile(xCFIO,xTSeries,readTime,bSide,UniFileClim,interpTime,fileTime,yrOffsetInt=yrOffset,rc=status)
         found = (status==ESMF_SUCCESS)
- 
-        ! Destroy the no-longer-useful metadata 
-        call ESMF_CFIODestroy(cfioA,__RC__)
-        deallocate(tSeriesA)
 
         If (MAPL_Am_I_Root().and.(Ext_Debug > 19)) Write(*,'(a,a,a,L1)') ' DEBUG: Status of ', trim(file_processed),': ', found
 
@@ -2312,6 +2350,7 @@ CONTAINS
            else if (bSide == "L") then
               found=.false.
               newFile=.true.
+              status = ESMF_SUCCESS
               do while ((status==ESMF_SUCCESS).and.(.not.found))
                  if (trim(cyclic)=='y') then
                     call ESMF_TimeGet(cTime,yy=iyr,mm=imm,dd=idd,h=ihr,m=imn,s=isc,__RC__)
@@ -2360,17 +2399,25 @@ CONTAINS
               end if
            end if
 
-           ! Generate CFIO
-           call MakeCFIO(file_processed,cfioA,found,rc=status)
-           ! Retrieve the time series
-           allocate(tSeriesA(cfioA%tSteps))
-           call GetTimesOnFile(cfioA,tSeriesA,rc=rc)
+           If (isAssigned) Then
+              ! Do we still have the right file?
+              If (Trim(xCFIO%fNAME) .ne. Trim(file_processed)) Then
+                 isAssigned = .False.
+                 If (allocated(xTSeries)) Deallocate(xTSeries)
+                 Call ESMF_CFIODestroy(xCFIO,__RC__)
+              End If
+           End If
+           If (.not.isAssigned) Then
+              ! Generate CFIO
+              call MakeCFIO(file_processed,xCFIO,found,rc=status)
+              ! Retrieve the time series
+              allocate(xTSeries(xCFIO%tSteps))
+              call GetTimesOnFile(xCFIO,xTSeries,rc=rc)
+              isAssigned = .True.
+           End If
            ! try to get bracketing time on file using new time
-           call GetBracketTimeOnFile(cfioA,tSeriesA,readTime,bSide,UniFileClim,interpTime,fileTime,yrOffsetInt=yrOffset,rc=status)
+           call GetBracketTimeOnFile(xCFIO,xTSeries,readTime,bSide,UniFileClim,interpTime,fileTime,yrOffsetInt=yrOffset,rc=status)
            found = (status == ESMF_SUCCESS)
-           ! Regardless of success/failure, tidy up after ourselves
-           call ESMF_CFIODestroy(cfioA,__RC__)
-           deallocate(tSeriesA)
            if (.not.found) then
               if (mapl_am_I_root()) write(*,*)'ExtData could not find bracketing data from file template ',trim(file_tmpl),' for side ',bSide
               RETURN_(ESMF_FAILURE)
@@ -2436,7 +2483,7 @@ CONTAINS
 
   subroutine GetTimesOnFile(cfio,tSeries,UniFileClim,rc)
      type(ESMF_CFIO)                           :: cfio
-     type(ESMF_Time), pointer                  :: tSeries(:)
+     type(ESMF_Time)                           :: tSeries(:)
      logical, optional,          intent(in   ) :: UniFileClim
      integer, optional,          intent(out  ) :: rc
 
@@ -2547,7 +2594,7 @@ CONTAINS
 
   subroutine GetBracketTimeOnSingleFile(cfio,tSeries,cTime,bSide,UniFileClim,interpTime,fileTime,rc)
      type(ESMF_CFIO),                     intent(in   ) :: cfio
-     type(ESMF_Time), pointer,            intent(in   ) :: tSeries(:)
+     type(ESMF_Time),                     intent(in   ) :: tSeries(:)
      type(ESMF_Time),                     intent(inout) :: cTime
      character(len=1),                    intent(in   ) :: bSide
      logical,                             intent(in   ) :: UniFileClim
@@ -2714,7 +2761,7 @@ CONTAINS
 
   subroutine GetBracketTimeOnFile(cfio,tSeries,cTime,bSide,UniFileClim,interpTime,fileTime,yrOffsetInt,rc)
      type(ESMF_CFIO),                     intent(in   ) :: cfio
-     type(ESMF_Time), pointer,            intent(in   ) :: tSeries(:)
+     type(ESMF_Time),                     intent(in   ) :: tSeries(:)
      type(ESMF_Time),                     intent(inout) :: cTime
      character(len=1),                    intent(in   ) :: bSide
      logical,                             intent(in   ) :: UniFileClim
