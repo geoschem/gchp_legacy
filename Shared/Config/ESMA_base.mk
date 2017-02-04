@@ -214,21 +214,20 @@ LIB_ESMF := $(DIR_ESMF)/$(ARCH)/lib/libesmf.so
 #
 # Now query for the correct MPI info (bmy, 11/20/14)
 	FC := mpif90
-    ifdef MVAPICH2
-        FC := mpif90
-        INC_MPI := $(MVAPICH2)/include
-        LIB_MPI := -L$(MVAPICH2)/lib  -lmpich
-    else  # Assume OpenMPI
-    ifdef MPT_VERSION
-        FC := mpif90
-        INC_MPI := $(MPI_ROOT)/include
-        LIB_MPI := -L$(MPI_ROOT)/lib  -lmpi -lmpi++
-    else
-	INC_MPI := $(shell mpif90 --showme:incdirs)
-	LIB_MPI := $(shell mpif90 --showme:link)
-	LIB_MPI += $(shell mpicxx --showme:link)
-    endif	
-    endif
+        ifeq ($(ESMF_COMM),mvapich2)
+           INC_MPI := $(MPI_ROOT)/include
+           LIB_MPI := -L$(MPI_ROOT)/lib  -lmpich
+        else ifeq ($(ESMF_COMM),openmpi)
+           INC_MPI := $(shell mpif90 --showme:incdirs)
+           LIB_MPI := $(shell mpif90 --showme:link)
+           LIB_MPI += $(shell mpicxx --showme:link)
+        else ifeq ($(ESMF_COMM),mpi)
+           # Generic MPI
+           INC_MPI := $(MPI_ROOT)/include
+           LIB_MPI := -L$(MPI_ROOT)/lib  -lmpi -lmpi++
+        else
+           $(error Bad ESMF_COMM in ESMA_base.mk)
+        endif
 #------------------------------------------------------------------------------
 
 

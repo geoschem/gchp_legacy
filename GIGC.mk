@@ -46,15 +46,21 @@ endif
 # uncomment the settings for MPI_LIB based on the appropriate version. 
 # Hopefully this can be automated in future versions.
 #==============================================================================
-# %%%%% OpenMPI settings %%%%%
-#MPI_LIB       := $(shell mpif90 --showme:link)
-#MPI_LIB       += $(shell mpicxx --showme:link)
-# %%%%% OpenMPI manual setting %%%%%
+ifeq ($(ESMF_COMM),openmpi)
+   # %%%%% OpenMPI settings %%%%%
+   MPI_LIB       := $(shell mpif90 --showme:link)
+   MPI_LIB       += $(shell mpicxx --showme:link)
+else ifeq ($(ESMF_COMM),mvapich2)
+   # %%%%% MVAPICH %%%%% 
+   MPI_LIB       := -L$(dir $(shell which mpif90))../lib64 -lmpich -lmpichf90
+else ifeq ($(ESMF_COMM),mpi)
+   # %%%%% Generic MPI (works for SGI) %%%%%
+   MPI_LIB       := -L$(dir $(shell which mpif90))../lib -lmpi -lmpi++
+else
+   $(error ESMF_COMM not defined or not valid at GIGC.mk)
+endif
+# %%%%% OpenMPI manual setting - obsolete %%%%%
 #MPI_LIB       := -L$(dir $(shell which mpif90))../lib -lmpi_mpifh -lmpi_cxx -lmpi -lopen-rte -lopen-pal
-# %%%%% MVAPICH %%%%% 
-MPI_LIB       := -L$(dir $(shell which mpif90))../lib64 -lmpich -lmpichf90
-# %%%%% Generic MPI --- testing %%%%%
-#MPI_LIB       := -L$(dir $(shell which mpif90))../lib -lmpi -lmpi++
 
 MPI_INC       := $(dir $(shell which mpif90))../include
 

@@ -100,8 +100,7 @@ endif
 
 # MPI type for ESMF
 ifndef ESMF_COMM
-#  export ESMF_COMM=openmpi
-  export ESMF_COMM=mvapich2
+   $(error ESMF_COMM is not defined)
 endif
 
 # Operating system type for ESMF
