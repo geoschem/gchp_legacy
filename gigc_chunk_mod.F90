@@ -103,6 +103,7 @@ CONTAINS
     USE Diagnostics_Mod,         ONLY : Diagnostics_Init
     USE EMISSIONS_MOD,           ONLY : EMISSIONS_INIT
     USE HCO_TYPES_MOD,           ONLY : ConfigObj
+    USE UCX_MOD,              ONLY : INIT_UCX, SET_INITIAL_MIXRATIOS
     USE UnitConv_Mod
 !
 ! !INPUT PARAMETERS:
@@ -219,6 +220,17 @@ CONTAINS
                           HcoConfig=HcoConfig )
     ASSERT_(RC==GC_SUCCESS)
 
+    !-------------------------------------------------------------------------
+    ! Stratosphere - can't be initialized without HEMCO because of STATE_PSC
+    !-------------------------------------------------------------------------
+    IF ( Input_Opt%LUCX ) THEN
+
+       ! Initialize stratospheric routines
+       CALL INIT_UCX( am_I_Root, Input_Opt, State_Chm )
+
+       ! Set simple initial tracer conditions
+       CALL SET_INITIAL_MIXRATIOS( am_I_Root, Input_Opt, State_Met, State_Chm )
+    ENDIF
 
     ! Initialize diagnostics.
     CALL Diagnostics_Init( am_I_Root, Input_Opt, State_Met, State_Chm, RC )

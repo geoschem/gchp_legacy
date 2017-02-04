@@ -252,7 +252,6 @@ CONTAINS
     USE TOMS_MOD,             ONLY : INIT_TOMS
     
     ! Stratosphere 
-    USE UCX_MOD,              ONLY : INIT_UCX, SET_INITIAL_MIXRATIOS
     USE STRAT_CHEM_MOD,       ONLY : INIT_STRAT_CHEM
 
     USE MIXING_MOD,           ONLY : INIT_MIXING
@@ -624,18 +623,6 @@ CONTAINS
           CALL DEBUG_MSG( '### GIGC_INIT_SIMULATION: after INIT_TOMS' )
        ENDIF
 
-    ENDIF
-
-    !-------------------------------------------------------------------------
-    ! Stratosphere 
-    !-------------------------------------------------------------------------
-    IF ( Input_Opt%LUCX ) THEN
-
-       ! Initialize stratospheric routines
-       CALL INIT_UCX( am_I_Root, Input_Opt, State_Chm )
-
-       ! Set simple initial tracer conditions
-       CALL SET_INITIAL_MIXRATIOS( am_I_Root, Input_Opt, State_Met, State_Chm )
     ENDIF
 
 !    ! Note: Init_Strat_Chem expects units of kg/kg dry
