@@ -2185,8 +2185,8 @@ CONTAINS
            RExtrap = (cTime >  xTSeries(xCFIO%tSteps))
            found = .false.
            If (LExtrap.or.(LExact.and.RSide)) Then
-              if (mapl_am_I_root()) Then
-                 write(*,'(a,a,a,a)') ' Extrapolating BACKWARD for bracket ', bSide', for file ',trim(file_tmpl)
+              if (mapl_am_I_root().and.(Ext_Debug>2)) Then
+                 write(*,'(a,a,a,a)') ' Extrapolating BACKWARD for bracket ', bSide, ' for file ',trim(file_tmpl)
               end if
               ! We have data from future years
               ! Advance the target time until we can have what we want
@@ -2223,8 +2223,8 @@ CONTAINS
                  RETURN_(ESMF_FAILURE)
               End If
            ElseIf (RExtrap.or.(RExact.and.RSide)) Then
-              if (mapl_am_I_root()) Then
-                 write(*,'(a,a,a,a)') ' Extrapolating FORWARD for bracket ', bSide', for file ',trim(file_tmpl)
+              if (mapl_am_I_root().and.(Ext_Debug>2)) Then
+                 write(*,'(a,a,a,a)') ' Extrapolating FORWARD for bracket ', bSide, ' for file ',trim(file_tmpl)
               end if
               ! We have data from past years
               ! Rewind the target time until we can have what we want
