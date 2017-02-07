@@ -1879,7 +1879,7 @@ CONTAINS
 !    USE HCOI_GC_MAIN_MOD,        ONLY : GetHcoState
     USE HCO_INTERFACE_MOD,       ONLY : HcoState
     USE GC_LAND_INTERFACE,       ONLY : LANDTYPE_REMAP
-!>>MSL    USE Olson_Landmap_Mod,       ONLY : Compute_Olson_Landmap_GCHP
+    USE Olson_Landmap_Mod,       ONLY : Compute_Olson_Landmap_GCHP
 !
 ! !INPUT/OUTPUT PARAMETERS:
 !
@@ -2371,34 +2371,34 @@ CONTAINS
        If (am_I_Root) Write(6,'(a)') 'Initializing land type ' // &
                         'fractions from Olson imports'
        Ptr2d => NULL()
-!>>MSL       DO T = 1, NSURFTYPE
-!>>MSL
-!>>MSL          ! Create two-char string for land type
-!>>MSL          landTypeInt = T-1
-!>>MSL          IF ( landTypeInt < 10 ) THEN
-!>>MSL             WRITE ( landTypeStr, "(A1,I1)" ) '0', landTypeInt
-!>>MSL          ELSE
-!>>MSL             WRITE ( landTypeStr, "(I2)" ) landTypeInt  
-!>>MSL          ENDIF
-!>>MSL          importName = 'OLSON' // TRIM(landTypeStr)
-!>>MSL
-!>>MSL          ! Get pointer and set populate State_Met variable
-!>>MSL          CALL MAPL_GetPointer ( IMPORT, Ptr2D, TRIM(importName),  &
-!>>MSL                                 notFoundOK=.TRUE., __RC__ )
-!>>MSL          If ( Associated(Ptr2D) ) Then
-!>>MSL             If (am_I_Root) Write(6,*)                                &
-!>>MSL                  ' ### Reading ' // TRIM(importName) // ' from imports'
-!>>MSL             State_Met%LandTypeFrac(:,:,T) = Ptr2D(:,:)
-!>>MSL          ELSE
-!>>MSL             WRITE(6,*) TRIM(importName) // ' pointer is not associated'
-!>>MSL          ENDIF
-!>>MSL
-!>>MSL          ! Nullify pointer
-!>>MSL          Ptr2D => NULL()
-!>>MSL       END DO
+       DO T = 1, NSURFTYPE
+
+          ! Create two-char string for land type
+          landTypeInt = T-1
+          IF ( landTypeInt < 10 ) THEN
+             WRITE ( landTypeStr, "(A1,I1)" ) '0', landTypeInt
+          ELSE
+             WRITE ( landTypeStr, "(I2)" ) landTypeInt  
+          ENDIF
+          importName = 'OLSON' // TRIM(landTypeStr)
+
+          ! Get pointer and set populate State_Met variable
+          CALL MAPL_GetPointer ( IMPORT, Ptr2D, TRIM(importName),  &
+                                 notFoundOK=.TRUE., __RC__ )
+          If ( Associated(Ptr2D) ) Then
+             If (am_I_Root) Write(6,*)                                &
+                  ' ### Reading ' // TRIM(importName) // ' from imports'
+             State_Met%LandTypeFrac(:,:,T) = Ptr2D(:,:)
+          ELSE
+             WRITE(6,*) TRIM(importName) // ' pointer is not associated'
+          ENDIF
+
+          ! Nullify pointer
+          Ptr2D => NULL()
+       END DO
        
        ! Compute State_Met variables IREG, ILAND, IUSE, and FRCLND
-!>>MSL       CALL Compute_Olson_Landmap_GCHP( am_I_Root, State_Met, RC )
+       CALL Compute_Olson_Landmap_GCHP( am_I_Root, State_Met, RC )
     ENDIF
 
     !=======================================================================
@@ -2430,45 +2430,45 @@ CONTAINS
     If (am_I_Root) Write(6,'(a)') 'Initializing leaf area index ' // &
                      'variable from imports'
     Ptr2d => NULL()
-!>>MSL    DO T = 1, NSURFTYPE
-!>>MSL
-!>>MSL       ! Create two-char string for land type
-!>>MSL       landTypeInt = T-1
-!>>MSL       IF ( landTypeInt < 10 ) THEN
-!>>MSL          WRITE ( landTypeStr, "(A1,I1)" ) '0', landTypeInt
-!>>MSL       ELSE
-!>>MSL          WRITE ( landTypeStr, "(I2)" ) landTypeInt  
-!>>MSL       ENDIF
-!>>MSL
-!>>MSL       ! Get pointer and populate State_Met variable for XLAI_NATIVE
-!>>MSL       importName = 'XLAI' // TRIM(landTypeStr)
-!>>MSL
-!>>MSL       CALL MAPL_GetPointer ( IMPORT, Ptr2D, TRIM(importName),  &
-!>>MSL                              notFoundOK=.TRUE., __RC__ )
-!>>MSL       If ( Associated(Ptr2D) ) Then
-!>>MSL          If (am_I_Root) Write(6,*)                                &
-!>>MSL               ' ### Reading ' // TRIM(importName) // ' from imports'
-!>>MSL          State_Met%XLAI_NATIVE(:,:,T) = Ptr2D(:,:)
-!>>MSL       ELSE
-!>>MSL          WRITE(6,*) TRIM(importName) // ' pointer is not associated'
-!>>MSL       ENDIF
-!>>MSL       Ptr2D => NULL()
-!>>MSL
-!>>MSL       !! Get pointer and populate State_Met variable for XCHLR_NATIVE
-!>>MSL       !importName = 'XCHLR' // TRIM(landTypeStr)
-!>>MSL       !
-!>>MSL       !CALL MAPL_GetPointer ( IMPORT, Ptr2D, TRIM(importName),  &
-!>>MSL       !                       notFoundOK=.TRUE., __RC__ )
-!>>MSL       !If ( Associated(Ptr2D) ) Then
-!>>MSL       !   If (am_I_Root) Write(6,*)                                &
-!>>MSL       !        ' ### Reading ' // TRIM(importName) // ' from imports'
-!>>MSL       !   State_Met%CHLR_NATIVE(:,:,T) = Ptr2D(:,:)
-!>>MSL       !ELSE
-!>>MSL       !   WRITE(6,*) TRIM(importName) // ' pointer is not associated'
-!>>MSL       !ENDIF
-!>>MSL       !Ptr2D => NULL()
-!>>MSL
-!>>MSL    END DO
+    DO T = 1, NSURFTYPE
+
+       ! Create two-char string for land type
+       landTypeInt = T-1
+       IF ( landTypeInt < 10 ) THEN
+          WRITE ( landTypeStr, "(A1,I1)" ) '0', landTypeInt
+       ELSE
+          WRITE ( landTypeStr, "(I2)" ) landTypeInt  
+       ENDIF
+
+       ! Get pointer and populate State_Met variable for XLAI_NATIVE
+       importName = 'XLAI' // TRIM(landTypeStr)
+
+       CALL MAPL_GetPointer ( IMPORT, Ptr2D, TRIM(importName),  &
+                              notFoundOK=.TRUE., __RC__ )
+       If ( Associated(Ptr2D) ) Then
+          If (am_I_Root) Write(6,*)                                &
+               ' ### Reading ' // TRIM(importName) // ' from imports'
+          State_Met%XLAI_NATIVE(:,:,T) = Ptr2D(:,:)
+       ELSE
+          WRITE(6,*) TRIM(importName) // ' pointer is not associated'
+       ENDIF
+       Ptr2D => NULL()
+
+       !! Get pointer and populate State_Met variable for XCHLR_NATIVE
+       !importName = 'XCHLR' // TRIM(landTypeStr)
+       !
+       !CALL MAPL_GetPointer ( IMPORT, Ptr2D, TRIM(importName),  &
+       !                       notFoundOK=.TRUE., __RC__ )
+       !If ( Associated(Ptr2D) ) Then
+       !   If (am_I_Root) Write(6,*)                                &
+       !        ' ### Reading ' // TRIM(importName) // ' from imports'
+       !   State_Met%CHLR_NATIVE(:,:,T) = Ptr2D(:,:)
+       !ELSE
+       !   WRITE(6,*) TRIM(importName) // ' pointer is not associated'
+       !ENDIF
+       !Ptr2D => NULL()
+
+    END DO
 
     !=======================================================================
     ! Get total ozone column from GEOS-Chem export variable.
