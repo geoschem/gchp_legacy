@@ -152,6 +152,10 @@ LIB_SYS =
 # Always assume we are using netCDF-4.  Take the include & link
 # directory paths as computed from the Makefile_header.mk.
 INC_NETCDF :=$(GC_INCLUDE)
+INC_NETCDF +=$(GC_F_INCLUDE)
+ifdef GC_F_INCLUDE
+   INC_NETCDF +=$(GC_F_INCLUDE)
+endif
 LIB_NETCDF :=$(NCL)
 #------------------------------------------------------------------------------
 
