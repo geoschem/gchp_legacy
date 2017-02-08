@@ -70,6 +70,7 @@ MODULE Chem_GridCompMod
   USE State_Met_Mod                                  ! Meteorology State obj
   USE Species_Mod,   ONLY : Species
   USE HCO_TYPES_MOD, ONLY : ConfigObj
+  USE CMN_Size_Mod,  ONLY : NSURFTYPE
 
   IMPLICIT NONE
   PRIVATE
