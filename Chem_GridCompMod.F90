@@ -2507,15 +2507,6 @@ CONTAINS
 
           CALL MAPL_TimerOn(STATE, "DO_CHEM")
     
-          ! SDE 2016-12-22: Force these to zero for dry deposition. If these
-          ! aren't set to zero and the land types aren't set, then the surface
-          ! type can end up being interpreted differently on different nodes due
-          ! to the lack of initialization of the variables.
-          State_Met%IREG(:,:)    = 1
-          State_Met%IUSE(:,:,1)  = 1
-          State_Met%ILAND(:,:,1) = 0
-          State_Met%XLAI(:,:,1)  = 0.0
-
           ! NOTE: Second was not extracted previously; set to 0 for now
           second = 0
           ! Run the GEOS-Chem column chemistry code for the given phase
