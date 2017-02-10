@@ -71,6 +71,7 @@ MODULE Chem_GridCompMod
   USE Species_Mod,   ONLY : Species
   USE HCO_TYPES_MOD, ONLY : ConfigObj
   USE CMN_Size_Mod,  ONLY : NSURFTYPE
+  USE TIME_MOD,      ONLY : ITS_A_NEW_DAY
 
   IMPLICIT NONE
   PRIVATE
@@ -2403,73 +2404,64 @@ CONTAINS
     ENDIF
 
     !=======================================================================
-    ! Set MODIS leaf area index (LAI) (and eventually chlorophyll-a (CHLR))
-    ! from imports of post-processed MODIS files. 
+    ! Read MODIS leaf area index (LAI) from imports of post-processed MODIS 
+    ! files. Monthly files are interpolated once per day. Read Chlorophyll-a
+    ! data is using the marine POA simulation.
+    !
+    ! DESCRIPTION OF LAI DATA READ BY EXTDATA:
+    ! Each monthly file contains 73 variables of format XLAIxx where xx is
+    ! land type (e.g. XLAI00 to XLAI72). Grid cells with land type xx have
+    ! native LAI values; all other grid cells have zero values. ExtData 
+    ! regrids the native resolution files to yield average values per GC 
+    ! grid cell (not area-weighted). These are used with the similarly
+    ! regridded Olson fractional land types to construct area-weighted LAI 
+    ! per land type per grid cell, recreating the GEOS-Chem classic
+    ! online regridding in modis_lai_mod. (ewl, 11/29/16)
     !=======================================================================
-    ! DESCRIPTION:
-    ! Each file is monthly and contains one variable for each land type. 
-    ! All grid cells for the variable-specific land type have original 
-    ! LAI or CHLR values, while all other grid cells are zero. ExtData 
-    ! regrids these native resolution files to yield average values per GC 
-    ! grid cell (not area-weighted). These are later used in conjunction 
-    ! with the Olson fractional land type to construct area-weighted LAI 
-    ! and CHLR per land type per grid cell. (ewl, 11/29/16)
-    ! 
-    ! IMPORTANT NOTES: 
-    !   (1) Currently one year and month is hard-coded in ExtData for XLAI.
-    !       Using variable month tag causes an error. 
-    !   (2) XCHLRxx is turned off in HEMCO_Config.rc and commented out in
-    !       ExtData.rc due to a suspected memory problem when reading in. 
-    !   (3) Eventually edit to XLAI config files and code to use first and 
-    !       last year as climatology for years outside of the data range,
-    !       and variable years otherwise.
-    !   (4) Right now LAI is read every time step. We want it to read every
-    !       month and interpolate to the day daily. This is not yet 
-    !       configured. Also, it currently uses the first of the month as
-    !       the start date. This should be changed to the middle of the month.
-    !=======================================================================
-    If (am_I_Root) Write(6,'(a)') 'Initializing leaf area index ' // &
-                     'variable from imports'
-    Ptr2d => NULL()
-    DO T = 1, NSURFTYPE
-
-       ! Create two-char string for land type
-       landTypeInt = T-1
-       IF ( landTypeInt < 10 ) THEN
-          WRITE ( landTypeStr, "(A1,I1)" ) '0', landTypeInt
-       ELSE
-          WRITE ( landTypeStr, "(I2)" ) landTypeInt  
-       ENDIF
-
-       ! Get pointer and populate State_Met variable for XLAI_NATIVE
-       importName = 'XLAI' // TRIM(landTypeStr)
-
-       CALL MAPL_GetPointer ( IMPORT, Ptr2D, TRIM(importName),  &
-                              notFoundOK=.TRUE., __RC__ )
-       If ( Associated(Ptr2D) ) Then
-          If (am_I_Root) Write(6,*)                                &
-               ' ### Reading ' // TRIM(importName) // ' from imports'
-          State_Met%XLAI_NATIVE(:,:,T) = Ptr2D(:,:)
-       ELSE
-          WRITE(6,*) TRIM(importName) // ' pointer is not associated'
-       ENDIF
-       Ptr2D => NULL()
-
-       !! Get pointer and populate State_Met variable for XCHLR_NATIVE
-       !importName = 'XCHLR' // TRIM(landTypeStr)
-       !
-       !CALL MAPL_GetPointer ( IMPORT, Ptr2D, TRIM(importName),  &
-       !                       notFoundOK=.TRUE., __RC__ )
-       !If ( Associated(Ptr2D) ) Then
-       !   If (am_I_Root) Write(6,*)                                &
-       !        ' ### Reading ' // TRIM(importName) // ' from imports'
-       !   State_Met%CHLR_NATIVE(:,:,T) = Ptr2D(:,:)
-       !ELSE
-       !   WRITE(6,*) TRIM(importName) // ' pointer is not associated'
-       !ENDIF
-       !Ptr2D => NULL()
-
-    END DO
+    IF ( FIRST .OR. ITS_A_NEW_DAY() ) THEN
+       If (am_I_Root) Write(6,'(a)') 'Initializing leaf area index ' // &
+                        'variable from imports'
+       Ptr2d => NULL()
+       DO T = 1, NSURFTYPE
+       
+          ! Create two-char string for land type
+          landTypeInt = T-1
+          IF ( landTypeInt < 10 ) THEN
+             WRITE ( landTypeStr, "(A1,I1)" ) '0', landTypeInt
+          ELSE
+             WRITE ( landTypeStr, "(I2)" ) landTypeInt  
+          ENDIF
+       
+          ! Get pointer and populate State_Met variable for XLAI_NATIVE
+          importName = 'XLAI' // TRIM(landTypeStr)
+       
+          CALL MAPL_GetPointer ( IMPORT, Ptr2D, TRIM(importName),  &
+                                 notFoundOK=.TRUE., __RC__ )
+          If ( Associated(Ptr2D) ) Then
+             If (am_I_Root) Write(6,*)                                &
+                  ' ### Reading ' // TRIM(importName) // ' from imports'
+             State_Met%XLAI_NATIVE(:,:,T) = Ptr2D(:,:)
+          ELSE
+             WRITE(6,*) TRIM(importName) // ' pointer is not associated'
+          ENDIF
+          Ptr2D => NULL()
+       
+          !! Get pointer and populate State_Met variable for XCHLR_NATIVE
+          !importName = 'XCHLR' // TRIM(landTypeStr)
+          !
+          !CALL MAPL_GetPointer ( IMPORT, Ptr2D, TRIM(importName),  &
+          !                       notFoundOK=.TRUE., __RC__ )
+          !If ( Associated(Ptr2D) ) Then
+          !   If (am_I_Root) Write(6,*)                                &
+          !        ' ### Reading ' // TRIM(importName) // ' from imports'
+          !   State_Met%CHLR_NATIVE(:,:,T) = Ptr2D(:,:)
+          !ELSE
+          !   WRITE(6,*) TRIM(importName) // ' pointer is not associated'
+          !ENDIF
+          !Ptr2D => NULL()
+       
+       END DO
+    ENDIF
 
     !=======================================================================
     ! Get total ozone column from GEOS-Chem export variable.
