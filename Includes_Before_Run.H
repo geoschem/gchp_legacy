@@ -68,7 +68,11 @@
   State_Met%PS1_WET             = PS1                        ! hPa
   State_Met%TS                  = TS                         ! K
   State_Met%TSKIN               = TSKIN                      ! K
+#if defined ( GEOS_FP ) || defined ( MERRA2 )
+  State_Met%SWGDN               = RADSWG                     ! W/m2
+#else
   State_Met%RADSWG              = RADSWG                     ! W/m2
+#endif
   State_Met%SNODP               = SNODP                      ! m
   State_Met%SNOMAS              = SNOMAS                     ! kg/m2
   State_Met%SST                 = TS                         ! K
