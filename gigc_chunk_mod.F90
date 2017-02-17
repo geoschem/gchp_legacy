@@ -329,6 +329,9 @@ CONTAINS
 
     ! Unit conversion (SE 2016-03-27)
     Use UnitConv_Mod
+
+    ! ewl debugging
+    USE Time_Mod,           ONLY : ITS_A_NEW_MONTH
 !
 ! !INPUT PARAMETERS:
 !
@@ -852,6 +855,8 @@ CONTAINS
        ! Calculate TOMS O3 overhead. For now, always use it from the
        ! Met field. State_Met%TO3 is imported from PCHEM.
        ! (ckeller, 10/21/2014).
+       ! EWL: this is default in GCC. Need it offline as an option?
+       !   (when we can, change .TRUE. to Input_Opt%USE_O3_FROM_MET)
        CALL COMPUTE_OVERHEAD_O3( am_I_Root, DAY, .TRUE., State_Met%TO3 )
 
        ! Set H2O to STT if relevant
