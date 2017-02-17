@@ -71,7 +71,7 @@ MODULE Chem_GridCompMod
   USE Species_Mod,   ONLY : Species
   USE HCO_TYPES_MOD, ONLY : ConfigObj
   USE CMN_Size_Mod,  ONLY : NSURFTYPE
-  USE TIME_MOD,      ONLY : ITS_A_NEW_DAY
+  USE TIME_MOD,      ONLY : ITS_A_NEW_DAY, ITS_A_NEW_MONTH
 
   IMPLICIT NONE
   PRIVATE
@@ -2464,6 +2464,23 @@ CONTAINS
           !Ptr2D => NULL()
        
        END DO
+    ENDIF
+
+    !=======================================================================
+    ! Get UV albedo for photolysis if first timestep or its a new month
+    !=======================================================================
+    IF ( FIRST .OR. ITS_A_NEW_MONTH() ) THEN
+       Ptr2d => NULL()
+       CALL MAPL_GetPointer ( IMPORT, Ptr2D, 'UV_ALBEDO',  &
+                              notFoundOK=.TRUE., __RC__ )
+       If ( Associated(Ptr2D) ) Then
+          If (am_I_Root) Write(6,*)                                &
+               ' ### Reading UV_ALBEDO from imports'
+          State_Met%UVALBEDO(:,:) = Ptr2D(:,:)
+       ELSE
+          WRITE(6,*) 'UV_ALBEDO pointer is not associated'
+       ENDIF
+       Ptr2D => NULL()
     ENDIF
 
     !=======================================================================

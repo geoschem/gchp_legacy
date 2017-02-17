@@ -85,8 +85,6 @@
   State_Met%SUNCOSmid           = zenith                     ! 1
   State_Met%U10M                = U10M                       ! m/s
   State_Met%USTAR               = USTAR                      ! m/s
-  !**** NOTE Need to populate w/ real UVALBEDO ***
-  State_Met%UVALBEDO            = ALBD                       ! 1
   State_Met%V10M                = V10M                       ! m/s
   State_Met%Z0                  = Z0                         ! m
 

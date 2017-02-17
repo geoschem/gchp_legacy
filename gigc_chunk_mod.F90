@@ -312,7 +312,6 @@ CONTAINS
     USE GC_GRID_MOD,        ONLY : AREA_M2
     USE Diagnostics_Mod,    ONLY : Diagnostics_Write
     USE EMISSIONS_MOD,      ONLY : EMISSIONS_RUN
-    USE UVALBEDO_MOD,       ONLY : GET_UVALBEDO
     USE STRAT_CHEM_MOD,     ONLY : INIT_STRAT_CHEM, Minit_is_set
     USE MODIS_LAI_Mod,      ONLY : Compute_XLAI_GCHP
 
@@ -860,16 +859,6 @@ CONTAINS
           CALL SET_H2O_TRAC( am_I_Root, (.not. Input_Opt%LUCX), Input_Opt, &
                              State_Met, State_Chm, RC )
        ENDIF
-
-       ! For Fast-JX, update UV albedo data. These values are currently
-       ! read from a climatology (via HEMCO). We may eventually get them
-       ! from GEOS-5, but I don't know which field to use (ckeller, 3/9/15).
-       ! Note: now use ALBVF from GEOS-5.
-       IF ( UVmonth /= month ) THEN
-          CALL GET_UVALBEDO( am_I_Root, Input_Opt, State_Met, RC )
-          ASSERT_(RC==GC_SUCCESS)
-          UVmonth = month
-       ENDIF 
 
        ! Do chemistry
        CALL Do_Chemistry( am_I_Root = am_I_Root,            & ! Root CPU?
