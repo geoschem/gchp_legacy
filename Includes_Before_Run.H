@@ -159,9 +159,8 @@
   State_Met%T                   =(TMPU1+TMPU2)*0.5d0         ! K
 
   ! Create total optical depth field                         ! 1
-  State_Met%OPTD                = ( State_Met%TAUCLI    &
-                                +   State_Met%TAUCLW  ) &
-                                *   State_Met%CLDF
+  State_Met%OPTD                = State_Met%TAUCLI + State_Met%TAUCLW
+
   
   ! Set the State_Chm units to v/v dry (restart file units)
  
