@@ -167,18 +167,13 @@ contains
                DST_ID = CHEM, SRC_ID = ECTM, __RC__  )
 
       CALL MAPL_AddConnectivity ( GC, &
-               SHORT_NAME  = (/'AREA'/), &
-               DST_ID = CHEM, SRC_ID = ADV, __RC__  )
-
-      CALL MAPL_AddConnectivity ( GC, &
-               SRC_NAME  = (/ 'CXr8', 'CYr8', 'MFXr8', 'MFYr8', 'PLE0r8', 'PLE1r8' /), &
-               DST_NAME  = (/ 'CX',   'CY',   'MFX',   'MFY',   'PLE0',   'PLE1'   /), &
+               SRC_NAME  = (/ 'CXr8', 'CYr8', 'MFXr8', 'MFYr8', 'PLE0r8', 'PLE1r8', 'DryPLE0r8', 'DryPLE1r8' /), &
+               DST_NAME  = (/ 'CX',   'CY',   'MFX',   'MFY',   'PLE0',   'PLE1',   'DryPLE0',   'DryPLE1'   /), &
                DST_ID = ADV, SRC_ID = ECTM, __RC__  )
 
       CALL MAPL_AddConnectivity ( GC, &
-               SRC_NAME = (/ 'PLE' /), &
-               DST_NAME = (/ 'PLE' /), &
-               DST_ID   = CHEM, SRC_ID = ECTM, __RC__ )
+               SHORT_NAME = (/ 'AREA', 'PLE', 'DryPLE' /), &
+               DST_ID   = CHEM, SRC_ID = ADV, __RC__ )
 
       CALL MAPL_TerminateImport    ( GC,    &
                SHORT_NAME = (/'TRACERS'/),          &
@@ -465,13 +460,13 @@ contains
     I=ADV
     call MAPL_TimerOn (STATE,GCNames(I))
 
-    ! this shouldn't run if transport is disabled in input.geos.
-    LTRANS = Get_Transport()
-    IF ( LTRANS ) THEN
-      call ESMF_GridCompRun (GCS(I), importState=GIM(I), &
-           exportState=GEX(I), clock=CLOCK, userRC=STATUS );
-      VERIFY_(STATUS)
-    ENDIF
+    ! SDE 2017-02-18: This needs to run even if transport is off, as it is
+    ! responsible for the pressure level edge arrays. It already has an internal
+    ! switch ("AdvCore_Advection") which can be used to prevent any actual
+    ! transport taking place by bypassing the advection calculation.
+    call ESMF_GridCompRun (GCS(I), importState=GIM(I), &
+         exportState=GEX(I), clock=CLOCK, userRC=STATUS );
+    VERIFY_(STATUS)
     call MAPL_GenericRunCouplers (STATE, I, CLOCK, RC=STATUS );
     VERIFY_(STATUS)
     call MAPL_TimerOff(STATE,GCNames(I))

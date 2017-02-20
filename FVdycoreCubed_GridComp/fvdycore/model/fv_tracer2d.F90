@@ -615,8 +615,9 @@ end subroutine offline_tracer_advection
             scaling =  globalSums(1) / globalSums(2)
             !#################################################################
             ! This line was added to ensure strong reproducibility of the code
+            ! SDE 2017-02-17: Disabled as it compromises mass conservation
             !#################################################################
-            scaling = REAL(scaling, KIND=REAL4)
+            !scaling = REAL(scaling, KIND=REAL4)
          else
             scaling = 1.d0
          end if

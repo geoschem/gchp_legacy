@@ -217,6 +217,7 @@ MODULE GCHP_Utils
               UNITS              = 'mol mol-1', &
               DIMS               = MAPL_DimsHorzVert,    &
               VLOCATION          = MAPL_VLocationCenter,    &
+              PRECISION          = ESMF_KIND_R8, &
               FRIENDLYTO         = 'DYNAMICS:TURBULENCE:MOIST',    &
               RC                 = RC  )
          NADV = NADV+1

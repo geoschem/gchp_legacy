@@ -112,7 +112,7 @@ MODULE Chem_GridCompMod
      CHARACTER(LEN=255)            :: TrcName
      INTEGER                       :: TrcID
      REAL                          :: TCVV
-     REAL, POINTER                 :: Internal(:,:,:) => NULL()
+     REAL(ESMF_KIND_R8), POINTER   :: Internal(:,:,:) => NULL()
   END TYPE Int2ChmMap
 
   ! For mapping internal state
@@ -223,13 +223,13 @@ MODULE Chem_GridCompMod
   !  instead of the auto-generated pointers (GIGCchem_DeclarePointer___.h) 
   !  to avoid compilation errors if these species are not defined in 
   !  GEOS-Chem (e.g. for specialty sims). 
-  REAL, POINTER     :: PTR_O3      (:,:,:) => NULL()
-  REAL, POINTER     :: PTR_CH4     (:,:,:) => NULL()
-  REAL, POINTER     :: PTR_N2O     (:,:,:) => NULL()
-  REAL, POINTER     :: PTR_CFC11   (:,:,:) => NULL()
-  REAL, POINTER     :: PTR_CFC12   (:,:,:) => NULL()
-  REAL, POINTER     :: PTR_HCFC22  (:,:,:) => NULL()
-  REAL, POINTER     :: PTR_H2O     (:,:,:) => NULL()
+  REAL(ESMF_KIND_R8), POINTER :: PTR_O3      (:,:,:) => NULL()
+  REAL(ESMF_KIND_R8), POINTER :: PTR_CH4     (:,:,:) => NULL()
+  REAL(ESMF_KIND_R8), POINTER :: PTR_N2O     (:,:,:) => NULL()
+  REAL(ESMF_KIND_R8), POINTER :: PTR_CFC11   (:,:,:) => NULL()
+  REAL(ESMF_KIND_R8), POINTER :: PTR_CFC12   (:,:,:) => NULL()
+  REAL(ESMF_KIND_R8), POINTER :: PTR_HCFC22  (:,:,:) => NULL()
+  REAL(ESMF_KIND_R8), POINTER :: PTR_H2O     (:,:,:) => NULL()
 
   ! GCCTO3 and GCCTTO3 are the pointers to the corresponding export state fields
   REAL, POINTER     :: PTR_GCCTO3 (:,:) => NULL()
@@ -447,6 +447,7 @@ CONTAINS
             SHORT_NAME         = 'SPC_'//SpcName,  &
             LONG_NAME          = SpcName,  &
             UNITS              = 'mol mol-1', &
+            PRECISION          = ESMF_KIND_R8, &
             DIMS               = MAPL_DimsHorzVert,    &
             VLOCATION          = MAPL_VLocationCenter,    &
             RC                 = STATUS  )
@@ -1156,6 +1157,7 @@ CONTAINS
     LOGICAL                      :: FRIENDLY
     REAL                         :: GCMW, FRAC
     REAL, POINTER                :: Ptr3D(:,:,:) => NULL()
+    REAL(ESMF_KIND_R8), POINTER  :: Ptr3D_R8(:,:,:) => NULL()
     TYPE(ESMF_STATE)             :: INTSTATE 
     TYPE(ESMF_FieldBundle)       :: AeroBdl 
     TYPE(ESMF_Field)             :: AeroFld, GcFld
@@ -1639,13 +1641,13 @@ CONTAINS
        !ENDIF
 
        ! Get pointer to field
-       CALL ESMF_FieldGet( GcFld, 0, Ptr3D, __RC__ )
+       CALL ESMF_FieldGet( GcFld, 0, Ptr3D_R8, __RC__ )
 
-       Int2Chm(I)%Internal => Ptr3D
+       Int2Chm(I)%Internal => Ptr3D_R8
       
        ! Free pointers
-       Ptr3D   => NULL()
-       ThisSpc => NULL()
+       Ptr3D_R8 => NULL()
+       ThisSpc  => NULL()
 
     ENDDO
 
@@ -1979,9 +1981,10 @@ CONTAINS
     REAL,  ALLOCATABLE, TARGET   :: solar(:,:)    ! Solar insolation
 
     ! Pointer arrays
-    REAL(ESMF_KIND_R4),  POINTER :: lonCtr(:,:)   ! Lon centers, this PET [rad]
-    REAL(ESMF_KIND_R4),  POINTER :: latCtr(:,:)   ! Lat centers, this PET [rad]
-    REAL, POINTER                :: Ptr3d (:,:,:) => NULL() ! Needed by Include_Before_Run.H
+    REAL(ESMF_KIND_R4),  POINTER :: lonCtr  (:,:)   ! Lon centers, this PET [rad]
+    REAL(ESMF_KIND_R4),  POINTER :: latCtr  (:,:)   ! Lat centers, this PET [rad]
+    REAL, POINTER                :: Ptr3d   (:,:,:) => NULL() ! Needed by Include_Before_Run.H
+    REAL(ESMF_KIND_R8), POINTER  :: Ptr3d_R8(:,:,:) => NULL() ! Needed by Include_Before_Run.H
     TYPE(MAPL_MetaComp), POINTER :: STATE
 
     ! For CTM Mode
@@ -2808,9 +2811,10 @@ CONTAINS
     TYPE(MAPL_MetaComp), POINTER :: STATE
 
     ! For species copying
-    INTEGER                   :: IND
-    TYPE(ESMF_STATE)          :: INTSTATE
-    REAL, POINTER             :: Ptr3D(:,:,:) => NULL()
+    INTEGER                     :: IND
+    TYPE(ESMF_STATE)            :: INTSTATE
+    REAL, POINTER               :: Ptr3D(:,:,:) => NULL()
+    REAL(ESMF_KIND_R8), POINTER :: Ptr3D_R8(:,:,:) => NULL()
 
     __Iam__('Finalize_')
 
@@ -2879,16 +2883,19 @@ CONTAINS
        IF ( IND >= 0 ) CYCLE
 
        ! Get data from internal state and copy to species array
-       CALL MAPL_GetPointer( INTSTATE, Ptr3D, TRIM(State_Chm%Spec_Name(I)), &
+       CALL MAPL_GetPointer( INTSTATE, Ptr3D_R8, TRIM(State_Chm%Spec_Name(I)), &
                              notFoundOK=.TRUE., __RC__ )
-       IF ( .NOT. ASSOCIATED(Ptr3D) ) CYCLE
-       Ptr3D = State_Chm%Species(:,:,LM:1:-1,State_Chm%Spec_ID(I))
+       IF ( .NOT. ASSOCIATED(Ptr3D_R8) ) CYCLE
+       Ptr3D_R8 = State_Chm%Species(:,:,LM:1:-1,State_Chm%Spec_ID(I))
 
        ! Verbose 
        if ( MAPL_am_I_Root()) write(*,*)                &
                 'Species written to INTERNAL state: ',  &
                 TRIM(State_Chm%Spec_Name(I))
     ENDDO
+
+    ! Nullify pointer
+     Ptr3D_R8 => NULL()
 
     !=======================================================================
     ! Print end-of-simulation output
@@ -3006,9 +3013,9 @@ CONTAINS
 ! !INPUT PARAMETERS:
 !
     LOGICAL                        :: am_I_Root
-    REAL,   POINTER                :: O3   (:,:,:)
-    REAL,   POINTER                :: PLE  (:,:,:)
-    REAL,   POINTER                :: TROPP(:,:  )
+    REAL(ESMF_KIND_R8),   POINTER  :: O3   (:,:,:)
+    REAL,                 POINTER  :: PLE  (:,:,:)
+    REAL,                 POINTER  :: TROPP(:,:  )
 !                                                             
 ! !INPUT/OUTPUT PARAMETERS:                                         
 !              

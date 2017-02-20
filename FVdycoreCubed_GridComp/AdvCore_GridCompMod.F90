@@ -1,4 +1,4 @@
- !------------------------------------------------------------------------------
+!------------------------------------------------------------------------------
 #include "MAPL_Generic.h"
 !
 !------------------------------------------------------------------------------
@@ -199,6 +199,24 @@ contains
          VLOCATION  = MAPL_VLocationEdge,             RC=STATUS  )
      VERIFY_(STATUS)
 
+    call MAPL_AddImportSpec ( gc,                                  &
+         SHORT_NAME = 'DryPLE0',                                   &
+         LONG_NAME  = 'dry_pressure_at_layer_edges_before_advection',&
+         UNITS      = 'Pa',                                        &
+         PRECISION  = ESMF_KIND_R8,                                &
+         DIMS       = MAPL_DimsHorzVert,                           &
+         VLOCATION  = MAPL_VLocationEdge,             RC=STATUS  )
+     VERIFY_(STATUS)
+
+    call MAPL_AddImportSpec ( gc,                                  &
+         SHORT_NAME = 'DryPLE1',                                   &
+         LONG_NAME  = 'dry_pressure_at_layer_edges_after_advection',&               
+         UNITS      = 'Pa',                                        &
+         PRECISION  = ESMF_KIND_R8,                                &
+         DIMS       = MAPL_DimsHorzVert,                           &
+         VLOCATION  = MAPL_VLocationEdge,             RC=STATUS  )
+     VERIFY_(STATUS)
+
     call MAPL_AddImportSpec(GC,                                  &
        SHORT_NAME         = 'TRACERS',                           &
        LONG_NAME          = 'advected_quantities',               &
@@ -217,6 +235,22 @@ contains
           UNITS      = 'm+2'  ,                                     &
           DIMS       = MAPL_DimsHorzOnly,                           &
           VLOCATION  = MAPL_VLocationNone,               RC=STATUS  )
+     VERIFY_(STATUS)
+
+     call MAPL_AddExportSpec ( gc,                                  &
+          SHORT_NAME = 'PLE',                                       &
+          LONG_NAME  = 'pressure_at_layer_edges',                   &
+          UNITS      = 'Pa'   ,                                     &
+          DIMS       = MAPL_DimsHorzVert,                           &
+          VLOCATION  = MAPL_VLocationEdge,               RC=STATUS  )
+     VERIFY_(STATUS)
+
+     call MAPL_AddExportSpec ( gc,                                  &
+          SHORT_NAME = 'DryPLE',                                    &
+          LONG_NAME  = 'dry_pressure_at_layer_edges',               &
+          UNITS      = 'Pa'   ,                                     &
+          DIMS       = MAPL_DimsHorzVert,                           &
+          VLOCATION  = MAPL_VLocationEdge,               RC=STATUS  )
      VERIFY_(STATUS)
 
 ! 3D Tracers
@@ -484,6 +518,12 @@ contains
       REAL(REAL8), POINTER, DIMENSION(:,:,:)   :: MFY
       REAL(REAL8), POINTER, DIMENSION(:,:,:)   :: PLE0
       REAL(REAL8), POINTER, DIMENSION(:,:,:)   :: PLE1
+      REAL(REAL8), POINTER, DIMENSION(:,:,:)   :: DryPLE0
+      REAL(REAL8), POINTER, DIMENSION(:,:,:)   :: DryPLE1
+
+! Exports
+      REAL,        POINTER, DIMENSION(:,:,:)   :: PLE
+      REAL,        POINTER, DIMENSION(:,:,:)   :: DryPLE
 
 ! Locals
       REAL(REAL8), POINTER, DIMENSION(:)       :: AK
@@ -503,6 +543,7 @@ contains
       real(REAL8),        pointer     :: tracer_r8 (:,:,:)
       character(len=ESMF_MAXSTR)    :: fieldName
       type(ESMF_TypeKind_Flag)      :: kind
+      real(REAL8) :: VMR0_Sfc,VMR1_Sfc
 
 ! Get my name and set-up traceback handle
 ! ---------------------------------------
@@ -534,17 +575,21 @@ contains
       VERIFY_(STATUS)
       call set_eta(LM,LS,PTOP,PINT,AK,BK)
 
-      CALL MAPL_GetPointer(IMPORT, PLE0, 'PLE0', ALLOC = .TRUE., RC=STATUS)
+      CALL MAPL_GetPointer(IMPORT, PLE0,       'PLE0', ALLOC = .TRUE., RC=STATUS)
       VERIFY_(STATUS)
-      CALL MAPL_GetPointer(IMPORT, PLE1, 'PLE1', ALLOC = .TRUE., RC=STATUS)
+      CALL MAPL_GetPointer(IMPORT, PLE1,       'PLE1', ALLOC = .TRUE., RC=STATUS)
       VERIFY_(STATUS)
-      CALL MAPL_GetPointer(IMPORT, MFX,   'MFX', ALLOC = .TRUE., RC=STATUS)
+      CALL MAPL_GetPointer(IMPORT, DryPLE0, 'DryPLE0', ALLOC = .TRUE., RC=STATUS)
       VERIFY_(STATUS)
-      CALL MAPL_GetPointer(IMPORT, MFY,   'MFY', ALLOC = .TRUE., RC=STATUS)
+      CALL MAPL_GetPointer(IMPORT, DryPLE1, 'DryPLE1', ALLOC = .TRUE., RC=STATUS)
       VERIFY_(STATUS)
-      CALL MAPL_GetPointer(IMPORT, CX,     'CX', ALLOC = .TRUE., RC=STATUS)
+      CALL MAPL_GetPointer(IMPORT, MFX,         'MFX', ALLOC = .TRUE., RC=STATUS)
       VERIFY_(STATUS)
-      CALL MAPL_GetPointer(IMPORT, CY,     'CY', ALLOC = .TRUE., RC=STATUS)
+      CALL MAPL_GetPointer(IMPORT, MFY,         'MFY', ALLOC = .TRUE., RC=STATUS)
+      VERIFY_(STATUS)
+      CALL MAPL_GetPointer(IMPORT, CX,           'CX', ALLOC = .TRUE., RC=STATUS)
+      VERIFY_(STATUS)
+      CALL MAPL_GetPointer(IMPORT, CY,           'CY', ALLOC = .TRUE., RC=STATUS)
       VERIFY_(STATUS)
 
       ! The quantities to be advected come as friendlies in a bundle
@@ -591,12 +636,12 @@ contains
          if (chk_mass) then
         ! Check Mass conservation
             if (firstRun .and. AdvCore_Advection>0) then
-               MASS0 = globalsum(PLE0(:,:,LM), npx, npy, is,ie, js,je)
-               call global_integral(TMASS0, TRACERS, PLE0, IM,JM,LM,NQ)
+               MASS0 = globalsum(DryPLE0(:,:,LM), npx, npy, is,ie, js,je)
+               call global_integral(TMASS0, TRACERS, DryPLE0, IM,JM,LM,NQ)
                if (MASS0 /= 0.0) TMASS0=TMASS0/MASS0
             elseif (firstRun) then
-               MASS0 = globalsum(PLE1(:,:,LM), npx, npy, is,ie, js,je)
-               call global_integral(TMASS0, TRACERS, PLE1, IM,JM,LM,NQ)
+               MASS0 = globalsum(DryPLE1(:,:,LM), npx, npy, is,ie, js,je)
+               call global_integral(TMASS0, TRACERS, DryPLE1, IM,JM,LM,NQ)
                if (MASS0 /= 0.0) TMASS0=TMASS0/MASS0
             endif
          endif
@@ -606,15 +651,15 @@ contains
          !------------------
          if (AdvCore_Advection>0) then
          call WRITE_PARALLEL("offline_tracer_advection")
-         call offline_tracer_advection(TRACERS, PLE0, PLE1, MFX, MFY, CX, CY, AK, BK, PTOP, npx, npy, npz,   &
+         call offline_tracer_advection(TRACERS, DryPLE0, DryPLE1, MFX, MFY, CX, CY, AK, BK, PTOP, npx, npy, npz,   &
                                        NQ, hord_tr, kord_tr, q_split, dt, z_tracer, fill)
          endif
 
          ! Update tracer mass conservation
          !-------------------------------------------------------------------------
          if (chk_mass) then 
-            MASS1 = globalsum(PLE1(:,:,LM), npx, npy, is,ie, js,je)
-            call global_integral(TMASS1, TRACERS, PLE1, IM,JM,LM,NQ)
+            MASS1 = globalsum(DryPLE1(:,:,LM), npx, npy, is,ie, js,je)
+            call global_integral(TMASS1, TRACERS, DryPLE1, IM,JM,LM,NQ)
             if (MASS1 /= 0.0) TMASS1=TMASS1/MASS1
          endif
 
@@ -665,6 +710,17 @@ contains
          VERIFY_(STATUS)
 
       end if ! NQ > 0
+
+      ! Update the dry and wet pressure edge arrays
+      call MAPL_GetPointer ( EXPORT, DryPLE, 'DryPLE', RC=STATUS )
+      VERIFY_(STATUS)
+      DryPLE(:,:,:) = real(DryPLE1(:,:,:),4)
+      Nullify(DryPLE)
+
+      call MAPL_GetPointer ( EXPORT, PLE, 'PLE', RC=STATUS )
+      VERIFY_(STATUS)
+      PLE(:,:,:) = real(PLE1(:,:,:),4)
+      Nullify(PLE)
 
       deallocate( advTracers, stat=STATUS )
       VERIFY_(STATUS)
@@ -736,12 +792,12 @@ contains
 
 subroutine global_integral (QG,Q,PLE,IM,JM,KM,NQ)
 
-      real(REAL8), intent(OUT)   :: QG(NQ)
+      real(REAL8), intent(OUT)   :: QG(ntracers)
       real(REAL8), intent(IN)    :: Q(IM,JM,KM,NQ)
       real(REAL8), intent(IN)    :: PLE(IM,JM,KM+1)
       integer,     intent(IN)    :: IM,JM,KM,NQ
 ! Locals
-      integer   :: k,n
+      integer   :: k,n,nmin
       real(REAL8), allocatable ::    dp(:,:,:)
       real(REAL8), allocatable :: qsum1(:,:)
 
@@ -756,7 +812,8 @@ subroutine global_integral (QG,Q,PLE,IM,JM,KM,NQ)
 
 ! Loop over Tracers
 ! -----------------
-     do n=1,NQ
+     nmin = min(ntracers,NQ)
+     do n=1,nmin
         qsum1(:,:) = 0.d0
         do k=1,KM
            qsum1(:,:) = qsum1(:,:) + Q(:,:,k,n)*dp(:,:,k)

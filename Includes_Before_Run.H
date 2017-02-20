@@ -56,16 +56,21 @@
   State_Met%FROCEAN             = FROCEAN                    ! 1
   State_Met%FRLAKE              = FRLAKE                     ! 1
   State_Met%FRLANDIC            = FRLANDIC                   ! 1
+  State_Met%PHIS                = PHIS / 9.80665d0           ! m
   State_Met%GWETTOP             = GWETTOP                    ! 1
   State_Met%LAI                 = LAI                        ! 1  
   State_Met%LWI                 = LWI                        ! 1
   State_Met%PARDR               = PARDR                      ! W/m2
   State_Met%PARDF               = PARDF                      ! W/m2
   State_Met%PBLH                = PBLH                       ! m
+  State_Met%PRECANV             = PRECANV  * 86400d0         ! kg/m2/s -> mm/day
   State_Met%PRECCON             = PRECCON  * 86400d0         ! kg/m2/s -> mm/day
+  State_Met%PRECLSC             = PRECLSC  * 86400d0         ! kg/m2/s -> mm/day
   State_Met%PRECTOT             = PRECTOT  * 86400d0         ! kg/m2/s -> mm/day
   State_Met%TROPP               = TROPP                      ! hPa
   State_Met%PS1_WET             = PS1                        ! hPa
+  State_Met%PS2_WET             = PS2                        ! hPa
+  State_Met%SLP                 = SLP                        ! hPa
   State_Met%TS                  = TS                         ! K
   State_Met%TSKIN               = TSKIN                      ! K
 #if defined ( GEOS_FP ) || defined ( MERRA2 )
@@ -108,8 +113,29 @@
   State_Met%PFLCU  (:,:,1:LM+1) = PFLCU  (:,:,0:LM   )       ! kg/m2/s
   State_Met%PFLLSAN(:,:,1:LM+1) = PFLLSAN(:,:,0:LM   )       ! kg/m2/s 
 
-  ! NOTE: PLE is reversed in the vertical!
+  ! NOTE: PLE is reversed in the vertical! Note that this will end up
+  ! affecting DELP and therefore State_Met%PEDGE_DRY, but that the 
+  ! major dry pressure variables are derived from PS1_DRY and PS2_DRY.
+  ! Thes will, in turn, be determined from PS1_WET and PS2_WET, which 
+  ! are set in the block above.
   State_Met%PEDGE  (:,:,1:LM+1) = PLE    (:,:,LM:0:-1) / 1d2 ! Pa -> hPa
+
+  ! These will be set based on PS1_WET and PS2_WET in gigc_chunk_mod.F90
+  State_Met%PS1_DRY(:,:) = 0.0d0 
+  State_Met%PS2_DRY(:,:) = 0.0d0
+
+  ! Calculate CLDTOPS (highest location of CMFMC in the column)
+  Do J=1,JM
+  Do I=1,IM
+     State_Met%CldTops(I,J) = 1
+     Do L = LM, 1, -1
+        If ( State_Met%CMFMC(I,J,L) > 0d0 ) Then
+           State_Met%CldTops(I,J) = L + 1
+           Exit
+        End If
+     End Do
+  End Do
+  End Do
  
   !=========================================================================
   ! Three-dimensional fields on level centers
@@ -121,12 +147,17 @@
   State_Met%QI                  = QI                         ! kg/kg
   State_Met%QL                  = QL                         ! kg/kg
   State_Met%RH                  = RH      * 1d2              ! 1 -> %
-  State_Met%SPHU                = SPHU1   * 1d3              ! kg/kg -> g/kg
-  State_Met%T                   = TMPU1                      ! K
   State_Met%TAUCLI              = TAUCLI                     ! 1
   State_Met%TAUCLW              = TAUCLW                     ! 1
   State_Met%REEVAPCN            = REEVAPCN                   ! kg/kg/s
   State_Met%REEVAPLS            = REEVAPLS                   ! kg/kg/s
+
+  ! These fields are set to match the GCC conventions and to ensure that 
+  ! transport is correctly implemented.
+  State_Met%SPHU                =(SPHU1+SPHU2)*0.5d3         ! kg/kg -> g/kg
+  State_Met%SPHU1               = SPHU1       *1.0d3         ! kg/kg -> g/kg
+  State_Met%SPHU2               = SPHU2       *1.0d3         ! kg/kg -> g/kg
+  State_Met%T                   =(TMPU1+TMPU2)*0.5d0         ! K
 
   ! Create total optical depth field                         ! 1
   State_Met%OPTD                = ( State_Met%TAUCLI    &
@@ -202,16 +233,16 @@
         IF ( IND < 0 ) CYCLE
 
         ! Get data from internal state and copy to species array. 
-        CALL MAPL_GetPointer( INTERNAL, Ptr3D, 'SPC_'//TRIM(ThisSpc%Name), &
+        CALL MAPL_GetPointer( INTERNAL, Ptr3D_R8, 'SPC_'//TRIM(ThisSpc%Name), &
                               notFoundOK=.TRUE., __RC__ )
-        IF ( .NOT. ASSOCIATED(Ptr3D) ) THEN
+        IF ( .NOT. ASSOCIATED(Ptr3D_R8) ) THEN
            IF ( MAPL_am_I_Root()) WRITE(*,*) &
               'Could not find species in INTERNAL state - will be initialized to zero: ', &
               TRIM(SPFX), TRIM(ThisSpc%Name)
-           State_Chm%Species(:,:,:,IND) = 1e-26
+           State_Chm%Species(:,:,:,IND) = 1d-26
            CYCLE
         ENDIF
-        State_Chm%Species(:,:,:,IND) = Ptr3D(:,:,LM:1:-1)
+        State_Chm%Species(:,:,:,IND) = Ptr3D_R8(:,:,LM:1:-1)
 
         ! testing only
         if ( MAPL_am_I_Root()) write(*,*) &

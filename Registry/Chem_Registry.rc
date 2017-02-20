@@ -52,6 +52,7 @@
   PARDR              |     1	   | xy  |   |    |   |   |	|      | 
   PBLH               |     1	   | xy  |   |    |   |   |	|      | 
   PLE                |     1       | xyz | E |    |   |   |     |      |
+  DryPLE             |     1       | xyz | E |    |   |   |     |      |
   PRECANV            |     1	   | xy  |   |    |   |   |	|      | 
   PRECCON            |     1	   | xy  |   |    |   |   |	|      | 
   PRECLSC            |     1	   | xy  |   |    |   |   |	|      | 
@@ -79,7 +80,7 @@
   V10M               |     1	   | xy  |   |    |   |   |	|      | 
   Z0                 |     1	   | xy  |   |    |   |   |	|      | 
   PS1                |     1	   | xy  | E |    |   |   |	|      | 
-  PS2                |     1	   | xy  |   |    |   |   |	|      | 
+  PS2                |     1	   | xy  | E |    |   |   |	|      | 
   OPTDEP             |     1	   | xyz | C |    |   |   |	|      | 
   CLDF               |     1	   | xyz | C |    |   |   |	|      | 
   QI                 |     1	   | xyz | C |    |   |   |	|      | 

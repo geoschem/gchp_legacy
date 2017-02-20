@@ -434,6 +434,9 @@ CONTAINS
     ! First call?
     LOGICAL, SAVE                  :: FIRST = .TRUE.
 
+    ! Update?
+    LOGICAL                        :: pUpdate
+
     ! # of times this routine has been called. Only temporary for printing 
     ! processes on the first 10 calls.
     INTEGER, SAVE                  :: NCALLS = 0
@@ -584,22 +587,23 @@ CONTAINS
                                     RC             = RC         )
 
     ! Set dry surface pressure (PS1_DRY) from State_Met%PS1_WET
-    ! and compute avg surface pressures near polar caps
     CALL SET_DRY_SURFACE_PRESSURE( State_Met, 1 )
 
     ! Set dry surface pressure (PS2_DRY) from State_Met%PS2_WET
-    ! and average as polar caps
     CALL SET_DRY_SURFACE_PRESSURE( State_Met, 2 )
 
-    ! Initialize surface pressures prior to interpolation
-    ! to allow initialization of floating pressures
-    State_Met%PSC2_WET = State_Met%PS1_WET
-    State_Met%PSC2_DRY = State_Met%PS1_DRY
+    ! Initialize surface pressures to match the post-advection pressures
+    State_Met%PSC2_WET = State_Met%PS2_WET
+    State_Met%PSC2_DRY = State_Met%PS2_DRY
     CALL SET_FLOATING_PRESSURES( am_I_Root, State_Met, RC )
     IF ( RC /= GC_SUCCESS ) RETURN
 
     ! Define airmass and related quantities
-    CALL AirQnt( am_I_Root, Input_opt, State_Met, State_Chm, RC, (.not.FIRST) )
+    ! If transport is ON, this module should be "insensitive" to changes in
+    ! pressure. If transport is OFF, we should perform this update - but only
+    ! after the first timestep (consistency with GCC)
+    pUpdate = ((.not.FIRST).and.(.not.Input_Opt%LTRAN))
+    CALL AirQnt( am_I_Root, Input_opt, State_Met, State_Chm, RC, pUpdate )
 
     ! Save the initial tracer concentrations in the MINIT variable of
     ! GeosCore/strat_chem_mod.F90.  This has to be done here, after the
