@@ -2662,7 +2662,10 @@ CONTAINS
      RExtrap = (cLimTime >  tSeries(cfio%tSteps))
      found = .false.
      call ESMF_TimeGet(climTime,yy=iyr,mm=imm,dd=idd,h=ihr,m=imn,s=isc,__RC__)
-     If (LExtrap.or.(LExact.and.RSide)) Then
+     If (Mapl_Am_I_Root().and.(Ext_Debug > 19)) Then
+        Write(*,'(a,4(L1,x),a,a)') ' DEBUG: Extrapolation flags (0) are ',LExact,RExact,LExtrap,RExtrap,'for file ', trim(cfio%fName)
+     End If
+     If (LExtrap) Then
         If (Mapl_Am_I_Root().and.(Ext_Debug > 19)) Then
            Write(6,'(a,a)') ' DEBUG: Requested time is before first available sample in file ', trim(cfio%fName)
         End If
@@ -2675,13 +2678,20 @@ CONTAINS
               LExtrap = (cLimTime <  tSeries(1))
            Else
               LExtrap = (cLimTime <= tSeries(1))
+              ! When scanning for the right side, if we find that we
+              ! have an exact match to the first entry, then as long
+              ! as there is a second entry, we have the correct offset
+              If (cfio%tSteps > 1) Then
+                 LExact  = (cLimTime == tSeries(1))
+                 LExtrap = (.not.LExact)
+              End If
            End If
         End Do
      Else If (RExtrap.or.(RExact.and.RSide)) Then
         If (Mapl_Am_I_Root().and.(Ext_Debug > 19)) Then
            Write(6,'(a,a)') ' DEBUG: Requested time is after or on last available sample in file ', trim(cfio%fName)
         End If
-        Do While (RExtrap)
+        Do While (RExtrap.or.(RExact.and.RSide))
            yrOffset = yrOffset - 1
            iYr = targYear + yrOffset
            call OffsetTimeYear(cTime,yrOffset,cLimTime,rc)
@@ -2689,6 +2699,7 @@ CONTAINS
               RExtrap = (cLimTime >  tSeries(cfio%tSteps))
            Else
               RExtrap = (cLimTime >= tSeries(cfio%tSteps))
+              RExact  = (cLimTime == tSeries(cfio%tSteps))
            End If
         End Do
      End If
@@ -2696,6 +2707,9 @@ CONTAINS
      ! Retest for an exact match - note this is only useful if we want bracket L
      LExact  =  (cLimTime == tSeries(1))
      RExact  =  (cLimTime == tSeries(cfio%tSteps))
+     If (Mapl_Am_I_Root().and.(Ext_Debug > 19)) Then
+        Write(*,'(a,4(L1,x),a,a)') ' DEBUG: Extrapolation flags (2) are ',LExact,RExact,LExtrap,RExtrap,'for file ', trim(cfio%fName)
+     End If
      If (LSide.and.LExact) Then
         found = .true.
         iEntry = 1
