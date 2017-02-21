@@ -2681,9 +2681,9 @@ CONTAINS
               ! When scanning for the right side, if we find that we
               ! have an exact match to the first entry, then as long
               ! as there is a second entry, we have the correct offset
-              If (cfio%tSteps > 1) Then
+              If (LExtrap.and.(cfio%tSteps > 1)) Then
                  LExact  = (cLimTime == tSeries(1))
-                 LExtrap = (.not.LExact)
+                 LExtrap = (LExtrap.and.(.not.LExact))
               End If
            End If
         End Do
