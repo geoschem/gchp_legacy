@@ -50,6 +50,7 @@
          type(ESMF_CFIOVarInfo), pointer :: varObjs(:)=>null() ! CFIO variable objects
          integer :: mGrids                    ! total number of grids
          type(ESMF_CFIOGrid), pointer :: grids(:)=>null()     ! CFIO variable grid
+         integer :: vdir                      ! The positive vertical direction
          integer :: date                      ! yyyymmdd
          integer :: begTime                   ! hhmmss
          integer :: timeInc                   ! time step increment

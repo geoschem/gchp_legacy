@@ -393,6 +393,7 @@
       integer :: loc1, loc2
       integer :: akid, bkid, ptopid
       integer :: icount
+      integer :: vdir
       real*4, pointer :: ak(:), bk(:)
       real*4 :: ptop
       real*4 :: ptop_array(1)
@@ -439,12 +440,14 @@
 !     get grid information and global meta data
                                                                                           
       call CFIO_DimInquire (cfio%fid, im, jm, km, lm, &
-                            cfio%mVars, ngatts, rtcode)
+                            cfio%mVars, ngatts, vdir, rtcode)
       if (err("CFIO_DimInquire failed",rtcode,rtcode) .lt. 0) then  
          if ( present(rc) ) rc = rtcode
          return
       end if
       cfio%tSteps = lm
+      ! Establish file directionality (SDE 2017-02-27)
+      cfio%vDir = vdir
 
       rtcode = NF90_INQUIRE (cfio%fid,nDims,allVars,ngatts,recdim)
       if (err("FileOpen: NF90_INQUIRE failed",rtcode,-48) .NE. 0) then  

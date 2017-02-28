@@ -180,6 +180,7 @@ module MAPL_CFIOMod
                         pointer :: VarName(:)=>null()
      integer, pointer           :: Krank(:)=>null()
      real,    pointer           :: levs(:)=>null()
+     integer                    :: vdir=-1
      type(MAPL_CommRequest), &
                         pointer :: reqs(:)=>null()
      type(MAPL_HorzTransform)   :: Trans
@@ -1505,7 +1506,7 @@ contains
                                         XYOFFSET, VCOORD, VUNIT, VSCALE,   &
                                         SOURCE, INSTITUTION, COMMENT, CONTACT, &
                                         FORMAT, EXPID, DEFLATE, GC,  ORDER, &
-                                        NumCores, nbits, TM, Conservative,  RC )
+                                        NumCores, nbits, TM, Conservative, RC )
 
 !
 ! !ARGUMENTS:
@@ -2810,12 +2811,12 @@ contains
     integer                 :: nn, CoresPerNode, myPet, nPet, numNodes
     logical :: selectedLevels
     real, pointer :: levsfile(:) => null()
-    integer :: LM_FILE
+    integer :: LM_FILE, LM_IN, LM_OUT
     integer :: LL,klev
     integer, allocatable :: LEVIDX(:)
     type(ESMF_CFIOGrid)  :: varsGrid
     real, parameter      :: eps = 1.0e-4 ! tolerance to find "selected" levels
-    logical :: kreverse
+    logical :: kreverse, krevfile,kread
     integer :: i1w,inw,j1w,jnw
     integer :: xy
     ! For CFIO register management
@@ -2869,8 +2870,19 @@ contains
     else
        selectedLevels = .false.
     end if
-    ! by default kreverse is false
+    ! Two possible reasons to reverse the level order:
+    !   1. The file's level numbering is DECREASING. If this is the case, the
+    !      file is assumed to be vertically reversed relative to the model grid.
+    !      This is flagged using "kreverse=.true." and is tested by seeing if
+    !      levsfile(lm) < levsfile(1).
+    !   2. The "lev" variable in the file had the attribute "positive" set to
+    !      "up". This signals that the file considers level 1 to be the surface,
+    !      and subsequent levels constitute increases in altitude. This is the
+    !      reverse of the meaning assumed by the model. This is flagged using
+    !      "krevfile=.true.".
+    ! Default to assuming both are false
     kreverse = .false.
+    krevfile = .false.
 
 ! Create a CFIO object named after the bundle
 !--------------------------------------------
@@ -2989,6 +3001,11 @@ contains
        ASSERT_(LM <= LM_FILE)
     end if
 
+    ! This is the number of levels which are actually present in the file
+    LM_IN = LM
+    ! Assume for now that the file matches the output
+    LM_OUT = LM_IN
+
     call ESMF_CFIOGridGet    (CFIOGRID, LON=LONSFILE, LAT=LATSFILE, RC=STATUS)
     VERIFY_(STATUS)
     deallocate(CFIOGRID)
@@ -3011,6 +3028,10 @@ contains
        VERIFY_(STATUS)
 
        ! Assert compatibility of file and bundle
+       ! SDE 2017-02-26: This needs to be updated
+       ! to allow for the possibility of a subrange,
+       ! as has already been implemented for the
+       ! NUMVARS != 0 case
        !----------------------------------------
        ASSERT_( LM==0 .or. counts(3) == 0 .or. LM==counts(3) .or. LM==(counts(3)+1) )
 
@@ -3077,7 +3098,10 @@ contains
           else
             ! 3-d case
              call ESMF_CFIOGridGet (varsGrid, lev=levsfile, rc=status)
-             VERIFY_(STATUS) 
+             VERIFY_(STATUS)
+             ! File may be defined with a different "positive" sense to the
+             ! model. If so, reverse the levels
+             krevfile = (CFIO%vDir>0)
              if (levsfile(1) > levsfile(lm)) kreverse = .true.
 
              if (selectedLevels) then
@@ -3151,14 +3175,21 @@ contains
           VERIFY_(STATUS)
           ! Assert compatibility of file and bundle
           !----------------------------------------
-          If (.not.(LM==0.or.counts(3)==0.or.LM==counts(3).or.LM==(counts(3)+1))) Then
-             !ASSERT_( LM==0 .or. counts(3) == 0 .or. LM==counts(3) .or. lm == (counts(3)+1) )
-             If (IamRoot) Then
-                Write(*,'(a,a,a,2(I0.4,a),I0.4)') 'Error while reading ', &
-                   Trim(BundleVarName), '. Expected either 1, ', Counts(3), &
-                   ' or ',Counts(3)+1,' levels, but found ', LM
+          If (.not.(LM_IN==0.or.counts(3)==0.or.LM_IN==counts(3).or.LM_IN==(counts(3)+1))) Then
+             !ASSERT_( LM_IN==0 .or. counts(3) == 0 .or. LM_IN==counts(3) .or. LM_IN == (counts(3)+1) )
+             If ((LM_IN.lt.0).or.(LM_IN.gt.(counts(3)+1))) Then
+                If (IamRoot) Then
+                   Write(*,'(a,a,a,2(I0.4,a),I0.4)') 'Error while reading ', &
+                      Trim(BundleVarName), '. Expected either 1, ', Counts(3), &
+                      ' or ',Counts(3)+1,' levels (or a subrange), but found ', LM_IN
+                End If
+                ASSERT_(.False.)
+             Else
+                ! Assume a (centered) sub-range from the surface. LM_IN is
+                ! already set, but we want LM_OUT to match what the bundle
+                ! expects
+                LM_OUT = counts(3)
              End If
-             ASSERT_(.False.)
           End If
 
           ! Get lat/lons of input bundle
@@ -3184,17 +3215,18 @@ contains
           VERIFY_(STATUS)
           if (.not. twoD) then
              call ESMF_CFIOGridGet (varsGrid, lev=levsfile, rc=status)
-             VERIFY_(STATUS) 
+             VERIFY_(STATUS)
+             krevfile = (CFIO%vDir>0)
              if (levsfile(1) > levsfile(lm)) kreverse = .true.
           end if
           if (selectedLevels) then
              if (.not. twoD) then
                 ! 3-d case
                 if (.not. allocated(levidx)) then
-                   allocate(levidx(LM), stat=status)
+                   allocate(levidx(LM_OUT), stat=status)
                    VERIFY_(STATUS) 
                    ! build level index
-                   DO K = 1, LM
+                   DO K = 1, LM_OUT
                       found = .false.
                       DO LL = 1, LM_FILE
                          if (abs(LEVSFILE(LL) - ONLY_LEVS(K)) < eps) then
@@ -3212,6 +3244,11 @@ contains
           if (.not. twoD) deallocate(levsfile)
        end do
     end if
+
+    !If (IamRoot) Then
+    !   Write(*,'(3a,2(I3,a),2L1)') 'Bundle ',Trim(FileName),' has ', Max(LM_IN,1), ' of ',&
+    !      Max(LM_OUT,1), ' levels. Reversal flags: ', kreverse, krevfile
+    !End If
 
     if(present(NOREAD)) then
        if(NOREAD) goto 10
@@ -3366,8 +3403,8 @@ contains
        VERIFY_(STATUS)
        allocate(Gptr3bundle(0,0,0), stat=STATUS)
        VERIFY_(STATUS)
-       if (LM > 0) then
-          allocate(krank(LM),stat=status)
+       if (LM_OUT > 0) then
+          allocate(krank(LM_OUT),stat=status)
        else
           allocate(krank(1) ,stat=status)
        end if
@@ -3380,14 +3417,14 @@ contains
 
        CoresPerNode = MAPL_CoresPerNodeGet(comm,rc=status)
        VERIFY_(STATUS)
-       if (LM > 0) then
-          allocate(krank(LM),stat=status)
+       if (LM_OUT > 0) then
+          allocate(krank(LM_OUT),stat=status)
        else
           allocate(krank(1) ,stat=status)
        end if
 
        VERIFY_(STATUS)
-       if (runParallel .and. (LM > 0) ) then
+       if (runParallel .and. (LM_OUT > 0) ) then
           numNodes = size(MAPL_NodeRankList)
           call MAPL_RoundRobinPEList(krank,numNodes,rc=status)
           VERIFY_(STATUS)
@@ -3530,7 +3567,12 @@ contains
 
           nn=0
 
-          do k = 1, LM
+          !!=====SDE DEBUG=====
+          !If (IamRoot) Write(*,'(a,2L1,2(x,I3))') 'Reversals: ',&
+          !   krevfile,kreverse,lm_in,lm_out
+          !!=====SDE DEBUG=====
+
+          do k = 1, LM_OUT
 
              MyGlobal = Krank(k) == myPet
 
@@ -3544,15 +3586,77 @@ contains
                 else
                    klev = k
                 end if
-                if (kreverse) klev = lm - k + 1
-                if ( timeInterp ) then
-                   call ESMF_CFIOVarReadT(CFIO, trim(BundleVARNAME), GPTR3file, &
-                        kbeg=klev, kount=1, timeString=DATE, RC=STATUS)
-                else
-                   call ESMF_CFIOVarRead (CFIO, trim(BundleVARNAME), GPTR3file, &
-                        kbeg=klev, kount=1, timeString=DATE, RC=STATUS)
+                ! Two possible flags:
+                !    kreverse: INTERNAL REVERSAL. The file's internal leveling
+                !    is flipped. This means that the file should be read from
+                !    the last entry to the first entry. However, the level
+                !    labeled as "1" is still expected to be at TOA.
+                !    krevfile: EXTERNAL REVERSAL. The level labeled "1" in the
+                !    file is intended to be applied at the surface, instead of
+                !    at the TOA. However, the first level read in is still
+                !    expected to be the "first" level.
+                ! If the file covers the full range (i.e. has the same number of
+                ! vertical levels as the output grid), these two are equivalent
+                ! and can cancel out. However, if the file does not cover the
+                ! full range, they have different effects. In this case:
+                !    Both false: Data is read in from: 1 -> LM_IN
+                !                  Data is applied to: 1 -> LM_IN (TOA down)
+                !    kreverse  : Data is read in from: LM_IN -> 1
+                !                  Data is applied to: 1 -> LM_IN (TOA down)
+                !    krevfile  : Data is read in from: 1 -> LM_IN
+                !                  Data is applied to: LM_OUT -> LM_OUT + 1 - LM_IN
+                !    Both true : Data is read in from: LM_IN -> 1
+                !                  Data is applied to: LM_OUT -> LM_OUT + 1 - LM_IN
+                ! Therefore kreverse affects the order in which the data is read
+                ! in, while krevfile affects the level to which it is applied.
+                ! We can't actually control the latter, so instead we just wait
+                ! until we are at the point we want. Start by making a safe
+                ! assumption (i.e. don't read unless we are sure we want to).
+                ! ======================== AMENDMENT ========================
+                ! OLD CODE:
+                !klev = k
+                !if (krevfile.neqv.kreverse) then
+                !   ! Set klev based on the distance from the TOA
+                !   klev = lm_out + 1 - k
+                !end if
+                !! Are we within range?
+                !kRead = (klev.le.lm_in)
+                !! Read in data to the file ceiling
+                !If (kRead) Then
+                !   ! Do we read file in reverse order?
+                !   if (kreverse) then
+                !      klev = lm_in - klev + 1
+                !   end if
+                ! SDE 2017-02-27: This behavior is strictly correct, but as a
+                ! temporary kludge we will assume that any indication of
+                ! reversal is a suggestion to treat the file as being oriented
+                ! with level 1 = surface. This will cause problems if we ever
+                ! want to use a file with a limited range which is oriented with
+                ! TOA = 1 (e.g. cosmic ray interactions); at that point, the
+                ! above code should be put in place and a thorough debug of the
+                ! code to identify vDir and kreverse should be performed.
+                kRead = .False.
+                klev = k
+                if (krevfile.or.kreverse) then
+                   ! Set klev based on the distance from the TOA
+                   klev = lm_out + 1 - k
                 end if
-                VERIFY_(STATUS)
+                ! Are we within range?
+                kRead = (klev.le.lm_in)
+                ! Read in data to the file ceiling
+                If (kRead) Then
+                   if ( timeInterp ) then
+                      call ESMF_CFIOVarReadT(CFIO, trim(BundleVARNAME), GPTR3file, &
+                           kbeg=klev, kount=1, timeString=DATE, RC=STATUS)
+                   else
+                      call ESMF_CFIOVarRead (CFIO, trim(BundleVARNAME), GPTR3file, &
+                           kbeg=klev, kount=1, timeString=DATE, RC=STATUS)
+                   end if
+                   VERIFY_(STATUS)
+                Else
+                   ! Assume zero elsewhere
+                   GPTR3file(:,:,:) = 0.0
+                End If
                 GPTR2file = GPTR3file(:,:,1)
                 if ( do_xshift ) then
                    call shift180Lon2D_ ( Gptr2file, im, jm )

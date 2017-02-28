@@ -430,7 +430,7 @@
 
 ! !INTERFACE:
 !
-      subroutine CFIO_DimInquire (fid,im,jm,km,lm,nvars,ngatts,rc)
+      subroutine CFIO_DimInquire (fid,im,jm,km,lm,nvars,ngatts,vdir,rc)
 !
 ! !USES:
 !
@@ -449,6 +449,10 @@
       integer     lm     ! Number of times 
       integer     nvars  ! Number of variables
       integer     ngatts ! Number of global attributes
+      integer     vdir   ! Positive vertical direction. If "-1", level 1 in
+                         !   the file is TOA. If "1", level 1 in the file is
+                         !   the surface. If 0, the file has no vertical
+                         !   co-ordinate (default).
       integer     rc     ! Error return code:
 
                          !  rc = 0    all is well
@@ -483,6 +487,7 @@
       character*(MAXCHR) dimName
       character*(MAXCHR) stdName
       character*(MAXCHR) dimUnits
+      character*(MAXCHR) posStr
       character*(MAXCHR) vname
       integer dimSize
       integer nDims
@@ -496,6 +501,7 @@
 
       surfaceOnly = .FALSE.
       stationFile = .false.
+      vdir        = -1 ! Assume 3D and same orientation
 
 ! Check FID here.
 
@@ -554,6 +560,23 @@
           jm = dimSize
         else if ( myIndex .EQ. 2 ) then
           km = dimSize
+          if (km.eq.1) then
+             ! 2D
+             vdir = 0
+          else
+             ! SDE 2017-02-27: Try to read "positive" attribute. If it's not
+             ! found, do not overwrite the current value
+             rc = NF90_GET_ATT(fid,dimId,'positive',posStr)
+             if (rc.eq.0) then
+                if ((Trim(posStr)=="up").or.(Trim(posStr)=="Up")) then
+                   ! Level 1 = surface
+                   vdir = 1
+                elseif ((Trim(posStr)=="down").or.(Trim(posStr)=="Down")) then
+                   ! Level 1 = TOA
+                   vdir = -1
+                endif
+             endif
+          endif
         else if ( myIndex .EQ. 3 ) then
           lm = dimSize
 !print *, "dimUnits: ", trim(dimUnits)
@@ -573,6 +596,7 @@
 
       if (surfaceOnly) then
         km = 0
+        vdir = 0
       endif
 
       rc=0

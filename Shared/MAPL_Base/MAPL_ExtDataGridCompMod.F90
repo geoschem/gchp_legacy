@@ -3236,6 +3236,8 @@ CONTAINS
      real, pointer :: v1in_2d(:,:) => null()
      real, pointer :: v2in_2d(:,:) => null()
 
+     integer           :: vdir
+
      integer           :: gridStagger1,gridStagger2
      integer           :: gridRotation1,gridRotation2
      logical           :: doRotation
@@ -3248,8 +3250,9 @@ CONTAINS
      ! query the file to get the size of the lat-lon grid on the file
      call CFIO_Open(file,1,fid,status)
      VERIFY_(STATUS)
-     call CFIO_DimInquire(fid,im_world,jm_world,lmIn,nt,nvars,natts,status)
+     call CFIO_DimInquire(fid,im_world,jm_world,lmIn,nt,nvars,natts,vdir,status)
      VERIFY_(STATUS)
+     ASSERT_(vdir==-1)
      call CFIO_Close(fid,status)
      VERIFY_(STATUS)
 

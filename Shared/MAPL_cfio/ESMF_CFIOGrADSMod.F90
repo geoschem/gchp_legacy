@@ -582,6 +582,12 @@
          call CFIO_rGrADS_inquire(cfio%gr, nlev=km, var=varName, udef=amiss, stat=rtcode)
          if (rtcode .ne. 0) print *, "Error form CFIO calling GrADS_inquire."
          if (km .le. 1) twoD = .true.
+         ! Assume file is oriented the same as the grid (unless 2D)
+         if (km .gt. 1) then
+            cfio%vDir = -1
+         else
+            cfio%vdir = 0
+         endif
          vars(i) = ESMF_CFIOVarInfoCreate(vName=varName, rc=rtcode)
          if (rtcode .ne. 0) print *, "Error in calling ESMF_CFIOVarInfoCreate in FileOpen"
          call ESMF_CFIOVarInfoSet(vars(i), vName=varName, grid=grid, &
