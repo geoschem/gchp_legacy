@@ -1593,7 +1593,6 @@ CONTAINS
 !  ------------------------------------
    call extract_ ( GC, self, CF, __RC__)
 
-  
 !  Free the memory used for the bracketing arrays
 !  -----------------------------------------------------------
    if (self%active) then
@@ -1612,8 +1611,6 @@ CONTAINS
             deallocate(self%primary%item(i)%refresh_time)
          end if
 
-      end do
-
 !  Destroy CFIO associated with each item
          if (self%primary%item(i)%isAssigned1) then
             call ESMF_CFIODestroy(self%primary%item(i)%cfio1,__RC__)
@@ -1629,6 +1626,8 @@ CONTAINS
             end if
             self%primary%item(i)%isAssigned2 = .False.
          end if
+      end do
+
 
 !  Free the memory used to hold the primary export items
 !  -----------------------------------------------------
