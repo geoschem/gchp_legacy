@@ -1238,12 +1238,12 @@ CONTAINS
             call MAPL_TimerOn(MAPLSTATE,"--Bracket")
             if (NotSingle) then
                ! update left time
-               call UpdateBracketTime(item%file,time,item%reff_time,item%frequency,"L",item%cyclic,item%climYear,item%interp_time1, & 
+               call UpdateBracketTime(item%file,time,item%refresh_template,item%reff_time,item%frequency,"L",item%cyclic,item%climYear,item%interp_time1, & 
                     item%time1,file_processed1,item%isAssigned1,item%cfio1,item%tSeries1,rc=status)
                VERIFY_(status)
 
                ! update right time
-               call UpdateBracketTime(item%file,time,item%reff_time,item%frequency,"R",item%cyclic,item%climYear,item%interp_time2, &
+               call UpdateBracketTime(item%file,time,item%refresh_template,item%reff_time,item%frequency,"R",item%cyclic,item%climYear,item%interp_time2, &
                     item%time2,file_processed2,item%isAssigned2,item%cfio2,item%tSeries2,rc=status)
                VERIFY_(STATUS)
             else
@@ -1379,7 +1379,7 @@ CONTAINS
             if (updateR) then
 
             call MAPL_TimerOn(MAPLSTATE,'--Bracket')
-               call UpdateBracketTime(item%file,time,item%reff_time,item%frequency,"R",item%cyclic,item%climYear,item%interp_time2, &
+               call UpdateBracketTime(item%file,time,item%refresh_template,item%reff_time,item%frequency,"R",item%cyclic,item%climYear,item%interp_time2, &
                     item%time2,file_processed,item%isAssigned2,item%cfio2,item%tSeries2,rc=status)
             call MAPL_TimerOff(MAPLSTATE,'--Bracket')
 
@@ -1410,7 +1410,7 @@ CONTAINS
             if (updateL) then
 
             call MAPL_TimerOn(MAPLSTATE,'--Bracket')
-               call UpdateBracketTime(item%file,time,item%reff_time,item%frequency,"L",item%cyclic,item%climYear,item%interp_time1, &
+               call UpdateBracketTime(item%file,time,item%refresh_template,item%reff_time,item%frequency,"L",item%cyclic,item%climYear,item%interp_time1, &
                     item%time1,file_processed,item%isAssigned1,item%cfio1,item%tSeries1,rc=status)
             call MAPL_TimerOff(MAPLSTATE,'--Bracket')
 
@@ -1979,9 +1979,10 @@ CONTAINS
 
   end subroutine GetClimYear
 
-  subroutine UpdateBracketTime(file_tmpl,cTime,reffTime,frequency,bSide,cyclic,climYear,interpTime,fileTime,file_processed,isAssigned,xCFIO,xTSeries,rc)
+  subroutine UpdateBracketTime(file_tmpl,cTime,refresh_template,reffTime,frequency,bSide,cyclic,climYear,interpTime,fileTime,file_processed,isAssigned,xCFIO,xTSeries,rc)
      character(len=*          ),          intent(in   ) :: file_tmpl
      type(ESMF_Time),                     intent(inout) :: cTime
+     character(len=ESMF_MAXSTR),          intent(in   ) :: refresh_template
      type(ESMF_Time),                     intent(inout) :: reffTime
      type(ESMF_TimeInterval),             intent(inout) :: frequency
      character(len=1),                    intent(in   ) :: bSide
@@ -2000,6 +2001,7 @@ CONTAINS
      type(ESMF_Time)                            :: newTime
      integer                                    :: curDate,curTime,n
      integer(ESMF_KIND_I4)                      :: iyr, imm, idd, ihr, imn, isc, cYear,cMonth
+     integer(ESMF_KIND_I4)                      :: fyr, fmm, fdd, fhr, fmn, fsc
      type(ESMF_TimeInterval)                    :: tint
      type(ESMF_TimeInterval)                    :: zero
      type(ESMF_Time)                            :: fTime
@@ -2008,16 +2010,20 @@ CONTAINS
 
      ! Allow for extrapolation.. up to a limit
      integer                                    :: xFlag
-     integer                                    :: yrOffset
+     integer                                    :: yrOffset,yrOffsetStamp
      integer                                    :: offSign
      integer(ESMF_KIND_I4)                      :: cYearOff, refYear
      integer, parameter                         :: maxOffset=10000
      logical                                    :: found, newFile
      logical                                    :: LExtrap, RExtrap, LExact, RExact
-     logical                                    :: LSide, RSide, intOK
+     logical                                    :: LSide, RSide, intOK, bracketScan
      type(ESMF_Time)                            :: tValidL, tValidR
    
      call ESMF_TimeIntervalSet(zero,__RC__)
+
+     ! Default
+     fTime = cTime
+     bracketScan = .False.
 
      ! Is there only one file for this dataset?
      if (frequency == zero) then
@@ -2069,6 +2075,10 @@ CONTAINS
            if (imm == 2 .and. idd==29) idd = 28
            call ESMF_TimeSet(readTime,yy=iyr,mm=imm,dd=idd,h=ihr,m=imn,s=isc,__RC__)
         else
+           if (reffTime > cTime) then
+              Write(*,'(a,a,a)') 'ERROR: Reference time for file ', Trim(file_tmpl),' is too late'
+              ASSERT_(.False.)
+           end if
            ! This approach causes a problem if cTime and reffTime are too far
            ! apart - do it the hard way instead... 
            !tint=cTime-reffTime
@@ -2286,8 +2296,25 @@ CONTAINS
            isAssigned = .True.
         End If
 
+        ! We now have a time which, when passed to the FILE TEMPLATE, returns a valid file
+        ! However, if the file template does not include a year token, then the file in
+        ! question could actually be for a different year. We therefore feed the file time
+        ! into the refresh template and see if the result has the same year. If it doesn't,
+        ! then we can assume that the year is actually fixed, and the times in the file will
+        ! correspond to the year in the refresh template. In this case, an additional year 
+        ! offset must be applied.
+        yrOffsetStamp = 0
+        If (refresh_template /= "0") Then
+           newTime = timestamp_(fTime,refresh_template,__RC__)
+           if (newTime .ne. fTime) Then
+              call ESMF_TimeGet(fTime,yy=iyr,mm=imm,dd=idd,h=ihr,m=imn,s=isc,__RC__)
+              call ESMF_TimeGet(newTime,yy=fyr,mm=fmm,dd=fdd,h=fhr,m=fmn,s=fsc,__RC__)
+              yrOffsetStamp = fYr - iYr
+           End If
+        End If
+
         ! try to get bracketing time on file using current time
-        call GetBracketTimeOnFile(xCFIO,xTSeries,readTime,bSide,UniFileClim,interpTime,fileTime,yrOffsetInt=yrOffset,rc=status)
+        call GetBracketTimeOnFile(xCFIO,xTSeries,readTime,bSide,UniFileClim,interpTime,fileTime,yrOffsetInt=yrOffset+yrOffsetStamp,rc=status)
         found = (status==ESMF_SUCCESS)
 
         If (MAPL_Am_I_Root().and.(Ext_Debug > 19)) Write(*,'(a,a,a,L1)') ' DEBUG: Status of ', trim(file_processed),': ', found
@@ -2295,11 +2322,14 @@ CONTAINS
         ! if we didn't find the bracketing time look forwards or backwards depending on
         ! whether it is the right or left time   
         if (.not.found) then
-           If (MAPL_Am_I_Root().and.(Ext_Debug > 19)) Write(*,'(a,a,a,a)') ' DEBUG: Scanning for bracket ', bSide, ' of ', trim(file_processed)
+           If (MAPL_Am_I_Root().and.(Ext_Debug > 19)) Write(*,'(a,a,a,a,a,L1)') ' DEBUG: Scanning for bracket ', bSide, ' of ', trim(file_processed), '. RSide: ', (bSide=="R")
+           bracketScan = .True.
+           newTime = fTime
            if (bSide == "R") then
               found=.false.
               newFile=.true.
               status = ESMF_SUCCESS
+              If (MAPL_Am_I_Root().and.(Ext_Debug > 19)) Write(*,'(a,a,a,I5,x,2L1)') ' DEBUG: Sanity check on file ', trim(file_processed), ' with flags: ', status, status==ESMF_SUCCESS,found
               do while ((status==ESMF_SUCCESS).and.(.not.found))
                  if (trim(cyclic)=='y') then
                     call ESMF_TimeGet(cTime,yy=iyr,mm=imm,dd=idd,h=ihr,m=imn,s=isc,__RC__)
@@ -2329,17 +2359,18 @@ CONTAINS
                  call MAPL_PackTime(curDate,iyr,imm,idd)
                  call MAPL_PackTime(curTime,ihr,imn,isc)
                  call gx_(file_processed,file_tmpl,nymd=curDate,nhms=curTime,__STAT__)
+                 If (MAPL_Am_I_Root().and.(Ext_Debug > 19)) Write(*,'(a,a,a,I0.4,5(a,I0.2))') ' DEBUG: Testing for file ', trim(file_processed), ' for target time ',iYr,'-',iMm,'-',iDd,' ',iHr,':',iMn,':',iSc
                  Inquire(FILE=trim(file_processed),EXIST=found)
-                 If (.not.found) Then
-                    If (newFile) Then
-                       ! We went RIGHT - cycle round by SUBTRACTING a year
-                       yrOffset = yrOffset - 1
-                       newFile = .False. ! Only one attempt
-                       call OffsetTimeYear(fTime,-1,newTime,rc)
-                       fTime = newTime
-                    Else
-                       status = ESMF_FAILURE
-                    End If
+                 If (found) Then
+                    fTime = newTime
+                 Else If (newFile) Then
+                    ! We went RIGHT - cycle round by SUBTRACTING a year
+                    yrOffset = yrOffset - 1
+                    newFile = .False. ! Only one attempt
+                    call OffsetTimeYear(fTime,-1,newTime,rc)
+                    fTime = newTime
+                 Else
+                    status = ESMF_FAILURE
                  End If
               End Do
               if (status /= ESMF_SUCCESS) then
@@ -2380,16 +2411,16 @@ CONTAINS
                  call MAPL_PackTime(curTime,ihr,imn,isc)
                  call gx_(file_processed,file_tmpl,nymd=curDate,nhms=curTime,__STAT__)
                  Inquire(FILE=trim(file_processed),EXIST=found)
-                 If (.not.found) Then
-                    If (newFile) Then
-                       ! We went LEFT - cycle round by ADDING a year
-                       yrOffset = yrOffset + 1
-                       newFile = .False. ! Only one attempt
-                       call OffsetTimeYear(fTime,+1,newTime,rc)
-                       fTime = newTime
-                    Else
-                       status = ESMF_FAILURE
-                    End If
+                 If (found) Then
+                    fTime = newTime
+                 Else If (newFile) Then
+                    ! We went LEFT - cycle round by ADDING a year
+                    yrOffset = yrOffset + 1
+                    newFile = .False. ! Only one attempt
+                    call OffsetTimeYear(fTime,+1,newTime,rc)
+                    fTime = newTime
+                 Else
+                    status = ESMF_FAILURE
                  End If
               End Do
               if (status /= ESMF_SUCCESS) then
@@ -2398,6 +2429,7 @@ CONTAINS
               end if
            end if
 
+           ! fTime is now ALWAYS the time which was applied to the file template to get the current file
            If (isAssigned) Then
               ! Do we still have the right file?
               If (Trim(xCFIO%fNAME) .ne. Trim(file_processed)) Then
@@ -2414,8 +2446,32 @@ CONTAINS
               call GetTimesOnFile(xCFIO,xTSeries,rc=rc)
               isAssigned = .True.
            End If
+
+           If (Mapl_Am_I_Root()) Write (*,'(a,a,x,a)') ' SUPERDEBUG: File/template: ',Trim(file_processed),Trim(refresh_template)
+           ! The file template may be "hiding" a year offset from us
+           yrOffsetStamp = 0
+           If (refresh_template /= "0") Then
+              newTime = timestamp_(fTime,refresh_template,__RC__)
+              If (Mapl_Am_I_Root().and.Ext_Debug > 24) Then
+                 call ESMF_TimeGet(fTime,yy=iyr,mm=imm,dd=idd,h=ihr,m=imn,s=isc,__RC__)
+                 call ESMF_TimeGet(newTime,yy=fyr,mm=fmm,dd=fdd,h=fhr,m=fmn,s=fsc,__RC__)
+                 Write(*,'(3a,I0.4,5(a,I0.2),a,I0.4,5(a,I0.2),2a)') ' DEBUG: Template ',Trim(refresh_template),' applied: ',&
+                    iyr,'-',imm,'-',idd,' ',ihr,':',imn,':',isc,' -> ',&
+                    fyr,'-',fmm,'-',fdd,' ',fhr,':',fmn,':',fsc,&
+                    ' on file ',Trim(file_processed)
+              End If
+              if (newTime .ne. fTime) Then
+                 call ESMF_TimeGet(fTime,yy=iyr,mm=imm,dd=idd,h=ihr,m=imn,s=isc,__RC__)
+                 call ESMF_TimeGet(newTime,yy=fyr,mm=fmm,dd=fdd,h=fhr,m=fmn,s=fsc,__RC__)
+                 yrOffsetStamp = fYr - iYr
+                 If (Mapl_Am_I_Root().and.Ext_Debug > 19) Then
+                    Write(*,'(2(a,I4),2a)') ' DEBUG: Year offset modified from ',yrOffset,' to ',yrOffset+yrOffsetStamp,' to satisfy refresh template for ', Trim(file_processed)
+                 End If
+              End If
+           End If
+
            ! try to get bracketing time on file using new time
-           call GetBracketTimeOnFile(xCFIO,xTSeries,readTime,bSide,UniFileClim,interpTime,fileTime,yrOffsetInt=yrOffset,rc=status)
+           call GetBracketTimeOnFile(xCFIO,xTSeries,readTime,bSide,UniFileClim,interpTime,fileTime,yrOffsetInt=yrOffset+yrOffsetStamp,rc=status)
            found = (status == ESMF_SUCCESS)
            if (.not.found) then
               if (mapl_am_I_root()) write(*,*)'ExtData could not find bracketing data from file template ',trim(file_tmpl),' for side ',bSide
@@ -2812,7 +2868,7 @@ CONTAINS
 
      ! Debug output
      If (Mapl_Am_I_Root().and.(Ext_Debug > 15)) Then
-        Write(6,'(a,a)') ' DEBUG: GetBracketTimeOnFile called for ', trim(cfio%fName)
+        Write(6,'(4a)') ' DEBUG: GetBracketTimeOnFile (',Trim(bSide),') called for ', trim(cfio%fName)
      End If
 
      if (yrOffset.ne.0) then
@@ -2822,6 +2878,14 @@ CONTAINS
         climTime = cTime
      end if   
      climSize = 1
+
+     ! Debug output
+     If (Mapl_Am_I_Root().and.(Ext_Debug > 19)) Then
+        call ESMF_TimeGet(cLimTime,yy=iyr,mm=imm,dd=idd,h=ihr,m=imn,s=isc,__RC__)
+        Write(6,'(a,I2,3a,I0.4,5(a,I0.2))') ' DEBUG: Year offset of ',yrOffset,&
+           ' applied while scanning ', trim(cfio%fName),&
+           ' to give target time ',iYr,'-',iMm,'-',iDd,' ',iHr,':',iMn,':',iSc
+     End If
 
      found = .false.
      ! we will have to specially handle a climatology in one file
