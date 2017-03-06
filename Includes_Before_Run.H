@@ -57,6 +57,7 @@
   State_Met%FRLAKE              = FRLAKE                     ! 1
   State_Met%FRLANDIC            = FRLANDIC                   ! 1
   State_Met%PHIS                = PHIS / 9.80665d0           ! m
+  State_Met%GWETROOT            = GWETROOT                   ! 1
   State_Met%GWETTOP             = GWETTOP                    ! 1
   State_Met%LAI                 = LAI                        ! 1  
   State_Met%LWI                 = LWI                        ! 1
