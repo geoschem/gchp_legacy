@@ -1789,7 +1789,11 @@ CONTAINS
      else   
         ! split the time stamp template into a date and time strings
         i = scan(buff, 't')
-        ASSERT_(i > 3)
+        If (.not.(i > 3)) Then
+           Write(*,'(a,a,a)') 'ERROR: Time stamp ', Trim(template), &
+           ' uses the fixed format, and must therefore contain a T'
+           ASSERT_(.False.)
+        End If
 
         buff_date = buff(1:i-1)
         buff_time = buff(i+1:)
