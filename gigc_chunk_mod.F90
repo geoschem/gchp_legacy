@@ -639,7 +639,7 @@ CONTAINS
     End If
     
     ! SDE 05/28/13: Set H2O to STT if relevant
-    IF ( IND_('H2O','T') > 0 ) THEN
+    IF ( IND_('H2O','A') > 0 ) THEN
        CALL SET_H2O_TRAC( am_I_Root, ((.NOT. Input_Opt%LUCX) .OR. Input_Opt%LSETH2O ), &
                           Input_Opt, State_Met, State_Chm, RC )
        ! Only force strat once if using UCX
