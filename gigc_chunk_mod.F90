@@ -860,7 +860,7 @@ CONTAINS
        CALL COMPUTE_OVERHEAD_O3( am_I_Root, DAY, .TRUE., State_Met%TO3 )
 
        ! Set H2O to STT if relevant
-       IF ( IND_('H2O','T') > 0 ) THEN
+       IF ( IND_('H2O','A') > 0 ) THEN
           CALL SET_H2O_TRAC( am_I_Root, (.not. Input_Opt%LUCX), Input_Opt, &
                              State_Met, State_Chm, RC )
        ENDIF
