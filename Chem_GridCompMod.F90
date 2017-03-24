@@ -424,6 +424,26 @@ CONTAINS
 !
 #   include "GIGCchem_ImportSpec___.h"
 
+    call MAPL_AddImportSpec(GC, &
+       SHORT_NAME         = 'PLE',  &
+       LONG_NAME          = 'pressure_level_edges',  &
+       UNITS              = 'Pa', &
+       PRECISION          = ESMF_KIND_R8, &
+       DIMS               = MAPL_DimsHorzVert,    &
+       VLOCATION          = MAPL_VLocationEdge,    &
+                                                      RC=STATUS  )
+    VERIFY_(STATUS)
+
+    call MAPL_AddImportSpec(GC, &
+       SHORT_NAME         = 'DryPLE',  &
+       LONG_NAME          = 'dry_pressure_level_edges',  &
+       UNITS              = 'Pa', &
+       PRECISION          = ESMF_KIND_R8, &
+       DIMS               = MAPL_DimsHorzVert,    &
+       VLOCATION          = MAPL_VLocationEdge,    &
+                                                      RC=STATUS  )
+    VERIFY_(STATUS)
+
 !
 ! !INTERNAL STATE:
 !
@@ -1988,7 +2008,7 @@ CONTAINS
     TYPE(MAPL_MetaComp), POINTER :: STATE
 
     ! For CTM Mode
-    REAL,                POINTER :: PLE(:,:,:)     => NULL() ! INTERNAL: PEDGE
+    REAL(ESMF_KIND_R8),  POINTER :: PLE(:,:,:)     => NULL() ! INTERNAL: PEDGE
     REAL,                POINTER :: AIRDENS(:,:,:) => NULL() ! INTERNAL: PEDGE
 
     ! For aero bundle
@@ -3031,7 +3051,7 @@ CONTAINS
 !
     LOGICAL                        :: am_I_Root
     REAL(ESMF_KIND_R8),   POINTER  :: O3   (:,:,:)
-    REAL,                 POINTER  :: PLE  (:,:,:)
+    REAL(ESMF_KIND_R8),   POINTER  :: PLE  (:,:,:)
     REAL,                 POINTER  :: TROPP(:,:  )
 !                                                             
 ! !INPUT/OUTPUT PARAMETERS:                                         

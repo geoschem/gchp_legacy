@@ -572,6 +572,23 @@
       call MAPL_GetPointer ( IMPORT,   SPHU1,  'SPHU2', RC=STATUS )
       VERIFY_(STATUS)
 
+      ! Get to the exports...
+      ! ---------------------
+      call MAPL_GetPointer ( EXPORT, PLE0r8, 'PLE0r8',  RC=STATUS )
+      VERIFY_(STATUS)
+      call MAPL_GetPointer ( EXPORT, PLE1r8, 'PLE1r8',  RC=STATUS )
+      VERIFY_(STATUS)
+      call MAPL_GetPointer ( EXPORT, DryPLE0r8, 'DryPLE0r8',  RC=STATUS )
+      VERIFY_(STATUS)
+      call MAPL_GetPointer ( EXPORT, DryPLE1r8, 'DryPLE1r8',  RC=STATUS )
+      VERIFY_(STATUS)
+
+      ! Reset the exports
+      PLE0r8   (:,:,:) = 0.0d0
+      PLE1r8   (:,:,:) = 0.0d0
+      DryPLE0r8(:,:,:) = 0.0d0
+      DryPLE1r8(:,:,:) = 0.0d0
+
       ! Get local dimensions
       is = lbound(UC,1); ie = ubound(UC,1)
       js = lbound(UC,2); je = ubound(UC,2)
@@ -581,11 +598,6 @@
       ! ---------------------
 #include "GEOS_HyCoords.H"
       
-      ALLOCATE( PLE0   (is:ie,js:je,lm+1),STAT=STATUS); VERIFY_(STATUS)
-      ALLOCATE( PLE1   (is:ie,js:je,lm+1),STAT=STATUS); VERIFY_(STATUS)
-      ALLOCATE( DryPLE0(is:ie,js:je,lm+1),STAT=STATUS); VERIFY_(STATUS)
-      ALLOCATE( DryPLE1(is:ie,js:je,lm+1),STAT=STATUS); VERIFY_(STATUS)
-
       ! Calculate dry surface pressure in hPa
       Do J=js,je
       Do I=is,ie
@@ -608,10 +620,10 @@
          ! Work back up from the surface to get dry level edges
          ! Do wet pressure at the same time - why not
          Do L=1,LM+1
-            DryPLE0(I,J,L) = 100.d0*(AP(L)+(BP(L)*PSDry0  ))
-            DryPLE1(I,J,L) = 100.d0*(AP(L)+(BP(L)*PSDry1  ))
-            PLE0   (I,J,L) = 100.d0*(AP(L)+(BP(L)*PS0(I,J)))
-            PLE1   (I,J,L) = 100.d0*(AP(L)+(BP(L)*PS1(I,J)))
+            DryPLE0r8(I,J,L-1) = 100.d0*(AP(L)+(BP(L)*PSDry0  ))
+            DryPLE1r8(I,J,L-1) = 100.d0*(AP(L)+(BP(L)*PSDry1  ))
+            PLE0r8   (I,J,L-1) = 100.d0*(AP(L)+(BP(L)*PS0(I,J)))
+            PLE1r8   (I,J,L-1) = 100.d0*(AP(L)+(BP(L)*PS1(I,J)))
          End Do
       End Do
       End Do
@@ -620,33 +632,14 @@
       ! Arrays were calculated so that 1 = Surface
       ! FV3 wants 1 = TOA, LM+1 = Surface
       ! Vertically flip all the arrays to accomplish this      
-      DryPLE0(:,:,:) = DryPLE0(:,:,(LM+1):1:-1)
-      DryPLE1(:,:,:) = DryPLE1(:,:,(LM+1):1:-1)
-      PLE0   (:,:,:) = PLE0   (:,:,(LM+1):1:-1)
-      PLE1   (:,:,:) = PLE1   (:,:,(LM+1):1:-1)
-      UC    (:,:,:) =  UC     (:,:,LM:1:-1)
-      VC    (:,:,:) =  VC     (:,:,LM:1:-1)
+      DryPLE0r8(:,:,:) = DryPLE0r8(:,:,LM:0:-1)
+      DryPLE1r8(:,:,:) = DryPLE1r8(:,:,LM:0:-1)
+      PLE0r8   (:,:,:) = PLE0r8   (:,:,LM:0:-1)
+      PLE1r8   (:,:,:) = PLE1r8   (:,:,LM:0:-1)
+      UC       (:,:,:) =  UC      (:,:,LM:1:-1)
+      VC       (:,:,:) =  VC      (:,:,LM:1:-1)
 
       DEALLOCATE( AP, BP )
-
-      ! Get to the exports...
-      ! ---------------------
- 
-      call MAPL_GetPointer ( EXPORT, PLE0r8, 'PLE0r8',  RC=STATUS )
-      VERIFY_(STATUS)
-      PLE0r8 = real(PLE0,8)
-
-      call MAPL_GetPointer ( EXPORT, PLE1r8, 'PLE1r8',  RC=STATUS )
-      VERIFY_(STATUS)
-      PLE1r8 = real(PLE1,8)
-
-      call MAPL_GetPointer ( EXPORT, DryPLE0r8, 'DryPLE0r8',  RC=STATUS )
-      VERIFY_(STATUS)
-      DryPLE0r8 = real(DryPLE0,8)
-
-      call MAPL_GetPointer ( EXPORT, DryPLE1r8, 'DryPLE1r8',  RC=STATUS )
-      VERIFY_(STATUS)
-      DryPLE1r8 = real(DryPLE1,8)
 
       call MAPL_GetPointer ( EXPORT, MFXr8, 'MFXr8', RC=STATUS )
       VERIFY_(STATUS)
@@ -668,12 +661,13 @@
 
       ! Use dry pressure at the start of the timestep to calculate mass
       ! fluxes. GMAO method uses mid-step UC, VC and PLE?
-      PLEr8 = 1.00d0*(DryPLE0)
+      PLEr8 = 1.00d0*(DryPLE0r8)
 
       call calcCourantNumberMassFlux(UCr8, VCr8, PLEr8, &
                                 MFXr8, MFYr8, CXr8, CYr8, dt)
 
-      DEALLOCATE( UCr8, VCr8, PLEr8, PLE0, PLE1, DryPLE0, DryPLE1 )
+      !DEALLOCATE( UCr8, VCr8, PLEr8, PLE0, PLE1, DryPLE0, DryPLE1 )
+      DEALLOCATE( UCr8, VCr8, PLEr8 )
 
       call MAPL_TimerOff(ggState,"RUN")
       call MAPL_TimerOff(ggState,"TOTAL")

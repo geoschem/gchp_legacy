@@ -6025,7 +6025,11 @@ recursive subroutine MAPL_WireComponent(GC, RC)
                    VERIFY_(STATUS)
 
                 else
-                   ASSERT_(MAPL_VarSpecSamePrec(EX_SPECS(N), IM_SPECS(K)))
+                   If (.not.MAPL_VarSpecSamePrec(EX_SPECS(N), IM_SPECS(K))) Then
+                      Write(*,'(3a)') 'ERROR: Precision mismatch for variable ', &
+                         Trim(ENAME), ' - aborting' 
+                      ASSERT_(MAPL_VarSpecSamePrec(EX_SPECS(N), IM_SPECS(K)))
+                   End If
                    call MAPL_VarSpecSet(EX_SPECS(N), SHORT_NAME=ENAME, RC=STATUS)
                    VERIFY_(STATUS)
 ! coupler is needed

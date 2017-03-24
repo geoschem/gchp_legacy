@@ -241,6 +241,7 @@ contains
           SHORT_NAME = 'PLE',                                       &
           LONG_NAME  = 'pressure_at_layer_edges',                   &
           UNITS      = 'Pa'   ,                                     &
+          PRECISION  = ESMF_KIND_R8,                                &
           DIMS       = MAPL_DimsHorzVert,                           &
           VLOCATION  = MAPL_VLocationEdge,               RC=STATUS  )
      VERIFY_(STATUS)
@@ -249,6 +250,7 @@ contains
           SHORT_NAME = 'DryPLE',                                    &
           LONG_NAME  = 'dry_pressure_at_layer_edges',               &
           UNITS      = 'Pa'   ,                                     &
+          PRECISION  = ESMF_KIND_R8,                                &
           DIMS       = MAPL_DimsHorzVert,                           &
           VLOCATION  = MAPL_VLocationEdge,               RC=STATUS  )
      VERIFY_(STATUS)
@@ -522,8 +524,8 @@ contains
       REAL(REAL8), POINTER, DIMENSION(:,:,:)   :: DryPLE1
 
 ! Exports
-      REAL,        POINTER, DIMENSION(:,:,:)   :: PLE
-      REAL,        POINTER, DIMENSION(:,:,:)   :: DryPLE
+      REAL(REAL8), POINTER, DIMENSION(:,:,:)   :: PLE
+      REAL(REAL8), POINTER, DIMENSION(:,:,:)   :: DryPLE
 
 ! Locals
       REAL(REAL8), POINTER, DIMENSION(:)       :: AK
@@ -714,12 +716,12 @@ contains
       ! Update the dry and wet pressure edge arrays
       call MAPL_GetPointer ( EXPORT, DryPLE, 'DryPLE', RC=STATUS )
       VERIFY_(STATUS)
-      DryPLE(:,:,:) = real(DryPLE1(:,:,:),4)
+      DryPLE(:,:,:) = DryPLE1(:,:,:)
       Nullify(DryPLE)
 
       call MAPL_GetPointer ( EXPORT, PLE, 'PLE', RC=STATUS )
       VERIFY_(STATUS)
-      PLE(:,:,:) = real(PLE1(:,:,:),4)
+      PLE(:,:,:) = PLE1(:,:,:)
       Nullify(PLE)
 
       deallocate( advTracers, stat=STATUS )
