@@ -2022,7 +2022,7 @@ CONTAINS
     REAL                         :: GCMW, FRAC
 
     ! Tracer & HEMCO bundle
-    INTEGER :: trcID
+    INTEGER :: trcID, RST
     REAL    :: COEFF
     CHARACTER(LEN=ESMF_MAXSTR)   :: trcNAME,hcoNAME
     TYPE(ESMF_Field      )       :: trcFIELD
