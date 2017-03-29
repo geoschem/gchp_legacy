@@ -1166,6 +1166,7 @@ CONTAINS
     
     ! time step error checks 
     REAL                         :: ChemTS, EmisTS
+    type(ESMF_Time)              :: CurrTime    ! Current time of the ESMF clock
  
     ! Pointer arrays
     REAL(ESMF_KIND_R4),  POINTER :: lonCtr(:,:) ! Lon centers on this PET [rad]
@@ -1363,6 +1364,25 @@ CONTAINS
                                   __RC__                           )
     ASSERT_(NPHASE==1.OR.NPHASE==2) 
 
+    !! THIS NEEDS DEALING WITH AT SOME POINT IN THE NEAR FUTURE
+    !! -- what this fix meant to address is now handled by setting
+    !! -- GIGCchem_REFERENCE_TIME in GCHP.rc. This is not an ideal
+    !! -- solution since it presents another user-based change needed
+    !! -- to alter the runtime parameters of GCHP. MSL
+    !!=======================================================================
+    !! Set the Chem Alarm Ringtime
+    !!=======================================================================
+    !! Query the chemistry alarm.
+    !! ----------------------------------------------------------------------
+    !CALL MAPL_Get(STATE, RUNALARM=ALARM, __RC__)
+    !
+    !! Query the current time (assuming this is beginning of run)
+    !! ----------------------------------------------------------------------
+    !call ESMF_ClockGet(currTime=currTime, __RC__)
+    !
+    !! Make sure that Chem is called on 1st timestep of the run
+    !call ESMF_AlarmSet(ALARM, ringTime=currTime, __RC__)
+    
     !=======================================================================
     ! Initialize GEOS-Chem (will also initialize HEMCO)
     !=======================================================================

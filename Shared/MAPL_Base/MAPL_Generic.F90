@@ -1226,11 +1226,7 @@ recursive subroutine MAPL_GenericInitialize ( GC, IMPORT, EXPORT, CLOCK, RC )
 
 ! make sure that ringTime is not in the past
    do while (ringTime < currTime)
-      ! Below, ringTime was originally incremented by TIMEINT leading to 
-      ! undesireable ringTimes for components with timesteps != Heartbeat
-      ! The fix below ensures primarly that all components are able
-      ! to execute at T=0. M.Long 02-23-2017
-      ringTime = ringTime + TSTEP
+      ringTime = ringTime + TIMEINT
    end do
 
    STATE%ALARM(0) = ESMF_AlarmCreate(CLOCK = CLOCK, &
