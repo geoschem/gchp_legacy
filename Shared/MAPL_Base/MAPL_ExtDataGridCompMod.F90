@@ -2451,7 +2451,7 @@ CONTAINS
               isAssigned = .True.
            End If
 
-           If (Mapl_Am_I_Root()) Write (*,'(a,a,x,a)') ' SUPERDEBUG: File/template: ',Trim(file_processed),Trim(refresh_template)
+           !If (Mapl_Am_I_Root()) Write (*,'(a,a,x,a)') ' SUPERDEBUG: File/template: ',Trim(file_processed),Trim(refresh_template)
            ! The file template may be "hiding" a year offset from us
            yrOffsetStamp = 0
            If (refresh_template /= "0") Then
