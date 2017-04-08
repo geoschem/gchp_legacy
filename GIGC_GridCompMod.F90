@@ -347,8 +347,9 @@ contains
     
     !    call ESMF_FieldBundleGet(BUNDLE, NAMES,  RC=STATUS)
     !    VERIFY_(STATUS)
-    
-    call MAPL_TimerOff(STATE,"RUN")
+   
+    ! Disable this erroneous MAPL_TimerOff to fix timing. J.W.Zhuang 2017/04 
+    ! call MAPL_TimerOff(STATE,"RUN")
     call MAPL_TimerOff(STATE,"TOTAL")
 
 ! All Done
