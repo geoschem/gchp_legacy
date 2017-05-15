@@ -1,4 +1,4 @@
-#if defined( ESMF_ )
+gal/#if defined( ESMF_ )
 !------------------------------------------------------------------------------
 !          Harvard University Atmospheric Chemistry Modeling Group            !
 !------------------------------------------------------------------------------
@@ -130,10 +130,8 @@ CONTAINS
     ! SIZE PARAMETER fields
     !----------------------------------------
     CALL MPI_Bcast( INPUT_OPT%MAX_DIAG, 1, mpi_integer, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%MAX_TRCS, 1, mpi_integer, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%MAX_MEMB, 1, mpi_integer, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%MAX_FAMS, 1, mpi_integer, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%MAX_DEP,  1, mpi_integer, 0, mpiComm, RC )
+    CALL MPI_Bcast( INPUT_OPT%MAX_FAM,  1, mpi_integer, 0, mpiComm, RC )
+    CALL MPI_Bcast( INPUT_OPT%MAX_SPC,  1, mpi_integer, 0, mpiComm, RC )
 
     !----------------------------------------
     ! SIMULATION MENU fields
@@ -165,7 +163,7 @@ CONTAINS
     ! TRACER MENU fields
     !----------------------------------------
     CALL MPI_Bcast( INPUT_OPT%N_ADVECT, 1, mpi_integer, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%AdvectSpc_Name(:), (255)*INPUT_OPT%MAX_TRCS, mpi_character, 0, mpiComm, RC )
+    CALL MPI_Bcast( INPUT_OPT%AdvectSpc_Name(:), (255)*INPUT_OPT%MAX_SPC, mpi_character, 0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%LSPLIT, 1, mpi_logical, 0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%ITS_A_RnPbBe_SIM, 1, mpi_logical, 0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%ITS_A_FULLCHEM_SIM, 1, mpi_logical, 0, mpiComm, RC )
@@ -448,7 +446,7 @@ CONTAINS
     CALL MPI_Bcast( INPUT_OPT%ND70, 1, mpi_integer, 0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%LD70, 1, mpi_integer, 0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%LPRT, 1, mpi_logical, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%TINDEX(:,:), INPUT_OPT%MAX_DIAG*INPUT_OPT%MAX_TRCS, mpi_integer, 0, mpiComm, RC )
+    CALL MPI_Bcast( INPUT_OPT%TINDEX(:,:), INPUT_OPT%MAX_DIAG*INPUT_OPT%MAX_SPC, mpi_integer, 0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%TCOUNT(:)  , INPUT_OPT%MAX_DIAG, mpi_integer, 0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%TMAX(:)    , INPUT_OPT%MAX_DIAG, mpi_integer, 0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%DO_DIAG_WRITE, 1, mpi_logical, 0, mpiComm, RC )
@@ -467,17 +465,17 @@ CONTAINS
     CALL MPI_Bcast( INPUT_OPT%ND48_FILE, len(INPUT_OPT%ND48_FILE), mpi_character, 0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%ND48_FREQ, 1, mpi_integer, 0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%ND48_N_STA, 1, mpi_integer, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%ND48_IARR(:), INPUT_OPT%MAX_TRCS, mpi_integer, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%ND48_JARR(:), INPUT_OPT%MAX_TRCS, mpi_integer, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%ND48_LARR(:), INPUT_OPT%MAX_TRCS, mpi_integer, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%ND48_NARR(:), INPUT_OPT%MAX_TRCS, mpi_integer, 0, mpiComm, RC )
+    CALL MPI_Bcast( INPUT_OPT%ND48_IARR(:), INPUT_OPT%MAX_SPC, mpi_integer, 0, mpiComm, RC )
+    CALL MPI_Bcast( INPUT_OPT%ND48_JARR(:), INPUT_OPT%MAX_SPC, mpi_integer, 0, mpiComm, RC )
+    CALL MPI_Bcast( INPUT_OPT%ND48_LARR(:), INPUT_OPT%MAX_SPC, mpi_integer, 0, mpiComm, RC )
+    CALL MPI_Bcast( INPUT_OPT%ND48_NARR(:), INPUT_OPT%MAX_SPC, mpi_integer, 0, mpiComm, RC )
 
     !----------------------------------------
     ! ND49 MENU fields
     !----------------------------------------
     CALL MPI_Bcast( INPUT_OPT%DO_ND49, 1, mpi_logical, 0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%ND49_FILE, len(INPUT_OPT%ND49_FILE), mpi_character, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%ND49_TRACERS(:), INPUT_OPT%MAX_TRCS, mpi_integer, 0, mpiComm, RC )
+    CALL MPI_Bcast( INPUT_OPT%ND49_TRACERS(:), INPUT_OPT%MAX_SPC, mpi_integer, 0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%ND49_FREQ, 1, mpi_integer, 0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%ND49_IMIN, 1, mpi_integer, 0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%ND49_IMAX, 1, mpi_integer, 0, mpiComm, RC )
@@ -492,7 +490,7 @@ CONTAINS
     CALL MPI_Bcast( INPUT_OPT%DO_ND50, 1, mpi_logical, 0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%ND50_FILE, len(INPUT_OPT%ND50_FILE), mpi_character, 0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%LND50_HDF, 1, mpi_logical, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%ND50_TRACERS(:), INPUT_OPT%MAX_TRCS, mpi_integer, 0, mpiComm, RC )
+    CALL MPI_Bcast( INPUT_OPT%ND50_TRACERS(:), INPUT_OPT%MAX_SPC, mpi_integer, 0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%ND50_IMIN, 1, mpi_integer, 0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%ND50_IMAX, 1, mpi_integer, 0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%ND50_JMIN, 1, mpi_integer, 0, mpiComm, RC )
@@ -506,7 +504,7 @@ CONTAINS
     CALL MPI_Bcast( INPUT_OPT%DO_ND51, 1, mpi_logical, 0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%ND51_FILE, len(INPUT_OPT%ND51_FILE), mpi_character, 0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%LND51_HDF, 1, mpi_integer, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%ND51_TRACERS(:), INPUT_OPT%MAX_TRCS, mpi_integer, 0, mpiComm, RC )
+    CALL MPI_Bcast( INPUT_OPT%ND51_TRACERS(:), INPUT_OPT%MAX_SPC, mpi_integer, 0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%ND51_HR_WRITE, 1, mpi_real8, 0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%ND51_HR1, 1, mpi_real8, 0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%ND51_HR2, 1, mpi_real8, 0, mpiComm, RC )
@@ -523,7 +521,7 @@ CONTAINS
     CALL MPI_Bcast( INPUT_OPT%DO_ND51b, 1, mpi_logical, 0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%ND51b_FILE, len(INPUT_OPT%ND51b_FILE), mpi_character, 0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%LND51b_HDF, 1, mpi_integer, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%ND51b_TRACERS(:), INPUT_OPT%MAX_TRCS, mpi_integer, 0, mpiComm, RC )
+    CALL MPI_Bcast( INPUT_OPT%ND51b_TRACERS(:), INPUT_OPT%MAX_SPC, mpi_integer, 0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%ND51b_HR_WRITE, 1, mpi_real8, 0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%ND51b_HR1, 1, mpi_real8, 0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%ND51b_HR2, 1, mpi_real8, 0, mpiComm, RC )
@@ -549,16 +547,12 @@ CONTAINS
     ! PROD LOSS MENU fields
     !----------------------------------------
     CALL MPI_Bcast( INPUT_OPT%DO_SAVE_PL, 1, mpi_logical, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%LFAMILY, 1, mpi_logical, 0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%ND65, 1, mpi_integer, 0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%LD65, 1, mpi_integer, 0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%DO_SAVE_O3, 1, mpi_logical, 0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%NFAM, 1, mpi_integer, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%FAM_COEF(:,:), INPUT_OPT%MAX_MEMB*INPUT_OPT%MAX_FAMS, mpi_real8, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%FAM_MEMB, len(INPUT_OPT%FAM_MEMB)*INPUT_OPT%MAX_MEMB*INPUT_OPT%MAX_FAMS, mpi_character, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%FAM_NAME, len(INPUT_OPT%FAM_NAME)*INPUT_OPT%MAX_FAMS, mpi_character, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%FAM_NMEM, INPUT_OPT%MAX_FAMS, mpi_integer, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%FAM_TYPE, len(INPUT_OPT%FAM_TYPE)*INPUT_OPT%MAX_FAMS, mpi_character, 0, mpiComm, RC )
+    CALL MPI_Bcast( INPUT_OPT%FAM_NAME, len(INPUT_OPT%FAM_NAME)*INPUT_OPT%MAX_FAM, mpi_character, 0, mpiComm, RC )
+    CALL MPI_Bcast( INPUT_OPT%FAM_TYPE, len(INPUT_OPT%FAM_TYPE)*INPUT_OPT%MAX_FAM, mpi_character, 0, mpiComm, RC )
 
     !----------------------------------------
     ! UNIX CMDS fields
@@ -648,12 +642,6 @@ CONTAINS
     CALL MPI_Bcast( INPUT_OPT%N_DUST_BINS, 1, mpi_integer,   0, mpiComm, RC )
  !   CALL MPI_Bcast( INPUT_OPT%NUMDEP,   1,         mpi_integer,   0, mpiComm, RC )
  !   CALL MPI_Bcast( INPUT_OPT%NDVZIND,  Input_Opt%MAX_DEP,   mpi_integer,   0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%IDEP,     NSURFTYPE,  mpi_integer,   0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%IDDEP,    NDSTBIN,   mpi_integer,   0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%DUSTREFF, NDSTBIN,   mpi_real8,     0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%DUSTDEN,  NDSTBIN,   mpi_integer,   0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%DEPNAME,  14*Input_Opt%MAX_DEP, mpi_character, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%NTRAIND,  Input_Opt%MAX_DEP,    mpi_integer,   0, mpiComm, RC )
 
     !----------------------------------------
     ! GEOS-5 GCM INTERFACE fields

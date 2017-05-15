@@ -1309,29 +1309,17 @@ CONTAINS
                                   Label   = "MAX_DIAG:",            &
                                   __RC__                           )    
 
-    ! Max # of tracers
-    CALL ESMF_ConfigGetAttribute( GeosCF, Input_Opt%MAX_TRCS,       &
+    ! Max # of species
+    CALL ESMF_ConfigGetAttribute( GeosCF, Input_Opt%MAX_SPC,       &
                                   Default = 100,                    &
-                                  Label   = "MAX_TRCS:",            &
+                                  Label   = "MAX_SPC:",            &
                                  __RC__                            )    
 
-    ! Max # of species / family tracer
-    CALL ESMF_ConfigGetAttribute( GeosCF, Input_Opt%MAX_MEMB,       &
-                                  Default = 15,                     &
-                                  Label   = "MAX_MEMB:",            &
-                                  __RC__                           )
-
     ! Max # of families per ND65 family tracer (not used for ESMF)
-    CALL ESMF_ConfigGetAttribute( GeosCF, Input_Opt%MAX_FAMS,       &
+    CALL ESMF_ConfigGetAttribute( GeosCF, Input_Opt%MAX_FAM,       &
                                   Default = 20,                     &
-                                  Label   = "MAX_FAMS:",            & 
+                                  Label   = "MAX_FAM:",            & 
                                   __RC__                           )
-
-    ! Max # of families per ND65 family tracer (not used for ESMF)
-    CALL ESMF_ConfigGetAttribute( GeosCF, Input_Opt%MAX_DEP,        &
-                                  Default = 100,                    &
-                                  Label   = "MAX_DEP:",             &
-                                  __RC__                           )   
 
     ! # of levels in LINOZ climatology
     CALL ESMF_ConfigGetAttribute( GeosCF, Input_Opt%LINOZ_NLEVELS,  &
