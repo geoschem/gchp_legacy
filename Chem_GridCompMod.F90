@@ -1305,13 +1305,13 @@ CONTAINS
 
     ! Max # of diagnostics
     CALL ESMF_ConfigGetAttribute( GeosCF, Input_Opt%MAX_DIAG,       &
-                                  Default = 70,                     &
+                                  Default = 80,                     &
                                   Label   = "MAX_DIAG:",            &
                                   __RC__                           )    
 
     ! Max # of species
     CALL ESMF_ConfigGetAttribute( GeosCF, Input_Opt%MAX_SPC,       &
-                                  Default = 100,                    &
+                                  Default = 500,                   &
                                   Label   = "MAX_SPC:",            &
                                  __RC__                            )    
 
