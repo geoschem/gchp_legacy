@@ -1,4 +1,4 @@
-gal/#if defined( ESMF_ )
+#if defined( ESMF_ )
 !------------------------------------------------------------------------------
 !          Harvard University Atmospheric Chemistry Modeling Group            !
 !------------------------------------------------------------------------------
