@@ -220,7 +220,7 @@ MODULE GCHP_Utils
               VLOCATION          = MAPL_VLocationCenter,    &
               PRECISION          = ESMF_KIND_R8, &
               FRIENDLYTO         = 'DYNAMICS:TURBULENCE:MOIST',  &
-              RESTART            = MAPL_RestartRequired, & ! Defaults to 'optional'.
+              !RESTART            = MAPL_RestartRequired, & ! Defaults to 'optional'.
               RC                 = RC  )
          NADV = NADV+1
          AdvSpc(NADV) = TRIM(SUBSTRS(1))
