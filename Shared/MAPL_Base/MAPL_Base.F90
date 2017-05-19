@@ -141,6 +141,7 @@ integer, public, parameter :: MAPL_RestartOptional = 0
 integer, public, parameter :: MAPL_RestartSkip = 1
 integer, public, parameter :: MAPL_RestartRequired = 2
 integer, public, parameter :: MAPL_RestartBootstrap = 3
+integer, public, parameter :: MAPL_RestartSkipInitial = 4
 
 character(len=ESMF_MAXSTR), public, parameter :: MAPL_StateItemOrderList = 'MAPL_StateItemOrderList'
 character(len=ESMF_MAXSTR), public, parameter :: MAPL_BundleItemOrderList = 'MAPL_BundleItemOrderList'
