@@ -7722,9 +7722,14 @@ module MAPL_IOMod
                   VERIFY_(STATUS)
                   call MAPL_FieldBundleAdd(bundle_read,new_field,rc=status)
                   VERIFY_(STATUS)
+		  
                else
                   if (bootStrapable_ .and. (RST == MAPL_RestartOptional)) then
                      call WRITE_PARALLEL("  Bootstrapping Variable: "//trim(FieldName)//" in "//trim(filename))
+
+                     call ESMF_AttributeSet ( field, name='RESTART', &
+                          value=MAPL_RestartBootstrap, rc=status)
+
                   else
                      call WRITE_PARALLEL("  Could not find field "//trim(FieldName)//" in "//trim(filename))
                      ASSERT_(.false.)
@@ -7768,9 +7773,14 @@ module MAPL_IOMod
              if (foundInFile) then
                 call MAPL_FieldBundleAdd(bundle_read,field,rc=status)
                 VERIFY_(STATUS)
+
              else
                 if (bootStrapable .and. (RST == MAPL_RestartOptional)) then
                     call WRITE_PARALLEL("  Bootstrapping Variable: "//trim(FieldName)//" in "//trim(filename))
+
+                    call ESMF_AttributeSet ( field, name='RESTART', &
+                         value=MAPL_RestartBootstrap, rc=status)
+
                 else
                     call WRITE_PARALLEL("  Could not find field "//trim(Fieldname)//" in "//trim(filename))
                     ASSERT_(.false.)

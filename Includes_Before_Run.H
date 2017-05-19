@@ -243,23 +243,15 @@
         ENDIF
         State_Chm%Species(:,:,:,IND) = Ptr3D_R8(:,:,LM:1:-1)
 
-        ! - - - T E M P O R A R Y - K L U D G E - D O N E - P O O R L Y - - -
-        ! --- this section determines whether to fill with background values
-        ! --- For now, default to background if RESTART = MAPL_RestartOptional
-
+        ! Set species concentration to background values from the
+        ! species database if the restart file is skipped or the species
+        ! were missing from the restart file
         CALL ESMF_StateGet( INTERNAL, 'SPC_'//TRIM(ThisSpc%Name), trcFIELD, RC=RC )
         CALL ESMF_AttributeGet( trcFIELD, NAME="RESTART", VALUE=RST, RC=STATUS )
-
-!        write(*,*) 'SPC_'//TRIM(ThisSpc%Name)//' RST: ', RST, RC, MAPL_RestartOptional
-        IF ( RC /= ESMF_SUCCESS .OR. RST == MAPL_RestartOptional ) THEN
-
-        ! Auto-fill species conc with background value
+        IF ( RC /= ESMF_SUCCESS .OR. RST == MAPL_RestartBootstrap .OR. RST == MAPL_RestartSkip ) THEN
 	    CALL SET_BACKGROUND_CONC( am_I_Root, ThisSpc, State_Chm, State_Met, Input_Opt, IND, RC)
-
 	    Ptr3D_R8(:,:,:) = State_Chm%Species(:,:,LM:1:-1,IND)
-
         END IF
-        ! --------------------------------------------------------------------
 
         ! testing only
         if ( MAPL_am_I_Root()) write(*,*) &
