@@ -360,6 +360,8 @@ CONTAINS
     CHARACTER(LEN=40)             :: AdvSpc(500)
     INTEGER                       :: I, J, NAdv
     LOGICAL                       :: FOUND = .false.
+    CHARACTER(LEN=60)             :: rstFile
+    INTEGER                       :: restartAttr
 
     __Iam__('SetServices')
 
@@ -448,8 +450,26 @@ CONTAINS
 ! !INTERNAL STATE:
 !
 #   include "GIGCchem_InternalSpec___.h"
+
+    ! Determine if using a restart file for the internal state. Setting
+    ! the GIGCchem_INTERNAL_RESTART_FILE to +none in GCHP.rc indicates
+    ! skipping the restart file. Species concentrations will be retrieved
+    ! from the species database, overwriting MAPL-assigned default values.
+    CALL ESMF_ConfigGetAttribute( myState%myCF, rstFile, &
+                                  Label = "GIGCchem_INTERNAL_RESTART_FILE:",&
+                                  __RC__ ) 
+    IF ( TRIM(rstFile) == '+none' ) THEN
+       restartAttr = MAPL_RestartSkipInitial ! file does not exist;
+                                             ! use background values
+    ELSE
+       restartAttr = MAPL_RestartOptional    ! try to read species from file;
+                                             ! use background vals if not found
+    ENDIF
+
 !-- Read in species from input.geos and set FRIENDLYTO
-    CALL READ_SPECIES_FROM_FILE( GC, MAPL_am_I_Root(), AdvSpc, Nadv, RC )
+    CALL READ_SPECIES_FROM_FILE( GC, MAPL_am_I_Root(), restartAttr, &
+                                 AdvSpc, Nadv, RC )
+
 !-- Add all additional species in KPP (careful not to add dummy species)
     DO I=1,NSPEC
        FOUND = .false.
@@ -470,6 +490,7 @@ CONTAINS
             PRECISION          = ESMF_KIND_R8, &
             DIMS               = MAPL_DimsHorzVert,    &
             VLOCATION          = MAPL_VLocationCenter,    &
+            RESTART            = restartAttr,    &
             RC                 = STATUS  )
        Endif
     ENDDO
@@ -2039,10 +2060,10 @@ CONTAINS
     REAL(ESMF_KIND_R8), POINTER  :: fPtrVal, fPtr1D(:)
 
     ! Initialize everything to zero (from registry file)?
-    INTEGER                      :: InitZero 
+    !INTEGER                      :: InitZero 
  
     ! Initialize from GC Classic restart file (see registry file)?
-    INTEGER                      :: InitGCC
+    !INTEGER                      :: InitGCC
 
     ! Initialize variables used for reading Olson and MODIS LAI imports
     INTEGER            :: T, V, landTypeInt
@@ -2309,75 +2330,6 @@ CONTAINS
     CALL MAPL_TimerOff(STATE, "CP_BFRE")
 
     !=======================================================================
-    ! Check if zero initialization option is selected. If so, make sure all
-    ! concentrations are initialized to zero! 
-    !=======================================================================
-    IF ( FIRST ) THEN
-       CALL ESMF_ConfigGetAttribute( GeosCF, InitZero, Default=0, &
-                                     Label = "INIT_ZERO:", __RC__ ) 
-       IF ( InitZero == 1 ) THEN
-          State_Chm%Species = 1.0e-26
-          IF ( am_I_Root ) THEN
-             write(*,*) ' '
-             write(*,*) ' '
-             write(*,*) '### ALL GEOS-CHEM CONCENTRATIONS ' &
-                        // 'INITIALIZED TO ZERO (1e-26)!!! ###'
-             write(*,*) ' '
-             write(*,*) ' '
-          ENDIF
-       ENDIF
-
-       !=============================================================================================
-       ! This code reads initial conditions from the GCC restart (in v/v dry)
-       ! and applies them to the state arrays (in v/v dry)
-       !=============================================================================================
-       CALL ESMF_ConfigGetAttribute( GeosCF, InitGCC, Default=0, &
-                                     Label = "INIT_GCC:", __RC__ ) 
-
-       If ( InitGCC == 1 ) Then
-          If (am_I_Root) Write(6,'(a)') &
-             'Attempting initialization from GC-Classic NetCDF restart file'
-          !=================================================================
-          ! Comment out the second section of this code once 
-          ! State_Chm%Tracers has been removed. Need both sections for now 
-          ! to ensure that tracers such as SO4s are found.
-          !=================================================================
-          ! For every species in State_Chm, try to find an ExtData field
-          J = 0 ! Number of SPECIES read in from restart
-          L = 0 ! Number of TRACERS read in from restart
-          DO I = 1, SIZE(State_Chm%Spec_ID,1)
-
-             ThisSpc => State_Chm%SpcData(I)%Info
-
-             ! Skip if empty
-             IF ( TRIM(ThisSpc%Name) == '' ) Cycle
-             ! Is this a species?
-             IND = IND_(ThisSpc%Name)
-             If ( IND.le.0) Cycle
-
-             ! Does SPC_NAME exist in the import state as GCC_NAME?
-             if (am_I_Root) write(*,*) 'Fetching '//'GCC_'//TRIM(ThisSpc%Name)
-             CALL MAPL_GetPointer ( IMPORT, Ptr3D, 'GCC_'//TRIM(ThisSpc%Name), notFoundOK=.TRUE., __RC__ )
-             If (Associated(Ptr3D)) Then
-                State_Chm%Species(:,:,:,IND) = Ptr3D(:,:,:)
-                J = J + 1
-                Ptr3D => NULL()
-             else
-!                if (am_I_Root) write(*,*) TRIM(ThisSpc%Name)//' $1$ xyz C N N - 0.0 1.0 SPC_'//TRIM(ThisSpc%Name)//'     RDD'
-             End If
-             ThisSpc => NULL()
-          End Do
-
-          !=============================================================================================
-          If (am_I_Root) Write(6,'(a,I4,a,I4,a)') ' ### Read in ', J, ' species from GCC restart'
-       Else
-          If (am_I_Root) Write(6,'(a)') 'GC-Classic NetCDF restart' // &
-                          ' file will not be used for initialization'
-       End If
-
-    ENDIF
-
-    !=======================================================================
     ! Set Olson land map types from import of Olson file. 
     !=======================================================================
     ! We are currently using land type fractions derived from the 2001
@@ -2397,9 +2349,6 @@ CONTAINS
     !=======================================================================
     IF ( FIRST ) THEN
 
-       ! Get GEOS5 vegetation types (ckeller)
-       !CALL LANDTYPE_REMAP ( am_I_Root, IMPORT, State_Met, __RC__ )
-       
        ! Set Olson fractional land type from import (ewl)
        If (am_I_Root) Write(6,'(a)') 'Initializing land type ' // &
                         'fractions from Olson imports'

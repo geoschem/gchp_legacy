@@ -157,14 +157,15 @@ MODULE GCHP_Utils
 !------------------------------------------------------------------------------
 !BOP
 !
-! !IROUTINE: get_pbllev
+! !IROUTINE: read_species_from_file
 !
-! !DESCRIPTION: Get the level of the PBL
+! !DESCRIPTION: Add all species in input.geos to internal state
 !\\
 !\\
 ! !INTERFACE:
 !
-  SUBROUTINE READ_SPECIES_FROM_FILE( GC, am_I_Root, AdvSpc, Nadv, RC )
+  SUBROUTINE READ_SPECIES_FROM_FILE( GC, am_I_Root, restartAttr, &
+                                     AdvSpc, Nadv, RC )
 !
 ! !USES:
 !
@@ -175,6 +176,7 @@ MODULE GCHP_Utils
 !
 ! !INPUT PARAMETERS:
 !
+    INTEGER,             INTENT(IN)    :: restartAttr
     CHARACTER(40),       INTENT(OUT)   :: AdvSpc(:)
     INTEGER,             INTENT(OUT)   :: RC, Nadv
     TYPE(ESMF_GridComp), INTENT(INOUT) :: GC       ! Ref to this GridComp
@@ -220,7 +222,7 @@ MODULE GCHP_Utils
               VLOCATION          = MAPL_VLocationCenter,    &
               PRECISION          = ESMF_KIND_R8, &
               FRIENDLYTO         = 'DYNAMICS:TURBULENCE:MOIST',  &
-              !RESTART            = MAPL_RestartRequired, & ! Defaults to 'optional'.
+              RESTART            = restartAttr, &
               RC                 = RC  )
          NADV = NADV+1
          AdvSpc(NADV) = TRIM(SUBSTRS(1))
@@ -573,90 +575,74 @@ MODULE GCHP_Utils
     RC        = GC_SUCCESS
 
     DO L = 1, LLPAR 
-       DO J = 1, JJPAR
-          DO I = 1, IIPAR
+    DO J = 1, JJPAR
+    DO I = 1, IIPAR
 
-             ! Special handling for MOH
-             IF ( TRIM( SpcInfo%Name ) == 'MOH' ) THEN
+       ! Special handling for MOH
+       IF ( TRIM( SpcInfo%Name ) == 'MOH' ) THEN
 
-                !----------------------------------------------------
-                ! For methanol (MOH), use different initial
-                ! background concentrations for different regions of
-                ! the atmosphere:
-                !
-                ! (a) 2.0 ppbv MOH -- continental boundary layer
-                ! (b) 0.9 ppbv MOH -- marine boundary layer
-                ! (c) 0.6 ppbv MOH -- free troposphere
-                !
-                ! The concentrations listed above are from Heikes et
-                ! al, "Atmospheric methanol budget and ocean
-                ! implication", _Global Biogeochem. Cycles_, 2002.
-                ! These represent the best estimates for the methanol
-                ! conc.'s in the troposphere based on various
-                ! measurements.
-                !
-                ! MOH is an inactive chemical species in GEOS-CHEM,
-                ! so these initial concentrations will never change.
-                ! However, MOH acts as a sink for OH, and therefore
-                ! will affect both the OH concentration and the
-                ! methylchloroform lifetime.
-                !
-                ! We specify the MOH concentration as ppbv, but then
-                ! we need to multiply by CONV_FACTOR in order to
-                ! convert to [molec/cm3].  (bdf, bmy, 2/22/02)
-                !----------------------------------------------------
-
-                ! Test for altitude (L < 9 is always in the trop)
-                IF ( L <= 9 ) THEN
-                   ! Test for ocean/land boxes
-                   IF ( State_Met%FRCLND(I,J) >= 0.5 ) THEN
-                      ! Continental boundary layer: 2 ppbv MOH
-                      State_Chm%Species(I,J,L,IND) = 2.000e-9_fp
-                   ELSE
-                      ! Marine boundary layer: 0.9 ppbv MOH
-                      State_Chm%Species(I,J,L,IND) = 0.900e-9_fp
-                   ENDIF
-                ELSE
-                   ! Test for troposphere
-                   IF ( ITS_IN_THE_TROP(I,J,L,State_Met) ) THEN
-                      ! Free troposphere: 0.6 ppbv MOH
-                      State_Chm%Species(I,J,L,IND) = 0.600e-9_fp 
-                   ELSE
-                      ! Strat/mesosphere:
-                      State_Chm%Species(I,J,L,IND) = 1.0E-30_FP 
-                   ENDIF
-                ENDIF
-
-                ! Print to log if debugging is on
-                IF ( Input_Opt%LPRT .AND. I == 1 .AND. J == 1 .AND. L == 1 ) THEN
-                   WRITE( 6, 130 ) N, TRIM( SpcInfo%Name )
-130                FORMAT('Species ', i3, ', ', a9, ': see READ_GC_RESTART for special MOH values')
-                ENDIF
-
-                ! For non-advected species at levels above LLCHEM, use a 
-                ! small number for background
-             ELSEIF ( L > LLCHEM .AND. ( .NOT. SpcInfo%Is_Advected ) ) THEN
-
-                State_Chm%Species(I,J,L,IND) = 1.0E-30_FP
-
-                ! For all other cases except MOH, use the background value  
-                ! stored in the species database
+          !----------------------------------------------------
+          ! For methanol (MOH), use different initial
+          ! background concentrations for different regions of
+          ! the atmosphere:
+          !
+          ! (a) 2.0 ppbv MOH -- continental boundary layer
+          ! (b) 0.9 ppbv MOH -- marine boundary layer
+          ! (c) 0.6 ppbv MOH -- free troposphere
+          !
+          ! The concentrations listed above are from Heikes et
+          ! al, "Atmospheric methanol budget and ocean
+          ! implication", _Global Biogeochem. Cycles_, 2002.
+          ! These represent the best estimates for the methanol
+          ! conc.'s in the troposphere based on various
+          ! measurements.
+          !
+          ! MOH is an inactive chemical species in GEOS-CHEM,
+          ! so these initial concentrations will never change.
+          ! However, MOH acts as a sink for OH, and therefore
+          ! will affect both the OH concentration and the
+          ! methylchloroform lifetime.
+          !
+          ! We specify the MOH concentration as ppbv, but then
+          ! we need to multiply by CONV_FACTOR in order to
+          ! convert to [molec/cm3].  (bdf, bmy, 2/22/02)
+          !----------------------------------------------------
+          ! Test for altitude (L < 9 is always in the trop)
+          IF ( L <= 9 ) THEN
+             ! Test for ocean/land boxes
+             IF ( State_Met%FRCLND(I,J) >= 0.5 ) THEN
+                ! Continental boundary layer: 2 ppbv MOH
+                State_Chm%Species(I,J,L,IND) = 2.000e-9_fp
              ELSE
-
-                State_Chm%Species(I,J,L,IND) = SpcInfo%BackgroundVV 
-
-                ! Print to log if debugging is on
-                IF ( Input_Opt%LPRT .AND. I == 1 .AND. J == 1 .AND. L == 1 ) THEN
-                   WRITE( 6, 140 ) N, TRIM( SpcInfo%Name ), &
-                        SpcInfo%BackgroundVV
-140                FORMAT('Species ', i3, ', ', a9,  &
-                        ': Use background = ', es15.9)
-                ENDIF
-
+                ! Marine boundary layer: 0.9 ppbv MOH
+                State_Chm%Species(I,J,L,IND) = 0.900e-9_fp
              ENDIF
+          ELSE
+             ! Test for troposphere
+             IF ( ITS_IN_THE_TROP(I,J,L,State_Met) ) THEN
+                ! Free troposphere: 0.6 ppbv MOH
+                State_Chm%Species(I,J,L,IND) = 0.600e-9_fp 
+             ELSE
+                ! Strat/mesosphere:
+                State_Chm%Species(I,J,L,IND) = 1.0E-30_FP 
+             ENDIF
+          ENDIF
 
-          ENDDO
-       ENDDO
+          ! For non-advected species at levels above LLCHEM, use a 
+          ! small number for background
+       ELSEIF ( L > LLCHEM .AND. ( .NOT. SpcInfo%Is_Advected ) ) THEN
+          State_Chm%Species(I,J,L,IND) = 1.0E-30_FP
+
+          ! For all other cases except MOH, use the background value  
+          ! stored in the species database
+       ELSE
+          State_Chm%Species(I,J,L,IND) = SpcInfo%BackgroundVV 
+       ENDIF
+
     ENDDO
+    ENDDO
+    ENDDO
+
   END SUBROUTINE SET_BACKGROUND_CONC
+
 END MODULE GCHP_Utils

@@ -243,19 +243,28 @@
         ENDIF
         State_Chm%Species(:,:,:,IND) = Ptr3D_R8(:,:,LM:1:-1)
 
-        ! Set species concentration to background values from the
-        ! species database if the restart file is skipped or the species
-        ! were missing from the restart file
-        CALL ESMF_StateGet( INTERNAL, 'SPC_'//TRIM(ThisSpc%Name), trcFIELD, RC=RC )
-        CALL ESMF_AttributeGet( trcFIELD, NAME="RESTART", VALUE=RST, RC=STATUS )
-        IF ( RC /= ESMF_SUCCESS .OR. RST == MAPL_RestartBootstrap .OR. RST == MAPL_RestartSkip ) THEN
-	    CALL SET_BACKGROUND_CONC( am_I_Root, ThisSpc, State_Chm, State_Met, Input_Opt, IND, RC)
-	    Ptr3D_R8(:,:,:) = State_Chm%Species(:,:,LM:1:-1,IND)
-        END IF
-
         ! testing only
         if ( MAPL_am_I_Root()) write(*,*) &
         'Initialized species from INTERNAL state: ', TRIM(ThisSpc%Name)
+
+        ! Set species concentration to background values from the
+        ! species database if the restart file is skipped or the species
+        ! were missing from the restart file
+        CALL ESMF_StateGet( INTERNAL, 'SPC_'//TRIM(ThisSpc%Name),  &
+             trcFIELD, RC=RC )
+        CALL ESMF_AttributeGet( trcFIELD, NAME="RESTART",          &
+             VALUE=RST, RC=STATUS )
+        IF ( RC /= ESMF_SUCCESS .OR. RST == MAPL_RestartBootstrap .OR. &
+                 RST == MAPL_RestartSkipInitial ) THEN
+	    CALL SET_BACKGROUND_CONC( am_I_Root, ThisSpc, State_Chm,  &
+                                      State_Met, Input_Opt, IND, RC) 
+	    Ptr3D_R8(:,:,:) = State_Chm%Species(:,:,LM:1:-1,IND)
+            IF ( MAPL_am_I_Root()) THEN
+               write(*,*)  &
+               '   WARNING: using background values from species database'
+            ENDIF
+        ENDIF
+
         ThisSpc => NULL()
 
      ENDDO
