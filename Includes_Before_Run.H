@@ -91,12 +91,14 @@
   State_Met%Z0                  = Z0                         ! m
 
   ! Calculate the Monin-Obukhov Length
-  WHERE( ABS( State_Met%HFLUX ) > 1.00E-32 )
-     State_Met%MOLENGTH(:,:)    = -AIRDENS(:,:,LM) * MAPL_CP * TS * ustar**3. &
-                                / ( MAPL_KARMAN * MAPL_GRAV * State_Met%HFLUX )
-  ELSEWHERE
-     State_Met%MOLENGTH(:,:)    = 1.00E+05
-  ENDWHERE
+  If (Associated(State_Met%MOLENGTH)) Then
+     WHERE( ABS( State_Met%HFLUX ) > 1.00E-32 )
+        State_Met%MOLENGTH(:,:)    = -AIRDENS(:,:,LM) * MAPL_CP * TS * ustar**3. &
+                                   / ( MAPL_KARMAN * MAPL_GRAV * State_Met%HFLUX )
+     ELSEWHERE
+        State_Met%MOLENGTH(:,:)    = 1.00E+05
+     ENDWHERE
+  End If
 
   ! Same LAI for all 50 biomes?!?? (commented out by ewl, 12/16/16)
   !DO I = 1, 50
