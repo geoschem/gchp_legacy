@@ -200,11 +200,12 @@ MODULE GCHP_Utils
 
     ! Open file
     OPEN( IU_GEOS, FILE='input.geos', STATUS='OLD', IOSTAT=IOS )
-    IF ( IOS /= 0 ) CALL IOERROR( IOS, IU_GEOS, 'READ_SPECIES_FROM_FILE()' )
+    IF ( IOS /= 0 ) CALL IOERROR( IOS, IU_GEOS, 'READ_SPECIES_FROM_FILE:1' )
 
     DO
       ! Read a line from the file
       READ( IU_GEOS, '(a)', IOSTAT=IOS ) LINE
+      IF ( IOS /= 0 ) CALL IOERROR( IOS, IU_GEOS, 'READ_SPECIES_FROM_FILE:2' )
       IF ( INDEX( LINE, 'ADVECTED SPECIES MENU' ) > 0 ) EXIT
     ENDDO
 
@@ -301,6 +302,7 @@ MODULE GCHP_Utils
       !=================================================================
       ! Read a line from the file
       READ( IU_GEOS, '(a)', IOSTAT=IOS ) LINE
+      EOF = IOS < 0
 
       ! STOP on End-of-File w/ error msg
       IF ( EOF ) THEN
