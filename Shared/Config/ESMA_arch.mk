@@ -292,27 +292,40 @@ FC      :=mpif90
 
 # GNU Fortran Compiler
 # --------------------
-  ifeq ($(FC), gfortran) 
+  ifeq ($(word 1,$(shell $(FC) --version)), GNU)
 
       CC = gcc
 
-      LIB_ESMF = $(BASELIB)/libesmf.a
+      #LIB_ESMF = $(BASELIB)/libesmf.a
 
       EXTENDED_SOURCE := -ffixed-line-length-132
       FREE_SOURCE = 
       FIXED_SOURCE = -ffixed-form
       FREAL4   := 
-      FREAL8   := -fdefault-real-8
+      FREAL8   := -fdefault-real-8 -fdefault-double-8
 
       OMPFLAG = 
 
-      fFLAGS   += $(D)__GFORTRAN__ $(EXTENDED_SOURCE)
-      FFLAGS   += $(D)__GFORTRAN__ $(EXTENDED_SOURCE)
-      f90FLAGS += $(D)__GFORTRAN__ -ffree-line-length-256
-      F90FLAGS += $(D)__GFORTRAN__ -ffree-line-length-256
+      FPIC := -fPIC
 
-      INC_MPI = /usr/include
-      LIB_MPI = -lmpi
+      CFLAGS   += $(FPIC)
+      fFLAGS   += $(D)__GFORTRAN__ $(EXTENDED_SOURCE) $(FPIC)
+      FFLAGS   += $(D)__GFORTRAN__ $(EXTENDED_SOURCE) $(FPIC)
+      f90FLAGS += $(D)__GFORTRAN__ -ffree-line-length-none $(FPIC)
+      F90FLAGS += $(D)__GFORTRAN__ -ffree-line-length-none $(FPIC)
+      ifeq ("$(BOPT)","g")
+         FOPT = $(FOPTG) -fbacktrace -fcheck=bounds,do,mem,pointer,recursion -ffpe-trap=invalid,overflow,underflow
+      else
+         FOPT = $(FOPT3) -falign-commons -funroll-loops
+      endif
+
+      ifdef MPT_VERSION
+          FC := mpif90
+          INC_MPI := $(MPI_ROOT)/include
+          LIB_MPI := -L$(MPI_ROOT)/lib  -lmpi -lmpi++
+      endif	
+      #INC_MPI = /usr/include
+      #LIB_MPI = -lmpi
 
 #      LIB_SCI  = -llapackmt -lblasmt 
       LIB_SYS = -ldl -lc -lpthread -lrt -lstdc++

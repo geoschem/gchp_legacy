@@ -67,12 +67,22 @@ LIB=$(ROOTDIR)/lib
 MOD=$(ROOTDIR)/mod
 
 # This code here should get the exact number of the intel version (MDY)
-INTELVERSIONTEXT :=$(shell ifort --version))
-INTELVERSIONTEXT :=$(sort $(INTELVERSIONTEXT))
-LONGVERSION      :=$(word 3, $(INTELVERSIONTEXT))
-MAJORVERSION     :=$(subst ., ,$(LONGVERSION))
-MAJORVERSION     :=$(firstword $(MAJORVERSION))
-MAJORVERSION     :=$(strip $(MAJORVERSION))
+ifeq ($(ESMF_COMPILER),intel)
+  INTELVERSIONTEXT :=$(shell ifort --version))
+  INTELVERSIONTEXT :=$(sort $(INTELVERSIONTEXT))
+  LONGVERSION      :=$(word 3, $(INTELVERSIONTEXT))
+  MAJORVERSION     :=$(subst ., ,$(LONGVERSION))
+  MAJORVERSION     :=$(firstword $(MAJORVERSION))
+  MAJORVERSION     :=$(strip $(MAJORVERSION))
+else ifeq ($(ESMF_COMPILER),gfortran)
+  GNUVERSIONTEXT   :=$(shell gfortran -dumpversion))
+  LONGVERSION      :=$(GNUVERSIONTEXT))
+  MAJORVERSION     :=$(subst ., ,$(LONGVERSION))
+  MAJORVERSION     :=$(firstword $(MAJORVERSION))
+  MAJORVERSION     :=$(strip $(MAJORVERSION))
+else
+  MAJORVERSION     :="0"
+endif
 
 # Include header file.  This returns variables CC, F90, FREEFORM, LD, R8,
 # as well as the default Makefile compilation rules for source code files.
@@ -92,10 +102,9 @@ ifndef ESMF_DIR
   export ESMF_DIR=$(CURDIR)/ESMF
 endif
 
-# Compiler for ESMF
+# Compiler for ESMF - eg intel, intelgcc, gfortran
 ifndef ESMF_COMPILER
-#  export ESMF_COMPILER=intelgcc
-  export ESMF_COMPILER=intel
+   $(error ESMF_COMPILER is not defined)
 endif
 
 # MPI type for ESMF
@@ -120,7 +129,13 @@ export ESMF_INSTALL_MODDIR=$(ESMF_DIR)/$(ARCH)/mod
 export ESMF_INSTALL_HEADERDIR=$(ESMF_DIR)/$(ARCH)/include
 
 # Other ESMF compilation settings
-export ESMF_F90COMPILEOPTS=-align all -fPIC -traceback 
+ifeq ($(ESMF_COMPILER),intel)
+  export ESMF_F90COMPILEOPTS=-align all -fPIC -traceback 
+else ifeq ($(ESMF_COMPILER),gfortran)
+  export ESMF_F90COMPILEOPTS=-falign-commons -fPIC -fbacktrace
+else
+  export ESMF_F90COMPILEOPTS=-fPIC
+endif
 export ESMF_CXXCOMPILEOPTS=-fPIC
 export ESMF_OPENMP=OFF
 

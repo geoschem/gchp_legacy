@@ -293,7 +293,19 @@ BIG_ENDIAN  =
 BYTERECLEN  =
 OMPFLAG     =
 FREAL4      = 
-FREAL8      = -r8
+ifeq ("$(ESMF_COMPILER)","intel")
+  FREAL8      = -r8
+  FREE        =
+  CPPANSIX    = -ansi -DANSI_CPP 
+else ifeq ("$(ESMF_COMPILER)","gfortran")
+  FREAL8      = -fdefault-real-8 -fdefault-double-8
+  FREE        = -ffree-form -ffree-line-length-none -Wno-line-truncation -fno-range-check
+  CPPANSIX    = -std=gnu11 -C
+else
+  FREAL8      =
+  FREE        =
+  CPPANSIX    = -ansi -DANSI_CPP 
+endif
 ifeq ( "$(BPREC)","32" )
       FREAL = $(FREAL4)
 else
@@ -310,9 +322,9 @@ XFLAGS    =
 
 #FC        = f90
 fFLAGS    = $(FDEFS) $(FINCS) $(FMODS) $(FOPT) $(FREAL) $(FINT) $(XFLAGS) $(USER_FFLAGS)
-f90FLAGS  = $(FDEFS) $(FINCS) $(FMODS) $(FOPT) $(FREAL) $(FINT) $(XFLAGS) $(USER_FFLAGS)
+f90FLAGS  = $(FDEFS) $(FINCS) $(FMODS) $(FOPT) $(FREAL) $(FINT) $(XFLAGS) $(USER_FFLAGS) $(FREE)
 FFLAGS    = $(FDEFS) $(FINCS) $(FMODS) $(FOPT) $(FREAL) $(FINT) $(XFLAGS) $(USER_FFLAGS)
-F90FLAGS  = $(FDEFS) $(FINCS) $(FMODS) $(FOPT) $(FREAL) $(FINT) $(XFLAGS) $(USER_FFLAGS)
+F90FLAGS  = $(FDEFS) $(FINCS) $(FMODS) $(FOPT) $(FREAL) $(FINT) $(XFLAGS) $(USER_FFLAGS) $(FREE)
 
 FPP = /lib/cpp 
 FPPFLAGS = -P $(DC)sys$(ARCH) $(FDEFS) $(FINCS) $(foreach dir,$(INC_MPI), $(I)$(dir))
@@ -347,7 +359,7 @@ LDFLAGS = $(LDPATH) $(USER_LDFLAGS)
 	$(ESMA_TIMER) $(FC) -c $(F90FLAGS) $<
 
 .P90.o:
-	@sed -e "/\!.*'/s/'//g" $< | $(CPP) -ansi -DANSI_CPP $(FPPFLAGS) > $*___.f90
+	@sed -e "/\!.*'/s/'//g" $< | $(CPP) $(CPPANSIX) $(FPPFLAGS) > $*___.f90
 	$(ESMA_TIMER) $(FC) -c $(f90FLAGS) -o $*.o $*___.f90
 	@$(RM) $*___.f90
 

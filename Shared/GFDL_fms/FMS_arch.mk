@@ -21,8 +21,11 @@ endif
 
 ifeq ($(FCNAME), GNU)  # gfortran
 
-        USER_FFLAGS = -DNO_R16 -DNO_CRAY_POINTERS
-
+        #USER_FFLAGS = -DNO_R16 -DNO_CRAY_POINTERS
+        USER_FFLAGS  = -DNO_R16 -fcray-pointer -falign-commons
+        # Not sure about this?
+        USER_FFLAGS  += -ffree-form -ffree-line-length-none
+        USER_FFLAGS  += -Wno-line-truncation
 endif
 
 ifeq ($(ESMA_FC), gfortran)  # gfortran

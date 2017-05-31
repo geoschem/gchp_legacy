@@ -482,7 +482,7 @@ CONTAINS
           IF (trim(AdvSpc(J)) .eq. trim(SpcName)) FOUND = .true.
        END DO
        
-       IF (Found .ne. .true.) Then
+       IF (Found .neqv. .true.) Then
        call MAPL_AddInternalSpec(GC, &
             SHORT_NAME         = 'SPC_'//SpcName,  &
             LONG_NAME          = SpcName,  &

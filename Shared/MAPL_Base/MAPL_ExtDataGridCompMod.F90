@@ -3186,7 +3186,7 @@ CONTAINS
            end if
            call ESMF_FieldGet(field, localDE=0, farrayPtr=var2d, __RC__)
            ! only interpolate if we have to
-           if (time == item%interp_time1 .or. item%doInterpolate == .false.) then
+           if (time == item%interp_time1 .or. item%doInterpolate .eqv. .false.) then
               var2d = var2d_prev
            else if (time == item%interp_time2) then
               var2d = var2d_next
@@ -3231,7 +3231,7 @@ CONTAINS
            end if
            call ESMF_FieldGet(field, localDE=0, farrayPtr=var3d, __RC__)
            ! only interpolate if we have to
-           if (time == item%interp_time1 .or. item%doInterpolate == .false.) then
+           if (time == item%interp_time1 .or. item%doInterpolate .eqv. .false.) then
               var3d = var3d_prev
            else if (time == item%interp_time2) then
               var3d = var3d_next

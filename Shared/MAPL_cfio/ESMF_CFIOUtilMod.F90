@@ -2293,6 +2293,7 @@
       integer firstdash, lastdash
       integer firstcolon, lastcolon
       integer lastspace
+      real fTemp
  
       strlen = LEN_TRIM (TimeUnits)
        
@@ -2359,7 +2360,9 @@
           spos(2) = lastcolon + 2
           read (TimeUnits(hpos(1):hpos(2)), * ) hour
           read (TimeUnits(mpos(1):mpos(2)), * ) min
-          read (TimeUnits(spos(1):spos(2)), * ) sec
+          !read (TimeUnits(spos(1):spos(2)), * ) sec
+          read (TimeUnits(spos(1):spos(2)), * ) fTemp
+          sec = Int(fTemp)
         endif
       endif
         

@@ -21,6 +21,7 @@ THIS := $(shell basename `pwd`)
   include $(ESMADIR)/Config/GMAO_base.mk
   include Arch.mk
 
+INC_SDF_EXPAND = $(foreach dir,$(INC_SDF), $(M)$(dir))
 
 #                  ---------------------
 #                  Standard ESMA Targets
@@ -108,7 +109,7 @@ test:
 python: $(PY_EXTS)
 
 GFIO_.$(F2PYEXT): GFIO_py.F90 r4_install
-	$(F2PY) -c -m GFIO_ $(M). $(M)$(INC_SDF) \
+	$(F2PY) -c -m GFIO_ $(M). $(INC_SDF_EXPAND) \
                  GFIO_py.F90 r4/libGMAO_gfio_r4.a $(LIB_SDF) $(LIB_SYS) \
                  only: gfioopen gfiocreate gfiodiminquire gfioinquire\
                        gfiogetvar gfiogetvart gfioputvar gfiogetbegdatetime\

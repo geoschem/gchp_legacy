@@ -93,7 +93,7 @@ USER_FFLAGS += $(BIG_ENDIAN)
 USER_FDEFS  = $(D)OVERLOAD_R4 $(D)MAPL_MODE $(D)EIGHT_BYTE $(D)SPMD $(D)TIMING \
               $(D)use_libMPI $(D)use_netCDF
 USER_CDEFS  = $(USER_FDEFS)
-USER_CINCS  += $(I)$(INC_SDF) $(I)$(INC_MPI)
+USER_CINCS  += $(foreach dir,$(INC_SDF), $(I)$(dir)) $(I)$(INC_MPI)
 
 FREAL = $(FREAL8)
 
