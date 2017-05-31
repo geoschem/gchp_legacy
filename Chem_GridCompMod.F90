@@ -1301,6 +1301,13 @@ CONTAINS
     ! Open a log file on each PET where stdout will be redirected
     !=======================================================================
 
+    ! Check that the choice of LUN is valid
+    If ((logLun.eq.5).or.(logLun.eq.6)) Then
+       WRITE(*,'(a,I5,a)') 'Invalid LUN (',logLun,') chosen for log output'
+       WRITE(*,'(a)'     ) 'An LUN other than 5 or 6 must be used'
+       ASSERT_(.FALSE.)
+    End If
+
     ! Replace tokens w/ PET # in the filename
     IF ( am_I_Root ) THEN
        WRITE( petStr, '(i5.5)' ) myPet
