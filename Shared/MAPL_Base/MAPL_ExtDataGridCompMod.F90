@@ -2347,14 +2347,14 @@ CONTAINS
               do while ((status==ESMF_SUCCESS).and.(.not.found))
                  if (trim(cyclic)=='y') then
                     call ESMF_TimeGet(cTime,yy=iyr,mm=imm,dd=idd,h=ihr,m=imn,s=isc,__RC__)
-                    if (imm == 1) then
+                    if (imm == 12) then
                        cYear = iyr + 1
                        ! change year you will read from
                        iyr = climYear-1
                        call ESMF_TimeSet(readTime,yy=iyr,mm=imm,dd=idd,h=ihr,m=imn,s=isc,__RC__)
                        iyr = climYear
                        ! change month of file
-                       imm = 12
+                       imm = 1
                     else
                        cYear = iyr
                        cMonth = imm

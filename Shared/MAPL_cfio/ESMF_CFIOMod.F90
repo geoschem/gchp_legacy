@@ -895,7 +895,7 @@
       call ESMF_CFIOGet(cfio, fName=fileName)
       inquire(file=fileName, EXIST=ex)
       if ( .not. ex ) then
-         print *, trim(fileName), "doesn't exist"
+         print *, trim(fileName), " doesn't exist"
          return
       end if
       open(11, file=fileName)
