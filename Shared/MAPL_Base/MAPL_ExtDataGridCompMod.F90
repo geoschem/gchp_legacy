@@ -2259,9 +2259,6 @@ CONTAINS
                  yrOffset = yrOffset - 1
                  iYr = refYear + yrOffset
                  call ESMF_TimeSet(newTime,yy=iyr,mm=imm,dd=idd,h=ihr,m=imn,s=isc,__RC__)
-                 ! Error check - if the new time is before the first file time,
-                 ! all is lost
-                 If (newTime.lt.xTSeries(1)) exit
                  do while (ftime > newTime)
                     fTime = fTime - frequency
                     n = n - 1
@@ -2276,7 +2273,7 @@ CONTAINS
                  call gx_(file_processed,file_tmpl,nymd=curDate,nhms=curTime,__STAT__)
                  Inquire(FILE=trim(file_processed),EXIST=found)
               End Do
-              If (.not.found) Then
+              If ((.not.found) .and. (newTime.lt.xTSeries(1))) Then
                  if (mapl_am_I_root()) Then
                     write(*,'(a,a,a,a)') ' ERROR: Could not determine upper bounds on ',trim(file_tmpl),' for side ',bSide
                  end if
