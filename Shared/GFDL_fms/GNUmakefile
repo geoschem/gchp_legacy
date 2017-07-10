@@ -69,7 +69,7 @@ esma_doc doc:
 #                  --------------------
 #                  User Defined Targets
 #                  --------------------
-.SUFFIXES: += .inc
+.SUFFIXES: .inc
 ALLSRCS := $(shell cat path_names)
 HEADERS = $(shell cat path_names |grep "\.h")
 INCFILES = $(shell cat path_names |grep "\.inc")
