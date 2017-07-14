@@ -103,14 +103,6 @@
   TMPU1              |     1	   | xyz | C |    |   |   |	|      | 
   SPHU2              |     1	   | xyz | C |    |   |   |	|      | 
   TMPU2              |     1	   | xyz | C |    |   |   |	|      | 
-  VEGFRAC_1          |      1      | xy  |   |    |   |   |     |      | drydep_fraction_type01
-  VEGFRAC_2          |      1      | xy  |   |    |   |   |     |      | drydep_fraction_type02
-  VEGFRAC_3          |      1      | xy  |   |    |   |   |     |      | drydep_fraction_type03
-  VEGFRAC_4          |      1      | xy  |   |    |   |   |     |      | drydep_fraction_type04
-  VEGFRAC_5          |      1      | xy  |   |    |   |   |     |      | drydep_fraction_type05
-  VEGFRAC_6          |      1      | xy  |   |    |   |   |     |      | drydep_fraction_type06
-  VEGFRAC_7          |      1      | xy  |   |    |   |   |     |      | drydep_fraction_type07
-  VEGFRAC_8          |      1      | xy  |   |    |   |   |     |      | drydep_fraction_type08
 # -------------------|-------------|-----|---|----|---|---|-----|------|--------------------------
 </ImportSpec>
 
