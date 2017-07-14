@@ -538,19 +538,22 @@ CONTAINS
 !    CALL GIGC_ReadChem_Bcast( RC )
 !------------------------------------------------------------------------------
 
-    ! Initialize FAST-J photolysis
+
 !------------------------------------------------------------------------------
 ! Prior to 3/7/13:
 ! NOTE: for now, just call INPHOT on all CPUs.  Try to figure out how
 ! to MPI broadcast later.  This could be very difficult. (bmy, mlong, 3/7/13)
 !    IF ( am_I_Root ) THEN
 !------------------------------------------------------------------------------
-       CALL INIT_FJX( am_I_Root, Input_Opt, RC )  ! Are we on the root CPU?
-       IF ( RC /= GC_SUCCESS ) RETURN
-
-       !### Debug
-       IF ( prtDebug ) THEN
-          CALL DEBUG_MSG( '### GIGC_INIT_SIMULATION: after INIT_FJX' )        
+       IF ( Input_Opt%ITS_A_FULLCHEM_SIM .OR.                     &
+            Input_Opt%ITS_AN_AEROSOL_SIM ) THEN
+          CALL INIT_FJX( am_I_Root, Input_Opt, RC )  ! Are we on the root CPU?
+          IF ( RC /= GC_SUCCESS ) RETURN
+          
+          !### Debug
+          IF ( prtDebug ) THEN
+             CALL DEBUG_MSG( '### GIGC_INIT_SIMULATION: after INIT_FJX' )        
+          ENDIF
        ENDIF
 !------------------------------------------------------------------------------
 ! Prior to 3/7/13:
