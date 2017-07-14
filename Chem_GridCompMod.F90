@@ -358,7 +358,7 @@ CONTAINS
     CHARACTER(LEN=ESMF_MAXSTR)    :: HcoConfigFile ! HEMCO configuration file
     CHARACTER(LEN=ESMF_MAXSTR)    :: SpcName       ! Registered species name
     CHARACTER(LEN=40)             :: AdvSpc(500)
-    INTEGER                       :: I, J, NAdv
+    INTEGER                       :: I, J, NAdv, SimType
     LOGICAL                       :: FOUND = .false.
     CHARACTER(LEN=60)             :: rstFile
     INTEGER                       :: restartAttr
@@ -468,32 +468,35 @@ CONTAINS
 
 !-- Read in species from input.geos and set FRIENDLYTO
     CALL READ_SPECIES_FROM_FILE( GC, MAPL_am_I_Root(), restartAttr, &
-                                 AdvSpc, Nadv, RC )
+                                 AdvSpc, Nadv, SimType, RC )
 
 !-- Add all additional species in KPP (careful not to add dummy species)
-    DO I=1,NSPEC
-       FOUND = .false.
-
-       ! Skip dummy RR species for prod/loss diagnostic (mps, 8/23/16)
-       SpcName = ADJUSTL( Spc_Names(I) )
-       IF ( SpcName(1:2) == 'RR' ) CYCLE
-
-       DO J=1,Nadv !Size of AdvSpc
-          IF (trim(AdvSpc(J)) .eq. trim(SpcName)) FOUND = .true.
-       END DO
+!-- only if fullchem or aerosol simulations
+    IF ( SimType == 3 .OR. SimType == 10 ) THEN
+       DO I=1,NSPEC
+          FOUND = .false.
        
-       IF (Found .neqv. .true.) Then
-       call MAPL_AddInternalSpec(GC, &
-            SHORT_NAME         = 'SPC_'//SpcName,  &
-            LONG_NAME          = SpcName,  &
-            UNITS              = 'mol mol-1', &
-            PRECISION          = ESMF_KIND_R8, &
-            DIMS               = MAPL_DimsHorzVert,    &
-            VLOCATION          = MAPL_VLocationCenter,    &
-            RESTART            = restartAttr,    &
-            RC                 = STATUS  )
-       Endif
-    ENDDO
+          ! Skip dummy RR species for prod/loss diagnostic (mps, 8/23/16)
+          SpcName = ADJUSTL( Spc_Names(I) )
+          IF ( SpcName(1:2) == 'RR' ) CYCLE
+       
+          DO J=1,Nadv !Size of AdvSpc
+             IF (trim(AdvSpc(J)) .eq. trim(SpcName)) FOUND = .true.
+          END DO
+          
+          IF (Found .neqv. .true.) Then
+          call MAPL_AddInternalSpec(GC, &
+               SHORT_NAME         = 'SPC_'//SpcName,  &
+               LONG_NAME          = SpcName,  &
+               UNITS              = 'mol mol-1', &
+               PRECISION          = ESMF_KIND_R8, &
+               DIMS               = MAPL_DimsHorzVert,    &
+               VLOCATION          = MAPL_VLocationCenter,    &
+               RESTART            = restartAttr,    &
+               RC                 = STATUS  )
+          Endif
+       ENDDO
+    ENDIF
 
 !
 ! !EXTERNAL STATE:
