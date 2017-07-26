@@ -1004,6 +1004,15 @@ CONTAINS
                                                             __RC__ )
     ENDIF ! ArchivedConv 
 
+    ! LAI
+    call MAPL_AddImportSpec(GC,                                  &
+       SHORT_NAME         = 'XLAIMULTI',                         &
+       LONG_NAME          = 'LAI_by_type',                       &
+       UNITS              = 'cm2 cm-2',                          &
+       DIMS               = MAPL_DimsHorzVert,                   &
+       VLOCATION          = MAPL_VLocationEdge,                  &
+                                                            __RC__ )
+
     ! Set HEMCO services
     ! --------------------
     CALL ESMF_ConfigGetAttribute( myState%myCF, HcoConfigFile, &
@@ -2408,46 +2417,43 @@ CONTAINS
     IF ( FIRST .OR. ITS_A_NEW_DAY() ) THEN
        If (am_I_Root) Write(6,'(a)') 'Initializing leaf area index ' // &
                         'variable from imports'
-       Ptr2d => NULL()
-       DO T = 1, NSURFTYPE
-       
-          ! Create two-char string for land type
-          landTypeInt = T-1
-          IF ( landTypeInt < 10 ) THEN
-             WRITE ( landTypeStr, "(A1,I1)" ) '0', landTypeInt
-          ELSE
-             WRITE ( landTypeStr, "(I2)" ) landTypeInt  
-          ENDIF
-       
-          ! Get pointer and populate State_Met variable for XLAI_NATIVE
-          importName = 'XLAI' // TRIM(landTypeStr)
-       
-          CALL MAPL_GetPointer ( IMPORT, Ptr2D, TRIM(importName),  &
-                                 notFoundOK=.TRUE., __RC__ )
-          If ( Associated(Ptr2D) ) Then
-             If (am_I_Root) Write(6,*)                                &
-                  ' ### Reading ' // TRIM(importName) // ' from imports'
-             State_Met%XLAI_NATIVE(:,:,T) = Ptr2D(:,:)
-          ELSE
-             WRITE(6,*) TRIM(importName) // ' pointer is not associated'
-          ENDIF
-          Ptr2D => NULL()
-       
-          !! Get pointer and populate State_Met variable for XCHLR_NATIVE
-          !importName = 'XCHLR' // TRIM(landTypeStr)
-          !
-          !CALL MAPL_GetPointer ( IMPORT, Ptr2D, TRIM(importName),  &
-          !                       notFoundOK=.TRUE., __RC__ )
-          !If ( Associated(Ptr2D) ) Then
-          !   If (am_I_Root) Write(6,*)                                &
-          !        ' ### Reading ' // TRIM(importName) // ' from imports'
-          !   State_Met%CHLR_NATIVE(:,:,T) = Ptr2D(:,:)
-          !ELSE
-          !   WRITE(6,*) TRIM(importName) // ' pointer is not associated'
-          !ENDIF
-          !Ptr2D => NULL()
-       
-       END DO
+
+       ! Try getting the MULTI import first
+       Ptr3D => NULL()
+       importName = 'XLAIMULTI'
+       Call MAPL_GetPointer ( IMPORT, Ptr3D, Trim(importName), &
+          notFoundOK = .TRUE., __RC__ )
+       If ( Associated(Ptr3D) ) Then
+          If (am_I_Root) Write(6,'(a)') ' ### Reading XLAI from multi-import'
+          State_Met%XLAI_NATIVE(:,:,:) = Ptr3D(:,:,:)
+       Else
+          Ptr2d => NULL()
+          DO T = 1, NSURFTYPE
+          
+             ! Create two-char string for land type
+             landTypeInt = T-1
+             IF ( landTypeInt < 10 ) THEN
+                WRITE ( landTypeStr, "(A1,I1)" ) '0', landTypeInt
+             ELSE
+                WRITE ( landTypeStr, "(I2)" ) landTypeInt  
+             ENDIF
+          
+             ! Get pointer and populate State_Met variable for XLAI_NATIVE
+             importName = 'XLAI' // TRIM(landTypeStr)
+          
+             CALL MAPL_GetPointer ( IMPORT, Ptr2D, TRIM(importName),  &
+                                    notFoundOK=.TRUE., __RC__ )
+             If ( Associated(Ptr2D) ) Then
+                If (am_I_Root) Write(6,*)                                &
+                     ' ### Reading ' // TRIM(importName) // ' from imports'
+                State_Met%XLAI_NATIVE(:,:,T) = Ptr2D(:,:)
+             ELSE
+                WRITE(6,*) TRIM(importName) // ' pointer is not associated'
+             ENDIF
+             Ptr2D => NULL()
+          END DO
+       ENDIF
+       Ptr3D => NULL()
     ENDIF
 
     !=======================================================================
