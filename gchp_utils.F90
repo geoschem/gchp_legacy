@@ -230,7 +230,6 @@ MODULE GCHP_Utils
       ELSEIF ( INDEX( LINE, 'Type of simulation' ) > 0 ) THEN
          ! Save simulation type
          READ( SUBSTRS(1:N), * ) SimType
-         print *, "SimType: ", SimType
       ELSE
          ! do nothing
       ENDIF

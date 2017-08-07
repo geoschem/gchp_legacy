@@ -360,9 +360,9 @@ CONTAINS
     CHARACTER(LEN=ESMF_MAXSTR)    :: HcoConfigFile ! HEMCO configuration file
     CHARACTER(LEN=ESMF_MAXSTR)    :: SpcName       ! Registered species name
     CHARACTER(LEN=40)             :: AdvSpc(500)
-    INTEGER                       :: I, J, NAdv, SimType
+    INTEGER                       :: I, J, T, NAdv, SimType, landTypeInt
     LOGICAL                       :: FOUND = .false.
-    CHARACTER(LEN=60)             :: rstFile
+    CHARACTER(LEN=60)             :: rstFile, landTypeStr, importName
     INTEGER                       :: restartAttr
 
     __Iam__('SetServices')
@@ -1009,14 +1009,40 @@ CONTAINS
                                                             __RC__ )
     ENDIF ! ArchivedConv 
 
+    ! OLSON
+    DO T = 1, NSURFTYPE
+       landTypeInt = T-1
+       IF ( landTypeInt < 10 ) THEN
+          WRITE ( landTypeStr, "(A1,I1)" ) '0', landTypeInt
+       ELSE
+          WRITE ( landTypeStr, "(I2)" ) landTypeInt  
+       ENDIF
+       importName = 'OLSON' // TRIM(landTypeStr)
+       CALL MAPL_AddImportSpec(GC,                                  &
+          SHORT_NAME         = importName,                          &
+          LONG_NAME          = 'OLSON_land_by_type',                &
+          UNITS              = 'unitless',                          &
+          DIMS               = MAPL_DimsHorzOnly,                   &
+                                                            __RC__ )
+    END DO
+
     ! LAI
-    call MAPL_AddImportSpec(GC,                                  &
+    CALL MAPL_AddImportSpec(GC,                                  &
        SHORT_NAME         = 'XLAIMULTI',                         &
        LONG_NAME          = 'LAI_by_type',                       &
        UNITS              = 'cm2 cm-2',                          &
        DIMS               = MAPL_DimsHorzVert,                   &
        VLOCATION          = MAPL_VLocationEdge,                  &
                                                             __RC__ )
+
+    ! CHLR (chlorophyll-a, used in marine POA simulation only)
+    !CALL MAPL_AddImportSpec(GC,                                  &
+    !   SHORT_NAME         = 'XCHLRMULTI',                        &
+    !   LONG_NAME          = 'CHLR_by_type',                      &
+    !   UNITS              = 'mg m-3',                            &
+    !   DIMS               = MAPL_DimsHorzVert,                   &
+    !   VLOCATION          = MAPL_VLocationEdge,                  &
+    !                                                        __RC__ )
 
     ! Set HEMCO services
     ! --------------------
