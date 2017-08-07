@@ -222,7 +222,7 @@
      CALL MAPL_Get ( STATE, INTERNAL_ESMF_STATE=INTERNAL, __RC__ ) 
 
      ! Loop over all species
-     DO I = 1, SIZE(State_Chm%Spec_ID,1)
+     DO I = 1, State_Chm%nSpecies
 
         ThisSpc => State_Chm%SpcData(I)%Info
 

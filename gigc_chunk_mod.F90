@@ -85,12 +85,13 @@ CONTAINS
 !\\
 ! !INTERFACE:
 !
-  SUBROUTINE GIGC_Chunk_Init( am_I_Root, I_LO,      J_LO,      I_HI,      &
-                              J_HI,      IM,        JM,        LM,        &
-                              IM_WORLD,  JM_WORLD,  LM_WORLD,  nymdB,     &
-                              nhmsB,     nymdE,     nhmsE,     tsChem,    &
-                              tsDyn,     lonCtr,    latCtr,    myPET,     &
-                              Input_Opt, State_Chm, State_Met, HcoConfig, RC      )
+  SUBROUTINE GIGC_Chunk_Init( am_I_Root, I_LO,      J_LO,       I_HI,      &
+                              J_HI,      IM,        JM,         LM,        &
+                              IM_WORLD,  JM_WORLD,  LM_WORLD,   nymdB,     &
+                              nhmsB,     nymdE,     nhmsE,      tsChem,    &
+                              tsDyn,     lonCtr,    latCtr,     myPET,     &
+                              Input_Opt, State_Chm, State_Diag, State_Met, &
+                              HcoConfig, RC      )
 !
 ! !USES:
 !
@@ -99,11 +100,12 @@ CONTAINS
     USE ErrCode_Mod
     USE Input_Opt_Mod,           ONLY : OptInput
     USE State_Chm_Mod,           ONLY : ChmState
+    USE State_Diag_Mod,          ONLY : DgnState
     USE State_Met_Mod,           ONLY : MetState
     USE Diagnostics_Mod,         ONLY : Diagnostics_Init
     USE EMISSIONS_MOD,           ONLY : EMISSIONS_INIT
     USE HCO_TYPES_MOD,           ONLY : ConfigObj
-    USE UCX_MOD,              ONLY : INIT_UCX, SET_INITIAL_MIXRATIOS
+    USE UCX_MOD,                 ONLY : INIT_UCX, SET_INITIAL_MIXRATIOS
     USE UnitConv_Mod
 !
 ! !INPUT PARAMETERS:
@@ -133,6 +135,7 @@ CONTAINS
 !
     TYPE(OptInput),     INTENT(INOUT) :: Input_Opt   ! Input Options object
     TYPE(ChmState),     INTENT(INOUT) :: State_Chm   ! Chemistry State object
+    TYPE(DgnState),     INTENT(INOUT) :: State_Diag  ! Diagnostics State object
     TYPE(MetState),     INTENT(INOUT) :: State_Met   ! Meteorology State object
     TYPE(ConfigObj),    POINTER       :: HcoConfig   ! HEMCO config obj 
 !
@@ -206,10 +209,11 @@ CONTAINS
                                value_LM_WORLD = LM_WORLD,   & ! Global # levs
                                lonCtr         = lonCtr,     & ! Lon ctrs [rad]
                                latCtr         = latCtr,     & ! Lat ctrs [rad]
+                               myPET          = myPET,      & ! Local PET
                                Input_Opt      = Input_Opt,  & ! Input Options
                                State_Chm      = State_Chm,  & ! Chemistry State
+                               State_Diag     = State_Diag, & ! Diagnostic State
                                State_Met      = State_Met,  & ! Met State
-                               myPET          = myPET,      & ! Local PET
                                RC             = RC         )  ! Success?
     ASSERT_(RC==GC_SUCCESS)
 

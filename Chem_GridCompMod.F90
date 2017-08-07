@@ -67,6 +67,7 @@ MODULE Chem_GridCompMod
   USE ErrCode_Mod                                    ! Error numbers
   USE Input_Opt_Mod                                  ! Input Options obj
   USE State_Chm_Mod                                  ! Chemistry State obj
+  USE State_Diag_Mod                                 ! Diagnostics State obj
   USE State_Met_Mod                                  ! Meteorology State obj
   USE Species_Mod,   ONLY : Species
   USE HCO_TYPES_MOD, ONLY : ConfigObj
@@ -122,6 +123,7 @@ MODULE Chem_GridCompMod
   TYPE(OptInput)                   :: Input_Opt      ! Input Options
   TYPE(MetState)                   :: State_Met      ! Meteorology state
   TYPE(ChmState)                   :: State_Chm      ! Chemistry state
+  TYPE(DgnState)                   :: State_Diag     ! Diagnostics state
   TYPE(Species), POINTER           :: ThisSpc => NULL()
 
   TYPE(ConfigObj), POINTER         :: HcoConfig
@@ -1432,11 +1434,12 @@ CONTAINS
                           tsDyn     = tsDyn,      & ! Dynamic  timestep [s]
                           lonCtr    = lonCtr,     & ! Lon centers [radians]
                           latCtr    = latCtr,     & ! Lat centers [radians]
-                          Input_Opt = Input_Opt,  & ! Input Options obj
-                          State_Met = State_Met,  & ! Meteorology State obj
-                          State_Chm = State_Chm,  & ! Chemistry State obj
-                          HcoConfig = HcoConfig,  & ! HEMCO Configuration Object
                           myPET     = myPET,      & ! Local PET
+                          Input_Opt = Input_Opt,  & ! Input Options obj
+                          State_Chm = State_Chm,  & ! Chemistry State obj
+                          State_Diag= State_Diag, & ! Diagnostics State obj
+                          State_Met = State_Met,  & ! Meteorology State obj
+                          HcoConfig = HcoConfig,  & ! HEMCO Configuration Object
                           __RC__                 )
 
     ! Also save the MPI & PET specs to Input_Opt
@@ -2761,6 +2764,8 @@ CONTAINS
 !
 ! !USES:
 !
+    USE Species_Mod,          ONLY : Species
+!
 ! !INPUT/OUTPUT PARAMETERS:
 !
     TYPE(ESMF_GridComp), INTENT(INOUT) :: GC       ! Ref. to this GridComp
@@ -2816,6 +2821,7 @@ CONTAINS
     
     ! Pointers
     TYPE(MAPL_MetaComp), POINTER :: STATE
+    TYPE(Species),       POINTER :: ThisSpc
 
     ! For species copying
     INTEGER                     :: IND
@@ -2880,25 +2886,28 @@ CONTAINS
     CALL MAPL_Get ( STATE, INTERNAL_ESMF_STATE=INTSTATE, __RC__ ) 
 
     ! Loop over all species
-    DO I = 1, SIZE(State_Chm%Spec_ID,1)
+    DO I = 1, State_Chm%nSpecies
+ 
+       ! Get info about this species from the species database
+       ThisSpc => State_Chm%SpcData(I)%Info
 
        ! Skip if empty
-       IF ( TRIM(State_Chm%Spec_Name(I)) == '' ) CYCLE
+       IF ( TRIM(ThisSpc%Name) == '' ) CYCLE
 
        ! Is this a tracer?
-       IND = IND_( TRIM(State_Chm%Spec_Name(I)) )
+       IND = IND_( TRIM(ThisSpc%Name) )
        IF ( IND >= 0 ) CYCLE
 
        ! Get data from internal state and copy to species array
-       CALL MAPL_GetPointer( INTSTATE, Ptr3D_R8, TRIM(State_Chm%Spec_Name(I)), &
+       CALL MAPL_GetPointer( INTSTATE, Ptr3D_R8, TRIM(ThisSpc%Name), &
                              notFoundOK=.TRUE., __RC__ )
        IF ( .NOT. ASSOCIATED(Ptr3D_R8) ) CYCLE
-       Ptr3D_R8 = State_Chm%Species(:,:,LM:1:-1,State_Chm%Spec_ID(I))
+       Ptr3D_R8 = State_Chm%Species(:,:,LM:1:-1,IND)
 
        ! Verbose 
        if ( MAPL_am_I_Root()) write(*,*)                &
                 'Species written to INTERNAL state: ',  &
-                TRIM(State_Chm%Spec_Name(I))
+                TRIM(ThisSpc%Name)
     ENDDO
 
     ! Nullify pointer

@@ -210,10 +210,9 @@ CONTAINS
                                    value_IM,        value_JM,        &
                                    value_LM,        value_IM_WORLD,  &
                                    value_JM_WORLD,  value_LM_WORLD,  &
-                                   Input_Opt,       State_Chm,       &
-                                   myPET,                            &
-                                   State_Met,                        &
-                                   RC                               )      
+                                   myPET,           Input_Opt,       &
+                                   State_Chm,       State_Diag,      &
+                                   State_Met,       RC         )      
 !
 ! !USES:
 !
@@ -221,6 +220,7 @@ CONTAINS
     USE ErrCode_Mod  
     USE Input_Opt_Mod
     USE State_Chm_Mod
+    USE State_Diag_Mod
     USE State_Met_Mod
     USE PhysConstants
     USE CMN_SIZE_MOD
@@ -284,6 +284,7 @@ CONTAINS
 !
     TYPE(OptInput),  INTENT(INOUT) :: Input_Opt       ! Input Options
     TYPE(ChmState),  INTENT(INOUT) :: State_Chm       ! Chemistry State
+    TYPE(DgnState),  INTENT(INOUT) :: State_Diag      ! Diagnostics State
     TYPE(MetState),  INTENT(INOUT) :: State_Met       ! Meteorology State
 !
 !
@@ -470,11 +471,12 @@ CONTAINS
                         Diagnos    = Input_Opt%TS_DIAG         )
 
     ! Initialize derived-type objects for meteorology & chemistry states
-    CALL GC_Init_All( am_I_Root = am_I_Root,                              &
-                      Input_Opt = Input_Opt,                              &
-                      State_Chm = State_Chm,                              &
-                      State_Met = State_Met,                              &
-                      RC        = RC         )
+    CALL GC_Init_All( am_I_Root  = am_I_Root,                              &
+                      Input_Opt  = Input_Opt,                              &
+                      State_Chm  = State_Chm,                              &
+                      State_Diag = State_Diag,                             & 
+                      State_Met  = State_Met,                              &
+                      RC         = RC         )
     IF ( RC /= GC_SUCCESS ) RETURN
 
     ! After broadcasting Input_Opt to other CPUs, call GIGC_Init_Extra
