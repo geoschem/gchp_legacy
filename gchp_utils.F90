@@ -165,7 +165,7 @@ MODULE GCHP_Utils
 ! !INTERFACE:
 !
   SUBROUTINE READ_SPECIES_FROM_FILE( GC, am_I_Root, restartAttr, &
-                                     AdvSpc, Nadv, RC )
+                                     AdvSpc, Nadv, SimType, RC )
 !
 ! !USES:
 !
@@ -178,7 +178,7 @@ MODULE GCHP_Utils
 !
     INTEGER,             INTENT(IN)    :: restartAttr
     CHARACTER(40),       INTENT(OUT)   :: AdvSpc(:)
-    INTEGER,             INTENT(OUT)   :: RC, Nadv
+    INTEGER,             INTENT(OUT)   :: Nadv, SimType, RC 
     TYPE(ESMF_GridComp), INTENT(INOUT) :: GC       ! Ref to this GridComp
     LOGICAL                            :: am_I_Root
 !
@@ -227,6 +227,12 @@ MODULE GCHP_Utils
               RC                 = RC  )
          NADV = NADV+1
          AdvSpc(NADV) = TRIM(SUBSTRS(1))
+      ELSEIF ( INDEX( LINE, 'Type of simulation' ) > 0 ) THEN
+         ! Save simulation type
+         READ( SUBSTRS(1:N), * ) SimType
+         print *, "SimType: ", SimType
+      ELSE
+         ! do nothing
       ENDIF
     ENDDO
 

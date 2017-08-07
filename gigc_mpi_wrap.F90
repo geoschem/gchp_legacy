@@ -160,7 +160,23 @@ CONTAINS
     CALL MPI_Bcast( INPUT_OPT%HcoConfigFile, len(INPUT_OPT%HcoConfigFile), mpi_character, 0, mpiComm, RC )
 
     !----------------------------------------
-    ! TRACER MENU fields
+    ! PASSIVE SPECIES MENU fields
+    !----------------------------------------
+    CALL MPI_Bcast( INPUT_OPT%NPASSIVE, 1, mpi_integer, 0, mpiComm, RC )
+    CALL MPI_Bcast( INPUT_OPT%PASSIVE_ID(:), MAXPASV, mpi_integer, 0,  &
+                                             mpiComm, RC )
+    CALL MPI_Bcast( INPUT_OPT%PASSIVE_NAME(:), (63)*MAXPASV,          &
+                                             mpi_character, 0, mpiComm, RC )
+    CALL MPI_Bcast( INPUT_OPT%PASSIVE_MW(:), MAXPASV, mpi_real8, 0,  &
+                                             mpiComm, RC )
+    CALL MPI_Bcast( INPUT_OPT%PASSIVE_TAU(:), MAXPASV, mpi_real8, 0, &
+                                             mpiComm, RC )
+    CALL MPI_Bcast( INPUT_OPT%PASSIVE_INITCONC(:), MAXPASV, mpi_real8, 0, mpiComm, RC )
+
+    ! add passive species variables here
+
+    !----------------------------------------
+    ! ADVECTED SPECIES MENU fields
     !----------------------------------------
     CALL MPI_Bcast( INPUT_OPT%N_ADVECT, 1, mpi_integer, 0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%AdvectSpc_Name(:), (255)*INPUT_OPT%MAX_SPC, mpi_character, 0, mpiComm, RC )
