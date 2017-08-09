@@ -213,8 +213,9 @@ MODULE GCHP_Utils
     DO WHILE( INDEX( LINE, 'TRANSPORT MENU' ) .le. 0) 
        ! Read next and Split line into substrings
       CALL SPLIT_ONE_LINE( SUBSTRS, N, -1, 'read_adv_spec_menu:4', LINE )
-      IF ( INDEX( LINE, 'Species #' ) > 0 ) THEN
+      IF ( INDEX( LINE, 'Species name' ) > 0 ) THEN
          ! Save advected species name
+
          call MAPL_AddInternalSpec(GC, &
               SHORT_NAME         = 'SPC_'//TRIM(SUBSTRS(1)),  &
               LONG_NAME          = TRIM(SUBSTRS(1)),  &

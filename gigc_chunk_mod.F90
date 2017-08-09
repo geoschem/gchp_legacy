@@ -234,6 +234,7 @@ CONTAINS
 
        ! Set simple initial tracer conditions
        CALL SET_INITIAL_MIXRATIOS( am_I_Root, Input_Opt, State_Met, State_Chm )
+
     ENDIF
 
     ! Initialize diagnostics.
@@ -334,8 +335,6 @@ CONTAINS
     ! Unit conversion (SE 2016-03-27)
     Use UnitConv_Mod
 
-    ! ewl debugging
-    USE Time_Mod,           ONLY : ITS_A_NEW_MONTH
 !
 ! !INPUT PARAMETERS:
 !
