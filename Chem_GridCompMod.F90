@@ -237,6 +237,11 @@ MODULE Chem_GridCompMod
   REAL, POINTER     :: PTR_GCCTO3 (:,:) => NULL()
   REAL, POINTER     :: PTR_GCCTTO3(:,:) => NULL()
 
+  ! ewl debugging - met diagnostics
+  REAL, POINTER, DIMENSION(:,:,:)  :: PTR_MET_AIRMASS
+  REAL, POINTER, DIMENSION(:,:,:)  :: PTR_MET_TEMP
+  REAL, POINTER, DIMENSION(:,:,:)  :: PTR_MET_RH
+
   ! Use archived convection fields?
   ! If the attribute 'ARCHIVED_CONV' in the GEOS-Chem configuration file is set
   ! to '1', GEOS-Chem will use archived convection fields, imported through
@@ -453,6 +458,38 @@ CONTAINS
 !
 #   include "GIGCchem_InternalSpec___.h"
 
+    ! ewl debugging - add sample met diags to internal state
+    call MAPL_AddInternalSpec(GC, &
+                              SHORT_NAME         = 'MET_RH',             &
+                              LONG_NAME          = 'Relative_humidity',  &
+                              UNITS              = '%',                  &
+!                              PRECISION          = ESMF_KIND_R8,         &
+                              DIMS               = MAPL_DimsHorzVert,    &
+                              VLOCATION          = MAPL_VLocationCenter, &
+                              RESTART            = MAPL_RestartSkip,     &
+                              FRIENDLYTO         = trim(COMP_NAME),      &
+                              RC                 = STATUS  )
+    call MAPL_AddInternalSpec(GC, &
+                              SHORT_NAME         = 'MET_AIRMASS',        &
+                              LONG_NAME          = 'Dry_air_mass',       &
+                              UNITS              = 'kg',                 &
+!                              PRECISION          = ESMF_KIND_R8,         &
+                              DIMS               = MAPL_DimsHorzVert,    &
+                              VLOCATION          = MAPL_VLocationCenter, &
+                              RESTART            = MAPL_RestartSkip,     &
+                              FRIENDLYTO         = trim(COMP_NAME),      &
+                              RC                 = STATUS  )
+    call MAPL_AddInternalSpec(GC, &
+                              SHORT_NAME         = 'MET_TEMP',           &
+                              LONG_NAME          = 'Air_temperature',    &
+                              UNITS              = 'K',                  &
+!                              PRECISION          = ESMF_KIND_R8,         &
+                              DIMS               = MAPL_DimsHorzVert,    &
+                              VLOCATION          = MAPL_VLocationCenter, &
+                              RESTART            = MAPL_RestartSkip,     &
+                              FRIENDLYTO         = trim(COMP_NAME),      &
+                              RC                 = STATUS  )
+
     ! Determine if using a restart file for the internal state. Setting
     ! the GIGCchem_INTERNAL_RESTART_FILE to +none in GCHP.rc indicates
     ! skipping the restart file. Species concentrations will be retrieved
@@ -499,6 +536,7 @@ CONTAINS
           Endif
        ENDDO
     ENDIF
+
 
 !
 ! !EXTERNAL STATE:
@@ -2201,6 +2239,15 @@ CONTAINS
     IF ( FIRST ) THEN
 #      include "GIGCchem_GetPointer___.h"
 
+       ! ewl debugging - met diagnostics
+       call MAPL_GetPointer ( INTERNAL, PTR_MET_TEMP, 'MET_TEMP', RC=STATUS )
+       VERIFY_(STATUS)
+       call MAPL_GetPointer ( INTERNAL, PTR_MET_AIRMASS, 'MET_AIRMASS', &
+                              RC=STATUS )
+       VERIFY_(STATUS)
+       call MAPL_GetPointer ( INTERNAL, PTR_MET_RH, 'MET_RH', RC=STATUS )
+       VERIFY_(STATUS)
+
        !IF ( IsCTM ) THEN
        call MAPL_GetPointer ( IMPORT, PLE,      'PLE',     __RC__ )
        call MAPL_GetPointer ( IMPORT, AIRDENS,  'AIRDENS', __RC__ )
@@ -2594,6 +2641,12 @@ CONTAINS
        IF ( Int2Chm(I)%TrcID <= 0 ) CYCLE
        Int2Chm(I)%Internal = State_Chm%Species(:,:,:,Int2Chm(I)%TrcID)
     ENDDO
+
+    ! ewl debugging - met diagnostics
+    PTR_MET_TEMP    = State_Met%T(:,:,:)
+    PTR_MET_AIRMASS = State_Met%AD(:,:,:)
+    PTR_MET_RH      = State_Met%RH(:,:,:)
+
     CALL MAPL_TimerOff(STATE, "CP_AFTR")
 
     ! Stop timer
@@ -2992,6 +3045,11 @@ CONTAINS
     PTR_H2O          => NULL()
     PTR_GCCTO3       => NULL()
     PTR_GCCTTO3      => NULL()
+
+    ! ewl debugging - met diagnostics
+    PTR_MET_TEMP     => NULL()
+    PTR_MET_AIRMASS  => NULL()
+    PTR_MET_RH       => NULL()
 
     PTR_ARCHIVED_PFI_CN  => NULL()
     PTR_ARCHIVED_PFL_CN  => NULL()
