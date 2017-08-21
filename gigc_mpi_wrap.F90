@@ -692,24 +692,6 @@ CONTAINS
     !----------------------------------------
     CALL MPI_Bcast( INPUT_OPT%DIAG_COLLECTION,  1,                               mpi_integer,   0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%GC_RST_COLLECTION,  1,                             mpi_integer,   0, mpiComm, RC )
-#if defined( NC_DIAG )
-    CALL MPI_Bcast( INPUT_OPT%TRANSPORT_OUTPUT_TYPE, LEN(INPUT_OPT%TRANSPORT_OUTPUT_TYPE), mpi_character, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%WETSCAV_OUTPUT_TYPE, LEN(INPUT_OPT%WETSCAV_OUTPUT_TYPE), mpi_character, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%DRYDEP_OUTPUT_TYPE, LEN(INPUT_OPT%DRYDEP_OUTPUT_TYPE), mpi_character, 0, mpiComm, RC )
-!    CALL MPI_Bcast( INPUT_OPT%TRACER_CONC_OUTPUT_TYPE, LEN(INPUT_OPT%TRACER_CONC_OUTPUT_TYPE), mpi_character, 0, mpiComm, RC )
-!    CALL MPI_Bcast( INPUT_OPT%TRACER_EMIS_OUTPUT_TYPE, LEN(INPUT_OPT%TRACER_EMIS_OUTPUT_TYPE), mpi_character, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%MET_OUTPUT_TYPE, LEN(INPUT_OPT%MET_OUTPUT_TYPE), mpi_character, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%ND01_OUTPUT_TYPE, LEN(INPUT_OPT%ND01_OUTPUT_TYPE), mpi_character, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%ND02_OUTPUT_TYPE, LEN(INPUT_OPT%ND02_OUTPUT_TYPE), mpi_character, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%ND12_OUTPUT_TYPE, LEN(INPUT_OPT%ND12_OUTPUT_TYPE), mpi_character, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%ND14_OUTPUT_TYPE, LEN(INPUT_OPT%ND14_OUTPUT_TYPE), mpi_character, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%ND15_OUTPUT_TYPE, LEN(INPUT_OPT%ND15_OUTPUT_TYPE), mpi_character, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%ND16_OUTPUT_TYPE, LEN(INPUT_OPT%ND16_OUTPUT_TYPE), mpi_character, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%ND17_OUTPUT_TYPE, LEN(INPUT_OPT%ND17_OUTPUT_TYPE), mpi_character, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%ND18_OUTPUT_TYPE, LEN(INPUT_OPT%ND18_OUTPUT_TYPE), mpi_character, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%ND19_OUTPUT_TYPE, LEN(INPUT_OPT%ND19_OUTPUT_TYPE), mpi_character, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%ND30_OUTPUT_TYPE, LEN(INPUT_OPT%ND30_OUTPUT_TYPE), mpi_character, 0, mpiComm, RC )
-#endif
 
   END SUBROUTINE GIGC_Input_Bcast
 !EOC

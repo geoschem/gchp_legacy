@@ -102,7 +102,6 @@ CONTAINS
     USE State_Chm_Mod,           ONLY : ChmState
     USE State_Diag_Mod,          ONLY : DgnState
     USE State_Met_Mod,           ONLY : MetState
-    USE Diagnostics_Mod,         ONLY : Diagnostics_Init
     USE EMISSIONS_MOD,           ONLY : EMISSIONS_INIT
     USE HCO_TYPES_MOD,           ONLY : ConfigObj
     USE UCX_MOD,                 ONLY : INIT_UCX, SET_INITIAL_MIXRATIOS
@@ -236,10 +235,6 @@ CONTAINS
        CALL SET_INITIAL_MIXRATIOS( am_I_Root, Input_Opt, State_Met, State_Chm )
 
     ENDIF
-
-    ! Initialize diagnostics.
-    CALL Diagnostics_Init( am_I_Root, Input_Opt, State_Met, State_Chm, RC )
-    ASSERT_(RC==GC_SUCCESS)
 
     !=======================================================================
     ! Make sure options are sane

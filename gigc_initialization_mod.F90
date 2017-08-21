@@ -62,7 +62,7 @@ CONTAINS
 !
     USE PhysConstants       
     USE CMN_SIZE_Mod
-    USE GC_Grid_Mod,        ONLY : RoundOff
+    USE Roundoff_Mod,       ONLY : RoundOff
     USE Error_Mod,          ONLY : Debug_Msg
     USE ErrCode_Mod
     USE Input_Opt_Mod,      ONLY : OptInput
