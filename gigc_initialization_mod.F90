@@ -210,14 +210,16 @@ CONTAINS
                                    value_IM,        value_JM,        &
                                    value_LM,        value_IM_WORLD,  &
                                    value_JM_WORLD,  value_LM_WORLD,  &
-                                   myPET,           Input_Opt,       &
+                                   myPET,           GC,              &
+                                   EXPORT,          Input_Opt,       &
                                    State_Chm,       State_Diag,      &
-                                   State_Met,       RC         )      
+                                   State_Met,       RC              )      
 !
 ! !USES:
 !
+    USE ESMF
     USE GC_Environment_Mod
-    USE ErrCode_Mod  
+    USE ErrCode_Mod
     USE Input_Opt_Mod
     USE State_Chm_Mod
     USE State_Diag_Mod
@@ -250,6 +252,7 @@ CONTAINS
     USE TIME_MOD,             ONLY : SET_TIMESTEPS
     USE SEASALT_MOD,          ONLY : INIT_SEASALT
     USE TOMS_MOD,             ONLY : INIT_TOMS
+    USE Registry_Mod
     
     ! Stratosphere 
     USE STRAT_CHEM_MOD,       ONLY : INIT_STRAT_CHEM
@@ -281,11 +284,12 @@ CONTAINS
     INTEGER,         INTENT(IN)    :: value_LM_WORLD  ! # levs in whole globe
 !
 ! !INPUT/OUTPUT PARAMETERS:
-!
-    TYPE(OptInput),  INTENT(INOUT) :: Input_Opt       ! Input Options
-    TYPE(ChmState),  INTENT(INOUT) :: State_Chm       ! Chemistry State
-    TYPE(DgnState),  INTENT(INOUT) :: State_Diag      ! Diagnostics State
-    TYPE(MetState),  INTENT(INOUT) :: State_Met       ! Meteorology State
+    TYPE(ESMF_State), INTENT(INOUT), TARGET :: EXPORT ! Export state object
+    TYPE(ESMF_GridComp), INTENT(INOUT) :: GC          ! Ref to this GridComp
+    TYPE(OptInput),      INTENT(INOUT) :: Input_Opt   ! Input Options
+    TYPE(ChmState),      INTENT(INOUT) :: State_Chm   ! Chemistry State
+    TYPE(DgnState),      INTENT(INOUT) :: State_Diag  ! Diagnostics State
+    TYPE(MetState),      INTENT(INOUT) :: State_Met   ! Meteorology State
 !
 !
 ! !OUTPUT PARAMETERS:

@@ -17,7 +17,8 @@ MODULE GCHP_Utils
 !
   IMPLICIT NONE
   INTEGER            :: IU_GEOS, IOS
-  INTEGER, PARAMETER :: FIRSTCOL = 26
+  INTEGER, PARAMETER :: FIRSTCOL_INPUTGEOS = 26
+  INTEGER, PARAMETER :: FIRSTCOL_HISTORY = 1
   INTEGER, PARAMETER :: MAXDIM   = 500
 
   PRIVATE
@@ -169,6 +170,7 @@ MODULE GCHP_Utils
 !
 ! !USES:
 !
+    USE CHARPAK_MOD, ONLY: STRSPLIT
     USE ESMF
     USE MAPL_Mod
     USE INQUIREMOD, ONLY : findFreeLUN
@@ -176,11 +178,17 @@ MODULE GCHP_Utils
 !
 ! !INPUT PARAMETERS:
 !
+    LOGICAL,             INTENT(IN)    :: am_I_Root
     INTEGER,             INTENT(IN)    :: restartAttr
+!
+! !INPUT AND OUTPUT PARAMETERS:
+!
+    TYPE(ESMF_GridComp), INTENT(INOUT) :: GC       ! Ref to this GridComp
+!
+! !OUTPUT PARAMETERS:
+!
     CHARACTER(40),       INTENT(OUT)   :: AdvSpc(:)
     INTEGER,             INTENT(OUT)   :: Nadv, SimType, RC 
-    TYPE(ESMF_GridComp), INTENT(INOUT) :: GC       ! Ref to this GridComp
-    LOGICAL                            :: am_I_Root
 !
 ! !REMARKS:
 !  !
@@ -195,6 +203,7 @@ MODULE GCHP_Utils
     INTEGER :: N
     CHARACTER(LEN=MAXDIM) :: LINE, MSG
     CHARACTER(LEN=255)    :: SUBSTRS(500)
+    LOGICAL               :: EOF
 
     IU_GEOS = findFreeLun()
 
@@ -211,13 +220,17 @@ MODULE GCHP_Utils
 
     NADV=0
     DO WHILE( INDEX( LINE, 'TRANSPORT MENU' ) .le. 0) 
-       ! Read next and Split line into substrings
-      CALL SPLIT_ONE_LINE( SUBSTRS, N, -1, 'read_adv_spec_menu:4', LINE )
-      IF ( INDEX( LINE, 'Species name' ) > 0 ) THEN
-         ! Save advected species name
 
-         call MAPL_AddInternalSpec(GC, &
-              SHORT_NAME         = 'SPC_'//TRIM(SUBSTRS(1)),  &
+       ! Read next and split line into substrings
+       READ( IU_GEOS, '(a)', IOSTAT=IOS ) LINE
+       EOF = IOS < 0
+       IF ( EOF ) RETURN
+       CALL STRSPLIT( LINE(FIRSTCOL_INPUTGEOS:), ' ', SUBSTRS, N )
+
+       IF ( INDEX( LINE, 'Species name' ) > 0 ) THEN
+          ! Save advected species name
+          call MAPL_AddInternalSpec(GC, &
+              SHORT_NAME         = 'CHEM_SPC_'//TRIM(SUBSTRS(1)),  &
               LONG_NAME          = TRIM(SUBSTRS(1)),  &
               UNITS              = 'mol mol-1', &
               DIMS               = MAPL_DimsHorzVert,    &
@@ -228,117 +241,16 @@ MODULE GCHP_Utils
               RC                 = RC  )
          NADV = NADV+1
          AdvSpc(NADV) = TRIM(SUBSTRS(1))
-      ELSEIF ( INDEX( LINE, 'Type of simulation' ) > 0 ) THEN
-         ! Save simulation type
-         READ( SUBSTRS(1:N), * ) SimType
-      ELSE
-         ! do nothing
-      ENDIF
+       ELSEIF ( INDEX( LINE, 'Type of simulation' ) > 0 ) THEN
+          ! Save simulation type
+          READ( SUBSTRS(1:N), * ) SimType
+       ENDIF
     ENDDO
 
     ! Close input file
     CLOSE( IU_GEOS )
     
   END SUBROUTINE READ_SPECIES_FROM_FILE
-!EOC
-!------------------------------------------------------------------------------
-!                  GEOS-Chem Global Chemical Transport Model                  !
-!------------------------------------------------------------------------------
-!BOP
-!
-! !IROUTINE: split_one_line
-!
-! !DESCRIPTION: Subroutine SPLIT\_ONE\_LINE reads a line from the input file 
-!  (via routine READ\_ONE\_LINE), and separates it into substrings.
-!\\
-!\\
-!  SPLIT\_ONE\_LINE also checks to see if the number of substrings found is 
-!  equal to the number of substrings that we expected to find.  However, if
-!  you don't know a-priori how many substrings to expect a-priori, 
-!  you can skip the error check.
-!\\
-!\\
-! !INTERFACE:
-!
-      SUBROUTINE SPLIT_ONE_LINE( SUBSTRS, N_SUBSTRS, N_EXP, LOCATION, LINE ) 
-!
-! !USES:
-!
-      USE CHARPAK_MOD, ONLY: STRSPLIT
-!
-! !INPUT PARAMETERS: 
-!
-      ! Number of substrings we expect to find
-      INTEGER,            INTENT(IN)  :: N_EXP
-
-      ! Name of routine that called SPLIT_ONE_LINE
-      CHARACTER(LEN=*),   INTENT(IN)  :: LOCATION 
-!
-! !OUTPUT PARAMETERS:
-!
-      ! Array of substrings (separated by " ")
-      CHARACTER(LEN=255),    INTENT(OUT) :: SUBSTRS(MAXDIM)
-      CHARACTER(LEN=MAXDIM), INTENT(OUT) :: LINE
-
-      ! Number of substrings actually found
-      INTEGER,            INTENT(OUT) :: N_SUBSTRS
-! 
-! !REVISION HISTORY: 
-!  20 Jul 2004 - R. Yantosca - Initial version
-!  27 Aug 2010 - R. Yantosca - Added ProTeX headers
-!  17 Sep 2013 - R. Yantosca - Extend LINE to 500 chars to allow more tracers
-!EOP
-!------------------------------------------------------------------------------
-!BOC
-!
-! !LOCAL VARIABLES:
-!
-      LOGICAL                         :: EOF
-      CHARACTER(LEN=255)              :: MSG
-
-      !=================================================================
-      ! SPLIT_ONE_LINE begins here!
-      !=================================================================      
-
-      ! Create error msg
-      MSG = 'SPLIT_ONE_LINE: error at ' // TRIM( LOCATION )
-
-      !=================================================================
-      ! Read a line from disk
-      !=================================================================
-      ! Read a line from the file
-      READ( IU_GEOS, '(a)', IOSTAT=IOS ) LINE
-      EOF = IOS < 0
-
-      ! STOP on End-of-File w/ error msg
-      IF ( EOF ) THEN
-         WRITE( 6, '(a)' ) TRIM( MSG )
-         WRITE( 6, '(a)' ) 'End of file encountered!' 
-         WRITE( 6, '(a)' ) 'STOP in SPLIT_ONE_LINE (input_mod.f)!'
-         WRITE( 6, '(a)' ) REPEAT( '=', 79 )
-         STOP
-      ENDIF
-
-      !=================================================================
-      ! Split the lines between spaces -- start at column FIRSTCOL
-      !=================================================================
-      CALL STRSPLIT( LINE(FIRSTCOL:), ' ', SUBSTRS, N_SUBSTRS )
-
-      ! Sometimes we don't know how many substrings to expect,
-      ! if N_EXP is greater than MAXDIM, then skip the error check
-      IF ( N_EXP < 0 ) RETURN
-
-      ! Stop if we found the wrong 
-      IF ( N_EXP /= N_SUBSTRS ) THEN
-         WRITE( 6, '(a)' ) TRIM( MSG )
-         WRITE( 6, 100   ) N_EXP, N_SUBSTRS
-         WRITE( 6, '(a)' ) 'STOP in SPLIT_ONE_LINE (input_mod.f)!'
-         WRITE( 6, '(a)' ) REPEAT( '=', 79 )
-         STOP
- 100     FORMAT( 'Expected ',i2, ' substrs but found ',i3 )
-      ENDIF
-       
-      END SUBROUTINE SPLIT_ONE_LINE
 !EOC
 !------------------------------------------------------------------------------
 !          Harvard University Atmospheric Chemistry Modeling Group            !
@@ -652,5 +564,5 @@ MODULE GCHP_Utils
     ENDDO
 
   END SUBROUTINE SET_BACKGROUND_CONC
-
+!EOC
 END MODULE GCHP_Utils

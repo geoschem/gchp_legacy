@@ -60,7 +60,6 @@ MODULE Chem_GridCompMod
   USE ESMF                                           ! ESMF library
   USE MAPL_Mod                                       ! MAPL library
   USE Charpak_Mod                                    ! String functions
-  USE GIGC_Type_Mod                                  ! Derived type defs
   USE GIGC_MPI_Wrap, ONLY : mpiComm
   USE GCHP_Utils                                     ! Functions
   USE GIGC_Chunk_Mod                                 ! GIGC IRF methods
@@ -71,6 +70,8 @@ MODULE Chem_GridCompMod
   USE State_Met_Mod                                  ! Meteorology State obj
   USE Species_Mod,   ONLY : Species
   USE HCO_TYPES_MOD, ONLY : ConfigObj
+  USE GIGC_HistoryExports_Mod
+  USE GIGC_Types_Mod
   USE CMN_Size_Mod,  ONLY : NSURFTYPE
   USE TIME_MOD,      ONLY : ITS_A_NEW_DAY, ITS_A_NEW_MONTH
 
@@ -118,15 +119,14 @@ MODULE Chem_GridCompMod
 
   ! For mapping internal state
   TYPE(Int2ChmMap), POINTER        :: Int2Chm(:) => NULL()
-
   ! Objects for GEOS-Chem
   TYPE(OptInput)                   :: Input_Opt      ! Input Options
   TYPE(MetState)                   :: State_Met      ! Meteorology state
   TYPE(ChmState)                   :: State_Chm      ! Chemistry state
   TYPE(DgnState)                   :: State_Diag     ! Diagnostics state
-  TYPE(Species), POINTER           :: ThisSpc => NULL()
-
-  TYPE(ConfigObj), POINTER         :: HcoConfig
+  TYPE(Species),          POINTER  :: ThisSpc => NULL()
+  TYPE(ConfigObj),        POINTER  :: HcoConfig
+  TYPE(HistoryConfigObj), POINTER  :: HistoryConfig
 
   ! Scalars
   INTEGER                          :: logLun         ! LUN for stdout logfile
@@ -194,7 +194,7 @@ MODULE Chem_GridCompMod
 
   ! Prefix of the tracer and species names in the internal state. Those have to match
   ! the prefixes given in GEOSCHEMchem_Registry.rc. 
-  CHARACTER(LEN=4), PARAMETER  :: SPFX = 'SPC_'
+  CHARACTER(LEN=4), PARAMETER  :: SPFX = 'CHEM_SPC_'
  
   ! Pointers to import, export and internal state data. Declare them as 
   ! module variables so that we have to assign them only on first call.
@@ -236,11 +236,6 @@ MODULE Chem_GridCompMod
   ! GCCTO3 and GCCTTO3 are the pointers to the corresponding export state fields
   REAL, POINTER     :: PTR_GCCTO3 (:,:) => NULL()
   REAL, POINTER     :: PTR_GCCTTO3(:,:) => NULL()
-
-  ! ewl debugging - met diagnostics
-  REAL, POINTER, DIMENSION(:,:,:)  :: PTR_MET_AIRMASS
-  REAL, POINTER, DIMENSION(:,:,:)  :: PTR_MET_TEMP
-  REAL, POINTER, DIMENSION(:,:,:)  :: PTR_MET_RH
 
   ! Use archived convection fields?
   ! If the attribute 'ARCHIVED_CONV' in the GEOS-Chem configuration file is set
@@ -324,7 +319,7 @@ CONTAINS
 ! !USES:
 !
     USE HCOI_ESMF_MOD,   ONLY : HCO_SetServices
-    USE GCHP_Utils,      ONLY : READ_SPECIES_FROM_FILE ! WE DON'T WANT TO HAVE TO DO THIS!
+    USE GCHP_Utils,      ONLY : READ_SPECIES_FROM_FILE ! rework this later
     USE GCKPP_Model
 !
 ! !INPUT/OUTPUT PARAMETERS:
@@ -363,6 +358,7 @@ CONTAINS
     CHARACTER(LEN=ESMF_MAXSTR)    :: compName      ! Gridded Component name
     CHARACTER(LEN=ESMF_MAXSTR)    :: COMP_NAME     ! This syntax for mapl_acg.pl
     CHARACTER(LEN=ESMF_MAXSTR)    :: HcoConfigFile ! HEMCO configuration file
+    CHARACTER(LEN=ESMF_MAXSTR)    :: HistoryConfigFile ! HISTORY config file
     CHARACTER(LEN=ESMF_MAXSTR)    :: SpcName       ! Registered species name
     CHARACTER(LEN=40)             :: AdvSpc(500)
     INTEGER                       :: I, J, T, NAdv, SimType, landTypeInt
@@ -422,7 +418,7 @@ CONTAINS
     ! Store internal state with Config object in the gridded component
     CALL ESMF_UserCompSetInternalState( GC, 'GEOSCHEM_State', wrap, STATUS )
     VERIFY_(STATUS)
-  
+
     !=======================================================================
     !                    %%% MAPL Data Services %%%
     !=======================================================================
@@ -457,38 +453,6 @@ CONTAINS
 ! !INTERNAL STATE:
 !
 #   include "GIGCchem_InternalSpec___.h"
-
-    ! ewl debugging - add sample met diags to internal state
-    call MAPL_AddInternalSpec(GC, &
-                              SHORT_NAME         = 'MET_RH',             &
-                              LONG_NAME          = 'Relative_humidity',  &
-                              UNITS              = '%',                  &
-!                              PRECISION          = ESMF_KIND_R8,         &
-                              DIMS               = MAPL_DimsHorzVert,    &
-                              VLOCATION          = MAPL_VLocationCenter, &
-                              RESTART            = MAPL_RestartSkip,     &
-                              FRIENDLYTO         = trim(COMP_NAME),      &
-                              RC                 = STATUS  )
-    call MAPL_AddInternalSpec(GC, &
-                              SHORT_NAME         = 'MET_AIRMASS',        &
-                              LONG_NAME          = 'Dry_air_mass',       &
-                              UNITS              = 'kg',                 &
-!                              PRECISION          = ESMF_KIND_R8,         &
-                              DIMS               = MAPL_DimsHorzVert,    &
-                              VLOCATION          = MAPL_VLocationCenter, &
-                              RESTART            = MAPL_RestartSkip,     &
-                              FRIENDLYTO         = trim(COMP_NAME),      &
-                              RC                 = STATUS  )
-    call MAPL_AddInternalSpec(GC, &
-                              SHORT_NAME         = 'MET_TEMP',           &
-                              LONG_NAME          = 'Air_temperature',    &
-                              UNITS              = 'K',                  &
-!                              PRECISION          = ESMF_KIND_R8,         &
-                              DIMS               = MAPL_DimsHorzVert,    &
-                              VLOCATION          = MAPL_VLocationCenter, &
-                              RESTART            = MAPL_RestartSkip,     &
-                              FRIENDLYTO         = trim(COMP_NAME),      &
-                              RC                 = STATUS  )
 
     ! Determine if using a restart file for the internal state. Setting
     ! the GIGCchem_INTERNAL_RESTART_FILE to +none in GCHP.rc indicates
@@ -525,7 +489,7 @@ CONTAINS
           
           IF (Found .neqv. .true.) Then
           call MAPL_AddInternalSpec(GC, &
-               SHORT_NAME         = 'SPC_'//SpcName,  &
+               SHORT_NAME         = 'CHEM_SPC_'//SpcName,  &
                LONG_NAME          = SpcName,  &
                UNITS              = 'mol mol-1', &
                PRECISION          = ESMF_KIND_R8, &
@@ -543,6 +507,16 @@ CONTAINS
 !
 #   include "GIGCchem_ExportSpec___.h"
 
+    ! Read HISTORY config file and add exports for unique items
+    ! TODO: determine if this first step is necessary
+    CALL ESMF_ConfigGetAttribute( myState%myCF, HistoryConfigFile, &
+                                  Label="HISTORY_CONFIG:",         &
+                                  Default="HISTORY.rc", __RC__ )
+    CALL HistoryExports_SetServices( MAPL_am_I_Root(),             &
+                                     TRIM(HistoryConfigFile),GC,   &
+                                     HistoryConfig, __RC__ )
+
+    ! Is this needed anymore?
     call MAPL_AddExportSpec(GC,                                   &
         SHORT_NAME         = 'TRACERS',                           &
         LONG_NAME          = 'tracer_volume_mixing_ratios',       &
@@ -1087,7 +1061,8 @@ CONTAINS
     CALL ESMF_ConfigGetAttribute( myState%myCF, HcoConfigFile, &
                                   Label="HEMCO_CONFIG:", &
                                   Default="HEMCO_Config.rc", __RC__ )
-    CALL HCO_SetServices( MAPL_am_I_Root(), GC, HcoConfig, TRIM(HcoConfigFile), __RC__ )    
+    CALL HCO_SetServices( MAPL_am_I_Root(), GC, HcoConfig,  &
+                          TRIM(HcoConfigFile), __RC__ )    
 
     ! Set the Profiling timers
     ! ------------------------
@@ -1193,7 +1168,7 @@ CONTAINS
 !
 ! !INPUT/OUTPUT PARAMETERS:
 !
-    TYPE(ESMF_GridComp), INTENT(INOUT)         :: GC       ! Ref. to this GridComp
+    TYPE(ESMF_GridComp), INTENT(INOUT)         :: GC       ! Ref to GridComp
     TYPE(ESMF_State),    INTENT(INOUT), TARGET :: Import   ! Import State object
     TYPE(ESMF_State),    INTENT(INOUT), TARGET :: Export   ! Export State object
     TYPE(ESMF_Clock),    INTENT(INOUT)         :: Clock    ! ESMF clock object
@@ -1482,7 +1457,7 @@ CONTAINS
     !=======================================================================
  
     ! Call the GIGC initialize routine
-    CALL GIGC_Chunk_Init( am_I_Root = am_I_Root,  & ! Are we on the root PET?   
+    CALL GIGC_Chunk_Init( am_I_Root = am_I_Root,  & ! Are we on the root PET?
                           I_LO      = I_LO,       & ! Min lon index on this PET
                           J_LO      = J_LO,       & ! Min lat index on this PET
                           I_HI      = I_HI,       & ! Max lon index on this PET
@@ -1502,11 +1477,14 @@ CONTAINS
                           lonCtr    = lonCtr,     & ! Lon centers [radians]
                           latCtr    = latCtr,     & ! Lat centers [radians]
                           myPET     = myPET,      & ! Local PET
+                          GC        = GC,         & ! Ref to this gridded comp
+                          EXPORT    = EXPORT,     & ! Export state object
                           Input_Opt = Input_Opt,  & ! Input Options obj
                           State_Chm = State_Chm,  & ! Chemistry State obj
                           State_Diag= State_Diag, & ! Diagnostics State obj
                           State_Met = State_Met,  & ! Meteorology State obj
                           HcoConfig = HcoConfig,  & ! HEMCO Configuration Object
+                          HistoryConfig = HistoryConfig, & ! History Config Obj
                           __RC__                 )
 
     ! Also save the MPI & PET specs to Input_Opt
@@ -1719,9 +1697,9 @@ CONTAINS
        ENDIF
 
        ! Get internal state field
-       CALL ESMF_StateGet( INTSTATE, 'SPC_'//TRIM(Int2Chm(I)%TrcName), GcFld, RC=STATUS )
+       CALL ESMF_StateGet( INTSTATE, 'CHEM_SPC_'//TRIM(Int2Chm(I)%TrcName), GcFld, RC=STATUS )
        IF ( STATUS /= ESMF_SUCCESS ) THEN
-          WRITE(*,*) 'Cannot find in internal state: SPC_'//TRIM(Int2Chm(I)%TrcName)
+          WRITE(*,*) 'Cannot find in internal state: CHEM_SPC_'//TRIM(Int2Chm(I)%TrcName)
           ASSERT_(.FALSE.)
        ENDIF
 
@@ -2155,7 +2133,7 @@ CONTAINS
     INTEGER            :: T, V, landTypeInt
     CHARACTER(len=64)  :: landTypeStr, varName, importName
     REAL, POINTER      :: Ptr2d(:,:) => NULL()
- 
+
     ! First call?
     LOGICAL, SAVE                :: FIRST    = .TRUE.
 
@@ -2238,15 +2216,6 @@ CONTAINS
     ! in the registry file. This has to be done on the first call only.
     IF ( FIRST ) THEN
 #      include "GIGCchem_GetPointer___.h"
-
-       ! ewl debugging - met diagnostics
-       call MAPL_GetPointer ( INTERNAL, PTR_MET_TEMP, 'MET_TEMP', RC=STATUS )
-       VERIFY_(STATUS)
-       call MAPL_GetPointer ( INTERNAL, PTR_MET_AIRMASS, 'MET_AIRMASS', &
-                              RC=STATUS )
-       VERIFY_(STATUS)
-       call MAPL_GetPointer ( INTERNAL, PTR_MET_RH, 'MET_RH', RC=STATUS )
-       VERIFY_(STATUS)
 
        !IF ( IsCTM ) THEN
        call MAPL_GetPointer ( IMPORT, PLE,      'PLE',     __RC__ )
@@ -2610,6 +2579,7 @@ CONTAINS
                                Input_Opt  = Input_Opt,  & ! Input Options
                                State_Chm  = State_Chm,  & ! Chemistry State
                                State_Met  = State_Met,  & ! Meteorology State
+                               State_Diag = State_Diag, & ! Diagnostics State
                                Phase      = Phase,      & ! Run phase
                                IsChemTime = IsChemTime, & ! Is it time for chem?
                                __RC__                  )  ! Success or failure?
@@ -2641,11 +2611,6 @@ CONTAINS
        IF ( Int2Chm(I)%TrcID <= 0 ) CYCLE
        Int2Chm(I)%Internal = State_Chm%Species(:,:,:,Int2Chm(I)%TrcID)
     ENDDO
-
-    ! ewl debugging - met diagnostics
-    PTR_MET_TEMP    = State_Met%T(:,:,:)
-    PTR_MET_AIRMASS = State_Met%AD(:,:,:)
-    PTR_MET_RH      = State_Met%RH(:,:,:)
 
     CALL MAPL_TimerOff(STATE, "CP_AFTR")
 
@@ -2785,6 +2750,16 @@ CONTAINS
        ENDIF
     ENDIF
 
+    !=======================================================================
+    ! Copy Met, Chem, and/or Diag states to exports
+    !=======================================================================
+    IF ( FIRST ) THEN
+       CALL HistoryExports_SetDataPointers( am_I_Root,     EXPORT,    &
+                                            HistoryConfig, State_Chm, &
+                                            State_Diag,    State_Met, &
+                                            STATUS )
+    ENDIF
+    CALL CopyGCStates2Exports( am_I_Root, HistoryConfig, STATUS )
 
     !=======================================================================
     ! All done
@@ -3025,6 +3000,9 @@ CONTAINS
        DEALLOCATE(Int2Chm)
     ENDIF
 
+    ! Deallocate the history interface between GC States and ESMF Exports
+    CALL Destroy_HistoryConfig( am_I_Root, HistoryConfig, RC )
+
     ! Free local pointers
     O3               => NULL()
     O3PPMV           => NULL()
@@ -3045,11 +3023,6 @@ CONTAINS
     PTR_H2O          => NULL()
     PTR_GCCTO3       => NULL()
     PTR_GCCTTO3      => NULL()
-
-    ! ewl debugging - met diagnostics
-    PTR_MET_TEMP     => NULL()
-    PTR_MET_AIRMASS  => NULL()
-    PTR_MET_RH       => NULL()
 
     PTR_ARCHIVED_PFI_CN  => NULL()
     PTR_ARCHIVED_PFL_CN  => NULL()

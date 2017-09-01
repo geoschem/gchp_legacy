@@ -234,7 +234,7 @@
         IF ( IND < 0 ) CYCLE
 
         ! Get data from internal state and copy to species array. 
-        CALL MAPL_GetPointer( INTERNAL, Ptr3D_R8, 'SPC_'//TRIM(ThisSpc%Name), &
+        CALL MAPL_GetPointer( INTERNAL, Ptr3D_R8, 'CHEM_SPC_'//TRIM(ThisSpc%Name), &
                               notFoundOK=.TRUE., __RC__ )
         IF ( .NOT. ASSOCIATED(Ptr3D_R8) ) THEN
            IF ( MAPL_am_I_Root()) WRITE(*,*) &
@@ -252,7 +252,7 @@
         ! Set species concentration to background values from the
         ! species database if the restart file is skipped or the species
         ! were missing from the restart file
-        CALL ESMF_StateGet( INTERNAL, 'SPC_'//TRIM(ThisSpc%Name),  &
+        CALL ESMF_StateGet( INTERNAL, 'CHEM_SPC_'//TRIM(ThisSpc%Name),  &
              trcFIELD, RC=RC )
         CALL ESMF_AttributeGet( trcFIELD, NAME="RESTART",          &
              VALUE=RST, RC=STATUS )

@@ -85,25 +85,28 @@ CONTAINS
 !\\
 ! !INTERFACE:
 !
-  SUBROUTINE GIGC_Chunk_Init( am_I_Root, I_LO,      J_LO,       I_HI,      &
-                              J_HI,      IM,        JM,         LM,        &
-                              IM_WORLD,  JM_WORLD,  LM_WORLD,   nymdB,     &
-                              nhmsB,     nymdE,     nhmsE,      tsChem,    &
-                              tsDyn,     lonCtr,    latCtr,     myPET,     &
-                              Input_Opt, State_Chm, State_Diag, State_Met, &
-                              HcoConfig, RC      )
+  SUBROUTINE GIGC_Chunk_Init( am_I_Root,  I_LO,      J_LO,       I_HI,       &
+                              J_HI,       IM,        JM,         LM,         &
+                              IM_WORLD,   JM_WORLD,  LM_WORLD,   nymdB,      &
+                              nhmsB,      nymdE,     nhmsE,      tsChem,     &
+                              tsDyn,      lonCtr,    latCtr,     myPET,      &
+                              GC,         EXPORT,    Input_Opt,  State_Chm,  &
+                              State_Diag, State_Met, HcoConfig,  HistoryConfig,&
+                              RC      )
 !
 ! !USES:
 !
     USE ESMF,                    ONLY : ESMF_KIND_R4
     USE GIGC_Initialization_Mod, ONLY : GIGC_Init_Simulation
     USE ErrCode_Mod
+    USE History_Mod,             ONLY : History_Init
     USE Input_Opt_Mod,           ONLY : OptInput
     USE State_Chm_Mod,           ONLY : ChmState
     USE State_Diag_Mod,          ONLY : DgnState
     USE State_Met_Mod,           ONLY : MetState
     USE EMISSIONS_MOD,           ONLY : EMISSIONS_INIT
     USE HCO_TYPES_MOD,           ONLY : ConfigObj
+    USE GIGC_HistoryExports_Mod, ONLY : HistoryConfigObj
     USE UCX_MOD,                 ONLY : INIT_UCX, SET_INITIAL_MIXRATIOS
     USE UnitConv_Mod
 !
@@ -132,11 +135,14 @@ CONTAINS
 !
 ! !INPUT/OUTPUT PARAMETERS:
 !
-    TYPE(OptInput),     INTENT(INOUT) :: Input_Opt   ! Input Options object
-    TYPE(ChmState),     INTENT(INOUT) :: State_Chm   ! Chemistry State object
-    TYPE(DgnState),     INTENT(INOUT) :: State_Diag  ! Diagnostics State object
-    TYPE(MetState),     INTENT(INOUT) :: State_Met   ! Meteorology State object
-    TYPE(ConfigObj),    POINTER       :: HcoConfig   ! HEMCO config obj 
+    TYPE(ESMF_State), INTENT(INOUT), TARGET :: EXPORT ! Export state object
+    TYPE(ESMF_GridComp), INTENT(INOUT) :: GC          ! Ref to this GridComp
+    TYPE(OptInput),      INTENT(INOUT) :: Input_Opt   ! Input Options object
+    TYPE(ChmState),      INTENT(INOUT) :: State_Chm   ! Chemistry State object
+    TYPE(DgnState),      INTENT(INOUT) :: State_Diag  ! Diagnostics State object
+    TYPE(MetState),      INTENT(INOUT) :: State_Met   ! Meteorology State object
+    TYPE(ConfigObj),     POINTER       :: HcoConfig   ! HEMCO config obj 
+    TYPE(HistoryConfigObj), POINTER    :: HistoryConfig ! History config obj 
 !
 ! !OUTPUT PARAMETERS:
 !
@@ -209,6 +215,8 @@ CONTAINS
                                lonCtr         = lonCtr,     & ! Lon ctrs [rad]
                                latCtr         = latCtr,     & ! Lat ctrs [rad]
                                myPET          = myPET,      & ! Local PET
+                               GC             = GC,         & ! gridcomp
+                               EXPORT         = EXPORT,     & ! Export state obj
                                Input_Opt      = Input_Opt,  & ! Input Options
                                State_Chm      = State_Chm,  & ! Chemistry State
                                State_Diag     = State_Diag, & ! Diagnostic State
@@ -222,6 +230,13 @@ CONTAINS
     CALL EMISSIONS_INIT ( am_I_Root, Input_Opt, State_Met, State_Chm, RC, &
                           HcoConfig=HcoConfig )
     ASSERT_(RC==GC_SUCCESS)
+
+    !=======================================================================
+    ! Initialize History Pointers to Instantaneous State Data
+    !=======================================================================
+    !CALL EMISSIONS_INIT ( am_I_Root, Input_Opt, State_Met, State_Chm, RC, &
+    !                      HistoryConfig=HistConfig )
+    !ASSERT_(RC==GC_SUCCESS)
 
     !-------------------------------------------------------------------------
     ! Stratosphere - can't be initialized without HEMCO because of STATE_PSC
@@ -282,12 +297,12 @@ CONTAINS
 !
 ! !INTERFACE:
 !
-  SUBROUTINE GIGC_Chunk_Run( am_I_Root, GC, IM,    JM,        LM,         &
-                             nymd,      nhms,      year,      month,      &
-                             day,       dayOfYr,   hour,      minute,     &
-                             second,    utc,       hElapsed,  Input_Opt,  &
-                             State_Chm, State_Met, Phase,     IsChemTime, &
-                             RC                                            )
+  SUBROUTINE GIGC_Chunk_Run( am_I_Root,  GC, IM,    JM,         LM,         &
+                             nymd,       nhms,      year,       month,      &
+                             day,        dayOfYr,   hour,       minute,     &
+                             second,     utc,       hElapsed,   Input_Opt,  &
+                             State_Chm,  State_Met, State_Diag, Phase,      &
+                             IsChemTime, RC         )
 !
 ! !USES:
 !
@@ -330,6 +345,9 @@ CONTAINS
     ! Unit conversion (SE 2016-03-27)
     Use UnitConv_Mod
 
+    ! ewl debugging - diagnostics
+    USE State_Diag_Mod
+
 !
 ! !INPUT PARAMETERS:
 !
@@ -357,6 +375,7 @@ CONTAINS
     TYPE(OptInput), INTENT(INOUT) :: Input_Opt   ! Input Options object
     TYPE(ChmState), INTENT(INOUT) :: State_Chm   ! Chemistry State object
     TYPE(MetState), INTENT(INOUT) :: State_Met   ! Meteorology State object
+    TYPE(DgnState), INTENT(INOUT) :: State_Diag  ! Diagnostics state
 !
 ! !OUTPUT PARAMETERS G:
 !
@@ -419,6 +438,7 @@ CONTAINS
     INTEGER                        :: STATUS
     CHARACTER(LEN=ESMF_MAXSTR)     :: Iam
 !    LOGICAL                        :: FND
+    CHARACTER(LEN=255)             :: ErrMsg
 
     ! Local logicals to turn on/off individual components
     ! The parts to be executed are based on the input options,

@@ -690,8 +690,13 @@ CONTAINS
     !----------------------------------------
     ! Diagnostics collection number
     !----------------------------------------
-    CALL MPI_Bcast( INPUT_OPT%DIAG_COLLECTION,  1,                               mpi_integer,   0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%GC_RST_COLLECTION,  1,                             mpi_integer,   0, mpiComm, RC )
+    CALL MPI_Bcast(INPUT_OPT%DIAG_COLLECTION, 1, mpi_integer, 0, mpiComm, RC)
+    CALL MPI_Bcast(INPUT_OPT%GC_RST_COLLECTION, 1, mpi_integer, 0, mpiComm, RC)
+
+    ! ewl debugging - diagnostics
+    Input_Opt%HistoryInputFile = './HISTORY.rc'
+    CALL MPI_Bcast( INPUT_OPT%HistoryInputFile, 3, mpi_character, 0, &
+                    mpiComm, RC )
 
   END SUBROUTINE GIGC_Input_Bcast
 !EOC
