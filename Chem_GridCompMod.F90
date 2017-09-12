@@ -63,6 +63,7 @@ MODULE Chem_GridCompMod
   USE GIGC_MPI_Wrap, ONLY : mpiComm
   USE GCHP_Utils                                     ! Functions
   USE GIGC_Chunk_Mod                                 ! GIGC IRF methods
+  USE GIGC_Types_Mod                                 ! Obj types and params
   USE ErrCode_Mod                                    ! Error numbers
   USE Input_Opt_Mod                                  ! Input Options obj
   USE State_Chm_Mod                                  ! Chemistry State obj
@@ -71,7 +72,6 @@ MODULE Chem_GridCompMod
   USE Species_Mod,   ONLY : Species
   USE HCO_TYPES_MOD, ONLY : ConfigObj
   USE GIGC_HistoryExports_Mod
-  USE GIGC_Types_Mod
   USE CMN_Size_Mod,  ONLY : NSURFTYPE
   USE TIME_MOD,      ONLY : ITS_A_NEW_DAY, ITS_A_NEW_MONTH
 
@@ -192,10 +192,6 @@ MODULE Chem_GridCompMod
   CHARACTER(LEN=ESMF_MAXSTR) :: SALCnames(3) = (/ 'ss003', 'ss004', 'ss005' /)
   REAL, PARAMETER            :: SALCsplit(3) = (/  0.13,    0.47,    0.4    /) 
 
-  ! Prefix of the tracer and species names in the internal state. Those have to match
-  ! the prefixes given in GEOSCHEMchem_Registry.rc. 
-  CHARACTER(LEN=4), PARAMETER  :: SPFX = 'CHEM_SPC_'
- 
   ! Pointers to import, export and internal state data. Declare them as 
   ! module variables so that we have to assign them only on first call.
 # include "GIGCchem_DeclarePointer___.h"
@@ -489,7 +485,7 @@ CONTAINS
           
           IF (Found .neqv. .true.) Then
           call MAPL_AddInternalSpec(GC, &
-               SHORT_NAME         = 'CHEM_SPC_'//SpcName,  &
+               SHORT_NAME         = TRIM(SPFX) // SpcName,  &
                LONG_NAME          = SpcName,  &
                UNITS              = 'mol mol-1', &
                PRECISION          = ESMF_KIND_R8, &
@@ -1697,9 +1693,11 @@ CONTAINS
        ENDIF
 
        ! Get internal state field
-       CALL ESMF_StateGet( INTSTATE, 'CHEM_SPC_'//TRIM(Int2Chm(I)%TrcName), GcFld, RC=STATUS )
+       CALL ESMF_StateGet( INTSTATE, TRIM(SPFX) // TRIM(Int2Chm(I)%TrcName), &
+                           GcFld, RC=STATUS )
        IF ( STATUS /= ESMF_SUCCESS ) THEN
-          WRITE(*,*) 'Cannot find in internal state: CHEM_SPC_'//TRIM(Int2Chm(I)%TrcName)
+          WRITE(*,*) 'Cannot find in internal state: ' // TRIM(SPFX) // &
+                     TRIM(Int2Chm(I)%TrcName)
           ASSERT_(.FALSE.)
        ENDIF
 
@@ -2516,7 +2514,7 @@ CONTAINS
                ' ### Reading UV_ALBEDO from imports'
           State_Met%UVALBEDO(:,:) = Ptr2D(:,:)
        ELSE
-          WRITE(6,*) 'UV_ALBEDO pointer is not associated'
+          IF ( am_I_Root ) Write(6,*) 'UV_ALBEDO pointer is not associated'
        ENDIF
        Ptr2D => NULL()
     ENDIF
@@ -3399,7 +3397,7 @@ CONTAINS
         tsChem = real(dt_r8)
 
         IF(tsChem < tsDyn) THEN
-         IF(MAPL_AM_I_ROOT()) PRINT *,"Chem_DT cannot be less than RUN_DT"
+         IF(MAPL_AM_I_ROOT()) Write(6,*) 'Chem_DT cannot be less than RUN_DT'
          STATUS = 1
          VERIFY_(STATUS)
         END IF

@@ -346,28 +346,39 @@ wipeout_fvdycore:
 ###                                                                         ###
 ###############################################################################
 
-GEOSChem.o		    : GEOSChem.F90 GIGC_GridCompMod.o
+GEOSChem.o		    : GEOSChem.F90                                  \
+                              GIGC_GridCompMod.o
 
-Chem_GridCompMod.o          : Chem_GridCompMod.F90   gigc_mpi_wrap.o     \
-			      gigc_chunk_mod.o       gigc_historyexports_mod.o   \
-                              gigc_types_mod.o       gchp_utils.o   
+Chem_GridCompMod.o          : Chem_GridCompMod.F90                          \
+                              gigc_mpi_wrap.o                               \
+			      gigc_chunk_mod.o                              \
+                              gigc_historyexports_mod.o                     \
+                              gigc_types_mod.o                              \
+                              gchp_utils.o   
 
-GIGC_GridCompMod.o          : GIGC_GridCompMod.F90 Chem_GridCompMod.o \
+GIGC_GridCompMod.o          : GIGC_GridCompMod.F90                          \
+                              Chem_GridCompMod.o                            \
 	                      GEOS_ctmEnvGridComp.o
 
 GEOS_ctmEnvGridComp.o	    : GEOS_ctmEnvGridComp.F90
 
-gigc_chunk_mod.o            : gigc_chunk_mod.F90 gigc_finalization_mod.o    \
-			      gigc_initialization_mod.o gc_land_interface.o \
+gigc_chunk_mod.o            : gigc_chunk_mod.F90                            \
+                              gigc_finalization_mod.o                       \
+                              gigc_initialization_mod.o                     \
+                              gc_land_interface.o                           \
 			      gchp_utils.o
 
-gigc_historyexports_mod.o   : gigc_historyexports_mod.F90
+gigc_historyexports_mod.o   : gigc_historyexports_mod.F90                   \
+                              gigc_types_mod.o
 
-gigc_initialization_mod.o   : gigc_initialization_mod.F90 gigc_mpi_wrap.o
+gigc_initialization_mod.o   : gigc_initialization_mod.F90                   \
+                              gigc_mpi_wrap.o
 
 gigc_types_mod.o            : gigc_types_mod.F90
 
-gchp_utils.o                : gchp_utils.F90
+gchp_utils.o                : gchp_utils.F90                                \
+                              Chem_GridCompMod.o                            \
+                              gigc_types_mod.o
 
 gc_land_inteface.o          : gc_land_interface.F90
 #EOC

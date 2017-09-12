@@ -170,11 +170,12 @@ MODULE GCHP_Utils
 !
 ! !USES:
 !
-    USE CHARPAK_MOD, ONLY: STRSPLIT
     USE ESMF
     USE MAPL_Mod
-    USE INQUIREMOD, ONLY : findFreeLUN
-    USE FILE_MOD,   ONLY : IOERROR
+    USE CHARPAK_MOD,    ONLY : STRSPLIT
+    USE GIGC_Types_Mod, ONLY : SPFX
+    USE INQUIREMOD,     ONLY : findFreeLUN
+    USE FILE_MOD,       ONLY : IOERROR
 !
 ! !INPUT PARAMETERS:
 !
@@ -230,7 +231,7 @@ MODULE GCHP_Utils
        IF ( INDEX( LINE, 'Species name' ) > 0 ) THEN
           ! Save advected species name
           call MAPL_AddInternalSpec(GC, &
-              SHORT_NAME         = 'CHEM_SPC_'//TRIM(SUBSTRS(1)),  &
+              SHORT_NAME         = TRIM(SPFX) // TRIM(SUBSTRS(1)),  &
               LONG_NAME          = TRIM(SUBSTRS(1)),  &
               UNITS              = 'mol mol-1', &
               DIMS               = MAPL_DimsHorzVert,    &
