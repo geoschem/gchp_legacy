@@ -90,7 +90,10 @@
   TAUCLW             |     1	   | xyz | C |    |   |   |	|      | 
   CMFMC              |     1	   | xyz | E |    |   |   |	|      | 
   DTRAIN             |     1	   | xyz | C |    |   |   |	|      | 
+  OMEGA              |     1	   | xyz | C |    |   |   |	|      | 
   RH                 |     1	   | xyz | C |    |   |   |	|      | 
+  ULL                |     1	   | xyz | C |    |   |   |	|      | 
+  VLL                |     1	   | xyz | C |    |   |   |	|      | 
   DQRCU              |     1	   | xyz | C |    |   |   |	|      | 
   DQRLSAN            |     1	   | xyz | C |    |   |   |	|      | 
   REEVAPCN           |     1	   | xyz | C |    |   |   |	|      | 
