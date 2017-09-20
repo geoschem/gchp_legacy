@@ -50,6 +50,7 @@
   State_Met%ALBD                = ALBD                       ! 1
   State_Met%AREA_M2(:,:,1)      = AREA                       ! m2
   State_Met%CLDFRC              = CLDFRC                     ! 1
+  State_Met%EFLUX               = EFLUX                      ! W m-2
   State_Met%HFLUX               = HFLUX                      ! W/m2
   State_Met%FRCLND              = FRLAND                     ! 1
   State_Met%FRLAND              = FRLAND                     ! 1
@@ -61,6 +62,7 @@
   State_Met%GWETTOP             = GWETTOP                    ! 1
   State_Met%LAI                 = LAI                        ! 1  
   State_Met%LWI                 = LWI                        ! 1
+  State_Met%OMEGA               = OMEGA                      ! Pa s-1
   State_Met%PARDR               = PARDR                      ! W/m2
   State_Met%PARDF               = PARDF                      ! W/m2
   State_Met%PBLH                = PBLH                       ! m
@@ -72,6 +74,8 @@
   State_Met%PS1_WET             = PS1                        ! hPa
   State_Met%PS2_WET             = PS2                        ! hPa
   State_Met%SLP                 = SLP                        ! hPa
+  State_Met%TMPU1               = TMPU1
+  State_Met%TMPU2               = TMPU2
   State_Met%TS                  = TS                         ! K
   State_Met%TSKIN               = TSKIN                      ! K
 #if defined ( GEOS_FP ) || defined ( MERRA2 )
@@ -85,8 +89,10 @@
   State_Met%SST                 = TS                         ! K
   State_Met%SUNCOS              = zenith                     ! unitless
   State_Met%SUNCOSmid           = zenith                     ! 1
+  State_Met%U                   = ULL                        ! m/s
   State_Met%U10M                = U10M                       ! m/s
   State_Met%USTAR               = USTAR                      ! m/s
+  State_Met%V                   = VLL                        ! m/s
   State_Met%V10M                = V10M                       ! m/s
   State_Met%Z0                  = Z0                         ! m
 
