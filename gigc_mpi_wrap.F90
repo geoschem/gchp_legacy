@@ -23,30 +23,19 @@ MODULE GIGC_Mpi_Wrap
 ! !PUBLIC MEMBER FUNCTIONS:
 !
   PUBLIC :: GIGC_Input_Bcast
-  PUBLIC :: GIGC_Idt_Bcast
-  PUBLIC :: GIGC_Reader_Bcast
-  PUBLIC :: GIGC_Readchem_Bcast
-  PUBLIC :: GIGC_Bcast_Char 
-  PUBLIC :: GIGC_Bcast_Int
-  PUBLIC :: GIGC_Bcast_Real8
+!ewl  PUBLIC :: GIGC_Bcast_Char 
+!ewl  PUBLIC :: GIGC_Bcast_Int
+!ewl  PUBLIC :: GIGC_Bcast_Real8
   PUBLIC :: mpiComm
 !
 ! !REMARKS:
-!  These routines are needed to broadcast values read in from ASCII input
-!  (which are read only on the root CPU) to all other CPUs.
+!  These routines are needed to broadcast values read in from an ASCII file 
+!  by a single CPU to all other CPUs.
 !                                                                             .
-!  NOTE: If you add values to a derived type object (e.g. Input_Opt), then
-!  you will also have to add the proper calls so that the extra fields will
-!  get broadcasted to other CPUs.
-!                                                                             .
-!  NOTE: The SMVGEAR init functions READER and READCHEM touch several
-!  variables and arrays in a very convoluted manner.  It may be difficult
-!  to try to call these on the root CPU and then broadcast to all other
-!  CPUs.  For now just call READER and READCHEM on all CPUs (bmy, 3/7/13)
-!
 ! !REVISION HISTORY:
 !  03 Jan 2013 - M. Long     - Initial version
 !  07 Mar 2013 - R. Yantosca - Added more ProTeX headers + comments
+!  19 Sep 2017 - E. Lundgren - Remove unused or empty subroutines
 !EOP
 !------------------------------------------------------------------------------
 !BOC
@@ -140,38 +129,53 @@ CONTAINS
     CALL MPI_Bcast( INPUT_OPT%NHMSb, 1, mpi_integer, 0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%NYMDe, 1, mpi_integer, 0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%NHMSe, 1, mpi_integer, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%RUN_DIR, len(INPUT_OPT%RUN_DIR), mpi_character, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%IN_RST_FILE, len(INPUT_OPT%IN_RST_FILE), mpi_character, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%DATA_DIR, len(INPUT_OPT%DATA_DIR), mpi_character, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%CHEM_INPUTS_DIR, len(INPUT_OPT%CHEM_INPUTS_DIR), mpi_character, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%RES_DIR, len(INPUT_OPT%RES_DIR), mpi_character, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%GCAP_DIR, len(INPUT_OPT%GCAP_DIR), mpi_character, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%GEOS_4_DIR, len(INPUT_OPT%GEOS_4_DIR), mpi_character, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%GEOS_5_DIR, len(INPUT_OPT%GEOS_5_DIR), mpi_character, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%GEOS_FP_DIR, len(INPUT_OPT%GEOS_FP_DIR), mpi_character, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%MERRA_DIR, len(INPUT_OPT%MERRA_DIR), mpi_character, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%DATA_DIR_1x1, len(INPUT_OPT%DATA_DIR_1x1), mpi_character, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%TEMP_DIR, len(INPUT_OPT%TEMP_DIR), mpi_character, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%LUNZIP, 1, mpi_logical, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%LWAIT, 1, mpi_logical, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%LVARTROP, 1, mpi_logical, 0, mpiComm, RC )
+    CALL MPI_Bcast( INPUT_OPT%RUN_DIR, len(INPUT_OPT%RUN_DIR),             &
+                    mpi_character, 0, mpiComm, RC )
+    CALL MPI_Bcast( INPUT_OPT%IN_RST_FILE, len(INPUT_OPT%IN_RST_FILE),     &
+                    mpi_character, 0, mpiComm, RC )
+    CALL MPI_Bcast( INPUT_OPT%DATA_DIR, len(INPUT_OPT%DATA_DIR),           &
+                    mpi_character, 0, mpiComm, RC )
+    CALL MPI_Bcast( INPUT_OPT%CHEM_INPUTS_DIR,                             &
+                    len(INPUT_OPT%CHEM_INPUTS_DIR), mpi_character, 0, &
+                    mpiComm, RC )
+    CALL MPI_Bcast( INPUT_OPT%RES_DIR, len(INPUT_OPT%RES_DIR),             &
+                    mpi_character, 0, mpiComm, RC )
+    CALL MPI_Bcast( INPUT_OPT%GCAP_DIR, len(INPUT_OPT%GCAP_DIR),           &
+                    mpi_character, 0, mpiComm, RC )
+    CALL MPI_Bcast( INPUT_OPT%GEOS_4_DIR, len(INPUT_OPT%GEOS_4_DIR),       &
+                    mpi_character, 0, mpiComm, RC )
+    CALL MPI_Bcast( INPUT_OPT%GEOS_5_DIR, len(INPUT_OPT%GEOS_5_DIR),       &
+                    mpi_character, 0, mpiComm, RC )
+    CALL MPI_Bcast( INPUT_OPT%GEOS_FP_DIR, len(INPUT_OPT%GEOS_FP_DIR),     &
+                    mpi_character, 0, mpiComm, RC )
+    CALL MPI_Bcast( INPUT_OPT%MERRA_DIR, len(INPUT_OPT%MERRA_DIR),         &
+                    mpi_character, 0, mpiComm, RC )
+    CALL MPI_Bcast( INPUT_OPT%DATA_DIR_1x1, len(INPUT_OPT%DATA_DIR_1x1),   &
+                    mpi_character, 0, mpiComm, RC )
+    CALL MPI_Bcast( INPUT_OPT%TEMP_DIR,  len(INPUT_OPT%TEMP_DIR),          &
+                    mpi_character, 0, mpiComm, RC )
+    CALL MPI_Bcast( INPUT_OPT%LUNZIP,    1, mpi_logical, 0, mpiComm, RC )
+    CALL MPI_Bcast( INPUT_OPT%LWAIT,     1, mpi_logical, 0, mpiComm, RC )
+    CALL MPI_Bcast( INPUT_OPT%LVARTROP,  1, mpi_logical, 0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%NESTED_I0, 1, mpi_integer, 0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%NESTED_J0, 1, mpi_integer, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%HcoConfigFile, len(INPUT_OPT%HcoConfigFile), mpi_character, 0, mpiComm, RC )
+    CALL MPI_Bcast( INPUT_OPT%HcoConfigFile, len(INPUT_OPT%HcoConfigFile), &
+                    mpi_character, 0, mpiComm, RC )
 
     !----------------------------------------
     ! PASSIVE SPECIES MENU fields
     !----------------------------------------
     CALL MPI_Bcast( INPUT_OPT%NPASSIVE, 1, mpi_integer, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%PASSIVE_ID(:), MAXPASV, mpi_integer, 0,  &
+    CALL MPI_Bcast( INPUT_OPT%PASSIVE_ID(:), MAXPASV, mpi_integer, 0,      &
                                              mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%PASSIVE_NAME(:), (63)*MAXPASV,          &
+    CALL MPI_Bcast( INPUT_OPT%PASSIVE_NAME(:), (63)*MAXPASV,               &
                                              mpi_character, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%PASSIVE_MW(:), MAXPASV, mpi_real8, 0,  &
+    CALL MPI_Bcast( INPUT_OPT%PASSIVE_MW(:), MAXPASV, mpi_real8, 0,        &
                                              mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%PASSIVE_TAU(:), MAXPASV, mpi_real8, 0, &
+    CALL MPI_Bcast( INPUT_OPT%PASSIVE_TAU(:), MAXPASV, mpi_real8, 0,       &
                                              mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%PASSIVE_INITCONC(:), MAXPASV, mpi_real8, 0, mpiComm, RC )
+    CALL MPI_Bcast( INPUT_OPT%PASSIVE_INITCONC(:), MAXPASV, mpi_real8, 0,  &
+                                             mpiComm, RC )
 
     ! add passive species variables here
 
@@ -179,20 +183,25 @@ CONTAINS
     ! ADVECTED SPECIES MENU fields
     !----------------------------------------
     CALL MPI_Bcast( INPUT_OPT%N_ADVECT, 1, mpi_integer, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%AdvectSpc_Name(:), (255)*INPUT_OPT%MAX_SPC, mpi_character, 0, mpiComm, RC )
+    CALL MPI_Bcast( INPUT_OPT%AdvectSpc_Name(:), (255)*INPUT_OPT%MAX_SPC, &
+                    mpi_character, 0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%LSPLIT, 1, mpi_logical, 0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%ITS_A_RnPbBe_SIM, 1, mpi_logical, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%ITS_A_FULLCHEM_SIM, 1, mpi_logical, 0, mpiComm, RC )
+    CALL MPI_Bcast( INPUT_OPT%ITS_A_FULLCHEM_SIM, 1, mpi_logical, 0, &
+                    mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%ITS_A_HCN_SIM, 1, mpi_logical, 0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%ITS_A_TAGCO_SIM, 1, mpi_logical, 0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%ITS_A_C2H6_SIM, 1, mpi_logical, 0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%ITS_A_CH4_SIM, 1, mpi_logical, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%ITS_AN_AEROSOL_SIM, 1, mpi_logical, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%ITS_A_MERCURY_SIM, 1, mpi_logical, 0, mpiComm, RC )
+    CALL MPI_Bcast( INPUT_OPT%ITS_AN_AEROSOL_SIM, 1, mpi_logical, 0, &
+                    mpiComm, RC )
+    CALL MPI_Bcast( INPUT_OPT%ITS_A_MERCURY_SIM, 1, mpi_logical, 0, &
+                    mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%ITS_A_CO2_SIM, 1, mpi_logical, 0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%ITS_A_H2HD_SIM, 1, mpi_logical, 0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%ITS_A_POPS_SIM, 1, mpi_logical, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%ITS_NOT_COPARAM_OR_CH4, 1, mpi_logical, 0, mpiComm, RC )
+    CALL MPI_Bcast( INPUT_OPT%ITS_NOT_COPARAM_OR_CH4, 1, mpi_logical, 0, &
+                    mpiComm, RC )
 
     !----------------------------------------
     ! AEROSOL MENU fields
@@ -268,7 +277,8 @@ CONTAINS
     !----------------------------------------
     CALL MPI_Bcast( INPUT_OPT%LFUTURE, 1, mpi_logical, 0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%FUTURE_YEAR, 1, mpi_integer, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%FUTURE_SCEN, len(INPUT_OPT%FUTURE_SCEN), mpi_character, 0, mpiComm, RC )
+    CALL MPI_Bcast( INPUT_OPT%FUTURE_SCEN, len(INPUT_OPT%FUTURE_SCEN), &
+                    mpi_character, 0, mpiComm, RC )
 
     !----------------------------------------
     ! CHEMISTRY MENU fields
@@ -312,8 +322,12 @@ CONTAINS
     !----------------------------------------
     ! GAMAP MENU fields
     !----------------------------------------
-    CALL MPI_Bcast( INPUT_OPT%GAMAP_DIAGINFO, len(INPUT_OPT%GAMAP_DIAGINFO), mpi_character, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%GAMAP_TRACERINFO, len(INPUT_OPT%GAMAP_TRACERINFO), mpi_character, 0, mpiComm, RC )
+    CALL MPI_Bcast( INPUT_OPT%GAMAP_DIAGINFO, &
+                    len(INPUT_OPT%GAMAP_DIAGINFO), mpi_character, 0, &
+                    mpiComm, RC )
+    CALL MPI_Bcast( INPUT_OPT%GAMAP_TRACERINFO, &
+                    len(INPUT_OPT%GAMAP_TRACERINFO), mpi_character, 0, &
+                    mpiComm, RC )
 
     !----------------------------------------
     ! OUTPUT MENU fields
@@ -462,29 +476,41 @@ CONTAINS
     CALL MPI_Bcast( INPUT_OPT%ND70, 1, mpi_integer, 0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%LD70, 1, mpi_integer, 0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%LPRT, 1, mpi_logical, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%TINDEX(:,:), INPUT_OPT%MAX_DIAG*INPUT_OPT%MAX_SPC, mpi_integer, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%TCOUNT(:)  , INPUT_OPT%MAX_DIAG, mpi_integer, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%TMAX(:)    , INPUT_OPT%MAX_DIAG, mpi_integer, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%DO_DIAG_WRITE, 1, mpi_logical, 0, mpiComm, RC )
+    CALL MPI_Bcast( INPUT_OPT%TINDEX(:,:), &
+                    INPUT_OPT%MAX_DIAG*INPUT_OPT%MAX_SPC, mpi_integer, &
+                    0, mpiComm, RC )
+    CALL MPI_Bcast( INPUT_OPT%TCOUNT(:)  , INPUT_OPT%MAX_DIAG, &
+                    mpi_integer, 0, mpiComm, RC )
+    CALL MPI_Bcast( INPUT_OPT%TMAX(:)    , INPUT_OPT%MAX_DIAG, &
+                    mpi_integer, 0, mpiComm, RC )
+    CALL MPI_Bcast( INPUT_OPT%DO_DIAG_WRITE, 1, mpi_logical, 0, &
+                    mpiComm, RC )
 
     !----------------------------------------
     ! PLANEFLIGHT MENU fields
     !----------------------------------------
     CALL MPI_Bcast( INPUT_OPT%DO_PF, 1, mpi_logical, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%PF_IFILE, len(INPUT_OPT%PF_IFILE), mpi_character, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%PF_OFILE, len(INPUT_OPT%PF_OFILE), mpi_character, 0, mpiComm, RC )
+    CALL MPI_Bcast( INPUT_OPT%PF_IFILE, len(INPUT_OPT%PF_IFILE), &
+                    mpi_character, 0, mpiComm, RC )
+    CALL MPI_Bcast( INPUT_OPT%PF_OFILE, len(INPUT_OPT%PF_OFILE), &
+                    mpi_character, 0, mpiComm, RC )
 
     !----------------------------------------
     ! ND48 MENU fields
     !----------------------------------------
     CALL MPI_Bcast( INPUT_OPT%DO_ND48, 1, mpi_logical, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%ND48_FILE, len(INPUT_OPT%ND48_FILE), mpi_character, 0, mpiComm, RC )
+    CALL MPI_Bcast( INPUT_OPT%ND48_FILE, len(INPUT_OPT%ND48_FILE), &
+                    mpi_character, 0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%ND48_FREQ, 1, mpi_integer, 0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%ND48_N_STA, 1, mpi_integer, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%ND48_IARR(:), INPUT_OPT%MAX_SPC, mpi_integer, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%ND48_JARR(:), INPUT_OPT%MAX_SPC, mpi_integer, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%ND48_LARR(:), INPUT_OPT%MAX_SPC, mpi_integer, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%ND48_NARR(:), INPUT_OPT%MAX_SPC, mpi_integer, 0, mpiComm, RC )
+    CALL MPI_Bcast( INPUT_OPT%ND48_IARR(:), INPUT_OPT%MAX_SPC, &
+                    mpi_integer, 0, mpiComm, RC )
+    CALL MPI_Bcast( INPUT_OPT%ND48_JARR(:), INPUT_OPT%MAX_SPC, &
+                    mpi_integer, 0, mpiComm, RC )
+    CALL MPI_Bcast( INPUT_OPT%ND48_LARR(:), INPUT_OPT%MAX_SPC, &
+                    mpi_integer, 0, mpiComm, RC )
+    CALL MPI_Bcast( INPUT_OPT%ND48_NARR(:), INPUT_OPT%MAX_SPC, &
+                    mpi_integer, 0, mpiComm, RC )
 
     !----------------------------------------
     ! ND49 MENU fields
@@ -504,9 +530,11 @@ CONTAINS
     ! ND50 MENU fields
     !----------------------------------------
     CALL MPI_Bcast( INPUT_OPT%DO_ND50, 1, mpi_logical, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%ND50_FILE, len(INPUT_OPT%ND50_FILE), mpi_character, 0, mpiComm, RC )
+    CALL MPI_Bcast( INPUT_OPT%ND50_FILE, len(INPUT_OPT%ND50_FILE), &
+                    mpi_character, 0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%LND50_HDF, 1, mpi_logical, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%ND50_TRACERS(:), INPUT_OPT%MAX_SPC, mpi_integer, 0, mpiComm, RC )
+    CALL MPI_Bcast( INPUT_OPT%ND50_TRACERS(:), INPUT_OPT%MAX_SPC, &
+                    mpi_integer, 0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%ND50_IMIN, 1, mpi_integer, 0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%ND50_IMAX, 1, mpi_integer, 0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%ND50_JMIN, 1, mpi_integer, 0, mpiComm, RC )
@@ -518,9 +546,11 @@ CONTAINS
     ! ND51 MENU fields
      !----------------------------------------
     CALL MPI_Bcast( INPUT_OPT%DO_ND51, 1, mpi_logical, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%ND51_FILE, len(INPUT_OPT%ND51_FILE), mpi_character, 0, mpiComm, RC )
+    CALL MPI_Bcast( INPUT_OPT%ND51_FILE, len(INPUT_OPT%ND51_FILE), &
+                    mpi_character, 0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%LND51_HDF, 1, mpi_integer, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%ND51_TRACERS(:), INPUT_OPT%MAX_SPC, mpi_integer, 0, mpiComm, RC )
+    CALL MPI_Bcast( INPUT_OPT%ND51_TRACERS(:), INPUT_OPT%MAX_SPC, &  
+                    mpi_integer, 0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%ND51_HR_WRITE, 1, mpi_real8, 0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%ND51_HR1, 1, mpi_real8, 0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%ND51_HR2, 1, mpi_real8, 0, mpiComm, RC )
@@ -535,9 +565,11 @@ CONTAINS
     ! ND51b MENU fields
     !----------------------------------------
     CALL MPI_Bcast( INPUT_OPT%DO_ND51b, 1, mpi_logical, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%ND51b_FILE, len(INPUT_OPT%ND51b_FILE), mpi_character, 0, mpiComm, RC )
+    CALL MPI_Bcast( INPUT_OPT%ND51b_FILE, len(INPUT_OPT%ND51b_FILE), &
+                    mpi_character, 0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%LND51b_HDF, 1, mpi_integer, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%ND51b_TRACERS(:), INPUT_OPT%MAX_SPC, mpi_integer, 0, mpiComm, RC )
+    CALL MPI_Bcast( INPUT_OPT%ND51b_TRACERS(:), INPUT_OPT%MAX_SPC, &
+                    mpi_integer, 0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%ND51b_HR_WRITE, 1, mpi_real8, 0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%ND51b_HR1, 1, mpi_real8, 0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%ND51b_HR2, 1, mpi_real8, 0, mpiComm, RC )
@@ -552,7 +584,8 @@ CONTAINS
     ! ND63 MENU fields
     !----------------------------------------
     CALL MPI_Bcast( INPUT_OPT%DO_ND63, 1, mpi_logical, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%ND63_FILE, len(INPUT_OPT%ND63_FILE), mpi_character, 0, mpiComm, RC )
+    CALL MPI_Bcast( INPUT_OPT%ND63_FILE, len(INPUT_OPT%ND63_FILE), &
+                    mpi_character, 0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%ND63_FREQ, 1, mpi_integer, 0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%ND63_IMIN, 1, mpi_integer, 0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%ND63_IMAX, 1, mpi_integer, 0, mpiComm, RC )
@@ -567,20 +600,32 @@ CONTAINS
     CALL MPI_Bcast( INPUT_OPT%LD65, 1, mpi_integer, 0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%DO_SAVE_O3, 1, mpi_logical, 0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%NFAM, 1, mpi_integer, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%FAM_NAME, len(INPUT_OPT%FAM_NAME)*INPUT_OPT%MAX_FAM, mpi_character, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%FAM_TYPE, len(INPUT_OPT%FAM_TYPE)*INPUT_OPT%MAX_FAM, mpi_character, 0, mpiComm, RC )
+    CALL MPI_Bcast( INPUT_OPT%FAM_NAME, &
+                    len(INPUT_OPT%FAM_NAME)*INPUT_OPT%MAX_FAM, &
+                    mpi_character, 0, mpiComm, RC )
+    CALL MPI_Bcast( INPUT_OPT%FAM_TYPE, &
+                    len(INPUT_OPT%FAM_TYPE)*INPUT_OPT%MAX_FAM, &
+                    mpi_character, 0, mpiComm, RC )
 
     !----------------------------------------
     ! UNIX CMDS fields
     !----------------------------------------
-    CALL MPI_Bcast( INPUT_OPT%BACKGROUND, len(INPUT_OPT%BACKGROUND), mpi_character, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%REDIRECT, len(INPUT_OPT%REDIRECT), mpi_character, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%REMOVE_CMD, len(INPUT_OPT%REMOVE_CMD), mpi_character, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%SEPARATOR, len(INPUT_OPT%SEPARATOR), mpi_character, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%WILD_CARD, len(INPUT_OPT%WILD_CARD), mpi_character, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%UNZIP_CMD, len(INPUT_OPT%UNZIP_CMD), mpi_character, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%ZIP_SUFFIX, len(INPUT_OPT%ZIP_SUFFIX), mpi_character, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%SPACE, len(INPUT_OPT%SPACE), mpi_character, 0, mpiComm, RC )
+    CALL MPI_Bcast( INPUT_OPT%BACKGROUND, len(INPUT_OPT%BACKGROUND), &
+                    mpi_character, 0, mpiComm, RC )
+    CALL MPI_Bcast( INPUT_OPT%REDIRECT, len(INPUT_OPT%REDIRECT), &
+                    mpi_character, 0, mpiComm, RC )
+    CALL MPI_Bcast( INPUT_OPT%REMOVE_CMD, len(INPUT_OPT%REMOVE_CMD), &
+                    mpi_character, 0, mpiComm, RC )
+    CALL MPI_Bcast( INPUT_OPT%SEPARATOR, len(INPUT_OPT%SEPARATOR), &
+                    mpi_character, 0, mpiComm, RC )
+    CALL MPI_Bcast( INPUT_OPT%WILD_CARD, len(INPUT_OPT%WILD_CARD), &
+                    mpi_character, 0, mpiComm, RC )
+    CALL MPI_Bcast( INPUT_OPT%UNZIP_CMD, len(INPUT_OPT%UNZIP_CMD), &
+                    mpi_character, 0, mpiComm, RC )
+    CALL MPI_Bcast( INPUT_OPT%ZIP_SUFFIX, len(INPUT_OPT%ZIP_SUFFIX), &
+                    mpi_character, 0, mpiComm, RC )
+    CALL MPI_Bcast( INPUT_OPT%SPACE, len(INPUT_OPT%SPACE), mpi_character, &
+                    0, mpiComm, RC )
 
     !----------------------------------------
     ! NESTED GRID MENU fields
@@ -588,13 +633,17 @@ CONTAINS
     CALL MPI_Bcast( INPUT_OPT%LWINDO, 1, mpi_logical, 0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%LWINDO2x25, 1, mpi_logical, 0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%LWINDO_NA, 1, mpi_logical, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%TPBC_DIR_NA, len(INPUT_OPT%TPBC_DIR_NA), mpi_character, 0, mpiComm, RC )
+    CALL MPI_Bcast( INPUT_OPT%TPBC_DIR_NA, len(INPUT_OPT%TPBC_DIR_NA), &
+                    mpi_character, 0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%LWINDO_EU, 1, mpi_logical, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%TPBC_DIR_EU, len(INPUT_OPT%TPBC_DIR_EU), mpi_character, 0, mpiComm, RC )
+    CALL MPI_Bcast( INPUT_OPT%TPBC_DIR_EU, len(INPUT_OPT%TPBC_DIR_EU), &
+                    mpi_character, 0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%LWINDO_CH, 1, mpi_logical, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%TPBC_DIR_CH, len(INPUT_OPT%TPBC_DIR_CH), mpi_character, 0, mpiComm, RC )
+    CALL MPI_Bcast( INPUT_OPT%TPBC_DIR_CH, len(INPUT_OPT%TPBC_DIR_CH), &
+                    mpi_character, 0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%LWINDO_CU, 1, mpi_integer, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%TPBC_DIR, len(INPUT_OPT%TPBC_DIR), mpi_character, 0, mpiComm, RC )
+    CALL MPI_Bcast( INPUT_OPT%TPBC_DIR, len(INPUT_OPT%TPBC_DIR), &
+                    mpi_character, 0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%NESTED_TS, 1, mpi_integer, 0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%NESTED_I1, 1, mpi_integer, 0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%NESTED_J1, 1, mpi_integer, 0, mpiComm, RC )
@@ -607,19 +656,25 @@ CONTAINS
     ! BENCHMARK MENU fields
     !----------------------------------------
     CALL MPI_Bcast( INPUT_OPT%LSTDRUN, 1, mpi_logical, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%STDRUN_INIT_FILE, len(INPUT_OPT%STDRUN_INIT_FILE), mpi_character, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%STDRUN_FINAL_FILE, len(INPUT_OPT%STDRUN_FINAL_FILE), mpi_character, 0, mpiComm, RC )
+    CALL MPI_Bcast( INPUT_OPT%STDRUN_INIT_FILE,                         &
+                    len(INPUT_OPT%STDRUN_INIT_FILE), mpi_character, 0,  &
+                    mpiComm, RC )
+    CALL MPI_Bcast( INPUT_OPT%STDRUN_FINAL_FILE,                        &
+                    len(INPUT_OPT%STDRUN_FINAL_FILE), mpi_character, 0, &
+                    mpiComm, RC )
 
     !----------------------------------------
     ! MERCURY MENU fields
     !----------------------------------------
     CALL MPI_Bcast( INPUT_OPT%ANTHRO_Hg_YEAR, 1, mpi_integer, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%HG_SCENARIO, len(INPUT_OPT%Hg_SCENARIO), mpi_character, 0, mpiComm, RC )
+    CALL MPI_Bcast( INPUT_OPT%HG_SCENARIO, len(INPUT_OPT%Hg_SCENARIO), &
+                    mpi_character, 0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%USE_CHECKS, 1, mpi_logical, 0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%LDYNOCEAN, 1, mpi_logical, 0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%LPREINDHG, 1, mpi_logical, 0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%LGTMM, 1, mpi_logical, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%GTMM_RST_FILE, len(INPUT_OPT%GTMM_RST_FILE), mpi_character, 0, mpiComm, RC )
+    CALL MPI_Bcast( INPUT_OPT%GTMM_RST_FILE, len(INPUT_OPT%GTMM_RST_FILE), &
+                    mpi_character, 0, mpiComm, RC )
 
     !----------------------------------------
     ! CH4 MENU fields
@@ -700,301 +755,152 @@ CONTAINS
 
   END SUBROUTINE GIGC_Input_Bcast
 !EOC
-!------------------------------------------------------------------------------
-!          Harvard University Atmospheric Chemistry Modeling Group            !
-!------------------------------------------------------------------------------
-!BOP
-!
-! !IROUTINE: gigc_idt_bcast
-!
-! !DESCRIPTION: Routine GIGC\_IDT_BCAST broadcasts the tracer flags (IDTxxxx)
-!  and species flags (IDxxxx), etc., that are set by the routines in
-!  Headers/species_mod.F & Headers/species_index_mod.F.
-!\\
-!\\
-! !INTERFACE:
-!
-  SUBROUTINE GIGC_Idt_Bcast( am_I_Root, Input_Opt, RC )
-!
-! !USES:
-!
-    USE Drydep_Mod
-    USE Errcode_Mod
-    USE Input_Opt_Mod, ONLY : OptInput
-    USE M_MPIF
-!
-! !INPUT PARAMETERS:
-!
-    LOGICAL,        INTENT(IN)  :: am_I_Root   ! Are we on the root CPU?
-    TYPE(OptInput), INTENT(IN)  :: Input_Opt   ! Input Options object
-!
-!
-! !OUTPUT PARAMETERS:
-!
-    INTEGER,        INTENT(OUT) :: RC          ! Success or failure
-!
-! !REMARKS:
-!
-! !REVISION HISTORY:
-!  04 Jan 2013 - M. Long     - Initial version
-!  07 Mar 2013 - R. Yantosca - Added more ProTeX headers + comments
-!   7 Mar 2013 - R. Yantosca - Reordered for clarity + cosmetic changes
-
-    ! Return success
-    RC = GC_SUCCESS
-
-  END SUBROUTINE GIGC_Idt_Bcast
-!EOC
-!------------------------------------------------------------------------------
-!          Harvard University Atmospheric Chemistry Modeling Group            !
-!------------------------------------------------------------------------------
-!BOP
-!
-! !IROUTINE: gigc_reader_bcast
-!
-! !DESCRIPTION: Routine GIGC\_READER\_BCAST performs an MPI broadcast for 
-!  all of the namelist data that is read from the "mglob.dat" file
-!  by routine GeosCore/reader.F.  This is one of the SMVGEAR input files.
-!\\
-!\\
-! !INTERFACE:
-!
-  SUBROUTINE GIGC_Reader_Bcast( RC )
-!
-! !USES:
-!
-    USE Errcode_Mod
-    USE M_MPIF
-!
-! !OUTPUT PARAMETERS:
-!
-    INTEGER, INTENT(OUT) :: RC   ! Success or failure
-!
-! !REMARKS:
-!  NOTE: The READER (GeosCore/reader.F) subroutine is a tangled mess.  It not 
-!  only reads values from mglob.dat but it also sets up other arrays used 
-!  elsewhere in the SMVGEAR code.  It may just be simpler to run READER on
-!  all CPUs so as not to have to worry about doing the MPI broadcast properly.
-!  (bmy, 3/7/13)
-!
-! !REVISION HISTORY:
-!  04 Jan 2013 - M. Long     - Initial version
-!  07 Mar 2013 - R. Yantosca - Added ProTex header
-!EOP
-!------------------------------------------------------------------------------
-!BOC
-
-    ! Return success
-    RC = GC_SUCCESS
-
-  END SUBROUTINE GIGC_Reader_Bcast
-!EOC
-!------------------------------------------------------------------------------
-!          Harvard University Atmospheric Chemistry Modeling Group            !
-!------------------------------------------------------------------------------
-!BOP
-!
-! !IROUTINE: gigc_readchem_bcast
-!
-! !DESCRIPTION: Routine GIGC\_READCHEM\_BCAST performs an MPI broadcast for 
-!  data that is read from the SMVGEAR "globchem.dat" input file.
-!\\
-!\\
-! !INTERFACE:
-!
-  SUBROUTINE GIGC_ReadChem_Bcast( C1,    CSTRAT, CTROPL, CTROPS, CURBAN, &
-                                  ININT, IORD,   NCOF,   RC              )
-!
-! !USES:
-!
-    USE Errcode_Mod
-    USE M_MPIF
-!
-! !INPUT/OUTPUT PARAMETERS:
-!
-    REAL*8,  INTENT(INOUT) :: C1, CSTRAT, CTROPL, CTROPS, CURBAN
-    INTEGER, INTENT(INOUT) :: ININT(10), IORD, NCOF
-!
-! !OUPTUT PARAMETERS:
-!
-    INTEGER, INTENT(OUT)   :: RC          ! Success or failure
-!
-! !REMARKS:
-!  NOTE: The READCHEM (GeosCore/readchem.F) subroutine is a tangled mess.  
-!  It not only reads values from mglob.dat but it also sets up other arrays 
-!  used elsewhere in the SMVGEAR code.  It may just be simpler to run READER 
-!  on all CPUs so as not to have to worry about doing the MPI broadcast 
-!  properly. (bmy, 3/7/13)
-!
-! !REVISION HISTORY:
-!  04 Jan 2013 - M. Long     - Initial version
-!  07 Mar 2013 - R. Yantosca - Added ProTeX headers
-!EOP
-!------------------------------------------------------------------------------
-!BOC
-!
-! !LOCAL VARIABLES:
-!
-    ! Globchem.dat
-    CALL MPI_Bcast( C1,     1,        mpi_real8,     0, mpiComm, RC ) ! IN
-    CALL MPI_Bcast( CSTRAT, 1,        mpi_real8,     0, mpiComm, RC ) ! IN
-    CALL MPI_Bcast( CTROPL, 1,        mpi_real8,     0, mpiComm, RC ) ! IN
-    CALL MPI_Bcast( CTROPS, 1,        mpi_real8,     0, mpiComm, RC ) ! IN
-    CALL MPI_Bcast( CURBAN, 1,        mpi_real8,     0, mpiComm, RC ) ! IN
-    CALL MPI_Bcast( ININT,  10,       mpi_integer,   0, mpiComm, RC ) ! IN
-    CALL MPI_Bcast( IORD,   1,        mpi_integer,   0, mpiComm, RC ) ! IN
-    CALL MPI_Bcast( NCOF,   1,        mpi_integer,   0, mpiComm, RC ) ! IN
-
-    RC = GC_SUCCESS
-    
-  END SUBROUTINE GIGC_Readchem_Bcast
-!EOC
-!------------------------------------------------------------------------------
-!          Harvard University Atmospheric Chemistry Modeling Group            !
-!------------------------------------------------------------------------------
-!BOP
-!
-! !IROUTINE: gigc_bcast_char
-!
-! !DESCRIPTION: Wrapper routine to do an MPI broadcast operation on
-!  a CHARACTER string variable.
-!\\
-!\\
-! !INTERFACE:
-!
-  SUBROUTINE GIGC_Bcast_Char( VAL, SIZE, RC )
-!
-! !USES:
-!
-    USE Errcode_Mod
-    USE M_MPIF
-!
-! !INPUT PARAMETERS:
-!
-    INTEGER,      INTENT(IN)    :: SIZE     ! # of characters
-!
-! !INPUT/OUTPUT PARAMETERS:
-!
-    CHARACTER(*), INTENT(INOUT) :: VAL(:)   ! Character string
-
-!
-! !OUTPUT PARAMETERS:
-!
-    INTEGER,      INTENT(OUT)   :: RC       ! Success or failure?
-!
-! !REMARKS:
-!  Mostly experimental.
-!
-! !REVISION HISTORY:
-!  04 Jan 2013 - M. Long     - Initial version
-!  07 Mar 2013 - R. Yantosca - Added ProTeX header
-!EOP
-!------------------------------------------------------------------------------
-!BOC
-    
-    ! Assume success
-    RC = GC_SUCCESS
-
-    ! Do MPI broadcast
-    CALL MPI_Bcast( VAL, SIZE, mpi_character, 0, mpiComm, RC )
-    
-  END SUBROUTINE GIGC_Bcast_Char
-!EOC
-!------------------------------------------------------------------------------
-!          Harvard University Atmospheric Chemistry Modeling Group            !
-!------------------------------------------------------------------------------
-!BOP
-!
-! !IROUTINE: gigc_bcast_int
-!
-! !DESCRIPTION: Wrapper routine to do an MPI broadcast operation on
-!  an INTEGER variable.
-!\\
-!\\
-! !INTERFACE:
-!
-  SUBROUTINE GIGC_Bcast_Int( VAL, SIZE, RC )
-!
-! !USES:
-!
-    USE Errcode_Mod
-    USE M_MPIF
-!
-! !INPUT PARAMETERS:
-!
-    INTEGER, INTENT(IN)    :: SIZE        ! Size of variable to be broadcasted
-!
-! !INPUT/OUTPUT PARAMETERS:
-!
-    INTEGER, INTENT(INOUT) :: VAL(SIZE)   ! Variable to be broadcasted
-!
-! !OUTPUT PARAMETERS:
-!
-    INTEGER, INTENT(OUT)   :: RC          ! Success or failure?
-!
-! !REMARKS:
-!  Mostly experimental
-!
-! !REVISION HISTORY:
-!  04 Jan 2013 - M. Long     - Initial version
-!  07 Mar 2013 - R. Yantosca - Added ProTeX header
-!EOP
-!------------------------------------------------------------------------------
-!BOC
-
-    RC = GC_SUCCESS
-    
-    CALL MPI_Bcast( VAL, SIZE, mpi_integer, 0, mpiComm, RC )
-    
-  END SUBROUTINE GIGC_Bcast_Int
-!EOC
-!------------------------------------------------------------------------------
-!          Harvard University Atmospheric Chemistry Modeling Group            !
-!------------------------------------------------------------------------------
-!BOP
-!
-! !IROUTINE: gigc_bcast_real8
-!
-! !DESCRIPTION: Wrapper routine to do an MPI broadcast operation on
-!  an REAL*8 variable.
-!\\
-!\\
-! !INTERFACE:
-!
-  SUBROUTINE GIGC_Bcast_Real8( VAL, SIZE, RC )
-!
-! !USES:
-!
-    USE Errcode_Mod
-    USE M_MPIF
-!
-! !INPUT PARAMETERS:
-!
-    INTEGER, INTENT(IN)    :: SIZE        ! Size of variable to be broadcast
-! 
-! !INPUT/OUTPUT PARAMETERS:
-!
-    REAL*8,  INTENT(INOUT) :: VAL(SIZE)   ! Variable to be broadcast
-!
-! !OUTPUT PARAMETERS:
-!
-    INTEGER, INTENT(OUT)   :: RC          ! Success or failure?
-!
-! !REMARKS:
-!  Mostly experimental
-!
-! !REVISION HISTORY:
-!  04 Jan 2013 - M. Long     - Initial version
-!  07 Mar 2013 - R. Yantosca - Added ProTeX header
-!EOP
-!------------------------------------------------------------------------------
-!BOC
-    
-    RC = GC_SUCCESS
-    
-    CALL MPI_Bcast( VAL, SIZE, mpi_real8, 0, mpiComm, RC )
-    
-  END SUBROUTINE GIGC_Bcast_Real8
-!EOC
+!!------------------------------------------------------------------------------
+!!          Harvard University Atmospheric Chemistry Modeling Group            !
+!!------------------------------------------------------------------------------
+!!BOP
+!!
+!! !IROUTINE: gigc_bcast_char
+!!
+!! !DESCRIPTION: Wrapper routine to do an MPI broadcast operation on
+!!  a CHARACTER string variable.
+!!\\
+!!\\
+!! !INTERFACE:
+!!
+!  SUBROUTINE GIGC_Bcast_Char( VAL, SIZE, RC )
+!!
+!! !USES:
+!!
+!    USE Errcode_Mod
+!    USE M_MPIF
+!!
+!! !INPUT PARAMETERS:
+!!
+!    INTEGER,      INTENT(IN)    :: SIZE     ! # of characters
+!!
+!! !INPUT/OUTPUT PARAMETERS:
+!!
+!    CHARACTER(*), INTENT(INOUT) :: VAL(:)   ! Character string
+!
+!!
+!! !OUTPUT PARAMETERS:
+!!
+!    INTEGER,      INTENT(OUT)   :: RC       ! Success or failure?
+!!
+!! !REMARKS:
+!!  Mostly experimental.
+!!
+!! !REVISION HISTORY:
+!!  04 Jan 2013 - M. Long     - Initial version
+!!  07 Mar 2013 - R. Yantosca - Added ProTeX header
+!!EOP
+!!------------------------------------------------------------------------------
+!!BOC
+!    
+!    ! Assume success
+!    RC = GC_SUCCESS
+!
+!    ! Do MPI broadcast
+!    CALL MPI_Bcast( VAL, SIZE, mpi_character, 0, mpiComm, RC )
+!    
+!  END SUBROUTINE GIGC_Bcast_Char
+!!EOC
+!!------------------------------------------------------------------------------
+!!          Harvard University Atmospheric Chemistry Modeling Group            !
+!!------------------------------------------------------------------------------
+!!BOP
+!!
+!! !IROUTINE: gigc_bcast_int
+!!
+!! !DESCRIPTION: Wrapper routine to do an MPI broadcast operation on
+!!  an INTEGER variable.
+!!\\
+!!\\
+!! !INTERFACE:
+!!
+!  SUBROUTINE GIGC_Bcast_Int( VAL, SIZE, RC )
+!!
+!! !USES:
+!!
+!    USE Errcode_Mod
+!    USE M_MPIF
+!!
+!! !INPUT PARAMETERS:
+!!
+!    INTEGER, INTENT(IN)    :: SIZE        ! Size of variable to be broadcasted
+!!
+!! !INPUT/OUTPUT PARAMETERS:
+!!
+!    INTEGER, INTENT(INOUT) :: VAL(SIZE)   ! Variable to be broadcasted
+!!
+!! !OUTPUT PARAMETERS:
+!!
+!    INTEGER, INTENT(OUT)   :: RC          ! Success or failure?
+!!
+!! !REMARKS:
+!!  Mostly experimental
+!!
+!! !REVISION HISTORY:
+!!  04 Jan 2013 - M. Long     - Initial version
+!!  07 Mar 2013 - R. Yantosca - Added ProTeX header
+!!EOP
+!!------------------------------------------------------------------------------
+!!BOC
+!
+!    RC = GC_SUCCESS
+!    
+!    CALL MPI_Bcast( VAL, SIZE, mpi_integer, 0, mpiComm, RC )
+!    
+!  END SUBROUTINE GIGC_Bcast_Int
+!!EOC
+!!------------------------------------------------------------------------------
+!!          Harvard University Atmospheric Chemistry Modeling Group            !
+!!------------------------------------------------------------------------------
+!!BOP
+!!
+!! !IROUTINE: gigc_bcast_real8
+!!
+!! !DESCRIPTION: Wrapper routine to do an MPI broadcast operation on
+!!  an REAL*8 variable.
+!!\\
+!!\\
+!! !INTERFACE:
+!!
+!  SUBROUTINE GIGC_Bcast_Real8( VAL, SIZE, RC )
+!!
+!! !USES:
+!!
+!    USE Errcode_Mod
+!    USE M_MPIF
+!!
+!! !INPUT PARAMETERS:
+!!
+!    INTEGER, INTENT(IN)    :: SIZE        ! Size of variable to be broadcast
+!! 
+!! !INPUT/OUTPUT PARAMETERS:
+!!
+!    REAL*8,  INTENT(INOUT) :: VAL(SIZE)   ! Variable to be broadcast
+!!
+!! !OUTPUT PARAMETERS:
+!!
+!    INTEGER, INTENT(OUT)   :: RC          ! Success or failure?
+!!
+!! !REMARKS:
+!!  Mostly experimental
+!!
+!! !REVISION HISTORY:
+!!  04 Jan 2013 - M. Long     - Initial version
+!!  07 Mar 2013 - R. Yantosca - Added ProTeX header
+!!EOP
+!!------------------------------------------------------------------------------
+!!BOC
+!    
+!    RC = GC_SUCCESS
+!    
+!    CALL MPI_Bcast( VAL, SIZE, mpi_real8, 0, mpiComm, RC )
+!    
+!  END SUBROUTINE GIGC_Bcast_Real8
+!!EOC
 END MODULE GIGC_Mpi_Wrap
 #endif

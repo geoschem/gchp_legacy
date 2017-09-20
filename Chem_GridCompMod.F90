@@ -81,7 +81,6 @@ MODULE Chem_GridCompMod
 ! !PUBLIC MEMBER FUNCTIONS:
 !
   PUBLIC                           :: SetServices    ! Sets ESMF entry points
-  PUBLIC                           :: Get_Transport  ! Returns InputOpt%LTRAN.
 !
 ! !PRIVATE MEMBER FUNCTIONS:
 !
@@ -284,6 +283,7 @@ MODULE Chem_GridCompMod
 !  22 Feb 2015 - C. Keller   - Now check if geoschemchem_import_rst exist
 !  06 Jun 2016 - M. Yannetti - Added Get_Transport.
 !  19 Dec 2016 - M. Long     - Update for v11-01k
+!  19 Sep 2017 - E. Lundgren - Removed Get_Transport
 !EOP
 !------------------------------------------------------------------------------
 !BOC
@@ -1099,46 +1099,6 @@ CONTAINS
     RETURN_(ESMF_SUCCESS)
 
   END SUBROUTINE SetServices
-!EOC
-!------------------------------------------------------------------------------
-!     NASA/GSFC, Global Modeling and Assimilation Office, Code 910.1 and      !
-!          Harvard University Atmospheric Chemistry Modeling Group            !
-!------------------------------------------------------------------------------
-!BOP
-!
-! !IROUTINE: Get_Transport
-!
-! !DESCRIPTION: Returns the LTRAN variable of Input_Opt, so ESMF can know
-!  if transport should run or not.
-!\\
-!\\
-! !INTERFACE:
-!
-      FUNCTION GET_TRANSPORT() RESULT( L_TRAN )
-!
-! !USES:
-!
-!
-! !RETURN VALUE:
-!
-      LOGICAL :: L_TRAN    ! Result of LTRAN.
-!
-! !REVISION HISTORY: 
-!  06 Jun 2016 - M. Yannetti   - Initial version
-!EOP
-!---------------------------------------------------------------------------
-!BOC
-
-      !=================================================================
-      ! GETTRANSPORT begins here!
-      !=================================================================
-
-      L_TRAN = Input_Opt%LTRAN
-
-      END FUNCTION GET_TRANSPORT
-
-
-
 !EOC
 !------------------------------------------------------------------------------
 !     NASA/GSFC, Global Modeling and Assimilation Office, Code 910.1 and      !
@@ -2861,7 +2821,6 @@ CONTAINS
     TYPE(ESMF_Grid)            :: Grid        ! ESMF Grid object
     TYPE(ESMF_Config)          :: MaplCF      ! Config (MAPL.rc)
     TYPE(ESMF_Config)          :: GeosCF      ! Config (GEOSCHEM*.rc)
-    TYPE(GC_GeoLoc)            :: GeoLoc      ! G-C obj for location
  
     ! Scalars
     LOGICAL                    :: am_I_Root   ! Are we on the root PET?

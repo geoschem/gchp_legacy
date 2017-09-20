@@ -363,7 +363,6 @@ GIGC_GridCompMod.o          : GIGC_GridCompMod.F90                          \
 GEOS_ctmEnvGridComp.o	    : GEOS_ctmEnvGridComp.F90
 
 gigc_chunk_mod.o            : gigc_chunk_mod.F90                            \
-                              gigc_finalization_mod.o                       \
                               gigc_initialization_mod.o                     \
                               gc_land_interface.o                           \
 			      gchp_utils.o
@@ -373,6 +372,8 @@ gigc_historyexports_mod.o   : gigc_historyexports_mod.F90                   \
 
 gigc_initialization_mod.o   : gigc_initialization_mod.F90                   \
                               gigc_mpi_wrap.o
+
+gigc_mpi_wrap.o             : gigc_mpi_wrap.F90
 
 gigc_types_mod.o            : gigc_types_mod.F90
 

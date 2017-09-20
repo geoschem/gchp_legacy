@@ -248,7 +248,7 @@ CONTAINS
 !    USE WETSCAV_MOD,          ONLY : Get_WetDep_IDWetD
     USE DRYDEP_MOD,           ONLY : INIT_WEIGHTSS, INIT_DRYDEP
     USE DUST_MOD,             ONLY : INIT_DUST
-    USE GIGC_MPI_WRAP
+    USE GIGC_MPI_WRAP,        ONLY : GIGC_Input_Bcast
     USE TIME_MOD,             ONLY : SET_TIMESTEPS
     USE SEASALT_MOD,          ONLY : INIT_SEASALT
     USE TOMS_MOD,             ONLY : INIT_TOMS
@@ -406,12 +406,6 @@ CONTAINS
                            RC        = RC           )
     IF ( RC /= GC_SUCCESS ) RETURN
 
-    ! Broadcast IDTxxx etc. tracer flags from root to all other CPUs
-    CALL GIGC_IDT_Bcast  ( am_I_Root = am_I_Root,                           &  
-                           Input_Opt = Input_Opt,                           &  
-                           RC        = RC           )
-    IF ( RC /= GC_SUCCESS ) RETURN
-
     ! Complete initialization ops on all threads
     !IF ( .NOT. am_I_Root ) THEN 
 
@@ -493,57 +487,6 @@ CONTAINS
     !-----------------------------------------------------------------------
     ! Read other ASCII files on the root CPU and broadcast to other CPUs
     !-----------------------------------------------------------------------
-
-!------------------------------------------------------------------------------
-! Prior to 3/7/13:
-! For now, just call READER on all CPUs.  It may be difficult to try to MPI
-! broadcast all of the fields that READER touches (bmy, 3/7/13)
-!    ! Read "mglob.dat"
-!    IF ( am_I_Root ) THEN
-!------------------------------------------------------------------------------
-       ! Read from data file mglob.dat
-!       CALL READER( .TRUE.,  am_I_Root, Input_Opt )
-
-       !### Debug
-       IF ( prtDebug ) THEN
-          CALL DEBUG_MSG( '### GIGC_INIT_SIMULATION: after READER' )
-       ENDIF
-
-!------------------------------------------------------------------------------
-! Prior to 3/7/13:
-! For now, just call READER on all CPUs.  It may be difficult to try to MPI
-! broadcast all of the fields that READER touches (bmy, 3/7/13)
-!    ENDIF
-!
-!    ! Broadcast "mglob.dat"
-!       CALL GIGC_Reader_Bcast( RC )
-!    CALL DEBUG_MSG( '### GIGC_INIT_SIMULATION: after GIGC_Bcast_READER' )
-!------------------------------------------------------------------------------
-
-    ! Read "globchem.dat" chemistry mechanism
-!------------------------------------------------------------------------------
-! Prior to 3/7/13:
-! NOTE: for now, just call READCHEM on all CPUs.  Try to figure out how
-! to MPI broadcast later.  This could be very difficult. (bmy, mlong, 3/7/13)
-!    IF ( am_I_Root ) THEN
-!------------------------------------------------------------------------------
-!       CALL READCHEM( am_I_Root, Input_Opt, RC )
-!       IF ( RC /= GC_SUCCESS ) RETURN
-
-       !### Debug
-       IF ( prtDebug ) THEN
-          CALL DEBUG_MSG( '### GIGC_INIT_SIMULATION: after READCHEM' )        
-       ENDIF
-!------------------------------------------------------------------------------
-! Prior to 3/7/13:
-! NOTE: for now, just call READCHEM on all CPUs.  Try to figure out how
-! to MPI broadcast later.  This could be very difficult. (bmy, mlong, 3/7/13)
-!    ENDIF
-!
-!    ! Broadcast "globchem.dat" to other CPUs
-!    CALL GIGC_ReadChem_Bcast( RC )
-!------------------------------------------------------------------------------
-
 
 !------------------------------------------------------------------------------
 ! Prior to 3/7/13:
