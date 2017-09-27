@@ -324,6 +324,8 @@ CONTAINS
     ENDDO
     HistoryConfig%ConfigFileRead = .TRUE.
 
+    ! close the file???
+
   END SUBROUTINE Init_HistoryExportsList
 !EOC
 !------------------------------------------------------------------------------
