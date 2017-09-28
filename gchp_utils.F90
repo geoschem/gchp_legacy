@@ -26,8 +26,8 @@ MODULE GCHP_Utils
 ! !PUBLIC MEMBER FUNCTIONS:
 !
   PUBLIC :: READ_SPECIES_FROM_FILE
-  PUBLIC :: GIGC_Assert_Units
-  PUBLIC :: GIGC_Revert_Units
+!  PUBLIC :: GIGC_Assert_Units
+!  PUBLIC :: GIGC_Revert_Units
   PUBLIC :: GIGC_Cap_Tropopause_Prs
   PUBLIC :: Set_Background_Conc
 !
@@ -234,130 +234,130 @@ MODULE GCHP_Utils
 
   END SUBROUTINE GIGC_Cap_Tropopause_Prs
 !EOC
-!------------------------------------------------------------------------------
-!          Harvard University Atmospheric Chemistry Modeling Group            !
-!------------------------------------------------------------------------------
-!BOP
+!!------------------------------------------------------------------------------
+!!          Harvard University Atmospheric Chemistry Modeling Group            !
+!!------------------------------------------------------------------------------
+!!BOP
+!!
+!! !IROUTINE: gigc_revert_units
+!!
+!! !DESCRIPTION: Subroutine GIGC\_REVERT\_UNITS forces the units back to kg/kg dry
+!!\\
+!!\\
+!! !INTERFACE:
+!!
+!  SUBROUTINE GIGC_Revert_Units( am_I_Root, Input_Opt, State_Chm, State_Met, RC )
+!!
+!! !USES:
+!!
+!    USE ErrCode_Mod
+!    USE Input_Opt_Mod,    ONLY : OptInput
+!    USE State_Chm_Mod,    ONLY : ChmState
+!    USE State_Met_Mod,    ONLY : MetState
+!    Use UnitConv_Mod
+!!
+!! !INPUT PARAMETERS:
+!!
+!    LOGICAL,        INTENT(IN)    :: am_I_Root     ! Are we on the root CPU?
+!!
+!! !INPUT/OUTPUT PARAMETERS:
+!!
+!    TYPE(OptInput), INTENT(INOUT) :: Input_Opt     ! Input Options object
+!    TYPE(ChmState), INTENT(INOUT) :: State_Chm     ! Chemistry State object
+!    TYPE(MetState), INTENT(INOUT) :: State_Met     ! Meteorology State object
+!!
+!! !OUTPUT PARAMETERS:
+!!
+!    INTEGER,        INTENT(OUT)   :: RC            ! Success or failure
+!!
+!! !REVISION HISTORY: 
+!!  21 Dec 2016 - S. D. Eastham - Initial Version
+!!EOP
+!!------------------------------------------------------------------------------
+!!BOC
+!!
+!! !LOCAL VARIABLES:
+!!
 !
-! !IROUTINE: gigc_revert_units
+!    ! Are tracers in mass or mixing ratio?
+!    ! Are tracers in mass or mixing ratio?
+!    Logical                        :: LPrt, LConvert
+!    Character(Len=20)              :: oldUnits
 !
-! !DESCRIPTION: Subroutine GIGC\_REVERT\_UNITS forces the units back to kg/kg dry
-!\\
-!\\
-! !INTERFACE:
+!    ! Assume succes
+!    RC = GC_SUCCESS
 !
-  SUBROUTINE GIGC_Revert_Units( am_I_Root, Input_Opt, State_Chm, State_Met, RC )
+!    LPrt = (am_I_Root .and. (Input_Opt%LPrt) )
+!    oldUnits = Trim(State_Chm%Spc_Units)
+!    LConvert = .False.
 !
-! !USES:
+!    ! Check what unit the tracers are in - hold as kg/kg dry throughout
+!    Select Case (Trim(State_Chm%Spc_Units))
+!        Case ('kg/kg dry')
+!            ! Do nothing
+!        Case ('kg')
+!            CALL ConvertSpc_Kg_to_KgKgDry( am_I_Root, State_Met, State_Chm, RC )
+!        Case ('v/v dry')
+!            CALL ConvertSpc_VVDry_to_KgKgDry( am_I_Root, State_Chm, RC )
+!        Case Default
+!            Write(6,'(a,a,a)') 'Species units (', State_Chm%Spc_Units, ') not recognized'
+!            RC = GC_FAILURE
+!    End Select
 !
-    USE ErrCode_Mod
-    USE Input_Opt_Mod,    ONLY : OptInput
-    USE State_Chm_Mod,    ONLY : ChmState
-    USE State_Met_Mod,    ONLY : MetState
-    Use UnitConv_Mod
+!    ! Debug information
+!    If (LConvert.and.LPrt) Then
+!       Write(6,'(a,a,a)') ' GIGC: Species units reverted from ', oldUnits, ' to kg/kg dry'
+!    End If
 !
-! !INPUT PARAMETERS:
+!  END SUBROUTINE GIGC_Revert_Units
+!!EOC
+!!------------------------------------------------------------------------------
+!!          Harvard University Atmospheric Chemistry Modeling Group            !
+!!------------------------------------------------------------------------------
+!!BOP
+!!
+!! !IROUTINE: gigc_assert_units
+!!
+!! !DESCRIPTION: Function ASSERT\_UNITS checks to make sure the units are
+!! correct
+!!\\
+!!\\
+!! !INTERFACE:
+!!
+!  FUNCTION GIGC_Assert_Units( am_I_Root, State_Chm ) RESULT( isOK )
+!!
+!! !USES:
+!!
+!    USE State_Chm_Mod,    ONLY : ChmState
+!!
+!! !INPUT PARAMETERS:
+!!
+!    LOGICAL,        INTENT(IN)    :: am_I_Root     ! Are we on the root CPU?
+!!
+!! !INPUT/OUTPUT PARAMETERS:
+!!
+!    TYPE(ChmState), INTENT(INOUT) :: State_Chm     ! Chemistry State object
+!!
+!! !OUTPUT PARAMETERS:
+!!
+!    LOGICAL                       :: isOK          ! True if correct unit
+!!
+!! !REVISION HISTORY: 
+!!  21 Dec 2016 - S. D. Eastham - Initial Version
+!!EOP
+!!------------------------------------------------------------------------------
+!!BOC
 !
-    LOGICAL,        INTENT(IN)    :: am_I_Root     ! Are we on the root CPU?
+!    ! Check what unit the tracers are in - hold as kg/kg dry throughout
+!    Select Case (Trim(State_Chm%Spc_Units))
+!        Case ('kg/kg dry')
+!            isOK = .True.
+!        Case Default
+!            isOK = .False.
+!    End Select
 !
-! !INPUT/OUTPUT PARAMETERS:
-!
-    TYPE(OptInput), INTENT(INOUT) :: Input_Opt     ! Input Options object
-    TYPE(ChmState), INTENT(INOUT) :: State_Chm     ! Chemistry State object
-    TYPE(MetState), INTENT(INOUT) :: State_Met     ! Meteorology State object
-!
-! !OUTPUT PARAMETERS:
-!
-    INTEGER,        INTENT(OUT)   :: RC            ! Success or failure
-!
-! !REVISION HISTORY: 
-!  21 Dec 2016 - S. D. Eastham - Initial Version
-!EOP
-!------------------------------------------------------------------------------
-!BOC
-!
-! !LOCAL VARIABLES:
-!
-
-    ! Are tracers in mass or mixing ratio?
-    ! Are tracers in mass or mixing ratio?
-    Logical                        :: LPrt, LConvert
-    Character(Len=20)              :: oldUnits
-
-    ! Assume succes
-    RC = GC_SUCCESS
-
-    LPrt = (am_I_Root .and. (Input_Opt%LPrt) )
-    oldUnits = Trim(State_Chm%Spc_Units)
-    LConvert = .False.
-
-    ! Check what unit the tracers are in - hold as kg/kg dry throughout
-    Select Case (Trim(State_Chm%Spc_Units))
-        Case ('kg/kg dry')
-            ! Do nothing
-        Case ('kg')
-            CALL ConvertSpc_Kg_to_KgKgDry( am_I_Root, State_Met, State_Chm, RC )
-        Case ('v/v dry')
-            CALL ConvertSpc_VVDry_to_KgKgDry( am_I_Root, State_Chm, RC )
-        Case Default
-            Write(6,'(a,a,a)') 'Species units (', State_Chm%Spc_Units, ') not recognized'
-            RC = GC_FAILURE
-    End Select
-
-    ! Debug information
-    If (LConvert.and.LPrt) Then
-       Write(6,'(a,a,a)') ' GIGC: Species units reverted from ', oldUnits, ' to kg/kg dry'
-    End If
-
-  END SUBROUTINE GIGC_Revert_Units
-!EOC
-!------------------------------------------------------------------------------
-!          Harvard University Atmospheric Chemistry Modeling Group            !
-!------------------------------------------------------------------------------
-!BOP
-!
-! !IROUTINE: gigc_assert_units
-!
-! !DESCRIPTION: Function ASSERT\_UNITS checks to make sure the units are
-! correct
-!\\
-!\\
-! !INTERFACE:
-!
-  FUNCTION GIGC_Assert_Units( am_I_Root, State_Chm ) RESULT( isOK )
-!
-! !USES:
-!
-    USE State_Chm_Mod,    ONLY : ChmState
-!
-! !INPUT PARAMETERS:
-!
-    LOGICAL,        INTENT(IN)    :: am_I_Root     ! Are we on the root CPU?
-!
-! !INPUT/OUTPUT PARAMETERS:
-!
-    TYPE(ChmState), INTENT(INOUT) :: State_Chm     ! Chemistry State object
-!
-! !OUTPUT PARAMETERS:
-!
-    LOGICAL                       :: isOK          ! True if correct unit
-!
-! !REVISION HISTORY: 
-!  21 Dec 2016 - S. D. Eastham - Initial Version
-!EOP
-!------------------------------------------------------------------------------
-!BOC
-
-    ! Check what unit the tracers are in - hold as kg/kg dry throughout
-    Select Case (Trim(State_Chm%Spc_Units))
-        Case ('kg/kg dry')
-            isOK = .True.
-        Case Default
-            isOK = .False.
-    End Select
-
-  END FUNCTION GIGC_Assert_Units
-!EOC
+!  END FUNCTION GIGC_Assert_Units
+!!EOC
 
   SUBROUTINE SET_BACKGROUND_CONC( am_I_Root, SpcInfo, State_Chm, State_Met, Input_Opt, IND, RC)
 

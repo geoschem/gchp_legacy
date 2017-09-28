@@ -80,7 +80,7 @@ CONTAINS
     USE HCO_TYPES_MOD,           ONLY : ConfigObj
     USE GIGC_HistoryExports_Mod, ONLY : HistoryConfigObj
     USE UCX_MOD,                 ONLY : INIT_UCX, SET_INITIAL_MIXRATIOS
-    USE UnitConv_Mod
+    USE UnitConv_Mod,            ONLY : Convert_Spc_Units
 !
 ! !INPUT PARAMETERS:
 !
@@ -193,6 +193,7 @@ CONTAINS
                                State_Chm      = State_Chm,  & ! Chemistry State
                                State_Diag     = State_Diag, & ! Diagnostic State
                                State_Met      = State_Met,  & ! Met State
+                               HistoryConfig  = HistoryConfig, & ! Hist cfg obj
                                RC             = RC         )  ! Success?
     ASSERT_(RC==GC_SUCCESS)
 
@@ -202,13 +203,6 @@ CONTAINS
     CALL EMISSIONS_INIT ( am_I_Root, Input_Opt, State_Met, State_Chm, RC, &
                           HcoConfig=HcoConfig )
     ASSERT_(RC==GC_SUCCESS)
-
-    !=======================================================================
-    ! Initialize History Pointers to Instantaneous State Data
-    !=======================================================================
-    !CALL EMISSIONS_INIT ( am_I_Root, Input_Opt, State_Met, State_Chm, RC, &
-    !                      HistoryConfig=HistConfig )
-    !ASSERT_(RC==GC_SUCCESS)
 
     !-------------------------------------------------------------------------
     ! Stratosphere - can't be initialized without HEMCO because of STATE_PSC
@@ -245,8 +239,9 @@ CONTAINS
 !       ENDIF
 !    ENDIF
 
-    ! GCHP expects units of v/v dry...
-    CALL ConvertSpc_KgKgDry_to_VVDry( am_I_Root, State_Chm, RC )
+    ! Convert species units to internal state units (v/v dry)
+    CALL Convert_Spc_Units( am_I_Root, Input_Opt, State_Met, &
+                            State_Chm, 'v/v dry', RC )
     ASSERT_(RC==GC_SUCCESS)
 
   END SUBROUTINE GIGC_Chunk_Init
@@ -304,7 +299,7 @@ CONTAINS
     USE Pressure_Mod,       ONLY : Accept_External_Pedge
     USE State_Chm_Mod,      ONLY : IND_
     USE Time_Mod,           ONLY : Accept_External_Date_Time
-    Use UnitConv_Mod
+    Use UnitConv_Mod,       ONLY : Convert_Spc_Units
 !
 ! !INPUT PARAMETERS:
 !
@@ -381,7 +376,7 @@ CONTAINS
 !BOC
     TYPE(MAPL_MetaComp), POINTER   :: STATE    
     REAL*8                         :: DT
-    CHARACTER(LEN=ESMF_MAXSTR)     :: Iam
+    CHARACTER(LEN=ESMF_MAXSTR)     :: Iam, OrigUnit
     INTEGER                        :: STATUS
 
     ! Local logicals to turn on/off individual components
@@ -585,11 +580,12 @@ CONTAINS
     ! Compute PBL quantities
     CALL COMPUTE_PBL_HEIGHT( State_Met )
 
-    ! Force units to standard (kg/kg dry)
-    IF (.not.GIGC_Assert_Units(am_I_Root, State_Chm)) Then
-       Call GIGC_Revert_Units( am_I_Root, Input_Opt, State_Chm, State_Met, RC )
-       ASSERT_(RC==GC_SUCCESS)
-    END IF
+    ! Convert species conc units to kg/kg dry if they are not already
+    ! Should this be done earlier up, like right at the beginning?
+    ! ewl debugging
+    PRINT *, TRIM(State_Chm%Spc_Units)
+    CALL Convert_Spc_Units( am_I_Root, Input_Opt, State_Met, State_Chm, &
+                            'kg/kg dry', RC )
     
     ! SDE 05/28/13: Set H2O to STT if relevant
     IF ( IND_('H2O','A') > 0 ) THEN
@@ -631,8 +627,8 @@ CONTAINS
        if(am_I_Root.and.NCALLS<10) write(*,*) ' --- Convection done!'
     ENDIF  
 
-    ! Check that units are correct
-    ASSERT_(GIGC_Assert_Units(am_I_Root, State_Chm))
+    !! Check that units are correct
+    !ASSERT_(GIGC_Assert_Units(am_I_Root, State_Chm))
 
     !=======================================================================
     ! 2. Dry deposition
@@ -646,24 +642,14 @@ CONTAINS
        endif
        CALL MAPL_TimerOn( STATE, 'GC_DRYDEP' )
 
-       ! Convert units
-       CALL ConvertSpc_KgKgDry_to_Kg( am_I_Root, State_Met, State_Chm, RC )
-
        ! Do dry deposition
        CALL Do_DryDep( am_I_Root, Input_Opt=Input_Opt, State_Chm=State_Chm, &
                        State_Met=State_Met, RC=RC ) 
        ASSERT_(RC==GC_SUCCESS)
 
-       ! Revert units
-       Call GIGC_Revert_Units( am_I_Root, Input_Opt, State_Chm, State_Met, RC )
-       ASSERT_(RC==GC_SUCCESS)
-
        CALL MAPL_TimerOff( STATE, 'GC_DRYDEP' )
        if(am_I_Root.and.NCALLS<10) write(*,*) ' --- Drydep done!'
     ENDIF
-
-    ! Check that units are correct
-    ASSERT_(GIGC_Assert_Units(am_I_Root, State_Chm))
 
     !=======================================================================
     ! 3. Emissions (HEMCO)
@@ -684,8 +670,8 @@ CONTAINS
        if(am_I_Root.and.NCALLS<10) write(*,*) ' --- Emissions done!'
     ENDIF
 
-    ! Check that units are correct
-    ASSERT_(GIGC_Assert_Units(am_I_Root, State_Chm))
+    !! Check that units are correct
+    !ASSERT_(GIGC_Assert_Units(am_I_Root, State_Chm))
 
     !=======================================================================
     ! If physics covers turbulence, simply add the emission and dry 
@@ -706,16 +692,9 @@ CONTAINS
        ASSERT_(ASSOCIATED(HcoState))
        DT = HcoState%TS_EMIS 
 
-       ! Convert units
-       CALL ConvertSpc_KgKgDry_to_VVDry( am_I_Root, State_Chm, RC )
-
        ! Apply tendencies over entire PBL using emission time step.
        CALL DO_TEND ( am_I_Root, Input_Opt, State_Met, State_Chm, .FALSE., &
                       RC, DT=DT )
-       ASSERT_(RC==GC_SUCCESS)
-
-       ! Revert units
-       Call GIGC_Revert_Units( am_I_Root, Input_Opt, State_Chm, State_Met, RC )
        ASSERT_(RC==GC_SUCCESS)
 
        CALL MAPL_TimerOff( STATE, 'GC_FLUXES' )
@@ -723,8 +702,8 @@ CONTAINS
                                  ' --- Fluxes applied to tracers!' 
     ENDIF ! Tendencies 
 
-    ! Check that units are correct
-    ASSERT_(GIGC_Assert_Units(am_I_Root, State_Chm))
+    !! Check that units are correct
+    !ASSERT_(GIGC_Assert_Units(am_I_Root, State_Chm))
 
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 !!!                              PHASE 2                                !!!
@@ -753,8 +732,8 @@ CONTAINS
        if(am_I_Root.and.NCALLS<10) write(*,*) ' --- Turbulence done!'
     ENDIF
 
-    ! Check units
-    ASSERT_(GIGC_Assert_Units(am_I_Root, State_Chm))
+    !! Check units
+    !ASSERT_(GIGC_Assert_Units(am_I_Root, State_Chm))
 
     !=======================================================================
     ! 5. Chemistry
@@ -785,8 +764,8 @@ CONTAINS
        if(am_I_Root.and.NCALLS<10) write(*,*) ' --- Chemistry done!'
     ENDIF
 
-    ! Check units
-    ASSERT_(GIGC_Assert_Units(am_I_Root, State_Chm))
+    !! Check units
+    !ASSERT_(GIGC_Assert_Units(am_I_Root, State_Chm))
 
     !=======================================================================
     ! 6. Wet deposition
@@ -803,19 +782,16 @@ CONTAINS
        if(am_I_Root.and.NCALLS<10) write(*,*) ' --- Wetdep done!'
     ENDIF
 
-    ! Check units
-    ASSERT_(GIGC_Assert_Units(am_I_Root, State_Chm))
-
-    ! SDE 2017-01-06: Archive the specific humidity to allow tracers to be
-    ! modified currectly after SPHU is updated
-    State_Met%SPHU_prev = State_Met%SPHU
+    !! Check units
+    !ASSERT_(GIGC_Assert_Units(am_I_Root, State_Chm))
 
     !=======================================================================
     ! Clean up
     !=======================================================================
 
-    ! Convert units
-    CALL ConvertSpc_KgKgDry_to_VVDry( am_I_Root, State_Chm, RC )
+    ! Convert units to units of the internal state
+    CALL Convert_Spc_Units( am_I_Root, Input_Opt, State_Met, State_Chm, &
+                            'v/v dry', RC )
 
     ! testing only
     IF ( PHASE /= 1 .AND. NCALLS < 10 ) NCALLS = NCALLS + 1 
