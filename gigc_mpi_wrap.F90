@@ -140,22 +140,10 @@ CONTAINS
                     mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%RES_DIR, len(INPUT_OPT%RES_DIR),             &
                     mpi_character, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%GCAP_DIR, len(INPUT_OPT%GCAP_DIR),           &
-                    mpi_character, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%GEOS_4_DIR, len(INPUT_OPT%GEOS_4_DIR),       &
-                    mpi_character, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%GEOS_5_DIR, len(INPUT_OPT%GEOS_5_DIR),       &
-                    mpi_character, 0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%GEOS_FP_DIR, len(INPUT_OPT%GEOS_FP_DIR),     &
-                    mpi_character, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%MERRA_DIR, len(INPUT_OPT%MERRA_DIR),         &
                     mpi_character, 0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%DATA_DIR_1x1, len(INPUT_OPT%DATA_DIR_1x1),   &
                     mpi_character, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%TEMP_DIR,  len(INPUT_OPT%TEMP_DIR),          &
-                    mpi_character, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%LUNZIP,    1, mpi_logical, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%LWAIT,     1, mpi_logical, 0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%LVARTROP,  1, mpi_logical, 0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%NESTED_I0, 1, mpi_integer, 0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%NESTED_J0, 1, mpi_integer, 0, mpiComm, RC )
@@ -291,7 +279,6 @@ CONTAINS
     CALL MPI_Bcast( INPUT_OPT%LUCX,      1, mpi_logical, 0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%LCH4CHEM,  1, mpi_logical, 0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%LACTIVEH2O, 1, mpi_logical, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%LO3FJX,     1, mpi_logical, 0, mpiComm, RC )
 
     !----------------------------------------
     ! TRANSPORT MENU fields
@@ -317,7 +304,6 @@ CONTAINS
     CALL MPI_Bcast( INPUT_OPT%PBL_DRYDEP, 1, mpi_logical, 0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%LDRYD, 1, mpi_logical, 0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%LWETD, 1, mpi_logical, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%USE_OLSON_2001, 1, mpi_logical, 0, mpiComm, RC )
 
     !----------------------------------------
     ! GAMAP MENU fields

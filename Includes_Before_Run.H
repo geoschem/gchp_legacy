@@ -39,6 +39,7 @@
 !                              initialized from tracers).
 !  19 Oct 2016 - R. Yantosca - Now avoid out of bounds errors.  Also reference
 !                              MAPL pointers to edged data with (:,:,0:LM).
+!  28 Sep 2017 - E. Lundgren - Remove the Monin-Obukhov Len (State_Met%MOLENGTH)
 !EOP
 !------------------------------------------------------------------------------
 !BOC
@@ -86,7 +87,6 @@
   State_Met%TO3                 = TO3                        ! dobson
   State_Met%SNODP               = SNODP                      ! m
   State_Met%SNOMAS              = SNOMAS                     ! kg/m2
-  State_Met%SST                 = TS                         ! K
   State_Met%SUNCOS              = zenith                     ! unitless
   State_Met%SUNCOSmid           = zenith                     ! 1
   State_Met%U                   = ULL                        ! m/s
@@ -95,21 +95,6 @@
   State_Met%V                   = VLL                        ! m/s
   State_Met%V10M                = V10M                       ! m/s
   State_Met%Z0                  = Z0                         ! m
-
-  ! Calculate the Monin-Obukhov Length
-  If (Associated(State_Met%MOLENGTH)) Then
-     WHERE( ABS( State_Met%HFLUX ) > 1.00E-32 )
-        State_Met%MOLENGTH(:,:)    = -AIRDENS(:,:,LM) * MAPL_CP * TS * ustar**3. &
-                                   / ( MAPL_KARMAN * MAPL_GRAV * State_Met%HFLUX )
-     ELSEWHERE
-        State_Met%MOLENGTH(:,:)    = 1.00E+05
-     ENDWHERE
-  End If
-
-  ! Same LAI for all 50 biomes?!?? (commented out by ewl, 12/16/16)
-  !DO I = 1, 50
-  !   State_Met%XLAI(:,:,I)      = LAI                        ! 1
-  !ENDDO
 
   !=========================================================================
   ! Three-dimensional fields on level edges
@@ -169,33 +154,6 @@
 
   ! Create total optical depth field                         ! 1
   State_Met%OPTD                = State_Met%TAUCLI + State_Met%TAUCLW
-
-  
-  ! Set the State_Chm units to v/v dry (restart file units)
- 
-  !!### Debug printout
-  !IF ( am_I_root ) THEN
-  !   print*, '### LM      : ', LM
-  !   print*, '### CMFMC    ', State_Met%CMFMC   (10,10,:)
-  !   print*, '### PFICU    ', State_Met%PFICU   (10,10,:)
-  !   print*, '### PFILSAN  ', State_Met%PFILSAN (10,10,:)
-  !   print*, '### PFLCU    ', State_Met%PFLCU   (10,10,:)
-  !   print*, '### PFLLSAN  ', State_Met%PFLLSAN (10,10,:)
-  !   print*, '### PEDGE    ', State_Met%PEDGE   (10,10,:)
-  !   print*, '### CLDF     ', State_Met%CLDF    (10,10,:) 
-  !   print*, '### DTRAIN   ', State_Met%DTRAIN  (10,10,:) 
-  !   print*, '### DQRCU    ', State_Met%DQRCU   (10,10,:) 
-  !   print*, '### DQRLSAN  ', State_Met%DQRLSAN (10,10,:) 
-  !   print*, '### QI       ', State_Met%QI      (10,10,:) 
-  !   print*, '### QL       ', State_Met%QL      (10,10,:) 
-  !   print*, '### RH       ', State_Met%RH      (10,10,:) 
-  !   print*, '### SPHU     ', State_Met%SPHU    (10,10,:) 
-  !   print*, '### T        ', State_Met%T       (10,10,:) 
-  !   print*, '### OPTD     ', State_Met%OPTD    (10,10,:)
-  !   print*, '### REEVAPCN ', State_Met%REEVAPCN(10,10,:) 
-  !   print*, '### REEVAPLS ', State_Met%REEVAPLS(10,10,:) 
-  !   print*, '### AREA_M2  ', State_Met%AREA_M2 (10,10,1)
-  !ENDIF
 
   !=========================================================================
   ! Pass advected tracers from internal state to GEOS-Chem tracers array
