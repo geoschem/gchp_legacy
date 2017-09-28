@@ -21,6 +21,7 @@ MODULE GIGC_HistoryExports_Mod
   USE ErrCode_Mod
   USE Precision_Mod
   USE MAPL_Mod
+  USE Diagnostics_Mod
 
   IMPLICIT NONE
   PRIVATE
@@ -49,6 +50,7 @@ MODULE GIGC_HistoryExports_Mod
      CHARACTER(LEN=255)                   :: ConfigFileName
      LOGICAL                              :: ConfigFileRead
      TYPE(HistoryExportsListObj), POINTER :: HistoryExportsList
+     TYPE(DgnList)                        :: DiagList
  
  END TYPE HistoryConfigObj
 !
@@ -142,6 +144,7 @@ CONTAINS
     HistoryConfig%ROOT               =  ''
     HistoryConfig%ConfigFileName     =  TRIM(config_file)
     HistoryConfig%ConfigFileRead     =  .FALSE.
+    CALL Init_DiagList( am_I_Root, config_file, HistoryConfig%DiagList, RC )
     CALL Init_HistoryExportsList( am_I_Root, HistoryConfig, RC )
     ASSERT_( RC == GC_SUCCESS )
 
@@ -167,9 +170,9 @@ CONTAINS
     USE GIGC_Types_Mod,   ONLY: SPFX
     USE FILE_MOD,         ONLY: IOERROR
     USE INQUIREMOD,       ONLY: findFreeLUN
-    USE State_Met_Mod,    ONLY: Get_MetField_Metadata
+    USE State_Met_Mod,    ONLY: Get_Metadata_State_Met
     !USE State_Chem_Mod, ONLY: Get_State_Chem_Info ! TODO: implement this
-    !USE State_Diag_Mod, ONLY: Get_State_Diag_Info ! TODO: implement this
+    !USE State_Diag_Mod,   ONLY: Get_State_Diag_Info ! TODO: implement this
 !
 ! !INPUT PARAMETERS:
 !
@@ -272,9 +275,9 @@ CONTAINS
        IF ( TRIM(state) == 'MET' ) THEN
           isMet = .TRUE.
           field_name = export_name(5:)
-          CALL Get_MetField_Metadata( am_I_Root,   field_name, desc=desc, &
-                                      units=units, rank=rank, type=type,   &
-                                      vloc=vloc,   RC=RC )
+          CALL Get_Metadata_State_Met( am_I_Root,   field_name, desc=desc,  &
+                                       units=units, rank=rank, type=type,   &
+                                       vloc=vloc,   RC=RC )
        ELSEIF ( TRIM(state) == 'CHEM' ) THEN
           isChem = .TRUE.
           field_name = export_name(6:)
@@ -728,10 +731,11 @@ CONTAINS
 !
 ! !USES:
 !
-    USE ESMF, ONLY : ESMF_State
-    USE State_Chm_Mod,  ONLY : ChmState, Lookup_State_Chm
-    USE State_Diag_Mod, ONLY : DgnState, Lookup_State_Diag
-    USE State_Met_Mod,  ONLY : MetState, Lookup_State_Met
+    USE ESMF,           ONLY : ESMF_State
+    USE Registry_Mod,   ONLY : Registry_Lookup
+    USE State_Chm_Mod,  ONLY : ChmState
+    USE State_Diag_Mod, ONLY : DgnState
+    USE State_Met_Mod,  ONLY : MetState
 !
 ! !INPUT PARAMETERS:
 !
@@ -776,14 +780,15 @@ CONTAINS
     DO WHILE ( ASSOCIATED( current ) )
 
        ! Get pointer to GC state data (for now, assume state_met)
-       CALL Lookup_State_Met( am_I_Root = am_I_Root,               &
-                              State_Met = State_Met,               &
-                              Variable  = current%field_name,      &
-                              Ptr2d     = current%GCStateData2d,   &
-                              Ptr2d_I   = current%GCStateData2d_I, &
-                              Ptr3d     = current%GCStateData3d,   &
-                              Ptr3d_I   = current%GCStateData3d_I, &
-                              RC        = RC                      )
+       CALL Registry_Lookup( am_I_Root = am_I_Root,               &
+                             Registry  = State_Met%Registry,      &
+                             State     = State_Met%State,         &
+                             Variable  = current%field_name,      &
+                             Ptr2d     = current%GCStateData2d,   &
+                             Ptr2d_I   = current%GCStateData2d_I, &
+                             Ptr3d     = current%GCStateData3d,   &
+                             Ptr3d_I   = current%GCStateData3d_I, &
+                             RC        = RC                      )
        ASSERT_( RC == GC_SUCCESS )
 
        ! For MAPL export, need to pass a pointer of the right dimension

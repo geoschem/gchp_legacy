@@ -1950,10 +1950,7 @@ CONTAINS
 !
 ! !USES:
 !
-!    USE HCO_STATE_MOD,           ONLY : HCO_STATE
-!    USE HCOI_GC_MAIN_MOD,        ONLY : GetHcoState
     USE HCO_INTERFACE_MOD,       ONLY : HcoState
-    USE GC_LAND_INTERFACE,       ONLY : LANDTYPE_REMAP
     USE Olson_Landmap_Mod,       ONLY : Compute_Olson_Landmap_GCHP
 !
 ! !INPUT/OUTPUT PARAMETERS:

@@ -213,52 +213,32 @@ CONTAINS
                                    myPET,           GC,              &
                                    EXPORT,          Input_Opt,       &
                                    State_Chm,       State_Diag,      &
-                                   State_Met,       RC              )      
+                                   State_Met,       HistoryConfig,   &
+                                   RC         )      
 !
 ! !USES:
 !
-    USE ESMF
+    USE Error_Mod,               ONLY : Debug_Msg
+    USE ESMF,                    ONLY : ESMF_State, ESMF_GridComp
+    USE Chemistry_Mod,           ONLY : INIT_CHEMISTRY
+    USE CMN_SIZE_Mod
     USE GC_Environment_Mod
     USE ErrCode_Mod
-    USE Input_Opt_Mod
-    USE State_Chm_Mod
-    USE State_Diag_Mod
-    USE State_Met_Mod
+    USE Input_Opt_Mod,           ONLY : OptInput
+    USE FAST_JX_Mod,             ONLY : Init_FJX
+    USE GC_Grid_Mod,             ONLY : Init_Grid, SetGridFromCtr
+    USE GC_Grid_Mod,             ONLY : Set_xOffSet, Set_yOffSet
+    USE GIGC_HistoryExports_Mod, ONLY : HistoryConfigObj
+    USE GIGC_MPI_Wrap,           ONLY : GIGC_Input_Bcast
+    USE Input_Mod,               ONLY : GC_Init_Extra, Initialize_Geos_Grid
+    USE PBL_Mix_Mod,             ONLY : Init_PBL_Mix
     USE PhysConstants
-    USE CMN_SIZE_MOD
-!    USE COMODE_MOD
-!    USE COMODE_LOOP_MOD       
-!    USE GCKPP_COMODE_MOD,     ONLY : Init_GCKPP_Comode
-    USE ERROR_MOD,            ONLY : Debug_Msg
-    USE FAST_JX_MOD,          ONLY : Init_FJX
-    USE GC_Grid_Mod,          ONLY : Init_Grid
-    USE GC_Grid_Mod,          ONLY : Set_xOffSet
-    USE GC_Grid_Mod,          ONLY : Set_yOffSet
-    USE GC_Grid_Mod,          ONLY : SetGridFromCtr
-    USE Input_Mod,            ONLY : GC_Init_Extra
-    USE Input_Mod,            ONLY : Initialize_Geos_Grid
-    USE Mapping_Mod,          ONLY : MapWeight
-    USE Mapping_Mod,          ONLY : Init_Mapping
-    USE PBL_MIX_MOD,          ONLY : INIT_PBL_MIX
-    USE PRESSURE_MOD,         ONLY : INIT_PRESSURE
-#if defined( APM )
-    USE TRACER_MOD,           ONLY : INIT_TRACER
-#endif
-    USE WETSCAV_MOD,          ONLY : INIT_WETSCAV
-!    USE WETSCAV_MOD,          ONLY : Get_WetDep_IDWetD
-    USE DRYDEP_MOD,           ONLY : INIT_WEIGHTSS, INIT_DRYDEP
-    USE DUST_MOD,             ONLY : INIT_DUST
-    USE GIGC_MPI_WRAP,        ONLY : GIGC_Input_Bcast
-    USE TIME_MOD,             ONLY : SET_TIMESTEPS
-    USE SEASALT_MOD,          ONLY : INIT_SEASALT
-    USE TOMS_MOD,             ONLY : INIT_TOMS
-    USE Registry_Mod
-    
-    ! Stratosphere 
-    USE STRAT_CHEM_MOD,       ONLY : INIT_STRAT_CHEM
-
-    USE MIXING_MOD,           ONLY : INIT_MIXING
-    USE CHEMISTRY_MOD,        ONLY : INIT_CHEMISTRY
+    USE Pressure_Mod,            ONLY : Init_Pressure
+    USE State_Chm_Mod,           ONLY : ChmState
+    USE State_Diag_Mod,          ONLY : DgnState
+    USE State_Met_Mod,           ONLY : MetState
+    USE TOMS_Mod,                ONLY : Init_TOMS
+    USE Time_Mod,                ONLY : Set_Timesteps
 !
 ! !INPUT PARAMETERS: 
 !
@@ -290,6 +270,7 @@ CONTAINS
     TYPE(ChmState),      INTENT(INOUT) :: State_Chm   ! Chemistry State
     TYPE(DgnState),      INTENT(INOUT) :: State_Diag  ! Diagnostics State
     TYPE(MetState),      INTENT(INOUT) :: State_Met   ! Meteorology State
+    TYPE(HistoryConfigObj), POINTER    :: HistoryConfig ! History config obj 
 !
 !
 ! !OUTPUT PARAMETERS:
@@ -370,8 +351,6 @@ CONTAINS
                             RC             = RC              )            
     IF ( RC /= GC_SUCCESS ) RETURN
 
-    ! Allocate GEOS-Chem module arrays
-
     ! Save timing fields in Input_Opt for passing down to module
     ! GeosCore/input_mod.F via routine GIGC_Get_Options (bmy, 12/6/12)
     Input_Opt%NYMDb   = nymdB
@@ -382,14 +361,7 @@ CONTAINS
     Input_Opt%TS_EMIS = INT( tsChem ) / 60   ! Chemistry timestep [min]
     Input_Opt%TS_DYN  = INT( tsDyn  ) / 60   ! Dynamic   timestep [min]
     Input_Opt%TS_CONV = INT( tsDyn  ) / 60   ! Dynamic   timestep [min]
-
     Input_Opt%myCPU = myPET
-
-    !-----------------------------------------------------------------------
-    ! Read info from the "input.geos" file into the Input_Opt object
-    ! on the root CPU.  MPI broadcast Input_Opt to non-root CPUs.
-    ! Continue with non-root CPU setup.
-    !-----------------------------------------------------------------------
 
     ! Read options from the "input.geos" file into Input_Opt
     CALL GIGC_Get_Options( am_I_Root = am_I_Root,                           &
@@ -430,33 +402,6 @@ CONTAINS
     CALL SetGridFromCtr( am_I_Root, value_IM, value_JM, lonCtr, latCtr, RC )
     IF ( RC /= GC_SUCCESS ) RETURN
 
-    ! Initialize dry deposition (in GeosCore/drydep_mod.F)
-    ! SDE 2016-03-27: This is now performed in GIGC_Init_Extra (as of v11-01)
-    !IF ( Input_Opt%LDRYD .and. (.not. am_I_Root) ) THEN
-    !   CALL Init_Drydep( am_I_Root = am_I_Root,                          &
-    !        Input_Opt = Input_Opt,                          &
-    !        State_Chm = State_Chm,                          &
-    !        RC        = RC         )
-    !   IF ( RC /= GC_SUCCESS ) RETURN
-    !ENDIF
-    !ENDIF ! am_I_Root
-
-    ! Initialize tracer quantities (in GeosCore/tracer_mod.F)
-#if defined( APM )
-    CALL Init_Tracer( am_I_Root = am_I_Root,                             &
-         Input_Opt = Input_Opt,                             &
-         RC        = RC           )
-    IF ( RC /= GC_SUCCESS ) RETURN
-#endif
-
-    ! Initialize wet deposition tracer IDs - now obsolete
-    !IF ( Input_Opt%LWETD .OR. Input_Opt%LCONV ) THEN
-    !   CALL WETDEPID( am_I_Root, Input_Opt, RC )
-    !   IF ( RC /= GC_SUCCESS ) RETURN
-    !ENDIF
-
-    !ENDIF ! Not root
-
     ! Set GEOS-Chem timesteps on all CPUs
     CALL SET_TIMESTEPS( am_I_Root  = am_I_Root,                          &
                         Chemistry  = Input_Opt%TS_CHEM,                  &
@@ -470,6 +415,7 @@ CONTAINS
 
     ! Initialize derived-type objects for meteorology & chemistry states
     CALL GC_Init_All( am_I_Root  = am_I_Root,                              &
+                      Diag_List  = HistoryConfig%DiagList,                 &
                       Input_Opt  = Input_Opt,                              &
                       State_Chm  = State_Chm,                              &
                       State_Diag = State_Diag,                             & 
@@ -484,39 +430,17 @@ CONTAINS
     CALL GC_Init_Extra( am_I_Root, Input_Opt, State_Chm, RC ) 
     IF ( RC /= GC_SUCCESS ) RETURN
 
-    !-----------------------------------------------------------------------
-    ! Read other ASCII files on the root CPU and broadcast to other CPUs
-    !-----------------------------------------------------------------------
-
-!------------------------------------------------------------------------------
-! Prior to 3/7/13:
-! NOTE: for now, just call INPHOT on all CPUs.  Try to figure out how
-! to MPI broadcast later.  This could be very difficult. (bmy, mlong, 3/7/13)
-!    IF ( am_I_Root ) THEN
-!------------------------------------------------------------------------------
-       IF ( Input_Opt%ITS_A_FULLCHEM_SIM .OR.                     &
-            Input_Opt%ITS_AN_AEROSOL_SIM ) THEN
-          CALL INIT_FJX( am_I_Root, Input_Opt, RC )  ! Are we on the root CPU?
-          IF ( RC /= GC_SUCCESS ) RETURN
-          
-          !### Debug
-          IF ( prtDebug ) THEN
-             CALL DEBUG_MSG( '### GIGC_INIT_SIMULATION: after INIT_FJX' )        
-          ENDIF
+    ! Initialize photolysis
+    IF ( Input_Opt%ITS_A_FULLCHEM_SIM .OR.                     &
+         Input_Opt%ITS_AN_AEROSOL_SIM ) THEN
+       CALL INIT_FJX( am_I_Root, Input_Opt, RC )  ! Are we on the root CPU?
+       IF ( RC /= GC_SUCCESS ) RETURN
+       
+       !### Debug
+       IF ( prtDebug ) THEN
+          CALL DEBUG_MSG( '### GIGC_INIT_SIMULATION: after INIT_FJX' )        
        ENDIF
-!------------------------------------------------------------------------------
-! Prior to 3/7/13:
-! NOTE: for now, just call INPHOT on all CPUs.  Try to figure out how
-! to MPI broadcast later.  This could be very difficult. (bmy, mlong, 3/7/13)
-!    ENDIF
-!
-!    Broadcast FAST-J inputs to other CPUs
-!    CALL GIGC_Inphot_Bcast(  Input_Opt, RC )
-!------------------------------------------------------------------------------
-
-    !-----------------------------------------------------------------------
-    ! Continue with GEOS-Chem setup
-    !-----------------------------------------------------------------------
+    ENDIF
 
     ! Zero diagnostic arrays
     CALL Initialize( am_I_Root, Input_Opt, 2, RC )
@@ -547,11 +471,6 @@ CONTAINS
        ENDIF
     ENDIF
 
-
-    ! Initialize PBL quantities but do not do mixing
-    ! Add option for non-local PBL (Lin, 03/31/09) 
-    !CALL INIT_MIXING ( am_I_Root, Input_Opt, &
-    !                   State_Met, State_Chm, RC ) 
     
     !=======================================================================
     ! Initialize chemistry mechanism
@@ -576,11 +495,6 @@ CONTAINS
        ENDIF
 
     ENDIF
-
-!    ! Note: Init_Strat_Chem expects units of kg/kg dry
-!    IF ( Input_Opt%LSCHEM ) THEN
-!       CALL INIT_STRAT_CHEM( am_I_Root, Input_Opt, State_Chm, State_Met, RC )
-!    ENDIF
 
     ! Return w/ success
     RC = GC_Success
