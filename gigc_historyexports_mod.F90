@@ -18,10 +18,10 @@ MODULE GIGC_HistoryExports_Mod
 ! !USES:
 !
 #include "MAPL_Generic.h"
+  USE Diagnostics_Mod
   USE ErrCode_Mod
   USE Precision_Mod
   USE MAPL_Mod
-  USE Diagnostics_Mod
 
   IMPLICIT NONE
   PRIVATE
@@ -40,6 +40,7 @@ MODULE GIGC_HistoryExports_Mod
   PRIVATE :: Init_HistoryExportsList
   PRIVATE :: Append_HistoryExportsList
   PRIVATE :: Check_HistoryExportsList
+  PRIVATE :: Print_HistoryExportsList
 !
 ! !PUBLIC TYPES
 !
@@ -67,8 +68,8 @@ MODULE GIGC_HistoryExports_Mod
   ! History Export Object
   TYPE :: HistoryExportObj
 
-     CHARACTER(LEN=255)              :: export_name 
-     CHARACTER(LEN=255)              :: field_name  
+     CHARACTER(LEN=255)              :: name 
+     CHARACTER(LEN=255)              :: metadataID
      CHARACTER(LEN=255)              :: long_name  
      CHARACTER(LEN=255)              :: units       
      INTEGER                         :: vloc
@@ -100,8 +101,6 @@ MODULE GIGC_HistoryExports_Mod
 !
 ! !PRIVATE VARIABLES
 !
-  INTEGER, PARAMETER    :: FIRSTCOL_HISTORY = 1
-!
 ! !REVISION HISTORY:
 !  01 Sep 2017 - E. Lundgren   -  Initial version
 !EOP
@@ -121,13 +120,15 @@ CONTAINS
 !\\
 ! !INTERFACE:
 !
-  SUBROUTINE Init_HistoryConfig ( am_I_Root, HistoryConfig, config_file, &
-                                  RC )
+  SUBROUTINE Init_HistoryConfig ( am_I_Root, HistoryConfig, configFile, RC )
+!
+! !USES:
+!
 !
 ! !INPUT PARAMETERS:
 !
     LOGICAL,             INTENT(IN) :: am_I_Root
-    CHARACTER(LEN=*),    INTENT(IN) :: config_file
+    CHARACTER(LEN=*),    INTENT(IN) :: configFile
 !
 ! !OUTPUT PARAMETERS:
 !
@@ -142,10 +143,18 @@ CONTAINS
     __Iam__('Init_HistoryConfig (gigc_historyexports_mod.F90)')
     ALLOCATE(HistoryConfig)
     HistoryConfig%ROOT               =  ''
-    HistoryConfig%ConfigFileName     =  TRIM(config_file)
+    HistoryConfig%ConfigFileName     =  TRIM(configFile)
     HistoryConfig%ConfigFileRead     =  .FALSE.
-    CALL Init_DiagList( am_I_Root, config_file, HistoryConfig%DiagList, RC )
+    CALL Init_DiagList( am_I_Root, configFile, HistoryConfig%DiagList, RC )
+
+    ! ewl debugging
+    CALL Print_DiagList( am_I_Root, HistoryConfig%DiagList, RC )
+
     CALL Init_HistoryExportsList( am_I_Root, HistoryConfig, RC )
+
+    ! ewl debugging
+    CALL Print_HistoryExportsList( am_I_Root, HistoryConfig, RC )
+
     ASSERT_( RC == GC_SUCCESS )
 
   END SUBROUTINE Init_HistoryConfig
@@ -166,13 +175,10 @@ CONTAINS
 !
 ! !USES:
 !
-    USE CHARPAK_MOD,      ONLY: STRSPLIT
     USE GIGC_Types_Mod,   ONLY: SPFX
-    USE FILE_MOD,         ONLY: IOERROR
-    USE INQUIREMOD,       ONLY: findFreeLUN
-    USE State_Met_Mod,    ONLY: Get_Metadata_State_Met
     !USE State_Chem_Mod, ONLY: Get_State_Chem_Info ! TODO: implement this
-    !USE State_Diag_Mod,   ONLY: Get_State_Diag_Info ! TODO: implement this
+    USE State_Diag_Mod,   ONLY: Get_Metadata_State_Diag 
+    USE State_Met_Mod,    ONLY: Get_Metadata_State_Met
 !
 ! !INPUT PARAMETERS:
 !
@@ -194,29 +200,27 @@ CONTAINS
 !
 ! !LOCAL VARIABLES:
 !
-    INTEGER               :: N, IU_GEOS, rank, IOS, vloc, type
-    CHARACTER(LEN=255)    :: line, SubStrs(500), SubStr, first_str
-    CHARACTER(LEN=255)    :: export_name, field_name, state
-    CHARACTER(LEN=255)    :: desc, units
-    LOGICAL               :: isMet, isChem, isDiag, EOF, found
+    INTEGER               :: N, rank, vloc, type
+    CHARACTER(LEN=255)    :: ErrMsg, ThisLoc, desc, units
+    LOGICAL               :: isMet, isChem, isDiag, found
     TYPE(HistoryExportObj),  POINTER :: NewHistExp
+    TYPE(DgnItem),           POINTER :: current
 
     ! ================================================================
     ! Init_HistoryExportsList begins here
     ! ================================================================
     __Iam__('Init_HistoryExportsList (gigc_historyexports_mod.F90)')
+    ThisLoc = 'Init_HistoryExportsList' ! TODO: use location from Iam
 
     ! Init
     desc   = ''
     units  = ''
-    field_name = ''
     rank   = -1
     vloc   = -1
     type   = -1
     isMet  = .FALSE.
     isChem = .FALSE.
     isDiag = .FALSE.
-    EOF = .FALSE.
     found = .FALSE.
     NewHistExp => NULL()
 
@@ -225,109 +229,146 @@ CONTAINS
     HistoryConfig%HistoryExportsList%numExports = 0
     HistoryConfig%HistoryExportsList%head => NULL()
 
-    ! Open file and read line
-    IU_GEOS = findFreeLun()
-    OPEN( IU_GEOS, FILE=HistoryConfig%ConfigFileName, STATUS='OLD', &
-          IOSTAT=IOS )
-    IF ( IOS /= 0 ) CALL IOERROR( IOS, IU_GEOS, Iam // ':1' )
-    READ( IU_GEOS, '(a)', IOSTAT=IOS ) line
-    IF ( IOS /= 0 ) CALL IOERROR( IOS, IU_GEOS, Iam // ':2' )
+    ! ewl debugging
+    IF ( am_I_Root ) PRINT *, "start of init_historyexportslist!"
 
-    ! Loop over lines in file
-    DO
-       ! Read and split line
-       READ( IU_GEOS, '(a)', IOSTAT=IOS ) line
-       EOF = IOS < 0
-       IF ( EOF ) RETURN
+    ! Loop over entries in DiagList
+    current => HistoryConfig%DiagList%head
+    DO WHILE ( ASSOCIATED( current ) )
 
-       ! Skip lines that do not contain gridded component name
-       IF ( INDEX( line, 'GIGCchem' ) .le. 0 ) CYCLE
+       ! ewl debugging
+       IF ( am_I_Root ) PRINT *, "got here 1"
 
-       ! For now, skip chemical species since in internal state
-       IF ( INDEX(line, TRIM(SPFX) ) > 0 ) CYCLE
-
-       ! Get export name, state, and state variable name from line
-       ! TODO: This assumes there will be a state prefix. This
-       !       may not be the case in a future design.
-       !       Might want to be case insensitive too.
-       CALL STRSPLIT( line(FIRSTCOL_HISTORY:), ' ', SubStrs, N )
-       first_str = SubStrs(1)
-       IF ( first_str(1:1) .eq. '#' ) CYCLE
-       IF ( INDEX(line, '.fields') .le. 0 ) THEN
-          SubStr = TRIM(SubStrs(1))
-       ELSE 
-          SubStr = TRIM(SubStrs(2))
+       ! Skip State_Chm%Species entries since in internal state
+       ! TODO: In GCHP this would appear with prefix stored in SPFX
+       !       Need to make GCC and GCHP more consistent in future
+       IF ( INDEX( current%name,  TRIM(SPFX) ) > 0 ) THEN
+          current => current%next
+          CYCLE
        ENDIF
-       CALL STRSPLIT( SubStr, "'", SubStrs, N )
-       export_name=SubStrs(1)
 
-       ! Check history exports list to see if already added
-       CALL Check_HistoryExportsList( am_I_Root, export_name,             &
-                                      HistoryConfig%HistoryExportsList,  &
-                                      found, RC                         )
-       IF ( found ) CYCLE
+       ! Check history exports list to see if already added (unless wildcard)
+       ! TODO: consider making the call a function that returns a logical
+       IF ( .NOT. current%isWildcard ) THEN
+          CALL Check_HistoryExportsList( am_I_Root, current%name,           &
+                                         HistoryConfig%HistoryExportsList,  &
+                                         found, RC                         )
+          IF ( found ) THEN
+             ! ewl debugging
+             PRINT *, "Skipping ", TRIM(current%name), " since already in history exports list"
+             current => current%next
+             CYCLE
+          ENDIF
+       ENDIF
 
-       ! Get state name (this may change in the future)
-       CALL STRSPLIT( export_name, "_", SubStrs, N )
-       state=SubStrs(1)
+       ! ewl debugging
+       IF ( am_I_Root ) PRINT *, "got here 2"
 
-       ! Get field info from the relevant GC state module
-       IF ( TRIM(state) == 'MET' ) THEN
-          isMet = .TRUE.
-          field_name = export_name(5:)
-          CALL Get_Metadata_State_Met( am_I_Root,   field_name, desc=desc,  &
-                                       units=units, rank=rank, type=type,   &
-                                       vloc=vloc,   RC=RC )
-       ELSEIF ( TRIM(state) == 'CHEM' ) THEN
-          isChem = .TRUE.
-          field_name = export_name(6:)
-          ! TODO: State_Chem subroutine not yet created. Not sure yet
-          !       whether species concentrations will come from internal
-          !       state and not have exports made for them yet. Consider
-          !       other units as diagnostics...
-          !       Might want to eliminate CHEM_ as a prefix altogether
-          !       and put all non-GMAO fields into diag, without a
-          !       diag prefix (it would be default if not MET_)
-          !CALL Get_ChemField_Metadata( am_I_Root,   field_name,  desc=desc,   &
-          !                          units=units, Rank=Rank,  vloc=vloc,   &
-          !                          isMet=.False., isChem=.True., &
-          !                          isDiag=.FALSE., RC=RC )
-       ELSEIF ( TRIM(state) == 'DIAG' ) THEN
-          isDiag = .TRUE.
-          field_name = export_name(6:)
-          ! TODO: State_Diag not yet implemented in GCC
-          !CALL Get_DiagField_Metadata( am_I_Root,   field_name,  desc=desc,   &
-          !                          units=units, Rank=Rank,   &
-          !                          vloc=vloc,  isMet=.False., &
-          !                          isChem=.False.,&
-          !                          isDiag=.TRUE., RC=RC )
+       ! Get metadata using metadataID and state
+       ! If isSpecies, then append to description
+       ! If isWildcard, shouldn't get here
+       ! The name of the export is simply name
+       Found = .TRUE.
+       IF ( current%state == 'MET' ) THEN
+          CALL Get_Metadata_State_Met( am_I_Root, current%metadataID,     &
+                                       desc=desc, units=units, rank=rank, &
+                                       type=type, vloc=vloc,   RC=RC )
+          ! TODO: need to add found to outputs of get_metadata_state_met
+       ELSEIF ( current%state == 'CHEM' ) THEN
+          ErrMsg = "Get_Metadata_State_Chem not yet defined"
+          CALL GC_Error( ErrMsg, RC, ThisLoc )
+          !CALL Get_Metadata_State_Chem( am_I_Root, current%metadataID,     &
+          !                              desc=desc, units=units, rank=rank, &
+          !                              type=type, vloc=vloc,   RC=RC )
+       ELSEIF ( current%state == 'DIAG' ) THEN
+          CALL Get_Metadata_State_Diag( am_I_Root, current%metadataID,     &
+                                        Found, desc=desc, units=units,     &
+                                        rank=rank, type=type, vloc=vloc,   &
+                                        RC=RC )
+       ELSEIF ( current%state == 'GEOS5' ) THEN
+          ! Skip it
+          current => current%next
+          CYCLE
+       ELSE
+          ErrMsg = "Unknown state of item " // TRIM(current%name) // &
+                   " in DiagList: " // TRIM(current%state)
+          CALL GC_Error( ErrMsg, RC, ThisLoc )
+       ENDIF
+       IF ( Found == .FALSE. ) THEN
+          ErrMsg = "Metadata not found for not found for " // &
+                   TRIM(current%name)
+          CALL GC_Error( ErrMsg, RC, ThisLoc )       
        ENDIF
        ASSERT_( RC == GC_SUCCESS )
+
+       ! ewl debugging
+       IF ( am_I_Root ) PRINT *, "got here 3"
+
+       ! If wildcard is present
+       IF ( current%isWildcard ) THEN
+          ! Do nothing. This should never happen at this point since
+          ! Init_DiagList will exit with an error if wildcard is
+          ! encountered in HISTORY.rc while compiling with ESMF_.
+
+          ! When it comes time to implement, create exports in a loop,
+          ! either for all species or for advected species only. Include 
+          ! a check that the export was not already created. Loop over 
+          ! AdvNames if wildcard is ADV. Loop over SpecNames for all other 
+          ! cases, passing not found = OK so that not all are necessarily 
+          ! output. Later on, after species database is initialized, exports 
+          ! for only species in the specific wildcard will be associated 
+          ! with data and thus included in the output file.
+
+          ! If the meantime, skip wildcards if it gets here.
+          current => current%next
+          CYCLE
+       ENDIF
+
+       ! ewl debugging
+       IF ( am_I_Root ) PRINT *, "got here 4"
+
+       ! If this item is for a specific species, append description
+       IF ( current%isSpecies ) THEN
+          desc = TRIM(desc) // " for species " // TRIM(current%Species)
+       ENDIF
+
+       ! ewl debugging
+       IF ( am_I_Root ) PRINT *, "Adding histExport named ", TRIM(current%name)
 
        ! Create a new HistoryExportObj object
-       CALL Init_HistoryExport( am_I_Root, NewHistExp,   &
-                                export_name=export_name, &
-                                field_name=field_name  , &
-                                long_name=desc,          &
-                                units=units,             &
-                                vloc=vloc,               &
-                                rank=rank,               &
-                                type=type,               &
-                                isMet=isMet,             &
-                                isChem=isChem,           &
-                                isDiag=isDiag,           &
+       CALL Init_HistoryExport( am_I_Root, NewHistExp,         &
+                                name=current%name,             &
+                                metadataID=current%metadataID, &
+                                long_name=desc,                &
+                                units=units,                   &
+                                vloc=vloc,                     &
+                                rank=rank,                     &
+                                type=type,                     &
+                                isMet=isMet,                   &
+                                isChem=isChem,                 &
+                                isDiag=isDiag,                 &
                                 RC=RC )
        ASSERT_( RC == GC_SUCCESS )
+       
+       ! ewl debugging
+       IF ( am_I_Root ) PRINT *, "got here 5"
 
        ! Add new HistoryExportObj to linked list
        CALL Append_HistoryExportsList( am_I_Root,     NewHistExp, &
                                        HistoryConfig, RC       )
        ASSERT_( RC == GC_SUCCESS )
 
+       ! ewl debugging
+       IF ( am_I_Root ) PRINT *, "got here 6"
+
+       ! Set up for next item in DiagList
+       current => current%next
+
     ENDDO
     HistoryConfig%ConfigFileRead = .TRUE.
 
-    ! close the file???
+    ! Cleanup
+    current => NULL()
 
   END SUBROUTINE Init_HistoryExportsList
 !EOC
@@ -343,8 +384,8 @@ CONTAINS
 !\\
 ! !INTERFACE:
 !
-  SUBROUTINE Init_HistoryExport ( am_I_Root,  NewHistExp, export_name,  &
-                                  field_name, long_name,  units,        &
+  SUBROUTINE Init_HistoryExport ( am_I_Root,  NewHistExp, name,         &
+                                  metadataID, long_name,  units,        &
                                   vloc,       rank,       type,         &
                                   isMet,      isChem,     isDiag,       &
                                   RC  )
@@ -356,8 +397,8 @@ CONTAINS
 ! !OUTPUT PARAMETERS:
 !
     TYPE(HistoryExportObj), POINTER :: NewHistExp
-    CHARACTER(LEN=*), OPTIONAL      :: export_name
-    CHARACTER(LEN=*), OPTIONAL      :: field_name
+    CHARACTER(LEN=*), OPTIONAL      :: name
+    CHARACTER(LEN=*), OPTIONAL      :: metadataID
     CHARACTER(LEN=*), OPTIONAL      :: long_name
     CHARACTER(LEN=*), OPTIONAL      :: units
     INTEGER,          OPTIONAL      :: vloc 
@@ -375,8 +416,8 @@ CONTAINS
 !BOC
     __Iam__('Init_HistoryExport (gigc_historyexports_mod.F90)')
     ALLOCATE(NewHistExp)
-    NewHistExp%export_name = TRIM(export_name)
-    NewHistExp%field_name  = TRIM(field_name)
+    NewHistExp%name        = TRIM(name)
+    NewHistExp%metadataID  = TRIM(metadataID)
     NewHistExp%long_name   = TRIM(long_name)
     NewHistExp%units       = TRIM(units)
     NewHistExp%vloc        = vloc
@@ -400,6 +441,9 @@ CONTAINS
     NewHistExp%GCStateData1d_I => NULL()
     NewHistExp%GCStateData2d_I => NULL()
     NewHistExp%GCStateData3d_I => NULL()
+
+    ! ewl debugging
+    IF ( am_I_Root ) PRINT *, "done adding histexport ", TRIM(name)
 
   END SUBROUTINE Init_HistoryExport
 !EOC
@@ -471,13 +515,13 @@ CONTAINS
 !\\
 ! !INTERFACE:
 !
-  SUBROUTINE Check_HistoryExportsList ( am_I_Root, export_name,  &
+  SUBROUTINE Check_HistoryExportsList ( am_I_Root, name,  &
                                         ExportsList, found, RC )
 !
 ! !INPUT PARAMETERS:
 !
     LOGICAL,           INTENT(IN)        :: am_I_Root
-    CHARACTER(LEN=*),  INTENT(IN)        :: export_name
+    CHARACTER(LEN=*),  INTENT(IN)        :: name
     TYPE(HistoryExportsListObj), POINTER :: ExportsList
 !
 ! !OUTPUT PARAMETERS:
@@ -497,9 +541,12 @@ CONTAINS
 
     __Iam__('Check_HistoryExportsList (gigc_historyexports_mod.F90)')
 
+    ! Assume not found
+    found = .False.
+
     current => ExportsList%head
     DO WHILE ( ASSOCIATED( current ) )
-       IF ( current%export_name == export_name ) THEN
+       IF ( current%name == name ) THEN
           found = .TRUE.
           RETURN
        ENDIF
@@ -574,18 +621,17 @@ CONTAINS
     ENDIF
     current => HistoryConfig%HistoryExportsList%head
     DO WHILE ( ASSOCIATED( current ) )
-
        ! Create an export for this item
        ! TODO: 
        !  (1) issue with adding vars with level edge...need to update call
        !  (2) add MAPL dims to GCC registry params?
        !  (3) need handling for other types?
        !  (4) what other dim options are needed for full set of diags?
-       IF ( am_I_Root) WRITE(6,*) TRIM(current%export_name)
        IF ( current%rank == 3 ) THEN
           !IF ( current%vloc == VLocationCenter ) THEN
+             IF ( am_I_Root ) PRINT *, "adding export: ", TRIM(current%name)
              CALL MAPL_AddExportSpec(GC,                                     &
-                                     SHORT_NAME = TRIM(current%export_name), &
+                                     SHORT_NAME = TRIM(current%name),        &
                                      LONG_NAME  = TRIM(current%long_name),   &
                                      UNITS      = TRIM(current%units),       &
                                      DIMS       = MAPL_DimsHorzVert,         &
@@ -595,7 +641,7 @@ CONTAINS
              VERIFY_(STATUS)
          !ELSEIF ( current%vloc == VLocationEdge ) THEN
          !   CALL MAPL_AddExportSpec(GC,                                     &
-         !                           SHORT_NAME = TRIM(current%export_name), &
+         !                           SHORT_NAME = TRIM(current%name), &
          !                           LONG_NAME  = TRIM(current%long_name),   &
          !                           UNITS      = TRIM(current%units),       &
          !                           DIMS       = MAPL_DimsHorzVert,         &
@@ -604,7 +650,7 @@ CONTAINS
          !ELSEIF ( current%vloc == VLocationNone ) THEN
          !   ! TODO: is this even possible? Manually pass levels?
          !   CALL MAPL_AddExportSpec(GC,                                     &
-         !                           SHORT_NAME = TRIM(current%export_name), &
+         !                           SHORT_NAME = TRIM(current%name), &
          !                           LONG_NAME  = TRIM(current%long_name),   &
          !                           UNITS      = TRIM(current%units),       &
          !                           DIMS       = MAPL_DimsHorzVert,         &
@@ -613,18 +659,20 @@ CONTAINS
          !ELSE
          !   IF ( am_I_Root ) THEN
          !      PRINT *, "Unknown vertical location for ", &
-         !               TRIM(current%export_name)
+         !               TRIM(current%name)
          !   ENDIF
          !ENDIF
        ELSEIF ( current%rank == 2 ) THEN
           CALL MAPL_AddExportSpec(GC,                                     &
-                                  SHORT_NAME = TRIM(current%export_name), &
+                                  SHORT_NAME = TRIM(current%name), &
                                   LONG_NAME  = TRIM(current%long_name),   &
                                   UNITS      = TRIM(current%units),       &
                                   DIMS       = MAPL_DimsHorzOnly,         &
                                   RC         = STATUS                    )
           VERIFY_(STATUS)
        ELSE
+          ! ewl debugging
+          PRINT *, "Problem adding export for ", TRIM(current%name)
           WRITE(6,*) "ERROR: Rank must be 2 or 3!"
           RC = GC_FAILURE
           RETURN
@@ -717,6 +765,78 @@ CONTAINS
 !------------------------------------------------------------------------------
 !BOP
 !
+! !IROUTINE: Print_HistoryExportsList
+!
+! !DESCRIPTION:
+!\\
+!\\
+! !INTERFACE:
+!
+  SUBROUTINE Print_HistoryExportsList( am_I_Root, HistoryConfig, RC )
+!
+! !USES:
+!
+!
+! !INPUT PARAMETERS:
+!
+    LOGICAL,             INTENT(IN) :: am_I_Root
+!
+! !INPUT AND OUTPUT PARAMETERS:
+!
+    TYPE(HistoryConfigObj), POINTER :: HistoryConfig  ! History config object
+!
+! !OUTPUT PARAMETERS:
+!
+    INTEGER,            INTENT(OUT) :: RC
+!
+! !REMARKS:
+!  !
+! !REVISION HISTORY: 
+!  01 Sep 2017 - E. Lundgren - Initial version
+!EOP
+!------------------------------------------------------------------------------
+!BOC
+!
+! !LOCAL VARIABLES:
+!
+    TYPE(HistoryExportObj), POINTER :: current
+
+    ! ================================================================
+    ! Print_HistoryExportsList begins here
+    ! ================================================================
+    __Iam__('Print_HistoryExportsList (gigc_historyexports_mod.F90)')
+
+    ! Loop over the History Exports list
+    current => HistoryConfig%HistoryExportsList%head
+    IF ( am_I_Root ) PRINT *, '==========================='
+    IF ( am_I_Root ) PRINT *, 'History Exports List:'
+    IF ( am_I_Root ) PRINT *, ' '
+    DO WHILE ( ASSOCIATED( current ) )
+       IF ( am_I_Root ) THEN
+          PRINT *, "Name:        ", TRIM(current%name) 
+          PRINT *, " MetadataID: ", TRIM(current%metadataID)
+          PRINT *, " Long name:  ", TRIM(current%long_name)  
+          PRINT *, " Units:      ", TRIM(current%units)       
+          PRINT *, " Vert loc:   ", current%vloc
+          PRINT *, " Rank:       ", current%rank        
+          PRINT *, " Type:       ", current%type
+          PRINT *, " isMet:      ", current%isMet
+          PRINT *, " isChem:     ", current%isChem
+          PRINT *, " isDiag:     ", current%isDiag
+          PRINT *, " "
+       ENDIF
+       current => current%next    
+    ENDDO
+    IF ( am_I_Root ) PRINT *, '==========================='
+    current => NULL()
+    
+  END SUBROUTINE Print_HistoryExportsList
+!EOC
+!------------------------------------------------------------------------------
+!
+!------------------------------------------------------------------------------
+!BOP
+!
 ! !IROUTINE: HistoryExports_SetDataPointers
 !
 ! !DESCRIPTION:
@@ -783,7 +903,7 @@ CONTAINS
        CALL Registry_Lookup( am_I_Root = am_I_Root,               &
                              Registry  = State_Met%Registry,      &
                              State     = State_Met%State,         &
-                             Variable  = current%field_name,      &
+                             Variable  = current%metadataID,      &
                              Ptr2d     = current%GCStateData2d,   &
                              Ptr2d_I   = current%GCStateData2d_I, &
                              Ptr3d     = current%GCStateData3d,   &
@@ -794,14 +914,14 @@ CONTAINS
        ! For MAPL export, need to pass a pointer of the right dimension
        IF ( current%rank == 2 ) THEN
           CALL MAPL_GetPointer ( EXPORT, current%ExportData2d, &
-                                 current%export_name, __RC__ )
+                                 current%name, __RC__ )
        ELSEIF ( current%rank == 3 ) THEN
           CALL MAPL_GetPointer ( EXPORT, current%ExportData3d, &
-                                 current%export_name, __RC__ )
+                                 current%name, __RC__ )
        ENDIF
 
        IF ( Am_I_Root) THEN
-          WRITE(6,*) TRIM(current%export_name)
+          WRITE(6,*) TRIM(current%name)
        ENDIF
 
        current => current%next    

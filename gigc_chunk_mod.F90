@@ -299,7 +299,7 @@ CONTAINS
     USE Pressure_Mod,       ONLY : Accept_External_Pedge
     USE State_Chm_Mod,      ONLY : IND_
     USE Time_Mod,           ONLY : Accept_External_Date_Time
-    Use UnitConv_Mod,       ONLY : Convert_Spc_Units
+    Use UnitConv_Mod,       ONLY : Convert_Spc_Units, Set_SpcConc_Diagnostic
 !
 ! !INPUT PARAMETERS:
 !
@@ -580,10 +580,9 @@ CONTAINS
     ! Compute PBL quantities
     CALL COMPUTE_PBL_HEIGHT( State_Met )
 
-    ! Convert species conc units to kg/kg dry if they are not already
+    ! Convert species conc units to kg/kg dry prior to Phase 1/2 calls
     ! Should this be done earlier up, like right at the beginning?
     ! ewl debugging
-    PRINT *, TRIM(State_Chm%Spc_Units)
     CALL Convert_Spc_Units( am_I_Root, Input_Opt, State_Met, State_Chm, &
                             'kg/kg dry', RC )
     
@@ -627,9 +626,6 @@ CONTAINS
        if(am_I_Root.and.NCALLS<10) write(*,*) ' --- Convection done!'
     ENDIF  
 
-    !! Check that units are correct
-    !ASSERT_(GIGC_Assert_Units(am_I_Root, State_Chm))
-
     !=======================================================================
     ! 2. Dry deposition
     !
@@ -670,9 +666,6 @@ CONTAINS
        if(am_I_Root.and.NCALLS<10) write(*,*) ' --- Emissions done!'
     ENDIF
 
-    !! Check that units are correct
-    !ASSERT_(GIGC_Assert_Units(am_I_Root, State_Chm))
-
     !=======================================================================
     ! If physics covers turbulence, simply add the emission and dry 
     ! deposition fluxes calculated above to the tracer array, without caring
@@ -702,9 +695,6 @@ CONTAINS
                                  ' --- Fluxes applied to tracers!' 
     ENDIF ! Tendencies 
 
-    !! Check that units are correct
-    !ASSERT_(GIGC_Assert_Units(am_I_Root, State_Chm))
-
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 !!!                              PHASE 2                                !!!
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -731,9 +721,6 @@ CONTAINS
        CALL MAPL_TimerOff( STATE, 'GC_TURB' )
        if(am_I_Root.and.NCALLS<10) write(*,*) ' --- Turbulence done!'
     ENDIF
-
-    !! Check units
-    !ASSERT_(GIGC_Assert_Units(am_I_Root, State_Chm))
 
     !=======================================================================
     ! 5. Chemistry
@@ -764,9 +751,6 @@ CONTAINS
        if(am_I_Root.and.NCALLS<10) write(*,*) ' --- Chemistry done!'
     ENDIF
 
-    !! Check units
-    !ASSERT_(GIGC_Assert_Units(am_I_Root, State_Chm))
-
     !=======================================================================
     ! 6. Wet deposition
     !=======================================================================
@@ -782,22 +766,29 @@ CONTAINS
        if(am_I_Root.and.NCALLS<10) write(*,*) ' --- Wetdep done!'
     ENDIF
 
-    !! Check units
-    !ASSERT_(GIGC_Assert_Units(am_I_Root, State_Chm))
-
     !=======================================================================
     ! Clean up
     !=======================================================================
 
-    ! Convert units to units of the internal state
-    CALL Convert_Spc_Units( am_I_Root, Input_Opt, State_Met, State_Chm, &
-                            'v/v dry', RC )
+    ! ewl testing
+    IF ( Phase == 2 ) THEN
+       ! Set species concentration diagnostic array using the 
+       ! the units stored in the State_Diag metadata for 'SpeciesConc'
+       CALL Set_SpcConc_Diagnostic( am_I_Root, 'SpeciesConc',         &
+                                     State_Diag%SpeciesConc,          &
+                                     Input_Opt, State_Met, State_Chm, &
+                                     RC )
+    ENDIF
 
     ! testing only
     IF ( PHASE /= 1 .AND. NCALLS < 10 ) NCALLS = NCALLS + 1 
 
     ! First call is done
     FIRST = .FALSE.
+
+    ! Convert units to units of the internal state
+    CALL Convert_Spc_Units( am_I_Root, Input_Opt, State_Met, State_Chm, &
+                            'v/v dry', RC )
 
     ! Return success
     RC = GC_SUCCESS

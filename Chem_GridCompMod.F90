@@ -504,13 +504,13 @@ CONTAINS
 #   include "GIGCchem_ExportSpec___.h"
 
     ! Read HISTORY config file and add exports for unique items
-    ! TODO: determine if this first step is necessary
+    ! TODO: determine if this first step is necessary. Should HISTORY.rc
+    !       be in GCHP.rc?
     CALL ESMF_ConfigGetAttribute( myState%myCF, HistoryConfigFile, &
                                   Label="HISTORY_CONFIG:",         &
                                   Default="HISTORY.rc", __RC__ )
-    CALL HistoryExports_SetServices( MAPL_am_I_Root(),             &
-                                     TRIM(HistoryConfigFile),GC,   &
-                                     HistoryConfig, __RC__ )
+    CALL HistoryExports_SetServices( MAPL_am_I_Root(), HistoryConfigFile, &
+                                     GC, HistoryConfig, __RC__ )
 
     ! Is this needed anymore?
     call MAPL_AddExportSpec(GC,                                   &
