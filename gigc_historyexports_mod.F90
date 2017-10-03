@@ -1,6 +1,6 @@
 #if defined (ESMF_)
 !------------------------------------------------------------------------------
-!
+!                  GEOS-Chem Global Chemical Transport Model                  !
 !------------------------------------------------------------------------------
 !BOP
 !
@@ -109,7 +109,7 @@ MODULE GIGC_HistoryExports_Mod
 
 CONTAINS
 !------------------------------------------------------------------------------
-!
+!                  GEOS-Chem Global Chemical Transport Model                  !
 !------------------------------------------------------------------------------
 !BOP
 !
@@ -160,7 +160,7 @@ CONTAINS
   END SUBROUTINE Init_HistoryConfig
 !EOC
 !------------------------------------------------------------------------------
-!              
+!                  GEOS-Chem Global Chemical Transport Model                  !
 !------------------------------------------------------------------------------
 !BOP
 !
@@ -176,7 +176,7 @@ CONTAINS
 ! !USES:
 !
     USE GIGC_Types_Mod,   ONLY: SPFX
-    !USE State_Chem_Mod, ONLY: Get_State_Chem_Info ! TODO: implement this
+    USE State_Chm_Mod,    ONLY: Get_Metadata_State_Chm
     USE State_Diag_Mod,   ONLY: Get_Metadata_State_Diag 
     USE State_Met_Mod,    ONLY: Get_Metadata_State_Met
 !
@@ -201,7 +201,7 @@ CONTAINS
 ! !LOCAL VARIABLES:
 !
     INTEGER               :: N, rank, vloc, type
-    CHARACTER(LEN=255)    :: ErrMsg, ThisLoc, desc, units
+    CHARACTER(LEN=255)    :: ErrMsg, ThisLoc, desc, units, perSpecies
     LOGICAL               :: isMet, isChem, isDiag, found
     TYPE(HistoryExportObj),  POINTER :: NewHistExp
     TYPE(DgnItem),           POINTER :: current
@@ -213,11 +213,6 @@ CONTAINS
     ThisLoc = 'Init_HistoryExportsList' ! TODO: use location from Iam
 
     ! Init
-    desc   = ''
-    units  = ''
-    rank   = -1
-    vloc   = -1
-    type   = -1
     isMet  = .FALSE.
     isChem = .FALSE.
     isDiag = .FALSE.
@@ -269,23 +264,22 @@ CONTAINS
        ! If isWildcard, shouldn't get here
        ! The name of the export is simply name
        Found = .TRUE.
-       IF ( current%state == 'MET' ) THEN
+       IF ( TRIM(current%state) == 'MET' ) THEN
           CALL Get_Metadata_State_Met( am_I_Root, current%metadataID,     &
-                                       desc=desc, units=units, rank=rank, &
-                                       type=type, vloc=vloc,   RC=RC )
+                                       Found, RC, desc=desc, units=units, &
+                                       rank=rank, type=type, vloc=vloc )
           ! TODO: need to add found to outputs of get_metadata_state_met
-       ELSEIF ( current%state == 'CHEM' ) THEN
-          ErrMsg = "Get_Metadata_State_Chem not yet defined"
-          CALL GC_Error( ErrMsg, RC, ThisLoc )
-          !CALL Get_Metadata_State_Chem( am_I_Root, current%metadataID,     &
-          !                              desc=desc, units=units, rank=rank, &
-          !                              type=type, vloc=vloc,   RC=RC )
-       ELSEIF ( current%state == 'DIAG' ) THEN
+       ELSEIF ( TRIM(current%state) == 'CHEM' ) THEN
+          CALL Get_Metadata_State_Chm( am_I_Root, current%metadataID,     &
+                                       Found, RC, desc=desc, units=units, &
+                                       perSpecies=perSpecies, rank=rank,  &
+                                       type=type, vloc=vloc )
+       ELSEIF ( TRIM(current%state) == 'DIAG' ) THEN
           CALL Get_Metadata_State_Diag( am_I_Root, current%metadataID,     &
-                                        Found, desc=desc, units=units,     &
-                                        rank=rank, type=type, vloc=vloc,   &
-                                        RC=RC )
-       ELSEIF ( current%state == 'GEOS5' ) THEN
+                                        Found, Rc, desc=desc, units=units, &
+                                        perSpecies=perSpecies, rank=rank,  &
+                                        type=type, vloc=vloc )
+       ELSEIF ( TRIM(current%state) == 'GEOS5' ) THEN
           ! Skip it
           current => current%next
           CYCLE
@@ -295,7 +289,7 @@ CONTAINS
           CALL GC_Error( ErrMsg, RC, ThisLoc )
        ENDIF
        IF ( Found == .FALSE. ) THEN
-          ErrMsg = "Metadata not found for not found for " // &
+          ErrMsg = "Metadata not found for " // &
                    TRIM(current%name)
           CALL GC_Error( ErrMsg, RC, ThisLoc )       
        ENDIF
@@ -373,7 +367,7 @@ CONTAINS
   END SUBROUTINE Init_HistoryExportsList
 !EOC
 !------------------------------------------------------------------------------
-!              
+!                  GEOS-Chem Global Chemical Transport Model                  !
 !------------------------------------------------------------------------------
 !BOP
 !
@@ -448,7 +442,7 @@ CONTAINS
   END SUBROUTINE Init_HistoryExport
 !EOC
 !------------------------------------------------------------------------------
-!              
+!                  GEOS-Chem Global Chemical Transport Model                  !
 !------------------------------------------------------------------------------
 !BOP
 !
@@ -504,7 +498,7 @@ CONTAINS
   END SUBROUTINE Append_HistoryExportsList
 !EOC
 !------------------------------------------------------------------------------
-!
+!                  GEOS-Chem Global Chemical Transport Model                  !
 !------------------------------------------------------------------------------
 !BOP
 !
@@ -557,7 +551,7 @@ CONTAINS
   END SUBROUTINE Check_HistoryExportsList
 !EOC
 !------------------------------------------------------------------------------
-!
+!                  GEOS-Chem Global Chemical Transport Model                  !!
 !------------------------------------------------------------------------------
 !BOP
 !
@@ -685,7 +679,7 @@ CONTAINS
   END SUBROUTINE HistoryExports_SetServices
 !EOC
 !------------------------------------------------------------------------------
-!
+!                  GEOS-Chem Global Chemical Transport Model                  !
 !------------------------------------------------------------------------------
 !BOP
 !
@@ -761,7 +755,7 @@ CONTAINS
   END SUBROUTINE CopyGCStates2Exports
 !EOC
 !------------------------------------------------------------------------------
-!
+!                  GEOS-Chem Global Chemical Transport Model                  !
 !------------------------------------------------------------------------------
 !BOP
 !
@@ -833,7 +827,7 @@ CONTAINS
   END SUBROUTINE Print_HistoryExportsList
 !EOC
 !------------------------------------------------------------------------------
-!
+!                  GEOS-Chem Global Chemical Transport Model                  !
 !------------------------------------------------------------------------------
 !BOP
 !
@@ -931,7 +925,7 @@ CONTAINS
   END SUBROUTINE HistoryExports_SetDataPointers
 !EOC
 !------------------------------------------------------------------------------
-!
+!                  GEOS-Chem Global Chemical Transport Model                  !
 !------------------------------------------------------------------------------
 !BOP
 !
