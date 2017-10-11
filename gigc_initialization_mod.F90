@@ -427,7 +427,7 @@ CONTAINS
     ! to initialize other modules (e.g. carbon_mod.F, dust_mod.F, 
     ! seasalt_mod.F,  sulfate_mod.F).  We needed to move these init 
     ! calls out of the run stage and into the init stage. (bmy, 3/4/13)
-    CALL GC_Init_Extra( am_I_Root, Input_Opt, State_Chm, RC ) 
+    CALL GC_Init_Extra( am_I_Root, Input_Opt, State_Chm, State_Diag, RC ) 
     IF ( RC /= GC_SUCCESS ) RETURN
 
     ! Initialize photolysis

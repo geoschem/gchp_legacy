@@ -640,7 +640,7 @@ CONTAINS
 
        ! Do dry deposition
        CALL Do_DryDep( am_I_Root, Input_Opt=Input_Opt, State_Chm=State_Chm, &
-                       State_Met=State_Met, RC=RC ) 
+                       State_Met=State_Met, State_Diag=State_Diag, RC=RC ) 
        ASSERT_(RC==GC_SUCCESS)
 
        CALL MAPL_TimerOff( STATE, 'GC_DRYDEP' )
@@ -686,8 +686,8 @@ CONTAINS
        DT = HcoState%TS_EMIS 
 
        ! Apply tendencies over entire PBL using emission time step.
-       CALL DO_TEND ( am_I_Root, Input_Opt, State_Met, State_Chm, .FALSE., &
-                      RC, DT=DT )
+       CALL DO_TEND ( am_I_Root, Input_Opt, State_Met, State_Chm,  &
+                      State_Diag, .FALSE., RC, DT=DT )
        ASSERT_(RC==GC_SUCCESS)
 
        CALL MAPL_TimerOff( STATE, 'GC_FLUXES' )
@@ -715,7 +715,8 @@ CONTAINS
 
        ! Do mixing and apply tendencies. This will use the dynamic time step,
        ! which is fine since this call will be executed on every time step. 
-       CALL DO_MIXING ( am_I_Root, Input_Opt, State_Met, State_Chm, RC )
+       CALL DO_MIXING ( am_I_Root, Input_Opt, State_Met, State_Chm, &
+                        State_Diag, RC )
        ASSERT_(RC==GC_SUCCESS)
 
        CALL MAPL_TimerOff( STATE, 'GC_TURB' )
