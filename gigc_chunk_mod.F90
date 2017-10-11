@@ -740,11 +740,12 @@ CONTAINS
        ENDIF
 
        ! Do chemistry
-       CALL Do_Chemistry( am_I_Root = am_I_Root,            & ! Root CPU?
-                          Input_Opt = Input_Opt,            & ! Input Options
-                          State_Chm = State_Chm,            & ! Chemistry State
-                          State_Met = State_Met,            & ! Met State
-                          RC        = RC                   )  ! Success?
+       CALL Do_Chemistry( am_I_Root  = am_I_Root,            & ! Root CPU?
+                          Input_Opt  = Input_Opt,            & ! Input Options
+                          State_Chm  = State_Chm,            & ! Chemistry State
+                          State_Met  = State_Met,            & ! Met State
+                          State_Diag = State_Diag,           & ! Diagn State
+                          RC         = RC                   )  ! Success?
        ASSERT_(RC==GC_SUCCESS)
 
        CALL MAPL_TimerOff( STATE, 'GC_CHEM' )
