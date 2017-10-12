@@ -146,13 +146,8 @@ CONTAINS
     HistoryConfig%ConfigFileName     =  TRIM(configFile)
     HistoryConfig%ConfigFileRead     =  .FALSE.
     CALL Init_DiagList( am_I_Root, configFile, HistoryConfig%DiagList, RC )
-
-    ! ewl debugging
     CALL Print_DiagList( am_I_Root, HistoryConfig%DiagList, RC )
-
     CALL Init_HistoryExportsList( am_I_Root, HistoryConfig, RC )
-
-    ! ewl debugging
     CALL Print_HistoryExportsList( am_I_Root, HistoryConfig, RC )
 
     ASSERT_( RC == GC_SUCCESS )
@@ -224,15 +219,9 @@ CONTAINS
     HistoryConfig%HistoryExportsList%numExports = 0
     HistoryConfig%HistoryExportsList%head => NULL()
 
-    ! ewl debugging
-    IF ( am_I_Root ) PRINT *, "start of init_historyexportslist!"
-
     ! Loop over entries in DiagList
     current => HistoryConfig%DiagList%head
     DO WHILE ( ASSOCIATED( current ) )
-
-       ! ewl debugging
-       IF ( am_I_Root ) PRINT *, "got here 1"
 
        ! Skip State_Chm%Species entries since in internal state
        ! TODO: In GCHP this would appear with prefix stored in SPFX
@@ -249,15 +238,10 @@ CONTAINS
                                          HistoryConfig%HistoryExportsList,  &
                                          found, RC                         )
           IF ( found ) THEN
-             ! ewl debugging
-             PRINT *, "Skipping ", TRIM(current%name), " since already in history exports list"
              current => current%next
              CYCLE
           ENDIF
        ENDIF
-
-       ! ewl debugging
-       IF ( am_I_Root ) PRINT *, "got here 2"
 
        ! Get metadata using metadataID and state
        ! If isSpecies, then append to description
@@ -295,9 +279,6 @@ CONTAINS
        ENDIF
        ASSERT_( RC == GC_SUCCESS )
 
-       ! ewl debugging
-       IF ( am_I_Root ) PRINT *, "got here 3"
-
        ! If wildcard is present
        IF ( current%isWildcard ) THEN
           ! Do nothing. This should never happen at this point since
@@ -318,16 +299,10 @@ CONTAINS
           CYCLE
        ENDIF
 
-       ! ewl debugging
-       IF ( am_I_Root ) PRINT *, "got here 4"
-
        ! If this item is for a specific species, append description
        IF ( current%isSpecies ) THEN
           desc = TRIM(desc) // " for species " // TRIM(current%Species)
        ENDIF
-
-       ! ewl debugging
-       IF ( am_I_Root ) PRINT *, "Adding histExport named ", TRIM(current%name)
 
        ! Create a new HistoryExportObj object
        CALL Init_HistoryExport( am_I_Root, NewHistExp,         &
@@ -344,16 +319,10 @@ CONTAINS
                                 RC=RC )
        ASSERT_( RC == GC_SUCCESS )
        
-       ! ewl debugging
-       IF ( am_I_Root ) PRINT *, "got here 5"
-
        ! Add new HistoryExportObj to linked list
        CALL Append_HistoryExportsList( am_I_Root,     NewHistExp, &
                                        HistoryConfig, RC       )
        ASSERT_( RC == GC_SUCCESS )
-
-       ! ewl debugging
-       IF ( am_I_Root ) PRINT *, "got here 6"
 
        ! Set up for next item in DiagList
        current => current%next
@@ -435,9 +404,6 @@ CONTAINS
     NewHistExp%GCStateData1d_I => NULL()
     NewHistExp%GCStateData2d_I => NULL()
     NewHistExp%GCStateData3d_I => NULL()
-
-    ! ewl debugging
-    IF ( am_I_Root ) PRINT *, "done adding histexport ", TRIM(name)
 
   END SUBROUTINE Init_HistoryExport
 !EOC
@@ -665,9 +631,8 @@ CONTAINS
                                   RC         = STATUS                    )
           VERIFY_(STATUS)
        ELSE
-          ! ewl debugging
-          PRINT *, "Problem adding export for ", TRIM(current%name)
-          WRITE(6,*) "ERROR: Rank must be 2 or 3!"
+          WRITE(6,*) "Problem adding export for ", TRIM(current%name)
+          WRITE(6,*) "Rank is only implemented for 2 or 3!"
           RC = GC_FAILURE
           RETURN
        ENDIF
