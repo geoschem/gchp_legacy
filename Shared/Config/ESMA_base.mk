@@ -220,6 +220,12 @@ LIB_ESMF := $(DIR_ESMF)/$(ARCH)/lib/libesmf.so
         ifeq ($(ESMF_COMM),mvapich2)
            INC_MPI := $(MPI_ROOT)/include
            LIB_MPI := -L$(MPI_ROOT)/lib  -lmpich
+        else ifeq ($(ESMF_COMM),mpich)
+           INC_MPI := $(MPI_ROOT)/include
+           LIB_MPI := -L$(MPI_ROOT)/lib  -lmpich
+        else ifeq ($(ESMF_COMM),mpich2)
+           INC_MPI := $(MPI_ROOT)/include
+           LIB_MPI := -L$(MPI_ROOT)/lib  -lmpich
         else ifeq ($(ESMF_COMM),openmpi)
            INC_MPI := $(shell mpif90 --showme:incdirs)
            LIB_MPI := $(shell mpif90 --showme:link)
