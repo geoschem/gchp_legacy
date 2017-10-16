@@ -146,9 +146,9 @@ CONTAINS
     HistoryConfig%ConfigFileName     =  TRIM(configFile)
     HistoryConfig%ConfigFileRead     =  .FALSE.
     CALL Init_DiagList( am_I_Root, configFile, HistoryConfig%DiagList, RC )
-    CALL Print_DiagList( am_I_Root, HistoryConfig%DiagList, RC )
+    !CALL Print_DiagList( am_I_Root, HistoryConfig%DiagList, RC )
     CALL Init_HistoryExportsList( am_I_Root, HistoryConfig, RC )
-    CALL Print_HistoryExportsList( am_I_Root, HistoryConfig, RC )
+    !CALL Print_HistoryExportsList( am_I_Root, HistoryConfig, RC )
 
     ASSERT_( RC == GC_SUCCESS )
 
