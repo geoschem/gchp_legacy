@@ -70,6 +70,7 @@ MODULE GIGC_HistoryExports_Mod
 
      CHARACTER(LEN=255)              :: name 
      CHARACTER(LEN=255)              :: metadataID
+     CHARACTER(LEN=255)              :: registryID
      CHARACTER(LEN=255)              :: long_name  
      CHARACTER(LEN=255)              :: units       
      INTEGER                         :: vloc
@@ -208,10 +209,6 @@ CONTAINS
     ThisLoc = 'Init_HistoryExportsList' ! TODO: use location from Iam
 
     ! Init
-    isMet  = .FALSE.
-    isChem = .FALSE.
-    isDiag = .FALSE.
-    found = .FALSE.
     NewHistExp => NULL()
 
     ! Create HistoryExportsList object
@@ -248,17 +245,23 @@ CONTAINS
        ! If isWildcard, shouldn't get here
        ! The name of the export is simply name
        Found = .TRUE.
+       isMet  = .FALSE.
+       isChem = .FALSE.
+       isDiag = .FALSE.
        IF ( TRIM(current%state) == 'MET' ) THEN
+          isMet = .TRUE.
           CALL Get_Metadata_State_Met( am_I_Root, current%metadataID,     &
                                        Found, RC, desc=desc, units=units, &
                                        rank=rank, type=type, vloc=vloc )
           ! TODO: need to add found to outputs of get_metadata_state_met
        ELSEIF ( TRIM(current%state) == 'CHEM' ) THEN
+          isCHEM = .TRUE.
           CALL Get_Metadata_State_Chm( am_I_Root, current%metadataID,     &
                                        Found, RC, desc=desc, units=units, &
                                        perSpecies=perSpecies, rank=rank,  &
                                        type=type, vloc=vloc )
        ELSEIF ( TRIM(current%state) == 'DIAG' ) THEN
+          isDIAG = .TRUE.
           CALL Get_Metadata_State_Diag( am_I_Root, current%metadataID,     &
                                         Found, Rc, desc=desc, units=units, &
                                         perSpecies=perSpecies, rank=rank,  &
@@ -308,6 +311,7 @@ CONTAINS
        CALL Init_HistoryExport( am_I_Root, NewHistExp,         &
                                 name=current%name,             &
                                 metadataID=current%metadataID, &
+                                registryID=current%registryID, &
                                 long_name=desc,                &
                                 units=units,                   &
                                 vloc=vloc,                     &
@@ -348,10 +352,10 @@ CONTAINS
 ! !INTERFACE:
 !
   SUBROUTINE Init_HistoryExport ( am_I_Root,  NewHistExp, name,         &
-                                  metadataID, long_name,  units,        &
-                                  vloc,       rank,       type,         &
-                                  isMet,      isChem,     isDiag,       &
-                                  RC  )
+                                  metadataID, registryID, long_name,    &
+                                  units,      vloc,       rank,         &
+                                  type,       isMet,      isChem,       &
+                                  isDiag,     RC  )
 !
 ! !INPUT PARAMETERS:
 !
@@ -362,6 +366,7 @@ CONTAINS
     TYPE(HistoryExportObj), POINTER :: NewHistExp
     CHARACTER(LEN=*), OPTIONAL      :: name
     CHARACTER(LEN=*), OPTIONAL      :: metadataID
+    CHARACTER(LEN=*), OPTIONAL      :: registryID
     CHARACTER(LEN=*), OPTIONAL      :: long_name
     CHARACTER(LEN=*), OPTIONAL      :: units
     INTEGER,          OPTIONAL      :: vloc 
@@ -381,6 +386,7 @@ CONTAINS
     ALLOCATE(NewHistExp)
     NewHistExp%name        = TRIM(name)
     NewHistExp%metadataID  = TRIM(metadataID)
+    NewHistExp%registryID  = TRIM(registryID)
     NewHistExp%long_name   = TRIM(long_name)
     NewHistExp%units       = TRIM(units)
     NewHistExp%vloc        = vloc
@@ -772,16 +778,17 @@ CONTAINS
     IF ( am_I_Root ) PRINT *, ' '
     DO WHILE ( ASSOCIATED( current ) )
        IF ( am_I_Root ) THEN
-          PRINT *, "Name:        ", TRIM(current%name) 
-          PRINT *, " MetadataID: ", TRIM(current%metadataID)
-          PRINT *, " Long name:  ", TRIM(current%long_name)  
-          PRINT *, " Units:      ", TRIM(current%units)       
-          PRINT *, " Vert loc:   ", current%vloc
-          PRINT *, " Rank:       ", current%rank        
-          PRINT *, " Type:       ", current%type
-          PRINT *, " isMet:      ", current%isMet
-          PRINT *, " isChem:     ", current%isChem
-          PRINT *, " isDiag:     ", current%isDiag
+          PRINT *, "Name:        ",   TRIM(current%name) 
+          PRINT *, " MetadataID: ",   TRIM(current%metadataID)
+          PRINT *, " RegistryID: ",   TRIM(current%registryID)
+          PRINT *, " Long name:  ",   TRIM(current%long_name)  
+          PRINT *, " Units:      ",   TRIM(current%units)       
+          PRINT *, " Vert loc:   ",   current%vloc
+          PRINT *, " Rank:       ",   current%rank        
+          PRINT *, " Type:       ",   current%type
+          PRINT *, " isMet:      ",   current%isMet
+          PRINT *, " isChem:     ",   current%isChem
+          PRINT *, " isDiag:     ",   current%isDiag
           PRINT *, " "
        ENDIF
        current => current%next    
@@ -858,16 +865,45 @@ CONTAINS
     current => HistoryConfig%HistoryExportsList%head
     DO WHILE ( ASSOCIATED( current ) )
 
-       ! Get pointer to GC state data (for now, assume state_met)
-       CALL Registry_Lookup( am_I_Root = am_I_Root,               &
-                             Registry  = State_Met%Registry,      &
-                             State     = State_Met%State,         &
-                             Variable  = current%metadataID,      &
-                             Ptr2d     = current%GCStateData2d,   &
-                             Ptr2d_I   = current%GCStateData2d_I, &
-                             Ptr3d     = current%GCStateData3d,   &
-                             Ptr3d_I   = current%GCStateData3d_I, &
-                             RC        = RC                      )
+       ! Get pointer to GC state data
+       !IF ( am_I_Root ) WRITE(6,*) current%name
+       IF ( current%isMET ) THEN
+          CALL Registry_Lookup( am_I_Root = am_I_Root,               &
+                                Registry  = State_Met%Registry,      &
+                                State     = State_Met%State,         &
+                                Variable  = current%registryID,      &
+                                Ptr2d     = current%GCStateData2d,   &
+                                Ptr2d_4   = current%GCStateData2d_4, &
+                                Ptr2d_I   = current%GCStateData2d_I, &
+                                Ptr3d     = current%GCStateData3d,   &
+                                Ptr3d_4   = current%GCStateData3d_4, &
+                                Ptr3d_I   = current%GCStateData3d_I, &
+                                RC        = RC                      )
+       ELSEIF ( current%isChem ) THEN
+          CALL Registry_Lookup( am_I_Root = am_I_Root,               &
+                                Registry  = State_Chm%Registry,      &
+                                State     = State_Chm%State,         &
+                                Variable  = current%registryID,      &
+                                Ptr2d     = current%GCStateData2d,   &
+                                Ptr2d_4   = current%GCStateData2d_4, &
+                                Ptr2d_I   = current%GCStateData2d_I, &
+                                Ptr3d     = current%GCStateData3d,   &
+                                Ptr3d_4   = current%GCStateData3d_4, &
+                                Ptr3d_I   = current%GCStateData3d_I, &
+                                RC        = RC                      )
+       ELSEIF ( current%isDiag ) THEN
+          CALL Registry_Lookup( am_I_Root = am_I_Root,               &
+                                Registry  = State_Diag%Registry,     &
+                                State     = State_Diag%State,        &
+                                Variable  = current%registryID,      &
+                                Ptr2d     = current%GCStateData2d,   &
+                                Ptr2d_4   = current%GCStateData2d_4, &
+                                Ptr2d_I   = current%GCStateData2d_I, &
+                                Ptr3d     = current%GCStateData3d,   &
+                                Ptr3d_4   = current%GCStateData3d_4, &
+                                Ptr3d_I   = current%GCStateData3d_I, &
+                                RC        = RC                      )
+       ENDIF
        ASSERT_( RC == GC_SUCCESS )
 
        ! For MAPL export, need to pass a pointer of the right dimension
