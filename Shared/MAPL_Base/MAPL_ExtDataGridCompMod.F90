@@ -2725,7 +2725,7 @@ CONTAINS
            ! Separate scaling factors for each month
            monthOffset = ((imm-1)*7)
         else
-           write(*,'(a,a,a,I)') ' ERROR: DOW files must have either 7 or 84 entries but ',trim(cfio%fname),' contains ', cfio%tSteps
+           write(*,'(a,a,a,I5)') ' ERROR: DOW files must have either 7 or 84 entries but ',trim(cfio%fname),' contains ', cfio%tSteps
            rc = ESMF_FAILURE
            return
         end if
