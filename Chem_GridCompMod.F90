@@ -90,9 +90,6 @@ MODULE Chem_GridCompMod
   PRIVATE                          :: Run_           ! Run method
   PRIVATE                          :: Finalize_      ! Finalize method
   PRIVATE                          :: Extract_       ! Get values from ESMF
-  PRIVATE                          :: Roundoff       ! Truncates a number
-  PRIVATE                          :: Print_Mean_OH  ! Mean OH lifetime
-  PRIVATE                          :: GlobalSum      ! Sums across PETs
 !
 ! !PRIVATE TYPES:
 !
@@ -283,7 +280,9 @@ MODULE Chem_GridCompMod
 !  22 Feb 2015 - C. Keller   - Now check if geoschemchem_import_rst exist
 !  06 Jun 2016 - M. Yannetti - Added Get_Transport.
 !  19 Dec 2016 - M. Long     - Update for v11-01k
-!  19 Sep 2017 - E. Lundgren - Removed Get_Transport
+!  19 Sep 2017 - E. Lundgren - Remove Get_Transport
+!  02 Nov 2017 - E. Lundgren - Remove unused private functions roundoff, 
+!                              globalsum, and print_mean_oh
 !EOP
 !------------------------------------------------------------------------------
 !BOC
@@ -2706,7 +2705,11 @@ CONTAINS
     ENDIF
 
     !=======================================================================
-    ! Copy Met, Chem, and/or Diag states to exports
+    ! Copy HISTORY.rc diagnostic data to exports. Includes HEMCO emissions 
+    ! diagnostics but excludes internal state and exports created explicitly
+    ! in Chem_GridCompMod. NOTE: Exports created explicitly in Chem_GridCompMod
+    ! will eventually be moved elsewhere as diagnostics for use with GEOS-5.
+    ! (ewl, 11/2/17)
     !=======================================================================
     IF ( FIRST ) THEN
        CALL HistoryExports_SetDataPointers( am_I_Root,     EXPORT,    &
@@ -2714,7 +2717,7 @@ CONTAINS
                                             State_Diag,    State_Met, &
                                             STATUS )
     ENDIF
-    CALL CopyGCStates2Exports( am_I_Root, HistoryConfig, STATUS )
+    CALL CopyGCStates2Exports( am_I_Root, Input_Opt, HistoryConfig, STATUS )
 
     !=======================================================================
     ! All done
@@ -3246,6 +3249,8 @@ CONTAINS
 !  05 Dec 2012 - R. Yantosca - Removed latEdg argument; cosmetic changes
 !  13 Feb 2013 - E. Nielsen  - Restart file inquiry for GEOS-5
 !  05 Jan 2016 - S. D. Eastham - Fixed order of time calls
+!  02 Nov 2017 - E. Lundgren - Replace use of local GridGetInterior with 
+!                              call to MAPL_GridGetInterior after making public
 !EOP
 !------------------------------------------------------------------------------
 !BOC
@@ -3463,7 +3468,7 @@ CONTAINS
                           __RC__ )
           
        ! Get the upper and lower bounds of on each PET
-       CALL GridGetInterior( Grid, IL, IU, JL, JU, __RC__  )
+       CALL MAPL_GridGetInterior( Grid, IL, IU, JL, JU )
 
     ENDIF
 
@@ -3651,9 +3656,9 @@ CONTAINS
             
              ! Get diagnostics 
              DgnID = 44500 + TrcID
-             CALL Diagn_Get( am_I_Root, HcoState, .FALSE., DgnCont, FLAG, ERR, &
-                    cID=DgnID, AutoFill=-1,                          &
-                    COL=Input_Opt%DIAG_COLLECTION ) 
+             CALL Diagn_Get( am_I_Root, HcoState, .FALSE., DgnCont,  &
+                             FLAG, ERR, cID=DgnID, AutoFill=-1,      &
+                             COL=Input_Opt%DIAG_COLLECTION ) 
 
              ! Error check 
              ASSERT_( ERR == HCO_SUCCESS )
@@ -3691,9 +3696,9 @@ CONTAINS
                 END SELECT
 
                 ! Get diagnostics 
-                CALL Diagn_Get( am_I_Root, HcoState, .FALSE., DgnCont, FLAG, ERR, &
-                       cID=DgnID, AutoFill=-1,                          &
-                       COL=Input_Opt%DIAG_COLLECTION ) 
+                CALL Diagn_Get( am_I_Root, HcoState, .FALSE., DgnCont, &
+                                FLAG, ERR, cID=DgnID, AutoFill=-1,     &
+                                COL=Input_Opt%DIAG_COLLECTION ) 
 
                 ! Error check 
                 ASSERT_( ERR == HCO_SUCCESS )
@@ -3726,341 +3731,6 @@ CONTAINS
     RC = ESMF_SUCCESS
 
   END SUBROUTINE FillAeroDP 
-!EOC
-!------------------------------------------------------------------------------
-!     NASA/GSFC, Global Modeling and Assimilation Office, Code 910.1 and      !
-!          Harvard University Atmospheric Chemistry Modeling Group            !
-!------------------------------------------------------------------------------
-!BOP
-!
-! !IROUTINE: RoundOff
-!
-! !DESCRIPTION: Rounds a number X to N decimal places of precision.
-!\\
-!\\
-! !INTERFACE:
-!
-  FUNCTION RoundOff( X, N ) RESULT( Y )
-!
-! !INPUT PARAMETERS:
-! 
-    REAL*8,  INTENT(IN) :: X   ! Number to be rounded
-    INTEGER, INTENT(IN) :: N   ! Number of decimal places to keep
-!
-! !RETURN VALUE:
-!
-    REAL*8              :: Y   ! Number rounded to N decimal places
-!
-! !REMARKS:
-!  The algorithm to round X to N decimal places is as follows:
-!  (1) Multiply X by 10**(N+1)
-!  (2) If X < 0, then add -5 to X; otherwise add 5 to X
-!  (3) Round X to nearest integer
-!  (4) Divide X by 10**(N+1)
-!  (5) Truncate X to N decimal places: INT( X * 10**N ) / 10**N
-!                                                                             .
-!  Rounding algorithm from: Hultquist, P.F, "Numerical Methods for Engineers 
-!   and Computer Scientists", Benjamin/Cummings, Menlo Park CA, 1988, p. 20.
-!                                                                             .
-!  Truncation algorithm from: http://en.wikipedia.org/wiki/Truncation
-!                                                                             .
-!  The two algorithms have been merged together for efficiency.
-!
-! !REVISION HISTORY:
-!  14 Jul 2010 - R. Yantosca - Initial version
-!EOP
-!------------------------------------------------------------------------------
-!BOC
-!
-! !LOCAL VARIABLES
-!
-    ! Round and truncate X to N decimal places
-    Y = INT( NINT( X*(10d0**(N+1)) + SIGN( 5d0, X ) ) / 10d0 ) / (10d0**N)
-
-  END FUNCTION RoundOff
-!EOC
-!------------------------------------------------------------------------------
-!          Harvard University Atmospheric Chemistry Modeling Group            !
-!------------------------------------------------------------------------------
-!BOP
-!
-! !IROUTINE: print_mean_oh
-!
-! !DESCRIPTION: Subroutine Print\_Mean\_OH prints the average mass-weighted OH 
-!  concentration at the end of a simulation.
-!\\
-!\\
-! !INTERFACE:
-!
-  SUBROUTINE Print_Mean_OH( GC, logLun, airMass, ohMass, RC )
-!
-! !INPUT PARAMETERS:
-!
-    TYPE(ESMF_GridComp), INTENT(INOUT) :: GC             ! Ref to this GridComp
-
-    INTEGER,             INTENT(IN)    :: logLun         ! LUN for stdout print
-    REAL,     POINTER,   INTENT(IN)    :: airMass(:,:,:) ! Air mass [molec air]
-    REAL,     POINTER,   INTENT(IN)    :: ohMass (:,:,:) ! Mass-weighted OH
-                                                         !  [molec OH/cm3 * 
-                                                         !   molec air]
-!
-! !INPUT PARAMETERS:
-!
-    INTEGER,             INTENT(OUT)   :: RC             ! Return code
-!
-! !REMARKS:
-!  The AIRMASS and OHMASS variables are used to pass the data values from the 
-!  ESMF state, which is REAL*4.  We need to make sure that we do not store into
-!  the ESMF state any values that exceed 1e38, which is the maximum allowable 
-!  value.  Therefore, AIRMASS and OHMASS will store the values divided by the
-!  scale factor OH_SCALE = 1d20 in order to prevent this overflow situation.
-!
-! !REVISION HISTORY: 
-!  01 Jul 2010 - R. Yantosca - Initial version
-!EOP
-!------------------------------------------------------------------------------
-!BOC
-!
-! !LOCAL VARIABLES
-!
-    CHARACTER(LEN=ESMF_MAXSTR) :: compName      ! Name of gridded component
-    REAL*8                     :: SUM_OHMASS   
-    REAL*8                     :: SUM_MASS   
-    REAL*8                     :: OHCONC
- 
-    __Iam__('Print_Mean_OH')
-
-    !=======================================================================
-    ! Initialization
-    !=======================================================================
-
-    ! Traceback info
-    CALL ESMF_GridCompGet( GC, name=compName, __RC__ )
-    Iam = TRIM(compName)//'::Print_Mean_OH'
- 
-    !=======================================================================
-    ! Print mean OH values
-    !=======================================================================
-    
-    ! Total Mass-weighted OH [molec OH/cm3] * [molec air]
-    SUM_OHMASS = GlobalSum( GC, ohMass,  __RC__ )
-
-    ! Atmospheric air mass [molec air]
-    SUM_MASS   = GlobalSum( GC, airMass, __RC__ )
-
-    ! Restore proper values by applying the OH scale factor
-    ! (This is necessary in order avoid overflow)
-    SUM_OHMASS = SUM_OHMASS * OH_SCALE
-    SUM_MASS   = SUM_MASS   * OH_SCALE
-
-    ! Avoid divide-by-zero errors 
-    IF ( SUM_MASS > 0d0 ) THEN 
-            
-       ! Divide OH by [molec air] and report as [1e5 molec/cm3]
-       OHCONC = ( SUM_OHMASS / SUM_MASS ) / 1d5
-         
-       ! Write value to log file
-       WRITE( logLun, '(/,a)' ) REPEAT( '=', 79 ) 
-       WRITE( logLun, *       ) 'Mass-Weighted OH Concentration'
-       WRITE( logLun, *       ) 'Mean OH = ', OHCONC, ' [1e5 molec/cm3]' 
-       WRITE( logLun, '(  a)' ) REPEAT( '=', 79 ) 
-
-    ELSE
-
-       ! Write error msg if SUM_MASS is zero
-       WRITE( logLun, '(/,a)' ) REPEAT( '=', 79 ) 
-       WRITE( logLun, '(  a)' ) 'Could not print mass-weighted OH!'
-       WRITE( logLun, '(  a)' ) 'Atmospheric air mass is zero!'
-       WRITE( logLun, '(  a)' ) REPEAT( '=', 79 ) 
-       
-    ENDIF
-
-  END SUBROUTINE Print_Mean_OH
-!EOC
-!------------------------------------------------------------------------------
-!          Harvard University Atmospheric Chemistry Modeling Group            !
-!------------------------------------------------------------------------------
-!BOP
-!
-! !IROUTINE: GlobalSum
-!
-! !DESCRIPTION: Subroutine GlobalSum prints the sum (or minimum, or maximum)
-!  of an array across all PETs.  Calls the ESMF_VMAllFullReduce function
-!  to do the array reduction.  The default is to compute the array sum
-!  unless MINIMUM=.TRUE. or MAXIMUM=.TRUE.
-!\\
-!\\
-! !INTERFACE:
-!
-  FUNCTION GlobalSum( GC, dataPtr, minimum, maximum, RC ) RESULT( value )
-!
-! !INPUT PARAMETERS:
-!
-    TYPE(ESMF_GridComp), INTENT(INOUT) :: GC              ! Gridcomp name
-    REAL,    POINTER,    INTENT(IN)    :: dataPtr(:,:,:)  ! Data array
-    LOGICAL, OPTIONAL,   INTENT(IN)    :: minimum         ! Compute minimum?
-    LOGICAL, OPTIONAL,   INTENT(IN)    :: maximum         ! Compute maximum?
-!
-! !OUTPUT PARAMETERS:
-!
-    INTEGER,             INTENT(OUT)   :: RC              ! Return code
-!
-! !RETURN VALUE:
-!
-    REAL                               :: value           ! Sum, max, or min
-! 
-! !REVISION HISTORY: 
-!  01 Jul 2010 - R. Yantosca - Initial version
-!EOP
-!------------------------------------------------------------------------------
-!BOC
-!
-! !LOCAL VARIABLES
-!
-    ! Objects
-    TYPE(ESMF_VM)              :: VM            ! ESMF VM object
-
-    ! Scalars
-    INTEGER                    :: nSize         ! Size of 3-D array
-    CHARACTER(LEN=ESMF_MAXSTR) :: compName      ! Gridded component name
-    __Iam__('GlobalSum')
-
-    ! Arrays 
-    REAL, ALLOCATABLE          :: data1d(:)     ! 1-D array for reduction
-
-    !=======================================================================
-    ! Initialization
-    !=======================================================================
-
-    ! Traceback info
-    CALL ESMF_GridCompGet( GC, name=compName, vm=VM, __RC__ )
-    Iam = TRIM(compName)//'::GlobalSum'
-
-    !=======================================================================
-    ! Do the reduction operation across all CPU's: sum, max, or min
-    !=======================================================================
-
-    ! Create a 1-D vector
-    nSize = SIZE( dataPtr )
-    ALLOCATE( data1d( nSize ), STAT=STATUS )
-    VERIFY_(STATUS)
-
-    ! Rearrange into a 1-D array
-    data1d = RESHAPE( dataPtr, (/1/) )
-    
-    ! Compute the sum over all PETS
-    IF ( PRESENT( maximum ) ) THEN
-       CALL ESMF_VMAllFullReduce( VM, data1d, value, nSize,   &
-                                  ESMF_REDUCE_MAX, __RC__ )
-    ELSE IF ( PRESENT( minimum ) ) THEN
-       CALL ESMF_VMAllFullReduce( VM, data1d, value, nSize,   &
-                                  ESMF_REDUCE_MIN, __RC__ )
-    ELSE 
-       CALL ESMF_VMAllFullReduce( VM, data1d, value, nSize,   &
-                                  ESMF_REDUCE_SUM, __RC__ )
-    ENDIF
-
-    ! Deallocate temporary array
-    IF( ALLOCATED( data1D ) ) DEALLOCATE( data1d )
-
-  END FUNCTION GlobalSum
-!EOC
-!------------------------------------------------------------------------------
-!          Harvard University Atmospheric Chemistry Modeling Group            !
-!------------------------------------------------------------------------------
-!BOP
-!
-! !IROUTINE: gridGetInterior
-!
-! !DESCRIPTION: Given an ESMF grid, returns the lower and upper longitude
-!  and latitude indices on a given PET.
-!\\
-!\\
-! !INTERFACE:
-!
-    SUBROUTINE GridGetInterior( Grid, I1, IN, J1, JN, RC )
-!
-! !INPUT PARAMETERS: 
-!
-    TYPE(ESMF_Grid), INTENT(IN)  :: Grid   ! ESMF Grid object
-!
-! !OUTPUT PARAMETERS:
-!
-    INTEGER,         INTENT(OUT) :: I1     ! Lower lon index on this PET
-    INTEGER,         INTENT(OUT) :: IN     ! Upper lon index on this PET
-    INTEGER,         INTENT(OUT) :: J1     ! Lower lat index on this PET
-    INTEGER,         INTENT(OUT) :: JN     ! Upper lat index on this PET
-    INTEGER,         INTENT(OUT) :: RC     ! Success/failure
-!
-! !REMARKS:
-!  This was a PRIVATE routine named MAPL_GridGetInterior within MAPL_Base.F90.
-!  I have pulled the source code from there.
-! 
-! !REVISION HISTORY: 
-!  30 Nov 2012 - R. Yantosca - Initial version, based on MAPL_Base
-!EOP
-!------------------------------------------------------------------------------
-!BOC
-!
-! !LOCAL VARIABLES:
-!
-    TYPE(ESMF_DistGrid)             :: distGrid
-    TYPE(ESMF_DELayout)             :: LAYOUT
-    INTEGER,            ALLOCATABLE :: AL(:,:)
-    INTEGER,            ALLOCATABLE :: AU(:,:)
-    INTEGER                         :: nDEs
-    INTEGER                         :: deId
-    INTEGER                         :: gridRank
-    INTEGER                         :: deList(1)
-
-    ! Identify this routine to MAPL
-    __Iam__('GridGetInterior')
-
-    ! Get ESMF DistGrid object
-    CALL ESMF_GridGet    ( GRID,                           &
-                           dimCount        = gridRank,     &
-                           distGrid        = distGrid,     &
-                           __RC__ )                    
- 
-    ! Get ESMF DELayout object
-    CALL ESMF_DistGridGet( distGrid,                       &
-                           delayout        = layout,       &
-                           __RC__ )                    
-                                                       
-                
-    ! Get the # of DE's and the list of DE's
-    CALL ESMF_DELayoutGet( layout,                         &
-                           deCount         = nDEs,         &
-                           localDeList     = deList,       &
-                           __RC__ )
-
-    deId = deList(1)
-
-    ! Allocate memory
-    ALLOCATE( AL( gridRank, 0:nDEs-1 ), stat=status )
-    ALLOCATE( AU( gridRank, 0:nDEs-1 ), stat=status )
-
-    ! Get the min/max lon/lat values on each PET
-    CALL ESMF_DistGridGet( distGrid,                       &
-                           minIndexPDe = AL,               &
-                           maxIndexPDe = AU,               &
-                           __RC__ )
-
-    ! Local Lon indices
-    I1 = AL( 1, deId )   ! Lower
-    IN = AU( 1, deId )   ! Upper
-
-    ! Local lat indices
-    J1 = AL( 2, deId )   ! Lower
-    JN = AU( 2, deId )   ! Upper
- 
-    ! Free memory
-    DEALLOCATE(AU, AL)
-   
-    ! Return successfully
-    RC = GC_SUCCESS
-
-  END SUBROUTINE GridGetInterior
 !EOC
 END MODULE Chem_GridCompMod
  
