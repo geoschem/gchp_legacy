@@ -299,7 +299,11 @@ CONTAINS
     USE Pressure_Mod,       ONLY : Accept_External_Pedge
     USE State_Chm_Mod,      ONLY : IND_
     USE Time_Mod,           ONLY : Accept_External_Date_Time
-    Use UnitConv_Mod,       ONLY : Convert_Spc_Units, Set_SpcConc_Diagnostic
+    Use UnitConv_Mod,       ONLY : Convert_Spc_Units
+
+    ! Diagnostics
+    USE UnitConv_Mod,       ONLY : Set_SpcConc_Diagnostic
+
 !
 ! !INPUT PARAMETERS:
 !
