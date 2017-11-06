@@ -23,9 +23,6 @@ MODULE GIGC_Mpi_Wrap
 ! !PUBLIC MEMBER FUNCTIONS:
 !
   PUBLIC :: GIGC_Input_Bcast
-!ewl  PUBLIC :: GIGC_Bcast_Char 
-!ewl  PUBLIC :: GIGC_Bcast_Int
-!ewl  PUBLIC :: GIGC_Bcast_Real8
   PUBLIC :: mpiComm
 !
 ! !REMARKS:
@@ -98,6 +95,9 @@ CONTAINS
 !  18 Mar 2013 - R. Yantosca - Mow MPI Bcast the Input_Opt%LINOZ_* fields
 !  11 Apr 2013 - R. Yantosca - Now MPI Bcast extra fields in Input_Opt
 !  03 Jun 2013 - R. Yantosca - Now MPI Bcast the GAMMA_HO2 field of Input_Opt
+!  06 Nov 2017 - E. Lundgren - Ongoing updates to keep Input_Opt list
+!                              up-to-date with GEOS-Chem base code - see git
+!                              history for all future updates of this sort
 !EOP
 !------------------------------------------------------------------------------
 !BOC
@@ -697,8 +697,6 @@ CONTAINS
     ! DRYDEP and DUST fields from input.geos
     !----------------------------------------
     CALL MPI_Bcast( INPUT_OPT%N_DUST_BINS, 1, mpi_integer,   0, mpiComm, RC )
- !   CALL MPI_Bcast( INPUT_OPT%NUMDEP,   1,         mpi_integer,   0, mpiComm, RC )
- !   CALL MPI_Bcast( INPUT_OPT%NDVZIND,  Input_Opt%MAX_DEP,   mpi_integer,   0, mpiComm, RC )
 
     !----------------------------------------
     ! GEOS-5 GCM INTERFACE fields
@@ -734,159 +732,11 @@ CONTAINS
     CALL MPI_Bcast(INPUT_OPT%DIAG_COLLECTION, 1, mpi_integer, 0, mpiComm, RC)
     CALL MPI_Bcast(INPUT_OPT%GC_RST_COLLECTION, 1, mpi_integer, 0, mpiComm, RC)
 
-    ! ewl debugging - diagnostics
+    ! Diagnostics - hard-code for now until update in GC classic
     Input_Opt%HistoryInputFile = './HISTORY.rc'
     CALL MPI_Bcast( INPUT_OPT%HistoryInputFile, 3, mpi_character, 0, &
                     mpiComm, RC )
 
   END SUBROUTINE GIGC_Input_Bcast
-!EOC
-!!------------------------------------------------------------------------------
-!!          Harvard University Atmospheric Chemistry Modeling Group            !
-!!------------------------------------------------------------------------------
-!!BOP
-!!
-!! !IROUTINE: gigc_bcast_char
-!!
-!! !DESCRIPTION: Wrapper routine to do an MPI broadcast operation on
-!!  a CHARACTER string variable.
-!!\\
-!!\\
-!! !INTERFACE:
-!!
-!  SUBROUTINE GIGC_Bcast_Char( VAL, SIZE, RC )
-!!
-!! !USES:
-!!
-!    USE Errcode_Mod
-!    USE M_MPIF
-!!
-!! !INPUT PARAMETERS:
-!!
-!    INTEGER,      INTENT(IN)    :: SIZE     ! # of characters
-!!
-!! !INPUT/OUTPUT PARAMETERS:
-!!
-!    CHARACTER(*), INTENT(INOUT) :: VAL(:)   ! Character string
-!
-!!
-!! !OUTPUT PARAMETERS:
-!!
-!    INTEGER,      INTENT(OUT)   :: RC       ! Success or failure?
-!!
-!! !REMARKS:
-!!  Mostly experimental.
-!!
-!! !REVISION HISTORY:
-!!  04 Jan 2013 - M. Long     - Initial version
-!!  07 Mar 2013 - R. Yantosca - Added ProTeX header
-!!EOP
-!!------------------------------------------------------------------------------
-!!BOC
-!    
-!    ! Assume success
-!    RC = GC_SUCCESS
-!
-!    ! Do MPI broadcast
-!    CALL MPI_Bcast( VAL, SIZE, mpi_character, 0, mpiComm, RC )
-!    
-!  END SUBROUTINE GIGC_Bcast_Char
-!!EOC
-!!------------------------------------------------------------------------------
-!!          Harvard University Atmospheric Chemistry Modeling Group            !
-!!------------------------------------------------------------------------------
-!!BOP
-!!
-!! !IROUTINE: gigc_bcast_int
-!!
-!! !DESCRIPTION: Wrapper routine to do an MPI broadcast operation on
-!!  an INTEGER variable.
-!!\\
-!!\\
-!! !INTERFACE:
-!!
-!  SUBROUTINE GIGC_Bcast_Int( VAL, SIZE, RC )
-!!
-!! !USES:
-!!
-!    USE Errcode_Mod
-!    USE M_MPIF
-!!
-!! !INPUT PARAMETERS:
-!!
-!    INTEGER, INTENT(IN)    :: SIZE        ! Size of variable to be broadcasted
-!!
-!! !INPUT/OUTPUT PARAMETERS:
-!!
-!    INTEGER, INTENT(INOUT) :: VAL(SIZE)   ! Variable to be broadcasted
-!!
-!! !OUTPUT PARAMETERS:
-!!
-!    INTEGER, INTENT(OUT)   :: RC          ! Success or failure?
-!!
-!! !REMARKS:
-!!  Mostly experimental
-!!
-!! !REVISION HISTORY:
-!!  04 Jan 2013 - M. Long     - Initial version
-!!  07 Mar 2013 - R. Yantosca - Added ProTeX header
-!!EOP
-!!------------------------------------------------------------------------------
-!!BOC
-!
-!    RC = GC_SUCCESS
-!    
-!    CALL MPI_Bcast( VAL, SIZE, mpi_integer, 0, mpiComm, RC )
-!    
-!  END SUBROUTINE GIGC_Bcast_Int
-!!EOC
-!!------------------------------------------------------------------------------
-!!          Harvard University Atmospheric Chemistry Modeling Group            !
-!!------------------------------------------------------------------------------
-!!BOP
-!!
-!! !IROUTINE: gigc_bcast_real8
-!!
-!! !DESCRIPTION: Wrapper routine to do an MPI broadcast operation on
-!!  an REAL*8 variable.
-!!\\
-!!\\
-!! !INTERFACE:
-!!
-!  SUBROUTINE GIGC_Bcast_Real8( VAL, SIZE, RC )
-!!
-!! !USES:
-!!
-!    USE Errcode_Mod
-!    USE M_MPIF
-!!
-!! !INPUT PARAMETERS:
-!!
-!    INTEGER, INTENT(IN)    :: SIZE        ! Size of variable to be broadcast
-!! 
-!! !INPUT/OUTPUT PARAMETERS:
-!!
-!    REAL*8,  INTENT(INOUT) :: VAL(SIZE)   ! Variable to be broadcast
-!!
-!! !OUTPUT PARAMETERS:
-!!
-!    INTEGER, INTENT(OUT)   :: RC          ! Success or failure?
-!!
-!! !REMARKS:
-!!  Mostly experimental
-!!
-!! !REVISION HISTORY:
-!!  04 Jan 2013 - M. Long     - Initial version
-!!  07 Mar 2013 - R. Yantosca - Added ProTeX header
-!!EOP
-!!------------------------------------------------------------------------------
-!!BOC
-!    
-!    RC = GC_SUCCESS
-!    
-!    CALL MPI_Bcast( VAL, SIZE, mpi_real8, 0, mpiComm, RC )
-!    
-!  END SUBROUTINE GIGC_Bcast_Real8
-!!EOC
 END MODULE GIGC_Mpi_Wrap
 #endif

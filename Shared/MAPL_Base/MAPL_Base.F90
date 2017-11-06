@@ -30,6 +30,7 @@ public MAPL_FieldCreateEmpty
 public MAPL_FieldGetTime
 public MAPL_FieldSetTime
 public MAPL_GridGet
+public MAPL_GridGetInterior
 public MAPL_IncYMD
 public MAPL_Interp_Fac
 public MAPL_LatLonGridCreate   ! Creates regular Lat/Lon ESMF Grids

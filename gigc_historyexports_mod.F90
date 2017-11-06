@@ -228,6 +228,12 @@ CONTAINS
           CYCLE
        ENDIF
 
+       ! Skip emissions diagnostics since handled by HEMCO
+       IF ( INDEX( current%name,  'EMIS' ) == 1 ) THEN
+          current => current%next
+          CYCLE
+       ENDIF
+
        ! Check history exports list to see if already added (unless wildcard)
        ! TODO: consider making the call a function that returns a logical
        IF ( .NOT. current%isWildcard ) THEN
@@ -661,14 +667,17 @@ CONTAINS
 !\\
 ! !INTERFACE:
 !
-  SUBROUTINE CopyGCStates2Exports( am_I_Root, HistoryConfig, RC )
+  SUBROUTINE CopyGCStates2Exports( am_I_Root, Input_Opt, HistoryConfig, RC )
 !
 ! !USES:
 !
+  USE HCOI_GC_Main_Mod, ONLY : HCOI_GC_WriteDiagn
+  USE Input_Opt_Mod,    ONLY : OptInput
 !
 ! !INPUT PARAMETERS:
 !
-    LOGICAL,             INTENT(IN) :: am_I_Root
+    LOGICAL,        INTENT(IN)    :: am_I_Root
+    TYPE(OptInput), INTENT(IN)    :: Input_Opt
 !
 ! !INPUT AND OUTPUT PARAMETERS:
 !
@@ -682,6 +691,7 @@ CONTAINS
 !  !
 ! !REVISION HISTORY: 
 !  01 Sep 2017 - E. Lundgren - Initial version
+!  02 Nov 2017 - E. Lundgren - Copy HEMCO data to emissions exports
 !EOP
 !------------------------------------------------------------------------------
 !BOC
@@ -722,6 +732,8 @@ CONTAINS
     ENDDO
     current => NULL()
 
+    ! Copy emissions data to MAPL exports via HEMCO
+    CALL HCOI_GC_WriteDiagn( am_I_Root, Input_Opt, .FALSE., RC )
     
   END SUBROUTINE CopyGCStates2Exports
 !EOC

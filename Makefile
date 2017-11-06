@@ -354,7 +354,8 @@ Chem_GridCompMod.o          : Chem_GridCompMod.F90                          \
 			      gigc_chunk_mod.o                              \
                               gigc_historyexports_mod.o                     \
                               gigc_types_mod.o                              \
-                              gchp_utils.o   
+                              gchp_utils.o                                  \
+                              gigc_providerservices_mod.o
 
 GIGC_GridCompMod.o          : GIGC_GridCompMod.F90                          \
                               Chem_GridCompMod.o                            \
@@ -373,6 +374,8 @@ gigc_initialization_mod.o   : gigc_initialization_mod.F90                   \
                               gigc_mpi_wrap.o
 
 gigc_mpi_wrap.o             : gigc_mpi_wrap.F90
+
+gigc_providerservices_mod.o : gigc_providerservices_mod.F90
 
 gigc_types_mod.o            : gigc_types_mod.F90
 
