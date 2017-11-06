@@ -585,8 +585,6 @@ CONTAINS
     CALL COMPUTE_PBL_HEIGHT( State_Met )
 
     ! Convert species conc units to kg/kg dry prior to Phase 1/2 calls
-    ! Should this be done earlier up, like right at the beginning?
-    ! ewl debugging
     CALL Convert_Spc_Units( am_I_Root, Input_Opt, State_Met, State_Chm, &
                             'kg/kg dry', RC )
     
@@ -773,18 +771,19 @@ CONTAINS
     ENDIF
 
     !=======================================================================
-    ! Clean up
+    ! Diagnostics
     !=======================================================================
 
-    ! ewl testing
+    ! Set species concentration diagnostic array
     IF ( Phase == 2 ) THEN
-       ! Set species concentration diagnostic array using the 
-       ! the units stored in the State_Diag metadata for 'SpeciesConc'
-       CALL Set_SpcConc_Diagnostic( am_I_Root, 'SpeciesConc',         &
-                                     State_Diag%SpeciesConc,          &
-                                     Input_Opt, State_Met, State_Chm, &
-                                     RC )
+       CALL Set_SpcConc_Diagnostic( am_I_Root, 'SpeciesConc',            &
+                                    State_Diag%SpeciesConc,              &
+                                    Input_Opt, State_Met, State_Chm, RC )
     ENDIF
+
+    !=======================================================================
+    ! Clean up
+    !=======================================================================
 
     ! testing only
     IF ( PHASE /= 1 .AND. NCALLS < 10 ) NCALLS = NCALLS + 1 
