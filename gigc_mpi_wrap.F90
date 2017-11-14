@@ -144,7 +144,6 @@ CONTAINS
                     mpi_character, 0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%DATA_DIR_1x1, len(INPUT_OPT%DATA_DIR_1x1),   &
                     mpi_character, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%LVARTROP,  1, mpi_logical, 0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%NESTED_I0, 1, mpi_integer, 0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%NESTED_J0, 1, mpi_integer, 0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%HcoConfigFile, len(INPUT_OPT%HcoConfigFile), &

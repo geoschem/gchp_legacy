@@ -427,13 +427,14 @@ CONTAINS
     ! to initialize other modules (e.g. carbon_mod.F, dust_mod.F, 
     ! seasalt_mod.F,  sulfate_mod.F).  We needed to move these init 
     ! calls out of the run stage and into the init stage. (bmy, 3/4/13)
-    CALL GC_Init_Extra( am_I_Root, Input_Opt, State_Chm, State_Diag, RC ) 
+    CALL GC_Init_Extra( am_I_Root, HistoryConfig%DiagList, Input_Opt,    &
+                        State_Chm, State_Diag, RC ) 
     IF ( RC /= GC_SUCCESS ) RETURN
 
     ! Initialize photolysis
     IF ( Input_Opt%ITS_A_FULLCHEM_SIM .OR.                     &
          Input_Opt%ITS_AN_AEROSOL_SIM ) THEN
-       CALL INIT_FJX( am_I_Root, Input_Opt, RC )  ! Are we on the root CPU?
+       CALL INIT_FJX( am_I_Root, Input_Opt, State_Diag, RC ) 
        IF ( RC /= GC_SUCCESS ) RETURN
        
        !### Debug
@@ -457,7 +458,7 @@ CONTAINS
     CALL Init_Pressure( am_I_Root )
 
     ! Initialize the PBL mixing module
-    CALL Init_PBL_Mix()
+    CALL Init_PBL_Mix( am_I_Root, RC )
 
     !=======================================================================
     ! Initialize dry deposition 
@@ -470,7 +471,6 @@ CONTAINS
           CALL DEBUG_MSG( '### GIGC_INIT_SIMULATION: initialize drydep' )
        ENDIF
     ENDIF
-
     
     !=======================================================================
     ! Initialize chemistry mechanism
@@ -480,7 +480,7 @@ CONTAINS
     ! of the variables are used for non-local PBL mixing BEFORE 
     ! the first call of the chemistry routines (ckeller, 05/19/14).
     IF ( Input_Opt%ITS_A_FULLCHEM_SIM .OR. Input_Opt%ITS_AN_AEROSOL_SIM ) THEN
-       CALL INIT_CHEMISTRY ( am_I_Root, Input_Opt, State_Chm, RC )
+       CALL INIT_CHEMISTRY ( am_I_Root, Input_Opt, State_Chm, State_Diag, RC )
     ENDIF
 
     ! If we are doing chemistry ...
