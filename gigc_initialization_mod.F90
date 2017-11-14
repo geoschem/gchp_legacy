@@ -1,3 +1,4 @@
+
 #if defined( ESMF_ )
 !------------------------------------------------------------------------------
 !          Harvard University Atmospheric Chemistry Modeling Group            !
@@ -459,6 +460,7 @@ CONTAINS
 
     ! Initialize the PBL mixing module
     CALL Init_PBL_Mix( am_I_Root, RC )
+    IF ( RC /= GC_SUCCESS ) RETURN
 
     !=======================================================================
     ! Initialize dry deposition 
@@ -481,6 +483,7 @@ CONTAINS
     ! the first call of the chemistry routines (ckeller, 05/19/14).
     IF ( Input_Opt%ITS_A_FULLCHEM_SIM .OR. Input_Opt%ITS_AN_AEROSOL_SIM ) THEN
        CALL INIT_CHEMISTRY ( am_I_Root, Input_Opt, State_Chm, State_Diag, RC )
+       IF ( RC /= GC_SUCCESS ) RETURN
     ENDIF
 
     ! If we are doing chemistry ...
@@ -488,6 +491,7 @@ CONTAINS
        
        ! Allocate array of overhead O3 columns for TOMS
        CALL INIT_TOMS( am_I_Root, Input_Opt, RC )
+       IF ( RC /= GC_SUCCESS ) RETURN
 
        !### Debug
        IF ( prtDebug ) THEN

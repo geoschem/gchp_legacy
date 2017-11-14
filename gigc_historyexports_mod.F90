@@ -85,18 +85,22 @@ MODULE GIGC_HistoryExports_Mod
      ! TODO: for now, include all possible data types in the registry. 
      REAL,     POINTER :: ExportData2d(:,:)
      REAL,     POINTER :: ExportData3d(:,:,:)
-     REAL(fp), POINTER :: GCStateData0d         
-     REAL(fp), POINTER :: GCStateData1d(:)      
-     REAL(fp), POINTER :: GCStateData2d(:,:)     
-     REAL(fp), POINTER :: GCStateData3d(:,:,:)   
-     REAL(f4), POINTER :: GCStateData0d_4        
-     REAL(f4), POINTER :: GCStateData1d_4(:)     
-     REAL(f4), POINTER :: GCStateData2d_4(:,:)   
+     REAL(fp), POINTER :: GCStateData0d
+     REAL(fp), POINTER :: GCStateData1d(:)
+     REAL(fp), POINTER :: GCStateData2d(:,:)
+     REAL(fp), POINTER :: GCStateData3d(:,:,:)
+     REAL(f4), POINTER :: GCStateData0d_4
+     REAL(f4), POINTER :: GCStateData1d_4(:)
+     REAL(f4), POINTER :: GCStateData2d_4(:,:)
      REAL(f4), POINTER :: GCStateData3d_4(:,:,:) 
-     INTEGER,  POINTER :: GCStateData0d_I        
-     INTEGER,  POINTER :: GCStateData1d_I(:)     
-     INTEGER,  POINTER :: GCStateData2d_I(:,:)   
-     INTEGER,  POINTER :: GCStateData3d_I(:,:,:) 
+     REAL(f8), POINTER :: GCStateData0d_8
+     REAL(f8), POINTER :: GCStateData1d_8(:)
+     REAL(f8), POINTER :: GCStateData2d_8(:,:)
+     REAL(f8), POINTER :: GCStateData3d_8(:,:,:)
+     INTEGER,  POINTER :: GCStateData0d_I
+     INTEGER,  POINTER :: GCStateData1d_I(:)
+     INTEGER,  POINTER :: GCStateData2d_I(:,:)
+     INTEGER,  POINTER :: GCStateData3d_I(:,:,:)
 
   END TYPE HistoryExportObj
 !
@@ -412,6 +416,10 @@ CONTAINS
     NewHistExp%GCStateData1d_4 => NULL()
     NewHistExp%GCStateData2d_4 => NULL()
     NewHistExp%GCStateData3d_4 => NULL()
+    NewHistExp%GCStateData0d_8 => NULL()
+    NewHistExp%GCStateData1d_8 => NULL()
+    NewHistExp%GCStateData2d_8 => NULL()
+    NewHistExp%GCStateData3d_8 => NULL()
     NewHistExp%GCStateData0d_I => NULL()
     NewHistExp%GCStateData1d_I => NULL()
     NewHistExp%GCStateData2d_I => NULL()
@@ -714,6 +722,8 @@ CONTAINS
              current%ExportData2d = current%GCStateData2d
           ELSEIF ( ASSOCIATED ( current%GCStateData2d_4 ) ) THEN
              current%ExportData2d = current%GCStateData2d_4
+          ELSEIF ( ASSOCIATED ( current%GCStateData2d_8 ) ) THEN
+             current%ExportData2d = current%GCStateData2d_8
           ELSEIF ( ASSOCIATED ( current%GCStateData2d_I ) ) THEN
              ! Convert integer to float (integers not allowed in MAPL exports)
              current%ExportData2d = FLOAT(current%GCStateData2d_I)
@@ -723,6 +733,8 @@ CONTAINS
              current%ExportData3d = current%GCStateData3d
           ELSEIF ( ASSOCIATED ( current%GCStateData3d_4 ) ) THEN
              current%ExportData3d = current%GCStateData3d_4
+          ELSEIF ( ASSOCIATED ( current%GCStateData3d_8 ) ) THEN
+             current%ExportData3d = current%GCStateData3d_8
           ELSEIF ( ASSOCIATED ( current%GCStateData3d_I ) ) THEN
              current%ExportData3d = FLOAT(current%GCStateData3d_I)
           ENDIF
@@ -866,7 +878,7 @@ CONTAINS
     ! ================================================================
     ! HistoryExports_SetDataPointers begins here
     ! ================================================================
-    __Iam__('HistoryExports_SetDataPointers (gigc_historyexports_mod.F90)')
+    __Iam__('HistoryExports_SetDataPointers')
 
     IF ( am_I_Root ) THEN
        WRITE(6,*) " "
@@ -886,9 +898,11 @@ CONTAINS
                                 Variable  = current%registryID,      &
                                 Ptr2d     = current%GCStateData2d,   &
                                 Ptr2d_4   = current%GCStateData2d_4, &
+                                Ptr2d_8   = current%GCStateData2d_8, &
                                 Ptr2d_I   = current%GCStateData2d_I, &
                                 Ptr3d     = current%GCStateData3d,   &
                                 Ptr3d_4   = current%GCStateData3d_4, &
+                                Ptr3d_8   = current%GCStateData3d_8, &
                                 Ptr3d_I   = current%GCStateData3d_I, &
                                 RC        = RC                      )
        ELSEIF ( current%isChem ) THEN
@@ -898,9 +912,11 @@ CONTAINS
                                 Variable  = current%registryID,      &
                                 Ptr2d     = current%GCStateData2d,   &
                                 Ptr2d_4   = current%GCStateData2d_4, &
+                                Ptr2d_8   = current%GCStateData2d,   &
                                 Ptr2d_I   = current%GCStateData2d_I, &
                                 Ptr3d     = current%GCStateData3d,   &
                                 Ptr3d_4   = current%GCStateData3d_4, &
+                                Ptr3d_8   = current%GCStateData3d,   &
                                 Ptr3d_I   = current%GCStateData3d_I, &
                                 RC        = RC                      )
        ELSEIF ( current%isDiag ) THEN
@@ -910,9 +926,11 @@ CONTAINS
                                 Variable  = current%registryID,      &
                                 Ptr2d     = current%GCStateData2d,   &
                                 Ptr2d_4   = current%GCStateData2d_4, &
+                                Ptr2d_8   = current%GCStateData2d,   &
                                 Ptr2d_I   = current%GCStateData2d_I, &
                                 Ptr3d     = current%GCStateData3d,   &
                                 Ptr3d_4   = current%GCStateData3d_4, &
+                                Ptr3d_8   = current%GCStateData3d,   &
                                 Ptr3d_I   = current%GCStateData3d_I, &
                                 RC        = RC                      )
        ENDIF
