@@ -201,7 +201,7 @@ CONTAINS
 ! !LOCAL VARIABLES:
 !
     INTEGER               :: N, rank, vloc, type
-    CHARACTER(LEN=255)    :: ErrMsg, ThisLoc, desc, units, perSpecies
+    CHARACTER(LEN=255)    :: ErrMsg, ThisLoc, desc, units, tag
     LOGICAL               :: isMet, isChem, isDiag, found
     TYPE(HistoryExportObj),  POINTER :: NewHistExp
     TYPE(DgnItem),           POINTER :: current
@@ -233,6 +233,7 @@ CONTAINS
        ENDIF
 
        ! Skip emissions diagnostics since handled by HEMCO
+       ! Will need to revisit this since name may change
        IF ( INDEX( current%name,  'EMIS' ) == 1 ) THEN
           current => current%next
           CYCLE
@@ -251,7 +252,7 @@ CONTAINS
        ENDIF
 
        ! Get metadata using metadataID and state
-       ! If isSpecies, then append to description
+       ! If isTagged, then append to description
        ! If isWildcard, shouldn't get here
        ! The name of the export is simply name
        Found = .TRUE.
@@ -268,14 +269,12 @@ CONTAINS
           isCHEM = .TRUE.
           CALL Get_Metadata_State_Chm( am_I_Root, current%metadataID,     &
                                        Found, RC, desc=desc, units=units, &
-                                       perSpecies=perSpecies, rank=rank,  &
-                                       type=type, vloc=vloc )
+                                       rank=rank, type=type, vloc=vloc )
        ELSEIF ( TRIM(current%state) == 'DIAG' ) THEN
           isDIAG = .TRUE.
           CALL Get_Metadata_State_Diag( am_I_Root, current%metadataID,     &
                                         Found, Rc, desc=desc, units=units, &
-                                        perSpecies=perSpecies, rank=rank,  &
-                                        type=type, vloc=vloc )
+                                        rank=rank, type=type, vloc=vloc )
        ELSEIF ( TRIM(current%state) == 'GEOS5' ) THEN
           ! Skip it
           current => current%next
@@ -312,9 +311,11 @@ CONTAINS
           CYCLE
        ENDIF
 
-       ! If this item is for a specific species, append description
-       IF ( current%isSpecies ) THEN
-          desc = TRIM(desc) // " for species " // TRIM(current%Species)
+       ! If this item is for a specific tag, append description. 
+       ! This will need revisiting since there may be tag-dependent
+       ! strings to append to long names
+       IF ( current%isTagged ) THEN
+          desc = TRIM(desc) // " for " // TRIM(current%tag)
        ENDIF
 
        ! Create a new HistoryExportObj object
