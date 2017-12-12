@@ -1385,8 +1385,10 @@ CONTAINS
     ! Initialize from GC Classic restart file (see registry file)?
     !INTEGER                      :: InitGCC
 
-    ! Initialize variables used for reading Olson and MODIS LAI imports
+    ! Initialize variables used for reading Olson and MODIS LAI imports,
+    ! and setting land/water/ice index (State_Met%LWI)
     INTEGER            :: T, V, landTypeInt
+    INTEGER            :: IMAXLOC(1)
     CHARACTER(len=64)  :: landTypeStr, varName, importName
     REAL, POINTER      :: Ptr2d(:,:) => NULL()
 

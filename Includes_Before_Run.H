@@ -40,6 +40,7 @@
 !  19 Oct 2016 - R. Yantosca - Now avoid out of bounds errors.  Also reference
 !                              MAPL pointers to edged data with (:,:,0:LM).
 !  28 Sep 2017 - E. Lundgren - Remove the Monin-Obukhov Len (State_Met%MOLENGTH)
+!  12 Dec 2017 - E. Lundgren - Set State_Met%LWI from surface type fractions
 !EOP
 !------------------------------------------------------------------------------
 !BOC
@@ -62,7 +63,6 @@
   State_Met%GWETROOT            = GWETROOT                   ! 1
   State_Met%GWETTOP             = GWETTOP                    ! 1
   State_Met%LAI                 = LAI                        ! 1  
-  State_Met%LWI                 = LWI                        ! 1
   State_Met%OMEGA               = OMEGA                      ! Pa s-1
   State_Met%PARDR               = PARDR                      ! W/m2
   State_Met%PARDF               = PARDF                      ! W/m2
@@ -95,6 +95,17 @@
   State_Met%V                   = VLL                        ! m/s
   State_Met%V10M                = V10M                       ! m/s
   State_Met%Z0                  = Z0                         ! m
+
+  ! Set LWI based on land type fractions in imports: 0=water, 1=land, 2=ice
+  DO J=1,JM
+  DO I=1,IM
+     IMAXLOC = MAXLOC( (/ FRLAND(I,J) + FRLANDIC(I,J) + FRLAKE(I,J),  &
+                          FRSEAICE(I,J),                              &
+                          FROCEAN(I,J) - FRSEAICE(I,J) /) )
+     IF ( IMAXLOC(1) == 3 ) IMAXLOC(1) = 0 ! reset ocean to 0
+     State_Met%LWI(I,J) = FLOAT( IMAXLOC(1) )
+  ENDDO
+  ENDDO
 
   !=========================================================================
   ! Three-dimensional fields on level edges
