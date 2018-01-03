@@ -435,7 +435,7 @@ CONTAINS
     ! Initialize photolysis
     IF ( Input_Opt%ITS_A_FULLCHEM_SIM .OR.                     &
          Input_Opt%ITS_AN_AEROSOL_SIM ) THEN
-       CALL INIT_FJX( am_I_Root, Input_Opt, State_Diag, RC ) 
+       CALL INIT_FJX( am_I_Root, Input_Opt, State_Chm, State_Diag, RC ) 
        IF ( RC /= GC_SUCCESS ) RETURN
        
        !### Debug
