@@ -210,7 +210,7 @@ CONTAINS
     IF ( Input_Opt%LUCX ) THEN
 
        ! Initialize stratospheric routines
-       CALL INIT_UCX( am_I_Root, Input_Opt, State_Chm )
+       CALL INIT_UCX( am_I_Root, Input_Opt, State_Chm, State_Diag )
 
        ! Set simple initial tracer conditions
        CALL SET_INITIAL_MIXRATIOS( am_I_Root, Input_Opt, State_Met, State_Chm )
@@ -582,7 +582,7 @@ CONTAINS
                                     RC             = RC         )
 
     ! Compute PBL quantities
-    CALL COMPUTE_PBL_HEIGHT( State_Met )
+    CALL COMPUTE_PBL_HEIGHT( am_I_Root, State_Met, RC )
 
     ! Convert species conc units to kg/kg dry prior to Phase 1/2 calls
     CALL Convert_Spc_Units( am_I_Root, Input_Opt, State_Met, State_Chm, &
@@ -621,7 +621,8 @@ CONTAINS
        CALL MAPL_TimerOn( STATE, 'GC_CONV' )
 
        ! Do convection
-       CALL DO_CONVECTION ( am_I_Root, Input_Opt, State_Met, State_Chm, RC )
+       CALL DO_CONVECTION ( am_I_Root, Input_Opt, State_Met, State_Chm, &
+                            State_Diag, RC )
        ASSERT_(RC==GC_SUCCESS)
  
        CALL MAPL_TimerOff( STATE, 'GC_CONV' )
@@ -763,7 +764,8 @@ CONTAINS
        CALL MAPL_TimerOn( STATE, 'GC_WETDEP' )
 
        ! Do wet deposition
-       CALL DO_WETDEP( am_I_Root, Input_Opt, State_Met, State_Chm, RC )
+       CALL DO_WETDEP( am_I_Root, Input_Opt, State_Met, State_Chm,  &
+                       State_Diag, RC )
        ASSERT_(RC==GC_SUCCESS)
 
        CALL MAPL_TimerOff( STATE, 'GC_WETDEP' )
