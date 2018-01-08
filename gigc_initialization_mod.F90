@@ -1,5 +1,3 @@
-
-#if defined( ESMF_ )
 !------------------------------------------------------------------------------
 !          Harvard University Atmospheric Chemistry Modeling Group            !
 !------------------------------------------------------------------------------
@@ -506,4 +504,3 @@ CONTAINS
   END SUBROUTINE GIGC_Init_Simulation
 !EOC
 END MODULE GIGC_Initialization_Mod
-#endif

@@ -1,4 +1,3 @@
-#if defined (ESMF_)
 #include "MAPL_Generic.h"
 !------------------------------------------------------------------------------
 !          Harvard University Atmospheric Chemistry Modeling Group            !
@@ -872,4 +871,3 @@ CONTAINS
   END SUBROUTINE GIGC_Chunk_Final
 !EOC
 END MODULE GIGC_Chunk_Mod
-#endif

@@ -1,4 +1,3 @@
-#if defined( ESMF_ )
 !------------------------------------------------------------------------------
 !          Harvard University Atmospheric Chemistry Modeling Group            !
 !------------------------------------------------------------------------------
@@ -738,4 +737,3 @@ CONTAINS
 
   END SUBROUTINE GIGC_Input_Bcast
 END MODULE GIGC_Mpi_Wrap
-#endif

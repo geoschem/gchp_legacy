@@ -1,4 +1,3 @@
-#if defined (ESMF_)
 !------------------------------------------------------------------------------
 !                  GEOS-Chem Global Chemical Transport Model                  !
 !------------------------------------------------------------------------------
@@ -1026,4 +1025,3 @@ CONTAINS
   END SUBROUTINE Destroy_HistoryConfig
 !EOC
 END MODULE GIGC_HistoryExports_Mod
-#endif
