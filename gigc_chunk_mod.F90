@@ -776,11 +776,9 @@ CONTAINS
     !=======================================================================
 
     ! Set species concentration diagnostic array
-    IF ( Phase == 2 ) THEN
-       CALL Set_SpcConc_Diagnostic( am_I_Root, 'SpeciesConc',            &
-                                    State_Diag%SpeciesConc,              &
-                                    Input_Opt, State_Met, State_Chm, RC )
-    ENDIF
+    CALL Set_SpcConc_Diagnostic( am_I_Root, 'SpeciesConc',            &
+                                 State_Diag%SpeciesConc,              &
+                                 Input_Opt, State_Met, State_Chm, RC )
 
     !=======================================================================
     ! Clean up
