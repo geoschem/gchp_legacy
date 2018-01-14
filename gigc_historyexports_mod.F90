@@ -150,11 +150,18 @@ CONTAINS
     HistoryConfig%ConfigFileName     =  TRIM(configFile)
     HistoryConfig%ConfigFileRead     =  .FALSE.
     CALL Init_DiagList( am_I_Root, configFile, HistoryConfig%DiagList, RC )
+    IF ( RC == GC_FAILURE ) THEN
+       ASSERT_(.FALSE.)
+       RETURN
+    ENDIF
     CALL Print_DiagList( am_I_Root, HistoryConfig%DiagList, RC )
-    CALL Init_HistoryExportsList( am_I_Root, HistoryConfig, RC )
-    CALL Print_HistoryExportsList( am_I_Root, HistoryConfig, RC )
 
-    ASSERT_( RC == GC_SUCCESS )
+    CALL Init_HistoryExportsList( am_I_Root, HistoryConfig, RC )
+    IF ( RC == GC_FAILURE ) THEN
+       ASSERT_(.FALSE.)
+       RETURN
+    ENDIF
+    CALL Print_HistoryExportsList( am_I_Root, HistoryConfig, RC )
 
   END SUBROUTINE Init_HistoryConfig
 !EOC
@@ -200,7 +207,7 @@ CONTAINS
 ! !LOCAL VARIABLES:
 !
     INTEGER               :: N, rank, vloc, type
-    CHARACTER(LEN=255)    :: ErrMsg, ThisLoc, desc, units, tag
+    CHARACTER(LEN=255)    :: ErrMsg, desc, units, tag
     LOGICAL               :: isMet, isChem, isDiag, found
     TYPE(HistoryExportObj),  POINTER :: NewHistExp
     TYPE(DgnItem),           POINTER :: current
@@ -209,7 +216,6 @@ CONTAINS
     ! Init_HistoryExportsList begins here
     ! ================================================================
     __Iam__('Init_HistoryExportsList (gigc_historyexports_mod.F90)')
-    ThisLoc = 'Init_HistoryExportsList' ! TODO: use location from Iam
 
     ! Init
     NewHistExp => NULL()
@@ -281,14 +287,12 @@ CONTAINS
        ELSE
           ErrMsg = "Unknown state of item " // TRIM(current%name) // &
                    " in DiagList: " // TRIM(current%state)
-          CALL GC_Error( ErrMsg, RC, ThisLoc )
+          EXIT
        ENDIF
        IF ( Found == .FALSE. ) THEN
-          ErrMsg = "Metadata not found for " // &
-                   TRIM(current%name)
-          CALL GC_Error( ErrMsg, RC, ThisLoc )       
+          ErrMsg = "Metadata not found for " // TRIM(current%name)
+          EXIT
        ENDIF
-       ASSERT_( RC == GC_SUCCESS )
 
        ! If wildcard is present
        IF ( current%isWildcard ) THEN
@@ -331,21 +335,32 @@ CONTAINS
                                 isChem=isChem,                 &
                                 isDiag=isDiag,                 &
                                 RC=RC )
-       ASSERT_( RC == GC_SUCCESS )
+       IF ( RC == GC_FAILURE ) THEN
+          ErrMsg = "History export init fail for " // TRIM(current%name)
+          EXIT
+       ENDIF
        
        ! Add new HistoryExportObj to linked list
        CALL Append_HistoryExportsList( am_I_Root,     NewHistExp, &
                                        HistoryConfig, RC       )
-       ASSERT_( RC == GC_SUCCESS )
+       IF ( RC == GC_FAILURE ) THEN
+          ErrMsg = "History export append fail for " // TRIM(current%name)
+          EXIT
+       ENDIF
 
        ! Set up for next item in DiagList
        current => current%next
 
     ENDDO
-    HistoryConfig%ConfigFileRead = .TRUE.
-
-    ! Cleanup
     current => NULL()
+
+    IF ( RC == GC_SUCCESS ) THEN
+       HistoryConfig%ConfigFileRead = .TRUE.
+    ELSE
+       CALL GC_ERROR( ErrMsg, RC, Iam )
+       ASSERT_(.FALSE.)
+       RETURN
+    ENDIF
 
   END SUBROUTINE Init_HistoryExportsList
 !EOC
@@ -580,6 +595,7 @@ CONTAINS
 !
 ! !LOCAL VARIABLES:
 !
+    CHARACTER(LEN=255)                   :: ErrMsg
     TYPE(HistoryExportObj),      POINTER :: current
 
     ! ================================================================
@@ -592,6 +608,10 @@ CONTAINS
     ! Create a config object if it does not already exist
     IF ( .NOT. ASSOCIATED(HistoryConfig) ) THEN
        CALL Init_HistoryConfig( am_I_Root, HistoryConfig, config_file, RC )
+       IF ( RC == GC_FAILURE ) THEN
+          ASSERT_(.FALSE.)
+          RETURN
+       ENDIF
     ENDIF
 
     ! Loop over the History Exports list to add one export per item
@@ -617,8 +637,11 @@ CONTAINS
                                      DIMS       = MAPL_DimsHorzVert,         &
                                      VLOCATION  = MAPL_VLocationCenter,      &
                                      !VLOCATION  = current%vloc,              &
-                                     RC         = STATUS                    )
-             VERIFY_(STATUS)
+                                     RC         = RC                         )
+          IF ( RC == GC_FAILURE ) THEN
+             ErrMsg =  "Problem adding 3D export for " // TRIM(current%name)
+             EXIT
+          ENDIF
          !ELSEIF ( current%vloc == VLocationEdge ) THEN
          !   CALL MAPL_AddExportSpec(GC,                                     &
          !                           SHORT_NAME = TRIM(current%name), &
@@ -648,18 +671,27 @@ CONTAINS
                                   LONG_NAME  = TRIM(current%long_name),   &
                                   UNITS      = TRIM(current%units),       &
                                   DIMS       = MAPL_DimsHorzOnly,         &
-                                  RC         = STATUS                    )
-          VERIFY_(STATUS)
+                                  RC         = RC                        )
+          IF ( RC == GC_FAILURE ) THEN
+             ErrMsg =  "Problem adding 2D export for " // TRIM(current%name)
+             EXIT
+          ENDIF
        ELSE
-          WRITE(6,*) "Problem adding export for ", TRIM(current%name)
-          WRITE(6,*) "Rank is only implemented for 2 or 3!"
+          ErrMsg = "Problem adding export for " // TRIM(current%name) // &
+                   ". Rank is only implemented for 2 or 3!"
           RC = GC_FAILURE
-          RETURN
+          EXIT
        ENDIF
 
        current => current%next    
     ENDDO
     current => NULL()
+
+    IF ( RC == GC_FAILURE ) THEN
+       CALL GC_ERROR( ErrMsg, RC, Iam )
+       ASSERT_(.FALSE.)
+       RETURN
+    ENDIF
     
   END SUBROUTINE HistoryExports_SetServices
 !EOC
@@ -706,6 +738,7 @@ CONTAINS
 !
 ! !LOCAL VARIABLES:
 !
+    CHARACTER(LEN=255)              :: ErrMsg
     TYPE(HistoryExportObj), POINTER :: current
 
     ! ================================================================
@@ -727,6 +760,10 @@ CONTAINS
           ELSEIF ( ASSOCIATED ( current%GCStateData2d_I ) ) THEN
              ! Convert integer to float (integers not allowed in MAPL exports)
              current%ExportData2d = FLOAT(current%GCStateData2d_I)
+          ELSE
+             RC = GC_FAILURE
+             ErrMsg = "No GC 2D pointer found for " // TRIM(current%name)
+             EXIT
           ENDIF
        ELSEIF ( current%rank == 3 ) THEN
           IF ( ASSOCIATED ( current%GCStateData3d ) ) THEN
@@ -737,6 +774,10 @@ CONTAINS
              current%ExportData3d = current%GCStateData3d_8
           ELSEIF ( ASSOCIATED ( current%GCStateData3d_I ) ) THEN
              current%ExportData3d = FLOAT(current%GCStateData3d_I)
+          ELSE
+             RC = GC_FAILURE
+             ErrMsg = "No GC 3D pointer found for " // TRIM(current%name)
+             EXIT
           ENDIF
        ENDIF
 
@@ -744,8 +785,21 @@ CONTAINS
     ENDDO
     current => NULL()
 
+    ! Error handling
+    IF ( RC == GC_FAILURE ) THEN
+       CALL GC_ERROR( ErrMsg, RC, Iam )
+       ASSERT_(.FALSE.)
+       RETURN
+    ENDIF
+
     ! Copy emissions data to MAPL exports via HEMCO
     CALL HCOI_GC_WriteDiagn( am_I_Root, Input_Opt, .FALSE., RC )
+    IF ( RC == GC_FAILURE ) THEN
+       ErrMsg = "Error copying emissions data to MAPL via HEMCO"
+       CALL GC_ERROR( ErrMsg, RC, Iam )
+       ASSERT_(.FALSE.)
+       RETURN
+    ENDIF
     
   END SUBROUTINE CopyGCStates2Exports
 !EOC
@@ -873,6 +927,7 @@ CONTAINS
 !
 ! !LOCAL VARIABLES:
 !
+    CHARACTER(LEN=255)              :: ErrMsg
     TYPE(HistoryExportObj), POINTER :: current
 
     ! ================================================================
@@ -934,7 +989,12 @@ CONTAINS
                                 Ptr3d_I   = current%GCStateData3d_I, &
                                 RC        = RC                      )
        ENDIF
-       ASSERT_( RC == GC_SUCCESS )
+       IF ( RC == GC_FAILURE ) THEN
+          ErrMsg = "Registry pointer not found for " // TRIM(current%name) // &
+                   ". Check that the tag (e.g. species) is valid "         // &
+                   "for this diagnostic."
+          EXIT
+       ENDIF
 
        ! For MAPL export, need to pass a pointer of the right dimension
        IF ( current%rank == 2 ) THEN
@@ -952,6 +1012,12 @@ CONTAINS
        current => current%next    
     ENDDO
     current => NULL()
+
+    IF ( RC == GC_FAILURE ) THEN
+       CALL GC_ERROR( ErrMsg, RC, Iam )
+       ASSERT_(.FALSE.)
+       RETURN
+    ENDIF
     
   END SUBROUTINE HistoryExports_SetDataPointers
 !EOC

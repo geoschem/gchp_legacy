@@ -386,13 +386,12 @@ CONTAINS
 #   include "GIGCchem_ExportSpec___.h"
 
     ! Read HISTORY config file and add exports for unique items
-    ! TODO: determine if this first step is necessary. Should HISTORY.rc
-    !       be in GCHP.rc?
     CALL ESMF_ConfigGetAttribute( myState%myCF, HistoryConfigFile, &
                                   Label="HISTORY_CONFIG:",         &
                                   Default="HISTORY.rc", __RC__ )
     CALL HistoryExports_SetServices( MAPL_am_I_Root(), HistoryConfigFile, &
-                                     GC, HistoryConfig, __RC__ )
+                                     GC, HistoryConfig, RC=STATUS )
+    VERIFY_(STATUS)
 
     ! Is this needed anymore?
     call MAPL_AddExportSpec(GC,                                   &
@@ -405,7 +404,6 @@ CONTAINS
                                                        RC=STATUS  )
 !EOP
 !BOC
-
 
     !=======================================================================
     ! Add provider services, if any (AERO, RATS, Analysis Ox)
@@ -1894,8 +1892,10 @@ CONTAINS
                                             HistoryConfig, State_Chm, &
                                             State_Diag,    State_Met, &
                                             STATUS )
+       VERIFY_(STATUS)
     ENDIF
     CALL CopyGCStates2Exports( am_I_Root, Input_Opt, HistoryConfig, STATUS )
+    VERIFY_(STATUS)
 
     !=======================================================================
     ! All done
