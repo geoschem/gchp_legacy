@@ -365,7 +365,6 @@ MODULE GCHP_Utils
     USE State_Chm_Mod,    ONLY : ChmState
     USE State_Met_Mod,    ONLY : MetState
     USE Input_Opt_Mod,    ONLY : OptInput
-    USE CHEMGRID_MOD,     ONLY : ITS_IN_THE_TROP
     USE CMN_Size_Mod
     USE ErrCode_Mod
     USE Precision_Mod
@@ -428,7 +427,7 @@ MODULE GCHP_Utils
              ENDIF
           ELSE
              ! Test for troposphere
-             IF ( ITS_IN_THE_TROP(I,J,L,State_Met) ) THEN
+             IF ( State_Met%InTroposphere(I,J,L) ) THEN
                 ! Free troposphere: 0.6 ppbv MOH
                 State_Chm%Species(I,J,L,IND) = 0.600e-9_fp 
              ELSE

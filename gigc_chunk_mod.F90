@@ -852,19 +852,44 @@ CONTAINS
     RC = GC_SUCCESS
 
     ! Finalize HEMCO
-    CALL HCOI_GC_FINAL( am_I_Root, .FALSE. )
+    CALL HCOI_GC_FINAL( am_I_Root, .FALSE., RC )
+    IF ( am_I_Root ) THEN
+       IF ( RC == GC_SUCCESS ) THEN
+          write(*,'(a)') 'HEMCO::Finalize... OK.'
+       ELSE
+          write(*,'(a)') 'HEMCO::Finalize... FAILURE.'
+       ENDIF
+    ENDIF
 
     ! Deallocate fields of the Input Options object
     CALL Cleanup_Input_Opt( am_I_Root, Input_Opt, RC )
-    IF (am_I_Root) write(*,'(a)') 'Chem::Input_Opt Finalize... OK.'
+    IF ( am_I_Root ) THEN
+       IF ( RC == GC_SUCCESS ) THEN
+          write(*,'(a)') 'Chem::Input_Opt Finalize... OK.'
+       ELSE
+          write(*,'(a)') 'Chem::Input_Opt Finalize... FAILURE.'
+       ENDIF
+    ENDIF
 
     ! Deallocate fields of the Chemistry State object
     CALL Cleanup_State_Chm( am_I_Root, State_Chm, RC )
-    IF (am_I_Root) write(*,'(a)') 'Chem::State_Chm Finalize... OK.'
+    IF ( am_I_Root ) THEN
+       IF ( RC == GC_SUCCESS ) THEN
+          write(*,'(a)') 'Chem::State_Chm Finalize... OK.'
+       ELSE
+          write(*,'(a)') 'Chem::State_Chm Finalize... FAILURE.'
+       ENDIF
+    ENDIF
 
     ! Deallocate fields of the Meteorology State object
     CALL Cleanup_State_Met( am_I_Root, State_Met, RC )
-    IF (am_I_Root) write(*,'(a)') 'Chem::State_Met Finalize... OK.'
+    IF ( am_I_Root ) THEN
+       IF ( RC == GC_SUCCESS ) THEN
+          write(*,'(a)') 'Chem::State_Met Finalize... OK.'
+       ELSE
+          write(*,'(a)') 'Chem::State_Met Finalize... FAILURE.'
+       ENDIF
+    ENDIF
 
   END SUBROUTINE GIGC_Chunk_Final
 !EOC
