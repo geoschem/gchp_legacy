@@ -17,7 +17,7 @@ MODULE GIGC_HistoryExports_Mod
 ! !USES:
 !
 #include "MAPL_Generic.h"
-  USE Diagnostics_Mod
+  USE DiagList_Mod
   USE ErrCode_Mod
   USE Precision_Mod
   USE MAPL_Mod
@@ -631,7 +631,6 @@ CONTAINS
                                      UNITS      = TRIM(current%units),       &
                                      DIMS       = MAPL_DimsHorzVert,         &
                                      VLOCATION  = MAPL_VLocationCenter,      &
-                                     !VLOCATION  = current%vloc,              &
                                      RC         = RC                         )
           IF ( RC == GC_FAILURE ) THEN
              ErrMsg =  "Problem adding 3D export for " // TRIM(current%name)

@@ -301,7 +301,7 @@ CONTAINS
     Use UnitConv_Mod,       ONLY : Convert_Spc_Units
 
     ! Diagnostics
-    USE UnitConv_Mod,       ONLY : Set_SpcConc_Diagnostic
+    USE Diagnostics_Mod,    ONLY : Set_Diagnostics_EndofTimestep
 
 !
 ! !INPUT PARAMETERS:
@@ -775,10 +775,11 @@ CONTAINS
     ! Diagnostics
     !=======================================================================
 
-    ! Set species concentration diagnostic array
-    CALL Set_SpcConc_Diagnostic( am_I_Root, 'SpeciesConc',            &
-                                 State_Diag%SpeciesConc,              &
-                                 Input_Opt, State_Met, State_Chm, RC )
+    ! Set certain diagnostics dependent on state at end of step. This
+    ! includes species concentration and dry deposition flux.
+    CALL Set_Diagnostics_EndofTimestep( am_I_Root,  Input_Opt, &
+                                        State_Met,  State_Chm, &
+                                        State_Diag, RC )
 
     !=======================================================================
     ! Clean up
