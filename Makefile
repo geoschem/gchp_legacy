@@ -371,6 +371,7 @@ gigc_historyexports_mod.o   : gigc_historyexports_mod.F90                   \
                               gigc_types_mod.o
 
 gigc_initialization_mod.o   : gigc_initialization_mod.F90                   \
+                              gigc_historyexports_mod.F90                   \
                               gigc_mpi_wrap.o
 
 gigc_mpi_wrap.o             : gigc_mpi_wrap.F90
