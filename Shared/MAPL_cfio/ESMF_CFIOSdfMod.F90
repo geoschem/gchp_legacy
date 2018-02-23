@@ -594,58 +594,58 @@
                     if (rtcode .eq. 0) cfio%varObjs(nVars)%grid%ptop = ptop
                  end if
               end if
-              if (index(cfio%varObjs(nVars)%grid%standardName,             &
-                        'atmosphere_hybrid_sigma_pressure_coordinate')     &
-                        .gt. 0)  then
-                 loc1 = index(cfio%varObjs(nVars)%grid%formulaTerm,'a:')
-                 loc2 = index(cfio%varObjs(nVars)%grid%formulaTerm,'b:')
-                 icount = 0
-                 do icount = loc1+2, loc2
-                   if (cfio%varObjs(nVars)%grid%formulaTerm(icount:icount) &
-                        .ne. ' ') exit
-                 end do
-                 nameAk=trim(cfio%varObjs(nVars)%grid%formulaTerm          &
-                             (icount:loc2-1))
-                 loc1 = index(cfio%varObjs(nVars)%grid%formulaTerm,'b:')
-                 loc2 = index(cfio%varObjs(nVars)%grid%formulaTerm,'ps:')
-                 do icount = loc1+2, loc2
-                   if (cfio%varObjs(nVars)%grid%formulaTerm(icount:icount) &
-                        .ne. ' ') exit
-                 end do
-                 nameBk=trim(cfio%varObjs(nVars)%grid%formulaTerm          &
-                             (icount:loc2-1))
-                 loc1 = index(cfio%varObjs(nVars)%grid%formulaTerm,'p0:')
-                 icount = loc1  + 4
-                 namePtop=trim(cfio%varObjs(nVars)%grid%formulaTerm        &
-                         (icount:len(cfio%varObjs(nVars)%grid%formulaTerm)))
+             ! if (index(cfio%varObjs(nVars)%grid%standardName,             &
+             !           'atmosphere_hybrid_sigma_pressure_coordinate')     &
+             !           .gt. 0)  then
+             !    loc1 = index(cfio%varObjs(nVars)%grid%formulaTerm,'a:')
+             !    loc2 = index(cfio%varObjs(nVars)%grid%formulaTerm,'b:')
+             !    icount = 0
+             !    do icount = loc1+2, loc2
+             !      if (cfio%varObjs(nVars)%grid%formulaTerm(icount:icount) &
+             !           .ne. ' ') exit
+             !    end do
+             !    nameAk=trim(cfio%varObjs(nVars)%grid%formulaTerm          &
+             !                (icount:loc2-1))
+             !    loc1 = index(cfio%varObjs(nVars)%grid%formulaTerm,'b:')
+             !    loc2 = index(cfio%varObjs(nVars)%grid%formulaTerm,'ps:')
+             !    do icount = loc1+2, loc2
+             !      if (cfio%varObjs(nVars)%grid%formulaTerm(icount:icount) &
+             !           .ne. ' ') exit
+             !    end do
+             !    nameBk=trim(cfio%varObjs(nVars)%grid%formulaTerm          &
+             !                (icount:loc2-1))
+             !    loc1 = index(cfio%varObjs(nVars)%grid%formulaTerm,'p0:')
+             !    icount = loc1  + 4
+             !    namePtop=trim(cfio%varObjs(nVars)%grid%formulaTerm        &
+             !            (icount:len(cfio%varObjs(nVars)%grid%formulaTerm)))
 
-                 rtcode = NF90_INQ_VARID(cfio%fid, trim(nameAk), akid)
-                 if (rtcode .ne. 0) print *, "problem in getting akid in NF90_INQ_VARID"
+             !    rtcode = NF90_INQ_VARID(cfio%fid, trim(nameAk), akid)
+             !    if (rtcode .ne. 0) print *, "problem in getting akid in NF90_INQ_VARID"
 
-                 allocate(cfio%varObjs(nVars)%grid%ak                      &
-                          (cfio%varObjs(nVars)%grid%km+1),                 &
-                          ak(cfio%varObjs(nVars)%grid%km+1))
-                 rtcode = NF90_GET_VAR(cfio%fid,akid,ak,(/1/),(/cfio%varObjs(nVars)%grid%km+1/))
-                 if (rtcode .ne. 0) print *, "problem in getting ak in NF90_GET_VAR"
-                 cfio%varObjs(nVars)%grid%ak = ak
-                 deallocate(ak)
-                 rtcode = NF90_INQ_VARID(cfio%fid, trim(nameBk), bkid)
-                 if (rtcode .ne. 0) print *, "problem in getting bkid in NF90_INQ_VARID"
-                 allocate(cfio%varObjs(nVars)%grid%bk                      &
-                          (cfio%varObjs(nVars)%grid%km+1),                 &
-                          bk(cfio%varObjs(nVars)%grid%km+1))
-                 rtcode = NF90_GET_VAR(cfio%fid,bkid,bk,(/1/),(/cfio%varObjs(nVars)%grid%km+1/))
-                 if (rtcode .ne. 0) print *, "problem in getting bk in NF90_GET_VAR"
-                 cfio%varObjs(nVars)%grid%bk = bk
-                 deallocate(bk)
+             !    allocate(cfio%varObjs(nVars)%grid%ak                      &
+             !             (cfio%varObjs(nVars)%grid%km+1),                 &
+             !             ak(cfio%varObjs(nVars)%grid%km+1))
+             !    rtcode = NF90_GET_VAR(cfio%fid,akid,ak,(/1/),(/cfio%varObjs(nVars)%grid%km+1/))
+             !    if (rtcode .ne. 0) print *, "problem in getting ak in NF90_GET_VAR"
+             !    cfio%varObjs(nVars)%grid%ak = ak
+             !    deallocate(ak)
+             !    rtcode = NF90_INQ_VARID(cfio%fid, trim(nameBk), bkid)
+             !    if (rtcode .ne. 0) print *, "problem in getting bkid in NF90_INQ_VARID"
+             !    allocate(cfio%varObjs(nVars)%grid%bk                      &
+             !             (cfio%varObjs(nVars)%grid%km+1),                 &
+             !             bk(cfio%varObjs(nVars)%grid%km+1))
+             !    rtcode = NF90_GET_VAR(cfio%fid,bkid,bk,(/1/),(/cfio%varObjs(nVars)%grid%km+1/))
+             !    if (rtcode .ne. 0) print *, "problem in getting bk in NF90_GET_VAR"
+             !    cfio%varObjs(nVars)%grid%bk = bk
+             !    deallocate(bk)
 
-                 rtcode = NF90_INQ_VARID(cfio%fid, trim(namePtop), ptopid)
-                 if (rtcode .ne. 0) print *, "problem in getting ptopid in NF90_INQ_VARID"
-                 rtcode = NF90_GET_VAR(cfio%fid,ptopid,ptop_array,(/1/), (/1/))
-                 ptop = ptop_array(1)
-                 if (rtcode .ne. 0) print *, "problem in getting ptop in NF90_GET_VAR"
-                 cfio%varObjs(nVars)%grid%ptop = ptop
-             end if
+             !    rtcode = NF90_INQ_VARID(cfio%fid, trim(namePtop), ptopid)
+             !    if (rtcode .ne. 0) print *, "problem in getting ptopid in NF90_INQ_VARID"
+             !    rtcode = NF90_GET_VAR(cfio%fid,ptopid,ptop_array,(/1/), (/1/))
+             !    ptop = ptop_array(1)
+             !    if (rtcode .ne. 0) print *, "problem in getting ptop in NF90_GET_VAR"
+             !    cfio%varObjs(nVars)%grid%ptop = ptop
+             !end if
               rtcode = NF90_GET_ATT(fid,varId,'coordinate',cfio%varObjs(nVars)%grid%coordinate)
               if (rtcode .ne. 0) cfio%varObjs(nVars)%grid%coordinate = "pressure"  
               cfio%varObjs(nVars)%grid%levUnits = trim(dimUnits(iv))
