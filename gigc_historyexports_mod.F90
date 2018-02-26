@@ -289,7 +289,7 @@ CONTAINS
                    " in DiagList: " // TRIM(current%state)
           EXIT
        ENDIF
-       IF ( Found == .FALSE. ) THEN
+       IF ( Found .eqv. .FALSE. ) THEN
           ErrMsg = "Metadata not found for " // TRIM(current%name)
           EXIT
        ENDIF
