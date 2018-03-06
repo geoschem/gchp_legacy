@@ -274,7 +274,7 @@ CONTAINS
     USE State_Met_Mod,      ONLY : MetState
 
     ! GEOS-Chem components
-    USE Chemistry_Mod,      ONLY : Do_Chemistry
+    USE Chemistry_Mod,      ONLY : Do_Chemistry, Recompute_OD
     USE Convection_Mod,     ONLY : Do_Convection
     USE DryDep_Mod,         ONLY : Do_DryDep
     USE Emissions_Mod,      ONLY : Emissions_Run
@@ -374,6 +374,7 @@ CONTAINS
 !  19 Oct 2016 - R. Yantosca - Now call Set_Init_Cond_Strat_Chem after the
 !                              1st call to AIRQNT to save initial conditions
 !  01 Dec 2016 - E. Lundgren - Calculate LAI using new routine for GCHP
+!  13 Feb 2018 - E. Lundgren - Call Recompute_OD at end of chem dt for aer diags
 !EOP
 !------------------------------------------------------------------------------
 !BOC
@@ -775,11 +776,20 @@ CONTAINS
     ! Diagnostics
     !=======================================================================
 
+    IF ( DoChem ) THEN
+       ! Recalculate the optical depth at the wavelength(s) specified
+       ! in the Radiation Menu. This must be done before the call to any
+       ! diagnostic.
+       CALL Recompute_OD( am_I_Root, Input_Opt,  State_Met,  &
+                          State_Chm, State_Diag, RC         )
+       ASSERT_(RC==GC_SUCCESS)
+    ENDIF
     ! Set certain diagnostics dependent on state at end of step. This
     ! includes species concentration and dry deposition flux.
     CALL Set_Diagnostics_EndofTimestep( am_I_Root,  Input_Opt, &
                                         State_Met,  State_Chm, &
                                         State_Diag, RC )
+    ASSERT_(RC==GC_SUCCESS)
 
     !=======================================================================
     ! Clean up
