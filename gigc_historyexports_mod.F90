@@ -17,7 +17,7 @@ MODULE GIGC_HistoryExports_Mod
 ! !USES:
 !
 #include "MAPL_Generic.h"
-  USE Diagnostics_Mod
+  USE DiagList_Mod
   USE ErrCode_Mod
   USE Precision_Mod
   USE MAPL_Mod
@@ -622,13 +622,8 @@ CONTAINS
     current => HistoryConfig%HistoryExportsList%head
     DO WHILE ( ASSOCIATED( current ) )
        ! Create an export for this item
-       ! TODO: 
-       !  (1) issue with adding vars with level edge...need to update call
-       !  (2) add MAPL dims to GCC registry params?
-       !  (3) need handling for other types?
-       !  (4) what other dim options are needed for full set of diags?
        IF ( current%rank == 3 ) THEN
-          !IF ( current%vloc == VLocationCenter ) THEN
+          IF ( current%vloc == VLocationCenter ) THEN
              IF ( am_I_Root ) PRINT *, "adding export: ", TRIM(current%name)
              CALL MAPL_AddExportSpec(GC,                                     &
                                      SHORT_NAME = TRIM(current%name),        &
@@ -636,35 +631,25 @@ CONTAINS
                                      UNITS      = TRIM(current%units),       &
                                      DIMS       = MAPL_DimsHorzVert,         &
                                      VLOCATION  = MAPL_VLocationCenter,      &
-                                     !VLOCATION  = current%vloc,              &
                                      RC         = RC                         )
           IF ( RC == GC_FAILURE ) THEN
              ErrMsg =  "Problem adding 3D export for " // TRIM(current%name)
              EXIT
           ENDIF
-         !ELSEIF ( current%vloc == VLocationEdge ) THEN
-         !   CALL MAPL_AddExportSpec(GC,                                     &
-         !                           SHORT_NAME = TRIM(current%name), &
-         !                           LONG_NAME  = TRIM(current%long_name),   &
-         !                           UNITS      = TRIM(current%units),       &
-         !                           DIMS       = MAPL_DimsHorzVert,         &
-         !                           VLOCATION  = MAPL_VLocationEdge,        &
-         !                           RC         = STATUS                    )
-         !ELSEIF ( current%vloc == VLocationNone ) THEN
-         !   ! TODO: is this even possible? Manually pass levels?
-         !   CALL MAPL_AddExportSpec(GC,                                     &
-         !                           SHORT_NAME = TRIM(current%name), &
-         !                           LONG_NAME  = TRIM(current%long_name),   &
-         !                           UNITS      = TRIM(current%units),       &
-         !                           DIMS       = MAPL_DimsHorzVert,         &
-         !                           VLOCATION  = MAPL_VLocationCenter,        &
-         !                           RC         = STATUS                    )
-         !ELSE
-         !   IF ( am_I_Root ) THEN
-         !      PRINT *, "Unknown vertical location for ", &
-         !               TRIM(current%name)
-         !   ENDIF
-         !ENDIF
+         ELSEIF ( current%vloc == VLocationEdge ) THEN
+            CALL MAPL_AddExportSpec(GC,                                     &
+                                    SHORT_NAME = TRIM(current%name), &
+                                    LONG_NAME  = TRIM(current%long_name),   &
+                                    UNITS      = TRIM(current%units),       &
+                                    DIMS       = MAPL_DimsHorzVert,         &
+                                    VLOCATION  = MAPL_VLocationEdge,        &
+                                    RC         = STATUS                    )
+         ELSE
+            IF ( am_I_Root ) THEN
+               PRINT *, "Unknown vertical location for ", &
+                        TRIM(current%name)
+            ENDIF
+         ENDIF
        ELSEIF ( current%rank == 2 ) THEN
           CALL MAPL_AddExportSpec(GC,                                     &
                                   SHORT_NAME = TRIM(current%name), &

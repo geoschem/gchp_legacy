@@ -274,7 +274,7 @@ CONTAINS
     USE State_Met_Mod,      ONLY : MetState
 
     ! GEOS-Chem components
-    USE Chemistry_Mod,      ONLY : Do_Chemistry
+    USE Chemistry_Mod,      ONLY : Do_Chemistry, Recompute_OD
     USE Convection_Mod,     ONLY : Do_Convection
     USE DryDep_Mod,         ONLY : Do_DryDep
     USE Emissions_Mod,      ONLY : Emissions_Run
@@ -301,7 +301,7 @@ CONTAINS
     Use UnitConv_Mod,       ONLY : Convert_Spc_Units
 
     ! Diagnostics
-    USE UnitConv_Mod,       ONLY : Set_SpcConc_Diagnostic
+    USE Diagnostics_Mod,    ONLY : Set_Diagnostics_EndofTimestep
 
 !
 ! !INPUT PARAMETERS:
@@ -374,6 +374,7 @@ CONTAINS
 !  19 Oct 2016 - R. Yantosca - Now call Set_Init_Cond_Strat_Chem after the
 !                              1st call to AIRQNT to save initial conditions
 !  01 Dec 2016 - E. Lundgren - Calculate LAI using new routine for GCHP
+!  13 Feb 2018 - E. Lundgren - Call Recompute_OD at end of chem dt for aer diags
 !EOP
 !------------------------------------------------------------------------------
 !BOC
@@ -775,10 +776,20 @@ CONTAINS
     ! Diagnostics
     !=======================================================================
 
-    ! Set species concentration diagnostic array
-    CALL Set_SpcConc_Diagnostic( am_I_Root, 'SpeciesConc',            &
-                                 State_Diag%SpeciesConc,              &
-                                 Input_Opt, State_Met, State_Chm, RC )
+    IF ( DoChem ) THEN
+       ! Recalculate the optical depth at the wavelength(s) specified
+       ! in the Radiation Menu. This must be done before the call to any
+       ! diagnostic.
+       CALL Recompute_OD( am_I_Root, Input_Opt,  State_Met,  &
+                          State_Chm, State_Diag, RC         )
+       ASSERT_(RC==GC_SUCCESS)
+    ENDIF
+    ! Set certain diagnostics dependent on state at end of step. This
+    ! includes species concentration and dry deposition flux.
+    CALL Set_Diagnostics_EndofTimestep( am_I_Root,  Input_Opt, &
+                                        State_Met,  State_Chm, &
+                                        State_Diag, RC )
+    ASSERT_(RC==GC_SUCCESS)
 
     !=======================================================================
     ! Clean up
@@ -852,19 +863,44 @@ CONTAINS
     RC = GC_SUCCESS
 
     ! Finalize HEMCO
-    CALL HCOI_GC_FINAL( am_I_Root, .FALSE. )
+    CALL HCOI_GC_FINAL( am_I_Root, .FALSE., RC )
+    IF ( am_I_Root ) THEN
+       IF ( RC == GC_SUCCESS ) THEN
+          write(*,'(a)') 'HEMCO::Finalize... OK.'
+       ELSE
+          write(*,'(a)') 'HEMCO::Finalize... FAILURE.'
+       ENDIF
+    ENDIF
 
     ! Deallocate fields of the Input Options object
     CALL Cleanup_Input_Opt( am_I_Root, Input_Opt, RC )
-    IF (am_I_Root) write(*,'(a)') 'Chem::Input_Opt Finalize... OK.'
+    IF ( am_I_Root ) THEN
+       IF ( RC == GC_SUCCESS ) THEN
+          write(*,'(a)') 'Chem::Input_Opt Finalize... OK.'
+       ELSE
+          write(*,'(a)') 'Chem::Input_Opt Finalize... FAILURE.'
+       ENDIF
+    ENDIF
 
     ! Deallocate fields of the Chemistry State object
     CALL Cleanup_State_Chm( am_I_Root, State_Chm, RC )
-    IF (am_I_Root) write(*,'(a)') 'Chem::State_Chm Finalize... OK.'
+    IF ( am_I_Root ) THEN
+       IF ( RC == GC_SUCCESS ) THEN
+          write(*,'(a)') 'Chem::State_Chm Finalize... OK.'
+       ELSE
+          write(*,'(a)') 'Chem::State_Chm Finalize... FAILURE.'
+       ENDIF
+    ENDIF
 
     ! Deallocate fields of the Meteorology State object
     CALL Cleanup_State_Met( am_I_Root, State_Met, RC )
-    IF (am_I_Root) write(*,'(a)') 'Chem::State_Met Finalize... OK.'
+    IF ( am_I_Root ) THEN
+       IF ( RC == GC_SUCCESS ) THEN
+          write(*,'(a)') 'Chem::State_Met Finalize... OK.'
+       ELSE
+          write(*,'(a)') 'Chem::State_Met Finalize... FAILURE.'
+       ENDIF
+    ENDIF
 
   END SUBROUTINE GIGC_Chunk_Final
 !EOC
