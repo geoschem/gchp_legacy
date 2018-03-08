@@ -19,7 +19,6 @@ MODULE GIGC_Chunk_Mod
   USE MAPL_MOD
   USE ESMF
   USE ErrCode_Mod
-  USE GCHP_Utils
 
   IMPLICIT NONE
   PRIVATE
@@ -207,6 +206,38 @@ CONTAINS
     Input_Opt%TS_CONV = INT( tsDyn  )   ! Dynamic   timestep [sec]
     Input_Opt%myCPU   = myPET
 
+    ! Root CPU only
+    IF ( am_I_Root ) THEN
+
+       ! Read input.geos
+       CALL Read_Input_File( am_I_Root, Input_Opt, RC )
+       ASSERT_(RC==GC_SUCCESS)
+
+       ! In the ESMF/MPI environment, we can get the total overhead ozone
+       ! either from the met fields (GIGCsa) or from the Import State (GEOS-5)
+       Input_Opt%USE_O3_FROM_MET = .TRUE.
+
+       ! Read LINOZ climatology
+       IF ( Input_Opt%LLINOZ ) THEN
+          CALL Linoz_Read( am_I_Root, Input_Opt, RC ) 
+          ASSERT_(RC==GC_SUCCESS)
+       ENDIF
+    ENDIF
+
+    ! Allocate all lat/lon arrays including CMN_Size_Mod parameters
+    CALL GC_Allocate_All( am_I_Root, Input_Opt, RC,         &  
+                          value_I_LO     = value_I_LO,      &
+                          value_J_LO     = value_J_LO,      &
+                          value_I_HI     = value_I_HI,      &
+                          value_J_HI     = value_J_HI,      &
+                          value_IM       = value_IM,        &
+                          value_JM       = value_JM,        &
+                          value_LM       = value_LM,        &
+                          value_IM_WORLD = value_IM_WORLD,  &
+                          value_JM_WORLD = value_JM_WORLD,  &  
+                          value_LM_WORLD = value_LM_WORLD  )            
+    ASSERT_(RC==GC_SUCCESS)
+
     ! ewl TODO: Is this calculation of dlon/dlat needed for GCHP or GEOS-5?
     !========================================================================
     ! Compute the DLON and DLAT values.  NOTE, this is a kludge since to do
@@ -216,11 +247,6 @@ CONTAINS
     ! between the grid box centers.  They should all be the same given that
     ! the GEOS-Chem grid is regular. (bmy, 12/7/12)
     !========================================================================
-    ! ewl debugging
-    PRINT *, "LLPAR: ", LLPAR
-    PRINT *, "JJPAR: ", JJPAR
-    PRINT *, "IIPAR: ", IIPAR
-
     DO L = 1, LLPAR
     DO J = 1, JJPAR
     DO I = 1, IIPAR
@@ -246,38 +272,6 @@ CONTAINS
     ENDDO
     ENDDO
     ENDDO
-
-    ! Root CPU only
-    IF ( am_I_Root ) THEN
-
-       ! Read input.geos
-       CALL Read_Input_File( am_I_Root, Input_Opt, RC )
-       ASSERT_(RC==GC_SUCCESS)
-
-       ! In the ESMF/MPI environment, we can get the total overhead ozone
-       ! either from the met fields (GIGCsa) or from the Import State (GEOS-5)
-       Input_Opt%USE_O3_FROM_MET = .TRUE.
-
-       ! Read LINOZ climatology
-       IF ( Input_Opt%LLINOZ ) THEN
-          CALL Linoz_Read( am_I_Root, Input_Opt, RC ) 
-          ASSERT_(RC==GC_SUCCESS)
-       ENDIF
-    ENDIF
-
-    ! Allocate all lat/lon arrays
-    CALL GC_Allocate_All( am_I_Root, Input_Opt, RC,         &  
-                          value_I_LO     = value_I_LO,      &
-                          value_J_LO     = value_J_LO,      &
-                          value_I_HI     = value_I_HI,      &
-                          value_J_HI     = value_J_HI,      &
-                          value_IM       = value_IM,        &
-                          value_JM       = value_JM,        &
-                          value_LM       = value_LM,        &
-                          value_IM_WORLD = value_IM_WORLD,  &
-                          value_JM_WORLD = value_JM_WORLD,  &  
-                          value_LM_WORLD = value_LM_WORLD  )            
-    ASSERT_(RC==GC_SUCCESS)
 
     ! Broadcast Input_Opt from root to all other CPUs
     CALL GIGC_Input_Bcast( am_I_Root, Input_Opt, RC )
@@ -426,6 +420,7 @@ CONTAINS
 
     ! Specialized subroutines
     USE Dao_Mod,            ONLY : AirQnt, Set_Dry_Surface_Pressure
+    USE Dao_Mod,            ONLY : GIGC_Cap_Tropopause_Prs
     USE MODIS_LAI_Mod,      ONLY : Compute_XLAI_GCHP
     USE PBL_Mix_Mod,        ONLY : Compute_PBL_Height
     USE Pressure_Mod,       ONLY : Set_Floating_Pressures

@@ -32,24 +32,22 @@ MODULE Chem_GridCompMod
 !
 ! !USES:
 !
+  USE CMN_Size_Mod
   USE ESMF                                           ! ESMF library
   USE MAPL_Mod                                       ! MAPL library
   USE Charpak_Mod                                    ! String functions
-  USE GIGC_MPI_Wrap, ONLY : mpiComm
-  USE GCHP_Utils                                     ! Functions
-  USE GIGC_Chunk_Mod                                 ! GIGC IRF methods
-  USE GIGC_Types_Mod                                 ! Obj types and params
-  USE ErrCode_Mod                                    ! Error numbers
+  USE Hco_Types_Mod, ONLY : ConfigObj
   USE Input_Opt_Mod                                  ! Input Options obj
+  USE GIGC_MPI_Wrap, ONLY : mpiComm
+  USE GIGC_Chunk_Mod                                 ! GIGC IRF methods
+  USE GIGC_HistoryExports_Mod
+  USE GIGC_ProviderServices_Mod
+  USE ErrCode_Mod                                    ! Error numbers
   USE State_Chm_Mod                                  ! Chemistry State obj
   USE State_Diag_Mod                                 ! Diagnostics State obj
   USE State_Met_Mod                                  ! Meteorology State obj
   USE Species_Mod,   ONLY : Species
-  USE HCO_TYPES_MOD, ONLY : ConfigObj
-  USE GIGC_HistoryExports_Mod
-  USE CMN_Size_Mod,  ONLY : NSURFTYPE
-  USE TIME_MOD,      ONLY : ITS_A_NEW_DAY, ITS_A_NEW_MONTH
-  USE GIGC_ProviderServices_Mod
+  USE Time_Mod,      ONLY : ITS_A_NEW_DAY, ITS_A_NEW_MONTH
 
   IMPLICIT NONE
   PRIVATE
@@ -201,16 +199,18 @@ CONTAINS
 ! !USES:
 !
     USE HCOI_ESMF_MOD,   ONLY : HCO_SetServices
-    USE GCHP_Utils,      ONLY : READ_SPECIES_FROM_FILE ! rework this later
     USE GCKPP_Model
+    USE CHARPAK_MOD,     ONLY : STRSPLIT
+    USE INQUIREMOD,      ONLY : findFreeLUN
+    USE FILE_MOD,        ONLY : IOERROR
 !
 ! !INPUT/OUTPUT PARAMETERS:
 !
-    TYPE(ESMF_GridComp),  INTENT(INOUT) :: GC       ! Ref to this GridComp
+    TYPE(ESMF_GridComp), INTENT(INOUT) :: GC       ! Ref to this GridComp
 !
 ! !OUTPUT PARAMETERS:
 !
-    INTEGER,              INTENT(OUT)   :: RC       ! Success or failure
+    INTEGER,             INTENT(OUT)   :: RC       ! Success or failure
 !
 ! !REMARKS:
 !  ESMF can only attach one Config object per Gridded Component.  The 
@@ -234,6 +234,7 @@ CONTAINS
 !  12 Sep 2017 - E. Lundgren - Use species prefix "SPFX" from gigc_types_mod.F90
 !  06 Nov 2017 - E. Lundgren - Abstract provider services to new module
 !                              gigc_providerservices_mod.F90
+!  08 Mar 2018 - E. Lundgren - "SPFX" now retrieved from gigc_historyexports_mod
 !EOP
 !------------------------------------------------------------------------------
 !BOC
@@ -250,8 +251,11 @@ CONTAINS
     CHARACTER(LEN=ESMF_MAXSTR)    :: HistoryConfigFile ! HISTORY config file
     CHARACTER(LEN=ESMF_MAXSTR)    :: SpcName       ! Registered species name
     CHARACTER(LEN=40)             :: AdvSpc(500)
-    INTEGER                       :: I, J, T, NAdv, SimType, landTypeInt
+    CHARACTER(LEN=255)            :: LINE, MSG, SUBSTRS(500)
+    INTEGER                       :: N, I, J, T, IU_GEOS, IOS
+    INTEGER                       :: NAdv, SimType, landTypeInt
     LOGICAL                       :: FOUND = .false.
+    LOGICAL                       :: EOF
     CHARACTER(LEN=60)             :: rstFile, landTypeStr, importName
     INTEGER                       :: restartAttr
 
@@ -359,8 +363,47 @@ CONTAINS
     ENDIF
 
 !-- Read in species from input.geos and set FRIENDLYTO
-    CALL READ_SPECIES_FROM_FILE( GC, MAPL_am_I_Root(), restartAttr, &
-                                 AdvSpc, Nadv, SimType, RC )
+    ! ewl TODO: This works but is not ideal. Look into how to remove it.
+
+    ! Open input.geos and read a lines until hit advected species menu
+    IU_GEOS = findFreeLun()
+    OPEN( IU_GEOS, FILE='input.geos', STATUS='OLD', IOSTAT=IOS )
+    IF ( IOS /= 0 ) CALL IOERROR( IOS, IU_GEOS, 'READ_SPECIES_FROM_FILE:1' )
+    DO
+      READ( IU_GEOS, '(a)', IOSTAT=IOS ) LINE
+      IF ( IOS /= 0 ) CALL IOERROR( IOS, IU_GEOS, 'READ_SPECIES_FROM_FILE:2' )
+      IF ( INDEX( LINE, 'ADVECTED SPECIES MENU' ) > 0 ) EXIT
+    ENDDO
+
+    ! Read in all advected species names and add them to internal state
+    NADV=0
+    DO WHILE( INDEX( LINE, 'TRANSPORT MENU' ) .le. 0) 
+       READ( IU_GEOS, '(a)', IOSTAT=IOS ) LINE
+       EOF = IOS < 0
+       IF ( EOF ) RETURN
+       CALL STRSPLIT( LINE(26:), ' ', SUBSTRS, N )
+       IF ( INDEX( LINE, 'Species name' ) > 0 ) THEN
+          call MAPL_AddInternalSpec(GC, &
+              SHORT_NAME         = TRIM(SPFX) // TRIM(SUBSTRS(1)),  &
+              LONG_NAME          = TRIM(SUBSTRS(1)),  &
+              UNITS              = 'mol mol-1', &
+              DIMS               = MAPL_DimsHorzVert,    &
+              VLOCATION          = MAPL_VLocationCenter,    &
+              PRECISION          = ESMF_KIND_R8, &
+              FRIENDLYTO         = 'DYNAMICS:TURBULENCE:MOIST',  &
+              RESTART            = restartAttr, &
+              RC                 = RC  )
+         NADV = NADV+1
+         AdvSpc(NADV) = TRIM(SUBSTRS(1))
+       ELSEIF ( INDEX( LINE, 'Type of simulation' ) > 0 ) THEN
+          ! Read and store simulation type
+          READ( SUBSTRS(1:N), * ) SimType
+       ENDIF
+    ENDDO
+    CLOSE( IU_GEOS )
+!
+!    CALL READ_SPECIES_FROM_FILE( GC, MAPL_am_I_Root(), restartAttr, &
+!                                 AdvSpc, Nadv, SimType, RC )
 
 !-- Add all additional species in KPP (careful not to add dummy species)
 !-- only if fullchem or aerosol simulations
@@ -1266,6 +1309,7 @@ CONTAINS
 !
     USE HCO_INTERFACE_MOD,       ONLY : HcoState
     USE Olson_Landmap_Mod,       ONLY : Compute_Olson_Landmap_GCHP
+    USE Precision_Mod
 !
 ! !INPUT/OUTPUT PARAMETERS:
 !
@@ -1641,9 +1685,117 @@ CONTAINS
        
        ! SDE: This will overwrite and State_Chm%Species with
        !      data in units of v/v dry (2016-03-28)
+       ! EWL: Includes_Before_Run.H is now limited to setting State_Met 
+       !      variables from IMPORT state
        CALL MAPL_TimerOn(STATE, "CP_BFRE")
 #      include "Includes_Before_Run.H"
        CALL MAPL_TimerOff(STATE, "CP_BFRE")
+
+       !=======================================================================
+       ! Pass advected tracers from internal state to GEOS-Chem tracers array
+       !=======================================================================
+       DO I = 1, SIZE(Int2Chm,1)
+          IF ( Int2Chm(I)%TrcID <= 0 ) CYCLE
+          State_Chm%Species(:,:,:,Int2Chm(I)%TrcID) = Int2Chm(I)%Internal
+       ENDDO
+       
+       ! Flip in the vertical
+       State_Chm%Species   = State_Chm%Species( :, :, LM:1:-1, : )
+       
+       !=======================================================================
+       ! On first call, also need to initialize the species from restart file.
+       ! Only need to do this for species that are not advected, i.e. species
+       ! that are not tracers (all other species arrays will be filled with
+       ! tracer values anyways!).
+       ! We only need to do this on the first call because afterwards, species
+       ! array already contains values from previous chemistry time step
+       ! (advected species will be updated with tracers)
+       ! ckeller, 10/27/2014
+       !=======================================================================
+       IF ( FIRST ) THEN
+       
+          ! Get Generic State
+          call MAPL_GetObjectFromGC ( GC, STATE, RC=STATUS)
+          VERIFY_(STATUS)
+          ! Get Internal state
+          CALL MAPL_Get ( STATE, INTERNAL_ESMF_STATE=INTERNAL, __RC__ ) 
+       
+          ! Loop over all species and get info from spc db
+          DO N = 1, State_Chm%nSpecies
+             ThisSpc => State_Chm%SpcData(N)%Info
+             IF ( TRIM(ThisSpc%Name) == '' ) CYCLE
+             IND = IND_( TRIM(ThisSpc%Name ) )
+             IF ( IND < 0 ) CYCLE
+       
+             ! Get data from internal state and copy to species array
+             CALL MAPL_GetPointer( INTERNAL, Ptr3D_R8, TRIM(SPFX) //          &
+                                   TRIM(ThisSpc%Name), notFoundOK=.TRUE.,     &
+                                   __RC__ )
+             IF ( .NOT. ASSOCIATED(Ptr3D_R8) ) THEN
+                IF ( MAPL_am_I_Root()) WRITE(*,*)                             &
+                   'Could not find species in INTERNAL state - will be ' //   &
+                   'initialized to zero: ', TRIM(SPFX), TRIM(ThisSpc%Name)
+                State_Chm%Species(:,:,:,IND) = 1d-26
+                CYCLE
+             ENDIF
+             State_Chm%Species(:,:,:,IND) = Ptr3D_R8(:,:,LM:1:-1)
+             if ( MAPL_am_I_Root()) WRITE(*,*)                                &
+             'Initialized species from INTERNAL state: ', TRIM(ThisSpc%Name)
+
+             ! Determine if species in restart file
+             CALL ESMF_StateGet( INTERNAL, TRIM(SPFX) // TRIM(ThisSpc%Name),  &
+                  trcFIELD, RC=RC )
+             CALL ESMF_AttributeGet( trcFIELD, NAME="RESTART",                &
+                  VALUE=RST, RC=STATUS )
+       
+             ! Set spc conc to background value if rst skipped or var not there
+             IF ( RC /= ESMF_SUCCESS .OR. RST == MAPL_RestartBootstrap .OR.   &
+                      RST == MAPL_RestartSkipInitial ) THEN
+                DO L = 1, LLPAR 
+                DO J = 1, JJPAR
+                DO I = 1, IIPAR
+                   ! Special handling for MOH (mimicking GEOS-Chem Classic)
+                   IF ( TRIM( ThisSpc%Name ) == 'MOH' ) THEN
+                      ! Test for altitude (L < 9 is always in the trop)
+                      IF ( L <= 9 ) THEN
+                         ! Test for ocean/land boxes
+                         IF ( State_Met%FRCLND(I,J) >= 0.5 ) THEN
+                            ! Continental boundary layer: 2 ppbv MOH
+                            State_Chm%Species(I,J,L,IND) = 2.000e-9_fp
+                         ELSE
+                            ! Marine boundary layer: 0.9 ppbv MOH
+                            State_Chm%Species(I,J,L,IND) = 0.900e-9_fp
+                         ENDIF
+                      ELSE
+                         ! Test for troposphere
+                         IF ( State_Met%InTroposphere(I,J,L) ) THEN
+                            ! Free troposphere: 0.6 ppbv MOH
+                            State_Chm%Species(I,J,L,IND) = 0.600e-9_fp 
+                         ELSE
+                            ! Strat/mesosphere:
+                            State_Chm%Species(I,J,L,IND) = 1.0E-30_FP 
+                         ENDIF
+                      ENDIF
+                   ELSEIF ( L > LLCHEM .AND. &
+                            ( .NOT. ThisSpc%Is_Advected ) ) THEN
+                      ! For non-advected spc at L > LLCHEM, use small number
+                      State_Chm%Species(I,J,L,IND) = 1.0E-30_FP           
+                   ELSE
+                      ! For all other cases, use the background value in spc db
+                      State_Chm%Species(I,J,L,IND) = ThisSpc%BackgroundVV 
+                   ENDIF
+                ENDDO
+                ENDDO
+                ENDDO
+                Ptr3D_R8(:,:,:) = State_Chm%Species(:,:,LM:1:-1,IND)
+                IF ( MAPL_am_I_Root()) THEN
+                   WRITE(*,*)  &
+                   '   WARNING: using background values from species database'
+                ENDIF
+             ENDIF
+             ThisSpc => NULL()
+          ENDDO
+       ENDIF
        
        !=======================================================================
        ! Set Olson land map types from import of Olson file. 

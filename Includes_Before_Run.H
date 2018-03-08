@@ -41,6 +41,7 @@
 !                              MAPL pointers to edged data with (:,:,0:LM).
 !  28 Sep 2017 - E. Lundgren - Remove the Monin-Obukhov Len (State_Met%MOLENGTH)
 !  12 Dec 2017 - E. Lundgren - Set State_Met%LWI from surface type fractions
+!  08 Mar 2018 - E. Lundgren - Move non-State_Met code to GC chem Run_ method
 !EOP
 !------------------------------------------------------------------------------
 !BOC
@@ -166,83 +167,3 @@
   ! Create total optical depth field                         ! 1
   State_Met%OPTD                = State_Met%TAUCLI + State_Met%TAUCLW
 
-  !=========================================================================
-  ! Pass advected tracers from internal state to GEOS-Chem tracers array
-  !=========================================================================
-  DO I = 1, SIZE(Int2Chm,1)
-     IF ( Int2Chm(I)%TrcID <= 0 ) CYCLE
-     State_Chm%Species(:,:,:,Int2Chm(I)%TrcID) = Int2Chm(I)%Internal
-  ENDDO
-
-     ! Flip in the vertical
-  State_Chm%Species   = State_Chm%Species( :, :, LM:1:-1, : )
-
-  !=========================================================================
-  ! On first call, also need to initialize the species from restart file.
-  ! Only need to do this for species that are not advected, i.e. species
-  ! that are not tracers (all other species arrays will be filled with
-  ! tracer values anyways!).
-  ! We only need to do this on the first call because afterwards, species
-  ! array already contains values from previous chemistry time step
-  ! (advected species will be updated with tracers)
-  ! ckeller, 10/27/2014
-  !=========================================================================
-
-  IF ( FIRST ) THEN
-
-     ! Get Generic State
-     call MAPL_GetObjectFromGC ( GC, STATE, RC=STATUS)
-     VERIFY_(STATUS)
-     ! Get Internal state
-     CALL MAPL_Get ( STATE, INTERNAL_ESMF_STATE=INTERNAL, __RC__ ) 
-
-     ! Loop over all species
-     DO I = 1, State_Chm%nSpecies
-
-        ThisSpc => State_Chm%SpcData(I)%Info
-
-        ! Skip if empty
-        IF ( TRIM(ThisSpc%Name) == '' ) CYCLE
-
-        ! Is this a tracer?
-        IND = IND_( TRIM(ThisSpc%Name ) )
-        IF ( IND < 0 ) CYCLE
-
-        ! Get data from internal state and copy to species array. 
-        CALL MAPL_GetPointer( INTERNAL, Ptr3D_R8, TRIM(SPFX) // &
-                              TRIM(ThisSpc%Name), notFoundOK=.TRUE., __RC__ )
-        IF ( .NOT. ASSOCIATED(Ptr3D_R8) ) THEN
-           IF ( MAPL_am_I_Root()) WRITE(*,*) &
-              'Could not find species in INTERNAL state - will be ' // &
-              'initialized to zero: ', TRIM(SPFX), TRIM(ThisSpc%Name)
-           State_Chm%Species(:,:,:,IND) = 1d-26
-           CYCLE
-        ENDIF
-        State_Chm%Species(:,:,:,IND) = Ptr3D_R8(:,:,LM:1:-1)
-
-        ! testing only
-        if ( MAPL_am_I_Root()) write(*,*) &
-        'Initialized species from INTERNAL state: ', TRIM(ThisSpc%Name)
-
-        ! Set species concentration to background values from the
-        ! species database if the restart file is skipped or the species
-        ! were missing from the restart file
-        CALL ESMF_StateGet( INTERNAL, TRIM(SPFX) // TRIM(ThisSpc%Name),  &
-             trcFIELD, RC=RC )
-        CALL ESMF_AttributeGet( trcFIELD, NAME="RESTART",          &
-             VALUE=RST, RC=STATUS )
-        IF ( RC /= ESMF_SUCCESS .OR. RST == MAPL_RestartBootstrap .OR. &
-                 RST == MAPL_RestartSkipInitial ) THEN
-	    CALL SET_BACKGROUND_CONC( am_I_Root, ThisSpc, State_Chm,  &
-                                      State_Met, Input_Opt, IND, RC) 
-	    Ptr3D_R8(:,:,:) = State_Chm%Species(:,:,LM:1:-1,IND)
-            IF ( MAPL_am_I_Root()) THEN
-               write(*,*)  &
-               '   WARNING: using background values from species database'
-            ENDIF
-        ENDIF
-
-        ThisSpc => NULL()
-
-     ENDDO
-  ENDIF

@@ -7,7 +7,7 @@
 !
 ! !DESCRIPTION: Module GIGC\_HistoryExports\_Mod serves as the interface
 ! between the HISTORY configuration file, the GEOS-Chem State registry,
-! and the ESMF Export State. (Add more later)
+! and the ESMF Export State.
 !\\
 !\\
 ! !INTERFACE: 
@@ -103,10 +103,15 @@ MODULE GIGC_HistoryExports_Mod
 
   END TYPE HistoryExportObj
 !
-! !PRIVATE VARIABLES
+! !PUBLIC PARAMETERS
+!
+  ! Prefix of the species names in the internal state and HISTORY.rc
+  CHARACTER(LEN=4), PUBLIC, PARAMETER  :: SPFX = 'SPC_'
 !
 ! !REVISION HISTORY:
-!  01 Sep 2017 - E. Lundgren   -  Initial version
+!  01 Sep 2017 - E. Lundgren - Initial version
+!  08 Mar 2018 - E. Lundgren - Define the internal state prefix expected in 
+!                              HISTORY.rc within this module
 !EOP
 !------------------------------------------------------------------------------
 !BOC
@@ -181,7 +186,6 @@ CONTAINS
 !
 ! !USES:
 !
-    USE GIGC_Types_Mod,   ONLY: SPFX
     USE State_Chm_Mod,    ONLY: Get_Metadata_State_Chm
     USE State_Diag_Mod,   ONLY: Get_Metadata_State_Diag 
     USE State_Met_Mod,    ONLY: Get_Metadata_State_Met

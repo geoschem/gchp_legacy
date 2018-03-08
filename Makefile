@@ -44,6 +44,8 @@
 #                              making distclean, for safety's sake.
 #  12 Dec 2014 - R. Yantosca - Define defaults for  ESMF, MAPL, FVdycore
 #                              that can be overridden by cmd line or env var
+#  08 Mar 2018 - E. Lundgren - Remove gigc_initialization_mod, gigc_types_mod, and
+#                              gchp_utils (see git history for other updates in past yr)
 #EOP
 #------------------------------------------------------------------------------
 #BOC
@@ -353,8 +355,6 @@ Chem_GridCompMod.o          : Chem_GridCompMod.F90                          \
                               gigc_mpi_wrap.o                               \
 			      gigc_chunk_mod.o                              \
                               gigc_historyexports_mod.o                     \
-                              gigc_types_mod.o                              \
-                              gchp_utils.o                                  \
                               gigc_providerservices_mod.o
 
 GIGC_GridCompMod.o          : GIGC_GridCompMod.F90                          \
@@ -365,20 +365,13 @@ GEOS_ctmEnvGridComp.o	    : GEOS_ctmEnvGridComp.F90
 
 gigc_chunk_mod.o            : gigc_chunk_mod.F90                            \
                               gigc_historyexports_mod.o                     \
-                              gigc_mpi_wrap.o                               \
-			      gchp_utils.o
+                              gigc_mpi_wrap.o 
 
-gigc_historyexports_mod.o   : gigc_historyexports_mod.F90                   \
-                              gigc_types_mod.o
+gigc_historyexports_mod.o   : gigc_historyexports_mod.F90
 
 gigc_mpi_wrap.o             : gigc_mpi_wrap.F90
 
 gigc_providerservices_mod.o : gigc_providerservices_mod.F90
 
-gigc_types_mod.o            : gigc_types_mod.F90
-
-gchp_utils.o                : gchp_utils.F90                                \
-                              Chem_GridCompMod.o                            \
-                              gigc_types_mod.o
 #EOC
 
