@@ -38,6 +38,8 @@ MODULE GIGC_Chunk_Mod
 !  22 Oct 2012 - R. Yantosca - Renamed to gigc_chunk_mod.F90
 !  01 Nov 2012 - R. Yantosca - Now pass Input Options object to routines
 !  15 Mar 2013 - R. Yantosca - Add routine GIGC_Cap_Tropopause_Prs
+!  08 Mar 2018 - E. Lundgren - Move gigc_initialization_mod contents to 
+!                              gigc_chunk_init now that LOC is much reduced
 !EOP
 !------------------------------------------------------------------------------
 !BOC
@@ -52,48 +54,65 @@ CONTAINS
 ! !IROUTINE: gigc_chunk_init
 !
 ! !DESCRIPTION: Subroutine GIGC\_CHUNK\_INIT is the ESMF init method for
-!  GEOS-Chem.  This routine calls lower level routines to allocate arrays 
-!  and read input files.
+!  GEOS-Chem.  This routine calls routines within core GEOS-Chem to allocate 
+!  arrays and read input files.
 !\\
 !\\
 ! !INTERFACE:
 !
-  SUBROUTINE GIGC_Chunk_Init( am_I_Root,  I_LO,      J_LO,       I_HI,       &
-                              J_HI,       IM,        JM,         LM,         &
-                              IM_WORLD,   JM_WORLD,  LM_WORLD,   nymdB,      &
-                              nhmsB,      nymdE,     nhmsE,      tsChem,     &
-                              tsDyn,      lonCtr,    latCtr,     myPET,      &
-                              GC,         EXPORT,    Input_Opt,  State_Chm,  &
-                              State_Diag, State_Met, HcoConfig,  HistoryConfig,&
-                              RC      )
+  SUBROUTINE GIGC_Chunk_Init( am_I_Root,  value_I_LO,    value_J_LO,     & 
+                              value_I_HI, value_J_HI,    value_IM,       &
+                              value_JM,   value_LM,      value_IM_WORLD, &
+                              value_JM_WORLD,            value_LM_WORLD, &
+                              nymdB,      nhmsB,         nymdE,          &
+                              nhmsE,      tsChem,        tsDyn,          &
+                              lonCtr,     latCtr,        myPET,          &
+                              GC,         EXPORT,        Input_Opt,      &
+                              State_Chm,  State_Diag,    State_Met,      &
+                              HcoConfig,  HistoryConfig, RC      )
 !
 ! !USES:
 !
+    USE Chemistry_Mod,           ONLY : Init_Chemistry
+    USE CMN_Size_Mod,            ONLY : IIPAR, JJPAR, LLPAR, dLon, dLat
+    USE Emissions_Mod,           ONLY : Emissions_Init
     USE ESMF,                    ONLY : ESMF_KIND_R4
-    USE GIGC_Initialization_Mod, ONLY : GIGC_Init_Simulation
-    USE Input_Opt_Mod,           ONLY : OptInput
+    USE Fast_JX_Mod,             ONLY : Init_FJX
+    USE GC_Environment_Mod
+    USE GC_Grid_Mod,             ONLY : SetGridFromCtr
+    USE GIGC_HistoryExports_Mod, ONLY : HistoryConfigObj
+    USE GIGC_MPI_Wrap,           ONLY : GIGC_Input_Bcast
+    USE HCO_Types_Mod,           ONLY : ConfigObj
+    USE Input_Mod,               ONLY : Read_Input_File
+    USE Input_Opt_Mod,           ONLY : OptInput, Set_Input_Opt
+    USE Linoz_Mod,               ONLY : Linoz_Read
+    USE PBL_Mix_Mod,             ONLY : Init_PBL_Mix
+    USE PhysConstants,           ONLY : PI_180
+    USE Pressure_Mod,            ONLY : Init_Pressure
+    USE Roundoff_Mod,            ONLY : RoundOff
     USE State_Chm_Mod,           ONLY : ChmState
     USE State_Diag_Mod,          ONLY : DgnState
     USE State_Met_Mod,           ONLY : MetState
-    USE EMISSIONS_MOD,           ONLY : EMISSIONS_INIT
-    USE HCO_TYPES_MOD,           ONLY : ConfigObj
-    USE GIGC_HistoryExports_Mod, ONLY : HistoryConfigObj
+    USE Time_Mod,                ONLY : Set_Timesteps
+    USE TOMS_Mod,                ONLY : Init_TOMS
     USE UCX_MOD,                 ONLY : INIT_UCX
     USE UnitConv_Mod,            ONLY : Convert_Spc_Units
+
+
 !
 ! !INPUT PARAMETERS:
 !
     LOGICAL,            INTENT(IN)    :: am_I_Root   ! Are we on the root CPU?
-    INTEGER,            INTENT(IN)    :: I_LO        ! Min lon index, this CPU
-    INTEGER,            INTENT(IN)    :: J_LO        ! Min lat index, this CPU
-    INTEGER,            INTENT(IN)    :: I_HI        ! Max lon index, this CPU
-    INTEGER,            INTENT(IN)    :: J_HI        ! Max lat index, this CPU
-    INTEGER,            INTENT(IN)    :: IM          ! # lons, this CPU
-    INTEGER,            INTENT(IN)    :: JM          ! # lats, this CPU
-    INTEGER,            INTENT(IN)    :: LM          ! # levs, this CPU
-    INTEGER,            INTENT(IN)    :: IM_WORLD    ! # lons, global grid
-    INTEGER,            INTENT(IN)    :: JM_WORLD    ! # lats, global grid
-    INTEGER,            INTENT(IN)    :: LM_WORLD    ! # levs, global grid
+    INTEGER,            INTENT(IN)    :: value_I_LO    ! Min lon index, this CPU
+    INTEGER,            INTENT(IN)    :: value_J_LO    ! Min lat index, this CPU
+    INTEGER,            INTENT(IN)    :: value_I_HI    ! Max lon index, this CPU
+    INTEGER,            INTENT(IN)    :: value_J_HI    ! Max lat index, this CPU
+    INTEGER,            INTENT(IN)    :: value_IM      ! # lons, this CPU
+    INTEGER,            INTENT(IN)    :: value_JM      ! # lats, this CPU
+    INTEGER,            INTENT(IN)    :: value_LM      ! # levs, this CPU
+    INTEGER,            INTENT(IN)    :: value_IM_WORLD! # lons, global grid
+    INTEGER,            INTENT(IN)    :: value_JM_WORLD! # lats, global grid
+    INTEGER,            INTENT(IN)    :: value_LM_WORLD! # levs, global grid
     INTEGER,            INTENT(IN)    :: myPET       ! Local PET
     INTEGER,            INTENT(IN)    :: nymdB       ! YYYYMMDD @ start of run
     INTEGER,            INTENT(IN)    :: nhmsB       ! hhmmss   @ start of run
@@ -144,14 +163,23 @@ CONTAINS
 !  05 Dec 2012 - R. Yantosca - Remove latEdg argument
 !  06 Dec 2012 - R. Yantosca - Add nymdB, nhmsB, nymdB, nhmsB arguments,
 !                              and remove nymd, nhms
-!  06 Mar 2018 - Remove Set_Initial_MixRatios
+!  06 Mar 2018 - E. Lundgren - Remove Set_Initial_MixRatios
+!  08 Mar 2018 - E. Lundgren - Move gigc_initialized_mod code here and move
+!                              dlat/dlon calculation to gc_init_grid;
+!                              GC timesteps are now seconds;
+!                              Call set_input_opt to initialize input_opt vars;
+!                              Add error handling using MAPL Assert_;
+!                              Rename Initialize_Geos_Grid to GC_Init_Grid;
+!                              Now call GC_Allocate_All after input.geos read;
+!                              Restructure grid init based on gcbe v11-02e;
+!                              Remove all unused code and simplify comments
 !EOP
 !------------------------------------------------------------------------------
 !BOC
 !
 ! !LOCAL VARIABLES:
 !
-    INTEGER                        :: STATUS
+    INTEGER                        :: I, J, L, STATUS
     CHARACTER(LEN=ESMF_MAXSTR)     :: Iam
 
     !=======================================================================
@@ -164,49 +192,162 @@ CONTAINS
     ! Assume success
     RC = GC_SUCCESS
 
-    !======================================================================
-    ! Initialize the G-C simulation and chemistry mechanism
-    !=======================================================================
-    CALL GIGC_Init_Simulation( am_I_Root      = am_I_Root,  & ! Root CPU?
-                               nymdB          = nymdB,      & ! Date @ start
-                               nhmsB          = nhmsB,      & ! Time @ start
-                               nymdE          = nymdE,      & ! Date @ end
-                               nhmsE          = nhmsE,      & ! Time @ end
-                               tsChem         = tsChem,     & ! Chem step [s]
-                               tsDyn          = tsDyn,      & ! Dyn  step [s]
-                               value_I_LO     = I_LO,       & ! Local min lon
-                               value_J_LO     = J_LO,       & ! Local min lat
-                               value_I_HI     = I_HI,       & ! Local max lon 
-                               value_J_HI     = J_HI,       & ! Local max lat
-                               value_IM       = IM,         & ! Local # lons
-                               value_JM       = JM,         & ! Local # lats
-                               value_LM       = LM,         & ! Local # levs
-                               value_IM_WORLD = IM_WORLD,   & ! Global # lons
-                               value_JM_WORLD = JM_WORLD,   & ! Global # lats
-                               value_LM_WORLD = LM_WORLD,   & ! Global # levs
-                               lonCtr         = lonCtr,     & ! Lon ctrs [rad]
-                               latCtr         = latCtr,     & ! Lat ctrs [rad]
-                               myPET          = myPET,      & ! Local PET
-                               GC             = GC,         & ! gridcomp
-                               EXPORT         = EXPORT,     & ! Export state obj
-                               Input_Opt      = Input_Opt,  & ! Input Options
-                               State_Chm      = State_Chm,  & ! Chemistry State
-                               State_Diag     = State_Diag, & ! Diagnostic State
-                               State_Met      = State_Met,  & ! Met State
-                               HistoryConfig  = HistoryConfig, & ! Hist cfg obj
-                               RC             = RC         )  ! Success?
+    ! Initialize Input_Opt fields to zeros or equivalent
+    CALL Set_Input_Opt( am_I_Root, Input_Opt, RC )
     ASSERT_(RC==GC_SUCCESS)
 
-    !=======================================================================
+    ! Update Input_Opt with timing fields
+    Input_Opt%NYMDb   = nymdB
+    Input_Opt%NHMSb   = nhmsB
+    Input_Opt%NYMDe   = nymdE
+    Input_Opt%NHMSe   = nhmsE
+    Input_Opt%TS_CHEM = INT( tsChem )   ! Chemistry timestep [sec]
+    Input_Opt%TS_EMIS = INT( tsChem )   ! Chemistry timestep [sec]
+    Input_Opt%TS_DYN  = INT( tsDyn  )   ! Dynamic   timestep [sec]
+    Input_Opt%TS_CONV = INT( tsDyn  )   ! Dynamic   timestep [sec]
+    Input_Opt%myCPU   = myPET
+
+    ! ewl TODO: Is this calculation of dlon/dlat needed for GCHP or GEOS-5?
+    !========================================================================
+    ! Compute the DLON and DLAT values.  NOTE, this is a kludge since to do
+    ! this truly rigorously, we should take the differences between the grid
+    ! box edges.  But because I can't seem to find a way to get the grid
+    ! box edge information, the next best thing is to take the differences
+    ! between the grid box centers.  They should all be the same given that
+    ! the GEOS-Chem grid is regular. (bmy, 12/7/12)
+    !========================================================================
+    ! ewl debugging
+    PRINT *, "LLPAR: ", LLPAR
+    PRINT *, "JJPAR: ", JJPAR
+    PRINT *, "IIPAR: ", IIPAR
+
+    DO L = 1, LLPAR
+    DO J = 1, JJPAR
+    DO I = 1, IIPAR
+    
+       ! Compute Delta-Longitudes [degrees]
+       IF ( I == IIPAR ) THEN
+          dLon(I,J,L) = RoundOff( ( DBLE( lonCtr(IIPAR,  J) ) / PI_180 ), 4 ) &
+                      - RoundOff( ( DBLE( lonCtr(IIPAR-1,J) ) / PI_180 ), 4 )
+       ELSE
+          dLon(I,J,L) = RoundOff( ( DBLE( lonCtr(I+1,    J) ) / PI_180 ), 4 ) &
+                      - RoundOff( ( DBLE( lonCtr(I,      J) ) / PI_180 ), 4 )
+       ENDIF
+    
+       ! Compute Delta-Latitudes [degrees]
+       IF ( J == JJPAR ) THEN
+          dLat(I,J,L) = RoundOff( ( DBLE( latCtr(I,JJPAR  ) ) / PI_180 ), 4 ) &
+                      - RoundOff( ( DBLE( latCtr(I,JJPAR-1) ) / PI_180 ), 4 )
+       ELSE
+          dLat(I,J,L) = RoundOff( ( DBLE( latCtr(I,J+1    ) ) / PI_180 ), 4 ) &
+                      - RoundOff( ( DBLE( latCtr(I,J      ) ) / PI_180 ), 4 )
+       ENDIF
+    
+    ENDDO
+    ENDDO
+    ENDDO
+
+    ! Root CPU only
+    IF ( am_I_Root ) THEN
+
+       ! Read input.geos
+       CALL Read_Input_File( am_I_Root, Input_Opt, RC )
+       ASSERT_(RC==GC_SUCCESS)
+
+       ! In the ESMF/MPI environment, we can get the total overhead ozone
+       ! either from the met fields (GIGCsa) or from the Import State (GEOS-5)
+       Input_Opt%USE_O3_FROM_MET = .TRUE.
+
+       ! Read LINOZ climatology
+       IF ( Input_Opt%LLINOZ ) THEN
+          CALL Linoz_Read( am_I_Root, Input_Opt, RC ) 
+          ASSERT_(RC==GC_SUCCESS)
+       ENDIF
+    ENDIF
+
+    ! Allocate all lat/lon arrays
+    CALL GC_Allocate_All( am_I_Root, Input_Opt, RC,         &  
+                          value_I_LO     = value_I_LO,      &
+                          value_J_LO     = value_J_LO,      &
+                          value_I_HI     = value_I_HI,      &
+                          value_J_HI     = value_J_HI,      &
+                          value_IM       = value_IM,        &
+                          value_JM       = value_JM,        &
+                          value_LM       = value_LM,        &
+                          value_IM_WORLD = value_IM_WORLD,  &
+                          value_JM_WORLD = value_JM_WORLD,  &  
+                          value_LM_WORLD = value_LM_WORLD  )            
+    ASSERT_(RC==GC_SUCCESS)
+
+    ! Broadcast Input_Opt from root to all other CPUs
+    CALL GIGC_Input_Bcast( am_I_Root, Input_Opt, RC )
+    ASSERT_(RC==GC_SUCCESS)
+
+    ! Initialize horizontal grid parameters
+    CALL GC_Init_Grid( am_I_Root, Input_Opt, RC )
+    ASSERT_(RC==GC_SUCCESS)
+
+    ! Set grid based on passed mid-points
+    CALL SetGridFromCtr( am_I_Root, value_IM,    value_JM, &
+                         lonCtr,    latCtr,      RC      )
+    ASSERT_(RC==GC_SUCCESS)
+
+    ! Set timesteps
+    CALL Set_Timesteps( am_I_Root  = am_I_Root,                          &
+                        Chemistry  = Input_Opt%TS_CHEM,                  &
+                        Convection = Input_Opt%TS_CONV,                  &
+                        Dynamics   = Input_Opt%TS_DYN,                   &
+                        Emission   = Input_Opt%TS_EMIS,                  &
+                        Radiation  = Input_Opt%TS_RAD,                   &
+                        Unit_Conv  = MAX( Input_Opt%TS_DYN,              &
+                                          Input_Opt%TS_CONV ),           &
+                        Diagnos    = Input_Opt%TS_DIAG         )
+
+    ! Initialize derived-type objects for met, chem, and diag
+    CALL GC_Init_StateObj( am_I_Root, HistoryConfig%DiagList, Input_Opt, &
+                           State_Chm, State_Diag, State_Met, RC )
+    ASSERT_(RC==GC_SUCCESS)
+
+    ! Initialize other GEOS-Chem modules
+    CALL GC_Init_Extra( am_I_Root, HistoryConfig%DiagList, Input_Opt,    &
+                        State_Chm, State_Diag, RC ) 
+    ASSERT_(RC==GC_SUCCESS)
+
+    ! Initialize photolysis
+    IF ( Input_Opt%ITS_A_FULLCHEM_SIM .OR.                     &
+         Input_Opt%ITS_AN_AEROSOL_SIM ) THEN
+       CALL Init_FJX( am_I_Root, Input_Opt, State_Chm, State_Diag, RC ) 
+       ASSERT_(RC==GC_SUCCESS)
+    ENDIF
+      
+    ! Set State_Chm units
+    State_Chm%Spc_Units = 'kg/kg dry'
+
+    ! Initialize pressure module (set Ap & Bp)
+    CALL Init_Pressure( am_I_Root )
+
+    ! Initialize PBL mixing module
+    CALL Init_PBL_Mix( am_I_Root, RC )
+    ASSERT_(RC==GC_SUCCESS)
+    
+    ! Initialize chemistry mechanism
+    IF ( Input_Opt%ITS_A_FULLCHEM_SIM .OR. Input_Opt%ITS_AN_AEROSOL_SIM ) THEN
+       CALL Init_Chemistry( am_I_Root, Input_Opt, State_Chm, State_Diag, RC )
+       ASSERT_(RC==GC_SUCCESS)
+    ENDIF
+
+    ! Allocate array of overhead O3 columns for TOMS if chemistry is on
+    IF ( Input_Opt%LCHEM ) THEN
+       CALL Init_TOMS( am_I_Root, Input_Opt, RC )
+       ASSERT_(RC==GC_SUCCESS)
+    ENDIF
+
     ! Initialize HEMCO
-    !=======================================================================
     CALL EMISSIONS_INIT ( am_I_Root, Input_Opt, State_Met, State_Chm, RC, &
                           HcoConfig=HcoConfig )
     ASSERT_(RC==GC_SUCCESS)
 
-    !-------------------------------------------------------------------------
     ! Stratosphere - can't be initialized without HEMCO because of STATE_PSC
-    !-------------------------------------------------------------------------
     IF ( Input_Opt%LUCX ) THEN
 
        ! Initialize stratospheric routines
@@ -214,10 +355,10 @@ CONTAINS
 
     ENDIF
 
+    ! ewl TODO: Is this block needed for GEOS-5? If not, remove.
     !=======================================================================
     ! Make sure options are sane
     !=======================================================================
-
     ! In GEOS-5, we typically use the GEOS-5 online transport, convection 
     ! and turbulence scheme to vertically distribute tracer concentrations.
     ! In this case, emissions and dry deposition should only be applied to
@@ -240,6 +381,9 @@ CONTAINS
     CALL Convert_Spc_Units( am_I_Root, Input_Opt, State_Met, &
                             State_Chm, 'v/v dry', RC )
     ASSERT_(RC==GC_SUCCESS)
+
+    ! Return success
+    RC = GC_Success
 
   END SUBROUTINE GIGC_Chunk_Init
 !EOC

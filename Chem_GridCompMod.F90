@@ -887,16 +887,16 @@ CONTAINS
  
     ! Call the GIGC initialize routine
     CALL GIGC_Chunk_Init( am_I_Root = am_I_Root,  & ! Are we on the root PET?
-                          I_LO      = I_LO,       & ! Min lon index on this PET
-                          J_LO      = J_LO,       & ! Min lat index on this PET
-                          I_HI      = I_HI,       & ! Max lon index on this PET
-                          J_HI      = J_HI,       & ! Max lat index on this PET
-                          IM        = IM,         & ! # lons   on this PET
-                          JM        = JM,         & ! # lats   on this PET
-                          LM        = LM,         & ! # levels on this PET
-                          IM_WORLD  = IM_WORLD,   & ! # lons   in global grid
-                          JM_WORLD  = JM_WORLD,   & ! # lats   in global grid
-                          LM_WORLD  = LM_WORLD,   & ! # levels in global grid
+                          value_I_LO= I_LO,       & ! Min lon index on this PET
+                          value_J_LO= J_LO,       & ! Min lat index on this PET
+                          value_I_HI= I_HI,       & ! Max lon index on this PET
+                          value_J_HI= J_HI,       & ! Max lat index on this PET
+                          value_IM  = IM,         & ! # lons   on this PET
+                          value_JM  = JM,         & ! # lats   on this PET
+                          value_LM  = LM,         & ! # levels on this PET
+                          value_IM_WORLD=IM_WORLD,& ! # lons   in global grid
+                          value_JM_WORLD=JM_WORLD,& ! # lats   in global grid
+                          value_LM_WORLD=LM_WORLD,& ! # levels in global grid
                           nymdB     = nymdB,      & ! YYYYMMDD @ start of run
                           nhmsB     = nhmsB,      & ! hhmmss   @ start of run
                           nymdE     = nymdE,      & ! YYYYMMDD @ end of run
@@ -1414,7 +1414,7 @@ CONTAINS
     REAL, POINTER      :: Ptr2d(:,:) => NULL()
 
     ! First call?
-    LOGICAL, SAVE                :: FIRST    = .TRUE.
+    LOGICAL, SAVE      :: FIRST    = .TRUE.
 
     __Iam__('Run_')
 
