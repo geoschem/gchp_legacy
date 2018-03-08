@@ -164,9 +164,12 @@ MODULE Chem_GridCompMod
 !  22 Feb 2015 - C. Keller   - Now check if geoschemchem_import_rst exist
 !  06 Jun 2016 - M. Yannetti - Added Get_Transport.
 !  19 Dec 2016 - M. Long     - Update for v11-01k
+!  01 Sep 2017 - E. Lundgren - Enable automation of GCHP diagnostics
 !  19 Sep 2017 - E. Lundgren - Remove Get_Transport
 !  02 Nov 2017 - E. Lundgren - Remove unused private functions roundoff, 
 !                              globalsum, and print_mean_oh
+!  06 Nov 2017 - E. Lundgren - Abstract provider services to new module
+!                              gigc_providerservices_mod.F90
 !EOP
 !------------------------------------------------------------------------------
 !BOC
@@ -223,6 +226,14 @@ CONTAINS
 !  06 Dec 2009 - A. da Silva - Initial version
 !  07 Apr 2010 - R. Yantosca - Updated comments, cosmetic changes 
 !  22 Sep 2014 - C. Keller   - Added two run phases
+!  07 Aug 2017 - E. Lundgren - Add Olson and CHRL imports
+!  14 Jul 2017 - E. Lundgren - Read simulation type to determine whether to
+!                              add KPP species to the internal state
+!  01 Sep 2017 - E. Lundgren - Call new subroutine HistoryExports_SetServices
+!                              for GEOS-Chem state object diagnostics
+!  12 Sep 2017 - E. Lundgren - Use species prefix "SPFX" from gigc_types_mod.F90
+!  06 Nov 2017 - E. Lundgren - Abstract provider services to new module
+!                              gigc_providerservices_mod.F90
 !EOP
 !------------------------------------------------------------------------------
 !BOC
@@ -625,6 +636,10 @@ CONTAINS
 !  13 Oct 2014 - C. Keller   - Updated for HEMCO
 !  24 Oct 2014 - C. Keller   - Updated for RATS/AERO/Analysis OX provider
 !  23 Feb 2015 - C. Keller   - Now use local variable haveImpRst
+!  06 Nov 2017 - E. Lundgren - Abstract provider services to new module
+!                              gigc_providerservices_mod.F90
+!  06 Mar 2018 - E. Lundgren - Remove obsolete variables; update usage of GC
+!                              timesteps since now in seconds not minutes
 !EOP
 !------------------------------------------------------------------------------
 !BOC
@@ -796,22 +811,24 @@ CONTAINS
     ! so that we can pass those into GeosCore/input_mod.F of GEOS-Chem
     !=======================================================================
 
+    ! ewl note: might be able to remove some of these...
+
     ! Max # of diagnostics
     CALL ESMF_ConfigGetAttribute( GeosCF, Input_Opt%MAX_DIAG,       &
                                   Default = 80,                     &
                                   Label   = "MAX_DIAG:",            &
-                                  __RC__                           )    
-
-    ! Max # of species
-    CALL ESMF_ConfigGetAttribute( GeosCF, Input_Opt%MAX_SPC,       &
-                                  Default = 500,                   &
-                                  Label   = "MAX_SPC:",            &
-                                 __RC__                            )    
+                                  __RC__                           ) 
 
     ! Max # of families per ND65 family tracer (not used for ESMF)
     CALL ESMF_ConfigGetAttribute( GeosCF, Input_Opt%MAX_FAM,       &
                                   Default = 20,                     &
                                   Label   = "MAX_FAM:",            & 
+                                  __RC__                           )
+
+    ! Max # of passive tracers
+    CALL ESMF_ConfigGetAttribute( GeosCF, Input_Opt%MAX_PASV,       &
+                                  Default = 50,                     &
+                                  Label   = "MAX_PASV:",            & 
                                   __RC__                           )
 
     ! # of levels in LINOZ climatology
@@ -1023,8 +1040,8 @@ CONTAINS
     ! Error trap: make sure that chemistry / emission time step are same and
     ! correspond to the chemistry step set in GEOSCHEMchem_GridComp.rc.
     !=======================================================================
-    ChemTS = GET_TS_CHEM() * 60d0 
-    EmisTS = GET_TS_EMIS() * 60d0
+    ChemTS = GET_TS_CHEM() 
+    EmisTS = GET_TS_EMIS()
     IF ( ChemTS /= tsChem .OR. EmisTS /= tsChem ) THEN
        IF( am_I_Root ) THEN
           WRITE(*,*) 'GEOS-Chem chemistry and/or emission time step do not'
@@ -1037,8 +1054,8 @@ CONTAINS
     ENDIF
 
     ! Also check for convection and dynamics time step.
-    ChemTS = GET_TS_CONV() * 60d0 
-    EmisTS = GET_TS_DYN()  * 60d0
+    ChemTS = GET_TS_CONV()
+    EmisTS = GET_TS_DYN()
     IF ( ChemTS /= tsDyn .OR. EmisTS /= tsDyn ) THEN
        IF( am_I_Root ) THEN
           WRITE(*,*) 'GEOS-Chem transport and/or convection time step do not'
@@ -1292,6 +1309,12 @@ CONTAINS
 !                              state as no physics was applied to them anyways.
 !  29 Nov 2016 - E. Lundgren - Initialize Olson fractional land type, MODIS 
 !                              LAI, and MODIS CHLR from ExtData imports
+!  01 Sep 2017 - E. Lundgren - Enable automation of GCHP diagnostics by 
+!                              setting data pointers and copying GC state values
+!                              using the new HistoryConfig object
+!  26 Jul 2017 - S. Eastham  - Read LAI from a single variable in file
+!  06 Nov 2017 - E. Lundgren - Abstract provider services to new module
+!                              gigc_providerservices_mod.F90
 !EOP
 !------------------------------------------------------------------------------
 !BOC
@@ -1957,7 +1980,6 @@ CONTAINS
 !
 ! !USES:
 !
-    USE Species_Mod,          ONLY : Species
 !
 ! !INPUT/OUTPUT PARAMETERS:
 !
@@ -1989,6 +2011,8 @@ CONTAINS
 !  27 Oct 2014 - C. Keller   - Now save species that are not advected into
 !                              internal state to ensure they are written into
 !                              the restart file.
+!  07 Aug 2017 - E. Lundgren - Use species database instead of State_Chm vars 
+!                              Spec_Name and Spec_ID
 !EOP
 !------------------------------------------------------------------------------
 !BOC
@@ -2308,7 +2332,7 @@ CONTAINS
 !  13 Feb 2013 - E. Nielsen  - Restart file inquiry for GEOS-5
 !  05 Jan 2016 - S. D. Eastham - Fixed order of time calls
 !  02 Nov 2017 - E. Lundgren - Replace use of local GridGetInterior with 
-!                              call to MAPL_GridGetInterior after making public
+!                              call to MAPL_GridGetInterior (now public)
 !EOP
 !------------------------------------------------------------------------------
 !BOC

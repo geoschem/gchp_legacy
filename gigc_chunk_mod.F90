@@ -78,7 +78,7 @@ CONTAINS
     USE EMISSIONS_MOD,           ONLY : EMISSIONS_INIT
     USE HCO_TYPES_MOD,           ONLY : ConfigObj
     USE GIGC_HistoryExports_Mod, ONLY : HistoryConfigObj
-    USE UCX_MOD,                 ONLY : INIT_UCX, SET_INITIAL_MIXRATIOS
+    USE UCX_MOD,                 ONLY : INIT_UCX
     USE UnitConv_Mod,            ONLY : Convert_Spc_Units
 !
 ! !INPUT PARAMETERS:
@@ -144,6 +144,7 @@ CONTAINS
 !  05 Dec 2012 - R. Yantosca - Remove latEdg argument
 !  06 Dec 2012 - R. Yantosca - Add nymdB, nhmsB, nymdB, nhmsB arguments,
 !                              and remove nymd, nhms
+!  06 Mar 2018 - Remove Set_Initial_MixRatios
 !EOP
 !------------------------------------------------------------------------------
 !BOC
@@ -210,9 +211,6 @@ CONTAINS
 
        ! Initialize stratospheric routines
        CALL INIT_UCX( am_I_Root, Input_Opt, State_Chm, State_Diag )
-
-       ! Set simple initial tracer conditions
-       CALL SET_INITIAL_MIXRATIOS( am_I_Root, Input_Opt, State_Met, State_Chm )
 
     ENDIF
 

@@ -1,3 +1,4 @@
+#include "MAPL_Generic.h"
 !------------------------------------------------------------------------------
 !          Harvard University Atmospheric Chemistry Modeling Group            !
 !------------------------------------------------------------------------------
@@ -5,9 +6,8 @@
 !
 ! !MODULE: gigc_initialization_mod
 !
-! !DESCRIPTION: Module GIGC\_INITIALIZATION\_MOD is the module that
-!  the initialize methods for the ESMF interface to the Grid-Independent
-!  GEOS-Chem (aka "GIGC").
+! !DESCRIPTION: Module GIGC\_INITIALIZATION\_MOD contains the initialize 
+!  methods for the ESMF interface of High Performance GEOS-Chem.
 !\\
 !\\
 ! !INTERFACE: 
@@ -16,12 +16,15 @@ MODULE GIGC_Initialization_Mod
 !
 ! !USES:
 !      
+  USE MAPL_MOD
+  USE ESMF
+  USE ErrCode_Mod
+
   IMPLICIT NONE
   PRIVATE
 !
 ! !PUBLIC MEMBER FUNCTIONS:
 !      
-  PUBLIC  :: GIGC_Get_Options
   PUBLIC  :: GIGC_Init_Simulation
 !
 ! !PRIVATE MEMBER FUNCTIONS:
@@ -36,6 +39,9 @@ MODULE GIGC_Initialization_Mod
 !  03 Dec 2012 - R. Yantosca - Now pass extra arguments to GIGC_Init_Dimensions
 !  06 Dec 2012 - R. Yantosca - Now remove routine GIGC_Init_TimeInterface; this
 !                              is now superseded by Accept_Date_Time_From_ESMF
+!  08 Mar 2018 - E. Lundgren - Remove GIGC_Get_Options; merge its functionality
+!                              into GGIC_Init_Simulation for simplicity;
+!                              overhaul gigc_init_simulation for v11-02e
 !EOP
 !------------------------------------------------------------------------------
 !BOC
@@ -46,155 +52,11 @@ CONTAINS
 !------------------------------------------------------------------------------
 !BOP
 !
-! !IROUTINE: gigc_get_options
-!
-! !DESCRIPTION: Routine GIGC\_GET\_OPTIONS reads options for a GEOS-Chem 
-!  simulation from the input.geos\_\_\_.rc input file.
-!\\
-!\\
-! !INTERFACE:
-!
-  SUBROUTINE GIGC_Get_Options( am_I_Root, lonCtr,    latCtr,  &
-                               Input_Opt, State_Chm, RC      )
-!
-! !USES:
-!
-    USE PhysConstants       
-    USE CMN_SIZE_Mod
-    USE Roundoff_Mod,       ONLY : RoundOff
-    USE Error_Mod,          ONLY : Debug_Msg
-    USE ErrCode_Mod
-    USE Input_Opt_Mod,      ONLY : OptInput
-    USE State_Chm_Mod,      ONLY : ChmState
-    USE Input_Mod,          ONLY : Read_Input_File
-    USE Linoz_Mod,          ONLY : Linoz_Read
-!
-! !INPUT PARAMETERS: 
-!
-    LOGICAL,        INTENT(IN)    :: am_I_Root     ! Are we on the root CPU?
-    REAL*4,         INTENT(IN)    :: lonCtr(:,:)   ! Lon ctrs [deg] from ESMF
-    REAL*4,         INTENT(IN)    :: latCtr(:,:)   ! Lat ctrs [deg] from ESMF
-!
-! !INPUT/OUTPUT PARAMETERS:
-!
-    TYPE(OptInput), INTENT(INOUT) :: Input_Opt   ! Input Options object
-    TYPE(ChmState), INTENT(INOUT) :: State_Chm
-!
-! !OUTPUT PARAMETERS:
-!
-    INTEGER,        INTENT(OUT)   :: RC            ! Success or failure
-! 
-! !REMARKS:
-!  NOTE: For now assume that GEOS_Chem will always accept a regular 
-!  Cartesian grid.  This is more or less dictated by the input data.
-!  The GEOS-5 data can be regridded via ESMF from whatever grid it uses.
-!  (bmy, 11/30/12)
-!
-! !REVISION HISTORY: 
-!  15 Oct 2012 - M. Long     - Initial version
-!  15 Oct 2012 - R. Yantosca - Added ProTeX Headers, use F90 format/indents
-!  22 Oct 2012 - R. Yantosca - Renamed to GIGC_Get_Options
-!  22 Oct 2012 - R. Yantosca - Added RC output argument
-!  01 Nov 2012 - R. Yantosca - Now pass the Input Options object via arg list
-!  03 Dec 2012 - R. Yantosca - Reorder subroutines for clarity
-!  07 Dec 2012 - R. Yantosca - Compute DLON, DLAT more rigorously
-!  26 Feb 2013 - M. Long     - Now pass State_Chm as an argument
-!  26 Feb 2013 - M. Long     - Read "input.geos" on root CPU only
-!  06 Mar 2013 - R. Yantosca - Now move non-root CPU setup out of this routine
-!  18 Mar 2013 - R. Yantosca - Now call LINOZ_READ on the root CPU
-!EOP
-!------------------------------------------------------------------------------
-!BOC
-!
-! !LOCAL VARIABLES:
-!
-    ! Scalars
-    INTEGER :: I, J, L
-  
-    ! Assume success
-    RC = GC_SUCCESS
-
-    !========================================================================
-    ! Compute the DLON and DLAT values.  NOTE, this is a kludge since to do
-    ! this truly rigorously, we should take the differences between the grid
-    ! box edges.  But because I can't seem to find a way to get the grid
-    ! box edge information, the next best thing is to take the differences
-    ! between the grid box centers.  They should all be the same given that
-    ! the GEOS-Chem grid is regular. (bmy, 12/7/12)
-    !========================================================================
-    DO L = 1, LLPAR
-    DO J = 1, JJPAR
-    DO I = 1, IIPAR
-
-       ! Compute Delta-Longitudes [degrees]
-       IF ( I == IIPAR ) THEN
-          dLon(I,J,L) = RoundOff( ( DBLE( lonCtr(IIPAR,  J) ) / PI_180 ), 4 ) &
-                      - RoundOff( ( DBLE( lonCtr(IIPAR-1,J) ) / PI_180 ), 4 )
-       ELSE
-          dLon(I,J,L) = RoundOff( ( DBLE( lonCtr(I+1,    J) ) / PI_180 ), 4 ) &
-                      - RoundOff( ( DBLE( lonCtr(I,      J) ) / PI_180 ), 4 )
-       ENDIF
-
-       ! Compute Delta-Latitudes [degrees]
-       IF ( J == JJPAR ) THEN
-          dLat(I,J,L) = RoundOff( ( DBLE( latCtr(I,JJPAR  ) ) / PI_180 ), 4 ) &
-                      - RoundOff( ( DBLE( latCtr(I,JJPAR-1) ) / PI_180 ), 4 )
-       ELSE
-          dLat(I,J,L) = RoundOff( ( DBLE( latCtr(I,J+1    ) ) / PI_180 ), 4 ) &
-                      - RoundOff( ( DBLE( latCtr(I,J      ) ) / PI_180 ), 4 )
-       ENDIF
-
-    ENDDO
-    ENDDO
-    ENDDO
-
-    !========================================================================
-    ! Root CPU setup
-    !========================================================================
-    IF ( am_I_Root ) THEN
-
-       ! Read the GEOS-Chem input file here.  For now only read on the root
-       ! CPU so that we can broadcast to other CPUs in GIGC_Init_Simulation
-       ! (mlong, bmy, 2/26/13)
-       CALL Read_Input_File( am_I_Root, Input_Opt, RC )
-       IF ( RC /= GC_SUCCESS ) RETURN
-
-       ! In the ESMF/MPI environment, we can get the total overhead ozone
-       ! either from the met fields (GIGCsa) or from the Import State (GEOS-5)
-       Input_Opt%USE_O3_FROM_MET = .TRUE.
-
-       ! Echo info
-       IF ( Input_Opt%LPRT ) THEN
-          CALL Debug_Msg( '### Root CPU, after READ_INPUT_FILE' )
-       ENDIF
-
-       ! Read the LINOZ climatology file on the root CPU, so that we can
-       ! MPI broadcast the data to the other CPUs in GIGC_Init_Simulation
-       ! (bmy, 3/18/13)
-       IF ( Input_Opt%LLINOZ ) THEN
-          CALL Linoz_Read( am_I_Root, Input_Opt, RC ) 
-          IF ( RC /= GC_SUCCESS ) RETURN
-
-          ! Echo info
-          IF ( Input_Opt%LPRT ) THEN
-             CALL Debug_Msg( '### Root CPU, after LINOZ_READ' )
-          ENDIF
-       ENDIF
-    ENDIF
-
-  END SUBROUTINE GIGC_Get_Options
-!EOC
-!------------------------------------------------------------------------------
-!          Harvard University Atmospheric Chemistry Modeling Group            !
-!------------------------------------------------------------------------------
-!BOP
-!
 ! !IROUTINE: gigc_init_simulation
 !
 ! !DESCRIPTION: Routine GIGC\_INIT\_SIMULATION is the Initialize method for 
-!  the ESMF interface that connects the Grid-Independent GEOS-Chem (aka "GIGC")
-!  to the GEOS-5 GCM.  Calls to the various GEOS-Chem init routines (which 
-!  allocate arrays, etc.) are made from here.
+!  the ESMF interface that connects GCHP to the GEOS-5 GCM.  Calls to the 
+!  various GEOS-Chem init routines are made from here.
 !\\
 !\\
 ! !INTERFACE:
@@ -217,22 +79,20 @@ CONTAINS
 !
 ! !USES:
 !
-    USE Error_Mod,               ONLY : Debug_Msg
-    USE ESMF,                    ONLY : ESMF_State, ESMF_GridComp
     USE Chemistry_Mod,           ONLY : INIT_CHEMISTRY
     USE CMN_SIZE_Mod
     USE GC_Environment_Mod
-    USE ErrCode_Mod
-    USE Input_Opt_Mod,           ONLY : OptInput
+    USE Input_Mod,               ONLY : Read_Input_File
+    USE Input_Opt_Mod,           ONLY : OptInput, Set_Input_Opt
     USE FAST_JX_Mod,             ONLY : Init_FJX
-    USE GC_Grid_Mod,             ONLY : Init_Grid, SetGridFromCtr
-    USE GC_Grid_Mod,             ONLY : Set_xOffSet, Set_yOffSet
+    USE GC_Grid_Mod,             ONLY : SetGridFromCtr
     USE GIGC_HistoryExports_Mod, ONLY : HistoryConfigObj
     USE GIGC_MPI_Wrap,           ONLY : GIGC_Input_Bcast
-    USE Input_Mod,               ONLY : GC_Init_Extra, Initialize_Geos_Grid
+    USE Linoz_Mod,               ONLY : Linoz_Read
     USE PBL_Mix_Mod,             ONLY : Init_PBL_Mix
-    USE PhysConstants
+    USE PhysConstants,           ONLY : PI_180
     USE Pressure_Mod,            ONLY : Init_Pressure
+    USE Roundoff_Mod,            ONLY : RoundOff
     USE State_Chm_Mod,           ONLY : ChmState
     USE State_Diag_Mod,          ONLY : DgnState
     USE State_Met_Mod,           ONLY : MetState
@@ -277,9 +137,7 @@ CONTAINS
     INTEGER,         INTENT(OUT)   :: RC              ! Success or failure?  
 !
 ! !REMARKS
-!  Add other calls to G EOS-Chem init routines as necessary.
-!  NOTE: Later on maybe split these init calls among other routines.
-!  Also need to add better error trapping
+!  Add other calls to GEOS-Chem init routines as necessary.
 !
 ! !REVISION HISTORY: 
 !  15 Oct 2012 - M. Long     - Initial version
@@ -313,96 +171,123 @@ CONTAINS
 !  02 Jan 2014 - C. Keller   - Now call SetGridFromCtr to make sure that 
 !                              grid_mod.F90 stored the correct edges/mid-points.
 !  01 Dec 2016 - E. Lundgren - Remove GC classic Olson routine calls
+!  06 Mar 2018 - E. Lundgren - GC timesteps are now seconds;
+!                              Call set_input_opt to initialize input_opt vars;
+!                              Add error handling using MAPL Assert_;
+!                              Rename Initialize_Geos_Grid to GC_Init_Grid;
+!                              Now call GC_Allocate_All after input.geos read;
+!                              Move code from gigc_Get_Options subrtn here;
+!                              Restructure grid init based on gcbe v11-02e;
+!                              Remove all unused code and simplify comments
 !EOP
 !------------------------------------------------------------------------------
 !BOC
 !
 ! !LOCAL VARIABLES:
 !
-    LOGICAL            :: prtDebug
-    INTEGER            :: DTIME, K, AS, N, YEAR, I, J, L, TMP, STAT
-    CHARACTER(LEN=255) :: NAME
+    INTEGER            :: I, J, L
+    CHARACTER(LEN=255) :: Iam
 
     !=======================================================================
-    ! Initialize key GEOS-Chem sections
+    ! GIGC_Init_Simulation starts here
     !=======================================================================
 
     ! Initialize
-    RC       = GC_SUCCESS
-    DTIME    = tsChem
+    RC  = GC_SUCCESS
+    Iam = 'GIGC_Init_Simulation (gigc_initialization_mod.F90)'
 
-    ! Determine if we have to print debug output
-    prtDebug = ( Input_Opt%LPRT .and. am_I_Root )
+    ! Initialize Input_Opt fields to zeros or equivalent
+    CALL Set_Input_Opt( am_I_Root, Input_Opt, RC )
+    ASSERT_(RC==GC_SUCCESS)
 
-    ! Allocate GEOS-Chem module arrays
-    CALL GC_Allocate_All  ( am_I_Root      = am_I_Root,                     &
-                            Input_Opt      = Input_Opt,                     &
-                            value_I_LO     = value_I_LO,                    &
-                            value_J_LO     = value_J_LO,                    &
-                            value_I_HI     = value_I_HI,                    &
-                            value_J_HI     = value_J_HI,                    &
-                            value_IM       = value_IM,                      &
-                            value_JM       = value_JM,                      &
-                            value_LM       = value_LM,                      &
-                            value_IM_WORLD = value_IM_WORLD,                &
-                            value_JM_WORLD = value_JM_WORLD,                &
-                            value_LM_WORLD = value_LM_WORLD,                &
-                            RC             = RC              )            
-    IF ( RC /= GC_SUCCESS ) RETURN
-
-    ! Save timing fields in Input_Opt for passing down to module
-    ! GeosCore/input_mod.F via routine GIGC_Get_Options (bmy, 12/6/12)
+    ! Update Input_Opt with timing fields
     Input_Opt%NYMDb   = nymdB
     Input_Opt%NHMSb   = nhmsB
     Input_Opt%NYMDe   = nymdE
     Input_Opt%NHMSe   = nhmsE
-    Input_Opt%TS_CHEM = INT( tsChem ) / 60   ! Chemistry timestep [min]
-    Input_Opt%TS_EMIS = INT( tsChem ) / 60   ! Chemistry timestep [min]
-    Input_Opt%TS_DYN  = INT( tsDyn  ) / 60   ! Dynamic   timestep [min]
-    Input_Opt%TS_CONV = INT( tsDyn  ) / 60   ! Dynamic   timestep [min]
-    Input_Opt%myCPU = myPET
+    Input_Opt%TS_CHEM = INT( tsChem )   ! Chemistry timestep [sec]
+    Input_Opt%TS_EMIS = INT( tsChem )   ! Chemistry timestep [sec]
+    Input_Opt%TS_DYN  = INT( tsDyn  )   ! Dynamic   timestep [sec]
+    Input_Opt%TS_CONV = INT( tsDyn  )   ! Dynamic   timestep [sec]
+    Input_Opt%myCPU   = myPET
 
-    ! Read options from the "input.geos" file into Input_Opt
-    CALL GIGC_Get_Options( am_I_Root = am_I_Root,                           &
-                           lonCtr    = lonCtr,                              &
-                           latCtr    = latCtr,                              &
-                           Input_Opt = Input_Opt,                           &
-                           State_Chm = State_Chm,                           &
-                           RC        = RC           )
-    IF ( RC /= GC_SUCCESS ) RETURN
+    ! ewl TODO: Do we need this updated? Do we use dlon/dlat? If not,
+    ! we can remove this. If we do need this, it might be better in 
+    ! gc_bleeding_edge. Should certainly 
+    !========================================================================
+    ! Compute the DLON and DLAT values.  NOTE, this is a kludge since to do
+    ! this truly rigorously, we should take the differences between the grid
+    ! box edges.  But because I can't seem to find a way to get the grid
+    ! box edge information, the next best thing is to take the differences
+    ! between the grid box centers.  They should all be the same given that
+    ! the GEOS-Chem grid is regular. (bmy, 12/7/12)
+    !========================================================================
+    DO L = 1, LLPAR
+    DO J = 1, JJPAR
+    DO I = 1, IIPAR
 
-    ! Broadcast fields of Input_Opt from root to all other CPUs
-    CALL GIGC_Input_Bcast( am_I_Root = am_I_Root,                           &
-                           Input_Opt = Input_Opt,                           &
-                           RC        = RC           )
-    IF ( RC /= GC_SUCCESS ) RETURN
+       ! Compute Delta-Longitudes [degrees]
+       IF ( I == IIPAR ) THEN
+          dLon(I,J,L) = RoundOff( ( DBLE( lonCtr(IIPAR,  J) ) / PI_180 ), 4 ) &
+                      - RoundOff( ( DBLE( lonCtr(IIPAR-1,J) ) / PI_180 ), 4 )
+       ELSE
+          dLon(I,J,L) = RoundOff( ( DBLE( lonCtr(I+1,    J) ) / PI_180 ), 4 ) &
+                      - RoundOff( ( DBLE( lonCtr(I,      J) ) / PI_180 ), 4 )
+       ENDIF
 
-    ! Complete initialization ops on all threads
-    !IF ( .NOT. am_I_Root ) THEN 
+       ! Compute Delta-Latitudes [degrees]
+       IF ( J == JJPAR ) THEN
+          dLat(I,J,L) = RoundOff( ( DBLE( latCtr(I,JJPAR  ) ) / PI_180 ), 4 ) &
+                      - RoundOff( ( DBLE( latCtr(I,JJPAR-1) ) / PI_180 ), 4 )
+       ELSE
+          dLat(I,J,L) = RoundOff( ( DBLE( latCtr(I,J+1    ) ) / PI_180 ), 4 ) &
+                      - RoundOff( ( DBLE( latCtr(I,J      ) ) / PI_180 ), 4 )
+       ENDIF
 
-    ! Make sure to reset I0 and J0 in grid_mod.F90 with
-    ! the values carried in the Input Options object
-    CALL Set_xOffSet( Input_Opt%NESTED_I0 )
-    CALL Set_yOffSet( Input_Opt%NESTED_J0 )
+    ENDDO
+    ENDDO
+    ENDDO
 
-    ! We still need to call Initialize_Geos_Grid on all CPUs though.
-    ! without having to read the "input.geos" file. (mlong, bmy, 2/26/13)
-    IF (.not. am_I_Root) then
-      CALL Initialize_Geos_Grid( am_I_Root = am_I_Root,                    &
-           Input_Opt = Input_Opt,                    &
-           RC        =  RC )
-      IF ( RC /= GC_SUCCESS ) RETURN
+    ! Root CPU only
+    IF ( am_I_Root ) THEN
 
-      CALL SetGridFromCtr( am_I_Root, value_IM, value_JM, lonCtr, latCtr, RC )
-      IF ( RC /= GC_SUCCESS ) RETURN
-    End If
+       ! Read input.geos
+       CALL Read_Input_File( am_I_Root, Input_Opt, RC )
+       ASSERT_(RC==GC_SUCCESS)
 
-    ! This call should be made on all CPUs
+       ! In the ESMF/MPI environment, we can get the total overhead ozone
+       ! either from the met fields (GIGCsa) or from the Import State (GEOS-5)
+       Input_Opt%USE_O3_FROM_MET = .TRUE.
+
+       ! Read LINOZ climatology
+       IF ( Input_Opt%LLINOZ ) THEN
+          CALL Linoz_Read( am_I_Root, Input_Opt, RC ) 
+          ASSERT_(RC==GC_SUCCESS)
+       ENDIF
+    ENDIF
+
+    ! Allocate all lat/lon arrays
+    CALL GC_Allocate_All( am_I_Root,      Input_Opt,      RC,               &
+                          value_I_LO,     value_J_LO,     value_I_HI,       &
+                          value_J_HI,     value_IM,       value_JM,         &
+                          value_LM,       value_IM_WORLD, value_JM_WORLD,   &
+                          value_LM_WORLD  )            
+    ASSERT_(RC==GC_SUCCESS)
+
+    ! Broadcast Input_Opt from root to all other CPUs
+    CALL GIGC_Input_Bcast( am_I_Root, Input_Opt, RC )
+    ASSERT_(RC==GC_SUCCESS)
+
+    ! Initialize horizontal grid parameters
+    CALL GC_Init_Grid( am_I_Root, Input_Opt, RC )
+    ASSERT_(RC==GC_SUCCESS)
+
+    ! Set grid based on passed mid-points
     CALL SetGridFromCtr( am_I_Root, value_IM, value_JM, lonCtr, latCtr, RC )
-    IF ( RC /= GC_SUCCESS ) RETURN
+    ASSERT_(RC==GC_SUCCESS)
 
-    ! Set GEOS-Chem timesteps on all CPUs
-    CALL SET_TIMESTEPS( am_I_Root  = am_I_Root,                          &
+    ! Set timesteps
+    CALL Set_Timesteps( am_I_Root  = am_I_Root,                          &
                         Chemistry  = Input_Opt%TS_CHEM,                  &
                         Convection = Input_Opt%TS_CONV,                  &
                         Dynamics   = Input_Opt%TS_DYN,                   &
@@ -412,93 +297,46 @@ CONTAINS
                                           Input_Opt%TS_CONV ),           &
                         Diagnos    = Input_Opt%TS_DIAG         )
 
-    ! Initialize derived-type objects for meteorology & chemistry states
-    CALL GC_Init_All( am_I_Root  = am_I_Root,                              &
-                      Diag_List  = HistoryConfig%DiagList,                 &
-                      Input_Opt  = Input_Opt,                              &
-                      State_Chm  = State_Chm,                              &
-                      State_Diag = State_Diag,                             & 
-                      State_Met  = State_Met,                              &
-                      RC         = RC         )
-    IF ( RC /= GC_SUCCESS ) RETURN
+    ! Initialize derived-type objects for met, chem, and diag
+    CALL GC_Init_StateObj( am_I_Root, HistoryConfig%DiagList, Input_Opt, &
+                           State_Chm, State_Diag, State_Met, RC )
+    ASSERT_(RC==GC_SUCCESS)
 
-    ! After broadcasting Input_Opt to other CPUs, call GIGC_Init_Extra
-    ! to initialize other modules (e.g. carbon_mod.F, dust_mod.F, 
-    ! seasalt_mod.F,  sulfate_mod.F).  We needed to move these init 
-    ! calls out of the run stage and into the init stage. (bmy, 3/4/13)
+    ! Initialize other GEOS-Chem modules
     CALL GC_Init_Extra( am_I_Root, HistoryConfig%DiagList, Input_Opt,    &
                         State_Chm, State_Diag, RC ) 
-    IF ( RC /= GC_SUCCESS ) RETURN
+    ASSERT_(RC==GC_SUCCESS)
 
     ! Initialize photolysis
     IF ( Input_Opt%ITS_A_FULLCHEM_SIM .OR.                     &
          Input_Opt%ITS_AN_AEROSOL_SIM ) THEN
-       CALL INIT_FJX( am_I_Root, Input_Opt, State_Chm, State_Diag, RC ) 
-       IF ( RC /= GC_SUCCESS ) RETURN
-       
-       !### Debug
-       IF ( prtDebug ) THEN
-          CALL DEBUG_MSG( '### GIGC_INIT_SIMULATION: after INIT_FJX' )        
-       ENDIF
+       CALL Init_FJX( am_I_Root, Input_Opt, State_Chm, State_Diag, RC ) 
+       ASSERT_(RC==GC_SUCCESS)
     ENDIF
-
-    ! Zero diagnostic arrays
-    CALL Initialize( am_I_Root, Input_Opt, 2, RC )
-    IF ( RC /= GC_SUCCESS ) RETURN
-
-    ! Zero diagnostic counters
-    CALL Initialize( am_I_Root, Input_Opt, 3, RC )
-    IF ( RC /= GC_SUCCESS ) RETURN
       
     ! Set State_Chm units
     State_Chm%Spc_Units = 'kg/kg dry'
 
-    ! Initialize the GEOS-Chem pressure module (set Ap & Bp)
+    ! Initialize pressure module (set Ap & Bp)
     CALL Init_Pressure( am_I_Root )
 
-    ! Initialize the PBL mixing module
+    ! Initialize PBL mixing module
     CALL Init_PBL_Mix( am_I_Root, RC )
-    IF ( RC /= GC_SUCCESS ) RETURN
-
-    !=======================================================================
-    ! Initialize dry deposition 
-    !=======================================================================
-    IF ( Input_Opt%LDRYD )  THEN
-       ! Placeholder
-
-       !### Debug
-       IF ( prtDebug ) THEN
-          CALL DEBUG_MSG( '### GIGC_INIT_SIMULATION: initialize drydep' )
-       ENDIF
-    ENDIF
+    ASSERT_(RC==GC_SUCCESS)
     
-    !=======================================================================
     ! Initialize chemistry mechanism
-    !=======================================================================
-
-    ! Moved here (from chemistry_mod.F and chemdr.F) because some
-    ! of the variables are used for non-local PBL mixing BEFORE 
-    ! the first call of the chemistry routines (ckeller, 05/19/14).
     IF ( Input_Opt%ITS_A_FULLCHEM_SIM .OR. Input_Opt%ITS_AN_AEROSOL_SIM ) THEN
-       CALL INIT_CHEMISTRY ( am_I_Root, Input_Opt, State_Chm, State_Diag, RC )
-       IF ( RC /= GC_SUCCESS ) RETURN
+       CALL Init_Chemistry( am_I_Root, Input_Opt, State_Chm, State_Diag, RC )
+       ASSERT_(RC==GC_SUCCESS)
     ENDIF
 
-    ! If we are doing chemistry ...
+    ! Allocate array of overhead O3 columns for TOMS if chemistry is on
     IF ( Input_Opt%LCHEM ) THEN
-       
-       ! Allocate array of overhead O3 columns for TOMS
-       CALL INIT_TOMS( am_I_Root, Input_Opt, RC )
-       IF ( RC /= GC_SUCCESS ) RETURN
-
-       !### Debug
-       IF ( prtDebug ) THEN
-          CALL DEBUG_MSG( '### GIGC_INIT_SIMULATION: after INIT_TOMS' )
-       ENDIF
-
+       CALL Init_TOMS( am_I_Root, Input_Opt, RC )
+       ASSERT_(RC==GC_SUCCESS)
     ENDIF
 
-    ! Return w/ success
+    ! Return success
     RC = GC_Success
 
   END SUBROUTINE GIGC_Init_Simulation
