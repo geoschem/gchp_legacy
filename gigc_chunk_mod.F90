@@ -224,6 +224,10 @@ CONTAINS
        ENDIF
     ENDIF
 
+    ! Broadcast Input_Opt from root to all other CPUs
+    CALL GIGC_Input_Bcast( am_I_Root, Input_Opt, RC )
+    ASSERT_(RC==GC_SUCCESS)
+
     ! Allocate all lat/lon arrays including CMN_Size_Mod parameters
     CALL GC_Allocate_All( am_I_Root, Input_Opt, RC,         &  
                           value_I_LO     = value_I_LO,      &
@@ -272,10 +276,6 @@ CONTAINS
     ENDDO
     ENDDO
     ENDDO
-
-    ! Broadcast Input_Opt from root to all other CPUs
-    CALL GIGC_Input_Bcast( am_I_Root, Input_Opt, RC )
-    ASSERT_(RC==GC_SUCCESS)
 
     ! Initialize horizontal grid parameters
     CALL GC_Init_Grid( am_I_Root, Input_Opt, RC )
