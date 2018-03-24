@@ -255,11 +255,14 @@ CONTAINS
     !----------------------------------------
     ! RADIATION MENU fields
     !----------------------------------------
-    CALL MPI_Bcast( INPUT_OPT%LRAD,       1, mpi_logical, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%LLWRAD,     1, mpi_logical, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%LSWRAD,     1, mpi_logical, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%LSKYRAD(:), 2, mpi_logical, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%TS_RAD,     1, mpi_integer, 0, mpiComm, RC )
+    CALL MPI_Bcast( INPUT_OPT%LRAD,        1, mpi_logical, 0, mpiComm, RC )
+    CALL MPI_Bcast( INPUT_OPT%LLWRAD,      1, mpi_logical, 0, mpiComm, RC )
+    CALL MPI_Bcast( INPUT_OPT%LSWRAD,      1, mpi_logical, 0, mpiComm, RC )
+    CALL MPI_Bcast( INPUT_OPT%LSKYRAD(:),  2, mpi_logical, 0, mpiComm, RC )
+    CALL MPI_Bcast( INPUT_OPT%TS_RAD,      1, mpi_integer, 0, mpiComm, RC )
+    CALL MPI_Bcast( INPUT_OPT%NWVSELECT,   1, mpi_integer, 0, mpiComm, RC )
+    CALL MPI_Bcast( INPUT_OPT%WVSELECT(:), 3, mpi_real8,   0, mpiComm, RC )
+    CALL MPI_Bcast( INPUT_OPT%STRWVSELECT(:), len(Input_Opt%STRWVSELECT)*3, mpi_character, 0, mpiComm, RC )
 
     !----------------------------------------
     ! TRANSPORT MENU fields
