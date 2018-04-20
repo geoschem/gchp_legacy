@@ -305,7 +305,7 @@ ifeq ("$(ESMF_COMPILER)","intel")
 else ifeq ("$(ESMF_COMPILER)","gfortran")
   FREAL8      = -fdefault-real-8 -fdefault-double-8
   FREE        = -ffree-form -ffree-line-length-none -Wno-line-truncation -fno-range-check
-  CPPANSIX    = -std=gnu11 -C
+  CPPANSIX    = -std=gnu11 -nostdinc -C
 else
   FREAL8      =
   FREE        =

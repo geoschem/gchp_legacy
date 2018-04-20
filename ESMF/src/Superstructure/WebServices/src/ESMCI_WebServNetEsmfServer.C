@@ -1795,7 +1795,11 @@ void  ESMCI_WebServNetEsmfServer::copyFile(
 	fstream	fin(srcFilename, ios::in | ios::binary);
 	fstream	fout(destFilename, ios::out | ios::binary);
 
-	if ((fin == NULL)  ||  (fout == NULL))
+        // gcc version 6 and later are incompatible with the == comparison
+        // sign in ESMF v5. Yanko Davilo (U. of Colorado) submitted the 
+        // following fix (ewl, 4/20/18)
+	//if ((fin == NULL)  ||  (fout == NULL))
+        if ((!fin.is_open())  ||  (!fout.is_open()))
 	{
 		cerr << "Error copying file" << endl;
 		return;
