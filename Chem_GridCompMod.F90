@@ -868,12 +868,6 @@ CONTAINS
                                   Label   = "MAX_FAM:",            & 
                                   __RC__                           )
 
-    ! Max # of passive tracers
-    CALL ESMF_ConfigGetAttribute( GeosCF, Input_Opt%MAX_PASV,       &
-                                  Default = 50,                     &
-                                  Label   = "MAX_PASV:",            & 
-                                  __RC__                           )
-
     ! # of levels in LINOZ climatology
     CALL ESMF_ConfigGetAttribute( GeosCF, Input_Opt%LINOZ_NLEVELS,  &
                                   Default = 25,                     &

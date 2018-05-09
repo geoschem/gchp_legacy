@@ -1,3 +1,4 @@
+#include "MAPL_Generic.h"
 !------------------------------------------------------------------------------
 !          Harvard University Atmospheric Chemistry Modeling Group            !
 !------------------------------------------------------------------------------
@@ -53,14 +54,14 @@ CONTAINS
 !\\
 ! !INTERFACE:
 !
-  SUBROUTINE Gigc_Input_Bcast( am_I_Root, Input_Opt, RC )
+  SUBROUTINE GIGC_Input_Bcast( am_I_Root, Input_Opt, RC )
 !
 ! !USES:
 !
-!    USE CMN_SIZE_Mod
-!    USE Drydep_Mod
-    USE Input_Opt_Mod,       ONLY : OptInput
+    USE Input_Opt_Mod,       ONLY : OptInput, Set_Input_Opt_Passive
     USE ErrCode_Mod,         ONLY : GC_SUCCESS
+    USE ESMF,                ONLY : ESMF_MAXSTR
+    USE MAPL_MOD
     USE M_MPIF
 !
 ! !INPUT PARAMETERS:
@@ -97,6 +98,9 @@ CONTAINS
 !  06 Nov 2017 - E. Lundgren - Updates for GC v11-02d compatibility
 !  07 Mar 2017 - E. Lundgren - Updates for GC v11-02e compatibility; remove
 !                              GAMAP and binary diagnostic variables
+!  09 May 2018 - E. Lundgren - Call subroutine to allocate passive spc arrays
+!                              for non-root PETs after broadcasting # passive
+!                              species and before broadcasting array values
 !                             
 !EOP
 !------------------------------------------------------------------------------
@@ -104,8 +108,13 @@ CONTAINS
 !
 ! !LOCAL VARIABLES:
 !
-    INTEGER :: COUNT, MAXPASV
+    INTEGER :: COUNT, STATUS
+    CHARACTER(LEN=ESMF_MAXSTR)     :: Iam
 
+    ! Error handling
+    Iam = 'GIGC_Input_Bcast (gigc_mpi_mod.F90)'
+
+    ! Assume success
     RC = GC_SUCCESS
 
     !----------------------------------------
@@ -113,7 +122,6 @@ CONTAINS
     !----------------------------------------
     CALL MPI_Bcast( INPUT_OPT%MAX_DIAG, 1, mpi_integer, 0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%MAX_FAM,  1, mpi_integer, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%MAX_PASV, 1, mpi_integer, 0, mpiComm, RC )
 
     !----------------------------------------
     ! SIMULATION MENU fields
@@ -135,19 +143,26 @@ CONTAINS
     CALL MPI_Bcast( INPUT_OPT%MERRA2_DIR,      len(INPUT_OPT%MERRA2_DIR),      mpi_character, 0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%HcoConfigFile,   len(INPUT_OPT%HcoConfigFile),   mpi_character, 0, mpiComm, RC )
 
-! not ok in this menu
     !----------------------------------------
     ! PASSIVE SPECIES MENU fields
     !----------------------------------------
-    MAXPASV = Input_Opt%MAX_PASV
-    CALL MPI_Bcast( INPUT_OPT%NPASSIVE,            1,            mpi_integer,   0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%NPASSIVE_DECAY,      1,            mpi_integer,   0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%PASSIVE_ID(:),       MAXPASV,      mpi_integer,   0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%PASSIVE_MW(:),       MAXPASV,      mpi_real8,     0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%PASSIVE_TAU(:),      MAXPASV,      mpi_real8,     0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%PASSIVE_INITCONC(:), MAXPASV,      mpi_real8,     0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%PASSIVE_DECAYID(:),  MAXPASV,      mpi_integer,   0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%PASSIVE_NAME(:),     (63)*MAXPASV, mpi_character, 0, mpiComm, RC )
+    CALL MPI_Bcast( INPUT_OPT%NPASSIVE,            1,                       mpi_integer,   0, mpiComm, RC )
+    CALL MPI_Bcast( INPUT_OPT%NPASSIVE_DECAY,      1,                       mpi_integer,   0, mpiComm, RC )
+
+    ! Allocate and initialize passive tracer arrays for non-root threads. 
+    ! Array size is dependent on Input_Opt%NPASSIVE and therefore this
+    ! step can not be done prior to the broadcasting above (ewl, 5/8/18)
+    IF ( .NOT. am_I_Root ) THEN
+       CALL Set_Input_Opt_Passive( am_I_Root, Input_Opt, RC )
+       ASSERT_(RC==GC_SUCCESS)
+    ENDIf
+
+    CALL MPI_Bcast( INPUT_OPT%PASSIVE_ID(:),       Input_Opt%NPASSIVE,      mpi_integer,   0, mpiComm, RC )
+    CALL MPI_Bcast( INPUT_OPT%PASSIVE_MW(:),       Input_Opt%NPASSIVE,      mpi_real8,     0, mpiComm, RC )
+    CALL MPI_Bcast( INPUT_OPT%PASSIVE_TAU(:),      Input_Opt%NPASSIVE,      mpi_real8,     0, mpiComm, RC )
+    CALL MPI_Bcast( INPUT_OPT%PASSIVE_INITCONC(:), Input_Opt%NPASSIVE,      mpi_real8,     0, mpiComm, RC )
+    CALL MPI_Bcast( INPUT_OPT%PASSIVE_DECAYID(:),  Input_Opt%NPASSIVE,      mpi_integer,   0, mpiComm, RC )
+    CALL MPI_Bcast( INPUT_OPT%PASSIVE_NAME(:),     (63)*Input_Opt%NPASSIVE, mpi_character, 0, mpiComm, RC )
 
     !----------------------------------------
     ! ADVECTED SPECIES MENU fields
