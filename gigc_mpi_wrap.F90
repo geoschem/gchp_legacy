@@ -529,18 +529,8 @@ CONTAINS
     !----------------------------------------
     ! CH4 MENU fields
     !----------------------------------------
-    CALL MPI_Bcast( INPUT_OPT%LCH4BUD, 1, mpi_logical, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%LGAO,    1, mpi_logical, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%LCOL,    1, mpi_logical, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%LLIV,    1, mpi_logical, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%LWAST,   1, mpi_logical, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%LBFCH4,  1, mpi_logical, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%LRICE,   1, mpi_logical, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%LOTANT,  1, mpi_logical, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%LBMCH4,  1, mpi_logical, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%LWETL,   1, mpi_logical, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%LSOABS,  1, mpi_logical, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%LOTNAT,  1, mpi_logical, 0, mpiComm, RC )
+    CALL MPI_Bcast( INPUT_OPT%GOSAT_CH4_OBS, 1, mpi_logical, 0, mpiComm, RC )
+    CALL MPI_Bcast( INPUT_OPT%TCCON_CH4_OBS, 1, mpi_logical, 0, mpiComm, RC )
 
     !----------------------------------------
     ! POPS MENU fields
