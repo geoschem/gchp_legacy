@@ -41,6 +41,7 @@ MODULE gigc_providerservices_mod
 !
   USE ESMF     
   USE MAPL_Mod 
+  USE Chem_Mod                            ! Chemistry Base Class
 
   IMPLICIT NONE
   PRIVATE
@@ -118,17 +119,33 @@ MODULE gigc_providerservices_mod
   CHARACTER(LEN=ESMF_MAXSTR) :: SALCnames(3) = (/ 'ss003', 'ss004', 'ss005' /)
   REAL, PARAMETER            :: SALCsplit(3) = (/  0.13,    0.47,    0.4    /) 
 
+  CHARACTER(LEN=ESMF_MAXSTR)   :: DST4names(2) = (/ 'du004', 'du005' /)
+  REAL, PARAMETER              :: DST4split(2) = (/  1.00,    0.0    /) 
+
+  ! Molecular weights (g/mol) used by GOCART
+  REAL                         :: GocartMW(NumAero) = &
+                                  (/ 100.0,  100.0,  100.0,  100.0 ,     &
+                                      58.0,   58.0,  180.0,  180.0 ,     &
+                                     180.0,  180.0,  132.0                /)
+
+  CHARACTER(LEN=15), PARAMETER :: COLLIST(8) = (/ 'NO2', 'O3',   'CH4', 'CO', &
+                                                  'BrO', 'CH2O', 'SO2', 'IO'  /)
+
   ! Pointers for RATS and analysis OX. Those are not included in the GEOS-Chem
   ! registry and only filled if GEOS-Chem is the RATS and/or analysis OX 
   ! provider. The history arrays (*_HIST) are used to archive the O3 and 
   ! H2O fields from the previous chemistry time step.
 
-  ! -Analysis OX:
-  REAL, POINTER     :: O3      (:,:,:) => NULL()
-  REAL, POINTER     :: O3PPMV  (:,:,:) => NULL() ! was commented out (ewl)
-  REAL, POINTER     :: OX      (:,:,:) => NULL()
-  REAL, POINTER     :: OX_TEND (:,:,:) => NULL() ! was commented out (ewl)
-  REAL, POINTER     :: O3_HIST (:,:,:) => NULL() ! make allocatable? (ewl)
+! GCHP only:
+!  ! -Analysis OX:
+!  REAL, POINTER     :: O3      (:,:,:) => NULL()
+!  REAL, POINTER     :: O3PPMV  (:,:,:) => NULL() ! was commented out (ewl)
+!  REAL, POINTER     :: OX      (:,:,:) => NULL()
+!  REAL, POINTER     :: OX_TEND (:,:,:) => NULL() ! was commented out (ewl)
+
+!NOTE FROM LIZZIE: O3_HIST and H2O_HIST seem to have been deleted.
+! I will remove them if in GCHP only. Keep H2O_TEND.
+!---
 
   ! -RATS:
   REAL, POINTER     :: CH4     (:,:,:) => NULL()
@@ -136,8 +153,10 @@ MODULE gigc_providerservices_mod
   REAL, POINTER     :: CFC11   (:,:,:) => NULL()
   REAL, POINTER     :: CFC12   (:,:,:) => NULL()
   REAL, POINTER     :: HCFC22  (:,:,:) => NULL()
-  REAL, POINTER     :: H2O_TEND(:,:,:) => NULL() ! was commented out (ewl)
-  REAL, POINTER     :: H2O_HIST(:,:,:) => NULL() ! make allocatable? (ewl)
+
+! GCHP only:
+!  REAL, POINTER     :: H2O_TEND(:,:,:) => NULL() ! was commented out (ewl)
+!---
 
   ! -Corresponding pointers to internal state. We now use these variables 
   !  instead of the auto-generated pointers (GIGCchem_DeclarePointer___.h) 
@@ -155,12 +174,29 @@ MODULE gigc_providerservices_mod
   ! are automatically declared if GCCTO3 and GCCTTO3 are in Chem_Registry.rc
   REAL, POINTER     :: PTR_GCCTO3 (:,:) => NULL()
   REAL, POINTER     :: PTR_GCCTTO3(:,:) => NULL()
+
+  ! Perturb ozone?
+  LOGICAL           :: PerturbO3
+  LOGICAL           :: PerturbCO
+  REAL              :: FIXPERT       ! Fixed perturbation 
+  REAL, PARAMETER   :: MAXPERT = 0.1 ! Maximum perturbation
+
+  ! For NOx diagnostics
+  INTEGER           :: id_rc_no  = -1
+  INTEGER           :: id_rc_no2 = -1
+  INTEGER           :: id_jno2   = -1
+
+  ! Mie table
+  TYPE(Chem_Mie)     :: geoschemMieTable(2)
+  INTEGER, PARAMETER :: instanceComputational = 1
+  INTEGER, PARAMETER :: instanceData          = 2
 !
 ! !REMARKS:
 !  Developed for GEOS-5 release Fortuna 2.0 and later.
 !                                                                             .
 ! !REVISION HISTORY:
 !  02 Nov 2017 - E. Lundgren - initial version (refactored Chem_GridCompMod)
+!  07 Jun 2018 - E. Lundgren - Updated for C. Keller's v11-02e in GEOS-5
 !EOP
 !------------------------------------------------------------------------------
 !BOC
@@ -201,6 +237,7 @@ CONTAINS
 !
 ! !REVISION HISTORY:
 !  02 Nov 2017 - E. Lundgren - initial version (refactored Chem_GridCompMod)
+!  07 Jun 2018 - E. Lundgren - Updated for C. Keller's v11-02e in GEOS-5
 !EOP
 !------------------------------------------------------------------------------
 !BOC
@@ -231,8 +268,8 @@ CONTAINS
                                   Label="AERO_PROVIDER:", &
                                   Default="PCHEM",        &
                                   __RC__                   )
-    IF ( ProviderName == "GIGCchem" ) DoAERO = .TRUE.
- 
+    IF ( ProviderName == "GEOSCHEMCHEM" ) DoAERO = .TRUE.
+
     !================================
     ! Is GC the RATS provider?
     !================================
@@ -240,7 +277,7 @@ CONTAINS
                                   Label="RATS_PROVIDER:", &
                                   Default="PCHEM",        &
                                   __RC__                   )
-    IF ( ProviderName == "GIGCchem" ) DoRATS = .TRUE.
+    IF ( ProviderName == "GEOSCHEMCHEM" ) DoRATS = .TRUE.
 
     !================================
     ! Is GC the Analysis OX provider?
@@ -249,7 +286,7 @@ CONTAINS
                                   Label="ANALYSIS_OX_PROVIDER:", &
                                   Default="PCHEM",               &
                                   __RC__                          )
-    IF ( ProviderName == "GIGCchem" ) DoANOX = .TRUE.
+    IF ( ProviderName == "GEOSCHEMCHEM" ) DoANOX = .TRUE.
 
     !================================
     ! If AERO provider
@@ -532,56 +569,6 @@ CONTAINS
     ENDIF ! DoAERO
 
     !================================
-    ! If Analysis OX provider
-    !================================
-    ! Important: the OX field is expected to be part of the TRANA bundle,
-    ! defined in GEOS_ChemGridComp.F90. Most chemistry children keep the
-    ! OX field in the internal state and make it frienly to ANALYSIS.
-    ! Here, we define it as export quantity. It will be added to the
-    ! TRANA bundle in GEOS_ChemGridComp.F90.
-    IF ( DoANOX ) THEN
-      
-       ! Add to export state
-       call MAPL_AddExportSpec(GC,                 &
-          SHORT_NAME = 'OX',                       &
-          LONG_NAME  = 'ozone_volume_mixing_ratio',&
-          UNITS      = 'mol mol-1',                &
-          DIMS       = MAPL_DimsHorzVert,          &
-          VLOCATION  = MAPL_VLocationCenter,       &
-                                           __RC__ )
-  
-       call MAPL_AddExportSpec(GC,                 &
-          SHORT_NAME = 'O3',                       &
-          LONG_NAME  = 'ozone_mass_mixing_ratio',  &
-          UNITS      = 'kg kg-1',                  &
-          DIMS       = MAPL_DimsHorzVert,          &
-          VLOCATION  = MAPL_VLocationCenter,       &  
-                                           __RC__ )
-
-       ! NOTE: This was already exported via Chem_Registry. Why is this
-       ! one here? (ewl)  
-       call MAPL_AddExportSpec(GC,                 &
-          SHORT_NAME = 'O3PPMV',                   &
-          LONG_NAME  = 'ozone_volume_mixing_ratio_in_ppm',  &
-          UNITS      = 'ppmv',                     &
-          DIMS       = MAPL_DimsHorzVert,          &
-          VLOCATION  = MAPL_VLocationCenter,       &
-                                           __RC__ )
-  
-       ! NOTE: This was already exported via Chem_Registry. This has the
-       ! same name but different units. Which one should be used? Why is
-       ! this here? (ewl)
-       call MAPL_AddExportSpec(GC,                 &
-          SHORT_NAME = 'OX_TEND',                  &
-          LONG_NAME  = 'tendency_of_odd_oxygen_mixing_ratio_due_to_chemistry',&
-          UNITS      = 'mol mol-1 s-1',            &
-          DIMS       = MAPL_DimsHorzVert,          &
-          VLOCATION  = MAPL_VLocationCenter,       &
-                                           __RC__ )
-
-    ENDIF !AnOx
-
-    !================================
     ! If RATS provider
     !================================
     ! If GEOS-Chem is the RATS provider, we need to make sure that all 
@@ -632,16 +619,6 @@ CONTAINS
           DIMS               = MAPL_DimsHorzVert,                   &
           VLOCATION          = MAPL_VLocationCenter,                &
                                                             __RC__ )
-  
-       ! NOTE: This was already exported via Chem_Registry. Why is this
-       ! one here? (ewl)  
-       call MAPL_AddExportSpec(GC,                                  &
-          SHORT_NAME = 'H2O_TEND',                                  &
-          LONG_NAME  = 'tendency_of_water_vapor_mixing_ratio_due_to_chemistry',&
-          UNITS      = 'kg kg-1 s-1',                               &
-          DIMS       = MAPL_DimsHorzVert,                           &
-          VLOCATION  = MAPL_VLocationCenter,                        &
-                                                            __RC__ )
     ENDIF ! DoRATS
 
     ! Determine if GC is a provider
@@ -671,13 +648,14 @@ CONTAINS
 ! !USES:
 !
     USE State_Chm_Mod, ONLY: ChmState, IND_
+    USE GIGC_HistoryExports_Mod, ONLY: SPFX
 !
 ! !INPUT PARAMETERS:
 !
     LOGICAL,          INTENT(IN)    :: am_I_Root ! Root PET?
-    INTEGER,          INTENT(IN)    :: IM          ! # of longitudes on this PET
-    INTEGER,          INTENT(IN)    :: JM          ! # of latitudes  on this PET
-    INTEGER,          INTENT(IN)    :: LM          ! # of levels     on this PET
+    INTEGER,          INTENT(IN)    :: IM        ! # of longitudes on this PET
+    INTEGER,          INTENT(IN)    :: JM        ! # of latitudes  on this PET
+    INTEGER,          INTENT(IN)    :: LM        ! # of levels     on this PET
     TYPE(ChmState),   INTENT(IN)    :: State_Chm ! Chemistry State
 !
 ! !INPUT/OUTPUT PARAMETERS:
@@ -693,6 +671,7 @@ CONTAINS
 !
 ! !REVISION HISTORY:
 !  02 Nov 2017 - E. Lundgren - initial version (refactored Chem_GridCompMod)
+!  07 Jun 2018 - E. Lundgren - Updated for C. Keller's v11-02e in GEOS-5
 !EOP
 !------------------------------------------------------------------------------
 !BOC
@@ -700,8 +679,8 @@ CONTAINS
 ! LOCAL VARIABLES:
 !
     ! Scalars
-    CHARACTER(LEN=ESMF_MAXSTR)   :: GCName, AeroName
-    INTEGER                      :: I, J, NFLDS, GCID, STAT
+    CHARACTER(LEN=ESMF_MAXSTR)   :: GCName, AeroName, Name
+    INTEGER                      :: I, J, NFLDS, GCID, STAT, instance
     REAL                         :: GCMW, FRAC
 
     ! Derived types
@@ -711,6 +690,8 @@ CONTAINS
     ! Pointers
     REAL, POINTER                :: Ptr3D(:,:,:) => NULL()
     REAL(ESMF_KIND_R8), POINTER  :: Ptr3D_R8(:,:,:) => NULL()
+
+    TYPE(ESMF_STATE)             :: Aero
 
     !=======================================================================
     ! Provider_Initialize begins here
@@ -734,6 +715,14 @@ CONTAINS
        ! Get AERO bundle
        CALL ESMF_StateGet( Export, 'AERO', AeroBdl, __RC__ )
 
+       ! This attribute indicates if the aerosol optics method is implemented 
+       ! or not. Radiation will not call the aerosol optics method unless 
+       ! this attribute is explicitly set to true.
+       call ESMF_AttributeSet(aero, name='implements_aerosol_optics_method', &
+                              value=.true., __RC__)
+       aeroBdl = ESMF_FieldBundleCreate(name='AEROSOLS', __RC__)
+       call MAPL_StateAdd(Aero, aeroBdl, __RC__)
+
        ! Loop over all GC tracers that we may want to add to the AERO
        ! bundle
        DO I = 1, NumAERO
@@ -745,10 +734,17 @@ CONTAINS
           IF ( GCID > 0 ) THEN
 
              ! This is the name in the internal state
-             GCName = TRIM(GcNames(I))
+             GCName = TRIM(SPFX) // TRIM(GcNames(I))
 
              ! Get field from internal state
              CALL ESMF_StateGet( IntState, TRIM(GCName), GcFld, RC=RC )
+             ! Try TRC_<NAME> if SPC_<NAME> not found
+             IF ( RC /= ESMF_SUCCESS ) THEN
+                GCName = 'TRC_'//TRIM(GcNames(I))
+                CALL ESMF_StateGet( INTSTATE, TRIM(GCName), GcFld, RC=RC )
+             ENDIF
+
+             ! Error if none of the above found
              IF ( RC /= ESMF_SUCCESS ) THEN
                 WRITE(*,*) 'Cannot fill AERO bundle - field not found in ' // &
                            'internal state: ' // TRIM(GCName)
@@ -761,26 +757,30 @@ CONTAINS
              NFLDS = 1
              IF ( TRIM(GcNames(I)) == 'SALA' ) NFLDS = 2
              IF ( TRIM(GcNames(I)) == 'SALC' ) NFLDS = 3
+             IF ( TRIM(GcNames(I)) == 'DST4' ) NFLDS = 2
 
              ! Now create all fields
              DO J = 1, NFLDS
  
                 ! AERO field name
                 AeroName = TRIM(AeroNames(I))
-                IF ( NFLDS == 2 ) AeroName = SALAnames(J)
-                IF ( NFLDS == 3 ) AeroName = SALCnames(J)
- 
+                IF ( TRIM(GcNames(I)) == 'SALA' ) AeroName = SALAnames(J)
+                IF ( TRIM(GcNames(I)) == 'SALC' ) AeroName = SALCnames(J)
+                IF ( TRIM(GcNames(I)) == 'DST4' ) AeroName = DST4names(J)
+
                 ! Create new field
                 AeroFld = MAPL_FieldCreate( GcFld, name=AeroName, &
                                             DoCopy=.TRUE., __RC__  )
       
                 ! Get molecular weight (g/mol)
-                GCMW = State_Chm%SpcData(GCID)%Info%MW_g
-      
+                !GCMW = Input_Opt%Tracer_MW_G(GCID)
+                GCMW = GocartMW(I)  
+
                 ! Fraction of the GC field to be used in the AERO field
                 FRAC = 1.0
-                IF ( NFLDS == 2 ) FRAC = SALAsplit(J)
-                IF ( NFLDS == 3 ) FRAC = SALCsplit(J)
+                IF ( TRIM(GcNames(I)) == 'SALA' ) FRAC = SALAsplit(J)
+                IF ( TRIM(GcNames(I)) == 'SALC' ) FRAC = SALCsplit(J)
+                IF ( TRIM(GcNames(I)) == 'DST4' ) FRAC = DST4split(J)
 
                 ! Pass GEOS-Chem field name, molecular weight and fraction 
                 ! to be used to bundle for easier handling lateron
@@ -793,8 +793,10 @@ CONTAINS
       
                 ! Before adding to the bundle, convert data from mol/mol 
                 ! to kg/kg
+                ! Data is now stored in kg/kg total. (ckeller, 3/7/17)
                 CALL ESMF_FieldGet( AeroFld, farrayPtr=Ptr3D, __RC__ )
-                Ptr3D = Ptr3D * GCMW / MAPL_AIRMW * FRAC
+                !Ptr3D = Ptr3D * GCMW / MAPL_AIRMW * FRAC
+                Ptr3D = Ptr3D * FRAC
                 Ptr3D => NULL()
    
                 ! Add to bundle
@@ -802,6 +804,107 @@ CONTAINS
              ENDDO !J
           ENDIF
        ENDDO
+
+! EWL: Comment out this new code for now. It has some MAPL dependencies
+! that need to be sorted out.
+!       ! Mie table
+!       instance = instanceComputational
+!       geoschemMieTable(instance) = Chem_MieCreate(MaplCF, __RC__)
+!       name = 'mie_table_instance'
+!       CALL ESMF_AttributeSet(aero, name=name, value=instance, __RC__)
+!
+!       ! state of the atmosphere
+!       name = 'air_pressure_for_aerosol_optics'
+!       CALL ESMF_AttributeSet(aero, name=name, value='PLE', __RC__)
+!       name = 'relative_humidity_for_aerosol_optics'
+!       CALL ESMF_AttributeSet(aero, name=name, value='RH',  __RC__)
+!       name = 'cloud_area_fraction_for_aerosol_optics'
+!       CALL ESMF_AttributeSet(aero, name=name, value='',    __RC__) 
+!       ! 'cloud_area_fraction_in_atmosphere_layer_for_aerosol_optics'
+!
+!       ! aerosol optics
+!       name = 'band_for_aerosol_optics'
+!       CALL ESMF_AttributeSet(aero, name=name, value=0,     __RC__)
+!       name = 'extinction_in_air_due_to_ambient_aerosol'
+!       CALL ESMF_AttributeSet(aero, name=name, value='EXT', __RC__)
+!       name = 'single_scattering_albedo_of_ambient_aerosol'
+!       CALL ESMF_AttributeSet(aero, name=name, value='SSA', __RC__)
+!       name = 'asymmetry_parameter_of_ambient_aerosol'
+!       CALL ESMF_AttributeSet(aero, name=name, value='ASY', __RC__)
+!
+!       ! add PLE to Aero state
+!       name = 'air_pressure_for_aerosol_optics'
+!       CALL ESMF_AttributeGet(aero, name=name, value=fieldName, __RC__)
+!       if (fieldName /= '') THEN
+!          aeroFld = MAPL_FieldCreateEmpty(TRIM(fieldName), grid, __RC__)
+!          CALL MAPL_FieldAllocCommit(aeroFld,                           &
+!                                     dims=MAPL_DimsHorzVert,            &
+!                                     location=MAPL_VLocationEdge,       &
+!                                     typekind=MAPL_R4,                  &
+!                                     hw=0,                              &
+!                                      __RC__)
+!          CALL MAPL_StateAdd(aero, aeroFld, __RC__)
+!       end if
+!
+!       ! add RH to Aero state
+!       name = 'relative_humidity_for_aerosol_optics'
+!       CALL ESMF_AttributeGet(aero, name=name, value=fieldName, __RC__)
+!       if (fieldName /= '') THEN
+!          aeroFld = MAPL_FieldCreateEmpty(TRIM(fieldName), grid, __RC__)
+!          CALL MAPL_FieldAllocCommit(aeroFld,                           &
+!                                     dims=MAPL_DimsHorzVert,            &
+!                                     location=MAPL_VLocationCenter,      &
+!                                     typekind=MAPL_R4,                  &
+!                                     hw=0,                              &
+!                                     __RC__)
+!          CALL MAPL_StateAdd(aero, aeroFld, __RC__)
+!       end if
+!
+!       ! add EXT to Aero state
+!       name = 'extinction_in_air_due_to_ambient_aerosol'
+!       CALL ESMF_AttributeGet(aero, name=name, value=fieldName, __RC__)
+!       if (fieldName /= '') THEN
+!          aeroFld = MAPL_FieldCreateEmpty(TRIM(fieldName), grid, __RC__)
+!          CALL MAPL_FieldAllocCommit(aeroFld,                           &
+!                                     dims=MAPL_DimsHorzVert,            &
+!                                     location=MAPL_VLocationCenter,     &
+!                                     typekind=MAPL_R4,                  &
+!                                     hw=0,                              &
+!                                     __RC__)
+!          CALL MAPL_StateAdd(aero, aeroFld, __RC__)
+!       end if
+!
+!       ! add SSA to aero state
+!       name = 'single_scattering_albedo_of_ambient_aerosol'
+!       CALL ESMF_AttributeGet(aero, name=name, value=fieldName, __RC__)
+!       if (fieldName /= '') THEN
+!          aeroFld = MAPL_FieldCreateEmpty(TRIM(fieldName), grid, __RC__)
+!          CALL MAPL_FieldAllocCommit(aeroFld,                           &
+!                                     dims=MAPL_DimsHorzVert,            &
+!                                     location=MAPL_VLocationCenter,     &
+!                                     typekind=MAPL_R4,                  &
+!                                     hw=0,                              &
+!                                     __RC__)
+!          CALL MAPL_StateAdd(aero, aeroFld, __RC__)
+!       end if
+!
+!       ! add ASY to aero state
+!       name = 'asymmetry_parameter_of_ambient_aerosol'
+!       CALL ESMF_AttributeGet(aero, name=name, value=fieldName, __RC__)
+!       IF (fieldName /= '') THEN
+!          aeroFld = MAPL_FieldCreateEmpty(TRIM(fieldName), grid, __RC__)
+!          CALL MAPL_FieldAllocCommit(aeroFld,                           &
+!                                     dims=MAPL_DimsHorzVert,            &
+!                                     location=MAPL_VLocationCenter,     &
+!                                     typekind=MAPL_R4,                  &
+!                                     hw=0,                              &
+!                                     __RC__)
+!          CALL MAPL_StateAdd(aero, aeroFld, __RC__)
+!       ENDIF
+!
+!       ! attach the aerosol optics method
+!       CALL ESMF_MethodAdd(aero, label='aerosol_optics',                &
+!                           userRoutine=aerosol_optics, __RC__)
 
        ! ---------------------------------------------------------------------
        ! Initialize the AERO_DP bundle
@@ -861,25 +964,16 @@ CONTAINS
 
     ENDIF ! DoAERO
 
-    IF ( DoANOX ) THEN
-       CALL MAPL_GetPointer( IntState, PTR_O3, 'O3', __RC__ )
-
-       ! O3_HIST is needed to store O3 field from previous chemistry time step
-       ALLOCATE( O3_HIST(IM,JM,LM), STAT=STAT )
-       ASSERT_(STAT==0)
-    ENDIF
+    CALL MAPL_GetPointer( INTSTATE, PTR_O3, 'TRC_O3', NotFoundOk=.TRUE., &
+                           __RC__ )
 
     IF ( DoRATS ) THEN
-       CALL MAPL_GetPointer( IntState,    PTR_CH4, 'CH4',    __RC__ )
-       CALL MAPL_GetPointer( IntState,    PTR_N2O, 'N2O',    __RC__ )
-       CALL MAPL_GetPointer( IntState,  PTR_CFC11, 'CFC11',  __RC__ )
-       CALL MAPL_GetPointer( IntState,  PTR_CFC12, 'CFC12',  __RC__ )
-       CALL MAPL_GetPointer( IntState, PTR_HCFC22, 'HCFC22', __RC__ )
-       CALL MAPL_GetPointer( IntState,    PTR_H2O, 'H2O',    __RC__ )
-
-       ! H2O_HIST is needed to store H2O field from previous chemistry time step
-       ALLOCATE( H2O_HIST(IM,JM,LM), STAT=STAT )
-       ASSERT_(STAT==0)
+       CALL MAPL_GetPointer( INTSTATE,    PTR_CH4, 'TRC_CH4',    __RC__ )
+       CALL MAPL_GetPointer( INTSTATE,    PTR_N2O, 'TRC_N2O',    __RC__ )
+       CALL MAPL_GetPointer( INTSTATE,  PTR_CFC11, 'TRC_CFC11',  __RC__ )
+       CALL MAPL_GetPointer( INTSTATE,  PTR_CFC12, 'TRC_CFC12',  __RC__ )
+       CALL MAPL_GetPointer( INTSTATE, PTR_HCFC22, 'TRC_HCFC22', __RC__ )
+       CALL MAPL_GetPointer( INTSTATE,    PTR_H2O, 'TRC_H2O',    __RC__ )
     ENDIF
 
     ! Successful return
@@ -923,6 +1017,7 @@ CONTAINS
 !
 ! !REVISION HISTORY:
 !  02 Nov 2017 - E. Lundgren - initial version (refactored Chem_GridCompMod)
+!  07 Jun 2018 - E. Lundgren - Updated for C. Keller's v11-02e in GEOS-5
 !EOP
 !------------------------------------------------------------------------------
 !BOC
@@ -938,31 +1033,24 @@ CONTAINS
     ! Get pointers to fields in export states. This has to be done on the 
     ! first call only.
 
-    ! Get pointers to analysis OX exports
-    IF ( DoANOX ) THEN
-       CALL MAPL_GetPointer ( Export, OX_TEND, 'OX_TEND' , __RC__ )
-       CALL MAPL_GetPointer ( Export,      OX, 'OX'      , __RC__ )
-       CALL MAPL_GetPointer ( Export,      O3, 'O3'      , __RC__ )
-       CALL MAPL_GetPointer ( Export,  O3PPMV, 'O3PPMV'  , __RC__ )
-
-       ! Update 'historical' O3. This is the O3 from the previous
-       ! chemistry time step.
-       IF ( ASSOCIATED(OX_TEND) ) O3_HIST = PTR_O3
-    ENDIF
-
-    ! Get pointers to RATS exports
-    IF ( DoRATS) THEN
-       CALL MAPL_GetPointer ( Export, H2O_TEND, 'H2O_TEND' , __RC__ )
-       CALL MAPL_GetPointer ( Export,      CH4, 'CH4'      , __RC__ )
-       CALL MAPL_GetPointer ( Export,      N2O, 'N2O'      , __RC__ )
-       CALL MAPL_GetPointer ( Export,    CFC11, 'CFC11'    , __RC__ )
-       CALL MAPL_GetPointer ( Export,    CFC12, 'CFC12'    , __RC__ )
-       CALL MAPL_GetPointer ( Export,   HCFC22, 'HCFC22'   , __RC__ )
-
-       ! Update 'historical' H2O. This is the H2O from the previous
-       ! chemistry time step.
-       IF ( ASSOCIATED(H2O_TEND) ) H2O_HIST = PTR_H2O
-    ENDIF
+! EWL: not sure if this is still used so comment out for now
+!    ! Get pointers to analysis OX exports
+!    IF ( DoANOX ) THEN
+!       CALL MAPL_GetPointer ( Export, OX_TEND, 'OX_TEND' , __RC__ )
+!       CALL MAPL_GetPointer ( Export,      OX, 'OX'      , __RC__ )
+!       CALL MAPL_GetPointer ( Export,      O3, 'O3'      , __RC__ )
+!       CALL MAPL_GetPointer ( Export,  O3PPMV, 'O3PPMV'  , __RC__ )
+!    ENDIF
+!
+!    ! Get pointers to RATS exports
+!    IF ( DoRATS) THEN
+!       CALL MAPL_GetPointer ( Export, H2O_TEND, 'H2O_TEND' , __RC__ )
+!       CALL MAPL_GetPointer ( Export,      CH4, 'CH4'      , __RC__ )
+!       CALL MAPL_GetPointer ( Export,      N2O, 'N2O'      , __RC__ )
+!       CALL MAPL_GetPointer ( Export,    CFC11, 'CFC11'    , __RC__ )
+!       CALL MAPL_GetPointer ( Export,    CFC12, 'CFC12'    , __RC__ )
+!       CALL MAPL_GetPointer ( Export,   HCFC22, 'HCFC22'   , __RC__ )
+!    ENDIF
 
     ! Eventually get pointers to GCCTO3 and GCCTTO3. Those fields are 
     ! optional and are only filled if defined and required.
@@ -970,10 +1058,13 @@ CONTAINS
                            notFoundOK=.TRUE., __RC__ )
     CALL MAPL_GetPointer ( Export, PTR_GCCTTO3, 'GCCTTO3', &
                            notFoundOK=.TRUE., __RC__ )
+
+! GCHP only (but use might be necessary now so just set to false):
     calcOzone = .FALSE.
-    IF ( ASSOCIATED( PTR_GCCTO3 ) ) THEN
-       calcOzone = .TRUE.
-    ENDIF
+!    IF ( ASSOCIATED( PTR_GCCTO3 ) ) THEN
+!       calcOzone = .TRUE.
+!    ENDIF
+!---
 
     ! Successful return
     RC = ESMF_SUCCESS
@@ -1039,7 +1130,7 @@ CONTAINS
     REAL, POINTER                :: AeroPtr3d(:,:,:) => NULL()
 
     ! Derived types
-    TYPE(ESMF_STATE)             :: IntState
+    TYPE(ESMF_STATE)             :: IntState, Aero
     TYPE(ESMF_FieldBundle)       :: AeroBdl 
     TYPE(ESMF_Field)             :: AeroFld
 
@@ -1057,42 +1148,74 @@ CONTAINS
     ! OX_TEND: mol mol-1 s-1
     !
     ! GEOS-Chem tracer:
+! GEOS-5:
+    ! PTR_O3: kg kg-1 total air
+! GCHP has different units:
     ! PTR_O3: mol mol-1
+!---
     !====================================================================
-    IF ( DoANOX ) THEN
-       IF ( ASSOCIATED(OX     ) ) OX      = PTR_O3
-       IF ( ASSOCIATED(O3     ) ) O3      = PTR_O3 * MAPL_O3MW / MAPL_AIRMW
-       IF ( ASSOCIATED(O3PPMV ) ) O3PPMV  = PTR_O3 * 1.00E+06
-    
-       ! Get tendencies. Also store current O3 field in O3_HIST for use in 
-       ! next chemistry time step.
-       IF ( ASSOCIATED(OX_TEND) ) THEN
-          OX_TEND = ( PTR_O3 - O3_HIST ) / tsChem
-          O3_HIST = PTR_O3
-       ENDIF
-    ENDIF
+! GCHP only:
+!    IF ( DoANOX ) THEN
+!---
+
+! GEOS-5:
+! EWL: this doesn't quite work yet so comment out for now:
+!    IF ( ASSOCIATED(O3     ) ) O3      = PTR_O3 
+!    IF ( ASSOCIATED(OX     ) ) OX      = PTR_O3 * MAPL_AIRMW / MAPL_O3MW
+!    IF ( ASSOCIATED(O3PPMV ) ) O3PPMV  = PTR_O3 * MAPL_AIRMW / MAPL_O3MW * 1.00E+06
+! GCHP is slightly different:
+!       IF ( ASSOCIATED(OX     ) ) OX      = PTR_O3
+!       IF ( ASSOCIATED(O3     ) ) O3      = PTR_O3 * MAPL_O3MW / MAPL_AIRMW
+!       IF ( ASSOCIATED(O3PPMV ) ) O3PPMV  = PTR_O3 * 1.00E+06
+!---
+
+
+! GCHP only:    
+!       ! Get tendencies. Also store current O3 field in O3_HIST for use in 
+!       ! next chemistry time step.
+!       IF ( ASSOCIATED(OX_TEND) ) THEN
+!          OX_TEND = ( PTR_O3 - O3_HIST ) / tsChem
+!          O3_HIST = PTR_O3
+!       ENDIF
+!    ENDIF
+!---
     
     !====================================================================
     ! Fill RATS export states if GC is the RATS provider
     ! The tracer concentrations of the RATS export states are in mol mol-1,
-    ! exactly the same as the GC internal values. 
-    ! PTR_H2O is in mol mol-1. Convert to kg here.
+! GCHP only: 
+!    ! exactly the same as the GC internal values. 
+!    ! PTR_H2O is in mol mol-1. Convert to kg here.
+!---
     !====================================================================
-    IF ( DoRATS ) THEN
-       IF ( ASSOCIATED(CH4   ) )    CH4 = PTR_CH4
-       IF ( ASSOCIATED(N2O   ) )    N2O = PTR_N2O
-       IF ( ASSOCIATED(CFC11 ) )  CFC11 = PTR_CFC11
-       IF ( ASSOCIATED(CFC12 ) )  CFC12 = PTR_CFC12
-       IF ( ASSOCIATED(HCFC22) ) HCFC22 = PTR_HCFC22
-    
-       ! Get tendencies only on chemistry time step. Also store current H2O 
-       ! field in H2O_HIST for use in next chemistry time step.
-       IF ( ASSOCIATED(H2O_TEND) ) THEN
-          H2O_TEND = ( PTR_H2O - H2O_HIST ) * MAPL_H2OMW / MAPL_AIRMW   &
-                      / tsChem
-          H2O_HIST = PTR_H2O
-       ENDIF
-    ENDIF
+! GCHP only:
+!    IF ( DoRATS ) THEN
+!---
+
+! GEOS-5:
+    IF ( ASSOCIATED(CH4   ) )    CH4 = PTR_CH4    * MAPL_AIRMW /  16.00
+    IF ( ASSOCIATED(N2O   ) )    N2O = PTR_N2O    * MAPL_AIRMW /  44.00
+    IF ( ASSOCIATED(CFC11 ) )  CFC11 = PTR_CFC11  * MAPL_AIRMW / 137.37
+    IF ( ASSOCIATED(CFC12 ) )  CFC12 = PTR_CFC12  * MAPL_AIRMW / 120.91
+    IF ( ASSOCIATED(HCFC22) ) HCFC22 = PTR_HCFC22 * MAPL_AIRMW /  86.47
+! GCHP uses different equations:
+!       IF ( ASSOCIATED(CH4   ) )    CH4 = PTR_CH4
+!       IF ( ASSOCIATED(N2O   ) )    N2O = PTR_N2O
+!       IF ( ASSOCIATED(CFC11 ) )  CFC11 = PTR_CFC11
+!       IF ( ASSOCIATED(CFC12 ) )  CFC12 = PTR_CFC12
+!       IF ( ASSOCIATED(HCFC22) ) HCFC22 = PTR_HCFC22
+!---  
+  
+! GCHP only:
+!       ! Get tendencies only on chemistry time step. Also store current H2O 
+!       ! field in H2O_HIST for use in next chemistry time step.
+!       IF ( ASSOCIATED(H2O_TEND) ) THEN
+!          H2O_TEND = ( PTR_H2O - H2O_HIST ) * MAPL_H2OMW / MAPL_AIRMW   &
+!                      / tsChem
+!          H2O_HIST = PTR_H2O
+!       ENDIF
+!    ENDIF
+!---
     
     !====================================================================
     ! Fill AERO bundle if GEOS-Chem is the AERO provider.
@@ -1100,56 +1223,55 @@ CONTAINS
     ! GEOS-Chem tracer field, converting units from mol mol-1 to kg kg-1.
     !====================================================================
     IF ( DoAERO ) THEN
-    
+
        ! Get Internal state
-       CALL MAPL_Get ( STATE, INTERNAL_ESMF_STATE=IntState, __RC__ ) 
-    
+       CALL MAPL_Get ( STATE, INTERNAL_ESMF_STATE=INTSTATE, __RC__ ) 
+
        ! Get AERO bundle
-       CALL ESMF_StateGet( Export, 'AERO', AeroBdl, __RC__ )
-    
+       CALL ESMF_StateGet( EXPORT, 'AERO',     Aero,    __RC__ )
+       CALL ESMF_StateGet( Aero,   'AEROSOLS', AeroBdl, __RC__ )
+
        ! Number of fields in the AERO Bundle
        CALL ESMF_FieldBundleGet ( AeroBdl, FieldCount=nAero, __RC__ )
-    
+
        ! Update every field
        DO N = 1, nAero
-    
+
           ! Get field
           CALL ESMF_FieldBundleGet( AeroBdl, N, AeroFld, __RC__ )
-    
+
           ! Extract GC tracer name, molecular weight and fraction to be used
-          CALL ESMF_AttributeGet( AeroFld, NAME='GCNAME',     &
-                                  VALUE=GcName, __RC__ )
-          CALL ESMF_AttributeGet( AeroFld, NAME='GCMW'  ,     &
-                                  VALUE=GCMW,   __RC__ )
-          CALL ESMF_AttributeGet( AeroFld, NAME='FRAC',       &
-                                  VALUE=FRAC,   __RC__ ) 
-    
+          CALL ESMF_AttributeGet( AeroFld, NAME='GCNAME', VALUE=GcName, __RC__ )
+          CALL ESMF_AttributeGet( AeroFld, NAME='GCMW'  , VALUE=GCMW,   __RC__ )
+          CALL ESMF_AttributeGet( AeroFld, NAME='FRAC',   VALUE=FRAC,   __RC__ ) 
+
           ! Get pointer to Aero data
           CALL ESMF_FieldGet( AeroFld, farrayPtr=AeroPtr3D, __RC__ )
-    
+
           ! Get pointer to GC data
-          CALL MAPL_GetPointer ( IntState, GcPtr3D, TRIM(GcName), __RC__ )
-    
+          CALL MAPL_GetPointer ( INTSTATE, GcPtr3D, TRIM(GcName), __RC__ )
+
           ! Pass GC to AERO. Convert from mol/mol to kg/kg. Only use the 
           ! fraction specified during initialization (different from 1 for
           ! sea salt aerosols only)
-          AeroPtr3D = GcPtr3D * FRAC * GCMW / MAPL_AIRMW
-    
-          !writing to diagnostics
+          !AeroPtr3D = GcPtr3D * FRAC * GCMW / MAPL_AIRMW
+          AeroPtr3D = GcPtr3D * FRAC
+
+!!! writing to diagnostics
           GcPtr3D   => NULL()
           CALL ESMF_FieldGet( AeroFld, NAME=GcName, __RC__ )
-          CALL MAPL_GetPointer ( Export, GcPtr3D, 'AERO_'//TRIM(GcName), &
+          CALL MAPL_GetPointer ( EXPORT, GcPtr3D, 'AERO_'//TRIM(GcName), &
                                  NotFoundOk=.TRUE., __RC__ )
           IF ( ASSOCIATED(GcPtr3D) ) GcPtr3D = AeroPtr3D
-    
+!!!
+
           ! Free pointers
           GcPtr3D   => NULL()
           AeroPtr3D => NULL()
        ENDDO
-    
+  
        ! Fill AERO_DP bundle
-       CALL FillAeroDP ( am_I_Root, Input_Opt, GC, Export, __RC__ )
-    
+       CALL FillAeroDP ( am_I_Root, Input_Opt, GC, EXPORT, __RC__ )
     ENDIF ! DoAero
 
     ! Successful return
@@ -1197,12 +1319,13 @@ CONTAINS
 
     __Iam__('Provider_ZeroTendencies')
 
-    IF ( DoANOX ) THEN
-       IF ( ASSOCIATED(OX_TEND) ) OX_TEND = 0.0 
-    ENDIF
-    IF ( DoRATS ) THEN
-       IF ( ASSOCIATED(H2O_TEND) ) H2O_TEND  = 0.0 
-    ENDIF
+! EWL: not sure if this is relevant anymore so comment out for now
+!    IF ( DoANOX ) THEN
+!       IF ( ASSOCIATED(OX_TEND) ) OX_TEND = 0.0 
+!    ENDIF
+!    IF ( DoRATS ) THEN
+!       IF ( ASSOCIATED(H2O_TEND) ) H2O_TEND  = 0.0 
+!    ENDIF
 
     ! Successful return
     RC = ESMF_SUCCESS
@@ -1399,16 +1522,17 @@ CONTAINS
     __Iam__('Provider_Finalize')
 
     ! Free local pointers
-    O3          => NULL()
-    O3PPMV      => NULL()
-    OX          => NULL()
-    OX_TEND     => NULL()
+! EWL: comment out these for now pending more thorough comparison of old vs new
+!    O3          => NULL()
+!    O3PPMV      => NULL()
+!    OX          => NULL()
+!    OX_TEND     => NULL()
     CH4         => NULL()
     N2O         => NULL()
     CFC11       => NULL()
     CFC12       => NULL()
     HCFC22      => NULL()
-    H2O_TEND    => NULL()
+!    H2O_TEND    => NULL()
     PTR_O3      => NULL()
     PTR_CH4     => NULL()
     PTR_N2O     => NULL()
@@ -1419,9 +1543,9 @@ CONTAINS
     PTR_GCCTO3  => NULL()
     PTR_GCCTTO3 => NULL()
 
-    ! Deallocate arrays
-    IF ( ASSOCIATED(  O3_HIST ) ) DEALLOCATE( O3_HIST )
-    IF ( ASSOCIATED( H2O_HIST ) ) DEALLOCATE( H2O_HIST )
+!    ! Deallocate arrays
+!    IF ( ASSOCIATED(  O3_HIST ) ) DEALLOCATE( O3_HIST )
+!    IF ( ASSOCIATED( H2O_HIST ) ) DEALLOCATE( H2O_HIST )
 
     ! Successful return
     RC = ESMF_SUCCESS
@@ -1455,7 +1579,7 @@ CONTAINS
 ! !INPUT PARAMETERS:
 !
     LOGICAL,             INTENT(IN)    :: am_I_Root ! Root PET?
-    TYPE(OptInput),      INTENT(IN)    :: Input_Opt ! Input Options
+    TYPE(OptInput),      INTENT(IN)    :: Input_Opt
 !                                                             
 ! !INPUT/OUTPUT PARAMETERS:                                         
 !              
@@ -1552,8 +1676,10 @@ CONTAINS
 
           ! Reset
           Ptr2D = 0.0
-       
-          ! For deposition arrays ...
+
+          ! ------------------
+          ! Dry deposition
+          ! ------------------
           IF ( I == 1 ) THEN
             
              ! Get diagnostics 
@@ -1570,17 +1696,13 @@ CONTAINS
              IF ( FLAG == HCO_SUCCESS ) THEN
                 IF ( ASSOCIATED(DgnCont%Arr2D%Val) ) THEN
                    Ptr2D = Ptr2D + DgnCont%Arr2D%Val
-   
-                   ! testing only
-                   if(am_I_Root) then
-                      write(*,*) TRIM(DgnCont%cName), ' added to ',  &
-                                 TRIM(ExpName)
-                   endif
 
                 ENDIF
              ENDIF
-        
-          ! For wet depostion arrays ... 
+
+          ! ------------------
+          ! Wet depostion 
+          ! ------------------
           ELSEIF ( I == 2 ) THEN
 
              ! Convective and wet scavenging
@@ -1609,16 +1731,7 @@ CONTAINS
                 ! is already in kg m-2 s-1.
                 IF ( FLAG == HCO_SUCCESS ) THEN
                    IF ( ASSOCIATED(DgnCont%Arr2D%Val) ) THEN
-                      WHERE(DgnCont%Arr2D%Val>0.0_sp)
-                         Ptr2D = Ptr2D + DgnCont%Arr2D%Val
-                      ENDWHERE
-
-                      ! testing only
-                      if(am_I_Root) then
-                         write(*,*) TRIM(DgnCont%cName), ' added to ', &
-                                    TRIM(ExpName)
-                      endif
-
+                      Ptr2D = Ptr2D + DgnCont%Arr2D%Val
                    ELSEIF ( ASSOCIATED(DgnCont%Arr3D%Val) ) THEN
                       Ptr2D = Ptr2D + SUM(DgnCont%Arr3D%Val,DIM=3)
                    ENDIF

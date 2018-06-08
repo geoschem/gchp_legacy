@@ -5,7 +5,7 @@
 !------------------------------------------------------------------------------
 !BOP
 !
-! !INCLUDE: Includes_Before_Run.H
+! !INCLUDE: Includes_After_Run.H
 !
 ! !DESCRIPTION: This include file contains the array assignments that need
 !  to be made BEFORE the call to the Run method of the 
@@ -26,144 +26,239 @@
 !  16 Oct 2012 - R. Yantosca - Changed GC_MET to State_Met
 !  16 Oct 2012 - R. Yantosca - Changed GC_STATE to State_Chm
 !  16 Oct 2012 - R. Yantosca - Changed GC_STATE%CSPEC to State_Chm%Species
-!  16 Oct 2012 - R. Yantosca - Renamed to Includes_Before_Run.H (freeform)
-!  18 Oct 2012 - R. Yantosca - Add proper unit conversions for met fields
-!  23 Oct 2012 - R. Yantosca - Now add QI, QL fields to State_Met object
-!  28 Nov 2012 - R. Yantosca - Now populate State_Met%SUNCOS fields from ZTH
-!  13 Feb 2013 - R. Yantosca - Now get ZTH, SLR from MAPL
+!  16 Oct 2012 - R. Yantosca - Renamed to Includes_After_Run.H (freeform)
 !  07 Mar 2013 - R. Yantosca - Now add error checks to prevent OOB errors
-!  15 Mar 2013 - R. Yantosca - Now assign GCCTROPP, which is the last valid
-!                              tropopause pressure, to State_Met%TROPP
-!  27 Oct 2014 - C. Keller   - Fill species only on first call (only those
-!                              that are not advected - others will be 
-!                              initialized from tracers).
-!  19 Oct 2016 - R. Yantosca - Now avoid out of bounds errors.  Also reference
-!                              MAPL pointers to edged data with (:,:,0:LM).
-!  28 Sep 2017 - E. Lundgren - Remove the Monin-Obukhov Len (State_Met%MOLENGTH)
-!  12 Dec 2017 - E. Lundgren - Set State_Met%LWI from surface type fractions
-!  08 Mar 2018 - E. Lundgren - Move non-State_Met code to GC chem Run_ method
+!  27 Oct 2014 - C. Keller   - Removed species copying into internal state.
+!                              This is only required upon finalization.
+!  08 May 2015 - C. Keller   - Now fill species on every (chemistry) time 
+!                              step. This is critical for checkpointing.
 !EOP
 !------------------------------------------------------------------------------
 !BOC
 
   !=========================================================================
-  ! Two-dimensional fields
-  !=========================================================================
+  State_Met%ALBD       = ALBVF                               ! unitless
+  State_Met%CLDFRC     = CLDTT                               ! unitless
+  State_Met%HFLUX      = SH                                  ! W/m2
+  State_Met%EFLUX      = LHFX                                ! W/m2
+  State_Met%FRCLND     = FRLAND                              ! unitless
+  State_Met%FRLAND     = FRLAND                              ! unitless
+  State_Met%FRLANDIC   = FRLANDICE                           ! unitless
+  State_Met%FROCEAN    = FROCEAN                             ! unitless
+  State_Met%FRLAKE     = FRLAKE                              ! unitless
+  State_Met%FRSNO      = ASNOW                               ! unitless
+  State_Met%GWETTOP    = WET1                                ! unitless
+  State_Met%GWETROOT   = WET2                                ! unitless
+!  State_Met%ITY        = ITY                                 ! unitless
+!  WHERE ( LAI /= MAPL_UNDEF ) 
+!     State_Met%LAI     = LAI                                 ! unitless
+!  ELSEWHERE
+!     State_Met%LAI     = 0.0e0                               ! unitless
+!  ENDWHERE
+  State_Met%LWI        = LWI                                 ! unitless
+  State_Met%PARDR      = DRPAR                               ! W/m2
+  State_Met%PARDF      = DFPAR                               ! W/m2
+  State_Met%PBLH       = ZPBL                                ! m
+  State_Met%PRECCON    = CN_PRCP  * 86400d0 * 1d-3           ! kg/m2/s -> mm/day
+  State_Met%PRECTOT    = TPREC    * 86400d0 * 1d-3           ! kg/m2/s -> mm/day
+  State_Met%TROPP      = GCCTROPP / 100d0                    ! Pa      -> hPa
+!  State_Met%TO3        = TO3                                 ! DU
+!  State_Met%TO3        = GCCTO3                              ! DU
+  State_Met%TS         = T2M                                 ! K
+  State_Met%TSKIN      = TS                                  ! K
+!  State_Met%SST        = TS                                  ! K
+!  State_Met%RADSWG     = SWNDSRF                             ! W/m2
+  State_Met%SWGDN      = SWNDSRF                             ! W/m2
+  State_Met%SNOMAS     = SNOMAS                              ! kg/m2
+  State_Met%SNODP      = SNOWDP                              ! m
+  State_Met%SUNCOS     = zenith                              ! unitless
+  State_Met%SUNCOSmid  = zenith                              ! unitless
+!  State_Met%SUNCOSmid5 = zenith                              ! unitless
+  State_Met%U10M       = U10M                                ! m/s
+  State_Met%USTAR      = USTAR                               ! m/s
+  State_Met%UVALBEDO   = ALBVF                               ! - 
+  State_Met%V10M       = V10M                                ! m/s
+  State_Met%Z0         = Z0H                                 ! m
+  State_Met%CNV_FRC    = CNV_FRC                             ! 1 
 
-  State_Met%ALBD                = ALBD                       ! 1
-  State_Met%AREA_M2(:,:,1)      = AREA                       ! m2
-  State_Met%CLDFRC              = CLDFRC                     ! 1
-  State_Met%EFLUX               = EFLUX                      ! W m-2
-  State_Met%HFLUX               = HFLUX                      ! W/m2
-  State_Met%FRCLND              = FRLAND                     ! 1
-  State_Met%FRLAND              = FRLAND                     ! 1
-  State_Met%FROCEAN             = FROCEAN                    ! 1
-  State_Met%FRLAKE              = FRLAKE                     ! 1
-  State_Met%FRLANDIC            = FRLANDIC                   ! 1
-  State_Met%PHIS                = PHIS / 9.80665d0           ! m
-  State_Met%GWETROOT            = GWETROOT                   ! 1
-  State_Met%GWETTOP             = GWETTOP                    ! 1
-  State_Met%LAI                 = LAI                        ! 1  
-  State_Met%OMEGA               = OMEGA                      ! Pa s-1
-  State_Met%PARDR               = PARDR                      ! W/m2
-  State_Met%PARDF               = PARDF                      ! W/m2
-  State_Met%PBLH                = PBLH                       ! m
-  State_Met%PRECANV             = PRECANV  * 86400d0         ! kg/m2/s -> mm/day
-  State_Met%PRECCON             = PRECCON  * 86400d0         ! kg/m2/s -> mm/day
-  State_Met%PRECLSC             = PRECLSC  * 86400d0         ! kg/m2/s -> mm/day
-  State_Met%PRECTOT             = PRECTOT  * 86400d0         ! kg/m2/s -> mm/day
-  State_Met%TROPP               = TROPP                      ! hPa
-  State_Met%PS1_WET             = PS1                        ! hPa
-  State_Met%PS2_WET             = PS2                        ! hPa
-  State_Met%SLP                 = SLP                        ! hPa
-  State_Met%TMPU1               = TMPU1
-  State_Met%TMPU2               = TMPU2
-  State_Met%TS                  = TS                         ! K
-  State_Met%TSKIN               = TSKIN                      ! K
-#if defined ( GEOS_FP ) || defined ( MERRA2 )
-  State_Met%SWGDN               = RADSWG                     ! W/m2
-#else
-  State_Met%RADSWG              = RADSWG                     ! W/m2
-#endif
-  State_Met%TO3                 = TO3                        ! dobson
-  State_Met%SNODP               = SNODP                      ! m
-  State_Met%SNOMAS              = SNOMAS                     ! kg/m2
-  State_Met%SUNCOS              = zenith                     ! unitless
-  State_Met%SUNCOSmid           = zenith                     ! 1
-  State_Met%U                   = ULL                        ! m/s
-  State_Met%U10M                = U10M                       ! m/s
-  State_Met%USTAR               = USTAR                      ! m/s
-  State_Met%V                   = VLL                        ! m/s
-  State_Met%V10M                = V10M                       ! m/s
-  State_Met%Z0                  = Z0                         ! m
+  ! Calculate the Monin-Obukhov Length
+!  WHERE(ABS(SH) > 1.00E-32)
+!    State_Met%MOLENGTH(:,:) = -AIRDENS(:,:,LM) * MAPL_CP * TS * ustar**3. / (MAPL_KARMAN * MAPL_GRAV * SH)
+!  ELSEWHERE
+!    State_Met%MOLENGTH(:,:) = 1.00E+05
+!  END WHERE
 
-  ! Set LWI based on land type fractions in imports: 0=water, 1=land, 2=ice
-  DO J=1,JM
-  DO I=1,IM
-     IMAXLOC = MAXLOC( (/ FRLAND(I,J) + FRLANDIC(I,J) + FRLAKE(I,J),  &
-                          FRSEAICE(I,J),                              &
-                          FROCEAN(I,J) - FRSEAICE(I,J) /) )
-     IF ( IMAXLOC(1) == 3 ) IMAXLOC(1) = 0 ! reset ocean to 0
-     State_Met%LWI(I,J) = FLOAT( IMAXLOC(1) )
-  ENDDO
-  ENDDO
+  ! Same LAI for all 50 biomes?!??
+!  DO I = 1, 50
+!     State_Met%XLAI (:,:,I)  = State_Met%LAI                                 ! unitless
+!     State_Met%XLAI2(:,:,I)  = State_Met%LAI                                 ! unitless
+!  ENDDO
+
+  ! Treat area as 1D
+  State_Met%AREA_M2(:,:,1) = AREA
+
+  ! Surface geopotential height [m]
+  State_Met%PHIS(:,:) = ZLE(:,:,LM)
+
+  ! Surface pressure
+  State_Met%PS1_WET(:,:) = PS(:,:) * 1.0e-2  ! Pa -> hPa
+  State_Met%PS2_WET(:,:) = PS(:,:) * 1.0e-2  ! Pa -> hPa
 
   !=========================================================================
   ! Three-dimensional fields on level edges
   !=========================================================================
+  DO L = 1, LM+1
+     
+     ! Reversed level index
+     LR = LM - L + 1
 
-  State_Met%CMFMC  (:,:,1:LM+1) = CMFMC  (:,:,0:LM   )       ! kg/m2/s
-  State_Met%PFICU  (:,:,1:LM+1) = PFICU  (:,:,0:LM   )       ! kg/m2/s
-  State_Met%PFILSAN(:,:,1:LM+1) = PFILSAN(:,:,0:LM   )       ! kg/m2/s
-  State_Met%PFLCU  (:,:,1:LM+1) = PFLCU  (:,:,0:LM   )       ! kg/m2/s
-  State_Met%PFLLSAN(:,:,1:LM+1) = PFLLSAN(:,:,0:LM   )       ! kg/m2/s 
+     DO J = 1, JM
+     DO I = 1, IM
+        State_Met%PEDGE(I,J,L)   = PLE(I,J,LR) / 1d2  ! Pa -> hPa
+        State_Met%PFLLSAN(I,J,L) = PFL_LSAN(I,J,LR)   ! kg/m2/s
+        State_Met%PFILSAN(I,J,L) = PFI_LSAN(I,J,LR)   ! kg/m2/s
 
-  ! NOTE: PLE is reversed in the vertical! Note that this will end up
-  ! affecting DELP and therefore State_Met%PEDGE_DRY, but that the 
-  ! major dry pressure variables are derived from PS1_DRY and PS2_DRY.
-  ! Thes will, in turn, be determined from PS1_WET and PS2_WET, which 
-  ! are set in the block above.
-  State_Met%PEDGE  (:,:,1:LM+1) = PLE    (:,:,LM:0:-1) / 1d2 ! Pa -> hPa
+        State_Met%CMFMC(I,J,L) = CNV_MFC(I,J,LR)    ! kg/m2/s
+        State_Met%PFICU(I,J,L) = PFI_CN (I,J,LR)    ! kg/m2/s
+        State_Met%PFLCU(I,J,L) = PFL_CN (I,J,LR)    ! kg/m2/s
+     ENDDO
+     ENDDO
+  ENDDO
 
-  ! These will be set based on PS1_WET and PS2_WET in gigc_chunk_mod.F90
-  State_Met%PS1_DRY(:,:) = 0.0d0 
-  State_Met%PS2_DRY(:,:) = 0.0d0
-
-  ! Calculate CLDTOPS (highest location of CMFMC in the column)
-  Do J=1,JM
-  Do I=1,IM
-     State_Met%CldTops(I,J) = 1
-     Do L = LM, 1, -1
-        If ( State_Met%CMFMC(I,J,L) > 0d0 ) Then
-           State_Met%CldTops(I,J) = L + 1
-           Exit
-        End If
-     End Do
-  End Do
-  End Do
- 
   !=========================================================================
   ! Three-dimensional fields on level centers
   !=========================================================================
-  State_Met%CLDF                = CLDF                       ! 1
-  State_Met%DTRAIN              = DTRAIN                     ! kg/m2/s
-  State_Met%DQRCU               = DQRCU                      ! kg/kg/s
-  State_Met%DQRLSAN             = DQRLSAN                    ! kg/kg/s
-  State_Met%QI                  = QI                         ! kg/kg
-  State_Met%QL                  = QL                         ! kg/kg
-  State_Met%RH                  = RH      * 1d2              ! 1 -> %
-  State_Met%TAUCLI              = TAUCLI                     ! 1
-  State_Met%TAUCLW              = TAUCLW                     ! 1
-  State_Met%REEVAPCN            = REEVAPCN                   ! kg/kg/s
-  State_Met%REEVAPLS            = REEVAPLS                   ! kg/kg/s
+  DO L = 1, LM    
 
-  ! These fields are set to match the GCC conventions and to ensure that 
-  ! transport is correctly implemented.
-  State_Met%SPHU                =(SPHU1+SPHU2)*0.5d3         ! kg/kg -> g/kg
-  State_Met%SPHU1               = SPHU1       *1.0d3         ! kg/kg -> g/kg
-  State_Met%SPHU2               = SPHU2       *1.0d3         ! kg/kg -> g/kg
-  State_Met%T                   =(TMPU1+TMPU2)*0.5d0         ! K
+     ! Reversed level index
+     LR = LM - L + 1
 
-  ! Create total optical depth field                         ! 1
-  State_Met%OPTD                = State_Met%TAUCLI + State_Met%TAUCLW
+     DO J = 1, JM
+     DO I = 1, IM
+     
+        !-------------------------------------------------------------------
+        ! "True" met fields (i.e. passed from GCM)
+        !-------------------------------------------------------------------
+!        State_Met%AREA_M2 (I,J,L)  = AREA   (I,J   )        ! m2
+        State_Met%AIRDEN  (I,J,L)  = AIRDENS(I,J,LR)        ! kg/m3
+        State_Met%CLDF    (I,J,L)  = FCLD   (I,J,LR)        ! unitless
+!        State_Met%DQIDTMST(I,J,L)  = DQIDT  (I,J,LR)        ! kg/kg/s
+!        State_Met%DQLDTMST(I,J,L)  = DQLDT  (I,J,LR)        ! kg/kg/s
+        State_Met%DQRLSAN (I,J,L)  = DQRL   (I,J,LR)        ! kg/kg/s
+        State_Met%DTRAIN  (I,J,L)  = CNV_MFD(I,J,LR)               ! kg/m2/s
+        State_Met%DQRCU   (I,J,L)  = DQRC   (I,J,LR)        ! kg/kg/s 
+        State_Met%REEVAPCN(I,J,L)  = REV_CN (I,J,LR)        ! kg/kg/s
+        State_Met%T       (I,J,L)  = T      (I,J,LR)        ! K
+        State_Met%TMPU1   (I,J,L)  = T      (I,J,LR)        ! K
+        State_Met%TMPU2   (I,J,L)  = T      (I,J,LR)        ! K
+        IF ( ASSOCIATED( State_Met%UPDVVEL ) ) THEN
+           IF ( ASSOCIATED(CNV_CVW) ) THEN
+              State_Met%UPDVVEL (I,J,L)  = CNV_CVW(I,J,LR)        ! hPa/s
+           ELSE
+              State_Met%UPDVVEL (I,J,L)  = -999.0d0
+           ENDIF 
+        ENDIF
 
+!        State_Met%MOISTQ  (I,J,L)  = DQDT   (I,J,LR)        ! 
+        State_Met%QI      (I,J,L)  = QITOT  (I,J,LR)        ! kg/kg
+        State_Met%QL      (I,J,L)  = QLTOT  (I,J,LR)        ! kg/kg
+        State_Met%RH      (I,J,L)  = RH2    (I,J,LR) * 1d2  ! unitless->[%]
+        State_Met%SPHU    (I,J,L)  = Q      (I,J,LR) * 1d3  ! kg/kg -> g/kg
+        State_Met%SPHU1   (I,J,L)  = Q      (I,J,LR) * 1d3  ! kg/kg -> g/kg
+        State_Met%SPHU2   (I,J,L)  = Q      (I,J,LR) * 1d3  ! kg/kg -> g/kg
+        State_Met%TAUCLI  (I,J,L)  = TAUCLI (I,J,LR)        ! unitless
+        State_Met%TAUCLW  (I,J,L)  = TAUCLW (I,J,LR)        ! unitless
+
+        State_Met%U       (I,J,L)  = U      (I,J,LR)        ! m s-1 
+        State_Met%V       (I,J,L)  = V      (I,J,LR)        ! m s-1
+
+        !-------------------------------------------------------------------
+        ! Quantities derived from met fields
+        ! NOTE: Need to populate MOISTQ eventually
+        !-------------------------------------------------------------------
+
+        ! Grid box height [m]
+        State_Met%BXHEIGHT(I,J,L)  =   ZLE               (I,J,LR-1)   &
+                                   -   ZLE               (I,J,LR  )
+
+        ! Pressure thickness [hPa]
+        State_Met%DELP    (I,J,L)  =   State_Met%PEDGE   (I,J,L   )   & 
+                                   -   State_Met%PEDGE   (I,J,L+1 )
+
+        ! Total optical depth [unitless]
+        State_Met%OPTD    (I,J,L)  = ( State_Met%TAUCLI  (I,J,L   )   &
+                                   +   State_Met%TAUCLW  (I,J,L   ) )
+!!!                                   *   State_Met%CLDF    (I,J,L   )
+
+        ! Air mass in grid box [kg]
+        State_Met%AD      (I,J,L)  =   State_Met%AIRDEN  (I,J,L   )   &
+                                   *   State_Met%AREA_M2 (I,J,1   )   &
+                                   *   State_Met%BXHEIGHT(I,J,L   )
+
+        ! Grid box volume [m3]
+        State_Met%AIRVOL  (I,J,L)  =   State_Met%AREA_M2 (I,J,1   )   &
+                                   *   State_Met%BXHEIGHT(I,J,L   )
+
+  ENDDO
+  ENDDO
+  ENDDO
+
+  !=========================================================================
+  ! Pass advected tracers from internal state to GEOS-Chem tracers array
+  ! Species in internal state are in kg/kg total. GEOS-Chem will convert
+  ! them to kg/kg dry internally.
+  !=========================================================================
+  DO I = 1, SIZE(Int2Spc,1)
+     IF ( Int2Spc(I)%ID <= 0 ) CYCLE
+     IF ( .NOT. ASSOCIATED(Int2Spc(I)%Internal) ) THEN
+        CYCLE
+     ELSE
+        State_Chm%Species(:,:,LM:1:-1,Int2Spc(I)%ID) = Int2Spc(I)%Internal(:,:,:)
+     ENDIF
+  ENDDO
+  State_Chm%Spc_Units = 'kg/kg total'
+
+  !=========================================================================
+  ! Various other archived variables needed in internal state. Eventually,
+  ! we may copy those only on the first time step but for now do it every
+  ! time. (ckeller, 9/16/15)
+  !=========================================================================
+  CALL MAPL_GetPointer( INTSTATE, Ptr3D, 'ARCHV_H2O2s', notFoundOK=.TRUE., __RC__ )
+  IF ( ASSOCIATED(Ptr3D) .AND. ALLOCATED(H2O2s) ) THEN
+     H2O2s = Ptr3D
+  ENDIF
+  Ptr3D => NULL()
+
+  CALL MAPL_GetPointer( INTSTATE, Ptr3D, 'ARCHV_SO2s', notFoundOK=.TRUE., __RC__ )
+  IF ( ASSOCIATED(Ptr3D) .AND. ALLOCATED(SO2s) ) THEN
+     SO2s = Ptr3D
+  ENDIF
+  Ptr3D => NULL()
+
+  CALL MAPL_GetPointer( INTSTATE, Ptr2D, 'ARCHV_DRY_TOTN', notFoundOK=.TRUE., __RC__ )
+  IF ( ASSOCIATED(Ptr2D) .AND. ASSOCIATED(DRY_TOTN) ) THEN
+     DRY_TOTN = Ptr2D
+  ENDIF
+  Ptr2D => NULL()
+
+  CALL MAPL_GetPointer( INTSTATE, Ptr2D, 'ARCHV_WET_TOTN', notFoundOK=.TRUE., __RC__ )
+  IF ( ASSOCIATED(Ptr2D) .AND. ASSOCIATED(WET_TOTN) ) THEN
+     WET_TOTN = Ptr2D
+  ENDIF
+  Ptr2D => NULL()
+
+  CALL MAPL_GetPointer( INTSTATE, Ptr3D, 'HSAVE_FOR_KPP' , notFoundOK=.TRUE., __RC__ )
+  IF ( ASSOCIATED(Ptr3D) .AND. ALLOCATED(HSAVE_KPP) ) THEN
+     HSAVE_KPP(:,:,1:LLCHEM) = REAL(Ptr3D(:,:,LM:LM-LLCHEM+1:-1),KIND=ESMF_KIND_R8)
+  ENDIF
+  Ptr3D => NULL()
+
+  ! Sesquiterpene concentrations. Convert from kgC/m3 to kgC/box.
+  IF ( ALLOCATED(ORVC_SESQ) ) THEN
+     CALL MAPL_GetPointer( INTSTATE, Ptr3D, 'SESQ_CARBDENS', notFoundOK=.TRUE., __RC__ )
+     IF ( ASSOCIATED(Ptr3D) ) THEN
+        ORVC_SESQ(:,:,1:LM) = Ptr3D(:,:,LM:1:-1) * State_Met%AIRVOL(:,:,1:LM)
+     ENDIF
+     Ptr3D => NULL()
+  ENDIF
+!EOF
