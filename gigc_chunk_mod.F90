@@ -250,16 +250,19 @@ CONTAINS
     CALL Set_Input_Opt( am_I_Root, Input_Opt, RC )
     ASSERT_(RC==GC_SUCCESS)
 
-    ! Update Input_Opt with timing fields
-    Input_Opt%NYMDb   = nymdB
-    Input_Opt%NHMSb   = nhmsB
-    Input_Opt%NYMDe   = nymdE
-    Input_Opt%NHMSe   = nhmsE
-    Input_Opt%TS_CHEM = INT( tsChem )   ! Chemistry timestep [sec]
-    Input_Opt%TS_EMIS = INT( tsChem )   ! Chemistry timestep [sec]
-    Input_Opt%TS_DYN  = INT( tsDyn  )   ! Dynamic   timestep [sec]
-    Input_Opt%TS_CONV = INT( tsDyn  )   ! Dynamic   timestep [sec]
-    Input_Opt%myCPU   = myPET
+! GCHP has this code here, but it needs to go after reading input.geos
+! for GEOS-5 since the timesteps in input.geos are not used:
+!    ! Update Input_Opt with timing fields
+!    Input_Opt%NYMDb   = nymdB
+!    Input_Opt%NHMSb   = nhmsB
+!    Input_Opt%NYMDe   = nymdE
+!    Input_Opt%NHMSe   = nhmsE
+!    Input_Opt%TS_CHEM = INT( tsChem )   ! Chemistry timestep [sec]
+!    Input_Opt%TS_EMIS = INT( tsChem )   ! Chemistry timestep [sec]
+!    Input_Opt%TS_DYN  = INT( tsDyn  )   ! Dynamic   timestep [sec]
+!    Input_Opt%TS_CONV = INT( tsDyn  )   ! Dynamic   timestep [sec]
+!    Input_Opt%myCPU   = myPET
+!---
 
 ! GEOS-5 vs GCHP NOTE: In GEOS-5 input.geos is read by every thread so 
 ! values are not broadcasted. Do this in a future version of GCHP since 
@@ -342,6 +345,21 @@ CONTAINS
     CALL SetGridFromCtr( am_I_Root, value_IM,    value_JM, &
                          lonCtr,    latCtr,      RC      )
     ASSERT_(RC==GC_SUCCESS)
+
+! GEOS-5: This code is in GCHP but at an earlier stage. However, it must
+! be set right before setting timesteps so that input.geos values are
+! not used:
+    ! Update Input_Opt with timing fields
+    Input_Opt%NYMDb   = nymdB
+    Input_Opt%NHMSb   = nhmsB
+    Input_Opt%NYMDe   = nymdE
+    Input_Opt%NHMSe   = nhmsE
+    Input_Opt%TS_CHEM = INT( tsChem )   ! Chemistry timestep [sec]
+    Input_Opt%TS_EMIS = INT( tsChem )   ! Chemistry timestep [sec]
+    Input_Opt%TS_DYN  = INT( tsDyn  )   ! Dynamic   timestep [sec]
+    Input_Opt%TS_CONV = INT( tsDyn  )   ! Dynamic   timestep [sec]
+    Input_Opt%myCPU   = myPET
+!---
 
     ! Set GEOS-Chem timesteps on all CPUs
     CALL SET_TIMESTEPS( am_I_Root  = am_I_Root,                          &
