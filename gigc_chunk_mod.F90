@@ -678,7 +678,7 @@ CONTAINS
     INTEGER                        :: STATUS
 
 ! GCHP only:
-    CHARACTER(LEN=ESMF_MAXSTR)     :: OrigUnit
+!    CHARACTER(LEN=ESMF_MAXSTR)     :: OrigUnit
 !---
 
     ! Local logicals to turn on/off individual components
@@ -950,9 +950,9 @@ CONTAINS
     ! Update species units
     State_Chm%Spc_Units = 'kg/kg dry'
 ! GCHP converts to kg/kg dry instead:
-    ! Convert species conc units to kg/kg dry prior to Phase 1/2 calls
-    CALL Convert_Spc_Units( am_I_Root, Input_Opt, State_Met, State_Chm, &
-                            'kg/kg dry', RC )
+!    ! Convert species conc units to kg/kg dry prior to Phase 1/2 calls
+!    CALL Convert_Spc_Units( am_I_Root, Input_Opt, State_Met, State_Chm, &
+!                            'kg/kg dry', RC )
 !---
 
     ! SDE 05/28/13: Set H2O to STT if relevant
@@ -977,13 +977,13 @@ CONTAINS
        IF (Input_Opt%LSETH2O) Input_Opt%LSETH2O = .FALSE.
     ENDIF
 ! GCHP is less complicated:
-    IF ( IND_('H2O','A') > 0 ) THEN
-       CALL SET_H2O_TRAC( am_I_Root, ((.NOT. Input_Opt%LUCX) .OR.    &
-                          Input_Opt%LSETH2O ), Input_Opt, State_Met, &
-                          State_Chm, RC )
-       ! Only force strat once if using UCX
-       IF (Input_Opt%LSETH2O) Input_Opt%LSETH2O = .FALSE.
-    ENDIF
+!    IF ( IND_('H2O','A') > 0 ) THEN
+!       CALL SET_H2O_TRAC( am_I_Root, ((.NOT. Input_Opt%LUCX) .OR.    &
+!                          Input_Opt%LSETH2O ), Input_Opt, State_Met, &
+!                          State_Chm, RC )
+!       ! Only force strat once if using UCX
+!       IF (Input_Opt%LSETH2O) Input_Opt%LSETH2O = .FALSE.
+!    ENDIF
 !---
 
 ! GEOS-5 only:
@@ -1045,8 +1045,8 @@ CONTAINS
        CALL Do_DryDep ( am_I_Root, Input_Opt, State_Met, &
                         State_Chm, State_Diag, RC ) 
 ! GCHP passes assignments instead:
-       CALL Do_DryDep( am_I_Root, Input_Opt=Input_Opt, State_Chm=State_Chm, &
-                       State_Met=State_Met, State_Diag=State_Diag, RC=RC )
+!       CALL Do_DryDep( am_I_Root, Input_Opt=Input_Opt, State_Chm=State_Chm, &
+!                       State_Met=State_Met, State_Diag=State_Diag, RC=RC )
 !---
        ASSERT_(RC==GC_SUCCESS)
 
@@ -1188,11 +1188,11 @@ CONTAINS
 !                             State_Met, State_Chm, RC )
 !       ENDIF
 ! GCHP does this instead:
-       ! Set H2O to species value if H2O is advected
-       IF ( IND_('H2O','A') > 0 ) THEN
-          CALL SET_H2O_TRAC( am_I_Root, (.not. Input_Opt%LUCX), Input_Opt, &
-                             State_Met, State_Chm, RC )
-       ENDIF
+!       ! Set H2O to species value if H2O is advected
+!       IF ( IND_('H2O','A') > 0 ) THEN
+!          CALL SET_H2O_TRAC( am_I_Root, (.not. Input_Opt%LUCX), Input_Opt, &
+!                             State_Met, State_Chm, RC )
+!       ENDIF
 !---
 
 ! GEOS-5:
@@ -1328,9 +1328,9 @@ CONTAINS
     FIRST = .FALSE.
 
 ! GCHP only:
-    ! Convert units to units of the internal state
-    CALL Convert_Spc_Units( am_I_Root, Input_Opt, State_Met, State_Chm, &
-                            'v/v dry', RC )
+!    ! Convert units to units of the internal state
+!    CALL Convert_Spc_Units( am_I_Root, Input_Opt, State_Met, State_Chm, &
+!                            'v/v dry', RC )
 !---
 
     ! Return success
