@@ -2682,7 +2682,6 @@ CONTAINS
     RETURN_(ESMF_SUCCESS)
 
   END SUBROUTINE Run2 
-! Note from Lizzie: Need to go through Run_
 !EOC
 !------------------------------------------------------------------------------
 !     NASA/GSFC, Global Modeling and Assimilation Office, Code 910.1 and      !
@@ -3195,8 +3194,8 @@ CONTAINS
                       __RC__ )
 
 ! GCHP only (why is this needed for GCHP and GEOS-5?):
-       ! MSL - shift from 0 - 360 to -180 - 180 degree grid
-       where (lonCtr .gt. MAPL_PI ) lonCtr = lonCtr - 2*MAPL_PI
+!       ! MSL - shift from 0 - 360 to -180 - 180 degree grid
+!       where (lonCtr .gt. MAPL_PI ) lonCtr = lonCtr - 2*MAPL_PI
 !---
 
 ! GEOS-5 only (could this be abstracted?):
@@ -3778,8 +3777,8 @@ CONTAINS
 !---
 
 ! GCHP only:
-             ! NOTE: Second was not extracted previously; set to 0 for now
-             second = 0
+!             ! NOTE: Second was not extracted previously; set to 0 for now
+!             second = 0
 !---       
              ! Run the GEOS-Chem column chemistry code for the given phase
              CALL GIGC_Chunk_Run( am_I_Root  = am_I_Root,  & ! Is this root PET?
@@ -4718,7 +4717,7 @@ CONTAINS
     ! Objects
     TYPE(ESMF_Time)               :: startTime      ! ESMF start time obj
 ! GCHP only:
-    TYPE(ESMF_Time)               :: stopTime       ! ESMF stop time obj
+!    TYPE(ESMF_Time)               :: stopTime       ! ESMF stop time obj
 !---
     TYPE(ESMF_Time)               :: currTime       ! ESMF current time obj
     TYPE(ESMF_TimeInterval)       :: elapsedTime    ! ESMF elapsed time obj
@@ -4877,7 +4876,7 @@ CONTAINS
     CALL ESMF_ClockGet( Clock,                    &
                         startTime    = startTime, &
 ! GCHP only:
-                        stopTime     = stopTime,  &
+!                        stopTime     = stopTime,  &
 !---
                         currTime     = currTime,  &
                         advanceCount = count,     &
