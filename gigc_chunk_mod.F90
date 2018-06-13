@@ -421,6 +421,7 @@ CONTAINS
     ! Specialized subroutines
     USE Dao_Mod,            ONLY : AirQnt, Set_Dry_Surface_Pressure
     USE Dao_Mod,            ONLY : GIGC_Cap_Tropopause_Prs
+    USE Set_Global_CH4_Mod, ONLY : Set_CH4
     USE MODIS_LAI_Mod,      ONLY : Compute_XLAI_GCHP
     USE PBL_Mix_Mod,        ONLY : Compute_PBL_Height
     USE Pressure_Mod,       ONLY : Set_Floating_Pressures
@@ -861,6 +862,13 @@ CONTAINS
 
        CALL MAPL_TimerOff( STATE, 'GC_TURB' )
        if(am_I_Root.and.NCALLS<10) write(*,*) ' --- Turbulence done!'
+    ENDIF
+
+    ! Set tropospheric CH4 concentrations and fill species array with
+    ! current values. 
+    IF ( Phase /= 2 .AND. Input_Opt%ITS_A_FULLCHEM_SIM  &
+         .AND. IND_('CH4','A') > 0 ) THEN
+       CALL SET_CH4 ( am_I_Root, Input_Opt, State_Met, State_Chm, RC )
     ENDIF
 
     !=======================================================================
