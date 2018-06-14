@@ -53,11 +53,6 @@
   PBLH               |     1	   | xy  |   |    |   |   |	|      | 
 #  PLE                |     1       | xyz | E |    |   |   |     |      |
 #  DryPLE             |     1       | xyz | E |    |   |   |     |      |
-  PRECANV            |     1	   | xy  |   |    |   |   |	|      | 
-  PRECCON            |     1	   | xy  |   |    |   |   |	|      | 
-  PRECLSC            |     1	   | xy  |   |    |   |   |	|      | 
-  PRECSNO            |     1	   | xy  |   |    |   |   |	|      | 
-  PRECTOT            |     1	   | xy  |   |    |   |   |	|      | 
   SEAICE00           |     1	   | xy  |   |    |   |   |	|      | 
   SEAICE10           |     1	   | xy  |   |    |   |   |	|      | 
   SEAICE20           |     1	   | xy  |   |    |   |   |	|      | 

@@ -68,10 +68,6 @@
   State_Met%PARDR               = PARDR                      ! W/m2
   State_Met%PARDF               = PARDF                      ! W/m2
   State_Met%PBLH                = PBLH                       ! m
-  State_Met%PRECANV             = PRECANV  * 86400d0         ! kg/m2/s -> mm/day
-  State_Met%PRECCON             = PRECCON  * 86400d0         ! kg/m2/s -> mm/day
-  State_Met%PRECLSC             = PRECLSC  * 86400d0         ! kg/m2/s -> mm/day
-  State_Met%PRECTOT             = PRECTOT  * 86400d0         ! kg/m2/s -> mm/day
   State_Met%TROPP               = TROPP                      ! hPa
   State_Met%PS1_WET             = PS1                        ! hPa
   State_Met%PS2_WET             = PS2                        ! hPa
