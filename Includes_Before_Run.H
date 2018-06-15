@@ -46,6 +46,7 @@
   State_Met%FRLANDIC   = FRLANDICE                           ! unitless
   State_Met%FROCEAN    = FROCEAN                             ! unitless
   State_Met%FRLAKE     = FRLAKE                              ! unitless
+!  State_Met%FRSEAICE  = not used 
   State_Met%FRSNO      = ASNOW                               ! unitless
   State_Met%GWETTOP    = WET1                                ! unitless
   State_Met%GWETROOT   = WET2                                ! unitless
@@ -59,8 +60,8 @@
   State_Met%PARDR      = DRPAR                               ! W/m2
   State_Met%PARDF      = DFPAR                               ! W/m2
   State_Met%PBLH       = ZPBL                                ! m
-  State_Met%PRECCON    = CN_PRCP  * 86400d0 * 1d-3           ! kg/m2/s -> mm/day
-  State_Met%PRECTOT    = TPREC    * 86400d0 * 1d-3           ! kg/m2/s -> mm/day
+!!!  State_Met%PRECCON    = CN_PRCP  !* 86400d0 * 1d-3           ! kg/m2/s -> mm/day
+!!!  State_Met%PRECTOT    = TPREC    !* 86400d0 * 1d-3           ! kg/m2/s -> mm/day
   State_Met%TROPP      = GCCTROPP / 100d0                    ! Pa      -> hPa
 !  State_Met%TO3        = TO3                                 ! DU
 !  State_Met%TO3        = GCCTO3                              ! DU
@@ -148,6 +149,8 @@
         State_Met%DTRAIN  (I,J,L)  = CNV_MFD(I,J,LR)               ! kg/m2/s
         State_Met%DQRCU   (I,J,L)  = DQRC   (I,J,LR)        ! kg/kg/s 
         State_Met%REEVAPCN(I,J,L)  = REV_CN (I,J,LR)        ! kg/kg/s
+        State_Met%REEVAPLS(I,J,L)  = REV_LS (I,J,LR) &      
+                                   + REV_AN (I,J,LR)        ! kg/kg/s
         State_Met%T       (I,J,L)  = T      (I,J,LR)        ! K
         State_Met%TMPU1   (I,J,L)  = T      (I,J,LR)        ! K
         State_Met%TMPU2   (I,J,L)  = T      (I,J,LR)        ! K
@@ -171,6 +174,7 @@
 
         State_Met%U       (I,J,L)  = U      (I,J,LR)        ! m s-1 
         State_Met%V       (I,J,L)  = V      (I,J,LR)        ! m s-1
+        State_Met%OMEGA   (I,J,L)  = OMEGA  (I,J,LR)        ! Pa s-1
 
         !-------------------------------------------------------------------
         ! Quantities derived from met fields

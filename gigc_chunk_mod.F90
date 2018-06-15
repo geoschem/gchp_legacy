@@ -465,8 +465,8 @@ CONTAINS
 
 ! GEOS-5 only (this is done later in GCHP, within gigc_chunk_run,
 ! and does not have the LLSTRAT threshold applied (should it?):
-    IF ( Input_Opt%LSCHEM .AND. Input_Opt%LLSTRAT < value_LM ) THEN
-
+    !IF ( Input_Opt%LSCHEM .AND. Input_Opt%LLSTRAT < value_LM ) THEN
+     IF ( Input_Opt%LSCHEM ) THEN
        CALL INIT_STRAT_CHEM( am_I_Root, Input_Opt, State_Chm, & 
                              State_Met, RC )
        IF (RC /= GC_SUCCESS) RETURN
@@ -1917,8 +1917,6 @@ CONTAINS
           CALL MAPL_GetPointer( Export, Ptr3D, TRIM(DiagName), NotFoundOk=.TRUE., __RC__ )
           IF ( ASSOCIATED(Ptr3D) ) THEN
              Ptr3D = State_Diag%OHconcAfterChem(:,:,LM:1:-1)
-             !!! testing only
-             if(am_I_Root) write(*,*) 'OHconcAfterChem: ',sum(State_Diag%OHconcAfterChem(:,:,1))
           ENDIF
        ENDIF
        IF ( ASSOCIATED(State_Diag%O3concAfterChem) ) THEN
@@ -1926,8 +1924,6 @@ CONTAINS
           CALL MAPL_GetPointer( Export, Ptr3D, TRIM(DiagName), NotFoundOk=.TRUE., __RC__ )
           IF ( ASSOCIATED(Ptr3D) ) THEN
              Ptr3D = State_Diag%O3concAfterChem(:,:,LM:1:-1)
-             !!! testing only
-             if(am_I_Root) write(*,*) 'O3concAfterChem: ',sum(State_Diag%O3concAfterChem(:,:,1))
           ENDIF
        ENDIF
        IF ( ASSOCIATED(State_Diag%RO2concAfterChem) ) THEN
@@ -1935,8 +1931,6 @@ CONTAINS
           CALL MAPL_GetPointer( Export, Ptr3D, TRIM(DiagName), NotFoundOk=.TRUE., __RC__ )
           IF ( ASSOCIATED(Ptr3D) ) THEN
              Ptr3D = State_Diag%RO2concAfterChem(:,:,LM:1:-1)
-             !!! testing only
-             if(am_I_Root) write(*,*) 'RO2concAfterChem: ',sum(State_Diag%RO2concAfterChem(:,:,1))
           ENDIF
        ENDIF
     ENDIF
@@ -2047,8 +2041,6 @@ CONTAINS
           IF ( ASSOCIATED(Ptr3D) ) THEN
              Ptr3D = State_Diag%RxnRconst(:,:,LM:1:-1,I)
      
-             !!! testing only
-             if(am_I_Root) write(*,*) 'RxnRconst ',I,sum(State_Diag%RxnRconst(:,:,1,I))
           ENDIF 
        ENDDO
     ENDIF
@@ -2063,8 +2055,6 @@ CONTAINS
           CALL MAPL_GetPointer( Export, Ptr3D, TRIM(DiagName), NotFoundOk=.TRUE., __RC__ )
           IF ( ASSOCIATED(Ptr3D) ) THEN
              Ptr3D = State_Diag%JvalIndiv(:,:,LM:1:-1,I)
-             !!! testing only
-             if(am_I_Root) write(*,*) 'Jval ',input_opt%jval_ids(i),I,sum(State_Diag%RxnRconst(:,:,1,I))
           ENDIF 
        ENDDO
     ENDIF
