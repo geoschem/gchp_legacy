@@ -5737,7 +5737,7 @@ CONTAINS
 
     ! Convection mass tendencies
     ! MTEND_CONV is a 2D diagnostics and reflects the mass flux due to 
-    Q convective wet deposition
+    ! convective wet deposition
     IF ( PHASE == 1 ) THEN 
        DO I = 1, State_Chm%nWetDep
           N = State_Chm%Map_WetDep(I)

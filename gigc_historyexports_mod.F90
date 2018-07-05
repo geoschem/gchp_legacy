@@ -491,6 +491,7 @@ CONTAINS
     ! Append_HistoryExportsList begins here
     ! ================================================================
     __Iam__('Append_HistoryExportsList (gigc_historyexports_mod.F90)')
+    RC = GC_SUCCESS
 
     ! Add new object to the beginning of the linked list
     HistoryExport%next => HistoryConfig%HistoryExportsList%head
@@ -539,6 +540,7 @@ CONTAINS
     TYPE(HistoryExportObj), POINTER :: current
 
     __Iam__('Check_HistoryExportsList (gigc_historyexports_mod.F90)')
+    RC = GC_SUCCESS
 
     ! Assume not found
     found = .False.
@@ -837,6 +839,8 @@ CONTAINS
     ! Print_HistoryExportsList begins here
     ! ================================================================
     __Iam__('Print_HistoryExportsList (gigc_historyexports_mod.F90)')
+
+    RC = GC_SUCCESS
 
     ! Loop over the History Exports list
     current => HistoryConfig%HistoryExportsList%head
