@@ -1,0 +1,457 @@
+#
+CASE_SENSITIVE_VARIABLE_NAMES: .false.
+
+Include%%
+    GOCARTdata_ExtData.rc  # GOCART.data - aerosol climatology
+##
+%%
+
+PrimaryExports%%
+# -----------|--------------|-----|----|--------|----------------------|--------|-------|----------------------------------------   
+#  Export    |              |     | V  |        |_______ Refresh ______|____ Factors ___|___________ External File __________
+#  Name      |     Units    | Dim | Loc|  Clim  |     Time Template    | Offset | Scale |     Variable    |      Template
+# -----------|--------------|-----|----|--------|----------------------|--------|-------|-----------------|----------------------   
+#
+# ----------------
+# DRYDEP LAND TYPES 
+# ----------------
+#
+IDEP_FRAC_01   1              xy     C    N    N -                      0.0      1.0     IDEP01            /discover/nobackup/cakelle2/data/Olson_2001_IDEP.025x025.nc
+IDEP_FRAC_02   1              xy     C    N    N -                      0.0      1.0     IDEP02            /discover/nobackup/cakelle2/data/Olson_2001_IDEP.025x025.nc
+IDEP_FRAC_03   1              xy     C    N    N -                      0.0      1.0     IDEP03            /discover/nobackup/cakelle2/data/Olson_2001_IDEP.025x025.nc
+IDEP_FRAC_04   1              xy     C    N    N -                      0.0      1.0     IDEP04            /discover/nobackup/cakelle2/data/Olson_2001_IDEP.025x025.nc
+IDEP_FRAC_05   1              xy     C    N    N -                      0.0      1.0     IDEP05            /discover/nobackup/cakelle2/data/Olson_2001_IDEP.025x025.nc
+IDEP_FRAC_06   1              xy     C    N    N -                      0.0      1.0     IDEP06            /discover/nobackup/cakelle2/data/Olson_2001_IDEP.025x025.nc
+IDEP_FRAC_07   1              xy     C    N    N -                      0.0      1.0     IDEP07            /discover/nobackup/cakelle2/data/Olson_2001_IDEP.025x025.nc
+IDEP_FRAC_08   1              xy     C    N    N -                      0.0      1.0     IDEP08            /discover/nobackup/cakelle2/data/Olson_2001_IDEP.025x025.nc
+IDEP_FRAC_09   1              xy     C    N    N -                      0.0      1.0     IDEP09            /discover/nobackup/cakelle2/data/Olson_2001_IDEP.025x025.nc
+IDEP_FRAC_10   1              xy     C    N    N -                      0.0      1.0     IDEP10            /discover/nobackup/cakelle2/data/Olson_2001_IDEP.025x025.nc
+IDEP_FRAC_11   1              xy     C    N    N -                      0.0      1.0     IDEP11            /discover/nobackup/cakelle2/data/Olson_2001_IDEP.025x025.nc
+#
+# ----------------
+# EMISSION FIELDS
+# ----------------
+#
+PRECALC_CO    kg_m2_s-1   xy    C   N   N   2013-%m2-%d2T%h2:00:00   0.0     1.0     CO  /discover/nobackup/projects/gmao/share/dasilva/fvInput/g5chem/sfc/HEMCO/emis_precalc/Y2013/M%m2/D%d2/emis.2013%m2%d2%h200.nc
+PRECALC_NO    kg_m2_s-1   xy    C   N   N   2013-%m2-%d2T%h2:00:00   0.0     1.0     NO  /discover/nobackup/projects/gmao/share/dasilva/fvInput/g5chem/sfc/HEMCO/emis_precalc/Y2013/M%m2/D%d2/emis.2013%m2%d2%h200.nc
+PRECALC_NO2    kg_m2_s-1   xy    C   N   N   2013-%m2-%d2T%h2:00:00   0.0     1.0     NO2  /discover/nobackup/projects/gmao/share/dasilva/fvInput/g5chem/sfc/HEMCO/emis_precalc/Y2013/M%m2/D%d2/emis.2013%m2%d2%h200.nc
+PRECALC_SO2    kg_m2_s-1   xy    C   N   N   2013-%m2-%d2T%h2:00:00   0.0     1.0     SO2  /discover/nobackup/projects/gmao/share/dasilva/fvInput/g5chem/sfc/HEMCO/emis_precalc/Y2013/M%m2/D%d2/emis.2013%m2%d2%h200.nc
+PRECALC_SO4    kg_m2_s-1   xy    C   N   N   2013-%m2-%d2T%h2:00:00   0.0     1.0     SO4  /discover/nobackup/projects/gmao/share/dasilva/fvInput/g5chem/sfc/HEMCO/emis_precalc/Y2013/M%m2/D%d2/emis.2013%m2%d2%h200.nc
+PRECALC_OCPI    kg_m2_s-1   xy    C   N   N   2013-%m2-%d2T%h2:00:00   0.0     1.0     OCPI  /discover/nobackup/projects/gmao/share/dasilva/fvInput/g5chem/sfc/HEMCO/emis_precalc/Y2013/M%m2/D%d2/emis.2013%m2%d2%h200.nc
+PRECALC_OCPO    kg_m2_s-1   xy    C   N   N   2013-%m2-%d2T%h2:00:00   0.0     1.0     OCPO  /discover/nobackup/projects/gmao/share/dasilva/fvInput/g5chem/sfc/HEMCO/emis_precalc/Y2013/M%m2/D%d2/emis.2013%m2%d2%h200.nc
+PRECALC_BCPI    kg_m2_s-1   xy    C   N   N   2013-%m2-%d2T%h2:00:00   0.0     1.0     BCPI  /discover/nobackup/projects/gmao/share/dasilva/fvInput/g5chem/sfc/HEMCO/emis_precalc/Y2013/M%m2/D%d2/emis.2013%m2%d2%h200.nc
+PRECALC_BCPO    kg_m2_s-1   xy    C   N   N   2013-%m2-%d2T%h2:00:00   0.0     1.0     BCPO  /discover/nobackup/projects/gmao/share/dasilva/fvInput/g5chem/sfc/HEMCO/emis_precalc/Y2013/M%m2/D%d2/emis.2013%m2%d2%h200.nc
+PRECALC_NH3    kg_m2_s-1   xy    C   N   N   2013-%m2-%d2T%h2:00:00   0.0     1.0     NH3  /discover/nobackup/projects/gmao/share/dasilva/fvInput/g5chem/sfc/HEMCO/emis_precalc/Y2013/M%m2/D%d2/emis.2013%m2%d2%h200.nc
+PRECALC_ALK4    kg_m2_s-1   xy    C   N   N   2013-%m2-%d2T%h2:00:00   0.0     1.0     ALK4  /discover/nobackup/projects/gmao/share/dasilva/fvInput/g5chem/sfc/HEMCO/emis_precalc/Y2013/M%m2/D%d2/emis.2013%m2%d2%h200.nc
+PRECALC_ACET    kg_m2_s-1   xy    C   N   N   2013-%m2-%d2T%h2:00:00   0.0     1.0     ACET  /discover/nobackup/projects/gmao/share/dasilva/fvInput/g5chem/sfc/HEMCO/emis_precalc/Y2013/M%m2/D%d2/emis.2013%m2%d2%h200.nc
+PRECALC_MEK    kg_m2_s-1   xy    C   N   N   2013-%m2-%d2T%h2:00:00   0.0     1.0     MEK  /discover/nobackup/projects/gmao/share/dasilva/fvInput/g5chem/sfc/HEMCO/emis_precalc/Y2013/M%m2/D%d2/emis.2013%m2%d2%h200.nc
+PRECALC_ALD2    kg_m2_s-1   xy    C   N   N   2013-%m2-%d2T%h2:00:00   0.0     1.0     ALD2  /discover/nobackup/projects/gmao/share/dasilva/fvInput/g5chem/sfc/HEMCO/emis_precalc/Y2013/M%m2/D%d2/emis.2013%m2%d2%h200.nc
+PRECALC_PRPE    kg_m2_s-1   xy    C   N   N   2013-%m2-%d2T%h2:00:00   0.0     1.0     PRPE  /discover/nobackup/projects/gmao/share/dasilva/fvInput/g5chem/sfc/HEMCO/emis_precalc/Y2013/M%m2/D%d2/emis.2013%m2%d2%h200.nc
+PRECALC_C2H6    kg_m2_s-1   xy    C   N   N   2013-%m2-%d2T%h2:00:00   0.0     1.0     C2H6  /discover/nobackup/projects/gmao/share/dasilva/fvInput/g5chem/sfc/HEMCO/emis_precalc/Y2013/M%m2/D%d2/emis.2013%m2%d2%h200.nc
+PRECALC_C3H8    kg_m2_s-1   xy    C   N   N   2013-%m2-%d2T%h2:00:00   0.0     1.0     C3H8  /discover/nobackup/projects/gmao/share/dasilva/fvInput/g5chem/sfc/HEMCO/emis_precalc/Y2013/M%m2/D%d2/emis.2013%m2%d2%h200.nc
+PRECALC_CH2O  kg_m2_s-1   xy    C   N   N   2013-%m2-%d2T%h2:00:00   0.0     1.0     CH2O  /discover/nobackup/projects/gmao/share/dasilva/fvInput/g5chem/sfc/HEMCO/emis_precalc/Y2013/M%m2/D%d2/emis.2013%m2%d2%h200.nc
+PRECALC_C3H6  kg_m2_s-1   xy    C   N   N   2013-%m2-%d2T%h2:00:00   0.0     1.0     C3H6  /discover/nobackup/projects/gmao/share/dasilva/fvInput/g5chem/sfc/HEMCO/emis_precalc/Y2013/M%m2/D%d2/emis.2013%m2%d2%h200.nc
+PRECALC_CH4   kg_m2_s-1   xy    C   N   N   2013-%m2-%d2T%h2:00:00   0.0     1.0     CH4  /discover/nobackup/projects/gmao/share/dasilva/fvInput/g5chem/sfc/HEMCO/emis_precalc/Y2013/M%m2/D%d2/emis.2013%m2%d2%h200.nc
+#
+NEI11_LEVEL2_NO   kg_m2_s-1   xy     C    N   N   2011-%m2-%d2T%h2:00:00    0.0      1.0     NO                /discover/nobackup/projects/gmao/share/dasilva/fvInput/g5chem/sfc/HEMCO/NEI11/M%m2/D%d2/NEI11_2011%m2%d2_lev2.generic.01x01.nc
+NEI11_LEVEL2_NO2  kg_m2_s-1   xy     C    N   N   2011-%m2-%d2T%h2:00:00    0.0      1.0     NO2               /discover/nobackup/projects/gmao/share/dasilva/fvInput/g5chem/sfc/HEMCO/NEI11/M%m2/D%d2/NEI11_2011%m2%d2_lev2.generic.01x01.nc
+NEI11_LEVEL2_CO   kg_m2_s-1   xy     C    N   N   2011-%m2-%d2T%h2:00:00    0.0      1.0     CO                /discover/nobackup/projects/gmao/share/dasilva/fvInput/g5chem/sfc/HEMCO/NEI11/M%m2/D%d2/NEI11_2011%m2%d2_lev2.generic.01x01.nc
+NEI11_LEVEL2_HONO kg_m2_s-1   xy     C    N   N   2011-%m2-%d2T%h2:00:00    0.0      1.0     HONO              /discover/nobackup/projects/gmao/share/dasilva/fvInput/g5chem/sfc/HEMCO/NEI11/M%m2/D%d2/NEI11_2011%m2%d2_lev2.generic.01x01.nc
+NEI11_LEVEL2_NH3  kg_m2_s-1   xy     C    N   N   2011-%m2-%d2T%h2:00:00    0.0      1.0     NH3               /discover/nobackup/projects/gmao/share/dasilva/fvInput/g5chem/sfc/HEMCO/NEI11/M%m2/D%d2/NEI11_2011%m2%d2_lev2.generic.01x01.nc
+NEI11_LEVEL2_CH2O kg_m2_s-1   xy     C    N   N   2011-%m2-%d2T%h2:00:00    0.0      1.0     FORM              /discover/nobackup/projects/gmao/share/dasilva/fvInput/g5chem/sfc/HEMCO/NEI11/M%m2/D%d2/NEI11_2011%m2%d2_lev2.generic.01x01.nc
+NEI11_LEVEL2_RCHO kg_m2_s-1   xy     C    N   N   2011-%m2-%d2T%h2:00:00    0.0      1.0     ALDX              /discover/nobackup/projects/gmao/share/dasilva/fvInput/g5chem/sfc/HEMCO/NEI11/M%m2/D%d2/NEI11_2011%m2%d2_lev2.generic.01x01.nc
+NEI11_LEVEL2_MACR kg_m2_s-1   xy     C    N   N   2011-%m2-%d2T%h2:00:00    0.0      1.0     ACROLEIN          /discover/nobackup/projects/gmao/share/dasilva/fvInput/g5chem/sfc/HEMCO/NEI11/M%m2/D%d2/NEI11_2011%m2%d2_lev2.generic.01x01.nc
+NEI11_LEVEL2_ACET kg_m2_s-1   xy     C    N   N   2011-%m2-%d2T%h2:00:00    0.0      1.0     PAR               /discover/nobackup/projects/gmao/share/dasilva/fvInput/g5chem/sfc/HEMCO/NEI11/M%m2/D%d2/NEI11_2011%m2%d2_lev2.generic.01x01.nc
+NEI11_LEVEL2_PRPE kg_m2_s-1   xy     C    N   N   2011-%m2-%d2T%h2:00:00    0.0      1.0     OLE               /discover/nobackup/projects/gmao/share/dasilva/fvInput/g5chem/sfc/HEMCO/NEI11/M%m2/D%d2/NEI11_2011%m2%d2_lev2.generic.01x01.nc
+NEI11_LEVEL2_SO2  kg_m2_s-1   xy     C    N   N   2011-%m2-%d2T%h2:00:00    0.0      1.0     SO2               /discover/nobackup/projects/gmao/share/dasilva/fvInput/g5chem/sfc/HEMCO/NEI11/M%m2/D%d2/NEI11_2011%m2%d2_lev2.generic.01x01.nc
+NEI11_LEVEL2_SO4  kg_m2_s-1   xy     C    N   N   2011-%m2-%d2T%h2:00:00    0.0      1.0     PSO4              /discover/nobackup/projects/gmao/share/dasilva/fvInput/g5chem/sfc/HEMCO/NEI11/M%m2/D%d2/NEI11_2011%m2%d2_lev2.generic.01x01.nc
+NEI11_LEVEL2_C2H6 kg_m2_s-1   xy     C    N   N   2011-%m2-%d2T%h2:00:00    0.0      1.0     ETHA              /discover/nobackup/projects/gmao/share/dasilva/fvInput/g5chem/sfc/HEMCO/NEI11/M%m2/D%d2/NEI11_2011%m2%d2_lev2.generic.01x01.nc
+NEI11_LEVEL2_ALD2 kg_m2_s-1   xy     C    N   N   2011-%m2-%d2T%h2:00:00    0.0      1.0     ALD2              /discover/nobackup/projects/gmao/share/dasilva/fvInput/g5chem/sfc/HEMCO/NEI11/M%m2/D%d2/NEI11_2011%m2%d2_lev2.generic.01x01.nc
+NEI11_LEVEL2_BCPI kg_m2_s-1   xy     C    N   N   2011-%m2-%d2T%h2:00:00    0.0      1.0     PEC               /discover/nobackup/projects/gmao/share/dasilva/fvInput/g5chem/sfc/HEMCO/NEI11/M%m2/D%d2/NEI11_2011%m2%d2_lev2.generic.01x01.nc
+NEI11_LEVEL2_OCPI kg_m2_s-1   xy     C    N   N   2011-%m2-%d2T%h2:00:00    0.0      1.0     POC               /discover/nobackup/projects/gmao/share/dasilva/fvInput/g5chem/sfc/HEMCO/NEI11/M%m2/D%d2/NEI11_2011%m2%d2_lev2.generic.01x01.nc
+#
+NEI11_LEVEL3_NO   kg_m2_s-1   xy     C    N   N   2011-%m2-%d2T%h2:00:00    0.0      1.0     NO                /discover/nobackup/projects/gmao/share/dasilva/fvInput/g5chem/sfc/HEMCO/NEI11/M%m2/D%d2/NEI11_2011%m2%d2_lev3.generic.01x01.nc
+NEI11_LEVEL3_NO2  kg_m2_s-1   xy     C    N   N   2011-%m2-%d2T%h2:00:00    0.0      1.0     NO2               /discover/nobackup/projects/gmao/share/dasilva/fvInput/g5chem/sfc/HEMCO/NEI11/M%m2/D%d2/NEI11_2011%m2%d2_lev3.generic.01x01.nc
+NEI11_LEVEL3_CO   kg_m2_s-1   xy     C    N   N   2011-%m2-%d2T%h2:00:00    0.0      1.0     CO                /discover/nobackup/projects/gmao/share/dasilva/fvInput/g5chem/sfc/HEMCO/NEI11/M%m2/D%d2/NEI11_2011%m2%d2_lev3.generic.01x01.nc
+NEI11_LEVEL3_HONO kg_m2_s-1   xy     C    N   N   2011-%m2-%d2T%h2:00:00    0.0      1.0     HONO              /discover/nobackup/projects/gmao/share/dasilva/fvInput/g5chem/sfc/HEMCO/NEI11/M%m2/D%d2/NEI11_2011%m2%d2_lev3.generic.01x01.nc
+NEI11_LEVEL3_NH3  kg_m2_s-1   xy     C    N   N   2011-%m2-%d2T%h2:00:00    0.0      1.0     NH3               /discover/nobackup/projects/gmao/share/dasilva/fvInput/g5chem/sfc/HEMCO/NEI11/M%m2/D%d2/NEI11_2011%m2%d2_lev3.generic.01x01.nc
+NEI11_LEVEL3_CH2O kg_m2_s-1   xy     C    N   N   2011-%m2-%d2T%h2:00:00    0.0      1.0     FORM              /discover/nobackup/projects/gmao/share/dasilva/fvInput/g5chem/sfc/HEMCO/NEI11/M%m2/D%d2/NEI11_2011%m2%d2_lev3.generic.01x01.nc
+NEI11_LEVEL3_RCHO kg_m2_s-1   xy     C    N   N   2011-%m2-%d2T%h2:00:00    0.0      1.0     ALDX              /discover/nobackup/projects/gmao/share/dasilva/fvInput/g5chem/sfc/HEMCO/NEI11/M%m2/D%d2/NEI11_2011%m2%d2_lev3.generic.01x01.nc
+NEI11_LEVEL3_MACR kg_m2_s-1   xy     C    N   N   2011-%m2-%d2T%h2:00:00    0.0      1.0     ACROLEIN          /discover/nobackup/projects/gmao/share/dasilva/fvInput/g5chem/sfc/HEMCO/NEI11/M%m2/D%d2/NEI11_2011%m2%d2_lev3.generic.01x01.nc
+NEI11_LEVEL3_ACET kg_m2_s-1   xy     C    N   N   2011-%m2-%d2T%h2:00:00    0.0      1.0     PAR               /discover/nobackup/projects/gmao/share/dasilva/fvInput/g5chem/sfc/HEMCO/NEI11/M%m2/D%d2/NEI11_2011%m2%d2_lev3.generic.01x01.nc
+NEI11_LEVEL3_PRPE kg_m2_s-1   xy     C    N   N   2011-%m2-%d2T%h2:00:00    0.0      1.0     OLE               /discover/nobackup/projects/gmao/share/dasilva/fvInput/g5chem/sfc/HEMCO/NEI11/M%m2/D%d2/NEI11_2011%m2%d2_lev3.generic.01x01.nc
+NEI11_LEVEL3_SO2  kg_m2_s-1   xy     C    N   N   2011-%m2-%d2T%h2:00:00    0.0      1.0     SO2               /discover/nobackup/projects/gmao/share/dasilva/fvInput/g5chem/sfc/HEMCO/NEI11/M%m2/D%d2/NEI11_2011%m2%d2_lev3.generic.01x01.nc
+NEI11_LEVEL3_SO4  kg_m2_s-1   xy     C    N   N   2011-%m2-%d2T%h2:00:00    0.0      1.0     PSO4              /discover/nobackup/projects/gmao/share/dasilva/fvInput/g5chem/sfc/HEMCO/NEI11/M%m2/D%d2/NEI11_2011%m2%d2_lev3.generic.01x01.nc
+NEI11_LEVEL3_C2H6 kg_m2_s-1   xy     C    N   N   2011-%m2-%d2T%h2:00:00    0.0      1.0     ETHA              /discover/nobackup/projects/gmao/share/dasilva/fvInput/g5chem/sfc/HEMCO/NEI11/M%m2/D%d2/NEI11_2011%m2%d2_lev3.generic.01x01.nc
+NEI11_LEVEL3_ALD2 kg_m2_s-1   xy     C    N   N   2011-%m2-%d2T%h2:00:00    0.0      1.0     ALD2              /discover/nobackup/projects/gmao/share/dasilva/fvInput/g5chem/sfc/HEMCO/NEI11/M%m2/D%d2/NEI11_2011%m2%d2_lev3.generic.01x01.nc
+NEI11_LEVEL3_BCPI kg_m2_s-1   xy     C    N   N   2011-%m2-%d2T%h2:00:00    0.0      1.0     PEC               /discover/nobackup/projects/gmao/share/dasilva/fvInput/g5chem/sfc/HEMCO/NEI11/M%m2/D%d2/NEI11_2011%m2%d2_lev3.generic.01x01.nc
+NEI11_LEVEL3_OCPI kg_m2_s-1   xy     C    N   N   2011-%m2-%d2T%h2:00:00    0.0      1.0     POC               /discover/nobackup/projects/gmao/share/dasilva/fvInput/g5chem/sfc/HEMCO/NEI11/M%m2/D%d2/NEI11_2011%m2%d2_lev3.generic.01x01.nc
+#
+NEI11_LEVEL4_NO   kg_m2_s-1   xy     C    N   N   2011-%m2-%d2T%h2:00:00    0.0      1.0     NO                /discover/nobackup/projects/gmao/share/dasilva/fvInput/g5chem/sfc/HEMCO/NEI11/M%m2/D%d2/NEI11_2011%m2%d2_lev4.generic.01x01.nc
+NEI11_LEVEL4_NO2  kg_m2_s-1   xy     C    N   N   2011-%m2-%d2T%h2:00:00    0.0      1.0     NO2               /discover/nobackup/projects/gmao/share/dasilva/fvInput/g5chem/sfc/HEMCO/NEI11/M%m2/D%d2/NEI11_2011%m2%d2_lev4.generic.01x01.nc
+NEI11_LEVEL4_CO   kg_m2_s-1   xy     C    N   N   2011-%m2-%d2T%h2:00:00    0.0      1.0     CO                /discover/nobackup/projects/gmao/share/dasilva/fvInput/g5chem/sfc/HEMCO/NEI11/M%m2/D%d2/NEI11_2011%m2%d2_lev4.generic.01x01.nc
+NEI11_LEVEL4_HONO kg_m2_s-1   xy     C    N   N   2011-%m2-%d2T%h2:00:00    0.0      1.0     HONO              /discover/nobackup/projects/gmao/share/dasilva/fvInput/g5chem/sfc/HEMCO/NEI11/M%m2/D%d2/NEI11_2011%m2%d2_lev4.generic.01x01.nc
+NEI11_LEVEL4_NH3  kg_m2_s-1   xy     C    N   N   2011-%m2-%d2T%h2:00:00    0.0      1.0     NH3               /discover/nobackup/projects/gmao/share/dasilva/fvInput/g5chem/sfc/HEMCO/NEI11/M%m2/D%d2/NEI11_2011%m2%d2_lev4.generic.01x01.nc
+NEI11_LEVEL4_CH2O kg_m2_s-1   xy     C    N   N   2011-%m2-%d2T%h2:00:00    0.0      1.0     FORM              /discover/nobackup/projects/gmao/share/dasilva/fvInput/g5chem/sfc/HEMCO/NEI11/M%m2/D%d2/NEI11_2011%m2%d2_lev4.generic.01x01.nc
+NEI11_LEVEL4_RCHO kg_m2_s-1   xy     C    N   N   2011-%m2-%d2T%h2:00:00    0.0      1.0     ALDX              /discover/nobackup/projects/gmao/share/dasilva/fvInput/g5chem/sfc/HEMCO/NEI11/M%m2/D%d2/NEI11_2011%m2%d2_lev4.generic.01x01.nc
+NEI11_LEVEL4_MACR kg_m2_s-1   xy     C    N   N   2011-%m2-%d2T%h2:00:00    0.0      1.0     ACROLEIN          /discover/nobackup/projects/gmao/share/dasilva/fvInput/g5chem/sfc/HEMCO/NEI11/M%m2/D%d2/NEI11_2011%m2%d2_lev4.generic.01x01.nc
+NEI11_LEVEL4_ACET kg_m2_s-1   xy     C    N   N   2011-%m2-%d2T%h2:00:00    0.0      1.0     PAR               /discover/nobackup/projects/gmao/share/dasilva/fvInput/g5chem/sfc/HEMCO/NEI11/M%m2/D%d2/NEI11_2011%m2%d2_lev4.generic.01x01.nc
+NEI11_LEVEL4_PRPE kg_m2_s-1   xy     C    N   N   2011-%m2-%d2T%h2:00:00    0.0      1.0     OLE               /discover/nobackup/projects/gmao/share/dasilva/fvInput/g5chem/sfc/HEMCO/NEI11/M%m2/D%d2/NEI11_2011%m2%d2_lev4.generic.01x01.nc
+NEI11_LEVEL4_SO2  kg_m2_s-1   xy     C    N   N   2011-%m2-%d2T%h2:00:00    0.0      1.0     SO2               /discover/nobackup/projects/gmao/share/dasilva/fvInput/g5chem/sfc/HEMCO/NEI11/M%m2/D%d2/NEI11_2011%m2%d2_lev4.generic.01x01.nc
+NEI11_LEVEL4_SO4  kg_m2_s-1   xy     C    N   N   2011-%m2-%d2T%h2:00:00    0.0      1.0     PSO4              /discover/nobackup/projects/gmao/share/dasilva/fvInput/g5chem/sfc/HEMCO/NEI11/M%m2/D%d2/NEI11_2011%m2%d2_lev4.generic.01x01.nc
+NEI11_LEVEL4_C2H6 kg_m2_s-1   xy     C    N   N   2011-%m2-%d2T%h2:00:00    0.0      1.0     ETHA              /discover/nobackup/projects/gmao/share/dasilva/fvInput/g5chem/sfc/HEMCO/NEI11/M%m2/D%d2/NEI11_2011%m2%d2_lev4.generic.01x01.nc
+NEI11_LEVEL4_ALD2 kg_m2_s-1   xy     C    N   N   2011-%m2-%d2T%h2:00:00    0.0      1.0     ALD2              /discover/nobackup/projects/gmao/share/dasilva/fvInput/g5chem/sfc/HEMCO/NEI11/M%m2/D%d2/NEI11_2011%m2%d2_lev4.generic.01x01.nc
+NEI11_LEVEL4_BCPI kg_m2_s-1   xy     C    N   N   2011-%m2-%d2T%h2:00:00    0.0      1.0     PEC               /discover/nobackup/projects/gmao/share/dasilva/fvInput/g5chem/sfc/HEMCO/NEI11/M%m2/D%d2/NEI11_2011%m2%d2_lev4.generic.01x01.nc
+NEI11_LEVEL4_OCPI kg_m2_s-1   xy     C    N   N   2011-%m2-%d2T%h2:00:00    0.0      1.0     POC               /discover/nobackup/projects/gmao/share/dasilva/fvInput/g5chem/sfc/HEMCO/NEI11/M%m2/D%d2/NEI11_2011%m2%d2_lev4.generic.01x01.nc
+#
+LIANG_CHBr3    kg_m2_s-1      xy     C    N    N -                      0.0      1.0     CHBr3_emission    /discover/nobackup/cakelle2/data/Bromocarb_Liang2010.gen.1x1.nc
+LIANG_CH2Br2   kg_m2_s-1      xy     C    N    N -                      0.0      1.0     CH2Br2_emission   /discover/nobackup/cakelle2/data/Bromocarb_Liang2010.gen.1x1.nc
+#
+AEIC_NO        kg_m-2_s-1     xyz    C    Y    N 2005-%m2-01T00:00:00   0.0      1.0     NO2               /discover/nobackup/cakelle2/data/AEIC.72L.gen.1x1.nc
+AEIC_CO        kg_m-2_s-1     xyz    C    Y    N 2005-%m2-01T00:00:00   0.0      1.0     CO                /discover/nobackup/cakelle2/data/AEIC.72L.gen.1x1.nc
+AEIC_SO2       kg_m-2_s-1     xyz    C    Y    N 2005-%m2-01T00:00:00   0.0      1.0     FUELBURN          /discover/nobackup/cakelle2/data/AEIC.72L.gen.1x1.nc
+AEIC_ACET      kg_m-2_s-1     xyz    C    Y    N 2005-%m2-01T00:00:00   0.0      1.0     HC                /discover/nobackup/cakelle2/data/AEIC.72L.gen.1x1.nc
+#
+BROMOCARB_SEASON     1        xy     C    Y    N 2000-%m2-01T00:01:00   0.0      1.0     CHXBRY_scale      /discover/nobackup/cakelle2/data/BromoCarb_Season.esmf.nc
+#
+DMS_SEAWATER    kg/m3         xy     C    Y    N 1985-%m2-01T00:00:00   0.0      1.0     DMS_OCEAN         /discover/nobackup/cakelle2/data/DMS_seawater.gen.1x1.nc
+ACET_SEAWATER   kg/m3         xy     C    N    N -                      0.0      1.0     ACET              /discover/nobackup/cakelle2/data/ACET_seawater.generic.1x1.nc
+#
+DEAD_EF_GEO          1        xy     C    N    N -                      0.0      1.0     EF_GEO            /discover/nobackup/cakelle2/data/dst_tibds.esmf.2x25.nc
+DEAD_LF_DRY          1        xy     C    N    N -                      0.0      1.0     LF_DRY            /discover/nobackup/cakelle2/data/dst_tibds.esmf.2x25.nc
+DEAD_MF_CACO3        1        xy     C    N    N -                      0.0      1.0     MF_CaCO3          /discover/nobackup/cakelle2/data/dst_tibds.esmf.2x25.nc
+DEAD_MF_CLY          1        xy     C    N    N -                      0.0      1.0     MF_CLY            /discover/nobackup/cakelle2/data/dst_tibds.esmf.2x25.nc
+DEAD_MF_SND          1        xy     C    N    N -                      0.0      1.0     MF_SND            /discover/nobackup/cakelle2/data/dst_tibds.esmf.2x25.nc
+DEAD_GOC_SRC         1        xy     C    N    N -                      0.0      1.0     GOC_SRC           /discover/nobackup/cakelle2/data/GOCART_src_fn.esmf.2x25.nc
+DEAD_VAI             1        xy     C    Y    N 1985-%m2-01T00:00:00   0.0      1.0     VAI               /discover/nobackup/cakelle2/data/dst_tvbds.esmf.2x25.nc
+###DEAD_SFC_TYP         1        xy     C    N    N -                      0.0      1.0     SFC_TYP           /discover/nobackup/cakelle2/data/dst_tibds.esmf.2x25.nc
+#
+MEGAN_AEF_ISOP  kgC/m2/s      xy     C    N    N -                      0.0      1.0     AEF_ISOPRENE      /discover/nobackup/cakelle2/data/MEGAN2.1_EF.geos.1x1.nc
+MEGAN_AEF_MBOX  kgC/m2/s      xy     C    N    N -                      0.0      1.0     AEF_MBO           /discover/nobackup/cakelle2/data/MEGAN2.1_EF.geos.1x1.nc
+MEGAN_AEF_BPIN  kgC/m2/s      xy     C    N    N -                      0.0      1.0     AEF_BETA_PINENE   /discover/nobackup/cakelle2/data/MEGAN2.1_EF.geos.1x1.nc
+MEGAN_AEF_CARE  kgC/m2/s      xy     C    N    N -                      0.0      1.0     AEF_CARENE        /discover/nobackup/cakelle2/data/MEGAN2.1_EF.geos.1x1.nc
+MEGAN_AEF_LIMO  kgC/m2/s      xy     C    N    N -                      0.0      1.0     AEF_LIMONENE      /discover/nobackup/cakelle2/data/MEGAN2.1_EF.geos.1x1.nc
+MEGAN_AEF_OCIM  kgC/m2/s      xy     C    N    N -                      0.0      1.0     AEF_OCIMENE       /discover/nobackup/cakelle2/data/MEGAN2.1_EF.geos.1x1.nc
+MEGAN_AEF_SABI  kgC/m2/s      xy     C    N    N -                      0.0      1.0     AEF_SABINENE      /discover/nobackup/cakelle2/data/MEGAN2.1_EF.geos.1x1.nc
+CLM4_PFT_BARE      1          xy     C    N    N -                      0.0      1.0     PFT_BARE          /discover/nobackup/cakelle2/data/CLM4_PFT.geos.1x1.nc     
+CLM4_PFT_NDLF_EVGN_TMPT_TREE 1 xy    C    N    N -                      0.0      1.0     PFT_NDLF_EVGN_TMPT_TREE /discover/nobackup/cakelle2/data/CLM4_PFT.geos.1x1.nc     
+CLM4_PFT_NDLF_EVGN_BORL_TREE 1 xy    C    N    N -                      0.0      1.0     PFT_NDLF_EVGN_BORL_TREE /discover/nobackup/cakelle2/data/CLM4_PFT.geos.1x1.nc     
+CLM4_PFT_NDLF_DECD_BORL_TREE 1 xy    C    N    N -                      0.0      1.0     PFT_NDLF_DECD_BORL_TREE /discover/nobackup/cakelle2/data/CLM4_PFT.geos.1x1.nc     
+CLM4_PFT_BDLF_EVGN_TROP_TREE 1 xy    C    N    N -                      0.0      1.0     PFT_BDLF_EVGN_TROP_TREE /discover/nobackup/cakelle2/data/CLM4_PFT.geos.1x1.nc     
+CLM4_PFT_BDLF_EVGN_TMPT_TREE 1 xy    C    N    N -                      0.0      1.0     PFT_BDLF_EVGN_TMPT_TREE /discover/nobackup/cakelle2/data/CLM4_PFT.geos.1x1.nc     
+CLM4_PFT_BDLF_DECD_TROP_TREE 1 xy    C    N    N -                      0.0      1.0     PFT_BDLF_DECD_TROP_TREE /discover/nobackup/cakelle2/data/CLM4_PFT.geos.1x1.nc     
+CLM4_PFT_BDLF_DECD_TMPT_TREE 1 xy    C    N    N -                      0.0      1.0     PFT_BDLF_DECD_TMPT_TREE /discover/nobackup/cakelle2/data/CLM4_PFT.geos.1x1.nc     
+CLM4_PFT_BDLF_DECD_BORL_TREE 1 xy    C    N    N -                      0.0      1.0     PFT_BDLF_DECD_BORL_TREE /discover/nobackup/cakelle2/data/CLM4_PFT.geos.1x1.nc     
+CLM4_PFT_BDLF_EVGN_SHRB      1 xy    C    N    N -                      0.0      1.0     PFT_BDLF_EVGN_SHRB      /discover/nobackup/cakelle2/data/CLM4_PFT.geos.1x1.nc     
+CLM4_PFT_BDLF_DECD_TMPT_SHRB 1 xy    C    N    N -                      0.0      1.0     PFT_BDLF_DECD_TMPT_SHRB /discover/nobackup/cakelle2/data/CLM4_PFT.geos.1x1.nc     
+CLM4_PFT_BDLF_DECD_BORL_SHRB 1 xy    C    N    N -                      0.0      1.0     PFT_BDLF_DECD_BORL_SHRB /discover/nobackup/cakelle2/data/CLM4_PFT.geos.1x1.nc     
+CLM4_PFT_C3_ARCT_GRSS        1 xy    C    N    N -                      0.0      1.0     PFT_C3_ARCT_GRSS        /discover/nobackup/cakelle2/data/CLM4_PFT.geos.1x1.nc     
+CLM4_PFT_C3_NARC_GRSS        1 xy    C    N    N -                      0.0      1.0     PFT_C3_NARC_GRSS        /discover/nobackup/cakelle2/data/CLM4_PFT.geos.1x1.nc     
+CLM4_PFT_C4_GRSS             1 xy    C    N    N -                      0.0      1.0     PFT_C4_GRSS             /discover/nobackup/cakelle2/data/CLM4_PFT.geos.1x1.nc     
+CLM4_PFT_CROP                1 xy    C    N    N -                      0.0      1.0     PFT_CROP                /discover/nobackup/cakelle2/data/CLM4_PFT.geos.1x1.nc     
+SOILNOX_FERT      kg/m3       xy     C    N    N 2000-%m2-%d2T00:00:00  0.0      1.0     FERT              /discover/nobackup/cakelle2/data/soilNOx.fert_res.generic.05x05.nc
+SOILNOX_LANDK1     1          xy     C    N    N -                      0.0      1.0     LANDFRAC_K01      /discover/nobackup/cakelle2/data/soilNOx.landtype.generic.025x025.1L.nc
+SOILNOX_LANDK2     1          xy     C    N    N -                      0.0      1.0     LANDFRAC_K02      /discover/nobackup/cakelle2/data/soilNOx.landtype.generic.025x025.1L.nc
+SOILNOX_LANDK3     1          xy     C    N    N -                      0.0      1.0     LANDFRAC_K03      /discover/nobackup/cakelle2/data/soilNOx.landtype.generic.025x025.1L.nc
+SOILNOX_LANDK4     1          xy     C    N    N -                      0.0      1.0     LANDFRAC_K04      /discover/nobackup/cakelle2/data/soilNOx.landtype.generic.025x025.1L.nc
+SOILNOX_LANDK5     1          xy     C    N    N -                      0.0      1.0     LANDFRAC_K05      /discover/nobackup/cakelle2/data/soilNOx.landtype.generic.025x025.1L.nc
+SOILNOX_LANDK6     1          xy     C    N    N -                      0.0      1.0     LANDFRAC_K06      /discover/nobackup/cakelle2/data/soilNOx.landtype.generic.025x025.1L.nc
+SOILNOX_LANDK7     1          xy     C    N    N -                      0.0      1.0     LANDFRAC_K07      /discover/nobackup/cakelle2/data/soilNOx.landtype.generic.025x025.1L.nc
+SOILNOX_LANDK8     1          xy     C    N    N -                      0.0      1.0     LANDFRAC_K08      /discover/nobackup/cakelle2/data/soilNOx.landtype.generic.025x025.1L.nc
+SOILNOX_LANDK9     1          xy     C    N    N -                      0.0      1.0     LANDFRAC_K09      /discover/nobackup/cakelle2/data/soilNOx.landtype.generic.025x025.1L.nc
+SOILNOX_LANDK10    1          xy     C    N    N -                      0.0      1.0     LANDFRAC_K10      /discover/nobackup/cakelle2/data/soilNOx.landtype.generic.025x025.1L.nc
+SOILNOX_LANDK11    1          xy     C    N    N -                      0.0      1.0     LANDFRAC_K11      /discover/nobackup/cakelle2/data/soilNOx.landtype.generic.025x025.1L.nc
+SOILNOX_LANDK12    1          xy     C    N    N -                      0.0      1.0     LANDFRAC_K12      /discover/nobackup/cakelle2/data/soilNOx.landtype.generic.025x025.1L.nc
+SOILNOX_LANDK13    1          xy     C    N    N -                      0.0      1.0     LANDFRAC_K13      /discover/nobackup/cakelle2/data/soilNOx.landtype.generic.025x025.1L.nc
+SOILNOX_LANDK14    1          xy     C    N    N -                      0.0      1.0     LANDFRAC_K14      /discover/nobackup/cakelle2/data/soilNOx.landtype.generic.025x025.1L.nc
+SOILNOX_LANDK15    1          xy     C    N    N -                      0.0      1.0     LANDFRAC_K15      /discover/nobackup/cakelle2/data/soilNOx.landtype.generic.025x025.1L.nc
+SOILNOX_LANDK16    1          xy     C    N    N -                      0.0      1.0     LANDFRAC_K16      /discover/nobackup/cakelle2/data/soilNOx.landtype.generic.025x025.1L.nc
+SOILNOX_LANDK17    1          xy     C    N    N -                      0.0      1.0     LANDFRAC_K17      /discover/nobackup/cakelle2/data/soilNOx.landtype.generic.025x025.1L.nc
+SOILNOX_LANDK18    1          xy     C    N    N -                      0.0      1.0     LANDFRAC_K18      /discover/nobackup/cakelle2/data/soilNOx.landtype.generic.025x025.1L.nc
+SOILNOX_LANDK19    1          xy     C    N    N -                      0.0      1.0     LANDFRAC_K19      /discover/nobackup/cakelle2/data/soilNOx.landtype.generic.025x025.1L.nc
+SOILNOX_LANDK20    1          xy     C    N    N -                      0.0      1.0     LANDFRAC_K20      /discover/nobackup/cakelle2/data/soilNOx.landtype.generic.025x025.1L.nc
+SOILNOX_LANDK21    1          xy     C    N    N -                      0.0      1.0     LANDFRAC_K21      /discover/nobackup/cakelle2/data/soilNOx.landtype.generic.025x025.1L.nc
+SOILNOX_LANDK22    1          xy     C    N    N -                      0.0      1.0     LANDFRAC_K22      /discover/nobackup/cakelle2/data/soilNOx.landtype.generic.025x025.1L.nc
+SOILNOX_LANDK23    1          xy     C    N    N -                      0.0      1.0     LANDFRAC_K23      /discover/nobackup/cakelle2/data/soilNOx.landtype.generic.025x025.1L.nc
+SOILNOX_LANDK24    1          xy     C    N    N -                      0.0      1.0     LANDFRAC_K24      /discover/nobackup/cakelle2/data/soilNOx.landtype.generic.025x025.1L.nc
+SOILNOX_ARID       1          xy     C    N    N -                      0.0      1.0     ARID              /discover/nobackup/cakelle2/data/soilNOx.climate.generic.05x05.nc
+SOILNOX_NONARID    1          xy     C    N    N -                      0.0      1.0     NON_ARID          /discover/nobackup/cakelle2/data/soilNOx.climate.generic.05x05.nc
+#
+CH4_RICE           kg_m2_s-1  xy     C    N    N -                      0.0      1.0     ch4_4C_4D         /discover/nobackup/cakelle2/data/CH4/v42_CH4.0.1x0.1.2008.esmf.nc
+CH4_GWET_YR        1          xy     C    N    N -                      0.0      1.0     GWETTOP           /discover/nobackup/cakelle2/data/CH4/GWETTOP.annual.geos5.2x25.esmf.nc
+CH4_GWET_MT        1          xy     C    Y    N 2011-%m2-01T00:00:00   0.0      1.0     GWETTOP           /discover/nobackup/cakelle2/data/CH4/GWETTOP.monthly.geos5.2x25.esmf.nc
+CH4_MEAN_T         1          xy     C    N    N -                      0.0      1.0     TSKIN             /discover/nobackup/cakelle2/data/CH4/TSKIN.annual.geos5.2x25.esmf.nc
+CH4_WETFRAC        1          xy     C    N    N -                      0.0      1.0     WETFRAC           /discover/nobackup/cakelle2/data/CH4/Wetfrac.2x25.esmf.nc
+CH4_LITTER_C       kg_m2_s-1  xy     C    N    N -                      0.0      1.0     CARBON            /discover/nobackup/cakelle2/data/CH4/Carbon_litter.2x25.esmf.nc
+CH4_SOIL_C         kg_m2_s-1  xy     C    N    N -                      0.0      1.0     CARBON            /discover/nobackup/cakelle2/data/CH4/Carbon_soil.2x25.esmf.nc
+
+# ------------------
+# STRATOSPHERIC DATA 
+# ------------------
+#
+#--- GMI chemistry: prod/loss rates (for strato-/mesosphere) ---
+GMI_LOSS_A3O2      s-1        xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     loss              /discover/nobackup/cakelle2/data/GMI/gmi.clim.A3O2.geos5.2x25.esmf.nc
+GMI_PROD_A3O2      v/v/s      xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     prod              /discover/nobackup/cakelle2/data/GMI/gmi.clim.A3O2.geos5.2x25.esmf.nc
+GMI_LOSS_ACET      s-1        xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     loss              /discover/nobackup/cakelle2/data/GMI/gmi.clim.ACET.geos5.2x25.esmf.nc
+GMI_PROD_ACET      v/v/s      xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     prod              /discover/nobackup/cakelle2/data/GMI/gmi.clim.ACET.geos5.2x25.esmf.nc
+GMI_LOSS_ACTA      s-1        xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     loss              /discover/nobackup/cakelle2/data/GMI/gmi.clim.ACTA.geos5.2x25.esmf.nc
+GMI_PROD_ACTA      v/v/s      xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     prod              /discover/nobackup/cakelle2/data/GMI/gmi.clim.ACTA.geos5.2x25.esmf.nc
+GMI_LOSS_ALD2      s-1        xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     loss              /discover/nobackup/cakelle2/data/GMI/gmi.clim.ALD2.geos5.2x25.esmf.nc
+GMI_PROD_ALD2      v/v/s      xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     prod              /discover/nobackup/cakelle2/data/GMI/gmi.clim.ALD2.geos5.2x25.esmf.nc
+GMI_LOSS_ALK4      s-1        xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     loss              /discover/nobackup/cakelle2/data/GMI/gmi.clim.ALK4.geos5.2x25.esmf.nc
+GMI_PROD_ALK4      v/v/s      xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     prod              /discover/nobackup/cakelle2/data/GMI/gmi.clim.ALK4.geos5.2x25.esmf.nc
+GMI_LOSS_ATO2      s-1        xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     loss              /discover/nobackup/cakelle2/data/GMI/gmi.clim.ATO2.geos5.2x25.esmf.nc
+GMI_PROD_ATO2      v/v/s      xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     prod              /discover/nobackup/cakelle2/data/GMI/gmi.clim.ATO2.geos5.2x25.esmf.nc
+GMI_LOSS_B3O2      s-1        xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     loss              /discover/nobackup/cakelle2/data/GMI/gmi.clim.B3O2.geos5.2x25.esmf.nc
+GMI_PROD_B3O2      v/v/s      xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     prod              /discover/nobackup/cakelle2/data/GMI/gmi.clim.B3O2.geos5.2x25.esmf.nc
+GMI_LOSS_C2H6      s-1        xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     loss              /discover/nobackup/cakelle2/data/GMI/gmi.clim.C2H6.geos5.2x25.esmf.nc
+GMI_PROD_C2H6      v/v/s      xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     prod              /discover/nobackup/cakelle2/data/GMI/gmi.clim.C2H6.geos5.2x25.esmf.nc
+GMI_LOSS_C3H8      s-1        xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     loss              /discover/nobackup/cakelle2/data/GMI/gmi.clim.C3H8.geos5.2x25.esmf.nc
+GMI_PROD_C3H8      v/v/s      xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     prod              /discover/nobackup/cakelle2/data/GMI/gmi.clim.C3H8.geos5.2x25.esmf.nc
+GMI_LOSS_CCl4      s-1        xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     loss              /discover/nobackup/cakelle2/data/GMI/gmi.clim.CCl4.geos5.2x25.esmf.nc
+GMI_PROD_CCl4      v/v/s      xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     prod              /discover/nobackup/cakelle2/data/GMI/gmi.clim.CCl4.geos5.2x25.esmf.nc
+GMI_LOSS_CFC12     s-1        xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     loss              /discover/nobackup/cakelle2/data/GMI/gmi.clim.CF2Cl2.geos5.2x25.esmf.nc
+GMI_PROD_CFC12     v/v/s      xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     prod              /discover/nobackup/cakelle2/data/GMI/gmi.clim.CF2Cl2.geos5.2x25.esmf.nc
+GMI_LOSS_CFC113    s-1        xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     loss              /discover/nobackup/cakelle2/data/GMI/gmi.clim.CFC113.geos5.2x25.esmf.nc
+GMI_PROD_CFC113    v/v/s      xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     prod              /discover/nobackup/cakelle2/data/GMI/gmi.clim.CFC113.geos5.2x25.esmf.nc
+GMI_LOSS_CFC114    s-1        xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     loss              /discover/nobackup/cakelle2/data/GMI/gmi.clim.CFC114.geos5.2x25.esmf.nc
+GMI_PROD_CFC114    v/v/s      xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     prod              /discover/nobackup/cakelle2/data/GMI/gmi.clim.CFC114.geos5.2x25.esmf.nc
+GMI_LOSS_CFC115    s-1        xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     loss              /discover/nobackup/cakelle2/data/GMI/gmi.clim.CFC115.geos5.2x25.esmf.nc
+GMI_PROD_CFC115    v/v/s      xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     prod              /discover/nobackup/cakelle2/data/GMI/gmi.clim.CFC115.geos5.2x25.esmf.nc
+GMI_LOSS_CFC11     s-1        xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     loss              /discover/nobackup/cakelle2/data/GMI/gmi.clim.CFCl3.geos5.2x25.esmf.nc
+GMI_PROD_CFC11     v/v/s      xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     prod              /discover/nobackup/cakelle2/data/GMI/gmi.clim.CFCl3.geos5.2x25.esmf.nc
+GMI_LOSS_CH2O      s-1        xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     loss              /discover/nobackup/cakelle2/data/GMI/gmi.clim.CH2O.geos5.2x25.esmf.nc
+GMI_PROD_CH2O      v/v/s      xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     prod              /discover/nobackup/cakelle2/data/GMI/gmi.clim.CH2O.geos5.2x25.esmf.nc
+GMI_LOSS_CH3CCl3   s-1        xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     loss              /discover/nobackup/cakelle2/data/GMI/gmi.clim.CH3CCl3.geos5.2x25.esmf.nc
+GMI_PROD_CH3CCl3   v/v/s      xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     prod              /discover/nobackup/cakelle2/data/GMI/gmi.clim.CH3CCl3.geos5.2x25.esmf.nc
+GMI_LOSS_CH3Cl     s-1        xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     loss              /discover/nobackup/cakelle2/data/GMI/gmi.clim.CH3Cl.geos5.2x25.esmf.nc
+GMI_PROD_CH3Cl     v/v/s      xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     prod              /discover/nobackup/cakelle2/data/GMI/gmi.clim.CH3Cl.geos5.2x25.esmf.nc
+GMI_LOSS_CH4       s-1        xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     loss              /discover/nobackup/cakelle2/data/GMI/gmi.clim.CH4.geos5.2x25.esmf.nc
+GMI_PROD_CH4       v/v/s      xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     prod              /discover/nobackup/cakelle2/data/GMI/gmi.clim.CH4.geos5.2x25.esmf.nc
+GMI_LOSS_CO        s-1        xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     loss              /discover/nobackup/cakelle2/data/GMI/gmi.clim.CO.geos5.2x25.esmf.nc
+GMI_PROD_CO        v/v/s      xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     prod              /discover/nobackup/cakelle2/data/GMI/gmi.clim.CO.geos5.2x25.esmf.nc
+GMI_LOSS_Cl        s-1        xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     loss              /discover/nobackup/cakelle2/data/GMI/gmi.clim.Cl.geos5.2x25.esmf.nc
+GMI_PROD_Cl        v/v/s      xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     prod              /discover/nobackup/cakelle2/data/GMI/gmi.clim.Cl.geos5.2x25.esmf.nc
+GMI_LOSS_Cl2       s-1        xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     loss              /discover/nobackup/cakelle2/data/GMI/gmi.clim.Cl2.geos5.2x25.esmf.nc
+GMI_PROD_Cl2       v/v/s      xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     prod              /discover/nobackup/cakelle2/data/GMI/gmi.clim.Cl2.geos5.2x25.esmf.nc
+GMI_LOSS_Cl2O2     s-1        xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     loss              /discover/nobackup/cakelle2/data/GMI/gmi.clim.Cl2O2.geos5.2x25.esmf.nc
+GMI_PROD_Cl2O2     v/v/s      xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     prod              /discover/nobackup/cakelle2/data/GMI/gmi.clim.Cl2O2.geos5.2x25.esmf.nc
+GMI_LOSS_ClO       s-1        xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     loss              /discover/nobackup/cakelle2/data/GMI/gmi.clim.ClO.geos5.2x25.esmf.nc
+GMI_PROD_ClO       v/v/s      xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     prod              /discover/nobackup/cakelle2/data/GMI/gmi.clim.ClO.geos5.2x25.esmf.nc
+GMI_LOSS_ClONO2    s-1        xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     loss              /discover/nobackup/cakelle2/data/GMI/gmi.clim.ClONO2.geos5.2x25.esmf.nc
+GMI_PROD_ClONO2    v/v/s      xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     prod              /discover/nobackup/cakelle2/data/GMI/gmi.clim.ClONO2.geos5.2x25.esmf.nc
+GMI_LOSS_EOH       s-1        xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     loss              /discover/nobackup/cakelle2/data/GMI/gmi.clim.EOH.geos5.2x25.esmf.nc
+GMI_PROD_EOH       v/v/s      xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     prod              /discover/nobackup/cakelle2/data/GMI/gmi.clim.EOH.geos5.2x25.esmf.nc
+GMI_LOSS_ETO2      s-1        xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     loss              /discover/nobackup/cakelle2/data/GMI/gmi.clim.ETO2.geos5.2x25.esmf.nc
+GMI_PROD_ETO2      v/v/s      xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     prod              /discover/nobackup/cakelle2/data/GMI/gmi.clim.ETO2.geos5.2x25.esmf.nc
+GMI_LOSS_ETP       s-1        xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     loss              /discover/nobackup/cakelle2/data/GMI/gmi.clim.ETP.geos5.2x25.esmf.nc
+GMI_PROD_ETP       v/v/s      xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     prod              /discover/nobackup/cakelle2/data/GMI/gmi.clim.ETP.geos5.2x25.esmf.nc
+GMI_LOSS_GCO3      s-1        xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     loss              /discover/nobackup/cakelle2/data/GMI/gmi.clim.GCO3.geos5.2x25.esmf.nc
+GMI_PROD_GCO3      v/v/s      xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     prod              /discover/nobackup/cakelle2/data/GMI/gmi.clim.GCO3.geos5.2x25.esmf.nc
+GMI_LOSS_GLYC      s-1        xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     loss              /discover/nobackup/cakelle2/data/GMI/gmi.clim.GLYC.geos5.2x25.esmf.nc
+GMI_PROD_GLYC      v/v/s      xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     prod              /discover/nobackup/cakelle2/data/GMI/gmi.clim.GLYC.geos5.2x25.esmf.nc
+GMI_LOSS_GLYX      s-1        xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     loss              /discover/nobackup/cakelle2/data/GMI/gmi.clim.GLYX.geos5.2x25.esmf.nc
+GMI_PROD_GLYX      v/v/s      xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     prod              /discover/nobackup/cakelle2/data/GMI/gmi.clim.GLYX.geos5.2x25.esmf.nc
+GMI_LOSS_GP        s-1        xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     loss              /discover/nobackup/cakelle2/data/GMI/gmi.clim.GP.geos5.2x25.esmf.nc
+GMI_PROD_GP        v/v/s      xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     prod              /discover/nobackup/cakelle2/data/GMI/gmi.clim.GP.geos5.2x25.esmf.nc
+GMI_LOSS_GPAN      s-1        xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     loss              /discover/nobackup/cakelle2/data/GMI/gmi.clim.GPAN.geos5.2x25.esmf.nc
+GMI_PROD_GPAN      v/v/s      xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     prod              /discover/nobackup/cakelle2/data/GMI/gmi.clim.GPAN.geos5.2x25.esmf.nc
+GMI_LOSS_H         s-1        xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     loss              /discover/nobackup/cakelle2/data/GMI/gmi.clim.H.geos5.2x25.esmf.nc
+GMI_PROD_H         v/v/s      xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     prod              /discover/nobackup/cakelle2/data/GMI/gmi.clim.H.geos5.2x25.esmf.nc
+GMI_LOSS_H2        s-1        xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     loss              /discover/nobackup/cakelle2/data/GMI/gmi.clim.H2.geos5.2x25.esmf.nc
+GMI_PROD_H2        v/v/s      xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     prod              /discover/nobackup/cakelle2/data/GMI/gmi.clim.H2.geos5.2x25.esmf.nc
+GMI_LOSS_H2402     s-1        xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     loss              /discover/nobackup/cakelle2/data/GMI/gmi.clim.H2402.geos5.2x25.esmf.nc
+GMI_PROD_H2402     v/v/s      xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     prod              /discover/nobackup/cakelle2/data/GMI/gmi.clim.H2402.geos5.2x25.esmf.nc
+GMI_LOSS_H2O       s-1        xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     loss              /discover/nobackup/cakelle2/data/GMI/gmi.clim.H2O.geos5.2x25.esmf.nc
+GMI_PROD_H2O       v/v/s      xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     prod              /discover/nobackup/cakelle2/data/GMI/gmi.clim.H2O.geos5.2x25.esmf.nc
+GMI_LOSS_H2O2      s-1        xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     loss              /discover/nobackup/cakelle2/data/GMI/gmi.clim.H2O2.geos5.2x25.esmf.nc
+GMI_PROD_H2O2      v/v/s      xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     prod              /discover/nobackup/cakelle2/data/GMI/gmi.clim.H2O2.geos5.2x25.esmf.nc
+GMI_LOSS_HAC       s-1        xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     loss              /discover/nobackup/cakelle2/data/GMI/gmi.clim.HAC.geos5.2x25.esmf.nc
+GMI_PROD_HAC       v/v/s      xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     prod              /discover/nobackup/cakelle2/data/GMI/gmi.clim.HAC.geos5.2x25.esmf.nc
+GMI_LOSS_HCFC141b  s-1        xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     loss              /discover/nobackup/cakelle2/data/GMI/gmi.clim.HCFC141b.geos5.2x25.esmf.nc
+GMI_PROD_HCFC141b  v/v/s      xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     prod              /discover/nobackup/cakelle2/data/GMI/gmi.clim.HCFC141b.geos5.2x25.esmf.nc
+GMI_LOSS_HCFC142b  s-1        xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     loss              /discover/nobackup/cakelle2/data/GMI/gmi.clim.HCFC142b.geos5.2x25.esmf.nc
+GMI_PROD_HCFC142b  v/v/s      xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     prod              /discover/nobackup/cakelle2/data/GMI/gmi.clim.HCFC142b.geos5.2x25.esmf.nc
+GMI_LOSS_HCFC22    s-1        xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     loss              /discover/nobackup/cakelle2/data/GMI/gmi.clim.HCFC22.geos5.2x25.esmf.nc
+GMI_PROD_HCFC22    v/v/s      xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     prod              /discover/nobackup/cakelle2/data/GMI/gmi.clim.HCFC22.geos5.2x25.esmf.nc
+GMI_LOSS_HCOOH     s-1        xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     loss              /discover/nobackup/cakelle2/data/GMI/gmi.clim.HCOOH.geos5.2x25.esmf.nc
+GMI_PROD_HCOOH     v/v/s      xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     prod              /discover/nobackup/cakelle2/data/GMI/gmi.clim.HCOOH.geos5.2x25.esmf.nc
+GMI_LOSS_HCl       s-1        xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     loss              /discover/nobackup/cakelle2/data/GMI/gmi.clim.HCl.geos5.2x25.esmf.nc
+GMI_PROD_HCl       v/v/s      xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     prod              /discover/nobackup/cakelle2/data/GMI/gmi.clim.HCl.geos5.2x25.esmf.nc
+GMI_LOSS_HNO2      s-1        xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     loss              /discover/nobackup/cakelle2/data/GMI/gmi.clim.HNO2.geos5.2x25.esmf.nc
+GMI_PROD_HNO2      v/v/s      xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     prod              /discover/nobackup/cakelle2/data/GMI/gmi.clim.HNO2.geos5.2x25.esmf.nc
+GMI_LOSS_HNO3      s-1        xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     loss              /discover/nobackup/cakelle2/data/GMI/gmi.clim.HNO3.geos5.2x25.esmf.nc
+GMI_PROD_HNO3      v/v/s      xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     prod              /discover/nobackup/cakelle2/data/GMI/gmi.clim.HNO3.geos5.2x25.esmf.nc
+GMI_LOSS_HNO4      s-1        xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     loss              /discover/nobackup/cakelle2/data/GMI/gmi.clim.HNO4.geos5.2x25.esmf.nc
+GMI_PROD_HNO4      v/v/s      xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     prod              /discover/nobackup/cakelle2/data/GMI/gmi.clim.HNO4.geos5.2x25.esmf.nc
+GMI_LOSS_HO2       s-1        xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     loss              /discover/nobackup/cakelle2/data/GMI/gmi.clim.HO2.geos5.2x25.esmf.nc
+GMI_PROD_HO2       v/v/s      xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     prod              /discover/nobackup/cakelle2/data/GMI/gmi.clim.HO2.geos5.2x25.esmf.nc
+GMI_LOSS_HOCl      s-1        xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     loss              /discover/nobackup/cakelle2/data/GMI/gmi.clim.HOCl.geos5.2x25.esmf.nc
+GMI_PROD_HOCl      v/v/s      xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     prod              /discover/nobackup/cakelle2/data/GMI/gmi.clim.HOCl.geos5.2x25.esmf.nc
+GMI_LOSS_IALD      s-1        xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     loss              /discover/nobackup/cakelle2/data/GMI/gmi.clim.IALD.geos5.2x25.esmf.nc
+GMI_PROD_IALD      v/v/s      xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     prod              /discover/nobackup/cakelle2/data/GMI/gmi.clim.IALD.geos5.2x25.esmf.nc
+GMI_LOSS_IAO2      s-1        xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     loss              /discover/nobackup/cakelle2/data/GMI/gmi.clim.IAO2.geos5.2x25.esmf.nc
+GMI_PROD_IAO2      v/v/s      xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     prod              /discover/nobackup/cakelle2/data/GMI/gmi.clim.IAO2.geos5.2x25.esmf.nc
+GMI_LOSS_IAP       s-1        xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     loss              /discover/nobackup/cakelle2/data/GMI/gmi.clim.IAP.geos5.2x25.esmf.nc
+GMI_PROD_IAP       v/v/s      xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     prod              /discover/nobackup/cakelle2/data/GMI/gmi.clim.IAP.geos5.2x25.esmf.nc
+GMI_LOSS_INO2      s-1        xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     loss              /discover/nobackup/cakelle2/data/GMI/gmi.clim.INO2.geos5.2x25.esmf.nc
+GMI_PROD_INO2      v/v/s      xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     prod              /discover/nobackup/cakelle2/data/GMI/gmi.clim.INO2.geos5.2x25.esmf.nc
+GMI_LOSS_INPN      s-1        xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     loss              /discover/nobackup/cakelle2/data/GMI/gmi.clim.INPN.geos5.2x25.esmf.nc
+GMI_PROD_INPN      v/v/s      xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     prod              /discover/nobackup/cakelle2/data/GMI/gmi.clim.INPN.geos5.2x25.esmf.nc
+GMI_LOSS_ISN1      s-1        xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     loss              /discover/nobackup/cakelle2/data/GMI/gmi.clim.ISN1.geos5.2x25.esmf.nc
+GMI_PROD_ISN1      v/v/s      xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     prod              /discover/nobackup/cakelle2/data/GMI/gmi.clim.ISN1.geos5.2x25.esmf.nc
+GMI_LOSS_ISNP      s-1        xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     loss              /discover/nobackup/cakelle2/data/GMI/gmi.clim.ISNP.geos5.2x25.esmf.nc
+GMI_PROD_ISNP      v/v/s      xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     prod              /discover/nobackup/cakelle2/data/GMI/gmi.clim.ISNP.geos5.2x25.esmf.nc
+GMI_LOSS_ISOP      s-1        xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     loss              /discover/nobackup/cakelle2/data/GMI/gmi.clim.ISOP.geos5.2x25.esmf.nc
+GMI_PROD_ISOP      v/v/s      xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     prod              /discover/nobackup/cakelle2/data/GMI/gmi.clim.ISOP.geos5.2x25.esmf.nc
+GMI_LOSS_KO2       s-1        xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     loss              /discover/nobackup/cakelle2/data/GMI/gmi.clim.KO2.geos5.2x25.esmf.nc
+GMI_PROD_KO2       v/v/s      xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     prod              /discover/nobackup/cakelle2/data/GMI/gmi.clim.KO2.geos5.2x25.esmf.nc
+GMI_LOSS_MACR      s-1        xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     loss              /discover/nobackup/cakelle2/data/GMI/gmi.clim.MACR.geos5.2x25.esmf.nc
+GMI_PROD_MACR      v/v/s      xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     prod              /discover/nobackup/cakelle2/data/GMI/gmi.clim.MACR.geos5.2x25.esmf.nc
+GMI_LOSS_MAN2      s-1        xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     loss              /discover/nobackup/cakelle2/data/GMI/gmi.clim.MAN2.geos5.2x25.esmf.nc
+GMI_PROD_MAN2      v/v/s      xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     prod              /discover/nobackup/cakelle2/data/GMI/gmi.clim.MAN2.geos5.2x25.esmf.nc
+GMI_LOSS_MAO3      s-1        xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     loss              /discover/nobackup/cakelle2/data/GMI/gmi.clim.MAO3.geos5.2x25.esmf.nc
+GMI_PROD_MAO3      v/v/s      xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     prod              /discover/nobackup/cakelle2/data/GMI/gmi.clim.MAO3.geos5.2x25.esmf.nc
+GMI_LOSS_MAOP      s-1        xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     loss              /discover/nobackup/cakelle2/data/GMI/gmi.clim.MAOP.geos5.2x25.esmf.nc
+GMI_PROD_MAOP      v/v/s      xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     prod              /discover/nobackup/cakelle2/data/GMI/gmi.clim.MAOP.geos5.2x25.esmf.nc
+GMI_LOSS_MAP       s-1        xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     loss              /discover/nobackup/cakelle2/data/GMI/gmi.clim.MAP.geos5.2x25.esmf.nc
+GMI_PROD_MAP       v/v/s      xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     prod              /discover/nobackup/cakelle2/data/GMI/gmi.clim.MAP.geos5.2x25.esmf.nc
+GMI_LOSS_MCO3      s-1        xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     loss              /discover/nobackup/cakelle2/data/GMI/gmi.clim.MCO3.geos5.2x25.esmf.nc
+GMI_PROD_MCO3      v/v/s      xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     prod              /discover/nobackup/cakelle2/data/GMI/gmi.clim.MCO3.geos5.2x25.esmf.nc
+GMI_LOSS_MEK       s-1        xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     loss              /discover/nobackup/cakelle2/data/GMI/gmi.clim.MEK.geos5.2x25.esmf.nc
+GMI_PROD_MEK       v/v/s      xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     prod              /discover/nobackup/cakelle2/data/GMI/gmi.clim.MEK.geos5.2x25.esmf.nc
+GMI_LOSS_MGLY      s-1        xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     loss              /discover/nobackup/cakelle2/data/GMI/gmi.clim.MGLY.geos5.2x25.esmf.nc
+GMI_PROD_MGLY      v/v/s      xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     prod              /discover/nobackup/cakelle2/data/GMI/gmi.clim.MGLY.geos5.2x25.esmf.nc
+GMI_LOSS_MO2       s-1        xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     loss              /discover/nobackup/cakelle2/data/GMI/gmi.clim.MO2.geos5.2x25.esmf.nc
+GMI_PROD_MO2       v/v/s      xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     prod              /discover/nobackup/cakelle2/data/GMI/gmi.clim.MO2.geos5.2x25.esmf.nc
+GMI_LOSS_MOH       s-1        xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     loss              /discover/nobackup/cakelle2/data/GMI/gmi.clim.MOH.geos5.2x25.esmf.nc
+GMI_PROD_MOH       v/v/s      xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     prod              /discover/nobackup/cakelle2/data/GMI/gmi.clim.MOH.geos5.2x25.esmf.nc
+GMI_LOSS_MP        s-1        xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     loss              /discover/nobackup/cakelle2/data/GMI/gmi.clim.MP.geos5.2x25.esmf.nc
+GMI_PROD_MP        v/v/s      xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     prod              /discover/nobackup/cakelle2/data/GMI/gmi.clim.MP.geos5.2x25.esmf.nc
+GMI_LOSS_MRO2      s-1        xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     loss              /discover/nobackup/cakelle2/data/GMI/gmi.clim.MRO2.geos5.2x25.esmf.nc
+GMI_PROD_MRO2      v/v/s      xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     prod              /discover/nobackup/cakelle2/data/GMI/gmi.clim.MRO2.geos5.2x25.esmf.nc
+GMI_LOSS_MRP       s-1        xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     loss              /discover/nobackup/cakelle2/data/GMI/gmi.clim.MRP.geos5.2x25.esmf.nc
+GMI_PROD_MRP       v/v/s      xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     prod              /discover/nobackup/cakelle2/data/GMI/gmi.clim.MRP.geos5.2x25.esmf.nc
+GMI_LOSS_MVK       s-1        xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     loss              /discover/nobackup/cakelle2/data/GMI/gmi.clim.MVK.geos5.2x25.esmf.nc
+GMI_PROD_MVK       v/v/s      xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     prod              /discover/nobackup/cakelle2/data/GMI/gmi.clim.MVK.geos5.2x25.esmf.nc
+GMI_LOSS_MVN2      s-1        xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     loss              /discover/nobackup/cakelle2/data/GMI/gmi.clim.MVN2.geos5.2x25.esmf.nc
+GMI_PROD_MVN2      v/v/s      xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     prod              /discover/nobackup/cakelle2/data/GMI/gmi.clim.MVN2.geos5.2x25.esmf.nc
+GMI_LOSS_N         s-1        xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     loss              /discover/nobackup/cakelle2/data/GMI/gmi.clim.N.geos5.2x25.esmf.nc
+GMI_PROD_N         v/v/s      xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     prod              /discover/nobackup/cakelle2/data/GMI/gmi.clim.N.geos5.2x25.esmf.nc
+GMI_LOSS_N2O       s-1        xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     loss              /discover/nobackup/cakelle2/data/GMI/gmi.clim.N2O.geos5.2x25.esmf.nc
+GMI_PROD_N2O       v/v/s      xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     prod              /discover/nobackup/cakelle2/data/GMI/gmi.clim.N2O.geos5.2x25.esmf.nc
+GMI_LOSS_N2O5      s-1        xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     loss              /discover/nobackup/cakelle2/data/GMI/gmi.clim.N2O5.geos5.2x25.esmf.nc
+GMI_PROD_N2O5      v/v/s      xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     prod              /discover/nobackup/cakelle2/data/GMI/gmi.clim.N2O5.geos5.2x25.esmf.nc
+GMI_LOSS_NO        s-1        xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     loss              /discover/nobackup/cakelle2/data/GMI/gmi.clim.NO.geos5.2x25.esmf.nc
+GMI_PROD_NO        v/v/s      xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     prod              /discover/nobackup/cakelle2/data/GMI/gmi.clim.NO.geos5.2x25.esmf.nc
+GMI_LOSS_NO2       s-1        xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     loss              /discover/nobackup/cakelle2/data/GMI/gmi.clim.NO2.geos5.2x25.esmf.nc
+GMI_PROD_NO2       v/v/s      xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     prod              /discover/nobackup/cakelle2/data/GMI/gmi.clim.NO2.geos5.2x25.esmf.nc
+GMI_LOSS_NO3       s-1        xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     loss              /discover/nobackup/cakelle2/data/GMI/gmi.clim.NO3.geos5.2x25.esmf.nc
+GMI_PROD_NO3       v/v/s      xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     prod              /discover/nobackup/cakelle2/data/GMI/gmi.clim.NO3.geos5.2x25.esmf.nc
+GMI_LOSS_NOx       s-1        xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     loss              /discover/nobackup/cakelle2/data/GMI/gmi.clim.NOx.geos5.2x25.esmf.nc
+GMI_PROD_NOx       v/v/s      xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     prod              /discover/nobackup/cakelle2/data/GMI/gmi.clim.NOx.geos5.2x25.esmf.nc
+GMI_LOSS_O         s-1        xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     loss              /discover/nobackup/cakelle2/data/GMI/gmi.clim.O.geos5.2x25.esmf.nc
+GMI_PROD_O         v/v/s      xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     prod              /discover/nobackup/cakelle2/data/GMI/gmi.clim.O.geos5.2x25.esmf.nc
+GMI_LOSS_O1D       s-1        xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     loss              /discover/nobackup/cakelle2/data/GMI/gmi.clim.O1D.geos5.2x25.esmf.nc
+GMI_PROD_O1D       v/v/s      xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     prod              /discover/nobackup/cakelle2/data/GMI/gmi.clim.O1D.geos5.2x25.esmf.nc
+GMI_LOSS_O3        s-1        xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     loss              /discover/nobackup/cakelle2/data/GMI/gmi.clim.O3.geos5.2x25.esmf.nc
+GMI_PROD_O3        v/v/s      xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     prod              /discover/nobackup/cakelle2/data/GMI/gmi.clim.O3.geos5.2x25.esmf.nc
+GMI_LOSS_OClO      s-1        xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     loss              /discover/nobackup/cakelle2/data/GMI/gmi.clim.OClO.geos5.2x25.esmf.nc
+GMI_PROD_OClO      v/v/s      xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     prod              /discover/nobackup/cakelle2/data/GMI/gmi.clim.OClO.geos5.2x25.esmf.nc
+GMI_LOSS_OH        s-1        xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     loss              /discover/nobackup/cakelle2/data/GMI/gmi.clim.OH.geos5.2x25.esmf.nc
+GMI_PROD_OH        v/v/s      xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     prod              /discover/nobackup/cakelle2/data/GMI/gmi.clim.OH.geos5.2x25.esmf.nc
+GMI_LOSS_Ox        s-1        xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     loss              /discover/nobackup/cakelle2/data/GMI/gmi.clim.Ox.geos5.2x25.esmf.nc
+GMI_PROD_Ox        v/v/s      xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     prod              /discover/nobackup/cakelle2/data/GMI/gmi.clim.Ox.geos5.2x25.esmf.nc
+GMI_LOSS_PAN       s-1        xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     loss              /discover/nobackup/cakelle2/data/GMI/gmi.clim.PAN.geos5.2x25.esmf.nc
+GMI_PROD_PAN       v/v/s      xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     prod              /discover/nobackup/cakelle2/data/GMI/gmi.clim.PAN.geos5.2x25.esmf.nc
+GMI_LOSS_PMN       s-1        xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     loss              /discover/nobackup/cakelle2/data/GMI/gmi.clim.PMN.geos5.2x25.esmf.nc
+GMI_PROD_PMN       v/v/s      xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     prod              /discover/nobackup/cakelle2/data/GMI/gmi.clim.PMN.geos5.2x25.esmf.nc
+GMI_LOSS_PO2       s-1        xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     loss              /discover/nobackup/cakelle2/data/GMI/gmi.clim.PO2.geos5.2x25.esmf.nc
+GMI_PROD_PO2       v/v/s      xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     prod              /discover/nobackup/cakelle2/data/GMI/gmi.clim.PO2.geos5.2x25.esmf.nc
+GMI_LOSS_PP        s-1        xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     loss              /discover/nobackup/cakelle2/data/GMI/gmi.clim.PP.geos5.2x25.esmf.nc
+GMI_PROD_PP        v/v/s      xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     prod              /discover/nobackup/cakelle2/data/GMI/gmi.clim.PP.geos5.2x25.esmf.nc
+GMI_LOSS_PPN       s-1        xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     loss              /discover/nobackup/cakelle2/data/GMI/gmi.clim.PPN.geos5.2x25.esmf.nc
+GMI_PROD_PPN       v/v/s      xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     prod              /discover/nobackup/cakelle2/data/GMI/gmi.clim.PPN.geos5.2x25.esmf.nc
+GMI_LOSS_PRN1      s-1        xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     loss              /discover/nobackup/cakelle2/data/GMI/gmi.clim.PRN1.geos5.2x25.esmf.nc
+GMI_PROD_PRN1      v/v/s      xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     prod              /discover/nobackup/cakelle2/data/GMI/gmi.clim.PRN1.geos5.2x25.esmf.nc
+GMI_LOSS_PRPE      s-1        xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     loss              /discover/nobackup/cakelle2/data/GMI/gmi.clim.PRPE.geos5.2x25.esmf.nc
+GMI_PROD_PRPE      v/v/s      xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     prod              /discover/nobackup/cakelle2/data/GMI/gmi.clim.PRPE.geos5.2x25.esmf.nc
+GMI_LOSS_PRPN      s-1        xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     loss              /discover/nobackup/cakelle2/data/GMI/gmi.clim.PRPN.geos5.2x25.esmf.nc
+GMI_PROD_PRPN      v/v/s      xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     prod              /discover/nobackup/cakelle2/data/GMI/gmi.clim.PRPN.geos5.2x25.esmf.nc
+GMI_LOSS_R4N1      s-1        xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     loss              /discover/nobackup/cakelle2/data/GMI/gmi.clim.R4N1.geos5.2x25.esmf.nc
+GMI_PROD_R4N1      v/v/s      xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     prod              /discover/nobackup/cakelle2/data/GMI/gmi.clim.R4N1.geos5.2x25.esmf.nc
+GMI_LOSS_R4N2      s-1        xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     loss              /discover/nobackup/cakelle2/data/GMI/gmi.clim.R4N2.geos5.2x25.esmf.nc
+GMI_PROD_R4N2      v/v/s      xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     prod              /discover/nobackup/cakelle2/data/GMI/gmi.clim.R4N2.geos5.2x25.esmf.nc
+GMI_LOSS_R4O2      s-1        xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     loss              /discover/nobackup/cakelle2/data/GMI/gmi.clim.R4O2.geos5.2x25.esmf.nc
+GMI_PROD_R4O2      v/v/s      xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     prod              /discover/nobackup/cakelle2/data/GMI/gmi.clim.R4O2.geos5.2x25.esmf.nc
+GMI_LOSS_R4P       s-1        xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     loss              /discover/nobackup/cakelle2/data/GMI/gmi.clim.R4P.geos5.2x25.esmf.nc
+GMI_PROD_R4P       v/v/s      xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     prod              /discover/nobackup/cakelle2/data/GMI/gmi.clim.R4P.geos5.2x25.esmf.nc
+GMI_LOSS_RA3P      s-1        xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     loss              /discover/nobackup/cakelle2/data/GMI/gmi.clim.RA3P.geos5.2x25.esmf.nc
+GMI_PROD_RA3P      v/v/s      xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     prod              /discover/nobackup/cakelle2/data/GMI/gmi.clim.RA3P.geos5.2x25.esmf.nc
+GMI_LOSS_RB3P      s-1        xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     loss              /discover/nobackup/cakelle2/data/GMI/gmi.clim.RB3P.geos5.2x25.esmf.nc
+GMI_PROD_RB3P      v/v/s      xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     prod              /discover/nobackup/cakelle2/data/GMI/gmi.clim.RB3P.geos5.2x25.esmf.nc
+GMI_LOSS_RCHO      s-1        xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     loss              /discover/nobackup/cakelle2/data/GMI/gmi.clim.RCHO.geos5.2x25.esmf.nc
+GMI_PROD_RCHO      v/v/s      xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     prod              /discover/nobackup/cakelle2/data/GMI/gmi.clim.RCHO.geos5.2x25.esmf.nc
+GMI_LOSS_RCO3      s-1        xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     loss              /discover/nobackup/cakelle2/data/GMI/gmi.clim.RCO3.geos5.2x25.esmf.nc
+GMI_PROD_RCO3      v/v/s      xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     prod              /discover/nobackup/cakelle2/data/GMI/gmi.clim.RCO3.geos5.2x25.esmf.nc
+GMI_LOSS_RCOOH     s-1        xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     loss              /discover/nobackup/cakelle2/data/GMI/gmi.clim.RCOOH.geos5.2x25.esmf.nc
+GMI_PROD_RCOOH     v/v/s      xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     prod              /discover/nobackup/cakelle2/data/GMI/gmi.clim.RCOOH.geos5.2x25.esmf.nc
+GMI_LOSS_RIO1      s-1        xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     loss              /discover/nobackup/cakelle2/data/GMI/gmi.clim.RIO1.geos5.2x25.esmf.nc
+GMI_PROD_RIO1      v/v/s      xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     prod              /discover/nobackup/cakelle2/data/GMI/gmi.clim.RIO1.geos5.2x25.esmf.nc
+GMI_LOSS_RIP       s-1        xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     loss              /discover/nobackup/cakelle2/data/GMI/gmi.clim.RIP.geos5.2x25.esmf.nc
+GMI_PROD_RIP       v/v/s      xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     prod              /discover/nobackup/cakelle2/data/GMI/gmi.clim.RIP.geos5.2x25.esmf.nc
+GMI_LOSS_ROH       s-1        xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     loss              /discover/nobackup/cakelle2/data/GMI/gmi.clim.ROH.geos5.2x25.esmf.nc
+GMI_PROD_ROH       v/v/s      xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     prod              /discover/nobackup/cakelle2/data/GMI/gmi.clim.ROH.geos5.2x25.esmf.nc
+GMI_LOSS_RP        s-1        xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     loss              /discover/nobackup/cakelle2/data/GMI/gmi.clim.RP.geos5.2x25.esmf.nc
+GMI_PROD_RP        v/v/s      xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     prod              /discover/nobackup/cakelle2/data/GMI/gmi.clim.RP.geos5.2x25.esmf.nc
+GMI_LOSS_VRO2      s-1        xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     loss              /discover/nobackup/cakelle2/data/GMI/gmi.clim.VRO2.geos5.2x25.esmf.nc
+GMI_PROD_VRO2      v/v/s      xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     prod              /discover/nobackup/cakelle2/data/GMI/gmi.clim.VRO2.geos5.2x25.esmf.nc
+GMI_LOSS_VRP       s-1        xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     loss              /discover/nobackup/cakelle2/data/GMI/gmi.clim.VRP.geos5.2x25.esmf.nc
+GMI_PROD_VRP       v/v/s      xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     prod              /discover/nobackup/cakelle2/data/GMI/gmi.clim.VRP.geos5.2x25.esmf.nc
+
+# --- Stratospheric Bry data ---
+GEOSCCM_Br_DAY     1          xyz    C    Y   N 2007-%m2-01T00:00:00   0.0      1.0     BR                /discover/nobackup/cakelle2/data/Bry/GEOSCCM_Bry.2007.day.esmf.nc
+GEOSCCM_Br2_DAY    1          xyz    C    Y   N 2007-%m2-01T00:00:00   0.0      1.0     BRCL              /discover/nobackup/cakelle2/data/Bry/GEOSCCM_Bry.2007.day.esmf.nc
+GEOSCCM_BrO_DAY    1          xyz    C    Y   N 2007-%m2-01T00:00:00   0.0      1.0     BRO               /discover/nobackup/cakelle2/data/Bry/GEOSCCM_Bry.2007.day.esmf.nc
+GEOSCCM_BrNO3_DAY  1          xyz    C    Y   N 2007-%m2-01T00:00:00   0.0      1.0     BRONO2            /discover/nobackup/cakelle2/data/Bry/GEOSCCM_Bry.2007.day.esmf.nc
+GEOSCCM_HBr_DAY    1          xyz    C    Y   N 2007-%m2-01T00:00:00   0.0      1.0     HBR               /discover/nobackup/cakelle2/data/Bry/GEOSCCM_Bry.2007.day.esmf.nc
+GEOSCCM_HOBr_DAY   1          xyz    C    Y   N 2007-%m2-01T00:00:00   0.0      1.0     HOBR              /discover/nobackup/cakelle2/data/Bry/GEOSCCM_Bry.2007.day.esmf.nc
+GEOSCCM_Br_NIGHT   1          xyz    C    Y   N 2007-%m2-01T00:00:00   0.0      1.0     BR                /discover/nobackup/cakelle2/data/Bry/GEOSCCM_Bry.2007.night.esmf.nc
+GEOSCCM_Br2_NIGHT  1          xyz    C    Y   N 2007-%m2-01T00:00:00   0.0      1.0     BRCL              /discover/nobackup/cakelle2/data/Bry/GEOSCCM_Bry.2007.night.esmf.nc
+GEOSCCM_BrO_NIGHT  1          xyz    C    Y   N 2007-%m2-01T00:00:00   0.0      1.0     BRO               /discover/nobackup/cakelle2/data/Bry/GEOSCCM_Bry.2007.night.esmf.nc
+GEOSCCM_BrNO3_NIGHT 1         xyz    C    Y   N 2007-%m2-01T00:00:00   0.0      1.0     BRONO2            /discover/nobackup/cakelle2/data/Bry/GEOSCCM_Bry.2007.night.esmf.nc
+GEOSCCM_HBr_NIGHT  1          xyz    C    Y   N 2007-%m2-01T00:00:00   0.0      1.0     HBR               /discover/nobackup/cakelle2/data/Bry/GEOSCCM_Bry.2007.night.esmf.nc
+GEOSCCM_HOBr_NIGHT 1          xyz    C    Y   N 2007-%m2-01T00:00:00   0.0      1.0     HOBR              /discover/nobackup/cakelle2/data/Bry/GEOSCCM_Bry.2007.night.esmf.nc
+
+# --- OH concentrations ---
+STRAT_OH           1          xyz    C    Y   N 2005-%m2-01T00:00:00   0.0      1.0     species           /discover/nobackup/cakelle2/data/GMI/gmi.clim.OH.geos5.2x25.esmf.nc
+
+# --- GOCART Radon simulation ---
+#GOCART_RADON   kg_m-2_s-1     xy    C    Y   N  2001-%m2-01T00:00:00   0.0      1.0     Rn_EMISSION       /discover/nobackup/cakelle2/data/gocart.radon.x540_y361_kg.nc
+
+# --- Masks ---
+NEI11_MASK         1          xy     C    N   N -                      0.0      1.0     NEIMASK           /discover/nobackup/projects/gmao/share/dasilva/fvInput/g5chem/sfc/HEMCO/NEI11/NEI11_mask.generic.01x01.nc
+
+# --- Read O3 from history
+#ANA_O3             mol/mol    xyz    C    N   N -                      0.0      1.0e-6  ozone             /discover/nobackup/cakelle2/GEOSadas-5_13_plusGC/c48/holding/bkg.eta/c48.bkg.eta.%y4%m2%d2_%h200z.nc4
+# -----------|--------------|-----|-----|------|----------------------|--------|-------|----------------------------------------   
+%%
+
+Masks%%
+# ------------|----------|-------------------------------------------|
+#  Name       |          |       Template File Name                  |
+# ------------|----------|-------------------------------------------|
+#  Import     | Variable | File name                                 |
+#  Name       |          |                                           |
+DEAD_SFC_TYP   SFC_TYP    /discover/nobackup/cakelle2/data/dst_tibds.esmf.2x25.nc
+TIMEZONES      UTC_OFFSET /discover/nobackup/cakelle2/data/timezones_esmf.2x25.nc
+# ------------|----------|-------------------------------------------|
+%%
+
+DerivedExports%%
+# ---------|---------|--------------------------------------------|
+#  Export  | Primary |_________________ Mask _____________________|
+#  Name    |  Name   |    Name    |           Expression          |    
+# ---------|---------|------------|-------------------------------|
+# ---------|---------|------------|-------------------------------|
+%%

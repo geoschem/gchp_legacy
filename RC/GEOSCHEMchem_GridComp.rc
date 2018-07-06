@@ -1,0 +1,98 @@
+#------------------------------------------------------------------------------
+#     NASA/GSFC, Global Modeling and Assimilation Office, Code 910.1 and      !
+#          Harvard University Atmospheric Chemistry Modeling Group            !
+#------------------------------------------------------------------------------
+#
+# !DESCRIPTION: Resource file for the GEOSCHEMchem Gridded Component.
+#
+# !REVISION HISTORY:
+#  06 Oct 2009 - P. Le Sager - Initial
+#  06 Dec 2009 - da Silva    - Converted from NAMELIST to ESMF Config
+#  13 Apr 2010 - R. Yantosca - Added dimension info and tracer names
+#  07 Nov 2012 - R. Yantosca - Added placeholder fields for input.geos
+#  26 Feb 2013 - R. Yantosca - Added MAX_DEP for Input_Opt
+#  19 Mar 2013 - R. Yantosca - Added LINOZ fields for Input_Opt
+#  19 Mar 2013 - R. Yantosca - MAX_TRCS should be 53, not 54
+#  01 Aug 2014 - M. Long-sca - MAX_TRCS & MAX_DIAG set to 130 & 80, resp.
+#------------------------------------------------------------------------------
+
+#
+# %%% Placeholder fields for Input_Opt object %%%
+#
+MAX_DIAG:             80
+MAX_FAM:              20
+LINOZ_NFIELDS:         7
+LINOZ_NLAT            18
+LINOZ_NLEVELS:        25
+LINOZ_NMONTHS:        12
+LLSTRAT:              59
+
+#
+# %%% FAST-JX options %%%
+#
+LLFASTJX:             1201
+FJX_EXTRAL_ITERMAX:   5
+FJX_EXTRAL_ERR:       1
+
+#
+# %%% HEMCO configuration file %%%
+#
+HEMCO_CONFIG:         HEMCO_Config.rc
+
+#
+# %%% Log file names for redirecting stdout %%%
+#
+STDOUT_LOGFILE:       PET%%%%%.GEOSCHEMchem.log
+STDOUT_LOGLUN:        6
+
+#
+# %%% Run phases (1 or 2. 2 recommended) %%% 
+#
+RUN_PHASES:        2
+
+#
+# %%% Initialize all concentrations to zero? ###
+#
+INIT_ZERO:            0
+
+#
+# %%% Use archived convection fields? %%% 
+#
+ARCHIVED_CONV:        0
+
+#
+# %%% Tuning parameter to reduce washout efficiency 
+# %%% of convective large-scale precip.
+# %%% Use at own risk: the effects of setting this 
+# %%% parameter to a value between 0.0 and 1.0 are 
+# %%% untested! 
+#
+Convective_precip_correction: -999.0
+
+#
+# %%% Use GMI P/L for O3 (default=no)? %%% 
+#
+Use_GMI_O3_PL:        0
+
+#
+# %%% Cap polar tropopause at 200hPa (default=yes)? %%% 
+#
+Cap_polar_tropopause: 0
+
+#
+# %%% Ozonopause value in ppb. If set to <= 0.0, the 
+# %%% GEOS-5 tropopause will be used (default) 
+#
+Use_ozonopause: -999.0
+
+#
+# %%% Prescribe stratospheric H2O
+#
+Prescribe_strat_H2O: 1
+
+#
+# %%% Read initial conditions from external file
+# %%% instead of internal state
+#
+INIT_SPC_FROM_FILE: 0
+INIT_SPC_FILE: /discover/nobackup/cakelle2/GEOS_CF/v11-02e/GC_v1102e/21_v11-02e_UCX_PL/GEOSChem_restart.201308010000.edit.nc 
