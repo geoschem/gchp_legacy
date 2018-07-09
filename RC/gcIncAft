@@ -1,0 +1,194 @@
+#!/usr/bin/perl -w
+
+#------------------------------------------------------------------------------
+#          Harvard University Atmospheric Chemistry Modeling Group            !
+#------------------------------------------------------------------------------
+#BOP
+#
+# !MODULE: gcIncAft
+#
+# !DESCRIPTION: This Perl script automatically creates code for the
+#  include file "Includes_After_Run.h", which takes data from the 
+#  GEOS-Chem chemical state and passes it to the ESMF interface.
+#\\
+#\\
+# !USES:
+#
+  require 5.003;                        # Need this version of Perl or newer
+  use English;                          # Use English language
+  use Carp;                             # Get detailed error messages
+  use strict;                           # Use "IMPLICIT NONE"-like syntax
+#
+# !PRIVATE MEMBER FUNCTIONS:
+#  &readRcFile($)
+#
+# !PUBLIC MEMBER FUNCTIONS:
+#  &main()
+#
+# !CALLING SEQUENCE:
+#  gcIncBef GEOSCHEMchem_Registry.rc
+#
+# !REVISION HISTORY: 
+#  10 Oct 2012 - R. Yantosca - Initial version, based on ncCodeWrite
+#  16 Oct 2012 - R. Yantosca - Changed name of chemistry state to State_Chm
+#EOP
+#------------------------------------------------------------------------------
+#          Harvard University Atmospheric Chemistry Modeling Group            !
+#------------------------------------------------------------------------------
+#BOP
+#
+# !IROUTINE: readRcFile
+#
+# !DESCRIPTION: Routine readRcFile reads the resource file which describes
+#  the variables, attributes, and dimensions of the netCDF file.
+#\\
+#\\
+# !INTERFACE:
+#
+sub readRcFile($) {
+#
+# !INPUT PARAMETERS:
+#
+  # $fileName : Input file that describes the netCDF file
+  my ( $fileName ) = @_;
+#
+# !CALLING SEQUENCE:
+#  &readRcFile( RESOURCE-FILE-NAME );
+#
+# !REVISION HISTORY:
+#  10 Oct 2012 - R. Yantosca - Initial version
+#  16 Oct 2012 - R. Yantosca - Changed name of chemistry state to State_Chm
+#  22 Oct 2012 - R. Yantosca - Replace GET_SPC_INDX with Get_Indx
+#  24 Oct 2012 - R. Yantosca - Now flip tracers & species in the vertical
+#EOP
+#------------------------------------------------------------------------------
+#BOC
+#
+# !LOCAL VARIABLES:
+#
+  # Strings
+  my $cmd     = "";
+  my $cmdFile = "For_Includes_After_Run.H";
+
+  # Loop indices
+  my $i       = 0;
+  my $iBeg    = 0;
+  my $iEnd    = 0;
+
+  # Arrays
+  my @lines   = ();
+  my @subStr  = ();
+
+  #----------------------------------------------
+  # Read variable settings from the file
+  #----------------------------------------------
+  open( I, "<$fileName" ) or die "Cannot open resource file $fileName!\n";
+  chomp( @lines = <I> );
+  close( I );
+
+  # Open the file that will ho
+  open( O, ">$cmdFile" ) or die "Cannot open output file $cmdFile!\n";
+
+  #----------------------------------------------
+  # Write Fortran commands to the output file
+  #----------------------------------------------
+
+  # Flip species & tracers in vertical
+  $cmd  = "  ! Flip tracers & species in the vertical\n";
+  $cmd .= "  State_Chm%Tracers = State_Chm%Tracers( :, :, LM:1:-1, : )\n";
+  $cmd .= "  State_Chm%Species = State_Chm%Species( :, :, LM:1:-1, : )\n";
+  print O "$cmd\n";
+
+  # Find the lines where the Internal State specifications begins and ends
+  for ( $i = 0; $i < scalar( @lines ); $i++ ) {
+    if ( ( $lines[$i] =~ m/<InternalSpec/   ) ) { $iBeg = $i; }
+    if ( ( $lines[$i] =~ m/<\/InternalSpec/ ) ) { $iEnd = $i; }
+  } 
+  
+  # Loop over all of the tracers & species in the internal state
+  for ( $i = $iBeg+1; $i < $iEnd; $i++ ) {
+
+    # Skip comment lines
+    if ( !( substr( $lines[$i], 0, 1 ) eq '#' ) ) {
+
+      # The tracer name is the first substring
+      @subStr = split( ' ', $lines[$i] );
+
+      if ( $subStr[0] =~ m/TRC_/ ) {
+       
+	# FOR ADVECTED TRACERS: define line assigning data
+	# from the ESMF pointer to the chemical state
+	# from the ESMF pointer to the chemical state
+	$cmd  = "  IND = Get_Indx(\ '$subStr[0]\', State_Chm%Trac_Id, State_Chm%Trac_Name )\n";
+	$cmd .= "  IF ( IND > 0 ) $subStr[0] = State_Chm%Tracers(:,:,:,IND)\n"; 
+
+      } else {
+
+	# FOR CHEMICAL SPECIES: define line assigning data
+	# from the ESMF pointer to the chemical state
+	# from the ESMF pointer to the chemical state
+	$cmd  = "  IND = Get_Indx(\ '$subStr[0]\', State_Chm%Spec_Id, State_Chm%Spec_Name )\n";
+	$cmd .= "  IF ( IND > 0 ) $subStr[0] = State_Chm%Species(:,:,:,IND)\n";
+
+      } 
+
+      # Write line to output
+      print O "$cmd\n";
+    }
+  }
+
+  #----------------------------------------------
+  # Cleanup and quit
+  #----------------------------------------------
+
+  # Close output file
+  close( O );
+
+  # Return
+  return( 0 );
+}
+#EOC
+#------------------------------------------------------------------------------
+#          Harvard University Atmospheric Chemistry Modeling Group            !
+#------------------------------------------------------------------------------
+#BOP
+#
+# !IROUTINE: main
+#
+# !DESCRIPTION: Routine main is the driver routine for the ncCodeWrite script.
+#\\
+#\\
+# !INTERFACE:
+#
+sub main() {
+#
+# !CALLING SEQUENCE:
+#  &main();
+#
+# !REVISION HISTORY:
+#  10 Oct 2012 - R. Yantosca - Initial version
+#EOP
+#------------------------------------------------------------------------------
+#BOC
+
+  # Error check arguments
+  if ( scalar( @ARGV ) == 0 ) { 
+    print "Usage: gcIncBef GEOSCHEMchem_Registry.rc\n"; 
+    exit(1);
+  }
+
+  # Read the resource file and generate Fortran code
+  &readRcFile( $ARGV[0] );
+
+  # Return normally
+  return( 0 );
+}
+#EOC
+
+#------------------------------------------------------------------------------
+
+# Start main program
+main();
+
+# Exit normally
+exit(0);

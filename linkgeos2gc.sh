@@ -283,26 +283,48 @@ if [[ ${reply} =~ ^[Yy]$ ]]; then
   if [[ ${reply} =~ ^[Yy]$ ]]; then
 
     # GEOSCHEMchem_GridComp (do manually for now)
-    cp ${geoschemchem_gridcomp}/GEOSCHEMchem_GridCompMod.F90 ${gchp}/Chem_GridCompMod.F90
-    cp ${geoschemchem_gridcomp}/Includes_Before_Run.H ${gchp}
-    cp ${geoschemchem_gridcomp}/Includes_After_Run.H ${gchp}
-    
-    # More files to track eventually...
-    ##  TODO: Want to track these other files as well. Put in GCHP.
-    ##   GEOSCHEMchem_ExtData.rc   -> ExtData.rc
-    ##   GEOSCHEMchem_GridComp.rc  -> GCHP.rc
-    ##   GEOSCHEMchem_Registry.rc  -> GCHP/Registry/Chem_Registry.rc
-    ##   HEMCO_Config.rc           -> HEMCO_Config.rc
-    ##   HEMCO_DiagnFile.rc        -> HEMCO_Diagn.rc
-    ##   input.geos.rc             -> input.geos
-    ##   MAPL.rc                   -> CAP.rc
-    
-      # GIGC (do manually for now)
+    cp ${geoschemchem_gridcomp}/${gridcompname}Mod.F90   ${gchp}/Chem_GridCompMod.F90
+    cp ${geoschemchem_gridcomp}/Includes_Before_Run.H    ${gchp}
+    cp ${geoschemchem_gridcomp}/Includes_After_Run.H     ${gchp}
+    cp ${geoschemchem_gridcomp}/GEOSCHEMchem_Registry.rc ${gchp}/Registry/Chem_Registry.rc
+
+    # Files stored in GCHP/RC (rundir files and GEOS-5 perl scripts)
+    cp ${geoschemchem_gridcomp}/brc.dat.rc               ${gchp}/RC
+    cp ${geoschemchem_gridcomp}/chemga.dat.rc            ${gchp}/RC
+    cp ${geoschemchem_gridcomp}/diaginfo.dat.rc          ${gchp}/RC
+    cp ${geoschemchem_gridcomp}/dust.dat.rc              ${gchp}/RC
+    cp ${geoschemchem_gridcomp}/ExtData.rc              ${gchp}/RC
+    cp ${geoschemchem_gridcomp}/FJX_j2j.dat.rc           ${gchp}/RC
+    cp ${geoschemchem_gridcomp}/FJX_spec.dat.rc          ${gchp}/RC
+    cp ${geoschemchem_gridcomp}/gcIncAft                 ${gchp}/RC
+    cp ${geoschemchem_gridcomp}/gcIncBef                 ${gchp}/RC
+    cp ${geoschemchem_gridcomp}/gcUtImp                  ${gchp}/RC
+    cp ${geoschemchem_gridcomp}/gcUtInt                  ${gchp}/RC
+    cp ${geoschemchem_gridcomp}/GEOSCHEMchem_ExtData.rc  ${gchp}/RC
+    cp ${geoschemchem_gridcomp}/GEOSCHEMchem_GridComp.rc ${gchp}/RC
+    cp ${geoschemchem_gridcomp}/globchem.dat.rc          ${gchp}/RC
+    cp ${geoschemchem_gridcomp}/h2so4.dat.rc             ${gchp}/RC
+    cp ${geoschemchem_gridcomp}/HEMCO_Config.rc          ${gchp}/RC
+    cp ${geoschemchem_gridcomp}/HEMCO_DiagnFile.rc       ${gchp}/RC
+    cp ${geoschemchem_gridcomp}/input.geos.rc            ${gchp}/RC
+    cp ${geoschemchem_gridcomp}/jv_spec.dat.rc           ${gchp}/RC
+    cp ${geoschemchem_gridcomp}/jv_spec_mie.dat.rc       ${gchp}/RC
+    cp ${geoschemchem_gridcomp}/MAPL.rc                  ${gchp}/RC
+    cp ${geoschemchem_gridcomp}/mglob.dat.rc             ${gchp}/RC
+    cp ${geoschemchem_gridcomp}/org.dat.rc               ${gchp}/RC
+    cp ${geoschemchem_gridcomp}/ratj.d.rc                ${gchp}/RC
+    cp ${geoschemchem_gridcomp}/so4.dat.rc               ${gchp}/RC
+    cp ${geoschemchem_gridcomp}/soot.dat.rc              ${gchp}/RC
+    cp ${geoschemchem_gridcomp}/ssa.dat.rc               ${gchp}/RC
+    cp ${geoschemchem_gridcomp}/ssc.dat.rc               ${gchp}/RC
+    cp ${geoschemchem_gridcomp}/tracerinfo.dat.rc        ${gchp}/RC
+
+    # GIGC (do manually for now)
     cp ${gigc}/gigc_chunk_mod.F90 ${gchp}
     cp ${gigc}/gigc_historyexports_mod.F90 ${gchp}
     cp ${gigc}/gigc_providerservices_mod.F90 ${gchp}
     
-    # GIGC (automatic) - do this eventually
+    # GIGC (automatic) - do this eventually?
     #rsync -r ${gigc}/ --exclude CVS/ ${gchp} 
     
     # gc_column
@@ -347,7 +369,7 @@ makelink () {
   if [[ -f $1 ]]; then
     ln -sf $1 $2
   else
-    printf "Warning: ${1##*/} not in target repo"
+    printf "Warning: ${1##*/} not in target repo\n"
   fi
 }
 
@@ -408,26 +430,54 @@ if [[ ${reply} =~ ^[Yy]$ ]]; then
   read reply
   if [[ ${reply} =~ ^[Yy]$ ]]; then
 
-    # Point to GCHP repo files
-    makelink ${gchp}/Chem_GridCompMod.F90 ${geoschemchem_gridcomp}/GEOSCHEMchem_GridCompMod.F90 
-    makelink ${gchp}/Includes_Before_Run.H ${geoschemchem_gridcomp}
-    makelink ${gchp}/Includes_After_Run.H  ${geoschemchem_gridcomp}
-    makelink ${gchp}/gigc_chunk_mod.F90 ${gigc}
-    makelink ${gchp}/gigc_historyexports_mod.F90 ${gigc}
-    makelink ${gchp}/gigc_providerservices_mod.F90 ${gigc}
-    
-    ##    TODO: Want to track these other files as well. Put in GCHP.
-    ##     GEOSCHEMchem_ExtData.rc   -> ExtData.rc
-    ##     GEOSCHEMchem_GridComp.rc  -> GCHP.rc
-    ##     GEOSCHEMchem_Registry.rc  -> GCHP/Registry/Chem_Registry.rc
-    ##     HEMCO_Config.rc           -> HEMCO_Config.rc
-    ##     HEMCO_DiagnFile.rc        -> HEMCO_Diagn.rc
-    ##     input.geos.rc             -> input.geos
-    ##     MAPL.rc                   -> CAP.rc
-    
-    # Point to GEOS-Chem repo files
+    # Point to GEOS-Chem repo files (this is automated)
     makelinks ${gc_column}
-    printf "Complete."
+
+    # Point to GCHP repo files (do this manually for now since exceptions)
+
+    # GCHP core source code
+    makelink ${gchp}/gigc_chunk_mod.F90 ${gigc}
+    makelink ${gchp}/gigc_historyexports_mod.F90   ${gigc}
+    makelink ${gchp}/gigc_providerservices_mod.F90 ${gigc}
+
+    # gridcomp file and supporting files
+    makelink ${gchp}/Chem_GridCompMod.F90          ${geoschemchem_gridcomp}/GEOSCHEMchem_GridCompMod.F90 
+    makelink ${gchp}/Includes_Before_Run.H         ${geoschemchem_gridcomp}
+    makelink ${gchp}/Includes_After_Run.H          ${geoschemchem_gridcomp}
+    makelink ${gchp}/Registry/Chem_Registry.rc     ${geoschemchem_gridcomp}/GEOSCHEMchem_Registry.rc
+    
+    # Files tracked in GCHP/RC folder (rundir files and GEOS-5 perl scripts)
+    makelink ${gchp}/RC/brc.dat.rc               ${geoschemchem_gridcomp}
+    makelink ${gchp}/RC/chemga.dat.rc            ${geoschemchem_gridcomp}
+    makelink ${gchp}/RC/diaginfo.dat.rc          ${geoschemchem_gridcomp}
+    makelink ${gchp}/RC/dust.dat.rc              ${geoschemchem_gridcomp}
+    makelink ${gchp}/RC/ExtData.rc               ${geoschemchem_gridcomp}
+    makelink ${gchp}/RC/FJX_j2j.dat.rc           ${geoschemchem_gridcomp}
+    makelink ${gchp}/RC/FJX_spec.dat.rc          ${geoschemchem_gridcomp}
+    makelink ${gchp}/RC/gcIncAft                 ${geoschemchem_gridcomp}
+    makelink ${gchp}/RC/gcIncBef                 ${geoschemchem_gridcomp}
+    makelink ${gchp}/RC/gcUtImp                  ${geoschemchem_gridcomp}
+    makelink ${gchp}/RC/gcUtInt                  ${geoschemchem_gridcomp}
+    makelink ${gchp}/RC/GEOSCHEMchem_ExtData.rc  ${geoschemchem_gridcomp}
+    makelink ${gchp}/RC/GEOSCHEMchem_GridComp.rc ${geoschemchem_gridcomp}
+    makelink ${gchp}/RC/globchem.dat.rc          ${geoschemchem_gridcomp}
+    makelink ${gchp}/RC/h2so4.dat.rc             ${geoschemchem_gridcomp}
+    makelink ${gchp}/RC/HEMCO_Config.rc          ${geoschemchem_gridcomp}
+    makelink ${gchp}/RC/HEMCO_DiagnFile.rc       ${geoschemchem_gridcomp}
+    makelink ${gchp}/RC/input.geos.rc            ${geoschemchem_gridcomp}
+    makelink ${gchp}/RC/jv_spec.dat.rc           ${geoschemchem_gridcomp}
+    makelink ${gchp}/RC/jv_spec_mie.dat.rc       ${geoschemchem_gridcomp}
+    makelink ${gchp}/RC/MAPL.rc                  ${geoschemchem_gridcomp}
+    makelink ${gchp}/RC/mglob.dat.rc             ${geoschemchem_gridcomp}
+    makelink ${gchp}/RC/org.dat.rc               ${geoschemchem_gridcomp}
+    makelink ${gchp}/RC/ratj.d.rc                ${geoschemchem_gridcomp}
+    makelink ${gchp}/RC/so4.dat.rc               ${geoschemchem_gridcomp}
+    makelink ${gchp}/RC/soot.dat.rc              ${geoschemchem_gridcomp}
+    makelink ${gchp}/RC/ssa.dat.rc               ${geoschemchem_gridcomp}
+    makelink ${gchp}/RC/ssc.dat.rc               ${geoschemchem_gridcomp}
+    makelink ${gchp}/RC/tracerinfo.dat.rc        ${geoschemchem_gridcomp}
+    
+    printf "Creating symlinks complete.\n"
 
   elif [[ ${reply} =~ ^[Qq]$ ]]; then
     exit 1
