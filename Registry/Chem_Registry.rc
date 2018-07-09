@@ -45,7 +45,6 @@
   FROCEAN            |     1	   | xy  |   |    |   |   |	|      |    | fraction_of_ocean
   LAI                |     1	   | xy  |   |    |   |   |	|      |    | leaf area index
   SNOMAS             |   kg/m2     | xy  |   |    |   |   |	|      |    | snow_mass
-  T2M                |     K	   | xy  |   |    |   |   |	|      |    | 2-meter-air_temperature
   TAUCLI             |     1	   | xyz | C |    |   |   |	|      |    | optical_thickness_for_ice_clouds
   TAUCLW             |     1	   | xyz | C |    |   |   |	|      |    | optical_thickness_for_liquid_clouds 
   TROPP              |    hPa	   | xy  |   |    |   |   |	|      |    | tropopause_pressure_based_on_blended_estimate

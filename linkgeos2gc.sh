@@ -290,7 +290,7 @@ if [[ ${reply} =~ ^[Yy]$ ]]; then
 
     # Files stored in GCHP/RC (rundir files and GEOS-5 perl scripts)
     cp ${geoschemchem_gridcomp}/brc.dat.rc               ${gchp}/RC
-    cp ${geoschemchem_gridcomp}/chemga.dat.rc            ${gchp}/RC
+
     cp ${geoschemchem_gridcomp}/diaginfo.dat.rc          ${gchp}/RC
     cp ${geoschemchem_gridcomp}/dust.dat.rc              ${gchp}/RC
     cp ${geoschemchem_gridcomp}/ExtData.rc              ${gchp}/RC
@@ -302,17 +302,13 @@ if [[ ${reply} =~ ^[Yy]$ ]]; then
     cp ${geoschemchem_gridcomp}/gcUtInt                  ${gchp}/RC
     cp ${geoschemchem_gridcomp}/GEOSCHEMchem_ExtData.rc  ${gchp}/RC
     cp ${geoschemchem_gridcomp}/GEOSCHEMchem_GridComp.rc ${gchp}/RC
-    cp ${geoschemchem_gridcomp}/globchem.dat.rc          ${gchp}/RC
     cp ${geoschemchem_gridcomp}/h2so4.dat.rc             ${gchp}/RC
     cp ${geoschemchem_gridcomp}/HEMCO_Config.rc          ${gchp}/RC
     cp ${geoschemchem_gridcomp}/HEMCO_DiagnFile.rc       ${gchp}/RC
     cp ${geoschemchem_gridcomp}/input.geos.rc            ${gchp}/RC
-    cp ${geoschemchem_gridcomp}/jv_spec.dat.rc           ${gchp}/RC
     cp ${geoschemchem_gridcomp}/jv_spec_mie.dat.rc       ${gchp}/RC
     cp ${geoschemchem_gridcomp}/MAPL.rc                  ${gchp}/RC
-    cp ${geoschemchem_gridcomp}/mglob.dat.rc             ${gchp}/RC
     cp ${geoschemchem_gridcomp}/org.dat.rc               ${gchp}/RC
-    cp ${geoschemchem_gridcomp}/ratj.d.rc                ${gchp}/RC
     cp ${geoschemchem_gridcomp}/so4.dat.rc               ${gchp}/RC
     cp ${geoschemchem_gridcomp}/soot.dat.rc              ${gchp}/RC
     cp ${geoschemchem_gridcomp}/ssa.dat.rc               ${gchp}/RC
@@ -448,7 +444,6 @@ if [[ ${reply} =~ ^[Yy]$ ]]; then
     
     # Files tracked in GCHP/RC folder (rundir files and GEOS-5 perl scripts)
     makelink ${gchp}/RC/brc.dat.rc               ${geoschemchem_gridcomp}
-    makelink ${gchp}/RC/chemga.dat.rc            ${geoschemchem_gridcomp}
     makelink ${gchp}/RC/diaginfo.dat.rc          ${geoschemchem_gridcomp}
     makelink ${gchp}/RC/dust.dat.rc              ${geoschemchem_gridcomp}
     makelink ${gchp}/RC/ExtData.rc               ${geoschemchem_gridcomp}
@@ -460,17 +455,13 @@ if [[ ${reply} =~ ^[Yy]$ ]]; then
     makelink ${gchp}/RC/gcUtInt                  ${geoschemchem_gridcomp}
     makelink ${gchp}/RC/GEOSCHEMchem_ExtData.rc  ${geoschemchem_gridcomp}
     makelink ${gchp}/RC/GEOSCHEMchem_GridComp.rc ${geoschemchem_gridcomp}
-    makelink ${gchp}/RC/globchem.dat.rc          ${geoschemchem_gridcomp}
     makelink ${gchp}/RC/h2so4.dat.rc             ${geoschemchem_gridcomp}
     makelink ${gchp}/RC/HEMCO_Config.rc          ${geoschemchem_gridcomp}
     makelink ${gchp}/RC/HEMCO_DiagnFile.rc       ${geoschemchem_gridcomp}
     makelink ${gchp}/RC/input.geos.rc            ${geoschemchem_gridcomp}
-    makelink ${gchp}/RC/jv_spec.dat.rc           ${geoschemchem_gridcomp}
     makelink ${gchp}/RC/jv_spec_mie.dat.rc       ${geoschemchem_gridcomp}
     makelink ${gchp}/RC/MAPL.rc                  ${geoschemchem_gridcomp}
-    makelink ${gchp}/RC/mglob.dat.rc             ${geoschemchem_gridcomp}
     makelink ${gchp}/RC/org.dat.rc               ${geoschemchem_gridcomp}
-    makelink ${gchp}/RC/ratj.d.rc                ${geoschemchem_gridcomp}
     makelink ${gchp}/RC/so4.dat.rc               ${geoschemchem_gridcomp}
     makelink ${gchp}/RC/soot.dat.rc              ${geoschemchem_gridcomp}
     makelink ${gchp}/RC/ssa.dat.rc               ${geoschemchem_gridcomp}
