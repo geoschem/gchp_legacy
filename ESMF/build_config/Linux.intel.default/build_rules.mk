@@ -89,11 +89,13 @@ ESMF_F90DEFAULT         = mpif90
 #
 # Need to change -lmpi_f77 to -lmpi_cxx to get ESMF to compile w/ OpenMPI
 #ESMF_CXXLINKLIBS       += -lmpi_f77
-ESMF_CXXLINKLIBS       += -lmpi_cxx
+#(below commented out by ewl, 7/11/18)
+#ESMF_CXXLINKLIBS       += -lmpi_cxx
 #------------------------------------------------------------------------------
 endif
 ESMF_CXXCOMPILECPPFLAGS+= -DESMF_NO_SIGUSR2
-ESMF_F90LINKLIBS       += -lmpi_cxx
+#(below commented out by ewl, 7/11/18)
+#ESMF_F90LINKLIBS       += -lmpi_cxx
 ESMF_CXXDEFAULT         = mpicxx
 ESMF_MPIRUNDEFAULT      = mpirun $(ESMF_MPILAUNCHOPTIONS)
 ESMF_MPIMPMDRUNDEFAULT  = mpiexec $(ESMF_MPILAUNCHOPTIONS)
