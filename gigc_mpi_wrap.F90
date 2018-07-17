@@ -261,7 +261,6 @@ CONTAINS
     CALL MPI_Bcast( INPUT_OPT%TS_CHEM,         1, mpi_integer, 0, mpiComm, RC )
     CALL MPI_BCast( INPUT_OPT%GAMMA_HO2,       1, mpi_real8,   0, mpicomm, RC )
     CALL MPI_Bcast( INPUT_OPT%LUCX,            1, mpi_logical, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%LCH4CHEM,        1, mpi_logical, 0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%LACTIVEH2O,      1, mpi_logical, 0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%USE_ONLINE_O3,   1, mpi_logical, 0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%USE_O3_FROM_MET, 1, mpi_logical, 0, mpiComm, RC )
