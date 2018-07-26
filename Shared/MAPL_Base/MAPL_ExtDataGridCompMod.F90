@@ -2597,9 +2597,9 @@ CONTAINS
         call GetDate ( begDate, begTime, iCurrInterval, nymdB, nhmsB, status )
         call MAPL_UnpackTime(nymdB,iyr,imm,idd)
         call MAPL_UnpackTime(nhmsB,ihr,imn,isc)
-        ! Debug level 4
+        ! Debug level set very high to avoid excessive numbers of prints
         If (Mapl_Am_I_Root()) Then
-           If ((Ext_Debug > 4).or.((Ext_Debug > 3).and.((i.eq.1).or.(i.eq.cfio%tSteps)))) Then
+           If ((Ext_Debug > 21).or.((Ext_Debug > 20).and.((i.eq.1).or.(i.eq.cfio%tSteps)))) Then
               Write(*,'(a,I0.6,a,I0.4,5(a,I0.2))') ' >> >> STD Sample ',i,':  ',iYr,'-',iMM,'-',iDD,' ',iHr,':',iMn,':',iSc
            End If
         End If

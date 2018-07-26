@@ -619,26 +619,6 @@
 !EOC
 !------------------------------------------------------------------------------
 !BOP
-      subroutine computeTotalPrecip(TPREC, PRECANV, PRECCON, PRECLSC)
-!
-! !INPUT PARAMETERS:
-     REAL(r4), intent(in) :: PRECANV(:,:) ! Surface precipitation flux from anvils (kg/m2/s)
-     REAL(r4), intent(in) :: PRECCON(:,:) ! Surface precipitation flux from convection (kg/m2/s)
-     REAL(r4), intent(in) :: PRECLSC(:,:) ! Surface precipitation flux from large-scale (kg/m2/s)
-!
-! !OUTPUT PARAMETERS:
-     REAL(r4), intent(out) :: TPREC(:,:)  ! Total precipitation (kg/m2/s)
-!EOP
-!------------------------------------------------------------------------------
-!BOC
-      TPREC = PRECANV + PRECCON + PRECLSC
-
-      RETURN
-
-      end subroutine computeTotalPrecip
-!EOC
-!------------------------------------------------------------------------------
-!BOP
       subroutine computeLWI(LWI, TSKIN, FRLAKE, FROCEAN, FRSEAICE)
 !
 ! !INPUT PARAMETERS:

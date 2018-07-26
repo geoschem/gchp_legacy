@@ -31,7 +31,6 @@ MODULE GIGC_Chunk_Mod
 !
 ! !PRIVATE MEMBER FUNCTIONS:
 !
-  PRIVATE :: SETCH4           ! GEOS-5 only
   PRIVATE :: SET_OZONOPAUSE   ! GEOS-5 only
   PRIVATE :: StateDiag2Export ! GEOS-5 only
 !
@@ -569,6 +568,7 @@ CONTAINS
     ! Specialized subroutines
     USE Dao_Mod,            ONLY : AirQnt, Set_Dry_Surface_Pressure
     USE Dao_Mod,            ONLY : GIGC_Cap_Tropopause_Prs
+    USE Set_Global_CH4_Mod, ONLY : Set_CH4
     USE MODIS_LAI_Mod,      ONLY : Compute_XLAI_GCHP
     USE PBL_Mix_Mod,        ONLY : Compute_PBL_Height
     USE Pressure_Mod,       ONLY : Set_Floating_Pressures
@@ -1158,15 +1158,22 @@ CONTAINS
        if(am_I_Root.and.NCALLS<10) write(*,*) ' --- Turbulence done!'
     ENDIF
 
-! GEOS-5 only:
+! GEOS-5 sets CH4 values only if phase is not 2:
     ! Set tropospheric CH4 concentrations and fill species array with
     ! current values. 
 !    IF ( DoTurb .OR. DoTend ) THEN
-!       IF ( Input_Opt%LCH4SBC ) THEN
-       IF ( Phase /= 2 ) THEN
-          CALL SETCH4 ( am_I_Root, HcoState%Export, Input_Opt, &
-                        State_Met, State_Chm, State_Diag, IM, JM, Year, RC )
-       ENDIF
+!      IF ( Input_Opt%LCH4SBC ) THEN
+          IF ( Phase /= 2 ) THEN
+            CALL SET_CH4 ( am_I_Root, Input_Opt, State_Met, State_Chm, RC )
+          ENDIF
+!      ENDIF
+!    ENDIF
+! GCHP also checks if a full chem simulation and CH4 is a species:
+!    ! Set tropospheric CH4 concentrations and fill species array with
+!    ! current values. 
+!    IF ( Phase /= 2 .AND. Input_Opt%ITS_A_FULLCHEM_SIM  &
+!         .AND. IND_('CH4','A') > 0 ) THEN
+!       CALL SET_CH4 ( am_I_Root, Input_Opt, State_Met, State_Chm, RC )
 !    ENDIF
 !---
 
@@ -1460,85 +1467,6 @@ CONTAINS
 !---
 
   END SUBROUTINE GIGC_Chunk_Final
-!EOC
-! GEOS-only:
-!------------------------------------------------------------------------------
-!          Harvard University Atmospheric Chemistry Modeling Group            !
-!------------------------------------------------------------------------------
-!BOP
-!
-! !IROUTINE: setch4 
-!
-! !DESCRIPTION: Subroutine SETCH4 updates tropospheric CH4 concentrations in 
-!  the tracer array using prescribed latitutinal values. It then also updates
-!  the CH4 species array accordingly. State_Chm%Tracers is expected to enter
-!  this routine in units of kg/kg dry. 
-!\\
-!\\
-! !INTERFACE:
-!
-  SUBROUTINE SETCH4 ( am_I_Root, EXPORT, Input_Opt, &
-                       State_Met, State_Chm, State_Diag, IM, JM, Year, RC )
-                                      
-!
-! !USES:
-!
-    USE Precision_Mod 
-    USE ErrCode_Mod
-    USE Input_Opt_Mod, ONLY : OptInput
-    USE State_Met_Mod, ONLY : MetState
-    USE State_Diag_Mod,ONLY : DgnState
-    USE State_Chm_Mod, ONLY : ChmState
-    USE Set_Global_CH4_Mod, ONLY : Set_CH4 
-!
-! !INPUT PARAMETERS:
-!
-    LOGICAL,          INTENT(IN)    :: am_I_Root     ! Are we on the root CPU?
-    TYPE(ESMF_State), INTENT(INOUT) :: Export
-    TYPE(OptInput),   INTENT(IN)    :: Input_Opt     ! Input Options object
-    TYPE(MetState),   INTENT(IN)    :: State_Met     ! Meteorology State object
-    TYPE(DgnState),   INTENT(INOUT) :: State_Diag    ! Diagnostics State object
-    INTEGER,          INTENT(IN)    :: IM            ! # of lons on this CPU
-    INTEGER,          INTENT(IN)    :: JM            ! # of lats on this CPU
-    INTEGER,          INTENT(IN)    :: Year          ! Current year 
-!
-! !INPUT/OUTPUT PARAMETERS:
-!
-    TYPE(ChmState),   INTENT(INOUT) :: State_Chm     ! Chem state object
-!
-! !OUTPUT PARAMETERS:
-!
-    INTEGER,          INTENT(OUT)   :: RC            ! Success or failure
-!
-! !REMARKS:
-! 
-! !REVISION HISTORY: 
-!  10 Nov 2015 - C. Keller   - Initial version
-!EOP
-!------------------------------------------------------------------------------
-!BOC
-!
-! !LOCAL VARIABLES:
-!
-    INTEGER                    :: STATUS
-    CHARACTER(LEN=ESMF_MAXSTR) :: Iam
-
-    ! Error trap
-    Iam = 'SETCH4 (gigc_chunk_mod.F90)'
- 
-    CALL Set_CH4( am_I_Root, Input_Opt,  State_Met, &
-                  State_Chm, State_Diag, RC )
-    ASSERT_(RC==GC_SUCCESS)
-
-!    ! Verbose
-!    IF ( am_I_Root .AND. FIRST ) THEN
-!       WRITE(*,*) 'GEOS-Chem: will use prescribed CH4 surface concentrations'
-!    ENDIF
-!    FIRST = .FALSE.
-
-    RETURN_(ESMF_SUCCESS)
-
-  END SUBROUTINE SETCH4 
 !EOC
 !------------------------------------------------------------------------------
 !          Harvard University Atmospheric Chemistry Modeling Group            !

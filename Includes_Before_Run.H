@@ -60,8 +60,6 @@
   State_Met%PARDR      = DRPAR                               ! W/m2
   State_Met%PARDF      = DFPAR                               ! W/m2
   State_Met%PBLH       = ZPBL                                ! m
-!!!  State_Met%PRECCON    = CN_PRCP  !* 86400d0 * 1d-3           ! kg/m2/s -> mm/day
-!!!  State_Met%PRECTOT    = TPREC    !* 86400d0 * 1d-3           ! kg/m2/s -> mm/day
   State_Met%TROPP      = GCCTROPP / 100d0                    ! Pa      -> hPa
 !  State_Met%TO3        = TO3                                 ! DU
 !  State_Met%TO3        = GCCTO3                              ! DU
