@@ -467,7 +467,8 @@ if [[ ${reply} =~ ^[Yy]$ ]]; then
     makelink ${gchp}/RC/ssa.dat.rc               ${geoschemchem_gridcomp}
     makelink ${gchp}/RC/ssc.dat.rc               ${geoschemchem_gridcomp}
     makelink ${gchp}/RC/tracerinfo.dat.rc        ${geoschemchem_gridcomp}
-    
+
+    printf "Target not found warnings indicate files not tracked in git. Consider adding files to the git repo."    
     printf "Creating symlinks complete.\n"
 
   elif [[ ${reply} =~ ^[Qq]$ ]]; then
