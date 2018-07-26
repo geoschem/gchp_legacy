@@ -238,7 +238,6 @@ CONTAINS
     ! ckeller, 01/16/17
     Input_Opt%MAX_DIAG      = 1 
     Input_Opt%MAX_FAM       = 250
-    Input_Opt%MAX_PASV      = 50       ! Set to large placeholder value
     Input_Opt%LINOZ_NLAT    = 18
     Input_Opt%LINOZ_NMONTHS = 12
     Input_Opt%LINOZ_NFIELDS = 7
@@ -1158,17 +1157,20 @@ CONTAINS
        if(am_I_Root.and.NCALLS<10) write(*,*) ' --- Turbulence done!'
     ENDIF
 
-! GEOS-5 sets CH4 values only if phase is not 2:
+! GEOS-5 sets CH4 values only if phase is not 2, and routine expects state_diag:
     ! Set tropospheric CH4 concentrations and fill species array with
     ! current values. 
 !    IF ( DoTurb .OR. DoTend ) THEN
 !      IF ( Input_Opt%LCH4SBC ) THEN
           IF ( Phase /= 2 ) THEN
-            CALL SET_CH4 ( am_I_Root, Input_Opt, State_Met, State_Chm, RC )
+            CALL SET_CH4 ( am_I_Root, Input_Opt, State_Met, State_Chm, &
+                           State_Diag, RC )
+            ASSERT_(RC==GC_SUCCESS)
           ENDIF
 !      ENDIF
 !    ENDIF
-! GCHP also checks if a full chem simulation and CH4 is a species:
+! GCHP also checks if a full chem simulation and CH4 is a species. Note that
+! it does not yet accept State_Diag:
 !    ! Set tropospheric CH4 concentrations and fill species array with
 !    ! current values. 
 !    IF ( Phase /= 2 .AND. Input_Opt%ITS_A_FULLCHEM_SIM  &
@@ -1701,7 +1703,7 @@ CONTAINS
           !ELSE
           !   CALL MAPL_GetPointer( Export, Ptr2D, TRIM(DiagName), NotFoundOk=.TRUE., __RC__ )
              IF ( ASSOCIATED(Ptr2D) ) THEN
-                Ptr2D(:,:) = SUM(State_Diag%DryDep(:,:,:,I),DIM=3)
+                Ptr2D(:,:) = State_Diag%DryDep(:,:,I)
                 Ptr2D => NULL()
              END IF
           !END IF
