@@ -93,7 +93,6 @@ CONTAINS
     USE State_Diag_Mod,          ONLY : DgnState
     USE State_Met_Mod,           ONLY : MetState
     USE Time_Mod,                ONLY : Set_Timesteps
-    USE TOMS_Mod,                ONLY : Init_TOMS
     USE UCX_MOD,                 ONLY : INIT_UCX
     USE UnitConv_Mod,            ONLY : Convert_Spc_Units
 
@@ -327,12 +326,6 @@ CONTAINS
     ! Initialize chemistry mechanism
     IF ( Input_Opt%ITS_A_FULLCHEM_SIM .OR. Input_Opt%ITS_AN_AEROSOL_SIM ) THEN
        CALL Init_Chemistry( am_I_Root, Input_Opt, State_Chm, State_Diag, RC )
-       ASSERT_(RC==GC_SUCCESS)
-    ENDIF
-
-    ! Allocate array of overhead O3 columns for TOMS if chemistry is on
-    IF ( Input_Opt%LCHEM ) THEN
-       CALL Init_TOMS( am_I_Root, Input_Opt, RC )
        ASSERT_(RC==GC_SUCCESS)
     ENDIF
 
