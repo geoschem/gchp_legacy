@@ -55,7 +55,6 @@
   54 H2402     PHOTON    Br        PRODUCTS                1.000 /H2402 /
   55 CH2Br2    PHOTON    Br        PRODUCTS                1.000 /CH2Br2/
   56 CHBr3     PHOTON    Br        PRODUCTS                1.000 /CHBr3 /
-  57 CH3I      PHOTON    I         PRODUCTS                1.000 /CH3I  /
   58 CF3I      PHOTON    I         PRODUCTS                1.000 /CF3I  /
   59 PAN       PHOTON    CH3C(O)O2 NO2                     1.000 /PAN   /
   60 R4N2      PHOTON    CH3O      NO2                     1.000 /CH3NO3/
