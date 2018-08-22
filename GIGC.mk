@@ -50,6 +50,10 @@ ifeq ($(ESMF_COMM),openmpi)
    # %%%%% OpenMPI settings %%%%%
    MPI_LIB       := $(shell mpif90 --showme:link)
    MPI_LIB       += $(shell mpicxx --showme:link)
+   ifeq ($(COMPILER),gfortran)
+      # Force usage of GCC libstdc++ rather than system version (ewl, 8/22/18)
+      MPI_LIB       += -L$(GCC_HOME)/lib64 -lstdc++
+   endif
 else ifeq ($(ESMF_COMM),mvapich2)
    # %%%%% MVAPICH %%%%% 
    MPI_LIB       := -L$(dir $(shell which mpif90))../lib64 -lmpich -lmpichf90
