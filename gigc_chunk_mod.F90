@@ -89,6 +89,7 @@ CONTAINS
                               value_I_HI, value_J_HI,      value_IM,        &
                               value_JM,   value_LM,        value_IM_WORLD,  &
                               value_JM_WORLD,              value_LM_WORLD,  &
+                              value_LLSTRAT, &
                               nymdB,      nhmsB,           nymdE,           &
                               nhmsE,      tsChem,          tsDyn,           &
                               lonCtr,     latCtr,          myPET,           &
@@ -151,6 +152,7 @@ CONTAINS
     INTEGER,            INTENT(IN)    :: value_IM_WORLD! # lons, global grid
     INTEGER,            INTENT(IN)    :: value_JM_WORLD! # lats, global grid
     INTEGER,            INTENT(IN)    :: value_LM_WORLD! # levs, global grid
+    INTEGER,            INTENT(IN)    :: value_LLSTRAT ! # strat. levs
     INTEGER,            INTENT(IN)    :: myPET       ! Local PET
     INTEGER,            INTENT(IN)    :: nymdB       ! YYYYMMDD @ start of run
     INTEGER,            INTENT(IN)    :: nhmsB       ! hhmmss   @ start of run
@@ -239,7 +241,7 @@ CONTAINS
     ! ckeller, 01/16/17
     Input_Opt%MAX_DIAG      = 1 
     Input_Opt%MAX_FAM       = 250
-    Input_Opt%MAX_PASV      = 50       ! Set to large placeholder value
+!!    Input_Opt%MAX_PASV      = 50       ! Set to large placeholder value
     Input_Opt%LINOZ_NLAT    = 18
     Input_Opt%LINOZ_NMONTHS = 12
     Input_Opt%LINOZ_NFIELDS = 7
@@ -297,6 +299,7 @@ CONTAINS
                           value_IM_WORLD = value_IM_WORLD,                &
                           value_JM_WORLD = value_JM_WORLD,                &
                           value_LM_WORLD = value_LM_WORLD,                &
+                          value_LLSTRAT  = value_LLSTRAT,                 &
                           RC             = RC              )            
     ASSERT_(RC==GC_SUCCESS)
 
@@ -1767,16 +1770,10 @@ CONTAINS
           N        = State_Chm%Map_DryDep(I)
           DiagName = 'DryDep_'//TRIM(State_Chm%SpcData(N)%Info%Name)
           CALL MAPL_GetPointer( Export, Ptr2D, TRIM(DiagName), NotFoundOk=.TRUE., __RC__ )
-          !IF ( ASSOCIATED(Ptr3D) ) THEN
-          !   Ptr3D(:,:,LM:1:-1) = State_Diag%DryDepFlux_Mix(:,:,1:LM,I)
-          !   Ptr3D => NULL()
-          !ELSE
-          !   CALL MAPL_GetPointer( Export, Ptr2D, TRIM(DiagName), NotFoundOk=.TRUE., __RC__ )
-             IF ( ASSOCIATED(Ptr2D) ) THEN
-                Ptr2D(:,:) = SUM(State_Diag%DryDep(:,:,:,I),DIM=3)
-                Ptr2D => NULL()
-             END IF
-          !END IF
+          IF ( ASSOCIATED(Ptr2D) ) THEN
+             Ptr2D(:,:) = State_Diag%DryDep(:,:,I)
+             Ptr2D => NULL()
+          END IF
        ENDDO
     ENDIF
 
