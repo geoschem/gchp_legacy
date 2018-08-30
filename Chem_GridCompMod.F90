@@ -164,10 +164,7 @@ MODULE GEOSCHEMchem_GridCompMod
   ! The field names in the external file are expected to be 'SPC_<XXX>'. 
   ! This option can be used to initialize a simulation using a restart file
   ! from a 'GEOS-Chem classic' CTM simulation.
-  ! If InitOnlyMissing is enabled, only the species missing in the originally
-  ! read file will be initialized from the external file.
   LOGICAL                          :: InitFromFile
-  LOGICAL                          :: InitOnlyMissing
 !---
 
 ! GEOS-5 only (also in gigc_providerservices_mod but don't use that yet):
@@ -1582,6 +1579,7 @@ CONTAINS
     INTEGER                     :: IM          ! # of longitudes on this PET
     INTEGER                     :: JM          ! # of latitudes  on this PET
     INTEGER                     :: LM          ! # of levels     on this PET
+    INTEGER                     :: value_LLSTRAT ! # of strat. levels  
     INTEGER                     :: IM_WORLD    ! # of longitudes in global grid
     INTEGER                     :: JM_WORLD    ! # of latitudes  in global grid
     INTEGER                     :: LM_WORLD    ! # of levels     in global grid
@@ -1816,13 +1814,13 @@ CONTAINS
 
 ! GEOS-5 only:
     ! Top stratospheric level
-    CALL ESMF_ConfigGetAttribute( GeosCF, Input_Opt%LLSTRAT,        & 
+    CALL ESMF_ConfigGetAttribute( GeosCF, value_LLSTRAT,         & 
                                   Default = 59,                     &
                                   Label   = "LLSTRAT:",             &
                                   __RC__                           )
     IF ( am_I_Root ) THEN
        WRITE(*,*) 'GCC: top strat. level (LLSTRAT) is set to ',     &
-                  Input_Opt%LLSTRAT
+                  value_LLSTRAT
     ENDIF
 
 ! GEOS-5 only:
@@ -1846,6 +1844,16 @@ CONTAINS
        WRITE(*,*) 'Number of FAST-JX levels      : ',Input_Opt%LLFASTJX
        WRITE(*,*) 'Max. no. of EXTRAL iterations : ',Input_Opt%FJX_EXTRAL_ITERMAX
        WRITE(*,*) 'Show EXTRAL overflow error    : ',Input_Opt%FJX_EXTRAL_ERR
+    ENDIF
+
+    ! Stop KPP if integration fails twice
+    CALL ESMF_ConfigGetAttribute( GeosCF, DoIt,   & 
+                                  Default = 1,                       &
+                                  Label   = "KPP_STOP_IF_FAIL:",     &
+                                  __RC__                              )
+    Input_Opt%KppStop = ( DoIt == 1 )
+    IF ( am_I_Root ) THEN
+       WRITE(*,*) 'Stop KPP if integration fails: ',Input_Opt%KppStop
     ENDIF
 !---
 
@@ -1900,6 +1908,7 @@ CONTAINS
                           State_Chm = State_Chm,  & ! Chemistry State obj
                           State_Diag= State_Diag, & ! Diagnostics State obj
 ! GEOS-5 only:
+                          value_LLSTRAT = value_LLSTRAT,    & ! # strat. levels 
                           Diag_List = Diag_List,  & ! Diagnostics list 
                           HcoConfig = HcoConfig,  & ! HEMCO config obj 
 ! GCHP only (want to uncomment this):
@@ -2528,9 +2537,6 @@ CONTAINS
     CALL ESMF_ConfigGetAttribute( GeosCF, DoIt, Label = "INIT_SPC_FROM_FILE:", &
                                   Default = 0, __RC__ ) 
     InitFromFile = ( DoIt == 1 )
-    CALL ESMF_ConfigGetAttribute( GeosCF, DoIt, Label = "INIT_ONLY_MISSING:", &
-                                  Default = 0, __RC__ ) 
-    InitOnlyMissing = ( DoIt == 1 )
 
     ! Always set stratospheric H2O 
     CALL ESMF_ConfigGetAttribute( GeosCF, DoIt, & 
@@ -3514,8 +3520,7 @@ CONTAINS
        ! Eventually initialize species concentrations from external field. 
        IF ( InitFromFile .AND. ( FIRST .OR. FIRSTREWIND ) ) THEN 
           CALL InitFromFile_( GC, Import, INTSTATE, Export, Clock, &
-                              Input_Opt,  State_Met, State_Chm, Q, &
-                              InitOnlyMissing, __RC__ )
+                              Input_Opt,  State_Met, State_Chm, Q, __RC__ ) 
        ENDIF
 !---
 
@@ -6396,16 +6401,15 @@ CONTAINS
 !\\
 ! !INTERFACE:
 !
-  SUBROUTINE InitFromFile_( GC,    Import,    Internal,  Export,    &
-                            Clock, Input_Opt, State_Met, State_Chm, &
-                            Q,     OnlyMiss,  RC )
+  SUBROUTINE InitFromFile_( GC, Import, Internal, Export, Clock, &
+                            Input_Opt,  State_Met, State_Chm, Q, RC )
 !
 ! !USES:
 !
 !
 ! !INPUT/OUTPUT PARAMETERS:
 !
-    TYPE(ESMF_GridComp), INTENT(INOUT)         :: GC       ! Ref to GridComp
+    TYPE(ESMF_GridComp), INTENT(INOUT)         :: GC       ! Ref. to this GridComp
     TYPE(ESMF_State),    INTENT(INOUT)         :: Import   ! Import State
     TYPE(ESMF_STATE),    INTENT(INOUT)         :: Internal ! Internal state
     TYPE(ESMF_State),    INTENT(INOUT)         :: Export   ! Export State
@@ -6415,7 +6419,6 @@ CONTAINS
     TYPE(ChmState)                             :: State_Chm 
     TYPE(ESMF_Time)                            :: currTime
     REAL,                INTENT(IN)            :: Q(:,:,:)
-    LOGICAL,             INTENT(IN)            :: OnlyMiss
 !
 ! !OUTPUT PARAMETERS:
 !
@@ -6438,19 +6441,29 @@ CONTAINS
     TYPE(ESMF_Config)          :: GeosCF      ! ESMF Config obj (GEOSCHEM*.rc) 
     CHARACTER(LEN=ESMF_MAXSTR) :: Iam, compName ! Gridded component name
     CHARACTER(LEN=ESMF_MAXSTR) :: FldName
+    CHARACTER(LEN=ESMF_MAXSTR) :: SpcName
     CHARACTER(LEN=ESMF_MAXSTR) :: ifile
     TYPE(MAPL_SimpleBundle)    :: VarBundle
     TYPE(ESMF_Grid)            :: grid
     TYPE(ESMF_TIME)            :: time
     TYPE(ESMF_Field)           :: iFld 
     REAL, POINTER              :: Ptr3D(:,:,:) => NULL()
-    INTEGER                    :: varID, fid, N, LM1, LM2
+    INTEGER                    :: varID, fid, N, L, LM1, LM2
     INTEGER                    :: STATUS
     INTEGER                    :: nymd, nhms, yy, mm, dd, h, m, s, incSecs
     REAL                       :: MW
     LOGICAL                    :: FileExists
-    LOGICAL                    :: FieldExists
+    INTEGER                    :: DoIt, idx, x1, x2
+    LOGICAL                    :: ReadGMI 
+    CHARACTER(LEN=ESMF_MAXSTR) :: GmiTmpl 
 
+    ! Read GMI file
+    CHARACTER(LEN=ESMF_MAXSTR) :: GmiFldName
+    CHARACTER(LEN=ESMF_MAXSTR) :: Gmiifile
+    TYPE(MAPL_SimpleBundle)    :: GmiVarBundle
+    TYPE(ESMF_TIME)            :: Gmitime
+    LOGICAL                    :: GmiFileExists
+ 
     !=======================================================================
     ! Initialization
     !=======================================================================
@@ -6476,14 +6489,24 @@ CONTAINS
                                   __RC__                            )
 
     ! Verbose
-    IF ( am_I_Root ) WRITE(*,*) TRIM(Iam)//': reading species from ' &
-                                //TRIM(ifile)
+    IF ( am_I_Root ) WRITE(*,*) TRIM(Iam)//': reading species from '//TRIM(ifile)
 
     ! Check if file exists
     INQUIRE( FILE=TRIM(ifile), EXIST=FileExists )
     IF ( .NOT. FileExists ) THEN
        IF ( am_I_Root ) WRITE(*,*) 'File does not exist: ',TRIM(ifile)
        ASSERT_(.FALSE.)
+    ENDIF
+
+    ! Check for GMI flags
+    CALL ESMF_ConfigGetAttribute( GeosCF, DoIt,               &
+                                  Label   = "USE_GMI_MESO:",  &
+                                  Default = 0, __RC__ )
+    ReadGMI = ( DoIt == 1 )
+    IF ( ReadGMI ) THEN
+       CALL ESMF_ConfigGetAttribute( GeosCF, GmiTmpl,            &
+                                     Label   = "GMI_TEMPLATE:",  &
+                                     __RC__                       )
     ENDIF
 
     ! # of vertical levels of Q
@@ -6510,40 +6533,16 @@ CONTAINS
     ! Loop over all species
     DO N = 1, State_Chm%nSpecies
 
-       ! If only missing fields shall be read from file: check if this 
-       ! species is included in the internal restart file. If not add it
-       ! to it.
-       FieldExists = .FALSE.
-       IF ( OnlyMiss ) THEN
-          FldName = TRIM(SPFX)//TRIM(State_Chm%SpcData(N)%Info%Name)
-          CALL ESMF_StateGet( Internal, TRIM(FldName), iFld, RC=STATUS )
-          IF ( STATUS == ESMF_SUCCESS ) FieldExists = .TRUE.
-          IF ( .NOT. FieldExists ) THEN 
-             FldName = 'TRC_'//TRIM(State_Chm%SpcData(N)%Info%Name)
-             CALL ESMF_StateGet( Internal, TRIM(FldName), iFld, RC=STATUS )
-             IF ( STATUS == ESMF_SUCCESS ) FieldExists = .TRUE.
-          ENDIF 
-       ENDIF
-       IF ( FieldExists ) THEN
-          CALL ESMF_FieldGet( iFld, farrayPtr=Ptr3D, __RC__ )
-          IF ( SUM(Ptr3D)==0.0 ) FieldExists = .FALSE.
-       ENDIF
-       IF ( FieldExists ) THEN
-          IF ( am_I_Root ) WRITE(*,*)   &
-               'Field found in restart file - left unchanged: ',TRIM(FldName)
-          CYCLE
-       ENDIF
-
        ! Molecular weight. Note: -1.0 for non-advected species
        MW = State_Chm%SpcData(N)%Info%emMW_g
        IF ( MW < 0.0 ) MW = 1.0
 
        ! Construct field name
-       FldName = 'SPC_'//TRIM(State_Chm%SpcData(N)%Info%Name)
+       SpcName = TRIM(State_Chm%SpcData(N)%Info%Name)
+       FldName = 'SPC_'//TRIM(SpcName)
  
        ! Check if variable is in file
-       VarID = MAPL_SimpleBundleGetIndex ( VarBundle, trim(FldName), 3, &
-                                           RC=STATUS, QUIET=.TRUE. )
+       VarID = MAPL_SimpleBundleGetIndex ( VarBundle, trim(FldName), 3, RC=STATUS, QUIET=.TRUE. )
        IF ( VarID > 0 ) THEN
 
           ! Make sure vertical dimensions match
@@ -6552,25 +6551,79 @@ CONTAINS
           ! Error if vertical dimensions do not agree
           IF ( LM1 /= LM2 ) THEN
              IF ( am_I_Root ) THEN
-                WRITE(*,*) 'Wrong # of vert. levels for variable ', &
-                           TRIM(FldName), ' ',LM2,' vs. ',LM1
+                WRITE(*,*) 'Wrong # of vert. levels for variable ',TRIM(FldName), ' ',LM2,' vs. ',LM1
              ENDIF
              ASSERT_( LM1==LM2 )
           ENDIF
 
-          ! Pass to State_Chm, convert v/v to kg/kg. Assume that pointer 
-          ! data is already on GEOS-Chem vertical coordinates (1=surface level).
-          State_Chm%Species(:,:,:,N) = VarBundle%r3(VarID)%q(:,:,:) * MW &
-                                       / MAPL_AIRMW * ( 1 - Q(:,:,LM1:1:-1) )
+          ! Pass to State_Chm, convert v/v to kg/kg. Assume that pointer data is
+          ! already on GEOS-Chem vertical coordinates (1=surface level).
+          State_Chm%Species(:,:,:,N) = VarBundle%r3(VarID)%q(:,:,:) * MW / MAPL_AIRMW * ( 1 - Q(:,:,LM1:1:-1) )
+
+          ! Data above L59 is zero. Use L59 values for mesosphere (ckeller, 7/11/18)
+          IF ( LM1 == 72 ) THEN
+             DO L=60,72
+                State_Chm%Species(:,:,L,N) = State_Chm%Species(:,:,59,N)
+             ENDDO
+             IF ( am_I_Root ) WRITE(*,*) 'Fill mesosphere with L59 value: ',TRIM(FldName)
+          ELSE
+             IF ( am_I_Root ) WRITE(*,*) 'WARNING: your mesosphere values may be zero!!!'
+          ENDIF
 
           ! Verbose
-          IF ( am_I_Root ) WRITE(*,*)   &
-                 'Species initialized from external field: ',TRIM(FldName)
+          IF ( am_I_Root ) WRITE(*,*) 'Species initialized from external field: ',TRIM(FldName)
 
        ELSE
-          IF ( am_I_Root ) WRITE(*,*)   &
-                 'Species unchanged, field not found: ',TRIM(FldName)
+          IF ( am_I_Root ) WRITE(*,*) 'Species unchanged, field not found: ',TRIM(FldName)
        ENDIF
+
+       ! ---------------------------
+       ! Try to read GMI data
+       ! ---------------------------
+       IF ( ReadGMI ) THEN
+          ! Get file name
+          Gmiifile = GmiTmpl
+          idx = INDEX(Gmiifile,'%spc')
+          IF ( idx > 0 ) THEN
+             x1 = idx + 4
+             x2 = LEN(TRIM(Gmiifile))
+             Gmiifile = TRIM(Gmiifile(1:idx-1))//TRIM(SpcName)//TRIM(Gmiifile(x1:x2))
+          ENDIF
+          INQUIRE( FILE=TRIM(Gmiifile), EXIST=GmiFileExists )
+   
+          IF ( GmiFileExists ) THEN 
+   
+             ! Get time stamp on file
+             call GFIO_Open( Gmiifile, 1, fid, STATUS )
+             ASSERT_(STATUS==0)
+             call GetBegDateTime ( fid, nymd, nhms, incSecs, STATUS )
+             ASSERT_(STATUS==0)
+             caLL GFIO_Close( fid, STATUS )
+             ASSERT_(STATUS==0)
+             yy = nymd/10000
+             mm = (nymd-yy*10000) / 100
+             dd = nymd - (10000*yy + mm*100)
+             h  = nhms/10000
+             m  = (nhms- h*10000) / 100
+             s  = nhms - (10000*h  +  m*100)
+             call ESMF_TimeSet(Gmitime, yy=yy, mm=7, dd=6, h=h, m=m, s=s)
+  
+             ! Read data 
+             GmiVarBundle = MAPL_SimpleBundleRead ( TRIM(GmiiFile), grid, Gmitime, __RC__ )
+      
+             ! Check if variable is in file
+             VarID = MAPL_SimpleBundleGetIndex ( GmiVarBundle, 'species', 3, RC=STATUS, QUIET=.TRUE. )
+             IF ( VarID > 0 ) THEN
+                ! Pass to State_Chm, convert v/v to kg/kg.
+                State_Chm%Species(:,:,60:72,N) = VarBundle%r3(VarID)%q(:,:,13:1:-1) * MW / MAPL_AIRMW * ( 1 - Q(:,:,13:1:-1) )
+                IF ( am_I_Root ) WRITE(*,*) 'Use GMI concentrations in mesosphere: ',TRIM(SpcName)
+             ENDIF
+   
+          ELSE 
+             IF ( am_I_Root ) WRITE(*,*) 'No GMI file found: ',TRIM(Gmiifile)
+          ENDIF
+       ENDIF
+
     ENDDO
 
     ! All done
