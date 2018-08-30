@@ -262,7 +262,6 @@ Turn on Chemistry?      : T
 Use linear. strat. chem?: T
  => Use Linoz for O3?   : T
 Use UCX strat. chem?    : T
-Online CH4 chemistry?   : T
 Active strat. H2O?      : T
 Overhead O3 for FAST-JX :---
  => Online O3 from model: T
@@ -434,6 +433,7 @@ JMIN, JMAX of region    :  23  46
 Turn on P/L (ND65) diag?: F
 # of levels for ND65    : 72
 Save O3 P/L (ND20)?     : F
+Save CO Production?     : F
 ------------------------+------------------------------------------------------
 %%% BENCHMARK MENU %%%  :
 Save benchmark output?  : T

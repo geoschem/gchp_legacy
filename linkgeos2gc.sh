@@ -362,7 +362,7 @@ fi
 # arg2 = pointer
 #---------------------------------------
 makelink () {
-  if [[ -f $1 ]]; then
+  if [ -f $1 ] || [ -L $1 ]; then
     ln -sf $1 $2
   else
     printf "Warning: ${1##*/} not in target repo\n"
@@ -397,7 +397,7 @@ makelinks () {
       makelinks ${item} ${commonpath}
 
     # If file
-    elif [[ -f ${item} ]]; then
+    elif [ -f ${item} ] || [ -L ${item} ]; then
 
       # Always skip files not in the GEOS-Chem repo; otherwise make a link
       if [[ ! -f ${gcdir}/$2/${itemname} ]]; then
@@ -467,7 +467,8 @@ if [[ ${reply} =~ ^[Yy]$ ]]; then
     makelink ${gchp}/RC/ssa.dat.rc               ${geoschemchem_gridcomp}
     makelink ${gchp}/RC/ssc.dat.rc               ${geoschemchem_gridcomp}
     makelink ${gchp}/RC/tracerinfo.dat.rc        ${geoschemchem_gridcomp}
-    
+
+    printf "Target not found warnings indicate files not tracked in git. Consider adding files to the git repo.\n"    
     printf "Creating symlinks complete.\n"
 
   elif [[ ${reply} =~ ^[Qq]$ ]]; then
