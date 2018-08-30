@@ -92,10 +92,11 @@ BEGIN SECTION EXTENSION SWITCHES
     --> Isoprene to SOAP  :       0.015
     --> Isoprene to SOAS  :       0.015
     --> Normalize LAI     :       true
-109     MEGAN_Mono        : on    CO/MONX/SOAP/SOAS
+#3% mass yield from isoprene to SOA
+109     MEGAN_Mono        : on    CO/MTPA/MTPO/LIMO/SESQ
     --> Monoterp to SOAP  :       0.050
     --> Monoterp to SOAS  :       0.050
-110     MEGAN_SOA         : on    MTPA/MTPO/LIMO/SESQ/SOAP/SOAS
+#10% mass yield from monoterpenes to SOA
     --> Othrterp to SOAP  :       0.050
     --> Othrterp to SOAS  :       0.050
 111     GFED              : off   NO/CO/ALK4/ACET/MEK/ALD2/PRPE/C3H8/CH2O/C2H6/SO2/NH3/BCPO/BCPI/OCPO/OCPI/POG1/POG2/NAP
