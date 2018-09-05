@@ -292,6 +292,7 @@ CONTAINS
     ! CONVECTION MENU fields
     !----------------------------------------
     CALL MPI_Bcast( INPUT_OPT%LCONV,   1, mpi_logical, 0, mpiComm, RC )
+    CALL MPI_Bcast( INPUT_OPT%LRAS,    1, mpi_logical, 0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%LTURB,   1, mpi_logical, 0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%LNLPBL,  1, mpi_logical, 0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%TS_CONV, 1, mpi_integer, 0, mpiComm, RC )
