@@ -1211,6 +1211,7 @@ CONTAINS
        ! Do chemistry
        CALL Do_Chemistry( am_I_Root, Input_Opt, State_Met, &
                           State_Chm, State_Diag, RC ) 
+
 ! GCHP passes assignments:
 !       CALL Do_Chemistry( am_I_Root  = am_I_Root,            & ! Root CPU?
 !                          Input_Opt  = Input_Opt,            & ! Input Options
@@ -1642,7 +1643,7 @@ CONTAINS
 !
 ! !LOCAL VARIABLES:
 !
-    INTEGER                    :: I, N
+    INTEGER                    :: I, L, N
     CHARACTER(LEN=  3)         :: III
     CHARACTER(LEN=255)         :: DiagName
     REAL, POINTER              :: Ptr2D(:,:)  
@@ -1729,6 +1730,14 @@ CONTAINS
                 Ptr2D(:,:) = Ptr2D(:,:) / State_Met%AREA_M2(:,:,1)
                 Ptr2D => NULL()
              END IF
+             DiagName = 'WetLossConv3D_'//TRIM(State_Chm%SpcData(N)%Info%Name)
+             CALL MAPL_GetPointer( Export, Ptr3D, TRIM(DiagName), NotFoundOk=.TRUE., __RC__ )
+             IF ( ASSOCIATED(Ptr3D) ) THEN
+                DO L = 1,LM
+                   Ptr3D(:,:,LM-L+1) = State_Diag%WetLossConv(:,:,L,I) / State_Met%AREA_M2(:,:,1)
+                ENDDO
+                Ptr3D => NULL()
+             END IF
           ENDDO
        ENDIF
        ! Reset diagnostics
@@ -1746,6 +1755,14 @@ CONTAINS
                 Ptr2D(:,:) = SUM(State_Diag%WetLossLS(:,:,:,I),DIM=3)
                 Ptr2D(:,:) = Ptr2D(:,:) / State_Met%AREA_M2(:,:,1)
                 Ptr2D => NULL()
+             END IF
+             DiagName = 'WetLossLS3D_'//TRIM(State_Chm%SpcData(N)%Info%Name)
+             CALL MAPL_GetPointer( Export, Ptr3D, TRIM(DiagName), NotFoundOk=.TRUE., __RC__ )
+             IF ( ASSOCIATED(Ptr3D) ) THEN
+                DO L = 1,LM
+                   Ptr3D(:,:,LM-L+1) = State_Diag%WetLossLS(:,:,L,I) / State_Met%AREA_M2(:,:,1)
+                ENDDO
+                Ptr3D => NULL()
              END IF
           ENDDO
        ENDIF
