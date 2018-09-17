@@ -406,11 +406,12 @@ CONTAINS
 !
 ! !USES:
 !
-    USE HCOI_ESMF_MOD,   ONLY : HCO_SetServices
+    USE HCOI_ESMF_MOD,        ONLY : HCO_SetServices
     USE GCKPP_Model
-    USE CHARPAK_MOD,     ONLY : STRSPLIT, CSTRIP
-    USE inquireMod,      ONLY : findFreeLUN
-    USE FILE_MOD,        ONLY : IOERROR
+    USE CHARPAK_MOD,          ONLY : STRSPLIT, CSTRIP
+    USE inquireMod,           ONLY : findFreeLUN
+    USE FILE_MOD,             ONLY : IOERROR
+    USE SPECIES_DATABASE_MOD, ONLY : Spc_Info
 
 ! GEOS-5 only:
     USE CMN_FJX_MOD
@@ -469,7 +470,7 @@ CONTAINS
     CHARACTER(LEN=255)            :: LINE, MSG, SUBSTRS(500)
     INTEGER                       :: N, I, J, IU_GEOS, IOS
     INTEGER                       :: Nadv, SimType, landTypeInt
-    LOGICAL                       :: FOUND = .false.
+    LOGICAL                       :: FOUND 
     LOGICAL                       :: EOF
     CHARACTER(LEN=60)             :: rstFile, landTypeStr, importName
     INTEGER                       :: restartAttr
@@ -494,6 +495,8 @@ CONTAINS
     REAL(fp)                      :: F_FJX
     INTEGER                       :: JJ, NUNIT
     CHARACTER(LEN=255)            :: MYFRIENDLIES
+    CHARACTER(LEN=31)             :: iName
+    CHARACTER(LEN=80)             :: FullName, Formula 
     LOGICAL                       :: FriendDyn, FriendTurb
 !---
 
@@ -669,10 +672,22 @@ CONTAINS
                                      MYFRIENDLIES = 'TURBULENCE'
           IF ( .NOT. FriendDyn .AND. .NOT. FriendTurb ) &
                                      MYFRIENDLIES = 'GEOSCHEMCHEM'
-          
+
+          ! Get long name
+          iName = TRIM(SUBSTRS(1))
+          CALL Spc_Info ( am_I_Root = MAPL_am_I_Root(), iName=iName, &
+                          KppSpcID=-1, oFullName = FullName, oFormula = Formula, &
+                          Found=Found, Underscores = .TRUE., RC = RC )
+          IF ( Found ) THEN
+             IF ( TRIM(Formula) /= '' ) FullName = TRIM(Fullname)//'_('//TRIM(Formula)//')'
+          ELSE
+             FullName = TRIM(SUBSTRS(1))
+          ENDIF          
+
           call MAPL_AddInternalSpec(GC, &
                SHORT_NAME         = 'TRC_'//TRIM(SUBSTRS(1)), &
-               LONG_NAME          = TRIM(SUBSTRS(1)),         &
+               !LONG_NAME          = TRIM(SUBSTRS(1)),         &
+               LONG_NAME          = TRIM(FullName),           &
                UNITS              = 'kg kg-1',                &
                DIMS               = MAPL_DimsHorzVert,        &
                VLOCATION          = MAPL_VLocationCenter,     &
@@ -739,9 +754,22 @@ CONTAINS
 ! GEOS-5 (with update to use internal state prefix in gigc_historyexports_mod):
           ! Add non-advected species to internal state 
           IF ( .NOT. Found ) THEN 
+
+             ! Get long name
+             iName = TRIM(SpcName)
+             CALL Spc_Info ( am_I_Root = MAPL_am_I_Root(), iName=iName, &
+                             KppSpcID=-1, oFullName = FullName, oFormula = Formula, &
+                             Found=Found, Underscores = .TRUE., RC = RC )
+             IF ( Found ) THEN
+                IF ( TRIM(Formula) /= '' ) FullName = TRIM(Fullname)//'_('//TRIM(Formula)//')'
+             ELSE
+                FullName = TRIM(SpcName)
+             ENDIF          
+
              CALL MAPL_AddInternalSpec(GC,                 &
                 SHORT_NAME         = TRIM(SPFX)//SpcName,      &
-                LONG_NAME          = SpcName,              &
+                !LONG_NAME          = SpcName,              &
+                LONG_NAME          = TRIM(FullName),       &
                 UNITS              = 'kg kg-1',            &
 !!!             PRECISION          = ESMF_KIND_R8,          &
                 DIMS               = MAPL_DimsHorzVert,    &
@@ -814,6 +842,15 @@ CONTAINS
           DIMS               = MAPL_DimsHorzOnly,                             &
           VLOCATION          = MAPL_VLocationNone,                            &
                                                                      __RC__ )
+       ! 3D
+       CALL MAPL_AddExportSpec(GC,                                            &
+          SHORT_NAME         = 'WetLossConv3D_'//TRIM(AdvSpc(I)),        & 
+          LONG_NAME          = 'Vertical_integrated_loss_of_'//               &
+                               TRIM(AdvSpc(I))//'_in_convective_updrafts',    &
+          UNITS              = 'kg m-2 s-1',                                  &
+          DIMS               = MAPL_DimsHorzVert,                             &
+          VLOCATION          = MAPL_VLocationCenter,                          &
+                                                                     __RC__ )
        ! Large scale wet deposition flux
        CALL MAPL_AddExportSpec(GC,                                            &
           SHORT_NAME         = 'WetLossLS_'//TRIM(AdvSpc(I)),                 & 
@@ -822,6 +859,14 @@ CONTAINS
           UNITS              = 'kg m-2 s-1',                                  &
           DIMS               = MAPL_DimsHorzOnly,                             &
           VLOCATION          = MAPL_VLocationNone,                            &
+                                                                     __RC__ )
+       CALL MAPL_AddExportSpec(GC,                                            &
+          SHORT_NAME         = 'WetLossLS3D_'//TRIM(AdvSpc(I)),          & 
+          LONG_NAME          = 'Vertical_integrated_loss_of_'//TRIM(AdvSpc(I))&
+                               //'_in_large_scale_precipitation',             &
+          UNITS              = 'kg m-2 s-1',                                  &
+          DIMS               = MAPL_DimsHorzVert,                             &
+          VLOCATION          = MAPL_VLocationCenter,                          &
                                                                      __RC__ )
        ! Dry deposition flux
        CALL MAPL_AddExportSpec(GC,                                            &
@@ -841,9 +886,21 @@ CONTAINS
                                                                      __RC__ )
 
        ! Also create export field in v/v dry air
+
+       ! Get long name
+       iName = TRIM(AdvSpc(I))
+       CALL Spc_Info ( am_I_Root = MAPL_am_I_Root(), iName=iName, &
+                       KppSpcID=-1, oFullName = FullName, oFormula = Formula, &
+                       Found = Found, Underscores = .TRUE., RC = RC )
+       IF ( Found ) THEN
+          IF ( TRIM(Formula) /= '' ) FullName = TRIM(Fullname)//'_('//TRIM(Formula)//')'
+       ELSE
+          FullName = TRIM(AdvSpc(I))
+       ENDIF
+
        CALL MAPL_AddExportSpec(GC,                                            &
           SHORT_NAME         = TRIM(AdvSpc(I))//'dry',                        & 
-          LONG_NAME          = TRIM(AdvSpc(I))//                              &
+          LONG_NAME          = TRIM(FullName)//                               &
                                '_volume_mixing_ratio_dry_air',                &
           UNITS              = 'mol mol-1',                                   &
           DIMS               = MAPL_DimsHorzVert,                             &
@@ -851,7 +908,7 @@ CONTAINS
                                                                      __RC__ )
        CALL MAPL_AddExportSpec(GC,                                            &
           SHORT_NAME         = TRIM(AdvSpc(I))//'vv_2m',                      & 
-          LONG_NAME          = TRIM(AdvSpc(I))//                              &
+          LONG_NAME          = TRIM(FullName)//                               &
                                '_volume_mixing_ratio_dry_air_at_2m',          &
           UNITS              = 'mol mol-1',                                   &
           DIMS               = MAPL_DimsHorzOnly,                             &
@@ -859,7 +916,7 @@ CONTAINS
                                                                      __RC__ )
        CALL MAPL_AddExportSpec(GC,                                            &
           SHORT_NAME         = TRIM(AdvSpc(I))//'vv_10m',                     & 
-          LONG_NAME          = TRIM(AdvSpc(I))//                              &
+          LONG_NAME          = TRIM(FullName)//                               &
                                '_volume_mixing_ratio_dry_air_at_10m',         &
           UNITS              = 'mol mol-1',                                   &
           DIMS               = MAPL_DimsHorzOnly,                             &
@@ -870,16 +927,23 @@ CONTAINS
     ! Add exports for tropospheric and total column densities
     DO I=1,SIZE(COLLIST,1)
        SpcName = COLLIST(I)
+       iName = TRIM(SpcName)
+       CALL Spc_Info ( am_I_Root = MAPL_am_I_Root(), iName=iName, &
+                       KppSpcID=-1, oFullName = FullName, oFormula = Formula, &
+                       Found = Found, Underscores = .TRUE., RC = RC )
+       IF ( .NOT. Found ) THEN
+          FullName = TRIM(SpcName)
+       ENDIF          
        CALL MAPL_AddExportSpec(GC,                                            &
           SHORT_NAME         = 'TOTCOL_'//TRIM(SpcName),                      & 
-          LONG_NAME          = TRIM(SpcName)//'_total_column_density',        &
+          LONG_NAME          = TRIM(FullName)//'_total_column_density',        &
           UNITS              = '1.0e15 molec cm-2',                           &
           DIMS               = MAPL_DimsHorzOnly,                             &
           VLOCATION          = MAPL_VLocationNone,                            &
                                                                      __RC__ )
        CALL MAPL_AddExportSpec(GC,                                            &
           SHORT_NAME         = 'TROPCOL_'//TRIM(SpcName),                     & 
-          LONG_NAME          = TRIM(SpcName)//'_tropospheric_column_density', &
+          LONG_NAME          = TRIM(FullName)//'_tropospheric_column_density', &
           UNITS              = '1.0e15 molec cm-2',                           &
           DIMS               = MAPL_DimsHorzOnly,                             &
           VLOCATION          = MAPL_VLocationNone,                            &
@@ -3991,7 +4055,7 @@ CONTAINS
           CLOSE ( UNIT=logLun )
        ENDIF
 !---
-       
+ 
     ENDIF RunningGEOSChem
 
     !=======================================================================
