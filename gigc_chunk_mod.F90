@@ -403,6 +403,7 @@ CONTAINS
     USE State_Met_Mod,      ONLY : MetState
 
     ! GEOS-Chem components
+    USE Aerosol_Mod,        ONLY : Set_AerMass_Diagnostic
     USE Chemistry_Mod,      ONLY : Do_Chemistry, Recompute_OD
     USE Convection_Mod,     ONLY : Do_Convection
     USE DryDep_Mod,         ONLY : Do_DryDep
@@ -732,8 +733,8 @@ CONTAINS
     ! EMISSIONS phase 1. Should be called every time to make sure that the
     ! HEMCO clock and the HEMCO data list are up to date.
     !=======================================================================
-    CALL EMISSIONS_RUN( am_I_Root, Input_Opt, State_Met, &
-                        State_Chm, DoEmis,    1, RC       )
+    CALL EMISSIONS_RUN( am_I_Root, Input_Opt,  State_Met,         &
+                        State_Chm, State_Diag, DoEmis, 1, RC       )
 
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 !!!                                PHASE 1                                 !!!
@@ -792,8 +793,8 @@ CONTAINS
        CALL MAPL_TimerOn( STATE, 'GC_EMIS' )
 
        ! Do emissions
-       CALL EMISSIONS_RUN ( am_I_Root, Input_Opt, State_Met, State_Chm, &
-                            DoEmis, Phase, RC )
+       CALL EMISSIONS_RUN ( am_I_Root,  Input_Opt, State_Met, State_Chm, &
+                            State_Diag, DoEmis, Phase, RC )
        ASSERT_(RC==GC_SUCCESS)
 
        CALL MAPL_TimerOff( STATE, 'GC_EMIS' )
@@ -922,12 +923,20 @@ CONTAINS
                           State_Chm, State_Diag, RC         )
        ASSERT_(RC==GC_SUCCESS)
     ENDIF
+
     ! Set certain diagnostics dependent on state at end of step. This
     ! includes species concentration and dry deposition flux.
     CALL Set_Diagnostics_EndofTimestep( am_I_Root,  Input_Opt, &
                                         State_Met,  State_Chm, &
                                         State_Diag, RC )
     ASSERT_(RC==GC_SUCCESS)
+
+    ! Archive aerosol mass and PM2.5 diagnostics
+    IF ( State_Diag%Archive_AerMass ) THEN
+       CALL Set_AerMass_Diagnostic( am_I_Root, Input_Opt,  State_Met, &
+                                    State_Chm, State_Diag, RC         )
+       ASSERT_(RC==GC_SUCCESS)
+    ENDIF
 
     !=======================================================================
     ! Clean up
