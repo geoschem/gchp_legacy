@@ -2521,15 +2521,12 @@ CONTAINS
     ! convective?
     CALL ESMF_ConfigGetAttribute( GeosCF, Input_Opt%WETD_CONV_SCAL,          &
                                   Label   = "Convective_precip_correction:", &
-                                  Default = -999.0d0,                        &
+                                  Default = 1.0d0,                           &
                                   __RC__                                      )
+    IF ( Input_Opt%WETD_CONV_SCAL < 0d0 ) Input_Opt%WETD_CONV_SCAL = 1.0d0
+    Input_Opt%WETD_CONV_SCAL = MAX(MIN(1.0d0,Input_Opt%WETD_CONV_SCAL),0.0d0)
     IF ( am_I_Root ) THEN
-       IF ( Input_Opt%WETD_CONV_SCAL >= 0.0d0 ) THEN
-          Input_Opt%WETD_CONV_SCAL = MIN(1.0d0, Input_Opt%WETD_CONV_SCAL)
-          WRITE(*,*) '- Convective large-scale precip correction: ', Input_Opt%WETD_CONV_SCAL
-       ELSE
-          WRITE(*,*) '- Apply no convective large-scale precip correction'
-       ENDIF
+       WRITE(*,*) '- Convective precip correction (0=no washout, 1=no correction): ', Input_Opt%WETD_CONV_SCAL
     ENDIF
 
     ! Use GMI O3 P/L 
