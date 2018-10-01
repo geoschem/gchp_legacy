@@ -229,7 +229,7 @@ module MAPL_HorzTransformMod
 
 ! Static list of previously created transforms
 
-  integer, parameter :: MAX_AvailableTransforms=20
+  integer, parameter :: MAX_AvailableTransforms=30
   type (MAPL_HorzTransform) :: AvailableTransforms(MAX_AvailableTransforms)
 
 contains
