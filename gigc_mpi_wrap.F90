@@ -139,8 +139,6 @@ CONTAINS
     CALL MPI_Bcast( INPUT_OPT%DATA_DIR,        len(INPUT_OPT%DATA_DIR),        mpi_character, 0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%CHEM_INPUTS_DIR, len(INPUT_OPT%CHEM_INPUTS_DIR), mpi_character, 0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%RES_DIR,         len(INPUT_OPT%RES_DIR),         mpi_character, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%GEOS_FP_DIR,     len(INPUT_OPT%GEOS_FP_DIR),     mpi_character, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%MERRA2_DIR,      len(INPUT_OPT%MERRA2_DIR),      mpi_character, 0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%HcoConfigFile,   len(INPUT_OPT%HcoConfigFile),   mpi_character, 0, mpiComm, RC )
 
     !----------------------------------------
