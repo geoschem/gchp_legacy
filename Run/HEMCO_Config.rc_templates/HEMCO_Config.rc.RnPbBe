@@ -1,0 +1,227 @@
+#------------------------------------------------------------------------------
+#                  Harvard-NASA Emissions Component (HEMCO)                   !
+#------------------------------------------------------------------------------
+#BOP
+#
+# !MODULE: HEMCO_Config.rc
+#
+# !DESCRIPTION: Contains configuration information for HEMCO. Define the
+#  emissions inventories and corresponding file paths here. Entire 
+#  configuration files can be inserted into this configuration file with
+#  an '>>>include' statement, e.g. '>>>include HEMCO\_Config\_test.rc' 
+#  The settings of include-files will be ignored.
+#\\
+#\\
+# !REMARKS:
+#  Customized for the Rn-Pb-Be simulation. 
+#
+#  The following tokens will be replaced:
+#  (1) ROOT    : Filepath to HEMCO root directory
+#  (2) CFDIR   : Filepath to directory of this configuration file. 
+#  (3) MET     : Met field type (from G-C compilation command)
+#  (4) GRID    : Horizontal grid type (from G-C compilation command)
+#  (5) SIM     : Simulation type (from G-C compilation command)
+#  (6) NEST    : Nested-grid type (CH, EU, NA, SE)
+#  (7) LEVRED  : String w/ the # of levels in the reduced GEOS-Chem grid
+#                as used in some filenames (e.g. "23L", "30L", "47L")
+#  (8) LEVFULL : String w/ the # of levels in the full GEOS-Chem grid
+#                as used in some filenames (e.g. "55L", "72L")
+# 
+# !REVISION HISTORY: 
+#  Navigate to your unit tester directory and type 'gitk' at the prompt
+#  to browse the revision history.
+#EOP
+#------------------------------------------------------------------------------
+#BOC
+###############################################################################
+### BEGIN SECTION SETTINGS
+###############################################################################
+
+ROOT:                        HEMCO_Config.rc_paths_not_used_in_GCHP
+METDIR:                      not_used_in_GCHP
+Logfile:                     HEMCO.log
+DiagnFile:                   HEMCO_Diagn.rc
+DiagnPrefix:                 HEMCO_diagnostics
+DiagnFreq:                   End
+Wildcard:                    *
+Separator:                   /
+Unit tolerance:              1
+Negative values:             0
+Only unitless scale factors: false
+Verbose:                     0
+Warnings:                    1
+
+### END SECTION SETTINGS ### 
+
+###############################################################################
+### BEGIN SECTION EXTENSION SWITCHES
+###############################################################################
+###
+### This section lists all emission extensions available to HEMCO and whether 
+### they shall be used or not. Extension 'base' must have extension number 
+### zero, all other extension numbers can be freely chosen. Data fields in 
+### section 'base emissions' will only be read if the corresponding extension 
+### (identified by ExtNr) is enabled. Similarly, fields grouped into data 
+### collections ('(((CollectionName', ')))CollectionName') are only considered
+### if the corresponding data collection is enabled in this section. Data
+### listed within a disabled extension are always ignored, even if they are
+### grouped in an enabled collection (e.g. GFED-4 data will never be considered
+### if the GFED extension is disabled, even if the GFED4 option is set to true).
+###
+### It is possible to define collections that are only evaluated if a
+### collection name is *not* enabled. This is achieved by leading the
+### collection name with '.not.', e.g. '(((.not.FINN_daily' ...
+### '))).not.FINN_daily' for FINN monthly data (only used if daily data is
+### not being used). 
+###
+### The ExtNr provided in this section must match with the ExtNr assigned to
+### the data listed in the base emissions sections. Otherwise, the listed files
+### won't be read!
+###############################################################################
+# ExtNr ExtName           on/off  Species
+0       Base              : on    *
+#------------------------------------------------------------------------------
+1001    GC_Rn-Pb-Be       : on    Rn/Be7
+
+### END SECTION EXTENSION SWITCHES ###
+
+###############################################################################
+### BEGIN SECTION BASE EMISSIONS 
+###############################################################################
+
+# ExtNr	Name sourceFile	sourceVar sourceTime C/R/E SrcDim SrcUnit Species ScalIDs Cat Hier
+
+###############################################################################
+### EXTENSION DATA (subsection of BASE EMISSIONS SECTION)
+###
+### These fields are needed by the extensions listed above. The assigned ExtNr 
+### must match the ExtNr entry in section 'Extension switches'. These fields 
+### are only read if the extension is enabled.  The fields are imported by the
+### extensions by field name.  The name given here must match the name used 
+### in the extension's source code. 
+###############################################################################
+
+###############################################################################
+### NON-EMISSIONS DATA (subsection of BASE EMISSIONS SECTION)
+###
+### Non-emissions data. The following fields are read through HEMCO but do 
+### not contain emissions data. The extension number is set to wildcard 
+### character denoting that these fields will not be considered for emission 
+### calculation. A given entry is only read if the assigned species name is 
+### an HEMCO species.
+###############################################################################
+
+#==============================================================================
+# --- Meteorology fields for FlexGrid ---
+#==============================================================================
+
+# --- CN fields ---
+* FRLAKE    see_ExtData.rc_for_path     FRLAKE   */1/1/0               C xy  1  * -  1 1
+* FRLAND    see_ExtData.rc_for_path     FRLAND   */1/1/0               C xy  1  * -  1 1
+* FRLANDIC  see_ExtData.rc_for_path     FRLANDIC */1/1/0               C xy  1  * -  1 1
+* FROCEAN   see_ExtData.rc_for_path     FROCEAN  */1/1/0               C xy  1  * -  1 1
+* PHIS      see_ExtData.rc_for_path     PHIS     */1/1/0               C xy  1  * -  1 1
+
+# --- A1 fields ---
+* ALBEDO    see_ExtData.rc_for_path     ALBEDO   1980-2018/1-12/1-31/* C xy  1  * -  1 1
+* CLDTOT    see_ExtData.rc_for_path     CLDTOT   1980-2018/1-12/1-31/* C xy  1  * -  1 1
+* EFLUX     see_ExtData.rc_for_path     EFLUX    1980-2018/1-12/1-31/* C xy  1  * -  1 1
+* EVAP      see_ExtData.rc_for_path     EVAP     1980-2018/1-12/1-31/* C xy  1  * -  1 1
+* FRSEAICE  see_ExtData.rc_for_path     FRSEAICE 1980-2018/1-12/1-31/* C xy  1  * -  1 1
+* FRSNO     see_ExtData.rc_for_path     FRSNO    1980-2018/1-12/1-31/* C xy  1  * -  1 1
+* GRN       see_ExtData.rc_for_path     GRN      1980-2018/1-12/1-31/* C xy  1  * -  1 1
+* GWETROOT  see_ExtData.rc_for_path     GWETROOT 1980-2018/1-12/1-31/* C xy  1  * -  1 1
+* GWETTOP   see_ExtData.rc_for_path     GWETTOP  1980-2018/1-12/1-31/* C xy  1  * -  1 1
+* HFLUX     see_ExtData.rc_for_path     HFLUX    1980-2018/1-12/1-31/* C xy  1  * -  1 1
+* LAI       see_ExtData.rc_for_path     LAI      1980-2018/1-12/1-31/* C xy  1  * -  1 1
+* LWI       see_ExtData.rc_for_path     LWI      1980-2018/1-12/1-31/* C xy  1  * -  1 1
+* LWGNT     see_ExtData.rc_for_path     LWGNT    1980-2018/1-12/1-31/* C xy  1  * -  1 1
+* PARDF     see_ExtData.rc_for_path     PARDF    1980-2018/1-12/1-31/* C xy  1  * -  1 1
+* PARDR     see_ExtData.rc_for_path     PARDR    1980-2018/1-12/1-31/* C xy  1  * -  1 1
+* PBLH      see_ExtData.rc_for_path     PBLH     1980-2018/1-12/1-31/* C xy  1  * -  1 1
+* PRECANV   see_ExtData.rc_for_path     PRECANV  1980-2018/1-12/1-31/* C xy  1  * -  1 1
+* PRECCON   see_ExtData.rc_for_path     PRECCON  1980-2018/1-12/1-31/* C xy  1  * -  1 1
+* PRECLSC   see_ExtData.rc_for_path     PRECLSC  1980-2018/1-12/1-31/* C xy  1  * -  1 1
+* PRECSNO   see_ExtData.rc_for_path     PRECSNO  1980-2018/1-12/1-31/* C xy  1  * -  1 1
+* PRECTOT   see_ExtData.rc_for_path     PRECTOT  1980-2018/1-12/1-31/* C xy  1  * -  1 1
+* SEAICE00  see_ExtData.rc_for_path     SEAICE00 1980-2018/1-12/1-31/* C xy  1  * -  1 1
+* SEAICE10  see_ExtData.rc_for_path     SEAICE10 1980-2018/1-12/1-31/* C xy  1  * -  1 1
+* SEAICE20  see_ExtData.rc_for_path     SEAICE20 1980-2018/1-12/1-31/* C xy  1  * -  1 1
+* SEAICE30  see_ExtData.rc_for_path     SEAICE30 1980-2018/1-12/1-31/* C xy  1  * -  1 1
+* SEAICE40  see_ExtData.rc_for_path     SEAICE40 1980-2018/1-12/1-31/* C xy  1  * -  1 1
+* SEAICE50  see_ExtData.rc_for_path     SEAICE50 1980-2018/1-12/1-31/* C xy  1  * -  1 1
+* SEAICE60  see_ExtData.rc_for_path     SEAICE60 1980-2018/1-12/1-31/* C xy  1  * -  1 1
+* SEAICE70  see_ExtData.rc_for_path     SEAICE70 1980-2018/1-12/1-31/* C xy  1  * -  1 1
+* SEAICE80  see_ExtData.rc_for_path     SEAICE80 1980-2018/1-12/1-31/* C xy  1  * -  1 1
+* SEAICE90  see_ExtData.rc_for_path     SEAICE90 1980-2018/1-12/1-31/* C xy  1  * -  1 1
+* SLP       see_ExtData.rc_for_path     SLP      1980-2018/1-12/1-31/* C xy  1  * -  1 1
+* SNODP     see_ExtData.rc_for_path     SNODP    1980-2018/1-12/1-31/* C xy  1  * -  1 1
+* SNOMAS    see_ExtData.rc_for_path     SNOMAS   1980-2018/1-12/1-31/* C xy  1  * -  1 1
+* SWGDN     see_ExtData.rc_for_path     SWGDN    1980-2018/1-12/1-31/* C xy  1  * -  1 1
+* TO3       see_ExtData.rc_for_path     TO3      1980-2018/1-12/1-31/* C xy  1  * -  1 1
+* TROPPT    see_ExtData.rc_for_path     TROPPT   1980-2018/1-12/1-31/* C xy  1  * -  1 1
+* TS        see_ExtData.rc_for_path     TS       1980-2018/1-12/1-31/* C xy  1  * -  1 1
+* T2M       see_ExtData.rc_for_path     T2M      1980-2018/1-12/1-31/* C xy  1  * -  1 1
+* U10M      see_ExtData.rc_for_path     U10M     1980-2018/1-12/1-31/* C xy  1  * -  1 1
+* USTAR     see_ExtData.rc_for_path     USTAR    1980-2018/1-12/1-31/* C xy  1  * -  1 1
+* V10M      see_ExtData.rc_for_path     V10M     1980-2018/1-12/1-31/* C xy  1  * -  1 1
+* Z0M       see_ExtData.rc_for_path     Z0M      1980-2018/1-12/1-31/* C xy  1  * -  1 1
+
+# --- A3cld fields ---
+* CLOUD     see_ExtData.rc_for_path     CLOUD    1980-2018/1-12/1-31/* C xyz 1  * -  1 1
+* OPTDEPTH  see_ExtData.rc_for_path     OPTDEPTH 1980-2018/1-12/1-31/* C xyz 1  * -  1 1
+* QI        see_ExtData.rc_for_path     QI       1980-2018/1-12/1-31/* C xyz 1  * -  1 1
+* QL        see_ExtData.rc_for_path     QL       1980-2018/1-12/1-31/* C xyz 1  * -  1 1
+* TAUCLI    see_ExtData.rc_for_path     TAUCLI   1980-2018/1-12/1-31/* C xyz 1  * -  1 1
+* TAUCLW    see_ExtData.rc_for_path     TAUCLW   1980-2018/1-12/1-31/* C xyz 1  * -  1 1
+
+# --- A3dyn fields ---
+* DTRAIN    see_ExtData.rc_for_path     DTRAIN   1980-2018/1-12/1-31/* C xyz 1  * -  1 1
+* OMEGA     see_ExtData.rc_for_path     OMEGA    1980-2018/1-12/1-31/* C xyz 1  * -  1 1
+* RH        see_ExtData.rc_for_path     RH       1980-2018/1-12/1-31/* C xyz 1  * -  1 1
+* U         see_ExtData.rc_for_path     U        1980-2018/1-12/1-31/* C xyz 1  * -  1 1
+* V         see_ExtData.rc_for_path     V        1980-2018/1-12/1-31/* C xyz 1  * -  1 1
+				        
+# --- A3mstC fields ---		        
+* DQRCU     see_ExtData.rc_for_path     DQRCU    1980-2018/1-12/1-31/* C xyz 1  * -  1 1
+* DQRLSAN   see_ExtData.rc_for_path     DQRLSAN  1980-2018/1-12/1-31/* C xyz 1  * -  1 1
+* REEVAPCN  see_ExtData.rc_for_path     REEVAPCN 1980-2018/1-12/1-31/* C xyz 1  * -  1 1
+* REEVAPLS  see_ExtData.rc_for_path     REEVAPLS 1980-2018/1-12/1-31/* C xyz 1  * -  1 1
+
+# --- A3mstE fields ---
+* CMFMC     see_ExtData.rc_for_path     CMFMC    1980-2018/1-12/1-31/* C xyz 1  * -  1 1
+* PFICU     see_ExtData.rc_for_path     PFICU    1980-2018/1-12/1-31/* C xyz 1  * -  1 1
+* PFILSAN   see_ExtData.rc_for_path     PFILSAN  1980-2018/1-12/1-31/* C xyz 1  * -  1 1
+* PFLCU     see_ExtData.rc_for_path     PFLCU    1980-2018/1-12/1-31/* C xyz 1  * -  1 1
+* PFLLSAN   see_ExtData.rc_for_path     PFFLSAN  1980-2018/1-12/1-31/* C xyz 1  * -  1 1
+
+# --- I3 fields ---
+* PS        see_ExtData.rc_for_path     PS       1980-2018/1-12/1-31/* C xy  1  * -  1 1
+* SPHU      see_ExtData.rc_for_path     QV       1980-2018/1-12/1-31/* C xyz 1  * -  1 1
+* TMPU      see_ExtData.rc_for_path     T        1980-2018/1-12/1-31/* C xyz 1  * -  1 1
+
+#==============================================================================
+# --- Time zones (offset to UTC) ---
+#==============================================================================
+* TIMEZONES see_ExtData.rc_for_path     UTC_OFFSET 2000/1/1/0          C xy count * - 1 1
+
+### END SECTION BASE EMISSIONS ###
+
+###############################################################################
+### BEGIN SECTION SCALE FACTORS 
+###############################################################################
+
+# ScalID Name sourceFile sourceVar sourceTime C/R/E SrcDim SrcUnit Oper
+
+### END SECTION SCALE FACTORS ###
+
+###############################################################################
+### BEGIN SECTION MASKS 
+###############################################################################
+
+# ScalID Name sourceFile sourceVar sourceTime C/R/E SrcDim SrcUnit Oper Lon1/Lat1/Lon2/Lat2
+
+### END SECTION MASKS ###
+ 
+### END OF HEMCO INPUT FILE ###
+#EOC

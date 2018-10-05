@@ -1,0 +1,34 @@
+#------------------------------------------------------------------------------
+#                  GEOS-Chem Global Chemical Transport Model                  !
+#------------------------------------------------------------------------------
+#BOP
+#
+# !MODULE: HEMCO_Diagn.rc 
+#
+# !DESCRIPTION: Configuration file for netCDF diagnostic output from HEMCO.
+#\\
+#\\
+# !REMARKS:
+#  Customized for the RnPbBe simulation.
+#  TO DO: Add long names, which are used for netCDF variable attributes.
+#
+# !REVISION HISTORY:
+#  13 Feb 2018 - E. Lundgren - Initial version
+#EOP
+#------------------------------------------------------------------------------
+#BOC
+# Name             Spec  ExtNr  Cat Hier Dim OutUnit       LongName
+
+###############################################################################
+#####  Rn emissions (in bpch ND01)                                        #####
+###############################################################################
+EmisRn_Total       Rn    -1     -1  -1   3   kg/m2/s  
+EmisRn_Soil        Rn     1001   1  -1   3   kg/m2/s
+
+###############################################################################
+#####  Rn emissions (in bpch ND01)                                        #####
+###############################################################################
+EmisBe7_Total      Be7   -1     -1  -1   3   kg/m2/s
+EmisBe7_Cosmic     Be7    1001   1  -1   3   kg/m2/s
+
+#EOC

@@ -1,0 +1,52 @@
+#!/bin/bash
+#$ -l h_rt=01:00:00
+#$ -l h_vmem=50G
+#$ -l h_stack=10G
+#$ -pe ompi* 6
+#$ -cwd
+
+# This sample script is bare bones. See the SLURM sample scripts for
+# examples of more options.
+
+echo "This run using $NSLOTS cores on these hosts:"
+cat $PE_HOSTFILE
+
+# Define GEOS-Chem log file
+log="gchp.log"
+
+# Always remove cap_restart if not doing a multi-segmented run.        
+if [[ -e cap_restart ]]; then
+   rm cap_restart
+fi
+
+# Sync all config files with settings in runConfig.sh                           
+./runConfig.sh > runConfig.log
+if [[ $? == 0 ]]; then
+
+    # Set and source your bashrc. Change this to whatever env file
+    # used during GCHP compilation. You can copy or adapt sample bashrc
+    # files located in ./bashrcSamples subdirectory.
+    BASHRC=./set_your_gchp_env.bashrc
+    if [ ! -f $BASHRC ] 
+    then
+       echo "ERROR: BASHRC environment variable in run script is not set!"
+       echo "Copy or adapt a bashrc from the ./bashrcSamples subdirectory"
+       echo "prior to running. Use the same environment file used for compilation."
+       echo "Exiting."
+       exit 1
+    fi
+    echo "WARNING: You are using environment settings in $BASHRC"
+    source $BASHRC
+
+    # Run the code
+    mpirun ./geos >> $log
+    
+    echo '===> Run ended at' `date` >> $log
+
+else
+    cat runConfig.log
+fi
+
+trap times EXIT
+
+

@@ -1,0 +1,191 @@
+#
+PrimaryExports%%
+#--------|-------|-----|-----|------|------------|---------------|--------|-------|---------------------|
+# Export |       |     | V   |      |            |___ Refresh ___|____ Factors ___|___ External File ___|
+# Name   | Units | Dim | Loc | Clim |Conservative| Time Template | Offset | Scale | Variable | Template |
+#--------|-------|-----|-----|------|------------|---------------|--------|-------|----------|----------|
+# 
+
+#------------------------
+# Met data
+#------------------------
+ALBD     '1'       xy  C N Y F0;003000 none none ALBEDO     ./MetDir/%y4/%m2/GEOSFP.%y4%m2%d2.A1.025x03125.nc
+CLDFRC   '1'       xy  C N Y F0;003000 none none CLDTOT     ./MetDir/%y4/%m2/GEOSFP.%y4%m2%d2.A1.025x03125.nc
+EFLUX    '1'       xy  C N Y F0;003000 none none EFLUX      ./MetDir/%y4/%m2/GEOSFP.%y4%m2%d2.A1.025x03125.nc
+EVAP     '1'       xy  C N Y F0;003000 none none EVAP       ./MetDir/%y4/%m2/GEOSFP.%y4%m2%d2.A1.025x03125.nc
+FRSEAICE '1'       xy  C N Y F0;003000 none none FRSEAICE   ./MetDir/%y4/%m2/GEOSFP.%y4%m2%d2.A1.025x03125.nc
+FRSNO    '1'       xy  C N Y F0;003000 none none FRSNO      ./MetDir/%y4/%m2/GEOSFP.%y4%m2%d2.A1.025x03125.nc
+GRN      '1'       xy  C N Y F0;003000 none none GRN        ./MetDir/%y4/%m2/GEOSFP.%y4%m2%d2.A1.025x03125.nc
+GWETROOT '1'       xy  C N Y F0;003000 none none GWETROOT   ./MetDir/%y4/%m2/GEOSFP.%y4%m2%d2.A1.025x03125.nc
+GWETTOP  '1'       xy  C N Y F0;003000 none none GWETTOP    ./MetDir/%y4/%m2/GEOSFP.%y4%m2%d2.A1.025x03125.nc
+HFLUX    '1'       xy  C N Y F0;003000 none none HFLUX      ./MetDir/%y4/%m2/GEOSFP.%y4%m2%d2.A1.025x03125.nc
+LAI      '1'       xy  C N Y F0;003000 none none LAI        ./MetDir/%y4/%m2/GEOSFP.%y4%m2%d2.A1.025x03125.nc
+LWI      '1'       xy  C N Y F0;003000 none none LWI        ./MetDir/%y4/%m2/GEOSFP.%y4%m2%d2.A1.025x03125.nc
+RADLWG   '1'       xy  C N Y F0;003000 none none LWGNT      ./MetDir/%y4/%m2/GEOSFP.%y4%m2%d2.A1.025x03125.nc
+PARDF    '1'       xy  C N Y F0;003000 none none PARDF      ./MetDir/%y4/%m2/GEOSFP.%y4%m2%d2.A1.025x03125.nc
+PARDR    '1'       xy  C N Y F0;003000 none none PARDR      ./MetDir/%y4/%m2/GEOSFP.%y4%m2%d2.A1.025x03125.nc
+PBLH     '1'       xy  C N Y F0;003000 none none PBLH       ./MetDir/%y4/%m2/GEOSFP.%y4%m2%d2.A1.025x03125.nc
+PRECANV  '1'       xy  C N Y F0;003000 none none PRECANV    ./MetDir/%y4/%m2/GEOSFP.%y4%m2%d2.A1.025x03125.nc
+PRECCON  '1'       xy  C N Y F0;003000 none none PRECCON    ./MetDir/%y4/%m2/GEOSFP.%y4%m2%d2.A1.025x03125.nc
+PRECLSC  '1'       xy  C N Y F0;003000 none none PRECLSC    ./MetDir/%y4/%m2/GEOSFP.%y4%m2%d2.A1.025x03125.nc
+PRECSNO  '1'       xy  C N Y F0;003000 none none PRECSNO    ./MetDir/%y4/%m2/GEOSFP.%y4%m2%d2.A1.025x03125.nc
+PRECTOT  '1'       xy  C N Y F0;003000 none none PRECTOT    ./MetDir/%y4/%m2/GEOSFP.%y4%m2%d2.A1.025x03125.nc
+SEAICE00 '1'       xy  C N Y F0;003000 none none SEAICE00   ./MetDir/%y4/%m2/GEOSFP.%y4%m2%d2.A1.025x03125.nc
+SEAICE10 '1'       xy  C N Y F0;003000 none none SEAICE10   ./MetDir/%y4/%m2/GEOSFP.%y4%m2%d2.A1.025x03125.nc
+SEAICE20 '1'       xy  C N Y F0;003000 none none SEAICE20   ./MetDir/%y4/%m2/GEOSFP.%y4%m2%d2.A1.025x03125.nc
+SEAICE30 '1'       xy  C N Y F0;003000 none none SEAICE30   ./MetDir/%y4/%m2/GEOSFP.%y4%m2%d2.A1.025x03125.nc
+SEAICE40 '1'       xy  C N Y F0;003000 none none SEAICE40   ./MetDir/%y4/%m2/GEOSFP.%y4%m2%d2.A1.025x03125.nc
+SEAICE50 '1'       xy  C N Y F0;003000 none none SEAICE50   ./MetDir/%y4/%m2/GEOSFP.%y4%m2%d2.A1.025x03125.nc
+SEAICE60 '1'       xy  C N Y F0;003000 none none SEAICE60   ./MetDir/%y4/%m2/GEOSFP.%y4%m2%d2.A1.025x03125.nc
+SEAICE70 '1'       xy  C N Y F0;003000 none none SEAICE70   ./MetDir/%y4/%m2/GEOSFP.%y4%m2%d2.A1.025x03125.nc
+SEAICE80 '1'       xy  C N Y F0;003000 none none SEAICE80   ./MetDir/%y4/%m2/GEOSFP.%y4%m2%d2.A1.025x03125.nc
+SEAICE90 '1'       xy  C N Y F0;003000 none none SEAICE90   ./MetDir/%y4/%m2/GEOSFP.%y4%m2%d2.A1.025x03125.nc
+SLP      'hPa'     xy  C N Y F0;003000 none none SLP        ./MetDir/%y4/%m2/GEOSFP.%y4%m2%d2.A1.025x03125.nc
+SNODP    '1'       xy  C N Y F0;003000 none none SNODP      ./MetDir/%y4/%m2/GEOSFP.%y4%m2%d2.A1.025x03125.nc
+SNOMAS   '1'       xy  C N Y F0;003000 none none SNOMAS     ./MetDir/%y4/%m2/GEOSFP.%y4%m2%d2.A1.025x03125.nc
+RADSWG   '1'       xy  C N Y F0;003000 none none SWGDN      ./MetDir/%y4/%m2/GEOSFP.%y4%m2%d2.A1.025x03125.nc
+TO3      'dobson'  xy  C N Y F0;003000 none none TO3        ./MetDir/%y4/%m2/GEOSFP.%y4%m2%d2.A1.025x03125.nc
+TROPP    '1'       xy  C N Y F0;003000 none none TROPPT     ./MetDir/%y4/%m2/GEOSFP.%y4%m2%d2.A1.025x03125.nc
+TSKIN    '1'       xy  C N Y F0;003000 none none TS         ./MetDir/%y4/%m2/GEOSFP.%y4%m2%d2.A1.025x03125.nc
+TS       '1'       xy  C N Y F0;003000 none none T2M        ./MetDir/%y4/%m2/GEOSFP.%y4%m2%d2.A1.025x03125.nc
+USTAR    '1'       xy  C N Y F0;003000 none none USTAR      ./MetDir/%y4/%m2/GEOSFP.%y4%m2%d2.A1.025x03125.nc
+U10M     'm s-1'   xy  C N N F0;003000 none none U10M       ./MetDir/%y4/%m2/GEOSFP.%y4%m2%d2.A1.025x03125.nc
+V10M     'm s-1'   xy  C N N F0;003000 none none V10M       ./MetDir/%y4/%m2/GEOSFP.%y4%m2%d2.A1.025x03125.nc
+Z0       '1'       xy  C N Y F0;003000 none none Z0M        ./MetDir/%y4/%m2/GEOSFP.%y4%m2%d2.A1.025x03125.nc
+FRLAKE   '1'       xy  C N Y -         none none FRLAKE     ./MetDir/2011/01/GEOSFP.20110101.CN.025x03125.nc
+FRLAND   '1'       xy  C N Y -         none none FRLAND     ./MetDir/2011/01/GEOSFP.20110101.CN.025x03125.nc
+FRLANDIC '1'       xy  C N Y -         none none FRLANDIC   ./MetDir/2011/01/GEOSFP.20110101.CN.025x03125.nc
+FROCEAN  '1'       xy  C N Y -         none none FROCEAN    ./MetDir/2011/01/GEOSFP.20110101.CN.025x03125.nc
+PHIS     'm2 s-2'  xy  C N Y -         none none PHIS       ./MetDir/2011/01/GEOSFP.20110101.CN.025x03125.nc
+SPHU1    'kg kg-1' xyz C N Y 0         none none QV         ./MetDir/%y4/%m2/GEOSFP.%y4%m2%d2.I3.025x03125.nc
+SPHU2    'kg kg-1' xyz C N Y 0;001000  none none QV         ./MetDir/%y4/%m2/GEOSFP.%y4%m2%d2.I3.025x03125.nc
+TMPU1    'K'       xyz C N Y 0         none none T          ./MetDir/%y4/%m2/GEOSFP.%y4%m2%d2.I3.025x03125.nc
+TMPU2    'K'       xyz C N Y 0;001000  none none T          ./MetDir/%y4/%m2/GEOSFP.%y4%m2%d2.I3.025x03125.nc
+QI       '1'       xyz C N Y F0;013000 none none QI         ./MetDir/%y4/%m2/GEOSFP.%y4%m2%d2.A3cld.025x03125.nc
+QL       '1'       xyz C N Y F0;013000 none none QL         ./MetDir/%y4/%m2/GEOSFP.%y4%m2%d2.A3cld.025x03125.nc
+TAUCLI   '1'       xyz C N Y F0;013000 none none TAUCLI     ./MetDir/%y4/%m2/GEOSFP.%y4%m2%d2.A3cld.025x03125.nc
+TAUCLW   '1'       xyz C N Y F0;013000 none none TAUCLW     ./MetDir/%y4/%m2/GEOSFP.%y4%m2%d2.A3cld.025x03125.nc
+OPTDEP   '1'       xyz C N Y F0;013000 none none OPTDEPTH   ./MetDir/%y4/%m2/GEOSFP.%y4%m2%d2.A3cld.025x03125.nc
+CLDF     '1'       xyz C N Y F0;013000 none none CLOUD      ./MetDir/%y4/%m2/GEOSFP.%y4%m2%d2.A3cld.025x03125.nc
+DTRAIN   '1'       xyz C N Y F0;013000 none none DTRAIN     ./MetDir/%y4/%m2/GEOSFP.%y4%m2%d2.A3dyn.025x03125.nc
+OMEGA    'Pa s-1'  xyz C N Y F0;013000 none none OMEGA      ./MetDir/%y4/%m2/GEOSFP.%y4%m2%d2.A3dyn.025x03125.nc
+RH       '-'       xyz C N Y F0;013000 none none RH         ./MetDir/%y4/%m2/GEOSFP.%y4%m2%d2.A3dyn.025x03125.nc
+UC;VC    'm s-1'   xyz C N N F0;013000 none none U;V        ./MetDir/%y4/%m2/GEOSFP.%y4%m2%d2.A3dyn.025x03125.nc
+ULL      'm s-1'   xyz C N N F0;013000 none none U          ./MetDir/%y4/%m2/GEOSFP.%y4%m2%d2.A3dyn.025x03125.nc
+VLL      'm s-1'   xyz C N N F0;013000 none none V          ./MetDir/%y4/%m2/GEOSFP.%y4%m2%d2.A3dyn.025x03125.nc
+DQRCU    '1'       xyz C N Y F0;013000 none none DQRCU      ./MetDir/%y4/%m2/GEOSFP.%y4%m2%d2.A3mstC.025x03125.nc
+DQRLSAN  '1'       xyz C N Y F0;013000 none none DQRLSAN    ./MetDir/%y4/%m2/GEOSFP.%y4%m2%d2.A3mstC.025x03125.nc
+REEVAPCN '1'       xyz C N Y F0;013000 none none REEVAPCN   ./MetDir/%y4/%m2/GEOSFP.%y4%m2%d2.A3mstC.025x03125.nc
+REEVAPLS '1'       xyz C N Y F0;013000 none none REEVAPLS   ./MetDir/%y4/%m2/GEOSFP.%y4%m2%d2.A3mstC.025x03125.nc
+CMFMC    '1'       xyz E N Y F0;013000 none none CMFMC      ./MetDir/%y4/%m2/GEOSFP.%y4%m2%d2.A3mstE.025x03125.nc
+PFICU    '1'       xyz E N Y F0;013000 none none PFICU      ./MetDir/%y4/%m2/GEOSFP.%y4%m2%d2.A3mstE.025x03125.nc
+PFILSAN  '1'       xyz E N Y F0;013000 none none PFILSAN    ./MetDir/%y4/%m2/GEOSFP.%y4%m2%d2.A3mstE.025x03125.nc
+PFLCU    '1'       xyz E N Y F0;013000 none none PFLCU      ./MetDir/%y4/%m2/GEOSFP.%y4%m2%d2.A3mstE.025x03125.nc
+PFLLSAN  '1'       xyz E N Y F0;013000 none none PFLLSAN    ./MetDir/%y4/%m2/GEOSFP.%y4%m2%d2.A3mstE.025x03125.nc
+
+#------------------------
+# 2D variables at edge
+#------------------------
+PS1      'hPa'     xy  E N Y 0        none none PS         ./MetDir/%y4/%m2/GEOSFP.%y4%m2%d2.I3.025x03125.nc
+PS2      'hPa'     xy  E N Y 0;001000 none none PS         ./MetDir/%y4/%m2/GEOSFP.%y4%m2%d2.I3.025x03125.nc
+#
+
+#-------------------------------------------------------------------
+# Olson land types - conservative frac regridding of OLSON as float
+#-------------------------------------------------------------------
+OLSON00 1 xy C N F;0  - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
+OLSON01 1 xy C N F;1  - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
+OLSON02 1 xy C N F;2  - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
+OLSON03 1 xy C N F;3  - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
+OLSON04 1 xy C N F;4  - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
+OLSON05 1 xy C N F;5  - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
+OLSON06 1 xy C N F;6  - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
+OLSON07 1 xy C N F;7  - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
+OLSON08 1 xy C N F;8  - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
+OLSON09 1 xy C N F;9  - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
+OLSON10 1 xy C N F;10 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
+OLSON11 1 xy C N F;11 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
+OLSON12 1 xy C N F;12 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
+OLSON13 1 xy C N F;13 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
+OLSON14 1 xy C N F;14 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
+OLSON15 1 xy C N F;15 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
+OLSON16 1 xy C N F;16 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
+OLSON17 1 xy C N F;17 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
+OLSON18 1 xy C N F;18 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
+OLSON19 1 xy C N F;19 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
+OLSON20 1 xy C N F;20 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
+OLSON21 1 xy C N F;21 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
+OLSON22 1 xy C N F;22 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
+OLSON23 1 xy C N F;23 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
+OLSON24 1 xy C N F;24 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
+OLSON25 1 xy C N F;25 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
+OLSON26 1 xy C N F;26 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
+OLSON27 1 xy C N F;27 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
+OLSON28 1 xy C N F;28 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
+OLSON29 1 xy C N F;29 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
+OLSON30 1 xy C N F;30 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
+OLSON31 1 xy C N F;31 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
+OLSON32 1 xy C N F;32 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
+OLSON33 1 xy C N F;33 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
+OLSON34 1 xy C N F;34 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
+OLSON35 1 xy C N F;35 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
+OLSON36 1 xy C N F;36 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
+OLSON37 1 xy C N F;37 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
+OLSON38 1 xy C N F;38 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
+OLSON39 1 xy C N F;39 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
+OLSON40 1 xy C N F;40 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
+OLSON41 1 xy C N F;41 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
+OLSON42 1 xy C N F;42 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
+OLSON43 1 xy C N F;43 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
+OLSON44 1 xy C N F;44 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
+OLSON45 1 xy C N F;45 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
+OLSON46 1 xy C N F;46 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
+OLSON47 1 xy C N F;47 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
+OLSON48 1 xy C N F;48 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
+OLSON49 1 xy C N F;49 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
+OLSON50 1 xy C N F;50 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
+OLSON51 1 xy C N F;51 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
+OLSON52 1 xy C N F;52 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
+OLSON53 1 xy C N F;53 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
+OLSON54 1 xy C N F;54 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
+OLSON55 1 xy C N F;55 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
+OLSON56 1 xy C N F;56 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
+OLSON57 1 xy C N F;57 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
+OLSON58 1 xy C N F;58 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
+OLSON59 1 xy C N F;59 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
+OLSON60 1 xy C N F;60 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
+OLSON61 1 xy C N F;61 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
+OLSON62 1 xy C N F;62 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
+OLSON63 1 xy C N F;63 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
+OLSON64 1 xy C N F;64 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
+OLSON65 1 xy C N F;65 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
+OLSON66 1 xy C N F;66 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
+OLSON67 1 xy C N F;67 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
+OLSON68 1 xy C N F;68 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
+OLSON69 1 xy C N F;69 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
+OLSON70 1 xy C N F;70 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
+OLSON71 1 xy C N F;71 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
+OLSON72 1 xy C N F;72 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
+
+#----------------------------------------------------------------------------
+# MODIS Leaf Area Index - values for one land type per variable. 
+# Data is available 2005-2008.
+#----------------------------------------------------------------------------
+XLAIMULTI cm2_cm-2 xyz E N Y %y4-%m2-%d2T00:00:00 none none XLAIMULTI ./ChemDataDir/MODIS_LAI_201204/For_Olson_2001/XLAI_for_GCHP/2008/Condensed_MODIS_XLAI.025x025.%y4%m2.nc
+
+#----------------------------------------------------------------------------
+# MODIS Chlorophyll-a - values for one land type per variable. 
+# Data is available 2005-2013.
+#----------------------------------------------------------------------------
+#XCHLRMULTI mg_m-3 xyz E N Y %y4-%m2-%d2T00:00:00 none none XCHLRMULTI ./ChemDataDir/MODIS_LAI_201204/For_Olson_2001/XCHLR_for_GCHP/%y4/Condensed_MODIS_CHLR.025x025.%y4%m2.nc
+
+TIMEZONES         count xy C N V  - none none UTC_OFFSET ./MainDataDir/TIMEZONES/v2015-02/timezones_voronoi_1x1.nc
+%%
+
+DerivedExports%%
+# ---------|---------|--------------------------------------------|
+#  Export  | Primary |_________________ Mask _____________________|
+#  Name    |  Name   |    Name    |           Expression          |    
+# ---------|---------|------------|-------------------------------|
+# ---------|---------|------------|-------------------------------|
+%%

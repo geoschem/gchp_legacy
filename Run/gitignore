@@ -1,0 +1,10 @@
+OutputDir
+MetDir
+ChemDataDir
+MainDataDir
+TileFiles
+rundir.version
+*~
+*#
+*.nc
+*.log
