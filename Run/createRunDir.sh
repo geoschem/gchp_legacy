@@ -13,8 +13,10 @@
 # Initial version: E. Lundgren,10/5/2018
 
 curdir=$(pwd)
-cd ../../
-codedir=$(pwd)
+cd ..
+gchpdir=$(pwd)
+cd ..
+gcdir=$(pwd)
 cd ${curdir}
 
 #-----------------------------------------------------------------
@@ -153,12 +155,12 @@ cp ./Makefile              ${rundir}
 cp ./gitignore             ${rundir}/.gitignore
 cp ./GCHP.rc_template      ${rundir}/GCHP.rc
 cp ./runConfig.sh_template ${rundir}/runConfig.sh
+cp ./CAP.rc_template       ${rundir}/CAP.rc
 cp -r ./bashrcSamples      ${rundir} 
 cp -r ./OutputDir          ${rundir} 
 cp -r ./runScriptSamples   ${rundir}
 cp ./HISTORY.rc_templates/HISTORY.rc.${sim_name}            ${rundir}/HISTORY.rc
 cp ./input.geos_templates/input.geos.${sim_name}            ${rundir}/input.geos
-cp ./CAP.rc_templates/CAP.rc.${sim_type}                    ${rundir}/CAP.rc
 cp ./ExtData.rc_templates/ExtData.rc.${sim_type}            ${rundir}/ExtData.rc
 cp ./HEMCO_Config.rc_templates/HEMCO_Config.rc.${sim_type}  ${rundir}/HEMCO_Config.rc
 cp ./HEMCO_Diagn.rc_templates/HEMCO_Diagn.rc.${sim_type}    ${rundir}/HEMCO_Diagn.rc
@@ -166,7 +168,7 @@ cp ./HEMCO_Diagn.rc_templates/HEMCO_Diagn.rc.${sim_type}    ${rundir}/HEMCO_Diag
 #--------------------------------------------------------------------
 # Create symbolic links to data directories, restart files, and code
 #--------------------------------------------------------------------
-ln -s ${codedir}                                ${rundir}/CodeDir
+ln -s ${gcdir}                                  ${rundir}/CodeDir
 # NOTE: CodeDir is set to point to GCHP/..; reset using setCodeDir in rundir.
 ln -s ${GC_DATA_ROOT}/CHEM_INPUTS               ${rundir}/ChemDataDir
 ln -s ${GC_DATA_ROOT}/HEMCO                     ${rundir}/MainDataDir
@@ -185,6 +187,34 @@ sed -i -e "s|{SIMULATION}|${sim_name_long}|" ${rundir}/GCHP.rc
 sed -i -e "s|{SIMULATION}|${sim_name_long}|" ${rundir}/runConfig.sh
 sed -i -e "s|{DATA_ROOT}|${GC_DATA_ROOT}|"   ${rundir}/input.geos
 
+# Special handling for start/end date based on simulation so that
+# start matches default initial restart files. Run directory is
+# always initially set up for a 1-hour duration run.
+if [ "${sim_type}" == "RnPbBe" ]; then
+    startdate="20160101"
+elif [ "${sim_type}" == "fullchem" ]; then
+    startdate="20160701"
+else
+    printf "\nError: Start date is not defined for simulation ${sim_type}."
+fi
+enddate=${startdate}
+starttime="000000"
+endtime="010000"    
+dYYYYMMDD="00000000"
+dHHmmSS="010000"
+sed -i -e "s|{DATE1}|${startdate}|"     ${rundir}/runConfig.sh
+sed -i -e "s|{TIME1}|${starttime}|"     ${rundir}/runConfig.sh
+sed -i -e "s|{DATE2}|${enddate}|"       ${rundir}/runConfig.sh
+sed -i -e "s|{TIME2}|${endtime}|"       ${rundir}/runConfig.sh
+sed -i -e "s|{dYYYYMMDD}|${dYYYYMMDD}|" ${rundir}/runConfig.sh
+sed -i -e "s|{dHHmmss}|${dHHmmSS}|"     ${rundir}/runConfig.sh
+sed -i -e "s|{DATE1}|${startdate}|"     ${rundir}/CAP.rc
+sed -i -e "s|{TIME1}|${starttime}|"     ${rundir}/CAP.rc
+sed -i -e "s|{DATE2}|${enddate}|"       ${rundir}/CAP.rc
+sed -i -e "s|{TIME2}|${endtime}|"       ${rundir}/CAP.rc
+sed -i -e "s|{dYYYYMMDD}|${dYYYYMMDD}|" ${rundir}/CAP.rc
+sed -i -e "s|{dHHmmss}|${dHHmmSS}|"     ${rundir}/CAP.rc
+
 #-----------------------------------------------------------------
 # Set permissions
 #-----------------------------------------------------------------
@@ -201,10 +231,23 @@ chmod 644 ${rundir}/runScriptSamples/README
 # Archive GCHP repository version in run directory file rundir.version
 #----------------------------------------------------------------------
 version_log=${rundir}/rundir.version
-echo "This run directory was created by createRunDir.sh from the GCHP repository on $(date)." > ${version_log}
+echo "This run directory was created with GCHP/Run/createRunDir.sh." > ${version_log}
 echo " " >> ${version_log}
-echo "Version information (see also github.com/geoschem/gchp):" >> ${version_log}
-echo $(git log -n 1) >> ${version_log}
+echo "GCHP version information:" >> ${version_log}
+cd ${gchpdir}
+remote_url=$(git config --get remote.origin.url)   
+code_branch=$(git rev-parse --abbrev-ref HEAD)   
+last_commit=$(git log -n 1 --pretty=format:"%s") 
+commit_date=$(git log -n 1 --pretty=format:"%cd")
+commit_user=$(git log -n 1 --pretty=format:"%cn")
+commit_hash=$(git log -n 1 --pretty=format:"%h") 
+cd ${curdir}
+printf "\n  Remote URL: ${remote_url}" >> ${version_log}
+printf "\n  Branch: ${code_branch}"    >> ${version_log}
+printf "\n  Commit: ${last_commit}"    >> ${version_log}
+printf "\n  Date: ${commit_date}"      >> ${version_log}
+printf "\n  User: ${commit_user}"      >> ${version_log}
+printf "\n  Hash: ${commit_hash}"      >> ${version_log}
 
 #-----------------------------------------------------------------
 # Ask user whether to track run directory changes with git

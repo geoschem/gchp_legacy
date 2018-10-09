@@ -40,15 +40,12 @@ NUM_WRITERS: 1
 BKG_FREQUENCY: 0
 
 # Settings for production of restart files
-# Comment out this section to output only one restart file (end-of-run)
 #---------------------------------------------------------------
 # Record frequency (HHMMSS) : Frequency of restart file write
-#                             Can exceed 24 hours (e.g. 7200000 for 30 days)
+#                             Can exceed 24 hours (e.g. 1680000 for 7 days)
 # Record ref date (YYYYMMDD): Reference date; set to before sim start date
 # Record ref time (HHMMSS)  : Reference time 
-#                             Ref date-time is used only for metadata and to
-#                             calculate the value of the “time” vector
-RECORD_FREQUENCY: 7200000 
+RECORD_FREQUENCY: 1680000 
 RECORD_REF_DATE: 20000101
 RECORD_REF_TIME: 000000
 
