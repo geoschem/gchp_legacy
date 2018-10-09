@@ -15,9 +15,13 @@ fi
 if [[ -d "$1" ]]; then
   ln -s $1 CodeDir
   file CodeDir
+  printf "\nPrinting source code repository information...\n\n"
+  make printbuildinfo
+  printf "\nType 'make printbuildinfo' at any time in this run directory to view source code status.\n"
 else
   echo "Error: Source code directory does not exist"
   exit 1
 fi
+
 
 exit 0
