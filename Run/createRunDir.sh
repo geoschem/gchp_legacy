@@ -13,12 +13,9 @@
 # Initial version: E. Lundgren,10/5/2018
 
 curdir=$(pwd)
-echo ${curdir}
 cd ../../
 codedir=$(pwd)
-echo ${codedir}
 cd ${curdir}
-echo $(pwd)
 
 #-----------------------------------------------------------------
 # Export data root path in ~/.geoschem/config if file exists
@@ -238,11 +235,3 @@ done
 # Done!
 #-----------------------------------------------------------------
 printf "\nCreated ${rundir}\n"
-printf "\nSource code link CodeDir is set to ${codedir} in the run directory.\n"
-printf "\nPrinting source code repository information...\n\n"
-cd ${rundir}
-make printbuildinfo
-cd ${curdir}
-printf "\nType 'make printbuildinfo' at any time in the run directory to view source c\
-ode status.\n"
-printf "\nUse setCodeDir script to point to a different source code directory.\n"

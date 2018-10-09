@@ -80,21 +80,25 @@ EXE :=geos
 compile_clean:
 	date > $(BUILD_LOG)
 	./build.sh compile_clean 2>&1 | tee -a $(BUILD_LOG)
+	@$(MAKE) printbuildinfo 2>&1 | tee -a $(BUILD_LOG)
 	@$(MAKE) printbuildinfo > $(LAST_BUILD)
 
 compile_standard:
 	date >> $(BUILD_LOG)
 	./build.sh compile_standard 2>&1 | tee -a $(BUILD_LOG)
+	@$(MAKE) printbuildinfo 2>&1 | tee -a $(BUILD_LOG)
 	@$(MAKE) printbuildinfo > $(LAST_BUILD)
 
 compile_debug:
 	date >> ${BUILD_LOG}
 	./build.sh compile_debug 2>&1 | tee -a $(BUILD_LOG)
+	@$(MAKE) printbuildinfo 2>&1 | tee -a $(BUILD_LOG)
 	@$(MAKE) printbuildinfo > $(LAST_BUILD)
 
 compile_mapl:
 	date >> ${BUILD_LOG}
 	./build.sh compile_mapl 2>&1 | tee -a $(BUILD_LOG)
+	@$(MAKE) printbuildinfo 2>&1 | tee -a $(BUILD_LOG)
 	@$(MAKE) printbuildinfo > $(LAST_BUILD)
 
 #%%%%%%%%%%%%%%%%%%%%%%%
@@ -160,6 +164,7 @@ cleanup_logs:
 cleanup_exe: 
 	rm -f geos
 	rm -f $(BUILD_LOG)
+	rm -f $(LAST_BUILD)
 
 #%%%%%%%%%%%%%%%%%%%%%%%%%%
 #  Clean Source Code      %
