@@ -29,7 +29,7 @@ EmisACET_Biogenic  ACET   108    -1  -1   2   atomsC/cm2/s  ACET_emissions_from_
 EmisACET_DirectBio ACET   108    -1  -1   2   atomsC/cm2/s  ACET_emissions_from_direct_emissions
 EmisACET_MethylBut ACET   108    -1  -1   2   atomsC/cm2/s  ACET_emissions_from_methyl_butenol
 EmisACET_Monoterp  ACET   108    -1  -1   2   atomsC/cm2/s  ACET_emissions_from_monoterpenes
-EmisACET_Ocean     ACET   101    -1  -1   2   atomsC/cm2/s  ACET_emissions_from_ocean
+EmisACET_Ocean     ACET   0      4   -1   2   atomsC/cm2/s  ACET_emissions_from_ocean
 
 ###############################################################################
 #####  ALD2 emissions (in bpch ND28, ND34, ND36, ND46. ALD2_Ocean         #####
@@ -40,7 +40,7 @@ EmisALD2_Anthro    ALD2   0      1   -1   3   atomsC/cm2/s  ALD2_emissions_from_
 EmisALD2_BioBurn   ALD2   111    -1  -1   2   atomsC/cm2/s  ALD2_emissions_from_biomass_burning
 EmisALD2_Biofuel   ALD2   0      2   -1   2   atomsC/cm2/s  ALD2_emissions_from_biofuel
 EmisALD2_Biogenic  ALD2   108    -1  -1   2   atomsC/cm2/s  ALD2_emissions_from_biogenic_sources
-EmisALD2_Ocean     ALD2   101    -1  -1   2   atomsC/cm2/s  ALD2_emissions_from_ocean
+EmisALD2_Ocean     ALD2   0      4   -1   2   atomsC/cm2/s  ALD2_emissions_from_ocean
 EmisALD2_Senesc    ALD2   0      4   -1   2   atomsC/cm2/s  ALD2_emissions_from_senescing_plants
 
 ###############################################################################
@@ -88,7 +88,7 @@ EmisCO_Ship        CO     0      10  -1   2   molec/cm2/s   CO_emissions_from_sh
 ###############################################################################
 #####  DMS emissions (in bpch ND13)                                       ##### 
 ###############################################################################
-EmisDMS_Ocean      DMS    101    -1  -1   2   kg            DMS_emissions_from_ocean
+EmisDMS_Ocean      DMS    0      4   -1   2   kg            DMS_emissions_from_ocean
 
 ###############################################################################
 #####  Dust emissions (in bpch ND06)                                      ##### 
@@ -118,8 +118,8 @@ EmisOCPO_Biofuel   OCPO   0      2   -1   2   kgC           OCPO_emissions_from_
 ###############################################################################
 #####  Sea salt emissions (in bpch ND08)                                  ##### 
 ###############################################################################
-EmisSALA_Natural   SALA   107    -1  -1   2   kg            SALA_emissions_from_natural_sources
-EmisSALC_Natural   SALC   107    -1  -1   2   kg            SALC_emissions_from_natural_sources
+EmisSALA_Natural   SALA   0      4   -1   2   kg            SALA_emissions_from_natural_sources
+EmisSALC_Natural   SALC   0      4   -1   2   kg            SALC_emissions_from_natural_sources
 
 ###############################################################################
 #####  SO2 emissions (in bpch ND13, ND28)                                 ##### 
@@ -158,7 +158,7 @@ EmisNO_Anthro      NO     0      1   -1   3   molec/cm2/s   NO_emissions_from_bi
 EmisNO_BioBurn     NO     111    -1  -1   2   molec/cm2/s   NO_emissions_from_biomass_burning
 EmisNO_Biofuel     NO     0      2   -1   2   molec/cm2/s   NO_emissions_from_biofuel
 EmisNO_Fert        NO     104    -1  -1   2   molec/cm2/s   NO_emissions_from_fertilizer
-EmisNO_Lightning   NO     103    -1  -1   2   molec/cm2/s   NO_emissions_from_lightning
+EmisNO_Lightning   NO     0      4   -1   2   molec/cm2/s   NO_emissions_from_lightning
 EmisNO_Ship        NO     102    -1  -1   2   molec/cm2/s   NO_emissions_from_ships
 EmisNO_Soil        NO     104    -1  -1   2   molec/cm2/s   NO_emissions_from_soil
 
@@ -227,7 +227,7 @@ EmisCH2Br2_Ocean   CH2Br2 0      1   -1   2   kg/m2/s       CH2Br2_emissions_fro
 ###############################################################################
 #####  Br2 emissions (in bpch ND46)                                       ##### 
 ###############################################################################
-EmisBr2_Ocean      Br2    107    -1  -1   2   kg/m2/s       Br2_emissions_from_ocean
+EmisBr2_Ocean      Br2    0      4   -1   2   kg/m2/s       Br2_emissions_from_ocean
 
 ###############################################################################
 #####  NO2 emissions (in bpch ND36)                                       ##### 
