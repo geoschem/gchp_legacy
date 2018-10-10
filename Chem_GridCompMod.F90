@@ -1337,9 +1337,15 @@ CONTAINS
                                                               __RC__ )
 
        ! Archive reaction coefficients for NOx diagnostics
+       ! This is super hacky but not sure how else to do it without
+       ! adding really elaborated syntax... 
        IF ( INDEX( EQN_NAMES(I), 'O3 + NO --> NO2 + O2' ) > 0 ) THEN
           id_rc_no  = I
+       ELSEIF ( INDEX( EQN_NAMES(I), 'NO + O3 --> NO2 + O2' ) > 0 ) THEN
+          id_rc_no  = I
        ELSEIF ( INDEX( EQN_NAMES(I), 'OH + NO2 --> HNO3' ) > 0 ) THEN
+          id_rc_no2 = I
+       ELSEIF ( INDEX( EQN_NAMES(I), 'NO2 + OH --> HNO3' ) > 0 ) THEN
           id_rc_no2 = I
        ENDIF
 
