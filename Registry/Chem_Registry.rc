@@ -245,6 +245,7 @@
   DryDepRa10m                     | s cm-1         | xy  |   |    |   |   |     | 10_meter_aerodynamic_resistance 
   MoninObukhov                    | m              | xy  |   |    |   |   |     | Monin_Obukhov_length 
   CH4pseudoFlux                   | kg m-2 s-1     | xy  |   |    |   |   |     | CH4_pseudo_flux_to_balance_chemistry 
+  KppError                        | 1              | xyz | C |    |   |   |     | KPP_error_count_per_grid_box 
   CH4_EMIS_RICE                   | kg m-2 s-1     | xy  |   |    |   |   |     | CH4_emis_rice
   CH4_EMIS_WETLAND                | kg m-2 s-1     | xy  |   |    |   |   |     | CH4_emis_wetland
   GCC_AIRNUMDEN                   | mol cm-3       | xyz | C |    |   |   |     | GEOSCHEMchem_dry_air_density
@@ -262,6 +263,7 @@
   NO2toNOx                        | 1              | xyz | C |    |   |   |     | NO2toNOx_ratio
   FJX_EXTRAL_NLEVS                | 1              | xy  |   |    |   |   |     | FAST-JX_EXTRAL_layers 
   FJX_EXTRAL_NITER                | 1              | xy  |   |    |   |   |     | FAST-JX_EXTRAL_iterations
+  GCC_SUNCOS                      | 1              | xy  |   |    |   |   |     | SUNCOS 
 # --------------------------------|----------------|-----|---|----|---|---|-----|---------------------------------
 </ExportSpec>
 #                               --------------
