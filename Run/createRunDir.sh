@@ -186,6 +186,7 @@ done
 sed -i -e "s|{SIMULATION}|${sim_name_long}|" ${rundir}/GCHP.rc
 sed -i -e "s|{SIMULATION}|${sim_name_long}|" ${rundir}/runConfig.sh
 sed -i -e "s|{DATA_ROOT}|${GC_DATA_ROOT}|"   ${rundir}/input.geos
+sed -i -e "s|{DATA_ROOT}|${GC_DATA_ROOT}|"   ${rundir}/HEMCO_Config.rc
 
 # Special handling for start/end date based on simulation so that
 # start matches default initial restart files. Run directory is
@@ -233,7 +234,7 @@ chmod 644 ${rundir}/runScriptSamples/README
 version_log=${rundir}/rundir.version
 echo "This run directory was created with GCHP/Run/createRunDir.sh." > ${version_log}
 echo " " >> ${version_log}
-echo "GCHP version information:" >> ${version_log}
+echo "GCHP repository version information:" >> ${version_log}
 cd ${gchpdir}
 remote_url=$(git config --get remote.origin.url)   
 code_branch=$(git rev-parse --abbrev-ref HEAD)   
@@ -259,11 +260,11 @@ while [ "$valid_response" -eq 0 ]
 do
     if [[ ${enable_git} = "y" ]]; then
 	cd ${rundir}
-	echo "Changes to this run directory are tracked by git:\n" >> ${version_log}
+	printf "\n\nChanges to the following run directory files are tracked by git:\n\n" >> ${version_log}
 	git init
 	git add *.rc *.sh bashrcSamples/* runScriptSamples/* README .gitignore
 	git add setCodeDir Makefile input.geos input.nml
-	echo " " >> ${version_log}
+	printf " " >> ${version_log}
 	git commit -m "Initial run directory" >> ${version_log}
 	cd ${curdir}
 	valid_response=1

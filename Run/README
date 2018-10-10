@@ -1,11 +1,24 @@
 This directory is for GEOS-Chem (GCHP) with high performance option. 
 
-Set up, compile, and run GCHP by doing the following:
+Instructions to set up, compile, and run GCHP:
 
-1. Set CodeDir symbolic link with './setCodeDir /path/to/your/code'
+1. Inspect your source code versions
 
-   Run './setCodeDir codepath' on the command line where codepath is the
-   full path to your GEOS-Chem source code without any symbolic links.
+   Type 'make printbuildinfo' to view the version information of the source
+   code symbolic link CodeDir points to. The CodeDir symbolic link is set up
+   by default to point to the GEOS-Chem source code from which you created
+   the run directory. 
+
+   a. Make sure your GEOS-Chem and GCHP source code repository branches are 
+      consistent with each other. 
+   b. If you need to change your GCHP version, make sure to create a new run 
+      directory. For version prior to 12.1.0, do this using the
+      geos-chem-unittest repository. For 12.1.0 and later, do this using
+      the GCHP repository.
+   c. You can check what version of GCHP was used to create your run 
+      directory by looking at file rundir.version.
+   c. Optionally reset the CodeDir symbolic link with './setCodeDir 
+      /path/to/your/code' if you wish to use source code stored elsewhere.
 
 2. Set up your environment by sourcing a bashrc file
 
@@ -32,25 +45,29 @@ Set up, compile, and run GCHP by doing the following:
  
    Set common settings here to avoid updating the same settings across 
    multiple config files (*.rc and input.geos). Settings include restart file,
-   internal grid resolution, compute resources, and start/end/duration, to name a few.
+   internal grid resolution, compute resources, and start/end/duration, 
+   among others.
+
    When runConfig.sh is sourced, settings in the following config files 
    will be over-written:
    1. CAP.rc           : simulation start/end/duration; heartbeat; debug level
    2. fvcore_layout.rc : grid res; transport dt
-   3. GCHP.rc          : compute resources; restart; grid res; all dt; transport on/off 
+   3. GCHP.rc          : compute resources; restart; grid res; all dt; 
+                         transport on/off 
    4. HISTORY.rc       : output frequency, duration, and mode; cores per node
    5. input.geos*      : most settings
 
    NOTES 
-    1: start time, end time, restart filename, and diagnostics are all 
+    a. start time, end time, restart filename, and diagnostics are all 
        ignored in input.geos when using GCHP.
-    2: Symbolic links to default restart files for various resolutions are included
-       in the run directory. You can configure usage of other restart files in 
-       runConfig.sh. As always, we recommend only using the default restart files to
-       initialize a spin-up of the model to generate production run restart files.
-    3: runConfig.sh does not control source met-fields. To change met-field source
-       you must edit ExtData.rc manually and also change the MetDir symbolic link
-       to point to the correct files
+    b. Symbolic links to default restart files for various resolutions are 
+       included in the run directory. You can configure usage of other 
+       restart files in runConfig.sh. As with GEOS-Chem Classic, we recommend 
+       only using the default restart files to initialize a spin-up of the 
+       model to generate production run restart files.
+    c. runConfig.sh does not control source met-fields. To change met-field 
+       source you must edit ExtData.rc manually and also change the MetDir 
+       symbolic link to point to the correct files
 
 5. Create a run script to submit a job
 
@@ -59,27 +76,22 @@ Set up, compile, and run GCHP by doing the following:
    utility for resource management). 
 
    It is important that you source your bashrc in the run script using the same 
-   env file as used for compilation. You must also source your runConfig.sh file
-   and be sure that your resource settings (e.g. # cores, # nodes) is compatible
-   with what you configured in runConfig.sh.
+   env file as used for compilation. You must also source your runConfig.sh 
+   file and be sure that your resource settings (e.g. # cores, # nodes) 
+   is compatible with what you configured in runConfig.sh.
 
-   Adapt gchp.run for single run jobs. Adapt gchp.multirun.sh and gchp.multirun.run
-   for multiple consecutive jobs (e.g. 1 year of 1-month jobs). See sample run
-   scripts for more information.
+   Adapt gchp.run for single run jobs. Adapt gchp.multirun.sh and 
+   gchp.multirun.run for multiple consecutive jobs (e.g. 1 year of 1-month 
+   jobs). Using the multi-run option allows you to output monthly mean 
+   diagnostics. See sample run scripts for more information.
 
-   To automatically output monthly diagnostics you MUST perform a multirun since
-   # of hours per month for diagnostics in HISTORY.rc is changed every month, and
-   changing it is only possible job to job. To configure a multirun, set # of runs,
-   start date, end date, and individual job duration in runConfig.sh. Also turn 
-   on/off monthly diagnostic option. 
+5. Submit job
 
-5. Submit jobs
-
-   If using SLURM and doing a single run, do 'sbatch gchp.run'. If using SLURM
-   and doing multiple runs, do 'source gchp.multirun.sh'. Adapt as needed for your
-   own cluster and your own run scripts. Please be sure that your run script 
-   includes sourcing your bashrc and sourcing runConfig.sh, and your compute
-   resources specified in both files is compatible.
+   If using SLURM and doing a single run, do 'sbatch gchp.run'. If using 
+   SLURM and doing multiple runs, do 'source gchp.multirun.sh'. Adapt as 
+   needed for your own cluster and your own run scripts. Please be sure that 
+   your run script includes sourcing your bashrc and sourcing runConfig.sh, 
+   and your compute resources specified in both files is compatible.
 
 6. Inspect output data
 
@@ -101,6 +113,4 @@ Set up, compile, and run GCHP by doing the following:
 
 For more information, see the GEOS-Chem High Performance wiki page at
 http://wiki.seas.harvard.edu/geos-chem/index.php/GEOS-Chem_HP
-or contact the GEOS-Chem Support Team.
-
-geos-chem-support@as.harvard.edu
+or contact the GEOS-Chem Support Team (geos-chem-support@as.harvard.edu).

@@ -37,8 +37,8 @@
 ### BEGIN SECTION SETTINGS
 ###############################################################################
 
-ROOT:                        HEMCO_Config.rc_paths_not_used_in_GCHP
-METDIR:                      not_used_in_GCHP
+ROOT:                        {DATE_ROOT}/HEMCO
+METDIR:                      not_used
 Logfile:                     HEMCO.log
 DiagnFile:                   HEMCO_Diagn.rc
 DiagnPrefix:                 HEMCO_diagnostics
@@ -110,95 +110,6 @@ Warnings:                    1
 ### calculation. A given entry is only read if the assigned species name is 
 ### an HEMCO species.
 ###############################################################################
-
-#==============================================================================
-# --- Meteorology fields for FlexGrid ---
-#==============================================================================
-
-# --- CN fields ---
-* FRLAKE    see_ExtData.rc_for_path     FRLAKE   */1/1/0               C xy  1  * -  1 1
-* FRLAND    see_ExtData.rc_for_path     FRLAND   */1/1/0               C xy  1  * -  1 1
-* FRLANDIC  see_ExtData.rc_for_path     FRLANDIC */1/1/0               C xy  1  * -  1 1
-* FROCEAN   see_ExtData.rc_for_path     FROCEAN  */1/1/0               C xy  1  * -  1 1
-* PHIS      see_ExtData.rc_for_path     PHIS     */1/1/0               C xy  1  * -  1 1
-
-# --- A1 fields ---
-* ALBEDO    see_ExtData.rc_for_path     ALBEDO   1980-2018/1-12/1-31/* C xy  1  * -  1 1
-* CLDTOT    see_ExtData.rc_for_path     CLDTOT   1980-2018/1-12/1-31/* C xy  1  * -  1 1
-* EFLUX     see_ExtData.rc_for_path     EFLUX    1980-2018/1-12/1-31/* C xy  1  * -  1 1
-* EVAP      see_ExtData.rc_for_path     EVAP     1980-2018/1-12/1-31/* C xy  1  * -  1 1
-* FRSEAICE  see_ExtData.rc_for_path     FRSEAICE 1980-2018/1-12/1-31/* C xy  1  * -  1 1
-* FRSNO     see_ExtData.rc_for_path     FRSNO    1980-2018/1-12/1-31/* C xy  1  * -  1 1
-* GRN       see_ExtData.rc_for_path     GRN      1980-2018/1-12/1-31/* C xy  1  * -  1 1
-* GWETROOT  see_ExtData.rc_for_path     GWETROOT 1980-2018/1-12/1-31/* C xy  1  * -  1 1
-* GWETTOP   see_ExtData.rc_for_path     GWETTOP  1980-2018/1-12/1-31/* C xy  1  * -  1 1
-* HFLUX     see_ExtData.rc_for_path     HFLUX    1980-2018/1-12/1-31/* C xy  1  * -  1 1
-* LAI       see_ExtData.rc_for_path     LAI      1980-2018/1-12/1-31/* C xy  1  * -  1 1
-* LWI       see_ExtData.rc_for_path     LWI      1980-2018/1-12/1-31/* C xy  1  * -  1 1
-* LWGNT     see_ExtData.rc_for_path     LWGNT    1980-2018/1-12/1-31/* C xy  1  * -  1 1
-* PARDF     see_ExtData.rc_for_path     PARDF    1980-2018/1-12/1-31/* C xy  1  * -  1 1
-* PARDR     see_ExtData.rc_for_path     PARDR    1980-2018/1-12/1-31/* C xy  1  * -  1 1
-* PBLH      see_ExtData.rc_for_path     PBLH     1980-2018/1-12/1-31/* C xy  1  * -  1 1
-* PRECANV   see_ExtData.rc_for_path     PRECANV  1980-2018/1-12/1-31/* C xy  1  * -  1 1
-* PRECCON   see_ExtData.rc_for_path     PRECCON  1980-2018/1-12/1-31/* C xy  1  * -  1 1
-* PRECLSC   see_ExtData.rc_for_path     PRECLSC  1980-2018/1-12/1-31/* C xy  1  * -  1 1
-* PRECSNO   see_ExtData.rc_for_path     PRECSNO  1980-2018/1-12/1-31/* C xy  1  * -  1 1
-* PRECTOT   see_ExtData.rc_for_path     PRECTOT  1980-2018/1-12/1-31/* C xy  1  * -  1 1
-* SEAICE00  see_ExtData.rc_for_path     SEAICE00 1980-2018/1-12/1-31/* C xy  1  * -  1 1
-* SEAICE10  see_ExtData.rc_for_path     SEAICE10 1980-2018/1-12/1-31/* C xy  1  * -  1 1
-* SEAICE20  see_ExtData.rc_for_path     SEAICE20 1980-2018/1-12/1-31/* C xy  1  * -  1 1
-* SEAICE30  see_ExtData.rc_for_path     SEAICE30 1980-2018/1-12/1-31/* C xy  1  * -  1 1
-* SEAICE40  see_ExtData.rc_for_path     SEAICE40 1980-2018/1-12/1-31/* C xy  1  * -  1 1
-* SEAICE50  see_ExtData.rc_for_path     SEAICE50 1980-2018/1-12/1-31/* C xy  1  * -  1 1
-* SEAICE60  see_ExtData.rc_for_path     SEAICE60 1980-2018/1-12/1-31/* C xy  1  * -  1 1
-* SEAICE70  see_ExtData.rc_for_path     SEAICE70 1980-2018/1-12/1-31/* C xy  1  * -  1 1
-* SEAICE80  see_ExtData.rc_for_path     SEAICE80 1980-2018/1-12/1-31/* C xy  1  * -  1 1
-* SEAICE90  see_ExtData.rc_for_path     SEAICE90 1980-2018/1-12/1-31/* C xy  1  * -  1 1
-* SLP       see_ExtData.rc_for_path     SLP      1980-2018/1-12/1-31/* C xy  1  * -  1 1
-* SNODP     see_ExtData.rc_for_path     SNODP    1980-2018/1-12/1-31/* C xy  1  * -  1 1
-* SNOMAS    see_ExtData.rc_for_path     SNOMAS   1980-2018/1-12/1-31/* C xy  1  * -  1 1
-* SWGDN     see_ExtData.rc_for_path     SWGDN    1980-2018/1-12/1-31/* C xy  1  * -  1 1
-* TO3       see_ExtData.rc_for_path     TO3      1980-2018/1-12/1-31/* C xy  1  * -  1 1
-* TROPPT    see_ExtData.rc_for_path     TROPPT   1980-2018/1-12/1-31/* C xy  1  * -  1 1
-* TS        see_ExtData.rc_for_path     TS       1980-2018/1-12/1-31/* C xy  1  * -  1 1
-* T2M       see_ExtData.rc_for_path     T2M      1980-2018/1-12/1-31/* C xy  1  * -  1 1
-* U10M      see_ExtData.rc_for_path     U10M     1980-2018/1-12/1-31/* C xy  1  * -  1 1
-* USTAR     see_ExtData.rc_for_path     USTAR    1980-2018/1-12/1-31/* C xy  1  * -  1 1
-* V10M      see_ExtData.rc_for_path     V10M     1980-2018/1-12/1-31/* C xy  1  * -  1 1
-* Z0M       see_ExtData.rc_for_path     Z0M      1980-2018/1-12/1-31/* C xy  1  * -  1 1
-
-# --- A3cld fields ---
-* CLOUD     see_ExtData.rc_for_path     CLOUD    1980-2018/1-12/1-31/* C xyz 1  * -  1 1
-* OPTDEPTH  see_ExtData.rc_for_path     OPTDEPTH 1980-2018/1-12/1-31/* C xyz 1  * -  1 1
-* QI        see_ExtData.rc_for_path     QI       1980-2018/1-12/1-31/* C xyz 1  * -  1 1
-* QL        see_ExtData.rc_for_path     QL       1980-2018/1-12/1-31/* C xyz 1  * -  1 1
-* TAUCLI    see_ExtData.rc_for_path     TAUCLI   1980-2018/1-12/1-31/* C xyz 1  * -  1 1
-* TAUCLW    see_ExtData.rc_for_path     TAUCLW   1980-2018/1-12/1-31/* C xyz 1  * -  1 1
-
-# --- A3dyn fields ---
-* DTRAIN    see_ExtData.rc_for_path     DTRAIN   1980-2018/1-12/1-31/* C xyz 1  * -  1 1
-* OMEGA     see_ExtData.rc_for_path     OMEGA    1980-2018/1-12/1-31/* C xyz 1  * -  1 1
-* RH        see_ExtData.rc_for_path     RH       1980-2018/1-12/1-31/* C xyz 1  * -  1 1
-* U         see_ExtData.rc_for_path     U        1980-2018/1-12/1-31/* C xyz 1  * -  1 1
-* V         see_ExtData.rc_for_path     V        1980-2018/1-12/1-31/* C xyz 1  * -  1 1
-				        
-# --- A3mstC fields ---		        
-* DQRCU     see_ExtData.rc_for_path     DQRCU    1980-2018/1-12/1-31/* C xyz 1  * -  1 1
-* DQRLSAN   see_ExtData.rc_for_path     DQRLSAN  1980-2018/1-12/1-31/* C xyz 1  * -  1 1
-* REEVAPCN  see_ExtData.rc_for_path     REEVAPCN 1980-2018/1-12/1-31/* C xyz 1  * -  1 1
-* REEVAPLS  see_ExtData.rc_for_path     REEVAPLS 1980-2018/1-12/1-31/* C xyz 1  * -  1 1
-
-# --- A3mstE fields ---
-* CMFMC     see_ExtData.rc_for_path     CMFMC    1980-2018/1-12/1-31/* C xyz 1  * -  1 1
-* PFICU     see_ExtData.rc_for_path     PFICU    1980-2018/1-12/1-31/* C xyz 1  * -  1 1
-* PFILSAN   see_ExtData.rc_for_path     PFILSAN  1980-2018/1-12/1-31/* C xyz 1  * -  1 1
-* PFLCU     see_ExtData.rc_for_path     PFLCU    1980-2018/1-12/1-31/* C xyz 1  * -  1 1
-* PFLLSAN   see_ExtData.rc_for_path     PFFLSAN  1980-2018/1-12/1-31/* C xyz 1  * -  1 1
-
-# --- I3 fields ---
-* PS        see_ExtData.rc_for_path     PS       1980-2018/1-12/1-31/* C xy  1  * -  1 1
-* SPHU      see_ExtData.rc_for_path     QV       1980-2018/1-12/1-31/* C xyz 1  * -  1 1
-* TMPU      see_ExtData.rc_for_path     T        1980-2018/1-12/1-31/* C xyz 1  * -  1 1
 
 #==============================================================================
 # --- Time zones (offset to UTC) ---
