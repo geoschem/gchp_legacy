@@ -70,8 +70,11 @@ if [[ $? == 0 ]]; then
         ipcs -a  # Show current shared memory segments again (should be none)
     fi
 
+    # Odyssey-specific setting to get around connection issues at high # cores
+    export OMPI_MCL_btl=openib
+
     # Start the simulation
-    time srun -n ${coreCount} -N ${SLURM_NNODES} -m plane=${planeCount} --mpi=pmi2 ./geos >> ${log}
+    time srun -n ${coreCount} -N ${SLURM_NNODES} -m plane=${planeCount} --mpi=pmix ./geos >> ${log}
 
     # Clean up any shared memory segments owned by this user
     if grep -q "USE_SHMEM.*1" CAP.rc; then

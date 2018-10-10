@@ -124,9 +124,12 @@ if [[ $? == 0 ]]; then
    # Echo start date
    echo '===> Run started at' `date` >> ${gchplog}
    
+   # Odyssey-specific setting to get around connection issues at high # cores
+   export OMPI_MCL_btl=openib
+
    # Run the simulation
    # SLURM_NTASKS is #SBATCH -n and SLURM_NNODES is #SBATCH -N above
-   time srun -n ${coreCount} -N ${SLURM_NNODES} -m plane=${planeCount} --mpi=pmi2 ./geos >> ${gchplog}
+   time srun -n ${coreCount} -N ${SLURM_NNODES} -m plane=${planeCount} --mpi=pmix ./geos >> ${gchplog}
    
    # Echo end date
    echo '===> Run ended at' `date` >> ${gchplog}
