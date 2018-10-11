@@ -48,6 +48,7 @@ if [[ -z "${GC_DATA_ROOT}" ]]; then
 	else
 	    valid_path=1
 	    echo "export GC_DATA_ROOT=${extdata}" > ${HOME}/.geoschem/config
+            source ${HOME}/.geoschem/config
 	fi
     done
 fi
