@@ -10,9 +10,6 @@
 # See SLURM documentation for descriptions of the above settings as well
 # as many other settings you may use. For best performance, request all
 # memory per node using --mem=MaxMemPerNode.
-#
-# This sample run script includes usage of the shared memory option which can
-# be toggled on/off in runConfig.sh.
 
 # Define GEOS-Chem log file
 log="gchp.log"
@@ -26,20 +23,21 @@ fi
 ./runConfig.sh > runConfig.log
 if [[ $? == 0 ]]; then
 
-    # Set and source your bashrc. Change this to whatever env file
-    # used during GCHP compilation. You can copy or adapt sample bashrc
-    # files located in ./bashrcSamples subdirectory.
-    BASHRC=./set_your_gchp_env.bashrc
-    if [ ! -f $BASHRC ] 
+    # Source your bashrc. This requires first setting the Bashrc symbolic 
+    # link using setBashrc in the run directory. Be sure it is consistent
+    # with whatever env file you used during GCHP compilation. You can copy 
+    # or adapt sample bashrc files located in ./bashrcSamples subdirectory.
+    gchp_env=$(readlink -f Bashrc)
+    if [ ! -f ${gchp_env} ] 
     then
-       echo "ERROR: BASHRC environment variable in run script is not set!"
+       echo "ERROR: Bashrc symbolic link is not set!"
        echo "Copy or adapt a bashrc from the ./bashrcSamples subdirectory"
-       echo "prior to running. Use the same environment file used for compilation."
+       echo "prior to running. Set the Bashrc symbolic link to point to it using ./setBashrc."
        echo "Exiting."
        exit 1
     fi
-    echo "WARNING: You are using environment settings in $BASHRC"
-    source $BASHRC
+    echo "WARNING: You are using environment settings in ${gchp_env}"
+    source ${gchp_env}
 
     # Use SLURM to distribute tasks across nodes
     NX=$( grep NX GCHP.rc | awk '{print $2}' )
@@ -54,6 +52,11 @@ if [[ $? == 0 ]]; then
     echo "# of CPUs : $coreCount\n"
     echo "# of nodes: $SLURM_NNODES\n"
     echo "-m plane  : ${planeCount}"
+
+    # Optionally compile 
+    # Uncomment the line below to compile from scratch
+    # See other compile options with 'make help'
+    # make compile_clean
 
     # Echo start date
     echo '===> Run started at' `date` >> ${log}

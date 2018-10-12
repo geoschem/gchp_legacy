@@ -40,6 +40,23 @@ if [[ $# == 0 ]]; then
   exit 1
 fi
 
+# Source environment file
+# Source your bashrc. This requires first setting the Bashrc symbolic 
+# link using setBashrc in the run directory. Be sure it is consistent
+# with whatever env file you used during GCHP compilation. You can copy 
+# or adapt sample bashrc files located in ./bashrcSamples subdirectory.
+gchp_env=$(readlink -f Bashrc)
+if [ ! -f ${gchp_env} ] 
+then
+   echo "ERROR: Bashrc symbolic link is not set!"
+   echo "Copy or adapt a bashrc from the ./bashrcSamples subdirectory"
+   echo "prior to running. Set the Bashrc symbolic link to point to it using ./setBashrc."
+   echo "Exiting."
+   exit 1
+fi
+echo "WARNING: You are using environment settings in ${gchp_env}"
+source ${gchp_env}
+
 # Check environment
 if [[ "x${MPI_ROOT}" == x ]]; then
    echo "Source environment settings before continuing. See bashrcSamples subdir for examples."

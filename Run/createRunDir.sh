@@ -152,6 +152,7 @@ cp ./fvcore_layout.rc      ${rundir}
 cp ./input.nml             ${rundir} 
 cp ./README                ${rundir}
 cp ./setCodeDir            ${rundir}
+cp ./setBashrc             ${rundir}
 cp ./Makefile              ${rundir}
 cp ./gitignore             ${rundir}/.gitignore
 cp ./GCHP.rc_template      ${rundir}/GCHP.rc
@@ -221,6 +222,7 @@ sed -i -e "s|{dHHmmss}|${dHHmmSS}|"     ${rundir}/CAP.rc
 # Set permissions
 #-----------------------------------------------------------------
 chmod 744 ${rundir}/setCodeDir
+chmod 744 ${rundir}/setBashrc
 chmod 744 ${rundir}/build.sh
 chmod 744 ${rundir}/Makefile
 chmod 744 ${rundir}/runConfig.sh
