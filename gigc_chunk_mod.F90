@@ -862,7 +862,8 @@ CONTAINS
     ! current values. 
     IF ( Phase /= 2 .AND. Input_Opt%ITS_A_FULLCHEM_SIM  &
          .AND. IND_('CH4','A') > 0 ) THEN
-       CALL SET_CH4 ( am_I_Root, Input_Opt, State_Met, State_Chm, RC )
+       CALL SET_CH4 ( am_I_Root,  Input_Opt, State_Met, State_Chm, &
+                      State_Diag, RC )
     ENDIF
 
     !=======================================================================
