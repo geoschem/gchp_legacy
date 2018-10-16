@@ -233,7 +233,6 @@ CONTAINS
     CALL MPI_Bcast( INPUT_OPT%LBASICEMIS,    1, mpi_logical, 0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%LSETH2O,       1, mpi_logical, 0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%CFCYEAR,       1, mpi_integer, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%LFUTURECFC,    1, mpi_logical, 0, mpiComm, RC )
 
     !----------------------------------------
     ! CO2 MENU fields
