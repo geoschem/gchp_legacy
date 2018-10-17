@@ -20,26 +20,48 @@ Instructions to set up, compile, and run GCHP:
    c. Optionally reset the CodeDir symbolic link with './setCodeDir 
       /path/to/your/code' if you wish to use source code stored elsewhere.
 
-2. Set up your environment by sourcing a bashrc file
+2. Create an environment file, or set of env files, specific to your system
 
-   Set up your enviroment prior to compiling by sourcing your bashrc file. You
-   must create your own bashrc file customized for your system. See the 
-   bashrcSamples subdirectory for examples customized for the Harvard
-   Odyssey compute cluster.
+   Environment files, when sourced, define environment variables used in 
+   GCHP and load all libraries necessary for compiling and running. Sample 
+   environment files that are customized to the Harvard Odyssey compute
+   cluster are in the environmentFileSamples/ subdirectory. The env file
+   marked 'standalone' is more generic for other systems. Work with your 
+   systems administrator to determine what libraries are available to you.
+   Reach out the GEOS-Chem Support Team or the GCHP Working Group for help.
+   Once you have one or more environment files that work on your system, 
+   store them in a central location for repeated use.
+
+2. Set the gchp.env symbolic link to point to your environment file
+
+   Always set the gchp.env symbolic to point to your environment file when 
+   setting up a new run directory. Set the symlink with:
+
+     ./setEnvironment /path/to/env/file
 
 3. Compile source code with 'make compile_clean'
 
-   This creates a 'geos' executable using the Makefile which itself invokes 
-   bash script build.sh. Compile by using the Makefile as follows:
+   Compiling with the Makefile automatically sources your environment and 
+   copies the 'geos' executable to the run directory. Compile by using the 
+   Makefile as follows:
+
    1. First compile: 'make compile_clean'
    2. For subsequent compilations, use any of the following:
         'make compile_standard' : skips recompiling MAPL, ESMF, and DyCore
         'make compile_debug'    : same as above but with debug compile flags on
         'make compile_mapl'     : also recompiles MAPL
-   Note that a clean compile will take over a half-hour while subsequent
-   compilations will be of time on par with GEOS-Chem classic compile time.
-   Please be aware that you must do another 'make compile_clean' if you change
-   your libraries.
+ 
+   NOTES:
+    (a) You can see all make options with 'make help'
+    (b) You can skip this step and copy an executable from another run
+        directory, being very careful to use the same environment file
+        the executable was created with and not renaming or recompiling
+        the original source code. Also copying 'lastbuild' and 'compile.log'
+        is recommended.
+    (c) A clean compile will take over a half-hour while subsequent
+        compilations will be of time on par with GEOS-Chem classic compile 
+        time.
+    (d) You recompile from scratch if you change libraries
 
 4. Set run settings in bash script runConfig.sh
  
@@ -73,25 +95,26 @@ Instructions to set up, compile, and run GCHP:
 
    Sample run scripts are in the runScriptSamples subdirectory. One example is 
    provided for Sun Grid Engine. All others assume use of SLURM (simple linux
-   utility for resource management). 
-
-   It is important that you source your bashrc in the run script using the same 
-   env file as used for compilation. You must also source your runConfig.sh 
-   file and be sure that your resource settings (e.g. # cores, # nodes) 
-   is compatible with what you configured in runConfig.sh.
+   utility for resource management) and are customized for the Harvard
+   Odyssey compute cluster.
 
    Adapt gchp.run for single run jobs. Adapt gchp.multirun.sh and 
    gchp.multirun.run for multiple consecutive jobs (e.g. 1 year of 1-month 
    jobs). Using the multi-run option allows you to output monthly mean 
    diagnostics. See sample run scripts for more information.
 
+   It is important that you make sure your resource settings (# cores, 
+   # nodes) are compatible with what you configured in runConfig.sh. 
+
+   It is also important to source your environment settings (gchp.env) and your
+   run settings (runConfig.sh). Both these steps are done automatically in
+   the sample run scripts.
+
 5. Submit job
 
    If using SLURM and doing a single run, do 'sbatch gchp.run'. If using 
    SLURM and doing multiple runs, do 'source gchp.multirun.sh'. Adapt as 
-   needed for your own cluster and your own run scripts. Please be sure that 
-   your run script includes sourcing your bashrc and sourcing runConfig.sh, 
-   and your compute resources specified in both files is compatible.
+   needed for your own cluster and your own run scripts. 
 
 6. Inspect output data
 

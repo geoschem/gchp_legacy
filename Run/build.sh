@@ -40,17 +40,18 @@ if [[ $# == 0 ]]; then
   exit 1
 fi
 
-# Source environment file
-# Source your bashrc. This requires first setting the Bashrc symbolic 
-# link using setBashrc in the run directory. Be sure it is consistent
-# with whatever env file you used during GCHP compilation. You can copy 
-# or adapt sample bashrc files located in ./bashrcSamples subdirectory.
-gchp_env=$(readlink -f Bashrc)
+# Source your environment file. This requires first setting the gchp.env
+# symbolic link using script setEnvironment in the run directory. 
+# Be sure gchp.env points to the same file for both compilation and 
+# running. You can copy or adapt sample environment files located in 
+# ./envSamples subdirectory.
+gchp_env=$(readlink -f gchp.env)
 if [ ! -f ${gchp_env} ] 
 then
-   echo "ERROR: Bashrc symbolic link is not set!"
-   echo "Copy or adapt a bashrc from the ./bashrcSamples subdirectory"
-   echo "prior to running. Set the Bashrc symbolic link to point to it using ./setBashrc."
+   echo "ERROR: gchp.rc symbolic link is not set!"
+   echo "Copy or adapt an environment file from the ./envSamples "
+   echo "subdirectory prior to running. Then set the gchp.env "
+   echo "symbolic link to point to it using ./setEnvironment."
    echo "Exiting."
    exit 1
 fi
@@ -59,14 +60,14 @@ source ${gchp_env}
 
 # Check environment
 if [[ "x${MPI_ROOT}" == x ]]; then
-   echo "Source environment settings before continuing. See bashrcSamples subdir for examples."
+   echo "Source environment settings before continuing. See environmentFileSamples subdir for examples."
 fi
 
 if [[ "x${ESMF_COMM}" == x ]]; then
-   echo "ERROR: ESMF_COMM is not set! See bashrcSamples subdir for examples."
+   echo "ERROR: ESMF_COMM is not set! See environmentFileSamples subdir for examples."
    exit 1
 elif [[ "x${ESMF_COMPILER}" == x ]]; then
-   echo "ERROR: ESMF_COMPILER is not set! See bashrcSamples subdir for examples."
+   echo "ERROR: ESMF_COMPILER is not set! See environmentFileSamples subdir for examples."
    exit 1
 elif [[ ! -e CodeDir ]]; then
   echo "ERROR: CodeDir symbolic link to source code directory does not exist!"

@@ -146,21 +146,21 @@ mkdir -p ${rundir}
 #-----------------------------------------------------------------
 # Copy run directory files and subdirectories
 #-----------------------------------------------------------------
-cp ./archiveRun.sh         ${rundir} 
-cp ./build.sh              ${rundir} 
-cp ./fvcore_layout.rc      ${rundir} 
-cp ./input.nml             ${rundir} 
-cp ./README                ${rundir}
-cp ./setCodeDir            ${rundir}
-cp ./setBashrc             ${rundir}
-cp ./Makefile              ${rundir}
-cp ./gitignore             ${rundir}/.gitignore
-cp ./GCHP.rc_template      ${rundir}/GCHP.rc
-cp ./runConfig.sh_template ${rundir}/runConfig.sh
-cp ./CAP.rc_template       ${rundir}/CAP.rc
-cp -r ./bashrcSamples      ${rundir} 
-cp -r ./OutputDir          ${rundir} 
-cp -r ./runScriptSamples   ${rundir}
+cp ./archiveRun.sh             ${rundir} 
+cp ./build.sh                  ${rundir} 
+cp ./fvcore_layout.rc          ${rundir} 
+cp ./input.nml                 ${rundir} 
+cp ./README                    ${rundir}
+cp ./setCodeDir                ${rundir}
+cp ./setEnvironment            ${rundir}
+cp ./Makefile                  ${rundir}
+cp ./gitignore                 ${rundir}/.gitignore
+cp ./GCHP.rc_template          ${rundir}/GCHP.rc
+cp ./runConfig.sh_template     ${rundir}/runConfig.sh
+cp ./CAP.rc_template           ${rundir}/CAP.rc
+cp -r ./environmentFileSamples ${rundir} 
+cp -r ./OutputDir              ${rundir} 
+cp -r ./runScriptSamples       ${rundir}
 cp ./HISTORY.rc_templates/HISTORY.rc.${sim_name}            ${rundir}/HISTORY.rc
 cp ./input.geos_templates/input.geos.${sim_name}            ${rundir}/input.geos
 cp ./ExtData.rc_templates/ExtData.rc.${sim_type}            ${rundir}/ExtData.rc
@@ -222,13 +222,13 @@ sed -i -e "s|{dHHmmss}|${dHHmmSS}|"     ${rundir}/CAP.rc
 # Set permissions
 #-----------------------------------------------------------------
 chmod 744 ${rundir}/setCodeDir
-chmod 744 ${rundir}/setBashrc
+chmod 744 ${rundir}/setEnvironment
 chmod 744 ${rundir}/build.sh
 chmod 744 ${rundir}/Makefile
 chmod 744 ${rundir}/runConfig.sh
 chmod 744 ${rundir}/archiveRun.sh
 chmod 744 ${rundir}/runScriptSamples/*
-chmod 744 ${rundir}/bashrcSamples/*
+chmod 744 ${rundir}/environmentFileSamples/*
 chmod 644 ${rundir}/runScriptSamples/README
 
 #----------------------------------------------------------------------
@@ -265,7 +265,7 @@ do
 	cd ${rundir}
 	printf "\n\nChanges to the following run directory files are tracked by git:\n\n" >> ${version_log}
 	git init
-	git add *.rc *.sh bashrcSamples/* runScriptSamples/* README .gitignore
+	git add *.rc *.sh environmentFileSamples/* runScriptSamples/* README .gitignore
 	git add setCodeDir Makefile input.geos input.nml
 	printf " " >> ${version_log}
 	git commit -m "Initial run directory" >> ${version_log}

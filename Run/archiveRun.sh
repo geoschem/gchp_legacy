@@ -8,7 +8,7 @@
 #
 # The output data (OutputDir/*.nc4) is moved but everything else is copied, including 
 # log files (*.log, slurm-*), config files (*.rc, input.geos), run files (*.run, 
-# *.bashrc, runConfig.sh), and restarts (only gcchem*). Files are stored in 
+# *.env, runConfig.sh), and restarts (only gcchem*). Files are stored in 
 # subdirectories within the archive directory.
 #
 # Clean the run directory after archiving with 'make cleanup_output' prior to
@@ -19,7 +19,8 @@
 
 archivedir=$1
 if [ -d "${archivedir}" ]; then
-   printf -v "Warning: Directory ${archivedir} already exists.\nRemove or rename that directory, or choose a different name."
+   echo "Warning: Directory ${archivedir} already exists."
+   echo "Remove or rename that directory, or choose a different name."
    exit 1
 else
    mkdir -p ${archivedir}
@@ -74,7 +75,7 @@ copyfiles ${archivedir}/logs "slurm-*"
 # miscellaneous run files
 copyfiles ${archivedir}/run runConfig.sh
 copyfiles ${archivedir}/run "*.run"
-copyfiles ${archivedir}/run "*.bashrc"
+copyfiles ${archivedir}/run "*.env"
 copyfiles ${archivedir}/run *.multirun.sh
 
 printf "Complete!\n"
