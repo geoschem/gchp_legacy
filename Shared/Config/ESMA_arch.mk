@@ -91,7 +91,7 @@ ifeq ($(ARCH),Linux)
     ifeq ("$(BOPT)","g")
        FOPT = $(FOPTG) -O0 -ftz -traceback -debug -nolib-inline -check bounds -check uninit -fp-stack-check -ftrapuv
     else
-       FOPT = $(FOPT3) -vec-report0 -ftz -align all -fno-alias
+       FOPT = $(FOPT3) -ftz -align all -fno-alias
     endif
 #------------------------------------------------------------------------------
 
