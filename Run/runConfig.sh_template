@@ -193,6 +193,9 @@ AerosolMass_mode=${common_mode}
 Aerosols_freq=${common_freq}
 Aerosols_dur=${common_dur}
 Aerosols_mode=${common_mode}
+Budget_freq=${common_freq}
+Budget_dur=${common_dur}
+Budget_mode=${common_mode}
 CloudConvFlux_freq=${common_freq}
 CloudConvFlux_dur=${common_dur}
 CloudConvFlux_mode=${common_mode}
@@ -377,6 +380,9 @@ replace_val AerosolMass.mode           ${AerosolMass_mode}      HISTORY.rc
 replace_val Aerosols.frequency         ${Aerosols_freq}	        HISTORY.rc
 replace_val Aerosols.duration          ${Aerosols_dur}	        HISTORY.rc
 replace_val Aerosols.mode              ${Aerosols_mode}	        HISTORY.rc
+replace_val Budget.frequency           ${Budget_freq}	        HISTORY.rc
+replace_val Budget.duration            ${Budget_dur}	        HISTORY.rc
+replace_val Budget.mode                ${Budget_mode}	        HISTORY.rc
 replace_val CloudConvFlux.frequency    ${CloudConvFlux_freq}    HISTORY.rc
 replace_val CloudConvFlux.duration     ${CloudConvFlux_dur}     HISTORY.rc
 replace_val CloudConvFlux.mode         ${CloudConvFlux_mode}    HISTORY.rc
