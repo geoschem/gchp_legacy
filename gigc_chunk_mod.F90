@@ -453,7 +453,7 @@ CONTAINS
     INTEGER,        INTENT(IN)    :: second      ! UTC second
     REAL*4,         INTENT(IN)    :: utc         ! UTC time [hrs]
     REAL*4,         INTENT(IN)    :: hElapsed    ! Elapsed hours
-    INTEGER,        INTENT(IN)    :: Phase       ! Run phase (1 or 2)
+    INTEGER,        INTENT(IN)    :: Phase       ! Run phase (-1, 1 or 2)
     LOGICAL,        INTENT(IN)    :: IsChemTime  ! Time for chemistry? 
 !
 ! !INPUT/OUTPUT PARAMETERS:
@@ -557,7 +557,7 @@ CONTAINS
     !=======================================================================
     ! Define processes to be covered in this phase
     !
-    ! In the standard GEOS-Chem, the following operator sequence is used:
+    ! In the standard GEOS-Chem the following operator sequence is used:
     ! 1. DryDep (kg)
     ! 2. Emissions (kg)
     ! 3. Turbulence (v/v)
@@ -578,20 +578,25 @@ CONTAINS
     !
     ! Here, we use the following operator sequence:
     ! 
-    ! 1.  Convection (v/v) --> Phase 1
-    ! 2.  DryDep (kg)      --> Phase 1
-    ! 3.  Emissions (kg)   --> Phase 1
-    ! 4a. Tendencies (v/v) --> Phase 1
-    ! -------------------------------
-    ! 4b. Turbulence (v/v) --> Phase 2 
-    ! 5.  Chemistry (kg)   --> Phase 2
-    ! 6.  WetDep (kg)      --> Phase 2     
+    ! 1.  Convection (v/v) --> Phase 1 or -1
+    ! 2.  DryDep (kg)      --> Phase 1 or -1
+    ! 3.  Emissions (kg)   --> Phase 1 or -1
+    ! 4a. Tendencies (v/v) --> Phase 1 or -1
+    ! --------------------------------------
+    ! 4b. Turbulence (v/v) --> Phase 2 or -1 
+    ! 5.  Chemistry (kg)   --> Phase 2 or -1
+    ! 6.  WetDep (kg)      --> Phase 2 or -1     
     ! 
     ! Any of the listed processes is only executed if the corresponding switch
     ! in the input.geos file is enabled. If the physics component already
     ! covers convection or turbulence, they should not be applied here!
     ! The tendencies are only applied if turbulence is not done within
     ! GEOS-Chem (ckeller, 10/14/14).
+    ! 
+    ! The standard number of phases in GCHP is 1, set in GCHP.rc, which
+    ! results in Phase -1 in gigc_chunk_run. This results in executing
+    ! all GEOS-Chem components in a single run rather than splitting up
+    ! across two runs as is done in GEOS-5. (ewl, 10/26/18)
     !=======================================================================
 
     ! By default, do processes as defined in input.geos. DoTend defined below. 
@@ -602,7 +607,7 @@ CONTAINS
     DoChem   = Input_Opt%LCHEM .AND. IsChemTime   ! chemistry time step
     DoWetDep = Input_Opt%LWETD                    ! dynamic time step 
 
-    ! Only do selected processes for given phases: 
+    ! If Phase is not -1, only do selected processes for given phases: 
     ! Phase 1: disable turbulence, chemistry and wet deposition. 
     IF ( Phase == 1 ) THEN
        DoTurb   = .FALSE.
@@ -737,7 +742,7 @@ CONTAINS
                         State_Chm, State_Diag, DoEmis, 1, RC       )
 
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-!!!                                PHASE 1                                 !!!
+!!!                                PHASE 1 or -1                                !!!
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
     !=======================================================================
@@ -831,7 +836,7 @@ CONTAINS
     ENDIF ! Tendencies 
 
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-!!!                              PHASE 2                                !!!
+!!!                              PHASE 2 or -1                             !!!
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
     !=======================================================================

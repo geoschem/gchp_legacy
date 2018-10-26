@@ -19,11 +19,16 @@
 ! (for convection).
 !\\
 !\\
-! This gridded component contains two run phases: Phase 1 executes
-! dry deposition and emissions and should be called before surface 
-! processes/turbulence. Phase 2 performs chemistry and wet deposition,
-! and should be called after turbulence. Convection and PBL mixing are
-! done in phase 1 and phase 2, respectively (if selected)..
+! This gridded component contains three run phases: 
+!
+!  -1: Phase -1 is the standard setting in GCHP. It executes all components. 
+!      Phase is -1 if number of phases is set to 1 in config file GCHP.rc.
+!
+!   1: Phase 1 is used in GEOS-5. It executes convection, dry deposition,
+!      and emissions and should be called before surface processes/turbulence. 
+! 
+!   2: Phase 2 is used in GEOS-5. It performs chemistry, and wet deposition, 
+!      and should be called after turbulence.
 !\\
 !\\
 ! !INTERFACE:
@@ -60,7 +65,7 @@ MODULE Chem_GridCompMod
 !
   PRIVATE  :: Initialize_    ! Init method
   PRIVATE  :: Run1           ! Run wrapper phase 1
-  PRIVATE  :: Run2           ! Run wrapper phase 2
+  PRIVATE  :: Run2           ! Run wrapper phase 2 or -1
   PRIVATE  :: Run_           ! Run method
   PRIVATE  :: Finalize_      ! Finalize method
   PRIVATE  :: Extract_       ! Get values from ESMF
@@ -107,7 +112,7 @@ MODULE Chem_GridCompMod
   ! Is this being run as a CTM?
   INTEGER                          :: IsCTM
 
-  ! Number of run phases. Can be set in the resource file (default is 2).
+  ! Number of run phases, 1 or 2. Set in the rc file; else default is 2.
   INTEGER                          :: NPHASE
 
   ! Pointers to import, export and internal state data. Declare them as 
@@ -186,7 +191,6 @@ CONTAINS
 ! \begin{itemize}
 ! \item Defines the Initialize method for the GEOSCHEMchem gridded component
 ! \item Defines the Run methods for the GEOSCHEMchem gridded component
-!       (phase 1 and phase 2).
 ! \item Defines the Finalize method for the GEOSCHEMchem gridded component
 ! \item Attaches an internal state (which holds a private ESMF Config object)
 !       to the GEOSCHEMchem gridded component.
@@ -1186,6 +1190,7 @@ CONTAINS
     CHARACTER(LEN=ESMF_MAXSTR)  :: compName    ! Name of gridded component
     CHARACTER(LEN=ESMF_MAXSTR)  :: Iam
     INTEGER                     :: STATUS
+    INTEGER                     :: PHASE
 
     !=======================================================================
     ! Run1 starts here 
@@ -1197,11 +1202,12 @@ CONTAINS
     ! Identify this routine to MAPL
     Iam = TRIM(compName)//'::Run1'
 
-    ! Call run routine stage 1
-    ! Skip this step if only one phase is defined. In this case, we do all 
-    ! chemistry related processes in phase 2.
+    ! Call run routine stage 1 if more than one phase. If not 2 phases, 
+    ! such as in GCHP, then we do all chemistry related processes from 
+    ! Run2 instead.
     IF ( NPHASE == 2 ) THEN
-       CALL Run_ ( GC, IMPORT, EXPORT, CLOCK, 1, __RC__ )
+       PHASE = 1
+       CALL Run_ ( GC, IMPORT, EXPORT, CLOCK, PHASE, __RC__ )
     ENDIF
 
     ! Return w/ success
@@ -1217,9 +1223,9 @@ CONTAINS
 !
 ! !IROUTINE: Run2
 !
-! !DESCRIPTION: Run2 is a wrapper method for the phase 2 run phase of the 
-!  GEOSCHEMchem gridded component. It calls down to the Run method of the 
-!  GEOS-Chem column chemistry code.
+! !DESCRIPTION: Run2 is a wrapper method for the phase 2 or -1 run phase 
+!  of the GEOSCHEMchem gridded component. It calls down to the Run method 
+!  of the GEOS-Chem column chemistry code.
 !\\
 !\\
 ! !INTERFACE:
@@ -1262,15 +1268,16 @@ CONTAINS
     ! Identify this routine to MAPL
     Iam = TRIM(compName)//'::Run2'
 
-    ! Set phase number: this is 2 for multi-phase runs, -1 otherwise. If
-    ! set to -1, all processes are called (drydep, emissions, chemistry, etc.)
+    ! Set phase number: this is 2 for multi-phase runs (e.g. GEOS-5), and
+    ! is -1 for single-phase runs (e.g. GCHP). If set to -1, all processes 
+    ! are called (drydep, emissions, chemistry, etc.)
     IF ( NPHASE == 1 ) THEN
        PHASE = -1
     ELSE
        PHASE = 2
     ENDIF
 
-    ! Call run routine stage 2
+    ! Call run routine
     CALL Run_ ( GC, IMPORT, EXPORT, CLOCK, PHASE, __RC__ )
 
     ! Return w/ success
@@ -1311,7 +1318,7 @@ CONTAINS
     TYPE(ESMF_State),    INTENT(INOUT), TARGET :: Import ! Import State
     TYPE(ESMF_State),    INTENT(INOUT), TARGET :: Export ! Export State
     TYPE(ESMF_Clock),    INTENT(INOUT)         :: Clock  ! ESMF Clock object
-    INTEGER,             INTENT(IN   )         :: Phase  ! Run phase (1 or 2)
+    INTEGER,             INTENT(IN   )         :: Phase  ! Run phase (-1/1/2)
 !
 ! !OUTPUT PARAMETERS:
 !
@@ -1481,7 +1488,7 @@ CONTAINS
     CALL MAPL_Get(STATE, RUNALARM=ALARM, __RC__)
     IsChemTime = ESMF_AlarmIsRinging(ALARM, __RC__)
 
-    ! Turn off alarm: only if it was on and this is phase 2 (don't turn off
+    ! Turn off alarm: only if it was on and this is not phase 1 (don't turn off
     ! after phase 1 since this would prevent phase 2 from being executed).
     IF ( IsChemTime .AND. PHASE /= 1 ) THEN
        CALL ESMF_AlarmRingerOff(ALARM, __RC__ )
@@ -1504,6 +1511,9 @@ CONTAINS
     ! (5) Chemistry       --> Chemistry time step
     ! (6) Wet deposition  --> Dynamics time step
     ! 
+    ! Phase -1:
+    ! Includes all of the above
+    !
     ! Convection and turbulence are only called if the corresponding 
     ! switches are turned on in the GEOS-Chem input file (input.geos.rc).
     !
@@ -1522,7 +1532,8 @@ CONTAINS
     IF ( Input_Opt%LWETD .AND. Phase /= 1 ) IsRunTime = .TRUE.
 
     ! Is it time to update tendencies?
-    ! Tendencies shall only be updated when chemistry is done.
+    ! Tendencies shall only be updated when chemistry is done, which is 
+    ! Phase -1 or 2.
     IsTendTime = ( IsChemTime .AND. Phase /= 1 )
 
     ! Start timers
@@ -2018,8 +2029,8 @@ CONTAINS
        ! ----------
        CALL MAPL_TimerOff(STATE, "RUN"  )
        
-       ! Fill bundles only on chemistry time steps and after phase 2 
-       ! -----------------------------------------------------------
+       ! Fill bundles only on chemistry time steps and if phase -1 or 2 
+       ! --------------------------------------------------------------
        IF ( IsTendTime ) THEN
 
           IF ( isProvider ) THEN
