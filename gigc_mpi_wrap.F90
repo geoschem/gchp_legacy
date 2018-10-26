@@ -415,8 +415,6 @@ CONTAINS
     CALL MPI_Bcast( INPUT_OPT%LD56,    1, mpi_integer, 0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%ND57,    1, mpi_integer, 0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%LD57,    1, mpi_integer, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%ND58,    1, mpi_integer, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%LD58,    1, mpi_integer, 0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%ND59,    1, mpi_integer, 0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%LD59,    1, mpi_integer, 0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%ND60,    1, mpi_integer, 0, mpiComm, RC )
