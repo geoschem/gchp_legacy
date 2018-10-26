@@ -534,6 +534,9 @@ CONTAINS
     ! processes on the first 10 calls.
     INTEGER, SAVE                  :: NCALLS = 0
 
+    ! HEMCO phase
+    INTEGER                        :: HCO_PHASE
+
     !=======================================================================
     ! GIGC_CHUNK_RUN begins here 
     !=======================================================================
@@ -735,11 +738,13 @@ CONTAINS
     ENDIF
 
     !=======================================================================
-    ! EMISSIONS phase 1. Should be called every time to make sure that the
-    ! HEMCO clock and the HEMCO data list are up to date.
+    ! EMISSIONS. Pass HEMCO Phase 1 which only updates the HEMCO clock
+    ! and the HEMCO data list. Should be called every time to make sure 
+    ! that the HEMCO clock and the HEMCO data list are up to date.
     !=======================================================================
-    CALL EMISSIONS_RUN( am_I_Root, Input_Opt,  State_Met,         &
-                        State_Chm, State_Diag, DoEmis, 1, RC       )
+    HCO_PHASE = 1
+    CALL EMISSIONS_RUN( am_I_Root, Input_Opt,  State_Met,            &
+                        State_Chm, State_Diag, DoEmis, HCO_PHASE, RC  )
 
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 !!!                                PHASE 1 or -1                                !!!
@@ -797,9 +802,11 @@ CONTAINS
        if(am_I_Root.and.NCALLS<10) write(*,*) ' --- Do emissions now'
        CALL MAPL_TimerOn( STATE, 'GC_EMIS' )
 
-       ! Do emissions
+       ! Do emissions. Pass HEMCO Phase 2 which performs the emissions 
+       ! calculations.
+       HCO_PHASE = 2
        CALL EMISSIONS_RUN ( am_I_Root,  Input_Opt, State_Met, State_Chm, &
-                            State_Diag, DoEmis, Phase, RC )
+                            State_Diag, DoEmis, HCO_PHASE, RC )
        ASSERT_(RC==GC_SUCCESS)
 
        CALL MAPL_TimerOff( STATE, 'GC_EMIS' )
