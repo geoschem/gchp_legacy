@@ -121,7 +121,7 @@ Warnings:                    1
     --> RCP_60                 :       false
     --> RCP_85                 :       false
     --> QFED2                  :       false
-    --> SALT_SSALT_OFFLINE     :       true
+    --> SALT_SSALT_OFFLINE     :       false
     --> SEA_SFLUX_OFFLINE      :       true
     --> NOX_LTNG_OFFLINE       :       true
     --> DECAYING_PLANTS        :       true
@@ -152,7 +152,7 @@ Warnings:                    1
 105     DustDead               : on    DST1/DST2/DST3/DST4 
     --> Mass tuning factor     :       0.000768752630594
 106     DustGinoux             : off   DST1/DST2/DST3/DST4
-107     SeaSalt                : off   SALA/SALC/Br2/BrSALA/BrSALC
+107     SeaSalt                : on    SALA/SALC/Br2/BrSALA/BrSALC
     --> SALA lower radius      :       0.01 
     --> SALA upper radius      :       0.5
     --> SALC lower radius      :       0.5
@@ -2235,20 +2235,27 @@ Warnings:                    1
 #==============================================================================
 # --- Archived emissions ---
 #==============================================================================
+
+# --- Sea salt ---
+# Turn off BrSALA and BrSALC by default to match GEOS-Chem classic default
+# setting in the sea salt extension (Model sea salt br-: false). 
+# Uncomment lines below to enable BrSALA/BrSALC emissions as scaled SALA/SALC.
 (((SALT_SSALT_OFFLINE
 0 SALA_SSALT_OFFLINE   $ROOT/OFFLINE_SSALT/v2018-06/SSalt_2x25_$YYYY$MM.nc4 SSALT_SALA 2013-2016/1-12/1-31/0 C xy kg/m2/s SALA   -  4 1
-0 BrSALA_SSALT_OFFLINE -                                                    -          -                     - -  -       BrSALA 84 4 1
+#0 BrSALA_SSALT_OFFLINE -                                                    -          -                     - -  -       BrSALA 84 4 1
 0 SALC_SSALT_OFFLINE   $ROOT/OFFLINE_SSALT/v2018-06/SSalt_2x25_$YYYY$MM.nc4 SSALT_SALC 2013-2016/1-12/1-31/0 C xy kg/m2/s SALC   -  4 1
-0 BrSALC_SSALT_OFFLINE -                                                    -          -                     - -  -       BrSALC 84 4 1
+#0 BrSALC_SSALT_OFFLINE -                                                    -          -                     - -  -       BrSALC 84 4 1
 0 Br2_SSALT_OFFLINE    $ROOT/OFFLINE_SSALT/v2018-06/SSalt_2x25_$YYYY$MM.nc4 SSALT_Br2  2013-2016/1-12/1-31/0 C xy kg/m2/s Br2    -  4 1
 )))SALT_SSALT_OFFLINE
 
+# --- Sea flux ---
 (((SEA_SFLUX_OFFLINE
 0 ACET_SFLUX_OFFLINE $ROOT/OFFLINE_SFLUX/v2018-06/SFlux_2x25_$YYYY$MM.nc4 SFLUX_ACET 2013-2016/1-12/1-31/0 C xy kg/m2/s ACET - 4 1
 0 DMS_SFLUX_OFFLINE  $ROOT/OFFLINE_SFLUX/v2018-06/SFlux_2x25_$YYYY$MM.nc4 SFLUX_DMS  2013-2016/1-12/1-31/0 C xy kg/m2/s DMS  - 4 1
 0 ALD2_SFLUX_OFFLINE $ROOT/OFFLINE_SFLUX/v2018-06/SFlux_2x25_$YYYY$MM.nc4 SFLUX_ALD2 2013-2016/1-12/1-31/0 C xy kg/m2/s ALD2 - 4 1
 )))SEA_SFLUX_OFFLINE
 
+# --- Lightning NOx ---
 (((NOX_LTNG_OFFLINE
 0 NO_LTNG_OFFLINE $ROOT/OFFLINE_LNOX/v2018-06/LNOx_2x25_$YYYY$MM.nc4 LNOX_NO 2013-2016/1-12/1-31/0 C xyz kg/m2/s NO - 4 1
 )))NOX_LTNG_OFFLINE
