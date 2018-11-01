@@ -121,7 +121,7 @@ Warnings:                    1
     --> RCP_60                 :       false
     --> RCP_85                 :       false
     --> QFED2                  :       false
-    --> SALT_SSALT_OFFLINE     :       false
+    --> SALT_SSALT_OFFLINE     :       true
     --> SEA_SFLUX_OFFLINE      :       true
     --> NOX_LTNG_OFFLINE       :       true
     --> DECAYING_PLANTS        :       true
@@ -152,7 +152,7 @@ Warnings:                    1
 105     DustDead               : on    DST1/DST2/DST3/DST4 
     --> Mass tuning factor     :       0.000768752630594
 106     DustGinoux             : off   DST1/DST2/DST3/DST4
-107     SeaSalt                : on    SALA/SALC/Br2/BrSALA/BrSALC
+107     SeaSalt                : off   SALA/SALC/Br2/BrSALA/BrSALC
     --> SALA lower radius      :       0.01 
     --> SALA upper radius      :       0.5
     --> SALC lower radius      :       0.5
