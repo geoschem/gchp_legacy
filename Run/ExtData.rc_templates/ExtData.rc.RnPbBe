@@ -5,90 +5,111 @@ PrimaryExports%%
 # Name   | Units | Dim | Loc | Clim |Conservative| Time Template | Offset | Scale | Variable | Template |
 #--------|-------|-----|-----|------|------------|---------------|--------|-------|----------|----------|
 # 
+# Notes:
+# Units should be in single quotes if they contain whitespace
+# V Loc should be C if the data is vertically centered
+# Climatology should be Y if the file contains monthly climatology; otherwise it should be N
+# Conservative should be Y if units imply mass conservation dependency on regrid method (e.g. value per area)
+# Refresh Time Template should be:
+#    1. - if the file contains time-invariant constants
+#    2. prefixed with F if no time interpolation between data reads (F = fixed)
+#    3. 0 if data should be kept up-to-date at all times
+#    4. 0:HHMMSS if data occurs in file with frequency HHMMSS and should be updated at that frequency
+#    5. %y4-%m2-%d2T%h2:00:00, with any tokens replaced by appropriate constant time value, if multiple time
+#       values are in the same file. Note that including an F prefix indicates the data should be treated
+#       as constant until the next refresh time. Omission of the F prefix will time-interpolate between
+#       the values.  
 
-#------------------------
-# Met data
-#------------------------
-ALBD     '1'       xy  C N Y F0;003000 none none ALBEDO     ./MetDir/%y4/%m2/GEOSFP.%y4%m2%d2.A1.025x03125.nc
-CLDFRC   '1'       xy  C N Y F0;003000 none none CLDTOT     ./MetDir/%y4/%m2/GEOSFP.%y4%m2%d2.A1.025x03125.nc
-EFLUX    '1'       xy  C N Y F0;003000 none none EFLUX      ./MetDir/%y4/%m2/GEOSFP.%y4%m2%d2.A1.025x03125.nc
-EVAP     '1'       xy  C N Y F0;003000 none none EVAP       ./MetDir/%y4/%m2/GEOSFP.%y4%m2%d2.A1.025x03125.nc
-FRSEAICE '1'       xy  C N Y F0;003000 none none FRSEAICE   ./MetDir/%y4/%m2/GEOSFP.%y4%m2%d2.A1.025x03125.nc
-FRSNO    '1'       xy  C N Y F0;003000 none none FRSNO      ./MetDir/%y4/%m2/GEOSFP.%y4%m2%d2.A1.025x03125.nc
-GRN      '1'       xy  C N Y F0;003000 none none GRN        ./MetDir/%y4/%m2/GEOSFP.%y4%m2%d2.A1.025x03125.nc
-GWETROOT '1'       xy  C N Y F0;003000 none none GWETROOT   ./MetDir/%y4/%m2/GEOSFP.%y4%m2%d2.A1.025x03125.nc
-GWETTOP  '1'       xy  C N Y F0;003000 none none GWETTOP    ./MetDir/%y4/%m2/GEOSFP.%y4%m2%d2.A1.025x03125.nc
-HFLUX    '1'       xy  C N Y F0;003000 none none HFLUX      ./MetDir/%y4/%m2/GEOSFP.%y4%m2%d2.A1.025x03125.nc
-LAI      '1'       xy  C N Y F0;003000 none none LAI        ./MetDir/%y4/%m2/GEOSFP.%y4%m2%d2.A1.025x03125.nc
-LWI      '1'       xy  C N Y F0;003000 none none LWI        ./MetDir/%y4/%m2/GEOSFP.%y4%m2%d2.A1.025x03125.nc
-RADLWG   '1'       xy  C N Y F0;003000 none none LWGNT      ./MetDir/%y4/%m2/GEOSFP.%y4%m2%d2.A1.025x03125.nc
-PARDF    '1'       xy  C N Y F0;003000 none none PARDF      ./MetDir/%y4/%m2/GEOSFP.%y4%m2%d2.A1.025x03125.nc
-PARDR    '1'       xy  C N Y F0;003000 none none PARDR      ./MetDir/%y4/%m2/GEOSFP.%y4%m2%d2.A1.025x03125.nc
-PBLH     '1'       xy  C N Y F0;003000 none none PBLH       ./MetDir/%y4/%m2/GEOSFP.%y4%m2%d2.A1.025x03125.nc
-PRECANV  '1'       xy  C N Y F0;003000 none none PRECANV    ./MetDir/%y4/%m2/GEOSFP.%y4%m2%d2.A1.025x03125.nc
-PRECCON  '1'       xy  C N Y F0;003000 none none PRECCON    ./MetDir/%y4/%m2/GEOSFP.%y4%m2%d2.A1.025x03125.nc
-PRECLSC  '1'       xy  C N Y F0;003000 none none PRECLSC    ./MetDir/%y4/%m2/GEOSFP.%y4%m2%d2.A1.025x03125.nc
-PRECSNO  '1'       xy  C N Y F0;003000 none none PRECSNO    ./MetDir/%y4/%m2/GEOSFP.%y4%m2%d2.A1.025x03125.nc
-PRECTOT  '1'       xy  C N Y F0;003000 none none PRECTOT    ./MetDir/%y4/%m2/GEOSFP.%y4%m2%d2.A1.025x03125.nc
-SEAICE00 '1'       xy  C N Y F0;003000 none none SEAICE00   ./MetDir/%y4/%m2/GEOSFP.%y4%m2%d2.A1.025x03125.nc
-SEAICE10 '1'       xy  C N Y F0;003000 none none SEAICE10   ./MetDir/%y4/%m2/GEOSFP.%y4%m2%d2.A1.025x03125.nc
-SEAICE20 '1'       xy  C N Y F0;003000 none none SEAICE20   ./MetDir/%y4/%m2/GEOSFP.%y4%m2%d2.A1.025x03125.nc
-SEAICE30 '1'       xy  C N Y F0;003000 none none SEAICE30   ./MetDir/%y4/%m2/GEOSFP.%y4%m2%d2.A1.025x03125.nc
-SEAICE40 '1'       xy  C N Y F0;003000 none none SEAICE40   ./MetDir/%y4/%m2/GEOSFP.%y4%m2%d2.A1.025x03125.nc
-SEAICE50 '1'       xy  C N Y F0;003000 none none SEAICE50   ./MetDir/%y4/%m2/GEOSFP.%y4%m2%d2.A1.025x03125.nc
-SEAICE60 '1'       xy  C N Y F0;003000 none none SEAICE60   ./MetDir/%y4/%m2/GEOSFP.%y4%m2%d2.A1.025x03125.nc
-SEAICE70 '1'       xy  C N Y F0;003000 none none SEAICE70   ./MetDir/%y4/%m2/GEOSFP.%y4%m2%d2.A1.025x03125.nc
-SEAICE80 '1'       xy  C N Y F0;003000 none none SEAICE80   ./MetDir/%y4/%m2/GEOSFP.%y4%m2%d2.A1.025x03125.nc
-SEAICE90 '1'       xy  C N Y F0;003000 none none SEAICE90   ./MetDir/%y4/%m2/GEOSFP.%y4%m2%d2.A1.025x03125.nc
-SLP      'hPa'     xy  C N Y F0;003000 none none SLP        ./MetDir/%y4/%m2/GEOSFP.%y4%m2%d2.A1.025x03125.nc
-SNODP    '1'       xy  C N Y F0;003000 none none SNODP      ./MetDir/%y4/%m2/GEOSFP.%y4%m2%d2.A1.025x03125.nc
-SNOMAS   '1'       xy  C N Y F0;003000 none none SNOMAS     ./MetDir/%y4/%m2/GEOSFP.%y4%m2%d2.A1.025x03125.nc
-RADSWG   '1'       xy  C N Y F0;003000 none none SWGDN      ./MetDir/%y4/%m2/GEOSFP.%y4%m2%d2.A1.025x03125.nc
-TO3      'dobson'  xy  C N Y F0;003000 none none TO3        ./MetDir/%y4/%m2/GEOSFP.%y4%m2%d2.A1.025x03125.nc
-TROPP    '1'       xy  C N Y F0;003000 none none TROPPT     ./MetDir/%y4/%m2/GEOSFP.%y4%m2%d2.A1.025x03125.nc
-TSKIN    '1'       xy  C N Y F0;003000 none none TS         ./MetDir/%y4/%m2/GEOSFP.%y4%m2%d2.A1.025x03125.nc
-TS       '1'       xy  C N Y F0;003000 none none T2M        ./MetDir/%y4/%m2/GEOSFP.%y4%m2%d2.A1.025x03125.nc
-USTAR    '1'       xy  C N Y F0;003000 none none USTAR      ./MetDir/%y4/%m2/GEOSFP.%y4%m2%d2.A1.025x03125.nc
-U10M     'm s-1'   xy  C N N F0;003000 none none U10M       ./MetDir/%y4/%m2/GEOSFP.%y4%m2%d2.A1.025x03125.nc
-V10M     'm s-1'   xy  C N N F0;003000 none none V10M       ./MetDir/%y4/%m2/GEOSFP.%y4%m2%d2.A1.025x03125.nc
-Z0       '1'       xy  C N Y F0;003000 none none Z0M        ./MetDir/%y4/%m2/GEOSFP.%y4%m2%d2.A1.025x03125.nc
-FRLAKE   '1'       xy  C N Y -         none none FRLAKE     ./MetDir/2011/01/GEOSFP.20110101.CN.025x03125.nc
-FRLAND   '1'       xy  C N Y -         none none FRLAND     ./MetDir/2011/01/GEOSFP.20110101.CN.025x03125.nc
-FRLANDIC '1'       xy  C N Y -         none none FRLANDIC   ./MetDir/2011/01/GEOSFP.20110101.CN.025x03125.nc
-FROCEAN  '1'       xy  C N Y -         none none FROCEAN    ./MetDir/2011/01/GEOSFP.20110101.CN.025x03125.nc
-PHIS     'm2 s-2'  xy  C N Y -         none none PHIS       ./MetDir/2011/01/GEOSFP.20110101.CN.025x03125.nc
-SPHU1    'kg kg-1' xyz C N Y 0         none none QV         ./MetDir/%y4/%m2/GEOSFP.%y4%m2%d2.I3.025x03125.nc
-SPHU2    'kg kg-1' xyz C N Y 0;001000  none none QV         ./MetDir/%y4/%m2/GEOSFP.%y4%m2%d2.I3.025x03125.nc
-TMPU1    'K'       xyz C N Y 0         none none T          ./MetDir/%y4/%m2/GEOSFP.%y4%m2%d2.I3.025x03125.nc
-TMPU2    'K'       xyz C N Y 0;001000  none none T          ./MetDir/%y4/%m2/GEOSFP.%y4%m2%d2.I3.025x03125.nc
-QI       '1'       xyz C N Y F0;013000 none none QI         ./MetDir/%y4/%m2/GEOSFP.%y4%m2%d2.A3cld.025x03125.nc
-QL       '1'       xyz C N Y F0;013000 none none QL         ./MetDir/%y4/%m2/GEOSFP.%y4%m2%d2.A3cld.025x03125.nc
-TAUCLI   '1'       xyz C N Y F0;013000 none none TAUCLI     ./MetDir/%y4/%m2/GEOSFP.%y4%m2%d2.A3cld.025x03125.nc
-TAUCLW   '1'       xyz C N Y F0;013000 none none TAUCLW     ./MetDir/%y4/%m2/GEOSFP.%y4%m2%d2.A3cld.025x03125.nc
-OPTDEP   '1'       xyz C N Y F0;013000 none none OPTDEPTH   ./MetDir/%y4/%m2/GEOSFP.%y4%m2%d2.A3cld.025x03125.nc
-CLDF     '1'       xyz C N Y F0;013000 none none CLOUD      ./MetDir/%y4/%m2/GEOSFP.%y4%m2%d2.A3cld.025x03125.nc
-DTRAIN   '1'       xyz C N Y F0;013000 none none DTRAIN     ./MetDir/%y4/%m2/GEOSFP.%y4%m2%d2.A3dyn.025x03125.nc
-OMEGA    'Pa s-1'  xyz C N Y F0;013000 none none OMEGA      ./MetDir/%y4/%m2/GEOSFP.%y4%m2%d2.A3dyn.025x03125.nc
-RH       '-'       xyz C N Y F0;013000 none none RH         ./MetDir/%y4/%m2/GEOSFP.%y4%m2%d2.A3dyn.025x03125.nc
-UC;VC    'm s-1'   xyz C N N F0;013000 none none U;V        ./MetDir/%y4/%m2/GEOSFP.%y4%m2%d2.A3dyn.025x03125.nc
-ULL      'm s-1'   xyz C N N F0;013000 none none U          ./MetDir/%y4/%m2/GEOSFP.%y4%m2%d2.A3dyn.025x03125.nc
-VLL      'm s-1'   xyz C N N F0;013000 none none V          ./MetDir/%y4/%m2/GEOSFP.%y4%m2%d2.A3dyn.025x03125.nc
-DQRCU    '1'       xyz C N Y F0;013000 none none DQRCU      ./MetDir/%y4/%m2/GEOSFP.%y4%m2%d2.A3mstC.025x03125.nc
-DQRLSAN  '1'       xyz C N Y F0;013000 none none DQRLSAN    ./MetDir/%y4/%m2/GEOSFP.%y4%m2%d2.A3mstC.025x03125.nc
-REEVAPCN '1'       xyz C N Y F0;013000 none none REEVAPCN   ./MetDir/%y4/%m2/GEOSFP.%y4%m2%d2.A3mstC.025x03125.nc
-REEVAPLS '1'       xyz C N Y F0;013000 none none REEVAPLS   ./MetDir/%y4/%m2/GEOSFP.%y4%m2%d2.A3mstC.025x03125.nc
-CMFMC    '1'       xyz E N Y F0;013000 none none CMFMC      ./MetDir/%y4/%m2/GEOSFP.%y4%m2%d2.A3mstE.025x03125.nc
-PFICU    '1'       xyz E N Y F0;013000 none none PFICU      ./MetDir/%y4/%m2/GEOSFP.%y4%m2%d2.A3mstE.025x03125.nc
-PFILSAN  '1'       xyz E N Y F0;013000 none none PFILSAN    ./MetDir/%y4/%m2/GEOSFP.%y4%m2%d2.A3mstE.025x03125.nc
-PFLCU    '1'       xyz E N Y F0;013000 none none PFLCU      ./MetDir/%y4/%m2/GEOSFP.%y4%m2%d2.A3mstE.025x03125.nc
-PFLLSAN  '1'       xyz E N Y F0;013000 none none PFLLSAN    ./MetDir/%y4/%m2/GEOSFP.%y4%m2%d2.A3mstE.025x03125.nc
+###############################################################################
+###
+### Meteorology data
+###
+###############################################################################
 
-#------------------------
-# 2D variables at edge
-#------------------------
-PS1      'hPa'     xy  E N Y 0        none none PS         ./MetDir/%y4/%m2/GEOSFP.%y4%m2%d2.I3.025x03125.nc
-PS2      'hPa'     xy  E N Y 0;001000 none none PS         ./MetDir/%y4/%m2/GEOSFP.%y4%m2%d2.I3.025x03125.nc
-#
+# --- 2D variables, 1-hr averaged ---
+ALBD     '1'       xy  C N Y F0;003000 none none ALBEDO     ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A1.{MET_RES}.{MET_EXT}
+CLDFRC   '1'       xy  C N Y F0;003000 none none CLDTOT     ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A1.{MET_RES}.{MET_EXT}
+EFLUX    '1'       xy  C N Y F0;003000 none none EFLUX      ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A1.{MET_RES}.{MET_EXT}
+EVAP     '1'       xy  C N Y F0;003000 none none EVAP       ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A1.{MET_RES}.{MET_EXT}
+FRSEAICE '1'       xy  C N Y F0;003000 none none FRSEAICE   ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A1.{MET_RES}.{MET_EXT}
+FRSNO    '1'       xy  C N Y F0;003000 none none FRSNO      ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A1.{MET_RES}.{MET_EXT}
+GRN      '1'       xy  C N Y F0;003000 none none GRN        ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A1.{MET_RES}.{MET_EXT}
+GWETROOT '1'       xy  C N Y F0;003000 none none GWETROOT   ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A1.{MET_RES}.{MET_EXT}
+GWETTOP  '1'       xy  C N Y F0;003000 none none GWETTOP    ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A1.{MET_RES}.{MET_EXT}
+HFLUX    '1'       xy  C N Y F0;003000 none none HFLUX      ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A1.{MET_RES}.{MET_EXT}
+LAI      '1'       xy  C N Y F0;003000 none none LAI        ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A1.{MET_RES}.{MET_EXT}
+LWI      '1'       xy  C N Y F0;003000 none none LWI        ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A1.{MET_RES}.{MET_EXT}
+RADLWG   '1'       xy  C N Y F0;003000 none none LWGNT      ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A1.{MET_RES}.{MET_EXT}
+PARDF    '1'       xy  C N Y F0;003000 none none PARDF      ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A1.{MET_RES}.{MET_EXT}
+PARDR    '1'       xy  C N Y F0;003000 none none PARDR      ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A1.{MET_RES}.{MET_EXT}
+PBLH     '1'       xy  C N Y F0;003000 none none PBLH       ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A1.{MET_RES}.{MET_EXT}
+PRECANV  '1'       xy  C N Y F0;003000 none none PRECANV    ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A1.{MET_RES}.{MET_EXT}
+PRECCON  '1'       xy  C N Y F0;003000 none none PRECCON    ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A1.{MET_RES}.{MET_EXT}
+PRECLSC  '1'       xy  C N Y F0;003000 none none PRECLSC    ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A1.{MET_RES}.{MET_EXT}
+PRECSNO  '1'       xy  C N Y F0;003000 none none PRECSNO    ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A1.{MET_RES}.{MET_EXT}
+PRECTOT  '1'       xy  C N Y F0;003000 none none PRECTOT    ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A1.{MET_RES}.{MET_EXT}
+SEAICE00 '1'       xy  C N Y F0;003000 none none SEAICE00   ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A1.{MET_RES}.{MET_EXT}
+SEAICE10 '1'       xy  C N Y F0;003000 none none SEAICE10   ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A1.{MET_RES}.{MET_EXT}
+SEAICE20 '1'       xy  C N Y F0;003000 none none SEAICE20   ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A1.{MET_RES}.{MET_EXT}
+SEAICE30 '1'       xy  C N Y F0;003000 none none SEAICE30   ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A1.{MET_RES}.{MET_EXT}
+SEAICE40 '1'       xy  C N Y F0;003000 none none SEAICE40   ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A1.{MET_RES}.{MET_EXT}
+SEAICE50 '1'       xy  C N Y F0;003000 none none SEAICE50   ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A1.{MET_RES}.{MET_EXT}
+SEAICE60 '1'       xy  C N Y F0;003000 none none SEAICE60   ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A1.{MET_RES}.{MET_EXT}
+SEAICE70 '1'       xy  C N Y F0;003000 none none SEAICE70   ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A1.{MET_RES}.{MET_EXT}
+SEAICE80 '1'       xy  C N Y F0;003000 none none SEAICE80   ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A1.{MET_RES}.{MET_EXT}
+SEAICE90 '1'       xy  C N Y F0;003000 none none SEAICE90   ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A1.{MET_RES}.{MET_EXT}
+SLP      'hPa'     xy  C N Y F0;003000 none none SLP        ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A1.{MET_RES}.{MET_EXT}
+SNODP    '1'       xy  C N Y F0;003000 none none SNODP      ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A1.{MET_RES}.{MET_EXT}
+SNOMAS   '1'       xy  C N Y F0;003000 none none SNOMAS     ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A1.{MET_RES}.{MET_EXT}
+RADSWG   '1'       xy  C N Y F0;003000 none none SWGDN      ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A1.{MET_RES}.{MET_EXT}
+TO3      'dobson'  xy  C N Y F0;003000 none none TO3        ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A1.{MET_RES}.{MET_EXT}
+TROPP    '1'       xy  C N Y F0;003000 none none TROPPT     ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A1.{MET_RES}.{MET_EXT}
+TSKIN    '1'       xy  C N Y F0;003000 none none TS         ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A1.{MET_RES}.{MET_EXT}
+TS       '1'       xy  C N Y F0;003000 none none T2M        ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A1.{MET_RES}.{MET_EXT}
+USTAR    '1'       xy  C N Y F0;003000 none none USTAR      ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A1.{MET_RES}.{MET_EXT}
+U10M     'm s-1'   xy  C N N F0;003000 none none U10M       ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A1.{MET_RES}.{MET_EXT}
+V10M     'm s-1'   xy  C N N F0;003000 none none V10M       ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A1.{MET_RES}.{MET_EXT}
+Z0       '1'       xy  C N Y F0;003000 none none Z0M        ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A1.{MET_RES}.{MET_EXT}
+
+# --- Surface pressure, 3-hr instantaneous ---
+PS1      'hPa'     xy  E N Y 0         none none PS         ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.I3.{MET_RES}.{MET_EXT}
+PS2      'hPa'     xy  E N Y 0;001000  none none PS         ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.I3.{MET_RES}.{MET_EXT}
+
+# --- 3D variables, 3-hr instantaneous ---
+SPHU1    'kg kg-1' xyz C N Y 0         none none QV         ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.I3.{MET_RES}.{MET_EXT}
+SPHU2    'kg kg-1' xyz C N Y 0;001000  none none QV         ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.I3.{MET_RES}.{MET_EXT}
+TMPU1    'K'       xyz C N Y 0         none none T          ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.I3.{MET_RES}.{MET_EXT}
+TMPU2    'K'       xyz C N Y 0;001000  none none T          ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.I3.{MET_RES}.{MET_EXT}
+
+# --- 3D variables, 3-hr averaged ---
+QI       '1'       xyz C N Y F0;013000 none none QI         ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A3cld.{MET_RES}.{MET_EXT}
+QL       '1'       xyz C N Y F0;013000 none none QL         ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A3cld.{MET_RES}.{MET_EXT}
+TAUCLI   '1'       xyz C N Y F0;013000 none none TAUCLI     ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A3cld.{MET_RES}.{MET_EXT}
+TAUCLW   '1'       xyz C N Y F0;013000 none none TAUCLW     ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A3cld.{MET_RES}.{MET_EXT}
+OPTDEP   '1'       xyz C N Y F0;013000 none none OPTDEPTH   ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A3cld.{MET_RES}.{MET_EXT}
+CLDF     '1'       xyz C N Y F0;013000 none none CLOUD      ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A3cld.{MET_RES}.{MET_EXT}
+DTRAIN   '1'       xyz C N Y F0;013000 none none DTRAIN     ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A3dyn.{MET_RES}.{MET_EXT}
+OMEGA    'Pa s-1'  xyz C N Y F0;013000 none none OMEGA      ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A3dyn.{MET_RES}.{MET_EXT}
+RH       '-'       xyz C N Y F0;013000 none none RH         ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A3dyn.{MET_RES}.{MET_EXT}
+UC;VC    'm s-1'   xyz C N N F0;013000 none none U;V        ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A3dyn.{MET_RES}.{MET_EXT}
+ULL      'm s-1'   xyz C N N F0;013000 none none U          ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A3dyn.{MET_RES}.{MET_EXT}
+VLL      'm s-1'   xyz C N N F0;013000 none none V          ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A3dyn.{MET_RES}.{MET_EXT}
+DQRCU    '1'       xyz C N Y F0;013000 none none DQRCU      ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A3mstC.{MET_RES}.{MET_EXT}
+DQRLSAN  '1'       xyz C N Y F0;013000 none none DQRLSAN    ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A3mstC.{MET_RES}.{MET_EXT}
+REEVAPCN '1'       xyz C N Y F0;013000 none none REEVAPCN   ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A3mstC.{MET_RES}.{MET_EXT}
+REEVAPLS '1'       xyz C N Y F0;013000 none none REEVAPLS   ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A3mstC.{MET_RES}.{MET_EXT}
+CMFMC    '1'       xyz E N Y F0;013000 none none CMFMC      ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A3mstE.{MET_RES}.{MET_EXT}
+PFICU    '1'       xyz E N Y F0;013000 none none PFICU      ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A3mstE.{MET_RES}.{MET_EXT}
+PFILSAN  '1'       xyz E N Y F0;013000 none none PFILSAN    ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A3mstE.{MET_RES}.{MET_EXT}
+PFLCU    '1'       xyz E N Y F0;013000 none none PFLCU      ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A3mstE.{MET_RES}.{MET_EXT}
+PFLLSAN  '1'       xyz E N Y F0;013000 none none PFLLSAN    ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A3mstE.{MET_RES}.{MET_EXT}
+
+# --- Fixed variables, from constants file ---
+FRLAKE   '1'       xy  C N Y -         none none FRLAKE     ./MetDir/{MET_CN_YR}/01/{MET_SOURCE}.{MET_CN_YR}0101.CN.{MET_RES}.{MET_EXT}
+FRLAND   '1'       xy  C N Y -         none none FRLAND     ./MetDir/{MET_CN_YR}/01/{MET_SOURCE}.{MET_CN_YR}0101.CN.{MET_RES}.{MET_EXT}
+FRLANDIC '1'       xy  C N Y -         none none FRLANDIC   ./MetDir/{MET_CN_YR}/01/{MET_SOURCE}.{MET_CN_YR}0101.CN.{MET_RES}.{MET_EXT}
+FROCEAN  '1'       xy  C N Y -         none none FROCEAN    ./MetDir/{MET_CN_YR}/01/{MET_SOURCE}.{MET_CN_YR}0101.CN.{MET_RES}.{MET_EXT}
+PHIS     'm2 s-2'  xy  C N Y -         none none PHIS       ./MetDir/{MET_CN_YR}/01/{MET_SOURCE}.{MET_CN_YR}0101.CN.{MET_RES}.{MET_EXT}
 
 #-------------------------------------------------------------------
 # Olson land types - conservative frac regridding of OLSON as float

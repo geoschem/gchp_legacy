@@ -85,6 +85,33 @@ do
 done
 
 #-----------------------------------------------------------------
+# Ask user to select meteorology source
+#-----------------------------------------------------------------
+printf "\nChoose meteorology source:\n"
+printf "  1. GEOS-FP\n"
+printf "  2. MERRA2\n"
+valid_met=0
+while [ "${valid_met}" -eq 0 ]
+do
+    read met_num
+    if [[ ${met_num} = "1" ]]; then
+	met_name='GEOSFP'
+        met_resolution='025x03125'
+        met_extension='nc'
+        met_cn_year='2011'
+	valid_met=1
+    elif [[ ${met_num} = "2" ]]; then
+	met_name='MERRA2'
+        met_resolution='05x0625'
+        met_extension='nc4'
+        met_cn_year='2015'
+	valid_met=1
+    else
+	printf "Invalid meteorology option. Try again.\n"
+    fi
+done
+
+#-----------------------------------------------------------------
 # Ask user to define path where directoy will be created
 #-----------------------------------------------------------------
 printf "\nEnter path where the run directory will be created:\n"
@@ -174,8 +201,12 @@ ln -s ${gcdir}                                  ${rundir}/CodeDir
 # NOTE: CodeDir is set to point to GCHP/..; reset using setCodeDir in rundir.
 ln -s ${GC_DATA_ROOT}/CHEM_INPUTS               ${rundir}/ChemDataDir
 ln -s ${GC_DATA_ROOT}/HEMCO                     ${rundir}/MainDataDir
-ln -s ${GC_DATA_ROOT}/GEOS_0.25x0.3125/GEOS_FP  ${rundir}/MetDir
 ln -s ${GC_DATA_ROOT}/GCHP/TileFiles            ${rundir}/TileFiles
+if [ "${met_name}" == "GEOSFP" ]; then
+   ln -s ${GC_DATA_ROOT}/GEOS_0.25x0.3125/GEOS_FP  ${rundir}/MetDir
+else
+   ln -s ${GC_DATA_ROOT}/GEOS_0.5x0.625/MERRA2  ${rundir}/MetDir
+fi
 restarts=${GC_DATA_ROOT}/SPC_RESTARTS
 for N in 24 48 90 180 360
 do
@@ -189,6 +220,11 @@ sed -i -e "s|{SIMULATION}|${sim_name_long}|" ${rundir}/GCHP.rc
 sed -i -e "s|{SIMULATION}|${sim_name_long}|" ${rundir}/runConfig.sh
 sed -i -e "s|{DATA_ROOT}|${GC_DATA_ROOT}|"   ${rundir}/input.geos
 sed -i -e "s|{DATA_ROOT}|${GC_DATA_ROOT}|"   ${rundir}/HEMCO_Config.rc
+sed -i -e "s|{MET_SOURCE}|${met_name}|"      ${rundir}/ExtData.rc
+sed -i -e "s|{MET_RES}|${met_resolution}|"   ${rundir}/ExtData.rc
+sed -i -e "s|{MET_EXT}|${met_extension}|"    ${rundir}/ExtData.rc
+sed -i -e "s|{MET_CN_YR}|${met_cn_year}|"    ${rundir}/ExtData.rc # 1st in line
+sed -i -e "s|{MET_CN_YR}|${met_cn_year}|"    ${rundir}/ExtData.rc # 2nd in line
 
 # Special handling for start/end date based on simulation so that
 # start matches default initial restart files. Run directory is
