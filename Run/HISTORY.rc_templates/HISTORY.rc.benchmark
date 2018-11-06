@@ -5,23 +5,23 @@ CoresPerNode: 6
 #===================================================================
 # Declare collection names and toggle on/off
 #===================================================================
-COLLECTIONS: #'AerosolMass'
-	     #'Aerosols',
-             #'Budget',
-             #'CloudConvFlux',
-             #'ConcAfterChem',
-             #'DryDep',
-             #'Emissions',
-             #'JValues',
-             #'LevelEdgeDiags',      
-             #'ProdLoss',
+COLLECTIONS: 'AerosolMass'
+	     'Aerosols',
+             'Budget',
+             'CloudConvFlux',
+             'ConcAfterChem',
+             'DryDep',
+             'Emissions',
+             'JValues',
+             'LevelEdgeDiags',      
+             'ProdLoss',
              'SpeciesConc_avg',
              'SpeciesConc_inst',
-             #'StateChm',
+             'StateChm',
              'StateMet_avg',  
              'StateMet_inst',  
-             #'WetLossConv',
-             #'WetLossLS',
+             'WetLossConv',
+             'WetLossLS',
 ::
 #===================================================================
 # The rest of this file consists of collection definitions.
