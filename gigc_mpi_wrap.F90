@@ -135,7 +135,6 @@ CONTAINS
     CALL MPI_Bcast( INPUT_OPT%NESTED_I0,       1, mpi_integer, 0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%NESTED_J0,       1, mpi_integer, 0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%RUN_DIR,         len(INPUT_OPT%RUN_DIR),         mpi_character, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%IN_RST_FILE,     len(INPUT_OPT%IN_RST_FILE),     mpi_character, 0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%DATA_DIR,        len(INPUT_OPT%DATA_DIR),        mpi_character, 0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%CHEM_INPUTS_DIR, len(INPUT_OPT%CHEM_INPUTS_DIR), mpi_character, 0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%RES_DIR,         len(INPUT_OPT%RES_DIR),         mpi_character, 0, mpiComm, RC )
