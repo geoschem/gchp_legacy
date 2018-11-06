@@ -4,7 +4,6 @@ GEOS-CHEM SIMULATION: gchp_standard
 Start YYYYMMDD, hhmmss  : 20160701 000000
 End   YYYYMMDD, hhmmss  : 20160701 010000
 Run directory           : ./
-Input restart file      : not_used
 Root data directory     : {DATA_ROOT}
 Global offsets I0, J0   : 0 0
 ------------------------+------------------------------------------------------
