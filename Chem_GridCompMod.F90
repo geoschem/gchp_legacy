@@ -125,12 +125,10 @@ MODULE GEOSCHEMchem_GridCompMod
   TYPE(MetState)                   :: State_Met      ! Meteorology state
   TYPE(ChmState)                   :: State_Chm      ! Chemistry state
   TYPE(DgnState)                   :: State_Diag     ! Diagnostics state 
-! GEOS-5 only:
-  TYPE(DgnList)                    :: Diag_List      ! Diagnostics list
 ! GCHP only:
 !  TYPE(Species),          POINTER  :: ThisSpc => NULL()
-!  TYPE(HistoryConfigObj), POINTER  :: HistoryConfig
 !---
+  TYPE(HistoryConfigObj), POINTER  :: HistoryConfig
   TYPE(ConfigObj),        POINTER  :: HcoConfig
 
   ! Scalars
@@ -474,10 +472,10 @@ CONTAINS
     LOGICAL                       :: EOF
     CHARACTER(LEN=60)             :: rstFile, landTypeStr, importName
     INTEGER                       :: restartAttr
+    CHARACTER(LEN=ESMF_MAXSTR)    :: HistoryConfigFile ! HISTORY config file
 
 ! GCHP only:
 !    TYPE(MAPL_MetaComp),  POINTER :: STATE => NULL()
-!    CHARACTER(LEN=ESMF_MAXSTR)    :: HistoryConfigFile ! HISTORY config file
 !    INTEGER                       :: T
 !---
 
@@ -804,14 +802,13 @@ CONTAINS
 !#   include "GIGCchem_ExportSpec___.h"
 !---
 
-! GCHP only (want to uncomment reading history):
-!    ! Read HISTORY config file and add exports for unique items
-!    CALL ESMF_ConfigGetAttribute( myState%myCF, HistoryConfigFile, &
-!                                  Label="HISTORY_CONFIG:",         &
-!                                  Default="HISTORY.rc", __RC__ )
-!    CALL HistoryExports_SetServices( MAPL_am_I_Root(), HistoryConfigFile, &
-!                                     GC, HistoryConfig, RC=STATUS )
-!    VERIFY_(STATUS)
+    ! Read HISTORY config file and add exports for unique items
+    CALL ESMF_ConfigGetAttribute( myState%myCF, HistoryConfigFile, &
+                                  Label="HISTORY_CONFIG:",         &
+                                  Default="HISTORY.rc", __RC__ )
+    CALL HistoryExports_SetServices( MAPL_am_I_Root(), HistoryConfigFile, &
+                                     GC, HistoryConfig, RC=STATUS )
+    VERIFY_(STATUS)
 !
 !    ! Is this needed anymore?
 !    call MAPL_AddExportSpec(GC,                                   &
@@ -1971,11 +1968,9 @@ CONTAINS
                           State_Diag= State_Diag, & ! Diagnostics State obj
 ! GEOS-5 only:
                           value_LLSTRAT = value_LLSTRAT,    & ! # strat. levels 
-                          Diag_List = Diag_List,  & ! Diagnostics list 
                           HcoConfig = HcoConfig,  & ! HEMCO config obj 
-! GCHP only (want to uncomment this):
-!                          HistoryConfig = HistoryConfig, & ! History Config Obj
 !---
+                          HistoryConfig = HistoryConfig, & ! History Config Obj
                           __RC__                 )
 
     ! Also save the MPI & PET specs to Input_Opt
@@ -3907,7 +3902,6 @@ CONTAINS
                                   State_Chm  = State_Chm,  & ! Chemistry State
                                   State_Met  = State_Met,  & ! Meteorology State
                                   State_Diag = State_Diag, & ! Diagnostics State
-                                  Diag_List  = Diag_List,  & ! Diagnostics State
                                   Phase      = Phase,      & ! Run phase
                                   IsChemTime = IsChemTime, & ! Time for chem?
 ! GEOS-5 only:
@@ -4346,6 +4340,23 @@ CONTAINS
 !---
 
     !=======================================================================
+    ! Copy HISTORY.rc diagnostic data to exports. Includes HEMCO emissions 
+    ! diagnostics but excludes internal state and exports created explicitly
+    ! in Chem_GridCompMod. NOTE: Exports created explicitly in Chem_GridCompMod
+    ! will eventually be moved elsewhere as diagnostics for use with GEOS-5.
+    ! (ewl, 11/2/17)
+    !=======================================================================
+    IF ( FIRST ) THEN
+       CALL HistoryExports_SetDataPointers( am_I_Root,     EXPORT,    &
+                                            HistoryConfig, State_Chm, &
+                                            State_Diag,    State_Met, &
+                                            STATUS )
+       VERIFY_(STATUS)
+    ENDIF
+    CALL CopyGCStates2Exports( am_I_Root, Input_Opt, HistoryConfig, STATUS )
+    VERIFY_(STATUS)
+
+    !=======================================================================
     ! All done
     !=======================================================================
 
@@ -4614,7 +4625,6 @@ CONTAINS
                            State_Met = State_Met,  &   ! Meteorology State
 ! GEOS-5 only (I think this is an oversight for GCHP):
                            State_Diag = State_Diag, &   ! Diagnostics State
-                           Diag_List  = Diag_List,  &   ! Diagnostics List 
 !---
                            __RC__                 )
 
@@ -4626,10 +4636,8 @@ CONTAINS
        DEALLOCATE(Int2Spc)
     ENDIF
 
-! GCHP only:
-!    ! Deallocate the history interface between GC States and ESMF Exports
-!    CALL Destroy_HistoryConfig( am_I_Root, HistoryConfig, RC )
-!---
+    ! Deallocate the history interface between GC States and ESMF Exports
+    CALL Destroy_HistoryConfig( am_I_Root, HistoryConfig, RC )
 
 ! GEOS-5 only (moved to Provider_Finalize in GCHP):
     ! Free local pointers
