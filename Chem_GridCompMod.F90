@@ -3758,8 +3758,6 @@ CONTAINS
              importName = 'XLAI' // TRIM(landTypeStr)
        
              CALL MAPL_GetPointer ( IMPORT, Ptr2D, TRIM(importName), __RC__ )
-             If (am_I_Root) Write(6,*)                                &
-                     ' ### Reading ' // TRIM(importName) // ' from imports'
              State_Met%XLAI_NATIVE(:,:,TT) = Ptr2D(:,:)
              Ptr2D => NULL()
        
