@@ -775,6 +775,12 @@ CONTAINS
              ErrMsg = "No GC 3D pointer found for " // TRIM(current%name)
              EXIT
           ENDIF
+#if defined( MODEL_GEOS )
+          ! If using GEOS-5, flip the data vertically to match model convention
+          LMAX = SIZE(current%ExportData3d, 3)
+          current%ExportData3d(:,:,1:LMAX) =  &
+                              current%ExportData3d(:,:,LMAX:1:-1)
+#endif
        ENDIF
 
        current => current%next    
