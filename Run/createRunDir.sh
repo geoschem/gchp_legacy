@@ -293,10 +293,10 @@ printf "\n  Hash: ${commit_hash}"      >> ${version_log}
 # Ask user whether to track run directory changes with git
 #-----------------------------------------------------------------
 printf "\nDo you want to track run directory changes with git? (y/n)\n"
-read enable_git
 valid_response=0
 while [ "$valid_response" -eq 0 ]
 do
+    read enable_git
     if [[ ${enable_git} = "y" ]]; then
 	cd ${rundir}
 	printf "\n\nChanges to the following run directory files are tracked by git:\n\n" >> ${version_log}
