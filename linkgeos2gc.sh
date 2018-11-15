@@ -443,22 +443,24 @@ if [[ ${reply} =~ ^[Yy]$ ]]; then
     makelink ${gchp}/Registry/Chem_Registry.rc     ${geoschemchem_gridcomp}/GEOSCHEMchem_Registry.rc
     
     # Files tracked in GCHP/RC folder (rundir files and GEOS-5 perl scripts)
+    # Do not make links for certain files until they are guaranteed
+    # to be functional with new CVS tags
     makelink ${gchp}/RC/brc.dat.rc               ${geoschemchem_gridcomp}
     makelink ${gchp}/RC/diaginfo.dat.rc          ${geoschemchem_gridcomp}
     makelink ${gchp}/RC/dust.dat.rc              ${geoschemchem_gridcomp}
-    makelink ${gchp}/RC/ExtData.rc               ${geoschemchem_gridcomp}
+    #makelink ${gchp}/RC/ExtData.rc               ${geoschemchem_gridcomp}
     makelink ${gchp}/RC/FJX_j2j.dat.rc           ${geoschemchem_gridcomp}
     makelink ${gchp}/RC/FJX_spec.dat.rc          ${geoschemchem_gridcomp}
     makelink ${gchp}/RC/gcIncAft                 ${geoschemchem_gridcomp}
     makelink ${gchp}/RC/gcIncBef                 ${geoschemchem_gridcomp}
     makelink ${gchp}/RC/gcUtImp                  ${geoschemchem_gridcomp}
     makelink ${gchp}/RC/gcUtInt                  ${geoschemchem_gridcomp}
-    makelink ${gchp}/RC/GEOSCHEMchem_ExtData.rc  ${geoschemchem_gridcomp}
-    makelink ${gchp}/RC/GEOSCHEMchem_GridComp.rc ${geoschemchem_gridcomp}
+    #makelink ${gchp}/RC/GEOSCHEMchem_ExtData.rc  ${geoschemchem_gridcomp}
+    #makelink ${gchp}/RC/GEOSCHEMchem_GridComp.rc ${geoschemchem_gridcomp}
     makelink ${gchp}/RC/h2so4.dat.rc             ${geoschemchem_gridcomp}
-    makelink ${gchp}/RC/HEMCO_Config.rc          ${geoschemchem_gridcomp}
-    makelink ${gchp}/RC/HEMCO_DiagnFile.rc       ${geoschemchem_gridcomp}
-    makelink ${gchp}/RC/input.geos.rc            ${geoschemchem_gridcomp}
+    #makelink ${gchp}/RC/HEMCO_Config.rc          ${geoschemchem_gridcomp}
+    #makelink ${gchp}/RC/HEMCO_DiagnFile.rc       ${geoschemchem_gridcomp}
+    #makelink ${gchp}/RC/input.geos.rc            ${geoschemchem_gridcomp}
     makelink ${gchp}/RC/jv_spec_mie.dat.rc       ${geoschemchem_gridcomp}
     makelink ${gchp}/RC/MAPL.rc                  ${geoschemchem_gridcomp}
     makelink ${gchp}/RC/org.dat.rc               ${geoschemchem_gridcomp}
