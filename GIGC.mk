@@ -83,7 +83,7 @@ MPI_INC       := $(dir $(shell which mpif90))../include
 
 # %%%%% Architecture %%%%%
 ifndef ARCH
-  ARCH := $(shell uname -s)
+  ARCH := Linux
 endif
 # %%%%% ESMF settings %%%%%
 ESMF_MOD      := -I$(ESMF_DIR)/$(ARCH)/mod
