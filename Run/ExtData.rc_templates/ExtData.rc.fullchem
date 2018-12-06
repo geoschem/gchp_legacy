@@ -542,13 +542,6 @@ EMEP_MEK  kgC/m2/s xy C N Y F%y4-01-01T00:00:00 none none MEK   ./MainDataDir/EM
 EMEP_NH3  kg/m2/s  xy C N Y F%y4-01-01T00:00:00 none none NH3   ./MainDataDir/EMEP/v2015-03/EMEP.generic.1x1.nc
 
 #==============================================================================
-# --- BRAVO Mexico (BRAVO) ---
-#==============================================================================
-BRAVO_NO  kg/m2/s xy C N Y - none none NO  ./MainDataDir/BRAVO/v2014-07/BRAVO.generic.1x1.nc
-BRAVO_CO  kg/m2/s xy C N Y - none none CO  ./MainDataDir/BRAVO/v2014-07/BRAVO.generic.1x1.nc
-BRAVO_SO2 kg/m2/s xy C N Y - none none SO2 ./MainDataDir/BRAVO/v2014-07/BRAVO.generic.1x1.nc
-
-#==============================================================================
 # --- APEI Canada (APEI) ---
 #==============================================================================
 APEI_NO   kg/m2/s xy C N Y F%y4-01-01T00:00:00 none none NOx ./MainDataDir/APEI/v2016-11/APEI.0.1x0.1.nc
@@ -1157,7 +1150,7 @@ BOND_ANTH_OCPI kg/m2/s  xy C Y Y F2000-%m2-01T00:00:00 none none OC ./MainDataDi
 BOND_BF_BCPI   kg/m2/s  xy C Y Y F2000-%m2-01T00:00:00 none none BC ./MainDataDir/BCOC_BOND/v2014-07/Bond_biofuel.nc
 BOND_BF_OCPI   kg/m2/s  xy C Y Y F2000-%m2-01T00:00:00 none none OC ./MainDataDir/BCOC_BOND/v2014-07/Bond_biofuel.nc
 
-# --- if BOND and not GFED or FINN or QFED ---
+# --- if BOND and not GFED or FINN or QFED or GFAS ---
 BOND_BM_BCPI   kg/m2/s  xy C N Y - none none BC ./MainDataDir/BCOC_BOND/v2014-07/Bond_biomass.nc
 BOND_BM_OCPI   kg/m2/s  xy C N Y - none none OC ./MainDataDir/BCOC_BOND/v2014-07/Bond_biomass.nc
 
@@ -1292,6 +1285,11 @@ RCP85_HCOOH   kg/m2/s xy C N Y %y4-01-01T00:00:00 none none ACCMIP ./MainDataDir
 #==============================================================================
 # --- QFED2 biomass burning (QFED2) ---
 # QFED2 is off by default in HEMCO_Config.rc; fill in this section if turning on
+#==============================================================================
+
+#==============================================================================
+# --- GFAS biomass burning (GFAS) ---
+# GFAS is off by default in HEMCO_Config.rc; fill in this section if turning on
 #==============================================================================
 
 #==============================================================================
@@ -1898,6 +1896,11 @@ FFF 1 xy C Y Y F2010-%m2-01T00:00:00 none none FFF ./MainDataDir/EDGARv43/v2016-
 # --- No external data ---
 
 #==============================================================================
+# --- GFAS scale factors ---
+#==============================================================================
+# --- No external data ---
+
+#==============================================================================
 # --- NAP scale factors ---
 #==============================================================================
 # --- No external data ---
@@ -1973,7 +1976,7 @@ NEI99_SEASON_OCPI 1 xy C N N -                     none none OCPI    ./MainDataD
 # Country/region masks
 #==============================================================================
 EMEP_MASK    1 xy C N Y - none none MASK     ./MainDataDir/MASKS/v2018-09/EMEP_mask.geos.1x1.20151222.nc
-MEXICO_MASK  1 xy C N Y - none none MASK     ./MainDataDir/MASKS/v2018-09/BRAVO.MexicoMask.generic.1x1.nc
+MEXICO_MASK  1 xy C N Y - none none MASK     ./MainDataDir/MASKS/v2018-09/Mexico_Mask.001x001.nc
 CANADA_MASK  1 xy C N Y - none none MASK     ./MainDataDir/MASKS/v2018-09/Canada_mask.geos.1x1.nc
 SEASIA_MASK  1 xy C N Y - none none MASK     ./MainDataDir/MASKS/v2018-09/SE_Asia_mask.generic.1x1.nc
 ASIA_MASK    1 xy C N Y - none none MASK     ./MainDataDir/MASKS/v2018-09/MIX_Asia_mask.generic.025x025.nc

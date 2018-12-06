@@ -97,7 +97,6 @@ Warnings:                    1
     --> AEIC                   :       true
     --> BIOFUEL                :       true
     --> BOND                   :       true
-    --> BRAVO                  :       true
     --> APEI                   :       true
     --> XIAO                   :       false
     --> C2H6_2010              :       true
@@ -121,6 +120,7 @@ Warnings:                    1
     --> RCP_60                 :       false
     --> RCP_85                 :       false
     --> QFED2                  :       false
+    --> GFAS                   :       false
     --> SALT_SSALT_OFFLINE     :       true
     --> SEA_SFLUX_OFFLINE      :       true
     --> NOX_LTNG_OFFLINE       :       true
@@ -836,18 +836,6 @@ Warnings:                    1
 0 EMEP_MEK  $ROOT/EMEP/v2015-03/EMEP.geos.1x1.nc    MEK  1980-2000/1/1/0 C xy kgC/m2/s MEK  26/1000           1/2 10
 0 EMEP_NH3  $ROOT/EMEP/v2015-03/EMEP.generic.1x1.nc NH3  1990-2012/1/1/0 C xy kg/m2/s  NH3  34/1000           1/2 10
 )))EMEP
-
-#==============================================================================
-# --- BRAVO (Mexico) ---
-#==============================================================================
-(((BRAVO
-0 BRAVO_NO   $ROOT/BRAVO/v2014-07/BRAVO.generic.1x1.nc NO  1999/1/1/0 C xy kg/m2/s NO   1/3/25/1001        1/2 20
-0 BRAVO_CO   $ROOT/BRAVO/v2014-07/BRAVO.generic.1x1.nc CO  1999/1/1/0 C xy kg/m2/s CO   6/8/26/52/1001     1/2 20
-0 BRAVO_SOAP -                                         -    -         - -  -       SOAP 6/8/26/52/1001/280 1/2 20
-0 BRAVO_SO2  $ROOT/BRAVO/v2014-07/BRAVO.generic.1x1.nc SO2 1999/1/1/0 C xy kg/m2/s SO2  11/13/1001         1/2 20
-0 BRAVO_SO4  -                                         -   -          - -  -       SO4  11/13/65/1001      1/2 20
-0 BRAVO_pFe  -                                         -   -          - -  -       pFe  11/13/68/1001      1/2 20
-)))BRAVO
 
 #==============================================================================
 # --- APEI (Canada) ---
@@ -2031,14 +2019,14 @@ Warnings:                    1
 #0 BOND_BF_POG1   -                                        -    -             - -  -       POG1 74/76 2 1
 #0 BOND_BF_POG2   -                                        -    -             - -  -       POG2 74/77 2 1
 
-(((.not.GFED.or.FINN.or.QFED2
+(((.not.GFED.or.FINN.or.QFED2.or.GFAS
 0 BOND_BM_BCPI   $ROOT/BCOC_BOND/v2014-07/Bond_biomass.nc BC   2000/1-12/1/0 C xy kg/m2/s BCPI 70    2 1
 0 BOND_BM_BCPO   -                                        -    -             - -  -       BCPO 71    2 1
 0 BOND_BM_OCPI   $ROOT/BCOC_BOND/v2014-07/Bond_biomass.nc OC   2000/1-12/1/0 C xy kg/m2/s OCPI 72    2 1
 0 BOND_BM_OCPO   -                                        -    -             - -  -       OCPO 73    2 1
 0 BOND_BM_POG1   -                                        -    -             - -  -       POG1 74/76 2 1
 0 BOND_BM_POG2   -                                        -    -             - -  -       POG2 74/77 2 1
-))).not.GFED.or.FINN.or.QFED2
+))).not.GFED.or.FINN.or.QFED2.or.GFAS
 
 )))BOND
 
@@ -2231,6 +2219,37 @@ Warnings:                    1
 0 QFED_C3H6_PBL  $ROOT/QFED/v2018-07/$YYYY/$MM/qfed2.emis_c3h6.006.$YYYY$MM$DD.nc4 biomass 2000-2017/1-12/1-31/0 C xyL=1:PBL     kg/m2/s PRPE 75/311        5 2 
 0 QFED_C3H6_FT   $ROOT/QFED/v2018-07/$YYYY/$MM/qfed2.emis_c3h6.006.$YYYY$MM$DD.nc4 biomass 2000-2017/1-12/1-31/0 C xyL=PBL:5500m kg/m2/s PRPE 75/312        5 2 
 )))QFED2
+
+#==============================================================================
+# --- GFAS biomass burning ---
+#==============================================================================
+(((GFAS
+0 GFAS_CO    $ROOT/GFAS/v2018-09/$YYYY/GFAS_$YYYY$MM.nc cofire        2003-2018/1-12/1-31/0 C xyL=1:scal300 kg/m2/s CO   75     5 3
+0 GFAS_SOAP  -                                          -             -                     - -             -       SOAP 75/281 5 3
+0 GFAS_NO    $ROOT/GFAS/v2018-09/$YYYY/GFAS_$YYYY$MM.nc noxfire       2003-2018/1-12/1-31/0 C xyL=1:scal300 kg/m2/s NO   75     5 3
+0 GFAS_BCPI  $ROOT/GFAS/v2018-09/$YYYY/GFAS_$YYYY$MM.nc bcfire        2003-2018/1-12/1-31/0 C xyL=1:scal300 kg/m2/s BCPI 70/75  5 3
+0 GFAS_BCPO  $ROOT/GFAS/v2018-09/$YYYY/GFAS_$YYYY$MM.nc bcfire        2003-2018/1-12/1-31/0 C xyL=1:scal300 kg/m2/s BCPO 71/75  5 3
+0 GFAS_OCPI  $ROOT/GFAS/v2018-09/$YYYY/GFAS_$YYYY$MM.nc ocfire        2003-2018/1-12/1-31/0 C xyL=1:scal300 kg/m2/s OCPI 72/75  5 3
+0 GFAS_OCPO  $ROOT/GFAS/v2018-09/$YYYY/GFAS_$YYYY$MM.nc ocfire        2003-2018/1-12/1-31/0 C xyL=1:scal300 kg/m2/s OCPO 73/75  5 3
+0 GFAS_CO2   $ROOT/GFAS/v2018-09/$YYYY/GFAS_$YYYY$MM.nc co2fire       2003-2018/1-12/1-31/0 C xyL=1:scal300 kg/m2/s CO2  75     5 3
+0 GFAS_CH4   $ROOT/GFAS/v2018-09/$YYYY/GFAS_$YYYY$MM.nc ch4fire       2003-2018/1-12/1-31/0 C xyL=1:scal300 kg/m2/s CH4  75     5 3
+0 GFAS_SO2   $ROOT/GFAS/v2018-09/$YYYY/GFAS_$YYYY$MM.nc so2fire       2003-2018/1-12/1-31/0 C xyL=1:scal300 kg/m2/s SO2  75     5 3
+0 GFAS_NH3   $ROOT/GFAS/v2018-09/$YYYY/GFAS_$YYYY$MM.nc nh3fire       2003-2018/1-12/1-31/0 C xyL=1:scal300 kg/m2/s NH3  75     5 3
+0 GFAS_ACET  $ROOT/GFAS/v2018-09/$YYYY/GFAS_$YYYY$MM.nc c3h6ofire     2003-2018/1-12/1-31/0 C xyL=1:scal300 kg/m2/s ACET 75     5 3
+0 GFAS_ALD2  $ROOT/GFAS/v2018-09/$YYYY/GFAS_$YYYY$MM.nc c2h4ofire     2003-2018/1-12/1-31/0 C xyL=1:scal300 kg/m2/s ALD2 75     5 3
+0 GFAS_ALK4  $ROOT/GFAS/v2018-09/$YYYY/GFAS_$YYYY$MM.nc hialkanesfire 2003-2018/1-12/1-31/0 C xyL=1:scal300 kg/m2/s ALK4 75     5 3
+0 GFAS_PRPE1 $ROOT/GFAS/v2018-09/$YYYY/GFAS_$YYYY$MM.nc hialkenesfire 2003-2018/1-12/1-31/0 C xyL=1:scal300 kg/m2/s PRPE 75     5 3
+0 GFAS_PRPE2 $ROOT/GFAS/v2018-09/$YYYY/GFAS_$YYYY$MM.nc c3h6fire      2003-2018/1-12/1-31/0 C xyL=1:scal300 kg/m2/s PRPE 75     5 3
+0 GFAS_C2H6  $ROOT/GFAS/v2018-09/$YYYY/GFAS_$YYYY$MM.nc c2h6fire      2003-2018/1-12/1-31/0 C xyL=1:scal300 kg/m2/s C2H6 75     5 3
+0 GFAS_C3H8  $ROOT/GFAS/v2018-09/$YYYY/GFAS_$YYYY$MM.nc c3h8fire      2003-2018/1-12/1-31/0 C xyL=1:scal300 kg/m2/s C3H8 75     5 3
+0 GFAS_CH2O  $ROOT/GFAS/v2018-09/$YYYY/GFAS_$YYYY$MM.nc ch2ofire      2003-2018/1-12/1-31/0 C xyL=1:scal300 kg/m2/s CH2O 75     5 3
+0 GFAS_C2H4  $ROOT/GFAS/v2018-09/$YYYY/GFAS_$YYYY$MM.nc c2h4fire      2003-2018/1-12/1-31/0 C xyL=1:scal300 kg/m2/s C2H4 75     5 3
+0 GFAS_ISOP  $ROOT/GFAS/v2018-09/$YYYY/GFAS_$YYYY$MM.nc c5h8fire      2003-2018/1-12/1-31/0 C xyL=1:scal300 kg/m2/s ISOP 75     5 3
+0 GFAS_DMS   $ROOT/GFAS/v2018-09/$YYYY/GFAS_$YYYY$MM.nc c2h6sfire     2003-2018/1-12/1-31/0 C xyL=1:scal300 kg/m2/s DMS  75     5 3
+0 GFAS_TOLU  $ROOT/GFAS/v2018-09/$YYYY/GFAS_$YYYY$MM.nc c7h8fire      2003-2018/1-12/1-31/0 C xyL=1:scal300 kg/m2/s TOLU 75     5 3
+0 GFAS_BENZ  $ROOT/GFAS/v2018-09/$YYYY/GFAS_$YYYY$MM.nc c6h6fire      2003-2018/1-12/1-31/0 C xyL=1:scal300 kg/m2/s BENZ 75     5 3
+0 GFAS_XYLE  $ROOT/GFAS/v2018-09/$YYYY/GFAS_$YYYY$MM.nc c8h10fire     2003-2018/1-12/1-31/0 C xyL=1:scal300 kg/m2/s XYLE 75     5 3
+)))GFAS
 
 #==============================================================================
 # --- Archived emissions ---
@@ -2496,15 +2515,6 @@ Warnings:                    1
 * DTOMS1_O3_COL -                                                       DTOMS1 -                  - -  dobsons/day * - 1 1 
 * DTOMS2_O3_COL -                                                       DTOMS2 -                  - -  dobsons/day * - 1 1
 )))+TOMS_SBUV_O3+
-
-#==============================================================================
-# --- PSC state, only needed for UCX ---
-#==============================================================================
-(((+STATE_PSC+
-(((HEMCO_RESTART
-* STATE_PSC  ./HEMCO_restart.$YYYY$MM$DD$HH00.nc STATE_PSC $YYYY/$MM/$DD/$HH E xyz count * - 1 1
-)))HEMCO_RESTART
-)))+STATE_PSC+
 
 #==============================================================================
 # --- Linear stratospheric chemistry fields ---
@@ -2958,6 +2968,11 @@ Warnings:                    1
 75 QFED2_TOD 0.1392/0.1392/0.1368/0.1368/0.1368/0.1368/0.1368/0.1368/0.1368/0.48/0.96/1.68/2.4/3.12/3.84/4.08/2.88/1.68/0.96/0.1368/0.1368/0.1368/0.1368/0.1368 - - - xy unitless 1
 
 #==============================================================================
+# --- GFAS scale factors ---
+#==============================================================================
+300 GFAS_EMITL $ROOT/GFAS/v2018-09/$YYYY/GFAS_$YYYY$MM.nc mami 2003-2018/1-12/1-31/0 C xy m 1
+
+#==============================================================================
 # --- Seasalt SALA/SALC to BrSALA/BrSALC scale factor for offline emissions ---
 #==============================================================================
 84 BrMassRatio 0.00211 - - - xy unitless 1
@@ -3152,7 +3167,7 @@ Warnings:                    1
 # Country/region masks
 #==============================================================================
 1000 EMEP_MASK   $ROOT/MASKS/v2018-09/EMEP_mask.geos.1x1.20151222.nc           MASK     2000/1/1/0 C xy 1 1 -30/30/45/70
-1001 MEXICO_MASK $ROOT/MASKS/v2018-09/BRAVO.MexicoMask.generic.1x1.nc          MASK     2000/1/1/0 C xy 1 1 -118/17/-95/33
+1001 MEXICO_MASK $ROOT/MASKS/v2018-09/Mexico_Mask.001x001.nc                   MASK     2000/1/1/0 C xy 1 1 -118/17/-95/33
 1002 CANADA_MASK $ROOT/MASKS/v2018-09/Canada_mask.geos.1x1.nc                  MASK     2000/1/1/0 C xy 1 1 -141/40/-52/85
 1003 SEASIA_MASK $ROOT/MASKS/v2018-09/SE_Asia_mask.generic.1x1.nc              MASK     2000/1/1/0 C xy 1 1  60/-12/153/55
 1006 ASIA_MASK   $ROOT/MASKS/v2018-09/MIX_Asia_mask.generic.025x025.nc         MASK     2000/1/1/0 C xy 1 1 46/-12/180/82
