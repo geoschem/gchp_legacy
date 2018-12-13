@@ -1413,7 +1413,8 @@ CONTAINS
     REAL,  ALLOCATABLE, TARGET   :: zenith(:,:)   ! Solar zenith angle
     REAL,  ALLOCATABLE, TARGET   :: solar(:,:)    ! Solar insolation
  
-    ! Pointer arrays needed by Include_Before_Run.H
+    ! Pointer arrays needed to initialize from imports
+    REAL, POINTER                :: Ptr2d(:,:) => NULL()
     REAL, POINTER                :: Ptr3d   (:,:,:) => NULL()
     REAL(ESMF_KIND_R8), POINTER  :: Ptr3d_R8(:,:,:) => NULL()
 
@@ -1456,7 +1457,6 @@ CONTAINS
     INTEGER            :: T, V, landTypeInt
     INTEGER            :: IMAXLOC(1)
     CHARACTER(len=64)  :: landTypeStr, varName, importName
-    REAL, POINTER      :: Ptr2d(:,:) => NULL()
 
     ! First call?
     LOGICAL, SAVE      :: FIRST    = .TRUE.
@@ -1801,7 +1801,54 @@ CONTAINS
              ThisSpc => NULL()
           ENDDO
        ENDIF
-       
+
+       !=======================================================================
+       ! On first call, initialize certain other State_Chm arrays from 
+       ! imports if they are found (ewl, 12/13/18)
+       !=======================================================================
+       IF ( FIRST ) THEN
+          CALL MAPL_GetPointer( INTSTATE, Ptr3d, 'H2O2AfterChem',  &
+                                notFoundOK=.TRUE., __RC__ )
+          IF ( ASSOCIATED(Ptr3d) .AND. &
+               ASSOCIATED(State_Chm%H2O2AfterChem) ) THEN
+             State_Chm%H2O2AfterChem = Ptr3d(:,:,LM:1:-1)
+          ENDIF
+          Ptr3d => NULL()
+          
+          CALL MAPL_GetPointer( INTSTATE, Ptr3d, 'SO2AfterChem',   &
+                                notFoundOK=.TRUE., __RC__ )
+          IF ( ASSOCIATED(Ptr3d) .AND. &
+               ASSOCIATED(State_Chm%SO2AfterChem) ) THEN
+             State_Chm%SO2AfterChem = Ptr3d(:,:,LM:1:-1)
+          ENDIF
+          Ptr3d => NULL()
+          
+          CALL MAPL_GetPointer( INTSTATE, Ptr2d, 'DryDepNitrogen', &
+                                notFoundOK=.TRUE., __RC__ )
+          IF ( ASSOCIATED(Ptr2d) .AND. &
+               ASSOCIATED(State_Chm%DryDepNitrogen) ) THEN
+             State_Chm%DryDepNitrogen = Ptr2d
+          ENDIF
+          Ptr2d => NULL()
+          
+          CALL MAPL_GetPointer( INTSTATE, Ptr2d, 'WetDepNitrogen', &
+                                notFoundOK=.TRUE., __RC__ )
+          IF ( ASSOCIATED(Ptr2d) .AND. &
+               ASSOCIATED(State_Chm%WetDepNitrogen) ) THEN
+             State_Chm%WetDepNitrogen = Ptr2d
+          ENDIF
+          Ptr2d => NULL()
+          
+          CALL MAPL_GetPointer( INTSTATE, Ptr3d, 'KPPHvalue' ,     &
+                                notFoundOK=.TRUE., __RC__ )
+          IF ( ASSOCIATED(Ptr3d) .AND. &
+               ASSOCIATED(State_Chm%KPPHvalue) ) THEN
+             State_Chm%KPPHvalue(:,:,1:LLCHEM) =  &
+                 REAL(Ptr3d(:,:,LM:LM-LLCHEM+1:-1),KIND=ESMF_KIND_R8)
+          ENDIF
+          Ptr3d => NULL()
+       ENDIF
+
        !=======================================================================
        ! Set Olson land map types from import of Olson file. 
        !=======================================================================
@@ -2199,8 +2246,9 @@ CONTAINS
     ! For species copying
     INTEGER                     :: IND
     TYPE(ESMF_STATE)            :: INTSTATE
-    REAL, POINTER               :: Ptr3D(:,:,:) => NULL()
-    REAL(ESMF_KIND_R8), POINTER :: Ptr3D_R8(:,:,:) => NULL()
+    REAL, POINTER               :: Ptr2d(:,:)   => NULL()
+    REAL, POINTER               :: Ptr3d(:,:,:) => NULL()
+    REAL(ESMF_KIND_R8), POINTER :: Ptr3d_R8(:,:,:) => NULL()
 
     __Iam__('Finalize_')
 
@@ -2253,6 +2301,7 @@ CONTAINS
     ! Archive species in internal state. Do this only for species that are
     ! not advected, since those need to be included in the restart file.
     ! ckeller, 10/27/2014
+    ! Also archive certain State_Chm arrays in internal state (ewl, 12/13/18)
     !=========================================================================
 
     ! Get Internal state
@@ -2276,6 +2325,7 @@ CONTAINS
                              notFoundOK=.TRUE., __RC__ )
        IF ( .NOT. ASSOCIATED(Ptr3D_R8) ) CYCLE
        Ptr3D_R8 = State_Chm%Species(:,:,LM:1:-1,IND)
+       Ptr3D_R8 => NULL()
 
        ! Verbose 
        if ( MAPL_am_I_Root()) write(*,*)                &
@@ -2283,8 +2333,46 @@ CONTAINS
                 TRIM(ThisSpc%Name)
     ENDDO
 
-    ! Nullify pointer
-     Ptr3D_R8 => NULL()
+    CALL MAPL_GetPointer( INTSTATE, Ptr3d, 'H2O2AfterChem',  &
+                           notFoundOK=.TRUE., __RC__ ) 
+    IF ( ASSOCIATED(Ptr3d) .AND. &
+         ASSOCIATED(State_Chm%H2O2AfterChem) ) THEN
+       Ptr3d(:,:,LM:1:-1) = State_Chm%H2O2AfterChem(:,:,LM:1:-1)
+    ENDIF
+    Ptr3d => NULL()
+    
+    CALL MAPL_GetPointer( INTSTATE, Ptr3d, 'SO2AfterChem',   &
+                          notFoundOK=.TRUE., __RC__ ) 
+    IF ( ASSOCIATED(Ptr3d) .AND. &
+         ASSOCIATED(State_Chm%SO2AfterChem) ) THEN
+       Ptr3d(:,:,LM:1:-1) = State_Chm%SO2AfterChem
+    ENDIF
+    Ptr3d => NULL()
+    
+    CALL MAPL_GetPointer( INTSTATE, Ptr2d, 'DryDepNitrogen', &
+                          notFoundOK=.TRUE., __RC__ ) 
+    IF ( ASSOCIATED(Ptr2d) .AND. &
+         ASSOCIATED(State_Chm%DryDepNitrogen) ) THEN
+       Ptr2d = State_Chm%DryDepNitrogen
+    ENDIF
+    Ptr2d => NULL()
+    
+    CALL MAPL_GetPointer( INTSTATE, Ptr2d, 'WetDepNitrogen', &
+                          notFoundOK=.TRUE., __RC__ ) 
+    IF ( ASSOCIATED(Ptr2d) .AND. &
+         ASSOCIATED(State_Chm%WetDepNitrogen) ) THEN
+       Ptr2d = State_Chm%WetDepNitrogen
+    ENDIF
+    Ptr2d => NULL()
+    
+    CALL MAPL_GetPointer( INTSTATE, Ptr3d, 'KPPHvalue' ,     &
+                          notFoundOK=.TRUE., __RC__ ) 
+    IF ( ASSOCIATED(Ptr3d) .AND. &
+         ASSOCIATED(State_Chm%KPPHvalue) ) THEN
+       Ptr3d(:,:,1:LM-LLCHEM) = 0.0
+       Ptr3d(:,:,LM:LM-LLCHEM+1:-1) = &
+          REAL(State_Chm%KPPHvalue(:,:,1:LLCHEM),KIND=ESMF_KIND_R4)
+    ENDIF
 
     !=======================================================================
     ! Print end-of-simulation output
