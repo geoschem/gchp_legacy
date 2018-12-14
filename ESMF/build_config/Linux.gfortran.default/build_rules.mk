@@ -68,12 +68,12 @@ ifeq ($(ESMF_COMM),openmpi)
 # OpenMPI --------------------------------------------------
 ESMF_CXXCOMPILECPPFLAGS+= -DESMF_NO_SIGUSR2
 ESMF_F90DEFAULT         = mpif90
-ESMF_F90LINKLIBS       += -lmpi_cxx
+#ESMF_F90LINKLIBS       += -lmpi_cxx
 ESMF_CXXDEFAULT         = mpicxx
 # Need to change -lmpi_f77 to -lmpi_cxx to get ESMF to compile w/ OpenMPI
 # (ewl, 6/18/2018)
 #ESMF_CXXLINKLIBS       += -lmpi_f77
-ESMF_CXXLINKLIBS       += -lmpi_cxx
+#ESMF_CXXLINKLIBS       += -lmpi_cxx
 ESMF_MPIRUNDEFAULT      = mpirun $(ESMF_MPILAUNCHOPTIONS)
 ESMF_MPIMPMDRUNDEFAULT  = mpiexec $(ESMF_MPILAUNCHOPTIONS)
 else
