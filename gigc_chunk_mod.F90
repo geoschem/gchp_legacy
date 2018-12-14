@@ -983,14 +983,16 @@ CONTAINS
 !\\
 ! !INTERFACE:
 !
-  SUBROUTINE GIGC_Chunk_Final( am_I_Root, Input_Opt, State_Chm, State_Met, RC )
+  SUBROUTINE GIGC_Chunk_Final( am_I_Root, Input_Opt,  State_Chm,             &
+                               State_Met, State_Diag, RC                    )
 !
 ! !USES:
 !
-    USE Input_Opt_Mod,         ONLY : OptInput, Cleanup_Input_Opt
-    USE State_Chm_Mod,         ONLY : ChmState, Cleanup_State_Chm
-    USE State_Met_Mod,         ONLY : MetState, Cleanup_State_Met
-    USE HCOI_GC_MAIN_MOD,      ONLY : HCOI_GC_FINAL
+    USE Input_Opt_Mod,    ONLY : OptInput, Cleanup_Input_Opt
+    USE State_Chm_Mod,    ONLY : ChmState, Cleanup_State_Chm
+    USE State_Met_Mod,    ONLY : MetState, Cleanup_State_Met
+    USE State_Diag_Mod,   ONLY : DgnState, Cleanup_State_Diag
+    USE HCOI_GC_MAIN_MOD, ONLY : HCOI_GC_FINAL
 !
 ! !INPUT PARAMETERS:
 !
@@ -1001,6 +1003,7 @@ CONTAINS
     TYPE(OptInput), INTENT(INOUT) :: Input_Opt     ! Input Options object
     TYPE(ChmState), INTENT(INOUT) :: State_Chm     ! Chemistry State object
     TYPE(MetState), INTENT(INOUT) :: State_Met     ! Meteorology State object
+    TYPE(DgnState), INTENT(INOUT) :: State_Diag    ! Diagnostics State object
 !
 ! !OUTPUT PARAMETERS:
 !
@@ -1032,13 +1035,13 @@ CONTAINS
        ENDIF
     ENDIF
 
-    ! Deallocate fields of the Input Options object
-    CALL Cleanup_Input_Opt( am_I_Root, Input_Opt, RC )
+    ! Deallocate fields of the Diagnostics State object
+    CALL Cleanup_State_Diag( am_I_Root, State_Diag, RC )
     IF ( am_I_Root ) THEN
        IF ( RC == GC_SUCCESS ) THEN
-          write(*,'(a)') 'Chem::Input_Opt Finalize... OK.'
+          write(*,'(a)') 'Chem::State_Diag Finalize... OK.'
        ELSE
-          write(*,'(a)') 'Chem::Input_Opt Finalize... FAILURE.'
+          write(*,'(a)') 'Chem::State_Diag Finalize... FAILURE.'
        ENDIF
     ENDIF
 
@@ -1059,6 +1062,16 @@ CONTAINS
           write(*,'(a)') 'Chem::State_Met Finalize... OK.'
        ELSE
           write(*,'(a)') 'Chem::State_Met Finalize... FAILURE.'
+       ENDIF
+    ENDIF
+
+    ! Deallocate fields of the Input Options object
+    CALL Cleanup_Input_Opt( am_I_Root, Input_Opt, RC )
+    IF ( am_I_Root ) THEN
+       IF ( RC == GC_SUCCESS ) THEN
+          write(*,'(a)') 'Chem::Input_Opt Finalize... OK.'
+       ELSE
+          write(*,'(a)') 'Chem::Input_Opt Finalize... FAILURE.'
        ENDIF
     ENDIF
 

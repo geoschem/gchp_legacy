@@ -2389,12 +2389,12 @@ CONTAINS
     Input_Opt%myCpu = myPet
 
     ! Call the FINALIZE method of the GEOS-Chem column chemistry code
-    CALL GIGC_Chunk_Final( am_I_Root = am_I_Root,  &   ! Is this the root PET?
-                           Input_Opt = Input_Opt,  &   ! Input Options
-                           State_Chm = State_Chm,  &   ! Chemistry State
-                           State_Met = State_Met,  &   ! Meteorology State
-                           __RC__                 )
-
+    CALL GIGC_Chunk_Final( am_I_Root  = am_I_Root,   &   ! Is this the root PET?
+                           Input_Opt  = Input_Opt,   &   ! Input Options
+                           State_Chm  = State_Chm,   &   ! Chemistry State
+                           State_Met  = State_Met,   &   ! Meteorology State
+                           State_Diag = State_Diag,  &   ! Diagnostics State
+                           __RC__                   )
 
     ! Free Int2Chm pointer
     IF ( ASSOCIATED(Int2Chm) ) THEN
