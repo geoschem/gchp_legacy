@@ -8,6 +8,15 @@ else()
     set(RUNDIR_MECH "Standard")
 endif()
 
+# Get thirdparty install directory 
+message(STATUS "Third party libraries install:")
+
+set(THIRD_PARTY_INSTALL_PROMPT "<path to third party installs>")
+set_dynamic_default(THIRD_PARTY "${THIRD_PARTY_INSTALL_PROMPT}"
+    LOG THIRD_PARTY_LOG 
+)
+dump_log(THIRD_PARTY_LOG)
+
 # Chemistry mechanism
 set_dynamic_option(MECH "${RUNDIR_MECH}"
     LOG GENERAL_OPTIONS_LOG
@@ -15,20 +24,30 @@ set_dynamic_option(MECH "${RUNDIR_MECH}"
     OPTIONS "Standard" "RnPbBe" "Benchmark"
 )
 
+# Build RRTMG?
+set_dynamic_option(RRTMG "FALSE"
+    LOG GENERAL_OPTIONS_LOG
+    SELECT_EXACTLY 1
+    OPTIONS "TRUE" "FALSE"
+)
+if(${RRTMG})
+    set_dynamic_default(GC_DEFINES "RRTMG")
+endif()
+
 message(STATUS "General settings:")
 dump_log(GENERAL_OPTIONS_LOG)
 
 # Get diagnostics
 set_dynamic_default(DIAG 
-    "BPCH_DIAG" "BPCH_TIMESER" "BPCH_TPBC"
-
+#    "BPCH_DIAG" "BPCH_TIMESER" "BPCH_TPBC"
+    "NC_DIAG" "NC_HAS_COMPRESSION"
     LOG EXTRA_DEFS_LOG
 )
 set_dynamic_default(GC_DEFINES ${DIAG})
 
 # Get extra defines
 set_dynamic_default(EXTRA 
-    "USE_REAL8" "NC_HAS_COMPRESSION" "ESMF_" "EXTERNAL_GRID"
+    "ESMF_" "EXTERNAL_GRID" "GEOS_FP" "USE_REAL8" 
     
     LOG EXTRA_DEFS_LOG
 )
