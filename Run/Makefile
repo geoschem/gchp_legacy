@@ -5,43 +5,29 @@
 #
 # !MODULE: Makefile
 #
-# !DESCRIPTION: Utility Makefile for the GCHP run directory. It is stored
-#  in the Unit Tester with name 'Makefile_GCHP' but is copied to the 
-#  GCHP run directory as 'Makefile'.
+# !DESCRIPTION: Utility Makefile for the GCHP run directory.
 #\\
 #\\
 # !REMARKS:
 # 
 # !REVISION HISTORY: 
-#  Navigate to your unit tester directory and type 'gitk' at the prompt
-#  to browse the revision history.
+#  See git history in the GCHP repository for version 12.1.0 and beyond.
+#  For prior history, see the git history in geos-chem-unittest
 #EOP
 #------------------------------------------------------------------------------
 #BOC
 
 # Unix shell (we'll assume Bash, which is on every Linux system)
-SHELL        :=/bin/bash
+SHELL :=/bin/bash
 
 ###############################################################################
 #####                                                                     #####
-#####   CONFIGURABLE TOKENS: You can modify these for your environment.   #####
-#####                                                                     #####
-###############################################################################
-
-# MPI implementation (openmpi or mvapich2) and number of cores. Currently 
-# you can only run interactively using the Makefile using one node.
-# NUM_THREADS must be a multiple of six.
-MPI=mvapich2
-NUM_THREADS=6
-
-###############################################################################
-#####                                                                     #####
-#####  DEFAULT OPTIONS
+#####                              VARIABLES                              #####
 #####                                                                     #####
 ###############################################################################
 
 # Source code location
-ifndef GC_DIR
+ifndef CODEDIR_GC
  CODEDIR_GC :=$(shell readlink -f ./CodeDir)
 endif
 
@@ -61,84 +47,156 @@ EXE :=geos
 
 ###############################################################################
 #####                                                                     #####
-#####                          MAKEFILE TARGETS                           #####
+#####                              TARGETS                                #####
 #####                                                                     #####
 ###############################################################################
 
 # PHONY targets don't actually compile anything. They either are
 # synonyms for other targets, they remove files, or they print output.
-.PHONY: cleanup_data      cleanup_logs   cleanup_output  cleanup_exe
-.PHONY: clean_gc          clean_mapl     clean_all       clean_nuclear
-.PHONY: compile_standard  compile_mapl   compile_debug   compile_clean
-.PHONY: run_interactive   superclean
+.PHONY: cleanup_data      cleanup_logs     cleanup_output  cleanup_exe
+.PHONY: clean             clean_mapl       clean_gc        superclean
+.PHONY: build             build_debug      rebuild         rebuild_debug
+.PHONY: build_mapl        build_mapl_debug rebuild_mapl    rebuild_maple_debug
+.PHONY: build_gc          build_gc_debug   rebuild_gc      rebuild_gc_debug
+.PHONY: help              printbuildinfo
+
+#Legacy (will be removed in a future version)
+.PHONY: compile_clean     compile_standard compile_debug   compile_mapl
+.PHONY: make_clean_nuclear
 
 #%%%%%%%%%%%%%%%%%%%%%%%%%%
-#  Build Only             %
+#  Clean Source Code      %
 #%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-# Beware! Destroys ESMF, MAPL, and FVdycore compilations
-compile_clean:
-	date > $(BUILD_LOG)
-	./build.sh compile_clean 2>&1 | tee -a $(BUILD_LOG)
+# Clean all source code
+clean:
+	./build.sh clean_all
+
+# Clean all source code and the run directory
+superclean:
+	@$(MAKE) clean
+	@$(MAKE) cleanup_exe
+	@$(MAKE) cleanup_output
+
+# Clean only MAPL, FVdycore, and GEOS-Chem
+clean_mapl:
+	./build.sh clean_mapl
+
+# Clean only GEOS-Chem
+clean_gc:
+	./build.sh clean_gc
+
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+#  Compile ESMF, MAPL, FVdycore, and GEOS-Chem  %
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+# Clean and build
+build:
+	@$(MAKE) build_all
+
+# Clean and build with debug flags
+build_debug:
+	date > ${BUILD_LOG}
+	./build.sh clean_all
+	./build.sh build --debug 2>&1 | tee -a $(BUILD_LOG)
 	@$(MAKE) printbuildinfo 2>&1 | tee -a $(BUILD_LOG)
 	@$(MAKE) printbuildinfo > $(LAST_BUILD)
 
-compile_standard:
-	date >> $(BUILD_LOG)
-	./build.sh compile_standard 2>&1 | tee -a $(BUILD_LOG)
+# Build without cleaning
+rebuild:
+	date > ${BUILD_LOG}
+	rm -f $(CODEDIR_GCHP)/ESMF/esmf.install
+	rm -f $(CODEDIR_GCHP)/Shared/mapl.install
+	rm -f $(CODEDIR_GCHP)/FVdycoreCubed_GridComp/fvdycore.install
+	./build.sh build 2>&1 | tee -a $(BUILD_LOG)
 	@$(MAKE) printbuildinfo 2>&1 | tee -a $(BUILD_LOG)
 	@$(MAKE) printbuildinfo > $(LAST_BUILD)
 
-compile_debug:
-	date >> ${BUILD_LOG}
-	./build.sh compile_debug 2>&1 | tee -a $(BUILD_LOG)
+# Build with debug flags and without cleaning
+rebuild_debug:
+	date > ${BUILD_LOG}
+	rm -f $(CODEDIR_GCHP)/ESMF/esmf.install
+	rm -f $(CODEDIR_GCHP)/Shared/mapl.install
+	rm -f $(CODEDIR_GCHP)/FVdycoreCubed_GridComp/fvdycore.install
+	./build.sh build --debug 2>&1 | tee -a $(BUILD_LOG)
 	@$(MAKE) printbuildinfo 2>&1 | tee -a $(BUILD_LOG)
 	@$(MAKE) printbuildinfo > $(LAST_BUILD)
 
-compile_mapl:
-	date >> ${BUILD_LOG}
-	./build.sh compile_mapl 2>&1 | tee -a $(BUILD_LOG)
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+#  Compile MAPL, FVdycore, and GEOS-Chem but not ESMF %
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+# Clean and build
+build_mapl:
+	date > ${BUILD_LOG}
+	./build.sh clean_mapl
+	./build.sh build 2>&1 | tee -a $(BUILD_LOG)
 	@$(MAKE) printbuildinfo 2>&1 | tee -a $(BUILD_LOG)
 	@$(MAKE) printbuildinfo > $(LAST_BUILD)
 
-#%%%%%%%%%%%%%%%%%%%%%%%
-#  Run Interactively   %
-#%%%%%%%%%%%%%%%%%%%%%%%
+# Clean and build with debug flags
+build_mapl_debug:
+	date > ${BUILD_LOG}
+	./build.sh clean_mapl
+	./build.sh build --debug 2>&1 | tee -a $(BUILD_LOG)
+	@$(MAKE) printbuildinfo 2>&1 | tee -a $(BUILD_LOG)
+	@$(MAKE) printbuildinfo > $(LAST_BUILD)
 
-run_interactive:
-	if [[ $(MPI) == openmpi ]]; then mpirun -n $(NUM_THREADS) ./$(EXE) 2>&1 | tee $(GCHP_LOG); fi;
-	if [[ $(MPI) == mvapich2 ]]; then srun -n $(NUM_THREADS) --mpi=pmi2 ./$(EXE) 2>&1 | tee $(GCHP_LOG); fi;
+# Build without cleaning
+rebuild_mapl:
+	date > ${BUILD_LOG}
+	rm -f $(CODEDIR_GCHP)/Shared/mapl.install
+	rm -f $(CODEDIR_GCHP)/FVdycoreCubed_GridComp/fvdycore.install
+	./build.sh build 2>&1 | tee -a $(BUILD_LOG)
+	@$(MAKE) printbuildinfo 2>&1 | tee -a $(BUILD_LOG)
+	@$(MAKE) printbuildinfo > $(LAST_BUILD)
 
-#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-#  Clean up, Build, and Run Interactively  %
-#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+# Build with debug flags and without cleaning
+rebuild_mapl_debug:
+	date > ${BUILD_LOG}
+	rm -f $(CODEDIR_GCHP)/Shared/mapl.install
+	rm -f $(CODEDIR_GCHP)/FVdycoreCubed_GridComp/fvdycore.install
+	./build.sh build --debug 2>&1 | tee -a $(BUILD_LOG)
+	@$(MAKE) printbuildinfo 2>&1 | tee -a $(BUILD_LOG)
+	@$(MAKE) printbuildinfo > $(LAST_BUILD)
 
-# Beware! Destroys ESMF, MAPL, and FVdycore compilations
-gchp_clean:
-	@$(MAKE) cleanup_output
-	@$(MAKE) compile_clean
-	@$(MAKE) run_interactive
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+#  Compile GEOS-Chem but not ESMF, MAPL, and FVdycore %
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-gchp_standard:
-	@$(MAKE) cleanup_output
-	@$(MAKE) compile_standard
-	@$(MAKE) run_interactive
+# Clean and build
+build_gc:
+	date > ${BUILD_LOG}
+	@$(MAKE) clean_gc
+	./build.sh build 2>&1 | tee -a $(BUILD_LOG)
+	@$(MAKE) printbuildinfo 2>&1 | tee -a $(BUILD_LOG)
+	@$(MAKE) printbuildinfo > $(LAST_BUILD)
 
-gchp_debug:
-	@$(MAKE) cleanup_output
-	@$(MAKE) compile_debug
-	@$(MAKE) run_interactive
+# Clean and build with debug flags
+build_gc_debug:
+	date > ${BUILD_LOG}
+	./build.sh clean_gc
+	./build.sh build --debug 2>&1 | tee -a $(BUILD_LOG)
+	@$(MAKE) printbuildinfo 2>&1 | tee -a $(BUILD_LOG)
+	@$(MAKE) printbuildinfo > $(LAST_BUILD)
 
-gchp_mapl:
-	@$(MAKE) cleanup_output
-	@$(MAKE) compile_mapl
-	@$(MAKE) run_interactive
+# Build without cleaning
+rebuild_gc:
+	date > ${BUILD_LOG}
+	./build.sh build 2>&1 | tee -a $(BUILD_LOG)
+	@$(MAKE) printbuildinfo 2>&1 | tee -a $(BUILD_LOG)
+	@$(MAKE) printbuildinfo > $(LAST_BUILD)
+
+# Build with debug flags and without cleaning
+rebuild_gc_debug:
+	date > ${BUILD_LOG}
+	./build.sh build --debug 2>&1 | tee -a $(BUILD_LOG)
+	@$(MAKE) printbuildinfo 2>&1 | tee -a $(BUILD_LOG)
+	@$(MAKE) printbuildinfo > $(LAST_BUILD)
 
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%
 #  Clean up Run Directory  %
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-cleanup_output: cleanup_data cleanup_logs
 
 cleanup_data: 
 	rm -f $(RUN_DIR)/OutputDir/*.nc4
@@ -161,37 +219,47 @@ cleanup_logs:
 	rm -f 1
 	rm -f EGRESS
 
+cleanup_output: cleanup_data cleanup_logs
+
 cleanup_exe: 
 	rm -f geos
 	rm -f $(BUILD_LOG)
 	rm -f $(LAST_BUILD)
 
-#%%%%%%%%%%%%%%%%%%%%%%%%%%
-#  Clean Source Code      %
-#   (BE CAREFUL!!!)       %
-#%%%%%%%%%%%%%%%%%%%%%%%%%%
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%
+# Legacy options
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-clean_all:
-	./build.sh clean_all
-
-clean_gc:
-	./build.sh clean_gc
-
-clean_mapl:
-	./build.sh clean_mapl
-
+# Legacy, will be deleted in a future version
 clean_nuclear:
-	./build.sh clean_nuclear
+	@$(MAKE) clean
+	@echo "WARNING: 'make clean_nuclear' will be deprecated in a future version."
+	@echo "Use 'make clean' instead."
+	@echo "Type 'make help' for complete list of expanded options."
 
-#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-#  Delete and kill Everything  %
-#   (BE CAREFUL!!!)            %
-#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+compile_clean:
+	@$(MAKE) build
+	@echo "WARNING: 'make compile_clean' will be deprecated in a future version."
+	@echo "Use 'make build' instead."
+	@echo "Type 'make help' for complete list of expanded options."
 
-superclean:
-	@$(MAKE) cleanup_output
-	@$(MAKE) cleanup_exe
-	@$(MAKE) clean_all
+compile_standard:
+	@$(MAKE) rebuild_gc
+	@echo "WARNING: 'make compile_standard' will be deprecated in a future version."
+	@echo "Use 'make rebuild_gc' instead."
+	@echo "Type 'make help' for complete list of expanded options."
+
+compile_debug:
+	@$(MAKE) rebuild_gc_debug
+	@echo "WARNING: 'make compile_debug' will be deprecated in a future version."
+	@echo "Use 'make rebuild_gc_debug' instead."
+	@echo "Type 'make help' for complete list of expanded options."
+
+compile_mapl:
+	@$(MAKE) build_mapl
+	@echo "WARNING: 'make compile_mapl' will be deprecated in a future version."
+	@echo "Use targets build_mapl, build_mapl_debug, rebuild_mapl, or rebuild_mapl_debug instead."
+	@echo "Type 'make help' for complete list of expanded options."
 
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 #  Print information                      %
@@ -234,44 +302,54 @@ help:
 	@echo ' '
 	@echo 'Usage: make TARGET [OPTIONAL-FLAGS]'
 	@echo ' '
-	@echo 'Default threads for compiling is hard-coded as 6'
-	@echo ' '
 	@echo '----------------------------------------------------------'
 	@echo 'TARGET may be one of the following:'
 	@echo '----------------------------------------------------------'
 	@echo ' '      
-	@echo 'To print settings to screen:' 
-	@echo '  printbuildinfo   Print out git info for GC and GCHP repos'
-	@echo '  help             If you got this far, you know this one'
+	@echo 'Print make options:' 
+	@echo '  printbuildinfo     Print out git info for GC and GCHP repos'
+	@echo '  help               If you got this far, you know this one'
 	@echo ' '
-	@echo 'To clean source code:'
-	@echo '  clean_all        Clean all source code using build.sh'
-	@echo '  clean_gc         Clean GEOS-Chem classic only using build.sh'
-	@echo '  clean_mapl       Clean MAPL and FVdyCore using build.sh'
-	@echo '  clean_nuclear    Clean everything using build.sh'
-	@echo '  superclean       Remove exe, logs, output, and clean ALL code'
+	@echo 'Clean source code:'
+	@echo '  clean              Clean ESMF, MAPL, FVdycore, and GEOS-Chem (all)'
+	@echo '  clean_mapl         Clean MAPL, FVdycore, and GEOS-Chem (not ESMF)'
+	@echo '  clean_gc           Clean GEOS-Chem only'
+	@echo '  superclean         Clean all source code and the run directory'
 	@echo ' '
-	@echo 'To compile (appropriate clean included):'
-	@echo '  compile_clean     Include everything'
-	@echo '  compile_standard  Skip MAPL, FvDyCore, and ESMF; debug off'
-	@echo '  compile_debug     Skip MAPL, FvDyCore, and ESMF; debug on'
-	@echo '  compile_mapl      Skip ESMF'
+	@echo 'Clean/compile all (ESMF, MAPL, FVdycore, and GEOS-Chem):'
+	@echo '  build              Clean and compile; GC debug off'
+	@echo '  build_debug        Clean and compile; GC debug on'
+	@echo '  rebuild            Compile without cleaning; GC debug off'
+	@echo '  rebuild_debug      Compile without cleaning; GC debug on'
+	@echo ' '
+	@echo 'Clean/compile MAPL, FVdycore, and GEOS-Chem (not ESMF):'
+	@echo '  build_mapl         Clean and compile; GC debug off'
+	@echo '  build_mapl_debug   Clean and compile; GC debug on'
+	@echo '  rebuild_mapl       Compile without cleaning; GC debug off'
+	@echo '  rebuild_mapl_debug Compile without cleaning; GC debug on'
+	@echo ' '
+	@echo 'Clean/compile only GEOS-Chem (not ESMF, MAPL, or FVdycore):'
+	@echo '  build_gc           Clean and compile; GC debug off'
+	@echo '  build_debug_gc     Clean and compile; GC debug on'
+	@echo '  rebuild_gc         Compile without cleaning; GC debug off'
+	@echo '  rebuild_debug_gc   Compile without cleaning; GC debug on'
 	@echo ' '
 	@echo 'To remove run directory files:' 
-	@echo '  cleanup_output   Remove output data, log files, and executable'
-	@echo '  cleanup_data     Remove output data' 
-	@echo '  cleanup_logs     Remove log files' 
-	@echo '  cleanup_exe      Remove executable'
+	@echo '  cleanup_output     Remove output data, log files, and executable'
+	@echo '  cleanup_data       Remove output data' 
+	@echo '  cleanup_logs       Remove log files' 
+	@echo '  cleanup_exe        Remove executable'
+	@echo '  superclean         All of the above and clean all source code'
 	@echo ' ' 
-	@echo 'To run interactively:'
-	@echo '  run_interactive'
-	@echo ' '
-	@echo 'To clean, build, and run interactively:'
-	@echo '  gchp_clean       Include everything'
-	@echo '  gchp_standard    Skip MAPL, FvDyCore, and ESMF; debug off'
-	@echo '  gchp_debug       Skip MAPL, FvDyCore, and ESMF; debug on'
-	@echo '  gchp_mapl        Skip ESMF'
-	@echo ' '
+	@echo 'Legacy options (will be deprecated in a future version) ' 
+	@echo '  compile_clean      Clean and build everything'
+	@echo '  compile_standard   Skip MAPL, FvDyCore, and ESMF; debug off'
+	@echo '  compile_debug      Skip MAPL, FvDyCore, and ESMF; debug on'
+	@echo '  compile_mapl       Clean and build everything except ESMF'
+	@echo '  clean_nuclear      Clean everything using build.sh'
+	@echo ' ' 
+	@echo 'Print source code info:' 
+	@echo '  printbuildinfo     Print out git info for GC and GCHP repos'
 #EOC
 
 

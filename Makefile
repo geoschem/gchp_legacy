@@ -44,8 +44,10 @@
 #                              making distclean, for safety's sake.
 #  12 Dec 2014 - R. Yantosca - Define defaults for  ESMF, MAPL, FVdycore
 #                              that can be overridden by cmd line or env var
-#  08 Mar 2018 - E. Lundgren - Remove gigc_initialization_mod, gigc_types_mod, and
-#                              gchp_utils (see git history for other updates in past yr)
+#  08 Mar 2018 - E. Lundgren - Remove gigc_initialization_mod, gigc_types_mod, 
+#                              and gchp_utils
+#  21 Dec 2018 - E. Lundgren - Remove compilation condition that xxx.install 
+#                              does not exist
 #EOP
 #------------------------------------------------------------------------------
 #BOC
