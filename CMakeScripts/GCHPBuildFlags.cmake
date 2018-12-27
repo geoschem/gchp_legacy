@@ -1,4 +1,6 @@
 
+find_package(MPI REQUIRED)
+
 # Inspect rundir name to guess the chemistry mechanism
 if("${RUNDIR_NAME}" MATCHES ".*benchmark")
     set(RUNDIR_MECH "Benchmark")
