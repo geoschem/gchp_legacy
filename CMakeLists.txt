@@ -22,7 +22,7 @@ target_link_libraries(geos
     PUBLIC 
         GIGC 
 	esmf 
-	FVdycoreCubed_GridComp fvdycore GFDL_fms GEOS_Shared GMAO_hermes
         MAPL_Base MAPL_cfio GMAO_mpeu GMAO_pilgrim
+        FVdycoreCubed_GridComp fvdycore GFDL_fms GEOS_Shared GMAO_hermes 
 	${MPI_Fortran_LIBRARIES} ${NETCDF_LIBRARIES}
 )
