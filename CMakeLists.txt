@@ -1,7 +1,6 @@
 add_static_target(GIGC
     SOURCES
         Chem_GridCompMod.F90
-	# GEOSChem.F90 < main program
         GEOS_ctmEnvGridComp.F90
         gigc_chunk_mod.F90
         GIGC_GridCompMod.F90
@@ -18,6 +17,7 @@ link_directories(${THIRD_PARTY}/lib)
 add_executable(geos
     GEOSChem.F90
 )
+
 target_link_libraries(geos
     PUBLIC 
         GIGC 
@@ -26,3 +26,14 @@ target_link_libraries(geos
         FVdycoreCubed_GridComp fvdycore GFDL_fms GEOS_Shared GMAO_hermes 
 	${MPI_Fortran_LIBRARIES} ${NETCDF_LIBRARIES}
 )
+
+set_target_properties(geos
+    PROPERTIES 
+	INSTALL_RPATH "${THIRD_PARTY}/lib"
+)
+
+install(TARGETS geos
+    RUNTIME DESTINATION ${RUNDIR}
+)
+
+
