@@ -2,6 +2,7 @@ OutputDir
 MetDir
 ChemDataDir
 MainDataDir
+CodeDir
 TileFiles
 rundir.version
 *~
