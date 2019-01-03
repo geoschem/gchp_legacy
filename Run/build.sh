@@ -51,58 +51,7 @@ if [ $# == 0 ] || [ $1 == "help" ]; then
 fi
 
 # Set run directory path
-rundir=$PWD          
-
-# Go to the source code directory
-cd ${rundir}/CodeDir 
-
-# Flag for when to exit
-done=0
-
-###############################
-###     Clean Options       ###
-###############################
-
-#-----------------------------------------------------------------------
-#   clean_all
-#-----------------------------------------------------------------------
-if [[ $1 == "clean_all"      ]]; then
-   make HPC=yes realclean
-   cd GCHP
-   make the_nuclear_option
-   cd ..
-   done=1
-
-#-----------------------------------------------------------------------
-#   clean_mapl
-#-----------------------------------------------------------------------
-elif [[ $1 == "clean_mapl"      ]]; then
-   make HPC=yes realclean
-   cd GCHP
-   make wipeout_fvdycore
-   make wipeout_mapl
-   cd ..
-   done=1
-
-#-----------------------------------------------------------------------
-#   clean_gc
-#-----------------------------------------------------------------------
-elif [[ $1 == "clean_gc" ]]; then
-   make HPC=yes realclean
-   done=1
-
-fi
-
-cd ${rundir}
-
-if [[ ${done} == "1" ]]; then
-   unset rundir
-   exit 0
-fi
-
-###############################
-###     Compile Options     ###
-###############################
+rundir=$PWD
 
 # Check source your environment file. This requires first setting the gchp.env
 # symbolic link using script setEnvironment in the run directory. 
@@ -139,12 +88,62 @@ elif [[ ! -e CodeDir ]]; then
 fi
 
 # Go to the source code directory
-cd ${rundir}/CodeDir 
+
+# Flag for when to exit
+done=0
+
+###############################
+###     Clean Options       ###
+###############################
+
+#-----------------------------------------------------------------------
+#   clean_all
+#-----------------------------------------------------------------------
+if [[ $1 == "clean_all"      ]]; then
+   cd ${rundir}/CodeDir 
+   make HPC=yes realclean
+   cd GCHP
+   make the_nuclear_option
+   cd ${rundir}
+   done=1
+
+#-----------------------------------------------------------------------
+#   clean_mapl
+#-----------------------------------------------------------------------
+elif [[ $1 == "clean_mapl"      ]]; then
+   cd ${rundir}/CodeDir 
+   make HPC=yes realclean
+   cd GCHP
+   make wipeout_fvdycore
+   make wipeout_mapl
+   cd ${rundir}
+   done=1
+
+#-----------------------------------------------------------------------
+#   clean_gc
+#-----------------------------------------------------------------------
+elif [[ $1 == "clean_gc" ]]; then
+   cd ${rundir}/CodeDir 
+   make HPC=yes realclean
+   cd ${rundir}
+   done=1
+
+fi
+
+if [[ ${done} == "1" ]]; then
+   unset rundir
+   exit 0
+fi
+
+###############################
+###     Compile Options     ###
+###############################
 
 #-----------------------------------------------------------------------
 #   build (compile) - with or without debug flags
 #-----------------------------------------------------------------------
 if [[ $1 == "build" ]]; then
+   cd ${rundir}/CodeDir 
    if [[ $2 == "--debug" ]]; then
       make -j${SLURM_NTASKS} NC_DIAG=y   CHEM=standard  EXTERNAL_GRID=y  \
                              DEBUG=y     TRACEBACK=y    MET=geosfp       \
@@ -156,12 +155,13 @@ if [[ $1 == "build" ]]; then
                              GRID=4x5    NO_REDUCED=y  hpc
    fi
 
-#### LEGACY OPTIONS BELOW (will eventually be removed )
+#### LEGACY OPTIONS (pre-12.2)
 
 #-----------------------------------------------------------------------
 #   compile_debug
 #-----------------------------------------------------------------------
 elif [[ $1 == "compile_debug"      ]]; then
+   cd ${rundir}/CodeDir 
    echo "WARNING: build.sh option compile_debug will be deprecated in a future version, replaced with build_debug."
    cd GCHP
    make clean
@@ -176,6 +176,7 @@ elif [[ $1 == "compile_debug"      ]]; then
 #   compile_standard
 #-----------------------------------------------------------------------
 elif [[ $1 == "compile_standard"      ]]; then
+   cd ${rundir}/CodeDir 
    echo "WARNING: build.sh option compile_standard will be deprecated in a future version, replaced with rebuild_gc."
    cd GCHP
    make clean
@@ -189,6 +190,7 @@ elif [[ $1 == "compile_standard"      ]]; then
 #   compile_mapl
 #-----------------------------------------------------------------------
 elif [[ $1 == "compile_mapl"      ]]; then
+   cd ${rundir}/CodeDir 
    echo "WARNING: build.sh option compile_mapl will be deprecated in a future version, replaced with build_mapl."
    make realclean
    cd GCHP
@@ -206,6 +208,7 @@ elif [[ $1 == "compile_mapl"      ]]; then
 #   compile_clean
 #-----------------------------------------------------------------------
 elif [[ $1 == "compile_clean"      ]]; then
+   cd ${rundir}/CodeDir 
    echo "WARNING: build.sh option compile_clean will be deprecated in a future version, replaced with build_all."
    make HPC=yes realclean
    cd GCHP
