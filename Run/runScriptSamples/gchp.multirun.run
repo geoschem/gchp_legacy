@@ -102,6 +102,14 @@ echo "Settings from runConfig.sh: "
 echo " "
 source ./runConfig.sh
 
+# Overwrite the input restart file specified in GCHP.rc with the checkpoint
+# file if cap_restart exists. Note that this is not done via runConfig.sh
+# so as to preserve the configuration of the initial restart file to be 
+# used in the first run.
+if [ -e cap_restart ]; then
+   sed -i "s|GIGCchem_INTERNAL_RESTART_FILE\:.*|GIGCchem_INTERNAL_RESTART_FILE\:     +gcchem_internal_checkpoint.nc|" ./GCHP.rc
+fi
+
 # Only run GCHP if runConfig.sh had no errors
 if [[ $? == 0 ]]; then
 

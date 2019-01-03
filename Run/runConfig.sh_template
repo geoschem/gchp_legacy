@@ -335,11 +335,10 @@ replace_val npx       ${CS_RES}                     fvcore_layout.rc
 replace_val npy       ${CS_RES}                     fvcore_layout.rc
 replace_val GRIDNAME  PE${CS_RES}x${CS_RES_x_6}-CF  GCHP.rc
 
-####  set input and output restart filenames
+####  set input restart filename
 echo " "
-echo "Restart and checkpoint files:"
+echo "Initial reestart file:"
 replace_val GIGCchem_INTERNAL_RESTART_FILE "+${INITIAL_RESTART}" GCHP.rc
-replace_val GIGCchem_INTERNAL_CHECKPOINT_FILE "gcchem_internal_checkpoint_c${CS_RES}.nc" GCHP.rc
 
 #### Set simulation start and end datetimes based on input.geos
 echo " "
