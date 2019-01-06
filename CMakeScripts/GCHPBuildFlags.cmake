@@ -13,11 +13,22 @@ endif()
 # Get thirdparty install directory 
 message(STATUS "Third party libraries install:")
 
-set(THIRD_PARTY_INSTALL_PROMPT "<path to third party installs>")
+set(THIRD_PARTY_INSTALL_PROMPT "<path to third party install>")
 set_dynamic_default(THIRD_PARTY "${THIRD_PARTY_INSTALL_PROMPT}"
     LOG THIRD_PARTY_LOG 
 )
 dump_log(THIRD_PARTY_LOG)
+
+# Check that THIRD_PARTY exists
+if("${THIRD_PARTY}" STREQUAL "${THIRD_PARTY_INSTALL_PROMPT}")
+    message(FATAL_ERROR "You haven't set THIRD_PARTY!")
+elseif(NOT IS_ABSOLUTE "${THIRD_PARTY}")
+    set(THIRD_PARTY "${CMAKE_BINARY_DIR}/${THIRD_PARTY}")
+endif()
+
+if(NOT EXISTS "${THIRD_PARTY}")
+    message(FATAL_ERROR "Invalid THIRD_PARTY. ${THIRD_PARTY} does not exist!")
+endif()
 
 # Chemistry mechanism
 set_dynamic_option(MECH "${RUNDIR_MECH}"
