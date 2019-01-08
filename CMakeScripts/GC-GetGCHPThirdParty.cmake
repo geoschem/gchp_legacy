@@ -4,6 +4,7 @@ set_dynamic_default(THIRD_PARTY "<path to third party install>"
 	IS_DIRECTORY
 )
 dump_log(THIRD_PARTY_LOG)
+get_filename_component(THIRD_PARTY "${THIRD_PARTY}" ABSOLUTE)
 
 # Add GCHP's third party libraries
 set(THIRD_PARTY_LIBNAMES
@@ -12,15 +13,7 @@ set(THIRD_PARTY_LIBNAMES
     MAPL_Base MAPL_cfio GMAO_mpeu GMAO_pilgrim
     FVdycoreCubed_GridComp fvdycore GFDL_fms GEOS_Shared GMAO_hermes 
 )
-#[[target_include_directories(BaseTarget
-	INTERFACE ${THIRD_PARTY}/include
-)
-foreach(LIBNAME ${THIRD_PARTY_LIBNAMES})
-	target_link_libraries(BaseTarget 
-		INTERFACE ${THIRD_PARTY}/lib/lib${LIBNAME}.a
-	)
-endforeach()
-]]
+
 # Find NetCDF, MPI, and OpenMP and make them dependees
 find_package(NetCDF REQUIRED COMPONENTS F90)
 find_package(MPI REQUIRED)
