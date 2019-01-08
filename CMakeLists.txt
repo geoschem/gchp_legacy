@@ -34,3 +34,4 @@ set_target_properties(geos
 install(TARGETS geos
     RUNTIME DESTINATION ${RUNDIR}
 )
+
