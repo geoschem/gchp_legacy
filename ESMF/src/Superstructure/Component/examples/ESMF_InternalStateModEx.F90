@@ -1,7 +1,7 @@
 ! $Id$
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2012, University Corporation for Atmospheric Research,
+! Copyright 2002-2018, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -18,8 +18,8 @@
 !BOP
 !
 !   When working with ESMF Internal States it is important to consider the
-!   applying scoping rules. The user must ensure that the private data block,
-!   that is being referenced, persists for the entire access period. This is
+!   applying scoping rules. The user must ensure that the private data block
+!   that is being referenced persists for the entire access period. This is
 !   not an issue in the previous example, where the private data block was
 !   defined on the scope of the main program. However, the Internal State 
 !   construct is often useful inside of Component modules to hold Component
@@ -68,7 +68,7 @@ module user_mod
   public mygcomp_register
 
 !BOC
-  contains !--------------------------------------------------------------------
+  contains !--------------------------------------------------------------
 !EOC
 
   subroutine mygcomp_register(gcomp, rc)
@@ -80,7 +80,7 @@ module user_mod
     call ESMF_GridCompSetEntryPoint(gcomp, ESMF_METHOD_RUN, mygcomp_run, rc=rc)
     ! register FINAL method
     call ESMF_GridCompSetEntryPoint(gcomp, ESMF_METHOD_FINALIZE, mygcomp_final, rc=rc)
-  end subroutine !--------------------------------------------------------------
+  end subroutine !---------------------------------------------------------
   
 
 !BOC
@@ -121,7 +121,7 @@ module user_mod
     wrap%p => data
     call ESMF_GridCompSetInternalState(gcomp, wrap, rc)
 
-  end subroutine !--------------------------------------------------------------
+  end subroutine !-------------------------------------------------------
   
   subroutine mygcomp_run(gcomp, istate, estate, clock, rc)
     type(ESMF_GridComp):: gcomp
@@ -156,7 +156,7 @@ module user_mod
       rc = ESMF_FAILURE
     endif
     
-  end subroutine !--------------------------------------------------------------
+  end subroutine !-------------------------------------------------------
 
   subroutine mygcomp_final(gcomp, istate, estate, clock, rc)
     type(ESMF_GridComp):: gcomp
@@ -187,13 +187,28 @@ end module
 !EOC
 
 program ESMF_InternalStateModEx
+#include "ESMF.h"
 
   use ESMF
+  use ESMF_TestMod
   use user_mod
   implicit none
   
   type(ESMF_GridComp) :: comp1
-  integer :: rc, finalrc
+  integer :: rc, finalrc, result
+  character(ESMF_MAXSTR) :: testname
+  character(ESMF_MAXSTR) :: failMsg
+
+!-------------------------------------------------------------------------
+!-------------------------------------------------------------------------
+
+  write(failMsg, *) "Example failure"
+  write(testname, *) "Example ESMF_InternalStateModEx"
+
+
+! ------------------------------------------------------------------------------
+! ------------------------------------------------------------------------------
+
 
   finalrc = ESMF_SUCCESS
       
@@ -218,6 +233,10 @@ program ESMF_InternalStateModEx
 
   call ESMF_GridCompDestroy(comp1, rc=rc)
   if (rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE 
+
+  ! IMPORTANT: ESMF_STest() prints the PASS string and the # of processors in the log
+  ! file that the scripts grep for.
+  call ESMF_STest((finalrc.eq.ESMF_SUCCESS), testname, failMsg, result, ESMF_SRCLINE)
 
   call ESMF_Finalize(rc=rc)
   if (rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE 

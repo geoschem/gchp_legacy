@@ -1,7 +1,7 @@
-! $Id: ESMF_StateEx.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
+! $Id$
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2012, University Corporation for Atmospheric Research,
+! Copyright 2002-2018, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -15,8 +15,11 @@
 !------------------------------------------------------------------------------
 !ESMF_EXAMPLE        String used by test script to count examples.
 !==============================================================================
+#include "ESMF.h"
+
     ! ESMF Framework module
     use ESMF
+    use ESMF_TestMod
     implicit none
 
 #define ESMF_ENABLESTATENEEDED
@@ -29,8 +32,21 @@
     type(ESMF_State) :: state1, state2, state3
     integer :: finalrc
     logical :: neededFlag(1)
+    integer :: result = 0     ! all pass
+    character(ESMF_MAXSTR) :: testname
+    character(ESMF_MAXSTR) :: failMsg
 
     finalrc = ESMF_SUCCESS
+
+!-------------------------------------------------------------------------
+!-------------------------------------------------------------------------
+
+    write(failMsg, *) "Example failure"
+    write(testname, *) "Example ESMF_StateEx"
+
+!-------------------------------------------------------------------------
+!-------------------------------------------------------------------------
+
 
 
     call ESMF_Initialize(defaultlogfilename="StateEx.Log", &
@@ -206,6 +222,7 @@
     print *, "State Example 5 finished"
 #endif
     call ESMF_StateDestroy(state3, rc=rc)
+    if (rc.NE.ESMF_SUCCESS) finalrc = ESMF_FAILURE
     print *, "State Destroy returned", rc
 
 !-------------------------------------------------------------------------
@@ -214,6 +231,11 @@
 !   !  exchange between Components and Couplers.  Also "Required for 
 !   !  Restart".
 !-------------------------------------------------------------------------
+
+    ! IMPORTANT: ESMF_STest() prints the PASS string and the # of processors in the log
+    ! file that the scripts grep for.
+    call ESMF_STest((finalrc.eq.ESMF_SUCCESS), testname, failMsg, result, ESMF_SRCLINE)
+
     call ESMF_Finalize(rc=rc)
 
     if (rc.NE.ESMF_SUCCESS) finalrc = ESMF_FAILURE

@@ -1,4 +1,4 @@
-! $Id: GridComp2Template.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
+! $Id$
 !
 ! Template code for a child Grid Component, which has no subcomponents
 !  below it.  This is where the bulk of the computation is expected to be

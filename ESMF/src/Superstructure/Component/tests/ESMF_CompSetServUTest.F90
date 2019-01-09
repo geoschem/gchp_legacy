@@ -1,7 +1,7 @@
-! $Id: ESMF_CompSetServUTest.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
+! $Id$
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2012, University Corporation for Atmospheric Research,
+! Copyright 2002-2018, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -39,6 +39,7 @@ program ESMF_CompSetServUTest
     type(ESMF_VM) :: vm
     integer:: localPet, petCount, i
     integer, allocatable:: petList(:)
+    logical :: pthreadsEnabledFlag
 
     ! individual test failure message
     character(ESMF_MAXSTR) :: failMsg
@@ -71,12 +72,14 @@ program ESMF_CompSetServUTest
 !-------------------------------------------------------------------------------
         
     call ESMF_TestStart(ESMF_SRCLINE, rc=rc)
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
 ! - construct petList according to petCount
     call ESMF_VMGetGlobal(vm, rc=rc)
     if (rc/=ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
     
-    call ESMF_VMGet(vm, petCount=petCount, localPet=localPet, rc=rc)
+    call ESMF_VMGet(vm, petCount=petCount, localPet=localPet, &
+      pthreadsEnabledFlag=pthreadsEnabledFlag, rc=rc)
     if (rc/=ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
     
     allocate(petList((petCount+1)/2))
@@ -91,7 +94,7 @@ program ESMF_CompSetServUTest
 
     cname = "Atmosphere"
     comp1 = ESMF_GridCompCreate(name=cname, petList=petList, &
-      configFile="grid.rc", rc=rc)  
+      configFile="comp.rc", rc=rc)  
 
     call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
 
@@ -104,7 +107,11 @@ program ESMF_CompSetServUTest
 
     call ESMF_GridCompInitialize(comp1, rc=rc)
 
-    call ESMF_Test((rc.ne.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+    if (ESMF_GridCompIsPetLocal(comp1)) then  
+      call ESMF_Test((rc.ne.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+    else
+      call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+    endif
 
 !-------------------------------------------------------------------------
 !   !
@@ -115,7 +122,11 @@ program ESMF_CompSetServUTest
 
     call ESMF_GridCompRun(comp1, rc=rc)
 
-    call ESMF_Test((rc.ne.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+    if (ESMF_GridCompIsPetLocal(comp1)) then  
+      call ESMF_Test((rc.ne.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+    else
+      call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+    endif
 
 !-------------------------------------------------------------------------
 !   !
@@ -126,7 +137,11 @@ program ESMF_CompSetServUTest
 
     call ESMF_GridCompFinalize(comp1, rc=rc)
 
-    call ESMF_Test((rc.ne.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+    if (ESMF_GridCompIsPetLocal(comp1)) then  
+      call ESMF_Test((rc.ne.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+    else
+      call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+    endif
 
 !-------------------------------------------------------------------------
 !   !
@@ -147,7 +162,7 @@ program ESMF_CompSetServUTest
     write(failMsg, *) "Did not return ESMF_SUCCESS"
 
     cname = "Atmosphere - child in parent VM context"
-    comp1 = ESMF_GridCompCreate(name=cname, configFile="grid.rc", &
+    comp1 = ESMF_GridCompCreate(name=cname, configFile="comp.rc", &
       contextflag=ESMF_CONTEXT_PARENT_VM, rc=rc)  
 
     call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
@@ -187,7 +202,7 @@ program ESMF_CompSetServUTest
     write(failMsg, *) "Did not return ESMF_SUCCESS"
 
     cname = "Atmosphere - child in parent VM context"
-    comp1 = ESMF_GridCompCreate(name=cname, configFile="grid.rc", &
+    comp1 = ESMF_GridCompCreate(name=cname, configFile="comp.rc", &
       contextflag=ESMF_CONTEXT_PARENT_VM, rc=rc)  
 
     call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
@@ -207,9 +222,16 @@ program ESMF_CompSetServUTest
 #if (defined ESMF_TESTWITHTHREADS && ! defined ESMF_NO_PTHREADS)
     ! The user SetVM() routine will not return ESMF_SUCCESS because it cannot
     ! make the Component threaded due to the fact that it was created with
-    ! ESMF_CONTEXT_PARENT_VM. The following logic tests this.
-    write(failMsg, *) "userRc ESMF_SUCCESS"
-    call ESMF_Test((userRc.ne.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+    ! ESMF_CONTEXT_PARENT_VM.
+    if (pthreadsEnabledFlag) then
+      ! ESMF Component Threading is enabled -> this test will work as expected
+      write(failMsg, *) "userRc ESMF_SUCCESS"
+      call ESMF_Test((userRc.ne.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+    else
+      ! ESMF Component Threading is NOT enabled -> SetVM will not even try to thread
+      write(failMsg, *) "userRc not ESMF_SUCCESS"
+      call ESMF_Test((userRc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+    endif
 #else    
     write(failMsg, *) "userRc not ESMF_SUCCESS"
     call ESMF_Test((userRc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
@@ -251,7 +273,7 @@ program ESMF_CompSetServUTest
 
     cname = "Atmosphere - in its own context"
     comp1 = ESMF_GridCompCreate(name=cname, petList=petList, &
-      configFile="grid.rc", rc=rc)  
+      configFile="comp.rc", rc=rc)  
 
     call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
 
@@ -300,11 +322,7 @@ program ESMF_CompSetServUTest
     !NEX_UTest
     write(name, *) "Calling Component Init"
     write(failMsg, *) "userRc not ESMF_SUCCESS"
-    if ((localPet/2)*2 == localPet) then
-      call ESMF_Test((userRc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
-    else      
-      call ESMF_Test(.true., name, failMsg, result, ESMF_SRCLINE)
-    endif
+    call ESMF_Test((userRc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
 
 #ifdef ESMF_TESTEXHAUSTIVE
 !-------------------------------------------------------------------------
@@ -339,7 +357,7 @@ program ESMF_CompSetServUTest
     if ((localPet/2)*2 == localPet) then
       call ESMF_Test((userRc.eq.123456), name, failMsg, result, ESMF_SRCLINE)
     else
-      call ESMF_Test(.true., name, failMsg, result, ESMF_SRCLINE)
+      call ESMF_Test(userRc.eq.ESMF_SUCCESS, name, failMsg, result, ESMF_SRCLINE)
     endif
 
 !-------------------------------------------------------------------------
@@ -397,7 +415,7 @@ program ESMF_CompSetServUTest
 
     cname = "Atmosphere - child in parent VM context"
     comp1 = ESMF_GridCompCreate(name=cname, &
-      configFile="grid.rc", contextflag=ESMF_CONTEXT_PARENT_VM, rc=rc)  
+      configFile="comp.rc", contextflag=ESMF_CONTEXT_PARENT_VM, rc=rc)  
 
     call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
 
@@ -543,7 +561,7 @@ program ESMF_CompSetServUTest
 
     deallocate(petList)
 
-    call ESMF_TestEnd(result, ESMF_SRCLINE)
+    call ESMF_TestEnd(ESMF_SRCLINE)
 
 end program ESMF_CompSetServUTest
     

@@ -1,12 +1,12 @@
-# $Id: makefile,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $ 
+# $Id$ 
 
 ALL: onedoc
 
 LOCDIR	  = src/Superstructure/Component/doc
 
-DVIFILES  =     Component_refdoc.dvi Component_crefdoc.dvi
-PDFFILES  =     $(ESMC_DOCDIR)/Component_refdoc.pdf $(ESMC_DOCDIR)/Component_crefdoc.pdf
-HTMLFILES =     $(ESMC_DOCDIR)/Component_refdoc $(ESMC_DOCDIR)/Component_crefdoc
+DVIFILES  = Component_refdoc.dvi Component_crefdoc.dvi
+PDFFILES  = Component_refdoc.pdf Component_crefdoc.pdf
+HTMLFILES = Component_refdoc Component_crefdoc
 
 #
 # Tex Files to make
@@ -17,9 +17,11 @@ TEXFILES_TO_MAKE += $(addsuffix _fapi.tex, $(basename $(notdir $(wildcard ../src
 TEXFILES_TO_MAKE += $(addsuffix _fapi.tex, $(basename $(notdir $(wildcard ../src/*.F90))))
 TEXFILES_TO_MAKE += $(addsuffix _fapi.tex, $(basename $(notdir $(wildcard ../src/*.f))))
 TEXFILES_TO_MAKE += $(addsuffix _fapi.tex, $(basename $(notdir $(wildcard ../src/*.f90))))
+TEXFILES_TO_MAKE += $(addsuffix _fapi.tex, $(basename $(notdir $(wildcard ../src/*.cppF90))))
 
 TEXFILES_TO_MAKE += $(addsuffix _ccapi.tex, $(basename $(notdir $(wildcard ../interface/*.C))))
 TEXFILES_TO_MAKE += $(addsuffix _fapi.tex, $(basename $(notdir $(wildcard ../interface/*.F90))))
+TEXFILES_TO_MAKE += $(addsuffix _fapi.tex, $(basename $(notdir $(wildcard ../interface/*.cppF90))))
 
 TEXFILES_TO_MAKE += $(addsuffix _ccapi.tex, $(basename $(notdir $(wildcard ../examples/*.C))))
 TEXFILES_TO_MAKE += $(addsuffix _fapi.tex, $(basename $(notdir $(wildcard ../examples/*.F))))
@@ -33,7 +35,7 @@ TEXFILES_TO_MAKE += $(addsuffix _fapi.tex, $(basename $(notdir $(wildcard ../exa
 # These lists almost certainly will not be an exhastive list of 
 # all of the dependent files, but even a partial listing  will be helpfull.
 #
-REFDOC_DEP_FILES = $(TEXFILES_TO_MAKE)
+REFDOC_DEP_FILES = $(TEXFILES_TO_MAKE) Component_crefdoc.ctex Component_refdoc.ctex GridComp_cdesc.tex GridComp_desc.tex GridComp_rest.tex GridComp_usage.tex CplComp_cdesc.tex CplComp_desc.tex CplComp_rest.tex CplComp_usage.tex SciComp_cdesc.tex SciComp_desc.tex SciComp_rest.tex SciComp_usage.tex CompTunnel_desc.tex CompTunnel_rest.tex CompTunnel_usage.tex
 
 include $(ESMF_DIR)/makefile
 

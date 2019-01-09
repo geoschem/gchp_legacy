@@ -1,7 +1,7 @@
-! $Id: ESMF.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
+! $Id$
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2012, University Corporation for Atmospheric Research,
+! Copyright 2002-2018, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -15,11 +15,15 @@
 module ESMF
 
     use ESMF_UtilTypesMod
+    use ESMF_UtilSortMod
+    use ESMF_UtilStringMod
+    use ESMF_UtilCubedSphereMod
     use ESMF_UtilMod
 
     use ESMF_LogErrMod
     use ESMF_LogPublicMod
     use ESMF_InitMacrosMod
+    use ESMF_TraceMod
     
     use ESMF_F90InterfaceMod
     use ESMF_FortranWordsizeMod
@@ -43,17 +47,20 @@ module ESMF
     use ESMF_VMMod 
     use ESMF_DELayoutMod
     use ESMF_DistGridMod
+    use ESMF_DynamicMaskMod
     use ESMF_ArrayMod
     use ESMF_ArrayBundleMod
 
     use ESMF_ConfigMod
 
+    use ESMF_XGridGeomBaseMod
     use ESMF_XGridMod
     use ESMF_XGridCreateMod
     use ESMF_XGridGetMod
 
     use ESMF_GridMod
     use ESMF_GridUtilMod
+!    use ESMF_PntListMod
     use ESMF_StaggerLocMod
 
     use ESMF_LocStreamMod
@@ -87,10 +94,12 @@ module ESMF
     use ESMF_StateMod
 !    use ESMF_StateSetMod
 !    use ESMF_StateGetMod
-    use ESMF_StateReconcileMod
+!    use ESMF_StateReconcileMod,  only: ESMF_StateReconcile_old => ESMF_StateReconcile
+    use ESMF_StateReconcile2Mod
     use ESMF_CompMod
     use ESMF_GridCompMod
     use ESMF_CplCompMod
+    use ESMF_SciCompMod
     
     use ESMF_AttachMethodsMod
     

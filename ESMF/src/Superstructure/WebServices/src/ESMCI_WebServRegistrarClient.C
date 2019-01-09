@@ -1,7 +1,7 @@
 // $Id$
 //
 // Earth System Modeling Framework
-// Copyright 2002-2012, University Corporation for Atmospheric Research,
+// Copyright 2002-2018, University Corporation for Atmospheric Research,
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 // Laboratory, University of Michigan, National Centers for Environmental
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -23,7 +23,6 @@
 // provides the functionality needed to communicate with a Registrar service.
 //
 //-----------------------------------------------------------------------------
-
 #include "ESMCI_WebServRegistrarClient.h"
 
 #include <string.h>
@@ -31,7 +30,6 @@
 #include "ESMCI_WebServSocketUtils.h"
 #include "ESMCI_Macros.h"
 #include "ESMCI_LogErr.h"
-#include "ESMF_LogMacros.inc"
 
 //-----------------------------------------------------------------------------
 // leave the following line as-is; it will insert the cvs ident string
@@ -72,7 +70,7 @@ ESMCI_WebServRegistrarClient::ESMCI_WebServRegistrarClient(
 //
 //EOPI
 //-----------------------------------------------------------------------------
-	: ESMCI_WebServNetEsmfClient(host, port)
+        : ESMCI_WebServNetEsmfClient(host, port)
 {
 }
 
@@ -115,113 +113,113 @@ int  ESMCI_WebServRegistrarClient::registerComp(
 //
 // !ARGUMENTS:
 //
-  const char*  clientId,	// (in) the id for the client who created the svc
-  const char*  hostName,	// (in) the host name of the component svc scheduler
-  const char*  portNum		// (in) the port number of the component svc
+  const char*  clientId,        // (in) the id for the client who created the svc
+  const char*  hostName,        // (in) the host name of the component svc scheduler
+  const char*  portNum          // (in) the port number of the component svc
   )
 //
 // !DESCRIPTION:
-//    Registers the component service identified by the input parameters 
+//    Registers the component service identified by the input parameters
 //    with the Registrar.
 //
 //EOPI
 //-----------------------------------------------------------------------------
 {
-	//printf("RegistrarClient::registerComp()\n");
-	int	localrc = 0;
+        //printf("RegistrarClient::registerComp()\n");
+        int     localrc = 0;
 
-	//***
-	// Connect to the server
-	//***
-	if (connect() == ESMF_FAILURE)
+        //***
+        // Connect to the server
+        //***
+        if (connect() == ESMF_FAILURE)
    {
-      ESMC_LogDefault.ESMC_LogMsgFoundError(
+      ESMC_LogDefault.MsgFoundError(
          ESMC_RC_FILE_OPEN,
          "Error connecting to Registrar.",
-         &localrc);
+         ESMC_CONTEXT, &localrc);
 
       return ESMF_FAILURE;
    }
 
-	//***
-	// Send the request identifier
-	//***
-	int	dataLen = strlen("register") + 1;
-	if (sendData(dataLen, (void*)"register") != dataLen)
+        //***
+        // Send the request identifier
+        //***
+        int     dataLen = strlen("register") + 1;
+        if (sendData(dataLen, (void*)"register") != dataLen)
    {
-      ESMC_LogDefault.ESMC_LogMsgFoundError(
+      ESMC_LogDefault.MsgFoundError(
          ESMC_RC_FILE_WRITE,
          "Error sending register request to socket.",
-         &localrc);
+         ESMC_CONTEXT, &localrc);
 
       return ESMF_FAILURE;
    }
 
-	//***
-	// Send the client id
-	//***
-	dataLen = strlen(clientId) + 1;
-	if (sendData(dataLen, (void*)clientId) != dataLen)
+        //***
+        // Send the client id
+        //***
+        dataLen = strlen(clientId) + 1;
+        if (sendData(dataLen, (void*)clientId) != dataLen)
    {
-      ESMC_LogDefault.ESMC_LogMsgFoundError(
+      ESMC_LogDefault.MsgFoundError(
          ESMC_RC_FILE_WRITE,
          "Error sending clientId to socket.",
-         &localrc);
+         ESMC_CONTEXT, &localrc);
 
       return ESMF_FAILURE;
    }
 
-	//***
-	// Send the host name
-	//***
-	dataLen = strlen(hostName) + 1;
-	if (sendData(dataLen, (void*)hostName) != dataLen)
+        //***
+        // Send the host name
+        //***
+        dataLen = strlen(hostName) + 1;
+        if (sendData(dataLen, (void*)hostName) != dataLen)
    {
-      ESMC_LogDefault.ESMC_LogMsgFoundError(
+      ESMC_LogDefault.MsgFoundError(
          ESMC_RC_FILE_WRITE,
          "Error sending service host name to socket.",
-         &localrc);
+         ESMC_CONTEXT, &localrc);
 
       return ESMF_FAILURE;
    }
 
-	//***
-	// Send the port number
-	//***
-	dataLen = strlen(portNum) + 1;
-	if (sendData(dataLen, (void*)portNum) != dataLen)
+        //***
+        // Send the port number
+        //***
+        dataLen = strlen(portNum) + 1;
+        if (sendData(dataLen, (void*)portNum) != dataLen)
    {
-      ESMC_LogDefault.ESMC_LogMsgFoundError(
+      ESMC_LogDefault.MsgFoundError(
          ESMC_RC_FILE_WRITE,
          "Error sending service port number to socket.",
-         &localrc);
+         ESMC_CONTEXT, &localrc);
 
       return ESMF_FAILURE;
    }
 
-	//***
-	// Get the response from the registrar
-	//***
-	int	length = 0;
-	char	retValue[256];
+        //***
+        // Get the response from the registrar
+        //***
+        int     length = 0;
+        char    retValue[256];
 
-	if (getResponse(0, length, retValue) <= 0)
+        if (getResponse(0, length, retValue) <= 0)
    {
-      ESMC_LogDefault.ESMC_LogMsgFoundError(
+      ESMC_LogDefault.MsgFoundError(
          ESMC_RC_FILE_READ,
          "Error reading register response from socket.",
-         &localrc);
+         ESMC_CONTEXT, &localrc);
 
       return ESMF_FAILURE;
    }
 printf("Return Value: %s\n", retValue);
 
-	//***
-	// Disconnect from the Registrar
-	//***
-	disconnect();
+        //***
+        // Disconnect from the Registrar
+        //***
+        disconnect();
 
-	return getStateValue(retValue);
+        return getStateValue(retValue);
 }
 
 
@@ -240,8 +238,8 @@ int  ESMCI_WebServRegistrarClient::compSubmitted(
 //
 // !ARGUMENTS:
 //
-  const char*  clientId,	// (in) the id for the client who created the service
-  const char*  jobId		   // (in) the id of the job associated with the 
+  const char*  clientId,        // (in) the id for the client who created the service
+  const char*  jobId               // (in) the id of the job associated with the
                            //      scheduling of the service
   )
 //
@@ -253,87 +251,87 @@ int  ESMCI_WebServRegistrarClient::compSubmitted(
 //EOPI
 //-----------------------------------------------------------------------------
 {
-	//printf("RegistrarClient::compSubmitted()\n");
-	int	localrc = 0;
+        //printf("RegistrarClient::compSubmitted()\n");
+        int     localrc = 0;
 
-	//***
-	// Connect to the server
-	//***
-	if (connect() == ESMF_FAILURE)
+        //***
+        // Connect to the server
+        //***
+        if (connect() == ESMF_FAILURE)
    {
-      ESMC_LogDefault.ESMC_LogMsgFoundError(
+      ESMC_LogDefault.MsgFoundError(
          ESMC_RC_FILE_OPEN,
          "Error connecting to Registrar.",
-         &localrc);
+         ESMC_CONTEXT, &localrc);
 
       return ESMF_FAILURE;
    }
 
-	//***
-	// Send the request identifier
-	//***
-	int	dataLen = strlen("submitted") + 1;
-	if (sendData(dataLen, (void*)"submitted") != dataLen)
+        //***
+        // Send the request identifier
+        //***
+        int     dataLen = strlen("submitted") + 1;
+        if (sendData(dataLen, (void*)"submitted") != dataLen)
    {
-      ESMC_LogDefault.ESMC_LogMsgFoundError(
+      ESMC_LogDefault.MsgFoundError(
          ESMC_RC_FILE_WRITE,
          "Error sending started request to socket.",
-         &localrc);
+         ESMC_CONTEXT, &localrc);
 
       return ESMF_FAILURE;
    }
 
-	//***
-	// Send the client id
-	//***
-	dataLen = strlen(clientId) + 1;
-	if (sendData(dataLen, (void*)clientId) != dataLen)
+        //***
+        // Send the client id
+        //***
+        dataLen = strlen(clientId) + 1;
+        if (sendData(dataLen, (void*)clientId) != dataLen)
    {
-      ESMC_LogDefault.ESMC_LogMsgFoundError(
+      ESMC_LogDefault.MsgFoundError(
          ESMC_RC_FILE_WRITE,
          "Error sending clientId to socket.",
-         &localrc);
+         ESMC_CONTEXT, &localrc);
 
       return ESMF_FAILURE;
    }
 
-	//***
-	// Send the job id
-	//***
-	dataLen = strlen(jobId) + 1;
-	if (sendData(dataLen, (void*)jobId) != dataLen)
+        //***
+        // Send the job id
+        //***
+        dataLen = strlen(jobId) + 1;
+        if (sendData(dataLen, (void*)jobId) != dataLen)
    {
-      ESMC_LogDefault.ESMC_LogMsgFoundError(
+      ESMC_LogDefault.MsgFoundError(
          ESMC_RC_FILE_WRITE,
          "Error sending job id to socket.",
-         &localrc);
+         ESMC_CONTEXT, &localrc);
 
       return ESMF_FAILURE;
    }
 
-	//***
-	// Get the response from the registrar
-	//***
-	int	length = 0;
-	char	retValue[256];
+        //***
+        // Get the response from the registrar
+        //***
+        int     length = 0;
+        char    retValue[256];
 
-	if (getResponse(0, length, retValue) <= 0)
+        if (getResponse(0, length, retValue) <= 0)
    {
-      ESMC_LogDefault.ESMC_LogMsgFoundError(
+      ESMC_LogDefault.MsgFoundError(
          ESMC_RC_FILE_READ,
          "Error reading register response from socket.",
-         &localrc);
+         ESMC_CONTEXT, &localrc);
 
       return ESMF_FAILURE;
    }
 printf("Return Value: %s\n", retValue);
 
-	//***
-	// Disconnect from the Registrar
-	//***
-	disconnect();
+        //***
+        // Disconnect from the Registrar
+        //***
+        disconnect();
 
-	return getStateValue(retValue);
+        return getStateValue(retValue);
 }
 
 
@@ -352,131 +350,131 @@ int  ESMCI_WebServRegistrarClient::compStarted(
 //
 // !ARGUMENTS:
 //
-  const char*  clientId,		// (in) the id of the client who created the svc
-  const char*  compName,		// (in) the name of the component service
-  const char*  compDesc,		// (in) the description of the component service
-  const char*  physHostName	// (in) the name of actual host on which the 
-                     	      //      component service is running
+  const char*  clientId,                // (in) the id of the client who created the svc
+  const char*  compName,                // (in) the name of the component service
+  const char*  compDesc,                // (in) the description of the component service
+  const char*  physHostName     // (in) the name of actual host on which the
+                              //      component service is running
   )
 //
 // !DESCRIPTION:
-//    Notifies the Registrar that the component service has successfully 
+//    Notifies the Registrar that the component service has successfully
 //    been started.
 //
 //EOPI
 //-----------------------------------------------------------------------------
 {
-	//printf("RegistrarClient::compStarted()\n");
-	int	localrc = 0;
+        //printf("RegistrarClient::compStarted()\n");
+        int     localrc = 0;
 
-	//***
-	// Connect to the server
-	//***
-	if (connect() == ESMF_FAILURE)
+        //***
+        // Connect to the server
+        //***
+        if (connect() == ESMF_FAILURE)
    {
-      ESMC_LogDefault.ESMC_LogMsgFoundError(
+      ESMC_LogDefault.MsgFoundError(
          ESMC_RC_FILE_OPEN,
          "Error connecting to Registrar.",
-         &localrc);
+         ESMC_CONTEXT, &localrc);
 
       return ESMF_FAILURE;
    }
 
-	//***
-	// Send the request identifier
-	//***
-	int	dataLen = strlen("started") + 1;
-	if (sendData(dataLen, (void*)"started") != dataLen)
+        //***
+        // Send the request identifier
+        //***
+        int     dataLen = strlen("started") + 1;
+        if (sendData(dataLen, (void*)"started") != dataLen)
    {
-      ESMC_LogDefault.ESMC_LogMsgFoundError(
+      ESMC_LogDefault.MsgFoundError(
          ESMC_RC_FILE_WRITE,
          "Error sending started request to socket.",
-         &localrc);
+         ESMC_CONTEXT, &localrc);
 
       return ESMF_FAILURE;
    }
 
-	//***
-	// Send the client id
-	//***
+        //***
+        // Send the client id
+        //***
 printf("Client ID: %s\n", clientId);
-printf("Client ID Len: %d\n", strlen(clientId));
-	dataLen = strlen(clientId) + 1;
-	if (sendData(dataLen, (void*)clientId) != dataLen)
+printf("Client ID Len: %lu\n", strlen(clientId));
+        dataLen = strlen(clientId) + 1;
+        if (sendData(dataLen, (void*)clientId) != dataLen)
    {
-      ESMC_LogDefault.ESMC_LogMsgFoundError(
+      ESMC_LogDefault.MsgFoundError(
          ESMC_RC_FILE_WRITE,
          "Error sending clientId to socket.",
-         &localrc);
+         ESMC_CONTEXT, &localrc);
 
       return ESMF_FAILURE;
    }
 
-	//***
-	// Send the component name
-	//***
-	dataLen = strlen(compName) + 1;
-	if (sendData(dataLen, (void*)compName) != dataLen)
+        //***
+        // Send the component name
+        //***
+        dataLen = strlen(compName) + 1;
+        if (sendData(dataLen, (void*)compName) != dataLen)
    {
-      ESMC_LogDefault.ESMC_LogMsgFoundError(
+      ESMC_LogDefault.MsgFoundError(
          ESMC_RC_FILE_WRITE,
          "Error sending component name to socket.",
-         &localrc);
+         ESMC_CONTEXT, &localrc);
 
       return ESMF_FAILURE;
    }
 
-	//***
-	// Send the component description
-	//***
-	dataLen = strlen(compDesc) + 1;
-	if (sendData(dataLen, (void*)compDesc) != dataLen)
+        //***
+        // Send the component description
+        //***
+        dataLen = strlen(compDesc) + 1;
+        if (sendData(dataLen, (void*)compDesc) != dataLen)
    {
-      ESMC_LogDefault.ESMC_LogMsgFoundError(
+      ESMC_LogDefault.MsgFoundError(
          ESMC_RC_FILE_WRITE,
          "Error sending component description to socket.",
-         &localrc);
+         ESMC_CONTEXT, &localrc);
 
       return ESMF_FAILURE;
    }
 
-	//***
-	// Send the physical host name
-	//***
-	dataLen = strlen(physHostName) + 1;
-	if (sendData(dataLen, (void*)physHostName) != dataLen)
+        //***
+        // Send the physical host name
+        //***
+        dataLen = strlen(physHostName) + 1;
+        if (sendData(dataLen, (void*)physHostName) != dataLen)
    {
-      ESMC_LogDefault.ESMC_LogMsgFoundError(
+      ESMC_LogDefault.MsgFoundError(
          ESMC_RC_FILE_WRITE,
          "Error sending physical host name to socket.",
-         &localrc);
+         ESMC_CONTEXT, &localrc);
 
       return ESMF_FAILURE;
    }
 
-	//***
-	// Get the response from the registrar
-	//***
-	int	length = 0;
-	char	retValue[256];
+        //***
+        // Get the response from the registrar
+        //***
+        int     length = 0;
+        char    retValue[256];
 
-	if (getResponse(0, length, retValue) <= 0)
+        if (getResponse(0, length, retValue) <= 0)
    {
-      ESMC_LogDefault.ESMC_LogMsgFoundError(
+      ESMC_LogDefault.MsgFoundError(
          ESMC_RC_FILE_READ,
          "Error reading register response from socket.",
-         &localrc);
+         ESMC_CONTEXT, &localrc);
 
       return ESMF_FAILURE;
    }
 printf("Return Value: %s\n", retValue);
 
-	//***
-	// Disconnect from the Registrar
-	//***
-	disconnect();
+        //***
+        // Disconnect from the Registrar
+        //***
+        disconnect();
 
-	return getStateValue(retValue);
+        return getStateValue(retValue);
 }
 
 
@@ -495,265 +493,265 @@ int  ESMCI_WebServRegistrarClient::getComponent(
 //
 // !ARGUMENTS:
 //
-  const char*               clientId,	   // (in) the id for the client who 
+  const char*               clientId,      // (in) the id for the client who
                                           //    created the service
-  ESMCI_WebServCompSvrInfo*  compSvrInfo  // (out) structure into which the 
+  ESMCI_WebServCompSvrInfo*  compSvrInfo  // (out) structure into which the
                                           //    server information is put
   )
 //
 // !DESCRIPTION:
-//    Notifies the Registrar that the component service has successfully 
+//    Notifies the Registrar that the component service has successfully
 //    been started.
 //
 //EOPI
 //-----------------------------------------------------------------------------
 {
-	printf("RegistrarClient::getComponent()\n");
-	int	localrc = 0;
-	char	retValue[256];
+        printf("RegistrarClient::getComponent()\n");
+        int     localrc = 0;
+        char    retValue[256];
 
 
-	//***
-	// Make sure compSvrInfo structure is not null
-	//***
-	if (compSvrInfo == NULL)
+        //***
+        // Make sure compSvrInfo structure is not null
+        //***
+        if (compSvrInfo == NULL)
    {
-      ESMC_LogDefault.ESMC_LogMsgFoundError(
+      ESMC_LogDefault.MsgFoundError(
          ESMC_RC_ARG_BAD,
          "Invalid CompSvrInfo structure.",
-         &localrc);
+         ESMC_CONTEXT, &localrc);
 
       return ESMF_FAILURE;
    }
 
-	//***
-	// Connect to the server
-	//***
-	if (connect() == ESMF_FAILURE)
+        //***
+        // Connect to the server
+        //***
+        if (connect() == ESMF_FAILURE)
    {
-      ESMC_LogDefault.ESMC_LogMsgFoundError(
+      ESMC_LogDefault.MsgFoundError(
          ESMC_RC_FILE_OPEN,
          "Error connecting to Registrar.",
-         &localrc);
+         ESMC_CONTEXT, &localrc);
 
       return ESMF_FAILURE;
    }
 
-	//***
-	// Send the request identifier
-	//***
-	int	dataLen = strlen("get") + 1;
-	if (sendData(dataLen, (void*)"get") != dataLen)
+        //***
+        // Send the request identifier
+        //***
+        int     dataLen = strlen("get") + 1;
+        if (sendData(dataLen, (void*)"get") != dataLen)
    {
-      ESMC_LogDefault.ESMC_LogMsgFoundError(
+      ESMC_LogDefault.MsgFoundError(
          ESMC_RC_FILE_WRITE,
          "Error sending started request to socket.",
-         &localrc);
+         ESMC_CONTEXT, &localrc);
 
       return ESMF_FAILURE;
    }
 
-	//***
-	// Send the client id
-	//***
-	dataLen = strlen(clientId) + 1;
-	if (sendData(dataLen, (void*)clientId) != dataLen)
+        //***
+        // Send the client id
+        //***
+        dataLen = strlen(clientId) + 1;
+        if (sendData(dataLen, (void*)clientId) != dataLen)
    {
-      ESMC_LogDefault.ESMC_LogMsgFoundError(
+      ESMC_LogDefault.MsgFoundError(
          ESMC_RC_FILE_WRITE,
          "Error sending clientId to socket.",
-         &localrc);
+         ESMC_CONTEXT, &localrc);
 
       return ESMF_FAILURE;
    }
 
-	//***
-	// Read number of component services that match the client id
-	// (This should be a "1" if the component is found and "0" otherwise)
-	//***
+        //***
+        // Read number of component services that match the client id
+        // (This should be a "1" if the component is found and "0" otherwise)
+        //***
    char  numCompFound[64];
-	int	length = 0;
+        int     length = 0;
 
-	if (getResponse(0, length, numCompFound) <= 0)
+        if (getResponse(0, length, numCompFound) <= 0)
    {
-         ESMC_LogDefault.ESMC_LogMsgFoundError(
+         ESMC_LogDefault.MsgFoundError(
             ESMC_RC_FILE_READ,
             "Unable to read client ID from socket.",
-            &localrc);
+            ESMC_CONTEXT, &localrc);
 
          return ESMF_FAILURE;
    }
 
    printf("Num Components Found: %s\n", numCompFound);
 
-	if (strcmp(numCompFound, "1") != 0)
+        if (strcmp(numCompFound, "1") != 0)
    {
-         ESMC_LogDefault.ESMC_LogMsgFoundError(
+         ESMC_LogDefault.MsgFoundError(
             ESMC_RC_FILE_READ,
             "Unable to find client with id in Registrar.",
-            &localrc);
+            ESMC_CONTEXT, &localrc);
 
          return ESMF_FAILURE;
    }
 
-	//***
-	// Read client id
-	//***
+        //***
+        // Read client id
+        //***
    char  retClientId[1024];
-	length = 0;
+        length = 0;
 
-	if (getResponse(0, length, retClientId) <= 0)
+        if (getResponse(0, length, retClientId) <= 0)
    {
-         ESMC_LogDefault.ESMC_LogMsgFoundError(
+         ESMC_LogDefault.MsgFoundError(
             ESMC_RC_FILE_READ,
             "Unable to read client ID from socket.",
-            &localrc);
+            ESMC_CONTEXT, &localrc);
 
          return ESMF_FAILURE;
    }
 
-	compSvrInfo->setClientId(atoi(retClientId));
+        compSvrInfo->setClientId(atoi(retClientId));
    printf("Client ID: %s\n", retClientId);
 
-	//***
-	// Read job id
-	//***
+        //***
+        // Read job id
+        //***
    char  retJobId[1024];
-	length = 0;
+        length = 0;
 
-	if (getResponse(0, length, retJobId) <= 0)
+        if (getResponse(0, length, retJobId) <= 0)
    {
-         ESMC_LogDefault.ESMC_LogMsgFoundError(
+         ESMC_LogDefault.MsgFoundError(
             ESMC_RC_FILE_READ,
             "Unable to read job ID from socket.",
-            &localrc);
+            ESMC_CONTEXT, &localrc);
 
          return ESMF_FAILURE;
    }
 
-	compSvrInfo->setJobId(retJobId);
+        compSvrInfo->setJobId(retJobId);
    printf("Job ID: %s\n", retJobId);
 
-	//***
-	// Read host name
-	//***
+        //***
+        // Read host name
+        //***
    char  retHostName[1024];
-	length = 0;
+        length = 0;
 
-	if (getResponse(0, length, retHostName) <= 0)
+        if (getResponse(0, length, retHostName) <= 0)
    {
-         ESMC_LogDefault.ESMC_LogMsgFoundError(
+         ESMC_LogDefault.MsgFoundError(
             ESMC_RC_FILE_READ,
             "Unable to read host name from socket.",
-            &localrc);
+            ESMC_CONTEXT, &localrc);
 
          return ESMF_FAILURE;
    }
 
-	compSvrInfo->setHostName(retHostName);
+        compSvrInfo->setHostName(retHostName);
    printf("Host Name: %s\n", retHostName);
 
-	//***
-	// Read port number
-	//***
+        //***
+        // Read port number
+        //***
    char  retPortNum[1024];
-	length = 0;
+        length = 0;
 
-	if (getResponse(0, length, retPortNum) <= 0)
+        if (getResponse(0, length, retPortNum) <= 0)
    {
-         ESMC_LogDefault.ESMC_LogMsgFoundError(
+         ESMC_LogDefault.MsgFoundError(
             ESMC_RC_FILE_READ,
             "Unable to read port number from socket.",
-            &localrc);
+            ESMC_CONTEXT, &localrc);
 
          return ESMF_FAILURE;
    }
 
-	compSvrInfo->setPortNum(atoi(retPortNum));
+        compSvrInfo->setPortNum(atoi(retPortNum));
    printf("Port Num: %s\n", retPortNum);
 
-	//***
-	// Read Component Name
-	//***
+        //***
+        // Read Component Name
+        //***
    char  retCompName[1024];
-	length = 0;
+        length = 0;
 
-	if (getResponse(0, length, retCompName) <= 0)
+        if (getResponse(0, length, retCompName) <= 0)
    {
-         ESMC_LogDefault.ESMC_LogMsgFoundError(
+         ESMC_LogDefault.MsgFoundError(
             ESMC_RC_FILE_READ,
             "Unable to read component name from socket.",
-            &localrc);
+            ESMC_CONTEXT, &localrc);
 
          return ESMF_FAILURE;
    }
 
-	compSvrInfo->setName(retCompName);
+        compSvrInfo->setName(retCompName);
    printf("Comp Name: %s\n", retCompName);
 
-	//***
-	// Read Component Description
-	//***
+        //***
+        // Read Component Description
+        //***
    char  retCompDesc[1024];
-	length = 0;
+        length = 0;
 
-	if (getResponse(0, length, retCompDesc) <= 0)
+        if (getResponse(0, length, retCompDesc) <= 0)
    {
-         ESMC_LogDefault.ESMC_LogMsgFoundError(
+         ESMC_LogDefault.MsgFoundError(
             ESMC_RC_FILE_READ,
             "Unable to read component description from socket.",
-            &localrc);
+            ESMC_CONTEXT, &localrc);
 
          return ESMF_FAILURE;
    }
 
-	compSvrInfo->setDesc(retCompDesc);
+        compSvrInfo->setDesc(retCompDesc);
    printf("Comp Desc: %s\n", retCompDesc);
 
-	//***
-	// Read Physical Host Name
-	//***
+        //***
+        // Read Physical Host Name
+        //***
    char  retPhysHostName[1024];
-	length = 0;
+        length = 0;
 
-	if (getResponse(0, length, retPhysHostName) <= 0)
+        if (getResponse(0, length, retPhysHostName) <= 0)
    {
-         ESMC_LogDefault.ESMC_LogMsgFoundError(
+         ESMC_LogDefault.MsgFoundError(
             ESMC_RC_FILE_READ,
             "Unable to read physical host name from socket.",
-            &localrc);
+            ESMC_CONTEXT, &localrc);
 
          return ESMF_FAILURE;
    }
 
-	compSvrInfo->setPhysHostName(retPhysHostName);
+        compSvrInfo->setPhysHostName(retPhysHostName);
    printf("Physical Host Name: %s\n", retPhysHostName);
 
-	//***
-	// Read Current Status
-	//***
+        //***
+        // Read Current Status
+        //***
    char  retStatus[1024];
-	length = 0;
+        length = 0;
 
-	if (getResponse(0, length, retStatus) <= 0)
+        if (getResponse(0, length, retStatus) <= 0)
    {
-         ESMC_LogDefault.ESMC_LogMsgFoundError(
+         ESMC_LogDefault.MsgFoundError(
             ESMC_RC_FILE_READ,
             "Unable to read status from socket.",
-            &localrc);
+            ESMC_CONTEXT, &localrc);
 
          return ESMF_FAILURE;
    }
 
-	compSvrInfo->setStatus(getStateValue(retStatus));
+        compSvrInfo->setStatus(getStateValue(retStatus));
    printf("Status: %s\n", retStatus);
 
-	//***
-	// Disconnect from the Registrar
-	//***
-	disconnect();
+        //***
+        // Disconnect from the Registrar
+        //***
+        disconnect();
 
-	return getStateValue(retStatus);
+        return getStateValue(retStatus);
 }
 
 
@@ -772,85 +770,85 @@ int  ESMCI_WebServRegistrarClient::getStatus(
 //
 // !ARGUMENTS:
 //
-  const char*  clientId		// (in) the id for the client who created the service
+  const char*  clientId                 // (in) the id for the client who created the service
   )
 //
 // !DESCRIPTION:
-//    Notifies the Registrar that the component service has successfully 
+//    Notifies the Registrar that the component service has successfully
 //    been started.
 //
 //EOPI
 //-----------------------------------------------------------------------------
 {
-	printf("RegistrarClient::getStatus()\n");
-	int	localrc = 0;
-	char	retValue[256];
+        printf("RegistrarClient::getStatus()\n");
+        int     localrc = 0;
+        char    retValue[256];
 
-	//***
-	// Connect to the server
-	//***
-	if (connect() == ESMF_FAILURE)
+        //***
+        // Connect to the server
+        //***
+        if (connect() == ESMF_FAILURE)
    {
-      ESMC_LogDefault.ESMC_LogMsgFoundError(
+      ESMC_LogDefault.MsgFoundError(
          ESMC_RC_FILE_OPEN,
          "Error connecting to Registrar.",
-         &localrc);
+         ESMC_CONTEXT, &localrc);
 
       return ESMF_FAILURE;
    }
 
-	//***
-	// Send the request identifier
-	//***
-	int	dataLen = strlen("getstatus") + 1;
-	if (sendData(dataLen, (void*)"getstatus") != dataLen)
+        //***
+        // Send the request identifier
+        //***
+        int     dataLen = strlen("getstatus") + 1;
+        if (sendData(dataLen, (void*)"getstatus") != dataLen)
    {
-      ESMC_LogDefault.ESMC_LogMsgFoundError(
+      ESMC_LogDefault.MsgFoundError(
          ESMC_RC_FILE_WRITE,
          "Error sending started request to socket.",
-         &localrc);
+         ESMC_CONTEXT, &localrc);
 
       return ESMF_FAILURE;
    }
 
-	//***
-	// Send the client id
-	//***
-	dataLen = strlen(clientId) + 1;
-	if (sendData(dataLen, (void*)clientId) != dataLen)
+        //***
+        // Send the client id
+        //***
+        dataLen = strlen(clientId) + 1;
+        if (sendData(dataLen, (void*)clientId) != dataLen)
    {
-      ESMC_LogDefault.ESMC_LogMsgFoundError(
+      ESMC_LogDefault.MsgFoundError(
          ESMC_RC_FILE_WRITE,
          "Error sending clientId to socket.",
-         &localrc);
+         ESMC_CONTEXT, &localrc);
 
       return ESMF_FAILURE;
    }
 
-	//***
-	// Read Current Status
-	//***
+        //***
+        // Read Current Status
+        //***
    char  retStatus[1024];
-	int	length = 0;
+        int     length = 0;
 
-	if (getResponse(0, length, retStatus) <= 0)
+        if (getResponse(0, length, retStatus) <= 0)
    {
-   	ESMC_LogDefault.ESMC_LogMsgFoundError(
+        ESMC_LogDefault.MsgFoundError(
            ESMC_RC_FILE_READ,
            "Unable to read status from socket.",
-           &localrc);
+           ESMC_CONTEXT, &localrc);
 
-     	return ESMF_FAILURE;
+        return ESMF_FAILURE;
    }
 
    printf("Status: %s\n", retStatus);
 
-	//***
-	// Disconnect from the Registrar
-	//***
-	disconnect();
+        //***
+        // Disconnect from the Registrar
+        //***
+        disconnect();
 
-	return getStateValue(retStatus);
+        return getStateValue(retStatus);
 }
 
 
@@ -869,9 +867,9 @@ int  ESMCI_WebServRegistrarClient::setStatus(
 //
 // !ARGUMENTS:
 //
-  const char*  clientId,   // (in) the id of the client whose component svc is 
-                   	      //      to be unregistered
-  const char*  status	 	// (in) the status to be set
+  const char*  clientId,   // (in) the id of the client whose component svc is
+                              //      to be unregistered
+  const char*  status           // (in) the status to be set
   )
 //
 // !DESCRIPTION:
@@ -880,102 +878,102 @@ int  ESMCI_WebServRegistrarClient::setStatus(
 //EOPI
 //-----------------------------------------------------------------------------
 {
-	printf("RegistrarClient::setStatus()\n");
-	int	localrc = 0;
+        printf("RegistrarClient::setStatus()\n");
+        int     localrc = 0;
 
-	//***
-	// First, make sure that the status string that's being passed in is
-	// a valid string...
-	//***
-	int	stateValue;
-	if ((stateValue = getStateValue(status)) == ESMF_FAILURE)
-	{
-      ESMC_LogDefault.ESMC_LogMsgFoundError(
+        //***
+        // First, make sure that the status string that's being passed in is
+        // a valid string...
+        //***
+        int     stateValue;
+        if ((stateValue = getStateValue(status)) == ESMF_FAILURE)
+        {
+      ESMC_LogDefault.MsgFoundError(
          ESMC_RC_ARG_BAD,
          "Invalid state string.",
-         &localrc);
+         ESMC_CONTEXT, &localrc);
 
       return ESMF_FAILURE;
-	}
+        }
 
-	//***
-	// Connect to the server
-	//***
-	if (connect() == ESMF_FAILURE)
+        //***
+        // Connect to the server
+        //***
+        if (connect() == ESMF_FAILURE)
    {
-      ESMC_LogDefault.ESMC_LogMsgFoundError(
+      ESMC_LogDefault.MsgFoundError(
          ESMC_RC_FILE_OPEN,
          "Error connecting to Registrar.",
-         &localrc);
+         ESMC_CONTEXT, &localrc);
 
       return ESMF_FAILURE;
    }
 
-	//***
-	// Send the request identifier
-	//***
-	int	dataLen = strlen("setstatus") + 1;
-	if (sendData(dataLen, (void*)"setstatus") != dataLen)
+        //***
+        // Send the request identifier
+        //***
+        int     dataLen = strlen("setstatus") + 1;
+        if (sendData(dataLen, (void*)"setstatus") != dataLen)
    {
-      ESMC_LogDefault.ESMC_LogMsgFoundError(
+      ESMC_LogDefault.MsgFoundError(
          ESMC_RC_FILE_WRITE,
          "Error sending unregister request to socket.",
-         &localrc);
+         ESMC_CONTEXT, &localrc);
 
       return ESMF_FAILURE;
    }
 
-	//***
-	// Send the client id
-	//***
-	dataLen = strlen(clientId) + 1;
-	if (sendData(dataLen, (void*)clientId) != dataLen)
+        //***
+        // Send the client id
+        //***
+        dataLen = strlen(clientId) + 1;
+        if (sendData(dataLen, (void*)clientId) != dataLen)
    {
-      ESMC_LogDefault.ESMC_LogMsgFoundError(
+      ESMC_LogDefault.MsgFoundError(
          ESMC_RC_FILE_WRITE,
          "Error sending client ID to socket.",
-         &localrc);
+         ESMC_CONTEXT, &localrc);
 
       return ESMF_FAILURE;
    }
 
-	//***
-	// Send the component server status
-	//***
-	dataLen = strlen(status) + 1;
-	if (sendData(dataLen, (void*)status) != dataLen)
+        //***
+        // Send the component server status
+        //***
+        dataLen = strlen(status) + 1;
+        if (sendData(dataLen, (void*)status) != dataLen)
    {
-      ESMC_LogDefault.ESMC_LogMsgFoundError(
+      ESMC_LogDefault.MsgFoundError(
          ESMC_RC_FILE_WRITE,
          "Error sending status to socket.",
-         &localrc);
+         ESMC_CONTEXT, &localrc);
 
       return ESMF_FAILURE;
    }
 
-	//***
-	// Get the response from the registrar
-	//***
-	int	length = 0;
-	char	retValue[256];
+        //***
+        // Get the response from the registrar
+        //***
+        int     length = 0;
+        char    retValue[256];
 
-	if (getResponse(0, length, retValue) <= 0)
+        if (getResponse(0, length, retValue) <= 0)
    {
-      ESMC_LogDefault.ESMC_LogMsgFoundError(
+      ESMC_LogDefault.MsgFoundError(
          ESMC_RC_FILE_READ,
          "Error reading unregister response from socket.",
-         &localrc);
+         ESMC_CONTEXT, &localrc);
 
       return ESMF_FAILURE;
    }
 printf("Return Value: %s\n", retValue);
 
-	//***
-	// Disconnect from the Registrar
-	//***
-	disconnect();
+        //***
+        // Disconnect from the Registrar
+        //***
+        disconnect();
 
-	return getStateValue(retValue);
+        return getStateValue(retValue);
 }
 
 
@@ -994,83 +992,83 @@ int  ESMCI_WebServRegistrarClient::unregisterComp(
 //
 // !ARGUMENTS:
 //
-  const char*  clientId	 // (in) the id of the client whos component service is 
+  const char*  clientId          // (in) the id of the client whose component service is
                    //      to be unregistered
   )
 //
 // !DESCRIPTION:
-//    Unregisters the component service identified by the input parameters 
+//    Unregisters the component service identified by the input parameters
 //    from the Registrar.
 //
 //EOPI
 //-----------------------------------------------------------------------------
 {
-	//printf("RegistrarClient::unregisterComp()\n");
-	int	localrc = 0;
-	char	retValue[256];
+        //printf("RegistrarClient::unregisterComp()\n");
+        int     localrc = 0;
+        char    retValue[256];
 
-	//***
-	// Connect to the server
-	//***
-	if (connect() == ESMF_FAILURE)
+        //***
+        // Connect to the server
+        //***
+        if (connect() == ESMF_FAILURE)
    {
-      ESMC_LogDefault.ESMC_LogMsgFoundError(
+      ESMC_LogDefault.MsgFoundError(
          ESMC_RC_FILE_OPEN,
          "Error connecting to Registrar.",
-         &localrc);
+         ESMC_CONTEXT, &localrc);
 
       return ESMF_FAILURE;
    }
 
-	//***
-	// Send the request identifier
-	//***
-	int	dataLen = strlen("unregister") + 1;
-	if (sendData(dataLen, (void*)"unregister") != dataLen)
+        //***
+        // Send the request identifier
+        //***
+        int     dataLen = strlen("unregister") + 1;
+        if (sendData(dataLen, (void*)"unregister") != dataLen)
    {
-      ESMC_LogDefault.ESMC_LogMsgFoundError(
+      ESMC_LogDefault.MsgFoundError(
          ESMC_RC_FILE_WRITE,
          "Error sending unregister request to socket.",
-         &localrc);
+         ESMC_CONTEXT, &localrc);
 
       return ESMF_FAILURE;
    }
 
-	//***
-	// Send the client id
-	//***
-	dataLen = strlen(clientId) + 1;
-	if (sendData(dataLen, (void*)clientId) != dataLen)
+        //***
+        // Send the client id
+        //***
+        dataLen = strlen(clientId) + 1;
+        if (sendData(dataLen, (void*)clientId) != dataLen)
    {
-      ESMC_LogDefault.ESMC_LogMsgFoundError(
+      ESMC_LogDefault.MsgFoundError(
          ESMC_RC_FILE_WRITE,
          "Error sending client ID to socket.",
-         &localrc);
+         ESMC_CONTEXT, &localrc);
 
       return ESMF_FAILURE;
    }
 
-	//***
-	// Get the response from the registrar
-	//***
-	int	length = 0;
-	if (getResponse(0, length, retValue) <= 0)
+        //***
+        // Get the response from the registrar
+        //***
+        int     length = 0;
+        if (getResponse(0, length, retValue) <= 0)
    {
-      ESMC_LogDefault.ESMC_LogMsgFoundError(
+      ESMC_LogDefault.MsgFoundError(
          ESMC_RC_FILE_READ,
          "Error reading unregister response from socket.",
-         &localrc);
+         ESMC_CONTEXT, &localrc);
 
       return ESMF_FAILURE;
    }
 printf("Return Value: %s\n", retValue);
 
-	//***
-	// Disconnect from the Registrar
-	//***
-	disconnect();
+        //***
+        // Disconnect from the Registrar
+        //***
+        disconnect();
 
-	return length;
+        return length;
 }
 
 } // end namespace

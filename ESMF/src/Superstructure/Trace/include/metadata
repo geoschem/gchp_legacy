@@ -1,0 +1,469 @@
+/* CTF 1.8 */
+
+trace {
+	major = 1;
+	minor = 8;
+	byte_order = le;
+	uuid = "0f3ce8ba-e1e6-11e7-b5ca-34f39aeaad30";
+	packet.header := struct {
+		integer {
+			size = 32;
+			align = 32;
+			signed = false;
+			byte_order = le;
+			base = 10;
+			encoding = none;
+		} magic;
+		integer {
+			size = 8;
+			align = 8;
+			signed = false;
+			byte_order = le;
+			base = 10;
+			encoding = none;
+		} uuid[16];
+	} align(1);
+};
+
+env {
+	esmf_trace_version = "0.4";
+	tracer_name = "barectf";
+	domain = "bare";
+	tracer_minor = 2;
+	tracer_patch = 1;
+	barectf_gen_date = "2017-12-15T15:19:47.248674";
+	tracer_major = 2;
+};
+
+clock {
+	name = sys_clock;
+	description = "System clock";
+	freq = 1000000000;
+	offset_s = 0;
+	offset = 0;
+	precision = 0;
+	absolute = false;
+};
+
+/* default */
+stream {
+	packet.context := struct {
+		integer {
+			size = 64;
+			align = 64;
+			signed = false;
+			byte_order = le;
+			base = 10;
+			encoding = none;
+			map = clock.sys_clock.value;
+		} timestamp_begin;
+		integer {
+			size = 64;
+			align = 64;
+			signed = false;
+			byte_order = le;
+			base = 10;
+			encoding = none;
+			map = clock.sys_clock.value;
+		} timestamp_end;
+		integer {
+			size = 32;
+			align = 32;
+			signed = false;
+			byte_order = le;
+			base = 10;
+			encoding = none;
+		} packet_size;
+		integer {
+			size = 32;
+			align = 32;
+			signed = false;
+			byte_order = le;
+			base = 10;
+			encoding = none;
+		} content_size;
+		string {
+			encoding = UTF8;
+		} nodename;
+		integer {
+			size = 32;
+			align = 32;
+			signed = false;
+			byte_order = le;
+			base = 10;
+			encoding = none;
+		} pet;
+	} align(1);
+	event.header := struct {
+		integer {
+			size = 8;
+			align = 8;
+			signed = false;
+			byte_order = le;
+			base = 10;
+			encoding = none;
+		} id;
+		integer {
+			size = 64;
+			align = 64;
+			signed = false;
+			byte_order = le;
+			base = 10;
+			encoding = none;
+			map = clock.sys_clock.value;
+		} timestamp;
+	} align(1);
+};
+
+event {
+	name = "prologue_enter";
+	id = 0; /* default */
+	fields := struct {
+		integer {
+			size = 16;
+			align = 16;
+			signed = false;
+			byte_order = le;
+			base = 10;
+			encoding = none;
+		} vmid;
+		integer {
+			size = 16;
+			align = 16;
+			signed = false;
+			byte_order = le;
+			base = 10;
+			encoding = none;
+		} baseid;
+		enum : integer {
+			size = 8;
+			align = 8;
+			signed = false;
+			byte_order = le;
+			base = 10;
+			encoding = none;
+		} {
+			"initialize" = 0,
+			"run" = 1,
+			"finalize" = 2,
+		} method;
+		integer {
+			size = 8;
+			align = 8;
+			signed = false;
+			byte_order = le;
+			base = 10;
+			encoding = none;
+		} phase;
+	} align(1);
+};
+
+event {
+	name = "epilogue_exit";
+	id = 1; /* default */
+	fields := struct {
+		integer {
+			size = 16;
+			align = 16;
+			signed = false;
+			byte_order = le;
+			base = 10;
+			encoding = none;
+		} vmid;
+		integer {
+			size = 16;
+			align = 16;
+			signed = false;
+			byte_order = le;
+			base = 10;
+			encoding = none;
+		} baseid;
+		enum : integer {
+			size = 8;
+			align = 8;
+			signed = false;
+			byte_order = le;
+			base = 10;
+			encoding = none;
+		} {
+			"initialize" = 0,
+			"run" = 1,
+			"finalize" = 2,
+		} method;
+		integer {
+			size = 8;
+			align = 8;
+			signed = false;
+			byte_order = le;
+			base = 10;
+			encoding = none;
+		} phase;
+	} align(1);
+};
+
+event {
+	name = "phase_enter";
+	id = 2; /* default */
+	fields := struct {
+		integer {
+			size = 16;
+			align = 16;
+			signed = false;
+			byte_order = le;
+			base = 10;
+			encoding = none;
+		} vmid;
+		integer {
+			size = 16;
+			align = 16;
+			signed = false;
+			byte_order = le;
+			base = 10;
+			encoding = none;
+		} baseid;
+		enum : integer {
+			size = 8;
+			align = 8;
+			signed = false;
+			byte_order = le;
+			base = 10;
+			encoding = none;
+		} {
+			"initialize" = 0,
+			"run" = 1,
+			"finalize" = 2,
+		} method;
+		integer {
+			size = 8;
+			align = 8;
+			signed = false;
+			byte_order = le;
+			base = 10;
+			encoding = none;
+		} phase;
+	} align(1);
+};
+
+event {
+	name = "phase_exit";
+	id = 3; /* default */
+	fields := struct {
+		integer {
+			size = 16;
+			align = 16;
+			signed = false;
+			byte_order = le;
+			base = 10;
+			encoding = none;
+		} vmid;
+		integer {
+			size = 16;
+			align = 16;
+			signed = false;
+			byte_order = le;
+			base = 10;
+			encoding = none;
+		} baseid;
+		enum : integer {
+			size = 8;
+			align = 8;
+			signed = false;
+			byte_order = le;
+			base = 10;
+			encoding = none;
+		} {
+			"initialize" = 0,
+			"run" = 1,
+			"finalize" = 2,
+		} method;
+		integer {
+			size = 8;
+			align = 8;
+			signed = false;
+			byte_order = le;
+			base = 10;
+			encoding = none;
+		} phase;
+	} align(1);
+};
+
+event {
+	name = "region_enter";
+	id = 4; /* default */
+	fields := struct {
+		string {
+			encoding = UTF8;
+		} name;
+	} align(1);
+};
+
+event {
+	name = "region_exit";
+	id = 5; /* default */
+	fields := struct {
+		string {
+			encoding = UTF8;
+		} name;
+	} align(1);
+};
+
+event {
+	name = "define_region";
+	id = 6; /* default */
+	fields := struct {
+		integer {
+			size = 16;
+			align = 16;
+			signed = false;
+			byte_order = le;
+			base = 10;
+			encoding = none;
+		} id;
+		string {
+			encoding = UTF8;
+		} name;
+	} align(1);
+};
+
+event {
+	name = "regionid_enter";
+	id = 7; /* default */
+	fields := struct {
+		integer {
+			size = 16;
+			align = 16;
+			signed = false;
+			byte_order = le;
+			base = 10;
+			encoding = none;
+		} regionid;
+	} align(1);
+};
+
+event {
+	name = "regionid_exit";
+	id = 8; /* default */
+	fields := struct {
+		integer {
+			size = 16;
+			align = 16;
+			signed = false;
+			byte_order = le;
+			base = 10;
+			encoding = none;
+		} regionid;
+	} align(1);
+};
+
+event {
+	name = "comp";
+	id = 9; /* default */
+	fields := struct {
+		integer {
+			size = 16;
+			align = 16;
+			signed = false;
+			byte_order = le;
+			base = 10;
+			encoding = none;
+		} vmid;
+		integer {
+			size = 16;
+			align = 16;
+			signed = false;
+			byte_order = le;
+			base = 10;
+			encoding = none;
+		} baseid;
+		string {
+			encoding = UTF8;
+		} name;
+		string {
+			encoding = UTF8;
+		} IPM;
+		string {
+			encoding = UTF8;
+		} RPM;
+		string {
+			encoding = UTF8;
+		} FPM;
+	} align(1);
+};
+
+event {
+	name = "mem";
+	id = 10; /* default */
+	fields := struct {
+		integer {
+			size = 32;
+			align = 32;
+			signed = false;
+			byte_order = le;
+			base = 10;
+			encoding = none;
+		} virtMem;
+		integer {
+			size = 32;
+			align = 32;
+			signed = false;
+			byte_order = le;
+			base = 10;
+			encoding = none;
+		} physMem;
+	} align(1);
+};
+
+event {
+	name = "clk";
+	id = 11; /* default */
+	fields := struct {
+		integer {
+			size = 16;
+			align = 16;
+			signed = false;
+			byte_order = le;
+			base = 10;
+			encoding = none;
+		} year;
+		integer {
+			size = 8;
+			align = 8;
+			signed = false;
+			byte_order = le;
+			base = 10;
+			encoding = none;
+		} month;
+		integer {
+			size = 8;
+			align = 8;
+			signed = false;
+			byte_order = le;
+			base = 10;
+			encoding = none;
+		} day;
+		integer {
+			size = 8;
+			align = 8;
+			signed = false;
+			byte_order = le;
+			base = 10;
+			encoding = none;
+		} hour;
+		integer {
+			size = 8;
+			align = 8;
+			signed = false;
+			byte_order = le;
+			base = 10;
+			encoding = none;
+		} minute;
+		integer {
+			size = 8;
+			align = 8;
+			signed = false;
+			byte_order = le;
+			base = 10;
+			encoding = none;
+		} second;
+	} align(1);
+};

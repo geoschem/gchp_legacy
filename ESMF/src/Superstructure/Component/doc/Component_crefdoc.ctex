@@ -1,7 +1,7 @@
-% $Id: Component_crefdoc.ctex,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
+% $Id$
 %
 % Earth System Modeling Framework
-% Copyright 2002-2012, University Corporation for Atmospheric Research, 
+% Copyright 2002-2018, University Corporation for Atmospheric Research, 
 % Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
 % Laboratory, University of Michigan, National Centers for Environmental 
 % Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
@@ -23,6 +23,10 @@
 \addtolength{\oddsidemargin}{-.75in}
 \newcommand{\mytitle}{\Large {\bf Component Reference}}
 \newcommand{\myauthors}{\large {\it Gerhard Theurich}}
+% set a standard paragraph style
+\setlength{\parskip}{0pt}
+\setlength{\parindent}{0pt}
+\setlength{\baselineskip}{11pt}
 % these are temporary patches until something more
 % permanent is done to the protex script.
 \newlength{\oldparskip}
@@ -44,6 +48,8 @@
 \tableofcontents
 
 \newpage
+\setlength{\parskip}{1.5ex}
+
 #endif
 
 %%%%%%%%%%%%% Gridded Component Class %%%%%%%%%
@@ -122,6 +128,46 @@
 \input{ESMC_CplComp_chapi} 
 #elif defined(CONSTITUENT)
 \input{../Superstructure/Component/doc/ESMC_CplComp_chapi}
+#endif
+
+%%%%%%%%%%%%% Science Component Class %%%%%%%%%
+\section{SciComp Class}
+
+\subsection{Description}
+#ifdef STANDALONE
+\input{SciComp_cdesc}
+#elif defined(CONSTITUENT)
+\input{../Superstructure/Component/doc/SciComp_cdesc}
+#endif
+
+%\subsection{SciComp Options}
+%#ifdef STANDALONE
+%\input{SciComp_options}
+%#elif defined(CONSTITUENT)
+%\input{../Superstructure/Component/doc/SciComp_options}
+%#endif
+
+%\subsection{Use and Examples}
+#ifdef STANDALONE
+%\input{SciComp_usage}
+%\input{ESMF_SCompEx_fapi}
+#elif defined(CONSTITUENT)
+%\input{../Superstructure/Component/doc/SciComp_usage}
+%\input{../Superstructure/Component/doc/ESMF_SCompEx_fapi}
+#endif
+
+%\subsection{Restrictions and Future Work}
+#ifdef STANDALONE
+%\input{SciComp_rest}
+#elif defined(CONSTITUENT)
+%\input{../Superstructure/Component/doc/SciComp_rest}
+#endif
+
+\subsection{Class API}
+#ifdef STANDALONE
+\input{ESMC_SciComp_chapi}
+#elif defined(CONSTITUENT)
+\input{../Superstructure/Component/doc/ESMC_SciComp_chapi}
 #endif
 
 %%%%%%% end class sections %%%%%%%%

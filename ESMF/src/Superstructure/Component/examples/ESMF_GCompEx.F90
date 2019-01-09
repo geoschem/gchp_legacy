@@ -1,7 +1,7 @@
-! $Id: ESMF_GCompEx.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
+! $Id$
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2012, University Corporation for Atmospheric Research,
+! Copyright 2002-2018, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -255,9 +255,11 @@
 !-------------------------------------------------------------------------
 
     program ESMF_AppMainEx
+#include "ESMF.h"
     
 !   ! The ESMF Framework module
     use ESMF
+    use ESMF_TestMod
     
     ! User supplied modules
     use ESMF_GriddedCompEx, only: GComp_SetServices, GComp_SetVM
@@ -274,7 +276,20 @@
     type(ESMF_VM) :: vm
     type(ESMF_State) :: importState, exportState
     type(ESMF_GridComp) :: gcomp
-    integer :: finalrc
+    integer :: finalrc, result
+    character(ESMF_MAXSTR) :: testname
+    character(ESMF_MAXSTR) :: failMsg
+
+!-------------------------------------------------------------------------
+!-------------------------------------------------------------------------
+
+    write(failMsg, *) "Example failure"
+    write(testname, *) "Example ESMF_GCompEx"
+
+
+! ------------------------------------------------------------------------------
+! ------------------------------------------------------------------------------
+
     finalrc = ESMF_SUCCESS
         
 !-------------------------------------------------------------------------
@@ -284,7 +299,7 @@
     if (rc .ne. ESMF_SUCCESS) then
         print *, "Unable to initialize ESMF Framework"
         print *, "FAIL: ESMF_GCompEx.F90"
-        stop
+        call ESMF_Finalize(endflag=ESMF_END_ABORT)
     endif
 !-------------------------------------------------------------------------
 !   !
@@ -306,7 +321,7 @@
      end if
      
     ! This single user-supplied subroutine must be a public entry point.
-    call ESMF_GridCompSetServices(gcomp, GComp_SetServices, rc=rc)
+    call ESMF_GridCompSetServices(gcomp, userRoutine=GComp_SetServices, rc=rc)
 
     if (rc.NE.ESMF_SUCCESS) then
        finalrc = ESMF_FAILURE
@@ -444,6 +459,10 @@
      
     print *, "Destroy calls returned"
     print *, "Application Example 1 finished"
+
+    ! IMPORTANT: ESMF_STest() prints the PASS string and the # of processors in the log
+    ! file that the scripts grep for.
+    call ESMF_STest((finalrc.eq.ESMF_SUCCESS), testname, failMsg, result, ESMF_SRCLINE)
 
     call ESMF_Finalize(rc=rc)
 

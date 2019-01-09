@@ -1,7 +1,7 @@
 // $Id$
 //
 // Earth System Modeling Framework
-// Copyright 2002-2012, University Corporation for Atmospheric Research,
+// Copyright 2002-2018, University Corporation for Atmospheric Research,
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 // Laboratory, University of Michigan, National Centers for Environmental
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -36,7 +36,7 @@ using namespace std;
 //
 // This class provides access to a job scheduler using the Fork
 // interface.
-// 
+//
 //EOPI
 //-------------------------------------------------------------------------
 
@@ -48,22 +48,23 @@ namespace ESMCI
   public:
 
      // constructor and desructor
-	  ESMCI_WebServForkClient(string  hostName,
+          ESMCI_WebServForkClient(string  hostName,
                              string  scriptDir,
                              string  scriptName);
-	  ~ESMCI_WebServForkClient();
+          ~ESMCI_WebServForkClient();
 
-     string  submitJob(int  portNum, 
-                       int  clientId);
+     string  submitJob(int     portNum,
+                       string  registrarHost,
+                       int     clientId);
      int     cancelJob(string  jobId);
      int     jobStatus(string  jobId);
 
 
   private:
 
-     int		extractPid(string  jobId);
+     int                extractPid(string  jobId);
   };
 
 } // end namespace
 
-#endif 	// ESMCI_WebServForkClient_H
+#endif          // ESMCI_WebServForkClient_H

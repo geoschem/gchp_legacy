@@ -5,11 +5,11 @@ ALL: build_here
 AUTOGEN   = 
 
 SOURCEC	  = ESMCI_WebServNetEsmfClient.C \
-             ESMCI_WebServCAMOutputFile.C \
-             ESMCI_WebServNetEsmfServer.C \
+             ESMCI_WebServDataDesc.C \
+             ESMCI_WebServDataContent.C \
+             ESMCI_WebServDataMgr.C \
              ESMCI_WebServClientInfo.C \
              ESMCI_WebServCompSvrInfo.C \
-             ESMCI_WebServPassThruSvr.C \
              ESMCI_WebServClientSocket.C \
              ESMCI_WebServServerSocket.C \
              ESMCI_WebServRegistrarClient.C \
@@ -29,11 +29,14 @@ STOREH    = ESMCI_WebServLowLevelSocket.h \
             ESMCI_WebServServerSocket.h \
             ESMCI_WebServClientSocket.h \
             ESMCI_WebServNetEsmf.h \
+            ESMCI_WebServNetEsmfClient.h \
             ESMCI_WebServClientInfo.h \
-            ESMCI_WebServCAMOutputFile.h \
             ESMCI_WebServCompSvrClient.h \
             ESMCI_WebServProcCtrlClient.h \
-            ESMCI_WebServPassThruSvr.h
+            ESMCI_WebServProcCtrl.h \
+            ESMCI_WebServDataDesc.h \
+            ESMCI_WebServDataContent.h \
+            ESMCI_WebServCompSvrMgr.h
 TEXFILES  = $(addsuffix _fapi.tex, $(basename $(AUTOGEN)))
 
 OBJSC     = $(addsuffix .o, $(basename $(SOURCEC)))

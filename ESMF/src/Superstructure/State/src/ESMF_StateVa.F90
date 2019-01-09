@@ -1,7 +1,7 @@
 ! $Id$
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2012, University Corporation for Atmospheric Research, 
+! Copyright 2002-2018, University Corporation for Atmospheric Research, 
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
 ! Laboratory, University of Michigan, National Centers for Environmental 
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
@@ -44,7 +44,6 @@
       use ESMF_StateContainerMod
       use ESMF_InitMacrosMod
       use ESMF_UtilTypesMod
-      use ESMF_UtilMod,        only: ESMF_StringLowerCase
       
       implicit none
       
@@ -221,7 +220,7 @@
             if (local1rc /= ESMF_SUCCESS) then
               rc = ESMF_RC_OBJ_BAD
               if (ESMF_LogFoundError(local1rc, ESMF_ERR_PASSTHRU, &
-        	  ESMF_CONTEXT, rcToReturn=rc)) exit
+                  ESMF_CONTEXT, rcToReturn=rc)) exit
             end if
 
           end do

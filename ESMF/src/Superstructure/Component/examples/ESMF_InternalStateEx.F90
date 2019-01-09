@@ -1,7 +1,7 @@
-! $Id: ESMF_InternalStateEx.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
+! $Id$
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2012, University Corporation for Atmospheric Research,
+! Copyright 2002-2018, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -36,10 +36,12 @@
 program ESMF_InternalStateEx
 
 !-------------------------------------------------------------------------
+#include "ESMF.h"
 ! !USES:
 !BOC
   ! ESMF Framework module
   use ESMF
+  use ESMF_TestMod
   implicit none
   
   type(ESMF_GridComp) :: comp
@@ -60,13 +62,30 @@ program ESMF_InternalStateEx
   type(dataWrapper) :: wrap1, wrap2
   type(testData), target :: data
   type(testData), pointer :: datap  ! extra level of indirection
+!EOC
+  integer :: result
+  character(ESMF_MAXSTR) :: testname
+  character(ESMF_MAXSTR) :: failMsg
+
+!-------------------------------------------------------------------------
+!-------------------------------------------------------------------------
+
+  write(failMsg, *) "Example failure"
+  write(testname, *) "Example ESMF_InternalStateEx"
+
+
+!-------------------------------------------------------------------------
+!-------------------------------------------------------------------------
+
+
 
   finalrc = ESMF_SUCCESS
+!BOC
 !-------------------------------------------------------------------------
         
   call ESMF_Initialize(defaultlogfilename="InternalStateEx.Log", &
                     logkindflag=ESMF_LOGKIND_MULTI, rc=rc)
-  if (rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE 
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
 !-------------------------------------------------------------------------
 
@@ -107,6 +126,11 @@ program ESMF_InternalStateEx
 
   call ESMF_GridCompDestroy(comp, rc=rc)
   if (rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE 
+
+  ! IMPORTANT: ESMF_STest() prints the PASS string and the # of processors in the log
+  ! file that the scripts grep for.
+  call ESMF_STest((finalrc.eq.ESMF_SUCCESS), testname, failMsg, result, ESMF_SRCLINE)
+
 
   call ESMF_Finalize(rc=rc)
   if (rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE 

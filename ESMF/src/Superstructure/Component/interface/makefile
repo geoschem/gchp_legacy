@@ -1,4 +1,4 @@
-# $Id: makefile,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
+# $Id$
 
 ALL: build_here 
 
@@ -7,7 +7,7 @@ SOURCEF	  = ESMF_Comp_C.F90
 SOURCEH	  = 
 
 # List .h files to be copied to higher level common include directory
-STOREH	  =  ESMCI_Comp.h ESMC_GridComp.h ESMC_CplComp.h
+STOREH	  =  ESMCI_Comp.h ESMC_GridComp.h ESMC_CplComp.h ESMC_SciComp.h
 
 OBJSC     = $(addsuffix .o, $(basename $(SOURCEC)))
 OBJSF     = $(addsuffix .o, $(basename $(SOURCEF)))

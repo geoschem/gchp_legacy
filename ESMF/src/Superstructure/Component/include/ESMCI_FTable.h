@@ -1,7 +1,7 @@
 // $Id$
 //
 // Earth System Modeling Framework
-// Copyright 2002-2012, University Corporation for Atmospheric Research, 
+// Copyright 2002-2018, University Corporation for Atmospheric Research, 
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
 // Laboratory, University of Michigan, National Centers for Environmental 
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
@@ -35,7 +35,6 @@
 
 #include "ESMCI_VM.h"
 #include "ESMCI_Comp.h"
-
 
 namespace ESMCI {
 
@@ -150,6 +149,7 @@ class FTable {
 
 typedef struct{
   char name[160];       // trimmed type string
+  Comp *f90comp;        // pointer to Fortran component object
   FTable *ftable;       // pointer to function table
   int rcCount;          // number of return codes in esmfrc and userrc
   int *esmfrc;          // return codes of esmf call back method (all threads)
@@ -158,88 +158,10 @@ typedef struct{
   int previousParentFlag; // support for recursive entering of methods
   enum method currentMethod;
   int currentPhase;
+  int timeout;          // timeout in seconds
 }cargotype;
 
-
-
-//==============================================================================
-//==============================================================================
-// MethodTable
-//==============================================================================
-//==============================================================================
-
-class MethodTable;
-
-class MethodElement{
-  private:
-    const std::string label;
-    void *pointer;
-    std::string name;
-    std::string shobj;
-    MethodElement *nextElement;
-  public:
-    // native C++ constructors/destructors
-    MethodElement(void):label(""){
-      pointer = NULL;
-      name = std::string("");
-      shobj = std::string("");
-      nextElement = NULL;
-    }
-    MethodElement(std::string labelArg):label(labelArg){
-      pointer = NULL;
-      name = std::string("");
-      shobj = std::string("");
-      nextElement = NULL;
-    }
-    MethodElement(std::string labelArg, void *pointerArg):label(labelArg){
-      pointer = pointerArg;
-      name = std::string("");
-      shobj = std::string("");
-      nextElement = NULL;
-    }
-    MethodElement(std::string labelArg, std::string nameArg,
-      std::string shobjArg):label(labelArg){
-      pointer = NULL;
-      name = nameArg;
-      shobj = shobjArg;
-      nextElement = NULL;
-    }
-    ~MethodElement(void){
-      nextElement = NULL;
-    }
-    // other methods
-    int print(void)const;
-    int execute(void *object, int *userRc);
-    int resolve(void);
-  friend class MethodTable;
-};
-
-
-class MethodTable{
-  private:
-    MethodElement *table;
-  public:
-    // native C++ constructors/destructors
-    MethodTable(void){
-      table = NULL;
-    }
-    ~MethodTable(void){
-      while (table){
-        MethodElement *next = table->nextElement;   
-        delete table;
-        table = next;
-      }
-      table = NULL;
-    }
-    // other methods
-    int print(void)const;
-    int add(std::string labelArg, void *pointer);
-    int add(std::string labelArg, std::string name, std::string sharedObj);
-    int remove(std::string labelArg);
-    int execute(std::string labelArg, void *object, int *userRc,
-      bool* existflag=NULL);
-};
-
+  
 } // namespace ESMCI
 
 #endif  // ESMCI_FTable_H

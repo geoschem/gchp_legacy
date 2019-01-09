@@ -1,7 +1,7 @@
 ! $Id$
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2012, University Corporation for Atmospheric Research,
+! Copyright 2002-2018, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -15,6 +15,7 @@ program ESMF_AttributeEx
 !==============================================================================
 !ESMF_EXAMPLE        String used by test script to count examples.
 !==============================================================================
+#include "ESMF.h"
 
 !BOE
 ! \subsubsection{Basic Attribute usage} \label{ex:AttributeEx}
@@ -41,11 +42,12 @@ program ESMF_AttributeEx
 !BOC
       ! Use ESMF framework module
       use ESMF
+      use ESMF_TestMod
       implicit none
 
       ! Local variables  
       integer                 :: rc, finalrc, petCount, localPet, &
-                                 itemCount, count
+                                 itemCount, count, result
       type(ESMF_VM)           :: vm
       type(ESMF_GridComp)     :: gridcomp
       character(ESMF_MAXSTR)  :: name
@@ -55,25 +57,45 @@ program ESMF_AttributeEx
       integer(ESMF_KIND_I4), dimension(3)  :: inI4l
       integer(ESMF_KIND_I8)                :: inI8
       integer(ESMF_KIND_I8), dimension(3)  :: inI8l
-      real(ESMF_KIND_I4)                   :: inR4
-      real(ESMF_KIND_I4), dimension(3)     :: inR4l
-      real(ESMF_KIND_I8)                   :: inR8
-      real(ESMF_KIND_I8), dimension(3)     :: inR8l
+      real(ESMF_KIND_R4)                   :: inR4
+      real(ESMF_KIND_R4), dimension(3)     :: inR4l
+      real(ESMF_KIND_R8)                   :: inR8
+      real(ESMF_KIND_R8), dimension(3)     :: inR8l
       character(ESMF_MAXSTR)               :: inChar
       character(ESMF_MAXSTR), dimension(3) :: inCharl, &
                                            defaultCharl, dfltoutCharl
       character(ESMF_MAXSTR), dimension(8) :: outCharl
       logical                              :: inLog
       logical, dimension(3)                :: inLogl, value
+      character(ESMF_MAXSTR)               :: testname
+      character(ESMF_MAXSTR)               :: failMsg
+!EOC
+
+!-------------------------------------------------------------------------
+!-------------------------------------------------------------------------
+
+      write(failMsg, *) "Example failure"
+      write(testname, *) "Example ESMF_AttributeEx"
+
+
+! ------------------------------------------------------------------------------
+! ------------------------------------------------------------------------------
+
+!BOC
+
       
       ! initialize ESMF
       finalrc = ESMF_SUCCESS
       call ESMF_Initialize(vm=vm, defaultlogfilename="AttributeEx.Log", &
                     logkindflag=ESMF_LOGKIND_MULTI, rc=rc)
+!EOC
+      if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
+!BOC
       
       ! get the vm
       call ESMF_VMGet(vm, petCount=petCount, localPet=localPet, rc=rc)
 !EOC         
+      if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
       
       if (localPet==0) then
         print *, "--------------------------------------- "
@@ -94,7 +116,7 @@ program ESMF_AttributeEx
           petList=(/0,1,2,3/), rc=rc)
       endif
 !EOC
-
+      if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !BOE
 !     We can set Attributes using the {\tt ESMF\_AttributeSet()} command.  
 !     Attributes can be any of several different types, all of which are 
@@ -118,25 +140,71 @@ program ESMF_AttributeEx
       inLogl = (/.true., .false., .true. /)
       
       call ESMF_AttributeSet(gridcomp, name="ESMF_I4name", value=inI4, rc=rc)
+!EOC
+      if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
+!BOC
+
       call ESMF_AttributeSet(gridcomp, name="ESMF_I4namelist", &
         valueList=inI4l, rc=rc)
+!EOC
+      if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
+!BOC
+
       call ESMF_AttributeSet(gridcomp, name="ESMF_I8name", value=inI8,  rc=rc)
+!EOC
+      if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
+!BOC
+
       call ESMF_AttributeSet(gridcomp, name="ESMF_I8namelist", &
         valueList=inI8l, rc=rc)
+!EOC
+      if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
+!BOC
+
       call ESMF_AttributeSet(gridcomp, name="ESMF_R4name", value=inR4, rc=rc)
+!EOC
+      if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
+!BOC
+
       call ESMF_AttributeSet(gridcomp, name="ESMF_R4namelist", &
         valueList=inR4l, rc=rc)
+!EOC
+      if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
+!BOC
+
       call ESMF_AttributeSet(gridcomp, name="ESMF_R8name", value=inR8, rc=rc)
+!EOC
+      if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
+!BOC
+
       call ESMF_AttributeSet(gridcomp, name="ESMF_R8namelist", &
         valueList=inR8l, rc=rc)
+!EOC
+      if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
+!BOC
+
       call ESMF_AttributeSet(gridcomp, name="Character_name", &
         value=inChar, rc=rc)
+!EOC
+      if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
+!BOC
+
       call ESMF_AttributeSet(gridcomp, name="Character_namelist", &
         valueList=inCharl, rc=rc)
+!EOC
+      if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
+!BOC
+
       call ESMF_AttributeSet(gridcomp, name="Logical_name", value=inLog, rc=rc)
+!EOC
+      if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
+!BOC
+
       call ESMF_AttributeSet(gridcomp, name="Logical_namelist", &
         valueList=inLogl, rc=rc)
+
 !EOC
+      if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
 !BOE
 !     We can retrieve Attributes by issuing the {\tt ESMF\_AttributeGet()} 
@@ -157,12 +225,22 @@ program ESMF_AttributeEx
       itemCount=3
       call ESMF_AttributeGet(gridcomp, name="Character_namelist", &
         valueList=outCharl(1:5), itemCount=itemCount, rc=rc) 
+!EOC  
+      if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
+!BOC
+
                     
       call ESMF_AttributeRemove(gridcomp, name="Character_namelist", rc=rc)
+!EOC  
+      if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
+!BOC
+
       
       call ESMF_AttributeGet(gridcomp, name="Character_namelist", &
         valueList=dfltoutCharl, defaultvalueList=defaultCharl,rc=rc)
-!EOC
+
+!EOC  
+      if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
       if (all (dfltoutCharl /= defaultCharl)) then
         print *, "Attribute character list IN did not match OUT"
@@ -183,28 +261,48 @@ program ESMF_AttributeEx
 !    numbers start from 1.  Then the name that is retrieved
 !    is used to get other information about the Attribute, such as the
 !    typekind, and the number of items in the value of the Attribute.
-!    This information is then used to actually retreive the Attribute value.
+!    This information is then used to actually retrieve the Attribute value.
 !    Then the count of the number of Attributes on the object will be retrieved.
 !EOE
 
 !BOC
       call ESMF_AttributeGet(gridcomp, attributeIndex=11 , name=name, rc=rc)
+!EOC  
+      if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
+!BOC
+
       
       call ESMF_AttributeGet(gridcomp, name=name, typekind=tk, &
         itemCount=itemCount, rc=rc)
+!EOC  
+      if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
+!BOC
+
       
       if (tk==ESMF_TYPEKIND_Logical .AND. itemCount==3) then
         call ESMF_AttributeGet(gridcomp, name=name, valueList=value, rc=rc)
+!EOC  
+      if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
+!BOC
+
       endif
       
       call ESMF_AttributeGet(gridcomp, count=count, rc=rc)
 !EOC
+      if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
+
 
       if (all (value .NEQV. inLogl)) then
         print *, "Attribute logical list IN did not match OUT"
       endif
  
       call ESMF_GridCompDestroy(gridcomp,rc=rc)
+      if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
+
+      ! IMPORTANT: ESMF_STest() prints the PASS string and the # of processors in the log
+      ! file that the scripts grep for.
+      call ESMF_STest((finalrc.eq.ESMF_SUCCESS), testname, failMsg, result, ESMF_SRCLINE)
+
 
     call ESMF_Finalize(rc=rc)
 

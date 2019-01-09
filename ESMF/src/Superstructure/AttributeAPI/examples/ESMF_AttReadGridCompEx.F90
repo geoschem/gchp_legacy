@@ -1,7 +1,7 @@
 ! $Id$
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2012, University Corporation for Atmospheric Research,
+! Copyright 2002-2018, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -46,10 +46,12 @@ program ESMF_AttReadGridCompEx
 !BOC
       ! ESMF Framework module
       use ESMF
+      use ESMF_TestMod
       implicit none
 
       ! local variables
       type(ESMF_GridComp)    :: gridcomp
+      type(ESMF_AttPack)   :: attpack
       character(ESMF_MAXSTR) :: attrvalue
       type(ESMF_VM)          :: vm
       integer                :: rc, petCount, localPet
@@ -57,7 +59,21 @@ program ESMF_AttReadGridCompEx
 
       ! example program result codes
       logical :: xercesPresent
-      integer :: finalrc
+      integer :: finalrc, result
+      character(ESMF_MAXSTR) :: testname
+      character(ESMF_MAXSTR) :: failMsg
+
+!-------------------------------------------------------------------------
+!-------------------------------------------------------------------------
+
+      write(failMsg, *) "Example failure"
+      write(testname, *) "Example ESMF_AttReadGridCompEx"
+
+
+! ------------------------------------------------------------------------------
+! ------------------------------------------------------------------------------
+
+
 
       ! assume Xerces XML C++ API library present until proven otherwise
       xercesPresent = .true.
@@ -108,7 +124,7 @@ program ESMF_AttReadGridCompEx
         xercesPresent = .false.
       endif
 
-      if (rc .ne. ESMF_SUCCESS .and. xercesPresent) finalrc = ESMF_FAILURE
+      if (rc .ne. ESMF_SUCCESS .and. xercesPresent) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
 !print *, 'rc = ', rc
 
@@ -120,7 +136,7 @@ program ESMF_AttReadGridCompEx
 !EOC
 
       if (.not.((rc==ESMF_SUCCESS .and. attrvalue=='GEOS') &
-                      .or. .not. xercesPresent)) finalrc = ESMF_FAILURE
+                      .or. .not. xercesPresent)) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !print *, 'rc = ', rc
 !print *, 'attrvalue = ', attrvalue
 
@@ -133,7 +149,7 @@ program ESMF_AttReadGridCompEx
 
       if (.not.((rc==ESMF_SUCCESS .and. &
                  attrvalue=='Goddard Earth Observing System Model') &
-                      .or. .not. xercesPresent)) finalrc = ESMF_FAILURE
+                      .or. .not. xercesPresent)) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !print *, 'rc = ', rc
 !print *, 'attrvalue = ', attrvalue
 
@@ -144,7 +160,7 @@ program ESMF_AttReadGridCompEx
 !EOC
 
       if (.not.((rc==ESMF_SUCCESS .and. attrvalue=='NASA') &
-                      .or. .not. xercesPresent)) finalrc = ESMF_FAILURE
+                      .or. .not. xercesPresent)) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !print *, 'rc = ', rc
 !print *, 'attrvalue = ', attrvalue
 
@@ -156,7 +172,7 @@ program ESMF_AttReadGridCompEx
 
       if (.not.((rc==ESMF_SUCCESS .and. &
                  attrvalue=='Global Modeling and Assimilation Office (GMAO)') &
-                      .or. .not. xercesPresent)) finalrc = ESMF_FAILURE
+                      .or. .not. xercesPresent)) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !print *, 'rc = ', rc
 !print *, 'attrvalue = ', attrvalue
 
@@ -167,7 +183,7 @@ program ESMF_AttReadGridCompEx
 !EOC
 
       if (.not.((rc==ESMF_SUCCESS .and. attrvalue=='5') &
-                      .or. .not. xercesPresent)) finalrc = ESMF_FAILURE
+                      .or. .not. xercesPresent)) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !print *, 'rc = ', rc
 !print *, 'attrvalue = ', attrvalue
 
@@ -178,7 +194,7 @@ program ESMF_AttReadGridCompEx
 !EOC
 
       if (.not.((rc==ESMF_SUCCESS .and. attrvalue=='Max Suarez') &
-                      .or. .not. xercesPresent)) finalrc = ESMF_FAILURE
+                      .or. .not. xercesPresent)) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !print *, 'rc = ', rc
 !print *, 'attrvalue = ', attrvalue
 
@@ -189,7 +205,7 @@ program ESMF_AttReadGridCompEx
 !EOC
 
       if (.not.((rc==ESMF_SUCCESS .and. attrvalue=='Atmosphere') &
-                      .or. .not. xercesPresent)) finalrc = ESMF_FAILURE
+                      .or. .not. xercesPresent)) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !print *, 'rc = ', rc
 !print *, 'attrvalue = ', attrvalue
 
@@ -201,7 +217,7 @@ program ESMF_AttReadGridCompEx
 !EOC
 
       if (.not.((rc==ESMF_SUCCESS .and. attrvalue=='Earth System') &
-                      .or. .not. xercesPresent)) finalrc = ESMF_FAILURE
+                      .or. .not. xercesPresent)) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !print *, 'rc = ', rc
 !print *, 'attrvalue = ', attrvalue
 
@@ -213,7 +229,7 @@ program ESMF_AttReadGridCompEx
 !EOC
 
       if (.not.((rc==ESMF_SUCCESS .and. attrvalue=='Fortran 90') &
-                      .or. .not. xercesPresent)) finalrc = ESMF_FAILURE
+                      .or. .not. xercesPresent)) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !print *, 'rc = ', rc
 !print *, 'attrvalue = ', attrvalue
 
@@ -226,7 +242,7 @@ program ESMF_AttReadGridCompEx
 
       if (.not.((rc==ESMF_SUCCESS .and. &
                  attrvalue=='ESMF (Earth System Modeling Framework)') &
-                      .or. .not. xercesPresent)) finalrc = ESMF_FAILURE
+                      .or. .not. xercesPresent)) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !print *, 'rc = ', rc
 !print *, 'attrvalue = ', attrvalue
 
@@ -235,6 +251,13 @@ program ESMF_AttReadGridCompEx
 !EOC
 
       if (rc .ne. ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
+
+
+      ! IMPORTANT: ESMF_STest() prints the PASS string and the # of processors in the log
+      ! file that the scripts grep for.
+      call ESMF_STest((finalrc.eq.ESMF_SUCCESS), testname, failMsg, result, ESMF_SRCLINE)
+
+
 
 !BOC
       ! finalize ESMF framework

@@ -1,7 +1,7 @@
 // $Id$
 //
 // Earth System Modeling Framework
-// Copyright 2002-2012, University Corporation for Atmospheric Research, 
+// Copyright 2002-2018, University Corporation for Atmospheric Research, 
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
 // Laboratory, University of Michigan, National Centers for Environmental 
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
@@ -22,7 +22,6 @@
 #include "ESMCI_F90Interface.h"
 #include "ESMC_Interface.h"
 #include "ESMCI_LogErr.h"
-#include "ESMF_LogMacros.inc"             // for LogErr
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
@@ -46,17 +45,19 @@ namespace ESMCI{
 
 extern "C" {
   // Prototypes of the Fortran interface functions.
-  void FTN(f_esmf_stateitemwrapcast)(ESMCI::F90ClassHolder *statItemWrapOut,
+  void FTN_X(f_esmf_stateitemwrapcast)(ESMCI::F90ClassHolder *statItemWrapOut,
     ESMCI::StateItemWrap *stateItemWrapIn, int *rc);
 }
 
 namespace ESMCI{
   int StateItemWrap::castToFortran(F90ClassHolder *fc){
+#undef  ESMC_METHOD
+#define ESMC_METHOD "StateItemWrap::castToFortran()"
     int localrc = ESMC_RC_NOT_IMPL;
     int rc=ESMC_RC_NOT_IMPL;
-    FTN(f_esmf_stateitemwrapcast)(fc, this, &localrc);
-    if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, &rc))
-      return rc;
+    FTN_X(f_esmf_stateitemwrapcast)(fc, this, &localrc);
+    if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, ESMC_CONTEXT,
+      &rc)) return rc;
     // return successfully
     rc = ESMF_SUCCESS;
     return rc;

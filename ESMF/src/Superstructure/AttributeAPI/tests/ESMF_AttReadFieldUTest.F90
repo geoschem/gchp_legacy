@@ -1,7 +1,7 @@
 ! $Id$
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2012, University Corporation for Atmospheric Research,
+! Copyright 2002-2018, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -48,6 +48,7 @@ program ESMF_AttReadFieldUTest
 
       ! local variables
       type(ESMF_Field)       :: field
+      type(ESMF_AttPack)   :: attpack
       logical                :: xercesNotPresent
       integer                :: rc
 
@@ -70,6 +71,7 @@ program ESMF_AttReadFieldUTest
 
   !-----------------------------------------------------------------------------
   call ESMF_TestStart(ESMF_SRCLINE, rc=rc)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   !-----------------------------------------------------------------------------
 
       !------------------------------------------------------------------------
@@ -108,6 +110,19 @@ print *, 'rc = ', rc
     !-------------------------------------------------------------------------
     !  Check read-in Attributes
     !-------------------------------------------------------------------------
+
+      conv = 'CF'
+      purp = 'General'
+
+      !------------------------------------------------------------------------
+      !EX_UTest
+      ! Get CF General Attribute package from a Field Test
+      call ESMF_AttributeGetAttPack(field, attpack=attpack, &
+                             convention=conv, purpose=purp, rc=rc)
+      write(failMsg, *) "Did not return ESMF_SUCCESS or wrong value"
+      write(name, *) "Get CF General Attribute package from a Field Test"
+      call ESMF_Test((rc==ESMF_SUCCESS &
+                      .or. xercesNotPresent), name, failMsg, result, ESMF_SRCLINE)
 
       !------------------------------------------------------------------------
       !EX_UTest
@@ -196,7 +211,7 @@ print *, 'outChar = ', outChar
       if (rc .ne. ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
   !-----------------------------------------------------------------------------
-  call ESMF_TestEnd(result, ESMF_SRCLINE)
+  call ESMF_TestEnd(ESMF_SRCLINE)
   !-----------------------------------------------------------------------------
   
 end program ESMF_AttReadFieldUTest

@@ -1,7 +1,7 @@
-% $Id: State_rest.tex,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
+% $Id$
 %
 % Earth System Modeling Framework
-% Copyright 2002-2012, University Corporation for Atmospheric Research, 
+% Copyright 2002-2018, University Corporation for Atmospheric Research, 
 % Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
 % Laboratory, University of Michigan, National Centers for Environmental 
 % Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
@@ -11,8 +11,8 @@
 %\subsubsection{Restrictions and Future Work}
 
 \begin{enumerate}
-\item{\bf No synchronization of object ids at object create time.}
-Object IDs are using during the reconcile process to identify objects
+\item{\bf No synchronization of object IDs at object create time.}
+Object IDs are used during the reconcile process to identify objects
 which are unknown to some subset of the PETs in the currently running VM.
 Object IDs are assigned in sequential order at object create time.
 
@@ -20,7 +20,7 @@ One important request by the user community during the ESMF object design was
 that there be no communication overhead or synchronization when creating
 distributed ESMF objects. As a consequence it is required to create these
 objects in {\bf unison} across all PETs in order to keep the ESMF object
-identifiaction in sync.
+identification in sync.
 
 \end{enumerate}
 

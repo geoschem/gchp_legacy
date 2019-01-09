@@ -1,7 +1,7 @@
-! $Id: ESMF_StateReconcileEx.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
+! $Id$
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2012, University Corporation for Atmospheric Research,
+! Copyright 2002-2018, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -94,9 +94,11 @@ end module ESMF_StateReconcileEx_Mod
 !
 ! This program shows examples of using the State Reconcile function
 !-----------------------------------------------------------------------------
+#include "ESMF.h"
 
     ! ESMF Framework module
     use ESMF
+    use ESMF_TestMod
     use ESMF_StateReconcileEx_Mod
     implicit none
 
@@ -108,7 +110,20 @@ end module ESMF_StateReconcileEx_Mod
     character(len=ESMF_MAXSTR) :: comp1name, comp2name, statename
 
 !EOC
-    integer :: finalrc
+    integer :: finalrc, result
+    character(ESMF_MAXSTR) :: testname
+    character(ESMF_MAXSTR) :: failMsg
+
+!-------------------------------------------------------------------------
+!-------------------------------------------------------------------------
+
+    write(failMsg, *) "Example failure"
+    write(testname, *) "Example ESMF_StateReconcileEx"
+
+
+! ------------------------------------------------------------------------------
+! ------------------------------------------------------------------------------
+
     finalrc = ESMF_SUCCESS
 
 
@@ -141,10 +156,16 @@ end module ESMF_StateReconcileEx_Mod
     comp1name = "Atmosphere"
     comp1 = ESMF_GridCompCreate(name=comp1name, petList=(/ 0, 1 /), rc=rc)
     print *, "GridComp Create returned, name = ", trim(comp1name)
+!EOC
+    if (rc.NE.ESMF_SUCCESS) finalrc = ESMF_FAILURE
+!BOC
 
     comp2name = "Ocean"
     comp2 = ESMF_GridCompCreate(name=comp2name, petList=(/ 2, 3 /), rc=rc)
     print *, "GridComp Create returned, name = ", trim(comp2name)
+!EOC
+    if (rc.NE.ESMF_SUCCESS) finalrc = ESMF_FAILURE
+!BOC
 
     statename = "Ocn2Atm"
     state1 = ESMF_StateCreate(name=statename, rc=rc)  
@@ -174,21 +195,49 @@ end module ESMF_StateReconcileEx_Mod
     ! This is o.k. because the SetServices routine must execute from within
     ! the parent component VM.
     call ESMF_GridCompSetVM(comp1, comp_dummy, rc=rc)
+!EOC
+    if (rc.NE.ESMF_SUCCESS) finalrc = ESMF_FAILURE
+!BOC
+
     call ESMF_GridCompSetVM(comp2, comp_dummy, rc=rc)
-    call ESMF_GridCompSetServices(comp1, comp_dummy, rc=rc)
-    call ESMF_GridCompSetServices(comp2, comp_dummy, rc=rc)
+!EOC
+    if (rc.NE.ESMF_SUCCESS) finalrc = ESMF_FAILURE
+!BOC
+
+    call ESMF_GridCompSetServices(comp1, userRoutine=comp_dummy, rc=rc)
+!EOC
+    if (rc.NE.ESMF_SUCCESS) finalrc = ESMF_FAILURE
+!BOC
+
+    call ESMF_GridCompSetServices(comp2, userRoutine=comp_dummy, rc=rc)
+!EOC
+    if (rc.NE.ESMF_SUCCESS) finalrc = ESMF_FAILURE
+!BOC
+
 
     print *, "ready to set entry point 1"
     call ESMF_GridCompSetEntryPoint(comp1, ESMF_METHOD_INITIALIZE, &
          comp1_init, rc=rc)
+!EOC
+    if (rc.NE.ESMF_SUCCESS) finalrc = ESMF_FAILURE
+!BOC
+
 
     print *, "ready to set entry point 2"
     call ESMF_GridCompSetEntryPoint(comp2, ESMF_METHOD_INITIALIZE, &
          comp2_init, rc=rc)
+!EOC
+    if (rc.NE.ESMF_SUCCESS) finalrc = ESMF_FAILURE
+!BOC
+
 
 
     print *, "ready to call init for comp 1"
     call ESMF_GridCompInitialize(comp1, exportState=state1, rc=rc)
+!EOC
+    if (rc.NE.ESMF_SUCCESS) finalrc = ESMF_FAILURE
+!BOC
+
     print *, "ready to call init for comp 2"
     call ESMF_GridCompInitialize(comp2, exportState=state1, rc=rc)
 !EOC
@@ -213,9 +262,17 @@ end module ESMF_StateReconcileEx_Mod
 !BOC
     print *, "State before calling StateReconcile()"
     call ESMF_StatePrint(state1, rc=rc)
+!EOC
+    if (rc.NE.ESMF_SUCCESS) finalrc = ESMF_FAILURE
+!BOC
+
 
     call ESMF_StateReconcile(state1, vm=vm,  &
                              attreconflag=ESMF_ATTRECONCILE_OFF, rc=rc)
+!EOC
+    if (rc.NE.ESMF_SUCCESS) finalrc = ESMF_FAILURE
+!BOC
+
 
     print *, "State after calling StateReconcile()"
     call ESMF_StatePrint(state1, rc=rc)
@@ -236,6 +293,11 @@ end module ESMF_StateReconcileEx_Mod
     if (rc /= ESMF_SUCCESS) finalrc = ESMF_FAILURE
 
 20  continue
+    ! IMPORTANT: ESMF_STest() prints the PASS string and the # of processors in the log
+    ! file that the scripts grep for.
+    call ESMF_STest((finalrc.eq.ESMF_SUCCESS), testname, failMsg, result, ESMF_SRCLINE)
+
+
     call ESMF_Finalize(rc=rc)
 
     if (rc.NE.ESMF_SUCCESS) finalrc = ESMF_FAILURE

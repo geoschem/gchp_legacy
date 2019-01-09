@@ -1,7 +1,7 @@
-!  $Id: ESMF_Comp_C.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
+!  $Id$
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2012, University Corporation for Atmospheric Research, 
+! Copyright 2002-2018, University Corporation for Atmospheric Research, 
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
 ! Laboratory, University of Michigan, National Centers for Environmental 
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
@@ -24,7 +24,7 @@
 !------------------------------------------------------------------------------
 ! The following line turns the CVS identifier string into a printable variable.
 !character(*), parameter, private :: version = &
-!  '$Id: ESMF_Comp_C.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $'
+!  '$Id$'
 !==============================================================================
 
 !------------------------------------------------------------------------------
@@ -33,13 +33,35 @@
 ! 
 ! The code in this file implements the interface code between C++ and F90
 !  for the {\tt Component} entry points.  When the user calls an
-!  {\tt ESMC_Comp}XXX method, that code calls these functions, which
+!  ESMC_CompXXX method, that code calls these functions, which
 !  in turn call the F90 module code.  C++ cannot call directly into an
 !  F90 module because the module routine names are altered in a similar
 !  fashion as C++ name mangling.
 ! 
 !EOP
 !------------------------------------------------------------------------------
+
+#undef  ESMF_METHOD
+#define ESMF_METHOD "f_esmf_compresetvmreleased"
+recursive subroutine f_esmf_compresetvmreleased(comp, rc)
+  use ESMF_UtilTypesMod      ! ESMF utility types
+  use ESMF_BaseMod           ! ESMF base class
+  use ESMF_CompMod
+
+  implicit none
+
+  type(ESMF_CWrap)   :: comp
+  integer            :: rc
+
+  ! Initialize return code; assume routine not implemented
+  rc = ESMF_RC_NOT_IMPL
+
+  comp%compp%vm_released = .false.  ! reset
+  
+  ! return successfully
+  rc = ESMF_SUCCESS
+
+end subroutine f_esmf_compresetvmreleased
 
 #undef  ESMF_METHOD
 #define ESMF_METHOD "f_esmf_compsetvminfo"
@@ -62,6 +84,44 @@ recursive subroutine f_esmf_compsetvminfo(comp, vm_info, rc)
 end subroutine f_esmf_compsetvminfo
 
 #undef  ESMF_METHOD
+#define ESMF_METHOD "f_esmf_compgetcurrentphase"
+recursive subroutine f_esmf_compgetcurrentphase(comp, currentPhase, rc)
+  use ESMF_UtilTypesMod      ! ESMF utility types
+  use ESMF_BaseMod           ! ESMF base class
+  use ESMF_CompMod
+
+  implicit none
+
+  type(ESMF_CWrap)   :: comp
+  integer            :: currentPhase
+  integer            :: rc
+
+  ! Initialize return code; assume routine not implemented
+  rc = ESMF_RC_NOT_IMPL
+
+  call ESMF_CompGet(compp=comp%compp, currentPhase=currentPhase, rc=rc)
+end subroutine f_esmf_compgetcurrentphase
+
+#undef  ESMF_METHOD
+#define ESMF_METHOD "f_esmf_compgettimeout"
+recursive subroutine f_esmf_compgettimeout(comp, timeout, rc)
+  use ESMF_UtilTypesMod      ! ESMF utility types
+  use ESMF_BaseMod           ! ESMF base class
+  use ESMF_CompMod
+
+  implicit none
+
+  type(ESMF_CWrap)   :: comp
+  integer            :: timeout
+  integer            :: rc
+
+  ! Initialize return code; assume routine not implemented
+  rc = ESMF_RC_NOT_IMPL
+
+  call ESMF_CompGet(compp=comp%compp, timeout=timeout, rc=rc)
+end subroutine f_esmf_compgettimeout
+
+#undef  ESMF_METHOD
 #define ESMF_METHOD "f_esmf_compgetvminfo"
 recursive subroutine f_esmf_compgetvminfo(comp, vm_info, rc)
   use ESMF_UtilTypesMod      ! ESMF utility types
@@ -80,6 +140,33 @@ recursive subroutine f_esmf_compgetvminfo(comp, vm_info, rc)
 
   call ESMF_CompGet(compp=comp%compp, vm_info=vm_info, rc=rc)
 end subroutine f_esmf_compgetvminfo
+
+#undef  ESMF_METHOD
+#define ESMF_METHOD "f_esmf_compgetvm"
+recursive subroutine f_esmf_compgetvm(comp, vm, rc)
+  use ESMF_UtilTypesMod      ! ESMF utility types
+  use ESMF_BaseMod           ! ESMF base class
+  use ESMF_CompMod
+  use ESMF_VMMod
+  use ESMF_InitMacrosMod
+  
+  implicit none
+
+  type(ESMF_CWrap) :: comp
+  type(ESMF_VM)    :: vm
+  integer          :: rc
+  
+  type(ESMF_VM)      :: local_vm
+  type(ESMF_Pointer) :: this
+
+  ! Initialize return code; assume routine not implemented
+  rc = ESMF_RC_NOT_IMPL
+
+  call ESMF_CompGet(compp=comp%compp, vm=local_vm, rc=rc)
+
+  call ESMF_VMGetThis(local_vm, this, rc=rc)  ! Get C++ address
+  call ESMF_VMSetThis(vm, this, rc=rc)        ! Set C++ address
+end subroutine f_esmf_compgetvm
 
 #undef  ESMF_METHOD
 #define ESMF_METHOD "f_esmf_compgetvmparent"
@@ -136,6 +223,77 @@ recursive subroutine f_esmf_compgetvmplan(comp, vmplan, rc)
   call ESMF_VMPlanSetThis(vmplan, this, rc=rc)        ! Set C++ address
 end subroutine f_esmf_compgetvmplan
 
+#undef  ESMF_METHOD
+#define ESMF_METHOD "f_esmf_compgettunnel"
+recursive subroutine f_esmf_compgettunnel(comp, tunnel, rc)
+  use ESMF_UtilTypesMod      ! ESMF utility types
+  use ESMF_BaseMod           ! ESMF base class
+  use ESMF_CompMod
+  use ESMF_InitMacrosMod
+  
+  implicit none
+
+  type(ESMF_CWrap)      :: comp
+  type(ESMF_CompTunnel) :: tunnel
+  integer               :: rc
+  
+  ! Initialize return code; assume routine not implemented
+  rc = ESMF_RC_NOT_IMPL
+
+  call ESMF_CompGet(compp=comp%compp, compTunnel=tunnel, rc=rc)
+
+end subroutine f_esmf_compgettunnel
+
+#undef  ESMF_METHOD
+#define ESMF_METHOD "f_esmf_compgetftable"
+recursive subroutine f_esmf_compgetftable(comp, ftable, rc)
+  use ESMF_UtilTypesMod      ! ESMF utility types
+  use ESMF_BaseMod           ! ESMF base class
+  use ESMF_CompMod
+  use ESMF_InitMacrosMod
+  
+  implicit none
+
+  type(ESMF_CWrap)      :: comp
+  type(ESMF_Pointer)    :: ftable
+  integer               :: rc
+  
+  ! Initialize return code; assume routine not implemented
+  rc = ESMF_RC_NOT_IMPL
+
+  ftable = comp%compp%ftable
+  
+  ! return successfully
+  rc = ESMF_SUCCESS
+
+end subroutine f_esmf_compgetftable
+
+#undef  ESMF_METHOD
+#define ESMF_METHOD "f_esmf_compgetbase"
+recursive subroutine f_esmf_compgetbase(comp, base, rc)
+  use ESMF_UtilTypesMod      ! ESMF utility types
+  use ESMF_BaseMod           ! ESMF base class
+  use ESMF_CompMod
+  use ESMF_InitMacrosMod
+  
+  implicit none
+
+  type(ESMF_CWrap)      :: comp
+  type(ESMF_Base)       :: base
+  integer               :: rc
+  
+  ! Initialize return code; assume routine not implemented
+  rc = ESMF_RC_NOT_IMPL
+
+! Only copying this pointer, not copying initializers on purpose
+! in case the passed in base pointer comes from C side and only
+! has space for a single address.
+  base%this = comp%compp%base%this
+  
+  ! return successfully
+  rc = ESMF_SUCCESS
+
+end subroutine f_esmf_compgetbase
 
 #undef  ESMF_METHOD
 #define ESMF_METHOD "f_esmf_compinsertvm"
@@ -217,7 +375,7 @@ recursive subroutine f_esmf_compreplicate(comp, comp_src, vm, rc)
   allocate(compclass)
   compclass = comp_src%compp
   call ESMF_CompClassSetInitCreated(compclass)
-  call c_ESMC_FTableCreate(compclass%this, localrc) 
+  call c_ESMC_FTableCreate(compclass%ftable, localrc) 
   if (ESMF_LogFoundError(localrc, &
     ESMF_ERR_PASSTHRU, &
     ESMF_CONTEXT, rcToReturn=rc)) return
@@ -282,8 +440,8 @@ end subroutine f_esmf_compdelete
 
 
 #undef  ESMF_METHOD
-#define ESMF_METHOD "f_esmf_compcollectgarbage()"
-subroutine f_esmf_compcollectgarbage(comp, rc)
+#define ESMF_METHOD "f_esmf_compcollectgarbage1()"
+recursive subroutine f_esmf_compcollectgarbage1(comp, rc)
   use ESMF_UtilTypesMod
   use ESMF_BaseMod
   use ESMF_LogErrMod
@@ -292,18 +450,63 @@ subroutine f_esmf_compcollectgarbage(comp, rc)
   implicit none
 
   type(ESMF_CWrap)     :: comp
-  integer, intent(out) :: rc     
+  integer, intent(out) :: rc
 
-  integer :: localrc              
+  integer :: localrc
+  integer :: timeout
+  logical :: timeoutFlag
 
   ! initialize return code; assume routine not implemented
   localrc = ESMF_RC_NOT_IMPL
   rc = ESMF_RC_NOT_IMPL
 
-  !print *, "collecting Component garbage"
+  !print *, "collecting Component garbage #1"
 
-  ! destruct internal data allocations
-  call ESMF_CompDestruct(comp%compp, rc=localrc)
+  ! only wrap up the inter component communications, but do no take down
+  ! data structures that may render this call collective
+  timeout = 10  ! allow for 10s timeout
+  ! calling with 'timeoutFlag' prevents timeout to propagate as error condition
+  call ESMF_CompDestruct(comp%compp, interCompComm=.true., &
+    fullShutdown=.false., timeout=timeout, timeoutFlag=timeoutFlag, rc=localrc)
+  if (ESMF_LogFoundError(localrc, &
+    ESMF_ERR_PASSTHRU, &
+    ESMF_CONTEXT, rcToReturn=rc)) return
+
+  ! return successfully  
+  rc = ESMF_SUCCESS
+
+end subroutine f_esmf_compcollectgarbage1
+  
+  
+#undef  ESMF_METHOD
+#define ESMF_METHOD "f_esmf_compcollectgarbage2()"
+recursive subroutine f_esmf_compcollectgarbage2(comp, rc)
+  use ESMF_UtilTypesMod
+  use ESMF_BaseMod
+  use ESMF_LogErrMod
+  use ESMF_CompMod
+  
+  implicit none
+
+  type(ESMF_CWrap)     :: comp
+  integer, intent(out) :: rc
+
+  integer :: localrc
+  integer :: timeout
+  logical :: timeoutFlag
+
+  ! initialize return code; assume routine not implemented
+  localrc = ESMF_RC_NOT_IMPL
+  rc = ESMF_RC_NOT_IMPL
+
+  !print *, "collecting Component garbage #2"
+
+  ! destruct internal data allocations and perform full shut down, making this
+  ! call collective on some MPI implementations
+  timeout = 10  ! allow for 10s timeout
+  ! calling with 'timeoutFlag' prevents timeout to propagate as error condition
+  call ESMF_CompDestruct(comp%compp, interCompComm=.false., &
+    fullShutdown=.true., timeout=timeout, timeoutFlag=timeoutFlag, rc=localrc)
   if (ESMF_LogFoundError(localrc, &
     ESMF_ERR_PASSTHRU, &
     ESMF_CONTEXT, rcToReturn=rc)) return
@@ -319,9 +522,52 @@ subroutine f_esmf_compcollectgarbage(comp, rc)
   ! return successfully  
   rc = ESMF_SUCCESS
 
-end subroutine f_esmf_compcollectgarbage
+end subroutine f_esmf_compcollectgarbage2
   
   
+#undef  ESMF_METHOD
+#define ESMF_METHOD "f_esmf_compexecute"
+subroutine f_esmf_compexecute(comp, method, importState, exportState, clock, &
+  syncflag, phase, timeout, userRc, rc)
+  use ESMF_UtilTypesMod      ! ESMF utility types
+  use ESMF_BaseMod           ! ESMF base class
+  use ESMF_ClockMod
+  use ESMF_ClockTypeMod
+  use ESMF_StateMod
+  use ESMF_CompMod
+  use ESMF_GridCompMod
+  use ESMF_InitMacrosMod
+  
+  implicit none
+
+  type(ESMF_CWrap)      :: comp
+  type(ESMF_Method_Flag):: method
+  type(ESMF_State)      :: importState
+  type(ESMF_State)      :: exportState
+  type(ESMF_Clock)      :: clock
+  type(ESMF_Sync_Flag)  :: syncflag
+  integer               :: phase
+  integer               :: timeout
+  integer               :: userRc
+  integer               :: rc
+
+  type(ESMF_Clock)   :: local_clock
+  type(ESMF_Pointer) :: this
+
+  ! Initialize return code; assume routine not implemented
+  rc = ESMF_RC_NOT_IMPL
+
+  ! Construct a local copy of the incoming clock with initializers
+  call ESMF_ClockGetThis(clock, this, rc=rc)
+  call ESMF_ClockSetThis(local_clock, this, rc=rc)
+  call ESMF_ClockSetInitCreated(local_clock)
+
+  call ESMF_CompExecute(comp%compp, method=method, importState=importState, &
+    exportState=exportState, clock=local_clock, &
+    syncflag=syncflag, phase=phase, timeout=timeout, userRc=userRc, rc=rc)
+
+end subroutine f_esmf_compexecute
+
 !------------------------------------------------------------------------------
 
 #undef  ESMF_METHOD
@@ -392,14 +638,14 @@ subroutine f_esmf_gridcompinitialize(comp, importState, exportState, clock, &
   
   implicit none
 
-  type(ESMF_GridComp)     :: comp      
-  type(ESMF_State)        :: importState
-  type(ESMF_State)        :: exportState
-  type(ESMF_Clock)        :: clock
-  type(ESMF_Sync_Flag) :: syncflag
-  integer                 :: phase
-  integer                 :: userRc
-  integer                 :: rc
+  type(ESMF_GridComp)   :: comp
+  type(ESMF_State)      :: importState
+  type(ESMF_State)      :: exportState
+  type(ESMF_Clock)      :: clock
+  type(ESMF_Sync_Flag)  :: syncflag
+  integer               :: phase
+  integer               :: userRc
+  integer               :: rc
 
   type(ESMF_Clock)   :: local_clock
   type(ESMF_Pointer) :: this
@@ -432,14 +678,14 @@ subroutine f_esmf_gridcomprun(comp, importState, exportState, clock, &
   
   implicit none
 
-  type(ESMF_GridComp)     :: comp      
-  type(ESMF_State)        :: importState
-  type(ESMF_State)        :: exportState
-  type(ESMF_Clock)        :: clock
-  type(ESMF_Sync_Flag) :: syncflag
-  integer                 :: phase
-  integer                 :: userRc
-  integer                 :: rc
+  type(ESMF_GridComp)   :: comp
+  type(ESMF_State)      :: importState
+  type(ESMF_State)      :: exportState
+  type(ESMF_Clock)      :: clock
+  type(ESMF_Sync_Flag)  :: syncflag
+  integer               :: phase
+  integer               :: userRc
+  integer               :: rc
 
   type(ESMF_Clock)   :: local_clock
   type(ESMF_Pointer) :: this
@@ -472,14 +718,14 @@ subroutine f_esmf_gridcompfinalize(comp, importState, exportState, clock, &
   
   implicit none
 
-  type(ESMF_GridComp)     :: comp      
-  type(ESMF_State)        :: importState
-  type(ESMF_State)        :: exportState
-  type(ESMF_Clock)        :: clock
-  type(ESMF_Sync_Flag) :: syncflag
-  integer                 :: phase
-  integer                 :: userRc
-  integer                 :: rc
+  type(ESMF_GridComp)   :: comp
+  type(ESMF_State)      :: importState
+  type(ESMF_State)      :: exportState
+  type(ESMF_Clock)      :: clock
+  type(ESMF_Sync_Flag)  :: syncflag
+  integer               :: phase
+  integer               :: userRc
+  integer               :: rc
 
   type(ESMF_Clock)   :: local_clock
   type(ESMF_Pointer) :: this
@@ -508,7 +754,7 @@ subroutine f_esmf_gridcompset(comp, rc)
   
   implicit none
 
-  type(ESMF_GridComp) :: comp      
+  type(ESMF_GridComp) :: comp
   integer             :: rc     
 
   ! Initialize return code; assume routine not implemented
@@ -530,7 +776,7 @@ subroutine f_esmf_gridcompget(comp, rc)
   
   implicit none
 
-  type(ESMF_GridComp) :: comp      
+  type(ESMF_GridComp) :: comp
   integer             :: rc     
 
   ! Initialize return code; assume routine not implemented
@@ -550,7 +796,7 @@ subroutine f_esmf_gridcompvalidate(comp, rc)
   
   implicit none
 
-  type(ESMF_GridComp) :: comp      
+  type(ESMF_GridComp) :: comp
   integer             :: rc     
 
   ! Initialize return code; assume routine not implemented
@@ -570,7 +816,7 @@ subroutine f_esmf_gridcompprint(comp, rc)
   
   implicit none
 
-  type(ESMF_GridComp) :: comp      
+  type(ESMF_GridComp) :: comp
   integer             :: rc     
 
   ! Initialize return code; assume routine not implemented
@@ -651,14 +897,14 @@ subroutine f_esmf_cplcompinitialize(comp, importState, exportState, clock, &
   
   implicit none
 
-  type(ESMF_CplComp)      :: comp      
-  type(ESMF_State)        :: importState
-  type(ESMF_State)        :: exportState
-  type(ESMF_Clock)        :: clock
-  type(ESMF_Sync_Flag) :: syncflag
-  integer                 :: phase
-  integer                 :: userRc     
-  integer                 :: rc     
+  type(ESMF_CplComp)    :: comp
+  type(ESMF_State)      :: importState
+  type(ESMF_State)      :: exportState
+  type(ESMF_Clock)      :: clock
+  type(ESMF_Sync_Flag)  :: syncflag
+  integer               :: phase
+  integer               :: userRc     
+  integer               :: rc     
 
   type(ESMF_Clock)   :: local_clock
   type(ESMF_Pointer) :: this
@@ -691,14 +937,14 @@ subroutine f_esmf_cplcomprun(comp, importState, exportState, clock, &
   
   implicit none
 
-  type(ESMF_CplComp)      :: comp      
-  type(ESMF_State)        :: importState
-  type(ESMF_State)        :: exportState
-  type(ESMF_Clock)        :: clock
-  type(ESMF_Sync_Flag) :: syncflag
-  integer                 :: phase
-  integer                 :: userRc     
-  integer                 :: rc     
+  type(ESMF_CplComp)    :: comp
+  type(ESMF_State)      :: importState
+  type(ESMF_State)      :: exportState
+  type(ESMF_Clock)      :: clock
+  type(ESMF_Sync_Flag)  :: syncflag
+  integer               :: phase
+  integer               :: userRc     
+  integer               :: rc     
 
   type(ESMF_Clock)   :: local_clock
   type(ESMF_Pointer) :: this
@@ -731,14 +977,14 @@ subroutine f_esmf_cplcompfinalize(comp, importState, exportState, clock, &
   
   implicit none
 
-  type(ESMF_CplComp)      :: comp      
-  type(ESMF_State)        :: importState
-  type(ESMF_State)        :: exportState
-  type(ESMF_Clock)        :: clock
-  type(ESMF_Sync_Flag) :: syncflag
-  integer                 :: phase
-  integer                 :: userRc
-  integer                 :: rc
+  type(ESMF_CplComp)    :: comp
+  type(ESMF_State)      :: importState
+  type(ESMF_State)      :: exportState
+  type(ESMF_Clock)      :: clock
+  type(ESMF_Sync_Flag)  :: syncflag
+  integer               :: phase
+  integer               :: userRc
+  integer               :: rc
 
   type(ESMF_Clock)   :: local_clock
   type(ESMF_Pointer) :: this
@@ -767,7 +1013,7 @@ subroutine f_esmf_cplcompset(comp, rc)
   
   implicit none
 
-  type(ESMF_CplComp) :: comp      
+  type(ESMF_CplComp) :: comp
   integer            :: rc     
 
   ! Initialize return code; assume routine not implemented
@@ -789,7 +1035,7 @@ subroutine f_esmf_cplcompget(comp, rc)
   
   implicit none
 
-  type(ESMF_CplComp) :: comp      
+  type(ESMF_CplComp) :: comp
   integer            :: rc     
 
   rc = ESMF_SUCCESS
@@ -808,7 +1054,7 @@ subroutine f_esmf_cplcompvalidate(comp, rc)
   
   implicit none
 
-  type(ESMF_CplComp) :: comp      
+  type(ESMF_CplComp) :: comp
   integer            :: rc     
 
   call ESMF_CplCompValidate(comp, rc=rc)
@@ -825,7 +1071,7 @@ subroutine f_esmf_cplcompprint(comp, rc)
   
   implicit none
 
-  type(ESMF_CplComp) :: comp      
+  type(ESMF_CplComp) :: comp
   integer            :: rc     
 
   ! Initialize return code; assume routine not implemented
@@ -833,3 +1079,138 @@ subroutine f_esmf_cplcompprint(comp, rc)
 
   call ESMF_CplCompPrint(comp, rc=rc)
 end subroutine f_esmf_cplcompprint
+
+!------------------------------------------------------------------------------
+
+#undef  ESMF_METHOD
+#define ESMF_METHOD "f_esmf_scicompcreate"
+subroutine f_esmf_scicompcreate(scomp, name, rc)
+  use ESMF_UtilTypesMod      ! ESMF utility types
+  use ESMF_BaseMod           ! ESMF base class
+  use ESMF_CompMod
+  use ESMF_SciCompMod
+  use ESMF_InitMacrosMod
+  
+  implicit none
+
+  type(ESMF_SciComp)        :: scomp
+  character(len=*)          :: name
+  integer                   :: rc
+
+  type(ESMF_Pointer) :: this
+
+  ! Initialize return code; assume routine not implemented
+  rc = ESMF_RC_NOT_IMPL
+
+  scomp = ESMF_SciCompCreate(name=name, rc=rc)
+
+end subroutine f_esmf_scicompcreate
+
+
+#undef  ESMF_METHOD
+#define ESMF_METHOD "f_esmf_scicompdestroy"
+subroutine f_esmf_scicompdestroy(comp, rc)
+  use ESMF_UtilTypesMod      ! ESMF utility types
+  use ESMF_BaseMod           ! ESMF base class
+  use ESMF_CompMod
+  use ESMF_SciCompMod
+  use ESMF_InitMacrosMod
+  
+  implicit none
+
+  type(ESMF_SciComp)  :: comp
+  integer             :: rc              
+
+  call ESMF_SciCompDestroy(comp, rc=rc)
+
+end subroutine f_esmf_scicompdestroy
+
+
+#undef  ESMF_METHOD
+#define ESMF_METHOD "f_esmf_scicompset"
+subroutine f_esmf_scicompset(comp, rc)
+  use ESMF_UtilTypesMod      ! ESMF utility types
+  use ESMF_BaseMod           ! ESMF base class
+  use ESMF_CompMod
+  use ESMF_SciCompMod
+  use ESMF_InitMacrosMod
+  
+  implicit none
+
+  type(ESMF_SciComp)  :: comp
+  integer             :: rc     
+
+  ! Initialize return code; assume routine not implemented
+  rc = ESMF_RC_NOT_IMPL
+
+  call ESMF_SciCompSet(comp)
+
+  rc = ESMF_SUCCESS
+
+end subroutine f_esmf_scicompset
+
+
+#undef  ESMF_METHOD
+#define ESMF_METHOD "f_esmf_scicompget"
+subroutine f_esmf_scicompget(comp, rc)
+  use ESMF_UtilTypesMod      ! ESMF utility types
+  use ESMF_BaseMod           ! ESMF base class
+  use ESMF_CompMod
+  use ESMF_SciCompMod
+  use ESMF_InitMacrosMod
+  
+  implicit none
+
+  type(ESMF_SciComp)  :: comp
+  integer             :: rc     
+
+  ! Initialize return code; assume routine not implemented
+  rc = ESMF_RC_NOT_IMPL
+
+  call ESMF_SciCompGet(comp)
+
+end subroutine f_esmf_scicompget
+
+
+#undef  ESMF_METHOD
+#define ESMF_METHOD "f_esmf_scicompvalidate"
+subroutine f_esmf_scicompvalidate(comp, rc)
+  use ESMF_UtilTypesMod      ! ESMF utility types
+  use ESMF_BaseMod           ! ESMF base class
+  use ESMF_CompMod
+  use ESMF_SciCompMod
+  use ESMF_InitMacrosMod
+  
+  implicit none
+
+  type(ESMF_SciComp)  :: comp
+  integer             :: rc     
+
+  ! Initialize return code; assume routine not implemented
+  rc = ESMF_RC_NOT_IMPL
+
+  call ESMF_SciCompValidate(comp, rc=rc)
+
+end subroutine f_esmf_scicompvalidate
+
+
+#undef  ESMF_METHOD
+#define ESMF_METHOD "f_esmf_scicompprint"
+subroutine f_esmf_scicompprint(comp, rc)
+  use ESMF_UtilTypesMod      ! ESMF utility types
+  use ESMF_BaseMod           ! ESMF base class
+  use ESMF_CompMod
+  use ESMF_SciCompMod
+  use ESMF_InitMacrosMod
+  
+  implicit none
+
+  type(ESMF_SciComp)  :: comp
+  integer             :: rc     
+
+  ! Initialize return code; assume routine not implemented
+  rc = ESMF_RC_NOT_IMPL
+
+  call ESMF_SciCompPrint(comp, rc=rc)
+
+end subroutine f_esmf_scicompprint

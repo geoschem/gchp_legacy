@@ -1,7 +1,7 @@
-// $Id: ESMC_State.C,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
+// $Id$
 //
 // Earth System Modeling Framework
-// Copyright 2002-2012, University Corporation for Atmospheric Research, 
+// Copyright 2002-2018, University Corporation for Atmospheric Research, 
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
 // Laboratory, University of Michigan, National Centers for Environmental 
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
@@ -22,15 +22,12 @@
 // in the companion file ESMC_State.h
 //
 //-----------------------------------------------------------------------------
-//
-
 // associated header file
 #include "ESMC_State.h"
 
 // include ESMF headers
 #include "ESMCI_Arg.h"
 #include "ESMCI_LogErr.h"
-#include "ESMF_LogMacros.inc"             // for LogErr
 #include "ESMCI_State.h"
 
 //-----------------------------------------------------------------------------
@@ -45,7 +42,7 @@
 
 // leave the following line as-is; it will insert the cvs ident string
 // into the object file for tracking purposes.
-static const char *const version = "$Id: ESMC_State.C,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $";
+static const char *const version = "$Id$";
 //-----------------------------------------------------------------------------
 
 //
@@ -56,6 +53,8 @@ static const char *const version = "$Id: ESMC_State.C,v 1.1.5.1 2013-01-11 20:23
 //
 //
 
+extern "C" {
+
 //-----------------------------------------------------------------------------
 #undef  ESMC_METHOD
 #define ESMC_METHOD "ESMC_StateCreate()"
@@ -63,7 +62,6 @@ static const char *const version = "$Id: ESMC_State.C,v 1.1.5.1 2013-01-11 20:23
 // !IROUTINE:  ESMC_StateCreate - Create a new State
 //
 
-extern "C" {
 // !INTERFACE:
       ESMC_State ESMC_StateCreate(
 //
@@ -78,21 +76,22 @@ extern "C" {
 //      Create a new State.
 //
 //EOP
-   //Local variables
-    int localrc;
-
     // Initialize return code. Assume routine not implemented
-    if (rc) *rc = ESMF_RC_NOT_IMPL;
-    localrc = ESMF_RC_NOT_IMPL;
+    int localrc = ESMC_RC_NOT_IMPL;         // local return code
+    if (rc!=NULL) *rc = ESMC_RC_NOT_IMPL;   // final return code
 
-    ESMC_State state = NULL;  // initialize
+    ESMC_State state;
 
-    // Invoque the C++ interface
-    state = (void *)ESMCI::State::create(name, &localrc);
-    if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, rc))
+    // call into ESMCI method 
+    state.ptr = (void *)ESMCI::State::create(name, &localrc);
+    if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, ESMC_CONTEXT,
+      rc)){
+      state.ptr = NULL; // invalidate
       return state; // bail out
+    }
 
-    rc = &localrc;
+    // return successfully
+    if (rc!=NULL) *rc = ESMF_SUCCESS;
     return state;
 
  } // end ESMC_StateCreate
@@ -117,22 +116,19 @@ extern "C" {
 //      Add an array to an existing state
 //
 //EOP
-      //local variables
-      int rc;
-      int localrc;
+    // initialize return code; assume routine not implemented
+    int localrc = ESMC_RC_NOT_IMPL;         // local return code
+    int rc = ESMC_RC_NOT_IMPL;              // final return code
 
-      //Initialize return code
-      rc = ESMF_RC_NOT_IMPL;
-      localrc = ESMF_RC_NOT_IMPL;
-      
-      localrc = ((ESMCI::State*)state)->addArray((ESMCI::Array*)array.ptr);
-      if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU,&rc))
-        return localrc;
+    localrc = ((ESMCI::State*)state.ptr)->addArray((ESMCI::Array*)array.ptr);
+    if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, ESMC_CONTEXT,
+      &rc)) return rc;
 
-      rc = localrc;
-      return rc;
+    // return successfully
+    rc = ESMF_SUCCESS;
+    return rc;
 
-   } // end ESMC_StateAddArray
+ } // end ESMC_StateAddArray
 
 //-----------------------------------------------------------------------------
 #undef  ESMC_METHOD
@@ -154,22 +150,19 @@ extern "C" {
 //      Add a Field to an existing state
 //
 //EOP
-      //local variables
-      int rc;
-      int localrc;
+    // initialize return code; assume routine not implemented
+    int localrc = ESMC_RC_NOT_IMPL;         // local return code
+    int rc = ESMC_RC_NOT_IMPL;              // final return code
 
-      //Initialize return code
-      rc = ESMF_RC_NOT_IMPL;
-      localrc = ESMF_RC_NOT_IMPL;
-      
-      localrc = ((ESMCI::State*)state)->addField((ESMCI::Field*)field);
-      if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU,&rc))
-        return localrc;
+    localrc = ((ESMCI::State*)state.ptr)->addField((ESMCI::Field*)(field.ptr));
+    if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, ESMC_CONTEXT,
+      &rc)) return rc;
 
-      rc = localrc;
-      return rc;
+    // return successfully
+    rc = ESMF_SUCCESS;
+    return rc;
 
-   } // end ESMC_StateAddField
+  } // end ESMC_StateAddField
 
 //-----------------------------------------------------------------------------
 #undef  ESMC_METHOD
@@ -192,23 +185,20 @@ extern "C" {
 //      Get an array to an existing state
 //
 //EOP
-      //local variables
-      int rc;
-      int localrc;
+    // initialize return code; assume routine not implemented
+    int localrc = ESMC_RC_NOT_IMPL;         // local return code
+    int rc = ESMC_RC_NOT_IMPL;              // final return code
 
-      //Initialize return code
-      rc = ESMF_RC_NOT_IMPL;
-      localrc = ESMF_RC_NOT_IMPL;
+    localrc = ((ESMCI::State*)state.ptr)->getArray(arrayName,
+      (ESMCI::Array**)&(array->ptr));
+    if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, ESMC_CONTEXT,
+      &rc)) return rc;
 
-      localrc = ((ESMCI::State*)state)->getArray(arrayName,
-        (ESMCI::Array**)&(array->ptr));
-      if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU,&rc))
-        return localrc;
+    // return successfully
+    rc = ESMF_SUCCESS;
+    return rc;
 
-      rc = localrc;
-      return rc;
-
-   } // end ESMC_StateGetArray
+  } // end ESMC_StateGetArray
 
 //-----------------------------------------------------------------------------
 #undef  ESMC_METHOD
@@ -231,23 +221,20 @@ extern "C" {
 //      Get a Field to an existing state
 //
 //EOP
-      //local variables
-      int rc;
-      int localrc;
+    // initialize return code; assume routine not implemented
+    int localrc = ESMC_RC_NOT_IMPL;         // local return code
+    int rc = ESMC_RC_NOT_IMPL;              // final return code
 
-      //Initialize return code
-      rc = ESMF_RC_NOT_IMPL;
-      localrc = ESMF_RC_NOT_IMPL;
+    localrc = ((ESMCI::State*)state.ptr)->getField(fieldName,
+      (ESMCI::Field**)&(field->ptr));
+    if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, ESMC_CONTEXT,
+      &rc)) return rc;
 
-      localrc = ((ESMCI::State*)state)->getField(fieldName,
-        (ESMCI::Field**)field);
-      if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU,&rc))
-        return localrc;
+    // return successfully
+    rc = ESMF_SUCCESS;
+    return rc;
 
-      rc = localrc;
-      return rc;
-
-   } // end ESMC_StateGetArray
+  } // end ESMC_StateGetArray
 
 //-----------------------------------------------------------------------------
 #undef  ESMC_METHOD
@@ -262,7 +249,7 @@ extern "C" {
 //    int error return code
 //
 // !ARGUMENTS:
-      ESMC_State state) {    // in - state object to destroy
+      ESMC_State state) {    // in - state object to print
 //
 // !DESCRIPTION:
 //      ESMC routine which prints the internal data of a state
@@ -272,16 +259,17 @@ extern "C" {
 //      (see declaration in ESMC\_State.h)
 //
 //EOP
-// !REQUIREMENTS:
+    // initialize return code; assume routine not implemented
+    int localrc = ESMC_RC_NOT_IMPL;         // local return code
+    int rc = ESMC_RC_NOT_IMPL;              // final return code
 
-    int rc, localrc;
+    localrc = ((ESMCI::State*)state.ptr)->print();
+    if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, ESMC_CONTEXT,
+      &rc)) return rc;
 
-    // Invoque the C++ interface
-    localrc = ((ESMCI::State*)state)->print();
-    if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, &rc))
-      return localrc;
-
-    return rc = localrc;
+    // return successfully
+    rc = ESMF_SUCCESS;
+    return rc;
 
   } // end ESMC_StatePrint
 
@@ -309,230 +297,20 @@ extern "C" {
 //      (see declaration in ESMC\_State.h)
 //
 //EOP
-// !REQUIREMENTS:  
-
-    int rc, localrc;
+    // initialize return code; assume routine not implemented
+    int localrc = ESMC_RC_NOT_IMPL;         // local return code
+    int rc = ESMC_RC_NOT_IMPL;              // final return code
     
-   
-    // Initialize return code; assume routine not implemented
-    rc = ESMC_RC_NOT_IMPL;
-    localrc = ESMC_RC_NOT_IMPL;
-    
-    // typecase into ESMCI type
-    ESMCI::State *statep = (ESMCI::State *)(*state);
-
-    // Invoque the C++ interface
-    localrc = ESMCI::State::destroy(statep);
-    if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, &rc))
-      return localrc;
+    localrc = ESMCI::State::destroy((ESMCI::State*)(state->ptr));
+    if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, ESMC_CONTEXT,
+      &rc)) return localrc;
 
     // invalidate pointer
-    state = NULL;
+    state->ptr = NULL;
 
-  // return successfully
-  rc = ESMF_SUCCESS;
-  return rc;
+    // return successfully
+    rc = ESMF_SUCCESS;
+    return rc;
  }  // end ESMC_StateDestroy
 
 }; // extern "C"
-//-----------------------------------------------------------------------------
-//BOP
-// !IROUTINE:  ESMC_StateConstruct - fill in an already allocated State
-//
-// !INTERFACE:
-     // int ESMC_State::ESMC_StateConstruct(
-//
-// !RETURN VALUE:
-//    int error return code
-//
-// !ARGUMENTS:
-     // void) {
-//
-// !DESCRIPTION:
-//      ESMF routine which fills in the contents of an already
-//      allocated State object.  May need to do additional allocations
-//      as needed.  Must call the corresponding ESMC\_StateDestruct
-//      routine to free the additional memory.  Intended for internal
-//      ESMF use only; end-users use ESMC\_StateCreate, which calls
-//      ESMC\_StateConstruct.  Define for deep classes only.
-//
-//EOP
-// !REQUIREMENTS:  
-
-//
-//  code goes here
-//
-   // int rc;
-
-    // Initialize return code; assume routine not implemented
-    //rc = ESMC_RC_NOT_IMPL;
-
-
-    //return rc;
-
- //} // end ESMC_StateConstruct
-
-//-----------------------------------------------------------------------------
-//BOP
-// !IROUTINE:  ESMC_StateDestruct - release resources associated w/a State
-//
-// !INTERFACE:
-     // int ESMC_State::ESMC_StateDestruct(void) {
-//
-// !RETURN VALUE:
-//    int error return code
-//
-// !ARGUMENTS:
-//    none
-//
-// !DESCRIPTION:
-//      ESMF routine which deallocates any space allocated by
-//      ESMF\_StateConstruct, does any additional cleanup before the
-//      original State object is freed.  Intended for internal ESMF
-//      use only; end-users use ESMC\_StateDestroy, which calls
-//      ESMC\_StateDestruct.  Define for deep classes only.
-//
-//EOP
-// !REQUIREMENTS:  
-
-//
-//  code goes here
-//
-    //int rc;
-
-    // Initialize return code; assume routine not implemented
-    //rc = ESMC_RC_NOT_IMPL;
-
-    //return rc;
-
-// } // end ESMC_StateDestruct
-
-//-----------------------------------------------------------------------------
-//BOP
-// !IROUTINE:  ESMC_StateGet<Value> - get <Value> for a State
-//
-// !INTERFACE:
-      //int ESMC_State::ESMC_StateGet<Value>(
-//
-// !RETURN VALUE:
-//    int error return code
-//
-// !ARGUMENTS:
-      //<value type> *value) const {     // out - value
-//
-// !DESCRIPTION:
-//     Returns the value of State member <Value>.
-//     Can be multiple routines, one per value
-//
-//EOP
-// !REQUIREMENTS:  
-
-//
-//  code goes here
-//
-//  int rc;
-//
-//  // Initialize return code; assume routine not implemented
-//  rc = ESMC_RC_NOT_IMPL;
-
-    //return rc;
-
- //} // end ESMC_StateGet<Value>
-
-//-----------------------------------------------------------------------------
-//BOP
-// !IROUTINE:  ESMC_StateSet<Value> - set <Value> for a State
-//
-// !INTERFACE:
-      //int ESMC_State::ESMC_StateSet<Value>(
-//
-// !RETURN VALUE:
-//    int error return code
-//
-// !ARGUMENTS:
-      //<value type> value) {     // in - value
-//
-// !DESCRIPTION:
-//     Sets the State member <Value> with the given value.
-//     Can be multiple routines, one per value
-//
-//EOP
-// !REQUIREMENTS:  
-
-//
-//  code goes here
-//
-//  int rc;
-//
-//  // Initialize return code; assume routine not implemented
-//  rc = ESMC_RC_NOT_IMPL;
-
-    //return rc;
-
- //} // end ESMC_StateSet<Value>
-
-//-----------------------------------------------------------------------------
-//BOP
-// !IROUTINE:  ESMC_StateValidate - internal consistency check for a State
-//
-// !INTERFACE:
-      //int ESMC_State::ESMC_StateValidate(
-//
-// !RETURN VALUE:
-//    int error return code
-//
-// !ARGUMENTS:
-      //const char *options) const {    // in - validate options
-//
-// !DESCRIPTION:
-//      Validates that a State is internally consistent.
-//      Returns error code if problems are found.  ESMC\_Base class method.
-//
-//EOP
-// !REQUIREMENTS:  XXXn.n, YYYn.n
-
-//
-//  code goes here
-//
-    //int rc;
-
-    // Initialize return code; assume routine not implemented
-    //rc = ESMC_RC_NOT_IMPL;
-
-    //return rc;
-
-// } // end ESMC_StateValidate
-
-
-//-----------------------------------------------------------------------------
-//BOP
-// !IROUTINE:  ESMC_StatePrint - print contents of a State
-//
-// !INTERFACE:
-     // int ESMC_State::ESMC_StatePrint(
-//
-// !RETURN VALUE:
-//    int error return code
-//
-      //const char *options) const {     //  in - print options
-//
-// !DESCRIPTION:
-//      Print information about a State.  The options control the
-//      type of information and level of detail.  ESMC\_Base class method.
-//
-//EOP
-// !REQUIREMENTS:  SSSn.n, GGGn.n
-
-//
-//  code goes here
-//
-    //int rc;
-
-    // Initialize return code; assume routine not implemented
-    //rc = ESMC_RC_NOT_IMPL;
-
-    //return rc;
-
-// } // end ESMC_StatePrint
-
-//-----------------------------------------------------------------------------

@@ -1,7 +1,7 @@
 ! $Id$
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2012, University Corporation for Atmospheric Research,
+! Copyright 2002-2018, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -19,7 +19,7 @@
 #include "ESMF.h"
 
 !BOE
-!\subsubsection{Read Arrays from a netCDF file and add to a State}
+!\subsubsection{Read Arrays from a NetCDF file and add to a State}
 ! \label{example:StateRdWr}
 ! This program shows an example of reading and writing Arrays from a State
 ! from/to a NetCDF file.
@@ -30,6 +30,7 @@
 !BOC
     ! ESMF Framework module
     use ESMF
+    use ESMF_TestMod
     implicit none
 
     ! Local variables
@@ -39,12 +40,28 @@
     type(ESMF_VM) :: vm
     integer :: localPet, rc
 !EOC
-    integer :: finalrc
+    integer :: finalrc, result
+    character(ESMF_MAXSTR) :: testname
+    character(ESMF_MAXSTR) :: failMsg
+
+!-------------------------------------------------------------------------
+!-------------------------------------------------------------------------
+
+    write(failMsg, *) "Example failure"
+    write(testname, *) "Example ESMF_StateReadWriteEx"
+
+
+! ------------------------------------------------------------------------------
+! ------------------------------------------------------------------------------
+
+
     finalrc = ESMF_SUCCESS
 
     call ESMF_Initialize(vm=vm, defaultlogfilename="StateReadWriteEx.Log", &
                      logkindflag=ESMF_LOGKIND_MULTI, rc=rc)
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
     call ESMF_VMGet(vm, localPet=localPet, rc=rc)
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
     state = ESMF_StateCreate(name="Ocean Import",  &
                              stateintent=ESMF_STATEINTENT_IMPORT, rc=rc)  
@@ -129,7 +146,7 @@
 
 !-------------------------------------------------------------------------
 !BOE
-!\subsubsection{Write Array data within a State to a netCDF file}
+!\subsubsection{Write Array data within a State to a NetCDF file}
 !
 !  All the Array data within the State on PET 0 can be written out to a NetCDF
 !  file as follows:
@@ -162,6 +179,12 @@
     if (rc.NE.ESMF_SUCCESS) finalrc = ESMF_FAILURE
 
  10 continue  ! Exit point if NetCDF not present (PET 0)
+
+    ! IMPORTANT: ESMF_STest() prints the PASS string and the # of processors in the log
+    ! file that the scripts grep for.
+    call ESMF_STest((finalrc.eq.ESMF_SUCCESS), testname, failMsg, result, ESMF_SRCLINE)
+
+
     call ESMF_Finalize(rc=rc)
     if (rc.NE.ESMF_SUCCESS) finalrc = ESMF_FAILURE
 

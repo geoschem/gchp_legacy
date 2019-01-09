@@ -5,8 +5,8 @@ ALL: onedoc
 LOCDIR	  = src/Superstructure/AttachMethods/doc
 
 DVIFILES  = AttachMethods_refdoc.dvi
-PDFFILES  = $(ESMC_DOCDIR)/AttachMethods_refdoc.pdf
-HTMLFILES = $(ESMC_DOCDIR)/AttachMethods_refdoc
+PDFFILES  = AttachMethods_refdoc.pdf
+HTMLFILES = AttachMethods_refdoc
 
 #
 # Tex Files to make

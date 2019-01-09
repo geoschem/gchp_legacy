@@ -20,7 +20,6 @@ module ESMF_WebServUserModel
   ! ESMF Framework module
   use ESMF
   use ESMF_TestMod
-  use ESMF_IO_NetCDFMod
 
   implicit none
     
@@ -258,6 +257,7 @@ program ESMF_WebServComponentUTest
     character(ESMF_MAXSTR) :: cname
     character(ESMF_MAXSTR) :: cdesc
     type(ESMF_GridComp)    :: comp1
+    type(ESMF_CplComp)     :: cplComp
     integer                :: portNum
     character(ESMF_MAXSTR) :: clientId
     character(ESMF_MAXSTR) :: argBuffer
@@ -277,6 +277,7 @@ program ESMF_WebServComponentUTest
 !   !  Quick Test - Setup the Web Services Loop
 
     call ESMF_TestStart(ESMF_SRCLINE, rc=rc)
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
  
     !------------------------------------------------------------------------
     ! Setup data parameters for tests
@@ -301,6 +302,20 @@ program ESMF_WebServComponentUTest
 
     !------------------------------------------------------------------------
     !NEX_disable_UTest
+    ! This test added to provide a placeholder when revisiting web services
+    ! testing.
+    rc = ESMF_SUCCESS
+    write(failMsg, *) "Did not return ESMF_SUCCESS"
+    write(name, *) "ESMF_WebServicesCplCompLoop Unit Test"
+
+    call ESMF_WebServicesCplCompLoop(cplComp, rc=rc)
+
+    call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+    print *
+    !------------------------------------------------------------------------
+
+    !------------------------------------------------------------------------
+    !NEX_disable_UTest
     ! Verifing that a ESMF Component Web Service can be registered
     rc = ESMF_SUCCESS
 !!    portNum = 27060
@@ -315,7 +330,7 @@ program ESMF_WebServComponentUTest
     !------------------------------------------------------------------------
  
 
-    call ESMF_TestEnd(result, ESMF_SRCLINE)
+    call ESMF_TestEnd(ESMF_SRCLINE)
 
 end program ESMF_WebServComponentUTest
     

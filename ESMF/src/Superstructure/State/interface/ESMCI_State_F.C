@@ -1,7 +1,7 @@
 // $Id$
 //
 // Earth System Modeling Framework
-// Copyright 2002-2012, University Corporation for Atmospheric Research, 
+// Copyright 2002-2018, University Corporation for Atmospheric Research, 
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
 // Laboratory, University of Michigan, National Centers for Environmental 
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
@@ -20,15 +20,13 @@
 // 
 //
 //-----------------------------------------------------------------------------
-//
-
-#include <string.h>
-
- // insert any higher level, 3rd party or system includes here
-#include "ESMCI_Macros.h"
-
  // associated class definition file
 #include "ESMCI_State.h"
+
+ // insert any higher level, 3rd party or system includes here
+#include <string>
+#include "ESMCI_Macros.h"
+#include "ESMCI_LogErr.h"
 
 //-----------------------------------------------------------------------------
  // leave the following line as-is; it will insert the cvs ident string
@@ -49,7 +47,7 @@ extern "C" {
 //
 
 // non-method functions
-void FTN(c_esmc_stateserialize)(
+void FTN_X(c_esmc_stateserialize)(
                            int *st, 
                            int *datacount, 
                            char *buffer, int *length, int *offset,
@@ -63,17 +61,12 @@ void FTN(c_esmc_stateserialize)(
 
     if (localrc) *localrc = ESMC_RC_NOT_IMPL;
 
-    // TODO: verify length > needed, else realloc longer
-    int fixedpart = 10 * sizeof (int *);
+    int fixedpart = 2 * sizeof (int *);
     if ((*inquireflag != ESMF_INQUIREONLY) && (*length - *offset) < fixedpart) {
          
          ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_BAD,
-                             "Buffer too short to add a State object", localrc);
+           "Buffer too short to serialize a State object", ESMC_CONTEXT, localrc);
          return;
- 
-        //buffer = (char *)realloc((void *)buffer,
-        //                         *length + 2*fixedpart + byte_count);
-        //*length += 2 * fixedpart;
     }
 
 
@@ -92,11 +85,14 @@ void FTN(c_esmc_stateserialize)(
 } 
 
 
-void FTN(c_esmc_statedeserialize)(
+void FTN_X(c_esmc_statedeserialize)(
                              int *st, 
                              int *datacount, 
                              char *buffer, int *offset, int *localrc,
                              ESMCI_FortranStrLenArg buffer_l){
+
+#undef  ESMC_METHOD
+#define ESMC_METHOD "c_esmc_statedeserialize()"
 
     int *ip;
 
@@ -132,7 +128,7 @@ void FTN(c_esmc_statedeserialize)(
 
 #endif
 
-void FTN(c_esmc_stateitemserialize)(int *otype, 
+void FTN_X(c_esmc_stateitemserialize)(int *otype, 
                                char *namep, 
                                char *buffer, int *length, int *offset,
                                ESMC_InquireFlag *inquireflag, int *localrc,
@@ -144,20 +140,26 @@ void FTN(c_esmc_stateitemserialize)(int *otype,
 
     if (localrc) *localrc = ESMC_RC_NOT_IMPL;
 
-    // TODO: verify length > needed, else realloc longer
+
+    int fixedpart = sizeof (int *) + clen;
+    if ((*inquireflag != ESMF_INQUIREONLY) && (*length - *offset) < fixedpart) {
+         
+         ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_BAD,
+           "Buffer too short to serialize a State item", ESMC_CONTEXT, localrc);
+         return;
+    }
 
     ip = (int *)(buffer + *offset);
     if (*inquireflag != ESMF_INQUIREONLY)
-      *ip++ = *otype;
-    else
-      ip++;
+      *ip = *otype;
+    ip++;
 
     cp = (char *)ip;
     if (*inquireflag != ESMF_INQUIREONLY)
       memcpy(cp, namep, clen);
     cp += clen;
 
-    *offset = (char *)ip - buffer;
+    *offset = cp - buffer;
 
     if (localrc) *localrc = ESMF_SUCCESS;
 
@@ -165,11 +167,14 @@ void FTN(c_esmc_stateitemserialize)(int *otype,
 } 
 
 
-void FTN(c_esmc_stateitemdeserialize)(int *otype, 
+void FTN_X(c_esmc_stateitemdeserialize)(int *otype, 
                                char *namep, 
                                char *buffer, int *offset, int *localrc,
                                ESMCI_FortranStrLenArg clen,
                                ESMCI_FortranStrLenArg buffer_l) {
+
+#undef  ESMC_METHOD
+#define ESMC_METHOD "c_esmc_stateitemdeserialize()"
 
     int *ip;
     char *cp;
@@ -178,12 +183,12 @@ void FTN(c_esmc_stateitemdeserialize)(int *otype,
 
     ip = (int *)(buffer + *offset);
     *otype = *ip++;
+
     cp = (char *)ip;
     memcpy(namep, cp, clen);
     cp += clen;
-    ip = (int *)cp;
 
-    *offset = (char *)ip - buffer;
+    *offset = cp - buffer;
 
     if (localrc) *localrc = ESMF_SUCCESS;
 
@@ -192,9 +197,8 @@ void FTN(c_esmc_stateitemdeserialize)(int *otype,
 
 //-----------------------------------------------------------------------------
 
-void FTN(c_esmc_stateread)(State *ptr,
+void FTN_X(c_esmc_stateread)(State *ptr,
                            ESMC_Base **base,
-                           int *fileNameLen,
                            const char *fileName,
                            int *status,
                            ESMCI_FortranStrLenArg fileName_l) {
@@ -203,19 +207,19 @@ void FTN(c_esmc_stateread)(State *ptr,
 
          ESMF_CHECK_POINTER(ptr, status)
 
+         std::string fn = std::string (fileName, fileName_l);
+
          // Read the items and attributes into the state object.
          int rc = (ptr)->State::read(*base, // always present
-                          *fileNameLen, // always present internal argument.
-                          fileName);      // always present
+                          fn);              // always present
 
          if (ESMC_PRESENT(status)) *status = rc;
 }
 
 //-----------------------------------------------------------------------------
 
-void FTN(c_esmc_statewrite)(State *ptr,
+void FTN_X(c_esmc_statewrite)(State *ptr,
                            ESMC_Base **base,
-                           int *fileNameLen,
                            const char *fileName,
                            int *status,
                            ESMCI_FortranStrLenArg fileName_l) {
@@ -224,10 +228,11 @@ void FTN(c_esmc_statewrite)(State *ptr,
 
          ESMF_CHECK_POINTER(ptr, status)
 
+         std::string fn = std::string (fileName, fileName_l);
+
          // Read the items and attributes into the state object.
          int rc = (ptr)->State::write(*base, // always present
-                          *fileNameLen, // always present internal argument.
-                          fileName);    // always present
+                          fn);               // always present
 
          if (ESMC_PRESENT(status)) *status = rc;
 }

@@ -1,7 +1,7 @@
-// $Id: ESMC_CplComp.h,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
+// $Id$
 //
 // Earth System Modeling Framework
-// Copyright 2002-2012, University Corporation for Atmospheric Research, 
+// Copyright 2002-2018, University Corporation for Atmospheric Research, 
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
 // Laboratory, University of Michigan, National Centers for Environmental 
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
@@ -39,7 +39,9 @@ extern "C" {
 #endif
 
 // Class declaration type
-typedef void* ESMC_CplComp;
+typedef struct{
+  void *ptr;
+}ESMC_CplComp;
 
 // Class API
 
@@ -147,7 +149,7 @@ int ESMC_CplCompFinalize(
 //    Component providers must document whether each of their routines are 
 //    {\tt single-phase} or {\tt multi-phase}. Single-phase routines require 
 //    only one invocation to complete their work. Multi-phase routines provide
-//    multiple subroutines to accomplish the work, accomodating components 
+//    multiple subroutines to accomplish the work, accommodating components
 //    which must complete part of their work, return to the caller and allow 
 //    other processing to occur, and then continue the original operation. 
 //    For multiple-phase child components, this is the integer phase number to
@@ -235,7 +237,7 @@ int ESMC_CplCompInitialize(
 //    Component providers must document whether each of their routines are 
 //    {\tt single-phase} or {\tt multi-phase}. Single-phase routines require 
 //    only one invocation to complete their work. Multi-phase routines provide
-//    multiple subroutines to accomplish the work, accomodating components 
+//    multiple subroutines to accomplish the work, accommodating components
 //    which must complete part of their work, return to the caller and allow 
 //    other processing to occur, and then continue the original operation. 
 //    For multiple-phase child components, this is the integer phase number to
@@ -308,7 +310,7 @@ int ESMC_CplCompRun(
 //    Component providers must document whether each of their routines are 
 //    {\tt single-phase} or {\tt multi-phase}. Single-phase routines require 
 //    only one invocation to complete their work. Multi-phase routines provide
-//    multiple subroutines to accomplish the work, accomodating components 
+//    multiple subroutines to accomplish the work, accommodating components
 //    which must complete part of their work, return to the caller and allow 
 //    other processing to occur, and then continue the original operation. 
 //    For multiple-phase child components, this is the integer phase number to
@@ -348,7 +350,7 @@ int ESMC_CplCompSetEntryPoint(
 //  \item[method]
 //    One of a set of predefined Component methods 
 //    - e.g. {\tt ESMF\_METHOD\_INITIALIZE}, {\tt ESMF\_METHOD\_RUN},
-//    {\tt ESMF\_METHOD\_FINALIZE}. See section \ref{opt:method}
+//    {\tt ESMF\_METHOD\_FINALIZE}. See section~\ref{const:cmethod}
 //    for a complete list of valid method options. 
 //  \item[userRoutine]
 //    The user-supplied subroutine to be associated for this Component 

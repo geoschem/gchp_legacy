@@ -1,7 +1,7 @@
 // $Id$
 //
 // Earth System Modeling Framework
-// Copyright 2002-2012, University Corporation for Atmospheric Research, 
+// Copyright 2002-2018, University Corporation for Atmospheric Research, 
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
 // Laboratory, University of Michigan, National Centers for Environmental 
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
@@ -25,7 +25,7 @@
 // !DESCRIPTION:
 //
 // The code in this file defines the ESMC State class prototypes for the
-// fortran interface routines. The companion file ESMC\_State_C.F90  contains
+// Fortran interface routines. The companion file ESMC\_State_C.F90  contains
 // the definitions (full code bodies) for the interface routines.
 //
 // 
@@ -38,6 +38,7 @@
 #include "ESMCI_Field.h"
 #include "ESMCI_F90Interface.h"
 
+#include <string>
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
@@ -83,8 +84,8 @@ namespace ESMCI{
     int getNumArrays(int* numArrays);
     std::vector<std::string>  getArrayNames();
 
-    int read(ESMC_Base* base, int fileNameLen, const char* fileName);
-    int write(ESMC_Base* base, int fileNameLen, const char* fileName);
+    int read(ESMC_Base* base, const std::string &fileName);
+    int write(ESMC_Base* base, const std::string &fileName);
 
   }; // class State
 };// namespace ESMCI

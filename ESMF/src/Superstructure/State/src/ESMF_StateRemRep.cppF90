@@ -1,10 +1,10 @@
 ! $Id$
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2012, University Corporation for Atmospheric Research, 
-! Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
-! Laboratory, University of Michigan, National Centers for Environmental 
-! Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
+! Copyright 2002-2018, University Corporation for Atmospheric Research,
+! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
+! Laboratory, University of Michigan, National Centers for Environmental
+! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
 ! NASA Goddard Space Flight Center.
 ! Licensed under the University of Illinois-NCSA License.
 !==============================================================================
@@ -23,26 +23,23 @@ module ESMF_StateRemRepMod
 !------------------------------------------------------------------------------
 ^include "ESMF.h"
 
-! The following macro is used to get around the first pass preprocessing,
-! which treats the string concatenation operator // as an inline comment.
-^define CONCAT /
-
 !------------------------------------------------------------------------------
 !BOPI
 ! !MODULE: ESMF_StateRemRepMod - Data exchange between components
 !
 ! !DESCRIPTION:
 !
-! The code in this file implements the Fortran implementations 
+! The code in this file implements the Fortran implementations
 !  of the {\tt StateRemove} and {\tt StateReplace} methods.
 !
 !
 ! !USES:
       use ESMF_InitMacrosMod
       use ESMF_LogErrMod
-      use ESMF_UtilTypesMod
       use ESMF_ContainerMod
-      
+      use ESMF_UtilStringMod
+      use ESMF_UtilTypesMod
+
       use ESMF_ArrayMod
       use ESMF_ArrayBundleMod
       use ESMF_FieldMod
@@ -54,18 +51,18 @@ module ESMF_StateRemRepMod
       use ESMF_StateInternalsMod
 
       implicit none
-      
+
 !------------------------------------------------------------------------------
 ! !PRIVATE TYPES:
       private
-      
+
 !------------------------------------------------------------------------------
 
 ! !PUBLIC MEMBER FUNCTIONS:
 
       public :: ESMF_StateRemove
       public :: ESMF_StateReplace
-      
+
 !EOPI
 
 !------------------------------------------------------------------------------
@@ -74,10 +71,29 @@ module ESMF_StateRemRepMod
       '$Id$'
 
 !==============================================================================
-! 
+!
 ! INTERFACE BLOCKS
 !
 !==============================================================================
+
+!------------------------------------------------------------------------------
+!BOPI
+! !IROUTINE: ESMF_StateRemove -- Remove items in a State
+
+! !INTERFACE:
+  interface ESMF_StateRemove
+
+! !PRIVATE MEMBER FUNCTIONS:
+
+    module procedure ESMF_StateRemoveOneItem
+    module procedure ESMF_StateRemoveList
+
+! !DESCRIPTION:
+! This interface provides a single entry point for the various
+! types of {\tt ESMF\_StateReplace} functions.
+!
+!EOPI
+  end interface
 
 !------------------------------------------------------------------------------
 !BOPI
@@ -102,11 +118,11 @@ module ESMF_StateRemRepMod
     module procedure ESMF_StateRepStateList
 
 
-! !DESCRIPTION: 
-! This interface provides a single entry point for the various 
-! types of {\tt ESMF\_StateReplace} functions.   
-!  
-!EOPI 
+! !DESCRIPTION:
+! This interface provides a single entry point for the various
+! types of {\tt ESMF\_StateReplace} functions.
+!
+!EOPI
   end interface
 !------------------------------------------------------------------------------
 
@@ -124,20 +140,26 @@ contains
 ^undef  ESMF_METHOD
 ^define ESMF_METHOD "ESMF_StateRemove"
 !BOP
-! !IROUTINE: ESMF_StateRemove - Remove an item from a State
+! !IROUTINE: ESMF_StateRemove - Remove an item from a State - (DEPRECATED METHOD)
 !
 ! !INTERFACE:
-  subroutine ESMF_StateRemove (state, itemName, keywordEnforcer, rc)
+! ! Private name; call using ESMF_StateRemove ()
+  subroutine ESMF_StateRemoveOneItem (state, itemName, keywordEnforcer,  &
+      relaxedFlag, rc)
 !
 ! !ARGUMENTS:
     type(ESMF_State), intent(inout)          :: state
     character(*),     intent(in)             :: itemName
     type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
+    logical,          intent(in),   optional :: relaxedFlag
     integer,          intent(out),  optional :: rc
-!     
+!
 ! !STATUS:
 ! \begin{itemize}
 ! \item\apiStatusCompatibleVersion{5.2.0r}
+! \item\apiDeprecatedMethodWithReplacement{5.3.1}{ESMF\_StateRemove}{esmfstateremovelist}
+! Rationale:  The list version is consistent with other ESMF container
+! operations which use lists.
 ! \end{itemize}
 !
 ! !DESCRIPTION:
@@ -146,7 +168,7 @@ contains
 ! The arguments are:
 ! \begin{description}
 ! \item[state]
-!      The {\tt ESMF\_State} within which {\tt itemName} will be replaced.
+!      The {\tt ESMF\_State} within which {\tt itemName} will be removed.
 ! \item[itemName]
 !      The name of the item to be removed.  This is a reference only.
 !      The item itself is unchanged.
@@ -154,13 +176,91 @@ contains
 !      If the {\tt state} contains nested {\tt ESMF\_State}s,
 !      the {\tt itemName} argument may specify a fully qualified name
 !      to remove the desired item with a single call.  This is performed
-!      using the ``/'' character to separate the names of the intermediate
+!      using the "/" character to separate the names of the intermediate
 !      State names leading to the desired item.  (E.g.,
-!      {\tt itemName=``state1/state12/item''}.
+!      {\tt itemName="state1/state12/item"}.
+!
+!      Since an item could potentially be referenced by multiple containers,
+!      it remains the responsibility of the user to manage its
+!      destruction when it is no longer in use.
+! \item[{[relaxedflag]}]
+!     A setting of {\tt .true.} indicates a relaxed definition of "remove",
+!     where it is {\em not} an error if {\tt itemName} is not present in the
+!     {\tt state}. For {\tt .false.} this is treated
+!     as an error condition.  The default setting is {\tt .false.}.
+! \item[{[rc]}]
+!      Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
+! \end{description}
+!EOP
+!------------------------------------------------------------------------------
+    integer :: localrc
+
+    ! Initialize return code; assume failure until success is certain
+    if (present(rc)) rc = ESMF_RC_NOT_IMPL
+    localrc = ESMF_RC_NOT_IMPL
+
+    call ESMF_LogWrite (  &
+        "Scalar itemName argument is deprecated.  Use itemNameList instead.",  &
+        logmsgFlag=ESMF_LOGMSG_WARNING, method=ESMF_METHOD,  &
+        rc=localrc)
+
+    call ESMF_StateRemoveList (state, (/ itemName /),  &
+        relaxedflag=relaxedflag,  rc=localrc)
+
+    if (present(rc)) rc = localrc
+
+  end subroutine ESMF_StateRemoveOneItem
+
+
+!-------------------------------------------------------------------------------
+^undef  ESMF_METHOD
+^define ESMF_METHOD "ESMF_StateRemoveList"
+!BOP
+! !IROUTINE: ESMF_StateRemove - Remove a list of items from a State
+! \label{esmfstateremovelist}
+!
+! !INTERFACE:
+! ! Private name; call using ESMF_StateRemove ()
+  subroutine ESMF_StateRemoveList (state, itemNameList, keywordEnforcer, relaxedFlag, rc)
+!
+! !ARGUMENTS:
+    type(ESMF_State), intent(inout)          :: state
+    character(*),     intent(in)             :: itemNameList(:)
+    type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
+    logical,          intent(in),   optional :: relaxedFlag
+    integer,          intent(out),  optional :: rc
+!
+! !STATUS:
+! \begin{itemize}
+! \item\apiStatusCompatibleVersion{5.3.1}
+! \end{itemize}
+!
+! !DESCRIPTION:
+!      Remove existing references to items from a {\tt State}.
+!
+! The arguments are:
+! \begin{description}
+! \item[state]
+!      The {\tt ESMF\_State} within which {\tt itemName} will be removed.
+! \item[itemNameList]
+!      The name of the items to be removed.  This is a reference only.
+!      The items themselves are unchanged.
+!
+!      If the {\tt state} contains nested {\tt ESMF\_State}s,
+!      the {\tt itemName} arguments may specify fully qualified names
+!      to remove the desired items with a single call.  This is performed
+!      using the "/" character to separate the names of the intermediate
+!      State names leading to the desired items.  (E.g.,
+!      {\tt itemName="state1/state12/item"}.
 !
 !      Since items could potentially be referenced by multiple containers,
 !      it remains the responsibility of the user to manage their
 !      destruction when they are no longer in use.
+! \item[{[relaxedflag]}]
+!     A setting of {\tt .true.} indicates a relaxed definition of "remove",
+!     where it is {\em not} an error if an item in the {\tt itemNameList}
+!     is not present in the {\tt state}. For {\tt .false.} this is treated
+!     as an error condition.  The default setting is {\tt .false.}.
 ! \item[{[rc]}]
 !      Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
 ! \end{description}
@@ -169,11 +269,15 @@ contains
 
     type(ESMF_StateItem),  pointer :: dataitem
     type(ESMF_StateClass), pointer :: localstatep
-    logical :: exists
-    integer :: localrc
     character(len=ESMF_MAXSTR) :: errmsg
+    logical :: exists
+    integer :: i
     integer :: ipos, iposnext
+    type(ESMF_Logical) :: linkChange
+    integer :: localrc
+    logical :: localrelaxed
     integer :: memstat
+    integer :: namelen
 
     ! Initialize return code; assume failure until success is certain
     if (present(rc)) rc = ESMF_RC_NOT_IMPL
@@ -182,36 +286,87 @@ contains
     ! check input variables
     ESMF_INIT_CHECK_DEEP(ESMF_StateGetInit,state,rc)
 
-    localstatep => null ()
-    exists = ESMF_StateClassFindData (state%statep,  &
-                                       dataname=itemName, expected=.true., &
-                                       dataitem=dataitem,  &
-                                       dataState=localstatep,  &
-                                       rc=localrc)
-    if (.not. exists) then
-        errmsg = "can not find " CONCAT/ trim (itemname) CONCAT/ " for removal"
-        if (ESMF_LogFoundError(ESMF_RC_NOT_FOUND, msg=errmsg, &
-              ESMF_CONTEXT, rcToReturn=rc)) return
+    localrelaxed = .false.
+    if (present (relaxedFlag)) then
+      localrelaxed = relaxedFlag
     end if
 
-    ipos = 1
-    do
-      iposnext = index (itemname(ipos:), '/')
-      if (iposnext == 0) exit
-      ipos = ipos + iposnext
-    end do
+    do, i=1, size (itemNameList)
+      localstatep => null ()
+      exists = ESMF_StateClassFindData (state%statep,  &
+                                         dataname=itemNameList(i),  &
+                                         expected=.true., &
+                                         dataitem=dataitem,  &
+                                         dataState=localstatep,  &
+                                         rc=localrc)
+      if (.not. exists) then
+        if (localrelaxed) then
+          localrc = ESMF_SUCCESS
+          cycle
+        else
+          errmsg = ESMF_StringConcat ("could not find ",  &
+                   ESMF_StringConcat (trim (itemNameList(i)), " for removal"))
+          if (ESMF_LogFoundError(ESMF_RC_NOT_FOUND, msg=errmsg, &
+                ESMF_CONTEXT, rcToReturn=rc)) return
+        end if
+      end if
 
-    select case (dataitem%otype%ot)
-    case (ESMF_STATEITEM_STATE%ot)
-      localrc = ESMF_RC_NOT_IMPL
-    case default
+      ipos = 1
+      namelen = len_trim (itemNameList(i))
+      do
+        iposnext = index (itemNameList(i)(ipos:namelen), '/')
+        if (iposnext == 0) exit
+        ipos = ipos + iposnext
+      end do
+
       call ESMF_ContainerRemove (localstatep%stateContainer,  &
-          itemNameList=(/ itemname(ipos:len (itemname)) /), rc=localrc)
-    end select
+          itemNameList=(/ itemNameList(i)(ipos:namelen) /), rc=localrc)
+      if (ESMF_LogFoundError(localrc, &
+          ESMF_ERR_PASSTHRU, &
+          ESMF_CONTEXT, rcToReturn=rc)) return
+
+      ! Handle the attribute heirarchy
+      linkChange = ESMF_TRUE
+      select case (dataitem%otype%ot)
+      case (ESMF_STATEITEM_FIELD%ot)
+        call c_ESMC_AttributeLinkRemove(localstatep%base, &
+            dataitem%datap%fp%ftypep%base, linkChange, localrc)
+
+      case (ESMF_STATEITEM_FIELDBUNDLE%ot)
+        call c_ESMC_AttributeLinkRemove(localstatep%base, &
+            dataitem%datap%fbp%this%base, linkChange, localrc)
+
+      case (ESMF_STATEITEM_ARRAY%ot)
+        call c_ESMC_AttributeLinkRemove(localstatep%base, &
+            dataitem%datap%ap, linkChange, localrc)
+
+      case (ESMF_STATEITEM_ARRAYBUNDLE%ot)
+        call c_ESMC_AttributeLinkRemove(localstatep%base, &
+            dataitem%datap%abp, linkChange, localrc)
+
+      case (ESMF_STATEITEM_ROUTEHANDLE%ot)
+        localrc = ESMF_SUCCESS
+
+      case (ESMF_STATEITEM_STATE%ot)
+        call c_ESMC_AttributeLinkRemove(localstatep%base, &
+            dataitem%datap%spp%base, linkChange, localrc)
+
+      end select
+      if (ESMF_LogFoundError(localrc, &
+          ESMF_ERR_PASSTHRU, &
+          ESMF_CONTEXT, rcToReturn=rc)) return
+
+      deallocate (dataitem, stat=memstat)
+      if (ESMF_LogFoundDeallocError(memstat, &
+          ESMF_ERR_PASSTHRU, &
+          ESMF_CONTEXT, rcToReturn=rc)) return
+
+    end do
 
     if (present(rc)) rc = localrc
 
-  end subroutine ESMF_StateRemove
+  end subroutine ESMF_StateRemoveList
+
 
 !------------------------------------------------------------------------------
 !BOPI
@@ -225,16 +380,16 @@ contains
 !    <item>, see below for supported values
 !    type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 !    integer,          intent(out),  optional :: rc
-!     
+!
 ! !STATUS:
 ! \begin{itemize}
 ! \item\apiStatusCompatibleVersion{5.2.0r}
 ! \end{itemize}
 !
 ! !DESCRIPTION:
-!      Replace an existing reference to a single <item> to an existing 
+!      Replace an existing reference to a single <item> to an existing
 !      {\tt state}.  The name of the <item> must be unique within the
-!      {\tt state}.  
+!      {\tt state}.
 !
 !      Supported values for <item> are:
 !      \begin{description}
@@ -252,7 +407,7 @@ contains
 ! \item[<item>]
 !      The replacement <item>.  This is a reference only; when
 !      the {\tt state} is destroyed the <item>s contained in it will
-!      not be destroyed.   Also, the <item> cannot be safely 
+!      not be destroyed.   Also, the <item> cannot be safely
 !      destroyed before the {\tt state} is destroyed.
 !      Since <item>s can be added to multiple containers, it remains
 !      the responsibility of the user to manage their
@@ -299,7 +454,7 @@ contains
 !                         rc=rc) @\
 !  @\
 !   end subroutine ESMF_StateRep##mentry
-! 
+!
 ! StateReplaceMacro(Array,OneArray,array)
 ! StateReplaceMacro(ArrayBundle,OneArrayBundle,arraybundle)
 ! StateReplaceMacro(Field,OneField,field)
@@ -311,13 +466,14 @@ contains
 ! !IROUTINE: ESMF_StateReplace - Replace a list of items within a State
 !
 ! !INTERFACE:
-!  subroutine ESMF_StateReplace(state, <itemList>, rc)
+!  subroutine ESMF_StateReplace(state, <itemList>, relaxedflag, rc)
 !
 ! !ARGUMENTS:
-!    type(ESMF_State), intent(inout)          :: state 
+!    type(ESMF_State), intent(inout)          :: state
 !    <itemList>, see below for supported values
 !    type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
-!    integer,          intent(out),  optional :: rc     
+!    logical,          intent(in),   optional :: relaxedflag
+!    integer,          intent(out),  optional :: rc
 !
 ! !STATUS:
 ! \begin{itemize}
@@ -326,10 +482,10 @@ contains
 !
 ! !DESCRIPTION:
 ! Replace a list of items with a {\tt ESMF\_State}.  If an item in
-! <itemlist> does not match any items already present in {\tt state}, an
+! <itemList> does not match any items already present in {\tt state}, an
 ! error is returned.
-!    
-!    Supported values for <itemList> are:   
+!
+!    Supported values for <itemList> are:
 !    \begin{description}
 !    \item type(ESMF\_Array), intent(in)             :: arrayList(:)
 !    \item type(ESMF\_ArrayBundle), intent(in)       :: arraybundleList(:)
@@ -347,11 +503,17 @@ contains
 !     The list of items to be replaced.
 !     This is a reference only; when
 !     the {\tt ESMF\_State} is destroyed the <itemList> contained in it will
-!     not be destroyed.   Also, the items in the <itemList> cannot be safely 
+!     not be destroyed.   Also, the items in the <itemList> cannot be safely
 !     destroyed before the {\tt ESMF\_State} is destroyed.
 !     Since <itemList> items can be added to multiple containers, it remains
 !     the responsibility of the user to manage their
 !     destruction when they are no longer in use.
+! \item[{[relaxedflag]}]
+!     A setting of {\tt .true.} indicates a relaxed definition of "replace",
+!     where it is {\em not} an error if {\tt <itemList>} contains items
+!     with names that are not found in {\tt state}. The {\tt State}
+!     is left unchanged for these items. For {\tt .false.} this is treated
+!     as an error condition.  The default setting is {\tt .false.}.
 ! \item[{[rc]}]
 !     Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
 ! \end{description}
@@ -366,18 +528,22 @@ contains
 ! !INTERFACE: @\
   ! Private name; call using ESMF_StateAdd()  @\
   subroutine ESMF_StateRep##mentryname##List(state, mname,  & @\
-                                    keywordEnforcer, rc) @\
+                                    keywordEnforcer, relaxedflag, rc) @\
 ! @\
 ! !ARGUMENTS: @\
     type(ESMF_State), intent(inout)          :: state  @\
     type(mtype),      intent(in)             :: mname(:) @\
     type(ESMF_KeywordEnforcer), optional     :: keywordEnforcer ! must use keywords for the below @\
+    logical,          intent(in),   optional :: relaxedflag @\
     integer,          intent(out),  optional :: rc      @\
 !EOPI @\
 !------------------------------------------------------------------------------ @\
       integer :: localrc, i @\
       integer :: localcount @\
+^if !defined (noattributesversion) @\
       character(ESMF_MAXSTR) :: lobject, lname, lvalue1, lvalue2 @\
+^endif @\
+      logical :: localrelaxed @\
       type(ESMF_Logical) :: linkChange @\
  @\
       ! Initialize return code; assume routine not implemented @\
@@ -391,6 +557,11 @@ contains
          ESMF_ERR_PASSTHRU, & @\
          ESMF_CONTEXT, rcToReturn=rc)) return @\
                                    @\
+      localrelaxed = .false. @\
+      if (present (relaxedflag)) then @\
+        localrelaxed = relaxedflag @\
+      end if @\
+ @\
       localcount = size (mname) @\
  @\
       ! check input variables @\
@@ -400,10 +571,11 @@ contains
       enddo @\
  @\
       call ESMF_StateClsAdd (state%statep, mname, & @\
-          replaceflag=.true., rc=localrc) @\
+          replaceflag=.true., relaxedflag=localrelaxed, rc=localrc) @\
       if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, & @\
           ESMF_CONTEXT, rcToReturn=rc))  return @\
  @\
+^if !defined (noattributesversion) @\
       ! link the Attribute hierarchies @\
       linkChange = ESMF_TRUE @\
       do i=1, localcount @\
@@ -433,6 +605,7 @@ contains
           ESMF_CONTEXT, & @\
           rcToReturn=rc)) return @\
       endif @\
+^endif @\
        @\
       if (present(rc)) rc = ESMF_SUCCESS @\
   end subroutine ESMF_StateRep##mentryname##List
@@ -442,76 +615,9 @@ StateReplaceListMacro(ESMF_Array,Array,arrayList,array,arrayList(i))
 StateReplaceListMacro(ESMF_ArrayBundle,ArrayBundle,arraybundleList,array,arraybundleList(i))
 StateReplaceListMacro(ESMF_Field,Field,fieldList,field,fieldList(i)%ftypep%base)
 StateReplaceListMacro(ESMF_FieldBundle,FieldBundle,fieldbundleList,field,fieldbundleList(i)%this%base)
-
-!------------------------------------------------------------------------------
-^undef  ESMF_METHOD
-^define ESMF_METHOD "ESMF_StateAddRouteHandleList"
-!BOPI
-! !IROUTINE: ESMF_StateAdd - Add a list of RouteHandles to a State
-!
-! !INTERFACE:
-      ! Private name; call using ESMF_StateReplace()   
-      subroutine ESMF_StateRepRouteHandleList(state, routehandleList,  &
-                                              keywordEnforcer, rc)
-!
-! !ARGUMENTS:
-      type(ESMF_State), intent(inout)      :: state 
-      type(ESMF_RouteHandle), dimension(:), intent(in) :: routehandleList
-      type(ESMF_KeywordEnforcer), optional :: keywordEnforcer ! must use keywords for the below
-      integer,       intent(out), optional :: rc     
-!
-! !DESCRIPTION:
-!     Add multiple {\tt ESMF\_RouteHandle}s to an {\tt ESMF\_State}.
-!
-!     The arguments are:
-!     \begin{description}
-!     \item[state]
-!      An {\tt ESMF\_State} object.
-!     \item[routehandleList]
-!      The list (Fortran array) of {\tt ESMF\_RouteHandle}s to be added.
-!      This is a reference only; when
-!      the {\tt ESMF\_State} is destroyed the objects contained in it will
-!      not be destroyed.   Also, the {\tt ESMF\_RouteHandle}s cannot be safely 
-!      destroyed before the {\tt ESMF\_State} is destroyed.
-!      Since objects can be added to multiple containers, it remains
-!      the responsibility of the user to manage the
-!      destruction of objects when they are no longer in use.
-!     \item[{[rc]}]
-!      Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
-!     \end{description}
-!
-!EOPI
-
-      integer :: localrc,i
-      integer :: localcount
-
-      ! check input variables
-      localcount = size(routehandleList)
-
-      ESMF_INIT_CHECK_DEEP(ESMF_StateGetInit,state,rc)
-      do i=1,localcount
-         ESMF_INIT_CHECK_DEEP_SHORT(ESMF_RouteHandleGetInit,routehandleList(i),rc)
-      enddo
-
-      ! Initialize return code; assume routine not implemented
-      if (present(rc)) rc = ESMF_RC_NOT_IMPL
-      localrc = ESMF_RC_NOT_IMPL
-
-
-      call ESMF_StateValidate(state, rc=localrc)
-      if (ESMF_LogFoundError(localrc, &
-            ESMF_ERR_PASSTHRU, &
-            ESMF_CONTEXT, rcToReturn=rc)) return
-
-      call ESMF_StateClsAdd (state%statep,  routehandleList,  &
-          replaceflag=.true., rc=localrc)
-      if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
-                    ESMF_CONTEXT, rcToReturn=rc))  return
-
-      if (present(rc)) rc = ESMF_SUCCESS
-      end subroutine ESMF_StateRepRouteHandleList
-
-!------------------------------------------------------------------------------
+^define noattributesversion
+StateReplaceListMacro(ESMF_RouteHandle,RouteHandle,routehandleList,none,none)
+^undef noattributesversion
 StateReplaceListMacro(ESMF_State,State,nestedStateList,state,nestedStateList(i)%statep%base)
 
 end module ESMF_StateRemRepMod

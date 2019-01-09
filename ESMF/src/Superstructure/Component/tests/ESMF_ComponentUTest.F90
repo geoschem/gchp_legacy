@@ -1,4 +1,4 @@
-! $Id: ESMF_ComponentUTest.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
+! $Id$
 !
 ! Test code which creates a new Component.
 
@@ -46,12 +46,13 @@
 !   !  Quick Test - Create, Print, Destroy a Component.
 
     call ESMF_TestStart(ESMF_SRCLINE, rc=rc)
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
  
     !------------------------------------------------------------------------
     !NEX_UTest
     ! Verifing that a Gridded Component can be created
     cname = "Atmosphere - default context"
-    comp1 = ESMF_GridCompCreate(name=cname, configFile="grid.rc", rc=rc)  
+    comp1 = ESMF_GridCompCreate(name=cname, configFile="comp.rc", rc=rc)  
     write(failMsg, *) "Did not return ESMF_SUCCESS"
     write(name, *) "Creating a Gridded Component"
     call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
@@ -94,7 +95,7 @@
     ! Verifing that a Gridded Component can be created in parent VM context
     cname = "Atmosphere - child in parent VM context"
     comp1 = ESMF_GridCompCreate(name=cname, &
-      configFile="grid.rc", contextflag=ESMF_CONTEXT_PARENT_VM, rc=rc)  
+      configFile="comp.rc", contextflag=ESMF_CONTEXT_PARENT_VM, rc=rc)  
     write(failMsg, *) "Did not return ESMF_SUCCESS"
     write(name, *) "Creating a Gridded Component"
     call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
@@ -143,7 +144,7 @@
     ! most compilers return "ESMF_RC_OBJ_NOT_CREATED
     ! pgi returns "ESMF_RC_OBJ_BAD"
     call ESMF_Test(((rc.eq.ESMF_RC_OBJ_NOT_CREATED).or.(rc.eq.ESMF_RC_OBJ_BAD)), &
-				name, failMsg, result, ESMF_SRCLINE)
+      name, failMsg, result, ESMF_SRCLINE)
 
     !------------------------------------------------------------------------
     !EX_UTest
@@ -154,7 +155,7 @@
     ! most compilers return "ESMF_RC_OBJ_NOT_CREATED
     ! pgi returns "ESMF_RC_OBJ_BAD"
     call ESMF_Test(((rc.eq.ESMF_RC_OBJ_NOT_CREATED).or.(rc.eq.ESMF_RC_OBJ_BAD)), &
-				name, failMsg, result, ESMF_SRCLINE)
+      name, failMsg, result, ESMF_SRCLINE)
 
     !------------------------------------------------------------------------
     !EX_UTest
@@ -177,7 +178,7 @@
     ! Verifing that a Gridded Component can be created in new VM context
     cname = "Atmosphere - child in new VM context"
     comp1 = ESMF_GridCompCreate(name=cname, &
-      configFile="grid.rc", contextflag=ESMF_CONTEXT_OWN_VM, rc=rc)  
+      configFile="comp.rc", contextflag=ESMF_CONTEXT_OWN_VM, rc=rc)  
     write(failMsg, *) "Did not return ESMF_SUCCESS"
     write(name, *) "Creating a Gridded Component"
     call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
@@ -200,7 +201,7 @@
 
 #endif
 
-    call ESMF_TestEnd(result, ESMF_SRCLINE)
+    call ESMF_TestEnd(ESMF_SRCLINE)
 
     end program ESMF_ComponentUTest
     

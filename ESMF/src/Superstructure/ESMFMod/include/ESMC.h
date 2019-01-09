@@ -1,7 +1,7 @@
-// $Id: ESMC.h,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
+// $Id$
 //
 // Earth System Modeling Framework
-// Copyright 2002-2012, University Corporation for Atmospheric Research,
+// Copyright 2002-2018, University Corporation for Atmospheric Research,
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 // Laboratory, University of Michigan, National Centers for Environmental
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -34,6 +34,7 @@
 // Infrastructure headers
 #include "ESMC_Util.h"
 #include "ESMC_VM.h"
+#include "ESMC_RHandle.h"
 #include "ESMC_DistGrid.h"
 #include "ESMC_ArraySpec.h"
 #include "ESMC_Array.h"
@@ -43,12 +44,15 @@
 #include "ESMC_TimeInterval.h"
 #include "ESMC_Clock.h"
 #include "ESMC_Mesh.h"
+#include "ESMC_Grid.h"
 #include "ESMC_Field.h"
+#include "ESMC_LocStream.h"
 
 // Superstructure headers
 #include "ESMC_State.h"
 #include "ESMC_GridComp.h"
 #include "ESMC_CplComp.h"
+#include "ESMC_SciComp.h"
 
 // framework-wide initialization and finalization
 #include "ESMC_Init.h"

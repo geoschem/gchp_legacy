@@ -1,7 +1,7 @@
-! $Id: ESMF_AppMainEx.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
+! $Id$
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2012, University Corporation for Atmospheric Research,
+! Copyright 2002-2018, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -219,9 +219,11 @@
 !-------------------------------------------------------------------------
 !   ! Start of the main program.
     program ESMF_AppMainEx
+#include "ESMF.h"
     
 !   ! The ESMF Framework module
     use ESMF
+    use ESMF_TestMod
     
 !   ! User supplied modules, using only the public registration routine.
     use PHYS_Mod, only: PHYS_SetServices
@@ -244,7 +246,22 @@
     type(ESMF_CplComp) :: cpl
         
 !EOC
-    integer :: finalrc
+    integer :: finalrc, result
+
+    character(ESMF_MAXSTR) :: testname
+    character(ESMF_MAXSTR) :: failMsg
+
+!-------------------------------------------------------------------------
+!-------------------------------------------------------------------------
+
+    write(failMsg, *) "Example failure"
+    write(testname, *) "Example ESMF_AppMainEx"
+
+
+! ------------------------------------------------------------------------------
+! ------------------------------------------------------------------------------
+
+
 !   !Set finalrc to success
     finalrc = ESMF_SUCCESS
 
@@ -254,13 +271,11 @@
     call ESMF_Initialize(vm=vm, defaultlogfilename="AppMainEx.Log", &
                     logkindflag=ESMF_LOGKIND_MULTI, rc=rc)
     if (rc .ne. ESMF_SUCCESS) then
-        print *, "failed to initialize ESMF Framework"
-!EOC
-	print *, "FAIL: ESMF_FieldCreateEx.F90"
-
-!BOC
-        stop
+        print *, "Unable to initialize ESMF Framework"
+        print *, "FAIL: ESMF_AppMainEx.F90"
+        call ESMF_Finalize(endflag=ESMF_END_ABORT)
     endif
+
 
 !-------------------------------------------------------------------------
 !   !
@@ -284,7 +299,7 @@
     ! This single user-supplied subroutine must be a public entry point 
     !  and can renamed with the 'use localname => modulename' syntax if
     !  the name is not unique.
-    call ESMF_GridCompSetServices(gcomp1, PHYS_SetServices, rc=rc)
+    call ESMF_GridCompSetServices(gcomp1, userRoutine=PHYS_SetServices, rc=rc)
 !EOC
     if (rc.NE.ESMF_SUCCESS) finalrc = ESMF_FAILURE
 !BOC
@@ -299,7 +314,10 @@
 !BOC
 
     ! This single user-supplied subroutine must be a public entry point.
-    call ESMF_GridCompSetServices(gcomp2, DYNM_SetServices, rc=rc)
+    call ESMF_GridCompSetServices(gcomp2, userRoutine=DYNM_SetServices, rc=rc)
+!EOC
+    if (rc.NE.ESMF_SUCCESS) finalrc = ESMF_FAILURE
+!BOC
 
     print *, "Comp Create returned, name = ", trim(cname2)
 
@@ -310,7 +328,7 @@
 !BOC
 
     ! This single user-supplied subroutine must be a public entry point.
-    call ESMF_CplCompSetServices(cpl, CPLR_SetServices, rc=rc)
+    call ESMF_CplCompSetServices(cpl, userRoutine=CPLR_SetServices, rc=rc)
 !EOC
     if (rc.NE.ESMF_SUCCESS) finalrc = ESMF_FAILURE
 !BOC
@@ -460,6 +478,14 @@
     print *, "Comp Destroy returned"
 
     print *, "Application Example 1 finished"
+
+!EOC
+
+    ! IMPORTANT: ESMF_STest() prints the PASS string and the # of processors in the log
+    ! file that the scripts grep for.
+    call ESMF_STest((finalrc.eq.ESMF_SUCCESS), testname, failMsg, result, ESMF_SRCLINE)
+
+!BOC
 
     call ESMF_Finalize(rc=rc)
 !EOC

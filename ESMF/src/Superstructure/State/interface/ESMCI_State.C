@@ -1,10 +1,10 @@
 //$1.10 2007/04/26 16:13:59 rosalind Exp $
 //
 // Earth System Modeling Framework
-// Copyright 2002-2012, University Corporation for Atmospheric Research, 
-// Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
-// Laboratory, University of Michigan, National Centers for Environmental 
-// Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
+// Copyright 2002-2018, University Corporation for Atmospheric Research,
+// Massachusetts Institute of Technology, Geophysical Fluid Dynamics
+// Laboratory, University of Michigan, National Centers for Environmental
+// Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
 // NASA Goddard Space Flight Center.
 // Licensed under the University of Illinois-NCSA License.
 //
@@ -23,18 +23,14 @@
 // actual code which is implemented in F90.
 //
 //-----------------------------------------------------------------------------
-//
-
 // associated header file
 #include "ESMCI_State.h"
+
+#if defined (xxESMF_PIO)
+#include "ESMCI_IO.h"
+#endif
 #include "ESMCI_IO_NetCDF.h"
-
-//insert any higher level, 3rd party or system includes here
-#include <string.h>         // strlen()
-
-// LogErr headers
 #include "ESMCI_LogErr.h"
-#include "ESMF_LogMacros.inc"
 
 using std::vector;
 using std::string;
@@ -64,35 +60,35 @@ static const char *const version = "$Id$";
 //-----------------------------------------------------------------------------
 extern "C" {
 
-  void FTN(f_esmf_statecreate)(ESMCI::State* state, char* name, int* rc,
-				ESMCI_FortranStrLenArg nlen);
+  void FTN_X(f_esmf_statecreate)(ESMCI::State* state, const char* name, int* rc,
+                                ESMCI_FortranStrLenArg nlen);
 
-  void FTN(f_esmf_stateaddarray)(ESMCI::State* state, ESMCI::Array** array, 
+  void FTN_X(f_esmf_stateaddarray)(ESMCI::State* state, ESMCI::Array** array,
                                  int* rc);
 
-  void FTN(f_esmf_stateaddfield)(ESMCI::State* state, ESMCI::Field* field,
+  void FTN_X(f_esmf_stateaddfield)(ESMCI::State* state, ESMCI::Field* field,
                                  int* rc);
-  
-  void FTN(f_esmf_stateprint)(ESMCI::State* state, int* rc);
 
-  void FTN(f_esmf_stategetarray)(ESMCI::State* state, char* name, 
-                                 ESMCI::Array** array, int* rc, 
+  void FTN_X(f_esmf_stateprint)(ESMCI::State* state, int* rc);
+
+  void FTN_X(f_esmf_stategetarray)(ESMCI::State* state, const char* name,
+                                 ESMCI::Array** array, int* rc,
                                  ESMCI_FortranStrLenArg nlen);
 
-  void FTN(f_esmf_stategetfield)(ESMCI::State* state, char* name, 
-                                 ESMCI::Field* field, int* rc, 
+  void FTN_X(f_esmf_stategetfield)(ESMCI::State* state, const char* name,
+                                 ESMCI::Field* field, int* rc,
                                  ESMCI_FortranStrLenArg nlen);
-  
-  void FTN(f_esmf_statedestroy)(ESMCI::State* state, int* rc);
 
-  void FTN(f_esmf_stategetnumitems)(ESMCI::State* state, 
-                                    int*          itemCount, 
+  void FTN_X(f_esmf_statedestroy)(ESMCI::State* state, int* rc);
+
+  void FTN_X(f_esmf_stategetnumitems)(ESMCI::State* state,
+                                    int*          itemCount,
                                     int*          rc);
 
-  void FTN(f_esmf_stategetitemnames)(ESMCI::State*              state, 
-                                     int*                       numItems, 
-                                     char*                      itemNameList, 
-                                     ESMCI::ESMC_StateItemType* itemTypeList, 
+  void FTN_X(f_esmf_stategetitemnames)(ESMCI::State*              state,
+                                     int*                       numItems,
+                                     char*                      itemNameList,
+                                     ESMCI::ESMC_StateItemType* itemTypeList,
                                      int*                       rc,
                                      ESMCI_FortranStrLenArg     itemNameLen);
 };
@@ -131,8 +127,6 @@ namespace ESMCI {
 //EOP
    //Local variables
     int localrc;
-    int nlen;
-    char* fName = NULL;
 
     // Initialize return code. Assume routine not implemented
     if (rc) *rc = ESMF_RC_NOT_IMPL;
@@ -144,27 +138,14 @@ namespace ESMCI {
       state = new State;
     }catch(...){
       // allocation error
-      ESMC_LogDefault.MsgAllocError("for new ESMCI::State.", rc);
+      ESMC_LogDefault.MsgAllocError("for new ESMCI::State.", ESMC_CONTEXT, rc);
       return ESMC_NULL_POINTER;
     }
 
-    // convert file name to fortran string
-    nlen = strlen(name);
-    fName = new char[nlen];
-    localrc = ESMC_CtoF90string(name, fName, nlen);
-    if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, rc)) {
-      delete[] fName;
-      return ESMC_NULL_POINTER;
-    }
-
-    // Invoque the fortran interface through the F90-C++ "glue" code
-    FTN(f_esmf_statecreate)(state, fName, &localrc, nlen);
-    if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, rc)) {
-      delete[] fName;
-      return ESMC_NULL_POINTER;
-    }
-
-    delete[] fName;
+    // Invoke the fortran interface through the F90-C++ "glue" code
+    FTN_X(f_esmf_statecreate)(state, name, &localrc, strlen (name));
+    if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, ESMC_CONTEXT,
+      rc)) return ESMC_NULL_POINTER;
 
     rc = &localrc;
     return state;
@@ -198,12 +179,12 @@ namespace ESMCI {
      //Initialize return code
      rc = ESMF_RC_NOT_IMPL;
      localrc = ESMF_RC_NOT_IMPL;
-  
-      
-    // Invoque the fortran interface through the F90-C++ "glue" code
-     FTN(f_esmf_stateaddarray)(this, &array, &localrc);
-     if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, &rc))
-       return localrc;
+
+
+    // Invoke the fortran interface through the F90-C++ "glue" code
+     FTN_X(f_esmf_stateaddarray)(this, &array, &localrc);
+     if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, ESMC_CONTEXT,
+        &rc)) return localrc;
 
      rc = localrc;
 
@@ -237,12 +218,12 @@ namespace ESMCI {
      //Initialize return code
      rc = ESMF_RC_NOT_IMPL;
      localrc = ESMF_RC_NOT_IMPL;
-  
-      
-    // Invoque the fortran interface through the F90-C++ "glue" code
-     FTN(f_esmf_stateaddfield)(this, field, &localrc);
-     if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, &rc))
-       return localrc;
+
+
+    // Invoke the fortran interface through the F90-C++ "glue" code
+     FTN_X(f_esmf_stateaddfield)(this, field, &localrc);
+     if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, ESMC_CONTEXT,
+       &rc)) return localrc;
 
      rc = localrc;
 
@@ -273,33 +254,16 @@ namespace ESMCI {
     //local variables
     int rc;
     int localrc;
-    int nlen;
-    char* fName;
 
     //Initialize return code
     rc = ESMF_RC_NOT_IMPL;
     localrc = ESMF_RC_NOT_IMPL;
 
-    // convert file name to fortran string
-    nlen = strlen(name);
-    fName = new char[nlen];
-    localrc = ESMC_CtoF90string(name, fName, nlen);
-    if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, &rc)){
-      delete[] fName;
-      return localrc;
-    }
+    // Invoke the fortran interface through the F90-C++ "glue" code
+    FTN_X(f_esmf_stategetarray)(this, name, array, &localrc, strlen (name));
+    if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, ESMC_CONTEXT,
+      &rc)) return localrc;
 
-    // Invoque the fortran interface through the F90-C++ "glue" code
-    FTN(f_esmf_stategetarray)(this, fName, array, &localrc, nlen);
-    if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, &rc)){
-      delete[] fName;
-      return localrc;
-    }
-
-
-    //  printf("In ESMC_StateGetArray, after  calling the glue \n");
-
-    delete[] fName;
     rc = localrc;
     return rc;
 
@@ -328,40 +292,24 @@ namespace ESMCI {
     //local variables
     int rc;
     int localrc;
-    int nlen;
-    char* fName;
 
     //Initialize return code
     rc = ESMF_RC_NOT_IMPL;
     localrc = ESMF_RC_NOT_IMPL;
 
-    // convert file name to fortran string
-    nlen = strlen(name);
-    fName = new char[nlen];
-    localrc = ESMC_CtoF90string(name, fName, nlen);
-    if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, &rc)){
-      delete[] fName;
-      return localrc;
-    }
-    
     //TODO: this leaves a memory leak!!!
     Field *fieldMem = new Field;
     *field = fieldMem;  // point to this new allocation
 
-    // Invoque the fortran interface through the F90-C++ "glue" code
-    FTN(f_esmf_stategetfield)(this, fName, fieldMem, &localrc, nlen);
-    if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, &rc)){
-      delete[] fName;
-      return localrc;
-    }
+    // Invoke the fortran interface through the F90-C++ "glue" code
+    FTN_X(f_esmf_stategetfield)(this, name, fieldMem, &localrc, strlen (name));
+    if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, ESMC_CONTEXT,
+      &rc)) return localrc;
 
-    //  printf("In ESMC_StateGetArray, after  calling the glue \n");
-
-    delete[] fName;
     rc = localrc;
     return rc;
 
-   } // end ESMC_StateGetArray
+   } // end ESMC_StateGetField
 
 //-----------------------------------------------------------------------------
 #undef  ESMC_METHOD
@@ -374,7 +322,7 @@ namespace ESMCI {
 
 // !RETURN VALUE:
 //    int error return code
-  
+
 // !ARGUMENTS:
 //   none
 
@@ -384,10 +332,10 @@ namespace ESMCI {
     // Local data
     int rc, localrc;
 
-    // Invoque the fortran interface through the F90-C++ "glue" code
-    FTN(f_esmf_stateprint)(this, &localrc);
-    if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, &rc))
-      return localrc;
+    // Invoke the fortran interface through the F90-C++ "glue" code
+    FTN_X(f_esmf_stateprint)(this, &localrc);
+    if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, ESMC_CONTEXT,
+      &rc)) return localrc;
 
     rc = localrc;
     return rc;
@@ -405,10 +353,10 @@ namespace ESMCI {
 //
 // !RETURN VALUE:
 //    int error return code
-  
+
 // !ARGUMENTS:
   State *state){
-  
+
 // !DESCRIPTION:
 //      ESMF routine which destroys a State object previously allocated
 //      via an ESMC\_StateCreate routine.  Define for deep classes only.
@@ -417,20 +365,20 @@ namespace ESMCI {
 //      (see declaration in ESMC\_State.h)
 //
 //EOP
-// !REQUIREMENTS:  
+// !REQUIREMENTS:
 
     int rc;
     int localrc;
-   
+
     // Initialize return code; assume routine not implemented
     rc = ESMC_RC_NOT_IMPL;
     localrc = ESMC_RC_NOT_IMPL;
 
-    // Invoque the fortran interface through the F90-C++ "glue" code
-    FTN(f_esmf_statedestroy)(state, &localrc);
-    if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, &rc))
-      return localrc;
-    
+    // Invoke the fortran interface through the F90-C++ "glue" code
+    FTN_X(f_esmf_statedestroy)(state, &localrc);
+    if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, ESMC_CONTEXT,
+      &rc)) return localrc;
+
     delete state;
 
     rc = localrc;
@@ -460,7 +408,7 @@ namespace ESMCI {
 //      ESMC\_StateConstruct.  Define for deep classes only.
 //
 //EOP
-// !REQUIREMENTS:  
+// !REQUIREMENTS:
 
 //
 //  code goes here
@@ -496,7 +444,7 @@ namespace ESMCI {
 //      ESMC\_StateDestruct.  Define for deep classes only.
 //
 //EOP
-// !REQUIREMENTS:  
+// !REQUIREMENTS:
 
 //
 //  code goes here
@@ -528,7 +476,7 @@ namespace ESMCI {
 //     Can be multiple routines, one per value
 //
 //EOP
-// !REQUIREMENTS:  
+// !REQUIREMENTS:
 
 //
 //  code goes here
@@ -560,7 +508,7 @@ namespace ESMCI {
 //     Can be multiple routines, one per value
 //
 //EOP
-// !REQUIREMENTS:  
+// !REQUIREMENTS:
 
 //
 //  code goes here
@@ -668,7 +616,7 @@ namespace ESMCI {
 
       *numItems = 0;
 
-      FTN(f_esmf_stategetnumitems)(this, numItems, &localrc);
+      FTN_X(f_esmf_stategetnumitems)(this, numItems, &localrc);
 
       rc = localrc;
       return rc;
@@ -679,7 +627,7 @@ namespace ESMCI {
 #undef  ESMC_METHOD
 #define ESMC_METHOD "ESMCI::State::getItemNames()"
 //BOP
-// !IROUTINE:  ESMCI::State::getItemNames - Get the names of the items 
+// !IROUTINE:  ESMCI::State::getItemNames - Get the names of the items
 //             contained in this state
 //
 // !INTERFACE:
@@ -689,7 +637,7 @@ namespace ESMCI {
 //     return code rc.
 //
 // !ARGUMENTS:
-      ){  
+      ){
 //
 // !DESCRIPTION:
 //      Get the number of items contained in an existing state
@@ -698,8 +646,6 @@ namespace ESMCI {
       //local variables
       int rc;
       int localrc;
-      int nlen;
-      char* fName;
 
       //Initialize return code
       rc = ESMF_RC_NOT_IMPL;
@@ -712,7 +658,7 @@ namespace ESMCI {
       // first because we have to allocate the space for the item names
       // before making the call to get the names.
       //***
-      int	numItems = 0;
+      int       numItems = 0;
       getNumItems(&numItems);
 
       //***
@@ -720,17 +666,15 @@ namespace ESMCI {
       // maximum amount of space needed.  I'm also creating the array
       // for the item types list.
       //***
-      char*	itemNameList = new char[numItems * ESMF_MAXSTR];
-      memset(itemNameList, '\0', numItems * ESMF_MAXSTR);
-
+      char*     itemNameList = new char[numItems * ESMF_MAXSTR]();
       ESMC_StateItemType   *itemTypeList = new ESMC_StateItemType[numItems];
- 
+
       //***
       // Make the fortran call to get the information from the state
       //***
       //printf("In ESMC_StateGetItemNames, before  calling the glue \n");
-      FTN(f_esmf_stategetitemnames)(this, &numItems, 
-                                    itemNameList, itemTypeList, 
+      FTN_X(f_esmf_stategetitemnames)(this, &numItems,
+                                    itemNameList, itemTypeList,
                                     &localrc, ESMF_MAXSTR);
       //printf("In ESMC_StateGetItemNames, after  calling the glue \n");
 
@@ -758,8 +702,8 @@ namespace ESMCI {
       //***
       // Clean up the allocated space
       //***
-      delete itemTypeList;
-      delete itemNameList;
+      delete[] itemTypeList;
+      delete[] itemNameList;
 
       rc = localrc;
       return itemNames;
@@ -770,7 +714,7 @@ namespace ESMCI {
 #undef  ESMC_METHOD
 #define ESMC_METHOD "ESMCI::State::getNumItems()"
 //BOP
-// !IROUTINE:  ESMCI::State::getNumItems - Get the number of items of the 
+// !IROUTINE:  ESMCI::State::getNumItems - Get the number of items of the
 //             specified type contained in this state
 //
 // !INTERFACE:
@@ -784,15 +728,13 @@ namespace ESMCI {
       ESMC_StateItemType  itemType){  // in - the item type
 //
 // !DESCRIPTION:
-//      Get the number of items of the specified type contained in an 
+//      Get the number of items of the specified type contained in an
 //      existing state
 //
 //EOP
       //local variables
       int rc;
       int localrc;
-      int nlen;
-      char* fName;
 
       //Initialize return code
       rc = ESMF_RC_NOT_IMPL;
@@ -805,23 +747,21 @@ namespace ESMCI {
       // first because we have to allocate the space for the item names
       // before making the call to get the names.
       //***
-      int	maxItems = 0;
+      int       maxItems = 0;
       getNumItems(&maxItems);
 
       //***
       // Create the array for the item types list... we need this array so
       // so that we can count only those items of a specified type.
       //***
-      char*	itemNameList = new char[maxItems * ESMF_MAXSTR];
-      memset(itemNameList, '\0', maxItems * ESMF_MAXSTR);
-
+      char*     itemNameList = new char[maxItems * ESMF_MAXSTR]();
       ESMC_StateItemType   *itemTypeList = new ESMC_StateItemType[maxItems];
- 
+
       //***
       // Make the fortran call to get the information from the state
       //***
-      FTN(f_esmf_stategetitemnames)(this, &maxItems, 
-                                    itemNameList, itemTypeList, 
+      FTN_X(f_esmf_stategetitemnames)(this, &maxItems,
+                                    itemNameList, itemTypeList,
                                     &localrc, ESMF_MAXSTR);
 
       //***
@@ -840,8 +780,8 @@ namespace ESMCI {
       //***
       // Clean up the allocated space
       //***
-      delete itemTypeList;
-      delete itemNameList;
+      delete[] itemTypeList;
+      delete[] itemNameList;
 
       rc = localrc;
       return rc;
@@ -852,7 +792,7 @@ namespace ESMCI {
 #undef  ESMC_METHOD
 #define ESMC_METHOD "ESMCI::State::getItemNames()"
 //BOP
-// !IROUTINE:  ESMCI::State::getItemNames - Get the names of the items 
+// !IROUTINE:  ESMCI::State::getItemNames - Get the names of the items
 //             of the specified type contained in this state
 //
 // !INTERFACE:
@@ -865,15 +805,13 @@ namespace ESMCI {
       ESMC_StateItemType  itemType){     // in - the item type
 //
 // !DESCRIPTION:
-//      Get the names of the items of the specified type contained in 
+//      Get the names of the items of the specified type contained in
 //      an existing state
 //
 //EOP
       //local variables
       int rc;
       int localrc;
-      int nlen;
-      char* fName;
 
       //Initialize return code
       rc = ESMF_RC_NOT_IMPL;
@@ -886,7 +824,7 @@ namespace ESMCI {
       // first because we have to allocate the space for the item names
       // before making the call to get the names.
       //***
-      int	numItems = 0;
+      int       numItems = 0;
       getNumItems(&numItems);
 
       //***
@@ -894,17 +832,15 @@ namespace ESMCI {
       // maximum amount of space needed.  I'm also creating the array
       // for the item types list.
       //***
-      char*	itemNameList = new char[numItems * ESMF_MAXSTR];
-      memset(itemNameList, '\0', numItems * ESMF_MAXSTR);
-
+      char*     itemNameList = new char[numItems * ESMF_MAXSTR]();
       ESMC_StateItemType   *itemTypeList = new ESMC_StateItemType[numItems];
- 
+
       //***
       // Make the fortran call to get the information from the state
       //***
       //printf("In ESMC_StateGetItemNames, before  calling the glue \n");
-      FTN(f_esmf_stategetitemnames)(this, &numItems, 
-                                    itemNameList, itemTypeList, 
+      FTN_X(f_esmf_stategetitemnames)(this, &numItems,
+                                    itemNameList, itemTypeList,
                                     &localrc, ESMF_MAXSTR);
       //printf("In ESMC_StateGetItemNames, after  calling the glue \n");
 
@@ -936,8 +872,8 @@ namespace ESMCI {
       //***
       // Clean up the allocated space
       //***
-      delete itemTypeList;
-      delete itemNameList;
+      delete[] itemTypeList;
+      delete[] itemNameList;
 
       rc = localrc;
       return itemNames;
@@ -973,7 +909,7 @@ namespace ESMCI {
 #undef  ESMC_METHOD
 #define ESMC_METHOD "ESMCI::State::getArrayNames()"
 //BOP
-// !IROUTINE:  ESMCI::State::getArrayNames - Get the names of the arrays 
+// !IROUTINE:  ESMCI::State::getArrayNames - Get the names of the arrays
 //             contained in this state
 //
 // !INTERFACE:
@@ -1007,13 +943,12 @@ namespace ESMCI {
 //     return code rc.
 //
 // !ARGUMENTS:
-      ESMC_Base* base,                 //  in - location for read-in Attributes
-      int fileNameLen,                 //  in - file name length
-      const char* fileName) {          //  in - file name
+      ESMC_Base* base,              //  in - location for read-in Attributes
+          const string &fileName) { //  in - file name
 //
 // !DESCRIPTION:
 //      Read data items for the State from a file.  Currently limited to
-//      multiple Array items from a netCDF file.  Other item types and file
+//      multiple Array items from a NetCDF file.  Other item types and file
 //      types will be supported in future releases.
 //
 //EOP
@@ -1021,15 +956,21 @@ namespace ESMCI {
       int rc = ESMF_SUCCESS;
       int localrc = ESMC_RC_NOT_IMPL;
 
+      if (fileName.empty()) {
+        ESMC_LogDefault.Write("filename argument required",
+            ESMC_LOGMSG_ERROR, ESMC_CONTEXT);
+        return ESMF_RC_ARG_BAD;
+      }
+
       // TODO:  Assumes netcdf file; handle other file formats.
       //        Put switch into an IO master class?  would be in one central
       //        location, rather than replicated in each ESMF data class.
 
       // instantiate IO object; initialize with pointer to this State's
       // base, to place file-read attributes into.
-      IO_NetCDF *io_netcdf = ESMCI_IO_NetCDFCreate(0, NULL, base, &localrc);
-      ESMC_LogDefault.ESMC_LogMsgFoundError(localrc, ESMCI_ERR_PASSTHRU,
-                                            &localrc);
+      IO_NetCDF *io_netcdf = ESMCI_IO_NetCDFCreate("", base, &localrc);
+      ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, ESMC_CONTEXT,
+        &localrc);
       if (localrc != ESMF_SUCCESS) rc = localrc;
 
       // set this State object as the target for read-in data
@@ -1037,15 +978,15 @@ namespace ESMCI {
 
       // read the NetCDF file, placing contents into this State object, with
       // Attributes placed on the State's base node
-      localrc = io_netcdf->read(fileNameLen, fileName);
-      ESMC_LogDefault.ESMC_LogMsgFoundError(localrc, ESMCI_ERR_PASSTHRU,
-                                            &localrc);
+      localrc = io_netcdf->read(fileName);
+      ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, ESMC_CONTEXT,
+        &localrc);
       if (localrc != ESMF_SUCCESS) rc = localrc;
 
       // done with io_netcdf object
       localrc = ESMCI_IO_NetCDFDestroy(&io_netcdf);
-      ESMC_LogDefault.ESMC_LogMsgFoundError(localrc, ESMCI_ERR_PASSTHRU,
-                                            &localrc);
+      ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, ESMC_CONTEXT,
+        &localrc);
       if (localrc != ESMF_SUCCESS) rc = localrc;
 
       return rc;
@@ -1066,12 +1007,11 @@ namespace ESMCI {
 //
 // !ARGUMENTS:
       ESMC_Base* base,               //  in - location to write Attributes from
-      int fileNameLen,                 //  in - file name length
-      const char* fileName) {          //  in - file name
+          const string &fileName) {  //  in - file name
 //
 // !DESCRIPTION:
 //      Write data items for the State from a file.  Currently limited to
-//      write multiple Array items to a netCDF file.  Other item types and file
+//      write multiple Array items to a NetCDF file.  Other item types and file
 //      types will be supported in future releases.
 //
 //EOP
@@ -1079,32 +1019,72 @@ namespace ESMCI {
       int rc = ESMF_SUCCESS;
       int localrc = ESMC_RC_NOT_IMPL;
 
+      if (fileName.empty()) {
+        ESMC_LogDefault.Write("filename argument required",
+            ESMC_LOGMSG_ERROR, ESMC_CONTEXT);
+        return ESMF_RC_ARG_BAD;
+      }
+
       // TODO:  Assumes netcdf file; handle other file formats.
       //        Put switch into an IO master class?  would be in one central
       //        location, rather than replicated in each ESMF data class.
 
       // instantiate IO object; initialize with pointer to this State's
       // base, to write attributes from.
-      IO_NetCDF *io_netcdf = ESMCI_IO_NetCDFCreate(0, NULL, base, &localrc);
-      ESMC_LogDefault.ESMC_LogMsgFoundError(localrc, ESMCI_ERR_PASSTHRU,
-                                            &localrc);
-      if (localrc != ESMF_SUCCESS) rc = localrc;
+#if defined (xxESMF_PIO)
+      IO *newIO = IO::create (&localrc);
+      if (ESMC_LogDefault.MsgFoundError (localrc, ESMCI_ERR_PASSTHRU, ESMC_CONTEXT, &rc))
+        return rc;
+      // From here out, we need to be sure to clean up before returning
+
+      std::vector<string> arrayNames = (this)->getArrayNames();
+
+      for (int i=0; i<arrayNames.size(); i++) {
+        Array* thisArray;
+        // std::cout << ESMC_METHOD << ": getting arrayName" << i << "] = " << arrayNames[i] << std::endl;
+        (this)->getArray (arrayNames[i].c_str (), &thisArray);
+        localrc = newIO->addArray(thisArray, (char*)NULL);
+        if (ESMC_LogDefault.MsgFoundError (localrc, ESMCI_ERR_PASSTHRU, ESMC_CONTEXT, &rc)) {
+          IO::destroy(&newIO);
+          return rc;
+        }
+      }
+
+      ESMC_IOFmt_Flag localiofmt = ESMF_IOFMT_NETCDF;
+      bool localoverwrite = true;
+      ESMC_FileStatus_Flag localstatus = ESMC_FILESTATUS_UNKNOWN;
+      int* timeslice = NULL;
+
+      localrc = newIO->write (fileName.c_str (), localiofmt, localoverwrite, localstatus, timeslice);
+      if (ESMC_LogDefault.MsgFoundError (localrc, ESMCI_ERR_PASSTHRU, ESMC_CONTEXT, &rc)) {
+        IO::destroy(&newIO);
+        return rc;
+      }
+
+      IO::destroy(&newIO);
+      newIO = NULL;
+#else
+      IO_NetCDF *io_netcdf = ESMCI_IO_NetCDFCreate("", base, &localrc);
+      if (ESMC_LogDefault.MsgFoundError (localrc, ESMCI_ERR_PASSTHRU, ESMC_CONTEXT, &rc))
+        return rc;
+      // From here out, we need to be sure to clean up before returning
 
       // set this State object as the source of data to write out
       io_netcdf->setState(this);
 
       // write the NetCDF file, taking contents from this State object, with
       // Attributes taken from the State's base node
-      localrc = io_netcdf->write(fileNameLen, fileName);
-      ESMC_LogDefault.ESMC_LogMsgFoundError(localrc, ESMCI_ERR_PASSTHRU,
-                                            &localrc);
+      localrc = io_netcdf->write(fileName);
+      ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, ESMC_CONTEXT,
+        &localrc);
       if (localrc != ESMF_SUCCESS) rc = localrc;
 
       // done with io_netcdf object
       localrc = ESMCI_IO_NetCDFDestroy(&io_netcdf);
-      ESMC_LogDefault.ESMC_LogMsgFoundError(localrc, ESMCI_ERR_PASSTHRU,
-                                            &localrc);
+      ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, ESMC_CONTEXT,
+        &localrc);
       if (localrc != ESMF_SUCCESS) rc = localrc;
+#endif
 
       return rc;
 

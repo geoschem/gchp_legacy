@@ -1,7 +1,7 @@
 ! $Id$
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2012, University Corporation for Atmospheric Research, 
+! Copyright 2002-2018, University Corporation for Atmospheric Research, 
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
 ! Laboratory, University of Michigan, National Centers for Environmental 
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
@@ -50,7 +50,9 @@
 !     !   or an actual data item - FieldBundle, Field, Array, or State. 
 !
       type ESMF_StateItem_Flag
+#ifndef ESMF_NO_SEQUENCE
       sequence
+#endif
       !private
          integer :: ot
       end type
@@ -78,7 +80,9 @@
 !     !   to be created by the Component.
 !
       type ESMF_NeededFlag
+#ifndef ESMF_NO_SEQUENCE
       sequence
+#endif
       !private
          integer :: needed
       end type
@@ -91,7 +95,9 @@
 !     ! ESMF_ReadyFlag
 !
       type ESMF_ReadyFlag
+#ifndef ESMF_NO_SEQUENCE
       sequence
+#endif
       !private
          integer :: ready
       end type
@@ -106,7 +112,9 @@
 !     ! ESMF_ReqForRestartFlag
 !
       type ESMF_ReqForRestartFlag
+#ifndef ESMF_NO_SEQUENCE
       sequence
+#endif
       !private
          integer :: required4restart
       end type
@@ -120,7 +128,9 @@
 !     ! ESMF_ValidFlag
 !
       type ESMF_ValidFlag
+#ifndef ESMF_NO_SEQUENCE
       sequence
+#endif
       !private
          integer :: valid
       end type
@@ -142,7 +152,9 @@
 
       type ESMF_DataHolder
 #ifndef ESMF_SEQUENCE_BUG
+#ifndef ESMF_NO_SEQUENCE
       sequence
+#endif
 #endif
       !private
           type(ESMF_Field)        :: fp 
@@ -162,7 +174,9 @@
 
       type ESMF_StateItem
 #ifndef ESMF_SEQUENCE_BUG
+#ifndef ESMF_NO_SEQUENCE
       sequence
+#endif
 #endif
       !private
         type(ESMF_DataHolder) :: datap
@@ -173,7 +187,7 @@
         type(ESMF_ValidFlag) :: valid
         type(ESMF_ReqForRestartFlag) :: reqrestart
 #endif
-        ! VMId is currently needed for FieldBundles and their indirect Fields. 	 
+        ! VMId is currently needed for FieldBundles and their indirect Fields.          
         type(ESMF_VMId)      :: FldBundleVMId
         logical :: proxyFlag
         integer :: indirect_index
@@ -189,7 +203,9 @@
 
       type ESMF_StateItemWrap
 #ifndef ESMF_SEQUENCE_BUG
+#ifndef ESMF_NO_SEQUENCE
       sequence
+#endif
 #endif
       !private
         type(ESMF_StateItem), pointer  :: si
@@ -200,7 +216,9 @@
 !     !   Enumerated value for storing Import or Export State type.
 !
       type ESMF_StateIntent_Flag
+#ifndef ESMF_NO_SEQUENCE
       sequence
+#endif
       !private
          integer :: state
       end type
@@ -218,12 +236,15 @@
 
       type ESMF_StateClass
 #ifndef ESMF_SEQUENCE_BUG
+#ifndef ESMF_NO_SEQUENCE
       sequence
+#endif
 #endif
       !private
         type(ESMF_Base) :: base
         type(ESMF_MethodTable) :: methodTable
         type(ESMF_StateIntent_Flag) :: st
+        type(ESMF_StateItemWrap), pointer :: zapList(:)
 #if 0
         type(ESMF_NeededFlag) :: needed_default
         type(ESMF_ReadyFlag) :: ready_default
@@ -329,7 +350,6 @@ contains
 !------------------------------------------------------------------------------
 
     ! local vars
-    integer :: localrc
     integer :: memstat
 
     ! Initialize return code; assume failure until success is certain
@@ -424,7 +444,7 @@ contains
         return
     case (ESMF_STATEITEM_STATE%ot)
       if (present(name)) then
-        call c_ESMC_GetName(stateItem%datap%spp%base, name, localrc)
+        call ESMF_GetName(stateItem%datap%spp%base, name, localrc)
         if (ESMF_LogFoundError(localrc, &
           ESMF_ERR_PASSTHRU, &
           ESMF_CONTEXT, rcToReturn=rc)) &
@@ -452,13 +472,16 @@ contains
 ! !IROUTINE: ESMF_StateItemPrint - Print a StateItem
 
 ! !INTERFACE:
-  subroutine ESMF_StateItemPrint (stateItem, header, prefixstr, longflag, unit, rc)
+  subroutine ESMF_StateItemPrint (stateItem, header, prefixstr,  &
+      longflag, debugflag, filename, unit, rc)
 !
 ! !ARGUMENTS:
-    type(ESMF_StateItem), intent(in)            :: stateItem
+    type(ESMF_StateItem), intent(in), target    :: stateItem
     character(*),         intent(in)            :: header
     character(*),         intent(in)            :: prefixstr
     logical,              intent(in)            :: longflag
+    logical,              intent(in)            :: debugflag
+    character(*),         intent(in),  optional :: filename
     integer,              intent(in),  optional :: unit
     integer,              intent(out), optional :: rc
 !         
@@ -475,6 +498,8 @@ contains
 !     Leading characters for output string (for indentation levels)
 !   \item[longflag]
 !     Print additional information such as proxyflag
+!   \item[longflag]
+!     Print additional information such as VMId
 !   \item[unit]
 !     Fortran unit number
 !   \item[{[rc]}]
@@ -483,6 +508,14 @@ contains
 !
 !EOPI
 !------------------------------------------------------------------------------
+    type(ESMF_VMId) :: vmid
+    type(ESMF_Array),           pointer :: arrayp
+    type(ESMF_ArrayBundle),     pointer :: abundlep
+    type(ESMF_FieldType),       pointer :: fieldp
+    type(ESMF_FieldBundleType), pointer :: fbundlep
+    type(ESMF_RouteHandle),     pointer :: rhandlep
+    type(ESMF_StateClass),      pointer :: statep
+
     integer                     :: localrc      ! local return code
     integer                     :: localunit
     character(2*ESMF_MAXSTR)    :: outbuf
@@ -535,6 +568,55 @@ contains
 
     write (localunit,*) trim(outbuf)
 
+    if (debugflag) then
+
+      select case (stateItem%otype%ot)
+      case (ESMF_STATEITEM_FIELDBUNDLE%ot)
+        fbundlep => stateItem%datap%fbp%this
+        call ESMF_BaseGetVMId (fbundlep%base, vmid, rc=localrc)
+
+      case (ESMF_STATEITEM_FIELD%ot)
+        fieldp => stateItem%datap%fp%ftypep
+
+        call ESMF_BaseGetVMId (fieldp%base, vmid, rc=localrc)
+        if (present(filename)) then
+          call c_ESMC_BasePrint(fieldp, 1, "debug", ESMF_TRUE, filename, ESMF_TRUE, localrc)
+        else
+          call c_ESMC_BasePrint(fieldp, 1, "debug", ESMF_FALSE, "", ESMF_FALSE, localrc)
+        endif
+
+      case (ESMF_STATEITEM_ARRAY%ot)
+        arrayp => stateItem%datap%ap
+        call c_ESMC_GetVMId (arrayp, vmid, localrc)
+
+      case (ESMF_STATEITEM_ARRAYBUNDLE%ot)
+        abundlep => stateItem%datap%abp
+        call c_ESMC_GetVMId (abundlep, vmid, localrc)
+
+      case (ESMF_STATEITEM_ROUTEHANDLE%ot)
+        rhandlep => stateItem%datap%rp
+        call c_ESMC_GetVMId (rhandlep, vmid, localrc)
+
+      case (ESMF_STATEITEM_STATE%ot)
+        statep => stateItem%datap%spp
+        call ESMF_BaseGetVMId (statep%base, vmid, rc=localrc)
+
+      end select
+      if (ESMF_LogFoundError(localrc, &
+         ESMF_ERR_PASSTHRU, &
+         ESMF_CONTEXT, rcToReturn=rc)) return
+
+      call ESMF_UtilIOUnitFlush (localunit, rc=localrc)
+      if (ESMF_LogFoundError(localrc, &
+         ESMF_ERR_PASSTHRU, &
+         ESMF_CONTEXT, rcToReturn=rc)) return
+
+      call c_esmc_vmidprint (vmid, localrc)
+      if (ESMF_LogFoundError(localrc, &
+         ESMF_ERR_PASSTHRU, &
+         ESMF_CONTEXT, rcToReturn=rc)) return
+
+    end if
 
     ! Return successfully
     if (present(rc)) rc = ESMF_SUCCESS

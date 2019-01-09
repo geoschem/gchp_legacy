@@ -1,7 +1,7 @@
 ! $Id$
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2012, University Corporation for Atmospheric Research,
+! Copyright 2002-2018, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -47,7 +47,8 @@ program ESMF_AttReadCplCompUTest
       character(ESMF_MAXSTR) :: name
 
       ! local variables
-      type(ESMF_CplComp)    :: cplcomp
+      type(ESMF_CplComp)     :: cplcomp
+      type(ESMF_AttPack)     :: attpack
       logical                :: xercesNotPresent
       integer                :: rc
 
@@ -70,6 +71,7 @@ program ESMF_AttReadCplCompUTest
 
   !-----------------------------------------------------------------------------
   call ESMF_TestStart(ESMF_SRCLINE, rc=rc)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   !-----------------------------------------------------------------------------
 
       !------------------------------------------------------------------------
@@ -78,9 +80,6 @@ program ESMF_AttReadCplCompUTest
       
       ! coupler component
       cplcomp = ESMF_CplCompCreate(name="cplcomp", petList=(/0/), rc=rc)
-
-! TODO:  resolve
-print *, "this print statement prevents mpi abort!"
 
       if (rc .ne. ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
@@ -115,6 +114,17 @@ print *, 'rc = ', rc
 
       conv = 'ESG'
       purp = 'General'
+
+      !------------------------------------------------------------------------
+      !EX_UTest
+      ! Get ESG General Attribute package from a CplComp Test
+      call ESMF_AttributeGetAttPack(cplcomp, attpack=attpack, &
+                             convention=conv, purpose=purp, rc=rc)
+      write(failMsg, *) "Did not return ESMF_SUCCESS or wrong value"
+      write(name, *) "Get ESG General Attribute package from a CplComp Test"
+      call ESMF_Test((rc==ESMF_SUCCESS &
+                     .or. xercesNotPresent), &
+                     name, failMsg, result, ESMF_SRCLINE)
 
       !------------------------------------------------------------------------
       !EX_UTest
@@ -296,7 +306,7 @@ print *, 'outChar = ', outChar
       if (rc .ne. ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
   !-----------------------------------------------------------------------------
-  call ESMF_TestEnd(result, ESMF_SRCLINE)
+  call ESMF_TestEnd(ESMF_SRCLINE)
   !-----------------------------------------------------------------------------
   
 end program ESMF_AttReadCplCompUTest

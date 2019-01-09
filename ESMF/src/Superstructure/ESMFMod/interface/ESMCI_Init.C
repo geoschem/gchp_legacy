@@ -1,7 +1,7 @@
-// $Id: ESMCI_Init.C,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
+// $Id$
 //
 // Earth System Modeling Framework
-// Copyright 2002-2012, University Corporation for Atmospheric Research, 
+// Copyright 2002-2018, University Corporation for Atmospheric Research, 
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
 // Laboratory, University of Michigan, National Centers for Environmental 
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
@@ -48,23 +48,35 @@ char **globalargv;
       ESMC_CalKind_Flag defaultCalendar,   // in - optional time manager
                                            //      default calendar kind
       char *defaultLogFilename,            // in - default log filename
-      ESMC_LogType defaultLogType) {       // in - default log type
+      ESMC_LogKind_Flag defaultLogType) {  // in - default log type
 //  
 // !DESCRIPTION:
 //
 //EOP
 
     int rc;
+    ESMCI_FortranStrLenArg defaultConfigFilename_len;
+    ESMCI_FortranStrLenArg defaultLogFilename_len;
     ESMCI_MainLanguage l = ESMF_MAIN_C;
 
     globalargc = 0;
     globalargv = NULL;
 
-    FTN(f_esmf_frameworkinitialize)((int*)&l, defaultConfigFilename, 
+    if (defaultConfigFilename != NULL)
+      defaultConfigFilename_len = strlen (defaultConfigFilename);
+    else
+      defaultConfigFilename_len = 0;
+
+    if (defaultLogFilename != NULL)
+      defaultLogFilename_len = strlen (defaultLogFilename);
+    else
+      defaultLogFilename_len = 0;
+
+    FTN_X(f_esmf_frameworkinitialize)((int*)&l, defaultConfigFilename, 
                                     &defaultCalendar, defaultLogFilename, 
                                     &defaultLogType, &rc,
-                                    strlen (defaultConfigFilename),
-                                    strlen (defaultLogFilename));
+                                    defaultConfigFilename_len,
+                                    defaultLogFilename_len);
 
     return rc;
 
@@ -90,12 +102,12 @@ char **globalargv;
 
     int rc;
     ESMCI_MainLanguage l = ESMF_MAIN_C;
-    ESMC_LogType lt = ESMC_LOG_MULTI;
+    ESMC_LogKind_Flag lt = ESMC_LOGKIND_MULTI;
 
     globalargc = 0;
     globalargv = NULL;
 
-    FTN(f_esmf_frameworkinitialize)((int*)&l, NULL, &defaultCalendar, NULL,
+    FTN_X(f_esmf_frameworkinitialize)((int*)&l, NULL, &defaultCalendar, NULL,
                                     &lt, &rc, 0, 0);
 
     return rc;
@@ -123,13 +135,13 @@ char **globalargv;
 
     int rc;
     ESMCI_MainLanguage l = ESMF_MAIN_C;
-    ESMC_LogType lt = ESMC_LOG_MULTI;
+    ESMC_LogKind_Flag lt = ESMC_LOGKIND_MULTI;
 
     // make this public so the mpi init code in Machine can grab them.
     globalargc = argc;
     globalargv = argv;
 
-    FTN(f_esmf_frameworkinitialize)((int*)&l, NULL, &defaultCalendar, NULL, 
+    FTN_X(f_esmf_frameworkinitialize)((int*)&l, NULL, &defaultCalendar, NULL, 
                                     &lt, &rc, 0, 0);
 
     return rc;
@@ -155,7 +167,7 @@ char **globalargv;
 
     int rc;
 
-    FTN(f_esmf_frameworkfinalize)(&rc);
+    FTN_X(f_esmf_frameworkfinalize)(&rc);
 
     return rc;
 

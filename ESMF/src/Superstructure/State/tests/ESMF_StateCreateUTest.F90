@@ -1,7 +1,7 @@
-! $Id: ESMF_StateCreateUTest.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
+! $Id$
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2012, University Corporation for Atmospheric Research,
+! Copyright 2002-2018, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -51,7 +51,7 @@ end module
 !------------------------------------------------------------------------------
 ! The following line turns the CVS identifier string into a printable variable.
       character(*), parameter :: version = &
-      '$Id: ESMF_StateCreateUTest.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $'
+      '$Id$'
 !------------------------------------------------------------------------------
 !   ! Local variables
     integer :: rc
@@ -59,7 +59,7 @@ end module
     character(1000) :: testName
     !type(ESMF_Field) :: field1, field2
     type(ESMF_State) :: state1, stateAlias
-	logical:: stateBool
+    logical:: stateBool
 
 
     ! individual test failure messages
@@ -83,9 +83,8 @@ end module
 #ifdef ESMF_TESTEXHAUSTIVE
     character(ESMF_MAXSTR) :: bname
     type(ESMF_State) :: state2, state3, state4, state5
-    type(ESMF_State) :: state6
     type(ESMF_FieldBundle) :: bundle1, bundle2, bundle3, qbundle
-    type(ESMF_FieldBundle) :: bundle4, bundle5, bundle6, bundle7
+    type(ESMF_FieldBundle) :: bundle5, bundle6, bundle7
     type(ESMF_VM) :: vm
     logical :: isNeeded
 
@@ -105,6 +104,7 @@ end module
 
 
       call ESMF_TestStart(ESMF_SRCLINE, rc=rc)
+      if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
       
       !------------------------------------------------------------------------
       !NEX_UTest
@@ -291,11 +291,11 @@ end module
   call ESMF_ContainerPrint(container, rc=rc)
   call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
   
-  nullify(siwOut)
   !------------------------------------------------------------------------
   !NEX_UTest
   write(name, *) "Container Get item Test"
   write(failMsg, *) "Did not return ESMF_SUCCESS"
+  siwOut => null ()
   call ESMF_ContainerGet(container, itemList=siwOut, rc=rc)
   call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
   
@@ -308,17 +308,19 @@ end module
   write(failMsg, *) "Did not verify"
   call ESMF_Test((trim(siwOut(1)%si%namep)==trim(si%namep)), name, failMsg, result, ESMF_SRCLINE)
 
-  !------------------------------------------------------------------------
-  nullify(siw%si)
+  deallocate (siwOut)
   
   !------------------------------------------------------------------------
   !NEX_UTest
   write(name, *) "Container Get item Test"
   write(failMsg, *) "Did not return ESMF_SUCCESS"
+  siw%si => null ()
   call ESMF_ContainerGet(container, itemName="testField1", item=siw, rc=rc)
   call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
   
   print *, "string in siw%si: ", siw%si%namep
+
+  call ESMF_FieldDestroy (siw%si%datap%fp)
 
   !------------------------------------------------------------------------
   !NEX_UTest
@@ -794,7 +796,7 @@ end module
       ! return number of failures to environment; 0 = success (all pass)
       ! return result  ! TODO: no way to do this in F90 ?
 
-      call ESMF_TestEnd(result, ESMF_SRCLINE)
+      call ESMF_TestEnd(ESMF_SRCLINE)
  
       contains
 
@@ -823,8 +825,8 @@ end module
               print *, 'ESMF_STATEITEM_UNKNOWN:     ', trim (names(i))
             case (ESMF_STATEITEM_NOTFOUND%ot)   
               print *, 'ESMF_STATEITEM_NOTFOUND:    ', trim (names(i))
-	    case default
-	      print *, '(unknown type):             ', trim (names(i))
+            case default
+              print *, '(unknown type):             ', trim (names(i))
             end select
           end do
 

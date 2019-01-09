@@ -1,7 +1,7 @@
 ! $Id$
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2012, University Corporation for Atmospheric Research,
+! Copyright 2002-2018, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -131,9 +131,11 @@ program ESMF_AttachMethodsEx
 !
 ! This program shows examples of Attachable Methods.
 !-----------------------------------------------------------------------------
+#include "ESMF.h"
 
   ! ESMF Framework module
   use ESMF
+  use ESMF_TestMod
   use producerMod
   use consumerMod
   implicit none
@@ -145,78 +147,64 @@ program ESMF_AttachMethodsEx
   type(ESMF_State):: state
 
   
-  integer :: finalrc
+  integer :: finalrc, result
+  character(ESMF_MAXSTR) :: testname
+  character(ESMF_MAXSTR) :: failMsg
+
+!-------------------------------------------------------------------------
+!-------------------------------------------------------------------------
+
+    write(failMsg, *) "Example failure"
+    write(testname, *) "Example ESMF_AttachMethodsEx"
+
+
+! ------------------------------------------------------------------------------
+! ------------------------------------------------------------------------------
+
+
   finalrc = ESMF_SUCCESS
 
 
   call ESMF_Initialize(defaultlogfilename="AttachMethodsEx.Log", &
                     logkindflag=ESMF_LOGKIND_MULTI, rc=rc)
-  if (rc/=ESMF_SUCCESS) then
-    finalrc = ESMF_FAILURE
-    goto 10
-  endif
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
   producer = ESMF_GridCompCreate(name="producer", rc=rc)
-  if (rc/=ESMF_SUCCESS) then
-    finalrc = ESMF_FAILURE
-    goto 10
-  endif
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
   consumer = ESMF_GridCompCreate(name="consumer", rc=rc)
-  if (rc/=ESMF_SUCCESS) then
-    finalrc = ESMF_FAILURE
-    goto 10
-  endif
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
-  call ESMF_GridCompSetServices(producer, producerReg, rc=rc)
-  if (rc/=ESMF_SUCCESS) then
-    finalrc = ESMF_FAILURE
-    goto 10
-  endif
+  call ESMF_GridCompSetServices(producer, userRoutine=producerReg, rc=rc)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
-  call ESMF_GridCompSetServices(consumer, consumerReg, rc=rc)
-  if (rc/=ESMF_SUCCESS) then
-    finalrc = ESMF_FAILURE
-    goto 10
-  endif
+  call ESMF_GridCompSetServices(consumer, userRoutine=consumerReg, rc=rc)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   
   state = ESMF_StateCreate(rc=rc)
-  if (rc/=ESMF_SUCCESS) then
-    finalrc = ESMF_FAILURE
-    goto 10
-  endif
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
   call ESMF_GridCompInitialize(producer, exportState=state, rc=rc)
-  if (rc/=ESMF_SUCCESS) then
-    finalrc = ESMF_FAILURE
-    goto 10
-  endif
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
   call ESMF_GridCompInitialize(consumer, importState=state, rc=rc)
-  if (rc/=ESMF_SUCCESS) then
-    finalrc = ESMF_FAILURE
-    goto 10
-  endif
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
   call ESMF_GridCompDestroy(producer, rc=rc)
-  if (rc/=ESMF_SUCCESS) then
-    finalrc = ESMF_FAILURE
-    goto 10
-  endif
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
   call ESMF_GridCompDestroy(consumer, rc=rc)
-  if (rc/=ESMF_SUCCESS) then
-    finalrc = ESMF_FAILURE
-    goto 10
-  endif
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
   call ESMF_StateDestroy(state, rc=rc)
-  if (rc/=ESMF_SUCCESS) then
-    finalrc = ESMF_FAILURE
-    goto 10
-  endif
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
-10 continue
+
+  ! IMPORTANT: ESMF_STest() prints the PASS string and the # of processors in the log
+  ! file that the scripts grep for.
+  call ESMF_STest((finalrc.eq.ESMF_SUCCESS), testname, failMsg, result, ESMF_SRCLINE)
+
+
   call ESMF_Finalize(rc=rc)
   
   if (rc/=ESMF_SUCCESS) finalrc = ESMF_FAILURE

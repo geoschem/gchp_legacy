@@ -1,7 +1,7 @@
-! $Id: ESMF_State_C.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
+! $Id$
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2012, University Corporation for Atmospheric Research, 
+! Copyright 2002-2018, University Corporation for Atmospheric Research, 
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
 ! Laboratory, University of Michigan, National Centers for Environmental 
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
@@ -24,7 +24,7 @@
 !------------------------------------------------------------------------------
 ! The following line turns the CVS identifier string into a printable variable.
 !      character(*), parameter, private :: version = &
-!      '$Id: ESMF_State_C.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $'
+!      '$Id$'
 !==============================================================================
 
 !------------------------------------------------------------------------------
@@ -33,7 +33,7 @@
 ! 
 ! The code in this file implements the interface code between C++ and F90
 !  for the {\tt State} entry points.  When the user calls an
-!  {\tt ESMC_State}XXX method, that code calls these functions, which
+!  ESMC_StateXXX method, that code calls these functions, which
 !  in turn call the F90 module code.  C++ cannot call directly into an
 !  F90 module because the module routine names are altered in a similar
 !  fashion as C++ name mangling.
@@ -331,13 +331,13 @@
        type(ESMF_State), intent(in)              :: state                  !in
        integer, intent(in)                       :: numItems               !in
        character(len=*), intent(inout)           :: itemNameList(numItems) !out
-       type(ESMF_StateItem_Flag), intent(inout)   :: itemTypeList(numItems) !out
+       type(ESMF_StateItem_Flag), intent(inout)  :: itemTypeList(numItems) !out
        integer, intent(out)                      :: rc                     !out
 
        ! local variable
        integer                    :: itemCount
-       character(len=ESMF_MAXSTR) :: localNameList(numItems)
-       type(ESMF_StateItem_Flag)   :: localTypeList(numItems)
+       character(len (itemNameList)) :: localNameList(numItems)
+       type(ESMF_StateItem_Flag)  :: localTypeList(numItems)
 
        integer                    :: i
 

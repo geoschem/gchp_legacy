@@ -1,7 +1,7 @@
-% $Id: AppDriver_reqmethods.tex,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
+% $Id$
 %
 % Earth System Modeling Framework
-% Copyright 2002-2012, University Corporation for Atmospheric Research, 
+% Copyright 2002-2018, University Corporation for Atmospheric Research, 
 % Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
 % Laboratory, University of Michigan, National Centers for Environmental 
 % Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
@@ -23,7 +23,7 @@ For technical reasons {\em none} of the arguments in user-provided subroutines
 must be declared as {\em optional}.
 
 The only {\em required} public interface of a Component is its
-set services method.  This subroutine must have an
+SetServices method.  This subroutine must have an
 externally accessible name (be a public symbol), take a component
 as the first argument, and an integer return code as the second. 
 Both arguments are required and must {\em not} be declared as 
@@ -33,24 +33,46 @@ second argument. The subroutine name is not predefined, it is set by the
 component writer, but must be provided as part of the component 
 documentation.
 
-The required function that the set services subroutine must provide is to
+The required function that the SetServices subroutine must provide is to
 specify the user-code entry points for the standard ESMF Component methods. To
-this end the user-written set services routine calls the
+this end the user-written SetServices routine calls the 
 
 {\tt ESMF\_<Grid/Cpl>CompSetEntryPoint()} method to set each 
 Component entry point.
 
 See sections \ref{sec:GridSetServ} and \ref{sec:CplSetServ} for examples of
-how to write a user-code set services routine.
+how to write a user-code SetServices routine.
 
-Note that a component does not call its own set services routine;
+Note that a component does not call its own SetServices routine;
 the AppDriver or parent component code, which is creating a component, 
-will first call {\tt ESMF\_<Grid/Cpl>CompCreate()} to create an "empty" 
-component, and then must call into {\tt ESMF\_<Grid/Cpl>CompSetServices()}, 
-supplying the user-code set services routine as an argument. The framework
-calls into the user-code set services, after the Component's VM has been
-started up.
+will first call {\tt ESMF\_<Grid/Cpl>CompCreate()} to create a component object, and then must call into {\tt ESMF\_<Grid/Cpl>CompSetServices()}, supplying the user-code SetServices routine as an argument. The framework then calls into the user-code SetServices, after the Component's VM has been started up.
 
+It is good practice to package the user-code implementing a component into a Fortran module, with the user-code SetService routine being the only public module method. ESMF supports three mechanisms for accessing the user-code SetServices routine from the calling AppDriver or parent component.
+
+\begin{itemize}
+\item {\bf Fortran USE association}: The AppDriver or parent component utilizes the standard Fortran USE statement on the component module to make all public entities available. The user-code SetServices routine can then be passed directly into the {\tt ESMF\_<Grid/Cpl>CompSetServices()} interface documented in \ref{GridComp:SetServices} and \ref{CplComp:SetServices}, respectively.
+
+{\em Pros}: Standard Fortran module use: name mangling and interface checking is handled by the Fortran compiler.
+
+{\em Cons}: Fortran 90/95 has no mechanism to implement a "smart" dependency scheme through USE association. Any change in a lower level component module (even just adding or changing a comment!) will trigger a complete recompilation of all of the higher level components throughout the component hierarchy. This situation is particularly annoying for ESMF componentized code, where the prescribed ESMF component interfaces, in principle, remove all interdependencies between components that would require recompilation.
+
+Fortran {\em submodules}, introduced as an extension to Fortran 2003, and now part for the Fortran 2008 standard, are designed to avoid this "false" dependency issue. A code change to an ESMF component that keeps the actual implementation within a submodule, will not trigger a recompilation of the components further up in the component hierarchy. Unfortunately, as of mid-2015, only two compiler vendors support submodules.
+
+\item {\bf External routine}: The AppDriver or parent component provides an explicit interface block for an external routine that implements (or calls) the user-code SetServices routine. This routine can then be passed directly into the {\tt ESMF\_<Grid/Cpl>CompSetServices()} interface documented in \ref{GridComp:SetServices} and \ref{CplComp:SetServices}, respectively. (In practice this can be implemented by the component as an external subroutine that simply calls into the user-code SetServices module routine.)
+
+{\em Pros}: Avoids Fortran USE dependencies: a change to lower level component code will not trigger a complete recompilation of all of the higher level components throughout the component hierarchy. Name mangling is handled by the Fortran compiler.
+
+{\em Cons}: The user-code SetServices interface is not checked by the compiler. The user must ensure uniqueness of the external routine name across the entire application.
+
+\begin{sloppypar}
+\item {\bf Name lookup}: The AppDriver or parent component specifies the user-code SetServices routine by name. The actual lookup and code association does not occur until runtime. The name string is passed into the {\tt ESMF\_<Grid/Cpl>CompSetServices()} interface documented in \ref{GridComp:SetServicesShObj} and \ref{CplComp:SetServicesShObj}, respectively.
+
+{\em Pros}: Avoids Fortran USE dependencies: a change to lower level component code will not trigger a complete recompilation of all of the higher level components throughout the component hierarchy. The component code does not have to be accessible until runtime and may be located in a shared object, thus avoiding relinking of the application.
+
+{\em Cons}: The user-code SetServices interface is not checked by the compiler. The user must explicitly deal with all of the Fortran name mangling issues: 1) Accessing a module routine requires precise knowledge of the name mangling rules of the specific compiler. Alternatively, the user-code SetServices routine may be implemented as an external routine, avoiding the module name mangling. 2) Even then, Fortran compilers typically append one or two underscores on a symbol name. This must be considered when passing the name into the {\tt ESMF\_<Grid/Cpl>CompSetServices()} method.
+
+\end{sloppypar}
+\end{itemize}
 
 \subsubsection{User-code {\tt Initialize}, {\tt Run}, and {\tt Finalize} methods}
 
@@ -61,7 +83,7 @@ ReadRestart methods.
 
 Sections \ref{sec:GridSetServ} and \ref{sec:CplSetServ} provide examples
 of how the entry points for Initialize, Run, and Finalize are set during
-the user-code set services routine, using the 
+the user-code SetServices routine, using the 
 {\tt ESMF\_<Grid/Cpl>CompSetEntryPoint()} library call.
 
 All standard user-code methods must abide {\em exactly} to the prescribed
@@ -83,28 +105,79 @@ standard ESMF Component methods.
 When the AppDriver or parent component code calls
 {\tt ESMF\_<Grid/Cpl>CompCreate()} it has the option to specify a 
 {\tt petList} argument. All of the parent PETs contained in this list become
-resources of the child component. By default all of the parent PETs are 
-provided to the child component.
+resources of the child component. By default, without the {\tt petList} argument, all of the parent PETs are provided to the child component.
 
-Unless the optional {\tt contextflag} argument is used during 
-{\tt ESMF\_<Grid/Cpl>CompCreate()}, to indicate that the child component will
-execute in the same VM as the parent, the child component has the option
-to set certain aspects of how the provided resources are to be used when
-executing child component methods. The resources provided via the parent PETs
-are the associated processing elements (PEs) and virtual address spaces (VASs).
+Typically each component has its own virtual machine (VM) object. However, using the optional {\tt contextflag} argument during {\tt ESMF\_<Grid/Cpl>CompCreate()} a child component can inherit its parent component's VM. Unless a child component inherits the parent VM, it has the option to set certain aspects of how its VM utilizes the provided resources. The resources provided via the parent PETs are the associated processing elements (PEs) and virtual address spaces (VASs).
 
-The optional user-written set vm routine is called from the parent
-through the {\tt ESMF\_<Grid/Cpl>CompSetVM()} library code, and is the only
-place where the child component can set aspects of its own VM before it is 
-started up. The child component's VM must be running before its set services
-routine can be called, and thus the optional {\tt ESMF\_<Grid/Cpl>CompSetVM()}
-call must be placed {\em before} {\tt ESMF\_<Grid/Cpl>CompSetServices()}.
+The optional user-written SetVM routine is called from the parent for the child through the {\tt ESMF\_<Grid/Cpl>CompSetVM()} method. This is the only place where the child component can set aspects of its own VM before it is started up. The child component's VM must be running before the SetServices routine can be called, and thus the parent must call the optional {\tt ESMF\_<Grid/Cpl>CompSetVM()} method {\em before} {\tt ESMF\_<Grid/Cpl>CompSetServices()}.
 
-If called by the parent, the user-code set vm routine has the option to
-specify how the PETs of the child component share the provided parent PEs.
-Further, PETs on the same single system image can be set to run multi-threaded,
-within a reduced number of VAS, allowing a component to leverage shared memory
-concepts.
+Inside the user-code called by the SetVM routine, the component has the option to specify how the PETs share the provided parent PEs. Further, PETs on the same single system image (SSI) can be set to run multi-threaded within a reduced number of virtual address spaces (VAS), allowing a component to leverage shared memory concepts.
 
 Sections \ref{sec:GridSetVM} and \ref{sec:CplSetVM} provide examples for
-simple user-written set vm routines.
+simple user-written SetVM routines.
+
+\subsubsection{Use of {\tt internal procedures} as user-provided procedures}
+\label{sec:AppDriverIntProc}
+
+Internal procedures are nested within a surrounding procedure, and only local to the surrounding procedure.
+They are specified by using the CONTAINS statement.
+
+Prior to Fortran-2008 an internal procedure could not be used as a user-provided callback procedure.
+In Fortran-2008 this restriction was lifted.  It is important to note that if ESMF is passed an internal
+procedure, that the surrounding procedure be active whenever ESMF calls it.  This helps ensure that
+local variables at the surrounding procedures scope are properly initialized.
+
+When internal procedures contained within a main program unit are used for callbacks, there is no problem.
+This is because the main program unit is always active.  However when internal procedures are used within
+other program units, initialization could become a problem.  The following outlines the issue:
+
+\begin{verbatim}
+  module my_procs_mod
+    use ESMF
+    implicit none
+
+  contains
+
+    subroutine my_procs (...)
+      integer :: my_setting
+      :
+      call ESMF_GridCompSetEntryPoint(gridcomp, methodflag=ESMF_METHOD_INITIALIZE, &
+          userRoutine=my_grid_proc_init, rc=localrc)
+      :
+      my_setting = 42
+
+    contains
+
+      subroutine my_grid_proc_init (gridcomp, importState, exportState, clock, rc)
+        :
+      ! my_setting is possibly uninitialized when my_grid_proc_init is used as a call-back
+        something = my_setting
+        :
+      end subroutine my_grid_proc_init
+    end subroutine my_procs
+  end module my_procs_mod
+\end{verbatim}
+
+The Fortran standard does not specify whether variable {\it my\_setting} is statically or
+automatically allocated, unless it is explicitly given the SAVE attribute.  Thus there is no
+guarantee that its value will persist after {\it my\_procs} has finished.  The SAVE attribute
+is usually given to a variable via specifying a SAVE attribute in its delaration.  However it can
+also be inferred by initializing the variable in its declaration:
+
+\begin{verbatim}
+      :
+      integer, save : my_setting
+      :
+\end{verbatim}
+
+or,
+
+\begin{verbatim}
+      :
+      integer :: my_setting = 42
+      :
+\end{verbatim}
+
+Because of the potential initialization issues, it is recommended that internal procedures
+only be used as ESMF callbacks when the surrounding procedure is also active.
+

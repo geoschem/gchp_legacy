@@ -1,7 +1,7 @@
 % $Id$
 %
 % Earth System Modeling Framework
-% Copyright 2002-2012, University Corporation for Atmospheric Research, 
+% Copyright 2002-2018, University Corporation for Atmospheric Research, 
 % Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
 % Laboratory, University of Michigan, National Centers for Environmental 
 % Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
@@ -20,9 +20,13 @@
 \textwidth 6.5in
 \textheight 8.5in
 \addtolength{\oddsidemargin}{-.75in}
-\newcommand{\mytitle}{Attachable Methods Reference Manual}
+\newcommand{\mytitle}{Attachable Methods Fortran Reference}
 \newcommand{\myauthors}{Gerhard Theurich}
-% these are temporary tiles until something more
+% set a standard paragraph style
+\setlength{\parskip}{0pt}
+\setlength{\parindent}{0pt}
+\setlength{\baselineskip}{11pt}
+% these are temporary patches until something more
 % permanent is done to the protex script.
 \newlength{\oldparskip}
 \newlength{\oldparindent}
@@ -43,6 +47,8 @@
 \tableofcontents
 
 \newpage
+\setlength{\parskip}{1.5ex}
+
 #endif
 
 \section{Attachable Methods}

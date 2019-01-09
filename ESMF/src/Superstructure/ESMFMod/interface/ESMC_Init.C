@@ -1,7 +1,7 @@
-// $Id: ESMC_Init.C,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
+// $Id$
 //
 // Earth System Modeling Framework
-// Copyright 2002-2012, University Corporation for Atmospheric Research, 
+// Copyright 2002-2018, University Corporation for Atmospheric Research, 
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
 // Laboratory, University of Michigan, National Centers for Environmental 
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
@@ -58,14 +58,27 @@ extern "C" {
     int localrc;
     ESMCI_ArgList   argPtr;
     ESMCI_ArgID     argID;
-    char *defaultConfigFilename;
+
+    ESMC_CalKind_Flag defaultCalendar       = ESMC_CALKIND_NOCALENDAR;
+    char             *defaultConfigFilename = NULL;
+    char             *defaultLogFilename    = NULL;
+    ESMC_LogKind_Flag logtype               = ESMC_LOGKIND_MULTI;
 
     // check the optional argument list
     ESMCI_ArgStart(argPtr, rc);
     while ( (argID=ESMCI_ArgGetID(argPtr)) != ESMCI_ArgLastID ) {
       switch ( argID ) {
+        case ESMCI_InitArgDefaultCalKindID:
+          ESMCI_ArgGetInt(argPtr);
+          break;
         case ESMCI_InitArgDefaultConfigFilenameID:
           ESMCI_ArgGetString(argPtr);
+          break;
+        case ESMCI_InitArgLogFilenameID:
+          ESMCI_ArgGetString(argPtr);
+          break;
+        case ESMCI_InitArgLogKindFlagID:
+          ESMCI_ArgGetInt(argPtr);
           break;
         default:
           printf("ESMC_Initialize: Improperly specified optional argument list\n");
@@ -77,8 +90,17 @@ extern "C" {
     ESMCI_ArgStart(argPtr, rc);
     while ( (argID=ESMCI_ArgGetID(argPtr)) != ESMCI_ArgLastID ) {
       switch ( argID ) {
+        case ESMCI_InitArgDefaultCalKindID:
+          defaultCalendar = (ESMC_CalKind_Flag)ESMCI_ArgGetInt(argPtr);
+          break;
         case ESMCI_InitArgDefaultConfigFilenameID:
           defaultConfigFilename = ESMCI_ArgGetString(argPtr);
+          break;
+        case ESMCI_InitArgLogFilenameID:
+          defaultLogFilename = ESMCI_ArgGetString(argPtr);
+          break;
+        case ESMCI_InitArgLogKindFlagID:
+          logtype = (ESMC_LogKind_Flag)ESMCI_ArgGetInt(argPtr);
           break;
         default:
           printf("ESMC_Initialize: Improperly specified optional argument list\n");
@@ -88,10 +110,14 @@ extern "C" {
     
     // todo: it may be better to go directly into F90 instead of using C++
     // todo: if this was implemented right it were to use the defaultConfigFile.
-    localrc = ESMCI_Initialize();
+    localrc = ESMCI_Initialize(
+        defaultConfigFilename,
+        defaultCalendar,
+        defaultLogFilename,
+        logtype);
     
     // todo: use LogErr to do error handling for localrc
-
+    if (rc != NULL) *rc = localrc;
     return localrc;
 
   } // end ESMC_Initialize

@@ -1,7 +1,7 @@
 // $Id$
 //
 // Earth System Modeling Framework
-// Copyright 2002-2012, University Corporation for Atmospheric Research, 
+// Copyright 2002-2018, University Corporation for Atmospheric Research, 
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
 // Laboratory, University of Michigan, National Centers for Environmental 
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
@@ -159,8 +159,8 @@ void myCplRegistrationInC(ESMC_CplComp cplcomp, int *rc){
 }
 
 extern "C"{
-  void FTN(my_registrationinfortran)(ESMC_GridComp comp, int *rc);
-  void FTN(my_cplregistrationinfortran)(ESMC_CplComp comp, int *rc);
+  void FTN_X(my_registrationinfortran)(ESMC_GridComp comp, int *rc);
+  void FTN_X(my_cplregistrationinfortran)(ESMC_CplComp comp, int *rc);
 }
 
 
@@ -186,6 +186,7 @@ int main(void){
   ESMC_State exportState;
   ESMC_GridComp gcomp;
   ESMC_CplComp cplcomp;
+  ESMC_SciComp scicomp;
   
   //----------------------------------------------------------------------------
   ESMC_TestStart(__FILE__, __LINE__, 0);
@@ -263,7 +264,7 @@ int main(void){
   //NEX_UTest
   strcpy(name, "Create ESMC_GridComp object");
   strcpy(failMsg, "Did not return ESMF_SUCCESS");
-  gcomp = ESMC_GridCompCreate("gridded component in C", "grid.rc", clock, &rc);
+  gcomp = ESMC_GridCompCreate("gridded component in C", "comp.rc", clock, &rc);
   ESMC_Test((rc==ESMF_SUCCESS), name, failMsg, &result, __FILE__, __LINE__, 0);
   //----------------------------------------------------------------------------
   
@@ -328,8 +329,8 @@ int main(void){
   //NEX_UTest
   strcpy(name, "Create ESMC_GridComp object");
   strcpy(failMsg, "Did not return ESMF_SUCCESS");
-  gcomp = ESMC_GridCompCreate("gridded Component in C w/ Fortran registration",
-    "grid.rc", clock, &rc);
+  gcomp = ESMC_GridCompCreate("gridded Component in C with Fortran registration",
+    "comp.rc", clock, &rc);
   ESMC_Test((rc==ESMF_SUCCESS), name, failMsg, &result, __FILE__, __LINE__, 0);
   //----------------------------------------------------------------------------
   
@@ -337,7 +338,7 @@ int main(void){
   //NEX_UTest
   strcpy(name, "ESMC_GridCompSetServices() using my_RegistrationInFortran()");
   strcpy(failMsg, "Did not return ESMF_SUCCESS");
-  rc = ESMC_GridCompSetServices(gcomp, FTN(my_registrationinfortran), &userRc);
+  rc = ESMC_GridCompSetServices(gcomp, FTN_X(my_registrationinfortran), &userRc);
   ESMC_Test((rc==ESMF_SUCCESS), name, failMsg, &result, __FILE__, __LINE__, 0);
   //----------------------------------------------------------------------------
   
@@ -380,7 +381,7 @@ int main(void){
   //NEX_UTest
   strcpy(name, "Create ESMC_CplComp object");
   strcpy(failMsg, "Did not return ESMF_SUCCESS");
-  cplcomp = ESMC_CplCompCreate("coupler component in C", "grid.rc", clock, &rc);
+  cplcomp = ESMC_CplCompCreate("coupler component in C", "comp.rc", clock, &rc);
   ESMC_Test((rc==ESMF_SUCCESS), name, failMsg, &result, __FILE__, __LINE__, 0);
   //----------------------------------------------------------------------------
   
@@ -437,8 +438,8 @@ int main(void){
   //NEX_UTest
   strcpy(name, "Create ESMC_CplComp object");
   strcpy(failMsg, "Did not return ESMF_SUCCESS");
-  cplcomp = ESMC_CplCompCreate("coupler component in C w/ Fortran registration",
-    "grid.rc", clock, &rc);
+  cplcomp = ESMC_CplCompCreate("coupler component in C with Fortran registration",
+    "comp.rc", clock, &rc);
   ESMC_Test((rc==ESMF_SUCCESS), name, failMsg, &result, __FILE__, __LINE__, 0);
   //----------------------------------------------------------------------------
   
@@ -446,7 +447,7 @@ int main(void){
   //NEX_UTest
   strcpy(name, "ESMC_CplCompSetServices() using my_RegistrationInFortran()");
   strcpy(failMsg, "Did not return ESMF_SUCCESS");
-  rc = ESMC_CplCompSetServices(cplcomp, FTN(my_cplregistrationinfortran),
+  rc = ESMC_CplCompSetServices(cplcomp, FTN_X(my_cplregistrationinfortran),
     &userRc);
   ESMC_Test((rc==ESMF_SUCCESS), name, failMsg, &result, __FILE__, __LINE__, 0);
   //----------------------------------------------------------------------------
@@ -483,7 +484,34 @@ int main(void){
   rc = ESMC_CplCompDestroy(&cplcomp);
   ESMC_Test((rc==ESMF_SUCCESS), name, failMsg, &result, __FILE__, __LINE__, 0);
   //----------------------------------------------------------------------------
-
+  
+  
+  // ESMC_SciComp tests
+  
+  //----------------------------------------------------------------------------
+  //NEX_UTest
+  strcpy(name, "Create ESMC_SciComp object");
+  strcpy(failMsg, "Did not return ESMF_SUCCESS");
+  scicomp = ESMC_SciCompCreate("science component in C", &rc);
+  ESMC_Test((rc==ESMF_SUCCESS), name, failMsg, &result, __FILE__, __LINE__, 0);
+  //----------------------------------------------------------------------------
+  
+  //----------------------------------------------------------------------------
+  //NEX_UTest
+  strcpy(name, "Print ESMC_SciComp object");
+  strcpy(failMsg, "Did not return ESMF_SUCCESS");
+  rc = ESMC_SciCompPrint(scicomp);
+  ESMC_Test((rc==ESMF_SUCCESS), name, failMsg, &result, __FILE__, __LINE__, 0);
+  //----------------------------------------------------------------------------
+  
+  //----------------------------------------------------------------------------
+  //NEX_UTest
+  strcpy(name, "Destroy ESMC_SciComp object");
+  strcpy(failMsg, "Did not return ESMF_SUCCESS");
+  rc = ESMC_SciCompDestroy(&scicomp);
+  ESMC_Test((rc==ESMF_SUCCESS), name, failMsg, &result, __FILE__, __LINE__, 0);
+  //----------------------------------------------------------------------------
+  
   
   // Garbage collection
     
@@ -520,7 +548,7 @@ int main(void){
   //----------------------------------------------------------------------------
   
   //----------------------------------------------------------------------------
-  ESMC_TestEnd(result, __FILE__, __LINE__, 0);
+  ESMC_TestEnd(__FILE__, __LINE__, 0);
   //----------------------------------------------------------------------------
   
   return 0;

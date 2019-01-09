@@ -1,7 +1,7 @@
 ! $Id$
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2012, University Corporation for Atmospheric Research,
+! Copyright 2002-2018, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -16,10 +16,10 @@
 
 !-------------------------------------------------------------------------
 !BOE
-!\subsubsection{Making a Component available through WebServices}
+!\subsubsection{Making a Component available through ESMF Web Services}
 !      
-!  In this example a standard ESMF Component is made available through
-!  the WebServices interface.
+!  In this example, a standard ESMF Component is made available through
+!  the Web Services interface.
 !EOE
 !BOE
 !  The first step is to make sure your callback routines for initialize, run
@@ -131,8 +131,12 @@ end module ESMF_WebServUserModel
 !EOE
 !BOC
 program WebServicesEx
+#include "ESMF.h"
+
   ! ESMF Framework module
   use ESMF
+  use ESMF_TestMod
+
   use ESMF_WebServMod
   use ESMF_WebServUserModel
 
@@ -141,12 +145,26 @@ program WebServicesEx
   ! Local variables
   type(ESMF_GridComp) :: comp1     !! Grid Component
   integer             :: rc        !! Return Code
-  integer             :: finalrc   !! Final return code
+  integer             :: finalrc  !! Final return code
   integer             :: portNum   !! The port number for the listening socket
 !EOC
+  integer             :: result   
+  character(ESMF_MAXSTR) :: testname
+  character(ESMF_MAXSTR) :: failMsg
+
+!-------------------------------------------------------------------------
+!-------------------------------------------------------------------------
+
+    write(failMsg, *) "Example failure"
+    write(testname, *) "Example ESMF_WebServicesEx"
+
+
+! ------------------------------------------------------------------------------
+! ------------------------------------------------------------------------------
+
 !BOE
-!  The port number specifies the id of the port on the local machine on which
-!  a listening socket will be created.  This socket is used by the service to
+!  A listening socket will be created on the local machine with the specified
+!  port number.  This socket is used by the service to
 !  wait for and receive requests from the client.  Check with your system
 !  administrator to determine an appropriate port to use for your service.
 !EOE
@@ -157,29 +175,18 @@ program WebServicesEx
   call ESMF_Initialize(defaultlogfilename="WebServicesEx.Log", &
                     logkindflag=ESMF_LOGKIND_MULTI, rc=rc)
 !EOC
-  if (rc/=ESMF_SUCCESS) then
-    finalrc = ESMF_FAILURE
-    goto 10
-  endif
-
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !BOC
   ! create the grid component 
   comp1 = ESMF_GridCompCreate(name="My Component", rc=rc)
 !EOC
-  if (rc/=ESMF_SUCCESS) then
-    finalrc = ESMF_FAILURE
-    goto 10
-  endif
-
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !BOC
   ! Set up the register routine 
   call ESMF_GridCompSetServices(comp1, &
           userRoutine=ESMF_WebServUserModelRegister, rc=rc)
 !EOC
-  if (rc/=ESMF_SUCCESS) then
-    finalrc = ESMF_FAILURE
-    goto 10
-  endif
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   !!!!!!!
   !! KDS: I've commented out the call to ESMF_WebServicesLoop so that it won't
   !! enter the infinite loop and hold up the examples run.  I'll keep it
@@ -192,10 +199,7 @@ program WebServicesEx
   ! Call the Web Services Loop and wait for requests to come in
   !call ESMF_WebServicesLoop(comp1, portNum, rc=rc)
 !EOC
-  if (rc/=ESMF_SUCCESS) then
-    finalrc = ESMF_FAILURE
-    goto 10
-  endif
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !BOE
 !  The call to ESMF\_WebServicesLoop will setup the listening socket for your
 !  service and will wait for requests from a client.  As requests are received,
@@ -218,6 +222,11 @@ program WebServicesEx
 
 
 10 continue
+ ! IMPORTANT: ESMF_STest() prints the PASS string and the # of processors in the log
+ ! file that the scripts grep for.
+  call ESMF_STest((finalrc.eq.ESMF_SUCCESS), testname, failMsg, result, ESMF_SRCLINE)
+
+
 !BOC
   call ESMF_Finalize(rc=rc)
 !EOC

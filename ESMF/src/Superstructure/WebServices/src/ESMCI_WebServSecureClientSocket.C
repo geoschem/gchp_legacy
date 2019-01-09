@@ -1,7 +1,7 @@
 // $Id$
 //
 // Earth System Modeling Framework
-// Copyright 2002-2012, University Corporation for Atmospheric Research,
+// Copyright 2002-2018, University Corporation for Atmospheric Research,
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 // Laboratory, University of Michigan, National Centers for Environmental
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -24,14 +24,10 @@
 // client to send requests to and receive responses from socket services.
 //
 //-----------------------------------------------------------------------------
-
 #include "ESMCI_WebServSecureClientSocket.h"
 
 #include "ESMCI_WebServSocketUtils.h"
 #include "ESMCI_Macros.h"
-#include "ESMCI_LogErr.h"
-#include "ESMF_LogMacros.inc"
-
 
 //-----------------------------------------------------------------------------
 // leave the following line as-is; it will insert the cvs ident string
@@ -96,7 +92,7 @@ ESMCI_WebServSecureClientSocket::~ESMCI_WebServSecureClientSocket(
 //EOPI
 //-----------------------------------------------------------------------------
 {
-	disconnect();
+        disconnect();
 }
 
 
@@ -121,14 +117,14 @@ int  ESMCI_WebServSecureClientSocket::connect(
   )
 //
 // !DESCRIPTION:
-//    Creates a client socket and connects to a socket service on the 
+//    Creates a client socket and connects to a socket service on the
 //    specified host listening on the specified port.
 //
 //EOPI
 //-----------------------------------------------------------------------------
 {
-	//printf("SecureClientSocket::connect()\n");
-	return clientConnect(host, port);
+        //printf("SecureClientSocket::connect()\n");
+        return clientConnect(host, port);
 }
 
 

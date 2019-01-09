@@ -1,7 +1,7 @@
 ! $Id$
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2012, University Corporation for Atmospheric Research,
+! Copyright 2002-2018, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -43,6 +43,7 @@ program ESMF_AttReadCustCplCompEx
 !BOC
       ! ESMF Framework module
       use ESMF
+      use ESMF_TestMod
       implicit none
 
       ! local variables
@@ -54,7 +55,21 @@ program ESMF_AttReadCustCplCompEx
 
       ! example program result codes
       logical :: xercesPresent
-      integer :: finalrc
+      integer :: finalrc, result
+      character(ESMF_MAXSTR) :: testname
+      character(ESMF_MAXSTR) :: failMsg
+
+!-------------------------------------------------------------------------
+!-------------------------------------------------------------------------
+
+    write(failMsg, *) "Example failure"
+    write(testname, *) "Example ESMF_AttReadCustCplCompEx"
+
+
+! ------------------------------------------------------------------------------
+! ------------------------------------------------------------------------------
+
+
 
       ! assume Xerces XML C++ API library present until proven otherwise
       xercesPresent = .true.
@@ -77,7 +92,7 @@ program ESMF_AttReadCustCplCompEx
       if (rc.ne.ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
       if (localPet==0) then
-        print *, "--------------------- ------------------"
+        print *, "----------------------------------------"
         print *, "Start of ESMF_AttReadCustCplComp Example"
         print *, "----------------------------------------"
       endif
@@ -105,7 +120,7 @@ program ESMF_AttReadCustCplCompEx
         xercesPresent = .false.
       endif
 
-      if (rc .ne. ESMF_SUCCESS .and. xercesPresent) finalrc = ESMF_FAILURE
+      if (rc .ne. ESMF_SUCCESS .and. xercesPresent) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
 !print *, 'rc = ', rc
 
@@ -116,7 +131,7 @@ program ESMF_AttReadCustCplCompEx
 !EOC
 
       if (.not.((rc==ESMF_SUCCESS .and. attrvalue=='My Coupler') &
-                      .or. .not. xercesPresent)) finalrc = ESMF_FAILURE
+                      .or. .not. xercesPresent)) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !print *, 'rc = ', rc
 !print *, 'attrvalue = ', attrvalue
 
@@ -127,7 +142,7 @@ program ESMF_AttReadCustCplCompEx
 !EOC
 
       if (.not.((rc==ESMF_SUCCESS .and. attrvalue=='My Earth System Model') &
-                      .or. .not. xercesPresent)) finalrc = ESMF_FAILURE
+                      .or. .not. xercesPresent)) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !print *, 'rc = ', rc
 !print *, 'attrvalue = ', attrvalue
 
@@ -138,7 +153,7 @@ program ESMF_AttReadCustCplCompEx
 !EOC
 
       if (.not.((rc==ESMF_SUCCESS .and. attrvalue=='Atmosphere') &
-                      .or. .not. xercesPresent)) finalrc = ESMF_FAILURE
+                      .or. .not. xercesPresent)) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !print *, 'rc = ', rc
 !print *, 'attrvalue = ', attrvalue
 
@@ -149,7 +164,7 @@ program ESMF_AttReadCustCplCompEx
 !EOC
 
       if (.not.((rc==ESMF_SUCCESS .and. attrvalue=='Land') &
-                      .or. .not. xercesPresent)) finalrc = ESMF_FAILURE
+                      .or. .not. xercesPresent)) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !print *, 'rc = ', rc
 !print *, 'attrvalue = ', attrvalue
 
@@ -160,7 +175,7 @@ program ESMF_AttReadCustCplCompEx
 !EOC
 
       if (.not.((rc==ESMF_SUCCESS .and. attrvalue=='Version 1') &
-                      .or. .not. xercesPresent)) finalrc = ESMF_FAILURE
+                      .or. .not. xercesPresent)) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !print *, 'rc = ', rc
 !print *, 'attrvalue = ', attrvalue
 
@@ -169,6 +184,12 @@ program ESMF_AttReadCustCplCompEx
 !EOC
 
       if (rc .ne. ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
+
+
+      ! IMPORTANT: ESMF_STest() prints the PASS string and the # of processors in the log
+      ! file that the scripts grep for.
+      call ESMF_STest((finalrc.eq.ESMF_SUCCESS), testname, failMsg, result, ESMF_SRCLINE)
+
 
 !BOC
       ! finalize ESMF framework

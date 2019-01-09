@@ -1,4 +1,4 @@
-# $Id: makefile,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $ 
+# $Id$ 
 
 ALL:      build_examples
 run:      run_examples
@@ -6,7 +6,7 @@ run_uni:  run_examples_uni
 
 LOCDIR	  = src/Superstructure/State/examples
 
-
+.NOTPARALLEL:
 EXAMPLES_BUILD = $(ESMF_EXDIR)/ESMF_StateEx \
                  $(ESMF_EXDIR)/ESMF_StateReconcileEx \
                  $(ESMF_EXDIR)/ESMF_StateReadWriteEx

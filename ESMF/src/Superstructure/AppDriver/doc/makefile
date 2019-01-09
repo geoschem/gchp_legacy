@@ -1,4 +1,4 @@
-# $Id: makefile,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $ 
+# $Id$ 
 
 all: onedoc
 
@@ -27,7 +27,7 @@ TEXFILES_TO_MAKE = $(addsuffix SeqPrF_fapi.tex, $(basename $(notdir $(wildcard .
 # These lists almost certainly will not be an exhastive list of 
 # all of the dependent files, but even a partial listing  will be helpful.
 #
-REFDOC_DEP_FILES = $(TEXFILES_TO_MAKE)
+REFDOC_DEP_FILES = $(TEXFILES_TO_MAKE) AppDriver_creqmethodsintro.tex AppDriver_desc.tex AppDriver_design.tex AppDriver_options.tex AppDriver_reqmethodsintro.tex AppDriver_reqmethods.tex AppDriver_rest.tex AppDriver_usage.tex
 include $(ESMF_DIR)/makefile
 
 

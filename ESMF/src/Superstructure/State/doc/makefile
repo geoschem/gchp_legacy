@@ -1,12 +1,12 @@
-# $Id: makefile,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $ 
+# $Id$ 
 
 ALL: onedoc
 
 LOCDIR	  = src/Superstructure/State/doc
 
 DVIFILES  = State_refdoc.dvi State_crefdoc.dvi
-PDFFILES  = $(ESMC_DOCDIR)/State_refdoc.pdf $(ESMC_DOCDIR)/State_crefdoc.pdf
-HTMLFILES = $(ESMC_DOCDIR)/State_refdoc $(ESMC_DOCDIR)/State_crefdoc
+PDFFILES  = State_refdoc.pdf State_crefdoc.pdf
+HTMLFILES = State_refdoc State_crefdoc
 
 #
 # Tex Files to make

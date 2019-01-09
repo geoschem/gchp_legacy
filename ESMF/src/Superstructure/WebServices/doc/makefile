@@ -5,8 +5,8 @@ ALL: onedoc
 LOCDIR	  = src/Superstructure/WebServices/doc
 
 DVIFILES  = WebServices_refdoc.dvi
-PDFFILES  = $(ESMC_DOCDIR)/WebServices_refdoc.pdf
-HTMLFILES = $(ESMC_DOCDIR)/WebServices_refdoc
+PDFFILES  = WebServices_refdoc.pdf
+HTMLFILES = WebServices_refdoc
 
 #
 # Tex Files to make

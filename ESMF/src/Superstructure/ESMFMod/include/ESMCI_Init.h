@@ -1,10 +1,10 @@
-// $Id: ESMCI_Init.h,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
+// $Id$
 //
 // Earth System Modeling Framework
-// Copyright 2002-2012, University Corporation for Atmospheric Research, 
-// Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
-// Laboratory, University of Michigan, National Centers for Environmental 
-// Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
+// Copyright 2002-2018, University Corporation for Atmospheric Research,
+// Massachusetts Institute of Technology, Geophysical Fluid Dynamics
+// Laboratory, University of Michigan, National Centers for Environmental
+// Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
 // NASA Goddard Space Flight Center.
 // Licensed under the University of Illinois-NCSA License.
 
@@ -22,7 +22,7 @@
 //
 // The code in this file implements constants and macros for the Init Code.
 //
-// 
+//
 //
 
 // !USES:
@@ -43,11 +43,12 @@ enum ESMCI_MainLanguage { ESMF_MAIN_C=1, ESMF_MAIN_F90 };
 // prototypes for C routines
 int ESMCI_Initialize(char *defaultConfigFilename,
   ESMC_CalKind_Flag defaultCalendar=ESMC_CALKIND_NOCALENDAR,
-  char *defaultLogFilename=NULL, ESMC_LogType defaultLogType=ESMC_LOG_MULTI);
+  char *defaultLogFilename=NULL,
+  ESMC_LogKind_Flag defaultLogType=ESMC_LOGKIND_MULTI);
 
 int ESMCI_Initialize(ESMC_CalKind_Flag defaultCalendar=ESMC_CALKIND_NOCALENDAR);
 
-int ESMCI_Initialize(int argc, char **argv, 
+int ESMCI_Initialize(int argc, char **argv,
   ESMC_CalKind_Flag defaultCalendar=ESMC_CALKIND_NOCALENDAR);
 
 int ESMCI_Finalize(void);
@@ -55,14 +56,14 @@ int ESMCI_Finalize(void);
 
 // prototypes for fortran interface routines
 extern "C" {
-   void FTN(f_esmf_frameworkinitialize)(int *language, 
+   void FTN_X(f_esmf_frameworkinitialize)(int *language,
                                         char *defaultConfigFileName,
                                         ESMC_CalKind_Flag *defaultCalendar,
                                         char *defaultLogFileName,
-                                        ESMC_LogType *defaultLogType,
+                                        ESMC_LogKind_Flag *defaultLogType,
                                         int *rc, ESMCI_FortranStrLenArg count1,
-					ESMCI_FortranStrLenArg count2);
-   void FTN(f_esmf_frameworkfinalize)(int *rc);
+                                        ESMCI_FortranStrLenArg count2);
+   void FTN_X(f_esmf_frameworkfinalize)(int *rc);
 };
 
 
