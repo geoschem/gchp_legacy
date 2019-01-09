@@ -1,14 +1,15 @@
 #!/usr/bin/env perl
-# $Id: unit_tests_results.pl,v 1.1.5.1 2013-01-11 20:23:43 mathomp4 Exp $
+# $Id$
 # This script runs at the end of the "run_unit_tests", "run_unit_tests_uni" and "check_results" targets.
 # The purpose is to give the user the results of running the unit tests.
 # The results are either complete results or a summary.
 
-sub unit_tests_results($$$) {
+sub unit_tests_results($$$$) {
 
         my $TEST_DIR    = $_[0];
         my $ESMF_BOPT   = $_[1];
-        my $SUMMARY     = $_[2];
+	my $ESMF_COMM	= $_[2];
+        my $SUMMARY     = $_[3];
 
 
 # This subroutine reads the number of pets from the *UTest.Log files.
@@ -44,6 +45,7 @@ use File::Find
 
 # Arrays of unit tests files
 @ut_files = ();		# Unit Test files
+@temp_files = ();	# Unit Test files
 @ut_x_files = ();	# Unit test executable files
 @all_files = (); 	# All files
 @Log_files = (); 	# Unit Test Log files 
@@ -102,42 +104,31 @@ use File::Find
                         # Put all files in a list
                         push @all_files, "$File::Find::name\n" ;
         }
-        # Get all unit tests files
-        @ut_files=grep (/UTest/, @all_files);
-	# Delete all testg or testO from list
-	@Log_files=grep (/test$ESMF_BOPT/, @ut_files);
-        # Delete Log files from list
-        foreach $file ( @Log_files) {
-                foreach (@ut_files){
-                        s/$file//s;     
-                }               
+        # Get all source unit tests files
+        @c_files=grep (/UTest.C/, @all_files);
+        @F90_files=grep (/UTest.F90/, @all_files);
+        foreach $file ( @c_files) {
+                push (@F90_files, $file);               
         }
-	# Delete all UTestLog from list
-	@log_files=grep (/UTestLog/, @ut_files);
-        # Delete logfile files from list
-        foreach $file ( @log_files) {
-                foreach (@ut_files){
-                        s/$file//s;     
-                }               
-        }
-	# Clear all_files list
-	@all_files = ();
-	# Get the list of Unit tests Log files
-        find(\&wanted_Logfiles, $TEST_DIR);
-        sub wanted_Logfiles {
-                        # Put all files in a list
-                        push @all_files, "$File::Find::name\n" if -e ;
-        }
-        @Log_files=grep (/UTest.Log/, @all_files);
-	# Sort the Log files list
-	@Log_files=sort(@Log_files);
-
-        # Get stripped unit tests names
-        @st_ut_files = @ut_files;
+	# Remove ESM*_MAPL_* unit tests from list
+	foreach $file (@F90_files) {
+		if ((grep(/ESMF_MAPL_/, $file)) ||
+		    (grep(/ESMC_MAPL_/, $file)) ||
+		    (grep(/ESMCI_MAPL_/, $file))) {
+			push (@mapl_files, $file);
+		} else {
+		        push (@st_ut_files, $file);
+		}
+	}
+        @ut_files = @st_ut_files;
         foreach ( @st_ut_files) {
                 s/\.\///; # Delete all the "./"
                 s/\///g; # Delete all the "/"
-                s/ESM/ ESM/;# Break it into 2 fields
+                s/ESMF_/ ESMF_/;# Break it into 2 fields
+                s/([^ ]*) ([^ ]*)/$2/; # Get rid of the 1st field
+                s/ESMC_/ ESMC_/;# Break it into 2 fields
+                s/([^ ]*) ([^ ]*)/$2/; # Get rid of the 1st field
+                s/ESMCI_/ ESMCI_/;# Break it into 2 fields
                 s/([^ ]*) ([^ ]*)/$2/; # Get rid of the 1st field
                 s/\./ /; # Break it into 2 fields
                 s/([^ ]*) ([^ ]*)/$1\n/; # Get rid of the 2nd field
@@ -195,7 +186,11 @@ use File::Find
 				$test_file = $file;
 				foreach ($test_file) {
                 			s/\///g; # Delete all the "/"
-                			s/ESM/ ESM/;# Break it into 2 fields
+                			s/ESMF_/ ESMF_/;# Break it into 2 fields
+                			s/([^ ]*) ([^ ]*)/$2/; # Get rid of the 1st field
+                			s/ESMC_/ ESMC_/;# Break it into 2 fields
+                			s/([^ ]*) ([^ ]*)/$2/; # Get rid of the 1st field
+                			s/ESMCI_/ ESMCI_/;# Break it into 2 fields
                 			s/([^ ]*) ([^ ]*)/$2/; # Get rid of the 1st field
                 			s/\./ /; # Break it into 2 fields
                 			s/([^ ]*) ([^ ]*)/$1.Log\n/; # Get rid of the 2nd field
@@ -354,27 +349,36 @@ use File::Find
 
 	# Delete ./ from all lists
         foreach ( @pass_list) {
-                s/\.\//PASS: /; # Delete all the "./"
+                s/\.\///; # Delete all the "./"
 	}
         foreach ( @crashed_list) {
-                s/\.\//CRASH: /; # Delete all the "./"
+                s/\.\///; # Delete all the "./"
 	}
         foreach ( @fail_list) {
-                s/\.\//FAIL: /; # Delete all the "./"
+                s/\.\///; # Delete all the "./"
 	}
 	if (!$SUMMARY) { # Print only if full output requested
         	# Print to the screen
 		if (@pass_list != ()){
 			print "\n\nThe unit tests in the following files all pass:\n\n";
-			print @pass_list;
+			foreach $file ( @pass_list ) {
+				chomp($file);
+				print "PASS: $ESMF_COMM/$ESMF_BOPT: $file\n";
+			}
 		}
 		if (@crashed_list != ()){
 			print "\n\nThe following unit test files failed to build, failed to execute or crashed during execution:\n\n";
-			print @crashed_list;
+                        foreach $file ( @crashed_list ) {
+                                chomp($file);
+                                print "CRASHED: $ESMF_COMM/$ESMF_BOPT: $file\n";
+                        }
 		}
 		if (@fail_list != ()){
 			print "\n\nThe following unit test files had failed unit tests:\n\n";
-			print @fail_list;
+                        foreach $file ( @fail_list ) {
+                                chomp($file);
+                                print "FAIL: $ESMF_COMM/$ESMF_BOPT: $file\n";
+                        }
 		}
 	}
 
@@ -384,7 +388,7 @@ use File::Find
 	if (@fail_test_list != ()){
 		# Delete date type and PET part of the fail message.
 		foreach (@fail_test_list) {
-			s/^.*?FAIL/   FAIL/;# Delete everything before FAIL
+			s/^.*?FAIL/   FAIL: $ESMF_COMM\/$ESMF_BOPT: /;# Delete everything before FAIL
 		}
 		# Delete repeated lines in fail_test_list
 		$sorted_fail_test_list = ();
@@ -471,10 +475,10 @@ use File::Find
 	}
 	# Prepend "PASS/FAIL" prefix to each line
 	foreach $line (@harness_pass){
-                        $line = "PASS: " . $line;
+                        $line = "PASS: $ESMF_COMM/$ESMF_BOPT: " . $line;
 	}
 	foreach $line (@harness_fail){
-                        $line = "FAIL: " . $line;
+                        $line = "FAIL: $ESMF_COMM/$ESMF_BOPT: " . $line;
 	}
 
 

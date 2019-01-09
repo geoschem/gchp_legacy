@@ -1,0 +1,189 @@
+#!/bin/csh -f
+#
+# Earth System Modeling Framework
+# Copyright 2002-2018, University Corporation for Atmospheric Research, 
+# Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
+# Laboratory, University of Michigan, National Centers for Environmental 
+# Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
+# NASA Goddard Space Flight Center.
+# Licensed under the University of Illinois-NCSA License.
+#
+# $Id$
+#
+#===============================================================================
+# do_newdoc
+#===============================================================================
+#
+# Fill a directory with the template files for a new document.
+#
+# Usage: do_newdoc <comp> <document type> 
+#
+#        <comp> is the name of the component, library, or module used as the
+#               basis for document filenames (e.g., coupler)
+#
+#        <document type> is one of the following:
+#               req  - requirements document
+#               arch - architecture document
+#               des  - detailed design document
+#               ref  - reference manual
+#               usr  - user's guide
+#               phys - algorithmic or physical description
+#        
+# If a directory called <comp> doesn't already exist, it will be created in 
+# the directory where the script is called.  If the <comp> directory does exist, 
+# the template files needed to create the new document will be added to it.  
+# Template files that relate to the entire component have <comp> as the root 
+# of their filename.  Template files that pertain to classes or modules have 
+# "class" as the root of their filename.
+#
+# C. DeLuca                                                       March 21, 2001
+#===============================================================================
+ 
+if($#argv != 2) then
+  echo "Usage:  do_newdoc <component> <document type>"
+  exit
+else 
+  set comp=$1
+  set type=$2
+  set newdir=$cwd/$comp
+endif
+
+# Create a new directory if needed
+  if(!(-d $newdir)) then
+    mkdir $newdir 
+  endif 
+  if(!(-d $newdir/doc)) then
+    mkdir $newdir/doc
+  endif
+  set newdir=$cwd/$comp/doc
+
+  set DOCT_DIR=$DOC_DIR/templates
+
+# Fill the directory with template files
+  switch ($type) 
+  case req:
+      if(!(-r $newdir/README_REQ)) cp $DOCT_DIR/README_REQ $newdir
+      if(!(-r $newdir/$1_reqdoc.ctex)) then
+       cat $DOCT_DIR/comp_reqdoc.ctex | \
+       sed s'zcomp_\(.*\)z'$1_'\1z' > $newdir/$1_reqdoc.ctex
+      endif
+      if(!(-r $newdir/$1_auth.tex)) cp $DOCT_DIR/comp_auth.tex $newdir/$1_auth.tex
+      if(!(-r $newdir/$1_background.tex)) cp $DOCT_DIR/comp_background.tex $newdir/$1_background.tex
+      if(!(-r $newdir/$1_abbr.tex)) cp $DOCT_DIR/comp_abbr.tex $newdir/$1_abbr.tex
+      if(!(-r $newdir/$1_terms.tex)) cp $DOCT_DIR/comp_terms.tex $newdir/$1_terms.tex
+      if(!(-r $newdir/$1_req.tex)) cp $DOCT_DIR/comp_req.tex $newdir/$1_req.tex
+      if(!(-r $newdir/$1_glos.tex)) cp $DOCT_DIR/comp_glos.tex $newdir/$1_glos.tex
+      if(!(-r $newdir/$1.bib)) cp $DOCT_DIR/comp.bib $newdir/$1.bib
+      breaksw
+  case arch:
+      if(!(-r $newdir/README_ARCH)) cp $DOCT_DIR/README_ARCH $newdir
+      if(!(-r $newdir/$1_archdoc.ctex)) then 
+       cat $DOCT_DIR/comp_archdoc.ctex | \
+       sed s'zcomp_\(.*\)z'$1_'\1z' > $newdir/$1_archdoc.ctex
+      endif
+      if(!(-r $newdir/$1_syn.tex)) cp $DOCT_DIR/comp_syn.tex $newdir/$1_syn.tex
+      if(!(-r $newdir/$1_alg.tex)) cp $DOCT_DIR/comp_alg.tex $newdir/$1_alg.tex
+      if(!(-r $newdir/$1_req.tex)) cp $DOCT_DIR/comp_req.tex $newdir/$1_req.tex
+      if(!(-r $newdir/$1_arch.tex)) cp $DOCT_DIR/comp_arch.tex $newdir/$1_arch.tex
+      if(!(-r $newdir/$1_archrev.tex)) cp $DOCT_DIR/comp_archrev.tex $newdir/$1_archrev.tex
+      if(!(-r $newdir/$1_glos.tex)) cp $DOCT_DIR/comp_glos.tex $newdir/$1_glos.tex
+      if(!(-r $newdir/$1.bib)) cp $DOCT_DIR/comp.bib $newdir/$1.bib
+      breaksw
+  case des:
+      if(!(-r $newdir/README_DES)) cp $DOCT_DIR/README_DES $newdir
+      if(!(-r $newdir/$1_desdoc.ctex)) then
+       cat $DOCT_DIR/comp_desdoc.ctex | \
+       sed s'zcomp_\(.*\)z'$1_'\1z' > $newdir/$1_desdoc.ctex
+      endif
+      if(!(-r $newdir/$1_syn.tex)) cp $DOCT_DIR/comp_syn.tex $newdir/$1_syn.tex
+      if(!(-r $newdir/$1_alg.tex)) cp $DOCT_DIR/comp_alg.tex $newdir/$1_alg.tex
+      if(!(-r $newdir/$1_req.tex)) cp $DOCT_DIR/comp_req.tex $newdir/$1_req.tex
+      if(!(-r $newdir/$1_obj.tex)) cp $DOCT_DIR/comp_obj.tex $newdir/$1_obj.tex
+      if(!(-r $newdir/class_desc.tex)) cp $DOCT_DIR/class_desc.tex $newdir
+      if(!(-r $newdir/class_design.tex)) cp $DOCT_DIR/class_design.tex $newdir
+      if(!(-r $newdir/class_def.tex)) cp $DOCT_DIR/class_def.tex $newdir
+      if(!(-r $newdir/class_rest.tex)) cp $DOCT_DIR/class_rest.tex $newdir
+      if(!(-r $newdir/class_fparam.tex)) cp $DOCT_DIR/class_fparam.tex $newdir
+      if(!(-r $newdir/class_fex.tex)) cp $DOCT_DIR/class_fex.tex $newdir      
+      if(!(-r $newdir/class_ccparam.tex)) cp $DOCT_DIR/class_ccparam.tex $newdir
+      if(!(-r $newdir/class_ccex.tex)) cp $DOCT_DIR/class_ccex.tex $newdir      
+      if(!(-r $newdir/$1_desrev.tex)) cp $DOCT_DIR/comp_desrev.tex $newdir/$1_desrev.tex
+      if(!(-r $newdir/$1_glos.tex)) cp $DOCT_DIR/comp_glos.tex $newdir/$1_glos.tex
+      if(!(-r $newdir/$1.bib)) cp $DOCT_DIR/comp.bib $newdir/$1.bib
+      breaksw
+  case ref:
+      if(!(-r $newdir/README_REF)) cp $DOCT_DIR/README_REF $newdir
+      if(!(-r $newdir/$1_refdoc.ctex)) then
+       cat $DOCT_DIR/comp_refdoc.ctex | \
+       sed s'zcomp_\(.*\)z'$1_'\1z' > $newdir/$1_refdoc.ctex
+      endif
+      if(!(-r $newdir/$1_syn.tex)) cp $DOCT_DIR/comp_syn.tex $newdir/$1_syn.tex
+      if(!(-r $newdir/$1_alg.tex)) cp $DOCT_DIR/comp_alg.tex $newdir/$1_alg.tex
+      if(!(-r $newdir/$1_req.tex)) cp $DOCT_DIR/comp_req.tex $newdir/$1_req.tex
+      if(!(-r $newdir/$1_arch.tex)) cp $DOCT_DIR/comp_arch.tex $newdir/$1_arch.tex
+      if(!(-r $newdir/class_desc.tex)) cp $DOCT_DIR/class_desc.tex $newdir
+      if(!(-r $newdir/class_rest.tex)) cp $DOCT_DIR/class_rest.tex $newdir
+      if(!(-r $newdir/class_fparam.tex)) cp $DOCT_DIR/class_fparam.tex $newdir
+      if(!(-r $newdir/class_fex.tex)) cp $DOCT_DIR/class_fex.tex $newdir      
+      if(!(-r $newdir/$1_glos.tex)) cp $DOCT_DIR/comp_glos.tex $newdir/$1_glos.tex
+      if(!(-r $newdir/$1.bib)) cp $DOCT_DIR/comp.bib $newdir/$1.bib
+      breaksw
+  case usr:
+      if(!(-r $newdir/README_USR)) cp $DOCT_DIR/README_USR $newdir
+      if(!(-r $newdir/$1_usrdoc.ctex)) then
+       cat $DOCT_DIR/comp_usrdoc.ctex | \
+       sed s'zcomp_\(.*\)z'$1_'\1z' > $newdir/$1_usrdoc.ctex
+      endif
+      breaksw
+  case phys:
+      if(!(-r $newdir/README_PHYS)) cp $DOCT_DIR/README_PHYS $newdir
+      if(!(-r $newdir/$1_physdoc.ctex)) cp $DOCT_DIR/comp_physdoc.ctex $newdir/$1_physdoc.ctex
+      if(!(-r $newdir/$1.bib)) cp $DOCT_DIR/comp.bib $newdir/$1.bib
+      breaksw
+  case all:
+      if(!(-r $newdir/README_REQ)) cp $DOCT_DIR/README_REQ $newdir
+      if(!(-r $newdir/README_ARCH)) cp $DOCT_DIR/README_ARCH $newdir
+      if(!(-r $newdir/README_DES)) cp $DOCT_DIR/README_DES $newdir
+      if(!(-r $newdir/README_REF)) cp $DOCT_DIR/README_REF $newdir
+      if(!(-r $newdir/README_USR)) cp $DOCT_DIR/README_USR $newdir
+      if(!(-r $newdir/README_PHYS)) cp $DOCT_DIR/README_PHYS $newdir
+      if(!(-r $newdir/$1_reqdoc.ctex)) then
+       cat $DOCT_DIR/comp_reqdoc.ctex | \
+       sed s'zcomp_\(.*\)z'$1_'\1z' > $newdir/$1_reqdoc.ctex
+      endif
+      if(!(-r $newdir/$1_archdoc.ctex)) then
+       cat $DOCT_DIR/comp_archdoc.ctex | \
+       sed s'zcomp_\(.*\)z'$1_'\1z' > $newdir/$1_archdoc.ctex
+      endif
+      if(!(-r $newdir/$1_desdoc.ctex)) then
+       cat $DOCT_DIR/comp_desdoc.ctex | \
+       sed s'zcomp_\(.*\)z'$1_'\1z' > $newdir/$1_desdoc.ctex
+      endif
+      if(!(-r $newdir/$1_refdoc.ctex)) then
+       cat $DOCT_DIR/comp_refdoc.ctex | \
+       sed s'zcomp_\(.*\)z'$1_'\1z' > $newdir/$1_refdoc.ctex
+      endif
+      if(!(-r $newdir/$1_usrdoc.ctex)) then 
+       cat $DOCT_DIR/comp_usrdoc.ctex | \
+       sed s'zcomp_\(.*\)z'$1_'\1z' > $newdir/$1_usrdoc.ctex
+      endif
+      if(!(-r $newdir/$1_physdoc.ctex)) cp $DOCT_DIR/comp_physdoc.ctex $newdir/$1_physdoc.ctex
+      if(!(-r $newdir/$1_auth.tex)) cp $DOCT_DIR/comp_auth.tex $newdir/$1_auth.tex
+      if(!(-r $newdir/$1_syn.tex)) cp $DOCT_DIR/comp_syn.tex $newdir/$1_syn.tex
+      if(!(-r $newdir/$1_alg.tex)) cp $DOCT_DIR/comp_alg.tex $newdir/$1_alg.tex
+      if(!(-r $newdir/$1_req.tex)) cp $DOCT_DIR/comp_req.tex $newdir/$1_req.tex
+      if(!(-r $newdir/$1_arch.tex)) cp $DOCT_DIR/comp_arch.tex $newdir/$1_arch.tex
+      if(!(-r $newdir/class_desc.tex)) cp $DOCT_DIR/class_desc.tex $newdir
+      if(!(-r $newdir/class_rest.tex)) cp $DOCT_DIR/class_rest.tex $newdir
+      if(!(-r $newdir/class_fparam.tex)) cp $DOCT_DIR/class_fparam.tex $newdir
+      if(!(-r $newdir/class_fex.tex)) cp $DOCT_DIR/class_fex.tex $newdir      
+      if(!(-r $newdir/$1_archrev.tex)) cp $DOCT_DIR/comp_archrev.tex $newdir/$1_archrev.tex
+      if(!(-r $newdir/$1_desrev.tex)) cp $DOCT_DIR/comp_desrev.tex $newdir/$1_desrev.tex
+      if(!(-r $newdir/$1_glos.tex)) cp $DOCT_DIR/comp_glos.tex $newdir/$1_glos.tex
+      if(!(-r $newdir/$1.bib)) cp $DOCT_DIR/comp.bib $newdir/$1.bib
+      breaksw
+  default:
+    echo "Valid options are: req des arch ref usr phys all"
+    exit
+  endsw
+endif

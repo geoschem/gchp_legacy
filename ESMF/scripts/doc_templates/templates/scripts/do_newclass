@@ -1,0 +1,132 @@
+#!/bin/csh -f
+#
+# Earth System Modeling Framework
+# Copyright 2002-2018, University Corporation for Atmospheric Research, 
+# Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
+# Laboratory, University of Michigan, National Centers for Environmental 
+# Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
+# NASA Goddard Space Flight Center.
+# Licensed under the University of Illinois-NCSA License.
+#
+# $Id$
+#
+#===============================================================================
+# do_newclass
+#===============================================================================
+#
+# Create a new class template in the current directory, and create an
+#   interface template in the ../interface directory.  Expects the
+#   current directory to be .../component/src.
+#
+# Usage: do_newclass <class> <core language>> 
+#
+#        <class> is the name of the new class
+#
+#        <core language> is one of the following:
+#               f - f90
+#               c - C++
+#        
+# Template files that pertain to classes or modules have 
+# "class" as the root of their filename.
+#
+#===============================================================================
+ 
+if($#argv != 2) then
+  echo "Usage:  do_newclass <class> <core language [c|f]>"
+  exit
+endif 
+
+  set class=$1
+  set lang=$2
+
+# make lowercase classname
+  set classlow = `echo $class | tr "[A-Z]" "[a-z]"`
+
+# get component name from parent path
+  set comppath = `cd ..; pwd`
+  set comp = `basename $comppath`
+
+  set DOCT_DIR=$DOC_DIR/templates
+
+# get a copy of the source template file, rename and edit as requested class
+  switch ($lang) 
+  case f:
+      # F90 implementation file
+      if(!(-r ESMF_$class.F90)) then
+        cat $DOCT_DIR/ESMF_class.F90 | \
+        sed 's/<Class>/'$class'/g' | sed 's/<class>/'$classlow'/g' | \
+        sed 's/<Comp>/'$comp'/g' > ESMF_$class.F90
+      endif
+
+      # C++ interface file
+      if(!(-r ../interface/ESMC_$class.C)) then
+        cat $DOCT_DIR/inter_ESMC_class.C | \
+        sed 's/<Class>/'$class'/g' | sed 's/<class>/'$classlow'/g' | \
+        sed 's/<Comp>/'$comp'/g' > ../interface/ESMC_$class.C
+      endif
+
+      # C++ interface include file
+      if(!(-r ../include/ESMC_$class.h)) then
+        cat $DOCT_DIR/inter_ESMC_class.h | \
+        sed 's/<Class>/'$class'/g' | sed 's/<class>/'$classlow'/g' | \
+        sed 's/<Comp>/'$comp'/g' > ../include/ESMC_$class.h
+      endif
+
+      # C++ to F90 intermediate glue code file (F77)
+      if(!(-r ../interface/ESMF_${class}_C.F90)) then
+        cat $DOCT_DIR/inter_ESMF_class_C.F90 | \
+        sed 's/<Class>/'$class'/g' | sed 's/<class>/'$classlow'/g' | \
+        sed 's/<Comp>/'$comp'/g' > ../interface/ESMF_${class}_C.F90
+      endif
+
+      breaksw
+  case c:
+      # C++ implementation file
+      if(!(-r ESMC_$class.C)) then
+        cat $DOCT_DIR/ESMC_class.C | \
+        sed 's/<Class>/'$class'/g' | sed 's/<class>/'$classlow'/g' | \
+        sed 's/<Comp>/'$comp'/g' > ESMC_$class.C
+      endif
+
+      # C++ implementation include file
+      if(!(-r ../include/ESMC_$class.h)) then
+        cat $DOCT_DIR/ESMC_class.h | \
+        sed 's/<Class>/'$class'/g' | sed 's/<class>/'$classlow'/g' | \
+        sed 's/<Comp>/'$comp'/g' > ../include/ESMC_$class.h
+      endif
+
+      # F90 interface file
+      if(!(-r ../interface/ESMF_$class.F90)) then
+        cat $DOCT_DIR/inter_ESMF_class.F90 | \
+        sed 's/<Class>/'$class'/g' | sed 's/<class>/'$classlow'/g' | \
+        sed 's/<Comp>/'$comp'/g' > ../interface/ESMF_$class.F90
+      endif
+
+      # F90 to C++ intermediate glue code file (C)
+      if(!(-r ../interface/ESMC_${class}_F.C)) then
+        cat $DOCT_DIR/inter_ESMC_class_F.C | \
+        sed 's/<Class>/'$class'/g' | sed 's/<class>/'$classlow'/g' | \
+        sed 's/<Comp>/'$comp'/g' > ../interface/ESMC_${class}_F.C
+      endif
+
+      breaksw
+  default:
+    echo "Valid options are: [ c | f]"
+    exit
+  endsw
+
+# get unit test drivers in both languages (implementation and interface)
+
+  # F90 unit test driver
+  if(!(-r ../tests/ESMF_${class}UTest.F90)) then
+    cat $DOCT_DIR/ESMF_classUTest.F90 | \
+    sed 's/<Class>/'$class'/g' | sed 's/<class>/'$classlow'/g' | \
+    sed 's/<Comp>/'$comp'/g' > ../tests/ESMF_${class}UTest.F90
+  endif
+
+  # C++ unit test driver
+  if(!(-r ../tests/ESMC_${class}UTest.C)) then
+    cat $DOCT_DIR/ESMC_classUTest.C | \
+    sed 's/<Class>/'$class'/g' | sed 's/<class>/'$classlow'/g' | \
+    sed 's/<Comp>/'$comp'/g' > ../tests/ESMC_${class}UTest.C
+  endif

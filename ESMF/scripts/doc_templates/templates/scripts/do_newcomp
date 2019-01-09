@@ -1,0 +1,187 @@
+#!/bin/csh -f
+#
+# Earth System Modeling Framework
+# Copyright 2002-2018, University Corporation for Atmospheric Research, 
+# Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
+# Laboratory, University of Michigan, National Centers for Environmental 
+# Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
+# NASA Goddard Space Flight Center.
+# Licensed under the University of Illinois-NCSA License.
+#
+# $Id$
+#
+#===============================================================================
+# do_newcomp
+#===============================================================================
+#
+# Create and fill a directory tree with source template files for a new
+# component.
+#
+# Usage: do_newcomp <comp> <core language>> 
+#
+#        <comp> is the name of the new component, library, or module
+#
+#        <core language> is one of the following:
+#               f - f90
+#               c - C++
+#        
+# If a directory called <comp> doesn't already exist, it will be created in 
+# the directory where the script is called.  If the <comp> directory does exist,
+# the template files needed to create the new component will be added to it.  
+# Template files that relate to the entire component have <comp> as the root 
+# of their filename.  Template files that pertain to classes or modules have 
+# "class" as the root of their filename.
+#
+#===============================================================================
+ 
+if($#argv != 2) then
+  echo "Usage:  do_newcomp <component> <core language [c|f]>"
+  exit
+else 
+  set comp=$1
+  set lang=$2
+endif
+
+# Create new component source directories if needed
+  foreach dir ($comp $comp/src $comp/include $comp/interface $comp/doc $comp/examples $comp/tests )
+    set newdir=$cwd/$dir
+    if(!(-d $newdir)) then
+      mkdir $newdir 
+    endif 
+  end
+
+  set compdir=$cwd/$comp
+  set srcdir=$cwd/$comp/src
+  set intfdir=$cwd/$comp/interface
+  set exdir=$cwd/$comp/examples
+  set incdir=$cwd/$comp/include
+  set tstdir=$cwd/$comp/tests
+  set DOCT_DIR=$DOC_DIR/templates
+
+# Fill the source directories with template files
+
+#
+# makefile templates
+#
+
+  # component-wide makefile
+  if(!(-r $compdir/makefile)) then
+    cat $DOCT_DIR/makefile.comp | \
+    sed 's/<Comp>/'$comp'/g' > $compdir/makefile
+  endif
+
+  # examples makefile
+  if(!(-r $exdir/makefile)) then
+    cat $DOCT_DIR/makefile.examp | \
+    sed 's/<Comp>/'$comp'/g' > $exdir/makefile
+  endif
+
+  # source makefile
+  if(!(-r $srcdir/makefile)) then
+    cat $DOCT_DIR/makefile.srcinter | \
+    sed 's/<Comp>/'$comp'/g' > $srcdir/makefile
+  endif
+
+  # interface makefile
+  if(!(-r $intfdir/makefile)) then
+    cat $DOCT_DIR/makefile.srcinter | \
+    sed 's/<Comp>/'$comp'/g' > $intfdir/makefile
+  endif
+
+  # unit test makefile
+  if(!(-r $tstdir/makefile)) then
+    cat $DOCT_DIR/makefile.tests | \
+    sed 's/<Comp>/'$comp'/g' > $tstdir/makefile
+  endif
+
+#
+# component-wide include file templates
+#
+
+  # F90 component-wide include file
+  if(!(-r $incdir/ESMF_$comp.h)) then
+    cat $DOCT_DIR/ESMF_comp.h | \
+    sed 's/<Comp>/'$comp'/g' > $incdir/ESMF_$comp.h
+  endif
+
+  # C++ component-wide include file
+  if(!(-r $incdir/ESMC_$comp.h)) then
+    cat $DOCT_DIR/ESMC_comp.h | \
+    sed 's/<Comp>/'$comp'/g' > $incdir/ESMC_$comp.h
+  endif
+
+#
+# class src file templates 
+#
+
+  switch ($lang) 
+  case f:
+      # F90 implementation file
+      if(!(-r $srcdir/ESMF_class.F90)) then
+        cat $DOCT_DIR/ESMF_class.F90 | \
+        sed 's/<Comp>/'$comp'/g' > $srcdir/ESMF_class.F90
+      endif
+
+      # C++ interface file
+      if(!(-r $intfdir/ESMC_class.C)) then
+        cat $DOCT_DIR/inter_ESMC_class.C | \
+        sed 's/<Comp>/'$comp'/g' > $intfdir/ESMC_class.C
+      endif
+
+      # C++ interface include file
+      if(!(-r $incdir/ESMC_class.h)) then
+        cat $DOCT_DIR/inter_ESMC_class.h | \
+        sed 's/<Comp>/'$comp'/g' > $incdir/ESMC_class.h
+      endif
+
+      # C++ to F90 intermediate glue code file (F77)
+      if(!(-r $intfdir/ESMF_class_C.F90)) then
+        cat $DOCT_DIR/inter_ESMF_class_C.F90 | \
+        sed 's/<Comp>/'$comp'/g' > $intfdir/ESMF_class_C.F90
+      endif
+      breaksw
+  case c:
+      # C++ implementation file
+      if(!(-r $srcdir/ESMC_class.C)) then
+        cat $DOCT_DIR/ESMC_class.C | \
+        sed 's/<Comp>/'$comp'/g' > $srcdir/ESMC_class.C
+      endif
+
+      # C++ implementation include file
+      if(!(-r $incdir/ESMC_class.h)) then
+        cat $DOCT_DIR/ESMC_class.h | \
+        sed 's/<Comp>/'$comp'/g' > $incdir/ESMC_class.h
+      endif
+
+      # F90 interface file
+      if(!(-r $intfdir/ESMF_class.F90)) then
+        cat $DOCT_DIR/inter_ESMF_class.F90 | \
+        sed 's/<Comp>/'$comp'/g' > $intfdir/ESMF_class.F90
+      endif
+
+      # F90 to C++ intermediate glue code file (C)
+      if(!(-r $intfdir/ESMC_class_F.C)) then
+        cat $DOCT_DIR/inter_ESMC_class_F.C | \
+        sed 's/<Comp>/'$comp'/g' > $intfdir/ESMC_class_F.C
+      endif
+      breaksw
+  default:
+    echo "Valid options are: [ c | f ]"
+    exit
+  endsw
+
+#
+# unit test templates (will need to drive tests from both languages)
+#
+
+  # F90 unit test driver
+  if(!(-r $tstdir/ESMF_classUTest.F90)) then
+    cat $DOCT_DIR/ESMF_classUTest.F90 | \
+    sed 's/<Comp>/'$comp'/g' > $tstdir/ESMF_classUTest.F90
+  endif
+
+  # C++ unit test driver
+  if(!(-r $tstdir/ESMC_classUTest.C)) then
+    cat $DOCT_DIR/ESMC_classUTest.C | \
+    sed 's/<Comp>/'$comp'/g' > $tstdir/ESMC_classUTest.C
+  endif

@@ -1,5 +1,5 @@
 #!/bin/ksh
-# $Id: mpirun.lsf.ibmpjl.batch,v 1.1.5.1 2013-01-11 20:23:43 mathomp4 Exp $
+# $Id$
 ################################################################################
 # This script abides to the ESMF script rules for executing the bundled test 
 # and example applications.
@@ -37,22 +37,14 @@ num_procs=$2
 
 shift 2
 
-prog=$*
+progWithArgs=$*
 
-echo executing: bsub $ESMF_MPIBATCHOPTIONS -n $num_procs -oo outfile  \"mpirun.lsf ${prog}\"
+echo executing: bsub $ESMF_MPIBATCHOPTIONS -n $num_procs -oo outfile  \"mpirun.lsf ${progWithArgs}\"
 
-bsub $ESMF_MPIBATCHOPTIONS  -n $num_procs -oo outfile "mpirun.lsf ${prog}" 
+bsub $ESMF_MPIBATCHOPTIONS  -n $num_procs -oo outfile "mpirun.lsf ${progWithArgs}" 
 
 # Wait for the outfile to be available.
 sleep 30
 
-mv -f outfile  ${prog}.stdout 
-
-
-
-
-
-
-
-
-
+cat ./PET* >  ./$1.Log
+mv -f outfile  $1.stdout 

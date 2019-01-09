@@ -1,0 +1,47 @@
+#!/bin/csh -f
+#
+# Earth System Modeling Framework
+# Copyright 2002-2018, University Corporation for Atmospheric Research, 
+# Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
+# Laboratory, University of Michigan, National Centers for Environmental 
+# Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
+# NASA Goddard Space Flight Center.
+# Licensed under the University of Illinois-NCSA License.
+#
+# $Id$
+#
+#===============================================================================
+# do_fprotex
+#===============================================================================
+# 
+# Process Fortran prologue(s) using ProTex.
+#
+# Usage: do_fprotex <class> <fortran filename>
+#
+#        <class> is the name of the class or module whose functions
+#               are instrumented for ProTeX (e.g., date)
+#
+#        <fortran_filename.F[90]> is the name of the file that includes the 
+#               prologue(s) instrumented for ProTeX (e.g., date.F)
+#
+# See the ProTeX documentation:
+# http://dao.gsfc.nasa.gov/software/protex
+# for a description of the command-line options used in this script.
+# 
+# C. DeLuca                                                       March 15, 2001
+#===============================================================================
+set extra=""
+if ($#argv < 2 ) then
+  echo "Usage: do_fprotex <class> <fortran_filename.F[90]>"
+  exit
+else
+  set fnsuffix='fapi.tex'
+  set class=$1
+  set file=$2
+  if ($#argv > 2) then
+  set extra=$3
+  endif
+  perl $PROTEX -bFi +f $file > ${class}${extra}_${fnsuffix}
+endif
+
+

@@ -1,5 +1,5 @@
 #!/bin/ksh
-# $Id: mpirun.unicos.batch,v 1.1.5.1 2013-01-11 20:23:43 mathomp4 Exp $
+# $Id$
 ################################################################################
 # This script abides to the ESMF script rules for executing the bundled test 
 # and example applications.

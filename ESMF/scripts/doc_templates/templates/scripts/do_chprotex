@@ -1,0 +1,55 @@
+#!/bin/csh -f
+#
+# Earth System Modeling Framework
+# Copyright 2002-2018, University Corporation for Atmospheric Research, 
+# Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
+# Laboratory, University of Michigan, National Centers for Environmental 
+# Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
+# NASA Goddard Space Flight Center.
+# Licensed under the University of Illinois-NCSA License.
+#
+# $Id$
+#
+#===============================================================================
+# chprotex
+#===============================================================================
+# 
+# Process C++ include file prologue(s) using ProTex.
+#
+# Usage: co_chprotex [-i] <class> <C++ filename.h>
+#
+#        [-i] is an optional argument to protex to cause non-printing of
+#             BOPI -- EOPI internal prologues, which are intended for
+#             Reference Manuals but not User Guides.
+#
+#        <class> is the name of the class whose definition/methods
+#                are instrumented for ProTeX (e.g., ESMC_TimeInstant)
+#
+#        <C++_filename.h> is the name of the file that includes the 
+#             prologue(s) instrumented for ProTeX (e.g., ESMC_TimeInstant.h)
+#
+# See the ProTeX documentation:
+# http://dao.gsfc.nasa.gov/software/protex
+# for a description of the command-line options used in this script.
+# 
+#===============================================================================
+
+if ($#argv < 2 ) then
+  echo "Usage: chprotex [-i] <class> <C++_filename.h>"
+  exit
+else
+  if ($#argv == 3 && $1 == '-i') then
+    set option=$1
+    set fnsuffix='chiapi.tex'
+    shift
+  else
+    set option=''
+    set fnsuffix='chapi.tex'
+  endif
+  set class=$1
+  set file=$2
+#  perl $DOC_DIR/templates/protex ${option} -bC +f $file > ${class}_${fnsuffix}
+#  perl $PROTEX ${option} -bC +f $file > ${class}_${fnsuffix}
+# TODO:  replace -i with ${option} if needed
+  perl $PROTEX -bCi +f $file > ${class}_${fnsuffix}
+endif

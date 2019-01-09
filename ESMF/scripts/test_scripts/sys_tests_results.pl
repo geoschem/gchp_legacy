@@ -1,5 +1,5 @@
 #!/usr/bin/env perl
-# $Id: sys_tests_results.pl,v 1.1.5.1 2013-01-11 20:23:43 mathomp4 Exp $
+# $Id$
 # This script runs at the end of the system tests and "check_results" targets.
 # The purpose is to give the user the results of running the system tests.
 # The results are either complete results or a summary.
@@ -8,7 +8,8 @@ sub sys_tests_results($$$$) {
 
         my $TEST_DIR	= $_[0];
         my $ESMF_BOPT   = $_[1];
-        my $SUMMARY     = $_[2];
+        my $ESMF_COMM   = $_[2];
+        my $SUMMARY     = $_[3];
 
 
 # This subroutine reads the number of pets from the *ST.Log files.
@@ -112,7 +113,13 @@ use File::Find
 			push @all_files, "$File::Find::name\n" ;
         }
         # Get all system tests files
-        @st_files=grep (/STest/, @all_files);
+        @st_files=grep (/STest.F90/, @all_files);
+	# Check for special case of MPMD test
+	$count=grep (/STestA.F90/, @all_files);
+	if ($count != 0) {
+		@mpmd_file=grep (/STestA.F90/, @all_files);
+        	push (@st_files, @mpmd_file);
+	}
         # Find the system test files with the "ESMF_SYSTEM_TEST" string
         # grep for system tests to report on
         $count=0;
@@ -253,6 +260,9 @@ use File::Find
 					push (@fail_tests, $file);
 				}			
 			}
+                        else {
+				push (@fail_tests, $file);
+			}
        		@file_lines=();
                 }
                 # Calculate fail_count
@@ -281,7 +291,8 @@ use File::Find
                         	# Sort the pass_st_files
                         	@pass_st_files = sort (@pass_st_files);
                                 foreach $file ( @pass_st_files ) {
-					print ("PASS: $file");
+					chomp($file);
+					print ("PASS: $ESMF_COMM/$ESMF_BOPT: $file\n");
                                 }
                         	print "\n\n";
                 	}
@@ -310,7 +321,8 @@ use File::Find
                                 foreach $file ( @act_st_files ) {
 					#Do not print empty lines
 					if (grep (/ESM/, $file)){
-				  		print ("FAIL: $file");
+						chomp($file);
+				  		print ("FAIL: $ESMF_COMM/$ESMF_BOPT: $file\n");
 					}
                                 }
                         	print "\n\n";

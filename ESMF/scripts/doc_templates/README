@@ -1,0 +1,150 @@
+% $Id$
+
+================================================================================
+            Earth System Modeling Framework Document Templates
+
+                                 README
+================================================================================
+
+1. Introduction
+   ------------
+
+The "templates" directory contains a set of file templates for generating 
+software-related documentation.  This documentation is modular and 
+reusable.  For example, a file containing a glossary of terms related to a 
+component may be included in a preliminary requirements document and may also 
+be included in a user reference manual.  The templates target both
+computational and scientific documentation of software.  
+
+This documentation approach is based on the LaTeX and ProTeX tools.  LaTeX
+is a sophisticated character-based document preparation system that requires 
+compilation.  Most of the files in the "templates" directory are LaTeX 
+templates.  ProTeX is a Perl tool that processes C++ and Fortran code
+headers, or prologues, and generates an interface specification 
+in LaTeX form automatically.  The prologue templates show Fortran and C++
+headers instrumented for use with ProTeX.  
+
+The templates that are currently included are:
+
+    Document                       Primary File              README
+    -------------------------------------------------------------------------
+    prologued src code templates   ESMF_class.F90            README_DES,
+                                   ESMC_class.h              README_REF
+                                   ESMC_class.C
+    Requirements document (LaTeX)  comp_reqdoc.tex           README_REQ
+    Architecture document (LaTeX)  comp_archdoc.tex	     README_ARCH
+    Design document (LaTeX)	   comp_desdoc.tex	     README_DES
+    Reference manual               comp_refdoc.tex           README_REF    
+    User's guide                   comp_usrdoc.tex           README_USR
+    Physics                        comp_physdoc.tex          README_PHYS
+
+The ProTeX script is also included.  It is slightly different than the
+current distribution in order to accommodate the document format.
+The ProTeX website:
+http://dao.gsfc.nasa.gov/dao/software/ProTeX
+has additional templates and examples.
+
+2. Implied development cycle
+   -------------------------
+
+These documents correspond to a staged development cycle in which requirements 
+are generated first.  Next an overall architecture is specified that 
+typically includes a layering strategy and a specification of how major 
+components should interact.  Finally detailed design documents that contain 
+interface specifications for individual classes and modules are generated.
+These documents build on each other, so that requirements are folded into
+architecture, and architecture is folded into design.
+
+Reference and user manuals describe the API interface and how to build and 
+run the software.
+
+3. How to use the templates
+   ------------------------
+
+Set the environment variable DOC_DIR to the top-level directory in this packet,
+e.g. $HOME/doc_templates.
+
+Put the scripts in $DOC_DIR/templates/scripts in your path.
+
+To start working on a new component, execute the script:
+
+   do_newcomp <component name> <implementation language>
+
+from a directory where you desire a new component tree to be created.
+Examples would be esmf/src/Infrastructure or esmf/src/Superstructure.
+
+The implementation language can be one of the following:
+
+   f - Fortran 90
+   c - C++
+
+This will create a new component directory tree if it does not already exist:
+
+   <comp>/doc         - documentation directory (see do_newdoc below)
+   <comp>/examples    - for your example and test code
+   <comp>/include     - for your include files
+   <comp>/src         - for your implementation source code files
+   <comp>/interface   - for your interface (wrapper) source code files
+   <comp>/tests       - for your unit test files
+
+Prologued code template files as well as makefile templates will be placed
+in the appropriate directories.  If you choose F90 as your implementation
+language, then a F90 code template is placed in the src directory and a
+C++ .C template placed in the interface directory.  Also a corresponding
+C++ .h file is placed in the include directory.  Similarly, if you choose
+C++ as your implementation language, a .h template is placed in the
+include directory, a corresponding .C template is placed in the src
+directory, and a corresponding F90 template is placed in the interface
+directory.  Also, a unit test template in your chosen implementation language
+will be placed in the tests directory.  Templates created by do_newcomp are
+generic, non-class specific.  See do_newclass below for class-specific
+templates.  
+
+To start coding a new class, execute the following script in a source
+code directory below the component directory (src or interface):
+
+   do_newclass <class name> <implementation language>
+
+The implementation language can be one of the following:
+
+   f - Fortran 90
+   c - C++
+
+This will create a source code template using the class name provided in
+the chosen language.  For F90, a single ESMF_<Class>.F90 file is created.
+For C++, two files are created:  ESMC_<Class>.h and ESMC_<Class>.C  The
+ESMC_<Class>.h file goes in ../include.  In addition, interface templates
+in the language other than the one chosen are created.  For example, if
+you're in the src directory creating a .C file, a corresponding .F90
+interface file will be placed in ../interface.  Also, a unit test template
+ESMF_<Class>Test.F90 or ESMC_<Class>Test.C is created in the ../tests
+directory.  See the discussion above about do_newcomp and the placement
+of the template files in the component tree.
+
+To start a new document, execute the script:
+
+   do_newdoc <component name> <document type>
+
+from the same directory where you ran do_newcomp.  The document type can
+be one of the following:
+
+	req  - requirements document
+	arch - architecture document
+	des  - design document
+	ref  - reference manual
+	usr  - user's guide
+        phys - physical description
+	all  - templates and READMEs for all documents
+
+If the directory does not exist, the script will create a new directory 
+called <component name>/doc and fill it with the appropriate document-specific
+README and template files for the document type.
+
+If the directory does exist, the script will add any additional files that
+are needed to complete the new document.
+
+See individual README's for further explanation on how to prepare specific
+documents.
+
+================================================================================
+C. DeLuca (cecelia.deluca@noaa.gov) - initial version                 March 13, 2000
