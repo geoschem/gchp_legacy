@@ -67,6 +67,11 @@ ESMF_F90COMPILER_VERSION    = ${ESMF_F90COMPILER} -logo
 ESMF_CXXCOMPILER_VERSION    = ${ESMF_CXXCOMPILER}
 
 ############################################################
+# Enable TR15581/F2003 Allocatable array resizing
+#
+ESMF_F90COMPILEOPTS += -assume realloc_lhs
+
+############################################################
 # Force Fortran symbols lower case
 #
 ESMF_F90COMPILEOPTS += -names:lowercase
@@ -185,8 +190,8 @@ ESMF_OPTLEVELDEFAULT        = 2
 #
 ESMF_ARDEFAULT              = lib
 ESMF_ARCREATEFLAGSDEFAULT   =
+ESMF_ARCREATEPREFIX         = -OUT:
 ESMF_AREXTRACTDEFAULT       = $(ESMF_ARDEFAULT) -extract:
-ESMF_RANLIBDEFAULT          = true
 
 ############################################################
 # Blank out variables to prevent rpath encoding

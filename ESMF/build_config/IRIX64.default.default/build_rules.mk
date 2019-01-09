@@ -1,4 +1,4 @@
-# $Id: build_rules.mk,v 1.1.5.1 2013-01-11 20:23:43 mathomp4 Exp $
+# $Id$
 # 
 # IRIX64.default.default
 #
@@ -78,10 +78,16 @@ ESMF_PTHREADSDEFAULT       = OFF
 ESMF_LAPACKDEFAULT         = scsl
 
 ############################################################
+# Disable PIO due to no F2003 C Interop support
+ESMF_PIO               = OFF
+
+############################################################
 # Special compiler flags
 #
 # abide to C++ language standard; don't put libc into std name space
 ESMF_CXXCOMPILEOPTS       += -LANG:std=on
+# allow C9x (and g++) variable length arrays
+ESMF_CXXCOMPILEOPTS       += -LANG:vla=on
 #
 # defer template instantiation in the compiler front end
 ESMF_CXXCOMPILEOPTS       += -ptused
@@ -109,9 +115,9 @@ ESMF_F90OPTFLAG_O       += -OPT:Olimit=6500
 ############################################################
 # Help f90 to understand Fortran suffices
 #
-ESMF_F90COMPILEFREECPP   = -freeform -cpp
-ESMF_F90COMPILEFREENOCPP = -freeform -nocpp
-ESMF_F90COMPILEFIXCPP    = -fixedform -cpp -extend_source
+ESMF_F90COMPILEFREECPP   = -ftpp -macro_expand
+ESMF_F90COMPILEFREENOCPP = -nocpp
+ESMF_F90COMPILEFIXCPP    = -fixedform -ftpp -macro_expand -extend_source
 ESMF_F90COMPILEFIXNOCPP  = -fixedform -nocpp -extend_source
 
 ############################################################

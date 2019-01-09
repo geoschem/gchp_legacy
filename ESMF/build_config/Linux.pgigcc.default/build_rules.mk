@@ -1,4 +1,4 @@
-# $Id: build_rules.mk,v 1.1.5.1 2013-01-11 20:23:43 mathomp4 Exp $
+# $Id$
 #
 # Linux.pgigcc.default
 #
@@ -42,6 +42,14 @@ ESMF_CXXDEFAULT         = mpicxx
 ESMF_MPIRUNDEFAULT      = mpirun $(ESMF_MPILAUNCHOPTIONS)
 ESMF_MPIMPMDRUNDEFAULT  = mpiexec $(ESMF_MPILAUNCHOPTIONS)
 else
+ifeq ($(ESMF_COMM),mpich3)
+# Mpich3 ---------------------------------------------------
+ESMF_F90DEFAULT         = mpif90
+ESMF_CXXDEFAULT         = mpicxx
+ESMF_CXXLINKLIBS       += $(shell $(ESMF_DIR)/scripts/libs.mpich3f90)
+ESMF_MPIRUNDEFAULT      = mpirun $(ESMF_MPILAUNCHOPTIONS)
+ESMF_MPIMPMDRUNDEFAULT  = mpiexec $(ESMF_MPILAUNCHOPTIONS)
+else
 ifeq ($(ESMF_COMM),lam)
 # LAM (assumed to be built with pgf90) ---------------------
 ESMF_CXXCOMPILECPPFLAGS+= -DESMF_NO_SIGUSR2
@@ -53,10 +61,16 @@ ESMF_MPIMPMDRUNDEFAULT  = mpiexec $(ESMF_MPILAUNCHOPTIONS)
 else
 ifeq ($(ESMF_COMM),openmpi)
 # OpenMPI --------------------------------------------------
-ESMF_CXXCOMPILECPPFLAGS+= -DESMF_NO_SIGUSR2
+ifeq ($(shell $(ESMF_DIR)/scripts/available mpifort),mpifort)
+ESMF_F90DEFAULT         = mpifort
+ESMF_CXXLINKLIBS       += -lmpi_mpifh
+else
 ESMF_F90DEFAULT         = mpif90
-ESMF_CXXDEFAULT         = mpicxx
 ESMF_CXXLINKLIBS       += -lmpi_f77
+endif
+ESMF_CXXCOMPILECPPFLAGS+= -DESMF_NO_SIGUSR2
+ESMF_F90LINKLIBS       += $(shell $(ESMF_DIR)/scripts/libs.openmpif90 $(ESMF_F90DEFAULT))
+ESMF_CXXDEFAULT         = mpicxx
 ESMF_MPIRUNDEFAULT      = mpirun $(ESMF_MPILAUNCHOPTIONS)
 ESMF_MPIMPMDRUNDEFAULT  = mpiexec $(ESMF_MPILAUNCHOPTIONS)
 else
@@ -64,6 +78,7 @@ ifeq ($(ESMF_COMM),user)
 # User specified flags -------------------------------------
 else
 $(error Invalid ESMF_COMM setting: $(ESMF_COMM))
+endif
 endif
 endif
 endif
@@ -82,12 +97,15 @@ ESMF_CXXCOMPILER_VERSION    = ${ESMF_CXXCOMPILER} -v --version
 #
 ESMF_PGIVERSION_MAJOR = $(shell $(ESMF_DIR)/scripts/version.pgi 1 $(ESMF_F90COMPILER_VERSION))
 ESMF_F90COMPILECPPFLAGS += -DESMF_PGIVERSION_MAJOR=$(ESMF_PGIVERSION_MAJOR)
+ESMF_CXXCOMPILECPPFLAGS += -DESMF_PGIVERSION_MAJOR=$(ESMF_PGIVERSION_MAJOR)
 
 ESMF_PGIVERSION_MINOR = $(shell $(ESMF_DIR)/scripts/version.pgi 2 $(ESMF_F90COMPILER_VERSION))
 ESMF_F90COMPILECPPFLAGS += -DESMF_PGIVERSION_MINOR=$(ESMF_PGIVERSION_MINOR)
+ESMF_CXXCOMPILECPPFLAGS += -DESMF_PGIVERSION_MINOR=$(ESMF_PGIVERSION_MINOR)
 
 ESMF_PGIVERSION_PATCH = $(shell $(ESMF_DIR)/scripts/version.pgi 3 $(ESMF_F90COMPILER_VERSION))
 ESMF_F90COMPILECPPFLAGS += -DESMF_PGIVERSION_PATCH=$(ESMF_PGIVERSION_PATCH)
+ESMF_CXXCOMPILECPPFLAGS += -DESMF_PGIVERSION_PATCH=$(ESMF_PGIVERSION_PATCH)
 
 ############################################################
 # Construct the ABISTRING
@@ -111,10 +129,13 @@ ESMF_F90COMPILEOPTS       +=
 ESMF_F90LINKOPTS          +=
 endif
 ifeq ($(ESMF_ABISTRING),x86_64_small)
+# mcmodel is small by default.  But due to a bug in PGI 14.7 and
+# earlier overcompiler, the libso directory is not searched prior to
+# the lib directory.  This causes the fullylinked shared lib build to fail.
+# ESMF_F90COMPILEOPTS       += -mcmodel=small
+# ESMF_F90LINKOPTS          += -mcmodel=small
 ESMF_CXXCOMPILEOPTS       += -m64 -mcmodel=small
 ESMF_CXXLINKOPTS          += -m64 -mcmodel=small
-ESMF_F90COMPILEOPTS       += -mcmodel=small
-ESMF_F90LINKOPTS          += -mcmodel=small
 endif
 ifeq ($(ESMF_ABISTRING),x86_64_medium)
 ESMF_CXXCOMPILEOPTS       += -m64 -mcmodel=medium
@@ -122,6 +143,11 @@ ESMF_CXXLINKOPTS          += -m64 -mcmodel=medium
 ESMF_F90COMPILEOPTS       += -mcmodel=medium
 ESMF_F90LINKOPTS          += -mcmodel=medium
 endif
+
+############################################################
+# Enable TR15581/F2003 Allocatable array resizing
+#
+ESMF_F90COMPILEOPTS += -Mallocatable=03
 
 ############################################################
 # OpenMP compiler and linker flags
@@ -164,6 +190,13 @@ ESMF_F90LINKLIBS += -lrt -lC -lc -ldl
 # Link against libesmf.a using the C++ linker front-end
 #
 ESMF_CXXLINKLIBS += -lrt $(shell $(ESMF_DIR)/scripts/libs.pgf90 $(ESMF_F90COMPILER)) -ldl
+
+############################################################
+# Linker option that ensures that the specified libraries are 
+# used to also resolve symbols needed by other libraries.
+#
+ESMF_F90LINKOPTS          += -Wl,--no-as-needed
+ESMF_CXXLINKOPTS          += -Wl,--no-as-needed
 
 ############################################################
 # Shared library options

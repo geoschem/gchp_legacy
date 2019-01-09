@@ -5,7 +5,7 @@
 
 #if 0
 Earth System Modeling Framework
-Copyright 2002-2012, University Corporation for Atmospheric Research,
+Copyright 2002-2018, University Corporation for Atmospheric Research,
 Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 Laboratory, University of Michigan, National Centers for Environmental
 Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -19,16 +19,22 @@ Licensed under the University of Illinois-NCSA License.
 #define PARCH_linux
 
 #ifdef ESMF_LOWERCASE_SINGLEUNDERSCORE 
-#define FTN(func) func##_
+#define FTN_X(func) func##_
+#define FTNX(func) func##_
 #endif
 #ifdef ESMF_LOWERCASE_DOUBLEUNDERSCORE 
-#define FTN(func) func##__
+#define FTN_X(func) func##__
+#define FTNX(func) func##_
 #endif
 
 #if defined (__cplusplus)
 // Typedef to match the data type of the 'hidden' string length
 // argument that Fortran uses when passing CHARACTER strings.
+#if (__GNUC__ > 7)
+typedef size_t ESMCI_FortranStrLenArg;
+#else
 typedef int ESMCI_FortranStrLenArg;
+#endif
 #endif
 
 #define ESMC_PRESENT(arg) ( (arg) != 0 )

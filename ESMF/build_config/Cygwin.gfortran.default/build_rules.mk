@@ -1,4 +1,4 @@
-# $Id: build_rules.mk,v 1.1.5.1 2013-01-11 20:23:43 mathomp4 Exp $
+# $Id$
 #
 # Cygwin.gfortran.default
 #
@@ -6,8 +6,8 @@
 ############################################################
 # Default compiler setting.
 #
-ESMF_F90DEFAULT         = gfortran-4
-ESMF_CXXDEFAULT         = g++-4
+ESMF_F90DEFAULT         = gfortran
+ESMF_CXXDEFAULT         = g++
 
 ############################################################
 # Default MPI setting.
@@ -42,6 +42,14 @@ ESMF_CXXDEFAULT         = mpicxx
 ESMF_MPIRUNDEFAULT      = mpirun $(ESMF_MPILAUNCHOPTIONS)
 ESMF_MPIMPMDRUNDEFAULT  = mpiexec $(ESMF_MPILAUNCHOPTIONS)
 else
+ifeq ($(ESMF_COMM),mpich3)
+# Mpich3 ---------------------------------------------------
+ESMF_F90DEFAULT         = mpif90
+ESMF_CXXDEFAULT         = mpicxx
+ESMF_CXXLINKLIBS       += $(shell $(ESMF_DIR)/scripts/libs.mpich3f90)
+ESMF_MPIRUNDEFAULT      = mpirun $(ESMF_MPILAUNCHOPTIONS)
+ESMF_MPIMPMDRUNDEFAULT  = mpiexec $(ESMF_MPILAUNCHOPTIONS)
+else
 ifeq ($(ESMF_COMM),lam)
 # LAM (assumed to be built with gfortran) -----------------------
 ESMF_CXXCOMPILECPPFLAGS+= -DESMF_NO_SIGUSR2
@@ -65,11 +73,16 @@ ESMF_MPIMPMDRUNDEFAULT  = mpiexec $(ESMF_MPILAUNCHOPTIONS)
 else
 ifeq ($(ESMF_COMM),openmpi)
 # OpenMPI --------------------------------------------------
-ESMF_CXXCOMPILECPPFLAGS+= -DESMF_NO_SIGUSR2
+ifeq ($(shell $(ESMF_DIR)/scripts/available mpifort),mpifort)
+ESMF_F90DEFAULT         = mpifort
+ESMF_CXXLINKLIBS       += -lmpi_mpifh
+else
 ESMF_F90DEFAULT         = mpif90
-ESMF_F90LINKLIBS       += -lmpi_cxx
-ESMF_CXXDEFAULT         = mpicxx
 ESMF_CXXLINKLIBS       += -lmpi_f77
+endif
+ESMF_CXXCOMPILECPPFLAGS+= -DESMF_NO_SIGUSR2
+ESMF_F90LINKLIBS       += $(shell $(ESMF_DIR)/scripts/libs.openmpif90 $(ESMF_F90DEFAULT))
+ESMF_CXXDEFAULT         = mpicxx
 ESMF_MPIRUNDEFAULT      = mpirun $(ESMF_MPILAUNCHOPTIONS)
 ESMF_MPIMPMDRUNDEFAULT  = mpiexec $(ESMF_MPILAUNCHOPTIONS)
 else
@@ -77,6 +90,7 @@ ifeq ($(ESMF_COMM),user)
 # User specified flags -------------------------------------
 else
 $(error Invalid ESMF_COMM setting: $(ESMF_COMM))
+endif
 endif
 endif
 endif
@@ -92,6 +106,12 @@ ESMF_F90COMPILER_VERSION    = ${ESMF_F90COMPILER} -v --version
 ESMF_CXXCOMPILER_VERSION    = ${ESMF_CXXCOMPILER} -v --version
 
 ############################################################
+# Special debug flags
+#
+ESMF_F90OPTFLAG_G       += -Wall -Wno-unused -Wno-unused-dummy-argument -fbacktrace -fbounds-check
+ESMF_CXXOPTFLAG_G       += -Wall -Wextra -Wno-unused
+
+############################################################
 # Cygwin 1.5.24 does not yet support POSIX IPC (memory mapped files)
 #
 ESMF_CXXCOMPILECPPFLAGS += -DESMF_NO_POSIXIPC
@@ -100,8 +120,8 @@ ESMF_CXXCOMPILECPPFLAGS += -DESMF_NO_POSIXIPC
 # Fortran symbol convention
 #
 ifeq ($(ESMF_FORTRANSYMBOLS),default)
-ESMF_F90COMPILEOPTS       += -fno-second-underscore
-ESMF_F90LINKOPTS          += -fno-second-underscore
+ESMF_F90COMPILEOPTS       +=
+ESMF_F90LINKOPTS          +=
 ESMF_CXXCOMPILEOPTS       += -DESMF_LOWERCASE_SINGLEUNDERSCORE
 else
 ifeq ($(ESMF_FORTRANSYMBOLS),lowercase_singleunderscore)
@@ -110,23 +130,13 @@ ESMF_F90LINKOPTS          += -fno-second-underscore
 ESMF_CXXCOMPILEOPTS       += -DESMF_LOWERCASE_SINGLEUNDERSCORE
 else
 ifeq ($(ESMF_FORTRANSYMBOLS),lowercase_doubleunderscore)
-ESMF_F90COMPILEOPTS       +=
-ESMF_F90LINKOPTS          +=
+ESMF_F90COMPILEOPTS       += -fsecond-underscore
+ESMF_F90LINKOPTS          += -fsecond-underscore
 ESMF_CXXCOMPILEOPTS       += -DESMF_LOWERCASE_DOUBLEUNDERSCORE
 else
 $(error "ESMF_FORTRANSYMBOLS = $(ESMF_FORTRANSYMBOLS)" not supported by ESMF and/or this platform)
 endif
 endif
-endif
-
-############################################################
-# On IA64 set long and pointer types to 64-bit
-#
-ifeq ($(ESMF_ABI),64)
-ESMF_CXXCOMPILEOPTS       += -march=k8 -m64 -mcmodel=medium
-ESMF_CXXLINKOPTS          += -march=k8 -m64 -mcmodel=medium
-ESMF_F90COMPILEOPTS       += -march=k8 -m64 -mcmodel=medium
-ESMF_F90LINKOPTS          += -march=k8 -m64 -mcmodel=medium
 endif
 
 ############################################################
@@ -187,6 +197,5 @@ ESMF_CXXLINKOPTS += -Wl,--enable-auto-import
 ############################################################
 # Shared library options
 #
-ESMF_SL_SUFFIX         = dll.a
 ESMF_SL_LIBOPTS       += -shared
-ESMF_SL_LIBLIBS       += -lgfortran
+ESMF_SL_LIBLIBS       += $(ESMF_CXXLINKPATHS) $(ESMF_CXXLINKLIBS) -lgfortran

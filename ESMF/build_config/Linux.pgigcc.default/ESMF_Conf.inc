@@ -1,8 +1,8 @@
 #if 0
-$Id: ESMF_Conf.inc,v 1.1.5.1 2013-01-11 20:23:43 mathomp4 Exp $
+$Id$
 
 Earth System Modeling Framework
-Copyright 2002-2012, University Corporation for Atmospheric Research,
+Copyright 2002-2018, University Corporation for Atmospheric Research,
 Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 Laboratory, University of Michigan, National Centers for Environmental
 Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -45,7 +45,9 @@ PGI 11.5 and previous have a bug when creating named constants which
 are arrays of zero length.  See ticket #3341575.
 #endif
 
+#if (ESMF_PGIVERSION_MAJOR < 12)
 #define ESMF_PGI_NAMEDCONSTANT_BUG
+#endif
 
 #if 0
 Older PGI compiler were strict F90, and did not allow derived type
@@ -65,4 +67,27 @@ the State derived types.
 
 #if (ESMF_PGIVERSION_MAJOR < 8)
 #define ESMF_SEQUENCE_BUG 1
+#endif
+
+#if 0
+PGI thru 10.0 do not support the F2003 C Interop 'c_bool' logical kind.
+PGI fixed this in 10.1.
+#endif
+#if defined (ESMF_PGIVERSION_MAJOR)
+#if defined(ESMF_PIO) && (ESMF_PGIVERSION_MAJOR < 8)
+#error ESMF_PIO must be disabled with PGI versions < 8.0.
+#endif
+#if (ESMF_PGIVERSION_MAJOR < 10) || ((ESMF_PGIVERSION_MAJOR == 10) && (ESMF_PGIVERSION_MINOR == 0))
+#define ESMF_PGI_C_BOOL_BUG
+#endif
+#endif
+
+#if 0
+PGI before 17.9 could not handle the dynamic masking interfaces for different
+typekinds
+#endif
+#if defined (ESMF_PGIVERSION_MAJOR)
+#if (ESMF_PGIVERSION_MAJOR < 17) || ((ESMF_PGIVERSION_MAJOR == 17) && (ESMF_PGIVERSION_MINOR < 9))
+#define ESMF_NO_DYNMASKOVERLOAD
+#endif
 #endif

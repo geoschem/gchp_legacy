@@ -1,4 +1,4 @@
-# $Id: build_rules.mk,v 1.1.5.1 2013-01-11 20:23:43 mathomp4 Exp $
+# $Id$
 #
 # Unicos.pgi.default
 #
@@ -44,20 +44,28 @@ endif
 ############################################################
 # Print compiler version string
 #
-ESMF_F90COMPILER_VERSION    = ${ESMF_F90COMPILER} -V -v -c
-ESMF_CXXCOMPILER_VERSION    = ${ESMF_CXXCOMPILER} -V -v -c
+ESMF_F90COMPILER_VERSION    = ${ESMF_F90COMPILER} -V
+ESMF_CXXCOMPILER_VERSION    = ${ESMF_CXXCOMPILER} -V
 
 ############################################################
 # Determine PGI version
 #
 ESMF_PGIVERSION_MAJOR = $(shell $(ESMF_DIR)/scripts/version.pgi 1 $(ESMF_F90COMPILER_VERSION))
 ESMF_F90COMPILECPPFLAGS += -DESMF_PGIVERSION_MAJOR=$(ESMF_PGIVERSION_MAJOR)
+ESMF_CXXCOMPILECPPFLAGS += -DESMF_PGIVERSION_MAJOR=$(ESMF_PGIVERSION_MAJOR)
 
 ESMF_PGIVERSION_MINOR = $(shell $(ESMF_DIR)/scripts/version.pgi 2 $(ESMF_F90COMPILER_VERSION))
 ESMF_F90COMPILECPPFLAGS += -DESMF_PGIVERSION_MINOR=$(ESMF_PGIVERSION_MINOR)
+ESMF_CXXCOMPILECPPFLAGS += -DESMF_PGIVERSION_MINOR=$(ESMF_PGIVERSION_MINOR)
 
 ESMF_PGIVERSION_PATCH = $(shell $(ESMF_DIR)/scripts/version.pgi 3 $(ESMF_F90COMPILER_VERSION))
 ESMF_F90COMPILECPPFLAGS += -DESMF_PGIVERSION_PATCH=$(ESMF_PGIVERSION_PATCH)
+ESMF_CXXCOMPILECPPFLAGS += -DESMF_PGIVERSION_PATCH=$(ESMF_PGIVERSION_PATCH)
+
+############################################################
+# Enable TR15581/F2003 Allocatable array resizing
+#
+ESMF_F90COMPILEOPTS += -Mallocatable=03
 
 ############################################################
 # XT compute nodes do not have support for POSIX IPC (memory mapped files)
@@ -126,7 +134,11 @@ ESMF_CXXLINKRPATHS      =
 ifeq ($(ESMF_PGIVERSION_MAJOR),7)
 ESMF_F90LINKLIBS += -lstd -lrt -lC -ldl
 else
+ifeq ($(shell $(ESMF_DIR)/scripts/compiler.pgcxx $(ESMF_CXXCOMPILER)),pgc++)
+ESMF_F90LINKLIBS += -pgc++libs -ldl
+else
 ESMF_F90LINKLIBS += -pgcpplibs
+endif
 endif
 
 ############################################################
@@ -150,3 +162,8 @@ ESMF_SL_LIBS_TO_MAKE  =
 # TODO: WebService testing is robust enough to work on all systems.
 #
 ESMF_NOWEBSERVTESTING = TRUE
+
+############################################################
+# Override default C preprocessor on this platform
+#
+ESMF_CPPDEFAULT       = gcc -E -P -x c

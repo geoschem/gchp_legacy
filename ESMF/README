@@ -1,11 +1,11 @@
 ================================================================================
 
-                        README - ESMF v5.2.0rp2
+                        README - ESMF v7.1.0r
 
                     Earth System Modeling Framework (ESMF)
 
  Earth System Modeling Framework
- Copyright 2002-2012, University Corporation for Atmospheric Research,
+ Copyright 2002-2018, University Corporation for Atmospheric Research,
  Massachusetts Institute of Technology, Geophysical Fluid Dynamics
  Laboratory, University of Michigan, National Centers for Environmental
  Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -28,6 +28,15 @@ you will have to build the library first.)
 
 If you are looking for more documentation, or higher-level information
 about the ESMF project itself, go to the "MORE HELP" section below.
+
+
+Several addon packages are included with this ESMF release under ./src/addon:
+  ESMPy   - Python interface to ESMF.
+  MAPL    - Usability layer developed under the NASA 
+            Modeling Analysis and Prediction (MAP) program.
+  NUOPC   - Interoperability layer developed under the 
+            National Unified Operational Prediction Capability (NUOPC) program.
+See each addon package for a specific README file.
 
 
 Please contact <esmf_support@list.woc.noaa.gov> with any questions or problems.
@@ -300,9 +309,9 @@ ESMF provides mpirun scripts for a wide range of system configurations. These
 are used by ESMF by default or can be set by the user via the ESMF_MPIRUN
 environment variable. The best way to see how the existing scripts are used
 on the supported platforms is to go to the "Supported Platforms" web page at
-http://www.earthsystemmodeling.org/download/platforms/ and follow the link for
-the platform of interest. Each test report contains the output of "gmake info",
-which lists the settings of the ESMF_MPIxxx environment variables.
+https://www.earthsystemcog.org/projects/esmf/platforms_7_0_0 and follow the link
+for the platform of interest. Each test report contains the output of 
+"gmake info", which lists the settings of the ESMF_MPIxxx environment variables.
 
 Users are encouraged to read the "Setting up ESMF to run Test Suite
 Applications" in the User's Guide to gain a deeper insight into how ESMF
@@ -466,13 +475,13 @@ MORE HELP:
 ---------
 
 Information about the ESMF project can be found at the ESMF web site:
-        http://www.earthsystemmodeling.org
+        https://www.earthsystemcog.org/
 
 Software documentation for the last public release is at:
-        http://www.earthsystemmodeling.org -> Users -> Documentation
+        https://www.earthsystemcog.org/ -> Users -> User Docs
 
 Software documentation for all releases is at:
-        http://www.earthsystemmodeling.org -> Download -> View All Releases
+        https://www.earthsystemcog.org/ -> Software -> Download/Releases
 
 The ESMF User's Guide contains information on building and installing the ESMF.
 The ESMF Reference Manual contains information on the architecture of the ESMF,
@@ -485,16 +494,14 @@ Follow the directions on that web page to download a tarball and for
 access to the ESMF CVS repository.  The Sourceforge site also contains 
 the bugs, support, and task lists for ESMF.
 
-Use test cases demonstrating how ESMF can be used in realistic situations are
-available as a separate module through CVS. Please follow the instructions on 
-the ESMF web site:
-        http://www.earthsystemmodeling.org -> Developers -> Test & Validation
+Demos, system tests, and use test cases, demonstrating how ESMF can be used in 
+realistic situations are available at:
+        https://www.earthsystemcog.org/projects/esmf/code_examples/
 
 Contributions from ESMF users are available at:
         http://sourceforge.net/projects/esmfcontrib
 
 Please contact esmf_support@list.woc.noaa.gov with any questions or problems.
 
-
 ================================================================================
- $Id: README,v 1.1.5.1 2013-01-11 20:23:43 mathomp4 Exp $
+$Id$

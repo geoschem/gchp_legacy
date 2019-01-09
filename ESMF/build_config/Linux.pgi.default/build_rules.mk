@@ -1,4 +1,4 @@
-# $Id: build_rules.mk,v 1.61.2.2 2012/03/26 23:09:35 theurich Exp $
+# $Id$
 #
 # Linux.pgi.default
 #
@@ -7,7 +7,12 @@
 # Default compiler setting.
 #
 ESMF_F90DEFAULT         = pgf90
+# Use pgc++ if available, otherwise fall back to older pgCC front-end
+ifeq ($(shell $(ESMF_DIR)/scripts/available pgc++),pgc++)
+ESMF_CXXDEFAULT         = pgc++
+else
 ESMF_CXXDEFAULT         = pgCC
+endif
 
 ############################################################
 # Default MPI setting.
@@ -50,6 +55,14 @@ ESMF_CXXDEFAULT         = mpicxx
 ESMF_MPIRUNDEFAULT      = mpirun $(ESMF_MPILAUNCHOPTIONS)
 ESMF_MPIMPMDRUNDEFAULT  = mpiexec $(ESMF_MPILAUNCHOPTIONS)
 else
+ifeq ($(ESMF_COMM),mpich3)
+# Mpich3 ---------------------------------------------------
+ESMF_F90DEFAULT         = mpif90
+ESMF_CXXDEFAULT         = mpicxx
+ESMF_CXXLINKLIBS       += $(shell $(ESMF_DIR)/scripts/libs.mpich3f90)
+ESMF_MPIRUNDEFAULT      = mpirun $(ESMF_MPILAUNCHOPTIONS)
+ESMF_MPIMPMDRUNDEFAULT  = mpiexec $(ESMF_MPILAUNCHOPTIONS)
+else
 ifeq ($(ESMF_COMM),mvapich)
 # Mvapich ---------------------------------------------------
 ESMF_F90DEFAULT         = mpif90
@@ -61,6 +74,7 @@ ifeq ($(ESMF_COMM),mvapich2)
 # Mvapich2 ---------------------------------------------------
 ESMF_F90DEFAULT         = mpif90
 ESMF_CXXDEFAULT         = mpicxx
+ESMF_CXXLINKLIBS       += $(shell $(ESMF_DIR)/scripts/libs.mvapich2f90)
 ESMF_MPIRUNDEFAULT      = mpirun $(ESMF_MPILAUNCHOPTIONS)
 ESMF_MPIMPMDRUNDEFAULT  = mpiexec $(ESMF_MPILAUNCHOPTIONS)
 else
@@ -89,7 +103,7 @@ ESMF_F90DEFAULT         = mpif90
 ESMF_CXXLINKLIBS       += -lmpi_f77
 endif
 ESMF_CXXCOMPILECPPFLAGS+= -DESMF_NO_SIGUSR2
-ESMF_F90LINKLIBS       += -lmpi_cxx
+ESMF_F90LINKLIBS       += $(shell $(ESMF_DIR)/scripts/libs.openmpif90 $(ESMF_F90DEFAULT))
 ESMF_CXXDEFAULT         = mpicxx
 ESMF_MPIRUNDEFAULT      = mpirun $(ESMF_MPILAUNCHOPTIONS)
 ESMF_MPIMPMDRUNDEFAULT  = mpiexec $(ESMF_MPILAUNCHOPTIONS)
@@ -98,6 +112,7 @@ ifeq ($(ESMF_COMM),user)
 # User specified flags -------------------------------------
 else
 $(error Invalid ESMF_COMM setting: $(ESMF_COMM))
+endif
 endif
 endif
 endif
@@ -120,12 +135,15 @@ ESMF_CXXCOMPILER_VERSION    = $(ESMF_DIR)/scripts/version.pgCC $(ESMF_CXXCOMPILE
 #
 ESMF_PGIVERSION_MAJOR = $(shell $(ESMF_DIR)/scripts/version.pgi 1 $(ESMF_F90COMPILER_VERSION))
 ESMF_F90COMPILECPPFLAGS += -DESMF_PGIVERSION_MAJOR=$(ESMF_PGIVERSION_MAJOR)
+ESMF_CXXCOMPILECPPFLAGS += -DESMF_PGIVERSION_MAJOR=$(ESMF_PGIVERSION_MAJOR)
 
 ESMF_PGIVERSION_MINOR = $(shell $(ESMF_DIR)/scripts/version.pgi 2 $(ESMF_F90COMPILER_VERSION))
 ESMF_F90COMPILECPPFLAGS += -DESMF_PGIVERSION_MINOR=$(ESMF_PGIVERSION_MINOR)
+ESMF_CXXCOMPILECPPFLAGS += -DESMF_PGIVERSION_MINOR=$(ESMF_PGIVERSION_MINOR)
 
 ESMF_PGIVERSION_PATCH = $(shell $(ESMF_DIR)/scripts/version.pgi 3 $(ESMF_F90COMPILER_VERSION))
 ESMF_F90COMPILECPPFLAGS += -DESMF_PGIVERSION_PATCH=$(ESMF_PGIVERSION_PATCH)
+ESMF_CXXCOMPILECPPFLAGS += -DESMF_PGIVERSION_PATCH=$(ESMF_PGIVERSION_PATCH)
 
 ############################################################
 # Construct the ABISTRING
@@ -149,16 +167,34 @@ ESMF_F90COMPILEOPTS       +=
 ESMF_F90LINKOPTS          += 
 endif
 ifeq ($(ESMF_ABISTRING),x86_64_small)
-ESMF_CXXCOMPILEOPTS       += -mcmodel=small
-ESMF_CXXLINKOPTS          += -mcmodel=small
-ESMF_F90COMPILEOPTS       += -mcmodel=small
-ESMF_F90LINKOPTS          += -mcmodel=small
+# mcmodel is small by default.  But due to a bug in PGI 14.7 and
+# earlier overcompiler, the libso directory is not searched prior to
+# the lib directory.  This causes the fullylinked shared lib build to fail.
+# ESMF_CXXCOMPILEOPTS       += -mcmodel=small
+# ESMF_CXXLINKOPTS          += -mcmodel=small
+# ESMF_F90COMPILEOPTS       += -mcmodel=small
+# ESMF_F90LINKOPTS          += -mcmodel=small
 endif
 ifeq ($(ESMF_ABISTRING),x86_64_medium)
 ESMF_CXXCOMPILEOPTS       += -mcmodel=medium
 ESMF_CXXLINKOPTS          += -mcmodel=medium
 ESMF_F90COMPILEOPTS       += -mcmodel=medium
 ESMF_F90LINKOPTS          += -mcmodel=medium
+endif
+
+############################################################
+# Enable TR15581/F2003 Allocatable array resizing
+#
+ESMF_F90COMPILEOPTS += -Mallocatable=03
+
+############################################################
+# Conditionally add pthread compiler and linker flags
+#
+ifeq ($(ESMF_PTHREADS),ON)
+ESMF_F90COMPILEOPTS += -lpthread
+ESMF_CXXCOMPILEOPTS += -lpthread
+ESMF_F90LINKOPTS    += -lpthread
+ESMF_CXXLINKOPTS    += -lpthread
 endif
 
 ############################################################
@@ -170,6 +206,14 @@ ESMF_OPENMP_F90LINKOPTS    += -mp
 ESMF_OPENMP_CXXLINKOPTS    += -mp --exceptions
 # Newer vers of PGI (>6) have trouble with OpenMP symbols under cross lang. link
 ESMF_OPENMP := OFF
+
+############################################################
+# OpenACC compiler and linker flags (the -Minfo just there for debugging)
+#
+ESMF_OPENACC_F90COMPILEOPTS += -acc -Minfo
+ESMF_OPENACC_CXXCOMPILEOPTS += -acc -Minfo
+ESMF_OPENACC_F90LINKOPTS    += -acc -Minfo
+ESMF_OPENACC_CXXLINKOPTS    += -acc -Minfo
 
 ############################################################
 # Need this until the file convention is fixed (then remove these two lines)
@@ -201,7 +245,11 @@ ESMF_F90LINKRPATHS += $(ESMF_F90RPATHPREFIX)$(shell $(ESMF_DIR)/scripts/libpath.
 ifeq ($(ESMF_PGIVERSION_MAJOR),7)
 ESMF_F90LINKLIBS += -lrt -lstd -lC $(shell $(ESMF_DIR)/scripts/libs.pgCC $(ESMF_CXXCOMPILER)) -ldl
 else
+ifeq ($(shell $(ESMF_DIR)/scripts/compiler.pgcxx $(ESMF_CXXCOMPILER)),pgc++)
+ESMF_F90LINKLIBS += -pgc++libs -ldl
+else
 ESMF_F90LINKLIBS += -pgcpplibs -ldl
+endif
 endif
 
 ############################################################
@@ -212,6 +260,13 @@ ESMF_CXXLINKLIBS += -lrt $(shell $(ESMF_DIR)/scripts/libs.pgf90 $(ESMF_F90COMPIL
 else
 ESMF_CXXLINKLIBS += -pgf90libs -ldl
 endif
+
+############################################################
+# Linker option that ensures that the specified libraries are 
+# used to also resolve symbols needed by other libraries.
+#
+ESMF_F90LINKOPTS          += -Wl,--no-as-needed
+ESMF_CXXLINKOPTS          += -Wl,--no-as-needed
 
 ############################################################
 # Shared library options
@@ -227,8 +282,3 @@ ESMF_SO_F90LINKOPTSEXE  = -Wl,-export-dynamic
 ESMF_SO_CXXCOMPILEOPTS  = -fpic
 ESMF_SO_CXXLINKOPTS     = -shared
 ESMF_SO_CXXLINKOPTSEXE  = -Wl,-export-dynamic
-
-############################################################
-# 3rd party code dependency: PIO
-#
-#TODO: activate this once PIO support is stable: ESMF_PIODEFAULT = internal

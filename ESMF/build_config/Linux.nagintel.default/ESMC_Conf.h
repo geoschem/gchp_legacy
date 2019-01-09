@@ -1,11 +1,11 @@
 #ifdef ESMC_RCS_HEADER
-"$Id: ESMC_Conf.h,v 1.1.5.1 2013-01-11 20:23:43 mathomp4 Exp $"
+"$Id$"
 "Defines the configuration for this machine"
 #endif
 
 #if 0
 Earth System Modeling Framework
-Copyright 2002-2012, University Corporation for Atmospheric Research,
+Copyright 2002-2018, University Corporation for Atmospheric Research,
 Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 Laboratory, University of Michigan, National Centers for Environmental
 Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -18,7 +18,8 @@ Licensed under the University of Illinois-NCSA License.
 
 #define PARCH_linux
 
-#define FTN(func) func##_
+#define FTN_X(func) func##_
+#define FTNX(func) func##_
 
 #if defined (__cplusplus)
 // Typedef to match the data type of the 'hidden' string length

@@ -1,8 +1,8 @@
 #if 0
-$Id: ESMF_Conf.inc,v 1.1.5.1 2013-01-11 20:23:43 mathomp4 Exp $
+$Id$
 
 Earth System Modeling Framework
-Copyright 2002-2012, University Corporation for Atmospheric Research,
+Copyright 2002-2018, University Corporation for Atmospheric Research,
 Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 Laboratory, University of Michigan, National Centers for Environmental
 Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -10,10 +10,13 @@ NASA Goddard Space Flight Center.
 Licensed under the University of Illinois-NCSA License.
 #endif
 
-#if 0
- // define this if needed.
- // #define ESMF_SEQUENCE_BUG 0
+#if !defined(__cplusplus)
+#if (__GNUC__ == 4) && (__GNUC_MINOR__ < 5)
+#error "The gfortran compiler must be version 4.5 or newer."
 #endif
 
+#if (__GNUC__ == 4) && (__GNUC_MINOR__ < 6)
+#define ESMF_NO_F2003_ALLOC_STRING_LENS
+#endif
 
-
+#endif

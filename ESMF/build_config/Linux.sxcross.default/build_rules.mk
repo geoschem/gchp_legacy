@@ -1,4 +1,4 @@
-# $Id: build_rules.mk,v 1.1.5.1 2013-01-11 20:23:43 mathomp4 Exp $
+# $Id$
 #
 # Linux.sxcross.default
 #
@@ -100,6 +100,13 @@ ESMF_F90LINKLIBS += -lC++_eh -lcpp
 # Link against libesmf.a using the C++ linker front-end
 #
 ESMF_CXXLINKLIBS += -lf90sxe -lm90sxe -li90sx -lC++_eh -lm
+
+############################################################
+# Linker option that ensures that the specified libraries are 
+# used to also resolve symbols needed by other libraries.
+#
+ESMF_F90LINKOPTS          += -Wl,--no-as-needed
+ESMF_CXXLINKOPTS          += -Wl,--no-as-needed
 
 ############################################################
 # Blank out shared library options

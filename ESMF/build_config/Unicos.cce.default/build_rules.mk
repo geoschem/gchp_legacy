@@ -45,8 +45,8 @@ endif
 ############################################################
 # Print compiler version string
 #
-ESMF_F90COMPILER_VERSION    = ${ESMF_F90COMPILER} -v -V
-ESMF_CXXCOMPILER_VERSION    = ${ESMF_CXXCOMPILER} -v -V
+ESMF_F90COMPILER_VERSION    = ${ESMF_F90COMPILER} -V
+ESMF_CXXCOMPILER_VERSION    = ${ESMF_CXXCOMPILER} -V
 
 ############################################################
 # on XT with CCE optimization level must be set explicitely
@@ -87,6 +87,8 @@ ESMF_PTHREADS := OFF
 # XT compute nodes do not have support for OpenMP
 #
 ESMF_OPENMP := OFF
+ESMF_F90COMPILEOPTS += -h noomp
+ESMF_CXXCOMPILEOPTS += -h noomp
 
 ############################################################
 # How to specify module directories
@@ -108,6 +110,12 @@ ESMF_F90LINKRPATHS      =
 ESMF_CXXLINKRPATHS      =
 
 ############################################################
+# Special libs to link against
+#
+ESMF_F90LINKLIBS += -lpgas-dmapp
+ESMF_CXXLINKLIBS += -lpgas-dmapp
+
+############################################################
 # Blank out shared library options
 #
 ESMF_SL_LIBS_TO_MAKE  =
@@ -119,3 +127,8 @@ ESMF_SL_LIBS_TO_MAKE  =
 # TODO: WebService testing is robust enough to work on all systems.
 #
 ESMF_NOWEBSERVTESTING = TRUE
+
+############################################################
+# Override default C preprocessor on this platform
+#
+ESMF_CPPDEFAULT       = gcc -E -P -x c

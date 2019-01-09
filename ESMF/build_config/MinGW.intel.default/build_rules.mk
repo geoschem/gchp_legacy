@@ -17,6 +17,8 @@ ESMF_F90COMPILEOPTS    += -nologo
 ESMF_CXXCOMPILEOPTS    += -TP
 # Specify the c++ exception model
 ESMF_CXXCOMPILEOPTS    += -EHsc
+# Specify that C99 VLAs are ok
+ESMF_CXXCOMPILEOPTS    += -Qvla
 # Eliminate warnings about using _s variants of library functions
 ESMF_CXXCOMPILEOPTS    += -D_CRT_SECURE_NO_WARNINGS
 
@@ -65,6 +67,11 @@ endif
 #
 ESMF_F90COMPILER_VERSION    = ${ESMF_F90COMPILER} -logo
 ESMF_CXXCOMPILER_VERSION    = ${ESMF_CXXCOMPILER}
+
+############################################################
+# Enable TR15581/F2003 Allocatable array resizing
+#
+ESMF_F90COMPILEOPTS += -assume realloc_lhs
 
 ############################################################
 # Force Fortran symbols lower case
@@ -185,8 +192,8 @@ ESMF_OPTLEVELDEFAULT        = 2
 #
 ESMF_ARDEFAULT              = lib
 ESMF_ARCREATEFLAGSDEFAULT   =
+ESMF_ARCREATEPREFIX         = -OUT:
 ESMF_AREXTRACTDEFAULT       = $(ESMF_ARDEFAULT) -extract:
-ESMF_RANLIBDEFAULT          = true
 
 ############################################################
 # Blank out variables to prevent rpath encoding
@@ -201,6 +208,14 @@ ESMF_OPENMP_F90COMPILEOPTS += -Qopenmp
 ESMF_OPENMP_CXXCOMPILEOPTS += -Qopenmp
 ESMF_OPENMP_F90LINKOPTS    += -Qopenmp
 ESMF_OPENMP_CXXLINKOPTS    += -Qopenmp
+
+############################################################
+# MKL specific options for external LAPACK
+ifeq ($(ESMF_LAPACK),mkl)
+ifndef ESMF_LAPACK_LIBS
+ESMF_LAPACK_LIBS = -mkl
+endif
+endif
 
 ###########################################################
 # Determine where libraries are located

@@ -1,4 +1,4 @@
-# $Id: build_rules.mk,v 1.1.5.1 2013-01-11 20:23:43 mathomp4 Exp $
+# $Id$
 #
 # Linux.intelgcc.default
 #
@@ -26,6 +26,13 @@ ESMF_CXXCOMPILECPPFLAGS+= -DESMF_MPIUNI
 ESMF_CXXCOMPILEPATHS   += -I$(ESMF_DIR)/src/Infrastructure/stubs/mpiuni
 ESMF_MPIRUNDEFAULT      = $(ESMF_DIR)/src/Infrastructure/stubs/mpiuni/mpirun
 else
+ifeq ($(ESMF_COMM),mpi)
+# Vendor MPI -----------------------------------------------
+ESMF_F90LINKLIBS       += -lmpi -lmpi++
+ESMF_CXXLINKLIBS       += -lmpi -lmpi++
+ESMF_MPIRUNDEFAULT      = mpiexec_mpt $(ESMF_MPILAUNCHOPTIONS)
+ESMF_MPIMPMDRUNDEFAULT  = mpiexec_mpt $(ESMF_MPILAUNCHOPTIONS)
+else
 ifeq ($(ESMF_COMM),mpich)
 # Mpich ----------------------------------------------------
 ESMF_F90COMPILECPPFLAGS+= -DESMF_MPICH
@@ -38,6 +45,22 @@ ifeq ($(ESMF_COMM),mpich2)
 # Mpich2 ---------------------------------------------------
 ESMF_F90DEFAULT         = mpif90
 ESMF_CXXDEFAULT         = mpicxx
+ESMF_MPIRUNDEFAULT      = mpirun $(ESMF_MPILAUNCHOPTIONS)
+ESMF_MPIMPMDRUNDEFAULT  = mpiexec $(ESMF_MPILAUNCHOPTIONS)
+else
+ifeq ($(ESMF_COMM),mpich3)
+# Mpich3 ---------------------------------------------------
+ESMF_F90DEFAULT         = mpif90
+ESMF_CXXDEFAULT         = mpicxx
+ESMF_CXXLINKLIBS       += $(shell $(ESMF_DIR)/scripts/libs.mpich3f90)
+ESMF_MPIRUNDEFAULT      = mpirun $(ESMF_MPILAUNCHOPTIONS)
+ESMF_MPIMPMDRUNDEFAULT  = mpiexec $(ESMF_MPILAUNCHOPTIONS)
+else
+ifeq ($(ESMF_COMM),mvapich2)
+# Mvapich2 ---------------------------------------------------
+ESMF_F90DEFAULT         = mpif90
+ESMF_CXXDEFAULT         = mpicxx
+ESMF_CXXLINKLIBS       += $(shell $(ESMF_DIR)/scripts/libs.mvapich2f90)
 ESMF_MPIRUNDEFAULT      = mpirun $(ESMF_MPILAUNCHOPTIONS)
 ESMF_MPIMPMDRUNDEFAULT  = mpiexec $(ESMF_MPILAUNCHOPTIONS)
 else
@@ -59,18 +82,16 @@ ESMF_MPIMPMDRUNDEFAULT  = mpiexec $(ESMF_MPILAUNCHOPTIONS)
 else
 ifeq ($(ESMF_COMM),openmpi)
 # OpenMPI --------------------------------------------------
-ESMF_CXXCOMPILECPPFLAGS+= -DESMF_NO_SIGUSR2
+ifeq ($(shell $(ESMF_DIR)/scripts/available mpifort),mpifort)
+ESMF_F90DEFAULT         = mpifort
+ESMF_CXXLINKLIBS       += -lmpi_mpifh
+else
 ESMF_F90DEFAULT         = mpif90
-ESMF_F90LINKLIBS       += -lmpi_cxx
+ESMF_CXXLINKLIBS       += -lmpi_f77
+endif
+ESMF_CXXCOMPILECPPFLAGS+= -DESMF_NO_SIGUSR2
+ESMF_F90LINKLIBS       += $(shell $(ESMF_DIR)/scripts/libs.openmpif90 $(ESMF_F90DEFAULT))
 ESMF_CXXDEFAULT         = mpicxx
-#------------------------------------------------------------------------------
-# %%%%% ADDED BY BOB Y. (12/12/14) %%%%%
-#
-# Need to change -lmpi_f77 to -lmpi_cxx to get ESMF to compile w/ OpenMPI
-#ESMF_CXXLINKLIBS       += -lmpi_f77
-ESMF_CXXLINKLIBS       += -lmpi_cxx
-#----------------------------------------------------------------------------
-ESMF_CXXLINKLIBS       += -lmpi_cxx
 ESMF_MPIRUNDEFAULT      = mpirun $(ESMF_MPILAUNCHOPTIONS)
 ESMF_MPIMPMDRUNDEFAULT  = mpiexec $(ESMF_MPILAUNCHOPTIONS)
 else
@@ -85,12 +106,27 @@ endif
 endif
 endif
 endif
+endif
+endif
+endif
 
 ############################################################
 # Print compiler version string
 #
 ESMF_F90COMPILER_VERSION    = ${ESMF_F90COMPILER} -V -v
 ESMF_CXXCOMPILER_VERSION    = ${ESMF_CXXCOMPILER} -v --version
+ESMF_F90MAJORVERSION      = $(shell $(ESMF_DIR)/scripts/version.intel 1 ${ESMF_F90COMPILER} -V)
+
+############################################################
+# Special debug flags
+#
+ESMF_F90OPTFLAG_G       += -traceback -check bounds
+ESMF_CXXOPTFLAG_G       += -Wall -Wextra -Wno-unused
+
+############################################################
+# Enable TR15581/F2003 Allocatable array resizing
+#
+ESMF_F90COMPILEOPTS += -assume realloc_lhs
 
 ############################################################
 # Construct the ABISTRING
@@ -147,14 +183,20 @@ ESMF_F90COMPILEOPTS += -threads
 ESMF_CXXCOMPILEOPTS += -pthread
 ESMF_F90LINKOPTS    += -threads
 ESMF_CXXLINKOPTS    += -pthread
+ESMF_SL_LIBOPTS     += -pthread
 endif
 
 ############################################################
 # OpenMP compiler and linker flags
 #
+ifeq ($(shell [ $(ESMF_F90MAJORVERSION) -ge 16 ] && echo true), true)
+ESMF_OPENMP_F90COMPILEOPTS += -qopenmp
+ESMF_OPENMP_F90LINKOPTS    += -qopenmp
+else
 ESMF_OPENMP_F90COMPILEOPTS += -openmp
-ESMF_OPENMP_CXXCOMPILEOPTS += -fopenmp
 ESMF_OPENMP_F90LINKOPTS    += -openmp
+endif
+ESMF_OPENMP_CXXCOMPILEOPTS += -fopenmp
 ESMF_OPENMP_CXXLINKOPTS    += -fopenmp
 
 ############################################################
@@ -193,6 +235,24 @@ ESMF_F90LINKLIBS += -limf -lm -lrt -ldl
 ESMF_CXXLINKLIBS += $(shell $(ESMF_DIR)/scripts/libs.ifort "$(ESMF_F90COMPILER) $(ESMF_F90COMPILEOPTS)") -lrt -ldl
 
 ############################################################
+# Linker option that ensures that the specified libraries are 
+# used to also resolve symbols needed by other libraries.
+#
+ESMF_F90LINKOPTS          += -Wl,--no-as-needed
+ESMF_CXXLINKOPTS          += -Wl,--no-as-needed
+
+############################################################
 # Shared library options
 #
 ESMF_SL_LIBOPTS  += -shared
+
+############################################################
+# Shared object options
+#
+ESMF_SO_F90COMPILEOPTS  = -fPIC
+ESMF_SO_F90LINKOPTS     = -shared
+ESMF_SO_F90LINKOPTSEXE  = -Wl,-export-dynamic
+ESMF_SO_CXXCOMPILEOPTS  = -fPIC
+ESMF_SO_CXXLINKOPTS     = -shared
+ESMF_SO_CXXLINKOPTSEXE  = -Wl,-export-dynamic
+

@@ -44,15 +44,21 @@ endif
 ############################################################
 # Print compiler version string
 #
-ESMF_F90COMPILER_VERSION    = ${ESMF_F90COMPILER} -v --version
-ESMF_CXXCOMPILER_VERSION    = ${ESMF_CXXCOMPILER} -v --version
+ESMF_F90COMPILER_VERSION    = ${ESMF_F90COMPILER} --version
+ESMF_CXXCOMPILER_VERSION    = ${ESMF_CXXCOMPILER} --version
+
+############################################################
+# Special debug flags
+#
+ESMF_F90OPTFLAG_G       += -Wall -Wno-unused -Wno-unused-dummy-argument -fbacktrace -fbounds-check
+ESMF_CXXOPTFLAG_G       += -Wall -Wextra -Wno-unused
 
 ############################################################
 # Fortran symbol convention
 #
 ifeq ($(ESMF_FORTRANSYMBOLS),default)
-ESMF_F90COMPILEOPTS       += -fno-second-underscore
-ESMF_F90LINKOPTS          += -fno-second-underscore
+ESMF_F90COMPILEOPTS       +=
+ESMF_F90LINKOPTS          +=
 ESMF_CXXCOMPILEOPTS       += -DESMF_LOWERCASE_SINGLEUNDERSCORE
 else
 ifeq ($(ESMF_FORTRANSYMBOLS),lowercase_singleunderscore)
@@ -61,8 +67,8 @@ ESMF_F90LINKOPTS          += -fno-second-underscore
 ESMF_CXXCOMPILEOPTS       += -DESMF_LOWERCASE_SINGLEUNDERSCORE
 else
 ifeq ($(ESMF_FORTRANSYMBOLS),lowercase_doubleunderscore)
-ESMF_F90COMPILEOPTS       +=
-ESMF_F90LINKOPTS          +=
+ESMF_F90COMPILEOPTS       += -fsecond-underscore
+ESMF_F90LINKOPTS          += -fsecond-underscore
 ESMF_CXXCOMPILEOPTS       += -DESMF_LOWERCASE_DOUBLEUNDERSCORE
 else
 $(error "ESMF_FORTRANSYMBOLS = $(ESMF_FORTRANSYMBOLS)" not supported by ESMF and/or this platform)
@@ -119,8 +125,14 @@ ESMF_F90COMPILEOPTS += -ffree-line-length-none
 ############################################################
 # Blank out variables to prevent rpath encoding
 #
-ESMF_F90LINKRPATHS      =
-ESMF_CXXLINKRPATHS      =
+#ESMF_F90LINKRPATHS      =
+#ESMF_CXXLINKRPATHS      =
+
+############################################################
+# Set rpath syntax
+#
+ESMF_F90RPATHPREFIX         = -Wl,-rpath,
+ESMF_CXXRPATHPREFIX         = -Wl,-rpath,
 
 ############################################################
 # Determine where gcc's libraries are located
@@ -153,9 +165,19 @@ ESMF_F90LINKLIBS += -lrt -lstdc++ -ldl
 ESMF_CXXLINKLIBS += -lrt -lgfortran -ldl
 
 ############################################################
-# Blank out shared library options
+# Shared library options
 #
-ESMF_SL_LIBS_TO_MAKE  =
+ESMF_SL_LIBOPTS  += -shared
+
+############################################################
+# Shared object options
+#
+ESMF_SO_F90COMPILEOPTS  = -fPIC
+ESMF_SO_F90LINKOPTS     = -shared
+ESMF_SO_F90LINKOPTSEXE  = -Wl,-export-dynamic
+ESMF_SO_CXXCOMPILEOPTS  = -fPIC
+ESMF_SO_CXXLINKOPTS     = -shared
+ESMF_SO_CXXLINKOPTSEXE  = -Wl,-export-dynamic
 
 ############################################################
 # Disable WebService testing for now
@@ -164,3 +186,8 @@ ESMF_SL_LIBS_TO_MAKE  =
 # TODO: WebService testing is robust enough to work on all systems.
 #
 ESMF_NOWEBSERVTESTING = TRUE
+
+############################################################
+# Override default C preprocessor on this platform
+#
+ESMF_CPPDEFAULT       = gcc -E -P -x c

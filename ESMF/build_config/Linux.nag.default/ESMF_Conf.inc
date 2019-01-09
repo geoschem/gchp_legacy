@@ -1,8 +1,8 @@
 #if 0
-$Id: ESMF_Conf.inc,v 1.1.5.1 2013-01-11 20:23:43 mathomp4 Exp $
+$Id$
 
 Earth System Modeling Framework
-Copyright 2002-2012, University Corporation for Atmospheric Research,
+Copyright 2002-2018, University Corporation for Atmospheric Research,
 Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 Laboratory, University of Michigan, National Centers for Environmental
 Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -20,9 +20,8 @@ be one of the following:
 
   Use F2003 FLUSH statement from 5.2-onwards NAG, because
   the library call has thread-safety problems.  If a pre-5.2
-  compiler is being used, enable the following macros.
+  compiler is being used, enable the following macro.
 #endif
 #if 0
-#define ESMF_NAG_UNIXIO_MODULE
 #define ESMF_IOFlushMacro(unit,status) call flush (unit, status)
 #endif

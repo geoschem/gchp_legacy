@@ -1,4 +1,4 @@
-# $Id: build_rules.mk,v 1.1.5.1 2013-01-11 20:23:43 mathomp4 Exp $
+# $Id$
 #
 # Darwin.absoft.default
 #
@@ -41,10 +41,19 @@ ESMF_CXXDEFAULT         = mpicxx
 ESMF_MPIRUNDEFAULT      = mpirun $(ESMF_MPILAUNCHOPTIONS)
 ESMF_MPIMPMDRUNDEFAULT  = mpiexec $(ESMF_MPILAUNCHOPTIONS)
 else
+ifeq ($(ESMF_COMM),mpich3)
+# Mpich3 ---------------------------------------------------
+ESMF_F90DEFAULT         = mpif90
+ESMF_CXXDEFAULT         = mpicxx
+ESMF_CXXLINKLIBS       += $(shell $(ESMF_DIR)/scripts/libs.mpich3f90)
+ESMF_MPIRUNDEFAULT      = mpirun $(ESMF_MPILAUNCHOPTIONS)
+ESMF_MPIMPMDRUNDEFAULT  = mpiexec $(ESMF_MPILAUNCHOPTIONS)
+else
 ifeq ($(ESMF_COMM),mvapich2)
 # Mvapich2 ---------------------------------------------------
 ESMF_F90DEFAULT         = mpif90
 ESMF_CXXDEFAULT         = mpicxx
+ESMF_CXXLINKLIBS       += $(shell $(ESMF_DIR)/scripts/libs.mvapich2f90)
 ESMF_MPIRUNDEFAULT      = mpirun $(ESMF_MPILAUNCHOPTIONS)
 ESMF_MPIMPMDRUNDEFAULT  = mpiexec $(ESMF_MPILAUNCHOPTIONS)
 else
@@ -58,11 +67,16 @@ ESMF_MPIMPMDRUNDEFAULT  = mpiexec $(ESMF_MPILAUNCHOPTIONS)
 else
 ifeq ($(ESMF_COMM),openmpi)
 # OpenMPI --------------------------------------------------
-ESMF_CXXCOMPILECPPFLAGS+= -DESMF_NO_SIGUSR2
+ifeq ($(shell $(ESMF_DIR)/scripts/available mpifort),mpifort)
+ESMF_F90DEFAULT         = mpifort
+ESMF_CXXLINKLIBS       += -lmpi_mpifh
+else
 ESMF_F90DEFAULT         = mpif90
-ESMF_F90LINKLIBS       += -lmpi_cxx
-ESMF_CXXDEFAULT         = mpicxx
 ESMF_CXXLINKLIBS       += -lmpi_f77
+endif
+ESMF_CXXCOMPILECPPFLAGS+= -DESMF_NO_SIGUSR2
+ESMF_F90LINKLIBS       += $(shell $(ESMF_DIR)/scripts/libs.openmpif90 $(ESMF_F90DEFAULT))
+ESMF_CXXDEFAULT         = mpicxx
 ESMF_MPIRUNDEFAULT      = mpirun $(ESMF_MPILAUNCHOPTIONS)
 ESMF_MPIMPMDRUNDEFAULT  = mpiexec $(ESMF_MPILAUNCHOPTIONS)
 else
@@ -77,17 +91,46 @@ endif
 endif
 endif
 endif
-
-############################################################
-# currently does not support OpenMP
-#
-ESMF_OPENMP := OFF
+endif
 
 ############################################################
 # Print compiler version string
 #
 ESMF_F90COMPILER_VERSION    = ${ESMF_F90COMPILER} -V
-ESMF_CXXCOMPILER_VERSION    = ${ESMF_CXXCOMPILER} --version
+ESMF_CXXCOMPILER_VERSION    = ${ESMF_CXXCOMPILER} -v --version
+
+############################################################
+# See if g++ is really clang
+#
+ESMF_CLANGSTR := $(findstring clang, $(shell $(ESMF_CXXCOMPILER) --version))
+
+############################################################
+# Absoft currently does not support OpenMP
+#
+ESMF_OPENMP := OFF
+
+############################################################
+# Fortran symbol convention
+#
+ifeq ($(ESMF_FORTRANSYMBOLS),default)
+ESMF_F90COMPILEOPTS       += -YEXT_NAMES=LCS -YEXT_SFX=_
+ESMF_F90LINKOPTS          += -YEXT_NAMES=LCS -YEXT_SFX=_
+ESMF_CXXCOMPILEOPTS       += -DESMF_LOWERCASE_SINGLEUNDERSCORE
+else
+ifeq ($(ESMF_FORTRANSYMBOLS),lowercase_singleunderscore)
+ESMF_F90COMPILEOPTS       += -YEXT_NAMES=LCS -YEXT_SFX=_
+ESMF_F90LINKOPTS          += -YEXT_NAMES=LCS -YEXT_SFX=_
+ESMF_CXXCOMPILEOPTS       += -DESMF_LOWERCASE_SINGLEUNDERSCORE
+else
+ifeq ($(ESMF_FORTRANSYMBOLS),lowercase_doubleunderscore)
+ESMF_F90COMPILEOPTS       += -YEXT_NAMES=LCS -YEXT_SFX=__
+ESMF_F90LINKOPTS          += -YEXT_NAMES=LCS -YEXT_SFX=__
+ESMF_CXXCOMPILEOPTS       += -DESMF_LOWERCASE_DOUBLEUNDERSCORE
+else
+$(error "ESMF_FORTRANSYMBOLS = $(ESMF_FORTRANSYMBOLS)" not supported by ESMF and/or this platform)
+endif
+endif
+endif
 
 ############################################################
 # Construct the ABISTRING
@@ -132,32 +175,24 @@ ESMF_CXXLINKOPTS    += -pthread
 endif
 
 ############################################################
-# Fortran symbol convention
+# Need this until the file convention is fixed (then remove these two lines)
 #
-ifeq ($(ESMF_FORTRANSYMBOLS),default)
-ESMF_F90COMPILEOPTS       += -YEXT_NAMES=LCS -YEXT_SFX=_
-ESMF_F90LINKOPTS          += -YEXT_NAMES=LCS -YEXT_SFX=_
-ESMF_CXXCOMPILEOPTS       += -DESMF_LOWERCASE_SINGLEUNDERSCORE
-else
-ifeq ($(ESMF_FORTRANSYMBOLS),lowercase_singleunderscore)
-ESMF_F90COMPILEOPTS       += -YEXT_NAMES=LCS -YEXT_SFX=_
-ESMF_F90LINKOPTS          += -YEXT_NAMES=LCS -YEXT_SFX=_
-ESMF_CXXCOMPILEOPTS       += -DESMF_LOWERCASE_SINGLEUNDERSCORE
-else
-ifeq ($(ESMF_FORTRANSYMBOLS),lowercase_doubleunderscore)
-ESMF_F90COMPILEOPTS       += -YEXT_NAMES=LCS -YEXT_SFX=__
-ESMF_F90LINKOPTS          += -YEXT_NAMES=LCS -YEXT_SFX=__
-ESMF_CXXCOMPILEOPTS       += -DESMF_LOWERCASE_DOUBLEUNDERSCORE
-else
-$(error "ESMF_FORTRANSYMBOLS = $(ESMF_FORTRANSYMBOLS)" not supported by ESMF and/or this platform)
-endif
-endif
-endif
+ESMF_F90COMPILEFREENOCPP = -ffree
+ESMF_F90COMPILEFIXCPP    = -ffixed
+
+############################################################
+# Disable PIO until F2003 C Interop is verified to work
+ESMF_PIO               = OFF
 
 ############################################################
 # How to specify module directories
 #
 ESMF_F90IMOD        = -p
+
+############################################################
+# Determine where absoft f90's libraries are located
+#
+ESMF_CXXLINKPATHS += $(addprefix -L,$(shell $(ESMF_DIR)/scripts/libpath.absoft $(ESMF_F90COMPILER) $(ESMF_F90COMPILEOPTS)))
 
 ############################################################
 # Blank out variables to prevent rpath encoding
@@ -166,25 +201,17 @@ ESMF_F90LINKRPATHS      =
 ESMF_CXXLINKRPATHS      =
 
 ############################################################
-# Need this until the file convention is fixed (then remove these two lines)
-#
-ESMF_F90COMPILEFREENOCPP = -ffree
-ESMF_F90COMPILEFIXCPP    = -ffixed
-
-############################################################
-# Determine where absoft f90's libraries are located
-#
-ESMF_CXXLINKPATHS += $(addprefix -L,$(shell $(ESMF_DIR)/scripts/libpath.absoft $(ESMF_F90COMPILER)))
-
-############################################################
 # Link against libesmf.a using the F90 linker front-end
 #
 ESMF_F90LINKLIBS += -lU77 -lstdc++
+ifeq ($(ESMF_CLANGSTR), clang)
+ESMF_F90LINKLIBS += -lc++
+endif
 
 ############################################################
 # Link against libesmf.a using the C++ linker front-end
 #
-ESMF_CXXLINKLIBS += -lU77 $(shell $(ESMF_DIR)/scripts/libs.absoft $(ESMF_F90COMPILER))
+ESMF_CXXLINKLIBS += -lU77 $(shell $(ESMF_DIR)/scripts/libs.absoft $(ESMF_F90COMPILER) $(ESMF_F90COMPILEOPTS))
 
 ############################################################
 # Blank out shared library options

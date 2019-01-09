@@ -1,4 +1,4 @@
-# $Id: build_rules.mk,v 1.89.4.1 2012/03/26 23:09:33 theurich Exp $
+# $Id$
 #
 # Linux.intel.default
 #
@@ -48,10 +48,19 @@ ESMF_CXXDEFAULT         = mpicxx
 ESMF_MPIRUNDEFAULT      = mpirun $(ESMF_MPILAUNCHOPTIONS)
 ESMF_MPIMPMDRUNDEFAULT  = mpiexec $(ESMF_MPILAUNCHOPTIONS)
 else
+ifeq ($(ESMF_COMM),mpich3)
+# Mpich3 ---------------------------------------------------
+ESMF_F90DEFAULT         = mpif90
+ESMF_CXXDEFAULT         = mpicxx
+ESMF_CXXLINKLIBS       += $(shell $(ESMF_DIR)/scripts/libs.mpich3f90)
+ESMF_MPIRUNDEFAULT      = mpirun $(ESMF_MPILAUNCHOPTIONS)
+ESMF_MPIMPMDRUNDEFAULT  = mpiexec $(ESMF_MPILAUNCHOPTIONS)
+else
 ifeq ($(ESMF_COMM),mvapich2)
 # Mvapich2 ---------------------------------------------------
 ESMF_F90DEFAULT         = mpif90
 ESMF_CXXDEFAULT         = mpicxx
+ESMF_CXXLINKLIBS       += $(shell $(ESMF_DIR)/scripts/libs.mvapich2f90)
 ESMF_MPIRUNDEFAULT      = mpirun $(ESMF_MPILAUNCHOPTIONS)
 ESMF_MPIMPMDRUNDEFAULT  = mpiexec $(ESMF_MPILAUNCHOPTIONS)
 else
@@ -84,18 +93,10 @@ ESMF_F90DEFAULT         = mpifort
 ESMF_CXXLINKLIBS       += -lmpi_mpifh
 else
 ESMF_F90DEFAULT         = mpif90
-#------------------------------------------------------------------------------
-# %%%%% ADDED BY BOB Y. (12/12/14) %%%%%
-#
-# Need to change -lmpi_f77 to -lmpi_cxx to get ESMF to compile w/ OpenMPI
-#ESMF_CXXLINKLIBS       += -lmpi_f77
-#(below commented out by ewl, 7/11/18)
-#ESMF_CXXLINKLIBS       += -lmpi_cxx
-#------------------------------------------------------------------------------
+ESMF_CXXLINKLIBS       += -lmpi_f77
 endif
 ESMF_CXXCOMPILECPPFLAGS+= -DESMF_NO_SIGUSR2
-#(below commented out by ewl, 7/11/18)
-#ESMF_F90LINKLIBS       += -lmpi_cxx
+ESMF_F90LINKLIBS       += $(shell $(ESMF_DIR)/scripts/libs.openmpif90 $(ESMF_F90DEFAULT))
 ESMF_CXXDEFAULT         = mpicxx
 ESMF_MPIRUNDEFAULT      = mpirun $(ESMF_MPILAUNCHOPTIONS)
 ESMF_MPIMPMDRUNDEFAULT  = mpiexec $(ESMF_MPILAUNCHOPTIONS)
@@ -114,12 +115,26 @@ endif
 endif
 endif
 endif
+endif
 
 ############################################################
 # Print compiler version string
 #
-ESMF_F90COMPILER_VERSION    = ${ESMF_F90COMPILER} -V -v
-ESMF_CXXCOMPILER_VERSION    = ${ESMF_CXXCOMPILER} -V -v
+ESMF_F90COMPILER_VERSION    = ${ESMF_F90COMPILER} -V -v -c
+ESMF_CXXCOMPILER_VERSION    = ${ESMF_CXXCOMPILER} -V -v -c
+ESMF_F90MAJORVERSION      = $(shell $(ESMF_DIR)/scripts/version.intel 1 ${ESMF_F90COMPILER} -V)
+ESMF_CXXMAJORVERSION      = $(shell $(ESMF_DIR)/scripts/version.intel 1 ${ESMF_CXXCOMPILER} -V)
+
+############################################################
+# Special debug flags
+#
+ESMF_CXXOPTFLAG_G       += -traceback -Wcheck
+ESMF_F90OPTFLAG_G       += -traceback -check bounds
+
+############################################################
+# Enable TR15581/F2003 Allocatable array resizing
+#
+ESMF_F90COMPILEOPTS += -assume realloc_lhs
 
 ############################################################
 # Construct the ABISTRING
@@ -137,6 +152,9 @@ ESMF_ABISTRING := $(ESMF_MACHINE)_32
 endif
 ifeq ($(ESMF_ABI),64)
 ESMF_ABISTRING := x86_64_small
+endif
+ifeq ($(ESMF_ABI),mic)
+ESMF_ABISTRING := x86_64_mic
 endif
 endif
 
@@ -161,6 +179,15 @@ ESMF_CXXLINKOPTS          += -m64 -mcmodel=medium
 ESMF_F90COMPILEOPTS       += -m64 -mcmodel=medium
 ESMF_F90LINKOPTS          += -m64 -mcmodel=medium
 endif
+ifeq ($(ESMF_ABISTRING),x86_64_mic)
+ESMF_CXXCOMPILEOPTS       += -mmic
+ESMF_CXXLINKOPTS          += -mmic
+ESMF_F90COMPILEOPTS       += -mmic -auto
+ESMF_F90LINKOPTS          += -mmic -auto
+ESMF_SL_LIBOPTS           += -mmic
+ESMF_F90COMPILECPPFLAGS+= -DESMF_NO_SEQUENCE
+ESMF_CXXCOMPILECPPFLAGS+= -DESMF_NO_SEQUENCE
+endif
 ifeq ($(ESMF_ABISTRING),ia64_64)
 ESMF_CXXCOMPILEOPTS       += -size_lp64
 ESMF_CXXLINKOPTS          += -size_lp64
@@ -181,11 +208,29 @@ endif
 
 ############################################################
 # OpenMP compiler and linker flags
-#
+
+ifeq ($(shell [ $(ESMF_F90MAJORVERSION) -ge 16 ] && echo true), true)
+ESMF_OPENMP_F90COMPILEOPTS += -qopenmp
+ESMF_OPENMP_F90LINKOPTS    += -qopenmp
+else
 ESMF_OPENMP_F90COMPILEOPTS += -openmp
-ESMF_OPENMP_CXXCOMPILEOPTS += -openmp
 ESMF_OPENMP_F90LINKOPTS    += -openmp
+endif
+ifeq ($(shell [ $(ESMF_CXXMAJORVERSION) -ge 16 ] && echo true), true)
+ESMF_OPENMP_CXXCOMPILEOPTS += -qopenmp
+ESMF_OPENMP_CXXLINKOPTS    += -qopenmp
+else
+ESMF_OPENMP_CXXCOMPILEOPTS += -openmp
 ESMF_OPENMP_CXXLINKOPTS    += -openmp
+endif
+
+############################################################
+# MKL specific options for external LAPACK
+ifeq ($(ESMF_LAPACK),mkl)
+ifndef ESMF_LAPACK_LIBS
+ESMF_LAPACK_LIBS = -mkl
+endif
+endif
 
 ############################################################
 # Set rpath syntax
@@ -203,17 +248,24 @@ ESMF_CXXLINKRPATHS += \
 ############################################################
 # Determine where icpc's libraries are located
 #
-ESMF_F90LINKPATHS += $(addprefix -L,$(shell $(ESMF_DIR)/scripts/libpath.icpc "$(ESMF_CXXCOMPILER) $(ESMF_CXXCOMPILEOPTS)"))
+ESMF_F90LINKPATHS += 
 
 ############################################################
 # Link against libesmf.a using the F90 linker front-end
 #
-ESMF_F90LINKLIBS += $(shell $(ESMF_DIR)/scripts/libs.icpc "$(ESMF_CXXCOMPILER) $(ESMF_CXXCOMPILEOPTS)") -lrt -ldl
+ESMF_F90LINKLIBS += -cxxlib -lrt -ldl
 
 ############################################################
 # Link against libesmf.a using the C++ linker front-end
 #
 ESMF_CXXLINKLIBS += $(shell $(ESMF_DIR)/scripts/libs.ifort "$(ESMF_F90COMPILER) $(ESMF_F90COMPILEOPTS)") -lrt -ldl
+
+############################################################
+# Linker option that ensures that the specified libraries are 
+# used to also resolve symbols needed by other libraries.
+#
+ESMF_F90LINKOPTS          += -Wl,--no-as-needed
+ESMF_CXXLINKOPTS          += -Wl,--no-as-needed
 
 ############################################################
 # Shared library options
@@ -229,8 +281,3 @@ ESMF_SO_F90LINKOPTSEXE  = -Wl,-export-dynamic
 ESMF_SO_CXXCOMPILEOPTS  = -fPIC
 ESMF_SO_CXXLINKOPTS     = -shared
 ESMF_SO_CXXLINKOPTSEXE  = -Wl,-export-dynamic
-
-############################################################
-# 3rd party code dependency: PIO
-#
-#TODO: activate this once PIO support is stable: ESMF_PIODEFAULT = internal

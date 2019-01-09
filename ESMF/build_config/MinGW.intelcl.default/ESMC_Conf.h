@@ -5,7 +5,7 @@
 
 #if 0
 Earth System Modeling Framework
-Copyright 2002-2012, University Corporation for Atmospheric Research,
+Copyright 2002-2018, University Corporation for Atmospheric Research,
 Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 Laboratory, University of Michigan, National Centers for Environmental
 Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -18,7 +18,8 @@ Licensed under the University of Illinois-NCSA License.
 
 #define PARCH_mingw
 
-#define FTN(func) func
+#define FTN_X(func) func
+#define FTNX(func) func
 
 #if defined (__cplusplus)
 // Typedef to match the data type of the 'hidden' string length
