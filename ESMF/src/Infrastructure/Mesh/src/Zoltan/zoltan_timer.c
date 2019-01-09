@@ -7,8 +7,8 @@
 /*****************************************************************************
  * CVS File Information :
  *    $RCSfile: zoltan_timer.c,v $
- *    $Author: mathomp4 $
- *    $Date: 2013-01-11 20:23:44 $
+ *    $Author: dneckels $
+ *    $Date: 2007/11/28 16:13:54 $
  *    Revision: 1.11 $
  ****************************************************************************/
 
@@ -178,7 +178,7 @@ int Zoltan_Timer_Init(
 {
 /* Function that returns the index of the next available Timer timer. */
 int ret;
-static char *yo = "Zoltan_Timer_Init";
+static const char *yo = "Zoltan_Timer_Init";
 
   TESTTIMER(zt, yo);
   
@@ -213,7 +213,7 @@ int Zoltan_Timer_Reset(
 )
 {
 /* Initialize a timer for INUSE; reset its values to zero. */
-static char *yo = "Zoltan_Timer_Reset";
+static const char *yo = "Zoltan_Timer_Reset";
 ZTIMER_TS *ts;
 
   TESTTIMER(zt, yo);
@@ -242,7 +242,7 @@ int Zoltan_Timer_ChangeFlag(
   int timer
 )
 {
-static char *yo = "Zoltan_Timer_ChangeFlag";
+static const char *yo = "Zoltan_Timer_ChangeFlag";
 
   TESTTIMER(zt, yo);
   zt->Timer_Flag = timer;
@@ -255,12 +255,12 @@ int Zoltan_Timer_Start(
   int ts_idx,            /* Index of the timer to use */
   MPI_Comm comm,         /* Communicator to use for synchronization, 
                             if requested */
-  char *filename,        /* Filename of file calling the Start */
+  const char *filename,  /* Filename of file calling the Start */
   int lineno             /* Line number where Start was called */
 )
 {
 ZTIMER_TS *ts;
-static char *yo = "Zoltan_Timer_Start";
+static const char *yo = "Zoltan_Timer_Start";
 
   TESTTIMER(zt, yo);
   TESTINDEX(zt, ts_idx, yo);
@@ -297,13 +297,13 @@ int Zoltan_Timer_Stop(
   int ts_idx,            /* Index of the timer to use */
   MPI_Comm comm,         /* Communicator to use for synchronization, 
                             if requested */
-  char *filename,        /* Filename of file calling the Stop */
+  const char *filename,  /* Filename of file calling the Stop */
   int lineno             /* Line number where Stop was called */
 )
 {
 /* Function to stop a timer and accrue its information */
 ZTIMER_TS *ts;
-static char *yo = "Zoltan_Timer_Stop";
+static const char *yo = "Zoltan_Timer_Stop";
 double my_time;
 
   TESTTIMER(zt, yo);
@@ -355,7 +355,7 @@ int Zoltan_Timer_Print(
  * its information.  This function must be called by all processors
  * within the communicator.  
  */
-static char *yo = "Zoltan_Timer_Print";
+static const char *yo = "Zoltan_Timer_Print";
 ZTIMER_TS *ts;
 int my_proc, nproc;
 double max_time;
@@ -390,7 +390,7 @@ int Zoltan_Timer_PrintAll(
 )
 {
 /* Function to print all timer information */
-static char *yo = "Zoltan_Timer_PrintAll";
+static const char *yo = "Zoltan_Timer_PrintAll";
 int i, ierr = ZOLTAN_OK;
 
   TESTTIMER(zt, yo);

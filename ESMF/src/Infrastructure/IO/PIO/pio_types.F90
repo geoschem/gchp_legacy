@@ -1,59 +1,69 @@
 #include "ESMFPIO.h"
 #define __PIO_FILE__ "pio_types.F90"
+!>
+!! @file
+!! @brief Derived datatypes and constants for PIO
+!!
+!! $Revision: 751 $
+!! $LastChangedDate: 2013-04-02 09:01:13 -0700 (Tue, 02 Apr 2013) $
+!<
 module pio_types
     use pio_kinds
-#ifdef _USEMCT
-! needed for MCT
-    use m_GlobalSegMap, only: GlobalSegMap      ! _EXTERNAL
-    use m_Rearranger, only: Rearranger          ! _EXTERNAL
-#endif
 
 #ifdef _NETCDF
      use netcdf                                  ! _EXTERNAL
 #endif
+#ifndef NO_MPIMOD
+    use mpi, only : MPI_COMM_NULL, MPI_INFO_NULL ! _EXTERNAL
+#endif
     implicit none
-    private 
-
+    private
+#ifdef NO_MPIMOD
+    include 'mpif.h'                             ! _EXTERNAL
+#endif
     !-------------------------------------------
     !  data structure to describe decomposition
     !-------------------------------------------
     type, public :: DecompMap_t
 #ifdef SEQUENCE
-	sequence
+        sequence
 #endif
         integer(i4) :: start
         integer(i4) :: length
     end type
+
 
     !------------------------------------
     !  a file descriptor data structure
     !------------------------------------
 !>
 !! @public
-!! @struct iosystem_desc_t iosystem_desc_t
+!! @defgroup iosystem_desc_t
 !! @brief A defined PIO system descriptor created by @ref PIO_init (see pio_types)
 !<
     type, public :: IOSystem_desc_t
 #ifdef SEQUENCE
-	sequence
+        sequence
 #endif
-        
-        integer(i4)              :: union_comm         ! The intracomm union of comp and io communicators (for async only)
-        integer(i4)              :: IO_comm            ! The IO communicator
-        integer(i4)              :: comp_comm          ! The Compute communicator
-        integer(i4)              :: intercomm          ! the intercomm (may be MPI_COMM_NULL)
-        
-        integer(i4)              :: my_comm          ! either comp_comm or intercomm
-        integer(i4)              :: num_tasks        !  number of tasks
+
+        integer(i4)              :: union_comm=MPI_COMM_NULL ! The intracomm union of comp and io communicators (for async only)
+        integer(i4)              :: IO_comm=MPI_COMM_NULL            ! The IO communicator
+        integer(i4)              :: comp_comm=MPI_COMM_NULL          ! The Compute communicator
+        integer(i4)              :: intercomm=MPI_COMM_NULL          ! the intercomm (may be MPI_COMM_NULL)
+
+        integer(i4)              :: my_comm=MPI_COMM_NULL            ! either comp_comm or intercomm
+        integer(i4)              :: num_tasks          !  number of tasks
         integer(i4)              :: num_iotasks        ! total number of IO tasks
+        integer(i4)              :: num_aiotasks       ! number of actual IO tasks
         integer(i4)              :: num_comptasks
 
         integer(i4)              :: union_rank
         integer(i4)              :: comp_rank          ! the computational rank
         integer(i4)              :: io_rank            ! the io rank if io_rank = -1 not an IO processor
 !
-        integer(i4)              :: Info               ! MPI-IO info structure
-        
+        integer(i4)              :: Info=MPI_INFO_NULL  ! MPI-IO info structure
+        integer(i4)              :: numOST              ! The number of Object Storage Target (OST) to use.  This is a hardware raid device.
+
 ! rank of the io and comp roots in the intercomm
         integer(i4)              :: IOMaster           ! The intercom of the io_rank 0
         integer(i4)              :: compMaster           ! The intercom of the comp_rank 0
@@ -64,35 +74,50 @@ module pio_types
 
         logical(log_kind)        :: IOproc             ! .true. if an IO processor
         logical(log_kind)        :: UseRearranger      ! .true. if data rearrangement is necessary
-        logical(log_kind)        :: async_interface    ! .true. if using the async interface model
+        logical(log_kind)        :: async_interface=.false.    ! .true. if using the async interface model
         integer(i4)              :: rearr         ! type of rearranger
-                                                  ! e.g. rearr_{none,mct,box}
-	integer(i4)              :: error_handling ! how pio handles errors
-        integer(i4),pointer      :: ioranks(:)         ! the computational ranks for the IO tasks
+                                                  ! e.g. rearr_{none,box}
+        integer(i4)              :: error_handling ! how pio handles errors
+        integer(i4),pointer      :: ioranks(:) => null()         ! the computational ranks for the IO tasks
 
-	! This holds the IODESC
+        ! This holds the IODESC
     end type
 
     type iosystem_list_t
-       type(iosystem_desc_t), pointer :: this_iosystem
+       type(iosystem_desc_t), pointer :: this_iosystem => null()
     end type iosystem_list_t
 
 
     integer, parameter :: MAX_IO_SYSTEMS=6
-    type(iosystem_list_t) :: iosystems(MAX_IO_SYSTEMS)
+    type(iosystem_list_t), save :: iosystems(MAX_IO_SYSTEMS)
+
+!>
+!! @private
+!! @struct io_data_list
+!! @brief Linked list of buffers for pnetcdf non-blocking interface
+!>
+    type, public :: io_data_list
+       integer :: request
+       real(r4), pointer :: data_real(:) => null()
+       integer(i4), pointer :: data_int(:) => null()
+       real(r8), pointer :: data_double(:) => null()
+       type(io_data_list), pointer :: next => null()
+    end type io_data_list
 
 
-     
-!> 
-!! @public
-!! @struct file_desc_t file_desc_t
-!! @brief File descriptor returned by \ref PIO_openfile or \ref PIO_createfile (see pio_types)
+!>
+!! @defgroup file_desc_t
+!! File descriptor returned by \ref PIO_openfile or \ref PIO_createfile (see pio_types)
+!!
 !>
     type, public :: File_desc_t
-       type(iosystem_desc_t), pointer :: iosystem
+       type(iosystem_desc_t), pointer :: iosystem => null()
+       type(io_data_list), pointer :: data_list_top  => null()  ! used for non-blocking pnetcdf calls
+       integer :: buffsize=0
+       integer :: request_cnt=0
        integer(i4) :: fh
        integer(kind=PIO_OFFSET) :: offset             ! offset into file
-       integer(i4)              :: iotype             ! Type of IO to perform see parameter statement below     
+       integer(i4)              :: iotype             ! Type of IO to perform see parameter statement below
        logical                  :: file_is_open = .false.
     end type File_desc_t
 
@@ -102,47 +127,36 @@ module pio_types
     !------------------------------------------------------
     type, public :: IO_desc2_t
 #ifdef SEQUENCE
-	sequence
+        sequence
 #endif
         integer(i4)         ::  fileTYPE   ! MPI data types for file
         integer(i4)         ::  elemTYPE
-        integer(i4)         :: n_elemTYPE
         integer(i4)         :: n_words
+        integer(kind=pio_offset)         :: n_elemTYPE
     end type IO_desc2_t
 
 !>
 !! @private
 !! @defgroup iodesc_generate io descriptors, generating
-!! @brief The io descriptor structure in defined in this subroutine 
+!! @brief The io descriptor structure in defined in this subroutine
 !! and subsequently used in @ref PIO_read_darray, @ref PIO_write_darray,
 !! @ref PIO_put_var, @ref PIO_get_var calls (see pio_types).
 !<
 
 !>
-!! @public 
-!! @struct io_desc_t io_desc_t
-!! @brief  An io descriptor handle that is generated in @ref PIO_initdecomp 
+!! @public
+!! @struct io_desc_t
+!! @brief  An io descriptor handle that is generated in @ref PIO_initdecomp
 !! (see pio_types)
 !<
-   type, public :: IO_desc_t
+   type, public :: io_desc_t
 #ifdef SEQUENCE
-	sequence
+        sequence
 #endif
         type(IO_desc2_t)    :: Read
         type(IO_desc2_t)    :: Write
-	integer(kind=PIO_Offset), pointer :: start(:)
-	integer(kind=PIO_Offset), pointer :: count(:)
-#ifdef _USEMCT
-        ! MCT GlobalSegMaps defined on comp_comm
-
-	integer(i4) :: lsize_comp      ! local size of GSMap for comp layout
-        integer(i4) :: lsize_io        ! local size of GSMap for IO layout
-
-        type (Rearranger) :: rearr_comp_to_io   ! mct rearranger comp->io
-        type (Rearranger) :: rearr_io_to_comp   ! mct rearranger io->comp
-
-        integer(i4), pointer :: compDOF_index(:)  ! permutation array
-#endif
+        integer(kind=PIO_Offset), pointer :: start(:) => NULL()
+        integer(kind=PIO_Offset), pointer :: count(:) => NULL()
 
         !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         ! fields for box-based rearranger
@@ -150,18 +164,18 @@ module pio_types
 
         integer :: baseTYPE
 
-        integer, pointer :: dest_ioproc(:)     ! for each dof
-        integer, pointer :: dest_ioindex(:)    ! for each dof
+        integer, pointer :: dest_ioproc(:)=> NULL()     ! for each dof
+        integer(kind=pio_offset), pointer :: dest_ioindex(:)=> NULL()    ! for each dof
 
 
         ! Values needed only on io procs
-        integer,pointer :: rfrom(:)   ! rfrom(nrecvs)= rank of ith sender
-        integer,pointer :: rtype(:)   ! rtype(nrecvs)=mpi types for receives
+        integer,pointer :: rfrom(:)=> NULL()   ! rfrom(nrecvs)= rank of ith sender
+        integer,pointer :: rtype(:)=> NULL()   ! rtype(nrecvs)=mpi types for receives
 
-        
+
         ! needed on all procs
-        integer,pointer :: scount(:)  ! scount(num_iotasks)= # sends to ith ioproc
-        integer,pointer :: stype(:)   ! stype(num_iotasks)=mpi type for sends
+        integer,pointer :: scount(:)=> NULL()  ! scount(num_iotasks)= # sends to ith ioproc
+        integer,pointer :: stype(:)=> NULL()   ! stype(num_iotasks)=mpi type for sends
 
         !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         integer(i4) :: async_id
@@ -170,26 +184,29 @@ module pio_types
         type (DecompMap_t)  :: IOmap      ! IO decomposition map
         type (DecompMap_t)  :: COMPmap    ! Computational decomposition map
         integer :: nrecvs                      ! valid for io procs
-        integer(i4)         :: glen       ! global length of array in words
-	integer(i4)         :: compsize   ! size of expected comp buffer
+        integer(kind=PIO_OFFSET)         :: glen       ! global length of array in words
+        integer(i4)         :: compsize   ! size of expected comp buffer
         integer(i4)         :: maxiobuflen   ! size of largest iobuffer
+        integer(i4)         :: ndof
+        integer(i4)         :: padding
     end type
 
 !>
 !! @public
-!! @struct var_desc_t var_desc_t
-!! @brief A variable descriptor returned from @ref PIO_def_var (see pio_types) 
+!! @defgroup var_desc_t
+!! @brief A variable descriptor returned from @ref PIO_def_var (see pio_types)
 !<
     type, public :: Var_desc_t
 #ifdef SEQUENCE
-	sequence
-#endif	
+        sequence
+#endif  
         integer(i4)     :: varID
-        integer(i4)     :: rec   ! This is a record number or pointer into the unlim dimension of the	    
+        integer(i4)     :: rec   ! This is a record number or pointer into the unlim dimension of the   
                                  ! netcdf file
-	integer(i4)     :: type
+        integer(i4)     :: type
         integer(i4)     :: ndims ! number of dimensions as defined on the netcdf file.
-    end type 
+        character(len=50) :: name ! vdc needed variable
+    end type
 
 !>
 !! @defgroup PIO_iotype PIO_iotype
@@ -202,7 +219,7 @@ module pio_types
 !!   - PIO_iotype_pnetcdf : parallel read/write of pNetCDF files (netcdf3)
 !!   - PIO_iotype_netcdf : serial read/write of NetCDF files using 'base_node' (netcdf3)
 !!   - PIO_iotype_netcdf4c : parallel read/serial write of NetCDF4 (HDF5) files with data compression
-!!   - PIO_iotype_netcdf4p : parallel read/write of NETCDF4 (HDF5) files 
+!!   - PIO_iotype_netcdf4p : parallel read/write of NETCDF4 (HDF5) files
 !>
     integer(i4), public, parameter ::  &
         PIO_iotype_pbinary = 1, &! use MPI-IO with data types to read/write C like binary files
@@ -210,9 +227,12 @@ module pio_types
         PIO_iotype_binary  = 4, &   ! serial read/write of binary files using 'base_node'
         PIO_iotype_pnetcdf = 5, &   ! parallel read/write of pNetCDF files
         PIO_iotype_netcdf  = 6, &   ! serial read/write of NetCDF file using 'base_node'
-        PIO_iotype_netcdf4c = 7, &  ! netcdf4 (hdf5 format) file opened for compression (serial write access only)   
-        PIO_iotype_netcdf4p = 8     ! netcdf4 (hdf5 format) file opened in parallel (all netcdf4 files for read will be opened this way)
+        PIO_iotype_netcdf4c = 7, &  ! netcdf4 (hdf5 format) file opened for compression (serial write access only)
+        PIO_iotype_netcdf4p = 8, &  ! netcdf4 (hdf5 format) file opened in parallel (all netcdf4 files for read will be opened this way)
+        PIO_iotype_vdc2 = 10        ! VDC2 format file opened for compressed parallel write
 
+
+! These are for backward compatability and should not be used or expanded upon
     integer(i4), public, parameter ::                       &
         iotype_pbinary = PIO_iotype_pbinary,                &
         iotype_direct_pbinary = PIO_iotype_direct_pbinary,  &
@@ -223,36 +243,34 @@ module pio_types
 
 !>
 !! @defgroup PIO_rearr_method PIO_rearr_method
-!! @public 
+!! @public
 !! @brief The three choices to control rearrangement are:
 !! @details
 !!  - PIO_rearr_none : Do not use any form of rearrangement
-!!  - PIO_rearr_mct : Use MCT based rearrangement
 !!  - PIO_rearr_box : Use a PIO internal box rearrangement
 !>
     integer(i4), public, parameter :: PIO_rearr_none = 0
-    integer(i4), public, parameter :: PIO_rearr_mct =  1
-    integer(i4), public, parameter :: PIO_rearr_box =  2
+    integer(i4), public, parameter :: PIO_rearr_box =  1
 
-!> 
+!>
 !! @public
-!! @defgroup PIO_error_method error handling method 
-!! @brief  The three types of error handling methods are: 
+!! @defgroup PIO_error_method error_methods
 !! @details
+!! The three types of error handling methods are:
 !!  - PIO_INTERNAL_ERROR  : abort on error from any task
 !!  - PIO_BCAST_ERROR     : broadcast an error from io_rank 0 to all tasks in comm
 !!  - PIO_RETURN_ERROR    : do nothing - allow the user to handle it
 !<
-  integer(i4), public :: PIO_INTERNAL_ERROR = -51
-  integer(i4), public :: PIO_BCAST_ERROR = -52
-  integer(i4), public :: PIO_RETURN_ERROR = -53
+  integer(i4), public, parameter :: PIO_INTERNAL_ERROR = -51
+  integer(i4), public, parameter :: PIO_BCAST_ERROR = -52
+  integer(i4), public, parameter :: PIO_RETURN_ERROR = -53
 
 !>
-!! @public 
+!! @public
 !! @defgroup error_return error return codes
 !! @brief : The error return code; ierr != PIO_noerr indicates
-!! an error. (see @ref PIO_seterrorhandling ) 
-!> 
+!! an error. (see @ref PIO_seterrorhandling )
+!>
 
 !>
 !! @struct use_PIO_kinds
@@ -261,11 +279,11 @@ module pio_types
 !<
 
 !>
-!! @public 
+!! @public
 !! @defgroup PIO_kinds PIO_kinds
 !! @brief The base types supported by PIO are:
 !! @details
-!!  - PIO_double : 8-byte reals or double precision 
+!!  - PIO_double : 8-byte reals or double precision
 !!  - PIO_real : 4-byte reals
 !!  - PIO_int :  4-byte integers
 !!  - PIO_char : character
@@ -281,12 +299,14 @@ module pio_types
    integer, public, parameter :: PIO_noerr  = nf_noerr
    integer, public, parameter :: PIO_WRITE  = nf_write
    integer, public, parameter :: PIO_nowrite  = nf_nowrite
-   integer, public, parameter :: PIO_CLOBBER = nf_clobber	
-   integer, public, parameter :: PIO_NOCLOBBER = nf_NOclobber	
+   integer, public, parameter :: PIO_CLOBBER = nf_clobber       
+   integer, public, parameter :: PIO_NOCLOBBER = nf_NOclobber   
    integer, public, parameter :: PIO_NOFILL = nf_nofill
    integer, public, parameter :: PIO_MAX_NAME = nf_max_name
    integer, public, parameter :: PIO_MAX_VAR_DIMS = nf_max_var_dims
    integer, public, parameter :: PIO_64BIT_OFFSET = nf_64bit_offset
+   integer, public, parameter :: PIO_64BIT_DATA = nf_64bit_data
+
 #else
 #ifdef _NETCDF
    integer, public, parameter :: PIO_global = nf90_global
@@ -298,8 +318,8 @@ module pio_types
    integer, public, parameter :: PIO_noerr  = nf90_noerr
    integer, public, parameter :: PIO_WRITE  = nf90_write
    integer, public, parameter :: PIO_nowrite = nf90_nowrite
-   integer, public, parameter :: PIO_CLOBBER = nf90_clobber	
-   integer, public, parameter :: PIO_NOCLOBBER = nf90_NOclobber	
+   integer, public, parameter :: PIO_CLOBBER = nf90_clobber     
+   integer, public, parameter :: PIO_NOCLOBBER = nf90_NOclobber         
    integer, public, parameter :: PIO_NOFILL = nf90_nofill
    integer, public, parameter :: PIO_MAX_NAME = nf90_max_name
    integer, public, parameter :: PIO_MAX_VAR_DIMS = nf90_max_var_dims
@@ -320,9 +340,6 @@ module pio_types
    integer, public, parameter :: PIO_64BIT_OFFSET = 0
 #endif
 #endif
-! should be defined in the mct mpiserial library.
-#ifdef _MPISERIAL
-   integer, public, parameter :: MPI_DATATYPE_NULL=0
-#endif
+   integer, public, parameter :: PIO_num_OST =  16
 
 end module pio_types

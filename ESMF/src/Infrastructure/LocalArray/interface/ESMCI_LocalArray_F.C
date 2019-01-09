@@ -1,7 +1,7 @@
 // $Id$
 //
 // Earth System Modeling Framework
-// Copyright 2002-2012, University Corporation for Atmospheric Research, 
+// Copyright 2002-2018, University Corporation for Atmospheric Research, 
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
 // Laboratory, University of Michigan, National Centers for Environmental 
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
@@ -21,11 +21,8 @@
 #include <cstring>
 
 #include "ESMCI_Macros.h"
-
 #include "ESMCI_LocalArray.h"
-
 #include "ESMCI_LogErr.h"
-#include "ESMCI_LogMacros.inc"
 
 using namespace std;
 
@@ -47,8 +44,8 @@ using namespace std;
 // the interface subroutine names MUST be in lower case
 extern "C" {
 
-  void FTN(c_esmc_localarraycreatenodata)(ESMCI::LocalArray **ptr, int *rank,
-    ESMC_TypeKind *tk, ESMCI::LocalArrayOrigin *oflag, int *rc){
+  void FTN_X(c_esmc_localarraycreatenodata)(ESMCI::LocalArray **ptr, int *rank,
+    ESMC_TypeKind_Flag *tk, ESMCI::LocalArrayOrigin *oflag, int *rc){
 #undef  ESMC_METHOD
 #define ESMC_METHOD "c_esmc_localarraycreatenodata()"
     // Initialize return code; assume routine not implemented
@@ -62,7 +59,7 @@ extern "C" {
     if (rc!=NULL) *rc = ESMF_SUCCESS;
   }
  
-  void FTN(c_esmc_localarraycreatecopy)(ESMCI::LocalArray **ptr, 
+  void FTN_X(c_esmc_localarraycreatecopy)(ESMCI::LocalArray **ptr, 
     ESMCI::LocalArray **larrayOut, int *rc){
 #undef  ESMC_METHOD
 #define ESMC_METHOD "c_esmc_localarraycreatecopy()"
@@ -72,7 +69,7 @@ extern "C" {
     // check input
     if ((ptr == NULL) || (*ptr == NULL)) {
       ESMC_LogDefault.MsgFoundError(ESMC_RC_PTR_NULL,
-        "- Not a valid pointer to LocalArray object", rc);
+        "- Not a valid pointer to LocalArray object", ESMC_CONTEXT, rc);
       return;
     }
     // call into C++
@@ -83,7 +80,7 @@ extern "C" {
     if (rc!=NULL) *rc = ESMF_SUCCESS;
   }
  
-  void FTN(c_esmc_localarraysetinfo)(ESMCI::LocalArray **ptr, 
+  void FTN_X(c_esmc_localarraysetinfo)(ESMCI::LocalArray **ptr, 
     struct ESMCI::c_F90ptr *fptr, void XD *base, int *counts, int *lbounds,
     int *ubounds, int *offsets, ESMC_Logical *contig, ESMC_Logical *dealloc,
     int *rc){
@@ -95,7 +92,7 @@ extern "C" {
     // check input
     if ((ptr == NULL) || (*ptr == NULL)) {
       ESMC_LogDefault.MsgFoundError(ESMC_RC_PTR_NULL,
-        "- Not a valid pointer to LocalArray object", rc);
+        "- Not a valid pointer to LocalArray object", ESMC_CONTEXT, rc);
       return;
     }
     // ESMC_Logical -> bool casting
@@ -121,7 +118,7 @@ extern "C" {
     if (rc!=NULL) *rc = ESMF_SUCCESS;
   }
 
-  void FTN(c_esmc_localarraygetcounts)(ESMCI::LocalArray **ptr, int *counts,
+  void FTN_X(c_esmc_localarraygetcounts)(ESMCI::LocalArray **ptr, int *counts,
     int *rc){
 #undef  ESMC_METHOD
 #define ESMC_METHOD "c_esmc_localarraygetcounts()"
@@ -130,7 +127,7 @@ extern "C" {
     // check input
     if ((ptr == NULL) || (*ptr == NULL)) {
       ESMC_LogDefault.MsgFoundError(ESMC_RC_PTR_NULL,
-        "- Not a valid pointer to LocalArray object", rc);
+        "- Not a valid pointer to LocalArray object", ESMC_CONTEXT, rc);
       return;
     }
     int rank = (*ptr)->getRank();
@@ -141,7 +138,7 @@ extern "C" {
     if (rc!=NULL) *rc = ESMF_SUCCESS;
   }
 
-  void FTN(c_esmc_localarraygetlbounds)(ESMCI::LocalArray **ptr, int *lbounds,
+  void FTN_X(c_esmc_localarraygetlbounds)(ESMCI::LocalArray **ptr, int *lbounds,
     int *rc){
 #undef  ESMC_METHOD
 #define ESMC_METHOD "c_esmc_localarraygetlbounds()"
@@ -150,7 +147,7 @@ extern "C" {
     // check input
     if ((ptr == NULL) || (*ptr == NULL)) {
       ESMC_LogDefault.MsgFoundError(ESMC_RC_PTR_NULL,
-        "- Not a valid pointer to LocalArray object", rc);
+        "- Not a valid pointer to LocalArray object", ESMC_CONTEXT, rc);
       return;
     }
     int rank = (*ptr)->getRank();
@@ -161,7 +158,7 @@ extern "C" {
     if (rc!=NULL) *rc = ESMF_SUCCESS;
   }
 
-  void FTN(c_esmc_localarraygetubounds)(ESMCI::LocalArray **ptr, int *ubounds,
+  void FTN_X(c_esmc_localarraygetubounds)(ESMCI::LocalArray **ptr, int *ubounds,
     int *rc){
 #undef  ESMC_METHOD
 #define ESMC_METHOD "c_esmc_localarraygetubounds()"
@@ -170,7 +167,7 @@ extern "C" {
     // check input
     if ((ptr == NULL) || (*ptr == NULL)) {
       ESMC_LogDefault.MsgFoundError(ESMC_RC_PTR_NULL,
-        "- Not a valid pointer to LocalArray object", rc);
+        "- Not a valid pointer to LocalArray object", ESMC_CONTEXT, rc);
       return;
     }
     int rank = (*ptr)->getRank();
@@ -181,7 +178,7 @@ extern "C" {
     if (rc!=NULL) *rc = ESMF_SUCCESS;
   }
 
-  void FTN(c_esmc_localarraygetrank)(ESMCI::LocalArray **ptr, int *rank,
+  void FTN_X(c_esmc_localarraygetrank)(ESMCI::LocalArray **ptr, int *rank,
     int *rc){
 #undef  ESMC_METHOD
 #define ESMC_METHOD "c_esmc_localarraygetrank()"
@@ -190,7 +187,7 @@ extern "C" {
     // check input
     if ((ptr == NULL) || (*ptr == NULL)) {
       ESMC_LogDefault.MsgFoundError(ESMC_RC_PTR_NULL,
-        "- Not a valid pointer to LocalArray object", rc);
+        "- Not a valid pointer to LocalArray object", ESMC_CONTEXT, rc);
       return;
     }
     *rank = (*ptr)->getRank();
@@ -198,8 +195,8 @@ extern "C" {
     if (rc!=NULL) *rc = ESMF_SUCCESS;
   }
 
-  void FTN(c_esmc_localarraygettypekind)(ESMCI::LocalArray **ptr,
-    ESMC_TypeKind *typekind, int *rc){
+  void FTN_X(c_esmc_localarraygettypekind)(ESMCI::LocalArray **ptr,
+    ESMC_TypeKind_Flag *typekind, int *rc){
 #undef  ESMC_METHOD
 #define ESMC_METHOD "c_esmc_localarraygettypekind()"
     // Initialize return code; assume routine not implemented
@@ -207,7 +204,7 @@ extern "C" {
     // check input
     if ((ptr == NULL) || (*ptr == NULL)) {
       ESMC_LogDefault.MsgFoundError(ESMC_RC_PTR_NULL,
-        "- Not a valid pointer to LocalArray object", rc);
+        "- Not a valid pointer to LocalArray object", ESMC_CONTEXT, rc);
       return;
     }
     *typekind = (*ptr)->getTypeKind();
@@ -215,7 +212,7 @@ extern "C" {
     if (rc!=NULL) *rc = ESMF_SUCCESS;
   }
 
-  void FTN(c_esmc_localarraydestroy)(ESMCI::LocalArray **ptr, int *rc){
+  void FTN_X(c_esmc_localarraydestroy)(ESMCI::LocalArray **ptr, int *rc){
 #undef  ESMC_METHOD
 #define ESMC_METHOD "c_esmc_localarraydestroy()"
     // Initialize return code; assume routine not implemented
@@ -224,7 +221,7 @@ extern "C" {
     // check input
     if ((ptr == NULL) || (*ptr == NULL)) {
       ESMC_LogDefault.MsgFoundError(ESMC_RC_PTR_NULL,
-        "- Not a valid pointer to LocalArray object", rc);
+        "- Not a valid pointer to LocalArray object", ESMC_CONTEXT, rc);
       return;
     }
     localrc = ESMCI::LocalArray::destroy(*ptr);
@@ -234,7 +231,7 @@ extern "C" {
     if (rc!=NULL) *rc = ESMF_SUCCESS;
   }
 
-  void FTN(c_esmc_localarraysetbaseaddr)(ESMCI::LocalArray **ptr, void XD *base,
+  void FTN_X(c_esmc_localarraysetbaseaddr)(ESMCI::LocalArray **ptr, void XD *base,
     int *rc){
 #undef  ESMC_METHOD
 #define ESMC_METHOD "c_esmc_localarraysetbaseaddr()"
@@ -243,7 +240,7 @@ extern "C" {
     // check input
     if ((ptr == NULL) || (*ptr == NULL)) {
       ESMC_LogDefault.MsgFoundError(ESMC_RC_PTR_NULL,
-        "- Not a valid pointer to LocalArray object", rc);
+        "- Not a valid pointer to LocalArray object", ESMC_CONTEXT, rc);
       return;
     }
     (*ptr)->setBaseAddr(XD base);
@@ -251,7 +248,7 @@ extern "C" {
     if (rc!=NULL) *rc = ESMF_SUCCESS;
   }
 
-  void FTN(c_esmc_localarraygetbaseaddr)(ESMCI::LocalArray **ptr, void **base,
+  void FTN_X(c_esmc_localarraygetbaseaddr)(ESMCI::LocalArray **ptr, void **base,
     int *rc){
 #undef  ESMC_METHOD
 #define ESMC_METHOD "c_esmc_localarraygetbaseaddr()"
@@ -260,7 +257,7 @@ extern "C" {
     // check input
     if ((ptr == NULL) || (*ptr == NULL)) {
       ESMC_LogDefault.MsgFoundError(ESMC_RC_PTR_NULL,
-        "- Not a valid pointer to LocalArray object", rc);
+        "- Not a valid pointer to LocalArray object", ESMC_CONTEXT, rc);
       return;
     }
     *base = (void *)(*ptr)->getBaseAddr();
@@ -268,7 +265,7 @@ extern "C" {
     if (rc!=NULL) *rc = ESMF_SUCCESS;
   }
 
-  void FTN(c_esmc_localarraysetfptr)(ESMCI::LocalArray **ptr,
+  void FTN_X(c_esmc_localarraysetfptr)(ESMCI::LocalArray **ptr,
     struct ESMCI::c_F90ptr *fptr, int *rc){
 #undef  ESMC_METHOD
 #define ESMC_METHOD "c_esmc_localarraysetfptr()"
@@ -278,7 +275,7 @@ extern "C" {
     // check input
     if ((ptr == NULL) || (*ptr == NULL)) {
       ESMC_LogDefault.MsgFoundError(ESMC_RC_PTR_NULL,
-        "- Not a valid pointer to LocalArray object", rc);
+        "- Not a valid pointer to LocalArray object", ESMC_CONTEXT, rc);
       return;
     }
     localrc = (*ptr)->setFortranDopev(fptr);
@@ -288,7 +285,7 @@ extern "C" {
     if (rc!=NULL) *rc = ESMF_SUCCESS;
   }
 
-  void FTN(c_esmc_localarraygetfptr)(ESMCI::LocalArray **ptr,
+  void FTN_X(c_esmc_localarraygetfptr)(ESMCI::LocalArray **ptr,
     struct ESMCI::c_F90ptr *fptr, int *rc){
 #undef  ESMC_METHOD
 #define ESMC_METHOD "c_esmc_localarraygetfptr()"
@@ -298,7 +295,7 @@ extern "C" {
     // check input
     if ((ptr == NULL) || (*ptr == NULL)) {
       ESMC_LogDefault.MsgFoundError(ESMC_RC_PTR_NULL,
-        "- Not a valid pointer to LocalArray object", rc);
+        "- Not a valid pointer to LocalArray object", ESMC_CONTEXT, rc);
       return;
     }
     localrc = (*ptr)->getFortranDopev(fptr);
@@ -308,7 +305,7 @@ extern "C" {
     if (rc!=NULL) *rc = ESMF_SUCCESS;
   }
 
-  void FTN(c_esmc_localarrayforcefptr)(ESMCI::LocalArray **ptr, void XD *base,
+  void FTN_X(c_esmc_localarrayforcefptr)(ESMCI::LocalArray **ptr, void XD *base,
     int *rc){
 #undef  ESMC_METHOD
 #define ESMC_METHOD "c_esmc_localarrayforcefptr()"
@@ -318,7 +315,7 @@ extern "C" {
     // check input
     if ((ptr == NULL) || (*ptr == NULL)) {
       ESMC_LogDefault.MsgFoundError(ESMC_RC_PTR_NULL,
-        "- Not a valid pointer to LocalArray object", rc);
+        "- Not a valid pointer to LocalArray object", ESMC_CONTEXT, rc);
       return;
     }
     localrc = (*ptr)->forceFortranPtr(XD base);
@@ -328,7 +325,7 @@ extern "C" {
     if (rc!=NULL) *rc = ESMF_SUCCESS;
   }
 
-  void FTN(c_esmc_localarraysetdealloc)(ESMCI::LocalArray **ptr,
+  void FTN_X(c_esmc_localarraysetdealloc)(ESMCI::LocalArray **ptr,
     ESMC_Logical *dealloc, int *rc){
 #undef  ESMC_METHOD
 #define ESMC_METHOD "c_esmc_localarraysetdealloc()"
@@ -337,7 +334,7 @@ extern "C" {
     // check input
     if ((ptr == NULL) || (*ptr == NULL)) {
       ESMC_LogDefault.MsgFoundError(ESMC_RC_PTR_NULL,
-        "- Not a valid pointer to LocalArray object", rc);
+        "- Not a valid pointer to LocalArray object", ESMC_CONTEXT, rc);
       return;
     }
     if (*dealloc == ESMF_TRUE)
@@ -348,7 +345,7 @@ extern "C" {
     if (rc!=NULL) *rc = ESMF_SUCCESS;
   }
 
-  void FTN(c_esmc_localarraygetdealloc)(ESMCI::LocalArray **ptr,
+  void FTN_X(c_esmc_localarraygetdealloc)(ESMCI::LocalArray **ptr,
     ESMC_Logical *dealloc, int *rc){
 #undef  ESMC_METHOD
 #define ESMC_METHOD "c_esmc_localarraygetdealloc()"
@@ -357,7 +354,7 @@ extern "C" {
     // check input
     if ((ptr == NULL) || (*ptr == NULL)) {
       ESMC_LogDefault.MsgFoundError(ESMC_RC_PTR_NULL,
-        "- Not a valid pointer to LocalArray object", rc);
+        "- Not a valid pointer to LocalArray object", ESMC_CONTEXT, rc);
       return;
     }
     if ((*ptr)->getDealloc())
@@ -368,7 +365,7 @@ extern "C" {
     if (rc!=NULL) *rc = ESMF_SUCCESS;
   }
 
-  void FTN(c_esmc_localarrayprint)(ESMCI::LocalArray **ptr, char *opts, int *rc,
+  void FTN_X(c_esmc_localarrayprint)(ESMCI::LocalArray **ptr, char *opts, int *rc,
     ESMCI_FortranStrLenArg clen){
 #undef  ESMC_METHOD
 #define ESMC_METHOD "c_esmc_localarrayprint()"
@@ -378,7 +375,7 @@ extern "C" {
     // check input
     if ((ptr == NULL) || (*ptr == NULL)) {
       ESMC_LogDefault.MsgFoundError(ESMC_RC_PTR_NULL,
-        "- Not a valid pointer to LocalArray object", rc);
+        "- Not a valid pointer to LocalArray object", ESMC_CONTEXT, rc);
       return;
     }
     // make a local copy because opts may be non-writable or not
@@ -399,7 +396,7 @@ extern "C" {
     if (rc!=NULL) *rc = ESMF_SUCCESS;
   }
 
-  void FTN(c_esmc_localarraywrite)(ESMCI::LocalArray **ptr, char *opts,
+  void FTN_X(c_esmc_localarraywrite)(ESMCI::LocalArray **ptr, char *opts,
     char *fname, int *rc,
     ESMCI_FortranStrLenArg optlen,
     ESMCI_FortranStrLenArg flen){
@@ -411,7 +408,7 @@ extern "C" {
     // check input
     if ((ptr == NULL) || (*ptr == NULL)) {
       ESMC_LogDefault.MsgFoundError(ESMC_RC_PTR_NULL,
-        "- Not a valid pointer to LocalArray object", rc);
+        "- Not a valid pointer to LocalArray object", ESMC_CONTEXT, rc);
       return;
     }
     // make a local copy because opts may be non-writable or not
@@ -437,7 +434,7 @@ extern "C" {
     if (rc!=NULL) *rc = ESMF_SUCCESS;
   }
 
-  void FTN(c_esmf_f90ptrsizeprint)(char *p1, char *p2, int *rank, int *rc,
+  void FTN_X(c_esmf_f90ptrsizeprint)(char *p1, char *p2, int *rank, int *rc,
     ESMCI_FortranStrLenArg p1_l,
     ESMCI_FortranStrLenArg p2_l) {
 #undef  ESMC_METHOD

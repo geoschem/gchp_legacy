@@ -1,7 +1,7 @@
 ! $Id$
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2012, University Corporation for Atmospheric Research,
+! Copyright 2002-2018, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -39,12 +39,9 @@ module ESMF_IOUtilMod
 
 ! !USES:
 
+! can not use ESMF_LogErrMod because it would cause a module circularity
   use ESMF_UtilTypesMod
 #include "ESMF.h"
-#ifdef ESMF_NAG_UNIXIO_MODULE
-  use f90_unix_io
-#endif
-
   implicit none
 !
 ! !PRIVATE TYPES:
@@ -126,13 +123,25 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 !     The arguments are:
 !     \begin{description}
 !     \item[unit]
-!       A Fortran I/O unit number.
+!       A Fortran I/O unit number.  If the unit is not connected to a file,
+!       no flushing occurs.
 !     \item[{[rc]}]
 !       Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
 !     \end{description}
 !EOP
     integer :: localrc
     integer :: localstat
+    logical :: connected
+
+
+    inquire (unit=unit, opened=connected)
+    if (.not. connected) then
+      if (present (rc)) then
+        rc = ESMF_SUCCESS
+      end if
+      return
+    end if
+
 
 !   By default, use the F2003 FLUSH statement.  For older compilers,
 !   use a macro defined in the configuration-specific ESMF_Conf.inc

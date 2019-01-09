@@ -1,7 +1,7 @@
-! $Id: ESMF_VMSendVMRecvEx.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
+! $Id$
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2012, University Corporation for Atmospheric Research,
+! Copyright 2002-2018, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -17,20 +17,21 @@
 !------------------------------------------------------------------------------
 !BOE
 !
-! \subsubsection{Send/Recv}
+! \subsubsection{Communication - Send and Recv}
 !
 ! The VM layer provides MPI-like point-to-point communication. Use 
 ! {\tt ESMF\_VMSend()} and {\tt ESMF\_VMRecv()} to pass data between two PETs.
 ! The following code sends data from PET 'src' and receives it on PET 'dst'.
-! Both PETs must be part of the same VM. The sendData and recvData arguments
-! must be 1-dimensional arrays.
+! Both PETs must be part of the same VM.
 !
 !EOE
 !------------------------------------------------------------------------------
 
 program ESMF_VMSendVMRecvEx
+#include "ESMF.h"
 
   use ESMF
+  use ESMF_TestMod
   
   implicit none
   
@@ -39,40 +40,67 @@ program ESMF_VMSendVMRecvEx
   type(ESMF_VM):: vm
   integer:: localPet, petCount
   integer:: count, src, dst
+!BOC
   integer, allocatable:: localData(:)
+!EOC
   ! result code
-  integer :: finalrc
+  integer :: finalrc, result
+  character(ESMF_MAXSTR) :: testname
+  character(ESMF_MAXSTR) :: failMsg
+
+!-------------------------------------------------------------------------
+!-------------------------------------------------------------------------
+
+  write(failMsg, *) "Example failure"
+  write(testname, *) "Example ESMF_VMSendVMRecvEx"
+
+
+! ------------------------------------------------------------------------------
+! ------------------------------------------------------------------------------
+
+
   finalrc = ESMF_SUCCESS
   
   call ESMF_Initialize(vm=vm, defaultlogfilename="VMSendVMRecvEx.Log", &
                     logkindflag=ESMF_LOGKIND_MULTI, rc=rc)
-  if (rc/=ESMF_SUCCESS) finalrc = ESMF_FAILURE
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
   call ESMF_VMGet(vm, localPet=localPet, petCount=petCount, rc=rc)
-  if (rc/=ESMF_SUCCESS) finalrc = ESMF_FAILURE
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
+!BOC
   count = 10
   allocate(localData(count))
   do i=1, count
     localData(i) = localPet*100 + i
-  enddo 
+  enddo
+!EOC
  
   src = 0
   dst = petCount - 1
 !BOC
-  if (localPet==src) &
+  if (localPet==src) then
     call ESMF_VMSend(vm, sendData=localData, count=count, dstPet=dst, rc=rc)
+  endif
 !EOC
-  if (rc/=ESMF_SUCCESS) finalrc = ESMF_FAILURE
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !BOC
-  if (localPet==dst) &
+  if (localPet==dst) then
     call ESMF_VMRecv(vm, recvData=localData, count=count, srcPet=src, rc=rc)
+  endif
 !EOC
-  if (rc/=ESMF_SUCCESS) finalrc = ESMF_FAILURE
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
   do i=1, count
     print *, 'localData for PET ',localPet,': ', localData(i)
   enddo 
+
+
+  ! IMPORTANT: ESMF_STest() prints the PASS string and the # of processors in the log
+  ! file that the scripts grep for.
+  call ESMF_STest((finalrc.eq.ESMF_SUCCESS), testname, failMsg, result, ESMF_SRCLINE)
+
+
 
   call ESMF_Finalize(rc=rc)
   if (rc/=ESMF_SUCCESS) finalrc = ESMF_FAILURE

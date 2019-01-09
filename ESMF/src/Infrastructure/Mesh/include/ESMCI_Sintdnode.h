@@ -1,6 +1,6 @@
 // $Id$
 // Earth System Modeling Framework
-// Copyright 2002-2012, University Corporation for Atmospheric Research, 
+// Copyright 2002-2018, University Corporation for Atmospheric Research, 
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
 // Laboratory, University of Michigan, National Centers for Environmental 
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
@@ -19,6 +19,7 @@
 #include <Mesh/include/ESMCI_MeshObjTopo.h>
 #include <Mesh/include/ESMCI_MeshObj.h>
 #include <Mesh/include/ESMCI_Exception.h>
+#include <Mesh/include/ESMCI_MathUtil.h>
 #include <Mesh/src/Zoltan/zoltan.h>
 
 
@@ -52,6 +53,7 @@ class sintd_node {
   }
   sintd_node & operator = (const sintd_node & src) {
     this->sdim = src.sdim;
+    delete[] coords;
     this->coords = new double [sdim];
     for(int i = 0; i < sdim; i ++)
       this->coords[i] = src.coords[i];
@@ -63,6 +65,7 @@ class sintd_node {
     return coords[i];
   }
   double * get_coord() const { return coords; }
+  int get_dim() const { return sdim; }
   // operators for std::vector comparisons
   bool operator < (const sintd_node & that) const{
     for(int i = 0; i < sdim; i ++){
@@ -145,7 +148,7 @@ class sintd_cell {
       Throw() << "Invalid cell found.\n";
     }
     sintd_node * operator [](int i) const{
-      if(i < 0 || i >= nodes.size()) Throw() << "sintd_cell: access index out of range.\n";
+      if(i < 0 || (unsigned int)i >= nodes.size()) Throw() << "sintd_cell: access index out of range.\n";
       return nodes[i];
     }
     void replace_node(sintd_node * node){
@@ -155,6 +158,8 @@ class sintd_cell {
     }
 
     double get_area() { return area;   }
+
+    void get_centroid(double * centroid, int sdim, int pdim);
 
     void print(int me, int gid, int lid){
       printf("Cell (%d,%d,%d): { ", me, gid, lid+1);

@@ -1,7 +1,7 @@
 ! $Id$
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2012, University Corporation for Atmospheric Research,
+! Copyright 2002-2018, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -47,19 +47,30 @@
     ! local arguments used to create field etc
     type(ESMF_Field)                            :: field
     type(ESMF_Grid)                             :: grid
-    type(ESMF_DistGrid)                         :: distgrid
     type(ESMF_VM)                               :: vm
-    type(ESMF_Array)                            :: array
     integer                                     :: localrc, lpe, i, j
 
-    integer, allocatable                        :: farray(:,:)
     integer, allocatable                        :: farrayDst(:,:)
     integer, allocatable                        :: farraySrc(:,:)
-    integer                                     :: fa_shape(2)
+    integer                                     :: result
     integer, pointer                            :: fptr(:,:)
+    character(ESMF_MAXSTR) :: testname
+    character(ESMF_MAXSTR) :: failMsg
 
     rc = ESMF_SUCCESS
     finalrc = ESMF_SUCCESS
+    localrc = ESMF_SUCCESS
+
+!-------------------------------------------------------------------------
+!-------------------------------------------------------------------------
+
+    write(failMsg, *) "Example failure"
+    write(testname, *) "Example ESMF_FieldCommEx"
+
+!-------------------------------------------------------------------------
+!-------------------------------------------------------------------------
+
+
 !------------------------------------------------------------------------------
     call ESMF_Initialize(defaultlogfilename="FieldCommEx.Log", &
                     logkindflag=ESMF_LOGKIND_MULTI, rc=rc)
@@ -73,9 +84,9 @@
 ! \label{sec:field:usage:gather_2dptr}
 !
 ! User can use {\tt ESMF\_FieldGather} interface to gather Field data from multiple
-! PETS onto a single root PET. This interface is overloaded by type, kind, and rank.
+! PETs onto a single root PET. This interface is overloaded by type, kind, and rank.
 !
-! Note that the implementation of Scatter and Gather is not seqence index based.
+! Note that the implementation of Scatter and Gather is not sequence index based.
 ! If the Field is built on arbitrarily distributed Grid, Mesh, LocStream or XGrid, 
 ! Gather will not gather data to rootPet 
 ! from source data points corresponding to the sequence index on the rootPet. 
@@ -94,23 +105,24 @@
 !BOC 
     ! Get current VM and pet number
     call ESMF_VMGetCurrent(vm, rc=rc)
-    if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
     call ESMF_VMGet(vm, localPet=lpe, rc=rc)
-    if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
     ! Create a 2D Grid and use this grid to create a Field
     ! farray is the Fortran data array that contains data on each PET.
     grid = ESMF_GridCreateNoPeriDim(minIndex=(/1,1/), maxIndex=(/10,20/), &
         regDecomp=(/2,2/), &
         name="grid", rc=rc)
-    if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
     field = ESMF_FieldCreate(grid, typekind=ESMF_TYPEKIND_I4, rc=localrc)
-    if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
+    if (localrc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
+
 
     call ESMF_FieldGet(field, farrayPtr=fptr, rc=localrc)
-    if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
+    if (localrc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
     !---------Initialize pet specific field data----------------
     !    1        5         10
     ! 1  +--------+---------+
@@ -125,26 +137,47 @@
     fptr = lpe
 
     ! allocate the Fortran data array on PET 0 to store gathered data
-    if(lpe .eq. 0) allocate(farrayDst(10,20))
+    if(lpe .eq. 0) then
+      allocate (farrayDst(10,20))
+    else
+      allocate (farrayDst(0,0))
+    end if
     call ESMF_FieldGather(field, farrayDst, rootPet=0, rc=rc)
-    if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
     ! check that the values gathered on rootPet are correct
     if(lpe .eq. 0) then
-       do i = 1, 2
-          do j = 1, 2
-             if(farrayDst(i, j) .ne. (i-1)+(j-1)*2) localrc=ESMF_FAILURE
-             if(farrayDst(i*5, j*10) .ne. (i-1)+(j-1)*2) localrc=ESMF_FAILURE
+       do i = 1, 5
+          do j = 1, 10
+             if(farrayDst(i, j) .ne. 0) localrc=ESMF_FAILURE
           enddo
        enddo
-      if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
+      if (localrc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
+       do i = 6, 10
+          do j = 1, 10
+             if(farrayDst(i, j) .ne. 1) localrc=ESMF_FAILURE
+          enddo
+       enddo
+      if (localrc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
+       do i = 1, 5
+          do j = 11, 20
+             if(farrayDst(i, j) .ne. 2) localrc=ESMF_FAILURE
+          enddo
+       enddo
+      if (localrc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
+       do i = 6, 10
+          do j = 11, 20
+             if(farrayDst(i, j) .ne. 3) localrc=ESMF_FAILURE
+          enddo
+       enddo
+      if (localrc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
     endif
 
     ! destroy all objects created in this example to prevent memory leak
     call ESMF_FieldDestroy(field, rc=rc)
-    if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
     call ESMF_GridDestroy(grid, rc=rc)
-    if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
     if(lpe .eq. 0) deallocate(farrayDst)
 !EOC
 
@@ -165,10 +198,10 @@
     grid = ESMF_GridCreateNoPeriDim(minIndex=(/1,1/), maxIndex=(/10,20/), &
         regDecomp=(/2,2/), &
         name="grid", rc=rc)
-    if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
     field = ESMF_FieldCreate(grid, typekind=ESMF_TYPEKIND_I4, rc=localrc)
-    if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
+    if (localrc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
     ! initialize values to be scattered
     !    1        5         10
@@ -187,28 +220,30 @@
         farraySrc(6:10,1:10) = 1
         farraySrc(1:5,11:20) = 2
         farraySrc(6:10,11:20) = 3
+    else
+      allocate (farraySrc(0,0))
     endif
 
     ! scatter the data onto individual PETs of the Field
     call ESMF_FieldScatter(field, farraySrc, rootPet=0, rc=rc)
-    if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
     call ESMF_FieldGet(field, localDe=0, farrayPtr=fptr, rc=rc)
-    if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
     ! verify that the scattered data is properly distributed
     do i = lbound(fptr, 1), ubound(fptr, 1)
         do j = lbound(fptr, 2), ubound(fptr, 2)
             if(fptr(i, j) .ne. lpe) localrc = ESMF_FAILURE
         enddo
-        if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
+        if (localrc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
     enddo
 
     ! destroy all objects created in this example to prevent memory leak
     call ESMF_FieldDestroy(field, rc=rc)
-    if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
     call ESMF_GridDestroy(grid, rc=rc)
-    if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
     if(lpe .eq. 0) deallocate(farraySrc)
 !EOC
 !------------------------------------------------------------------------------
@@ -217,6 +252,11 @@
     else
        print *, "FAIL: ESMF_FieldCommEx.F90"
     end if
+
+    ! IMPORTANT: ESMF_STest() prints the PASS string and the # of processors in the log
+    ! file that the scripts grep for.
+    call ESMF_STest((finalrc.eq.ESMF_SUCCESS), testname, failMsg, result, ESMF_SRCLINE)
+
 
     call ESMF_Finalize(rc=rc)
 

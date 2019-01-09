@@ -1,7 +1,7 @@
-! $Id: ESMF_FieldBundleCrGetUTest.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
+! $Id$
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2012, University Corporation for Atmospheric Research,
+! Copyright 2002-2018, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -37,7 +37,7 @@
 !------------------------------------------------------------------------------
 ! The following line turns the CVS identifier string into a printable variable.
     character(*), parameter :: version = &
-      '$Id'
+      '$Id$'
 
     ! cumulative result: count failures; no failures equals "all pass"
     integer :: result = 0
@@ -52,6 +52,7 @@
 #endif
 
     call ESMF_TestStart(ESMF_SRCLINE, rc=rc)
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
  
 #ifdef ESMF_TESTEXHAUSTIVE
     !------------------------------------------------------------------------
@@ -102,7 +103,7 @@
     write(failMsg, *) "Did not return SUCCESS"
     call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
 #endif
-    call ESMF_TestEnd(result, ESMF_SRCLINE)
+    call ESMF_TestEnd(ESMF_SRCLINE)
 
 contains 
 
@@ -396,14 +397,22 @@ contains
                     ESMF_CONTEXT, rcToReturn=rc)) return
             do i = 1, 5
                 do j = 1, 10
+                    write(*, *) 'line 400: farray4: ', i, j, farray4(i,j), i + 2 + (j+3) * 5
                     if( farray4(i, j) .ne. i + 2 + (j+3) * 5) localrc = ESMF_FAILURE
                 enddo
             enddo
-            if (present(datacopyflag) .and. datacopyflag.eq.ESMF_DATACOPY_VALUE) then
-              ! only DATA_COPY is expected to work correctly
-              if (ESMF_LogFoundError(localrc, &
-                    ESMF_ERR_PASSTHRU, &
-                    ESMF_CONTEXT, rcToReturn=rc)) return
+            if (present(datacopyflag)) then
+              if (datacopyflag.eq.ESMF_DATACOPY_VALUE) then
+                ! only DATA_COPY is expected to work correctly
+                if (ESMF_LogFoundError(localrc, &
+                      ESMF_ERR_PASSTHRU, &
+                      ESMF_CONTEXT, rcToReturn=rc)) return
+              else
+                if (ESMF_LogFoundError(localrc, &
+                      ESMF_ERR_PASSTHRU, &
+                      ESMF_CONTEXT, rcToReturn=rc)) continue
+                rc = ESMF_SUCCESS ! reset
+              end if
             else
               if (ESMF_LogFoundError(localrc, &
                     ESMF_ERR_PASSTHRU, &
@@ -424,14 +433,22 @@ contains
                     ESMF_CONTEXT, rcToReturn=rc)) return
             do i = 1, 5
                 do j = 1, 10
+                    write(*, *) 'line 436: farray5: ', i, j, farray5(i,j), i + 2 + (j*2-1) * 5
                     if( farray5(i, j) .ne. i + 2 + (j*2-1) * 5) localrc = ESMF_FAILURE
                 enddo
             enddo
-            if (present(datacopyflag) .and. datacopyflag.eq.ESMF_DATACOPY_VALUE) then
+            if (present(datacopyflag)) then
+              if (datacopyflag.eq.ESMF_DATACOPY_VALUE) then
               ! only DATA_COPY is expected to work correctly
-              if (ESMF_LogFoundError(localrc, &
-                    ESMF_ERR_PASSTHRU, &
-                    ESMF_CONTEXT, rcToReturn=rc)) return
+                if (ESMF_LogFoundError(localrc, &
+                      ESMF_ERR_PASSTHRU, &
+                      ESMF_CONTEXT, rcToReturn=rc)) return
+              else
+                if (ESMF_LogFoundError(localrc, &
+                      ESMF_ERR_PASSTHRU, &
+                      ESMF_CONTEXT, rcToReturn=rc)) continue
+                rc = ESMF_SUCCESS ! reset
+              end if
             else
               if (ESMF_LogFoundError(localrc, &
                     ESMF_ERR_PASSTHRU, &

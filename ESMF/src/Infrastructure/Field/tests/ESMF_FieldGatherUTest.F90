@@ -1,7 +1,7 @@
 ! $Id$
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2012, University Corporation for Atmospheric Research,
+! Copyright 2002-2018, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -96,7 +96,7 @@ program ESMF_FieldGatherUTest
         call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
 
 #endif
-    call ESMF_TestEnd(result, ESMF_SRCLINE)
+    call ESMF_TestEnd(ESMF_SRCLINE)
 
 #ifdef ESMF_TESTEXHAUSTIVE
 
@@ -164,7 +164,11 @@ contains
             ESMF_ERR_PASSTHRU, &
             ESMF_CONTEXT, rcToReturn=rc)) return
 
-        if(lpe .eq. 0) allocate(farrayDst(16))
+        if(lpe .eq. 0) then
+          allocate(farrayDst(16))
+        else
+          allocate(farrayDst(0))
+        end if
         call ESMF_FieldGather(field, farrayDst, rootPet=0, rc=localrc)
         if (ESMF_LogFoundError(localrc, &
             ESMF_ERR_PASSTHRU, &
@@ -253,7 +257,11 @@ contains
             ESMF_ERR_PASSTHRU, &
             ESMF_CONTEXT, rcToReturn=rc)) return
 
-        if(lpe .eq. 0) allocate(farrayDst(10,20))
+        if(lpe .eq. 0) then
+          allocate(farrayDst(10,20))
+        else
+          allocate(farrayDst(0,0))
+        end if
         call ESMF_FieldGather(field, farrayDst, rootPet=0, rc=localrc)
         if (ESMF_LogFoundError(localrc, &
             ESMF_ERR_PASSTHRU, &
@@ -341,7 +349,11 @@ contains
             ESMF_ERR_PASSTHRU, &
             ESMF_CONTEXT, rcToReturn=rc)) return
 
-        if(lpe .eq. 0) allocate(farrayDst(10,20,5))
+        if(lpe .eq. 0) then
+          allocate(farrayDst(10,20,5))
+        else
+          allocate(farrayDst(0,0,0))
+        end if
         call ESMF_FieldGather(field, farrayDst, rootPet=0, rc=localrc)
         if (ESMF_LogFoundError(localrc, &
             ESMF_ERR_PASSTHRU, &
@@ -442,6 +454,8 @@ contains
             if (ESMF_LogFoundError(localrc, &
                 ESMF_ERR_PASSTHRU, &
                 ESMF_CONTEXT, rcToReturn=rc)) return
+        else
+          allocate (farraySrc(0,0))
         endif
 
         call ESMF_FieldScatter(field, farraySrc, rootPet=0, rc=localrc)

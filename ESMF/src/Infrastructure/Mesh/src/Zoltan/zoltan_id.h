@@ -6,8 +6,8 @@
 /*****************************************************************************
  * CVS File Information :
  *    $RCSfile: zoltan_id.h,v $
- *    $Author: mathomp4 $
- *    $Date: 2013-01-11 20:23:44 $
+ *    $Author: dneckels $
+ *    $Date: 2007/11/28 16:13:54 $
  *    Revision: 1.6 $
  ****************************************************************************/
 
@@ -60,7 +60,7 @@ extern "C" {
  *  Prototypes for ID functions in id.c
  */
 
-extern ZOLTAN_ID_PTR ZOLTAN_Malloc_ID(int n, char *file, int line);
+extern ZOLTAN_ID_PTR ZOLTAN_Malloc_ID(int n, const char *file, int line);
 extern void ZOLTAN_PRINT_ID(int n, ZOLTAN_ID_PTR a);
 extern int ZOLTAN_EQ_ID(int n, ZOLTAN_ID_PTR a, ZOLTAN_ID_PTR b);
 

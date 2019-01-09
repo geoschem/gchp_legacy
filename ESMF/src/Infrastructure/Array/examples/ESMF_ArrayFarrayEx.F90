@@ -1,7 +1,7 @@
-! $Id: ESMF_ArrayFarrayEx.F90,v 1.1.5.1 2013-01-11 20:23:43 mathomp4 Exp $
+! $Id$
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2012, University Corporation for Atmospheric Research,
+! Copyright 2002-2018, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -27,8 +27,10 @@
 !EOE
 !BOC
 program ESMF_ArrayFarrayEx
+#include "ESMF.h"
 
   use ESMF
+  use ESMF_TestMod
   
   implicit none
   
@@ -107,9 +109,20 @@ program ESMF_ArrayFarrayEx
   integer:: petCount
   
   ! result code
-  integer :: finalrc
+  integer :: finalrc, result
+  character(ESMF_MAXSTR) :: testname
+  character(ESMF_MAXSTR) :: failMsg
   
   finalrc = ESMF_SUCCESS
+
+!-------------------------------------------------------------------------
+!-------------------------------------------------------------------------
+
+  write(failMsg, *) "Example failure"
+  write(testname, *) "Example ESMF_ArrayFarrayEx"
+
+!-------------------------------------------------------------------------
+!-------------------------------------------------------------------------
   
 !BOC
   call ESMF_Initialize(defaultlogfilename="ArrayFarrayEx.Log", &
@@ -267,6 +280,12 @@ program ESMF_ArrayFarrayEx
   
 !EOC
 10 continue
+
+
+  ! IMPORTANT: ESMF_STest() prints the PASS string and the # of processors in the log
+  ! file that the scripts grep for.
+  call ESMF_STest((finalrc.eq.ESMF_SUCCESS), testname, failMsg, result, ESMF_SRCLINE)
+
 !BOC
   call ESMF_Finalize(rc=rc)
 !EOC

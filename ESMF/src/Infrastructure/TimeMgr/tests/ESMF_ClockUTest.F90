@@ -1,7 +1,7 @@
-! $Id: ESMF_ClockUTest.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
+! $Id$
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2012, University Corporation for Atmospheric Research,
+! Copyright 2002-2018, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -37,7 +37,7 @@
 !------------------------------------------------------------------------------
 ! The following line turns the CVS identifier string into a printable variable.
       character(*), parameter :: version = &
-      '$Id: ESMF_ClockUTest.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $'
+      '$Id$'
 !------------------------------------------------------------------------------
 
       ! cumulative result: count failures; no failures equals "all pass"
@@ -65,6 +65,8 @@
       type(ESMF_TimeInterval) :: timeStep
       type(ESMF_Time) :: startTime
 
+      logical :: isCreated
+
 #ifdef ESMF_TESTEXHAUSTIVE
 
       ! individual test result code
@@ -81,15 +83,15 @@
 
       ! individual test failure message
       logical :: stepOnePass, stepTwoPass, runTheClock, bool, &
-		 clockStopped, testPass, clocksNotEqual, clocksEqual, &
-		 stopTimeEnabled
+          clockStopped, testPass, clocksNotEqual, clocksEqual, &
+          stopTimeEnabled
 
       ! to retrieve time in string format
       character(ESMF_MAXSTR) :: timeString
 
       ! instantiate a clock 
       type(ESMF_Clock) :: topClock,  clock_360day, clock_no_leap, &
-			  clock_gregorian, clock1, clock2, clock3, clock4
+          clock_gregorian, clock1, clock2, clock3, clock4
 
 
       ! instantiate a calendar
@@ -111,6 +113,7 @@
 
       ! initialize ESMF framework
       call ESMF_TestStart(ESMF_SRCLINE, rc=rc)
+      if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
       ! set default calendar to Gregorian
       call ESMF_CalendarSetDefault(ESMF_CALKIND_GREGORIAN, rc=rc)
@@ -164,7 +167,7 @@
       write(failMsg, *) " Returned ESMF_FAILURE"
       write(name, *) "Set Start Time Initialization Test"
       call ESMF_TimeSet(startTime, yy=2003, mm=3, dd=13, &
-                             	   h=18, m=45, s=27, &
+                                   h=18, m=45, s=27, &
                                    calkindflag=ESMF_CALKIND_GREGORIAN, rc=rc)
       call ESMF_Test((rc.eq.ESMF_SUCCESS), &
                       name, failMsg, result, ESMF_SRCLINE)
@@ -186,6 +189,71 @@
       call ESMF_ClockDestroy(clock, rc=rc)
       call ESMF_Test((rc.eq.ESMF_SUCCESS), &
                       name, failMsg, result, ESMF_SRCLINE)
+
+
+  !------------------------------------------------------------------------
+  !NEX_UTest
+  write(name, *) "Testing Clock IsCreated for uncreated object"
+  write(failMsg, *) "Did not return .false."
+  isCreated = ESMF_ClockIsCreated(clock)
+  call ESMF_Test((isCreated .eqv. .false.), name, failMsg, result, ESMF_SRCLINE)
+  !------------------------------------------------------------------------
+
+  !------------------------------------------------------------------------
+  !NEX_UTest
+  write(name, *) "Testing Clock IsCreated for uncreated object"
+  write(failMsg, *) "Did not return ESMF_SUCCESS"
+  isCreated = ESMF_ClockIsCreated(clock, rc=rc)
+  call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+  !------------------------------------------------------------------------
+
+  !------------------------------------------------------------------------
+  !NEX_UTest
+  write(name, *) "Create test Clock for IsCreated"
+  write(failMsg, *) "Did not return ESMF_SUCCESS"
+  clock = ESMF_ClockCreate(timeStep, startTime, name="Clock 1", rc=rc)
+  call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+  !------------------------------------------------------------------------
+
+  !------------------------------------------------------------------------
+  !NEX_UTest
+  write(name, *) "Testing Clock IsCreated for created object"
+  write(failMsg, *) "Did not return .true."
+  isCreated = ESMF_ClockIsCreated(clock)
+  call ESMF_Test((isCreated .eqv. .true.), name, failMsg, result, ESMF_SRCLINE)
+  !------------------------------------------------------------------------
+
+  !------------------------------------------------------------------------
+  !NEX_UTest
+  write(name, *) "Testing Clock IsCreated for created object"
+  write(failMsg, *) "Did not return ESMF_SUCCESS"
+  isCreated = ESMF_ClockIsCreated(clock, rc=rc)
+  call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+  !------------------------------------------------------------------------
+
+  !------------------------------------------------------------------------
+  !NEX_UTest
+  write(name, *) "Destroy test Clock for IsCreated"
+  write(failMsg, *) "Did not return ESMF_SUCCESS"
+  call ESMF_ClockDestroy(clock, rc=rc)
+  call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+  !------------------------------------------------------------------------
+
+  !------------------------------------------------------------------------
+  !NEX_UTest
+  write(name, *) "Testing Clock IsCreated for destroyed object"
+  write(failMsg, *) "Did not return .false."
+  isCreated = ESMF_ClockIsCreated(clock)
+  call ESMF_Test((isCreated .eqv. .false.), name, failMsg, result, ESMF_SRCLINE)
+  !------------------------------------------------------------------------
+
+  !------------------------------------------------------------------------
+  !NEX_UTest
+  write(name, *) "Testing Clock IsCreated for destroyed object"
+  write(failMsg, *) "Did not return ESMF_SUCCESS"
+  isCreated = ESMF_ClockIsCreated(clock, rc=rc)
+  call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+  !------------------------------------------------------------------------
 
 
 #ifdef ESMF_TESTEXHAUSTIVE 
@@ -549,7 +617,7 @@
       write(failMsg, *) " Returned ESMF_FAILURE"
       write(name, *) "Set Start Time Initialization Test"
       call ESMF_TimeSet(startTime, yy=yy, mm=11, dd=day, &
-                             	   h=11, m=45, s=18, &
+                                   h=11, m=45, s=18, &
                                    calendar=gregorianCalendar, rc=rc)
       call ESMF_Test((rc.eq.ESMF_SUCCESS), &
                       name, failMsg, result, ESMF_SRCLINE)
@@ -722,7 +790,7 @@
                       name, failMsg, result, ESMF_SRCLINE)
 
       ! ----------------------------------------------------------------------------
-
+call ESMF_LogSet (flush=.true.)
       !EX_UTest
       ! Test fix for bug #755445
       ! ClockPrint with an unallocated clock
@@ -743,7 +811,17 @@
                                stopTime=stopTime, name="Clock 1", rc=rc)
       call ESMF_Test((rc.eq.ESMF_RC_OBJ_INIT), &
                       name, failMsg, result, ESMF_SRCLINE)
-      call ESMF_ClockDestroy(clock, rc=rc)
+
+      ! ----------------------------------------------------------------------------
+
+      !EXxxx_UTest
+      ! Destroy clock with uninitialized Start Time
+!      write(failMsg, *) " Did not return ESMF_RC_OBJ_NOT_CREATED"
+!      write(name, *) "Destroy uninitialized clock test"
+!call ESMF_LogSet (trace=.true.)
+!      call ESMF_ClockDestroy(clock, rc=rc)
+!      call ESMF_Test(rc == ESMF_RC_OBJ_NOT_CREATED, &
+!                      name, failMsg, result, ESMF_SRCLINE)
 
       ! ----------------------------------------------------------------------------
 
@@ -752,10 +830,11 @@
       write(failMsg, *) " Returned ESMF_FAILURE"
       write(name, *) "Set Start Time Initialization Test"
       call ESMF_TimeSet(startTime, yy=2003, mm=3, dd=13, &
-                             	   h=18, m=45, s=27, &
+                                   h=18, m=45, s=27, &
                                    calendar=gregorianCalendar, rc=rc)
       call ESMF_Test((rc.eq.ESMF_SUCCESS), &
                       name, failMsg, result, ESMF_SRCLINE)
+!call ESMF_LogSet (trace=.false.)
 
       ! ----------------------------------------------------------------------------
  
@@ -1430,45 +1509,44 @@
       ! ----------------------------------------------------------------------------
 
       if (rc.eq.ESMF_SUCCESS) then
-      	call date_and_time(values=timevals)
+        call date_and_time(values=timevals)
         call random_seed (size=seed_size)
         allocate (seed(seed_size))
-      	seed=timevals(8)
-      	call random_seed(put=seed)
-      	testResults = 0
-      	do while (.not.ESMF_ClockIsStopTime(clock_gregorian, rc=rc))
-        	call random_number(ranNum)
-        	days=ranNum*25
-        	call random_number(ranNum)
-        	H=ranNum*100
-        	call random_number(ranNum)
-        	MM=ranNum*100
-        	call random_number(ranNum)
-        	secs=ranNum*100
-        	call ESMF_TimeIntervalSet(timeStep, d=days, h=H, m=MM, s=secs, rc=rc)
-        	call ESMF_ClockAdvance(clock_gregorian, timeStep=timeStep, rc=rc)
-        	call ESMF_ClockGet(clock_gregorian, currTime=currentTime, rc=rc)
-        	call ESMF_ClockGet(clock_gregorian, prevTime=previousTime, rc=rc)
-        	timeDiff =  currentTime - previousTime 
+        seed=timevals(8)
+        call random_seed(put=seed)
+        deallocate (seed)
+        testResults = 0
+        do while (.not.ESMF_ClockIsStopTime(clock_gregorian, rc=rc))
+          call random_number(ranNum)
+          days= int (ranNum*25)
+          call random_number(ranNum)
+          H= int (ranNum*100)
+          call random_number(ranNum)
+          MM= int (ranNum*100)
+          call random_number(ranNum)
+          secs= int (ranNum*100)
+          call ESMF_TimeIntervalSet(timeStep, d=days, h=H, m=MM, s=secs, rc=rc)
+          call ESMF_ClockAdvance(clock_gregorian, timeStep=timeStep, rc=rc)
+          call ESMF_ClockGet(clock_gregorian, currTime=currentTime, rc=rc)
+          call ESMF_ClockGet(clock_gregorian, prevTime=previousTime, rc=rc)
+          timeDiff =  currentTime - previousTime 
 
                 ! Note: this timeInterval comparison depends on
                 ! ESMF_Initialize(defaultCalKind=ESMF_CALKIND_GREGORIAN) 
                 ! being set so the timeIntervals' (timeStep) magnitude can 
                 ! be determined.
-        	if((timeDiff.ne.timeStep).and.(testResults.eq.0)) then	
-	     		testResults=1
-             		!call ESMF_TimeIntervalPrint(timeStep, rc=rc)
-             		!call ESMF_TimeIntervalPrint(timeDiff, rc=rc)
-             		!call ESMF_TimePrint(currentTime, rc=rc)
-             		!call ESMF_TimePrint(previousTime, rc=rc)
-	                ! Exit loop on first failure
-			goto 10
-        	end if
-      	end do
-10    continue
-
+          if((timeDiff.ne.timeStep).and.(testResults.eq.0)) then
+            testResults=1
+            !call ESMF_TimeIntervalPrint(timeStep, rc=rc)
+            !call ESMF_TimeIntervalPrint(timeDiff, rc=rc)
+            !call ESMF_TimePrint(currentTime, rc=rc)
+            !call ESMF_TimePrint(previousTime, rc=rc)
+            ! Exit loop on first failure
+            exit
+          end if
+        end do
       end if
-		
+
       !EX_UTest
       write(failMsg, *) "Time comparison failed."
       write(name, *) "Current Time minus PreviousTime = timeStep for Gregorian Cal. Test"
@@ -2546,6 +2624,6 @@
       ! return result  ! TODO: no way to do this in F90 ?
   
       ! finalize ESMF framework
-      call ESMF_TestEnd(result, ESMF_SRCLINE)
+      call ESMF_TestEnd(ESMF_SRCLINE)
 
       end program ESMF_ClockTest

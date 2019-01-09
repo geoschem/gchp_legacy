@@ -1,7 +1,7 @@
-! $Id: ESMF_CalRangeUTest.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
+! $Id$
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2012, University Corporation for Atmospheric Research,
+! Copyright 2002-2018, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -38,7 +38,7 @@
 !------------------------------------------------------------------------------
 ! The following line turns the CVS identifier string into a printable variable.
       character(*), parameter :: version = &
-      '$Id: ESMF_CalRangeUTest.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $'
+      '$Id$'
 !------------------------------------------------------------------------------
 
       integer, parameter :: CONVERT_TO_TIME = 1, CONVERT_TO_DATE = 2, &
@@ -93,6 +93,7 @@
 
       ! initialize ESMF framework
       call ESMF_TestStart(ESMF_SRCLINE, rc=rc)
+      if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
       ! Calendar months table
       DaysPerMonth(1) = 31
@@ -546,7 +547,7 @@
 #endif
 
       ! finalize ESMF framework
-      call ESMF_TestEnd(result, ESMF_SRCLINE)
+      call ESMF_TestEnd(ESMF_SRCLINE)
 
 !==============================================================================
 
@@ -675,7 +676,8 @@
       integer(ESMF_KIND_I8), intent(in) :: Dl
       type(ESMF_Calendar), intent(inout) :: cal
       integer, intent(out), optional :: rc
-      character(ESMF_MAXSTR) :: calName
+
+      !character(ESMF_MAXSTR) :: calName
         
 ! !DESCRIPTION:
 !     Checks given values against those set/get with ESMF
@@ -710,7 +712,7 @@
         if (.not.(rYYl.eq.YYl .and. rMM.eq.MM .and. rDD.eq.DD .and. &
                   rDl.eq.Dl)) then
           broken = .true.
-          call ESMF_CalendarGet(cal, name=calName)
+          !call ESMF_CalendarGet(cal, name=calName)
           !print *, trim(calName), " Set/Get breaks,"
           !print *, " should be = ", YYl, "/", MM, "/", DD, " ", Dl
           !print *, " returned  = ", rYYl, "/", rMM, "/", rDD, " ", rDl
@@ -727,7 +729,7 @@
 
         if (.not.(rDl.eq.Dl)) then
           broken = .true.
-          call ESMF_CalendarGet(cal, name=calName)
+          !call ESMF_CalendarGet(cal, name=calName)
           !print *, trim(calName), " Set/Julian Day Get breaks,"
           !print *,                " should be = ", Dl
           !print *,                " returned  = ", rDl
@@ -763,16 +765,19 @@
         ! see what we get back via input calendar
         call ESMF_TimeSet(time, calendar=cal)
         call ESMF_TimeGet(time, yy_i8=rYYl, mm=rMM, dd=rDD, d_i8=rDl, rc=rc)
-
-        if (.not.(rYYl.eq.YYl .and. rMM.eq.MM .and. rDD.eq.DD .and. &
-                  rDl.eq.Dl)) then
+        if (rc /= ESMF_SUCCESS) then
           broken = .true.
+        else
+          if (.not.(rYYl.eq.YYl .and. rMM.eq.MM .and. rDD.eq.DD .and. &
+                  rDl.eq.Dl)) then
+            broken = .true.
           !print *, "Julian Day Set/"
-          call ESMF_CalendarGet(cal, name=calName)
+          !call ESMF_CalendarGet(cal, name=calName)
           !print *, trim(calName), " Get breaks,"
           !print *, " should be = ", YYl, "/", MM, "/", DD, " ", Dl
           !print *, " returned  = ", rYYl, "/", rMM, "/", rDD, " ", rDl
           !print *
+          end if
         end if
 
       end if

@@ -1,0 +1,30 @@
+% $Id$
+
+%\subsubsection{Restrictions and Future Work}
+
+\begin{itemize}
+
+\item {\bf 7D limit.}  Only grids up to 7D will be supported.
+
+\item {\bf During the first development phase only single
+tile grids are supported.}  In the near future, support
+for mosaic grids will be added.  The initial implementation 
+will be to create mosaics that contain tiles of the same
+grid type, e.g. rectilinear.
+
+\item {\bf Future adaptation.}  Currently Grids
+are created and then remain unchanged. In the future, it would
+be useful to provide support for the various forms of grid
+adaptation. This would allow the grids to dynamically change
+their resolution to more closely match what is needed at a particular
+time and position during a computation for front tracking or adaptive meshes.
+
+
+\item {\bf Future Grid generation.} This class for now only contains
+the basic functionality for operating on the grid. In the future
+methods will be added to enable the automatic generation of various types of
+grids. 
+
+
+\end{itemize}
+

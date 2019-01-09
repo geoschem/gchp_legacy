@@ -6,8 +6,8 @@
 /*****************************************************************************
  * CVS File Information :
  *    $RCSfile: phg_util.h,v $
- *    $Author: mathomp4 $
- *    $Date: 2013-01-11 20:23:44 $
+ *    $Author: dneckels $
+ *    $Date: 2007/11/28 16:13:53 $
  *    Revision: 1.11 $
  ****************************************************************************/
 
@@ -32,8 +32,8 @@ extern "C" {
 
 /* UVC: some utility functions not particularly related to hypergraph */
 extern char *Zoltan_PHG_uMe(PHGComm *);
-extern void Zoltan_PHG_uprintf(PHGComm *, char *,...);
-extern void Zoltan_PHG_errexit(char *,...);
+extern void Zoltan_PHG_uprintf(PHGComm *, const char *,...);
+extern void Zoltan_PHG_errexit(const char *,...);
 
 extern int Zoltan_PHG_isPrime(int);
 

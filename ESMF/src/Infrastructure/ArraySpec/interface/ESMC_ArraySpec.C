@@ -1,7 +1,7 @@
-// $Id: ESMC_ArraySpec.C,v 1.1.5.1 2013-01-11 20:23:43 mathomp4 Exp $
+// $Id$
 //
 // Earth System Modeling Framework
-// Copyright 2002-2012, University Corporation for Atmospheric Research, 
+// Copyright 2002-2018, University Corporation for Atmospheric Research, 
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
 // Laboratory, University of Michigan, National Centers for Environmental 
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
@@ -22,27 +22,25 @@
 // in the companion file ESMC_ArraySpec.h
 //
 //-----------------------------------------------------------------------------
-
 // include associated header file
 #include "ESMC_ArraySpec.h"
 
 // include ESMF headers
 #include "ESMCI_Macros.h"
 #include "ESMCI_LogErr.h" 
-#include "ESMF_LogMacros.inc"
 #include "ESMCI_ArraySpec.h" 
 
 //-----------------------------------------------------------------------------
 // leave the following line as-is; it will insert the cvs ident string
 // into the object file for tracking purposes.
 static const char *const version =
-  "$Id: ESMC_ArraySpec.C,v 1.1.5.1 2013-01-11 20:23:43 mathomp4 Exp $";
+  "$Id$";
 //-----------------------------------------------------------------------------
 
 extern "C" {
 
 int ESMC_ArraySpecSet(ESMC_ArraySpec *arrayspec,int rank,
-  ESMC_TypeKind typekind){
+  ESMC_TypeKind_Flag typekind){
 #undef  ESMC_METHOD
 #define ESMC_METHOD "ESMC_ArraySpecSet()"
     
@@ -52,8 +50,8 @@ int ESMC_ArraySpecSet(ESMC_ArraySpec *arrayspec,int rank,
 
   // call into ESMCI interface
   localrc = ((ESMCI::ArraySpec *)arrayspec)->set(rank, typekind);
-  if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, &rc))
-    return rc;  // bail out
+  if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, ESMC_CONTEXT,
+    &rc)) return rc;  // bail out
 
   // return successfully
   rc = ESMF_SUCCESS;
@@ -61,7 +59,7 @@ int ESMC_ArraySpecSet(ESMC_ArraySpec *arrayspec,int rank,
 }
 
 int ESMC_ArraySpecGet(ESMC_ArraySpec arrayspec, int *rank,
-  ESMC_TypeKind *typekind){
+  ESMC_TypeKind_Flag *typekind){
 #undef  ESMC_METHOD
 #define ESMC_METHOD "ESMC_ArraySpecGet()"
 
@@ -71,11 +69,11 @@ int ESMC_ArraySpecGet(ESMC_ArraySpec arrayspec, int *rank,
 
   // call into ESMCI interface
   *rank = ((ESMCI::ArraySpec *)&arrayspec)->getRank(&localrc);
-  if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, &rc))
-    return rc;  // bail out
+  if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, ESMC_CONTEXT,
+    &rc)) return rc;  // bail out
   *typekind = ((ESMCI::ArraySpec *)&arrayspec)->getTypeKind(&localrc);
-  if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, &rc))
-    return rc;  // bail out
+  if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, ESMC_CONTEXT,
+    &rc)) return rc;  // bail out
     
   // return successfully
   rc = ESMF_SUCCESS;

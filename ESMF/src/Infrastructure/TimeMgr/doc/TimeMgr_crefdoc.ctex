@@ -1,0 +1,325 @@
+% $Id$ 
+
+#define INCLUDE_UML
+#ifdef STANDALONE
+\documentclass[]{article}
+
+\usepackage{graphicx}
+\usepackage{html}
+\usepackage{times}
+\usepackage{alltt}
+\usepackage[T1]{fontenc}
+
+\textwidth 6.5in
+\textheight 8.5in
+\addtolength{\oddsidemargin}{-.75in}
+\newcommand{\mytitle}{\Large {\bf Time Manager C Reference}}
+\newcommand{\myauthors}{\large {\it Earl Schwab}}
+% set a standard paragraph style
+\setlength{\parskip}{0pt}
+\setlength{\parindent}{0pt}
+\setlength{\baselineskip}{11pt}
+% these are temporary patches until something more
+% permanent is done to the protex script.
+\newlength{\oldparskip}
+\newlength{\oldparindent}
+\newlength{\oldbaselineskip}
+#endif
+
+#ifdef STANDALONE
+\begin{document}
+#endif
+
+\bodytext{BGCOLOR=white LINK=#083194 VLINK=#21004A}
+
+#ifdef STANDALONE
+% Title page
+\input{../../../doc/title_alldoc}
+
+\newpage
+\tableofcontents
+
+\newpage
+\setlength{\parskip}{1.5ex}
+
+#endif
+
+% -------------------------
+% Time Manager Introduction
+% -------------------------
+
+\section{Time Manager Utility}
+#ifdef STANDALONE
+\input{TimeMgr_cdesc}
+#elif defined(CONSTITUENT)
+\input{../Infrastructure/TimeMgr/doc/TimeMgr_cdesc}
+#endif
+
+%\section{Abbreviations Table}
+#ifdef STANDALONE
+%\input{TimeMgr_specs}
+#elif defined(CONSTITUENT)
+%\input{../Infrastructure/TimeMgr/doc/TimeMgr_specs}
+#endif
+
+%\subsection{Design and Implementation Notes}
+#ifdef STANDALONE
+%\input{TimeMgr_implnotes}
+#elif defined(CONSTITUENT)
+%\input{../Infrastructure/TimeMgr/doc/TimeMgr_implnotes}
+#endif
+
+%\subsection{Object Model}
+#ifdef STANDALONE
+%\input{TimeMgr_obj.tex}
+#elif defined(CONSTITUENT)
+%\input{../Infrastructure/TimeMgr/doc/TimeMgr_obj.tex}
+#endif
+
+% --------------
+% Calendar Class
+% --------------
+\newpage
+\section{Calendar Class}
+
+\subsection{Description}
+#ifdef STANDALONE
+\input{Calendar_cdesc}
+#elif defined(CONSTITUENT)
+\input{../Infrastructure/TimeMgr/doc/Calendar_cdesc}
+#endif
+
+\subsection{Constants}
+#ifdef STANDALONE
+\input{Calendar_coptions}
+#elif defined(CONSTITUENT)
+\input{../Infrastructure/TimeMgr/doc/Calendar_coptions}
+#endif
+
+%\subsection{Use and Examples}
+#ifdef STANDALONE
+%\input{Calendar_usage}
+%\input{ESMF_CalendarEx_fapi}
+#elif defined(CONSTITUENT)
+%\input{../Infrastructure/TimeMgr/doc/Calendar_usage}
+%\input{../Infrastructure/TimeMgr/doc/ESMF_CalendarEx_fapi}
+#endif
+
+%\subsection{Restrictions and Future Work}
+#ifdef STANDALONE
+%\input{Calendar_rest}
+#elif defined(CONSTITUENT)
+%\input{../Infrastructure/TimeMgr/doc/Calendar_rest}
+#endif
+
+%\subsection{Design and Implementation Notes}
+#ifdef STANDALONE
+%\input{Calendar_implnotes}
+#elif defined(CONSTITUENT)
+%\input{../Infrastructure/TimeMgr/doc/Calendar_implnotes}
+#endif
+
+\subsection{Class API}
+#ifdef STANDALONE
+\input{ESMC_Calendar_chapi}
+#elif defined(CONSTITUENT)
+\input{../Infrastructure/TimeMgr/doc/ESMC_Calendar_chapi}
+#endif
+
+% ----------
+% Time Class
+% ----------
+\newpage
+\section{Time Class}
+
+\subsection{Description}
+#ifdef STANDALONE
+\input{Time_cdesc}
+#elif defined(CONSTITUENT)
+\input{../Infrastructure/TimeMgr/doc/Time_cdesc}
+#endif
+
+%\subsection{Use and Examples}
+#ifdef STANDALONE
+%\input{Time_usage}
+%\input{ESMF_TimeEx_fapi}
+#elif defined(CONSTITUENT)
+%\input{../Infrastructure/TimeMgr/doc/Time_usage}
+%\input{../Infrastructure/TimeMgr/doc/ESMF_TimeEx_fapi}
+#endif
+
+%\subsection{Restrictions and Future Work}
+#ifdef STANDALONE
+%\input{Time_rest}
+#elif defined(CONSTITUENT)
+%\input{../Infrastructure/TimeMgr/doc/Time_rest}
+#endif
+
+\subsection{Class API}
+#ifdef STANDALONE
+\input{ESMC_Time_chapi}
+#elif defined(CONSTITUENT)
+\input{../Infrastructure/TimeMgr/doc/ESMC_Time_chapi}
+#endif
+
+% -------------------
+% Time Interval Class
+% -------------------
+\newpage
+\section{TimeInterval Class}
+
+\subsection{Description}
+#ifdef STANDALONE
+\input{TimeInterval_cdesc}
+#elif defined(CONSTITUENT)
+\input{../Infrastructure/TimeMgr/doc/TimeInterval_cdesc}
+#endif
+
+%\subsection{Use and Examples}
+#ifdef STANDALONE
+%\input{TimeInterval_usage}
+%\input{ESMF_TimeIntervalEx_fapi}
+#elif defined(CONSTITUENT)
+%\input{../Infrastructure/TimeMgr/doc/TimeInterval_usage}
+%\input{../Infrastructure/TimeMgr/doc/ESMF_TimeIntervalEx_fapi}
+#endif
+
+%\subsection{Restrictions and Future Work}
+#ifdef STANDALONE
+%\input{TimeInterval_rest}
+#elif defined(CONSTITUENT)
+%\input{../Infrastructure/TimeMgr/doc/TimeInterval_rest}
+#endif
+
+\subsection{Class API}
+#ifdef STANDALONE
+%\input{TimeInterval_table1}
+%\input{TimeInterval_table2}
+%\input{TimeInterval_table3}
+%\input{TimeInterval_table4}
+%\input{TimeInterval_table5}
+%\input{ESMF_TimeInterval_fapi}
+\input{ESMC_TimeInterval_chapi}
+#elif defined(CONSTITUENT)
+%\input{../Infrastructure/TimeMgr/doc/TimeInterval_table1}
+%\input{../Infrastructure/TimeMgr/doc/TimeInterval_table2}
+%\input{../Infrastructure/TimeMgr/doc/TimeInterval_table3}
+%\input{../Infrastructure/TimeMgr/doc/TimeInterval_table4}
+%\input{../Infrastructure/TimeMgr/doc/TimeInterval_table5}
+\input{../Infrastructure/TimeMgr/doc/ESMC_TimeInterval_chapi}
+#endif
+
+% -----------
+% Clock Class
+% -----------
+\newpage
+\section{Clock Class}
+
+\subsection{Description}
+#ifdef STANDALONE
+\input{Clock_cdesc}
+#elif defined(CONSTITUENT)
+\input{../Infrastructure/TimeMgr/doc/Clock_cdesc}
+#endif
+
+%\subsection{Constants}
+#ifdef STANDALONE
+%\input{Clock_options}
+#elif defined(CONSTITUENT)
+%\input{../Infrastructure/TimeMgr/doc/Clock_options}
+#endif
+
+%\subsection{Use and Examples}
+#ifdef STANDALONE
+%\input{Clock_usage}
+%\input{ESMC_ClockEx_ccapi}
+#elif defined(CONSTITUENT)
+%\input{../Infrastructure/TimeMgr/doc/Clock_usage}
+%\input{../Infrastructure/TimeMgr/doc/ESMC_ClockEx_ccapi}
+#endif
+
+%\subsection{Restrictions and Future Work}
+#ifdef STANDALONE
+%\input{Clock_rest}
+#elif defined(CONSTITUENT)
+%\input{../Infrastructure/TimeMgr/doc/Clock_rest}
+#endif
+
+\subsection{Class API}
+#ifdef STANDALONE
+\input{ESMC_Clock_chapi}
+#elif defined(CONSTITUENT)
+\input{../Infrastructure/TimeMgr/doc/ESMC_Clock_chapi}
+#endif
+
+% -----------
+% Alarm Class
+% -----------
+%\newpage
+%\section{Alarm Class}
+
+%\subsection{Description}
+#ifdef STANDALONE
+%\input{Alarm_cdesc}
+#elif defined(CONSTITUENT)
+%\input{../Infrastructure/TimeMgr/doc/Alarm_cdesc}
+#endif
+
+%\subsection{Constants}
+#ifdef STANDALONE
+%\input{Alarm_options}
+#elif defined(CONSTITUENT)
+%\input{../Infrastructure/TimeMgr/doc/Alarm_options}
+#endif
+
+%\subsection{Use and Examples}
+#ifdef STANDALONE
+%\input{Alarm_usage}
+%\input{ESMF_AlarmEx_fapi}
+#elif defined(CONSTITUENT)
+%\input{../Infrastructure/TimeMgr/doc/Alarm_usage}
+%\input{../Infrastructure/TimeMgr/doc/ESMF_AlarmEx_fapi}
+#endif
+
+%\subsection{Restrictions and Future Work}
+#ifdef STANDALONE
+%\input{Alarm_rest}
+#elif defined(CONSTITUENT)
+%\input{../Infrastructure/TimeMgr/doc/Alarm_rest}
+#endif
+
+%\subsection{Design and Implementation Notes}
+#ifdef STANDALONE
+%\input{Alarm_implnotes}
+#elif defined(CONSTITUENT)
+%\input{../Infrastructure/TimeMgr/doc/Alarm_implnotes}
+#endif
+
+%\subsection{Class API}
+#ifdef STANDALONE
+%\input{ESMF_Alarm_fapi}
+#elif defined(CONSTITUENT)
+%\input{../Infrastructure/TimeMgr/doc/ESMF_Alarm_fapi}
+#endif
+
+%#ifdef STANDALONE
+%\section{Review Status}
+%\input{TimeMgr_desrev}
+%#endif
+
+%#ifdef STANDALONE
+%\section{Glossary}
+%\input{TimeMgr_glos}
+%#endif
+
+#ifdef STANDALONE
+%\section{Bibliography}
+\newpage
+\bibliography{TimeMgr} 
+\bibliographystyle{plain}
+\addcontentsline{toc}{section}{Bibliography}
+#endif
+
+#ifdef STANDALONE
+\end{document}
+#endif

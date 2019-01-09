@@ -1,7 +1,7 @@
 ! $Id$
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2012, University Corporation for Atmospheric Research, 
+! Copyright 2002-2018, University Corporation for Atmospheric Research, 
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
 ! Laboratory, University of Michigan, National Centers for Environmental 
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
@@ -103,7 +103,7 @@ contains
 !   If the Field contains replicating DistGrid dimensions data will be @\
 !   scattered across all of the replicated pieces. @\
 ! @\
-!   The implementation of Scatter and Gather is not seqence index based. @\
+!   The implementation of Scatter and Gather is not sequence index based. @\
 !   If the Field is built on arbitrarily distributed Grid, Mesh, LocStream or XGrid, @\
 !   Scatter will not scatter data from rootPet @\
 !   to the destination data points corresponding to the sequence index on the rootPet. @\
@@ -120,7 +120,7 @@ contains
 !   Each PET of the VM must issue this call exactly once for {\em all} of its @\
 !   DEs. The call will block until all PET-local data objects are accessible. @\
 ! @\
-! For examples and associated documentations using this method see Section  @\
+! For examples and associated documentation regarding this method see Section  @\
 ! \ref{sec:field:usage:scatter_2dptr}. @\
 ! @\
 !   The arguments are: @\

@@ -1,7 +1,7 @@
-! $Id: ESMF_CalendarUTest.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
+! $Id$
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2012, University Corporation for Atmospheric Research,
+! Copyright 2002-2018, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -40,7 +40,7 @@
 !------------------------------------------------------------------------------
 ! The following line turns the CVS identifier string into a printable variable.
       character(*), parameter :: version = &
-      '$Id: ESMF_CalendarUTest.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $'
+      '$Id$'
 !------------------------------------------------------------------------------
 
       ! cumulative result: count failures; no failures equals "all pass"
@@ -58,14 +58,16 @@
      ! instantiate a calendar
      type(ESMF_Calendar) :: gregorianCalendar
 
+     logical :: isCreated
 
 #ifdef ESMF_TESTEXHAUSTIVE
-      integer :: DD, MM, YY, totalDays, days
+      integer :: DD, MM, YY, totalDays, days, sols, H, M, S
+      real(ESMF_KIND_R8) :: sols_r8
 
       ! instantiate a calendar
       type(ESMF_Calendar) :: no_leapCalendar, modifiedJulianDayCalendar, &
-		             julianDayCalendar, gregorianCalendar1, julianCalendar
-      type(ESMF_Calendar) :: customCalendar, customCalendar2, &
+          julianDayCalendar, gregorianCalendar1, julianCalendar
+      type(ESMF_Calendar) :: customCalendar, customCalendar2, marsCalendar, &
                              esmf_360dayCalendar, gregorianCalendar2
       type(ESMF_CalKind_Flag) :: cal_kind1, cal_kind2, cal_kind
 
@@ -77,6 +79,8 @@
              days_per_month =(/30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30/)
       integer, dimension(12) :: &
          dayspermonth =(/1000, 0, 8900, -120, 930, 70, 80, 90, 0, -70, 90, 60/)
+      integer, dimension(12) :: &
+       customDaysPerMonth =(/10, 20, 30, 40, 50, 60, 55, 45, 35, 25, 15, 5/)
 
       integer :: dayOfWeek
       integer(ESMF_KIND_I8) :: advanceCounts, julianDay, year, days_i8
@@ -99,6 +103,7 @@
 
       ! initialize ESMF framework
       call ESMF_TestStart(ESMF_SRCLINE, rc=rc)
+      if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
       ! ----------------------------------------------------------------------------
 
@@ -121,6 +126,72 @@
       call ESMF_CalendarDestroy(gregorianCalendar, rc=rc)
       call ESMF_Test((rc.eq.ESMF_SUCCESS), &
                       name, failMsg, result, ESMF_SRCLINE)
+
+  !------------------------------------------------------------------------
+  !NEX_UTest
+  write(name, *) "Testing Calendar IsCreated for uncreated object"
+  write(failMsg, *) "Did not return .false."
+  isCreated = ESMF_CalendarIsCreated(gregorianCalendar)
+  call ESMF_Test((isCreated .eqv. .false.), name, failMsg, result, ESMF_SRCLINE)
+  !------------------------------------------------------------------------
+
+  !------------------------------------------------------------------------
+  !NEX_UTest
+  write(name, *) "Testing Calendar IsCreated for uncreated object"
+  write(failMsg, *) "Did not return ESMF_SUCCESS"
+  isCreated = ESMF_CalendarIsCreated(gregorianCalendar, rc=rc)
+  call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+  !------------------------------------------------------------------------
+
+  !------------------------------------------------------------------------
+  !NEX_UTest
+  write(name, *) "Create test Calendar for IsCreated"
+  write(failMsg, *) "Did not return ESMF_SUCCESS"
+  gregorianCalendar = ESMF_CalendarCreate(ESMF_CALKIND_GREGORIAN, &
+                                          name="Gregorian", rc=rc)
+  call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+  !------------------------------------------------------------------------
+
+  !------------------------------------------------------------------------
+  !NEX_UTest
+  write(name, *) "Testing Calendar IsCreated for created object"
+  write(failMsg, *) "Did not return .true."
+  isCreated = ESMF_CalendarIsCreated(gregorianCalendar)
+  call ESMF_Test((isCreated .eqv. .true.), name, failMsg, result, ESMF_SRCLINE)
+  !------------------------------------------------------------------------
+
+  !------------------------------------------------------------------------
+  !NEX_UTest
+  write(name, *) "Testing Calendar IsCreated for created object"
+  write(failMsg, *) "Did not return ESMF_SUCCESS"
+  isCreated = ESMF_CalendarIsCreated(gregorianCalendar, rc=rc)
+  call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+  !------------------------------------------------------------------------
+
+  !------------------------------------------------------------------------
+  !NEX_UTest
+  write(name, *) "Destroy test Calendar for IsCreated"
+  write(failMsg, *) "Did not return ESMF_SUCCESS"
+  call ESMF_CalendarDestroy(gregorianCalendar, rc=rc)
+  call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+  !------------------------------------------------------------------------
+
+  !------------------------------------------------------------------------
+  !NEX_UTest
+  write(name, *) "Testing Calendar IsCreated for destroyed object"
+  write(failMsg, *) "Did not return .false."
+  isCreated = ESMF_CalendarIsCreated(gregorianCalendar)
+  call ESMF_Test((isCreated .eqv. .false.), name, failMsg, result, ESMF_SRCLINE)
+  !------------------------------------------------------------------------
+
+  !------------------------------------------------------------------------
+  !NEX_UTest
+  write(name, *) "Testing Calendar IsCreated for destroyed object"
+  write(failMsg, *) "Did not return ESMF_SUCCESS"
+  isCreated = ESMF_CalendarIsCreated(gregorianCalendar, rc=rc)
+  call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+  !------------------------------------------------------------------------
+
 
 #ifdef ESMF_TESTEXHAUSTIVE
 
@@ -803,8 +874,8 @@
       write(name, *) "Initialize Custom Kind Calendar Test"
       write(failMsg, *) " Did not return ESMF_SUCCESS"
       customCalendar = ESMF_CalendarCreate(daysPerMonth=days_per_month, &
-					secondsPerDay=86400, daysPerYear=360, daysPerYearDn=1, &
-					daysPerYearDd=1, name="CustomCalendar", rc=rc)
+          secondsPerDay=86400, daysPerYear=360, daysPerYearDn=0, &
+          daysPerYearDd=1, name="CustomCalendar", rc=rc)
       call ESMF_Test((rc.eq.ESMF_SUCCESS), &
                       name, failMsg, result, ESMF_SRCLINE)
 
@@ -837,8 +908,8 @@
       write(name, *) "Calendar equality of custom Calendars Test"
       write(failMsg, *) "Returned not equal"
       customCalendar2 = ESMF_CalendarCreate(daysPerMonth=days_per_month, &
-					secondsPerDay=86400, daysPerYear=360, daysPerYearDn=1, &
-					daysPerYearDd=1, name="CustomCalendar2", rc=rc)
+          secondsPerDay=86400, daysPerYear=360, daysPerYearDn=0, &
+          daysPerYearDd=1, name="CustomCalendar2", rc=rc)
       call ESMF_Test((customCalendar.eq.customCalendar2 .and. &
                       rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
 
@@ -860,8 +931,8 @@
       write(name, *) "Calendar inequality of custom Calendars Test"
       write(failMsg, *) "Returned equal"
       customCalendar2 = ESMF_CalendarCreate(daysPerMonth=days_per_month, &
-					secondsPerDay=20000, daysPerYear=360, daysPerYearDn=1, &
-					daysPerYearDd=1, name="CustomCalendar2", rc=rc)
+          secondsPerDay=20000, daysPerYear=360, daysPerYearDn=0, &
+          daysPerYearDd=1, name="CustomCalendar2", rc=rc)
       call ESMF_Test((customCalendar.ne.customCalendar2 .and. &
                       rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
 
@@ -881,11 +952,11 @@
 
       !EX_UTest
       ! initialize fourth calendar to be custom type
-      write(name, *) "Initialize Custom Type with overflow Calendar Test"
+      write(name, *) "Initialize Custom Type with mismatched daysPerYear Calendar Test"
       write(failMsg, *) " Should not return ESMF_SUCCESS"
-      customCalendar = ESMF_CalendarCreate(daysPerMonth=dayspermonth, &
-					secondsPerDay=86400, daysPerYear=100000000, daysPerYearDn=1, &
-					daysPerYearDd=1, name="CustomCalendar", rc=rc)
+      customCalendar = ESMF_CalendarCreate(daysPerMonth=days_per_month, &
+                 secondsPerDay=86400, daysPerYear=100000000, daysPerYearDn=1, &
+                 daysPerYearDd=1, name="CustomCalendar", rc=rc)
       call ESMF_Test((rc.ne.ESMF_SUCCESS), &
                       name, failMsg, result, ESMF_SRCLINE)
       call ESMF_CalendarDestroy(customCalendar, rc=rc)
@@ -919,8 +990,8 @@
       write(name, *) "Initialize Custom Type with negative number seconds Calendar Test"
       write(failMsg, *) " Should not return ESMF_SUCCESS"
       customCalendar = ESMF_CalendarCreate(daysPerMonth=dayspermonth, &
-					secondsPerDay=-400, daysPerYear=1, daysPerYearDn=1, &
-					daysPerYearDd=0, name="CustomCalendar", rc=rc)
+          secondsPerDay=-400, daysPerYear=1, daysPerYearDn=1, &
+          daysPerYearDd=1, name="CustomCalendar", rc=rc)
       call ESMF_Test((rc.ne.ESMF_SUCCESS), &
                       name, failMsg, result, ESMF_SRCLINE)
       call ESMF_CalendarDestroy(customCalendar, rc=rc)
@@ -953,8 +1024,8 @@
       write(name, *) "Initialize Custom Type with nonsense numbers Calendar Test"
       write(failMsg, *) " Should not return ESMF_SUCCESS"
       customCalendar = ESMF_CalendarCreate(daysPerMonth=dayspermonth, &
-					secondsPerDay=86400, daysPerYear=1, daysPerYearDn=1, &
-					daysPerYearDd=0, name="CustomCalendar", rc=rc)
+          secondsPerDay=86400, daysPerYear=1, daysPerYearDn=1, &
+          daysPerYearDd=0, name="CustomCalendar", rc=rc)
       call ESMF_Test((rc.ne.ESMF_SUCCESS), &
                       name, failMsg, result, ESMF_SRCLINE)
       call ESMF_CalendarDestroy(customCalendar, rc=rc)
@@ -1696,6 +1767,431 @@
 
       ! ----------------------------------------------------------------------------
 
+      !EX_UTest
+      ! Create custom calendar for Mars
+      ! http://www.giss.nasa.gov/tools/mars24/help/notes.html
+      ! http://www.giss.nasa.gov/research/briefs/allison_02/
+      write(name, *) "Initialize Custom Kind Calendar for Mars Test"
+      write(failMsg, *) " Did not return ESMF_SUCCESS"
+      marsCalendar = ESMF_CalendarCreate(secondsPerDay=88775, &  ! 1 Sol
+                               ! TODO: fractional secondsPerDay = 88775.244
+                                         daysPerYear=668, & ! 668.5921 Sols/year
+                                         daysPerYearDn=5921, &
+                                         daysPerYearDd=10000, &
+                                         name="MarsCalendar", rc=rc)
+      call ESMF_Test((rc.eq.ESMF_SUCCESS), &
+                      name, failMsg, result, ESMF_SRCLINE)
+
+      ! ----------------------------------------------------------------------------
+
+      !EX_UTest
+      ! print out initialized variables
+      ! Test that print subroutine returns ESMF_SUCESS
+      write(failMsg, *) " Should return ESMF_SUCCESS"
+      write(name, *) "Initialized Mars Custom Kind Calendar Print Test"
+      call ESMF_CalendarPrint(marsCalendar, rc=rc)
+      call ESMF_Test((rc.eq.ESMF_SUCCESS), &
+                      name, failMsg, result, ESMF_SRCLINE)
+
+      ! ----------------------------------------------------------------------------
+
+      !EX_UTest
+      ! Validate Mars Custom Kind Calendar
+      ! Test that validate subroutine returns ESMF_SUCESS
+      write(failMsg, *) " Should return ESMF_SUCCESS"
+      write(name, *) "Validate Mars Custom Kind Calendar Test"
+      call ESMF_CalendarValidate(marsCalendar, rc=rc)
+      call ESMF_Test((rc.eq.ESMF_SUCCESS), &
+                      name, failMsg, result, ESMF_SRCLINE)
+
+      ! ----------------------------------------------------------------------------
+
+      !EX_UTest
+      ! Testing ESMF_CalendarOperator(==)(calendar1,calendar2)
+      write(name, *) "Calendar equality of Mars vs. Earth Gregorian Calendars Test"
+      write(failMsg, *) "Returned equal"
+      call ESMF_Test((.not.(marsCalendar == gregorianCalendar) .and. &
+                      rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+
+      ! ----------------------------------------------------------------------------
+
+      !EX_UTest
+      ! Testing ESMF_CalendarOperator(/=)(calkindflag,calendar)
+      write(name, *) "Calendar inequality of Mars vs. Earth Julian Day Calendars Test"
+      write(failMsg, *) "Returned equal"
+      call ESMF_Test(((ESMF_CALKIND_JULIANDAY.ne.marsCalendar) .and. &
+                      rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+
+      ! ----------------------------------------------------------------------------
+      !EX_UTest
+      ! Test Setting a Time for the Mars Calendar
+      write(failMsg, *) " Did not return ESMF_SUCCESS"
+      write(name, *) "Set Time at arbitrary Mars solar year 0"
+      call ESMF_TimeSet(startTime, yy=0, calendar=marsCalendar, rc=rc)
+      call ESMF_Test((rc.eq.ESMF_SUCCESS), & 
+                      name, failMsg, result, ESMF_SRCLINE)
+      
+      ! ----------------------------------------------------------------------------
+      !EX_UTest
+      ! Test Setting a TimeInterval (sols) for the Mars Calendar
+      write(failMsg, *) "Should return ESMF_SUCCESS."
+      call ESMF_TimeIntervalSet(timeStep, d=40, rc=rc)  ! 40 sols
+      write(name, *) "Set Time Interval (sols) for Mars Test"
+      call ESMF_Test((rc.eq.ESMF_SUCCESS), &
+                      name, failMsg, result, ESMF_SRCLINE)
+
+      ! ----------------------------------------------------------------------------
+      !EX_UTest
+      ! Testing ESMF_TimeOperator(+)(time, timestep)
+      write(name, *) "Mars Calendar Interval increment yy=0 by 40 sols Test"
+      write(failMsg, *) " Did not return yy=0, s=3,551,000 or ESMF_SUCCESS"
+      startTime = startTime + timeStep  ! exercise Time + operator
+      call ESMF_TimeGet(startTime, yy=YY, s=S, rc=rc) ! S bounded by YY; seconds
+                                                      !  within a year, i.e.
+                                                      !  S modulo YY
+      call ESMF_Test((YY==0 .and. S==3551000 .and. &
+                      rc==ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+
+      ! ----------------------------------------------------------------------------
+      !EX_UTest
+      ! Test Setting a TimeInterval (solar year) for the Mars Calendar
+      write(failMsg, *) "Should return ESMF_SUCCESS."
+      call ESMF_TimeIntervalSet(timeStep, yy=1, rc=rc)  ! 1 Mars solar year
+      write(name, *) "Set Time Interval (solar year) for Mars Test"
+      call ESMF_Test((rc.eq.ESMF_SUCCESS), &
+                      name, failMsg, result, ESMF_SRCLINE)
+
+      ! ----------------------------------------------------------------------------
+      !EX_UTest
+      ! Testing ESMF_TimeOperator(+)(time, timestep)
+      write(name, *) "Mars Calendar Interval increment 1 solar year Test"
+      write(failMsg, *) " Did not return yy=1, s=3,551,000 or ESMF_SUCCESS"
+      startTime = startTime + timeStep  ! exercise Time + operator
+      call ESMF_TimeGet(startTime, yy=YY, s=S, rc=rc) ! S bounded by YY; seconds
+                                                      !  within a year, i.e.
+                                                      ! S modulo YY
+      call ESMF_Test((YY==1 .and. S==3551000 .and. &
+                      rc==ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+
+      ! ----------------------------------------------------------------------------
+      !EX_UTest
+      ! Testing ESMF_TimeGet() seconds for Mars calendar
+      write(name, *) "Mars Calendar Time Get seconds"
+      write(failMsg, *) " Did not return s=62,905,263 or ESMF_SUCCESS"
+      call ESMF_TimeGet(startTime, s=S, rc=rc) ! S unbounded by YY;total seconds
+      call ESMF_Test((S==62905263 .and. &
+                      rc==ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+
+      ! ----------------------------------------------------------------------------
+      !EX_UTest
+      ! Testing ESMF_TimeGet() sols (solar days) for Mars calendar
+      write(name, *) "Mars Calendar Time Get sols (solar days) and seconds"
+      write(failMsg, *) " Did not return sols=708, sols_r8=708.592092368347d0, S=52563 or ESMF_SUCCESS"
+      call ESMF_TimeGet(startTime, d=sols, d_r8=sols_r8, s=S, rc=rc)
+                                                         ! S bounded by sols;
+                                                         !  seconds within a sol
+      call ESMF_Test((sols==708.and.abs(sols_r8 - 708.592092368347d0) < 1d-12 &
+                      .and. S==52563 .and. &
+                      rc==ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+      !print *, "sols = ", sols, "sols_r8 = ", sols_r8, "S = ", s
+
+      ! ----------------------------------------------------------------------------
+      !EX_UTest
+      ! Testing ESMF_TimeGet() sols, h,m,s for Mars calendar
+      write(name, *) "Mars Calendar Time Get sols,h,m,s"
+      write(failMsg, *) " Did not return sols=708, H,M,S = (14,36,3) or ESMF_SUCCESS"
+      call ESMF_TimeGet(startTime, d=sols, h=H, m=M, s=S, rc=rc)
+                        ! H bounded by sols; M bounded by H, S bounded by M
+      call ESMF_Test((sols==708.and.H==14.and.M==36.and.S==3 .and. &
+                      rc==ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+      !print *, "sols = ", sols, "H,M,S = ", H, ",", M, ",", S
+
+      ! ----------------------------------------------------------------------------
+      !EX_UTest
+      ! Testing ESMF_TimeGet() unbounded h,m for Mars calendar
+      write(name, *) "Mars Calendar Time Get unbounded h,m"
+      write(failMsg, *) " Did not return H = 17473, M = 1048421 or ESMF_SUCCESS"
+      call ESMF_TimeGet(startTime, h=H, rc=rc) ! total, unbounded H
+      call ESMF_TimeGet(startTime, m=M, rc=rc) ! total, unbounded M
+      call ESMF_Test((H==17473 .and. M==1048421 .and. &
+                      rc==ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+      !print *, "H,M = ", H, ",", M
+
+      ! ----------------------------------------------------------------------------
+      !EX_UTest
+      ! Test Setting a TimeInterval (solar year) for the Mars Calendar
+      write(failMsg, *) "Should return ESMF_SUCCESS."
+      call ESMF_TimeIntervalSet(timeStep, yy=1, d=40, rc=rc)
+      ! 1 Mars solar year and 40 sols
+      write(name, *) "Set Time Interval (1 solar year + 40 sols) for Mars Test"
+      call ESMF_Test((rc.eq.ESMF_SUCCESS), &
+                      name, failMsg, result, ESMF_SRCLINE)
+
+      ! ----------------------------------------------------------------------------
+      !EX_UTest
+      ! Testing ESMF_TimeOperator(-)(time, timestep)
+      write(name, *) "Mars Calendar Interval decrement 1 solar year, 40 sols Test"
+      write(failMsg, *) " Did not return yy=0, sols=0, s=0 or ESMF_SUCCESS"
+      startTime = startTime - timeStep  ! exercise Time - operator
+      call ESMF_TimeGet(startTime, yy=YY, rc=rc)
+      call ESMF_TimeGet(startTime, d=sols, rc=rc) ! total sols unbounded by YY
+      call ESMF_TimeGet(startTime, s=S, rc=rc) ! total S unbounded by YY or sols
+      call ESMF_Test((YY==0 .and. S==0 .and. sols==0 .and. &
+                      rc==ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+
+      ! ----------------------------------------------------------------------------
+      !EX_UTest
+      ! Test Setting a Time for the Mars Calendar
+      write(failMsg, *) " Did not return ESMF_SUCCESS"
+      write(name, *) "Set Time at arbitrary Mars solar year 4 + 668.5921 sols"
+      call ESMF_TimeSet(startTime, yy=4, d_r8=668.5921d0, &
+                        calendar=marsCalendar, rc=rc)
+      call ESMF_Test((rc.eq.ESMF_SUCCESS), & 
+                      name, failMsg, result, ESMF_SRCLINE)
+      call ESMF_TimePrint(startTime, rc=rc)
+      
+      ! ----------------------------------------------------------------------------
+      !EX_UTest
+      ! Testing ESMF_TimeGet() YY (solar years) for Mars calendar
+      write(name, *) "Mars Calendar Time Get solar years"
+      write(failMsg, *) " Did not return YY = 5, S = 0 or ESMF_SUCCESS"
+      call ESMF_TimeGet(startTime, yy=YY, s=S, rc=rc)
+      call ESMF_Test((YY==5 .and. S==0 .and. &
+                      rc==ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+      !print *, "YY = ", YY, "S =", S
+
+      ! ----------------------------------------------------------------------------
+      !EX_UTest
+      ! Testing ESMF_CalendarSet() for Mars calendar
+      write(name, *) "Mars CalendarSet/Get for Mars calendar"
+      write(failMsg, *) " Did not return S = 1000 or ESMF_SUCCESS"
+      call ESMF_CalendarSet(marsCalendar, secondsPerDay=1000, rc=rc)
+      call ESMF_CalendarGet(marsCalendar, secondsPerDay=S, rc=rc)
+      call ESMF_Test((S==1000 .and. &
+                      rc==ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+
+      ! ----------------------------------------------------------------------------
+      !EX_UTest
+      ! Destroy Mars Calendar
+      ! Test Mars Calendar Destroy
+      write(failMsg, *) " Should return ESMF_SUCCESS"
+      write(name, *) "Destroy Mars Custom Kind Calendar Test"
+      call ESMF_CalendarDestroy(marsCalendar, rc=rc)
+      call ESMF_Test((rc.eq.ESMF_SUCCESS), &
+                      name, failMsg, result, ESMF_SRCLINE)
+
+      ! ----------------------------------------------------------------------------
+      ! ----------------------------------------------------------------------------
+
+      !EX_UTest
+      ! Create custom calendar: 12 months with different days each month
+      write(name, *) "Initialize Custom Kind Calendar Test"
+      write(failMsg, *) " Did not return ESMF_SUCCESS"
+      customCalendar = ESMF_CalendarCreate(daysPerMonth=customDaysPerMonth, &
+                                           secondsPerDay=86400, &
+                                           name="CustomCalendar", rc=rc)
+      call ESMF_Test((rc.eq.ESMF_SUCCESS), &
+                      name, failMsg, result, ESMF_SRCLINE)
+
+      ! ----------------------------------------------------------------------------
+
+      !EX_UTest
+      ! print out initialized variables
+      ! Test that print subroutine returns ESMF_SUCESS
+      write(failMsg, *) " Should return ESMF_SUCCESS"
+      write(name, *) "Initialized Custom Kind Calendar Print Test"
+      call ESMF_CalendarPrint(customCalendar, rc=rc)
+      call ESMF_Test((rc.eq.ESMF_SUCCESS), &
+                      name, failMsg, result, ESMF_SRCLINE)
+
+      ! ----------------------------------------------------------------------------
+
+      !EX_UTest
+      ! Validate Custom Kind Calendar
+      ! Test that validate subroutine returns ESMF_SUCESS
+      write(failMsg, *) " Should return ESMF_SUCCESS"
+      write(name, *) "Validate Custom Kind Calendar Test"
+      call ESMF_CalendarValidate(customCalendar, rc=rc)
+      call ESMF_Test((rc.eq.ESMF_SUCCESS), &
+                      name, failMsg, result, ESMF_SRCLINE)
+
+      ! ----------------------------------------------------------------------------
+
+      !EX_UTest
+      ! Testing ESMF_CalendarOperator(==)(calendar1,calendar2)
+      write(name, *) "Calendar equality of Custom vs. Earth Gregorian Calendars Test"
+      write(failMsg, *) "Returned equal"
+      call ESMF_Test((.not.(customCalendar == gregorianCalendar) .and. &
+                      rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+
+      ! ----------------------------------------------------------------------------
+
+      !EX_UTest
+      ! Testing ESMF_CalendarOperator(/=)(calkindflag,calendar)
+      write(name, *) "Calendar inequality of Custom vs. Earth Julian Day Calendars Test"
+      write(failMsg, *) "Returned equal"
+      call ESMF_Test(((ESMF_CALKIND_JULIANDAY.ne.customCalendar) .and. &
+                      rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+
+      ! ----------------------------------------------------------------------------
+      !EX_UTest
+      ! Test Setting a Time for the Custom Calendar
+      write(failMsg, *) " Did not return ESMF_SUCCESS"
+      write(name, *) "Set Time in Custom Calendar at 2/15/100"
+      call ESMF_TimeSet(startTime, mm=2, dd=15, yy=100, & 
+                        calendar=customCalendar, rc=rc)
+      call ESMF_Test((rc.eq.ESMF_SUCCESS), & 
+                      name, failMsg, result, ESMF_SRCLINE)
+      
+      ! ----------------------------------------------------------------------------
+      !EX_UTest
+      ! Test Getting a Time for the Custom Calendar
+      write(failMsg, *) " Did not return ESMF_SUCCESS"
+      write(name, *) "Get Time in Custom Calendar, should return 2/15/100"
+      call ESMF_TimeGet(startTime, mm=MM, dd=DD, yy=YY, & 
+                        calendar=customCalendar, rc=rc)
+      call ESMF_Test((MM==2 .and. DD==15 .and. YY==100 .and. &
+                      rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+      !print *, "MM/DD/YY = ", MM, "/", DD, "/", YY
+      
+      ! ----------------------------------------------------------------------------
+      !EX_UTest
+      ! Testing ESMF_TimeOperator(+)(time, timestep)
+      write(name, *) "Custom Calendar Interval increment 5 days to end-of-month"
+      write(failMsg, *) " Did not return 2/20/100 or ESMF_SUCCESS"
+      call ESMF_TimeIntervalSet(timeStep, d=5, rc=rc)
+      startTime = startTime + timeStep  ! exercise Time + operator
+      call ESMF_TimeGet(startTime, mm=MM, dd=DD, yy=YY, & 
+                        calendar=customCalendar, rc=rc)
+      call ESMF_Test((MM==2 .and. DD==20 .and. YY==100 .and. &
+                      rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+      !print *, "MM/DD/YY = ", MM, "/", DD, "/", YY
+
+      ! ----------------------------------------------------------------------------
+      !EX_UTest
+      ! Testing ESMF_TimeOperator(+)(time, timestep)
+      write(name, *) "Custom Calendar Interval increment 1 days to 1st-of-next-month"
+      write(failMsg, *) " Did not return 3/1/100 or ESMF_SUCCESS"
+      call ESMF_TimeIntervalSet(timeStep, d=1, rc=rc)
+      startTime = startTime + timeStep  ! exercise Time + operator
+      call ESMF_TimeGet(startTime, mm=MM, dd=DD, yy=YY, & 
+                        calendar=customCalendar, rc=rc)
+      call ESMF_Test((MM==3 .and. DD==1 .and. YY==100 .and. &
+                      rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+      !print *, "MM/DD/YY = ", MM, "/", DD, "/", YY
+
+      ! ----------------------------------------------------------------------------
+      !EX_UTest
+      ! Testing ESMF_TimeOperator(-)(time, timestep)
+      write(name, *) "Custom Calendar Interval decrement 1 month to 1st-of-previous-month"
+      write(failMsg, *) " Did not return 2/1/100 or ESMF_SUCCESS"
+      call ESMF_TimeIntervalSet(timeStep, mm=1, rc=rc)
+      startTime = startTime - timeStep  ! exercise Time - operator
+      call ESMF_TimeGet(startTime, mm=MM, dd=DD, yy=YY, & 
+                        calendar=customCalendar, rc=rc)
+      call ESMF_Test((MM==2 .and. DD==1 .and. YY==100 .and. &
+                      rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+      !print *, "MM/DD/YY = ", MM, "/", DD, "/", YY
+
+      ! ----------------------------------------------------------------------------
+      !EX_UTest
+      ! Testing ESMF_TimeOperator(+)(time, timestep)
+      write(name, *) "Custom Calendar Interval increment 2 months, 40 days to 1st-of-5th-month"
+      write(failMsg, *) " Did not return 5/1/100 or ESMF_SUCCESS"
+      call ESMF_TimeIntervalSet(timeStep, mm=2, d=40, rc=rc)
+      startTime = startTime + timeStep  ! exercise Time + operator
+      call ESMF_TimeGet(startTime, mm=MM, dd=DD, yy=YY, & 
+                        calendar=customCalendar, rc=rc)
+      call ESMF_Test((MM==5 .and. DD==1 .and. YY==100 .and. &
+                      rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+      !print *, "MM/DD/YY = ", MM, "/", DD, "/", YY
+
+      ! ----------------------------------------------------------------------------
+      !EX_UTest
+      ! Testing ESMF_TimeOperator(-)(time, timestep)
+      write(name, *) "Custom Calendar Interval decrement 1 year, 1 month, 31 days to end-of-2nd-month"
+      write(failMsg, *) " Did not return 2/20/99 or ESMF_SUCCESS"
+      call ESMF_TimeIntervalSet(timeStep, yy=1, mm=1, d=31, rc=rc)
+      startTime = startTime - timeStep  ! exercise Time - operator
+      call ESMF_TimeGet(startTime, mm=MM, dd=DD, yy=YY, & 
+                        calendar=customCalendar, rc=rc)
+      call ESMF_Test((MM==2 .and. DD==20 .and. YY==99 .and. &
+                      rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+      !print *, "MM/DD/YY = ", MM, "/", DD, "/", YY
+
+      ! ----------------------------------------------------------------------------
+      !EX_UTest
+      ! Testing ESMF_TimeOperator(-)(time, timestep)
+      write(name, *) "Custom Calendar Interval decrement 1 month, to end-of-1st-month"
+      write(failMsg, *) " Did not return 1/10/99 or ESMF_SUCCESS"
+      call ESMF_TimeIntervalSet(timeStep, mm=1, rc=rc)
+      startTime = startTime - timeStep  ! exercise Time - operator
+      call ESMF_TimeGet(startTime, mm=MM, dd=DD, yy=YY, & 
+                        calendar=customCalendar, rc=rc)
+      call ESMF_Test((MM==1 .and. DD==10 .and. YY==99 .and. &
+                      rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+      !print *, "MM/DD/YY = ", MM, "/", DD, "/", YY
+
+      ! ----------------------------------------------------------------------------
+      !EX_UTest
+      ! Testing ESMF_TimeOperator(+)(time, timestep)
+      write(name, *) "Custom Calendar Interval increment 1 month" 
+      write(failMsg, *) " Did not return 2/10/99 or ESMF_SUCCESS"
+      call ESMF_TimeIntervalSet(timeStep, mm=1, rc=rc)
+      startTime = startTime + timeStep  ! exercise Time + operator
+      call ESMF_TimeGet(startTime, mm=MM, dd=DD, yy=YY, & 
+                        calendar=customCalendar, rc=rc)
+      call ESMF_Test((MM==2 .and. DD==10 .and. YY==99 .and. &
+                      rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+      !print *, "MM/DD/YY = ", MM, "/", DD, "/", YY
+
+      ! ----------------------------------------------------------------------------
+      !EX_UTest
+      ! Testing ESMF_TimeOperator(+)(time, timestep)
+      write(name, *) "Custom Calendar Interval increment 3 months, 40 days"
+      write(failMsg, *) " Did not return 5/50/99 or ESMF_SUCCESS"
+      call ESMF_TimeIntervalSet(timeStep, mm=3, d=40, rc=rc)
+      startTime = startTime + timeStep  ! exercise Time - operator
+      call ESMF_TimeGet(startTime, mm=MM, dd=DD, yy=YY, & 
+                        calendar=customCalendar, rc=rc)
+      call ESMF_Test((MM==5 .and. DD==50 .and. YY==99 .and. &
+                      rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+      !print *, "MM/DD/YY = ", MM, "/", DD, "/", YY
+
+      ! ----------------------------------------------------------------------------
+      !EX_UTest
+      ! Testing ESMF_TimeOperator(+)(time, timestep)
+      write(name, *) "Custom Calendar Interval increment 3 months"
+      write(failMsg, *) " Did not return 8/45/99 or ESMF_SUCCESS"
+      call ESMF_TimeIntervalSet(timeStep, mm=3, rc=rc)
+      startTime = startTime + timeStep  ! exercise Time - operator
+      call ESMF_TimeGet(startTime, mm=MM, dd=DD, yy=YY, & 
+                        calendar=customCalendar, rc=rc)
+      call ESMF_Test((MM==8 .and. DD==45 .and. YY==99 .and. &
+                      rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+      !print *, "MM/DD/YY = ", MM, "/", DD, "/", YY
+
+      ! ----------------------------------------------------------------------------
+      !EX_UTest
+      ! Testing ESMF_CalendarSet() for Custom calendar
+      write(name, *) "Test CalendarSet() daysPerMonth array for Custom calendar"
+      write(failMsg, *) " Did not return ESMF_SUCCESS"
+      call ESMF_CalendarSet(customCalendar, daysPerMonth=days_per_month, rc=rc)
+      call ESMF_Test((rc==ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+      call ESMF_CalendarPrint(customCalendar, rc=rc)
+
+      ! ----------------------------------------------------------------------------
+      !EX_UTest
+      ! Destroy Custom Calendar
+      ! Test Custom Calendar Destroy
+      write(failMsg, *) " Should return ESMF_SUCCESS"
+      write(name, *) "Destroy Custom Kind Calendar Test"
+      call ESMF_CalendarDestroy(customCalendar, rc=rc)
+      call ESMF_Test((rc.eq.ESMF_SUCCESS), &
+                      name, failMsg, result, ESMF_SRCLINE)
+
+      ! ----------------------------------------------------------------------------
+
       call ESMF_CalendarDestroy(julianCalendar, rc=rc)
       call ESMF_CalendarDestroy(esmf_360dayCalendar, rc=rc)
       call ESMF_CalendarDestroy(no_leapCalendar, rc=rc)
@@ -1708,6 +2204,6 @@
       ! return result  ! TODO: no way to do this in F90 ?
   
       ! finalize ESMF framework
-      call ESMF_TestEnd(result, ESMF_SRCLINE)
+      call ESMF_TestEnd(ESMF_SRCLINE)
 
       end program ESMF_CalendarUTest

@@ -1,6 +1,6 @@
 // $Id$
 // Earth System Modeling Framework
-// Copyright 2002-2012, University Corporation for Atmospheric Research, 
+// Copyright 2002-2018, University Corporation for Atmospheric Research, 
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
 // Laboratory, University of Michigan, National Centers for Environmental 
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
@@ -23,7 +23,6 @@ typedef unsigned long ULong;
 
 typedef Sacado::Fad::DFad<double> fad_type;
 
-
 // Some promotion traits
 template<typename T1, typename T2>
 struct richest_type {
@@ -39,9 +38,6 @@ template<>
 struct richest_type<fad_type,double> {
   typedef fad_type value;
 };
-
-// The good old fortran macro
-#define ESMCI_FTN(a) a##_
 
 } // namespce
 

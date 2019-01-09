@@ -1,7 +1,7 @@
 // $Id$
 //
 // Earth System Modeling Framework
-// Copyright 2002-2012, University Corporation for Atmospheric Research,
+// Copyright 2002-2018, University Corporation for Atmospheric Research,
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 // Laboratory, University of Michigan, National Centers for Environmental
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -18,29 +18,27 @@
 // declared in the companion file {\tt ESMCI_TimeInterval.h}.
 //
 //-------------------------------------------------------------------------
-//
- #define ESMC_FILENAME "ESMCI::TimeInterval.C"
+#define ESMC_FILENAME "ESMCI_TimeInterval.C"
 
- // higher level, 3rd party or system includes
- #include <stdio.h>
- #include <math.h>
- #include <limits.h>
- #include <float.h>
- #include <string.h>
+// associated class definition file
+#include "ESMCI_TimeInterval.h"
 
- #include <ESMCI_LogErr.h>
- #include <ESMF_LogMacros.inc>
- #include <ESMCI_Time.h>
- #include <ESMCI_Fraction.h>
- #include <ESMCI_Calendar.h>
+// higher level, 3rd party or system includes
+#include <stdio.h>
+#include <math.h>
+#include <limits.h>
+#include <float.h>
+#include <string.h>
 
- // associated class definition file
- #include "ESMCI_TimeInterval.h"
+#include "ESMCI_LogErr.h"
+#include "ESMCI_Time.h"
+#include "ESMCI_Fraction.h"
+#include "ESMCI_Calendar.h"
 
 //-------------------------------------------------------------------------
- // leave the following line as-is; it will insert the cvs ident string
- // into the object file for tracking purposes.
- static const char *const version = "$Id$";
+// leave the following line as-is; it will insert the cvs ident string
+// into the object file for tracking purposes.
+static const char *const version = "$Id$";
 //-------------------------------------------------------------------------
 
 //
@@ -152,7 +150,7 @@ namespace ESMCI{
         // when both are given, check that their calendars are the same
         if (!startTime->Time::isSameCalendar(endTime)) {
           ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_SAMETYPE,
-                          "; startTime & endTime calendars not the same", &rc);
+            "; startTime & endTime calendars not the same", ESMC_CONTEXT, &rc);
           *this = saveTimeInterval; return(rc);
         }
       }
@@ -169,7 +167,8 @@ namespace ESMCI{
       } else if (calkindflag != ESMC_NULL_POINTER) {
         // set to specified built-in type; create if necessary
         rc = ESMCI_CalendarCreate(*calkindflag);
-        if (ESMC_LogDefault.MsgFoundError(rc, ESMCI_ERR_PASSTHRU, &rc))
+        if (ESMC_LogDefault.MsgFoundError(rc, ESMCI_ERR_PASSTHRU, ESMC_CONTEXT,
+          &rc))
           { *this = saveTimeInterval; return(rc); }
         this->calendar = Calendar::internalCalendar[*calkindflag-1];
                                                          // 4th choice
@@ -181,7 +180,8 @@ namespace ESMCI{
       } else {
         // create default calendar
         rc = ESMCI_CalendarSetDefault((ESMC_CalKind_Flag *)ESMC_NULL_POINTER);
-        if (ESMC_LogDefault.MsgFoundError(rc, ESMCI_ERR_PASSTHRU, &rc))
+        if (ESMC_LogDefault.MsgFoundError(rc, ESMCI_ERR_PASSTHRU, ESMC_CONTEXT,
+          &rc))
           { *this = saveTimeInterval; return(rc); }
         this->calendar = Calendar::defaultCalendar; // 6th choice
       }
@@ -218,11 +218,13 @@ namespace ESMCI{
     // use base class set for sub-day values
     rc = BaseTime::set(h, m, s, s_i8, ms, us, ns, h_r8, m_r8, s_r8,
                           ms_r8, us_r8, ns_r8, sN, sN_i8, sD, sD_i8);
-    if (ESMC_LogDefault.MsgFoundError(rc, ESMCI_ERR_PASSTHRU, &rc))
+    if (ESMC_LogDefault.MsgFoundError(rc, ESMCI_ERR_PASSTHRU, ESMC_CONTEXT,
+      &rc))
       { *this = saveTimeInterval; return(rc); }
 
     rc = TimeInterval::validate();
-    if (ESMC_LogDefault.MsgFoundError(rc, ESMCI_ERR_PASSTHRU, &rc))
+    if (ESMC_LogDefault.MsgFoundError(rc, ESMCI_ERR_PASSTHRU, ESMC_CONTEXT,
+      &rc))
       { *this = saveTimeInterval; return(rc); }
 
     return(ESMF_SUCCESS);
@@ -345,7 +347,8 @@ namespace ESMCI{
     } else if (calkindflagIn != ESMC_NULL_POINTER) {  // 4th choice
       // use specified built-in type; create if necessary
       rc = ESMCI_CalendarCreate(*calkindflag);
-      if (ESMC_LogDefault.MsgFoundError(rc, ESMCI_ERR_PASSTHRU, &rc))
+      if (ESMC_LogDefault.MsgFoundError(rc, ESMCI_ERR_PASSTHRU, ESMC_CONTEXT,
+        &rc))
         return(rc);
       tiToConvert.calendar = Calendar::internalCalendar[*calkindflag-1];
 
@@ -357,7 +360,7 @@ namespace ESMCI{
     // at least default calendar must have been determined
     if (tiToConvert.calendar == ESMC_NULL_POINTER) {
       ESMC_LogDefault.MsgFoundError(ESMC_RC_INTNRL_INCONS,
-                                    ", no default calendar.", &rc); return(rc);
+        ", no default calendar.", ESMC_CONTEXT, &rc); return(rc);
     }
 
     // if no calendar info, then if any relative calendar unit was Set(),
@@ -369,7 +372,7 @@ namespace ESMCI{
         ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_BAD,
             ", must Get() yy or yy_i8, since it was Set() with "
             "ESMC_CALKIND_NOCALENDAR; impossible conversion implied.",
-            &rc); return(rc);
+            ESMC_CONTEXT, &rc); return(rc);
       }
       // if mm was set, must get it
       if (this->mm != 0 &&
@@ -377,7 +380,7 @@ namespace ESMCI{
         ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_BAD,
             ", must Get() mm or mm_i8, since it was Set() with "
             "ESMC_CALKIND_NOCALENDAR; impossible conversion implied.",
-            &rc); return(rc);
+            ESMC_CONTEXT, &rc); return(rc);
       }
       // if d was set, must get it
       if (this->d != 0 &&
@@ -385,14 +388,14 @@ namespace ESMCI{
         ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_BAD,
             ", must Get() d or d_i8, since it was Set() with "
             "ESMC_CALKIND_NOCALENDAR; impossible conversion implied.",
-            &rc); return(rc);
+            ESMC_CONTEXT, &rc); return(rc);
       }
       // if d_r8 was set, must get it
       if (this->d_r8 != 0 && (d_r8 == ESMC_NULL_POINTER)) {
         ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_BAD,
             ", must Get() d_r8, since it was Set() with "
             "ESMC_CALKIND_NOCALENDAR; impossible conversion implied.",
-            &rc); return(rc);
+            ESMC_CONTEXT, &rc); return(rc);
       }
     }
 
@@ -481,7 +484,7 @@ namespace ESMCI{
                    -tiToConvert.calendar->secondsPerYear){
                   // tiToConvert.getw() >= 1 year =>
                   //  can't determine leap years without startTime or endTime !
-                  char logMsg[ESMF_MAXSTR];
+                  char logMsg[160];
                   sprintf(logMsg, 
                             "yy or yy_i8 because for %s time interval "
                             ">= 1 year, can't determine leap years without "
@@ -489,7 +492,7 @@ namespace ESMCI{
                             Calendar::calkindflagName[
                               tiToConvert.calendar->calkindflag-1]);
                   ESMC_LogDefault.MsgFoundError(ESMC_RC_CANNOT_GET,
-                            logMsg, &rc); return(rc);
+                            logMsg, ESMC_CONTEXT, &rc); return(rc);
                 }
               }
             }
@@ -506,7 +509,7 @@ namespace ESMCI{
           // years not defined!
           ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_INCOMP,
                 ", years (yy or yy_i8) not defined for ESMC_CALKIND_JULIANDAY "
-                "or ESMC_CALKIND_MODJULIANDAY calendars.", &rc);
+                "or ESMC_CALKIND_MODJULIANDAY calendars.", ESMC_CONTEXT, &rc);
           return(rc);
         case ESMC_CALKIND_NOCALENDAR:
           // years not defined, but allow for requesting what was set
@@ -516,10 +519,11 @@ namespace ESMCI{
           break;
         default:
           // unknown calendar kind
-          char logMsg[ESMF_MAXSTR];
+          char logMsg[160];
           sprintf(logMsg, "; unknown calendar kind %d.", 
                           tiToConvert.calendar->calkindflag);
-          ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_VALUE, logMsg, &rc);
+          ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_VALUE, logMsg, 
+            ESMC_CONTEXT, &rc);
           return(rc);
           break;
       };
@@ -528,10 +532,11 @@ namespace ESMCI{
       if (yy != ESMC_NULL_POINTER) {
         // ensure fit in given int
         if (years < INT_MIN || years > INT_MAX) {
-          char logMsg[ESMF_MAXSTR];
+          char logMsg[160];
           sprintf(logMsg, "; years value %lld won't fit in given yy integer.",
                   years);
-          ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_SIZE, logMsg, &rc);
+          ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_SIZE, logMsg, ESMC_CONTEXT,
+            &rc);
           return(rc);
         }
         *yy = (ESMC_I4) years;  // >= 32-bit
@@ -590,7 +595,7 @@ namespace ESMCI{
               // can't determine months without startTime or endTime !
               // TODO:  leave alone and let d,h,m,s be more than a month ?
               //        (unbounded or unnormalized ?) with ESMF_WARNING ?
-              char logMsg[ESMF_MAXSTR];
+              char logMsg[160];
               sprintf(logMsg, 
                         "mm or mm_i8 because for %s time "
                         "interval >= 28 days, can't determine months without "
@@ -598,7 +603,7 @@ namespace ESMCI{
                             Calendar::calkindflagName[
                               tiToConvert.calendar->calkindflag-1]);
               ESMC_LogDefault.MsgFoundError(ESMC_RC_CANNOT_GET,
-                            logMsg, &rc); return(rc);
+                            logMsg, ESMC_CONTEXT, &rc); return(rc);
             }
           }
           break;
@@ -613,7 +618,7 @@ namespace ESMCI{
           // months not defined!
           ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_INCOMP,
                ", months (mm or mm_i8) not defined for ESMC_CALKIND_JULIANDAY "
-               "or ESMC_MODJULIANDAY calendar.", &rc);
+               "or ESMC_MODJULIANDAY calendar.", ESMC_CONTEXT, &rc);
           return(rc);
         case ESMC_CALKIND_NOCALENDAR:
           // months not defined, but allow for requesting what was set
@@ -623,10 +628,11 @@ namespace ESMCI{
           break;
         default:
           // unknown calendar kind
-          char logMsg[ESMF_MAXSTR];
+          char logMsg[160];
           sprintf(logMsg, "; unknown calendar kind %d.", 
                           tiToConvert.calendar->calkindflag);
-          ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_VALUE, logMsg, &rc);
+          ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_VALUE, logMsg, ESMC_CONTEXT,
+            &rc);
           return(rc);
           break;
       };
@@ -635,10 +641,11 @@ namespace ESMCI{
       if (mm != ESMC_NULL_POINTER) {
         // ensure fit in given int
         if (months < INT_MIN || months > INT_MAX) {
-          char logMsg[ESMF_MAXSTR];
+          char logMsg[160];
           sprintf(logMsg, "; months value %lld won't fit in given mm integer.",
                   months);
-          ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_SIZE, logMsg, &rc);
+          ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_SIZE, logMsg, ESMC_CONTEXT,
+            &rc);
           return(rc);
         }
         *mm = (ESMC_I4) months;  // >= 32-bit
@@ -668,13 +675,13 @@ namespace ESMCI{
         case ESMC_CALKIND_JULIAN:
           if (tiToConvert.mm != 0) {
             // no startTime or endTime available, can't do
-            char logMsg[ESMF_MAXSTR];
+            char logMsg[160];
             sprintf(logMsg, "need startTime or endTime to convert %lld months "
                             "to days on %s calendar.", tiToConvert.mm,
                             Calendar::calkindflagName[
                               tiToConvert.calendar->calkindflag-1]);
             ESMC_LogDefault.MsgFoundError(ESMC_RC_CANNOT_GET, logMsg,
-                                                  &rc);
+                                                  ESMC_CONTEXT, &rc);
             return(rc);
           }
           break;
@@ -688,17 +695,17 @@ namespace ESMCI{
                   tiToConvert.mm <= -tiToConvert.calendar->monthsPerYear) &&
                   tiToConvert.mm  %  tiToConvert.calendar->monthsPerYear == 0) {
               days += (tiToConvert.mm / tiToConvert.calendar->monthsPerYear) *
-                                     tiToConvert.calendar->daysPerYear.d;
+                                     tiToConvert.calendar->daysPerYear.getw();
               tiToConvert.mm = 0;
             } else {
               // can't do
-              char logMsg[ESMF_MAXSTR];
+              char logMsg[160];
               sprintf(logMsg, "need startTime or endTime to convert %lld months "
                               "to days on ESMC_CALKIND_NOLEAP calendar, since "
                               "months are not an integral number of years.",
                                tiToConvert.mm);
               ESMC_LogDefault.MsgFoundError(ESMC_RC_CANNOT_GET, logMsg,
-                                                    &rc);
+                                                    ESMC_CONTEXT, &rc);
               return(rc);
             }
           }
@@ -713,12 +720,12 @@ namespace ESMCI{
           //      months don't apply
           if (tiToConvert.mm != 0) {
             // can't convert months to days without appropriate calendar!
-            char logMsg[ESMF_MAXSTR];
+            char logMsg[160];
             sprintf(logMsg, ", can't convert %lld months to days "
                      "on ESMC_CALKIND_JULIANDAY, ESMC_CALKIND_MODJULIANDAY or "
                      "ESMC_CALKIND_NOCALENDAR calendars.", tiToConvert.mm);
             ESMC_LogDefault.MsgFoundError(ESMC_RC_CANNOT_GET, logMsg,
-                                                    &rc);
+                                                    ESMC_CONTEXT, &rc);
             return(rc);
           }
           break;
@@ -727,10 +734,11 @@ namespace ESMCI{
           break;
         default:
           // unknown calendar kind
-          char logMsg[ESMF_MAXSTR];
+          char logMsg[160];
           sprintf(logMsg, "; unknown calendar kind %d.", 
                           tiToConvert.calendar->calkindflag);
-          ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_VALUE, logMsg, &rc);
+          ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_VALUE, logMsg, ESMC_CONTEXT,
+              &rc);
           return(rc);
           break;
       };
@@ -750,10 +758,11 @@ namespace ESMCI{
       if (d != ESMC_NULL_POINTER) {
         // ensure fit in given int
         if (days < INT_MIN || days > INT_MAX) {
-          char logMsg[ESMF_MAXSTR];
+          char logMsg[160];
           sprintf(logMsg, "; days value %lld won't fit in given d integer.",
                   days);
-          ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_SIZE, logMsg, &rc);
+          ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_SIZE, logMsg, ESMC_CONTEXT,
+              &rc);
           return(rc);
         }
         *d = (ESMC_I4) days;  // >= 32-bit
@@ -763,13 +772,14 @@ namespace ESMCI{
       }
       if (d_r8 != ESMC_NULL_POINTER) {
         if (tiToConvert.calendar->secondsPerDay == 0) {
-          char logMsg[ESMF_MAXSTR];
+          char logMsg[320];
           sprintf(logMsg, "; can't get d_r8; must specify a calendar or "
              "calkindflag which defines days (non-zero seconds per day), "
              "e.g. ESMC_CALKIND_GREGORIAN, ESMC_CALKIND_JULIAN, "
              "ESMC_CALKIND_JULIANDAY, ESMC_MODJULIANDAY, ESMC_CALKIND_NOLEAP, "
              "ESMC_CALKIND_360DAY");
-          ESMC_LogDefault.MsgFoundError(ESMC_RC_DIV_ZERO, logMsg, &rc);
+          ESMC_LogDefault.MsgFoundError(ESMC_RC_DIV_ZERO, logMsg, ESMC_CONTEXT,
+              &rc);
           return(rc);
         }
         // avoid error introduced by floating point divide by performing an
@@ -785,7 +795,8 @@ namespace ESMCI{
     rc = BaseTime::get(&tiToConvert, h, m, s, s_i8,
                           ms, us, ns, h_r8, m_r8, s_r8,
                           ms_r8, us_r8, ns_r8, sN, sN_i8, sD, sD_i8);
-    if (ESMC_LogDefault.MsgFoundError(rc, ESMCI_ERR_PASSTHRU, &rc))
+    if (ESMC_LogDefault.MsgFoundError(rc, ESMCI_ERR_PASSTHRU, ESMC_CONTEXT,
+      &rc))
       return(rc);
 
     // return any requested properties startTime, endTime, calendar
@@ -803,7 +814,8 @@ namespace ESMCI{
     if (calkindflag != ESMC_NULL_POINTER) {
       if (this->calendar == ESMC_NULL_POINTER) {
         ESMC_LogDefault.MsgFoundError(ESMC_RC_PTR_NULL,
-             ", calkindflag requires a calendar to be set.", &rc); return(rc);
+             ", calkindflag requires a calendar to be set.", ESMC_CONTEXT, &rc);
+        return(rc);
       }
       *calkindflag = this->calendar->calkindflag;
     }
@@ -811,7 +823,8 @@ namespace ESMCI{
     // if requested, return time interval in string format
     if (tempTimeString != ESMC_NULL_POINTER && timeStringLen > 0) {
       rc = TimeInterval::getString(tempTimeString);
-      if (ESMC_LogDefault.MsgFoundError(rc, ESMCI_ERR_PASSTHRU, &rc))
+      if (ESMC_LogDefault.MsgFoundError(rc, ESMCI_ERR_PASSTHRU, ESMC_CONTEXT,
+        &rc))
         return(rc);
       *tempTimeStringLen = strlen(tempTimeString);
       // see also method TimeInterval::print()
@@ -819,7 +832,8 @@ namespace ESMCI{
     if (tempTimeStringISOFrac != ESMC_NULL_POINTER &&
         timeStringLenISOFrac > 0) {
       rc = TimeInterval::getString(tempTimeStringISOFrac, "isofrac");
-      if (ESMC_LogDefault.MsgFoundError(rc, ESMCI_ERR_PASSTHRU, &rc))
+      if (ESMC_LogDefault.MsgFoundError(rc, ESMCI_ERR_PASSTHRU, ESMC_CONTEXT,
+        &rc))
         return(rc);
       *tempTimeStringLenISOFrac = strlen(tempTimeStringISOFrac);
       // see also method TimeInterval::print()
@@ -919,7 +933,8 @@ namespace ESMCI{
 
     // use base class Set()
     rc = BaseTime::set(s, sN, sD);
-    if (ESMC_LogDefault.MsgFoundError(rc, ESMCI_ERR_PASSTHRU, &rc))
+    if (ESMC_LogDefault.MsgFoundError(rc, ESMCI_ERR_PASSTHRU,
+      ESMC_CONTEXT, &rc))
       return(rc);
 
     this->yy = yy;
@@ -942,7 +957,8 @@ namespace ESMCI{
     } else if (calkindflag != (ESMC_CalKind_Flag)0) {
       // set to specified built-in type; create if necessary
       rc = ESMCI_CalendarCreate(calkindflag);
-      if (ESMC_LogDefault.MsgFoundError(rc, ESMCI_ERR_PASSTHRU, &rc))
+      if (ESMC_LogDefault.MsgFoundError(rc, ESMCI_ERR_PASSTHRU, ESMC_CONTEXT,
+        &rc))
         return(rc);
       this->calendar = Calendar::internalCalendar[calkindflag-1];
                                                        // 2nd choice
@@ -954,7 +970,8 @@ namespace ESMCI{
     } else {
       // create default calendar
       rc = ESMCI_CalendarSetDefault((ESMC_CalKind_Flag *)ESMC_NULL_POINTER);
-      if (ESMC_LogDefault.MsgFoundError(rc, ESMCI_ERR_PASSTHRU, &rc))
+      if (ESMC_LogDefault.MsgFoundError(rc, ESMCI_ERR_PASSTHRU,
+        ESMC_CONTEXT, &rc))
         return(rc);
       this->calendar = Calendar::defaultCalendar; // 4th choice
     }
@@ -1045,7 +1062,7 @@ namespace ESMCI{
     // calendar must be defined
     if (this->calendar == ESMC_NULL_POINTER) {
         ESMC_LogDefault.MsgFoundError(ESMC_RC_INTNRL_INCONS,
-                                  ", no default calendar.", ESMC_NULL_POINTER);
+          ", no default calendar.", ESMC_CONTEXT, ESMC_NULL_POINTER);
       return(errorResult);
     }
 
@@ -1083,16 +1100,16 @@ namespace ESMCI{
           // shouldn't be here - yy and d already reduced in Reduce() call
           // above. 
           ESMC_LogDefault.MsgFoundError(ESMC_RC_INTNRL_INCONS,
-                                  ", yy and/or d non-zero:  should already be "
-                                  "reduced.", ESMC_NULL_POINTER);
+            ", yy and/or d non-zero:  should already be "
+            "reduced.", ESMC_CONTEXT, ESMC_NULL_POINTER);
           return(errorResult);
 
         } else if (absValue.mm == 0) {
           // shouldn't be here - yy, mm and d all zero caught above
           // above TODO: write LogErr message (internal error)
           ESMC_LogDefault.MsgFoundError(ESMC_RC_INTNRL_INCONS,
-                                  ", yy, mm, d should not be all zero.",
-                                  ESMC_NULL_POINTER);
+            ", yy, mm, d should not be all zero.",
+            ESMC_CONTEXT, ESMC_NULL_POINTER);
           return(errorResult);
 
         // all relative case (yy (reduced to mm), mm, no seconds)
@@ -1123,8 +1140,8 @@ namespace ESMCI{
             // mixed signs
             // TODO: write LogErr message (can't do: mixed mm and s signs)
             ESMC_LogDefault.MsgFoundError(ESMC_RC_CANNOT_GET,
-                                  ", sign of mm and s not the same.", 
-                                  ESMC_NULL_POINTER);
+              ", sign of mm and s not the same.", 
+              ESMC_CONTEXT, ESMC_NULL_POINTER);
             return(errorResult);
           }
         }
@@ -1134,25 +1151,25 @@ namespace ESMCI{
         // shouldn't be here - yy, mm, d already reduced in Reduce() call above
         // TODO: write LogErr message (internal error)
         ESMC_LogDefault.MsgFoundError(ESMC_RC_INTNRL_INCONS,
-                                ", yy,mm and/or d non-zero:  should already be "
-                                "reduced.", ESMC_NULL_POINTER);
+          ", yy,mm and/or d non-zero:  should already be "
+          "reduced.", ESMC_CONTEXT, ESMC_NULL_POINTER);
         return(errorResult);
         break;
       case ESMC_CALKIND_JULIANDAY:
       case ESMC_CALKIND_MODJULIANDAY:
         if (absValue.yy != 0 || absValue.mm != 0) {
           ESMC_LogDefault.MsgFoundError(ESMC_RC_CANNOT_GET,
-                                  ", years and months not defined for "
-                                  "ESMC_CALKIND_JULIANDAY or "
-                                  "ESMC_CALKIND_MODJULIANDAY calendars.",
-                                  ESMC_NULL_POINTER);
+            ", years and months not defined for "
+            "ESMC_CALKIND_JULIANDAY or "
+            "ESMC_CALKIND_MODJULIANDAY calendars.",
+            ESMC_CONTEXT, ESMC_NULL_POINTER);
           return(errorResult);
         }
         if (absValue.d != 0 || absValue.d_r8 != 0.0) {
           // shouldn't be here - days already reduced in Reduce() call above
           ESMC_LogDefault.MsgFoundError(ESMC_RC_INTNRL_INCONS,
-                                  ", d non-zero: should already be reduced.",
-                                  ESMC_NULL_POINTER);
+             ", d non-zero: should already be reduced.",
+             ESMC_CONTEXT, ESMC_NULL_POINTER);
           return(errorResult);
         }
         break;
@@ -1184,9 +1201,9 @@ namespace ESMCI{
         } else {
           // mixed signs
           ESMC_LogDefault.MsgFoundError(ESMC_RC_CANNOT_GET,
-                               ", for ESMC_CALKIND_NOCALENDAR, all units must "
-                               "be of the same sign.",
-                                ESMC_NULL_POINTER);
+            ", for ESMC_CALKIND_NOCALENDAR, all units must "
+            "be of the same sign.",
+            ESMC_CONTEXT, ESMC_NULL_POINTER);
           return(errorResult);
         }
         break;
@@ -1195,19 +1212,19 @@ namespace ESMCI{
         return(errorResult);
         break;
       default:
-        char logMsg[ESMF_MAXSTR];
+        char logMsg[160];
         sprintf(logMsg, "; unknown calendar kind %d.", 
                         absValue.calendar->calkindflag);
         ESMC_LogDefault.MsgFoundError(ESMC_RC_OBJ_BAD, logMsg,
-                                              ESMC_NULL_POINTER);
+          ESMC_CONTEXT, ESMC_NULL_POINTER);
         return(errorResult);
         break;
     };
 
     // shouldn't be here
     ESMC_LogDefault.MsgFoundError(ESMC_RC_INTNRL_BAD,
-                                          ", shouldn't be here.",
-                                          ESMC_NULL_POINTER);
+      ", shouldn't be here.",
+      ESMC_CONTEXT, ESMC_NULL_POINTER);
     return(errorResult);
 
 }  // end TimeInterval::absValue (common)
@@ -1243,9 +1260,9 @@ namespace ESMCI{
     if (this->calendar == ESMC_NULL_POINTER ||
         timeinterval.calendar == ESMC_NULL_POINTER) {
       ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_BAD,
-                                            ", calendar required for both "
-                                            "timeinterval arguments.",
-                                            ESMC_NULL_POINTER);
+        ", calendar required for both "
+        "timeinterval arguments.",
+        ESMC_CONTEXT, ESMC_NULL_POINTER);
       return(0.0);
     }
 
@@ -1274,7 +1291,8 @@ namespace ESMCI{
     if (ti1.calendar->calkindflag != ti2.calendar->calkindflag) {
       // TODO: write LogErr message (timeinterval calendars not the same)
       ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_SAMETYPE,
-                  "; timeinterval calendars not the same.", ESMC_NULL_POINTER);
+        "; timeinterval calendars not the same.", ESMC_CONTEXT,
+        ESMC_NULL_POINTER);
       return(0.0);
     }
 
@@ -1290,8 +1308,8 @@ namespace ESMCI{
             ti1.d_r8 != 0.0 || ti2.d_r8 != 0.0) {
           // shouldn't be here - yy and d already reduced in Reduce() call
           ESMC_LogDefault.MsgFoundError(ESMC_RC_INTNRL_BAD,
-                                                ", shouldn't be here.",
-                                                ESMC_NULL_POINTER);
+            ", shouldn't be here.",
+            ESMC_CONTEXT, ESMC_NULL_POINTER);
           return(0.0);
 
         // all relative case (yy (reduced to mm), mm, no seconds)
@@ -1300,7 +1318,7 @@ namespace ESMCI{
             return((ESMC_R8) ti1.mm / (ESMC_R8) ti2.mm);
           } else {
             ESMC_LogDefault.FoundError(ESMC_RC_DIV_ZERO, ESMC_CONTEXT,
-                                               ESMC_NULL_POINTER);
+              ESMC_NULL_POINTER);
             return(0.0);
           }
 
@@ -1313,21 +1331,22 @@ namespace ESMCI{
         // divisor zero
         } else if (ti2.mm == 0 && zeroBaseTime == ti2) {
           ESMC_LogDefault.FoundError(ESMC_RC_DIV_ZERO,ESMC_CONTEXT,
-                                             ESMC_NULL_POINTER);
+            ESMC_NULL_POINTER);
           return(0.0);
 
         // all other combinations
         } else {
           ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_BAD,
-               "can't divide without startTime or endtime", ESMC_NULL_POINTER);
+            "can't divide without startTime or endtime", ESMC_CONTEXT,
+            ESMC_NULL_POINTER);
           return(0.0);
         }
         break;
       case ESMC_CALKIND_360DAY:
         // shouldn't be here - yy, mm, d already reduced in Reduce() call above
         ESMC_LogDefault.MsgFoundError(ESMC_RC_INTNRL_BAD,
-                                              ", shouldn't be here.",
-                                              ESMC_NULL_POINTER);
+          ", shouldn't be here.",
+          ESMC_CONTEXT, ESMC_NULL_POINTER);
         return(0.0);
         break;
       case ESMC_CALKIND_JULIANDAY:
@@ -1335,18 +1354,18 @@ namespace ESMCI{
         if (ti1.yy != 0 || ti2.yy != 0 ||
             ti1.mm != 0 || ti2.mm != 0) {
           ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_BAD,
-                                  ", years and months not defined for "
-                                  "ESMC_CALKIND_JULIANDAY or "
-                                  "ESMC_CALKIND_MODJULIANDAY calendars.",
-                                  ESMC_NULL_POINTER);
+            ", years and months not defined for "
+            "ESMC_CALKIND_JULIANDAY or "
+            "ESMC_CALKIND_MODJULIANDAY calendars.",
+            ESMC_CONTEXT, ESMC_NULL_POINTER);
           return(0.0);
         }
         if (ti1.d != 0 || ti2.d != 0 ||
             ti1.d_r8 != 0.0 || ti2.d_r8 != 0.0) {
           // shouldn't be here - days already reduced in Reduce() call above
           ESMC_LogDefault.MsgFoundError(ESMC_RC_INTNRL_BAD,
-                                                ", shouldn't be here.",
-                                                ESMC_NULL_POINTER);
+            ", shouldn't be here.",
+            ESMC_CONTEXT, ESMC_NULL_POINTER);
           return(0.0);
         }
         break;
@@ -1361,8 +1380,8 @@ namespace ESMCI{
           if (ti2.yy != 0) {
             return((ESMC_R8) ti1.yy / (ESMC_R8) ti2.yy);
           } else {
-            ESMC_LogDefault.FoundError(ESMC_RC_DIV_ZERO,ESMC_CONTEXT,
-                                               ESMC_NULL_POINTER);
+            ESMC_LogDefault.FoundError(ESMC_RC_DIV_ZERO, ESMC_CONTEXT,
+              ESMC_NULL_POINTER);
             return(0.0);
           }
         } else if ( ti1.yy == 0 && ti2.yy == 0   &&
@@ -1374,8 +1393,8 @@ namespace ESMCI{
           if (ti2.mm != 0) {
             return((ESMC_R8) ti1.mm / (ESMC_R8) ti2.mm);
           } else {
-            ESMC_LogDefault.FoundError(ESMC_RC_DIV_ZERO,ESMC_CONTEXT,
-                                               ESMC_NULL_POINTER);
+            ESMC_LogDefault.FoundError(ESMC_RC_DIV_ZERO, ESMC_CONTEXT,
+              ESMC_NULL_POINTER);
             return(0.0);
           }
         // TODO:  merge d and d_r8 (below)
@@ -1390,8 +1409,8 @@ namespace ESMCI{
           if (ti2.d != 0) {
             return((ESMC_R8) ti1.d / (ESMC_R8) ti2.d);
           } else {
-            ESMC_LogDefault.FoundError(ESMC_RC_DIV_ZERO,ESMC_CONTEXT,
-                                               ESMC_NULL_POINTER);
+            ESMC_LogDefault.FoundError(ESMC_RC_DIV_ZERO, ESMC_CONTEXT,
+              ESMC_NULL_POINTER);
             return(0.0);
           }
         // TODO:  merge d and d_r8 (above)
@@ -1406,13 +1425,13 @@ namespace ESMCI{
           if (fabs(ti2.d_r8) >= 1e-10) {
             return(ti1.d_r8 / ti2.d_r8);
           } else {
-            ESMC_LogDefault.FoundError(ESMC_RC_DIV_ZERO,ESMC_CONTEXT,
-                                               ESMC_NULL_POINTER);
+            ESMC_LogDefault.FoundError(ESMC_RC_DIV_ZERO, ESMC_CONTEXT,
+              ESMC_NULL_POINTER);
             return(0.0);
           }
         } else {
           ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_BAD,
-                             ", can't divide mixed units.", ESMC_NULL_POINTER);
+            ", can't divide mixed units.", ESMC_CONTEXT, ESMC_NULL_POINTER);
           return(0.0);
         }
         break;
@@ -1421,19 +1440,18 @@ namespace ESMCI{
         return(0.0);
         break;
       default:
-        char logMsg[ESMF_MAXSTR];
+        char logMsg[160];
         sprintf(logMsg, "; unknown calendar kind %d.", 
                         ti1.calendar->calkindflag);
         ESMC_LogDefault.MsgFoundError(ESMC_RC_OBJ_BAD, logMsg,
-                                              ESMC_NULL_POINTER);
+          ESMC_CONTEXT, ESMC_NULL_POINTER);
         return(0.0);
         break;
     };
 
     // shouldn't be here
     ESMC_LogDefault.MsgFoundError(ESMC_RC_INTNRL_BAD,
-                                          ", shouldn't be here.",
-                                          ESMC_NULL_POINTER);
+      ", shouldn't be here.", ESMC_CONTEXT, ESMC_NULL_POINTER);
     return(0.0);
 
 }  // end TimeInterval::operator/
@@ -1482,7 +1500,7 @@ namespace ESMCI{
     } else {
       // TODO: write LogErr message (divide-by-zero)
       ESMC_LogDefault.FoundError(ESMC_RC_DIV_ZERO, ESMC_CONTEXT, 
-                                 ESMC_NULL_POINTER);
+        ESMC_NULL_POINTER);
       TimeInterval zeroInterval;
       return(zeroInterval);
     }
@@ -1667,9 +1685,9 @@ namespace ESMCI{
     if (this->calendar == ESMC_NULL_POINTER ||
         timeinterval.calendar == ESMC_NULL_POINTER) {
       ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_BAD,
-                                            ", calendar required for both "
-                                            "timeinterval arguments.",
-                                            ESMC_NULL_POINTER);
+        ", calendar required for both "
+        "timeinterval arguments.",
+        ESMC_CONTEXT, ESMC_NULL_POINTER);
       return(remainder);
     }
 
@@ -1696,7 +1714,8 @@ namespace ESMCI{
     if (ti1.calendar->calkindflag != ti2.calendar->calkindflag) {
       // TODO: write LogErr message (timeinterval calendars not the same)
       ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_SAMETYPE,
-                  "; timeinterval calendars not the same.", ESMC_NULL_POINTER);
+        "; timeinterval calendars not the same.", ESMC_CONTEXT,
+        ESMC_NULL_POINTER);
       return(remainder);
     }
 
@@ -1712,8 +1731,8 @@ namespace ESMCI{
             ti1.d_r8 != 0.0 || ti2.d_r8 != 0.0) {
           // shouldn't be here - yy and d already reduced in Reduce() call
           ESMC_LogDefault.MsgFoundError(ESMC_RC_INTNRL_BAD,
-                                                ", shouldn't be here.",
-                                                ESMC_NULL_POINTER);
+            ", shouldn't be here.",
+            ESMC_CONTEXT, ESMC_NULL_POINTER);
           return(remainder);
 
         // all relative case (yy (reduced to mm), mm, no seconds)
@@ -1723,7 +1742,7 @@ namespace ESMCI{
             return(remainder);
           } else {
             ESMC_LogDefault.FoundError(ESMC_RC_DIV_ZERO, ESMC_CONTEXT,
-                                               ESMC_NULL_POINTER);
+              ESMC_NULL_POINTER);
             return(remainder);
           }
 
@@ -1736,21 +1755,21 @@ namespace ESMCI{
         // divisor zero
         } else if (ti2.mm == 0 && zeroBaseTime == ti2) {
           ESMC_LogDefault.FoundError(ESMC_RC_DIV_ZERO, ESMC_CONTEXT,
-                                             ESMC_NULL_POINTER);
+            ESMC_NULL_POINTER);
           return(remainder);
 
         // all other combinations
         } else {
           ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_BAD,
-               "can't modulus without startTime or endtime", ESMC_NULL_POINTER);
+            "can't modulus without startTime or endtime", ESMC_CONTEXT,
+            ESMC_NULL_POINTER);
           return(remainder);
         }
         break;
       case ESMC_CALKIND_360DAY:
         // shouldn't be here - yy, mm, d already reduced in Reduce() call above
         ESMC_LogDefault.MsgFoundError(ESMC_RC_INTNRL_BAD,
-                                              ", shouldn't be here.",
-                                              ESMC_NULL_POINTER);
+          ", shouldn't be here.", ESMC_CONTEXT, ESMC_NULL_POINTER);
         return(remainder);
         break;
       case ESMC_CALKIND_JULIANDAY:
@@ -1758,18 +1777,18 @@ namespace ESMCI{
         if (ti1.yy != 0 || ti2.yy != 0 ||
             ti1.mm != 0 || ti2.mm != 0) {
           ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_BAD,
-                                  ", years and months not defined for "
-                                  "ESMC_CALKIND_JULIANDAY or "
-                                  "ESMC_CALKIND_MODJULIANDAY calendars.",
-                                  ESMC_NULL_POINTER);
+            ", years and months not defined for "
+            "ESMC_CALKIND_JULIANDAY or "
+            "ESMC_CALKIND_MODJULIANDAY calendars.",
+            ESMC_CONTEXT, ESMC_NULL_POINTER);
           return(remainder);
         }
         if (ti1.d != 0 || ti2.d != 0 ||
             ti1.d_r8 != 0.0 || ti2.d_r8 != 0.0) {
           // shouldn't be here - days already reduced in Reduce() call above
           ESMC_LogDefault.MsgFoundError(ESMC_RC_INTNRL_BAD,
-                                                ", shouldn't be here.",
-                                                ESMC_NULL_POINTER);
+            ", shouldn't be here.",
+            ESMC_CONTEXT, ESMC_NULL_POINTER);
           return(remainder);
         }
         break;
@@ -1786,7 +1805,7 @@ namespace ESMCI{
             return(remainder);
           } else {
             ESMC_LogDefault.FoundError(ESMC_RC_DIV_ZERO, ESMC_CONTEXT,
-                                               ESMC_NULL_POINTER);
+              ESMC_NULL_POINTER);
             return(remainder);
           }
         } else if ( ti1.yy == 0 && ti2.yy == 0  &&
@@ -1800,7 +1819,7 @@ namespace ESMCI{
             return(remainder);
           } else {
             ESMC_LogDefault.FoundError(ESMC_RC_DIV_ZERO, ESMC_CONTEXT,
-                                               ESMC_NULL_POINTER);
+              ESMC_NULL_POINTER);
             return(remainder);
           }
         // TODO: merge d and d_r8
@@ -1817,12 +1836,12 @@ namespace ESMCI{
             return(remainder);
           } else {
             ESMC_LogDefault.FoundError(ESMC_RC_DIV_ZERO, ESMC_CONTEXT,
-                                               ESMC_NULL_POINTER);
+              ESMC_NULL_POINTER);
             return(remainder);
           }
         } else {
           ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_BAD,
-                             ", can't modulus mixed units.", ESMC_NULL_POINTER);
+            ", can't modulus mixed units.", ESMC_CONTEXT, ESMC_NULL_POINTER);
           return(remainder);
         }
         break;
@@ -1831,19 +1850,18 @@ namespace ESMCI{
         return(remainder);
         break;
       default:
-        char logMsg[ESMF_MAXSTR];
+        char logMsg[160];
         sprintf(logMsg, "; unknown calendar kind %d.", 
                         ti1.calendar->calkindflag);
         ESMC_LogDefault.MsgFoundError(ESMC_RC_OBJ_BAD, logMsg,
-                                              ESMC_NULL_POINTER);
+          ESMC_CONTEXT, ESMC_NULL_POINTER);
         return(remainder);
         break;
     };
 
     // shouldn't be here
     ESMC_LogDefault.MsgFoundError(ESMC_RC_INTNRL_BAD,
-                                          ", shouldn't be here.",
-                                          ESMC_NULL_POINTER);
+      ", shouldn't be here.", ESMC_CONTEXT, ESMC_NULL_POINTER);
     return(remainder);
 
 }  // end TimeInterval::operator%
@@ -2460,9 +2478,9 @@ namespace ESMCI{
     if (this->calendar == ESMC_NULL_POINTER ||
         timeinterval.calendar == ESMC_NULL_POINTER) {
       ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_BAD,
-                                            ", calendar required for both "
-                                            "timeinterval arguments.",
-                                            ESMC_NULL_POINTER);
+        ", calendar required for both "
+        "timeinterval arguments.",
+        ESMC_CONTEXT, ESMC_NULL_POINTER);
       return(false);
     }
 
@@ -2504,7 +2522,8 @@ namespace ESMCI{
     // TODO: relax this restriction (e.g. 1 month Gregorian > 27 day 360-day)
     if (ti1.calendar->calkindflag != ti2.calendar->calkindflag) {
       ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_SAMETYPE,
-                  "; timeinterval calendars not the same.", ESMC_NULL_POINTER);
+        "; timeinterval calendars not the same.", ESMC_CONTEXT,
+        ESMC_NULL_POINTER);
       return(false);
     }
 
@@ -2520,8 +2539,7 @@ namespace ESMCI{
             ti1.d_r8 != 0.0 || ti2.d_r8 != 0.0) {
           // shouldn't be here - yy and d already reduced in Reduce() call
           ESMC_LogDefault.MsgFoundError(ESMC_RC_INTNRL_BAD,
-                                                ", shouldn't be here.",
-                                                ESMC_NULL_POINTER);
+            ", shouldn't be here.", ESMC_CONTEXT, ESMC_NULL_POINTER);
           return(false);
 
         // all relative case (yy (reduced to mm), mm, no seconds)
@@ -2569,7 +2587,8 @@ namespace ESMCI{
         } else {
           // TODO: can do if ti1.s and/or ti2.s < 28 days
           ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_BAD,
-               "can't compare without startTime or endtime", ESMC_NULL_POINTER);
+            "can't compare without startTime or endtime", ESMC_CONTEXT,
+            ESMC_NULL_POINTER);
           return(false);
         }
         break;
@@ -2577,8 +2596,7 @@ namespace ESMCI{
         // shouldn't be here - yy, mm, d already reduced in Reduce() call above
         // TODO: write LogErr message (internal error)
         ESMC_LogDefault.MsgFoundError(ESMC_RC_INTNRL_BAD,
-                                              ", shouldn't be here.",
-                                              ESMC_NULL_POINTER);
+          ", shouldn't be here.", ESMC_CONTEXT, ESMC_NULL_POINTER);
         return(false);
         break;
       case ESMC_CALKIND_JULIANDAY:
@@ -2586,18 +2604,17 @@ namespace ESMCI{
         if (ti1.yy != 0 || ti2.yy != 0 ||
             ti1.mm != 0 || ti2.mm != 0) {
           ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_BAD,
-                                  ", years and months not defined for "
-                                  "ESMC_CALKIND_JULIANDAY or "
-                                  "ESMC_CALKIND_MODJULIANDAY calendars.",
-                                  ESMC_NULL_POINTER);
+            ", years and months not defined for "
+            "ESMC_CALKIND_JULIANDAY or "
+            "ESMC_CALKIND_MODJULIANDAY calendars.",
+            ESMC_CONTEXT, ESMC_NULL_POINTER);
           return(false);
         }
         if (ti1.d != 0 || ti2.d != 0 ||
             ti1.d_r8 != 0.0 || ti2.d_r8 != 0.0) {
           // shouldn't be here - days already reduced in Reduce() call above
           ESMC_LogDefault.MsgFoundError(ESMC_RC_INTNRL_BAD,
-                                                ", shouldn't be here.",
-                                                ESMC_NULL_POINTER);
+            ", shouldn't be here.", ESMC_CONTEXT, ESMC_NULL_POINTER);
           return(false);
         }
         break;
@@ -2695,7 +2712,7 @@ namespace ESMCI{
            };
         } else {
           ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_BAD,
-                        ", can't compare mixed units.", ESMC_NULL_POINTER);
+            ", can't compare mixed units.", ESMC_CONTEXT, ESMC_NULL_POINTER);
           return(false);
         }
         break;
@@ -2704,11 +2721,11 @@ namespace ESMCI{
         return(false);
         break;
       default:
-        char logMsg[ESMF_MAXSTR];
+        char logMsg[160];
         sprintf(logMsg, "; unknown calendar kind %d.", 
                         ti1.calendar->calkindflag);
         ESMC_LogDefault.MsgFoundError(ESMC_RC_OBJ_BAD, logMsg,
-                                              ESMC_NULL_POINTER);
+          ESMC_CONTEXT, ESMC_NULL_POINTER);
         return(false);
         break;
     };
@@ -2716,8 +2733,7 @@ namespace ESMCI{
     // shouldn't be here
     // TODO: write LogErr message (internal error)
     ESMC_LogDefault.MsgFoundError(ESMC_RC_INTNRL_BAD,
-                                          ", shouldn't be here.",
-                                          ESMC_NULL_POINTER);
+      ", shouldn't be here.", ESMC_CONTEXT, ESMC_NULL_POINTER);
     return(false);
 
 }  // end TimeInterval::compare
@@ -2838,7 +2854,7 @@ namespace ESMCI{
     int rc = ESMF_SUCCESS;
 
     rc = BaseTime::validate();
-    ESMC_LogDefault.MsgFoundError(rc, ESMCI_ERR_PASSTHRU, &rc);
+    ESMC_LogDefault.MsgFoundError(rc, ESMCI_ERR_PASSTHRU, ESMC_CONTEXT, &rc);
 
     return(rc);
 
@@ -2868,7 +2884,7 @@ namespace ESMCI{
     // parse options
     if (options != ESMC_NULL_POINTER) {
       if (strncmp(options, "string", 6) == 0) {
-        char timeString[ESMF_MAXSTR];
+        char timeString[160];
         TimeInterval::getString(timeString, &options[6]);
         printf("%s\n", timeString);
         // see also method TimeInterval::get()
@@ -2933,7 +2949,8 @@ namespace ESMCI{
    } else {
      // create default calendar
      int rc = ESMCI_CalendarSetDefault((ESMC_CalKind_Flag *)ESMC_NULL_POINTER);
-     if (ESMC_LogDefault.MsgFoundError(rc, ESMCI_ERR_PASSTHRU, &rc))
+     if (ESMC_LogDefault.MsgFoundError(rc, ESMCI_ERR_PASSTHRU,
+       ESMC_CONTEXT, &rc))
        return;
      calendar = Calendar::defaultCalendar; // 2nd choice
    }
@@ -2999,7 +3016,8 @@ namespace ESMCI{
    } else if (calkindflag != (ESMC_CalKind_Flag)0) {
      // set to specified built-in type; create if necessary
      int rc = ESMCI_CalendarCreate(calkindflag);
-     if (ESMC_LogDefault.MsgFoundError(rc, ESMCI_ERR_PASSTHRU, &rc))
+     if (ESMC_LogDefault.MsgFoundError(rc, ESMCI_ERR_PASSTHRU, ESMC_CONTEXT,
+        &rc))
        return;
      this->calendar = Calendar::internalCalendar[calkindflag-1];
                                                       // 2nd choice
@@ -3011,7 +3029,8 @@ namespace ESMCI{
    } else {
      // create default calendar
      int rc = ESMCI_CalendarSetDefault((ESMC_CalKind_Flag *)ESMC_NULL_POINTER);
-     if (ESMC_LogDefault.MsgFoundError(rc, ESMCI_ERR_PASSTHRU, &rc))
+     if (ESMC_LogDefault.MsgFoundError(rc, ESMCI_ERR_PASSTHRU, ESMC_CONTEXT,
+       &rc))
        return;
      this->calendar = Calendar::defaultCalendar; // 4th choice
    }
@@ -3078,7 +3097,7 @@ namespace ESMCI{
     // validate input
     if (timeString == ESMC_NULL_POINTER) {
       ESMC_LogDefault.MsgFoundError(ESMC_RC_PTR_NULL,
-                                            "; timeString is NULL", &rc);
+        "; timeString is NULL", ESMC_CONTEXT, &rc);
       return(rc);
     }
 
@@ -3100,11 +3119,11 @@ namespace ESMCI{
                           ESMC_NULL_POINTER, &sN,
                           ESMC_NULL_POINTER, &sD);
 
-    if (ESMC_LogDefault.MsgFoundError(rc, ESMCI_ERR_PASSTHRU, &rc))
+    if (ESMC_LogDefault.MsgFoundError(rc, ESMCI_ERR_PASSTHRU, ESMC_CONTEXT, &rc))
       return(rc);
 
     // format everything except seconds
-    sprintf(timeString, "P%lldY%lldM%lldDT%dH%dM\0", yy_i8, mm_i8, d_i8, h, m);
+    sprintf(timeString, "P%lldY%lldM%lldDT%dH%dM", yy_i8, mm_i8, d_i8, h, m);
 
     // format seconds according to specified options
     bool isofrac = false;
@@ -3120,18 +3139,18 @@ namespace ESMCI{
 
       // if fractionalSeconds non-zero (>= 0.5 ns) append full fractional value
       if (fabs(fractionalSeconds) >= 5e-10) {
-        sprintf(timeString, "%s%.9fS\0", timeString, (s + fractionalSeconds));
+        sprintf(timeString, "%s%.9fS", timeString, (s + fractionalSeconds));
       } else { // no fractional seconds, just append integer seconds
-        sprintf(timeString, "%s%dS\0", timeString, s);
+        sprintf(timeString, "%s%dS", timeString, s);
       }
     } else { // not strict ISO fractional seconds format
       // hybrid ISO 8601 format PyYmMdDThHmMs[:n/d]S 
 
       // if fractionalSeconds non-zero (sN!=0) append full fractional value
       if (sN != 0) {
-        sprintf(timeString, "%s%d:%lld/%lldS\0", timeString, s, sN, sD);
+        sprintf(timeString, "%s%d:%lld/%lldS", timeString, s, sN, sD);
       } else { // no fractional seconds, just append integer seconds
-        sprintf(timeString, "%s%dS\0", timeString, s);
+        sprintf(timeString, "%s%dS", timeString, s);
       }
     }
 
@@ -3279,11 +3298,11 @@ namespace ESMCI{
         break;
       default:
         // unknown calendar kind
-        char logMsg[ESMF_MAXSTR];
+        char logMsg[160];
         sprintf(logMsg, "; unknown calendar kind %d.", 
                         calendar->calkindflag);
         ESMC_LogDefault.MsgFoundError(ESMC_RC_OBJ_BAD, logMsg,
-                                              ESMC_NULL_POINTER);
+          ESMC_CONTEXT, ESMC_NULL_POINTER);
         break;
     };
 

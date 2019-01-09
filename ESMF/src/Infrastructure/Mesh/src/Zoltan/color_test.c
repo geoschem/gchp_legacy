@@ -6,8 +6,8 @@
 /*****************************************************************************
  * CVS File Information :
  *    $RCSfile: color_test.c,v $
- *    $Author: mathomp4 $
- *    $Date: 2013-01-11 20:23:44 $
+ *    $Author: dneckels $
+ *    $Date: 2007/11/28 16:13:45 $
  *    Revision: 1.3.2.1 $
  ****************************************************************************/
 
@@ -59,7 +59,7 @@ int Zoltan_Color_Test(
                               /* The application must allocate enough space */
 ) 
 {
-  static char *yo = "color_test_fn";
+  static const char *yo = "color_test_fn";
   idxtype *vtxdist, *xadj, *adjncy; /* arrays to store the graph structure */
   int *adjproc;                     
   int *input_parts;                 /* Initial partitions for objects. */

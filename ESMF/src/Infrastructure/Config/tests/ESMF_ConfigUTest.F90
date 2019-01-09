@@ -1,8 +1,8 @@
-! $Id: ESMF_ConfigUTest.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
+! $Id$
 !==============================================================================
 ! Earth System Modeling Framework
 !
-! Copyright 2002-2012, University Corporation for Atmospheric Research, 
+! Copyright 2002-2018, University Corporation for Atmospheric Research, 
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
 ! Laboratory, University of Michigan, National Centers for Environmental 
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
@@ -42,16 +42,17 @@ module config_subrs
         public
 
       type (ESMF_Config), save :: cf, cf1
+      type (ESMF_Config), save :: cf_alias
       
       ! individual test failure message
       character(ESMF_MAXSTR) :: failMsg
       character(ESMF_MAXSTR) :: name
       integer :: result = 0
-   
+      logical :: isCreated   
 
 
-      character(len=255) :: fname = 'ESMF_Resource_File_Sample.rc'
-      character(len=255) :: restart_file
+      character(*), parameter :: fname = 'ESMF_Resource_File_Sample.rc'
+      character(len=ESMF_MAXPATHLEN) :: restart_file
       integer :: rc, npets
       logical :: unique
       integer   :: nDE
@@ -84,6 +85,8 @@ module config_subrs
         character(ESMF_MAXSTR) :: failMsg
         character(ESMF_MAXSTR) :: name
         integer :: result = 0
+        character(ESMF_MAXSTR) :: msg
+        integer :: msg_l
         rc = 0
 
         
@@ -93,12 +96,53 @@ module config_subrs
         write(failMsg, *) "Did not return ESMF_SUCCESS"
         write(name, *) "Create Config Test"
         cf = ESMF_ConfigCreate(rc=rc)
-	call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+        call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
       
-        if ( rc /= 0 ) then 
+        if ( rc /= ESMF_SUCCESS ) then 
            print *,'ESMF_ConfigCreate: catastrophic error, rc =', rc
            return
         endif
+
+        !------------------------------------------------------------------------
+        !EX_UTest
+        ! Test ESMF_ConfigAssignment(=)(Config,Config)
+        write(failMsg, *) "Did not return ESMF_SUCCESS"
+        write(name, *) "Config assignment Test"
+        cf_alias = cf
+        rc = merge (ESMF_SUCCESS, ESMF_FAILURE, associated (cf%cptr, cf_alias%cptr))
+        call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+       
+        !------------------------------------------------------------------------
+        !EX_UTest
+        ! Test ESMF_ConfigOperator(==)(Config,Config)
+        write(failMsg, *) "Did not return ESMF_SUCCESS"
+        write(name, *) "Config equality with same Config Test"
+        rc = merge (ESMF_SUCCESS, ESMF_FAILURE, cf == cf_alias)
+        call ESMF_Test((rc == ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+
+        !------------------------------------------------------------------------
+        !EX_UTest
+        ! Test ESMF_ConfigOperator(==)(Config,Config)
+        write(failMsg, *) "Did not return ESMF_SUCCESS"
+        write(name, *) "Config equality with different Config Test"
+        rc = merge (ESMF_SUCCESS, ESMF_FAILURE, .not. (cf == cf1))
+        call ESMF_Test((rc == ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+
+        !------------------------------------------------------------------------
+        !EX_UTest
+        ! Test ESMF_ConfigOperator(/=)(Config,Config)
+        write(failMsg, *) "Did not return ESMF_SUCCESS"
+        write(name, *) "Config inequality with same Config Test"
+        rc = merge (ESMF_SUCCESS, ESMF_FAILURE, .not. (cf /= cf_alias))
+        call ESMF_Test((rc == ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+
+        !------------------------------------------------------------------------
+        !EX_UTest
+        ! Test ESMF_ConfigOperator(/=)(Config,Config)
+        write(failMsg, *) "Did not return ESMF_SUCCESS"
+        write(name, *) "Config inequality with different Config Test"
+        rc = merge (ESMF_SUCCESS, ESMF_FAILURE, cf /= cf1)
+        call ESMF_Test((rc == ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
 
         !------------------------------------------------------------------------
         !EX_UTest
@@ -106,14 +150,15 @@ module config_subrs
         write(failMsg, *) "Did not return ESMF_RC_DUP_NAME"
         write(name, *) "Config Load File Test"
         call ESMF_ConfigLoadFile( cf, fname, unique = .true., rc = rc)
-	call ESMF_Test((rc.eq.ESMF_RC_DUP_NAME), name, failMsg, result, ESMF_SRCLINE)
+        call ESMF_Test((rc.eq.ESMF_RC_DUP_NAME), name, failMsg, result, ESMF_SRCLINE)
 
-        if (rc == -99) then 
+        if (rc == ESMF_RC_MEM) then 
            print *,' ESMF_ConfigLoadFile: Out of memory: exceeded NBUF_MAX'
         endif
-        if ( rc /= ESMF_RC_DUP_NAME ) then      
-           print *,' ESMF_ConfigLoadFile:  loaded file ', fname, &
-                ' catastrophic error, rc = ', rc
+        if ( rc /= ESMF_RC_DUP_NAME ) then
+           call ESMF_LogRc2Msg (rc, msg=msg, msglen=msg_l)
+           print *,' ESMF_ConfigLoadFile:  loading file ', trim (fname), &
+                ' catastrophic error, rc = ', msg(:msg_l)
            return
         else
            counter_total =counter_total + 1
@@ -131,11 +176,13 @@ module config_subrs
 !--------------------------------------------------------------------
       integer, parameter   :: nDE_0 = 32      
       real(ESMF_KIND_R4), parameter      :: tau_0 = 14.0
-      character(ESMF_MAXSTR), parameter :: restart_file_0 = 'RestartFile123'
+      character(*), parameter :: restart_file_0 = 'RestartFile123'
       character(ESMF_MAXSTR), parameter   :: answer_0 = 'y'
+      character(ESMF_MAXSTR) :: token_string
       logical, parameter     :: optimize_0 = .false.
       character(ESMF_MAXSTR) :: failMsg
       character(ESMF_MAXSTR) :: name
+      character(8) :: restart_file_tooshort
       integer :: result = 0
 
       rc = 0
@@ -163,7 +210,7 @@ module config_subrs
 !''''''''''''''''''''''''''''
       
       counter_total =counter_total + 1
-      if ( rc /= 0 ) then      
+      if ( rc /= ESMF_SUCCESS ) then      
          print *,'ESMF_ConfigGetAttribute(int) got nDE =', nDE,' rc =', rc
       else
          if (nDE == nDE_0) then
@@ -198,7 +245,7 @@ module config_subrs
 !''''''''''''''''''''''''''''
    
       counter_total =counter_total + 1
-      if ( rc /= 0 ) then      
+      if ( rc /= ESMF_SUCCESS ) then      
          print *,'ESMF_ConfigGetAttribute(float) got tau =', tau,' rc =', rc
       else
          if (tau == tau_0) then
@@ -241,7 +288,7 @@ module config_subrs
 !''''''''''''''''''''''''''''
 
       counter_total =counter_total + 1
-      if ( rc /= 0 ) then      
+      if ( rc /= ESMF_SUCCESS ) then      
          print *,'ESMF_ConfigGetAttribute(char) got answer =', &
                  answer,' rc =', rc
       else
@@ -267,6 +314,24 @@ module config_subrs
 
      !------------------------------------------------------------------------
      !EX_UTest
+     ! Config Get Attribute String too short Test
+     write(failMsg, *) "Did not return ESMF_SUCCESS"
+     write(name, *) "Config Get Attribute String too short Test"
+     call ESMF_ConfigGetAttribute( cf, restart_file_tooshort ,label='restart_file_name:', &
+           rc = rc )
+     call ESMF_Test((rc /= ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+
+     !------------------------------------------------------------------------
+     !EX_UTest
+     ! Config Get Attribute String too short w/default Test
+     write(failMsg, *) "Did not return ESMF_SUCCESS"
+     write(name, *) "Config Get Attribute String too short w/default Test"
+     call ESMF_ConfigGetAttribute( cf, restart_file_tooshort ,label='restart_file_name:', &
+           default='restart_file_001.dat', rc = rc )
+     call ESMF_Test((rc /= ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+
+     !------------------------------------------------------------------------
+     !EX_UTest
      ! Config Get Attribute String Test
      write(failMsg, *) "Did not return ESMF_SUCCESS"
      write(name, *) "Config Get Attribute String Test"
@@ -276,7 +341,7 @@ module config_subrs
 !''''''''''''''''''''''''''''
 
       counter_total =counter_total + 1
-      if ( rc /= 0 ) then      
+      if ( rc /= ESMF_SUCCESS ) then      
          print *,'ESMF_ConfigGetAttribute(string) got =', &
                   restart_file,' rc =', rc
       else
@@ -294,6 +359,41 @@ module config_subrs
      write(name, *) "Verify Attribute String Value Test"
      call ESMF_Test((answer.eq.answer_0), name, failMsg, result, ESMF_SRCLINE)
 
+     !------------------------------------------------------------------------
+     !EX_UTest
+     ! Config Get Attribute String multi-word token Test
+     write(failMsg, *) "Did not return ESMF_SUCCESS"
+     write(name, *) "Config Get Attribute String Multi-word apostrophe Token Test"
+     call ESMF_ConfigGetAttribute( cf, token_string ,label='Token_Example_1:', &
+           rc = rc )
+     call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+
+     !------------------------------------------------------------------------
+     !EX_UTest
+     ! Config Get Attribute String multi-word token value Test
+     write(failMsg, *) "Did not return ESMF_SUCCESS"
+     write(name, *) "Config Get Attribute String Multi-word apostrophe Token value Test"
+     rc = merge (ESMF_SUCCESS, ESMF_FAILURE, token_string == 'This is a token example')
+     call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+
+     !------------------------------------------------------------------------
+     !EX_UTest
+     ! Config Get Attribute String multi-word token Test
+     write(failMsg, *) "Did not return ESMF_SUCCESS"
+     write(name, *) "Config Get Attribute String Multi-word quoted Token Test"
+     token_string = 'xxxx'
+     call ESMF_ConfigGetAttribute( cf, token_string ,label='Token_Example_2:', &
+           rc = rc )
+     call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+
+     !------------------------------------------------------------------------
+     !EX_UTest
+     ! Config Get Attribute String multi-word token value Test
+     write(failMsg, *) "Did not return ESMF_SUCCESS"
+     write(name, *) "Config Get Attribute String Multi-word quoted Token value Test"
+     rc = merge (ESMF_SUCCESS, ESMF_FAILURE, token_string == "This is a token example")
+     call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+
 ! Logical
 
       rc = 0
@@ -308,7 +408,7 @@ module config_subrs
 !''''''''''''''''''''''''''''
 
       counter_total =counter_total + 1
-      if ( rc /= 0 ) then      
+      if ( rc /= ESMF_SUCCESS ) then      
          print *,'ESMF_ConfigGetAttribute(logical) got optimize = ', &
                  optimize,' rc =', rc
       else
@@ -336,9 +436,15 @@ module config_subrs
     subroutine MultPar_SingleLine_U()
 !--------------------------------------------------------------------
       character(len=12), parameter :: u_dataType_0 = 'u_UprAir'
+      character(len=10) :: directions_expected(8) = (/  &
+          'north     ', 'north east', 'east      ', 'south east', &
+          'south     ', 'south west', 'west      ', 'north west'  &
+      /)
       integer, parameter   :: nu_0 = 6
       real(ESMF_KIND_R4), dimension(nu_0), parameter :: sigU_0 = &
            (/ 2.0, 2.0, 2.2, 2.3, 2.7, 3.2 /)
+      character(len=10) :: directions(8)
+      character(len=2)  :: directions_tooshort(8)
  
       character(ESMF_MAXSTR) :: failMsg
       character(ESMF_MAXSTR) :: name
@@ -358,7 +464,7 @@ module config_subrs
 !''''''''''''''''''''''''''''
 
       counter_total =counter_total + 1
-      if (rc == 0) then
+      if (rc == ESMF_SUCCESS) then
          counter_success =counter_success + 1
       else
          print *,'ESMF_ConfigFindLabel failed, label = u-wind_error:, rc =', rc 
@@ -376,7 +482,7 @@ module config_subrs
 !''''''''''''''''''''''''''''
 
       counter_total =counter_total + 1
-      if (rc /= 0) then
+      if (rc /= ESMF_SUCCESS) then
          print *,'ESMF_ConfigGetAttribute(string) failed, rc =', rc
          return
       endif
@@ -408,7 +514,7 @@ module config_subrs
 !''''''''''''''''''''''''''''
 
       counter_total =counter_total + 1
-      if (rc /= 0) then
+      if (rc /= ESMF_SUCCESS) then
          print *,'ESMF_ConfigGetAttribute(int) failed, rc =', rc
          return
       endif
@@ -441,7 +547,7 @@ module config_subrs
 !''''''''''''''''''''''''''''
 
       counter_total =counter_total + 1
-      if (rc /= 0) then
+      if (rc /= ESMF_SUCCESS) then
          print *,'ESMF_ConfigGetAttribute(floats) failed, rc =', rc
          return
       endif
@@ -460,6 +566,40 @@ module config_subrs
      write(failMsg, *) "Attribute Floats values are incorrect"
      write(name, *) "Verify Attribute Floats Values Test"
      call ESMF_Test((all(sigU.eq.sigU_0)), name, failMsg, result, ESMF_SRCLINE)
+
+     ! Quoted strings
+
+     !------------------------------------------------------------------------
+     !EX_UTest
+     ! Config Get Attribute Quoted String Test
+     write(failMsg, *) "Did not return ESMF_SUCCESS"
+     write(name, *) "Config Get Quoted String Array too short Test"
+     call ESMF_ConfigGetAttribute( cf, directions_tooshort, label='directions:', rc =rc )  ! first token
+     call ESMF_Test((rc /= ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+
+     !------------------------------------------------------------------------
+     !EX_UTest
+     ! Config Get Attribute Quoted String Test
+     write(failMsg, *) "Did not return ESMF_SUCCESS"
+     write(name, *) "Config Get Quoted String Array too short default Test"
+     call ESMF_ConfigGetAttribute( cf, directions, label='directions:',  &
+         default='no direction', rc =rc )  ! first token
+     call ESMF_Test((rc /= ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+
+     !------------------------------------------------------------------------
+     !EX_UTest
+     ! Config Get Attribute Quoted String Test
+     write(failMsg, *) "Did not return ESMF_SUCCESS"
+     write(name, *) "Config Get Quoted String Array Test"
+     call ESMF_ConfigGetAttribute( cf, directions, label='directions:', rc =rc )  ! first token
+     call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+
+     !------------------------------------------------------------------------
+     !EX_UTest
+     ! Config Get Attribute Quoted String Verification Test
+     write(failMsg, *) "Attribute String value is incorrect"
+     write(name, *) "Verify Attribute Quoted String Array Value Test"
+     call ESMF_Test(all (directions == directions_expected), name, failMsg, result, ESMF_SRCLINE)
 
     end subroutine MultPar_SingleLine_U
 
@@ -488,7 +628,7 @@ subroutine MultPar_SingleLine_V
 !''''''''''''''''''''''''''''
 
       counter_total =counter_total + 1
-      if (rc == 0) then
+      if (rc == ESMF_SUCCESS) then
          counter_success =counter_success + 1
       else
          print *,'ESMF_ConfigFindLabel failed, label = v-wind_error:, rc =', rc
@@ -506,7 +646,7 @@ subroutine MultPar_SingleLine_V
 !''''''''''''''''''''''''''''
 
       counter_total =counter_total + 1
-      if (rc /= 0) then
+      if (rc /= ESMF_SUCCESS) then
          print *,'ESMF_ConfigGetAttribute(string) failed, rc =', rc
          return
       endif
@@ -538,7 +678,7 @@ subroutine MultPar_SingleLine_V
 !''''''''''''''''''''''''''''
 
       counter_total =counter_total + 1
-      if (rc /= 0) then
+      if (rc /= ESMF_SUCCESS) then
          print *,'ESMF_ConfigGetAttribute(int) failed, rc =', rc
          return
       endif
@@ -570,7 +710,7 @@ subroutine MultPar_SingleLine_V
 !''''''''''''''''''''''''''''
 
       counter_total =counter_total + 1
-      if (rc /= 0) then
+      if (rc /= ESMF_SUCCESS) then
          print *,'ESMF_ConfigGetAttribute(floats) failed, rc =', rc
          return
       endif
@@ -625,7 +765,7 @@ subroutine MultPar_SingleLine_Vf
 !''''''''''''''''''''''''''''
 
       counter_total =counter_total + 1
-      if (rc == 0) then
+      if (rc == ESMF_SUCCESS) then
          counter_success =counter_success + 1
       else
          print *,'ESMF_ConfigFindLabel failed, label = v-wind_flag:, rc =', rc
@@ -643,7 +783,7 @@ subroutine MultPar_SingleLine_Vf
 !''''''''''''''''''''''''''''
 
       counter_total =counter_total + 1
-      if (rc /= 0) then
+      if (rc /= ESMF_SUCCESS) then
          print *,'ESMF_ConfigGetAttribute(string) failed, rc =', rc
          return
       endif
@@ -675,7 +815,7 @@ subroutine MultPar_SingleLine_Vf
 !''''''''''''''''''''''''''''
 
       counter_total =counter_total + 1
-      if (rc /= 0) then
+      if (rc /= ESMF_SUCCESS) then
          print *,'ESMF_ConfigGetAttribute(int) failed, rc =', rc
          return
       endif
@@ -707,7 +847,7 @@ subroutine MultPar_SingleLine_Vf
 !''''''''''''''''''''''''''''
 
       counter_total =counter_total + 1
-      if (rc /= 0) then
+      if (rc /= ESMF_SUCCESS) then
          print *,'ESMF_ConfigGetAttribute(logicals) failed, rc =', rc
          return
       endif
@@ -759,7 +899,7 @@ subroutine MultPar_SingleLine_Vf
 !''''''''''''''''''''''''''''
 
       counter_total =counter_total + 1
-      if (rc == 0) then
+      if (rc == ESMF_SUCCESS) then
          counter_success =counter_success + 1
       else
          print *,'ESMF_ConfigFindLabel failed, label = ObsErr*QSCAT::, rc =', rc 
@@ -778,7 +918,7 @@ subroutine MultPar_SingleLine_Vf
 !''''''''''''''''''''''''''''
 
       counter_total =counter_total + 1
-      if (rc == 0) then
+      if (rc == ESMF_SUCCESS) then
          counter_success =counter_success + 1
       else
          print *,'ESMF_ConfigNextLine failed, rc =', rc 
@@ -797,7 +937,7 @@ subroutine MultPar_SingleLine_Vf
 !''''''''''''''''''''''''''''
 
       counter_total =counter_total + 1
-      if (rc /= 0) then
+      if (rc /= ESMF_SUCCESS) then
          print *,'ESMF_ConfigGetAttribute(string) failed, rc =', rc
          return
       endif
@@ -829,7 +969,7 @@ subroutine MultPar_SingleLine_Vf
 !''''''''''''''''''''''''''''
 
       counter_total =counter_total + 1
-      if (rc /= 0) then
+      if (rc /= ESMF_SUCCESS) then
          print *,'ESMF_ConfigGetAttribute(int) failed, rc =', rc
          return
       endif
@@ -854,7 +994,7 @@ subroutine MultPar_SingleLine_Vf
 !''''''''''''''''''''''''''''
 
      counter_total =counter_total + 1
-      if (rc /= 0) then
+      if (rc /= ESMF_SUCCESS) then
          print *,'ESMF_ConfigGetAttribute(floats) failed, rc =', rc
          return
       endif
@@ -888,7 +1028,7 @@ subroutine MultPar_SingleLine_Vf
 !''''''''''''''''''''''''''''
 
       counter_total =counter_total + 1
-      if (rc == 0) then
+      if (rc == ESMF_SUCCESS) then
          counter_success =counter_success + 1
       else
          print *,'ESMF_ConfigNextLine failed, rc =', rc 
@@ -907,7 +1047,7 @@ subroutine MultPar_SingleLine_Vf
 !''''''''''''''''''''''''''''
 
       counter_total =counter_total + 1
-      if (rc /= 0) then
+      if (rc /= ESMF_SUCCESS) then
          print *,'ESMF_ConfigGetAttribute(string) failed, rc =', rc
          return
       endif
@@ -938,7 +1078,7 @@ subroutine MultPar_SingleLine_Vf
 !''''''''''''''''''''''''''''
 
       counter_total =counter_total + 1
-      if (rc /= 0) then
+      if (rc /= ESMF_SUCCESS) then
          print *,'ESMF_ConfigGetAttribute(int) failed, rc =', rc
          return
       endif
@@ -970,7 +1110,7 @@ subroutine MultPar_SingleLine_Vf
 !''''''''''''''''''''''''''''
 
      counter_total =counter_total + 1
-      if (rc /= 0) then
+      if (rc /= ESMF_SUCCESS) then
          print *,'ESMF_ConfigGetAttribute(floats) failed, rc =', rc
          return
       endif
@@ -1005,6 +1145,8 @@ subroutine MultPar_SingleLine_Vf
 !!!      real(ESMF_KIND_R4) :: vCorr_aux(121)
       character(ESMF_MAXSTR) :: failMsg
       character(ESMF_MAXSTR) :: name
+      integer :: memstat
+
       integer :: result = 0
      
       vCorr_0 = RESHAPE (  (/ &
@@ -1038,7 +1180,7 @@ subroutine MultPar_SingleLine_Vf
       call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
 !''''''''''''''''''''''''''''
       counter_total =counter_total + 1
-      if (rc /= 0) then
+      if (rc /= ESMF_SUCCESS) then
          print *,'ESMF_ConfigGetDim failed, rc =', rc
          return
       endif
@@ -1070,7 +1212,7 @@ subroutine MultPar_SingleLine_Vf
       call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
 !''''''''''''''''''''''''''''
       counter_total =counter_total + 1
-      if (rc == 0) then
+      if (rc == ESMF_SUCCESS) then
          counter_success =counter_success + 1
       else
           print *,'ESMF_ConfigFindLabel failed, label ObsErr*vCor_HH-7::, = rc =', rc 
@@ -1078,10 +1220,11 @@ subroutine MultPar_SingleLine_Vf
       endif
 
 !''''''''''''''''''''''''''''     
-         allocate(ncol(1:nlines), STAT= rc)
+         allocate(ncol(1:nlines), STAT= memstat)
 !''''''''''''''''''''''''''''
-      if (rc /= 0) then
-         print *,'array allocation failed, rc =', rc
+      if (memstat /= 0) then
+         print *,'array allocation failed, stat =', memstat
+         rc = ESMF_RC_MEM
          return
       endif
       
@@ -1091,14 +1234,14 @@ subroutine MultPar_SingleLine_Vf
 
       call ESMF_ConfigNextLine(cf, rc = rc)
 !''''''''''''''''''''''''''''
-         if (rc /= 0) then
+         if (rc /= ESMF_SUCCESS) then
             print *,'ESMF_ConfigNextLine failed, rc =', rc 
             exit        
          endif
 !''''''''''''''''''''''''''''    
       ncol(line) = ESMF_ConfigGetLen(cf, rc = rc) - 1
 !''''''''''''''''''''''''''''  
-      if (rc /= 0) then
+      if (rc /= ESMF_SUCCESS) then
          print *,'ESMF_ConfigGetLen failed, rc =', rc
          exit
       endif
@@ -1130,12 +1273,20 @@ subroutine MultPar_SingleLine_Vf
       !EX_UTest
       ! Config Find Label Test
       write(failMsg, *) "Did not return ESMF_SUCCESS"
+      write(name, *) "Config Bad Label Test"
+      call ESMF_ConfigFindLabel( cf,'Bad', rc=rc)
+      call ESMF_Test(rc /= ESMF_SUCCESS, name, failMsg, result, ESMF_SRCLINE)
+
+     !------------------------------------------------------------------------
+      !EX_UTest
+      ! Config Find Label Test
+      write(failMsg, *) "Did not return ESMF_SUCCESS"
       write(name, *) "Config Find Label Test"
       call ESMF_ConfigFindLabel( cf,'ObsErr*vCor_HH-7::', rc=rc)
       call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
 !''''''''''''''''''''''''''''
       counter_total =counter_total + 1
-      if (rc == 0) then
+      if (rc == ESMF_SUCCESS) then
          counter_success =counter_success + 1
       else
          print *,'ESMF_ConfigFindLabel failed, label = ObsErr*vCor_HH-7::, rc =', rc 
@@ -1148,7 +1299,7 @@ subroutine MultPar_SingleLine_Vf
          call ESMF_ConfigNextLine( cf, tableEnd=end, rc=rc)
 !''''''''''''''''''''''''''''
 
-         if (rc /= 0) then
+         if (rc /= ESMF_SUCCESS) then
             print *,'ESMF_ConfigNextLine failed, rc =', rc 
             exit        
          endif
@@ -1159,7 +1310,7 @@ subroutine MultPar_SingleLine_Vf
 !''''''''''''''''''''''''''''
             call ESMF_ConfigGetAttribute( cf, plev(line), rc=rc )
 !''''''''''''''''''''''''''''
-         if (rc /= 0) then
+         if (rc /= ESMF_SUCCESS) then
             print *,'ESMF_ConfigAttribute failed, rc =', rc 
             exit
          endif
@@ -1178,12 +1329,12 @@ subroutine MultPar_SingleLine_Vf
 !''''''''''''''''''''''''''''
          do col =1, ncol(line)
             call ESMF_ConfigGetAttribute( cf, temp, rc=rc)
-            if (rc == 0) then 
+            if (rc == ESMF_SUCCESS) then 
                vCorr(line,col) = temp 
             end if
          end do
 !''''''''''''''''''''''''''''
-         if (rc /= 0) then
+         if (rc /= ESMF_SUCCESS) then
             print *,'ESMF_ConfigGetAttribute(float) failed, rc =', rc 
             exit        
          endif
@@ -1203,10 +1354,11 @@ subroutine MultPar_SingleLine_Vf
       end do
 !''''''''''''''''''''''''''''
 !''''''''''''''''''''''''''''     
-      deallocate(ncol, STAT= rc)
+      deallocate(ncol, STAT= memstat)
 !''''''''''''''''''''''''''''
-      if (rc /= 0) then
-         print *,'array deallocation failed, rc =', rc
+      if (memstat /= 0) then
+         print *,'array deallocation failed, stat =', memstat
+         rc = ESMF_RC_MEM
       endif
 
 
@@ -1239,7 +1391,7 @@ subroutine MultPar_SingleLine_Vf
 !''''''''''''''''''''''''''''
       
       counter_total =counter_total + 1
-      if ( rc /= 0 ) then      
+      if ( rc /= ESMF_SUCCESS ) then      
          print *,'ESMF_ConfigSetAttribute(intI4) got Member_Num =', memberNum, &
                  ' rc =', rc
       else
@@ -1265,7 +1417,7 @@ subroutine MultPar_SingleLine_Vf
 !''''''''''''''''''''''''''''
       
       counter_total =counter_total + 1
-      if ( rc /= 0 ) then      
+      if ( rc /= ESMF_SUCCESS ) then      
          print *,'ESMF_ConfigSetAttribute(intI4) got numMembers=', numMembers, &
                  ' rc =', rc
       else
@@ -1293,7 +1445,7 @@ subroutine MultPar_SingleLine_Vf
 !''''''''''''''''''''''''''''
       
       counter_total =counter_total + 1
-      if ( rc /= 0 ) then      
+      if ( rc /= ESMF_SUCCESS ) then      
          print *,'ESMF_ConfigSetAttribute(intI4) got numConstituents=', &
                   numConstituents, ' rc =', rc
       else
@@ -1321,7 +1473,7 @@ subroutine MultPar_SingleLine_Vf
 !''''''''''''''''''''''''''''
       
       counter_total =counter_total + 1
-      if ( rc /= 0 ) then      
+      if ( rc /= ESMF_SUCCESS ) then      
          print *, 'ESMF_ConfigSetAttribute(intI4) got numDelegates=', &
                    numDelegates, ' rc =', rc
       else
@@ -1371,7 +1523,7 @@ subroutine MultPar_SingleLine_Vf
 !''''''''''''''''''''''''''''
 
       counter_total =counter_total + 1
-      if (rc == 0) then
+      if (rc == ESMF_SUCCESS) then
          counter_success =counter_success + 1
       else
          print *,'ESMF_ConfigDestroy failed, rc =', rc 
@@ -1396,7 +1548,7 @@ end module config_subrs
 !------------------------------------------------------------------------------
 ! The following line turns the CVS identifier string into a printable variable.
       character(*), parameter :: version = &
-      '$Id: ESMF_ConfigUTest.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $'
+      '$Id$'
 !------------------------------------------------------------------------------
 
       counter_total = 0
@@ -1413,6 +1565,72 @@ end module config_subrs
 
 
       call ESMF_TestStart(ESMF_SRCLINE, rc=rc)
+      if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
+
+
+      !------------------------------------------------------------------------
+      !NEX_UTest
+      write(name, *) "Testing Config IsCreated for uncreated object"
+      write(failMsg, *) "Did not return .false."
+      isCreated = ESMF_ConfigIsCreated(cf)
+      call ESMF_Test((isCreated .eqv. .false.), name, failMsg, result, ESMF_SRCLINE)
+      !------------------------------------------------------------------------
+
+      !------------------------------------------------------------------------
+      !NEX_UTest
+      write(name, *) "Testing Config IsCreated for uncreated object"
+      write(failMsg, *) "Did not return ESMF_SUCCESS"
+      isCreated = ESMF_ConfigIsCreated(cf, rc=rc)
+      call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+      !------------------------------------------------------------------------
+
+      !------------------------------------------------------------------------
+      !NEX_UTest
+      write(name, *) "Create test Config for IsCreated"
+      write(failMsg, *) "Did not return ESMF_SUCCESS"
+      cf = ESMF_ConfigCreate(rc=rc)
+      call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+      !------------------------------------------------------------------------
+
+      !------------------------------------------------------------------------
+      !NEX_UTest
+      write(name, *) "Testing Config IsCreated for created object"
+      write(failMsg, *) "Did not return .true."
+      isCreated = ESMF_ConfigIsCreated(cf)
+      call ESMF_Test((isCreated .eqv. .true.), name, failMsg, result, ESMF_SRCLINE)
+      !------------------------------------------------------------------------
+
+      !------------------------------------------------------------------------
+      !NEX_UTest
+      write(name, *) "Testing Config IsCreated for created object"
+      write(failMsg, *) "Did not return ESMF_SUCCESS"
+      isCreated = ESMF_ConfigIsCreated(cf, rc=rc)
+      call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+      !------------------------------------------------------------------------
+
+      !------------------------------------------------------------------------
+      !NEX_UTest
+      write(name, *) "Destroy test Config for IsCreated"
+      write(failMsg, *) "Did not return ESMF_SUCCESS"
+      call ESMF_ConfigDestroy(cf, rc=rc)
+      call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+      !------------------------------------------------------------------------
+
+      !------------------------------------------------------------------------
+      !NEX_UTest
+      write(name, *) "Testing Config IsCreated for destroyed object"
+      write(failMsg, *) "Did not return .false."
+      isCreated = ESMF_ConfigIsCreated(cf)
+      call ESMF_Test((isCreated .eqv. .false.), name, failMsg, result, ESMF_SRCLINE)
+      !------------------------------------------------------------------------
+
+      !------------------------------------------------------------------------
+      !NEX_UTest
+      write(name, *) "Testing Config IsCreated for destroyed object"
+      write(failMsg, *) "Did not return ESMF_SUCCESS"
+      isCreated = ESMF_ConfigIsCreated(cf, rc=rc)
+      call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+      !------------------------------------------------------------------------
 
       !------------------------------------------------------------------------
       !NEX_UTest
@@ -1474,7 +1692,7 @@ end module config_subrs
       call Initialization()
       if (rc /= ESMF_RC_DUP_NAME) then
         call ESMF_ConfigDestroy( cf, rc=rc) 
-        call ESMF_TestEnd(result, ESMF_SRCLINE)
+        call ESMF_TestEnd(ESMF_SRCLINE)
         STOP            ! Catastropic Error
       endif
 
@@ -1530,7 +1748,7 @@ end module config_subrs
 
 #endif
 
-      call ESMF_TestEnd(result, ESMF_SRCLINE)
+      call ESMF_TestEnd(ESMF_SRCLINE)
 
 
   end program ESMF_Config_Test

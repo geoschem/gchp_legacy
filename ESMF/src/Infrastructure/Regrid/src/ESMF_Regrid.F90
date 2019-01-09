@@ -1,7 +1,7 @@
-! $Id: ESMF_Regrid.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
+! $Id$
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2012, University Corporation for Atmospheric Research,
+! Copyright 2002-2018, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -39,7 +39,6 @@
 ! !USES:
       use ESMF_GridMod
       use ESMF_StaggerLocMod
-      use ESMF_VMMod
       use ESMF_RHandleMod
       use ESMF_UtilTypesMod
       use ESMF_BaseMod          ! ESMF base class
@@ -47,9 +46,9 @@
       use ESMF_ArrayMod
       use ESMF_F90InterfaceMod
       use ESMF_MeshMod
+      use ESMF_PointListMod
 
-
-      implicit none
+       implicit none
 
 !------------------------------------------------------------------------------
 ! !PRIVATE TYPES:
@@ -57,7 +56,16 @@
 
       ! temporarily store the weights while F90 arrays are alloc'ed
       type ESMF_TempWeights 
-      sequence
+#ifndef ESMF_NO_SEQUENCE
+        sequence
+#endif
+        type(ESMF_Pointer) :: this
+      end type
+
+      type ESMF_TempUDL 
+#ifndef ESMF_NO_SEQUENCE
+        sequence
+#endif
         type(ESMF_Pointer) :: this
       end type
 
@@ -80,7 +88,6 @@
     public ESMF_RegridGetIwts
     public ESMF_RegridGetArea
     public ESMF_RegridGetFrac
-    public operator (==)
 
 
 ! -------------------------- ESMF-public method -------------------------------
@@ -92,46 +99,13 @@
 !------------------------------------------------------------------------------
 ! The following line turns the CVS identifier string into a printable variable.
       character(*), parameter, private :: version = &
-         '$Id: ESMF_Regrid.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $'
+          '$Id$'
 
 !==============================================================================
 !
 ! INTERFACE BLOCKS
 !
 !==============================================================================
-!==============================================================================
-!BOPI
-! !INTERFACE:
-      interface operator (==)
-
-! !PRIVATE MEMBER FUNCTIONS:
-         module procedure ESMF_RegridMethodEqual
-
-! !DESCRIPTION:
-!     This interface overloads the equality operator for the specific
-!     ESMF RegridMethod.  It is provided for easy comparisons of 
-!     these types with defined values.
-!
-!EOPI
-      end interface
-!
-!------------------------------------------------------------------------------
-!BOPI
-! !INTERFACE:
-      interface operator (.ne.)
-
-! !PRIVATE MEMBER FUNCTIONS:
-         module procedure ESMF_RegridMethodNotEqual
-
-! !DESCRIPTION:
-!     This interface overloads the inequality operator for the specific
-!     ESMF RegridMethod.  It is provided for easy comparisons of 
-!     these types with defined values.
-!
-!EOPI
-      end interface
-!
-!------------------------------------------------------------------------------
 
 
 !==============================================================================
@@ -166,110 +140,67 @@ end function my_xor
 
 !------------------------------------------------------------------------------
 #undef  ESMF_METHOD
-#define ESMF_METHOD "ESMF_RegridMethodEqual"
-!BOPI
-! !IROUTINE: ESMF_RegridMethodEqual - Equality of RegridMethods
-!
-! !INTERFACE:
-      function ESMF_RegridMethodEqual(RegridMethod1, RegridMethod2)
-
-! !RETURN VALUE:
-      logical :: ESMF_RegridMethodEqual
-
-! !ARGUMENTS:
-
-      type (ESMF_RegridMethod_Flag), intent(in) :: &
-         RegridMethod1,      &! Two igrid statuses to compare for
-         RegridMethod2        ! equality
-
-! !DESCRIPTION:
-!     This routine compares two ESMF RegridMethod statuses to see if
-!     they are equivalent.
-!
-!     The arguments are:
-!     \begin{description}
-!     \item[RegridMethod1, RegridMethod2]
-!          Two igrid statuses to compare for equality
-!     \end{description}
-!
-!EOPI
-
-      ESMF_RegridMethodEqual = (RegridMethod1%regridmethod == &
-                              RegridMethod2%regridmethod)
-
-      end function ESMF_RegridMethodEqual
-!------------------------------------------------------------------------------
-#undef  ESMF_METHOD
-#define ESMF_METHOD "ESMF_RegridMethodNotEqual"
-!BOPI
-! !IROUTINE: ESMF_RegridMethodNotEqual - Non-equality of RegridMethods
-!
-! !INTERFACE:
-      function ESMF_RegridMethodNotEqual(RegridMethod1, RegridMethod2)
-
-! !RETURN VALUE:
-      logical :: ESMF_RegridMethodNotEqual
-
-! !ARGUMENTS:
-
-      type (ESMF_RegridMethod_Flag), intent(in) :: &
-         RegridMethod1,      &! Two RegridMethod Statuses to compare for
-         RegridMethod2        ! inequality
-
-! !DESCRIPTION:
-!     This routine compares two ESMF RegridMethod statuses to see if
-!     they are unequal.
-!
-!     The arguments are:
-!     \begin{description}
-!     \item[RegridMethod1, RegridMethod2]
-!          Two statuses of RegridMethods to compare for inequality
-!     \end{description}
-!
-!EOPI
-
-      ESMF_RegridMethodNotEqual = (RegridMethod1%regridmethod /= &
-                                 RegridMethod2%regridmethod)
-
-      end function ESMF_RegridMethodNotEqual
-
-
-!------------------------------------------------------------------------------
-#undef  ESMF_METHOD
 #define ESMF_METHOD "ESMF_RegridStore"
 !BOPI
 ! !IROUTINE: ESMF_RegridStore - Precomputes Regrid data
 
 ! !INTERFACE:
-      subroutine ESMF_RegridStore(srcMesh, srcArray, &
-                 dstMesh, dstArray, &
+      subroutine ESMF_RegridStore(srcMesh, srcArray, srcPointList, src_pl_used, &
+                 dstMesh, dstArray, dstPointList, dst_pl_used, &
                  regridmethod, &
-                 polemethod, regridPoleNPnts, &
+                 lineType, &
+                 normType, &
+                  polemethod, regridPoleNPnts, &
                  regridScheme, &
-                 unmappedaction, routehandle, &
+                 hasStatusArray, &
+                 statusArray, &
+                 extrapMethod, &
+                 extrapNumSrcPnts, &
+                 extrapDistExponent, &
+                 unmappedaction, &
+                 ignoreDegenerate, &
+                 srcTermProcessing, &
+                 pipelineDepth, &
+                 routehandle, &
                  indices, weights, &
+                 unmappedDstList, &
                  rc)
 !
 ! !ARGUMENTS:
       type(ESMF_Mesh), intent(inout)         :: srcMesh
       type(ESMF_Array), intent(inout)        :: srcArray
+      type(ESMF_PointList), intent(inout)    :: srcPointList
+      logical, intent(in)                    :: src_pl_used
       type(ESMF_Mesh), intent(inout)         :: dstMesh
       type(ESMF_Array), intent(inout)        :: dstArray
+      type(ESMF_PointList), intent(inout)    :: dstPointList
+      logical, intent(in)                    :: dst_pl_used
       type(ESMF_RegridMethod_Flag), intent(in)    :: regridmethod
+      type(ESMF_LineType_Flag), intent(in)    :: lineType
+      type(ESMF_NormType_Flag), intent(in)    :: normType
       type(ESMF_PoleMethod_Flag), intent(in)      :: polemethod
       integer, intent(in)                    :: regridPoleNPnts
       integer, intent(in)                    :: regridScheme
+      type(ESMF_ExtrapMethod_Flag),   intent(in) :: extrapMethod
+      integer, intent(in)                    :: extrapNumSrcPnts
+      real(ESMF_KIND_R8)                     :: extrapDistExponent
       type(ESMF_UnmappedAction_Flag), intent(in), optional :: unmappedaction
+      logical, intent(in)                              :: ignoreDegenerate
+      integer,                       intent(inout), optional :: srcTermProcessing
+      integer,                       intent(inout), optional :: pipelineDepth
       type(ESMF_RouteHandle),  intent(inout), optional :: routehandle
       integer(ESMF_KIND_I4), pointer, optional         :: indices(:,:)
       real(ESMF_KIND_R8), pointer, optional            :: weights(:)
+      integer(ESMF_KIND_I4),       pointer, optional   :: unmappedDstList(:)
+      logical                     :: hasStatusArray
+      type(ESMF_Array)            :: statusArray
       integer,                  intent(  out), optional :: rc
 !
 ! !DESCRIPTION:
-!     The arguments are:
+ !     The arguments are:
 !     \begin{description}
-!     \item[srcGrid]
-!          The source grid.
+ !     \item[srcGrid]
+ !          The source grid.
 !     \item[srcArray]
 !          The source grid array.
 !     \item[dstGrid]
@@ -280,7 +211,7 @@ end function my_xor
 !          The interpolation method to use.
 !     \item[regridScheme]
 !          Whether to use 3d or native coordinates
-!     \item [{[regridConserve]}]
+ !     \item [{[regridConserve]}]
 !           Specifies whether to implement the mass conservation 
 !           correction or not.  Options are 
 !           {\tt ESMF\_REGRID_CONSERVE\_OFF} or 
@@ -294,22 +225,32 @@ end function my_xor
 !           to {\tt ESMF\_UNMAPPEDACTION\_ERROR}. 
 !     \item[routeHandle]
 !          Handle to store the resulting sparseMatrix
+!     \item [{[unmappedDstList]}] 
+!           The list of the sequence indices for locations in {\tt dstField} which couldn't be mapped the {\tt srcField}. 
+!           The list on each PET only contains the unmapped locations for the piece of the {\tt dstField} on that PET. 
+!           If a destination point is masked, it won't be put in this list. 
 !     \item[{rc}]
 !          Return code.
 !     \end{description}
 !EOPI
        integer :: localrc
-       type(ESMF_VM)        :: vm
        integer :: has_rh, has_iw, nentries
        type(ESMF_TempWeights) :: tweights
+       integer :: has_udl, num_udl
+       type(ESMF_TempUDL) :: tudl
        type(ESMF_RegridConserve) :: localregridConserve
        type(ESMF_UnmappedAction_Flag) :: localunmappedaction
        logical :: isMemFreed
+       integer :: localIgnoreDegenerate
+       integer :: src_pl_used_int, dst_pl_used_int
+       integer ::  has_statusArrayInt
+
+
 
        ! Logic to determine if valid optional args are passed.  
 
-       ! First thing to check is that indices <=> weights
-       if (my_xor(present(indices), present(weights))) then
+        ! First thing to check is that indices <=> weights
+        if (my_xor(present(indices), present(weights))) then
          localrc = ESMF_RC_ARG_BAD
          if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
            ESMF_CONTEXT, rcToReturn=rc)) return
@@ -323,21 +264,18 @@ end function my_xor
        endif
 
        ! **************************************************
-       ! Tests passed, so proceed
+        ! Tests passed, so proceed
 
        ! Initialize return code; assume failure until success is certain
        localrc = ESMF_RC_NOT_IMPL
        if (present(rc)) rc = ESMF_RC_NOT_IMPL
 
-       ! global vm for now
-       call ESMF_VMGetGlobal(vm, rc=localrc)
-       if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
-         ESMF_CONTEXT, rcToReturn=rc)) return
-
        has_rh = 0
-       has_iw = 0
+        has_iw = 0
+       has_udl=0
        if (present(routehandle)) has_rh = 1
        if (present(indices)) has_iw = 1
+       if (present(unmappedDstList)) has_udl = 1
 
        if (present(unmappedaction)) then
           localunmappedaction=unmappedaction
@@ -345,43 +283,92 @@ end function my_xor
           localunmappedaction=ESMF_UNMAPPEDACTION_ERROR
        endif
 
-
-       ! Make sure the srcMesh has its internal bits in place
-       call ESMF_MeshGet(srcMesh, isMemFreed=isMemFreed, rc=localrc)
-       if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
-         ESMF_CONTEXT, rcToReturn=rc)) return
-
-       if (isMemFreed)  then
-           call ESMF_LogSetError(rcToCheck=ESMF_RC_OBJ_WRONG, & 
-                 msg="- source Mesh has had its coordinate and connectivity info freed", & 
-                 ESMF_CONTEXT, rcToReturn=rc) 
-          return 
+       if (ignoreDegenerate) then
+          localIgnoreDegenerate=1
+       else
+          localIgnoreDegenerate=0
        endif
 
-       ! Make sure the dstMesh has its internal bits in place
-       call ESMF_MeshGet(dstMesh, isMemFreed=isMemFreed, rc=localrc)
-       if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
-         ESMF_CONTEXT, rcToReturn=rc)) return
+       if (.not. src_pl_used) then
+         ! Make sure the srcMesh has its internal bits in place
+         call ESMF_MeshGet(srcMesh, isMemFreed=isMemFreed, rc=localrc)
+          if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+           ESMF_CONTEXT, rcToReturn=rc)) return
 
-       if (isMemFreed)  then
-           call ESMF_LogSetError(rcToCheck=ESMF_RC_OBJ_WRONG, & 
-                 msg="- destination Mesh has had its coordinate and connectivity info freed", & 
-                 ESMF_CONTEXT, rcToReturn=rc) 
-          return 
+          if (isMemFreed)  then
+             call ESMF_LogSetError(rcToCheck=ESMF_RC_OBJ_WRONG, & 
+                   msg="- source Mesh has had its coordinate and connectivity info freed", & 
+                   ESMF_CONTEXT, rcToReturn=rc) 
+             return 
+         endif
        endif
 
-       ! Call through to the C++ object that does the work
-       call c_ESMC_regrid_create(vm, srcMesh%this, srcArray, &
-                   dstMesh%this, dstArray, &
+
+       if (.not. dst_pl_used) then
+         ! Make sure the dstMesh has its internal bits in place
+         call ESMF_MeshGet(dstMesh, isMemFreed=isMemFreed, rc=localrc)
+         if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+           ESMF_CONTEXT, rcToReturn=rc)) return
+
+          if (isMemFreed)  then
+              call ESMF_LogSetError(rcToCheck=ESMF_RC_OBJ_WRONG, & 
+                   msg="- dest Mesh has had its coordinate and connectivity info freed", & 
+                   ESMF_CONTEXT, rcToReturn=rc) 
+             return 
+         endif
+       endif
+
+       ! Make used ints
+       src_pl_used_int=0
+       if (src_pl_used) then
+          src_pl_used_int=1
+       endif
+
+       dst_pl_used_int=0
+       if (dst_pl_used) then
+          dst_pl_used_int=1
+       endif
+
+       ! Get statusArray if present and set appropriate flag
+       has_statusArrayInt=0
+       if (hasStatusArray) then
+          has_statusArrayInt=1
+       endif
+
+
+        ! Call through to the C++ object that does the work
+        call c_ESMC_regrid_create(srcMesh%this, srcArray, srcPointList, src_pl_used_int, &
+                   dstMesh%this, dstArray, dstPointList, dst_pl_used_int, &
                    regridmethod,  &
+                   lineType, &
+                   normType, &
                    polemethod, regridPoleNPnts, &    
-                   regridScheme, localunmappedaction%unmappedaction, &
+                   regridScheme, &
+                   extrapMethod, &
+                   extrapNumSrcPnts, &
+                   extrapDistExponent, &
+                   localunmappedaction%unmappedaction, &
+                   localIgnoreDegenerate, &
+                   srcTermProcessing, pipelineDepth, &
                    routehandle, has_rh, has_iw, &
                    nentries, tweights, &
+                   has_udl, num_udl, tudl, &
+                   has_statusArrayInt, statusArray, &
                    localrc)
+
        if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
          ESMF_CONTEXT, rcToReturn=rc)) return
-
+         
+#ifdef C_SIDE_REGRID_FREE_MESH
+! enabling this freature currently breaks several tests
+       ! Mark Meshes as CMemFreed
+       call ESMF_MeshSetIsCMeshFreed(srcMesh, rc=localrc)
+       if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+         ESMF_CONTEXT, rcToReturn=rc)) return
+       call ESMF_MeshSetIsCMeshFreed(dstMesh, rc=localrc)
+       if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+         ESMF_CONTEXT, rcToReturn=rc)) return
+#endif
        ! Now we must allocate the F90 pointers and copy weights
        if (present(indices)) then
          allocate(indices(2,nentries))
@@ -392,6 +379,12 @@ end function my_xor
          endif
        endif
 
+       ! If unmappedDstList is present then we must allocate the F90 pointers and copy 
+       if (present(unmappedDstList)) then
+         allocate(unmappedDstList(num_udl))
+         call c_ESMC_Copy_TempUDL(num_udl, tudl, unmappedDstList(1))
+       endif
+
        ! Mark route handle created
       if (present(routeHandle)) then 
         call ESMF_RouteHandleSetInitCreated(routeHandle, localrc)
@@ -400,8 +393,7 @@ end function my_xor
       endif
 
       rc = ESMF_SUCCESS
-
-      end subroutine ESMF_RegridStore
+       end subroutine ESMF_RegridStore
 
 !------------------------------------------------------------------------------
 #undef  ESMF_METHOD
@@ -435,7 +427,6 @@ end function my_xor
 !     \end{description}
 !EOPI
        integer :: localrc
-       type(ESMF_VM)        :: vm
        logical :: isMemFreed
 
        ! Logic to determine if valid optional args are passed.  
@@ -443,11 +434,6 @@ end function my_xor
        ! Initialize return code; assume failure until success is certain
        localrc = ESMF_RC_NOT_IMPL
        if (present(rc)) rc = ESMF_RC_NOT_IMPL
-
-       ! global vm for now
-       call ESMF_VMGetGlobal(vm, rc=localrc)
-       if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
-         ESMF_CONTEXT, rcToReturn=rc)) return
 
        ! Make sure the srcMesh has its internal bits in place
        call ESMF_MeshGet(Mesh, isMemFreed=isMemFreed, rc=localrc)
@@ -462,7 +448,7 @@ end function my_xor
        endif
 
        ! Call through to the C++ object that does the work
-       call c_ESMC_regrid_getiwts(vm, Grid, Mesh, Array, staggerLoc, &
+       call c_ESMC_regrid_getiwts(Grid, Mesh, Array, staggerLoc, &
                                   regridScheme, localrc)
        if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
          ESMF_CONTEXT, rcToReturn=rc)) return
@@ -505,7 +491,6 @@ end function my_xor
 !     \end{description}
 !EOPI
        integer :: localrc
-       type(ESMF_VM)        :: vm
        logical :: isMemFreed
 
        ! Logic to determine if valid optional args are passed.  
@@ -568,7 +553,6 @@ end function my_xor
 !     \end{description}
 !EOPI
        integer :: localrc
-       type(ESMF_VM)        :: vm
        logical :: isMemFreed
 
        ! Logic to determine if valid optional args are passed.  

@@ -1,4 +1,4 @@
-! $Id: ESMF_LocalArrayUTest.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
+! $Id$
 !
 ! Example/test code which creates new arrays.
 
@@ -35,6 +35,7 @@
     real(ESMF_KIND_R8), dimension(:,:,:), pointer :: real3dptr
     integer(ESMF_KIND_I4), dimension(:), pointer :: intptr
     logical:: localarrayBool
+    logical:: isCreated
 
     ! individual test failure message
     character(ESMF_MAXSTR) :: failMsg
@@ -55,11 +56,31 @@
 
     
     call ESMF_TestStart(ESMF_SRCLINE, rc=rc)
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
 !------------------------------------------------------------------------------
 !   !  Create based on an existing, allocated F90 pointer. 
 !   !  Data is type Integer, 1D.
  
+
+  !------------------------------------------------------------------------
+  !NEX_UTest
+  write(name, *) "Testing LocalArray IsCreated for uncreated object"
+  write(failMsg, *) "Did not return .false."
+  isCreated = ESMF_LocalArrayIsCreated(array1)
+  call ESMF_Test((isCreated .eqv. .false.), name, failMsg, result, ESMF_SRCLINE)
+  !------------------------------------------------------------------------
+
+  !------------------------------------------------------------------------
+  !NEX_UTest
+  write(name, *) "Testing LocalArray IsCreated for uncreated object"
+  write(failMsg, *) "Did not return ESMF_SUCCESS"
+  isCreated = ESMF_LocalArrayIsCreated(array1, rc=rc)
+  call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+  !------------------------------------------------------------------------
+
+
+
     !--------------------------------------------------------------------------
     !NEX_UTest
     ! Allocate and set initial data values, using a lower bound != 1
@@ -74,12 +95,54 @@
     array1 = ESMF_LocalArrayCreate(intptr, datacopyflag=ESMF_DATACOPY_REFERENCE, rc=rc)
     call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
    
+
+
+  !------------------------------------------------------------------------
+  !NEX_UTest
+  write(name, *) "Testing LocalArray IsCreated for created object"
+  write(failMsg, *) "Did not return .true."
+  isCreated = ESMF_LocalArrayIsCreated(array1)
+  call ESMF_Test((isCreated .eqv. .true.), name, failMsg, result, ESMF_SRCLINE)
+  !------------------------------------------------------------------------
+
+  !------------------------------------------------------------------------
+  !NEX_UTest
+  write(name, *) "Testing LocalArray IsCreated for created object"
+  write(failMsg, *) "Did not return ESMF_SUCCESS"
+  isCreated = ESMF_LocalArrayIsCreated(array1, rc=rc)
+  call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+  !------------------------------------------------------------------------
+
+
+
+
     !--------------------------------------------------------------------------
     !NEX_UTest
     write(failMsg, *) "Did not return ESMF_SUCCESS."
     write(name, *) "Local Array Destroy Test"
     call ESMF_LocalArrayDestroy(array1, rc=rc)
     call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+
+
+  !------------------------------------------------------------------------
+  !NEX_UTest
+  write(name, *) "Testing LocalArray IsCreated for destroyed object"
+  write(failMsg, *) "Did not return .false."
+  isCreated = ESMF_LocalArrayIsCreated(array1)
+  call ESMF_Test((isCreated .eqv. .false.), name, failMsg, result, ESMF_SRCLINE)
+  !------------------------------------------------------------------------
+
+  !------------------------------------------------------------------------
+  !NEX_UTest
+  write(name, *) "Testing LocalArray IsCreated for destroyed object"
+  write(failMsg, *) "Did not return ESMF_SUCCESS"
+  isCreated = ESMF_LocalArrayIsCreated(array1, rc=rc)
+  call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+  !------------------------------------------------------------------------
+
+
+
+    deallocate(intptr)
 
     !------------------------------------------------------------------------------
      
@@ -979,7 +1042,7 @@
 
 #endif
 
-    call ESMF_TestEnd(result, ESMF_SRCLINE)
+    call ESMF_TestEnd(ESMF_SRCLINE)
 
     end program ESMF_LocalArrayTest
     

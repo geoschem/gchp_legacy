@@ -6,8 +6,8 @@
 /*****************************************************************************
  * CVS File Information :
  *    $RCSfile: zoltan.h,v $
- *    $Author: mathomp4 $
- *    $Date: 2013-01-11 20:23:44 $
+ *    $Author: theurich $
+ *    $Date: 2009/07/15 15:34:21 $
  *    Revision: 1.47.2.5 $
  ****************************************************************************/
 
@@ -3047,7 +3047,7 @@ extern int Zoltan_LB_Set_Part_Sizes(struct Zoltan_Struct *zz, int global_num,
  *  Output:
  *    Return value  --  Error code.
  */
-extern int Zoltan_Generate_Files(struct Zoltan_Struct *zz, char *fname, int base_index, int gen_geom, int gen_graph, int gen_hg);
+extern int Zoltan_Generate_Files(struct Zoltan_Struct *zz, const char *fname, int base_index, int gen_geom, int gen_graph, int gen_hg);
 
 #ifdef __cplusplus
 } /* closing bracket for extern "C" */

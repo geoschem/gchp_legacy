@@ -6,8 +6,8 @@
 /*****************************************************************************
  * CVS File Information :
  *    $RCSfile: order_struct.c,v $
- *    $Author: mathomp4 $
- *    $Date: 2013-01-11 20:23:44 $
+ *    $Author: dneckels $
+ *    $Date: 2007/11/28 16:13:52 $
  *    Revision: 1.7 $
  ****************************************************************************/
 
@@ -39,7 +39,7 @@ extern "C" {
 int Zoltan_Order_Create(ZOS **order_info, ZZ *zz)
 {
   int ierr = ZOLTAN_OK; /* Error code to return */
-  static char *yo = "Zoltan_Order_Create";
+  static const char *yo = "Zoltan_Order_Create";
 
   ZOLTAN_TRACE_ENTER(zz, yo);
 
@@ -73,7 +73,7 @@ int Zoltan_Order_Create(ZOS **order_info, ZZ *zz)
 int Zoltan_Order_Destroy(ZOS **order_info)
 {
   int ierr = ZOLTAN_OK; /* Error code to return */
-  /* static char *yo = "Zoltan_Order_Destroy"; */
+  /* static const char *yo = "Zoltan_Order_Destroy"; */
 
   /* ZOLTAN_TRACE_ENTER(zz, yo); */
 

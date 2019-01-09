@@ -1,4 +1,4 @@
-/*$Id: mpi.c,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $*/
+/*$Id$*/
 
 /*
       This provides a few of the MPI-uni functions that cannot be implemented
@@ -398,23 +398,24 @@ void MPIUNI_STDCALL MPI_ABORT(MPI_Comm *comm,int *errorcode,int *ierr)
 /*******mpi_allreduce******/
 void MPIUNI_STDCALL mpi_allreduce(void *sendbuf,void *recvbuf,int *count,int *datatype,int *op,int *comm,int *ierr) 
 {
+  if (*op == MPI_OP_NULL) {
+    *ierr = MPI_ERR_OP;
+    return;
+  }
   MPIUNI_Memcpy(recvbuf,sendbuf,(*count)*MPIUNI_DATASIZE[*datatype]);
   *ierr = MPI_SUCCESS;
 } 
 void MPIUNI_STDCALL mpi_allreduce_(void *sendbuf,void *recvbuf,int *count,int *datatype,int *op,int *comm,int *ierr) 
 {
-  MPIUNI_Memcpy(recvbuf,sendbuf,(*count)*MPIUNI_DATASIZE[*datatype]);
-  *ierr = MPI_SUCCESS;
+  mpi_allreduce(sendbuf, recvbuf, count, datatype, op, comm, ierr);
 } 
 void MPIUNI_STDCALL mpi_allreduce__(void *sendbuf,void *recvbuf,int *count,int *datatype,int *op,int *comm,int *ierr) 
 {
-  MPIUNI_Memcpy(recvbuf,sendbuf,(*count)*MPIUNI_DATASIZE[*datatype]);
-  *ierr = MPI_SUCCESS;
+  mpi_allreduce(sendbuf, recvbuf, count, datatype, op, comm, ierr);
 } 
 void MPIUNI_STDCALL MPI_ALLREDUCE(void *sendbuf,void *recvbuf,int *count,int *datatype,int *op,int *comm,int *ierr) 
 {
-  MPIUNI_Memcpy(recvbuf,sendbuf,(*count)*MPIUNI_DATASIZE[*datatype]);
-  *ierr = MPI_SUCCESS;
+  mpi_allreduce(sendbuf, recvbuf, count, datatype, op, comm, ierr);
 } 
 
 

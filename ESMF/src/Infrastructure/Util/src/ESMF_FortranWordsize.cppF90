@@ -1,7 +1,7 @@
-! $Id: ESMF_FortranWordsize.cppF90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
+! $Id$
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2012, University Corporation for Atmospheric Research,
+! Copyright 2002-2018, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -231,6 +231,25 @@ subroutine f_esmf_fortranudtpointercopy(dst, src)
 end subroutine
 
 
+subroutine f_esmf_fortranudtpointercompare(ptr1, ptr2, flag)
+  ! C callable routine that compares two pointers to a UDT.
+  implicit none
+  type simple_udt
+    sequence
+    real :: a, b, c
+    integer :: i, j, k
+  end type
+  type wrapper
+    sequence
+    type(simple_udt), pointer:: udt
+  end type
+  
+  type (wrapper):: ptr1
+  type (wrapper):: ptr2
+  integer       :: flag
+  flag = 0
+  if (associated(ptr1%udt,ptr2%udt)) flag = 1
+end subroutine
 
 
 #define FortranTKRPtrCopyDoc() \
@@ -260,7 +279,9 @@ end subroutine
       implicit none @\
  @\
       type wrapper @\
+^ifndef ESMF_NO_SEQUENCE @\
         sequence @\
+^endif @\
         mname (ESMF_KIND_##mtypekind), dimension(mdim), pointer :: ptr @\
       end type @\
  @\

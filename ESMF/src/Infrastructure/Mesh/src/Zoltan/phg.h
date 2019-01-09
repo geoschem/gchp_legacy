@@ -6,8 +6,8 @@
 /*****************************************************************************
  * CVS File Information :
  *    $RCSfile: phg.h,v $
- *    $Author: mathomp4 $
- *    $Date: 2013-01-11 20:23:44 $
+ *    $Author: dneckels $
+ *    $Date: 2007/11/28 16:13:53 $
  *    Revision: 1.59 $
  ****************************************************************************/
 
@@ -194,7 +194,7 @@ extern int Zoltan_PHG_Removed_Cuts(ZZ *, ZHG *, double *);
 extern double Zoltan_PHG_Compute_Balance(ZZ*, HGraph*, float *, int, Partition);
 
 extern int Zoltan_PHG_Build_Hypergraph(ZZ*, ZHG**, Partition*, PHGPartParams*);
-extern void Zoltan_PHG_Plot(int, int, int, int*, int*, int*, char*);
+extern void Zoltan_PHG_Plot(int, int, int, int*, int*, int*, const char*);
 extern void Zoltan_PHG_Plot_2D_Distrib(ZZ*, HGraph*);
 
 extern int Zoltan_PHG_PaToH(ZZ *, HGraph *, int, int *, PHGPartParams*);    

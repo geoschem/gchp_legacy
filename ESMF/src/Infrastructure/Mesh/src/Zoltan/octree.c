@@ -1,8 +1,8 @@
 /*****************************************************************************
  * CVS File Information :
  *    $RCSfile: octree.c,v $
- *    $Author: mathomp4 $
- *    $Date: 2013-01-11 20:23:44 $
+ *    $Author: dneckels $
+ *    $Date: 2007/11/28 16:13:52 $
  *    Revision: 1.11 $
  ****************************************************************************/
 
@@ -24,7 +24,7 @@ extern "C" {
  * sets up global variables for the octree partitioner
  */
 OCT_Global_Info *Zoltan_Oct_POct_init(ZZ *zz, int pid, int dim) {
-  char *yo = "Zoltan_Oct_POct_init";
+  const char *yo = "Zoltan_Oct_POct_init";
   OCT_Global_Info *OCT_info;
   if((OCT_info = (OCT_Global_Info *) ZOLTAN_MALLOC(sizeof(OCT_Global_Info))) == NULL) {
     ZOLTAN_TRACE_EXIT(zz, yo);

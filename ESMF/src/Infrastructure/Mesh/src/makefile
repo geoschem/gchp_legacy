@@ -1,4 +1,4 @@
-# $Id: makefile,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
+# $Id$
 
 # leave alone.
 ALL: build_here 
@@ -37,6 +37,7 @@ SOURCEC	  = \
            ESMCI_MeshField.C \
            ESMCI_MeshGen.C \
            ESMCI_MeshllField.C \
+           ESMCI_MeshMerge.C \
            ESMCI_MeshNC.C \
            ESMCI_MeshObj.C \
            ESMCI_MeshObjConn.C \
@@ -61,6 +62,9 @@ SOURCEC	  = \
            ESMCI_Rebalance.C \
            ESMCI_RefineTopo.C \
            ESMCI_Search.C \
+           ESMCI_SearchNearest.C \
+           ESMCI_SearchNearestNPnts.C \
+           ESMCI_SearchNearestDToS.C \
            ESMCI_SFuncAdaptor.C \
            ESMCI_ShapeFunc.C \
            ESMCI_ShapeLagrange.C \
@@ -71,8 +75,37 @@ SOURCEC	  = \
            ESMCI_WriteWeightsPar.C \
            ESMCI_SpaceDir.C \
            ESMCI_FindPnts.C \
+           ESMCI_Phedra.C \
+           ESMCI_SM.C \
            ESMCI_ConserveInterp.C \
+           ESMCI_Conserve2ndInterp.C \
+           ESMCI_MeshRedist.C \
+           ESMCI_MeshDual.C \
+           ESMCI_ClumpPnts.C \
+           ESMCI_Regrid_Helper.C \
+           ESMCI_Mesh_Glue.C \
+           ESMCI_Mesh_Regrid_Glue.C \
+           ESMCI_Mesh_GToM_Glue.C \
+           ESMCI_Mesh_XGrid_Glue.C \
+           ESMCI_MeshCap.C \
            ESMCI_MeshCXX.C
+
+ifneq ($(ESMF_MOAB),OFF)
+SOURCEC	  += ESMCI_MBMesh.C \
+             ESMCI_MBMesh_Util.C \
+             ESMCI_MBMesh_BBox.C \
+             ESMCI_MBMesh_Mapping.C \
+             ESMCI_MBMesh_Redist.C \
+             ESMCI_MBMesh_Rendez_Elem.C \
+             ESMCI_MBMesh_Rendez_EtoP.C \
+             ESMCI_MBMesh_Search_EToE.C \
+             ESMCI_MBMesh_Search_EToP.C \
+             ESMCI_MBMesh_Conserve.C \
+             ESMCI_MBMesh_Bilinear.C \
+             ESMCI_MBMesh_Glue.C \
+             ESMCI_MBMesh_Regrid_Glue.C
+endif
+
 
 SOURCEF	  = ESMF_SolverUtil_C.F90 \
 
@@ -93,5 +126,19 @@ CLOBBERDIRS =
 
 include ${ESMF_DIR}/makefile
 
+ifeq ($(ESMF_MOAB),internal)
+ESMF_CXXCOMPILECPPFLAGS += -I$(ESMF_DIR)/$(LOCDIR)/Moab \
+                           -I$(ESMF_DIR)/$(LOCDIR)/Moab/parallel \
+                           -I$(ESMF_DIR)/$(LOCDIR)/Moab/LocalDiscretization
+endif
+
+
 DIRS	  = Zoltan
+ifeq ($(ESMF_LAPACK),internal)
+DIRS	 += Lapack BLAS
+STOREH   += ESMF_LapackBlas.inc
+endif
+ifeq ($(ESMF_MOAB),internal)
+DIRS     += Moab
+endif
 

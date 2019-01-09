@@ -1,7 +1,7 @@
-! $Id: ESMF_ArraySpecEx.F90,v 1.1.5.1 2013-01-11 20:23:43 mathomp4 Exp $
+! $Id$
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2012, University Corporation for Atmospheric Research,
+! Copyright 2002-2018, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -13,7 +13,7 @@
       program ESMF_ArraySpecEx
 
 !------------------------------------------------------------------------------
-!ESMF_EXAMPLE	String used by test script to count examples.
+!ESMF_EXAMPLE   String used by test script to count examples.
 !==============================================================================
 !BOC
 ! !PROGRAM: ESMF_ArraySpecEx - ArraySpec manipulation examples
@@ -22,24 +22,38 @@
 !
 ! This program shows examples of ArraySpec set and get usage
 !-----------------------------------------------------------------------------
+#include "ESMF.h"
 
       ! ESMF Framework module
       use ESMF
+      use ESMF_TestMod
       implicit none
 
-      ! local variables 
+      ! local variables
       type(ESMF_ArraySpec) :: arrayDS
       integer :: myrank
       type(ESMF_TypeKind_Flag) :: mytypekind
 
 
       ! return code
-      integer:: rc
+      integer:: rc, result
+      character(ESMF_MAXSTR) :: testname
+      character(ESMF_MAXSTR) :: failMsg
 !EOC
 
       ! result code
       integer :: finalrc
       finalrc = ESMF_SUCCESS
+!-------------------------------------------------------------------------
+!-------------------------------------------------------------------------
+
+  write(failMsg, *) "Example failure"
+  write(testname, *) "Example ESMF_ArraySpecEx"
+
+!-------------------------------------------------------------------------
+!-------------------------------------------------------------------------
+
+
 
 !BOC
       ! initialize ESMF framework
@@ -47,7 +61,7 @@
                     logkindflag=ESMF_LOGKIND_MULTI, rc=rc)
 !EOC
 
-      if (rc.NE.ESMF_SUCCESS) finalrc = ESMF_FAILURE
+      if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
 !BOP
 !\subsubsection{Set ArraySpec values}
@@ -60,7 +74,7 @@
                              typekind=ESMF_TYPEKIND_R8, rc=rc)
 !EOC
 
-      if (rc.NE.ESMF_SUCCESS) finalrc = ESMF_FAILURE
+      if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
 !BOP
 !\subsubsection{Get ArraySpec values}
@@ -75,7 +89,12 @@
       print *, "rank =", myrank
 !EOC
 
-      if (rc.NE.ESMF_SUCCESS) finalrc = ESMF_FAILURE
+      if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
+
+      ! IMPORTANT: ESMF_STest() prints the PASS string and the # of processors in the log
+      ! file that the scripts grep for.
+      call ESMF_STest((finalrc.eq.ESMF_SUCCESS), testname, failMsg, result, ESMF_SRCLINE)
+
 
 !BOC
       ! finalize ESMF framework

@@ -6,8 +6,8 @@
 /*****************************************************************************
  * CVS File Information :
  *    $RCSfile: check_param.c,v $
- *    $Author: mathomp4 $
- *    $Date: 2013-01-11 20:23:44 $
+ *    $Author: dneckels $
+ *    $Date: 2007/11/28 16:13:45 $
  *    Revision: 1.21 $
  ****************************************************************************/
 
@@ -33,7 +33,7 @@ PARAM_VARS * params,		/* structure describing parameters */
 PARAM_UTYPE *result,		/* pointer to return value */
 int *matched_index)		/* where in struct the match occurs */
 {		
-    char     *yo = "Zoltan_Check_Param";
+    const char *yo = "Zoltan_Check_Param";
     char      msg[256];
     int       i;		/* loop counter */
     int       status;		/* return code: */

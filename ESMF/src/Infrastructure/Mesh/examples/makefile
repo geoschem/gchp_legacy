@@ -1,4 +1,4 @@
-# $Id: makefile,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
+# $Id$
 
 ALL: build_examples
 run: run_examples
@@ -10,9 +10,9 @@ ESMF_CXXCOMPILECPPFLAGS += -DMPICH_IGNORE_CXX_SEEK
 LOCDIR	  = src/Infrastructure/Mesh/examples
 
 
+.NOTPARALLEL:
 EXAMPLES_BUILD    = \
                       $(ESMF_EXDIR)/ESMF_MeshEx \
-                      $(ESMF_EXDIR)/ESMC_RendEx \
                       $(ESMF_EXDIR)/ESMC_DCatEx \
                       $(ESMF_EXDIR)/ESMC_RefineEx \
 

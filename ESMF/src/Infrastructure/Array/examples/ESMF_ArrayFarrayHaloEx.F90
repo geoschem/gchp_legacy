@@ -1,7 +1,7 @@
-! $Id: ESMF_ArrayFarrayHaloEx.F90,v 1.1.5.1 2013-01-11 20:23:43 mathomp4 Exp $
+! $Id$
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2012, University Corporation for Atmospheric Research,
+! Copyright 2002-2018, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -25,8 +25,10 @@
 !EOE
 !BOC
 program ESMF_ArrayFarrayHaloEx
+#include "ESMF.h"
 
   use ESMF
+  use ESMF_TestMod
   
   implicit none
   
@@ -42,14 +44,27 @@ program ESMF_ArrayFarrayHaloEx
   type(ESMF_DistGrid)         :: distgrid         ! DistGrid object
   type(ESMF_Array)            :: array            ! Array object
   integer                     :: rc, i, j
-  real                        :: localSum
+  real(ESMF_KIND_R8)          :: localSum
   
 !EOC
   type(ESMF_VM):: vm
   integer:: petCount
   
   ! result code
-  integer :: finalrc
+  integer :: finalrc, result
+  character(ESMF_MAXSTR) :: testname
+  character(ESMF_MAXSTR) :: failMsg
+
+!-------------------------------------------------------------------------
+!-------------------------------------------------------------------------
+
+  write(failMsg, *) "Example failure"
+  write(testname, *) "Example ESMF_ArrayFarrayHaloEx"
+
+
+! ------------------------------------------------------------------------------
+! ------------------------------------------------------------------------------
+
   
   finalrc = ESMF_SUCCESS
   
@@ -147,11 +162,19 @@ print *, "localSum=", localSum
 !EOE
 !BOC
   call ESMF_ArrayDestroy(array, rc=rc)
+!EOC
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
+!BOC
   deallocate(farrayA)
   call ESMF_DistGridDestroy(distgrid, rc=rc)
 !EOC
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   
 10 continue
+  ! IMPORTANT: ESMF_STest() prints the PASS string and the # of processors in the log
+  ! file that the scripts grep for.
+  call ESMF_STest((finalrc.eq.ESMF_SUCCESS), testname, failMsg, result, ESMF_SRCLINE)
+
 !BOC
   call ESMF_Finalize(rc=rc)
 !EOC

@@ -1,6 +1,6 @@
 //
 // Earth System Modeling Framework
-// Copyright 2002-2012, University Corporation for Atmospheric Research,
+// Copyright 2002-2018, University Corporation for Atmospheric Research,
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 // Laboratory, University of Michigan, National Centers for Environmental
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -37,7 +37,7 @@ int main ( int argc, char **argv )
 //EOE
 
 //BOC
-      char fname [ESMF_MAXSTR] = "myResourceFile.rc";    // file name
+      char fname [] = "myResourceFile.rc";    // file name
       char fn1[10], fn2[10], fn3[10];
       int rc;             // error return code (0 is OK)
       ESMC_I4 n = 0;

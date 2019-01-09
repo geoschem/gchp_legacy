@@ -1,0 +1,38 @@
+% $Id$
+\label{sec:Time}
+
+A Time represents a specific point in time.  In order to accommodate
+the range of time scales in Earth system applications, Times in
+the ESMF can be specified in many different ways, from years to
+nanoseconds.  The Time interface is designed so that you select one or 
+more options from a list of time units in order to specify a 
+Time. The options for specifying a Time are shown in 
+Table~\ref{table:timeOpts}.  
+
+There are Time methods defined for setting and getting a
+Time, incrementing and decrementing a Time by a TimeInterval,
+taking the difference between two Times, and comparing Times.
+Special quantities such as the middle of the month and the 
+day of the year associated with a particular Time can be retrieved. 
+There is a method for returning the Time value as a string in 
+the ISO 8601 format YYYY-MM-DDThh:mm:ss \cite{ISO}.
+
+A Time that is specified in hours, minutes, seconds, or subsecond intervals 
+does not need to be associated with a standard calendar; a Time whose
+specification includes time units of a day and greater must be.  The 
+ESMF representation
+of a calendar, the Calendar class, is described in Section~\ref{sec:Calendar}.
+The {\tt ESMF\_TimeSet} method is used to initialize a Time as well as
+associate it with a Calendar.  If a Time method is invoked in which a Calendar
+is necessary and one has not been set, the ESMF method will return an error
+condition.
+
+In the ESMF the TimeInterval class is used to represent time periods.
+This class is frequently used in combination with the Time class.
+The Clock class, for example, advances model time by incrementing a
+Time with a TimeInterval. 
+ 
+
+
+
+

@@ -1,7 +1,7 @@
-! $Id: ESMF_VMAllToAllVUTest.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
+! $Id$
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2012, University Corporation for Atmospheric Research,
+! Copyright 2002-2018, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -35,7 +35,7 @@ program ESMF_VMAllToAllVUTest
 !------------------------------------------------------------------------------
 ! The following line turns the CVS identifier string into a printable variable.
   character(*), parameter :: version = &
-    '$Id: ESMF_VMAllToAllVUTest.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $'
+    '$Id$'
 !------------------------------------------------------------------------------
   ! cumulative result: count failures; no failures equals "all pass"
   integer :: result = 0
@@ -46,7 +46,7 @@ program ESMF_VMAllToAllVUTest
   character(ESMF_MAXSTR) :: name
 
   ! local variables
-  integer::  rc
+  integer::  localrc, rc
   type(ESMF_VM):: vm
   integer:: localPet, petCount
   integer:: nlen1, nlen2, nsize, i, j, k
@@ -55,7 +55,15 @@ program ESMF_VMAllToAllVUTest
   integer, allocatable:: iarray1(:), iarray2(:), iarray3(:)
   real(ESMF_KIND_R4), allocatable:: f4array1(:), f4array2(:), f4array3(:)
   real(ESMF_KIND_R8), allocatable:: f8array1(:), f8array2(:), f8array3(:)
+  logical, allocatable:: larray1(:), larray2(:), larray3(:)
      
+  type(ESMF_VMId), allocatable :: vmids_array1(:)
+  type(ESMF_VMId), allocatable :: vmids_array2(:)
+  type(ESMF_VMId), allocatable :: vmids_array3(:)
+  integer   :: idData
+  character :: keyData
+  logical   :: all_verify
+
 
 !------------------------------------------------------------------------------
 !   The unit tests are divided into Sanity and Exhaustive. The Sanity tests are
@@ -67,6 +75,7 @@ program ESMF_VMAllToAllVUTest
 
 
   call ESMF_TestStart(ESMF_SRCLINE, rc=rc)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
   ! get global vm information
   call ESMF_VMGetGlobal(vm, rc=rc)
@@ -98,6 +107,9 @@ program ESMF_VMAllToAllVUTest
   allocate(f8array2(nlen2))
   allocate(f8array3(nlen1))
   
+  allocate(larray1(nlen1))
+  allocate(larray2(nlen2))
+  allocate(larray3(nlen1))
 
   ! prepare data array1
   k=1
@@ -106,6 +118,7 @@ program ESMF_VMAllToAllVUTest
       iarray1(k) = i + 100 * k + 10000 * j
       f4array1(k) = real(iarray1(k), ESMF_KIND_R4)
       f8array1(k) = real(iarray1(k), ESMF_KIND_R8)
+      larray1(k) = mod (i, 3) == 0
       k = k+1
     enddo
   enddo
@@ -215,7 +228,165 @@ program ESMF_VMAllToAllVUTest
   call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
 
 
-  call ESMF_TestEnd(result, ESMF_SRCLINE)
+  !Testing with logical arguments
+  !==============================
+  !------------------------------------------------------------------------
+  !NEX_UTest
+  write(name, *) "AllToAllV Test larray1 -> larray2"
+  write(failMsg, *) "Did not return ESMF_SUCCESS."
+  larray2 = .false.
+  call ESMF_VMAllToAllV(vm,  &
+      sendData=larray1, sendCounts=sendCounts, sendOffsets=sendOffsets,  &
+      recvData=larray2, recvCounts=recvCounts, recvOffsets=recvOffsets,  &
+      rc=rc)
+  call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+
+  !------------------------------------------------------------------------
+  !NEX_UTest
+  write(name, *) "AllToAllV Test larray2 -> larray3"
+  write(failMsg, *) "Did not return ESMF_SUCCESS."
+  larray3 = .false.
+  call ESMF_VMAllToAllV(vm,  &
+      sendData=larray2, sendCounts=recvCounts, sendOffsets=recvOffsets,  &
+      recvData=larray3, recvCounts=sendCounts, recvOffsets=sendOffsets,  &
+      rc=rc)
+  call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+
+  !------------------------------------------------------------------------
+  !NEX_UTest
+  ! Verify larray3 data against larray1 after alltoallv
+  write(failMsg, *) "Wrong data."
+  write(name, *) "Verify larray3 data against larray1 after alltoallv"
+  rc = ESMF_SUCCESS
+  do i=1, nlen1
+    if (larray3(i) .neqv. larray1(i)) then
+      rc = ESMF_FAILURE
+      print *, i, larray1(i), larray3(i)
+    endif
+  enddo
+  call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+
+
+  !Test with VMId arguments
+  !===========================
+#if 0
+  !------------------------------------------------------------------------
+  !NEX____noUTest
+  ! Create VMid arrays on both root and destinations
+  write(failMsg, *) "Did not RETURN ESMF_SUCCESS"
+  write(name, *) "Creating VMId array1 Test"
+  allocate (vmids_array1(nlen1))
+  call ESMF_VMIdCreate (vmids_array1, rc=rc)
+  call ESMF_Test((rc == ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+
+  !------------------------------------------------------------------------
+  !NEX____noUTest
+  ! Create VMid arrays on both root and destinations
+  write(failMsg, *) "Did not RETURN ESMF_SUCCESS"
+  write(name, *) "Creating VMId array2 Test"
+  allocate (vmids_array2(nlen2))
+  call ESMF_VMIdCreate (vmids_array2, rc=rc)
+  call ESMF_Test((rc == ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+
+  !------------------------------------------------------------------------
+  !NEX____noUTest
+  ! Create VMid arrays on both root and destinations
+  write(failMsg, *) "Did not RETURN ESMF_SUCCESS"
+  write(name, *) "Creating VMId array3 Test"
+  allocate (vmids_array3(nlen1))
+  call ESMF_VMIdCreate (vmids_array3, rc=rc)
+  call ESMF_Test((rc == ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+
+  !------------------------------------------------------------------------
+  !NEX____noUTest
+  ! Create VMid arrays on both root and destinations
+  write(failMsg, *) "Did not RETURN ESMF_SUCCESS"
+  write(name, *) "Creating VMId array3 Test"
+  ! Insert dummy data for the purposes of the test.  Only
+  ! the first character of the key is set.
+  rc = ESMF_SUCCESS
+  do, i=1, nlen1
+    call c_ESMCI_VMIdSet (vmids_array1(i),  i, achar (iand (i, z"7f")), localrc)
+    if (localrc /= ESMF_SUCCESS) rc = localrc
+  end do
+  do, i=1, nlen2
+    call c_ESMCI_VMIdSet (vmids_array2(i), -1, achar (iand (i, z"7f")), localrc)
+    if (localrc /= ESMF_SUCCESS) rc = localrc
+  end do
+  do, i=1, nlen1
+    call c_ESMCI_VMIdSet (vmids_array3(i), -1, achar (iand (i, z"ff")), localrc)
+    if (localrc /= ESMF_SUCCESS) rc = localrc
+  end do
+  call ESMF_Test((rc == ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+
+  !------------------------------------------------------------------------
+  !NEX____noUTest
+  write(name, *) "AllToAllVMId Test vmids_array1 -> vmids_array2"
+  write(failMsg, *) "Did not return ESMF_SUCCESS."
+! print *, 'sendCounts: ', sendCounts
+! print *, 'sendOffsets: ', sendOffsets
+! print *, 'recvCounts: ', recvCounts
+! print *, 'recvOffsets: ', recvOffsets
+  call ESMF_VMAllToAllVVMId(vm,  &
+      sendData=vmids_array1, sendCounts=sendCounts, sendOffsets=sendOffsets, &
+      recvData=vmids_array2, recvCounts=recvCounts, recvOffsets=recvOffsets, &
+      rc=rc)
+  call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+
+  !------------------------------------------------------------------------
+  !NEX____noUTest
+  write(name, *) "AllToAllVMId Test vmids_array2 -> vmids_array3"
+  write(failMsg, *) "Did not return ESMF_SUCCESS."
+  call ESMF_VMAllToAllVVMId(vm,  &
+      sendData=vmids_array2, sendCounts=recvCounts, sendOffsets=recvOffsets,  &
+      recvData=vmids_array3, recvCounts=sendCounts, recvOffsets=sendOffsets,  &
+      rc=rc)
+  call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+
+  !------------------------------------------------------------------------
+  !NEX____noUTest
+  ! Verify iarray3 data against iarray1 after alltoallvmid
+  write(failMsg, *) "Wrong data."
+  write(name, *) "Verify iarray3 data against iarray1 after alltoallv"
+  rc = ESMF_SUCCESS
+  do i=1, nlen1
+    if (iarray3(i)/=iarray1(i)) then
+      rc = ESMF_FAILURE
+      print *, i, iarray1(i), iarray3(i)
+    endif
+  enddo
+
+  call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+
+  !------------------------------------------------------------------------
+  !NEX____noUTest
+  ! Release VMId resources
+  write(failMsg, *) "Did not RETURN ESMF_SUCCESS"
+  write(name, *) "Releasing VMId array1 Test"
+  call ESMF_VMIdDestroy (vmids_array1, rc=rc)
+  deallocate (vmids_array1)
+  call ESMF_Test((rc == ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+
+  !------------------------------------------------------------------------
+  !NEX____noUTest
+  ! Release VMId resources
+  write(failMsg, *) "Did not RETURN ESMF_SUCCESS"
+  write(name, *) "Releasing VMId array2 Test"
+  call ESMF_VMIdDestroy (vmids_array2, rc=rc)
+  deallocate (vmids_array2)
+  call ESMF_Test((rc == ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+
+  !------------------------------------------------------------------------
+  !NEX____noUTest
+  ! Release VMId resources
+  write(failMsg, *) "Did not RETURN ESMF_SUCCESS"
+  write(name, *) "Releasing VMId array3 Test"
+  call ESMF_VMIdDestroy (vmids_array3, rc=rc)
+  deallocate (vmids_array3)
+  call ESMF_Test((rc == ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+#endif
+
+  call ESMF_TestEnd(ESMF_SRCLINE)
 
   ! garbage collection
   deallocate(sendCounts)
@@ -231,5 +402,9 @@ program ESMF_VMAllToAllVUTest
   deallocate(f8array1)
   deallocate(f8array2)
   deallocate(f8array3)
+  
+  deallocate(larray1)
+  deallocate(larray2)
+  deallocate(larray3)
 
 end program ESMF_VMAllToAllVUTest

@@ -7,8 +7,8 @@
 /*****************************************************************************
  * CVS File Information :
  *    $RCSfile: zoltan_timer.h,v $
- *    $Author: mathomp4 $
- *    $Date: 2013-01-11 20:23:44 $
+ *    $Author: dneckels $
+ *    $Date: 2007/11/28 16:13:54 $
  *    Revision: 1.7 $
  ****************************************************************************/
 
@@ -46,8 +46,8 @@ struct Zoltan_Timer *Zoltan_Timer_Copy(struct Zoltan_Timer *zt);
 int Zoltan_Timer_Copy_To(struct Zoltan_Timer **to, struct Zoltan_Timer *from);
 int Zoltan_Timer_Reset(struct Zoltan_Timer *, int, int, const char*);
 int Zoltan_Timer_ChangeFlag(struct Zoltan_Timer *, int);
-int Zoltan_Timer_Start(struct Zoltan_Timer *, int, MPI_Comm, char *, int);
-int Zoltan_Timer_Stop(struct Zoltan_Timer *, int, MPI_Comm, char *, int);
+int Zoltan_Timer_Start(struct Zoltan_Timer *, int, MPI_Comm, const char *, int);
+int Zoltan_Timer_Stop(struct Zoltan_Timer *, int, MPI_Comm, const char *, int);
 int Zoltan_Timer_Print(struct Zoltan_Timer *, int, int, MPI_Comm, FILE *);
 int Zoltan_Timer_PrintAll(struct Zoltan_Timer *, int, MPI_Comm, FILE *);
 void Zoltan_Timer_Destroy(struct Zoltan_Timer **);

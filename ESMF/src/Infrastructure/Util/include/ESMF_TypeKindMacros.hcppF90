@@ -1,8 +1,8 @@
 #if 0
-! $Id: ESMF_TypeKindMacros.hcppF90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
+! $Id$
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2012, University Corporation for Atmospheric Research,
+! Copyright 2002-2018, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -164,6 +164,26 @@ funcname##Macro(real, R8, userp1, userp2) @\
 !! < start of macros which become actual subroutine bodies after expansion > @\
  @\
 funcname##Doc() @\
+^ifndef ESMF_NO_INTEGER_1_BYTE @\
+funcname##Macro(integer, I1, userp1, userp2, userp3) @\
+^endif @\
+^ifndef ESMF_NO_INTEGER_2_BYTE @\
+funcname##Macro(integer, I2, userp1, userp2, userp3) @\
+^endif @\
+funcname##Macro(integer, I4, userp1, userp2, userp3) @\
+funcname##Macro(integer, I8, userp1, userp2, userp3) @\
+funcname##Macro(real, R4, userp1, userp2, userp3) @\
+funcname##Macro(real, R8, userp1, userp2, userp3) @\
+ @\
+! < end macro - do not edit directly >  @\
+!------------------------------------------------------------------------------ @\
+
+#define TypeKind3NoDocDeclarationMacro(funcname, userp1, userp2, userp3) \
+!------------------------------------------------------------------------------ @\
+! <This section created by macro - do not edit directly> @\
+ @\
+!! < start of macros which become actual subroutine bodies after expansion > @\
+ @\
 ^ifndef ESMF_NO_INTEGER_1_BYTE @\
 funcname##Macro(integer, I1, userp1, userp2, userp3) @\
 ^endif @\

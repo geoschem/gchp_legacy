@@ -1,7 +1,7 @@
-! $Id: ESMF_FieldBundleUTest.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
+! $Id$
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2012, University Corporation for Atmospheric Research,
+! Copyright 2002-2018, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -36,7 +36,7 @@
 !------------------------------------------------------------------------------
 ! The following line turns the CVS identifier string into a printable variable.
       character(*), parameter :: version = &
-      '$Id: ESMF_FieldBundleUTest.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $'
+      '$Id$'
 !------------------------------------------------------------------------------
 
 !     ! Local variables
@@ -44,6 +44,7 @@
       type(ESMF_VM) :: vm
       type(ESMF_FieldBundle) :: bundle2, fieldbundleAlias
       logical:: fieldbundleBool
+      logical:: isCreated
 
 
       ! cumulative result: count failures; no failures equals "all pass"
@@ -54,7 +55,7 @@
       character(ESMF_MAXSTR) :: name
 #ifdef ESMF_TESTEXHAUSTIVE
       type(ESMF_Grid) :: grid
-      integer :: i, fieldcount,localrc
+      integer :: i, fieldcount,localrc, loop_rc, n_match
       integer :: number, count
       character (len = ESMF_MAXSTR) :: fname1, fname2,fname3
       character(len = ESMF_MAXSTR), dimension(10) :: fieldNameList
@@ -63,7 +64,7 @@
       type(ESMF_LocStream) :: locstreamTst1, locStreamTst2
       type(ESMF_Mesh) :: meshTst1, meshTst2
       type (ESMF_ArraySpec) :: arrayspec
-      type(ESMF_Field) :: simplefield, field5
+      type(ESMF_Field) :: simplefield, field5, ft, fp
       type(ESMF_Field) :: returnedfield1, returnedfield2, returnedfield3
       !real (ESMF_KIND_R8), dimension(:,:), pointer :: f90ptr2
       type(ESMF_FieldBundle) :: bundle1, bundle3, bundle4, bundleTst, bundle5
@@ -72,7 +73,7 @@
       real(ESMF_KIND_R8), pointer :: nodeCoords(:)
       integer, pointer :: elemIds(:),elemTypes(:),elemConn(:)
       integer :: numNodes, numElems
-      character(len=ESMF_MAXSTR) :: fnames5(10)
+      character(len=ESMF_MAXSTR) :: fnames(10), fnames5(10)
 #endif
 
 
@@ -86,12 +87,79 @@
 !-------------------------------------------------------------------------------
 
       call ESMF_TestStart(ESMF_SRCLINE, rc=rc)
+      if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
      ! get global VM
      call ESMF_VMGetGlobal(vm, rc=rc)
      if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
      call ESMF_VMGet(vm, localPet=localPet, petCount=petCount, rc=rc)
      if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
+
+
+  !------------------------------------------------------------------------
+  !NEX_UTest
+  write(name, *) "Testing FieldBundle IsCreated for uncreated object"
+  write(failMsg, *) "Did not return .false."
+  isCreated = ESMF_FieldBundleIsCreated(bundle2)
+  call ESMF_Test((isCreated .eqv. .false.), name, failMsg, result, ESMF_SRCLINE)
+  !------------------------------------------------------------------------
+
+  !------------------------------------------------------------------------
+  !NEX_UTest
+  write(name, *) "Testing FieldBundle IsCreated for uncreated object"
+  write(failMsg, *) "Did not return ESMF_SUCCESS"
+  isCreated = ESMF_FieldBundleIsCreated(bundle2, rc=rc)
+  call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+  !------------------------------------------------------------------------
+
+  !------------------------------------------------------------------------
+  !NEX_UTest
+  write(name, *) "Create test FieldBundle for IsCreated"
+  write(failMsg, *) "Did not return ESMF_SUCCESS"
+  bundle2 = ESMF_FieldBundleCreate(name="time step 1", rc=rc)
+  call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+  !------------------------------------------------------------------------
+
+  !------------------------------------------------------------------------
+  !NEX_UTest
+  write(name, *) "Testing FieldBundle IsCreated for created object"
+  write(failMsg, *) "Did not return .true."
+  isCreated = ESMF_FieldBundleIsCreated(bundle2)
+  call ESMF_Test((isCreated .eqv. .true.), name, failMsg, result, ESMF_SRCLINE)
+  !------------------------------------------------------------------------
+
+  !------------------------------------------------------------------------
+  !NEX_UTest
+  write(name, *) "Testing FieldBundle IsCreated for created object"
+  write(failMsg, *) "Did not return ESMF_SUCCESS"
+  isCreated = ESMF_FieldBundleIsCreated(bundle2, rc=rc)
+  call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+  !------------------------------------------------------------------------
+
+  !------------------------------------------------------------------------
+  !NEX_UTest
+  write(name, *) "Destroy test FieldBundle for IsCreated"
+  write(failMsg, *) "Did not return ESMF_SUCCESS"
+  call ESMF_FieldBundleDestroy(bundle2, rc=rc)
+  call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+  !------------------------------------------------------------------------
+
+  !------------------------------------------------------------------------
+  !NEX_UTest
+  write(name, *) "Testing FieldBundle IsCreated for destroyed object"
+  write(failMsg, *) "Did not return .false."
+  isCreated = ESMF_FieldBundleIsCreated(bundle2)
+  call ESMF_Test((isCreated .eqv. .false.), name, failMsg, result, ESMF_SRCLINE)
+  !------------------------------------------------------------------------
+
+  !------------------------------------------------------------------------
+  !NEX_UTest
+  write(name, *) "Testing FieldBundle IsCreated for destroyed object"
+  write(failMsg, *) "Did not return ESMF_SUCCESS"
+  isCreated = ESMF_FieldBundleIsCreated(bundle2, rc=rc)
+  call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+  !------------------------------------------------------------------------
+
 
       !NEX_UTest
       !  Verify that an empty FieldBundle can be created
@@ -2077,8 +2145,142 @@
       write(name, *) "Destroy Fields and Grid"
       call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
 
+      !------------------------------------------------------------------------
+      !EX_UTest
+      bundle5 = ESMF_FieldBundleCreate(name = "fb", rc=rc)
+      write(failMsg, *) "Creating a FieldBundle"
+      write(name, *) "Creating a FieldBundle"
+      call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+
+      !------------------------------------------------------------------------
+      !EX_UTest
+      ft = ESMF_FieldEmptyCreate(name = "Temperature", rc=rc)
+      write(failMsg, *) "Creating a Field"
+      write(name, *) "Creating a Field"
+      call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+
+      !------------------------------------------------------------------------
+      !EX_UTest
+      fp = ESMF_FieldEmptyCreate(name = "Pressure", rc=rc)
+      write(failMsg, *) "Creating a Field"
+      write(name, *) "Creating a Field"
+      call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+
+      !------------------------------------------------------------------------
+      !EX_UTest
+      call ESMF_FieldBundleAdd(bundle5, (/ft/), rc=rc)
+      write(failMsg, *) "Adding a Field to a FieldBundle"
+      write(name, *) "Adding a Field to a FieldBundle"
+      call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+
+      !------------------------------------------------------------------------
+      !EX_UTest
+      call ESMF_FieldBundleAdd(bundle5, (/fp/), rc=rc)
+      write(failMsg, *) "Adding a Field to a FieldBundle"
+      write(name, *) "Adding a Field to a FieldBundle"
+      call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+
+      !------------------------------------------------------------------------
+      !EX_UTest
+      call ESMF_FieldBundleGet(bundle5, fieldList=fields(1:2), &
+        itemorderflag=ESMF_ITEMORDER_ADDORDER, rc=rc)
+      write(failMsg, *) "Getting Fields from a FieldBundle"
+      write(name, *) "Getting Fields from a FieldBundle"
+      call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+
+      !------------------------------------------------------------------------
+      !EX_UTest
+      call ESMF_FieldBundleGet(bundle5, fieldList=fields(3:4), &
+        itemorderflag=ESMF_ITEMORDER_ABC, rc=rc)
+      write(failMsg, *) "Getting Fields from a FieldBundle"
+      write(name, *) "Getting Fields from a FieldBundle"
+      call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+
+      !------------------------------------------------------------------------
+      !EX_UTest
+      loop_rc = ESMF_SUCCESS
+      do i = 1,2 
+        call ESMF_FieldGet(fields(i), name=fnames(i), rc=rc)
+        if(rc /= ESMF_SUCCESS) loop_rc=ESMF_FAILURE
+        call ESMF_FieldGet(fields(i+2), name=fnames(i+2), rc=rc)
+        if(rc /= ESMF_SUCCESS) loop_rc=ESMF_FAILURE
+      enddo
+      write(failMsg, *) "Getting Names from Fields"
+      write(name, *) "Getting Names from Fields"
+      call ESMF_Test((loop_rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+
+      !------------------------------------------------------------------------
+      !EX_UTest
+      ! The two retrieved name lists are expected to be different.
+      loop_rc = ESMF_SUCCESS
+      do i = 1,2 
+        if(trim(fnames(i)) == trim(fnames(i+2))) loop_rc=ESMF_FAILURE
+      enddo
+      write(failMsg, *) "Comparing two modes of BundleGet"
+      write(name, *) "Comparing two modes of BundleGet"
+      call ESMF_Test((loop_rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+
+      !------------------------------------------------------------------------
+      !EX_UTest
+      call ESMF_FieldBundleAdd(bundle5, (/ft/), multiflag=.true., rc=rc)
+      write(failMsg, *) "Adding a Field to a FieldBundle"
+      write(name, *) "Adding a Field to a FieldBundle"
+      call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+
+      !------------------------------------------------------------------------
+      !EX_UTest
+      call ESMF_FieldBundleGet(bundle5, fieldList=fields(1:3), &
+        itemorderflag=ESMF_ITEMORDER_ADDORDER, rc=rc)
+      write(failMsg, *) "Getting Fields from a FieldBundle"
+      write(name, *) "Getting Fields from a FieldBundle"
+      call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+
+      !------------------------------------------------------------------------
+      !EX_UTest
+      call ESMF_FieldBundleGet(bundle5, fieldList=fields(4:6), &
+        itemorderflag=ESMF_ITEMORDER_ABC, rc=rc)
+      write(failMsg, *) "Getting Fields from a FieldBundle"
+      write(name, *) "Getting Fields from a FieldBundle"
+      call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+
+      !------------------------------------------------------------------------
+      !EX_UTest
+      loop_rc = ESMF_SUCCESS
+      do i = 1,3
+        call ESMF_FieldGet(fields(i), name=fnames(i), rc=rc)
+        if(rc /= ESMF_SUCCESS) loop_rc=ESMF_FAILURE
+        call ESMF_FieldGet(fields(i+3), name=fnames(i+3), rc=rc)
+        if(rc /= ESMF_SUCCESS) loop_rc=ESMF_FAILURE
+        !print *, 'n_match = ', fnames(i), fnames(i+3)
+      enddo
+      write(failMsg, *) "Getting Names from Fields"
+      write(name, *) "Getting Names from Fields"
+      call ESMF_Test((loop_rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+
+      !------------------------------------------------------------------------
+      !EX_UTest
+      ! The two retrieved name lists are expected to be different.
+      ! TPT PTT
+      n_match = 0
+      do i = 1,3 
+        if(trim(fnames(i)) == trim(fnames(i+3))) n_match = n_match + 1
+        !print *, 'n_match = ', trim(fnames(i)), trim(fnames(i+3)), n_match
+      enddo
+      write(failMsg, *) "Comparing two modes of BundleGet"
+      write(name, *) "Comparing two modes of BundleGet"
+      call ESMF_Test((n_match .eq. 1), name, failMsg, result, ESMF_SRCLINE)
+
+      !------------------------------------------------------------------------
+      !EX_UTest
+      Call ESMF_FieldDestroy(ft, rc=rc)
+      Call ESMF_FieldDestroy(fp, rc=rc)
+      call ESMF_FieldBundleDestroy(bundle5, rc=rc)
+      write(failMsg, *) "Destroy FieldBundle"
+      write(name, *) "Destroy FieldBundle"
+      call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+
 #endif
 
-      call ESMF_TestEnd(result, ESMF_SRCLINE)
+      call ESMF_TestEnd(ESMF_SRCLINE)
 
       end program ESMF_FieldBundleUTest

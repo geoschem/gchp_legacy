@@ -6,8 +6,8 @@
 /*****************************************************************************
  * CVS File Information :
  *    $RCSfile: zz_struct.c,v $
- *    $Author: mathomp4 $
- *    $Date: 2013-01-11 20:23:44 $
+ *    $Author: dneckels $
+ *    $Date: 2007/11/28 16:13:55 $
  *    Revision: 1.19.2.1 $
  ****************************************************************************/
 
@@ -54,7 +54,7 @@ ZZ *Zoltan_Create(MPI_Comm communicator)
  *
  */
 
-char *yo = "Zoltan_Create";
+const char *yo = "Zoltan_Create";
 ZZ *zz;
 
   /*

@@ -1,0 +1,33 @@
+% $Id$
+%
+% Earth System Modeling Framework
+% Copyright 2002-2018, University Corporation for Atmospheric Research,
+% Massachusetts Institute of Technology, Geophysical Fluid Dynamics
+% Laboratory, University of Michigan, National Centers for Environmental
+% Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
+% NASA Goddard Space Flight Center.
+% Licensed under the University of Illinois-NCSA License.
+
+\subsection{Object Model}
+
+The following is a simplified UML diagram showing the structure of the
+Grid class.  See Appendix A, {\it A Brief Introduction to UML},
+for a translation table that lists the symbols in the diagram and their 
+meaning.
+
+\begin{center}
+\includegraphics{Grid_obj}   
+\end{center}
+
+Each Grid contains at least one Distributed Grid and a related Physical Grid.
+The Physical Grid maintains information about the global coordinates.  In
+general the coordinates are described implicitly by specifying the grid type
+and the corresponding parameters.  However it is possible that the Physical
+Grid must be completely enumerated, perhaps in the case of assimilated data
+or unstructured data.  The Distributed Grid defines an index space that
+corresponds to cells in the Physical Grid and is decomposed among DEs in a
+DELayout.  Please see Sections~\ref{sec:DistGridClasses} and
+~\ref{sec:PhysGridClasses} for more information about the private
+DistGrid and PhysGrid classes.
+
+

@@ -7,8 +7,8 @@
 /*****************************************************************************
  * CVS File Information :
  *    $RCSfile: hsfc.c,v $
- *    $Author: mathomp4 $
- *    $Date: 2013-01-11 20:23:44 $
+ *    $Author: dneckels $
+ *    $Date: 2007/11/28 16:13:49 $
  *    Revision: 1.61 $
  ****************************************************************************/
 
@@ -43,6 +43,10 @@ static PARAM_VARS HSFC_params[] =
 
 
 /****************************************************************************/
+
+/* Forward references */
+void  Zoltan_HSFC_mpi_sum_max_min (void *in, void *inout, int *len,
+ MPI_Datatype *datatype);
 
 /* Zoltan_HSFC - Main routine, Load Balance: Hilbert Space Filling Curve */
 int Zoltan_HSFC(
@@ -106,7 +110,7 @@ int Zoltan_HSFC(
    int        idummy;
    double     ddummy;
    int        dim;
-   char      *yo = "Zoltan_HSFC";
+   const char *yo = "Zoltan_HSFC";
 
    /* begin program with trace, timing, and initializations */
    ZOLTAN_TRACE_ENTER (zz, yo);
@@ -618,7 +622,7 @@ void Zoltan_HSFC_Free_Structure (ZZ *zz)
 
 int Zoltan_HSFC_Copy_Structure(ZZ *toZZ, ZZ const *fromZZ)
 {
-  char *yo = "Zoltan_HSFC_Copy_Structure";
+  const char *yo = "Zoltan_HSFC_Copy_Structure";
   int len;
   HSFC_Data *to;
   HSFC_Data const *from;

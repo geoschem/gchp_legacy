@@ -1,10 +1,10 @@
 // $Id$
 //
 // Earth System Modeling Framework
-// Copyright 2002-2012, University Corporation for Atmospheric Research, 
-// Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
-// Laboratory, University of Michigan, National Centers for Environmental 
-// Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
+// Copyright 2002-2018, University Corporation for Atmospheric Research,
+// Massachusetts Institute of Technology, Geophysical Fluid Dynamics
+// Laboratory, University of Michigan, National Centers for Environmental
+// Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
 // NASA Goddard Space Flight Center.
 // Licensed under the University of Illinois-NCSA License.
 
@@ -28,10 +28,15 @@
 //
 // !USES:
 
-#include <cstdio>
+#include "ESMF_LogMacros.inc"
 
 #include "ESMC_LogErr.h"
+#include "ESMC_Util.h"
 #include "ESMCI_Util.h"
+
+#include <cstdio>
+#include <string>
+#include <sstream>
 
 namespace ESMCI{
 
@@ -43,10 +48,12 @@ private:
                                 // for C++ I/O
     ESMC_Logical FileIsOpen;
 
-    ESMC_Logical verbose;       // If set to ESMC_TF_TRUE, log messages written 
+    ESMC_Logical verbose;       // If set to ESMC_TF_TRUE, log messages written
                                 // out.
 
     ESMC_Logical flush;         // If true, all output is flushed
+
+    bool trace;                 // If true, some methods issue trace messages upon entry
 
     ESMC_Logical rootOnly;
 
@@ -57,51 +64,73 @@ private:
     int stream;
 
     int max_elements;
-    
+
     int *pet_number;
-		
+                
     ESMC_Logical fileI0;        // If true, output written to files
 
-    int stdOutUnitNumber;       // Unit number corresponding to standard 
+    int stdOutUnitNumber;       // Unit number corresponding to standard
                                 // out
-    
+
   public:
+
 // !PUBLIC MEMBER FUNCTIONS:
-// (see ESMC\_LogErr.C for a description of these methods)
-    
-    bool AllocError(int *rcToReturn);
-    bool AllocError(int LINE,const char FILE[],const char method[],int *rcToReturn);
-    bool DeallocError(int *rcToReturn);
-    bool DeallocError(int LINE,const char FILE[],const char method[],int *rcToReturn);
+    void AllocError(
+        int LINE, const std::string &FILE, const std::string &method,
+        int *rcToReturn);
+    void DeallocError(
+        int LINE, const std::string &FILE, const std::string &method,
+        int *rcToReturn);
     void Close();
-    bool FoundError(int rcToCheck,int *rcToReturn);
-    bool FoundError(int rcToCheck,int LINE,const char FILE[],const char method[],
-         int *rcToReturn);
-    bool MsgAllocError(const char msg[],int *rcToReturn);
-    bool MsgAllocError(const char msg[],int LINE,const char FILE[],const char method[],
-      int *rcToReturn);
-    bool MsgDeallocError(const char msg[],int *rcToReturn);
-    bool MsgDeallocError(const char msg[],int LINE,const char FILE[],const char method[],
-      int *rcToReturn);
-    bool MsgFoundError(int rcToCheck,const char msg[],int *rcToReturn);
-    bool MsgFoundError(int rcToCheck,const char msg[],int LINE,const char FILE[],
-         const char method[],int *rcToReturn);
-    void Open(const char filename[]);
-    bool Write(const char msg[],int msgtype);
-    bool Write(const char msg[],int msgtype,int LINE,const char FILE[],
-         const char method[]);       
-// !PUBLIC Variables:          
+    bool FoundError(int rcToCheck,
+        int LINE, const char FILE[], const char method[],
+        int *rcToReturn);
+    bool FoundError(int rcToCheck,
+        int LINE, const std::string &FILE, const std::string &method,
+        int *rcToReturn);
+    void MsgAllocError(const std::string& msg,
+        int LINE, const std::string &FILE, const std::string &method,
+        int *rcToReturn);
+    void MsgDeallocError(const std::string& msg,
+        int LINE, const std::string &FILE, const std::string &method,
+        int *rcToReturn);
+    bool MsgFoundError(int rcToCheck, const char msg[],
+        int LINE, const char FILE[], const char method[],
+        int *rcToReturn);
+    bool MsgFoundError(int rcToCheck, const std::string &msg,
+        int LINE, const std::string &FILE, const std::string &method,
+        int *rcToReturn);
+    bool MsgFoundError(int rcToCheck, const std::stringstream& msg,
+        int LINE, const std::string &FILE, const std::string &method,
+        int *rcToReturn) {
+      return MsgFoundError(rcToCheck, msg.str(), LINE, FILE, method, rcToReturn);
+    }
+    void Open(const std::string &filename);
+    int Set(int flush);
+    int SetTrace(bool traceflag);
+    int Write(const std::string& msg, int msgtype);
+    int Write(const std::stringstream& msg, int msgtype) {
+      return Write(msg.str(), msgtype);
+    }
+    int Write(const std::string& msg, int msgtype,
+        int LINE, const std::string &FILE, const std::string &method);
+    int Write(const std::stringstream& msg, int msgtype,
+        int LINE, const std::string &FILE, const std::string &method) {
+      return Write(msg.str(), msgtype, LINE, FILE, method);
+    }
+
+// !PUBLIC Variables:
     std::FILE *ESMC_LogFile;
-    char nameLogErrFile[ESMC_MAXPATHLEN];
+    std::string nameLogErrFile;
     int *pet_num;
-    ESMC_LogType logtype;
+    ESMC_LogKind_Flag logtype;
     int *errorMask;
     int errorMaskCount;
 
 
   private:
 // !PRIVATE MEMBER FUNCIONS:
-    
+
 };
 
 } //namespace ESMCI
@@ -109,11 +138,12 @@ private:
 // the default global log object
 extern ESMCI::LogErr ESMC_LogDefault;
 extern "C" {
- void FTN(f_esmf_logwrite0)(const char *msg, int *msgtype, int *rc, ESMCI_FortranStrLenArg mlen);
- void FTN(f_esmf_logwrite1)(const char *msg, int *msgtype,
+ void FTN_X(f_esmf_logset)(ESMC_Logical *flush, int *rc);
+ void FTN_X(f_esmf_logwrite0)(const char *msg, int *msgtype, int *rc, ESMCI_FortranStrLenArg mlen);
+ void FTN_X(f_esmf_logwrite1)(const char *msg, int *msgtype,
                             int *line, const char *file, const char *method, int *rc,
                             ESMCI_FortranStrLenArg mlen, ESMCI_FortranStrLenArg flen,
-			    ESMCI_FortranStrLenArg mdlen);
+                            ESMCI_FortranStrLenArg mdlen);
 }
 
 //EOP

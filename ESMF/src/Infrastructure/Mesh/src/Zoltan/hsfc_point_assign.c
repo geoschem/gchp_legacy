@@ -7,8 +7,8 @@
 /*****************************************************************************
  * CVS File Information :
  *    $RCSfile: hsfc_point_assign.c,v $
- *    $Author: mathomp4 $
- *    $Date: 2013-01-11 20:23:44 $
+ *    $Author: dneckels $
+ *    $Date: 2007/11/28 16:13:50 $
  *    Revision: 1.18 $
  ****************************************************************************/
 
@@ -40,7 +40,7 @@ int Zoltan_HSFC_Point_Assign (
    int        dim;
    HSFC_Data *d;
    int        err;
-   char *yo = "Zoltan_HSFC_Point_Assign";
+   const char *yo = "Zoltan_HSFC_Point_Assign";
 
    ZOLTAN_TRACE_ENTER (zz, yo);
    d = (HSFC_Data *) zz->LB.Data_Structure;

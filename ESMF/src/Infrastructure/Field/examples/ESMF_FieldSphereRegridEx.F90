@@ -1,7 +1,7 @@
 ! $Id$
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2012, University Corporation for Atmospheric Research,
+! Copyright 2002-2018, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -31,8 +31,10 @@ program ESMF_FieldSphereRegridEx
 !
 !
 !-----------------------------------------------------------------------------
+#include "ESMF.h"
 ! !USES:
   use ESMF
+  use ESMF_TestMod
   use ESMF_RegridMod
   use ESMF_FieldMod
   use ESMF_GridUtilMod
@@ -94,8 +96,22 @@ program ESMF_FieldSphereRegridEx
 
   integer, pointer :: larrayList(:)
 
-    ! result code
+  character(ESMF_MAXSTR) :: testname
+
+  ! result code
   integer :: finalrc
+
+!-------------------------------------------------------------------------
+!-------------------------------------------------------------------------
+
+  write(failMsg, *) "Example failure"
+  write(testname, *) "Example ESMF_FieldSphereRegridEx"
+
+
+! ------------------------------------------------------------------------------
+! ------------------------------------------------------------------------------
+
+
   
   finalrc = ESMF_SUCCESS
   call ESMF_Initialize(vm=vm, defaultlogfilename="FieldSphereRegridEx.Log", &
@@ -133,6 +149,7 @@ program ESMF_FieldSphereRegridEx
 
   ! Create source/destination fields
   call ESMF_ArraySpecSet(arrayspec, 2, ESMF_TYPEKIND_R8, rc=rc)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
    srcField = ESMF_FieldCreate(gridSrc, arrayspec, &
                          staggerloc=ESMF_STAGGERLOC_CENTER, name="source", rc=localrc)
@@ -294,10 +311,10 @@ program ESMF_FieldSphereRegridEx
 !\subsubsection{Precompute a regridding operation between two Fields}
 ! To create the sparse matrix regrid operator we call the
 ! {\tt ESMF\_FieldSphereRegridStore()} routine.  In this example we
-! choose the {\tt ESMF_REGRID_METHOD_BILIONEAR} regridding method for
+! choose the {\tt ESMF_REGRID_METHOD_BILINEAR} regridding method for
 ! our first example, and {\tt ESMF_REGRIDMETHOD_PATCH} for our
 ! second example (The underlying C++ code process both matrices
-! simultaneously, but we do not yet have fortran interfaces for this).
+! simultaneously, but we do not yet have Fortran interfaces for this).
 ! This method creates two meshes, and a Rendezvous decomposition of these
 ! meshes is computed.  An octree search is performed, followed by a determination
 ! of which source cell each destination gridpoint is in.  Bilinear weights
@@ -348,6 +365,7 @@ program ESMF_FieldSphereRegridEx
 
 !BOC
   call ESMF_FieldRegridRelease(routeHandle, rc=localrc)
+  if (localrc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 #ifdef ESMF_LAPACK
   call ESMF_FieldRegridRelease(routeHandle1, rc=localrc)
 #endif
@@ -359,9 +377,11 @@ program ESMF_FieldSphereRegridEx
 !  call ESMF_MeshIO(vm, GridSrc, ESMF_STAGGERLOC_CENTER, &
 !               "srcmesh", srcArray, rc=localrc, &
 !               spherical=spherical_grid)
+!  if (localrc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !  call ESMF_MeshIO(vm, Griddst, ESMF_STAGGERLOC_CENTER, &
 !               "dstmesh", dstArray, dstArray1, rc=localrc, &
 !               spherical=spherical_grid)
+!  if (localrc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
    ! Free Fields
    call ESMF_FieldDestroy(srcField, rc=localrc)
@@ -376,10 +396,16 @@ program ESMF_FieldSphereRegridEx
 
   ! Free the grids
   call ESMF_GridDestroy(GridSrc, rc=localrc)
+  if (localrc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
   call ESMF_GridDestroy(GridDst, rc=localrc)
+  if (localrc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
-10   continue
+
+  ! IMPORTANT: ESMF_STest() prints the PASS string and the # of processors in the log
+  ! file that the scripts grep for.
+  call ESMF_STest((finalrc.eq.ESMF_SUCCESS), testname, failMsg, result, ESMF_SRCLINE)
+
 
   call ESMF_Finalize(rc=rc)
 

@@ -1,4 +1,4 @@
-# $Id: makefile,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $ 
+# $Id$ 
 
 ifeq ($(ESMF_TESTFORCEOPENMP),ON)
 ifeq ($(ESMF_OPENMP),OFF)
@@ -14,8 +14,10 @@ run_uni:  run_unit_tests_uni
 
 LOCDIR	  = src/Infrastructure/VM/tests
 
+.NOTPARALLEL:
 TESTS_BUILD   = $(ESMF_TESTDIR)/ESMC_VMUTest \
 		$(ESMF_TESTDIR)/ESMF_VMUTest \
+		$(ESMF_TESTDIR)/ESMF_VMAccUTest \
 		$(ESMF_TESTDIR)/ESMF_VMOpenMPUTest \
 		$(ESMF_TESTDIR)/ESMF_VMUserMpiInitUTest \
 		$(ESMF_TESTDIR)/ESMF_VMSendVMRecvUTest \
@@ -27,12 +29,14 @@ TESTS_BUILD   = $(ESMF_TESTDIR)/ESMC_VMUTest \
 		$(ESMF_TESTDIR)/ESMF_VMAllGatherUTest \
 		$(ESMF_TESTDIR)/ESMF_VMAllGatherVUTest \
 		$(ESMF_TESTDIR)/ESMF_VMBroadcastUTest \
+		$(ESMF_TESTDIR)/ESMF_VMAllToAllUTest \
 		$(ESMF_TESTDIR)/ESMF_VMAllToAllVUTest \
 		$(ESMF_TESTDIR)/ESMF_VMBarrierUTest \
 		$(ESMF_TESTDIR)/ESMF_VMComponentUTest
 
 TESTS_RUN     = RUN_ESMC_VMUTest \
 		RUN_ESMF_VMUTest \
+		RUN_ESMF_VMAccUTest \
                 RUN_ESMF_VMOpenMPUTest \
                 RUN_ESMF_VMUserMpiInitUTest \
                 RUN_ESMF_VMSendVMRecvUTest \
@@ -44,12 +48,14 @@ TESTS_RUN     = RUN_ESMC_VMUTest \
                 RUN_ESMF_VMAllGatherUTest \
                 RUN_ESMF_VMAllGatherVUTest \
 		RUN_ESMF_VMBroadcastUTest \
+                RUN_ESMF_VMAllToAllUTest \
                 RUN_ESMF_VMAllToAllVUTest \
 		RUN_ESMF_VMBarrierUTest \
 		RUN_ESMF_VMComponentUTest 
 
 TESTS_RUN_UNI = RUN_ESMC_VMUTestUNI \
 		RUN_ESMF_VMUTestUNI \
+		RUN_ESMF_VMAccUTestUNI \
                 RUN_ESMF_VMOpenMPUTestUNI \
                 RUN_ESMF_VMUserMpiInitUTestUNI \
                 RUN_ESMF_VMSendNbVMRecvNbUTestUNI \
@@ -60,6 +66,7 @@ TESTS_RUN_UNI = RUN_ESMC_VMUTestUNI \
                 RUN_ESMF_VMAllGatherUTestUNI \
                 RUN_ESMF_VMAllGatherVUTestUNI \
                 RUN_ESMF_VMBroadcastUTestUNI \
+                RUN_ESMF_VMAllToAllUTestUNI \
                 RUN_ESMF_VMAllToAllVUTestUNI \
                 RUN_ESMF_VMBarrierUTestUNI \
                 RUN_ESMF_VMComponentUTestUNI
@@ -71,7 +78,6 @@ CLEANDIRS   =
 CLEANFILES  = $(TESTS_BUILD)
 CLOBBERDIRS =
 
-
 #
 # VM
 #
@@ -80,6 +86,15 @@ RUN_ESMF_VMUTest:
 
 RUN_ESMF_VMUTestUNI:
 	$(MAKE) TNAME=VM NP=1 ftest
+
+#
+# VM Accelerator Interface test
+#
+RUN_ESMF_VMAccUTest:
+	$(MAKE) TNAME=VMAcc NP=4 ftest
+
+RUN_ESMF_VMAccUTestUNI:
+	$(MAKE) TNAME=VMAcc NP=1 ftest
 
 #
 # VM -- C interface
@@ -183,11 +198,21 @@ RUN_ESMF_VMAllGatherVUTestUNI:
 #
 # VM Broadcast
 #
+
 RUN_ESMF_VMBroadcastUTest:
 	$(MAKE) TNAME=VMBroadcast NP=4 ftest
 
 RUN_ESMF_VMBroadcastUTestUNI:
 	$(MAKE) TNAME=VMBroadcast NP=1 ftest
+
+#
+# VM AllToAll
+#
+RUN_ESMF_VMAllToAllUTest:
+	$(MAKE) TNAME=VMAllToAll NP=4 ftest
+
+RUN_ESMF_VMAllToAllUTestUNI:
+	$(MAKE) TNAME=VMAllToAll NP=1 ftest
 
 #
 # VM AllToAllV

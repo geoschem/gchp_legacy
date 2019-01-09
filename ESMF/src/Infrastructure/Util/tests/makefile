@@ -1,10 +1,11 @@
-# $Id: makefile,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $ 
+# $Id$ 
 
 ALL:  build_unit_tests
 run:  run_unit_tests
 
 LOCDIR	  = src/Infrastructure/Util/tests
 
+.NOTPARALLEL:
 TESTS_BUILD   = $(ESMF_TESTDIR)/ESMF_UtilUTest \
                 $(ESMF_TESTDIR)/ESMF_FortranWordsizeUTest \
                 $(ESMF_TESTDIR)/ESMF_TypeKindGetUTest \

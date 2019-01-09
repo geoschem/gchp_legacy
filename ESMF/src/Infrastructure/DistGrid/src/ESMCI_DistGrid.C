@@ -1,7 +1,7 @@
-// $Id: ESMCI_DistGrid.C,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
+// $Id$
 //
 // Earth System Modeling Framework
-// Copyright 2002-2012, University Corporation for Atmospheric Research, 
+// Copyright 2002-2018, University Corporation for Atmospheric Research, 
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
 // Laboratory, University of Michigan, National Centers for Environmental 
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
@@ -22,33 +22,68 @@
 // in the companion file ESMCI_DistGrid.h
 //
 //-----------------------------------------------------------------------------
-
 // include associated header file
 #include "ESMCI_DistGrid.h"
 
 // include higher level, 3rd party or system headers
 #include <cstdio>
 #include <cstring>
+#include <algorithm>
+#include <sstream>
 
 // include ESMF headers
 #include "ESMCI_Macros.h"
 #include "ESMCI_Base.h" 
 #include "ESMCI_VM.h"
 #include "ESMCI_DELayout.h"
-
-// LogErr headers
 #include "ESMCI_LogErr.h"
-#include "ESMF_LogMacros.inc"
 
 using namespace std;
 
 //-----------------------------------------------------------------------------
 // leave the following line as-is; it will insert the cvs ident string
 // into the object file for tracking purposes.
-static const char *const version = "$Id: ESMCI_DistGrid.C,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $";
+static const char *const version = "$Id$";
 //-----------------------------------------------------------------------------
 
 namespace ESMCI {
+
+//-----------------------------------------------------------------------------
+//
+// Explicit template instantiation (do not confuse with specialization!!!)
+// The reason for explicit instantiation here is that it will tell the compiler
+// explicitly to instantiate the following special instantiations of the 
+// template. This way the definition of the templated methods do not have to
+// sit with the declaration in the header file, but can be located in the 
+// source file.
+//
+//-----------------------------------------------------------------------------
+
+template int DistGrid::setArbSeqIndex<ESMC_I4>(InterArray<ESMC_I4> *arbSeqIndex, 
+  int localDe, int collocation);
+
+template int DistGrid::setArbSeqIndex<ESMC_I8>(InterArray<ESMC_I8> *arbSeqIndex, 
+  int localDe, int collocation);
+
+template int DistGrid::getSequenceIndexLocalDe<ESMC_I4>(int localDe, 
+    int const *index, vector<ESMC_I4> &seqIndex, bool recursive, bool canonical)
+    const;
+
+template int DistGrid::getSequenceIndexLocalDe<ESMC_I8>(int localDe, 
+    int const *index, vector<ESMC_I8> &seqIndex, bool recursive, bool canonical)
+    const;
+
+template int DistGrid::getSequenceIndexTileRelative<ESMC_I4>(int tile,
+    int const *index, ESMC_I4 *seqIndex)const;
+
+template int DistGrid::getSequenceIndexTileRelative<ESMC_I8>(int tile,
+    int const *index, ESMC_I8 *seqIndex)const;
+
+template int DistGrid::fillSeqIndexList<ESMC_I4>(
+    InterArray<ESMC_I4> *seqIndexList, int localDe, int collocation) const;
+
+template int DistGrid::fillSeqIndexList<ESMC_I8>(
+    InterArray<ESMC_I8> *seqIndexList, int localDe, int collocation) const;
 
 //-----------------------------------------------------------------------------
 //
@@ -70,24 +105,33 @@ DistGrid *DistGrid::create(
 //
 // !ARGUMENTS:
 //
-  DistGrid *dg,                           // (in)
-  InterfaceInt *firstExtra,               // (in)
-  InterfaceInt *lastExtra,                // (in)
-  ESMC_IndexFlag *indexflag,              // (in)
-  InterfaceInt *connectionList,           // (in)
-  int *rc                                 // (out) return code
+  DistGrid *dg,                         // (in)
+  InterArray<int> *firstExtra,          // (in)
+  InterArray<int> *lastExtra,           // (in)
+  ESMC_IndexFlag *indexflag,            // (in)
+  InterArray<int> *connectionList,      // (in)
+  VM *vm,                               // (in)
+  bool actualFlag,                      // (in)
+  int *rc                               // (out) return code
   ){
 //
 // !DESCRIPTION:
-//    Create a new DistGrid from an existing DistGrid, keeping the decomposition
-//    unchanged. The firstExtra and lastExtra arguments allow extra elements to
-//    be added at the first/last edge DE in each dimension. The method also 
-//    allows the indexflag to be set. Further, if the connectionList argument
-//    is passed in it will be used to set connections in the newly created
-//    DistGrid, otherwise the connections of the incoming DistGrid will be used.
-//    If neither firstExtra, lastExtra, indexflag, nor connectionList arguments
-//    are specified, the method reduces to a deep copy of the incoming DistGrid
-//    object.
+//    Create a new DistGrid from an existing DistGrid, potentially on a
+//    different VM, keeping the decomposition unchanged. The firstExtra 
+//    and lastExtra arguments allow extra elements to be added at the 
+//    first/last edge DE in each dimension. The method also allows the 
+//    indexflag to be set different from the passed in DistGrid. Further, 
+//    if the connectionList argument is passed in it will be used to set
+//    connections in the newly created DistGrid, otherwise the connections
+//    of the existing DistGrid will be used.
+//    If neither firstExtra, lastExtra, indexflag, connectionList, nor vm
+//    arguments are specified, the method reduces to a deep copy of the
+//    incoming DistGrid object.
+//    The actualFlag argument identifies PETs that are part of vm. If
+//    on a PET actualFlag is true, and vm is not NULL, this PET is part of a
+//    vm that is of smaller size than the currentVM. If on a PET actualFlag is
+//    false then there exists such a smaller vm (even if vm is NULL), but the
+//    PET is not part of that VM.
 //
 //EOPI
 //-----------------------------------------------------------------------------
@@ -97,27 +141,36 @@ DistGrid *DistGrid::create(
   
   DistGrid *distgrid = NULL;  // initialize
   try{
+    
+  DELayout *delayout = NULL;
   
-  if (firstExtra || lastExtra || indexflag || connectionList){
+  if (actualFlag && (!vm || (vm==VM::getCurrent()))){
+    // only use DELayout of incoming DistGrid if not creating for another VM
+    delayout = dg->delayout;
+  }
+  
+  if (present(firstExtra) || present(lastExtra) || indexflag ||
+    present(connectionList) || vm || !actualFlag){
+   if (actualFlag){
     // creating a new DistGrid from the existing one considering additional info
-    // prepare for internal InterfaceInt usage
-    int dimInterfaceInt;
-    int *dimCountInterfaceInt = new int[2];
+    // prepare for internal InterArray usage
+    int dimInterArray;
+    int *dimCountInterArray = new int[2];
     // prepare connectionList
     bool connectionListInternalFlag = false;
     int *connectionListAlloc = NULL; // default
-    if (connectionList){
+    if (present(connectionList)){
       // connectionList was provided -> check for correct format
       int elementSize = 2*dg->dimCount+2;
       if (connectionList->dimCount != 2){
         ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_RANK,
-          "- connectionList array must be of rank 2", rc);
+          "connectionList array must be of rank 2", ESMC_CONTEXT, rc);
         return ESMC_NULL_POINTER;
       }
       if (connectionList->extent[0] != elementSize){
         ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_SIZE,
-          "- 1st dimension of connectionList array must be of size "
-          "(2*dimCount+2)", rc);
+          "1st dimension of connectionList array must be of size "
+          "(2*dimCount+2)", ESMC_CONTEXT, rc);
         return ESMC_NULL_POINTER;
       }
       // check tileA & tileB entries
@@ -125,15 +178,15 @@ DistGrid *DistGrid::create(
         if (connectionList->array[elementSize*i] < 1 || 
           connectionList->array[elementSize*i] > dg->tileCount){
           ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_INCOMP,
-            "- tileA in connectionList element lies outside [1,tileCount]",
-            rc);
+            "tileA in connectionList element lies outside [1,tileCount]",
+            ESMC_CONTEXT, rc);
           return ESMC_NULL_POINTER;
         }
         if (connectionList->array[elementSize*i+1] < 1 ||
           connectionList->array[elementSize*i+1] > dg->tileCount){
           ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_INCOMP,
-            "- tileB in connectionList element lies outside [1,tileCount]",
-            rc);
+            "tileB in connectionList element lies outside [1,tileCount]",
+            ESMC_CONTEXT, rc);
           return ESMC_NULL_POINTER;
         }
       }
@@ -146,78 +199,83 @@ DistGrid *DistGrid::create(
       //TODO: across edges that are connected, since padding makes really only
       //TODO: sense for open edges.
       if (dg->connectionCount){
-        dimInterfaceInt = 2;
+        dimInterArray = 2;
         int elementSize = 2*dg->dimCount+2;
-        dimCountInterfaceInt[0] = elementSize;
-        dimCountInterfaceInt[1] = dg->connectionCount;
+        dimCountInterArray[0] = elementSize;
+        dimCountInterArray[1] = dg->connectionCount;
         connectionListAlloc = new int[elementSize * dg->connectionCount];
         for (int i=0; i<dg->connectionCount; i++){
           memcpy(&(connectionListAlloc[elementSize*i]), dg->connectionList[i],
             sizeof(int)*elementSize);
         }
-        connectionList = new InterfaceInt(connectionListAlloc,
-          dimInterfaceInt, dimCountInterfaceInt);
+        connectionList = new InterArray<int>(connectionListAlloc,
+          dimInterArray, dimCountInterArray);
       }
     }
     // prepare for single- vs. multi-tile case
-    dimInterfaceInt = 1;  // default single-tile
+    dimInterArray = 1;  // default single-tile
     if (dg->tileCount > 1)
-      dimInterfaceInt = 2;  // multi-tile
-    dimCountInterfaceInt[0] = dg->dimCount;
-    if (dimInterfaceInt==2)
-      dimCountInterfaceInt[1] = dg->tileCount;
+      dimInterArray = 2;  // multi-tile
+    dimCountInterArray[0] = dg->dimCount;
+    if (dimInterArray==2)
+      dimCountInterArray[1] = dg->tileCount;
     else
-      dimCountInterfaceInt[1] = 1;
-    int totalCountInterfaceInt = dimCountInterfaceInt[0]
-      * dimCountInterfaceInt[1];
+      dimCountInterArray[1] = 1;
+    int totalCountInterArray = dimCountInterArray[0]
+      * dimCountInterArray[1];
     // consistency check the input argument firstExtra
-    if (firstExtra){
-      if (firstExtra->dimCount != dimInterfaceInt){
+    if (present(firstExtra)){
+      if (firstExtra->dimCount != dimInterArray){
         ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_INCOMP,
-          "- distgrid and firstExtra arguments differ single/multi tile", rc);
+          "distgrid and firstExtra arguments differ single/multi tile",
+          ESMC_CONTEXT, rc);
         return ESMC_NULL_POINTER;
       }
       if (firstExtra->extent[0] != dg->dimCount){
         ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_INCOMP,
-          "- distgrid and firstExtra arguments assume different dimCount", rc);
+          "distgrid and firstExtra arguments assume different dimCount",
+          ESMC_CONTEXT, rc);
         return ESMC_NULL_POINTER;
       }
-      if (dimInterfaceInt==2){
+      if (dimInterArray==2){
         if (firstExtra->extent[1] != dg->tileCount){
           ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_INCOMP,
-            "- distgrid and firstExtra arguments assume different tileCount",
-            rc);
+            "distgrid and firstExtra arguments assume different tileCount",
+            ESMC_CONTEXT, rc);
           return ESMC_NULL_POINTER;
         }
       }
     }
     // consistency check the input argument lastExtra
-    if (lastExtra){
-      if (lastExtra->dimCount != dimInterfaceInt){
+    if (present(lastExtra)){
+      if (lastExtra->dimCount != dimInterArray){
         ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_INCOMP,
-          "- distgrid and lastExtra arguments differ single/multi tile", rc);
+          "distgrid and lastExtra arguments differ single/multi tile",
+          ESMC_CONTEXT, rc);
         return ESMC_NULL_POINTER;
       }
       if (lastExtra->extent[0] != dg->dimCount){
         ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_INCOMP,
-          "- distgrid and lastExtra arguments assume different dimCount", rc);
+          "distgrid and lastExtra arguments assume different dimCount",
+          ESMC_CONTEXT, rc);
         return ESMC_NULL_POINTER;
       }
-      if (dimInterfaceInt==2){
+      if (dimInterArray==2){
         if (lastExtra->extent[1] != dg->tileCount){
           ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_INCOMP,
-            "- distgrid and lastExtra arguments assume different tileCount",
-            rc);
+            "distgrid and lastExtra arguments assume different tileCount",
+            ESMC_CONTEXT, rc);
           return ESMC_NULL_POINTER;
         }
       }
     }
 
-     
+//gjt: working on corner connection for cubed sphere take out padding removal
+//gjt: btw padding removal below is not robust, it's hard to determine which
+//gjt: edge on a tile is affected by a connection. For now leave them all in.
 #if 0
-    // TURN OFF ERROR WITH CONNECTIONS ON Extra edge, BECAUSE GRID NEEDS TO DO IT
-    // edges modified by firstExtra or lastExtra cannot also be connected
-    if (connectionList){
+    // Look through connections and remove extra padding across connections
+    if (present(connectionList)){
       // there are connections
       int elementSize = connectionList->extent[0];
       int connectionCount = connectionList->extent[1];
@@ -226,41 +284,34 @@ DistGrid *DistGrid::create(
         int tileA = element[0];
         int tileB = element[1];
         int *positionVector = element + 2;
-        if (firstExtra){
+        if (present(firstExtra)){
           // there are possible modifications on the lower edge
           for (int j=0; j<dg->dimCount; j++){
-            if (positionVector[j]==0) continue; // BOB 
             if (positionVector[j] < 0){
               if (firstExtra->array[dg->dimCount*(tileA-1)+j] != 0){
-                ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_INCOMP,
-                  "- connected edges cannot be modified", rc);
-                return ESMC_NULL_POINTER;
+                firstExtra->array[dg->dimCount*(tileA-1)+j] = 0;  // remove pad.
+                //printf("remove firstExtra padding\n");
               }
             }else if (positionVector[j] > 0){
               if (firstExtra->array[dg->dimCount*(tileB-1)+j] != 0){
-                ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_INCOMP,
-                  "- connected edges cannot be modified", rc);
-                return ESMC_NULL_POINTER;
+                firstExtra->array[dg->dimCount*(tileB-1)+j] = 0;  // remove pad.
+                //printf("remove firstExtra padding\n");
               }
             }
           }
         }
-        if (lastExtra){
+        if (present(lastExtra)){
           // there are possible modifications on the upper edge
           for (int j=0; j<dg->dimCount; j++){
-            if (positionVector[j]==0) continue; // BOB 
             if (positionVector[j] < 0){
               if (lastExtra->array[dg->dimCount*(tileB-1)+j] != 0){
-                ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_INCOMP,
-                  "- connected edges cannot be modified", rc);
-                return ESMC_NULL_POINTER;
+                lastExtra->array[dg->dimCount*(tileB-1)+j] = 0;  // remove pad.
+                //printf("remove lastExtra padding\n");
               }
             }else if (positionVector[j] > 0){
               if (lastExtra->array[dg->dimCount*(tileA-1)+j] != 0){
-                printf(" posVec[%d]=%d\n",j,positionVector[j]);
-                ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_INCOMP,
-                  "- connected edges cannot be modified", rc);
-                return ESMC_NULL_POINTER;
+                lastExtra->array[dg->dimCount*(tileA-1)+j] = 0;  // remove pad.
+                //printf("remove lastExtra padding\n");
               }
             }
           }
@@ -268,54 +319,148 @@ DistGrid *DistGrid::create(
       }
     }
 #endif
+    // Look through connections and adjust from center to corner connections
+    // This actually depends on the padding information still being here!!!!
+//gjt: this is very specific code right here 2D, and for cubed sphere is 
+//gjt: extra padding as lastExtra
+//TODO: generalize, or have flag come in that indicates this is to be done
+    if (present(connectionList)){
+      // there are connections
+      int elementSize = connectionList->extent[0];
+      int connectionCount = connectionList->extent[1];
+      for (int i=0; i<connectionCount; i++){
+        int *element = connectionList->array + i*elementSize;
+        int tileA = element[0];
+        int tileB = element[1];
+        int *positionVector = element + 2;
+        int *orientationVector = positionVector + dg->dimCount;
+        if (present(firstExtra) && present(lastExtra)){
+          if (orientationVector[0]==2 && orientationVector[1]==-1){
+            int diff = lastExtra->array[dg->dimCount*(tileA-1)+0]
+              - firstExtra->array[dg->dimCount*(tileB-1)+1];
+            if (diff == (lastExtra->array[dg->dimCount*(tileB-1)+1]
+              - firstExtra->array[dg->dimCount*(tileA-1)+0])){
+              positionVector[1] += diff;
+            }else{
+              ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_INCOMP,
+                "Inconsistent connection and padding detected.",
+              ESMC_CONTEXT, rc);
+              return ESMC_NULL_POINTER;
+            }
+          }else if (orientationVector[0]==-2 && orientationVector[1]==1){
+            int diff = lastExtra->array[dg->dimCount*(tileA-1)+1]
+              - firstExtra->array[dg->dimCount*(tileB-1)+0];
+            if (diff == (lastExtra->array[dg->dimCount*(tileB-1)+0]
+              - firstExtra->array[dg->dimCount*(tileA-1)+1])){
+              positionVector[0] += diff;
+            }else{
+              ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_INCOMP,
+                "Inconsistent connection and padding detected.",
+              ESMC_CONTEXT, rc);
+              return ESMC_NULL_POINTER;
+            }
+          }
+        }
+      }
+    }
+    
+#if 0
+//gjt: this cuts off the flaps along edges by removing all extra padding
+//gjt: on the actual created DistGrid. Only used for debugging because 
+//gjt: the full implementation strategy is to send degeneracies down to
+//gjt: Mesh-to-Grid where it will then be sorted out correctly to only 
+//gjt: propagate single element for each degeneracy. This is a more general
+//gjt: way of taking care of corner and edge degeneracies in the same way.
+    firstExtra = NULL;
+    lastExtra = NULL;
+#endif
+    
     // prepare minIndex and maxIndex
-    int *minIndexAlloc = new int[totalCountInterfaceInt];
-    if (firstExtra)
-      for (int i=0; i<totalCountInterfaceInt; i++)
+    int *minIndexAlloc = new int[totalCountInterArray];
+    if (present(firstExtra))
+      for (int i=0; i<totalCountInterArray; i++)
         minIndexAlloc[i] = dg->minIndexPDimPTile[i]
           - firstExtra->array[i];
     else
       memcpy(minIndexAlloc, dg->minIndexPDimPTile,
-        sizeof(int)*totalCountInterfaceInt);
-    InterfaceInt *minIndex = new InterfaceInt(minIndexAlloc,
-      dimInterfaceInt, dimCountInterfaceInt);
-    int *maxIndexAlloc = new int[totalCountInterfaceInt];
-    if (lastExtra)
-      for (int i=0; i<totalCountInterfaceInt; i++)
+        sizeof(int)*totalCountInterArray);
+    InterArray<int> *minIndex = new InterArray<int>(minIndexAlloc,
+      dimInterArray, dimCountInterArray);
+    int *maxIndexAlloc = new int[totalCountInterArray];
+    if (present(lastExtra))
+      for (int i=0; i<totalCountInterArray; i++)
         maxIndexAlloc[i] = dg->maxIndexPDimPTile[i]
           + lastExtra->array[i];
     else
       memcpy(maxIndexAlloc, dg->maxIndexPDimPTile,
-        sizeof(int)*totalCountInterfaceInt);
-    InterfaceInt *maxIndex = new InterfaceInt(maxIndexAlloc,
-      dimInterfaceInt, dimCountInterfaceInt);
-    //TODO: decompflag needs to be kept in DistGrid so it can be used here!
-    //TODO: indexflag needs to be kept in DistGrid so it can be used as default!
+        sizeof(int)*totalCountInterArray);
+    InterArray<int> *maxIndex = new InterArray<int>(maxIndexAlloc,
+      dimInterArray, dimCountInterArray);
+    
+    // use indexflag inside dg as the default if not supplied by caller
+    ESMC_IndexFlag *indexflagOpt = dg->indexflag; // default
+    if (indexflag)
+      indexflagOpt = indexflag; // provided by caller
+    
+    //TODO: maybe also need to hold on to delabellist to preserve DE labeling?
     
     // create DistGrid according to collected information
     if (dg->regDecomp!=NULL){
       // this is a regDecomp
+#if 0
+      ESMC_LogDefault.Write("DGfromDG: incoming DG identified as regDecomp", 
+        ESMC_LOGMSG_INFO);
+#endif
       // prepare regDecomp
-      InterfaceInt *regDecomp = new InterfaceInt(dg->regDecomp,
-        dimInterfaceInt, dimCountInterfaceInt);
+      InterArray<int> *regDecomp = new InterArray<int>(dg->regDecomp,
+        dimInterArray, dimCountInterArray);
+
+      // use decompflag from inside dg to ensure identical decomposition
+      Decomp_Flag *decompflag = dg->decompflag;
+      
       if (dg->tileCount==1){
         // single tile
-        distgrid = DistGrid::create(minIndex, maxIndex, regDecomp, NULL, 0,
-          firstExtra, lastExtra, NULL, indexflag,
-          connectionList, dg->delayout, dg->vm, &localrc);
-        if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, rc))
-          return ESMC_NULL_POINTER;
+#if 0
+      ESMC_LogDefault.Write("DGfromDG: single-tile regDecomp branch", 
+        ESMC_LOGMSG_INFO);
+#endif
+        int decompflagCount = 0;  // default
+        if (decompflag)
+          decompflagCount = dg->dimCount;
+        distgrid = DistGrid::create(minIndex, maxIndex, regDecomp, decompflag,
+          decompflagCount, firstExtra, lastExtra, NULL,
+          indexflagOpt, connectionList, delayout, vm, &localrc, dg->indexTK);
+        if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU,
+          ESMC_CONTEXT, rc)) return ESMC_NULL_POINTER;
       }else{
         // multi tile
-        distgrid = DistGrid::create(minIndex, maxIndex, regDecomp, NULL, 0, 0,
-          firstExtra, lastExtra, NULL, indexflag,
-          connectionList, dg->delayout, dg->vm, &localrc);
-        if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, rc))
-          return ESMC_NULL_POINTER;
+#if 0
+      ESMC_LogDefault.Write("DGfromDG: multi-tile regDecomp branch", 
+        ESMC_LOGMSG_INFO);
+#endif
+        int decompflagCount1 = 0;  // default
+        int decompflagCount2 = 0;  // default
+        if (decompflag){
+          decompflagCount1 = dg->dimCount;
+          decompflagCount2 = dg->tileCount;
+        }
+        distgrid = DistGrid::create(minIndex, maxIndex, regDecomp, decompflag,
+          decompflagCount1, decompflagCount2, firstExtra, lastExtra, NULL,
+          indexflagOpt, connectionList, delayout, vm, &localrc, dg->indexTK);
+        if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU,
+          ESMC_CONTEXT, rc)) return ESMC_NULL_POINTER;
       }
+#if 0
+      ESMC_LogDefault.Write("DGfromDG: done with DistGrid::create()", 
+        ESMC_LOGMSG_INFO);
+#endif
       delete regDecomp;
     }else{
       // this is a deBlockList
+#if 0
+      ESMC_LogDefault.Write("DGfromDG: incoming DG identified as deBlock", 
+        ESMC_LOGMSG_INFO);
+#endif
       if (dg->tileCount==1){
         // single tile
         // prepare deBlockList
@@ -326,15 +471,15 @@ DistGrid *DistGrid::create(
         deBlockListDims[0] = dimCount;
         deBlockListDims[1] = 2;
         deBlockListDims[2] = deCount;
-        InterfaceInt *deBlockList = new InterfaceInt(deBlockListAlloc, 3,
-          deBlockListDims);
+        InterArray<int> *deBlockList =
+          new InterArray<int>(deBlockListAlloc, 3, deBlockListDims);
         delete [] deBlockListDims;
         // fill deBlockListAlloc with correct info
         for (int i=0; i<deCount; i++){
           for (int k=0; k<dimCount; k++){
             deBlockListAlloc[i*2*dimCount+k] =
               dg->minIndexPDimPDe[i*dimCount+k];
-            if (firstExtra){
+            if (present(firstExtra)){
               if (deBlockListAlloc[i*2*dimCount+k]
                 == dg->minIndexPDimPTile[k]){
                 // found edge DE on single tile DistGrid
@@ -344,7 +489,7 @@ DistGrid *DistGrid::create(
             }
             deBlockListAlloc[i*2*dimCount+dimCount+k] =
               dg->maxIndexPDimPDe[i*dimCount+k];
-            if (firstExtra){
+            if (present(lastExtra)){
               if (deBlockListAlloc[i*2*dimCount+dimCount+k] ==
                 dg->maxIndexPDimPTile[k]){
                 // found edge DE on single tile DistGrid
@@ -356,31 +501,270 @@ DistGrid *DistGrid::create(
         }
         // create DistGrid
         distgrid = DistGrid::create(minIndex, maxIndex, deBlockList,
-          NULL, indexflag, connectionList, dg->delayout, dg->vm, &localrc);
-        if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, rc))
-          return ESMC_NULL_POINTER;
+          NULL, indexflagOpt, connectionList, delayout, vm, &localrc);
+        if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU,
+          ESMC_CONTEXT, rc)) return ESMC_NULL_POINTER;
         delete deBlockList;
         delete [] deBlockListAlloc;
       }else{
         // multi tile
-        //TODO: activate this branch once deBlockList multi-tile is implemented
+        //TODO: implement this branch once deBlockList multi-tile is implemented
+        ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_INCOMP,
+          "Currently no support for multi-tile deBlock DistGrid branch.",
+          ESMC_CONTEXT, rc);
+        return ESMC_NULL_POINTER;
       }
     }
     // garbage collection
-    delete [] dimCountInterfaceInt;
+    delete [] dimCountInterArray;
     delete minIndex;
     delete [] minIndexAlloc;
     delete maxIndex;
     delete [] maxIndexAlloc;
     if (connectionListInternalFlag){
-      if (connectionList)
+      if (present(connectionList))
         delete connectionList;
       if (connectionListAlloc)
         delete [] connectionListAlloc;
     }
+   }  // endif actualFlag
+   // -> all PETs now...
+   // deal with arbitrary sequence index lists
+   // keep in mind that the new "distgrid" object only exists across
+   // PETs with actualFlag true.
+#if 0
+   // block for debugging only
+   char msgString[160];
+   sprintf(msgString, "DGfromDG: incoming DG localDeCount=%d",
+     dg->delayout->getLocalDeCount());
+   ESMC_LogDefault.Write(msgString, ESMC_LOGMSG_INFO);
+   if (actualFlag){
+     sprintf(msgString, "DGfromDG: new DG localDeCount=%d",
+       distgrid->delayout->getLocalDeCount());
+     ESMC_LogDefault.Write(msgString, ESMC_LOGMSG_INFO);
+     for (int i=0; i<distgrid->delayout->getLocalDeCount(); i++){
+       sprintf(msgString, "DGfromDG: new DG localDe=%d=>%d elementCount=%d",
+         i, distgrid->delayout->getLocalDeToDeMap()[i], 
+         distgrid->getElementCountPCollPLocalDe()[0][i]);
+       ESMC_LogDefault.Write(msgString, ESMC_LOGMSG_INFO);
+     }
+   }
+   if (!vm)
+     sprintf(msgString, "DGfromDG: vm.petCount=%d, currentVM.petCount=%d",
+       -1, VM::getCurrent()->getPetCount());
+   else
+     sprintf(msgString, "DGfromDG: vm.petCount=%d, currentVM.petCount=%d",
+       vm->getPetCount(), VM::getCurrent()->getPetCount());
+   ESMC_LogDefault.Write(msgString, ESMC_LOGMSG_INFO);
+
+   sprintf(msgString, "DGfromDG: incoming DG diffCollocationCount=%d",
+     dg->getDiffCollocationCount());
+   ESMC_LogDefault.Write(msgString, ESMC_LOGMSG_INFO);
+   
+   // should error out if collocationCount is not 1 cannot handle that yet
+   
+   if (dg->delayout->getLocalDeCount() > 0){
+     for (int i=0; i<dg->delayout->getLocalDeCount(); i++)
+       sprintf(msgString, "DGfromDG: incoming DG localDe=%d=>%d, elementCount=%d, "
+         "arbSeqIndexList=%p", i, dg->delayout->getLocalDeToDeMap()[i],
+         dg->getElementCountPCollPLocalDe()[0][i],
+         dg->getArbSeqIndexList(i, 1));
+     ESMC_LogDefault.Write(msgString, ESMC_LOGMSG_INFO);
+   }
+#endif
+
+   // Need to figure out whether it is safe to communicate across the entire
+   // currentVM or not. 
+   // It is safe to do so if acceptor VM and provider VM do NOT match!
+   // That is because in this case this must be a call that is coming in
+   // on all PETs.
+   VM *currentVM = VM::getCurrent();
+   bool currentVMcollectiveOK = false;
+   VM *providerVM = dg->delayout->getVM();
+   VM *acceptorVM = NULL; // default on all PETs
+   if (actualFlag) acceptorVM = distgrid->delayout->getVM();
+   if (providerVM != acceptorVM)
+     currentVMcollectiveOK = true;
+   
+   if (currentVMcollectiveOK){
+     // only in this case do we need to check if there are arbitrary sequence
+     // indices on the provider DistGrid (on its PETs), and if so then 
+     // send them over to the acceptor DistGrid DEs. 
+     
+     // first check if the provider DistGrid DEs are holding arbitrary 
+     // sequence index allocations.
+     int localArbSeqFlag = 0; // initialize
+     int allArbSeqFlag;
+     if (dg->delayout->getLocalDeCount() && 
+       (dg->getArbSeqIndexList(0, 1)!=NULL)) localArbSeqFlag = 1;
+     currentVM->allreduce(&localArbSeqFlag, &allArbSeqFlag, 1, vmI4, vmSUM);
+#if 0
+     sprintf(msgString, "DGfromDG: allArbSeqFlag = %d", allArbSeqFlag);
+     ESMC_LogDefault.Write(msgString, ESMC_LOGMSG_INFO);
+#endif
+     // now allArbSeqFlag > 0 means that there are provider DistGrid DEs that
+     // hold arbitrary sequence index allocations that need to be sent to
+     // the correct DE of the newly created acceptor DistGrid.
+     
+     if (allArbSeqFlag > 0){
+       int localPet = currentVM->getLocalPet();
+       int petCount = currentVM->getPetCount();
+       int deCount = dg->delayout->getDeCount();  // same for provider & accept
+       // determine how many local DEs in the newly created DistGrid there are
+       // on each PET of the currentVM
+       int *acceptorLocalDeCountPPet = new int[petCount];
+       int localDeCount = 0; // default, will stay for non particip. PETs
+       if (actualFlag)
+         localDeCount = distgrid->delayout->getLocalDeCount();
+       currentVM->allgather(&localDeCount, acceptorLocalDeCountPPet, 
+         sizeof(int));
+       // send across the DE mapping of the local DEs of acceptor DistGrid
+       int *acceptorLocalOffsets = new int[petCount];
+       acceptorLocalOffsets[0]=0; // start
+       for (int i=1; i<petCount; i++)
+         acceptorLocalOffsets[i]=acceptorLocalOffsets[i-1]
+           +acceptorLocalDeCountPPet[i-1];
+       int *acceptorLocalDeToDeMap = new int[deCount];
+       const int *localDeToDeMap = NULL; // default
+       if (actualFlag)
+         localDeToDeMap = distgrid->delayout->getLocalDeToDeMap();
+       currentVM->allgatherv((void *)localDeToDeMap, localDeCount, 
+         acceptorLocalDeToDeMap, acceptorLocalDeCountPPet,
+         acceptorLocalOffsets, vmI4);
+       delete [] acceptorLocalOffsets;
+#if 0
+       for (int i=0; i<deCount; i++){
+         sprintf(msgString, "DGfromDG: DE mapping for acceptor item %d is %d: ",
+           i, acceptorLocalDeToDeMap[i]);
+         ESMC_LogDefault.Write(msgString, ESMC_LOGMSG_INFO);
+       }
+#endif
+       // determine how many local DEs in the provider DistGrid there are
+       // on each PET of the currentVM
+       int *providerLocalDeCountPPet = new int[petCount];
+       localDeCount = dg->delayout->getLocalDeCount();
+       currentVM->allgather(&localDeCount, providerLocalDeCountPPet, 
+         sizeof(int));
+       // send across the DE mapping of the local DEs of provider DistGrid
+       int *providerLocalOffsets = new int[petCount];
+       providerLocalOffsets[0]=0; // start
+       for (int i=1; i<petCount; i++)
+         providerLocalOffsets[i]=providerLocalOffsets[i-1]
+           +providerLocalDeCountPPet[i-1];
+       int *providerLocalDeToDeMap = new int[deCount];
+       localDeToDeMap = dg->delayout->getLocalDeToDeMap();
+       currentVM->allgatherv((void *)localDeToDeMap, localDeCount, 
+         providerLocalDeToDeMap, providerLocalDeCountPPet,
+         providerLocalOffsets, vmI4);
+       delete [] providerLocalOffsets;
+#if 0
+       for (int i=0; i<deCount; i++){
+         sprintf(msgString, "DGfromDG: DE mapping for provider item %d is %d: ",
+           i, providerLocalDeToDeMap[i]);
+         ESMC_LogDefault.Write(msgString, ESMC_LOGMSG_INFO);
+       }
+#endif
+       // loop through DEs (same on both provider and acceptor DistGrids), and
+       // send arb sequence indices from provider to acceptor.
+       for (int de=0; de<deCount; de++){
+         // find this DE amount the localDEs of the provider PETs
+         int providerPet;
+         int providerLDe;
+         int providerOffset=0;
+         bool foundFlag=false;
+         for (providerPet=0; providerPet<petCount; providerPet++){
+           for (providerLDe=0;
+             providerLDe<providerLocalDeCountPPet[providerPet]; providerLDe++){
+             if (providerLocalDeToDeMap[providerOffset]==de){
+               // found the provider DE
+               foundFlag = true;
+               break;
+             }
+             ++providerOffset;
+           }
+           if (foundFlag) break;
+         }
+         // now provider Pet and offset are known
+#if 0
+         sprintf(msgString, "DGfromDG: DE %d - provider PET=%d, "
+           "localDe=%d, offset=%d", de, providerPet, providerLDe, 
+           providerOffset);
+         ESMC_LogDefault.Write(msgString, ESMC_LOGMSG_INFO);
+#endif
+         // find this DE amount the localDEs of the acceptor PETs
+         int acceptorPet;
+         int acceptorLDe;
+         int acceptorOffset=0;
+         foundFlag=false;
+         for (acceptorPet=0; acceptorPet<petCount; acceptorPet++){
+           for (acceptorLDe=0;
+             acceptorLDe<acceptorLocalDeCountPPet[acceptorPet]; acceptorLDe++){
+             if (acceptorLocalDeToDeMap[acceptorOffset]==de){
+               // found the acceptor DE
+               foundFlag = true;
+               break;
+             }
+             ++acceptorOffset;
+           }
+           if (foundFlag) break;
+         }
+         // now acceptor Pet and offset are known
+#if 0
+         sprintf(msgString, "DGfromDG: DE %d - acceptor PET=%d, "
+           "localDe=%d, offset=%d", de, acceptorPet, acceptorLDe, 
+           acceptorOffset);
+         ESMC_LogDefault.Write(msgString, ESMC_LOGMSG_INFO);
+#endif
+         // finally send the arb sequence indices from provider to acceptor
+         int *arbSeqIndex;
+         int itemCount;
+         if (localPet==providerPet && localPet==acceptorPet){
+           // same PET holds DE for provider and acceptor -> local copy
+           itemCount = dg->getElementCountPCollPLocalDe()[0][providerLDe];
+           arbSeqIndex = new int[itemCount];
+           memcpy(arbSeqIndex, dg->getArbSeqIndexList(providerLDe,1),
+             sizeof(int)*itemCount);
+         }else if (localPet==providerPet){
+           // provider side
+           itemCount = dg->getElementCountPCollPLocalDe()[0][providerLDe];
+           currentVM->send(dg->getArbSeqIndexList(providerLDe,1), 
+             sizeof(int)*itemCount, acceptorPet);
+         }else if (localPet==acceptorPet){
+           // acceptor side
+           itemCount = distgrid->getElementCountPCollPLocalDe()[0][acceptorLDe];
+           arbSeqIndex = new int[itemCount];
+           currentVM->recv(arbSeqIndex, sizeof(int)*itemCount, providerPet);
+         }
+         if (localPet==acceptorPet){
+           // acceptor side to wrap up setting of arb sequence indices
+           InterArray<int> *arbSeqIndexInt =
+             new InterArray<int>(arbSeqIndex, 1, &itemCount);
+           distgrid->setArbSeqIndex(arbSeqIndexInt, acceptorLDe, 1);
+           delete arbSeqIndexInt;
+           delete [] arbSeqIndex;
+         }
+       }
+       // clean-up
+       delete [] acceptorLocalDeCountPPet;
+       delete [] acceptorLocalDeToDeMap;
+       delete [] providerLocalDeCountPPet;
+       delete [] providerLocalDeToDeMap;
+     } // endif allArbSeqFlag
+   } // endif currentVMcollectiveOK
+    
   }else{
+#if 0
+    char msgString[160];
+    sprintf(msgString, "DGfromDG: incoming DG identified for deep copy, "
+      "actualFlag=%d", actualFlag);
+    ESMC_LogDefault.Write(msgString, ESMC_LOGMSG_INFO);
+    sprintf(msgString, "DGfromDG: incoming DG localDeCount=%d",
+      dg->delayout->getLocalDeCount());
+    ESMC_LogDefault.Write(msgString, ESMC_LOGMSG_INFO);
+#endif
+   if (actualFlag){
     // simple deep copy of the incoming DistGrid
-    distgrid = new DistGrid();
+    distgrid = new DistGrid(vm);  // specific VM, or default if vm==NULL
     int dimCount = distgrid->dimCount = dg->dimCount;
     int tileCount = distgrid->tileCount = dg->tileCount;
     int deCount = dg->delayout->getDeCount();
@@ -391,18 +775,18 @@ DistGrid *DistGrid::create(
     distgrid->maxIndexPDimPTile = new int[dimCount*tileCount];
     memcpy(distgrid->maxIndexPDimPTile, dg->maxIndexPDimPTile,
       sizeof(int)*dimCount*tileCount);
-    distgrid->elementCountPTile = new int[tileCount];
+    distgrid->elementCountPTile = new ESMC_I8[tileCount];
     memcpy(distgrid->elementCountPTile, dg->elementCountPTile,
-      sizeof(int)*tileCount);
+      sizeof(ESMC_I8)*tileCount);
     distgrid->minIndexPDimPDe = new int[dimCount*deCount];
     memcpy(distgrid->minIndexPDimPDe, dg->minIndexPDimPDe,
       sizeof(int)*dimCount*deCount);
     distgrid->maxIndexPDimPDe = new int[dimCount*deCount];
     memcpy(distgrid->maxIndexPDimPDe, dg->maxIndexPDimPDe,
       sizeof(int)*dimCount*deCount);
-    distgrid->elementCountPDe = new int[deCount];
+    distgrid->elementCountPDe = new ESMC_I8[deCount];
     memcpy(distgrid->elementCountPDe, dg->elementCountPDe,
-      sizeof(int)*deCount);
+      sizeof(ESMC_I8)*deCount);
     distgrid->tileListPDe = new int[deCount];
     memcpy(distgrid->tileListPDe, dg->tileListPDe,
       sizeof(int)*deCount);
@@ -422,6 +806,7 @@ DistGrid *DistGrid::create(
           dg->indexListPDimPLocalDe[i*dimCount+j], sizeof(int)*size);
       }
     }
+    // connections
     int connectionCount = distgrid->connectionCount = dg->connectionCount;
     if (connectionCount){
       int elementSize = 2*dimCount+2;
@@ -433,7 +818,8 @@ DistGrid *DistGrid::create(
       }
     }else
       distgrid->connectionList = NULL;
-
+    // arbitrary sequence indices
+    distgrid->indexTK = dg->indexTK;
     distgrid->collocationPDim = new int[dimCount];
     memcpy(distgrid->collocationPDim, dg->collocationPDim,
       sizeof(int)*dimCount);
@@ -442,54 +828,91 @@ DistGrid *DistGrid::create(
       sizeof(int)*dimCount);
     int diffCollocationCount =
       distgrid->diffCollocationCount = dg->diffCollocationCount;
-    distgrid->arbSeqIndexListPCollPLocalDe = new int**[diffCollocationCount];
+    distgrid->arbSeqIndexListPCollPLocalDe = new void**[diffCollocationCount];
     distgrid->elementCountPCollPLocalDe = new int*[diffCollocationCount];
     for (int i=0; i<diffCollocationCount; i++){
-      distgrid->arbSeqIndexListPCollPLocalDe[i] = new int*[localDeCount];
+      distgrid->arbSeqIndexListPCollPLocalDe[i] = new void*[localDeCount];
       distgrid->elementCountPCollPLocalDe[i] = new int[localDeCount];
       memcpy(distgrid->elementCountPCollPLocalDe[i],
         dg->elementCountPCollPLocalDe[i], sizeof(int)*localDeCount);
       for (int j=0; j<localDeCount; j++){
-        if ((dg->arbSeqIndexListPCollPLocalDe[i][j]!=NULL)
-          && (dg->elementCountPCollPLocalDe[i][j]>0)){
-          distgrid->arbSeqIndexListPCollPLocalDe[i][j] =
-            new int[dg->elementCountPCollPLocalDe[i][j]];
+        distgrid->arbSeqIndexListPCollPLocalDe[i][j] = NULL;  // invalidate
+        if ((dg->arbSeqIndexListPCollPLocalDe[i][j] != NULL)
+          && (dg->elementCountPCollPLocalDe[i][j] > 0)){
+          unsigned int sizeOfType;
+          if (dg->indexTK == ESMC_TYPEKIND_I1){
+            distgrid->arbSeqIndexListPCollPLocalDe[i][j] =
+              (void *)(new ESMC_I1[dg->elementCountPCollPLocalDe[i][j]]);
+            sizeOfType = sizeof(ESMC_I1);
+          }else if (dg->indexTK == ESMC_TYPEKIND_I2){
+            distgrid->arbSeqIndexListPCollPLocalDe[i][j] =
+              (void *)(new ESMC_I2[dg->elementCountPCollPLocalDe[i][j]]);
+            sizeOfType = sizeof(ESMC_I2);
+          }else if (dg->indexTK == ESMC_TYPEKIND_I4){
+            distgrid->arbSeqIndexListPCollPLocalDe[i][j] =
+              (void *)(new ESMC_I4[dg->elementCountPCollPLocalDe[i][j]]);
+            sizeOfType = sizeof(ESMC_I4);
+          }else if (dg->indexTK == ESMC_TYPEKIND_I8){
+            distgrid->arbSeqIndexListPCollPLocalDe[i][j] =
+              (void *)(new ESMC_I8[dg->elementCountPCollPLocalDe[i][j]]);
+            sizeOfType = sizeof(ESMC_I8);
+          }else{
+            // error condition, indexTK not supported
+            ESMC_LogDefault.MsgFoundError(ESMC_RC_INTNRL_BAD,
+              "Unsupported DistGrid indexTK", ESMC_CONTEXT, rc);
+            return NULL;
+          }
+          // copy the arbSeqIndexListPCollPLocalDe from old to new DG
           memcpy(distgrid->arbSeqIndexListPCollPLocalDe[i][j],
             dg->arbSeqIndexListPCollPLocalDe[i][j],
-            sizeof(int)*dg->elementCountPCollPLocalDe[i][j]);
-        }else{
-          distgrid->arbSeqIndexListPCollPLocalDe[i][j] = NULL;
+            sizeOfType*dg->elementCountPCollPLocalDe[i][j]);
         }
       }
     }
     if (dg->regDecomp){
-      distgrid->regDecomp = new int[dimCount];
-      memcpy(distgrid->regDecomp, dg->regDecomp, sizeof(int)*dimCount);
+      distgrid->regDecomp = new int[dimCount*tileCount];
+      memcpy(distgrid->regDecomp, dg->regDecomp, 
+        sizeof(int)*dimCount*tileCount);
     }else
       distgrid->regDecomp = NULL;
+    if (dg->decompflag){
+      distgrid->decompflag = new Decomp_Flag[dimCount*tileCount];
+      memcpy(distgrid->decompflag, dg->decompflag,
+        sizeof(Decomp_Flag)*dimCount*tileCount);
+    }else
+      distgrid->regDecomp = NULL;
+    if (dg->indexflag){
+      distgrid->indexflag = new ESMC_IndexFlag;
+      memcpy(distgrid->indexflag, dg->indexflag, sizeof(ESMC_IndexFlag));
+    }else
+      distgrid->indexflag = NULL;
     distgrid->delayout = dg->delayout;
     distgrid->delayoutCreator = false;
     distgrid->vm = dg->vm;
     distgrid->localDeCountAux = dg->localDeCountAux;
+   }  // endif actualFlag
   }
   
-  // reset the delayoutCreator flag in the src DistGrid, because the newly
-  // created DistGrid will now point to the same DELayout by reference
-  // -> leave it up to ESMF automatic garbage collection to clean up the
-  // DELayout when it is time
-  dg->delayoutCreator = false;  // drop ownership of the referenced DELayout
+  if (delayout){
+    // reset the delayoutCreator flag in the src DistGrid, because the newly
+    // created DistGrid will now point to the same DELayout by reference
+    // -> leave it up to ESMF automatic garbage collection to clean up the
+    // DELayout when it is time
+    dg->delayoutCreator = false;  // drop ownership of the referenced DELayout
+  }
   
   }catch(int localrc){
     // catch standard ESMF return code
-    ESMC_LogDefault.ESMC_LogMsgFoundError(localrc, ESMCI_ERR_PASSTHRU, rc);
+    ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU,
+      ESMC_CONTEXT, rc);
     return NULL;
   }catch(exception &x){
-    ESMC_LogDefault.ESMC_LogMsgFoundError(ESMC_RC_INTNRL_BAD,
-      x.what(), rc);
+    ESMC_LogDefault.MsgFoundError(ESMC_RC_INTNRL_BAD,
+      x.what(), ESMC_CONTEXT, rc);
     return NULL;
   }catch(...){
-    ESMC_LogDefault.ESMC_LogMsgFoundError(ESMC_RC_INTNRL_BAD,
-      "- Caught exception", rc);
+    ESMC_LogDefault.MsgFoundError(ESMC_RC_INTNRL_BAD,
+      "Caught exception", ESMC_CONTEXT, rc);
     return NULL;
   }
   
@@ -514,19 +937,20 @@ DistGrid *DistGrid::create(
 //
 // !ARGUMENTS:
 //
-  InterfaceInt *minIndex,                 // (in)
-  InterfaceInt *maxIndex,                 // (in)
-  InterfaceInt *regDecomp,                // (in)
-  Decomp_Flag *decompflag,                // (in)
-  int decompflagCount,                    // (in)
-  InterfaceInt *regDecompFirstExtra,      // (in)
-  InterfaceInt *regDecompLastExtra,       // (in)
-  InterfaceInt *deLabelList,              // (in)
-  ESMC_IndexFlag *indexflag,              // (in)
-  InterfaceInt *connectionList,           // (in)
-  DELayout *delayout,                     // (in)
-  VM *vm,                                 // (in)
-  int *rc                                 // (out) return code
+  InterArray<int> *minIndex,            // (in)
+  InterArray<int> *maxIndex,            // (in)
+  InterArray<int> *regDecomp,           // (in)
+  Decomp_Flag *decompflag,              // (in)
+  int decompflagCount,                  // (in)
+  InterArray<int> *regDecompFirstExtra, // (in)
+  InterArray<int> *regDecompLastExtra,  // (in)
+  InterArray<int> *deLabelList,         // (in)
+  ESMC_IndexFlag *indexflag,            // (in)
+  InterArray<int> *connectionList,      // (in)
+  DELayout *delayout,                   // (in)
+  VM *vm,                               // (in)
+  int *rc,                              // (out) return code
+  ESMC_TypeKind_Flag indexTK            // (in) - default auto selection
   ){
 //
 // !DESCRIPTION:
@@ -540,65 +964,67 @@ DistGrid *DistGrid::create(
   // allocate the new DistGrid object
   DistGrid *distgrid;
   try{
-    distgrid = new DistGrid;
+    distgrid = new DistGrid(vm);  // specific VM, or default if vm==NULL
   }catch(...){
      // allocation error
      ESMC_LogDefault.MsgAllocError("for new ESMCI::DistGrid.", ESMC_CONTEXT,rc);
      return ESMC_NULL_POINTER;
   }
-
+  
   // check the input and get the information together to call construct()
-  if (minIndex == NULL){
+  if (!present(minIndex)){
     ESMC_LogDefault.MsgFoundError(ESMC_RC_PTR_NULL,
-      "- Not a valid pointer to minIndex array", rc);
+      "Not a valid pointer to minIndex array", ESMC_CONTEXT, rc);
     distgrid->ESMC_BaseSetStatus(ESMF_STATUS_INVALID);  // mark invalid
     return ESMC_NULL_POINTER;
   }
-  if (maxIndex == NULL){
+  if (!present(maxIndex)){
     ESMC_LogDefault.MsgFoundError(ESMC_RC_PTR_NULL,
-      "- Not a valid pointer to maxIndex array", rc);
+      "Not a valid pointer to maxIndex array", ESMC_CONTEXT, rc);
     distgrid->ESMC_BaseSetStatus(ESMF_STATUS_INVALID);  // mark invalid
     return ESMC_NULL_POINTER;
   }
   if (minIndex->dimCount != 1){
     ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_RANK,
-      "- minIndex array must be of rank 1", rc);
+      "minIndex array must be of rank 1", ESMC_CONTEXT, rc);
     distgrid->ESMC_BaseSetStatus(ESMF_STATUS_INVALID);  // mark invalid
     return ESMC_NULL_POINTER;
   }
   if (maxIndex->dimCount != 1){
     ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_RANK,
-      "- maxIndex array must be of rank 1", rc);
+      "maxIndex array must be of rank 1", ESMC_CONTEXT, rc);
     distgrid->ESMC_BaseSetStatus(ESMF_STATUS_INVALID);  // mark invalid
     return ESMC_NULL_POINTER;
   }
   int dimCount = minIndex->extent[0];
   if (maxIndex->extent[0] != dimCount){
     ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_SIZE,
-      "- minIndex and maxIndex array mismatch", rc);
+      "minIndex and maxIndex array mismatch", ESMC_CONTEXT, rc);
     distgrid->ESMC_BaseSetStatus(ESMF_STATUS_INVALID);  // mark invalid
     return ESMC_NULL_POINTER;
   }
   if (vm == ESMC_NULL_POINTER){
     // vm was not provided -> get the current VM
     vm = VM::getCurrent(&localrc);  // get current VM for default
-    if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, rc)){
+    if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU,
+      ESMC_CONTEXT, rc)){
       distgrid->ESMC_BaseSetStatus(ESMF_STATUS_INVALID);  // mark invalid
       return ESMC_NULL_POINTER;
     }
   }
   int petCount = vm->getNpets();
   int deCount=1;  // reset
-  if (regDecomp != ESMC_NULL_POINTER){
+  if (present(regDecomp)){
     if (regDecomp->dimCount != 1){
       ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_RANK,
-        "- regDecomp array must be of rank 1", rc);
+        "regDecomp array must be of rank 1", ESMC_CONTEXT, rc);
       distgrid->ESMC_BaseSetStatus(ESMF_STATUS_INVALID);  // mark invalid
       return ESMC_NULL_POINTER;
     }
     if (regDecomp->extent[0] != dimCount){
       ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_SIZE,
-        "- 1st dimension of regDecomp array must be of size dimCount", rc);
+        "1st dimension of regDecomp array must be of size dimCount",
+        ESMC_CONTEXT, rc);
       distgrid->ESMC_BaseSetStatus(ESMF_STATUS_INVALID);  // mark invalid
       return ESMC_NULL_POINTER;
     }
@@ -613,18 +1039,30 @@ DistGrid *DistGrid::create(
   if (delayout == ESMC_NULL_POINTER){
     // delayout was not provided -> create default DELayout with deCount DEs
     delayout = DELayout::create(&deCount, NULL, NULL, NULL, vm, &localrc);
-    if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, rc)){
+    if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU,
+      ESMC_CONTEXT, rc)){
       distgrid->ESMC_BaseSetStatus(ESMF_STATUS_INVALID);  // mark invalid
       return ESMC_NULL_POINTER;
     }
   }else{
-    // delayout was provided -> get deCount
-    deCount = delayout->getDeCount();
+    // delayout was provided
     delayoutCreator = false;  // indicate that delayout was not created here
+    if (present(regDecomp)){
+      // ensure that deCount matches between provided DELayout and regDecomp
+      if (deCount != delayout->getDeCount()){
+        ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_BAD,
+          "deCount must match between provided DELayout and provided regDecomp",
+          ESMC_CONTEXT, rc);
+        distgrid->ESMC_BaseSetStatus(ESMF_STATUS_INVALID);  // mark invalid
+        return ESMC_NULL_POINTER;
+      }
+    }
+    // set deCount
+    deCount = delayout->getDeCount();
   }
   int *dummy;
   bool regDecompDeleteFlag = false;  // reset
-  if (regDecomp == ESMC_NULL_POINTER){
+  if (!present(regDecomp)){
     // regDecomp was not provided -> create a temporary default regDecomp
     regDecompDeleteFlag = true;  // set
     dummy = new int[dimCount];
@@ -632,11 +1070,11 @@ DistGrid *DistGrid::create(
     dummy[0] = deCount;
     for (int i=1; i<dimCount; i++)
       dummy[i] = 1;
-    regDecomp = new InterfaceInt(dummy, 1, &dimCount);
+    regDecomp = new InterArray<int>(dummy, 1, &dimCount);
   }
   if (regDecomp->dimCount != 1){
     ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_RANK,
-      "- regDecomp array must be of rank 1", rc);
+      "regDecomp array must be of rank 1", ESMC_CONTEXT, rc);
     distgrid->ESMC_BaseSetStatus(ESMF_STATUS_INVALID);  // mark invalid
     return ESMC_NULL_POINTER;
   }
@@ -647,85 +1085,86 @@ DistGrid *DistGrid::create(
     decompflagCount = dimCount;
     decompflag = new Decomp_Flag[dimCount];
     for (int i=0; i<dimCount; i++)
-      decompflag[i] = DECOMP_DEFAULT;
+      decompflag[i] = DECOMP_BALANCED;
   }
   if (decompflagCount != dimCount){
     ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_SIZE,
-      "- decompflag array mismatches minIndex and maxIndex arrays", rc);
+      "decompflag array mismatches minIndex and maxIndex arrays",
+      ESMC_CONTEXT, rc);
     distgrid->ESMC_BaseSetStatus(ESMF_STATUS_INVALID);  // mark invalid
     return ESMC_NULL_POINTER;
   }
   bool deLabelListDeleteFlag = false;  // reset
-  if (deLabelList == ESMC_NULL_POINTER){
+  if (!present(deLabelList)){
     // deLabelList was not provided -> create a temporary default deLabelList
     deLabelListDeleteFlag = true;  // set
     dummy = new int[deCount];
     // set default sequence
     for (int i=0; i<deCount; i++)
       dummy[i] = i;
-    deLabelList = new InterfaceInt(dummy, 1, &deCount);
+    deLabelList = new InterArray<int>(dummy, 1, &deCount);
   }
   if (deLabelList->dimCount != 1){
     ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_RANK,
-      "- deLabelList array must be of rank 1", rc);
+      "deLabelList array must be of rank 1", ESMC_CONTEXT, rc);
     distgrid->ESMC_BaseSetStatus(ESMF_STATUS_INVALID);  // mark invalid
     return ESMC_NULL_POINTER;
   }
   if (deLabelList->extent[0] < deCount){
     ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_SIZE,
-      "- deLabelList array must provide deCount DE labels", rc);
+      "deLabelList array must provide deCount DE labels", ESMC_CONTEXT, rc);
     distgrid->ESMC_BaseSetStatus(ESMF_STATUS_INVALID);  // mark invalid
     return ESMC_NULL_POINTER;
   }
   for (int i=0; i<deCount; i++){
     if (deLabelList->array[i] < 0 || deLabelList->array[i] >= deCount){
       ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_VALUE,
-        "- deLabelList array contains invalid DE labels", rc);
+        "deLabelList array contains invalid DE labels", ESMC_CONTEXT, rc);
       distgrid->ESMC_BaseSetStatus(ESMF_STATUS_INVALID);  // mark invalid
       return ESMC_NULL_POINTER;
     }
   }
   bool regDecompFirstExtraDeleteFlag = false;  // reset
-  if (regDecompFirstExtra == ESMC_NULL_POINTER){
+  if (!present(regDecompFirstExtra)){
     // regDecompFirstExtra was not provided -> create a temporary default
     regDecompFirstExtraDeleteFlag = true;  // set
     dummy = new int[dimCount];
     // set default
     for (int i=0; i<dimCount; i++)
       dummy[i] = 0;
-    regDecompFirstExtra = new InterfaceInt(dummy, 1, &dimCount);
+    regDecompFirstExtra = new InterArray<int>(dummy, 1, &dimCount);
   }
   if (regDecompFirstExtra->dimCount != 1){
     ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_RANK,
-      "- regDecompFirstExtra array must be of rank 1", rc);
+      "regDecompFirstExtra array must be of rank 1", ESMC_CONTEXT, rc);
     distgrid->ESMC_BaseSetStatus(ESMF_STATUS_INVALID);  // mark invalid
     return ESMC_NULL_POINTER;
   }
   if (regDecompFirstExtra->extent[0] != dimCount){
     ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_SIZE,
-      "- regDecompFirstExtra array must be of size dimCount", rc);
+      "regDecompFirstExtra array must be of size dimCount", ESMC_CONTEXT, rc);
     distgrid->ESMC_BaseSetStatus(ESMF_STATUS_INVALID);  // mark invalid
     return ESMC_NULL_POINTER;
   }
   bool regDecompLastExtraDeleteFlag = false;  // reset
-  if (regDecompLastExtra == ESMC_NULL_POINTER){
+  if (!present(regDecompLastExtra)){
     // regDecompLastExtra was not provided -> create a temporary default
     regDecompLastExtraDeleteFlag = true;  // set
     dummy = new int[dimCount];
     // set default
     for (int i=0; i<dimCount; i++)
       dummy[i] = 0;
-    regDecompLastExtra = new InterfaceInt(dummy, 1, &dimCount);
+    regDecompLastExtra = new InterArray<int>(dummy, 1, &dimCount);
   }
   if (regDecompLastExtra->dimCount != 1){
     ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_RANK,
-      "- regDecompLastExtra array must be of rank 1", rc);
+      "regDecompLastExtra array must be of rank 1", ESMC_CONTEXT, rc);
     distgrid->ESMC_BaseSetStatus(ESMF_STATUS_INVALID);  // mark invalid
     return ESMC_NULL_POINTER;
   }
   if (regDecompLastExtra->extent[0] != dimCount){
     ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_SIZE,
-      "- regDecompLastExtra array must be of size dimCount", rc);
+      "regDecompLastExtra array must be of size dimCount", ESMC_CONTEXT, rc);
     distgrid->ESMC_BaseSetStatus(ESMF_STATUS_INVALID);  // mark invalid
     return ESMC_NULL_POINTER;
   }
@@ -747,7 +1186,7 @@ DistGrid *DistGrid::create(
       - firstExtra - lastExtra;
     if (dimLength < 0){
       ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_INCOMP,
-        "- more extra elements specified than are available", rc);
+        "more extra elements specified than are available", ESMC_CONTEXT, rc);
       distgrid->ESMC_BaseSetStatus(ESMF_STATUS_INVALID);  // mark invalid
       return ESMC_NULL_POINTER;
     }
@@ -755,7 +1194,6 @@ DistGrid *DistGrid::create(
     const int chunkRest = dimLength%regDecomp->array[i];    // left over points
     int de, decompChunk, extentIndex;
     switch (decompflag[i]){
-      case DECOMP_DEFAULT:
       case DECOMP_BALANCED:
         for (int j=0; j<deCount; j++){
           de = deLabelList->array[j];
@@ -864,7 +1302,8 @@ DistGrid *DistGrid::create(
       case DECOMP_CYCLIC:
         if (firstExtra > 0 || lastExtra > 0){
           ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_INCOMP,
-            "- extra elements not supported for DECOMP_CYCLIC dims", rc);
+            "extra elements not supported for DECOMP_CYCLIC dims",
+            ESMC_CONTEXT, rc);
           distgrid->ESMC_BaseSetStatus(ESMF_STATUS_INVALID);  // mark invalid
           return ESMC_NULL_POINTER;
         }
@@ -899,7 +1338,7 @@ DistGrid *DistGrid::create(
         break;
       default:
         ESMC_LogDefault.MsgFoundError(ESMC_RC_NOT_IMPL,
-          "- this decompflag is currently not implemented", rc);
+          "this decompflag is currently not implemented", ESMC_CONTEXT, rc);
         distgrid->ESMC_BaseSetStatus(ESMF_STATUS_INVALID);  // mark invalid
         return ESMC_NULL_POINTER;
         break;
@@ -910,13 +1349,16 @@ DistGrid *DistGrid::create(
   int *tileListPDe = new int[deCount];
   for (int i=0; i<deCount; i++)
     tileListPDe[i] = 1;
+
   
   // call into construct()
   localrc = distgrid->construct(dimCount, 1, tileListPDe,
     minIndex->array, maxIndex->array, minIndexPDimPDe, maxIndexPDimPDe,
     contigFlagPDimPDe, indexCountPDimPDe, indexListPDimPLocalDe,
-    regDecomp->array, connectionList, delayout, delayoutCreator, vm);
-  if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, rc)){
+    regDecomp->array, connectionList, decompflag, indexflag,
+    delayout, delayoutCreator, vm, indexTK);
+  if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, ESMC_CONTEXT,
+    rc)){
     distgrid->ESMC_BaseSetStatus(ESMF_STATUS_INVALID);  // mark invalid
     return ESMC_NULL_POINTER;
   }
@@ -949,7 +1391,7 @@ DistGrid *DistGrid::create(
     delete regDecompLastExtra;
   }
   delete [] tileListPDe;
-    
+  
   // return successfully
   if (rc!=NULL) *rc = ESMF_SUCCESS;
   return distgrid;
@@ -971,15 +1413,16 @@ DistGrid *DistGrid::create(
 //
 // !ARGUMENTS:
 //
-  InterfaceInt *minIndex,                 // (in)
-  InterfaceInt *maxIndex,                 // (in)
-  InterfaceInt *deBlockList,              // (in)
-  InterfaceInt *deLabelList,              // (in)
-  ESMC_IndexFlag *indexflag,              // (in)
-  InterfaceInt *connectionList,           // (in)
-  DELayout *delayout,                     // (in)
-  VM *vm,                                 // (in)
-  int *rc                                 // (out) return code
+  InterArray<int> *minIndex,            // (in)
+  InterArray<int> *maxIndex,            // (in)
+  InterArray<int> *deBlockList,         // (in)
+  InterArray<int> *deLabelList,         // (in)
+  ESMC_IndexFlag *indexflag,            // (in)
+  InterArray<int> *connectionList,      // (in)
+  DELayout *delayout,                   // (in)
+  VM *vm,                               // (in)
+  int *rc,                              // (out) return code
+  ESMC_TypeKind_Flag indexTK            // (in) - default auto selection
   ){
 //
 // !DESCRIPTION:
@@ -993,7 +1436,7 @@ DistGrid *DistGrid::create(
   // allocate the new DistGrid object
   DistGrid *distgrid;
   try{
-    distgrid = new DistGrid;
+    distgrid = new DistGrid(vm);  // specific VM, or default if vm==NULL
   }catch(...){
      // allocation error
      ESMC_LogDefault.MsgAllocError("for new ESMCI::DistGrid.", ESMC_CONTEXT,rc);
@@ -1001,68 +1444,70 @@ DistGrid *DistGrid::create(
   }
 
   // check the input and get the information together to call construct()
-  if (minIndex == NULL){
+  if (!present(minIndex)){
     ESMC_LogDefault.MsgFoundError(ESMC_RC_PTR_NULL,
-      "- Not a valid pointer to minIndex array", rc);
+      "Not a valid pointer to minIndex array", ESMC_CONTEXT, rc);
     distgrid->ESMC_BaseSetStatus(ESMF_STATUS_INVALID);  // mark invalid
     return ESMC_NULL_POINTER;
   }
-  if (maxIndex == NULL){
+  if (!present(maxIndex)){
     ESMC_LogDefault.MsgFoundError(ESMC_RC_PTR_NULL,
-      "- Not a valid pointer to maxIndex array", rc);
+      "Not a valid pointer to maxIndex array", ESMC_CONTEXT, rc);
     distgrid->ESMC_BaseSetStatus(ESMF_STATUS_INVALID);  // mark invalid
     return ESMC_NULL_POINTER;
   }
   if (minIndex->dimCount != 1){
     ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_RANK,
-      "- minIndex array must be of rank 1", rc);
+      "minIndex array must be of rank 1", ESMC_CONTEXT, rc);
     distgrid->ESMC_BaseSetStatus(ESMF_STATUS_INVALID);  // mark invalid
     return ESMC_NULL_POINTER;
   }
   if (maxIndex->dimCount != 1){
     ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_RANK,
-      "- maxIndex array must be of rank 1", rc);
+      "maxIndex array must be of rank 1", ESMC_CONTEXT, rc);
     distgrid->ESMC_BaseSetStatus(ESMF_STATUS_INVALID);  // mark invalid
     return ESMC_NULL_POINTER;
   }
   int dimCount = minIndex->extent[0];
   if (maxIndex->extent[0] != dimCount){
     ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_SIZE,
-      "- minIndex and maxIndex array mismatch", rc);
+      "minIndex and maxIndex array mismatch", ESMC_CONTEXT, rc);
     distgrid->ESMC_BaseSetStatus(ESMF_STATUS_INVALID);  // mark invalid
     return ESMC_NULL_POINTER;
   }
   if (vm == ESMC_NULL_POINTER){
     // vm was not provided -> get the current VM
     vm = VM::getCurrent(&localrc);  // get current VM for default
-    if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, rc)){
+    if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU,
+      ESMC_CONTEXT, rc)){
       distgrid->ESMC_BaseSetStatus(ESMF_STATUS_INVALID);  // mark invalid
       return ESMC_NULL_POINTER;
     }
   }
   int petCount = vm->getNpets();
-  if (deBlockList == NULL){
+  if (!present(deBlockList)){
     ESMC_LogDefault.MsgFoundError(ESMC_RC_PTR_NULL,
-      "- Not a valid pointer to deBlockList array", rc);
+      "Not a valid pointer to deBlockList array", ESMC_CONTEXT, rc);
     distgrid->ESMC_BaseSetStatus(ESMF_STATUS_INVALID);  // mark invalid
     return ESMC_NULL_POINTER;
   }
   if (deBlockList->dimCount != 3){
     ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_RANK,
-      "- deBlockList array must be of rank 3", rc);
+      "deBlockList array must be of rank 3", ESMC_CONTEXT, rc);
     distgrid->ESMC_BaseSetStatus(ESMF_STATUS_INVALID);  // mark invalid
     return ESMC_NULL_POINTER;
   }
   if (deBlockList->extent[0] < dimCount){
     ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_SIZE,
-      "- deBlockList array must provide dimCount elements in first dimension",
-      rc);
+      "deBlockList array must provide dimCount elements in first dimension",
+      ESMC_CONTEXT, rc);
     distgrid->ESMC_BaseSetStatus(ESMF_STATUS_INVALID);  // mark invalid
     return ESMC_NULL_POINTER;
   }
   if (deBlockList->extent[1] < 2){
     ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_SIZE,
-      "- deBlockList array must provide 2 elements in second dimension", rc);
+      "deBlockList array must provide 2 elements in second dimension",
+      ESMC_CONTEXT, rc);
     distgrid->ESMC_BaseSetStatus(ESMF_STATUS_INVALID);  // mark invalid
     return ESMC_NULL_POINTER;
   }
@@ -1071,7 +1516,8 @@ DistGrid *DistGrid::create(
   if (delayout == ESMC_NULL_POINTER){
     // delayout was not provided -> create default DELayout with deCount DEs
     delayout = DELayout::create(&deCount, NULL, NULL, NULL, vm, &localrc);
-    if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, rc)){
+    if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU,
+      ESMC_CONTEXT, rc)){
       distgrid->ESMC_BaseSetStatus(ESMF_STATUS_INVALID);  // mark invalid
       return ESMC_NULL_POINTER;
     }
@@ -1080,38 +1526,39 @@ DistGrid *DistGrid::create(
     delayoutCreator = false;  // indicate that delayout was not created here
     if (deCount != delayout->getDeCount()){
       ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_SIZE,
-        "- deBlockList must provide deCount elements in third dimension", rc);
+        "deBlockList must provide deCount elements in third dimension",
+        ESMC_CONTEXT, rc);
       distgrid->ESMC_BaseSetStatus(ESMF_STATUS_INVALID);  // mark invalid
       return ESMC_NULL_POINTER;
     }
   }
   int *dummy;
   bool deLabelListDeleteFlag = false;  // reset
-  if (deLabelList == ESMC_NULL_POINTER){
+  if (!present(deLabelList)){
     // deLabelList was not provided -> create a temporary default deLabelList
     deLabelListDeleteFlag = true;  // set
     dummy = new int[deCount];
     // set default sequence
     for (int i=0; i<deCount; i++)
       dummy[i] = i;
-    deLabelList = new InterfaceInt(dummy, 1, &deCount);
+    deLabelList = new InterArray<int>(dummy, 1, &deCount);
   }
   if (deLabelList->dimCount != 1){
     ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_RANK,
-      "- deLabelList array must be of rank 1", rc);
+      "deLabelList array must be of rank 1", ESMC_CONTEXT, rc);
     distgrid->ESMC_BaseSetStatus(ESMF_STATUS_INVALID);  // mark invalid
     return ESMC_NULL_POINTER;
   }
   if (deLabelList->extent[0] < deCount){
     ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_SIZE,
-      "- deLabelList array must provide deCount DE labels", rc);
+      "deLabelList array must provide deCount DE labels", ESMC_CONTEXT, rc);
     distgrid->ESMC_BaseSetStatus(ESMF_STATUS_INVALID);  // mark invalid
     return ESMC_NULL_POINTER;
   }
   for (int i=0; i<deCount; i++){
     if (deLabelList->array[i] < 0 || deLabelList->array[i] >= deCount){
       ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_VALUE,
-        "- deLabelList array contains invalid DE labels", rc);
+        "deLabelList array contains invalid DE labels", ESMC_CONTEXT, rc);
       distgrid->ESMC_BaseSetStatus(ESMF_STATUS_INVALID);  // mark invalid
       return ESMC_NULL_POINTER;
     }
@@ -1147,14 +1594,14 @@ DistGrid *DistGrid::create(
         if (minIndexPDimPDe[extentIndex] < min ||
           minIndexPDimPDe[extentIndex] > max){
           ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_VALUE,
-            "- deBlockList contains out-of-bounds elements", rc);
+            "deBlockList contains out-of-bounds elements", ESMC_CONTEXT, rc);
           distgrid->ESMC_BaseSetStatus(ESMF_STATUS_INVALID);  // mark invalid
           return ESMC_NULL_POINTER;
         }
         if (maxIndexPDimPDe[extentIndex] < min ||
           maxIndexPDimPDe[extentIndex] > max){
           ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_VALUE,
-            "- deBlockList contains out-of-bounds elements", rc);
+            "deBlockList contains out-of-bounds elements", ESMC_CONTEXT, rc);
           distgrid->ESMC_BaseSetStatus(ESMF_STATUS_INVALID);  // mark invalid
           return ESMC_NULL_POINTER;
         }
@@ -1186,8 +1633,10 @@ DistGrid *DistGrid::create(
   localrc = distgrid->construct(dimCount, 1, tileListPDe, 
     minIndex->array, maxIndex->array, minIndexPDimPDe, maxIndexPDimPDe,
     contigFlagPDimPDe, indexCountPDimPDe, indexListPDimPLocalDe, NULL,
-    connectionList, delayout, delayoutCreator, vm);
-  if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, rc)){
+    connectionList, NULL, indexflag,
+    delayout, delayoutCreator, vm, indexTK);
+  if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU,
+    ESMC_CONTEXT, rc)){
     distgrid->ESMC_BaseSetStatus(ESMF_STATUS_INVALID);  // mark invalid
     return ESMC_NULL_POINTER;
   }
@@ -1227,19 +1676,20 @@ DistGrid *DistGrid::create(
 //
 // !ARGUMENTS:
 //
-  InterfaceInt *minIndex,                 // (in)
-  InterfaceInt *maxIndex,                 // (in)
-  InterfaceInt *regDecomp,                // (in)
-  Decomp_Flag *decompflag,                // (in)
-  int decompflagCount,                    // (in)
-  InterfaceInt *regDecompFirstExtra,      // (in)
-  InterfaceInt *regDecompLastExtra,       // (in)
-  InterfaceInt *deLabelList,              // (in)
-  ESMC_IndexFlag *indexflag,              // (in)
-  InterfaceInt *connectionList,           // (in)
-  int fastAxis,                           // (in)
-  VM *vm,                                 // (in)
-  int *rc                                 // (out) return code
+  InterArray<int> *minIndex,            // (in)
+  InterArray<int> *maxIndex,            // (in)
+  InterArray<int> *regDecomp,           // (in)
+  Decomp_Flag *decompflag,              // (in)
+  int decompflagCount,                  // (in)
+  InterArray<int> *regDecompFirstExtra, // (in)
+  InterArray<int> *regDecompLastExtra,  // (in)
+  InterArray<int> *deLabelList,         // (in)
+  ESMC_IndexFlag *indexflag,            // (in)
+  InterArray<int> *connectionList,      // (in)
+  int fastAxis,                         // (in)
+  VM *vm,                               // (in)
+  int *rc,                              // (out) return code
+  ESMC_TypeKind_Flag indexTK            // (in) - default auto selection
   ){
 //
 // !DESCRIPTION:
@@ -1260,9 +1710,9 @@ DistGrid *DistGrid::create(
   DistGrid *distgrid = 
     create(minIndex, maxIndex, regDecomp, decompflag,
       decompflagCount, regDecompFirstExtra, regDecompLastExtra, deLabelList,
-      indexflag, connectionList, delayout, vm, &localrc);
-  if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, rc))
-    return distgrid;
+      indexflag, connectionList, delayout, vm, &localrc, indexTK);
+  if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, ESMC_CONTEXT,
+    rc)) return distgrid;
   
   // return successfully
   //if (rc!=NULL) *rc = ESMF_SUCCESS; TODO: override ESMC_RC_NOT_IMPL
@@ -1286,20 +1736,21 @@ DistGrid *DistGrid::create(
 //
 // !ARGUMENTS:
 //
-  InterfaceInt *minIndex,                 // (in)
-  InterfaceInt *maxIndex,                 // (in)
-  InterfaceInt *regDecomp,                // (in)
-  Decomp_Flag *decompflag,                // (in)
-  int decompflagCount1,                   // (in)
-  int decompflagCount2,                   // (in)
-  InterfaceInt *regDecompFirstExtra,      // (in)
-  InterfaceInt *regDecompLastExtra,       // (in)
-  InterfaceInt *deLabelList,              // (in)
-  ESMC_IndexFlag *indexflag,              // (in)
-  InterfaceInt *connectionList,           // (in)
-  DELayout *delayout,                     // (in)
-  VM *vm,                                 // (in)
-  int *rc                                 // (out) return code
+  InterArray<int> *minIndex,            // (in)
+  InterArray<int> *maxIndex,            // (in)
+  InterArray<int> *regDecomp,           // (in)
+  Decomp_Flag *decompflag,              // (in)
+  int decompflagCount1,                 // (in)
+  int decompflagCount2,                 // (in)
+  InterArray<int> *regDecompFirstExtra, // (in)
+  InterArray<int> *regDecompLastExtra,  // (in)
+  InterArray<int> *deLabelList,         // (in)
+  ESMC_IndexFlag *indexflag,            // (in)
+  InterArray<int> *connectionList,      // (in)
+  DELayout *delayout,                   // (in)
+  VM *vm,                               // (in)
+  int *rc,                              // (out) return code
+  ESMC_TypeKind_Flag indexTK            // (in) - default auto selection
   ){
 //
 // !DESCRIPTION:
@@ -1313,7 +1764,7 @@ DistGrid *DistGrid::create(
   // allocate the new DistGrid object
   DistGrid *distgrid;
   try{
-    distgrid = new DistGrid;
+    distgrid = new DistGrid(vm);  // specific VM, or default if vm==NULL
   }catch(...){
      // allocation error
      ESMC_LogDefault.MsgAllocError("for new ESMCI::DistGrid.", ESMC_CONTEXT,rc);
@@ -1321,48 +1772,49 @@ DistGrid *DistGrid::create(
   }
 
   // check the input and get the information together to call construct()
-  if (minIndex == NULL){
+  if (!present(minIndex)){
     ESMC_LogDefault.MsgFoundError(ESMC_RC_PTR_NULL,
-      "- Not a valid pointer to minIndex array", rc);
+      "Not a valid pointer to minIndex array", ESMC_CONTEXT, rc);
     distgrid->ESMC_BaseSetStatus(ESMF_STATUS_INVALID);  // mark invalid
     return ESMC_NULL_POINTER;
   }
-  if (maxIndex == NULL){
+  if (!present(maxIndex)){
     ESMC_LogDefault.MsgFoundError(ESMC_RC_PTR_NULL,
-      "- Not a valid pointer to maxIndex array", rc);
+      "Not a valid pointer to maxIndex array", ESMC_CONTEXT, rc);
     distgrid->ESMC_BaseSetStatus(ESMF_STATUS_INVALID);  // mark invalid
     return ESMC_NULL_POINTER;
   }
   if (minIndex->dimCount != 2){
     ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_RANK,
-      "- minIndex array must be of rank 2", rc);
+      "minIndex array must be of rank 2", ESMC_CONTEXT, rc);
     distgrid->ESMC_BaseSetStatus(ESMF_STATUS_INVALID);  // mark invalid
     return ESMC_NULL_POINTER;
   }
   if (maxIndex->dimCount != 2){
     ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_RANK,
-      "- maxIndex array must be of rank 2", rc);
+      "maxIndex array must be of rank 2", ESMC_CONTEXT, rc);
     distgrid->ESMC_BaseSetStatus(ESMF_STATUS_INVALID);  // mark invalid
     return ESMC_NULL_POINTER;
   }
   int dimCount = minIndex->extent[0];
   if (maxIndex->extent[0] != dimCount){
     ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_SIZE,
-      "- minIndex and maxIndex array mismatch in dimCount", rc);
+      "minIndex and maxIndex array mismatch in dimCount", ESMC_CONTEXT, rc);
     distgrid->ESMC_BaseSetStatus(ESMF_STATUS_INVALID);  // mark invalid
     return ESMC_NULL_POINTER;
   }
   int tileCount = minIndex->extent[1];
   if (maxIndex->extent[1] != tileCount){
     ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_SIZE,
-      "- minIndex and maxIndex array mismatch in tileCount", rc);
+      "minIndex and maxIndex array mismatch in tileCount", ESMC_CONTEXT, rc);
     distgrid->ESMC_BaseSetStatus(ESMF_STATUS_INVALID);  // mark invalid
     return ESMC_NULL_POINTER;
   }
   if (vm == ESMC_NULL_POINTER){
     // vm was not provided -> get the current VM
     vm = VM::getCurrent(&localrc);  // get current VM for default
-    if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, rc)){
+    if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU,
+      ESMC_CONTEXT, rc)){
       distgrid->ESMC_BaseSetStatus(ESMF_STATUS_INVALID);  // mark invalid
       return ESMC_NULL_POINTER;
     }
@@ -1370,22 +1822,24 @@ DistGrid *DistGrid::create(
   int petCount = vm->getNpets();
   int deCount=0;  // reset
   int *deCountPTile;
-  if (regDecomp != ESMC_NULL_POINTER){
+  if (present(regDecomp)){
     if (regDecomp->dimCount != 2){
       ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_RANK,
-        "- regDecomp array must be of rank 2", rc);
+        "regDecomp array must be of rank 2", ESMC_CONTEXT, rc);
       distgrid->ESMC_BaseSetStatus(ESMF_STATUS_INVALID);  // mark invalid
       return ESMC_NULL_POINTER;
     }
     if (regDecomp->extent[0] != dimCount){
       ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_SIZE,
-        "- 1st dimension of regDecomp array must be of size dimCount", rc);
+        "1st dimension of regDecomp array must be of size dimCount",
+        ESMC_CONTEXT, rc);
       distgrid->ESMC_BaseSetStatus(ESMF_STATUS_INVALID);  // mark invalid
       return ESMC_NULL_POINTER;
     }
     if (regDecomp->extent[1] != tileCount){
       ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_SIZE,
-        "- 2nd dimension of regDecomp array must be of size tileCount", rc);
+        "2nd dimension of regDecomp array must be of size tileCount",
+        ESMC_CONTEXT, rc);
       distgrid->ESMC_BaseSetStatus(ESMF_STATUS_INVALID);  // mark invalid
       return ESMC_NULL_POINTER;
     }
@@ -1399,41 +1853,71 @@ DistGrid *DistGrid::create(
       deCount += localProduct;
     }
   }else{
-    // regDecomp was not provided -> set deCount = tileCount for default
-    deCountPTile = new int[tileCount];
-    for (int i=0; i<tileCount; i++)
-      deCountPTile[i] = 1;
-    deCount = tileCount;
+    // regDecomp was not provided 
+    // -> set deCount = max(tileCount,petCount) for default
+    deCount = max(tileCount, petCount);
   }
   bool delayoutCreator = true; // default assume delayout will be created here
   if (delayout == ESMC_NULL_POINTER){
     // delayout was not provided -> create default DELayout with deCount DEs
     delayout = DELayout::create(&deCount, NULL, NULL, NULL, vm, &localrc);
-    if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, rc)){
+    if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU,
+      ESMC_CONTEXT, rc)){
       distgrid->ESMC_BaseSetStatus(ESMF_STATUS_INVALID);  // mark invalid
       return ESMC_NULL_POINTER;
     }
   }else{
-    // delayout was provided -> get deCount
-    deCount = delayout->getDeCount();
+    // delayout was provided
     delayoutCreator = false;  // indicate that delayout was not created here
+    if (present(regDecomp)){
+      // ensure that deCount matches between provided DELayout and regDecomp
+      if (deCount != delayout->getDeCount()){
+        ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_BAD,
+          "deCount must match between provided DELayout and provided regDecomp",
+          ESMC_CONTEXT, rc);
+        distgrid->ESMC_BaseSetStatus(ESMF_STATUS_INVALID);  // mark invalid
+        return ESMC_NULL_POINTER;
+      }
+    }
+    // set deCount
+    deCount = delayout->getDeCount();
+  }
+  // make sure that there are at least as many DEs available as there are tiles
+  if (deCount < tileCount){
+    ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_BAD,
+      "there needs to be at least one DE per tile!",
+      ESMC_CONTEXT, rc);
+    distgrid->ESMC_BaseSetStatus(ESMF_STATUS_INVALID);  // mark invalid
+    return ESMC_NULL_POINTER;
   }
   int *dummy, dummyLen[2];
   bool regDecompDeleteFlag = false;  // reset
-  if (regDecomp == ESMC_NULL_POINTER){
-    // regDecomp was not provided -> create a temporary default regDecomp
+  if (!present(regDecomp)){
+    // regDecomp was not provided -> create default
+    // determine default decomposition, use all PETs, but...
+    int deCountPerTile = max(1, petCount/tileCount);  //..at least 1 DE per tile
+    int extraDEs = max(0, petCount-deCountPerTile*tileCount); // remaining DEs
+    // create a temporary default regDecomp and deCountPTile
     regDecompDeleteFlag = true;  // set
     dummy = new int[dimCount*tileCount];
-    // set default decomposition
-    for (int i=0; i<dimCount*tileCount; i++)
-      dummy[i] = 1;
+    deCountPTile = new int[tileCount];    
+    for (int i=0; i<tileCount; i++){
+      if (i<extraDEs)
+        dummy[dimCount*i] = deCountPerTile + 1; // spread the extra DEs
+      else
+        dummy[dimCount*i] = deCountPerTile;     // just regular DEs
+      for (int j=1; j<dimCount; j++)
+        dummy[dimCount*i+j] = 1;                // no decomp in higher dims
+      deCountPTile[i] = dummy[dimCount*i];      // keep for easier access
+    }
+    // finish up creating the default regDecomp InterArray
     dummyLen[0] = dimCount;
     dummyLen[1] = tileCount;
-    regDecomp = new InterfaceInt(dummy, 2, dummyLen);
+    regDecomp = new InterArray<int>(dummy, 2, dummyLen);
   }
   if (regDecomp->dimCount != 2){
     ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_RANK,
-      "- regDecomp array must be of rank 2", rc);
+      "regDecomp array must be of rank 2", ESMC_CONTEXT, rc);
     distgrid->ESMC_BaseSetStatus(ESMF_STATUS_INVALID);  // mark invalid
     return ESMC_NULL_POINTER;
   }
@@ -1445,52 +1929,54 @@ DistGrid *DistGrid::create(
     decompflagCount2 = tileCount;
     decompflag = new Decomp_Flag[dimCount*tileCount];
     for (int i=0; i<dimCount*tileCount; i++)
-      decompflag[i] = DECOMP_DEFAULT;
+      decompflag[i] = DECOMP_BALANCED;
   }
   if (decompflagCount1 != dimCount){
     ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_SIZE,
-      "- decompflag array mismatches minIndex and maxIndex arrays", rc);
+      "decompflag array mismatches minIndex and maxIndex arrays",
+      ESMC_CONTEXT, rc);
     distgrid->ESMC_BaseSetStatus(ESMF_STATUS_INVALID);  // mark invalid
     return ESMC_NULL_POINTER;
   }
   if (decompflagCount2 != tileCount){
     ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_SIZE,
-      "- decompflag array mismatches minIndex and maxIndex arrays", rc);
+      "decompflag array mismatches minIndex and maxIndex arrays",
+      ESMC_CONTEXT, rc);
     distgrid->ESMC_BaseSetStatus(ESMF_STATUS_INVALID);  // mark invalid
     return ESMC_NULL_POINTER;
   }
   bool deLabelListDeleteFlag = false;  // reset
-  if (deLabelList == ESMC_NULL_POINTER){
+  if (!present(deLabelList)){
     // deLabelList was not provided -> create a temporary default deLabelList
     deLabelListDeleteFlag = true;  // set
     dummy = new int[deCount];
     // set default sequence
     for (int i=0; i<deCount; i++)
       dummy[i] = i;
-    deLabelList = new InterfaceInt(dummy, 1, &deCount);
+    deLabelList = new InterArray<int>(dummy, 1, &deCount);
   }
   if (deLabelList->dimCount != 1){
     ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_RANK,
-      "- deLabelList array must be of rank 1", rc);
+      "deLabelList array must be of rank 1", ESMC_CONTEXT, rc);
     distgrid->ESMC_BaseSetStatus(ESMF_STATUS_INVALID);  // mark invalid
     return ESMC_NULL_POINTER;
   }
   if (deLabelList->extent[0] < deCount){
     ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_RANK,
-      "- deLabelList array must provide deCount DE labels", rc);
+      "deLabelList array must provide deCount DE labels", ESMC_CONTEXT, rc);
     distgrid->ESMC_BaseSetStatus(ESMF_STATUS_INVALID);  // mark invalid
     return ESMC_NULL_POINTER;
   }
   for (int i=0; i<deCount; i++){
     if (deLabelList->array[i] < 0 || deLabelList->array[i] >= deCount){
       ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_VALUE,
-        "- deLabelList array contains invalid DE labels", rc);
+        "deLabelList array contains invalid DE labels", ESMC_CONTEXT, rc);
       distgrid->ESMC_BaseSetStatus(ESMF_STATUS_INVALID);  // mark invalid
       return ESMC_NULL_POINTER;
     }
   }
   bool regDecompFirstExtraDeleteFlag = false;  // reset
-  if (regDecompFirstExtra == ESMC_NULL_POINTER){
+  if (!present(regDecompFirstExtra)){
     // regDecompFirstExtra was not provided -> create a temporary default
     regDecompFirstExtraDeleteFlag = true;  // set
     dummy = new int[dimCount*tileCount];
@@ -1499,28 +1985,30 @@ DistGrid *DistGrid::create(
       dummy[i] = 0;
     dummyLen[0] = dimCount;
     dummyLen[1] = tileCount;
-    regDecompFirstExtra = new InterfaceInt(dummy, 2, dummyLen);
+    regDecompFirstExtra = new InterArray<int>(dummy, 2, dummyLen);
   }
   if (regDecompFirstExtra->dimCount != 2){
     ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_RANK,
-      "- regDecompFirstExtra array must be of rank 2", rc);
+      "regDecompFirstExtra array must be of rank 2", ESMC_CONTEXT, rc);
     distgrid->ESMC_BaseSetStatus(ESMF_STATUS_INVALID);  // mark invalid
     return ESMC_NULL_POINTER;
   }
   if (regDecompFirstExtra->extent[0] != dimCount){
     ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_SIZE,
-      "- 1st dim of regDecompFirstExtra array must be of size dimCount", rc);
+      "1st dim of regDecompFirstExtra array must be of size dimCount",
+      ESMC_CONTEXT, rc);
     distgrid->ESMC_BaseSetStatus(ESMF_STATUS_INVALID);  // mark invalid
     return ESMC_NULL_POINTER;
   }
   if (regDecompFirstExtra->extent[1] != tileCount){
     ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_SIZE,
-      "- 2nd dim of regDecompFirstExtra array must be of size tileCount", rc);
+      "2nd dim of regDecompFirstExtra array must be of size tileCount",
+      ESMC_CONTEXT, rc);
     distgrid->ESMC_BaseSetStatus(ESMF_STATUS_INVALID);  // mark invalid
     return ESMC_NULL_POINTER;
   }
   bool regDecompLastExtraDeleteFlag = false;  // reset
-  if (regDecompLastExtra == ESMC_NULL_POINTER){
+  if (!present(regDecompLastExtra)){
     // regDecompLastExtra was not provided -> create a temporary default
     regDecompLastExtraDeleteFlag = true;  // set
     dummy = new int[dimCount*tileCount];
@@ -1529,23 +2017,25 @@ DistGrid *DistGrid::create(
       dummy[i] = 0;
     dummyLen[0] = dimCount;
     dummyLen[1] = tileCount;
-    regDecompLastExtra = new InterfaceInt(dummy, 2, dummyLen);
+    regDecompLastExtra = new InterArray<int>(dummy, 2, dummyLen);
   }
   if (regDecompLastExtra->dimCount != 2){
     ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_RANK,
-      "- regDecompLastExtra array must be of rank 2", rc);
+      "regDecompLastExtra array must be of rank 2", ESMC_CONTEXT, rc);
     distgrid->ESMC_BaseSetStatus(ESMF_STATUS_INVALID);  // mark invalid
     return ESMC_NULL_POINTER;
   }
   if (regDecompLastExtra->extent[0] != dimCount){
     ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_SIZE,
-      "- 1st dim of regDecompLastExtra array must be of size dimCount", rc);
+      "1st dim of regDecompLastExtra array must be of size dimCount",
+      ESMC_CONTEXT, rc);
     distgrid->ESMC_BaseSetStatus(ESMF_STATUS_INVALID);  // mark invalid
     return ESMC_NULL_POINTER;
   }
   if (regDecompLastExtra->extent[1] != tileCount){
     ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_SIZE,
-      "- 2nd dim of regDecompLastExtra array must be of size tileCount", rc);
+      "2nd dim of regDecompLastExtra array must be of size tileCount",
+      ESMC_CONTEXT, rc);
     distgrid->ESMC_BaseSetStatus(ESMF_STATUS_INVALID);  // mark invalid
     return ESMC_NULL_POINTER;
   }
@@ -1575,7 +2065,8 @@ DistGrid *DistGrid::create(
         - firstExtra - lastExtra;
       if (dimLength < 0){
         ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_INCOMP,
-          "- more extra elements specified than are available", rc);
+          "more extra elements specified than are available", ESMC_CONTEXT,
+          rc);
         distgrid->ESMC_BaseSetStatus(ESMF_STATUS_INVALID);  // mark invalid
         return ESMC_NULL_POINTER;
       }
@@ -1583,7 +2074,6 @@ DistGrid *DistGrid::create(
       const int chunkRest = dimLength%regDecomp->array[i];   // left over points
       int de, decompChunk, extentIndex;
       switch (decompflag[i]){
-        case DECOMP_DEFAULT:
         case DECOMP_BALANCED:
           for (int jj=0; jj<deCountPTile[tile]; jj++){
             int j = deTileStart + jj;
@@ -1695,7 +2185,8 @@ DistGrid *DistGrid::create(
         case DECOMP_CYCLIC:
           if (firstExtra > 0 || lastExtra > 0){
             ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_INCOMP,
-              "- extra elements not supported for DECOMP_CYCLIC dims", rc);
+              "extra elements not supported for DECOMP_CYCLIC dims",
+              ESMC_CONTEXT, rc);
             distgrid->ESMC_BaseSetStatus(ESMF_STATUS_INVALID);  // mark invalid
             return ESMC_NULL_POINTER;
           }
@@ -1731,7 +2222,8 @@ DistGrid *DistGrid::create(
           break;
         default:
           ESMC_LogDefault.MsgFoundError(ESMC_RC_NOT_IMPL,
-            "- this decompflag is currently not implemented", rc);
+            "this decompflag is currently not implemented",
+            ESMC_CONTEXT, rc);
           distgrid->ESMC_BaseSetStatus(ESMF_STATUS_INVALID);  // mark invalid
           return ESMC_NULL_POINTER;
           break;
@@ -1756,8 +2248,10 @@ DistGrid *DistGrid::create(
   localrc = distgrid->construct(dimCount, tileCount, tileListPDe,
     minIndex->array, maxIndex->array, minIndexPDimPDe, maxIndexPDimPDe,
     contigFlagPDimPDe, indexCountPDimPDe, indexListPDimPLocalDe,
-    regDecomp->array, connectionList, delayout, delayoutCreator, vm);
-  if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, rc)){
+    regDecomp->array, connectionList, decompflag, indexflag,
+    delayout, delayoutCreator, vm, indexTK);
+  if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, ESMC_CONTEXT,
+    rc)){
     distgrid->ESMC_BaseSetStatus(ESMF_STATUS_INVALID);  // mark invalid
     return ESMC_NULL_POINTER;
   }
@@ -1798,7 +2292,7 @@ DistGrid *DistGrid::create(
 }
 //-----------------------------------------------------------------------------
   
-  //-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
 #undef  ESMC_METHOD
 #define ESMC_METHOD "ESMCI:DistGrid::destroy()"
 //BOPI
@@ -1812,7 +2306,8 @@ int DistGrid::destroy(
 //
 // !ARGUMENTS:
 //
-  DistGrid **distgrid){  // in - DistGrid to destroy
+  DistGrid **distgrid,          // in - DistGrid to destroy
+  bool noGarbage){              // in - remove from garbage collection
 //
 // !DESCRIPTION:
 //
@@ -1825,18 +2320,32 @@ int DistGrid::destroy(
   // return with errors for NULL pointer
   if (distgrid == ESMC_NULL_POINTER || *distgrid == ESMC_NULL_POINTER){
     ESMC_LogDefault.MsgFoundError(ESMC_RC_PTR_NULL,
-      "- Not a valid pointer to DistGrid", &rc);
+      "Not a valid pointer to DistGrid", ESMC_CONTEXT, &rc);
     return rc;
   }
 
-  // destruct DistGrid object
-  localrc = (*distgrid)->destruct();
-  if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, &rc))
+  try{
+    // destruct DistGrid object
+    (*distgrid)->destruct(true, noGarbage);
+    // mark as invalid object
+    (*distgrid)->ESMC_BaseSetStatus(ESMF_STATUS_INVALID);
+  }catch(int localrc){
+    // catch standard ESMF return code
+    ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, ESMC_CONTEXT,
+      &rc);
     return rc;
+  }catch(...){
+    ESMC_LogDefault.MsgFoundError(ESMC_RC_INTNRL_BAD,
+      "Caught exception", ESMC_CONTEXT, &rc);
+    return rc;
+  }
   
-  // mark as invalid object
-  (*distgrid)->ESMC_BaseSetStatus(ESMF_STATUS_INVALID);
-  
+  // optionally delete the complete object and remove from garbage collection
+  if (noGarbage){
+    VM::rmObject(*distgrid); // remove object from garbage collection
+    delete (*distgrid);      // completely delete the object, free heap
+  }
+
   // return successfully
   rc = ESMF_SUCCESS;
   return rc;
@@ -1866,8 +2375,8 @@ int DistGrid::construct(
 // !ARGUMENTS:
 //
   int dimCountArg,                      // (in)
-  int tileCountArg,                    // (in)
-  int *tileListPDeArg,                 // (in)
+  int tileCountArg,                     // (in)
+  int *tileListPDeArg,                  // (in)
   int *minIndexArg,                     // (in)
   int *maxIndexArg,                     // (in)
   int *minIndexPDimPDeArg,              // (in)
@@ -1876,10 +2385,13 @@ int DistGrid::construct(
   int *indexCountPDimPDeArg,            // (in)
   int **indexListPDimPLocalDeArg,       // (in)
   int *regDecompArg,                    // (in)
-  InterfaceInt *connectionListArg,      // (in)
+  InterArray<int> *connectionListArg,   // (in)
+  Decomp_Flag const *decompflagArg,     // (in)
+  ESMC_IndexFlag *indexflagArg,         // (in)
   DELayout *delayoutArg,                // (in) DELayout
   bool delayoutCreatorArg,              // (in)
-  VM *vmArg                             // (in) VM context
+  VM *vmArg,                            // (in) VM context
+  ESMC_TypeKind_Flag indexTKArg         // (in) indexing typekind
   ){
 //
 // !DESCRIPTION:
@@ -1890,22 +2402,36 @@ int DistGrid::construct(
   // initialize return code; assume routine not implemented
   int localrc = ESMC_RC_NOT_IMPL;         // local return code
   int rc = ESMC_RC_NOT_IMPL;              // final return code
-
+  
+  // simple variables kept b/c possibly needed in DistGridCreate() from DG
+  if (decompflagArg){
+    decompflag = new Decomp_Flag[dimCountArg*tileCountArg];
+    memcpy(decompflag, decompflagArg, sizeof(Decomp_Flag)
+      *dimCountArg*tileCountArg);
+  }else
+    decompflag = NULL;
+  if (indexflagArg){
+    indexflag = new ESMC_IndexFlag; // must store in local storage
+    *indexflag = *indexflagArg;     // copy the value
+  }else
+    indexflag = NULL;
+  
   // fill in the DistGrid object
+  indexTK = indexTKArg;
   dimCount = dimCountArg;
   tileCount = tileCountArg;
-  if (connectionListArg != NULL){
+  if (present(connectionListArg)){
     // connectionList was provided
     int elementSize = 2*dimCount+2;
     if (connectionListArg->dimCount != 2){
       ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_RANK,
-        "- connectionListArg array must be of rank 2", &rc);
+        "connectionListArg array must be of rank 2", ESMC_CONTEXT, &rc);
       return rc;
     }
     if (connectionListArg->extent[0] != elementSize){
       ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_SIZE,
-        "- 1st dimension of connectionListArg array must be of size "
-        "(2*dimCount+2)", &rc);
+        "1st dimension of connectionListArg array must be of size "
+        "(2*dimCount+2)", ESMC_CONTEXT, &rc);
       return rc;
     }
     // fill in the connectionList member and check tileA & tileB entries
@@ -1917,14 +2443,14 @@ int DistGrid::construct(
         &(connectionListArg->array[elementSize*i]), sizeof(int)*elementSize);
       if (connectionList[i][0] < 1 || connectionList[i][0] > tileCount){
         ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_INCOMP,
-          "- tileA in connectionList element lies outside [1,tileCount]",
-          &rc);
+          "tileA in connectionList element lies outside [1,tileCount]",
+          ESMC_CONTEXT, &rc);
         return rc;
       }
       if (connectionList[i][1] < 1 || connectionList[i][1] > tileCount){
         ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_INCOMP,
-          "- tileB in connectionList element lies outside [1,tileCount]",
-          &rc);
+          "tileB in connectionList element lies outside [1,tileCount]",
+          ESMC_CONTEXT, &rc);
         return rc;
       }
     }
@@ -1964,7 +2490,7 @@ int DistGrid::construct(
     }
   }
   // determine the elementCountPTile
-  elementCountPTile = new int[tileCount];
+  elementCountPTile = new ESMC_I8[tileCount];
   for (int i=0; i<tileCount; i++){
     elementCountPTile[i] = 1;  // reset
     for (int j=0; j<dimCount; j++)
@@ -1973,13 +2499,26 @@ int DistGrid::construct(
   }
   tileListPDe = new int[deCount];
   memcpy(tileListPDe, tileListPDeArg, sizeof(int)*deCount);
-  elementCountPDe = new int[deCount];
+  // determine the elementCountPDe
+  elementCountPDe = new ESMC_I8[deCount];
   for (int i=0; i<deCount; i++){
     elementCountPDe[i] = 1;  // reset
     for (int j=0; j<dimCount; j++)
       elementCountPDe[i] *= indexCountPDimPDe[i*dimCount+j];
     // mark in tileListPDe DEs that have no elements as not being on any tile
     if (elementCountPDe[i]==0) tileListPDe[i]=0;
+  }
+  // see if indexTK requires auto selection of typekind
+  if (indexTK == ESMF_NOKIND){
+    // auto selection of the correct typekind
+    indexTK = ESMC_TYPEKIND_I4;  // default to 32-bit (signed i.e. 31-bit)
+    ESMC_I8 totalElementCount = 0;  // reset
+    for (int i=0; i<tileCount; i++)
+      totalElementCount += elementCountPTile[i];
+    if (totalElementCount > 2147483647L){
+      // above the I4 limit -> go to I8
+      indexTK = ESMC_TYPEKIND_I8;
+    }
   }
   // complete sequence index collocation by default
   diffCollocationCount = 1; // collocate all dimensions
@@ -1991,19 +2530,19 @@ int DistGrid::construct(
   }
   collocationTable[0]=1;
   // no arbitrary sequence indices by default
-  arbSeqIndexListPCollPLocalDe = new int**[diffCollocationCount];
+  arbSeqIndexListPCollPLocalDe = new void**[diffCollocationCount];
   elementCountPCollPLocalDe = new int*[diffCollocationCount];
   for (int i=0; i<diffCollocationCount; i++){
-    arbSeqIndexListPCollPLocalDe[i] = new int*[localDeCount];
+    arbSeqIndexListPCollPLocalDe[i] = new void*[localDeCount];
     elementCountPCollPLocalDe[i] = new int[localDeCount];
     for (int j=0; j<localDeCount; j++){
       arbSeqIndexListPCollPLocalDe[i][j] = NULL;
-      elementCountPCollPLocalDe[i][j] = elementCountPDe[localDeToDeMap[i]];
+      elementCountPCollPLocalDe[i][j] = elementCountPDe[localDeToDeMap[j]];
     }
   }
   if (regDecompArg){
-    regDecomp = new int[dimCount];
-    memcpy(regDecomp, regDecompArg, sizeof(int)*dimCount);
+    regDecomp = new int[dimCount*tileCount];
+    memcpy(regDecomp, regDecompArg, sizeof(int)*dimCount*tileCount);
   }else
     regDecomp = NULL;
   
@@ -2023,9 +2562,10 @@ int DistGrid::construct(
 // !IROUTINE:  ESMCI::DistGrid::destruct
 //
 // !INTERFACE:
-int DistGrid::destruct(bool followCreator){
+int DistGrid::destruct(bool followCreator, bool noGarbage){
 //
-// TODO: The followCreator flag is only needed until we have reference counting // TODO: For now followCreator, which by default is true, will be coming in as
+// TODO: The followCreator flag is only needed until we have reference counting
+// TODO: For now followCreator, which by default is true, will be coming in as
 // TODO: false when calling through the native destructor. This prevents
 // TODO: sequence problems during automatic garbage collection unitl reference
 // TODO: counting comes in to solve this problem in the final manner.
@@ -2043,6 +2583,8 @@ int DistGrid::destruct(bool followCreator){
   int localrc = ESMC_RC_NOT_IMPL;         // local return code
   int rc = ESMC_RC_NOT_IMPL;              // final return code
 
+//fprintf(stderr, "DistGrid::destruct\n");
+
   if (ESMC_BaseGetStatus()==ESMF_STATUS_READY){
     // garbage collection
     delete [] indexCountPDimPDe;
@@ -2054,6 +2596,11 @@ int DistGrid::destruct(bool followCreator){
     delete [] tileListPDe;
     delete [] elementCountPDe;
     delete [] contigFlagPDimPDe;
+    
+    if (decompflag)
+      delete [] decompflag;
+    if (indexflag)
+      delete indexflag;
     
 //    int localDeCount = delayout->getLocalDeCount();
     int localDeCount = localDeCountAux; // TODO: delayout may be gone already!
@@ -2068,8 +2615,26 @@ int DistGrid::destruct(bool followCreator){
       delete [] connectionList;
     for (int i=0; i<diffCollocationCount; i++){
       for (int j=0; j<localDeCount; j++)
-        if (arbSeqIndexListPCollPLocalDe[i][j])
-          delete [] arbSeqIndexListPCollPLocalDe[i][j];
+        if (arbSeqIndexListPCollPLocalDe[i][j]){
+          if (indexTK == ESMC_TYPEKIND_I1){
+            ESMC_I1 *ptr = (ESMC_I1 *)arbSeqIndexListPCollPLocalDe[i][j];
+            delete [] ptr;
+          }else if (indexTK == ESMC_TYPEKIND_I2){
+            ESMC_I2 *ptr = (ESMC_I2 *)arbSeqIndexListPCollPLocalDe[i][j];
+            delete [] ptr;
+          }else if (indexTK == ESMC_TYPEKIND_I4){
+            ESMC_I4 *ptr = (ESMC_I4 *)arbSeqIndexListPCollPLocalDe[i][j];
+            delete [] ptr;
+          }else if (indexTK == ESMC_TYPEKIND_I8){
+            ESMC_I8 *ptr = (ESMC_I8 *)arbSeqIndexListPCollPLocalDe[i][j];
+            delete [] ptr;
+          }else{
+            // error condition, indexTK not supported
+            ESMC_LogDefault.MsgFoundError(ESMC_RC_INTNRL_BAD,
+              "Unsupported DistGrid indexTK", ESMC_CONTEXT, &rc);
+            return rc;
+          }
+        }
       delete [] arbSeqIndexListPCollPLocalDe[i];
       delete [] elementCountPCollPLocalDe[i];
     }
@@ -2081,9 +2646,9 @@ int DistGrid::destruct(bool followCreator){
       delete [] regDecomp;
     
     if (delayoutCreator && followCreator){
-      localrc = DELayout::destroy(&delayout); 
-      if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, &rc))
-        return rc;
+      localrc = DELayout::destroy(&delayout, noGarbage); 
+      if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU,
+        ESMC_CONTEXT, &rc)) return rc;
     }
   }
 
@@ -2109,19 +2674,19 @@ int DistGrid::destruct(bool followCreator){
 //
 // !INTERFACE:
 //
-int DistGrid::fillSeqIndexList(
+template<typename T> int DistGrid::fillSeqIndexList(
 // !RETURN VALUE:
 //    int return code
 //
 // !ARGUMENTS:
 //
-  InterfaceInt *seqIndexList,   // in
-  int localDe,                  // in  - local DE = {0, ..., localDeCount-1}
-  int collocation               // in  -
+  InterArray<T> *seqIndexList,    // in
+  int localDe,                    // in  - local DE = {0, ..., localDeCount-1}
+  int collocation                 // in  -
   )const{
 //
 // !DESCRIPTION:
-//    Fill the seqIndexList argument. Providing this InterfaceInt based 
+//    Fill the seqIndexList argument. Providing this InterArray based 
 //    method is required for efficient filling of arrays that come through
 //    the Fortran API, without having to do an extra copy. It can also leveraged
 //    by the overloaded vector<int> based interface.
@@ -2132,11 +2697,11 @@ int DistGrid::fillSeqIndexList(
   int localrc = ESMC_RC_NOT_IMPL;         // local return code
   int rc = ESMC_RC_NOT_IMPL;              // final return code
   
-  if (seqIndexList != NULL){
+  if (present(seqIndexList)){
     // seqIndexList provided -> error checking
     if ((seqIndexList)->dimCount != 1){
       ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_RANK,
-        "- seqIndexList array must be of rank 1", &rc);
+        "seqIndexList array must be of rank 1", ESMC_CONTEXT, &rc);
       return rc;
     }
     int i;
@@ -2144,31 +2709,54 @@ int DistGrid::fillSeqIndexList(
       if (collocationTable[i]==collocation) break;
     if (i==diffCollocationCount){
       ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_VALUE,
-        "- specified collocation not valid", &rc);
+        "specified collocation not valid", ESMC_CONTEXT, &rc);
       return rc;
     }
     int collIndex = i;
     // check for arbitrary sequence indices
-    const int *arbSeqIndexList =
+    const void *arbSeqIndexList =
       getArbSeqIndexList(localDe, collocation, &localrc);
-    if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, &rc))
-      return rc;
+    if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, ESMC_CONTEXT,
+      &rc)) return rc;
     if (arbSeqIndexList){
       // arbitrary seq indices -> fill seqIndexList with arbSeqIndexList
       if ((seqIndexList)->extent[0] <
         elementCountPCollPLocalDe[collIndex][localDe]){
         ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_SIZE,
-          "- 1st dimension of seqIndexList array insufficiently sized", &rc);
+          "1st dimension of seqIndexList array insufficiently sized",
+          ESMC_CONTEXT, &rc);
+        return rc;
+      }
+      unsigned int sizeOfType;
+      if (indexTK == ESMC_TYPEKIND_I1){
+        sizeOfType = sizeof(ESMC_I1);
+      }else if (indexTK == ESMC_TYPEKIND_I2){
+        sizeOfType = sizeof(ESMC_I2);
+      }else if (indexTK == ESMC_TYPEKIND_I4){
+        sizeOfType = sizeof(ESMC_I4);
+      }else if (indexTK == ESMC_TYPEKIND_I8){
+        sizeOfType = sizeof(ESMC_I8);
+      }else{
+        // error condition, indexTK not supported
+        ESMC_LogDefault.MsgFoundError(ESMC_RC_INTNRL_BAD,
+          "Unsupported DistGrid indexTK", ESMC_CONTEXT, &rc);
+        return rc;
+      }
+      if (sizeof(T) != sizeOfType){
+        ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_SIZE,
+          "Type mismatch.",
+          ESMC_CONTEXT, &rc);
         return rc;
       }
       memcpy((seqIndexList)->array, arbSeqIndexList,
-        sizeof(int) * elementCountPCollPLocalDe[collIndex][localDe]);
+        sizeOfType * elementCountPCollPLocalDe[collIndex][localDe]);
     }else{
       // default seq indices -> generate on the fly and fill in
       if ((seqIndexList)->extent[0] <
         (getElementCountPDe())[delayout->getLocalDeToDeMap()[localDe]]){
         ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_SIZE,
-          "- 1st dimension of seqIndexList array insufficiently sized", &rc);
+          "1st dimension of seqIndexList array insufficiently sized",
+          ESMC_CONTEXT, &rc);
         return rc;
       }
       // TODO: must consider collocation subspace here!!!
@@ -2182,8 +2770,9 @@ int DistGrid::fillSeqIndexList(
         ii[j] = 0;  // reset
       // loop over all elements in exclusive region for localDe
       while(ii[dimCount-1] < iiEnd[dimCount-1]){
-        (seqIndexList)->array[index] =
-          getSequenceIndexLocalDe(localDe, ii);
+        vector<T> seqIndex;
+        getSequenceIndexLocalDe(localDe, ii, seqIndex);
+        (seqIndexList)->array[index] = seqIndex[0];
         ++index;
         // multi-dim index increment
         ++ii[0];
@@ -2239,20 +2828,20 @@ int DistGrid::fillSeqIndexList(
     if (collocationTable[i]==collocation) break;
   if (i==diffCollocationCount){
     ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_VALUE,
-      "- specified collocation not valid", &rc);
+      "specified collocation not valid", ESMC_CONTEXT, &rc);
     return rc;
   }
   int collIndex = i;
 
-  int elementCount = elementCountPCollPLocalDe[collIndex][localDe];
+  unsigned int elementCount = elementCountPCollPLocalDe[collIndex][localDe];
   
   if (seqIndexList.size() != elementCount)
     seqIndexList.resize(elementCount);
   
-  InterfaceInt *seqIndexListAux = new InterfaceInt(seqIndexList);
+  InterArray<int> *seqIndexListAux = new InterArray<int>(seqIndexList);
   localrc = fillSeqIndexList(seqIndexListAux, localDe, collocation);
-  if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, &rc))
-    return rc;
+  if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, ESMC_CONTEXT,
+    &rc)) return rc;
   delete seqIndexListAux;
     
   // return successfully
@@ -2307,8 +2896,8 @@ int DistGrid::fillIndexListPDimPDe(
   // by default use the currentVM for vm
   if (vm == ESMC_NULL_POINTER){
     vm = VM::getCurrent(&localrc);
-    if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, &rc))
-      return rc;
+    if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, ESMC_CONTEXT,
+      &rc)) return rc;
   }
   
   // query the VM
@@ -2328,8 +2917,8 @@ int DistGrid::fillIndexListPDimPDe(
       if (localrc){
         char *message = new char[160];
         sprintf(message, "VMKernel/MPI error #%d\n", localrc);
-        ESMC_LogDefault.MsgFoundError(ESMC_RC_INTNRL_BAD,
-          message, &rc);
+        ESMC_LogDefault.MsgFoundError(ESMC_RC_INTNRL_BAD, message, ESMC_CONTEXT,
+          &rc);
         delete [] message;
         return rc;
       }
@@ -2338,7 +2927,7 @@ int DistGrid::fillIndexListPDimPDe(
       const int *localIndexList =
         getIndexListPDimPLocalDe(deList[de], dim, &localrc);
       if (ESMC_LogDefault.MsgFoundError(localrc,
-        ESMCI_ERR_PASSTHRU, &rc)) return rc;
+        ESMCI_ERR_PASSTHRU, ESMC_CONTEXT, &rc)) return rc;
       memcpy(indexList, localIndexList, sizeof(int)*
         indexCountPDimPDe[de*dimCount+dim-1]);
     }
@@ -2348,7 +2937,7 @@ int DistGrid::fillIndexListPDimPDe(
       const int *localIndexList =
         getIndexListPDimPLocalDe(deList[de], dim, &localrc);
       if (ESMC_LogDefault.MsgFoundError(localrc,
-        ESMCI_ERR_PASSTHRU, &rc)) return rc;
+        ESMCI_ERR_PASSTHRU, ESMC_CONTEXT, &rc)) return rc;
       if (*commh == NULL) *commh = new VMK::commhandle;
       localrc = vm->send(localIndexList,
         sizeof(int)*indexCountPDimPDe[de*dimCount+dim-1], rootPet, commh);
@@ -2356,7 +2945,7 @@ int DistGrid::fillIndexListPDimPDe(
         char *message = new char[160];
         sprintf(message, "VMKernel/MPI error #%d\n", localrc);
         ESMC_LogDefault.MsgFoundError(ESMC_RC_INTNRL_BAD,
-          message, &rc);
+          message, ESMC_CONTEXT, &rc);
         delete [] message;
         return rc;
       }
@@ -2410,12 +2999,12 @@ DistGridMatch_Flag DistGrid::match(
   // return with errors for NULL pointer
   if (distgrid1 == NULL){
     ESMC_LogDefault.MsgFoundError(ESMC_RC_PTR_NULL,
-      "- Not a valid pointer to DistGrid", rc);
+      "Not a valid pointer to DistGrid", ESMC_CONTEXT, rc);
     return matchResult;
   }
   if (distgrid2 == NULL){
     ESMC_LogDefault.MsgFoundError(ESMC_RC_PTR_NULL,
-      "- Not a valid pointer to DistGrid", rc);
+      "Not a valid pointer to DistGrid", ESMC_CONTEXT, rc);
     return matchResult;
   }
   
@@ -2467,10 +3056,10 @@ DistGridMatch_Flag DistGrid::match(
       return matchResult;
     }
   }
-  int1 = distgrid1->elementCountPTile;
-  int2 = distgrid2->elementCountPTile;
+  ESMC_I8 *long1 = distgrid1->elementCountPTile;
+  ESMC_I8 *long2 = distgrid2->elementCountPTile;
   for (int i=0; i<tileCount1; i++){
-    if (int1[i] != int2[i]){
+    if (long1[i] != long2[i]){
       matchResult = DISTGRIDMATCH_NONE;
       if (rc!=NULL) *rc = ESMF_SUCCESS; // bail out successfully
       return matchResult;
@@ -2494,10 +3083,10 @@ DistGridMatch_Flag DistGrid::match(
       return matchResult;
     }
   }
-  int1 = distgrid1->elementCountPDe;
-  int2 = distgrid2->elementCountPDe;
+  long1 = distgrid1->elementCountPDe;
+  long2 = distgrid2->elementCountPDe;
   for (int i=0; i<deCount1; i++){
-    if (int1[i] != int2[i]){
+    if (long1[i] != long2[i]){
       matchResult = DISTGRIDMATCH_NONE;
       if (rc!=NULL) *rc = ESMF_SUCCESS; // bail out successfully
       return matchResult;
@@ -2555,17 +3144,18 @@ int DistGrid::print()const{
   // return with errors for NULL pointer
   if (this == NULL){
     ESMC_LogDefault.MsgFoundError(ESMC_RC_PTR_NULL,
-      "- Not a valid pointer to DistGrid", &rc);
+      "Not a valid pointer to DistGrid", ESMC_CONTEXT, &rc);
     return rc;
   }
 
   // print info about the DistGrid object
   printf("--- ESMCI::DistGrid::print start ---\n");
+  printf("indexTK: %s\n", ESMC_TypeKind_FlagString(indexTK));
   printf("dimCount = %d\n", dimCount);
   printf("tileCount = %d\n", tileCount);
   printf("elementCountPTile: ");
   for (int i=0; i<tileCount; i++)
-    printf("%d ", elementCountPTile[i]);
+    printf("%Ld ", elementCountPTile[i]);
   printf("\n");
   printf("regDecomp = %s\n", (regDecomp)?"YES":"NO");
   printf("tileListPDe: ");
@@ -2575,7 +3165,7 @@ int DistGrid::print()const{
   printf("\n");
   printf("elementCountPDe: ");
   for (int i=0; i<deCount; i++)
-    printf("%d ", elementCountPDe[i]);
+    printf("%Ld ", elementCountPDe[i]);
   printf("\n");
   printf("contigFlagPDimPDe (dims separated by / ):\n");
   for (int i=0; i<deCount; i++){
@@ -2624,7 +3214,24 @@ int DistGrid::print()const{
         printf("(");
         for (int k=0; k<elementCountPCollPLocalDe[i][j]; k++){
           if (k!=0) printf(", ");
-          printf("%d", arbSeqIndexListPCollPLocalDe[i][j][k]);
+          if (indexTK == ESMC_TYPEKIND_I1){
+            printf("%d",
+              ((ESMC_I1 *)arbSeqIndexListPCollPLocalDe[i][j])[k]);
+          }else if (indexTK == ESMC_TYPEKIND_I2){
+            printf("%d",
+              ((ESMC_I2 *)arbSeqIndexListPCollPLocalDe[i][j])[k]);
+          }else if (indexTK == ESMC_TYPEKIND_I4){
+            printf("%d",
+              ((ESMC_I4 *)arbSeqIndexListPCollPLocalDe[i][j])[k]);
+          }else if (indexTK == ESMC_TYPEKIND_I8){
+            printf("%Ld",
+              ((ESMC_I8 *)arbSeqIndexListPCollPLocalDe[i][j])[k]);
+          }else{
+            // error condition, indexTK not supported
+            ESMC_LogDefault.MsgFoundError(ESMC_RC_INTNRL_BAD,
+              "Unsupported DistGrid indexTK", ESMC_CONTEXT, &rc);
+            return rc;
+          }
         }
         printf(")\n");
       }else
@@ -2635,63 +3242,19 @@ int DistGrid::print()const{
   printf("connectionCount = %d\n", connectionCount);
   printf("~ lower class' values ~\n");
   printf("deCount = %d\n", deCount);
-  printf("localPet = %d\n", vm->getLocalPet());
-  printf("petCount = %d\n", vm->getPetCount());
+  if (vm==NULL){
+    printf("Member on this PET appears to be a proxy member.\n");
+    printf("CurrentVM: localPet = %d\n", VM::getCurrent()->getLocalPet());
+    printf("CurrentVM: petCount = %d\n", VM::getCurrent()->getPetCount());
+  }else{
+    printf("Member on this PET appears to be an actual member.\n");
+    printf("DistGrid-VM: localPet = %d, CurrentVM: localPet = %d\n", 
+      vm->getLocalPet(), VM::getCurrent()->getLocalPet());
+    printf("DistGrid-VM: petCount = %d, CurrentVM: petCount = %d\n", 
+      vm->getPetCount(), VM::getCurrent()->getPetCount());
+  }
   printf("--- ESMCI::DistGrid::print end ---\n");
-  
-#if 0
-  printf("--- ESMCI::DistGrid::print - Topology test start ---\n");
-  int lrc;
-  int indexTuple[2];
-  int depth=4;
-  int seqIndex;
-  indexTuple[0] = 0; indexTuple[1] = 0;
-  seqIndex = getSequenceIndexTile(1, indexTuple, depth, &lrc);
-  printf("indexTuple = (%d, %d), sequenceIndex = %d, lrc = %d\n",
-    indexTuple[0], indexTuple[1], seqIndex, lrc);
-  indexTuple[0] = 0; indexTuple[1] = 1;
-  seqIndex = getSequenceIndexTile(1, indexTuple, depth, &lrc);
-  printf("indexTuple = (%d, %d), sequenceIndex = %d, lrc = %d\n",
-    indexTuple[0], indexTuple[1], seqIndex, lrc);
-  indexTuple[0] = 1; indexTuple[1] = 1;
-  seqIndex = getSequenceIndexTile(1, indexTuple, depth, &lrc);
-  printf("indexTuple = (%d, %d), sequenceIndex = %d, lrc = %d\n",
-    indexTuple[0], indexTuple[1], seqIndex, lrc);
-  indexTuple[0] = 1; indexTuple[1] = 0;
-  seqIndex = getSequenceIndexTile(1, indexTuple, depth, &lrc);
-  printf("indexTuple = (%d, %d), sequenceIndex = %d, lrc = %d\n",
-    indexTuple[0], indexTuple[1], seqIndex, lrc);
-  indexTuple[0] = 11; indexTuple[1] = 1;
-  seqIndex = getSequenceIndexTile(1, indexTuple, depth, &lrc);
-  printf("indexTuple = (%d, %d), sequenceIndex = %d, lrc = %d\n",
-    indexTuple[0], indexTuple[1], seqIndex, lrc);
-  indexTuple[0] = 1; indexTuple[1] = 5;
-  seqIndex = getSequenceIndexTile(1, indexTuple, depth, &lrc);
-  printf("indexTuple = (%d, %d), sequenceIndex = %d, lrc = %d\n",
-    indexTuple[0], indexTuple[1], seqIndex, lrc);
-  indexTuple[0] = 1; indexTuple[1] = 6;
-  seqIndex = getSequenceIndexTile(1, indexTuple, depth, &lrc);
-  printf("indexTuple = (%d, %d), sequenceIndex = %d, lrc = %d\n",
-    indexTuple[0], indexTuple[1], seqIndex, lrc);
-  indexTuple[0] = 4; indexTuple[1] = 6;
-  seqIndex = getSequenceIndexTile(1, indexTuple, depth, &lrc);
-  printf("indexTuple = (%d, %d), sequenceIndex = %d, lrc = %d\n",
-    indexTuple[0], indexTuple[1], seqIndex, lrc);
-  indexTuple[0] = 10; indexTuple[1] = 5;
-  seqIndex = getSequenceIndexTile(1, indexTuple, depth, &lrc);
-  printf("indexTuple = (%d, %d), sequenceIndex = %d, lrc = %d\n",
-    indexTuple[0], indexTuple[1], seqIndex, lrc);
-  indexTuple[0] = 10; indexTuple[1] = 6;
-  seqIndex = getSequenceIndexTile(1, indexTuple, depth, &lrc);
-  printf("indexTuple = (%d, %d), sequenceIndex = %d, lrc = %d\n",
-    indexTuple[0], indexTuple[1], seqIndex, lrc);
-  indexTuple[0] = 21; indexTuple[1] = 5;
-  seqIndex = getSequenceIndexTile(1, indexTuple, depth, &lrc);
-  printf("indexTuple = (%d, %d), sequenceIndex = %d, lrc = %d\n",
-    indexTuple[0], indexTuple[1], seqIndex, lrc);
-  printf("--- ESMCI::DistGrid::print - Topology test end ---\n");
-#endif
-  
+    
   // return successfully
   rc = ESMF_SUCCESS;
   return rc;
@@ -2723,7 +3286,7 @@ int DistGrid::validate()const{
   // check against NULL pointer
   if (this == ESMC_NULL_POINTER){
     ESMC_LogDefault.MsgFoundError(ESMC_RC_PTR_NULL,
-       " - 'this' pointer is NULL.", &rc);
+       " - 'this' pointer is NULL.", ESMC_CONTEXT, &rc);
     return rc;
   }
 
@@ -2769,16 +3332,24 @@ bool DistGrid::isLocalDeOnEdgeL(
   int localrc = ESMC_RC_NOT_IMPL;         // local return code
   if (rc!=NULL) *rc = ESMC_RC_NOT_IMPL;   // final return code
 
+#if 0
+  {
+    stringstream debugmsg;
+    debugmsg << "isLocalDeOnEdgeL: localDe=" << localDe << " dim=" << dim;
+    ESMC_LogDefault.Write(debugmsg.str(), ESMC_LOGMSG_INFO);
+  }
+#endif
+
   // check input
   int localDeCount = delayout->getLocalDeCount();
   if (localDe < 0 || localDe > localDeCount-1){
     ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_BAD,
-      "- Specified local DE out of bounds", rc);
+      "Specified local DE out of bounds", ESMC_CONTEXT, rc);
     return false;
   }
   if (dim < 1 || dim > dimCount){
     ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_BAD,
-      "- Specified dim out of bounds", rc);
+      "Specified dim out of bounds", ESMC_CONTEXT, rc);
     return false;
   }
   
@@ -2795,25 +3366,54 @@ bool DistGrid::isLocalDeOnEdgeL(
       sizes.push_back(indexCountPDimPDe[de*dimCount+i]);
     MultiDimIndexLoop multiDimIndexLoop(sizes);
     multiDimIndexLoop.setSkipDim(dim-1);  // next() to skip dim
-    while(multiDimIndexLoop.isWithin()){
-      // look at the entire interface spanned by all dimensions except dim
-      int const *indexTuple = multiDimIndexLoop.getIndexTuple();
-      for (int i=0; i<dimCount; i++)
-        localDeIndexTuple[i] = indexTuple[i];
-      // look just across interface along dim
-      localDeIndexTuple[dim-1] = -1;
-      // get sequence index providing localDe relative index tuple
-      int seqindex =
-        getSequenceIndexLocalDe(localDe, localDeIndexTuple, 3, &localrc);
-      if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, rc))
-        return false;
-      // determine if seqindex indicates edge or not
-      if (seqindex != -1){
-        // valid seqindex indicates that there is a neighbor
-        onEdge = false;
-        break;
+    // deal with different seqIndex types
+    ESMC_TypeKind_Flag indexTK = getIndexTK();
+    if (indexTK==ESMC_TYPEKIND_I4){
+      while(multiDimIndexLoop.isWithin()){
+        // look at the entire interface spanned by all dimensions except dim
+        int const *indexTuple = multiDimIndexLoop.getIndexTuple();
+        for (int i=0; i<dimCount; i++)
+          localDeIndexTuple[i] = indexTuple[i];
+        // look just across interface along dim
+        localDeIndexTuple[dim-1] = -1;
+        // get sequence index providing localDe relative index tuple
+        vector<ESMC_I4> seqIndex; 
+        localrc = getSequenceIndexLocalDe(localDe, localDeIndexTuple, seqIndex);
+        if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU,
+          ESMC_CONTEXT, rc)) return false;
+        // determine if seqindex indicates edge or not
+        if (seqIndex.size() > 0){
+          // valid seqindex indicates that there is a neighbor
+          onEdge = false;
+          break;
+        }
+        multiDimIndexLoop.next(); // increment tuple, but skip dim
       }
-      multiDimIndexLoop.next(); // increment tuple, but skip dim
+    }else if (indexTK==ESMC_TYPEKIND_I8){
+      while(multiDimIndexLoop.isWithin()){
+        // look at the entire interface spanned by all dimensions except dim
+        int const *indexTuple = multiDimIndexLoop.getIndexTuple();
+        for (int i=0; i<dimCount; i++)
+          localDeIndexTuple[i] = indexTuple[i];
+        // look just across interface along dim
+        localDeIndexTuple[dim-1] = -1;
+        // get sequence index providing localDe relative index tuple
+        vector<ESMC_I8> seqIndex; 
+        localrc = getSequenceIndexLocalDe(localDe, localDeIndexTuple, seqIndex);
+        if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU,
+          ESMC_CONTEXT, rc)) return false;
+        // determine if seqindex indicates edge or not
+        if (seqIndex.size() > 0){
+          // valid seqindex indicates that there is a neighbor
+          onEdge = false;
+          break;
+        }
+        multiDimIndexLoop.next(); // increment tuple, but skip dim
+      }
+    }else{
+      ESMC_LogDefault.MsgFoundError(ESMC_RC_INTNRL_BAD,
+        "Type option not supported", ESMC_CONTEXT, rc);
+      return false;
     }
   }
     
@@ -2852,16 +3452,24 @@ bool DistGrid::isLocalDeOnEdgeU(
   int localrc = ESMC_RC_NOT_IMPL;         // local return code
   if (rc!=NULL) *rc = ESMC_RC_NOT_IMPL;   // final return code
 
+#if 0
+  {
+    stringstream debugmsg;
+    debugmsg << "isLocalDeOnEdgeU: localDe=" << localDe << " dim=" << dim;
+    ESMC_LogDefault.Write(debugmsg.str(), ESMC_LOGMSG_INFO);
+  }
+#endif
+
   // check input
   int localDeCount = delayout->getLocalDeCount();
   if (localDe < 0 || localDe > localDeCount-1){
     ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_BAD,
-      "- Specified local DE out of bounds", rc);
+      "Specified local DE out of bounds", ESMC_CONTEXT, rc);
     return false;
   }
   if (dim < 1 || dim > dimCount){
     ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_BAD,
-      "- Specified dim out of bounds", rc);
+      "Specified dim out of bounds", ESMC_CONTEXT, rc);
     return false;
   }
   
@@ -2878,25 +3486,54 @@ bool DistGrid::isLocalDeOnEdgeU(
       sizes.push_back(indexCountPDimPDe[de*dimCount+i]);
     MultiDimIndexLoop multiDimIndexLoop(sizes);
     multiDimIndexLoop.setSkipDim(dim-1);  // next() to skip dim
-    while(multiDimIndexLoop.isWithin()){
-      // look at the entire interface spanned by all dimensions except dim
-      int const *indexTuple = multiDimIndexLoop.getIndexTuple();
-      for (int i=0; i<dimCount; i++)
-        localDeIndexTuple[i] = indexTuple[i];
-      // look just across interface along dim
-      localDeIndexTuple[dim-1] = indexCountPDimPDe[de*dimCount+(dim-1)];
-      // get sequence index providing localDe relative index tuple
-      int seqindex =
-        getSequenceIndexLocalDe(localDe, localDeIndexTuple, 3, &localrc);
-      if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, rc))
-        return false;
-      // determine if seqindex indicates edge or not
-      if (seqindex != -1){
-        // valid seqindex indicates that there is a neighbor
-        onEdge = false;
-        break;
+    // deal with different seqIndex types
+    ESMC_TypeKind_Flag indexTK = getIndexTK();
+    if (indexTK==ESMC_TYPEKIND_I4){
+      while(multiDimIndexLoop.isWithin()){
+        // look at the entire interface spanned by all dimensions except dim
+        int const *indexTuple = multiDimIndexLoop.getIndexTuple();
+        for (int i=0; i<dimCount; i++)
+          localDeIndexTuple[i] = indexTuple[i];
+        // look just across interface along dim
+        localDeIndexTuple[dim-1] = indexCountPDimPDe[de*dimCount+(dim-1)];
+        // get sequence index providing localDe relative index tuple
+        vector<ESMC_I4> seqIndex; 
+        localrc = getSequenceIndexLocalDe(localDe, localDeIndexTuple, seqIndex);
+        if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU,
+          ESMC_CONTEXT, rc)) return false;
+        // determine if seqindex indicates edge or not
+        if (seqIndex.size() > 0){
+          // valid seqindex indicates that there is a neighbor
+          onEdge = false;
+          break;
+        }
+        multiDimIndexLoop.next(); // increment tuple, but skip dim
       }
-      multiDimIndexLoop.next(); // increment tuple, but skip dim
+    }else if (indexTK==ESMC_TYPEKIND_I8){
+      while(multiDimIndexLoop.isWithin()){
+        // look at the entire interface spanned by all dimensions except dim
+        int const *indexTuple = multiDimIndexLoop.getIndexTuple();
+        for (int i=0; i<dimCount; i++)
+          localDeIndexTuple[i] = indexTuple[i];
+        // look just across interface along dim
+        localDeIndexTuple[dim-1] = indexCountPDimPDe[de*dimCount+(dim-1)];
+        // get sequence index providing localDe relative index tuple
+        vector<ESMC_I8> seqIndex; 
+        localrc = getSequenceIndexLocalDe(localDe, localDeIndexTuple, seqIndex);
+        if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU,
+          ESMC_CONTEXT, rc)) return false;
+        // determine if seqindex indicates edge or not
+        if (seqIndex.size() > 0){
+          // valid seqindex indicates that there is a neighbor
+          onEdge = false;
+          break;
+        }
+        multiDimIndexLoop.next(); // increment tuple, but skip dim
+      }
+    }else{
+      ESMC_LogDefault.MsgFoundError(ESMC_RC_INTNRL_BAD,
+        "Type option not supported", ESMC_CONTEXT, rc);
+      return false;
     }
   }
     
@@ -2945,12 +3582,12 @@ int DistGrid::getContigFlagPDimPDe(
   int deCount = delayout->getDeCount();
   if (de < 0 || de > deCount-1){
     ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_BAD,
-      "- Specified DE out of bounds", rc);
+      "Specified DE out of bounds", ESMC_CONTEXT, rc);
     return -1; // bail out
   }
   if (dim < 1 || dim > dimCount){
     ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_BAD,
-      "- Specified dim out of bounds", rc);
+      "Specified dim out of bounds", ESMC_CONTEXT, rc);
     return -1; // bail out
   }
 
@@ -2968,7 +3605,7 @@ int DistGrid::getContigFlagPDimPDe(
 // !IROUTINE:  ESMCI::DistGrid::getElementCountPDe
 //
 // !INTERFACE:
-int DistGrid::getElementCountPDe(
+ESMC_I8 DistGrid::getElementCountPDe(
 //
 // !RETURN VALUE:
 //    int elementCount for DE
@@ -2991,7 +3628,7 @@ int DistGrid::getElementCountPDe(
   int deCount = delayout->getDeCount();
   if (de < 0 || de > deCount-1){
     ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_BAD,
-      "- Specified DE out of bounds", rc);
+      "Specified DE out of bounds", ESMC_CONTEXT, rc);
     return -1; // bail out
   }
 
@@ -3009,7 +3646,7 @@ int DistGrid::getElementCountPDe(
 // !IROUTINE:  ESMCI::DistGrid::getSequenceIndexLocalDe
 //
 // !INTERFACE:
-int DistGrid::getSequenceIndexLocalDe(
+template<typename T> int DistGrid::getSequenceIndexLocalDe(
 //
 // !RETURN VALUE:
 //    int sequence index
@@ -3020,8 +3657,10 @@ int DistGrid::getSequenceIndexLocalDe(
   const int *index,                 // in  - DE-local index tuple in or 
                                     //       relative to exclusive region
                                     //       basis 0
-  int depth,                        // in  - topology recursions depth
-  int *rc                           // out - return code
+  vector<T> &seqIndex,              // out - sequence index
+  bool recursive,                   // in  - recursive mode or not
+  bool canonical                    // in  - return canonical seqIndex even if
+                                    //       arbitrary seqIndices available
   )const{
 //
 // !DESCRIPTION:
@@ -3042,33 +3681,87 @@ int DistGrid::getSequenceIndexLocalDe(
 //-----------------------------------------------------------------------------
   // initialize return code; assume routine not implemented
   int localrc = ESMC_RC_NOT_IMPL;         // local return code
-  if (rc!=NULL) *rc = ESMC_RC_NOT_IMPL;   // final return code
+  int rc = ESMC_RC_NOT_IMPL;              // final return code
 
   // check input
   int localDeCount = delayout->getLocalDeCount();
   if (localDe < 0 || localDe > localDeCount-1){
     ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_BAD,
-      "- Specified local DE out of bounds", rc);
-    return -1;
+      "Specified local DE out of bounds", ESMC_CONTEXT, &rc);
+    return rc;
   }
   int de = delayout->getLocalDeToDeMap()[localDe];
   for (int i=0; i<dimCount; i++){
     //TODO: this does _not_ support multiple collocations w/ arb seqIndices 
     //TODO: it assumes that arbSeqIndices may only exist on the first colloc.
-    if (arbSeqIndexListPCollPLocalDe[0][localDe] ||
+    if ((!canonical && arbSeqIndexListPCollPLocalDe[0][localDe]) ||
       !contigFlagPDimPDe[de*dimCount+i]){
       if (index[i] < 0 || index[i] >= indexCountPDimPDe[de*dimCount+i]){
         ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_BAD,
-          "- Specified index out of bounds", rc);
-        return -1;
+          "Specified index out of bounds", ESMC_CONTEXT, &rc);
+        return rc;
       }
     }
   }
   
-  // determine seqindex
-  int seqindex;
-  if (arbSeqIndexListPCollPLocalDe[0][localDe]){
-    // determine the sequentialized index by arbSeqIndexListPLocalDe look-up
+  // check for type consistency
+  if (indexTK == ESMC_TYPEKIND_I1){
+    if (sizeof(T) != sizeof(ESMC_I1)){
+      ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_BAD,
+        "SeqIndex type mismatch detected.", ESMC_CONTEXT, &rc);
+      return rc;
+    }
+  }else if (indexTK == ESMC_TYPEKIND_I2){
+    if (sizeof(T) != sizeof(ESMC_I2)){
+      ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_BAD,
+        "SeqIndex type mismatch detected.", ESMC_CONTEXT, &rc);
+      return rc;
+    }
+  }else if (indexTK == ESMC_TYPEKIND_I4){
+    if (sizeof(T) != sizeof(ESMC_I4)){
+      ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_BAD,
+        "SeqIndex type mismatch detected.", ESMC_CONTEXT, &rc);
+      return rc;
+    }
+  }else if (indexTK == ESMC_TYPEKIND_I8){
+    if (sizeof(T) != sizeof(ESMC_I8)){
+      ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_BAD,
+        "SeqIndex type mismatch detected.", ESMC_CONTEXT, &rc);
+      return rc;
+    }
+  }else{
+    // error condition, indexTK not supported
+    ESMC_LogDefault.MsgFoundError(ESMC_RC_INTNRL_BAD,
+      "Unsupported DistGrid indexTK", ESMC_CONTEXT, &rc);
+    return rc;
+  }
+  
+  // make the actual call with consistently typed arguments
+  localrc = tGetSequenceIndexLocalDe(
+    (T ***)arbSeqIndexListPCollPLocalDe, de, localDe, index, seqIndex, 
+    recursive, canonical);
+  if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU,
+    ESMC_CONTEXT, &rc)) return rc;  //  bail out with invalid seqindex
+
+  // return successfully
+  return ESMF_SUCCESS;
+}
+//-----------------------------------------------------------------------------
+
+
+//-----------------------------------------------------------------------------
+#undef  ESMC_METHOD
+#define ESMC_METHOD "ESMCI::tGetSequenceIndexLocalDe()"
+template<typename T> int DistGrid::tGetSequenceIndexLocalDe(
+  T ***tArbSeqIndexListPCollPLocalDe,
+  int de, int localDe, const int *index, vector<T> &seqIndex, 
+  bool recursive, bool canonical)const{
+  // initialize return code; assume routine not implemented
+  int localrc = ESMC_RC_NOT_IMPL;         // local return code
+  int rc = ESMC_RC_NOT_IMPL;              // final return code
+  // arb or not arb
+  if (!canonical && arbSeqIndexListPCollPLocalDe[0][localDe]){
+    // determine the seqIndex by arbSeqIndexListPCollPLocalDe look-up
     //TODO: this does _not_ support multiple collocations w/ arb seqIndices 
     //TODO: it assumes that arbSeqIndices may only exist on the first colloc.
     int linExclusiveIndex = index[dimCount-1];  // initialize
@@ -3076,14 +3769,14 @@ int DistGrid::getSequenceIndexLocalDe(
       linExclusiveIndex *= indexCountPDimPDe[de*dimCount + i];
       linExclusiveIndex += index[i];
     }
-    seqindex = arbSeqIndexListPCollPLocalDe[0][localDe][linExclusiveIndex];
+    seqIndex.push_back(
+      tArbSeqIndexListPCollPLocalDe[0][localDe][linExclusiveIndex]);
   }else{
     // determine the sequentialized index by construction of default tile rule
     const int *localDeToDeMap = delayout->getLocalDeToDeMap();
     int tile = tileListPDe[localDeToDeMap[localDe]];  // tiles are basis 1 !!!!
     if (tile == 0){
       // means that the localDe does not have any elements thus not on tile
-      seqindex = -1;  // indicate no seqIndex
     }else{
       // prepare tile relative index tuple
       int *tileIndexTuple = new int[dimCount];
@@ -3095,15 +3788,14 @@ int DistGrid::getSequenceIndexLocalDe(
             indexListPDimPLocalDe[localDe*dimCount+i][index[i]];
       }
       // get sequence index providing tile relative index tuple
-      seqindex = getSequenceIndexTile(tile, tileIndexTuple, depth, &localrc);
-      if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, rc))
-        return -1;  //  bail out with invalid seqindex
+      localrc = getSequenceIndexTile(tile, tileIndexTuple, seqIndex, recursive);
+      if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU,
+        ESMC_CONTEXT, &rc)) return rc;  //  bail out with invalid seqindex
       delete [] tileIndexTuple;
     }
   }
   // return successfully
-  if (rc!=NULL) *rc = ESMF_SUCCESS;
-  return seqindex;
+  return ESMF_SUCCESS;
 }
 //-----------------------------------------------------------------------------
 
@@ -3115,17 +3807,16 @@ int DistGrid::getSequenceIndexLocalDe(
 // !IROUTINE:  ESMCI::DistGrid::getSequenceIndexTileRelative
 //
 // !INTERFACE:
-int DistGrid::getSequenceIndexTileRelative(
+template<typename T> int DistGrid::getSequenceIndexTileRelative(
 //
 // !RETURN VALUE:
 //    int sequence index
 //
 // !ARGUMENTS:
 //
-  int tile,                        // in  - tile = {1, ..., tileCount}
+  int tile,                         // in  - tile = {1, ..., tileCount}
   const int *index,                 // in  - tile relative index tuple, base 0
-  int depth,                        // in  - depth of recursive search
-  int *rc                           // out - return code
+  T *seqIndex                       // out - sequence index
   )const{
 //
 // !DESCRIPTION:
@@ -3143,50 +3834,195 @@ int DistGrid::getSequenceIndexTileRelative(
 //-----------------------------------------------------------------------------
   // initialize return code; assume routine not implemented
   int localrc = ESMC_RC_NOT_IMPL;         // local return code
-  if (rc!=NULL) *rc = ESMC_RC_NOT_IMPL;   // final return code
+  int rc = ESMC_RC_NOT_IMPL;              // final return code
+
+  // check seqIndex argument
+  if (seqIndex==NULL){
+    ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_BAD,
+      "The seqIndex argument must not be a NULL pointer", ESMC_CONTEXT, &rc);
+    return rc;
+  }
+  // set seqIndex return value to invalid
+  *seqIndex = -1;
+  vector<T> seqIndexV;
 
   // check input
   if (tile < 1 || tile > tileCount){
     ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_BAD,
-      "- Specified tile out of bounds", rc);
-    return -1;
+      "Specified tile out of bounds", ESMC_CONTEXT, &rc);
+    return rc;
   }
 
   int *indexTileSpecific = new int[dimCount];
   for (int i=0; i<dimCount; i++)
     indexTileSpecific[i] = index[i] + minIndexPDimPTile[(tile-1)*dimCount+i];
   
-  int seqindex = getSequenceIndexTile(tile, indexTileSpecific, depth,
-    &localrc);
+  localrc = getSequenceIndexTile(tile, indexTileSpecific, seqIndexV);
   if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU,
-    rc)) return seqindex;  // bail out
+    ESMC_CONTEXT, &rc)) return rc;  // bail out
   
   delete [] indexTileSpecific;
   
+  // propagate sequence index
+  if (seqIndexV.size() > 0)
+    *seqIndex = seqIndexV[0];
+
   // return successfully
-  if (rc!=NULL) *rc = ESMF_SUCCESS;
-  return seqindex;
+  return ESMF_SUCCESS;
 }
 //-----------------------------------------------------------------------------
-  
-  //-----------------------------------------------------------------------------
+
+
+//-----------------------------------------------------------------------------
 #undef  ESMC_METHOD
 #define ESMC_METHOD "ESMCI::DistGrid::getSequenceIndexTile()"
 //BOPI
 // !IROUTINE:  ESMCI::DistGrid::getSequenceIndexTile
 //
 // !INTERFACE:
-int DistGrid::getSequenceIndexTile(
+template<typename T> int DistGrid::getSequenceIndexTile(
 //
 // !RETURN VALUE:
 //    int sequence index
 //
 // !ARGUMENTS:
 //
-  int tile,                        // in  - tile = {1, ..., tileCount}
+  int tile,                         // in  - tile = {1, ..., tileCount}
   const int *index,                 // in  - tile-specific absolute index tuple
-  int depth,                        // in  - depth of recursive search
-  int *rc                           // out - return code
+  vector<T> &seqIndex,              // out - sequence index
+  bool recursive                    // in  - recursive mode or not
+  )const{
+//
+// !DESCRIPTION:
+//    Get sequential index provided the tile relative index tuple.
+//
+//    A value of -1 is returned by this function if the specified index tuple
+//    cannot be mapped to a sequence index in DistGrid. If at the same time
+//    the code returned in rc does not indicate an error a return value of -1
+//    indicates that the index tuple lies outside of the DistGrid index space.
+//
+//    The method requires that the
+//    provided index tuple be expressed in a "tile-specific absolute" sense.
+//    It is "absolute" in that the (0,0,...) tuple is not 'defined' to
+//    equal the origin of the tile. Instead the origin of the tile would
+//    be indicated by an index tuple that is equal to the "tile-specific"
+//    vector slice of minIndexPDimPTile[].
+//
+//EOPI
+//-----------------------------------------------------------------------------
+  // initialize return code; assume routine not implemented
+  int localrc = ESMC_RC_NOT_IMPL;         // local return code
+  int rc = ESMC_RC_NOT_IMPL;              // final return code
+
+  if (!recursive){
+    // only check on the local tile -> this is more optimal in many cases
+    
+    // check input
+    if (tile < 1 || tile > tileCount){
+      char message[80];
+      sprintf(message, "Specified tile %d is out of bounds", tile);
+      ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_BAD, message, ESMC_CONTEXT, &rc);
+      return rc;
+    }
+    
+    bool onTile = true;  // start assuming that index tuple can be found on tile
+    // add up elements from tile
+    T seqIndexAux = 0; // initialize
+    for (int i=dimCount-1; i>=0; i--){
+      // first time multiply with zero intentionally:
+      seqIndexAux *= maxIndexPDimPTile[(tile-1)*dimCount+i] 
+        - minIndexPDimPTile[(tile-1)*dimCount+i] + 1;
+      if ((index[i] < minIndexPDimPTile[(tile-1)*dimCount+i])
+        || (index[i] > maxIndexPDimPTile[(tile-1)*dimCount+i])){
+        // index is outside of tile bounds -> break out of onTile code
+        onTile = false;
+        break;
+      }
+      seqIndexAux += index[i] - minIndexPDimPTile[(tile-1)*dimCount+i];
+    }
+    if (onTile){
+      // add all the elements of previous tiles
+      for (int i=0; i<tile-1; i++)
+        seqIndexAux += elementCountPTile[i];
+      ++seqIndexAux;  // shift sequentialized index to basis 1 !!!!
+      // found valid sequence index
+      seqIndex.push_back(seqIndexAux);
+    }
+  
+  }else{
+    // search for all seqIndices recursively
+  
+    // prepare for recursive call entry
+    vector<T> seqIndexV;
+    const int depthMax=2; // allow up to two-connection hops
+#if 1
+    // ensure a width-first search by slowly incrementing the depth
+    for (int depth=0; depth<=depthMax; depth++){
+      int hops=0;
+      localrc = getSequenceIndexTileRecursive(tile, index, depth, hops, seqIndexV);
+      if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU,
+        ESMC_CONTEXT, &rc)) return rc;  // bail out
+    }
+#else
+    // this deep recursive search is will not deliver good results in general
+    // because it can place very deep search results very early in the
+    // returned vector. Avoid this option!!!! Only here for testing during
+    // development. Probably should be removed once all is working as it should.
+    int hops=0;
+    localrc = getSequenceIndexTileRecursive(tile, index, depthMax, hops, seqIndexV);
+    if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU,
+      ESMC_CONTEXT, &rc)) return rc;  // bail out
+#endif
+  
+    // construct seqIndex from the unique elements of seqIndexV vector,
+    // preserving order of elements!
+    typename vector<T>::iterator itV;
+    typename vector<T>::iterator it;
+    for (itV=seqIndexV.begin(); itV!=seqIndexV.end(); ++itV){
+      for (it=seqIndex.begin(); it!=seqIndex.end(); ++it)
+        if (*it==*itV) break;
+      if (it==seqIndex.end())
+        seqIndex.push_back(*itV);
+    }
+
+#define DEBUGGINGoff
+#ifdef DEBUGGING
+    {
+      stringstream debugmsg;
+      debugmsg << "seqIndex.size()=" << seqIndex.size();
+      for (unsigned int i=0; i<seqIndex.size(); i++)
+        debugmsg << " ["<<i<<"]=" << seqIndex[i];
+      ESMC_LogDefault.Write(debugmsg.str(), ESMC_LOGMSG_INFO);
+    }
+#endif
+    
+  }
+    
+  // return successfully
+  return ESMF_SUCCESS;
+}
+//-----------------------------------------------------------------------------
+
+
+//-----------------------------------------------------------------------------
+#undef  ESMC_METHOD
+#define ESMC_METHOD "ESMCI::DistGrid::getSequenceIndexTileRecursive()"
+//BOPI
+// !IROUTINE:  ESMCI::DistGrid::getSequenceIndexTileRecursive
+//
+// !INTERFACE:
+template<typename T> int DistGrid::getSequenceIndexTileRecursive(
+//
+// !RETURN VALUE:
+//    int sequence index
+//
+// !ARGUMENTS:
+//
+  int tile,                         // in  - tile = {1, ..., tileCount}
+  const int *index,                 // in  - tile-specific absolute index tuple
+  int depth,                        // inout - depth of recursive search
+  int hops,                         // inout - connection hops taken
+  vector<T> &seqIndexV              // out - sequence index
   )const{
 //
 // !DESCRIPTION:
@@ -3208,99 +4044,268 @@ int DistGrid::getSequenceIndexTile(
 //-----------------------------------------------------------------------------
   // initialize return code; assume routine not implemented
   int localrc = ESMC_RC_NOT_IMPL;         // local return code
-  if (rc!=NULL) *rc = ESMC_RC_NOT_IMPL;   // final return code
+  int rc = ESMC_RC_NOT_IMPL;              // final return code
 
-//printf("gjt - getSequenceIndexTile depth: %d\n", depth);
+  //printf("gjt - getSequenceIndexTile depth: %d\n", depth);
+
+#ifdef DEBUGGING
+  {
+    stringstream debugmsg;
+    debugmsg << "getSequenceIndexTileRecursive(): depth=" << depth
+      << " tile=" << tile << " hops=" << hops;
+    for (int i=0; i<dimCount; i++)
+      debugmsg << " index["<<i<<"]=" << index[i];
+    ESMC_LogDefault.Write(debugmsg.str(), ESMC_LOGMSG_INFO);
+  }
+#endif
+
+  // test for early bail out for efficiency sake
+  if (hops>1 && seqIndexV.size()>0) return ESMF_SUCCESS;
 
   // check input
   if (tile < 1 || tile > tileCount){
     char message[80];
-    sprintf(message, "- Specified tile %d is out of bounds", tile);
-    ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_BAD, message, rc);
-    return -1;
+    sprintf(message, "Specified tile %d is out of bounds", tile);
+    ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_BAD, message, ESMC_CONTEXT, &rc);
+    return rc;
   }
   
   // adjust recursion depth
   --depth;
+  ++hops;
 
   bool onTile = true;  // start assuming that index tuple can be found on tile
   // add up elements from tile
-  int seqindex = 0; // initialize
+  T seqIndex = 0; // initialize
   for (int i=dimCount-1; i>=0; i--){
     // first time multiply with zero intentionally:
-    seqindex *= maxIndexPDimPTile[(tile-1)*dimCount+i] 
+    seqIndex *= maxIndexPDimPTile[(tile-1)*dimCount+i] 
       - minIndexPDimPTile[(tile-1)*dimCount+i] + 1;
     if ((index[i] < minIndexPDimPTile[(tile-1)*dimCount+i])
       || (index[i] > maxIndexPDimPTile[(tile-1)*dimCount+i])){
       // index is outside of tile bounds -> break out of onTile code
       onTile = false;
-      seqindex = -1;  // indicate not valid sequence index
       break;
     }
-    seqindex += index[i]
-      - minIndexPDimPTile[(tile-1)*dimCount+i];
+    seqIndex += index[i] - minIndexPDimPTile[(tile-1)*dimCount+i];
   }
   if (onTile){
     // add all the elements of previous tiles
-    for (int i=0; i<tile-2; i++)
-      seqindex += elementCountPTile[i];
-    ++seqindex;  // shift sequentialized index to basis 1 !!!!
-  }else if (depth >= 0){
+    for (int i=0; i<tile-1; i++)
+      seqIndex += elementCountPTile[i];
+    ++(seqIndex);  // shift sequentialized index to basis 1 !!!!
+    // found valid sequence index
+    seqIndexV.push_back(seqIndex);
+#ifdef DEBUGGING
+  {
+    stringstream debugmsg;
+    debugmsg << "addition: seqIndex=" << seqIndex << " depth=" << depth
+      << " hops=" << hops << " connectionCount=" << connectionCount 
+      << " tile=" << tile;
+    for (int i=0; i<dimCount; i++)
+      debugmsg << " index["<<i<<"]=" << index[i];
+    ESMC_LogDefault.Write(debugmsg.str(), ESMC_LOGMSG_INFO);
+  }
+#endif
+  }
+  if (depth >= 0){
     for (int i=0; i<connectionCount; i++){
       int tileA = connectionList[i][0];
       int tileB = connectionList[i][1];
       if (tileA == tile){
+#ifdef DEBUGGING
+  {
+    stringstream debugmsg;
+    debugmsg << "getSequenceIndexTileRecursive(): connection=" << i
+      << " tileA=" << tileA << " tileB=" << tileB;
+    ESMC_LogDefault.Write(debugmsg.str(), ESMC_LOGMSG_INFO);
+  }
+#endif
         // found connection for this tile -> need to transform index
-        int *indexB = new int[dimCount];
+        int indexB[dimCount];
         int positionIndexOffset = 2;
         int orientationIndexOffset = 2+dimCount;
+        bool rotation = false;
         for (int j=0; j<dimCount; j++){
-          int positionOffset = connectionList[i][positionIndexOffset+j];
-          int orientationIndex = connectionList[i][orientationIndexOffset+j];
-          if (orientationIndex < 0){
-            ++orientationIndex; // shift to basis 0
-            indexB[j] = -(index[-orientationIndex] - positionOffset);
+          int position = connectionList[i][positionIndexOffset+j];
+          int orientation = connectionList[i][orientationIndexOffset+j];
+          if (orientation != j+1) rotation=true;
+          if (orientation < 0){
+            ++orientation; // shift to basis 0
+            indexB[j] = -index[-orientation] + position;
           }else{
-            --orientationIndex; // shift to basis 0
-            indexB[j] = index[orientationIndex] - positionOffset;
+            --orientation; // shift to basis 0
+            indexB[j] = index[orientation] + position;
           }
         }
-        seqindex = getSequenceIndexTile(tileB, indexB, depth, &localrc);
+        int depthDown = depth;
+        if (rotation){
+          // make this last operation by setting depth to 0
+          depthDown = 0;
+        }
+        localrc = getSequenceIndexTileRecursive(tileB, indexB, depth, hops,
+          seqIndexV);
         if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU,
-          rc)) return seqindex;  // bail out
-        delete [] indexB;
-        if (seqindex > -1)
-          break;  // break out of loop over connections
+          ESMC_CONTEXT, &rc)) return rc;  // bail out
+
+//printf("foreward: tile=%d, tileA=%d, tileB=%d, index[]=%d %d, indexB[]=%d %d, seqInd=%d\n",
+//tile, tileA, tileB, index[0], index[1], indexB[0], indexB[1], *seqIndex);
+
+        // test for early bail out for efficiency sake
+        if (hops>1 && seqIndexV.size()>0) return ESMF_SUCCESS;
+
       }
       if (tileB == tile){
+#ifdef DEBUGGING
+  {
+    stringstream debugmsg;
+    debugmsg << "getSequenceIndexTileRecursive(): connection=" << i
+      << " tileA=" << tileA << " tileB=" << tileB;
+    ESMC_LogDefault.Write(debugmsg.str(), ESMC_LOGMSG_INFO);
+  }
+#endif
         // found connection for this tile -> need to transform index
-        int *indexA = new int[dimCount];
+        int indexA[dimCount];
         int positionIndexOffset = 2;
         int orientationIndexOffset = 2+dimCount;
+        // for reverse must inspect if this is a 90 or 270 degree rotation,
+        // the only ones not orthogonal!
+        int positionVect[dimCount];
+        int orientationVect[dimCount];
+        // first time through initialize the orientationVector to be the same
+        // as for the forward transform
+        bool rotation = false;
         for (int j=0; j<dimCount; j++){
-          int positionOffset = connectionList[i][positionIndexOffset+j];
-          int orientationIndex = connectionList[i][orientationIndexOffset+j];
-          if (orientationIndex < 0){
-            ++orientationIndex; // shift to basis 0
-            indexA[-orientationIndex] = -index[j] + positionOffset;
-          }else{
-            --orientationIndex; // shift to basis 0
-            indexA[orientationIndex] = index[j] + positionOffset;
+          positionVect[j] =
+            connectionList[i][positionIndexOffset+j];     // initialize
+          orientationVect[j] =
+            connectionList[i][orientationIndexOffset+j];  // initialize
+          if (orientationVect[j] != j+1) rotation=true;
+        }
+        bool special90=(orientationVect[0]==-2 && orientationVect[1]==1);
+        bool special270=(orientationVect[0]==2 && orientationVect[1]==-1);
+        if (special90 || special270){
+          // special two non-orthogonal cases
+          for (int j=0; j<dimCount; j++)
+            orientationVect[j] = -orientationVect[j]; // revert
+          if (special90){
+            positionVect[0] = -connectionList[i][positionIndexOffset+1];
+            positionVect[1] =  connectionList[i][positionIndexOffset+0];
+          }
+          if (special270){
+            positionVect[0] =  connectionList[i][positionIndexOffset+1];
+            positionVect[1] = -connectionList[i][positionIndexOffset+0];
+          }
+          for (int j=0; j<dimCount; j++){
+            int position = positionVect[j];
+            int orientation = orientationVect[j];
+            if (orientation < 0){
+              ++orientation; // shift to basis 0
+              indexA[j] = -index[-orientation] + position;
+            }else{
+              --orientation; // shift to basis 0
+              indexA[j] = index[orientation] + position;
+            }
+          }
+        }else{
+          // regular orthogonal cases
+          for (int j=0; j<dimCount; j++){
+            int orientation = orientationVect[j];
+            if (orientation < 0){
+              ++orientation; // shift to basis 0
+              indexA[j] = -index[-orientation] - positionVect[-orientation];
+            }else{
+              --orientation; // shift to basis 0
+              indexA[j] = index[orientation] - positionVect[orientation];
+            }
           }
         }
-        seqindex = getSequenceIndexTile(tileA, indexA, depth, &localrc);
+        int depthDown = depth;
+        if (rotation){
+          // make this last operation by setting depth to 0
+          depthDown = 0;
+        }
+        localrc = getSequenceIndexTileRecursive(tileA, indexA, depth, hops,
+          seqIndexV);
         if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU,
-          rc)) return seqindex;  // bail out
-        delete [] indexA;
-        if (seqindex > -1)
-          break;  // break out of loop over connections
+          ESMC_CONTEXT, &rc)) return rc;  // bail out
+
+//printf("backward: tile=%d, tileA=%d, tileB=%d, index[]=%d %d, indexA[]=%d %d, seqInd=%d\n",
+//tile, tileA, tileB, index[0], index[1], indexA[0], indexA[1], *seqIndex);
+        
+        // test for early bail out for efficiency sake
+        if (hops>1 && seqIndexV.size()>0) return ESMF_SUCCESS;
+        
       }
     }
   }
     
   // return successfully
-  if (rc!=NULL) *rc = ESMF_SUCCESS;
-  return seqindex;
+  return ESMF_SUCCESS;
+}
+//-----------------------------------------------------------------------------
+
+
+//-----------------------------------------------------------------------------
+#undef  ESMC_METHOD
+#define ESMC_METHOD "ESMCI::DistGrid::getIndexTupleFromSeqIndex()"
+//BOPI
+// !IROUTINE:  ESMCI::DistGrid::getIndexTupleFromSeqIndex
+//
+// !INTERFACE:
+int DistGrid::getIndexTupleFromSeqIndex(
+//
+// !RETURN VALUE:
+//    int return code
+//
+// !ARGUMENTS:
+//
+  int seqIndex,                 // in  - sequence index to be transformed
+  vector<int> &indexTuple,      // out - index tuple within tile
+  int &tile                     // out - tile index (1-based)
+  )const{
+//
+// !DESCRIPTION:
+//    Transform the seqIndex argument into tile and indexTuple. If the size 
+//    of indexTuple does not match dimCount, it will automatically be resized 
+//    by this method.
+//
+//EOPI
+//-----------------------------------------------------------------------------
+  // initialize return code; assume routine not implemented
+  int localrc = ESMC_RC_NOT_IMPL;         // local return code
+  int rc = ESMC_RC_NOT_IMPL;              // final return code
+  
+  if ((int)indexTuple.size() != dimCount)
+    indexTuple.resize(dimCount);
+  
+  --seqIndex;  // make seqIndex 0-based
+ 
+  // determine the tile index
+  for (tile=0; tile<tileCount; tile++){
+    seqIndex -= elementCountPTile[tile];
+    if (seqIndex <0){
+      // found the tile
+      seqIndex += elementCountPTile[tile]; // correct back into the tile
+      break;
+    }
+  }
+  ++tile; // make tile 1-based
+  
+  // determine the index tuple within the tile
+  for (int i=dimCount-1; i>=0; i--){
+    int stride = 1;
+    for (int j=0; j<i; j++)
+      stride *= maxIndexPDimPTile[dimCount*(tile-1)+j]
+        - minIndexPDimPTile[dimCount*(tile-1)+j] + 1;
+    indexTuple[i] = seqIndex / stride;
+    seqIndex -= stride * indexTuple[i];
+    indexTuple[i] += minIndexPDimPTile[dimCount*(tile-1)+i];
+  }
+    
+  // return successfully
+  rc = ESMF_SUCCESS;
+  return rc;
 }
 //-----------------------------------------------------------------------------
 
@@ -3319,7 +4324,7 @@ const int *DistGrid::getMinIndexPDimPTile(
 //
 // !ARGUMENTS:
 //
-  int tile,                            // in  - tile   = {1, ..., tileCount}
+  int tile,                             // in  - tile   = {1, ..., tileCount}
   int *rc                               // out - return code
   )const{
 //
@@ -3334,7 +4339,7 @@ const int *DistGrid::getMinIndexPDimPTile(
   // check input
   if (tile < 1 || tile > tileCount){
     ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_BAD,
-      "- Specified tile out of bounds", rc);
+      "Specified tile out of bounds", ESMC_CONTEXT, rc);
     return NULL;
   }
 
@@ -3359,7 +4364,7 @@ const int *DistGrid::getMaxIndexPDimPTile(
 //
 // !ARGUMENTS:
 //
-  int tile,                            // in  - tile   = {1, ..., tileCount}
+  int tile,                             // in  - tile   = {1, ..., tileCount}
   int *rc                               // out - return code
   )const{
 //
@@ -3374,7 +4379,7 @@ const int *DistGrid::getMaxIndexPDimPTile(
   // check input
   if (tile < 1 || tile > tileCount){
     ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_BAD,
-      "- Specified tile out of bounds", rc);
+      "Specified tile out of bounds", ESMC_CONTEXT, rc);
     return NULL;
   }
 
@@ -3414,7 +4419,7 @@ const int *DistGrid::getMinIndexPDimPDe(
   // check input
   if (de < 0 || de > delayout->getDeCount()-1){
     ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_BAD,
-      "- Specified de out of bounds", rc);
+      "Specified de out of bounds", ESMC_CONTEXT, rc);
     return NULL;
   }
 
@@ -3454,7 +4459,7 @@ const int *DistGrid::getMaxIndexPDimPDe(
   // check input
   if (de < 0 || de > delayout->getDeCount()-1){
     ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_BAD,
-      "- Specified de out of bounds", rc);
+      "Specified de out of bounds", ESMC_CONTEXT, rc);
     return NULL;
   }
 
@@ -3496,12 +4501,12 @@ const int *DistGrid::getIndexListPDimPLocalDe(
   int localDeCount = delayout->getLocalDeCount();
   if (localDe < 0 || localDe > localDeCount-1){
     ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_BAD,
-      "- Specified local DE out of bounds", rc);
+      "Specified local DE out of bounds", ESMC_CONTEXT, rc);
     return NULL;
   }
   if (dim < 1 || dim > dimCount){
     ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_BAD,
-      "- Specified dim out of bounds", rc);
+      "Specified dim out of bounds", ESMC_CONTEXT, rc);
     return NULL;
   }
 
@@ -3519,7 +4524,7 @@ const int *DistGrid::getIndexListPDimPLocalDe(
 // !IROUTINE:  ESMCI::DistGrid::getArbSeqIndexList
 //
 // !INTERFACE:
-const int *DistGrid::getArbSeqIndexList(
+void const *DistGrid::getArbSeqIndexList(
 //
 // !RETURN VALUE:
 //    int *arbSeqIndexList for localDe
@@ -3543,7 +4548,7 @@ const int *DistGrid::getArbSeqIndexList(
   int localDeCount = delayout->getLocalDeCount();
   if (localDe < 0 || localDe > localDeCount-1){
     ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_BAD,
-      "- Specified local DE out of bounds", rc);
+      "Specified local DE out of bounds", ESMC_CONTEXT, rc);
     return NULL;
   }
   int collocationIndex;
@@ -3552,11 +4557,11 @@ const int *DistGrid::getArbSeqIndexList(
     if (collocationTable[collocationIndex] == collocation) break;
   if (collocationIndex==diffCollocationCount){
     ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_BAD,
-      "- Specified collocation not found", rc);
+      "Specified collocation not found", ESMC_CONTEXT, rc);
     return NULL;
   }
 
-  // return successfully
+  // return
   if (rc!=NULL) *rc = ESMF_SUCCESS;
   return arbSeqIndexListPCollPLocalDe[collocationIndex][localDe];
 }
@@ -3602,14 +4607,15 @@ int DistGrid::serialize(
   int i;
   char *cp;
   int *ip;
-  ESMC_Logical *lp;
+  ESMC_I8 *lp;
+  ESMC_TypeKind_Flag *tkp;
   int r;
 
   // Check if buffer has enough free memory to hold object
   if ((inquireflag != ESMF_INQUIREONLY) && (*length - *offset)
-    < sizeof(DistGrid)){
+    < (int)sizeof(DistGrid)){
     ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_BAD, 
-      "Buffer too short to add a DistGrid object", &rc);
+      "Buffer too short to add a DistGrid object", ESMC_CONTEXT, &rc);
     return rc;
   }
 
@@ -3619,16 +4625,22 @@ int DistGrid::serialize(
   ESMC_AttReconcileFlag attreconflag = ESMC_ATTRECONCILE_OFF;
   localrc = this->ESMC_Base::ESMC_Serialize(buffer,length,offset,attreconflag,
       inquireflag);
-  if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, &rc))
-    return rc;
+  if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, ESMC_CONTEXT,
+    &rc)) return rc;
   // Serialize the DELayout
   localrc = delayout->serialize(buffer, length, offset,inquireflag);
-  if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, &rc))
-    return rc;
+  if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, ESMC_CONTEXT,
+    &rc)) return rc;
   // Serialize DistGrid meta data
   r=*offset%8;
   if (r!=0) *offset += 8-r;  // alignment
-  ip = (int *)(buffer + *offset);
+  tkp = (ESMC_TypeKind_Flag *)(buffer + *offset);
+  if (inquireflag != ESMF_INQUIREONLY)
+    *tkp++ = indexTK;
+  else
+    tkp += 1;
+  //
+  ip = (int *)tkp;
   if (inquireflag != ESMF_INQUIREONLY){
     *ip++ = dimCount;
     *ip++ = tileCount;
@@ -3636,11 +4648,18 @@ int DistGrid::serialize(
       *ip++ = minIndexPDimPTile[i];
       *ip++ = maxIndexPDimPTile[i];
     }
-    for (int i=0; i<tileCount; i++)
-      *ip++ = elementCountPTile[i];
   }else
-    ip += 2 + 2*dimCount*tileCount + tileCount;
-
+    ip += 2 + 2*dimCount*tileCount;
+  //
+  lp = (ESMC_I8 *)ip; 
+  if (inquireflag != ESMF_INQUIREONLY){
+    for (int i=0; i<tileCount; i++)
+      *lp++ = elementCountPTile[i];
+  }else
+    lp += tileCount;
+  //
+  ip = (int *)lp;
+  //
   int deCount = delayout->getDeCount();
   if (inquireflag != ESMF_INQUIREONLY){
     for (int i=0; i<dimCount*deCount; i++){
@@ -3650,7 +4669,6 @@ int DistGrid::serialize(
       *ip++ = indexCountPDimPDe[i];
     }
     for (int i=0; i<deCount; i++){
-      *ip++ = elementCountPDe[i];
       *ip++ = tileListPDe[i];
     }
     *ip++ = diffCollocationCount;
@@ -3659,8 +4677,18 @@ int DistGrid::serialize(
       *ip++ = collocationTable[i];
     }
   }else
-    ip += 4*dimCount*deCount + 2*deCount + 1 + 2*dimCount;
-
+    ip += 4*dimCount*deCount + deCount + 1 + 2*dimCount;
+  
+  lp = (ESMC_I8 *)ip; 
+  if (inquireflag != ESMF_INQUIREONLY){
+    for (int i=0; i<deCount; i++)
+      *lp++ = elementCountPDe[i];
+  }else
+    lp += deCount;
+  //
+  ip = (int *)lp;
+  //
+  // connections
   if (inquireflag != ESMF_INQUIREONLY){
     *ip++ = connectionCount;
     for (int i=0; i<connectionCount; i++)
@@ -3668,18 +4696,18 @@ int DistGrid::serialize(
         *ip++ = connectionList[i][j];
   }else
     ip += 1 + connectionCount*(2*dimCount+2);
-    
+  // regDecomp
   if (inquireflag != ESMF_INQUIREONLY){
     if (regDecomp){
-      *ip++ = dimCount;
-      for (int i=0; i<dimCount; i++)
+      *ip++ = dimCount*tileCount; // guard variable so deserialize can know
+      for (int i=0; i<dimCount*tileCount; i++)
         *ip++ = regDecomp[i];
     }else
       *ip++ = 0;
   }else{
     ip++;
     if (regDecomp)
-      ip += dimCount;
+      ip += dimCount*tileCount;
   }
 
   cp = (char *)ip;
@@ -3722,7 +4750,8 @@ DistGrid *DistGrid::deserialize(
   int i;
   char *cp;
   int *ip;
-  ESMC_Logical *lp;
+  ESMC_I8 *lp;
+  ESMC_TypeKind_Flag *tkp;
   int r;
   
   // Deserialize the Base class
@@ -3730,8 +4759,8 @@ DistGrid *DistGrid::deserialize(
   if (r!=0) *offset += 8-r;  // alignment
   ESMC_AttReconcileFlag attreconflag = ESMC_ATTRECONCILE_OFF;
   localrc = a->ESMC_Base::ESMC_Deserialize(buffer,offset,attreconflag);
-  if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, &rc))
-    return NULL;
+  if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, ESMC_CONTEXT,
+    &rc)) return NULL;
   // Deserialize the DELayout
   a->delayout = DELayout::deserialize(buffer, offset);
   a->delayoutCreator = true;  // deserialize creates a local object
@@ -3740,7 +4769,9 @@ DistGrid *DistGrid::deserialize(
   // Deserialize DistGrid meta data
   r=*offset%8;
   if (r!=0) *offset += 8-r;  // alignment
-  ip = (int *)(buffer + *offset);
+  tkp = (ESMC_TypeKind_Flag *)(buffer + *offset);
+  a->indexTK = *tkp++;
+  ip = (int *)tkp;
   a->dimCount = *ip++;
   a->tileCount = *ip++;
   a->minIndexPDimPTile = new int[a->dimCount*a->tileCount];
@@ -3749,9 +4780,11 @@ DistGrid *DistGrid::deserialize(
     a->minIndexPDimPTile[i] = *ip++;
     a->maxIndexPDimPTile[i] = *ip++;
   }
-  a->elementCountPTile = new int[a->tileCount];
+  a->elementCountPTile = new ESMC_I8[a->tileCount];
+  lp = (ESMC_I8 *)ip;
   for (int i=0; i<a->tileCount; i++)
-    a->elementCountPTile[i] = *ip++;
+    a->elementCountPTile[i] = *lp++;
+  ip = (int *)lp;
   int deCount = a->delayout->getDeCount();
   a->minIndexPDimPDe = new int[a->dimCount*deCount];
   a->maxIndexPDimPDe = new int[a->dimCount*deCount];
@@ -3763,12 +4796,9 @@ DistGrid *DistGrid::deserialize(
     a->contigFlagPDimPDe[i] = *ip++;
     a->indexCountPDimPDe[i] = *ip++;
   }
-  a->elementCountPDe = new int[deCount];
   a->tileListPDe = new int[deCount];
-  for (int i=0; i<deCount; i++){
-    a->elementCountPDe[i] = *ip++;
+  for (int i=0; i<deCount; i++)
     a->tileListPDe[i] = *ip++;
-  }
   a->diffCollocationCount = *ip++;
   a->collocationPDim = new int[a->dimCount];
   a->collocationTable = new int[a->dimCount];
@@ -3776,6 +4806,12 @@ DistGrid *DistGrid::deserialize(
     a->collocationPDim[i] = *ip++;
     a->collocationTable[i] = *ip++;
   }
+  a->elementCountPDe = new ESMC_I8[deCount];
+  lp = (ESMC_I8 *)ip;
+  for (int i=0; i<deCount; i++)
+    a->elementCountPDe[i] = *lp++;
+  ip = (int *)lp;
+  // connections
   a->connectionCount = *ip++;
   a->connectionList = new int*[a->connectionCount];
   for (int i=0; i<a->connectionCount; i++){
@@ -3785,20 +4821,19 @@ DistGrid *DistGrid::deserialize(
   }
   // reset all xxPLocalDe variables on proxy object
   a->indexListPDimPLocalDe = new int*[0];
-  a->arbSeqIndexListPCollPLocalDe = new int**[a->diffCollocationCount];
+  a->arbSeqIndexListPCollPLocalDe = new void**[a->diffCollocationCount];
   a->elementCountPCollPLocalDe = new int*[a->diffCollocationCount];
   for (int i=0; i<a->diffCollocationCount; i++){
-    a->arbSeqIndexListPCollPLocalDe[i] = new int*[0];
-    a->elementCountPCollPLocalDe[i] = new int[0];
+    a->arbSeqIndexListPCollPLocalDe[i] = new void*[1];
+    a->elementCountPCollPLocalDe[i] = new int[1];
     a->arbSeqIndexListPCollPLocalDe[i][0] = NULL;
     a->elementCountPCollPLocalDe[i][0] = 0;
   }
-  
   //regDecomp
-  int regDecompDimCount = *ip++;
-  if (regDecompDimCount == a->dimCount){
-    a->regDecomp = new int[a->dimCount];
-    for (int i=0; i<a->dimCount; i++)
+  int regDecompCount = *ip++;
+  if (regDecompCount == a->dimCount * a->tileCount){
+    a->regDecomp = new int[regDecompCount];
+    for (int i=0; i<regDecompCount; i++)
       a->regDecomp[i] = *ip++;
   }else
     a->regDecomp = NULL;
@@ -3834,11 +4869,11 @@ int DistGrid::connection(
 //
 // !ARGUMENTS:
 //
-  InterfaceInt *connection,         // out -
-  int tileIndexA,                  // in  -
-  int tileIndexB,                  // in  -
-  InterfaceInt *positionVector,     // in -
-  InterfaceInt *orientationVector   // in -
+  InterArray<int> *connection,        // out -
+  int tileIndexA,                     // in  -
+  int tileIndexB,                     // in  -
+  InterArray<int> *positionVector,    // in -
+  InterArray<int> *orientationVector  // in -
   ){    
 //
 // !DESCRIPTION:
@@ -3851,21 +4886,21 @@ int DistGrid::connection(
   int rc = ESMC_RC_NOT_IMPL;              // final return code
 
   // check connetion argument
-  if (connection == NULL){
+  if (!present(connection)){
     ESMC_LogDefault.MsgFoundError(ESMC_RC_PTR_NULL,
-      "- Not a valid pointer to connection array", &rc);
+      "Not a valid pointer to connection array", ESMC_CONTEXT, &rc);
     return rc;
   }
   if (connection->dimCount != 1){
     ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_RANK,
-      "- connection array must be of rank 1", &rc);
+      "connection array must be of rank 1", ESMC_CONTEXT, &rc);
     return rc;
   }
   int dimCount = (connection->extent[0]-2)/2;
   if (connection->extent[0] != dimCount*2 + 2){
     ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_SIZE,
-      "- 1st dimension of connection array must be of size "
-      "(2 * dimCount + 2)", &rc);
+      "1st dimension of connection array must be of size "
+      "(2 * dimCount + 2)", ESMC_CONTEXT, &rc);
     return rc;
   }
   
@@ -3874,19 +4909,20 @@ int DistGrid::connection(
   connection->array[1] = tileIndexB;
   
   // check positionVector argument
-  if (positionVector == NULL){
+  if (!present(positionVector)){
     ESMC_LogDefault.MsgFoundError(ESMC_RC_PTR_NULL,
-      "- Not a valid pointer to positionVector array", &rc);
+      "Not a valid pointer to positionVector array", ESMC_CONTEXT, &rc);
     return rc;
   }
   if (positionVector->dimCount != 1){
     ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_RANK,
-      "- positionVector array must be of rank 1", &rc);
+      "positionVector array must be of rank 1", ESMC_CONTEXT, &rc);
     return rc;
   }
   if (positionVector->extent[0] != dimCount){
     ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_SIZE,
-      "- 1st dimension of positionVector array must be of size dimCount", &rc);
+      "1st dimension of positionVector array must be of size dimCount",
+      ESMC_CONTEXT, &rc);
     return rc;
   }
   
@@ -3895,17 +4931,17 @@ int DistGrid::connection(
     sizeof(int)*dimCount);
   
   // check on orientationVector
-  if (orientationVector != NULL){
+  if (present(orientationVector)){
     // orientationVector was provided
     if (orientationVector->dimCount != 1){
       ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_RANK,
-        "- orientationVector array must be of rank 1", &rc);
+        "orientationVector array must be of rank 1", ESMC_CONTEXT, &rc);
       return rc;
     }
     if (orientationVector->extent[0] != dimCount){
       ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_SIZE,
-        "- 1st dimension of orientationVector array must be of size dimCount",
-        &rc);
+        "1st dimension of orientationVector array must be of size dimCount",
+        ESMC_CONTEXT, &rc);
       return rc;
     }
     // fill in the orientationVector
@@ -3938,7 +4974,7 @@ int DistGrid::setCollocationPDim(
 //
 // !ARGUMENTS:
 //
-  InterfaceInt *collocationPDimArg // in
+  InterArray<int> *collocationPDimArg // in
   ){
 //
 // !DESCRIPTION:
@@ -3951,20 +4987,20 @@ int DistGrid::setCollocationPDim(
   int rc = ESMC_RC_NOT_IMPL;              // final return code
   
   // check input
-  if (collocationPDimArg == NULL){
+  if (!present(collocationPDimArg)){
     ESMC_LogDefault.MsgFoundError(ESMC_RC_PTR_NULL,
-      "- Not a valid pointer to collocationPDimArg array", &rc);
+      "Not a valid pointer to collocationPDimArg array", ESMC_CONTEXT, &rc);
     return rc;
   }
   if (collocationPDimArg->dimCount != 1){
     ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_RANK,
-      "- collocationPDimArg array must be of rank 1", &rc);
+      "collocationPDimArg array must be of rank 1", ESMC_CONTEXT, &rc);
     return rc;
   }
   if (collocationPDimArg->extent[0] != dimCount){
     ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_SIZE,
-      "- collocationPDimArg array must supply exactly dimCount entries",
-      &rc);
+      "collocationPDimArg array must supply exactly dimCount entries",
+      ESMC_CONTEXT, &rc);
     return rc;
   }
 
@@ -3974,9 +5010,28 @@ int DistGrid::setCollocationPDim(
   // delete arbSeqIndex if previously set
   int localDeCount = delayout->getLocalDeCount();
   for (int i=0; i<diffCollocationCount; i++){
-    for (int j=0; j<localDeCount; j++)
-      if (arbSeqIndexListPCollPLocalDe[i][j])
-        delete [] arbSeqIndexListPCollPLocalDe[i][j];
+    for (int j=0; j<localDeCount; j++){
+      if (arbSeqIndexListPCollPLocalDe[i][j]){
+        if (indexTK == ESMC_TYPEKIND_I1){
+          ESMC_I1 *ptr = (ESMC_I1 *)arbSeqIndexListPCollPLocalDe[i][j];
+          delete [] ptr;
+        }else if (indexTK == ESMC_TYPEKIND_I2){
+          ESMC_I2 *ptr = (ESMC_I2 *)arbSeqIndexListPCollPLocalDe[i][j];
+          delete [] ptr;
+        }else if (indexTK == ESMC_TYPEKIND_I4){
+          ESMC_I4 *ptr = (ESMC_I4 *)arbSeqIndexListPCollPLocalDe[i][j];
+          delete [] ptr;
+        }else if (indexTK == ESMC_TYPEKIND_I8){
+          ESMC_I8 *ptr = (ESMC_I8 *)arbSeqIndexListPCollPLocalDe[i][j];
+          delete [] ptr;
+        }else{
+          // error condition, indexTK not supported
+          ESMC_LogDefault.MsgFoundError(ESMC_RC_INTNRL_BAD,
+            "Unsupported DistGrid indexTK", ESMC_CONTEXT, &rc);
+          return rc;
+        }
+      }
+    }
     delete [] arbSeqIndexListPCollPLocalDe[i];
     delete [] elementCountPCollPLocalDe[i];
   }
@@ -3996,17 +5051,17 @@ int DistGrid::setCollocationPDim(
   }
   
   // no arbitrary sequence indices by default
-  arbSeqIndexListPCollPLocalDe = new int**[diffCollocationCount];
+  arbSeqIndexListPCollPLocalDe = new void**[diffCollocationCount];
   elementCountPCollPLocalDe = new int*[diffCollocationCount];
   const int *localDeToDeMap = delayout->getLocalDeToDeMap();
   for (int i=0; i<diffCollocationCount; i++){
-    arbSeqIndexListPCollPLocalDe[i] = new int*[localDeCount];
+    arbSeqIndexListPCollPLocalDe[i] = new void*[localDeCount];
     elementCountPCollPLocalDe[i] = new int[localDeCount];
     for (int j=0; j<localDeCount; j++){
       arbSeqIndexListPCollPLocalDe[i][j] = NULL;
       elementCountPCollPLocalDe[i][j] = 1;  // initialize
       for (int k=0; k<dimCount; k++){
-        if ((collocationPDim[k]==collocationTable[i])){
+        if (collocationPDim[k]==collocationTable[i]){
           elementCountPCollPLocalDe[i][j] *=
             indexCountPDimPDe[localDeToDeMap[j]*dimCount+k];
         }
@@ -4029,13 +5084,13 @@ int DistGrid::setCollocationPDim(
 //
 // !INTERFACE:
 //
-int DistGrid::setArbSeqIndex(
+template<typename T> int DistGrid::setArbSeqIndex(
 // !RETURN VALUE:
 //    int return code
 //
 // !ARGUMENTS:
 //
-  InterfaceInt *arbSeqIndex,    // in
+  InterArray<T> *arbSeqIndex,   // in
   int localDe,                  // in  - local DE = {0, ..., localDeCount-1}
   int collocation               // in
   ){
@@ -4049,11 +5104,19 @@ int DistGrid::setArbSeqIndex(
   int localrc = ESMC_RC_NOT_IMPL;         // local return code
   int rc = ESMC_RC_NOT_IMPL;              // final return code
   
+#define DEBUGPRINTS____disable
+#ifdef DEBUGPRINTS
+  char msg[160];
+  sprintf(msg, "setArbSeqIndex: localDe=%d, collocation=%d", localDe, 
+    collocation);
+  ESMC_LogDefault.Write(msg, ESMC_LOGMSG_INFO);
+#endif
+  
   // check input
   int localDeCount = delayout->getLocalDeCount();
   if (localDe < 0 || localDe > localDeCount-1){
     ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_BAD,
-      "- Specified local DE out of bounds", &rc);
+      "Specified local DE out of bounds", ESMC_CONTEXT, &rc);
     return rc;
   }
   int collocationIndex;
@@ -4062,35 +5125,99 @@ int DistGrid::setArbSeqIndex(
     if (collocationTable[collocationIndex] == collocation) break;
   if (collocationIndex==diffCollocationCount){
     ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_BAD,
-      "- Specified collocation not found", &rc);
+      "Specified collocation not found", ESMC_CONTEXT, &rc);
     return rc;
   }
-  if (arbSeqIndex == NULL){
+  if (!present(arbSeqIndex)){
     ESMC_LogDefault.MsgFoundError(ESMC_RC_PTR_NULL,
-      "- Not a valid pointer to arbSeqIndex array", &rc);
+      "Not a valid pointer to arbSeqIndex array", ESMC_CONTEXT, &rc);
     return rc;
   }
   if (arbSeqIndex->dimCount != 1){
     ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_RANK,
-      "- arbSeqIndex array must be of rank 1", &rc);
+      "arbSeqIndex array must be of rank 1", ESMC_CONTEXT, &rc);
     return rc;
   }
+  
+#ifdef DEBUGPRINTS
+  sprintf(msg, "setArbSeqIndex: arbSeqIndex->extent[0]=%d, "
+    "elementCountPCollPLocalDe[collocationIndex][localDe]=%d", 
+    arbSeqIndex->extent[0], 
+    elementCountPCollPLocalDe[collocationIndex][localDe]);
+  ESMC_LogDefault.Write(msg, ESMC_LOGMSG_INFO);
+#endif
+    
   if (arbSeqIndex->extent[0] !=
     elementCountPCollPLocalDe[collocationIndex][localDe]){
     ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_SIZE,
-      "- arbSeqIndex array must supply one value for each element in local DE",
-      &rc);
+      "arbSeqIndex array must supply one value for each element in local DE",
+      ESMC_CONTEXT, &rc);
     return rc;
   }
 
-  // set arbSeqIndexListPLocalDe[][]
-  if (arbSeqIndexListPCollPLocalDe[collocationIndex][localDe])
-    // delete previous index list
-    delete [] arbSeqIndexListPCollPLocalDe[collocationIndex][localDe];
-  arbSeqIndexListPCollPLocalDe[collocationIndex][localDe] =
-    new int[arbSeqIndex->extent[0]];
+  // potentially delete previous index list
+  if (arbSeqIndexListPCollPLocalDe[collocationIndex][localDe]){
+    if (indexTK == ESMC_TYPEKIND_I1){
+      ESMC_I1 *ptr = 
+        (ESMC_I1 *)arbSeqIndexListPCollPLocalDe[collocationIndex][localDe];
+      delete [] ptr;
+    }else if (indexTK == ESMC_TYPEKIND_I2){
+      ESMC_I2 *ptr =
+        (ESMC_I2 *)arbSeqIndexListPCollPLocalDe[collocationIndex][localDe];
+      delete [] ptr;
+    }else if (indexTK == ESMC_TYPEKIND_I4){
+      ESMC_I4 *ptr =
+        (ESMC_I4 *)arbSeqIndexListPCollPLocalDe[collocationIndex][localDe];
+      delete [] ptr;
+    }else if (indexTK == ESMC_TYPEKIND_I8){
+      ESMC_I8 *ptr =
+        (ESMC_I8 *)arbSeqIndexListPCollPLocalDe[collocationIndex][localDe];
+      delete [] ptr;
+    }else{
+      // error condition, indexTK not supported
+      ESMC_LogDefault.MsgFoundError(ESMC_RC_INTNRL_BAD,
+        "Unsupported DistGrid indexTK", ESMC_CONTEXT, &rc);
+      return rc;
+    }
+  }
+
+  // set arbSeqIndexListPCollPLocalDe[][]
+  unsigned int sizeOfType;
+  if (indexTK == ESMC_TYPEKIND_I1){
+    arbSeqIndexListPCollPLocalDe[collocationIndex][localDe]
+      = (void *)(new ESMC_I1[arbSeqIndex->extent[0]]);
+    sizeOfType = sizeof(ESMC_I1);
+  }else if (indexTK == ESMC_TYPEKIND_I2){
+    arbSeqIndexListPCollPLocalDe[collocationIndex][localDe]
+      = (void *)(new ESMC_I2[arbSeqIndex->extent[0]]);
+    sizeOfType = sizeof(ESMC_I2);
+  }else if (indexTK == ESMC_TYPEKIND_I4){
+    arbSeqIndexListPCollPLocalDe[collocationIndex][localDe]
+      = (void *)(new ESMC_I4[arbSeqIndex->extent[0]]);
+    sizeOfType = sizeof(ESMC_I4);
+  }else if (indexTK == ESMC_TYPEKIND_I8){
+    arbSeqIndexListPCollPLocalDe[collocationIndex][localDe]
+      = (void *)(new ESMC_I8[arbSeqIndex->extent[0]]);
+    sizeOfType = sizeof(ESMC_I8);
+  }else{
+    // error condition, indexTK not supported
+    ESMC_LogDefault.MsgFoundError(ESMC_RC_INTNRL_BAD,
+      "Unsupported DistGrid indexTK", ESMC_CONTEXT, &rc);
+    return rc;
+  }
+  
+  // check for type mismatch
+  if (sizeOfType != sizeof(T)){
+    // error condition, indexTK not supported
+    ESMC_LogDefault.MsgFoundError(ESMC_RC_INTNRL_BAD,
+      "Mismatch of DistGrid indexTK and typekind of provided sequence indices",
+      ESMC_CONTEXT, &rc);
+    return rc;
+  }
+
+  // copy the provided arbSeqIndex array into the DistGrid
   memcpy(arbSeqIndexListPCollPLocalDe[collocationIndex][localDe],
-    arbSeqIndex->array, sizeof(int)*arbSeqIndex->extent[0]);
+    arbSeqIndex->array, sizeOfType*arbSeqIndex->extent[0]);
   
   // return successfully
   rc = ESMF_SUCCESS;
@@ -4112,6 +5239,7 @@ int DistGrid::setArbSeqIndex(
     indexTupleBlockEnd.resize(0);
     indexTupleWatchStart.resize(0);
     indexTupleWatchEnd.resize(0);
+    skipBlockedRegionFlag = false; // initialize
   }
   MultiDimIndexLoop::MultiDimIndexLoop(vector<int> const &sizes){
     indexTupleEnd = sizes;
@@ -4130,6 +5258,7 @@ int DistGrid::setArbSeqIndex(
       indexTupleBlockStart[i] = indexTupleBlockEnd[i] = 0;  // reset
       indexTupleWatchStart[i] = indexTupleWatchEnd[i] = 0;  // reset
     }
+    skipBlockedRegionFlag = false; // initialize
     adjust();
   }
   MultiDimIndexLoop::MultiDimIndexLoop(vector<int> const &offsets,
@@ -4152,6 +5281,7 @@ int DistGrid::setArbSeqIndex(
       indexTupleBlockStart[i] = indexTupleBlockEnd[i] = 0;  // reset
       indexTupleWatchStart[i] = indexTupleWatchEnd[i] = 0;  // reset
     }
+    skipBlockedRegionFlag = false; // initialize
     adjust();
   }
   void MultiDimIndexLoop::setSkipDim(int dim){
@@ -4161,11 +5291,29 @@ int DistGrid::setArbSeqIndex(
   void MultiDimIndexLoop::setBlockStart(vector<int> const &blockStart){
     // todo: check that size of incoming blockStart vector is equal to rank
     indexTupleBlockStart = blockStart;
+    skipBlockedRegionFlag = true; // initialize
+    for (unsigned i=0; i<indexTuple.size(); i++){
+      if ((indexTupleBlockStart[i] > indexTupleStart[i]) ||
+        (indexTupleBlockEnd[i] < indexTupleEnd[i])){
+        // found a dimension that does not have a fully blocked range
+        skipBlockedRegionFlag = false;
+        break;
+      }
+    }
     adjust();
   }
   void MultiDimIndexLoop::setBlockEnd(vector<int> const &blockEnd){
     // todo: check that size of incoming blockStart vector is equal to rank
     indexTupleBlockEnd = blockEnd;
+    skipBlockedRegionFlag = true; // initialize
+    for (unsigned i=0; i<indexTuple.size(); i++){
+      if ((indexTupleBlockStart[i] > indexTupleStart[i]) ||
+        (indexTupleBlockEnd[i] < indexTupleEnd[i])){
+        // found a dimension that does not have a fully blocked range
+        skipBlockedRegionFlag = false;
+        break;
+      }
+    }
     adjust();
   }
   void MultiDimIndexLoop::setWatchStart(vector<int> const &watchStart){
@@ -4179,61 +5327,111 @@ int DistGrid::setArbSeqIndex(
     adjust();
   }
   void MultiDimIndexLoop::first(){
-    for (int i=0; i<indexTuple.size(); i++)
-      indexTuple[i] = indexTupleStart[i];  // reset
+    // set indexTuple to the first valid index, considering blocked out region
+    unsigned i;
+    for (i=0; i<indexTuple.size(); i++)
+      indexTuple[i] = indexTupleStart[i];  // reset, to cover not fully blocked
+    for (i=0; i<indexTuple.size(); i++){
+      if ((indexTupleStart[i] < indexTupleBlockStart[i]) ||
+        (indexTupleBlockEnd[i] < indexTupleEnd[i])){
+        // found a dimension that does NOT have a fully blocked range
+        break;
+      }
+    }
+    if (i<indexTuple.size()){
+      // dimension i is the first one that does NOT have fully blocked range
+      if (indexTupleStart[i] < indexTupleBlockStart[i]){
+        // there are unblocked elements before the blocked ranged
+        indexTuple[i] = indexTupleStart[i];
+      }else{
+        // there must be unblocked elements after the blocked ranged
+        indexTuple[i] = indexTupleBlockEnd[i];
+      }
+    }else{
+      // all dimensions are fully blocked out -> set indexTuple to the End
+      for (i=0; i<indexTuple.size(); i++)
+        indexTuple[i] = indexTupleEnd[i];
+    }
   }
   void MultiDimIndexLoop::last(){
-    for (int i=0; i<indexTuple.size(); i++)
+    // set indexTuple to the last index, not considering whether it is blocked
+    for (unsigned i=0; i<indexTuple.size(); i++)
       indexTuple[i] = indexTupleEnd[i]-1;  // reset
   }
-  void MultiDimIndexLoop::adjust(){
-    bool skipBlockedRegionFlag;
-    do{
-      // adjust all tuples, if necessary skip blocked region
-      skipBlockedRegionFlag = true;  // init
-      int i;
-      for (i=0; i<indexTuple.size()-1; i++){
-        if (indexTuple[i] == indexTupleEnd[i]){
-          indexTuple[i] = indexTupleStart[i];  // reset
-          if (skipDim[i+1])
-            indexTuple[i+1] = indexTupleEnd[i+1]; // skip
-          else
-            ++indexTuple[i+1];                    // increment
+  bool MultiDimIndexLoop::adjust(){
+    // adjust the indexTuple after an increment to point to the next valid tuple
+    bool adjusted = false;
+    // -> consider the blocked out region
+    // to improve performance for the fully blocked case check for it first
+    if (skipBlockedRegionFlag){
+      // fully blocked range in all dimensions -> shift indexTuple to end
+      for (unsigned i=0; i<indexTuple.size(); i++)
+        indexTuple[i] = indexTupleEnd[i];
+      adjusted = true;
+    }else{
+      // there are dimensions that do NOT have fully blocked ranges
+      // -> must carefully adjust
+      bool skipBlockedFlag;
+      do{
+        // adjust all tuples, if necessary skip blocked region
+        skipBlockedFlag = true;  // init
+        unsigned i;
+        for (i=0; i+1<indexTuple.size(); i++){
+          if (indexTuple[i] == indexTupleEnd[i]){
+            adjusted = true;
+            indexTuple[i] = indexTupleStart[i];  // reset
+            if (skipDim[i+1])
+              indexTuple[i+1] = indexTupleEnd[i+1]; // skip
+            else
+              ++indexTuple[i+1];                    // increment
+          }
+          if ((indexTuple[i] < indexTupleBlockStart[i]) ||
+            (indexTuple[i] >= indexTupleBlockEnd[i])){
+            skipBlockedFlag = false;  // not within blocked region
+          }
         }
         if ((indexTuple[i] < indexTupleBlockStart[i]) ||
           (indexTuple[i] >= indexTupleBlockEnd[i])){
-          skipBlockedRegionFlag = false;  // not within blocked region
+          skipBlockedFlag = false;  // not within blocked region
         }
-      }
-      if ((indexTuple[i] < indexTupleBlockStart[i]) ||
-        (indexTuple[i] >= indexTupleBlockEnd[i])){
-        skipBlockedRegionFlag = false;  // not within blocked region
-      }
-      if (skipBlockedRegionFlag){
-        indexTuple[0] = indexTupleBlockEnd[0];
-//        printf("gjt skip the blocked region\n");     
-      }
-    }while(skipBlockedRegionFlag && (indexTuple[0] >= indexTupleEnd[0]));
+        if (skipBlockedFlag){
+          adjusted = true;
+          indexTuple[0] = indexTupleBlockEnd[0];
+//          printf("gjt skip the blocked region\n");     
+        }
+      }while(skipBlockedFlag && (indexTuple[0] >= indexTupleEnd[0]));
+    }
+#if 0
+    {
+      std::stringstream msg;
+      msg << "adjust()#" << __LINE__ << "index= ";
+      for (unsigned i=0; i<indexTuple.size(); i++)
+        msg << indexTuple[i] << ", ";
+      ESMC_LogDefault.Write(msg.str(), ESMC_LOGMSG_INFO);
+    }
+#endif
+    
+    return adjusted;
   }
-  void MultiDimIndexLoop::next(){
+  bool MultiDimIndexLoop::next(){
     if (skipDim[0])
       indexTuple[0] = indexTupleEnd[0]; // skip
     else
       ++indexTuple[0];                  // increment
-    adjust();
+    return adjust();
   }
   bool MultiDimIndexLoop::isFirst()const{
-    for (int i=0; i<indexTuple.size(); i++)
+    for (unsigned i=0; i<indexTuple.size(); i++)
       if (indexTuple[i] != indexTupleStart[i]) return false;
     return true;
   }
   bool MultiDimIndexLoop::isLast()const{
-    for (int i=0; i<indexTuple.size(); i++)
+    for (unsigned i=0; i<indexTuple.size(); i++)
       if (indexTuple[i] != indexTupleEnd[i]-1) return false;
     return true;
   }
   bool MultiDimIndexLoop::isWithin()const{
-    for (int i=0; i<indexTuple.size(); i++)
+    for (unsigned i=0; i<indexTuple.size(); i++)
       if (indexTupleStart[i] >= indexTupleEnd[i])
         return false; // this means there are no elements to iterate over
     if (indexTuple[indexTuple.size()-1] < indexTupleEnd[indexTuple.size()-1])
@@ -4249,8 +5447,8 @@ int DistGrid::setArbSeqIndex(
   }
   bool MultiDimIndexLoop::isWithinWatch()const{
     bool withinWatchFlag = true;  // init
-    int i;
-    for (i=0; i<indexTuple.size()-1; i++){
+    unsigned i;
+    for (i=0; i+1<indexTuple.size(); i++){
       if ((indexTuple[i] < indexTupleWatchStart[i]) ||
         (indexTuple[i] >= indexTupleWatchEnd[i])){
         withinWatchFlag = false;  // not within watched region
@@ -4273,7 +5471,7 @@ int DistGrid::setArbSeqIndex(
     return &indexTupleStart[0];
   }
   void MultiDimIndexLoop::print()const{
-    int i;
+    unsigned i;
     printf("MultiDimIndexLoop: indexTupleStart = (");
     for (i=0; i<indexTupleStart.size()-1; i++)
       printf(" %d,", indexTupleStart[i]);

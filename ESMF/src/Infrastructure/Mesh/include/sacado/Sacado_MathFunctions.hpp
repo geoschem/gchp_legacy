@@ -1,5 +1,4 @@
-// $Id: Sacado_MathFunctions.hpp,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $ 
-// $Source: /cvsroot/baselibs/Baselibs/src/esmf/src/Infrastructure/Mesh/include/sacado/Sacado_MathFunctions.hpp,v $ 
+// $Id$ 
 // @HEADER
 // ***********************************************************************
 // 
@@ -95,7 +94,7 @@ UNARYFUNC_MACRO(acosh, ACoshOp)
 UNARYFUNC_MACRO(asinh, ASinhOp)
 UNARYFUNC_MACRO(atanh, ATanhOp)
 UNARYFUNC_MACRO(abs, AbsOp)
-UNARYFUNC_MACRO(fabs, FAbsOp)
+// UNARYFUNC_MACRO(fabs, FAbsOp)
 
 #undef UNARYFUNC_MACRO
 

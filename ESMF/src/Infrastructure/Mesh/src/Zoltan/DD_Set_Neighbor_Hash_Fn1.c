@@ -7,8 +7,8 @@
 /*****************************************************************************
  * CVS File Information :
  *    $RCSfile: DD_Set_Neighbor_Hash_Fn1.c,v $
- *    $Author: mathomp4 $
- *    $Date: 2013-01-11 20:23:44 $
+ *    $Author: dneckels $
+ *    $Date: 2007/11/28 16:13:42 $
  *    Revision: 1.8 $
  ****************************************************************************/
 
@@ -49,7 +49,7 @@ int Zoltan_DD_Set_Neighbor_Hash_Fn1 (
  Zoltan_DD_Directory *dd,          /* directory state information */
  int size)                         /* number of reserved GIDs per CPU */
    {
-   char *yo = "Zoltan_DD_Set_Hash_Fn1" ;
+   const char *yo = "Zoltan_DD_Set_Hash_Fn1" ;
 
    if (dd == NULL || size < 1)
       {

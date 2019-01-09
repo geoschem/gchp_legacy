@@ -1,7 +1,7 @@
-! $Id: ESMF_TimeEx.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
+! $Id$
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2012, University Corporation for Atmospheric Research,
+! Copyright 2002-2018, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -13,7 +13,7 @@
       program ESMF_TimeEx
 
 !------------------------------------------------------------------------------
-!ESMF_EXAMPLE	String used by test script to count examples.
+!ESMF_EXAMPLE   String used by test script to count examples.
 !==============================================================================
 !BOC
 ! !PROGRAM: ESMF_TimeEx - Time initialization and manipulation examples
@@ -22,13 +22,17 @@
 !
 ! This program shows examples of Time initialization and manipulation
 !-----------------------------------------------------------------------------
+#include "ESMF.h"
 
       ! ESMF Framework module
       use ESMF
+      use ESMF_TestMod
       implicit none
 
       ! instantiate two times
       type(ESMF_Time) :: time1, time2
+
+      type(ESMF_VM) :: vm
 
       ! instantiate a time interval
       type(ESMF_TimeInterval) :: timeinterval1
@@ -41,17 +45,30 @@
 !EOC
 
       ! result code
-      integer :: finalrc
+      integer :: finalrc, result
+      character(ESMF_MAXSTR) :: testname
+      character(ESMF_MAXSTR) :: failMsg
+
+!-------------------------------------------------------------------------
+!-------------------------------------------------------------------------
+
+      write(failMsg, *) "Example failure"
+      write(testname, *) "Example ESMF_TimeEx"
+
+
+! ------------------------------------------------------------------------------
+! ------------------------------------------------------------------------------
+
       finalrc = ESMF_SUCCESS
 
 !BOC
       ! initialize ESMF framework
-      call ESMF_Initialize(defaultCalKind=ESMF_CALKIND_GREGORIAN, &
+      call ESMF_Initialize(vm=vm, defaultCalKind=ESMF_CALKIND_GREGORIAN, &
         defaultlogfilename="TimeEx.Log", &
         logkindflag=ESMF_LOGKIND_MULTI, rc=rc)
 !EOC
 
-      if (rc.NE.ESMF_SUCCESS) finalrc = ESMF_FAILURE
+      if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
 !BOE
 !\subsubsection{Time initialization}
@@ -64,14 +81,14 @@
       call ESMF_TimeSet(time1, yy=2000, mm=2, dd=28, h=2, m=24, s=45, rc=rc)
 !EOC
 
-      if (rc.NE.ESMF_SUCCESS) finalrc = ESMF_FAILURE
+      if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
 !BOC
       print *, "Time1 = "
       call ESMF_TimePrint(time1, options="string", rc=rc)
 !EOC
 
-      if (rc.NE.ESMF_SUCCESS) finalrc = ESMF_FAILURE
+      if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
 !BOE
 !\subsubsection{Time increment}
@@ -85,14 +102,14 @@
       call ESMF_TimeIntervalSet(timeinterval1, d=2, h=8, m=36, s=15, rc=rc)
 !EOC
 
-      if (rc.NE.ESMF_SUCCESS) finalrc = ESMF_FAILURE
+      if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
 !BOC
       print *, "Timeinterval1 = "
       call ESMF_TimeIntervalPrint(timeinterval1, options="string", rc=rc)
 !EOC
 
-      if (rc.NE.ESMF_SUCCESS) finalrc = ESMF_FAILURE
+      if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
 !BOC
       ! increment time1 with timeinterval1
@@ -103,7 +120,7 @@
                " ",  H, ":", M, ":", S
 !EOC
 
-      if (rc.NE.ESMF_SUCCESS) finalrc = ESMF_FAILURE
+      if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
 !BOE
 !\subsubsection{Time comparison}
@@ -118,6 +135,12 @@
         print *, "time1 is smaller than or equal to time2"
       endif
 
+!EOC
+      ! IMPORTANT: ESMF_STest() prints the PASS string and the # of processors in the log
+      ! file that the scripts grep for.
+      call ESMF_STest((finalrc.eq.ESMF_SUCCESS), testname, failMsg, result, ESMF_SRCLINE)
+
+!BOC
       ! finalize ESMF framework
       call ESMF_Finalize(rc=rc)
 !EOC

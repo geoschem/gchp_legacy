@@ -6,8 +6,8 @@
 /*****************************************************************************
  * CVS File Information :
  *    $RCSfile: timer_params.c,v $
- *    $Author: mathomp4 $
- *    $Date: 2013-01-11 20:23:44 $
+ *    $Author: dneckels $
+ *    $Date: 2007/11/28 16:13:54 $
  *    Revision: 1.2 $
  ****************************************************************************/
 
@@ -38,7 +38,7 @@ int *timer)                     /* output: timer type */
         { "TIMER", NULL, "STRING", 0 },
         { NULL, NULL, NULL, 0 }
     };
-    char *yo = "Zoltan_Set_Timer_Param";
+    const char *yo = "Zoltan_Set_Timer_Param";
 
     (*timer) = ZOLTAN_TIME_WALL;  /* default timer value */
 

@@ -1,7 +1,7 @@
 // $Id$
 //
 // Earth System Modeling Framework
-// Copyright 2002-2012, University Corporation for Atmospheric Research,
+// Copyright 2002-2018, University Corporation for Atmospheric Research,
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 // Laboratory, University of Michigan, National Centers for Environmental
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -18,32 +18,31 @@
 // declared in the companion file {\tt ESMCI\_BaseTime.h}
 //
 //-------------------------------------------------------------------------
-//
- #define ESMC_FILENAME "ESMCI_BaseTime.C"
+#define ESMC_FILENAME "ESMCI_BaseTime.C"
 
- #include <stdio.h>
- #include <stdlib.h>
- #include <limits.h>
- #include <math.h>    // modf()
- /*
- #include <iostream>
- #include <stdlib>
- using std::cout;
- using std::endl;
- */
- #include <ESMCI_LogErr.h>
- #include <ESMF_LogMacros.inc>
+// associated class definition file
+#include "ESMCI_BaseTime.h"
 
- // associated class definition file
- #include "ESMCI_BaseTime.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <limits.h>
+#include <math.h>    // modf()
+/*
+#include <iostream>
+#include <stdlib>
+using std::cout;
+using std::endl;
+*/
+    
+#include "ESMCI_LogErr.h"
 
 //-------------------------------------------------------------------------
- // leave the following line as-is; it will insert the cvs ident string
- // into the object file for tracking purposes.
- static const char *const version = "$Id$";
+// leave the following line as-is; it will insert the cvs ident string
+// into the object file for tracking purposes.
+static const char *const version = "$Id$";
 //-------------------------------------------------------------------------
 
-  namespace ESMCI{
+namespace ESMCI{
 
 //
 //-------------------------------------------------------------------------
@@ -215,7 +214,7 @@
       char logMsg[ESMF_MAXSTR];
       sprintf(logMsg, "s=%lld and sN=%lld not both positive or both negative, "
                       "or sD=%lld negative or less than one.", s, sN, sD); 
-      ESMC_LogDefault.Write(logMsg, ESMC_LOG_WARN,ESMC_CONTEXT);
+      ESMC_LogDefault.Write(logMsg, ESMC_LOGMSG_WARN,ESMC_CONTEXT);
       return(ESMF_FAILURE);
     }
 
@@ -274,7 +273,7 @@
     // validate input
     if (timeToConvert == ESMC_NULL_POINTER) {
       ESMC_LogDefault.MsgFoundError(ESMC_RC_PTR_NULL,
-                                            "; timeToConvert is NULL", &rc);
+        "; timeToConvert is NULL", ESMC_CONTEXT, &rc);
       return(rc);
     }
 
@@ -292,7 +291,7 @@
         sprintf(logMsg, "For sN=%lld out-of-range with respect to "
                         "machine limits (INT_MIN=%d to INT_MAX=%d), "
                         "use sN_i8.", numerator, INT_MIN, INT_MAX);
-        ESMC_LogDefault.Write(logMsg, ESMC_LOG_WARN,ESMC_CONTEXT);
+        ESMC_LogDefault.Write(logMsg, ESMC_LOGMSG_WARN,ESMC_CONTEXT);
         return (ESMF_FAILURE);
       }
       *sN = numerator;
@@ -307,7 +306,7 @@
         sprintf(logMsg, "For sD=%lld out-of-range with respect to "
                         "machine limits (INT_MIN=%d to INT_MAX=%d), "
                         "use sD_i8.", denominator, INT_MIN, INT_MAX);
-        ESMC_LogDefault.Write(logMsg, ESMC_LOG_WARN, ESMC_CONTEXT);
+        ESMC_LogDefault.Write(logMsg, ESMC_LOGMSG_WARN, ESMC_CONTEXT);
         return (ESMF_FAILURE);
       }
       *sD = denominator;
@@ -323,7 +322,7 @@
         sprintf(logMsg, "For s=%lld, hours=%lld out-of-range with respect to "
                         "machine limits (INT_MIN=%d to INT_MAX=%d).",
                         remainingSeconds, hours, INT_MIN, INT_MAX);
-        ESMC_LogDefault.Write(logMsg, ESMC_LOG_WARN, ESMC_CONTEXT);
+        ESMC_LogDefault.Write(logMsg, ESMC_LOGMSG_WARN, ESMC_CONTEXT);
         return (ESMF_FAILURE);
       }
       *h = hours;
@@ -336,7 +335,7 @@
         sprintf(logMsg, "For s=%lld, minutes=%lld out-of-range with respect to "
                         "machine limits (INT_MIN=%d to INT_MAX=%d).",
                         remainingSeconds, minutes, INT_MIN, INT_MAX);
-        ESMC_LogDefault.Write(logMsg, ESMC_LOG_WARN,ESMC_CONTEXT);
+        ESMC_LogDefault.Write(logMsg, ESMC_LOGMSG_WARN,ESMC_CONTEXT);
         return (ESMF_FAILURE);
       }
       *m = minutes;
@@ -348,7 +347,7 @@
         sprintf(logMsg, "s=%lld out-of-range with respect to "
                         "machine limits (INT_MIN=%d to INT_MAX=%d), "
                         "use s_i8.", remainingSeconds, INT_MIN, INT_MAX);
-        ESMC_LogDefault.Write(logMsg, ESMC_LOG_WARN,ESMC_CONTEXT);
+        ESMC_LogDefault.Write(logMsg, ESMC_LOGMSG_WARN,ESMC_CONTEXT);
         return (ESMF_FAILURE);
       }
       *s = (ESMC_I4) remainingSeconds;    // >= 32 bit
@@ -369,7 +368,8 @@
       // convert remaining time to milliseconds
       Fraction msRemainingTime = remainingTime;
       int rc = msRemainingTime.convert(1000);
-      if (ESMC_LogDefault.MsgFoundError(rc, ESMCI_ERR_PASSTHRU, &rc))
+      if (ESMC_LogDefault.MsgFoundError(rc, ESMCI_ERR_PASSTHRU, ESMC_CONTEXT,
+        &rc))
         return(rc);
       *ms = msRemainingTime.getn();
 
@@ -381,7 +381,8 @@
       // convert remaining time to microseconds
       Fraction usRemainingTime = remainingTime;
       int rc = usRemainingTime.convert(1000000);
-      if (ESMC_LogDefault.MsgFoundError(rc, ESMCI_ERR_PASSTHRU, &rc))
+      if (ESMC_LogDefault.MsgFoundError(rc, ESMCI_ERR_PASSTHRU, ESMC_CONTEXT,
+        &rc))
         return(rc);
       *us = usRemainingTime.getn();
 
@@ -393,7 +394,8 @@
       // convert remaining time to nanoseconds
       Fraction nsRemainingTime = remainingTime;
       int rc = nsRemainingTime.convert(1000000000);
-      if (ESMC_LogDefault.MsgFoundError(rc, ESMCI_ERR_PASSTHRU, &rc))
+      if (ESMC_LogDefault.MsgFoundError(rc, ESMCI_ERR_PASSTHRU, ESMC_CONTEXT,
+        &rc))
         return(rc);
       *ns = nsRemainingTime.getn();
     }

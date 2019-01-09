@@ -1,7 +1,7 @@
-! $Id: ESMF_DELayoutEx.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
+! $Id$
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2012, University Corporation for Atmospheric Research,
+! Copyright 2002-2018, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -15,8 +15,10 @@
 !==============================================================================
 
 program ESMF_DELayoutEx
+#include "ESMF.h"
 
   use ESMF
+  use ESMF_TestMod
   
   implicit none
   
@@ -28,14 +30,29 @@ program ESMF_DELayoutEx
   logical:: oneToOneFlag
   type(ESMF_ServiceReply_Flag):: reply
   ! result code
-  integer :: finalrc
+  integer :: finalrc, result
+  character(ESMF_MAXSTR) :: testname
+  character(ESMF_MAXSTR) :: failMsg
+
+
+!-------------------------------------------------------------------------
+!-------------------------------------------------------------------------
+
+  write(failMsg, *) "Example failure"
+  write(testname, *) "Example ESMF_DELayoutEx"
+
+!-------------------------------------------------------------------------
+!-------------------------------------------------------------------------
+
+
   finalrc = ESMF_SUCCESS
+
   
   call ESMF_Initialize(vm=vm, defaultlogfilename="DELayoutEx.Log", &
                     logkindflag=ESMF_LOGKIND_MULTI, rc=rc)
-  if (rc /= ESMF_SUCCESS) goto 99
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   call ESMF_VMGet(vm, localPET=localPET, petCount=petCount, rc=rc)
-  if (rc /= ESMF_SUCCESS) goto 99
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
 !BOE
 ! \subsubsection{Default DELayout}
@@ -49,7 +66,7 @@ program ESMF_DELayoutEx
 !BOC
   delayout = ESMF_DELayoutCreate(rc=rc)
 !EOC  
-  if (rc /= ESMF_SUCCESS) goto 99
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !  call ESMF_DELayoutPrint(delayout, rc=rc)
 !BOE
 ! The default DE to PET mapping is simply:
@@ -63,7 +80,7 @@ program ESMF_DELayoutEx
 !BOC
   call ESMF_DELayoutDestroy(delayout, rc=rc)
 !EOC  
-  if (rc /= ESMF_SUCCESS) goto 99
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !BOE
 ! The optional {\tt vm} argument can be provided to DELayoutCreate() to lower 
 ! the method's overhead by the amount it takes to determine the current VM.
@@ -71,10 +88,10 @@ program ESMF_DELayoutEx
 !BOC
   delayout = ESMF_DELayoutCreate(vm=vm, rc=rc)
 !EOC  
-  if (rc /= ESMF_SUCCESS) goto 99
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !  call ESMF_DELayoutPrint(delayout, rc=rc)
   call ESMF_DELayoutDestroy(delayout, rc=rc)
-  if (rc /= ESMF_SUCCESS) goto 99
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !BOE
 ! By default all PETs of the associated VM will be considered. However, if the 
 ! optional argument {\tt petList} is present DEs will only be mapped against
@@ -90,10 +107,10 @@ program ESMF_DELayoutEx
   else
     delayout = ESMF_DELayoutCreate(rc=rc)
   endif
-  if (rc /= ESMF_SUCCESS) goto 99
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !  call ESMF_DELayoutPrint(delayout, rc=rc)
   call ESMF_DELayoutDestroy(delayout, rc=rc)
-  if (rc /= ESMF_SUCCESS) goto 99
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !BOE  
 ! Once the end of the petList has been reached the DE to PET mapping 
 ! continues from the beginning of the list. For a 4 PET VM the above created
@@ -117,9 +134,9 @@ program ESMF_DELayoutEx
 !BOC
   delayout = ESMF_DELayoutCreate(deCount=4*petCount, rc=rc)
 !EOC  
-  if (rc /= ESMF_SUCCESS) goto 99
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   call ESMF_DELayoutDestroy(delayout, rc=rc)
-  if (rc /= ESMF_SUCCESS) goto 99
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !BOE
 ! Cyclic DE to PET mapping is the default. For 4 PETs this means:
 ! \begin{verbatim}
@@ -138,10 +155,10 @@ program ESMF_DELayoutEx
   delayout = ESMF_DELayoutCreate(deCount=4*petCount, &
     deGrouping=(/(i/4,i=0,4*petCount-1)/), rc=rc)
 !EOC  
-  if (rc /= ESMF_SUCCESS) goto 99
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !  call ESMF_DELayoutPrint(delayout, rc=rc)
   call ESMF_DELayoutDestroy(delayout, rc=rc)
-  if (rc /= ESMF_SUCCESS) goto 99
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !BOE
 ! This will achieve blocked DE to PET mapping. For 4 PETs this means:
 ! \begin{verbatim}
@@ -172,9 +189,9 @@ program ESMF_DELayoutEx
     commWeights=commWeights, rc=rc)
   deallocate(compWeights, commWeights)
 !EOC  
-  if (rc /= ESMF_SUCCESS) goto 99
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   call ESMF_DELayoutDestroy(delayout, rc=rc)
-  if (rc /= ESMF_SUCCESS) goto 99
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !BOE
 ! The resulting DE to PET mapping depends on the specifics of the VM object and
 ! the provided compWeights and commWeights arrays.
@@ -196,9 +213,9 @@ program ESMF_DELayoutEx
 !BOC
   delayout = ESMF_DELayoutCreate(petMap=(/(i,i=petCount-1,0,-1)/), rc=rc)
 !EOC  
-  if (rc /= ESMF_SUCCESS) goto 99
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   call ESMF_DELayoutDestroy(delayout, rc=rc)
-  if (rc /= ESMF_SUCCESS) goto 99
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !BOE
 !EOE
 
@@ -223,9 +240,9 @@ if (petCount == 4) then
 !BOC
   delayout = ESMF_DELayoutCreate(petMap=(/3, 3, 1, 0, 2, 1, 3, 1/), rc=rc)
 !EOC  
-  if (rc /= ESMF_SUCCESS) goto 99
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   call ESMF_DELayoutDestroy(delayout, rc=rc)
-  if (rc /= ESMF_SUCCESS) goto 99
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 endif
 
 !BOE
@@ -243,14 +260,14 @@ endif
 !BOC
   delayout = ESMF_DELayoutCreate(rc=rc)
 !EOC  
-  if (rc /= ESMF_SUCCESS) goto 99
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !BOE
 ! Next the DELayout is queried for the {\tt oneToOneFlag}, and the user code
 ! makes a decision based on its value.
 !EOE
 !BOC
   call ESMF_DELayoutGet(delayout, oneToOneFlag=oneToOneFlag, rc=rc)
-  if (rc /= ESMF_SUCCESS) finalrc=rc
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   if (.not. oneToOneFlag) then
     ! handle the unexpected case of not dealing with a 1-to-1 mapping
   else
@@ -265,16 +282,17 @@ endif
     if (rc /= ESMF_SUCCESS) finalrc=rc
     myDe = localDeToDeMap(1)
     deallocate(localDeToDeMap)
+    if (finalrc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   endif
 !EOC  
   call ESMF_DELayoutDestroy(delayout, rc=rc)
-  if (rc /= ESMF_SUCCESS) goto 99
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
 !BOE
 ! \subsubsection{Working with a DELayout - general DE-to-PET mapping}
 ! \label{DELayout_general_mapping}
 ! 
-! In general a DELayout may map any number (including zero) DEs against
+! In general a DELayout may map any number (including zero) of DEs against
 ! a single PET. The exact situation can be detected by querying the DELayout
 ! for the {\tt oneToOneFlag}. If this flag comes back as {\tt .true.} then the 
 ! DELayout maps exactly one DE against each PET, but if it comes back as
@@ -288,7 +306,7 @@ endif
 !BOC
   delayout = ESMF_DELayoutCreate(deCount=petCount+2, rc=rc)
 !EOC  
-  if (rc /= ESMF_SUCCESS) goto 99
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !BOE
 ! The first piece of information needed on each PET is the {\tt localDeCount}.
 ! This number may be different on each PET and indicates how many DEs are 
@@ -297,7 +315,7 @@ endif
 !BOC
   call ESMF_DELayoutGet(delayout, localDeCount=localDeCount, rc=rc)
 !EOC  
-  if (rc /= ESMF_SUCCESS) finalrc=rc
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !BOE
 ! The DELayout can further be queried for a list of DEs that are held by
 ! the local PET. This information is provided by the {\tt localDeToDeMap}
@@ -323,15 +341,16 @@ endif
 !    print *, "I am PET", localPET, " and I am working on DE ", workDe
   enddo
   deallocate(localDeToDeMap)
+  if (finalrc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !EOC  
   call ESMF_DELayoutDestroy(delayout, rc=rc)
-  if (rc /= ESMF_SUCCESS) goto 99
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
 !BOE
 ! \subsubsection{Work queue dynamic load balancing}
 ! 
 ! The DELayout API includes two calls that can be used to easily implement
-! work queue dynamic load balancing. The work load is broken up into DEs 
+! work queue dynamic load balancing. The workload is broken up into DEs
 ! (more than there are PETs) and processed by the PETs. Load balancing is
 ! only possible for ESMF multi-threaded VMs and requires that DEs are pinned
 ! to VASs instead of the PETs (default). The following example will
@@ -342,7 +361,7 @@ endif
   delayout = ESMF_DELayoutCreate(deCount=petCount+2, &
     pinflag=ESMF_PIN_DE_TO_VAS, rc=rc)
 !EOC  
-  if (rc /= ESMF_SUCCESS) goto 99
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !  call ESMF_DELayoutPrint(delayout, rc=rc)
 !BOC
   call ESMF_DELayoutGet(delayout, vasLocalDeCount=localDeCount, rc=rc)
@@ -365,10 +384,14 @@ endif
     endif
   enddo
   deallocate(localDeToDeMap)
+  if (finalrc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !EOC  
   call ESMF_DELayoutDestroy(delayout, rc=rc)
-  if (rc /= ESMF_SUCCESS) goto 99
+  if (finalrc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   
+  ! IMPORTANT: ESMF_STest() prints the PASS string and the # of processors in the log
+  ! file that the scripts grep for.
+  call ESMF_STest((finalrc.eq.ESMF_SUCCESS), testname, failMsg, result, ESMF_SRCLINE)
 
   ! shut down ESMF
   call ESMF_Finalize(rc=rc)
@@ -377,11 +400,5 @@ endif
   else
     print *, "FAIL: ESMF_DELayoutEx.F90"
   endif
-  goto 100
   
-99 continue   ! Abort
-  print *, "FAIL: ESMF_DELayoutEx.F90"
-  call ESMF_Finalize(endflag=ESMF_END_ABORT)
-
-100 continue  
-end program
+end program 

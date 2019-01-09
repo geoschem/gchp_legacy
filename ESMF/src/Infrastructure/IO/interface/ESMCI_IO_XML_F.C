@@ -1,7 +1,7 @@
 // $Id$
 //
 // Earth System Modeling Framework
-// Copyright 2002-2012, University Corporation for Atmospheric Research, 
+// Copyright 2002-2018, University Corporation for Atmospheric Research, 
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
 // Laboratory, University of Michigan, National Centers for Environmental 
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
@@ -17,8 +17,11 @@
 //------------------------------------------------------------------------------
 // INCLUDES
 //------------------------------------------------------------------------------
-#include <ESMCI_F90Interface.h>
-#include <ESMCI_IO_XML.h>
+#include "ESMCI_F90Interface.h"
+#include "ESMCI_IO_XML.h"
+
+#include <string>
+
 //------------------------------------------------------------------------------
 //BOP
 // !DESCRIPTION:
@@ -37,48 +40,36 @@ namespace ESMCI{
 extern "C" {
 
        //--------------------------------------------------------------------
-       void FTN(c_esmc_io_xmlcreate)(IO_XML **ptr,
-                                    int *nameLen,
+       void FTN_X(c_esmc_io_xmlcreate)(IO_XML **ptr,
                                     const char *name,
-                                    int *fileNameLen,
                                     const char *fileName,
                                     ESMC_Base **base,
                                     int *status,
-                                    ESMCI_FortranStrLenArg name_l) {
+                                    ESMCI_FortranStrLenArg name_l,
+                                    ESMCI_FortranStrLenArg filename_l) {
           ESMF_CHECK_POINTER(*base, status)
-          *ptr = ESMCI_IO_XMLCreate(
-                                           *nameLen,   // always present 
-                                                       //   internal argument.
-                    ESMC_NOT_PRESENT_FILTER(name),
-                                           *fileNameLen,   // always present 
-                                                       //   internal argument.
-                    ESMC_NOT_PRESENT_FILTER(fileName),
-                                         &((*base)->root),  // attributes
+          *ptr = ESMCI_IO_XMLCreate(std::string(name, name_l),
+                                    std::string(fileName, filename_l),
+                                         (*base)->ESMC_BaseGetRoot(),  // attributes
                     ESMC_NOT_PRESENT_FILTER(status) );
        }
 
        //--------------------------------------------------------------------
-       void FTN(c_esmc_io_xmldestroy)(IO_XML **ptr, int *status) {
+       void FTN_X(c_esmc_io_xmldestroy)(IO_XML **ptr, int *status) {
           int rc = ESMCI_IO_XMLDestroy(ptr);
           if (ESMC_PRESENT(status)) *status = rc;
        }
 
        //--------------------------------------------------------------------
-       void FTN(c_esmc_io_xmlread)(IO_XML **ptr,
-                                  int *fileNameLen,
+       void FTN_X(c_esmc_io_xmlread)(IO_XML **ptr,
                                   const char *fileName,
-                                  int *schemaFileNameLen,
                                   const char *schemaFileName,
                                   int *status,
-                                  ESMCI_FortranStrLenArg fileName_l) {
+                                  ESMCI_FortranStrLenArg fileName_l,
+                                  ESMCI_FortranStrLenArg schemaFileName_l) {
           ESMF_CHECK_POINTER(*ptr, status)
-          int rc = (*ptr)->IO_XML::read(
-                                        *fileNameLen,      // always present 
-                                                           // internal argument.
-                 ESMC_NOT_PRESENT_FILTER(fileName),   
-                                        *schemaFileNameLen, // always present 
-                                                           // internal argument.
-                    ESMC_NOT_PRESENT_FILTER(schemaFileName) );
+          int rc = (*ptr)->IO_XML::read(std::string(fileName,fileName_l),
+                                        std::string(schemaFileName, schemaFileName_l) );
           if (ESMC_PRESENT(status)) *status = rc;
        }
 

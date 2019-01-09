@@ -1,0 +1,31 @@
+% $Id$
+
+The following is a typical sequence for using a Clock in a 
+geophysical model.
+
+\noindent {\bf At initialize:}
+\begin{itemize}
+\item Set a Calendar.
+\item Set start time, stop time and time step as Times and 
+Time Intervals.
+\item Create and Initialize a Clock using the start time, stop time and time
+step.
+\item Define Times and Time Intervals associated with special
+events, and use these to set Alarms.
+\end{itemize}
+
+\noindent {\bf At run:}
+\begin{itemize}
+\item Advance the Clock, checking for ringing alarms as needed.
+\item Check if it is time to stop.
+\end{itemize}
+
+\noindent {\bf At finalize:}
+\begin{itemize}
+\item Since Clocks and Alarms are deep classes, they need to be explicitly
+destroyed at finalization.  Times and TimeIntervals are lightweight classes,
+so they don't need explicit destruction.
+\end{itemize}
+
+The following code example illustrates Clock usage.
+

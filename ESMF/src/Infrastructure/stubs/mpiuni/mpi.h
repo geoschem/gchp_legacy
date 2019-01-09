@@ -1,4 +1,4 @@
-/* $Id: mpi.h,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $ */
+/* $Id$ */
 
 /*
    This is a special set of bindings for uni-processor use of MPI by the PETSc library.
@@ -116,6 +116,7 @@ extern int MPIUNI_Memcpy(void*,const void*,int);
 #define MPI_INT             sizeof(int)
 #define MPI_UNSIGNED        sizeof(unsigned int)
 #define MPI_LONG            sizeof(long)
+#define MPI_LONG_LONG_INT   sizeof(long long int)
 #define MPI_SHORT           sizeof(short)
 #define MPI_UB              sizeof(long)
 #define MPI_FLOAT_INT       (sizeof(float)+sizeof(int))
@@ -130,11 +131,24 @@ extern int MPIUNI_Memcpy(void*,const void*,int);
 #define MPI_MAX_ERROR_STRING 512
 typedef long MPI_Aint;
 
+/* for moab to build in mpiuni mode */
+#define MPI_Fint  int
+
+/* Collective operators.  Same values used in mpif.h */
 typedef int MPI_Op;
 
+#define MPI_OP_NULL     (-1)
 #define MPI_SUM           0
 #define MPI_MIN           1
 #define MPI_MAX           2
+#define MPI_PROD          3
+#define MPI_LAND          4
+#define MPI_BAND          5
+#define MPI_LOR           6
+#define MPI_BOR           7
+#define MPI_LXOR          8
+#define MPI_BXOR          9
+
 #define MPI_ANY_TAG     (-1)
 
 /* the following values _must_ be monotonic according to MPI standard */

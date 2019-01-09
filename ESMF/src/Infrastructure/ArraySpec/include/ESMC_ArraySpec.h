@@ -1,7 +1,7 @@
-// $Id: ESMC_ArraySpec.h,v 1.1.5.1 2013-01-11 20:23:43 mathomp4 Exp $
+// $Id$
 //
 // Earth System Modeling Framework
-// Copyright 2002-2012, University Corporation for Atmospheric Research, 
+// Copyright 2002-2018, University Corporation for Atmospheric Research, 
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
 // Laboratory, University of Michigan, National Centers for Environmental 
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
@@ -52,9 +52,9 @@ typedef struct{
 //
 // !INTERFACE:
 int ESMC_ArraySpecGet(
-  ESMC_ArraySpec arrayspec,         // inout
-  int *rank,                        // in
-  enum ESMC_TypeKind *typekind      // in
+  ESMC_ArraySpec arrayspec,         // in
+  int *rank,                        // out
+  enum ESMC_TypeKind_Flag *typekind // out
 );
 // !RETURN VALUE:
 //  Return code; equals ESMF_SUCCESS if there are no errors.
@@ -70,7 +70,7 @@ int ESMC_ArraySpecGet(
 //  \item[rank]
 //    Array rank (dimensionality - 1D, 2D, etc). Maximum allowed is 7D.
 //  \item[typekind]
-//    Array typekind. See section ?? for valid values.
+//    Array typekind. See section~\ref{const:ctypekind} for valid values.
 //  \end{description}
 //
 //EOP
@@ -84,7 +84,7 @@ int ESMC_ArraySpecGet(
 int ESMC_ArraySpecSet(
   ESMC_ArraySpec *arrayspec,         // inout 
   int rank,                          // in
-  enum ESMC_TypeKind typekind        // in
+  enum ESMC_TypeKind_Flag typekind        // in
 );
 // !RETURN VALUE:
 //  Return code; equals ESMF_SUCCESS if there are no errors.
@@ -100,7 +100,7 @@ int ESMC_ArraySpecSet(
 //  \item[rank]
 //    Array rank (dimensionality - 1D, 2D, etc). Maximum allowed is 7D.
 //  \item[typekind]
-//    Array typekind. See section ?? for valid values.
+//    Array typekind. See section~\ref{const:ctypekind} for valid values.
 //  \end{description}
 //
 //EOP

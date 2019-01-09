@@ -1,7 +1,7 @@
-! $Id: ESMF_ArrayGet.cppF90,v 1.1.5.1 2013-01-11 20:23:43 mathomp4 Exp $
+! $Id$
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2012, University Corporation for Atmospheric Research, 
+! Copyright 2002-2018, University Corporation for Atmospheric Research, 
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
 ! Laboratory, University of Michigan, National Centers for Environmental 
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
@@ -29,10 +29,6 @@ module ESMF_ArrayGetMod
 !------------------------------------------------------------------------------
 ! INCLUDES
 ^include "ESMF.h"
-
-! The following macro is used to get around the first pass preprocessing,
-! which treats the string concatenation operator // as an inline comment.
-^define CONCAT /
 
 !------------------------------------------------------------------------------
 !BOPI
@@ -70,16 +66,13 @@ module ESMF_ArrayGetMod
 ! - ESMF-public methods:
   public ESMF_ArrayGet
 
-! - ESMF-internal methods:
-  public ESMF_ArrayConstructPioDof
-
 !EOPI
 !------------------------------------------------------------------------------
 
 !------------------------------------------------------------------------------
 ! The following line turns the CVS identifier string into a printable variable.
   character(*), parameter, private :: version = &
-    '$Id: ESMF_ArrayGet.cppF90,v 1.1.5.1 2013-01-11 20:23:43 mathomp4 Exp $'
+    '$Id$'
 
 !==============================================================================
 ! 
@@ -338,28 +331,28 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 !
 !EOP
 !------------------------------------------------------------------------------
-    integer                       :: localrc        ! local return code
-    type(ESMF_TypeKind_Flag)      :: opt_typekind           ! helper variable
-    integer                       :: opt_rank               ! helper variable
-    type(ESMF_Pointer), pointer   :: opt_localarrayPtrList(:)   ! helper variable
-    integer                       :: len_localarrayPtrList, i   ! helper variable
-    type(ESMF_InterfaceInt)       :: distgridToArrayMapArg  ! helper variable
-    type(ESMF_InterfaceInt)       :: distgridToPackedArrayMapArg ! helper var
-    type(ESMF_InterfaceInt)       :: arrayToDistGridMapArg  ! helper variable
-    type(ESMF_InterfaceInt)       :: undistLBoundArg        ! helper variable
-    type(ESMF_InterfaceInt)       :: undistUBoundArg        ! helper variable
-    type(ESMF_InterfaceInt)       :: exclusiveLBoundArg     ! helper variable
-    type(ESMF_InterfaceInt)       :: exclusiveUBoundArg     ! helper variable
-    type(ESMF_InterfaceInt)       :: computationalLBoundArg ! helper variable
-    type(ESMF_InterfaceInt)       :: computationalUBoundArg ! helper variable
-    type(ESMF_InterfaceInt)       :: totalLBoundArg         ! helper variable
-    type(ESMF_InterfaceInt)       :: totalUBoundArg         ! helper variable
-    type(ESMF_InterfaceInt)       :: computationalLWidthArg ! helper variable
-    type(ESMF_InterfaceInt)       :: computationalUWidthArg ! helper variable
-    type(ESMF_InterfaceInt)       :: totalLWidthArg         ! helper variable
-    type(ESMF_InterfaceInt)       :: totalUWidthArg         ! helper variable
-    type(ESMF_DistGrid)           :: opt_distgrid           ! helper variable
-    type(ESMF_DELayout)           :: opt_delayout           ! helper variable
+    integer                         :: localrc        ! local return code
+    type(ESMF_TypeKind_Flag)        :: opt_typekind           ! helper variable
+    integer                         :: opt_rank               ! helper variable
+    type(ESMF_Pointer), allocatable :: opt_localarrayPtrList(:)   ! helper var
+    integer                         :: len_localarrayPtrList, i   ! helper var
+    type(ESMF_InterArray)           :: distgridToArrayMapArg  ! helper variable
+    type(ESMF_InterArray)           :: distgridToPackedArrayMapArg ! helper var
+    type(ESMF_InterArray)           :: arrayToDistGridMapArg  ! helper variable
+    type(ESMF_InterArray)           :: undistLBoundArg        ! helper variable
+    type(ESMF_InterArray)           :: undistUBoundArg        ! helper variable
+    type(ESMF_InterArray)           :: exclusiveLBoundArg     ! helper variable
+    type(ESMF_InterArray)           :: exclusiveUBoundArg     ! helper variable
+    type(ESMF_InterArray)           :: computationalLBoundArg ! helper variable
+    type(ESMF_InterArray)           :: computationalUBoundArg ! helper variable
+    type(ESMF_InterArray)           :: totalLBoundArg         ! helper variable
+    type(ESMF_InterArray)           :: totalUBoundArg         ! helper variable
+    type(ESMF_InterArray)           :: computationalLWidthArg ! helper variable
+    type(ESMF_InterArray)           :: computationalUWidthArg ! helper variable
+    type(ESMF_InterArray)           :: totalLWidthArg         ! helper variable
+    type(ESMF_InterArray)           :: totalUWidthArg         ! helper variable
+    type(ESMF_DistGrid)             :: opt_distgrid           ! helper variable
+    type(ESMF_DELayout)             :: opt_delayout           ! helper variable
 
     ! Initialize return code
     localrc = ESMF_RC_NOT_IMPL
@@ -376,58 +369,58 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
       len_localarrayPtrList = 0
       allocate(opt_localarrayPtrList(1))
     endif
-    distgridToArrayMapArg = ESMF_InterfaceIntCreate(distgridToArrayMap, &
+    distgridToArrayMapArg = ESMF_InterArrayCreate(distgridToArrayMap, &
       rc=localrc)
     if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
       ESMF_CONTEXT, rcToReturn=rc)) return
     distgridToPackedArrayMapArg = &
-      ESMF_InterfaceIntCreate(distgridToPackedArrayMap, rc=localrc)
+      ESMF_InterArrayCreate(distgridToPackedArrayMap, rc=localrc)
     if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
       ESMF_CONTEXT, rcToReturn=rc)) return
-    arrayToDistGridMapArg = ESMF_InterfaceIntCreate(arrayToDistGridMap, &
+    arrayToDistGridMapArg = ESMF_InterArrayCreate(arrayToDistGridMap, &
       rc=localrc)
     if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
       ESMF_CONTEXT, rcToReturn=rc)) return
-    undistLBoundArg = ESMF_InterfaceIntCreate(undistLBound, rc=localrc)
+    undistLBoundArg = ESMF_InterArrayCreate(undistLBound, rc=localrc)
     if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
       ESMF_CONTEXT, rcToReturn=rc)) return
-    undistUBoundArg = ESMF_InterfaceIntCreate(undistUBound, rc=localrc)
+    undistUBoundArg = ESMF_InterArrayCreate(undistUBound, rc=localrc)
     if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
       ESMF_CONTEXT, rcToReturn=rc)) return
-    exclusiveLBoundArg = ESMF_InterfaceIntCreate(farray2D=exclusiveLBound, &
+    exclusiveLBoundArg = ESMF_InterArrayCreate(farray2D=exclusiveLBound, &
       rc=localrc)
     if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
       ESMF_CONTEXT, rcToReturn=rc)) return
-    exclusiveUBoundArg = ESMF_InterfaceIntCreate(farray2D=exclusiveUBound, &
+    exclusiveUBoundArg = ESMF_InterArrayCreate(farray2D=exclusiveUBound, &
       rc=localrc)
     if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
       ESMF_CONTEXT, rcToReturn=rc)) return
     computationalLBoundArg = &
-      ESMF_InterfaceIntCreate(farray2D=computationalLBound, rc=localrc)
+      ESMF_InterArrayCreate(farray2D=computationalLBound, rc=localrc)
     if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
       ESMF_CONTEXT, rcToReturn=rc)) return
     computationalUBoundArg = &
-      ESMF_InterfaceIntCreate(farray2D=computationalUBound, rc=localrc)
+      ESMF_InterArrayCreate(farray2D=computationalUBound, rc=localrc)
     if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
       ESMF_CONTEXT, rcToReturn=rc)) return
-    totalLBoundArg = ESMF_InterfaceIntCreate(farray2D=totalLBound, rc=localrc)
+    totalLBoundArg = ESMF_InterArrayCreate(farray2D=totalLBound, rc=localrc)
     if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
       ESMF_CONTEXT, rcToReturn=rc)) return
-    totalUBoundArg = ESMF_InterfaceIntCreate(farray2D=totalUBound, rc=localrc)
+    totalUBoundArg = ESMF_InterArrayCreate(farray2D=totalUBound, rc=localrc)
     if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
       ESMF_CONTEXT, rcToReturn=rc)) return
     computationalLWidthArg = &
-      ESMF_InterfaceIntCreate(farray2D=computationalLWidth, rc=localrc)
+      ESMF_InterArrayCreate(farray2D=computationalLWidth, rc=localrc)
     if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
       ESMF_CONTEXT, rcToReturn=rc)) return
     computationalUWidthArg = &
-      ESMF_InterfaceIntCreate(farray2D=computationalUWidth, rc=localrc)
+      ESMF_InterArrayCreate(farray2D=computationalUWidth, rc=localrc)
     if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
       ESMF_CONTEXT, rcToReturn=rc)) return
-    totalLWidthArg = ESMF_InterfaceIntCreate(farray2D=totalLWidth, rc=localrc)
+    totalLWidthArg = ESMF_InterArrayCreate(farray2D=totalLWidth, rc=localrc)
     if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
       ESMF_CONTEXT, rcToReturn=rc)) return
-    totalUWidthArg = ESMF_InterfaceIntCreate(farray2D=totalUWidth, rc=localrc)
+    totalUWidthArg = ESMF_InterArrayCreate(farray2D=totalUWidth, rc=localrc)
     if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
       ESMF_CONTEXT, rcToReturn=rc)) return
 
@@ -472,49 +465,49 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
     
     ! Garbage collection
     deallocate(opt_localarrayPtrList)
-    call ESMF_InterfaceIntDestroy(distgridToArrayMapArg, rc=localrc)
+    call ESMF_InterArrayDestroy(distgridToArrayMapArg, rc=localrc)
     if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
       ESMF_CONTEXT, rcToReturn=rc)) return
-    call ESMF_InterfaceIntDestroy(distgridToPackedArrayMapArg, rc=localrc)
+    call ESMF_InterArrayDestroy(distgridToPackedArrayMapArg, rc=localrc)
     if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
       ESMF_CONTEXT, rcToReturn=rc)) return
-    call ESMF_InterfaceIntDestroy(arrayToDistGridMapArg, rc=localrc)
+    call ESMF_InterArrayDestroy(arrayToDistGridMapArg, rc=localrc)
     if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
       ESMF_CONTEXT, rcToReturn=rc)) return
-    call ESMF_InterfaceIntDestroy(undistLBoundArg, rc=localrc)
+    call ESMF_InterArrayDestroy(undistLBoundArg, rc=localrc)
     if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
       ESMF_CONTEXT, rcToReturn=rc)) return
-    call ESMF_InterfaceIntDestroy(undistUBoundArg, rc=localrc)
+    call ESMF_InterArrayDestroy(undistUBoundArg, rc=localrc)
     if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
       ESMF_CONTEXT, rcToReturn=rc)) return
-    call ESMF_InterfaceIntDestroy(exclusiveLBoundArg, rc=localrc)
+    call ESMF_InterArrayDestroy(exclusiveLBoundArg, rc=localrc)
     if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
       ESMF_CONTEXT, rcToReturn=rc)) return
-    call ESMF_InterfaceIntDestroy(exclusiveUBoundArg, rc=localrc)
+    call ESMF_InterArrayDestroy(exclusiveUBoundArg, rc=localrc)
     if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
       ESMF_CONTEXT, rcToReturn=rc)) return
-    call ESMF_InterfaceIntDestroy(computationalLBoundArg, rc=localrc)
+    call ESMF_InterArrayDestroy(computationalLBoundArg, rc=localrc)
     if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
       ESMF_CONTEXT, rcToReturn=rc)) return
-    call ESMF_InterfaceIntDestroy(computationalUBoundArg, rc=localrc)
+    call ESMF_InterArrayDestroy(computationalUBoundArg, rc=localrc)
     if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
       ESMF_CONTEXT, rcToReturn=rc)) return
-    call ESMF_InterfaceIntDestroy(totalLBoundArg, rc=localrc)
+    call ESMF_InterArrayDestroy(totalLBoundArg, rc=localrc)
     if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
       ESMF_CONTEXT, rcToReturn=rc)) return
-    call ESMF_InterfaceIntDestroy(totalUBoundArg, rc=localrc)
+    call ESMF_InterArrayDestroy(totalUBoundArg, rc=localrc)
     if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
       ESMF_CONTEXT, rcToReturn=rc)) return
-    call ESMF_InterfaceIntDestroy(computationalLWidthArg, rc=localrc)
+    call ESMF_InterArrayDestroy(computationalLWidthArg, rc=localrc)
     if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
       ESMF_CONTEXT, rcToReturn=rc)) return
-    call ESMF_InterfaceIntDestroy(computationalUWidthArg, rc=localrc)
+    call ESMF_InterArrayDestroy(computationalUWidthArg, rc=localrc)
     if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
       ESMF_CONTEXT, rcToReturn=rc)) return
-    call ESMF_InterfaceIntDestroy(totalLWidthArg, rc=localrc)
+    call ESMF_InterArrayDestroy(totalLWidthArg, rc=localrc)
     if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
       ESMF_CONTEXT, rcToReturn=rc)) return
-    call ESMF_InterfaceIntDestroy(totalUWidthArg, rc=localrc)
+    call ESMF_InterArrayDestroy(totalUWidthArg, rc=localrc)
     if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
       ESMF_CONTEXT, rcToReturn=rc)) return
       
@@ -551,9 +544,12 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 
     ! extra code to deal with deprecated arguments -> will be removed eventually
     if (present(localDeList)) then
-      call ESMF_LogWrite("The use of argument 'localDeList' in call " CONCAT/ &
-        "ESMF_ArrayGet() is DEPRECATED! Use argument 'localDeToDeMap' " CONCAT/ &
-        "instead.", ESMF_LOGMSG_WARNING, rc=localrc)
+      call ESMF_LogWrite("The use of DEPRECATED argument 'localDeList' in call ESMF_ArrayGet()!",  &
+          ESMF_LOGMSG_WARNING, rc=localrc)
+      if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+        ESMF_CONTEXT, rcToReturn=rc)) return
+      call ESMF_LogWrite("Use argument 'localDeToDeMap' instead.",  &
+          ESMF_LOGMSG_WARNING, rc=localrc)
       if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
         ESMF_CONTEXT, rcToReturn=rc)) return
       if (present(localDeToDeMap)) then
@@ -792,8 +788,7 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 @\
     ! Local variables @\
     integer                             :: localrc     ! local return code @\
-    integer                             :: rank @\
-    type(ESMF_TypeKind_Flag)                 :: typekind @\
+    integer                             :: localDeArg @\
     type(ESMF_LocalArray)               :: localarray @\
 @\
     ! Initialize return code @\
@@ -803,30 +798,23 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
     ! Check init status of arguments @\
     ESMF_INIT_CHECK_DEEP(ESMF_ArrayGetInit, array, rc) @\
 @\
-    ! Check consistency @\
-    call ESMF_ArrayGet(array, typekind=typekind, rank=rank, rc=localrc) @\
+    ! Deal with optional localDe argument @\
+    if (present(localDe)) then @\
+      localDeArg = localDe @\
+    else @\
+      localDeArg = 0 ! default @\
+    endif @\
+    ! Call into the C++ interface to get LocalArray for localDe @\
+    call c_ESMC_ArrayGetLArray(array, localDeArg, localarray, localrc) @\
     if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, & @\
       ESMF_CONTEXT, rcToReturn=rc)) return @\
-    ! Require farrayPtr typekind to match Array typekind @\
-    if (typekind /= ESMF_TYPEKIND_##mtypekind) then @\
-      call ESMF_LogSetError(rcToCheck=ESMF_RC_ARG_INCOMP, & @\
-        msg="- farrayPtr typekind does not match Array typekind", & @\
-        ESMF_CONTEXT, rcToReturn=rc) @\
-      return @\
-    endif @\
-    ! Require farrayPtr rank to match Array rank @\
-    if (rank /= mrank) then @\
-      call ESMF_LogSetError(rcToCheck=ESMF_RC_ARG_INCOMP, & @\
-        msg="- farrayPtr rank does not match Array rank", & @\
-        ESMF_CONTEXT, rcToReturn=rc) @\
-      return @\
-    endif @\
-@\
+    ! Must set the initializer macro to satisfy Fortran interface @\
+    call ESMF_LocalArraySetInitCreated(localarray, rc=localrc) @\
+    if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, & @\
+      ESMF_CONTEXT, rcToReturn=rc)) return @\
     ! Obtain the native Fortran array pointer via the LocalArray interface @\
-    call ESMF_ArrayGet(array, localDe=localDe, localarray=localarray, rc=localrc) @\
-    if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, & @\
-      ESMF_CONTEXT, rcToReturn=rc)) return @\
-    call ESMF_LocalArrayGet(localarray, farrayPtr, datacopyflag=ESMF_DATACOPY_REFERENCE, rc=localrc) @\
+    call ESMF_LocalArrayGet(localarray, farrayPtr, & @\
+      datacopyflag=ESMF_DATACOPY_REFERENCE, rc=localrc) @\
     if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, & @\
       ESMF_CONTEXT, rcToReturn=rc)) return @\
 @\
@@ -1117,98 +1105,6 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
     zeroregion = ESMF_REGION_EMPTY  ! quiet down compiler warnings while not fully implemented
     
   end subroutine ESMF_ArrayGetHalo
-!------------------------------------------------------------------------------
-
-
-! -------------------------- ESMF-internal method -----------------------------
-^undef  ESMF_METHOD
-^define ESMF_METHOD "ESMF_ArrayConstructPioDof()"
-!BOPI
-! !IROUTINE: ESMF_ArrayConstructPioDof - Construct PIO DOF list for localDe
-
-! !INTERFACE:
-  subroutine ESMF_ArrayConstructPioDof(array, localDe, pioDofList, &
-    pioDofCount, rc)
-!
-! !ARGUMENTS:
-    type(ESMF_Array),       intent(in)            :: array
-    integer,                intent(in),  optional :: localDe
-    integer,        target, intent(out), optional :: pioDofList(:)
-    integer,                intent(out), optional :: pioDofCount
-    integer,                intent(out), optional :: rc
-!
-! !DESCRIPTION:
-!   Construct PIO DOF list from Array for localDe.
-!
-!   The arguments are:
-!   \begin{description}
-!   \item[array]
-!     {\tt ESMF\_Array} object.
-!   \item[{[localDe]}]
-!     Local DE for which information is requested. {\tt [0,..,localDeCount-1]}.
-!     Default is localDe 0.
-!   \item[{[pioDofList]}]
-!     List that holds PIO DOF entries on return.
-!   \item[{[pioDofCount]}]
-!     Number of elements in {\tt pioDofList}.
-!   \item[{[rc]}]
-!     Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
-!   \end{description}
-!
-!EOPI
-!------------------------------------------------------------------------------
-    integer                 :: localrc            ! local return code
-    type(ESMF_DELayout)     :: delayout
-    integer                 :: localDeCount
-    integer                 :: localDeArg         ! helper variable
-    type(ESMF_InterfaceInt) :: pioDofListArg      ! helper variable
-
-    ! initialize return code; assume routine not implemented
-    localrc = ESMF_RC_NOT_IMPL
-    if (present(rc)) rc = ESMF_RC_NOT_IMPL
-    
-    ! Check init status of arguments
-    ESMF_INIT_CHECK_DEEP(ESMF_ArrayGetInit, array, rc)
-    
-    ! Deal with optional localDe argument
-    if (present(localDe)) then
-      localDeArg = localDe
-    else
-      call ESMF_ArrayGet(array, delayout=delayout, rc=localrc)
-      if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
-        ESMF_CONTEXT, rcToReturn=rc)) return
-      call ESMF_DELayoutGet(delayout, localDeCount=localDeCount, rc=localrc)
-      if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
-        ESMF_CONTEXT, rcToReturn=rc)) return
-      if (localDeCount == 1) then
-        localDeArg = 0 ! default
-      else
-        call ESMF_LogSetError(rcToCheck=ESMF_RC_ARG_OPT, &
-          msg="- must provide optional localDe argument for localDeCount > 1", &
-          ESMF_CONTEXT, rcToReturn=rc)
-      endif
-    endif
-    
-    ! Deal with (optional) array arguments
-    pioDofListArg = ESMF_InterfaceIntCreate(pioDofList, rc=localrc)
-    if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
-      ESMF_CONTEXT, rcToReturn=rc)) return
-
-    ! call into the C++ interface, which will sort out optional arguments
-    call c_ESMC_ArrayConstructPioDof(array, localDeArg, pioDofListArg, &
-      pioDofCount, localrc)
-    if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
-      ESMF_CONTEXT, rcToReturn=rc)) return
-      
-    ! garbage collection
-    call ESMF_InterfaceIntDestroy(pioDofListArg, rc=localrc)
-    if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
-      ESMF_CONTEXT, rcToReturn=rc)) return
-
-    ! return successfully
-    if (present(rc)) rc = ESMF_SUCCESS
-
-  end subroutine ESMF_ArrayConstructPioDof
 !------------------------------------------------------------------------------
 
 

@@ -1,7 +1,7 @@
 // $Id$
 //
 // Earth System Modeling Framework
-// Copyright 2002-2012, University Corporation for Atmospheric Research, 
+// Copyright 2002-2018, University Corporation for Atmospheric Research, 
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
 // Laboratory, University of Michigan, National Centers for Environmental 
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
@@ -17,12 +17,14 @@
 //------------------------------------------------------------------------------
 // INCLUDES
 //------------------------------------------------------------------------------
-#include "ESMCI_F90Interface.h"
-#include "ESMCI_Macros.h"
 #include "ESMCI_VM.h"
 
-#include "ESMCI_LogErr.h"                  // for LogErr
-#include "ESMF_LogMacros.inc"             // for LogErr
+#include "ESMCI_F90Interface.h"
+#include "ESMCI_Macros.h"
+#include "ESMCI_LogErr.h"
+
+#include <string>
+
 //------------------------------------------------------------------------------
 //BOP
 // !DESCRIPTION:
@@ -43,8 +45,8 @@ extern "C" {
   // ESMCI::VM interfaces
   // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   
-  void FTN(c_esmc_vmallfullreduce)(ESMCI::VM **vm, void *input, void *output, 
-    int *count, ESMC_TypeKind *dtk, ESMC_Operation *op, int *rc){
+  void FTN_X(c_esmc_vmallfullreduce)(ESMCI::VM **vm, void *input, void *output, 
+    int *count, ESMC_TypeKind_Flag *dtk, ESMC_Operation *op, int *rc){
 #undef  ESMC_METHOD
 #define ESMC_METHOD "c_esmc_vmallfullreduce()"
     // Initialize return code; assume routine not implemented
@@ -57,6 +59,9 @@ extern "C" {
     case ESMC_TYPEKIND_I4:
       vmt = vmI4;
       break;
+    case ESMC_TYPEKIND_I8:
+      vmt = vmI8;
+      break;
     case ESMC_TYPEKIND_R4:
       vmt = vmR4;
       break;
@@ -67,12 +72,13 @@ extern "C" {
       localrc = ESMC_RC_ARG_BAD;
     }
     if (ESMC_LogDefault.MsgFoundError(localrc,"Unsupported data type.",
-      rc)) return;
+      ESMC_CONTEXT, rc)) return;
     localrc = (*vm)->allfullreduce(input, output, *count, vmt, (vmOp)(*op));
     if (localrc){
       char *message = new char[160];
       sprintf(message, "VMKernel/MPI error #%d\n", localrc);
-      ESMC_LogDefault.MsgFoundError(ESMF_RC_INTNRL_BAD, message, rc);
+      ESMC_LogDefault.MsgFoundError(ESMF_RC_INTNRL_BAD, message, ESMC_CONTEXT,
+        rc);
       delete [] message;
       return;
     }
@@ -80,7 +86,7 @@ extern "C" {
     if (rc!=NULL) *rc = ESMF_SUCCESS;
   }
 
-  void FTN(c_esmc_vmallgather)(ESMCI::VM **vm, void *input, void *output, 
+  void FTN_X(c_esmc_vmallgather)(ESMCI::VM **vm, void *input, void *output, 
     int *size, int *rc){
 #undef  ESMC_METHOD
 #define ESMC_METHOD "c_esmc_vmallgather()"
@@ -91,7 +97,8 @@ extern "C" {
     if (localrc){
       char *message = new char[160];
       sprintf(message, "VMKernel/MPI error #%d\n", localrc);
-      ESMC_LogDefault.MsgFoundError(ESMF_RC_INTNRL_BAD, message, rc);
+      ESMC_LogDefault.MsgFoundError(ESMF_RC_INTNRL_BAD, message, ESMC_CONTEXT,
+        rc);
       delete [] message;
       return;
     }
@@ -99,7 +106,7 @@ extern "C" {
     if (rc!=NULL) *rc = ESMF_SUCCESS;
   }
 
-  void FTN(c_esmc_vmallgathernb)(ESMCI::VM **vm, void *input, void *output, 
+  void FTN_X(c_esmc_vmallgathernb)(ESMCI::VM **vm, void *input, void *output, 
     int *size, void **commhandle, int *rc){
 #undef  ESMC_METHOD
 #define ESMC_METHOD "c_esmc_vmallgathernb()"
@@ -112,7 +119,8 @@ extern "C" {
     if (localrc){
       char *message = new char[160];
       sprintf(message, "VMKernel/MPI error #%d\n", localrc);
-      ESMC_LogDefault.MsgFoundError(ESMF_RC_INTNRL_BAD, message, rc);
+      ESMC_LogDefault.MsgFoundError(ESMF_RC_INTNRL_BAD, message, ESMC_CONTEXT,
+        rc);
       delete [] message;
       return;
     }
@@ -120,9 +128,11 @@ extern "C" {
     if (rc!=NULL) *rc = ESMF_SUCCESS;
   }
 
-  void FTN(c_esmc_vmallgatherv)(ESMCI::VM **vm, void *sendData, int *sendCount,
-    void *recvData, int *recvCounts, int *recvOffsets, ESMC_TypeKind *dtk, 
-    int *rc){
+  void FTN_X(c_esmc_vmallgatherv)(ESMCI::VM **vm,
+    void *sendData, int *sendCount,
+    void *recvData, int *recvCounts, int *recvOffsets,
+    ESMC_TypeKind_Flag *dtk, int *rc,
+    ESMCI_FortranStrLenArg sendData_len, ESMCI_FortranStrLenArg recvData_len){
 #undef  ESMC_METHOD
 #define ESMC_METHOD "c_esmc_vmallgatherv()"
     // Initialize return code; assume routine not implemented
@@ -135,23 +145,33 @@ extern "C" {
     case ESMC_TYPEKIND_I4:
       vmt = vmI4;
       break;
+    case ESMC_TYPEKIND_I8:
+      vmt = vmI8;
+      break;
     case ESMC_TYPEKIND_R4:
       vmt = vmR4;
       break;
     case ESMC_TYPEKIND_R8:
       vmt = vmR8;
       break;
+    case ESMC_TYPEKIND_CHARACTER:
+      if (sendData_len == 1 && recvData_len == 1)
+        vmt = vmBYTE;
+      else
+        localrc = ESMF_RC_ARG_SIZE;  // TODO: fix this
+      break;
     default:
       localrc = ESMC_RC_ARG_BAD;
     }
     if (ESMC_LogDefault.MsgFoundError(localrc, "Unsupported data type.",
-      rc)) return;
+      ESMC_CONTEXT, rc)) return;
     localrc = (*vm)->allgatherv(sendData, *sendCount, recvData, recvCounts,
       recvOffsets, vmt);
     if (localrc){
       char *message = new char[160];
       sprintf(message, "VMKernel/MPI error #%d\n", localrc);
-      ESMC_LogDefault.MsgFoundError(ESMF_RC_INTNRL_BAD, message, rc);
+      ESMC_LogDefault.MsgFoundError(ESMF_RC_INTNRL_BAD, message, ESMC_CONTEXT,
+        rc);
       delete [] message;
       return;
     }
@@ -159,8 +179,8 @@ extern "C" {
     if (rc!=NULL) *rc = ESMF_SUCCESS;
   }
   
-  void FTN(c_esmc_vmallreduce)(ESMCI::VM **vm, void *input, void *output, 
-    int *count, ESMC_TypeKind *dtk, ESMC_Operation *op, int *rc){
+  void FTN_X(c_esmc_vmallreduce)(ESMCI::VM **vm, void *input, void *output, 
+    int *count, ESMC_TypeKind_Flag *dtk, ESMC_Operation *op, int *rc){
 #undef  ESMC_METHOD
 #define ESMC_METHOD "c_esmc_vmallreduce()"
     // Initialize return code; assume routine not implemented
@@ -173,6 +193,9 @@ extern "C" {
     case ESMC_TYPEKIND_I4:
       vmt = vmI4;
       break;
+    case ESMC_TYPEKIND_I8:
+      vmt = vmI8;
+      break;
     case ESMC_TYPEKIND_R4:
       vmt = vmR4;
       break;
@@ -183,12 +206,13 @@ extern "C" {
       localrc = ESMC_RC_ARG_BAD;
     }
     if (ESMC_LogDefault.MsgFoundError(localrc, "Unsupported data type.",
-      rc)) return;
+      ESMC_CONTEXT, rc)) return;
     localrc = (*vm)->allreduce(input, output, *count, vmt, (vmOp)(*op));
     if (localrc){
       char *message = new char[160];
       sprintf(message, "VMKernel/MPI error #%d\n", localrc);
-      ESMC_LogDefault.MsgFoundError(ESMF_RC_INTNRL_BAD, message, rc);
+      ESMC_LogDefault.MsgFoundError(ESMF_RC_INTNRL_BAD, message, ESMC_CONTEXT,
+        rc);
       delete [] message;
       return;
     }
@@ -196,9 +220,55 @@ extern "C" {
     if (rc!=NULL) *rc = ESMF_SUCCESS;
   }
 
-  void FTN(c_esmc_vmalltoallv)(ESMCI::VM **vm, void *sendData, int *sendCounts,
-    int *sendOffsets, void *recvData, int *recvCounts, int *recvOffsets, 
-    ESMC_TypeKind *dtk, int *rc){
+  void FTN_X(c_esmc_vmalltoall)(ESMCI::VM **vm,
+    void *sendData, int *sendCount,
+    void *recvData, int *recvCount, 
+    ESMC_TypeKind_Flag *dtk, int *rc){
+#undef  ESMC_METHOD
+#define ESMC_METHOD "c_esmc_vmalltoall()"
+    // Initialize return code; assume routine not implemented
+    if (rc!=NULL) *rc = ESMC_RC_NOT_IMPL;
+    // start assuming local success
+    int localrc = ESMF_SUCCESS;
+    // need to type cast or transform dtk and op into ESMCI::VMK types
+    vmType vmt;
+    switch (*dtk){
+    case ESMC_TYPEKIND_I4:
+      vmt = vmI4;
+      break;
+    case ESMC_TYPEKIND_I8:
+      vmt = vmI8;
+      break;
+    case ESMC_TYPEKIND_R4:
+      vmt = vmR4;
+      break;
+    case ESMC_TYPEKIND_R8:
+      vmt = vmR8;
+      break;
+    default:
+      localrc = ESMC_RC_ARG_BAD;
+    }
+    if (ESMC_LogDefault.MsgFoundError(localrc, "Unsupported data type.",
+      ESMC_CONTEXT, rc)) return;
+    localrc = (*vm)->alltoall(sendData, *sendCount,
+      recvData, *recvCount, vmt);
+    if (localrc){
+      char *message = new char[160];
+      sprintf(message, "VMKernel/MPI error #%d\n", localrc);
+      ESMC_LogDefault.MsgFoundError(ESMF_RC_INTNRL_BAD, message, ESMC_CONTEXT,
+        rc);
+      delete [] message;
+      return;
+    }
+    // return successfully
+    if (rc!=NULL) *rc = ESMF_SUCCESS;
+  }
+
+  void FTN_X(c_esmc_vmalltoallv)(ESMCI::VM **vm,
+    void *sendData, int *sendCounts, int *sendOffsets,
+    void *recvData, int *recvCounts, int *recvOffsets, 
+    ESMC_TypeKind_Flag *dtk, int *rc,
+    ESMCI_FortranStrLenArg sendData_len, ESMCI_FortranStrLenArg recvData_len){
 #undef  ESMC_METHOD
 #define ESMC_METHOD "c_esmc_vmalltoallv()"
     // Initialize return code; assume routine not implemented
@@ -211,23 +281,33 @@ extern "C" {
     case ESMC_TYPEKIND_I4:
       vmt = vmI4;
       break;
+    case ESMC_TYPEKIND_I8:
+      vmt = vmI8;
+      break;
     case ESMC_TYPEKIND_R4:
       vmt = vmR4;
       break;
     case ESMC_TYPEKIND_R8:
       vmt = vmR8;
       break;
+    case ESMC_TYPEKIND_CHARACTER:
+      if (sendData_len == 1 && recvData_len == 1)
+        vmt = vmBYTE;
+      else
+        localrc = ESMF_RC_ARG_SIZE;  // TODO: fix this
+      break;
     default:
       localrc = ESMC_RC_ARG_BAD;
     }
     if (ESMC_LogDefault.MsgFoundError(localrc, "Unsupported data type.",
-      rc)) return;
+      ESMC_CONTEXT, rc)) return;
     localrc = (*vm)->alltoallv(sendData, sendCounts, sendOffsets, recvData,
       recvCounts, recvOffsets, vmt);
     if (localrc){
       char *message = new char[160];
       sprintf(message, "VMKernel/MPI error #%d\n", localrc);
-      ESMC_LogDefault.MsgFoundError(ESMF_RC_INTNRL_BAD, message, rc);
+      ESMC_LogDefault.MsgFoundError(ESMF_RC_INTNRL_BAD, message, ESMC_CONTEXT,
+        rc);
       delete [] message;
       return;
     }
@@ -235,7 +315,7 @@ extern "C" {
     if (rc!=NULL) *rc = ESMF_SUCCESS;
   }
 
-  void FTN(c_esmc_vmbarrier)(ESMCI::VM **ptr, int *rc){
+  void FTN_X(c_esmc_vmbarrier)(ESMCI::VM **ptr, int *rc){
 #undef  ESMC_METHOD
 #define ESMC_METHOD "c_esmc_vmbarrier()"
     // Initialize return code; assume routine not implemented
@@ -245,7 +325,8 @@ extern "C" {
     if (localrc){
       char *message = new char[160];
       sprintf(message, "VMKernel/MPI error #%d\n", localrc);
-      ESMC_LogDefault.MsgFoundError(ESMF_RC_INTNRL_BAD, message, rc);
+      ESMC_LogDefault.MsgFoundError(ESMF_RC_INTNRL_BAD, message, ESMC_CONTEXT,
+        rc);
       delete [] message;
       return;
     }
@@ -253,7 +334,7 @@ extern "C" {
     if (rc!=NULL) *rc = ESMF_SUCCESS;
   }
 
-  void FTN(c_esmc_vmbroadcast)(ESMCI::VM **vm, void *data, int *size, int *root,
+  void FTN_X(c_esmc_vmbroadcast)(ESMCI::VM **vm, void *data, int *size, int *root,
     int *rc){
 #undef  ESMC_METHOD
 #define ESMC_METHOD "c_esmc_vmbroadcast()"
@@ -264,7 +345,8 @@ extern "C" {
     if (localrc){
       char *message = new char[160];
       sprintf(message, "VMKernel/MPI error #%d\n", localrc);
-      ESMC_LogDefault.MsgFoundError(ESMF_RC_INTNRL_BAD, message, rc);
+      ESMC_LogDefault.MsgFoundError(ESMF_RC_INTNRL_BAD, message, ESMC_CONTEXT,
+        rc);
       delete [] message;
       return;
     }
@@ -272,7 +354,7 @@ extern "C" {
     if (rc!=NULL) *rc = ESMF_SUCCESS;
   }
   
-  void FTN(c_esmc_vmbroadcastnb)(ESMCI::VM **vm, void *data, int *size,
+  void FTN_X(c_esmc_vmbroadcastnb)(ESMCI::VM **vm, void *data, int *size,
     int *root, void **commhandle, int *rc){
 #undef  ESMC_METHOD
 #define ESMC_METHOD "c_esmc_vmbroadcast()"
@@ -285,7 +367,8 @@ extern "C" {
     if (localrc){
       char *message = new char[160];
       sprintf(message, "VMKernel/MPI error #%d\n", localrc);
-      ESMC_LogDefault.MsgFoundError(ESMF_RC_INTNRL_BAD, message, rc);
+      ESMC_LogDefault.MsgFoundError(ESMF_RC_INTNRL_BAD, message, ESMC_CONTEXT,
+        rc);
       delete [] message;
       return;
     }
@@ -293,7 +376,7 @@ extern "C" {
     if (rc!=NULL) *rc = ESMF_SUCCESS;
   }
   
-  void FTN(c_esmc_vmgather)(ESMCI::VM **vm, void *input, void *output,
+  void FTN_X(c_esmc_vmgather)(ESMCI::VM **vm, void *input, void *output,
     int *size, int *root, int *rc){
 #undef  ESMC_METHOD
 #define ESMC_METHOD "c_esmc_vmgather()"
@@ -304,7 +387,8 @@ extern "C" {
     if (localrc){
       char *message = new char[160];
       sprintf(message, "VMKernel/MPI error #%d\n", localrc);
-      ESMC_LogDefault.MsgFoundError(ESMF_RC_INTNRL_BAD, message, rc);
+      ESMC_LogDefault.MsgFoundError(ESMF_RC_INTNRL_BAD, message, ESMC_CONTEXT,
+        rc);
       delete [] message;
       return;
     }
@@ -312,7 +396,7 @@ extern "C" {
     if (rc!=NULL) *rc = ESMF_SUCCESS;
   }
 
-  void FTN(c_esmc_vmgathernb)(ESMCI::VM **vm, void *input, void *output, 
+  void FTN_X(c_esmc_vmgathernb)(ESMCI::VM **vm, void *input, void *output, 
     int *size, int *root, void **commhandle, int *rc){
 #undef  ESMC_METHOD
 #define ESMC_METHOD "c_esmc_vmgathernb()"
@@ -325,7 +409,8 @@ extern "C" {
     if (localrc){
       char *message = new char[160];
       sprintf(message, "VMKernel/MPI error #%d\n", localrc);
-      ESMC_LogDefault.MsgFoundError(ESMF_RC_INTNRL_BAD, message, rc);
+      ESMC_LogDefault.MsgFoundError(ESMF_RC_INTNRL_BAD, message, ESMC_CONTEXT,
+        rc);
       delete [] message;
       return;
     }
@@ -333,8 +418,8 @@ extern "C" {
     if (rc!=NULL) *rc = ESMF_SUCCESS;
   }
 
-  void FTN(c_esmc_vmgatherv)(ESMCI::VM **vm, void *sendData, int *sendCount,
-    void *recvData, int *recvCounts, int *recvOffsets, ESMC_TypeKind *dtk, 
+  void FTN_X(c_esmc_vmgatherv)(ESMCI::VM **vm, void *sendData, int *sendCount,
+    void *recvData, int *recvCounts, int *recvOffsets, ESMC_TypeKind_Flag *dtk, 
     int *root, int *rc){
 #undef  ESMC_METHOD
 #define ESMC_METHOD "c_esmc_vmgatherv()"
@@ -348,6 +433,9 @@ extern "C" {
     case ESMC_TYPEKIND_I4:
       vmt = vmI4;
       break;
+    case ESMC_TYPEKIND_I8:
+      vmt = vmI8;
+      break;
     case ESMC_TYPEKIND_R4:
       vmt = vmR4;
       break;
@@ -358,13 +446,14 @@ extern "C" {
       localrc = ESMC_RC_ARG_BAD;
     }
     if (ESMC_LogDefault.MsgFoundError(localrc, "Unsupported data type.",
-      rc)) return;
+      ESMC_CONTEXT, rc)) return;
     localrc = (*vm)->gatherv(sendData, *sendCount, recvData, recvCounts,
       recvOffsets, vmt, *root);
     if (localrc){
       char *message = new char[160];
       sprintf(message, "VMKernel/MPI error #%d\n", localrc);
-      ESMC_LogDefault.MsgFoundError(ESMF_RC_INTNRL_BAD, message, rc);
+      ESMC_LogDefault.MsgFoundError(ESMF_RC_INTNRL_BAD, message, ESMC_CONTEXT,
+        rc);
       delete [] message;
       return;
     }
@@ -372,7 +461,7 @@ extern "C" {
     if (rc!=NULL) *rc = ESMF_SUCCESS;
   }
   
-  void FTN(c_esmc_vmget)(ESMCI::VM **ptr, int *localPet, int *petCount, 
+  void FTN_X(c_esmc_vmget)(ESMCI::VM **ptr, int *localPet, int *petCount, 
     int *peCount, int *mpiCommunicator, ESMC_Logical *pthreadsEnabledFlag,
     ESMC_Logical *openMPEnabledFlag, int *rc){
 #undef  ESMC_METHOD
@@ -415,8 +504,9 @@ extern "C" {
     if (rc!=NULL) *rc = ESMF_SUCCESS;
   }
 
-  void FTN(c_esmc_vmgetpetlocalinfo)(ESMCI::VM **ptr, int *pet, int *peCount, 
-    int *ssiId, int *threadCount, int *threadId, int *vas, int *rc){
+  void FTN_X(c_esmc_vmgetpetlocalinfo)(ESMCI::VM **ptr, int *pet, int *peCount, 
+    int *accDeviceCount, int *ssiId, int *threadCount, int *threadId,
+    int *vas, int *rc){
 #undef  ESMC_METHOD
 #define ESMC_METHOD "c_esmc_vmgetpetlocalinfo()"
     // Initialize return code; assume routine not implemented
@@ -425,12 +515,14 @@ extern "C" {
     int petCount = (*ptr)->getPetCount();
     if (*pet < 0 || *pet >= petCount){
       ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_BAD,
-        "- provided pet id is out of range", rc);
+        "- provided pet id is out of range", ESMC_CONTEXT, rc);
       return;
     }
     // fill return values
     if (ESMC_NOT_PRESENT_FILTER(peCount) != ESMC_NULL_POINTER)
       *peCount = (*ptr)->getNcpet(*pet);
+    if (ESMC_NOT_PRESENT_FILTER(accDeviceCount) != ESMC_NULL_POINTER)
+      *accDeviceCount = (*ptr)->getNadevs(*pet);
     if (ESMC_NOT_PRESENT_FILTER(ssiId) != ESMC_NULL_POINTER)
       *ssiId = (*ptr)->getSsiid(*pet);
     if (ESMC_NOT_PRESENT_FILTER(threadCount) != ESMC_NULL_POINTER)
@@ -443,27 +535,28 @@ extern "C" {
     if (rc!=NULL) *rc = ESMF_SUCCESS;
   }
   
-  void FTN(c_esmc_vmgetvmid)(ESMCI::VM **ptr, ESMCI::VMId **vmid, int *rc){
+  void FTN_X(c_esmc_vmgetvmid)(ESMCI::VM **ptr, ESMCI::VMId **vmid, int *rc){
 #undef  ESMC_METHOD
 #define ESMC_METHOD "c_esmc_vmgetvmid()"
     // Initialize return code; assume routine not implemented
     if (rc!=NULL) *rc = ESMC_RC_NOT_IMPL;
     int localrc = ESMC_RC_NOT_IMPL;
     *vmid = (*ptr)->getVMId(&localrc);
-    if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, rc))
+    if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, ESMC_CONTEXT,
+      rc))
       return;
     // return successfully
     if (rc!=NULL) *rc = ESMF_SUCCESS;
   }
 
-  void FTN(c_esmc_vmprint)(ESMCI::VM **ptr, int *rc){
+  void FTN_X(c_esmc_vmprint)(ESMCI::VM **ptr, int *rc){
 #undef  ESMC_METHOD
 #define ESMC_METHOD "c_esmc_vmprint()"
     // Initialize return code; assume routine not implemented
     if (rc!=NULL) *rc = ESMC_RC_NOT_IMPL;
     // Call into the actual C++ method wrapped inside LogErr handling
     if (ESMC_LogDefault.MsgFoundError((*ptr)->print(),
-      ESMCI_ERR_PASSTHRU,
+      ESMCI_ERR_PASSTHRU, ESMC_CONTEXT,
       ESMC_NOT_PRESENT_FILTER(rc))) return;
     // Flush before crossing language interface to ensure correct output order
     fflush(stdout);
@@ -471,20 +564,28 @@ extern "C" {
     if (rc!=NULL) *rc = ESMF_SUCCESS;
   }
 
-  void FTN(c_esmc_vmvalidate)(ESMCI::VM **ptr, int *rc){
+  void FTN_X(c_esmc_vmprintmatchtable)(ESMCI::VM **ptr){
+#undef  ESMC_METHOD
+#define ESMC_METHOD "c_esmc_vmprintmatchtable()"
+    (*ptr)->printMatchTable();
+    // Flush before crossing language interface to ensure correct output order
+    fflush(stdout);
+  }
+
+  void FTN_X(c_esmc_vmvalidate)(ESMCI::VM **ptr, int *rc){
 #undef  ESMC_METHOD
 #define ESMC_METHOD "c_esmc_vmvalidate()"
     // Initialize return code; assume routine not implemented
     if (rc!=NULL) *rc = ESMC_RC_NOT_IMPL;
     // Call into the actual C++ method wrapped inside LogErr handling
     if (ESMC_LogDefault.MsgFoundError((*ptr)->validate(),
-      ESMCI_ERR_PASSTHRU,
+      ESMCI_ERR_PASSTHRU, ESMC_CONTEXT,
       ESMC_NOT_PRESENT_FILTER(rc))) return;
     // return successfully
     if (rc!=NULL) *rc = ESMF_SUCCESS;
   }
 
-  void FTN(c_esmc_vmrecv)(ESMCI::VM **ptr, void *message, int *size,
+  void FTN_X(c_esmc_vmrecv)(ESMCI::VM **ptr, void *message, int *size,
     int *source, int *rc){
 #undef  ESMC_METHOD
 #define ESMC_METHOD "c_esmc_vmrecv()"
@@ -495,7 +596,8 @@ extern "C" {
     if (localrc){
       char *message = new char[160];
       sprintf(message, "VMKernel/MPI error #%d\n", localrc);
-      ESMC_LogDefault.MsgFoundError(ESMF_RC_INTNRL_BAD, message, rc);
+      ESMC_LogDefault.MsgFoundError(ESMF_RC_INTNRL_BAD, message, ESMC_CONTEXT,
+        rc);
       delete [] message;
       return;
     }
@@ -503,7 +605,7 @@ extern "C" {
     if (rc!=NULL) *rc = ESMF_SUCCESS;
   }
 
-  void FTN(c_esmc_vmrecvnb)(ESMCI::VM **ptr, void *message, int *size, 
+  void FTN_X(c_esmc_vmrecvnb)(ESMCI::VM **ptr, void *message, int *size, 
     int *source, void **commhandle, int *rc){
 #undef  ESMC_METHOD
 #define ESMC_METHOD "c_esmc_vmrecvnb()"
@@ -516,7 +618,8 @@ extern "C" {
     if (localrc){
       char *message = new char[160];
       sprintf(message, "VMKernel/MPI error #%d\n", localrc);
-      ESMC_LogDefault.MsgFoundError(ESMF_RC_INTNRL_BAD, message, rc);
+      ESMC_LogDefault.MsgFoundError(ESMF_RC_INTNRL_BAD, message, ESMC_CONTEXT,
+        rc);
       delete [] message;
       return;
     }
@@ -524,8 +627,8 @@ extern "C" {
     if (rc!=NULL) *rc = ESMF_SUCCESS;
   }
 
-  void FTN(c_esmc_vmreduce)(ESMCI::VM **vm, void *input, void *output, 
-    int *count, ESMC_TypeKind *dtk, ESMC_Operation *op, int *root, int *rc){
+  void FTN_X(c_esmc_vmreduce)(ESMCI::VM **vm, void *input, void *output, 
+    int *count, ESMC_TypeKind_Flag *dtk, ESMC_Operation *op, int *root, int *rc){
 #undef  ESMC_METHOD
 #define ESMC_METHOD "c_esmc_vmreduce()"
     // Initialize return code; assume routine not implemented
@@ -538,6 +641,9 @@ extern "C" {
     case ESMC_TYPEKIND_I4:
       vmt = vmI4;
       break;
+    case ESMC_TYPEKIND_I8:
+      vmt = vmI8;
+      break;
     case ESMC_TYPEKIND_R4:
       vmt = vmR4;
       break;
@@ -548,12 +654,13 @@ extern "C" {
       localrc = ESMC_RC_ARG_BAD;
     }
     if (ESMC_LogDefault.MsgFoundError(localrc,"Unsupported data type.",
-      rc)) return;
+      ESMC_CONTEXT, rc)) return;
     localrc = (*vm)->reduce(input, output, *count, vmt, (vmOp)(*op), *root);
     if (localrc){
       char *message = new char[160];
       sprintf(message, "VMKernel/MPI error #%d\n", localrc);
-      ESMC_LogDefault.MsgFoundError(ESMF_RC_INTNRL_BAD, message, rc);
+      ESMC_LogDefault.MsgFoundError(ESMF_RC_INTNRL_BAD, message, ESMC_CONTEXT,
+        rc);
       delete [] message;
       return;
     }
@@ -561,7 +668,7 @@ extern "C" {
     if (rc!=NULL) *rc = ESMF_SUCCESS;
   }
 
-  void FTN(c_esmc_vmscatter)(ESMCI::VM **vm, void *input, void *output,
+  void FTN_X(c_esmc_vmscatter)(ESMCI::VM **vm, void *input, void *output,
     int *size, int *root, int *rc){
 #undef  ESMC_METHOD
 #define ESMC_METHOD "c_esmc_vmscatter()"
@@ -572,7 +679,8 @@ extern "C" {
     if (localrc){
       char *message = new char[160];
       sprintf(message, "VMKernel/MPI error #%d\n", localrc);
-      ESMC_LogDefault.MsgFoundError(ESMF_RC_INTNRL_BAD, message, rc);
+      ESMC_LogDefault.MsgFoundError(ESMF_RC_INTNRL_BAD, message, ESMC_CONTEXT,
+        rc);
       delete [] message;
       return;
     }
@@ -580,7 +688,7 @@ extern "C" {
     if (rc!=NULL) *rc = ESMF_SUCCESS;
   }
   
-  void FTN(c_esmc_vmscatternb)(ESMCI::VM **vm, void *input, void *output, 
+  void FTN_X(c_esmc_vmscatternb)(ESMCI::VM **vm, void *input, void *output, 
     int *size, int *root, void **commhandle, int *rc){
 #undef  ESMC_METHOD
 #define ESMC_METHOD "c_esmc_vmscatternb()"
@@ -593,7 +701,8 @@ extern "C" {
     if (localrc){
       char *message = new char[160];
       sprintf(message, "VMKernel/MPI error #%d\n", localrc);
-      ESMC_LogDefault.MsgFoundError(ESMF_RC_INTNRL_BAD, message, rc);
+      ESMC_LogDefault.MsgFoundError(ESMF_RC_INTNRL_BAD, message, ESMC_CONTEXT,
+        rc);
       delete [] message;
       return;
     }
@@ -601,8 +710,8 @@ extern "C" {
     if (rc!=NULL) *rc = ESMF_SUCCESS;
   }
   
-  void FTN(c_esmc_vmscatterv)(ESMCI::VM **vm, void *sendData, int *sendCounts,
-    int *sendOffsets, void *recvData, int *recvCount, ESMC_TypeKind *dtk, 
+  void FTN_X(c_esmc_vmscatterv)(ESMCI::VM **vm, void *sendData, int *sendCounts,
+    int *sendOffsets, void *recvData, int *recvCount, ESMC_TypeKind_Flag *dtk, 
     int *root, int *rc){
 #undef  ESMC_METHOD
 #define ESMC_METHOD "c_esmc_vmscatterv()"
@@ -616,6 +725,9 @@ extern "C" {
     case ESMC_TYPEKIND_I4:
       vmt = vmI4;
       break;
+    case ESMC_TYPEKIND_I8:
+      vmt = vmI8;
+      break;
     case ESMC_TYPEKIND_R4:
       vmt = vmR4;
       break;
@@ -626,13 +738,14 @@ extern "C" {
       localrc = ESMC_RC_ARG_BAD;
     }
     if (ESMC_LogDefault.MsgFoundError(localrc, "Unsupported data type.",
-      rc)) return;
+      ESMC_CONTEXT, rc)) return;
     localrc = (*vm)->scatterv(sendData, sendCounts, sendOffsets, recvData,
       *recvCount, vmt, *root);
     if (localrc){
       char *message = new char[160];
       sprintf(message, "VMKernel/MPI error #%d\n", localrc);
-      ESMC_LogDefault.MsgFoundError(ESMF_RC_INTNRL_BAD, message, rc);
+      ESMC_LogDefault.MsgFoundError(ESMF_RC_INTNRL_BAD, message, ESMC_CONTEXT,
+        rc);
       delete [] message;
       return;
     }
@@ -640,7 +753,7 @@ extern "C" {
     if (rc!=NULL) *rc = ESMF_SUCCESS;
   }
   
-  void FTN(c_esmc_vmsend)(ESMCI::VM **ptr, void *message, int *size, int *dest,
+  void FTN_X(c_esmc_vmsend)(ESMCI::VM **ptr, void *message, int *size, int *dest,
     int *rc){
 #undef  ESMC_METHOD
 #define ESMC_METHOD "c_esmc_vmsend()"
@@ -651,7 +764,8 @@ extern "C" {
     if (localrc){
       char *message = new char[160];
       sprintf(message, "VMKernel/MPI error #%d\n", localrc);
-      ESMC_LogDefault.MsgFoundError(ESMF_RC_INTNRL_BAD, message, rc);
+      ESMC_LogDefault.MsgFoundError(ESMF_RC_INTNRL_BAD, message, ESMC_CONTEXT,
+        rc);
       delete [] message;
       return;
     }
@@ -659,7 +773,7 @@ extern "C" {
     if (rc!=NULL) *rc = ESMF_SUCCESS;
   }
 
-  void FTN(c_esmc_vmsendnb)(ESMCI::VM **ptr, void *message, int *size,
+  void FTN_X(c_esmc_vmsendnb)(ESMCI::VM **ptr, void *message, int *size,
     int *dest, void **commhandle, int *rc){
 #undef  ESMC_METHOD
 #define ESMC_METHOD "c_esmc_vmsendnb()"
@@ -672,7 +786,8 @@ extern "C" {
     if (localrc){
       char *message = new char[160];
       sprintf(message, "VMKernel/MPI error #%d\n", localrc);
-      ESMC_LogDefault.MsgFoundError(ESMF_RC_INTNRL_BAD, message, rc);
+      ESMC_LogDefault.MsgFoundError(ESMF_RC_INTNRL_BAD, message, ESMC_CONTEXT,
+        rc);
       delete [] message;
       return;
     }
@@ -680,7 +795,7 @@ extern "C" {
     if (rc!=NULL) *rc = ESMF_SUCCESS;
   }
 
-  void FTN(c_esmc_vmsendrecv)(ESMCI::VM **ptr, void *sendData, int *sendSize, 
+  void FTN_X(c_esmc_vmsendrecv)(ESMCI::VM **ptr, void *sendData, int *sendSize, 
     int *dst, void *recvData, int *recvSize, int *src, int *rc){
 #undef  ESMC_METHOD
 #define ESMC_METHOD "c_esmc_vmsendrecv()"
@@ -692,7 +807,8 @@ extern "C" {
     if (localrc){
       char *message = new char[160];
       sprintf(message, "VMKernel/MPI error #%d\n", localrc);
-      ESMC_LogDefault.MsgFoundError(ESMF_RC_INTNRL_BAD, message, rc);
+      ESMC_LogDefault.MsgFoundError(ESMF_RC_INTNRL_BAD, message, ESMC_CONTEXT,
+        rc);
       delete [] message;
       return;
     }
@@ -700,7 +816,7 @@ extern "C" {
     if (rc!=NULL) *rc = ESMF_SUCCESS;
   }
 
-  void FTN(c_esmc_vmsendrecvnb)(ESMCI::VM **ptr, void *sendData, int *sendSize, 
+  void FTN_X(c_esmc_vmsendrecvnb)(ESMCI::VM **ptr, void *sendData, int *sendSize, 
     int *dst, void *recvData, int *recvSize, int *src, void **commhandle, 
     int *rc){
 #undef  ESMC_METHOD
@@ -714,7 +830,8 @@ extern "C" {
     if (localrc){
       char *message = new char[160];
       sprintf(message, "VMKernel/MPI error #%d\n", localrc);
-      ESMC_LogDefault.MsgFoundError(ESMF_RC_INTNRL_BAD, message, rc);
+      ESMC_LogDefault.MsgFoundError(ESMF_RC_INTNRL_BAD, message, ESMC_CONTEXT,
+        rc);
       delete [] message;
       return;
     }
@@ -722,7 +839,7 @@ extern "C" {
     if (rc!=NULL) *rc = ESMF_SUCCESS;
   }
   
-  void FTN(c_esmc_vmcommwait)(ESMCI::VM **ptr, void **commhandle, int *rc){
+  void FTN_X(c_esmc_vmcommwait)(ESMCI::VM **ptr, void **commhandle, int *rc){
 #undef  ESMC_METHOD
 #define ESMC_METHOD "c_esmc_vmcommwait()"
     // Initialize return code; assume routine not implemented
@@ -732,7 +849,8 @@ extern "C" {
     if (localrc){
       char *message = new char[160];
       sprintf(message, "VMKernel/MPI error #%d\n", localrc);
-      ESMC_LogDefault.MsgFoundError(ESMF_RC_INTNRL_BAD, message, rc);
+      ESMC_LogDefault.MsgFoundError(ESMF_RC_INTNRL_BAD, message, ESMC_CONTEXT,
+        rc);
       delete [] message;
       return;
     }
@@ -740,7 +858,7 @@ extern "C" {
     if (rc!=NULL) *rc = ESMF_SUCCESS;
   }
 
-  void FTN(c_esmc_vmcommqueuewait)(ESMCI::VM **ptr, int *rc){
+  void FTN_X(c_esmc_vmcommqueuewait)(ESMCI::VM **ptr, int *rc){
 #undef  ESMC_METHOD
 #define ESMC_METHOD "c_esmc_vmcommqueuewait()"
     // Initialize return code; assume routine not implemented
@@ -749,7 +867,7 @@ extern "C" {
     if (rc!=NULL) *rc = ESMF_SUCCESS; // TODO: finish error handling
   }
 
-  void FTN(c_esmc_vmwtime)(ESMC_R8 *time, int *rc){
+  void FTN_X(c_esmc_vmwtime)(ESMC_R8 *time, int *rc){
 #undef  ESMC_METHOD
 #define ESMC_METHOD "c_esmc_vmwtime()"
     // Initialize return code; assume routine not implemented
@@ -758,7 +876,7 @@ extern "C" {
     if (rc!=NULL) *rc = ESMF_SUCCESS; // TODO: finish error handling
   }
 
-  void FTN(c_esmc_vmwtimedelay)(ESMC_R8 *delay, int *rc){
+  void FTN_X(c_esmc_vmwtimedelay)(ESMC_R8 *delay, int *rc){
 #undef  ESMC_METHOD
 #define ESMC_METHOD "c_esmc_vmwtime()"
     // Initialize return code; assume routine not implemented
@@ -767,7 +885,7 @@ extern "C" {
     if (rc!=NULL) *rc = ESMF_SUCCESS; // TODO: finish error handling
   }
 
-  void FTN(c_esmc_vmthreadbarrier)(ESMCI::VM **ptr, int *rc){
+  void FTN_X(c_esmc_vmthreadbarrier)(ESMCI::VM **ptr, int *rc){
 #undef  ESMC_METHOD
 #define ESMC_METHOD "c_esmc_vmthreadbarrier()"
     // Initialize return code; assume routine not implemented
@@ -777,7 +895,8 @@ extern "C" {
     if (localrc){
       char *message = new char[160];
       sprintf(message, "VMKernel/MPI error #%d\n", localrc);
-      ESMC_LogDefault.MsgFoundError(ESMF_RC_INTNRL_BAD, message, rc);
+      ESMC_LogDefault.MsgFoundError(ESMF_RC_INTNRL_BAD, message, ESMC_CONTEXT,
+        rc);
       delete [] message;
       return;
     }
@@ -785,20 +904,21 @@ extern "C" {
     if (rc!=NULL) *rc = ESMF_SUCCESS;
   }
 
-  void FTN(c_esmc_vmgetcurrent)(ESMCI::VM **ptr, int *rc){
+  void FTN_X(c_esmc_vmgetcurrent)(ESMCI::VM **ptr, int *rc){
 #undef  ESMC_METHOD
 #define ESMC_METHOD "c_esmc_vmgetcurrent()"
     // Initialize return code; assume routine not implemented
     if (rc!=NULL) *rc = ESMC_RC_NOT_IMPL;
     int localrc = ESMC_RC_NOT_IMPL;
     *ptr = ESMCI::VM::getCurrent(&localrc);
-    if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, rc))
+    if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, ESMC_CONTEXT,
+      rc))
       return;
     // return successfully
     if (rc!=NULL) *rc = ESMF_SUCCESS;
   }
 
-  void FTN(c_esmc_vminitialize)(ESMCI::VM **ptr, int *mpiCommunicator, int *rc){
+  void FTN_X(c_esmc_vminitialize)(ESMCI::VM **ptr, int *mpiCommunicator, int *rc){
 #undef  ESMC_METHOD
 #define ESMC_METHOD "c_esmc_vminitialize()"
     // Initialize return code; assume routine not implemented
@@ -819,7 +939,7 @@ extern "C" {
     if (rc!=NULL) *rc = localrc;
   }
 
-  void FTN(c_esmc_vmfinalize)(ESMC_Logical *keepMpiFlag, int *rc){
+  void FTN_X(c_esmc_vmfinalize)(ESMC_Logical *keepMpiFlag, int *rc){
 #undef  ESMC_METHOD
 #define ESMC_METHOD "c_esmc_vmfinalize()"
     // Initialize return code; assume routine not implemented
@@ -830,7 +950,7 @@ extern "C" {
     if (rc!=NULL) *rc = localrc;
   }
 
-  void FTN(c_esmc_vmabort)(int *rc){
+  void FTN_X(c_esmc_vmabort)(int *rc){
 #undef  ESMC_METHOD
 #define ESMC_METHOD "c_esmc_vmabort()"
     // Initialize return code; assume routine not implemented
@@ -841,7 +961,35 @@ extern "C" {
     if (rc!=NULL) *rc = localrc;
   }
 
-  void FTN(c_esmc_vmshutdown)(ESMCI::VM **ptr_vmparent,
+  void FTN_X(c_esmc_isinitialized)(ESMC_Logical *isInitialized, int *rc){
+#undef  ESMC_METHOD
+#define ESMC_METHOD "c_esmc_isinitialized()"
+    // Initialize return code; assume routine not implemented
+    if (rc!=NULL) *rc = ESMC_RC_NOT_IMPL;
+    int localrc = ESMC_RC_NOT_IMPL;
+    bool flag = ESMCI::VM::isInitialized(&localrc);
+    if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, ESMC_CONTEXT,
+      rc)) return;
+    *isInitialized = flag ? ESMF_TRUE : ESMF_FALSE;
+    // return successfully
+    if (rc!=NULL) *rc = ESMF_SUCCESS;
+  }
+
+  void FTN_X(c_esmc_isfinalized)(ESMC_Logical *isFinalized, int *rc){
+#undef  ESMC_METHOD
+#define ESMC_METHOD "c_esmc_isfinalized()"
+    // Initialize return code; assume routine not implemented
+    if (rc!=NULL) *rc = ESMC_RC_NOT_IMPL;
+    int localrc = ESMC_RC_NOT_IMPL;
+    bool flag = ESMCI::VM::isFinalized(&localrc);
+    if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, ESMC_CONTEXT,
+      rc)) return;
+    *isFinalized = flag ? ESMF_TRUE : ESMF_FALSE;
+    // return successfully
+    if (rc!=NULL) *rc = ESMF_SUCCESS;
+  }
+
+  void FTN_X(c_esmc_vmshutdown)(ESMCI::VM **ptr_vmparent,
     ESMCI::VMPlan **ptr_vmplan,
     void **vm_info, int *rc){
 #undef  ESMC_METHOD
@@ -850,7 +998,8 @@ extern "C" {
     if (rc!=NULL) *rc = ESMC_RC_NOT_IMPL;
     int localrc = ESMC_RC_NOT_IMPL;
     (*ptr_vmparent)->shutdown(*ptr_vmplan, *vm_info, &localrc);
-    if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, rc))
+    if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, ESMC_CONTEXT,
+      rc))
       return;
     // return successfully
     if (rc!=NULL) *rc = ESMF_SUCCESS;
@@ -860,7 +1009,7 @@ extern "C" {
   // ESMCI::VMPlan interfaces
   // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   
-  void FTN(c_esmc_vmplanconstruct)(ESMCI::VMPlan **ptr, ESMCI::VM **ptr_vm,
+  void FTN_X(c_esmc_vmplanconstruct)(ESMCI::VMPlan **ptr, ESMCI::VM **ptr_vm,
     int *npetlist, int *petlist, ESMC_ContextFlag *contextflag, int *rc){
 #undef  ESMC_METHOD
 #define ESMC_METHOD "c_esmc_vmplanconstruct()"
@@ -893,7 +1042,7 @@ extern "C" {
     if (rc!=NULL) *rc = ESMF_SUCCESS;
   }
 
-  void FTN(c_esmc_vmplandestruct)(ESMCI::VMPlan **ptr, int *rc){
+  void FTN_X(c_esmc_vmplandestruct)(ESMCI::VMPlan **ptr, int *rc){
 #undef  ESMC_METHOD
 #define ESMC_METHOD "c_esmc_vmplandestruct()"
     // Initialize return code; assume routine not implemented
@@ -909,7 +1058,7 @@ extern "C" {
     if (rc!=NULL) *rc = ESMF_SUCCESS;
   }
   
-  void FTN(c_esmc_vmplanmaxpes)(ESMCI::VMPlan **ptr, ESMCI::VM **ptr_vm,
+  void FTN_X(c_esmc_vmplanmaxpes)(ESMCI::VMPlan **ptr, ESMCI::VM **ptr_vm,
     int *max, int *pref_intra_process, int *pref_intra_ssi, int *pref_inter_ssi,
     int *npetlist, int *petlist, int *rc){
 #undef  ESMC_METHOD
@@ -948,7 +1097,7 @@ extern "C" {
     else localrc = ESMF_SUCCESS;
     if (ESMC_LogDefault.MsgFoundError(localrc,"- this ESMF library"
       " was compiled with ESMF_PTHREADS=OFF and thus does not support"
-      " ESMF-threading!", rc)) return;
+      " ESMF-threading!", ESMC_CONTEXT, rc)) return;
     //debug: (*ptr)->vmkplan_print();
     // Allocate as many ESMCI::VM instances as this PET will spawn 
     // and hold the information in the public portion of ESMCI::VMPlan
@@ -964,7 +1113,7 @@ extern "C" {
     if (rc!=NULL) *rc = ESMF_SUCCESS;
   }
        
-  void FTN(c_esmc_vmplanmaxthreads)(ESMCI::VMPlan **ptr, ESMCI::VM **ptr_vm,
+  void FTN_X(c_esmc_vmplanmaxthreads)(ESMCI::VMPlan **ptr, ESMCI::VM **ptr_vm,
     int *max, int *pref_intra_process, int *pref_intra_ssi, int *pref_inter_ssi,
     int *npetlist, int *petlist, int *rc){
 #undef  ESMC_METHOD
@@ -1003,7 +1152,7 @@ extern "C" {
     else localrc = ESMF_SUCCESS;
     if (ESMC_LogDefault.MsgFoundError(localrc,"- this ESMF library"
       " was compiled with ESMF_PTHREADS=OFF and thus does not support"
-      " ESMF-threading!", rc)) return;
+      " ESMF-threading!", ESMC_CONTEXT, rc)) return;
     //debug: (*ptr)->vmkplan_print();
     // Allocate as many ESMCI::VM instances as this PET will spawn 
     // and hold the information in the public portion of ESMCI::VMPlan
@@ -1019,7 +1168,7 @@ extern "C" {
     if (rc!=NULL) *rc = ESMF_SUCCESS;
   }
   
-  void FTN(c_esmc_vmplanminthreads)(ESMCI::VMPlan **ptr, ESMCI::VM **ptr_vm,
+  void FTN_X(c_esmc_vmplanminthreads)(ESMCI::VMPlan **ptr, ESMCI::VM **ptr_vm,
     int *max, int *pref_intra_process, int *pref_intra_ssi, int *pref_inter_ssi,
     int *npetlist, int *petlist, int *rc){
 #undef  ESMC_METHOD
@@ -1058,7 +1207,7 @@ extern "C" {
     else localrc = ESMF_SUCCESS;
     if (ESMC_LogDefault.MsgFoundError(localrc,"- this ESMF library"
       " was compiled with ESMF_PTHREADS=OFF and thus does not support"
-      " ESMF-threading!", rc)) return;
+      " ESMF-threading!", ESMC_CONTEXT, rc)) return;
     //debug: (*ptr)->vmkplan_print();
     // Allocate as many ESMCI::VM instances as this PET will spawn 
     // and hold the information in the public portion of ESMCI::VMPlan
@@ -1078,70 +1227,121 @@ extern "C" {
   // ESMCI::VMId interfaces
   // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-  void FTN(c_esmc_vmgetcurrentid)(ESMCI::VMId **vmid, int *rc){
+  void FTN_X(c_esmc_vmgetcurrentid)(ESMCI::VMId **vmid, int *rc){
 #undef  ESMC_METHOD
 #define ESMC_METHOD "c_esmc_vmgetcurrentid()"
     // Initialize return code; assume routine not implemented
     if (rc!=NULL) *rc = ESMC_RC_NOT_IMPL;
     int localrc = ESMC_RC_NOT_IMPL;
     *vmid = ESMCI::VM::getCurrentID(&localrc);
-    if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, rc))
+    if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, ESMC_CONTEXT,
+      rc))
       return;
     // return successfully
     if (rc!=NULL) *rc = ESMF_SUCCESS;
   }
 
-  void FTN(c_esmc_vmidcompare)(ESMCI::VMId **vmid1, ESMCI::VMId **vmid2,
+  void FTN_X(c_esmc_vmidcompare)(ESMCI::VMId **vmid1, ESMCI::VMId **vmid2,
     ESMC_Logical *result, int *rc){
 #undef  ESMC_METHOD
 #define ESMC_METHOD "c_esmc_vmidcompare()"
     // Initialize return code; assume routine not implemented
     if (rc!=NULL) *rc = ESMC_RC_NOT_IMPL;
     bool resultBool = ESMCI::VMIdCompare(*vmid1, *vmid2);
-    if (resultBool) *result = ESMF_TRUE;
-    else *result = ESMF_FALSE;
+    *result = resultBool ? ESMF_TRUE : ESMF_FALSE;
     if (rc!=NULL) *rc = ESMF_SUCCESS; // TODO: finish error handling
   }
 
-  void FTN(c_esmc_vmidprint)(ESMCI::VMId **vmid, int *rc){
+  void FTN_X(c_esmc_vmidcopy)(ESMCI::VMId **dest, ESMCI::VMId **source,
+    int *rc){
 #undef  ESMC_METHOD
-#define ESMC_METHOD "c_esmc_vmidprint()"
+#define ESMC_METHOD "c_esmc_vmidcopy()"
     // Initialize return code; assume routine not implemented
     if (rc!=NULL) *rc = ESMC_RC_NOT_IMPL;
-    ESMCI::VMIdPrint(*vmid);
+    int localrc = ESMCI::VMIdCopy(*dest, *source);
+    if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, ESMC_CONTEXT,
+      rc))
+      return;
+    // return successfully
     if (rc!=NULL) *rc = ESMF_SUCCESS; // TODO: finish error handling
   }
 
-  void FTN(c_esmc_vmidcreate)(ESMCI::VMId **vmid, int *rc){
+  void FTN_X(c_esmc_vmidcreate)(ESMCI::VMId **vmid, int *rc){
 #undef  ESMC_METHOD
 #define ESMC_METHOD "c_esmc_vmidcreate()"
     // Initialize return code; assume routine not implemented
     if (rc!=NULL) *rc = ESMC_RC_NOT_IMPL;
     int localrc = ESMC_RC_NOT_IMPL;
     *vmid = new ESMCI::VMId;              // allocate memory off the heap
-    **vmid = ESMCI::VMIdCreate(&localrc); // allocate VMId internal members
-    if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, rc))
+    localrc = (*vmid)->create (); // allocate VMId internal members
+    if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, ESMC_CONTEXT,
+      rc))
       return;
     // return successfully
     if (rc!=NULL) *rc = ESMF_SUCCESS;
   }
 
-  void FTN(c_esmc_vmiddestroy)(ESMCI::VMId **vmid, int *rc){
+  void FTN_X(c_esmc_vmiddestroy)(ESMCI::VMId **vmid, int *rc){
 #undef  ESMC_METHOD
 #define ESMC_METHOD "c_esmc_vmiddestroy()"
     // Initialize return code; assume routine not implemented
     if (rc!=NULL) *rc = ESMC_RC_NOT_IMPL;
     int localrc = ESMC_RC_NOT_IMPL;
-    ESMCI::VMIdDestroy(*vmid, &localrc);  // free memory for internal members
+    localrc = (*vmid)->destroy ();      // free memory for internal members
     delete *vmid;                       // free memory for this VMId
     *vmid=NULL;
-    if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, rc))
+    if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, ESMC_CONTEXT,
+      rc))
       return;
     // return successfully
     if (rc!=NULL) *rc = ESMF_SUCCESS;
   }
 
-  void FTN(c_esmc_vmsendvmid)(ESMCI::VM **ptr, ESMCI::VMId **vmid, int *dest,
+  void FTN_X(c_esmci_vmidget)(ESMCI::VMId **vmid, int *localID,
+      char *key, int *rc, ESMCI_FortranStrLenArg key_len) {
+#undef  ESMC_METHOD
+#define ESMC_METHOD "c_esmci_vmidget()"
+//  This method is primarily intended for use by VM unit tests.
+    // Initialize return code; assume routine not implemented
+    if (rc!=NULL) *rc = ESMC_RC_NOT_IMPL;
+    int localrc = ESMC_RC_NOT_IMPL;
+    localrc = (*vmid)->get(localID, key, key_len);
+    if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, ESMC_CONTEXT,
+      rc))
+    // return successfully
+    if (rc!=NULL) *rc = ESMF_SUCCESS; // TODO: finish error handling
+  }
+
+  void FTN_X(c_esmc_vmidprint)(ESMCI::VMId **vmid, int *rc){
+#undef  ESMC_METHOD
+#define ESMC_METHOD "c_esmc_vmidprint()"
+    // Initialize return code; assume routine not implemented
+    if (rc!=NULL) *rc = ESMC_RC_NOT_IMPL;
+    // ESMCI::VMIdPrint(*vmid);
+    int localrc = (*vmid)->ESMCI::VMId::print();
+    // Flush before crossing language interface to ensure correct output order
+    fflush(stdout);
+    // return successfully
+    if (rc!=NULL) *rc = ESMF_SUCCESS; // TODO: finish error handling
+  }
+
+  void FTN_X(c_esmci_vmidset)(ESMCI::VMId **vmid, int *localID,
+      char *key, int *rc, ESMCI_FortranStrLenArg key_len) {
+#undef  ESMC_METHOD
+#define ESMC_METHOD "c_esmci_vmidset()"
+//  This method is primarily intended for use by VM unit tests.
+    // Initialize return code; assume routine not implemented
+    if (rc!=NULL) *rc = ESMC_RC_NOT_IMPL;
+    int localrc = ESMC_RC_NOT_IMPL;
+    ESMCI::VMId *localvmid = *vmid;
+    localrc = (*vmid)->set(*localID, key, key_len);
+    if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, ESMC_CONTEXT,
+      rc))
+    // return successfully
+    if (rc!=NULL) *rc = ESMF_SUCCESS; // TODO: finish error handling
+  }
+
+  void FTN_X(c_esmc_vmsendvmid)(ESMCI::VM **ptr, ESMCI::VMId **vmid, int *dest,
     int *rc){
 #undef  ESMC_METHOD
 #define ESMC_METHOD "c_esmc_vmsendvmid()"
@@ -1149,13 +1349,14 @@ extern "C" {
     if (rc!=NULL) *rc = ESMC_RC_NOT_IMPL;
     int localrc = ESMC_RC_NOT_IMPL;
     localrc = (*ptr)->sendVMId(*vmid, *dest);
-    if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, rc))
+    if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, ESMC_CONTEXT,
+      rc))
       return;
     // return successfully
     if (rc!=NULL) *rc = ESMF_SUCCESS;
   }
 
-  void FTN(c_esmc_vmrecvvmid)(ESMCI::VM **ptr, ESMCI::VMId **vmid, int *source,
+  void FTN_X(c_esmc_vmrecvvmid)(ESMCI::VM **ptr, ESMCI::VMId **vmid, int *source,
     int *rc){
 #undef  ESMC_METHOD
 #define ESMC_METHOD "c_esmc_vmrecvvmid()"
@@ -1163,21 +1364,61 @@ extern "C" {
     if (rc!=NULL) *rc = ESMC_RC_NOT_IMPL;
     int localrc = ESMC_RC_NOT_IMPL;
     localrc = (*ptr)->recvVMId(*vmid, *source);
-    if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, rc))
+    if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, ESMC_CONTEXT,
+      rc))
       return;
     // return successfully
     if (rc!=NULL) *rc = ESMF_SUCCESS;
   }
 
-  void FTN(c_esmc_vmbcastvmid)(ESMCI::VM **ptr, ESMCI::VMId **vmid, int *root,
-    int *rc){
+  void FTN_X(c_esmc_vmalltoallvvmid)(ESMCI::VM **vm,
+      ESMCI::VMId **sendData, int *sendCounts, int *sendOffsets,
+      ESMCI::VMId **recvData, int *recvCounts, int *recvOffsets, 
+      int *rc){
+#undef  ESMC_METHOD
+#define ESMC_METHOD "c_esmc_vmalltoallvvmid()"
+    // Initialize return code; assume routine not implemented
+    if (rc!=NULL) *rc = ESMC_RC_NOT_IMPL;
+    // start assuming local success
+    int localrc = ESMF_SUCCESS;
+    localrc = (*vm)->alltoallvVMId(sendData, sendCounts, sendOffsets,
+                                   recvData, recvCounts, recvOffsets);
+    if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, ESMC_CONTEXT,
+      rc))
+      return;
+    // return successfully
+    if (rc!=NULL) *rc = ESMF_SUCCESS;
+  }
+
+  void FTN_X(c_esmc_vmallgathervvmid)(ESMCI::VM **ptr,
+      ESMCI::VMId **sendData, int *sendCount,
+      ESMCI::VMId **recvData, int *recvCounts, int *recvOffsets,
+      int *rc){
+#undef  ESMC_METHOD
+#define ESMC_METHOD "c_esmc_vmallgathervvmid()"
+    // Initialize return code; assume routine not implemented
+    if (rc!=NULL) *rc = ESMC_RC_NOT_IMPL;
+    int localrc = ESMC_RC_NOT_IMPL;
+    localrc = (*ptr)->allgathervVMId(
+        sendData, *sendCount,
+        recvData,  recvCounts, recvOffsets);
+    if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, ESMC_CONTEXT,
+      rc))
+      return;
+    // return successfully
+    if (rc!=NULL) *rc = ESMF_SUCCESS;
+  }
+
+  void FTN_X(c_esmc_vmbcastvmid)(ESMCI::VM **ptr, ESMCI::VMId **vmid, int *count,
+    int *root, int *rc){
 #undef  ESMC_METHOD
 #define ESMC_METHOD "c_esmc_vmbcastvmid()"
     // Initialize return code; assume routine not implemented
     if (rc!=NULL) *rc = ESMC_RC_NOT_IMPL;
     int localrc = ESMC_RC_NOT_IMPL;
-    localrc = (*ptr)->bcastVMId(*vmid, *root);
-    if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, rc))
+    localrc = (*ptr)->bcastVMId(vmid, *count, *root);
+    if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, ESMC_CONTEXT,
+      rc))
       return;
     // return successfully
     if (rc!=NULL) *rc = ESMF_SUCCESS;
@@ -1187,23 +1428,189 @@ extern "C" {
   // VM utilities
   // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-  void FTN(c_esmc_vmpointerprint)(void *ptr){
+  void FTN_X(c_esmc_vmpointerprint)(void *ptr){
 #undef  ESMC_METHOD
 #define ESMC_METHOD "c_esmc_vmpointerprint()"
     // print the address to which this pointer points
     printf("c_esmc_vmpointerprint: %p\n", ptr);
+    fflush (stdout);
   }
   
   // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   // Fortran entry point to automatic garbage collection on Component scope
   // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-  void FTN(c_esmc_vmaddfobject)(void **fobject, int *objectID){
+  void FTN_X(c_esmc_vmaddfobject)(void **fobject, int *objectID){
 #undef  ESMC_METHOD
 #define ESMC_METHOD "c_esmc_vmaddfobject()"
     int rc;
     ESMCI::VMId *vmID = ESMCI::VM::getCurrentID(&rc);  // get current vmID
     ESMCI::VM::addFObject(fobject, *objectID, vmID);
+  }
+
+  void FTN_X(c_esmc_vmgetobject)(void **fobject, int *objectID, ESMCI::VMId **vmid,
+      int *type, ESMC_Logical *obj_found, int *rc){
+#undef  ESMC_METHOD
+#define ESMC_METHOD "c_esmc_vmgetobject()"
+    bool found;
+// std::cout << ESMC_METHOD << ": looking for vmid:" << std::endl;
+// (*vmid)->print();
+    ESMCI::VM::getObject(fobject, *objectID, *vmid, *type, &found, rc);
+    *obj_found = (found)?ESMF_TRUE:ESMF_FALSE;
+  }
+    
+  void FTN_X(c_esmc_vmrmfobject)(void **fobject){
+#undef  ESMC_METHOD
+#define ESMC_METHOD "c_esmc_vmrmfobject()"
+    int rc;
+    ESMCI::VM::rmFObject(fobject);
+  }
+ 
+  void FTN_X(c_esmc_vmrmobject)(ESMC_Base **base){
+#undef  ESMC_METHOD
+#define ESMC_METHOD "c_esmc_vmrmobject()"
+    int rc;
+    ESMCI::VM::rmObject(*base);
+  }
+    
+  // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  // Fortran entry point to info about automatic garbage collection
+  // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+  void FTN_X(c_esmc_vmgetcurrentgarbageinfo)(int *fobjCount, int *objCount,
+    int *rc){
+#undef  ESMC_METHOD
+#define ESMC_METHOD "c_esmc_vmgetcurrentgarbageinfo()"
+    if (rc!=NULL) *rc = ESMC_RC_NOT_IMPL;
+    try{
+      // query the C++ layer
+      ESMCI::VM::getCurrentGarbageInfo(fobjCount, objCount);
+    }catch(int localrc){
+      if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU,
+        ESMC_CONTEXT, rc))
+        return; // bail out
+    }catch(std::exception &x){
+      ESMC_LogDefault.MsgFoundError(ESMC_RC_INTNRL_BAD, x.what(), ESMC_CONTEXT,
+        rc);
+      return; // bail out
+    }catch(...){
+      ESMC_LogDefault.MsgFoundError(ESMC_RC_INTNRL_BAD, "- Caught exception", 
+        ESMC_CONTEXT, rc);
+      return;
+    }
+    // return successfully
+    if (rc!=NULL) *rc = ESMF_SUCCESS;
+  }  
+
+  void FTN_X(c_esmc_vmlogcurrentgarbageinfo)(char *prefix, int *rc,
+    ESMCI_FortranStrLenArg prefix_l){
+#undef  ESMC_METHOD
+#define ESMC_METHOD "c_esmc_vmlogcurrentgarbageinfo()"
+    if (rc!=NULL) *rc = ESMC_RC_NOT_IMPL;
+    try{
+      std::string prefixStr(prefix, prefix_l);
+      ESMCI::VM::logCurrentGarbageInfo(prefixStr);
+    }catch(int localrc){
+      if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU,
+        ESMC_CONTEXT, rc))
+        return; // bail out
+    }catch(std::exception &x){
+      ESMC_LogDefault.MsgFoundError(ESMC_RC_INTNRL_BAD, x.what(), ESMC_CONTEXT,
+        rc);
+      return; // bail out
+    }catch(...){
+      ESMC_LogDefault.MsgFoundError(ESMC_RC_INTNRL_BAD, "- Caught exception", 
+        ESMC_CONTEXT, rc);
+      return;
+    }
+    // return successfully
+    if (rc!=NULL) *rc = ESMF_SUCCESS;
+  }
+
+  // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  // Fortran entry point to PET specific memory info
+  // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+  void FTN_X(c_esmc_vmgetmeminfo)(int *virtMemPet, int *physMemPet,
+    int *rc){
+#undef  ESMC_METHOD
+#define ESMC_METHOD "c_esmc_vmgetmeminfo()"
+    if (rc!=NULL) *rc = ESMC_RC_NOT_IMPL;
+    try{
+      // query the C++ layer
+      ESMCI::VM::getMemInfo(virtMemPet, physMemPet);
+    }catch(int localrc){
+      if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU,
+        ESMC_CONTEXT, rc))
+        return; // bail out
+    }catch(std::exception &x){
+      ESMC_LogDefault.MsgFoundError(ESMC_RC_INTNRL_BAD, x.what(), ESMC_CONTEXT,
+        rc);
+      return; // bail out
+    }catch(...){
+      ESMC_LogDefault.MsgFoundError(ESMC_RC_INTNRL_BAD, "- Caught exception", 
+        ESMC_CONTEXT, rc);
+      return;
+    }
+    // return successfully
+    if (rc!=NULL) *rc = ESMF_SUCCESS;
+  }
+    
+  void FTN_X(c_esmc_vmlogmeminfo)(char *prefix, int *rc,
+    ESMCI_FortranStrLenArg prefix_l){
+#undef  ESMC_METHOD
+#define ESMC_METHOD "c_esmc_vmgetmeminfo()"
+    if (rc!=NULL) *rc = ESMC_RC_NOT_IMPL;
+    try{
+      std::string prefixStr(prefix, prefix_l);
+      ESMCI::VM::logMemInfo(prefixStr);
+    }catch(int localrc){
+      if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU,
+        ESMC_CONTEXT, rc))
+        return; // bail out
+    }catch(std::exception &x){
+      ESMC_LogDefault.MsgFoundError(ESMC_RC_INTNRL_BAD, x.what(), ESMC_CONTEXT,
+        rc);
+      return; // bail out
+    }catch(...){
+      ESMC_LogDefault.MsgFoundError(ESMC_RC_INTNRL_BAD, "- Caught exception", 
+        ESMC_CONTEXT, rc);
+      return;
+    }
+    // return successfully
+    if (rc!=NULL) *rc = ESMF_SUCCESS;
+  }
+
+  // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  // Socket based VM entry point
+  // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+  void FTN_X(c_esmci_vmksocketserver)(int *rc){
+#undef  ESMC_METHOD
+#define ESMC_METHOD "c_esmci_vmksocketserver()"
+    // Initialize return code; assume routine not implemented
+    if (rc!=NULL) *rc = ESMC_RC_NOT_IMPL;
+    int localrc = ESMC_RC_NOT_IMPL;
+    localrc = ESMCI::socketServer();
+    if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, ESMC_CONTEXT,
+      rc))
+      return; // bail out
+    // return successfully
+    if (rc!=NULL) *rc = ESMF_SUCCESS;
+  }
+  
+  void FTN_X(c_esmci_vmksocketclient)(int *rc){
+#undef  ESMC_METHOD
+#define ESMC_METHOD "c_esmci_vmksocketclient()"
+    // Initialize return code; assume routine not implemented
+    if (rc!=NULL) *rc = ESMC_RC_NOT_IMPL;
+    int localrc = ESMC_RC_NOT_IMPL;
+    localrc = ESMCI::socketClient();
+    if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, ESMC_CONTEXT,
+      rc))
+      return; // bail out
+    // return successfully
+    if (rc!=NULL) *rc = ESMF_SUCCESS;
   }
   
 #undef  ESMC_METHOD

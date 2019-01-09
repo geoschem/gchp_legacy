@@ -1,0 +1,66 @@
+% $Id$
+
+Unstructured grids are commonly used in the computational solution of partial differential 
+equations.  These are especially useful for problems that involve complex geometry, where 
+using the less flexible structured grids can result in grid representation of regions 
+where no computation is needed.  Finite element and finite volume methods map naturally 
+to unstructured grids and are used commonly in hydrology, ocean modeling, and many other 
+applications.
+
+In order to provide support for application codes using unstructured grids, the ESMF library 
+provides a class for representing unstructured grids called the {\bf Mesh}. Fields can be 
+created on a Mesh to hold data. Fields created on a Mesh can also be used as either the 
+source or destination or both of an interpolation (i.e. an {\tt ESMF\_FieldRegridStore()} call) 
+which allows data to be moved between unstructured grids. This section describes the Mesh 
+and how to create and use them in ESMF. 
+
+\subsubsection{Mesh representation in ESMF}\label{sec:meshrep}
+
+A Mesh in ESMF is constructed of {\bf nodes} and {\bf elements}.
+
+A {\bf node}, also known as a vertex or corner, is a part of a Mesh which represents a single point. Coordinate information is
+set in a node.
+
+An {\bf element}, also known as a cell, is a part of a mesh which represents a small 
+region of space. Elements are described in terms of a connected set of nodes which represent locations along their boundaries.
+
+Field data may be located on either the nodes or elements of a Mesh. 
+
+\medskip
+
+The dimension of a Mesh in ESMF is specified with two parameters: the {\bf parametric dimension} and the {\bf spatial dimension}.
+
+The {\bf parametric dimension} of a Mesh is the dimension of the topology of the Mesh. This can be thought of as the dimension of 
+the elements which make up the Mesh. For example, a Mesh composed of triangles would have a parametric dimension of 2, whereas
+a Mesh composed of tetrahedra would have a parametric dimension of 3. 
+
+The {\bf spatial dimension} of a Mesh is the dimension of the space the Mesh is embedded in. In other words, it is the number of coordinate dimensions needed to describe the location of the nodes making up the Mesh. 
+
+For example, a Mesh constructed of squares on a plane would have a parametric dimension of 2 and a spatial dimension of 2. 
+If that same Mesh were used to represent the 2D surface of a sphere, then the Mesh would still have a parametric dimension 
+of 2, but now its spatial dimension would be 3. 
+
+\subsubsection{Supported Meshes}
+
+The range of Meshes supported by ESMF are defined by several factors: dimension, element 
+types, and distribution.
+
+ESMF currently only supports Meshes whose number of coordinate dimensions (spatial dimension) 
+is 2 or 3. The dimension of the elements in a Mesh (parametric dimension) must be less than 
+or equal to the spatial dimension, but also must be either 2 or 3. This means that a Mesh may 
+be either 2D elements in 2D space, 3D elements in 3D space, or a manifold constructed of 2D 
+elements embedded in 3D space. 
+
+ESMF supports a range of elements for each Mesh parametric dimension. For a 
+parametric dimension of 2, the native supported element types are triangles and quadrilaterals.
+In addition to these, ESMF supports 2D polygons with any number of sides. Internally these
+are represented as sets of triangles, but to the user should behave like any other element. 
+For a parametric dimension of 3, the supported element types are tetrahedrons
+and hexahedrons. See Section~\ref{const:meshelemtype} for diagrams of these. The Mesh 
+supports any combination of element types within a particular dimension, but types from 
+different dimensions may not be mixed.  For example, a Mesh cannot be constructed of both 
+quadrilaterals and tetrahedra.
+
+ESMF currently only supports distributions where every node on a PET must be a part of an 
+element on that PET. In other words, there must not be nodes without a corresponding element 
+on any PET.

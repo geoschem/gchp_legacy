@@ -1,7 +1,7 @@
 ! $Id$
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2012, University Corporation for Atmospheric Research, 
+! Copyright 2002-2018, University Corporation for Atmospheric Research, 
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
 ! Laboratory, University of Michigan, National Centers for Environmental 
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
@@ -40,7 +40,11 @@ module ESMF_XGridGetMod
   use ESMF_LogErrMod
   use ESMF_DistGridMod
   use ESMF_DELayoutMod
+  use ESMF_StaggerLocMod
+  use ESMF_ArrayMod
   use ESMF_GridMod
+  use ESMF_MeshMod
+  use ESMF_XGridGeomBaseMod
   use ESMF_XGridMod
   use ESMF_InitMacrosMod
 
@@ -78,10 +82,12 @@ module ESMF_XGridGetMod
     interface ESMF_XGridGet
    
 ! !PRIVATE MEMBER FUNCTIONS:
+        module procedure ESMF_XGridGetEle
         module procedure ESMF_XGridGetDefault
         module procedure ESMF_XGridGetDG
-        module procedure ESMF_XGridGetEle
-        module procedure ESMF_XGridGetSMMSpec
+        module procedure ESMF_XGridGetGB
+        module procedure ESMF_XGridGetGeomObj
+        module procedure ESMF_XGridGetSMMSpecFrac
 
 
 ! !DESCRIPTION:
@@ -110,8 +116,10 @@ contains
 ! !INTERFACE: ESMF_XGridGet
 ! ! Private name; call using ESMF_XGridGet()
 
-subroutine ESMF_XGridGetDefault(xgrid, &
-    sideA, sideB, ngridA, ngridB, area, centroid, &
+subroutine ESMF_XGridGetDefault(xgrid, keywordEnforcer, &
+    sideAGrid, sideBGrid, sideAMesh, sideBMesh, &
+    mesh, &
+    ngridA, ngridB, area, centroid, &
     distgridA, distgridB, distgridM, &
     dimCount, localDECount, &
     sparseMatA2X, sparseMatX2A, sparseMatB2X, sparseMatX2B, &
@@ -120,22 +128,25 @@ subroutine ESMF_XGridGetDefault(xgrid, &
 
 !
 ! !ARGUMENTS:
-type(ESMF_XGrid), intent(in)                :: xgrid
-type(ESMF_Grid), intent(out), optional      :: sideA(:), sideB(:)
-integer, intent(out), optional              :: ngridA, ngridB
-real*8, intent(out), optional               :: area(:)
-real*8, intent(out), optional               :: centroid(:,:)
-type(ESMF_DistGrid), intent(out), optional  :: distgridA(:)
-type(ESMF_DistGrid), intent(out), optional  :: distgridB(:)
-type(ESMF_DistGrid), intent(out), optional  :: distgridM
-integer, intent(out), optional              :: dimCount
-integer, intent(out), optional              :: localDECount
+type(ESMF_XGrid),     intent(in)            :: xgrid
+type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
+type(ESMF_Grid),      intent(out), optional :: sideAGrid(:), sideBGrid(:)
+type(ESMF_Mesh),      intent(out), optional :: sideAMesh(:), sideBMesh(:)
+type(ESMF_Mesh),      intent(out), optional :: mesh
+integer,              intent(out), optional :: ngridA, ngridB
+real(ESMF_KIND_R8),   intent(out), optional :: area(:)
+real(ESMF_KIND_R8),   intent(out), optional :: centroid(:,:)
+type(ESMF_DistGrid),  intent(out), optional :: distgridA(:)
+type(ESMF_DistGrid),  intent(out), optional :: distgridB(:)
+type(ESMF_DistGrid),  intent(out), optional :: distgridM
+integer,              intent(out), optional :: dimCount
+integer,              intent(out), optional :: localDECount
 type(ESMF_XGridSpec), intent(out), optional :: sparseMatA2X(:)
 type(ESMF_XGridSpec), intent(out), optional :: sparseMatX2A(:)
 type(ESMF_XGridSpec), intent(out), optional :: sparseMatB2X(:)
 type(ESMF_XGridSpec), intent(out), optional :: sparseMatX2B(:)
-character (len=*), intent(out), optional    :: name
-integer, intent(out), optional              :: rc 
+character (len=*),    intent(out), optional :: name
+integer,              intent(out), optional :: rc 
 !
 ! !DESCRIPTION:
 !      Get information about XGrid
@@ -143,19 +154,25 @@ integer, intent(out), optional              :: rc
 !     The arguments are:
 !     \begin{description}
 !     \item [xgrid]
-!       The xgrid object used to retrieve information from.
-!     \item [{[sideA]}]
-!           2D Grids on side A
-!     \item [{[sideB]}]
-!           2D Grids on side B
+!       The {\tt ESMF\_XGrid} object used to retrieve information from.
+!     \item [{[sideAGrid]}]
+!           List of 2D Grids on side A
+!     \item [{[sideBGrid]}]
+!           List of 2D Grids on side B
+!     \item [{[sideAMesh]}]
+!           List of 2D Meshes on side A
+!     \item [{[sideBMesh]}]
+!           List of 2D Meshes on side B
+!     \item [{[mesh]}]
+!           Super mesh stored in XGrid when storeOverlay is set true during XGrid creation
 !     \item [{[ngridA]}]
-!           Number of grids on the A side
+!           Number of Grids or Meshes on the A side
 !     \item [{[ngridB]}]
-!           Number of grids on the B side
+!           Number of Grids or Meshes on the B side
 !     \item [{[area]}]
-!           area of the xgrid cells
+!           Area of the xgrid cells
 !     \item [{[centroid]}]
-!           coordinates at the area weighted center of the xgrid cells
+!           Coordinates at the area weighted center of the xgrid cells
 !     \item [{[distgridA]}]
 !           list of distgrids whose sequence index list is an overlap between a Grid
 !           on sideA and the xgrid object.
@@ -190,9 +207,10 @@ integer, intent(out), optional              :: rc
 !EOP
 
     integer :: localrc, ngrid_a, ngrid_b, n_idx_a2x, n_idx_x2a, n_idx_b2x, n_idx_x2b
-    integer :: n_wgts_a, n_wgts_b, ndim, ncells, i
+    integer :: n_wgts_a, n_wgts_b, ndim, ncells, i, count
     type(ESMF_XGridType), pointer :: xgtypep
     type(ESMF_DELayout)           :: delayout
+    type(ESMF_XGridGeomType_Flag) :: xggt
 
     ! Initialize
     localrc = ESMF_RC_NOT_IMPL
@@ -213,29 +231,128 @@ integer, intent(out), optional              :: rc
         ngridB = size(xgtypep%sideB, 1)
     endif
 
-    if(present(sideA)) then
-        ngrid_a = size(sideA, 1)
-        if(ngrid_a /= size(xgtypep%sideA, 1)) then
+    if(present(sideAGrid)) then
+        ngrid_a = size(sideAGrid, 1)
+        count = 0
+        do i = 1, size(xgtypep%sideA, 1)
+          call ESMF_XGridGeomBaseGet(xgtypep%sideA(i), geomtype=xggt, rc=localrc)
+          if (ESMF_LogFoundError(localrc, &
+              ESMF_ERR_PASSTHRU, &
+              ESMF_CONTEXT, rcToReturn=rc)) return
+          if(xggt == ESMF_XGRIDGEOMTYPE_GRID) count = count + 1
+        enddo
+        if(ngrid_a /= count) then
             call ESMF_LogSetError(rcToCheck=ESMF_RC_ARG_WRONG, & 
-               msg="- size of sideA doesn't match the size of sideA in the XGrid", &
+               msg="- size of sideAGrid doesn't match the number Grids on sideA in the XGrid", &
                ESMF_CONTEXT, rcToReturn=rc) 
             return
         endif
-        do i = 1, ngrid_a
-            sideA(i) = xgtypep%sideA(i)
+        count = 0
+        do i = 1, size(xgtypep%sideA, 1)
+          call ESMF_XGridGeomBaseGet(xgtypep%sideA(i), geomtype=xggt, rc=localrc)
+          if (ESMF_LogFoundError(localrc, &
+              ESMF_ERR_PASSTHRU, &
+              ESMF_CONTEXT, rcToReturn=rc)) return
+          if(xggt == ESMF_XGRIDGEOMTYPE_GRID) then
+            count = count + 1
+            sideAGrid(count) = xgtypep%sideA(i)%gbcp%grid
+          endif
         enddo 
     endif
-    if(present(sideB)) then
-        ngrid_b = size(sideB, 1)
-        if(ngrid_b /= size(xgtypep%sideB, 1)) then
+    if(present(sideAMesh)) then
+        ngrid_a = size(sideAMesh, 1)
+        count = 0
+        do i = 1, size(xgtypep%sideA, 1)
+          call ESMF_XGridGeomBaseGet(xgtypep%sideA(i), geomtype=xggt, rc=localrc)
+          if (ESMF_LogFoundError(localrc, &
+              ESMF_ERR_PASSTHRU, &
+              ESMF_CONTEXT, rcToReturn=rc)) return
+          if(xggt == ESMF_XGRIDGEOMTYPE_MESH) count = count + 1
+        enddo
+        if(ngrid_a /= count) then
             call ESMF_LogSetError(rcToCheck=ESMF_RC_ARG_WRONG, & 
-               msg="- size of sideB doesn't match the size of sideB in the XGrid", &
+               msg="- size of sideAMesh doesn't match the number Meshes on sideA in the XGrid", &
                ESMF_CONTEXT, rcToReturn=rc) 
             return
         endif
-        do i = 1, ngrid_b
-            sideB(i) = xgtypep%sideB(i)
+        count = 0
+        do i = 1, size(xgtypep%sideA, 1)
+          call ESMF_XGridGeomBaseGet(xgtypep%sideA(i), geomtype=xggt, rc=localrc)
+          if (ESMF_LogFoundError(localrc, &
+              ESMF_ERR_PASSTHRU, &
+              ESMF_CONTEXT, rcToReturn=rc)) return
+          if(xggt == ESMF_XGRIDGEOMTYPE_MESH) then
+            count = count + 1
+            sideAMesh(count) = xgtypep%sideA(i)%gbcp%mesh
+          endif
         enddo 
+    endif
+
+    if(present(sideBGrid)) then
+        ngrid_b = size(sideBGrid, 1)
+        count = 0
+        do i = 1, size(xgtypep%sideB, 1)
+          call ESMF_XGridGeomBaseGet(xgtypep%sideB(i), geomtype=xggt, rc=localrc)
+          if (ESMF_LogFoundError(localrc, &
+              ESMF_ERR_PASSTHRU, &
+              ESMF_CONTEXT, rcToReturn=rc)) return
+          if(xggt == ESMF_XGRIDGEOMTYPE_GRID) count = count + 1
+        enddo
+        if(ngrid_b /= count) then
+            call ESMF_LogSetError(rcToCheck=ESMF_RC_ARG_WRONG, & 
+               msg="- size of sideBGrid doesn't match the number Grids on sideB in the XGrid", &
+               ESMF_CONTEXT, rcToReturn=rc) 
+            return
+        endif
+        count = 0
+        do i = 1, size(xgtypep%sideB, 1)
+          call ESMF_XGridGeomBaseGet(xgtypep%sideB(i), geomtype=xggt, rc=localrc)
+          if (ESMF_LogFoundError(localrc, &
+              ESMF_ERR_PASSTHRU, &
+              ESMF_CONTEXT, rcToReturn=rc)) return
+          if(xggt == ESMF_XGRIDGEOMTYPE_GRID) then
+            count = count + 1
+            sideBGrid(count) = xgtypep%sideB(i)%gbcp%grid
+          endif
+        enddo 
+    endif
+    if(present(sideBMesh)) then
+        ngrid_b = size(sideBMesh, 1)
+        count = 0
+        do i = 1, size(xgtypep%sideB, 1)
+          call ESMF_XGridGeomBaseGet(xgtypep%sideB(i), geomtype=xggt, rc=localrc)
+          if (ESMF_LogFoundError(localrc, &
+              ESMF_ERR_PASSTHRU, &
+              ESMF_CONTEXT, rcToReturn=rc)) return
+          if(xggt == ESMF_XGRIDGEOMTYPE_MESH) count = count + 1
+        enddo
+        if(ngrid_b /= count) then
+            call ESMF_LogSetError(rcToCheck=ESMF_RC_ARG_WRONG, & 
+               msg="- size of sideBMesh doesn't match the number Meshes on sideB in the XGrid", &
+               ESMF_CONTEXT, rcToReturn=rc) 
+            return
+        endif
+        count = 0
+        do i = 1, size(xgtypep%sideB, 1)
+          call ESMF_XGridGeomBaseGet(xgtypep%sideB(i), geomtype=xggt, rc=localrc)
+          if (ESMF_LogFoundError(localrc, &
+              ESMF_ERR_PASSTHRU, &
+              ESMF_CONTEXT, rcToReturn=rc)) return
+          if(xggt == ESMF_XGRIDGEOMTYPE_MESH) then
+            count = count + 1
+            sideBMesh(count) = xgtypep%sideB(i)%gbcp%mesh
+          endif
+        enddo 
+    endif
+
+    if(present(mesh)) then
+      if(.not. xgtypep%storeOverlay) then
+          call ESMF_LogSetError(rcToCheck=ESMF_RC_ARG_WRONG, &
+             msg="- Cannot retrieve super mesh when storeOverylay is false.", &
+             ESMF_CONTEXT, rcToReturn=rc)
+          return
+      endif    
+      mesh = xgtypep%mesh
     endif
 
     if(present(area)) then
@@ -380,7 +497,7 @@ integer, intent(out), optional              :: rc
     endif
     
     if (present(name)) then
-        call c_ESMC_GetName(xgtypep%base, name, localrc)
+        call ESMF_GetName(xgtypep%base, name, localrc)
         if (ESMF_LogFoundError(localrc, &
             ESMF_ERR_PASSTHRU, &
             ESMF_CONTEXT, rcToReturn=rc)) return
@@ -408,25 +525,20 @@ end subroutine ESMF_XGridGetDefault
 
 !------------------------------------------------------------------------------
 #undef  ESMF_METHOD
-#define ESMF_METHOD "ESMF_XGridGetSMMSpec()"
+#define ESMF_METHOD "ESMF_XGridGetGB()"
 !BOPI
-! !IROUTINE:  ESMF_XGridGet - Get an individual SparseMatSpec
+! !IROUTINE:  ESMF_XGridGet - Get geombase object lists
 
 ! !INTERFACE: ESMF_XGridGet
+! ! Private name; call using ESMF_XGridGet()
 
-subroutine ESMF_XGridGetSMMSpec(xgrid, sparseMat, srcSide, srcGridIndex, &
-    dstSide, dstGridIndex, &
-    rc) 
+subroutine ESMF_XGridGetGB(xgrid, sideA, sideB, rc) 
 
 !
 ! !ARGUMENTS:
-type(ESMF_XGrid), intent(in)                 :: xgrid
-type(ESMF_XGridSpec), intent(out)            :: sparseMat
-type(ESMF_XGridSide_Flag), intent(in)        :: srcSide
-integer, intent(in)                          :: srcGridIndex
-type(ESMF_XGridSide_Flag), intent(in)        :: dstSide
-integer, intent(in)                          :: dstGridIndex
-integer, intent(out), optional               :: rc 
+type(ESMF_XGrid), intent(in)                :: xgrid
+type(ESMF_XGridGeomBase), intent(out)       :: sideA(:), sideB(:)
+integer, intent(out), optional              :: rc 
 !
 ! !DESCRIPTION:
 !      Get information about XGrid
@@ -434,22 +546,229 @@ integer, intent(out), optional               :: rc
 !     The arguments are:
 !     \begin{description}
 !     \item [xgrid]
-!       The xgrid object used to retrieve information from.
-!     \item [distgrid]
-!       Distgrid whose sequence index list is an overlap between gridIndex-th Grid
-!       on xgridSide and the xgrid object.
-!     \item [{[srcSide]}] 
+!       The {\tt ESMF\_XGrid} object used to retrieve information from.
+!     \item [{[sideA]}]
+!           2D GeomBase objects on side A
+!     \item [{[sideB]}]
+!           2D GeomBase objects on side B
+!     \item [{[rc]}]
+!           Return code; equals {\tt ESMF\_SUCCESS} only if the {\tt ESMF\_XGrid} 
+!           is created.
+!     \end{description}
+!
+!EOPI
+
+    integer :: localrc, ngrid_a, ngrid_b, i
+    type(ESMF_XGridType), pointer :: xgtypep
+
+    ! Initialize
+    localrc = ESMF_RC_NOT_IMPL
+
+    ! Initialize return code   
+    if(present(rc)) rc = ESMF_RC_NOT_IMPL
+
+    ! check init status of input XGrid
+    ESMF_INIT_CHECK_DEEP(ESMF_XGridGetInit,xgrid,rc)
+
+    xgtypep => xgrid%xgtypep
+
+    ngrid_a = size(sideA, 1)
+    if(ngrid_a /= size(xgtypep%sideA, 1)) then
+        call ESMF_LogSetError(rcToCheck=ESMF_RC_ARG_WRONG, & 
+           msg="- size of sideA doesn't match the size of sideA in the XGrid", &
+           ESMF_CONTEXT, rcToReturn=rc) 
+        return
+    endif
+    do i = 1, ngrid_a
+        sideA(i) = xgtypep%sideA(i)
+    enddo 
+
+    ngrid_b = size(sideB, 1)
+    if(ngrid_b /= size(xgtypep%sideB, 1)) then
+        call ESMF_LogSetError(rcToCheck=ESMF_RC_ARG_WRONG, & 
+           msg="- size of sideB doesn't match the size of sideB in the XGrid", &
+           ESMF_CONTEXT, rcToReturn=rc) 
+        return
+    endif
+    do i = 1, ngrid_b
+        sideB(i) = xgtypep%sideB(i)
+    enddo 
+
+    ! success
+    if(present(rc)) rc = ESMF_SUCCESS
+
+end subroutine ESMF_XGridGetGB
+
+!------------------------------------------------------------------------------
+#undef  ESMF_METHOD
+#define ESMF_METHOD "ESMF_XGridGetGeomObj()"
+!BOPI
+! !IROUTINE:  ESMF_XGridGet - Get an individual GeomBase Obj from an XGrid
+
+! !INTERFACE: ESMF_XGridGet
+! ! Private name; call using ESMF_XGridGet()
+
+subroutine ESMF_XGridGetGeomObj(xgrid, geombase, keywordEnforcer, &
+    xgridside, gridindex, &
+    rc) 
+
+!
+! !ARGUMENTS:
+type(ESMF_XGrid),          intent(in)            :: xgrid
+type(ESMF_XGridGeomBase),  intent(out)           :: geombase
+type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
+type(ESMF_XGridSide_Flag), intent(in),  optional :: xgridside
+integer,                   intent(in),  optional :: gridindex
+integer,                   intent(out), optional :: rc 
+!
+! !DESCRIPTION:
+!      Get a distgrid from XGrid from a specific side. 
+!
+!     The arguments are:
+!     \begin{description}
+!     \item [xgrid]
+!       The {\tt ESMF\_XGrid} object used to retrieve information from.
+!     \item [geombase]
+!       Geombase Object referenced by gridIndex-th Grid or Mesh
+!       on xgridSide stored in the xgrid object.
+!     \item [{[xgridside]}] 
+!       \begin{sloppypar}
+!       Which side of the XGrid to retrieve the distgrid from (either ESMF\_XGRIDSIDE\_A,
+!       ESMF\_XGRIDSIDE\_B, or ESMF\_XGRIDSIDE\_BALANCED). If not passed in then
+!       defaults to ESMF\_XGRIDSIDE\_BALANCED.
+!       \end{sloppypar}
+!     \item [{[gridindex]}] 
+!       If xgridSide is ESMF\_XGRIDSIDE\_A or ESMF\_XGRIDSIDE\_B then this index 
+!       selects the Distgrid associated with the Grid on
+!       that side. If not provided, defaults to 1. 
+!     \item [{[rc]}]
+!       Return code; equals {\tt ESMF\_SUCCESS} only if the {\tt ESMF\_XGrid} 
+!       is created.
+!     \end{description}
+!
+!EOP
+
+    type(ESMF_XGridType), pointer :: xgtypep
+    type(ESMF_XGridSide_Flag)     :: l_xgridSide
+    integer                       :: l_gridIndex
+
+    ! Initialize return code   
+    if(present(rc)) rc = ESMF_RC_NOT_IMPL
+
+    ! check init status of input XGrid
+    ESMF_INIT_CHECK_DEEP(ESMF_XGridGetInit,xgrid,rc)
+
+    xgtypep => xgrid%xgtypep
+
+    if(present(xgridSide)) then
+        l_xgridSide = xgridSide
+    else                   
+        l_xgridSide = ESMF_XGRIDSIDE_BALANCED
+    endif
+
+    if(present(gridIndex)) then
+        l_gridIndex = gridIndex
+    else                   
+        l_gridIndex = 1
+    endif
+
+    if(l_gridIndex .lt. 0) then
+        call ESMF_LogSetError(rcToCheck=ESMF_RC_ARG_WRONG, & 
+           msg="- gridIndex cannot be less than 0", &
+           ESMF_CONTEXT, rcToReturn=rc) 
+        return
+    endif
+
+    if(l_xgridSide .eq. ESMF_XGRIDSIDE_BALANCED) then
+        call ESMF_LogSetError(rcToCheck=ESMF_RC_ARG_WRONG, & 
+           msg="- XGridSide cannot be Balanced while retrieving geombase obj", &
+           ESMF_CONTEXT, rcToReturn=rc) 
+        return
+    endif
+
+    if(l_xgridSide .eq. ESMF_XGRIDSIDE_A) then
+        if(l_gridIndex .gt. size(xgtypep%distgridA, 1)) then
+            call ESMF_LogSetError(rcToCheck=ESMF_RC_ARG_WRONG, & 
+msg="- gridIndex cannot be greater than the size of distgridA in the XGrid", &
+               ESMF_CONTEXT, rcToReturn=rc) 
+            return
+        endif
+        geombase = xgtypep%sideA(l_gridIndex)
+    endif
+
+    if(l_xgridSide .eq. ESMF_XGRIDSIDE_B) then
+        if(l_gridIndex .gt. size(xgtypep%distgridB, 1)) then
+            call ESMF_LogSetError(rcToCheck=ESMF_RC_ARG_WRONG, & 
+msg="- gridIndex cannot be greater than the size of distgridB in the XGrid", &
+               ESMF_CONTEXT, rcToReturn=rc) 
+            return
+        endif
+        geombase = xgtypep%sideB(l_gridIndex)
+    endif
+
+    ! success
+    if(present(rc)) rc = ESMF_SUCCESS
+
+end subroutine ESMF_XGridGetGeomObj
+
+!------------------------------------------------------------------------------
+#undef  ESMF_METHOD
+#define ESMF_METHOD "ESMF_XGridGetSMMSpecFrac()"
+!BOPI
+! !IROUTINE:  ESMF_XGridGet - Get an individual SparseMatSpec
+
+! !INTERFACE: ESMF_XGridGet
+
+subroutine ESMF_XGridGetSMMSpecFrac(xgrid, srcSide, srcGridIndex, &
+    dstSide, dstGridIndex, keywordEnforcer, &
+    sparseMat, srcFracArray, dstFracArray, &
+    srcFrac2Array, dstFrac2Array, &
+    rc) 
+
+!
+! !ARGUMENTS:
+type(ESMF_XGrid),          intent(in)               :: xgrid
+type(ESMF_XGridSide_Flag), intent(in)               :: srcSide
+integer,                   intent(in)               :: srcGridIndex
+type(ESMF_XGridSide_Flag), intent(in)               :: dstSide
+integer,                   intent(in)               :: dstGridIndex
+type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
+type(ESMF_XGridSpec),      intent(out),   optional  :: sparseMat
+type(ESMF_Array),          intent(inout), optional  :: srcFracArray
+type(ESMF_Array),          intent(inout), optional  :: dstFracArray
+type(ESMF_Array),          intent(inout), optional  :: srcFrac2Array
+type(ESMF_Array),          intent(inout), optional  :: dstFrac2Array
+integer,                   intent(out),   optional  :: rc 
+!
+! !DESCRIPTION:
+!      Get information about XGrid
+!
+!     The arguments are:
+!     \begin{description}
+!     \item [xgrid]
+!       The {\tt ESMF\_XGrid} object used to retrieve information from.
+!     \item [srcSide] 
 !       Side of the XGrid from (either ESMF\_XGRIDSIDE\_A,
 !       ESMF\_XGRIDSIDE\_B, or ESMF\_XGRIDSIDE\_BALANCED).
-!     \item [{[srcGridIndex]}] 
+!     \item [srcGridIndex] 
 !       If xgridSide is  ESMF\_XGRIDSIDE\_A or ESMF\_XGRIDSIDE\_B then this index tells which Grid on
 !       that side.
-!     \item [{[dstSide]}] 
+!     \item [dstSide]
 !       Side of the XGrid from (either ESMF\_XGRIDSIDE\_A,
 !       ESMF\_XGRIDSIDE\_B, or ESMF\_XGRIDSIDE\_BALANCED).
-!     \item [{[dstGridIndex]}] 
+!     \item [dstGridIndex] 
 !       If xgridSide is  ESMF\_XGRIDSIDE\_A or ESMF\_XGRIDSIDE\_B then this index tells which Grid on
 !       that side.
+!     \item [{[sparseMat]}]
+!       SparseMat corresponding to the src and dst Grid or Mesh.
+!     \item [{[srcFracArray]}]
+!       src Frac Array corresponding to the src Grid or Mesh.
+!     \item [{[dstFracArray]}]
+!       dst Frac Array corresponding to the dst Grid or Mesh.
+!     \item [{[srcFrac2Array]}]
+!       src Frac2 Array corresponding to the src Grid or Mesh.
+!     \item [{[dstFrac2Array]}]
+!       dst Frac2 Array corresponding to the dst Grid or Mesh.
 !     \item [{[rc]}]
 !       Return code; equals {\tt ESMF\_SUCCESS} only if the {\tt ESMF\_XGrid} 
 !       is created.
@@ -458,6 +777,7 @@ integer, intent(out), optional               :: rc
 !EOPI
 
     type(ESMF_XGridType), pointer :: xgtypep
+    integer                       :: localrc
 
     ! Initialize return code   
     if(present(rc)) rc = ESMF_RC_NOT_IMPL
@@ -468,25 +788,222 @@ integer, intent(out), optional               :: rc
     xgtypep => xgrid%xgtypep
 
     if(srcSide .eq. ESMF_XGRIDSIDE_A .and. dstSide .eq. ESMF_XGRIDSIDE_BALANCED) then
-        sparseMat = xgtypep%SparseMatA2X(srcGridIndex)
+        if(present(sparseMat)) sparseMat = xgtypep%SparseMatA2X(srcGridIndex)
+
+        if(present(srcFracArray)) then
+          if(xgtypep%online == 0) then
+            call ESMF_LogSetError(rcToCheck=ESMF_RC_ARG_WRONG, & 
+               msg="- Cannot query srcFracArray for xgrid created offline", &
+               ESMF_CONTEXT, rcToReturn=rc) 
+            return
+          endif
+          call ESMF_ArrayCopy(srcFracArray, xgtypep%fracA2X(srcGridIndex), rc=localrc)
+          if (ESMF_LogFoundError(localrc, &
+              ESMF_ERR_PASSTHRU, &
+              ESMF_CONTEXT, rcToReturn=rc)) return
+        endif
+        if(present(dstFracArray)) then
+          if(xgtypep%online == 0) then
+            call ESMF_LogSetError(rcToCheck=ESMF_RC_ARG_WRONG, & 
+               msg="- Cannot query dstFracArray for xgrid created offline", &
+               ESMF_CONTEXT, rcToReturn=rc) 
+            return
+          endif
+          call ESMF_ArrayCopy(dstFracArray, xgtypep%fracX, rc=localrc)
+          if (ESMF_LogFoundError(localrc, &
+              ESMF_ERR_PASSTHRU, &
+              ESMF_CONTEXT, rcToReturn=rc)) return
+        endif
+
+        if(present(srcFrac2Array)) then
+          if(xgtypep%online == 0) then
+            call ESMF_LogSetError(rcToCheck=ESMF_RC_ARG_WRONG, & 
+               msg="- Cannot query srcFrac2Array for xgrid created offline", &
+               ESMF_CONTEXT, rcToReturn=rc) 
+            return
+          endif
+          call ESMF_ArrayCopy(srcFrac2Array, xgtypep%frac2A(srcGridIndex), rc=localrc)
+          if (ESMF_LogFoundError(localrc, &
+              ESMF_ERR_PASSTHRU, &
+              ESMF_CONTEXT, rcToReturn=rc)) return
+        endif
+        if(present(dstFrac2Array)) then
+          if(xgtypep%online == 0) then
+            call ESMF_LogSetError(rcToCheck=ESMF_RC_ARG_WRONG, & 
+               msg="- Cannot query dstFracArray for xgrid created offline", &
+               ESMF_CONTEXT, rcToReturn=rc) 
+            return
+          endif
+          call ESMF_ArrayCopy(dstFrac2Array, xgtypep%fracX, rc=localrc)
+          if (ESMF_LogFoundError(localrc, &
+              ESMF_ERR_PASSTHRU, &
+              ESMF_CONTEXT, rcToReturn=rc)) return
+        endif
     endif
 
     if(srcSide .eq. ESMF_XGRIDSIDE_B .and. dstSide .eq. ESMF_XGRIDSIDE_BALANCED) then
-        sparseMat = xgtypep%SparseMatB2X(srcGridIndex)
+        if(present(sparseMat)) sparseMat = xgtypep%SparseMatB2X(srcGridIndex)
+        if(present(srcFracArray)) then
+          if(xgtypep%online == 0) then
+            call ESMF_LogSetError(rcToCheck=ESMF_RC_ARG_WRONG, & 
+               msg="- Cannot query srcFracArray for xgrid created offline", &
+               ESMF_CONTEXT, rcToReturn=rc) 
+            return
+          endif
+          call ESMF_ArrayCopy(srcFracArray, xgtypep%fracB2X(srcGridIndex), rc=localrc)
+          if (ESMF_LogFoundError(localrc, &
+              ESMF_ERR_PASSTHRU, &
+              ESMF_CONTEXT, rcToReturn=rc)) return
+        endif
+        if(present(dstFracArray)) then
+          if(xgtypep%online == 0) then
+            call ESMF_LogSetError(rcToCheck=ESMF_RC_ARG_WRONG, & 
+               msg="- Cannot query dstFracArray for xgrid created offline", &
+               ESMF_CONTEXT, rcToReturn=rc) 
+            return
+          endif
+          call ESMF_ArrayCopy(dstFracArray, xgtypep%fracX, rc=localrc)
+          if (ESMF_LogFoundError(localrc, &
+              ESMF_ERR_PASSTHRU, &
+              ESMF_CONTEXT, rcToReturn=rc)) return
+        endif
+
+        if(present(srcFrac2Array)) then
+          if(xgtypep%online == 0) then
+            call ESMF_LogSetError(rcToCheck=ESMF_RC_ARG_WRONG, & 
+               msg="- Cannot query srcFrac2Array for xgrid created offline", &
+               ESMF_CONTEXT, rcToReturn=rc) 
+            return
+          endif
+          call ESMF_ArrayCopy(srcFrac2Array, xgtypep%frac2B(srcGridIndex), rc=localrc)
+          if (ESMF_LogFoundError(localrc, &
+              ESMF_ERR_PASSTHRU, &
+              ESMF_CONTEXT, rcToReturn=rc)) return
+        endif
+        if(present(dstFrac2Array)) then
+          if(xgtypep%online == 0) then
+            call ESMF_LogSetError(rcToCheck=ESMF_RC_ARG_WRONG, & 
+               msg="- Cannot query dstFrac2Array for xgrid created offline", &
+               ESMF_CONTEXT, rcToReturn=rc) 
+            return
+          endif
+          call ESMF_ArrayCopy(dstFrac2Array, xgtypep%fracX, rc=localrc)
+          if (ESMF_LogFoundError(localrc, &
+              ESMF_ERR_PASSTHRU, &
+              ESMF_CONTEXT, rcToReturn=rc)) return
+        endif
     endif
 
     if(srcSide .eq. ESMF_XGRIDSIDE_BALANCED .and. dstSide .eq. ESMF_XGRIDSIDE_A) then
-        sparseMat = xgtypep%SparseMatX2A(dstGridIndex)
+        if(present(sparseMat)) sparseMat = xgtypep%SparseMatX2A(dstGridIndex)
+        if(present(srcFracArray)) then
+          if(xgtypep%online == 0) then
+            call ESMF_LogSetError(rcToCheck=ESMF_RC_ARG_WRONG, & 
+               msg="- Cannot cannot query srcFracArray for xgrid created offline", &
+               ESMF_CONTEXT, rcToReturn=rc) 
+            return
+          endif
+          call ESMF_ArrayCopy(srcFracArray, xgtypep%fracX, rc=localrc)
+          if (ESMF_LogFoundError(localrc, &
+              ESMF_ERR_PASSTHRU, &
+              ESMF_CONTEXT, rcToReturn=rc)) return
+        endif
+        if(present(dstFracArray)) then
+          if(xgtypep%online == 0) then
+            call ESMF_LogSetError(rcToCheck=ESMF_RC_ARG_WRONG, & 
+               msg="- Cannot cannot query dstFracArray for xgrid created offline", &
+               ESMF_CONTEXT, rcToReturn=rc) 
+            return
+          endif
+          call ESMF_ArrayCopy(dstFracArray, xgtypep%fracX2A(dstGridIndex), rc=localrc)
+          if (ESMF_LogFoundError(localrc, &
+              ESMF_ERR_PASSTHRU, &
+              ESMF_CONTEXT, rcToReturn=rc)) return
+        endif
+
+        if(present(srcFrac2Array)) then
+          if(xgtypep%online == 0) then
+            call ESMF_LogSetError(rcToCheck=ESMF_RC_ARG_WRONG, & 
+               msg="- Cannot cannot query srcFrac2Array for xgrid created offline", &
+               ESMF_CONTEXT, rcToReturn=rc) 
+            return
+          endif
+          call ESMF_ArrayCopy(srcFrac2Array, xgtypep%fracX, rc=localrc)
+          if (ESMF_LogFoundError(localrc, &
+              ESMF_ERR_PASSTHRU, &
+              ESMF_CONTEXT, rcToReturn=rc)) return
+        endif
+        if(present(dstFrac2Array)) then
+          if(xgtypep%online == 0) then
+            call ESMF_LogSetError(rcToCheck=ESMF_RC_ARG_WRONG, & 
+               msg="- Cannot cannot query dstFrac2Array for xgrid created offline", &
+               ESMF_CONTEXT, rcToReturn=rc) 
+            return
+          endif
+          call ESMF_ArrayCopy(dstFrac2Array, xgtypep%frac2A(dstGridIndex), rc=localrc)
+          if (ESMF_LogFoundError(localrc, &
+              ESMF_ERR_PASSTHRU, &
+              ESMF_CONTEXT, rcToReturn=rc)) return
+        endif
     endif
 
     if(srcSide .eq. ESMF_XGRIDSIDE_BALANCED .and. dstSide .eq. ESMF_XGRIDSIDE_B) then
-        sparseMat = xgtypep%SparseMatX2B(dstGridIndex)
+        if(present(sparseMat)) sparseMat = xgtypep%SparseMatX2B(dstGridIndex)
+        if(present(srcFracArray)) then
+          if(xgtypep%online == 0) then
+            call ESMF_LogSetError(rcToCheck=ESMF_RC_ARG_WRONG, & 
+               msg="- Cannot cannot query srcFracArray for xgrid created offline", &
+               ESMF_CONTEXT, rcToReturn=rc) 
+            return
+          endif
+          call ESMF_ArrayCopy(srcFracArray, xgtypep%fracX, rc=localrc)
+          if (ESMF_LogFoundError(localrc, &
+              ESMF_ERR_PASSTHRU, &
+              ESMF_CONTEXT, rcToReturn=rc)) return
+        endif
+        if(present(dstFracArray)) then
+          if(xgtypep%online == 0) then
+            call ESMF_LogSetError(rcToCheck=ESMF_RC_ARG_WRONG, & 
+               msg="- Cannot cannot query dstFracArray for xgrid created offline", &
+               ESMF_CONTEXT, rcToReturn=rc) 
+            return
+          endif
+          call ESMF_ArrayCopy(dstFracArray, xgtypep%fracX2B(dstGridIndex), rc=localrc)
+          if (ESMF_LogFoundError(localrc, &
+              ESMF_ERR_PASSTHRU, &
+              ESMF_CONTEXT, rcToReturn=rc)) return
+        endif
+
+        if(present(srcFrac2Array)) then
+          if(xgtypep%online == 0) then
+            call ESMF_LogSetError(rcToCheck=ESMF_RC_ARG_WRONG, & 
+               msg="- Cannot cannot query srcFrac2Array for xgrid created offline", &
+               ESMF_CONTEXT, rcToReturn=rc) 
+            return
+          endif
+          call ESMF_ArrayCopy(srcFrac2Array, xgtypep%fracX, rc=localrc)
+          if (ESMF_LogFoundError(localrc, &
+              ESMF_ERR_PASSTHRU, &
+              ESMF_CONTEXT, rcToReturn=rc)) return
+        endif
+        if(present(dstFrac2Array)) then
+          if(xgtypep%online == 0) then
+            call ESMF_LogSetError(rcToCheck=ESMF_RC_ARG_WRONG, & 
+               msg="- Cannot cannot query dstFrac2Array for xgrid created offline", &
+               ESMF_CONTEXT, rcToReturn=rc) 
+            return
+          endif
+          call ESMF_ArrayCopy(dstFrac2Array, xgtypep%frac2B(dstGridIndex), rc=localrc)
+          if (ESMF_LogFoundError(localrc, &
+              ESMF_ERR_PASSTHRU, &
+              ESMF_CONTEXT, rcToReturn=rc)) return
+        endif
     endif
 
     ! success
     if(present(rc)) rc = ESMF_SUCCESS
 
-end subroutine ESMF_XGridGetSMMSpec
+end subroutine ESMF_XGridGetSMMSpecFrac
 
 !------------------------------------------------------------------------------
 #undef  ESMF_METHOD
@@ -497,16 +1014,18 @@ end subroutine ESMF_XGridGetSMMSpec
 ! !INTERFACE: ESMF_XGridGet
 ! ! Private name; call using ESMF_XGridGet()
 
-subroutine ESMF_XGridGetDG(xgrid, distgrid, xgridside, gridindex, &
+subroutine ESMF_XGridGetDG(xgrid, distgrid, keywordEnforcer, &
+    xgridside, gridindex, &
     rc) 
 
 !
 ! !ARGUMENTS:
-type(ESMF_XGrid), intent(in)                 :: xgrid
-type(ESMF_DistGrid), intent(out)             :: distgrid
-type(ESMF_XGridSide_Flag), intent(in), optional   :: xgridside
-integer, intent(in), optional                :: gridindex
-integer, intent(out), optional               :: rc 
+type(ESMF_XGrid),          intent(in)            :: xgrid
+type(ESMF_DistGrid),       intent(out)           :: distgrid
+type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
+type(ESMF_XGridSide_Flag), intent(in),  optional :: xgridside
+integer,                   intent(in),  optional :: gridindex
+integer,                   intent(out), optional :: rc 
 !
 ! !DESCRIPTION:
 !      Get a distgrid from XGrid from a specific side. 
@@ -514,7 +1033,7 @@ integer, intent(out), optional               :: rc
 !     The arguments are:
 !     \begin{description}
 !     \item [xgrid]
-!       The xgrid object used to retrieve information from.
+!       The {\tt ESMF\_XGrid} object used to retrieve information from.
 !     \item [distgrid]
 !       Distgrid whose sequence index list is an overlap between gridIndex-th Grid
 !       on xgridSide and the xgrid object.
@@ -604,20 +1123,20 @@ end subroutine ESMF_XGridGetDG
 ! !INTERFACE: ESMF_XGridGet
 ! ! Private name; call using ESMF_XGridGet()
 
-subroutine ESMF_XGridGetEle(xgrid, &
-    localDE, elementCount, &
-    exclusiveCount, exclusiveLBound, exclusiveUBound, &
+subroutine ESMF_XGridGetEle(xgrid, localDE, keywordEnforcer, &
+    elementCount, exclusiveCount, exclusiveLBound, exclusiveUBound, &
     rc) 
 
 !
 ! !ARGUMENTS:
-type(ESMF_XGrid), intent(in)                 :: xgrid
-integer, intent(in)                          :: localDE
-integer, intent(out), optional               :: elementCount
-integer, intent(out), optional               :: exclusiveCount
-integer, intent(out), optional               :: exclusiveLBound
-integer, intent(out), optional               :: exclusiveUBound
-integer, intent(out), optional               :: rc 
+type(ESMF_XGrid), intent(in)            :: xgrid
+integer,          intent(in)            :: localDE
+type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
+integer,          intent(out), optional :: elementCount
+integer,          intent(out), optional :: exclusiveCount
+integer,          intent(out), optional :: exclusiveLBound
+integer,          intent(out), optional :: exclusiveUBound
+integer,          intent(out), optional :: rc 
 !
 ! !DESCRIPTION:
 !      Get localDE specific information about XGrid
@@ -625,9 +1144,9 @@ integer, intent(out), optional               :: rc
 !     The arguments are:
 !     \begin{description}
 !     \item [xgrid]
-!       The xgrid object used to retrieve information from.
+!       The {\tt ESMF\_XGrid} object used to retrieve information from.
 !     \item [localDE]
-!       Local DE for which information is requested.
+!       Local DE for which information is requested. Correct value is an element of
 !          [0,..,localDeCount-1]
 !     \item [{[elementCount]}]
 !          Number of elements in exclusive region per DE

@@ -1,7 +1,7 @@
-! $Id: ESMF_VMSendVMRecvUTest.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
+! $Id$
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2012, University Corporation for Atmospheric Research,
+! Copyright 2002-2018, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -18,7 +18,7 @@
 
 !==============================================================================
 !BOP
-! !PROGRAM: ESMF_VMSendVMRecvUTest - Unit test for VM Send Receive Functions
+! !PROGRAM: ESMF_VMSendVMRecvUTest - Unit test for VM Send and Receive Functions
 !
 ! !DESCRIPTION:
 !
@@ -36,11 +36,10 @@
 !------------------------------------------------------------------------------
 ! The following line turns the CVS identifier string into a printable variable.
       character(*), parameter :: version = &
-      '$Id: ESMF_VMSendVMRecvUTest.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $'
+      '$Id$'
 !------------------------------------------------------------------------------
       ! cumulative result: count failures; no failures equals "all pass"
       integer :: result = 0
-
 
       ! individual test failure message
       character(ESMF_MAXSTR) :: failMsg
@@ -75,6 +74,7 @@
 
 
       call ESMF_TestStart(ESMF_SRCLINE, rc=rc)
+      if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
       ! Get count of PETs and which PET number we are
       call ESMF_VMGetGlobal(vm, rc=rc)
@@ -125,8 +125,8 @@
       !The solution to test against is..
       do  i=1,count
         soln(i)    = src*100+i
-        r8_soln(i) = real( soln(i) , ESMF_KIND_R8 )
-        r4_soln(i) = r8_soln(i)
+        r8_soln(i) = real(soln(i), ESMF_KIND_R8)
+        r4_soln(i) = real(r8_soln(i), ESMF_KIND_R4)
         if ( mod(soln(i)+src,2) .eq. 0 ) then
           logical_soln(i)= ESMF_TRUE
         else
@@ -356,6 +356,18 @@ call ESMF_VMBarrier (vm)
       end do
       call ESMF_Test( (ISum .eq. 0), name, failMsg, result, ESMF_SRCLINE)
 
-      call ESMF_TestEnd(result, ESMF_SRCLINE)
+      deallocate(localData)
+      deallocate(r8_localData)
+      deallocate(r4_localData)
+      deallocate(local_logical)
+      deallocate(local_chars)
+
+      deallocate(soln)
+      deallocate(r8_soln)
+      deallocate(r4_soln)
+      deallocate(logical_soln)
+      deallocate(char_soln)
+
+      call ESMF_TestEnd(ESMF_SRCLINE)
 
       end program ESMF_VMSendVMRecvUTest

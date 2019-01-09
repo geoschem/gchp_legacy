@@ -6,8 +6,8 @@
 /*****************************************************************************
  * CVS File Information :
  *    $RCSfile: rcb.c,v $
- *    $Author: mathomp4 $
- *    $Date: 2013-01-11 20:23:44 $
+ *    $Author: w6ws $
+ *    $Date: 2008/11/06 19:55:28 $
  *    Revision: 1.131.2.1 $
  ****************************************************************************/
 
@@ -77,6 +77,8 @@ static int serial_rcb(ZZ *, struct Dot_Struct *, int *, int *, int, int,
   double *, double *, float *, double *, int, double);
 static void compute_RCB_box(struct rcb_box *, int, struct Dot_Struct *, int *,
   MPI_Op, MPI_Datatype, MPI_Comm, int, int, int, int);
+
+void Zoltan_RCB_box_merge(void *in, void *inout, int *len, MPI_Datatype *dptr);
 
 /*****************************************************************************/
 /*  Parameters structure for RCB method.  Used in  */
@@ -149,6 +151,8 @@ int Zoltan_RCB(
   int **export_to_part          /* Not computed. */
 )
 {
+
+
     /* Wrapper routine to set parameter values and call the real rcb. */
     double overalloc;         /* amount to overallocate by when realloc
                                  of dot array must be done.     
@@ -284,7 +288,9 @@ static int rcb_fn(
                                    to be assigned to each partition.    */
 )
 {
-  char    yo[] = "rcb_fn";
+
+
+  const char yo[] = "rcb_fn";
   int     proc,nprocs;              /* my proc id, total # of procs */
   struct Dot_Struct *dotpt;         /* temporary pointer to rcb->Dots. */
   int     pdotnum;                  /* # of dots - decomposition changes it */
@@ -1240,7 +1246,7 @@ static int set_preset_dir(
    determine number of cuts in each direction, and then assign those
    cuts to an order according to order of directions */
 
-char *yo = "set_preset_dir";
+const char *yo = "set_preset_dir";
 int ix[3];                        /* temporaries for preset_dir */
 double wx, wy, wz;                /* width for preset_dir */
 int tmp_nparts;
@@ -1380,7 +1386,7 @@ static int serial_rcb(
   double max_aspect_ratio 
 )
 {
-  char *yo = "serial_rcb";
+  const char *yo = "serial_rcb";
   int ierr = ZOLTAN_OK;
   int i, j;
   int dim;

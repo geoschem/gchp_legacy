@@ -1,0 +1,16 @@
+% $Id$
+
+%\subsection{Design and Implementation Notes}
+
+The Array class is part of the ESMF index space layer and is built on top of the DistGrid and DELayout classes. The DELayout class introduces the notion of 
+{\em decomposition elements} (DEs) and their layout across the available PETs. The DistGrid describes how index space is decomposed by assigning {\em logically rectangular index space pieces} or {\em DE-local tiles} to the DEs. The Array finally associates a {\em local memory allocation} with each local DE.
+
+The following is a list of implementation specific details about the current ESMF Array.
+
+\begin{itemize}
+\item Implementation language is C++.
+\item Local memory allocations are internally held in {\tt ESMF\_LocalArray}
+objects.
+\item All precomputed communication methods are based on sparse matrix
+multiplication.
+\end{itemize}

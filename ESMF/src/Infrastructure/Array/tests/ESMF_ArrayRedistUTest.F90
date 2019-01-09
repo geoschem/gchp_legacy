@@ -1,7 +1,7 @@
-! $Id: ESMF_ArrayRedistUTest.F90,v 1.1.5.1 2013-01-11 20:23:43 mathomp4 Exp $
+! $Id$
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2012, University Corporation for Atmospheric Research,
+! Copyright 2002-2018, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -33,7 +33,7 @@ program ESMF_ArrayRedistUTest
 !------------------------------------------------------------------------------
 ! The following line turns the CVS identifier string into a printable variable.
   character(*), parameter :: version = &
-    '$Id: ESMF_ArrayRedistUTest.F90,v 1.1.5.1 2013-01-11 20:23:43 mathomp4 Exp $'
+    '$Id$'
 !------------------------------------------------------------------------------
 
 !-------------------------------------------------------------------------
@@ -51,14 +51,17 @@ program ESMF_ArrayRedistUTest
   type(ESMF_RouteHandle):: routehandle
   integer(ESMF_KIND_I4), pointer :: farrayPtr(:)  ! matching Fortran array pointer
 #ifdef ESMF_TESTEXHAUSTIVE
-  type(ESMF_DistGrid)   :: srcDistgrid2
+  integer, allocatable  :: deBlockList(:,:,:)
+  type(ESMF_DistGrid)   :: srcDistgridWHoles
+  type(ESMF_DistGrid)   :: srcDistgrid2, dstDistgridWrong
   type(ESMF_Array)      :: srcArray2, srcArray3
-  type(ESMF_Array)      :: dstArray2, dstArray3
+  type(ESMF_Array)      :: dstArray2, dstArray3, dstArrayWrong
   type(ESMF_ArraySpec)  :: arrayspec3
   type(ESMF_ArraySpec)  :: arrayspec4, arrayspec5
   type(ESMF_Array)      :: srcArray4, dstArray5
   type(ESMF_Array)      :: srcArray6, dstArray6, dstArray6p
   type(ESMF_Array)      :: srcArray7, dstArray7
+  type(ESMF_Array)      :: srcArray8, dstArray8
   real(ESMF_KIND_R8), pointer :: farrayPtr4(:)  ! matching Fortran array pointer
   real(ESMF_KIND_R4), pointer :: farrayPtr5(:)  ! matching Fortran array pointer
   type(ESMF_RouteHandle):: routehandle45
@@ -70,6 +73,8 @@ program ESMF_ArrayRedistUTest
 #endif
   integer               :: rc, i, petCount, localPet
   integer, allocatable  :: srcIndices(:)
+  logical               :: isCreated
+  character(1024)       :: msgString
 
   ! cumulative result: count failures; no failures equals "all pass"
   integer :: result = 0
@@ -86,6 +91,7 @@ program ESMF_ArrayRedistUTest
 
   !------------------------------------------------------------------------
   call ESMF_TestStart(ESMF_SRCLINE, rc=rc)  ! calls ESMF_Initialize() internally
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   !------------------------------------------------------------------------
   ! get global VM
   call ESMF_VMGetGlobal(vm, rc=rc)
@@ -99,6 +105,8 @@ program ESMF_ArrayRedistUTest
       petCount
     goto 10
   endif
+  
+!  call ESMF_LogSet(flush=.true.)
 
 !-------------------------------------------------------------------------------
 !-------------------------------------------------------------------------------
@@ -173,6 +181,21 @@ program ESMF_ArrayRedistUTest
   
 !------------------------------------------------------------------------
   !EX_UTest_Multi_Proc_Only
+  write(name, *) "Array Spec rank=1, R4 Set Test"
+  write(failMsg, *) "Did not return ESMF_SUCCESS"
+  call ESMF_ArraySpecSet(arrayspec5, typekind=ESMF_TYPEKIND_R4, rank=1, rc=rc)
+  call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+  
+!------------------------------------------------------------------------
+  !EX_UTest_Multi_Proc_Only
+  write(name, *) "dstArray5 Create Test"
+  write(failMsg, *) "Did not return ESMF_SUCCESS" 
+  dstArray5 = ESMF_ArrayCreate(arrayspec=arrayspec5, distgrid=dstDistgrid, &
+    rc=rc)
+  call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+
+!------------------------------------------------------------------------
+  !EX_UTest_Multi_Proc_Only
   write(name, *) "dstArray6 Create Test"
   write(failMsg, *) "Did not return ESMF_SUCCESS" 
   dstArray6 = ESMF_ArrayCreate(arrayspec=arrayspec3, distgrid=dstDistgrid, &
@@ -197,18 +220,12 @@ program ESMF_ArrayRedistUTest
   
 !------------------------------------------------------------------------
   !EX_UTest_Multi_Proc_Only
-  write(name, *) "Array Spec rank=1, R4 Set Test"
-  write(failMsg, *) "Did not return ESMF_SUCCESS"
-  call ESMF_ArraySpecSet(arrayspec5, typekind=ESMF_TYPEKIND_R4, rank=1, rc=rc)
+  write(name, *) "dstArray8 Create Test"
+  write(failMsg, *) "Did not return ESMF_SUCCESS" 
+  dstArray8 = ESMF_ArrayCreate(arrayspec=arrayspec3, distgrid=dstDistgrid, &
+    distgridToArrayMap=(/1/), undistLBound=(/1/), undistUBound=(/3/), rc=rc)
   call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
   
-!------------------------------------------------------------------------
-  !EX_UTest_Multi_Proc_Only
-  write(name, *) "dstArray5 Create Test"
-  write(failMsg, *) "Did not return ESMF_SUCCESS" 
-  dstArray5 = ESMF_ArrayCreate(arrayspec=arrayspec5, distgrid=dstDistgrid, &
-    rc=rc)
-  call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
 #endif
 
 !------------------------------------------------------------------------
@@ -247,6 +264,23 @@ program ESMF_ArrayRedistUTest
   ! 4     0         4     41, 42, 43, 44, 45, 46, 47
   ! 5     0         5     51, 52, 53, 54, 55, 56, 57
   
+
+  !------------------------------------------------------------------------
+  !NEX_UTest_Multi_Proc_Only
+  write(name, *) "Testing RouteHandle IsCreated for uncreated object"
+  write(failMsg, *) "Did not return .false."
+  isCreated = ESMF_RouteHandleIsCreated(routehandle)
+  call ESMF_Test((isCreated .eqv. .false.), name, failMsg, result, ESMF_SRCLINE)
+  !------------------------------------------------------------------------
+
+  !------------------------------------------------------------------------
+  !NEX_UTest_Multi_Proc_Only
+  write(name, *) "Testing RouteHandle IsCreated for uncreated object"
+  write(failMsg, *) "Did not return ESMF_SUCCESS"
+  isCreated = ESMF_RouteHandleIsCreated(routehandle, rc=rc)
+  call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+  !------------------------------------------------------------------------
+
 !------------------------------------------------------------------------
   !NEX_UTest_Multi_Proc_Only
   write(name, *) "ArrayRedistStore Test"
@@ -254,6 +288,22 @@ program ESMF_ArrayRedistUTest
   call ESMF_ArrayRedistStore(srcArray=srcArray, dstArray=dstArray, &
     routehandle=routehandle, rc=rc)
   call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+
+  !------------------------------------------------------------------------
+  !NEX_UTest_Multi_Proc_Only
+  write(name, *) "Testing RouteHandle IsCreated for created object"
+  write(failMsg, *) "Did not return .true."
+  isCreated = ESMF_RouteHandleIsCreated(routehandle)
+  call ESMF_Test((isCreated .eqv. .true.), name, failMsg, result, ESMF_SRCLINE)
+  !------------------------------------------------------------------------
+
+  !------------------------------------------------------------------------
+  !NEX_UTest_Multi_Proc_Only
+  write(name, *) "Testing RouteHandle IsCreated for created object"
+  write(failMsg, *) "Did not return ESMF_SUCCESS"
+  isCreated = ESMF_RouteHandleIsCreated(routehandle, rc=rc)
+  call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+  !------------------------------------------------------------------------
   
 !------------------------------------------------------------------------
   !NEX_UTest_Multi_Proc_Only
@@ -330,6 +380,22 @@ program ESMF_ArrayRedistUTest
   write(failMsg, *) "Did not return ESMF_SUCCESS" 
   call ESMF_ArrayRedistRelease(routehandle=routehandle, rc=rc)
   call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+
+  !------------------------------------------------------------------------
+  !NEX_UTest_Multi_Proc_Only
+  write(name, *) "Testing RouteHandle IsCreated for destroyed object"
+  write(failMsg, *) "Did not return .false."
+  isCreated = ESMF_RouteHandleIsCreated(routehandle)
+  call ESMF_Test((isCreated .eqv. .false.), name, failMsg, result, ESMF_SRCLINE)
+  !------------------------------------------------------------------------
+
+  !------------------------------------------------------------------------
+  !NEX_UTest_Multi_Proc_Only
+  write(name, *) "Testing RouteHandle IsCreated for destroyed object"
+  write(failMsg, *) "Did not return ESMF_SUCCESS"
+  isCreated = ESMF_RouteHandleIsCreated(routehandle, rc=rc)
+  call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+  !------------------------------------------------------------------------
 
 !------------------------------------------------------------------------
   !NEX_UTest_Multi_Proc_Only
@@ -415,6 +481,190 @@ program ESMF_ArrayRedistUTest
   call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
 
 #ifdef ESMF_TESTEXHAUSTIVE
+
+!------------------------------------------------------------------------
+  ! Testing a srcArray where the DEs do not fully cover the index space
+  ! defined by the DistGrid minIndex/maxIndex. Such a DistGrid with holes
+  ! can be set up by using a deBlockList.
+
+  allocate(deBlockList(1,2,0:5))  ! dimCount, 2, deCount
+  deBlockList(1,:,0) = (/103,110/)  ! DE 0
+  deBlockList(1,:,1) = (/122,125/)  ! DE 1
+  deBlockList(1,:,2) = (/117,120/)  ! DE 2
+  deBlockList(1,:,3) = (/126,131/)  ! DE 3
+  deBlockList(1,:,4) = (/139,141/)  ! DE 4
+  deBlockList(1,:,5) = (/133,138/)  ! DE 5
+
+!------------------------------------------------------------------------
+  !EX_UTest_Multi_Proc_Only
+  write(name, *) "srcDistgridWHoles Create Test"
+  write(failMsg, *) "Did not return ESMF_SUCCESS" 
+  srcDistgridWHoles = ESMF_DistGridCreate(minIndex=(/101/), maxIndex=(/142/), &
+    deBlockList=deBlockList, rc=rc)
+  call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+      
+!------------------------------------------------------------------------
+  !EX_UTest_Multi_Proc_Only
+  write(name, *) "srcArray Create Test"
+  write(failMsg, *) "Did not return ESMF_SUCCESS" 
+  srcArray = ESMF_ArrayCreate(arrayspec=arrayspec, distgrid=srcDistgridWHoles, &
+    indexflag=ESMF_INDEX_GLOBAL, rc=rc)
+  call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+
+!------------------------------------------------------------------------
+  !EX_UTest_Multi_Proc_Only
+  write(name, *) "Get srcArray Test"
+  write(failMsg, *) "Did not return ESMF_SUCCESS" 
+  call ESMF_ArrayGet(srcArray, farrayPtr=farrayPtr, rc=rc)
+  call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+  
+  do i = lbound(farrayPtr, 1), ubound(farrayPtr, 1)
+    farrayPtr(i) = i    ! initialize with a value equal to the global index
+  enddo
+  
+  ! The array bounds are in global index space. Therefore:
+  !
+  ! PET   localDE   DE    srcArray contents
+  ! 0     0         0     103, 104, 105, 106, 107, 108, 109, 110
+  ! 1     0         1     122, 123, 124, 125
+  ! 2     0         2     117, 118, 119, 120
+  ! 3     0         3     126, 127, 128, 129, 130, 131
+  ! 4     0         4     139, 140, 141
+  ! 5     0         5     133, 134, 135, 136, 137, 138
+  
+!------------------------------------------------------------------------
+  !EX_UTest_Multi_Proc_Only
+  write(name, *) "ArrayRedistStore Test"
+  write(failMsg, *) "Did not return ESMF_SUCCESS" 
+  call ESMF_ArrayRedistStore(srcArray=srcArray, dstArray=dstArray, &
+    routehandle=routehandle, rc=rc)
+  call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+  
+!------------------------------------------------------------------------
+  !EX_UTest_Multi_Proc_Only
+  write(name, *) "ArrayRedist: srcArray -> dstArray Test"
+  write(failMsg, *) "Did not return ESMF_SUCCESS" 
+  call ESMF_ArrayRedist(srcArray=srcArray, dstArray=dstArray, &
+    routehandle=routehandle, checkflag=.true., rc=rc)
+  call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+  
+  ! To understand the expected redistribution result keep these points in mind:
+  !   1) Sequence indices are tied to the tile order, and the canonical order
+  !      of elements within the tiles. Sequence indices are unaffected by 
+  !      decomposition and distribution! Therefore, on the srcArray side with
+  !      the srcDistgridWHoles, the crazy deBlockList has no effect on how
+  !      the elements are labeled by sequence indices. It is still simply
+  !      a DistGrid with one tile that has (142-101+1) = 42 elements. Therefore
+  !      the sequence index goes from 1->42, simply labeling the elements.
+  !      However, not all 42 elements are present, but that does not affect
+  !      the labeling.
+  !   2) It does not matter which DE on the src side holds a specific index
+  !      space range of the tile, the sequence index is connected to the 
+  !      index space and not the DE numbering.
+  !   3) The dstArray is _not_ being zero'ed out during the Redist, and since 
+  !      there are holes in the srcArray some of the dstArray elements stay 
+  !      unchanged, i.e. they keep the value of the previous Redist operation.
+  ! The expected result of the redistribution of srcArray into dstArray is:
+  !
+  ! PET   localDE   DE    dstArray contents
+  ! 0     0         0     1, 2, 103, 104, 105, 106, 107
+  ! 1     0         1     108, 109, 110, 14, 15, 16, 17
+  ! 2     0         2     21, 22, 117, 118, 119, 120, 27
+  ! 3     0         3     122, 123, 124, 125, 126, 127, 128
+  ! 4     0         4     129, 130, 131, 44, 133, 134, 135
+  ! 5     0         5     136, 137, 138, 139, 140, 141, 57
+  
+!------------------------------------------------------------------------
+  !EX_UTest_Multi_Proc_Only
+  write(name, *) "dstArray Get Test"
+  write(failMsg, *) "Did not return ESMF_SUCCESS" 
+  call ESMF_ArrayGet(dstArray, farrayPtr=farrayPtr, rc=rc)
+  call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+  
+!------------------------------------------------------------------------
+  !EX_UTest_Multi_Proc_Only
+  write(name, *) "Verify results in dstArray Test"
+  write(failMsg, *) "Wrong results" 
+  if (localPet == 0) then
+    call ESMF_Test(((farrayPtr(1).eq.1).and. &
+      (farrayPtr(2).eq.2).and.(farrayPtr(3).eq.103).and. &
+      (farrayPtr(4).eq.104).and.(farrayPtr(5).eq.105).and. &
+      (farrayPtr(6).eq.106).and.(farrayPtr(7).eq.107)), &
+      name, failMsg, result, ESMF_SRCLINE)
+  else if (localPet == 1) then
+    call ESMF_Test(((farrayPtr(1).eq.108).and. &
+      (farrayPtr(2).eq.109).and.(farrayPtr(3).eq.110).and. &
+      (farrayPtr(4).eq.14).and.(farrayPtr(5).eq.15).and. &
+      (farrayPtr(6).eq.16).and.(farrayPtr(7).eq.17)), &
+      name, failMsg, result, ESMF_SRCLINE)
+  else if (localPet == 2) then
+    call ESMF_Test(((farrayPtr(1).eq.21).and. &
+      (farrayPtr(2).eq.22).and.(farrayPtr(3).eq.117).and. &
+      (farrayPtr(4).eq.118).and.(farrayPtr(5).eq.119).and. &
+      (farrayPtr(6).eq.120).and.(farrayPtr(7).eq.27)), &
+      name, failMsg, result, ESMF_SRCLINE)
+  else if (localPet == 3) then
+    call ESMF_Test(((farrayPtr(1).eq.122).and. &
+      (farrayPtr(2).eq.123).and.(farrayPtr(3).eq.124).and. &
+      (farrayPtr(4).eq.125).and.(farrayPtr(5).eq.126).and. &
+      (farrayPtr(6).eq.127).and.(farrayPtr(7).eq.128)), &
+      name, failMsg, result, ESMF_SRCLINE)
+  else if (localPet == 4) then
+    call ESMF_Test(((farrayPtr(1).eq.129).and. &
+      (farrayPtr(2).eq.130).and.(farrayPtr(3).eq.131).and. &
+      (farrayPtr(4).eq.44).and.(farrayPtr(5).eq.133).and. &
+      (farrayPtr(6).eq.134).and.(farrayPtr(7).eq.135)), &
+      name, failMsg, result, ESMF_SRCLINE)
+  else if (localPet == 5) then
+    call ESMF_Test(((farrayPtr(1).eq.136).and. &
+      (farrayPtr(2).eq.137).and.(farrayPtr(3).eq.138).and. &
+      (farrayPtr(4).eq.139).and.(farrayPtr(5).eq.140).and. &
+      (farrayPtr(6).eq.141).and.(farrayPtr(7).eq.57)), &
+      name, failMsg, result, ESMF_SRCLINE)
+  endif
+
+!------------------------------------------------------------------------
+  !EX_UTest_Multi_Proc_Only
+  write(name, *) "routehandle Release Test"
+  write(failMsg, *) "Did not return ESMF_SUCCESS" 
+  call ESMF_ArrayRedistRelease(routehandle=routehandle, rc=rc)
+  call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+
+!------------------------------------------------------------------------
+  !EX_UTest_Multi_Proc_Only
+  write(name, *) "Reverse ArrayRedistStore with holes Test"
+  write(failMsg, *) "Did not return ESMF_SUCCESS"
+  ! This direction requires ignoreUnmatchedIndices=.true. because the
+  ! sparse matrix is costructed from the srcArray, but now the dstArray
+  ! has holes, and that means the sparse matrix has entries with indices
+  ! that are not found on the dstArray side.
+  call ESMF_ArrayRedistStore(srcArray=dstArray, dstArray=srcArray, &
+    ignoreUnmatchedIndices=.true., routehandle=routehandle, rc=rc)
+  call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+  
+!------------------------------------------------------------------------
+  !EX_UTest_Multi_Proc_Only
+  write(name, *) "routehandle Release Test"
+  write(failMsg, *) "Did not return ESMF_SUCCESS" 
+  call ESMF_ArrayRedistRelease(routehandle=routehandle, rc=rc)
+  call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+
+!------------------------------------------------------------------------
+  !EX_UTest_Multi_Proc_Only
+  write(name, *) "srcArray Destroy Test"
+  write(failMsg, *) "Did not return ESMF_SUCCESS" 
+  call ESMF_ArrayDestroy(srcArray, rc=rc)
+  call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+
+!------------------------------------------------------------------------
+  !EX_UTest_Multi_Proc_Only
+  write(name, *) "srcDistgridWHoles Destroy Test"
+  write(failMsg, *) "Did not return ESMF_SUCCESS" 
+  call ESMF_DistGridDestroy(srcDistgridWHoles, rc=rc)
+  call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+
+  deallocate(deBlockList)
+  
 !------------------------------------------------------------------------
   !EX_UTest_Multi_Proc_Only
   write(name, *) "Array Spec rank=1, R8 Set Test"
@@ -510,7 +760,7 @@ program ESMF_ArrayRedistUTest
       (farrayPtr5(6).eq.26).and.(farrayPtr5(7).eq.27)), &
       name, failMsg, result, ESMF_SRCLINE)
   else if (localPet == 3) then
-    call ESMF_Test(((farrayPtr(1).eq.31).and. &
+    call ESMF_Test(((farrayPtr5(1).eq.31).and. &
       (farrayPtr5(2).eq.32).and.(farrayPtr5(3).eq.33).and. &
       (farrayPtr5(4).eq.34).and.(farrayPtr5(5).eq.35).and. &
       (farrayPtr5(6).eq.36).and.(farrayPtr5(7).eq.37)), &
@@ -661,6 +911,14 @@ program ESMF_ArrayRedistUTest
   srcArray7 = ESMF_ArrayCreate(arrayspec=arrayspec3, distgrid=srcDistgrid2, &
     distgridToArrayMap=(/2/), undistLBound=(/0/), undistUBound=(/2/), rc=rc)
   call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+
+!------------------------------------------------------------------------
+  !EX_UTest_Multi_Proc_Only
+  write(name, *) "srcArray8 Create Test"
+  write(failMsg, *) "Did not return ESMF_SUCCESS"
+  srcArray8 = ESMF_ArrayCreate(arrayspec=arrayspec3, distgrid=srcDistgrid2, &
+    distgridToArrayMap=(/1/), undistLBound=(/0/), undistUBound=(/2/), rc=rc)
+  call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
 #endif
   
 !------------------------------------------------------------------------
@@ -715,10 +973,10 @@ program ESMF_ArrayRedistUTest
   call ESMF_ArrayGet(srcArray3, farrayPtr=farrayPtr2D, rc=rc)
   call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
   
-  do j=0,1
-    do i = lbound(farrayPtr2D, 1), ubound(farrayPtr2D, 1)
-      farrayPtr2D(i,j) = localPet * 10 + i - 1 + j*100  ! initialize
-    enddo
+  do j = lbound(farrayPtr2D, 2), ubound(farrayPtr2D, 2)
+  do i = lbound(farrayPtr2D, 1), ubound(farrayPtr2D, 1)
+    farrayPtr2D(i,j) = localPet * 10 + i - 1 + j*100  ! initialize
+  enddo
   enddo
   
   ! The lbound(farrayPtr2D, 1) = 1 because ArrayCreate() by default sets local
@@ -749,9 +1007,9 @@ program ESMF_ArrayRedistUTest
   call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
   
   do i = lbound(farrayPtr2D, 2), ubound(farrayPtr2D, 2)
-    do j=0,1
-      farrayPtr2D(j,i) = localPet * 10 + i - 1 + j*100  ! initialize
-    enddo
+  do j = lbound(farrayPtr2D, 1), ubound(farrayPtr2D, 1)
+    farrayPtr2D(j,i) = localPet * 10 + i - 1 + j*100  ! initialize
+  enddo
   enddo
   
   ! The lbound(farrayPtr2D, 2) = 1 because ArrayCreate() by default sets local
@@ -782,9 +1040,9 @@ program ESMF_ArrayRedistUTest
   call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
   
   do i = lbound(farrayPtr2D, 2), ubound(farrayPtr2D, 2)
-    do j=0,2
-      farrayPtr2D(j,i) = localPet * 10 + i - 1 + j*100  ! initialize
-    enddo
+  do j = lbound(farrayPtr2D, 1), ubound(farrayPtr2D, 1)
+    farrayPtr2D(j,i) = localPet * 10 + i - 1 + j*100  ! initialize
+  enddo
   enddo
   
   ! The lbound(farrayPtr2D, 2) = 1 because ArrayCreate() by default sets local
@@ -808,6 +1066,48 @@ program ESMF_ArrayRedistUTest
   !                       160, 161
   !
   ! PET   localDE   DE    srcArray7 contents, tensor dimension j=2
+  ! 0     0         0     200, 201
+  ! 1     0         1     210, 211, 212, 213
+  ! 2     0         2     220, 221, 222, 223, 224, 225
+  ! 3     0         3     230, 231, 232, 233, 234, 235, 236, 237
+  ! 4     0         4     240, 241, 242, 243, 244, 245, 246, 247, 248, 249
+  ! 5     0         5     250, 251, 252, 253, 254, 255, 256, 257, 258, 259, 
+  !                       260, 261
+
+!------------------------------------------------------------------------
+  !EX_UTest_Multi_Proc_Only
+  write(name, *) "Get srcArray8 Test"
+  write(failMsg, *) "Did not return ESMF_SUCCESS" 
+  call ESMF_ArrayGet(srcArray8, farrayPtr=farrayPtr2D, rc=rc)
+  call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+  
+  do i = lbound(farrayPtr2D, 2), ubound(farrayPtr2D, 2)
+  do j = lbound(farrayPtr2D, 1), ubound(farrayPtr2D, 1)
+    farrayPtr2D(j,i) = localPet * 10 + j - 1 + i*100  ! initialize
+  enddo
+  enddo
+  
+  ! The lbound(farrayPtr2D, 1) = 1 because ArrayCreate() by default sets local
+  ! bounds starting at 1. Thus the srcArray8 contents are locally set to:
+  !
+  ! PET   localDE   DE    srcArray8 contents, tensor dimension j=0
+  ! 0     0         0     0, 1
+  ! 1     0         1     10, 11, 12, 13
+  ! 2     0         2     20, 21, 22, 23, 24, 25
+  ! 3     0         3     30, 31, 32, 33, 34, 35, 36, 37
+  ! 4     0         4     40, 41, 42, 43, 44, 45, 46, 47, 48, 49
+  ! 5     0         5     50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61
+  !
+  ! PET   localDE   DE    srcArray8 contents, tensor dimension j=1
+  ! 0     0         0     100, 101
+  ! 1     0         1     110, 111, 112, 113
+  ! 2     0         2     120, 121, 122, 123, 124, 125
+  ! 3     0         3     130, 131, 132, 133, 134, 135, 136, 137
+  ! 4     0         4     140, 141, 142, 143, 144, 145, 146, 147, 148, 149
+  ! 5     0         5     150, 151, 152, 153, 154, 155, 156, 157, 158, 159, 
+  !                       160, 161
+  !
+  ! PET   localDE   DE    srcArray8 contents, tensor dimension j=2
   ! 0     0         0     200, 201
   ! 1     0         1     210, 211, 212, 213
   ! 2     0         2     220, 221, 222, 223, 224, 225
@@ -851,7 +1151,8 @@ program ESMF_ArrayRedistUTest
   call ESMF_ArrayGet(dstArray, farrayPtr=farrayPtr, rc=rc)
   call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
   
-  print *, "localPet: ",localPet," dstArray: ",farrayPtr
+  write(msgString,*) "dstArray: ", farrayPtr
+  call ESMF_LogWrite(msgString, ESMF_LOGMSG_INFO, rc=rc)
   
 !------------------------------------------------------------------------
   !NEX_UTest_Multi_Proc_Only
@@ -921,7 +1222,8 @@ program ESMF_ArrayRedistUTest
   call ESMF_ArrayGet(dstArray2, farrayPtr=farrayPtr, rc=rc)
   call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
   
-  print *, "localPet: ",localPet," dstArray2: ",farrayPtr
+  write(msgString,*) "dstArray2: ", farrayPtr
+  call ESMF_LogWrite(msgString, ESMF_LOGMSG_INFO, rc=rc)
   
 !------------------------------------------------------------------------
   !EX_UTest_Multi_Proc_Only
@@ -1019,8 +1321,8 @@ program ESMF_ArrayRedistUTest
   ! results.
   call ESMF_Test(evalflag, name, failMsg, result, ESMF_SRCLINE)
   
-  print *, "localPet=",localPet, &
-    "ESMF_ROUTESYNC_NBTESTFINISH: finishedflag=", finishedflag
+  write(msgString,*) "ESMF_ROUTESYNC_NBTESTFINISH: finishedflag=", finishedflag
+  call ESMF_LogWrite(msgString, ESMF_LOGMSG_INFO, rc=rc)
   
   ! The folling barrier call releases PET 0 which was waiting on the barrier
   ! call before the first call to ArrayRedist() above. Releasing PET 0 now will
@@ -1044,8 +1346,8 @@ program ESMF_ArrayRedistUTest
   ! Now all PETs should return with finishedflag .true.
   call ESMF_Test(finishedflag, name, failMsg, result, ESMF_SRCLINE)
   
-  print *, "localPet=",localPet, &
-    "ESMF_ROUTESYNC_NBWAITFINISH: finishedflag=", finishedflag
+  write(msgString,*) "ESMF_ROUTESYNC_NBWAITFINISH: finishedflag=", finishedflag
+  call ESMF_LogWrite(msgString, ESMF_LOGMSG_INFO, rc=rc)
   
   ! The expected result of the redistribution of srcArray2 into dstArray2 is:
   !
@@ -1177,8 +1479,9 @@ write(100+localPet,*) "NBWAITFINISH: finishedflag = ", finishedflag, &
   call ESMF_ArrayGet(dstArray3, farrayPtr=farrayPtr2D, rc=rc)
   call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
   
-  print *, "localPet: ",localPet," dstArray3: ",farrayPtr2D
-  
+  write(msgString,*) "dstArray3: ", farrayPtr2D
+  call ESMF_LogWrite(msgString, ESMF_LOGMSG_INFO, rc=rc)
+
 !------------------------------------------------------------------------
   !EX_UTest_Multi_Proc_Only
   write(name, *) "Verify results in dstArray3 (tensor dim j=1) Test"
@@ -1272,7 +1575,7 @@ write(100+localPet,*) "NBWAITFINISH: finishedflag = ", finishedflag, &
 
 !------------------------------------------------------------------------
   !EX_UTest_Multi_Proc_Only
-  write(name, *) "ArrayRedistStore with mismatching input Test"
+  write(name, *) "ArrayRedistStore with mismatching tensor count input Test"
   write(failMsg, *) "Did return ESMF_SUCCESS" 
   call ESMF_ArrayRedistStore(srcArray=srcArray3, dstArray=dstArray2, &
     routehandle=routehandle3, rc=rc)
@@ -1287,11 +1590,43 @@ write(100+localPet,*) "NBWAITFINISH: finishedflag = ", finishedflag, &
 
 !------------------------------------------------------------------------
   !EX_UTest_Multi_Proc_Only
+  write(name, *) "dstDistgridWrong Create Test"
+  write(failMsg, *) "Did not return ESMF_SUCCESS" 
+  dstDistgridWrong = ESMF_DistGridCreate(minIndex=(/1/), maxIndex=(/43/), rc=rc)
+  call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+      
+!------------------------------------------------------------------------
+  !EX_UTest_Multi_Proc_Only
+  write(name, *) "dstArrayWrong Create Test"
+  write(failMsg, *) "Did not return ESMF_SUCCESS" 
+  dstArrayWrong = ESMF_ArrayCreate(arrayspec=arrayspec, &
+    distgrid=dstDistgridWrong, rc=rc)
+  call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+  
+!------------------------------------------------------------------------
+  !EX_UTest_Multi_Proc_Only
+  write(name, *) "ArrayRedistStore with mismatching exclusive elements input Test"
+  write(failMsg, *) "Did return ESMF_SUCCESS" 
+  call ESMF_ArrayRedistStore(srcArray=srcArray2, dstArray=dstArrayWrong, &
+    routehandle=routehandle3, rc=rc)
+  call ESMF_Test((rc.ne.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+  
+!------------------------------------------------------------------------
+  !EX_UTest_Multi_Proc_Only
   write(name, *) "ArrayRedistStore with tensor dims reorder Test"
   write(failMsg, *) "Did not return ESMF_SUCCESS" 
   call ESMF_ArrayRedistStore(srcArray=srcArray3, dstArray=dstArray6, &
     routehandle=routehandle36, srcToDstTransposeMap=(/2,1/), rc=rc)
   call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+  
+!------------------------------------------------------------------------
+  !EX_UTest_Multi_Proc_Only
+  write(name, *) "dstArray6 Get Test"
+  write(failMsg, *) "Did not return ESMF_SUCCESS" 
+  call ESMF_ArrayGet(dstArray6, farrayPtr=farrayPtr2D, rc=rc)
+  call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+  
+  farrayPtr2D = -999 ! initialize to something obvious
   
 !------------------------------------------------------------------------
   !EX_UTest_Multi_Proc_Only
@@ -1303,7 +1638,7 @@ write(100+localPet,*) "NBWAITFINISH: finishedflag = ", finishedflag, &
   
   ! The expected result of the redistribution of srcArray3 into dstArray6 is:
   !
-  ! PET   localDE   DE    dstArray3 contents, tensor dimension j=1
+  ! PET   localDE   DE    dstArray6 contents, tensor dimension j=1
   ! 0     0         0     61, 60, 59, 58, 57, 56, 55
   ! 1     0         1     54, 53, 52, 51, 50, 49, 48
   ! 2     0         2     47, 46, 45, 44, 43, 42, 41
@@ -1311,7 +1646,7 @@ write(100+localPet,*) "NBWAITFINISH: finishedflag = ", finishedflag, &
   ! 4     0         4     31, 30, 25, 24, 23, 22, 21
   ! 5     0         5     20, 13, 12, 11, 10, 1, 0
   !
-  ! PET   localDE   DE    dstArray3 contents, tensor dimension j=2
+  ! PET   localDE   DE    dstArray6 contents, tensor dimension j=2
   ! 0     0         0     161, 160, 159, 158, 157, 156, 155
   ! 1     0         1     154, 153, 152, 151, 150, 149, 148
   ! 2     0         2     147, 146, 145, 144, 143, 142, 141
@@ -1320,13 +1655,9 @@ write(100+localPet,*) "NBWAITFINISH: finishedflag = ", finishedflag, &
   ! 5     0         5     120, 113, 112, 111, 110, 101, 100
   
 !------------------------------------------------------------------------
-  !EX_UTest_Multi_Proc_Only
-  write(name, *) "dstArray6 Get Test"
-  write(failMsg, *) "Did not return ESMF_SUCCESS" 
-  call ESMF_ArrayGet(dstArray6, farrayPtr=farrayPtr2D, rc=rc)
-  call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
-  
-  print *, "localPet: ",localPet," dstArray6: ",farrayPtr2D
+
+  write(msgString,*) "dstArray6: ", farrayPtr2D
+  call ESMF_LogWrite(msgString, ESMF_LOGMSG_INFO, rc=rc)
   
 !------------------------------------------------------------------------
   !EX_UTest_Multi_Proc_Only
@@ -1429,6 +1760,15 @@ write(100+localPet,*) "NBWAITFINISH: finishedflag = ", finishedflag, &
   
 !------------------------------------------------------------------------
   !EX_UTest_Multi_Proc_Only
+  write(name, *) "dstArray6p Get Test"
+  write(failMsg, *) "Did not return ESMF_SUCCESS" 
+  call ESMF_ArrayGet(dstArray6p, farrayPtr=farrayPtr2D, rc=rc)
+  call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+
+  farrayPtr2D = -999 ! initialize to something obvious
+
+!------------------------------------------------------------------------
+  !EX_UTest_Multi_Proc_Only
   write(name, *) "ArrayRedist: dstArray6 -> dstArray6p Test"
   write(failMsg, *) "Did not return ESMF_SUCCESS" 
   call ESMF_ArrayRedist(srcArray=dstArray6, dstArray=dstArray6p, &
@@ -1437,7 +1777,7 @@ write(100+localPet,*) "NBWAITFINISH: finishedflag = ", finishedflag, &
   
   ! The expected result of the redistribution of dstArray6 into dstArray6p is:
   !
-  ! PET   localDE   DE    dstArray3 contents, tensor dimension j=1
+  ! PET   localDE   DE    dstArray6p contents, tensor dimension j=1
   ! 0     0         0     61, 60, 59, 58, 57, 56, 55
   ! 1     0         1     54, 53, 52, 51, 50, 49, 48
   ! 2     0         2     47, 46, 45, 44, 43, 42, 41
@@ -1445,22 +1785,17 @@ write(100+localPet,*) "NBWAITFINISH: finishedflag = ", finishedflag, &
   ! 4     0         4     31, 30, 25, 24, 23, 22, 21
   ! 5     0         5     20, 13, 12, 11, 10, 1, 0
   !
-  ! PET   localDE   DE    dstArray3 contents, tensor dimension j=2
+  ! PET   localDE   DE    dstArray6p contents, tensor dimension j=2
   ! 0     0         0     161, 160, 159, 158, 157, 156, 155
   ! 1     0         1     154, 153, 152, 151, 150, 149, 148
   ! 2     0         2     147, 146, 145, 144, 143, 142, 141
   ! 3     0         3     140, 137, 136, 135, 134, 133, 132
   ! 4     0         4     131, 130, 125, 124, 123, 122, 121
   ! 5     0         5     120, 113, 112, 111, 110, 101, 100
-  
 !------------------------------------------------------------------------
-  !EX_UTest_Multi_Proc_Only
-  write(name, *) "dstArray6p Get Test"
-  write(failMsg, *) "Did not return ESMF_SUCCESS" 
-  call ESMF_ArrayGet(dstArray6p, farrayPtr=farrayPtr2D, rc=rc)
-  call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
   
-  print *, "localPet: ",localPet," dstArray6p: ",farrayPtr2D
+  write(msgString,*) "dstArray6p: ", farrayPtr2D
+  call ESMF_LogWrite(msgString, ESMF_LOGMSG_INFO, rc=rc)
   
 !------------------------------------------------------------------------
   !EX_UTest_Multi_Proc_Only
@@ -1563,6 +1898,15 @@ write(100+localPet,*) "NBWAITFINISH: finishedflag = ", finishedflag, &
   
 !------------------------------------------------------------------------
   !EX_UTest_Multi_Proc_Only
+  write(name, *) "dstArray6 Get Test"
+  write(failMsg, *) "Did not return ESMF_SUCCESS" 
+  call ESMF_ArrayGet(dstArray6, farrayPtr=farrayPtr2D, rc=rc)
+  call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+
+  farrayPtr2D = -999 ! initialize to something obvious
+
+!------------------------------------------------------------------------
+  !EX_UTest_Multi_Proc_Only
   write(name, *) "ArrayRedist: srcArray6 -> dstArray6 Test"
   write(failMsg, *) "Did not return ESMF_SUCCESS" 
   call ESMF_ArrayRedist(srcArray=srcArray6, dstArray=dstArray6, &
@@ -1571,7 +1915,7 @@ write(100+localPet,*) "NBWAITFINISH: finishedflag = ", finishedflag, &
   
   ! The expected result of the redistribution of srcArray6 into dstArray6 is:
   !
-  ! PET   localDE   DE    dstArray3 contents, tensor dimension j=1
+  ! PET   localDE   DE    dstArray6 contents, tensor dimension j=1
   ! 0     0         0     61, 60, 59, 58, 57, 56, 55
   ! 1     0         1     54, 53, 52, 51, 50, 49, 48
   ! 2     0         2     47, 46, 45, 44, 43, 42, 41
@@ -1579,22 +1923,17 @@ write(100+localPet,*) "NBWAITFINISH: finishedflag = ", finishedflag, &
   ! 4     0         4     31, 30, 25, 24, 23, 22, 21
   ! 5     0         5     20, 13, 12, 11, 10, 1, 0
   !
-  ! PET   localDE   DE    dstArray3 contents, tensor dimension j=2
+  ! PET   localDE   DE    dstArray6 contents, tensor dimension j=2
   ! 0     0         0     161, 160, 159, 158, 157, 156, 155
   ! 1     0         1     154, 153, 152, 151, 150, 149, 148
   ! 2     0         2     147, 146, 145, 144, 143, 142, 141
   ! 3     0         3     140, 137, 136, 135, 134, 133, 132
   ! 4     0         4     131, 130, 125, 124, 123, 122, 121
   ! 5     0         5     120, 113, 112, 111, 110, 101, 100
-  
 !------------------------------------------------------------------------
-  !EX_UTest_Multi_Proc_Only
-  write(name, *) "dstArray6 Get Test"
-  write(failMsg, *) "Did not return ESMF_SUCCESS" 
-  call ESMF_ArrayGet(dstArray6, farrayPtr=farrayPtr2D, rc=rc)
-  call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
   
-  print *, "localPet: ",localPet," dstArray6: ",farrayPtr2D
+  write(msgString,*) "dstArray6: ", farrayPtr2D
+  call ESMF_LogWrite(msgString, ESMF_LOGMSG_INFO, rc=rc)
   
 !------------------------------------------------------------------------
   !EX_UTest_Multi_Proc_Only
@@ -1682,6 +2021,15 @@ write(100+localPet,*) "NBWAITFINISH: finishedflag = ", finishedflag, &
   
 !------------------------------------------------------------------------
   !EX_UTest_Multi_Proc_Only
+  write(name, *) "dstArray7 Get Test"
+  write(failMsg, *) "Did not return ESMF_SUCCESS" 
+  call ESMF_ArrayGet(dstArray7, farrayPtr=farrayPtr2D, rc=rc)
+  call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+  
+  farrayPtr2D = -999 ! initialize to something obvious
+  
+!------------------------------------------------------------------------
+  !EX_UTest_Multi_Proc_Only
   write(name, *) "ArrayRedist: srcArray7 -> dstArray7 using routehandle66 Test"
   write(failMsg, *) "Did not return ESMF_SUCCESS" 
   call ESMF_ArrayRedist(srcArray=srcArray7, dstArray=dstArray7, &
@@ -1690,7 +2038,7 @@ write(100+localPet,*) "NBWAITFINISH: finishedflag = ", finishedflag, &
   
   ! The expected result of the redistribution of srcArray7 into dstArray7 is:
   !
-  ! PET   localDE   DE    dstArray3 contents, tensor dimension j=1
+  ! PET   localDE   DE    dstArray7 contents, tensor dimension j=1
   ! 0     0         0     61, 60, 59, 58, 57, 56, 55
   ! 1     0         1     54, 53, 52, 51, 50, 49, 48
   ! 2     0         2     47, 46, 45, 44, 43, 42, 41
@@ -1698,7 +2046,7 @@ write(100+localPet,*) "NBWAITFINISH: finishedflag = ", finishedflag, &
   ! 4     0         4     31, 30, 25, 24, 23, 22, 21
   ! 5     0         5     20, 13, 12, 11, 10, 1, 0
   !
-  ! PET   localDE   DE    dstArray3 contents, tensor dimension j=2
+  ! PET   localDE   DE    dstArray7 contents, tensor dimension j=2
   ! 0     0         0     161, 160, 159, 158, 157, 156, 155
   ! 1     0         1     154, 153, 152, 151, 150, 149, 148
   ! 2     0         2     147, 146, 145, 144, 143, 142, 141
@@ -1706,22 +2054,17 @@ write(100+localPet,*) "NBWAITFINISH: finishedflag = ", finishedflag, &
   ! 4     0         4     131, 130, 125, 124, 123, 122, 121
   ! 5     0         5     120, 113, 112, 111, 110, 101, 100
   !
-  ! PET   localDE   DE    dstArray3 contents, tensor dimension j=3
+  ! PET   localDE   DE    dstArray7 contents, tensor dimension j=3
   ! 0     0         0     261, 260, 259, 258, 257, 256, 255
   ! 1     0         1     254, 253, 252, 251, 250, 249, 248
   ! 2     0         2     247, 246, 245, 244, 243, 242, 241
   ! 3     0         3     240, 237, 236, 235, 234, 233, 232
   ! 4     0         4     231, 230, 225, 224, 223, 222, 221
   ! 5     0         5     220, 213, 212, 211, 210, 201, 200
-  
 !------------------------------------------------------------------------
-  !EX_UTest_Multi_Proc_Only
-  write(name, *) "dstArray7 Get Test"
-  write(failMsg, *) "Did not return ESMF_SUCCESS" 
-  call ESMF_ArrayGet(dstArray7, farrayPtr=farrayPtr2D, rc=rc)
-  call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
   
-  print *, "localPet: ",localPet," dstArray7: ",farrayPtr2D
+  write(msgString,*) "dstArray7: ", farrayPtr2D
+  call ESMF_LogWrite(msgString, ESMF_LOGMSG_INFO, rc=rc)
   
 !------------------------------------------------------------------------
   !EX_UTest_Multi_Proc_Only
@@ -1856,6 +2199,693 @@ write(100+localPet,*) "NBWAITFINISH: finishedflag = ", finishedflag, &
   call ESMF_ArrayRedistRelease(routehandle=routehandle66, rc=rc)
   call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
 
+!------------------------------------------------------------------------
+
+  farrayPtr2D = -999 ! initialize to something obvious
+  
+!------------------------------------------------------------------------
+  !EX_UTest_Multi_Proc_Only
+  write(name, *) "ArrayRedist: srcArray7 -> dstArray7 re-using routehandle Test"
+  write(failMsg, *) "Did not return ESMF_SUCCESS" 
+  call ESMF_ArrayRedist(srcArray=srcArray7, dstArray=dstArray7, &
+    routehandle=routehandle, rc=rc)
+  call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+  
+  ! The expected result of the redistribution of srcArray7 into dstArray7 is:
+  !
+  ! PET   localDE   DE    dstArray7 contents, tensor dimension j=1
+  ! 0     0         0     61, 60, 59, 58, 57, 56, 55
+  ! 1     0         1     54, 53, 52, 51, 50, 49, 48
+  ! 2     0         2     47, 46, 45, 44, 43, 42, 41
+  ! 3     0         3     40, 37, 36, 35, 34, 33, 32
+  ! 4     0         4     31, 30, 25, 24, 23, 22, 21
+  ! 5     0         5     20, 13, 12, 11, 10, 1, 0
+  !
+  ! PET   localDE   DE    dstArray7 contents, tensor dimension j=2
+  ! 0     0         0     161, 160, 159, 158, 157, 156, 155
+  ! 1     0         1     154, 153, 152, 151, 150, 149, 148
+  ! 2     0         2     147, 146, 145, 144, 143, 142, 141
+  ! 3     0         3     140, 137, 136, 135, 134, 133, 132
+  ! 4     0         4     131, 130, 125, 124, 123, 122, 121
+  ! 5     0         5     120, 113, 112, 111, 110, 101, 100
+  !
+  ! PET   localDE   DE    dstArray7 contents, tensor dimension j=3
+  ! 0     0         0     261, 260, 259, 258, 257, 256, 255
+  ! 1     0         1     254, 253, 252, 251, 250, 249, 248
+  ! 2     0         2     247, 246, 245, 244, 243, 242, 241
+  ! 3     0         3     240, 237, 236, 235, 234, 233, 232
+  ! 4     0         4     231, 230, 225, 224, 223, 222, 221
+  ! 5     0         5     220, 213, 212, 211, 210, 201, 200
+!------------------------------------------------------------------------
+  
+  write(msgString,*) "dstArray7: ", farrayPtr2D
+  call ESMF_LogWrite(msgString, ESMF_LOGMSG_INFO, rc=rc)
+  
+!------------------------------------------------------------------------
+  !EX_UTest_Multi_Proc_Only
+  write(name, *) "Verify results in dstArray7 (tensor dim j=1) Test"
+  write(failMsg, *) "Wrong results" 
+  if (localPet == 0) then
+    call ESMF_Test(((farrayPtr2D(1,1).eq.61).and. &
+      (farrayPtr2D(1,2).eq.60).and.(farrayPtr2D(1,3).eq.59).and. &
+      (farrayPtr2D(1,4).eq.58).and.(farrayPtr2D(1,5).eq.57).and. &
+      (farrayPtr2D(1,6).eq.56).and.(farrayPtr2D(1,7).eq.55)), &
+      name, failMsg, result, ESMF_SRCLINE)
+  else if (localPet == 1) then
+    call ESMF_Test(((farrayPtr2D(1,1).eq.54).and. &
+      (farrayPtr2D(1,2).eq.53).and.(farrayPtr2D(1,3).eq.52).and. &
+      (farrayPtr2D(1,4).eq.51).and.(farrayPtr2D(1,5).eq.50).and. &
+      (farrayPtr2D(1,6).eq.49).and.(farrayPtr2D(1,7).eq.48)), &
+      name, failMsg, result, ESMF_SRCLINE)
+  else if (localPet == 2) then
+    call ESMF_Test(((farrayPtr2D(1,1).eq.47).and. &
+      (farrayPtr2D(1,2).eq.46).and.(farrayPtr2D(1,3).eq.45).and. &
+      (farrayPtr2D(1,4).eq.44).and.(farrayPtr2D(1,5).eq.43).and. &
+      (farrayPtr2D(1,6).eq.42).and.(farrayPtr2D(1,7).eq.41)), &
+      name, failMsg, result, ESMF_SRCLINE)
+  else if (localPet == 3) then
+    call ESMF_Test(((farrayPtr2D(1,1).eq.40).and. &
+      (farrayPtr2D(1,2).eq.37).and.(farrayPtr2D(1,3).eq.36).and. &
+      (farrayPtr2D(1,4).eq.35).and.(farrayPtr2D(1,5).eq.34).and. &
+      (farrayPtr2D(1,6).eq.33).and.(farrayPtr2D(1,7).eq.32)), &
+      name, failMsg, result, ESMF_SRCLINE)
+  else if (localPet == 4) then
+    call ESMF_Test(((farrayPtr2D(1,1).eq.31).and. &
+      (farrayPtr2D(1,2).eq.30).and.(farrayPtr2D(1,3).eq.25).and. &
+      (farrayPtr2D(1,4).eq.24).and.(farrayPtr2D(1,5).eq.23).and. &
+      (farrayPtr2D(1,6).eq.22).and.(farrayPtr2D(1,7).eq.21)), &
+      name, failMsg, result, ESMF_SRCLINE)
+  else if (localPet == 5) then
+    call ESMF_Test(((farrayPtr2D(1,1).eq.20).and. &
+      (farrayPtr2D(1,2).eq.13).and.(farrayPtr2D(1,3).eq.12).and. &
+      (farrayPtr2D(1,4).eq.11).and.(farrayPtr2D(1,5).eq.10).and. &
+      (farrayPtr2D(1,6).eq.1).and.(farrayPtr2D(1,7).eq.0)), &
+      name, failMsg, result, ESMF_SRCLINE)
+  endif
+
+!------------------------------------------------------------------------
+  !EX_UTest_Multi_Proc_Only
+  write(name, *) "Verify results in dstArray7 (tensor dim j=2) Test"
+  write(failMsg, *) "Wrong results" 
+  if (localPet == 0) then
+    call ESMF_Test(((farrayPtr2D(2,1).eq.161).and. &
+      (farrayPtr2D(2,2).eq.160).and.(farrayPtr2D(2,3).eq.159).and. &
+      (farrayPtr2D(2,4).eq.158).and.(farrayPtr2D(2,5).eq.157).and. &
+      (farrayPtr2D(2,6).eq.156).and.(farrayPtr2D(2,7).eq.155)), &
+      name, failMsg, result, ESMF_SRCLINE)
+  else if (localPet == 1) then
+    call ESMF_Test(((farrayPtr2D(2,1).eq.154).and. &
+      (farrayPtr2D(2,2).eq.153).and.(farrayPtr2D(2,3).eq.152).and. &
+      (farrayPtr2D(2,4).eq.151).and.(farrayPtr2D(2,5).eq.150).and. &
+      (farrayPtr2D(2,6).eq.149).and.(farrayPtr2D(2,7).eq.148)), &
+      name, failMsg, result, ESMF_SRCLINE)
+  else if (localPet == 2) then
+    call ESMF_Test(((farrayPtr2D(2,1).eq.147).and. &
+      (farrayPtr2D(2,2).eq.146).and.(farrayPtr2D(2,3).eq.145).and. &
+      (farrayPtr2D(2,4).eq.144).and.(farrayPtr2D(2,5).eq.143).and. &
+      (farrayPtr2D(2,6).eq.142).and.(farrayPtr2D(2,7).eq.141)), &
+      name, failMsg, result, ESMF_SRCLINE)
+  else if (localPet == 3) then
+    call ESMF_Test(((farrayPtr2D(2,1).eq.140).and. &
+      (farrayPtr2D(2,2).eq.137).and.(farrayPtr2D(2,3).eq.136).and. &
+      (farrayPtr2D(2,4).eq.135).and.(farrayPtr2D(2,5).eq.134).and. &
+      (farrayPtr2D(2,6).eq.133).and.(farrayPtr2D(2,7).eq.132)), &
+      name, failMsg, result, ESMF_SRCLINE)
+  else if (localPet == 4) then
+    call ESMF_Test(((farrayPtr2D(2,1).eq.131).and. &
+      (farrayPtr2D(2,2).eq.130).and.(farrayPtr2D(2,3).eq.125).and. &
+      (farrayPtr2D(2,4).eq.124).and.(farrayPtr2D(2,5).eq.123).and. &
+      (farrayPtr2D(2,6).eq.122).and.(farrayPtr2D(2,7).eq.121)), &
+      name, failMsg, result, ESMF_SRCLINE)
+  else if (localPet == 5) then
+    call ESMF_Test(((farrayPtr2D(2,1).eq.120).and. &
+      (farrayPtr2D(2,2).eq.113).and.(farrayPtr2D(2,3).eq.112).and. &
+      (farrayPtr2D(2,4).eq.111).and.(farrayPtr2D(2,5).eq.110).and. &
+      (farrayPtr2D(2,6).eq.101).and.(farrayPtr2D(2,7).eq.100)), &
+      name, failMsg, result, ESMF_SRCLINE)
+  endif
+
+!------------------------------------------------------------------------
+  !EX_UTest_Multi_Proc_Only
+  write(name, *) "Verify results in dstArray7 (tensor dim j=3) Test"
+  write(failMsg, *) "Wrong results" 
+  if (localPet == 0) then
+    call ESMF_Test(((farrayPtr2D(3,1).eq.261).and. &
+      (farrayPtr2D(3,2).eq.260).and.(farrayPtr2D(3,3).eq.259).and. &
+      (farrayPtr2D(3,4).eq.258).and.(farrayPtr2D(3,5).eq.257).and. &
+      (farrayPtr2D(3,6).eq.256).and.(farrayPtr2D(3,7).eq.255)), &
+      name, failMsg, result, ESMF_SRCLINE)
+  else if (localPet == 1) then
+    call ESMF_Test(((farrayPtr2D(3,1).eq.254).and. &
+      (farrayPtr2D(3,2).eq.253).and.(farrayPtr2D(3,3).eq.252).and. &
+      (farrayPtr2D(3,4).eq.251).and.(farrayPtr2D(3,5).eq.250).and. &
+      (farrayPtr2D(3,6).eq.249).and.(farrayPtr2D(3,7).eq.248)), &
+      name, failMsg, result, ESMF_SRCLINE)
+  else if (localPet == 2) then
+    call ESMF_Test(((farrayPtr2D(3,1).eq.247).and. &
+      (farrayPtr2D(3,2).eq.246).and.(farrayPtr2D(3,3).eq.245).and. &
+      (farrayPtr2D(3,4).eq.244).and.(farrayPtr2D(3,5).eq.243).and. &
+      (farrayPtr2D(3,6).eq.242).and.(farrayPtr2D(3,7).eq.241)), &
+      name, failMsg, result, ESMF_SRCLINE)
+  else if (localPet == 3) then
+    call ESMF_Test(((farrayPtr2D(3,1).eq.240).and. &
+      (farrayPtr2D(3,2).eq.237).and.(farrayPtr2D(3,3).eq.236).and. &
+      (farrayPtr2D(3,4).eq.235).and.(farrayPtr2D(3,5).eq.234).and. &
+      (farrayPtr2D(3,6).eq.233).and.(farrayPtr2D(3,7).eq.232)), &
+      name, failMsg, result, ESMF_SRCLINE)
+  else if (localPet == 4) then
+    call ESMF_Test(((farrayPtr2D(3,1).eq.231).and. &
+      (farrayPtr2D(3,2).eq.230).and.(farrayPtr2D(3,3).eq.225).and. &
+      (farrayPtr2D(3,4).eq.224).and.(farrayPtr2D(3,5).eq.223).and. &
+      (farrayPtr2D(3,6).eq.222).and.(farrayPtr2D(3,7).eq.221)), &
+      name, failMsg, result, ESMF_SRCLINE)
+  else if (localPet == 5) then
+    call ESMF_Test(((farrayPtr2D(3,1).eq.220).and. &
+      (farrayPtr2D(3,2).eq.213).and.(farrayPtr2D(3,3).eq.212).and. &
+      (farrayPtr2D(3,4).eq.211).and.(farrayPtr2D(3,5).eq.210).and. &
+      (farrayPtr2D(3,6).eq.201).and.(farrayPtr2D(3,7).eq.200)), &
+      name, failMsg, result, ESMF_SRCLINE)
+  endif
+
+!------------------------------------------------------------------------
+
+  farrayPtr2D = -999 ! initialize to something obvious
+  
+!------------------------------------------------------------------------
+  !EX_UTest_Multi_Proc_Only
+  write(name, *) "ArrayRedist: srcArray8 -> dstArray7 re-using routehandle Test"
+  write(failMsg, *) "Did not return ESMF_SUCCESS" 
+  call ESMF_ArrayRedist(srcArray=srcArray8, dstArray=dstArray7, &
+    routehandle=routehandle, rc=rc)
+  call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+  
+  ! The expected result of the redistribution of srcArray8 into dstArray7 is:
+  !
+  ! PET   localDE   DE    dstArray7 contents, tensor dimension j=1
+  ! 0     0         0     61, 60, 59, 58, 57, 56, 55
+  ! 1     0         1     54, 53, 52, 51, 50, 49, 48
+  ! 2     0         2     47, 46, 45, 44, 43, 42, 41
+  ! 3     0         3     40, 37, 36, 35, 34, 33, 32
+  ! 4     0         4     31, 30, 25, 24, 23, 22, 21
+  ! 5     0         5     20, 13, 12, 11, 10, 1, 0
+  !
+  ! PET   localDE   DE    dstArray7 contents, tensor dimension j=2
+  ! 0     0         0     161, 160, 159, 158, 157, 156, 155
+  ! 1     0         1     154, 153, 152, 151, 150, 149, 148
+  ! 2     0         2     147, 146, 145, 144, 143, 142, 141
+  ! 3     0         3     140, 137, 136, 135, 134, 133, 132
+  ! 4     0         4     131, 130, 125, 124, 123, 122, 121
+  ! 5     0         5     120, 113, 112, 111, 110, 101, 100
+  !
+  ! PET   localDE   DE    dstArray7 contents, tensor dimension j=3
+  ! 0     0         0     261, 260, 259, 258, 257, 256, 255
+  ! 1     0         1     254, 253, 252, 251, 250, 249, 248
+  ! 2     0         2     247, 246, 245, 244, 243, 242, 241
+  ! 3     0         3     240, 237, 236, 235, 234, 233, 232
+  ! 4     0         4     231, 230, 225, 224, 223, 222, 221
+  ! 5     0         5     220, 213, 212, 211, 210, 201, 200
+!------------------------------------------------------------------------
+  
+  write(msgString,*) "dstArray7(j=1): ", farrayPtr2D(1,:)
+  call ESMF_LogWrite(msgString, ESMF_LOGMSG_INFO, rc=rc)
+  write(msgString,*) "dstArray7(j=2): ", farrayPtr2D(2,:)
+  call ESMF_LogWrite(msgString, ESMF_LOGMSG_INFO, rc=rc)
+  write(msgString,*) "dstArray7(j=3): ", farrayPtr2D(3,:)
+  call ESMF_LogWrite(msgString, ESMF_LOGMSG_INFO, rc=rc)
+
+!------------------------------------------------------------------------
+  !EX_UTest_Multi_Proc_Only
+  write(name, *) "Verify results in dstArray7 (tensor dim j=1) Test"
+  write(failMsg, *) "Wrong results" 
+  if (localPet == 0) then
+    call ESMF_Test(((farrayPtr2D(1,1).eq.61).and. &
+      (farrayPtr2D(1,2).eq.60).and.(farrayPtr2D(1,3).eq.59).and. &
+      (farrayPtr2D(1,4).eq.58).and.(farrayPtr2D(1,5).eq.57).and. &
+      (farrayPtr2D(1,6).eq.56).and.(farrayPtr2D(1,7).eq.55)), &
+      name, failMsg, result, ESMF_SRCLINE)
+  else if (localPet == 1) then
+    call ESMF_Test(((farrayPtr2D(1,1).eq.54).and. &
+      (farrayPtr2D(1,2).eq.53).and.(farrayPtr2D(1,3).eq.52).and. &
+      (farrayPtr2D(1,4).eq.51).and.(farrayPtr2D(1,5).eq.50).and. &
+      (farrayPtr2D(1,6).eq.49).and.(farrayPtr2D(1,7).eq.48)), &
+      name, failMsg, result, ESMF_SRCLINE)
+  else if (localPet == 2) then
+    call ESMF_Test(((farrayPtr2D(1,1).eq.47).and. &
+      (farrayPtr2D(1,2).eq.46).and.(farrayPtr2D(1,3).eq.45).and. &
+      (farrayPtr2D(1,4).eq.44).and.(farrayPtr2D(1,5).eq.43).and. &
+      (farrayPtr2D(1,6).eq.42).and.(farrayPtr2D(1,7).eq.41)), &
+      name, failMsg, result, ESMF_SRCLINE)
+  else if (localPet == 3) then
+    call ESMF_Test(((farrayPtr2D(1,1).eq.40).and. &
+      (farrayPtr2D(1,2).eq.37).and.(farrayPtr2D(1,3).eq.36).and. &
+      (farrayPtr2D(1,4).eq.35).and.(farrayPtr2D(1,5).eq.34).and. &
+      (farrayPtr2D(1,6).eq.33).and.(farrayPtr2D(1,7).eq.32)), &
+      name, failMsg, result, ESMF_SRCLINE)
+  else if (localPet == 4) then
+    call ESMF_Test(((farrayPtr2D(1,1).eq.31).and. &
+      (farrayPtr2D(1,2).eq.30).and.(farrayPtr2D(1,3).eq.25).and. &
+      (farrayPtr2D(1,4).eq.24).and.(farrayPtr2D(1,5).eq.23).and. &
+      (farrayPtr2D(1,6).eq.22).and.(farrayPtr2D(1,7).eq.21)), &
+      name, failMsg, result, ESMF_SRCLINE)
+  else if (localPet == 5) then
+    call ESMF_Test(((farrayPtr2D(1,1).eq.20).and. &
+      (farrayPtr2D(1,2).eq.13).and.(farrayPtr2D(1,3).eq.12).and. &
+      (farrayPtr2D(1,4).eq.11).and.(farrayPtr2D(1,5).eq.10).and. &
+      (farrayPtr2D(1,6).eq.1).and.(farrayPtr2D(1,7).eq.0)), &
+      name, failMsg, result, ESMF_SRCLINE)
+  endif
+
+!------------------------------------------------------------------------
+  !EX_UTest_Multi_Proc_Only
+  write(name, *) "Verify results in dstArray7 (tensor dim j=2) Test"
+  write(failMsg, *) "Wrong results" 
+  if (localPet == 0) then
+    call ESMF_Test(((farrayPtr2D(2,1).eq.161).and. &
+      (farrayPtr2D(2,2).eq.160).and.(farrayPtr2D(2,3).eq.159).and. &
+      (farrayPtr2D(2,4).eq.158).and.(farrayPtr2D(2,5).eq.157).and. &
+      (farrayPtr2D(2,6).eq.156).and.(farrayPtr2D(2,7).eq.155)), &
+      name, failMsg, result, ESMF_SRCLINE)
+  else if (localPet == 1) then
+    call ESMF_Test(((farrayPtr2D(2,1).eq.154).and. &
+      (farrayPtr2D(2,2).eq.153).and.(farrayPtr2D(2,3).eq.152).and. &
+      (farrayPtr2D(2,4).eq.151).and.(farrayPtr2D(2,5).eq.150).and. &
+      (farrayPtr2D(2,6).eq.149).and.(farrayPtr2D(2,7).eq.148)), &
+      name, failMsg, result, ESMF_SRCLINE)
+  else if (localPet == 2) then
+    call ESMF_Test(((farrayPtr2D(2,1).eq.147).and. &
+      (farrayPtr2D(2,2).eq.146).and.(farrayPtr2D(2,3).eq.145).and. &
+      (farrayPtr2D(2,4).eq.144).and.(farrayPtr2D(2,5).eq.143).and. &
+      (farrayPtr2D(2,6).eq.142).and.(farrayPtr2D(2,7).eq.141)), &
+      name, failMsg, result, ESMF_SRCLINE)
+  else if (localPet == 3) then
+    call ESMF_Test(((farrayPtr2D(2,1).eq.140).and. &
+      (farrayPtr2D(2,2).eq.137).and.(farrayPtr2D(2,3).eq.136).and. &
+      (farrayPtr2D(2,4).eq.135).and.(farrayPtr2D(2,5).eq.134).and. &
+      (farrayPtr2D(2,6).eq.133).and.(farrayPtr2D(2,7).eq.132)), &
+      name, failMsg, result, ESMF_SRCLINE)
+  else if (localPet == 4) then
+    call ESMF_Test(((farrayPtr2D(2,1).eq.131).and. &
+      (farrayPtr2D(2,2).eq.130).and.(farrayPtr2D(2,3).eq.125).and. &
+      (farrayPtr2D(2,4).eq.124).and.(farrayPtr2D(2,5).eq.123).and. &
+      (farrayPtr2D(2,6).eq.122).and.(farrayPtr2D(2,7).eq.121)), &
+      name, failMsg, result, ESMF_SRCLINE)
+  else if (localPet == 5) then
+    call ESMF_Test(((farrayPtr2D(2,1).eq.120).and. &
+      (farrayPtr2D(2,2).eq.113).and.(farrayPtr2D(2,3).eq.112).and. &
+      (farrayPtr2D(2,4).eq.111).and.(farrayPtr2D(2,5).eq.110).and. &
+      (farrayPtr2D(2,6).eq.101).and.(farrayPtr2D(2,7).eq.100)), &
+      name, failMsg, result, ESMF_SRCLINE)
+  endif
+
+!------------------------------------------------------------------------
+  !EX_UTest_Multi_Proc_Only
+  write(name, *) "Verify results in dstArray7 (tensor dim j=3) Test"
+  write(failMsg, *) "Wrong results" 
+  if (localPet == 0) then
+    call ESMF_Test(((farrayPtr2D(3,1).eq.261).and. &
+      (farrayPtr2D(3,2).eq.260).and.(farrayPtr2D(3,3).eq.259).and. &
+      (farrayPtr2D(3,4).eq.258).and.(farrayPtr2D(3,5).eq.257).and. &
+      (farrayPtr2D(3,6).eq.256).and.(farrayPtr2D(3,7).eq.255)), &
+      name, failMsg, result, ESMF_SRCLINE)
+  else if (localPet == 1) then
+    call ESMF_Test(((farrayPtr2D(3,1).eq.254).and. &
+      (farrayPtr2D(3,2).eq.253).and.(farrayPtr2D(3,3).eq.252).and. &
+      (farrayPtr2D(3,4).eq.251).and.(farrayPtr2D(3,5).eq.250).and. &
+      (farrayPtr2D(3,6).eq.249).and.(farrayPtr2D(3,7).eq.248)), &
+      name, failMsg, result, ESMF_SRCLINE)
+  else if (localPet == 2) then
+    call ESMF_Test(((farrayPtr2D(3,1).eq.247).and. &
+      (farrayPtr2D(3,2).eq.246).and.(farrayPtr2D(3,3).eq.245).and. &
+      (farrayPtr2D(3,4).eq.244).and.(farrayPtr2D(3,5).eq.243).and. &
+      (farrayPtr2D(3,6).eq.242).and.(farrayPtr2D(3,7).eq.241)), &
+      name, failMsg, result, ESMF_SRCLINE)
+  else if (localPet == 3) then
+    call ESMF_Test(((farrayPtr2D(3,1).eq.240).and. &
+      (farrayPtr2D(3,2).eq.237).and.(farrayPtr2D(3,3).eq.236).and. &
+      (farrayPtr2D(3,4).eq.235).and.(farrayPtr2D(3,5).eq.234).and. &
+      (farrayPtr2D(3,6).eq.233).and.(farrayPtr2D(3,7).eq.232)), &
+      name, failMsg, result, ESMF_SRCLINE)
+  else if (localPet == 4) then
+    call ESMF_Test(((farrayPtr2D(3,1).eq.231).and. &
+      (farrayPtr2D(3,2).eq.230).and.(farrayPtr2D(3,3).eq.225).and. &
+      (farrayPtr2D(3,4).eq.224).and.(farrayPtr2D(3,5).eq.223).and. &
+      (farrayPtr2D(3,6).eq.222).and.(farrayPtr2D(3,7).eq.221)), &
+      name, failMsg, result, ESMF_SRCLINE)
+  else if (localPet == 5) then
+    call ESMF_Test(((farrayPtr2D(3,1).eq.220).and. &
+      (farrayPtr2D(3,2).eq.213).and.(farrayPtr2D(3,3).eq.212).and. &
+      (farrayPtr2D(3,4).eq.211).and.(farrayPtr2D(3,5).eq.210).and. &
+      (farrayPtr2D(3,6).eq.201).and.(farrayPtr2D(3,7).eq.200)), &
+      name, failMsg, result, ESMF_SRCLINE)
+  endif
+
+!------------------------------------------------------------------------
+  !EX_UTest_Multi_Proc_Only
+  write(name, *) "dstArray8 Get Test"
+  write(failMsg, *) "Did not return ESMF_SUCCESS" 
+  call ESMF_ArrayGet(dstArray8, farrayPtr=farrayPtr2D, rc=rc)
+  call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+  
+  farrayPtr2D = -999 ! initialize to something obvious
+  
+!------------------------------------------------------------------------
+  !EX_UTest_Multi_Proc_Only
+  write(name, *) "ArrayRedist: srcArray7 -> dstArray8 re-using routehandle Test"
+  write(failMsg, *) "Did not return ESMF_SUCCESS" 
+  call ESMF_ArrayRedist(srcArray=srcArray7, dstArray=dstArray8, &
+    routehandle=routehandle, rc=rc)
+  call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+  ! The expected result of the redistribution of srcArray7 into dstArray8 is:
+  !
+  ! PET   localDE   DE    dstArray8 contents, tensor dimension j=1
+  ! 0     0         0     61, 60, 59, 58, 57, 56, 55
+  ! 1     0         1     54, 53, 52, 51, 50, 49, 48
+  ! 2     0         2     47, 46, 45, 44, 43, 42, 41
+  ! 3     0         3     40, 37, 36, 35, 34, 33, 32
+  ! 4     0         4     31, 30, 25, 24, 23, 22, 21
+  ! 5     0         5     20, 13, 12, 11, 10, 1, 0
+  !
+  ! PET   localDE   DE    dstArray8 contents, tensor dimension j=2
+  ! 0     0         0     161, 160, 159, 158, 157, 156, 155
+  ! 1     0         1     154, 153, 152, 151, 150, 149, 148
+  ! 2     0         2     147, 146, 145, 144, 143, 142, 141
+  ! 3     0         3     140, 137, 136, 135, 134, 133, 132
+  ! 4     0         4     131, 130, 125, 124, 123, 122, 121
+  ! 5     0         5     120, 113, 112, 111, 110, 101, 100
+  !
+  ! PET   localDE   DE    dstArray8 contents, tensor dimension j=3
+  ! 0     0         0     261, 260, 259, 258, 257, 256, 255
+  ! 1     0         1     254, 253, 252, 251, 250, 249, 248
+  ! 2     0         2     247, 246, 245, 244, 243, 242, 241
+  ! 3     0         3     240, 237, 236, 235, 234, 233, 232
+  ! 4     0         4     231, 230, 225, 224, 223, 222, 221
+  ! 5     0         5     220, 213, 212, 211, 210, 201, 200
+!------------------------------------------------------------------------
+  
+  write(msgString,*) "dstArray8(j=1): ", farrayPtr2D(:,1)
+  call ESMF_LogWrite(msgString, ESMF_LOGMSG_INFO, rc=rc)
+  write(msgString,*) "dstArray8(j=2): ", farrayPtr2D(:,2)
+  call ESMF_LogWrite(msgString, ESMF_LOGMSG_INFO, rc=rc)
+  write(msgString,*) "dstArray8(j=3): ", farrayPtr2D(:,3)
+  call ESMF_LogWrite(msgString, ESMF_LOGMSG_INFO, rc=rc)
+  
+!------------------------------------------------------------------------
+  !EX_UTest_Multi_Proc_Only
+  write(name, *) "Verify results in dstArray8 (tensor dim j=1) Test"
+  write(failMsg, *) "Wrong results" 
+  if (localPet == 0) then
+    call ESMF_Test(((farrayPtr2D(1,1).eq.61).and. &
+      (farrayPtr2D(2,1).eq.60).and.(farrayPtr2D(3,1).eq.59).and. &
+      (farrayPtr2D(4,1).eq.58).and.(farrayPtr2D(5,1).eq.57).and. &
+      (farrayPtr2D(6,1).eq.56).and.(farrayPtr2D(7,1).eq.55)), &
+      name, failMsg, result, ESMF_SRCLINE)
+  else if (localPet == 1) then
+    call ESMF_Test(((farrayPtr2D(1,1).eq.54).and. &
+      (farrayPtr2D(2,1).eq.53).and.(farrayPtr2D(3,1).eq.52).and. &
+      (farrayPtr2D(4,1).eq.51).and.(farrayPtr2D(5,1).eq.50).and. &
+      (farrayPtr2D(6,1).eq.49).and.(farrayPtr2D(7,1).eq.48)), &
+      name, failMsg, result, ESMF_SRCLINE)
+  else if (localPet == 2) then
+    call ESMF_Test(((farrayPtr2D(1,1).eq.47).and. &
+      (farrayPtr2D(2,1).eq.46).and.(farrayPtr2D(3,1).eq.45).and. &
+      (farrayPtr2D(4,1).eq.44).and.(farrayPtr2D(5,1).eq.43).and. &
+      (farrayPtr2D(6,1).eq.42).and.(farrayPtr2D(7,1).eq.41)), &
+      name, failMsg, result, ESMF_SRCLINE)
+  else if (localPet == 3) then
+    call ESMF_Test(((farrayPtr2D(1,1).eq.40).and. &
+      (farrayPtr2D(2,1).eq.37).and.(farrayPtr2D(3,1).eq.36).and. &
+      (farrayPtr2D(4,1).eq.35).and.(farrayPtr2D(5,1).eq.34).and. &
+      (farrayPtr2D(6,1).eq.33).and.(farrayPtr2D(7,1).eq.32)), &
+      name, failMsg, result, ESMF_SRCLINE)
+  else if (localPet == 4) then
+    call ESMF_Test(((farrayPtr2D(1,1).eq.31).and. &
+      (farrayPtr2D(2,1).eq.30).and.(farrayPtr2D(3,1).eq.25).and. &
+      (farrayPtr2D(4,1).eq.24).and.(farrayPtr2D(5,1).eq.23).and. &
+      (farrayPtr2D(6,1).eq.22).and.(farrayPtr2D(7,1).eq.21)), &
+      name, failMsg, result, ESMF_SRCLINE)
+  else if (localPet == 5) then
+    call ESMF_Test(((farrayPtr2D(1,1).eq.20).and. &
+      (farrayPtr2D(2,1).eq.13).and.(farrayPtr2D(3,1).eq.12).and. &
+      (farrayPtr2D(4,1).eq.11).and.(farrayPtr2D(5,1).eq.10).and. &
+      (farrayPtr2D(6,1).eq.1) .and.(farrayPtr2D(7,1).eq.0)), &
+      name, failMsg, result, ESMF_SRCLINE)
+  endif
+
+!------------------------------------------------------------------------
+  !EX_UTest_Multi_Proc_Only
+  write(name, *) "Verify results in dstArray8 (tensor dim j=2) Test"
+  write(failMsg, *) "Wrong results" 
+  if (localPet == 0) then
+    call ESMF_Test(((farrayPtr2D(1,2).eq.161).and. &
+      (farrayPtr2D(2,2).eq.160).and.(farrayPtr2D(3,2).eq.159).and. &
+      (farrayPtr2D(4,2).eq.158).and.(farrayPtr2D(5,2).eq.157).and. &
+      (farrayPtr2D(6,2).eq.156).and.(farrayPtr2D(7,2).eq.155)), &
+      name, failMsg, result, ESMF_SRCLINE)
+  else if (localPet == 1) then
+    call ESMF_Test(((farrayPtr2D(1,2).eq.154).and. &
+      (farrayPtr2D(2,2).eq.153).and.(farrayPtr2D(3,2).eq.152).and. &
+      (farrayPtr2D(4,2).eq.151).and.(farrayPtr2D(5,2).eq.150).and. &
+      (farrayPtr2D(6,2).eq.149).and.(farrayPtr2D(7,2).eq.148)), &
+      name, failMsg, result, ESMF_SRCLINE)
+  else if (localPet == 2) then
+    call ESMF_Test(((farrayPtr2D(1,2).eq.147).and. &
+      (farrayPtr2D(2,2).eq.146).and.(farrayPtr2D(3,2).eq.145).and. &
+      (farrayPtr2D(4,2).eq.144).and.(farrayPtr2D(5,2).eq.143).and. &
+      (farrayPtr2D(6,2).eq.142).and.(farrayPtr2D(7,2).eq.141)), &
+      name, failMsg, result, ESMF_SRCLINE)
+  else if (localPet == 3) then
+    call ESMF_Test(((farrayPtr2D(1,2).eq.140).and. &
+      (farrayPtr2D(2,2).eq.137).and.(farrayPtr2D(3,2).eq.136).and. &
+      (farrayPtr2D(4,2).eq.135).and.(farrayPtr2D(5,2).eq.134).and. &
+      (farrayPtr2D(6,2).eq.133).and.(farrayPtr2D(7,2).eq.132)), &
+      name, failMsg, result, ESMF_SRCLINE)
+  else if (localPet == 4) then
+    call ESMF_Test(((farrayPtr2D(1,2).eq.131).and. &
+      (farrayPtr2D(2,2).eq.130).and.(farrayPtr2D(3,2).eq.125).and. &
+      (farrayPtr2D(4,2).eq.124).and.(farrayPtr2D(5,2).eq.123).and. &
+      (farrayPtr2D(6,2).eq.122).and.(farrayPtr2D(7,2).eq.121)), &
+      name, failMsg, result, ESMF_SRCLINE)
+  else if (localPet == 5) then
+    call ESMF_Test(((farrayPtr2D(1,2).eq.120).and. &
+      (farrayPtr2D(2,2).eq.113).and.(farrayPtr2D(3,2).eq.112).and. &
+      (farrayPtr2D(4,2).eq.111).and.(farrayPtr2D(5,2).eq.110).and. &
+      (farrayPtr2D(6,2).eq.101).and.(farrayPtr2D(7,2).eq.100)), &
+      name, failMsg, result, ESMF_SRCLINE)
+  endif
+
+!------------------------------------------------------------------------
+  !EX_UTest_Multi_Proc_Only
+  write(name, *) "Verify results in dstArray8 (tensor dim j=3) Test"
+  write(failMsg, *) "Wrong results" 
+  if (localPet == 0) then
+    call ESMF_Test(((farrayPtr2D(1,3).eq.261).and. &
+      (farrayPtr2D(2,3).eq.260).and.(farrayPtr2D(3,3).eq.259).and. &
+      (farrayPtr2D(4,3).eq.258).and.(farrayPtr2D(5,3).eq.257).and. &
+      (farrayPtr2D(6,3).eq.256).and.(farrayPtr2D(7,3).eq.255)), &
+      name, failMsg, result, ESMF_SRCLINE)
+  else if (localPet == 1) then
+    call ESMF_Test(((farrayPtr2D(1,3).eq.254).and. &
+      (farrayPtr2D(2,3).eq.253).and.(farrayPtr2D(3,3).eq.252).and. &
+      (farrayPtr2D(4,3).eq.251).and.(farrayPtr2D(5,3).eq.250).and. &
+      (farrayPtr2D(6,3).eq.249).and.(farrayPtr2D(7,3).eq.248)), &
+      name, failMsg, result, ESMF_SRCLINE)
+  else if (localPet == 2) then
+    call ESMF_Test(((farrayPtr2D(1,3).eq.247).and. &
+      (farrayPtr2D(2,3).eq.246).and.(farrayPtr2D(3,3).eq.245).and. &
+      (farrayPtr2D(4,3).eq.244).and.(farrayPtr2D(5,3).eq.243).and. &
+      (farrayPtr2D(6,3).eq.242).and.(farrayPtr2D(7,3).eq.241)), &
+      name, failMsg, result, ESMF_SRCLINE)
+  else if (localPet == 3) then
+    call ESMF_Test(((farrayPtr2D(1,3).eq.240).and. &
+      (farrayPtr2D(2,3).eq.237).and.(farrayPtr2D(3,3).eq.236).and. &
+      (farrayPtr2D(4,3).eq.235).and.(farrayPtr2D(5,3).eq.234).and. &
+      (farrayPtr2D(6,3).eq.233).and.(farrayPtr2D(7,3).eq.232)), &
+      name, failMsg, result, ESMF_SRCLINE)
+  else if (localPet == 4) then
+    call ESMF_Test(((farrayPtr2D(1,3).eq.231).and. &
+      (farrayPtr2D(2,3).eq.230).and.(farrayPtr2D(3,3).eq.225).and. &
+      (farrayPtr2D(4,3).eq.224).and.(farrayPtr2D(5,3).eq.223).and. &
+      (farrayPtr2D(6,3).eq.222).and.(farrayPtr2D(7,3).eq.221)), &
+      name, failMsg, result, ESMF_SRCLINE)
+  else if (localPet == 5) then
+    call ESMF_Test(((farrayPtr2D(1,3).eq.220).and. &
+      (farrayPtr2D(2,3).eq.213).and.(farrayPtr2D(3,3).eq.212).and. &
+      (farrayPtr2D(4,3).eq.211).and.(farrayPtr2D(5,3).eq.210).and. &
+      (farrayPtr2D(6,3).eq.201).and.(farrayPtr2D(7,3).eq.200)), &
+      name, failMsg, result, ESMF_SRCLINE)
+  endif
+
+!------------------------------------------------------------------------
+  
+  farrayPtr2D = -999 ! initialize to something obvious
+  
+!------------------------------------------------------------------------
+  !EX_UTest_Multi_Proc_Only
+  write(name, *) "ArrayRedist: srcArray8 -> dstArray8 re-using routehandle Test"
+  write(failMsg, *) "Did not return ESMF_SUCCESS" 
+  call ESMF_ArrayRedist(srcArray=srcArray8, dstArray=dstArray8, &
+    routehandle=routehandle, rc=rc)
+  call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+  ! The expected result of the redistribution of srcArray8 into dstArray8 is:
+  !
+  ! PET   localDE   DE    dstArray8 contents, tensor dimension j=1
+  ! 0     0         0     61, 60, 59, 58, 57, 56, 55
+  ! 1     0         1     54, 53, 52, 51, 50, 49, 48
+  ! 2     0         2     47, 46, 45, 44, 43, 42, 41
+  ! 3     0         3     40, 37, 36, 35, 34, 33, 32
+  ! 4     0         4     31, 30, 25, 24, 23, 22, 21
+  ! 5     0         5     20, 13, 12, 11, 10, 1, 0
+  !
+  ! PET   localDE   DE    dstArray8 contents, tensor dimension j=2
+  ! 0     0         0     161, 160, 159, 158, 157, 156, 155
+  ! 1     0         1     154, 153, 152, 151, 150, 149, 148
+  ! 2     0         2     147, 146, 145, 144, 143, 142, 141
+  ! 3     0         3     140, 137, 136, 135, 134, 133, 132
+  ! 4     0         4     131, 130, 125, 124, 123, 122, 121
+  ! 5     0         5     120, 113, 112, 111, 110, 101, 100
+  !
+  ! PET   localDE   DE    dstArray8 contents, tensor dimension j=3
+  ! 0     0         0     261, 260, 259, 258, 257, 256, 255
+  ! 1     0         1     254, 253, 252, 251, 250, 249, 248
+  ! 2     0         2     247, 246, 245, 244, 243, 242, 241
+  ! 3     0         3     240, 237, 236, 235, 234, 233, 232
+  ! 4     0         4     231, 230, 225, 224, 223, 222, 221
+  ! 5     0         5     220, 213, 212, 211, 210, 201, 200
+!------------------------------------------------------------------------
+  
+  write(msgString,*) "dstArray8(j=1): ", farrayPtr2D(:,1)
+  call ESMF_LogWrite(msgString, ESMF_LOGMSG_INFO, rc=rc)
+  write(msgString,*) "dstArray8(j=2): ", farrayPtr2D(:,2)
+  call ESMF_LogWrite(msgString, ESMF_LOGMSG_INFO, rc=rc)
+  write(msgString,*) "dstArray8(j=3): ", farrayPtr2D(:,3)
+  call ESMF_LogWrite(msgString, ESMF_LOGMSG_INFO, rc=rc)
+  
+!------------------------------------------------------------------------
+  !EX_UTest_Multi_Proc_Only
+  write(name, *) "Verify results in dstArray8 (tensor dim j=1) Test"
+  write(failMsg, *) "Wrong results" 
+  if (localPet == 0) then
+    call ESMF_Test(((farrayPtr2D(1,1).eq.61).and. &
+      (farrayPtr2D(2,1).eq.60).and.(farrayPtr2D(3,1).eq.59).and. &
+      (farrayPtr2D(4,1).eq.58).and.(farrayPtr2D(5,1).eq.57).and. &
+      (farrayPtr2D(6,1).eq.56).and.(farrayPtr2D(7,1).eq.55)), &
+      name, failMsg, result, ESMF_SRCLINE)
+  else if (localPet == 1) then
+    call ESMF_Test(((farrayPtr2D(1,1).eq.54).and. &
+      (farrayPtr2D(2,1).eq.53).and.(farrayPtr2D(3,1).eq.52).and. &
+      (farrayPtr2D(4,1).eq.51).and.(farrayPtr2D(5,1).eq.50).and. &
+      (farrayPtr2D(6,1).eq.49).and.(farrayPtr2D(7,1).eq.48)), &
+      name, failMsg, result, ESMF_SRCLINE)
+  else if (localPet == 2) then
+    call ESMF_Test(((farrayPtr2D(1,1).eq.47).and. &
+      (farrayPtr2D(2,1).eq.46).and.(farrayPtr2D(3,1).eq.45).and. &
+      (farrayPtr2D(4,1).eq.44).and.(farrayPtr2D(5,1).eq.43).and. &
+      (farrayPtr2D(6,1).eq.42).and.(farrayPtr2D(7,1).eq.41)), &
+      name, failMsg, result, ESMF_SRCLINE)
+  else if (localPet == 3) then
+    call ESMF_Test(((farrayPtr2D(1,1).eq.40).and. &
+      (farrayPtr2D(2,1).eq.37).and.(farrayPtr2D(3,1).eq.36).and. &
+      (farrayPtr2D(4,1).eq.35).and.(farrayPtr2D(5,1).eq.34).and. &
+      (farrayPtr2D(6,1).eq.33).and.(farrayPtr2D(7,1).eq.32)), &
+      name, failMsg, result, ESMF_SRCLINE)
+  else if (localPet == 4) then
+    call ESMF_Test(((farrayPtr2D(1,1).eq.31).and. &
+      (farrayPtr2D(2,1).eq.30).and.(farrayPtr2D(3,1).eq.25).and. &
+      (farrayPtr2D(4,1).eq.24).and.(farrayPtr2D(5,1).eq.23).and. &
+      (farrayPtr2D(6,1).eq.22).and.(farrayPtr2D(7,1).eq.21)), &
+      name, failMsg, result, ESMF_SRCLINE)
+  else if (localPet == 5) then
+    call ESMF_Test(((farrayPtr2D(1,1).eq.20).and. &
+      (farrayPtr2D(2,1).eq.13).and.(farrayPtr2D(3,1).eq.12).and. &
+      (farrayPtr2D(4,1).eq.11).and.(farrayPtr2D(5,1).eq.10).and. &
+      (farrayPtr2D(6,1).eq.1) .and.(farrayPtr2D(7,1).eq.0)), &
+      name, failMsg, result, ESMF_SRCLINE)
+  endif
+
+!------------------------------------------------------------------------
+  !EX_UTest_Multi_Proc_Only
+  write(name, *) "Verify results in dstArray8 (tensor dim j=2) Test"
+  write(failMsg, *) "Wrong results" 
+  if (localPet == 0) then
+    call ESMF_Test(((farrayPtr2D(1,2).eq.161).and. &
+      (farrayPtr2D(2,2).eq.160).and.(farrayPtr2D(3,2).eq.159).and. &
+      (farrayPtr2D(4,2).eq.158).and.(farrayPtr2D(5,2).eq.157).and. &
+      (farrayPtr2D(6,2).eq.156).and.(farrayPtr2D(7,2).eq.155)), &
+      name, failMsg, result, ESMF_SRCLINE)
+  else if (localPet == 1) then
+    call ESMF_Test(((farrayPtr2D(1,2).eq.154).and. &
+      (farrayPtr2D(2,2).eq.153).and.(farrayPtr2D(3,2).eq.152).and. &
+      (farrayPtr2D(4,2).eq.151).and.(farrayPtr2D(5,2).eq.150).and. &
+      (farrayPtr2D(6,2).eq.149).and.(farrayPtr2D(7,2).eq.148)), &
+      name, failMsg, result, ESMF_SRCLINE)
+  else if (localPet == 2) then
+    call ESMF_Test(((farrayPtr2D(1,2).eq.147).and. &
+      (farrayPtr2D(2,2).eq.146).and.(farrayPtr2D(3,2).eq.145).and. &
+      (farrayPtr2D(4,2).eq.144).and.(farrayPtr2D(5,2).eq.143).and. &
+      (farrayPtr2D(6,2).eq.142).and.(farrayPtr2D(7,2).eq.141)), &
+      name, failMsg, result, ESMF_SRCLINE)
+  else if (localPet == 3) then
+    call ESMF_Test(((farrayPtr2D(1,2).eq.140).and. &
+      (farrayPtr2D(2,2).eq.137).and.(farrayPtr2D(3,2).eq.136).and. &
+      (farrayPtr2D(4,2).eq.135).and.(farrayPtr2D(5,2).eq.134).and. &
+      (farrayPtr2D(6,2).eq.133).and.(farrayPtr2D(7,2).eq.132)), &
+      name, failMsg, result, ESMF_SRCLINE)
+  else if (localPet == 4) then
+    call ESMF_Test(((farrayPtr2D(1,2).eq.131).and. &
+      (farrayPtr2D(2,2).eq.130).and.(farrayPtr2D(3,2).eq.125).and. &
+      (farrayPtr2D(4,2).eq.124).and.(farrayPtr2D(5,2).eq.123).and. &
+      (farrayPtr2D(6,2).eq.122).and.(farrayPtr2D(7,2).eq.121)), &
+      name, failMsg, result, ESMF_SRCLINE)
+  else if (localPet == 5) then
+    call ESMF_Test(((farrayPtr2D(1,2).eq.120).and. &
+      (farrayPtr2D(2,2).eq.113).and.(farrayPtr2D(3,2).eq.112).and. &
+      (farrayPtr2D(4,2).eq.111).and.(farrayPtr2D(5,2).eq.110).and. &
+      (farrayPtr2D(6,2).eq.101).and.(farrayPtr2D(7,2).eq.100)), &
+      name, failMsg, result, ESMF_SRCLINE)
+  endif
+
+!------------------------------------------------------------------------
+  !EX_UTest_Multi_Proc_Only
+  write(name, *) "Verify results in dstArray8 (tensor dim j=3) Test"
+  write(failMsg, *) "Wrong results" 
+  if (localPet == 0) then
+    call ESMF_Test(((farrayPtr2D(1,3).eq.261).and. &
+      (farrayPtr2D(2,3).eq.260).and.(farrayPtr2D(3,3).eq.259).and. &
+      (farrayPtr2D(4,3).eq.258).and.(farrayPtr2D(5,3).eq.257).and. &
+      (farrayPtr2D(6,3).eq.256).and.(farrayPtr2D(7,3).eq.255)), &
+      name, failMsg, result, ESMF_SRCLINE)
+  else if (localPet == 1) then
+    call ESMF_Test(((farrayPtr2D(1,3).eq.254).and. &
+      (farrayPtr2D(2,3).eq.253).and.(farrayPtr2D(3,3).eq.252).and. &
+      (farrayPtr2D(4,3).eq.251).and.(farrayPtr2D(5,3).eq.250).and. &
+      (farrayPtr2D(6,3).eq.249).and.(farrayPtr2D(7,3).eq.248)), &
+      name, failMsg, result, ESMF_SRCLINE)
+  else if (localPet == 2) then
+    call ESMF_Test(((farrayPtr2D(1,3).eq.247).and. &
+      (farrayPtr2D(2,3).eq.246).and.(farrayPtr2D(3,3).eq.245).and. &
+      (farrayPtr2D(4,3).eq.244).and.(farrayPtr2D(5,3).eq.243).and. &
+      (farrayPtr2D(6,3).eq.242).and.(farrayPtr2D(7,3).eq.241)), &
+      name, failMsg, result, ESMF_SRCLINE)
+  else if (localPet == 3) then
+    call ESMF_Test(((farrayPtr2D(1,3).eq.240).and. &
+      (farrayPtr2D(2,3).eq.237).and.(farrayPtr2D(3,3).eq.236).and. &
+      (farrayPtr2D(4,3).eq.235).and.(farrayPtr2D(5,3).eq.234).and. &
+      (farrayPtr2D(6,3).eq.233).and.(farrayPtr2D(7,3).eq.232)), &
+      name, failMsg, result, ESMF_SRCLINE)
+  else if (localPet == 4) then
+    call ESMF_Test(((farrayPtr2D(1,3).eq.231).and. &
+      (farrayPtr2D(2,3).eq.230).and.(farrayPtr2D(3,3).eq.225).and. &
+      (farrayPtr2D(4,3).eq.224).and.(farrayPtr2D(5,3).eq.223).and. &
+      (farrayPtr2D(6,3).eq.222).and.(farrayPtr2D(7,3).eq.221)), &
+      name, failMsg, result, ESMF_SRCLINE)
+  else if (localPet == 5) then
+    call ESMF_Test(((farrayPtr2D(1,3).eq.220).and. &
+      (farrayPtr2D(2,3).eq.213).and.(farrayPtr2D(3,3).eq.212).and. &
+      (farrayPtr2D(4,3).eq.211).and.(farrayPtr2D(5,3).eq.210).and. &
+      (farrayPtr2D(6,3).eq.201).and.(farrayPtr2D(7,3).eq.200)), &
+      name, failMsg, result, ESMF_SRCLINE)
+  endif
+
 #endif
 
 !------------------------------------------------------------------------
@@ -1903,10 +2933,32 @@ write(100+localPet,*) "NBWAITFINISH: finishedflag = ", finishedflag, &
 
 !------------------------------------------------------------------------
   !EX_UTest_Multi_Proc_Only
+  write(name, *) "srcArray8 Destroy Test"
+  write(failMsg, *) "Did not return ESMF_SUCCESS" 
+  call ESMF_ArrayDestroy(srcArray8, rc=rc)
+  call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+
+!------------------------------------------------------------------------
+  !EX_UTest_Multi_Proc_Only
   write(name, *) "srcDistgrid2 Destroy Test"
   write(failMsg, *) "Did not return ESMF_SUCCESS" 
   call ESMF_DistGridDestroy(srcDistGrid2, rc=rc)
   call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+
+!------------------------------------------------------------------------
+  !EX_UTest_Multi_Proc_Only
+  write(name, *) "dstArrayWrong Destroy Test"
+  write(failMsg, *) "Did not return ESMF_SUCCESS" 
+  call ESMF_ArrayDestroy(dstArrayWrong, rc=rc)
+  call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+
+!------------------------------------------------------------------------
+  !EX_UTest_Multi_Proc_Only
+  write(name, *) "dstDistgridWrong Destroy Test"
+  write(failMsg, *) "Did not return ESMF_SUCCESS" 
+  call ESMF_DistGridDestroy(dstDistgridWrong, rc=rc)
+  call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+
 #endif
 
 !------------------------------------------------------------------------
@@ -1952,6 +3004,13 @@ write(100+localPet,*) "NBWAITFINISH: finishedflag = ", finishedflag, &
   call ESMF_ArrayDestroy(dstArray7, rc=rc)
   call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
 
+!------------------------------------------------------------------------
+  !EX_UTest_Multi_Proc_Only
+  write(name, *) "dstArray8 Destroy Test"
+  write(failMsg, *) "Did not return ESMF_SUCCESS" 
+  call ESMF_ArrayDestroy(dstArray8, rc=rc)
+  call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+
 #endif
 
 !------------------------------------------------------------------------
@@ -1973,7 +3032,7 @@ write(100+localPet,*) "NBWAITFINISH: finishedflag = ", finishedflag, &
 
 10 continue
   !------------------------------------------------------------------------
-  call ESMF_TestEnd(result, ESMF_SRCLINE) ! calls ESMF_Finalize() internally
+  call ESMF_TestEnd(ESMF_SRCLINE) ! calls ESMF_Finalize() internally
   !------------------------------------------------------------------------
 
 

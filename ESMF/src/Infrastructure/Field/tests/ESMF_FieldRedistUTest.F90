@@ -1,7 +1,7 @@
 ! $Id$
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2012, University Corporation for Atmospheric Research,
+! Copyright 2002-2018, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -60,6 +60,8 @@ program ESMF_FieldRedistUTest
 
     if (.not. ESMF_TestMinPETs(4, ESMF_SRCLINE)) &
         call ESMF_Finalize(endflag=ESMF_END_ABORT)
+        
+    call ESMF_LogSet(flush=.true.)
 
 #ifdef ESMF_TESTEXHAUSTIVE
         !------------------------------------------------------------------------
@@ -85,17 +87,27 @@ program ESMF_FieldRedistUTest
 
         !------------------------------------------------------------------------
         !EX_UTest_Multi_Proc_Only
+#ifndef ESMF_NO_GREATER_THAN_4D
         call test_redist_5d(rc)
         write(failMsg, *) ""
         write(name, *) "FieldRedist congruent 5d fields with ungridded bounds and halos"
+#else
+        rc = ESMF_SUCCESS
+        write(name, *) "Skipped test because: ESMF_NO_GREATER_THAN_4D"
+#endif
         call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
 
         !------------------------------------------------------------------------
         !EX_UTest_Multi_Proc_Only
+#ifndef ESMF_NO_GREATER_THAN_4D
         call test_redist_5dt(rc)
         write(failMsg, *) ""
         write(name, *) "FieldRedist congruent 5d fields with ungridded bounds and halos " // &
             " srcToDstTransposeMap"
+#else
+        rc = ESMF_SUCCESS
+        write(name, *) "Skipped test because: ESMF_NO_GREATER_THAN_4D"
+#endif
         call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
 
         !------------------------------------------------------------------------
@@ -107,7 +119,7 @@ program ESMF_FieldRedistUTest
         call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
 
 #endif
-    call ESMF_TestEnd(result, ESMF_SRCLINE)
+    call ESMF_TestEnd(ESMF_SRCLINE)
 
 #ifdef ESMF_TESTEXHAUSTIVE
 
@@ -460,7 +472,7 @@ contains
             ESMF_ERR_PASSTHRU, &
             ESMF_CONTEXT, rcToReturn=rc)) return
 
-        dstfptr = 0
+        dstfptr = -99
 
         ! perform redist
         call ESMF_FieldRedistStore(srcField, dstField, routehandle, rc=localrc)
@@ -509,6 +521,8 @@ contains
 
         rc = ESMF_SUCCESS
     end subroutine test_redist_3d
+
+#ifndef ESMF_NO_GREATER_THAN_4D
 
 #undef ESMF_METHOD
 #define ESMF_METHOD "test_redist_5d"
@@ -599,7 +613,7 @@ contains
             ESMF_ERR_PASSTHRU, &
             ESMF_CONTEXT, rcToReturn=rc)) return
 
-        dstfptr = 0
+        dstfptr = -99
 
         ! perform redist
         call ESMF_FieldRedistStore(srcField, dstField, routehandle=routehandle, rc=localrc)
@@ -744,7 +758,7 @@ contains
             ESMF_ERR_PASSTHRU, &
             ESMF_CONTEXT, rcToReturn=rc)) return
 
-        dstfptr = 0
+        dstfptr = -99
 
         ! perform redist
         call ESMF_FieldRedistStore(srcField, dstField, &
@@ -799,7 +813,7 @@ contains
 
         rc = ESMF_SUCCESS
     end subroutine test_redist_5dt
-
+#endif
 
 #undef ESMF_METHOD
 #define ESMF_METHOD "test_redist_mesh"

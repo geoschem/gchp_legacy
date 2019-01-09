@@ -1,7 +1,7 @@
-! $Id: ESMF_ArrayScatterUTest.F90,v 1.1.5.1 2013-01-11 20:23:43 mathomp4 Exp $
+! $Id$
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2012, University Corporation for Atmospheric Research,
+! Copyright 2002-2018, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -35,7 +35,7 @@ program ESMF_ArrayScatterUTest
 !------------------------------------------------------------------------------
 ! The following line turns the CVS identifier string into a printable variable.
   character(*), parameter :: version = &
-    '$Id: ESMF_ArrayScatterUTest.F90,v 1.1.5.1 2013-01-11 20:23:43 mathomp4 Exp $'
+    '$Id$'
 !------------------------------------------------------------------------------
 
   ! cumulative result: count failures; no failures equals "all pass"
@@ -49,8 +49,8 @@ program ESMF_ArrayScatterUTest
   character(ESMF_MAXSTR) :: name
 
   !LOCAL VARIABLES:
-  real(ESMF_KIND_R8), parameter :: min_R8 = 1e-10_ESMF_KIND_R8
-  real(ESMF_KIND_R4), parameter :: min_R4 = 1e-4_ESMF_KIND_R4
+  real(ESMF_KIND_R8), parameter :: min_R8 = 1.d-10
+  real(ESMF_KIND_R4), parameter :: min_R4 = 1.e-4
   type(ESMF_VM):: vm
   integer:: petCount, localPet, i, j
   type(ESMF_ArraySpec)  :: arrayspec
@@ -58,15 +58,18 @@ program ESMF_ArrayScatterUTest
   type(ESMF_Array)      :: array
   real(ESMF_KIND_R8), pointer :: farrayPtr(:,:)     ! matching Fortran array pointer
   real(ESMF_KIND_R8), allocatable :: srcfarray(:,:)
+  real(ESMF_KIND_R8), allocatable :: srcfarray_save(:,:)
   real(ESMF_KIND_R8):: value
   real(ESMF_KIND_R4), pointer :: farrayPtr_R4(:,:)     ! matching Fortran array pointer
   real(ESMF_KIND_R4), allocatable :: srcfarray_R4(:,:)
+  real(ESMF_KIND_R4), allocatable :: srcfarray_R4_save(:,:)
   real(ESMF_KIND_R4):: value_R4
 #ifdef ESMF_TESTEXHAUSTIVE
   integer:: k, kk, ii, jj, dimExtent1, dimExtent2
   integer, allocatable:: indexList1(:), indexList2(:)
   real(ESMF_KIND_R8), pointer :: farrayPtr3d(:,:,:) ! matching Fortran array pointer
   real(ESMF_KIND_R8), allocatable :: srcfarray3d(:,:,:)
+  real(ESMF_KIND_R8), allocatable :: srcfarray3d_save(:,:,:)
   integer:: exclusiveLBound(2,1), exclusiveUBound(2,1)
 #endif
 
@@ -81,6 +84,7 @@ program ESMF_ArrayScatterUTest
 
   !------------------------------------------------------------------------
   call ESMF_TestStart(ESMF_SRCLINE, rc=rc)  ! calls ESMF_Initialize() internally
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   !------------------------------------------------------------------------
   
   !------------------------------------------------------------------------
@@ -113,10 +117,12 @@ print *, min_R4, min_R8
 !print *, "farrayPtr:", farrayPtr
   ! prepare srcfarray on all PETs -> serves as ref. in comparison after scatter
   allocate(srcfarray(1:15, 1:23))
+  allocate(srcfarray_save(1:15, 1:23))
   do j=1, 23
     do i=1, 15
       srcfarray(i,j) = 123._ESMF_KIND_R8*sin(real(i,ESMF_KIND_R8)) +  &
                        321._ESMF_KIND_R8*cos(real(j,ESMF_KIND_R8))
+      srcfarray_save(i,j) = srcfarray(i,j)
     enddo
   enddo
 !print *, "srcfarray:", srcfarray
@@ -125,16 +131,20 @@ print *, min_R4, min_R8
   !NEX_UTest_Multi_Proc_Only
   write(name, *) "2D ESMF_TYPEKIND_R8 ArrayScatter() w/ incompatible Fortran Array (typekind) Test"
   write(failMsg, *) "Did return ESMF_SUCCESS"
+  allocate (srcfarray_R4(1,1))
   call ESMF_ArrayScatter(array, srcfarray_R4, rootPet=0, rc=rc)
   call ESMF_Test((rc.ne.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+  deallocate (srcfarray_R4)
   
 #ifdef ESMF_TESTEXHAUSTIVE
   !------------------------------------------------------------------------
   !EX_UTest_Multi_Proc_Only
   write(name, *) "2D ESMF_TYPEKIND_R8 ArrayScatter() w/ incompatible Fortran Array (rank) Test"
   write(failMsg, *) "Did return ESMF_SUCCESS"
+  allocate (srcfarray3d(1,1,1))
   call ESMF_ArrayScatter(array, srcfarray3d, rootPet=0, rc=rc)
   call ESMF_Test((rc.ne.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+  deallocate (srcfarray3d)
 #endif
 
   !------------------------------------------------------------------------
@@ -154,10 +164,9 @@ print *, min_R4, min_R8
     do i=1, 15
       value = 123._ESMF_KIND_R8*sin(real(i,ESMF_KIND_R8)) +  &
                321._ESMF_KIND_R8*cos(real(j,ESMF_KIND_R8))
-      value = value - srcfarray(i,j)
-!print *, value
+      value = srcfarray(i,j) - srcfarray_save(i,j)
       if (abs(value) > min_R8) then
-!print *, "Found large value"
+        print *, "Found mismatch value", i, j, value
         rc = ESMF_FAILURE
       endif
    enddo
@@ -172,8 +181,11 @@ print *, min_R4, min_R8
   rc = ESMF_SUCCESS
   do j=lbound(farrayPtr,2), ubound(farrayPtr,2)
     do i=lbound(farrayPtr,1), ubound(farrayPtr,1)
-      !print *, i, j, farrayPtr(i,j), srcfarray(i,j)
-      if (abs(farrayPtr(i,j) - srcfarray(i,j)) > min_R8) rc = ESMF_FAILURE
+      if (abs(farrayPtr(i,j) - srcfarray(i,j)) > min_R8) then
+        print *, "Found mismatch value", i, j, &
+          abs(farrayPtr(i,j) - srcfarray(i,j))
+        rc = ESMF_FAILURE
+      endif
     enddo
   enddo
   call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
@@ -185,6 +197,7 @@ print *, min_R4, min_R8
   call ESMF_DistGridDestroy(distgrid, rc=rc)
   if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   deallocate(srcfarray)
+  deallocate(srcfarray_save)
   
   !------------------------------------------------------------------------
   !------------------------------------------------------------------------
@@ -206,10 +219,12 @@ print *, min_R4, min_R8
 !print *, "farrayPtr:", farrayPtr
   ! prepare srcfarray on all PETs -> serves as ref. in comparison after scatter
   allocate(srcfarray(1:15, 1:23))
+  allocate(srcfarray_save(1:15, 1:23))
   do j=1, 23
     do i=1, 15
       srcfarray(i,j) = 123._ESMF_KIND_R8*sin(real(i,ESMF_KIND_R8)) +  &
                        321._ESMF_KIND_R8*cos(real(j,ESMF_KIND_R8))
+      srcfarray_save(i,j) = srcfarray(i,j)
     enddo
   enddo
 !print *, "srcfarray:", srcfarray
@@ -234,12 +249,9 @@ print *, min_R4, min_R8
   rc = ESMF_SUCCESS
   do j=1, 23
     do i=1, 15
-      value = 123._ESMF_KIND_R8*sin(real(i,ESMF_KIND_R8)) +  &
-               321._ESMF_KIND_R8*cos(real(j,ESMF_KIND_R8))
-      value = value - srcfarray(i,j)
-!print *, value
+      value = srcfarray(i,j) - srcfarray_save(i,j)
       if (abs(value) > min_R8) then
-!print *, "Found large value"
+        print *, "Found mismatch value", i, j, value
         rc = ESMF_FAILURE
       endif
    enddo
@@ -255,8 +267,11 @@ print *, min_R4, min_R8
   rc = ESMF_SUCCESS
   do j=lbound(farrayPtr,2), ubound(farrayPtr,2)
     do i=lbound(farrayPtr,1), ubound(farrayPtr,1)
-      !print *, i, j, farrayPtr(i,j), srcfarray(i,j)
-      if (abs(farrayPtr(i,j) - srcfarray(i,j)) > min_R8) rc = ESMF_FAILURE
+      if (abs(farrayPtr(i,j) - srcfarray(i,j)) > min_R8) then
+        print *, "Found mismatch value", i, j, &
+          abs(farrayPtr(i,j) - srcfarray(i,j))
+        rc = ESMF_FAILURE
+      endif
     enddo
   enddo
   call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
@@ -268,6 +283,7 @@ print *, min_R4, min_R8
   call ESMF_DistGridDestroy(distgrid, rc=rc)
   if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   deallocate(srcfarray)
+  deallocate(srcfarray_save)
   
   !------------------------------------------------------------------------
   !------------------------------------------------------------------------
@@ -289,10 +305,12 @@ print *, min_R4, min_R8
 !print *, "farrayPtr_R4:", farrayPtr_R4
   ! prepare srcfarray_R4 on all PETs -> serves as ref. in comparison after scatter
   allocate(srcfarray_R4(1:15, 1:23))
+  allocate(srcfarray_R4_save(1:15, 1:23))
   do j=1, 23
     do i=1, 15
       srcfarray_R4(i,j) = 123._ESMF_KIND_R4*sin(real(i,ESMF_KIND_R4)) +  &
                        321._ESMF_KIND_R4*cos(real(j,ESMF_KIND_R4))
+      srcfarray_R4_save(i,j) = srcfarray_R4(i,j)
     enddo
   enddo
 !print *, "srcfarray_R4:", srcfarray_R4
@@ -311,12 +329,9 @@ print *, min_R4, min_R8
   rc = ESMF_SUCCESS
   do j=1, 23
     do i=1, 15
-      value_R4 = 123._ESMF_KIND_R4*sin(real(i,ESMF_KIND_R4)) +  &
-               321._ESMF_KIND_R4*cos(real(j,ESMF_KIND_R4))
-      value_R4 = value_R4 - srcfarray_R4(i,j)
-!print *, value_R4
+      value_R4 = srcfarray_R4(i,j) - srcfarray_R4_save(i,j)
       if (abs(value_R4) > min_R4) then
-!print *, "Found large value", i, j, value_R4
+        print *, "Found mismatch value", i, j, value_R4
         rc = ESMF_FAILURE
       endif
    enddo
@@ -331,8 +346,11 @@ print *, min_R4, min_R8
   rc = ESMF_SUCCESS
   do j=lbound(farrayPtr_R4,2), ubound(farrayPtr_R4,2)
     do i=lbound(farrayPtr_R4,1), ubound(farrayPtr_R4,1)
-      !print *, i, j, farrayPtr_R4(i,j), srcfarray_R4(i,j)
-      if (abs(farrayPtr_R4(i,j) - srcfarray_R4(i,j)) > min_R4) rc = ESMF_FAILURE
+      if (abs(farrayPtr_R4(i,j) - srcfarray_R4(i,j)) > min_R4) then
+        print *, "Found mismatch value", i, j, &
+          abs(farrayPtr_R4(i,j) - srcfarray_R4(i,j))
+        rc = ESMF_FAILURE
+      endif
     enddo
   enddo
   call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
@@ -344,6 +362,7 @@ print *, min_R4, min_R8
   call ESMF_DistGridDestroy(distgrid, rc=rc)
   if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   deallocate(srcfarray_R4)
+  deallocate(srcfarray_R4_save)
   
   !------------------------------------------------------------------------
   !------------------------------------------------------------------------
@@ -368,10 +387,12 @@ print *, min_R4, min_R8
 !print *, "farrayPtr:", farrayPtr
   ! prepare srcfarray on all PETs -> serves as ref. in comparison after scatter
   allocate(srcfarray(1:1, 1:23))
+  allocate(srcfarray_save(1:1, 1:23))
   do j=1, 23
     do i=1, 1
       srcfarray(i,j) = 123._ESMF_KIND_R8*sin(real(i,ESMF_KIND_R8)) +  &
                        321._ESMF_KIND_R8*cos(real(j,ESMF_KIND_R8))
+      srcfarray_save(i,j) = srcfarray(i,j)
     enddo
   enddo
 !print *, "srcfarray:", srcfarray
@@ -392,10 +413,9 @@ print *, min_R4, min_R8
     do i=1, 1
       value = 123._ESMF_KIND_R8*sin(real(i,ESMF_KIND_R8)) +  &
               321._ESMF_KIND_R8*cos(real(j,ESMF_KIND_R8))
-      value = value - srcfarray(i,j)
-!print *, value
+      value = srcfarray(i,j) - srcfarray_save(i,j)
       if (abs(value) > min_R8) then
-!print *, "Found large value"
+        print *, "Found mismatch value", i, j, value
         rc = ESMF_FAILURE
       endif
    enddo
@@ -410,7 +430,11 @@ print *, min_R4, min_R8
   rc = ESMF_SUCCESS
   do j=lbound(farrayPtr,2), ubound(farrayPtr,2)
     do i=lbound(farrayPtr,1), ubound(farrayPtr,1)
-      if (abs(farrayPtr(i,j) - srcfarray(i,j)) > min_R8) rc = ESMF_FAILURE
+      if (abs(farrayPtr(i,j) - srcfarray(i,j)) > min_R8) then
+        print *, "Found mismatch value", i, j, &
+          abs(farrayPtr(i,j) - srcfarray(i,j))
+        rc = ESMF_FAILURE
+      endif
     enddo
   enddo
   call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
@@ -422,6 +446,7 @@ print *, min_R4, min_R8
   call ESMF_DistGridDestroy(distgrid, rc=rc)
   if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   deallocate(srcfarray)
+  deallocate(srcfarray_save)
 
 #ifdef ESMF_TESTEXHAUSTIVE
 
@@ -444,12 +469,14 @@ print *, min_R4, min_R8
 !print *, "farrayPtr3d:", farrayPtr3d
   ! prepare srcfarray on all PETs -> serves as ref. in comparison after scatter
   allocate(srcfarray3d(1:15, 1:23, 10))
+  allocate(srcfarray3d_save(1:15, 1:23, 10))
   do k=lbound(srcfarray3d,3), ubound(srcfarray3d,3)
     do j=lbound(srcfarray3d,2), ubound(srcfarray3d,2)
       do i=lbound(srcfarray3d,1), ubound(srcfarray3d,1)
         srcfarray3d(i,j,k) = 123._ESMF_KIND_R8*sin(real(i,ESMF_KIND_R8)) +  &
                              321._ESMF_KIND_R8*cos(real(j,ESMF_KIND_R8)) +  &
                              20._ESMF_KIND_R8*real(k,ESMF_KIND_R8)
+        srcfarray3d_save(i,j,k) = srcfarray3d(i,j,k)
       enddo
     enddo
   enddo
@@ -474,8 +501,11 @@ print *, min_R4, min_R8
         value = 123._ESMF_KIND_R8*sin(real(i,ESMF_KIND_R8)) +   &
                 321._ESMF_KIND_R8*cos(real(j,ESMF_KIND_R8)) +   &
                 20._ESMF_KIND_R8*real(k,ESMF_KIND_R8)
-        value = value - srcfarray3d(i,j,k)
-        if (abs(value) > min_R8) rc = ESMF_FAILURE
+        value = srcfarray3d(i,j,k) - srcfarray3d_save(i,j,k)
+        if (abs(value) > min_R8) then
+          print *, "Found mismatch value", i, j, k, value
+          rc = ESMF_FAILURE
+        endif
       enddo
     enddo
   enddo
@@ -492,6 +522,8 @@ print *, min_R4, min_R8
     do j=lbound(farrayPtr3d,2), ubound(farrayPtr3d,2)
       do i=lbound(farrayPtr3d,1), ubound(farrayPtr3d,1)
         if (abs(farrayPtr3d(i,j,k) - srcfarray3d(i,j,kk)) > min_R8) then
+          print *, "Found mismatch value", i, j, k, &
+            abs(farrayPtr3d(i,j,k) - srcfarray3d(i,j,kk))
           rc = ESMF_FAILURE
         endif
       enddo
@@ -504,6 +536,7 @@ print *, min_R4, min_R8
   call ESMF_ArrayDestroy(array, rc=rc)
   if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   deallocate(srcfarray3d)
+  deallocate(srcfarray3d_save)
   
   !------------------------------------------------------------------------
   !------------------------------------------------------------------------
@@ -524,12 +557,14 @@ print *, min_R4, min_R8
 !print *, "farrayPtr3d:", farrayPtr3d
   ! prepare srcfarray on all PETs -> serves as ref. in comparison after scatter
   allocate(srcfarray3d(1:15, 1:23, 10))
+  allocate(srcfarray3d_save(1:15, 1:23, 10))
   do k=lbound(srcfarray3d,3), ubound(srcfarray3d,3)
     do j=lbound(srcfarray3d,2), ubound(srcfarray3d,2)
       do i=lbound(srcfarray3d,1), ubound(srcfarray3d,1)
         srcfarray3d(i,j,k) = 123._ESMF_KIND_R8*sin(real(i,ESMF_KIND_R8)) + &
                              321._ESMF_KIND_R8*cos(real(j,ESMF_KIND_R8)) + &
                              20._ESMF_KIND_R8*real(k,ESMF_KIND_R8)
+        srcfarray3d_save(i,j,k) = srcfarray3d(i,j,k)
       enddo
     enddo
   enddo
@@ -565,8 +600,11 @@ print *, min_R4, min_R8
         value = 123._ESMF_KIND_R8*sin(real(i,ESMF_KIND_R8)) +  &
                 321._ESMF_KIND_R8*cos(real(j,ESMF_KIND_R8)) +  &
                  20._ESMF_KIND_R8*real(k,ESMF_KIND_R8)
-        value = value - srcfarray3d(i,j,k)
-        if (abs(value) > min_R8) rc = ESMF_FAILURE
+        value = srcfarray3d(i,j,k) - srcfarray3d_save(i,j,k)
+        if (abs(value) > min_R8) then
+          print *, "Found mismatch value", i, j, k, value
+          rc = ESMF_FAILURE
+        endif
       enddo
     enddo
   enddo
@@ -584,6 +622,8 @@ print *, min_R4, min_R8
     do j=exclusiveLBound(2,1), exclusiveUBound(2,1)
       do i=exclusiveLBound(1,1), exclusiveUBound(1,1)
         if (abs(farrayPtr3d(i,j,k) - srcfarray3d(i,j,kk)) > min_R8) then
+          print *, "Found mismatch value", i, j, k, &
+            abs(farrayPtr3d(i,j,k) - srcfarray3d(i,j,kk))
           rc = ESMF_FAILURE
         endif
       enddo
@@ -597,7 +637,8 @@ print *, min_R4, min_R8
   if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   call ESMF_DistGridDestroy(distgrid, rc=rc)
   if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
-  deallocate(srcfarray3d)  
+  deallocate(srcfarray3d)
+  deallocate(srcfarray3d_save)
 
   !------------------------------------------------------------------------
   !------------------------------------------------------------------------
@@ -608,7 +649,7 @@ print *, min_R4, min_R8
   call ESMF_ArraySpecSet(arrayspec, typekind=ESMF_TYPEKIND_R8, rank=3, rc=rc)
   if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   distgrid = ESMF_DistGridCreate(minIndex=(/0,1/), maxIndex=(/14,23/), &
-    regDecomp=(/2,2/), decompflag=(/ESMF_DECOMP_DEFAULT,ESMF_DECOMP_CYCLIC/),&
+    regDecomp=(/2,2/), decompflag=(/ESMF_DECOMP_BALANCED,ESMF_DECOMP_CYCLIC/),&
     rc=rc)
   if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   array = ESMF_ArrayCreate(arrayspec=arrayspec, distgrid=distgrid, &
@@ -622,12 +663,14 @@ print *, min_R4, min_R8
 !print *, "farrayPtr3d:", farrayPtr3d
   ! prepare srcfarray on all PETs -> serves as ref. in comparison after scatter
   allocate(srcfarray3d(15, 23, 10))
+  allocate(srcfarray3d_save(15, 23, 10))
   do k=lbound(srcfarray3d,3), ubound(srcfarray3d,3)
     do j=lbound(srcfarray3d,2), ubound(srcfarray3d,2)
       do i=lbound(srcfarray3d,1), ubound(srcfarray3d,1)
         srcfarray3d(i,j,k) = 123._ESMF_KIND_R8*sin(real(i,ESMF_KIND_R8)) + &
                              321._ESMF_KIND_R8*cos(real(j,ESMF_KIND_R8)) + &
                              20._ESMF_KIND_R8*real(k,ESMF_KIND_R8)
+        srcfarray3d_save(i,j,k) = srcfarray3d(i,j,k)
       enddo
     enddo
   enddo
@@ -688,8 +731,11 @@ print *, min_R4, min_R8
         value = 123._ESMF_KIND_R8*sin(real(i,ESMF_KIND_R8)) +  &
                 321._ESMF_KIND_R8*cos(real(j,ESMF_KIND_R8)) +  &
                  20._ESMF_KIND_R8*real(k,ESMF_KIND_R8)
-        value = value - srcfarray3d(i,j,k)
-        if (abs(value) > min_R8) rc = ESMF_FAILURE
+        value = srcfarray3d(i,j,k) - srcfarray3d_save(i,j,k)
+        if (abs(value) > min_R8) then
+          print *, "Found mismatch value", i, j, k, value
+          rc = ESMF_FAILURE
+        endif
       enddo
     enddo
   enddo
@@ -712,6 +758,8 @@ print *, min_R4, min_R8
         ! dereference via indexList and correct wrt lbound 
         ii = indexList1(i) - 0 + lbound(srcfarray3d,1)
         if (abs(farrayPtr3d(i,j,k) - srcfarray3d(ii,jj,kk)) > min_R8) then
+          print *, "Found mismatch value", i, j, k, &
+            abs(farrayPtr3d(i,j,k) - srcfarray3d(ii,jj,kk))
           rc = ESMF_FAILURE
         endif
       enddo
@@ -725,7 +773,8 @@ print *, min_R4, min_R8
   if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   call ESMF_DistGridDestroy(distgrid, rc=rc)
   if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
-  deallocate(srcfarray3d)  
+  deallocate(srcfarray3d)
+  deallocate(srcfarray3d_save)
   deallocate(indexList1)
   deallocate(indexList2)
   
@@ -734,7 +783,7 @@ print *, min_R4, min_R8
 
 10 continue
   !------------------------------------------------------------------------
-  call ESMF_TestEnd(result, ESMF_SRCLINE) ! calls ESMF_Finalize() internally
+  call ESMF_TestEnd(ESMF_SRCLINE) ! calls ESMF_Finalize() internally
   !------------------------------------------------------------------------
 
 

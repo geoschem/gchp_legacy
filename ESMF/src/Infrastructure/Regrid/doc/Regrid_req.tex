@@ -1,0 +1,674 @@
+% $Id$
+%
+% Earth System Modeling Framework
+% Copyright 2002-2018, University Corporation for Atmospheric Research,
+% Massachusetts Institute of Technology, Geophysical Fluid Dynamics
+% Laboratory, University of Michigan, National Centers for Environmental
+% Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
+% NASA Goddard Space Flight Center.
+% Licensed under the University of Illinois-NCSA License.
+
+%===============================================================================
+% Requirements may be itemized under a main topic:
+%===============================================================================
+%===============================================================================
+\req{General regridding requirements}
+
+%-------------------------------------------------------------------------------
+
+The following are general requirements for regridding operations and are in
+addition to the applicable general ESMF requirements (see ESMF General
+Requirements document).
+
+%-------------------------------------------------------------------------------
+\sreq{Creation}
+
+Components must be able to create a regridding given two ESMF grids and 
+initialize various time-independent regridding quantities.
+
+\begin{reqlist}
+{\bf Priority:} 1. \\
+{\bf Source:} All codes will require this. \\
+{\bf Status:} Approved 1. \\
+{\bf Verification:} Unit test. \\
+{\bf Notes:} This function will, in many cases, be computing
+             regridding weights and initializing various
+             communication information for performing regridding.
+\end{reqlist}
+
+\ssreq{Index space regridding}
+
+A creation method must be supplied for regridding based only on logical 
+indices of grid points and thus only on distributed grid information.  
+Such a function is useful for nested grid and multi-grid applications where 
+no physical grid information is required for creating the regridding.
+
+\begin{reqlist}
+{\bf Priority:} 1. \\
+{\bf Source:}  WRF, NSIPP, MIT. \\
+{\bf Status:} Approved 1. \\
+{\bf Verification:} Unit test. \\
+{\bf Notes:} Will need a general way to specify stencils
+\end{reqlist}
+
+
+%-------------------------------------------------------------------------------
+\sreq{Destruction}
+
+Components must be able to destroy regriddings to free up memory.
+
+\begin{reqlist}
+{\bf Priority:} 1. \\
+{\bf Source:} POP, GFDL, CICE, CAM desired, NSIPP, CCSM-CPL, NCEP-SSI, MIT. \\
+{\bf Status:} Approved 1. \\
+{\bf Verification:} Unit test. \\
+{\bf Notes:} 
+\end{reqlist}
+
+%-------------------------------------------------------------------------------
+\sreq{Query}
+
+Components must be able to query various properties of a regridding.
+
+\begin{reqlist}
+{\bf Priority:} 1 \\
+{\bf Source:} CCSM-CPL, NCEP-SSI, MIT, GFDL. \\
+{\bf Status:} Approved 1. \\
+{\bf Verification:} Unit test. \\
+{\bf Notes:} Components should not need to access internal
+             regridding fields, but it might be useful to access some
+             aspects (eg names of grids) for error checking and verification.
+             Exact query functions will be determined
+             after design of structure is determined.
+\end{reqlist}
+
+%-------------------------------------------------------------------------------
+\sreq{Change}
+
+Components should be able to change individual properties of a
+regridding.  Examples might include adjusting regridding weights to 
+renormalize or to adapt to dynamic area fractions (like ice fraction).
+
+\begin{reqlist}
+{\bf Priority:} 3. \\
+{\bf Source:} CCSM-CPL, NCEP-SSI, MIT. \\
+{\bf Status:} Rejected -- see notes. \\
+{\bf Verification:} Unit test. \\
+{\bf Notes:} It was felt during the review that allowing users to change
+             regridding properties would open the door for naive users to 
+             destroy regridding properties like conservation.  For the example
+             above (dynamic ice fraction), the desired functionality can
+             be obtained through the merge function or by supplying very fast
+             creation functions.
+\end{reqlist}
+
+%-------------------------------------------------------------------------------
+\sreq{Reading}
+
+ESMF will provide a method for reading a regridding from a file. 
+
+\begin{reqlist}
+{\bf Priority:} 1. \\
+{\bf Source:} POP, CICE, CAM desired, NSIPP, CCSM-CPL, NCEP-SSI, MIT, GFDL. \\
+{\bf Status:} Approved 1. \\
+{\bf Verification:} Unit test. \\
+{\bf Notes:} Useful if creating regriddings is time-consuming to avoid
+             start-up costs. Also permits off-line computation of regridding.
+\end{reqlist}
+
+%-------------------------------------------------------------------------------
+\sreq{Writing}
+
+ESMF will provide a method for writing a regridding to a file in a well
+documented and supported format. 
+
+\begin{reqlist}
+{\bf Priority:} 1. \\
+{\bf Source:} POP, CICE, CAM desired, NSIPP, CCSM-CPL, NCEP-SSI, MIT, GFDL. \\
+{\bf Status:} Approved 1. \\
+{\bf Verification:} Unit test. \\
+{\bf Notes:} Useful if creating regriddings is time-consuming - compute once
+             and save for later re-use.  Also useful for any off-line
+             use of same regridding info.
+\end{reqlist}
+
+%-------------------------------------------------------------------------------
+\sreq{Support for ESMF grids}
+
+Regridding operations must be available for all supported ESMF grids.
+Not all regridding operations are appropriate for
+all grid types; restrictions will be noted in individual requirements.
+
+\begin{reqlist}
+{\bf Priority:} 1. \\
+{\bf Source:} All codes require this. \\
+{\bf Status:} Approved 1. \\
+{\bf Verification:} System test 
+\end{reqlist}
+
+%-------------------------------------------------------------------------------
+\sreq{Multiple fields}
+
+Regridding of multiple fields (bundles of fields) with
+a single call must be supported.
+
+\begin{reqlist}
+{\bf Priority:} 1  \\
+{\bf Source:} CCSM-CPL, NCEP-GSM, NCEP-SSI, MIT, GFDL, NSIPP. \\
+{\bf Status:} Approved 1. \\
+{\bf Verification:} Unit test. \\
+{\bf Notes:} This should be supplied for efficiency, but may not
+             be required to achieve functionality.
+\end{reqlist}
+
+\ssreq{Interface requires only data arrays}
+
+An interface requiring only data arrays shall be
+provided.  Such an interface would not require the overhead
+of a full field structure and is supplied for efficiency.
+It will be the user's responsibility to ensure the arrays
+are consistent with the regridding operation.
+
+\begin{reqlist}
+{\bf Priority:} 1. \\
+{\bf Source:} POP, CICE, CAM desired, CCSM-CPL, NCEP-GSM, NCEP-SSI, MIT, WRF, GFDL, NSIPP \\
+{\bf Status:} Approved 1. \\
+{\bf Verification:} Unit test. \\
+{\bf Notes:} Field info may still be used for creation of the
+             regrid object.
+\end{reqlist}
+
+\ssreq{Consistency of field bundles}
+
+The regridding function must check if the input field bundle and output field
+bundle are consistent with each other, particularly in number of fields 
+and grids on which the fields are placed.
+
+\begin{reqlist}
+{\bf Priority:} 2. \\
+{\bf Source:} POP, CICE, CAM desired, NSIPP, CCSM-CPL, NCEP-SSI, NCEP-GSM, MIT. \\
+{\bf Status:} Approved 1. \\
+{\bf Verification:} Unit test. \\
+{\bf Notes:} A rudimentary error check, but would probably rely on
+             consistent naming convention for fields?
+\end{reqlist}
+
+%-------------------------------------------------------------------------------
+\sreq{Multiple methods per grid pair}
+
+It shall be possible to create more than one regridding for a given grid
+pair.
+
+\begin{reqlist}
+{\bf Priority:} 1. \\
+{\bf Source:} POP, CICE, CAM required, CCSM-CPL, MIT, GFDL, NSIPP. \\
+{\bf Status:} Approved 1. \\
+{\bf Verification:} Unit test. \\
+{\bf Notes:} Both non-conservative and conservative methods will be needed
+             between the same two grids.
+\end{reqlist}
+
+%-------------------------------------------------------------------------------
+\sreq{Consistency of coordinates}
+
+Regridding will assume source and destination grids will be
+specified in the same reference coordinate system.
+
+\begin{reqlist}
+{\bf Priority:} 1. \\
+{\bf Source:} Required by all. \\
+{\bf Status:} Approved 1. \\
+{\bf Verification:} Code inspection  \\
+{\bf Notes:} No knowledge of the projection used or the physics of the 
+             coordinate are required for performing a regridding.  For example,
+             if a horizontal grid is in Cartesian coordinates, coordinates of
+             points on the second grid must also be Cartesian with the same 
+             origin and axes. Similarly, if the coordinates of one grid are in 
+             spherical coordinates, the second grid must also use the same 
+             spherical coordinates.  The restriction also applies to vertical 
+             coordinates where the regridding will not be expected to know 
+             how to transform between different coordinate choices 
+             (eg pressure to isentropic).  Exceptions to this are permitted 
+             if the user supplies the regridding routine (see later
+             requirement on user-supplied regridding).
+\end{reqlist}
+
+\ssreq{Consistency of coordinates check}
+
+The regridding function must check that the grids are in fact consistent
+with each other.
+
+\begin{reqlist}
+{\bf Priority:} 1. \\
+{\bf Source:} Required by all. \\
+{\bf Status:} Approved 1. \\
+{\bf Verification:} Code inspection  \\
+{\bf Notes:} This requirement implies some additional grid attributes for
+             PhysGrid. 
+\end{reqlist}
+
+%-------------------------------------------------------------------------------
+\sreq{Interpolation adjoints}
+
+Adjoints shall be provided for linear regridding methods, where linear
+implies the regridding can be cast as a linear operator (eg matrix 
+multiplication). This is generally possible for regriddings that are 
+independent of the field being regridded (see following requirement).
+Methods where adjoints are absolutely required have been so noted within 
+their own respective descriptions.
+
+\begin{reqlist}
+{\bf Priority:} 1. \\
+{\bf Source:} PSAS, NCEP-SSI, MIT (milestone).\\
+{\bf Status:} Approved 1. \\
+{\bf Verification:} Unit test. \\
+{\bf Notes:} Needed by PSAS, but not milestone
+\end{reqlist}
+
+%-------------------------------------------------------------------------------
+\sreq{Masked regridding}
+
+It shall be possible to restrict the regridding to parts of a grid through 
+the use of a mask.  Note that use of a mask is inappropriate for some methods 
+(eg spectral transforms) and will not be supported for those methods.
+
+\begin{reqlist}
+{\bf Priority:} 1. \\
+{\bf Source:} CCSM-CPL, WRF, NSIPP, NCEP-GSM, MIT. \\
+{\bf Status:} Approved 1. \\
+{\bf Verification:} Unit test. \\
+{\bf Notes:} 
+\end{reqlist}
+
+\ssreq{Mask consistency}
+
+If masks are supplied for both source and destination grids, a
+method for checking consistency of those masks must be supplied.
+Alternatively, a convention for resolving mask conflicts must
+be determined and documented.
+
+\begin{reqlist}
+{\bf Priority:} 1. \\
+{\bf Source:} WRF, NSIPP, NCEP-GSM, MIT. \\
+{\bf Status:} Approved 1. \\
+{\bf Verification:} Unit test. \\
+{\bf Notes:} 
+\end{reqlist}
+
+%-------------------------------------------------------------------------------
+\sreq{Independence of field}
+
+Whenever possible, regridding should be formulated to be
+independent of the field being regridded.  This requirement exists to
+aid the creation of an adjoint, to enable pre-computation of regridding
+weights and to enable re-use of regridding information for multiple
+fields.
+
+\begin{reqlist}
+{\bf Priority:} 1. \\
+{\bf Source:} Required by all. \\
+{\bf Status:} Rejected (covered by other requirements). \\
+{\bf Verification:} Code inspection  \\
+{\bf Notes:} 
+\end{reqlist}
+
+%-------------------------------------------------------------------------------
+\sreq{Dependence of field}
+
+For regridding schemes which might require field information,
+the required field information can be passed as arguments.
+Some higher-order regridding schemes require information on the
+gradient or other moments of a field.  In such cases, this 
+supplemental field information must be computed by the component 
+and passed to the regridding function so that the regridding does 
+not require detailed knowledge of operators or grid topology on every
+supported grid or field.
+
+\begin{reqlist}
+{\bf Priority:} 1. \\
+{\bf Source:} Required by all. \\
+{\bf Status:} Rejected (covered by other requirements). \\
+{\bf Verification:} Code inspection  \\
+{\bf Notes:} This requirement could also be satisfied by a later requirement
+             for user-supplied regridding routines.
+\end{reqlist}
+
+%===============================================================================
+\req{Regridding algorithms}
+%-------------------------------------------------------------------------------
+
+This section contains requirements on regridding algorithms themselves.
+
+%-------------------------------------------------------------------------------
+\sreq{Conservation}
+
+Regridding methods must be supplied which are
+\htmlref{conservative}{glos:conservation}.  Where possible,
+higher-order conservative methods should also be supplied.  This requirement
+applies only to ESMF grids which have an area (2-d), volume (3-d) or
+linear region (1-d) associated with them such that conservation is well
+defined.
+
+\begin{reqlist}
+{\bf Priority:} 1. \\
+{\bf Source:} POP,CICE,CAM required, NSIPP, CCSM-CPL, MIT, GFDL. \\
+{\bf Status:} Approved 1. \\
+{\bf Verification:} Unit test. \\
+{\bf Notes:} Methods exist for both first and second-order
+             conservative schemes in 1-d and 2-d \cite{Jones1999}.
+             Conservative methods for 3-d field (eg Monte Carlo
+             or 3-d extensions to the above methods) are more difficult
+             and may have a lower priority.
+             High-order conservative schemes are more expensive and
+             no schemes higher than second-order have been implemented.
+\end{reqlist}
+
+\ssreq{Verification of conservation}
+
+A method for verifying conservation must be supplied.
+
+\begin{reqlist}
+{\bf Priority:} 2. \\
+{\bf Source:} CCSM-CPL. \\
+{\bf Status:} Approved 1. \\
+{\bf Verification:} Unit test. \\
+{\bf Notes:} For error checking and testing.
+\end{reqlist}
+
+%-------------------------------------------------------------------------------
+\sreq{Monotonicity}
+
+\htmlref{Monotone}{glos:monotone} regridding methods must be supplied.
+
+\begin{reqlist}
+{\bf Priority:} 3. \\
+{\bf Source:} CAM-FV, CAM-EUL, MIT. \\
+{\bf Status:} Approved 1. \\
+{\bf Verification:} Unit test. \\
+{\bf Notes:} Biogeochemical models may need this.  First-order
+             conservative schemes are generally monotone by
+             construction, so this could be satisfied by the
+             conservation requirement for gridded data.
+             1-d monotone schemes are required for some hybrid
+             and Lagrangian vertical coordinate schemes
+             (eg CAM-FV, HYPOP), but are sufficiently linked
+             to details of dynamics that they may need to
+             remain in ``user space'' and not be covered by
+             the framework.
+\end{reqlist}
+
+%-------------------------------------------------------------------------------
+\sreq{Higher-order schemes}
+
+Regridding methods which are higher than first \htmlref{order}{glos:order}
+must be supplied.  This is required for preventing
+``patchwork'' patterns when regridding from coarse to fine
+grids and for preventing discontinuities in gradients of
+regridded fields.
+
+\begin{reqlist}
+{\bf Priority:} 1. \\
+{\bf Source:}  POP, CICE, CAM required, CCSM-CPL, NCEP-GSM, NCEP-SSI, MIT, GFDL. \\
+{\bf Status:} Approved 2. \\
+{\bf Verification:} Unit test. \\
+{\bf Notes:} This will require either internal approximations to
+             gradients (eg bilinear, bicubic, trilinear) or will require the
+             user to pass gradient information (eg second-order conservative
+             methods).  See requirements on field dependence.  Also, this
+             requirement can be in conflict with monotonicity requirements.
+             Options to specify what happens to higher-order at
+             boundaries are needed.
+\end{reqlist}
+
+%-------------------------------------------------------------------------------
+\sreq{Vector fields in physical space}
+
+Regridding methods must be available for regridding a horizontal
+vector field with components aligned with physical directions
+(eg zonal-meridional or x-y), where the physical direction may be
+inferred by the grid type or specified by user.
+
+\begin{reqlist}
+{\bf Priority:} 1. \\
+{\bf Source:}  POP, CICE, CAM required, NSIPP, CCSM-CPL, NCEP-SSI, MIT. \\
+{\bf Status:} Approved 1. \\
+{\bf Verification:} Unit test. \\
+{\bf Notes:} In spherical coordinates, meridional velocity components
+             may be improperly handled except in simple latitude-longitude
+             grid combinations.
+\end{reqlist}
+
+%-------------------------------------------------------------------------------
+\sreq{Vector fields in logical space}
+
+Regridding methods must be available for regridding a horizontal
+vector field with components aligned along grid logical directions.
+Logical directions here refer to directions parallel and perpendicular
+to cell sides.  Such a method would correctly handle flow through 
+coordinate singularities such as the poles in spherical coordinates.
+
+\begin{reqlist}
+{\bf Priority:} 1. \\
+{\bf Source:}  POP, CICE (CCSM) desired, NSIPP, CCSM-CPL (desired), MIT, GFDL. \\
+{\bf Status:} Approved 1. \\
+{\bf Verification:} Unit test. \\
+{\bf Notes:} 
+\end{reqlist}
+
+%-------------------------------------------------------------------------------
+\sreq{Regridding based on index space}
+
+Methods must be available for regridding based only on logical indices of 
+grid points and thus only on distributed grid information.  
+Such a function is useful for nested grid and multi-grid applications where 
+no physical grid information is required for creating the regridding.
+
+\begin{reqlist}
+{\bf Priority:} 1. \\
+{\bf Source:}  WRF required, NSIPP, MIT. \\
+{\bf Status:} Rejected (moved this requirement to creation requirement). \\
+{\bf Verification:} Unit test. \\
+{\bf Notes:} Will need a general way to specify stencils
+\end{reqlist}
+
+\ssreq{Index space changes}
+
+A method must be supplied for rapidly changing the
+regridding in cases where indices of one grid shift in relation 
+to the other grid (eg as a nested grid moves in relation to its 
+parent).  The regridding in this case would be utilizing the
+same stencil and weights; only the addresses of the grid points
+would shift.  Because of the simple nature of this operation,
+this requirement provides an efficient short-cut, avoiding
+re-creating a regridding using calls to create or destroy methods.
+
+\begin{reqlist}
+{\bf Priority:} 1. \\
+{\bf Source:}  WRF required. \\
+{\bf Status:} Approved 1. \\
+{\bf Verification:} Unit test. \\
+{\bf Notes:} A requirement for this exists for the distributed grid, so
+             Regrid would utilize the distributed grid functionality to 
+             accomplish this.
+\end{reqlist}
+
+%-------------------------------------------------------------------------------
+\sreq{Fourier transforms}
+
+Methods shall be supplied for regridding between physical space and
+Fourier space.  The adjoints shall also be supplied.  Ordering in
+Fourier space will be defined by the distributed grid.  This requirement 
+applies only to grids consistent with the Fourier transform (eg lat/lon grids,
+reduced grids, spectral elements, etc.).
+
+\begin{reqlist}
+{\bf Priority:} 1. \\
+{\bf Source:}  NCEP-GSM, NCEP-SSI (milestone), GFDL. \\
+{\bf Status:} Approved 1. \\
+{\bf Verification:} Unit test.
+\end{reqlist}
+
+\ssreq{Return types for Fourier modes}
+
+Results of Fourier transforms can be returned as either
+complex numbers or as real numbers in a specified order.
+
+\begin{reqlist}
+{\bf Priority:} 1. \\
+{\bf Source:}  NCEP-GSM, NCEP-SSI, GFDL. \\
+{\bf Status:} Approved 1. \\
+{\bf Verification:} Unit test. 
+\end{reqlist}
+
+\ssreq{Parallel implementations}
+
+Distributed FFT algorithms will be supported for a limited
+number of specific configurations.  Note that a transpose
+algorithm (in which a local serial transform is combined
+with data transposes to redistribute data) will always
+be supported for the general case.
+
+\begin{reqlist}
+{\bf Priority:} 1. \\
+{\bf Source:}  \\
+{\bf Status:} Rejected (see notes). \\
+{\bf Verification:} Unit test. \\
+{\bf Notes:} It was felt that the real requirement was for
+             efficient parallel transforms and specifying
+             implementations was a design detail.  Also, alternative
+             implementations can be covered under the user-defined
+             requirements.
+\end{reqlist}
+
+%-------------------------------------------------------------------------------
+\sreq{Legendre transforms}
+
+Methods shall be supplied for regridding between spectral space and
+Fourier space.  The adjoints shall also be supplied.  This requirement
+applies only to grids consistent with the Legendre transform (the
+data must be located at appropriate quadrature points).
+Both scalar and vector fields must be supported.
+
+\begin{reqlist}
+{\bf Priority:} 1. \\
+{\bf Source:}  NCEP-GSM, NCEP-SSI (milestone), NSIPP. \\
+{\bf Status:} Proposed. \\
+{\bf Verification:} Unit test. 
+\end{reqlist}
+
+\ssreq{Data types for Fourier modes}
+
+Legendre transforms must support Fourier modes stored as either
+complex numbers or as real numbers in a specified order.
+
+\begin{reqlist}
+{\bf Priority:} 1. \\
+{\bf Source:}  NCEP-GSM, NCEP-SSI. \\
+{\bf Status:} Proposed. \\
+{\bf Verification:} Unit test. \\
+{\bf Notes:}  Companion to the Fourier requirement above.
+\end{reqlist}
+
+\ssreq{Parallel implementations}
+
+Distributed Legendre algorithms will be supported for a limited
+number of specific configurations.  Note that a transpose
+algorithm (in which a local serial transform is combined
+with data transposes to redistribute data) will always
+be supported for the general case.
+
+\begin{reqlist}
+{\bf Priority:} 1. \\
+{\bf Source:}  \\
+{\bf Status:} Rejected (see notes). \\
+{\bf Verification:} Unit test. \\
+{\bf Notes:} Similar to the Fourier requirement,
+             it was felt that the real requirement was for
+             efficient parallel transforms and specifying
+             implementations was a design detail.  Also, alternative
+             implementations can be covered under the user-defined
+             requirements.
+\end{reqlist}
+
+%-------------------------------------------------------------------------------
+\sreq{Other functional transforms}
+
+Methods shall be supplied for regridding using user-supplied matrices,
+particularly between functional space and physical space.
+The adjoints shall also be supplied.  The grids again must be consistent
+with the functional transform being applied.
+
+\begin{reqlist}
+{\bf Priority:} 1. \\
+{\bf Source:}  NCEP-SSI (milestone), NSIPP, MIT. \\
+{\bf Status:} Redundant (falls under extensibility requirement below). \\
+{\bf Verification:} Unit test. 
+\end{reqlist}
+
+%-------------------------------------------------------------------------------
+\sreq{Interpolating from gridded data to ungridded data}
+
+All methods shall work for regridding FROM gridded data TO ungridded
+data, except that no conservation properties are required.
+Adjoints shall be supplied for interpolation TO ungridded data.
+
+\begin{reqlist}
+{\bf Priority:} 1. \\
+{\bf Source:}  NCEP-SSI (milestone), PSAS (not milestone), NSIPP, MIT.  \\
+{\bf Status:} Redundant - ungridded is a supported ESMF ``grid'' and is therefore
+              covered under earlier requirements. \\
+{\bf Verification:} Unit test. \\
+{\bf Notes:} 
+\end{reqlist}
+
+%-------------------------------------------------------------------------------
+\sreq{Interpolating from ungridded data to gridded data}
+
+Methods for regridding FROM ungridded data TO gridded data may be
+supplied (eg nearest-neighbor distance-weighted schemes).
+
+\begin{reqlist}
+{\bf Priority:} 3. \\
+{\bf Source:} MIT.  \\
+{\bf Status:} Redundant (see notes). \\
+{\bf Verification:} Unit test. \\
+{\bf Notes:} Since ungridded data are represented by ESMF grids, they are
+             technically covered by all earlier requirements.  However, many
+             of the above requirements are not applicable to such cases or may
+             be applicable only if associated with a ``background grid.''
+\end{reqlist}
+
+%-------------------------------------------------------------------------------
+\sreq{Extensibility}
+
+It shall be possible for users to supply their own regridding
+routines.  This is especially useful for regriddings that are
+strongly dependent on model fields.
+
+\begin{reqlist}
+{\bf Priority:} 2. \\
+{\bf Source:}  CAM-FV, NSIPP, CCSM-CPL, MIT. \\
+{\bf Status:} Approved 1. \\
+{\bf Verification:} Unit test. 
+\end{reqlist}
+
+%===============================================================================
+\req{Other utilities}
+%-------------------------------------------------------------------------------
+
+The following are utilities related to regridding which should be made
+public.
+
+%-------------------------------------------------------------------------------
+\sreq{Exchange grid}
+
+A method for constructing a new grid formed by the intersecting
+cells of two grids shall be available.
+
+\begin{reqlist}
+{\bf Priority:}  \\
+{\bf Source:}  NSIPP, MIT, GFDL. \\
+{\bf Status:} Moved to PhysGrid requirements. \\
+{\bf Verification:} Unit test. 
+\end{reqlist}
+

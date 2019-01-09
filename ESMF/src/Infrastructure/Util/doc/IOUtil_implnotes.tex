@@ -1,0 +1,55 @@
+% $Id$
+
+%\subsection{Design and Implementation Notes}
+
+\subsubsection{Fortran unit number management}
+
+When ESMF needs to open a Fortran I/O unit, it calls {\tt ESMF\_IOUnitGet()} to find
+an unopened unit number.  As delivered, the range of unit numbers that are
+searched are between {\tt ESMF\_LOG\_FORTRAN\_UNIT\_NUMBER} (normally set to
+50), and {\tt ESMF\_LOG\_UPPER} (normally set to 99.)
+Unopened unit numbers are found by using the Fortran {\tt INQUIRE} statement.
+
+When integrating ESMF into an application where there are conflicts with
+other uses of the same unit number range, an alternative range can be specified
+in the {\tt ESMF\_Initialize()} call by setting the {\tt IOUnitLower} and {\tt IOUnitUpper}
+arguments as needed.  {\tt ESMF\_IOUnitGet()} will then search the alternate range
+of unit numbers.  Note that {\tt IOUnitUpper} must be set to a value higher than
+{\tt IOUnitLower}, and that both must be non-negative.  Otherwise {\tt ESMF\_Initialize}
+will return a return code of {\tt ESMF\_FAILURE}.
+
+Fortran unit numbers are not standardized in the Fortran 90 Standard.  The standard
+only requires that they be non-negative integers.  But other than that, it is
+up to the compiler writers and application developers to provide and
+use units which work with the particular implementation.  For example,
+units 5 and 6 are a defacto standard for ``standard input'' and
+``standard output'' --- even though this is not specified in the actual Fortran
+standard.  The Fortran standard also does not specify which unit numbers can
+be used, nor does it specify how many can be open simultaneously.
+
+Since all current compilers have preconnected unit numbers, and these are
+typically found on units lower than 10, it is recommended that applications
+use unit numbers 10 and higher.
+
+\subsubsection{Flushing output}
+
+When ESMF needs to flush a Fortran unit, the {\tt ESMF\_IOUnitFlush()} API is used
+to centralize the file flushing capability, because Fortran has not historically
+had a standard mechanism for flushing output buffers.  Most compilers run-time libraries
+support various library extensions to provide this functionality --- though,
+being non-standard, the spelling and number of arguments vary between implementations.
+Fortran 2003 also provides for a {\tt FLUSH} statement which is built into the
+language.  When possible, {\tt ESMF\_IOUnitFlush()} uses the F2003 {\tt FLUSH} statement.
+With older compilers, the appropriate library call is made.
+
+\subsubsection{Sorting algorithms}
+
+The {\tt ESMF\_UtilSort()} algorithms are the same as those in the {\tt LAPACK}
+sorting procedures {\tt SLASRT()} and {\tt DLASRT()}.  Two algorithms are used.
+For small sorts, arrays with 20 or fewer elements, a simple Insertion sort is
+used.  For larger sorts, a Quicksort algorithm is used.
+
+Compared to the original {\tt LAPACK} code, a full Fortran 90 style
+interface is supported for ease of use and enhanced compile time checking.
+Additional support is also provided for integer and character string data
+types.

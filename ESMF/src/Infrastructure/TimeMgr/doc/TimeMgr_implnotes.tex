@@ -1,0 +1,72 @@
+% $Id$
+
+\subsection{Design and Implementation Notes}
+\begin{enumerate}
+
+\item {\bf Base TimeIntervals and Times on the same integer representation.} 
+It is useful to allow both TimeIntervals and Times to 
+inherit from a single class, BaseTime.  In C++, this can be
+implemented by using inheritance.  In Fortran, it can be implemented
+by having the derived types TimeIntervals and Times
+contain a derived type BaseTime.  In both cases, the 
+BaseTime class can be made private and invisible to the user.
+
+The result of this strategy is that Time Intervals and 
+Times gain a consistent core representation of time as well a set
+of basic methods.
+
+The BaseTime class can be designed with a minimum number of elements
+to represent any required time.  The design is based on the idea used
+in the real-time POSIX 1003.1b-1993 standard.  That is, to represent
+time simply as a pair of integers: one for seconds (whole) and one for
+nanoseconds (fractional).  These can then be converted at the interface
+level to any desired format.
+
+For ESMF, this idea can be modified and extended, in order to handle the
+requirements for a large time range (> 200,000 years) and to exactly
+represent any rational fraction, not just nanoseconds.  To handle the
+large time range, a 64-bit or greater integer is used for whole seconds.
+Any rational fractional second is expressed using two additional integers:
+a numerator and a denominator.  Both the whole seconds and fractional
+numerator are signed to handle negative time intervals and instants.
+For arithmetic consistency both must carry the same sign (both positive
+or both negative), except, of course, for zero values.  The fractional
+seconds element (numerator) is bounded with respect to whole seconds. 
+If the absolute value of the
+numerator becomes greater than or equal to the denominator, whole
+seconds are incremented or decremented accordingly and the numerator is
+reset to the remainder.  Conversions are performed upon demand by
+interface methods within the TimeInterval and
+Time classes.  This is done because different applications require different
+representations of time intervals and time instances.  Floating point values as well as integers can be specified for the various time units in the interfaces, see Table~\ref{table:timeOpts}.  Floating point values are represented internally as integer-based rational fractions.
+
+The BaseTime class defines increment and decrement methods for basic
+TimeInterval calculations between Time instants.  It is done here rather
+than in the Calendar class because it can be done with simple 
+second-based arithmetic that is calendar independent.  
+
+Comparison methods can also be defined in the BaseTime class.  These
+perform equality/inequality, less than, and greater than comparisons
+between any two TimeIntervals or Times.  These methods capture
+the common comparison logic between TimeIntervals and Times and
+hence are defined here for sharing.
+
+\item {\bf The Time class depends on a calendar.} The Time class contains 
+an internal Calendar class.  
+Upon demand by a user, the results of an increment or decrement operation are 
+converted to user units, which may be calendar-dependent, via methods 
+obtained from their internal Calendar.
+
+\end{enumerate}
+
+
+
+
+
+
+
+
+
+
+
+

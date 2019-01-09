@@ -6,8 +6,8 @@
 /*****************************************************************************
  * CVS File Information :
  *    $RCSfile: zz_obj_list.c,v $
- *    $Author: mathomp4 $
- *    $Date: 2013-01-11 20:23:44 $
+ *    $Author: dneckels $
+ *    $Date: 2007/11/28 16:13:54 $
  *    Revision: 1.12 $
  ****************************************************************************/
 
@@ -41,7 +41,7 @@ int Zoltan_Get_Obj_List(
   int **parts
 )
 {
-  char *yo = "Zoltan_Get_Obj_List";
+  const char *yo = "Zoltan_Get_Obj_List";
   int i, n;
   int num_gid_entries = zz->Num_GID;
   int num_lid_entries = zz->Num_LID;

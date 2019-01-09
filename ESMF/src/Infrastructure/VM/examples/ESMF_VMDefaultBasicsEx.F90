@@ -1,7 +1,7 @@
-! $Id: ESMF_VMDefaultBasicsEx.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
+! $Id$
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2012, University Corporation for Atmospheric Research,
+! Copyright 2002-2018, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -34,8 +34,10 @@
 
 !BOC
 program ESMF_VMDefaultBasicsEx
+#include "ESMF.h"
 
   use ESMF
+  use ESMF_TestMod
   
   implicit none
   
@@ -45,7 +47,21 @@ program ESMF_VMDefaultBasicsEx
   integer:: localPet, petCount, peCount, ssiId, vas
 !EOC
   ! result code
-  integer :: finalrc
+  integer :: finalrc, result
+  character(ESMF_MAXSTR) :: testname
+  character(ESMF_MAXSTR) :: failMsg
+
+!-------------------------------------------------------------------------
+!-------------------------------------------------------------------------
+
+  write(failMsg, *) "Example failure"
+  write(testname, *) "Example ESMF_VMDefaultBasicsEx"
+
+
+! ------------------------------------------------------------------------------
+! ------------------------------------------------------------------------------
+
+
   finalrc = ESMF_SUCCESS
 !BOC
   call ESMF_Initialize(vm=vm, defaultlogfilename="VMDefaultBasicsEx.Log", &
@@ -53,24 +69,24 @@ program ESMF_VMDefaultBasicsEx
   ! Providing the optional vm argument to ESMF_Initialize() is one way of
   ! obtaining the global VM.
 !EOC
-  if (rc/=ESMF_SUCCESS) finalrc = ESMF_FAILURE
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !BOC
   call ESMF_VMPrint(vm, rc=rc)
 !EOC
-  if (rc/=ESMF_SUCCESS) finalrc = ESMF_FAILURE
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !BOC
   call ESMF_VMGetGlobal(vm=vm, rc=rc)
   ! Calling ESMF_VMGetGlobal() anywhere in the user application is the other
   ! way to obtain the global VM object.
 !EOC
-  if (rc/=ESMF_SUCCESS) finalrc = ESMF_FAILURE
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !BOC
   call ESMF_VMGet(vm, localPet=localPet, petCount=petCount, peCount=peCount, &
     rc=rc)
   ! The VM object contains information about the associated resources. If the
   ! user code requires this information it must query the VM object.
 !EOC
-  if (rc/=ESMF_SUCCESS) finalrc = ESMF_FAILURE
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !BOC
   print *, "This PET is localPet: ", localPet
   print *, "of a total of ",petCount," PETs in this VM."
@@ -78,14 +94,19 @@ program ESMF_VMDefaultBasicsEx
 
   call ESMF_VMGet(vm, localPet, peCount=peCount, ssiId=ssiId, vas=vas, rc=rc)
 !EOC
-  if (rc/=ESMF_SUCCESS) finalrc = ESMF_FAILURE
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !BOC
   print *, "This PET is executing in virtual address space (VAS) ", vas
   print *, "located on single system image (SSI) ", ssiId
   print *, "and is associated with ", peCount, " PEs."
 
-  call ESMF_Finalize(rc=rc)
 !EOC
+
+  ! IMPORTANT: ESMF_STest() prints the PASS string and the # of processors in the log
+  ! file that the scripts grep for.
+  call ESMF_STest((finalrc.eq.ESMF_SUCCESS), testname, failMsg, result, ESMF_SRCLINE)
+
+  call ESMF_Finalize(rc=rc)
   if (rc/=ESMF_SUCCESS) finalrc = ESMF_FAILURE
   if (finalrc==ESMF_SUCCESS) then
     print *, "PASS: ESMF_VMDefaultBasicsEx.F90"

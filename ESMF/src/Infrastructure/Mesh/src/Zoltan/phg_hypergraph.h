@@ -6,8 +6,8 @@
 /*****************************************************************************
  * CVS File Information :
  *    $RCSfile: phg_hypergraph.h,v $
- *    $Author: mathomp4 $
- *    $Date: 2013-01-11 20:23:44 $
+ *    $Author: dneckels $
+ *    $Date: 2007/11/28 16:13:53 $
  *    Revision: 1.17 $
  ****************************************************************************/
 
@@ -194,7 +194,7 @@ extern int Zoltan_HG_Info         (ZZ*, HGraph*);
 extern int Zoltan_HG_Check        (ZZ*, HGraph*);
 extern int Zoltan_HG_HGraph_to_Graph(ZZ*, HGraph*, Graph*);
 extern int Zoltan_HG_Graph_to_HGraph(ZZ*, Graph*,  HGraph*);
-extern void Zoltan_HG_Print(ZZ*, HGraph*, Partition, FILE*, char*);
+extern void Zoltan_HG_Print(ZZ*, HGraph*, Partition, FILE*, const char*);
 extern void Zoltan_HG_HGraph_Print(ZZ *zz, ZHG *, HGraph *, Partition, FILE *fp);
     
 extern int Zoltan_HG_Hypergraph_Edge_Callbacks(ZZ *, ZHG *, int, float, int, 

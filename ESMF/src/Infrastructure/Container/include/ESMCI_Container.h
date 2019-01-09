@@ -1,7 +1,7 @@
 // $Id$
 //
 // Earth System Modeling Framework
-// Copyright 2002-2012, University Corporation for Atmospheric Research,
+// Copyright 2002-2018, University Corporation for Atmospheric Research,
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 // Laboratory, University of Michigan, National Centers for Environmental
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -19,31 +19,37 @@
 #include <utility>
 #include <map>
 #include <vector>
+#include <list>
 #include <iostream>
 
-// LogErr headers
-#include "ESMCI_LogErr.h"                  // for LogErr
-#include "ESMF_LogMacros.inc"             // for LogErr
-
+#include "ESMCI_LogErr.h"
 
 namespace ESMCI {
 
   template <typename Key, typename T>
-  class Container : public std::multimap<Key, T> {
+  class Container : public std::multimap<Key, 
+    typename std::list<std::pair<Key,T> >::iterator>{
+    std::list<std::pair<Key,T> > orderedList;
     bool garbageActive;
     std::vector<T> garbage;
    public:
     Container(){
       garbageOff();   // by default no garbage is kept
+#if 0
+      std::cout << "In Container constructor, size:" << this->size() << "\n";
+#endif
     }
     void add(Key k, T t, bool multi=false, bool relaxed=false);
     void addReplace(Key k, T t);
     void clear();
     T get(Key k)const;
-    void get(Key k, std::vector<T> &v)const;
+    void get(Key k, std::vector<T> &v,
+      ESMC_ItemOrder_Flag itemorderflag=ESMC_ITEMORDER_ABC)const;
     int getCount(Key k)const;
-    void getVector(std::vector<T> &v)const;
-    void getKeyVector(std::vector<Key> &v)const;
+    void getVector(std::vector<T> &v,
+      ESMC_ItemOrder_Flag itemorderflag=ESMC_ITEMORDER_ABC)const;
+    void getKeyVector(std::vector<Key> &v,
+      ESMC_ItemOrder_Flag itemorderflag=ESMC_ITEMORDER_ABC)const;
     bool isPresent(Key k)const{
       if (this->find(k)!=this->end())
         return true;  // key found
@@ -81,21 +87,31 @@ namespace ESMCI {
   void Container<Key, T>::add(Key k, T t, bool multi, bool relaxed){
     int rc = ESMC_RC_NOT_IMPL;              // final return code
     typename Container::iterator pos = this->lower_bound(k);
+    typename std::list<std::pair<Key,T> >::iterator lastElement;
     if (pos != this->end() && pos->first == k){
-      // already exists
+      // key already exists
       if (multi){
-        this->insert(pos, std::pair<Key,T>(k, t));
+        orderedList.push_back(std::pair<Key,T>(k, t)); // append to list
+        lastElement = orderedList.end();
+        this->insert(pos, std::pair<Key, 
+          typename std::list<std::pair<Key,T> >::iterator>
+          (k, --lastElement));      // store the iterator in multimap
       }else{
         if (!relaxed){
           ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_BAD,
-            "key already exists", &rc);
+            "key already exists", ESMC_CONTEXT, &rc);
           throw rc;  // bail out with exception
         }
         if (garbageActive)
           garbage.push_back(t); // not added object goes into garbage
       }
     }else{
-      this->insert(pos, std::pair<Key,T>(k, t));
+      // this is a new key
+      orderedList.push_back(std::pair<Key,T>(k, t)); // append to list
+      lastElement = orderedList.end();
+      this->insert(pos, std::pair<Key, 
+        typename std::list<std::pair<Key,T> >::iterator>
+        (k, --lastElement));      // store the iterator in multimap
     }
   }
   
@@ -106,25 +122,34 @@ namespace ESMCI {
   template <typename Key, typename T>
   void Container<Key, T>::addReplace(Key k, T t){
     typename Container::iterator pos = this->find(k);
+    typename std::list<std::pair<Key,T> >::iterator lastElement;
     if (pos!=this->end()){
-      // already exists
+      // key already exists
       if (garbageActive)
-        garbage.push_back(pos->second); // replaced object goes into garbage
-      this->erase(pos);
+        garbage.push_back(pos->second->second); // replaced object into garbage
+      pos->second->second = t; // store new object in the same list element
+    }else{
+      // this is a new key
+      orderedList.push_back(std::pair<Key,T>(k, t)); // append to list
+      lastElement = orderedList.end();
+      this->insert(pos, std::pair<Key, 
+        typename std::list<std::pair<Key,T> >::iterator>
+        (k, --lastElement));      // store the iterator in multimap
     }
-    this->insert(std::pair<Key,T>(k, t));
   }
 
 #undef  ESMC_METHOD
 #define ESMC_METHOD "ESMCI::Container::clear()"
-  // Access the entire contents of the container in form of a vector.
+  // Clear the entire contents of the container.
   template <typename Key, typename T>
   void Container<Key, T>::clear(){
     int rc = ESMC_RC_NOT_IMPL;              // final return code
-    typename Container::iterator pos;
-    for (pos = this->begin(); pos != this->end(); ++pos)
+    typename std::list<std::pair<Key,T> >::iterator pos;
+    for (pos = orderedList.begin(); pos != orderedList.end(); ++pos)
       garbage.push_back(pos->second); // object goes into garbage
-    std::multimap<Key, T>::clear();  // clear the container
+    orderedList.clear();   // clear the orderedList part of the container
+    std::multimap<Key, typename std::list<std::pair<Key,T> >::iterator>
+      ::clear(); // clear the multimap part of the container
   }
   
 #undef  ESMC_METHOD
@@ -140,30 +165,40 @@ namespace ESMCI {
     if (range.first == range.second){
       // does not exist -> error
       ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_BAD,
-        "key does not exist", &rc);
+        "key does not exist", ESMC_CONTEXT, &rc);
       throw rc;  // bail out with exception
     }
     if (range.first != --range.second){
       // key is not unique -> error
       ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_BAD,
-        "key is not unique", &rc);
+        "key is not unique", ESMC_CONTEXT, &rc);
       throw rc;  // bail out with exception
     }
-    return range.first->second;
+    return range.first->second->second;
   }
 
 #undef  ESMC_METHOD
 #define ESMC_METHOD "ESMCI::Container::get()"
   // Access all elements that match the key.
   template <typename Key, typename T>
-  void Container<Key, T>::get(Key k, std::vector<T> &v)const{
-    std::pair<typename Container::const_iterator,
-      typename Container::const_iterator> range;
-    range = this->equal_range(k);
-    typename Container::const_iterator pos;
+  void Container<Key, T>::get(Key k, std::vector<T> &v,
+    ESMC_ItemOrder_Flag itemorderflag)const{
     v.clear();
-    for (pos=range.first; pos!=range.second; ++pos)
-      v.push_back(pos->second);
+    if (itemorderflag == ESMC_ITEMORDER_ABC){
+      std::pair<typename Container::const_iterator,
+        typename Container::const_iterator> range;
+      range = this->equal_range(k);
+      typename Container::const_iterator pos;
+      for (pos=range.first; pos!=range.second; ++pos)
+        v.push_back(pos->second->second);
+    }else if (itemorderflag == ESMC_ITEMORDER_ADDORDER){
+      typename std::list<std::pair<Key,T> >::const_iterator pos;
+      for (pos = orderedList.begin(); pos != orderedList.end(); ++pos)
+        if (pos->first == k)
+          v.push_back(pos->second);
+    }else{
+      v.resize(0);
+    }
   }
     
 #undef  ESMC_METHOD
@@ -185,14 +220,25 @@ namespace ESMCI {
 #define ESMC_METHOD "ESMCI::Container::getVector()"
   // Access the entire contents of the container in form of a vector.
   template <typename Key, typename T>
-  void Container<Key, T>::getVector(std::vector<T> &v)const{
+  void Container<Key, T>::getVector(std::vector<T> &v,
+    ESMC_ItemOrder_Flag itemorderflag)const{
     int rc = ESMC_RC_NOT_IMPL;              // final return code
     v.clear();
-    v.resize(this->size());
-    typename Container::const_iterator pos;
-    int i = 0;
-    for (pos = this->begin(); pos != this->end(); ++pos)
-      v[i++] = pos->second;
+    if (itemorderflag == ESMC_ITEMORDER_ABC){
+      v.resize(this->size());
+      typename Container::const_iterator pos;
+      int i = 0;
+      for (pos = this->begin(); pos != this->end(); ++pos)
+        v[i++] = pos->second->second;
+    }else if (itemorderflag == ESMC_ITEMORDER_ADDORDER){
+      v.resize(orderedList.size());
+      int i = 0;
+      typename std::list<std::pair<Key,T> >::const_iterator pos;
+      for (pos = orderedList.begin(); pos != orderedList.end(); ++pos)
+        v[i++] = pos->second;
+    }else{
+      v.resize(0);
+    }
   }
 
 #undef  ESMC_METHOD
@@ -200,14 +246,25 @@ namespace ESMCI {
   // Access the keys of the entire contents of the container in form of a
   // vector.
   template <typename Key, typename T>
-  void Container<Key, T>::getKeyVector(std::vector<Key> &v)const{
+  void Container<Key, T>::getKeyVector(std::vector<Key> &v,
+    ESMC_ItemOrder_Flag itemorderflag)const{
     int rc = ESMC_RC_NOT_IMPL;              // final return code
     v.clear();
-    v.resize(this->size());
-    typename Container::const_iterator pos;
-    int i = 0;
-    for (pos = this->begin(); pos != this->end(); ++pos)
-      v[i++] = pos->first;
+    if (itemorderflag == ESMC_ITEMORDER_ABC){
+      v.resize(this->size());
+      int i = 0;
+      typename Container::const_iterator pos;
+      for (pos = this->begin(); pos != this->end(); ++pos)
+        v[i++] = pos->first;
+    }else if (itemorderflag == ESMC_ITEMORDER_ADDORDER){
+      v.resize(orderedList.size());
+      int i = 0;
+      typename std::list<std::pair<Key,T> >::const_iterator pos;
+      for (pos = orderedList.begin(); pos != orderedList.end(); ++pos)
+        v[i++] = pos->first;
+    }else{
+      v.resize(0);
+    }
   }
 
 #undef  ESMC_METHOD
@@ -216,11 +273,16 @@ namespace ESMCI {
   template <typename Key, typename T>
   void Container<Key, T>::print()const{
     int rc = ESMC_RC_NOT_IMPL;              // final return code
-    typename Container::const_iterator pos;
     int i = 0;
+    typename Container::const_iterator pos;
     for (pos = this->begin(); pos != this->end(); ++pos)
-      std::cout << "Container::print() item="<<i++<<" key="<<pos->first
-        <<" value="<<pos->second<<"\n";
+      std::cout << "Container::print() multipmap:item="<<i++<<
+        " key="<<pos->first <<" value="<<pos->second->second<<"\n";
+    i = 0;  // reset
+    typename std::list<std::pair<Key,T> >::const_iterator posl;
+    for (posl = orderedList.begin(); posl != orderedList.end(); ++posl)
+      std::cout << "Container::print()      list:item="<<i++<<
+        " key="<<posl->first <<" value="<<posl->second<<"\n";
   }
 
 #undef  ESMC_METHOD
@@ -231,7 +293,8 @@ namespace ESMCI {
   // and no error is thrown.
   // Further, for multi==false, the relaxed flag also covers the case where
   // there are multiple items in the container that match the key. Again the 
-  // relaxed mode turns this into a no-op, and no error is thrown.
+  // relaxed mode turns this into a no-op, and no error is thrown. None of
+  // the multiple matching elements are removed under this condition.
   // With multi==true the latter condition isn't an error anyway, instead
   // all items that match the key are removed.
   template <typename Key, typename T>
@@ -242,10 +305,10 @@ namespace ESMCI {
     typename Container::iterator pos;
     range = this->equal_range(k);
     if (range.first == range.second){
-      // does not exist
+      // key does not exist
       if (!relaxed){
         ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_BAD,
-          "key does not exist", &rc);
+          "key does not exist", ESMC_CONTEXT, &rc);
         throw rc;  // bail out with exception
       }
     }
@@ -255,16 +318,18 @@ namespace ESMCI {
       if (!multi){
         if (!relaxed){
           ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_BAD,
-            "key is not unique", &rc);
+            "key is not unique", ESMC_CONTEXT, &rc);
           throw rc;  // bail out with exception
         }
         return; // bail out without exception
       }
     }
-    if (garbageActive)
-      for (pos=range.first; pos!=range.second; ++pos)
-        garbage.push_back(pos->second); // removed object goes into garbage
-    this->erase(range.first, range.second);
+    for (pos=range.first; pos!=range.second; ++pos){
+      if (garbageActive)
+        garbage.push_back(pos->second->second); // removed object into garbage
+      orderedList.erase(pos->second); // remove entry from orderedList
+    }
+    this->erase(range.first, range.second); // remove entries from multimap part
   }
   
 #undef  ESMC_METHOD
@@ -275,7 +340,8 @@ namespace ESMCI {
   // this condition turns this method into a no-op and no error is thrown.
   // Further, for multi==false, the relaxed flag also covers the case where
   // there are multiple items in the container that match the key. Again the 
-  // relaxed mode turns this into a no-op, and no error is thrown.
+  // relaxed mode turns this into a no-op, and no error is thrown. Also none of 
+  // the multiple items with matching key are replaced.
   // With multi==true the latter condition isn't an error anyway, instead
   // all items that match the key are replaced.
   template <typename Key, typename T>
@@ -289,7 +355,7 @@ namespace ESMCI {
       // does not exist
       if (!relaxed){
         ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_BAD,
-          "key does not exist", &rc);
+          "key does not exist", ESMC_CONTEXT, &rc);
         throw rc;  // bail out with exception
       }
       garbage.push_back(t); // object not used to replace item goes into garbage
@@ -301,17 +367,23 @@ namespace ESMCI {
       if (!multi){
         if (!relaxed){
           ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_BAD,
-            "key is not unique", &rc);
+            "key is not unique", ESMC_CONTEXT, &rc);
           throw rc;  // bail out with exception
         }
+        garbage.push_back(t); // object not used to replace item into garbage
         return; // bail out without exception
       }
     }
-    if (garbageActive)
-      for (pos=range.first; pos!=range.second; ++pos)
-        garbage.push_back(pos->second); // removed object goes into garbage
-    this->erase(range.first, range.second);
-    this->insert(std::pair<Key,T>(k, t));
+    for (pos=range.first; pos!=range.second; ++pos){
+      if (garbageActive)
+        garbage.push_back(pos->second->second); // removed object into garbage
+      if (pos!=range.first){
+        orderedList.erase(pos->second); // remove entry from orderedList
+      }
+    }
+    pos = range.first;
+    this->erase(++pos, range.second);
+    range.first->second->second = t; // fill orderedList element with new value
   }
 
 } // namespace ESMCI

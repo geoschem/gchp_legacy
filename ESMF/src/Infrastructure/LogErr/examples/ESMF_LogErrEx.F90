@@ -1,7 +1,7 @@
-! $Id: ESMF_LogErrEx.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
+! $Id$
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2012, University Corporation for Atmospheric Research,
+! Copyright 2002-2018, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -14,7 +14,7 @@
     program ESMF_LogErrEx
 
 !------------------------------------------------------------------------------
-!ESMF_EXAMPLE	Writing messages to log with different methods.
+!ESMF_EXAMPLE   Writing messages to log with different methods.
 !==============================================================================
 !BOC
 ! !PROGRAM: ESMF_LogErrEx - Log Error examples
@@ -23,7 +23,10 @@
 !
 ! This program shows examples of Log Error writing
 !-----------------------------------------------------------------------------
-
+!EOC
+#include "ESMF.h"
+#undef ESMF_FILENAME
+!BOC
 ! Macros for cpp usage
 ! File define
 #define ESMF_FILENAME "ESMF_LogErrEx.F90"
@@ -33,16 +36,32 @@
 
     ! ESMF Framework module
     use ESMF
+    use ESMF_TestMod
     implicit none
-    
+
     ! return variables
-    integer :: rc1, rc2, rc3, rcToTest, allocRcToTest
+    integer :: rc1, rc2, rc3, rcToTest, allocRcToTest, result
     type(ESMF_LOG) :: alog  ! a log object that is not the default log
     type(ESMF_LogKind_Flag) :: logkindflag
     type(ESMF_Time) :: time
+    type(ESMF_VM) :: vm
     integer, pointer :: intptr(:)
 !EOC
     integer :: finalrc
+
+    character(ESMF_MAXSTR) :: testname
+    character(ESMF_MAXSTR) :: failMsg
+
+!-------------------------------------------------------------------------
+!-------------------------------------------------------------------------
+
+    write(failMsg, *) "Example failure"
+    write(testname, *) "Example ESMF_LogErrEx"
+
+
+! ------------------------------------------------------------------------------
+! ------------------------------------------------------------------------------
+
     finalrc = ESMF_SUCCESS
 
 !BOE
@@ -54,26 +73,29 @@
 
 !BOC
     ! Initialize ESMF to initialize the default Log
-    call ESMF_Initialize(rc=rc1, logkindflag=ESMF_LOGKIND_MULTI)
+    call ESMF_Initialize(vm=vm, defaultlogfilename="LogErrEx.Log", &
+                     logkindflag=ESMF_LOGKIND_MULTI, rc=rc1)
+
 !EOC
 
-    if (rc1.NE.ESMF_SUCCESS) then
-        finalrc = ESMF_RC_OBJ_BAD
-    end if
+    if (rc1 /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
 !BOC
-    ! LogWrite 
+    ! LogWrite
     call ESMF_LogWrite("Log Write 2", ESMF_LOGMSG_INFO, rc=rc2)
 !EOC
 
-    if (rc2.NE.ESMF_SUCCESS) then
-        finalrc = ESMF_RC_OBJ_BAD
-    end if
+    if (rc2 /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
 !BOC
     ! LogMsgSetError
     call ESMF_LogSetError(ESMF_RC_OBJ_BAD, msg="Convergence failure", &
                              rcToReturn=rc2)
+!EOC
+
+    if (rc2 /= ESMF_RC_OBJ_BAD) call ESMF_Finalize(endflag=ESMF_END_ABORT)
+
+!BOC
     ! LogMsgFoundError
     call ESMF_TimeSet(time, calkindflag=ESMF_CALKIND_NOCALENDAR)
     call ESMF_TimeSyncToRealTime(time, rc=rcToTest)
@@ -105,9 +127,11 @@
     call ESMF_LogOpen(alog, "TestLog.txt", rc=rc1)
 !EOC
 
-    if (rc1.NE.ESMF_SUCCESS) then
-        finalrc = ESMF_FAILURE
-    end if
+!EOC
+
+    if (rc1 /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
+
+!BOC
 
 !BOC
     ! LogWrite
@@ -116,9 +140,7 @@
                        method=ESMF_METHOD, log=alog, rc=rc2)
 !EOC
 
-    if (rc2.NE.ESMF_SUCCESS) then
-        finalrc = ESMF_RC_OBJ_BAD
-    end if
+    if (rc2 /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
 !BOC
     ! LogMsgSetError
@@ -127,9 +149,7 @@
                            method=ESMF_METHOD, rcToReturn=rc2, log=alog)
 !EOC
 
-    if (rc2.NE.ESMF_RC_OBJ_BAD) then
-        finalrc = ESMF_RC_OBJ_BAD
-    end if
+    if (rc2 /= ESMF_RC_OBJ_BAD) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
 !BOE
 !\subsubsection{Get and Set}
@@ -143,9 +163,7 @@
     call ESMF_LogGet(logkindflag=logkindflag, rc=rc3)
 !EOC
 
-    if (rc3.NE.ESMF_SUCCESS) then
-        finalrc = ESMF_RC_OBJ_BAD
-    end if
+    if (rc3 /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
 !BOC
     ! This is an example setting a property of a Log that is not the default.
@@ -154,18 +172,19 @@
     call ESMF_LogSet(log=alog, logmsgAbort=(/ESMF_LOGMSG_ERROR/), rc=rc2)
 !EOC
 
-    if (rc2.NE.ESMF_SUCCESS) then
-        finalrc = ESMF_RC_OBJ_BAD
-    end if
+    if (rc2 /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
 !BOC
     ! Close the user log.
     call ESMF_LogClose(alog, rc=rc3)
 !EOC
 
-    if (rc3.NE.ESMF_SUCCESS) then
-        finalrc = ESMF_RC_OBJ_BAD
-    end if
+    if (rc3 /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
+
+    ! IMPORTANT: ESMF_STest() prints the PASS string and the # of processors in the log
+    ! file that the scripts grep for.
+    call ESMF_STest((finalrc.eq.ESMF_SUCCESS), testname, failMsg, result, ESMF_SRCLINE)
+
 
 !BOC
     ! Finalize ESMF to close the default log

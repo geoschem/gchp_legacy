@@ -1,10 +1,10 @@
 // $Id$
 //
 // Earth System Modeling Framework
-// Copyright 2002-2012, University Corporation for Atmospheric Research, 
-// Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
-// Laboratory, University of Michigan, National Centers for Environmental 
-// Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
+// Copyright 2002-2018, University Corporation for Atmospheric Research,
+// Massachusetts Institute of Technology, Geophysical Fluid Dynamics
+// Laboratory, University of Michigan, National Centers for Environmental
+// Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
 // NASA Goddard Space Flight Center.
 // Licensed under the University of Illinois-NCSA License.
 //
@@ -37,23 +37,30 @@ static const char *const version = "$Id$";
 //-----------------------------------------------------------------------------
 
 #ifdef ESMF_LAPACK
-extern "C" void FTN(dgelsy)(int *,int *,int*,double*,int*,double*,int*,int*,double*,int*,double*,int*,int*);
+#if defined (ESMF_LAPACK_INTERNAL)
+extern "C" void FTN_X(esmf_dgelsy)(int *,int *,int*,double*,int*,double*,int*,int*,
+  double*,int*, double*,int*,int*);
 
-extern "C" void FTN(dgelsd)(int *,int *, int*, double*, int*, double*, int*,double*, double*, int*, double *, int*, int *, int *);
+extern "C" void FTN_X(esmf_dgelsd)(int *,int *, int*, double*, int*, double*,
+  int*,double*, double*, int*, double *, int*, int *, int *);
+#else
+extern "C" void FTNX(dgelsy)(int *,int *,int*,double*,int*,double*,int*,int*,
+  double*,int*, double*,int*,int*);
 
-extern "C" void FTN(f_esmf_lapack_iworksize)(int *,int *);
+extern "C" void FTNX(dgelsd)(int *,int *, int*, double*, int*, double*,
+  int*,double*, double*, int*, double *, int*, int *, int *);
+#endif
 #endif
 
-          
+extern "C" void FTN_X(f_esmf_lapack_iworksize)(int *,int *);
 
-namespace ESMCI {
-
+  namespace ESMCI {
 
 template<typename NFIELD, typename Real>
 UInt PatchRecov<NFIELD,Real>::get_ncoeff(UInt dim, UInt deg) {
 
   UInt res = 1;
-  for (UInt i = 0; i < dim; i++) 
+  for (UInt i = 0; i < dim; i++)
     res *= (deg+1);
   return res;
 }
@@ -71,7 +78,7 @@ void eval_monomial2(UInt nsamples, UInt sample, UInt pdeg, const double coord[],
     for (UInt j = i; j <= pdeg; j++)
       buf[j] *= coord[0];
   }
- 
+
   // Fill out 1 y y^2 ...
   UInt off = pdeg+1;
   buf[off] = 1.0;
@@ -91,11 +98,11 @@ void eval_monomial2(UInt nsamples, UInt sample, UInt pdeg, const double coord[],
     }
   }
 
-} 
+}
 
 /**
  * Needs a buffer of size buf(3*(pdeg+1)]
- */
+  */
 void eval_monomial3(UInt nsamples, UInt sample, UInt pdeg, const double coord[], double res[], double buf[]) {
   // Lay out 1 x x^2 x^2 ... 1 y y^2 y
   buf[0] = 1.0;
@@ -106,7 +113,7 @@ void eval_monomial3(UInt nsamples, UInt sample, UInt pdeg, const double coord[],
     for (UInt j = i; j <= pdeg; j++)
       buf[j] *= coord[0];
   }
- 
+
   // Fill out 1 y y^2 ...
   UInt off = pdeg+1;
   buf[off] = 1.0;
@@ -139,12 +146,20 @@ void eval_monomial3(UInt nsamples, UInt sample, UInt pdeg, const double coord[],
     }
   }
 
-} 
+}
+
+// This is used in set creation so that things are sorted by id vs. pointer
+// sorting by pointer can result in different orders which can
+// result in different values on different runs (not bfb).
+struct CompUsingIds {
+  bool operator() (const MeshObj *lhs, const MeshObj *rhs) const
+  {return (lhs->get_id() < rhs->get_id());}
+};
 
 template<typename NFIELD, typename Real>
-void PatchRecov<NFIELD,Real>::eval_poly(UInt nsamples, UInt sample, UInt ldb, UInt cur_rhs, 
+void PatchRecov<NFIELD,Real>::eval_poly(UInt nsamples, UInt sample, UInt ldb, UInt cur_rhs,
           UInt dim, std::vector<double> &mat, double coord[],
-                          std::vector<Real> &rhs, const Real fvals[], UInt fdim) {
+                           std::vector<Real> &rhs, const Real fvals[], UInt fdim) {
   if (pdeg == 0) {
     mat[0*nsamples + sample] = 1;
   } else if (dim == 2) {
@@ -156,14 +171,14 @@ void PatchRecov<NFIELD,Real>::eval_poly(UInt nsamples, UInt sample, UInt ldb, UI
         TensorPolynomial<Monomial<double> > tp(&m1, &m2);
 //std::cout << "x = " << coord[0] << ", y = " << coord[1] << ", i,j=" << i << ", " << j << ", val=" <<
      //EvalTensorPoly(dim, coord, tp) << std::endl;
-        mat[k++*nsamples + sample] = 
+        mat[k++*nsamples + sample] =
           EvalTensorPoly(dim, coord, tp);
       }
     }
 */
     std::vector<double> buf(2*(pdeg+1));
     eval_monomial2(nsamples,sample,pdeg,coord,&mat[0],&buf[0]);
-    
+
   } else if (dim == 3) {
 /*
     UInt l = 0;
@@ -172,7 +187,7 @@ void PatchRecov<NFIELD,Real>::eval_poly(UInt nsamples, UInt sample, UInt ldb, UI
         for (UInt k = 0; k <= pdeg; k++) {
           Monomial<double> m1(i), m2(j), m3(k);
           TensorPolynomial<Monomial<double> > tp(&m1, &m2, &m3);
-          mat[l++*nsamples + sample] = 
+          mat[l++*nsamples + sample] =
             EvalTensorPoly(dim, coord, tp);
         }
       }
@@ -206,12 +221,12 @@ use_mc(rhs.use_mc)
 
 template<typename NFIELD, typename Real>
 PatchRecov<NFIELD,Real> PatchRecov<NFIELD,Real>::operator*(double val) {
-  
+
   PatchRecov pv(*this);
-  
+
   for (UInt i = 0; i < coeff.size(); i++)
     pv.coeff[i] *= val;
-  
+
   return pv;
 }
 
@@ -264,8 +279,6 @@ struct DGELSD_Solver {
 void operator()(UInt ncoef, int ldb, int m, int n, int nrhs, std::vector<double> &mat, std::vector<Real> &rhs, Real coeff[])
 {
 
-#ifdef ESMF_LAPACK
-
 #ifdef RESIDUALS
 Par::Out() << "A(" << m << "," << n << ")=" << std::endl;
 for (UInt i = 0; i < m; i++) {
@@ -281,7 +294,7 @@ Par::Out() << std::endl;
 
  // Set condition number (how bad of a matrix to accept)
  double rcond=1.0/10000000.0;
- 
+
  // TODO: much of this memory will be the same size every time, it would be good to have
  //       a scheme to hold onto it and allow its reuse
 
@@ -297,27 +310,45 @@ Par::Out() << std::endl;
 
   // calculate iworksize
   int iworksize=0;
-  FTN(f_esmf_lapack_iworksize)(&minmn, &iworksize);
+  FTN_X(f_esmf_lapack_iworksize)(&minmn, &iworksize);
 
   // Allocate iwork buffer
   std::vector<int> iwork(iworksize, 0);
- 
+
   // calculate work size, by using solver with lwork = -1
   int tmplwork=-1;
   double tmpwork=0;
-  FTN(dgelsd)(
-	      &m, &n, &m, &mat[0], &m, &id_rhs[0], &ldb, &s[0], &rcond, &rank, &tmpwork, &tmplwork, &iwork[0], &info); 
+#ifdef ESMF_LAPACK
+#if defined (ESMF_LAPACK_INTERNAL)
+  FTN_X(esmf_dgelsd)(&m, &n, &m, &mat[0], &m, &id_rhs[0], &ldb, &s[0], &rcond, &rank,
+    &tmpwork, &tmplwork, &iwork[0], &info);
+#else
+  FTNX(dgelsd)(&m, &n, &m, &mat[0], &m, &id_rhs[0], &ldb, &s[0], &rcond, &rank,
+    &tmpwork, &tmplwork, &iwork[0], &info);
+#endif
+#else
+  Throw() << "Please reconfigure with lapack enabled";
+#endif
   int worksize = int(tmpwork);
 
 
   // allocate work vector
   std::vector<double> work(worksize, 0);
-  
+
 
   // Call solver
-  FTN(dgelsd)(
-	      &m, &n, &m, &mat[0], &m, &id_rhs[0], &ldb, &s[0], &rcond, &rank, &work[0], &worksize, &iwork[0], &info);
+#ifdef ESMF_LAPACK
+#if defined (ESMF_LAPACK_INTERNAL)
+  FTN_X(esmf_dgelsd)(&m, &n, &m, &mat[0], &m, &id_rhs[0], &ldb, &s[0], &rcond, &rank,
+    &work[0], &worksize, &iwork[0], &info);
+#else
+  FTNX(dgelsd)(&m, &n, &m, &mat[0], &m, &id_rhs[0], &ldb, &s[0], &rcond, &rank,
+    &work[0], &worksize, &iwork[0], &info);
+#endif
   if (info !=0) Throw() << "Bad dgelsd solve, info=" << info;
+#else
+  Throw() << "Please reconfigure with lapack enabled";
+#endif
 
 
 // Apply the pseudo inverse
@@ -355,25 +386,18 @@ Par::Out() << "B=" << std::endl;
       coeff[r*ncoef+c] = rhs[r*ldb+c];
     }
   }
-
-#else
-  Throw() << "Please reconfigure with lapack enabled";
-#endif
-
 }
 
 };
 
 /**
  * A specialization for double that does not build the full pseudo inverse, but just
- * solves the system 
+ * solves the system
  */
 template <>
 struct DGELSD_Solver<double> {
 void operator()(UInt ncoef, int ldb, int m, int n, int nrhs, std::vector<double> &mat, std::vector<double> &rhs, double coeff[])
 {
-
-#ifdef ESMF_LAPACK
 
 #ifdef RESIDUALS
 std::vector<double> saverhs = rhs;
@@ -385,7 +409,7 @@ std::vector<double> matsav = mat;
 
  // Set condition number (how bad of a matrix to accept)
  double rcond=1.0/10000000.0;
- 
+
  // TODO: much of this memory will be the same size every time, it would be good to have
  //       a scheme to hold onto it and allow its reuse
 
@@ -398,27 +422,44 @@ std::vector<double> matsav = mat;
 
   // calculate iworksize
   int iworksize=0;
-  FTN(f_esmf_lapack_iworksize)(&minmn, &iworksize);
+  FTN_X(f_esmf_lapack_iworksize)(&minmn, &iworksize);
 
   // Allocate iwork buffer
   std::vector<int> iwork(iworksize, 0);
- 
+
   // calculate work size, by using solver with lwork = -1
   int tmplwork=-1;
   double tmpwork=0;
-  FTN(dgelsd)(
-	      &m, &n, &nrhs, &mat[0], &m, &rhs[0], &ldb, &s[0], &rcond, &rank, &tmpwork, &tmplwork, &iwork[0], &info);
-  
+#ifdef ESMF_LAPACK
+#if defined (ESMF_LAPACK_INTERNAL)
+  FTN_X(esmf_dgelsd)(&m, &n, &nrhs, &mat[0], &m, &rhs[0], &ldb, &s[0], &rcond, &rank,
+    &tmpwork, &tmplwork, &iwork[0], &info);
+#else
+  FTNX(dgelsd)(&m, &n, &nrhs, &mat[0], &m, &rhs[0], &ldb, &s[0], &rcond, &rank,
+    &tmpwork, &tmplwork, &iwork[0], &info);
+#endif
+#else
+  Throw() << "Please reconfigure with lapack enabled";
+#endif
+
   int worksize = int(tmpwork);
 
   // allocate work vector
   std::vector<double> work(worksize, 0);
-  
-  // Call solver
-  FTN(dgelsd)(
-	      &m, &n, &nrhs, &mat[0], &m, &rhs[0], &ldb, &s[0], &rcond, &rank, &work[0], &worksize, &iwork[0], &info);
 
+  // Call solver
+#ifdef ESMF_LAPACK
+#if defined (ESMF_LAPACK_INTERNAL)
+  FTN_X(esmf_dgelsd)(&m, &n, &nrhs, &mat[0], &m, &rhs[0], &ldb, &s[0], &rcond, &rank,
+    &work[0], &worksize, &iwork[0], &info);
+#else
+  FTNX(dgelsd)(&m, &n, &nrhs, &mat[0], &m, &rhs[0], &ldb, &s[0], &rcond, &rank,
+    &work[0], &worksize, &iwork[0], &info);
+#endif
   if (info !=0) Throw() << "Bad dgelsd solve, info=" << info;
+#else
+  Throw() << "Please reconfigure with lapack enabled";
+#endif
 
 
 #ifdef RESIDUALS
@@ -466,11 +507,6 @@ if (err > 1e-10) Par::Out() << "\tnsamples=" << m << std::endl;
       coeff[r*ncoef+c] = rhs[r*ldb+c];
     }
   }
-
-#else
-  Throw() << "Please reconfigure with lapack enabled";
-#endif
-
 }
 
 };
@@ -506,9 +542,13 @@ Par::Out() << std::endl;
 #endif
 
 #ifdef ESMF_LAPACK
-  FTN(dgelsy)(
-    &m, &n, &m, &mat[0], &m, &id_rhs[0], &ldb, &jpvt[0], &rcond, &rank, &work[0], &lwork, &info);
-
+#if defined (ESMF_LAPACK_INTERNAL)
+  FTN_X(esmf_dgelsy)(&m, &n, &m, &mat[0], &m, &id_rhs[0], &ldb, &jpvt[0], &rcond,
+    &rank, &work[0], &lwork, &info);
+#else
+  FTNX(dgelsy)(&m, &n, &m, &mat[0], &m, &id_rhs[0], &ldb, &jpvt[0], &rcond,
+    &rank, &work[0], &lwork, &info);
+#endif
   if (info !=0) Throw() << "Bad dgelsy solve, info=" << info;
 #else
   Throw() << "Please reconfigure with lapack enabled";
@@ -554,7 +594,7 @@ Par::Out() << "B=" << std::endl;
 
 /**
  * A specialization for double that does not build the full pseudo inverse, but just
- * solves the system 
+ * solves the system
  */
 template <>
 struct DGELSY_Solver<double> {
@@ -572,8 +612,13 @@ std::vector<double> matsav = mat;
 #endif
 
 #ifdef ESMF_LAPACK
-  FTN(dgelsy)(
-    &m, &n, &nrhs, &mat[0], &m, &rhs[0], &ldb, &jpvt[0], &rcond, &rank, &work[0], &lwork, &info);
+#if defined (ESMF_LAPACK_INTERNAL)
+  FTN_X(esmf_dgelsy)(&m, &n, &nrhs, &mat[0], &m, &rhs[0], &ldb, &jpvt[0], &rcond,
+    &rank, &work[0], &lwork, &info);
+#else
+  FTNX(dgelsy)(&m, &n, &nrhs, &mat[0], &m, &rhs[0], &ldb, &jpvt[0], &rcond,
+    &rank, &work[0], &lwork, &info);
+#endif
 #else
   Throw() << "Please recompile with ESMF_LAPACK enabled";
 #endif
@@ -636,11 +681,11 @@ void PatchRecov<NFIELD,Real>::CreatePatch(
            const MeshObj *elem_hint,
            UInt numfields,
            NFIELD **rfield,
-           UInt threshold,           
+           UInt threshold,
            const MEField<> &coord,
            const MCoord *_mc,
            MEField<> *src_mask_ptr
-           ) 
+           )
 {
   patch_ok = true; // used below
   pdeg = _pdeg;
@@ -663,8 +708,7 @@ void PatchRecov<NFIELD,Real>::CreatePatch(
   std::vector<Real> rhs;
 
   // Get elements to use for generating patch
-
-  std::set<const MeshObj*> elems;
+  std::set<const MeshObj*,CompUsingIds> elems;
   MeshObjRelationList::const_iterator el = MeshObjConn::find_relation(node, MeshObj::ELEMENT);
 
   // If there's a mask then use mask to avoid bad elements
@@ -677,14 +721,14 @@ void PatchRecov<NFIELD,Real>::CreatePatch(
       bool masked=false;
       MeshObjRelationList::const_iterator nl = MeshObjConn::find_relation(elem, MeshObj::NODE);
       while (nl != elem.Relations.end() && nl->obj->get_type() == MeshObj::NODE){
-	MeshObj &node = *(nl->obj);
-	double *m = src_mask_ptr->data(node);
-	// printf(" %f ",*m);
-	if (*m > 0.5) {
-	  masked=true;
-	  break;
-	}
-	++nl;
+        MeshObj &node = *(nl->obj);
+        double *m = src_mask_ptr->data(node);
+        // printf(" %f ",*m);
+        if (*m > 0.5) {
+          masked=true;
+          break;
+        }
+        ++nl;
       }
       //      printf(" :: %d \n",masked);
       // If not masked out then add to list
@@ -699,20 +743,20 @@ void PatchRecov<NFIELD,Real>::CreatePatch(
       ++el;
     }
   }
-  
+
   // Stack elements in
   // Use integration rule for field 0
   UInt nsamples = 0;
   std::set<const MeshObj*>::iterator esi = elems.begin(), ese = elems.end();
 
   UInt num_elems = elems.size();
-  
+
   for (; esi != ese; ++esi) {
     const MeshObj &selem = **esi;
     MasterElement<METraits<Real> > *me = GetME(*rfield[0], selem)(METraits<Real>());
 
     // Find an integration rule that just overconstrains the problem
-    
+
     const intgRule *ir = 0;
     // Need to have enough points to fully constrain matrix
     // start with 2, because symmetry of 1 at poles (the only place 1 will be used) causes problems with l.s. solver
@@ -765,7 +809,7 @@ std::cout << "threshold  tripped.  nsamples=" << nsamples << ", ncoef=" << ncoef
   UInt cur_rhs = 0;
   for (UInt f = 0; f < numfields; f++) {
     const NFIELD &field = *rfield[f];
-  
+
     // subloop elements
     std::set<const MeshObj*>::iterator ei = elems.begin(), ee = elems.end();
     UInt sample = 0;
@@ -790,7 +834,7 @@ std::cout << "threshold  tripped.  nsamples=" << nsamples << ", ncoef=" << ncoef
 
       mev.Setup(selem, MEV::update_sf | MEV::update_map, ir);
       mev.ReInit(selem);
-     
+
       std::vector<Real> felem(field.dim()*mev.GetNumFunctions());
       std::vector<double> celem(sdim*mev.GetNumCoordFunctions());
 
@@ -811,7 +855,7 @@ std::copy(cd, cd + idim, std::ostream_iterator<double>(Par::Out(), " "));
 Par::Out() << std::endl;
 #endif
         }
-      
+
         eval_poly(nsamples, sample++, ldb, cur_rhs,
               idim, mat, cd, rhs, &fdata[q*field.dim()], field.dim());
       } // for qpoint
@@ -835,24 +879,24 @@ void PatchRecov<NFIELD,Real>::CreateConstantPatch(const MeshObj &node,
                                                   NFIELD **rfield)
 {
   pdeg = 0;
-  
+
   ncoeff = 1;
-  
+
   for (UInt i = 0; i < numfields; i++) {
     NFIELD *nf = rfield[i];
-    
+
     Real *data = nf->data(node);
-    
+
     for (UInt f = 0; f < nf->dim(); f++) {
-      
+
       coeff.push_back(data[f]);
-      
+
     }
-    
+
   }
-  
+
   patch_ok = true;
-  
+
 }
 
 /**
@@ -869,7 +913,7 @@ Real EvalMonomial2(UInt pdeg, const double coord[], const Real coef[], double bu
     for (UInt j = i; j <= pdeg; j++)
       buf[j] *= coord[0];
   }
- 
+
   // Fill out 1 y y^2 ...
   UInt off = pdeg+1;
   buf[off] = 1.0;
@@ -892,9 +936,9 @@ Real EvalMonomial2(UInt pdeg, const double coord[], const Real coef[], double bu
 
   return res;
 
-} 
+}
 
-/** 
+/**
  * needs a buffer of size 2*(pdeg+2)
  */
 template <typename Real>
@@ -908,7 +952,7 @@ Real EvalMonomialDeriv2(UInt pdeg, const double coord[], const Real coef[], Real
     for (UInt j = i; j <= pdeg; j++)
       buf[j+1] *= coord[0];
   }
- 
+
   // Fill out 1 y y^2 ...
   UInt off = 1+pdeg+1;
   buf[off] = 0.0; buf[off+1] = 1.0;
@@ -945,11 +989,11 @@ Real EvalMonomialDeriv2(UInt pdeg, const double coord[], const Real coef[], Real
         pres += coef[k++]*buf[1+i]*buf[1+off+j];
       }
     }
-  } 
+  }
 
   return pres;
 
-} 
+}
 
 /**
  * Needs a buffer of size buf(3*(pdeg+1)]
@@ -965,7 +1009,7 @@ Real EvalMonomial3(UInt pdeg, const double coord[], const Real coef[], double bu
     for (UInt j = i; j <= pdeg; j++)
       buf[j] *= coord[0];
   }
- 
+
   // Fill out 1 y y^2 ...
   UInt off = pdeg+1;
   buf[off] = 1.0;
@@ -1001,7 +1045,7 @@ Real EvalMonomial3(UInt pdeg, const double coord[], const Real coef[], double bu
 
   return res;
 
-} 
+}
 
 /**
  * needs a buffer of size 3((pdeg+2)
@@ -1018,7 +1062,7 @@ Real EvalMonomialDeriv3(UInt pdeg, const double coord[], const Real coef[], Real
     for (UInt j = i; j <= pdeg; j++)
       buf[1+j] *= coord[0];
   }
- 
+
   // Fill out 0 1 y y^2 ...
   UInt off = 1+pdeg+1;
   buf[off] = 0.0; buf[off+1] = 1.0;
@@ -1082,11 +1126,11 @@ Real EvalMonomialDeriv3(UInt pdeg, const double coord[], const Real coef[], Real
         }
       }
     }
-  } 
+  }
 
   return pres;
 
-} 
+}
 
 template<typename NFIELD, typename Real>
 Real PatchRecov<NFIELD,Real>::EvalPatch(UInt nfield, const double coords[]) const {
@@ -1277,7 +1321,7 @@ template <typename NFIELD, typename Real>
 ElemPatch<NFIELD,Real> &ElemPatch<NFIELD,Real>::operator=(const ElemPatch &rhs)
 {
   if (this == &rhs) return *this;
-  
+
   patches = rhs.patches;
   mcs = rhs.mcs;
   pelem = rhs.pelem;
@@ -1285,14 +1329,14 @@ ElemPatch<NFIELD,Real> &ElemPatch<NFIELD,Real>::operator=(const ElemPatch &rhs)
   pcfield = rhs.pcfield;
   flen = rhs.flen;
   nmap = rhs.nmap;
-  
+
   return *this;
 }
 */
 
 
 template <typename NFIELD, typename Real>
-ElemPatch<NFIELD,Real>::~ElemPatch() 
+ElemPatch<NFIELD,Real>::~ElemPatch()
 {
   if (!nmap) {
     for (UInt p = 0; p < patches.size(); ++p) {
@@ -1317,8 +1361,8 @@ template <typename NFIELD, typename Real>
 void ElemPatch<NFIELD,Real>::CreateElemPatch(UInt _pdeg,
            UInt ptype,
            const MeshObj &elem,  // the elem in question
-           const MEField<> &cfield, 
-	   MEField<> *src_mask_ptr,
+           const MEField<> &cfield,
+           MEField<> *src_mask_ptr,
            UInt numfields,
            NFIELD **rfield,
            UInt threshold, bool boundary_ok)       // How far from num dofs to invalidate.  If the
@@ -1330,7 +1374,7 @@ void ElemPatch<NFIELD,Real>::CreateElemPatch(UInt _pdeg,
   flen = 0;
   pelem = &elem;
   // total number of field dimensions
-  for (UInt i = 0; i < numfields; i++) 
+  for (UInt i = 0; i < numfields; i++)
     flen += rfield[i]->dim();
 
   bool use_mc = (pcfield->dim() > (UInt)pmesh->parametric_dim());
@@ -1352,7 +1396,7 @@ void ElemPatch<NFIELD,Real>::CreateElemPatch(UInt _pdeg,
     // If using a nodal map, try to find the patch
     bool patch_found = false;
     if (nmap) {
-  
+
       typename NodePatchMap::iterator lb =
         nmap->lower_bound(node.get_id());
 
@@ -1365,19 +1409,19 @@ void ElemPatch<NFIELD,Real>::CreateElemPatch(UInt _pdeg,
       }
 
     } else patches[n] = new PatchRecov<NFIELD,Real>();
-    
+
     //if (use_mc) mcs[n] = getMCoordNode(*pcfield, node);
-    
+
     // Center coordinate system at center so we can average patches if not
     // all nodes are interior (otherwise patches have different coordinate systems)
     if (use_mc) mcs[n] = getMCoordElem(*pcfield, elem);
 
     if (!patch_found) {
     if (!boundary_ok && GetMeshObjContext(node).is_set(Attr::EXPOSED_BOUNDARY_ID)) {
-      
+
       //patches[n].CreateConstantPatch(node, numfields, rfield);
       patches[n]->MarkPatchBad();
-      
+
 
     } else
       patches[n]->CreatePatch(pdeg, *pmesh, node, &elem, numfields, rfield,
@@ -1388,7 +1432,7 @@ void ElemPatch<NFIELD,Real>::CreateElemPatch(UInt _pdeg,
       patches[n]->CreatePatch(pdeg, *pmesh, node, &elem, numfields, rfield,
                      700000, *pcfield, use_mc ? &mcs[n] : NULL, src_mask_ptr);
     }
-    
+
   } // for nv
 
 
@@ -1406,21 +1450,21 @@ void ElemPatch<NFIELD,Real>::CreateElemPatch(UInt _pdeg,
     ElemPatch<NFIELD,Real>::CreateElemPatch( _pdeg,
            ptype,
            elem,  // the elem in question
-           cfield, 
+           cfield,
            src_mask_ptr,
            numfields,
            rfield,
            threshold,true);       // How far from num dofs to invalidate.  If the
     return;
-    
-  } 
+
+  }
 //std::cout << "nok=" << nok << " , ok_idx=" << ok_idx<< std::endl;
 
   // do the copying
   double avg = 1.0 / nok;
 
 //if (nok < nv) std::cout << "avg=" << avg << std::endl;
-  
+
   for (UInt n = 0; n < nv; n++) {
     if (ok[n] == 0) {
       for (UInt n1 = 0; n1 < nv; n1++)
@@ -1445,7 +1489,7 @@ void ElemPatch<NFIELD,Real>::Eval(UInt npts,
   UInt sdim = pmesh->spatial_dim();
   UInt pdim = pmesh->parametric_dim();
   std::vector<double> rcoord(sdim*npts);
-  
+
   const MeshObjTopo *topo = GetMeshObjTopo(*pelem);
   const UInt nv = topo->num_vertices;
   // View pcoord as integration points so MEValues may be used.
@@ -1454,11 +1498,11 @@ void ElemPatch<NFIELD,Real>::Eval(UInt npts,
   // Now the linear weights to combine nodal patches
   MEValues<METraits<Real,double>, NFIELD> mevl(MEFamilyLow::instance(), // bilinear POU
                   pcfield);
-                  
+
 
   // View pcoord as integration points so MEValues may be used.
   mevl.Setup(*pelem, MEV::update_sf | MEV::update_map, &pintg);
-  mevl.ReInit(*pelem); // shape values are now query'able 
+  mevl.ReInit(*pelem); // shape values are now query'able
 
   mevl.GetCoordinateValues(&rcoord[0]);
 
@@ -1471,7 +1515,7 @@ void ElemPatch<NFIELD,Real>::Eval(UInt npts,
       for (UInt n = 0; n < nv; n++) {
         result[p*flen+f] += mevl.GetShapeValue(p, n)*
           patches[n]->EvalPatch(f, &rcoord[p*sdim]);
-      } 
+      }
     } // f
   } // npoints
 
@@ -1486,7 +1530,7 @@ void ElemPatch<NFIELD,Real>::EvalGrad(UInt npts,
   UInt sdim = pmesh->spatial_dim();
   UInt pdim = pmesh->parametric_dim();
   std::vector<double> rcoord(sdim*npts);
-  
+
   const MeshObjTopo *topo = GetMeshObjTopo(*pelem);
   const UInt nv = topo->num_vertices;
   // View pcoord as integration points so MEValues may be used.
@@ -1495,11 +1539,11 @@ void ElemPatch<NFIELD,Real>::EvalGrad(UInt npts,
   // Now the linear weights to combine nodal patches
   MEValues<METraits<Real,double>, NFIELD> mevl(MEFamilyLow::instance(), // bilinear POU
                   pcfield);
-                  
+
 
   // View pcoord as integration points so MEValues may be used.
   mevl.Setup(*pelem, MEV::update_sf | MEV::update_sfg, &pintg);
-  mevl.ReInit(*pelem); // shape values are now query'able 
+  mevl.ReInit(*pelem); // shape values are now query'able
 
   mevl.GetCoordinateValues(&rcoord[0]);
 

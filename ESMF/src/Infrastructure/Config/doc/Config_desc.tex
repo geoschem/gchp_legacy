@@ -1,0 +1,24 @@
+% $Id$
+
+\label{sec:Config}
+
+ESMF Configuration Management is based on NASA DAO's 
+Inpak 90 package, a Fortran 90 collection of routines/functions
+for accessing {\em Resource Files} in ASCII format.The package 
+is optimized for minimizing formatted I/O, performing all of its 
+string operations in memory using Fortran intrinsic functions.\\
+
+\subsubsection{Package history}
+
+The ESMF Configuration Management Package was evolved by
+Leonid Zaslavsky and Arlindo da Silva from Ipack90 package
+created by Arlindo da Silva at NASA DAO.
+
+Back in the 70's Eli Isaacson wrote IOPACK in Fortran
+66.  In June of 1987 Arlindo da Silva wrote Inpak77 using
+Fortran 77 string functions; Inpak 77 is a vastly
+simplified IOPACK, but has its own goodies not found in
+IOPACK.  Inpak 90 removes some obsolete functionality in
+Inpak77, and parses the whole resource file in memory for
+performance.
+

@@ -1,5 +1,5 @@
 /*
-** $Id: exzoltan.h,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
+** $Id$
 **
 ** Functions to support writing simple Zoltan examples 
 */
@@ -10,7 +10,7 @@
 extern "C" {
 #endif
 
-void exShowError(int val, char *s, int me);
+void exShowError(int val, const char *s, int me);
 int exGlobalSuccess(int rc, int nprocs, int me, int verbose);
 void exPrintGlobalResult(char *s, int nprocs, int me,
   int begin, int import, int ex, int change);

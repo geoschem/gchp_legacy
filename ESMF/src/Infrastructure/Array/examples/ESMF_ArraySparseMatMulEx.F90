@@ -1,7 +1,7 @@
-! $Id: ESMF_ArraySparseMatMulEx.F90,v 1.1.5.1 2013-01-11 20:23:43 mathomp4 Exp $
+! $Id$
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2012, University Corporation for Atmospheric Research,
+! Copyright 2002-2018, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -15,8 +15,10 @@
 !==============================================================================
 
 program ESMF_ArraySparseMatMulEx
+#include "ESMF.h"
 
   use ESMF
+  use ESMF_TestMod
   
   implicit none
   
@@ -30,11 +32,21 @@ program ESMF_ArraySparseMatMulEx
   type(ESMF_RouteHandle):: sparseMatMulHandle
   real(ESMF_KIND_R8), allocatable:: factorList(:)
   integer, allocatable:: factorIndexList(:,:)
-  integer :: finalrc
+  integer :: finalrc, result
+
+  character(ESMF_MAXSTR) :: testname
+  character(ESMF_MAXSTR) :: failMsg
   
   
   integer:: counter,i,j,k
   real(ESMF_KIND_R8), pointer:: farray3d(:,:,:)
+
+!-------------------------------------------------------------------------
+!-------------------------------------------------------------------------
+
+  write(failMsg, *) "Example failure"
+  write(testname, *) "Example ESMF_ArraySparseMatMulEx"
+
   
 ! ------------------------------------------------------------------------------
 ! ------------------------------------------------------------------------------
@@ -138,9 +150,9 @@ program ESMF_ArraySparseMatMulEx
   if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !BOE
 ! The extra padding of 1 element in each direction around the exclusive elements on
-! each DE are "invisible" to the Array spare matrix multiplication method. These
+! each DE are "invisible" to the Array sparse matrix multiplication method. These
 ! extra elements are either updated by the computational kernel or by Array halo
-! operations (not yet implemented!).
+! operations.
 !
 ! An alternative way to assign sequence indices to all the elements in the tiles
 ! covered by a DistGrid object is to use a special {\tt ESMF\_DistGridCreate()}
@@ -221,6 +233,9 @@ program ESMF_ArraySparseMatMulEx
     call ESMF_ArraySMMStore(srcArray=srcArray, dstArray=dstArray, &
       routehandle=sparseMatMulHandle, factorList=factorList, &
       factorIndexList=factorIndexList, rc=rc)
+!EOC
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
+!BOC
       
     deallocate(factorList)
     deallocate(factorIndexList)
@@ -234,6 +249,9 @@ program ESMF_ArraySparseMatMulEx
     call ESMF_ArraySMMStore(srcArray=srcArray, dstArray=dstArray, &
       routehandle=sparseMatMulHandle, factorList=factorList, &
       factorIndexList=factorIndexList, rc=rc)
+!EOC
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
+!BOC
       
     deallocate(factorList)
     deallocate(factorIndexList)
@@ -242,6 +260,9 @@ program ESMF_ArraySparseMatMulEx
     
     call ESMF_ArraySMMStore(srcArray=srcArray, dstArray=dstArray, &
       routehandle=sparseMatMulHandle, rc=rc)
+!EOC
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
+!BOC
       
   endif
 !EOC
@@ -301,7 +322,7 @@ program ESMF_ArraySparseMatMulEx
 ! \end{verbatim}
 !
 ! The {\tt ESMF\_RouteHandle} object returned by {\tt ESMF\_ArraySMMStore()}
-! can be applied to any src/dst Array pairs that are weakly congurent to the
+! can be applied to any src/dst Array pairs that are weakly congruent to the
 ! Array pair used during precomputation. Arrays are congruent if they are
 ! defined on matching DistGrids and the shape of local array allocations match
 ! for all DEs. For weakly congruent Arrays the sizes of the undistributed
@@ -391,6 +412,9 @@ program ESMF_ArraySparseMatMulEx
     call ESMF_ArraySMMStore(srcArray=srcArray, dstArray=dstArray, &
       routehandle=sparseMatMulHandle, factorList=factorList, &
       factorIndexList=factorIndexList, rc=rc)
+!EOC
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
+!BOC
       
     deallocate(factorList)
     deallocate(factorIndexList)
@@ -404,6 +428,10 @@ program ESMF_ArraySparseMatMulEx
     call ESMF_ArraySMMStore(srcArray=srcArray, dstArray=dstArray, &
       routehandle=sparseMatMulHandle, factorList=factorList, &
       factorIndexList=factorIndexList, rc=rc)
+!EOC
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
+!BOC
+
       
     deallocate(factorList)
     deallocate(factorIndexList)
@@ -412,6 +440,10 @@ program ESMF_ArraySparseMatMulEx
     
     call ESMF_ArraySMMStore(srcArray=srcArray, dstArray=dstArray, &
       routehandle=sparseMatMulHandle, rc=rc)  
+!EOC
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
+!BOC
+
   endif
 !EOC
 
@@ -523,6 +555,10 @@ program ESMF_ArraySparseMatMulEx
     call ESMF_ArraySMMStore(srcArray=srcArray, dstArray=dstArray, &
       routehandle=sparseMatMulHandle, factorList=factorList, &
       factorIndexList=factorIndexList, rc=rc)
+!EOC
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
+!BOC
+
       
     deallocate(factorList)
     deallocate(factorIndexList)
@@ -538,6 +574,10 @@ program ESMF_ArraySparseMatMulEx
     call ESMF_ArraySMMStore(srcArray=srcArray, dstArray=dstArray, &
       routehandle=sparseMatMulHandle, factorList=factorList, &
       factorIndexList=factorIndexList, rc=rc)
+!EOC
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
+!BOC
+
       
     deallocate(factorList)
     deallocate(factorIndexList)
@@ -546,6 +586,10 @@ program ESMF_ArraySparseMatMulEx
     
     call ESMF_ArraySMMStore(srcArray=srcArray, dstArray=dstArray, &
       routehandle=sparseMatMulHandle, rc=rc)  
+!EOC
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
+!BOC
+
   endif
 !EOC
 
@@ -598,6 +642,11 @@ program ESMF_ArraySparseMatMulEx
 ! ------------------------------------------------------------------------------
 ! ------------------------------------------------------------------------------
 10 continue
+
+  ! IMPORTANT: ESMF_STest() prints the PASS string and the # of processors in the log
+  ! file that the scripts grep for.
+  call ESMF_STest((finalrc.eq.ESMF_SUCCESS), testname, failMsg, result, ESMF_SRCLINE)
+
   call ESMF_Finalize(rc=rc)
   
   if (rc/=ESMF_SUCCESS) finalrc = ESMF_FAILURE

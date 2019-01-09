@@ -1,7 +1,7 @@
 ! $Id$
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2012, University Corporation for Atmospheric Research,
+! Copyright 2002-2018, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -15,8 +15,10 @@
 !==============================================================================
 
 program ESMF_ArrayHaloEx
+#include "ESMF.h"
 
   use ESMF
+  use ESMF_TestMod
   
   implicit none
   
@@ -27,7 +29,9 @@ program ESMF_ArrayHaloEx
   type(ESMF_Array):: array
   type(ESMF_ArraySpec):: arrayspec
   type(ESMF_RouteHandle):: haloHandle, haloHandle2
-  integer :: finalrc
+  integer :: finalrc, result
+  character(ESMF_MAXSTR) :: testname
+  character(ESMF_MAXSTR) :: failMsg
   
   integer                     :: counter,i,j,step
   integer                     :: eLB(2,1), eUB(2,1)
@@ -37,6 +41,12 @@ program ESMF_ArrayHaloEx
   real(ESMF_KIND_R8)          :: farrayGather(10,20)
   real(ESMF_KIND_R8), allocatable :: farrayTemp(:,:)
   type(ESMF_DistGridConnection), allocatable        :: connectionList(:)
+
+!-------------------------------------------------------------------------
+!-------------------------------------------------------------------------
+
+  write(failMsg, *) "Example failure"
+  write(testname, *) "Example ESMF_ArrayHaloEx"
 
 ! ------------------------------------------------------------------------------
 ! ------------------------------------------------------------------------------
@@ -96,7 +106,6 @@ program ESMF_ArrayHaloEx
     rc=rc)
 !EOC  
   if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
-!BOE
 !BOE
 ! Without the explicit definition of boundary conditions in the DistGrid
 ! the following inner connections are defined.
@@ -446,6 +455,10 @@ program ESMF_ArrayHaloEx
 ! ------------------------------------------------------------------------------
 ! ------------------------------------------------------------------------------
 10 continue
+  ! IMPORTANT: ESMF_STest() prints the PASS string and the # of processors in the log
+  ! file that the scripts grep for.
+  call ESMF_STest((finalrc.eq.ESMF_SUCCESS), testname, failMsg, result, ESMF_SRCLINE)
+
   call ESMF_Finalize(rc=rc)
   
   if (rc/=ESMF_SUCCESS) finalrc = ESMF_FAILURE

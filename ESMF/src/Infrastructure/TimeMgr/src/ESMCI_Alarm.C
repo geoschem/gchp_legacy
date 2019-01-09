@@ -1,7 +1,7 @@
 // $Id$
 //
 // Earth System Modeling Framework
-// Copyright 2002-2012, University Corporation for Atmospheric Research, 
+// Copyright 2002-2018, University Corporation for Atmospheric Research, 
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
 // Laboratory, University of Michigan, National Centers for Environmental 
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
@@ -18,25 +18,23 @@
 // in the companion file {\tt ESMC\_Alarm.h)
 //
 //-------------------------------------------------------------------------
-//
- #define ESMC_FILENAME "ESMCI::Alarm.C"
+#define ESMC_FILENAME "ESMCI_Alarm.C"
 
- // insert any higher level, 3rd party or system includes here
- #include <stdio.h>
- #include <string.h>
- #include <ctype.h>
+// associated class definition file
+#include "ESMCI_Alarm.h"
 
- #include <ESMCI_LogErr.h>
- #include <ESMF_LogMacros.inc>
- #include "ESMCI_Clock.h"
+// insert any higher level, 3rd party or system includes here
+#include <stdio.h>
+#include <string.h>
+#include <ctype.h>
 
- // associated class definition file
- #include <ESMCI_Alarm.h>
+#include "ESMCI_LogErr.h"
+#include "ESMCI_Clock.h"
 
 //-------------------------------------------------------------------------
- // leave the following line as-is; it will insert the cvs ident string
- // into the object file for tracking purposes.
- static const char *const version = "$Id$";
+// leave the following line as-is; it will insert the cvs ident string
+// into the object file for tracking purposes.
+static const char *const version = "$Id$";
 //-------------------------------------------------------------------------
 
 namespace ESMCI{
@@ -94,7 +92,7 @@ int Alarm::count=0;
 
     if (ringTime == ESMC_NULL_POINTER && ringInterval == ESMC_NULL_POINTER) {
       ESMC_LogDefault.Write("Must specify at least one of ringTime or "
-                            "ringInterval.", ESMC_LOG_WARN,ESMC_CONTEXT);
+                            "ringInterval.", ESMC_LOGMSG_WARN,ESMC_CONTEXT);
       return(ESMC_NULL_POINTER);
     }
  
@@ -122,13 +120,13 @@ int Alarm::count=0;
         char logMsg[ESMF_MAXSTR];
         sprintf(logMsg, "alarm name %s, length >= ESMF_MAXSTR; truncated.", 
                 name);
-        ESMC_LogDefault.Write(logMsg, ESMC_LOG_WARN,ESMC_CONTEXT);
+        ESMC_LogDefault.Write(logMsg, ESMC_LOGMSG_WARN,ESMC_CONTEXT);
         // TODO: return ESMF_WARNING when defined
         // if (rc != ESMC_NULL_POINTER) *rc = ESMF_WARNING;
       }
     } else {
       // create default name "AlarmNNN"
-      sprintf(alarm->name, "Alarm%3.3d\0", alarm->id);
+      sprintf(alarm->name, "Alarm%3.3d", alarm->id);
     }
 
     if (ringTime != ESMC_NULL_POINTER) {
@@ -180,7 +178,8 @@ int Alarm::count=0;
     //        this->ringTime > (passed in) ringTime
 
     returnCode = alarm->Alarm::validate();
-    if (ESMC_LogDefault.MsgFoundError(returnCode, ESMCI_ERR_PASSTHRU, rc)) {
+    if (ESMC_LogDefault.MsgFoundError(returnCode, ESMCI_ERR_PASSTHRU,
+      ESMC_CONTEXT, rc)) {
       // TODO: distinguish non-fatal rc's (warnings, info) at this level (C++),
       //   and at the F90 level, so isInit flag can be set to usable value.
       delete alarm;
@@ -189,7 +188,8 @@ int Alarm::count=0;
       // add this new valid alarm to the given clock
       if (rc != ESMC_NULL_POINTER) *rc = ESMF_SUCCESS;
       returnCode = clock->Clock::addAlarm(alarm);
-      ESMC_LogDefault.MsgFoundError(returnCode, ESMCI_ERR_PASSTHRU, rc);
+      ESMC_LogDefault.MsgFoundError(returnCode, ESMCI_ERR_PASSTHRU,
+        ESMC_CONTEXT, rc);
     }
  
     return(alarm);
@@ -228,7 +228,7 @@ int Alarm::count=0;
     // can't copy a non-existent object
     if (alarm == ESMC_NULL_POINTER) {
       ESMC_LogDefault.Write("Can't copy a non-existent alarm",
-                                    ESMC_LOG_WARN,ESMC_CONTEXT);
+                                    ESMC_LOGMSG_WARN,ESMC_CONTEXT);
       return(ESMC_NULL_POINTER);
     }
 
@@ -242,7 +242,8 @@ int Alarm::count=0;
     }
 
     returnCode = alarmCopy->Alarm::validate();
-    if (ESMC_LogDefault.MsgFoundError(returnCode, ESMCI_ERR_PASSTHRU, rc)) {
+    if (ESMC_LogDefault.MsgFoundError(returnCode, ESMCI_ERR_PASSTHRU,
+      ESMC_CONTEXT, rc)) {
       // TODO: distinguish non-fatal rc's (warnings, info) at this level (C++),
       //   and at the F90 level, so isInit flag can be set to usable value.
       delete alarmCopy;
@@ -252,7 +253,8 @@ int Alarm::count=0;
       if (rc != ESMC_NULL_POINTER) *rc = ESMF_SUCCESS;
       if (alarmCopy->clock != ESMC_NULL_POINTER) {
         returnCode = (alarmCopy->clock)->Clock::addAlarm(alarmCopy);
-        ESMC_LogDefault.MsgFoundError(returnCode, ESMCI_ERR_PASSTHRU, rc);
+        ESMC_LogDefault.MsgFoundError(returnCode, ESMCI_ERR_PASSTHRU,
+          ESMC_CONTEXT, rc);
       }
     }
 
@@ -285,7 +287,7 @@ int Alarm::count=0;
 
   // can't work with a non-existent object
   if (alarm == ESMC_NULL_POINTER) {
-    ESMC_LogDefault.Write("alarm pointer NULL", ESMC_LOG_WARN, ESMC_CONTEXT);
+    ESMC_LogDefault.Write("alarm pointer NULL", ESMC_LOGMSG_WARN, ESMC_CONTEXT);
     return(ESMF_FAILURE);
   }
 
@@ -294,7 +296,7 @@ int Alarm::count=0;
   // remove alarm from associated clock's alarmList
   if ((*alarm)->clock != ESMC_NULL_POINTER) {
     rc = ((*alarm)->clock)->Clock::removeAlarm(*alarm);
-    ESMC_LogDefault.MsgFoundError(rc, ESMCI_ERR_PASSTHRU, &rc);
+    ESMC_LogDefault.MsgFoundError(rc, ESMCI_ERR_PASSTHRU, ESMC_CONTEXT, &rc);
   }
   delete *alarm;   // ok to delete null pointer
   *alarm = ESMC_NULL_POINTER;
@@ -341,7 +343,7 @@ int Alarm::count=0;
  
     if (this == ESMC_NULL_POINTER) {
       ESMC_LogDefault.MsgFoundError(ESMC_RC_PTR_NULL,
-         "; 'this' pointer is NULL.", &rc);
+         "; 'this' pointer is NULL.", ESMC_CONTEXT, &rc);
       return(rc);
     }
 
@@ -361,7 +363,7 @@ int Alarm::count=0;
         char logMsg[ESMF_MAXSTR];
         sprintf(logMsg, "alarm name %s, length >= ESMF_MAXSTR; truncated.", 
                 name);
-        ESMC_LogDefault.Write(logMsg, ESMC_LOG_WARN,ESMC_CONTEXT);
+        ESMC_LogDefault.Write(logMsg, ESMC_LOGMSG_WARN,ESMC_CONTEXT);
         // TODO: return ESMF_WARNING when defined
         // rc = ESMF_WARNING;
       }
@@ -371,12 +373,13 @@ int Alarm::count=0;
       // remove this alarm from associated clock's alarmList
       if (this->clock != ESMC_NULL_POINTER) {
         rc = (this->clock)->Clock::removeAlarm(this);
-        ESMC_LogDefault.MsgFoundError(rc, ESMCI_ERR_PASSTHRU, &rc);
+        ESMC_LogDefault.MsgFoundError(rc, ESMCI_ERR_PASSTHRU, ESMC_CONTEXT,
+          &rc);
       }
 
       // and add it to the given clock's alarmList
       rc = (*clock)->Clock::addAlarm(this);
-      ESMC_LogDefault.MsgFoundError(rc, ESMCI_ERR_PASSTHRU, &rc);
+      ESMC_LogDefault.MsgFoundError(rc, ESMCI_ERR_PASSTHRU, ESMC_CONTEXT, &rc);
 
       // this alarm is now associated with the given clock
       this->clock = *clock;
@@ -424,7 +427,8 @@ int Alarm::count=0;
     //        this->ringTime > (passed in) ringTime
 
     rc = Alarm::validate();
-    if (ESMC_LogDefault.MsgFoundError(rc, ESMCI_ERR_PASSTHRU, &rc)) {
+    if (ESMC_LogDefault.MsgFoundError(rc, ESMCI_ERR_PASSTHRU, ESMC_CONTEXT,
+      &rc)) {
       // restore original alarm values
       *this = saveAlarm;
     }
@@ -478,7 +482,7 @@ int Alarm::count=0;
 
     if (this == ESMC_NULL_POINTER) {
       ESMC_LogDefault.MsgFoundError(ESMC_RC_PTR_NULL,
-         "; 'this' pointer is NULL.", &rc);
+         "; 'this' pointer is NULL.", ESMC_CONTEXT, &rc);
       return(rc);
     }
 
@@ -495,7 +499,7 @@ int Alarm::count=0;
         char logMsg[ESMF_MAXSTR];
         sprintf(logMsg, "For alarm name %s, "
                 "length >= given character array; truncated.", this->name);
-        ESMC_LogDefault.Write(logMsg, ESMC_LOG_WARN,ESMC_CONTEXT);
+        ESMC_LogDefault.Write(logMsg, ESMC_LOGMSG_WARN,ESMC_CONTEXT);
         // TODO: return ESMF_WARNING when defined
         // rc = ESMF_WARNING;
       }
@@ -581,7 +585,7 @@ int Alarm::count=0;
  
     if (this == ESMC_NULL_POINTER) {
       ESMC_LogDefault.MsgFoundError(ESMC_RC_PTR_NULL,
-         "; 'this' pointer is NULL.", &rc);
+         "; 'this' pointer is NULL.", ESMC_CONTEXT, &rc);
       return(rc);
     }
 
@@ -619,7 +623,7 @@ int Alarm::count=0;
  
     if (this == ESMC_NULL_POINTER) {
       ESMC_LogDefault.MsgFoundError(ESMC_RC_PTR_NULL,
-         "; 'this' pointer is NULL.", &rc);
+         "; 'this' pointer is NULL.", ESMC_CONTEXT, &rc);
       return(rc);
     }
 
@@ -655,7 +659,7 @@ int Alarm::count=0;
 
     if (this == ESMC_NULL_POINTER) {
       ESMC_LogDefault.MsgFoundError(ESMC_RC_PTR_NULL,
-         "; 'this' pointer is NULL.", rc);
+         "; 'this' pointer is NULL.", ESMC_CONTEXT, rc);
       return(false);
     }
 
@@ -694,7 +698,7 @@ int Alarm::count=0;
  
     if (this == ESMC_NULL_POINTER) {
       ESMC_LogDefault.MsgFoundError(ESMC_RC_PTR_NULL,
-         "; 'this' pointer is NULL.", &rc);
+         "; 'this' pointer is NULL.", ESMC_CONTEXT, &rc);
       return(rc);
     }
 
@@ -702,7 +706,7 @@ int Alarm::count=0;
       char logMsg[ESMF_MAXSTR];
       sprintf(logMsg, "Attempted to turn on ringer of disabled alarm %s.",
               this->name);
-      ESMC_LogDefault.Write(logMsg, ESMC_LOG_WARN,ESMC_CONTEXT);
+      ESMC_LogDefault.Write(logMsg, ESMC_LOGMSG_WARN,ESMC_CONTEXT);
       // TODO: return ESMF_WARNING when defined
       // return(ESMF_WARNING);
       return(ESMF_FAILURE);
@@ -742,7 +746,7 @@ int Alarm::count=0;
  
     if (this == ESMC_NULL_POINTER) {
       ESMC_LogDefault.MsgFoundError(ESMC_RC_PTR_NULL,
-         "; 'this' pointer is NULL.", &rc);
+         "; 'this' pointer is NULL.", ESMC_CONTEXT, &rc);
       return(rc);
     }
 
@@ -773,8 +777,8 @@ int Alarm::count=0;
         //  before the clock loop ended (covers case where last ringTime
         //  equals the clock->stopTime and alarm is processed before
         //  the clockAdvance()).
-        if (positive  && ringEnd > ringTime ||
-            !positive && ringEnd < ringTime) {
+        if ((positive  && ringEnd > ringTime) ||
+            (!positive && ringEnd < ringTime)) {
           ringEnd -= ringInterval;
         }
       }
@@ -812,7 +816,7 @@ int Alarm::count=0;
 
     if (this == ESMC_NULL_POINTER) {
       ESMC_LogDefault.MsgFoundError(ESMC_RC_PTR_NULL,
-         "; 'this' pointer is NULL.", rc);
+         "; 'this' pointer is NULL.", ESMC_CONTEXT, rc);
       return(false);
     }
 
@@ -856,7 +860,7 @@ int Alarm::count=0;
 
     if (this == ESMC_NULL_POINTER) {
       ESMC_LogDefault.MsgFoundError(ESMC_RC_PTR_NULL,
-         "; 'this' pointer is NULL.", rc);
+         "; 'this' pointer is NULL.", ESMC_CONTEXT, rc);
       return(false);
     }
 
@@ -867,7 +871,7 @@ int Alarm::count=0;
     if(clock == ESMC_NULL_POINTER) {
       char logMsg[ESMF_MAXSTR];
       sprintf(logMsg, "alarm %s is not associated with any clock.", name);
-      ESMC_LogDefault.Write(logMsg, ESMC_LOG_WARN,ESMC_CONTEXT);
+      ESMC_LogDefault.Write(logMsg, ESMC_LOGMSG_WARN,ESMC_CONTEXT);
       if (rc != ESMC_NULL_POINTER) *rc = ESMC_RC_PTR_NULL;
       return(false);
     }
@@ -929,7 +933,7 @@ int Alarm::count=0;
 
     if (this == ESMC_NULL_POINTER) {
       ESMC_LogDefault.MsgFoundError(ESMC_RC_PTR_NULL,
-         "; 'this' pointer is NULL.", rc);
+         "; 'this' pointer is NULL.", ESMC_CONTEXT, rc);
       return(false);
     }
 
@@ -966,7 +970,7 @@ int Alarm::count=0;
  
     if (this == ESMC_NULL_POINTER) {
       ESMC_LogDefault.MsgFoundError(ESMC_RC_PTR_NULL,
-         "; 'this' pointer is NULL.", &rc);
+         "; 'this' pointer is NULL.", ESMC_CONTEXT, &rc);
       return(rc);
     }
 
@@ -1007,7 +1011,7 @@ int Alarm::count=0;
  
     if (this == ESMC_NULL_POINTER) {
       ESMC_LogDefault.MsgFoundError(ESMC_RC_PTR_NULL,
-         "; 'this' pointer is NULL.", &rc);
+         "; 'this' pointer is NULL.", ESMC_CONTEXT, &rc);
       return(rc);
     }
 
@@ -1020,7 +1024,7 @@ int Alarm::count=0;
       sprintf(logMsg, 
               "Alarm %s: can only specify one type of ring duration, not both.",
               name);
-      ESMC_LogDefault.Write(logMsg, ESMC_LOG_WARN,ESMC_CONTEXT);
+      ESMC_LogDefault.Write(logMsg, ESMC_LOGMSG_WARN,ESMC_CONTEXT);
       return(ESMF_FAILURE);
     }
 
@@ -1063,7 +1067,7 @@ int Alarm::count=0;
 
     if (this == ESMC_NULL_POINTER) {
       ESMC_LogDefault.MsgFoundError(ESMC_RC_PTR_NULL,
-         "; 'this' pointer is NULL.", rc);
+         "; 'this' pointer is NULL.", ESMC_CONTEXT, rc);
       return(false);
     }
 
@@ -1099,7 +1103,7 @@ int Alarm::count=0;
 
     if (this == ESMC_NULL_POINTER) {
       ESMC_LogDefault.MsgFoundError(ESMC_RC_PTR_NULL,
-         "; 'this' pointer is NULL.", rc);
+         "; 'this' pointer is NULL.", ESMC_CONTEXT, rc);
       return(false);
     }
 
@@ -1110,7 +1114,7 @@ int Alarm::count=0;
     if(clock == ESMC_NULL_POINTER) {
       char logMsg[ESMF_MAXSTR];
       sprintf(logMsg, "alarm %s is not associated with any clock.", name);
-      ESMC_LogDefault.Write(logMsg, ESMC_LOG_WARN,ESMC_CONTEXT);
+      ESMC_LogDefault.Write(logMsg, ESMC_LOGMSG_WARN,ESMC_CONTEXT);
       return(false);
     }
 
@@ -1133,8 +1137,9 @@ int Alarm::count=0;
                clock->currAdvanceTimeStep < zeroTimeStep) ||
               (ringInterval < zeroTimeStep &&
                clock->currAdvanceTimeStep > zeroTimeStep) ) {
-            ESMC_LogDefault.ESMC_LogMsgFoundError(ESMC_RC_VAL_WRONG,
-               "; user changed alarm ringInterval, which is not same sign as clock timeStep.", rc);
+            ESMC_LogDefault.MsgFoundError(ESMC_RC_VAL_WRONG,
+              "; user changed alarm ringInterval, "
+              "which is not same sign as clock timeStep.", ESMC_CONTEXT, rc);
             return(false);
           }
         }
@@ -1142,8 +1147,9 @@ int Alarm::count=0;
           // check that user's new ringTime is within ringable range
           if (positive ? clock->currTime > ringTime :
                          clock->currTime < ringTime) {
-            ESMC_LogDefault.ESMC_LogMsgFoundError(ESMC_RC_VAL_OUTOFRANGE,
-               "; user changed alarm ringTime, which is not within clock ringable range", rc);
+            ESMC_LogDefault.MsgFoundError(ESMC_RC_VAL_OUTOFRANGE,
+              "; user changed alarm ringTime, "
+              "which is not within clock ringable range", ESMC_CONTEXT, rc);
             return(false);
           }
         }
@@ -1292,7 +1298,7 @@ int Alarm::count=0;
                         "a user call to ESMF_AlarmRingerOff(), thereby "
                         "enabling Time Manager to know the time to turn it "
                         "back on in reverse.", name);
-        ESMC_LogDefault.Write(logMsg, ESMC_LOG_WARN,ESMC_CONTEXT);
+        ESMC_LogDefault.Write(logMsg, ESMC_LOGMSG_WARN,ESMC_CONTEXT);
         return(false);
       }
 
@@ -1301,9 +1307,9 @@ int Alarm::count=0;
 
       // ... adjust if sticky alarm ...
       if (sticky) {
-        while ( (positive && ringEnd > clock->currTime ||
-                !positive && ringEnd < clock->currTime) &&
-                 ringTime != firstRingTime) {
+        while ( ((positive && ringEnd > clock->currTime) ||
+                (!positive && ringEnd < clock->currTime)) &&
+                 (ringTime != firstRingTime)) {
           ringEnd      -= ringInterval;
           ringTime      = prevRingTime;
           prevRingTime -= ringInterval;
@@ -1314,9 +1320,9 @@ int Alarm::count=0;
       if (clock->userChangedDirection) {
         clock->userChangedDirection = false; // reset changed flag
         if (!sticky) {
-          if ((positive && ringTime > (clock->currTime + clock->timeStep) ||
-              !positive && ringTime < (clock->currTime + clock->timeStep)) &&
-                   ringTime != firstRingTime) {
+          if (((positive && ringTime > (clock->currTime + clock->timeStep)) ||
+              (!positive && ringTime < (clock->currTime + clock->timeStep))) &&
+                   (ringTime != firstRingTime)) {
             ringTime      = prevRingTime;
             prevRingTime -= ringInterval;
             Alarm::resetRingBegin(positive);
@@ -1447,7 +1453,7 @@ int Alarm::count=0;
 
     if (this == ESMC_NULL_POINTER) {
       ESMC_LogDefault.MsgFoundError(ESMC_RC_PTR_NULL,
-         "; 'this' pointer is NULL.", ESMC_NULL_POINTER);
+         "; 'this' pointer is NULL.", ESMC_CONTEXT, ESMC_NULL_POINTER);
       return(false);
     }
 
@@ -1481,7 +1487,7 @@ int Alarm::count=0;
 
     if (this == ESMC_NULL_POINTER) {
       ESMC_LogDefault.MsgFoundError(ESMC_RC_PTR_NULL,
-         "; 'this' pointer is NULL.", ESMC_NULL_POINTER);
+         "; 'this' pointer is NULL.", ESMC_CONTEXT, ESMC_NULL_POINTER);
       return(false);
     }
 
@@ -1553,7 +1559,7 @@ int Alarm::count=0;
  
     if (this == ESMC_NULL_POINTER) {
       ESMC_LogDefault.MsgFoundError(ESMC_RC_PTR_NULL,
-         "; 'this' pointer is NULL.", &rc);
+         "; 'this' pointer is NULL.", ESMC_CONTEXT, &rc);
       return(rc);
     }
 
@@ -1593,7 +1599,7 @@ int Alarm::count=0;
  
     if (this == ESMC_NULL_POINTER) {
       ESMC_LogDefault.MsgFoundError(ESMC_RC_PTR_NULL,
-         "; 'this' pointer is NULL.", &rc);
+         "; 'this' pointer is NULL.", ESMC_CONTEXT, &rc);
       return(rc);
     }
 
@@ -1601,7 +1607,7 @@ int Alarm::count=0;
     if (ringTime.Time::validate() != ESMF_SUCCESS) {
       char logMsg[ESMF_MAXSTR];
       sprintf(logMsg, "Alarm %s: invalid ringTime.", name);
-      ESMC_LogDefault.Write(logMsg, ESMC_LOG_WARN,ESMC_CONTEXT);
+      ESMC_LogDefault.Write(logMsg, ESMC_LOGMSG_WARN,ESMC_CONTEXT);
       return(ESMF_FAILURE);
     }
 
@@ -1609,7 +1615,7 @@ int Alarm::count=0;
     if (!enabled && ringing) {
       char logMsg[ESMF_MAXSTR];
       sprintf(logMsg, "Alarm %s: invalid state: disabled and ringing.", name);
-      ESMC_LogDefault.Write(logMsg, ESMC_LOG_WARN,ESMC_CONTEXT);
+      ESMC_LogDefault.Write(logMsg, ESMC_LOGMSG_WARN,ESMC_CONTEXT);
       return(ESMF_FAILURE);
     }
 
@@ -1647,7 +1653,7 @@ int Alarm::count=0;
  
     if (this == ESMC_NULL_POINTER) {
       ESMC_LogDefault.MsgFoundError(ESMC_RC_PTR_NULL,
-         "; 'this' pointer is NULL.", &rc);
+         "; 'this' pointer is NULL.", ESMC_CONTEXT, &rc);
       return(rc);
     }
 
@@ -1849,7 +1855,7 @@ int Alarm::count=0;
                                       ESMC_NULL_POINTER, ESMC_NULL_POINTER,
                                       ESMC_NULL_POINTER, &s);
 
-    ESMC_LogDefault.MsgFoundError(rc, ESMCI_ERR_PASSTHRU, &rc);
+    ESMC_LogDefault.MsgFoundError(rc, ESMCI_ERR_PASSTHRU, ESMC_CONTEXT, &rc);
 
  } // end Alarm
 

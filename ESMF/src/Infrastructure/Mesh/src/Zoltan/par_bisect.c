@@ -6,8 +6,8 @@
 /*****************************************************************************
  * CVS File Information :
  *    $RCSfile: par_bisect.c,v $
- *    $Author: mathomp4 $
- *    $Date: 2013-01-11 20:23:44 $
+ *    $Author: dneckels $
+ *    $Date: 2008/01/04 17:01:08 $
  *    Revision: 1.34 $
  ****************************************************************************/
 #include <stdio.h>
@@ -72,6 +72,8 @@ static double eval_cut_quality(int, double *, double *, double *, double *,
 static void compute_weight_sums( int, int *, int, double *, 
             double *, double *, MPI_Comm, int, int, int, int);
 #endif /* RB_MAX_WGTS > 1 */
+
+void Zoltan_bisector_merge(void *in, void *inout, int *len, MPI_Datatype *dptr);
 
 /*****************************************************************************/
 /***  Main routine:  Zoltan_RB_find_bisector()                             ***/
@@ -1063,7 +1065,7 @@ static double eval_cut_quality(
 {
   double temp[MAX_BISECT_WGTS];
   int i;
-  static char *yo = "eval_cut_quality";
+  static const char *yo = "eval_cut_quality";
 
   if ((!scalelo) || (!scalehi))
     ZOLTAN_PRINT_ERROR(-1, yo, "Input scalelo/hi is NULL");
@@ -1098,7 +1100,7 @@ void Zoltan_bisector_merge(void *in, void *inout, int *len, MPI_Datatype *dptr)
 {
   struct bisector *med1, *med2;
   int i, nwgts;
-  char *yo="Zoltan_bisector_merge";
+  const char *yo="Zoltan_bisector_merge";
 
   med1 = (struct bisector *) in;
   med2 = (struct bisector *) inout;

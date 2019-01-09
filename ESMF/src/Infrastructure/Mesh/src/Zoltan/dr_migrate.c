@@ -6,8 +6,8 @@
 /*****************************************************************************
  * CVS File Information :
  *    $RCSfile: dr_migrate.c,v $
- *    $Author: mathomp4 $
- *    $Date: 2013-01-11 20:23:44 $
+ *    $Author: dneckels $
+ *    $Date: 2007/11/28 16:13:48 $
  *    Revision: 1.40 $
  ****************************************************************************/
 
@@ -110,7 +110,7 @@ int migrate_elements(
   int *exp_to_part)
 {
 /* Local declarations. */
-char *yo = "migrate_elements";
+const char *yo = "migrate_elements";
 
 /***************************** BEGIN EXECUTION ******************************/
   DEBUG_TRACE_START(Proc, yo);

@@ -8,20 +8,12 @@
 defined inside the framework by a XGrid derived type and a set of 
 subprograms (functions and subroutines) which operate on that derived type.  
 The XGrid class contains information needed to create Grid, Field, and
-Sparse Matrix MatMul.
+communication routehandle.
 
-\item XGrids follow the framework-wide convention of the
+\item XGrid follows the framework-wide convention of the
 {\it unison} creation and operation rule: All PETs which are
 part of the currently executing VM must create the
-same XGrids at the same point in their execution.  Since an early
-user request was that global object creation not impose the overhead of
-a barrier or synchronization point, XGrid creation does no inter-PET
-communication.  For this to work, each PET must query the total number
-of PETs in this VM, and which local PET number it is.  It can then
-compute which DE(s) are part of the local decomposition, and any
-global information can be computed in unison by all PETs independently
-of the others.  In this way the overhead of communication is avoided,
-at the cost of more difficulty in diagnosing program bugs which result
-from not all PETs executing the same create calls.
-
+same XGrids at the same point in their execution. 
+In addition to the unison rule, XGrid creation also performs inter-PET
+communication within the current executing VM. 
 \end{enumerate}

@@ -6,8 +6,8 @@
 /*****************************************************************************
  * CVS File Information :
  *    $RCSfile: phg_distrib.c,v $
- *    $Author: mathomp4 $
- *    $Date: 2013-01-11 20:23:44 $
+ *    $Author: dneckels $
+ *    $Date: 2007/11/28 16:13:53 $
  *    Revision: 1.18 $
  ****************************************************************************/
 #include "phg_distrib.h"
@@ -73,7 +73,7 @@ static int Zoltan_PHG_Redistribute_Hypergraph(
                                stores dest proc in ocomm */
     )
 {
-    char * yo = "Zoltan_PHG_Redistribute_Hypergraph";
+    const char *yo = "Zoltan_PHG_Redistribute_Hypergraph";
     PHGComm *ocomm = ohg->comm;
     int ierr=ZOLTAN_OK;
     int i, v, n, nPins, nsend, elemsz, nVtx, nEdge;
@@ -369,7 +369,7 @@ int Zoltan_PHG_Redistribute(
                              stores dest proc in ocomm */
     )   
 {
-    char * yo = "Zoltan_PHG_Redistribute";
+    const char *yo = "Zoltan_PHG_Redistribute";
     PHGComm *ocomm = ohg->comm;
     int     *v2Col, *n2Row, ierr=ZOLTAN_OK, i, *ranks;
     int     reqx=hgp->nProc_x_req, reqy=hgp->nProc_y_req;

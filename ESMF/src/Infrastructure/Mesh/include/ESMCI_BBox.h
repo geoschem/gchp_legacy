@@ -1,6 +1,6 @@
 // $Id$
 // Earth System Modeling Framework
-// Copyright 2002-2012, University Corporation for Atmospheric Research, 
+// Copyright 2002-2018, University Corporation for Atmospheric Research, 
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
 // Laboratory, University of Michigan, National Centers for Environmental 
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
@@ -19,6 +19,8 @@
 
 #include <Mesh/include/ESMCI_MeshTypes.h>
 
+#include "ESMCI_PointList.h"
+
 #include <iostream>
 
 // Class to support basic bounding box type operations such
@@ -33,11 +35,12 @@ class _field;
  */
 class BBox {
 public:
+BBox() {}
 BBox(UInt _dim) : isempty(true), dim(_dim) {}
 BBox(UInt dim, const double min[], const double max[]); 
 // Construct a box around an element.  If the object is a shell, the box
 // will be expanded in the normal direction by normexp*diameter of object
-BBox(const MEField<> &coords, const MeshObj &obj, double normexp = 0.0);
+ BBox(const MEField<> &coords, const MeshObj &obj, double normexp = 0.0, bool is_sph=false);
 
 // Build a box around the whole mesh.  Not a cheap operation (loops nodes)
 BBox(const MEField<> &coords, const MeshDB &mesh);
@@ -45,7 +48,7 @@ BBox(const MEField<> &coords, const MeshDB &mesh);
 BBox(_field &coords, const MeshDB &mesh);
 
 #if 0
- BBox(_field &coords, const MeshObj &obj);
+  BBox(_field &coords, const MeshObj &obj);
 #endif
 
 BBox(const BBox &rhs);
@@ -82,6 +85,7 @@ bool BBoxSubset(const BBox &b1, const BBox &b2);
 
 std::ostream &operator<<(std::ostream &os, const BBox &cn);
 
+void build_pl_bbox(double *cmin, double *cmax, PointList *pl);
 
 } // namespace
 

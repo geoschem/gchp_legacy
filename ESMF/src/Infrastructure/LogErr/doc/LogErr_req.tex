@@ -1,0 +1,146 @@
+% $Id$
+\req{Interface characteristics}
+
+The Log shall provide a simple interface with a minimal number of
+steps needed to begin use.  The main messaging interface function shall be as
+close to the Fortran {\tt write} statement as possible.
+
+\begin{reqlist}
+{\bf Priority:} 1 \\
+{\bf Source:} CAM-EUL, CAM-FV, CLM, CCSM-CPL, POP, CICE, PSAS, MIT  \\
+{\bf Status:} Approved-1 \\
+{\bf Verification:} Code Inspection \\
+{\bf Notes:} 
+\end{reqlist}
+
+\sreq{Co-existence with standard filehandles}
+
+The Log shall not inhibit the independent use of standard filehandles
+(stdin, stdout and stderr) in user code.
+
+\begin{reqlist}
+{\bf Priority:} 1 \\
+{\bf Source:} GFDL, CAM-EUL, CAM-FV, CLM, CCSM-CPL, POP, CICE, PSAS, MIT  \\
+{\bf Status:} Approved-1 \\
+{\bf Verification:} Code Inspection \\
+{\bf Notes:} 
+\end{reqlist}
+
+\sreq{Fortran standard write interface}
+
+The Log shall be able to return a unit number so that user code may use 
+standard formatted I/O to the Log file.
+
+\begin{reqlist}
+{\bf Priority:} 1 \\
+{\bf Source:} GFDL \\
+{\bf Status:} Approved-1 \\
+{\bf Verification:} Unit test \\
+{\bf Notes:} 
+\end{reqlist}
+
+\sreq{Fortran write interface}
+
+The Log shall provide an interface that supports the Fortran {\tt format}
+notation.  Therefore the log will be able to print out characters, reals, 
+integers, complex numbers, arrays, and other intrinsic Fortran types.
+
+\begin{reqlist}
+{\bf Priority:} 1 \\
+{\bf Source:} CAM-EUL, CAM-FV, CLM, CCSM-CPL, POP, CICE, PSAS , MIT \\
+{\bf Status:} Approved-1 \\
+{\bf Verification:} Unit test \\
+{\bf Notes:} 
+\end{reqlist}
+
+\sreq{C standard write interface}
+
+The Log shall be able to return a filehandle so that user code may use standard
+formatted C I/O to the Log file.
+
+\begin{reqlist}
+{\bf Priority:} 1 \\
+{\bf Source:} \\
+{\bf Status:} Approved-1 \\
+{\bf Verification:} Unit test \\
+{\bf Notes:} 
+\end{reqlist}
+
+\sreq{Printf style interface}
+
+The Log shall have a printf style interface so built in datatypes may be 
+printed using the flexible format of {\tt printf}.
+
+\begin{reqlist}
+{\bf Priority:} 2 \\
+{\bf Source:} MIT \\
+{\bf Status:} Approved-2 \\
+{\bf Verification:} Unit test \\
+{\bf Notes:} 
+\end{reqlist}
+\req{Log states/levels}
+
+Each Log message will have a level attached to it so that setting certain run
+states will allow turning certain classes of output on and off.
+
+\begin{reqlist}
+{\bf Priority:} 2\\
+{\bf Source:} CAM-EUL(desired),POP(desired), MIT \\
+{\bf Status:} Approved-2 \\
+{\bf Verification:} Unit test \\
+{\bf Notes:} 
+\end{reqlist}
+\req{Output medium}
+
+The output from the Log shall be to files.
+
+\begin{reqlist}
+{\bf Priority:} 1 \\
+{\bf Source:} CAM-EUL, CAM-FV, CLM, CCSM-CPL, POP, CICE, PSAS, MIT  \\
+{\bf Status:} Approved-1 \\
+{\bf Verification:} Code Inspection \\
+{\bf Notes:} 
+\end{reqlist}
+\req{Process organization to one file}
+
+The library will allow output from different MPI processes to be grouped together.  
+Output from all processes can be written to one file for all processes.
+
+\begin{reqlist}
+{\bf Priority:} 1 \\
+{\bf Source:} CAM-EUL, CAM-FV, CLM, CCSM-CPL, POP, CICE, PSAS, MIT  \\
+{\bf Status:} Approved-1 \\
+{\bf Verification:} Unit test \\
+{\bf Notes:} Output should be sequentialized in a sensible manner (WS).
+\end{reqlist}
+\req{Process organization to seperate files}
+
+The library will allow output from different MPI processes to be distinguished.
+Output from processes can be written to seperate files for all processes.
+
+\begin{reqlist}
+{\bf Priority:} 2 \\
+{\bf Source:} CAM-EUL, CAM-FV, CLM, CCSM-CPL, POP, CICE, PSAS, MIT  \\
+{\bf Status:} Approved-2 \\
+{\bf Verification:} Unit test \\
+{\bf Notes:} 
+\end{reqlist}
+\req{Flush command}
+
+The API will provide a flush command that will force the output to appear in the file(s)
+upon call.
+
+\begin{reqlist}
+{\bf Priority:} 1 \\
+{\bf Source:} CAM-EUL, CAM-FV, CLM, CCSM-CPL, PSAS , MIT \\
+{\bf Status:} Approved-1 \\
+{\bf Verification:} Unit test \\
+{\bf Notes:} 
+\end{reqlist}
+
+
+
+
+
+
+

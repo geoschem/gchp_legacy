@@ -1,7 +1,7 @@
 // $Id$
 //
 // Earth System Modeling Framework
-// Copyright 2002-2012, University Corporation for Atmospheric Research, 
+// Copyright 2002-2018, University Corporation for Atmospheric Research, 
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
 // Laboratory, University of Michigan, National Centers for Environmental 
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
@@ -22,14 +22,12 @@
 // in the companion file ESMC_Array.h
 //
 //-----------------------------------------------------------------------------
-
 // include associated header file
 #include "ESMC_Array.h"
 
 // include ESMF headers
 #include "ESMCI_Arg.h"
 #include "ESMCI_LogErr.h"
-#include "ESMCI_LogMacros.inc"
 #include "ESMCI_Array.h"
 #include "ESMC_Interface.h"
 
@@ -187,7 +185,7 @@ void *ESMC_ArrayGetPtr(ESMC_Array array, int localDe, int *rc){
 #undef  ESMC_METHOD
 #define ESMC_METHOD "ESMC_ArraySetLWidth()"
 int ESMC_ArraySetLWidth(ESMC_Array array,
-  ESMC_InterfaceInt computationalLWidthArg){
+  ESMC_InterArrayInt computationalLWidthArg){
 
   // initialize return code; assume routine not implemented
   int localrc = ESMC_RC_NOT_IMPL;         // local return code
@@ -198,7 +196,7 @@ int ESMC_ArraySetLWidth(ESMC_Array array,
  
   // call into ESMCI method
   localrc = ap->setComputationalLWidth(
-    (ESMCI::InterfaceInt *)(computationalLWidthArg.ptr));
+    (ESMCI::InterArray<int> *)&computationalLWidthArg);
   if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, ESMC_CONTEXT,
     &rc)) return rc;  // bail out
 

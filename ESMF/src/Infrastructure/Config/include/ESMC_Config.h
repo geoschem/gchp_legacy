@@ -1,7 +1,7 @@
-// $Id: ESMC_Config.h,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
+// $Id$
 //
 // Earth System Modeling Framework
-// Copyright 2002-2012, University Corporation for Atmospheric Research, 
+// Copyright 2002-2018, University Corporation for Atmospheric Research, 
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
 // Laboratory, University of Michigan, National Centers for Environmental 
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
@@ -118,12 +118,13 @@ int ESMC_ConfigDestroy(
 // !INTERFACE:
 int ESMC_ConfigFindLabel(
   ESMC_Config config,        // in
-  const char* label          // in
+  const char* label,         // in
+  int *isPresent             // out
 );
 // !RETURN VALUE:
 //  Return code; equals ESMF_SUCCESS if there are no errors.
-//  Equals -1 if buffer could not be loaded, -2 if label not found,
-//  and -3 if invalid operation with index.
+//  If label not found, and the {\tt isPresent} pointer is {\tt NULL},
+//  an error will be returned.
 //
 // !DESCRIPTION:
 //  Finds the {\tt label} (key) in the {\tt config} file. 
@@ -140,6 +141,9 @@ int ESMC_ConfigFindLabel(
 //     Already created {\tt ESMC\_Config} object.
 //   \item [label]
 //     Identifying label. 
+//   \item [{[isPresent]}]
+//     Label presence flag.  (optional).  If non-NULL, the target is
+//     set to 1 when the label is found; otherwise set to 0.
 //   \end{description}
 //
 //EOP
@@ -320,14 +324,14 @@ int ESMC_ConfigValidate(
 int ESMC_ConfigGetAttribute(
   ESMC_Config config,        // in
   void* value,               // out
-  enum ESMC_TypeKind tk,
+  enum ESMC_TypeKind_Flag tk,
   ...
 );
 
 int ESMC_ConfigSetAttribute(
   ESMC_Config config,        // in
   void* value,               // in
-  enum ESMC_TypeKind tk,
+  enum ESMC_TypeKind_Flag tk,
   ...
 );
 

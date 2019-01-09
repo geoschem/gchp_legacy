@@ -1,10 +1,10 @@
-// $Id: ESMCI_Array.h,v 1.1.5.1 2013-01-11 20:23:43 mathomp4 Exp $
+// $Id$
 //
 // Earth System Modeling Framework
-// Copyright 2002-2012, University Corporation for Atmospheric Research, 
-// Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
-// Laboratory, University of Michigan, National Centers for Environmental 
-// Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
+// Copyright 2002-2018, University Corporation for Atmospheric Research,
+// Massachusetts Institute of Technology, Geophysical Fluid Dynamics
+// Laboratory, University of Michigan, National Centers for Environmental
+// Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
 // NASA Goddard Space Flight Center.
 // Licensed under the University of Illinois-NCSA License.
 //
@@ -31,6 +31,10 @@
 //EOPI
 //-------------------------------------------------------------------------
 
+namespace ESMCI {
+  class Array;
+}
+
 #include "ESMCI_Base.h"       // Base is superclass to Array
 #include "ESMCI_VM.h"
 #include "ESMCI_DELayout.h"
@@ -39,21 +43,25 @@
 #include "ESMCI_LocalArray.h"
 #include "ESMCI_RHandle.h"
 
+#include <cstdio>
+#include <stdint.h>
+#include <string>
+#include <utility>
+
 //-------------------------------------------------------------------------
 
 namespace ESMCI {
 
   // classes and structs
 
-  class Array;
-  struct SeqIndex;
-  class SparseMatrix;
+  template<typename T> struct SeqIndex;
+  template<typename SIT, typename DIT> class SparseMatrix;
 
   // class definitions
-  
+
   //============================================================================
-  struct SeqIndex{
-    int decompSeqIndex;
+  template<typename T> struct SeqIndex{
+    T decompSeqIndex;
     int tensorSeqIndex;
     SeqIndex(){
       decompSeqIndex = -1;  // invalidate
@@ -62,44 +70,56 @@ namespace ESMCI {
     void print(){
       printf("SeqIndex: (%d, %d)\n", decompSeqIndex, tensorSeqIndex);
     }
+    void fprint(std::FILE *fp){
+      fprintf(fp, "SeqIndex: (%d, %d)\n", decompSeqIndex, tensorSeqIndex);
+    }
     bool valid(){
       if (decompSeqIndex == -1) return false; // invalid seqIndex
       return true;  // otherwise valid
     }
   };  // struct seqIndex
-  bool operator==(SeqIndex a, SeqIndex b);
-  bool operator!=(SeqIndex a, SeqIndex b);
-  bool operator<(SeqIndex a, SeqIndex b);
-  
-  class SeqInd{
+  template<typename T> bool operator==(SeqIndex<T> a, SeqIndex<T> b);
+  template<typename T> bool operator!=(SeqIndex<T> a, SeqIndex<T> b);
+  template<typename T> bool operator<(SeqIndex<T> a, SeqIndex<T> b);
+
+  template<typename T> class SeqInd{
     int n;  // number of components in sequence index
-    int const *index;
+    T const *index;
    public:
     SeqInd(){n=0; index=NULL;}
-    SeqInd(int n_, int const *index_){
+    SeqInd(int n_, T const *index_){
       n = n_;
       index = index_;
     }
-    int getIndex(int i)const{return index[i];}
+    int getN(){
+      return n;
+    }
+    T getIndex(int i)const{return index[i];}
     void print(){
-      printf("SeqInd: (");
+      std::cout << "SeqInd:" << n <<" (";
       int i;
       for (i=0; i<n-1; i++)
-        printf("%d, ", index[i]);
-      printf("%d)\n", index[i]);
+        std::cout << index[i] << ",";
+      std::cout << index[i] << ")\n";
     }
   };
-  
+  template<typename T> bool operator<(SeqInd<T> a, SeqInd<T> b){
+    if (a.getN() != b.getN()) throw ESMC_RC_INTNRL_INCONS;
+    for (int i=0; i<a.getN(); i++)
+      if (a.getIndex(i) >= b.getIndex(i)) return false;
+    return true;
+  }
+
   //todo: try to unify SeqIndex and SeqInd structs!
   //============================================================================
-  
-  
+
+
   //============================================================================
   class Array : public ESMC_Base {    // inherits from ESMC_Base class
-  
+
    private:
     // global information
-    ESMC_TypeKind typekind;
+    ESMC_TypeKind_Flag typekind;
     int rank;
     ESMC_IndexFlag indexflag;
     //todo: the LocalArray pointers should be shared between PETs in the same
@@ -130,24 +150,32 @@ namespace ESMCI {
     int *exclusiveElementCountPDe;    // [deCount] number of elements in
                                       // exclusive region only considering
                                       // DistGrid dims that are associated with
-                                      // the Array dims. 
+                                      // the Array dims.
                                       // Multiply with tensorElementCount to get
                                       // total number of elements in exclusive
                                       // Array region.
     int *totalElementCountPLocalDe;   // [localDeCount] number of elements in
                                       // total region only considering
                                       // DistGrid dims that are associated with
-                                      // the Array dims. 
+                                      // the Array dims.
                                       // Multiply with tensorElementCount to get
                                       // total number of elements in total
                                       // Array region.
-    std::vector<std::vector<SeqIndex> > rimSeqIndex;// elements in the rim between
-                                          // exclusive and total region
-                                          // [localDeCount][rimElementCount[]]
-    std::vector<std::vector<int> > rimLinIndex;     // elements in the rim between
-                                          // exclusive and total region
-                                          // [localDeCount][rimElementCount[]]
-    std::vector<int> rimElementCount;      // numb. of elements in rim [localDeCount]
+    std::vector<std::vector<SeqIndex<ESMC_I4> > > rimSeqIndexI4;
+                                      // elements in the rim,
+                                      // between exclusive and total bounds
+                                      // [localDeCount][rimElementCount[]]
+    std::vector<std::vector<SeqIndex<ESMC_I8> > > rimSeqIndexI8;
+                                      // elements in the rim,
+                                      // between exclusive and total bounds
+                                      // [localDeCount][rimElementCount[]]
+    std::vector<std::vector<int> > rimLinIndex;       // elements in the rim,
+                                      // between exclusive and total bounds
+                                      // [localDeCount][rimElementCount[]]
+    std::vector<int> rimElementCount; // numb. of elements in rim [localDeCount]
+    // special variables for super-vectorization in XXE
+    int *sizeSuperUndist;   // [redDimCount+1]
+    int *sizeDist;          // [redDimCount*localDeCount]
     // lower level object references
     DistGrid *distgrid;
     bool distgridCreator;
@@ -157,13 +185,14 @@ namespace ESMCI {
                           // TODO: reference counting scheme is implemented
                           // TODO: and DELayout cannot be pulled from under
                           // TODO: DistGrid and Array until they are destroyed.
-    
+    RouteHandle *ioRH;    // RouteHandle to store redist if needed during IO
+
    public:
     // native constructor and destructor
-    Array(){
+    Array(VM *vm=NULL):ESMC_Base(vm){ // allow specific VM instead default
       typekind = ESMF_NOKIND;
       rank = 0;
-      indexflag = ESMF_INDEX_DELOCAL;
+      indexflag = ESMC_INDEX_DELOCAL;
       larrayList = NULL;
       larrayBaseAddrList = NULL;
       exclusiveLBound = NULL;
@@ -182,17 +211,21 @@ namespace ESMCI {
       tensorElementCount = 0;
       exclusiveElementCountPDe = NULL;
       totalElementCountPLocalDe = NULL;
+      sizeSuperUndist = NULL;
+      sizeDist = NULL;
 #if !defined (PARCH_IRIX64)
-      rimSeqIndex.resize(0);
+      rimSeqIndexI4.resize(0);
+      rimSeqIndexI8.resize(0);
 #endif
       rimLinIndex.resize(0);
       rimElementCount.resize(0);
       localDeCountAux = 0;  // auxiliary variable for garbage collection
+      ioRH = NULL;
     }
     Array(int baseID):ESMC_Base(baseID){  // prevent baseID counter increment
       typekind = ESMF_NOKIND;
       rank = 0;
-      indexflag = ESMF_INDEX_DELOCAL;
+      indexflag = ESMC_INDEX_DELOCAL;
       larrayList = NULL;
       larrayBaseAddrList = NULL;
       exclusiveLBound = NULL;
@@ -211,50 +244,61 @@ namespace ESMCI {
       tensorElementCount = 0;
       exclusiveElementCountPDe = NULL;
       totalElementCountPLocalDe = NULL;
+      sizeSuperUndist = NULL;
+      sizeDist = NULL;
 #if !defined (PARCH_IRIX64)
-      rimSeqIndex.resize(0);
+      rimSeqIndexI4.resize(0);
+      rimSeqIndexI8.resize(0);
 #endif
       rimLinIndex.resize(0);
       rimElementCount.resize(0);
       localDeCountAux = 0;  // auxiliary variable for garbage collection
+      ioRH = NULL;
     }
    private:
-    Array(ESMC_TypeKind typekind, int rank, LocalArray **larrayList,
+    Array(ESMC_TypeKind_Flag typekind, int rank, LocalArray **larrayList,
       DistGrid *distgrid, bool distgridCreator, int *exclusiveLBound,
       int *exclusiveUBound, int *computationalLBound, int *computationalUBound,
       int *totalLBound, int *totalUBound, int tensorCount,
       int tensorElementCount, int *undistLBoundArray, int *undistUBoundArray,
       int *distgridToArrayMapArray, int *arrayToDistGridMapArray,
-      int *distgridToPackedArrayMapArray, ESMC_IndexFlag indexflagArg, int *rc);
+      int *distgridToPackedArrayMapArray, ESMC_IndexFlag indexflagArg, int *rc,
+      VM *vm=NULL); // allow specific VM instead default
    public:
     ~Array(){destruct(false);}
    private:
-    void destruct(bool followCreator=true);
+    void destruct(bool followCreator=true, bool noGarbage=false);
    public:
+    // helper
+    int constructContiguousFlag(int redDimCount);
     // create() and destroy()
     static Array *create(LocalArray **larrayList, int larrayCount,
       DistGrid *distgrid, CopyFlag copyflag,
-      InterfaceInt *distgridToArrayMap,
-      InterfaceInt *computationalEdgeLWidthArg,
-      InterfaceInt *computationalEdgeUWidthArg,
-      InterfaceInt *computationalLWidthArg,
-      InterfaceInt *computationalUWidthArg,
-      InterfaceInt *totalLWidthArg, InterfaceInt *totalUWidthArg,
-      ESMC_IndexFlag *indexflag, InterfaceInt *undistLBoundArg,
-      InterfaceInt *undistUBoundArg, int *rc);
+      InterArray<int> *distgridToArrayMap,
+      InterArray<int> *computationalEdgeLWidthArg,
+      InterArray<int> *computationalEdgeUWidthArg,
+      InterArray<int> *computationalLWidthArg,
+      InterArray<int> *computationalUWidthArg,
+      InterArray<int> *totalLWidthArg, InterArray<int> *totalUWidthArg,
+      ESMC_IndexFlag *indexflag, InterArray<int> *undistLBoundArg,
+      InterArray<int> *undistUBoundArg, int *rc);
     static Array *create(ArraySpec *arrayspec, DistGrid *distgrid,
-      InterfaceInt *distgridToArrayMap,
-      InterfaceInt *computationalEdgeLWidthArg,
-      InterfaceInt *computationalEdgeUWidthArg,
-      InterfaceInt *computationalLWidthArg, 
-      InterfaceInt *computationalUWidthArg, InterfaceInt *totalLWidthArg,
-      InterfaceInt *totalUWidthArg, ESMC_IndexFlag *indexflag,
-      InterfaceInt *distLBoundArg, InterfaceInt *undistLBoundArg,
-      InterfaceInt *undistUBoundArg, int *rc);
-    static Array *create(Array *array, int *rc=NULL);
-    static int destroy(Array **array);
+      InterArray<int> *distgridToArrayMap,
+      InterArray<int> *computationalEdgeLWidthArg,
+      InterArray<int> *computationalEdgeUWidthArg,
+      InterArray<int> *computationalLWidthArg,
+      InterArray<int> *computationalUWidthArg,
+      InterArray<int> *totalLWidthArg,
+      InterArray<int> *totalUWidthArg, ESMC_IndexFlag *indexflag,
+      InterArray<int> *distLBoundArg, InterArray<int> *undistLBoundArg,
+      InterArray<int> *undistUBoundArg, int *rc, VM *vm=NULL);
+    static Array *create(Array *array, int rmLeadingTensors=0, int *rc=NULL);
+    static Array *create(Array *array, bool rmTensorFlag, int *rc=NULL);
+    static int destroy(Array **array, bool noGarbage=false);
+    // data copy()
+    int copy(Array const *arrayIn);
     // get() and set()
-    ESMC_TypeKind getTypekind()             const {return typekind;}
+    ESMC_TypeKind_Flag getTypekind()        const {return typekind;}
     int getRank()                           const {return rank;}
     ESMC_IndexFlag getIndexflag()           const {return indexflag;}
     LocalArray **getLocalarrayList()        const {return larrayList;}
@@ -279,28 +323,47 @@ namespace ESMCI {
       {return distgridToPackedArrayMap;}
     DistGrid *getDistGrid()                 const {return distgrid;}
     DELayout *getDELayout()                 const {return delayout;}
-    int getLinearIndexExclusive(int localDe, int const *index, int *rc=NULL)
-      const;
-    SeqIndex getSequenceIndexExclusive(int localDe, int const *index,
-      int depth=0, int *rc=NULL) const;
-    SeqIndex getSequenceIndexTile(int tile, const int *index, int *rc=NULL)
-      const;
+    RouteHandle *getIoRH()                  const {return ioRH;}
+    void setIoRH(RouteHandle *rh){ioRH = rh;}
+    int getLinearIndexExclusive(int localDe, int const *index)const;
+    template<typename T> int getSequenceIndexExclusive(int localDe,
+      int const *index, SeqIndex<T> *seqIndex, bool recursive=true,
+      bool canonical=false) const;
+    template<typename T> SeqIndex<T> getSequenceIndexTile(int tile,
+      const int *index, int *rc=NULL) const;
     int getTensorSequenceIndex(const int *index, int *rc=NULL)const;
     int getArbSequenceIndexOffset(const int *index, int *rc=NULL)const;
-    int setComputationalLWidth(InterfaceInt *computationalLWidthArg);
-    int setComputationalUWidth(InterfaceInt *computationalUWidthArg);
-    int setRimSeqIndex(int localDe, InterfaceInt *rimSeqIndexArg);
+    int setComputationalLWidth(InterArray<int> *computationalLWidthArg);
+    int setComputationalUWidth(InterArray<int> *computationalUWidthArg);
+    void setRimMembers();
+    template<typename T> int setRimSeqIndex(int localDe,
+      InterArray<T> *rimSeqIndexArg);
+    template<typename T>
+      int getRimSeqIndex(const std::vector<std::vector<SeqIndex<T> > >
+      **rimSeqIndex_)const;
+    std::vector<std::vector<int> > const &getRimLinIndex()const
+      {return rimLinIndex;}
+    std::vector<int> const &getRimElementCount()const
+      {return rimElementCount;}
     const char *getName()               const {return ESMC_BaseGetName();}
-    int setName(const char *name){return ESMC_BaseSetName(name, "Array");}
+    int setName(const char* name){return ESMC_BaseSetName(name, "Array");}
+    int setName(const std::string &name){return ESMC_BaseSetName(name.c_str(), "Array");}
     // misc.
-    static bool match(Array *array1, Array *array2, int *rc=NULL);
-    static int read(Array *array, char *file, char *variableName,
-         int *timeslice, ESMC_IOFmtFlag *iofmt);
-    static int write(Array *array, char *file, char *variableName, bool *append,
-         int *timeslice, ESMC_IOFmtFlag *iofmt);
+    static bool match(Array const *array1, Array const *array2, int *rc=NULL);
+    int read(const std::string &file, const std::string &variableName,
+         int *timeslice, ESMC_IOFmt_Flag *iofmt);
+    int write(const std::string &file, const std::string &variableName,
+         const std::string &convention, const std::string &purpose,
+         bool *overwrite, ESMC_FileStatus_Flag *status,
+         int *timeslice, ESMC_IOFmt_Flag *iofmt);
     int print() const;
     int validate() const;
-    int constructPioDof(InterfaceInt *pioDofList, int localDe) const;
+    // fileMapList is an int64_t to be compatible with PIO and MPI.
+    // Internally, PIO uses a type which is tied to the Fortran type,
+    // MPI_OFFSET. Instead of int64_t, an alternative is to use MPI_offset,
+    // however, this may run into issues with MPIUNI.
+    int constructFileMap(int64_t *fileMapList, int mapListSize,
+                         int localDe, int64_t unmap_val = 0) const;
     // serialize() and deserialize()
     int serialize(char *buffer, int *length, int *offset,
       const ESMC_AttReconcileFlag &attreconflag,
@@ -308,85 +371,198 @@ namespace ESMCI {
     int deserialize(char *buffer, int *offset,
       const ESMC_AttReconcileFlag &attreconflag);
     // comms
-    int gather(void *array, ESMC_TypeKind typekind, int rank,
+    int gather(void *array, ESMC_TypeKind_Flag typekind, int rank,
       int *counts, int *tile, int rootPet, VM *vm);
-    int scatter(void *array, ESMC_TypeKind typekind, int rank,
+    int scatter(void *array, ESMC_TypeKind_Flag typekind, int rank,
       int *counts, int *tile, int rootPet, VM *vm);
     static int haloStore(Array *array, RouteHandle **routehandle,
       ESMC_HaloStartRegionFlag halostartregionflag=ESMF_REGION_EXCLUSIVE,
-      InterfaceInt *haloLDepth=NULL, InterfaceInt *haloUDepth=NULL);
+      InterArray<int> *haloLDepth=NULL, InterArray<int> *haloUDepth=NULL,
+      int *pipelineDepthArg=NULL);
+    template<typename IT>
+      static int tHaloStore(Array *array, RouteHandle **routehandle,
+      ESMC_HaloStartRegionFlag halostartregionflag=ESMF_REGION_EXCLUSIVE,
+      InterArray<int> *haloLDepth=NULL, InterArray<int> *haloUDepth=NULL,
+      int *pipelineDepthArg=NULL);
     static int halo(Array *array,
       RouteHandle **routehandle, ESMC_CommFlag commflag=ESMF_COMM_BLOCKING,
       bool *finishedflag=NULL, bool *cancelledflag=NULL, bool checkflag=false);
     static int haloRelease(RouteHandle *routehandle);
     static int redistStore(Array *srcArray, Array *dstArray,
-      RouteHandle **routehandle, InterfaceInt *srcToDstTransposeMap,
-      ESMC_TypeKind typekindFactor = ESMF_NOKIND, void *factor = NULL);
+      RouteHandle **routehandle, InterArray<int> *srcToDstTransposeMap,
+      ESMC_TypeKind_Flag typekindFactor = ESMF_NOKIND, void *factor = NULL,
+      bool ignoreUnmatched=false, int *pipelineDepthArg = NULL);
+    template<typename SIT, typename DIT>
+      static int tRedistStore(Array *srcArray, Array *dstArray,
+      RouteHandle **routehandle, InterArray<int> *srcToDstTransposeMap,
+      ESMC_TypeKind_Flag typekindFactor = ESMF_NOKIND, void *factor = NULL,
+      bool ignoreUnmatched=false, int *pipelineDepthArg = NULL);
     static int redist(Array *srcArray, Array *dstArray,
       RouteHandle **routehandle, ESMC_CommFlag commflag=ESMF_COMM_BLOCKING,
-      bool *finishedflag=NULL, bool *cancelledflag=NULL, bool checkflag=false);
+      bool *finishedflag=NULL, bool *cancelledflag=NULL,
+      ESMC_Region_Flag zeroflag=ESMC_REGION_SELECT, bool checkflag=false);
     static int redistRelease(RouteHandle *routehandle);
-    static int sparseMatMulStore(Array *srcArray, Array *dstArray,
-      RouteHandle **routehandle, std::vector<SparseMatrix> const &sparseMatrix,
-      bool haloFlag=false);
+    template<typename SIT, typename DIT>
+      static int sparseMatMulStore(Array *srcArray, Array *dstArray,
+      RouteHandle **routehandle,
+      std::vector<SparseMatrix<SIT,DIT> > const &sparseMatrix,
+      bool haloFlag=false, bool ignoreUnmatched=false,
+      int *srcTermProcessingArg = NULL, int *pipelineDepthArg = NULL);
+    template<typename SIT, typename DIT>
+      static int tSparseMatMulStore(Array *srcArray, Array *dstArray,
+      RouteHandle **routehandle,
+      std::vector<SparseMatrix<SIT,DIT> > const &sparseMatrix,
+      bool haloFlag=false, bool ignoreUnmatched=false,
+      int *srcTermProcessingArg = NULL, int *pipelineDepthArg = NULL);
     static int sparseMatMul(Array *srcArray, Array *dstArray,
       RouteHandle **routehandle, ESMC_CommFlag commflag=ESMF_COMM_BLOCKING,
       bool *finishedflag=NULL, bool *cancelledflag=NULL,
-      ESMC_RegionFlag zeroflag=ESMF_REGION_TOTAL, bool checkflag=false,
-      bool haloFlag=false);
+      ESMC_Region_Flag zeroflag=ESMC_REGION_TOTAL,
+      ESMC_TermOrder_Flag termorderflag=ESMC_TERMORDER_FREE,
+      bool checkflag=false, bool haloFlag=false);
     static int sparseMatMulRelease(RouteHandle *routehandle);
-    
+    static void superVecParam(Array *array, int localDeCount,
+      bool superVectorOkay, int superVecSizeUnd[3], int *superVecSizeDis[2],
+      int &vectorLength);
+
   };  // class Array
   //============================================================================
-  
-  
+
+
   //============================================================================
-  class SparseMatrix{
-    ESMC_TypeKind typekind;
-    void const *factorList;
-    int factorListCount;
-    int srcN;
-    int dstN;
-    int const *factorIndexList; // element: (0,..,srcN-1,srcN,..,srcN+dstN-1)
+  template<typename SIT, typename DIT> class SparseMatrix{
+    ESMC_TypeKind_Flag typekind;  // typekind of factors
+    void const *factorList;       // vector of factors
+    int factorListCount;          // number of factors
+    int srcN;                     // src sequence index width (1 or 2)
+    int dstN;                     // dst sequence index width (1 or 2)
+    void const *factorIndexList;  // vector of sequence index elements, each
+                                  // element is a srcN+dstN tuple:
+                                  // (0,..,srcN-1,srcN,..,srcN+dstN-1)
    public:
-    SparseMatrix(ESMC_TypeKind const typekind_, void const *factorList_,
+    SparseMatrix(ESMC_TypeKind_Flag const typekind_, void const *factorList_,
       int const factorListCount_, int const srcN_, int const dstN_,
-      int const *factorIndexList_);
-    ESMC_TypeKind getTypekind()const{return typekind;}
+      void const *factorIndexList_);
+    ESMC_TypeKind_Flag getTypekind()const{return typekind;}
     void const *getFactorList()const{return factorList;}
+    void const *getFactorIndexList()const{return factorIndexList;}
     int getFactorListCount()const{return factorListCount;}
-    SeqInd getSrcSeqIndex(int i)const{
-      return SeqInd(srcN, factorIndexList+(srcN+dstN)*i);
+    SeqInd<SIT> getSrcSeqIndex(int i)const{
+      char *fil = (char *)factorIndexList;
+      return SeqInd<SIT>(srcN,
+        (SIT *)(fil+(srcN*sizeof(SIT)+dstN*sizeof(DIT))*i));
     }
-    SeqInd getDstSeqIndex(int i)const{
-      return SeqInd(dstN, factorIndexList+(srcN+dstN)*i+srcN);
+    SeqInd<DIT> getDstSeqIndex(int i)const{
+      char *fil = (char *)factorIndexList;
+      return SeqInd<DIT>(dstN,
+        (DIT *)(fil+(srcN*sizeof(SIT)+dstN*sizeof(DIT))*i+srcN*sizeof(SIT)));
     }
     int getSrcN()const{return srcN;}
     int getDstN()const{return dstN;}
   };
   //============================================================================
 
-  
+
   //============================================================================
   class ArrayElement : public MultiDimIndexLoop{
     // Iterator type through Array elements.
     Array const *array;               // associated Array object
     int localDe;                      // localDe index
+    //
+    int linIndex;                     // linear index of array element in array
+    void *seqIndex;                   // sequence index of array element
+    bool seqIndexRecursiveFlag;       // flag to be used when computing seqIndex
+    bool seqIndexCanonicalFlag;       // flag to be used when computing seqIndex
+    bool firstDimDecompFlag;          // indicate lowest array dim is decomp
+    bool firstDimFirstDecomp;         // first array dim corres. to first decomp
+    bool arbSeqIndexFlag;             // arbitrary sequence indices present
+    bool lastSeqIndexInvalid;         // internally used flag between next()
+    bool blockActiveFlag;             // active block requires hasValid checks
+    bool cannotOptimizeLookup;        // must do lookup from tuple each time
+    ESMC_TypeKind_Flag indexTK;       // sequence index typekind
    public:
-    ArrayElement(Array const *arrayArg, int localDeArg);
-      // construct iterator through exclusive Array region
     ArrayElement(Array const *arrayArg, int localDeArg,
-      bool blockExclusiveFlag);
+      bool seqIndexEnabled, bool seqIndexRecursive, bool seqIndexCanonical);
+      // construct iterator through exclusive Array region
+    ArrayElement(Array const *arrayArg, int localDeArg, bool blockExclusiveFlag,
+      bool seqIndexEnabled, bool seqIndexRecursive, bool seqIndexCanonical);
       // construct iterator through total Array region with block excl. option
+    ~ArrayElement(){
+      if (seqIndex){
+        if (indexTK==ESMC_TYPEKIND_I4)
+          delete (SeqIndex<ESMC_I4>*) seqIndex;
+        else if (indexTK==ESMC_TYPEKIND_I8)
+          delete (SeqIndex<ESMC_I8>*) seqIndex;
+      }
+    }
+    int getLinearIndex()const{
+      // return the linear index of ArrayElement into the Array
+      return linIndex;
+    }
     bool hasValidSeqIndex()const;
-    int getLinearIndexExclusive()const;
-    SeqIndex getSequenceIndexExclusive(int depth=0)const;
+    template<typename T> SeqIndex<T> getSequenceIndex()const{
+      if (seqIndex)
+        return *(SeqIndex<T>*)seqIndex;
+      else throw ESMC_RC_ARG_BAD;
+    }
     int getTensorSequenceIndex()const;
     int getArbSequenceIndexOffset()const;
     void print()const;
-  };  // class ArrayElement 
+    void next(){
+      bool adjusted = MultiDimIndexLoop::next();
+      if (!isWithin()) return;  // reached the end of iteration
+      if (adjusted){
+        // must re-compute linIndex from index tuple
+        linIndex = array->getLinearIndexExclusive(localDe, &indexTuple[0]);
+      }else{
+        // simply increment linIndex
+        linIndex++;
+      }
+      if (seqIndex){
+        if (cannotOptimizeLookup || adjusted || lastSeqIndexInvalid){
+          // must re-compute seqIndex from index tuple
+          if (!blockActiveFlag || hasValidSeqIndex()){
+            // a valid sequence index can be queried
+            lastSeqIndexInvalid = false; // reset by default
+            if (indexTK==ESMC_TYPEKIND_I4){
+              int localrc = array->getSequenceIndexExclusive(localDe,
+                &indexTuple[0],
+                (SeqIndex<ESMC_I4>*)seqIndex, seqIndexRecursiveFlag,
+                seqIndexCanonicalFlag);
+              if (localrc != ESMF_SUCCESS) throw localrc;
+              if (((SeqIndex<ESMC_I4>*)seqIndex)->decompSeqIndex == -1)
+                lastSeqIndexInvalid = true;
+            }else if (indexTK==ESMC_TYPEKIND_I8){
+              int localrc = array->getSequenceIndexExclusive(localDe,
+                &indexTuple[0],
+                (SeqIndex<ESMC_I8>*)seqIndex, seqIndexRecursiveFlag,
+                seqIndexCanonicalFlag);
+              if (localrc != ESMF_SUCCESS) throw localrc;
+              if (((SeqIndex<ESMC_I8>*)seqIndex)->decompSeqIndex == -1)
+                lastSeqIndexInvalid = true;
+            }
+          }
+        }else{
+          // opimize by simple index seqIndex increment
+          if (firstDimDecompFlag){
+            // increment the decompSeqIndex
+            if (indexTK==ESMC_TYPEKIND_I4)
+              ((SeqIndex<ESMC_I4>*)seqIndex)->decompSeqIndex++;
+            else if (indexTK==ESMC_TYPEKIND_I8)
+              ((SeqIndex<ESMC_I8>*)seqIndex)->decompSeqIndex++;
+          }else{
+            // increment the tensorSeqIndex
+            if (indexTK==ESMC_TYPEKIND_I4)
+              ((SeqIndex<ESMC_I4>*)seqIndex)->tensorSeqIndex++;
+            else if (indexTK==ESMC_TYPEKIND_I8)
+              ((SeqIndex<ESMC_I8>*)seqIndex)->tensorSeqIndex++;
+          }
+        }
+      }
+    }
+  };  // class ArrayElement
   //============================================================================
-  
+
 } // namespace ESMCI
 
 
@@ -418,11 +594,11 @@ typedef struct{
 
 typedef struct{
   ESMC_newArray *array;     // pointer to calling ESMC_newArray object
-  ESMCI::VM *vm;              // pointer to current VM
+  ESMCI::VM *vm;            // pointer to current VM
   int de;                   // DE for DE-based non-blocking operation
   int rootPET;              // root
   void *result;             // result memory location
-  ESMC_TypeKind dtk;        // data type kind
+  ESMC_TypeKind_Flag dtk;   // data type kind
   ESMC_Operation op;        // operation flag
 }ESMC_newArrayThreadArg;
 
@@ -431,7 +607,7 @@ typedef struct{
 class ESMC_newArray : public ESMC_Base {    // inherits from ESMC_Base class
   private:
     int rank;                 // rank of newArray
-    ESMC_TypeKind kind;       // kind of newArray (for F90)
+    ESMC_TypeKind_Flag kind;  // kind of newArray (for F90)
     int **globalDataLBound;   // dataBox for this DE [de][dim]
     int **globalDataUBound;   // dataBox for this DE [de][dim]
     int **localFullLBound;    // fullBox (data + halo) for this DE [de][dim]
@@ -444,7 +620,7 @@ class ESMC_newArray : public ESMC_Base {    // inherits from ESMC_Base class
     ESMC_newArrayCommHandle *commhArray;  // array of commhandles [localDe]
     ESMC_newArrayThreadArg *thargArray;   // array of thread args [localDe]
     ESMC_newArrayThreadArg thargRoot;     // root's thread args
-    
+
     // cached VM information
     int localVAS;             // VAS in which localPET operates
                       // don't cache localPET because that might change
@@ -453,10 +629,10 @@ class ESMC_newArray : public ESMC_Base {    // inherits from ESMC_Base class
     int localDeCount;         // number of DEs that map onto localVAS
     int *localDeToDeMap;      // list of local DEs
     int *deVASList;           // list of VASs for all DEs
-    
+
   public:
     // Construct and Destruct
-    int ESMC_newArrayConstruct(  
+    int ESMC_newArrayConstruct(
       LocalArray *larray,  // pointer to LocalArray object
       int *haloWidth,           // halo width
       ESMCI::DELayout *delayout,  // DELayout
@@ -466,7 +642,7 @@ class ESMC_newArray : public ESMC_Base {    // inherits from ESMC_Base class
     int ESMC_newArrayDestruct(void);
 
     // Get info
-    int ESMC_newArrayGet(int *rank, ESMCI::DELayout **delayout, 
+    int ESMC_newArrayGet(int *rank, ESMCI::DELayout **delayout,
       LocalArray **localArrays, int len_localArrays,
       int *globalFullLBound, int *len_globalFullLBound,
       int *globalFullUBound, int *len_globalFullUBound,
@@ -474,16 +650,16 @@ class ESMC_newArray : public ESMC_Base {    // inherits from ESMC_Base class
       int *globalDataUBound, int *len_globalDataUBound,
       int *localDataLBound, int *len_localDataLBound,
       int *localDataUBound, int *len_localDataUBound);
-   
+
     // IO and validation
     int ESMC_newArrayPrint(void);
-    
+
     // Communication
     int ESMC_newArrayScatter(
       LocalArray *larray,  // pointer to LocalArray object
       int rootPET,              // root
       ESMCI::VM *vm=NULL);        // optional VM argument to speed up things
-    
+
     int ESMC_newArrayScatter(
       LocalArray *larray,  // pointer to LocalArray object
       int rootPET,              // root
@@ -494,49 +670,49 @@ class ESMC_newArray : public ESMC_Base {    // inherits from ESMC_Base class
       LocalArray *larray,  // pointer to LocalArray object
       int rootPET,              // root
       int de,                   // DE for DE-based non-blocking scatter
-      ESMCI::VM *vm=NULL);        // optional VM argument to speed up things
+      ESMCI::VM *vm=NULL);      // optional VM argument to speed up things
 
     int ESMC_newArrayScalarReduce(
       void *result,             // result value (scalar)
-      ESMC_TypeKind dtk,        // data type kind
+      ESMC_TypeKind_Flag dtk,   // data type kind
       ESMC_Operation op,        // reduce operation
       int rootPET,              // root
-      ESMCI::VM *vm=NULL);        // optional VM argument to speed up things
+      ESMCI::VM *vm=NULL);      // optional VM argument to speed up things
 
     int ESMC_newArrayScalarReduce(
       void *result,             // result value (scalar)
-      ESMC_TypeKind dtk,        // data type kind
+      ESMC_TypeKind_Flag dtk,   // data type kind
       ESMC_Operation op,        // reduce operation
       int rootPET,              // root
       ESMC_newArrayCommHandle *commh, // commu handle for non-blocking mode
-      ESMCI::VM *vm=NULL);        // optional VM argument to speed up things
+      ESMCI::VM *vm=NULL);      // optional VM argument to speed up things
 
     int ESMC_newArrayScalarReduce(
       void *result,             // result value (scalar)
-      ESMC_TypeKind dtk,        // data type kind
+      ESMC_TypeKind_Flag dtk,   // data type kind
       ESMC_Operation op,        // reduce operation
       int rootPET,              // root
       int de,                   // DE for DE-based non-blocking reduce
-      ESMCI::VM *vm=NULL);        // optional VM argument to speed up things
+      ESMCI::VM *vm=NULL);      // optional VM argument to speed up things
 
     int ESMC_newArrayWait(
       int rootPET,              // root
       ESMC_newArrayCommHandle *commh, // commu handle specifying non-block op.
-      ESMCI::VM *vm=NULL);        // optional VM argument to speed up things
+      ESMCI::VM *vm=NULL);      // optional VM argument to speed up things
 
     int ESMC_newArrayWait(
       int de,                   // DE for which to wait
-      ESMCI::VM *vm=NULL);        // optional VM argument to speed up things
-    
+      ESMCI::VM *vm=NULL);      // optional VM argument to speed up things
+
     // friend functions that provide thread support for non-blocking comms
     friend void *ESMC_newArrayScatterThread(void *);
     friend void *ESMC_newArrayScalarReduceThread(void *);
 
 };  // end class ESMC_newArray
 
-// external methods:  
+// external methods:
 
-ESMC_newArray *ESMC_newArrayCreate(LocalArray *larray, int *haloWidth, 
+ESMC_newArray *ESMC_newArrayCreate(LocalArray *larray, int *haloWidth,
   int deCount, int rootPET, int *rc);
 
 int ESMC_newArrayDestroy(ESMC_newArray **array);

@@ -1,7 +1,7 @@
-! $Id: ESMF_Util.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
+! $Id$
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2012, University Corporation for Atmospheric Research,
+! Copyright 2002-2018, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -29,6 +29,7 @@
  
       ! parameters, types
       use ESMF_IOUtilMod
+      use ESMF_UtilStringMod
       use ESMF_UtilTypesMod
       use ESMF_InitMacrosMod
       use ESMF_LogErrMod
@@ -63,29 +64,6 @@
 !
 !==============================================================================
 
-!------------------------------------------------------------------------------
-!BOPI
-! !IROUTINE: ESMF_UtilNameMapAdd
-
-! !INTERFACE:
-
-    interface ESMF_UtilMapNameAdd
-! !PRIVATE MEMBER FUNCTIONS:
-      module procedure ESMF_UtilMapNameContainerAdd
-      module procedure ESMF_UtilMapNameValueAdd
-    end interface
-
-!------------------------------------------------------------------------------
-!BOPI
-! !IROUTINE: ESMF_UtilNameMapLookup
-
-! !INTERFACE:
-
-    interface ESMF_UtilMapNameLookup
-! !PRIVATE MEMBER FUNCTIONS:
-      module procedure ESMF_UtilMapNameContainerLookup
-      module procedure ESMF_UtilMapNameValueLookup
-    end interface
 
 !------------------------------------------------------------------------------
 
@@ -97,26 +75,23 @@
       public :: operator(/=)
       public :: assignment(=)
 
-!  STL map container interface
-
-      public :: ESMF_UtilMapNameAdd
-      public :: ESMF_UtilMapNameCreate
-      public :: ESMF_UtilMapNameDestroy
-      public :: ESMF_UtilMapNameLookup
-      public :: ESMF_UtilMapNamePrint
-      public :: ESMF_UtilMapNameRemove
-      public :: ESMF_UtilMapNameSize
-
 !  Command line argument methods
       public :: ESMF_UtilGetArgC
       public :: ESMF_UtilGetArg
       public :: ESMF_UtilGetArgIndex
 
-!  Misc methods
-      public :: ESMF_Array2String
-      public :: ESMF_String2Array
-      public :: ESMF_StringLowerCase
-      public :: ESMF_StringUpperCase
+!  File system directory methods
+      public :: ESMF_UtilIOMkDir
+      public :: ESMF_UtilIORmDir
+      public :: ESMF_UtilIOGetCWD
+
+!  Misc string methods
+      public :: ESMF_UtilString2Int
+      public :: ESMF_UtilStringLowerCase
+      public :: ESMF_UtilStringUpperCase
+      public :: ESMF_UtilArray2String
+      public :: ESMF_UtilString2Array
+      public :: ESMF_StringConcat
 
 !  Misc type-to-string methods
       public :: ESMF_StatusString
@@ -136,450 +111,10 @@
 ! leave the following line as-is; it will insert the cvs ident string
 ! into the object file for tracking purposes.
       character(*), parameter, private :: version = &
-               '$Id: ESMF_Util.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $'
+               '$Id$'
 !------------------------------------------------------------------------------
 
       contains
-
-!------------------------------------------------------------------------- 
-! Map routines - Interfaces to C++ STL map containers
-!------------------------------------------------------------------------- 
-#undef  ESMF_METHOD
-#define ESMF_METHOD "ESMF_UtilMapNameContainerAdd"
-!BOPI
-! !IROUTINE:  ESMF_UtilMapNameContainerAdd - Add a name/value pair to a map container
-!
-! !INTERFACE:
-  subroutine ESMF_UtilMapNameContainerAdd (this, name, value, rc)
-!
-! !ARGUMENTS:
-    type(ESMF_MapPtr), intent(in) :: this
-    character(*),      intent(in) :: name
-    type(ESMF_Pointer),intent(in) :: value
-    integer,           intent(out), optional :: rc
-!
-! !Description:
-! This method adds a name/value pair to a MapName container.  The
-! name argument is used within the container to identify the pair
-! for lookups.
-!
-! The arguments are:
-! \begin{description}
-! \item [{[this]}]
-! A ESMF\_MapName object
-! \item [{[name]}]
-! A character string which will be the keyword used to identify the
-! pair within the container.
-! \item [{[value]}]
-! A pointer associated with the name.
-! Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
-! \end{description}
-!EOPI
-
-    integer :: localrc
-
-    localrc = ESMF_FAILURE
-
-    if (this%this%ptr == 0) then
-      if (present (rc))  &
-        rc = ESMF_RC_PTR_NULL
-      return
-    end if
-
-    call c_esmc_mapname_add (this, trim (name), value, localrc)
-
-    if (present (rc))  &
-      rc = localrc
-
-  end subroutine ESMF_UtilMapNameContainerAdd
-
-!------------------------------------------------------------------------- 
-#undef  ESMF_METHOD
-#define ESMF_METHOD "ESMF_UtilMapNameValueAdd"
-!BOPI
-! !IROUTINE:  ESMF_UtilMapNameValueAdd - Add a name/value pair to a map container
-!
-! !INTERFACE:
-  subroutine ESMF_UtilMapNameValueAdd (this, name, value, rc)
-!
-! !ARGUMENTS:
-    type(ESMF_MapPtr), intent(in) :: this
-    character(*),      intent(in) :: name
-    integer,           intent(in) :: value
-    integer,           intent(out), optional :: rc
-!
-! !Description:
-! This method adds a name/value pair to a MapName container.  The
-! name argument is used within the container to identify the pair
-! for lookups.
-!
-! The arguments are:
-! \begin{description}
-! \item [{[this]}]
-! A ESMF\_MapName object
-! \item [{[name]}]
-! A character string which will be the keyword used to identify the
-! pair within the container.
-! \item [{[value]}]
-! An integer value associated with the name.
-! Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
-! \end{description}
-!EOPI
-
-    integer :: localrc
-
-    localrc = ESMF_FAILURE
-
-    if (this%this%ptr == 0) then
-      if (present (rc))  &
-        rc = ESMF_RC_PTR_NULL
-      return
-    end if
-
-    call c_esmc_mapname_add (this, trim (name), value, localrc)
-
-    if (present (rc))  &
-      rc = localrc
-
-  end subroutine ESMF_UtilMapNameValueAdd
-
-!------------------------------------------------------------------------- 
-#undef  ESMF_METHOD
-#define ESMF_METHOD "ESMF_UtilMapNameCreate"
-!BOPI
-! !IROUTINE:  ESMF_UtilMapNameCreate - Create a map container for name/value pairs
-!
-! !INTERFACE:
-  subroutine ESMF_UtilMapNameCreate (this, rc)
-!
-! !ARGUMENTS:
-    type(ESMF_MapPtr), intent(out) :: this
-    integer,           intent(out), optional :: rc
-!
-! !Description:
-! This method creates a MapName container.
-!
-! The arguments are:
-! \begin{description}
-! \item [{[this]}]
-! A ESMF\_MapName object to be created.
-! Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
-! \end{description}
-!EOPI
-
-    integer :: localrc
-
-    localrc = ESMF_FAILURE
-
-    call c_esmc_mapname_create (this, localrc)
-
-    if (present (rc))  &
-      rc = localrc
-
-  end subroutine ESMF_UtilMapNameCreate
-
-!------------------------------------------------------------------------- 
-#undef  ESMF_METHOD
-#define ESMF_METHOD "ESMF_UtilMapNameDestroy"
-!BOPI
-! !IROUTINE:  ESMF_UtilMapNameDestroy - Destroy a map container
-!
-! !INTERFACE:
-  subroutine ESMF_UtilMapNameDestroy (this, rc)
-!
-! !ARGUMENTS:
-    type(ESMF_MapPtr), intent(inout) :: this
-    integer,           intent(out), optional :: rc
-!
-! !Description:
-! This method destroys a MapName container.
-!
-! The arguments are:
-! \begin{description}
-! \item [{[this]}]
-! A ESMF\_MapName object to be destroyed.
-! Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
-! \end{description}
-!EOPI
-
-    integer :: localrc
-
-    localrc = ESMF_FAILURE
-
-    if (this%this%ptr == 0) then
-      if (present (rc))  &
-        rc = ESMF_RC_PTR_NULL
-      return
-    end if
-
-    call c_esmc_mapname_destroy (this, localrc)
-
-    if (present (rc))  &
-      rc = localrc
-
-  end subroutine ESMF_UtilMapNameDestroy
-
-!------------------------------------------------------------------------- 
-#undef  ESMF_METHOD
-#define ESMF_METHOD "ESMF_UtilMapNameContainerLookup"
-!BOPI
-! !IROUTINE:  ESMF_UtilMapNameContainerLookup - Return the pointer associated with a name
-!
-! !INTERFACE:
-  subroutine ESMF_UtilMapNameContainerLookup (this, name, value, foundFlag, rc)
-!
-! !ARGUMENTS:
-    type(ESMF_MapPtr), intent(in)  :: this
-    character(*),      intent(in)  :: name
-    type(ESMF_Pointer),intent(out) :: value
-    logical,           intent(out) :: foundFlag
-    integer,           intent(out), optional :: rc
-!
-! !Description:
-! This method looks up a name/value pair in a MapName container
-! and returns the value.
-!
-! The arguments are:
-! \begin{description}
-! \item [{[this]}]
-! A ESMF\_MapName object
-! \item [{[name]}]
-! A character string which will be the keyword used to identify the
-! pair within the container.
-! \item [{[value]}]
-! The pointer associated with the name.
-! \item [{[foundFlag]}]
-! Set to .TRUE. if the name is found, otherwise .FALSE.
-! Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
-! \end{description}
-!EOPI
-
-    type(ESMF_Logical) :: localfoundflag
-    integer :: localrc
-
-    localrc = ESMF_FAILURE
-
-    if (this%this%ptr == 0) then
-      if (present (rc))  &
-        rc = ESMF_RC_PTR_NULL
-      return
-    end if
-
-    call c_esmc_mapname_lookup (this, trim (name),  &
-                                value, localfoundFlag, localrc)
-    foundflag = localfoundflag
-
-    if (present (rc))  &
-      rc = localrc
-
-  end subroutine ESMF_UtilMapNameContainerLookup
-
-!------------------------------------------------------------------------- 
-#undef  ESMF_METHOD
-#define ESMF_METHOD "ESMF_UtilMapNameValueLookup"
-!BOPI
-! !IROUTINE:  ESMF_UtilMapNameValueLookup - Return the value associated with a name
-!
-! !INTERFACE:
-  subroutine ESMF_UtilMapNameValueLookup (this, name, value, foundFlag, rc)
-!
-! !ARGUMENTS:
-    type(ESMF_MapPtr), intent(in)  :: this
-    character(*),      intent(in)  :: name
-    integer,           intent(out) :: value
-    logical,           intent(out) :: foundFlag
-    integer,           intent(out), optional :: rc
-!
-! !Description:
-! This method looks up a name/value pair in a MapName container
-! and returns the value.
-!
-! The arguments are:
-! \begin{description}
-! \item [{[this]}]
-! A ESMF\_MapName object
-! \item [{[name]}]
-! A character string which will be the keyword used to identify the
-! pair within the container.
-! \item [{[value]}]
-! The integer value associated with the name.
-! \item [{[foundFlag]}]
-! Set to .TRUE. if the name is found, otherwise .FALSE.
-! Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
-! \end{description}
-!EOPI
-
-    type(ESMF_Logical) :: localfoundflag
-    integer :: localrc
-
-    localrc = ESMF_FAILURE
-
-    if (this%this%ptr == 0) then
-      if (present (rc))  &
-        rc = ESMF_RC_PTR_NULL
-      return
-    end if
-
-    call c_esmc_mapname_lookup (this, trim (name),  &
-                                value, localfoundFlag, localrc)
-    foundflag = localfoundflag
-
-    if (present (rc))  &
-      rc = localrc
-
-  end subroutine ESMF_UtilMapNameValueLookup
-
-!------------------------------------------------------------------------- 
-#undef  ESMF_METHOD
-#define ESMF_METHOD "ESMF_UtilMapNamePrint"
-!BOPI
-! !IROUTINE:  ESMF_UtilMapNamePrint - Print the name/value pairs 
-!
-! !INTERFACE:
-  subroutine ESMF_UtilMapNamePrint (this, title, rc)
-!
-! !ARGUMENTS:
-    type(ESMF_MapPtr), intent(in) :: this
-    character(*),      intent(in),  optional :: title
-    integer,           intent(out), optional :: rc
-!
-! !Description:
-! This method prints the name/value pair from a MapName container to
-! stdout.
-!
-! The arguments are:
-! \begin{description}
-! \item [{[this]}]
-! A ESMF\_MapName object
-! \item [{[title]}]
-! Title of the print out
-! Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
-! \end{description}
-!EOPI
-
-    integer :: localrc, ignorerc
-
-    localrc = ESMF_FAILURE
-
-    if (present (title)) then
-      print *, trim (title)
-    else
-      print *, "ESMF_UtilMapNamePrint:"
-    end if
-
-    if (this%this%ptr == 0) then
-      print *, " *** NULL MapName pointer ***"
-      if (present (rc))  &
-        rc = ESMF_SUCCESS
-      return
-    end if
-
-    call ESMF_UtilIOUnitFlush (ESMF_UtilIOstderr, rc=ignorerc)
-    call ESMF_UtilIOUnitFlush (ESMF_UtilIOstdout, rc=ignorerc)
-
-    if (present (title)) then
-      call c_esmc_mapname_print (this, trim (title), localrc)
-    else
-      call c_esmc_mapname_print (this, "ESMF_UtilMapNamePrint:", localrc)
-    end if
-
-    if (present (rc))  &
-      rc = localrc
-
-  end subroutine ESMF_UtilMapNamePrint
-
-!------------------------------------------------------------------------- 
-#undef  ESMF_METHOD
-#define ESMF_METHOD "ESMF_UtilMapNameRemove"
-!BOPI
-! !IROUTINE:  ESMF_UtilMapNameRemove - Remove a name/value pair
-!
-! !INTERFACE:
-  subroutine ESMF_UtilMapNameRemove (this, name, rc)
-!
-! !ARGUMENTS:
-    type(ESMF_MapPtr), intent(in) :: this
-    character(*),      intent(in) :: name
-    integer,           intent(out), optional :: rc
-!
-! !Description:
-! This method removes a name/value pair from a MapName container.
-!
-! The arguments are:
-! \begin{description}
-! \item [{[this]}]
-! A ESMF\_MapName object
-! \item [{[name]}]
-! A character string which will be the keyword used to identify the
-! pair within the container.
-! Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
-! \end{description}
-!EOPI
-
-    integer :: localrc
-
-    localrc = ESMF_FAILURE
-
-    if (this%this%ptr == 0) then
-      if (present (rc))  &
-        rc = ESMF_RC_PTR_NULL
-      return
-    end if
-
-    call c_esmc_mapname_remove (this, trim (name), localrc)
-
-    if (present (rc))  &
-      rc = localrc
-
-  end subroutine ESMF_UtilMapNameRemove
-
-!------------------------------------------------------------------------- 
-#undef  ESMF_METHOD
-#define ESMF_METHOD "ESMF_UtilMapNameSize"
-!BOPI
-! !IROUTINE:  ESMF_UtilMapNameSize - Return the size of the map
-!
-! !INTERFACE:
-  function ESMF_UtilMapNameSize (this, rc)
-!
-! !RETURN VALUE:
-    integer :: ESMF_UtilMapNameSize
-!
-! !ARGUMENTS:
-    type(ESMF_MapPtr), intent(in) :: this
-    integer,           intent(out), optional :: rc
-!
-! !Description:
-! This method returns the number of elements contained within
-! a MapName container.
-!
-! The arguments are:
-! \begin{description}
-! \item [{[this]}]
-! A ESMF\_MapName object
-! Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
-! \end{description}
-!EOPI
-
-    integer :: localrc
-
-    localrc = ESMF_FAILURE
-
-    if (this%this%ptr == 0) then
-      ESMF_UtilMapNameSize = 0
-      if (present (rc))  &
-        rc = ESMF_SUCCESS
-      return
-    end if
-
-    call c_esmc_mapname_sizeget (this, ESMF_UtilMapNameSize, localrc)
-
-    if (present (rc))  &
-      rc = localrc
-
-  end function ESMF_UtilMapNameSize
-
-!------------------------------------------------------------------------- 
 
 !------------------------------------------------------------------------- 
 ! Command line interfaces
@@ -934,7 +469,7 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 
       do, i1=0, nargs
         call ESMF_UtilGetArg (i1, argvalue=string, rc=localrc1)
-	if (ESMF_LogFoundError ( localrc1, ESMF_ERR_PASSTHRU,  &
+        if (ESMF_LogFoundError ( localrc1, ESMF_ERR_PASSTHRU,  &
             ESMF_CONTEXT, rcToReturn=rc1))  &
           return
         if (string == argvalue) exit
@@ -950,83 +485,395 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 
   end subroutine ESMF_UtilGetArgIndex
 
-!------------------------------------------------------------------------- 
+!-------------------------------------------------------------------------
 #undef  ESMF_METHOD
-#define ESMF_METHOD "ESMF_Array2String"
-!BOPI
-!  !IROUTINE:  ESMF_Array2String - convert character array to string
-!  
-! !INTERFACE: 
-      function ESMF_Array2String (charArray) 
+#define ESMF_METHOD "ESMF_UtilIOGetCWD"
+!BOP
+! !IROUTINE: ESMF_UtilIOGetCWD - Get the current directory
 !
-! !ARGUMENTS:
-      character(len=1), intent(in) :: charArray(:)
-
+! !INTERFACE:
+  subroutine ESMF_UtilIOGetCWD (pathName, keywordEnforcer, rc)
 !
-! !RETURN VALUE:
-      character(len=size (charArray)) :: ESMF_Array2String
-
+! !PARAMETERS:
+    character(*), intent(out)           :: pathName
+type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
+    integer,      intent(out), optional :: rc
 !
 ! !DESCRIPTION:
-!   Converts given an array of characters to a string.
+!   Call the system-dependent routine to get the current directory from the file
+!   system.
 !
 !     The arguments are:
 !     \begin{description}
-!     \item[charArray]
-!       An array of characters.
+!     \item[pathName]
+!       Name of the current working directory.
+!     \item[{[rc]}]
+!       Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
 !     \end{description}
+!EOP
+
+    integer :: localrc
+
+    if (present(rc)) rc = ESMF_FAILURE
+
+    call c_esmc_getcwd (pathname, localrc)
+    if (ESMF_LogFoundError (localrc, ESMF_ERR_PASSTHRU,  &
+        ESMF_CONTEXT, rcToReturn=rc))  &
+      return
+
+    if (present (rc)) then
+      rc = localrc
+    end if
+
+  end subroutine ESMF_UtilIOGetCWD
+
+!-------------------------------------------------------------------------
+#undef  ESMF_METHOD
+#define ESMF_METHOD "ESMF_UtilIOMkDir"
+!BOP
+! !IROUTINE: ESMF_UtilIOMkDir - Create a directory in the file system
 !
+! !INTERFACE:
+!  subroutine ESMF_UtilIOMkDir (pathName, keywordEnforcer,  &
+!      mode, relaxedFlag,  &
+!      rc)
 !
+! !PARAMETERS:
+!    character(*), intent(in)            :: pathName
+!type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
+!    integer,      intent(in),  optional :: mode
+!    logical,      intent(in),  optional :: relaxedFlag
+!    integer,      intent(out), optional :: rc
+!
+! !DESCRIPTION:
+!   Call the system-dependent routine to create a directory in the file system.
+!
+!     The arguments are:
+!     \begin{description}
+!     \item[pathName]
+!       Name of the directory to be created.
+!     \item[{[mode]}]
+!       File permission mode.  Typically an octal constant is used as a value, for example:
+!       {\tt mode=o'755'}.  If not specified on POSIX-compliant systems, the default
+!       is {\tt o'755'} - corresponding to owner read/write/execute,
+!       group read/execute, and world read/execute.  On native Windows, this argument is
+!       ignored and default security settings are used.
+!     \item[{[relaxedFlag]}]
+!       When set to {\tt .true.}, if the directory already exists, {\tt rc}
+!       will be set to {\tt ESMF\_SUCCESS} instead of an error.
+!       If not specified, the default is {\tt .false.}.
+!     \item[{[rc]}]
+!       Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
+!     \end{description}
+!EOP
+!TODO: Review and implement parentsFlag for future release.
+!BOPI
+! !IROUTINE: ESMF_UtilIOMkDir - Create a directory in the file system
+!
+! !INTERFACE:
+  subroutine ESMF_UtilIOMkDir (pathName, keywordEnforcer,  &
+      mode, parentsFlag, relaxedFlag,  &
+      rc)
+!
+! !PARAMETERS:
+    character(*), intent(in)            :: pathName
+type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
+    integer,      intent(in),  optional :: mode
+    logical,      intent(in),  optional :: parentsFlag
+    logical,      intent(in),  optional :: relaxedFlag
+    integer,      intent(out), optional :: rc
+!
+! !DESCRIPTION:
+!   Call the system-dependent routine to create a directory in the file system.
+!
+!     The arguments are:
+!     \begin{description}
+!     \item[pathName]
+!       Name of the directory to be created.
+!     \item[{[mode]}]
+!       File permission mode.  If not specified on POSIX-compliant systems,
+!       the default is {\tt o'755'}.  On native Windows, this argument is
+!       ignored and default security settings are used.
+!     \item[{[parentsFlag]}]
+!       When set to {\tt .true.}, create parent directories as needed.
+!       If not specified, the default is {\tt .false.}.
+!     \item[{[relaxedFlag]}]
+!       When set to {\tt .true.}, if the directory already exists, {\tt rc}
+!       will be set to {\tt ESMF\_SUCCESS} instead of an error.
+!       If not specified, the default is {\tt .false.}.
+!     \item[{[rc]}]
+!       Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
+!     \end{description}
 !EOPI
 
-      ESMF_Array2String = transfer (charArray, mold=ESMF_Array2String)
+    integer :: mode_local
+    type(ESMF_Logical) :: pflag, rflag  
+    integer :: localrc
 
-      end function ESMF_Array2String
+    integer :: mode_default
+    data mode_default/o'755'/
+
+    if (present(rc)) rc = ESMF_FAILURE
+
+    mode_local = mode_default
+    if (present (mode)) mode_local = mode
+
+    pflag = .false.
+    if (present (parentsFlag)) pflag = parentsFlag
+    if (pflag == ESMF_TRUE) then
+      if (ESMF_LogFoundError (ESMF_RC_NOT_IMPL, ESMF_ERR_PASSTHRU,  &
+        ESMF_CONTEXT, rcToReturn=rc))  &
+      return
+    end if
+
+    rflag = .false.
+    if (present (relaxedFlag)) rflag = relaxedFlag
+
+    call c_esmc_makedirectory (pathname, mode_local, rflag, localrc)
+    if (ESMF_LogFoundError (localrc, ESMF_ERR_PASSTHRU,  &
+        ESMF_CONTEXT, rcToReturn=rc))  &
+      return
+
+    if (present (rc)) then
+      rc = localrc
+    end if
+
+  end subroutine ESMF_UtilIOMkDir
+
+!-------------------------------------------------------------------------
+#undef  ESMF_METHOD
+#define ESMF_METHOD "ESMF_UtilIORmDir"
+!BOP
+! !IROUTINE: ESMF_UtilIORmDir - Remove a directory from the file system
+!
+! !INTERFACE:
+!  subroutine ESMF_UtilIORmDir (pathName, keywordEnforcer,  &
+!      relaxedFlag, rc)
+!
+! !PARAMETERS:
+!    character(*), intent(in)            :: pathName
+!type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
+!    logical,      intent(in),  optional :: relaxedFlag
+!    integer,      intent(out), optional :: rc
+!
+! !DESCRIPTION:
+!   Call the system-dependent routine to remove a directory from the file
+!   system.  Note that the directory must be empty in order to be successfully
+!   removed.
+!
+!     The arguments are:
+!     \begin{description}
+!     \item[pathName]
+!       Name of the directory to be removed.
+!     \item[{[relaxedFlag]}]
+!       If set to {\tt .true.}, and if the specified directory does not exist,
+!       the error is ignored and {\tt rc} will be set to {\tt ESMF\_SUCCESS}.
+!       If not specified, the default is {\tt .false.}.
+!     \item[{[rc]}]
+!       Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
+!     \end{description}
+!EOP
+!TODO: Review and implement filesFlag for future release.
+!BOPI
+! !IROUTINE: ESMF_UtilIORmDir - Remove a directory from the file system
+!
+! !INTERFACE:
+  subroutine ESMF_UtilIORmDir (pathName, keywordEnforcer,  &
+      filesFlag, relaxedFlag, rc)
+!
+! !PARAMETERS:
+    character(*), intent(in)            :: pathName
+type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
+    logical,      intent(in),  optional :: filesFlag
+    logical,      intent(in),  optional :: relaxedFlag
+    integer,      intent(out), optional :: rc
+!
+! !DESCRIPTION:
+!   Call the system-dependent routine to remove a directory from the file
+!   system.  Note that the directory must be empty in order to be successfully
+!   removed.
+!
+!     The arguments are:
+!     \begin{description}
+!     \item[pathName]
+!       Name of the directory to be removed.
+!     \item[{[filesFlag]}]
+!       When set to {\tt .true.}, remove the directory, including any contained
+!       files.  Contained directories are not removed.  If not specified,
+!       the default is {\tt .false.}.
+!     \item[{[relaxedFlag]}]
+!       If set to {\tt .true.}, and if the specified directory does not exist,
+!       the error is ignored and {\tt rc} will be set to {\tt ESMF\_SUCCESS}.
+!       If not specified, the default is {\tt .false.}.
+!     \item[{[rc]}]
+!       Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
+!     \end{description}
+!EOPI
+
+    integer :: localrc
+    type(ESMF_Logical) :: fflag  
+    type(ESMF_Logical) :: rflag  
+
+    if (present(rc)) rc = ESMF_FAILURE
+
+    fflag = .false.
+    if (present (filesFlag)) fflag = filesFlag
+    if (fflag == ESMF_TRUE) then
+      if (ESMF_LogFoundError (ESMF_RC_NOT_IMPL, ESMF_ERR_PASSTHRU,  &
+        ESMF_CONTEXT, rcToReturn=rc))  &
+      return
+    end if
+
+    rflag = .false.
+    if (present (relaxedFlag)) rflag = relaxedFlag
+
+    call c_esmc_removedirectory (pathname, rflag, localrc)
+    if (ESMF_LogFoundError (localrc, ESMF_ERR_PASSTHRU,  &
+        ESMF_CONTEXT, rcToReturn=rc))  &
+      return
+
+    if (present (rc)) then
+      rc = localrc
+    end if
+
+  end subroutine ESMF_UtilIORmDir
+
 
 !------------------------------------------------------------------------- 
+!------------------------------------------------------------------------- 
+! misc string routines
+!------------------------------------------------------------------------- 
+!------------------------------------------------------------------------- 
+!BOP
+! !IROUTINE: ESMF_UtilString2Int - Convert a string to an integer
+! !INTERFACE:
+  function ESMF_UtilString2Int(string, keywordEnforcer,  &
+      specialStringList, specialValueList, rc)
+! !RETURN VALUE:
+    integer :: ESMF_UtilString2Int
+! !ARGUMENTS:
+    character(len=*), intent(in)            :: string
+type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
+    character(len=*), intent(in),  optional :: specialStringList(:)
+    integer,          intent(in),  optional :: specialValueList(:)
+    integer,          intent(out), optional :: rc
+! !DESCRIPTION:
+!   Return the numerical integer value represented by the {\tt string}.
+!   If {\tt string} matches a string in the optional {\tt specialStringList}, the
+!   corresponding special value will be returned instead.
+!
+!   If special strings are to be taken into account, both 
+!   {\tt specialStringList} and {\tt specialValueList} arguments must be
+!   present and of same size.
+!   
+!   An error is returned, and return value set to 0, if {\tt string} is not
+!   found in {\tt specialStringList}, and does not convert into an integer
+!   value.
+!
+!   Leading and trailing blanks in {\tt string} are ignored when directly
+!   converting into integers.
+!
+!   This procedure may fail when used in an expression in a {\tt write} statement
+!   with some older, pre-Fortran 2003, compiler environments that do not support
+!   re-entrant I/O calls.
+!
+!   The arguments are:
+!   \begin{description}
+!   \item[string]
+!     The string to be converted
+!   \item[{[specialStringList]}]
+!     List of special strings.
+!   \item[{[specialValueList]}]
+!     List of values associated with special strings.
+!   \item[{[rc]}]
+!     Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
+!   \end{description}
+!
+!EOPI
+  !-----------------------------------------------------------------------------
+    ! local variables
+    logical                 :: ssL, svL
+    integer                 :: i
+    integer                 :: ioerr
+    
+    if (present(rc)) rc = ESMF_SUCCESS
+    
+    ESMF_UtilString2Int = 0 ! initialize
+    
+    ! checking consistency of inputs provided
+    ssL = present(specialStringList)
+    svL = present(specialValueList)
+    
+    if (ssL.neqv.svL) then
+      call ESMF_LogSetError(ESMF_RC_ARG_BAD, &
+        msg="Both specialStringList and specialValueList must either be "// &
+        "present or absent.", &
+        line=__LINE__, &
+        file=ESMF_FILENAME, &
+        rcToReturn=rc)
+      return ! bail out
+    endif
+    
+    if (ssL) then
+      ! special strings and values present
+      if (size(specialStringList) /= size(specialValueList)) then
+        call ESMF_LogSetError(ESMF_RC_ARG_BAD, &
+          msg="Both specialStringList and specialValueList must have "// &
+          "the same number of elements.", &
+          line=__LINE__, &
+          file=ESMF_FILENAME, &
+          rcToReturn=rc)
+        return ! bail out
+      endif
+      do i=1, size(specialStringList)
+        if (trim(string)==trim(specialStringList(i))) then
+          ! found a matching special string
+          ESMF_UtilString2Int = specialValueList(i)
+          return ! successful early return
+        endif
+      enddo
+    endif
+    
+    if (verify(trim(adjustl(string)),"-+0123456789") == 0) then
+      ! should convert to integer just fine
+      read (string, "(i12)", iostat=ioerr) ESMF_UtilString2Int
+      if (ioerr /= 0) then
+        call ESMF_LogSetError(ESMF_RC_ARG_BAD, &
+            msg="The string '"//trim(string)//"' could not be converted to integer.", &
+            line=__LINE__, &
+            file=ESMF_FILENAME, &
+            rcToReturn=rc)
+        return ! bail out
+      end if
+    else
+      ! the string contains characters besides numbers
+      call ESMF_LogSetError(ESMF_RC_ARG_BAD, &
+        msg="The string '"//trim(string)//"' contains characters besides "// &
+          "numbers, cannot convert to integer.", &
+        line=__LINE__, &
+        file=ESMF_FILENAME, &
+        rcToReturn=rc)
+      return ! bail out
+    endif
+    
+  end function ESMF_UtilString2Int
+  !-----------------------------------------------------------------------------
+
+
 #undef  ESMF_METHOD
-#define ESMF_METHOD "ESMF_String2Array"
-!BOPI
-!  !IROUTINE:  ESMF_String2Array - convert character string to array
+#define ESMF_METHOD "ESMF_UtilStringLowerCase"
+!BOP
+!  !IROUTINE:  ESMF_UtilStringLowerCase - convert string to lowercase
 !  
 ! !INTERFACE: 
-      function ESMF_String2Array (string) 
+    function ESMF_UtilStringLowerCase(string, keywordEnforcer, rc) 
 !
 ! !ARGUMENTS:
       character(len=*), intent(in) :: string
-!
-! !RETURN VALUE:
-      character(len=1) :: ESMF_String2Array(len (string))
-
-!
-! !DESCRIPTION:
-!   Converts given a string to an array of characters.
-!
-!     The arguments are:
-!     \begin{description}
-!     \item[string]
-!       A character string.
-!     \end{description}
-!
-!
-!EOPI
-
-      ESMF_String2Array = transfer (string, mold=ESMF_String2Array)
-
-      end function ESMF_String2Array
-
-!------------------------------------------------------------------------- 
-#undef  ESMF_METHOD
-#define ESMF_METHOD "ESMF_StringLowerCase"
-!BOPI
-!  !IROUTINE:  ESMF_StringLowerCase - convert string to lowercase
-!  
-! !INTERFACE: 
-      subroutine ESMF_StringLowerCase(string, rc) 
-!
-! !ARGUMENTS:
-      character(len=*), intent(inout) :: string
+type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
       integer, intent(out), optional  :: rc  
+! !RETURN VALUE:
+      character(len (string)) :: ESMF_UtilStringLowerCase
 
 !
 ! !DESCRIPTION:
@@ -1041,35 +888,39 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 !     \end{description}
 !
 !
-!EOPI
+!EOP
 
-      integer :: shift, i
+      integer :: i
       character(len=1) :: c
+      integer, parameter :: shift = ichar('a') - ichar('A')
 
-      shift = ichar('a') - ichar('A')
       do i = 1, len(string)
         c = string(i:i)
-        if(c .ge. 'A' .and. c .le. 'Z') then
-          string(i:i) = char(ichar(c) + shift)
+        if(c >= 'A' .and. c <= 'Z') then
+          c = char(ichar(c) + shift)
         endif
+        ESMF_UtilStringLowerCase(i:i) = c
       enddo
 
       if (present(rc)) rc = ESMF_SUCCESS
 
-      end subroutine ESMF_StringLowerCase
+      end function ESMF_UtilStringLowerCase
 
 !------------------------------------------------------------------------- 
 #undef  ESMF_METHOD
-#define ESMF_METHOD "ESMF_StringUpperCase"
-!BOPI
-!  !IROUTINE:  ESMF_StringUpperCase - convert string to uppercase
+#define ESMF_METHOD "ESMF_UtilStringUpperCase"
+!BOP
+!  !IROUTINE:  ESMF_UtilStringUpperCase - convert string to uppercase
 !  
 ! !INTERFACE: 
-      subroutine ESMF_StringUpperCase(string, rc) 
+      function ESMF_UtilStringUpperCase(string, keywordEnforcer, rc) 
 !
 ! !ARGUMENTS:
-      character(len=*), intent(inout) :: string
+      character(len=*), intent(in) :: string
+type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
       integer, intent(out), optional  :: rc  
+! !RETURN VALUE:
+      character(len (string)) :: ESMF_UtilStringUpperCase
 
 !
 ! !DESCRIPTION:
@@ -1084,26 +935,28 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 !     \end{description}
 !
 !
-!EOPI
+!EOP
 
-      integer :: shift, i
+      integer :: i
       character(len=1) :: c
+      integer, parameter :: shift = ichar('a') - ichar('A')
 
-      shift = ichar('a') - ichar('A')
       do i = 1, len(string)
         c = string(i:i)
         if(c .ge. 'a' .and. c .le. 'z') then
-          string(i:i) = char(ichar(c) - shift)
+          c = char(ichar(c) - shift)
         endif
+        ESMF_UtilStringUpperCase(i:i) = c
       enddo
 
       if (present(rc)) rc = ESMF_SUCCESS
 
-      end subroutine ESMF_StringUpperCase
+      end function ESMF_UtilStringUpperCase
 
 !------------------------------------------------------------------------- 
 !------------------------------------------------------------------------- 
 ! misc print routines
+!------------------------------------------------------------------------- 
 !------------------------------------------------------------------------- 
 #undef  ESMF_METHOD
 #define ESMF_METHOD "ESMF_StatusString"

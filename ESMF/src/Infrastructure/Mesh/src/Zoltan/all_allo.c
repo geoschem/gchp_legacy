@@ -6,8 +6,8 @@
 /*****************************************************************************
  * CVS File Information :
  *    $RCSfile: all_allo.c,v $
- *    $Author: mathomp4 $
- *    $Date: 2013-01-11 20:23:44 $
+ *    $Author: dneckels $
+ *    $Date: 2007/11/28 16:13:44 $
  *    Revision: 1.38 $
  ****************************************************************************/
 
@@ -90,7 +90,7 @@ int Zoltan_Special_Malloc(ZZ *zz, void **array, int size,
                       ZOLTAN_SPECIAL_MALLOC_TYPE type)
 {
    int *ret_addr, success;
-   char *yo = "Zoltan_Special_Malloc";
+   const char *yo = "Zoltan_Special_Malloc";
 
    success = 1;
    if (zz->Fortran) {
@@ -180,7 +180,7 @@ int Zoltan_Special_Free(ZZ *zz, void **array,
                     ZOLTAN_SPECIAL_MALLOC_TYPE type)
 {
    int success;
-   char *yo = "Zoltan_Special_Free";
+   const char *yo = "Zoltan_Special_Free";
 
    success = 1;
    if (zz->Fortran) {

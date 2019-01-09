@@ -1,7 +1,7 @@
-! $Id: ESMF_DistGridCreateGetUTest.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
+! $Id$
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2012, University Corporation for Atmospheric Research,
+! Copyright 2002-2018, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -37,7 +37,7 @@ program ESMF_DistGridCreateGetUTest
 !------------------------------------------------------------------------------
 ! The following line turns the CVS identifier string into a printable variable.
   character(*), parameter :: version = &
-    '$Id: ESMF_DistGridCreateGetUTest.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $'
+    '$Id$'
 !------------------------------------------------------------------------------
 
   ! cumulative result: count failures; no failures equals "all pass"
@@ -52,11 +52,12 @@ program ESMF_DistGridCreateGetUTest
 
   !LOCAL VARIABLES:
   type(ESMF_VM):: vm
-  integer:: petCount, localPet, i, localDeCount
-  type(ESMF_DistGrid):: distgrid, distgrid2, distgrid3, distgridAlias
+  integer:: petCount, localPet, i, j, localDeCount
+  type(ESMF_DistGrid):: distgrid, distgrid2, distgrid3, distgrid4, distgridAlias
   type(ESMF_DELayout):: delayout
   integer:: dimCount, tileCount, deCount
   logical:: regDecompFlag
+  logical:: isCreated
   integer:: elementCount, localStart
   integer, allocatable:: elementCountPTile(:), deToTileMap(:), elementCountPDe(:)
   integer, allocatable:: minIndexPTile(:,:), maxIndexPTile(:,:)
@@ -66,10 +67,14 @@ program ESMF_DistGridCreateGetUTest
   integer, allocatable:: deBlockList(:,:,:)
   integer, allocatable:: arbSeqIndexList(:)
   integer, allocatable:: collocation(:)
+  integer, allocatable:: positionVector(:), orientationVector(:)
+  type(ESMF_PtrInt1D), allocatable :: arbSeqIndexL(:)
   logical:: loopResult
   type(ESMF_DistGridMatch_Flag):: matchResult
   logical:: arbSeqIndexFlag
   logical:: distgridBool
+  integer:: connectionCount
+  type(ESMF_DistGridConnection), allocatable:: connectionList(:)
 
 
   character, allocatable :: buffer(:)
@@ -88,6 +93,7 @@ program ESMF_DistGridCreateGetUTest
 
   !------------------------------------------------------------------------
   call ESMF_TestStart(ESMF_SRCLINE, rc=rc)  ! calls ESMF_Initialize() internally
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   !------------------------------------------------------------------------
   
   !------------------------------------------------------------------------
@@ -98,21 +104,85 @@ program ESMF_DistGridCreateGetUTest
   if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   
   !------------------------------------------------------------------------
-  !NEX_UTest
+  !NEX_UTest_Multi_Proc_Only
+  write(name, *) "Testing DistGrid IsCreated for uncreated object"
+  write(failMsg, *) "Did not return .false."
+  isCreated = ESMF_DistGridIsCreated(distgrid)
+  call ESMF_Test((isCreated .eqv. .false.), name, failMsg, result, ESMF_SRCLINE)
+  !------------------------------------------------------------------------
+
+  !------------------------------------------------------------------------
+  !NEX_UTest_Multi_Proc_Only
+  write(name, *) "Testing DistGrid IsCreated for uncreated object"
+  write(failMsg, *) "Did not return ESMF_SUCCESS"
+  isCreated = ESMF_DistGridIsCreated(distgrid, rc=rc)
+  call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+  !------------------------------------------------------------------------
+
+  !------------------------------------------------------------------------
+  !NEX_UTest_Multi_Proc_Only
+  write(name, *) "Create test DistGrid for IsCreated"
+  write(failMsg, *) "Did not return ESMF_SUCCESS"
+  distgrid = ESMF_DistGridCreate(minIndex=(/1/), maxIndex=(/1000/), rc=rc)
+  call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+  !------------------------------------------------------------------------
+
+  !------------------------------------------------------------------------
+  !NEX_UTest_Multi_Proc_Only
+  write(name, *) "Testing DistGrid IsCreated for created object"
+  write(failMsg, *) "Did not return .true."
+  isCreated = ESMF_DistGridIsCreated(distgrid)
+  call ESMF_Test((isCreated .eqv. .true.), name, failMsg, result, ESMF_SRCLINE)
+  !------------------------------------------------------------------------
+
+  !------------------------------------------------------------------------
+  !NEX_UTest_Multi_Proc_Only
+  write(name, *) "Testing DistGrid IsCreated for created object"
+  write(failMsg, *) "Did not return ESMF_SUCCESS"
+  isCreated = ESMF_DistGridIsCreated(distgrid, rc=rc)
+  call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+  !------------------------------------------------------------------------
+
+  !------------------------------------------------------------------------
+  !NEX_UTest_Multi_Proc_Only
+  write(name, *) "Destroy test DistGrid for IsCreated"
+  write(failMsg, *) "Did not return ESMF_SUCCESS"
+  call ESMF_DistGridDestroy(distgrid, rc=rc)
+  call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+  !------------------------------------------------------------------------
+
+  !------------------------------------------------------------------------
+  !NEX_UTest_Multi_Proc_Only
+  write(name, *) "Testing DistGrid IsCreated for destroyed object"
+  write(failMsg, *) "Did not return .false."
+  isCreated = ESMF_DistGridIsCreated(distgrid)
+  call ESMF_Test((isCreated .eqv. .false.), name, failMsg, result, ESMF_SRCLINE)
+  !------------------------------------------------------------------------
+
+  !------------------------------------------------------------------------
+  !NEX_UTest_Multi_Proc_Only
+  write(name, *) "Testing DistGrid IsCreated for destroyed object"
+  write(failMsg, *) "Did not return ESMF_SUCCESS"
+  isCreated = ESMF_DistGridIsCreated(distgrid, rc=rc)
+  call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+  !------------------------------------------------------------------------
+
+  !------------------------------------------------------------------------
+  !NEX_UTest_Multi_Proc_Only
   write(name, *) "DistGridCreate() - 1D Single Tile Default"
   write(failMsg, *) "Did not return ESMF_SUCCESS"
   distgrid = ESMF_DistGridCreate(minIndex=(/1/), maxIndex=(/1000/), rc=rc)
   call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
  
   !------------------------------------------------------------------------
-  !NEX_UTest
+  !NEX_UTest_Multi_Proc_Only
   write(name, *) "DistGrid equality before assignment Test"
   write(failMsg, *) "Did not return ESMF_SUCCESS"
   distgridBool = (distgridAlias.eq.distgrid)
   call ESMF_Test(.not.distgridBool, name, failMsg, result, ESMF_SRCLINE)
   
   !------------------------------------------------------------------------
-  !NEX_UTest
+  !NEX_UTest_Multi_Proc_Only
   ! Testing ESMF_DistGridAssignment(=)()
   write(name, *) "DistGrid assignment and equality Test"
   write(failMsg, *) "Did not return ESMF_SUCCESS"
@@ -121,14 +191,14 @@ program ESMF_DistGridCreateGetUTest
   call ESMF_Test(distgridBool, name, failMsg, result, ESMF_SRCLINE)
   
   !------------------------------------------------------------------------
-  !NEX_UTest
+  !NEX_UTest_Multi_Proc_Only
   write(name, *) "DistGridDestroy Test"
   write(failMsg, *) "Did not return ESMF_SUCCESS"
   call ESMF_DistGridDestroy(distgrid, rc=rc)
   call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
   
   !------------------------------------------------------------------------
-  !NEX_UTest
+  !NEX_UTest_Multi_Proc_Only
   ! Testing ESMF_DistGridOperator(==)()
   write(name, *) "DistGrid equality after destroy Test"
   write(failMsg, *) "Did not return ESMF_SUCCESS"
@@ -136,7 +206,7 @@ program ESMF_DistGridCreateGetUTest
   call ESMF_Test(.not.distgridBool, name, failMsg, result, ESMF_SRCLINE)
   
   !------------------------------------------------------------------------
-  !NEX_UTest
+  !NEX_UTest_Multi_Proc_Only
   ! Testing ESMF_DistGridOperator(/=)()
   write(name, *) "DistGrid non-equality after destroy Test"
   write(failMsg, *) "Did not return ESMF_SUCCESS"
@@ -144,50 +214,57 @@ program ESMF_DistGridCreateGetUTest
   call ESMF_Test(distgridBool, name, failMsg, result, ESMF_SRCLINE)
   
   !------------------------------------------------------------------------
-  !NEX_UTest
+  !NEX_UTest_Multi_Proc_Only
   write(name, *) "Double DistGridDestroy through alias Test"
   write(failMsg, *) "Did not return ESMF_SUCCESS"
   call ESMF_DistGridDestroy(distgridAlias, rc=rc)
   call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
  
   !------------------------------------------------------------------------
-  !NEX_UTest
+  !NEX_UTest_Multi_Proc_Only
   write(name, *) "DistGridCreate() - 1D Single Tile Default"
   write(failMsg, *) "Did not return ESMF_SUCCESS"
   distgrid = ESMF_DistGridCreate(minIndex=(/1/), maxIndex=(/1000/), rc=rc)
   call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
  
   !------------------------------------------------------------------------
-  !NEX_UTest
-  write(name, *) "DistGridGet() - dimCount, tileCount, regDecompFlag, DELayout"
+  !NEX_UTest_Multi_Proc_Only
+  write(name, *) "DistGridGet() - dimCount, tileCount, deCount, regDecompFlag, DELayout"
   write(failMsg, *) "Did not return ESMF_SUCCESS"
   call ESMF_DistGridGet(distgrid, dimCount=dimCount, tileCount=tileCount, &
-    regDecompFlag=regDecompFlag, delayout=delayout, rc=rc)
+    deCount=deCount, regDecompFlag=regDecompFlag, delayout=delayout, rc=rc)
   call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
   
   !------------------------------------------------------------------------
-  !NEX_UTest
+  !NEX_UTest_Multi_Proc_Only
   write(name, *) "Verify dimCount"
   write(failMsg, *) "Wrong result"
   call ESMF_Test((dimCount == 1), &
     name, failMsg, result, ESMF_SRCLINE)
     
   !------------------------------------------------------------------------
-  !NEX_UTest
+  !NEX_UTest_Multi_Proc_Only
   write(name, *) "Verify tileCount"
   write(failMsg, *) "Wrong result"
   call ESMF_Test((tileCount == 1), &
     name, failMsg, result, ESMF_SRCLINE)
     
   !------------------------------------------------------------------------
-  !NEX_UTest
+  !NEX_UTest_Multi_Proc_Only
+  write(name, *) "Verify deCount"
+  write(failMsg, *) "Wrong result"
+  call ESMF_Test((deCount == petCount), &
+    name, failMsg, result, ESMF_SRCLINE)
+    
+  !------------------------------------------------------------------------
+  !NEX_UTest_Multi_Proc_Only
   write(name, *) "Verify regDecompFlag"
   write(failMsg, *) "Wrong result"
   call ESMF_Test(regDecompFlag, &
     name, failMsg, result, ESMF_SRCLINE)
     
   !------------------------------------------------------------------------
-  !NEX_UTest
+  !NEX_UTest_Multi_Proc_Only
   write(name, *) "DELayoutGet() - deCount, localDeCount"
   write(failMsg, *) "Did not return ESMF_SUCCESS"
   call ESMF_DELayoutGet(delayout, deCount=deCount, localDeCount=localDeCount, &
@@ -195,21 +272,21 @@ program ESMF_DistGridCreateGetUTest
   call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
   
   !------------------------------------------------------------------------
-  !NEX_UTest
+  !NEX_UTest_Multi_Proc_Only
   write(name, *) "Verify deCount"
   write(failMsg, *) "Wrong result"
   call ESMF_Test((deCount == petCount), &
     name, failMsg, result, ESMF_SRCLINE)
 
   !------------------------------------------------------------------------
-  !NEX_UTest
+  !NEX_UTest_Multi_Proc_Only
   write(name, *) "Verify localDeCount"
   write(failMsg, *) "Wrong result"
   call ESMF_Test((localDeCount == 1), &
     name, failMsg, result, ESMF_SRCLINE)
 
   !------------------------------------------------------------------------
-  !NEX_UTest
+  !NEX_UTest_Multi_Proc_Only
   write(name, *) "DistGridGet() - minIndexPTile(:,:)"
   write(failMsg, *) "Did not return ESMF_SUCCESS"
   allocate(minIndexPTile(dimCount,tileCount))
@@ -217,7 +294,7 @@ program ESMF_DistGridCreateGetUTest
   call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
   
   !------------------------------------------------------------------------
-  !NEX_UTest
+  !NEX_UTest_Multi_Proc_Only
   write(name, *) "Verify minIndexPTile(:,:)"
   write(failMsg, *) "Wrong result"
   call ESMF_Test((minIndexPTile(1,1) == 1), &
@@ -225,7 +302,7 @@ program ESMF_DistGridCreateGetUTest
   deallocate(minIndexPTile)
 
   !------------------------------------------------------------------------
-  !NEX_UTest
+  !NEX_UTest_Multi_Proc_Only
   write(name, *) "DistGridGet() - maxIndexPTile(:,:)"
   write(failMsg, *) "Did not return ESMF_SUCCESS"
   allocate(maxIndexPTile(dimCount,tileCount))
@@ -233,7 +310,7 @@ program ESMF_DistGridCreateGetUTest
   call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
   
   !------------------------------------------------------------------------
-  !NEX_UTest
+  !NEX_UTest_Multi_Proc_Only
   write(name, *) "Verify maxIndexPTile(:,:)"
   write(failMsg, *) "Wrong result"
   call ESMF_Test((maxIndexPTile(1,1) == 1000), &
@@ -241,7 +318,7 @@ program ESMF_DistGridCreateGetUTest
   deallocate(maxIndexPTile)
 
   !------------------------------------------------------------------------
-  !NEX_UTest
+  !NEX_UTest_Multi_Proc_Only
   write(name, *) "DistGridGet() - elementCountPTile(:)"
   write(failMsg, *) "Did not return ESMF_SUCCESS"
   allocate(elementCountPTile(tileCount))
@@ -249,7 +326,7 @@ program ESMF_DistGridCreateGetUTest
   call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
   
   !------------------------------------------------------------------------
-  !NEX_UTest
+  !NEX_UTest_Multi_Proc_Only
   write(name, *) "Verify elementCountPTile(:)"
   write(failMsg, *) "Wrong result"
   call ESMF_Test((elementCountPTile(1) == 1000), &
@@ -257,7 +334,7 @@ program ESMF_DistGridCreateGetUTest
   deallocate(elementCountPTile)
 
   !------------------------------------------------------------------------
-  !NEX_UTest
+  !NEX_UTest_Multi_Proc_Only
   write(name, *) "DistGridGet() - minIndexPDe(:,:)"
   write(failMsg, *) "Did not return ESMF_SUCCESS"
   allocate(minIndexPDe(dimCount,deCount))
@@ -265,7 +342,7 @@ program ESMF_DistGridCreateGetUTest
   call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
   
   !------------------------------------------------------------------------
-  !NEX_UTest
+  !NEX_UTest_Multi_Proc_Only
   write(name, *) "Verify minIndexPDe(:,:)"
   write(failMsg, *) "Wrong result"
   call ESMF_Test((minIndexPDe(1,1) == 1), &
@@ -273,7 +350,7 @@ program ESMF_DistGridCreateGetUTest
   deallocate(minIndexPDe)
 
   !------------------------------------------------------------------------
-  !NEX_UTest
+  !NEX_UTest_Multi_Proc_Only
   write(name, *) "DistGridGet() - maxIndexPDe(:,:)"
   write(failMsg, *) "Did not return ESMF_SUCCESS"
   allocate(maxIndexPDe(dimCount,deCount))
@@ -281,7 +358,7 @@ program ESMF_DistGridCreateGetUTest
   call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
   
   !------------------------------------------------------------------------
-  !NEX_UTest
+  !NEX_UTest_Multi_Proc_Only
   write(name, *) "Verify maxIndexPDe(:,:)"
   write(failMsg, *) "Wrong result"
   call ESMF_Test((maxIndexPDe(1,deCount) == 1000), &
@@ -289,7 +366,7 @@ program ESMF_DistGridCreateGetUTest
   deallocate(maxIndexPDe)
 
   !------------------------------------------------------------------------
-  !NEX_UTest
+  !NEX_UTest_Multi_Proc_Only
   write(name, *) "DistGridGet() - elementCountPDe(:)"
   write(failMsg, *) "Did not return ESMF_SUCCESS"
   allocate(elementCountPDe(0:deCount-1))
@@ -297,7 +374,7 @@ program ESMF_DistGridCreateGetUTest
   call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
 
   !------------------------------------------------------------------------
-  !NEX_UTest
+  !NEX_UTest_Multi_Proc_Only
   write(name, *) "Verify elementCountPDe(:)"
   write(failMsg, *) "Wrong result"
   loopResult = .true.
@@ -310,7 +387,7 @@ program ESMF_DistGridCreateGetUTest
     name, failMsg, result, ESMF_SRCLINE)
 
   !------------------------------------------------------------------------
-  !NEX_UTest
+  !NEX_UTest_Multi_Proc_Only
   write(name, *) "DistGridGet() - deToTileMap(:)"
   write(failMsg, *) "Did not return ESMF_SUCCESS"
   allocate(deToTileMap(0:deCount-1))
@@ -318,7 +395,7 @@ program ESMF_DistGridCreateGetUTest
   call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
   
   !------------------------------------------------------------------------
-  !NEX_UTest
+  !NEX_UTest_Multi_Proc_Only
   write(name, *) "Verify deToTileMap(:)"
   write(failMsg, *) "Wrong result"
   loopResult = .true.
@@ -330,7 +407,7 @@ program ESMF_DistGridCreateGetUTest
   deallocate(deToTileMap)
 
   !------------------------------------------------------------------------
-  !NEX_UTest
+  !NEX_UTest_Multi_Proc_Only
   write(name, *) "DistGridGet() - indexCountPDe(:,:)"
   write(failMsg, *) "Did not return ESMF_SUCCESS"
   allocate(indexCountPDe(dimCount,0:deCount-1))
@@ -338,7 +415,7 @@ program ESMF_DistGridCreateGetUTest
   call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
   
   !------------------------------------------------------------------------
-  !NEX_UTest
+  !NEX_UTest_Multi_Proc_Only
   write(name, *) "Verify indexCountPDe(:,:)"
   write(failMsg, *) "Wrong result"
   loopResult = .true.
@@ -351,7 +428,7 @@ program ESMF_DistGridCreateGetUTest
     name, failMsg, result, ESMF_SRCLINE)
     
   !------------------------------------------------------------------------
-  !NEX_UTest
+  !NEX_UTest_Multi_Proc_Only
   write(name, *) "DELayoutGet() - localDeToDeMap"
   write(failMsg, *) "Did not return ESMF_SUCCESS"
   allocate(localDeToDeMap(0:localDeCount-1))
@@ -359,14 +436,14 @@ program ESMF_DistGridCreateGetUTest
   call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
   
   !------------------------------------------------------------------------
-  !NEX_UTest
+  !NEX_UTest_Multi_Proc_Only
   write(name, *) "Verify localDeToDeMap"
   write(failMsg, *) "Wrong result"
   call ESMF_Test((localDeToDeMap(0) == localPet), &
     name, failMsg, result, ESMF_SRCLINE)
 
   !------------------------------------------------------------------------
-  !NEX_UTest
+  !NEX_UTest_Multi_Proc_Only
   write(name, *) "DistGridGet() - indexList(:)"
   write(failMsg, *) "Did not return ESMF_SUCCESS"
   allocate(indexList(indexCountPDe(1,localDeToDeMap(0))))
@@ -376,20 +453,21 @@ program ESMF_DistGridCreateGetUTest
   deallocate(indexCountPDe)
   
   !------------------------------------------------------------------------
-  !NEX_UTest
+  !NEX_UTest_Multi_Proc_Only
   write(name, *) "DistGridGet() - elementCount"
   write(failMsg, *) "Did not return ESMF_SUCCESS"
   call ESMF_DistGridGet(distgrid, localDe=0, elementCount=elementCount, rc=rc)
   call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
     
   !------------------------------------------------------------------------
-  !NEX_UTest
+  !NEX_UTest_Multi_Proc_Only
   write(name, *) "verify elementCount"
   write(failMsg, *) "Did not match"
-  call ESMF_Test((elementCount.eq.elementCountPDe(localDeToDeMap(0))), name, failMsg, result, ESMF_SRCLINE)
+  call ESMF_Test((elementCount.eq.elementCountPDe(localDeToDeMap(0))),  &
+      name, failMsg, result, ESMF_SRCLINE)
     
   !------------------------------------------------------------------------
-  !NEX_UTest
+  !NEX_UTest_Multi_Proc_Only
   write(name, *) "DistGridGet() - seqIndexList(:)"
   write(failMsg, *) "Did not return ESMF_SUCCESS"
   allocate(seqIndexList(elementCountPDe(localDeToDeMap(0))))
@@ -397,7 +475,7 @@ program ESMF_DistGridCreateGetUTest
   call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
     
   !------------------------------------------------------------------------
-  !NEX_UTest
+  !NEX_UTest_Multi_Proc_Only
   write(name, *) "Verify seqIndexList(:)"
   write(failMsg, *) "Wrong result"
   loopResult = .true.
@@ -412,33 +490,56 @@ program ESMF_DistGridCreateGetUTest
   deallocate(localDeToDeMap)
 
   !------------------------------------------------------------------------
-  !NEX_UTest
+  !NEX_UTest_Multi_Proc_Only
+  write(name, *) "DistGridGet() - connectionCount"
+  write(failMsg, *) "Did not return ESMF_SUCCESS"
+  call ESMF_DistGridGet(distgrid, connectionCount=connectionCount, rc=rc)
+  call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+    
+  !------------------------------------------------------------------------
+  !NEX_UTest_Multi_Proc_Only
+  write(name, *) "verify connectionCount"
+  write(failMsg, *) "Did not match"
+  call ESMF_Test((connectionCount == 0), &
+    name, failMsg, result, ESMF_SRCLINE)
+    
+  !------------------------------------------------------------------------
+  !NEX_UTest_Multi_Proc_Only
+  write(name, *) "DistGridGet() - connectionList"
+  write(failMsg, *) "Did not return ESMF_SUCCESS"
+  allocate(connectionList(connectionCount))
+  call ESMF_DistGridGet(distgrid, connectionList=connectionList, rc=rc)
+  call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+  deallocate(connectionList)
+  
+  !------------------------------------------------------------------------
+  !NEX_UTest_Multi_Proc_Only
   write(name, *) "DistGridMatch() - identical DistGrids"
   write(failMsg, *) "Did not return ESMF_SUCCESS"
   matchResult = ESMF_DistGridMatch(distgrid, distgrid, rc=rc)
   call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
   
   !------------------------------------------------------------------------
-  !NEX_UTest
+  !NEX_UTest_Multi_Proc_Only
   write(name, *) "DistGridMatch() - identical DistGrids - matchResult"
   write(failMsg, *) "matchResult not ESMF_DISTGRIDMATCH_ALIAS"
   call ESMF_Test(matchResult==ESMF_DISTGRIDMATCH_ALIAS, name, failMsg, result, ESMF_SRCLINE)
   
   !------------------------------------------------------------------------
-  !NEX_UTest
+  !NEX_UTest_Multi_Proc_Only
   write(name, *) "DistGridMatch() - invalid DistGrid object"
   write(failMsg, *) "Did return ESMF_SUCCESS"
   matchResult = ESMF_DistGridMatch(distgrid, distgrid2, rc=rc)
   call ESMF_Test((rc.ne.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
   
   !------------------------------------------------------------------------
-  !NEX_UTest
+  !NEX_UTest_Multi_Proc_Only
   write(name, *) "DistGridMatch() - invalid DistGrid object - matchResult"
   write(failMsg, *) "matchResult not ESMF_DISTGRIDMATCH_INVALID"
   call ESMF_Test(matchResult==ESMF_DISTGRIDMATCH_INVALID, name, failMsg, result, ESMF_SRCLINE)
   
   !------------------------------------------------------------------------
-  !NEX_UTest
+  !NEX_UTest_Multi_Proc_Only
   write(name, *) "DistGridMatch() - identical DistGrid aliases"
   write(failMsg, *) "Did not return ESMF_SUCCESS"
   distgrid2 = distgrid
@@ -446,75 +547,75 @@ program ESMF_DistGridCreateGetUTest
   call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
   
   !------------------------------------------------------------------------
-  !NEX_UTest
+  !NEX_UTest_Multi_Proc_Only
   write(name, *) "DistGridMatch() - identical DistGrid aliases - matchResult"
   write(failMsg, *) "matchResult not ESMF_DISTGRIDMATCH_ALIAS"
   call ESMF_Test(matchResult==ESMF_DISTGRIDMATCH_ALIAS, name, failMsg, result, ESMF_SRCLINE)
   
   !------------------------------------------------------------------------
-  !NEX_UTest
+  !NEX_UTest_Multi_Proc_Only
   write(name, *) "DistGridCreate() - 1D Single Tile Default"
   write(failMsg, *) "Did not return ESMF_SUCCESS"
   distgrid2 = ESMF_DistGridCreate(minIndex=(/1/), maxIndex=(/1000/), rc=rc)
   call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
   
   !------------------------------------------------------------------------
-  !NEX_UTest
+  !NEX_UTest_Multi_Proc_Only
   write(name, *) "DistGridMatch() - different DistGrids that are exact match"
   write(failMsg, *) "Did not return ESMF_SUCCESS"
   matchResult = ESMF_DistGridMatch(distgrid, distgrid2, rc=rc)
   call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
   
   !------------------------------------------------------------------------
-  !NEX_UTest
+  !NEX_UTest_Multi_Proc_Only
   write(name, *) "DistGridMatch() - different DistGrids that are exact match - matchResult"
   write(failMsg, *) "matchResult not ESMF_DISTGRIDMATCH_EXACT"
   call ESMF_Test(matchResult==ESMF_DISTGRIDMATCH_EXACT, name, failMsg, result, ESMF_SRCLINE)
   
   !------------------------------------------------------------------------
-  !NEX_UTest
+  !NEX_UTest_Multi_Proc_Only
   write(name, *) "DistGridCreate() - from DistGrid (deep copy)"
   write(failMsg, *) "Did not return ESMF_SUCCESS"
   distgrid3 = ESMF_DistGridCreate(distgrid, rc=rc)
   call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
   
   !------------------------------------------------------------------------
-  !NEX_UTest
+  !NEX_UTest_Multi_Proc_Only
   write(name, *) "DistGridPrint()"
   write(failMsg, *) "Did not return ESMF_SUCCESS"
   call ESMF_DistGridPrint(distgrid3, rc=rc)
   call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
 
   !------------------------------------------------------------------------
-  !NEX_UTest
+  !NEX_UTest_Multi_Proc_Only
   write(name, *) "DistGridDestroy()"
   write(failMsg, *) "Did not return ESMF_SUCCESS"
   call ESMF_DistGridDestroy(distgrid3, rc=rc)
   call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
   
   !------------------------------------------------------------------------
-  !NEX_UTest
+  !NEX_UTest_Multi_Proc_Only
   write(name, *) "DistGridCreate() - from DistGrid re-created copy"
   write(failMsg, *) "Did not return ESMF_SUCCESS"
   distgrid3 = ESMF_DistGridCreate(distgrid, indexflag=ESMF_INDEX_DELOCAL, rc=rc)
   call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
   
   !------------------------------------------------------------------------
-  !NEX_UTest
+  !NEX_UTest_Multi_Proc_Only
   write(name, *) "DistGridPrint()"
   write(failMsg, *) "Did not return ESMF_SUCCESS"
   call ESMF_DistGridPrint(distgrid3, rc=rc)
   call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
 
   !------------------------------------------------------------------------
-  !NEX_UTest
+  !NEX_UTest_Multi_Proc_Only
   write(name, *) "DistGridDestroy()"
   write(failMsg, *) "Did not return ESMF_SUCCESS"
   call ESMF_DistGridDestroy(distgrid3, rc=rc)
   call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
   
   !------------------------------------------------------------------------
-  !NEX_UTest
+  !NEX_UTest_Multi_Proc_Only
   write(name, *) "DistGridCreate() - from DistGrid with extra edge elements"
   write(failMsg, *) "Did not return ESMF_SUCCESS"
   distgrid3 = ESMF_DistGridCreate(distgrid, firstExtra=(/1/), lastExtra=(/5/), &
@@ -522,83 +623,181 @@ program ESMF_DistGridCreateGetUTest
   call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
   
   !------------------------------------------------------------------------
-  !NEX_UTest
+  !NEX_UTest_Multi_Proc_Only
   write(name, *) "DistGridPrint()"
   write(failMsg, *) "Did not return ESMF_SUCCESS"
   call ESMF_DistGridPrint(distgrid3, rc=rc)
   call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
 
   !------------------------------------------------------------------------
-  !NEX_UTest
+  !NEX_UTest_Multi_Proc_Only
   write(name, *) "DistGridDestroy()"
   write(failMsg, *) "Did not return ESMF_SUCCESS"
   call ESMF_DistGridDestroy(distgrid3, rc=rc)
   call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
   
   !------------------------------------------------------------------------
-  !NEX_UTest
+  !NEX_UTest_Multi_Proc_Only
   write(name, *) "DistGridDestroy()"
   write(failMsg, *) "Did not return ESMF_SUCCESS"
   call ESMF_DistGridDestroy(distgrid2, rc=rc)
   call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
   
   !------------------------------------------------------------------------
-  !NEX_UTest
-  write(name, *) "DistGridCreate() - 1D Single Tile Default"
+  !NEX_UTest_Multi_Proc_Only
+  write(name, *) "ESMF_DistGridConnectionSet() - Set a single connection"
   write(failMsg, *) "Did not return ESMF_SUCCESS"
-  distgrid2 = ESMF_DistGridCreate(minIndex=(/0/), maxIndex=(/999/), rc=rc)
+  allocate(connectionList(1))
+  call ESMF_DistGridConnectionSet(connectionList(1), &
+    tileIndexA=1, tileIndexB=1, positionVector=(/1000/), rc=rc)
+  call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+
+  !------------------------------------------------------------------------
+  !NEX_UTest_Multi_Proc_Only
+  write(name, *) "ESMF_DistGridConnectionGet() - Get tileA, tileB, dimCount"
+  write(failMsg, *) "Did not return ESMF_SUCCESS"
+  call ESMF_DistGridConnectionGet(connectionList(1), &
+    tileIndexA=i, tileIndexB=j, dimCount=dimCount, rc=rc)
+  call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+
+  !------------------------------------------------------------------------
+  !NEX_UTest_Multi_Proc_Only
+  write(name, *) "ESMF_DistGridConnectionGet() - Validate tileA"
+  write(failMsg, *) "Wrong result"
+  call ESMF_Test((i.eq.1), name, failMsg, result, ESMF_SRCLINE)
+
+  !------------------------------------------------------------------------
+  !NEX_UTest_Multi_Proc_Only
+  write(name, *) "ESMF_DistGridConnectionGet() - Validate tileB"
+  write(failMsg, *) "Wrong result"
+  call ESMF_Test((j.eq.1), name, failMsg, result, ESMF_SRCLINE)
+
+  !------------------------------------------------------------------------
+  !NEX_UTest_Multi_Proc_Only
+  write(name, *) "ESMF_DistGridConnectionGet() - Validate dimCount"
+  write(failMsg, *) "Wrong result"
+  call ESMF_Test((dimCount.eq.1), name, failMsg, result, ESMF_SRCLINE)
+
+  !------------------------------------------------------------------------
+  !NEX_UTest_Multi_Proc_Only
+  write(name, *) "ESMF_DistGridConnectionGet() - Get position, orientation vectors"
+  write(failMsg, *) "Did not return ESMF_SUCCESS"
+  allocate(positionVector(1), orientationVector(1))
+  call ESMF_DistGridConnectionGet(connectionList(1), &
+    tileIndexA=i, tileIndexB=j, positionVector=positionVector, &
+    orientationVector=orientationVector, rc=rc)
+  call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+
+  !------------------------------------------------------------------------
+  !NEX_UTest_Multi_Proc_Only
+  write(name, *) "ESMF_DistGridConnectionGet() - Validate position vector"
+  write(failMsg, *) "Wrong result"
+  call ESMF_Test((positionVector(1).eq.1000), name, failMsg, result, ESMF_SRCLINE)
+  deallocate(positionVector)
+
+  !------------------------------------------------------------------------
+  !NEX_UTest_Multi_Proc_Only
+  write(name, *) "ESMF_DistGridConnectionGet() - Validate orientation vector"
+  write(failMsg, *) "Wrong result"
+  call ESMF_Test((orientationVector(1).eq.1), name, failMsg, result, ESMF_SRCLINE)
+  deallocate(orientationVector)
+
+  !------------------------------------------------------------------------
+  !NEX_UTest_Multi_Proc_Only
+  write(name, *) "DistGridConnectionPrint()"
+  write(failMsg, *) "Did not return ESMF_SUCCESS"
+  call ESMF_DistGridConnectionPrint(connectionList(1), rc=rc)
   call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
   
   !------------------------------------------------------------------------
-  !NEX_UTest
+  !NEX_UTest_Multi_Proc_Only
+  write(name, *) "DistGridCreate() - 1D Single Tile Default with connectionList"
+  write(failMsg, *) "Did not return ESMF_SUCCESS"
+  distgrid2 = ESMF_DistGridCreate(minIndex=(/0/), maxIndex=(/999/), &
+    connectionList=connectionList, rc=rc)
+  call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+  deallocate(connectionList)
+  
+  !------------------------------------------------------------------------
+  !NEX_UTest_Multi_Proc_Only
+  write(name, *) "DistGridGet() - connectionCount"
+  write(failMsg, *) "Did not return ESMF_SUCCESS"
+  call ESMF_DistGridGet(distgrid2, connectionCount=connectionCount, rc=rc)
+  call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+    
+  !------------------------------------------------------------------------
+  !NEX_UTest_Multi_Proc_Only
+  write(name, *) "verify connectionCount"
+  write(failMsg, *) "Did not match"
+  call ESMF_Test((connectionCount == 1), &
+    name, failMsg, result, ESMF_SRCLINE)
+    
+  !------------------------------------------------------------------------
+  !NEX_UTest_Multi_Proc_Only
+  write(name, *) "DistGridGet() - connectionList"
+  write(failMsg, *) "Did not return ESMF_SUCCESS"
+  allocate(connectionList(connectionCount))
+  call ESMF_DistGridGet(distgrid2, connectionList=connectionList, rc=rc)
+  call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+  
+  !------------------------------------------------------------------------
+  !NEX_UTest_Multi_Proc_Only
+  write(name, *) "DistGridConnectionPrint()"
+  write(failMsg, *) "Did not return ESMF_SUCCESS"
+  call ESMF_DistGridConnectionPrint(connectionList(1), rc=rc)
+  call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+  deallocate(connectionList)
+    
+  !------------------------------------------------------------------------
+  !NEX_UTest_Multi_Proc_Only
   write(name, *) "DistGridMatch() - different DistGrids"
   write(failMsg, *) "Did not return ESMF_SUCCESS"
   matchResult = ESMF_DistGridMatch(distgrid, distgrid2, rc=rc)
   call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
   
   !------------------------------------------------------------------------
-  !NEX_UTest
+  !NEX_UTest_Multi_Proc_Only
   write(name, *) "DistGridMatch() - different DistGrids - matchResult"
   write(failMsg, *) "matchResult not ESMF_DISTGRIDMATCH_NONE"
   call ESMF_Test(matchResult==ESMF_DISTGRIDMATCH_NONE, name, failMsg, result, ESMF_SRCLINE)
   
   !------------------------------------------------------------------------
-  !NEX_UTest
+  !NEX_UTest_Multi_Proc_Only
   write(name, *) "DistGridDestroy()"
   write(failMsg, *) "Did not return ESMF_SUCCESS"
   call ESMF_DistGridDestroy(distgrid, rc=rc)
   call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
   
   !------------------------------------------------------------------------
-  !NEX_UTest
+  !NEX_UTest_Multi_Proc_Only
   write(name, *) "DistGridDestroy()"
   write(failMsg, *) "Did not return ESMF_SUCCESS"
   call ESMF_DistGridDestroy(distgrid2, rc=rc)
   call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
   
   !------------------------------------------------------------------------
-  !NEX_UTest
+  !NEX_UTest_Multi_Proc_Only
   write(name, *) "DistGridCreate() - 1D Single Tile Default - multiple of 4"
   write(failMsg, *) "Did not return ESMF_SUCCESS"
   distgrid = ESMF_DistGridCreate(minIndex=(/1/), maxIndex=(/100/), rc=rc)
   call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
 
   !------------------------------------------------------------------------
-  !NEX_UTest
+  !NEX_UTest_Multi_Proc_Only
   write(name, *) "DistGridPrint()"
   write(failMsg, *) "Did not return ESMF_SUCCESS"
   call ESMF_DistGridPrint(distgrid, rc=rc)
   call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
 
   !------------------------------------------------------------------------
-  !NEX_UTest
+  !NEX_UTest_Multi_Proc_Only
   write(name, *) "DistGridDestroy()"
   write(failMsg, *) "Did not return ESMF_SUCCESS"
   call ESMF_DistGridDestroy(distgrid, rc=rc)
   call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
   
   !------------------------------------------------------------------------
-  !NEX_UTest
+  !NEX_UTest_Multi_Proc_Only
   write(name, *) "DistGridCreate() - 1D Single Tile Default - no multiple of 4"
   write(failMsg, *) "Did not return ESMF_SUCCESS"
   distgrid = ESMF_DistGridCreate(minIndex=(/1/), maxIndex=(/90/), &
@@ -606,21 +805,21 @@ program ESMF_DistGridCreateGetUTest
   call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
 
   !------------------------------------------------------------------------
-  !NEX_UTest
+  !NEX_UTest_Multi_Proc_Only
   write(name, *) "DistGridPrint()"
   write(failMsg, *) "Did not return ESMF_SUCCESS"
   call ESMF_DistGridPrint(distgrid, rc=rc)
   call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
 
   !------------------------------------------------------------------------
-  !NEX_UTest
+  !NEX_UTest_Multi_Proc_Only
   write(name, *) "DistGridDestroy()"
   write(failMsg, *) "Did not return ESMF_SUCCESS"
   call ESMF_DistGridDestroy(distgrid, rc=rc)
   call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
 
   !------------------------------------------------------------------------
-  !NEX_UTest
+  !NEX_UTest_Multi_Proc_Only
   write(name, *) "DistGridCreate() - 1D Single Tile w/ deBlockList incorrect deCount"
   write(failMsg, *) "Did return ESMF_SUCCESS"
   allocate(deBlockList(1,2,petCount+1))
@@ -633,7 +832,7 @@ program ESMF_DistGridCreateGetUTest
   if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
   !------------------------------------------------------------------------
-  !NEX_UTest
+  !NEX_UTest_Multi_Proc_Only
   write(name, *) "DistGridCreate() - 1D Single Tile w/ deBlockList out-of-range"
   write(failMsg, *) "Did return ESMF_SUCCESS"
   allocate(deBlockList(1,2,4))
@@ -647,7 +846,7 @@ program ESMF_DistGridCreateGetUTest
   deallocate(deBlockList)
 
   !------------------------------------------------------------------------
-  !NEX_UTest
+  !NEX_UTest_Multi_Proc_Only
   write(name, *) "DistGridCreate() - 1D Single Tile w/ deBlockList"
   write(failMsg, *) "Did not return ESMF_SUCCESS"
   allocate(deBlockList(1,2,4))
@@ -661,35 +860,35 @@ program ESMF_DistGridCreateGetUTest
   deallocate(deBlockList)
 
   !------------------------------------------------------------------------
-  !NEX_UTest
+  !NEX_UTest_Multi_Proc_Only
   write(name, *) "DistGridPrint()"
   write(failMsg, *) "Did not return ESMF_SUCCESS"
   call ESMF_DistGridPrint(distgrid, rc=rc)
   call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
 
   !------------------------------------------------------------------------
-  !NEX_UTest
+  !NEX_UTest_Multi_Proc_Only
   write(name, *) "DistGridCreate() - from DistGrid re-created copy"
   write(failMsg, *) "Did not return ESMF_SUCCESS"
   distgrid3 = ESMF_DistGridCreate(distgrid, indexflag=ESMF_INDEX_DELOCAL, rc=rc)
   call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
   
   !------------------------------------------------------------------------
-  !NEX_UTest
+  !NEX_UTest_Multi_Proc_Only
   write(name, *) "DistGridPrint()"
   write(failMsg, *) "Did not return ESMF_SUCCESS"
   call ESMF_DistGridPrint(distgrid3, rc=rc)
   call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
 
   !------------------------------------------------------------------------
-  !NEX_UTest
+  !NEX_UTest_Multi_Proc_Only
   write(name, *) "DistGridDestroy()"
   write(failMsg, *) "Did not return ESMF_SUCCESS"
   call ESMF_DistGridDestroy(distgrid3, rc=rc)
   call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
   
   !------------------------------------------------------------------------
-  !NEX_UTest
+  !NEX_UTest_Multi_Proc_Only
   write(name, *) "DistGridCreate() - from DistGrid with extra edge elements"
   write(failMsg, *) "Did not return ESMF_SUCCESS"
   distgrid3 = ESMF_DistGridCreate(distgrid, firstExtra=(/2/), lastExtra=(/3/), &
@@ -697,51 +896,119 @@ program ESMF_DistGridCreateGetUTest
   call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
   
   !------------------------------------------------------------------------
-  !NEX_UTest
+  !NEX_UTest_Multi_Proc_Only
   write(name, *) "DistGridPrint()"
   write(failMsg, *) "Did not return ESMF_SUCCESS"
   call ESMF_DistGridPrint(distgrid3, rc=rc)
   call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
 
   !------------------------------------------------------------------------
-  !NEX_UTest
+  !NEX_UTest_Multi_Proc_Only
   write(name, *) "DistGridDestroy()"
   write(failMsg, *) "Did not return ESMF_SUCCESS"
   call ESMF_DistGridDestroy(distgrid3, rc=rc)
   call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
   
   !------------------------------------------------------------------------
-  !NEX_UTest
+  !NEX_UTest_Multi_Proc_Only
   write(name, *) "DistGridDestroy()"
   write(failMsg, *) "Did not return ESMF_SUCCESS"
   call ESMF_DistGridDestroy(distgrid, rc=rc)
   call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
   
   !------------------------------------------------------------------------
-  !NEX_UTest
-  write(name, *) "DistGridCreate() - 1D arbitrary seq indices"
+  !NEX_UTest_Multi_Proc_Only
+  write(name, *) "DistGridCreate() - 1D arbitrary seq indices 1DE/PET case"
   write(failMsg, *) "Did not return ESMF_SUCCESS"
   localStart = localPet*10
-  distgrid = ESMF_DistGridCreate(arbSeqIndexList=(/localStart, localStart+1/), &
-    rc=rc)
+  allocate(arbSeqIndexList((localPet+1)*2))
+  do i=1,(localPet+1)*2
+    arbSeqIndexList(i)=localStart+i
+  enddo
+  distgrid = ESMF_DistGridCreate(arbSeqIndexList=arbSeqIndexList, rc=rc)
   call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
-  
+  deallocate(arbSeqIndexList)
+
   !------------------------------------------------------------------------
-  !NEX_UTest
+  !NEX_UTest_Multi_Proc_Only
   write(name, *) "DistGridPrint()"
   write(failMsg, *) "Did not return ESMF_SUCCESS"
   call ESMF_DistGridPrint(distgrid, rc=rc)
   call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
 
   !------------------------------------------------------------------------
-  !NEX_UTest
+  !NEX_UTest_Multi_Proc_Only
   write(name, *) "DistGridDestroy()"
   write(failMsg, *) "Did not return ESMF_SUCCESS"
   call ESMF_DistGridDestroy(distgrid, rc=rc)
   call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
   
   !------------------------------------------------------------------------
-  !NEX_UTest
+  !NEX_UTest_Multi_Proc_Only
+  write(name, *) "DistGridCreate() - 1D arbitrary seq indices 1 DE/PET with general API case"
+  write(failMsg, *) "Did not return ESMF_SUCCESS"
+  allocate(arbSeqIndexL(1))
+  localStart = localPet*10
+  allocate(arbSeqIndexL(1)%ptr((localPet+1)*2))
+  do i=1,(localPet+1)*2
+    arbSeqIndexL(1)%ptr(i)=localStart+i
+  enddo
+  distgrid = ESMF_DistGridCreate(arbSeqIndexList=arbSeqIndexL, rc=rc)
+  call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+  deallocate(arbSeqIndexL(1)%ptr)
+  deallocate(arbSeqIndexL)
+  
+  !------------------------------------------------------------------------
+  !NEX_UTest_Multi_Proc_Only
+  write(name, *) "DistGridPrint()"
+  write(failMsg, *) "Did not return ESMF_SUCCESS"
+  call ESMF_DistGridPrint(distgrid, rc=rc)
+  call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+
+  !------------------------------------------------------------------------
+  !NEX_UTest_Multi_Proc_Only
+  write(name, *) "DistGridDestroy()"
+  write(failMsg, *) "Did not return ESMF_SUCCESS"
+  call ESMF_DistGridDestroy(distgrid, rc=rc)
+  call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+  
+  !------------------------------------------------------------------------
+  !NEX_UTest_Multi_Proc_Only
+  write(name, *) "DistGridCreate() - 1D arbitrary seq indices general DE/PET case"
+  write(failMsg, *) "Did not return ESMF_SUCCESS"
+  localDeCount = localPet ! use localPet for number of local DEs
+  if (petCount==1) localDeCount = 2 ! if only single PET, then use 2 local DEs
+  allocate(arbSeqIndexL(localDeCount))  ! number of localDEs
+  localStart = localPet*10
+  do j=1, size(arbSeqIndexL)
+    allocate(arbSeqIndexL(j)%ptr((j+1)*2))
+    do i=1,(j+1)*2
+      arbSeqIndexL(j)%ptr(i)=localStart+i
+    enddo
+  enddo
+  distgrid = ESMF_DistGridCreate(arbSeqIndexList=arbSeqIndexL, rc=rc)
+  call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+  do j=1, size(arbSeqIndexL)
+    deallocate(arbSeqIndexL(j)%ptr)
+  enddo
+  deallocate(arbSeqIndexL)
+  
+  !------------------------------------------------------------------------
+  !NEX_UTest_Multi_Proc_Only
+  write(name, *) "DistGridPrint()"
+  write(failMsg, *) "Did not return ESMF_SUCCESS"
+  call ESMF_DistGridPrint(distgrid, rc=rc)
+  call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+
+  !------------------------------------------------------------------------
+  !NEX_UTest_Multi_Proc_Only
+  write(name, *) "DistGridDestroy()"
+  write(failMsg, *) "Did not return ESMF_SUCCESS"
+  call ESMF_DistGridDestroy(distgrid, rc=rc)
+  call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+  
+  !------------------------------------------------------------------------
+  !NEX_UTest_Multi_Proc_Only
   write(name, *) "DistGridCreate() - insert 1D arbitrary seq indices into regular 2D tile at arbDim=2 -> 3D total"
   write(failMsg, *) "Did not return ESMF_SUCCESS"
   localStart = localPet*10
@@ -755,14 +1022,14 @@ program ESMF_DistGridCreateGetUTest
   deallocate(arbSeqIndexList)
   
   !------------------------------------------------------------------------
-  !NEX_UTest
+  !NEX_UTest_Multi_Proc_Only
   write(name, *) "DistGridPrint()"
   write(failMsg, *) "Did not return ESMF_SUCCESS"
   call ESMF_DistGridPrint(distgrid, rc=rc)
   call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
 
   !------------------------------------------------------------------------
-  !NEX_UTest
+  !NEX_UTest_Multi_Proc_Only
   write(name, *) "DistGridGet() - dimCount, collocation"
   write(failMsg, *) "Did not return ESMF_SUCCESS"
   allocate(collocation(3))  ! dimCount
@@ -771,13 +1038,13 @@ program ESMF_DistGridCreateGetUTest
   call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
 
   !------------------------------------------------------------------------
-  !NEX_UTest
+  !NEX_UTest_Multi_Proc_Only
   write(name, *) "Verify dimCount"
   write(failMsg, *) "Wrong dimCount"
   call ESMF_Test((dimCount.eq.3), name, failMsg, result, ESMF_SRCLINE)
 
   !------------------------------------------------------------------------
-  !NEX_UTest
+  !NEX_UTest_Multi_Proc_Only
   write(name, *) "Obtain arbSeqIndexFlag for dim=1"
   write(failMsg, *) "Did not return ESMF_SUCCESS"
   call ESMF_DistGridGet(distgrid, localDe=0, collocation=collocation(1), &
@@ -785,13 +1052,13 @@ program ESMF_DistGridCreateGetUTest
   call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
 
   !------------------------------------------------------------------------
-  !NEX_UTest
+  !NEX_UTest_Multi_Proc_Only
   write(name, *) "Verify arbSeqIndexFlag for dim=1"
   write(failMsg, *) "Wrong arbSeqIndexFlag"
   call ESMF_Test((.not.arbSeqIndexFlag), name, failMsg, result, ESMF_SRCLINE)
 
   !------------------------------------------------------------------------
-  !NEX_UTest
+  !NEX_UTest_Multi_Proc_Only
   write(name, *) "Obtain arbSeqIndexFlag for dim=2"
   write(failMsg, *) "Did not return ESMF_SUCCESS"
   call ESMF_DistGridGet(distgrid, localDe=0, collocation=collocation(2), &
@@ -799,13 +1066,13 @@ program ESMF_DistGridCreateGetUTest
   call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
 
   !------------------------------------------------------------------------
-  !NEX_UTest
+  !NEX_UTest_Multi_Proc_Only
   write(name, *) "Verify arbSeqIndexFlag for dim=2"
   write(failMsg, *) "Wrong arbSeqIndexFlag"
   call ESMF_Test((arbSeqIndexFlag), name, failMsg, result, ESMF_SRCLINE)
 
   !------------------------------------------------------------------------
-  !NEX_UTest
+  !NEX_UTest_Multi_Proc_Only
   write(name, *) "Obtain arbSeqIndexFlag for dim=3"
   write(failMsg, *) "Did not return ESMF_SUCCESS"
   call ESMF_DistGridGet(distgrid, localDe=0, collocation=collocation(3), &
@@ -813,16 +1080,15 @@ program ESMF_DistGridCreateGetUTest
   call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
 
   !------------------------------------------------------------------------
-  !NEX_UTest
+  !NEX_UTest_Multi_Proc_Only
   write(name, *) "Verify arbSeqIndexFlag for dim=3"
   write(failMsg, *) "Wrong arbSeqIndexFlag"
   call ESMF_Test((.not.arbSeqIndexFlag), name, failMsg, result, ESMF_SRCLINE)
 
   deallocate(collocation)
 
-
   !-----------------------------------------------------------------------------
-  !NEX_UTest
+  !NEX_UTest_Multi_Proc_Only
   ! test the serialize inquire-only option
   ! WARNING: This is testing an INTERNAL method.  It is NOT
   ! part of the supported ESMF user API!
@@ -840,7 +1106,7 @@ program ESMF_DistGridCreateGetUTest
   !-----------------------------------------------------------------------------
 
   !-----------------------------------------------------------------------------
-  !NEX_UTest
+  !NEX_UTest_Multi_Proc_Only
   write(name, *) "Allocate serialization buffer"
   write(failMsg, *) "Size was illegal"
   buff_len = offset
@@ -850,7 +1116,7 @@ program ESMF_DistGridCreateGetUTest
   !-----------------------------------------------------------------------------
 
   !-----------------------------------------------------------------------------
-  !NEX_UTest
+  !NEX_UTest_Multi_Proc_Only
   ! test actually doing the serialization
   ! WARNING: This is testing an INTERNAL method.  It is NOT
   ! part of the supported ESMF user API!
@@ -862,18 +1128,118 @@ program ESMF_DistGridCreateGetUTest
   call c_esmc_distgridserialize (distgrid, buffer, buff_len, offset,  &
       inquireflag, rc)
   call ESMF_Test((rc == ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+
+  deallocate (buffer)
+
   !-----------------------------------------------------------------------------
   
   !------------------------------------------------------------------------
-  !NEX_UTest
+  !NEX_UTest_Multi_Proc_Only
+  write(name, *) "DistGridDestroy()"
+  write(failMsg, *) "Did not return ESMF_SUCCESS"
+  call ESMF_DistGridDestroy(distgrid, rc=rc)
+  call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+  
+  !-----------------------------------------------------------------------------
+  ! Multi tile tests
+  !-----------------------------------------------------------------------------
+
+  dimCount  = 2
+  tileCount = 4
+  allocate(minIndexPTile(dimCount,tileCount))
+  allocate(maxIndexPTile(dimCount,tileCount))
+  minIndexPTile(:,1) = (/11,1/)
+  maxIndexPTile(:,1) = (/20,10/)
+  minIndexPTile(:,2) = (/11,11/)
+  maxIndexPTile(:,2) = (/20,20/)
+  minIndexPTile(:,3) = (/1,11/)
+  maxIndexPTile(:,3) = (/10,20/)
+  minIndexPTile(:,4) = (/1,1/)
+  maxIndexPTile(:,4) = (/10,10/)
+
+  !------------------------------------------------------------------------
+  !NEX_UTest_Multi_Proc_Only
+  write(name, *) "DistGridCreate() - 2D Multi Tile Default"
+  write(failMsg, *) "Did not return ESMF_SUCCESS"
+  distgrid = ESMF_DistGridCreate(minIndexPTile=minIndexPTile, &
+    maxIndexPTile=maxIndexPTile, rc=rc)
+  call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+ 
+  deallocate(minIndexPTile, maxIndexPTile)
+  
+  !------------------------------------------------------------------------
+  !NEX_UTest_Multi_Proc_Only
+  write(name, *) "DistGridGet() - elementCount"
+  write(failMsg, *) "Did not return ESMF_SUCCESS"
+  call ESMF_DistGridGet(distgrid, localDe=0, elementCount=elementCount, rc=rc)
+  call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+    
+  !------------------------------------------------------------------------
+  !NEX_UTest_Multi_Proc_Only
+  write(name, *) "DistGridGet() - seqIndexList(:)"
+  write(failMsg, *) "Did not return ESMF_SUCCESS"
+  allocate(seqIndexList(elementCount))
+  call ESMF_DistGridGet(distgrid, localDe=0, seqIndexList=seqIndexList, rc=rc)
+  call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+    
+  !------------------------------------------------------------------------
+  !NEX_UTest_Multi_Proc_Only
+  write(name, *) "Verify seqIndexList(:)"
+  write(failMsg, *) "Wrong result"
+  loopResult = .true.
+  do i=1, elementCount
+    if (seqIndexList(i) /= localPet*100 + i) &
+      loopResult = .false.
+  enddo
+  call ESMF_Test(loopResult, &
+    name, failMsg, result, ESMF_SRCLINE)
+  deallocate(seqIndexList)
+
+  !------------------------------------------------------------------------
+  !NEX_UTest_Multi_Proc_Only
   write(name, *) "DistGridDestroy()"
   write(failMsg, *) "Did not return ESMF_SUCCESS"
   call ESMF_DistGridDestroy(distgrid, rc=rc)
   call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
   
   !------------------------------------------------------------------------
+  !NEX_UTest_Multi_Proc_Only
+  write(name, *) "DistGrid Validate of non-created DistGrid Test"
+  write(failMsg, *) "Did not return ESMF_RC_OBJ_NOT_CREATED"
+  call ESMF_DistGridValidate(distgrid4, rc=rc)
+  call ESMF_Test((rc.eq.ESMF_RC_OBJ_NOT_CREATED), name, failMsg, result, ESMF_SRCLINE)
+
+  !------------------------------------------------------------------------
+  !NEX_UTest_Multi_Proc_Only
+  write(name, *) "DistGrid create DistGrid Test"
+  write(failMsg, *) "Did not return ESMF_SUCCESS"
+  distgrid4 = ESMF_DistGridCreate(minIndex=(/1/), maxIndex=(/40/), rc=rc)
+  call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+
+  !------------------------------------------------------------------------
+  !NEX_UTest_Multi_Proc_Only
+  write(name, *) "DistGrid Validate of created DistGrid Test"
+  write(failMsg, *) "Did not return ESMF_SUCCESS"
+  call ESMF_DistGridValidate(distgrid4, rc=rc)
+  call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+
+  !------------------------------------------------------------------------
+  !NEX_UTest_Multi_Proc_Only
+  write(name, *) "DistGrid destroy DistGrid Test"
+  write(failMsg, *) "Did not return ESMF_SUCCESS"
+  call ESMF_DistGridDestroy(distgrid4, rc=rc)
+  call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+
+  !------------------------------------------------------------------------
+  !NEX_UTest_Multi_Proc_Only
+  write(name, *) "DistGrid Validate of destroyed DistGrid Test"
+  write(failMsg, *) "Did not return ESMF_RC_OBJ_DELETED"
+  call ESMF_DistGridValidate(distgrid4, rc=rc)
+  call ESMF_Test((rc.eq.ESMF_RC_OBJ_DELETED), name, failMsg, result, ESMF_SRCLINE)
+
+  !------------------------------------------------------------------------
 10 continue
-  call ESMF_TestEnd(result, ESMF_SRCLINE) ! calls ESMF_Finalize() internally
+  call ESMF_TestEnd(ESMF_SRCLINE) ! calls ESMF_Finalize() internally
   !------------------------------------------------------------------------
 
 end program ESMF_DistGridCreateGetUTest

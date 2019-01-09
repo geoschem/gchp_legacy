@@ -6,8 +6,8 @@
 /*****************************************************************************
  * CVS File Information :
  *    $RCSfile: phg_match.c,v $
- *    $Author: mathomp4 $
- *    $Date: 2013-01-11 20:23:44 $
+ *    $Author: w6ws $
+ *    $Date: 2008/12/10 20:50:37 $
  *    Revision: 1.180.2.2 $
  ****************************************************************************/
 
@@ -84,7 +84,7 @@ int Zoltan_PHG_Matching (
 {
 float *old_ewgt = NULL, *new_ewgt = NULL;
 int   ierr = ZOLTAN_OK;
-char  *yo = "Zoltan_PHG_Matching";
+const char *yo = "Zoltan_PHG_Matching";
 
   ZOLTAN_TRACE_ENTER(zz, yo);
 
@@ -140,7 +140,7 @@ static int Zoltan_PHG_match_isolated(
 #ifdef _DEBUG
     int cnt=0;
 #endif
-    static char *yo = "Zoltan_PHG_match_isolated";
+    static const char *yo = "Zoltan_PHG_match_isolated";
     int ierr = ZOLTAN_OK;
 
     if (hg->nVtx) {
@@ -205,7 +205,7 @@ static int matching_ipm(ZZ *zz, HGraph *hg, Matching match, int *limit)
     int   *adj = NULL;
     int   *order = NULL;
     float *ips = NULL; 
-    char  *yo = "matching_ipm";
+    const char  *yo = "matching_ipm";
 
     if (hg->nVtx && 
         (!(ips = (float*) ZOLTAN_MALLOC(hg->nVtx * sizeof(float))) 
@@ -534,7 +534,7 @@ static int pmatching_ipm (ZZ *zz,
   int num_matches_considered = 0;
   double ipsum = 0.;
   static int timer[7] = {-1, -1, -1, -1, -1, -1, -1};
-  char *yo = "pmatching_ipm";
+  const char *yo = "pmatching_ipm";
   
    
   ZOLTAN_TRACE_ENTER (zz, yo);
@@ -1106,7 +1106,7 @@ static int communication_by_plan (ZZ* zz, int sendcnt, int* dest, int* size,
 {
    ZOLTAN_COMM_OBJ *plan = NULL;
    int err;
-   char *yo = "communication_by_plan";
+   const char *yo = "communication_by_plan";
    
    /* communicate send buffer messages to other row/columns in my comm */  
    err = Zoltan_Comm_Create (&plan, sendcnt, dest, comm, tag, reccnt);

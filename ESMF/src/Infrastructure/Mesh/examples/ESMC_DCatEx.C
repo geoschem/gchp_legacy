@@ -1,7 +1,7 @@
-// $Id: ESMC_DCatEx.C,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
+// $Id$
 //
 // Earth System Modeling Framework
-// Copyright 2002-2012, University Corporation for Atmospheric Research, 
+// Copyright 2002-2018, University Corporation for Atmospheric Research, 
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
 // Laboratory, University of Michigan, National Centers for Environmental 
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
@@ -21,7 +21,7 @@
 #include <ESMCI_MeshSkin.h>
 #include <ESMCI_ShapeFunc.h>
 #include <ESMCI_Mapping.h>
-#include <ESMCI_Search.h>
+//#include <ESMCI_Search.h>
 #include <ESMCI_MeshField.h>
 #include <ESMCI_MeshUtils.h>
 #include <ESMCI_MasterElement.h>
@@ -48,7 +48,7 @@ using namespace ESMCI;
 
 void usage(const std::string &pname) {
     std::cout << "Usage:" << pname << " file nparts" << std::endl;
-    std::exit(1);
+    exit(1);
 }
 
 /*---------------------------------------------------------------------*/
@@ -70,7 +70,7 @@ int main(int argc, char *argv[]) {
     usage(argv[0]);
   }
   std::string fname(argv[1]);
-  UInt npart = std::atoi(argv[2]);
+  UInt npart = atoi(argv[2]);
   std::cout << "Collecting mesh " << argv[1] << " from " << npart << " poritions" << std::endl;
   catmesh.set_filename("cat_" + fname);
 
@@ -84,6 +84,7 @@ int main(int argc, char *argv[]) {
       std::stringstream os;
       os << fname << "." << npart << "." << std::setw(vwidth) << std::setfill('0') << i;
       std::string src_name = os.str();
+      std::cout << "Reading file: " << src_name << '\n';
       Mesh *mesh = new Mesh();
       ReadMesh(*mesh, src_name, false, ESMC_FILE_VTK);
       mesh->Commit();

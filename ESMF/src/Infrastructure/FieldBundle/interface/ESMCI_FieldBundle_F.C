@@ -1,7 +1,7 @@
-// $Id: ESMCI_FieldBundle_F.C,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
+// $Id$
 //
 // Earth System Modeling Framework
-// Copyright 2002-2012, University Corporation for Atmospheric Research, 
+// Copyright 2002-2018, University Corporation for Atmospheric Research, 
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
 // Laboratory, University of Michigan, National Centers for Environmental 
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
@@ -27,7 +27,7 @@
  // leave the following line as-is; it will insert the cvs ident string
  // into the object file for tracking purposes.
  static const char *const version = 
-             "$Id: ESMCI_FieldBundle_F.C,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $";
+             "$Id$";
 //-----------------------------------------------------------------------------
 
 extern "C" {
@@ -40,13 +40,15 @@ extern "C" {
 //
 
 // non-method functions
-void FTN(c_esmc_fieldbundleserialize)(
+void FTN_X(c_esmc_fieldbundleserialize)(
                             int *status,
                             int *field_count,
                             char *buffer, int *length, int *offset,
                             ESMC_InquireFlag *inquireflag, int *localrc,
                             ESMCI_FortranStrLenArg buffer_l){
 
+#undef  ESMC_METHOD
+#define ESMC_METHOD "c_esmc_fieldbundleserialize()"
     // either put the code here, or call into a real C++ function
     ESMC_Status *sp;
     int *ip;
@@ -57,7 +59,8 @@ void FTN(c_esmc_fieldbundleserialize)(
       if ((*length - *offset) < fixedpart) {
          
          ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_BAD,
-                            "Buffer too short to add a FieldBundle object", localrc);
+          "Buffer too short to add a FieldBundle object", ESMC_CONTEXT,
+          localrc);
          return;
  
         //buffer = (char *)realloc((void *)buffer,
@@ -82,12 +85,14 @@ void FTN(c_esmc_fieldbundleserialize)(
 
 
 // non-method functions
-void FTN(c_esmc_fieldbundledeserialize)( 
+void FTN_X(c_esmc_fieldbundledeserialize)( 
                               int *status,
                               int *field_count, 
                               char *buffer, int *offset, int *localrc,
                               ESMCI_FortranStrLenArg buffer_l){
 
+#undef  ESMC_METHOD
+#define ESMC_METHOD "c_esmc_fieldbundledeserialize()"
     // either put the code here, or call into a real C++ function
     ESMC_Status *sp;
     int *ip;

@@ -1,0 +1,21 @@
+% $Id$
+
+Alarms are used in conjunction with Clocks (see Section~\ref{sec:Clock}).
+Multiple Alarms can be associated with a Clock.  During the
+{\tt ESMF\_ClockAdvance()} method, a Clock iterates over its internal Alarms
+to determine if any are ringing.  Alarms ring when a specified Alarm 
+time is reached or exceeded, taking into account whether the time step is
+positive or negative.  In {\tt ESMF\_DIRECTION\_REVERSE}
+(see Section~\ref{sec:Clock}), alarms ring in reverse, i.e., they begin
+ringing when they originally ended, and end ringing when they originally
+began.  On completion of the time advance call, the Clock optionally returns
+a list of ringing alarms.
+
+Each ringing Alarm can then be processed using Alarm methods for identifying,
+turning off, disabling or resetting the Alarm.
+
+Alarm methods are defined for obtaining the ringing state, turning the
+ringer on/off, enabling/disabling the Alarm, and getting/setting 
+associated times.
+
+The following example shows how to set and process Alarms.

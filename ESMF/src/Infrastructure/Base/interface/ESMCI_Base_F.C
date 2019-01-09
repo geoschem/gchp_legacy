@@ -1,7 +1,7 @@
 // $Id$
 //
 // Earth System Modeling Framework
-// Copyright 2002-2012, University Corporation for Atmospheric Research,
+// Copyright 2002-2018, University Corporation for Atmospheric Research,
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 // Laboratory, University of Michigan, National Centers for Environmental
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -9,7 +9,7 @@
 // Licensed under the University of Illinois-NCSA License.
 //
 //==============================================================================
-#define ESMF_FILENAME "ESMCI_Base_F.C"
+#define ESMC_FILENAME "ESMCI_Base_F.C"
 //==============================================================================
 //
 // This file contains the Fortran interface code to link F90 and C++.
@@ -17,12 +17,15 @@
 //------------------------------------------------------------------------------
 // INCLUDES
 //------------------------------------------------------------------------------
-#include <string.h>
-#include <stdlib.h>
 
 #include "ESMCI_Base.h"
 #include "ESMCI_VM.h"
 #include "ESMCI_LogErr.h"
+
+#include <string>
+using namespace std;
+
+#include <stdlib.h>
 
 // the interface subroutine names MUST be in lower case by ESMF convention
 extern "C" {
@@ -37,15 +40,17 @@ extern "C" {
 // !IROUTINE:  c_ESMC_BaseCreate - create and initialize a new Base object 
 //
 // !INTERFACE:
-      void FTN(c_esmc_basecreate)(
+      void FTN_X(c_esmc_basecreate)(
+#undef  ESMC_METHOD
+#define ESMC_METHOD "c_esmc_basecreate()"
 //
 // !RETURN VALUE:
 //    none.  return code is passed thru the parameter list
 // 
 // !ARGUMENTS:
       ESMC_Base **base,         // in/out - base object
-      char *superclass,         // in - F90, non-null terminated string
-      char *name,               // in (opt) - F90, non-null terminated string
+      const char *superclass,   // in - F90, non-null terminated string
+      const char *name,         // in (opt) - F90, non-null terminated string
       int *nattrs,              // in - number of initial attributes to alloc
       int *rc,                  // out - return code
       ESMCI_FortranStrLenArg sclen,  // hidden/in - strlen count for superclass
@@ -57,39 +62,29 @@ extern "C" {
 //EOP
 
   int status;
-  char *cname = NULL;
-  char *scname = NULL;
 
   // Initialize return code; assume routine not implemented
   if (rc) *rc = ESMC_RC_NOT_IMPL;
 
-  // copy and convert F90 strings to null terminated ones
-  if (superclass && (sclen > 0) && (superclass[0] != '\0')) {
-      scname = ESMC_F90toCstring(superclass, sclen);
-      if (!scname) {
-           ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_BAD,
-                         "bad attribute name", &status);
-          if (rc) *rc = status;
-          return;
-      }
-  }
-  if (name && (nlen > 0) && (name[0] != '\0')) {
-      cname = ESMC_F90toCstring(name, nlen);
-      if (!cname) {
-          delete [] scname;
-          if (rc) *rc = status;
-          return;
-      }
-  } 
+  string scname = string (superclass, ESMC_F90lentrim (superclass, sclen));
+  string cname  = string (name, ESMC_F90lentrim (name, nlen));
 
-  (*base) = new ESMC_Base(scname, cname, *nattrs);
+  // look for slash in name.  Conflicts with syntax used in StateGet for items in
+  // nested States.
+  size_t slc = cname.find_first_of ("/");
+  if (slc != string::npos) {
+    ESMC_LogDefault.Write(cname+" must not have a slash (/) in its name", ESMC_LOGMSG_INFO,
+      ESMC_CONTEXT);
+    if (rc) *rc = ESMF_RC_ARG_VALUE;
+    return;
+  }
+
+  (*base) = new ESMC_Base(scname.c_str(), cname.c_str(), *nattrs);
   if (*base != NULL)
       *rc = ESMF_SUCCESS;
   else
       *rc = ESMF_FAILURE;
 
-  if (scname) delete [] scname;
-  if (cname)  delete [] cname;
   return;
 
 }  // end c_ESMC_BaseCreate
@@ -99,13 +94,16 @@ extern "C" {
 // !IROUTINE:  c_ESMC_BaseDestroy - release resources from a Base object
 //
 // !INTERFACE:
-      void FTN(c_esmc_basedestroy)(
+      void FTN_X(c_esmc_basedestroy)(
+#undef  ESMC_METHOD
+#define ESMC_METHOD "c_esmc_basedestroy()"
 //
 // !RETURN VALUE:
 //    none.  return code is passed thru the parameter list
 // 
 // !ARGUMENTS:
       ESMC_Base **base,         // in/out - base object
+      ESMC_Logical *noGarbage,
       int *rc) {                // out - return code
 // 
 // !DESCRIPTION:
@@ -116,9 +114,16 @@ extern "C" {
   // Initialize return code; assume routine not implemented
   if (rc) *rc = ESMC_RC_NOT_IMPL;
   
-  // nothing to be done, because automatic garbage collection takes care
-  // of Base delete
+  // convert to bool
+  bool noGarbageOpt = false;  // default
+  if (noGarbage != NULL)
+    if (*noGarbage == ESMF_TRUE) noGarbageOpt = true;
 
+  if (noGarbageOpt){
+    ESMCI::VM::rmObject(*base); // remove base entry from garbage collection
+    delete *base;
+  }
+  
   // return successfully
   *rc = ESMF_SUCCESS;
   return;
@@ -130,7 +135,9 @@ extern "C" {
 // !IROUTINE:  c_ESMC_BasePrint - print Base object 
 //
 // !INTERFACE:
-      void FTN(c_esmc_baseprint)(
+      void FTN_X(c_esmc_baseprint)(
+#undef  ESMC_METHOD
+#define ESMC_METHOD "c_esmc_baseprint()"
 //
 // !RETURN VALUE:
 //    none.  return code is passed thru the parameter list
@@ -138,42 +145,47 @@ extern "C" {
 // !ARGUMENTS:
       ESMC_Base **base,         // in/out - base object
       int *level,               // in - print level for recursive prints
-      char *opts,               // in - F90, non-null terminated string
+      const char *opts,         // in - F90, non-null terminated string
+      ESMC_Logical *tofile,     // in - tofile flag
+      const char *fname,        // in - F90, non-null terminated string
+      ESMC_Logical *append,     // in - append flage
       int *rc,                  // out - return code
-      ESMCI_FortranStrLenArg nlen) { // hidden/in - strlen count for options
+      ESMCI_FortranStrLenArg nlen,   // hidden/in - strlen count for options
+      ESMCI_FortranStrLenArg flen) { // hidden/in - strlen count for filename
 // 
 // !DESCRIPTION:
 //     Print the contents of a base object.
 //
 //EOP
 
-  char *copts = NULL;
-
   // Initialize return code; assume routine not implemented
   if (rc) *rc = ESMC_RC_NOT_IMPL;
 
   if (!base) {
     //printf("uninitialized Base object\n");
-    ESMC_LogDefault.Write("Base object uninitialized", ESMC_LOG_INFO);
+    ESMC_LogDefault.Write("Base object uninitialized", ESMC_LOGMSG_INFO,
+      ESMC_CONTEXT);
     if (rc) *rc = ESMF_SUCCESS;
     return;
     // for Print, it's not a failure for an uninit object to be printed
   }
 
-  // copy and convert F90 string to null terminated one
-  if (opts && (nlen > 0) && (opts[0] != '\0')) {
-      copts = ESMC_F90toCstring(opts, nlen);
-      if (!copts) {
-          if (rc) *rc = ESMF_FAILURE;
-          return;
-      }
-  }
+  // convert to bool
+  bool tofileOpt = false;  // default
+  if (tofile != NULL)
+    if (*tofile == ESMF_TRUE) tofileOpt = true;
 
-  *rc = (*base)->ESMC_Print(*level, copts);
+  // convert to bool
+  bool appendOpt = false;  // default
+  if (append != NULL)
+    if (*append == ESMF_TRUE) appendOpt = true;
+
+  string copts = string (opts, ESMC_F90lentrim (opts, nlen));
+  string cfname = string (fname, ESMC_F90lentrim (fname, flen));
+  *rc = (*base)->ESMC_Print(*level, copts.c_str(), tofileOpt, cfname.c_str(),
+                            appendOpt);
   fflush (stdout);
 
-  if (copts)
-      delete [] copts;
   return;
 
 }  // end c_ESMC_BasePrint
@@ -183,7 +195,9 @@ extern "C" {
 // !IROUTINE:  c_ESMC_BaseSerialize - Serialize Base object 
 //
 // !INTERFACE:
-      void FTN(c_esmc_baseserialize)(
+      void FTN_X(c_esmc_baseserialize)(
+#undef  ESMC_METHOD
+#define ESMC_METHOD "c_esmc_baseserialize()"
 //
 // !RETURN VALUE:
 //    none.  return code is passed thru the parameter list
@@ -209,7 +223,8 @@ extern "C" {
 
   if (!base) {
     //printf("uninitialized Base object\n");
-    ESMC_LogDefault.Write("Base object uninitialized", ESMC_LOG_INFO);
+    ESMC_LogDefault.Write("Base object uninitialized", ESMC_LOGMSG_INFO,
+      ESMC_CONTEXT);
     if (rc) *rc = ESMF_SUCCESS;
     return;
   }
@@ -226,7 +241,9 @@ extern "C" {
 // !IROUTINE:  c_ESMC_BaseDeserialize - Deserialize Base object 
 //
 // !INTERFACE:
-      void FTN(c_esmc_basedeserialize)(
+      void FTN_X(c_esmc_basedeserialize)(
+#undef  ESMC_METHOD
+#define ESMC_METHOD "c_esmc_basedeserialize()"
 //
 // !RETURN VALUE:
 //    none.  return code is passed thru the parameter list
@@ -258,7 +275,7 @@ extern "C" {
   *base = new ESMC_Base(-1);
   if (!base) {
     //printf("uninitialized Base object\n");
-    ESMC_LogDefault.Write("Base object error", ESMC_LOG_INFO);
+    ESMC_LogDefault.Write("Base object error", ESMC_LOGMSG_INFO, ESMC_CONTEXT);
     if (rc) *rc = ESMF_FAILURE;
     return;
   }
@@ -270,18 +287,54 @@ extern "C" {
 }  // end c_ESMC_BaseDeserialize
 
 //-----------------------------------------------------------------------------
+//BOPI
+// !IROUTINE:  c_ESMC_BaseDeserialize_idvmid - Deserialize Base ID and vmId inquiry
+//
+// !INTERFACE:
+      void FTN_X(c_esmc_basedeserialize_idvmid)(
+#undef  ESMC_METHOD
+#define ESMC_METHOD "c_esmc_basedeserialize_idvmid()"
+//
+// !RETURN VALUE:
+//    none.  return code is passed thru the parameter list
+//
+// !ARGUMENTS:
+      const char *buf,          // in - really a byte stream
+      const int *offset,        // in - current offset in the stream
+      int *ID,                  // out - Object ID
+      ESMCI::VMId **vmId,       // out - vmId
+      int *rc,                  // out - return code
+      ESMCI_FortranStrLenArg buf_l) { // hidden/in - buffer length
+//
+// !DESCRIPTION:
+//     Deserialize the ID and vmId of a serialized Base.
+//
+//EOPI
+
+  // Initialize return code; assume routine not implemented
+  if (rc) *rc = ESMC_RC_NOT_IMPL;
+
+  *rc = ESMC_Base::ESMC_Deserialize(buf, offset, ID, *vmId);
+
+  return;
+
+}  // end c_ESMC_BaseDeserialize_idvmid
+
+//-----------------------------------------------------------------------------
 //BOP
 // !IROUTINE:  c_ESMC_BaseValidate - print Base object 
 //
 // !INTERFACE:
-      void FTN(c_esmc_basevalidate)(
+      void FTN_X(c_esmc_basevalidate)(
+#undef  ESMC_METHOD
+#define ESMC_METHOD "c_esmc_basevalidate()"
 //
 // !RETURN VALUE:
 //    none.  return code is passed thru the parameter list
 // 
 // !ARGUMENTS:
       ESMC_Base **base,         // in/out - base object
-      char *opts,               // in - F90, non-null terminated string
+      const char *opts,         // in - F90, non-null terminated string
       int *rc,                  // out - return code
       ESMCI_FortranStrLenArg nlen) { // hidden/in - strlen count for options
 // 
@@ -290,32 +343,19 @@ extern "C" {
 //
 //EOP
 
-  char *copts = NULL;
-
   // Initialize return code; assume routine not implemented
   if (rc) *rc = ESMC_RC_NOT_IMPL;
 
   if (!base) {
     //printf("uninitialized Base object\n");
-    ESMC_LogDefault.Write("Base object uninitialized", ESMC_LOG_INFO);
+    ESMC_LogDefault.Write("Base object uninitialized", ESMC_LOGMSG_INFO,
+      ESMC_CONTEXT);
     if (rc) *rc = ESMF_FAILURE;
     return;
   }
 
-  // copy and convert F90 string to null terminated one
-  if (opts && (nlen > 0) && (opts[0] != '\0')) {
-      copts = ESMC_F90toCstring(opts, nlen);
-      if (!copts) {
-          if (rc) *rc = ESMF_FAILURE;
-          return;
-      }
-  }
-
-  *rc = (*base)->ESMC_Validate(copts);
-
-  if (copts)
-      delete [] copts;
-  return;
+  string copts = string (opts, ESMC_F90lentrim (opts, nlen));
+  *rc = (*base)->ESMC_Validate(copts.c_str());
 
 }  // end c_ESMC_BaseValidate
 
@@ -324,7 +364,9 @@ extern "C" {
 // !IROUTINE:  c_ESMC_GetName - return the object name to a Fortran caller
 //
 // !INTERFACE:
-      void FTN(c_esmc_getname)(
+      void FTN_X(c_esmc_getname)(
+#undef  ESMC_METHOD
+#define ESMC_METHOD "c_esmc_getname()"
 //
 // !RETURN VALUE:
 //    none.  return code is passed thru the parameter list
@@ -362,18 +404,58 @@ extern "C" {
 
 //-----------------------------------------------------------------------------
 //BOPI
+// !IROUTINE:  c_ESMC_GetVM - return the object's VM to the caller
+//
+// !INTERFACE:
+      void FTN_X(c_esmc_getvm)(
+#undef  ESMC_METHOD
+#define ESMC_METHOD "c_esmc_getvm()"
+//
+// !RETURN VALUE:
+//    none.  return code is passed thru the parameter list
+// 
+// !ARGUMENTS:
+      ESMC_Base **base,         // in - base object
+      ESMCI::VM **vm,           // out - Fortran, ESMF_VM
+      int *rc) {                // out - return code
+// 
+// !DESCRIPTION:
+//     return the object's VM to a Fortran caller.
+//
+//EOPI
+
+  // Initialize return code; assume routine not implemented
+  if (rc) *rc = ESMC_RC_NOT_IMPL;
+
+  if (!base) {
+    printf("in c_ESMC_GetVM, base is bad, returning failure\n");
+    if (rc) *rc = ESMF_FAILURE;
+    return;
+  }
+
+  *vm = (*base)->ESMC_BaseGetVM();
+  if (rc) *rc = ESMF_SUCCESS;
+
+  return;
+
+}  // end c_ESMC_GetVM
+
+//-----------------------------------------------------------------------------
+//BOPI
 // !IROUTINE:  c_ESMC_SetName - set the object name from an F90 caller
 //
 // !INTERFACE:
-      void FTN(c_esmc_setname)(
+      void FTN_X(c_esmc_setname)(
+#undef  ESMC_METHOD
+#define ESMC_METHOD "c_esmc_setname()"
 //
 // !RETURN VALUE:
 //    none.  return code is passed thru the parameter list
 // 
 // !ARGUMENTS:
       ESMC_Base **base,         // in/out - base object
-      char *classname,          // in - F90, non-null terminated string
-      char *objname,            // in - F90, non-null terminated string
+      const char *classname,    // in - F90, non-null terminated string
+      const char *objname,      // in - F90, non-null terminated string
       int *rc,                  // out - return code
       ESMCI_FortranStrLenArg clen,   // hidden/in - max strlen count for classname
       ESMCI_FortranStrLenArg olen) { // hidden/in - max strlen count for objname
@@ -383,9 +465,6 @@ extern "C" {
 //
 //EOPI
 
-  char *oname = NULL;
-  char *cname = NULL;
-
   // Initialize return code; assume routine not implemented
   if (rc) *rc = ESMC_RC_NOT_IMPL;
 
@@ -394,30 +473,20 @@ extern "C" {
     return;
   }
  
-  if (classname && (clen > 0) && (classname[0] != '\0')) {
-      // copy and convert F90 string to null terminated one
-      cname = ESMC_F90toCstring(classname, clen);
-      if (!cname) {
-          if (rc) *rc = ESMF_FAILURE;
-          return;
-      }
+  string oname = string (objname, ESMC_F90lentrim (objname, olen));
+  string cname = string (classname, ESMC_F90lentrim (classname, clen));
+
+  // look for slash in name.  Conflicts with syntax used in StateGet for items in
+  // nested States.
+  size_t slc = oname.find_first_of ("/");
+  if (slc != string::npos) {
+    ESMC_LogDefault.Write(oname+" must not have a slash (/) in its name", ESMC_LOGMSG_INFO,
+      ESMC_CONTEXT);
+    if (rc) *rc = ESMF_RC_ARG_VALUE;
+    return;
   }
 
-  if (objname && (olen > 0) && (objname[0] != '\0')) {
-      // copy and convert F90 string to null terminated one
-      oname = ESMC_F90toCstring(objname, olen);
-      if (!oname) {
-          if (!cname)
-              delete [] cname;
-          if (rc) *rc = ESMF_FAILURE;
-          return;
-      }
-  }
-
-  (*rc) = (*base)->ESMC_BaseSetName(oname, cname);
-
-  delete [] oname;
-  delete [] cname; 
+  (*rc) = (*base)->ESMC_BaseSetName(oname.c_str(), cname.c_str());
 
   return;
 
@@ -428,7 +497,9 @@ extern "C" {
 // !IROUTINE:  c_ESMC_GetClassName - return the object name to a Fortran caller
 //
 // !INTERFACE:
-      void FTN(c_esmc_getclassname)(
+      void FTN_X(c_esmc_getclassname)(
+#undef  ESMC_METHOD
+#define ESMC_METHOD "c_esmc_getclassname()"
 //
 // !RETURN VALUE:
 //    none.  return code is passed thru the parameter list
@@ -463,7 +534,9 @@ extern "C" {
 // !IROUTINE:  c_ESMC_GetID - return the object id to the caller
 //
 // !INTERFACE:
-      void FTN(c_esmc_getid)(
+      void FTN_X(c_esmc_getid)(
+#undef  ESMC_METHOD
+#define ESMC_METHOD "c_esmc_getid()"
 //
 // !RETURN VALUE:
 //    none.  return code is passed thru the parameter list
@@ -501,7 +574,9 @@ extern "C" {
 // !IROUTINE:  c_ESMC_SetID - set an object id 
 //
 // !INTERFACE:
-      void FTN(c_esmc_setid)(
+      void FTN_X(c_esmc_setid)(
+#undef  ESMC_METHOD
+#define ESMC_METHOD "c_esmc_setid()"
 //
 // !RETURN VALUE:
 //    none.  return code is passed thru the parameter list
@@ -537,7 +612,9 @@ extern "C" {
 // !IROUTINE:  c_ESMC_GetVMId - return the object's VMId to the caller
 //
 // !INTERFACE:
-      void FTN(c_esmc_getvmid)(
+      void FTN_X(c_esmc_getvmid)(
+#undef  ESMC_METHOD
+#define ESMC_METHOD "c_esmc_getvmid()"
 //
 // !RETURN VALUE:
 //    none.  return code is passed thru the parameter list
@@ -573,7 +650,9 @@ extern "C" {
 // !IROUTINE:  c_ESMC_SetVMId - allocate space and set the object's VMId 
 //
 // !INTERFACE:
-      void FTN(c_esmc_setvmid)(
+      void FTN_X(c_esmc_setvmid)(
+#undef  ESMC_METHOD
+#define ESMC_METHOD "c_esmc_setvmid()"
 //
 // !RETURN VALUE:
 //    none.  return code is passed thru the parameter list
@@ -610,7 +689,9 @@ extern "C" {
 // !IROUTINE:  c_ESMC_BaseSetBaseStatus - set baseStatus in Base object
 //
 // !INTERFACE:
-      void FTN(c_esmc_basesetbasestatus)(
+      void FTN_X(c_esmc_basesetbasestatus)(
+#undef  ESMC_METHOD
+#define ESMC_METHOD "c_esmc_basesetbasestatus()"
 //
 // !RETURN VALUE:
 //    none.  return code is passed thru the parameter list
@@ -642,7 +723,9 @@ extern "C" {
 // !IROUTINE:  c_ESMC_BaseGetBaseStatus - get baseStatus from Base object
 //
 // !INTERFACE:
-      void FTN(c_esmc_basegetbasestatus)(
+      void FTN_X(c_esmc_basegetbasestatus)(
+#undef  ESMC_METHOD
+#define ESMC_METHOD "c_esmc_basegetbasestatus()"
 //
 // !RETURN VALUE:
 //    none.  return code is passed thru the parameter list
@@ -675,7 +758,9 @@ extern "C" {
 // !IROUTINE:  c_ESMC_BaseSetStatus - set status in Base object
 //
 // !INTERFACE:
-      void FTN(c_esmc_basesetstatus)(
+      void FTN_X(c_esmc_basesetstatus)(
+#undef  ESMC_METHOD
+#define ESMC_METHOD "c_esmc_basesetstatus()"
 //
 // !RETURN VALUE:
 //    none.  return code is passed thru the parameter list
@@ -707,14 +792,16 @@ extern "C" {
 // !IROUTINE:  c_ESMC_BaseGetStatus - get status from Base object
 //
 // !INTERFACE:
-      void FTN(c_esmc_basegetstatus)(
+      void FTN_X(c_esmc_basegetstatus)(
+#undef  ESMC_METHOD
+#define ESMC_METHOD "c_esmc_basegetstatus()"
 //
 // !RETURN VALUE:
 //    none.  return code is passed thru the parameter list
 // 
 // !ARGUMENTS:
-      ESMC_Base **base,         // in/out - base object
-      ESMC_Status *status,      // in - status
+      ESMC_Base **base,         // in - base object
+      ESMC_Status *status,      // out - status
       int *rc                   // out - return code
       ){
 // 
@@ -733,6 +820,43 @@ extern "C" {
   return;
 
 }  // end c_ESMC_BaseGetStatus
+
+//-----------------------------------------------------------------------------
+//BOP
+// !IROUTINE:  c_ESMC_IsProxy - test if this base object is a proxy
+//
+// !INTERFACE:
+      void FTN_X(c_esmc_isproxy)(
+#undef  ESMC_METHOD
+#define ESMC_METHOD "c_esmc_isproxy()"
+//
+// !RETURN VALUE:
+//    none.  return code is passed thru the parameter list
+// 
+// !ARGUMENTS:
+      ESMC_Base **base,         // in - base object
+      ESMC_Logical *isProxy,    // out - true or false
+      int *rc) {                // out - return code
+// 
+// !DESCRIPTION:
+//     Return ESMF\_TRUE or ESMF\_FALSE in {\tt isProxy}.
+//
+//EOP
+
+  // Initialize return code; assume routine not implemented
+  if (rc) *rc = ESMC_RC_NOT_IMPL;
+  
+  *isProxy = ESMF_FALSE;  // initiallize
+  
+  if ((*base)->ESMC_BaseGetProxyFlag()==ESMF_PROXYYES)
+    *isProxy = ESMF_TRUE;
+  
+  // return successfully
+  *rc = ESMF_SUCCESS;
+  return;
+
+}  // end c_ESMC_IsProxy
+
 
 
 } // extern "C"

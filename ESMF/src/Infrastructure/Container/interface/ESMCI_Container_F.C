@@ -1,7 +1,7 @@
 // $Id$
 //
 // Earth System Modeling Framework
-// Copyright 2002-2012, University Corporation for Atmospheric Research, 
+// Copyright 2002-2018, University Corporation for Atmospheric Research, 
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
 // Laboratory, University of Michigan, National Centers for Environmental 
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
@@ -18,12 +18,10 @@
 // INCLUDES
 //------------------------------------------------------------------------------
 #include "ESMCI_Macros.h"
-#include "ESMCI_LogErr.h"                  // for LogErr
-#include "ESMCI_LogMacros.inc"
+#include "ESMCI_LogErr.h"
 #include "ESMCI_F90Interface.h"
 #include "ESMCI_Field.h"
 #include "ESMCI_StateItem.h"
-
 #include "ESMCI_Container.h"
 
 #include <string>
@@ -44,7 +42,7 @@ extern "C" {
 
   // - ESMF-public methods:
         
-  void FTN(c_esmc_containeradd)
+  void FTN_X(c_esmc_containeradd)
     (ESMCI::Container<std::string, ESMCI::F90ClassHolder> **ptr, 
     char const *itemName, ESMCI::F90ClassHolder *f90p, 
     ESMC_Logical *multiflag, ESMC_Logical *relaxedflag, int *rc,
@@ -92,7 +90,7 @@ extern "C" {
   
   //-------------------------------------------------------------------------
 
-  void FTN(c_esmc_containeraddreplace)
+  void FTN_X(c_esmc_containeraddreplace)
     (ESMCI::Container<std::string, ESMCI::F90ClassHolder> **ptr, 
     char const *itemName, ESMCI::F90ClassHolder *f90p, 
     int *rc, ESMCI_FortranStrLenArg nlen){
@@ -127,7 +125,7 @@ extern "C" {
   
   //-------------------------------------------------------------------------
 
-  void FTN(c_esmc_containerclear)
+  void FTN_X(c_esmc_containerclear)
     (ESMCI::Container<std::string, ESMCI::F90ClassHolder> **ptr, int *rc){
 #undef  ESMC_METHOD
 #define ESMC_METHOD "c_esmc_containerclear()"
@@ -159,7 +157,7 @@ extern "C" {
 
   //-------------------------------------------------------------------------
 
-  void FTN(c_esmc_containercreate)
+  void FTN_X(c_esmc_containercreate)
     (ESMCI::Container<std::string, ESMCI::F90ClassHolder> **ptr, int *rc){
 #undef  ESMC_METHOD
 #define ESMC_METHOD "c_esmc_containercreate()"
@@ -192,7 +190,7 @@ extern "C" {
   
   //-------------------------------------------------------------------------
 
-  void FTN(c_esmc_containerdestroy)
+  void FTN_X(c_esmc_containerdestroy)
     (ESMCI::Container<std::string, ESMCI::F90ClassHolder> **ptr, int *rc){
 #undef  ESMC_METHOD
 #define ESMC_METHOD "c_esmc_containerdestroy()"
@@ -224,7 +222,7 @@ extern "C" {
 
   //-------------------------------------------------------------------------
 
-  void FTN(c_esmc_containergetcount)
+  void FTN_X(c_esmc_containergetcount)
     (ESMCI::Container<std::string, ESMCI::F90ClassHolder> **ptr, 
     char *itemName, int *count, int *rc, ESMCI_FortranStrLenArg nlen){
 #undef  ESMC_METHOD
@@ -258,7 +256,7 @@ extern "C" {
   
   //-------------------------------------------------------------------------
 
-  void FTN(c_esmc_containergetcountall)
+  void FTN_X(c_esmc_containergetcountall)
     (ESMCI::Container<std::string, ESMCI::F90ClassHolder> **ptr, 
     int *count, int *rc){
 #undef  ESMC_METHOD
@@ -292,7 +290,7 @@ extern "C" {
   
   //-------------------------------------------------------------------------
 
-  void FTN(c_esmc_containergarbageon)
+  void FTN_X(c_esmc_containergarbageon)
     (ESMCI::Container<std::string, ESMCI::F90ClassHolder> **ptr, int *rc){
 #undef  ESMC_METHOD
 #define ESMC_METHOD "c_esmc_containergarbageon()"
@@ -325,7 +323,7 @@ extern "C" {
   
   //-------------------------------------------------------------------------
 
-  void FTN(c_esmc_containergarbageoff)
+  void FTN_X(c_esmc_containergarbageoff)
     (ESMCI::Container<std::string, ESMCI::F90ClassHolder> **ptr, int *rc){
 #undef  ESMC_METHOD
 #define ESMC_METHOD "c_esmc_containergarbageoff()"
@@ -358,7 +356,7 @@ extern "C" {
   
   //-------------------------------------------------------------------------
 
-  void FTN(c_esmc_containergarbageclear)
+  void FTN_X(c_esmc_containergarbageclear)
     (ESMCI::Container<std::string, ESMCI::F90ClassHolder> **ptr, int *rc){
 #undef  ESMC_METHOD
 #define ESMC_METHOD "c_esmc_containergarbageclear()"
@@ -391,7 +389,7 @@ extern "C" {
   
   //-------------------------------------------------------------------------
 
-  void FTN(c_esmc_containergarbagecount)
+  void FTN_X(c_esmc_containergarbagecount)
     (ESMCI::Container<std::string, ESMCI::F90ClassHolder> **ptr, 
     int *count, int *rc){
 #undef  ESMC_METHOD
@@ -425,7 +423,7 @@ extern "C" {
   
   //-------------------------------------------------------------------------
 
-  void FTN(c_esmc_containergetfield)
+  void FTN_X(c_esmc_containergetfield)
     (ESMCI::Container<std::string, ESMCI::F90ClassHolder> **ptr, 
     char const *itemName, ESMCI::F90ClassHolder *f90p, int *rc, 
     ESMCI_FortranStrLenArg nlen){
@@ -465,7 +463,7 @@ extern "C" {
   
   //-------------------------------------------------------------------------
 
-  void FTN(c_esmc_containergetsi)
+  void FTN_X(c_esmc_containergetsi)
     (ESMCI::Container<std::string, ESMCI::F90ClassHolder> **ptr, 
     char const *itemName, ESMCI::F90ClassHolder *f90p, int *rc, 
     ESMCI_FortranStrLenArg nlen){
@@ -506,7 +504,7 @@ extern "C" {
   
   //-------------------------------------------------------------------------
 
-  void FTN(c_esmc_containergetispresent)
+  void FTN_X(c_esmc_containergetispresent)
     (ESMCI::Container<std::string, ESMCI::F90ClassHolder> **ptr, 
     char const *itemName, ESMC_Logical *isPresent, int *rc,
     ESMCI_FortranStrLenArg nlen){
@@ -544,9 +542,10 @@ extern "C" {
  
   //-------------------------------------------------------------------------
 
-  void FTN(c_esmc_containergetvector)
+  void FTN_X(c_esmc_containergetvector)
     (ESMCI::Container<std::string, ESMCI::F90ClassHolder> **ptr, 
-    char const *itemName, std::vector<ESMCI::F90ClassHolder> **vector, int *rc,
+    char const *itemName, std::vector<ESMCI::F90ClassHolder> **vector, 
+    ESMC_ItemOrder_Flag *itemorderflag, int *rc,
     ESMCI_FortranStrLenArg nlen){
 #undef  ESMC_METHOD
 #define ESMC_METHOD "c_esmc_containergetvector()"
@@ -560,7 +559,7 @@ extern "C" {
       // construct persistent vector object
       *vector = new std::vector<ESMCI::F90ClassHolder>;
       // query the C++ layer
-      (*ptr)->get(std::string(itemName, nlen), **vector);
+      (*ptr)->get(std::string(itemName, nlen), **vector, *itemorderflag);
       
     }catch(int localrc){
       // catch standard ESMF return code
@@ -582,9 +581,10 @@ extern "C" {
   
   //-------------------------------------------------------------------------
 
-  void FTN(c_esmc_containergetvectorall)
+  void FTN_X(c_esmc_containergetvectorall)
     (ESMCI::Container<std::string, ESMCI::F90ClassHolder> **ptr, 
-    std::vector<ESMCI::F90ClassHolder> **vector, int *rc){
+    std::vector<ESMCI::F90ClassHolder> **vector, 
+    ESMC_ItemOrder_Flag *itemorderflag, int *rc){
 #undef  ESMC_METHOD
 #define ESMC_METHOD "c_esmc_containergetvectorall()"
     // Initialize return code; assume routine not implemented
@@ -597,7 +597,7 @@ extern "C" {
       // construct persistent vector object
       *vector = new std::vector<ESMCI::F90ClassHolder>;
       // query the C++ layer
-      (*ptr)->getVector(**vector);
+      (*ptr)->getVector(**vector, *itemorderflag);
       
     }catch(int localrc){
       // catch standard ESMF return code
@@ -619,7 +619,7 @@ extern "C" {
   
   //-------------------------------------------------------------------------
 
-  void FTN(c_esmc_containergarbageget)
+  void FTN_X(c_esmc_containergarbageget)
     (ESMCI::Container<std::string, ESMCI::F90ClassHolder> **ptr, 
     std::vector<ESMCI::F90ClassHolder> **vector, int *rc){
 #undef  ESMC_METHOD
@@ -656,7 +656,7 @@ extern "C" {
   
   //-------------------------------------------------------------------------
 
-  void FTN(c_esmc_containergetvfield)
+  void FTN_X(c_esmc_containergetvfield)
     (ESMCI::Container<std::string, ESMCI::F90ClassHolder> **ptr, 
     std::vector<ESMCI::F90ClassHolder> **vector, int *item, 
     ESMCI::F90ClassHolder *f90p, int *rc){
@@ -697,7 +697,7 @@ extern "C" {
   
   //-------------------------------------------------------------------------
 
-  void FTN(c_esmc_containergetvsi)
+  void FTN_X(c_esmc_containergetvsi)
     (ESMCI::Container<std::string, ESMCI::F90ClassHolder> **ptr, 
     std::vector<ESMCI::F90ClassHolder> **vector, int *item, 
     ESMCI::F90ClassHolder *f90p, int *rc){
@@ -738,7 +738,7 @@ extern "C" {
   
   //-------------------------------------------------------------------------
 
-  void FTN(c_esmc_containerreleasevector)
+  void FTN_X(c_esmc_containerreleasevector)
     (ESMCI::Container<std::string, ESMCI::F90ClassHolder> **ptr, 
     std::vector<ESMCI::F90ClassHolder> **vector, int *rc){
 #undef  ESMC_METHOD
@@ -775,7 +775,7 @@ extern "C" {
   
   //-------------------------------------------------------------------------
 
-  void FTN(c_esmc_containerremove)
+  void FTN_X(c_esmc_containerremove)
     (ESMCI::Container<std::string, ESMCI::F90ClassHolder> **ptr, 
     char const *itemName, ESMC_Logical *multiflag, ESMC_Logical *relaxedflag,
     int *rc, ESMCI_FortranStrLenArg nlen){
@@ -822,7 +822,7 @@ extern "C" {
   
   //-------------------------------------------------------------------------
 
-  void FTN(c_esmc_containerreplace)
+  void FTN_X(c_esmc_containerreplace)
     (ESMCI::Container<std::string, ESMCI::F90ClassHolder> **ptr, 
     char const *itemName, ESMCI::F90ClassHolder *f90p, 
     ESMC_Logical *multiflag, ESMC_Logical *relaxedflag, int *rc,
@@ -870,7 +870,7 @@ extern "C" {
   
   //-------------------------------------------------------------------------
 
-  void FTN(c_esmc_containerprint)
+  void FTN_X(c_esmc_containerprint)
     (ESMCI::Container<std::string, ESMCI::F90ClassHolder> **ptr, int *rc){
 #undef  ESMC_METHOD
 #define ESMC_METHOD "c_esmc_containerprint()"
@@ -909,7 +909,7 @@ extern "C" {
   //-------------------------------------------------------------------------
   //-------------------------------------------------------------------------
   
-  void FTN(esmf_containeraddudt)
+  void FTN_X(esmf_containeraddudt)
     (ESMCI::Container<std::string, ESMCI::F90ClassHolder> **ptr, 
     char const *itemName, void **udtPtr, int *rc, ESMCI_FortranStrLenArg nlen){
 #undef  ESMC_METHOD
@@ -944,7 +944,7 @@ extern "C" {
   
   //-------------------------------------------------------------------------
 
-  void FTN(esmf_containergetudt)
+  void FTN_X(esmf_containergetudt)
     (ESMCI::Container<std::string, ESMCI::F90ClassHolder> **ptr, 
     char const *itemName, void **udtPtr, int *rc, ESMCI_FortranStrLenArg nlen){
 #undef  ESMC_METHOD
@@ -958,7 +958,7 @@ extern "C" {
 
       ESMCI::F90ClassHolder f90CH = (*ptr)->get(std::string(itemName, nlen));
       
-      // cast C++ Field object into Fortran
+      // cast C++ UDT object into Fortran
       localrc = f90CH.castToFortranUDT(udtPtr);
       if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU,
         ESMC_CONTEXT, rc)) return;
@@ -983,7 +983,55 @@ extern "C" {
   
   //-------------------------------------------------------------------------
 
-  void FTN(esmf_containerreplaceudt)
+  void FTN_X(esmf_containergetudtbyindex)
+    (ESMCI::Container<std::string, ESMCI::F90ClassHolder> **ptr, 
+    int const *itemIndex, void **udtPtr, ESMC_ItemOrder_Flag *itemorderflag,
+    int *rc){
+#undef  ESMC_METHOD
+#define ESMC_METHOD "esmf_containergetudtlistall()"
+    // Initialize return code; assume routine not implemented
+    if (rc!=NULL) *rc = ESMC_RC_NOT_IMPL;
+    int localrc = ESMC_RC_NOT_IMPL;
+
+    // call into C++
+    try{
+      
+      std::vector<ESMCI::F90ClassHolder> vector;
+      (*ptr)->getVector(vector, *itemorderflag);
+
+      int index = *itemIndex - 1; // shift index to base 0 on the C++ side      
+      if ((index < 0) || (index >= vector.size())){
+        ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_BAD, "- index out of range.",
+          ESMC_CONTEXT, rc);
+        return;
+      }
+      
+      // cast C++ UDT object into Fortran
+      localrc = (vector[index]).castToFortranUDT(udtPtr);
+      if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU,
+        ESMC_CONTEXT, rc)) return;
+      
+    }catch(int localrc){
+      // catch standard ESMF return code
+      ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, ESMC_CONTEXT,
+        rc);
+      return;
+    }catch(std::exception &x){
+      ESMC_LogDefault.MsgFoundError(ESMC_RC_INTNRL_BAD, x.what(), ESMC_CONTEXT,
+        rc);
+      return;
+    }catch(...){
+      ESMC_LogDefault.MsgFoundError(ESMC_RC_INTNRL_BAD, "- Caught exception",
+        ESMC_CONTEXT, rc);
+      return;
+    }
+    // return successfully
+    if (rc!=NULL) *rc = ESMF_SUCCESS;
+  }
+  
+  //-------------------------------------------------------------------------
+
+  void FTN_X(esmf_containerreplaceudt)
     (ESMCI::Container<std::string, ESMCI::F90ClassHolder> **ptr, 
     char const *itemName, void **udtPtr, int *rc, ESMCI_FortranStrLenArg nlen){
 #undef  ESMC_METHOD
@@ -1018,7 +1066,7 @@ extern "C" {
   
   //-------------------------------------------------------------------------
 
-  void FTN(esmf_containergarbagegetudt)
+  void FTN_X(esmf_containergarbagegetudt)
     (ESMCI::Container<std::string, ESMCI::F90ClassHolder> **ptr, 
     int const *item, void **udtPtr, int *rc){
 #undef  ESMC_METHOD
@@ -1043,7 +1091,7 @@ extern "C" {
       
       ESMCI::F90ClassHolder f90CH = garbage[*item-1];
       
-      // cast C++ Field object into Fortran
+      // cast C++ UDT object into Fortran
       localrc = f90CH.castToFortranUDT(udtPtr);
       if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU,
         ESMC_CONTEXT, rc)) return;

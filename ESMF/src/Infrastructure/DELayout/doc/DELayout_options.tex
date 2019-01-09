@@ -1,0 +1,52 @@
+% $Id$
+
+% Earth System Modeling Framework
+% Copyright 2002-2018, University Corporation for Atmospheric Research, 
+% Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
+% Laboratory, University of Michigan, National Centers for Environmental 
+% Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
+% NASA Goddard Space Flight Center.
+% Licensed under the University of Illinois-NCSA License.
+
+\subsubsection{ESMF\_PIN}
+\label{const:pin_flag}
+
+{\sf DESCRIPTION:\\}
+Specifies which VM resource DEs are pinned to - i.e. PETs or VASs.
+
+The type of this flag is:
+
+{\tt type(ESMF\_Pin\_Flag)}
+
+The valid values are:
+\begin{description}
+  \item [ESMF\_PIN\_DE\_TO\_PET] 
+    Pin DEs against PETs. This means that even if a group of PETs in the 
+    VM are sharing a common virtual address space (VAS), DEs cannot
+    be shared between PETs, but must be serviced by the specific PET they
+    are pinned to.
+  \item [ESMF\_PIN\_DE\_TO\_VAS]
+    Pin DEs against VASs. DEs may be serviced by any PET that is 
+    executing within the virtual address space (VAS) the DE is pinned to.
+\end{description}
+
+
+\subsubsection{ESMF\_SERVICEREPLY}
+\label{const:servicereply_flag}
+
+{\sf DESCRIPTION:\\}
+Reply when a PET offers to service a DE.
+
+The type of this flag is:
+
+{\tt type(ESMF\_ServiceReply\_Flag)}
+
+The valid values are:
+\begin{description}
+  \item [ESMF\_SERVICEREPLY\_ACCEPT] 
+    The service offer has been accepted. The PET is expected to service the DE.
+  \item [ESMF\_SERVICEREPLY\_DENY]
+    The service offer has been denied. The PET is expected to not service the
+    DE.
+\end{description}
+

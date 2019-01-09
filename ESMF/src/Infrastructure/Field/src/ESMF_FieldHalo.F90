@@ -1,7 +1,7 @@
 ! $Id$
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2012, University Corporation for Atmospheric Research, 
+! Copyright 2002-2018, University Corporation for Atmospheric Research, 
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
 ! Laboratory, University of Michigan, National Centers for Environmental 
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
@@ -103,13 +103,13 @@ contains
                             routesyncflag, finishedflag, checkflag, rc)
 !
 ! !ARGUMENTS:
-    type(ESMF_Field),       intent(inout)           :: field
-    type(ESMF_RouteHandle), intent(inout)           :: routehandle
+    type(ESMF_Field),          intent(inout)          :: field
+    type(ESMF_RouteHandle),    intent(inout)          :: routehandle
 type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords for the below
-    type(ESMF_RouteSync_Flag), intent(in), optional :: routesyncflag
-    logical,                intent(out),  optional  :: finishedflag
-    logical,                intent(in),   optional  :: checkflag
-    integer,                intent(out),  optional  :: rc
+    type(ESMF_RouteSync_Flag), intent(in),  optional  :: routesyncflag
+    logical,                   intent(out), optional  :: finishedflag
+    logical,                   intent(in),  optional  :: checkflag
+    integer,                   intent(out), optional  :: rc
 !
 !
 ! !STATUS:
@@ -120,9 +120,9 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords for t
 ! !DESCRIPTION:
 !   Execute a precomputed Field halo operation for {\tt field}. The {\tt field}
 !   argument must be weakly congruent and typekind conform to the Field used
-!   during {\tt ESMF\_FieldHaloStore()}.
-!   Congruent Fields possess matching DistGrids, and the shape of the local
-!   array tiles matches between the Fields for every DE. For weakly congruent
+!   during {\tt ESMF\_FieldHaloStore()}. Congruent Fields possess matching
+!   DistGrids and the shape of the local array tiles, i.e. the memory allocation,
+!   matches between the Fields for every DE. For weakly congruent
 !   Fields the sizes of the undistributed dimensions, that vary faster with
 !   memory than the first distributed dimension, are permitted to be different.
 !   This means that the same {\tt routehandle} can be applied to a large class
@@ -215,7 +215,7 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 ! \end{itemize}
 !
 ! !DESCRIPTION:
-!   Release resouces associated with a Field halo operation.
+!   Release resources associated with a Field halo operation.
 !   After this call {\tt routehandle} becomes invalid.
 !
 !   \begin{description}
@@ -259,13 +259,13 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
       startregion, haloLDepth, haloUDepth, rc)
 !
 ! !ARGUMENTS:
-    type(ESMF_Field),       intent(inout)                :: field
-    type(ESMF_RouteHandle), intent(inout)                :: routehandle
+    type(ESMF_Field),            intent(inout)           :: field
+    type(ESMF_RouteHandle),      intent(inout)           :: routehandle
 type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
     type(ESMF_StartRegion_Flag), intent(in),    optional :: startregion
-    integer,                intent(in),         optional :: haloLDepth(:)
-    integer,                intent(in),         optional :: haloUDepth(:)
-    integer,                intent(out),        optional :: rc
+    integer,                     intent(in),    optional :: haloLDepth(:)
+    integer,                     intent(in),    optional :: haloUDepth(:)
+    integer,                     intent(out),   optional :: rc
 !
 !
 ! !STATUS:
@@ -287,7 +287,7 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 !   effective halo region from the inside. Setting this flag to
 !   {\tt ESMF\_STARTREGION\_COMPUTATIONAL} means that only elements outside 
 !   the computational region of the Field are considered for potential
-!   destination elements for halo. The default is {\tt ESMF\_STARTREGION\_EXCLUSIVE}.
+!   destination elements for the halo operation. The default is {\tt ESMF\_STARTREGION\_EXCLUSIVE}.
 !
 !   The {\tt haloLDepth} and {\tt haloUDepth} arguments allow to reduce
 !   the extent of the effective halo region. Starting at the region specified
@@ -297,17 +297,17 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 !   {\tt haloLDepth} and {\tt haloUDepth} setting. The total Field region is
 !   local DE specific. The {\tt haloLDepth} and {\tt haloUDepth} are interpreted
 !   as the maximum desired extent, reducing the potentially larger region
-!   available for halo.
+!   available for the halo operation.
 !
 !   The routine returns an {\tt ESMF\_RouteHandle} that can be used to call 
 !   {\tt ESMF\_FieldHalo()} on any Field that is weakly congruent
-!   and typekind conform to {\tt field}.
-!   Congruent Fields possess matching DistGrids, and the shape of the local
-!   field tiles matches between the Fieldss for every DE. For weakly congruent
-!   Fieldss the sizes of the undistributed dimensions, that vary faster with
+!   and typekind conform to {\tt field}. Congruent Fields possess matching
+!   DistGrids and the shape of the local field tiles, i.e. the memory allocation,
+!   matches between the Fields for every DE. For weakly congruent
+!   Fields the sizes of the undistributed dimensions, that vary faster with
 !   memory than the first distributed dimension, are permitted to be different.
 !   This means that the same {\tt routehandle} can be applied to a large class
-!   of similar Fieldss that differ in the number of elements in the left most
+!   of similar Fields that differ in the number of elements in the left most
 !   undistributed dimensions.
 !  
 !   This call is {\em collective} across the current VM.  
@@ -322,7 +322,7 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 !     \begin{sloppypar}
 !     The start of the effective halo region on every DE. The default
 !     setting is {\tt ESMF\_STARTREGION\_EXCLUSIVE}, rendering all non-exclusive
-!     elements potential halo destination elments.
+!     elements potential halo destination elements.
 !     See section \ref{const:startregion} for a complete list of
 !     valid settings.
 !     \end{sloppypar}

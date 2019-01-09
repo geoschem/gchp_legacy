@@ -1,0 +1,22 @@
+
+
+
+\subsubsection{Grid Topology} 
+
+The {\tt ESMF\_Grid} class depends upon the {\tt ESMF\_DistGrid} class
+for the specification of its topology. That is, when 
+creating a Grid, first an {\tt ESMF\_DistGrid} is created to describe the 
+appropriate index space topology. This decision was
+made because it seemed redundant to have a system for doing this
+in both classes. It also seems most appropriate for
+the machinary for topology creation to be located at the lowest
+level possible so that it can be used by other
+classes (e.g. the {\tt ESMF\_Array} class). Because of this, however,
+the authors recommend that as a natural part of the 
+implementation of subroutines to generate standard grid shapes
+(e.g. {\tt ESMF\_GridGenSphere}) a set of standard
+topology generation subroutines be implemented (e.g. {\tt ESMF\_DistGridGenSphere}) for users who want to create a standard topology, but a custom geometry.
+
+
+
+

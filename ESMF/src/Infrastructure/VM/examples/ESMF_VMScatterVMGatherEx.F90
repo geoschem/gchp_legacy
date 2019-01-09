@@ -1,7 +1,7 @@
-! $Id: ESMF_VMScatterVMGatherEx.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
+! $Id$
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2012, University Corporation for Atmospheric Research,
+! Copyright 2002-2018, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -17,7 +17,7 @@
 !------------------------------------------------------------------------------
 !BOE
 !
-! \subsubsection{Scatter and Gather}
+! \subsubsection{Communication - Scatter and Gather}
 !
 ! The VM layer provides MPI-like collective communication. {\tt ESMF\_VMScatter()}
 ! scatters data located on {\tt root} PET across all the PETs of the VM. 
@@ -28,8 +28,10 @@
 !------------------------------------------------------------------------------
 
 program ESMF_VMScatterVMGatherEx
+#include "ESMF.h"
 
   use ESMF
+  use ESMF_TestMod
   
   implicit none
   
@@ -37,22 +39,39 @@ program ESMF_VMScatterVMGatherEx
   integer:: rc
   type(ESMF_VM):: vm
   integer:: localPet, petCount
+!BOC
   integer, allocatable:: array1(:), array2(:)
+!EOC
   integer:: nlen, nsize, i, scatterRoot, gatherRoot
   ! result code
-  integer :: finalrc
+  integer :: finalrc, result
+  character(ESMF_MAXSTR) :: testname
+  character(ESMF_MAXSTR) :: failMsg
+
+!-------------------------------------------------------------------------
+!-------------------------------------------------------------------------
+
+  write(failMsg, *) "Example failure"
+  write(testname, *) "Example ESMF_VMScatterVMGatherEx"
+
+
+! ------------------------------------------------------------------------------
+! ------------------------------------------------------------------------------
+
+
   finalrc = ESMF_SUCCESS
 
   call ESMF_Initialize(vm=vm, defaultlogfilename="VMScatterVMGatherEx.Log", &
                     logkindflag=ESMF_LOGKIND_MULTI, rc=rc)
-  if (rc/=ESMF_SUCCESS) finalrc = ESMF_FAILURE
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
  
   call ESMF_VMGet(vm, localPet=localPet, petCount=petCount, rc=rc)
-  if (rc/=ESMF_SUCCESS) finalrc = ESMF_FAILURE
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
   scatterRoot = 0
   gatherRoot = petCount-1
 
+!BOC
   ! allocate data arrays
   nsize = 2
   nlen = nsize * petCount
@@ -63,6 +82,7 @@ program ESMF_VMScatterVMGatherEx
   do i=1, nlen
     array1(i) = localPet * 100 + i
   enddo
+!EOC
   
   ! verify contents of data array1
   print *, 'contents before scatter/gather:'
@@ -74,15 +94,13 @@ program ESMF_VMScatterVMGatherEx
 !BOC
   call ESMF_VMScatter(vm, sendData=array1, recvData=array2, count=nsize, &
     rootPet=scatterRoot, rc=rc)
-  ! Both sendData and recvData must be 1-d arrays.
 !EOC
-  if (rc/=ESMF_SUCCESS) finalrc = ESMF_FAILURE
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !BOC
   call ESMF_VMGather(vm, sendData=array2, recvData=array1, count=nsize, &
     rootPet=gatherRoot, rc=rc)
-  ! Both sendData and recvData must be 1-d arrays.
 !EOC
-  if (rc/=ESMF_SUCCESS) finalrc = ESMF_FAILURE
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
  
   ! print the scatter result
   print *, 'scatter result:'
@@ -96,6 +114,12 @@ program ESMF_VMScatterVMGatherEx
     print *, localPet,' array1: ', array1(i)
   enddo
 !EOC
+
+  ! IMPORTANT: ESMF_STest() prints the PASS string and the # of processors in the log
+  ! file that the scripts grep for.
+  call ESMF_STest((finalrc.eq.ESMF_SUCCESS), testname, failMsg, result, ESMF_SRCLINE)
+
+
   
   call ESMF_Finalize(rc=rc)
   if (finalrc==ESMF_SUCCESS) then

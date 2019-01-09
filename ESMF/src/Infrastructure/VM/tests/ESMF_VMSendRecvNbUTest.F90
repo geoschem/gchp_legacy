@@ -1,7 +1,7 @@
-! $Id: ESMF_VMSendRecvNbUTest.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
+! $Id$
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2012, University Corporation for Atmospheric Research,
+! Copyright 2002-2018, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -18,7 +18,8 @@
 
 !==============================================================================
 !BOP
-! !PROGRAM: ESMF_VMSendRecvNbUTest - Unit test for non-blocking VM SendRecv Function
+! !PROGRAM: ESMF_VMSendRecvNbUTest - Unit test for non-blocking VM SendRecv
+!  Function
 !
 ! !DESCRIPTION:
 !
@@ -36,7 +37,7 @@
 !------------------------------------------------------------------------------
 ! The following line turns the CVS identifier string into a printable variable.
       character(*), parameter :: version = &
-      '$Id: ESMF_VMSendRecvNbUTest.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $'
+      '$Id$'
 !------------------------------------------------------------------------------
       ! cumulative result: count failures; no failures equals "all pass"
       integer :: result = 0
@@ -82,6 +83,7 @@
 
 
       call ESMF_TestStart(ESMF_SRCLINE, rc=rc)
+      if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
       ! Get count of PETs and which PET number we are
       call ESMF_VMGetGlobal(vm, rc=rc)
@@ -148,7 +150,7 @@
       do  i=1,count
         soln(i)    = src*100+i
         r8_soln(i) = real( soln(i) , ESMF_KIND_R8)
-        r4_soln(i) = r8_soln(i)
+        r4_soln(i) = real( r8_soln(i))
         if ( mod(soln(i)+src,2) .eq. 0 ) then
           logical_soln(i)= ESMF_TRUE
         else
@@ -242,7 +244,7 @@
         r4_recvData(2),"( should be ", r4_soln(1), r4_soln(2)," )"
       R4Sum=(r4_recvData(1) - r4_soln(1)) +  &
             (r4_recvData(2) - r4_soln(2))
-      call ESMF_Test( (R4Sum .eq. 0), name, failMsg, result, ESMF_SRCLINE)
+      call ESMF_Test( (R4Sum .eq. 0.0), name, failMsg, result, ESMF_SRCLINE)
 
      !Test with ESMF_KIND_R8 arguments
      !================================
@@ -264,7 +266,7 @@
      &       r8_recvData(2),"( Should be ", r8_soln(1), r8_soln(2)," )"
       R8Sum=(r8_recvData(1) - r8_soln(1)) +  &
             (r8_recvData(2) - r8_soln(2))
-      call ESMF_Test( (R8Sum .eq. 0), name, failMsg, result, ESMF_SRCLINE)
+      call ESMF_Test( (R8Sum .eq. 0.0), name, failMsg, result, ESMF_SRCLINE)
 
      !Test with logical arguments
      !===========================
@@ -279,7 +281,7 @@
       !------------------------------------------------------------------------
       !NEX_UTest
       ! Verify localData after VM Receive
-      ISum=0.
+      ISum=0
       write(failMsg, *) "Wrong Local Data"
       write(name, *) "Verify local LOGICAL data after receive Test"
 
@@ -321,7 +323,7 @@
       do  i=1,count
         soln(i)    = src*100+i
         r8_soln(i) = real( soln(i) , ESMF_KIND_R8)
-        r4_soln(i) = r8_soln(i)
+        r4_soln(i) = real( r8_soln(i))
         if ( mod(soln(i)+src,2) .eq. 0 ) then
           logical_soln(i)= ESMF_TRUE
         else
@@ -410,7 +412,7 @@
      &        r4_recvData(2),"( should be ", r4_soln(1), r4_soln(2)," )"
       R4Sum=(r4_recvData(1) - r4_soln(1)) +  &
             (r4_recvData(2) - r4_soln(2))
-      call ESMF_Test( (R4Sum .eq. 0), name, failMsg, result, ESMF_SRCLINE)
+      call ESMF_Test( (R4Sum .eq. 0.0), name, failMsg, result, ESMF_SRCLINE)
 
      !Test with ESMF_KIND_R8 arguments
      !================================
@@ -424,14 +426,14 @@
      &       r8_recvData(2),"( Should be ", r8_soln(1), r8_soln(2)," )"
       R8Sum=(r8_recvData(1) - r8_soln(1)) +  &
             (r8_recvData(2) - r8_soln(2))
-      call ESMF_Test( (R8Sum .eq. 0), name, failMsg, result, ESMF_SRCLINE)
+      call ESMF_Test( (R8Sum .eq. 0.0), name, failMsg, result, ESMF_SRCLINE)
 
      !Test with logical arguments
      !===========================
       !------------------------------------------------------------------------
       !NEX_UTest
       ! Verify localData after VM Receive
-      ISum=0.
+      ISum=0
       write(failMsg, *) "Wrong Local Data"
       write(name, *) "Verify local LOGICAL data after receive Test"
 
@@ -449,7 +451,21 @@
       end do
       call ESMF_Test( (ISum .eq. 0), name, failMsg, result, ESMF_SRCLINE)
 
+      deallocate(localData)
+      deallocate(r8_localData)
+      deallocate(r4_localData)
+      deallocate(local_logical)
 
-      call ESMF_TestEnd(result, ESMF_SRCLINE)
+      deallocate(i_recvData)
+      deallocate(r8_recvData)
+      deallocate(r4_recvData)
+      deallocate(recv_logical)
+
+      deallocate(soln)
+      deallocate(r8_soln)
+      deallocate(r4_soln)
+      deallocate(logical_soln)
+
+      call ESMF_TestEnd(ESMF_SRCLINE)
 
       end program ESMF_VMSendRecvNbUTest

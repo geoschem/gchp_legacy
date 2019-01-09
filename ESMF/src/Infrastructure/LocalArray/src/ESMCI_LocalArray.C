@@ -1,7 +1,7 @@
 // $Id$
 //
 // Earth System Modeling Framework
-// Copyright 2002-2012, University Corporation for Atmospheric Research, 
+// Copyright 2002-2018, University Corporation for Atmospheric Research, 
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
 // Laboratory, University of Michigan, National Centers for Environmental 
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
@@ -27,7 +27,6 @@
 // block of memory.  
 //
 //-----------------------------------------------------------------------------
-
 // include associated header file
 #include "ESMCI_LocalArray.h"
 
@@ -38,7 +37,6 @@
 // include ESMF headers
 #include "ESMCI_Macros.h"
 #include "ESMCI_LogErr.h"
-#include "ESMF_LogMacros.inc"             // for LogErr
 
 using namespace std;
 
@@ -52,69 +50,69 @@ static const char *const version = "$Id$";
 // prototypes for Fortran calls
 extern "C" {
 
-  void FTN(f_esmf_localarrayf90allocate)(ESMCI::LocalArray**, int *, 
-    ESMC_TypeKind*, int *, int *, int *, int *);
+  void FTN_X(f_esmf_localarrayf90allocate)(ESMCI::LocalArray**, int *, 
+    ESMC_TypeKind_Flag*, int *, int *, int *, int *);
  
-  void FTN(f_esmf_localarrayf90deallocate)(ESMCI::LocalArray**, int*, 
-    ESMC_TypeKind *, int *);
+  void FTN_X(f_esmf_localarrayf90deallocate)(ESMCI::LocalArray**, int*, 
+    ESMC_TypeKind_Flag *, int *);
  
-  void FTN(f_esmf_localarrayadjust)(ESMCI::LocalArray**, int *,
-    ESMC_TypeKind*, const int *, const int *, const int *, int *);
+  void FTN_X(f_esmf_localarrayadjust)(ESMCI::LocalArray**, int *,
+    ESMC_TypeKind_Flag*, const int *, const int *, const int *, int *);
 
-  void FTN(f_esmf_localarraycopyf90ptr)(const ESMCI::LocalArray** laIn, 
+  void FTN_X(f_esmf_localarraycopyf90ptr)(const ESMCI::LocalArray** laIn, 
     ESMCI::LocalArray** laOut, int *rc);
   
 #ifndef ESMF_NO_INTEGER_1_BYTE
-  void FTN(f_esmf_fortrantkrptrcopy1di1)(void *dst, void *src);
-  void FTN(f_esmf_fortrantkrptrcopy2di1)(void *dst, void *src);
-  void FTN(f_esmf_fortrantkrptrcopy3di1)(void *dst, void *src);
-  void FTN(f_esmf_fortrantkrptrcopy4di1)(void *dst, void *src);
+  void FTN_X(f_esmf_fortrantkrptrcopy1di1)(void *dst, void *src);
+  void FTN_X(f_esmf_fortrantkrptrcopy2di1)(void *dst, void *src);
+  void FTN_X(f_esmf_fortrantkrptrcopy3di1)(void *dst, void *src);
+  void FTN_X(f_esmf_fortrantkrptrcopy4di1)(void *dst, void *src);
 #ifndef ESMF_NO_GREATER_THAN_4D
-  void FTN(f_esmf_fortrantkrptrcopy5di1)(void *dst, void *src);
-  void FTN(f_esmf_fortrantkrptrcopy6di1)(void *dst, void *src);
-  void FTN(f_esmf_fortrantkrptrcopy7di1)(void *dst, void *src);
+  void FTN_X(f_esmf_fortrantkrptrcopy5di1)(void *dst, void *src);
+  void FTN_X(f_esmf_fortrantkrptrcopy6di1)(void *dst, void *src);
+  void FTN_X(f_esmf_fortrantkrptrcopy7di1)(void *dst, void *src);
 #endif
 #endif
 #ifndef ESMF_NO_INTEGER_2_BYTE
-  void FTN(f_esmf_fortrantkrptrcopy1di2)(void *dst, void *src);
-  void FTN(f_esmf_fortrantkrptrcopy2di2)(void *dst, void *src);
-  void FTN(f_esmf_fortrantkrptrcopy3di2)(void *dst, void *src);
-  void FTN(f_esmf_fortrantkrptrcopy4di2)(void *dst, void *src);
+  void FTN_X(f_esmf_fortrantkrptrcopy1di2)(void *dst, void *src);
+  void FTN_X(f_esmf_fortrantkrptrcopy2di2)(void *dst, void *src);
+  void FTN_X(f_esmf_fortrantkrptrcopy3di2)(void *dst, void *src);
+  void FTN_X(f_esmf_fortrantkrptrcopy4di2)(void *dst, void *src);
 #ifndef ESMF_NO_GREATER_THAN_4D
-  void FTN(f_esmf_fortrantkrptrcopy5di2)(void *dst, void *src);
-  void FTN(f_esmf_fortrantkrptrcopy6di2)(void *dst, void *src);
-  void FTN(f_esmf_fortrantkrptrcopy7di2)(void *dst, void *src);
+  void FTN_X(f_esmf_fortrantkrptrcopy5di2)(void *dst, void *src);
+  void FTN_X(f_esmf_fortrantkrptrcopy6di2)(void *dst, void *src);
+  void FTN_X(f_esmf_fortrantkrptrcopy7di2)(void *dst, void *src);
 #endif
 #endif
-  void FTN(f_esmf_fortrantkrptrcopy1di4)(void *dst, void *src);
-  void FTN(f_esmf_fortrantkrptrcopy2di4)(void *dst, void *src);
-  void FTN(f_esmf_fortrantkrptrcopy3di4)(void *dst, void *src);
-  void FTN(f_esmf_fortrantkrptrcopy4di4)(void *dst, void *src);
-  void FTN(f_esmf_fortrantkrptrcopy1di8)(void *dst, void *src);
-  void FTN(f_esmf_fortrantkrptrcopy2di8)(void *dst, void *src);
-  void FTN(f_esmf_fortrantkrptrcopy3di8)(void *dst, void *src);
-  void FTN(f_esmf_fortrantkrptrcopy4di8)(void *dst, void *src);
-  void FTN(f_esmf_fortrantkrptrcopy1dr4)(void *dst, void *src);
-  void FTN(f_esmf_fortrantkrptrcopy2dr4)(void *dst, void *src);
-  void FTN(f_esmf_fortrantkrptrcopy3dr4)(void *dst, void *src);
-  void FTN(f_esmf_fortrantkrptrcopy4dr4)(void *dst, void *src);
-  void FTN(f_esmf_fortrantkrptrcopy1dr8)(void *dst, void *src);
-  void FTN(f_esmf_fortrantkrptrcopy2dr8)(void *dst, void *src);
-  void FTN(f_esmf_fortrantkrptrcopy3dr8)(void *dst, void *src);
-  void FTN(f_esmf_fortrantkrptrcopy4dr8)(void *dst, void *src);
+  void FTN_X(f_esmf_fortrantkrptrcopy1di4)(void *dst, void *src);
+  void FTN_X(f_esmf_fortrantkrptrcopy2di4)(void *dst, void *src);
+  void FTN_X(f_esmf_fortrantkrptrcopy3di4)(void *dst, void *src);
+  void FTN_X(f_esmf_fortrantkrptrcopy4di4)(void *dst, void *src);
+  void FTN_X(f_esmf_fortrantkrptrcopy1di8)(void *dst, void *src);
+  void FTN_X(f_esmf_fortrantkrptrcopy2di8)(void *dst, void *src);
+  void FTN_X(f_esmf_fortrantkrptrcopy3di8)(void *dst, void *src);
+  void FTN_X(f_esmf_fortrantkrptrcopy4di8)(void *dst, void *src);
+  void FTN_X(f_esmf_fortrantkrptrcopy1dr4)(void *dst, void *src);
+  void FTN_X(f_esmf_fortrantkrptrcopy2dr4)(void *dst, void *src);
+  void FTN_X(f_esmf_fortrantkrptrcopy3dr4)(void *dst, void *src);
+  void FTN_X(f_esmf_fortrantkrptrcopy4dr4)(void *dst, void *src);
+  void FTN_X(f_esmf_fortrantkrptrcopy1dr8)(void *dst, void *src);
+  void FTN_X(f_esmf_fortrantkrptrcopy2dr8)(void *dst, void *src);
+  void FTN_X(f_esmf_fortrantkrptrcopy3dr8)(void *dst, void *src);
+  void FTN_X(f_esmf_fortrantkrptrcopy4dr8)(void *dst, void *src);
 #ifndef ESMF_NO_GREATER_THAN_4D
-  void FTN(f_esmf_fortrantkrptrcopy5di4)(void *dst, void *src);
-  void FTN(f_esmf_fortrantkrptrcopy6di4)(void *dst, void *src);
-  void FTN(f_esmf_fortrantkrptrcopy7di4)(void *dst, void *src);
-  void FTN(f_esmf_fortrantkrptrcopy5di8)(void *dst, void *src);
-  void FTN(f_esmf_fortrantkrptrcopy6di8)(void *dst, void *src);
-  void FTN(f_esmf_fortrantkrptrcopy7di8)(void *dst, void *src);
-  void FTN(f_esmf_fortrantkrptrcopy5dr4)(void *dst, void *src);
-  void FTN(f_esmf_fortrantkrptrcopy6dr4)(void *dst, void *src);
-  void FTN(f_esmf_fortrantkrptrcopy7dr4)(void *dst, void *src);
-  void FTN(f_esmf_fortrantkrptrcopy5dr8)(void *dst, void *src);
-  void FTN(f_esmf_fortrantkrptrcopy6dr8)(void *dst, void *src);
-  void FTN(f_esmf_fortrantkrptrcopy7dr8)(void *dst, void *src);
+  void FTN_X(f_esmf_fortrantkrptrcopy5di4)(void *dst, void *src);
+  void FTN_X(f_esmf_fortrantkrptrcopy6di4)(void *dst, void *src);
+  void FTN_X(f_esmf_fortrantkrptrcopy7di4)(void *dst, void *src);
+  void FTN_X(f_esmf_fortrantkrptrcopy5di8)(void *dst, void *src);
+  void FTN_X(f_esmf_fortrantkrptrcopy6di8)(void *dst, void *src);
+  void FTN_X(f_esmf_fortrantkrptrcopy7di8)(void *dst, void *src);
+  void FTN_X(f_esmf_fortrantkrptrcopy5dr4)(void *dst, void *src);
+  void FTN_X(f_esmf_fortrantkrptrcopy6dr4)(void *dst, void *src);
+  void FTN_X(f_esmf_fortrantkrptrcopy7dr4)(void *dst, void *src);
+  void FTN_X(f_esmf_fortrantkrptrcopy5dr8)(void *dst, void *src);
+  void FTN_X(f_esmf_fortrantkrptrcopy6dr8)(void *dst, void *src);
+  void FTN_X(f_esmf_fortrantkrptrcopy7dr8)(void *dst, void *src);
 #endif
   
 }
@@ -143,7 +141,7 @@ int LocalArray::construct(
 // !ARGUMENTS:
   bool aflag,                 // allocate space for data?
   CopyFlag docopy,            // make a data copy from ibase_addr?
-  ESMC_TypeKind tk,           // I1, I2, I4, I8, R4, R8
+  ESMC_TypeKind_Flag tk,           // I1, I2, I4, I8, R4, R8
   int irank,                  // 1, 2, ..., ESMF_MAXDIM
   LocalArrayOrigin oflag,     // create called from Fortran or C++?
   bool dflag,                 // responsible for deallocation?
@@ -190,7 +188,7 @@ int LocalArray::construct(
   }
   origin = oflag;
   dealloc = dflag;
-  byte_count = ESMC_TypeKindSize(typekind) * totalcount; 
+  byte_count = ESMC_TypeKind_FlagSize(typekind) * totalcount; 
 
   // set Fortran dope vector if provided for existing allocation
   if (f90ptr != NULL)
@@ -199,10 +197,10 @@ int LocalArray::construct(
   if (aflag){
     // call into Fortran to do the allocate, also sets internal LocalArray info
     LocalArray *aptr = this;
-    FTN(f_esmf_localarrayf90allocate)(&aptr, &rank, &typekind, counts, 
+    FTN_X(f_esmf_localarrayf90allocate)(&aptr, &rank, &typekind, counts, 
       lbound, ubound, &localrc);
-    if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, &rc))
-      return rc;
+    if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, ESMC_CONTEXT,
+      &rc)) return rc;
   } 
 
   // Setup info for calculating index tuple location quickly
@@ -218,7 +216,7 @@ int LocalArray::construct(
   if (docopy == DATA_COPY){
     if (ibase_addr == NULL){
       ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_INCOMP,
-        "- Cannot copy data when ibase_addr not provided", &rc);
+        "- Cannot copy data when ibase_addr not provided", ESMC_CONTEXT, &rc);
       return rc;
     }
     // copy data
@@ -262,9 +260,9 @@ int LocalArray::construct(
 
   if (dealloc){
     // must deallocate data allocation
-    FTN(f_esmf_localarrayf90deallocate)(&aptr, &rank, &typekind, &localrc);
-    if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, &rc))
-      return rc;
+    FTN_X(f_esmf_localarrayf90deallocate)(&aptr, &rank, &typekind, &localrc);
+    if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, ESMC_CONTEXT,
+      &rc)) return rc;
   }
 
   // return successfully
@@ -293,7 +291,7 @@ LocalArray *LocalArray::create(
 //    pointer to newly allocated LocalArray object
 //
 // !ARGUMENTS:
-  ESMC_TypeKind tk,           // I1, I2, I4, I8, R4, R8
+  ESMC_TypeKind_Flag tk,           // I1, I2, I4, I8, R4, R8
   int rank,                   // 1, 2, ..., ESMF_MAXDIM
   LocalArrayOrigin oflag,     // caller is fortran or C++?
   int *rc){                   // return code
@@ -322,8 +320,8 @@ LocalArray *LocalArray::create(
   
   localrc = a->construct(false, DATA_NONE, tk, rank, oflag, false,
     NULL, NULL, NULL, NULL, NULL, NULL);
-  if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, rc))
-    return ESMC_NULL_POINTER;
+  if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, ESMC_CONTEXT,
+    rc)) return ESMC_NULL_POINTER;
 
   // return successfully
   if (rc!=NULL) *rc = ESMF_SUCCESS;
@@ -345,7 +343,7 @@ LocalArray *LocalArray::create(
 //    pointer to newly allocated ESMCI::LocalArray object
 //
 // !ARGUMENTS:
-  ESMC_TypeKind tk,           // I1, I2, I4, I8, R4, R8
+  ESMC_TypeKind_Flag tk,           // I1, I2, I4, I8, R4, R8
   int rank,                   // 1, 2, ..., ESMF_MAXDIM
   const int *counts,          // number of items in each dim
   void *base_addr,            // if non-null, this is already allocated memory
@@ -380,8 +378,8 @@ LocalArray *LocalArray::create(
   // construct LocalArray internals, allocate memory for data
   localrc = a->construct(true, docopy, tk, rank, FROM_CPLUSPLUS, true,
     NULL, NULL, NULL, counts, base_addr, NULL);
-  if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, rc))
-    return ESMC_NULL_POINTER;
+  if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, ESMC_CONTEXT,
+    rc)) return ESMC_NULL_POINTER;
 
   // return successfully
   if (rc!=NULL) *rc = ESMF_SUCCESS;
@@ -403,7 +401,7 @@ LocalArray *LocalArray::create(
 //    pointer to newly allocated ESMCI::LocalArray object
 //
 // !ARGUMENTS:
-  ESMC_TypeKind tk,           // I1, I2, I4, I8, R4, R8
+  ESMC_TypeKind_Flag tk,           // I1, I2, I4, I8, R4, R8
   int rank,                   // 1, 2, ..., ESMF_MAXDIM
   const int *counts,          // number of items in each dim
   const int *lbounds,         // lower index number per dim
@@ -440,8 +438,8 @@ LocalArray *LocalArray::create(
   // construct LocalArray internals, allocate memory for data
   localrc = a->construct(true, docopy, tk, rank, FROM_CPLUSPLUS, true,
     NULL, lbounds, ubounds, counts, base_addr, NULL);
-  if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, rc))
-    return ESMC_NULL_POINTER;
+  if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, ESMC_CONTEXT,
+    rc)) return ESMC_NULL_POINTER;
 
   // return successfully
   if (rc!=NULL) *rc = ESMF_SUCCESS;
@@ -501,9 +499,9 @@ LocalArray *LocalArray::create(
   larrayOut->dealloc = true;
 
   // call into Fortran copy method, which will use larrayOut's lbound and ubound
-  FTN(f_esmf_localarraycopyf90ptr)(&larrayIn, &larrayOut, &localrc);
-  if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, rc))
-    return ESMC_NULL_POINTER;
+  FTN_X(f_esmf_localarraycopyf90ptr)(&larrayIn, &larrayOut, &localrc);
+  if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, ESMC_CONTEXT,
+    rc)) return ESMC_NULL_POINTER;
   
   // return successfully 
   if (rc != NULL) *rc = ESMF_SUCCESS;
@@ -533,7 +531,7 @@ LocalArray *LocalArray::create(
 //
 // !DESCRIPTION:
 //  Copy from {\tt larrayIn} with the option to adjust lbounds and ubounds in
-//  the Fortran dope vector. Depending on {\tt copyflag" a deep copy of the
+//  the Fortran dope vector. Depending on {\tt copyflag} a deep copy of the
 //  data is made, in which case memory for the data will be allocated, or
 //  the existing data in {\tt larrayIn} will be referenced by the returned
 //  LocalArray object.
@@ -546,14 +544,16 @@ LocalArray *LocalArray::create(
 
   // set some variables according to larrayIn
   int rank = larrayIn->getRank();
-  ESMC_TypeKind typekind = larrayIn->getTypeKind();
+  ESMC_TypeKind_Flag typekind = larrayIn->getTypeKind();
   const int *counts = larrayIn->getCounts();
   
-  // check that lbounds and ubounds arguments match counts
+  // check that lbounds and ubounds arguments match counts and find totalcount
+  int totalcount = 1;
   for (int i=0; i<rank; i++){
+    totalcount *= counts[i];
     if (counts[i] != ubounds[i] - lbounds[i] + 1){
       ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_INCOMP,
-        "- Mismatch of lbounds, ubounds and counts", rc);
+        "- Mismatch of lbounds, ubounds and counts", ESMC_CONTEXT, rc);
       return NULL;
     }
   }
@@ -563,8 +563,8 @@ LocalArray *LocalArray::create(
   if (copyflag == DATA_COPY){
     // make a copy of the LocalArray object including the data allocation
     larrayOut = LocalArray::create(larrayIn, lbounds, ubounds, &localrc);
-    if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, rc))
-      return NULL;
+    if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, ESMC_CONTEXT,
+      rc)) return NULL;
   }else{
     // allocate memory for new LocalArray object
     try{
@@ -583,11 +583,13 @@ LocalArray *LocalArray::create(
       larrayOut->lbound[i] = lbounds[i];
       larrayOut->ubound[i] = ubounds[i];
     }
-    // adjust the Fortran dope vector to reflect the new bounds
-    FTN(f_esmf_localarrayadjust)(&larrayOut, &rank, &typekind, counts,
-      larrayOut->lbound, larrayOut->ubound, &localrc);
-    if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, rc))
-      return NULL;
+    if (totalcount > 0){
+      // adjust the Fortran dope vector to reflect the new bounds
+      FTN_X(f_esmf_localarrayadjust)(&larrayOut, &rank, &typekind, counts,
+        larrayOut->lbound, larrayOut->ubound, &localrc);
+      if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, 
+        ESMC_CONTEXT, rc)) return NULL;
+    }
   }
   
   // Setup info for calculating index tuple location quickly
@@ -633,8 +635,8 @@ int LocalArray::destroy(
   int rc = ESMC_RC_NOT_IMPL;              // final return code
 
   localrc = localarray->destruct();
-  if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, &rc))
-    return rc;
+  if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, ESMC_CONTEXT,
+    &rc)) return rc;
 
   delete localarray;
 
@@ -714,7 +716,7 @@ int LocalArray::setInfo(
   if (dflag)
     dealloc = *dflag;
 
-  byte_count = ESMC_TypeKindSize(typekind) * totalcount;
+  byte_count = ESMC_TypeKind_FlagSize(typekind) * totalcount;
 
   // Setup info for calculating index tuple location quickly
   // Needs to be done after lbounds and counts are set
@@ -819,7 +821,7 @@ void LocalArray::getDataInternal(
 // !DESCRIPTION:
 //  Get the data at a particular index location in a LocalArray. For
 //  efficiency's sake this routine doesn't do error checking. It's assumed 
-//  that the error checking is occuring at a higher level. For error checking
+//  that the error checking is occurring at a higher level. For error checking
 //  use getData.
 //
 //EOPI
@@ -832,7 +834,7 @@ void LocalArray::getDataInternal(
     off +=dimOff[i]*index[i];
   
   // Get Data 
-  *data=*((TYPE *)((char *)base_addr+ESMC_TypeKindSize(typekind)*off)); 
+  *data=*((TYPE *)((char *)base_addr+ESMC_TypeKind_FlagSize(typekind)*off)); 
 }
 //-----------------------------------------------------------------------------
 // Add more types here if necessary
@@ -876,7 +878,7 @@ int LocalArray::getData(
   for (int i=0; i<rank; i++) {   
     if ((index[i] < lbound[i]) || (index[i] > ubound[i])) {
       ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_VALUE,
-        "- index outside of LocalArray bounds", &rc);
+        "- index outside of LocalArray bounds", ESMC_CONTEXT, &rc);
       return rc;
     }
   }
@@ -917,7 +919,7 @@ void LocalArray::setDataInternal(
 // !DESCRIPTION:
 //  Get the data at a particular index location in a LocalArray. For
 //  efficiency's sake this routine doesn't do error checking. It's assumed 
-//  that the error checking is occuring at a higher level. For error checking
+//  that the error checking is occurring at a higher level. For error checking
 //  use setData.
 //
 //EOPI
@@ -930,7 +932,7 @@ void LocalArray::setDataInternal(
     off +=dimOff[i]*index[i];
   
   // Set Data 
-  *((TYPE *)((char *)base_addr+ESMC_TypeKindSize(typekind)*off))=data; 
+  *((TYPE *)((char *)base_addr+ESMC_TypeKind_FlagSize(typekind)*off))=data; 
 }
 //-----------------------------------------------------------------------------
 // Add more types here if necessary
@@ -972,7 +974,7 @@ int LocalArray::setData(
   for (int i=0; i<rank; i++) {   
     if ((index[i] < lbound[i]) || (index[i] > ubound[i])) {
       ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_VALUE,
-        "- index outside of LocalArray bounds", &rc);
+        "- index outside of LocalArray bounds", ESMC_CONTEXT, &rc);
       return rc;
     }
   }
@@ -1047,14 +1049,14 @@ int LocalArray::print(
   }
 
   sprintf(msgbuf,"LocalArrayPrint: Array at address %p:\n", this);
-  printf(msgbuf);
+  printf("%s", msgbuf);
   sprintf(msgbuf,"            rank = %d, typekind = %d, ", 
                            this->rank, this->typekind);
-  printf(msgbuf);
+  printf("%s", msgbuf);
   sprintf(msgbuf,"base_addr = %p\n", this->base_addr);
-  printf(msgbuf);
+  printf("%s", msgbuf);
   sprintf(msgbuf,"            ");
-  printf(msgbuf);
+  printf("%s", msgbuf);
   
   if (opt_dopev){ 
     printf("f90dopev: \n");
@@ -1070,17 +1072,17 @@ int LocalArray::print(
   // some error checking against garbage pointers:
   if (rank > 7) {
     sprintf(msgbuf, "invalid rank, %d\n", this->rank);
-    printf(msgbuf);
-    ESMC_LogDefault.Write(msgbuf, ESMC_LOG_ERROR, ESMC_CONTEXT);
+    printf("%s", msgbuf);
+    ESMC_LogDefault.Write(msgbuf, ESMC_LOGMSG_ERROR, ESMC_CONTEXT);
     return ESMC_RC_OBJ_BAD;
   }
 
   for (i=0; i<this->rank; i++) {
     sprintf(msgbuf,"dim[%d] = %d  ", i, this->counts[i]);
-    printf(msgbuf);
+    printf("%s", msgbuf);
   }
   sprintf(msgbuf,"\n");
-  printf(msgbuf);
+  printf("%s", msgbuf);
   
   // TODO: make this look at one of the option letters to see if user
   //   wants data printed.
@@ -1090,7 +1092,7 @@ int LocalArray::print(
       switch (this->rank) {
         case 1:
           sprintf(msgbuf,"  Real, *4, Dim 1, Data values:\n");
-          printf(msgbuf);
+          printf("%s", msgbuf);
           imax = this->counts[0];
           tcount = imax;
           for (i=0; i<tcount; i++) {
@@ -1099,21 +1101,21 @@ int LocalArray::print(
                     *((ESMC_R4 *)(this->base_addr) + i));
               else
                   sprintf(msgbuf,"%lg ", *((ESMC_R4 *)(this->base_addr) + i));
-              printf(msgbuf);
+              printf("%s", msgbuf);
               if (!opt_all && (tcount > 22) && ((i+1)==10)) {
                  sprintf(msgbuf,"%c skipping to end ...\n", beforeskip);
-                 printf(msgbuf);
+                 printf("%s", msgbuf);
                  i = tcount - 11;
               }
           }
           if (opt_byline) {
               sprintf(msgbuf,"\n");
-              printf(msgbuf);
+              printf("%s", msgbuf);
           }
           break;
         case 2:
           sprintf(msgbuf,"  Real, *4, Dim 2, Data values:\n");
-          printf(msgbuf);
+          printf("%s", msgbuf);
           imax = this->counts[0];
           jmax = this->counts[1];
           tcount = imax * jmax;
@@ -1121,7 +1123,7 @@ int LocalArray::print(
           for (j=0; j<jmax; j++) {
               if (opt_byline) {
                   sprintf(msgbuf,"(*,%2d) = ", lbound[1]+j);
-                  printf(msgbuf);
+                  printf("%s", msgbuf);
               }
               for (i=0; i<imax; i++) {
                   if (!opt_byline) 
@@ -1131,24 +1133,24 @@ int LocalArray::print(
                   else 
                       sprintf(msgbuf,"%lg ",  
                              *((ESMC_R4 *)(this->base_addr) + i + j*imax) );
-                  printf(msgbuf);
+                  printf("%s", msgbuf);
                   rcount++;
                   if (!opt_all && (tcount > 22) && (rcount==10)) {
                      sprintf(msgbuf,"%c skipping to end ...\n", beforeskip);
-                     printf(msgbuf);
+                     printf("%s", msgbuf);
                      j = (tcount-11) / imax;
                      i = (tcount-11) % imax;
                   }
               }
               if (opt_byline) {
                   sprintf(msgbuf,"\n");
-                  printf(msgbuf);
+                  printf("%s", msgbuf);
               }
           }
           break;
         case 3:
           sprintf(msgbuf,"  Real, *4, Dim 3, Data values:\n");
-          printf(msgbuf);
+          printf("%s", msgbuf);
           imax = this->counts[0];
           jmax = this->counts[1];
           kmax = this->counts[2];
@@ -1159,7 +1161,7 @@ int LocalArray::print(
               if (opt_byline) {
                   sprintf(msgbuf,"(*,%2d,%2d) = ", 
                   lbound[1]+j, lbound[2]+k);
-                  printf(msgbuf);
+                  printf("%s", msgbuf);
               }
               for (i=0; i<imax; i++) {
                   if (!opt_byline)
@@ -1170,12 +1172,12 @@ int LocalArray::print(
                   else
                        sprintf(msgbuf,"%g ", *((ESMC_R4 *)(this->base_addr) + 
                              i + j*imax + k*jmax*imax));
-                  printf(msgbuf);
+                  printf("%s", msgbuf);
                   rcount++;
                   if (!opt_all && (tcount > 22) && (rcount==10)) {
                      int krem;
                      sprintf(msgbuf,"%c skipping to end ...\n", beforeskip);
-                     printf(msgbuf);
+                     printf("%s", msgbuf);
                      k = (tcount-11) / (imax*jmax);
                      krem = (tcount-11) % (imax*jmax);
                      j = krem / imax;
@@ -1184,14 +1186,14 @@ int LocalArray::print(
               }
               if (opt_byline) {
                   sprintf(msgbuf,"\n");
-                  printf(msgbuf);
+                  printf("%s", msgbuf);
               }
             }
           }
           break;
         default:
           sprintf(msgbuf,"no code to handle real rank %d yet\n", this->rank);
-          printf(msgbuf);
+          printf("%s", msgbuf);
           break;    
       }
       break;
@@ -1199,7 +1201,7 @@ int LocalArray::print(
       switch (this->rank) {
         case 1:
           sprintf(msgbuf,"  Real, *8, Dim 1, Data values:\n");
-          printf(msgbuf);
+          printf("%s", msgbuf);
           imax = this->counts[0];
           tcount = imax;
           for (i=0; i<tcount; i++) {
@@ -1208,21 +1210,21 @@ int LocalArray::print(
                     *((ESMC_R8 *)(this->base_addr) + i));
               else
                   sprintf(msgbuf,"%lg ", *((ESMC_R8 *)(this->base_addr) + i));
-              printf(msgbuf);
+              printf("%s", msgbuf);
               if (!opt_all && (tcount > 22) && ((i+1)==10)) {
                  sprintf(msgbuf,"%c skipping to end ...\n", beforeskip);
-                 printf(msgbuf);
+                 printf("%s", msgbuf);
                  i = tcount - 11;
               }
           }
           if (opt_byline) {
               sprintf(msgbuf,"\n");
-              printf(msgbuf);
+              printf("%s", msgbuf);
           }
           break;
         case 2:
           sprintf(msgbuf,"  Real, *8, Dim 2, Data values:\n");
-          printf(msgbuf);
+          printf("%s", msgbuf);
           imax = this->counts[0];
           jmax = this->counts[1];
           tcount = imax * jmax;
@@ -1230,7 +1232,7 @@ int LocalArray::print(
           for (j=0; j<jmax; j++) {
               if (opt_byline) {
                   sprintf(msgbuf,"(*,%2d) = ", lbound[1]+j);
-                  printf(msgbuf);
+                  printf("%s", msgbuf);
               } 
               for (i=0; i<imax; i++) {
                   if (!opt_byline)
@@ -1240,24 +1242,24 @@ int LocalArray::print(
                   else
                       sprintf(msgbuf,"%lg ",  
                              *((ESMC_R8 *)(this->base_addr) + i + j*imax) );
-                  printf(msgbuf);
+                  printf("%s", msgbuf);
                   rcount++;
                   if (!opt_all && (tcount > 22) && (rcount==10)) {
                      sprintf(msgbuf,"%c skipping to end ...\n", beforeskip);
-                     printf(msgbuf);
+                     printf("%s", msgbuf);
                      j = (tcount-11) / imax;
                      i = (tcount-11) % imax;
                   }
               }
               if (opt_byline) {
                   sprintf(msgbuf,"\n");
-                  printf(msgbuf);
+                  printf("%s", msgbuf);
               }
           }
           break;
         case 3:
           sprintf(msgbuf,"  Real, *8, Dim 3, Data values:\n");
-          printf(msgbuf);
+          printf("%s", msgbuf);
           imax = this->counts[0];
           jmax = this->counts[1];
           kmax = this->counts[2];
@@ -1268,7 +1270,7 @@ int LocalArray::print(
               if (opt_byline) {
                   sprintf(msgbuf,"(*,%2d,%2d) = ",
                     lbound[1]+j, lbound[2]+k);
-                  printf(msgbuf);
+                  printf("%s", msgbuf);
               }
               for (i=0; i<imax; i++) {
                   if (!opt_byline)
@@ -1279,12 +1281,12 @@ int LocalArray::print(
                   else
                        sprintf(msgbuf,"%g ", *((ESMC_R8 *)(this->base_addr) + 
                              i + j*imax + k*jmax*imax));
-                  printf(msgbuf);
+                  printf("%s", msgbuf);
                   rcount++;
                   if (!opt_all && (tcount > 22) && (rcount==10)) {
                      int krem;
                      sprintf(msgbuf,"%c skipping to end ...\n", beforeskip);
-                     printf(msgbuf);
+                     printf("%s", msgbuf);
                      k = (tcount-11) / (imax*jmax);
                      krem = (tcount-11) % (imax*jmax);
                      j = krem / imax;
@@ -1293,14 +1295,14 @@ int LocalArray::print(
               }
               if (opt_byline) {
                   sprintf(msgbuf,"\n");
-                  printf(msgbuf);
+                  printf("%s", msgbuf);
               }
             }
           }
           break;
         default:
           sprintf(msgbuf,"no code to handle real rank %d yet\n", this->rank);
-          printf(msgbuf);
+          printf("%s", msgbuf);
           break;    
       }
       break;
@@ -1310,7 +1312,7 @@ int LocalArray::print(
           imax = this->counts[0];
           tcount = imax;
           sprintf(msgbuf,"  Integer, *4, Dim 1, Data values:\n");
-          printf(msgbuf);
+          printf("%s", msgbuf);
           for (i=0; i<imax; i++) {
               if (!opt_byline)
                   sprintf(msgbuf,"(%2d) =  %d\n", lbound[0]+i, 
@@ -1318,21 +1320,21 @@ int LocalArray::print(
               else
                   sprintf(msgbuf,"%d ",
                          *((int *)(this->base_addr) + i));
-              printf(msgbuf);
+              printf("%s", msgbuf);
               if (!opt_all && (tcount > 22) && ((i+1)==10)) {
                  sprintf(msgbuf,"%c skipping to end ...\n", beforeskip);
-                 printf(msgbuf);
+                 printf("%s", msgbuf);
                  i = tcount - 11;
               }
           }
           if (opt_byline) {
               sprintf(msgbuf,"\n");
-              printf(msgbuf);
+              printf("%s", msgbuf);
           }
           break;
         case 2:
           sprintf(msgbuf,"  Integer, *4, Dim 2, Data values:\n");
-          printf(msgbuf);
+          printf("%s", msgbuf);
           imax = this->counts[0];
           jmax = this->counts[1];
           tcount = imax * jmax;
@@ -1340,7 +1342,7 @@ int LocalArray::print(
           for (j=0; j<jmax; j++) {
               if (opt_byline) {
                   sprintf(msgbuf,"(*,%2d) = ", lbound[1]+j);
-                  printf(msgbuf);
+                  printf("%s", msgbuf);
               }
               for (i=0; i<imax; i++) {
                   if (!opt_byline)
@@ -1350,24 +1352,24 @@ int LocalArray::print(
                   else
                       sprintf(msgbuf,"%d ", 
                            *((int *)(this->base_addr) + i + j*imax) );
-                  printf(msgbuf);
+                  printf("%s", msgbuf);
                   rcount++;
                   if (!opt_all && (tcount > 22) && (rcount==10)) {
                      sprintf(msgbuf,"%c skipping to end ...\n", beforeskip);
-                     printf(msgbuf);
+                     printf("%s", msgbuf);
                      j = (tcount-11) / imax;
                      i = (tcount-11) % imax;
                   }
               }
               if (opt_byline) {
                   sprintf(msgbuf,"\n");
-                  printf(msgbuf);
+                  printf("%s", msgbuf);
               } 
           }
           break;
         case 3:
           sprintf(msgbuf,"  Integer, *4, Dim 3, Data values:\n");
-          printf(msgbuf);
+          printf("%s", msgbuf);
           imax = this->counts[0];
           jmax = this->counts[1];
           kmax = this->counts[2];
@@ -1378,7 +1380,7 @@ int LocalArray::print(
               if (opt_byline) {
                   sprintf(msgbuf,"(*,%2d,%2d) = ", 
                     lbound[1]+j, lbound[1]+k);
-                  printf(msgbuf);
+                  printf("%s", msgbuf);
               }
               for (i=0; i<imax; i++) {
                   if (!opt_byline)
@@ -1390,12 +1392,12 @@ int LocalArray::print(
                       sprintf(msgbuf,"%d ", 
                              *((int *)(this->base_addr) + 
                              i + j*imax + k*jmax*imax));
-                  printf(msgbuf);
+                  printf("%s", msgbuf);
                   rcount++;
                   if (!opt_all && (tcount > 22) && (rcount==10)) {
                      int krem;
                      sprintf(msgbuf,"%c skipping to end ...\n", beforeskip);
-                     printf(msgbuf);
+                     printf("%s", msgbuf);
                      k = (tcount-11) / (imax*jmax);
                      krem = (tcount-11) % (imax*jmax);
                      j = krem / imax;
@@ -1404,14 +1406,14 @@ int LocalArray::print(
               }
               if (opt_byline) {
                   sprintf(msgbuf,"\n");
-                  printf(msgbuf);
+                  printf("%s", msgbuf);
               } 
             }
           }
           break;
         default:
           sprintf(msgbuf,"no code to handle integer rank %d yet\n", this->rank);
-          printf(msgbuf);
+          printf("%s", msgbuf);
           break;    
       }
       break;
@@ -1421,7 +1423,7 @@ int LocalArray::print(
           imax = this->counts[0];
           tcount = imax;
           sprintf(msgbuf,"  Integer, *8, Dim 1, Data values:\n");
-          printf(msgbuf);
+          printf("%s", msgbuf);
           for (i=0; i<imax; i++) {
               if (!opt_byline)
                   sprintf(msgbuf,"(%2d) =  %lld\n", lbound[0]+i, 
@@ -1429,21 +1431,21 @@ int LocalArray::print(
               else
                   sprintf(msgbuf,"%lld ",
                          *((ESMC_I8 *)(this->base_addr) + i));
-              printf(msgbuf);
+              printf("%s", msgbuf);
               if (!opt_all && (tcount > 22) && ((i+1)==10)) {
                  sprintf(msgbuf,"%c skipping to end ...\n", beforeskip);
-                 printf(msgbuf);
+                 printf("%s", msgbuf);
                  i = tcount - 11;
               }
           }
           if (opt_byline) {
               sprintf(msgbuf,"\n");
-              printf(msgbuf);
+              printf("%s", msgbuf);
           } 
           break;
         case 2:
           sprintf(msgbuf,"  Integer, *8, Dim 2, Data values:\n");
-          printf(msgbuf);
+          printf("%s", msgbuf);
           imax = this->counts[0];
           jmax = this->counts[1];
           tcount = imax * jmax;
@@ -1451,7 +1453,7 @@ int LocalArray::print(
           for (j=0; j<jmax; j++) {
               if (opt_byline) {
                   sprintf(msgbuf,"(*,%2d) = ", lbound[1]+j);
-                  printf(msgbuf);
+                  printf("%s", msgbuf);
               }
               for (i=0; i<imax; i++) {
                   if (!opt_byline)
@@ -1461,24 +1463,24 @@ int LocalArray::print(
                   else
                       sprintf(msgbuf,"%lld ", 
                            *((ESMC_I8 *)(this->base_addr) + i + j*imax) );
-                  printf(msgbuf);
+                  printf("%s", msgbuf);
                   rcount++;
                   if (!opt_all && (tcount > 22) && (rcount==10)) {
                      sprintf(msgbuf,"%c skipping to end ...\n", beforeskip);
-                     printf(msgbuf);
+                     printf("%s", msgbuf);
                      j = (tcount-11) / imax;
                      i = (tcount-11) % imax;
                   }
               }
               if (opt_byline) {
                   sprintf(msgbuf,"\n");
-                  printf(msgbuf);
+                  printf("%s", msgbuf);
               } 
           }
           break;
         case 3:
           sprintf(msgbuf,"  Integer, *8, Dim 3, Data values:\n");
-          printf(msgbuf);
+          printf("%s", msgbuf);
           imax = this->counts[0];
           jmax = this->counts[1];
           kmax = this->counts[2];
@@ -1489,7 +1491,7 @@ int LocalArray::print(
               if (opt_byline) {
                   sprintf(msgbuf,"(*,%2d,%2d) = ", 
                     lbound[1]+j, lbound[2]+k);
-                    printf(msgbuf);
+                    printf("%s", msgbuf);
               }
               for (i=0; i<imax; i++) {
                   if (!opt_byline)
@@ -1501,12 +1503,12 @@ int LocalArray::print(
                       sprintf(msgbuf,"%lld ", 
                              *((ESMC_I8 *)(this->base_addr) + 
                              i + j*imax + k*jmax*imax));
-                  printf(msgbuf);
+                  printf("%s", msgbuf);
                   rcount++;
                   if (!opt_all && (tcount > 22) && (rcount==10)) {
                      int krem;
                      sprintf(msgbuf,"%c skipping to end ...\n", beforeskip);
-                     printf(msgbuf);
+                     printf("%s", msgbuf);
                      k = (tcount-11) / (imax*jmax);
                      krem = (tcount-11) % (imax*jmax);
                      j = krem / imax;
@@ -1515,17 +1517,19 @@ int LocalArray::print(
               }
               if (opt_byline) {
                   sprintf(msgbuf,"\n");
-                  printf(msgbuf);
+                  printf("%s", msgbuf);
               } 
             }
           }
           break;
         default:
           sprintf(msgbuf,"no code to handle integer rank %d yet\n", this->rank);
-          printf(msgbuf);
+          printf("%s", msgbuf);
           break;    
       }
       break;
+      default:
+        return rc;  // bail out
     }
   }
 
@@ -1572,13 +1576,13 @@ int LocalArray::write(
       ffile = fopen(filename, "w");
       if (ffile == NULL) {
           sprintf(msgbuf, "error opening file '%s'\n", filename);
-          ESMC_LogDefault.MsgFoundError(ESMC_RC_FILE_OPEN, 
-                                                msgbuf, &rc);
+          ESMC_LogDefault.MsgFoundError(ESMC_RC_FILE_OPEN, msgbuf,
+            ESMC_CONTEXT, &rc);
           return rc;
       }
   }
 
-  fprintf(ffile, "ArrayWrite: Array at address 0x%08lx:  ", 
+  fprintf(ffile, "ArrayWrite: Array at address 0x%08Lx:  ", 
                          (ESMC_POINTER)this);
   fprintf(ffile, "rank = %d, typekind = %d\n", 
                            this->rank, this->typekind);
@@ -1762,6 +1766,8 @@ int LocalArray::write(
           break;    
       }
       break;
+      default:
+        return rc;  // bail out
   }
 
   fclose(ffile);
@@ -1816,7 +1822,7 @@ int LocalArray::tkrPtrCopy(
 // !ARGUMENTS:
   void *dst, 
   void *src, 
-  ESMC_TypeKind typekind,
+  ESMC_TypeKind_Flag typekind,
   int rank){
 //
 // !DESCRIPTION:
@@ -1832,163 +1838,182 @@ int LocalArray::tkrPtrCopy(
     case ESMC_TYPEKIND_I1:
     switch (rank){
       case 1:
-      FTN(f_esmf_fortrantkrptrcopy1di1)(dst, src);
+      FTN_X(f_esmf_fortrantkrptrcopy1di1)(dst, src);
       break;
       case 2:
-      FTN(f_esmf_fortrantkrptrcopy2di1)(dst, src);
+      FTN_X(f_esmf_fortrantkrptrcopy2di1)(dst, src);
       break;
       case 3:
-      FTN(f_esmf_fortrantkrptrcopy3di1)(dst, src);
+      FTN_X(f_esmf_fortrantkrptrcopy3di1)(dst, src);
       break;
       case 4:
-      FTN(f_esmf_fortrantkrptrcopy4di1)(dst, src);
+      FTN_X(f_esmf_fortrantkrptrcopy4di1)(dst, src);
       break;
 #ifndef ESMF_NO_GREATER_THAN_4D
       case 5:
-      FTN(f_esmf_fortrantkrptrcopy5di1)(dst, src);
+      FTN_X(f_esmf_fortrantkrptrcopy5di1)(dst, src);
       break;
       case 6:
-      FTN(f_esmf_fortrantkrptrcopy6di1)(dst, src);
+      FTN_X(f_esmf_fortrantkrptrcopy6di1)(dst, src);
       break;
       case 7:
-      FTN(f_esmf_fortrantkrptrcopy7di1)(dst, src);
+      FTN_X(f_esmf_fortrantkrptrcopy7di1)(dst, src);
       break;
 #endif
+      default:
+        return rc;  // bail out
     }
+    break;
 #endif
 #ifndef ESMF_NO_INTEGER_2_BYTE
     case ESMC_TYPEKIND_I2:
     switch (rank){
       case 1:
-      FTN(f_esmf_fortrantkrptrcopy1di2)(dst, src);
+      FTN_X(f_esmf_fortrantkrptrcopy1di2)(dst, src);
       break;
       case 2:
-      FTN(f_esmf_fortrantkrptrcopy2di2)(dst, src);
+      FTN_X(f_esmf_fortrantkrptrcopy2di2)(dst, src);
       break;
       case 3:
-      FTN(f_esmf_fortrantkrptrcopy3di2)(dst, src);
+      FTN_X(f_esmf_fortrantkrptrcopy3di2)(dst, src);
       break;
       case 4:
-      FTN(f_esmf_fortrantkrptrcopy4di2)(dst, src);
+      FTN_X(f_esmf_fortrantkrptrcopy4di2)(dst, src);
       break;
 #ifndef ESMF_NO_GREATER_THAN_4D
       case 5:
-      FTN(f_esmf_fortrantkrptrcopy5di2)(dst, src);
+      FTN_X(f_esmf_fortrantkrptrcopy5di2)(dst, src);
       break;
       case 6:
-      FTN(f_esmf_fortrantkrptrcopy6di2)(dst, src);
+      FTN_X(f_esmf_fortrantkrptrcopy6di2)(dst, src);
       break;
       case 7:
-      FTN(f_esmf_fortrantkrptrcopy7di2)(dst, src);
+      FTN_X(f_esmf_fortrantkrptrcopy7di2)(dst, src);
       break;
 #endif
+      default:
+        return rc;  // bail out
     }
+    break;
 #endif
     case ESMC_TYPEKIND_I4:
     switch (rank){
       case 1:
-      FTN(f_esmf_fortrantkrptrcopy1di4)(dst, src);
+      FTN_X(f_esmf_fortrantkrptrcopy1di4)(dst, src);
       break;
       case 2:
-      FTN(f_esmf_fortrantkrptrcopy2di4)(dst, src);
+      FTN_X(f_esmf_fortrantkrptrcopy2di4)(dst, src);
       break;
       case 3:
-      FTN(f_esmf_fortrantkrptrcopy3di4)(dst, src);
+      FTN_X(f_esmf_fortrantkrptrcopy3di4)(dst, src);
       break;
       case 4:
-      FTN(f_esmf_fortrantkrptrcopy4di4)(dst, src);
+      FTN_X(f_esmf_fortrantkrptrcopy4di4)(dst, src);
       break;
 #ifndef ESMF_NO_GREATER_THAN_4D
       case 5:
-      FTN(f_esmf_fortrantkrptrcopy5di4)(dst, src);
+      FTN_X(f_esmf_fortrantkrptrcopy5di4)(dst, src);
       break;
       case 6:
-      FTN(f_esmf_fortrantkrptrcopy6di4)(dst, src);
+      FTN_X(f_esmf_fortrantkrptrcopy6di4)(dst, src);
       break;
       case 7:
-      FTN(f_esmf_fortrantkrptrcopy7di4)(dst, src);
+      FTN_X(f_esmf_fortrantkrptrcopy7di4)(dst, src);
       break;
 #endif
+      default:
+        return rc;  // bail out
     }
+    break;
     case ESMC_TYPEKIND_I8:
     switch (rank){
       case 1:
-      FTN(f_esmf_fortrantkrptrcopy1di8)(dst, src);
+      FTN_X(f_esmf_fortrantkrptrcopy1di8)(dst, src);
       break;
       case 2:
-      FTN(f_esmf_fortrantkrptrcopy2di8)(dst, src);
+      FTN_X(f_esmf_fortrantkrptrcopy2di8)(dst, src);
       break;
       case 3:
-      FTN(f_esmf_fortrantkrptrcopy3di8)(dst, src);
+      FTN_X(f_esmf_fortrantkrptrcopy3di8)(dst, src);
       break;
       case 4:
-      FTN(f_esmf_fortrantkrptrcopy4di8)(dst, src);
+      FTN_X(f_esmf_fortrantkrptrcopy4di8)(dst, src);
       break;
 #ifndef ESMF_NO_GREATER_THAN_4D
       case 5:
-      FTN(f_esmf_fortrantkrptrcopy5di8)(dst, src);
+      FTN_X(f_esmf_fortrantkrptrcopy5di8)(dst, src);
       break;
       case 6:
-      FTN(f_esmf_fortrantkrptrcopy6di8)(dst, src);
+      FTN_X(f_esmf_fortrantkrptrcopy6di8)(dst, src);
       break;
       case 7:
-      FTN(f_esmf_fortrantkrptrcopy7di8)(dst, src);
+      FTN_X(f_esmf_fortrantkrptrcopy7di8)(dst, src);
       break;
 #endif
+      default:
+        return rc;  // bail out
     }
+    break;
     case ESMC_TYPEKIND_R4:
     switch (rank){
       case 1:
-      FTN(f_esmf_fortrantkrptrcopy1dr4)(dst, src);
+      FTN_X(f_esmf_fortrantkrptrcopy1dr4)(dst, src);
       break;
       case 2:
-      FTN(f_esmf_fortrantkrptrcopy2dr4)(dst, src);
+      FTN_X(f_esmf_fortrantkrptrcopy2dr4)(dst, src);
       break;
       case 3:
-      FTN(f_esmf_fortrantkrptrcopy3dr4)(dst, src);
+      FTN_X(f_esmf_fortrantkrptrcopy3dr4)(dst, src);
       break;
       case 4:
-      FTN(f_esmf_fortrantkrptrcopy4dr4)(dst, src);
+      FTN_X(f_esmf_fortrantkrptrcopy4dr4)(dst, src);
       break;
 #ifndef ESMF_NO_GREATER_THAN_4D
       case 5:
-      FTN(f_esmf_fortrantkrptrcopy5dr4)(dst, src);
+      FTN_X(f_esmf_fortrantkrptrcopy5dr4)(dst, src);
       break;
       case 6:
-      FTN(f_esmf_fortrantkrptrcopy6dr4)(dst, src);
+      FTN_X(f_esmf_fortrantkrptrcopy6dr4)(dst, src);
       break;
       case 7:
-      FTN(f_esmf_fortrantkrptrcopy7dr4)(dst, src);
+      FTN_X(f_esmf_fortrantkrptrcopy7dr4)(dst, src);
       break;
 #endif
+      default:
+        return rc;  // bail out
     }
+    break;
     case ESMC_TYPEKIND_R8:
     switch (rank){
       case 1:
-      FTN(f_esmf_fortrantkrptrcopy1dr8)(dst, src);
+      FTN_X(f_esmf_fortrantkrptrcopy1dr8)(dst, src);
       break;
       case 2:
-      FTN(f_esmf_fortrantkrptrcopy2dr8)(dst, src);
+      FTN_X(f_esmf_fortrantkrptrcopy2dr8)(dst, src);
       break;
       case 3:
-      FTN(f_esmf_fortrantkrptrcopy3dr8)(dst, src);
+      FTN_X(f_esmf_fortrantkrptrcopy3dr8)(dst, src);
       break;
       case 4:
-      FTN(f_esmf_fortrantkrptrcopy4dr8)(dst, src);
+      FTN_X(f_esmf_fortrantkrptrcopy4dr8)(dst, src);
       break;
 #ifndef ESMF_NO_GREATER_THAN_4D
       case 5:
-      FTN(f_esmf_fortrantkrptrcopy5dr8)(dst, src);
+      FTN_X(f_esmf_fortrantkrptrcopy5dr8)(dst, src);
       break;
       case 6:
-      FTN(f_esmf_fortrantkrptrcopy6dr8)(dst, src);
+      FTN_X(f_esmf_fortrantkrptrcopy6dr8)(dst, src);
       break;
       case 7:
-      FTN(f_esmf_fortrantkrptrcopy7dr8)(dst, src);
+      FTN_X(f_esmf_fortrantkrptrcopy7dr8)(dst, src);
       break;
 #endif
+      default:
+        return rc;  // bail out
     }
     break;
+    default:
+      return rc;  // bail out
   }
 
   // return successfully

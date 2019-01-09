@@ -1,10 +1,10 @@
 // $Id$
 //
 // Earth System Modeling Framework
-// Copyright 2002-2012, University Corporation for Atmospheric Research, 
-// Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
-// Laboratory, University of Michigan, National Centers for Environmental 
-// Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
+// Copyright 2002-2018, University Corporation for Atmospheric Research,
+// Massachusetts Institute of Technology, Geophysical Fluid Dynamics
+// Laboratory, University of Michigan, National Centers for Environmental
+// Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
 // NASA Goddard Space Flight Center.
 // Licensed under the University of Illinois-NCSA License.
 //
@@ -17,8 +17,8 @@
 //------------------------------------------------------------------------------
 // INCLUDES
 //------------------------------------------------------------------------------
-#include <ESMCI_F90Interface.h>
-#include <ESMCI_IO_NetCDF.h>
+#include "ESMCI_F90Interface.h"
+#include "ESMCI_IO_NetCDF.h"
 
 using std::vector;
 using std::string;
@@ -39,38 +39,37 @@ namespace ESMCI
 {
 
 // the interface subroutine names MUST be in lower case
-extern "C" 
+extern "C"
 {
 
 //--------------------------------------------------------------------
-void FTN(c_esmc_io_netcdfcreate)(IO_NetCDF**  ptr,
-                                 int*         nameLen,
+void FTN_X(c_esmc_io_netcdfcreate)(IO_NetCDF**  ptr,
                                  const char*  name,
                                  ESMC_Base**  base,
-                                 int*         status) 
+                                 int*         status,
+                                 ESMCI_FortranStrLenArg name_l)
 {
-   *ptr = ESMCI_IO_NetCDFCreate(*nameLen,
-                                ESMC_NOT_PRESENT_FILTER(name),
+   *ptr = ESMCI_IO_NetCDFCreate(std::string(name, name_l),
                                 *base,
                                 ESMC_NOT_PRESENT_FILTER(status));
 }
 
 //--------------------------------------------------------------------
-void FTN(c_esmc_io_netcdfdestroy)(IO_NetCDF**  ptr, 
-                                  int*         status) 
+void FTN_X(c_esmc_io_netcdfdestroy)(IO_NetCDF**  ptr,
+                                  int*         status)
 {
-   int	rc = ESMCI_IO_NetCDFDestroy(ptr);
+   int  rc = ESMCI_IO_NetCDFDestroy(ptr);
 
-   if (ESMC_PRESENT(status)) 
+   if (ESMC_PRESENT(status))
    {
       *status = rc;
    }
 }
 
 //--------------------------------------------------------------------
-void FTN(c_esmc_io_netcdfsetstate)(IO_NetCDF**  ptr,
+void FTN_X(c_esmc_io_netcdfsetstate)(IO_NetCDF**  ptr,
                                    State*       state,
-                                   int*         status) 
+                                   int*         status)
 {
    ESMF_CHECK_POINTER(*ptr, status)
 
@@ -78,7 +77,7 @@ void FTN(c_esmc_io_netcdfsetstate)(IO_NetCDF**  ptr,
 
    (*ptr)->IO_NetCDF::setState(state);
 
-   if (ESMC_PRESENT(status)) 
+   if (ESMC_PRESENT(status))
    {
       *status = ESMF_SUCCESS;
    }
@@ -90,65 +89,63 @@ void FTN(c_esmc_io_netcdfsetstate)(IO_NetCDF**  ptr,
 // copying the arrays over to the passed in state... I may need to add
 // a State copy method to the State class.
 //--------------------------------------------------------------------
-void FTN(c_esmc_io_netcdfgetstate)(IO_NetCDF**  ptr,
+void FTN_X(c_esmc_io_netcdfgetstate)(IO_NetCDF**  ptr,
                                    State*       state,
-                                   int*         status) 
+                                   int*         status)
 {
    ESMF_CHECK_POINTER(*ptr, status)
    ESMF_CHECK_POINTER(state, status)
 
 #ifdef ESMF_NETCDF
-	State*			localState = (*ptr)->IO_NetCDF::getState();
-	vector<string>	arrayNames = localState->getArrayNames();
+        State*                  localState = (*ptr)->IO_NetCDF::getState();
+        vector<string>  arrayNames = localState->getArrayNames();
 
-	for (int i = 0; i < arrayNames.size(); ++i)
-	{
-		Array*	thisArray;
-		localState->getArray((char*)(arrayNames[i].c_str()), &thisArray);
+        for (unsigned i = 0; i < arrayNames.size(); ++i)
+        {
+                Array*  thisArray;
+                localState->getArray((char*)(arrayNames[i].c_str()), &thisArray);
 
-		state->addArray(thisArray);
-	}
+                state->addArray(thisArray);
+        }
 #endif
 
 //printf("\n");
 //(state)->print();
 //printf("\n");
 
-   if (ESMC_PRESENT(status)) 
+   if (ESMC_PRESENT(status))
    {
       *status = ESMF_SUCCESS;
    }
 }
 
 //--------------------------------------------------------------------
-void FTN(c_esmc_io_netcdfread)(IO_NetCDF**  ptr,
-                               int*         fileNameLen,
+void FTN_X(c_esmc_io_netcdfread)(IO_NetCDF**  ptr,
                                const char*  fileName,
-                               int*         status) 
+                               int*         status,
+                               ESMCI_FortranStrLenArg fileName_l)
 {
    ESMF_CHECK_POINTER(*ptr, status)
 
-   int rc = (*ptr)->IO_NetCDF::read(*fileNameLen,
-                                    ESMC_NOT_PRESENT_FILTER(fileName));
+   int rc = (*ptr)->IO_NetCDF::read(std::string(fileName, fileName_l));
 
-   if (ESMC_PRESENT(status)) 
+   if (ESMC_PRESENT(status))
    {
       *status = rc;
    }
 }
 
 //--------------------------------------------------------------------
-void FTN(c_esmc_io_netcdfwrite)(IO_NetCDF**  ptr,
-                                int*         fileNameLen,
+void FTN_X(c_esmc_io_netcdfwrite)(IO_NetCDF**  ptr,
                                 const char*  fileName,
-                                int*         status) 
+                                int*         status,
+                                ESMCI_FortranStrLenArg fileName_l)
 {
    ESMF_CHECK_POINTER(*ptr, status)
 
-   int rc = (*ptr)->IO_NetCDF::write(*fileNameLen,
-                                     ESMC_NOT_PRESENT_FILTER(fileName));
+   int rc = (*ptr)->IO_NetCDF::write(std::string(fileName, fileName_l));
 
-   if (ESMC_PRESENT(status)) 
+   if (ESMC_PRESENT(status))
    {
       *status = rc;
    }

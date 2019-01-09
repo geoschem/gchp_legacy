@@ -2,7 +2,7 @@
 $Id$
 
   Earth System Modeling Framework
-  Copyright 2002-2012, University Corporation for Atmospheric Research,
+  Copyright 2002-2018, University Corporation for Atmospheric Research,
   Massachusetts Institute of Technology, Geophysical Fluid Dynamics
   Laboratory, University of Michigan, National Centers for Environmental
   Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -26,9 +26,9 @@ $Id$
 Fortran Symmetric Return Codes 1-500
 =====================================
 
- ESMF_SUCCESS               0 
+ ESMF_SUCCESS               0
 #endif
-#define  ESMF_RC_OBJ_BAD            1 
+#define  ESMF_RC_OBJ_BAD            1
 #define  ESMF_RC_OBJ_INIT           2
 #define  ESMF_RC_OBJ_CREATE         3
 #define  ESMF_RC_OBJ_COR            4
@@ -82,16 +82,22 @@ Fortran Symmetric Return Codes 1-500
 #define  ESMF_RC_OBJ_DELETED       52
 #define  ESMF_RC_NOT_SET           53
 #define  ESMF_RC_VAL_WRONG         54
-#define  ESMF_RC_VAL_ERRBOUND      55  
+#define  ESMF_RC_VAL_ERRBOUND      55
 #define  ESMF_RC_VAL_OUTOFRANGE    56
 #define  ESMF_RC_ATTR_NOTSET       57
 #define  ESMF_RC_ATTR_WRONGTYPE    58
 #define  ESMF_RC_ATTR_ITEMSOFF     59
 #define  ESMF_RC_ATTR_LINK         60
 #define  ESMF_RC_BUFFER_SHORT      61
+#define  ESMF_RC_TIMEOUT           62
+#define  ESMF_RC_FILE_EXISTS       63
+#define  ESMF_RC_FILE_NOTDIR       64
+#define  ESMF_RC_MOAB_ERROR        65
+#define  ESMF_RC_NOOP              66
+#define  ESMF_RC_NETCDF_ERROR      67
 
 #if 0
-62-499 reserved for future Fortran symmetric return code definitions
+68-499 reserved for future Fortran symmetric return code definitions
 #endif
 
 #if 0
@@ -100,7 +106,7 @@ C/C++ Symmetric Return Codes 501-999
 =====================================
 #endif
 
-#define  ESMC_RC_OBJ_BAD          501 
+#define  ESMC_RC_OBJ_BAD          501
 #define  ESMC_RC_OBJ_INIT         502
 #define  ESMC_RC_OBJ_CREATE       503
 #define  ESMC_RC_OBJ_COR          504
@@ -161,9 +167,15 @@ C/C++ Symmetric Return Codes 501-999
 #define  ESMC_RC_ATTR_ITEMSOFF    559
 #define  ESMC_RC_ATTR_LINK        560
 #define  ESMC_RC_BUFFER_SHORT     561
+#define  ESMC_RC_TIMEOUT          562
+#define  ESMC_RC_FILE_EXISTS      563
+#define  ESMC_RC_FILE_NOTDIR      564
+#define  ESMC_RC_MOAB_ERROR       565
+#define  ESMC_RC_NOOP             566
+#define  ESMC_RC_NETCDF_ERROR     567
 
 #if 0
-562-999 reserved for future C/C++ symmetric return code definitions
+568-999 reserved for future C/C++ symmetric return code definitions
 #endif
 
 #if 0

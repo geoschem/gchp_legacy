@@ -1,7 +1,7 @@
-! $Id: ESMF_FieldSetEx.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
+! $Id$
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2012, University Corporation for Atmospheric Research,
+! Copyright 2002-2018, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -26,7 +26,7 @@
     use ESMF
     use ESMF_FieldSetMod
     implicit none
-    
+
     ! Local variables
     integer :: rc
 
@@ -40,7 +40,7 @@
     integer             :: gec(3), gcc(3)
     integer             :: fa_shape(3)
 
-    integer :: finalrc       
+    integer :: finalrc
 !   !Set finalrc to success
     finalrc = ESMF_SUCCESS
 
@@ -57,13 +57,13 @@
 !  Fortran data pointer contained in the internal {\tt ESMF\_Array} object
 !  of a {\tt ESMF\_Field}.
 !  {\tt ESMF\_FieldSetDataPtr} is an overloaded interface based on the type,
-!  kind, and rank of the input fortran pointer argument. In this example,
-!  a rank 3 ESMF\_KIND\_R8 fortran data pointer is used.
+!  kind, and rank of the input Fortran pointer argument. In this example,
+!  a rank 3 ESMF\_KIND\_R8 Fortran data pointer is used.
 !  This method internally creates a ESMF\_Array inside the
 !  field. The previous ESMF\_Array will be deleted if it was internally
 !  created by the field, otherwise it's simply replaced by the newly created
-!  array. 
-! 
+!  array.
+!
 !  The shape of the Fortran array is computed using the same approach explained
 !  in the sections on Field creation from a Fortran data array.
 !
@@ -91,12 +91,12 @@
     if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
 
     array8 = ESMF_ArrayCreate(farray, distgrid=distgrid8, &
-        staggerloc=0, computationalEdgeLWidth=(/0,0,0/), computationalEdgeUWidth=(/-1,-1,-1/), rc=rc) 
+        staggerloc=0, computationalEdgeLWidth=(/0,0,0/), computationalEdgeUWidth=(/-1,-1,-1/), rc=rc)
     if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
 
     f8 = ESMF_FieldCreate(grid8, array8, rc=rc)
     if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
-  
+
     allocate(farray(fa_shape(1), fa_shape(2), fa_shape(3)))
     call ESMF_FieldSetDataPtr(f8, farray, rc=rc)
 !EremoeOC
@@ -120,7 +120,7 @@
     grid = ESMF_GridCreateNoPeriDim(minIndex=(/1,1,1/), maxIndex=(/4*xdim,ydim,zdim/), &
                               regDecomp=(/4,1,1/), name="grid", rc=rc)
     if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
-    
+
     call ESMF_FieldSetGrid(f8, grid=grid, rc=rc)
 !EremoveOC
     if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
@@ -141,8 +141,8 @@
     if (rc.NE.ESMF_SUCCESS) finalrc = ESMF_FAILURE
 
     if (finalrc.EQ.ESMF_SUCCESS) then
-	print *, "PASS: ESMF_FieldSetEx.F90"
+        print *, "PASS: ESMF_FieldSetEx.F90"
     else
-	print *, "FAIL: ESMF_FieldSetEx.F90"
+        print *, "FAIL: ESMF_FieldSetEx.F90"
     end if
 end program ESMF_FieldSetEx

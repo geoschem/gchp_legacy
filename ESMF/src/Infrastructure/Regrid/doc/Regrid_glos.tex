@@ -1,0 +1,51 @@
+% $Id$
+%
+% Earth System Modeling Framework
+% Copyright 2002-2018, University Corporation for Atmospheric Research, 
+% Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
+% Laboratory, University of Michigan, National Centers for Environmental 
+% Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
+% NASA Goddard Space Flight Center.
+% Licensed under the University of Illinois-NCSA License.
+
+% USAGE NOTE:
+%
+% The first use of a term in the text of a document can be 
+% linked to the corresponding glossary item using the item label.
+% 
+% For example,
+%
+% Original document text: code must include item1
+%
+% Linked to glossary:     code must include \htmlref{item1}{glos:item1}
+%
+% The link will appear in the html version of the document.
+% The print version of the document will appear unchanged.
+
+\begin{description}
+
+\item [conservation] \label{glos:conservation}
+      Conservative regridding requires that the area (or volume)
+      integrated field on the source grid is equal to that on
+      the destination grid, where the integration is over an
+      identical area (volume).
+
+\item [order] \label{glos:order}
+      The order of the regridding refers to the order of accuracy
+      (in a Taylor series sense) used to approximate a field during
+      the regridding process.  First order is thus piecewise constant;
+      second order is linear.
+
+\item [monotone] \label{glos:monotone}
+      A monotone regridding will not introduce new minima or
+      maxima into a regridded field.
+
+\end{description}
+
+
+
+
+
+
+
+

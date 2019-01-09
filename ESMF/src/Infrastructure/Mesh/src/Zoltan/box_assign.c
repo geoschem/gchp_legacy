@@ -6,8 +6,8 @@
 /*****************************************************************************
  * CVS File Information :
  *    $RCSfile: box_assign.c,v $
- *    $Author: mathomp4 $
- *    $Date: 2013-01-11 20:23:44 $
+ *    $Author: dneckels $
+ *    $Date: 2007/11/28 16:13:44 $
  *    Revision: 1.28 $
  ****************************************************************************/
 
@@ -55,7 +55,7 @@ int            *numparts)       /* number of partitions in part list */
    Currently assumes that partitioning has used RCB or RIB, but should be
    modified to return an error message if other method was used */
 
-     static char       *yo = "Zoltan_RB_Box_Assign";
+     const char        *yo = "Zoltan_RB_Box_Assign";
      RCB_STRUCT        *rcb;    /* Pointer to data structures for RCB. */
      struct rcb_tree   *treept; /* tree of RCB cuts */
      RIB_STRUCT        *rib;    /* Pointer to data structures for RIB. */

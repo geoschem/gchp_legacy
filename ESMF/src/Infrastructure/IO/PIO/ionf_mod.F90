@@ -10,7 +10,7 @@ module ionf_mod
   use pio_types
   use pio_utils, only: bad_iotype, check_netcdf
 
-  use pio_support, only : Debug, DebugIO, piodie, DebugAsync   
+  use pio_support, only : Debug, DebugIO, piodie, DebugAsync
 #ifdef _NETCDF
   use netcdf            ! _EXTERNAL
 #endif
@@ -22,14 +22,14 @@ module ionf_mod
 #ifdef _PNETCDF
 #include <pnetcdf.inc>   /* _EXTERNAL */
 #endif
- 
+
 
    public :: create_nf
-   public :: open_nf 
-   public :: close_nf 
-   public :: sync_nf 
+   public :: open_nf
+   public :: close_nf
+   public :: sync_nf
 
-contains 
+contains
 
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -37,8 +37,11 @@ contains
   !
 
   integer function create_nf(File,fname, amode) result(ierr)
+#ifndef NO_MPIMOD
+    use mpi ! _EXTERNAL
+#else
     include 'mpif.h'      ! _EXTERNAL
-
+#endif
     type (File_desc_t), intent(inout) :: File
     character(len=*), intent(in)      :: fname
     integer(i4),  intent(in) :: amode
@@ -46,19 +49,19 @@ contains
     integer :: nmode, tmpfh
 
     nmode=amode
-    
+
     ierr=PIO_noerr
     File%fh=-1
 
     if(File%iosystem%ioproc) then
-       iotype = File%iotype 
-       select case (iotype) 
+       iotype = File%iotype
+       select case (iotype)
 #ifdef _PNETCDF
        case(PIO_iotype_pnetcdf)
           ierr  = nfmpi_create(File%iosystem%IO_comm,fname,nmode ,File%iosystem%info,File%fh)
-! Set default to NOFILL for performance.  
+! Set default to NOFILL for performance.
 !   pnetcdf is nofill by default and doesn't support a fill mode
-!	  ierr = nfmpi_set_fill(File%fh, NF_NOFILL, nmode)
+!         ierr = nfmpi_set_fill(File%fh, NF_NOFILL, nmode)
 #endif
 #ifdef _NETCDF
 #ifdef _NETCDF4
@@ -79,7 +82,7 @@ contains
           ierr = nf90_create(fname, nmode, File%fh, &
                comm=File%iosystem%io_comm, info=File%iosystem%info)
 #endif
-! Set default to NOFILL for performance.  
+! Set default to NOFILL for performance.
           if(ierr==PIO_NOERR) ierr = nf90_set_fill(File%fh, NF90_NOFILL, nmode)
        case(PIO_iotype_netcdf4c)
           if(iand(PIO_64BIT_OFFSET,amode)==PIO_64BIT_OFFSET) then
@@ -94,18 +97,18 @@ contains
              ! Stores the ncid in File%fh
              ierr = nf90_create(fname, amode, File%fh, &
                   info=File%iosystem%info )
-! Set default to NOFILL for performance.  
+! Set default to NOFILL for performance.
              if(ierr==PIO_NOERR) &
                   ierr = nf90_set_fill(File%fh, NF90_NOFILL, nmode)
           endif
-#endif          
+#endif
        case(PIO_iotype_netcdf)
           ! Only io proc 0 will do writing
           if (File%iosystem%io_rank == 0) then
              ! Stores the ncid in File%fh
              ierr = nf90_create(fname, nmode , File%fh)
-             if(Debug .or. Debugasync) print *,__PIO_FILE__,__LINE__,file%fh, ierr
-! Set default to NOFILL for performance.  
+             if(Debug .or. Debugasync) print *,__PIO_FILE__,__LINE__,file%fh, ierr, nmode
+! Set default to NOFILL for performance.
              if(ierr==NF90_NOERR) &
                   ierr = nf90_set_fill(File%fh, NF90_NOFILL, nmode)
           endif
@@ -119,16 +122,13 @@ contains
        if(Debug) print *,__PIO_FILE__,__LINE__,file%fh,ierr
     end if
     tmpfh = file%fh
-    
+
     call mpi_bcast(tmpfh,1,mpi_integer, file%iosystem%iomaster, file%iosystem%my_comm, mpierr)
-    
+
     if(.not. file%iosystem%ioproc) file%fh=-tmpfh
 
-    if(Debug.or.DebugAsync) &
-    print *,__PIO_FILE__, &
-            __LINE__, &
-            file%fh,ierr
-    
+    if(Debug.or.DebugAsync) print *,__PIO_FILE__,__LINE__,file%fh,ierr
+
     call check_netcdf(File, ierr,__PIO_FILE__,__LINE__)
 
   end function create_nf
@@ -137,11 +137,14 @@ contains
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!
   ! open_nf
-  ! 
+  !
 
   integer function open_nf(File,fname, mode) result(ierr)
+#ifndef NO_MPIMOD
+    use mpi ! _EXTERNAL
+#else
     include 'mpif.h'      ! _EXTERNAL
-
+#endif
     type (File_desc_t), intent(inout) :: File
     character(len=*), intent(in)      :: fname
     integer(i4), optional, intent(in) :: mode
@@ -154,7 +157,7 @@ contains
     if(file%iosystem%ioproc) then
 !       This subroutine seems to break pgi compiler for large files.
 !       call check_file_type(File, fname)
-       iotype = File%iotype 
+       iotype = File%iotype
 #ifdef _NETCDF
        if(present(mode)) then
           if(mode == 1) then
@@ -191,7 +194,7 @@ contains
 #ifdef _NETCDF4
         if(iotype==PIO_iotype_netcdf4p .or. iotype ==pio_iotype_netcdf4c) then
 #ifdef _MPISERIAL
-           ierr = nf90_open(fname,amode,File%fh)           
+           ierr = nf90_open(fname,amode,File%fh)
 #else
            ierr = nf90_open(fname,  ior(amode,ior(NF90_NETCDF4,NF90_MPIIO)), File%fh, &
                 comm=File%iosystem%io_comm, info=File%iosystem%info)
@@ -207,7 +210,7 @@ contains
              ! Stores the ncid in File%fh
              ierr = nf90_open(fname,amode,File%fh)
              if(Debug .or. Debugasync) print *,__PIO_FILE__,__LINE__,file%fh, ierr
-             ! Set default to NOFILL for performance.  
+             ! Set default to NOFILL for performance.
              if(ierr .eq. NF90_NOERR .and. iand(amode, NF90_WRITE) > 0) then
                 ierr = nf90_set_fill(File%fh, NF90_NOFILL, ier2)
              end if
@@ -222,7 +225,7 @@ contains
     call mpi_bcast(tmpfh,1,mpi_integer, file%iosystem%iomaster, file%iosystem%my_comm, mpierr)
 
     if(.not. file%iosystem%ioproc) file%fh=-tmpfh
-      
+
     call check_netcdf(File, ierr,__PIO_FILE__,__LINE__)
 
   end function open_nf
@@ -241,7 +244,7 @@ contains
 
     if(File%iosystem%IOproc) then
        if(Debug) print *,__PIO_FILE__,__LINE__,'CFILE closing : ',file%fh
-       select case (File%iotype) 
+       select case (File%iotype)
 #ifdef _PNETCDF
        case(PIO_iotype_pnetcdf)
           ierr=nfmpi_close(file%fh)
@@ -279,7 +282,7 @@ contains
 
     if(File%iosystem%IOproc) then
        if(Debug) print *,__PIO_FILE__,__LINE__,'CFILE syncing : ',file%fh
-       select case (File%iotype) 
+       select case (File%iotype)
 #ifdef _PNETCDF
        case(PIO_iotype_pnetcdf)
           ierr=nfmpi_sync(file%fh)
@@ -297,24 +300,27 @@ contains
     call check_netcdf(File, ierr,__PIO_FILE__,__LINE__)
   end function sync_nf
 
-  subroutine check_file_type(File, filename) 
+  subroutine check_file_type(File, filename)
+#ifndef NO_MPIMOD
+    use mpi !_EXTERNAL
+#else
     include 'mpif.h'      ! _EXTERNAL
-
+#endif
 
     type (File_desc_t), intent(inout) :: File
     character(len=*), intent(in) :: filename
     character(len=4) :: magic
-    integer :: fh, mpierr, reclength=4, i, eof 
+    integer :: fh, mpierr, reclength=4, i, eof
     logical :: UNITOK, UNITOP
 
 !   Check format of existing files opened to read.
 
-    inquire(file=filename, exist=UNITOK) 
+    inquire(file=filename, exist=UNITOK)
     if(.not. UNITOK) return
 
     magic='fail'
-   
-    if(File%iosystem%ioproc) then      
+
+    if(File%iosystem%ioproc) then
        if(File%iosystem%io_rank==0) then
 !  Find a unique unit number to open the file
           do fh=12,99
@@ -338,15 +344,12 @@ contains
                 File%iotype=pio_iotype_netcdf4c
              end if
 #else
-             call piodie( &
-             __PIO_FILE__, &
-             __LINE__, &
-             'You must link with the netcdf4 ',0,  &
-             'library built with hdf5 support to read this file',0,filename)
-#endif       
-          else 
+             call piodie(__PIO_FILE__,__LINE__,'You must link with the netcdf4 ',0,&
+                  'library built with hdf5 support to read this file',0,filename)
+#endif
+          else
              ! The HDF identifier could be offset further into the file.
-             
+
              open (unit = fh,file=filename,access='direct',recl=reclength,&
                   form='UNFORMATTED',STATUS='OLD',err=100)
 
@@ -363,23 +366,17 @@ contains
                 i=i*2
              end do
              close(fh)
-             if(eof<0) call piodie(  &
-                __PIO_FILE__,  &
-                __LINE__,'Unrecognized file format ',0,filename)             
+             if(eof<0) call piodie(__PIO_FILE__,__LINE__,'Unrecognized file format ',0,filename)
           end if
 
        end if
-       
+
        call mpi_bcast(file%iotype,1,mpi_integer, 0, file%iosystem%io_comm, mpierr)
        call CheckMPIReturn('nf_mod',mpierr)
     end if
     return
-100 call piodie(__PIO_FILE__,  &
-                __LINE__,  &
-                'File open error ',0,filename)
-101 call piodie(__PIO_FILE__,  &
-                __LINE__,  &
-                'File read error ',0,filename)
+100 call piodie(__PIO_FILE__,__LINE__,'File open error ',0,filename)
+101 call piodie(__PIO_FILE__,__LINE__,'File read error ',0,filename)
 
 
 

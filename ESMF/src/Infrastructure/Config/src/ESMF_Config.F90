@@ -1,8 +1,8 @@
-! $Id: ESMF_Config.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
+! $Id$
 !==============================================================================
 ! Earth System Modeling Framework
 !
-! Copyright 2002-2012, University Corporation for Atmospheric Research, 
+! Copyright 2002-2018, University Corporation for Atmospheric Research, 
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
 ! Laboratory, University of Michigan, National Centers for Environmental 
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
@@ -57,6 +57,7 @@
        public :: ESMF_ConfigGetDim ! gets number of lines in the table
                                    ! and max number of columns by word 
                                    ! counting disregarding type (function)
+       public :: ESMF_ConfigIsCreated
        public :: ESMF_ConfigSetAttribute ! sets value
        public :: ESMF_ConfigValidate   ! validates config object
 !------------------------------------------------------------------------------
@@ -89,6 +90,7 @@
    
 ! !PRIVATE MEMBER FUNCTIONS:
         module procedure ESMF_ConfigGetString
+        module procedure ESMF_ConfigGetStrings
         module procedure ESMF_ConfigGetFloatR4
         module procedure ESMF_ConfigGetFloatR8
         module procedure ESMF_ConfigGetFloatsR4
@@ -137,19 +139,37 @@
       end interface
 !
 !------------------------------------------------------------------------------
+!! !IROUTINE: ESMF_ConfigEQ - Test objects for equivalence
+!
+! !INTERFACE:
+    interface operator(==)
+        module procedure ESMF_ConfigEQ
+    end interface
+
+    interface operator(/=)
+        module procedure ESMF_ConfigNE
+    end interface
+
+    public :: operator(==), operator(/=)
+!
+!------------------------------------------------------------------------------
 ! PRIVATE PARAMETER  SETTINGS:
 !------------------------------------------------------------------------------
 ! Revised parameter table to fit Fortran 90 standard.
 
-       integer,   parameter :: LSZ = 256  ! Maximum line size
-       integer,   parameter :: MSZ = 1024 ! Used to size buffer; this is
+!       integer,   parameter :: LSZ = 256  ! Maximum line size
+       integer,   parameter :: LSZ = max (1024,ESMF_MAXPATHLEN)  ! Maximum line size
+                                          ! should be at least long enough
+                                          ! to read in a file name with full
+                                          ! path prepended.
+       integer,   parameter :: MSZ = 256  ! Used to size buffer; this is
                                           ! usually *less* than the number
                                           ! of non-blank/comment lines
                                           ! (because most lines are shorter
                                           ! then LSZ)
  
        integer,   parameter :: NBUF_MAX = MSZ*LSZ ! max size of buffer
-       integer,   parameter :: NATT_MAX = NBUF_MAX/16 ! max # attributes;  
+       integer,   parameter :: NATT_MAX = NBUF_MAX/64 ! max # attributes;  
                                                   ! assumes an average line
                                                   ! size of 16, the code
                                                   ! will do a bound check
@@ -166,27 +186,31 @@
        
 !------------------------------------------------------------------------------
        type ESMF_ConfigAttrUsed
+#ifndef ESMF_NO_SEQUENCE
           sequence
+#endif
           private              
-          character(len=LSZ)      :: label  ! attribute label
-          logical                 :: used   ! attribute used (retrieved) or not
+          character, pointer      :: label(:) => null () ! attribute label
+          logical                 :: used  = .false.  ! attribute used (retrieved) or not
           ESMF_INIT_DECLARE
        end type ESMF_ConfigAttrUsed
 
        type ESMF_ConfigClass
 #ifndef ESMF_SEQUENCE_BUG
+#ifndef ESMF_NO_SEQUENCE
           sequence
 #endif
+#endif
           !private              
-          character(len=NBUF_MAX),pointer :: buffer    ! hold the whole file
-          character(len=LSZ),     pointer :: this_line ! the current line
+          character(len=NBUF_MAX),pointer :: buffer => null ()    ! hold the whole file
+          character(len=LSZ),     pointer :: this_line => null () ! the current line
           integer :: nbuf                              ! actual size of buffer 
           integer :: next_line                         ! index_ for next line 
                                                        !   on buffer
           integer :: value_begin                       ! index of beginning of
                                                        !   value
           type(ESMF_ConfigAttrUsed), dimension(:), &
-                                  pointer :: attr_used ! used attributes table
+                                  pointer :: attr_used => null () ! used attributes table
           integer :: nattr                             ! number of attributes
                                                        !   in the "used" table
           character(len=LSZ)          :: current_attr  ! the current attr label
@@ -196,10 +220,12 @@
 !      ! Config wrapper
        type ESMF_Config
 #ifndef ESMF_SEQUENCE_BUG
+#ifndef ESMF_NO_SEQUENCE
           sequence
 #endif
+#endif
           !private       
-          type (ESMF_ConfigClass), pointer :: cptr
+          type (ESMF_ConfigClass), pointer :: cptr => null ()
           ESMF_INIT_DECLARE
        end type ESMF_Config
 
@@ -220,9 +246,9 @@
 !
 !
 ! !DESCRIPTION:
-!   Assign config1 as an alias to the same ESMF Config object in memory
-!   as config2. If config2 is invalid, then config1 will be equally invalid after
-!   the assignment.
+!   Assign {\tt config1} as an alias to the same {\tt ESMF\_Config} object in memory
+!   as {\tt config2}. If {\tt config2} is invalid, then {\tt config1} will be
+!   equally invalid after the assignment.
 !
 !   The arguments are:
 !   \begin{description}
@@ -231,6 +257,85 @@
 !   \item[config2]
 !     The {\tt ESMF\_Config} object on the right hand side of the assignment.
 !   \end{description}
+!
+!EOP
+!------------------------------------------------------------------------------
+
+! IMPLEMENTATION NOTE:
+! Use the default Fortran assignment
+
+!------------------------------------------------------------------------------
+!BOP
+! !IROUTINE:  ESMF_ConfigOperator(==) - Test if Config objects are equivalent
+!
+! !INTERFACE:
+!     interface operator(==)
+!     if (config1 == config2) then ... endif
+!                  OR
+!     result = (config1 == config2)
+!
+! !RETURN VALUE:
+!     configical :: result
+!
+! !ARGUMENTS:
+!     type(ESMF_Config), intent(in) :: config1
+!     type(ESMF_Config), intent(in) :: config2
+!
+!
+! !DESCRIPTION:
+!     Overloads the (==) operator for the {\tt ESMF\_Config} class.
+!     Compare two configs for equality; return {\tt .true.} if equal,
+!     {\tt .false.} otherwise. Comparison is based on whether the objects
+!     are distinct, as with two newly created objects, or are simply aliases
+!     to the same object as would be the case when assignment was involved.
+!
+!     The arguments are:
+!     \begin{description}
+!     \item[config1]
+!          The {\tt ESMF\_Config} object on the left hand side of the equality
+!          operation.
+!     \item[config2]
+!          The {\tt ESMF\_Config} object on the right hand side of the equality
+!          operation.
+!     \end{description}
+!
+!EOP
+!------------------------------------------------------------------------------
+
+!------------------------------------------------------------------------------
+!BOP
+! !IROUTINE:  ESMF_ConfigOperator(/=) - Test if Config objects are not equivalent
+!
+! !INTERFACE:
+!     interface operator(/=)
+!     if (config1 /= config2) then ... endif
+!                  OR
+!     result = (config1 /= config2)
+!
+! !RETURN VALUE:
+!     configical :: result
+!
+! !ARGUMENTS:
+!     type(ESMF_Config), intent(in) :: config1
+!     type(ESMF_Config), intent(in) :: config2
+!
+!
+! !DESCRIPTION:
+!     Overloads the (/=) operator for the {\tt ESMF\_Config} class.
+!     Compare two configs for equality; return {\tt .true.} if not equivalent,
+!     {\tt .false.} otherwise. Comparison is based on whether the Config objects
+!     are distinct, as with two newly created objects, or are simply aliases
+!     to the same object as would be the case when assignment was involved.
+!
+!     The arguments are:
+!     \begin{description}
+!     \item[config1]
+!          The {\tt ESMF\_Config} object on the left hand side of the equality
+!          operation.
+!     \item[config2]
+!          The {\tt ESMF\_Config} object on the right hand side of the equality
+!          operation.
+!     \end{description}
 !
 !EOP
 !------------------------------------------------------------------------------
@@ -254,7 +359,7 @@
 !     The arguments are:
 !     \begin{description}
 !     \item [s]
-!           {\tt ESMF\_ConfigAttrUsed} from which to retreive status.
+!           {\tt ESMF\_ConfigAttrUsed} from which to retrieve status.
 !     \end{description}
 !
 !EOPI
@@ -352,7 +457,7 @@
 !     The arguments are:
 !     \begin{description}
 !     \item [s]
-!           {\tt ESMF\_ConfigClass} from which to retreive status.
+!           {\tt ESMF\_ConfigClass} from which to retrieve status.
 !     \end{description}
 !
 !EOPI
@@ -453,7 +558,7 @@
 !     The arguments are:
 !     \begin{description}
 !     \item [s]
-!           {\tt ESMF\_Config} from which to retreive status.
+!           {\tt ESMF\_Config} from which to retrieve status.
 !     \end{description}
 !
 !EOPI
@@ -507,6 +612,7 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
  
 ! Initialization
       allocate(config_local, stat=memstat)
+      ESMF_ConfigCreate%cptr => config_local
       if (ESMF_LogFoundAllocError(memstat, msg="Allocating config class", &
                                         ESMF_CONTEXT, rcToReturn=rc)) return
 
@@ -526,7 +632,6 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 
       config_local%attr_used => attr_used_local
 
-      ESMF_ConfigCreate%cptr => config_local
       if (present( rc ))  rc = ESMF_SUCCESS
 
       ESMF_INIT_SET_CREATED(ESMF_ConfigCreate)
@@ -566,6 +671,7 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 !   \end{description}
 !
 !EOP -------------------------------------------------------------------
+      integer :: i
       integer :: memstat
 
       ! Initialize return code; assume routine not implemented
@@ -578,6 +684,13 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 
       ! TODO: Absoft 9/Jazz bug necessitates this separate deallocate statement
       ! before the other (must be in reverse order of allocation)
+      do, i=1, size (config%cptr%attr_used)
+        if (associated (config%cptr%attr_used(i)%label)) then
+          deallocate(config%cptr%attr_used(i)%label, stat=memstat)
+          if (ESMF_LogFoundDeallocError(memstat, msg="Deallocating local buffer 3", &
+                                     ESMF_CONTEXT, rcToReturn=rc)) return
+        end if
+      end do
       deallocate(config%cptr%attr_used, stat=memstat)
       if (ESMF_LogFoundDeallocError(memstat, msg="Deallocating local buffer 2", &
                                      ESMF_CONTEXT, rcToReturn=rc)) return
@@ -603,18 +716,24 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 ! !IROUTINE: ESMF_ConfigFindLabel - Find a label
 !
 ! !INTERFACE:
-    subroutine ESMF_ConfigFindLabel(config, label, keywordEnforcer, rc)
+    subroutine ESMF_ConfigFindLabel(config, label, keywordEnforcer, isPresent, rc)
 
 ! !ARGUMENTS:
       type(ESMF_Config), intent(inout)           :: config 
       character(len=*),  intent(in)              :: label
 type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
+      logical,           intent(out),  optional  :: isPresent
       integer,           intent(out),  optional  :: rc 
 
 !
 ! !STATUS:
 ! \begin{itemize}
 ! \item\apiStatusCompatibleVersion{5.2.0r}
+! \item\apiStatusModifiedSinceVersion{5.2.0r}
+! \begin{description}
+! \item[6.1.0] Added the {\tt isPresent} argument.  Allows detection of
+!  end-of-line condition to be separate from the {\tt rc}.
+! \end{description}
 ! \end{itemize}
 !
 ! !DESCRIPTION: Finds the {\tt label} (key) string in the {\tt config} object. 
@@ -622,8 +741,8 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 !   Since the search is done by looking for a string, possibly multi-worded,
 !   in the whole {\tt Config} object, it is important to use special 
 !   conventions to distinguish {\tt labels} from other words. This is done 
-!   in the Resource File by using the DAO convention to finish 
-!   line labels with a (:) and table labels with a double colon (::).
+!   in the Resource File by using the NASA/DAO convention to finish
+!   line labels with a colon (:) and table labels with a double colon (::).
 !
 !
 !   The arguments are:
@@ -632,10 +751,12 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 !     Already created {\tt ESMF\_Config} object.
 !   \item [label]
 !     Identifying label. 
+!   \item [{[isPresent]}]
+!     Set to {\tt .true.} if the item is found.
 !   \item [{[rc]}]
 !     Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
-!     Equals -1 if buffer could not be loaded, -2 if label not found,
-!     and -3 if invalid operation with index.
+!     If the label is not found, and the {\tt isPresent} argument is
+!     not present, an error is returned.
 !   \end{description}
 !
 !EOP -------------------------------------------------------------------
@@ -648,19 +769,31 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
       !check variables
       ESMF_INIT_CHECK_DEEP(ESMF_ConfigGetInit,config,rc)
 
+      if (present (isPresent)) then
+        isPresent = .false.
+      end if
+
 !     Determine whether label exists
 !     ------------------------------    
 
       i = index_ ( config%cptr%buffer(1:config%cptr%nbuf), EOL//label ) + 1
       if ( i .eq. 1 ) then
          config%cptr%this_line = BLK // EOL
+         if (present (isPresent)) then
+           if (present (rc)) rc = ESMF_SUCCESS
+           return
+         end if
          if (ESMF_LogFoundError(ESMF_RC_NOT_FOUND, &
-                                msg="label not found", &
+                                msg="label " // trim (label) // " not found", &
                                  ESMF_CONTEXT, rcToReturn=rc)) return
       elseif(i.le.0) then
          if (ESMF_LogFoundError(ESMF_RC_ARG_BAD, &
                                 msg="invalid operation with index_", &
                                  ESMF_CONTEXT, rcToReturn=rc)) return
+      end if
+
+      if (present (isPresent)) then
+        isPresent = .true.
       end if
 
 !     Save current attribute label without colon,
@@ -762,6 +895,7 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 !
 !      Supported values for <value list argument> are:
 !      \begin{description}
+!      \item character(len=*), intent(out)            :: valueList(:)
 !      \item real(ESMF\_KIND\_R4), intent(inout)      :: valueList(:)
 !      \item real(ESMF\_KIND\_R8), intent(inout)      :: valueList(:)
 !      \item integer(ESMF\_KIND\_I4), intent(inout)   :: valueList(:)
@@ -796,7 +930,7 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 ! !INTERFACE:
       ! Private name; call using ESMF_ConfigGetAttribute()
       subroutine ESMF_ConfigGetString(config, value, &
-        keywordEnforcer, label, default, rc)
+        keywordEnforcer, label, default, eolFlag, rc)
 
 ! !ARGUMENTS:
       type(ESMF_Config), intent(inout)       :: config     
@@ -804,6 +938,7 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
       character(len=*), intent(in), optional :: label 
       character(len=*), intent(in), optional :: default 
+      logical, intent(out), optional         :: eolFlag
       integer, intent(out), optional         :: rc     
 !
 ! !DESCRIPTION: Gets a sequence of characters. It will be 
@@ -819,6 +954,8 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 !     Identifing label. 
 !   \item [{[default]}]
 !     Default value if {\tt label} is not found in {\tt config} object. 
+!   \item [{[eolFlag]}]
+!     Returns {\tt .true.} when end of line is encountered.
 !   \item [{[rc]}]
 !     Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
 !   \end{description}
@@ -826,7 +963,8 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 !EOPI ------------------------------------------------------------------
       character(len=1) :: ch
       integer :: ib, ie, localrc
-      
+      logical :: found
+
       ! Initialize return code; assume routine not implemented
       if (present(rc)) rc = ESMF_RC_NOT_IMPL
 
@@ -842,12 +980,30 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
          value = BLK
       endif
 
+      if (present (eolFlag)) then
+        eolFlag = .false.
+      end if
+
+      if (present (default)) then
+        if (len (value) < len (default)) then
+          if (ESMF_LogFoundError (ESMF_RC_ARG_BAD,  &
+            msg='default length too long for value string',  &
+            ESMF_CONTEXT, rcToReturn=rc)) return
+        end if
+      end if
+
 ! Processing
       if(present( label )) then
-         call ESMF_ConfigFindLabel( config, label=label, rc=localrc)
-         if ( localrc /= ESMF_SUCCESS ) then
+         call ESMF_ConfigFindLabel( config, label=label,  &
+             isPresent=found, rc=localrc)
+         if (ESMF_LogFoundError (localrc, ESMF_ERR_PASSTHRU,  &
+             ESMF_CONTEXT, rcToReturn=rc)) return
+
+         if (.not. found) then
             if (present(default)) then
                localrc = ESMF_SUCCESS
+            else
+               localrc = ESMF_RC_NOT_FOUND
             end if
             if ( present (rc )) then
               rc = localrc
@@ -873,7 +1029,12 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
          if ( present ( default )) then
            value = default
          endif
-         localrc = -1
+         if (present (eolFlag)) then
+           eolFlag = .true.
+           localrc = ESMF_SUCCESS
+         else
+           localrc = ESMF_RC_NOT_FOUND
+         end if
          if ( present (rc )) then
            rc = localrc
          endif
@@ -881,10 +1042,13 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
       else
          ! Get the string, and shift the rest of %this_line to
          ! the left
-         
          value = config%cptr%this_line(ib:ie) 
          config%cptr%this_line = config%cptr%this_line(ie+2:)
-         localrc = ESMF_SUCCESS
+         if (len (value) >= ie-ib+1) then
+           localrc = ESMF_SUCCESS
+         else
+           localrc = ESMF_RC_ARG_SIZE
+         end if
       end if
 
       if ( present (rc)) then
@@ -894,6 +1058,117 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
     end subroutine ESMF_ConfigGetString
     
     
+
+#undef  ESMF_METHOD
+#define ESMF_METHOD "ESMF_ConfigGetStrings"
+!BOPI
+!
+! !IROUTINE: ESMF_ConfigGetAttribute - Get a list of strings
+
+!
+! !INTERFACE:
+      ! Private name; call using ESMF_ConfigGetAttribute()
+      subroutine ESMF_ConfigGetStrings(config, valueList, &
+        keywordEnforcer, count, label, default, rc)
+
+! !ARGUMENTS:
+      type(ESMF_Config),  intent(inout)         :: config    
+      character(len=*),   intent(out)           :: valueList(:)
+type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
+      integer,            intent(in),  optional :: count 
+      character(len=*),   intent(in),  optional :: label 
+      character(len=*),   intent(in),  optional :: default
+      integer,            intent(out), optional :: rc    
+!
+! !DESCRIPTION: 
+!  Gets a string {\tt valueList} of a given {\tt count} from
+!  the {\tt config} object.
+!
+!   The arguments are:
+!   \begin{description}
+!   \item [config]
+!     Already created {\tt ESMF\_Config} object.
+!   \item [valueList]
+!     Returned string values. 
+!   \item [count]
+!     Number of returned values expected. 
+!   \item [{[label]}]
+!     Identifing label. 
+!   \item [{[default]}]
+!     Default value if label is not found in configuration object. 
+!   \item [{[rc]}]
+!     Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
+!   \end{description}
+!
+!EOPI -------------------------------------------------------------------
+!
+      integer :: localrc
+      integer :: localcount
+      integer :: i 
+      logical :: found
+
+      ! Initialize return code; assume routine not implemented
+      if (present(rc)) rc = ESMF_RC_NOT_IMPL
+
+      localrc = ESMF_RC_NOT_IMPL
+      !check variables
+      ESMF_INIT_CHECK_DEEP(ESMF_ConfigGetInit,config,rc)
+
+      localcount = size (valueList)
+      if (present (count)) then
+        if (count <= 0) then
+           if (ESMF_LogFoundError(ESMF_RC_OBJ_BAD, &
+                                  msg="invalid SIZE", &
+                                   ESMF_CONTEXT, rcToReturn=rc)) return
+        else if (count > size (valueList)) then
+           if (ESMF_LogFoundError(ESMF_RC_OBJ_BAD, &
+                                  msg="invalid SIZE", &
+                                   ESMF_CONTEXT, rcToReturn=rc)) return
+        else
+           localcount = count
+        end if
+      endif
+
+      if (present (default)) then
+        if (len (valueList) < len (default)) then
+          if (ESMF_LogFoundError (ESMF_RC_ARG_BAD,  &
+            msg='default length too long for valueList array',  &
+            ESMF_CONTEXT, rcToReturn=rc)) return
+        end if
+      end if
+
+! Default setting
+      if( present( default ) ) then 
+         valueList(1:localcount) = default
+
+      else
+         valueList(1:localcount) = ""
+      endif
+! Processing
+      if (present( label )) then
+         call ESMF_ConfigFindLabel( config, label=label,  &
+             isPresent=found, rc=localrc)
+         if (ESMF_LogFoundError (localrc, ESMF_ERR_PASSTHRU,  &
+             ESMF_CONTEXT, rcToReturn=rc)) return
+         if (.not. found)  &
+             localrc = ESMF_RC_NOT_FOUND
+      end if
+
+      do i = 1, localcount
+         
+         if(present( default )) then
+            call ESMF_ConfigGetString( config, valueList(i), default=default, rc=localrc )
+         else
+            call ESMF_ConfigGetString( config, valueList(i), rc = localrc)
+         endif
+      enddo
+
+      if(present( rc )) then
+        rc = localrc
+      endif
+
+    end subroutine ESMF_ConfigGetStrings
+
 
 #undef  ESMF_METHOD
 #define ESMF_METHOD "ESMF_ConfigGetFloatR4"
@@ -1129,6 +1404,7 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
       integer :: localrc
       integer :: localcount
       integer :: i 
+      logical :: found
 
       ! Initialize return code; assume routine not implemented
       if (present(rc)) rc = ESMF_RC_NOT_IMPL
@@ -1139,7 +1415,7 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 
       localcount = size (valueList)
       if (present (count)) then
-	if (count <= 0) then
+        if (count <= 0) then
            if (ESMF_LogFoundError(ESMF_RC_OBJ_BAD, &
                                   msg="invalid SIZE", &
                                    ESMF_CONTEXT, rcToReturn=rc)) return
@@ -1161,7 +1437,12 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
       endif
 ! Processing
       if (present( label )) then
-         call ESMF_ConfigFindLabel( config, label=label, rc=localrc)
+         call ESMF_ConfigFindLabel( config, label=label,  &
+             isPresent=found, rc=localrc)
+         if (ESMF_LogFoundError (localrc, ESMF_ERR_PASSTHRU,  &
+             ESMF_CONTEXT, rcToReturn=rc)) return
+         if (.not. found)  &
+             localrc = ESMF_RC_NOT_FOUND
       end if
 
       do i = 1, localcount
@@ -1224,6 +1505,7 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
       integer :: localrc
       integer :: localcount
       integer :: i 
+      logical :: found
       
       ! Initialize return code; assume routine not implemented
       if (present(rc)) rc = ESMF_RC_NOT_IMPL
@@ -1234,7 +1516,7 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 
       localcount = size (valueList)
       if (present (count)) then
-	if (count <= 0) then
+        if (count <= 0) then
            if (ESMF_LogFoundError(ESMF_RC_OBJ_BAD, &
                                   msg="invalid SIZE", &
                                    ESMF_CONTEXT, rcToReturn=rc)) return
@@ -1256,7 +1538,12 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 
 ! Processing
       if (present( label )) then
-         call ESMF_ConfigFindLabel( config, label=label, rc=localrc)
+         call ESMF_ConfigFindLabel( config, label=label,  &
+             isPresent=found, rc=localrc)
+         if (ESMF_LogFoundError (localrc, ESMF_ERR_PASSTHRU,  &
+             ESMF_CONTEXT, rcToReturn=rc)) return
+         if (.not. found)  &
+             localrc = ESMF_RC_NOT_FOUND
       end if
 
       do i = 1, localcount
@@ -1516,6 +1803,7 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
       integer :: localrc
       integer :: localcount
       integer :: i 
+      logical :: found
       
       ! Initialize return code; assume routine not implemented
       if (present(rc)) rc = ESMF_RC_NOT_IMPL
@@ -1526,7 +1814,7 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 
       localcount = size (valueList)
       if (present (count)) then
-	if (count <= 0) then
+        if (count <= 0) then
            if (ESMF_LogFoundError(ESMF_RC_OBJ_BAD, &
                                   msg="invalid SIZE", &
                                    ESMF_CONTEXT, rcToReturn=rc)) return
@@ -1548,7 +1836,12 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 
 ! Processing 
       if (present( label )) then
-         call ESMF_ConfigFindLabel( config, label=label, rc=localrc)
+         call ESMF_ConfigFindLabel( config, label=label,  &
+             isPresent=found, rc=localrc)
+         if (ESMF_LogFoundError (localrc, ESMF_ERR_PASSTHRU,  &
+             ESMF_CONTEXT, rcToReturn=rc)) return
+         if (.not. found)  &
+             localrc = ESMF_RC_NOT_FOUND
       end if
 
       do i = 1, localcount
@@ -1613,6 +1906,7 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
       integer :: localrc
       integer :: localcount
       integer :: i 
+      logical :: found
       
       localrc = ESMF_SUCCESS
       !check variables
@@ -1620,7 +1914,7 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 
       localcount = size (valueList)
       if (present (count)) then
-	if (count <= 0) then
+        if (count <= 0) then
            if (ESMF_LogFoundError(ESMF_RC_OBJ_BAD, &
                                   msg="invalid SIZE", &
                                    ESMF_CONTEXT, rcToReturn=rc)) return
@@ -1642,7 +1936,12 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 
 ! Processing 
       if (present( label )) then
-         call ESMF_ConfigFindLabel( config, label=label, rc=localrc)
+         call ESMF_ConfigFindLabel( config, label=label,  &
+             isPresent=found, rc=localrc)
+         if (ESMF_LogFoundError (localrc, ESMF_ERR_PASSTHRU,  &
+             ESMF_CONTEXT, rcToReturn=rc)) return
+         if (.not. found)  &
+             localrc = ESMF_RC_NOT_FOUND
       end if
 
       do i = 1, localcount
@@ -1734,7 +2033,7 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
       if ( localrc == ESMF_SUCCESS ) then
 
         ! Convert string to lower case
-         call ESMF_StringLowerCase(string, localrc)
+         string = ESMF_UtilStringLowerCase(string)
 
          ! Check if valid true/false keyword
          if (string == 't'      .or. string == 'true' .or. &
@@ -1817,6 +2116,7 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
       integer :: localrc
       integer :: localcount
       integer :: i 
+      logical :: found
       
       ! Initialize return code; assume routine not implemented
       if (present(rc)) rc = ESMF_RC_NOT_IMPL
@@ -1827,7 +2127,7 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 
       localcount = size (valueList)
       if (present (count)) then
-	if (count <= 0) then
+        if (count <= 0) then
            if (ESMF_LogFoundError(ESMF_RC_OBJ_BAD, &
                                   msg="invalid SIZE", &
                                    ESMF_CONTEXT, rcToReturn=rc)) return
@@ -1849,7 +2149,12 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 
       ! Processing 
       if (present( label )) then
-         call ESMF_ConfigFindLabel( config, label=label, rc=localrc)
+         call ESMF_ConfigFindLabel( config, label=label,  &
+             isPresent=found, rc=localrc)
+         if (ESMF_LogFoundError (localrc, ESMF_ERR_PASSTHRU,  &
+             ESMF_CONTEXT, rcToReturn=rc)) return
+         if (.not. found)  &
+             localrc = ESMF_RC_NOT_FOUND
       end if
 
       do i = 1, localcount
@@ -1978,6 +2283,9 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 !  Returns the number of lines in the table in {\tt lineCount} and 
 !  the maximum number of words in a table line in {\tt columnCount}.
 !
+!  After the call, the line pointer is positioned to the end of the table.
+!  To reset it to the beginning of the table, use {\tt ESMF\_ConfigFindLabel}. 
+!
 !   The arguments are:
 !   \begin{description}
 !   \item [config]
@@ -1996,6 +2304,7 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 !
       integer :: localrc
       integer :: n
+      logical :: found
       logical :: tend
 
       ! Initialize return code; assume routine not implemented
@@ -2009,8 +2318,12 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
       ESMF_INIT_CHECK_DEEP(ESMF_ConfigGetInit,config,rc)
 
       if ( present(label) ) then
-        call ESMF_ConfigFindLabel(config, label=label, rc=localrc)
-        if ( localrc /= ESMF_SUCCESS ) then
+        call ESMF_ConfigFindLabel(config, label=label,  &
+            isPresent=found, rc=localrc)
+        if (ESMF_LogFoundError (localrc, ESMF_ERR_PASSTHRU,  &
+            ESMF_CONTEXT, rcToReturn=rc)) return
+        if (.not. found) then
+           localrc = ESMF_RC_NOT_FOUND
            if ( present( rc )) then
              rc = localrc
            endif
@@ -2086,6 +2399,7 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
       character(len=LSZ) :: string
       integer :: localrc
       integer :: count 
+      logical :: eol, found
 
       ! Initialize return code; assume routine not implemented
       if (present(rc)) rc = ESMF_RC_NOT_IMPL
@@ -2098,8 +2412,12 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
       ESMF_INIT_CHECK_DEEP(ESMF_ConfigGetInit,config,rc)
 
       if( present( label )) then
-         call ESMF_ConfigFindLabel(config, label=label, rc=localrc)
-         if( localrc /= 0) then
+         call ESMF_ConfigFindLabel(config, label=label,  &
+             isPresent=found, rc=localrc)
+         if (ESMF_LogFoundError (localrc, ESMF_ERR_PASSTHRU,  &
+             ESMF_CONTEXT, rcToReturn=rc)) return
+         if (.not. found) then
+            localrc = ESMF_RC_NOT_FOUND
             if (present( rc )) then
               rc = localrc
             endif
@@ -2108,11 +2426,11 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
       endif
 
       do
-         call ESMF_ConfigGetString( config, string, rc = localrc )
+         call ESMF_ConfigGetString( config, string, eolFlag=eol, rc = localrc )
+         if (eol) exit            
          if ( localrc == ESMF_SUCCESS ) then
             count = count + 1
          else
-            if (localrc == -1) localrc = ESMF_SUCCESS  ! end of the line
             exit
          endif
       enddo
@@ -2125,6 +2443,47 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
       endif
 
     end function ESMF_ConfigGetLen
+
+
+! -------------------------- ESMF-public method -------------------------------
+#undef  ESMF_METHOD
+#define ESMF_METHOD "ESMF_ConfigIsCreated()"
+!BOP
+! !IROUTINE: ESMF_ConfigIsCreated - Check whether a Config object has been created
+
+! !INTERFACE:
+  function ESMF_ConfigIsCreated(config, keywordEnforcer, rc)
+! !RETURN VALUE:
+    logical :: ESMF_ConfigIsCreated
+!
+! !ARGUMENTS:
+    type(ESMF_Config), intent(in)            :: config
+type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
+    integer,             intent(out), optional :: rc
+
+! !DESCRIPTION:
+!   Return {\tt .true.} if the {\tt config} has been created. Otherwise return 
+!   {\tt .false.}. If an error occurs, i.e. {\tt rc /= ESMF\_SUCCESS} is 
+!   returned, the return value of the function will also be {\tt .false.}.
+!
+! The arguments are:
+!   \begin{description}
+!   \item[config]
+!     {\tt ESMF\_Config} queried.
+!   \item[{[rc]}]
+!     Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
+!   \end{description}
+!
+!EOP
+  !-----------------------------------------------------------------------------    
+    ESMF_ConfigIsCreated = .false.   ! initialize
+    if (present(rc)) rc = ESMF_SUCCESS
+    if (ESMF_ConfigGetInit(config)==ESMF_INIT_CREATED) &
+      ESMF_ConfigIsCreated = .true.
+  end function
+!------------------------------------------------------------------------------
+
+
 
 #undef  ESMF_METHOD
 #define ESMF_METHOD "ESMF_ConfigLoadFile"
@@ -2218,9 +2577,12 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 ! !DESCRIPTION: Resource file filename is loaded into memory
 !
 !EOPI -------------------------------------------------------------------
-      integer :: lu, ios, loop, ls, ptr
+      integer :: i, ls, ptr
+      integer :: lu, nrecs
+      integer :: iostat
       character(len=LSZ) :: line
       integer :: localrc
+      character(LSZ), allocatable :: line_buffer(:)
 
       ! Initialize return code; assume routine not implemented
       if (present(rc)) rc = ESMF_RC_NOT_IMPL
@@ -2237,23 +2599,35 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
       ! A open through an interface to avoid portability problems.
       ! (J.G.)
 
-      call opntext(lu,filename,'old',rc=localrc)
+      call opntext(lu, filename, 'old', rc=localrc)
+      if (ESMF_LogFoundError(localrc, &
+          msg="error opening text file: " // trim (filename), &
+          ESMF_CONTEXT, rcToReturn=rc)) return
 
-      if ( localrc /= ESMF_SUCCESS ) then
-         if (ESMF_LogFoundError(localrc, &
-                              msg="error opening text file: " // trim (filename), &
-                               ESMF_CONTEXT, rcToReturn=rc)) return
-      end if
+!     Count records, then read them into a local buffer
+      nrecs = 0
+      do
+        read (lu, *, iostat=iostat)
+        if (iostat /= 0) exit
+        nrecs = nrecs + 1
+      end do
+
+      rewind (lu)
+
+      allocate (line_buffer(nrecs))
+      do, i = 1, nrecs
+        read (lu, '(a)') line_buffer(i)
+      end do
 
 !     Read to end of file
 !     -------------------
       config%cptr%buffer(1:1) = EOL
       ptr = 2                         ! next buffer position
-      do loop = 1, NBUF_MAX
+      do, i = 1, nrecs
 
 !        Read next line
 !        --------------
-         read(lu,'(a)', end=11) line  ! read next line
+         line = line_buffer(i)            ! copy next line
          call ESMF_Config_trim ( line )      ! remove trailing white space
          call ESMF_Config_pad ( line )       ! Pad with # from end of line
 
@@ -2262,27 +2636,14 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
          ls = index_(line,'#' ) - 1    ! line length
          if ( ls .gt. 0 ) then
             if ( (ptr+ls) .gt. NBUF_MAX ) then
-               localrc = ESMF_RC_MEM
-               if ( present (rc )) then
-                 rc = localrc
-               endif
-               return
+               if (ESMF_LogFoundError(ESMF_RC_MEM, msg="exceeded NBUF_MAX size", &
+                   ESMF_CONTEXT, rcToReturn=rc)) return
             end if
             config%cptr%buffer(ptr:ptr+ls) = line(1:ls) // EOL
             ptr = ptr + ls + 1
          end if
 
       end do
-      
-      ! good chance config%cptr%buffer is not big enough 
-      localrc = ESMF_RC_MEM
-      if ( present (rc )) then
-        rc = localrc
-      endif
-
-      return
-      
-11    continue
 
 !     All done
 !     --------
@@ -2455,7 +2816,7 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
               if (unique) then
                 !  TODO:  pre-sort and use binary search, or use hash function
                 do b = 1, a-1
-                  if (trim(label) .eq. trim(config%cptr%attr_used(b)%label)) then
+                  if (label == ESMF_UtilArray2String (config%cptr%attr_used(b)%label)) then
                     duplicate = .true.
                     logmsg = "Duplicate label '" // trim(label) // &
                                   "' found in attributes file"
@@ -2470,7 +2831,8 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
             ! ... and place it into attributes table
             if (.not.duplicate) then
                if ( a <= NATT_MAX ) then
-                  config%cptr%attr_used(a)%label = label
+                  allocate (config%cptr%attr_used(a)%label(len_trim (label)))
+                  config%cptr%attr_used(a)%label = ESMF_UtilString2Array (trim (label))
                else
                   if (ESMF_LogFoundError(ESMF_RC_INTNRL_LIST,    &
                        msg="attribute out-of-range; increase NATT_MAX", &
@@ -2703,7 +3065,7 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
       endif
 
       if( present( rc )) then
-        rc = localrc
+        rc = ESMF_SUCCESS
       endif
       
       return
@@ -2743,9 +3105,11 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
       ! find attr label and set its used flag to given value
       !  TODO:  pre-sort and use binary search, or use hash function
       do i = 1, NATT_MAX
-        if (trim(config%cptr%current_attr) == trim(config%cptr%attr_used(i)%label)) then
-          config%cptr%attr_used(i)%used = used
-          exit
+        if (associated (config%cptr%attr_used(i)%label)) then
+          if (trim(config%cptr%current_attr) == ESMF_UtilArray2String (config%cptr%attr_used(i)%label)) then
+            config%cptr%attr_used(i)%used = used
+            exit
+          end if
         endif
       enddo
 
@@ -2841,7 +3205,7 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
           do i = 1, config%cptr%nattr
             if (.not.(config%cptr%attr_used(i)%used)) then
               logmsg = "Config attribute label '" // &
-                  trim(config%cptr%attr_used(i)%label) // &
+                  ESMF_UtilArray2String (config%cptr%attr_used(i)%label) // &
                   "' unused (not retrieved via ESMF_ConfigGetAttribute() " // &
                   "or ESMF_ConfigGetChar())."
               call ESMF_LogWrite(logmsg, ESMF_LOGMSG_WARNING, ESMF_CONTEXT)
@@ -2862,6 +3226,58 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
       return
 
     end subroutine ESMF_ConfigValidate
+
+!------------------------------------------------------------------------------
+#undef  ESMF_METHOD
+#define ESMF_METHOD "ESMF_ConfigEQ()"
+!BOPI
+! !IROUTINE:  ESMF_ConfigEQ - Compare two Config objects for equality
+!
+! !INTERFACE:
+  function ESMF_ConfigEQ(Config1, Config2)
+!
+! !RETURN VALUE:
+    logical :: ESMF_ConfigEQ
+
+! !ARGUMENTS:
+    type(ESMF_Config), intent(in) :: Config1
+    type(ESMF_Config), intent(in) :: Config2
+
+! !DESCRIPTION:
+!     This method overloads the (==) operator for the {\tt ESMF\_Config}
+!     class.  See "interface operator(==)" above for complete description.
+!
+!EOPI
+
+    ESMF_ConfigEQ = associated (Config1%cptr, Config2%cptr)
+
+  end function ESMF_ConfigEQ
+
+!------------------------------------------------------------------------------
+#undef  ESMF_METHOD
+#define ESMF_METHOD "ESMF_ConfigNE()"
+!BOPI
+! !IROUTINE:  ESMF_ConfigEQ - Compare two Config objects for inequality
+!
+! !INTERFACE:
+  function ESMF_ConfigNE(Config1, Config2)
+!
+! !RETURN VALUE:
+    logical :: ESMF_ConfigNE
+
+! !ARGUMENTS:
+    type(ESMF_Config), intent(in) :: Config1
+    type(ESMF_Config), intent(in) :: Config2
+
+! !DESCRIPTION:
+!     This method overloads the (/=) operator for the {\tt ESMF\_Config}
+!     class.  See "interface operator(==)" above for complete description.
+!
+!EOPI
+
+    ESMF_ConfigNE = .not. associated (Config1%cptr, Config2%cptr)
+
+  end function ESMF_ConfigNE
 
 
 !-----------------------------------------------------------------------
@@ -3037,8 +3453,7 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
         end if
 #endif
 
-        Ustat = status
-        call ESMF_StringUpperCase (string=Ustat)
+        Ustat = ESMF_UtilStringUpperCase (string=status)
         select case(Ustat)
 
         case ('APPEND')

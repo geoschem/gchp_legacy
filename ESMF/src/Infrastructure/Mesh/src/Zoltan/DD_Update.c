@@ -7,8 +7,8 @@
 /*****************************************************************************
  * CVS File Information :
  *    $RCSfile: DD_Update.c,v $
- *    $Author: mathomp4 $
- *    $Date: 2013-01-11 20:23:44 $
+ *    $Author: dneckels $
+ *    $Date: 2007/11/28 16:13:42 $
  *    Revision: 1.14 $
  ****************************************************************************/
 
@@ -60,7 +60,7 @@ int Zoltan_DD_Update (
    int              err ;
    int              errcount ;       /* count of GIDs not found, added  */
    char             str[100] ;       /* build error message string      */
-   char            *yo = "Zoltan_DD_Update" ;
+   const char       *yo = "Zoltan_DD_Update" ;
 
    if (dd != NULL && dd->debug_level > 1)
       ZOLTAN_TRACE_IN(dd->my_proc, yo, NULL);
@@ -236,7 +236,7 @@ static int DD_Update_Local (Zoltan_DD_Directory *dd,
    {
    DD_Node **ptr ;
    int index ;
-   char *yo = "DD_Update_Local" ;
+   const char *yo = "DD_Update_Local" ;
 
 
    if (dd != NULL && dd->debug_level > 2)

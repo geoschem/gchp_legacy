@@ -1,7 +1,7 @@
-! $Id: ESMF_Field.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
+! $Id$
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2012, University Corporation for Atmospheric Research, 
+! Copyright 2002-2018, University Corporation for Atmospheric Research, 
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
 ! Laboratory, University of Michigan, National Centers for Environmental 
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
@@ -68,7 +68,9 @@ module ESMF_FieldMod
 ! ! ESMF_FieldStatus_Flag
 
   type ESMF_FieldStatus_Flag
+#ifndef ESMF_NO_SEQUENCE
     sequence
+#endif
     !private
     integer :: status
   end type
@@ -83,7 +85,9 @@ module ESMF_FieldMod
 ! ! Definition of the Field class.
 
   type ESMF_FieldType
+#ifndef ESMF_NO_SEQUENCE
     sequence
+#endif
     !private
     type (ESMF_Base)              :: base             ! base class object
     type (ESMF_Array)             :: array
@@ -91,6 +95,8 @@ module ESMF_FieldMod
     type (ESMF_FieldStatus_Flag)  :: status
     type (ESMF_Status)            :: iostatus         ! if unset, inherit from gcomp
     logical                       :: array_internal   ! .true. if field%array is
+                                                      ! internally allocated
+    logical                       :: geomb_internal   ! .true. if field%geombase is
                                                       ! internally allocated
     logical                       :: is_proxy         ! .true. for a proxy field
     integer                       :: dimCount         ! field dimension count
@@ -108,7 +114,9 @@ module ESMF_FieldMod
 ! ! calling languages.
 
   type ESMF_Field
+#ifndef ESMF_NO_SEQUENCE
     sequence
+#endif
     !private       
     type (ESMF_FieldType), pointer :: ftypep
     ESMF_INIT_DECLARE
@@ -128,7 +136,9 @@ module ESMF_FieldMod
 ! !PUBLIC MEMBER FUNCTIONS:
 !
 ! - ESMF-public methods:
+   public ESMF_FieldIsCreated          ! Check if a Field object is created
    public ESMF_FieldValidate           ! Check internal consistency
+   public ESMF_FieldSet
    public operator(==), operator(/=)
 
 ! - ESMF-internal methods:
@@ -141,7 +151,7 @@ module ESMF_FieldMod
 !------------------------------------------------------------------------------
 ! The following line turns the CVS identifier string into a printable variable.
   character(*), parameter, private :: version = &
-    '$Id: ESMF_Field.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $'
+    '$Id$'
 
 !==============================================================================
 !
@@ -163,6 +173,48 @@ contains
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+! -------------------------- ESMF-public method -------------------------------
+
+
+!------------------------------------------------------------------------------
+#undef  ESMF_METHOD
+#define ESMF_METHOD "ESMF_FieldIsCreated()"
+!BOP
+! !IROUTINE: ESMF_FieldIsCreated - Check whether a Field object has been created
+
+! !INTERFACE:
+  function ESMF_FieldIsCreated(field, keywordEnforcer, rc)
+! !RETURN VALUE:
+    logical :: ESMF_FieldIsCreated
+!
+! !ARGUMENTS:
+    type(ESMF_Field), intent(in)            :: field
+type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
+    integer,             intent(out), optional :: rc
+
+! !DESCRIPTION:
+!   Return {\tt .true.} if the {\tt field} has been created. Otherwise return 
+!   {\tt .false.}. If an error occurs, i.e. {\tt rc /= ESMF\_SUCCESS} is 
+!   returned, the return value of the function will also be {\tt .false.}.
+!
+! The arguments are:
+!   \begin{description}
+!   \item[field]
+!     {\tt ESMF\_Field} queried.
+!   \item[{[rc]}]
+!     Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
+!   \end{description}
+!
+!EOP
+  !-----------------------------------------------------------------------------    
+    ESMF_FieldIsCreated = .false.   ! initialize
+    if (present(rc)) rc = ESMF_SUCCESS
+    if (ESMF_FieldGetInit(field)==ESMF_INIT_CREATED) &
+      ESMF_FieldIsCreated = .true.
+  end function
+!------------------------------------------------------------------------------
+
 
 !------------------------------------------------------------------------------
 #undef  ESMF_METHOD
@@ -260,7 +312,7 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
                                     ESMF_ERR_PASSTHRU, &
                                     ESMF_CONTEXT, rcToReturn=rc)) return
 
-	  ! get the grid decomp type if geombase is grid
+      ! get the grid decomp type if geombase is grid
       decompType = ESMF_GRID_NONARBITRARY
           call ESMF_GeomBaseGet(ftypep%geombase, geomtype=geomtype, rc=localrc)
           if (ESMF_LogFoundError(localrc, &  
@@ -270,12 +322,12 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
           if (geomtype .eq. ESMF_GEOMTYPE_GRID) then
              call ESMF_GeomBaseGet(ftypep%geombase, grid=grid, rc=localrc)
              if (ESMF_LogFoundError(localrc, &  
-          	    ESMF_ERR_PASSTHRU, &  
-           	    ESMF_CONTEXT, rcToReturn=rc)) return  
+                    ESMF_ERR_PASSTHRU, &  
+                    ESMF_CONTEXT, rcToReturn=rc)) return  
              call ESMF_GridGetDecompType(grid, decompType, rc=localrc)
              if (ESMF_LogFoundError(localrc, &  
-          	    ESMF_ERR_PASSTHRU, &  
-           	    ESMF_CONTEXT, rcToReturn=rc)) return  
+                    ESMF_ERR_PASSTHRU, &  
+                    ESMF_CONTEXT, rcToReturn=rc)) return  
           endif   
           ! get grid dim and extents for the local piece
           call ESMF_GeomBaseGet(ftypep%geombase, dimCount=gridrank, &
@@ -453,8 +505,8 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
       ! shortcut to internals
       fp => field%ftypep
 
-      call c_ESMC_BaseSerialize(fp%base, buffer(1), length, offset, &
-                                 lattreconflag, linquireflag, localrc)
+      call ESMF_BaseSerialize(fp%base, buffer, offset, &
+                                 lattreconflag, linquireflag, rc=localrc)
       if (ESMF_LogFoundError(localrc, &
                                  ESMF_ERR_PASSTHRU, &
                                  ESMF_CONTEXT, rcToReturn=rc)) return
@@ -464,7 +516,7 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
                                  fp%dimCount, fp%gridToFieldMap, &
                                  fp%ungriddedLBound, fp%ungriddedUBound, &
                                  fp%totalLWidth, fp%totalUWidth, &
-                                 buffer(1), length, offset, linquireflag, localrc)
+                                 buffer, length, offset, linquireflag, localrc)
       if (ESMF_LogFoundError(localrc, &
                                  ESMF_ERR_PASSTHRU, &
                                  ESMF_CONTEXT, rcToReturn=rc)) return
@@ -480,7 +532,7 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
       endif
 
       if (fp%status .eq. ESMF_FIELDSTATUS_COMPLETE) then
-          call c_ESMC_ArraySerialize(fp%array, buffer(1), length, offset, &
+          call c_ESMC_ArraySerialize(fp%array, buffer, length, offset, &
                                      lattreconflag, linquireflag, localrc)
           if (ESMF_LogFoundError(localrc, &
                                      ESMF_ERR_PASSTHRU, &
@@ -561,7 +613,7 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
                                      ESMF_CONTEXT, rcToReturn=rc)) return
 
       ! Deserialize Base
-      call c_ESMC_BaseDeserialize(fp%base, buffer(1), offset, lattreconflag, localrc)
+      fp%base = ESMF_BaseDeserialize(buffer, offset, lattreconflag, rc=localrc)
       if (ESMF_LogFoundError(localrc, &
                                  ESMF_ERR_PASSTHRU, &
                                  ESMF_CONTEXT, rcToReturn=rc)) return
@@ -578,7 +630,7 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
                                    fp%dimCount, fp%gridToFieldMap, &
                                    fp%ungriddedLBound, fp%ungriddedUBound, &
                                    fp%totalLWidth, fp%totalUWidth, &
-                                   buffer(1), offset, localrc)
+                                   buffer, offset, localrc)
       if (ESMF_LogFoundError(localrc, &
                                 ESMF_ERR_PASSTHRU, &
                                 ESMF_CONTEXT, rcToReturn=rc)) return
@@ -605,7 +657,7 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
       endif
 
       if (fp%status .eq. ESMF_FIELDSTATUS_COMPLETE) then
-          call c_ESMC_ArrayDeserialize(fp%array, buffer(1), offset, &
+          call c_ESMC_ArrayDeserialize(fp%array, buffer, offset, &
                                       lattreconflag, localrc)
           if (ESMF_LogFoundError(localrc, &
                                      ESMF_ERR_PASSTHRU, &
@@ -696,6 +748,7 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
         ftypep%iostatus    = ESMF_STATUS_UNINIT
        
         ftypep%array_internal = .false. 
+        ftypep%geomb_internal = .false. 
         ftypep%is_proxy       = .false. 
         ftypep%gridToFieldMap = -1
         ftypep%ungriddedLBound = -1
@@ -724,5 +777,61 @@ function ESMF_sfne(sf1, sf2)
 
  ESMF_sfne = (sf1%status /= sf2%status)
 end function
+
+! -------------------------- ESMF-public method -------------------------------
+#undef  ESMF_METHOD
+#define ESMF_METHOD "ESMF_FieldSet()"
+!BOP
+! !IROUTINE: ESMF_FieldSet - Set object-wide Field information
+!
+! !INTERFACE:
+  ! Private name; call using ESMF_FieldSet()
+  subroutine ESMF_FieldSet(field, keywordEnforcer, name, rc)
+
+!
+! !ARGUMENTS:
+    type(ESMF_Field),   intent(inout)         :: field
+    type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
+    character(len = *), intent(in),  optional :: name
+    integer,            intent(out), optional :: rc
+!
+! !DESCRIPTION:
+!     Sets adjustable settings in an {\tt ESMF\_Field} object. 
+!
+!     The arguments are:
+!     \begin{description}
+!     \item [field]
+!       {\tt ESMF\_Field} object for which to set properties.
+!     \item [{[name]}]
+!       The Field name.
+!     \item [{[rc]}]
+!       Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
+!     \end{description}
+!
+!EOP
+!------------------------------------------------------------------------------
+    integer                 :: localrc      ! local return code
+
+    ! initialize return code; assume routine not implemented
+    localrc = ESMF_RC_NOT_IMPL
+    if (present(rc)) rc = ESMF_RC_NOT_IMPL
+    
+    ! Check init status of arguments
+    ESMF_INIT_CHECK_DEEP(ESMF_FieldGetInit, field, rc)
+    
+    ! Set the name in Base object
+    if (present(name)) then
+      !call ESMF_ArraySet(field%ftypep%array, name=name, rc=localrc)
+      !if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+      !  ESMF_CONTEXT, rcToReturn=rc)) return
+      call ESMF_SetName(field%ftypep%base, name=name, rc=localrc)
+      if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+        ESMF_CONTEXT, rcToReturn=rc)) return
+    endif
+
+    ! return successfully
+    if (present(rc)) rc = ESMF_SUCCESS
+
+  end subroutine ESMF_FieldSet
 
 end module ESMF_FieldMod

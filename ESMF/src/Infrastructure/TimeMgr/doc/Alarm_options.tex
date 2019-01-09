@@ -1,0 +1,30 @@
+% $Id$
+
+\subsubsection{ESMF\_ALARMLIST}
+\label{const:alarmlist}
+
+{\sf DESCRIPTION:\\}
+Specifies the characteristics of Alarms that populate
+a retrieved Alarm list.
+
+The type of this flag is:
+
+{\tt type(ESMF\_AlarmList\_Flag)}
+
+The valid values are:
+\begin{description}
+
+\item [ESMF\_ALARMLIST\_ALL] 
+      All alarms.
+
+\item [ESMF\_ALARMLIST\_NEXTRINGING] 
+      Alarms that will ring before or at the next timestep.
+
+\item [ESMF\_ALARMLIST\_PREVRINGING] 
+      Alarms that rang at or since the last timestep.
+
+\item [ESMF\_ALARMLIST\_RINGING] 
+      Only ringing alarms.
+
+\end{description}
+

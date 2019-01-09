@@ -1,10 +1,10 @@
 // $Id$
 //
 // Earth System Modeling Framework
-// Copyright 2002-2012, University Corporation for Atmospheric Research, 
-// Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
-// Laboratory, University of Michigan, National Centers for Environmental 
-// Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
+// Copyright 2002-2018, University Corporation for Atmospheric Research,
+// Massachusetts Institute of Technology, Geophysical Fluid Dynamics
+// Laboratory, University of Michigan, National Centers for Environmental
+// Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
 // NASA Goddard Space Flight Center.
 // Licensed under the University of Illinois-NCSA License.
 //
@@ -20,14 +20,19 @@
 //
 // The code in this file implements the C++ spatial search methods declared
 // in ESMCI_OTree.h. This code/algorithm developed by Bob Oehmke. Note to self,
-// put ref here when article is done making its way through publication process. 
+// put ref here when article is done making its way through publication process.
 //
 //-----------------------------------------------------------------------------
 
 // include associated header file
+// For ESMF
 #include <Mesh/include/ESMCI_OTree.h>
-#include "stdlib.h"
+#include <stdio.h>
 
+// For testing
+//#include "ESMCI_OTree.h"
+
+#include "stdlib.h"
 #include <algorithm>
 
 //-----------------------------------------------------------------------------
@@ -41,7 +46,7 @@ static const char *const version = "$Id$";
 
 
 // Set up ESMCI name space for these methods
-namespace ESMCI{  
+namespace ESMCI{
 
 
 //-----------------------------------------------------------------------------
@@ -66,7 +71,7 @@ OTree::OTree(
 //
 // !ARGUMENTS:
 
-	     int max_size
+             int max_size
 
   ){
 //
@@ -104,7 +109,7 @@ OTree::OTree(
 // none
 //
 // !DESCRIPTION:
-//  Destructor for OTree, deallocates all internal memory, etc. 
+//  Destructor for OTree, deallocates all internal memory, etc.
 //
 //EOPI
 //-----------------------------------------------------------------------------
@@ -114,10 +119,10 @@ OTree::OTree(
    max_size_mem=0;
    curr_size_mem=0;
    root=NULL;
-   
+
    // Deallocate memory
    if (mem!=NULL) delete [] mem;
-   mem=NULL;   
+   mem=NULL;
 }
 
 
@@ -133,16 +138,16 @@ void OTree::add(
 //
 // !RETURN VALUE:
 //  none
-// 
+//
 // !ARGUMENTS:
 //
-	       double min[3],
-	       double max[3],
-	       void *data
+               double min[3],
+               double max[3],
+               void *data
   ) {
 //
 // !DESCRIPTION:
-// Add an item to the OTree min,max gives the boundarys of the item and data 
+// Add an item to the OTree min,max gives the boundaries of the item and data
 // represents the item.
 //EOP
 //-----------------------------------------------------------------------------
@@ -177,20 +182,20 @@ void OTree::add(
 
 #define CALC_ITYPE_2D(nmin,nmax,tmin,tmax)                             \
           (((nmin[0] > tmin[0]))      | ((nmax[0] > tmax[0]) << 1) | \
-	   ((nmin[1] > tmin[1]) << 2) | ((nmax[1] > tmax[1]) << 3))
+           ((nmin[1] > tmin[1]) << 2) | ((nmax[1] > tmax[1]) << 3))
 
 #define CALC_ITYPE_1D(nmin,nmax,tmin,tmax)                             \
   (((nmin > tmin) | ((nmax > tmax) << 1))+16)
 
   void _add_onode(ONode *root, ONode *to_be_added) {
    Trace __trace("OTree::_add_onode()");
-    
+
     // Root is first curr_node
     ONode *curr_node=root;
-    
-    // if tree is empty return error     
+
+    // if tree is empty return error
     if (curr_node==NULL)  Throw() << "Bad commit";
- 
+
     // Loop until node has been added
     int done=0;
     while (!done) {
@@ -198,36 +203,36 @@ void OTree::add(
       const unsigned int one=0x1;
       unsigned int curr_itype;
       curr_itype=(one<<CALC_ITYPE_2D(to_be_added->min,
-					to_be_added->max,
-					curr_node->min,
-					curr_node->max));
+                                        to_be_added->max,
+                                        curr_node->min,
+                                        curr_node->max));
       curr_itype|=(one<<CALC_ITYPE_1D(to_be_added->min[2],
-					  to_be_added->max[2],
-					  curr_node->min[2],
-					  curr_node->max[2]));
-      
+                                          to_be_added->max[2],
+                                          curr_node->min[2],
+                                          curr_node->max[2]));
+
       //// Look for curr_itype among curr_nodes children
       ONode *found_node=NULL;
       for (ONode *chn=curr_node->children; chn!=NULL; chn=chn->next) {
-	if (chn->itype==curr_itype) {
-	  found_node=chn;
-	  break;
-	}
+        if (chn->itype==curr_itype) {
+          found_node=chn;
+          break;
+        }
       }
 
       //// if found then search down that branch, otherwise add it as a child
-      //// NOTE: this automatically handles the case where 
+      //// NOTE: this automatically handles the case where
       ////       curr_node->children is empty
       if (found_node) curr_node=found_node;
       else {
-	to_be_added->itype=curr_itype;
-	to_be_added->next=curr_node->children;
-	curr_node->children=to_be_added;
-	done=1;
+        to_be_added->itype=curr_itype;
+        to_be_added->next=curr_node->children;
+        curr_node->children=to_be_added;
+        done=1;
       }
     }
   }
-  
+
 //-----------------------------------------------------------------------------
 #undef  ESMC_METHOD
 #define ESMC_METHOD "ESMCI::OTree::commit()"
@@ -255,7 +260,7 @@ void OTree::commit(
   root=NULL;
 
   // Record that we're now committed
-  // Do it here in case the tree is empty. 
+  // Do it here in case the tree is empty.
   is_committed=true;
 
   // Make first node root
@@ -263,7 +268,7 @@ void OTree::commit(
   else return; // no nodes, so leave
 
   // Scramble to reduce chance of degenerate trees
-  std::random_shuffle (mem,mem+curr_size_mem);  
+  std::random_shuffle (mem,mem+curr_size_mem);
 
   // Add rest of nodes
   for (int i=1; i<curr_size_mem; i++) {
@@ -277,6 +282,73 @@ void OTree::commit(
 
 
 //-----------------------------------------------------------------------------
+#undef  ESMC_METHOD
+#define ESMC_METHOD "ESMCI::OTree::add_commit()"
+//BOP
+// !IROUTINE:  add_commit
+//
+// !INTERFACE:
+void OTree::add_commit(
+
+//
+// !RETURN VALUE:
+//  none
+//
+// !ARGUMENTS:
+//
+               double min[3],
+               double max[3],
+               void *data
+  ) {
+//
+// !DESCRIPTION:
+// Add an item to the OTree min,max gives the boundaries of the item and data
+// represents the item, also commit the item to the tree. This is in contrast
+// to the add() function which just adds an item in preparation for the commit
+// which adds all of the items which have been previously added to the tree.
+//EOP
+//-----------------------------------------------------------------------------
+   Trace __trace("OTree::add_commit()");
+
+  // Error check
+  if (curr_size_mem > max_size_mem-1) {
+    Throw() << "OTree full";
+  }
+
+  // Get a pointer to this item
+  ONode *node=mem+curr_size_mem;
+
+  // Fill item
+  node->min[0]=min[0];
+  node->min[1]=min[1];
+  node->min[2]=min[2];
+
+  node->max[0]=max[0];
+  node->max[1]=max[1];
+  node->max[2]=max[2];
+
+  node->data=data;
+
+  // Set defaults
+  node->children=NULL;
+  node->next=NULL;
+
+  // Advance to next position
+  curr_size_mem++;
+
+  // If the tree is not empty, add it to the tree...
+  if (root != NULL) {
+    _add_onode(root, node);
+  } else { // ... otherwise stick this in the root
+    root=node;
+  }
+
+  // Make sure to record that we're now committed
+  is_committed=true;
+
+}
+
+//-----------------------------------------------------------------------------
   typedef struct {
     double min[3];
     double max[3];
@@ -286,9 +358,9 @@ void OTree::commit(
 
 
   unsigned int search_code_to_itype_list_2D[16]={
-    0x0, 0x0,    0x0,    0x0, 
-    0x0, 0xcc00, 0x5500, 0xff00, 
-    0x0, 0xc0c,  0x505,  0xf0f, 
+    0x0, 0x0,    0x0,    0x0,
+    0x0, 0xcc00, 0x5500, 0xff00,
+    0x0, 0xc0c,  0x505,  0xf0f,
     0x0, 0xcccc, 0x5555, 0xffff};
 
   unsigned int search_code_to_itype_list_1D[4]={
@@ -313,10 +385,10 @@ void OTree::commit(
     // Calculate our search code based on search min-max and node min-max
     int search_code_2D=CALC_SEARCH_CODE_2D(ri->min,ri->max,node->min,node->max);
     int search_code_1D=CALC_SEARCH_CODE_1D(ri->min[2],ri->max[2],node->min[2],node->max[2]);
-    
+
     // if this node intersects, run function on data
     if (search_code_2D==INTERSECTION_SEARCH_CODE_2D &&
-	search_code_1D==INTERSECTION_SEARCH_CODE_1D) {
+        search_code_1D==INTERSECTION_SEARCH_CODE_1D) {
       int rc=ri->func(node->data,ri->func_data);
       if (rc) return rc;  // if return code is non-zero then return
     }
@@ -324,15 +396,15 @@ void OTree::commit(
     // Get the search itype list based on the search code
     unsigned int it_list_2D=search_code_to_itype_list_2D[search_code_2D];
     unsigned int it_list_1D=search_code_to_itype_list_1D[search_code_1D];
-    
+
     // Loop through children, searching them if necessary
     for (ONode *chn=node->children; chn!=NULL; chn=chn->next) {
       if ((chn->itype&it_list_2D) && (chn->itype&it_list_1D)) {
-	int rc=_runon_onode(chn, ri);
-	if (rc) return rc; // if return code is non-zero then return
+        int rc=_runon_onode(chn, ri);
+        if (rc) return rc; // if return code is non-zero then return
       }
-    }    
-    
+    }
+
     return 0;
   }
 
@@ -351,15 +423,15 @@ int OTree::runon(
 //
 // !ARGUMENTS:
 //
-	       double min[3],
-	       double max[3],
-	       int (*func)(void *data,void *func_data),
-	       void *func_data
+               double min[3],
+               double max[3],
+               int (*func)(void *data,void *func_data),
+               void *func_data
   ) {
 //
 // !DESCRIPTION:
-// Run func on each object in the tree whose min-max box overlaps the input min-max. 
-// If func returns anything but 0, then the process stops and runon returns what func returned. 
+// Run func on each object in the tree whose min-max box overlaps the input min-max.
+// If func returns anything but 0, then the process stops and runon returns what func returned.
 //EOP
 //-----------------------------------------------------------------------------
   Trace __trace("OTree::runon()");
@@ -371,7 +443,7 @@ int OTree::runon(
 
   // if tree empty return
   if (root==NULL) return 0;
- 
+
   // Load search info
   ri.min[0]=min[0];
   ri.min[1]=min[1];
@@ -388,17 +460,112 @@ int OTree::runon(
 }
 //-----------------------------------------------------------------------------
 
+  typedef struct {
+    double min[3];
+    double max[3];
+    int (*func)(void *data,void *func_data, double *, double *);
+    void *func_data;
+  } RUNON_INFO_MM_CHNG;
 
 
-} // END ESMCI name space
+  // do intersection search on a node (and recurse down children if necessary)
+  int _runon_onode_mm_chng(ONode *node, RUNON_INFO_MM_CHNG *ri) {
+    //  BECAUSE THERE IS NO THROW IN THIS FUNC, COMMENT THIS OUT FOR EFFICIENCY
+    //  Trace __trace("OTree::_runon_onode()");
+
+
+    // Calculate our search code based on search min-max and node min-max
+    int search_code_2D=CALC_SEARCH_CODE_2D(ri->min,ri->max,node->min,node->max);
+    int search_code_1D=CALC_SEARCH_CODE_1D(ri->min[2],ri->max[2],node->min[2],node->max[2]);
+
+    // if this node intersects, run function on data
+    if (search_code_2D==INTERSECTION_SEARCH_CODE_2D &&
+        search_code_1D==INTERSECTION_SEARCH_CODE_1D) {
+
+      int rc=ri->func(node->data,ri->func_data,ri->min,ri->max);
+      if (rc) return rc;  // if return code is non-zero then return
+    }
+
+
+    // Loop through children, searching them if necessary
+    for (ONode *chn=node->children; chn!=NULL; chn=chn->next) {
+
+      // Calculate our search code based on search min-max and node min-max
+      int search_code_2D=CALC_SEARCH_CODE_2D(ri->min,ri->max,node->min,node->max);
+      int search_code_1D=CALC_SEARCH_CODE_1D(ri->min[2],ri->max[2],node->min[2],node->max[2]);
+
+      // Get the search itype list based on the search code
+      unsigned int it_list_2D=search_code_to_itype_list_2D[search_code_2D];
+      unsigned int it_list_1D=search_code_to_itype_list_1D[search_code_1D];
+
+      if ((chn->itype&it_list_2D) && (chn->itype&it_list_1D)) {
+        int rc=_runon_onode_mm_chng(chn, ri);
+        if (rc) return rc; // if return code is non-zero then return
+      }
+    }
+
+    return 0;
+  }
+
+
+//-----------------------------------------------------------------------------
+#undef  ESMC_METHOD
+#define ESMC_METHOD "ESMCI::OTree::runon_mm_chng()"
+//BOP
+// !IROUTINE:  runon_mm_chng
+//
+// !INTERFACE:
+int OTree::runon_mm_chng(
+
+//
+// !RETURN VALUE:
+//  user func return
+//
+// !ARGUMENTS:
+//
+               double init_min[3],
+               double init_max[3],
+               int (*func)(void *data,void *func_data, double *min, double *max),
+               void *func_data
+  ) {
+//
+// !DESCRIPTION:
+// Run func on each object in the tree whose min-max box overlaps the min-max.
+// The min-max can change over the run, as output from func.  The initial min-max
+// used to find the first node is init_min, init_max.
+// If func returns anything but 0, then the process stops and runon returns what func returned.
+//EOP
+//-----------------------------------------------------------------------------
+  Trace __trace("OTree::runon()");
+
+
+
+  RUNON_INFO_MM_CHNG ri;
+
+  // Make sure that this has been committed
+  if (!is_committed) Throw() << "Search tree hasn't been committed, so can't do runon()";
+
+  // if tree empty return
+  if (root==NULL) return 0;
+
+  // Load search info
+  ri.min[0]=init_min[0];
+  ri.min[1]=init_min[1];
+  ri.min[2]=init_min[2];
+  ri.max[0]=init_max[0];
+  ri.max[1]=init_max[1];
+  ri.max[2]=init_max[2];
+  ri.func=func;
+  ri.func_data=func_data;
+
+  // Start search with root
+  return _runon_onode_mm_chng(root, &ri);
+
+}
 //-----------------------------------------------------------------------------
 
 
 
 
-
-
-
-
-
-
+} // END ESMCI name space
+//-----------------------------------------------------------------------------

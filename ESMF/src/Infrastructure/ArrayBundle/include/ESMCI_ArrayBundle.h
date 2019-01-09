@@ -1,7 +1,7 @@
-// $Id: ESMCI_ArrayBundle.h,v 1.1.5.1 2013-01-11 20:23:43 mathomp4 Exp $
+// $Id$
 //
 // Earth System Modeling Framework
-// Copyright 2002-2012, University Corporation for Atmospheric Research, 
+// Copyright 2002-2018, University Corporation for Atmospheric Research, 
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
 // Laboratory, University of Michigan, National Centers for Environmental 
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
@@ -76,7 +76,7 @@ class ArrayBundle : public ESMC_Base {    // inherits from ESMC_Base class
     // create() and destroy()
     static ArrayBundle *create(Array **arrayList, int arrayCount,
       bool multi=false, bool relaxed=false, int *rc=NULL);
-    static int destroy(ArrayBundle **arraybundle);
+    static int destroy(ArrayBundle **arraybundle, bool noGarbage=false);
     // add(), get(), isPresent(), remove(), replace(), set()
     void add(Array *array, bool multi=false, bool relaxed=false){
       arrayContainer.add(array->getName(), array, multi, relaxed);
@@ -87,14 +87,17 @@ class ArrayBundle : public ESMC_Base {    // inherits from ESMC_Base class
     Array *get(std::string arrayName)const{
       return arrayContainer.get(arrayName);
     }
-    void get(std::string arrayName, std::vector<Array *> &arrayVector)const{ 
-      arrayContainer.get(arrayName, arrayVector);
+    void get(std::string arrayName, std::vector<Array *> &arrayVector,
+      ESMC_ItemOrder_Flag itemorderflag=ESMC_ITEMORDER_ABC)const{ 
+      arrayContainer.get(arrayName, arrayVector, itemorderflag);
     }
-    void getVector(std::vector<Array *> &arrayVector)const{ 
-      arrayContainer.getVector(arrayVector);
+    void getVector(std::vector<Array *> &arrayVector,
+      ESMC_ItemOrder_Flag itemorderflag=ESMC_ITEMORDER_ABC)const{ 
+      arrayContainer.getVector(arrayVector, itemorderflag);
     }
-    void getNameVector(std::vector<std::string> &arrayNameVector)const{ 
-      arrayContainer.getKeyVector(arrayNameVector);
+    void getNameVector(std::vector<std::string> &arrayNameVector,
+      ESMC_ItemOrder_Flag itemorderflag=ESMC_ITEMORDER_ABC)const{ 
+      arrayContainer.getKeyVector(arrayNameVector, itemorderflag);
     }
     int getCount()const{return arrayContainer.size();}
     int getCount(std::string arrayName)const{
@@ -111,6 +114,14 @@ class ArrayBundle : public ESMC_Base {    // inherits from ESMC_Base class
       arrayContainer.replace(array->getName(), array, multi, relaxed);
     }
     int setName(char *name){return ESMC_BaseSetName(name, "ArrayBundle");}
+    // read and write
+    int read(const std::string &file, bool *singleFile,
+             int *timeslice, ESMC_IOFmt_Flag *iofmt);
+    int write(const std::string &file,
+              const std::string &convention, const std::string &purpose,
+              bool *singleFile,
+              bool *overwrite, ESMC_FileStatus_Flag *status,
+              int *timeslice, ESMC_IOFmt_Flag *iofmt);
     // misc.
     int print() const;
     // serialize() and deserialize()
@@ -122,24 +133,26 @@ class ArrayBundle : public ESMC_Base {    // inherits from ESMC_Base class
     // comms
     static int haloStore(ArrayBundle *arraybundle, RouteHandle **routehandle,
       ESMC_HaloStartRegionFlag halostartregionflag=ESMF_REGION_EXCLUSIVE,
-      InterfaceInt *haloLDepth=NULL, InterfaceInt *haloUDepth=NULL);
+      InterArray<int> *haloLDepth=NULL, InterArray<int> *haloUDepth=NULL);
     static int halo(ArrayBundle *arraybundle,
       RouteHandle **routehandle, bool checkflag=false);
     static int haloRelease(RouteHandle *routehandle);
     static int redistStore(ArrayBundle *srcArraybundle,
       ArrayBundle *dstArraybundle, RouteHandle **routehandle,
-      InterfaceInt *srcToDstTransposeMap,
-      ESMC_TypeKind typekindFactor = ESMF_NOKIND, void *factor = NULL);
+      InterArray<int> *srcToDstTransposeMap,
+      ESMC_TypeKind_Flag typekindFactor = ESMF_NOKIND, void *factor = NULL);
     static int redist(ArrayBundle *srcArraybundle,
       ArrayBundle *dstArraybundle, RouteHandle **routehandle,
       bool checkflag=false);
     static int redistRelease(RouteHandle *routehandle);
     static int sparseMatMulStore(ArrayBundle *srcArraybundle,
       ArrayBundle *dstArraybundle, RouteHandle **routehandle,
-        std::vector<SparseMatrix> &sparseMatrix);
+      std::vector<SparseMatrix<ESMC_I4,ESMC_I4> > &sparseMatrix,
+      InterArray<int> *srcTermProcessing=NULL);
     static int sparseMatMul(ArrayBundle *srcArraybundle,
       ArrayBundle *dstArraybundle, RouteHandle **routehandle,
-      ESMC_RegionFlag zeroflag=ESMF_REGION_TOTAL,
+      ESMC_Region_Flag zeroflag=ESMC_REGION_TOTAL,
+      ESMC_TermOrder_Flag *termorderflag=NULL, int termorderflag_len=0,
       bool checkflag=false, bool haloFlag=false);  
     static int sparseMatMulRelease(RouteHandle *routehandle);
           

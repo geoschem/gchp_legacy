@@ -1,7 +1,7 @@
 // $Id$
 //
 // Earth System Modeling Framework
-// Copyright 2002-2012, University Corporation for Atmospheric Research,
+// Copyright 2002-2018, University Corporation for Atmospheric Research,
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 // Laboratory, University of Michigan, National Centers for Environmental
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -40,7 +40,7 @@
 // {\tt ESMC\_BaseTime.C} contains the definitions (full code bodies) for
 // the {\tt ESMC\_BaseTime} methods.
 //
-// The {\tt BaseTime} class is a base class which encapulates the core
+// The {\tt BaseTime} class is a base class which encapsulates the core
 // representation and functionality of time for time intervals and time
 // instances.
 //

@@ -5,8 +5,8 @@
 /*****************************************************************************
  * CVS File Information :
  *    $RCSfile: build_graph.c,v $
- *    $Author: mathomp4 $
- *    $Date: 2013-01-11 20:23:44 $
+ *    $Author: dneckels $
+ *    $Date: 2007/11/28 16:13:44 $
  *    Revision: 1.20 $
  ****************************************************************************/
 
@@ -87,7 +87,7 @@ int Zoltan_Build_Graph(
   char msg[256];
 
 
-  char *yo = "Zoltan_Build_Graph";
+  const char *yo = "Zoltan_Build_Graph";
 
   ZOLTAN_TRACE_ENTER(zz, yo);
 
@@ -563,7 +563,7 @@ int Zoltan_Get_Num_Edges_Per_Obj(
  * Returns number of edges per object in array edges_per_obj.
  * Computes max edges per obj and total edges per obj.
  */
-char *yo = "Zoltan_Get_Num_Edges_Per_Obj";
+const char *yo = "Zoltan_Get_Num_Edges_Per_Obj";
 int ierr = ZOLTAN_OK;
 int i;
 int nedges;
@@ -688,7 +688,7 @@ static int process_edge_list(
  * This routine has lots of side effects; it is a subroutine only
  * to support both single-object and multi-object edge list callbacks.
  */
-char *yo = "process_edge_list";
+const char *yo = "process_edge_list";
 int j, k;
 int tmp, flag;
 struct Edge_Info *ptr;

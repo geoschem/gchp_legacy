@@ -1,0 +1,16 @@
+% $Id$
+
+\subsection{Implementation Notes}
+
+The algorithm for computing between Gregorian dates and Julian days is given 
+in Fliegel and Flandern ~\cite{Fli68}.
+
+The algorithm for computing between Julian dates and Julian days is given 
+in Hatcher ~\cite{Hat84}.
+
+The {\tt Calendar} class defines two methods for converting in both
+directions between the core {\tt BaseTime} class representation and a
+calendar date.  Calculations of time intervals (deltas) between
+time instants is done by the base class {\tt BaseTime} in the core units
+of seconds and fractional seconds.  Thus,  a calendar is only needed for
+converting core time to calendar time and vice versa.

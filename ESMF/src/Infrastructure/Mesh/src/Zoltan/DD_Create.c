@@ -7,8 +7,8 @@
 /*****************************************************************************
  * CVS File Information :
  *    $RCSfile: DD_Create.c,v $
- *    $Author: mathomp4 $
- *    $Date: 2013-01-11 20:23:44 $
+ *    $Author: dneckels $
+ *    $Date: 2007/11/28 16:13:42 $
  *    Revision: 1.16 $
  ****************************************************************************/
 
@@ -42,7 +42,7 @@ int Zoltan_DD_Create (
    int size ;
    int my_proc;
    int array[3], max_array[3], min_array[3] ;
-   char *yo = "Zoltan_DD_Create" ;
+   const char *yo = "Zoltan_DD_Create" ;
 
    if (MPI_Comm_rank(comm, &my_proc) != MPI_SUCCESS) 
       {
@@ -148,7 +148,7 @@ Zoltan_DD_Directory *Zoltan_DD_Copy(Zoltan_DD_Directory *from)
 }
 int Zoltan_DD_Copy_To(Zoltan_DD_Directory **toptr, Zoltan_DD_Directory *from)
 {
-  static char *yo = "Zoltan_DD_Copy_To";
+  static const char *yo = "Zoltan_DD_Copy_To";
   int i, proc = 0;
   Zoltan_DD_Directory *to= NULL;
 

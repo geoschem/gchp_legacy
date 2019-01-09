@@ -13,8 +13,17 @@
 \textwidth 6.5in
 \textheight 8.5in
 \addtolength{\oddsidemargin}{-.75in}
-\newcommand{\mytitle}{XGrid Design}
+\newcommand{\mytitle}{XGrid Fortran Reference}
 \newcommand{\myauthors}{Fei Liu}
+% set a standard paragraph style
+\setlength{\parskip}{0pt}
+\setlength{\parindent}{0pt}
+\setlength{\baselineskip}{11pt}
+% these are temporary patches until something more
+% permanent is done to the protex script.
+\newlength{\oldparskip}
+\newlength{\oldparindent}
+\newlength{\oldbaselineskip}
 #endif
 
 #ifdef STANDALONE
@@ -31,6 +40,8 @@
 \tableofcontents
 
 \newpage
+\setlength{\parskip}{1.5ex}
+
 #endif
 
 \section{XGrid Class}
@@ -53,9 +64,11 @@
 #ifdef STANDALONE
 %\input{XGrid_usage}
 \input{ESMF_XGridEx_fapi}
+\input{ESMF_XGridSparseMatEx_fapi}
 #elif defined(CONSTITUENT)
 %\input{../Infrastructure/XGrid/doc/XGrid_usage}
 \input{../Infrastructure/XGrid/doc/ESMF_XGridEx_fapi}
+\input{../Infrastructure/XGrid/doc/ESMF_XGridSparseMatEx_fapi}
 #endif
 
 \subsection{Restrictions and Future Work}

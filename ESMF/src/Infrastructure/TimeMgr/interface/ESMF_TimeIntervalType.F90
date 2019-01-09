@@ -1,7 +1,7 @@
-! $Id: ESMF_TimeIntervalType.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
+! $Id$
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2012, University Corporation for Atmospheric Research,
+! Copyright 2002-2018, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -57,7 +57,9 @@
 !     ! Equivalent sequence and kind to C++:
 
       type ESMF_TimeInterval
+#ifndef ESMF_NO_SEQUENCE
         sequence
+#endif
         private                           !   (members opaque on Fortran side)
         ! allocate enough memory for the TimeInterval class data
         ! (set in C++ side) in 8 byte units: 
@@ -92,7 +94,7 @@
 !------------------------------------------------------------------------------
 ! The following line turns the CVS identifier string into a printable variable.
       character(*), parameter, private :: version = &
-      '$Id: ESMF_TimeIntervalType.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $'
+      '$Id$'
 !------------------------------------------------------------------------------
 
       contains

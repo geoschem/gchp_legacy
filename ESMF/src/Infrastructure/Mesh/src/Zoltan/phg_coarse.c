@@ -6,8 +6,8 @@
 /*****************************************************************************
  * CVS File Information :
  *    $RCSfile: phg_coarse.c,v $
- *    $Author: mathomp4 $
- *    $Date: 2013-01-11 20:23:44 $
+ *    $Author: w6ws $
+ *    $Date: 2008/11/06 19:55:28 $
  *    Revision: 1.73 $
  ****************************************************************************/
 #include "zz_sort.h"    
@@ -213,7 +213,7 @@ int Zoltan_PHG_Coarsening
   PHGPartParams *hgp
     )   
 {
-  char  *yo = "Zoltan_PHG_Coarsening";
+  const char *yo = "Zoltan_PHG_Coarsening";
   int   ierr=ZOLTAN_OK, i, j, count, size, me, idx, ni;
   int   *vmark=NULL, *listgno=NULL, *listlno=NULL, *listproc=NULL, *msg_size=NULL, *ip;
   int   *ahindex=NULL, *ahvertex=NULL, *hsize=NULL, *hlsize=NULL, *ids=NULL, *iden, *keep;
@@ -727,7 +727,7 @@ int Zoltan_PHG_Coarsening
   PHGPartParams *hgp
     )   
 {
-  char  *yo = "Zoltan_PHG_Coarsening";
+  const char *yo = "Zoltan_PHG_Coarsening";
   int   ierr=ZOLTAN_OK, i, j, count, size, me, idx, ni;
   int   *vmark=NULL, *listgno=NULL, *listlno=NULL, *listproc=NULL, *msg_size=NULL, *ip;
   int   *ahindex=NULL, *ahvertex=NULL, *hsize=NULL, *hlsize=NULL, *ids=NULL, *iden;

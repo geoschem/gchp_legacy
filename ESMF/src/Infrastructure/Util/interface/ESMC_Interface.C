@@ -1,7 +1,7 @@
 // $Id$
 //
 // Earth System Modeling Framework
-// Copyright 2002-2012, University Corporation for Atmospheric Research, 
+// Copyright 2002-2018, University Corporation for Atmospheric Research, 
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
 // Laboratory, University of Michigan, National Centers for Environmental 
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
@@ -30,6 +30,7 @@
 #include "ESMCI_Macros.h"
 #include "ESMCI_F90Interface.h"
 
+#include <stdio.h>
 
 //-----------------------------------------------------------------------------
 // leave the following line as-is; it will insert the cvs ident string
@@ -39,37 +40,35 @@ static const char *const version = "$Id$";
 
 extern "C" {
 
-ESMC_InterfaceInt ESMC_InterfaceIntCreate(int *arrayArg, int lenArg, int *rc){
+int ESMC_InterArrayIntSet(ESMC_InterArrayInt *interArrayIntArg,
+  int *arrayArg, int lenArg){
   // initialize return code; assume routine not implemented
-  int localrc = ESMC_RC_NOT_IMPL;         // local return code
-  if (rc!=NULL) *rc = ESMC_RC_NOT_IMPL;   // final return code
+  int rc = ESMC_RC_NOT_IMPL;
 
-  ESMC_InterfaceInt interfaceInt;
+  ESMCI::InterArray<int> *ii = 
+    ((ESMCI::InterArray<int> *)(interArrayIntArg->shallowMem));
   
-  interfaceInt.ptr = (void *)(new ESMCI::InterfaceInt(arrayArg, lenArg));
+  ii->set(arrayArg, lenArg);
 
-  // return successfully
-  if (rc!=NULL) *rc = ESMF_SUCCESS;
-  return interfaceInt;
-}
-
-int ESMC_InterfaceIntDestroy(ESMC_InterfaceInt *interfaceIntArg){
-  // initialize return code; assume routine not implemented
-  int localrc = ESMC_RC_NOT_IMPL;         // local return code
-  int rc = ESMC_RC_NOT_IMPL;              // final return code
-  
-  // typecast into ESMCI type
-  ESMCI::InterfaceInt *iip = (ESMCI::InterfaceInt *)(interfaceIntArg->ptr);
-
-  // call into ESMCI method
-  delete iip;
-  
-  // invalidate pointer
-  interfaceIntArg->ptr = NULL;
-    
   // return successfully
   rc = ESMF_SUCCESS;
   return rc;
-}  
+}
+
+int ESMC_InterArrayIntNDSet(ESMC_InterArrayInt *interArrayIntArg,
+  int *arrayArg, int dimArg, const int *lenArg){
+  // initialize return code; assume routine not implemented
+  int rc = ESMC_RC_NOT_IMPL;
+
+  ESMCI::InterArray<int> *ii =
+    ((ESMCI::InterArray<int> *)(interArrayIntArg->shallowMem));
+
+  ii->set(arrayArg, dimArg, lenArg);
+
+  // return successfully
+  rc = ESMF_SUCCESS;
+  return rc;
+
+}
 
 }; // extern "C"

@@ -1,4 +1,4 @@
-# $Id: makefile,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $ 
+# $Id$ 
 
 ALL:      build_unit_tests
 run:      run_unit_tests
@@ -6,18 +6,21 @@ run_uni:  run_unit_tests_uni
 
 LOCDIR	  = src/Infrastructure/Array/tests
 
-TESTS_BUILD   = $(ESMF_TESTDIR)/ESMF_GridCreateUTest \
+.NOTPARALLEL:
+TESTS_BUILD   = $(ESMF_TESTDIR)/ESMC_GridUTest \
+                $(ESMF_TESTDIR)/ESMF_GridCreateUTest \
 		$(ESMF_TESTDIR)/ESMF_GridCoordUTest \
 		$(ESMF_TESTDIR)/ESMF_GridItemUTest \
 		$(ESMF_TESTDIR)/ESMF_GridArbitraryUTest
 
-
-TESTS_RUN     = RUN_ESMF_GridCreateUTest \
+TESTS_RUN     = RUN_ESMC_GridUTest \
+                RUN_ESMF_GridCreateUTest \
 	        RUN_ESMF_GridCoordUTest \
 	        RUN_ESMF_GridItemUTest \
 		RUN_ESMF_GridArbitraryUTest
 
-TESTS_RUN_UNI = RUN_ESMF_GridCreateUTestUNI \
+TESTS_RUN_UNI = RUN_ESMC_GridUTestUNI \
+                RUN_ESMF_GridCreateUTestUNI \
 	        RUN_ESMF_GridCoordUTestUNI \
 	        RUN_ESMF_GridItemUTestUNI \
 		RUN_ESMF_GridArbitraryUTestUNI
@@ -37,13 +40,9 @@ DIRS        =
 # --- Grid Creation
 
 RUN_ESMF_GridCreateUTest:
-	cp -f $(ESMF_DIR)/src/Infrastructure/Grid/etc/esmf_grid_shape_tile.xml $(ESMF_TESTDIR)
-	$(ESMF_DIR)/scripts/copy_xsd $(ESMF_TESTDIR)
 	$(MAKE) TNAME=GridCreate NP=4 ftest
 
 RUN_ESMF_GridCreateUTestUNI:
-	cp -f $(ESMF_DIR)/src/Infrastructure/Grid/etc/esmf_grid_shape_tile.xml $(ESMF_TESTDIR)
-	$(ESMF_DIR)/scripts/copy_xsd $(ESMF_TESTDIR)
 	$(MAKE) TNAME=GridCreate NP=1 ftest
 
 
@@ -72,3 +71,14 @@ RUN_ESMF_GridArbitraryUTest:
 
 RUN_ESMF_GridArbitraryUTestUNI:
 	$(MAKE) TNAME=GridArbitrary NP=1 ftest 
+
+# --- ESMC_Grid Tests
+
+RUN_ESMC_GridUTest:
+	cp -r data $(ESMF_TESTDIR)
+	$(MAKE) TNAME=Grid NP=4 ctest
+
+RUN_ESMC_GridUTestUNI:
+	cp -r data $(ESMF_TESTDIR)
+	$(MAKE) TNAME=Grid NP=1 ctest
+

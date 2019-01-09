@@ -1,7 +1,7 @@
-! $Id: ESMF_GridCreateSph2DPlus1Ex.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
+! $Id$
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2012, University Corporation for Atmospheric Research,
+! Copyright 2002-2018, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -161,7 +161,7 @@ program ESMF_GridCreateEx
 !EOC  
 
 !BOE
-!  Create a 3D array cooresponding to the center stagger into which to put data.
+!  Create a 3D array corresponding to the center stagger into which to put data.
 !EOE
 !BOC
       call ESMF_ArraySpecSet(arrayspec3D, type=ESMF_DATA_REAL,         &

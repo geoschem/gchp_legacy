@@ -1,7 +1,7 @@
-! $Id: ESMF_ArraySpec.F90,v 1.1.5.1 2013-01-11 20:23:43 mathomp4 Exp $
+! $Id$
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2012, University Corporation for Atmospheric Research,
+! Copyright 2002-2018, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -59,7 +59,9 @@ module ESMF_ArraySpecMod
 !
 ! ! Data array specification, with no associated data buffer.
   type ESMF_ArraySpec
-    sequence
+#ifndef ESMF_NO_SEQUENCE
+  sequence
+#endif
     private
     integer             :: rank       ! number of dimensions
     type(ESMF_TypeKind_Flag) :: typekind   ! fortran type and kind enum/integer
@@ -92,7 +94,7 @@ module ESMF_ArraySpecMod
 !------------------------------------------------------------------------------
 ! The following line turns the CVS identifier string into a printable variable.
   character(*), parameter, private :: version = &
-    '$Id: ESMF_ArraySpec.F90,v 1.1.5.1 2013-01-11 20:23:43 mathomp4 Exp $'
+    '$Id$'
 
 !==============================================================================
 

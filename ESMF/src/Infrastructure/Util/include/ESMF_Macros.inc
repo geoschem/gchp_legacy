@@ -1,8 +1,8 @@
 #if 0
-$Id: ESMF_Macros.inc,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
+$Id$
 
 Earth System Modeling Framework
-Copyright 2002-2012, University Corporation for Atmospheric Research,
+Copyright 2002-2018, University Corporation for Atmospheric Research,
 Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 Laboratory, University of Michigan, National Centers for Environmental
 Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -34,10 +34,23 @@ the following macro is here for the frameworks own internal use.
 unmatched quotes confuse some preprocessors with delusions of grammar.)
 #endif
 
-#define ESMF_SRCLINE ESMF_FILENAME, __LINE__
-
 #ifndef ESMF_FILENAME
 #define ESMF_FILENAME __FILE__
+#endif
+
+#define ESMF_SRCLINE ESMF_FILENAME, __LINE__
+
+#if 0
+Macros to allow structured early exits from blocks of Fortran code.
+These are typically when testing for errors.
+
+Eventually these macros can be rewritten or replaced using the F2008
+block/end block statements.
+#endif
+
+#if defined (_FROM_FORTRAN)
+#define ESMF_BLOCK(ESMF_BLOCK_LABEL) ESMF_BLOCK_LABEL: do
+#define ESMF_ENDBLOCK(ESMF_BLOCK_LABEL) if (.true.) exit ESMF_BLOCK_LABEL; end do ESMF_BLOCK_LABEL
 #endif
 
 #endif 

@@ -6,8 +6,8 @@
 /*****************************************************************************
  * CVS File Information :
  *    $RCSfile: verify_graph.c,v $
- *    $Author: mathomp4 $
- *    $Date: 2013-01-11 20:23:44 $
+ *    $Author: dneckels $
+ *    $Date: 2007/11/28 16:13:54 $
  *    Revision: 1.33 $
  ****************************************************************************/
 
@@ -68,7 +68,7 @@ int Zoltan_Verify_Graph(MPI_Comm comm, idxtype *vtxdist, idxtype *xadj,
   int *adjncy_sort=NULL, *perm=NULL, *ptr=NULL, free_adjncy_sort=0;
   char *sendbuf=NULL, *recvbuf=NULL;
   ZOLTAN_COMM_OBJ *comm_plan;
-  static char *yo = "Zoltan_Verify_Graph";
+  static const char *yo = "Zoltan_Verify_Graph";
   char msg[256];
 
   ierr = ZOLTAN_OK;

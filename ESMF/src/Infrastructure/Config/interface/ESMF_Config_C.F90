@@ -1,7 +1,7 @@
-!  $Id: ESMF_Config_C.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
+!  $Id$
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2012, University Corporation for Atmospheric Research, 
+! Copyright 2002-2018, University Corporation for Atmospheric Research, 
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
 ! Laboratory, University of Michigan, National Centers for Environmental 
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
@@ -23,7 +23,7 @@
 !------------------------------------------------------------------------------
 ! The following line turns the CVS identifier string into a printable variable.
 !      character(*), parameter, private :: version = &
-!      '$Id: ESMF_Config_C.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $'
+!      '$Id$'
 !==============================================================================
 
 !------------------------------------------------------------------------------
@@ -99,7 +99,7 @@
 
 
 !------------------------------------------------------------------------------
-   subroutine f_esmf_configfindlabel(config, label, rc)
+   subroutine f_esmf_configfindlabel(config, label, isPresent, rc)
      use ESMF_UtilTypesMod    ! ESMF base class
      use ESMF_BaseMod    ! ESMF base class
      use ESMF_ConfigMod
@@ -107,13 +107,17 @@
      implicit none
 
      type(ESMF_Config)               :: config
-     character(len=*), intent(in)    :: label
-     integer, intent(out)            :: rc     
+     character(len=*),   intent(in)  :: label
+     type(ESMF_Logical), intent(out) :: isPresent
+     integer,            intent(out) :: rc
+
+     logical :: lisPresent
 
      ! Initialize return code; assume routine not implemented
      rc = ESMF_RC_NOT_IMPL
 
-     call ESMF_ConfigFindLabel(config, label, rc=rc)
+     call ESMF_ConfigFindLabel(config, label, isPresent=lisPresent, rc=rc)
+     isPresent = lisPresent
 
    end subroutine f_esmf_configfindlabel
 !------------------------------------------------------------------------------

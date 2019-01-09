@@ -6,8 +6,8 @@
 /*****************************************************************************
  * CVS File Information :
  *    $RCSfile: phg_order.c,v $
- *    $Author: mathomp4 $
- *    $Date: 2013-01-11 20:23:44 $
+ *    $Author: dneckels $
+ *    $Date: 2007/11/28 16:13:53 $
  *    Revision: 1.6 $
  ****************************************************************************/
 
@@ -31,7 +31,7 @@ int Zoltan_PHG_Vertex_Visit_Order(
   int i, j, edge;
   int *ldegree=NULL, *gdegree=NULL; /* local/global degree */
   int *lpins=NULL, *gpins=NULL; /* local/global sum of pins */
-  char *yo= "Zoltan_PHG_Vertex_Visit_Order";
+  const char *yo= "Zoltan_PHG_Vertex_Visit_Order";
 
   /* Start with linear order. */
   for (i=0; i<hg->nVtx; i++)

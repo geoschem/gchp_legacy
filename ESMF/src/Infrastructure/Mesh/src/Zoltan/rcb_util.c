@@ -6,8 +6,8 @@
 /*****************************************************************************
  * CVS File Information :
  *    $RCSfile: rcb_util.c,v $
- *    $Author: mathomp4 $
- *    $Date: 2013-01-11 20:23:44 $
+ *    $Author: dneckels $
+ *    $Date: 2007/11/28 16:13:54 $
  *    Revision: 1.59 $
  ****************************************************************************/
 
@@ -32,7 +32,7 @@ int Zoltan_RCB_Build_Structure(ZZ *zz, int *num_obj, int *max_obj, int wgtflag,
  *  Function to build the geometry-based data structures for 
  *  Steve Plimpton's RCB implementation.
  */
-char *yo = "Zoltan_RCB_Build_Structure";
+const char *yo = "Zoltan_RCB_Build_Structure";
 RCB_STRUCT *rcb;                      /* Data structure for RCB.             */
 struct rcb_tree *treeptr;
 int i, ierr = 0;
@@ -42,6 +42,7 @@ int i, ierr = 0;
    * If the previous data structure is still there, free the Dots and IDs first;
    * the other fields can be reused.
    */
+
 
   if (zz->LB.Data_Structure == NULL) {
     rcb = (RCB_STRUCT *) ZOLTAN_MALLOC(sizeof(RCB_STRUCT));
@@ -138,7 +139,7 @@ RCB_STRUCT *rcb;                      /* Data structure for RCB.             */
 
 int Zoltan_RCB_Copy_Structure(ZZ *toZZ, ZZ const *fromZZ)
 {
-  char *yo = "Zoltan_RCB_Copy_Structure";
+  const char *yo = "Zoltan_RCB_Copy_Structure";
   RCB_STRUCT *to;
   RCB_STRUCT const *from;
 

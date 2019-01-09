@@ -1,7 +1,7 @@
 ! $Id$
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2012, University Corporation for Atmospheric Research,
+! Copyright 2002-2018, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -43,6 +43,7 @@ program ESMF_LocStreamCreateUTest
   ! individual test result code
   integer :: localrc, rc, petCount, localPet
   logical :: correct
+  logical :: isCreated
 
   ! individual test failure message
   character(ESMF_MAXSTR) :: failMsg
@@ -63,18 +64,19 @@ program ESMF_LocStreamCreateUTest
   character, pointer :: buf(:)
   integer :: pntCount
   type(ESMF_Mesh) :: mesh
-  real(ESMF_KIND_R8), pointer :: X(:),Y(:)
+  real(ESMF_KIND_R8), allocatable :: X(:),Y(:)
   real(ESMF_KIND_R8), pointer :: tstX(:),tstY(:)
-  integer, pointer :: nodeIds(:),nodeOwners(:)
-  real(ESMF_KIND_R8), pointer :: nodeCoords(:)
+  integer, allocatable :: nodeIds(:),nodeOwners(:)
+  real(ESMF_KIND_R8), allocatable :: nodeCoords(:)
   integer :: numNodes, numElems
-  integer, pointer :: elemIds(:),elemTypes(:),elemConn(:)
+  integer, allocatable :: elemIds(:),elemTypes(:),elemConn(:)
   logical:: locstreamBool
 
 
 
   !-----------------------------------------------------------------------------
   call ESMF_TestStart(ESMF_SRCLINE, rc=rc)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   !-----------------------------------------------------------------------------
 
   ! get global VM
@@ -88,6 +90,70 @@ program ESMF_LocStreamCreateUTest
   distgrid=ESMF_DistGridCreate(minIndex=(/1/),maxIndex=(/10/), rc=rc)
   if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
+
+  !------------------------------------------------------------------------
+  !NEX_UTest
+  write(name, *) "Testing LocStream IsCreated for uncreated object"
+  write(failMsg, *) "Did not return .false."
+  isCreated = ESMF_LocStreamIsCreated(locstream)
+  call ESMF_Test((isCreated .eqv. .false.), name, failMsg, result, ESMF_SRCLINE)
+  !------------------------------------------------------------------------
+
+  !------------------------------------------------------------------------
+  !NEX_UTest
+  write(name, *) "Testing LocStream IsCreated for uncreated object"
+  write(failMsg, *) "Did not return ESMF_SUCCESS"
+  isCreated = ESMF_LocStreamIsCreated(locstream, rc=rc)
+  call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+  !------------------------------------------------------------------------
+
+  !------------------------------------------------------------------------
+  !NEX_UTest
+  write(name, *) "Create test LocStream for IsCreated"
+  write(failMsg, *) "Did not return ESMF_SUCCESS"
+  locstream=ESMF_LocStreamCreate(name="test",distgrid=distgrid, rc=localrc)
+  call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+  !------------------------------------------------------------------------
+
+  !------------------------------------------------------------------------
+  !NEX_UTest
+  write(name, *) "Testing LocStream IsCreated for created object"
+  write(failMsg, *) "Did not return .true."
+  isCreated = ESMF_LocStreamIsCreated(locstream)
+  call ESMF_Test((isCreated .eqv. .true.), name, failMsg, result, ESMF_SRCLINE)
+  !------------------------------------------------------------------------
+
+  !------------------------------------------------------------------------
+  !NEX_UTest
+  write(name, *) "Testing LocStream IsCreated for created object"
+  write(failMsg, *) "Did not return ESMF_SUCCESS"
+  isCreated = ESMF_LocStreamIsCreated(locstream, rc=rc)
+  call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+  !------------------------------------------------------------------------
+
+  !------------------------------------------------------------------------
+  !NEX_UTest
+  write(name, *) "Destroy test LocStream for IsCreated"
+  write(failMsg, *) "Did not return ESMF_SUCCESS"
+  call ESMF_LocStreamDestroy(locstream, rc=rc)
+  call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+  !------------------------------------------------------------------------
+
+  !------------------------------------------------------------------------
+  !NEX_UTest
+  write(name, *) "Testing LocStream IsCreated for destroyed object"
+  write(failMsg, *) "Did not return .false."
+  isCreated = ESMF_LocStreamIsCreated(locstream)
+  call ESMF_Test((isCreated .eqv. .false.), name, failMsg, result, ESMF_SRCLINE)
+  !------------------------------------------------------------------------
+
+  !------------------------------------------------------------------------
+  !NEX_UTest
+  write(name, *) "Testing LocStream IsCreated for destroyed object"
+  write(failMsg, *) "Did not return ESMF_SUCCESS"
+  isCreated = ESMF_LocStreamIsCreated(locstream, rc=rc)
+  call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+  !------------------------------------------------------------------------
 
   !-----------------------------------------------------------------------------
   !NEX_UTest
@@ -139,7 +205,7 @@ program ESMF_LocStreamCreateUTest
 
   if (petCount .eq. 1) then
      ! Check non-key bounds
-     call  ESMF_LocStreamGet(locstream, localDE=0, &
+     call  ESMF_LocStreamGetBounds(locstream, localDE=0, &
              exclusiveLBound=el, exclusiveUBound=eu, exclusiveCount=ec, & 
              computationalLBound=cl, computationalUBound=cu, computationalCount=cc, & 
              rc=localrc)
@@ -154,7 +220,7 @@ program ESMF_LocStreamCreateUTest
      if (cc .ne. 5) correct=.false.
 
      ! Check non-key bounds
-     call  ESMF_LocStreamGet(locstream, localDE=1, &
+     call  ESMF_LocStreamGetBounds(locstream, localDE=1, &
              exclusiveLBound=el, exclusiveUBound=eu, exclusiveCount=ec, & 
              computationalLBound=cl, computationalUBound=cu, computationalCount=cc, & 
              rc=localrc)
@@ -169,7 +235,7 @@ program ESMF_LocStreamCreateUTest
      if (cc .ne. 5) correct=.false.
 
      ! Check non-key bounds
-     call  ESMF_LocStreamGet(locstream, localDE=2, &
+     call  ESMF_LocStreamGetBounds(locstream, localDE=2, &
              exclusiveLBound=el, exclusiveUBound=eu, exclusiveCount=ec, & 
              computationalLBound=cl, computationalUBound=cu, computationalCount=cc, & 
              rc=localrc)
@@ -185,7 +251,7 @@ program ESMF_LocStreamCreateUTest
 
 !write(*,*) "2", correct, el, eu, ec
      ! Check non-key bounds
-     call  ESMF_LocStreamGet(locstream, localDE=3, &
+     call  ESMF_LocStreamGetBounds(locstream, localDE=3, &
              exclusiveLBound=el, exclusiveUBound=eu, exclusiveCount=ec, & 
              computationalLBound=cl, computationalUBound=cu, computationalCount=cc, & 
              rc=localrc)
@@ -203,7 +269,7 @@ program ESMF_LocStreamCreateUTest
   else   if (petCount .eq. 4) then
      if (localPet .eq. 0) then
         ! Check non-key bounds
-        call  ESMF_LocStreamGet(locstream, localDE=0, &
+        call  ESMF_LocStreamGetBounds(locstream, localDE=0, &
                 exclusiveLBound=el, exclusiveUBound=eu, exclusiveCount=ec, & 
                 computationalLBound=cl, computationalUBound=cu, computationalCount=cc, & 
                 rc=localrc)
@@ -218,7 +284,7 @@ program ESMF_LocStreamCreateUTest
         if (cc .ne. 5) correct=.false.
      else if (localPet .eq. 1) then
         ! Check non-key bounds
-        call  ESMF_LocStreamGet(locstream, localDE=0, &
+        call  ESMF_LocStreamGetBounds(locstream, localDE=0, &
                 exclusiveLBound=el, exclusiveUBound=eu, exclusiveCount=ec, & 
                 computationalLBound=cl, computationalUBound=cu, computationalCount=cc, & 
                 rc=localrc)
@@ -234,7 +300,7 @@ program ESMF_LocStreamCreateUTest
 
      else if (localPet .eq. 2) then
         ! Check non-key bounds
-        call  ESMF_LocStreamGet(locstream, localDE=0, &
+        call  ESMF_LocStreamGetBounds(locstream, localDE=0, &
                exclusiveLBound=el, exclusiveUBound=eu, exclusiveCount=ec, & 
                computationalLBound=cl, computationalUBound=cu, computationalCount=cc, & 
                rc=localrc)
@@ -250,7 +316,7 @@ program ESMF_LocStreamCreateUTest
 
      else if (localPet .eq. 3) then
         ! Check non-key bounds
-        call  ESMF_LocStreamGet(locstream, localDE=0, &
+        call  ESMF_LocStreamGetBounds(locstream, localDE=0, &
                exclusiveLBound=el, exclusiveUBound=eu, exclusiveCount=ec, & 
                computationalLBound=cl, computationalUBound=cu, computationalCount=cc, & 
                rc=localrc)
@@ -333,7 +399,7 @@ program ESMF_LocStreamCreateUTest
 
   if (petCount .eq. 1) then
      ! Check non-key bounds
-     call  ESMF_LocStreamGet(locstream, localDE=0, &
+     call  ESMF_LocStreamGetBounds(locstream, localDE=0, &
              exclusiveLBound=el, exclusiveUBound=eu, exclusiveCount=ec, & 
              computationalLBound=cl, computationalUBound=cu, computationalCount=cc, & 
              rc=localrc)
@@ -349,7 +415,7 @@ program ESMF_LocStreamCreateUTest
 
 !write(*,*) "0", correct, el, eu, ec
      ! Check non-key bounds
-     call  ESMF_LocStreamGet(locstream, localDE=1, &
+     call  ESMF_LocStreamGetBounds(locstream, localDE=1, &
              exclusiveLBound=el, exclusiveUBound=eu, exclusiveCount=ec, & 
              computationalLBound=cl, computationalUBound=cu, computationalCount=cc, & 
              rc=localrc)
@@ -365,7 +431,7 @@ program ESMF_LocStreamCreateUTest
 
 !write(*,*) "1", correct, el, eu, ec
      ! Check non-key bounds
-     call  ESMF_LocStreamGet(locstream, localDE=2, &
+     call  ESMF_LocStreamGetBounds(locstream, localDE=2, &
              exclusiveLBound=el, exclusiveUBound=eu, exclusiveCount=ec, & 
              computationalLBound=cl, computationalUBound=cu, computationalCount=cc, & 
              rc=localrc)
@@ -381,7 +447,7 @@ program ESMF_LocStreamCreateUTest
 
 !write(*,*) "2", correct, el, eu, ec
      ! Check non-key bounds
-     call  ESMF_LocStreamGet(locstream, localDE=3, &
+     call  ESMF_LocStreamGetBounds(locstream, localDE=3, &
              exclusiveLBound=el, exclusiveUBound=eu, exclusiveCount=ec, & 
              computationalLBound=cl, computationalUBound=cu, computationalCount=cc, & 
              rc=localrc)
@@ -399,7 +465,7 @@ program ESMF_LocStreamCreateUTest
   else   if (petCount .eq. 4) then
      if (localPet .eq. 0) then
         ! Check non-key bounds
-        call  ESMF_LocStreamGet(locstream, localDE=0, &
+        call  ESMF_LocStreamGetBounds(locstream, localDE=0, &
                 exclusiveLBound=el, exclusiveUBound=eu, exclusiveCount=ec, & 
                 computationalLBound=cl, computationalUBound=cu, computationalCount=cc, & 
                 rc=localrc)
@@ -414,7 +480,7 @@ program ESMF_LocStreamCreateUTest
         if (cc .ne. 5) correct=.false.
      else if (localPet .eq. 1) then
         ! Check non-key bounds
-        call  ESMF_LocStreamGet(locstream, localDE=0, &
+        call  ESMF_LocStreamGetBounds(locstream, localDE=0, &
                 exclusiveLBound=el, exclusiveUBound=eu, exclusiveCount=ec, & 
                 computationalLBound=cl, computationalUBound=cu, computationalCount=cc, & 
                 rc=localrc)
@@ -430,7 +496,7 @@ program ESMF_LocStreamCreateUTest
 
      else if (localPet .eq. 2) then
         ! Check non-key bounds
-        call  ESMF_LocStreamGet(locstream, localDE=0, &
+        call  ESMF_LocStreamGetBounds(locstream, localDE=0, &
                exclusiveLBound=el, exclusiveUBound=eu, exclusiveCount=ec, & 
                computationalLBound=cl, computationalUBound=cu, computationalCount=cc, & 
                rc=localrc)
@@ -446,7 +512,7 @@ program ESMF_LocStreamCreateUTest
 
      else if (localPet .eq. 3) then
         ! Check non-key bounds
-        call  ESMF_LocStreamGet(locstream, localDE=0, &
+        call  ESMF_LocStreamGetBounds(locstream, localDE=0, &
                exclusiveLBound=el, exclusiveUBound=eu, exclusiveCount=ec, & 
                computationalLBound=cl, computationalUBound=cu, computationalCount=cc, & 
                rc=localrc)
@@ -484,7 +550,7 @@ program ESMF_LocStreamCreateUTest
   if (localrc .ne. ESMF_SUCCESS) rc=ESMF_FAILURE
      
   ! Get Bounds
-  call ESMF_LocStreamGet(locstream, localDE=0, &
+  call ESMF_LocStreamGetBounds(locstream, localDE=0, &
          exclusiveCount=ec, exclusiveLBound=el, exclusiveUBound=eu, &
          computationalCount=cc, computationalLBound=cl, computationalUBound=cu, rc=localrc)
   if (localrc .ne. ESMF_SUCCESS) rc=ESMF_FAILURE
@@ -521,7 +587,7 @@ program ESMF_LocStreamCreateUTest
   if (localrc .ne. ESMF_SUCCESS) rc=ESMF_FAILURE
      
   ! Get Bounds
-  call ESMF_LocStreamGet(locstream, localDE=0, &
+  call ESMF_LocStreamGetBounds(locstream, localDE=0, &
          exclusiveCount=ec, exclusiveLBound=el, exclusiveUBound=eu, &
          computationalCount=cc, computationalLBound=cl, computationalUBound=cu, rc=localrc)
   if (localrc .ne. ESMF_SUCCESS) rc=ESMF_FAILURE
@@ -666,7 +732,7 @@ program ESMF_LocStreamCreateUTest
   enddo
 
   ! Get key and bounds
-  call  ESMF_LocStreamGetKey(locstream, localDE=0, keyName="A1", &
+  call  ESMF_LocStreamGetKey(locstream, keyName="A1", &
           exclusiveLBound=el, exclusiveUBound=eu, exclusiveCount=ec, & 
           computationalLBound=cl, computationalUBound=cu, computationalCount=cc, & 
           totalLBound=tl, totalUBound=tu, totalCount=tc, & 
@@ -727,7 +793,7 @@ program ESMF_LocStreamCreateUTest
   enddo
 
   ! Get key and bounds
-  call  ESMF_LocStreamGetKey(locstream, localDE=0, keyName="A1", &
+  call  ESMF_LocStreamGetKey(locstream, keyName="A1", &
           exclusiveLBound=el, exclusiveUBound=eu, exclusiveCount=ec, & 
           computationalLBound=cl, computationalUBound=cu, computationalCount=cc, & 
           totalLBound=tl, totalUBound=tu, totalCount=tc, & 
@@ -789,7 +855,7 @@ program ESMF_LocStreamCreateUTest
   enddo
 
   ! Get key and bounds
-  call  ESMF_LocStreamGetKey(locstream, localDE=0, keyName="A1", &
+  call  ESMF_LocStreamGetKey(locstream, keyName="A1", &
           exclusiveLBound=el, exclusiveUBound=eu, exclusiveCount=ec, & 
           computationalLBound=cl, computationalUBound=cu, computationalCount=cc, & 
           totalLBound=tl, totalUBound=tu, totalCount=tc, & 
@@ -1001,7 +1067,7 @@ program ESMF_LocStreamCreateUTest
 
   if (petCount .eq. 1) then
      ! Check non-key bounds
-     call  ESMF_LocStreamGet(locstream, localDE=0, &
+     call  ESMF_LocStreamGetBounds(locstream, localDE=0, &
              exclusiveLBound=el, exclusiveUBound=eu, exclusiveCount=ec, & 
              computationalLBound=cl, computationalUBound=cu, computationalCount=cc, & 
              rc=localrc)
@@ -1017,7 +1083,7 @@ program ESMF_LocStreamCreateUTest
 
 !write(*,*) "0", correct, el, eu, ec
      ! Check non-key bounds
-     call  ESMF_LocStreamGet(locstream, localDE=1, &
+     call  ESMF_LocStreamGetBounds(locstream, localDE=1, &
              exclusiveLBound=el, exclusiveUBound=eu, exclusiveCount=ec, & 
              computationalLBound=cl, computationalUBound=cu, computationalCount=cc, & 
              rc=localrc)
@@ -1033,7 +1099,7 @@ program ESMF_LocStreamCreateUTest
 
 !write(*,*) "1", correct, el, eu, ec
      ! Check non-key bounds
-     call  ESMF_LocStreamGet(locstream, localDE=2, &
+     call  ESMF_LocStreamGetBounds(locstream, localDE=2, &
              exclusiveLBound=el, exclusiveUBound=eu, exclusiveCount=ec, & 
              computationalLBound=cl, computationalUBound=cu, computationalCount=cc, & 
              rc=localrc)
@@ -1049,7 +1115,7 @@ program ESMF_LocStreamCreateUTest
 
 !write(*,*) "2", correct, el, eu, ec
      ! Check non-key bounds
-     call  ESMF_LocStreamGet(locstream, localDE=3, &
+     call  ESMF_LocStreamGetBounds(locstream, localDE=3, &
              exclusiveLBound=el, exclusiveUBound=eu, exclusiveCount=ec, & 
              computationalLBound=cl, computationalUBound=cu, computationalCount=cc, & 
              rc=localrc)
@@ -1067,7 +1133,7 @@ program ESMF_LocStreamCreateUTest
   else   if (petCount .eq. 4) then
      if (localPet .eq. 0) then
         ! Check non-key bounds
-        call  ESMF_LocStreamGet(locstream, localDE=0, &
+        call  ESMF_LocStreamGetBounds(locstream, localDE=0, &
                 exclusiveLBound=el, exclusiveUBound=eu, exclusiveCount=ec, & 
                 computationalLBound=cl, computationalUBound=cu, computationalCount=cc, & 
                 rc=localrc)
@@ -1082,7 +1148,7 @@ program ESMF_LocStreamCreateUTest
         if (cc .ne. 5) correct=.false.
      else if (localPet .eq. 1) then
         ! Check non-key bounds
-        call  ESMF_LocStreamGet(locstream, localDE=0, &
+        call  ESMF_LocStreamGetBounds(locstream, localDE=0, &
                 exclusiveLBound=el, exclusiveUBound=eu, exclusiveCount=ec, & 
                 computationalLBound=cl, computationalUBound=cu, computationalCount=cc, & 
                 rc=localrc)
@@ -1098,7 +1164,7 @@ program ESMF_LocStreamCreateUTest
 
      else if (localPet .eq. 2) then
         ! Check non-key bounds
-        call  ESMF_LocStreamGet(locstream, localDE=0, &
+        call  ESMF_LocStreamGetBounds(locstream, localDE=0, &
                exclusiveLBound=el, exclusiveUBound=eu, exclusiveCount=ec, & 
                computationalLBound=cl, computationalUBound=cu, computationalCount=cc, & 
                rc=localrc)
@@ -1114,7 +1180,7 @@ program ESMF_LocStreamCreateUTest
 
      else if (localPet .eq. 3) then
         ! Check non-key bounds
-        call  ESMF_LocStreamGet(locstream, localDE=0, &
+        call  ESMF_LocStreamGetBounds(locstream, localDE=0, &
                exclusiveLBound=el, exclusiveUBound=eu, exclusiveCount=ec, & 
                computationalLBound=cl, computationalUBound=cu, computationalCount=cc, & 
                rc=localrc)
@@ -1154,7 +1220,7 @@ program ESMF_LocStreamCreateUTest
 
   if (petCount .eq. 1) then
      ! Check non-key bounds
-     call  ESMF_LocStreamGet(locstream, localDE=0, &
+     call  ESMF_LocStreamGetBounds(locstream, localDE=0, &
              exclusiveLBound=el, exclusiveUBound=eu, exclusiveCount=ec, & 
              computationalLBound=cl, computationalUBound=cu, computationalCount=cc, & 
              rc=localrc)
@@ -1170,7 +1236,7 @@ program ESMF_LocStreamCreateUTest
 
 !write(*,*) "0", correct, el, eu, ec
      ! Check non-key bounds
-     call  ESMF_LocStreamGet(locstream, localDE=1, &
+     call  ESMF_LocStreamGetBounds(locstream, localDE=1, &
              exclusiveLBound=el, exclusiveUBound=eu, exclusiveCount=ec, & 
              computationalLBound=cl, computationalUBound=cu, computationalCount=cc, & 
              rc=localrc)
@@ -1186,7 +1252,7 @@ program ESMF_LocStreamCreateUTest
 
 !write(*,*) "1", correct, el, eu, ec
      ! Check non-key bounds
-     call  ESMF_LocStreamGet(locstream, localDE=2, &
+     call  ESMF_LocStreamGetBounds(locstream, localDE=2, &
              exclusiveLBound=el, exclusiveUBound=eu, exclusiveCount=ec, & 
              computationalLBound=cl, computationalUBound=cu, computationalCount=cc, & 
              rc=localrc)
@@ -1202,7 +1268,7 @@ program ESMF_LocStreamCreateUTest
 
 !write(*,*) "2", correct, el, eu, ec
      ! Check non-key bounds
-     call  ESMF_LocStreamGet(locstream, localDE=3, &
+     call  ESMF_LocStreamGetBounds(locstream, localDE=3, &
              exclusiveLBound=el, exclusiveUBound=eu, exclusiveCount=ec, & 
              computationalLBound=cl, computationalUBound=cu, computationalCount=cc, & 
              rc=localrc)
@@ -1220,7 +1286,7 @@ program ESMF_LocStreamCreateUTest
   else   if (petCount .eq. 4) then
      if (localPet .eq. 0) then
         ! Check non-key bounds
-        call  ESMF_LocStreamGet(locstream, localDE=0, &
+        call  ESMF_LocStreamGetBounds(locstream, localDE=0, &
                 exclusiveLBound=el, exclusiveUBound=eu, exclusiveCount=ec, & 
                 computationalLBound=cl, computationalUBound=cu, computationalCount=cc, & 
                 rc=localrc)
@@ -1235,7 +1301,7 @@ program ESMF_LocStreamCreateUTest
         if (cc .ne. 5) correct=.false.
      else if (localPet .eq. 1) then
         ! Check non-key bounds
-        call  ESMF_LocStreamGet(locstream, localDE=0, &
+        call  ESMF_LocStreamGetBounds(locstream, localDE=0, &
                 exclusiveLBound=el, exclusiveUBound=eu, exclusiveCount=ec, & 
                 computationalLBound=cl, computationalUBound=cu, computationalCount=cc, & 
                 rc=localrc)
@@ -1251,7 +1317,7 @@ program ESMF_LocStreamCreateUTest
 
      else if (localPet .eq. 2) then
         ! Check non-key bounds
-        call  ESMF_LocStreamGet(locstream, localDE=0, &
+        call  ESMF_LocStreamGetBounds(locstream, localDE=0, &
                exclusiveLBound=el, exclusiveUBound=eu, exclusiveCount=ec, & 
                computationalLBound=cl, computationalUBound=cu, computationalCount=cc, & 
                rc=localrc)
@@ -1267,7 +1333,7 @@ program ESMF_LocStreamCreateUTest
 
      else if (localPet .eq. 3) then
         ! Check non-key bounds
-        call  ESMF_LocStreamGet(locstream, localDE=0, &
+        call  ESMF_LocStreamGetBounds(locstream, localDE=0, &
                exclusiveLBound=el, exclusiveUBound=eu, exclusiveCount=ec, & 
                computationalLBound=cl, computationalUBound=cu, computationalCount=cc, & 
                rc=localrc)
@@ -1441,6 +1507,7 @@ program ESMF_LocStreamCreateUTest
   ! Create Mesh structure in 1 step
   mesh=ESMF_MeshCreate(parametricDim=2,spatialDim=2, &
          nodeIds=nodeIds, nodeCoords=nodeCoords, &
+         coordSys=ESMF_COORDSYS_SPH_DEG, &
          nodeOwners=nodeOwners, elementIds=elemIds,&
          elementTypes=elemTypes, elementConn=elemConn, &
          rc=localrc)
@@ -1473,7 +1540,10 @@ program ESMF_LocStreamCreateUTest
 
   ! Create LocStream
   locstream=ESMF_LocStreamCreate(localCount=pntCount,  rc=localrc)
-  if (localrc .ne. ESMF_SUCCESS) rc=ESMF_FAILURE
+  if (localrc .ne. ESMF_SUCCESS) then
+    rc=ESMF_FAILURE
+    goto 100
+  endif
      
   ! Allocate X array
   allocate(X(pntCount))
@@ -1505,25 +1575,32 @@ program ESMF_LocStreamCreateUTest
 
 
   ! Add key X
-  call ESMF_LocStreamAddKey(locstream, keyName="X", farray=X,  rc=localrc)
-  if (localrc .ne. ESMF_SUCCESS) rc=ESMF_FAILURE
+  call ESMF_LocStreamAddKey(locstream, keyName="ESMF:Lon", farray=X,  rc=localrc)
+  if (localrc .ne. ESMF_SUCCESS) then
+    rc=ESMF_FAILURE
+    goto 100
+  endif
 
   ! Add key Y
-  call ESMF_LocStreamAddKey(locstream, keyName="Y", farray=Y,  rc=localrc)
-  if (localrc .ne. ESMF_SUCCESS) rc=ESMF_FAILURE
-
+  call ESMF_LocStreamAddKey(locstream, keyName="ESMF:Lat", farray=Y,  rc=localrc)
+  if (localrc .ne. ESMF_SUCCESS) then
+    rc=ESMF_FAILURE
+    goto 100
+  endif
 
   ! Do locStream create from background mesh
-  newLocstream=ESMF_LocStreamCreate(locstream, coordKeyNames="X:Y", &
+  newLocstream=ESMF_LocStreamCreate(locstream, &
                  background=mesh, rc=localrc)
   if (localrc .ne. ESMF_SUCCESS) then
      rc=ESMF_FAILURE
-     go to 100
+     goto 100
   endif
 
-
   call ESMF_LocStreamDestroy(locstream,rc=localrc)
-  if (localrc .ne. ESMF_SUCCESS) rc=ESMF_FAILURE
+  if (localrc .ne. ESMF_SUCCESS) then
+    rc=ESMF_FAILURE
+    goto 100
+  endif
 
   ! deallocate array
   deallocate(X)
@@ -1532,17 +1609,26 @@ program ESMF_LocStreamCreateUTest
 
   ! Get rid of Mesh
   call ESMF_MeshDestroy(mesh, rc=localrc)
-  if (localrc .ne. ESMF_SUCCESS) rc=ESMF_FAILURE
+  if (localrc .ne. ESMF_SUCCESS) then
+    rc=ESMF_FAILURE
+    goto 100
+  endif
 
   !!!!!!!!! Check results !!!!!!!!!!!!!!!!!
-  call ESMF_LocStreamGetKey(newLocStream,localDE=0,keyName="X", &
+  call ESMF_LocStreamGetKey(newLocStream,keyName="ESMF:Lon", &
          farray=tstX, &
          exclusiveLBound=el, exclusiveUBound=eu, rc=localrc)
-  if (localrc .ne. ESMF_SUCCESS) rc=ESMF_FAILURE
+  if (localrc .ne. ESMF_SUCCESS) then
+    rc=ESMF_FAILURE
+    goto 100
+  endif
 
-  call ESMF_LocStreamGetKey(newLocStream,localDE=0,keyName="Y", &
+  call ESMF_LocStreamGetKey(newLocStream,keyName="ESMF:Lat", &
          farray=tstY, rc=localrc)
-  if (localrc .ne. ESMF_SUCCESS) rc=ESMF_FAILURE
+  if (localrc .ne. ESMF_SUCCESS) then
+    rc=ESMF_FAILURE
+    goto 100
+  endif
 
   ! Test points
   if (localPet .eq. 0) then  
@@ -1569,7 +1655,10 @@ program ESMF_LocStreamCreateUTest
 
 
   call ESMF_LocStreamDestroy(newLocstream,rc=localrc)
-  if (localrc .ne. ESMF_SUCCESS) rc=ESMF_FAILURE
+  if (localrc .ne. ESMF_SUCCESS) then
+    rc=ESMF_FAILURE
+    goto 100
+  endif
 
   ! endif for skip for ==4 proc
   endif 
@@ -1577,6 +1666,7 @@ program ESMF_LocStreamCreateUTest
 100 continue
   call ESMF_Test(((rc .eq. ESMF_SUCCESS) .and. correct), name, failMsg, result, ESMF_SRCLINE)
   !-----------------------------------------------------------------------------
+
 
   !------------------------------------------------------------------------
   !NEX_UTest
@@ -1608,6 +1698,7 @@ program ESMF_LocStreamCreateUTest
   call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
  !-----------------------------------------------------------------------------
 
+
   !------------------------------------------------------------------------
   !NEX_UTest
   write(name, *) "Test ESMF_LocStream Create From Background Grid on Sphere"
@@ -1630,7 +1721,7 @@ program ESMF_LocStreamCreateUTest
 
 
   !-----------------------------------------------------------------------------
-  call ESMF_TestEnd(result, ESMF_SRCLINE)
+  call ESMF_TestEnd(ESMF_SRCLINE)
   !-----------------------------------------------------------------------------
 
 
@@ -1752,7 +1843,9 @@ contains
 
 
   ! Create LocStream
-  locstream=ESMF_LocStreamCreate(localCount=pntCount,  rc=localrc)
+  locstream=ESMF_LocStreamCreate(localCount=pntCount, &
+                                 coordSys=ESMF_COORDSYS_CART, &
+                                 rc=localrc)
   if (localrc .ne. ESMF_SUCCESS) rc=ESMF_FAILURE
      
   ! Allocate X array
@@ -1785,15 +1878,15 @@ contains
 
 
   ! Add key X
-  call ESMF_LocStreamAddKey(locstream, keyName="X", farray=X,  rc=localrc)
+  call ESMF_LocStreamAddKey(locstream, keyName="ESMF:X", farray=X,  rc=localrc)
   if (localrc .ne. ESMF_SUCCESS) rc=ESMF_FAILURE
 
   ! Add key Y
-  call ESMF_LocStreamAddKey(locstream, keyName="Y", farray=Y,  rc=localrc)
+  call ESMF_LocStreamAddKey(locstream, keyName="ESMF:Y", farray=Y,  rc=localrc)
   if (localrc .ne. ESMF_SUCCESS) rc=ESMF_FAILURE
 
   ! Do locStream create from background mesh
-  newLocstream=ESMF_LocStreamCreate(locstream, coordKeyNames="X:Y", &
+  newLocstream=ESMF_LocStreamCreate(locstream, &
                  background=gridA, rc=localrc)
   if (localrc .ne. ESMF_SUCCESS) then
      rc=ESMF_FAILURE
@@ -1858,12 +1951,12 @@ contains
 
 
   !!!!!!!!! Check locstream points vs Grid min max !!!!!!!!!!!!!!!!!
-  call ESMF_LocStreamGetKey(newlocStream,localDE=0,keyName="X", &
+  call ESMF_LocStreamGetKey(newlocStream,keyName="ESMF:X", &
          farray=tstX, &
          exclusiveLBound=el, exclusiveUBound=eu, rc=localrc)
   if (localrc .ne. ESMF_SUCCESS) rc=ESMF_FAILURE
 
-  call ESMF_LocStreamGetKey(newLocStream,localDE=0,keyName="Y", &
+  call ESMF_LocStreamGetKey(newLocStream,keyName="ESMF:Y", &
          farray=tstY, rc=localrc)
   if (localrc .ne. ESMF_SUCCESS) rc=ESMF_FAILURE
 
@@ -2020,7 +2113,9 @@ contains
 
 
   ! Create LocStream
-  locstream=ESMF_LocStreamCreate(localCount=pntCount,  rc=localrc)
+  locstream=ESMF_LocStreamCreate(localCount=pntCount, &
+                                 coordSys=ESMF_COORDSYS_CART, &
+                                 rc=localrc)
   if (localrc .ne. ESMF_SUCCESS) rc=ESMF_FAILURE
      
   ! Allocate X array
@@ -2053,15 +2148,15 @@ contains
 
 
   ! Add key X
-  call ESMF_LocStreamAddKey(locstream, keyName="X", farray=X,  rc=localrc)
+  call ESMF_LocStreamAddKey(locstream, keyName="ESMF:X", farray=X,  rc=localrc)
   if (localrc .ne. ESMF_SUCCESS) rc=ESMF_FAILURE
 
   ! Add key Y
-  call ESMF_LocStreamAddKey(locstream, keyName="Y", farray=Y,  rc=localrc)
+  call ESMF_LocStreamAddKey(locstream, keyName="ESMF:Y", farray=Y,  rc=localrc)
   if (localrc .ne. ESMF_SUCCESS) rc=ESMF_FAILURE
 
   ! Do locStream create from background mesh
-  newLocstream=ESMF_LocStreamCreate(locstream, coordKeyNames="X:Y", &
+  newLocstream=ESMF_LocStreamCreate(locstream, &
                  background=gridA, rc=localrc)
   if (localrc .ne. ESMF_SUCCESS) then
      rc=ESMF_FAILURE
@@ -2128,12 +2223,12 @@ contains
 
 
   !!!!!!!!! Check locstream points vs Grid min max !!!!!!!!!!!!!!!!!
-  call ESMF_LocStreamGetKey(newlocStream,localDE=0,keyName="X", &
+  call ESMF_LocStreamGetKey(newlocStream,keyName="ESMF:X", &
          farray=tstX, &
          exclusiveLBound=el, exclusiveUBound=eu, rc=localrc)
   if (localrc .ne. ESMF_SUCCESS) rc=ESMF_FAILURE
 
-  call ESMF_LocStreamGetKey(newLocStream,localDE=0,keyName="Y", &
+  call ESMF_LocStreamGetKey(newLocStream,keyName="ESMF:Y", &
          farray=tstY, rc=localrc)
   if (localrc .ne. ESMF_SUCCESS) rc=ESMF_FAILURE
 
@@ -2189,7 +2284,7 @@ contains
   real(ESMF_KIND_R8) :: de_minlon, de_maxlon
   real(ESMF_KIND_R8) :: de_minlat, de_maxlat
   integer :: pntCount
-  real(ESMF_KIND_R8), pointer :: Lon(:),Lat(:)
+  real(ESMF_KIND_R8), allocatable :: Lon(:),Lat(:)
   real(ESMF_KIND_R8), pointer :: tstLon(:),tstLat(:)
   type(ESMF_LocStream) :: locstream,  newlocstream
   real(ESMF_KIND_R8) :: tmpLonC, tmpLatC
@@ -2222,13 +2317,14 @@ contains
   
   ! setup source grid
   gridA=ESMF_GridCreateNoPeriDim(minIndex=(/1,1/),maxIndex=(/A_nlon,A_nlat/),regDecomp=(/petCount,1/), &
-                              coordSys=ESMF_COORDSYS_CART, &
+                              coordSys=ESMF_COORDSYS_SPH_DEG, &
                               indexflag=ESMF_INDEX_GLOBAL, &
                               rc=localrc)
   if (localrc /=ESMF_SUCCESS) then
     rc=ESMF_FAILURE
     return
   endif
+
 
   ! Allocate coordinates
   call ESMF_GridAddCoord(gridA, staggerloc=ESMF_STAGGERLOC_CORNER, rc=localrc)
@@ -2286,9 +2382,10 @@ contains
 
 
   ! Create LocStream
-  locstream=ESMF_LocStreamCreate(localCount=pntCount,  rc=localrc)
+  locstream=ESMF_LocStreamCreate(localCount=pntCount, rc=localrc)
   if (localrc .ne. ESMF_SUCCESS) rc=ESMF_FAILURE
      
+
   ! Allocate Lon array
   allocate(Lon(pntCount))
 
@@ -2319,15 +2416,15 @@ contains
 
 
   ! Add key Lon
-  call ESMF_LocStreamAddKey(locstream, keyName="Lon", farray=Lon,  rc=localrc)
+  call ESMF_LocStreamAddKey(locstream, keyName="ESMF:Lon", farray=Lon,  rc=localrc)
   if (localrc .ne. ESMF_SUCCESS) rc=ESMF_FAILURE
 
   ! Add key Lat
-  call ESMF_LocStreamAddKey(locstream, keyName="Lat", farray=Lat,  rc=localrc)
+  call ESMF_LocStreamAddKey(locstream, keyName="ESMF:Lat", farray=Lat,  rc=localrc)
   if (localrc .ne. ESMF_SUCCESS) rc=ESMF_FAILURE
 
   ! Do locStream create from background mesh
-  newLocstream=ESMF_LocStreamCreate(locstream, coordKeyNames="Lon:Lat", &
+  newLocstream=ESMF_LocStreamCreate(locstream, &
                  background=gridA, rc=localrc)
   if (localrc .ne. ESMF_SUCCESS) then
      rc=ESMF_FAILURE
@@ -2396,12 +2493,12 @@ contains
  !  write(*,*) localPet," [",de_minlon,de_maxlon,"]"
 
   !!!!!!!!! Check locstream points vs Grid min max !!!!!!!!!!!!!!!!!
-  call ESMF_LocStreamGetKey(newlocStream,localDE=0,keyName="Lon", &
+  call ESMF_LocStreamGetKey(newlocStream,keyName="ESMF:Lon", &
          farray=tstLon, &
          exclusiveLBound=el, exclusiveUBound=eu, rc=localrc)
   if (localrc .ne. ESMF_SUCCESS) rc=ESMF_FAILURE
 
-  call ESMF_LocStreamGetKey(newLocStream,localDE=0,keyName="Lat", &
+  call ESMF_LocStreamGetKey(newLocStream,keyName="ESMF:Lat", &
          farray=tstLat, rc=localrc)
   if (localrc .ne. ESMF_SUCCESS) rc=ESMF_FAILURE
 

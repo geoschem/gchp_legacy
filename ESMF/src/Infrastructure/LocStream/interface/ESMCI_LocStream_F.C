@@ -1,10 +1,10 @@
 // $Id$
 //
 // Earth System Modeling Framework
-// Copyright 2002-2012, University Corporation for Atmospheric Research, 
-// Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
-// Laboratory, University of Michigan, National Centers for Environmental 
-// Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
+// Copyright 2002-2018, University Corporation for Atmospheric Research,
+// Massachusetts Institute of Technology, Geophysical Fluid Dynamics
+// Laboratory, University of Michigan, National Centers for Environmental
+// Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
 // NASA Goddard Space Flight Center.
 // Licensed under the University of Illinois-NCSA License.
 
@@ -31,7 +31,7 @@ using namespace std;
 //-----------------------------------------------------------------------------
  // leave the following line as-is; it will insert the cvs ident string
  // into the object file for tracking purposes.
- static const char *const version = 
+ static const char *const version =
              "$Id$";
 //-----------------------------------------------------------------------------
 
@@ -46,18 +46,18 @@ extern "C" {
 
 
 // non-method functions
-void FTN(c_esmc_locstreamgetkeybnds)(ESMCI::Array **_array, 
-				     int *_localDE, 
-                                     int *exclusiveLBound, 
+void FTN_X(c_esmc_locstreamgetkeybnds)(ESMCI::Array **_array,
+                                     int *_localDE,
+                                     int *exclusiveLBound,
                                      int *exclusiveUBound,
-                                     int *exclusiveCount,  
-                                     int *computationalLBound, 
+                                     int *exclusiveCount,
+                                     int *computationalLBound,
                                      int *computationalUBound,
-                                     int *computationalCount,  
-                                     int *totalLBound, 
+                                     int *computationalCount,
+                                     int *totalLBound,
                                      int *totalUBound,
-                                     int *totalCount,  
-				     int *rc){
+                                     int *totalCount,
+                                     int *rc){
 
 #undef  ESMC_METHOD
 #define ESMC_METHOD "c_esmc_locstreamgetkeybnds()"
@@ -65,19 +65,33 @@ void FTN(c_esmc_locstreamgetkeybnds)(ESMCI::Array **_array,
   ESMCI::Array *array;
   int localDE;
   int localrc;
-  
+
   // Initialize return code; assume routine not implemented
   if (rc != NULL) *rc = ESMC_RC_NOT_IMPL;
-  
+
   // Dereference variables
   array=*_array;
-  localDE=*_localDE;
-  
-  // Input Error Checking
-  if ((localDE < 0) || (localDE >=array->getDistGrid()->getDELayout()->getLocalDeCount())) {
-    ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_WRONG,
-	  "- localDE outside range on this processor", ESMC_NOT_PRESENT_FILTER(rc));
-    return;
+
+  // localDE
+  if (ESMC_NOT_PRESENT_FILTER(_localDE) == ESMC_NULL_POINTER) {
+    if (array->getDistGrid()->getDELayout()->getLocalDeCount()>1) {
+      ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_WRONG,
+                                    "- Must provide localDE if localDeCount >1",
+                                    ESMC_CONTEXT, ESMC_NOT_PRESENT_FILTER(rc));
+      return;
+    } else {
+      localDE=0;
+    }
+  } else {
+    localDE=*_localDE; // already 0 based
+
+    // Input Error Checking
+    if ((localDE < 0) || (localDE >=array->getDistGrid()->getDELayout()->getLocalDeCount())) {
+      ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_WRONG,
+        "- localDE outside range on this processor", ESMC_CONTEXT,
+        ESMC_NOT_PRESENT_FILTER(rc));
+      return;
+    }
   }
 
   // ExclusiveLBound
@@ -117,32 +131,32 @@ void FTN(c_esmc_locstreamgetkeybnds)(ESMCI::Array **_array,
   if (ESMC_NOT_PRESENT_FILTER(totalLBound) != ESMC_NULL_POINTER) {
     *totalLBound=*(array->getTotalLBound()+localDE);
   }
-  
+
   // TotalUBound
   if (ESMC_NOT_PRESENT_FILTER(totalUBound) != ESMC_NULL_POINTER) {
     *totalUBound=*(array->getTotalUBound()+localDE);
   }
-  
+
   // TotalCount
   if (ESMC_NOT_PRESENT_FILTER(totalCount) != ESMC_NULL_POINTER) {
     *totalCount=*(array->getTotalUBound()+localDE) -
                 *(array->getTotalLBound()+localDE) + 1;
   }
-  
 
-  
+
+
   // Return ESMF_SUCCESS
   if (rc != NULL) *rc = ESMF_SUCCESS;
-    
+
   return;
-} 
+}
 
 // non-method functions
-void FTN(c_esmc_locstreamgetelbnd)(ESMCI::DistGrid **_distgrid, 
-				 int *_localDE, 
-				 ESMC_IndexFlag *_indexflag, 
-                                 int *exclusiveLBound, 
-				 int *rc){
+void FTN_X(c_esmc_locstreamgetelbnd)(ESMCI::DistGrid **_distgrid,
+                                 int *_localDE,
+                                 ESMC_IndexFlag *_indexflag,
+                                 int *exclusiveLBound,
+                                 int *rc){
 
 #undef  ESMC_METHOD
 #define ESMC_METHOD "c_esmc_locstreamgetelbnd()"
@@ -151,64 +165,66 @@ void FTN(c_esmc_locstreamgetelbnd)(ESMCI::DistGrid **_distgrid,
   int localDE;
   int localrc;
   ESMC_IndexFlag indexflag;
-  
+
   // Initialize return code; assume routine not implemented
   if (rc != NULL) *rc = ESMC_RC_NOT_IMPL;
-  
+
   // Dereference variables
   distgrid=*_distgrid;
-  localDE=*_localDE;
   indexflag=*_indexflag;
-  
-  // Input Error Checking
-  if ((localDE < 0) || (localDE >=distgrid->getDELayout()->getLocalDeCount())) {
-    ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_WRONG,
-	  "- localDE outside range on this processor", ESMC_NOT_PRESENT_FILTER(rc));
-    return;
+
+  // localDE
+  if (ESMC_NOT_PRESENT_FILTER(_localDE) == ESMC_NULL_POINTER) {
+    if (distgrid->getDELayout()->getLocalDeCount()>1) {
+      ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_WRONG,
+                                    "- Must provide localDE if localDeCount >1",
+                                    ESMC_CONTEXT, ESMC_NOT_PRESENT_FILTER(rc));
+      return;
+    } else {
+      localDE=0;
+    }
+  } else {
+    localDE=*_localDE; // already 0 based
+
+    // Input Error Checking
+    if ((localDE < 0) || (localDE >=distgrid->getDELayout()->getLocalDeCount())) {
+      ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_WRONG,
+        "- localDE outside range on this processor", ESMC_CONTEXT,
+        ESMC_NOT_PRESENT_FILTER(rc));
+      return;
+    }
   }
 
-  // Set lower bound based on indexflag
-  if (indexflag==ESMF_INDEX_DELOCAL) {
-      *exclusiveLBound = 1; // excl. region starts at (1,1,1...) 
+  if (indexflag==ESMC_INDEX_DELOCAL) {
+    *exclusiveLBound = 1; // excl. region starts at (1,1,1...)
   } else {
+
     // Get some useful information
     const int *localDeToDeMap = distgrid->getDELayout()->getLocalDeToDeMap();
 
     // Get the Global DE from the local DE
     int de = localDeToDeMap[localDE];
 
-    // obtain indexList for this DE and dim
-    const int *indexList =
-      distgrid->getIndexListPDimPLocalDe(localDE, 1, &localrc);
-    if (ESMC_LogDefault.MsgFoundError(localrc,ESMCI_ERR_PASSTHRU, ESMC_NOT_PRESENT_FILTER(rc)))
-        return;
-      
-      // make sure this dimension is contiguous         
-      const int contig=distgrid->getContigFlagPDimPDe(de, 1, &localrc);
-      if (ESMC_LogDefault.MsgFoundError(localrc,
-                                    ESMCI_ERR_PASSTHRU, ESMC_NOT_PRESENT_FILTER(rc))) return;
-      if (!contig) {
-        ESMC_LogDefault.MsgFoundError(ESMC_RC_NOT_IMPL,
-				      "- doesn't handle non-contiguous DEs yet ",  ESMC_NOT_PRESENT_FILTER(rc));
-        return;
-      }
-      
-      // Set lower bounds of exclusive region to match indexList[0]
-      *exclusiveLBound = indexList[0];
+    // obtain min index for this DE
+    int const *index_min=distgrid->getMinIndexPDimPDe(de,&localrc);
+    if (ESMC_LogDefault.MsgFoundError(localrc,ESMCI_ERR_PASSTHRU, ESMC_CONTEXT,
+                                      ESMC_NOT_PRESENT_FILTER(rc))) return;
+
+    // Set lower bound of exclusive region
+    *exclusiveLBound = *index_min;
   }
-  
+
   // Return ESMF_SUCCESS
   if (rc != NULL) *rc = ESMF_SUCCESS;
-    
   return;
-} 
+}
 
 
-void FTN(c_esmc_locstreamgeteubnd)(ESMCI::DistGrid **_distgrid, 
-				 int *_localDE, 
-				 ESMC_IndexFlag *_indexflag, 
-                                 int *exclusiveUBound, 
-				 int *rc){
+void FTN_X(c_esmc_locstreamgeteubnd)(ESMCI::DistGrid **_distgrid,
+                                 int *_localDE,
+                                 ESMC_IndexFlag *_indexflag,
+                                 int *exclusiveUBound,
+                                 int *rc){
 
 #undef  ESMC_METHOD
 #define ESMC_METHOD "c_esmc_locstreamgeteubnd()"
@@ -217,20 +233,34 @@ void FTN(c_esmc_locstreamgeteubnd)(ESMCI::DistGrid **_distgrid,
   int localDE;
   int localrc;
   ESMC_IndexFlag indexflag;
-  
+
   // Initialize return code; assume routine not implemented
   if (rc != NULL) *rc = ESMC_RC_NOT_IMPL;
-  
+
   // Dereference variables
   distgrid=*_distgrid;
-  localDE=*_localDE;
   indexflag=*_indexflag;
-  
-  // Input Error Checking
-  if ((localDE < 0) || (localDE >=distgrid->getDELayout()->getLocalDeCount())) {
-    ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_WRONG,
-	  "- localDE outside range on this processor", ESMC_NOT_PRESENT_FILTER(rc));
-    return;
+
+  // localDE
+  if (ESMC_NOT_PRESENT_FILTER(_localDE) == ESMC_NULL_POINTER) {
+    if (distgrid->getDELayout()->getLocalDeCount()>1) {
+      ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_WRONG,
+                                    "- Must provide localDE if localDeCount >1",
+                                    ESMC_CONTEXT, ESMC_NOT_PRESENT_FILTER(rc));
+      return;
+    } else {
+      localDE=0;
+    }
+  } else {
+    localDE=*_localDE; // already 0 based
+
+    // Input Error Checking
+    if ((localDE < 0) || (localDE >=distgrid->getDELayout()->getLocalDeCount())) {
+      ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_WRONG,
+        "- localDE outside range on this processor", ESMC_CONTEXT,
+        ESMC_NOT_PRESENT_FILTER(rc));
+      return;
+    }
   }
 
   // Get some useful information
@@ -240,46 +270,32 @@ void FTN(c_esmc_locstreamgeteubnd)(ESMCI::DistGrid **_distgrid,
   // Get the Global DE from the local DE
   int de = localDeToDeMap[localDE];
 
-  // exlc. region for each DE ends at indexCountPDimPDe of the associated
-  // DistGrid
-  *exclusiveUBound = indexCountPDimPDe[de];
-  
   // Set upper bound based on indexflag
-  if (indexflag==ESMF_INDEX_GLOBAL) {
+  if (indexflag==ESMC_INDEX_DELOCAL) {
+    *exclusiveUBound = indexCountPDimPDe[de];
+  } else {
 
-    // obtain indexList for this DE and dim
-    const int *indexList =
-      distgrid->getIndexListPDimPLocalDe(localDE, 1, &localrc);
-    if (ESMC_LogDefault.MsgFoundError(localrc,ESMCI_ERR_PASSTHRU, ESMC_NOT_PRESENT_FILTER(rc)))
-      return;
-    
-    // make sure is contiguous         
-    const int contig=distgrid->getContigFlagPDimPDe(de, 1, &localrc);
-    if (ESMC_LogDefault.MsgFoundError(localrc,
-				      ESMCI_ERR_PASSTHRU, ESMC_NOT_PRESENT_FILTER(rc))) return;
-    if (!contig) {
-      ESMC_LogDefault.MsgFoundError(ESMC_RC_NOT_IMPL,
-				    "- doesn't handle non-contiguous DEs yet ", ESMC_NOT_PRESENT_FILTER(rc));
-      return;
-    }
-    
-    // shift bounds of exclusive region to match indexList[0]
-    *exclusiveUBound += indexList[0] - 1;
+    // obtain max index for this DE
+    int const *index_max=distgrid->getMaxIndexPDimPDe(de,&localrc);
+    if (ESMC_LogDefault.MsgFoundError(localrc,ESMCI_ERR_PASSTHRU, ESMC_CONTEXT,
+                                      ESMC_NOT_PRESENT_FILTER(rc))) return;
+
+    // Set upper bound of exclusive region
+    *exclusiveUBound = *index_max;
   }
-  
   // Return ESMF_SUCCESS
   if (rc != NULL) *rc = ESMF_SUCCESS;
-    
+
   return;
-} 
-  
+}
+
 
 
 #if 1
 // non-method functions
-void FTN(c_esmc_locstreamserialize)(ESMC_IndexFlag *indexflag, 
+void FTN_X(c_esmc_locstreamserialize)(ESMC_IndexFlag *indexflag,
                 int *keyCount,
-	        char *buffer, int *length, int *offset,
+                char *buffer, int *length, int *offset,
                 ESMC_InquireFlag *inquireflag, int *localrc,
                 ESMCI_FortranStrLenArg buffer_l){
 
@@ -293,9 +309,9 @@ void FTN(c_esmc_locstreamserialize)(ESMC_IndexFlag *indexflag,
     // TODO: verify length > vars.
     int size = sizeof(ESMC_IndexFlag) + sizeof(int);
     if (*inquireflag != ESMF_INQUIREONLY) {
-      if ((*length - *offset) < size) {         
+      if ((*length - *offset) < size) {
          ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_BAD,
-          "Buffer too short to add a LocStream object", localrc);
+          "Buffer too short to add a LocStream object", ESMC_CONTEXT, localrc);
          return;
       }
     }
@@ -318,10 +334,10 @@ void FTN(c_esmc_locstreamserialize)(ESMC_IndexFlag *indexflag,
     if (localrc) *localrc = ESMF_SUCCESS;
 
     return;
-} 
+}
 
 
-void FTN(c_esmc_locstreamdeserialize)(ESMC_IndexFlag *indexflag, 
+void FTN_X(c_esmc_locstreamdeserialize)(ESMC_IndexFlag *indexflag,
                 int *keyCount, char *buffer, int *offset, int *localrc,
                 ESMCI_FortranStrLenArg buffer_l){
 
@@ -333,7 +349,7 @@ void FTN(c_esmc_locstreamdeserialize)(ESMC_IndexFlag *indexflag,
 
     // Get indexflag
     ifp = (ESMC_IndexFlag *)(buffer + *offset);
-    *indexflag=*ifp++; 
+    *indexflag=*ifp++;
 
     // Get keyCount
     ip= (int *)ifp;
@@ -346,14 +362,14 @@ void FTN(c_esmc_locstreamdeserialize)(ESMC_IndexFlag *indexflag,
     if (localrc) *localrc = ESMF_SUCCESS;
 
     return;
-} 
+}
 
 // non-method functions
-void FTN(c_esmc_locstreamkeyserialize)(
-				       int *keyNameLen, char *keyName,
-				       int *unitsLen, char *units,
-				       int *longNameLen, char *longName,
-	        char *buffer, int *length, int *offset, 
+void FTN_X(c_esmc_locstreamkeyserialize)(
+                                       int *keyNameLen, char *keyName,
+                                       int *unitsLen, char *units,
+                                       int *longNameLen, char *longName,
+                char *buffer, int *length, int *offset,
                 ESMC_InquireFlag *inquireflag, int *localrc,
                 ESMCI_FortranStrLenArg keyName_l,
                 ESMCI_FortranStrLenArg units_l,
@@ -363,17 +379,17 @@ void FTN(c_esmc_locstreamkeyserialize)(
   ESMC_InquireFlag linquireflag = *inquireflag;
   int *ip;
   char *cp;
-  int r;  
+  int r;
 
   // Initialize return code; assume routine not implemented
   if (localrc) *localrc = ESMC_RC_NOT_IMPL;
-  
+
   // TODO: verify length > vars.
   int size = *keyNameLen + *unitsLen + *longNameLen;
   if (*inquireflag != ESMF_INQUIREONLY) {
-    if ((*length - *offset) < size) {         
+    if ((*length - *offset) < size) {
       ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_BAD,
-         "Buffer too short to add a LocStream object", localrc);
+         "Buffer too short to add a LocStream object", ESMC_CONTEXT, localrc);
       return;
     }
   }
@@ -383,9 +399,9 @@ void FTN(c_esmc_locstreamkeyserialize)(
 
   // Save string lengths
   if (linquireflag != ESMF_INQUIREONLY) {
-    *ip++ = *keyNameLen; 
-    *ip++ = *unitsLen; 
-    *ip++ = *longNameLen; 
+    *ip++ = *keyNameLen;
+    *ip++ = *unitsLen;
+    *ip++ = *longNameLen;
   }
 
   // Switch to char pointer
@@ -415,16 +431,16 @@ void FTN(c_esmc_locstreamkeyserialize)(
 
   // return success
   if (localrc) *localrc = ESMF_SUCCESS;
-  
-  return;
-} 
-  
 
-void FTN(c_esmc_locstreamkeydeserialize)(
-					 char *keyName,
-					 char *units,
-					 char *longName,
-					 char *buffer, int *offset, int *localrc,
+  return;
+}
+
+
+void FTN_X(c_esmc_locstreamkeydeserialize)(
+                                         char *keyName,
+                                         char *units,
+                                         char *longName,
+                                         char *buffer, int *offset, int *localrc,
                                          ESMCI_FortranStrLenArg keyName_l,
                                          ESMCI_FortranStrLenArg units_l,
                                          ESMCI_FortranStrLenArg longName_l,
@@ -432,7 +448,7 @@ void FTN(c_esmc_locstreamkeydeserialize)(
 
   int *ip;
   char *cp;
-  int r, keyNameLen, unitsLen, longNameLen;  
+  int r, keyNameLen, unitsLen, longNameLen;
 
   // Initialize return code; assume routine not implemented
   if (localrc) *localrc = ESMC_RC_NOT_IMPL;
@@ -441,7 +457,7 @@ void FTN(c_esmc_locstreamkeydeserialize)(
   ip = (int *)(buffer + *offset);
 
   // Save string lengths
-  keyNameLen = *ip++; 
+  keyNameLen = *ip++;
   unitsLen = *ip++;
   longNameLen = *ip++;
 
@@ -450,19 +466,19 @@ void FTN(c_esmc_locstreamkeydeserialize)(
 
   // Save keyNames
   // First fill with spaces (NOTE THAT THIS ASSUMES THAT keyName is of size ESMF_MAXSTR)
-  memset((void *)keyName,' ', ESMF_MAXSTR*sizeof(char));  
+  memset((void *)keyName,' ', ESMF_MAXSTR*sizeof(char));
   memcpy((void *)keyName, (const void *)cp, keyNameLen*sizeof(char));
   cp += keyNameLen*sizeof(char);
 
   // Save units
   // First fill with spaces (NOTE THAT THIS ASSUMES THAT units is of size ESMF_MAXSTR)
-  memset((void *)units,' ', ESMF_MAXSTR*sizeof(char));  
+  memset((void *)units,' ', ESMF_MAXSTR*sizeof(char));
   memcpy((void *)units, (const void *)cp, unitsLen*sizeof(char));
   cp += unitsLen*sizeof(char);
 
   // Save longName
   // First fill with spaces (NOTE THAT THIS ASSUMES THAT longName is of size ESMF_MAXSTR)
-  memset((void *)longName,' ', ESMF_MAXSTR*sizeof(char));  
+  memset((void *)longName,' ', ESMF_MAXSTR*sizeof(char));
   memcpy((void *)longName, (const void *)cp, longNameLen*sizeof(char));
   cp += longNameLen*sizeof(char);
 
@@ -472,12 +488,12 @@ void FTN(c_esmc_locstreamkeydeserialize)(
   // Adjust alignment
   r=*offset%8;
   if (r!=0) *offset += 8-r;
-    
+
   // return success
   if (localrc) *localrc = ESMF_SUCCESS;
-  
+
   return;
-} 
+}
 
 
 #endif

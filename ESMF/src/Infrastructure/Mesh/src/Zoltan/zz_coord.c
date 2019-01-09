@@ -6,8 +6,8 @@
 /*****************************************************************************
  * CVS File Information :
  *    $RCSfile: zz_coord.c,v $
- *    $Author: mathomp4 $
- *    $Date: 2013-01-11 20:23:44 $
+ *    $Author: dneckels $
+ *    $Date: 2007/11/28 16:13:54 $
  *    Revision: 1.18.2.1 $
  ****************************************************************************/
 
@@ -73,7 +73,8 @@ int Zoltan_Get_Coordinates(
                                         fn if NULL upon input. */
 )
 {
-  char *yo = "Zoltan_Get_Coordinates";
+
+  const char *yo = "Zoltan_Get_Coordinates";
   int i,j,rc;
   int num_gid_entries = zz->Num_GID;
   int num_lid_entries = zz->Num_LID;

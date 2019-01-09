@@ -1,5 +1,6 @@
 % $Id$
 
+\label{sec:xgrid:desc}
 An exchange grid represents the 2D boundary layer usually between the
 atmosphere on one side and ocean and land on the other in an Earth
 system model. There are dynamical and thermodynamical processes on
@@ -9,8 +10,56 @@ boundary conditions for the model components involved. For climate modeling,
 it is critical that the fluxes transferred by the boundary layer are
 conservative.
 
-The exchange grid is implemented as a collection of the intersected cells
-between atmosphere and ocean/land\cite{BalajiXGrid}. These cells can have irregular shapes
+The ESMF exchange grid is implemented as the {\tt ESMF\_XGrid} class. 
+Internally it's represented by a collection of the intersected cells
+between atmosphere and ocean/land\cite{BalajiXGrid} grids. 
+These polygonal cells can have irregular shapes
 and can be broken down into triangles facilitating a finite element
-approach. In practice, there is a threshold of minimum cell area below
-which intersections are discarded.
+approach. 
+
+There are two ways to create an {\tt ESMF\_XGrid} object from
+user supplied information. The first way to create an {\tt ESMF\_XGrid} takes
+two lists of {\tt ESMF\_Grid} or {\tt ESMF\_Mesh} that represent the model component grids on
+either side of the exchange grid. From the two lists of {\tt ESMF\_Grid} or {\tt ESMF\_Mesh},
+information required for flux exchange calculation between any pair of the 
+model components from either side of the exchange grid is computed. In addition, the
+internal representation of the {\tt ESMF\_XGrid} is computed and can be optionally stored
+as an {\tt ESMF\_Mesh}. This internal representation is the collection of the intersected
+polygonal cells as a result of merged {\tt ESMF\_Mesh}es from both sides of the exchange grid.
+{\tt ESMF\_Field} can be created on the {\tt ESMF\_XGrid} and used for weight generation
+and regridding as the internal representation in the {\tt ESMF\_XGrid} has
+a complete geometrical description of the exchange grid.
+
+The second way 
+to create an {\tt ESMF\_XGrid} requires users to supply all necessary information
+to compute communication routehandle. A later
+call to {\tt ESMF\_FieldRegridStore()} with the xgrid and source and destination
+{\tt ESMF\_Field}s computes the {\tt ESMF\_Routehandle} object for matrix
+multiply operation used in model remapping. 
+
+{\tt ESMF\_XGrid} deals with 2 distinctive kinds of fraction for each Grid or Mesh cell
+involved in its creation. The following description applies to both {\tt ESMF\_Grid} 
+and {\tt ESMF\_Mesh} involved in the {\tt ESMF\_XGrid} creation process.
+The first fraction quantity $f_1$ is the same as defined in direct
+Field regrid between a source and destination {\tt ESMF\_Field} pair, namely the fraction
+of a total Grid cell area $A$ that is used in weight generation. The second fraction quantity $f_2$
+is a result of the Grid merging process when multiple {\tt ESMF\_Grid}s or model components
+exist on one side of the exchange grid. To compute XGrid, the multiple {\tt ESMF\_Grid}s
+are first merged together to form a super mesh. During the merging process, Grids that are
+of a higher priority clips into lower priority Grids, creating fractional cells in the lower
+priority Grids. Priority is a mechanism to resolve the claim of a surface region by multiple
+Grids. To conserve flux, any surface area can only be claimed by a unique Grid. This is
+a typical practice in earth system modelling, e.g. to handle land and ocean boundary.
+
+In addition to the matrix multiply communication routehandle, 
+{\tt ESMF\_XGrid} exports both $f_1$ and $f_2$ to the user through the {\tt ESMF\_FieldRegridStore()} method
+because each remapping pair has different $f_1$ and $f_2$ associated with it. $f_2$ from source Grid is 
+folded directly in the calculated weight matrices since its used to calculate destination point flux
+density $F$. The global source flux is defined as $\sum_{g=1}^{g=n\_srcgrid}\sum_{s=1}^{s=n\_srccell}{ f_{1s} f_{2s} A_s F_s }$.
+The global destination flux is defined as: 
+$\sum_{g=1}^{g=n\_dstgrid}\sum_{d=1}^{d=n\_dstcell}{ \sum_{s=1}^{s=n\_intersect}(w_{sd} F_s) f_{2d} A_d}$, $w_{sd}$ is the
+$f_2$ modified weight intersecting s-th source Grid cell with d-th destination Grid cell.
+It can be proved that this formulation of the fractions and 
+weight calculation ensures first order global conservation of
+flux $\mathcal{F}$ transferred from source grids to exchange grid, and from exchange grid to destination grids.
+

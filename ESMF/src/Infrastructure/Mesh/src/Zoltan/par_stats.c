@@ -6,8 +6,8 @@
 /*****************************************************************************
  * CVS File Information :
  *    $RCSfile: par_stats.c,v $
- *    $Author: mathomp4 $
- *    $Date: 2013-01-11 20:23:44 $
+ *    $Author: dneckels $
+ *    $Date: 2007/11/28 16:13:53 $
  *    Revision: 1.5 $
  ****************************************************************************/
 
@@ -35,7 +35,7 @@ extern "C" {
 /*****************************************************************************/
 /*****************************************************************************/
 
-void Zoltan_Print_Stats (MPI_Comm communicator, int debug_proc, double x, char *msg)
+void Zoltan_Print_Stats (MPI_Comm communicator, int debug_proc, double x, const char *msg)
 {
 /****************************************************************/
 /* Print max, sum, and imbalance for a variable over all procs. */

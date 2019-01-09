@@ -1,7 +1,7 @@
 ! $Id$
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2012, University Corporation for Atmospheric Research,
+! Copyright 2002-2018, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -48,10 +48,23 @@
     integer                                     :: rc, finalrc, lpe, i, halo(2,2,4,4)
     real(ESMF_KIND_R4), pointer                 :: fptr(:,:)
     integer                                     :: excllb(2), exclub(2), sizes(2)
-    integer                                     :: j, k, iter
+    integer                                     :: j, k, iter, result
     type(ESMF_STAGGERLOC)                       :: staggers(4)
     character(len=16)                           :: names(4) 
     real                                        :: PI=3.14159265358
+    character(ESMF_MAXSTR)                      :: testname
+    character(ESMF_MAXSTR)                      :: failMsg
+
+!-------------------------------------------------------------------------
+!-------------------------------------------------------------------------
+
+    write(failMsg, *) "Example failure"
+    write(testname, *) "Example ESMF_FieldBundleHaloEx"
+
+
+! ------------------------------------------------------------------------------
+! ------------------------------------------------------------------------------
+
     rc = ESMF_SUCCESS
     finalrc = ESMF_SUCCESS
 !------------------------------------------------------------------------------
@@ -67,16 +80,16 @@
 ! \label{sec:fieldbundle:usage:halo}
 !
 !\begin{sloppypar}
-! {\tt ESMF\_FieldBundleHalo} interface can be used to perform halo update
-! of all the Fields contained in the {\tt ESMF\_FieldBundle}.
+! {\tt ESMF\_FieldBundleHalo} interface can be used to perform halo updates
+! for all the Fields contained in the {\tt ESMF\_FieldBundle}.
 !\end{sloppypar}
 ! 
 !
-! In this example, we will set up a FieldBundle for a 2D viscous and compressible
+! In this example, we will set up a FieldBundle for a 2D inviscid and compressible
 ! flow problem. We will illustrate the FieldBundle halo update operation but we will
-! not solve the non-linear PDEs here. The emphasis here is to demonstrate
+! not solve the non-linear PDEs. The emphasis here is to demonstrate
 ! how to set up halo regions, how a numerical scheme updates
-! the exclusive regions, and how halo update communicates data in the halo regions. Here
+! the exclusive regions, and how a halo update communicates data in the halo regions. Here
 ! are the governing equations:
 !
 !
@@ -101,10 +114,10 @@
 ! halo operation implemented in ESMF.
 !EOE
     call ESMF_VMGetCurrent(vm, rc=rc)
-    if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
     call ESMF_VMGet(vm, localPet=lpe, rc=rc)
-    if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
 !BOC 
     ! create distgrid and grid according to the following decomposition 
@@ -131,18 +144,25 @@
     distgrid = ESMF_DistGridCreate(minIndex=(/1,1/), maxIndex=(/256,256/), &
         regDecomp=(/2,2/), &
         rc=rc)
-    if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
-
+!EOC
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
+!BOC
     grid = ESMF_GridCreate(distgrid=distgrid, name="grid", rc=rc)
-    if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
+!EOC
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
+!BOC
     call ESMF_ArraySpecSet(arrayspec, 2, ESMF_TYPEKIND_R4, rc=rc)
-    if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
+!EOC
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
+!BOC
     ! create field bundles and fields
     fieldBundle = ESMF_FieldBundleCreate(rc=rc)
-    if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
+!EOC
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
+!BOC
     ! set up exclusive/total region for the fields
     !
     ! halo: L/U, nDim, nField, nPet
@@ -235,21 +255,29 @@
                 totalUWidth=(/halo(2,1,i,lpe), halo(2,2,i,lpe)/), &
                 staggerloc=staggers(i), name=names(i), &
                 rc=rc)
-        if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
+!EOC
+        if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
+!BOC
         call ESMF_FieldBundleAdd(fieldBundle, (/field(i)/), rc=rc)
-        if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
+!EOC
+        if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
+!BOC
     enddo
 
     ! compute the routehandle
     call ESMF_FieldBundleHaloStore(fieldBundle, routehandle=routehandle, &
                                    rc=rc)
-    if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
+!EOC
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
+!BOC
     do iter = 1, 10
         do i = 1, 4
             call ESMF_FieldGet(field(i), farrayPtr=fptr, &
                 exclusiveLBound=excllb, exclusiveUBound=exclub, rc=rc)
-            if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
+!EOC
+            if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
+!BOC
             sizes = exclub - excllb
             ! fill the total region with 0.
             fptr = 0.
@@ -264,25 +292,33 @@
         ! it can be verified that the halo regions change from 0. 
         ! to non zero values.
         call ESMF_FieldBundleHalo(fieldbundle, routehandle=routehandle, rc=rc)
-        if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
+!EOC
+        if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
+!BOC
     enddo
     ! release halo route handle
     call ESMF_FieldBundleHaloRelease(routehandle, rc=rc)
-    if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
-
 !EOC
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
+
 
     ! release all acquired resources
     call ESMF_FieldBundleDestroy(fieldBundle, rc=rc)
-    if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
     do i = 1, 4
         call ESMF_FieldDestroy(field(i), rc=rc)
-        if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
+        if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
     enddo
     call ESMF_GridDestroy(grid, rc=rc)
-    if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
     call ESMF_DistGridDestroy(distgrid, rc=rc)
-    if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
+
+    ! IMPORTANT: ESMF_STest() prints the PASS string and the # of processors in the log
+    ! file that the scripts grep for.
+    call ESMF_STest((finalrc.eq.ESMF_SUCCESS), testname, failMsg, result, ESMF_SRCLINE)
+
+
 
     call ESMF_Finalize(rc=rc)
     if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE

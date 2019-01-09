@@ -1,7 +1,7 @@
 // $Id$
 //
 // Earth System Modeling Framework
-// Copyright 2002-2012, University Corporation for Atmospheric Research, 
+// Copyright 2002-2018, University Corporation for Atmospheric Research, 
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
 // Laboratory, University of Michigan, National Centers for Environmental 
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
@@ -22,14 +22,12 @@
 // in the companion file ESMC_DistGrid.h
 //
 //-----------------------------------------------------------------------------
-
 // include associated header file
 #include "ESMC_DistGrid.h"
 
 // include ESMF headers
 #include "ESMCI_Arg.h"
 #include "ESMCI_LogErr.h"
-#include "ESMF_LogMacros.inc"             // for LogErr
 #include "ESMCI_DistGrid.h"
 
 //-----------------------------------------------------------------------------
@@ -40,8 +38,8 @@ static const char *const version = "$Id$";
 
 extern "C" {
 
-ESMC_DistGrid ESMC_DistGridCreate(ESMC_InterfaceInt minIndexInterfaceArg,
-  ESMC_InterfaceInt maxIndexInterfaceArg, int *rc){ //TODO: complete this API
+ESMC_DistGrid ESMC_DistGridCreate(ESMC_InterArrayInt minIndexInterfaceArg,
+  ESMC_InterArrayInt maxIndexInterfaceArg, int *rc){ //TODO: complete this API
 #undef  ESMC_METHOD
 #define ESMC_METHOD "ESMC_DistGridCreate()"
 
@@ -52,16 +50,17 @@ ESMC_DistGrid ESMC_DistGridCreate(ESMC_InterfaceInt minIndexInterfaceArg,
   ESMC_DistGrid distgrid;
   
   // typecast into ESMCI types
-  ESMCI::InterfaceInt *minIndexInterface =
-    (ESMCI::InterfaceInt *)(minIndexInterfaceArg.ptr);
-  ESMCI::InterfaceInt *maxIndexInterface =
-    (ESMCI::InterfaceInt *)(maxIndexInterfaceArg.ptr);
+  ESMCI::InterArray<int> *minIndexInterface =
+    (ESMCI::InterArray<int> *)&minIndexInterfaceArg;
+  ESMCI::InterArray<int> *maxIndexInterface =
+    (ESMCI::InterArray<int> *)&maxIndexInterfaceArg;
   
   distgrid.ptr = (void *)
     ESMCI::DistGrid::create(minIndexInterface, maxIndexInterface, NULL,
       NULL, 0, NULL, NULL, NULL, NULL, NULL, (ESMCI::DELayout*)NULL, NULL,
       &localrc);
-  if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, rc)){
+  if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU,
+    ESMC_CONTEXT, rc)){
     distgrid.ptr = NULL;
     return distgrid;  // bail out
   }
@@ -84,8 +83,8 @@ int ESMC_DistGridPrint(ESMC_DistGrid distgrid){
 
   // call into ESMCI method  
   localrc = dgp->print();
-  if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, &rc))
-    return rc;  // bail out
+  if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU,
+    ESMC_CONTEXT, &rc)) return rc;  // bail out
     
   // return successfully
   rc = ESMF_SUCCESS;
@@ -105,8 +104,8 @@ int ESMC_DistGridDestroy(ESMC_DistGrid *distgrid){
 
   // call into ESMCI method  
   localrc = ESMCI::DistGrid::destroy(&dgp);
-  if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, &rc))
-    return rc;  // bail out
+  if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU,
+    ESMC_CONTEXT, &rc)) return rc;  // bail out
   
   // invalidate pointer
   distgrid->ptr = NULL;

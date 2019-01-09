@@ -6,8 +6,8 @@
 /*****************************************************************************
  * CVS File Information :
  *    $RCSfile: phg_parkway.c,v $
- *    $Author: mathomp4 $
- *    $Date: 2013-01-11 20:23:44 $
+ *    $Author: w6ws $
+ *    $Date: 2008/12/10 20:50:37 $
  *    Revision: 1.5 $
  ****************************************************************************/
 #include "zz_const.h"
@@ -46,7 +46,7 @@ int Zoltan_PHG_ParKway(
 )
 {
     int ierr = ZOLTAN_OK;
-    char *yo = "Zoltan_HG_ParKway";
+    const char *yo = "Zoltan_HG_ParKway";
 
 #ifndef ZOLTAN_PARKWAY
     ZOLTAN_PRINT_ERROR(zz->Proc, yo, "ParKway method selected but Zoltan is not"
@@ -210,7 +210,7 @@ static int scale_round_weights(
   int *nonint;
   float *scale, *sum_wgt, *max_wgt;
   char msg[256];
-  static char *yo = "scale_round_weights";
+  static const char *yo = "scale_round_weights";
 
   ierr = ZOLTAN_OK;
 

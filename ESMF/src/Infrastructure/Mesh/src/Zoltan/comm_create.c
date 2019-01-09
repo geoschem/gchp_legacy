@@ -7,8 +7,8 @@
 /*****************************************************************************
  * CVS File Information :
  *    $RCSfile: comm_create.c,v $
- *    $Author: mathomp4 $
- *    $Date: 2013-01-11 20:23:44 $
+ *    $Author: dneckels $
+ *    $Date: 2007/11/28 16:13:45 $
  *    Revision: 1.17 $
  ****************************************************************************/
 
@@ -60,7 +60,7 @@ int      *pnvals_recv)		/* returned # vals I own after communication */
     int       out_of_mem;	/* am I out of memory? */
     int       comm_flag;	/* status flag */
     int       i, j;		/* loop counters */
-    static char *yo = "Zoltan_Comm_Create";
+    static const char *yo = "Zoltan_Comm_Create";
 
     if (comm == MPI_COMM_NULL){
       ZOLTAN_COMM_ERROR("Invalid communicator: MPI_COMM_NULL.", yo, -1);
@@ -323,7 +323,7 @@ ZOLTAN_COMM_OBJ *Zoltan_Comm_Copy(ZOLTAN_COMM_OBJ *from)
 }
 int Zoltan_Comm_Copy_To(ZOLTAN_COMM_OBJ **toptr, ZOLTAN_COMM_OBJ *from)
 {
-  static char *yo = "Zoltan_Comm_Copy_To";
+  static const char *yo = "Zoltan_Comm_Copy_To";
   int proc = 0;
   ZOLTAN_COMM_OBJ *to= NULL;
 

@@ -5,11 +5,11 @@
 \begin{enumerate}
 \label{XGrid:rest}
 
-\item {\bf CAUTION:} The XGrid class and its APIs are only tested in a 
-uni-processor setup, however in principle it should also work multi-processor. 
-This limitation will be removed in a future release.
-\item More convenient {\tt ESMF\_XGridCreate()} API will be provided in
-the future that will not require a user to supply the interpolation matrix.
+\item {\bf CAUTION:} Any Grid or Mesh pair picked from the A side and B side of the XGrid 
+cannot point to the same Grid or Mesh in memory on a local PET. This prevents Regrid from
+selecting the right source and destination grid automatically to calculate the regridding routehandle.
+It's okay for the Grid and Mesh to have identical topological and geographical properties as long
+as they are stored in different memory.
 
 \end{enumerate}
 

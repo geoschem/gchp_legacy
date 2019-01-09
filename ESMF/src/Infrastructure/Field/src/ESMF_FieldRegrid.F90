@@ -1,7 +1,7 @@
 ! $Id$
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2012, University Corporation for Atmospheric Research, 
+! Copyright 2002-2018, University Corporation for Atmospheric Research, 
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
 ! Laboratory, University of Michigan, National Centers for Environmental 
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
@@ -28,6 +28,7 @@ module ESMF_FieldRegridMod
   use ESMF_UtilTypesMod
   use ESMF_VMMod
   use ESMF_LogErrMod
+  use ESMF_DynamicMaskMod
   use ESMF_ArrayMod
   use ESMF_DistGridMod
   use ESMF_GridMod
@@ -36,12 +37,17 @@ module ESMF_FieldRegridMod
   use ESMF_MeshMod
   use ESMF_RHandleMod
   use ESMF_GeomBaseMod
+  use ESMF_XGridGeomBaseMod
   use ESMF_RegridMod
   use ESMF_FieldMod
+  use ESMF_FieldCreateMod
   use ESMF_FieldGetMod
+  use ESMF_FieldSMMMod
   use ESMF_XGridMod
   use ESMF_XGridGetMod
-
+  use ESMF_PointListMod
+  use ESMF_LocStreamMod
+  use ESMF_IOScripMod
   
   implicit none
   private
@@ -57,6 +63,8 @@ module ESMF_FieldRegridMod
    public ESMF_FieldRegridGetIwts      ! get integration weights
    public ESMF_FieldRegridGetArea      ! get area
    private checkGrid                   ! small subroutine to check the grid
+   private checkGridLite               ! same as checkGrid but less restrictive 
+                                       !  due to anticipated conversion to pointlist
 
 !==============================================================================
 !
@@ -77,7 +85,6 @@ module ESMF_FieldRegridMod
 !EOPI
 
   end interface
-
 
 !------------------------------------------------------------------------------
 ! The following line turns the CVS identifier string into a printable variable.
@@ -101,21 +108,31 @@ contains
 ! !IROUTINE: ESMF_FieldRegrid - Compute a regridding operation
 !
 ! !INTERFACE:
-      subroutine ESMF_FieldRegrid(srcField, dstField, &
-                   routehandle, keywordEnforcer, zeroregion, checkflag, rc)
+  subroutine ESMF_FieldRegrid(srcField, dstField, routehandle, keywordEnforcer, &
+    zeroregion, termorderflag, checkflag, dynamicMask, rc)
 !
 ! !ARGUMENTS:
-      type(ESMF_Field),       intent(in),    optional :: srcField
-      type(ESMF_Field),       intent(inout), optional :: dstField
-      type(ESMF_RouteHandle), intent(inout)           :: routehandle
+      type(ESMF_Field),               intent(in),    optional :: srcField
+      type(ESMF_Field),               intent(inout), optional :: dstField
+      type(ESMF_RouteHandle),         intent(inout)           :: routehandle
 type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
-      type(ESMF_Region_Flag), intent(in),    optional :: zeroregion
-      logical,                intent(in),    optional :: checkflag
-      integer,                intent(out),   optional :: rc 
+      type(ESMF_Region_Flag),         intent(in),    optional :: zeroregion
+      type(ESMF_TermOrder_Flag),      intent(in),    optional :: termorderflag
+      logical,                        intent(in),    optional :: checkflag
+      type(ESMF_DynamicMask), target, intent(in),    optional :: dynamicMask
+      integer,                        intent(out),   optional :: rc 
 !
 ! !STATUS:
 ! \begin{itemize}
 ! \item\apiStatusCompatibleVersion{5.2.0r}
+! \item\apiStatusModifiedSinceVersion{5.2.0r}
+! \begin{description}
+! \item[6.1.0] Added argument {\tt termorderflag}.
+!              The new argument gives the user control over the order in which
+!              the src terms are summed up.
+! \item[7.1.0r] Added argument {\tt dynamicMask}.
+!              The new argument supports the dynamic masking feature.
+! \end{description}
 ! \end{itemize}
 !
 ! !DESCRIPTION:
@@ -125,14 +142,22 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 !  
 !   \begin{sloppypar}
 !   Both {\tt srcField} and {\tt dstField} must be
-!   congruent with the respective Fields used during 
-!   {\tt ESMF\_FieldRegridStore()}. In the case of the Regrid operation congruent 
-!   Fields are built upon the same stagger location and on the same Grid. The routehandle represents
-!   the interpolation between the Grids as they were during the {\tt ESMF\_FieldRegridStore()} call.  
-!   So if the coordinates at the stagger location in the Grids change, a new call to {\tt ESMF\_FieldRegridStore()} 
+!   weakly congruent with the respective Fields used during 
+!   {\tt ESMF\_FieldRegridStore()}. Congruent Fields possess matching DistGrids and the shape of the 
+!   local array tiles matches between the Fields for every DE. For weakly congruent Fields the sizes 
+!   of the undistributed dimensions, that vary faster with memory than the first distributed dimension,
+!   are permitted to be different. This means that the same routehandle can be applied to a large class 
+!   of similar Fields that differ in the number of elements in the left most undistributed dimensions.
+!   You can apply the routehandle between any set of Fields weakly congruent to the original Fields used
+!   to create the routehandle without incurring an error. However, if you want                                     
+!   the routehandle to be the same interpolation between the grid objects upon which the Fields are build as was calculated
+!   with the original {\tt ESMF\_FieldRegridStore()} call, then there
+!   are additional constraints on the grid objects. To be the same interpolation, the grid objects upon which the 
+!   Fields are build must contain the same coordinates at the stagger locations involved in the regridding as 
+!   the original source and destination Fields used in the {\tt ESMF\_FieldRegridStore()} call.  
+!   The routehandle represents the interpolation between the grid objects as they were during the {\tt ESMF\_FieldRegridStore()} call.  
+!   So if the coordinates at the stagger location in the grid objects change, a new call to {\tt ESMF\_FieldRegridStore()} 
 !   is necessary to compute the interpolation between that new set of coordinates.
-!   Note {\tt ESMF\_FieldRegridStore()} assumes the coordinates used in the Grids upon which the Fields are built are
-!   in degrees.  
 !   \end{sloppypar}
 !
 !   The {\tt srcField} and {\tt dstField} arguments are optional in support of
@@ -167,12 +192,30 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 !     multiplication. See section \ref{const:region} for a complete list of
 !     valid settings.
 !     \end{sloppypar}
+!   \item [{[termorderflag]}]
+!     Specifies the order of the source side terms in all of the destination
+!     sums. The {\tt termorderflag} only affects the order of terms during 
+!     the execution of the RouteHandle. See the \ref{RH:bfb} section for an
+!     in-depth discussion of {\em all} bit-for-bit reproducibility
+!     aspects related to route-based communication methods.
+!     See \ref{const:termorderflag} for a full list of options.
+!     The default setting depends on whether the {\tt dynamicMask} argument
+!     is present or not. With {\tt dynamicMask} argument present, the default
+!     of {\tt termorderflag} is {\tt ESMF\_TERMORDER\_SRCSEQ}. This ensures
+!     that {\tt all} source terms are present on the destination side, and 
+!     the interpolation can be calculated as a single sum. When 
+!     {\tt dynamicMask} is absent, the default of {\tt termorderflag} is
+!     {\tt ESMF\_TERMORDER\_FREE}, allowing maximum flexibility and partial 
+!     sums for optimum performance.
 !   \item [{[checkflag]}]
 !     If set to {\tt .TRUE.} the input Array pair will be checked for
 !     consistency with the precomputed operation provided by {\tt routehandle}.
 !     If set to {\tt .FALSE.} {\em (default)} only a very basic input check
 !     will be performed, leaving many inconsistencies undetected. Set
 !     {\tt checkflag} to {\tt .FALSE.} to achieve highest performance.
+!   \item [{[dynamicMask]}]
+!     Object holding dynamic masking information.
+!     See section \ref{RH:DynMask} for a discussion of dynamic masking.
 !   \item [{[rc]}]
 !     Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
 !   \end{description}
@@ -202,18 +245,22 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
         if (present(srcField) .and. present(dstField)) then
           call ESMF_ArraySMM(srcArray=srcArray, dstArray=dstArray, &
                  routehandle=routehandle, zeroregion=zeroregion, &
-                 checkflag=checkflag, rc=localrc)
-		else if (present(srcField) .and. .not. present(dstField)) then
+                 termorderflag=termorderflag, checkflag=checkflag, &
+                 dynamicMask=dynamicMask, rc=localrc)
+        else if (present(srcField) .and. .not. present(dstField)) then
           call ESMF_ArraySMM(srcArray=srcArray, &
                  routehandle=routehandle, zeroregion=zeroregion, &
-                 checkflag=checkflag, rc=localrc)
-		else if (.not. present(srcField) .and. present(dstField)) then
+                 termorderflag=termorderflag, checkflag=checkflag, &
+                 dynamicMask=dynamicMask, rc=localrc)
+        else if (.not. present(srcField) .and. present(dstField)) then
           call ESMF_ArraySMM(dstArray=dstArray, &
                  routehandle=routehandle, zeroregion=zeroregion, &
-                 checkflag=checkflag, rc=localrc)
+                 termorderflag=termorderflag, checkflag=checkflag, &
+                 dynamicMask=dynamicMask, rc=localrc)
         else if (.not. present(srcField) .and. .not. present(dstField)) then
           call ESMF_ArraySMM(routehandle=routehandle, zeroregion=zeroregion, &
-                 checkflag=checkflag, rc=localrc)
+                 termorderflag=termorderflag, checkflag=checkflag, &
+                 dynamicMask=dynamicMask, rc=localrc)
         else
           call ESMF_LogSetError(rcToCheck=ESMF_RC_ARG_WRONG, &
             msg="Supplied combination of optional Fields not supported", &
@@ -222,8 +269,8 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
         endif
 
         if (ESMF_LogFoundError(localrc, &
-                                     ESMF_ERR_PASSTHRU, &
-                                     ESMF_CONTEXT, rcToReturn=rc)) return
+          ESMF_ERR_PASSTHRU, &
+          ESMF_CONTEXT, rcToReturn=rc)) return
 
         ! Once the compilation order is sorted out, 
         ! Should be able to call into Field SMM directly.
@@ -239,9 +286,10 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 
     end subroutine ESMF_FieldRegrid
 !------------------------------------------------------------------------------
+    
+!------------------------------------------------------------------------------
 #undef  ESMF_METHOD
 #define ESMF_METHOD "ESMF_FieldRegridRelease"
-
 !BOP
 ! !IROUTINE: ESMF_FieldRegridRelease - Free resources used by a regridding operation
 !
@@ -280,42 +328,64 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 
     end subroutine ESMF_FieldRegridRelease
 !------------------------------------------------------------------------------
+
+!------------------------------------------------------------------------------
 #undef  ESMF_METHOD
 #define ESMF_METHOD "ESMF_FieldRegridStoreNX"
 
 !BOP
 ! !IROUTINE: ESMF_FieldRegridStore - Precompute a Field regridding operation and return a RouteHandle and weights
-!
+! \label{api:esmf_fieldregridstorenx}
 ! !INTERFACE:
   !   Private name; call using ESMF_FieldRegridStore()
       subroutine ESMF_FieldRegridStoreNX(srcField, dstField, keywordEnforcer, &
-                              srcMaskValues, dstMaskValues, &
-                              regridmethod, &
-                              polemethod, regridPoleNPnts, & 
-                              unmappedaction, &
-                              routehandle, &
-                              factorList, factorIndexList, & 
-                              weights, indices, &  ! DEPRECATED ARGUMENTS
-                              srcFracField, dstFracField, rc)
+                    srcMaskValues, dstMaskValues, &
+                    regridmethod, &
+                    polemethod, regridPoleNPnts, & 
+                    lineType, &
+                    normType, &
+                    extrapMethod, &
+                    extrapNumSrcPnts, &
+                    extrapDistExponent, &
+                    unmappedaction, ignoreDegenerate, &
+                    srcTermProcessing, & 
+                    pipeLineDepth, &
+                    routehandle, &
+                    factorList, factorIndexList, & 
+                    weights, indices, &  ! DEPRECATED ARGUMENTS
+                    srcFracField, dstFracField, &
+                    dstStatusField, &
+                    unmappedDstList, &
+                    rc)
 !      
 ! !ARGUMENTS:
-      type(ESMF_Field),            intent(in)             :: srcField
-      type(ESMF_Field),            intent(inout)          :: dstField
+      type(ESMF_Field),               intent(in)              :: srcField
+      type(ESMF_Field),               intent(inout)           :: dstField
 type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
-      integer(ESMF_KIND_I4),       intent(in),   optional :: srcMaskValues(:)
-      integer(ESMF_KIND_I4),       intent(in),   optional :: dstMaskValues(:)
-      type(ESMF_RegridMethod_Flag),intent(in),   optional :: regridmethod
-      type(ESMF_PoleMethod_Flag),  intent(in),   optional :: polemethod
-      integer,                     intent(in),   optional :: regridPoleNPnts
-      type(ESMF_UnmappedAction_Flag),intent(in), optional :: unmappedaction
-      type(ESMF_RouteHandle),      intent(inout),optional :: routehandle
-      real(ESMF_KIND_R8),          pointer,      optional :: factorList(:)
-      integer(ESMF_KIND_I4), pointer, optional :: factorIndexList(:,:)
-      real(ESMF_KIND_R8),    pointer, optional :: weights(:)! DEPRECATED ARG
-      integer(ESMF_KIND_I4), pointer, optional :: indices(:,:)!DEPRECATED ARG 
-      type(ESMF_Field),            intent(inout),optional :: srcFracField
-      type(ESMF_Field),            intent(inout),optional :: dstFracField
-      integer,                     intent(out),  optional :: rc 
+      integer(ESMF_KIND_I4),          intent(in),    optional :: srcMaskValues(:)
+      integer(ESMF_KIND_I4),         intent(in),    optional :: dstMaskValues(:)
+      type(ESMF_RegridMethod_Flag),   intent(in),    optional :: regridmethod
+      type(ESMF_PoleMethod_Flag),     intent(in),    optional :: polemethod
+      integer,                        intent(in),    optional :: regridPoleNPnts
+      type(ESMF_LineType_Flag),       intent(in),    optional :: lineType
+      type(ESMF_NormType_Flag),       intent(in),    optional :: normType
+      type(ESMF_ExtrapMethod_Flag),   intent(in),    optional :: extrapMethod
+      integer,                        intent(in),    optional :: extrapNumSrcPnts
+      real(ESMF_KIND_R4),             intent(in),    optional :: extrapDistExponent
+      type(ESMF_UnmappedAction_Flag), intent(in),    optional :: unmappedaction
+      logical,                        intent(in),    optional :: ignoreDegenerate
+      integer,                        intent(inout), optional :: srcTermProcessing
+      integer,                        intent(inout), optional :: pipeLineDepth
+      type(ESMF_RouteHandle),         intent(inout), optional :: routehandle
+      real(ESMF_KIND_R8),             pointer,       optional :: factorList(:)
+      integer(ESMF_KIND_I4),          pointer,       optional :: factorIndexList(:,:)
+      real(ESMF_KIND_R8),    pointer, optional :: weights(:)   ! DEPRECATED ARG
+      integer(ESMF_KIND_I4), pointer, optional :: indices(:,:) ! DEPRECATED ARG
+      type(ESMF_Field),               intent(inout), optional :: srcFracField
+      type(ESMF_Field),               intent(inout), optional :: dstFracField
+      type(ESMF_Field),               intent(inout), optional :: dstStatusField
+      integer(ESMF_KIND_I4),          pointer,       optional :: unmappedDstList(:)
+      integer,                        intent(out),   optional :: rc 
 !
 ! !STATUS:
 ! \begin{itemize}
@@ -324,8 +394,35 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 ! \begin{description}
 ! \item[5.2.0rp1] Added arguments {\tt factorList} and {\tt factorIndexList}.
 !                 Started to deprecate arguments {\tt weights} and {\tt indices}.
-!                 This corrects an inconsistency of this interface with all 
+!                 This corrects an inconsistency of this interface with all
 !                 other ESMF methods that take these same arguments.
+! \item[6.1.0] Added arguments {\tt ignoreDegenerate}, {\tt srcTermProcessing},
+!              {\tt pipelineDepth}, and {\tt unmappedDstList}.
+!              The argument {\tt ignoreDegenerate} allows the user to skip degenerate
+!              cells in the regridding instead of stopping with an error.
+!              The two arguments {\tt srcTermProcessing} and {\tt pipelineDepth}
+!              provide access to the tuning parameters affecting the sparse matrix
+!              execution. The argument {\tt unmappedDstList} allows the user to
+!              get a list of the destination items which the regridding couldn't
+!              map to a source.
+! \item[6.3.0r] Added argument {\tt lineType}. This argument allows the user to
+!               control the path of the line between two points on a sphere surface.
+!               This allows the user to use their preferred line path for the calculation
+!               of distances and the shape of cells during regrid weight calculation on
+!               a sphere.
+! \item[6.3.0rp1] Added argument {\tt normType}. This argument allows the user to
+!               control the type of normalization done during conservative weight generation.
+! \item[7.1.0r] Added argument {\tt dstStatusField}. This argument allows the user to
+!              receive information about what happened to each location in the destination
+!              Field during regridding.
+!
+!              Added arguments {\tt extrapMethod}, {\tt extrapNumSrcPnts}, and
+!              {\tt extrapDistExponent}. These three new extrapolation arguments allow the 
+!              user to extrapolate destination points not mapped by the regrid method. 
+!              {\tt extrapMethod} allows the user to choose the extrapolation method.
+!              {\tt extrapNumSrcPnts} and {\tt extrapDistExponent} are parameters that
+!              allow the user to tune the behavior of the {\tt ESMF\_EXTRAPMETHOD\_NEAREST\_IDAVG} 
+!              method.
 ! \end{description}
 ! \end{itemize}
 !
@@ -340,37 +437,144 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 !       \end{sloppypar}
 !       
 !       The routehandle generated by this call is based just on the 
-!       coordinates in the Grids contained in the Fields.  If those
+!       coordinates in the Grids or Meshes contained in the Fields.  If those
 !       coordinates don't change the routehandle can
 !       be used repeatedly to interpolate from the source Field to the 
 !       destination Field.  This is true even if the data in the Fields 
 !       changes. The routehandle may also be used to interpolate between any
-!       source and destination Field which are created on the same stagger 
-!       location and Grid as the original Fields.        
+!       source and destination Field which are created on the same location 
+!       in the same Grid, LocStream, or Mesh as the original Fields.        
 !
 !       When it's no longer needed the routehandle should be destroyed by 
 !       using {\tt ESMF\_FieldRegridRelease()} to free the memory it's using. 
-!       Note {\tt ESMF\_FieldRegridStore()} assumes the coordinates used in 
-!       the Grids upon which the Fields are built are in degrees.  
+!
+!       Note, as a side effect, that this call may change the data in {\tt dstField}. If
+!       this is undesirable, then an easy work around is to create a second temporary field
+!       with the same structure as {\tt dstField} and pass that in instead. 
 !
 !     The arguments are:
 !     \begin{description}
 !     \item [srcField]
 !           Source Field.
-!     \item [{[srcMaskValues]}]
-!           List of values that indicate a source point should be masked out. 
-!           If not specified, no masking will occur. 
 !     \item [dstField]
-!           Destination Field.
+!           Destination Field. The data in this Field may be overwritten by this call. 
+!     \item [{[srcMaskValues]}]
+!           Mask information can be set in the Grid (see~\ref{sec:usage:items}) or Mesh (see~\ref{sec:mesh:mask}) 
+!           upon which the {\tt srcField} is built. The {\tt srcMaskValues} argument specifies the values in that 
+!           mask information which indicate a source point should be masked out. In other words, a locati on is masked if and only if the
+!           value for that location in the mask information matches one of the values listed in {\tt srcMaskValues}.  
+!           If {\tt srcMaskValues} is not specified, no masking will occur. 
 !     \item [{[dstMaskValues]}]
-!           List of values that indicate a destination point should be masked out. 
-!           If not specified, no masking will occur.
+!           Mask information can be set in the Grid (see~\ref{sec:usage:items}) or Mesh (see~\ref{sec:mesh:mask}) 
+!           upon which the {\tt dstField} is built. The {\tt dstMaskValues} argument specifies the values in that 
+!           mask information which indicate a destination point should be masked out. In other words, a location is masked if and only if the
+!           value for that location in the mask information matches one of the values listed in {\tt dstMaskValues}.  
+!           If {\tt dstMaskValues} is not specified, no masking will occur. 
+!     \item [{[regridmethod]}]
+!           The type of interpolation. Please see Section~\ref{opt:regridmethod} 
+!           for a list of valid options. If not specified, defaults to 
+!           {\tt ESMF\_REGRIDMETHOD\_BILINEAR}.
+!     \item [{[polemethod]}]
+!           Specifies the type of pole
+!           to construct on the source Grid during regridding. Please see 
+!           Section~\ref{const:polemethod} for a list of
+!           valid options. If not specified, defaults to {\tt ESMF\_POLEMETHOD\_ALLAVG} for non-conservative regrid methods, 
+!           and {\tt ESMF\_POLEMETHOD\_NONE} for conservative methods.
+!     \item [{[regridPoleNPnts]}]
+!           If {\tt polemethod} is {\tt ESMF\_POLEMETHOD\_NPNTAVG},
+!           then this parameter indicates the number of points over which to average.
+!           If {\tt polemethod} is not {ESMF\_POLEMETHOD\_NPNTAVG} and {\tt regridPoleNPnts} is specified, 
+!           then it will be ignored.  
+!           This subroutine will return an error if {\tt polemethod} is {ESMF\_POLEMETHOD\_NPNTAVG} and 
+!           {\tt regridPoleNPnts} is not specified. 
+!     \item [{[lineType]}]
+!           This argument controls the path of the line which connects two points on a sphere surface. This in
+!           turn controls the path along which distances are calculated and the shape of the edges that make
+!           up a cell. Both of these quantities can influence how interpolation weights are calculated.
+!           As would be expected, this argument is only applicable when {\tt srcField} and {\tt dstField} are
+!           built on grids which lie on the surface of a sphere. Section~\ref{opt:lineType} shows a 
+!           list of valid options for this argument. If not specified, the default depends on the 
+!           regrid method. Section~\ref{opt:lineType} has the defaults by line type. Figure~\ref{line_type_support} shows
+!           which line types are supported for each regrid method as well as showing the default line type by regrid method.  
+!     \item [{[normType]}] 
+!           This argument controls the type of normalization used when generating conservative weights. This option
+!           only applies to weights generated with {\tt regridmethod=ESMF\_REGRIDMETHOD\_CONSERVE} or  {\tt regridmethod=ESMF\_REGRIDMETHOD\_CONSERVE\_2ND}
+!           Please see  Section~\ref{opt:normType} for a 
+!           list of valid options. If not specified {\tt normType} defaults to {\tt ESMF\_NORMTYPE\_DSTAREA}. 
+!     \item [{[extrapMethod]}]
+!           The type of extrapolation. Please see Section~\ref{opt:extrapmethod} 
+!           for a list of valid options. If not specified, defaults to 
+!           {\tt ESMF\_EXTRAPMETHOD\_NONE}.
+!     \item [{[extrapNumSrcPnts]}] 
+!           The number of source points to use for the extrapolation methods that use more than one source point 
+!           (e.g. {\tt ESMF\_EXTRAPMETHOD\_NEAREST\_IDAVG}). If not specified, defaults to 8.
+!     \item [{[extrapDistExponent]}] 
+!           The exponent to raise the distance to when calculating weights for 
+!           the {\tt ESMF\_EXTRAPMETHOD\_NEAREST\_IDAVG} extrapolation method. A higher value reduces the influence 
+!           of more distant points. If not specified, defaults to 2.0.
 !     \item [{[unmappedaction]}]
 !           Specifies what should happen if there are destination points that
-!           can't be mapped to a source cell. Options are 
-!           {\tt ESMF\_UNMAPPEDACTION\_ERROR} or 
-!           {\tt ESMF\_UNMAPPEDACTION\_IGNORE}. If not specified, defaults 
-!           to {\tt ESMF\_UNMAPPEDACTION\_ERROR}. 
+!           can't be mapped to a source cell. Please see Section~\ref{const:unmappedaction} for a 
+!           list of valid options. If not specified, {\tt unmappedaction} defaults to {\tt ESMF\_UNMAPPEDACTION\_ERROR}. 
+!     \item [{[ignoreDegenerate]}]
+!           Ignore degenerate cells when checking the input Grids or Meshes for errors. If this is set to true, then the 
+!           regridding proceeds, but degenerate cells will be skipped. If set to false, a degenerate cell produces an error. 
+!           If not specified, {\tt ignoreDegenerate} defaults to false.
+!     \item [{[srcTermProcessing]}]
+!           The {\tt srcTermProcessing} parameter controls how many source terms,
+!           located on the same PET and summing into the same destination element,
+!           are summed into partial sums on the source PET before being transferred
+!           to the destination PET. A value of 0 indicates that the entire arithmetic
+!           is done on the destination PET; source elements are neither multiplied 
+!           by their factors nor added into partial sums before being sent off by the
+!           source PET. A value of 1 indicates that source elements are multiplied
+!           by their factors on the source side before being sent to the destination
+!           PET. Larger values of {\tt srcTermProcessing} indicate the maximum number
+!           of terms in the partial sums on the source side.
+!
+!     Note that partial sums may lead to bit-for-bit differences in the results.
+!     See section \ref{RH:bfb} for an in-depth discussion of {\em all}
+!     bit-for-bit reproducibility aspects related to route-based communication
+!     methods.
+!
+!     \begin{sloppypar}
+!     The {\tt ESMF\_FieldRegridStore()} method implements an auto-tuning scheme
+!     for the {\tt srcTermProcessing} parameter. The intent on the 
+!     {\tt srcTermProcessing} argument is "{\tt inout}" in order to 
+!     support both overriding and accessing the auto-tuning parameter.
+!     If an argument $>= 0$ is specified, it is used for the 
+!     {\tt srcTermProcessing} parameter, and the auto-tuning phase is skipped.
+!     In this case the {\tt srcTermProcessing} argument is not modified on
+!     return. If the provided argument is $< 0$, the {\tt srcTermProcessing}
+!     parameter is determined internally using the auto-tuning scheme. In this
+!     case the {\tt srcTermProcessing} argument is re-set to the internally
+!     determined value on return. Auto-tuning is also used if the optional 
+!     {\tt srcTermProcessing} argument is omitted.
+!     \end{sloppypar}
+!     
+!   \item [{[pipelineDepth]}]
+!     The {\tt pipelineDepth} parameter controls how many messages a PET
+!     may have outstanding during a sparse matrix exchange. Larger values
+!     of {\tt pipelineDepth} typically lead to better performance. However,
+!     on some systems too large a value may lead to performance degradation,
+!     or runtime errors.
+!
+!     Note that the pipeline depth has no effect on the bit-for-bit
+!     reproducibility of the results. However, it may affect the performance
+!     reproducibility of the exchange.
+!
+!     The {\tt ESMF\_FieldRegridStore()} method implements an auto-tuning scheme
+!     for the {\tt pipelineDepth} parameter. The intent on the 
+!     {\tt pipelineDepth} argument is "{\tt inout}" in order to 
+!     support both overriding and accessing the auto-tuning parameter.
+!     If an argument $>= 0$ is specified, it is used for the 
+!     {\tt pipelineDepth} parameter, and the auto-tuning phase is skipped.
+!     In this case the {\tt pipelineDepth} argument is not modified on
+!     return. If the provided argument is $< 0$, the {\tt pipelineDepth}
+!     parameter is determined internally using the auto-tuning scheme. In this
+!     case the {\tt pipelineDepth} argument is re-set to the internally
+!     determined value on return. Auto-tuning is also used if the optional 
+  !     {\tt pipelineDepth} argument is omitted.
 !     \item [{[routehandle]}]
 !           The communication handle that implements the regrid operation and that can be used later in 
 !           the {\tt ESMF\_FieldRegrid()} call. The {\tt routehandle} is optional so that if the 
@@ -387,9 +591,9 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 !           The indices for a sparse matrix which interpolates from {\tt srcField} to 
 !           {\tt dstField}. This argument is a 2D array containing pairs of source and destination
 !           sequence indices corresponding to the coefficients in the {\tt factorList} argument. 
-!           The first dimension of {\tt factorIndexList} is of size 2. {\tt factorIndexList(1,:)} specifes 
-!           the sequence index of the source element in the {\tt srcField}. {\tt factorIndexList(2,:)} specifes 
-!           the sequence index of the destination element in the {\tt dstField}. The second dimension of 
+!           The first dimension of {\tt factorIndexList} is of size 2. {\tt factorIndexList(1,:)} specifies 
+!           the sequence index of the source element in the {\tt srcField}. {\tt factorIndexList(2,:)} specifies 
+!           the sequence index of the destination element in the {\tt dstField}. The se cond dimension of 
 !           {\tt factorIndexList} steps through the list of pairs, i.e. {\tt size(factorIndexList,2)==size(factorList)}.
 !           The array coming out of this variable is in the appropriate format to be used
 !           in other ESMF sparse matrix multiply calls, for example {\tt ESMF\_FieldSMMStore()}. 
@@ -400,28 +604,29 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 !           \apiDeprecatedArgWithReplacement{factorIndexList}
 !     \item [{[srcFracField]}] 
 !           The fraction of each source cell participating in the regridding. Only 
-!           valid when regridmethod is {\tt ESMF\_REGRIDMETHOD\_CONSERVE}.
+!           valid when regridmethod is {\tt ESMF\_REGRIDMETHOD\_CONSERVE} or  {\tt regridmethod=ESMF\_REGRIDMETHOD\_CONSERVE\_2ND}.
 !           This Field needs to be created on the same location (e.g staggerloc) 
 !           as the srcField.
 !     \item [{[dstFracField]}] 
 !           The fraction of each destination cell participating in the regridding. Only 
-!           valid when regridmethod is {\tt ESMF\_REGRIDMETHOD\_CONSERVE}.
+!           valid when regridmethod is {\tt ESMF\_REGRIDMETHOD\_CONSERVE} or  {\tt regridmethod=ESMF\_REGRIDMETHOD\_CONSERVE\_2ND}.
 !           This Field needs to be created on the same location (e.g staggerloc) 
-!           as the dstField.
-!     \item [{[regridmethod]}]
-!           The type of interpolation. Please see Section~\ref{opt:regridmethod} 
-!           for a list of valid options. If not specified, defaults to 
-!           {\tt ESMF\_REGRIDMETHOD\_BILINEAR}.
-!     \item [{[polemethod]}]
-!           Which type of artificial pole
-!           to construct on the source Grid for regridding. Please see 
-!           Section~\ref{const:polemethod} for a list of
-!           valid options. If not specified, defaults to {\tt ESMF\_POLEMETHOD\_ALLAVG}. 
-!     \item [{[regridPoleNPnts]}]
-!           If {\tt polemethod} is {\tt ESMF\_POLEMETHOD\_NPNTAVG}.
-!           This parameter indicates how many points should be averaged
-!           over. Must be specified if {\tt polemethod} is 
-!           {\tt ESMF\_POLEMETHOD\_NPNTAVG}.
+!           as the dstField. It is important to note that the current implementation
+!           of conservative regridding doesn't normalize the interpolation weights by the destination fraction. This   means that for a destination
+!           grid which only partially overlaps the source grid the destination field which is output from the 
+!           regrid operation should be divided by the corresponding destination fraction to yield the 
+!           true interpolated values for cells which are only partially covered by the  source grid. 
+!     \item [{[dstStatusField]}] 
+!           An ESMF Field which outputs a regrid status value for each destination location.
+!           Section~\ref{opt:regridstatus} indicates the meaning of each value. The Field needs to 
+!           be built on the same grid-location (e.g. staggerloc) in the same Grid, Mesh, or LocStream as the {\tt dstField} argument. 
+!           The Field also needs to be of typekind {\tt ESMF\_TYPEKIND\_I4}.  This option currently doesn't work with 
+!           the {\tt ESMF\_REGRIDMETHOD\_NEAREST\_DTOS} regrid method.
+!     \item [{[unmappedDstList]}] 
+!           The list of the sequence indices for locations in {\tt dstField} which couldn't be mapped the {\tt srcField}. 
+!           The list on each PET only contains the unmapped locations for the piece of the {\tt dstField} on that PET. 
+!           If a destination point is masked, it won't be put in this list. This option currently doesn't work with 
+!           the {\tt ESMF\_REGRIDMETHOD\_NEAREST\_DTOS} regrid method.
 !     \item [{[rc]}]
 !           Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
 !     \end{description}
@@ -437,22 +642,37 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
         type(ESMF_Array)     :: srcArray
         type(ESMF_Array)     :: dstArray
         type(ESMF_Array)     :: fracArray
-        type(ESMF_VM)        :: vm
-        type(ESMF_Mesh)      :: srcMesh
-        type(ESMF_Mesh)      :: dstMesh
+        type(ESMF_Mesh)      :: srcMesh, srcMeshDual
+        type(ESMF_Mesh)      :: dstMesh, tempMesh
         type(ESMF_MeshLoc)   :: srcMeshloc,dstMeshloc,fracMeshloc
         type(ESMF_StaggerLoc) :: srcStaggerLoc,dstStaggerLoc
         type(ESMF_StaggerLoc) :: srcStaggerLocG2M,dstStaggerLocG2M
         type(ESMF_StaggerLoc) :: fracStaggerLoc
-        integer              :: gridDimCount
+         integer              :: gridDimCount
         type(ESMF_PoleMethod_Flag):: localpolemethod
-        integer              :: localRegridPoleNPnts
+         integer              :: localRegridPoleNPnts
         logical              :: srcIsLatLonDeg, dstIsLatLonDeg
         integer              :: srcIsSphere, dstIsSphere
         type(ESMF_RegridConserve) :: regridConserveG2M
         real(ESMF_KIND_R8), pointer :: fracFptr(:)
         integer(ESMF_KIND_I4),       pointer :: tmp_indices(:,:)
         real(ESMF_KIND_R8),          pointer :: tmp_weights(:)
+        logical :: localIgnoreDegenerate
+        type(ESMF_LineType_Flag):: localLineType
+        type(ESMF_NormType_Flag):: localNormType
+        type(ESMF_ExtrapMethod_Flag):: localExtrapMethod
+        logical :: srcDual, src_pl_used, dst_pl_used
+        type(ESMF_PointList) :: dstPointList, srcPointList
+        type(ESMF_LocStream) :: dstLocStream, srcLocStream
+        logical :: hasStatusArray
+        type(ESMF_Array) :: statusArray
+        type(ESMF_TypeKind_Flag) :: typekind
+        integer :: tileCount
+        integer :: localExtrapNumSrcPnts
+        real(ESMF_KIND_R8) :: localExtrapDistExponent
+
+!        real(ESMF_KIND_R8) :: beg_time, end_time
+!        call ESMF_VMWtime(beg_time)
 
 
         ! Initialize return code; assume failure until success is certain
@@ -465,22 +685,26 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
                 "ESMF_FieldRegridStore() is DEPRECATED! Use argumemt 'factorIndexList' " // &
                 "instead.", ESMF_LOGMSG_WARNING, rc=localrc)
            if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
-                ESMF_CONTEXT, rcToReturn=rc)) return
+             ESMF_CONTEXT, rcToReturn=rc)) return
         endif
 
         if (present(weights)) then
            call ESMF_LogWrite("The use of argument 'weights' in call " // &
-                "ESMF_FieldRegridStore() is DEPRECATED! Use argumemt 'factorList' " // &
+                "ESMF_FieldRegridStore() is DEPRECATED! Use argumemt 'factorList' " //  &
                 "instead.", ESMF_LOGMSG_WARNING, rc=localrc)
            if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
-                ESMF_CONTEXT, rcToReturn=rc)) return
+             ESMF_CONTEXT, rcToReturn=rc)) return
         endif
 
-
-        ! global vm for now
-        call ESMF_VMGetGlobal(vm, rc=localrc)
-        if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
-          ESMF_CONTEXT, rcToReturn=rc)) return
+        ! process status field argument
+        hasStatusArray=.false.
+        if (present(dstStatusField)) then
+           call ESMF_FieldGet(dstStatusField, array=statusArray, rc=localrc) 
+           if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+             ESMF_CONTEXT, rcToReturn=rc)) return
+ 
+           hasStatusArray=.true.
+        endif
 
         ! Now we go through the painful process of extracting the data members
         ! that we need.
@@ -490,7 +714,7 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
         if (srcgeomtype .eq. ESMF_GEOMTYPE_XGRID) then
             call ESMF_LogSetError(rcToCheck=ESMF_RC_ARG_BAD, & 
               msg="- RegridStore on XGrid is not supported in this overloaded method", & 
-                 ESMF_CONTEXT, rcToReturn=rc) 
+              ESMF_CONTEXT, rcToReturn=rc) 
             return
         endif
                 
@@ -500,11 +724,30 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
           ESMF_CONTEXT, rcToReturn=rc)) return
         if (dstgeomtype .eq. ESMF_GEOMTYPE_XGRID) then
             call ESMF_LogSetError(rcToCheck=ESMF_RC_ARG_BAD, & 
-              msg="- RegridStore on XGrid is not supported in this overloaded method", & 
-                 ESMF_CONTEXT, rcToReturn=rc) 
+              msg="- RegridStore on XGrid is not supported in this overloaded method",  & 
+              ESMF_CONTEXT, rcToReturn=rc) 
             return
         endif
 
+
+        ! Error check dstStatusField
+        if (present(dstStatusField)) then
+           call ESMF_FieldGet(dstStatusField, typekind=typekind, rc=localrc)
+           if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+                ESMF_CONTEXT, rcToReturn=rc)) return
+           if (typekind .ne. ESMF_TYPEKIND_I4) then
+              call ESMF_LogSetError(rcToCheck=ESMF_RC_ARG_BAD, & 
+                   msg=" dstStatusField must have typekind = ESMF_TYPEKIND_I4.",  & 
+                   ESMF_CONTEXT, rcToReturn=rc) 
+              return
+           endif
+        endif
+
+
+        ! Init variables
+         srcDual=.false.
+        src_pl_used=.false.
+        dst_pl_used=.false.
 
         ! Set this for now just to not have to remove it everywhere
         ! TODO get rid of it. 
@@ -518,15 +761,49 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
            lregridmethod=ESMF_REGRIDMETHOD_BILINEAR
         endif
 
+        ! Handle optional extrap method argument
+        if (present(extrapMethod)) then
+           localExtrapMethod=extrapMethod
+        else     
+           localExtrapMethod=ESMF_EXTRAPMETHOD_NONE
+        endif
+
+
+        ! Handle optional extrapDistExponent
+        if (present(extrapDistExponent)) then
+           localExtrapDistExponent=REAL(extrapDistExponent,ESMF_KIND_R8)
+        else     
+           localExtrapDistExponent=2.0_ESMF_KIND_R8
+        endif
+
+        ! TODO: If lineType is present then do error checking here
+
+        ! Handle optional lineType argument
+        if (present(lineType)) then
+           localLineType=lineType
+        else     
+           localLineType=ESMF_LINETYPE_CART
+        endif
+
+         ! Handle optional normType argument
+        if (present(normType)) then
+           localNormType=normType
+        else     
+           localNormType=ESMF_NORMTYPE_DSTAREA
+        endif
+
 
        ! Handle pole method
-        if (lregridmethod .eq. ESMF_REGRIDMETHOD_CONSERVE) then
+        if ((lregridmethod .eq. ESMF_REGRIDMETHOD_CONSERVE) .or. &
+             (lregridmethod .eq. ESMF_REGRIDMETHOD_CONSERVE_2ND)) then
            if (present(polemethod)) then
               if (polemethod .ne. ESMF_POLEMETHOD_NONE) then
                  call ESMF_LogSetError(rcToCheck=ESMF_RC_ARG_BAD, & 
-                      msg="- Only ESMF_POLEMETHOD_NONE polemethod supported for ESMF_REGRIDMETHOD_CONSERVE", & 
-                      ESMF_CONTEXT, rcToReturn=rc) 
+                   msg="- Only ESMF_POLEMETHOD_NONE polemethod supported for conservative regrid methods", & 
+                   ESMF_CONTEXT, rcToReturn=rc) 
                  return
+              else
+                 localpolemethod = polemethod
               endif
            else    
               localpolemethod=ESMF_POLEMETHOD_NONE
@@ -538,17 +815,24 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
               localpolemethod=ESMF_POLEMETHOD_ALLAVG
            endif
         endif
+
+        ! Handle default for extrapNumSrcPnts
+        if (present(extrapNumSrcPnts)) then
+           localExtrapNumSrcPnts=extrapNumSrcPnts
+        else 
+           localExtrapNumSrcPnts=8
+        endif
         
         if (localpolemethod .eq. ESMF_POLEMETHOD_NPNTAVG) then
            if (.not. present(regridPoleNPnts)) then
                        call ESMF_LogSetError(rcToCheck=ESMF_RC_ARG_BAD, & 
               msg="- RegridPoleNPnts must be specified if polemethod is ESMF_POLEMETHOD_NPNTAVG", & 
-                 ESMF_CONTEXT, rcToReturn=rc) 
+              ESMF_CONTEXT, rcToReturn=rc) 
             return
            else 
              if (regridPoleNPnts < 1) then
                call ESMF_LogSetError(rcToCheck=ESMF_RC_ARG_BAD, & 
-              msg="- RegridPoleNPnts must be >=1 ", & 
+                 msg="- RegridPoleNPnts must be >=1 ", & 
                  ESMF_CONTEXT, rcToReturn=rc) 
             return
             endif
@@ -561,6 +845,13 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
         else     
            localRegridPoleNPnts=1
         endif
+
+        ! Set subject to the defaults error checked above
+        localIgnoreDegenerate=.false.
+        if (present(ignoreDegenerate)) then
+           localIgnoreDegenerate=ignoreDegenerate
+        endif
+
 
         ! Set interpretation of grid based on regridScheme
         if (lregridScheme .eq. ESMF_REGRID_SCHEME_FULL3D) then
@@ -581,7 +872,7 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
         else if (lregridScheme .eq. ESMF_REGRID_SCHEME_REGION3D) then
            srcIsSphere = 0
            srcIsLatLonDeg=.true.
-           dstIsSphere = 0
+            dstIsSphere = 0
            dstIsLatLonDeg=.true.
         else if (lregridScheme .eq. ESMF_REGRID_SCHEME_DCON3D) then
            srcIsSphere = 0
@@ -601,7 +892,8 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
         endif
 
         ! Set conserve flag for GridToMesh
-        if (lregridmethod .eq. ESMF_REGRIDMETHOD_CONSERVE) then
+        if ((lregridmethod .eq. ESMF_REGRIDMETHOD_CONSERVE) .or. &
+             (lregridmethod .eq. ESMF_REGRIDMETHOD_CONSERVE_2ND)) then
            regridConserveG2M=ESMF_REGRID_CONSERVE_ON
         else
            regridConserveG2M=ESMF_REGRID_CONSERVE_OFF
@@ -615,71 +907,204 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
           if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
             ESMF_CONTEXT, rcToReturn=rc)) return
 
-	  ! if we're doing conservative then do some checking and
+          ! if we're doing conservative then do some checking and
           ! change staggerloc
-          if (lregridmethod .eq. ESMF_REGRIDMETHOD_CONSERVE) then
+        if ((lregridmethod .eq. ESMF_REGRIDMETHOD_CONSERVE) .or. &
+             (lregridmethod .eq. ESMF_REGRIDMETHOD_CONSERVE_2ND)) then
             ! Only Center stagger is supported right now until we figure out what the
             ! control volume for the others should be
-	    if (srcStaggerloc .ne. ESMF_STAGGERLOC_CENTER) then
+            if (srcStaggerloc .ne. ESMF_STAGGERLOC_CENTER) then
                  call ESMF_LogSetError(rcToCheck=ESMF_RC_ARG_BAD, & 
               msg="- can't currently do conservative regrid on a stagger other then center", & 
-                 ESMF_CONTEXT, rcToReturn=rc) 
-              return
-            endif
-
-            ! Can only do conservative on 2D right now
-            call ESMF_GridGet(grid=srcGrid, &
-                   dimCount=gridDimCount, rc=localrc)
-            if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
-                ESMF_CONTEXT, rcToReturn=rc)) return
-            if (gridDimCount .ne. 2) then
-                 call ESMF_LogSetError(rcToCheck=ESMF_RC_ARG_BAD, & 
-                 msg="- can currently only do conservative regridding on 2D grids", & 
-                 ESMF_CONTEXT, rcToReturn=rc) 
+              ESMF_CONTEXT, rcToReturn=rc) 
               return
             endif
 
             ! Create the mesh from corner stagger to better represent the
-            ! control volumes (the following simple assign only works because
-            ! we only support 2D right now)
-	    srcStaggerlocG2M=ESMF_STAGGERLOC_CORNER
+            ! control volumes
+            call ESMF_GridGet(grid=srcGrid, &
+                   dimCount=gridDimCount, tileCount=tileCount, rc=localrc)
+            if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+                ESMF_CONTEXT, rcToReturn=rc)) return
+            if (gridDimCount .eq. 2) then
+               srcStaggerlocG2M=ESMF_STAGGERLOC_CORNER
+            else if (gridDimCount .eq. 3) then
+               srcStaggerlocG2M=ESMF_STAGGERLOC_CORNER_VFACE
+            else
+                 call ESMF_LogSetError(rcToCheck=ESMF_RC_ARG_BAD, & 
+                 msg="- can currently only do conservative regridding on 2D or 3D grids", & 
+                 ESMF_CONTEXT, rcToReturn=rc) 
+              return
+            endif
           else 
             ! If we're not conservative, then use the staggerloc that the field is built upon
-	    srcStaggerlocG2M=srcStaggerloc
+            srcStaggerlocG2M=srcStaggerloc
           endif
 
-          ! check grid
-          call checkGrid(srcGrid,srcStaggerlocG2M,rc=localrc)
-          if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
-          ESMF_CONTEXT, rcToReturn=rc)) return
 
-          ! Convert Grid to Mesh
-          srcMesh = ESMF_GridToMesh(srcGrid, srcStaggerLocG2M, srcIsSphere, srcIsLatLonDeg, &
-                      maskValues=srcMaskValues, regridConserve=regridConserveG2M, rc=localrc)
-          if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
-            ESMF_CONTEXT, rcToReturn=rc)) return
+          if (lregridmethod .eq. ESMF_REGRIDMETHOD_NEAREST_STOD .or. &
+              lregridmethod .eq. ESMF_REGRIDMETHOD_NEAREST_DTOS) then
 
-        else
-          call ESMF_FieldGet(srcField, mesh=srcMesh, meshloc=srcMeshloc, rc=localrc)
+            ! check grid
+            call checkGridLite(srcGrid,srcStaggerlocG2M,rc=localrc)
+            if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+              ESMF_CONTEXT, rcToReturn=rc)) return
+
+            srcPointList=ESMF_PointListCreate(srcGrid,srcStaggerlocG2M, &
+                                              maskValues=srcMaskValues, &
+                                              rc=localrc)
+            if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+              ESMF_CONTEXT, rcToReturn=rc)) return
+            src_pl_used=.true.
+
+  else if ((lregridmethod .eq. ESMF_REGRIDMETHOD_CONSERVE) .or. &
+       (lregridmethod .eq. ESMF_REGRIDMETHOD_CONSERVE_2ND)) then
+
+            ! check grid
+            call checkGrid(srcGrid,srcStaggerlocG2M,rc=localrc)
+            if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+              ESMF_CONTEXT, rcToReturn=rc)) return
+
+            ! Convert Grid to Mesh
+            if (tileCount .eq. 1) then
+               srcMesh = ESMF_GridToMesh(srcGrid, srcStaggerLocG2M, srcIsSphere, srcIsLatLonDeg, &
+                    maskValues=srcMaskValues, regridConserve=regridConserveG2M, rc=localrc)
+               if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+                    ESMF_CONTEXT, rcToReturn=rc)) return
+            else 
+               srcMesh = ESMF_GridToMeshCell(srcGrid, rc=localrc)
+               if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+                    ESMF_CONTEXT, rcToReturn=rc)) return
+
+               ! Turn on masking
+               if (present(srcMaskValues)) then
+                  call ESMF_MeshTurnOnCellMask(srcMesh, maskValues=srcMaskValues, rc=localrc);
+                  if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+                       ESMF_CONTEXT, rcToReturn=rc)) return
+               endif
+            endif
+          else 
+
+            ! check grid
+            call checkGrid(srcGrid,srcStaggerlocG2M,rc=localrc)
+            if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+              ESMF_CONTEXT, rcToReturn=rc)) return
+
+            ! Convert Grid to Mesh
+            srcMesh = ESMF_GridToMesh(srcGrid, srcStaggerLocG2M, srcIsSphere, srcIsLatLonDeg, &
+                        maskValues=srcMaskValues, regridConserve=regridConserveG2M, rc=localrc)
+            if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+              ESMF_CONTEXT, rcToReturn=rc)) return
+          endif
+
+        else if (srcgeomtype .eq. ESMF_GEOMTYPE_MESH) then
+
+          call ESMF_FieldGet(srcField, mesh=tempMesh, meshloc=srcMeshloc, rc=localrc)
           if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
             ESMF_CONTEXT, rcToReturn=rc)) return
 
           ! Mesh needs to be built on elements for conservative, and nodes for the others
-          if ((lregridmethod .eq. ESMF_REGRIDMETHOD_CONSERVE)) then
-              if (srcMeshloc .ne. ESMF_MESHLOC_ELEMENT) then
-                 call ESMF_LogSetError(rcToCheck=ESMF_RC_ARG_BAD, & 
-                 msg="- can currently only do conservative regridding on a mesh built on elements", & 
-                 ESMF_CONTEXT, rcToReturn=rc) 
-                 return	  
-              endif
+          if ((lregridmethod .eq. ESMF_REGRIDMETHOD_CONSERVE) .or. &
+               (lregridmethod .eq. ESMF_REGRIDMETHOD_CONSERVE_2ND)) then
+             if (srcMeshloc .ne. ESMF_MESHLOC_ELEMENT) then
+                call ESMF_LogSetError(rcToCheck=ESMF_RC_ARG_BAD, & 
+                  msg="- can currently only do conservative regridding on a mesh built on elements", & 
+                  ESMF_CONTEXT, rcToReturn=rc) 
+                return  
+             endif
+
+             ! Turn on masking
+             if (present(srcMaskValues)) then
+                call ESMF_MeshTurnOnCellMask(tempMesh, maskValues=srcMaskValues, rc=localrc);
+                if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+                  ESMF_CONTEXT, rcToReturn=rc)) return
+             endif
+             srcMesh=tempMesh
+
+
+          else if (lregridmethod .eq. ESMF_REGRIDMETHOD_BILINEAR .or. &
+                   lregridmethod .eq. ESMF_REGRIDMETHOD_PATCH) then
+               
+             if (srcMeshloc .ne. ESMF_MESHLOC_NODE) then
+                if (srcMeshloc .eq. ESMF_MESHLOC_ELEMENT) then
+                   ! Create a dual of the Mesh
+                   srcMeshDual=ESMF_MeshCreateDual(tempMesh, rc=localrc)
+                   if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+                     ESMF_CONTEXT, rcToReturn=rc)) return
+                   
+                   ! Use the dual as the srcMesh
+                   tempMesh=srcMeshDual
+                   
+                   ! Record that we created the dual
+                   srcDual=.true.
+                else
+                   call ESMF_LogSetError(rcToCheck=ESMF_RC_ARG_BAD, & 
+                    msg="- S can currently only do non-conservative  on a mesh built on nodes or elements", & 
+                    ESMF_CONTEXT, rcToReturn=rc) 
+                   return  
+                endif
+             endif
+
+             ! Turn on masking
+             if (present(srcMaskValues)) then
+                call ESMF_MeshTurnOnNodeMask(tempMesh, maskValues=srcMaskValues, rc=localrc);
+                if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+                  ESMF_CONTEXT, rcToReturn=rc)) return
+             endif
+             srcMesh=tempMesh
           else
-              if (srcMeshloc .ne. ESMF_MESHLOC_NODE) then
-                 call ESMF_LogSetError(rcToCheck=ESMF_RC_ARG_BAD, & 
-                 msg="- S can currently only do bilinear or patch regridding on a mesh built on nodes", & 
-                 ESMF_CONTEXT, rcToReturn=rc) 
-                 return	  
-              endif
-          endif	  
+
+             if (srcMeshloc .ne. ESMF_MESHLOC_NODE) then
+               if (srcMeshloc .ne. ESMF_MESHLOC_ELEMENT) then
+                 call ESMF_LogSetError(rcToCheck=ESMF_RC_ARG_BAD, &
+                 msg="- D can currently only do non-conservative  on a mesh built on nodes or elements", &
+                 ESMF_CONTEXT, rcToReturn=rc)
+                 return
+               endif
+             endif
+
+             srcPointList=ESMF_PointListCreate(tempMesh, srcMeshloc, &
+                                               maskValues=srcMaskValues, &
+                                               rc=localrc)
+             if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+               ESMF_CONTEXT, rcToReturn=rc)) return
+             src_pl_used=.true.
+
+
+          endif
+        else if (srcgeomtype .eq. ESMF_GEOMTYPE_LOCSTREAM) then
+
+          if (lregridmethod .eq. ESMF_REGRIDMETHOD_BILINEAR .or. &
+              lregridmethod .eq. ESMF_REGRIDMETHOD_PATCH    .or. &
+              lregridmethod .eq. ESMF_REGRIDMETHOD_CONSERVE .or. &
+              lregridmethod .eq. ESMF_REGRIDMETHOD_CONSERVE_2ND) then
+            call ESMF_LogSetError(rcToCheck=ESMF_RC_ARG_BAD, & 
+               msg="- only nearest neighbor regridding allowed when using location stream as source", & 
+               ESMF_CONTEXT, rcToReturn=rc) 
+            return  
+          endif
+
+          !extract locstream from srcField, then pass into pointlistcreate
+          call ESMF_FieldGet(srcField, locStream=srcLocStream, rc=localrc)
+          if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+            ESMF_CONTEXT, rcToReturn=rc)) return
+
+
+          srcPointList=ESMF_PointListCreate(srcLocStream, &
+                                            maskValues=srcMaskValues, &
+                                            rc=localrc)
+
+          if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+            ESMF_CONTEXT, rcToReturn=rc)) return
+          src_pl_used=.true.
+
+
+        else
+          call ESMF_LogSetError(rcToCheck=ESMF_RC_ARG_WRONG, &
+            msg="source GEOMTYPE not supported, must be GRID,MESH or LOCSTREAM", &
+            ESMF_CONTEXT, rcToReturn=rc)
+          return
+
         endif
 
         if (dstgeomtype .eq. ESMF_GEOMTYPE_GRID) then
@@ -688,87 +1113,183 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
           if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
             ESMF_CONTEXT, rcToReturn=rc)) return
 
-	  ! if we're doing conservative then do some checking and
+          ! if we're doing conservative then do some checking and
           ! change staggerloc
-          if (lregridmethod .eq. ESMF_REGRIDMETHOD_CONSERVE) then
+          if ((lregridmethod .eq. ESMF_REGRIDMETHOD_CONSERVE) .or. &
+               (lregridmethod .eq. ESMF_REGRIDMETHOD_CONSERVE_2ND)) then
             ! Only Center stagger is supported right now until we figure out what the
             ! control volume for the others should be
-	    if (dstStaggerloc .ne. ESMF_STAGGERLOC_CENTER) then
+            if (dstStaggerloc .ne. ESMF_STAGGERLOC_CENTER) then
                  call ESMF_LogSetError(rcToCheck=ESMF_RC_ARG_BAD, & 
               msg="- can't currently do conservative regrid on a stagger other then center", & 
-                 ESMF_CONTEXT, rcToReturn=rc) 
-              return
-            endif
-
-            ! Can only do conservative on 2D right now
-            call ESMF_GridGet(grid=dstGrid, &
-                   dimCount=gridDimCount, rc=localrc)
-            if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
-                ESMF_CONTEXT, rcToReturn=rc)) return
-            if (gridDimCount .ne. 2) then
-                 call ESMF_LogSetError(rcToCheck=ESMF_RC_ARG_BAD, & 
-                 msg="- can currently only do conservative regridding on 2D grids", & 
-                 ESMF_CONTEXT, rcToReturn=rc) 
+              ESMF_CONTEXT, rcToReturn=rc) 
               return
             endif
 
             ! Create the mesh from corner stagger to better represent the
-            ! control volumes (the following simple assign only works because
-            ! we only support 2D right now)
-	    dstStaggerlocG2M=ESMF_STAGGERLOC_CORNER
+            ! control volumes 
+            call ESMF_GridGet(grid=dstGrid, &
+                   dimCount=gridDimCount, tileCount=tileCount, &
+                   rc=localrc)
+            if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+              ESMF_CONTEXT, rcToReturn=rc)) return
+            if (gridDimCount .eq. 2) then
+               dstStaggerlocG2M=ESMF_STAGGERLOC_CORNER
+            else if (gridDimCount .eq. 3) then
+               dstStaggerlocG2M=ESMF_STAGGERLOC_CORNER_VFACE
+            else
+               call ESMF_LogSetError(rcToCheck=ESMF_RC_ARG_BAD, & 
+               msg="- can currently only do conservative regridding on 2D or 3D grids", & 
+               ESMF_CONTEXT, rcToReturn=rc) 
+               return
+            endif
+
+            ! check grid
+            call checkGrid(dstGrid,dstStaggerlocG2M,rc=localrc)
+            if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+              ESMF_CONTEXT, rcToReturn=rc)) return
+
+          
+            ! Convert Grid to Mesh
+            if (tileCount .eq. 1) then
+               dstMesh = ESMF_GridToMesh(dstGrid, dstStaggerLocG2M, dstIsSphere, dstIsLatLonDeg, &
+                    maskValues=dstMaskValues, regridConserve=regridConserveG2M, rc=localrc)
+               if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+                    ESMF_CONTEXT, rcToReturn=rc)) return
+            else 
+               dstMesh = ESMF_GridToMeshCell(dstGrid, rc=localrc)
+               if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+                    ESMF_CONTEXT, rcToReturn=rc)) return
+
+               ! Turn on masking
+               if (present(dstMaskValues)) then
+                  call ESMF_MeshTurnOnCellMask(dstMesh, maskValues=dstMaskValues, rc=localrc);
+                  if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+                       ESMF_CONTEXT, rcToReturn=rc)) return
+               endif
+            endif
           else 
             ! If we're not conservative, then use the staggerloc that the field is built upon
-	    dstStaggerlocG2M=dstStaggerloc
+            dstStaggerlocG2M=dstStaggerloc
+
+            ! check grid
+            call checkGridLite(dstGrid,dstStaggerlocG2M,rc=localrc)
+            if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+              ESMF_CONTEXT, rcToReturn=rc)) return
+
+            dstPointList=ESMF_PointListCreate(dstGrid,dstStaggerlocG2M, &
+                                              maskValues=dstMaskValues, &
+                                              rc=localrc)
+            if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+              ESMF_CONTEXT, rcToReturn=rc)) return
+            dst_pl_used=.true.
           endif
 
-          ! check grid
-          call checkGrid(dstGrid,dstStaggerlocG2M,rc=localrc)
-          if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
-          ESMF_CONTEXT, rcToReturn=rc)) return
 
-          ! Convert Grid to Mesh
-          dstMesh = ESMF_GridToMesh(dstGrid, dstStaggerLocG2M, dstIsSphere, dstIsLatLonDeg, &
-                      maskValues=dstMaskValues, regridConserve=regridConserveG2M, rc=localrc)
-          if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
-            ESMF_CONTEXT, rcToReturn=rc)) return
-        else
-          call ESMF_FieldGet(dstField, mesh=dstMesh, meshloc=dstMeshloc, rc=localrc)
+
+        else if (dstgeomtype .eq. ESMF_GEOMTYPE_MESH) then
+
+          call ESMF_FieldGet(dstField, mesh=tempMesh, meshloc=dstMeshloc, rc=localrc)
           if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
             ESMF_CONTEXT, rcToReturn=rc)) return
 
           ! Mesh needs to be built on elements for conservative, and nodes for the others
-          if ((lregridmethod .eq. ESMF_REGRIDMETHOD_CONSERVE)) then
+          if ((lregridmethod .eq. ESMF_REGRIDMETHOD_CONSERVE) .or. &
+               (lregridmethod .eq. ESMF_REGRIDMETHOD_CONSERVE_2ND)) then
               if (dstMeshloc .ne. ESMF_MESHLOC_ELEMENT) then
                  call ESMF_LogSetError(rcToCheck=ESMF_RC_ARG_BAD, & 
                  msg="- can currently only do conservative regridding on a mesh built on elements", & 
                  ESMF_CONTEXT, rcToReturn=rc) 
-                return	  
+                return 
               endif
+
+              ! Turn on masking
+              if (present(dstMaskValues)) then
+                call ESMF_MeshTurnOnCellMask(tempMesh, maskValues=dstMaskValues, rc=localrc);
+                if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+                  ESMF_CONTEXT, rcToReturn=rc)) return
+              endif
+              dstMesh=tempMesh
+
           else
-              if (dstMeshloc .ne. ESMF_MESHLOC_NODE) then
-                 call ESMF_LogSetError(rcToCheck=ESMF_RC_ARG_BAD, & 
-                 msg="- can currently only do bilinear or patch regridding on a mesh built on nodes", & 
-                 ESMF_CONTEXT, rcToReturn=rc) 
-                return	  
-              endif
-          endif	  
+             if (dstMeshloc .ne. ESMF_MESHLOC_NODE) then
+                if (dstMeshloc .ne. ESMF_MESHLOC_ELEMENT) then
+                   call ESMF_LogSetError(rcToCheck=ESMF_RC_ARG_BAD, & 
+                   msg="- D can currently only do non-conservative  on a mesh built on nodes or elements", & 
+                   ESMF_CONTEXT, rcToReturn=rc) 
+                   return  
+                endif
+             endif
+
+             dstPointList=ESMF_PointListCreate(tempMesh, dstMeshloc, &
+                                               maskValues=dstMaskValues, &
+                                               rc=localrc)
+             if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+               ESMF_CONTEXT, rcToReturn=rc)) return
+             dst_pl_used=.true.
+
+          endif
+          
+        else if (dstgeomtype .eq. ESMF_GEOMTYPE_LOCSTREAM) then
+
+           if ((lregridmethod .eq. ESMF_REGRIDMETHOD_CONSERVE) .or. &
+                (lregridmethod .eq. ESMF_REGRIDMETHOD_CONSERVE_2ND)) then
+              call ESMF_LogSetError(rcToCheck=ESMF_RC_ARG_BAD, & 
+                   msg="- conservative regridding not allowed with location stream as destination", & 
+                   ESMF_CONTEXT, rcToReturn=rc) 
+              return  
+           endif
+
+          !extract locstream from dstField, then pass into pointlistcreate
+          call ESMF_FieldGet(dstField, locStream=dstLocStream, rc=localrc)
+          if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+            ESMF_CONTEXT, rcToReturn=rc)) return
+
+          dstPointList=ESMF_PointListCreate(dstLocStream, &
+                                            maskValues=dstMaskValues, &
+                                            rc=localrc)
+          if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+            ESMF_CONTEXT, rcToReturn=rc)) return
+          dst_pl_used=.true.
+
+        else
+          call ESMF_LogSetError(rcToCheck=ESMF_RC_ARG_WRONG, &
+            msg="destination GEOMTYPE not supported, must be GRID,MESH or LOCSTREAM", &
+            ESMF_CONTEXT, rcToReturn=rc)
+          return
+
         endif
 
-        ! At this point, we have the meshes, so we are ready to call
-        ! the 'mesh only' interface of the regrid.
+        ! At this point, we have the meshes or pointlists, so we are ready to call
+        ! the interface of the regrid.
 
         ! call into the Regrid mesh interface
         if (present(weights) .or. present(factorList) .or. &
-             present(indices) .or. present(factorIndexList)) then
-           call ESMF_RegridStore(srcMesh, srcArray, dstMesh, dstArray, &
-                lregridmethod, &
-                localpolemethod, localRegridPoleNPnts, &
-                lregridScheme, &
-                unmappedaction, routehandle, &
-                tmp_indices, tmp_weights, localrc)
+            present(indices) .or. present(factorIndexList)) then
+
+            call ESMF_RegridStore(srcMesh, srcArray, srcPointList, src_pl_used, &
+                                  dstMesh, dstArray, dstPointList, dst_pl_used, &
+                                  lregridmethod, &
+                                  localLineType, &
+                                  localNormType, &
+                                  localpolemethod, localRegridPoleNPnts, &
+                                  lregridScheme, &
+                                  hasStatusArray, statusArray, &
+                                  localExtrapMethod, &
+                                  localExtrapNumSrcPnts, &
+                                  localExtrapDistExponent, &
+                                  unmappedaction, &
+                                  localIgnoreDegenerate, &
+                                  srcTermProcessing, &
+                                  pipeLineDepth, &
+                                  routehandle, &
+                                  tmp_indices, tmp_weights, &
+                                  unmappedDstList, &
+                                  localrc)
+
            if (ESMF_LogFoundError(localrc, &
-                ESMF_ERR_PASSTHRU, &
-                ESMF_CONTEXT, rcToReturn=rc)) return
+             ESMF_ERR_PASSTHRU, &
+             ESMF_CONTEXT, rcToReturn=rc)) return
 
            ! attach sparse matrix to appropriate output variable
            if (present(weights)) weights=>tmp_weights
@@ -780,32 +1301,58 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
            if (.not. (present(weights) .or. present(factorList))) deallocate(tmp_weights)
            if (.not. (present(indices) .or. present(factorIndexList))) deallocate(tmp_indices)
         else
-           call ESMF_RegridStore(srcMesh, srcArray, dstMesh, dstArray, &
-                lregridmethod, &
-                localpolemethod, localRegridPoleNPnts, &
-                lregridScheme, &
-                unmappedaction, routehandle, &
-                rc=localrc)
+
+            call ESMF_RegridStore(srcMesh, srcArray, srcPointList, src_pl_used, &
+                                  dstMesh, dstArray, dstPointList, dst_pl_used, &
+                                  lregridmethod, &
+                                  localLineType, &
+                                  localNormType, &
+                                  localpolemethod, localRegridPoleNPnts, &
+                                  lregridScheme, &
+                                  hasStatusArray, statusArray, &
+                                  localExtrapMethod, &
+                                  localExtrapNumSrcPnts, &
+                                  localExtrapDistExponent, &
+                                  unmappedaction, &
+                                  localIgnoreDegenerate, &
+                                  srcTermProcessing, &
+                                  pipeLineDepth, &
+                                  routehandle, &
+                                  unmappedDstList=unmappedDstList, &
+                                  rc=localrc)
+
            if (ESMF_LogFoundError(localrc, &
-                ESMF_ERR_PASSTHRU, &
-                ESMF_CONTEXT, rcToReturn=rc)) return
+             ESMF_ERR_PASSTHRU, &
+             ESMF_CONTEXT, rcToReturn=rc)) return
+        endif
+
+        if (dst_pl_used) then
+          call ESMF_PointListDestroy(dstPointList,rc=localrc)
+          if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+            ESMF_CONTEXT, rcToReturn=rc)) return
+        endif
+        if (src_pl_used) then
+          call ESMF_PointListDestroy(srcPointList,rc=localrc)
+          if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+            ESMF_CONTEXT, rcToReturn=rc)) return
         endif
 
 
         ! Get Fraction info
-        if (lregridmethod .eq. ESMF_REGRIDMETHOD_CONSERVE) then
+        if ((lregridmethod .eq. ESMF_REGRIDMETHOD_CONSERVE) .or. &
+             (lregridmethod .eq. ESMF_REGRIDMETHOD_CONSERVE_2ND)) then
            if (present(srcFracField)) then
               if (srcgeomtype .eq. ESMF_GEOMTYPE_GRID) then
                  call ESMF_FieldGet(srcFracField, array=fracArray, staggerloc=fracStaggerloc, &
                       rc=localrc)
                  if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, & 
-                      ESMF_CONTEXT, rcToReturn=rc)) return
+                   ESMF_CONTEXT, rcToReturn=rc)) return
 
                  ! Make sure the staggerlocs match
                  if (srcStaggerloc .ne. fracStaggerloc) then
                     call ESMF_LogSetError(rcToCheck=ESMF_RC_ARG_BAD, &
-                         msg="- srcFracField staggerloc must match srcField staggerloc", &
-                         ESMF_CONTEXT, rcToReturn=rc)
+                      msg="- srcFracField staggerloc must match srcField staggerloc", &
+                      ESMF_CONTEXT, rcToReturn=rc)
                     return
                  endif
 
@@ -813,31 +1360,31 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
                  call ESMF_RegridGetFrac(srcGrid, mesh=srcMesh, array=fracArray, &
                       staggerloc=srcStaggerLocG2M, rc=localrc)
                  if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, & 
-                      ESMF_CONTEXT, rcToReturn=rc)) return
+                   ESMF_CONTEXT, rcToReturn=rc)) return
               else if (srcgeomtype .eq. ESMF_GEOMTYPE_MESH) then
                  call ESMF_FieldGet(srcFracField, meshloc=fracMeshloc, &
                       rc=localrc)
                  if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, & 
-                      ESMF_CONTEXT, rcToReturn=rc)) return
+                   ESMF_CONTEXT, rcToReturn=rc)) return
 
                  ! Make sure the locs match
                  if (srcMeshLoc .ne. fracMeshLoc) then
                     call ESMF_LogSetError(rcToCheck=ESMF_RC_ARG_BAD, &
-                         msg="- srcFracField staggerloc must match srcField staggerloc", &
-                         ESMF_CONTEXT, rcToReturn=rc)
+                      msg="- srcFracField staggerloc must match srcField staggerloc", &
+                      ESMF_CONTEXT, rcToReturn=rc)
                     return
                  endif
 
                  ! get frac pointer
                  call ESMF_FieldGet(srcFracField, localDE=0, farrayPtr=fracFptr,  rc=localrc)
                  if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, & 
-                      ESMF_CONTEXT, rcToReturn=rc)) return
+                   ESMF_CONTEXT, rcToReturn=rc)) return
 
 
                  ! Get Frac info
                  call ESMF_MeshGetElemFrac(srcMesh, fracList=fracFptr, rc=localrc)     
                  if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, & 
-                      ESMF_CONTEXT, rcToReturn=rc)) return
+                   ESMF_CONTEXT, rcToReturn=rc)) return
               endif
            endif
 
@@ -846,63 +1393,116 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
                  call ESMF_FieldGet(dstFracField, array=fracArray, staggerloc=fracStaggerloc, &
                       rc=localrc)
                  if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, & 
-                      ESMF_CONTEXT, rcToReturn=rc)) return
+                   ESMF_CONTEXT, rcToReturn=rc)) return
 
                  ! Make sure the staggerlocs match
                  if (dstStaggerloc .ne. fracStaggerloc) then
                     call ESMF_LogSetError(rcToCheck=ESMF_RC_ARG_BAD, &
-                         msg="- dstFracField Field staggerloc must match dstField staggerloc", &
-                         ESMF_CONTEXT, rcToReturn=rc)
+                      msg="- dstFracField Field staggerloc must match dstField staggerloc", &
+                      ESMF_CONTEXT, rcToReturn=rc)
                     return
                  endif
 
                  call ESMF_RegridGetFrac(dstGrid, mesh=dstMesh, array=fracArray, &
                       staggerloc=dstStaggerLocG2M, rc=localrc)
                  if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, & 
-                      ESMF_CONTEXT, rcToReturn=rc)) return
+                   ESMF_CONTEXT, rcToReturn=rc)) return
               else if (dstgeomtype .eq. ESMF_GEOMTYPE_MESH) then
                  call ESMF_FieldGet(dstFracField, meshloc=fracMeshloc, &
                       rc=localrc)
                  if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, & 
-                      ESMF_CONTEXT, rcToReturn=rc)) return
+                   ESMF_CONTEXT, rcToReturn=rc)) return
 
                  ! Make sure the locs match
                  if (dstMeshLoc .ne. fracMeshLoc) then
                     call ESMF_LogSetError(rcToCheck=ESMF_RC_ARG_BAD, &
-                         msg="- srcFracField staggerloc must match srcField staggerloc", &
-                         ESMF_CONTEXT, rcToReturn=rc)
+                      msg="- srcFracField staggerloc must match srcField staggerloc", &
+                      ESMF_CONTEXT, rcToReturn=rc)
                     return
                  endif
 
                  ! get frac pointer
                  call ESMF_FieldGet(dstFracField, localDE=0, farrayPtr=fracFptr,  rc=localrc)
                  if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, & 
-                      ESMF_CONTEXT, rcToReturn=rc)) return
+                   ESMF_CONTEXT, rcToReturn=rc)) return
 
                  ! Get Frac info
                  call ESMF_MeshGetElemFrac(dstMesh, fracList=fracFptr, rc=localrc)     
                  if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, & 
-                      ESMF_CONTEXT, rcToReturn=rc)) return
+                   ESMF_CONTEXT, rcToReturn=rc)) return
               endif
            endif
         endif
-     
-        ! destroy Meshes, if they were created here
-        if (srcgeomtype .ne. ESMF_GEOMTYPE_MESH) then
-        call ESMF_MeshDestroy(srcMesh,rc=localrc)
-          if (ESMF_LogFoundError(localrc, &
-                                     ESMF_ERR_PASSTHRU, &
-                                     ESMF_CONTEXT, rcToReturn=rc)) return
+
+        ! Clean up Meshes
+        if (srcgeomtype .eq. ESMF_GEOMTYPE_GRID) then
+          if (.not. src_pl_used) then
+            call ESMF_MeshDestroy(srcMesh,rc=localrc)
+            if (ESMF_LogFoundError(localrc, &
+              ESMF_ERR_PASSTHRU, &
+              ESMF_CONTEXT, rcToReturn=rc)) return
+          endif
+           
+        else if (srcgeomtype .eq. ESMF_GEOMTYPE_MESH) then
+           ! Otherwise reset masking
+           if (lregridmethod .ne. ESMF_REGRIDMETHOD_NEAREST_STOD .and. &
+               lregridmethod .ne. ESMF_REGRIDMETHOD_NEAREST_DTOS) then
+
+           if (present(srcMaskValues)) then
+              if ((lregridmethod .eq. ESMF_REGRIDMETHOD_CONSERVE) .or. &
+                   (lregridmethod .eq. ESMF_REGRIDMETHOD_CONSERVE_2ND)) then
+                 call ESMF_MeshTurnOffCellMask(srcMesh, rc=localrc);
+                 if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+                   ESMF_CONTEXT, rcToReturn=rc)) return
+              else
+                 call ESMF_MeshTurnOffNodeMask(srcMesh, rc=localrc);
+                 if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+                   ESMF_CONTEXT, rcToReturn=rc)) return
+              endif
+           endif
+
+           endif
+
+           ! Get rid of dual mesh
+           if (srcDual) then
+              call ESMF_MeshDestroy(srcMeshDual,rc=localrc)
+              if (ESMF_LogFoundError(localrc, &
+                ESMF_ERR_PASSTHRU, &
+                ESMF_CONTEXT, rcToReturn=rc)) return
+           endif
         endif
 
-        if (dstgeomtype .ne. ESMF_GEOMTYPE_MESH) then
-        call ESMF_MeshDestroy(dstMesh,rc=localrc)
-          if (ESMF_LogFoundError(localrc, &
-                                     ESMF_ERR_PASSTHRU, &
-                                     ESMF_CONTEXT, rcToReturn=rc)) return
+        if (dstgeomtype .eq. ESMF_GEOMTYPE_GRID) then
+           if (.not. dst_pl_used) then
+             call ESMF_MeshDestroy(dstMesh,rc=localrc)
+             if (ESMF_LogFoundError(localrc, &
+               ESMF_ERR_PASSTHRU, &
+               ESMF_CONTEXT, rcToReturn=rc)) return
+           endif           
+        else if (dstgeomtype .eq. ESMF_GEOMTYPE_MESH) then
+           if (.not. dst_pl_used) then
+
+           ! Otherwise reset masking
+           if (present(dstMaskValues)) then
+              if ((lregridmethod .eq. ESMF_REGRIDMETHOD_CONSERVE) .or. &
+                   (lregridmethod .eq. ESMF_REGRIDMETHOD_CONSERVE_2ND)) then
+                 call ESMF_MeshTurnOffCellMask(dstMesh, rc=localrc);
+                 if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+                      ESMF_CONTEXT, rcToReturn=rc)) return
+              else
+                 call ESMF_MeshTurnOffNodeMask(dstMesh, rc=localrc);
+                 if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+                   ESMF_CONTEXT, rcToReturn=rc)) return
+              endif
+           endif
+
+           endif
         endif
 
         if(present(rc)) rc = ESMF_SUCCESS
+
+!        call ESMF_VMWtime(end_time)
+!        print*,'regrid store time= ',end_time-beg_time
 
     end subroutine ESMF_FieldRegridStoreNX
 
@@ -916,36 +1516,59 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 ! !INTERFACE:
   !   Private name; call using ESMF_FieldRegridStore()
       subroutine ESMF_FieldRegridStoreX(xgrid, srcField, dstField, &
-                                       keywordEnforcer, routehandle, rc)
+                    keywordEnforcer, regridmethod, routehandle, &
+                    srcFracField, dstFracField, &
+                    srcMergeFracField, dstMergeFracField, rc)
 !      
 ! !ARGUMENTS:
       type(ESMF_XGrid),       intent(in)              :: xgrid
       type(ESMF_Field),       intent(in)              :: srcField
       type(ESMF_Field),       intent(inout)           :: dstField
 type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
+      type(ESMF_RegridMethod_Flag),   intent(in),    optional :: regridmethod
       type(ESMF_RouteHandle), intent(inout), optional :: routehandle
+      type(ESMF_Field),       intent(inout), optional :: srcFracField
+      type(ESMF_Field),       intent(inout), optional :: dstFracField
+      type(ESMF_Field),       intent(inout), optional :: srcMergeFracField
+      type(ESMF_Field),       intent(inout), optional :: dstMergeFracField
       integer,                intent(out),   optional :: rc 
 !
 ! !STATUS:
 ! \begin{itemize}
 ! \item\apiStatusCompatibleVersion{5.2.0r}
+! \item\apiStatusModifiedSinceVersion{5.2.0r}
+! \begin{description}
+! \item[5.3.0] Added arguments {\tt srcFracField}, {\tt dstFracField}, {\tt srcMergeFracField}, and {\tt dstMergeFracField}.
+! These fraction Fields allow a user to calculate correct flux regridded through {\tt ESMF\_XGrid}.
+! \item[7.1.0r] Added argument {\tt regridmethod}. This new argument allows the user to choose the regrid method
+!               to apply when computing the routehandle. 
+! \end{description}
 ! \end{itemize}
 !
 ! !DESCRIPTION:
 !       \begin{sloppypar}
 !       Creates a sparse matrix operation (stored in {\tt routehandle}) that contains the calculations and 
-!       communications necessary to interpolate from {\tt srcField} to {\tt dstField}. The routehandle can then be used in the call
-!       {\tt ESMF\_FieldRegrid()} to interpolate between the Fields. Informaton such as
-!       index mapping and weights are obtained from the XGrid by matching the Field Grids in the XGrid. It's important the Grids in the {\tt srcField} and {\tt dstField} donot match, i.e.
-!       they are different in either tological or geometric characteristic.
+!       communications necessary to interpolate from {\tt srcField} to {\tt dstField}. 
+!       The routehandle can then be used in the call
+!       {\tt ESMF\_FieldRegrid()} to interpolate between the {\tt ESMF\_Field}s. Information such as
+!       index mapping and weights are obtained from the XGrid by matching the Field Grids or Meshes in the XGrid. 
+!       It's erroneous to have matching Grid or Mesh objects in the {\tt srcField} and {\tt dstField}. 
+!       They must be different in either topological or geometric characteristics. For {\tt ESMF\_Field}s 
+!       built on identical {\tt ESMF\_Grid} or {\tt ESMF\_Mesh} on
+!       different VM, user can use {\tt ESMF\_FieldRedistStore()} and {\tt ESMF\_FieldRedist()} 
+!       methods to communicate data directly without interpolation.
 !       \end{sloppypar}
 !       
 !       The routehandle generated by this call is subsequently computed based on these information.
-!       If those information don't change the routehandle can be used repeatedly to interpolate from the source Field to the destination Field. 
-!       This is true even if the data in the Fields changes. The routehandle may also be used to interpolate between any source and 
-!       destination Field which are created on the same stagger location and Grid as the original Fields.        
+!       If those information don't change the routehandle can be used repeatedly to interpolate 
+!       from the source Field to the destination Field. 
+!       This is true even if the data in the Fields changes. The routehandle may also be used to 
+!       interpolate between any source and 
+!       destination Field which are created on the same stagger location and Grid
+!       or on the same mesh location and Mesh as the original Fields.        
 !
-!       When it's no longer needed the routehandle should be destroyed by using {\tt ESMF\_FieldRegridRelease()} to free the memory it's using. 
+!       When it's no longer needed the routehandle should be destroyed by using 
+!       {\tt ESMF\_FieldRegridRelease()} to free the memory it's using. 
 !       Note {\tt ESMF\_FieldRegridStore()} assumes the coordinates used in the Grids upon which the Fields are built are
 !   in degrees.  
 !
@@ -956,10 +1579,30 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 !     \item [srcField]
 !           Source Field.
 !     \item [dstField]
-!           Destination Field.
+!           Destination Field. The data in this Field may be overwritten by this call. 
+!     \item [{[regridmethod]}]
+!           The type of interpolation. For this method only 
+!           {\tt ESMF\_REGRIDMETHOD\_CONSERVE} and {\tt ESMF\_REGRIDMETHOD\_CONSERVE\_2ND} are
+!           supported. If not specified, defaults to {\tt ESMF\_REGRIDMETHOD\_CONSERVE}.
 !     \item [{[routehandle]}]
 !           The handle that implements the regrid and that can be used in later 
 !           {\tt ESMF\_FieldRegrid}.
+!     \item [{[srcFracField]}] 
+!           The fraction of each source cell participating in the regridding returned from this call. 
+!           This Field needs to be created on the same Grid and location (e.g staggerloc) 
+!           as the srcField.
+!     \item [{[dstFracField]}] 
+!           The fraction of each destination cell participating in the regridding returned from this call. 
+!           This Field needs to be created on the same Grid and location (e.g staggerloc) 
+!           as the dstField.
+!     \item [{[srcMergeFracField]}] 
+!           The fraction of each source cell as a result of Grid merge returned from this call.
+!           This Field needs to be created on the same Grid and location (e.g staggerloc) 
+!           as the srcField.
+!     \item [{[dstMergeFracField]}] 
+!           The fraction of each destination cell as a result of Grid merge returned from this call.
+!           This Field needs to be created on the same Grid and location (e.g staggerloc) 
+!           as the dstField.
 !     \item [{[rc]}]
 !           Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
 !     \end{description}
@@ -967,22 +1610,46 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 !EOP
         integer :: localrc, i
 
-        type(ESMF_GeomType_Flag)  :: geomtype
+        type(ESMF_GeomType_Flag)  :: geomtype, srcgeomtype, dstgeomtype
         type(ESMF_XGrid)     :: srcXGrid, dstXGrid        
+        type(ESMF_Mesh)      :: srcMesh, dstMesh
 
         integer :: srcIdx, dstIdx, ngrid_a, ngrid_b
         type(ESMF_XGridSide_Flag) :: srcSide, dstSide
-        type(ESMF_Grid), allocatable :: gridA(:), gridB(:)
+        type(ESMF_XGridGeomBase), allocatable :: gridA(:), gridB(:)
         type(ESMF_Grid)      :: srcGrid
         type(ESMF_Grid)      :: dstGrid
         type(ESMF_XGridSpec) :: sparseMat
         logical :: found, match
-        type(ESMF_Array)     :: srcArray
-        type(ESMF_Array)     :: dstArray
-    
+        type(ESMF_Array)     :: srcFracArray
+        type(ESMF_Array)     :: dstFracArray
+        type(ESMF_STAGGERLOC):: interpFieldStaggerloc, fracFieldStaggerloc
+        type(ESMF_MESHLOC)   :: interpFieldMeshloc, fracFieldMeshloc
+        integer              :: srcTermProcessingVal
+        type(ESMF_RegridMethod_Flag) :: lregridmethod
+        type(ESMF_Mesh)      :: superMesh
+        type(ESMF_Field)     :: tmpSrcField, tmpDstField
+        type(ESMF_Typekind_Flag) :: fieldTypeKind
+
         ! Initialize return code; assume failure until success is certain
         localrc = ESMF_SUCCESS
         if (present(rc)) rc = ESMF_RC_NOT_IMPL
+
+        ! Set optional method argument
+        if (present(regridmethod)) then
+           lregridmethod=regridmethod
+        else     
+           lregridmethod=ESMF_REGRIDMETHOD_CONSERVE
+        endif
+
+        ! Only conservative methods supported for now
+        if ((lregridmethod .ne. ESMF_REGRIDMETHOD_CONSERVE) .and. &
+             (lregridmethod .ne. ESMF_REGRIDMETHOD_CONSERVE_2ND)) then
+           call ESMF_LogSetError(rcToCheck=ESMF_RC_ARG_BAD, & 
+                msg="- Only conservative regrid methods supported through XGrid", & 
+                ESMF_CONTEXT, rcToReturn=rc) 
+           return
+        endif
 
         ! look for the correct Grid to use
         ! first Get necessary information from XGrid and Fields
@@ -992,7 +1659,7 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
           ESMF_CONTEXT, rcToReturn=rc)) return
         allocate(gridA(ngrid_a), gridB(ngrid_b))
 
-        call ESMF_XGridGet(xgrid, sideA=gridA, sideB=gridB, rc=localrc)
+        call ESMF_XGridGet(xgrid, gridA, gridB, rc=localrc)
         if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
           ESMF_CONTEXT, rcToReturn=rc)) return
 
@@ -1000,6 +1667,7 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
                rc=localrc)
         if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
           ESMF_CONTEXT, rcToReturn=rc)) return
+        srcgeomtype = geomtype
 
         ! locate the Grid or XGrid contained in srcField
         if(geomtype == ESMF_GEOMTYPE_GRID) then
@@ -1010,7 +1678,9 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 
             found = .false.
             do i = 1, ngrid_a
-                if(ESMF_GridMatch(srcGrid, gridA(i))>=ESMF_GRIDMATCH_EXACT) then
+                !if(ESMF_GridMatch(srcGrid, gridA(i)%gbcp%grid, &
+                !     globalflag=.true.) >=ESMF_GRIDMATCH_EXACT) then
+                if(srcGrid == gridA(i)%gbcp%grid) then
                     srcIdx = i
                     srcSide = ESMF_XGRIDSIDE_A
                     found = .true.
@@ -1018,12 +1688,16 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
                 endif
             enddo 
             do i = 1, ngrid_b
-                if(ESMF_GridMatch(srcGrid, gridB(i))>=ESMF_GRIDMATCH_EXACT) then
+                !if(ESMF_GridMatch(srcGrid, gridB(i)%gbcp%grid, &
+                !     globalflag=.true.) >=ESMF_GRIDMATCH_EXACT) then
+                if(srcGrid == gridB(i)%gbcp%grid) then
                     if(found) then
-                        call ESMF_LogSetError(rcToCheck=ESMF_RC_ARG_BAD, & 
-                           msg="- duplication of Grid found in XGrid", &
-                           ESMF_CONTEXT, rcToReturn=rc) 
-                        return
+                      ! TODO: maybe we should attach standard attibute
+                      ! to differentiate src and dst side for regridding
+                      call ESMF_LogSetError(rcToCheck=ESMF_RC_ARG_BAD, & 
+                        msg="- duplication of Grid found in XGrid", &
+                        ESMF_CONTEXT, rcToReturn=rc) 
+                      return
                     endif
                     srcIdx = i
                     srcSide = ESMF_XGRIDSIDE_B
@@ -1039,32 +1713,69 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
                 return
             endif
 
-        else
-            if(geomtype == ESMF_GEOMTYPE_XGRID) then
-                call ESMF_FieldGet(srcField, xgrid=srcXGrid, &
-                       rc=localrc)
-                if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
-                  ESMF_CONTEXT, rcToReturn=rc)) return
-                
-                match = ESMF_XGridMatch(xgrid, srcXGrid, rc=localrc)
-                if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
-                  ESMF_CONTEXT, rcToReturn=rc)) return
+        else if(geomtype == ESMF_GEOMTYPE_MESH) then
+            call ESMF_FieldGet(srcField, mesh=srcMesh, &
+                   rc=localrc)
+            if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+              ESMF_CONTEXT, rcToReturn=rc)) return
 
-                if(match) then
-                    srcSide = ESMF_XGRIDSIDE_BALANCED
-                    srcIdx = 1
-                else
-                    call ESMF_LogSetError(rcToCheck=ESMF_RC_ARG_BAD, &
-                           msg="- XGrid in srcField doesn't match the input XGrid", &
-                           ESMF_CONTEXT, rcToReturn=rc) 
-                    return
+            found = .false.
+            do i = 1, ngrid_a
+                !if(ESMF_MeshMatch(srcMesh, gridA(i)%gbcp%mesh)) then
+                if(srcMesh == gridA(i)%gbcp%mesh) then
+                    srcIdx = i
+                    srcSide = ESMF_XGRIDSIDE_A
+                    found = .true.
+                    exit
                 endif
-            else
-                call ESMF_LogSetError(rcToCheck=ESMF_RC_ARG_BAD, &
-                       msg="- src Field is not built on Grid or XGrid", &
-                       ESMF_CONTEXT, rcToReturn=rc) 
+            enddo 
+            do i = 1, ngrid_b
+                !if(ESMF_MeshMatch(srcMesh, gridB(i)%gbcp%mesh)) then
+                if(srcMesh == gridB(i)%gbcp%mesh) then
+                    if(found) then
+                      call ESMF_LogSetError(rcToCheck=ESMF_RC_ARG_BAD, & 
+                        msg="- duplication of Mesh found in XGrid", &
+                        ESMF_CONTEXT, rcToReturn=rc) 
+                      return
+                    endif
+                    srcIdx = i
+                    srcSide = ESMF_XGRIDSIDE_B
+                    found = .true.
+                    exit
+                endif
+            enddo 
+
+            if(.not. found) then
+                call ESMF_LogSetError(rcToCheck=ESMF_RC_ARG_BAD, & 
+                   msg="- cannot Locate src Field Mesh in XGrid", &
+                   ESMF_CONTEXT, rcToReturn=rc) 
                 return
             endif
+                
+        else if(geomtype == ESMF_GEOMTYPE_XGRID) then
+            call ESMF_FieldGet(srcField, xgrid=srcXGrid, &
+                   rc=localrc)
+            if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+              ESMF_CONTEXT, rcToReturn=rc)) return
+            
+            match = ESMF_XGridMatch(xgrid, srcXGrid, rc=localrc)
+            if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+              ESMF_CONTEXT, rcToReturn=rc)) return
+
+            if(match) then
+                srcSide = ESMF_XGRIDSIDE_BALANCED
+                srcIdx = 1
+            else
+                call ESMF_LogSetError(rcToCheck=ESMF_RC_ARG_BAD, &
+                  msg="- XGrid in srcField doesn't match the input XGrid", &
+                  ESMF_CONTEXT, rcToReturn=rc) 
+                return
+            endif
+        else
+            call ESMF_LogSetError(rcToCheck=ESMF_RC_ARG_BAD, &
+              msg="- src Field is not built on Grid, Mesh, or XGrid", &
+              ESMF_CONTEXT, rcToReturn=rc) 
+            return
         endif
 
         ! locate the Grid or XGrid contained in dstField
@@ -1072,6 +1783,7 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
                rc=localrc)
         if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
           ESMF_CONTEXT, rcToReturn=rc)) return
+        dstgeomtype = geomtype
 
         if(geomtype == ESMF_GEOMTYPE_GRID) then
             call ESMF_FieldGet(dstField, grid=dstGrid, &
@@ -1081,7 +1793,9 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 
             found = .false.
             do i = 1, ngrid_a
-                if(ESMF_GridMatch(dstGrid, gridA(i))>=ESMF_GRIDMATCH_EXACT) then
+                !if(ESMF_GridMatch(dstGrid, gridA(i)%gbcp%grid, &
+                !   globalflag=.true.) >=ESMF_GRIDMATCH_EXACT) then
+                if(dstGrid == gridA(i)%gbcp%grid) then
                     dstIdx = i
                     dstSide = ESMF_XGRIDSIDE_A
                     found = .true.
@@ -1089,12 +1803,14 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
                 endif
             enddo 
             do i = 1, ngrid_b
-                if(ESMF_GridMatch(dstGrid, gridB(i))>=ESMF_GRIDMATCH_EXACT) then
+                !if(ESMF_GridMatch(dstGrid, gridB(i)%gbcp%grid, &
+                !   globalflag=.true.) >=ESMF_GRIDMATCH_EXACT) then
+                if(dstGrid == gridB(i)%gbcp%grid) then
                     if(found) then
-                        call ESMF_LogSetError(rcToCheck=ESMF_RC_ARG_BAD, & 
-                           msg="- duplication of Grid found in XGrid", &
-                           ESMF_CONTEXT, rcToReturn=rc) 
-                        return
+                      call ESMF_LogSetError(rcToCheck=ESMF_RC_ARG_BAD, & 
+                        msg="- duplication of Grid found in XGrid", &
+                        ESMF_CONTEXT, rcToReturn=rc) 
+                      return
                     endif
                     dstIdx = i
                     dstSide = ESMF_XGRIDSIDE_B
@@ -1110,32 +1826,69 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
                 return
             endif
 
-        else
-            if(geomtype == ESMF_GEOMTYPE_XGRID) then
-                call ESMF_FieldGet(dstField, xgrid=dstXGrid, &
-                       rc=localrc)
-                if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
-                  ESMF_CONTEXT, rcToReturn=rc)) return
+        else if(geomtype == ESMF_GEOMTYPE_MESH) then
+            call ESMF_FieldGet(dstField, mesh=dstMesh, &
+                   rc=localrc)
+            if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+              ESMF_CONTEXT, rcToReturn=rc)) return
 
-                match = ESMF_XGridMatch(xgrid, dstXGrid, rc=localrc)
-                if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
-                  ESMF_CONTEXT, rcToReturn=rc)) return
-
-                if(match) then
-                    dstSide = ESMF_XGRIDSIDE_BALANCED
-                    dstIdx = 1
-                else
-                    call ESMF_LogSetError(rcToCheck=ESMF_RC_ARG_BAD, &
-                           msg="- XGrid in dstField doesn't match the input XGrid", &
-                           ESMF_CONTEXT, rcToReturn=rc) 
-                    return
+            found = .false.
+            do i = 1, ngrid_a
+                !if(ESMF_MeshMatch(dstMesh, gridA(i)%gbcp%mesh)) then
+                if(dstMesh == gridA(i)%gbcp%mesh) then
+                    dstIdx = i
+                    dstSide = ESMF_XGRIDSIDE_A
+                    found = .true.
+                    exit
                 endif
-            else
-                call ESMF_LogSetError(rcToCheck=ESMF_RC_ARG_BAD, &
-                       msg="- src Field is not built on Grid or XGrid", &
-                       ESMF_CONTEXT, rcToReturn=rc) 
+            enddo 
+            do i = 1, ngrid_b
+                !if(ESMF_MeshMatch(dstMesh, gridB(i)%gbcp%mesh)) then
+                if(dstMesh == gridB(i)%gbcp%mesh) then
+                    if(found) then
+                      call ESMF_LogSetError(rcToCheck=ESMF_RC_ARG_BAD, & 
+                        msg="- duplication of Mesh found in XGrid", &
+                        ESMF_CONTEXT, rcToReturn=rc) 
+                      return
+                    endif
+                    dstIdx = i
+                    dstSide = ESMF_XGRIDSIDE_B
+                    found = .true.
+                    exit
+                endif
+            enddo 
+
+            if(.not. found) then
+                call ESMF_LogSetError(rcToCheck=ESMF_RC_ARG_BAD, & 
+                   msg="- cannot Locate dst Field Mesh in XGrid", &
+                   ESMF_CONTEXT, rcToReturn=rc) 
                 return
             endif
+
+        else if(geomtype == ESMF_GEOMTYPE_XGRID) then
+            call ESMF_FieldGet(dstField, xgrid=dstXGrid, &
+                   rc=localrc)
+            if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+              ESMF_CONTEXT, rcToReturn=rc)) return
+
+            match = ESMF_XGridMatch(xgrid, dstXGrid, rc=localrc)
+            if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+              ESMF_CONTEXT, rcToReturn=rc)) return
+
+            if(match) then
+                dstSide = ESMF_XGRIDSIDE_BALANCED
+                dstIdx = 1
+            else
+                call ESMF_LogSetError(rcToCheck=ESMF_RC_ARG_BAD, &
+                  msg="- XGrid in dstField doesn't match the input XGrid", &
+                  ESMF_CONTEXT, rcToReturn=rc) 
+                return
+            endif
+        else
+            call ESMF_LogSetError(rcToCheck=ESMF_RC_ARG_BAD, &
+              msg="- src Field is not built on Grid or XGrid", &
+              ESMF_CONTEXT, rcToReturn=rc) 
+            return
         endif
 
         ! src and dst Fields should not be on the same side
@@ -1146,33 +1899,310 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
             return
         endif
 
-        ! retrieve the correct sparseMat structure
-        call ESMF_XGridGet(xgrid, sparseMat, srcSide, srcIdx, &
-            dstSide, dstIdx, rc=localrc)
-        if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
-          ESMF_CONTEXT, rcToReturn=rc)) return
-        
-        ! Now we go through the painful process of extracting the data members
-        ! that we need. Need to resolve compilation order.
-        call ESMF_FieldGet(srcField, array=srcArray, rc=localrc)
-        if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
-          ESMF_CONTEXT, rcToReturn=rc)) return
+        ! retrieve regridding fraction Fields on demand
+        if(present(srcFracField)) then
+          if(srcgeomtype == ESMF_GEOMTYPE_GRID) then
+            call ESMF_FieldGet(srcFracField, staggerloc=fracFieldStaggerloc, &
+                 array=srcFracArray, rc=localrc)
+            if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+              ESMF_CONTEXT, rcToReturn=rc)) return
 
-        call ESMF_FieldGet(dstField, array=dstArray, rc=localrc)
-        if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
-          ESMF_CONTEXT, rcToReturn=rc)) return
+            call ESMF_FieldGet(srcField, staggerloc=interpFieldStaggerloc, &
+                 rc=localrc)
+            if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+              ESMF_CONTEXT, rcToReturn=rc)) return
+      
+            ! Make sure the staggerlocs match
+            if (interpFieldStaggerloc .ne. fracFieldStaggerloc) then
+               call ESMF_LogSetError(rcToCheck=ESMF_RC_ARG_BAD, &
+                 msg="- fracField Field staggerloc must match interpField staggerloc", &
+                 ESMF_CONTEXT, rcToReturn=rc)
+               return
+            endif
+          else if(srcgeomtype == ESMF_GEOMTYPE_MESH) then
+            call ESMF_FieldGet(srcFracField, meshloc=fracFieldMeshloc, &
+                 array=srcFracArray, rc=localrc)
+            if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+              ESMF_CONTEXT, rcToReturn=rc)) return
 
-        call ESMF_ArraySMMStore(srcArray, dstArray, routehandle, &
-            sparseMat%factorList, sparseMat%factorIndexList, &
-            rc=localrc)
-        if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
-          ESMF_CONTEXT, rcToReturn=rc)) return
+            call ESMF_FieldGet(srcField, meshloc=interpFieldMeshloc, &
+                 rc=localrc)
+            if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+              ESMF_CONTEXT, rcToReturn=rc)) return
+      
+            ! Make sure the staggerlocs match
+            if (interpFieldMeshloc .ne. fracFieldMeshloc) then
+               call ESMF_LogSetError(rcToCheck=ESMF_RC_ARG_BAD, &
+                 msg="- fracField Field Meshloc must match interpField Meshloc", &
+                 ESMF_CONTEXT, rcToReturn=rc)
+               return
+            endif
+          else
+            call ESMF_LogSetError(rcToCheck=ESMF_RC_ARG_BAD, &
+              msg="- src Field has unrecognized geom type", &
+              ESMF_CONTEXT, rcToReturn=rc)
+            return
+          endif
 
-        !call ESMF_FieldSMMStore(srcField, dstField, routehandle, &
-        !    sparseMat%factorList, sparseMat%factorIndexList, &
-        !    localrc)
-        !if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
-        !  ESMF_CONTEXT, rcToReturn=rc)) return
+          call ESMF_XGridGet(xgrid, srcSide, srcIdx, &
+              dstSide, dstIdx, srcFracArray=srcFracArray, rc=localrc)
+          if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+            ESMF_CONTEXT, rcToReturn=rc)) return
+        endif
+
+        if(present(dstFracField)) then
+          if(dstgeomtype == ESMF_GEOMTYPE_GRID) then
+            call ESMF_FieldGet(dstFracField, staggerloc=fracFieldStaggerloc, &
+                 array=dstFracArray, rc=localrc)
+            if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+              ESMF_CONTEXT, rcToReturn=rc)) return
+
+            call ESMF_FieldGet(dstField, staggerloc=interpFieldStaggerloc, &
+                 rc=localrc)
+            if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+              ESMF_CONTEXT, rcToReturn=rc)) return
+      
+            ! Make sure the staggerlocs match
+            if (interpFieldStaggerloc .ne. fracFieldStaggerloc) then
+               call ESMF_LogSetError(rcToCheck=ESMF_RC_ARG_BAD, &
+                 msg="- fracField Field staggerloc must match interpField staggerloc", &
+                 ESMF_CONTEXT, rcToReturn=rc)
+               return
+            endif
+          else if(dstgeomtype == ESMF_GEOMTYPE_MESH) then
+            call ESMF_FieldGet(dstFracField, meshloc=fracFieldMeshloc, &
+                 array=dstFracArray, rc=localrc)
+            if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+              ESMF_CONTEXT, rcToReturn=rc)) return
+
+            call ESMF_FieldGet(dstField, meshloc=interpFieldMeshloc, &
+                 rc=localrc)
+            if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+              ESMF_CONTEXT, rcToReturn=rc)) return
+      
+            ! Make sure the staggerlocs match
+            if (interpFieldMeshloc .ne. fracFieldMeshloc) then
+               call ESMF_LogSetError(rcToCheck=ESMF_RC_ARG_BAD, &
+                 msg="- fracField Field Meshloc must match interpField Meshloc", &
+                 ESMF_CONTEXT, rcToReturn=rc)
+               return
+            endif
+          else
+            call ESMF_LogSetError(rcToCheck=ESMF_RC_ARG_BAD, &
+              msg="- dst Field has unrecognized geom type", &
+              ESMF_CONTEXT, rcToReturn=rc)
+            return
+          endif
+
+          call ESMF_XGridGet(xgrid, srcSide, srcIdx, &
+              dstSide, dstIdx, dstFracArray=dstFracArray, rc=localrc)
+          if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+            ESMF_CONTEXT, rcToReturn=rc)) return
+        endif
+
+        ! retrieve regridding fraction2 Fields on demand
+        if(present(srcMergeFracField)) then
+          if(srcgeomtype == ESMF_GEOMTYPE_GRID) then
+            call ESMF_FieldGet(srcMergeFracField, staggerloc=fracFieldStaggerloc, &
+                 array=srcFracArray, rc=localrc)
+            if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+              ESMF_CONTEXT, rcToReturn=rc)) return
+
+            call ESMF_FieldGet(srcField, staggerloc=interpFieldStaggerloc, &
+                 rc=localrc)
+            if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+              ESMF_CONTEXT, rcToReturn=rc)) return
+      
+            ! Make sure the staggerlocs match
+            if (interpFieldStaggerloc .ne. fracFieldStaggerloc) then
+               call ESMF_LogSetError(rcToCheck=ESMF_RC_ARG_BAD, &
+                 msg="- fracField Field staggerloc must match interpField staggerloc", &
+                 ESMF_CONTEXT, rcToReturn=rc)
+               return
+            endif
+          else if(srcgeomtype == ESMF_GEOMTYPE_MESH) then
+            call ESMF_FieldGet(srcFracField, meshloc=fracFieldMeshloc, &
+                 array=srcFracArray, rc=localrc)
+            if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+              ESMF_CONTEXT, rcToReturn=rc)) return
+
+            call ESMF_FieldGet(srcField, meshloc=interpFieldMeshloc, &
+                 rc=localrc)
+            if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+              ESMF_CONTEXT, rcToReturn=rc)) return
+      
+            ! Make sure the staggerlocs match
+            if (interpFieldMeshloc .ne. fracFieldMeshloc) then
+               call ESMF_LogSetError(rcToCheck=ESMF_RC_ARG_BAD, &
+                 msg="- fracField Field Meshloc must match interpField Meshloc", &
+                 ESMF_CONTEXT, rcToReturn=rc)
+               return
+            endif
+          else
+            call ESMF_LogSetError(rcToCheck=ESMF_RC_ARG_BAD, &
+              msg="- src Field has unrecognized geom type", &
+              ESMF_CONTEXT, rcToReturn=rc)
+            return
+          endif
+
+          call ESMF_XGridGet(xgrid, srcSide, srcIdx, &
+              dstSide, dstIdx, srcFrac2Array=srcFracArray, rc=localrc)
+          if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+            ESMF_CONTEXT, rcToReturn=rc)) return
+        endif
+
+        if(present(dstMergeFracField)) then
+          if(dstgeomtype == ESMF_GEOMTYPE_GRID) then
+            call ESMF_FieldGet(dstMergeFracField, staggerloc=fracFieldStaggerloc, &
+                 array=dstFracArray, rc=localrc)
+            if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+              ESMF_CONTEXT, rcToReturn=rc)) return
+
+            call ESMF_FieldGet(dstField, staggerloc=interpFieldStaggerloc, &
+                 rc=localrc)
+            if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+              ESMF_CONTEXT, rcToReturn=rc)) return
+      
+            ! Make sure the staggerlocs match
+            if (interpFieldStaggerloc .ne. fracFieldStaggerloc) then
+               call ESMF_LogSetError(rcToCheck=ESMF_RC_ARG_BAD, &
+                 msg="- fracField Field staggerloc must match interpField staggerloc", &
+                 ESMF_CONTEXT, rcToReturn=rc)
+               return
+            endif
+          else if(dstgeomtype == ESMF_GEOMTYPE_MESH) then
+            call ESMF_FieldGet(dstFracField, meshloc=fracFieldMeshloc, &
+                 array=dstFracArray, rc=localrc)
+            if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+              ESMF_CONTEXT, rcToReturn=rc)) return
+
+            call ESMF_FieldGet(dstField, meshloc=interpFieldMeshloc, &
+                 rc=localrc)
+            if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, & 
+              ESMF_CONTEXT, rcToReturn=rc)) return
+      
+            ! Make sure the staggerlocs match
+            if (interpFieldMeshloc .ne. fracFieldMeshloc) then
+               call ESMF_LogSetError(rcToCheck=ESMF_RC_ARG_BAD, &
+                 msg="- fracField Field Meshloc must match interpField Meshloc", &
+                 ESMF_CONTEXT, rcToReturn=rc)
+               return
+            endif
+          else
+            call ESMF_LogSetError(rcToCheck=ESMF_RC_ARG_BAD, &
+              msg="- dst Field has unrecognized geom type", &
+              ESMF_CONTEXT, rcToReturn=rc)
+            return
+          endif
+
+          call ESMF_XGridGet(xgrid, srcSide, srcIdx, &
+              dstSide, dstIdx, dstFrac2Array=dstFracArray, rc=localrc)
+          if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+            ESMF_CONTEXT, rcToReturn=rc)) return
+        endif
+
+        ! Create routehandle based on regrid method
+        if (lregridmethod .eq. ESMF_REGRIDMETHOD_CONSERVE) then
+
+           ! retrieve the correct sparseMat structure
+           call ESMF_XGridGet(xgrid, srcSide, srcIdx, &
+                dstSide, dstIdx, sparseMat=sparseMat, rc=localrc)
+           if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+                ESMF_CONTEXT, rcToReturn=rc)) return
+           
+           ! call FieldSMMStore
+           srcTermProcessingVal = 0
+           call ESMF_FieldSMMStore(srcField, dstField, routehandle, &
+                sparseMat%factorList, sparseMat%factorIndexList, &
+                srcTermProcessing=srcTermProcessingVal, &
+                rc=localrc)
+           if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+                ESMF_CONTEXT, rcToReturn=rc)) return
+        else
+
+           ! Set temporary field for source
+           if (srcSide == ESMF_XGRIDSIDE_BALANCED) then
+
+              ! Get Field typekind
+              call ESMF_FieldGet(srcField, typekind=fieldTypeKind, &
+                   rc=localrc) 
+              if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+                   ESMF_CONTEXT, rcToReturn=rc)) return
+
+              ! Get Super Mesh
+              call ESMF_XGridGet(xgrid, mesh=superMesh, rc=localrc)
+              if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+                   ESMF_CONTEXT, rcToReturn=rc)) return
+
+              ! Create temporary field
+              tmpSrcField=ESMF_FieldCreate(superMesh, &
+                   typekind=fieldTypeKind, &
+                   meshloc=ESMF_MESHLOC_ELEMENT, &
+                   rc=localrc)
+              if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+                   ESMF_CONTEXT, rcToReturn=rc)) return
+           else 
+              tmpSrcField=srcField
+           endif
+
+           ! Set temporary field for dst
+           if (dstSide == ESMF_XGRIDSIDE_BALANCED) then
+
+              ! Get Field typekind
+              call ESMF_FieldGet(dstField, typekind=fieldTypeKind, &
+                   rc=localrc) 
+              if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+                   ESMF_CONTEXT, rcToReturn=rc)) return
+
+              ! Get Super Mesh
+              call ESMF_XGridGet(xgrid, mesh=superMesh, rc=localrc)
+              if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+                   ESMF_CONTEXT, rcToReturn=rc)) return
+
+              ! Create temporary field
+              tmpDstField=ESMF_FieldCreate(superMesh, &
+                   typekind=fieldTypeKind, &
+                   meshloc=ESMF_MESHLOC_ELEMENT, &
+                   rc=localrc)
+              if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+                   ESMF_CONTEXT, rcToReturn=rc)) return
+           else 
+              tmpDstField=dstField
+           endif
+
+           ! Generate routehandle other that 1st order conserve
+           srcTermProcessingVal = 1 ! multiply on src, but all adding on dst
+           call ESMF_FieldRegridStoreNX(&
+                srcField=tmpSrcField, &
+                dstField=tmpDstField, &
+! ??            srcMaskValues, dstMaskValues, &
+                regridmethod=lregridmethod, &
+                srcTermProcessing=srcTermProcessingVal, &
+                routehandle=routehandle, &
+                srcFracField=srcFracField, &
+                dstFracField=dstFracField, &
+                rc=localrc)
+           if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+                ESMF_CONTEXT, rcToReturn=rc)) return
+
+           ! Get rid of temporary source Field if necessary
+           if (srcSide == ESMF_XGRIDSIDE_BALANCED) then
+
+              call ESMF_FieldDestroy(tmpSrcField, rc=localrc)
+              if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+                   ESMF_CONTEXT, rcToReturn=rc)) return
+           endif
+
+           ! Get rid of temporary destination Field if necessary
+           if (dstSide == ESMF_XGRIDSIDE_BALANCED) then
+
+              call ESMF_FieldDestroy(tmpDstField, rc=localrc)
+              if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+                   ESMF_CONTEXT, rcToReturn=rc)) return
+           endif
+
+        endif
+
 
         if(present(rc)) rc = ESMF_SUCCESS
 
@@ -1184,36 +2214,41 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 #undef  ESMF_METHOD
 #define ESMF_METHOD "ESMF_FieldRegridGetArea"
 
-!BOPI
-! !IROUTINE: ESMF_FieldRegridGetArea - Get the integration area
+!BOP
+! !IROUTINE: ESMF_FieldRegridGetArea - Get the area of the cells used for conservative interpolation
 !
 ! !INTERFACE:
-  !   Private name; call using ESMF_FieldRegridGetArea()
-      subroutine ESMF_FieldRegridGetArea(areaField, MaskValues, rc)
+      subroutine ESMF_FieldRegridGetArea(areaField, rc)
 !
 ! !RETURN VALUE:
 !      
 ! !ARGUMENTS:
       type(ESMF_Field), intent(inout)                 :: areaField
-      integer(ESMF_KIND_I4), intent(in), optional     :: MaskValues(:)
       integer, intent(out), optional                  :: rc 
+
 !
 ! !DESCRIPTION:
+!     This subroutine gets the area of the cells used for conservative interpolation for the grid object 
+!     associated with {\tt areaField} and puts them into {\tt areaField}. If created on a 2D Grid, it must 
+!     be built on the {\tt ESMF\_STAGGERLOC\_CENTER} stagger location. 
+!     If created on a 3D Grid, it must be built on the {\tt ESMF\_STAGGERLOC\_CENTER\_VCENTER} stagger 
+!     location. If created on a Mesh, it must be built on the {\tt ESMF\_MESHLOC\_ELEMENT} mesh location. 
+!
+!     If the user has set the area in the Grid or Mesh under {\tt areaField}, then that's the area that's
+!     returned in the units that the user set it in. If the user hasn't set the area, then the area is 
+!     calculated and returned. If the Grid or Mesh is on the surface of a sphere, then the calculated area is in
+!     units of square radians. If the Grid or Mesh is 
+!     Cartesian, then the calculated area is in square units of whatever unit the coordinates are in. 
 !
 !     The arguments are:
 !     \begin{description}
-!     \item [Field]
-!           The Field.
-!     \item [{[regridScheme]}]
-!           Whether to convert to spherical coordinates 
-!           ({\tt ESMF\_REGRID\_SCHEME\_FULL3D}), 
-!           or to leave in native coordinates 
-!           ({\tt ESMF\_REGRID\_SCHEME\_NATIVE}). 
+!     \item [areaField]
+!           The Field to put the area values in. 
 !     \item [{[rc]}]
 !           Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
 !     \end{description}
 !
-!EOPI
+!EOP
         integer :: localrc
         integer              :: lregridScheme
         type(ESMF_GeomType_Flag)  :: geomtype
@@ -1221,11 +2256,11 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
         type(ESMF_Grid)      :: Grid
         type(ESMF_Array)     :: Array
         type(ESMF_Mesh)      :: Mesh
-        type(ESMF_StaggerLoc) :: staggerLoc
-	type(ESMF_MeshLoc)   :: meshloc
+        type(ESMF_StaggerLoc) :: staggerLoc, staggerLocG2M
+        type(ESMF_MeshLoc)   :: meshloc
         real(ESMF_KIND_R8), pointer :: areaFptr(:)
-        integer :: gridDimCount, localDECount
-	type(ESMF_TypeKind_Flag) :: typekind
+        integer :: gridDimCount, localDECount, tileCount
+        type(ESMF_TypeKind_Flag) :: typekind
         logical              :: isLatLonDeg
         integer              :: isSphere
 
@@ -1242,7 +2277,7 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
         if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
           ESMF_CONTEXT, rcToReturn=rc)) return
 
-	! Check typekind
+        ! Check typekind
         if (typekind .ne. ESMF_TYPEKIND_R8) then
            call ESMF_LogSetError(rcToCheck=ESMF_RC_ARG_BAD, & 
               msg="- Area calculation is only supported for Fields of typekind=ESMF_TYPEKIND_R8", & 
@@ -1276,71 +2311,84 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 
           ! Only Center stagger is supported right now until we figure out what the
           ! control volume for the others should be
-	  if (staggerloc .ne. ESMF_STAGGERLOC_CENTER) then
+          if (staggerloc .ne. ESMF_STAGGERLOC_CENTER) then
                  call ESMF_LogSetError(rcToCheck=ESMF_RC_ARG_BAD, & 
               msg="- can't currently calculate area on a stagger other then center", & 
                  ESMF_CONTEXT, rcToReturn=rc) 
               return
           endif
 
-	  ! Can only do conservative on 2D right now
-          call ESMF_GridGet(grid=Grid, &
+            ! Create the mesh from corner stagger to better represent the
+            ! control volumes 
+            call ESMF_GridGet(grid=Grid, tileCount=tileCount, &
                    dimCount=gridDimCount, rc=localrc)
-          if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
-                ESMF_CONTEXT, rcToReturn=rc)) return
-          if (gridDimCount .ne. 2) then
+            if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+              ESMF_CONTEXT, rcToReturn=rc)) return
+            if (gridDimCount .eq. 2) then
+               staggerlocG2M=ESMF_STAGGERLOC_CORNER
+            else if (gridDimCount .eq. 3) then
+               staggerlocG2M=ESMF_STAGGERLOC_CORNER_VFACE
+            else
                  call ESMF_LogSetError(rcToCheck=ESMF_RC_ARG_BAD, & 
-                 msg="- can currently only calculate area on 2D grids", & 
+                 msg="- can currently only do conservative regridding on 2D or 3D grids", & 
                  ESMF_CONTEXT, rcToReturn=rc) 
-                return
-          endif 
+              return
+            endif
+
 
           ! check grid
-          call checkGrid(Grid,ESMF_STAGGERLOC_CORNER,rc=localrc)
-          if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
-          ESMF_CONTEXT, rcToReturn=rc)) return
+          call checkGrid(Grid, staggerlocG2M, rc=localrc)
 
-          ! Convert Grid to Mesh
-          Mesh = ESMF_GridToMesh(Grid, ESMF_STAGGERLOC_CORNER, isSphere, isLatLonDeg, &
-                      maskValues=MaskValues, regridConserve=ESMF_REGRID_CONSERVE_OFF, rc=localrc)
           if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
             ESMF_CONTEXT, rcToReturn=rc)) return
 
-	  ! call into the Regrid GetareaField interface
-          call ESMF_RegridGetArea(Grid, Mesh, Array, ESMF_STAGGERLOC_CORNER, lregridScheme, rc=localrc)
+          ! Convert Grid to Mesh
+          if (tileCount .eq. 1) then
+             Mesh = ESMF_GridToMesh(Grid, staggerlocG2M, isSphere, isLatLonDeg, &
+                  regridConserve=ESMF_REGRID_CONSERVE_ON, rc=localrc)
+             if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+                  ESMF_CONTEXT, rcToReturn=rc)) return
+          else 
+             Mesh = ESMF_GridToMeshCell(Grid, rc=localrc)
+             if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+                  ESMF_CONTEXT, rcToReturn=rc)) return
+          endif
+
+          ! call into the Regrid GetareaField interface
+          call ESMF_RegridGetArea(Grid, Mesh, Array, staggerlocG2M, lregridScheme, rc=localrc)
           if (ESMF_LogFoundError(localrc, &
-                                     ESMF_ERR_PASSTHRU, &
-                                     ESMF_CONTEXT, rcToReturn=rc)) return
+            ESMF_ERR_PASSTHRU, &
+            ESMF_CONTEXT, rcToReturn=rc)) return
         else
           call ESMF_FieldGet(areaField, mesh=Mesh, meshloc=meshloc, &
                  localDECount=localDECount, rc=localrc)
           if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
             ESMF_CONTEXT, rcToReturn=rc)) return
 
-	  if (meshloc .ne. ESMF_MESHLOC_ELEMENT) then
+          if (meshloc .ne. ESMF_MESHLOC_ELEMENT) then
                  call ESMF_LogSetError(rcToCheck=ESMF_RC_ARG_BAD, & 
               msg="- can't currently calculate area on a mesh location other than elements", & 
                  ESMF_CONTEXT, rcToReturn=rc) 
               return
           endif
 
-	  ! Don't need to do anything if there are no DEs
-	  if (localDECount < 1) then
+          ! Don't need to do anything if there are no DEs
+          if (localDECount < 1) then
               if(present(rc)) rc = ESMF_SUCCESS
               return
           endif
 
           ! Get pointer to field data
-	  ! Right now Mesh will only have one DE per PET
+          ! Right now Mesh will only have one DE per PET
           call ESMF_FieldGet(areaField, localDE=0,  farrayPtr=areaFptr, rc=localrc)
           if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
             ESMF_CONTEXT, rcToReturn=rc)) return
 
           ! Get Area
-	  call ESMF_MeshGetElemArea(mesh, areaList=areaFptr, rc=localrc)
+          call ESMF_MeshGetElemArea(mesh, areaList=areaFptr, rc=localrc)
           if (ESMF_LogFoundError(localrc, &
-                                     ESMF_ERR_PASSTHRU, &
-                                     ESMF_CONTEXT, rcToReturn=rc)) return
+            ESMF_ERR_PASSTHRU, &
+            ESMF_CONTEXT, rcToReturn=rc)) return
         endif
 
 
@@ -1348,8 +2396,8 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
         if (geomtype .ne. ESMF_GEOMTYPE_MESH) then
         call ESMF_MeshDestroy(Mesh,rc=localrc)
           if (ESMF_LogFoundError(localrc, &
-                                     ESMF_ERR_PASSTHRU, &
-                                     ESMF_CONTEXT, rcToReturn=rc)) return
+            ESMF_ERR_PASSTHRU, &
+            ESMF_CONTEXT, rcToReturn=rc)) return
         endif
 
         if(present(rc)) rc = ESMF_SUCCESS
@@ -1439,7 +2487,7 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
           ! check grid
           call checkGrid(Grid,staggerloc,rc=localrc)
           if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
-          ESMF_CONTEXT, rcToReturn=rc)) return
+            ESMF_CONTEXT, rcToReturn=rc)) return
 
           ! Convert Grid to Mesh
           Mesh = ESMF_GridToMesh(Grid, staggerLoc, isSphere, &
@@ -1456,15 +2504,15 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
         ! call into the Regrid GetIwts interface
         call ESMF_RegridGetIwts(Grid, Mesh, Array, staggerLoc, lregridScheme, rc=localrc)
         if (ESMF_LogFoundError(localrc, &
-                                     ESMF_ERR_PASSTHRU, &
-                                     ESMF_CONTEXT, rcToReturn=rc)) return
+          ESMF_ERR_PASSTHRU, &
+          ESMF_CONTEXT, rcToReturn=rc)) return
 
         ! destroy Mesh, if they were created here
         if (geomtype .ne. ESMF_GEOMTYPE_MESH) then
         call ESMF_MeshDestroy(Mesh,rc=localrc)
           if (ESMF_LogFoundError(localrc, &
-                                     ESMF_ERR_PASSTHRU, &
-                                     ESMF_CONTEXT, rcToReturn=rc)) return
+            ESMF_ERR_PASSTHRU, &
+            ESMF_CONTEXT, rcToReturn=rc)) return
         endif
 
         if(present(rc)) rc = ESMF_SUCCESS
@@ -1489,21 +2537,21 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
         ! Make sure Grid isn't arbitrarily distributed
         call ESMF_GridGetDecompType(grid, decompType, rc=localrc)
         if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
-            ESMF_CONTEXT, rcToReturn=rc)) return
+          ESMF_CONTEXT, rcToReturn=rc)) return
 
        ! Error if decompType is ARBITRARY
        if (decompType .eq. ESMF_GRID_ARBITRARY) then
              call ESMF_LogSetError(rcToCheck=ESMF_RC_ARG_BAD, & 
-                 msg="- can't currently regrid an arbitrarily distributed Grid", & 
-                 ESMF_CONTEXT, rcToReturn=rc) 
-              return
+               msg="- can't currently regrid an arbitrarily distributed Grid", & 
+               ESMF_CONTEXT, rcToReturn=rc) 
+             return
        endif        
 
        ! Make sure Grid doesn't contain width 1 DEs
        call ESMF_GridGet(grid,localDECount=localDECount, dimCount=dimCount, &
               rc=localrc)
        if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
-            ESMF_CONTEXT, rcToReturn=rc)) return
+         ESMF_CONTEXT, rcToReturn=rc)) return
        
        ! loop through checking DEs
        do lDE=0,localDECount-1
@@ -1512,7 +2560,7 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
            call ESMF_GridGet(grid,staggerloc=staggerloc, localDE=lDE, &
                   exclusivecount=ec,rc=localrc)
            if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
-               ESMF_CONTEXT, rcToReturn=rc)) return
+             ESMF_CONTEXT, rcToReturn=rc)) return
 
            ! loop and make sure they aren't too small in any dimension
            do i=1,dimCount
@@ -1527,6 +2575,35 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 
        if(present(rc)) rc = ESMF_SUCCESS
    end subroutine checkGrid
+
+!------------------------------------------------------------------------------
+
+    ! Same as checkGrid, but less restrictive due to anticipated conversion to a pointlist
+    subroutine checkGridLite(grid,staggerloc,rc)
+        type (ESMF_Grid) :: grid
+        type(ESMF_StaggerLoc) :: staggerloc
+        integer, intent(out), optional :: rc
+        type(ESMF_GridDecompType) :: decompType
+        integer :: localDECount, lDE, ec(ESMF_MAXDIM)
+        integer :: localrc, i, dimCount
+
+        if (present(rc)) rc = ESMF_RC_NOT_IMPL
+
+        ! Make sure Grid isn't arbitrarily distributed
+        call ESMF_GridGetDecompType(grid, decompType, rc=localrc)
+        if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+          ESMF_CONTEXT, rcToReturn=rc)) return
+
+       ! Error if decompType is ARBITRARY
+       if (decompType .eq. ESMF_GRID_ARBITRARY) then
+         call ESMF_LogSetError(rcToCheck=ESMF_RC_ARG_BAD, & 
+           msg="- can't currently regrid an arbitrarily distributed Grid", & 
+           ESMF_CONTEXT, rcToReturn=rc) 
+         return
+       endif        
+
+       if(present(rc)) rc = ESMF_SUCCESS
+   end subroutine checkGridLite
 
 !------------------------------------------------------------------------------
 

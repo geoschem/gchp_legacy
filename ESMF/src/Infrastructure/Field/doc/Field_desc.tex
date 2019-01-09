@@ -1,0 +1,57 @@
+% $Id$
+
+An ESMF Field represents a physical field, such as temperature.
+The motivation for including Fields in ESMF is that bundles of 
+Fields are the entities that are normally exchanged when coupling
+Components.  
+
+The ESMF Field class contains distributed and discretized field data, a reference 
+to its associated grid, and metadata.  The Field class stores the grid {\it staggering}
+for that physical field.
+This is the relationship of how the data array of a field maps onto a grid 
+(e.g. one item per
+cell located at the cell center, one item per cell located at the NW
+corner,  one item per cell vertex, etc.).  This means that different Fields
+which are on the same underlying ESMF Grid but have different
+staggerings can share the same Grid object without needing to replicate
+it multiple times. 
+
+Fields can be added to States for use in inter-Component
+data communications.  Fields can also be added to FieldBundles,
+which are groups of Fields on the same underlying Grid.  
+One motivation for packing Fields into FieldBundles is convenience; 
+another is the ability to perform optimized collective data transfers.  
+
+Field communication capabilities include: data redistribution, regridding, scatter,
+gather, sparse-matrix multiplication, and halo update.  These are discussed
+in more detail in the documentation for the specific method calls.  
+ESMF does not currently support vector fields, so the components of 
+a vector field must be stored as separate Field objects.  
+
+\subsubsection{Operations}
+
+The Field class allows the user to easily perform a number of operations on 
+the data stored in a Field. This section gives a brief summary of the different types of operations
+and the range of their capabilities. The operations covered here are: redistribution ({\tt ESMF\_FieldRedistStore()}), sparse matrix multiply ({\tt ESMF\_FieldSMMStore()}), and regridding ({\tt ESMF\_FieldRegridStore()}).
+
+The redistribution operation ({\tt ESMF\_FieldRedistStore()}) allows the user to move data between two Fields with the same size, but different 
+distribution. This operation is useful, for example, to move data between two components with different distributions. 
+Please see Section~\ref{sec:field:usage:redist_1dptr} for an example of the redistribution capability.
+
+The sparse matrix multiplication operation ({\tt ESMF\_FieldSMMStore()}) allows the user to multiply the data in a Field by a sparse matrix. This operation is useful, for example, if the user has an interpolation matrix and wants to apply it to the data in a Field. Please see Section~\ref{sec:field:usage:smm_1dptr}
+for an example of the sparse matrix multiply capability.
+
+The regridding operation ({\tt ESMF\_FieldRegridStore()}) allows the user to move data from one grid to another while maintaining certain properties
+of the data. Regridding is also called interpolation or remapping. In the Field regridding operation the grids the data is being moved between
+are the grids associated with the Fields storing the data. The regridding operation works on Fields built on Meshes, Grids, or Location Streams.  
+There are six regridding methods available: bilinear, higher-order patch, two types of nearest neighbor, first-order conservative, and second-order conservative.
+Please see section~\ref{sec:regrid} for a more indepth description of regridding including in which situations each method is supported. 
+Please see section~\ref{sec:fieldregrid} for a description of the regridding capability as it applies to Fields. Several sections following section~\ref{sec:fieldregrid} 
+contain examples of using regridding. 
+
+
+
+
+
+
+

@@ -1,7 +1,7 @@
-! $Id: ESMF_AlarmUTest.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
+! $Id$
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2012, University Corporation for Atmospheric Research,
+! Copyright 2002-2018, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -35,7 +35,7 @@
 !------------------------------------------------------------------------------
 ! The following line turns the CVS identifier string into a printable variable.
       character(*), parameter :: version = &
-      '$Id: ESMF_AlarmUTest.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $'
+      '$Id$'
 !------------------------------------------------------------------------------
 
       ! cumulative result: count failures; no failures equals "all pass"
@@ -63,6 +63,7 @@
       type(ESMF_Time) :: startTime, stopTime
       type(ESMF_Time) :: alarmTime
 
+      logical :: isCreated
 
 #ifdef ESMF_TESTEXHAUSTIVE
       logical :: bool
@@ -95,6 +96,7 @@
 
       ! initialize ESMF framework
       call ESMF_TestStart(ESMF_SRCLINE, rc=rc)
+      if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
       ! initialize one calendar to be Gregorian type
       gregorianCalendar = ESMF_CalendarCreate(ESMF_CALKIND_GREGORIAN, &
@@ -124,6 +126,7 @@
 
       ! initialize clock time intervals and instants
 
+
       ! ----------------------------------------------------------------------------
 
       !NEX_UTest
@@ -141,7 +144,7 @@
       write(failMsg, *) " Did not return ESMF_SUCCESS"
       write(name, *) "Set Start Time Initialization Test"
       call ESMF_TimeSet(startTime, yy=2003, mm=3, dd=13, &
-                             	   h=18, m=45, s=27, &
+                                   h=18, m=45, s=27, &
                                    calendar=gregorianCalendar, rc=rc)
       call ESMF_Test((rc.eq.ESMF_SUCCESS), &
                       name, failMsg, result, ESMF_SRCLINE)
@@ -191,6 +194,73 @@
       call ESMF_AlarmDestroy(alarm1, rc=rc)
       call ESMF_Test((rc.eq.ESMF_SUCCESS), &
                       name, failMsg, result, ESMF_SRCLINE)
+
+
+  !------------------------------------------------------------------------
+  !NEX_UTest
+  write(name, *) "Testing Alarm IsCreated for uncreated object"
+  write(failMsg, *) "Did not return .false."
+  isCreated = ESMF_AlarmIsCreated(alarm1)
+  call ESMF_Test((isCreated .eqv. .false.), name, failMsg, result, ESMF_SRCLINE)
+  !------------------------------------------------------------------------
+
+  !------------------------------------------------------------------------
+  !NEX_UTest
+  write(name, *) "Testing Alarm IsCreated for uncreated object"
+  write(failMsg, *) "Did not return ESMF_SUCCESS"
+  isCreated = ESMF_AlarmIsCreated(alarm1, rc=rc)
+  call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+  !------------------------------------------------------------------------
+
+  !------------------------------------------------------------------------
+  !NEX_UTest
+  write(name, *) "Create test Alarm for IsCreated"
+  write(failMsg, *) "Did not return ESMF_SUCCESS"
+  alarm1 = ESMF_AlarmCreate(name="WAKEUP", clock=clock1, ringTime=alarmTime, rc=rc)
+  call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+  !------------------------------------------------------------------------
+
+  !------------------------------------------------------------------------
+  !NEX_UTest
+  write(name, *) "Testing Alarm IsCreated for created object"
+  write(failMsg, *) "Did not return .true."
+  isCreated = ESMF_AlarmIsCreated(alarm1)
+  call ESMF_Test((isCreated .eqv. .true.), name, failMsg, result, ESMF_SRCLINE)
+  !------------------------------------------------------------------------
+
+  !------------------------------------------------------------------------
+  !NEX_UTest
+  write(name, *) "Testing Alarm IsCreated for created object"
+  write(failMsg, *) "Did not return ESMF_SUCCESS"
+  isCreated = ESMF_AlarmIsCreated(alarm1, rc=rc)
+  call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+  !------------------------------------------------------------------------
+
+  !------------------------------------------------------------------------
+  !NEX_UTest
+  write(name, *) "Destroy test Alarm for IsCreated"
+  write(failMsg, *) "Did not return ESMF_SUCCESS"
+  call ESMF_AlarmDestroy(alarm1, rc=rc)
+  call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+  !------------------------------------------------------------------------
+
+  !------------------------------------------------------------------------
+  !NEX_UTest
+  write(name, *) "Testing Alarm IsCreated for destroyed object"
+  write(failMsg, *) "Did not return .false."
+  isCreated = ESMF_AlarmIsCreated(alarm1)
+  call ESMF_Test((isCreated .eqv. .false.), name, failMsg, result, ESMF_SRCLINE)
+  !------------------------------------------------------------------------
+
+  !------------------------------------------------------------------------
+  !NEX_UTest
+  write(name, *) "Testing Alarm IsCreated for destroyed object"
+  write(failMsg, *) "Did not return ESMF_SUCCESS"
+  isCreated = ESMF_AlarmIsCreated(alarm1, rc=rc)
+  call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+  !------------------------------------------------------------------------
+
+
 
 
 #ifdef ESMF_TESTEXHAUSTIVE
@@ -1193,7 +1263,7 @@
       write(failMsg, *) " Did not return ESMF_SUCCESS"
       write(name, *) "Non-Sticky Alarm Time Initialization Test"
       alarm =  ESMF_AlarmCreate(name="alarm1", clock=clock, &
-					ringTime=alarmTime, sticky=.FALSE., rc=rc)
+          ringTime=alarmTime, sticky=.FALSE., rc=rc)
       call ESMF_Test((rc.eq.ESMF_SUCCESS), &
                       name, failMsg, result, ESMF_SRCLINE)
 
@@ -1263,6 +1333,25 @@
       bool =  ESMF_AlarmWasPrevRinging(alarm, rc=rc)
       call ESMF_Test((rc.eq.ESMF_SUCCESS).and.(.not.bool), &
                       name, failMsg, result, ESMF_SRCLINE)
+
+
+      ! ----------------------------------------------------------------------------
+
+      !EX_UTest
+      !Test destroying alarm
+      write(failMsg, *) " Did not return ESMF_SUCCESS"
+      write(name, *) "Destroying alarm test"
+      call ESMF_AlarmDestroy (alarm, rc=rc)
+      call ESMF_Test(rc == ESMF_SUCCESS, name, failMsg, result, ESMF_SRCLINE)
+
+      ! ----------------------------------------------------------------------------
+
+      !EX_UTest
+      !Test destroying clock after alarm
+      write(failMsg, *) " Did not return ESMF_SUCCESS"
+      write(name, *) "Destroying clock after alarm test"
+      call ESMF_ClockDestroy (clock, rc=rc)
+      call ESMF_Test(rc == ESMF_SUCCESS, name, failMsg, result, ESMF_SRCLINE)
 
       ! ----------------------------------------------------------------------------
 
@@ -3272,6 +3361,6 @@
       call ESMF_CalendarDestroy(gregorianCalendar, rc=rc)
 
       ! finalize ESMF framework
-      call ESMF_TestEnd(result, ESMF_SRCLINE)
+      call ESMF_TestEnd(ESMF_SRCLINE)
 
       end program ESMF_AlarmTest

@@ -1,7 +1,7 @@
-! $Id: ESMF_AlarmType.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
+! $Id$
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2012, University Corporation for Atmospheric Research,
+! Copyright 2002-2018, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -54,7 +54,9 @@
 !     ! Fortran "enum" type to match C++ ESMC_AlarmList_Flag enum
 
       type ESMF_AlarmList_Flag
+#ifndef ESMF_NO_SEQUENCE
       sequence
+#endif
       private
         integer :: alarmlistflag
       end type
@@ -69,7 +71,9 @@
 !     ! ESMF_Alarm
 !
       type ESMF_Alarm
+#ifndef ESMF_NO_SEQUENCE
       sequence
+#endif
       private
         type(ESMF_Pointer) :: this
         ESMF_INIT_DECLARE
@@ -102,7 +106,7 @@
 !------------------------------------------------------------------------------
 ! The following line turns the CVS identifier string into a printable variable.
       character(*), parameter, private :: version = &
-      '$Id: ESMF_AlarmType.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $'
+      '$Id$'
 !------------------------------------------------------------------------------
 
       contains

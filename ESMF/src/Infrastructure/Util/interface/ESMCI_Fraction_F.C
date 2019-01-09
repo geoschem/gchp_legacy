@@ -1,7 +1,7 @@
 // $Id$
 //
 // Earth System Modeling Framework
-// Copyright 2002-2012, University Corporation for Atmospheric Research, 
+// Copyright 2002-2018, University Corporation for Atmospheric Research, 
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
 // Laboratory, University of Michigan, National Centers for Environmental 
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
@@ -42,25 +42,25 @@ static int fred;
 extern "C" {
 
 #if 0
-       void FTN(c_esmc_fractionset)(Fraction *ptr, int *arg1, int *arg2,
+       void FTN_X(c_esmc_fractionset)(Fraction *ptr, int *arg1, int *arg2,
                                              int *arg3, int *status) {
           int rc = (ptr)->set(*arg1, *arg2, *arg3);
           if (ESMC_PRESENT(status)) *status = rc;
        }
 
-       void FTN(c_esmc_fractionget)(Fraction *ptr, 
+       void FTN_X(c_esmc_fractionget)(Fraction *ptr, 
                                          <value> *value, int *status} {
           int rc = (ptr)->get(&value);
           if (ESMC_PRESENT(status)) *status = rc;
        }
 
-       void FTN(c_esmc_fractionset)(Fraction *ptr, 
+       void FTN_X(c_esmc_fractionset)(Fraction *ptr, 
                                          <value> *value, int *status} {
           int rc = (ptr)->set(value);
           if (ESMC_PRESENT(status)) *status = rc;
        }
 
-       void FTN(c_esmc_fractionreadrestart)(Fraction *ptr, int *nameLen,
+       void FTN_X(c_esmc_fractionreadrestart)(Fraction *ptr, int *nameLen,
                                             const char *name,
                                             int *status,
                                             ESMCI_FortranStrLenArg name_l) {
@@ -71,13 +71,13 @@ extern "C" {
           if (ESMC_PRESENT(status)) *status = rc;
        }
 
-       void FTN(c_esmc_fractionwriterestart)(Fraction *ptr,
+       void FTN_X(c_esmc_fractionwriterestart)(Fraction *ptr,
                                              int *status) {
           int rc = (ptr)->writeRestart();
           if (ESMC_PRESENT(status)) *status = rc;
        }
 
-       void FTN(c_esmc_fractionvalidate)(Fraction *ptr,
+       void FTN_X(c_esmc_fractionvalidate)(Fraction *ptr,
                                          const char *options,
                                          int *status,
                                          ESMCI_FortranStrLenArg options_l) {
@@ -85,7 +85,7 @@ extern "C" {
           if (ESMC_PRESENT(status)) *status = rc;
        }
 
-       void FTN(c_esmc_fractionprint)(Fraction *ptr, const char *options,
+       void FTN_X(c_esmc_fractionprint)(Fraction *ptr, const char *options,
                                       int *status,
                                       ESMCI_FortranStrLenArg options_l) {
           int rc = (ptr)->print(ESMC_NOT_PRESENT_FILTER(options) );

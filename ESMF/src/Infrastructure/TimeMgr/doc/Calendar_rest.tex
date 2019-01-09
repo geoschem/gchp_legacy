@@ -1,0 +1,13 @@
+% $Id$
+
+\label{subsec:Calendar_rest}
+
+\begin{enumerate}
+
+\item {\bf Months per year set to 12.} Due to the requirement of only Earth modeling, the number of months per year is hard-coded at 12.  However, for easy modification, this is implemented via a C preprocessor \#define MONTHS\_PER\_YEAR in ESMCI\_Calendar.h.
+
+\item {\bf Calendar date conversions.} Date conversions are currently defined between the Gregorian, Julian, Julian Day, and Modified Julian Day calendars. Further research and work would need to be done to determine conversion algorithms with and between the other calendars:  No Leap, 360 Day, and Custom.
+
+\item {\bf ESMF\_CALKIND\_CUSTOM.} Currently, there is no provision for a custom calendar to define a leap year rule, so {\tt ESMF\_CalendarIsLeapYear()} will always return {\tt .false.} in this case.  However, the arguments {\tt daysPerYear}, {\tt daysPerYearDn}, and {\tt daysPerYearDd} in {\tt ESMF\_CalendarCreate()} and {\tt ESMF\_CalendarSet()} can be used to set a fractional number of days per year, for example, 365.25 = 365 25/100.  Also, if further timekeeping precision is required, fractional and/or floating point {\tt secondsPerDay} and {\tt secondsPerYear} could be added to the interfaces {\tt ESMF\_CalendarCreate()}, {\tt ESMF\_CalendarSet()}, and {\tt ESMF\_CalendarGet()} and implemented.
+
+\end{enumerate}

@@ -1,7 +1,7 @@
-! $Id: ESMF_Calendar.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
+! $Id$
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2012, University Corporation for Atmospheric Research,
+! Copyright 2002-2018, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -62,7 +62,9 @@
       !       to 0 (to detect unset) or possibly 8 (default 
       !       ESMF_CALKIND_NOCALENDAR)
       type ESMF_CalKind_Flag
+#ifndef ESMF_NO_SEQUENCE
       sequence
+#endif
       private
         integer :: calkindflag
       end type
@@ -85,7 +87,9 @@
 !     ! ESMF_Calendar
 !
       type ESMF_Calendar
+#ifndef ESMF_NO_SEQUENCE
       sequence
+#endif
       private
         type(ESMF_Pointer) :: this
         ESMF_INIT_DECLARE
@@ -111,6 +115,7 @@
       public ESMF_CalendarFinalize
       public ESMF_CalendarGet
       public ESMF_CalendarInitialize
+      public ESMF_CalendarIsCreated
       public ESMF_CalendarIsLeapYear
       public ESMF_CalendarPrint
       public ESMF_CalendarReadRestart
@@ -147,7 +152,7 @@
 !------------------------------------------------------------------------------
 ! The following line turns the CVS identifier string into a printable variable.
       character(*), parameter, private :: version = &
-      '$Id: ESMF_Calendar.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $'
+      '$Id$'
 
 !==============================================================================
 ! 
@@ -676,8 +681,7 @@
 
 !
 ! !DESCRIPTION:
-!     Creates a custom {\tt ESMF\_Calendar} and sets its properties.  Not
-!     fully supported yet; see Section ~\ref{subsec:Calendar_rest}.
+!     Creates a custom {\tt ESMF\_Calendar} and sets its properties.
 !
 !     The arguments are:
 !     \begin{description}
@@ -685,28 +689,28 @@
 !          Integer array of days per month, for each month of the year.
 !          The number of months per year is variable and taken from the
 !          size of the array.  If unspecified, months per year = 0,
-!          with the days array undefined.  (Not implemented yet).
+!          with the days array undefined.
 !     \item[{[secondsPerDay]}]
-!          Integer number of seconds per day.  Defaults to 86400 if not 
-!          specified.  (Not implemented yet).
+!          Integer number of seconds per day.  Defaults to 0 if not 
+!          specified.
 !     \item[{[daysPerYear]}]
 !          Integer number of days per year.  Use with daysPerYearDn and
 !          daysPerYearDd (see below) to specify a days-per-year calendar
-!          for any planetary body.  Default = 0.  (Not implemented yet).
+!          for any planetary body.  Default = 0.
 !     \item[{[daysPerYearDn]}]
 !          \begin{sloppypar}
 !          Integer numerator portion of fractional number of days per year
 !          (daysPerYearDn/daysPerYearDd).
 !          Use with daysPerYear (see above) and daysPerYearDd (see below) to
 !          specify a days-per-year calendar for any planetary body.
-!          Default = 0.  (Not implemented yet).
+!          Default = 0.
 !          \end{sloppypar}
 !     \item[{[daysPerYearDd]}]
 !          Integer denominator portion of fractional number of days per year
 !          (daysPerYearDn/daysPerYearDd).
 !          Use with daysPerYear and daysPerYearDn (see above) to
 !          specify a days-per-year calendar for any planetary body.
-!          Default = 1.  (Not implemented yet).
+!          Default = 1.
 !     \item[{[name]}]
 !          The name for the newly created calendar.  If not specified, a
 !          default unique name will be generated: "CalendarNNN" where NNN
@@ -1039,6 +1043,45 @@
       ! Return success
       if (present(rc)) rc = ESMF_SUCCESS
       end subroutine ESMF_CalendarInitialize
+
+
+! -------------------------- ESMF-public method -------------------------------
+#undef  ESMF_METHOD
+#define ESMF_METHOD "ESMF_CalendarIsCreated()"
+!BOP
+! !IROUTINE: ESMF_CalendarIsCreated - Check whether a Calendar object has been created
+
+! !INTERFACE:
+  function ESMF_CalendarIsCreated(calendar, keywordEnforcer, rc)
+! !RETURN VALUE:
+    logical :: ESMF_CalendarIsCreated
+!
+! !ARGUMENTS:
+    type(ESMF_Calendar), intent(in)            :: calendar
+type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
+    integer,             intent(out), optional :: rc
+
+! !DESCRIPTION:
+!   Return {\tt .true.} if the {\tt calendar} has been created. Otherwise return 
+!   {\tt .false.}. If an error occurs, i.e. {\tt rc /= ESMF\_SUCCESS} is 
+!   returned, the return value of the function will also be {\tt .false.}.
+!
+! The arguments are:
+!   \begin{description}
+!   \item[calendar]
+!     {\tt ESMF\_Calendar} queried.
+!   \item[{[rc]}]
+!     Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
+!   \end{description}
+!
+!EOP
+  !-----------------------------------------------------------------------------    
+    ESMF_CalendarIsCreated = .false.   ! initialize
+    if (present(rc)) rc = ESMF_SUCCESS
+    if (ESMF_CalendarGetInit(calendar)==ESMF_INIT_CREATED) &
+      ESMF_CalendarIsCreated = .true.
+  end function
+!------------------------------------------------------------------------------
     
 !------------------------------------------------------------------------------
 !BOP
@@ -1066,8 +1109,8 @@
 ! !DESCRIPTION:
 !     \begin{sloppypar}
 !     Returns {\tt .true.} if the given year is a leap year within the given
-!     calendar, and {\tt .false.} otherwise.  Custom calendars are not yet 
-!     fully supported, so {\tt .false.} will always be returned in this case;
+!     calendar, and {\tt .false.} otherwise.  Custom calendars do not define
+!     leap years, so {\tt .false.} will always be returned in this case;
 !     see Section ~\ref{subsec:Calendar_rest}.
 !     See also {\tt ESMF\_TimeIsLeapYear()}.
 !     \end{sloppypar}
@@ -1112,8 +1155,8 @@
 ! !DESCRIPTION:
 !     \begin{sloppypar}
 !     Returns {\tt .true.} if the given year is a leap year within the given
-!     calendar, and {\tt .false.} otherwise.  Custom calendars are not yet 
-!     fully supported, so {\tt .false.} will always be returned in this case;
+!     calendar, and {\tt .false.} otherwise.  Custom calendars do not define
+!     leap years, so {\tt .false.} will always be returned in this case;
 !     see Section ~\ref{subsec:Calendar_rest}.
 !     See also {\tt ESMF\_TimeIsLeapYear()}.
 !     \end{sloppypar}
@@ -1179,8 +1222,8 @@
 ! !DESCRIPTION:
 !     \begin{sloppypar}
 !     Returns {\tt .true.} if the given year is a leap year within the given
-!     calendar, and {\tt .false.} otherwise.  Custom calendars are not yet 
-!     fully supported, so {\tt .false.} will always be returned in this case;
+!     calendar, and {\tt .false.} otherwise.  Custom calendars do not define
+!     leap years, so {\tt .false.} will always be returned in this case;
 !     see Section ~\ref{subsec:Calendar_rest}.
 !     See also {\tt ESMF\_TimeIsLeapYear()}.
 !     \end{sloppypar}
@@ -1448,8 +1491,7 @@
 ! \end{itemize}
 !
 ! !DESCRIPTION:
-!     Sets properties in a custom {\tt ESMF\_Calendar}.  Not fully 
-!     supported yet; see Section ~\ref{subsec:Calendar_rest}.
+!     Sets properties in a custom {\tt ESMF\_Calendar}.
 !
 !     The arguments are:
 !     \begin{description}
@@ -1459,27 +1501,27 @@
 !          Integer array of days per month, for each month of the year.
 !          The number of months per year is variable and taken from the
 !          size of the array.  If unspecified, months per year = 0,
-!          with the days array undefined.  (Not implemented yet).
+!          with the days array undefined.
 !     \item[{[secondsPerDay]}]
-!          Integer number of seconds per day.  Defaults to 86400 if not 
-!          specified.  (Not implemented yet).
+!          Integer number of seconds per day.  Defaults to 0 if not 
+!          specified.
 !     \item[{[daysPerYear]}]
 !          Integer number of days per year.  Use with daysPerYearDn and
 !          daysPerYearDd (see below) to specify a days-per-year calendar
-!          for any planetary body.  Default = 0.  (Not implemented yet).
+!          for any planetary body.  Default = 0.
 !     \item[{[daysPerYearDn]}]
 !          Integer numerator portion of fractional number of days per year
 !          (daysPerYearDn/daysPerYearDd).
 !          Use with daysPerYear (see above) and daysPerYearDd (see below) to
 !          specify a days-per-year calendar for any planetary body.
-!          Default = 0.  (Not implemented yet).
+!          Default = 0.
 !     \item[{[daysPerYearDd]}]
 !          \begin{sloppypar}
 !          Integer denominator portion of fractional number of days per year
 !          (daysPerYearDn/daysPerYearDd).
 !          Use with daysPerYear and daysPerYearDn (see above) to
 !          specify a days-per-year calendar for any planetary body.
-!          Default = 1.  (Not implemented yet).
+!          Default = 1.
 !          \end{sloppypar}
 !     \item[{[name]}]
 !          The new name for this calendar.

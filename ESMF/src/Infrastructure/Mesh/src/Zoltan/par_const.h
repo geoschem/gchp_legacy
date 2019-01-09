@@ -6,8 +6,8 @@
 /*****************************************************************************
  * CVS File Information :
  *    $RCSfile: par_const.h,v $
- *    $Author: mathomp4 $
- *    $Date: 2013-01-11 20:23:44 $
+ *    $Author: dneckels $
+ *    $Date: 2007/11/28 16:13:52 $
  *    Revision: 1.17 $
  ****************************************************************************/
 
@@ -24,7 +24,7 @@ extern "C" {
 
 extern void Zoltan_Print_Sync_Start(MPI_Comm, int);
 extern void Zoltan_Print_Sync_End(MPI_Comm, int);
-extern void Zoltan_Print_Stats (MPI_Comm, int, double, char *);
+extern void Zoltan_Print_Stats (MPI_Comm, int, double, const char *);
 
 #ifdef __cplusplus
 } /* closing bracket for extern "C" */

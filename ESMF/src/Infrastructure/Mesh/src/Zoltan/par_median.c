@@ -6,8 +6,8 @@
 /*****************************************************************************
  * CVS File Information :
  *    $RCSfile: par_median.c,v $
- *    $Author: mathomp4 $
- *    $Date: 2013-01-11 20:23:44 $
+ *    $Author: feiliu $
+ *    $Date: 2009/08/07 14:51:42 $
  *    Revision: 1.6.2.1 $
  ****************************************************************************/
 
@@ -38,6 +38,8 @@ struct median {          /* median cut info */
   int       proclo, prochi;     /* unique proc who owns a nearest dot */
 };
 
+/* Forward references */
+void Zoltan_RB_median_merge(void *in, void *inout, int *len, MPI_Datatype *dptr);
 
 /************ R O U T I N E S   I N   T H I S   F I L E  **********************
 

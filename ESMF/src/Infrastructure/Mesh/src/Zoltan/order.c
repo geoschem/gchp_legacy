@@ -6,8 +6,8 @@
 /*****************************************************************************
  * CVS File Information :
  *    $RCSfile: order.c,v $
- *    $Author: mathomp4 $
- *    $Date: 2013-01-11 20:23:44 $
+ *    $Author: dneckels $
+ *    $Date: 2007/11/28 16:13:52 $
  *    Revision: 1.16 $
  ****************************************************************************/
 
@@ -75,7 +75,7 @@ int Zoltan_Order(
  *   Zoltan error code.
  */
 
-  char *yo = "Zoltan_Order";
+  const char *yo = "Zoltan_Order";
   int ierr;
   int *vtxdist;
   double start_time, end_time;

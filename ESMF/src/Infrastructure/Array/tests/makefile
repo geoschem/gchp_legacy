@@ -1,4 +1,4 @@
-# $Id: makefile,v 1.1.5.1 2013-01-11 20:23:43 mathomp4 Exp $ 
+# $Id$ 
 
 ALL:      build_unit_tests
 run:      run_unit_tests
@@ -6,14 +6,17 @@ run_uni:  run_unit_tests_uni
 
 LOCDIR	  = src/Infrastructure/Array/tests
 
+.NOTPARALLEL:
 TESTS_BUILD   = $(ESMF_TESTDIR)/ESMF_ArrayCreateGetUTest \
                 $(ESMF_TESTDIR)/ESMF_ArrayDataUTest \
                 $(ESMF_TESTDIR)/ESMF_ArrayScatterUTest \
                 $(ESMF_TESTDIR)/ESMF_ArrayGatherUTest \
                 $(ESMF_TESTDIR)/ESMF_ArrayIOUTest \
                 $(ESMF_TESTDIR)/ESMF_ArraySMMUTest \
+                $(ESMF_TESTDIR)/ESMF_ArraySMMFromFileUTest \
                 $(ESMF_TESTDIR)/ESMF_ArrayArbIdxSMMUTest \
                 $(ESMF_TESTDIR)/ESMF_ArrayRedistUTest \
+                $(ESMF_TESTDIR)/ESMF_ArrayRedistPerfUTest \
                 $(ESMF_TESTDIR)/ESMF_ArrayHaloUTest \
                 $(ESMF_TESTDIR)/ESMC_ArrayUTest 
 
@@ -23,12 +26,16 @@ TESTS_RUN     = RUN_ESMF_ArrayCreateGetUTest \
                 RUN_ESMF_ArrayGatherUTest \
                 RUN_ESMF_ArrayIOUTest \
                 RUN_ESMF_ArraySMMUTest \
+                RUN_ESMF_ArraySMMFromFileUTest \
                 RUN_ESMF_ArrayArbIdxSMMUTest \
                 RUN_ESMF_ArrayRedistUTest \
+                RUN_ESMF_ArrayRedistPerfUTest \
                 RUN_ESMF_ArrayHaloUTest \
                 RUN_ESMC_ArrayUTest 
 
 TESTS_RUN_UNI = RUN_ESMF_ArrayDataUTestUNI \
+                RUN_ESMF_ArraySMMUTestUNI \
+                RUN_ESMF_ArraySMMFromFileUTestUNI \
                 RUN_ESMC_ArrayUTestUNI
 
 #
@@ -91,6 +98,20 @@ RUN_ESMF_ArraySMMUTestUNI:
 
 # ---
 
+RUN_ESMF_ArraySMMFromFileUTest:
+	mkdir -p $(ESMF_TESTDIR)/data
+	cp -f ../../IO/tests/T42_grid.nc $(ESMF_TESTDIR)/data
+	chmod u+rw $(ESMF_TESTDIR)/data/*
+	$(MAKE) TNAME=ArraySMMFromFile NP=4 ftest
+
+RUN_ESMF_ArraySMMFromFileUTestUNI:
+	mkdir -p $(ESMF_TESTDIR)/data
+	cp -f ../../IO/tests/T42_grid.nc $(ESMF_TESTDIR)/data
+	chmod u+rw $(ESMF_TESTDIR)/data/*
+	$(MAKE) TNAME=ArraySMMFromFile NP=1 ftest
+
+# ---
+
 RUN_ESMF_ArrayArbIdxSMMUTest:
 	$(MAKE) TNAME=ArrayArbIdxSMM NP=6 ftest
 
@@ -98,6 +119,11 @@ RUN_ESMF_ArrayArbIdxSMMUTest:
 
 RUN_ESMF_ArrayRedistUTest:
 	$(MAKE) TNAME=ArrayRedist NP=6 ftest
+
+# ---
+
+RUN_ESMF_ArrayRedistPerfUTest:
+	$(MAKE) TNAME=ArrayRedistPerf NP=6 ftest
 
 # ---
 

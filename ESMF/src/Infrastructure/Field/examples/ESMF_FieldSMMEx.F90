@@ -1,7 +1,7 @@
 ! $Id$
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2012, University Corporation for Atmospheric Research,
+! Copyright 2002-2018, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -17,10 +17,10 @@
 !==============================================================================
 !
 ! !PROGRAM: ESMF_FieldSMMEx - Field SMMribution
-!     
+!
 ! !DESCRIPTION:
-!     
-! This program shows examples of Field interfaces for 
+!
+! This program shows examples of Field interfaces for
 ! sparse matrix multiplication of data.
 !-----------------------------------------------------------------------------
 #include "ESMF.h"
@@ -48,18 +48,33 @@
     type(ESMF_RouteHandle)                      :: routehandle
     type(ESMF_Array)                            :: srcArray, dstArray
     type(ESMF_ArraySpec)                        :: arrayspec
-    integer                                     :: localrc, lpe, i
+    integer                                     :: localrc, lpe, i, result
 
     integer, allocatable                        :: src_farray(:), dst_farray(:)
     integer                                     :: fa_shape(1), tlb(1), tub(1)
     integer, pointer                            :: fptr(:)
     real(ESMF_KIND_R4), pointer                 :: fptr2d(:,:)
     real(ESMF_KIND_R4), pointer                 :: src_farray2(:)
-        
+
     real(ESMF_KIND_R4), allocatable          :: factorList(:)
     integer, allocatable                        :: factorIndexList(:,:)
 
+    character(ESMF_MAXSTR)                      :: testname
+    character(ESMF_MAXSTR)                      :: failMsg
+
+!-------------------------------------------------------------------------
+!-------------------------------------------------------------------------
+
+    write(failMsg, *) "Example failure"
+    write(testname, *) "Example ESMF_FieldSMMEx"
+
+
+! ------------------------------------------------------------------------------
+! ------------------------------------------------------------------------------
+
+
     rc = ESMF_SUCCESS
+    localrc = ESMF_SUCCESS
     finalrc = ESMF_SUCCESS
 !------------------------------------------------------------------------------
     call ESMF_Initialize(defaultlogfilename="FieldSMMEx.Log", &
@@ -73,52 +88,52 @@
 ! \subsubsection{Sparse matrix multiplication from source Field to destination Field}
 ! \label{sec:field:usage:smm_1dptr}
 !
-! A user can use {\tt ESMF\_FieldSMM()} interface to perform sparse matrix multiplication 
-! from 
+! The {\tt ESMF\_FieldSMM()} interface can be used to perform sparse matrix multiplication
+! from
 ! source Field to destination Field. This interface is overloaded by type and kind;
-! 
+!
 ! In this example, we first create two 1D Fields, a source Field and a destination
 ! Field. Then we use {\tt ESMF\_FieldSMM} to
 ! perform sparse matrix multiplication from source Field to destination Field.
 !
 ! The source and destination Field data are arranged such that each of the 4 PETs has 4
 ! data elements. Moreover, the source Field has all its data elements initialized to a linear
-! function based on local PET number. 
+! function based on local PET number.
 ! Then collectively on each PET, a SMM according to the following formula
 ! is preformed: \newline
 ! $dstField(i) = i * srcField(i), i = 1 ... 4$ \newline
 ! \newline
 !
-! Because source Field data are initialized to a linear function based on local PET number, 
+! Because source Field data are initialized to a linear function based on local PET number,
 ! the formula predicts that
 ! the result destination Field data on each PET is {1,2,3,4}. This is verified in the
 ! example.
 !
-! Section \ref{Array:SparseMatMul} provides a detailed discussion of the 
-! sparse matrix mulitiplication operation implemented in ESMF.
-! 
+! Section \ref{Array:SparseMatMul} provides a detailed discussion of the
+! sparse matrix multiplication operation implemented in ESMF.
+!
 !EOE
-!BOC 
+!BOC
 
     ! Get current VM and pet number
     call ESMF_VMGetCurrent(vm, rc=rc)
-    if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
     call ESMF_VMGet(vm, localPet=lpe, rc=rc)
-    if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
     ! create distgrid and grid
     distgrid = ESMF_DistGridCreate(minIndex=(/1/), maxIndex=(/16/), &
         regDecomp=(/4/), &
         rc=rc)
-    if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
     grid = ESMF_GridCreate(distgrid=distgrid, &
         name="grid", rc=rc)
-    if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
     call ESMF_GridGetFieldBounds(grid, localDe=0, totalCount=fa_shape, rc=rc)
-    if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
     ! create src\_farray, srcArray, and srcField
     ! +--------+--------+--------+--------+
@@ -127,11 +142,11 @@
     allocate(src_farray(fa_shape(1)) )
     src_farray = lpe+1
     srcArray = ESMF_ArrayCreate(distgrid, src_farray, &
-		indexflag=ESMF_INDEX_DELOCAL, rc=rc)
-    if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
+                indexflag=ESMF_INDEX_DELOCAL, rc=rc)
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
     srcField = ESMF_FieldCreate(grid, srcArray, rc=rc)
-    if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
     ! create dst_farray, dstArray, and dstField
     ! +--------+--------+--------+--------+
@@ -140,11 +155,11 @@
     allocate(dst_farray(fa_shape(1)) )
     dst_farray = 0
     dstArray = ESMF_ArrayCreate(distgrid, dst_farray, &
-		indexflag=ESMF_INDEX_DELOCAL, rc=rc)
-    if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
+                indexflag=ESMF_INDEX_DELOCAL, rc=rc)
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
     dstField = ESMF_FieldCreate(grid, dstArray, rc=rc)
-    if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
     ! perform sparse matrix multiplication
     ! 1. setup routehandle from source Field to destination Field
@@ -157,18 +172,18 @@
 
     call ESMF_FieldSMMStore(srcField, dstField, routehandle, &
         factorList, factorIndexList, rc=localrc)
-    if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
+    if (localrc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
     ! 2. use precomputed routehandle to perform SMM
     call ESMF_FieldSMM(srcfield, dstField, routehandle, rc=rc)
-    if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
     ! verify sparse matrix multiplication
     call ESMF_FieldGet(dstField, localDe=0, farrayPtr=fptr, rc=rc)
-    if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
     ! Verify that the result data in dstField is correct.
-    ! Before the SMM op, the dst Field contains all 0. 
+    ! Before the SMM op, the dst Field contains all 0.
     ! The SMM op reset the values to the index value, verify this is the case.
     ! +--------+--------+--------+--------+
     !  1 2 3 4  2 4 6 8  3 6 9 12  4 8 12 16       ! value
@@ -177,17 +192,17 @@
         if(fptr(i) /= i*(lpe+1)) rc = ESMF_FAILURE
     enddo
 !EOC
-    if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
 !BOE
-! Field sparse matrix matmul can also be performed between weakly congruent Fields.
+! Field sparse matrix multiplication can also be performed between weakly congruent Fields.
 ! In this case, source and destination Fields can have ungridded dimensions
-! with size different from the Field pair used to compute the routehandle. 
+! with size different from the Field pair used to compute the routehandle.
 !EOE
 !BOC
     call ESMF_ArraySpecSet(arrayspec, typekind=ESMF_TYPEKIND_I4, rank=2, rc=rc)
 !EOC
-    if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !BOE
 ! Create two fields with ungridded dimensions using the Grid created previously.
 ! The new Field pair has matching number of elements. The ungridded dimension
@@ -197,44 +212,44 @@
     srcFieldA = ESMF_FieldCreate(grid, arrayspec, gridToFieldMap=(/2/), &
         ungriddedLBound=(/1/), ungriddedUBound=(/10/), rc=rc)
 !EOC
-    if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !BOC
     dstFieldA = ESMF_FieldCreate(grid, arrayspec, gridToFieldMap=(/2/), &
         ungriddedLBound=(/1/), ungriddedUBound=(/10/), rc=rc)
 !EOC
-    if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !BOE
 ! Using the previously computed routehandle, weakly congruent Fields can perform
-! sparse matrix matmul.
+! sparse matrix multiplication.
 !EOE
 !BOC
     call ESMF_FieldSMM(srcfieldA, dstFieldA, routehandle, rc=rc)
 !EOC
-    if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
 !BOC
     ! release route handle
     call ESMF_FieldSMMRelease(routehandle, rc=rc)
 !EOC
-    if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
     ! destroy all objects created in this example to prevent memory leak
     call ESMF_FieldDestroy(srcField, rc=rc)
-    if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
     call ESMF_FieldDestroy(dstField, rc=rc)
-    if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
     call ESMF_FieldDestroy(srcFieldA, rc=rc)
-    if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
     call ESMF_FieldDestroy(dstFieldA, rc=rc)
-    if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
     call ESMF_ArrayDestroy(srcArray, rc=rc)
-    if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
     call ESMF_ArrayDestroy(dstArray, rc=rc)
-    if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
     call ESMF_GridDestroy(grid, rc=rc)
-    if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
     call ESMF_DistGridDestroy(distgrid, rc=rc)
-    if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
     deallocate(src_farray, dst_farray, factorList, factorIndexList)
 
 !BOE
@@ -243,23 +258,23 @@
 ! and the size of those gridded dimensions. The source Field has a 1D decomposition
 ! with 16 total elements; the destination Field has a 2D decomposition with
 ! 12 total elements. For ease of understanding of the actual matrix calculation,
-! a global indexing scheme is used. 
+! a global indexing scheme is used.
 !EOE
 !BOC
     distgrid = ESMF_DistGridCreate(minIndex=(/1/), maxIndex=(/16/), &
         indexflag=ESMF_INDEX_GLOBAL, &
         regDecomp=(/4/), &
         rc=rc)
-    if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
     grid = ESMF_GridCreate(distgrid=distgrid, &
         indexflag=ESMF_INDEX_GLOBAL, &
         name="grid", rc=rc)
-    if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
     call ESMF_GridGetFieldBounds(grid, localDe=0, totalLBound=tlb, &
                        totalUBound=tub, rc=rc)
-    if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !EOC
 !BOE
 ! create 1D src\_farray, srcArray, and srcField
@@ -274,17 +289,17 @@
     allocate(src_farray2(tlb(1):tub(1)) )
     src_farray2 = lpe+1
     srcArray = ESMF_ArrayCreate(distgrid, src_farray2, &
-		  indexflag=ESMF_INDEX_GLOBAL, &
+                  indexflag=ESMF_INDEX_GLOBAL, &
       rc=rc)
-    if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
     !print *, lpe, '+', tlb, tub, '+', src_farray2
 
     srcField = ESMF_FieldCreate(grid, srcArray, rc=rc)
-    if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
 !EOC
 !BOE
-! Create 2D dstField on the following distribution 
+! Create 2D dstField on the following distribution
 ! (numbers are the sequence indices):
 !\begin{verbatim}
 ! +  PET0  +  PET1  +  PET2  +  PET3  +
@@ -310,12 +325,12 @@
       indexflag = ESMF_INDEX_GLOBAL, &
       regDecomp = (/1,4/), &
       rc=rc)
-    if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
     dstField = ESMF_FieldCreate(dstGrid, typekind=ESMF_TYPEKIND_R4, &
       indexflag=ESMF_INDEX_GLOBAL, &
       rc=rc)
-    if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !EOC
 !BOE
 ! Perform sparse matrix multiplication $dst_i$ = $M_{i,j}$ * $src_j$
@@ -337,7 +352,7 @@
 ! dstField equals to 0.25*srcField(2) + 0.5*srcField(16) = 0.25*1+0.5*4=2.25
 ! For simplicity, we will load the factorList and factorIndexList on
 ! PET 0 and 1, the SMMStore engine will load balance the parameters on all 4
-! PETs internally for optimal performance. 
+! PETs internally for optimal performance.
 !EOE
 !BOC
     if(lpe == 0) then
@@ -347,7 +362,7 @@
       factorIndexList(2,:)=(/3,3,8/)
       call ESMF_FieldSMMStore(srcField, dstField, routehandle=routehandle, &
           factorList=factorList, factorIndexList=factorIndexList, rc=localrc)
-      if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
+      if (localrc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
     else if(lpe == 1) then
       allocate(factorList(3), factorIndexList(2,3))
       factorList=(/0.5,0.3,0.7/)
@@ -355,46 +370,51 @@
       factorIndexList(2,:)=(/8,12,12/)
       call ESMF_FieldSMMStore(srcField, dstField, routehandle=routehandle, &
           factorList=factorList, factorIndexList=factorIndexList, rc=localrc)
-      if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
+      if (localrc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
     else
       call ESMF_FieldSMMStore(srcField, dstField, routehandle=routehandle, &
           rc=localrc)
-      if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
+      if (localrc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
     endif
 
     ! 2. use precomputed routehandle to perform SMM
     call ESMF_FieldSMM(srcfield, dstField, routehandle=routehandle, rc=rc)
-    if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !EOC
 
     ! verify sparse matrix multiplication
     call ESMF_FieldGet(dstField, localDe=0, farrayPtr=fptr2d, rc=rc)
-    if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
     ! Verify that the result data in dstField is correct.
     print *, lpe, '-', lbound(fptr2d), '-',ubound(fptr2d),'-', fptr2d
 
     ! destroy all objects created in this example to prevent memory leak
     call ESMF_FieldSMMRelease(routehandle, rc=rc)
-    if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
     call ESMF_FieldDestroy(srcField, rc=rc)
-    if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
     call ESMF_FieldDestroy(dstField, rc=rc)
-    if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
     !call ESMF_FieldDestroy(srcFieldA, rc=rc)
-    !if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
+    !if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
     !call ESMF_FieldDestroy(dstFieldA, rc=rc)
-    !if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
+    !if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
     call ESMF_ArrayDestroy(srcArray, rc=rc)
-    if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
     call ESMF_GridDestroy(grid, rc=rc)
-    if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
     call ESMF_GridDestroy(dstgrid, rc=rc)
-    if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
     call ESMF_DistGridDestroy(distgrid, rc=rc)
-    if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
     deallocate(src_farray2)
     if(allocated(factorList)) deallocate(factorList, factorIndexList)
+
+    ! IMPORTANT: ESMF_STest() prints the PASS string and the # of processors in the log
+    ! file that the scripts grep for.
+    call ESMF_STest((finalrc.eq.ESMF_SUCCESS), testname, failMsg, result, ESMF_SRCLINE)
+
 
      call ESMF_Finalize(rc=rc)
 

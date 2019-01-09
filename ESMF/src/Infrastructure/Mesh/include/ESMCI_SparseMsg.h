@@ -1,6 +1,6 @@
 // $Id$
 // Earth System Modeling Framework
-// Copyright 2002-2012, University Corporation for Atmospheric Research, 
+// Copyright 2002-2018, University Corporation for Atmospheric Research, 
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
 // Laboratory, University of Michigan, National Centers for Environmental 
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
@@ -60,6 +60,9 @@ public:
     // location in buffer.
     void push(const UChar *src, UInt size);
 
+    // Get current buffer to look at without popping
+    UChar *get_current() {return cur;}
+
     // Size of message
     UInt msg_size() { return msize;}
 
@@ -69,7 +72,7 @@ public:
 
   private:
     UChar *beg, *end, *cur;
-    int msize;  // actual message size
+    UInt msize;  // actual message size
     UInt bsize;  // size (with rounding to word boundary)
     UInt proc;
   };

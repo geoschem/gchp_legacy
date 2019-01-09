@@ -6,8 +6,8 @@
 /*****************************************************************************
  * CVS File Information :
  *    $RCSfile: comm_info.c,v $
- *    $Author: mathomp4 $
- *    $Date: 2013-01-11 20:23:44 $
+ *    $Author: dneckels $
+ *    $Date: 2007/11/28 16:13:46 $
  *    Revision: 1.3.2.1 $
  ****************************************************************************/
 
@@ -53,7 +53,7 @@ int Zoltan_Comm_Info(
   int *self_msg                 /* number of self-messages in plan */
 )
 {
-static char *yo = "Zoltan_Comm_Info";
+static const char *yo = "Zoltan_Comm_Info";
 int i, j, k, my_proc;
 
   /* Check input parameters */

@@ -1,7 +1,7 @@
-! $Id: ESMF_ArrayScatterGatherEx.F90,v 1.1.5.1 2013-01-11 20:23:43 mathomp4 Exp $
+! $Id$
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2012, University Corporation for Atmospheric Research,
+! Copyright 2002-2018, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -15,8 +15,10 @@
 !==============================================================================
 
 program ESMF_ArrayScatterGatherEx
+#include "ESMF.h"
 
   use ESMF
+  use ESMF_TestMod
   
   implicit none
   
@@ -29,7 +31,15 @@ program ESMF_ArrayScatterGatherEx
   type(ESMF_ArraySpec):: arrayspec
   integer(ESMF_KIND_I4), allocatable:: farray(:,:,:)
   real(ESMF_KIND_R8), pointer:: myFarray2D(:,:), myFarray2D2(:,:)
-  integer :: finalrc
+  integer :: finalrc, result
+  character(ESMF_MAXSTR) :: testname
+  character(ESMF_MAXSTR) :: failMsg
+
+!-------------------------------------------------------------------------
+!-------------------------------------------------------------------------
+
+  write(failMsg, *) "Example failure"
+  write(testname, *) "Example ESMF_ArrayScatterGatherEx"
   
 ! ------------------------------------------------------------------------------
 ! ------------------------------------------------------------------------------
@@ -67,6 +77,8 @@ program ESMF_ArrayScatterGatherEx
         enddo
       enddo
     enddo
+  else
+    allocate(farray(0,0,0))
   endif
 !EOC
 !BOC
@@ -91,9 +103,7 @@ program ESMF_ArrayScatterGatherEx
 !EOC
   if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !BOC
-  if (localPet == 0) then
-    deallocate(farray)
-  endif
+  deallocate(farray)
 !EOC
 !BOE
 ! The destination of the ArrayScatter() operation are all the DEs of a single
@@ -108,15 +118,15 @@ program ESMF_ArrayScatterGatherEx
 !BOC
   if (localPet == 3) then
     allocate(farray(10,20,30))
+  else
+    allocate(farray(0,0,0))
   endif
   
   call ESMF_ArrayGather(array, farray=farray, rootPet=3, rc=rc)
 !EOC
   if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !BOC
-  if (localPet == 3) then
-    deallocate(farray)
-  endif
+  deallocate(farray)
 !EOC
 !BOE
 ! The source of the ArrayGather() operation are all the DEs of a single
@@ -162,15 +172,15 @@ program ESMF_ArrayScatterGatherEx
         myFarray2D(i,j) = i * 100.d0 + j * 1.2345d0 ! initialize
       enddo
     enddo
+  else
+    allocate(myFarray2D(0,0))
   endif
   
   call ESMF_ArrayScatter(array, farray=myFarray2D, rootPet=0, rc=rc)
 !EOC
   if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !BOC
-  if (localPet == 0) then
-    deallocate(myFarray2D)
-  endif
+  deallocate(myFarray2D)
 !EOC
 !BOE
 ! This will have filled each local 4 x 2 Array piece with the replicated
@@ -230,15 +240,15 @@ program ESMF_ArrayScatterGatherEx
         myFarray2D2(i,j) = i * 100.d0 + j * 1.2345d0 ! initialize
       enddo
     enddo
+  else
+    allocate(myFarray2D2(0,0))
   endif
   
   call ESMF_ArrayScatter(array, farray=myFarray2D2, rootPet=0, rc=rc)
 !EOC
   if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !BOC
-  if (localPet == 0) then
-    deallocate(myFarray2D2)
-  endif
+  deallocate(myFarray2D2)
 !EOC
 !BOE
 ! The Array pieces on every DE will receive the same source data, resulting
@@ -312,6 +322,11 @@ program ESMF_ArrayScatterGatherEx
 ! ------------------------------------------------------------------------------
 ! ------------------------------------------------------------------------------
 10 continue
+
+  ! IMPORTANT: ESMF_STest() prints the PASS string and the # of processors in the log
+  ! file that the scripts grep for.
+  call ESMF_STest((finalrc.eq.ESMF_SUCCESS), testname, failMsg, result, ESMF_SRCLINE)
+
   call ESMF_Finalize(rc=rc)
   
   if (rc/=ESMF_SUCCESS) finalrc = ESMF_FAILURE

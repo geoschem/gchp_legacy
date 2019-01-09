@@ -1,7 +1,7 @@
-! $Id: ESMF_ArrayArbIdxSMMUTest.F90,v 1.1.5.1 2013-01-11 20:23:43 mathomp4 Exp $
+! $Id$
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2012, University Corporation for Atmospheric Research,
+! Copyright 2002-2018, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -36,7 +36,7 @@ program ESMF_ArrayArbIdxSMMUTest
 !------------------------------------------------------------------------------
 ! The following line turns the CVS identifier string into a printable variable.
   character(*), parameter :: version = &
-    '$Id: ESMF_ArrayArbIdxSMMUTest.F90,v 1.1.5.1 2013-01-11 20:23:43 mathomp4 Exp $'
+    '$Id$'
 !------------------------------------------------------------------------------
 
 !-------------------------------------------------------------------------
@@ -68,6 +68,7 @@ program ESMF_ArrayArbIdxSMMUTest
 #endif
   integer               :: rc, i, petCount, localPet
   integer, allocatable  :: srcIndices(:)
+  character(1024)       :: msgString
 
   ! cumulative result: count failures; no failures equals "all pass"
   integer :: result = 0
@@ -84,6 +85,7 @@ program ESMF_ArrayArbIdxSMMUTest
 
   !------------------------------------------------------------------------
   call ESMF_TestStart(ESMF_SRCLINE, rc=rc)  ! calls ESMF_Initialize() internally
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   !------------------------------------------------------------------------
   ! get global VM
   call ESMF_VMGetGlobal(vm, rc=rc)
@@ -274,7 +276,7 @@ program ESMF_ArrayArbIdxSMMUTest
   dstArray = ESMF_ArrayCreate(arrayspec=arrayspec, distgrid=dstDistgrid, rc=rc)
   call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
   
-  ! The dstDistgrid evenly divides 12 elements across the 6 DEs (becaues default
+  ! The dstDistgrid evenly divides 12 elements across the 6 DEs (because default
   ! is 1 DE per PET and there are 6 PETs running this example).
   ! The default sequenceIndex of dstDistGrid is determined by the default rule
   ! of simply enumerating the elements within the tile, starting at 1:
@@ -420,7 +422,8 @@ program ESMF_ArrayArbIdxSMMUTest
   call ESMF_ArrayGet(dstArray, farrayPtr=farrayPtr, rc=rc)
   call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
   
-  print *, "localPet: ",localPet," dstArray: ",farrayPtr
+  write(msgString,*) "dstArray: ", farrayPtr
+  call ESMF_LogWrite(msgString, ESMF_LOGMSG_INFO, rc=rc)
   
 !------------------------------------------------------------------------
   !NEX_UTest_Multi_Proc_Only
@@ -428,22 +431,22 @@ program ESMF_ArrayArbIdxSMMUTest
   write(failMsg, *) "Wrong results" 
   if (localPet == 0) then
     call ESMF_Test(((farrayPtr(1).eq.37).and.(farrayPtr(2).eq.0)), &
-		     name, failMsg, result, ESMF_SRCLINE)
+     name, failMsg, result, ESMF_SRCLINE)
   else if (localPet == 1) then
     call ESMF_Test(((farrayPtr(1).eq.0).and.(farrayPtr(2).eq.-136)), &
-		     name, failMsg, result, ESMF_SRCLINE)
+     name, failMsg, result, ESMF_SRCLINE)
   else if (localPet == 2) then
     call ESMF_Test(((farrayPtr(1).eq.238).and.(farrayPtr(2).eq.-86)), &
-		     name, failMsg, result, ESMF_SRCLINE)
+     name, failMsg, result, ESMF_SRCLINE)
   else if (localPet == 3) then
     call ESMF_Test(((farrayPtr(1).eq.-151).and.(farrayPtr(2).eq.0)), &
-		     name, failMsg, result, ESMF_SRCLINE)
+     name, failMsg, result, ESMF_SRCLINE)
   else if (localPet == 4) then
     call ESMF_Test(((farrayPtr(1).eq.4493).and.(farrayPtr(2).eq.-407)), &
-		     name, failMsg, result, ESMF_SRCLINE)
+     name, failMsg, result, ESMF_SRCLINE)
   else if (localPet == 5) then
     call ESMF_Test(((farrayPtr(1).eq.255).and.(farrayPtr(2).eq.-1)), &
-		     name, failMsg, result, ESMF_SRCLINE)
+     name, failMsg, result, ESMF_SRCLINE)
   endif
 
 #ifdef ESMF_TESTEXHAUSTIVE
@@ -478,22 +481,22 @@ program ESMF_ArrayArbIdxSMMUTest
   write(failMsg, *) "Wrong results" 
   if (localPet == 0) then
     call ESMF_Test(((farrayPtr(1).eq.37).and.(farrayPtr(2).eq.0)), &
-		     name, failMsg, result, ESMF_SRCLINE)
+     name, failMsg, result, ESMF_SRCLINE)
   else if (localPet == 1) then
     call ESMF_Test(((farrayPtr(1).eq.0).and.(farrayPtr(2).eq.-136)), &
-		     name, failMsg, result, ESMF_SRCLINE)
+     name, failMsg, result, ESMF_SRCLINE)
   else if (localPet == 2) then
     call ESMF_Test(((farrayPtr(1).eq.238).and.(farrayPtr(2).eq.-86)), &
-		     name, failMsg, result, ESMF_SRCLINE)
+     name, failMsg, result, ESMF_SRCLINE)
   else if (localPet == 3) then
     call ESMF_Test(((farrayPtr(1).eq.-151).and.(farrayPtr(2).eq.0)), &
-		     name, failMsg, result, ESMF_SRCLINE)
+     name, failMsg, result, ESMF_SRCLINE)
   else if (localPet == 4) then
     call ESMF_Test(((farrayPtr(1).eq.4493).and.(farrayPtr(2).eq.-407)), &
-		     name, failMsg, result, ESMF_SRCLINE)
+     name, failMsg, result, ESMF_SRCLINE)
   else if (localPet == 5) then
     call ESMF_Test(((farrayPtr(1).eq.255).and.(farrayPtr(2).eq.-1)), &
-		     name, failMsg, result, ESMF_SRCLINE)
+     name, failMsg, result, ESMF_SRCLINE)
   endif
 
 !------------------------------------------------------------------------
@@ -503,10 +506,10 @@ program ESMF_ArrayArbIdxSMMUTest
   farrayPtr = -99 ! reset to something that would be caught during verification
 
   ! The following barrier call holds up PET 0 from calling into ArraySMM() 
-  ! until all other PETs have called in with ESMF_ROUTESYNC_NBSTART, and have done
-  ! one round of calling in with ESMF_ROUTESYNC_NBTESTFINISH. Doing this tests the
-  ! non-blocking mode of ArraySMM().
-  if (localPet==0) call ESMF_VMBarrier(vm)
+  ! until all other PETs have called in with ESMF_ROUTESYNC_NBSTART, and have
+  ! done one round of calling in with ESMF_ROUTESYNC_NBTESTFINISH. Doing this
+  ! tests the non-blocking mode of ArraySMM().
+  if (localPet==0) call ESMF_VMBarrier(vm, rc=rc)
 
 !------------------------------------------------------------------------
   !EX_UTest_Multi_Proc_Only
@@ -554,14 +557,14 @@ program ESMF_ArrayArbIdxSMMUTest
   ! results.
   call ESMF_Test(evalflag, name, failMsg, result, ESMF_SRCLINE)
   
-  print *, "localPet=",localPet, &
-    "ESMF_ROUTESYNC_NBTESTFINISH: finishedflag=", finishedflag
+  write(msgString,*) "ESMF_ROUTESYNC_NBTESTFINISH: finishedflag=", finishedflag
+  call ESMF_LogWrite(msgString, ESMF_LOGMSG_INFO, rc=rc)
   
-  ! The folling barrier call releases PET 0 which was waiting on the barrier
+  ! The following barrier call releases PET 0 which was waiting on the barrier
   ! call before the first call to ArraySMM() above. Releasing PET 0 now will
-  ! allow the folling call with ESMF_ROUTESYNC_NBWAITFINISH to finish up, where
-  ! the finishedflag on all PETs will be .true. on return.
-  if (localPet/=0) call ESMF_VMBarrier(vm)
+  ! allow the following call with ESMF_ROUTESYNC_NBWAITFINISH to finish up,
+  ! where the finishedflag on all PETs will be .true. on return.
+  if (localPet/=0) call ESMF_VMBarrier(vm, rc=rc)
 
 !------------------------------------------------------------------------
   !EX_UTest_Multi_Proc_Only
@@ -579,8 +582,8 @@ program ESMF_ArrayArbIdxSMMUTest
   ! Now all PETs should return with finishedflag .true.
   call ESMF_Test(finishedflag, name, failMsg, result, ESMF_SRCLINE)
   
-  print *, "localPet=",localPet, &
-    "ESMF_ROUTESYNC_NBWAITFINISH: finishedflag=", finishedflag
+  write(msgString,*) "ESMF_ROUTESYNC_NBWAITFINISH: finishedflag=", finishedflag
+  call ESMF_LogWrite(msgString, ESMF_LOGMSG_INFO, rc=rc)
   
   ! The expected result of the sparse matrix multiplication in dstArray is:
   ! (note: by default ArraySMM() initializes _all_ destination elements
@@ -600,22 +603,22 @@ program ESMF_ArrayArbIdxSMMUTest
   write(failMsg, *) "Wrong results" 
   if (localPet == 0) then
     call ESMF_Test(((farrayPtr(1).eq.37).and.(farrayPtr(2).eq.0)), &
-		     name, failMsg, result, ESMF_SRCLINE)
+     name, failMsg, result, ESMF_SRCLINE)
   else if (localPet == 1) then
     call ESMF_Test(((farrayPtr(1).eq.0).and.(farrayPtr(2).eq.-136)), &
-		     name, failMsg, result, ESMF_SRCLINE)
+     name, failMsg, result, ESMF_SRCLINE)
   else if (localPet == 2) then
     call ESMF_Test(((farrayPtr(1).eq.238).and.(farrayPtr(2).eq.-86)), &
-		     name, failMsg, result, ESMF_SRCLINE)
+     name, failMsg, result, ESMF_SRCLINE)
   else if (localPet == 3) then
     call ESMF_Test(((farrayPtr(1).eq.-151).and.(farrayPtr(2).eq.0)), &
-		     name, failMsg, result, ESMF_SRCLINE)
+     name, failMsg, result, ESMF_SRCLINE)
   else if (localPet == 4) then
     call ESMF_Test(((farrayPtr(1).eq.4493).and.(farrayPtr(2).eq.-407)), &
-		     name, failMsg, result, ESMF_SRCLINE)
+     name, failMsg, result, ESMF_SRCLINE)
   else if (localPet == 5) then
     call ESMF_Test(((farrayPtr(1).eq.255).and.(farrayPtr(2).eq.-1)), &
-		     name, failMsg, result, ESMF_SRCLINE)
+     name, failMsg, result, ESMF_SRCLINE)
   endif
 
 !------------------------------------------------------------------------
@@ -625,10 +628,10 @@ program ESMF_ArrayArbIdxSMMUTest
   farrayPtr = -99 ! reset to something that would be caught during verification
 
   ! The following barrier call holds up PET 0 from calling inte ArraySMM() 
-  ! until all other PETs have called in with ESMF_ROUTESYNC_NBSTART, and have done
-  ! one round of calling in with ESMF_ROUTESYNC_NBTESTFINISH. Doing this tests the
-  ! non-blocking mode of ArraySMM().
-  if (localPet==0) call ESMF_VMBarrier(vm)
+  ! until all other PETs have called in with ESMF_ROUTESYNC_NBSTART, and have
+  ! done one round of calling in with ESMF_ROUTESYNC_NBTESTFINISH. Doing this
+  ! tests the non-blocking mode of ArraySMM().
+  if (localPet==0) call ESMF_VMBarrier(vm, rc=rc)
 
 !------------------------------------------------------------------------
   !EX_UTest_Multi_Proc_Only
@@ -658,7 +661,11 @@ program ESMF_ArrayArbIdxSMMUTest
     ! There is always a slight chance that finishedflag comes back with .false.
     ! even at this point (execution effects). But under normal circumstances
     ! one expects the exchange to be finished here.
-    if (.not. finishedflag) evalflag = .false.
+    !
+    ! Turns out that the PET 0 test really fails on a somewhat frequent basis
+    ! on some machines. Since it is not really deterministic I am taking it out
+    ! now:
+    !if (.not. finishedflag) evalflag = .false.
   else if (localPet==1 .or. localPet==5) then
     ! PETs 1 and 5 depend on data from PET 0, and should return with 
     ! finishedflag .false. because PET 0 is still blocked by the barrier,
@@ -672,14 +679,14 @@ program ESMF_ArrayArbIdxSMMUTest
   ! results.
   call ESMF_Test(evalflag, name, failMsg, result, ESMF_SRCLINE)
   
-  print *, "localPet=",localPet, &
-    "ESMF_ROUTESYNC_NBTESTFINISH: finishedflag=", finishedflag
-  
-  ! The folling barrier call releases PET 0 which was waiting on the barrier
+  write(msgString,*) "ESMF_ROUTESYNC_NBTESTFINISH: finishedflag=", finishedflag
+  call ESMF_LogWrite(msgString, ESMF_LOGMSG_INFO, rc=rc)
+
+  ! The following barrier call releases PET 0 which was waiting on the barrier
   ! call before the first call to ArraySMM() above. Releasing PET 0 now will
-  ! allow the folling call with ESMF_ROUTESYNC_NBWAITFINISH to finish up, where
-  ! the finishedflag on all PETs will be .true. on return.
-  if (localPet/=0) call ESMF_VMBarrier(vm)
+  ! allow the following call with ESMF_ROUTESYNC_NBWAITFINISH to finish up,
+  ! where the finishedflag on all PETs will be .true. on return.
+  if (localPet/=0) call ESMF_VMBarrier(vm, rc=rc)
 
 !------------------------------------------------------------------------
   !EX_UTest_Multi_Proc_Only
@@ -697,8 +704,8 @@ program ESMF_ArrayArbIdxSMMUTest
   ! Now all PETs should return with finishedflag .true.
   call ESMF_Test(finishedflag, name, failMsg, result, ESMF_SRCLINE)
   
-  print *, "localPet=",localPet, &
-    "ESMF_ROUTESYNC_NBWAITFINISH: finishedflag=", finishedflag
+  write(msgString,*) "ESMF_ROUTESYNC_NBWAITFINISH: finishedflag=", finishedflag
+  call ESMF_LogWrite(msgString, ESMF_LOGMSG_INFO, rc=rc)
   
   ! The expected result of the sparse matrix multiplication in dstArray is:
   ! (note: by default ArraySMM() initializes _all_ destination elements
@@ -718,22 +725,22 @@ program ESMF_ArrayArbIdxSMMUTest
   write(failMsg, *) "Wrong results" 
   if (localPet == 0) then
     call ESMF_Test(((farrayPtr(1).eq.37).and.(farrayPtr(2).eq.0)), &
-		     name, failMsg, result, ESMF_SRCLINE)
+     name, failMsg, result, ESMF_SRCLINE)
   else if (localPet == 1) then
     call ESMF_Test(((farrayPtr(1).eq.0).and.(farrayPtr(2).eq.-136)), &
-		     name, failMsg, result, ESMF_SRCLINE)
+     name, failMsg, result, ESMF_SRCLINE)
   else if (localPet == 2) then
     call ESMF_Test(((farrayPtr(1).eq.238).and.(farrayPtr(2).eq.-86)), &
-		     name, failMsg, result, ESMF_SRCLINE)
+     name, failMsg, result, ESMF_SRCLINE)
   else if (localPet == 3) then
     call ESMF_Test(((farrayPtr(1).eq.-151).and.(farrayPtr(2).eq.0)), &
-		     name, failMsg, result, ESMF_SRCLINE)
+     name, failMsg, result, ESMF_SRCLINE)
   else if (localPet == 4) then
     call ESMF_Test(((farrayPtr(1).eq.4493).and.(farrayPtr(2).eq.-407)), &
-		     name, failMsg, result, ESMF_SRCLINE)
+     name, failMsg, result, ESMF_SRCLINE)
   else if (localPet == 5) then
     call ESMF_Test(((farrayPtr(1).eq.255).and.(farrayPtr(2).eq.-1)), &
-		     name, failMsg, result, ESMF_SRCLINE)
+     name, failMsg, result, ESMF_SRCLINE)
   endif
 
 !------------------------------------------------------------------------
@@ -763,7 +770,8 @@ program ESMF_ArrayArbIdxSMMUTest
   call ESMF_ArrayGet(dstArray2, farrayPtr=farrayPtr, rc=rc)
   call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
   
-  print *, "localPet: ",localPet," dstArray2: ",farrayPtr
+  write(msgString,*) "dstArray2: ", farrayPtr
+  call ESMF_LogWrite(msgString, ESMF_LOGMSG_INFO, rc=rc)
   
 !------------------------------------------------------------------------
   !EX_UTest_Multi_Proc_Only
@@ -771,22 +779,22 @@ program ESMF_ArrayArbIdxSMMUTest
   write(failMsg, *) "Wrong results" 
   if (localPet == 0) then
     call ESMF_Test(((farrayPtr(1).eq.38).and.(farrayPtr(2).eq.0)), &
-		     name, failMsg, result, ESMF_SRCLINE)
+     name, failMsg, result, ESMF_SRCLINE)
   else if (localPet == 1) then
     call ESMF_Test(((farrayPtr(1).eq.0).and.(farrayPtr(2).eq.-135)), &
-		     name, failMsg, result, ESMF_SRCLINE)
+     name, failMsg, result, ESMF_SRCLINE)
   else if (localPet == 2) then
     call ESMF_Test(((farrayPtr(1).eq.231).and.(farrayPtr(2).eq.-84)), &
-		     name, failMsg, result, ESMF_SRCLINE)
+     name, failMsg, result, ESMF_SRCLINE)
   else if (localPet == 3) then
     call ESMF_Test(((farrayPtr(1).eq.-150).and.(farrayPtr(2).eq.0)), &
-		     name, failMsg, result, ESMF_SRCLINE)
+     name, failMsg, result, ESMF_SRCLINE)
   else if (localPet == 4) then
     call ESMF_Test(((farrayPtr(1).eq.4378).and.(farrayPtr(2).eq.-396)), &
-		     name, failMsg, result, ESMF_SRCLINE)
+     name, failMsg, result, ESMF_SRCLINE)
   else if (localPet == 5) then
     call ESMF_Test(((farrayPtr(1).eq.250).and.(farrayPtr(2).eq.0)), &
-		     name, failMsg, result, ESMF_SRCLINE)
+     name, failMsg, result, ESMF_SRCLINE)
   endif
 
 !------------------------------------------------------------------------
@@ -833,7 +841,10 @@ program ESMF_ArrayArbIdxSMMUTest
   call ESMF_ArrayGet(dstArray3, farrayPtr=farrayPtr2D, rc=rc)
   call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
   
-  print *, "localPet: ",localPet," dstArray3: ",farrayPtr2D
+  write(msgString,*) "dstArray3(j=1): ", farrayPtr2D(:,1)
+  call ESMF_LogWrite(msgString, ESMF_LOGMSG_INFO, rc=rc)
+  write(msgString,*) "dstArray3(j=2): ", farrayPtr2D(:,2)
+  call ESMF_LogWrite(msgString, ESMF_LOGMSG_INFO, rc=rc)
   
 !------------------------------------------------------------------------
   !EX_UTest_Multi_Proc_Only
@@ -841,22 +852,22 @@ program ESMF_ArrayArbIdxSMMUTest
   write(failMsg, *) "Wrong results" 
   if (localPet == 0) then
     call ESMF_Test(((farrayPtr2D(1,1).eq.38).and.(farrayPtr2D(2,1).eq.0)), &
-		     name, failMsg, result, ESMF_SRCLINE)
+      name, failMsg, result, ESMF_SRCLINE)
   else if (localPet == 1) then
     call ESMF_Test(((farrayPtr2D(1,1).eq.0).and.(farrayPtr2D(2,1).eq.-135)), &
-		     name, failMsg, result, ESMF_SRCLINE)
+      name, failMsg, result, ESMF_SRCLINE)
   else if (localPet == 2) then
     call ESMF_Test(((farrayPtr2D(1,1).eq.231).and.(farrayPtr2D(2,1).eq.-84)), &
-		     name, failMsg, result, ESMF_SRCLINE)
+      name, failMsg, result, ESMF_SRCLINE)
   else if (localPet == 3) then
     call ESMF_Test(((farrayPtr2D(1,1).eq.-150).and.(farrayPtr2D(2,1).eq.0)), &
-		     name, failMsg, result, ESMF_SRCLINE)
+      name, failMsg, result, ESMF_SRCLINE)
   else if (localPet == 4) then
     call ESMF_Test(((farrayPtr2D(1,1).eq.4378).and.(farrayPtr2D(2,1).eq.-396)), &
-		     name, failMsg, result, ESMF_SRCLINE)
+      name, failMsg, result, ESMF_SRCLINE)
   else if (localPet == 5) then
     call ESMF_Test(((farrayPtr2D(1,1).eq.250).and.(farrayPtr2D(2,1).eq.0)), &
-		     name, failMsg, result, ESMF_SRCLINE)
+      name, failMsg, result, ESMF_SRCLINE)
   endif
 
 !------------------------------------------------------------------------
@@ -865,22 +876,22 @@ program ESMF_ArrayArbIdxSMMUTest
   write(failMsg, *) "Wrong results" 
   if (localPet == 0) then
     call ESMF_Test(((farrayPtr2D(1,2).eq.-62).and.(farrayPtr2D(2,2).eq.0)), &
-		     name, failMsg, result, ESMF_SRCLINE)
+      name, failMsg, result, ESMF_SRCLINE)
   else if (localPet == 1) then
     call ESMF_Test(((farrayPtr2D(1,2).eq.0).and.(farrayPtr2D(2,2).eq.-235)), &
-		     name, failMsg, result, ESMF_SRCLINE)
+      name, failMsg, result, ESMF_SRCLINE)
   else if (localPet == 2) then
     call ESMF_Test(((farrayPtr2D(1,2).eq.931).and.(farrayPtr2D(2,2).eq.-284)), &
-		     name, failMsg, result, ESMF_SRCLINE)
+      name, failMsg, result, ESMF_SRCLINE)
   else if (localPet == 3) then
     call ESMF_Test(((farrayPtr2D(1,2).eq.-250).and.(farrayPtr2D(2,2).eq.0)), &
-		     name, failMsg, result, ESMF_SRCLINE)
+      name, failMsg, result, ESMF_SRCLINE)
   else if (localPet == 4) then
     call ESMF_Test(((farrayPtr2D(1,2).eq.15878).and.(farrayPtr2D(2,2).eq.-1496)), &
-		     name, failMsg, result, ESMF_SRCLINE)
+      name, failMsg, result, ESMF_SRCLINE)
   else if (localPet == 5) then
     call ESMF_Test(((farrayPtr2D(1,2).eq.750).and.(farrayPtr2D(2,2).eq.-100)), &
-		     name, failMsg, result, ESMF_SRCLINE)
+      name, failMsg, result, ESMF_SRCLINE)
   endif
 
 !------------------------------------------------------------------------
@@ -967,7 +978,8 @@ program ESMF_ArrayArbIdxSMMUTest
   call ESMF_ArrayGet(dstArray2, farrayPtr=farrayPtr, rc=rc)
   call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
   
-  print *, "localPet: ",localPet," dstArray2: ",farrayPtr
+  write(msgString,*) "dstArray2: ", farrayPtr
+  call ESMF_LogWrite(msgString, ESMF_LOGMSG_INFO, rc=rc)
   
 !------------------------------------------------------------------------
   !EX_UTest_Multi_Proc_Only
@@ -975,22 +987,22 @@ program ESMF_ArrayArbIdxSMMUTest
   write(failMsg, *) "Wrong results" 
   if (localPet == 0) then
     call ESMF_Test(((farrayPtr(1).eq.350).and.(farrayPtr(2).eq.0)), &
-		     name, failMsg, result, ESMF_SRCLINE)
+     name, failMsg, result, ESMF_SRCLINE)
   else if (localPet == 1) then
     call ESMF_Test(((farrayPtr(1).eq.0).and.(farrayPtr(2).eq.282)), &
-		     name, failMsg, result, ESMF_SRCLINE)
+     name, failMsg, result, ESMF_SRCLINE)
   else if (localPet == 2) then
     call ESMF_Test(((farrayPtr(1).eq.0).and.(farrayPtr(2).eq.0)), &
-		     name, failMsg, result, ESMF_SRCLINE)
+     name, failMsg, result, ESMF_SRCLINE)
   else if (localPet == 3) then
     call ESMF_Test(((farrayPtr(1).eq.1879).and.(farrayPtr(2).eq.0)), &
-		     name, failMsg, result, ESMF_SRCLINE)
+     name, failMsg, result, ESMF_SRCLINE)
   else if (localPet == 4) then
     call ESMF_Test(((farrayPtr(1).eq.0).and.(farrayPtr(2).eq.665)), &
-		     name, failMsg, result, ESMF_SRCLINE)
+     name, failMsg, result, ESMF_SRCLINE)
   else if (localPet == 5) then
     call ESMF_Test(((farrayPtr(1).eq.0).and.(farrayPtr(2).eq.0)), &
-		     name, failMsg, result, ESMF_SRCLINE)
+     name, failMsg, result, ESMF_SRCLINE)
   endif
   
 !------------------------------------------------------------------------
@@ -1071,7 +1083,8 @@ call ESMF_ArrayPrint(dstArray3)
   call ESMF_ArrayGet(dstArray3, farrayPtr=farrayPtr2D, rc=rc)
   call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
   
-  print *, "localPet: ",localPet," dstArray3: ",farrayPtr2D
+  write(msgString,*) "dstArray3: ", farrayPtr2D
+  call ESMF_LogWrite(msgString, ESMF_LOGMSG_INFO, rc=rc)
   
 !------------------------------------------------------------------------
   !EX_UTest_Multi_Proc_Only
@@ -1079,22 +1092,22 @@ call ESMF_ArrayPrint(dstArray3)
   write(failMsg, *) "Wrong results" 
   if (localPet == 0) then
     call ESMF_Test(((farrayPtr2D(1,1).eq.350).and.(farrayPtr2D(2,1).eq.0)), &
-		     name, failMsg, result, ESMF_SRCLINE)
+     name, failMsg, result, ESMF_SRCLINE)
   else if (localPet == 1) then
     call ESMF_Test(((farrayPtr2D(1,1).eq.0).and.(farrayPtr2D(2,1).eq.282)), &
-		     name, failMsg, result, ESMF_SRCLINE)
+     name, failMsg, result, ESMF_SRCLINE)
   else if (localPet == 2) then
     call ESMF_Test(((farrayPtr2D(1,1).eq.0).and.(farrayPtr2D(2,1).eq.0)), &
-		     name, failMsg, result, ESMF_SRCLINE)
+     name, failMsg, result, ESMF_SRCLINE)
   else if (localPet == 3) then
     call ESMF_Test(((farrayPtr2D(1,1).eq.0).and.(farrayPtr2D(2,1).eq.0)), &
-		     name, failMsg, result, ESMF_SRCLINE)
+     name, failMsg, result, ESMF_SRCLINE)
   else if (localPet == 4) then
     call ESMF_Test(((farrayPtr2D(1,1).eq.0).and.(farrayPtr2D(2,1).eq.0)), &
-		     name, failMsg, result, ESMF_SRCLINE)
+     name, failMsg, result, ESMF_SRCLINE)
   else if (localPet == 5) then
     call ESMF_Test(((farrayPtr2D(1,1).eq.0).and.(farrayPtr2D(2,1).eq.0)), &
-		     name, failMsg, result, ESMF_SRCLINE)
+     name, failMsg, result, ESMF_SRCLINE)
   endif
   
 !------------------------------------------------------------------------
@@ -1103,22 +1116,22 @@ call ESMF_ArrayPrint(dstArray3)
   write(failMsg, *) "Wrong results" 
   if (localPet == 0) then
     call ESMF_Test(((farrayPtr2D(1,2).eq.0).and.(farrayPtr2D(2,2).eq.0)), &
-		     name, failMsg, result, ESMF_SRCLINE)
+     name, failMsg, result, ESMF_SRCLINE)
   else if (localPet == 1) then
     call ESMF_Test(((farrayPtr2D(1,2).eq.0).and.(farrayPtr2D(2,2).eq.0)), &
-		     name, failMsg, result, ESMF_SRCLINE)
+     name, failMsg, result, ESMF_SRCLINE)
   else if (localPet == 2) then
     call ESMF_Test(((farrayPtr2D(1,2).eq.0).and.(farrayPtr2D(2,2).eq.0)), &
-		     name, failMsg, result, ESMF_SRCLINE)
+     name, failMsg, result, ESMF_SRCLINE)
   else if (localPet == 3) then
     call ESMF_Test(((farrayPtr2D(1,2).eq.1879).and.(farrayPtr2D(2,2).eq.0)), &
-		     name, failMsg, result, ESMF_SRCLINE)
+     name, failMsg, result, ESMF_SRCLINE)
   else if (localPet == 4) then
     call ESMF_Test(((farrayPtr2D(1,2).eq.0).and.(farrayPtr2D(2,2).eq.665)), &
-		     name, failMsg, result, ESMF_SRCLINE)
+     name, failMsg, result, ESMF_SRCLINE)
   else if (localPet == 5) then
     call ESMF_Test(((farrayPtr2D(1,2).eq.0).and.(farrayPtr2D(2,2).eq.0)), &
-		     name, failMsg, result, ESMF_SRCLINE)
+     name, failMsg, result, ESMF_SRCLINE)
   endif
   
 !------------------------------------------------------------------------
@@ -1209,7 +1222,7 @@ call ESMF_ArrayPrint(dstArray3)
 
 10 continue
   !------------------------------------------------------------------------
-  call ESMF_TestEnd(result, ESMF_SRCLINE) ! calls ESMF_Finalize() internally
+  call ESMF_TestEnd(ESMF_SRCLINE) ! calls ESMF_Finalize() internally
   !------------------------------------------------------------------------
 
 

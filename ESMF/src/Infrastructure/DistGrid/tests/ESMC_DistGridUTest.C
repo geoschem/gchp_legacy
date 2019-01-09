@@ -1,7 +1,7 @@
 // $Id$
 //
 // Earth System Modeling Framework
-// Copyright 2002-2012, University Corporation for Atmospheric Research, 
+// Copyright 2002-2018, University Corporation for Atmospheric Research, 
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
 // Laboratory, University of Michigan, National Centers for Environmental 
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
@@ -37,7 +37,7 @@ int main(void){
   int rc;
   
   int *minIndexValues, *maxIndexValues;
-  ESMC_InterfaceInt minIndex, maxIndex;
+  ESMC_InterArrayInt minIndex, maxIndex;
   ESMC_DistGrid distgrid;
 
   //----------------------------------------------------------------------------
@@ -50,7 +50,7 @@ int main(void){
   strcpy(failMsg, "Did not return ESMF_SUCCESS");
   minIndexValues = (int *)malloc(2*sizeof(int));
   minIndexValues[0] = minIndexValues[1] = 1;
-  minIndex = ESMC_InterfaceIntCreate(minIndexValues, 2, &rc);
+  rc = ESMC_InterArrayIntSet(&minIndex, minIndexValues, 2);
   ESMC_Test((rc==ESMF_SUCCESS), name, failMsg, &result, __FILE__, __LINE__, 0);
   //----------------------------------------------------------------------------
   
@@ -61,7 +61,7 @@ int main(void){
   maxIndexValues = (int *)malloc(2*sizeof(int));
   maxIndexValues[0] = 5;
   maxIndexValues[1] = 10;
-  maxIndex = ESMC_InterfaceIntCreate(maxIndexValues, 2, &rc);
+  rc = ESMC_InterArrayIntSet(&maxIndex, maxIndexValues, 2);
   ESMC_Test((rc==ESMF_SUCCESS), name, failMsg, &result, __FILE__, __LINE__, 0);
   //----------------------------------------------------------------------------
   
@@ -73,23 +73,9 @@ int main(void){
   ESMC_Test((rc==ESMF_SUCCESS), name, failMsg, &result, __FILE__, __LINE__, 0);
   //----------------------------------------------------------------------------
   
-  //----------------------------------------------------------------------------
-  //NEX_UTest
-  strcpy(name, "Clean up minIndex");
-  strcpy(failMsg, "Did not return ESMF_SUCCESS");
+  // okay to free minIndexValues and maxIndexValues variables now
   free(minIndexValues);
-  rc = ESMC_InterfaceIntDestroy(&minIndex);
-  ESMC_Test((rc==ESMF_SUCCESS), name, failMsg, &result, __FILE__, __LINE__, 0);
-  //----------------------------------------------------------------------------
-  
-  //----------------------------------------------------------------------------
-  //NEX_UTest
-  strcpy(name, "Clean up maxIndex");
-  strcpy(failMsg, "Did not return ESMF_SUCCESS");
   free(maxIndexValues);
-  rc = ESMC_InterfaceIntDestroy(&maxIndex);
-  ESMC_Test((rc==ESMF_SUCCESS), name, failMsg, &result, __FILE__, __LINE__, 0);
-  //----------------------------------------------------------------------------
   
   //----------------------------------------------------------------------------
   //NEX_UTest
@@ -116,7 +102,7 @@ int main(void){
   //----------------------------------------------------------------------------
   
   //----------------------------------------------------------------------------
-  ESMC_TestEnd(result, __FILE__, __LINE__, 0);
+  ESMC_TestEnd(__FILE__, __LINE__, 0);
   //----------------------------------------------------------------------------
   
   return 0;

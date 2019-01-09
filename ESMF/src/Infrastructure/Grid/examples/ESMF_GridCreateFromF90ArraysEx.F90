@@ -1,7 +1,7 @@
-! $Id: ESMF_GridCreateFromF90ArraysEx.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
+! $Id$
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2012, University Corporation for Atmospheric Research,
+! Copyright 2002-2018, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -27,7 +27,7 @@ program ESMF_GridCreateEx
 !
 ! This example illustrates the creation of a simple 2D Grid from coordinate data
 !  contained in fortan arrays.  The new Grid contains just the center stagger location.
-!  Each processor contains a pair of 10x10 fortran 90 arrays named fptrX and fptrY. 
+!  Each processor contains a pair of 10x10 Fortran 90 arrays named fptrX and fptrY.
 !  These arrays contain the coordinates for the piece of the global Grid held by each
 !  processor. The final global Grid will be 20x20 and the pieces of this Grid held
 ! by each processor are as follows:

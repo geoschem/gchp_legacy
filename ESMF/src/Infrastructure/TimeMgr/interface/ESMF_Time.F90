@@ -1,7 +1,7 @@
-! $Id: ESMF_Time.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
+! $Id$
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2012, University Corporation for Atmospheric Research,
+! Copyright 2002-2018, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -107,7 +107,7 @@
 !------------------------------------------------------------------------------
 ! The following line turns the CVS identifier string into a printable variable.
       character(*), parameter, private :: version = &
-      '$Id: ESMF_Time.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $'
+      '$Id$'
 
 !==============================================================================
 !
@@ -247,10 +247,10 @@
 !
 ! !INTERFACE:
 !     interface operator(-)
-!     time3 = time1 - time2      
+!     timeinterval = time1 - time2      
 !
 ! !RETURN VALUE:
-!     type(ESMF_Time) :: time3
+!     type(ESMF_TimeInterval) :: timeinterval
 ! 
 ! !ARGUMENTS:
 !     type(ESMF_Time),         intent(in) :: time1
@@ -983,11 +983,14 @@
 ! !IROUTINE:  ESMF_TimePrint - Print Time information
 
 ! !INTERFACE:
-      subroutine ESMF_TimePrint(time, options, rc)
+      subroutine ESMF_TimePrint(time, keywordEnforcer, options, preString, unit, rc)
 
 ! !ARGUMENTS:
       type(ESMF_Time),   intent(in)            :: time
+      type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
       character (len=*), intent(in),  optional :: options
+      character(*),      intent(in),  optional :: preString
+      character(*),      intent(out), optional :: unit
       integer,           intent(out), optional :: rc
 
 !
@@ -1019,6 +1022,10 @@
 !                     represents fractional seconds in decimal form, if present.
 !                     See ~\cite{ISO} and ~\cite{ISOnotes}.  See also method
 !                     {\tt ESMF\_TimeGet(..., timeStringISOFrac= , ...)} \\
+!     \item[{[preString]}]
+!          Optionally prepended string. Default to empty string.
+!     \item[{[unit]}]
+!          Internal unit, i.e. a string. Default to printing to stdout.
 !     \item[{[rc]}]
 !          Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
 !     \end{description}
@@ -1027,6 +1034,7 @@
 ! !REQUIREMENTS:
 !     TMGn.n.n
       integer :: localrc                        ! local return code
+      integer                 :: yy, mm, dd, h, m, s, ms
 
       ! Assume failure until success
       if (present(rc)) rc = ESMF_RC_NOT_IMPL
@@ -1035,14 +1043,43 @@
       ! check input
       ESMF_INIT_CHECK_SHALLOW(ESMF_TimeGetInit,time,rc)
 
-      ! invoke C to C++ entry point
-      call ESMF_UtilIOUnitFlush (ESMF_UtilIOStdout, rc=localrc)
-      if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+      if (present(unit).or.present(preString)) then
+        ! simple, single line print format
+        call ESMF_TimeGet(time, yy=yy, mm=mm, dd=dd, h=h, m=m, s=s, ms=ms, &
+          rc=localrc)
+        if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+          ESMF_CONTEXT, rcToReturn=rc)) return
+        if (present(unit)) then
+          if (present(preString)) then
+            write (unit, "(A, I4, I3, I3, I3, I3, I3, I4)") preString, &
+              yy, mm, dd, h, m, s, ms
+          else
+            write (unit, "(I4, I3, I3, I3, I3, I3, I4)") &
+              yy, mm, dd, h, m, s, ms
+          endif
+        else
+          if (present(preString)) then
+            write (*, "(A, I4, I3, I3, I3, I3, I3, I4)") preString, &
+              yy, mm, dd, h, m, s, ms
+          else
+            ! cannot really reach this branch -> cover this by the deeper
+            ! implementation in the bigger else block below.
+            write (*, "(I4, I3, I3, I3, I3, I3, I4)") &
+              yy, mm, dd, h, m, s, ms
+          endif
+        endif        
+      else
+        ! print to STDOUT
+        
+        ! invoke C to C++ entry point
+        call ESMF_UtilIOUnitFlush (ESMF_UtilIOStdout, rc=localrc)
+        if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
         ESMF_CONTEXT, rcToReturn=rc)) return
 
-      call c_ESMC_TimePrint(time, options, localrc)
-      if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
-        ESMF_CONTEXT, rcToReturn=rc)) return
+        call c_ESMC_TimePrint(time, options, localrc)
+        if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+          ESMF_CONTEXT, rcToReturn=rc)) return
+      endif
 
       ! Return success
       if (present(rc)) rc = ESMF_SUCCESS

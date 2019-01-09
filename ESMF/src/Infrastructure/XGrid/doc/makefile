@@ -2,11 +2,11 @@
 
 All: onedoc
 
-LOCDIR = src/Infrastructure/XGrid/doc
+LOCDIR    = src/Infrastructure/XGrid/doc
 
 DVIFILES  = XGrid_refdoc.dvi
-PDFFILES  = $(ESMC_DOCDIR)/XGrid_refdoc.pdf
-HTMLFILES = $(ESMC_DOCDIR)/XGrid_refdoc
+PDFFILES  = XGrid_refdoc.pdf
+HTMLFILES = XGrid_refdoc
 
 #
 # Tex Files to make
@@ -31,8 +31,7 @@ TEXFILES_TO_MAKE += $(addsuffix _fapi.tex, $(basename $(notdir $(wildcard ../exa
 # These lists almost certainly will not be an exhaustive list of 
 # all of the dependent files, but even a partial listing  will be helpful.
 #
-REFDOC_DEP_FILES = $(TEXFILES_TO_MAKE) XGrid_desc.tex XGrid_usage.tex XGrid_rest.tex XGrid_implnotes.tex
-
+REFDOC_DEP_FILES = $(TEXFILES_TO_MAKE) XGrid_desc.tex XGrid_implnotes.tex XGrid_options.tex XGrid_rest.tex
 
 include $(ESMF_DIR)/makefile
 

@@ -7,8 +7,8 @@
 /*****************************************************************************
  * CVS File Information :
  *    $RCSfile: DD_Set_Neighbor_Hash_Fn2.c,v $
- *    $Author: mathomp4 $
- *    $Date: 2013-01-11 20:23:44 $
+ *    $Author: dneckels $
+ *    $Date: 2008/06/05 20:52:11 $
  *    Revision: 1.9 $
  ****************************************************************************/
 
@@ -72,7 +72,7 @@ int Zoltan_DD_Set_Neighbor_Hash_Fn2 (
  int n)                       /* number of processors in above lists */
    {
    int i ;
-   char *yo = "Zoltan_DD_Set_Hash_Fn2" ;
+   const char *yo = "Zoltan_DD_Set_Hash_Fn2" ;
 
    if (dd == NULL || proc == NULL || low == NULL || high == NULL)
       {
@@ -116,7 +116,7 @@ static unsigned int dd_nh2 (ZOLTAN_ID_PTR gid, int gid_length,
  unsigned int junk)
    {
    Range_Info *p ;
-   char *yo = "dd_ny2" ;
+   const char *yo = "dd_ny2" ;
    int id = (signed) *gid ;
 
    /* check if gid is out of range */

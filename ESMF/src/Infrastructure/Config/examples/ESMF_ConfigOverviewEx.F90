@@ -1,6 +1,6 @@
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2012, University Corporation for Atmospheric Research,
+! Copyright 2002-2018, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -27,14 +27,19 @@
 ! Note the API section contains a complete description of arguments in
 ! the methods/functions demonstrated in this example.
 !EOE 
+#include "ESMF.h"
 
       ! ESMF Framework module
       use ESMF
+      use ESMF_TestMod
       implicit none
 
       ! Local variables
-      integer             :: i, j
+      integer             :: i, j, result
       type(ESMF_VM)       :: vm
+
+      character(ESMF_MAXSTR) :: testname
+      character(ESMF_MAXSTR) :: failMsg
 
 !BOE
 !\subsubsection{Variable declarations}
@@ -45,8 +50,8 @@
 !EOE
 
 !BOC
-      character(ESMF_MAXSTR) :: fname ! config file name
-      character*20  :: fn1, fn2, fn3, input_file ! strings to be read in
+      character(ESMF_MAXPATHLEN) :: fname ! config file name
+      character(ESMF_MAXPATHLEN) :: fn1, fn2, fn3, input_file ! strings to be read in
       integer       :: rc            ! error return code (0 is OK)
       integer       :: i_n           ! the first constant in the RF
       real          :: param_1       ! the second constant in the RF
@@ -61,6 +66,17 @@
 !--------------------------------------------------------
       integer :: finalrc
       finalrc = ESMF_SUCCESS                      ! Establish initial success
+
+!-------------------------------------------------------------------------
+!-------------------------------------------------------------------------
+
+      write(failMsg, *) "Example failure"
+      write(testname, *) "Example ESMF_ConfigOverviewEx"
+
+!-------------------------------------------------------------------------
+!-------------------------------------------------------------------------
+
+
   
       call ESMF_Initialize(defaultlogfilename="ConfigOverviewEx.Log", &
                     logkindflag=ESMF_LOGKIND_MULTI, rc=rc)                 ! Initialize
@@ -149,7 +165,7 @@
     if(radius .ne. 6.37E6)then
       finalrc = ESMF_FAILURE
       print*, "******** Radius not retrieved correctly"
-      print*, input_file
+      print*, trim (input_file)
     endif
 
 
@@ -177,20 +193,20 @@
     else
         print*, "Results from using the dictionary-like method of data retrieval of a string"
         print*, "The input file name (a string) was retrieved from the Resource File"
-        print*, "Its value is: ", input_file
+        print*, "Its value is: ", trim (input_file)
         print*, "---------------------------------------------------------------"
     endif
 
     if(input_file .ne. "dummy_input.nc")then
        finalrc = ESMF_FAILURE
        print*, "******* input_file not retrieved correctly"
-       print*, input_file
+       print*, trim (input_file)
     endif
 
 !BOE
 ! The same code fragment can be used to demonstrate what happens when the label is not 
 ! present.  Note that "file\_name" does not exist in the Resource File. The result of 
-! its abscense is the default value provided in the call.
+! its absence is the default value provided in the call.
 !EOE
 
 !BOC 
@@ -204,14 +220,14 @@
     else
         print*, "Results when the label in the call does not exist in the Resource File"
         print*, "The default value is returned."
-        print*, "Its value is: ",input_file
+        print*, "Its value is: ", trim (input_file)
         print*, "---------------------------------------------------------------"
     endif
 
     if (input_file .ne. "./default.nc") then
       finalrc = ESMF_FAILURE
       print*, "****** Demonstration of default value (input_file) not working correctly"
-      print*, input_file
+      print*, trim (input_file)
     endif
 !----------------------------------------------------------------
 ! Second Method of Retrieval
@@ -259,7 +275,7 @@
         finalrc = ESMF_FAILURE
         print*, "*****' call ESMF_ConfigGetAttribute' failed"
       else
-        print*, "Results from retreiving multiple values:"
+        print*, "Results from retrieving multiple values:"
         print*, "The first constant was was retrieved from the Resource File"
         print*, "Its value is: ", param_1
         print*, "The second constant was was retrieved from the Resource File"
@@ -301,11 +317,11 @@
       else
         print*, "Results from retrieving multi-value strings:"
         print*, "The first file name was was retrieved from the Resource File"
-        print*, "Its value is: ", fn1
+        print*, "Its value is: ", trim (fn1)
         print*, "The second file name was was retrieved from the Resource File"
-        print*, "Its value is: ", fn2
+        print*, "Its value is: ", trim (fn2)
         print*, "The third file name was was retrieved from the Resource File"
-        print*, "Its value is: ", fn3
+        print*, "Its value is: ", trim (fn3)
         print*, "---------------------------------------------------------------"
       endif
 
@@ -393,6 +409,11 @@
       else
         print *, "FAIL: ESMF_ConfigOverviewEx.F90"
       end if
+ 
+      ! IMPORTANT: ESMF_STest() prints the PASS string and the # of processors in the log
+      ! file that the scripts grep for.
+      call ESMF_STest((finalrc.eq.ESMF_SUCCESS), testname, failMsg, result, ESMF_SRCLINE)
+
 
       call ESMF_Finalize(rc=rc)
 

@@ -6,8 +6,8 @@
 /*****************************************************************************
  * CVS File Information :
  *    $RCSfile: lb_set_part_sizes.c,v $
- *    $Author: mathomp4 $
- *    $Date: 2013-01-11 20:23:44 $
+ *    $Author: dneckels $
+ *    $Date: 2007/11/28 16:13:51 $
  *    Revision: 1.7 $
  ****************************************************************************/
 
@@ -55,7 +55,7 @@ int Zoltan_LB_Set_Part_Sizes(ZZ *zz, int global_num,
  *    Return value  --  Error code.
  */
 
-  char *yo = "Zoltan_LB_Set_Part_Sizes";
+  const char *yo = "Zoltan_LB_Set_Part_Sizes";
   int i, j, maxlen=0;
   int error = ZOLTAN_OK;
   const int INIT_NUM_PART = 64; /* Initial allocation for Part_Info array. */
@@ -135,7 +135,7 @@ int Zoltan_LB_Get_Part_Sizes(ZZ *zz,
   float *temp_part_sizes=NULL, *sum=NULL;
   int error = ZOLTAN_OK;
   char msg[128];
-  static char *yo = "Zoltan_LB_Get_Part_Sizes";
+  static const char *yo = "Zoltan_LB_Get_Part_Sizes";
 
   ZOLTAN_TRACE_ENTER(zz, yo);
   if (zz->Debug_Level >= ZOLTAN_DEBUG_ALL)

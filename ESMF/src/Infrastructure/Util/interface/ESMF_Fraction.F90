@@ -1,7 +1,7 @@
 ! $Id$
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2012, University Corporation for Atmospheric Research,
+! Copyright 2002-2018, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -53,7 +53,9 @@
 !     !  all dereferencing within class is performed by C++ implementation
 
       type ESMF_Fraction
+#ifndef ESMF_NO_SEQUENCE
       sequence
+#endif
       private  ! (members opaque on Fortran side)
         integer(ESMF_KIND_I8) :: shallowMemory(3)
         ESMF_INIT_DECLARE
@@ -101,7 +103,7 @@
 !     The arguments are:
 !     \begin{description}
 !     \item [s]
-!           {\tt ESMF\_Fraction} from which to retreive status.
+!           {\tt ESMF\_Fraction} from which to retrieve status.
 !     \end{description}
 !
 !EOPI

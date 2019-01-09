@@ -6,8 +6,8 @@
 /*****************************************************************************
  * CVS File Information :
  *    $RCSfile: zoltan_id.c,v $
- *    $Author: mathomp4 $
- *    $Date: 2013-01-11 20:23:44 $
+ *    $Author: dneckels $
+ *    $Date: 2007/11/28 16:13:54 $
  *    Revision: 1.7 $
  ****************************************************************************/
 
@@ -41,14 +41,14 @@ extern "C" {
  *  Routines for allocating and initializing IDs.
  */
 
-ZOLTAN_ID_PTR ZOLTAN_Malloc_ID(int n, char *file, int line)
+ZOLTAN_ID_PTR ZOLTAN_Malloc_ID(int n, const char *file, int line)
 {
 /*
  * Allocates an array of size n of ZOLTAN_ID_TYPEs and initializes them.
  */
 
 ZOLTAN_ID_PTR tmp;
-char *yo = "ZOLTAN_Malloc_ID";
+const char *yo = "ZOLTAN_Malloc_ID";
 
   /* 
    * Don't use ZOLTAN_MALLOC macro here; prefer to pass file and line 

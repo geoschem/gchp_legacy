@@ -6,8 +6,8 @@
 /*****************************************************************************
  * CVS File Information :
  *    $RCSfile: dr_loadbal.c,v $
- *    $Author: mathomp4 $
- *    $Date: 2013-01-11 20:23:44 $
+ *    $Author: w6ws $
+ *    $Date: 2008/12/10 20:50:37 $
  *    Revision: 1.109.2.3 $
  ****************************************************************************/
 
@@ -95,7 +95,7 @@ int setup_zoltan(struct Zoltan_Struct *zz, int Proc, PROB_INFO_PTR prob,
                  MESH_INFO_PTR mesh)
 {
 /* Local declarations. */
-  char *yo = "setup_zoltan";
+  const char *yo = "setup_zoltan";
 
   float *psize;                  /* Partition size */
   int *partid;                   /* Partition numbers */
@@ -448,7 +448,7 @@ int run_zoltan(struct Zoltan_Struct *zz, int Proc, PROB_INFO_PTR prob,
                MESH_INFO_PTR mesh, PARIO_INFO_PTR pio_info)
 {
 /* Local declarations. */
-  char *yo = "run_zoltan";
+  const char *yo = "run_zoltan";
   struct Zoltan_Struct *zz_copy;
 
   /* Variables returned by Zoltan */

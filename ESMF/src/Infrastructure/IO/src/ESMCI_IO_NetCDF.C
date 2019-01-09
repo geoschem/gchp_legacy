@@ -1,7 +1,7 @@
 // $Id$
 //
 // Earth System Modeling Framework
-// Copyright 2002-2012, University Corporation for Atmospheric Research,
+// Copyright 2002-2018, University Corporation for Atmospheric Research,
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 // Laboratory, University of Michigan, National Centers for Environmental
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -18,32 +18,31 @@
 // in the companion file {\tt ESMCI\_IO\_NetCDF.h}
 //
 //-------------------------------------------------------------------------
-//
- #define ESMC_FILENAME "ESMCI_IO_NetCDF.C"
+#define ESMC_FILENAME "ESMCI_IO_NetCDF.C"
 
- // higher level, 3rd party or system includes here
- #include <stdio.h>
- #include <string.h>
- #include <ctype.h>
- #include <iostream>
+// associated class definition file
+#include "ESMCI_IO_NetCDF.h"
 
- #include <ESMC_Util.h>
- #include <ESMCI_LogErr.h>
- #include <ESMF_LogMacros.inc>
- #include <ESMCI_VM.h>
- #include <ESMCI_ArraySpec.h>
- #include <ESMCI_LocalArray.h>
- #include <ESMCI_Array.h>
+// higher level, 3rd party or system includes here
+#include <stdio.h>
+#include <ctype.h>
+#include <iostream>
+#include <string>
+#include <sstream>
 
- // associated class definition file
- #include <ESMCI_IO_NetCDF.h>
+#include "ESMC_Util.h"
+#include "ESMCI_LogErr.h"
+#include "ESMCI_VM.h"
+#include "ESMCI_ArraySpec.h"
+#include "ESMCI_LocalArray.h"
+#include "ESMCI_Array.h"
 
- using namespace std; 
+using namespace std;
 
 //-------------------------------------------------------------------------
- // leave the following line as-is; it will insert the cvs ident string
- // into the object file for tracking purposes.
- static const char *const version = "$Id$";
+// leave the following line as-is; it will insert the cvs ident string
+// into the object file for tracking purposes.
+static const char *const version = "$Id$";
 //-------------------------------------------------------------------------
 
 namespace ESMCI
@@ -68,8 +67,7 @@ namespace ESMCI
 //     pointer to newly allocated IO_NetCDF
 //
 // !ARGUMENTS:
-      int                nameLen,          // in
-      const char        *name,             // in
+      const std::string& name,             // in
       ESMC_Base         *base,             // in
       int               *rc) {             // out - return code
 
@@ -89,31 +87,33 @@ namespace ESMCI
     if (rc != ESMC_NULL_POINTER) *rc = ESMC_RC_NOT_IMPL;
 
     // allocate an io object & set defaults via constructor
-    try 
+    try
     {
       io_netcdf = new IO_NetCDF;
     }
-    catch (...) 
+    catch (...)
     {
       ESMC_LogDefault.AllocError(ESMC_CONTEXT,rc);
       return(ESMC_NULL_POINTER);
     }
 
-    if (name != ESMC_NULL_POINTER) {
+    if (!name.empty()) {
       // use given name
-      returnCode = io_netcdf->ESMC_BaseSetF90Name((char*) name, nameLen);
+      returnCode = io_netcdf->ESMC_BaseSetF90Name(name.c_str(), name.length());
     } else {
       // create default name "IO_NetCDF<ID>"
       returnCode = io_netcdf->ESMC_BaseSetName((const char*) ESMC_NULL_POINTER,
                                                "IO_NetCDF");
     }
-    ESMC_LogDefault.MsgFoundError(returnCode, ESMCI_ERR_PASSTHRU, rc);
+    ESMC_LogDefault.MsgFoundError(returnCode, ESMCI_ERR_PASSTHRU, ESMC_CONTEXT,
+      rc);
 
     if (base != ESMC_NULL_POINTER) io_netcdf->base = base;
 
     // TODO returnCode = io_netcdf->validate();
     returnCode = ESMF_SUCCESS;
-    ESMC_LogDefault.MsgFoundError(returnCode, ESMCI_ERR_PASSTHRU, rc);
+    ESMC_LogDefault.MsgFoundError(returnCode, ESMCI_ERR_PASSTHRU, ESMC_CONTEXT,
+      rc);
     return(io_netcdf);
 
  } // end ESMCI_IO_NetCDFCreate (new)
@@ -142,8 +142,8 @@ namespace ESMCI
 
   // return with errors for NULL pointer
   if (io_netcdf == ESMC_NULL_POINTER || *io_netcdf == ESMC_NULL_POINTER){
-    ESMC_LogDefault.ESMC_LogMsgFoundError(ESMC_RC_PTR_NULL,
-      "- Not a valid pointer to io_netcdf", &rc);
+    ESMC_LogDefault.MsgFoundError(ESMC_RC_PTR_NULL,
+      "- Not a valid pointer to io_netcdf", ESMC_CONTEXT, &rc);
     return rc;
   }
 
@@ -154,14 +154,15 @@ namespace ESMCI
     (*io_netcdf)->ESMC_BaseSetStatus(ESMF_STATUS_INVALID);
   }catch(int localrc){
     // catch standard ESMF return code
-    ESMC_LogDefault.ESMC_LogMsgFoundError(localrc, ESMCI_ERR_PASSTHRU, &rc);
+    ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU,
+      ESMC_CONTEXT, &rc);
     return rc;
   }catch(...){
-    ESMC_LogDefault.ESMC_LogMsgFoundError(ESMC_RC_INTNRL_BAD,
-      "- Caught exception", &rc);
+    ESMC_LogDefault.MsgFoundError(ESMC_RC_INTNRL_BAD,
+      "- Caught exception", ESMC_CONTEXT, &rc);
     return rc;
   }
-  
+
   // return successfully
   rc = ESMF_SUCCESS;
   return rc;
@@ -178,8 +179,7 @@ namespace ESMCI
 //     int error return code
 //
 // !ARGUMENTS:
-      int                fileNameLen,         // in
-      const char        *fileName) {          // in
+      const std::string& fileName) {          // in
 
 // !DESCRIPTION:
 //      Reads an {\tt ESMC\_IO\_NetCDF} object from file
@@ -190,71 +190,49 @@ namespace ESMCI
  #undef  ESMC_METHOD
  #define ESMC_METHOD "ESMCI::IO_NetCDF::read()"
 
-    int rc = ESMF_SUCCESS;
+    int localrc = ESMF_SUCCESS;
     ESMCI::VM *globalVM;
     int mypet, numPETs;
 
-    if (this == ESMC_NULL_POINTER) 
-    {
-      ESMC_LogDefault.MsgFoundError(ESMC_RC_PTR_NULL,
-         "; 'this' pointer is NULL.", &rc);
-      return(rc);
-    }
+    if (this == ESMC_NULL_POINTER) localrc = ESMC_RC_PTR_NULL;
+    if (ESMC_LogDefault.MsgFoundError (localrc, "'this' pointer is null.", ESMC_CONTEXT, NULL))
+      return localrc;
 
     // only read on pet 0
-    globalVM = ESMCI::VM::getGlobal(&rc);
-    if ((globalVM == ESMC_NULL_POINTER) || (rc != ESMF_SUCCESS)) {
-      char logMsg[ESMF_MAXSTR];
-      sprintf(logMsg, "FAIL rc=%d, Unable to get GlobalVM\n", rc);
-      ESMC_LogDefault.Write(logMsg, ESMC_LOG_WARN, ESMC_CONTEXT);
-      return(ESMF_FAILURE);
-    }
-    mypet = globalVM->getLocalPet(); 
+    globalVM = ESMCI::VM::getGlobal(&localrc);
+    if (ESMC_LogDefault.MsgFoundError (localrc, ESMCI_ERR_PASSTHRU, ESMC_CONTEXT, NULL))
+      return localrc;
+
+    mypet = globalVM->getLocalPet();
     numPETs = globalVM->getPetCount();
 //printf("mypet = %d, numPETS = %d\n", mypet, numPETs);
 //fflush(stdout);
 #ifdef ESMF_NETCDF
-    if (mypet != 0) return rc;
+    if (mypet != 0) return localrc;
 #else
     if (mypet != 0) return ESMF_RC_LIB_NOT_PRESENT;
 #endif
 
-    if (fileName != ESMC_NULL_POINTER) 
+    if (!fileName.empty())
     {
       // TODO: only use local of fileName this one time;
       //   don't change set IO_NetCDF member fileName
-      if (fileNameLen < ESMF_MAXSTR) 
-      {
-        strncpy(this->fileName, fileName, fileNameLen);
-        this->fileName[fileNameLen] = '\0';  // null terminate
-      } 
-      else 
-      {
-        // truncate
-        strncpy(this->fileName, fileName, ESMF_MAXSTR-1);
-        this->fileName[ESMF_MAXSTR-1] = '\0';  // null terminate
-
-        char logMsg[ESMF_MAXSTR];
-        sprintf(logMsg,
-                "io_netcdf fileName %s, length >= ESMF_MAXSTR; truncated.",
-                fileName);
-        ESMC_LogDefault.Write(logMsg, ESMC_LOG_WARN, ESMC_CONTEXT);
-        // TODO: return ESMF_WARNING when defined
-        // if (rc != ESMC_NULL_POINTER) *rc = ESMF_WARNING;
-      }
-    } 
-    else 
+      this->fileName = fileName;
+    }
+    else
     {
       // TODO use existing IO_NetCDF fileName member
     }
 
 #ifdef ESMF_NETCDF
-    NcFile* netCdfFile = new NcFile(this->fileName, NcFile::ReadOnly);
-
-    if (!(netCdfFile->is_valid()))
-    {
-      // TODO: throw error, or return
-      return ESMF_FAILURE;
+    NcFile netCdfFile;
+    int ncerr;
+    if ((ncerr = nc_open (this->fileName.c_str(), NC_NOWRITE, &netCdfFile)) != NC_NOERR) {
+      ESMC_LogDefault.Write(nc_strerror(ncerr), ESMC_LOGMSG_ERROR, ESMC_CONTEXT);
+      string errstr = string(": Attempting to open existing NcFile: ").append(this->fileName);
+      ESMC_LogDefault.MsgFoundError(ESMC_RC_FILE_OPEN,
+         errstr, ESMC_CONTEXT, &localrc);
+      return localrc;
     }
 
     //***
@@ -262,35 +240,50 @@ namespace ESMCI
     //***
 #if 0
     int stateRc = 0;
-    theState = State::create(this->fileName, &stateRc);
+    theState = State::create(this->fileName.c_str(), &stateRc);
     //printf("*** State RC: %d\n", stateRc);
     if (stateRc != ESMF_SUCCESS)
     {
-      return stateRc; 
+      return stateRc;
     }
 #endif
 
     //***
     // Check that the State object that we'll be filling with Arrays is set
     //***
-    if (theState == ESMC_NULL_POINTER) 
+    if (theState == ESMC_NULL_POINTER)
     {
       ESMC_LogDefault.MsgFoundError(ESMC_RC_PTR_NULL,
-         "; 'theState' pointer is NULL.", &rc);
-      return(ESMF_FAILURE);
+         ": 'theState' pointer is NULL.", ESMC_CONTEXT, &localrc);
+      nc_close (netCdfFile);
+      return localrc;
     }
 
     /*
     ** Dimensions
     */
-    int	numDims = netCdfFile->num_dims();
+    int         numDims;
+    if ((ncerr = nc_inq_ndims (netCdfFile, &numDims)) != NC_NOERR) {
+      string errstr = string(": nc_inq_ndims failure: ") + nc_strerror(ncerr);
+      ESMC_LogDefault.MsgFoundError(ESMF_FAILURE,
+         errstr, ESMC_CONTEXT, &localrc);
+      nc_close (netCdfFile);
+      return localrc;
+    }
     //printf("\nNum Dimensions: %d\n", numDims);
 
     for (int i = 0; i < numDims; ++i)
     {
-      NcDim*	thisDim = netCdfFile->get_dim(i);
+      char dimname[NC_MAX_NAME+1];
+      if ((ncerr = nc_inq_dimname (netCdfFile, i, dimname)) != NC_NOERR) {
+        string errstr = string(": nc_inq_dimname failure: ") + nc_strerror(ncerr);
+        ESMC_LogDefault.MsgFoundError(ESMF_FAILURE,
+           errstr, ESMC_CONTEXT, &localrc);
+        nc_close (netCdfFile);
+        return localrc;
+      }
 
-      if (thisDim->is_valid())
+      if (strlen (dimname) > 0)
       {
         //printf("Dimension Name: %s\n", thisDim->name());
         //printf("          Size: %d\n", thisDim->size());
@@ -298,18 +291,29 @@ namespace ESMCI
       else
       {
         // TODO:  return ESMF error?
+      ESMC_LogDefault.MsgFoundError(ESMC_RC_PTR_NULL,
+         ": 'thisDim' pointer is not valid.", ESMC_CONTEXT, &localrc);
+      nc_close (netCdfFile);
+      return localrc;
       }
     }
 
     /*
     ** Variables
     */
-    int	numVars = netCdfFile->num_vars();
+    int         numVars;
+    if ((ncerr = nc_inq_nvars (netCdfFile, &numVars)) != NC_NOERR) {
+        string errstr = string(": nc_inq_nvars failure: ") + nc_strerror(ncerr);
+        ESMC_LogDefault.MsgFoundError(ESMF_FAILURE,
+           errstr, ESMC_CONTEXT, &localrc);
+        nc_close (netCdfFile);
+        return localrc;
+    }
     //printf("\nNum Variables: %d\n", numVars);
 
     for (int i = 0; i < numVars; ++i)
     {
-      Array*  thisArray = readArray(netCdfFile, i);
+      Array*  thisArray = readArray(netCdfFile, i, &localrc);
       if (thisArray != NULL)
       {
         //thisArray->print();
@@ -319,20 +323,40 @@ namespace ESMCI
       else
       {
         // TODO:  return ESMF error?
+      ESMC_LogDefault.MsgFoundError(ESMC_RC_PTR_NULL,
+         "; 'thisArray' pointer is not valid.", ESMC_CONTEXT, &localrc);
+         nc_close (netCdfFile);
+         return localrc;
       }
     }
 
     /*
     ** Attributes
     */
-    int	numAtts = netCdfFile->num_atts();
+    int         numAtts;
+    if ((ncerr = nc_inq_natts (netCdfFile, &numAtts)) != NC_NOERR) {
+        string errstr = string(": nc_inq_natts failure: ") + nc_strerror(ncerr);
+        ESMC_LogDefault.MsgFoundError(ESMF_FAILURE,
+           errstr, ESMC_CONTEXT, &localrc);
+        nc_close (netCdfFile);
+        return localrc;
+    }
     //printf("\nNum Attributes: %d\n", numAtts);
 
     for (int i = 0; i < numAtts; ++i)
     {
-      NcAtt*  thisAtt = netCdfFile->get_att(i);
+      char attname[NC_MAX_NAME+1];
+      nc_type atttype;
+      size_t attsize;
+      if ((ncerr = nc_inq_att (netCdfFile, i, attname, &atttype, &attsize)) != NC_NOERR) {
+        string errstr = string(": nc_inq_att failure: ") + nc_strerror(ncerr);
+        ESMC_LogDefault.MsgFoundError(ESMF_FAILURE,
+           errstr, ESMC_CONTEXT, &localrc);
+        nc_close (netCdfFile);
+        return localrc;
+      }
 
-      if (thisAtt->is_valid())
+      if (strlen (attname) > 0)
       {
         //printf("Attribute Name: %s\n", thisAtt->name());
         //printf("          Type: %d\n", thisAtt->type());
@@ -341,16 +365,18 @@ namespace ESMCI
       else
       {
         // TODO:  return ESMF error?
+      ESMC_LogDefault.MsgFoundError(ESMC_RC_PTR_NULL,
+         ": 'thisAtt' pointer is not valid.", ESMC_CONTEXT, &localrc);
+      nc_close (netCdfFile);
+      return(ESMF_RC_PTR_NULL);
       }
     }
-
-    delete netCdfFile;
 #else
     // netcdf library not present
-    rc = ESMF_RC_LIB_NOT_PRESENT;
+    localrc = ESMF_RC_LIB_NOT_PRESENT;
 #endif // ESMF_NETCDF
 
-    return (rc);
+    return localrc;
 
 }  // end IO_NetCDF::read
 
@@ -365,8 +391,7 @@ namespace ESMCI
 //     int error return code
 //
 // !ARGUMENTS:
-      int                fileNameLen,         // in
-      const char        *fileName) {          // in
+      const std::string& fileName) {          // in
 
 // !DESCRIPTION:
 //      Writes an {\tt ESMC\_IO_NetCDF} object to file
@@ -377,123 +402,126 @@ namespace ESMCI
  #undef  ESMC_METHOD
  #define ESMC_METHOD "ESMCI::IO_NetCDF::write()"
 
-    int rc = ESMF_SUCCESS;
+    int localrc = ESMF_SUCCESS;
     ESMCI::VM *globalVM;
     int mypet, numPETs;
 
-    if (this == ESMC_NULL_POINTER) 
+    if (this == ESMC_NULL_POINTER)
     {
       ESMC_LogDefault.MsgFoundError(ESMC_RC_PTR_NULL,
-         "; 'this' pointer is NULL.", &rc);
-      return(ESMF_FAILURE);
+         ": 'this' pointer is NULL.", ESMC_CONTEXT, NULL);
+      return(ESMC_RC_PTR_NULL);
     }
 
     // only write on pet 0
-    globalVM = ESMCI::VM::getGlobal(&rc);
-    if ((globalVM == ESMC_NULL_POINTER) || (rc != ESMF_SUCCESS)) {
-      char logMsg[ESMF_MAXSTR];
-      sprintf(logMsg, "FAIL rc=%d, Unable to get GlobalVM\n", rc);
-      ESMC_LogDefault.Write(logMsg, ESMC_LOG_WARN, ESMC_CONTEXT);
-      return(ESMF_FAILURE);
-    }
-    mypet = globalVM->getLocalPet(); 
+    globalVM = ESMCI::VM::getGlobal(&localrc);
+    if (ESMC_LogDefault.MsgFoundError (localrc, ESMCI_ERR_PASSTHRU, ESMC_CONTEXT, &localrc))
+      return localrc;
+
+    mypet = globalVM->getLocalPet();
     numPETs = globalVM->getPetCount();
 //printf("mypet = %d, numPETS = %d\n", mypet, numPETs);
 //fflush(stdout);
 #ifdef ESMF_NETCDF
-    if (mypet != 0) return rc;
+    if (mypet != 0) return localrc;
 #else
     if (mypet != 0) return ESMF_RC_LIB_NOT_PRESENT;
 #endif
 
 #ifdef ESMF_NETCDF
     // check only when netCDF present
-    if (theState == ESMC_NULL_POINTER) 
+    if (theState == ESMC_NULL_POINTER)
     {
       ESMC_LogDefault.MsgFoundError(ESMC_RC_PTR_NULL,
-         "; 'theState' pointer is NULL.", &rc);
-      return(ESMF_FAILURE);
+         ": 'theState' pointer is NULL.", ESMC_CONTEXT, &localrc);
+      return localrc;
     }
 #endif
 
-    if (fileName != ESMC_NULL_POINTER) 
+    if (!fileName.empty())
     {
       // TODO: only use local of fileName this one time;
       //   don't change set IO_NetCDF member fileName
-      if (fileNameLen < ESMF_MAXSTR) 
-      {
-        strncpy(this->fileName, fileName, fileNameLen);
-        this->fileName[fileNameLen] = '\0';  // null terminate
-      } 
-      else 
-      {
-        // truncate
-        strncpy(this->fileName, fileName, ESMF_MAXSTR-1);
-        this->fileName[ESMF_MAXSTR-1] = '\0';  // null terminate
-
-        char logMsg[ESMF_MAXSTR];
-        sprintf(logMsg,
-                "io_netcdf fileName %s, length >= ESMF_MAXSTR; truncated.",
-                fileName);
-        ESMC_LogDefault.Write(logMsg, ESMC_LOG_WARN,ESMC_CONTEXT);
-        // TODO: return ESMF_WARNING when defined
-        // if (rc != ESMC_NULL_POINTER) *rc = ESMF_WARNING;
-      }
-    } 
-    else 
+      this->fileName = fileName;
+    }
+    else
     {
       // TODO use existing IO_NetCDF fileName member
     }
 
 #ifdef ESMF_NETCDF
-        NcFile*	netCdfFile = new NcFile(this->fileName, NcFile::Replace);
+    NcFile netCdfFile;
+    int ncerr;
+    if ((ncerr = nc_create (this->fileName.c_str(), NC_CLOBBER, &netCdfFile)) != NC_NOERR) {
+      ESMC_LogDefault.Write(nc_strerror(ncerr), ESMC_LOGMSG_ERROR, ESMC_CONTEXT);
+      string errstr = string(": Attempting to create/overwrite NcFile: ").append(this->fileName);
+      ESMC_LogDefault.MsgFoundError(ESMC_RC_FILE_OPEN,
+         errstr, ESMC_CONTEXT, &localrc);
+      return localrc;
+    }
 
-        if (!(netCdfFile->is_valid()))
-        {
-          // TODO: throw error, or return
-          return ESMF_FAILURE;
-        }
-
-        netCdfFile->set_fill(NcFile::Fill);
+    int old_fill_mode;
+    if ((ncerr = nc_set_fill (netCdfFile, NC_FILL, &old_fill_mode)) != NC_NOERR) {
+      string errstr = string(": nc_set_fill failure: ") + nc_strerror(ncerr);
+      ESMC_LogDefault.MsgFoundError(ESMF_FAILURE,
+         errstr, ESMC_CONTEXT, &localrc);
+      nc_close (netCdfFile);
+      return localrc;
+    }
 
         int  numArrays = 0;
         theState->getNumArrays(&numArrays);
 
         std::vector<string>  arrayNames = theState->getArrayNames();
 
-        for (int i = 0; i < arrayNames.size(); ++i)
+        for (unsigned i = 0; i < arrayNames.size(); ++i)
         {
-           cout << "Item[" << i << "]: " << arrayNames[i] << endl;
+           // std::cout << "Item[" << i << "]: " << arrayNames[i] << endl;
            Array*    thisArray;
            theState->getArray((char*)(arrayNames[i].c_str()), &thisArray);
 
            LocalArray*  localArray = (thisArray->getLocalarrayList())[0];
            int               numDims = localArray->getRank();
-           const int*        dimLengths = new int[numDims];
-           NcDim**           dimensions = new NcDim*[numDims];
+           const int*        dimLengths;
+           int*              dimensions = new int[numDims];
 
            dimLengths = localArray->getCounts();
 
+           ncerr = nc_redef (netCdfFile);  // ensure we are in define mode
+
            for (int j = 0; j < numDims; ++j)
            {
-             char		dimName[256];
+             std::stringstream dimName;
+             dimName << "dim_" << i << "_" << j;
 
-             sprintf(dimName, "dim_%d_%d", i, j);
              //printf("Dim[%d] length: %d\n", j, dimLengths[j]);
 
-             dimensions[j] = netCdfFile->add_dim(dimName, dimLengths[j]);
+             size_t dimLengths_sizet = dimLengths[j];
+             if ((ncerr = nc_def_dim (netCdfFile, dimName.str().c_str(), dimLengths_sizet, &dimensions[j])) != NC_NOERR) {
+               string errstr = string(": nc_def_dim failure: ") + nc_strerror(ncerr);
+               ESMC_LogDefault.MsgFoundError(ESMF_FAILURE,
+                   errstr, ESMC_CONTEXT, &localrc);
+               delete[] dimensions;
+               delete[] dimLengths;
+               nc_close (netCdfFile);
+               return localrc;
+             }
+//             dimensions[j] = netCdfFile->add_dim(dimName, dimLengths[j]);
            }
 
-           writeArray(netCdfFile, thisArray, numDims, dimensions);
+           localrc = writeArray(netCdfFile, thisArray, numDims, dimensions);
+           delete[] dimensions;
+           if (ESMC_LogDefault.MsgFoundError(localrc,
+               ESMCI_ERR_PASSTHRU, ESMC_CONTEXT, &localrc)) {
+             return localrc;
+           }
         }
-
-        delete netCdfFile;
 #else
     // netcdf library not present
-    rc = ESMF_RC_LIB_NOT_PRESENT;
+    localrc = ESMF_RC_LIB_NOT_PRESENT;
 #endif // ESMF_NETCDF
 
-    return (rc);
+    return localrc;
 
 }  // end IO_NetCDF::write
 
@@ -523,7 +551,7 @@ namespace ESMCI
  : ESMC_Base(-1) {  // invoke ESMC_Base constructor with id=(-1); prevents
                     // Base id increment for non-distributed,
                     // non-reconcilable objects such as IO.
-    theState = ESMC_NULL_POINTER; 
+    theState = ESMC_NULL_POINTER;
     // create default name "IO_NetCDF<ID>"
     ESMC_BaseSetName(ESMC_NULL_POINTER, "IO_NetCDF");
     // copy = false;  // TODO: see notes in constructors and destructor below
@@ -554,10 +582,28 @@ void IO_NetCDF::destruct(void) {
 
 //-------------------------------------------------------------------------
 
+
 #ifdef ESMF_NETCDF
-  ESMC_TypeKind  IO_NetCDF::ncToEsmcType(NcType  ncTypeVal) 
+
+  int IO_NetCDF::ncerrToEsmcRc (int ncerr)
   {
-    ESMC_TypeKind  esmcTypeVal = ESMF_NOKIND;
+
+#undef ESMC_METHOD
+#define ESMC_METHOD "IO_NetCDF::ncerrToEsmcRc"
+
+  if (ncerr == NC_NOERR)
+    return ESMF_SUCCESS;
+  else
+    return ESMF_FAILURE;
+  } // end ncerrToEsmcRc
+
+  ESMC_TypeKind_Flag  IO_NetCDF::ncToEsmcType(nc_type ncTypeVal)
+  {
+
+#undef  ESMC_METHOD
+#define ESMC_METHOD "IO_NetCDF::ncToEsmcType"
+
+    ESMC_TypeKind_Flag  esmcTypeVal = ESMF_NOKIND;
 
     switch (ncTypeVal)
     {
@@ -592,43 +638,47 @@ void IO_NetCDF::destruct(void) {
 
 //-------------------------------------------------------------------------
 
-  NcType  IO_NetCDF::esmcToNcType(ESMC_TypeKind  esmcTypeVal) 
+  nc_type  IO_NetCDF::esmcToNcType(ESMC_TypeKind_Flag  esmcTypeVal)
   {
-    NcType  ncTypeVal = ncNoType;
+
+#undef  ESMC_METHOD
+#define ESMC_METHOD "IO_NetCDF::esmcToNcType"
+
+    nc_type  ncTypeVal = NC_UNSPECIFIED;
 
     switch (esmcTypeVal)
     {
     case ESMC_TYPEKIND_I1:
-      ncTypeVal = ncByte;
+      ncTypeVal = NC_BYTE;
       break;
     case ESMC_TYPEKIND_I2:
-      ncTypeVal = ncShort;
+      ncTypeVal = NC_SHORT;
       break;
     case ESMC_TYPEKIND_I4:
-      ncTypeVal = ncInt;
+      ncTypeVal = NC_INT;
       break;
     case ESMC_TYPEKIND_I8:
-      ncTypeVal = ncLong;  // TODO?: deprecated in netCDF - same ncInt
+      ncTypeVal = NC_LONG;  // TODO?: deprecated in netCDF - same ncInt
       break;
     case ESMC_TYPEKIND_R4:
-      ncTypeVal = ncFloat;
+      ncTypeVal = NC_FLOAT;
       break;
     case ESMC_TYPEKIND_R8:
-      ncTypeVal = ncDouble;
+      ncTypeVal = NC_DOUBLE;
       break;
     case ESMF_C8:
-      ncTypeVal = ncNoType;
+      ncTypeVal = NC_UNSPECIFIED;
       // TODO:  ncTypeVal = netCDF 8 byte complex type?
       break;
     case ESMF_C16:
-      ncTypeVal = ncNoType;
+      ncTypeVal = NC_UNSPECIFIED;
       // TODO:  ncTypeVal = netCDF 16 byte complex type?
       break;
     case ESMC_TYPEKIND_LOGICAL:
-      ncTypeVal = ncByte;
+      ncTypeVal = NC_BYTE;
       break;
     case ESMC_TYPEKIND_CHARACTER:
-      ncTypeVal = ncChar;
+      ncTypeVal = NC_CHAR;
       break;
     default:
       break;
@@ -641,99 +691,166 @@ void IO_NetCDF::destruct(void) {
 
 //-------------------------------------------------------------------------
 
-  Array*  IO_NetCDF::readArray(NcFile*  netCdfFile,
-                               int      varIndex) 
+  Array*  IO_NetCDF::readArray(NcFile  netCdfFile,
+                               int      varIndex, int *rc)
   {
-    NcVar*  thisVar = netCdfFile->get_var(varIndex);
+
+#undef  ESMC_METHOD
+#define ESMC_METHOD "IO_NetCDF::readArray"
+
+    int ndims;
+    char ncname[NC_MAX_NAME];
+    nc_type nctype;
+    int dimIds[NC_MAX_VAR_DIMS];
+    int ncnatts;
+    int ncerr;
+
+    bool trace = false;
+
+    if ((ncerr = nc_inq_var (netCdfFile, varIndex, ncname, &nctype, &ndims, dimIds, &ncnatts)) != NC_NOERR) {
+      string errstr = string(": nc_inq_var failure: ") + nc_strerror(ncerr);
+      ESMC_LogDefault.Write(errstr, ESMC_LOGMSG_ERROR, ESMC_CONTEXT);
+      *rc = ESMF_FAILURE;
+      return NULL;
+    }
+//    NcVar*  thisVar = netCdfFile->get_var(varIndex);
     Array*  thisArray = NULL;
 
-    if (!(thisVar->is_valid()))
-    {
-       return thisArray;
-    }
-
-    //printf("Variable Name: %s\n", thisVar->name());
+    if (trace) {
+      std::cerr << ESMC_METHOD << ": Variable Name: " << ncname << std::endl;
     //printf("         Type: %d\n", thisVar->type());
-    //printf("         Dims: %d\n", thisVar->num_dims());
-
-    int*   dimSizes = new int[thisVar->num_dims()];
-    int*   minIndices = new int[thisVar->num_dims()];
-    int*   maxIndices = new int[thisVar->num_dims()];
-
-    for (int j = 0; j < thisVar->num_dims(); ++j)
-    {
-      NcDim*	thisDim = thisVar->get_dim(j);
-
-      dimSizes[j] = thisDim->size();
-      minIndices[j] = 0;
-      maxIndices[j] = thisDim->size() - 1;
+      std::cerr << ESMC_METHOD << ":         nDims: " << ndims << std::endl;
+      std::cerr << ESMC_METHOD << ":         nAtts: " << ncnatts << std::endl;
     }
 
-    ESMC_TypeKind	arrayType = ncToEsmcType(thisVar->type());
+    std::vector<size_t> dimSizes(ndims);
+    std::vector<int>    dimSizes_int(ndims);
+    std::vector<size_t> maxIndices(ndims);
+    std::vector<int>    maxIndices_int(ndims);
+    size_t numValues = 1;
+    for (int j=0; j<ndims; j++) {
+      if ((ncerr = nc_inq_dimlen (netCdfFile, dimIds[j], &dimSizes[j])) != NC_NOERR) {
+        string errstr = string(": nc_inq_dimlen failure: ") + nc_strerror(ncerr);
+        ESMC_LogDefault.Write(errstr, ESMC_LOGMSG_ERROR, ESMC_CONTEXT);
+        *rc = ESMF_FAILURE;
+        return thisArray;
+      }
+      if (trace)
+        std::cerr << ESMC_METHOD << ": dimSizes[" << j << "] = " << dimSizes[j] << std::endl;
+      dimSizes_int[j] = dimSizes[j];  // possible, but unlikely, narrowing here
+      maxIndices[j] = dimSizes[j] - 1;
+      maxIndices_int[j] = dimSizes_int[j]-1;  // possible, but unlikely, narrowing here
+      numValues *= dimSizes[j];
+    }
 
-    int		numValues = thisVar->num_vals();
-    NcValues*	values = thisVar->values();
+    ESMC_TypeKind_Flag  arrayType = ncToEsmcType(nctype);
 
-    int      arrayRc = 0;
-    LocalArray*	locArray = LocalArray::create(
+    if (trace)
+      std::cerr << ESMC_METHOD << ": allocating values buffer, numValues = " << numValues << std::endl;
+    std::vector<size_t> minIndices(ndims, 0);
+    std::vector<int>    minIndices_int(ndims, 0);
+    std::vector<double> values(numValues);
+    if ((ncerr = nc_get_vara (netCdfFile, varIndex,
+        &minIndices.front(), &dimSizes.front(), &values.front())) != NC_NOERR) {
+      string errstr = string(": nc_get_vera failure: ") + nc_strerror(ncerr);
+      ESMC_LogDefault.Write(errstr, ESMC_LOGMSG_ERROR, ESMC_CONTEXT);
+      *rc = ESMF_FAILURE;
+      return thisArray;
+    }
+
+//    NcValues*         values = thisVar->values();
+
+    int      localrc;
+    if (trace)
+      std::cerr << ESMC_METHOD << ": creating locArray" << std::endl;
+    LocalArray*         locArray = LocalArray::create(
                                    arrayType,
-                                   thisVar->num_dims(),
-                                   dimSizes,
-                                   minIndices,
-                                   maxIndices,
-                                   values->base(),
+                                   ndims,
+                                   &dimSizes_int.front(),
+                                   &minIndices_int.front(),
+                                   &maxIndices_int.front(),
+                                   &values.front(),
                                    DATA_COPY,
-                                   &arrayRc);
-    //printf("*** LocalArray RC: %d\n", arrayRc);
+                                   &localrc);
+    //printf("*** LocalArray RC: %d\n", localrc);
     //locArray->print("full");
 
-    InterfaceInt*	minIndex = new InterfaceInt(minIndices, 
-                                              thisVar->num_dims());
-    InterfaceInt*	maxIndex = new InterfaceInt(maxIndices, 
-                                              thisVar->num_dims());
-
-    if (arrayRc != ESMF_SUCCESS)
-    {
+    if (ESMC_LogDefault.MsgFoundError(localrc,
+         ESMCI_ERR_PASSTHRU, ESMC_CONTEXT, rc)) {
       return thisArray;
     }
 
-    DistGrid*	distGrid = DistGrid::create(
+    InterArray<int>* minIndex = new InterArray<int>(&minIndices_int.front(), ndims);
+    InterArray<int>* maxIndex = new InterArray<int>(&maxIndices_int.front(), ndims);
+
+    values.clear();
+    maxIndices.clear();
+    minIndices.clear();
+    dimSizes_int.clear();
+    dimSizes.clear();
+
+    if (trace)
+      std::cerr << ESMC_METHOD << ": creating distGrid" << std::endl;
+    DistGrid*   distGrid = DistGrid::create(
                                minIndex, maxIndex,
-                               (InterfaceInt*)NULL, (Decomp_Flag*)NULL, 0,
-                               (InterfaceInt*)NULL, (InterfaceInt*)NULL,
-                               (InterfaceInt*)NULL, (ESMC_IndexFlag*)NULL,
-                               (InterfaceInt*)NULL, 
-                               (DELayout*)NULL, (VM*)NULL, &arrayRc);
-    //printf("*** DistGrid RC: %d\n", arrayRc);
+                               (InterArray<int>*)NULL, (Decomp_Flag*)NULL, 0,
+                               (InterArray<int>*)NULL, (InterArray<int>*)NULL,
+                               (InterArray<int>*)NULL, (ESMC_IndexFlag*)NULL,
+                               (InterArray<int>*)NULL,
+                               (DELayout*)NULL, (VM*)NULL, &localrc);
+    //printf("*** DistGrid RC: %d\n", localrc);
 
-    if (arrayRc != ESMF_SUCCESS)
-    {
+    maxIndices.clear();
+    minIndices_int.clear();
+    delete minIndex;
+    delete maxIndex;
+
+    if (ESMC_LogDefault.MsgFoundError(localrc,
+         ESMCI_ERR_PASSTHRU, ESMC_CONTEXT, rc)) {
       return thisArray;
     }
 
+    if (trace)
+      std::cerr << ESMC_METHOD << ": creating thisArray" << std::endl;
     thisArray = Array::create(&locArray, 1,
                               distGrid, DATA_COPY,
-                              (InterfaceInt*)NULL, (InterfaceInt*)NULL, 
-                              (InterfaceInt*)NULL, (InterfaceInt*)NULL, 
-                              (InterfaceInt*)NULL, (InterfaceInt*)NULL,
-                              (InterfaceInt*)NULL, (ESMC_IndexFlag*)NULL,
-                              (InterfaceInt*)NULL, (InterfaceInt*)NULL,
-                              &arrayRc);
+                              (InterArray<int>*)NULL, (InterArray<int>*)NULL,
+                              (InterArray<int>*)NULL, (InterArray<int>*)NULL,
+                              (InterArray<int>*)NULL, (InterArray<int>*)NULL,
+                              (InterArray<int>*)NULL, (ESMC_IndexFlag*)NULL,
+                              (InterArray<int>*)NULL, (InterArray<int>*)NULL,
+                              &localrc);
 
-    //printf("*** Array RC: %d\n", arrayRc);
-    if (arrayRc != ESMF_SUCCESS)
-    {
+    //printf("*** Array RC: %d\n", localrc);
+    if (ESMC_LogDefault.MsgFoundError(localrc,
+         ESMCI_ERR_PASSTHRU, ESMC_CONTEXT, rc)) {
       return NULL;
     }
 
-    thisArray->setName((char*)(thisVar->name()));
+    thisArray->setName(ncname);
 
     //thisArray->print();
-    //printf("    Atts: %d\n", thisVar->num_atts());
 
-    for (int j = 0; j < thisVar->num_atts(); ++j)
+    for (int j = 0; j < ncnatts; ++j)
     {
-      NcAtt*	thisAtt = thisVar->get_att(j);
+      char attname[NC_MAX_NAME];
+      if ((ncerr = nc_inq_attname (netCdfFile, varIndex, j, attname)) != NC_NOERR) {
+        string errstr = string(": nc_inq_attname failure: ") + nc_strerror(ncerr);
+        ESMC_LogDefault.Write(errstr, ESMC_LOGMSG_ERROR, ESMC_CONTEXT);
+        *rc = ESMF_FAILURE;
+        return thisArray;
+      }
+      if (trace)
+        std::cerr << ESMC_METHOD << ": attribute[" << j << "] name: " << attname << std::endl;
+      nc_type atttype;
+      size_t attlen;
+      if ((ncerr = nc_inq_att (netCdfFile, varIndex, attname, &atttype, &attlen)) != NC_NOERR) {
+        string errstr = string(": nc_inq_att failure: ") + nc_strerror(ncerr);
+        ESMC_LogDefault.Write(errstr, ESMC_LOGMSG_ERROR, ESMC_CONTEXT);
+        *rc = ESMF_FAILURE;
+        return thisArray;
+      }
+//      NcAtt*  thisAtt = thisVar->get_att(j);
       //printf("      nc att name[%d]: %s\n", j, thisAtt->name());
       //printf("      nc att type[%d]: %d ", j, thisAtt->type());
 
@@ -751,19 +868,37 @@ void IO_NetCDF::destruct(void) {
       vector<double> attValDoubleVector;
       attValDoubleVector.reserve(1);
 
-      switch (thisAtt->type())
+      switch (atttype)
       {
       case NC_CHAR:
-         attValString = string(thisAtt->values()->as_string(0));
+         char *att_str;
+         att_str = new char[attlen];
+         if ((ncerr = nc_get_att_text (netCdfFile, varIndex, attname, att_str)) != NC_NOERR) {
+        string errstr = string(": nc_get_att_text failure: ") + nc_strerror(ncerr);
+        ESMC_LogDefault.Write(errstr, ESMC_LOGMSG_ERROR, ESMC_CONTEXT);
+          *rc = ESMF_FAILURE;
+           return thisArray;
+         }
+         attValString = string(att_str, attlen);
+         delete[] att_str;
          attValStringVector.push_back(attValString);
          valueBase = (void*) (&attValStringVector);
          //printf("(ncChar)\n");
          //printf("     nc att value[%d]: %s\n", j, attValString.c_str());
-         
+
         break;
 
       case NC_INT:
-         attValInt = thisAtt->values()->as_int(0);
+         int *att_int;
+         att_int = new int[attlen];
+         if ((ncerr = nc_get_att_int (netCdfFile, varIndex, attname, att_int)) != NC_NOERR) {
+           string errstr = string(": nc_get_att_int failure: ") + nc_strerror(ncerr);
+           ESMC_LogDefault.Write(errstr, ESMC_LOGMSG_ERROR, ESMC_CONTEXT);
+           *rc = ESMF_FAILURE;
+           return thisArray;
+         }
+         attValInt = att_int[0];
+         delete[] att_int;
          attValIntVector.push_back(attValInt);
          valueBase = (void*) (&attValIntVector);
          //printf("(ncInt)\n");
@@ -771,7 +906,16 @@ void IO_NetCDF::destruct(void) {
         break;
 
       case NC_FLOAT:
-         attValFloat = thisAtt->values()->as_float(0);
+         float *att_float;
+         att_float = new float[attlen];
+         if ((ncerr = nc_get_att_float (netCdfFile, varIndex, attname, att_float)) != NC_NOERR) {
+           string errstr = string(": nc_get_att_float failure: ") + nc_strerror(ncerr);
+           ESMC_LogDefault.Write(errstr, ESMC_LOGMSG_ERROR, ESMC_CONTEXT);
+           *rc = ESMF_FAILURE;
+           return thisArray;
+         }
+         attValFloat = att_float[0];
+         delete[] att_float;
          attValFloatVector.push_back(attValFloat);
          valueBase = (void*) (&attValFloatVector);
          //printf("(ncFloat)\n");
@@ -779,7 +923,16 @@ void IO_NetCDF::destruct(void) {
         break;
 
       case NC_DOUBLE:
-         attValDouble = thisAtt->values()->as_double(0);
+         double *att_double;
+         att_double = new double[attlen];
+         if ((ncerr = nc_get_att_double (netCdfFile, varIndex, attname, att_double)) != NC_NOERR) {
+           string errstr = string(": nc_get_att_double failure: ") + nc_strerror(ncerr);
+           ESMC_LogDefault.Write(errstr, ESMC_LOGMSG_ERROR, ESMC_CONTEXT);
+           *rc = ESMF_FAILURE;
+           return thisArray;
+         }
+         attValDouble = att_double[0];
+         delete[] att_double;
          attValDoubleVector.push_back(attValDouble);
          valueBase = (void*) (&attValDoubleVector);
          //printf("(ncDouble)\n");
@@ -790,107 +943,196 @@ void IO_NetCDF::destruct(void) {
         break;
       }
 
-      ESMC_TypeKind	attType = ncToEsmcType(thisAtt->type());
-      //printf("   ESMC type[%d]: %d (%s)\n", j, attType, 
-      //                                      ESMC_TypeKindString(attType));
+      ESMC_TypeKind_Flag        attType = ncToEsmcType(atttype);
+      //printf("   ESMC type[%d]: %d (%s)\n", j, attType,
+      //                                      ESMC_TypeKind_FlagString(attType));
 
-      Attribute* esmfAtt = new Attribute(thisAtt->name(),
+      Attribute* esmfAtt = new Attribute(attname,
                                          attType, 1,
                                          valueBase);
-      thisArray->root.AttributeSet(esmfAtt);
-      //thisArray->root.ESMC_Print();
+      thisArray->ESMC_BaseGetRoot()->AttributeSet(esmfAtt);
+      //thisArray->ESMC_BaseGetRoot()->ESMC_Print();
     }
 
+    *rc = ESMF_SUCCESS;
     return thisArray;
   }
 
 
 //-------------------------------------------------------------------------
 
-  int  IO_NetCDF::writeArray(NcFile*  netCdfFile,
+  int  IO_NetCDF::writeArray(NcFile   netCdfFile,
                              Array*   thisArray,
-                             int      numDims, 
-                             NcDim**  dimensions)
+                             int      numDims,
+                             int*  dimensions)
   {
-    int  rc = ESMF_SUCCESS;
 
-    ESMC_TypeKind  esmcType = thisArray->getTypekind();
+#undef  ESMC_METHOD
+#define ESMC_METHOD "IO_NetCDF::writeArray"
+
+    bool trace = false;
+    int  localrc = ESMF_SUCCESS;
+
+    ESMC_TypeKind_Flag  esmcType = thisArray->getTypekind();
 //printf("ESMC Type: %d\n", esmcType);
-    NcType	       ncType = esmcToNcType(esmcType);
+    nc_type            ncType = esmcToNcType(esmcType);
 
-    NcVar*  thisVar = netCdfFile->add_var(thisArray->getName(), 
-                                          ncType, 
-                                          numDims, 
-                                          (const NcDim**)dimensions);
+    int thisVar;
 
-    
+    if (trace) {
+      std::cerr << ESMC_METHOD << ": calling nc_def_var, name = " << thisArray->getName()
+          << ", numDims = " << numDims << std::endl;
+      for (int i=0; i<numDims; i++)
+        std::cerr << "    dimensions[" << i << "] = " << dimensions[i] << std::endl;
+    }
+    if ((ncerr = nc_def_var (netCdfFile, thisArray->getName(),
+                        ncType, numDims, dimensions,
+                        &thisVar)) != NC_NOERR) {
+      string errstr = string(": nc_def_var failure: ") + nc_strerror(ncerr);
+      ESMC_LogDefault.MsgFoundError(ESMF_FAILURE,
+         errstr, ESMC_CONTEXT, &localrc);
+      return localrc;
+    }
+
+//    NcVar*  thisVar = netCdfFile->add_var(thisArray->getName(),
+//                                          ncType,
+//                                          numDims,
+//                                          (const NcDim**)dimensions);
+
+    ncerr = nc_enddef (netCdfFile);  // ensure we are not in Define Mode
+
     LocalArray*  locArray = (thisArray->getLocalarrayList())[0];
     void*             baseAddr;
     baseAddr = locArray->getBaseAddr();
 
-    long*		counts = new long[numDims];
+    size_t*             counts = new size_t[numDims];
     for (int i = 0; i < numDims; ++i)
     {
-      counts[i] = dimensions[i]->size();
+      if ((ncerr = nc_inq_dimlen (netCdfFile, dimensions[i], &counts[i])) != NC_NOERR) {
+        string errstr = string(": nc_inq_dimlen failure: ") + nc_strerror(ncerr);
+        ESMC_LogDefault.MsgFoundError(ESMF_FAILURE,
+           errstr, ESMC_CONTEXT, &localrc);
+        return localrc;
+      }
     }
 
     switch (ncType)
     {
     case NC_BYTE:
-      thisVar->put((const ncbyte*)baseAddr, counts);
+      if ((ncerr = nc_put_var_uchar (netCdfFile, thisVar, (const unsigned char*)baseAddr)) != NC_NOERR) {
+        string errstr = string(": nc_put_var_uchar failure: ") + nc_strerror(ncerr);
+        ESMC_LogDefault.MsgFoundError(ESMF_FAILURE,
+           errstr, ESMC_CONTEXT, &localrc);
+        return localrc;
+      }
+//      thisVar->put((const ncbyte*)baseAddr, counts);
       break;
 
     case NC_CHAR:
-      thisVar->put((const char*)baseAddr, counts);
+      if ((ncerr = nc_put_var_text (netCdfFile, thisVar, (const char*)baseAddr)) != NC_NOERR) {
+        string errstr = string(": nc_put_var_text failure: ") + nc_strerror(ncerr);
+        ESMC_LogDefault.MsgFoundError(ESMF_FAILURE,
+           errstr, ESMC_CONTEXT, &localrc);
+        return localrc;
+      }
+//      thisVar->put((const char*)baseAddr, counts);
       break;
 
     case NC_SHORT:
-      thisVar->put((const short*)baseAddr, counts);
+      if ((ncerr = nc_put_var_short (netCdfFile, thisVar, (const short*)baseAddr)) != NC_NOERR) {
+        string errstr = string(": nc_put_var_short failure: ") + nc_strerror(ncerr);
+        ESMC_LogDefault.MsgFoundError(ESMF_FAILURE,
+           errstr, ESMC_CONTEXT, &localrc);
+        return localrc;
+      }
+//      thisVar->put((const short*)baseAddr, counts);
       break;
 
     case NC_INT:
-      thisVar->put((const int*)baseAddr, counts);
+      if ((ncerr = nc_put_var_int (netCdfFile, thisVar, (const int*)baseAddr)) != NC_NOERR) {
+        string errstr = string(": nc_put_var_int failure: ") + nc_strerror(ncerr);
+        ESMC_LogDefault.MsgFoundError(ESMF_FAILURE,
+           errstr, ESMC_CONTEXT, &localrc);
+        return localrc;
+      }
+//      thisVar->put((const int*)baseAddr, counts);
       break;
 
     case NC_FLOAT:
-      thisVar->put((const float*)baseAddr, counts);
+      if ((ncerr = nc_put_var_float (netCdfFile, thisVar, (const float*)baseAddr)) != NC_NOERR) {
+        string errstr = string(": nc_put_var_float failure: ") + nc_strerror(ncerr);
+        ESMC_LogDefault.MsgFoundError(ESMF_FAILURE,
+           errstr, ESMC_CONTEXT, &localrc);
+        return localrc;
+      }
+//      thisVar->put((const float*)baseAddr, counts);
       break;
 
     case NC_DOUBLE:
-      thisVar->put((const double*)baseAddr, counts);
+      if ((ncerr = nc_put_var_double (netCdfFile, thisVar, (const double*)baseAddr)) != NC_NOERR) {
+        string errstr = string(": nc_put_var_double failure: ") + nc_strerror(ncerr);
+        ESMC_LogDefault.MsgFoundError(ESMF_FAILURE,
+           errstr, ESMC_CONTEXT, &localrc);
+        return localrc;
+      }
+//      thisVar->put((const double*)baseAddr, counts);
       break;
 
     default:
       break;
     }
 
-    netCdfFile->sync();
+    delete[] counts;
 
-    int  numAttributes = thisArray->root.AttributeGetCountTotal();
+    if ((ncerr = nc_sync (netCdfFile)) != NC_NOERR) {
+      string errstr = string(": nc_sync failure: ") + nc_strerror(ncerr);
+      ESMC_LogDefault.MsgFoundError(ESMF_FAILURE,
+         errstr, ESMC_CONTEXT, &localrc);
+      return localrc;
+    }
+
+    int  numAttributes = thisArray->ESMC_BaseGetRoot()->getCountTotal();
+    if (trace)
+      std::cerr << ESMC_METHOD << ": numAttributes = " << numAttributes << std::endl;
     for (int i = 0; i < numAttributes; ++i)
     {
       string         attName;
-      ESMC_TypeKind  attEsmfType;
+      ESMC_TypeKind_Flag  attEsmfType;
       int            numAttValues = 0;
-      Attribute*     thisAtt = thisArray->root.AttributeGet(i);
-      thisArray->root.AttributeGet(i, &attName, &attEsmfType, &numAttValues);
+      Attribute*     thisAtt = thisArray->ESMC_BaseGetRoot()->AttributeGet(i);
+      attName = thisAtt->getName();
+      attEsmfType = thisAtt->getTypeKind();
+      numAttValues = thisAtt->getItemCount();
 
-      NcType  attNcType = esmcToNcType(attEsmfType);
+      nc_type  attNcType = esmcToNcType(attEsmfType);
+
+      ncerr = nc_redef (netCdfFile);  // ensure we are in Define Mode
+
+      if (trace)
+        std::cerr << ESMC_METHOD << ": attribute name: " << attName << std::endl;
 
       switch (attNcType)
       {
       case NC_CHAR:
         {
           string  attVal;
-		  vector<string> attValVector;
-          thisArray->root.AttributeGet(attName, &attValVector);
+                  vector<string> attValVector;
+          thisArray->ESMC_BaseGetRoot()->AttributeGet(attName)->get(&attValVector);
           if (numAttValues == 1) {
             attVal = attValVector.at(0);
-            thisVar->add_att(attName.c_str(), attVal.c_str());
+            if (trace)
+              std::cerr << ESMC_METHOD << ": writing NC_CHAR string attribute: " << attVal.c_str() << ", size = " << attVal.size() << std::endl;
+            if ((ncerr = nc_put_att_text (netCdfFile, thisVar, attName.c_str(), attVal.size(), attVal.c_str())) != NC_NOERR) {
+              string errstr = string(": nc_put_att_text failure: ") + nc_strerror(ncerr);
+              ESMC_LogDefault.MsgFoundError(ESMF_FAILURE,
+                 errstr, ESMC_CONTEXT, &localrc);
+              return localrc;
+            }
+//            thisVar->add_att(attName.c_str(), attVal.c_str());
           } else {
-            ESMC_LogDefault.ESMC_LogMsgFoundError(ESMC_RC_ARG_VALUE, 
-              "Write items > 1 - Not yet implemented", &rc);
-            return ESMF_FAILURE;}
+            ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_VALUE,
+              "Write items > 1 - Not yet implemented", ESMC_CONTEXT, &localrc);
+            return localrc;}
           //printf("      att name[%d]: %s\n", i, attName.c_str());
           //printf("      att val[%d]: %s\n", i, attVal.c_str());
         }
@@ -898,16 +1140,25 @@ void IO_NetCDF::destruct(void) {
 
       case NC_INT:
         {
+          if (trace)
+            std::cerr << ESMC_METHOD << ": writing NC_INT attribute" << std::endl;
           int  attVal;
           vector<int> attValVector;
-          thisArray->root.AttributeGet(attName, &numAttValues, &attValVector);
+          thisArray->ESMC_BaseGetRoot()->AttributeGet(attName)->get(&numAttValues, &attValVector);
           if (numAttValues == 1) {
             attVal = attValVector.at(0);
-          thisVar->add_att(attName.c_str(), attVal);
+            if ((ncerr = nc_put_att_int (netCdfFile, thisVar, attName.c_str(), NC_INT, 1, &attVal)) != NC_NOERR) {
+              string errstr = string(": nc_put_att_int failure: ") + nc_strerror(ncerr);
+              ESMC_LogDefault.MsgFoundError(ESMF_FAILURE,
+                 errstr, ESMC_CONTEXT, &localrc);
+              return localrc;
+            }
+
+//          thisVar->add_att(attName.c_str(), attVal);
           } else {
-            ESMC_LogDefault.ESMC_LogMsgFoundError(ESMC_RC_ARG_VALUE, 
-              "Write items > 1 - Not yet implemented", &rc);
-            return ESMF_FAILURE;}
+            ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_VALUE,
+              "Write items > 1 - Not yet implemented", ESMC_CONTEXT, &localrc);
+            return localrc;}
           //printf("      att name[%d]: %s\n", i, attName.c_str());
           //printf("      att val[%d]: %d\n", i, attVal);
         }
@@ -915,16 +1166,24 @@ void IO_NetCDF::destruct(void) {
 
       case NC_FLOAT:
         {
+          if (trace)
+            std::cerr << ESMC_METHOD << ": writing NC_FLOAT attribute" << std::endl;
           float  attVal;
           vector<float> attValVector;
-          thisArray->root.AttributeGet(attName, &numAttValues, &attValVector);
+          thisArray->ESMC_BaseGetRoot()->AttributeGet(attName)->get(&numAttValues, &attValVector);
           if (numAttValues == 1) {
             attVal = attValVector.at(0);
-          thisVar->add_att(attName.c_str(), attVal);
+            if ((ncerr = nc_put_att_float (netCdfFile, thisVar, attName.c_str(), NC_FLOAT, 1, &attVal)) != NC_NOERR) {
+              string errstr = string(": nc_put_att_float failure: ") + nc_strerror(ncerr);
+              ESMC_LogDefault.MsgFoundError(ESMF_FAILURE,
+                 errstr, ESMC_CONTEXT, &localrc);
+              return localrc;
+            }
+//          thisVar->add_att(attName.c_str(), attVal);
           } else {
-            ESMC_LogDefault.ESMC_LogMsgFoundError(ESMC_RC_ARG_VALUE, 
-              "Write items > 1 - Not yet implemented", &rc);
-            return ESMF_FAILURE;}
+            ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_VALUE,
+              "Write items > 1 - Not yet implemented", ESMC_CONTEXT, &localrc);
+            return localrc;}
           //printf("      att name[%d]: %s\n", i, attName.c_str());
           //printf("      att val[%d]: %f\n", i, attVal);
         }
@@ -932,16 +1191,24 @@ void IO_NetCDF::destruct(void) {
 
       case NC_DOUBLE:
         {
+          if (trace)
+            std::cerr << ESMC_METHOD << ": writing NC_DOUBLE attribute" << std::endl;
           double  attVal;
           vector<double> attValVector;
-          thisArray->root.AttributeGet(attName, &numAttValues, &attValVector);
+          thisArray->ESMC_BaseGetRoot()->AttributeGet(attName)->get(&numAttValues, &attValVector);
           if (numAttValues == 1) {
             attVal = attValVector.at(0);
-          thisVar->add_att(attName.c_str(), attVal);
+            if ((ncerr = nc_put_att_double (netCdfFile, thisVar, attName.c_str(), NC_DOUBLE, 1, &attVal)) != NC_NOERR) {
+              string errstr = string(": nc_put_att_text failure: ") + nc_strerror(ncerr);
+              ESMC_LogDefault.MsgFoundError(ESMF_FAILURE,
+                 errstr, ESMC_CONTEXT, &localrc);
+              return localrc;
+            }
+//          thisVar->add_att(attName.c_str(), attVal);
           } else {
-            ESMC_LogDefault.ESMC_LogMsgFoundError(ESMC_RC_ARG_VALUE, 
-              "Write items > 1 - Not yet implemented", &rc);
-            return ESMF_FAILURE;}
+            ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_VALUE,
+              "Write items > 1 - Not yet implemented", ESMC_CONTEXT, &localrc);
+            return localrc;}
           //printf("      att name[%d]: %s\n", i, attName.c_str());
           //printf("      att val[%d]: %g\n", i, attVal);
         }
@@ -952,7 +1219,16 @@ void IO_NetCDF::destruct(void) {
       }
     }
 
-    return rc;
+    ncerr = nc_enddef (netCdfFile);
+
+    if ((ncerr = nc_sync (netCdfFile)) != NC_NOERR) {
+      string errstr = string(": nc_put_att_text failure: ") + nc_strerror(ncerr);
+      ESMC_LogDefault.MsgFoundError(ESMF_FAILURE,
+          errstr, ESMC_CONTEXT, &localrc);
+      return localrc;
+    }
+
+    return localrc;
   }
 #endif // ESMF_NETCDF
 

@@ -1,7 +1,7 @@
-! $Id: ESMF_VMAllGatherUTest.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
+! $Id$
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2012, University Corporation for Atmospheric Research,
+! Copyright 2002-2018, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -36,11 +36,10 @@
 !------------------------------------------------------------------------------
 ! The following line turns the CVS identifier string into a printable variable.
       character(*), parameter :: version = &
-      '$Id: ESMF_VMAllGatherUTest.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $'
+      '$Id$'
 !------------------------------------------------------------------------------
       ! cumulative result: count failures; no failures equals "all pass"
       integer :: result = 0
-
 
       ! individual test failure message
       character(ESMF_MAXSTR) :: failMsg
@@ -66,6 +65,7 @@
 
 
       call ESMF_TestStart(ESMF_SRCLINE, rc=rc)
+      if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
       ! get global vm information
       call ESMF_VMGetGlobal(vm, rc=rc)
@@ -91,8 +91,8 @@
       ! prepare data array2
       do i=1, nsize
         array2(i) = 2*localPet + i
-        farray2(i) = real( 2*localPet + i , ESMF_KIND_R8 )
-        f4array2(i) = farray2(i)
+        farray2(i) = real(2*localPet + i, ESMF_KIND_R8)
+        f4array2(i) = real(farray2(i), ESMF_KIND_R4)
       enddo
 
       !Testing with Integer arguments
@@ -111,7 +111,7 @@
       write(name, *) "Verifying array1 data after allgather Test"
       rc = ESMF_SUCCESS
       do i=1, nlen
-		if (array1(i)/=i) rc = ESMF_FAILURE
+        if (array1(i)/=i) rc = ESMF_FAILURE
       enddo
       call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
 
@@ -127,7 +127,7 @@
       write(name, *) "Verifying array2 data after allgather Test"
       rc = ESMF_SUCCESS
       do i=1, nsize
-	if (array2(i)/=(i + 2 * localPet)) rc = ESMF_FAILURE
+        if (array2(i)/=(i + 2 * localPet)) rc = ESMF_FAILURE
       enddo
       call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
 
@@ -216,6 +216,13 @@
       enddo
       call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
 
-      call ESMF_TestEnd(result, ESMF_SRCLINE)
+      deallocate(array1)
+      deallocate(array2)
+      deallocate(farray1)
+      deallocate(farray2)
+      deallocate(f4array1)
+      deallocate(f4array2)
+
+      call ESMF_TestEnd(ESMF_SRCLINE)
 
       end program ESMF_VMAllGatherUTest

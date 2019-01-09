@@ -1,7 +1,7 @@
 ! $Id$
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2012, University Corporation for Atmospheric Research,
+! Copyright 2002-2018, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -38,7 +38,20 @@
     integer                 :: finalrc, rc
     type(ESMF_Field)        :: field
     logical :: correct
-    integer :: rank, dimCount
+    integer :: rank, dimCount, result
+    character(ESMF_MAXSTR) :: testname
+    character(ESMF_MAXSTR) :: failMsg
+
+!-------------------------------------------------------------------------
+!-------------------------------------------------------------------------
+
+  write(failMsg, *) "Example failure"
+  write(testname, *) "Example ESMF_FieldArbGridEx"
+
+!-------------------------------------------------------------------------
+!-------------------------------------------------------------------------
+
+
 
 !   !Set finalrc to success
     finalrc = ESMF_SUCCESS
@@ -122,8 +135,8 @@
 !  With the introduction of Field on arbitrarily distributed Grid, Field has two kinds of dimension
 !  count: one associated geometrical (or physical) dimensionality, the other one associated with its
 !  memory index space representation. Field and Grid dimCount reflect the physical index 
-!  space of the objects. A new type of dimCount  rank should be added to both of these entities. 
-!  rank gives the number of dimensions of the memory index space of the objects.
+!  space of the objects. A new type of dimCount rank should be added to both of these entities.
+!  The rank gives the number of dimensions of the memory index space of the objects.
 !  This would be the dimension of the pointer pulled out of Field and the
 !  size of the bounds vector, for example. 
 !
@@ -144,7 +157,7 @@
 !  such a Field, this example illustrates the key concepts and use of Field on arbitrary distributed Grid.
 !  
 !  The Grid is 3 dimensional in physics index space but the first two dimension are collapsed into
-!  a single memory index space. Thus the result Field is 3D in physics index space and 2D in memory index
+!  a single memory index space. Thus the resulting Field is 3D in physics index space and 2D in memory index
 !  space. This is made obvious with the 2D arrayspec used to create this Field.
 !
 !EOE
@@ -156,29 +169,29 @@
       minIndex=(/1,1,1/), maxIndex=(/xdim, ydim,zdim/), &
       arbIndexList=localArbIndex,arbIndexCount=localArbIndexCount, &
       name="arb3dgrid", rc=rc)
-    if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
     ! create a 2D arrayspec
     call ESMF_ArraySpecSet(arrayspec2D, rank=2, typekind=ESMF_TYPEKIND_R4, &
          rc=rc)
-    if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
     ! create a 2D Field using the Grid and the arrayspec
     field = ESMF_FieldCreate(grid3d, arrayspec2D, rc=rc)
-    if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   
     call ESMF_FieldGet(field, rank=rank, dimCount=dimCount, &
                        rc=rc)
     if (myPet .eq. 0) print *, 'Field rank, dimCount', &
                                 rank, dimCount
-    if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   
     ! verify that the dimension counts are correct
     if (rank .ne. 2) correct = .false.
     if (dimCount .ne. 3) correct = .false.  
 !EOC
     call ESMF_FieldDestroy(field, rc=rc)
-    if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
 !>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%
 !-------------------------------- Example -----------------------------
@@ -188,7 +201,7 @@
 !\label{sec:field:usage:createArbGridRep}
 !
 !  The next example is slightly more complicated in
-!  that the Field also contains ungridded dimension and its gridded dimension
+!  that the Field also contains one ungridded dimension and its gridded dimension
 !  is replicated on the arbitrarily distributed dimension of the Grid.
 ! 
 !  The same 3D Grid and 2D arrayspec in the previous example
@@ -204,26 +217,31 @@
 !BOC
     field = ESMF_FieldCreate(grid3d, arrayspec2D,gridToFieldMap=(/0,0,1/), &
             ungriddedLBound=(/1/), ungriddedUBound=(/10/),rc=rc)
-    if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   
     call ESMF_FieldGet(field, rank=rank, dimCount=dimCount, &
                        rc=rc)
     if (myPet .eq. 0) print *, 'Field rank, dimCount', &
                                 rank, dimCount
-    if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   
     if (rank .ne. 2) correct = .false.
     if (dimCount .ne. 2) correct = .false.  
 !EOC
     print *, "Field with replicated dimension returned"
-    if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
     ! release resources
     call ESMF_FieldDestroy(field, rc=rc)
-    if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
     call ESMF_GridDestroy(grid3d, rc=rc)
-    if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
     deallocate(localArbIndex)
+
+    ! IMPORTANT: ESMF_STest() prints the PASS string and the # of processors in the log
+    ! file that the scripts grep for.
+    call ESMF_STest((finalrc.eq.ESMF_SUCCESS), testname, failMsg, result, ESMF_SRCLINE)
+
 
 !-------------------------------------------------------------------------
      call ESMF_Finalize(rc=rc)

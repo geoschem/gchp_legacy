@@ -1,7 +1,7 @@
-! $Id: ESMF_GridCoordUTest.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
+! $Id$
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2012, University Corporation for Atmospheric Research,
+! Copyright 2002-2018, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -34,7 +34,7 @@ program ESMF_GridCoordUTest
 !------------------------------------------------------------------------------
 ! The following line turns the CVS identifier string into a printable variable.
   character(*), parameter :: version = &
-    '$Id: ESMF_GridCoordUTest.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $'
+    '$Id$'
 !------------------------------------------------------------------------------
     
   ! cumulative result: count failures; no failures equals "all pass"
@@ -62,7 +62,7 @@ program ESMF_GridCoordUTest
   integer :: compELWidth(3),compEUWidth(3)
   integer :: rank,clbnd(3),cubnd(3)
   integer :: i,i1,i2,i3, index(3)
-  integer :: lDE, localDECount,t
+  integer :: lDE, localDECount,t, loc
   real(ESMF_KIND_R8) :: coord(3)
   character(len=ESMF_MAXSTR) :: string
 
@@ -71,10 +71,15 @@ program ESMF_GridCoordUTest
   REAL(ESMF_KIND_R8) :: cornerX(globalXcount+1)
   REAL(ESMF_KIND_R8) :: cornerY(globalYcount+1)
   REAL(ESMF_KIND_R8),pointer :: farrayPtr1D(:)
-
+  integer :: staggerEdgeLWidth(2)
+  integer :: staggerEdgeUWidth(2)
+  integer :: staggerAlign(2)
+  integer :: staggerLBound(2)
+  logical :: isPresent
 
   !-----------------------------------------------------------------------------
   call ESMF_TestStart(ESMF_SRCLINE, rc=rc)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   !-----------------------------------------------------------------------------
 
   ! get global VM
@@ -106,6 +111,86 @@ program ESMF_GridCoordUTest
 
 
 
+  !-----------------------------------------------------------------------------
+  !NEX_UTest
+  write(name, *) "Test Grid Coord isPresent"
+  write(failMsg, *) "Incorrect result"
+
+  ! initialize check variables
+  correct=.true.
+  rc=ESMF_SUCCESS
+
+  ! Create Grid 
+  gridA=ESMF_GridCreateNoPeriDim(maxIndex=(/20,20/), regDecomp=(/2,2/), rc=localrc)
+  if (localrc .ne. ESMF_SUCCESS) rc=ESMF_FAILURE
+
+  ! Add coords on the center
+  call ESMF_GridAddCoord(gridA, staggerloc=ESMF_STAGGERLOC_CENTER, &
+         rc=localrc)
+  if (localrc .ne. ESMF_SUCCESS) rc=ESMF_FAILURE
+
+  ! Get isPresent, for coord that is present
+  call ESMF_GridGetCoord(gridA, staggerloc=ESMF_STAGGERLOC_CENTER, &
+         isPresent=isPresent, rc=localrc)
+
+  ! Check answer
+  if (.not. isPresent) correct=.false.
+
+  ! Get isPresent, for coord that is NOT present
+  call ESMF_GridGetCoord(gridA, staggerloc=ESMF_STAGGERLOC_CORNER, &
+         isPresent=isPresent, rc=localrc)
+
+  ! Check answer
+  if (isPresent) correct=.false.
+
+  ! get rid of first grid
+  call ESMF_GridDestroy(gridA,rc=localrc)
+  if (localrc .ne. ESMF_SUCCESS) rc=ESMF_FAILURE
+
+  call ESMF_Test(((rc .eq. ESMF_SUCCESS) .and. correct), name, failMsg, result, ESMF_SRCLINE)
+  !-----------------------------------------------------------------------------
+
+  !-----------------------------------------------------------------------------
+  !NEX_UTest
+  write(name, *) "Test get staggerEdgeLWidth, staggerEdgeUWidth, staggerAlign, and staggerLBound"
+  write(failMsg, *) "Incorrect result"
+
+  ! init success flag
+  rc=ESMF_SUCCESS
+
+  ! Create grid
+  grid2D=ESMF_GridCreateNoPeriDim(maxIndex=(/20,20/), &
+       gridEdgeLWidth=(/1,2/), gridEdgeUWidth=(/3,4/), &
+       rc=localrc)
+  if (localrc .ne. ESMF_SUCCESS) rc=ESMF_FAILURE
+
+  ! Add Coords with stagger info
+  call ESMF_GridAddCoord(grid2D, staggerloc=ESMF_STAGGERLOC_CENTER, &
+       staggerEdgeLWidth=(/1,2/), staggerEdgeUWidth=(/3,4/), &
+       staggerAlign=(/-1,0/), staggerLBound=(/5,6/), &
+       rc=localrc)
+  if (localrc .ne. ESMF_SUCCESS) rc=ESMF_FAILURE
+
+  ! Get stagger info
+  call ESMF_GridGet(grid2D, staggerloc=ESMF_STAGGERLOC_CENTER, &
+       staggerEdgeLWidth=staggerEdgeLWidth, staggerEdgeUWidth=staggerEdgeUWidth, &
+       staggerAlign=staggerAlign, staggerLBound=staggerLBound, &
+       rc=localrc)
+  if (localrc .ne. ESMF_SUCCESS) rc=ESMF_FAILURE
+
+  ! Make sure that info matches
+  correct=.true.
+  if ((staggerEdgeLWidth(1) .ne. 1) .or. (staggerEdgeLWidth(2) .ne. 2)) correct=.false.
+  if ((staggerEdgeUWidth(1) .ne. 3) .or. (staggerEdgeUWidth(2) .ne. 4)) correct=.false.
+  if ((staggerAlign(1) .ne. -1) .or. (staggerAlign(2) .ne. 0)) correct=.false.
+  if ((staggerLBound(1) .ne. 5) .or. (staggerLBound(2) .ne. 6)) correct=.false.
+
+  ! Destroy grid
+  call ESMF_GridDestroy(grid2D, rc=localrc)
+  if (localrc .ne. ESMF_SUCCESS) rc=ESMF_FAILURE
+
+  call ESMF_Test(((rc.eq.ESMF_SUCCESS) .and. correct), name, failMsg, result, ESMF_SRCLINE)
+  !-----------------------------------------------------------------------------
 
   !-----------------------------------------------------------------------------
   !NEX_UTest
@@ -696,6 +781,45 @@ program ESMF_GridCoordUTest
 
   call ESMF_Test(((rc.eq.ESMF_SUCCESS) .and. correct), name, failMsg, result, ESMF_SRCLINE)
   !-----------------------------------------------------------------------------
+
+  !-----------------------------------------------------------------------------
+  !NEX_UTest
+  write(name, *) "Test ESMF_StaggerLocGet() "
+  write(failMsg, *) "Incorrect result"
+
+  ! init success flag
+  rc=ESMF_SUCCESS
+
+  ! Check that output is as expected
+  correct=.true.
+
+  ! Should be all 0's for _CENTER
+  call ESMF_StaggerLocGet(ESMF_STAGGERLOC_CENTER, dim=1, loc=loc, rc=localrc)
+  if (localrc .ne. ESMF_SUCCESS) rc=ESMF_FAILURE
+  if (loc .ne. 0) correct=.false.
+  call ESMF_StaggerLocGet(ESMF_STAGGERLOC_CENTER, dim=2, loc=loc, rc=localrc)
+  if (localrc .ne. ESMF_SUCCESS) rc=ESMF_FAILURE
+  if (loc .ne. 0) correct=.false.
+
+  ! Should be all 1's for _CORNER
+  call ESMF_StaggerLocGet(ESMF_STAGGERLOC_CORNER, dim=1, loc=loc, rc=localrc)
+  if (localrc .ne. ESMF_SUCCESS) rc=ESMF_FAILURE
+  if (loc .ne. 1) correct=.false.
+  call ESMF_StaggerLocGet(ESMF_STAGGERLOC_CORNER, dim=2, loc=loc, rc=localrc)
+  if (localrc .ne. ESMF_SUCCESS) rc=ESMF_FAILURE
+  if (loc .ne. 1) correct=.false.
+
+  ! Should be 1 and 0 for _EDGE1
+  call ESMF_StaggerLocGet(ESMF_STAGGERLOC_EDGE1, dim=1, loc=loc, rc=localrc)
+  if (localrc .ne. ESMF_SUCCESS) rc=ESMF_FAILURE
+  if (loc .ne. 1) correct=.false.
+  call ESMF_StaggerLocGet(ESMF_STAGGERLOC_EDGE1, dim=2, loc=loc, rc=localrc)
+  if (localrc .ne. ESMF_SUCCESS) rc=ESMF_FAILURE
+  if (loc .ne. 0) correct=.false.
+
+  call ESMF_Test(((rc.eq.ESMF_SUCCESS) .and. correct), name, failMsg, result, ESMF_SRCLINE)
+  !-----------------------------------------------------------------------------
+
 
   !-----------------------------------------------------------------------------
   !NEX_UTest
@@ -2177,9 +2301,8 @@ program ESMF_GridCoordUTest
                               countsPerDeDim2=(/3,4/),  &
                               countsPerDeDim3=(/5/),  &
                               indexflag=ESMF_INDEX_GLOBAL, &
-	                      coordDep1=(/2,1,3/), &
-	                      coordDep2=(/3,2,1/), &
-         	              ! use default for coordDep3
+                              coordDep1=(/2,1,3/), &
+                              coordDep2=(/3,2,1/), &  ! use default for coordDep3
                               gridEdgeLWidth=(/1,2,3/), &
                               gridEdgeUWidth=(/7,8,9/), &  
                               petMap=petMap2D, rc=localrc)
@@ -2189,9 +2312,8 @@ program ESMF_GridCoordUTest
                               countsPerDeDim2=(/3,4/),  &
                               countsPerDeDim3=(/5/),  & 
                               indexflag=ESMF_INDEX_GLOBAL, &
-	                      coordDep1=(/2,1,3/), &
-	                      coordDep2=(/3,2,1/), &
-         	              ! use default for coordDep3 
+                              coordDep1=(/2,1,3/), &
+                              coordDep2=(/3,2,1/), &  ! use default for coordDep3 
                               gridEdgeLWidth=(/1,2,3/), &
                               gridEdgeUWidth=(/7,8,9/), & 
                               rc=localrc)
@@ -2400,9 +2522,8 @@ program ESMF_GridCoordUTest
                               countsPerDeDim2=(/3,4/),  &
                               countsPerDeDim3=(/5/),  &
                               indexflag=ESMF_INDEX_DELOCAL, &
-	                      coordDep1=(/2,1,3/), &
-	                      coordDep2=(/3,2,1/), &
-         	              ! use default for coordDep3
+                              coordDep1=(/2,1,3/), &
+                              coordDep2=(/3,2,1/), &  ! use default for coordDep3
                               gridEdgeLWidth=(/1,2,3/), &
                               gridEdgeUWidth=(/4,5,6/), &  
                                petMap=petMap2D, rc=localrc)
@@ -2412,9 +2533,8 @@ program ESMF_GridCoordUTest
                               countsPerDeDim2=(/3,4/),  &
                               countsPerDeDim3=(/5/),  & 
                               indexflag=ESMF_INDEX_DELOCAL, &
-	                      coordDep1=(/2,1,3/), &
-	                      coordDep2=(/3,2,1/), &
-         	              ! use default for coordDep3  
+                              coordDep1=(/2,1,3/), &
+                              coordDep2=(/3,2,1/), &  ! use default for coordDep3  
                               gridEdgeLWidth=(/1,2,3/), &
                               gridEdgeUWidth=(/4,5,6/), &  
                               rc=localrc)
@@ -2507,9 +2627,8 @@ program ESMF_GridCoordUTest
                               countsPerDeDim2=(/3,4/),  &
                               countsPerDeDim3=(/5/),  &
                               indexflag=ESMF_INDEX_USER, &
-	                      coordDep1=(/2,1,3/), &
-	                      coordDep2=(/3,2,1/), &
-         	              ! use default for coordDep3
+                              coordDep1=(/2,1,3/), &
+                              coordDep2=(/3,2,1/), &  ! use default for coordDep3
                               gridEdgeLWidth=(/1,2,3/), &
                               gridEdgeUWidth=(/4,5,6/), &  
                               gridMemLBound=(/10,20,30/), &
@@ -2520,9 +2639,8 @@ program ESMF_GridCoordUTest
                               countsPerDeDim2=(/3,4/),  &
                               countsPerDeDim3=(/5/),  & 
                               indexflag=ESMF_INDEX_USER, &
-	                      coordDep1=(/2,1,3/), &
-	                      coordDep2=(/3,2,1/), &
-         	              ! use default for coordDep3  
+                              coordDep1=(/2,1,3/), &
+                              coordDep2=(/3,2,1/), &  ! use default for coordDep3  
                               gridEdgeLWidth=(/1,2,3/), &
                               gridEdgeUWidth=(/4,5,6/), &  
                               gridMemLBound=(/10,20,30/), &
@@ -3345,7 +3463,7 @@ program ESMF_GridCoordUTest
 
 
   !-----------------------------------------------------------------------------
-  call ESMF_TestEnd(result, ESMF_SRCLINE)
+  call ESMF_TestEnd(ESMF_SRCLINE)
   !-----------------------------------------------------------------------------
 
 contains

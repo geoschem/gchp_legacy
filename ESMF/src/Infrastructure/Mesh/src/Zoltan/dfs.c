@@ -1,8 +1,8 @@
 /*****************************************************************************
  * CVS File Information :
  *    $RCSfile: dfs.c,v $
- *    $Author: mathomp4 $
- *    $Date: 2013-01-11 20:23:44 $
+ *    $Author: dneckels $
+ *    $Date: 2008/06/05 20:52:11 $
  *    Revision: 1.33 $
  ****************************************************************************/
 
@@ -324,7 +324,7 @@ void Zoltan_Oct_dfs_migrate(ZZ *zz, int *nsentags,
   int pid;                                   /* processor id */
   int nrecocts;
   OCT_Global_Info *OCT_info = (OCT_Global_Info *)(zz->LB.Data_Structure);
-  char *yo = "Zoltan_Oct_dfs_migrate";
+  const char *yo = "Zoltan_Oct_dfs_migrate";
 
   if(Zoltan_Oct_nOctants()) {  /* allocate space for octants being migrated */
     docts = (pOctant *)ZOLTAN_MALLOC(Zoltan_Oct_nOctants() * sizeof(pOctant));

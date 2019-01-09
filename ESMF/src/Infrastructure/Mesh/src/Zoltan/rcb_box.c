@@ -6,8 +6,8 @@
 /*****************************************************************************
  * CVS File Information :
  *    $RCSfile: rcb_box.c,v $
- *    $Author: mathomp4 $
- *    $Date: 2013-01-11 20:23:44 $
+ *    $Author: dneckels $
+ *    $Date: 2007/11/28 16:13:54 $
  *    Revision: 1.3 $
  ****************************************************************************/
 
@@ -43,7 +43,7 @@ double *zmax            /* upper z extent of box */
 /* Return the bounding box for a processor's subdomain.
  */
 
-static char       *yo = "Zoltan_RCB_Box";
+static const char *yo = "Zoltan_RCB_Box";
 RCB_STRUCT        *rcb;    /* Pointer to data structures for RCB. */
 struct rcb_tree   *treept; /* tree of RCB cuts */
 struct rcb_box     box;     /* box data structure */

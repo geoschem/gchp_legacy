@@ -1,7 +1,7 @@
 ! $Id$
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2012, University Corporation for Atmospheric Research,
+! Copyright 2002-2018, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -15,7 +15,7 @@ program ESMF_MeshEx
 !==============================================================================
 !ESMF_MULTI_PROC_EXAMPLE        String used by test script to count examples.
 !==============================================================================
-
+#include "ESMF.h"
 #include "ESMF_Macros.inc"
 
 ! !USES:
@@ -87,6 +87,19 @@ program ESMF_MeshEx
 
   ! result code
   integer :: finalrc, rc, localrc
+
+  character(ESMF_MAXSTR) :: testname
+
+!-------------------------------------------------------------------------
+!-------------------------------------------------------------------------
+
+  write(failMsg, *) "Example failure"
+  write(testname, *) "Example ESMF_FieldMeshRegridEx"
+
+
+! ------------------------------------------------------------------------------
+! ------------------------------------------------------------------------------
+
 
   finalrc = ESMF_SUCCESS
   call ESMF_Initialize(vm=vm, defaultlogfilename="FieldMeshRegridEx.Log", &
@@ -571,7 +584,7 @@ program ESMF_MeshEx
 
 
 !BOE
-!\subsubsection{Field Regrid Example: Mesh to Mesh}
+!\subsubsection{Field regrid example: Mesh to Mesh}
 ! This example demonstrates the regridding process between Fields created on Meshes. First
 ! the Meshes are created. This example omits the setup of the arrays describing the Mesh, but please see
 ! Section~\ref{sec:mesh:usage:meshCreation} for examples of this. After creation Fields are constructed on the Meshes, 
@@ -605,6 +618,8 @@ program ESMF_MeshEx
          nodeOwners=srcNodeOwners, elementIds=srcElemIds,&
          elementTypes=srcElemTypes, elementConn=srcElemConn, rc=rc)
 
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
+
 
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -614,17 +629,25 @@ program ESMF_MeshEx
   ! Set description of source Field
   call ESMF_ArraySpecSet(arrayspec, 1, ESMF_TYPEKIND_R8, rc=rc)
 
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
+
   ! Create source Field
   srcField = ESMF_FieldCreate(srcMesh, arrayspec, &
                         name="source", rc=rc)
 
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
+
   ! Get source Field data pointer to put data into
   call ESMF_FieldGet(srcField, 0, fptr1D,  rc=rc)
+
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
   ! Get number of local nodes to allocate space
   ! to hold local node coordinates
   call ESMF_MeshGet(srcMesh, &
          numOwnedNodes=numOwnedNodes, rc=rc)
+
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
   ! Allocate space to hold local node coordinates
   ! (spatial dimension of Mesh*number of local nodes)
@@ -633,6 +656,8 @@ program ESMF_MeshEx
   ! Get local node coordinates
   call ESMF_MeshGet(srcMesh, &
          ownedNodeCoords=ownedNodeCoords, rc=rc)
+
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
   ! Set the source Field to the function 20.0+x+y
   do i=1,numOwnedNodes
@@ -670,6 +695,8 @@ program ESMF_MeshEx
          nodeOwners=dstNodeOwners, elementIds=dstElemIds,&
          elementTypes=dstElemTypes, elementConn=dstElemConn, rc=rc)
 
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
+
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   ! Create Destination Field
@@ -678,9 +705,13 @@ program ESMF_MeshEx
   ! Set description of source Field
   call ESMF_ArraySpecSet(arrayspec, 1, ESMF_TYPEKIND_R8, rc=rc)
 
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
+
   ! Create destination Field
   dstField = ESMF_FieldCreate(dstMesh, arrayspec, &
                         name="destination", rc=rc)
+
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   ! Do Regrid
@@ -694,9 +725,13 @@ program ESMF_MeshEx
           regridmethod=ESMF_REGRIDMETHOD_BILINEAR, &
           rc=rc)
 
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
+
   ! Perform Regrid operation moving data from srcField to dstField
   call ESMF_FieldRegrid(srcField, dstField, routeHandle, rc=rc)
 
+
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   ! dstField now contains the interpolated data.
@@ -717,16 +752,26 @@ program ESMF_MeshEx
   ! Free the RouteHandle
   call ESMF_FieldRegridRelease(routeHandle, rc=rc)
 
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
+
   ! Free the Fields
   call ESMF_FieldDestroy(srcField, rc=rc)
 
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
+
   call ESMF_FieldDestroy(dstField, rc=rc)
+
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
   ! Free the Meshes
   call ESMF_MeshDestroy(dstMesh, rc=rc)
 
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
+
   call ESMF_MeshDestroy(srcMesh, rc=rc)
  
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
+
   !EOC
 
    ! Cleanup after example
@@ -757,6 +802,10 @@ program ESMF_MeshEx
 
 
 10   continue
+  ! IMPORTANT: ESMF_STest() prints the PASS string and the # of processors in the log
+  ! file that the scripts grep for.
+  call ESMF_STest((rc.eq.ESMF_SUCCESS), testname, failMsg, result, ESMF_SRCLINE)
+
   call ESMF_Finalize(rc=rc)
 
   if (rc/=ESMF_SUCCESS) finalrc = ESMF_FAILURE

@@ -1,5 +1,5 @@
 /*
-** $Id: exphg.c,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
+** $Id$
 **
 ** Functions to support writing Zoltan parallel hypergraph examples.
 **
@@ -42,7 +42,7 @@ static void divide_interval(int from, int to,
 
 /* Very serious hypergraph, a non-space is a pin */
 
-static char *hg[NROWS]={
+static const char *hg[NROWS]={
 "                        b                         .$                    ",
 "                        4r                       .$$                    ",
 "                        4$r                     z$$$                    ",

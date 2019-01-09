@@ -7,8 +7,8 @@
 /*****************************************************************************
  * CVS File Information :
  *    $RCSfile: DD_Destroy.c,v $
- *    $Author: mathomp4 $
- *    $Date: 2013-01-11 20:23:44 $
+ *    $Author: dneckels $
+ *    $Date: 2007/11/28 16:13:42 $
  *    Revision: 1.9 $
  ****************************************************************************/
 
@@ -43,7 +43,7 @@ void Zoltan_DD_Destroy (
 
    int my_proc ;
    int debug_level ;
-   char *yo = "ZOLTAN_DD_Destroy" ;
+   const char *yo = "ZOLTAN_DD_Destroy" ;
 
    /* input sanity check */
    if (dd == NULL || *dd == NULL)

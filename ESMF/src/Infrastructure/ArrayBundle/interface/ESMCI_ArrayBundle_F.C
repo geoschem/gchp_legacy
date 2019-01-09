@@ -1,7 +1,7 @@
-// $Id: ESMCI_ArrayBundle_F.C,v 1.1.5.1 2013-01-11 20:23:43 mathomp4 Exp $
+// $Id$
 //
 // Earth System Modeling Framework
-// Copyright 2002-2012, University Corporation for Atmospheric Research, 
+// Copyright 2002-2018, University Corporation for Atmospheric Research, 
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
 // Laboratory, University of Michigan, National Centers for Environmental 
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
@@ -20,16 +20,14 @@
 #include "ESMCI_Macros.h"
 #include "ESMCI_RHandle.h"
 #include "ESMCI_Array.h"
-
-#include "ESMCI_LogErr.h"                  // for LogErr
-#include "ESMCI_LogMacros.inc"
-
+#include "ESMCI_LogErr.h"
 #include "ESMCI_ArrayBundle.h"
 
 #include <vector>
 #include <string>
 
 using std::exception;
+using std::string;
 using std::vector;
 
 //------------------------------------------------------------------------------
@@ -47,7 +45,7 @@ extern "C" {
 
   // - ESMF-public methods:
 
-  void FTN(c_esmc_arraybundleadd)(ESMCI::ArrayBundle **ptr, 
+  void FTN_X(c_esmc_arraybundleadd)(ESMCI::ArrayBundle **ptr, 
     ESMCI::Array **arrayList, int *arrayCount,
     ESMC_Logical *multiflag, ESMC_Logical *relaxedflag, int *rc){
 #undef  ESMC_METHOD
@@ -94,7 +92,7 @@ extern "C" {
     if (rc!=NULL) *rc = ESMF_SUCCESS;
   }
   
-  void FTN(c_esmc_arraybundleaddreplace)(ESMCI::ArrayBundle **ptr, 
+  void FTN_X(c_esmc_arraybundleaddreplace)(ESMCI::ArrayBundle **ptr, 
     ESMCI::Array **arrayList, int *arrayCount, int *rc){
 #undef  ESMC_METHOD
 #define ESMC_METHOD "c_esmc_arraybundleaddreplace()"
@@ -127,7 +125,7 @@ extern "C" {
     if (rc!=NULL) *rc = ESMF_SUCCESS;
   }
   
-  void FTN(c_esmc_arraybundlecreate)(ESMCI::ArrayBundle **ptr, 
+  void FTN_X(c_esmc_arraybundlecreate)(ESMCI::ArrayBundle **ptr, 
     ESMCI::Array **arrayList, int *arrayCount,
     ESMC_Logical *multiflag, ESMC_Logical *relaxedflag, 
     char *name, int *len_name, int *rc,
@@ -153,7 +151,7 @@ extern "C" {
     // call into C++
     *ptr = ESMCI::ArrayBundle::create(arrayList, *arrayCount, multi, relaxed,
       &localrc);
-    if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU,
+    if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, ESMC_CONTEXT,
       ESMC_NOT_PRESENT_FILTER(rc))) return;
     // set the name in the ArrayBundle object
     char *cname = ESMC_F90toCstring(name, *len_name);
@@ -162,28 +160,35 @@ extern "C" {
       delete [] cname;
     }else if(*len_name){
       ESMC_LogDefault.MsgFoundError(ESMC_RC_PTR_NULL,
-        "- Not a valid string", ESMC_NOT_PRESENT_FILTER(rc));
+        "- Not a valid string", ESMC_CONTEXT, ESMC_NOT_PRESENT_FILTER(rc));
       return;
     }
     // return successfully
     if (rc!=NULL) *rc = ESMF_SUCCESS;
   }
   
-  void FTN(c_esmc_arraybundledestroy)(ESMCI::ArrayBundle **ptr, int *rc){
+  void FTN_X(c_esmc_arraybundledestroy)(ESMCI::ArrayBundle **ptr, 
+    ESMC_Logical *noGarbage, int *rc){
 #undef  ESMC_METHOD
 #define ESMC_METHOD "c_esmc_arraybundledestroy()"
     // Initialize return code; assume routine not implemented
     if (rc!=NULL) *rc = ESMC_RC_NOT_IMPL;
+    // convert to bool
+    bool noGarbageOpt = false;  // default
+    if (ESMC_NOT_PRESENT_FILTER(noGarbage) != ESMC_NULL_POINTER)
+      if (*noGarbage == ESMF_TRUE) noGarbageOpt = true;
     // call into C++
-    ESMC_LogDefault.MsgFoundError(ESMCI::ArrayBundle::destroy(ptr),
+    ESMC_LogDefault.MsgFoundError(
+      ESMCI::ArrayBundle::destroy(ptr, noGarbageOpt),
       ESMCI_ERR_PASSTHRU, ESMC_CONTEXT,
       ESMC_NOT_PRESENT_FILTER(rc));
     // return successfully
     if (rc!=NULL) *rc = ESMF_SUCCESS;
   }
 
-  void FTN(c_esmc_arraybundlegetlist)(ESMCI::ArrayBundle **ptr, char *arrayName,
-    int *arrayCount, ESMCI::Array **opt_arrayList, int *len_arrayList, int *rc,
+  void FTN_X(c_esmc_arraybundlegetlist)(ESMCI::ArrayBundle **ptr,
+    char *arrayName, int *arrayCount, ESMCI::Array **opt_arrayList, 
+    int *len_arrayList, ESMC_ItemOrder_Flag *itemorderflag, int *rc,
     ESMCI_FortranStrLenArg nlen){
 #undef  ESMC_METHOD
 #define ESMC_METHOD "c_esmc_arraybundlegetlist()"
@@ -197,12 +202,12 @@ extern "C" {
       // opt_arrayList was provided
       if (*len_arrayList < *arrayCount){
         ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_SIZE,
-          "- opt_arrayList must provide arrayCount elements", rc);
+          "- opt_arrayList must provide arrayCount elements", ESMC_CONTEXT, rc);
         return;
       }
       // opt_arrayList has correct number of elements
       vector<ESMCI::Array *> arrayVector;
-      (*ptr)->get(std::string(arrayName, nlen), arrayVector);
+      (*ptr)->get(std::string(arrayName, nlen), arrayVector, *itemorderflag);
       for (int i=0; i<*arrayCount; i++)
         opt_arrayList[i] = arrayVector[i];
     }
@@ -210,8 +215,9 @@ extern "C" {
     if (rc!=NULL) *rc = ESMF_SUCCESS;
   }
  
-  void FTN(c_esmc_arraybundlegetlistall)(ESMCI::ArrayBundle **ptr,
-    int *arrayCount, ESMCI::Array **opt_arrayList, int *len_arrayList, int *rc){
+  void FTN_X(c_esmc_arraybundlegetlistall)(ESMCI::ArrayBundle **ptr,
+    int *arrayCount, ESMCI::Array **opt_arrayList, int *len_arrayList, 
+    ESMC_ItemOrder_Flag *itemorderflag, int *rc){
 #undef  ESMC_METHOD
 #define ESMC_METHOD "c_esmc_arraybundlegetlistall()"
     // Initialize return code; assume routine not implemented
@@ -225,12 +231,12 @@ extern "C" {
       // opt_arrayList was provided
       if (*len_arrayList < (*ptr)->getCount()){
         ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_SIZE,
-          "- opt_arrayList must provide arrayCount elements", rc);
+          "- opt_arrayList must provide arrayCount elements", ESMC_CONTEXT, rc);
         return;
       }
       // opt_arrayList has correct number of elements
       vector<ESMCI::Array *> arrayVector;
-      (*ptr)->getVector(arrayVector);
+      (*ptr)->getVector(arrayVector, *itemorderflag);
       for (int i=0; i<(*ptr)->getCount(); i++)
         opt_arrayList[i] = arrayVector[i];
     }
@@ -238,7 +244,7 @@ extern "C" {
     if (rc!=NULL) *rc = ESMF_SUCCESS;
   }
  
-  void FTN(c_esmc_arraybundlegetitem)(ESMCI::ArrayBundle **ptr, char *arrayName,
+  void FTN_X(c_esmc_arraybundlegetitem)(ESMCI::ArrayBundle **ptr, char *arrayName,
     ESMCI::Array **array, int *rc, ESMCI_FortranStrLenArg nlen){
 #undef  ESMC_METHOD
 #define ESMC_METHOD "c_esmc_arraybundlegetitem()"
@@ -268,7 +274,7 @@ extern "C" {
     if (rc!=NULL) *rc = ESMF_SUCCESS;
   }
  
-  void FTN(c_esmc_arraybundlegetispresent)(ESMCI::ArrayBundle **ptr,
+  void FTN_X(c_esmc_arraybundlegetispresent)(ESMCI::ArrayBundle **ptr,
     char *arrayName, ESMC_Logical *isPresent, int *rc,
     ESMCI_FortranStrLenArg nlen){
 #undef  ESMC_METHOD
@@ -302,7 +308,7 @@ extern "C" {
     if (rc!=NULL) *rc = ESMF_SUCCESS;
   }
  
-  void FTN(c_esmc_arraybundlegetcount)(ESMCI::ArrayBundle **ptr,
+  void FTN_X(c_esmc_arraybundlegetcount)(ESMCI::ArrayBundle **ptr,
     char *arrayName, int *arrayCount, int *rc, ESMCI_FortranStrLenArg nlen){
 #undef  ESMC_METHOD
 #define ESMC_METHOD "c_esmc_arraybundlegetcount()"
@@ -332,10 +338,10 @@ extern "C" {
     if (rc!=NULL) *rc = ESMF_SUCCESS;
   }
  
-  void FTN(c_esmc_arraybundlehalostore)(ESMCI::ArrayBundle **arraybundle,
+  void FTN_X(c_esmc_arraybundlehalostore)(ESMCI::ArrayBundle **arraybundle,
     ESMCI::RouteHandle **routehandle,
     ESMC_HaloStartRegionFlag *halostartregionflag,
-    ESMCI::InterfaceInt **haloLDepth, ESMCI::InterfaceInt **haloUDepth,
+    ESMCI::InterArray<int> *haloLDepth, ESMCI::InterArray<int> *haloUDepth,
     int *rc){
 #undef  ESMC_METHOD
 #define ESMC_METHOD "c_esmc_arraybundlehalostore()"
@@ -343,16 +349,16 @@ extern "C" {
     if (rc!=NULL) *rc = ESMC_RC_NOT_IMPL;
     // Call into the actual C++ method wrapped inside LogErr handling
     ESMC_LogDefault.MsgFoundError(ESMCI::ArrayBundle::haloStore(
-      *arraybundle, routehandle, *halostartregionflag, *haloLDepth,
-      *haloUDepth),
+      *arraybundle, routehandle, *halostartregionflag, haloLDepth,
+      haloUDepth),
       ESMCI_ERR_PASSTHRU, ESMC_CONTEXT,
       ESMC_NOT_PRESENT_FILTER(rc));
   }
 
-  void FTN(c_esmc_arraybundlehalo)(ESMCI::ArrayBundle **arraybundle,
+  void FTN_X(c_esmc_arraybundlehalo)(ESMCI::ArrayBundle **arraybundle,
     ESMCI::RouteHandle **routehandle, ESMC_Logical *checkflag, int *rc){
 #undef  ESMC_METHOD
-#define ESMC_METHOD "c_esmc_arrayhalo()"
+#define ESMC_METHOD "c_esmc_arraybundlehalo()"
     // Initialize return code; assume routine not implemented
     if (rc!=NULL) *rc = ESMC_RC_NOT_IMPL;
     // convert to bool
@@ -366,7 +372,7 @@ extern "C" {
       ESMC_NOT_PRESENT_FILTER(rc));
   }
 
-  void FTN(c_esmc_arraybundleprint)(ESMCI::ArrayBundle **ptr, int *rc){
+  void FTN_X(c_esmc_arraybundleprint)(ESMCI::ArrayBundle **ptr, int *rc){
 #undef  ESMC_METHOD
 #define ESMC_METHOD "c_esmc_arraybundleprint()"
     // Initialize return code; assume routine not implemented
@@ -379,9 +385,86 @@ extern "C" {
     fflush(stdout);
   }
 
-  void FTN(c_esmc_arraybundlerediststore)(ESMCI::ArrayBundle **srcArraybundle,
+  void FTN_X(c_esmc_arraybundlewrite)(ESMCI::ArrayBundle **bundle,
+                                      const char *file,
+                                      const char *conv,
+                                      const char *purp,
+                                      ESMC_Logical *opt_singleFile,
+                                      ESMC_Logical *opt_overwriteflag,
+                                      ESMC_FileStatus_Flag *status,
+                                      int *timeslice,
+                                      ESMC_IOFmt_Flag *iofmt, int *rc,
+                                      ESMCI_FortranStrLenArg file_l,
+                                      ESMCI_FortranStrLenArg conv_l,
+                                      ESMCI_FortranStrLenArg purp_l) {
+#undef  ESMC_METHOD
+#define ESMC_METHOD "c_esmc_arraybundlewrite()"
+    bool singleFile;
+    bool overwriteflag;
+    // Initialize return code; assume routine not implemented
+    int localrc = ESMC_RC_NOT_IMPL;
+    if (ESMC_NOT_PRESENT_FILTER(rc) != ESMC_NULL_POINTER) {
+      *rc = ESMC_RC_NOT_IMPL;
+    }
+    // The Fortran interface always sets the flags and optional variables
+    // except for timeslice. For character variables, create a C++ string.
+    // helper variable
+    string fileName = string (file, ESMC_F90lentrim (file, file_l));
+
+    string convention, purpose;
+    if (conv)
+      convention = string (conv, ESMC_F90lentrim (conv, conv_l));
+    if (purp)
+      purpose    = string (purp, ESMC_F90lentrim (purp, purp_l));
+
+    if (ESMC_NOT_PRESENT_FILTER(opt_singleFile) != ESMC_NULL_POINTER) {
+      singleFile = (ESMF_FALSE != *opt_singleFile);
+    } else {
+      singleFile = true;
+    }
+    if (ESMC_NOT_PRESENT_FILTER(opt_overwriteflag) != ESMC_NULL_POINTER) {
+      overwriteflag = (ESMF_TRUE == *opt_overwriteflag);
+    } else {
+      overwriteflag = false;
+    }
+    // Call into the actual C++ method wrapped inside LogErr handling
+    localrc = (*bundle)->write(fileName, convention, purpose, &singleFile, &overwriteflag,
+                               status, timeslice, iofmt);
+    ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, ESMC_CONTEXT,
+                                  ESMC_NOT_PRESENT_FILTER(rc));
+  }
+
+  void FTN_X(c_esmc_arraybundleread)(ESMCI::ArrayBundle **bundle,
+    const char *file, ESMC_Logical *opt_singleFile,
+    int *timeslice, ESMC_IOFmt_Flag *iofmt, int *rc,
+    ESMCI_FortranStrLenArg file_l){
+#undef  ESMC_METHOD
+#define ESMC_METHOD "c_esmc_arraybundleread()"
+    bool singleFile;
+    // Initialize return code; assume routine not implemented
+    int localrc = ESMC_RC_NOT_IMPL;
+    if (ESMC_NOT_PRESENT_FILTER(rc) != ESMC_NULL_POINTER) {
+      *rc = ESMC_RC_NOT_IMPL;
+    }
+    // Create C++ string for string input
+    // helper variable
+    string fileName = string (file, ESMC_F90lentrim (file, file_l));
+
+    if (ESMC_NOT_PRESENT_FILTER(opt_singleFile) != ESMC_NULL_POINTER) {
+      singleFile = (ESMF_FALSE != *opt_singleFile);
+    } else {
+      singleFile = true;
+    }
+    // Call into the actual C++ method wrapped inside LogErr handling
+    localrc = (*bundle)->read(fileName, &singleFile, timeslice, iofmt);
+    ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, ESMC_CONTEXT,
+                                  ESMC_NOT_PRESENT_FILTER(rc));
+  }
+
+  void FTN_X(c_esmc_arraybundlerediststore)(ESMCI::ArrayBundle **srcArraybundle,
     ESMCI::ArrayBundle **dstArraybundle, ESMCI::RouteHandle **routehandle, 
-    ESMCI::InterfaceInt **srcToDstTransposeMap, ESMC_TypeKind *typekind,
+    ESMCI::InterArray<int> *srcToDstTransposeMap,
+    ESMC_TypeKind_Flag *typekind,
     void *factor, int *rc){
 #undef  ESMC_METHOD
 #define ESMC_METHOD "c_esmc_arraybundlerediststore()"
@@ -389,27 +472,27 @@ extern "C" {
     if (rc!=NULL) *rc = ESMC_RC_NOT_IMPL;
     // Call into the actual C++ method wrapped inside LogErr handling
     ESMC_LogDefault.MsgFoundError(ESMCI::ArrayBundle::redistStore(
-      *srcArraybundle, *dstArraybundle, routehandle, *srcToDstTransposeMap,
+      *srcArraybundle, *dstArraybundle, routehandle, srcToDstTransposeMap,
       *typekind, factor),
       ESMCI_ERR_PASSTHRU, ESMC_CONTEXT,
       ESMC_NOT_PRESENT_FILTER(rc));
   }
 
-  void FTN(c_esmc_arraybundlerediststorenf)(ESMCI::ArrayBundle **srcArraybundle,
+  void FTN_X(c_esmc_arraybundlerediststorenf)(ESMCI::ArrayBundle **srcArraybundle,
     ESMCI::ArrayBundle **dstArraybundle, ESMCI::RouteHandle **routehandle,
-    ESMCI::InterfaceInt **srcToDstTransposeMap, int *rc){
+    ESMCI::InterArray<int> *srcToDstTransposeMap, int *rc){
 #undef  ESMC_METHOD
 #define ESMC_METHOD "c_esmc_arraybundlerediststorenf()"
     // Initialize return code; assume routine not implemented
     if (rc!=NULL) *rc = ESMC_RC_NOT_IMPL;
     // Call into the actual C++ method wrapped inside LogErr handling
     ESMC_LogDefault.MsgFoundError(ESMCI::ArrayBundle::redistStore(
-      *srcArraybundle, *dstArraybundle, routehandle, *srcToDstTransposeMap),
+      *srcArraybundle, *dstArraybundle, routehandle, srcToDstTransposeMap),
       ESMCI_ERR_PASSTHRU, ESMC_CONTEXT,
       ESMC_NOT_PRESENT_FILTER(rc));
   }
 
-  void FTN(c_esmc_arraybundleredist)(ESMCI::ArrayBundle **srcArraybundle,
+  void FTN_X(c_esmc_arraybundleredist)(ESMCI::ArrayBundle **srcArraybundle,
     ESMCI::ArrayBundle **dstArraybundle, ESMCI::RouteHandle **routehandle,
     ESMC_Logical *checkflag, int *rc){
 #undef  ESMC_METHOD
@@ -427,7 +510,7 @@ extern "C" {
       ESMC_NOT_PRESENT_FILTER(rc));
   }
 
-  void FTN(c_esmc_arraybundleremove)(ESMCI::ArrayBundle **ptr,
+  void FTN_X(c_esmc_arraybundleremove)(ESMCI::ArrayBundle **ptr,
     char *arrayNameList, int *itemCount, ESMC_Logical *multiflag,
     ESMC_Logical *relaxedflag, int *rc, ESMCI_FortranStrLenArg nlen){
 #undef  ESMC_METHOD
@@ -474,7 +557,7 @@ extern "C" {
     if (rc!=NULL) *rc = ESMF_SUCCESS;
   }
  
-  void FTN(c_esmc_arraybundlereplace)(ESMCI::ArrayBundle **ptr,
+  void FTN_X(c_esmc_arraybundlereplace)(ESMCI::ArrayBundle **ptr,
     ESMCI::Array **arrayList, int *itemCount, ESMC_Logical *multiflag, 
     ESMC_Logical *relaxedflag, int *rc){
 #undef  ESMC_METHOD
@@ -521,10 +604,11 @@ extern "C" {
     if (rc!=NULL) *rc = ESMF_SUCCESS;
   }
  
-  void FTN(c_esmc_arraybundlesmmstore)(ESMCI::ArrayBundle **srcArraybundle,
+  void FTN_X(c_esmc_arraybundlesmmstore)(ESMCI::ArrayBundle **srcArraybundle,
     ESMCI::ArrayBundle **dstArraybundle, ESMCI::RouteHandle **routehandle, 
-    ESMC_TypeKind *typekindFactors, void *factorList, int *factorListCount,
-    ESMCI::InterfaceInt **factorIndexList, int *rc){
+    ESMC_TypeKind_Flag *typekindFactors, void *factorList, int *factorListCount,
+    ESMCI::InterArray<int> *factorIndexList, 
+    ESMCI::InterArray<int> *srcTermProcessing, int *rc){
 #undef  ESMC_METHOD
 #define ESMC_METHOD "c_esmc_arraybundlesmmstore()"
     // Initialize return code; assume routine not implemented
@@ -535,39 +619,41 @@ extern "C" {
     // check argument consistency
     if (*factorListCount > 0){
       // must provide valid factorList and factorIndexList args
-      if (*factorIndexList == NULL){
+      if (!present(factorIndexList)){
         ESMC_LogDefault.MsgFoundError(ESMC_RC_PTR_NULL,
-          "- Not a valid pointer to factorIndexList array", rc);
+          "- Not a valid pointer to factorIndexList array", ESMC_CONTEXT, rc);
         return;
       }
-      if ((*factorIndexList)->dimCount != 2){
+      if ((factorIndexList)->dimCount != 2){
         ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_RANK,
-          "- factorIndexList array must be of rank 2", rc);
+          "- factorIndexList array must be of rank 2", ESMC_CONTEXT, rc);
         return;
       }
-      if ((*factorIndexList)->extent[0] != 2 && 
-        (*factorIndexList)->extent[0] != 4){
+      if ((factorIndexList)->extent[0] != 2 && 
+        (factorIndexList)->extent[0] != 4){
         ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_SIZE,
           "- 1st dimension of factorIndexList array must be of size 2 or 4",
-          rc);
+          ESMC_CONTEXT, rc);
         return;
       }
-      if ((*factorIndexList)->extent[1] != *factorListCount){
+      if ((factorIndexList)->extent[1] != *factorListCount){
         ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_SIZE,
           "- 2nd dimension of factorIndexList does not match factorListCount",
-          rc);
+          ESMC_CONTEXT, rc);
         return;
       }
     }
     // prepare SparseMatrix vector
-    vector<ESMCI::SparseMatrix> sparseMatrix;
-    int srcN = (*factorIndexList)->extent[0]/2;
-    int dstN = (*factorIndexList)->extent[0]/2;
-    sparseMatrix.push_back(ESMCI::SparseMatrix(*typekindFactors, factorList,
-      *factorListCount, srcN, dstN, (*factorIndexList)->array));
+    vector<ESMCI::SparseMatrix<ESMC_I4,ESMC_I4> > sparseMatrix;
+    int srcN = (factorIndexList)->extent[0]/2;
+    int dstN = (factorIndexList)->extent[0]/2;
+    sparseMatrix.push_back(ESMCI::SparseMatrix<ESMC_I4,ESMC_I4>(
+      *typekindFactors, factorList,
+      *factorListCount, srcN, dstN, (factorIndexList)->array));
     // Call into the actual C++ method wrapped inside LogErr handling
     if (ESMC_LogDefault.MsgFoundError(ESMCI::ArrayBundle::sparseMatMulStore(
-      *srcArraybundle, *dstArraybundle, routehandle, sparseMatrix ),
+      *srcArraybundle, *dstArraybundle, routehandle, sparseMatrix,
+      srcTermProcessing),
       ESMCI_ERR_PASSTHRU, ESMC_CONTEXT,
       ESMC_NOT_PRESENT_FILTER(rc))) return;
     
@@ -589,25 +675,27 @@ extern "C" {
     if (rc!=NULL) *rc = ESMF_SUCCESS;
   }
 
-  void FTN(c_esmc_arraybundlesmmstorenf)(ESMCI::ArrayBundle **srcArraybundle,
+  void FTN_X(c_esmc_arraybundlesmmstorenf)(ESMCI::ArrayBundle **srcArraybundle,
     ESMCI::ArrayBundle **dstArraybundle, ESMCI::RouteHandle **routehandle,
-    int *rc){
+    ESMCI::InterArray<int> *srcTermProcessing, int *rc){
 #undef  ESMC_METHOD
 #define ESMC_METHOD "c_esmc_arraybundlesmmstorenf()"
     // Initialize return code; assume routine not implemented
     if (rc!=NULL) *rc = ESMC_RC_NOT_IMPL;
     // prepare empty SparseMatrix vector
-    vector<ESMCI::SparseMatrix> sparseMatrix;
+    vector<ESMCI::SparseMatrix<ESMC_I4,ESMC_I4> > sparseMatrix;
     // Call into the actual C++ method wrapped inside LogErr handling
     ESMC_LogDefault.MsgFoundError(ESMCI::ArrayBundle::sparseMatMulStore(
-      *srcArraybundle, *dstArraybundle, routehandle, sparseMatrix),
+      *srcArraybundle, *dstArraybundle, routehandle, sparseMatrix,
+      srcTermProcessing),
       ESMCI_ERR_PASSTHRU, ESMC_CONTEXT,
       ESMC_NOT_PRESENT_FILTER(rc));
   }
 
-  void FTN(c_esmc_arraybundlesmm)(ESMCI::ArrayBundle **srcArraybundle,
+  void FTN_X(c_esmc_arraybundlesmm)(ESMCI::ArrayBundle **srcArraybundle,
     ESMCI::ArrayBundle **dstArraybundle, ESMCI::RouteHandle **routehandle,
-    ESMC_RegionFlag *zeroflag, ESMC_Logical *checkflag, int *rc){
+    ESMC_Region_Flag *zeroflag, ESMC_TermOrder_Flag *termorderflag,
+    int *termorderflag_len, ESMC_Logical *checkflag, int *rc){
 #undef  ESMC_METHOD
 #define ESMC_METHOD "c_esmc_arraybundlesmm()"
     // Initialize return code; assume routine not implemented
@@ -618,12 +706,13 @@ extern "C" {
       if (*checkflag == ESMF_TRUE) checkflagOpt = true;
     // Call into the actual C++ method wrapped inside LogErr handling
     ESMC_LogDefault.MsgFoundError(ESMCI::ArrayBundle::sparseMatMul(
-      *srcArraybundle, *dstArraybundle, routehandle, *zeroflag, checkflagOpt),
+      *srcArraybundle, *dstArraybundle, routehandle, *zeroflag, 
+      termorderflag, *termorderflag_len, checkflagOpt),
       ESMCI_ERR_PASSTHRU, ESMC_CONTEXT,
       ESMC_NOT_PRESENT_FILTER(rc));
   }
 
-  void FTN(c_esmc_arraybundleserialize)(ESMCI::ArrayBundle **arraybundle, 
+  void FTN_X(c_esmc_arraybundleserialize)(ESMCI::ArrayBundle **arraybundle, 
     char *buf, int *length, int *offset, ESMC_AttReconcileFlag *attreconflag,
     ESMC_InquireFlag *inquireflag, int *rc,
     ESMCI_FortranStrLenArg buf_l){
@@ -638,7 +727,7 @@ extern "C" {
       ESMC_NOT_PRESENT_FILTER(rc));
   }
 
-  void FTN(c_esmc_arraybundledeserialize)(ESMCI::ArrayBundle **arraybundle,
+  void FTN_X(c_esmc_arraybundledeserialize)(ESMCI::ArrayBundle **arraybundle,
     char *buf, int *offset, ESMC_AttReconcileFlag *attreconflag, int *rc,
     ESMCI_FortranStrLenArg buf_l){
 #undef  ESMC_METHOD

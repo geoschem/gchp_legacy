@@ -6,8 +6,8 @@
 /*****************************************************************************
  * CVS File Information :
  *    $RCSfile: key_params.c,v $
- *    $Author: mathomp4 $
- *    $Date: 2013-01-11 20:23:44 $
+ *    $Author: dneckels $
+ *    $Date: 2007/11/28 16:13:50 $
  *    Revision: 1.47 $
  ****************************************************************************/
 
@@ -64,7 +64,7 @@ const char *val,		/* value of variable */
 int  idx 			/* index of vector param, -1 if scalar */
 )
 {
-    char *yo = "Zoltan_Set_Key_Param";
+    const char *yo = "Zoltan_Set_Key_Param";
     char msg[256];
     int status;			/* return code */
     PARAM_UTYPE result;		/* value returned from Check_Param */

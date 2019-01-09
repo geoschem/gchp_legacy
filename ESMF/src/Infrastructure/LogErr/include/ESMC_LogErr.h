@@ -1,7 +1,7 @@
-// $Id: ESMC_LogErr.h,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
+// $Id$
 //
 // Earth System Modeling Framework
-// Copyright 2002-2012, University Corporation for Atmospheric Research, 
+// Copyright 2002-2018, University Corporation for Atmospheric Research, 
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
 // Laboratory, University of Michigan, National Centers for Environmental 
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
@@ -41,8 +41,6 @@
 extern "C"{
 #endif
 
-enum ESMC_MsgType{ESMC_LOG_INFO=1,  ESMC_LOG_WARN=2,  ESMC_LOG_ERROR=3};
-enum ESMC_LogType{ESMC_LOG_SINGLE=1,ESMC_LOG_MULTI=2, ESMC_LOG_NONE=3};
 
 // Class declaration type
 typedef struct{
@@ -72,8 +70,32 @@ int ESMC_LogWrite(
 //  \item[msg]
 //    The message to be written.
 //  \item[msgtype]
-//    The message type.  Can be one of ESMC\_LOG\_INFO, ESMC\_LOG\_WARNING,
-//    or ESMF\_LOG\_ERROR.
+//    The message type.  This flag is documented in section \ref{const:clogmsgflag}
+//  \end{description}
+//
+//EOP
+//-----------------------------------------------------------------------------
+
+//-----------------------------------------------------------------------------
+//BOP
+// !IROUTINE: ESMC_LogSet - Set Log properties
+//
+// !INTERFACE:
+int ESMC_LogSet(
+  int flush       // in
+);
+// !RETURN VALUE:
+//  Return code; equals ESMF_SUCCESS if there are no errors.
+//
+// !DESCRIPTION:
+//
+//  Set Log properties.
+//
+//  The arguments are:
+//  \begin{description}
+//  \item[flush]
+//    If set to ESMF\_TRUE, flush log messages immediately, rather than buffering 
+//    them. Default is to flush after 10 messages.
 //  \end{description}
 //
 //EOP
@@ -88,7 +110,7 @@ const char *ESMC_LogGetErrMsg(
   int rc
 );
 int ESMC_LogSetFilename(
-  char filename[]
+  const char filename[]
 );
 void ESMC_TimeStamp(
   int *y,

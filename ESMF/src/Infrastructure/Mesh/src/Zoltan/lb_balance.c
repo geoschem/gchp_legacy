@@ -6,8 +6,8 @@
 /*****************************************************************************
  * CVS File Information :
  *    $RCSfile: lb_balance.c,v $
- *    $Author: mathomp4 $
- *    $Date: 2013-01-11 20:23:44 $
+ *    $Author: dneckels $
+ *    $Date: 2007/11/28 16:13:51 $
  *    Revision: 1.41 $
  ****************************************************************************/
 
@@ -53,6 +53,12 @@ static int search_hash_table(ZZ *, ZOLTAN_ID_PTR gid,
                          struct Hash_Node **ht, int tableSize);
 static void free_hash_table(struct Hash_Node **ht, int tableSize);
 
+/* Forward references */
+void Zoltan_PartDist_MPIOp(
+  void *in, 
+  void *inout, 
+  int *len, 
+  MPI_Datatype *dptr);
 
 /****************************************************************************/
 /****************************************************************************/
@@ -80,7 +86,7 @@ int Zoltan_LB_Partition(
  * Arguments correspond directly with arguments of Zoltan_LB.
  */
 
-char *yo = "Zoltan_LB_Partition";
+const char *yo = "Zoltan_LB_Partition";
 int ierr = ZOLTAN_OK;    /* Error code */
 
   ZOLTAN_TRACE_ENTER(zz, yo);
@@ -122,7 +128,7 @@ int Zoltan_LB_Balance(
  * Arguments correspond directly with arguments of Zoltan_LB.
  */
 
-char *yo = "Zoltan_LB_Balance";
+const char *yo = "Zoltan_LB_Balance";
 int ierr = ZOLTAN_OK;    /* Error code */
 int *import_to_part = NULL;    /* Array used as dummy arg in partitioning. */
 int *export_to_part = NULL;    /* Array used as dummy arg in partitioning. */
@@ -241,7 +247,7 @@ static int Zoltan_LB(
  *   Zoltan error code.
  */
 
-char *yo = "Zoltan_LB";
+const char *yo = "Zoltan_LB";
 int gmax;    /* Maximum number of imported/exported objects 
                 over all processors.                       */
 int error;    /* Error code */
@@ -256,6 +262,7 @@ struct Hash_Node **ht;
 int *export_all_procs, *export_all_to_part, *parts=NULL;
 ZOLTAN_ID_PTR all_global_ids=NULL, all_local_ids=NULL;
 ZOLTAN_ID_PTR gid;
+
 
   ZOLTAN_TRACE_ENTER(zz, yo);
 
@@ -690,10 +697,13 @@ ZOLTAN_ID_PTR gid;
   *changes = 1;
 
   ZOLTAN_TRACE_EXIT(zz, yo);
-  if (error)
+ if (error) {
+
     return (error);
-  else
+ }  else {
+
     return (ZOLTAN_OK);
+ }
 }
 
 /*****************************************************************************/
@@ -702,7 +712,7 @@ ZOLTAN_ID_PTR gid;
 
 int Zoltan_LB_Build_PartDist(ZZ *zz)
 {
-char *yo = "Zoltan_LB_Build_PartDist";
+const char *yo = "Zoltan_LB_Build_PartDist";
 int ierr = ZOLTAN_OK;
 int inflag[6], outflag[6] = {0,0,-1,0,0,0};
 int global_parts_set = 0;   /* number of procs on which NUM_GLOBAL_PARTITIONS 

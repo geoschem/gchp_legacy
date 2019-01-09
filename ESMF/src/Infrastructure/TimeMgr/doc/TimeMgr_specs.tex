@@ -1,0 +1,43 @@
+\newpage
+\label{table:timeOpts}
+\begin{center}
+\begin{table}
+\caption{Specifiers for Times and TimeIntervals}
+\begin{tabular}{|p{1in}|p{3.5in}|}
+\hline
+Unit & Meaning \\
+\hline\hline
+{\bf <yy|yy\_i8>} & Year. \\
+\hline
+{\bf mm} & Month of the year. \\
+\hline
+{\bf dd} & Day of the month. \\
+\hline
+{\bf <d|d\_i8|d\_r8>} & Julian or Modified Julian day. \\
+\hline
+{\bf <h|h\_r8>} & Hour. \\
+\hline
+{\bf <m|m\_r8>} & Minute. \\
+\hline
+{\bf <s|s\_i8|s\_r8>} & Second. \\
+\hline
+{\bf <ms|ms\_r8>} & Millisecond. \\
+\hline
+{\bf <us|us\_r8>} & Microsecond. \\
+\hline
+{\bf <ns|ns\_r8>} & Nanosecond. \\
+\hline
+{\bf O} & Time zone offset in integer number of hours and minutes. \\
+\hline
+{\bf <sN|sN\_i8>} & Numerator for times of the form s {\bf $ + 
+\frac{{\rm sN}}{{\rm sD}}$}, where s is seconds and s, sN, and
+sD are integers.  This format provides a mechanism for supporting
+exact behavior. \\
+\hline
+{\bf <sD|sD\_i8} & Denominator for times of the form s {\bf $ + 
+\frac{{\rm sN}}{{\rm sD}}$}, where s is seconds and s, sN, and
+sD are integers. \\
+\hline
+\end{tabular}
+\end{table}
+\end{center}

@@ -6,8 +6,8 @@
 /*****************************************************************************
  * CVS File Information :
  *    $RCSfile: assign_param_vals.c,v $
- *    $Author: mathomp4 $
- *    $Date: 2013-01-11 20:23:44 $
+ *    $Author: dneckels $
+ *    $Date: 2007/11/28 16:13:44 $
  *    Revision: 1.27 $
  ****************************************************************************/
 
@@ -51,7 +51,7 @@ int proc,                       /* processor # (controls debug printing)  */
 int print_proc                  /* processor that should perform printing */
 )
 {	
-    char     *yo = "Zoltan_Assign_Param_Vals";
+    const char *yo = "Zoltan_Assign_Param_Vals";
     char      msg[256];
     char     *name;		/* name of parameter being reset */
     char     *val;		/* new value for parameter       */

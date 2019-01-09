@@ -1,0 +1,103 @@
+% $Id$
+
+\subsubsection{ESMC\_MESHELEMTYPE}
+\label{const:cmeshelemtype}
+
+ {\sf DESCRIPTION:\\}
+ An ESMF Mesh can be constructed from a combination of different elements. The type of elements that can
+be used in a Mesh depends on the Mesh's parametric dimension, which is set during Mesh creation. The
+following are the valid Mesh element types for each valid Mesh parametric dimension (2D or 3D) .
+
+\medskip
+
+\begin{verbatim}
+
+                     3                          4 ---------- 3
+                    / \                         |            |  
+                   /   \                        |            |
+                  /     \                       |            |
+                 /       \                      |            |
+                /         \                     |            |
+               1 --------- 2                    1 ---------- 2
+
+           ESMC_MESHELEMTYPE_TRI            ESMC_MESHELEMTYPE_QUAD
+
+2D element types (numbers are the order for elementConn during 
+                  Mesh create)
+
+\end{verbatim}
+
+For a Mesh with parametric dimension of 2 the valid element types (illustrated above) are:
+
+\smallskip
+
+\begin{tabular}{|l|c|l|}
+\hline
+Element Type &  Number of Nodes  & Description \\
+\hline
+ESMC\_MESHELEMTYPE\_TRI  & 3 & A triangle \\
+ESMC\_MESHELEMTYPE\_QUAD & 4 & A quadrilateral (e.g. a rectangle) \\
+\hline
+\end{tabular}
+
+\medskip
+\medskip
+
+\begin{verbatim}
+                                            
+                 3                               8---------------7
+                /|\                             /|              /|
+               / | \                           / |             / |
+              /  |  \                         /  |            /  |
+             /   |   \                       /   |           /   |
+            /    |    \                     5---------------6    |
+           4-----|-----2                    |    |          |    |
+            \    |    /                     |    4----------|----3
+             \   |   /                      |   /           |   /
+              \  |  /                       |  /            |  /
+               \ | /                        | /             | /
+                \|/                         |/              |/
+                 1                          1---------------2
+
+       ESMC_MESHELEMTYPE_TETRA             ESMC_MESHELEMTYPE_HEX  
+
+3D element types (numbers are the order for elementConn during 
+                  Mesh create)
+
+\end{verbatim}
+
+For a Mesh with parametric dimension of 3 the valid element types (illustrated above) are:
+
+\smallskip
+
+\begin{tabular}{|l|c|l|}
+\hline
+Element Type & Number of Nodes & Description \\
+\hline
+ESMC\_MESHELEMTYPE\_TETRA & 4 & A tetrahedron (CAN'T BE USED IN REGRID) \\
+ESMC\_MESHELEMTYPE\_HEX  & 8 & A hexahedron (e.g. a cube) \\
+\hline
+\end{tabular}
+
+
+\subsubsection{ESMF\_FILEFORMAT}
+\label{const:mesh:cfileformat}
+
+{\sf DESCRIPTION:\\}
+This option is used by {\tt ESMF\_MeshCreate} to specify the type of the input grid file.  
+%See sections~\ref{sec:fileformat:scrip}, \ref{sec:fileformat:esmf} and \ref{sec:fileformat:ugrid} for a more 
+%detailed description of the supported file formats.
+
+The type of this flag is:
+
+{\tt type(ESMF\_FileFormat\_Flag)}
+
+The valid values are:
+\begin{description}
+\item [ESMF\_FILEFORMAT\_SCRIP] SCRIP format grid file. The SCRIP format is the format accepted by the SCRIP regridding tool~\cite{ref:SCRIP}.   For Mesh creation, files of this type only work when the {\tt grid\_rank} in the file is equal to 1.
+
+\item [ESMF\_FILEFORMAT\_ESMFMESH] ESMF unstructured grid file format. This format was developed by the ESMF team to match the capabilities of the Mesh class and to be efficient to convert to that class. 
+
+\item [ESMF\_FILEFORMAT\_UGRID] CF-convention unstructured grid file format. This format is a proposed extension to the 
+CF-conventions for unstructured grid data model. Currently, only the 2D flexible mesh topology is supported in ESMF.
+\end{description}

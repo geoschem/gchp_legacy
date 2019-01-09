@@ -1,7 +1,7 @@
 // $Id$
 //
 // Earth System Modeling Framework
-// Copyright 2002-2012, University Corporation for Atmospheric Research,
+// Copyright 2002-2018, University Corporation for Atmospheric Research,
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 // Laboratory, University of Michigan, National Centers for Environmental
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -23,16 +23,15 @@
 //
 //-----------------------------------------------------------------------------
 
-// include system headers
-#include <string.h>
-
 // include associated header file
 #include "ESMC_Clock.h"
+
+// include system headers
+#include <string.h>
 
 // include ESMF headers
 #include "ESMCI_Arg.h"
 #include "ESMCI_LogErr.h"
-#include "ESMCI_LogMacros.inc"
 #include "ESMCI_Clock.h"
 
 //-----------------------------------------------------------------------------

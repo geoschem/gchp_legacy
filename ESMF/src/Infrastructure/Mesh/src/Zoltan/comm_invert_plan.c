@@ -7,8 +7,8 @@
 /*****************************************************************************
  * CVS File Information :
  *    $RCSfile: comm_invert_plan.c,v $
- *    $Author: mathomp4 $
- *    $Date: 2013-01-11 20:23:44 $
+ *    $Author: dneckels $
+ *    $Date: 2007/11/28 16:13:46 $
  *    Revision: 1.2 $
  ****************************************************************************/
 
@@ -39,7 +39,7 @@ int Zoltan_Comm_Invert_Plan(
 ZOLTAN_COMM_OBJ **plan 		/* communicator object to be inverted */
 )
 {
-static char *yo = "Zoltan_Comm_Invert_Plan";
+static const char *yo = "Zoltan_Comm_Invert_Plan";
 ZOLTAN_COMM_OBJ *old = *plan, *New = NULL;
 int i, ierr = ZOLTAN_OK;
 int total_send_length;

@@ -1,0 +1,32 @@
+% $Id$
+
+\begin{description}
+
+\item [Regridding] \label{term:regridding}
+      An object containing all the information necessary to
+      transform a field from one grid to another.
+      
+\item [Physical Grid (PhysGrid)] \label{term:physgrid} 
+      An ESMF Physical Grid which contains a variety of information
+      on the location in physical space and physical metrics (area,
+      grid lengths, etc.) of various grid points.
+
+\item [Distributed Grid (DistGrid)] \label{term:distgrid}
+      An ESMF Distributed Grid containing information about the
+      grid index space, including distribution of the logical
+      grid across the machine.
+
+\item [Grid] \label{term:grid}
+      A grid refers to the combination of Physical Grid and
+      Distributed Grid and thus contains all information
+      describing a grid.
+
+\item [Field] \label{term:field}
+      A field is a physical quantity attached to
+      a grid.  The field also contains information (metadata)
+      necessary for a full description of the data. 
+
+\end{description}
+
+\noindent Other technical terms are defined in the glossary.
+

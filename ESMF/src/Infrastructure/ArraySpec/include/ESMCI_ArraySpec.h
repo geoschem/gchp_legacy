@@ -1,7 +1,7 @@
-// $Id: ESMCI_ArraySpec.h,v 1.1.5.1 2013-01-11 20:23:43 mathomp4 Exp $
+// $Id$
 //
 // Earth System Modeling Framework
-// Copyright 2002-2012, University Corporation for Atmospheric Research, 
+// Copyright 2002-2018, University Corporation for Atmospheric Research, 
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
 // Laboratory, University of Michigan, National Centers for Environmental 
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
@@ -47,9 +47,9 @@ class ArraySpec {   // NOT inherited from Base class
     char shallowMem[192];
 
   public:
-    int set(int rank, ESMC_TypeKind typekind);
+    int set(int rank, ESMC_TypeKind_Flag typekind);
     int getRank(int *rc=NULL);
-    ESMC_TypeKind getTypeKind(int *rc=NULL);
+    ESMC_TypeKind_Flag getTypeKind(int *rc=NULL);
 
 };
 

@@ -1,7 +1,7 @@
 ! $Id$
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2012, University Corporation for Atmospheric Research, 
+! Copyright 2002-2018, University Corporation for Atmospheric Research, 
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
 ! Laboratory, University of Michigan, National Centers for Environmental 
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
@@ -50,7 +50,6 @@ module ESMF_ArrayHaMod
   ! class sub modules
   use ESMF_ArrayCreateMod   ! contains the ESMF_Array derived type definition
   use ESMF_ArrayGetMod      ! contains the ESMF_ArrayGet procedures
-  use ESMF_ArrayIOMod       ! contains the ESMF_ArrayReadIntl procedures
   
   implicit none
 
@@ -66,6 +65,7 @@ module ESMF_ArrayHaMod
   public ESMF_ArrayHalo
   public ESMF_ArrayHaloRelease
   public ESMF_ArrayHaloStore
+  public ESMF_ArrayIsCreated
   public ESMF_ArrayPrint
   public ESMF_ArrayRead
   public ESMF_ArrayRedist
@@ -100,7 +100,12 @@ module ESMF_ArrayHaMod
     module procedure ESMF_ArrayRedistStoreI8
     module procedure ESMF_ArrayRedistStoreR4
     module procedure ESMF_ArrayRedistStoreR8
+    module procedure ESMF_ArrayRedistStoreI4TP
+    module procedure ESMF_ArrayRedistStoreI8TP
+    module procedure ESMF_ArrayRedistStoreR4TP
+    module procedure ESMF_ArrayRedistStoreR8TP
     module procedure ESMF_ArrayRedistStoreNF
+    module procedure ESMF_ArrayRedistStoreNFTP
 !EOPI
 
   end interface
@@ -145,7 +150,8 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 !   argument must be weakly congruent and typekind conform to the Array used
 !   during {\tt ESMF\_ArrayHaloStore()}.
 !   Congruent Arrays possess matching DistGrids, and the shape of the local
-!   array tiles matches between the Arrays for every DE. For weakly congruent
+!   array tiles, i.e. the memory allocation, matches between the Arrays for
+!   every DE. For weakly congruent
 !   Arrays the sizes of the undistributed dimensions, that vary faster with
 !   memory than the first distributed dimension, are permitted to be different.
 !   This means that the same {\tt routehandle} can be applied to a large class
@@ -257,7 +263,7 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 ! \end{itemize}
 !
 ! !DESCRIPTION:
-!   Release resouces associated with an Array halo operation. 
+!   Release resources associated with an Array halo operation. 
 !   After this call {\tt routehandle} becomes invalid.
 !
 !   \begin{description}
@@ -298,20 +304,27 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 !
 ! !INTERFACE:
     subroutine ESMF_ArrayHaloStore(array, routehandle, keywordEnforcer, &
-      startregion, haloLDepth, haloUDepth, rc)
+      startregion, haloLDepth, haloUDepth, pipelineDepth, rc)
 !
 ! !ARGUMENTS:
-    type(ESMF_Array),            intent(inout)         :: array
-    type(ESMF_RouteHandle),      intent(inout)         :: routehandle
+    type(ESMF_Array),            intent(inout)           :: array
+    type(ESMF_RouteHandle),      intent(inout)           :: routehandle
 type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
-    type(ESMF_StartRegion_Flag), intent(in),  optional ::startregion
-    integer,                     intent(in),  optional :: haloLDepth(:)
-    integer,                     intent(in),  optional :: haloUDepth(:)
-    integer,                     intent(out), optional :: rc
+    type(ESMF_StartRegion_Flag), intent(in),    optional :: startregion
+    integer,                     intent(in),    optional :: haloLDepth(:)
+    integer,                     intent(in),    optional :: haloUDepth(:)
+    integer,                     intent(inout), optional :: pipelineDepth
+    integer,                     intent(out),   optional :: rc
 !
 ! !STATUS:
 ! \begin{itemize}
 ! \item\apiStatusCompatibleVersion{5.2.0r}
+! \item\apiStatusModifiedSinceVersion{5.2.0r}
+! \begin{description}
+! \item[6.1.0] Added argument {\tt pipelineDepth}.
+!              The new argument provide access to the tuning parameter
+!              affecting the sparse matrix execution.
+! \end{description}
 ! \end{itemize}
 !
 ! !DESCRIPTION:
@@ -324,11 +337,12 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 !   the halo operation. Elements that have no associated source remain 
 !   unchanged under halo.
 !
-!   Specifying {\tt startregion} allows to change the shape of the 
-!   effective halo region from the inside. Setting this flag to
+!   Specifying {\tt startregion} allows the shape of the effective halo region 
+!   to be changed from the inside. Setting this flag to
 !   {\tt ESMF\_STARTREGION\_COMPUTATIONAL} means that only elements outside 
 !   the computational region of the Array are considered for potential
-!   destination elements for halo. The default is {\tt ESMF\_STARTREGION\_EXCLUSIVE}.
+!   destination elements for the halo operation. The default is 
+!   {\tt ESMF\_STARTREGION\_EXCLUSIVE}.
 !
 !   The {\tt haloLDepth} and {\tt haloUDepth} arguments allow to reduce
 !   the extent of the effective halo region. Starting at the region specified
@@ -338,13 +352,14 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 !   {\tt haloLDepth} and {\tt haloUDepth} setting. The total Array region is
 !   local DE specific. The {\tt haloLDepth} and {\tt haloUDepth} are interpreted
 !   as the maximum desired extent, reducing the potentially larger region
-!   available for halo.
+!   available for the halo operation.
 !
 !   The routine returns an {\tt ESMF\_RouteHandle} that can be used to call 
 !   {\tt ESMF\_ArrayHalo()} on any Array that is weakly congruent
 !   and typekind conform to {\tt array}.
 !   Congruent Arrays possess matching DistGrids, and the shape of the local
-!   array tiles matches between the Arrays for every DE. For weakly congruent
+!   array tiles, i.e. the memory allocation, matches between the Arrays for
+!   every DE. For weakly congruent
 !   Arrays the sizes of the undistributed dimensions, that vary faster with
 !   memory than the first distributed dimension, are permitted to be different.
 !   This means that the same {\tt routehandle} can be applied to a large class
@@ -363,7 +378,7 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 !     \begin{sloppypar}
 !     The start of the effective halo region on every DE. The default
 !     setting is {\tt ESMF\_STARTREGION\_EXCLUSIVE}, rendering all non-exclusive
-!     elements potential halo destination elments.
+!     elements potential halo destination elements.
 !     See section \ref{const:startregion} for a complete list of
 !     valid settings.
 !     \end{sloppypar}
@@ -377,16 +392,40 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 !     region with respect to the upper corner of {\tt startregion}.
 !     The size of {\tt haloUDepth} must equal the number of distributed Array
 !     dimensions.
+!   \item [{[pipelineDepth]}]
+!     The {\tt pipelineDepth} parameter controls how many messages a PET
+!     may have outstanding during a halo exchange. Larger values
+!     of {\tt pipelineDepth} typically lead to better performance. However,
+!     on some systems too large a value may lead to performance degradation,
+!     or runtime errors.
+!
+!     Note that the pipeline depth has no effect on the bit-for-bit
+!     reproducibility of the results. However, it may affect the performance
+!     reproducibility of the exchange.
+!
+!     The {\tt ESMF\_ArraySMMStore()} method implements an auto-tuning scheme
+!     for the {\tt pipelineDepth} parameter. The intent on the 
+!     {\tt pipelineDepth} argument is "{\tt inout}" in order to 
+!     support both overriding and accessing the auto-tuning parameter.
+!     If an argument $>= 0$ is specified, it is used for the 
+!     {\tt pipelineDepth} parameter, and the auto-tuning phase is skipped.
+!     In this case the {\tt pipelineDepth} argument is not modified on
+!     return. If the provided argument is $< 0$, the {\tt pipelineDepth}
+!     parameter is determined internally using the auto-tuning scheme. In this
+!     case the {\tt pipelineDepth} argument is re-set to the internally
+!     determined value on return. Auto-tuning is also used if the optional 
+!     {\tt pipelineDepth} argument is omitted.
+!
 !   \item [{[rc]}]
 !     Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
 !   \end{description}
 !
 !EOP
 !------------------------------------------------------------------------------
-    integer                         :: localrc        ! local return code
-    type(ESMF_StartRegion_Flag)  :: opt_startregion ! helper variable
-    type(ESMF_InterfaceInt)         :: haloLDepthArg  ! helper variable
-    type(ESMF_InterfaceInt)         :: haloUDepthArg  ! helper variable
+    integer                       :: localrc          ! local return code
+    type(ESMF_StartRegion_Flag)   :: opt_startregion  ! helper variable
+    type(ESMF_InterArray)         :: haloLDepthArg    ! helper variable
+    type(ESMF_InterArray)         :: haloUDepthArg    ! helper variable
 
     ! initialize return code; assume routine not implemented
     localrc = ESMF_RC_NOT_IMPL
@@ -400,24 +439,24 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
     if (present(startregion)) opt_startregion = startregion
 
     ! Deal with (optional) array arguments
-    haloLDepthArg = ESMF_InterfaceIntCreate(haloLDepth, rc=localrc)
+    haloLDepthArg = ESMF_InterArrayCreate(haloLDepth, rc=localrc)
     if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
       ESMF_CONTEXT, rcToReturn=rc)) return
-    haloUDepthArg = ESMF_InterfaceIntCreate(haloUDepth, rc=localrc)
+    haloUDepthArg = ESMF_InterArrayCreate(haloUDepth, rc=localrc)
     if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
       ESMF_CONTEXT, rcToReturn=rc)) return
 
     ! Call into the C++ interface, which will sort out optional arguments
     call c_ESMC_ArrayHaloStore(array, routehandle, opt_startregion, &
-      haloLDepthArg, haloUDepthArg, localrc)
+      haloLDepthArg, haloUDepthArg, pipelineDepth, localrc)
     if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
       ESMF_CONTEXT, rcToReturn=rc)) return
     
     ! garbage collection
-    call ESMF_InterfaceIntDestroy(haloLDepthArg, rc=localrc)
+    call ESMF_InterArrayDestroy(haloLDepthArg, rc=localrc)
     if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
       ESMF_CONTEXT, rcToReturn=rc)) return
-    call ESMF_InterfaceIntDestroy(haloUDepthArg, rc=localrc)
+    call ESMF_InterArrayDestroy(haloUDepthArg, rc=localrc)
     if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
       ESMF_CONTEXT, rcToReturn=rc)) return
 
@@ -430,6 +469,45 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
     if (present(rc)) rc = ESMF_SUCCESS
 
   end subroutine ESMF_ArrayHaloStore
+!------------------------------------------------------------------------------
+
+
+! -------------------------- ESMF-public method -------------------------------
+#undef  ESMF_METHOD
+#define ESMF_METHOD "ESMF_ArrayIsCreated()"
+!BOP
+! !IROUTINE: ESMF_ArrayIsCreated - Check whether an Array object has been created
+
+! !INTERFACE:
+  function ESMF_ArrayIsCreated(array, keywordEnforcer, rc)
+! !RETURN VALUE:
+    logical :: ESMF_ArrayIsCreated
+!
+! !ARGUMENTS:
+    type(ESMF_Array), intent(in)            :: array
+type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
+    integer,          intent(out), optional :: rc
+
+! !DESCRIPTION:
+!   Return {\tt .true.} if the {\tt array} has been created. Otherwise return 
+!   {\tt .false.}. If an error occurs, i.e. {\tt rc /= ESMF\_SUCCESS} is 
+!   returned, the return value of the function will also be {\tt .false.}.
+!
+! The arguments are:
+!   \begin{description}
+!   \item[array]
+!     {\tt ESMF\_Array} queried.
+!   \item[{[rc]}]
+!     Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
+!   \end{description}
+!
+!EOP
+  !-----------------------------------------------------------------------------    
+    ESMF_ArrayIsCreated = .false.   ! initialize
+    if (present(rc)) rc = ESMF_SUCCESS
+    if (ESMF_ArrayGetInit(array)==ESMF_INIT_CREATED) &
+      ESMF_ArrayIsCreated = .true.
+  end function
 !------------------------------------------------------------------------------
 
 
@@ -499,17 +577,18 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 ! \label{api:ArrayRead}
 !
 ! !INTERFACE:
-  subroutine ESMF_ArrayRead(array, file, keywordEnforcer, variableName, &
+  subroutine ESMF_ArrayRead(array, fileName, keywordEnforcer, variableName, &
     timeslice, iofmt, rc)
+!   ! We need to terminate the strings on the way to C++
 !
 ! !ARGUMENTS:
-    type(ESMF_Array),     intent(inout)         :: array
-    character(*),         intent(in)            :: file
+    type(ESMF_Array),      intent(inout)         :: array
+    character(*),          intent(in)            :: fileName
 type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
-    character(*),         intent(in),  optional :: variableName
-    integer,              intent(in),  optional :: timeslice
-    type(ESMF_IOFmtFlag), intent(in),  optional :: iofmt
-    integer,              intent(out), optional :: rc
+    character(*),          intent(in),  optional :: variableName
+    integer,               intent(in),  optional :: timeslice
+    type(ESMF_IOFmt_Flag), intent(in),  optional :: iofmt
+    integer,               intent(out), optional :: rc
 !
 ! !DESCRIPTION:
 !   Read Array data from file and put it into an {\tt ESMF\_Array} object.
@@ -519,7 +598,7 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 ! 
 !   Limitations:
 !   \begin{itemize}
-!     \item Only 1 DE per PET supported.
+!     \item Only single tile Arrays are supported.
 !     \item Not supported in {\tt ESMF\_COMM=mpiuni} mode.
 !   \end{itemize}
 !
@@ -527,19 +606,22 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 !  \begin{description}
 !   \item[array]
 !    The {\tt ESMF\_Array} object in which the read data is returned.
-!   \item[file]
+!   \item[fileName]
 !    The name of the file from which Array data is read.
 !   \item[{[variableName]}]
 !    Variable name in the file; default is the "name" of Array.
-!    Use this argument only in the IO format (such as NetCDF) that
-!    supports variable name. If the IO format does not support this 
+!    Use this argument only in the I/O format (such as NetCDF) that
+!    supports variable name. If the I/O format does not support this
 !    (such as binary format), ESMF will return an error code.
 !   \item[{[timeslice]}]
 !    The time-slice number of the variable read from file.
 !   \item[{[iofmt]}]
 !    \begin{sloppypar}
-!    The IO format.  Please see Section~\ref{opt:iofmtflag} for the list 
-!    of options. If not present, defaults to {\tt ESMF\_IOFMT\_NETCDF}.
+!    The I/O format.  Please see Section~\ref{opt:iofmtflag} for the list
+!    of options. If not present, file names with a {\tt .bin} extension will
+!    use {\tt ESMF\_IOFMT\_BIN}, and file names with a {\tt .nc} extension
+!    will use {\tt ESMF\_IOFMT\_NETCDF}.  Other files default to
+!    {\tt ESMF\_IOFMT\_NETCDF}.
 !    \end{sloppypar}
 !   \item[{[rc]}]
 !    Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
@@ -548,15 +630,10 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 !EOP
 !------------------------------------------------------------------------------
     ! Local vars
-    integer :: localrc                   ! local return code
-    integer :: localtk
-    integer :: rank
-    character(len=80) :: varname
-    type(ESMF_IOFmtFlag) :: iofmt_internal
-    character(len=10) :: piofmt
-    integer           :: time
-
-    type(ESMF_TypeKind_Flag)             :: typekind
+    integer              :: localrc              ! local return code
+    integer              :: len_varName          ! helper variable
+    type(ESMF_IOFmt_Flag) :: opt_iofmt           ! helper variable
+    integer              :: file_ext_p
 
     ! Initialize return code; assume routine not implemented
     localrc = ESMF_RC_NOT_IMPL
@@ -567,168 +644,40 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
     ! Check init status of arguments
     ESMF_INIT_CHECK_DEEP(ESMF_ArrayGetInit, array, rc)
 
-    ! Handle IO format
-    iofmt_internal = ESMF_IOFMT_NETCDF   ! default format
-    if (present(iofmt)) iofmt_internal = iofmt
-    time = 0
-    if(present(timeslice)) time = timeslice
-
-    if (iofmt_internal == ESMF_IOFMT_NETCDF) then
-      ! NETCDF format selected
-#ifdef ESMF_PNETCDF
-      piofmt = "pnc"  ! PNETCDF first choice to write NETCDF format
-#elif ESMF_NETCDF
-      piofmt = "snc"  ! serial NETCDF second choice to write NETCDF format
-#else
-      call ESMF_LogSetError(rcToCheck=ESMF_RC_LIB_NOT_PRESENT, &
-      msg="ESMF must be compiled with NETCDF or PNETCDF support for this format choice", &
-        ESMF_CONTEXT, rcToReturn=rc)
-      return
-#endif
-
-    else if (iofmt_internal == ESMF_IOFMT_BIN) then
-
-#ifdef ESMF_MPIIO
-      ! binary format selected
-      piofmt = "bin"
-      if (present(variableName)) then
-        call ESMF_LogSetError(rcToCheck=ESMF_RC_ARG_INCOMP, &
-        msg="The input argument variableName cannot be sepcified in ESMF_IOFMT_BIN mode", &
-          ESMF_CONTEXT, rcToReturn=rc)
-        return
-      endif
-#else
-      call ESMF_LogSetError(rcToCheck=ESMF_RC_LIB_NOT_PRESENT, &
-      msg="ESMF must be compiled with an MPI that implements MPI-IO to support this format choice", &
-        ESMF_CONTEXT, rcToReturn=rc)
-      return
-#endif
-
+    ! Set iofmt based on file name extension (if present)
+    if (present (iofmt)) then
+      opt_iofmt = iofmt
     else
+      if (index (fileName, '.') > 0) then
+        file_ext_p = index (fileName, '.', back=.true.)
+        select case (fileName(file_ext_p:))
+        case ('.nc')
+          opt_iofmt = ESMF_IOFMT_NETCDF
+        case ('.bin')
+          opt_iofmt = ESMF_IOFMT_BIN
+        case default
+          opt_iofmt = ESMF_IOFMT_NETCDF
+        end select
+      else
+        opt_iofmt = ESMF_IOFMT_NETCDF
+      end if
+    end if
 
-      ! format option that is not supported
-      call ESMF_LogSetError(rcToCheck=ESMF_RC_LIB_NOT_PRESENT, &
-      msg="this format is not currently supported by the ESMF IO layer", &
-        ESMF_CONTEXT, rcToReturn=rc)
-      return
-
+    ! Get string length
+    if (present(variableName)) then
+      len_varName = len_trim (variableName)
+    else
+      len_varName = 0
     endif
 
-    !
-    ! Obtain typekind and rank
-    call ESMF_ArrayGet( array, typekind=typekind, rank=rank, name=varname, rc=localrc)
-    if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+    ! Call into the C++ interface, which will call IO object
+    call c_esmc_arrayread(array, fileName,                    &
+        variableName, len_varName, timeslice, opt_iofmt, localrc)
+    if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU,        &
       ESMF_CONTEXT, rcToReturn=rc)) return
-    if(present(variableName)) varname = variableName
-
-    ! Call a T/K/R specific interface in order to create the proper
-    !  type of F90 pointer, allocate the space, set the values in the
-    !  Array object, and return.  (The routine this code is calling is
-    !  generated by macro.)
-
-    localtk = typekind%dkind
-
-    !! calling routines generated from macros by the preprocessor
-
-    select case (localtk)
-      !
-      case (ESMF_TYPEKIND_I4%dkind)
-        ! The PIO data type is PIO_int
-        select case(rank)
-          case (1)
-            call ESMF_ArrayReadIntl1DI4(array, file, varname, time, piofmt, rc=localrc)
-            if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
-              ESMF_CONTEXT, rcToReturn=rc)) return
-          case (2)
-            call ESMF_ArrayReadIntl2DI4(array, file, varname, time, piofmt, rc=localrc)
-            if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
-              ESMF_CONTEXT, rcToReturn=rc)) return
-          case (3)
-            call ESMF_ArrayReadIntl3DI4(array, file, varname, time, piofmt, rc=localrc)
-            if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
-              ESMF_CONTEXT, rcToReturn=rc)) return
-          case (4)
-            call ESMF_ArrayReadIntl4DI4(array, file, varname, time, piofmt, rc=localrc)
-            if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
-              ESMF_CONTEXT, rcToReturn=rc)) return
-          case (5)
-            call ESMF_ArrayReadIntl5DI4(array, file, varname, time, piofmt, rc=localrc)
-            if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
-              ESMF_CONTEXT, rcToReturn=rc)) return
-          case default
-            call ESMF_LogSetError(rcToCheck=ESMF_RC_ARG_BAD, msg="Unsupported rank", &
-              ESMF_CONTEXT, rcToReturn=rc)
-            return
-        end select
-
-      case (ESMF_TYPEKIND_R4%dkind)
-        select case(rank)
-        ! The PIO data type is PIO_real
-          case (1)
-            call ESMF_ArrayReadIntl1DR4(array, file, varname, time, piofmt, rc=localrc)
-            if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
-              ESMF_CONTEXT, rcToReturn=rc)) return
-          case (2)
-            call ESMF_ArrayReadIntl2DR4(array, file, varname, time, piofmt, rc=localrc)
-            if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
-              ESMF_CONTEXT, rcToReturn=rc)) return
-          case (3)
-            call ESMF_ArrayReadIntl3DR4(array, file, varname, time, piofmt, rc=localrc)
-            if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
-              ESMF_CONTEXT, rcToReturn=rc)) return
-          case (4)
-            call ESMF_ArrayReadIntl4DR4(array, file, varname, time, piofmt, rc=localrc)
-            if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
-              ESMF_CONTEXT, rcToReturn=rc)) return
-          case (5)
-            call ESMF_ArrayReadIntl5DR4(array, file, varname, time, piofmt, rc=localrc)
-            if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
-              ESMF_CONTEXT, rcToReturn=rc)) return
-          case default
-            call ESMF_LogSetError(rcToCheck=ESMF_RC_ARG_BAD, msg="Unsupported rank", &
-              ESMF_CONTEXT, rcToReturn=rc)
-            return
-        end select
-
-      case (ESMF_TYPEKIND_R8%dkind)
-        ! The PIO data type is PIO_double
-        select case(rank)
-          case (1)
-            call ESMF_ArrayReadIntl1DR8(array, file, varname, time, piofmt, rc=localrc)
-            if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
-              ESMF_CONTEXT, rcToReturn=rc)) return
-          case (2)
-            call ESMF_ArrayReadIntl2DR8(array, file, varname, time, piofmt, rc=localrc)
-            if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
-              ESMF_CONTEXT, rcToReturn=rc)) return
-          case (3)
-            call ESMF_ArrayReadIntl3DR8(array, file, varname, time, piofmt, rc=localrc)
-            if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
-              ESMF_CONTEXT, rcToReturn=rc)) return
-          case (4)
-            call ESMF_ArrayReadIntl4DR8(array, file, varname, time, piofmt, rc=localrc)
-            if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
-              ESMF_CONTEXT, rcToReturn=rc)) return
-          case (5)
-            call ESMF_ArrayReadIntl5DR8(array, file, varname, time, piofmt, rc=localrc)
-            if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
-              ESMF_CONTEXT, rcToReturn=rc)) return
-          case default
-            call ESMF_LogSetError(rcToCheck=ESMF_RC_ARG_BAD, msg="Unsupported rank", &
-              ESMF_CONTEXT, rcToReturn=rc)
-            return
-        end select
-
-      case default
-        call ESMF_LogSetError(rcToCheck=ESMF_RC_ARG_BAD, msg="Unsupported typekind", &
-          ESMF_CONTEXT, rcToReturn=rc)
-        return
-
-    end select
 
     ! Return successfully
     if (present(rc)) rc = ESMF_SUCCESS
-
 #else
     ! Return indicating PIO not present
     call ESMF_LogSetError(rcToCheck=ESMF_RC_LIB_NOT_PRESENT, &
@@ -748,7 +697,7 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 !
 ! !INTERFACE:
   subroutine ESMF_ArrayRedist(srcArray, dstArray, routehandle, keywordEnforcer, &
-    routesyncflag, finishedflag, cancelledflag, checkflag, rc)
+    routesyncflag, finishedflag, cancelledflag, zeroregion, checkflag, rc)
 !
 ! !ARGUMENTS:
     type(ESMF_Array),          intent(in),    optional :: srcArray
@@ -758,12 +707,20 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
     type(ESMF_RouteSync_Flag), intent(in),    optional :: routesyncflag
     logical,                   intent(out),   optional :: finishedflag
     logical,                   intent(out),   optional :: cancelledflag
+    type(ESMF_Region_Flag),    intent(in),    optional :: zeroregion
     logical,                   intent(in),    optional :: checkflag
     integer,                   intent(out),   optional :: rc
 !
 ! !STATUS:
 ! \begin{itemize}
 ! \item\apiStatusCompatibleVersion{5.2.0r}
+! \item\apiStatusModifiedSinceVersion{5.2.0r}
+! \begin{description}
+! \item[7.1.0r] Added argument {\tt zeroregion} to allow user to control
+!              how the destination array is zero'ed out. This is especially
+!              useful in cases where the source and destination arrays do not
+!              cover the identical index space.
+! \end{description}
 ! \end{itemize}
 !
 ! !DESCRIPTION:
@@ -772,7 +729,8 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 !   weakly congruent and typekind conform with the respective Arrays used 
 !   during {\tt ESMF\_ArrayRedistStore()}.
 !   Congruent Arrays possess matching DistGrids, and the shape of the local
-!   array tiles matches between the Arrays for every DE. For weakly congruent
+!   array tiles, i.e. the memory allocation, matches between the Arrays for
+!   every DE. For weakly congruent
 !   Arrays the sizes of the undistributed dimensions, that vary faster with
 !   memory than the first distributed dimension, are permitted to be different.
 !   This means that the same {\tt routehandle} can be applied to a large class
@@ -822,6 +780,19 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 !     {\tt .false.} indicates that none of the communication operations was
 !     cancelled. The data in {\tt dstArray} is valid if {\tt finishedflag} 
 !     returns equal {\tt .true.}.
+!   \item [{[zeroregion]}]
+!     \begin{sloppypar}
+!     If set to {\tt ESMF\_REGION\_TOTAL} the total regions of
+!     all DEs in {\tt dstArray} will be initialized to zero before updating the 
+!     elements with the results of the sparse matrix multiplication. If set to
+!     {\tt ESMF\_REGION\_EMPTY} the elements in {\tt dstArray} will not be
+!     modified prior to the sparse matrix multiplication and results will be
+!     added to the incoming element values. Setting {\tt zeroregion} to 
+!     {\tt ESMF\_REGION\_SELECT} will only zero out those elements in the 
+!     destination Array that will be updated by the sparse matrix
+!     multiplication. See section \ref{const:region} for a complete list of
+!     valid settings. The default is {\tt ESMF\_REGION\_SELECT}.
+!     \end{sloppypar}
 !   \item [{[checkflag]}]
 !     If set to {\tt .TRUE.} the input Array pair will be checked for
 !     consistency with the precomputed operation provided by {\tt routehandle}.
@@ -834,13 +805,14 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 !
 !EOP
 !------------------------------------------------------------------------------
-    integer                 :: localrc      ! local return code
-    type(ESMF_Array)        :: opt_srcArray ! helper variable
-    type(ESMF_Array)        :: opt_dstArray ! helper variable
-    type(ESMF_RouteSync_Flag)     :: opt_routesyncflag ! helper variable
-    type(ESMF_Logical)      :: opt_finishedflag! helper variable
-    type(ESMF_Logical)      :: opt_cancelledflag  ! helper variable
-    type(ESMF_Logical)      :: opt_checkflag! helper variable
+    integer                   :: localrc            ! local return code
+    type(ESMF_Array)          :: opt_srcArray       ! helper variable
+    type(ESMF_Array)          :: opt_dstArray       ! helper variable
+    type(ESMF_RouteSync_Flag) :: opt_routesyncflag  ! helper variable
+    type(ESMF_Logical)        :: opt_finishedflag   ! helper variable
+    type(ESMF_Logical)        :: opt_cancelledflag  ! helper variable
+    type(ESMF_Region_Flag)    :: opt_zeroregion     ! helper variable
+    type(ESMF_Logical)        :: opt_checkflag      ! helper variable
 
     ! initialize return code; assume routine not implemented
     localrc = ESMF_RC_NOT_IMPL
@@ -868,12 +840,15 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
     ! Set default flags
     opt_routesyncflag = ESMF_ROUTESYNC_BLOCKING
     if (present(routesyncflag)) opt_routesyncflag = routesyncflag
+    opt_zeroregion = ESMF_REGION_SELECT
+    if (present(zeroregion)) opt_zeroregion = zeroregion
     opt_checkflag = ESMF_FALSE
     if (present(checkflag)) opt_checkflag = checkflag
         
     ! Call into the C++ interface, which will sort out optional arguments
     call c_ESMC_ArrayRedist(opt_srcArray, opt_dstArray, routehandle, &
-      opt_routesyncflag, opt_finishedflag, opt_cancelledflag, opt_checkflag, localrc)
+      opt_routesyncflag, opt_finishedflag, opt_cancelledflag, opt_zeroregion, &
+      opt_checkflag, localrc)
     if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
       ESMF_CONTEXT, rcToReturn=rc)) return
     
@@ -914,7 +889,7 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 ! \end{itemize}
 !
 ! !DESCRIPTION:
-!   Release resouces associated with an Array redistribution. After this call
+!   Release resources associated with an Array redistribution. After this call
 !   {\tt routehandle} becomes invalid.
 !
 !   \begin{description}
@@ -954,20 +929,37 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 ! !INTERFACE:
 ! ! Private name; call using ESMF_ArrayRedistStore()
 ! subroutine ESMF_ArrayRedistStore<type><kind>(srcArray, dstArray, &
-!   routehandle, factor, keywordEnforcer, srcToDstTransposeMap, rc)
+!   routehandle, factor, keywordEnforcer, srcToDstTransposeMap, &
+!   ignoreUnmatchedIndices, pipelineDepth, rc)
 !
 ! !ARGUMENTS:
-!   type(ESMF_Array),         intent(in)            :: srcArray
-!   type(ESMF_Array),         intent(inout)         :: dstArray
-!   type(ESMF_RouteHandle),   intent(inout)         :: routehandle
-!   <type>(ESMF_KIND_<kind>), intent(in)            :: factor
+!   type(ESMF_Array),       intent(in)              :: srcArray
+!   type(ESMF_Array),       intent(inout)           :: dstArray
+!   type(ESMF_RouteHandle), intent(inout)           :: routehandle
+!   <type>(ESMF_KIND_<kind>),intent(in)             :: factor
 !type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
-!   integer,                  intent(in),  optional :: srcToDstTransposeMap(:)
-!   integer,                  intent(out), optional :: rc
+!   integer,                intent(in),    optional :: srcToDstTransposeMap(:)
+!   logical,                intent(in),    optional :: ignoreUnmatchedIndices
+!   integer,                intent(inout), optional :: pipelineDepth
+!   integer,                intent(out),   optional :: rc
 !
 ! !STATUS:
 ! \begin{itemize}
 ! \item\apiStatusCompatibleVersion{5.2.0r}
+! \item\apiStatusModifiedSinceVersion{5.2.0r}
+! \begin{description}
+! \item[6.1.0] Added argument {\tt pipelineDepth}.
+!              The new argument provide access to the tuning parameter
+!              affecting the sparse matrix execution.
+! \item[7.0.0] Added argument {\tt transposeRoutehandle} to allow a handle to
+!              the transposed redist operation to be returned.\newline
+!              Added argument {\tt ignoreUnmatchedIndices} to support situations 
+!              where not all elements between source and destination Arrays 
+!              match.
+! \item[7.1.0r] Removed argument {\tt transposeRoutehandle} and provide it
+!              via interface overloading instead. This allows argument 
+!              {\tt srcArray} to stay strictly intent(in) for this entry point.
+! \end{description}
 ! \end{itemize}
 !
 ! !DESCRIPTION:
@@ -1016,7 +1008,8 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 !   {\tt ESMF\_ArrayRedist()} on any pair of Arrays that are weakly congruent
 !   and typekind conform with the {\tt srcArray}, {\tt dstArray} pair. 
 !   Congruent Arrays possess matching DistGrids, and the shape of the local
-!   array tiles matches between the Arrays for every DE. For weakly congruent
+!   array tiles, i.e. the memory allocation, matches between the Arrays for
+!   every DE. For weakly congruent
 !   Arrays the sizes of the undistributed dimensions, that vary faster with
 !   memory than the first distributed dimension, are permitted to be different.
 !   This means that the same {\tt routehandle} can be applied to a large class
@@ -1031,20 +1024,57 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 ! This call is {\em collective} across the current VM.  
 !
 !   \begin{description}
+!
 !   \item [srcArray]
 !     {\tt ESMF\_Array} with source data.
+!
 !   \item [dstArray]
 !     {\tt ESMF\_Array} with destination data. The data in this Array may be
 !     destroyed by this call.
+!
 !   \item [routehandle]
 !     Handle to the precomputed Route.
+!
 !   \item [factor]
-!     Factor by which to multipy source data.
+!     Factor by which to multiply source data.
+!
 !   \item [{[srcToDstTransposeMap]}]
 !     List with as many entries as there are dimensions in {\tt srcArray}. Each
 !     entry maps the corresponding {\tt srcArray} dimension against the 
 !     specified {\tt dstArray} dimension. Mixing of distributed and
 !     undistributed dimensions is supported.
+!
+!   \item [{[ignoreUnmatchedIndices]}]
+!     A logical flag that affects the behavior for when not all elements match
+!     between the {\tt srcArray} and {\tt dstArray} side. The default setting
+!     is {\tt .false.}, indicating that it is an error when such a situation is 
+!     encountered. Setting {\tt ignoreUnmatchedIndices} to {\tt .true.} ignores
+!     unmatched indices.
+!
+!   \item [{[pipelineDepth]}]
+!     The {\tt pipelineDepth} parameter controls how many messages a PET
+!     may have outstanding during a redist exchange. Larger values
+!     of {\tt pipelineDepth} typically lead to better performance. However,
+!     on some systems too large a value may lead to performance degradation,
+!     or runtime errors.
+!
+!     Note that the pipeline depth has no effect on the bit-for-bit
+!     reproducibility of the results. However, it may affect the performance
+!     reproducibility of the exchange.
+!
+!     The {\tt ESMF\_ArraySMMStore()} method implements an auto-tuning scheme
+!     for the {\tt pipelineDepth} parameter. The intent on the 
+!     {\tt pipelineDepth} argument is "{\tt inout}" in order to 
+!     support both overriding and accessing the auto-tuning parameter.
+!     If an argument $>= 0$ is specified, it is used for the 
+!     {\tt pipelineDepth} parameter, and the auto-tuning phase is skipped.
+!     In this case the {\tt pipelineDepth} argument is not modified on
+!     return. If the provided argument is $< 0$, the {\tt pipelineDepth}
+!     parameter is determined internally using the auto-tuning scheme. In this
+!     case the {\tt pipelineDepth} argument is re-set to the internally
+!     determined value on return. Auto-tuning is also used if the optional 
+!     {\tt pipelineDepth} argument is omitted.
+!
 !   \item [{[rc]}]
 !     Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
 !   \end{description}
@@ -1062,21 +1092,27 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 ! !INTERFACE:
   ! Private name; call using ESMF_ArrayRedistStore()
   subroutine ESMF_ArrayRedistStoreI4(srcArray, dstArray, routehandle, &
-    factor, keywordEnforcer, srcToDstTransposeMap, rc)
+    factor, keywordEnforcer, srcToDstTransposeMap, ignoreUnmatchedIndices, &
+    pipelineDepth, rc)
 !
 ! !ARGUMENTS:
-    type(ESMF_Array),           intent(in)            :: srcArray
-    type(ESMF_Array),           intent(inout)         :: dstArray
-    type(ESMF_RouteHandle),     intent(inout)         :: routehandle
-    integer(ESMF_KIND_I4),      intent(in)            :: factor
+    type(ESMF_Array),           intent(in)              :: srcArray
+    type(ESMF_Array),           intent(inout)           :: dstArray
+    type(ESMF_RouteHandle),     intent(inout)           :: routehandle
+    integer(ESMF_KIND_I4),      intent(in)              :: factor
 type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
-    integer,                    intent(in),  optional :: srcToDstTransposeMap(:)
-    integer,                    intent(out), optional :: rc
+    integer,                    intent(in),    optional :: srcToDstTransposeMap(:)
+    logical,                    intent(in),    optional :: ignoreUnmatchedIndices
+    integer,                    intent(inout), optional :: pipelineDepth
+    integer,                    intent(out),   optional :: rc
 !
 !EOPI
 !------------------------------------------------------------------------------
-    integer                 :: localrc      ! local return code
-    type(ESMF_InterfaceInt) :: srcToDstTransposeMapArg   ! index helper
+    integer               :: localrc                  ! local return code
+    type(ESMF_InterArray) :: srcToDstTransposeMapArg  ! index helper
+    type(ESMF_Logical)    :: opt_ignoreUnmatched      ! helper variable
+    integer, allocatable  :: dstToSrcTransposeMap(:)  ! helper variable
+    integer               :: i
 
     ! initialize return code; assume routine not implemented
     localrc = ESMF_RC_NOT_IMPL
@@ -1087,14 +1123,19 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
     ESMF_INIT_CHECK_DEEP(ESMF_ArrayGetInit, dstArray, rc)
     
     ! Deal with (optional) array arguments
-    srcToDstTransposeMapArg = ESMF_InterfaceIntCreate(srcToDstTransposeMap, &
+    srcToDstTransposeMapArg = ESMF_InterArrayCreate(srcToDstTransposeMap, &
       rc=localrc)
     if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
       ESMF_CONTEXT, rcToReturn=rc)) return
 
+    ! Set default flags
+    opt_ignoreUnmatched = ESMF_FALSE
+    if (present(ignoreUnmatchedIndices)) opt_ignoreUnmatched = ignoreUnmatchedIndices
+
     ! Call into the C++ interface, which will sort out optional arguments
     call c_ESMC_ArrayRedistStore(srcArray, dstArray, routehandle, &
-      srcToDstTransposeMapArg, ESMF_TYPEKIND_I4, factor, localrc)
+      srcToDstTransposeMapArg, ESMF_TYPEKIND_I4, factor, opt_ignoreUnmatched, &
+      pipelineDepth, localrc)
     if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
       ESMF_CONTEXT, rcToReturn=rc)) return
     
@@ -1102,9 +1143,9 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
     call ESMF_RouteHandleSetInitCreated(routehandle, rc=localrc)
     if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
       ESMF_CONTEXT, rcToReturn=rc)) return
-    
+      
     ! garbage collection
-    call ESMF_InterfaceIntDestroy(srcToDstTransposeMapArg, rc=localrc)
+    call ESMF_InterArrayDestroy(srcToDstTransposeMapArg, rc=localrc)
     if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
       ESMF_CONTEXT, rcToReturn=rc)) return
 
@@ -1124,21 +1165,27 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 ! !INTERFACE:
   ! Private name; call using ESMF_ArrayRedistStore()
   subroutine ESMF_ArrayRedistStoreI8(srcArray, dstArray, routehandle, &
-    factor, keywordEnforcer, srcToDstTransposeMap, rc)
+    factor, keywordEnforcer, srcToDstTransposeMap, ignoreUnmatchedIndices, &
+    pipelineDepth, rc)
 !
 ! !ARGUMENTS:
-    type(ESMF_Array),           intent(in)            :: srcArray
-    type(ESMF_Array),           intent(inout)         :: dstArray
-    type(ESMF_RouteHandle),     intent(inout)         :: routehandle
-    integer(ESMF_KIND_I8),      intent(in)            :: factor
+    type(ESMF_Array),           intent(in)              :: srcArray
+    type(ESMF_Array),           intent(inout)           :: dstArray
+    type(ESMF_RouteHandle),     intent(inout)           :: routehandle
+    integer(ESMF_KIND_I8),      intent(in)              :: factor
 type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
-    integer,                    intent(in),  optional :: srcToDstTransposeMap(:)
-    integer,                    intent(out), optional :: rc
+    integer,                    intent(in),    optional :: srcToDstTransposeMap(:)
+    logical,                    intent(in),    optional :: ignoreUnmatchedIndices
+    integer,                    intent(inout), optional :: pipelineDepth
+    integer,                    intent(out),   optional :: rc
 !
 !EOPI
 !------------------------------------------------------------------------------
-    integer                 :: localrc      ! local return code
-    type(ESMF_InterfaceInt) :: srcToDstTransposeMapArg   ! index helper
+    integer               :: localrc                  ! local return code
+    type(ESMF_InterArray) :: srcToDstTransposeMapArg  ! index helper
+    type(ESMF_Logical)    :: opt_ignoreUnmatched      ! helper variable
+    integer, allocatable  :: dstToSrcTransposeMap(:)  ! helper variable
+    integer               :: i
 
     ! initialize return code; assume routine not implemented
     localrc = ESMF_RC_NOT_IMPL
@@ -1149,14 +1196,19 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
     ESMF_INIT_CHECK_DEEP(ESMF_ArrayGetInit, dstArray, rc)
     
     ! Deal with (optional) array arguments
-    srcToDstTransposeMapArg = ESMF_InterfaceIntCreate(srcToDstTransposeMap, &
+    srcToDstTransposeMapArg = ESMF_InterArrayCreate(srcToDstTransposeMap, &
       rc=localrc)
     if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
       ESMF_CONTEXT, rcToReturn=rc)) return
 
+    ! Set default flags
+    opt_ignoreUnmatched = ESMF_FALSE
+    if (present(ignoreUnmatchedIndices)) opt_ignoreUnmatched = ignoreUnmatchedIndices
+
     ! Call into the C++ interface, which will sort out optional arguments
     call c_ESMC_ArrayRedistStore(srcArray, dstArray, routehandle, &
-      srcToDstTransposeMapArg, ESMF_TYPEKIND_I8, factor, localrc)
+      srcToDstTransposeMapArg, ESMF_TYPEKIND_I8, factor, opt_ignoreUnmatched, &
+      pipelineDepth, localrc)
     if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
       ESMF_CONTEXT, rcToReturn=rc)) return
     
@@ -1166,7 +1218,7 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
       ESMF_CONTEXT, rcToReturn=rc)) return
     
     ! garbage collection
-    call ESMF_InterfaceIntDestroy(srcToDstTransposeMapArg, rc=localrc)
+    call ESMF_InterArrayDestroy(srcToDstTransposeMapArg, rc=localrc)
     if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
       ESMF_CONTEXT, rcToReturn=rc)) return
 
@@ -1186,21 +1238,27 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 ! !INTERFACE:
   ! Private name; call using ESMF_ArrayRedistStore()
   subroutine ESMF_ArrayRedistStoreR4(srcArray, dstArray, routehandle, &
-    factor, keywordEnforcer, srcToDstTransposeMap, rc)
+    factor, keywordEnforcer, srcToDstTransposeMap, ignoreUnmatchedIndices, &
+    pipelineDepth, rc)
 !
 ! !ARGUMENTS:
-    type(ESMF_Array),           intent(in)            :: srcArray
-    type(ESMF_Array),           intent(inout)         :: dstArray
-    type(ESMF_RouteHandle),     intent(inout)         :: routehandle
-    real(ESMF_KIND_R4),         intent(in)            :: factor
+    type(ESMF_Array),           intent(in)              :: srcArray
+    type(ESMF_Array),           intent(inout)           :: dstArray
+    type(ESMF_RouteHandle),     intent(inout)           :: routehandle
+    real(ESMF_KIND_R4),         intent(in)              :: factor
 type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
-    integer,                    intent(in),  optional :: srcToDstTransposeMap(:)
-    integer,                    intent(out), optional :: rc
+    integer,                    intent(in),    optional :: srcToDstTransposeMap(:)
+    logical,                    intent(in),    optional :: ignoreUnmatchedIndices
+    integer,                    intent(inout), optional :: pipelineDepth
+    integer,                    intent(out),   optional :: rc
 !
 !EOPI
 !------------------------------------------------------------------------------
-    integer                 :: localrc      ! local return code
-    type(ESMF_InterfaceInt) :: srcToDstTransposeMapArg   ! index helper
+    integer               :: localrc                  ! local return code
+    type(ESMF_InterArray) :: srcToDstTransposeMapArg  ! index helper
+    type(ESMF_Logical)    :: opt_ignoreUnmatched      ! helper variable
+    integer, allocatable  :: dstToSrcTransposeMap(:)  ! helper variable
+    integer               :: i
 
     ! initialize return code; assume routine not implemented
     localrc = ESMF_RC_NOT_IMPL
@@ -1211,14 +1269,19 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
     ESMF_INIT_CHECK_DEEP(ESMF_ArrayGetInit, dstArray, rc)
     
     ! Deal with (optional) array arguments
-    srcToDstTransposeMapArg = ESMF_InterfaceIntCreate(srcToDstTransposeMap, &
+    srcToDstTransposeMapArg = ESMF_InterArrayCreate(srcToDstTransposeMap, &
       rc=localrc)
     if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
       ESMF_CONTEXT, rcToReturn=rc)) return
 
+    ! Set default flags
+    opt_ignoreUnmatched = ESMF_FALSE
+    if (present(ignoreUnmatchedIndices)) opt_ignoreUnmatched = ignoreUnmatchedIndices
+
     ! Call into the C++ interface, which will sort out optional arguments
     call c_ESMC_ArrayRedistStore(srcArray, dstArray, routehandle, &
-      srcToDstTransposeMapArg, ESMF_TYPEKIND_R4, factor, localrc)
+      srcToDstTransposeMapArg, ESMF_TYPEKIND_R4, factor, opt_ignoreUnmatched, &
+      pipelineDepth, localrc)
     if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
       ESMF_CONTEXT, rcToReturn=rc)) return
     
@@ -1228,7 +1291,7 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
       ESMF_CONTEXT, rcToReturn=rc)) return
     
     ! garbage collection
-    call ESMF_InterfaceIntDestroy(srcToDstTransposeMapArg, rc=localrc)
+    call ESMF_InterArrayDestroy(srcToDstTransposeMapArg, rc=localrc)
     if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
       ESMF_CONTEXT, rcToReturn=rc)) return
 
@@ -1248,21 +1311,27 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 ! !INTERFACE:
   ! Private name; call using ESMF_ArrayRedistStore()
   subroutine ESMF_ArrayRedistStoreR8(srcArray, dstArray, routehandle, &
-    factor, keywordEnforcer, srcToDstTransposeMap, rc)
+    factor, keywordEnforcer, srcToDstTransposeMap, ignoreUnmatchedIndices, &
+    pipelineDepth, rc)
 !
 ! !ARGUMENTS:
-    type(ESMF_Array),           intent(in)            :: srcArray
-    type(ESMF_Array),           intent(inout)         :: dstArray
-    type(ESMF_RouteHandle),     intent(inout)         :: routehandle
-    real(ESMF_KIND_R8),         intent(in)            :: factor
+    type(ESMF_Array),           intent(in)              :: srcArray
+    type(ESMF_Array),           intent(inout)           :: dstArray
+    type(ESMF_RouteHandle),     intent(inout)           :: routehandle
+    real(ESMF_KIND_R8),         intent(in)              :: factor
 type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
-    integer,                    intent(in),  optional :: srcToDstTransposeMap(:)
-    integer,                    intent(out), optional :: rc
+    integer,                    intent(in),    optional :: srcToDstTransposeMap(:)
+    logical,                    intent(in),    optional :: ignoreUnmatchedIndices
+    integer,                    intent(inout), optional :: pipelineDepth
+    integer,                    intent(out),   optional :: rc
 !
 !EOPI
 !------------------------------------------------------------------------------
-    integer                 :: localrc      ! local return code
-    type(ESMF_InterfaceInt) :: srcToDstTransposeMapArg   ! index helper
+    integer               :: localrc                  ! local return code
+    type(ESMF_InterArray) :: srcToDstTransposeMapArg  ! index helper
+    type(ESMF_Logical)    :: opt_ignoreUnmatched      ! helper variable
+    integer, allocatable  :: dstToSrcTransposeMap(:)  ! helper variable
+    integer               :: i
 
     ! initialize return code; assume routine not implemented
     localrc = ESMF_RC_NOT_IMPL
@@ -1273,14 +1342,19 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
     ESMF_INIT_CHECK_DEEP(ESMF_ArrayGetInit, dstArray, rc)
     
     ! Deal with (optional) array arguments
-    srcToDstTransposeMapArg = ESMF_InterfaceIntCreate(srcToDstTransposeMap, &
+    srcToDstTransposeMapArg = ESMF_InterArrayCreate(srcToDstTransposeMap, &
       rc=localrc)
     if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
       ESMF_CONTEXT, rcToReturn=rc)) return
 
+    ! Set default flags
+    opt_ignoreUnmatched = ESMF_FALSE
+    if (present(ignoreUnmatchedIndices)) opt_ignoreUnmatched = ignoreUnmatchedIndices
+
     ! Call into the C++ interface, which will sort out optional arguments
     call c_ESMC_ArrayRedistStore(srcArray, dstArray, routehandle, &
-      srcToDstTransposeMapArg, ESMF_TYPEKIND_R8, factor, localrc)
+      srcToDstTransposeMapArg, ESMF_TYPEKIND_R8, factor, opt_ignoreUnmatched, &
+      pipelineDepth, localrc)
     if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
       ESMF_CONTEXT, rcToReturn=rc)) return
     
@@ -1290,7 +1364,7 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
       ESMF_CONTEXT, rcToReturn=rc)) return
     
     ! garbage collection
-    call ESMF_InterfaceIntDestroy(srcToDstTransposeMapArg, rc=localrc)
+    call ESMF_InterArrayDestroy(srcToDstTransposeMapArg, rc=localrc)
     if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
       ESMF_CONTEXT, rcToReturn=rc)) return
 
@@ -1298,6 +1372,578 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
     if (present(rc)) rc = ESMF_SUCCESS
 
   end subroutine ESMF_ArrayRedistStoreR8
+!------------------------------------------------------------------------------
+
+
+!------------------------------------------------------------------------------
+!BOP
+! !IROUTINE: ESMF_ArrayRedistStore - Precompute Array redistribution and transpose with local factor argument
+!
+! !INTERFACE:
+! ! Private name; call using ESMF_ArrayRedistStore()
+! subroutine ESMF_ArrayRedistStore<type><kind>TP(srcArray, dstArray, &
+!   routehandle, transposeRoutehandle, factor, keywordEnforcer, &
+!   srcToDstTransposeMap, ignoreUnmatchedIndices, pipelineDepth, rc)
+!
+! !ARGUMENTS:
+!   type(ESMF_Array),       intent(inout)           :: srcArray
+!   type(ESMF_Array),       intent(inout)           :: dstArray
+!   type(ESMF_RouteHandle), intent(inout)           :: routehandle
+!   type(ESMF_RouteHandle), intent(inout)           :: transposeRoutehandle
+!   <type>(ESMF_KIND_<kind>),intent(in)             :: factor
+!type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
+!   integer,                intent(in),    optional :: srcToDstTransposeMap(:)
+!   logical,                intent(in),    optional :: ignoreUnmatchedIndices
+!   integer,                intent(inout), optional :: pipelineDepth
+!   integer,                intent(out),   optional :: rc
+!
+! !DESCRIPTION:
+! \label{ArrayRedistStoreTK}
+! {\tt ESMF\_ArrayRedistStore()} is a collective method across all PETs of the
+! current Component. The interface of the method is overloaded, allowing 
+! -- in principle -- each PET to call into {\tt ESMF\_ArrayRedistStore()}
+! through a different entry point. Restrictions apply as to which combinations
+! are sensible. All other combinations result in ESMF run time errors. The
+! complete semantics of the {\tt ESMF\_ArrayRedistStore()} method, as provided
+! through the separate entry points shown in \ref{ArrayRedistStoreTK} and
+! \ref{ArrayRedistStoreNF}, is described in the following paragraphs as a whole.
+!
+! Store an Array redistribution operation from {\tt srcArray} to {\tt dstArray}.
+! Interface \ref{ArrayRedistStoreTK} allows PETs to specify a {\tt factor}
+! argument. PETs not specifying a {\tt factor} argument call into interface
+! \ref{ArrayRedistStoreNF}. If multiple PETs specify the {\tt factor} argument,
+! its type and kind, as well as its value must match across all PETs. If none
+! of the PETs specify a {\tt factor} argument the default will be a factor of
+! 1. The resulting factor is applied to all of the source data during
+! redistribution, allowing scaling of the data, e.g. for unit transformation.
+!  
+! Both {\tt srcArray} and {\tt dstArray} are interpreted as sequentialized 
+! vectors. The sequence is defined by the order of DistGrid dimensions and the
+! order of tiles within the DistGrid or by user-supplied arbitrary sequence
+! indices. See section \ref{Array:SparseMatMul} for details on the definition
+! of {\em sequence indices}.
+!
+! Source Array, destination Array, and the factor may be of different
+! <type><kind>. Further, source and destination Arrays may differ in shape,
+! however, the number of elements must match. 
+!  
+! If {\tt srcToDstTransposeMap} is not specified the redistribution corresponds
+! to an identity mapping of the sequentialized source Array to the
+! sequentialized destination Array. If the {\tt srcToDstTransposeMap}
+! argument is provided it must be identical on all PETs. The
+! {\tt srcToDstTransposeMap} allows source and destination Array dimensions to
+! be transposed during the redistribution. The number of source and destination
+! Array dimensions must be equal under this condition and the size of mapped
+! dimensions must match.
+!  
+! It is erroneous to specify the identical Array object for {\tt srcArray} and
+! {\tt dstArray} arguments. 
+!  
+!   The routine returns an {\tt ESMF\_RouteHandle} that can be used to call 
+!   {\tt ESMF\_ArrayRedist()} on any pair of Arrays that are weakly congruent
+!   and typekind conform with the {\tt srcArray}, {\tt dstArray} pair. 
+!   Congruent Arrays possess matching DistGrids, and the shape of the local
+!   array tiles, i.e. the memory allocation, matches between the Arrays for
+!   every DE. For weakly congruent
+!   Arrays the sizes of the undistributed dimensions, that vary faster with
+!   memory than the first distributed dimension, are permitted to be different.
+!   This means that the same {\tt routehandle} can be applied to a large class
+!   of similar Arrays that differ in the number of elements in the left most
+!   undistributed dimensions.
+!
+! This method is overloaded for:\newline
+! {\tt ESMF\_TYPEKIND\_I4}, {\tt ESMF\_TYPEKIND\_I8},\newline 
+! {\tt ESMF\_TYPEKIND\_R4}, {\tt ESMF\_TYPEKIND\_R8}.
+! \newline
+!  
+! This call is {\em collective} across the current VM.  
+!
+!   \begin{description}
+!
+!   \item [srcArray]
+!     {\tt ESMF\_Array} with source data. The data in this Array may be
+!     destroyed by this call.
+!
+!   \item [dstArray]
+!     {\tt ESMF\_Array} with destination data. The data in this Array may be
+!     destroyed by this call.
+!
+!   \item [routehandle]
+!     Handle to the precomputed Route.
+!
+!   \item [transposeRoutehandle]
+!     Handle to the transposed matrix operation. The transposed operation goes
+!     from {\tt dstArray} to {\tt srcArray}.
+!
+!   \item [factor]
+!     Factor by which to multiply source data.
+!
+!   \item [{[srcToDstTransposeMap]}]
+!     List with as many entries as there are dimensions in {\tt srcArray}. Each
+!     entry maps the corresponding {\tt srcArray} dimension against the 
+!     specified {\tt dstArray} dimension. Mixing of distributed and
+!     undistributed dimensions is supported.
+!
+!   \item [{[ignoreUnmatchedIndices]}]
+!     A logical flag that affects the behavior for when not all elements match
+!     between the {\tt srcArray} and {\tt dstArray} side. The default setting
+!     is {\tt .false.}, indicating that it is an error when such a situation is 
+!     encountered. Setting {\tt ignoreUnmatchedIndices} to {\tt .true.} ignores
+!     unmatched indices.
+!
+!   \item [{[pipelineDepth]}]
+!     The {\tt pipelineDepth} parameter controls how many messages a PET
+!     may have outstanding during a redist exchange. Larger values
+!     of {\tt pipelineDepth} typically lead to better performance. However,
+!     on some systems too large a value may lead to performance degradation,
+!     or runtime errors.
+!
+!     Note that the pipeline depth has no effect on the bit-for-bit
+!     reproducibility of the results. However, it may affect the performance
+!     reproducibility of the exchange.
+!
+!     The {\tt ESMF\_ArraySMMStore()} method implements an auto-tuning scheme
+!     for the {\tt pipelineDepth} parameter. The intent on the 
+!     {\tt pipelineDepth} argument is "{\tt inout}" in order to 
+!     support both overriding and accessing the auto-tuning parameter.
+!     If an argument $>= 0$ is specified, it is used for the 
+!     {\tt pipelineDepth} parameter, and the auto-tuning phase is skipped.
+!     In this case the {\tt pipelineDepth} argument is not modified on
+!     return. If the provided argument is $< 0$, the {\tt pipelineDepth}
+!     parameter is determined internally using the auto-tuning scheme. In this
+!     case the {\tt pipelineDepth} argument is re-set to the internally
+!     determined value on return. Auto-tuning is also used if the optional 
+!     {\tt pipelineDepth} argument is omitted.
+!
+!   \item [{[rc]}]
+!     Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
+!   \end{description}
+!
+!EOP
+!------------------------------------------------------------------------------
+
+
+!------------------------------------------------------------------------------
+#undef  ESMF_METHOD
+#define ESMF_METHOD "ESMF_ArrayRedistStoreI4TP()"
+!BOPI
+! !IROUTINE: ESMF_ArrayRedistStore - Precompute Array redistribution
+!
+! !INTERFACE:
+  ! Private name; call using ESMF_ArrayRedistStore()
+  subroutine ESMF_ArrayRedistStoreI4TP(srcArray, dstArray, routehandle, &
+    transposeRoutehandle, factor, keywordEnforcer, srcToDstTransposeMap, &
+    ignoreUnmatchedIndices, pipelineDepth, rc)
+!
+! !ARGUMENTS:
+    type(ESMF_Array),           intent(inout)           :: srcArray
+    type(ESMF_Array),           intent(inout)           :: dstArray
+    type(ESMF_RouteHandle),     intent(inout)           :: routehandle
+    type(ESMF_RouteHandle),     intent(inout)           :: transposeRoutehandle
+    integer(ESMF_KIND_I4),      intent(in)              :: factor
+type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
+    integer,                    intent(in),    optional :: srcToDstTransposeMap(:)
+    logical,                    intent(in),    optional :: ignoreUnmatchedIndices
+    integer,                    intent(inout), optional :: pipelineDepth
+    integer,                    intent(out),   optional :: rc
+!
+!EOPI
+!------------------------------------------------------------------------------
+    integer               :: localrc                  ! local return code
+    type(ESMF_InterArray) :: srcToDstTransposeMapArg  ! index helper
+    type(ESMF_Logical)    :: opt_ignoreUnmatched      ! helper variable
+    integer, allocatable  :: dstToSrcTransposeMap(:)  ! helper variable
+    integer               :: i
+
+    ! initialize return code; assume routine not implemented
+    localrc = ESMF_RC_NOT_IMPL
+    if (present(rc)) rc = ESMF_RC_NOT_IMPL
+    
+    ! Check init status of arguments
+    ESMF_INIT_CHECK_DEEP(ESMF_ArrayGetInit, srcArray, rc)
+    ESMF_INIT_CHECK_DEEP(ESMF_ArrayGetInit, dstArray, rc)
+    
+    ! Deal with (optional) array arguments
+    srcToDstTransposeMapArg = ESMF_InterArrayCreate(srcToDstTransposeMap, &
+      rc=localrc)
+    if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+      ESMF_CONTEXT, rcToReturn=rc)) return
+
+    ! Set default flags
+    opt_ignoreUnmatched = ESMF_FALSE
+    if (present(ignoreUnmatchedIndices)) opt_ignoreUnmatched = ignoreUnmatchedIndices
+
+    ! Call into the C++ interface, which will sort out optional arguments
+    call c_ESMC_ArrayRedistStore(srcArray, dstArray, routehandle, &
+      srcToDstTransposeMapArg, ESMF_TYPEKIND_I4, factor, opt_ignoreUnmatched, &
+      pipelineDepth, localrc)
+    if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+      ESMF_CONTEXT, rcToReturn=rc)) return
+    
+    ! Mark routehandle object as being created
+    call ESMF_RouteHandleSetInitCreated(routehandle, rc=localrc)
+    if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+      ESMF_CONTEXT, rcToReturn=rc)) return
+      
+    ! Compute the transposeRoutehandle
+    ! Invert the srcToDstTransposeMap
+    if (present(srcToDstTransposeMap)) then
+      allocate(dstToSrcTransposeMap(size(srcToDstTransposeMap)))
+      do i=1, size(srcToDstTransposeMap)
+        dstToSrcTransposeMap(srcToDstTransposeMap(i))=i
+      enddo
+      ! garbage collection
+      call ESMF_InterArrayDestroy(srcToDstTransposeMapArg, rc=localrc)
+      if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+        ESMF_CONTEXT, rcToReturn=rc)) return
+      ! create new srcToDstTransposeMapArg
+      srcToDstTransposeMapArg = ESMF_InterArrayCreate(dstToSrcTransposeMap,&
+        rc=localrc)
+      if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+        ESMF_CONTEXT, rcToReturn=rc)) return
+    endif
+    ! Call into the C++ interface, which will sort out optional arguments
+    call c_ESMC_ArrayRedistStore(dstArray, srcArray, transposeRoutehandle, &
+      srcToDstTransposeMapArg, ESMF_TYPEKIND_I4, factor, opt_ignoreUnmatched, &
+      pipelineDepth, localrc)
+    if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+      ESMF_CONTEXT, rcToReturn=rc)) return
+    ! Mark transposeRoutehandle object as being created
+    call ESMF_RouteHandleSetInitCreated(transposeRoutehandle, rc=localrc)
+    if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+      ESMF_CONTEXT, rcToReturn=rc)) return
+    ! cleanup
+    if (present(srcToDstTransposeMap)) then
+      deallocate(dstToSrcTransposeMap)
+    endif
+    
+    ! garbage collection
+    call ESMF_InterArrayDestroy(srcToDstTransposeMapArg, rc=localrc)
+    if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+      ESMF_CONTEXT, rcToReturn=rc)) return
+
+    ! return successfully
+    if (present(rc)) rc = ESMF_SUCCESS
+
+  end subroutine ESMF_ArrayRedistStoreI4TP
+!------------------------------------------------------------------------------
+
+
+!------------------------------------------------------------------------------
+#undef  ESMF_METHOD
+#define ESMF_METHOD "ESMF_ArrayRedistStoreI8TP()"
+!BOPI
+! !IROUTINE: ESMF_ArrayRedistStore - Precompute Array redistribution
+!
+! !INTERFACE:
+  ! Private name; call using ESMF_ArrayRedistStore()
+  subroutine ESMF_ArrayRedistStoreI8TP(srcArray, dstArray, routehandle, &
+    transposeRoutehandle, factor, keywordEnforcer, srcToDstTransposeMap, &
+    ignoreUnmatchedIndices, pipelineDepth, rc)
+!
+! !ARGUMENTS:
+    type(ESMF_Array),           intent(inout)           :: srcArray
+    type(ESMF_Array),           intent(inout)           :: dstArray
+    type(ESMF_RouteHandle),     intent(inout)           :: routehandle
+    type(ESMF_RouteHandle),     intent(inout)           :: transposeRoutehandle
+    integer(ESMF_KIND_I8),      intent(in)              :: factor
+type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
+    integer,                    intent(in),    optional :: srcToDstTransposeMap(:)
+    logical,                    intent(in),    optional :: ignoreUnmatchedIndices
+    integer,                    intent(inout), optional :: pipelineDepth
+    integer,                    intent(out),   optional :: rc
+!
+!EOPI
+!------------------------------------------------------------------------------
+    integer               :: localrc                  ! local return code
+    type(ESMF_InterArray) :: srcToDstTransposeMapArg  ! index helper
+    type(ESMF_Logical)    :: opt_ignoreUnmatched      ! helper variable
+    integer, allocatable  :: dstToSrcTransposeMap(:)  ! helper variable
+    integer               :: i
+
+    ! initialize return code; assume routine not implemented
+    localrc = ESMF_RC_NOT_IMPL
+    if (present(rc)) rc = ESMF_RC_NOT_IMPL
+    
+    ! Check init status of arguments
+    ESMF_INIT_CHECK_DEEP(ESMF_ArrayGetInit, srcArray, rc)
+    ESMF_INIT_CHECK_DEEP(ESMF_ArrayGetInit, dstArray, rc)
+    
+    ! Deal with (optional) array arguments
+    srcToDstTransposeMapArg = ESMF_InterArrayCreate(srcToDstTransposeMap, &
+      rc=localrc)
+    if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+      ESMF_CONTEXT, rcToReturn=rc)) return
+
+    ! Set default flags
+    opt_ignoreUnmatched = ESMF_FALSE
+    if (present(ignoreUnmatchedIndices)) opt_ignoreUnmatched = ignoreUnmatchedIndices
+
+    ! Call into the C++ interface, which will sort out optional arguments
+    call c_ESMC_ArrayRedistStore(srcArray, dstArray, routehandle, &
+      srcToDstTransposeMapArg, ESMF_TYPEKIND_I8, factor, opt_ignoreUnmatched, &
+      pipelineDepth, localrc)
+    if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+      ESMF_CONTEXT, rcToReturn=rc)) return
+    
+    ! Mark routehandle object as being created
+    call ESMF_RouteHandleSetInitCreated(routehandle, rc=localrc)
+    if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+      ESMF_CONTEXT, rcToReturn=rc)) return
+    
+    ! Compute the transposeRoutehandle
+    ! Invert the srcToDstTransposeMap
+    if (present(srcToDstTransposeMap)) then
+      allocate(dstToSrcTransposeMap(size(srcToDstTransposeMap)))
+      do i=1, size(srcToDstTransposeMap)
+        dstToSrcTransposeMap(srcToDstTransposeMap(i))=i
+      enddo
+      ! garbage collection
+      call ESMF_InterArrayDestroy(srcToDstTransposeMapArg, rc=localrc)
+      if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+        ESMF_CONTEXT, rcToReturn=rc)) return
+      ! create new srcToDstTransposeMapArg
+      srcToDstTransposeMapArg = ESMF_InterArrayCreate(dstToSrcTransposeMap,&
+        rc=localrc)
+      if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+        ESMF_CONTEXT, rcToReturn=rc)) return
+    endif
+    ! Call into the C++ interface, which will sort out optional arguments
+    call c_ESMC_ArrayRedistStore(dstArray, srcArray, transposeRoutehandle, &
+      srcToDstTransposeMapArg, ESMF_TYPEKIND_I4, factor, opt_ignoreUnmatched, &
+      pipelineDepth, localrc)
+    if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+      ESMF_CONTEXT, rcToReturn=rc)) return
+    ! Mark transposeRoutehandle object as being created
+    call ESMF_RouteHandleSetInitCreated(transposeRoutehandle, rc=localrc)
+    if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+      ESMF_CONTEXT, rcToReturn=rc)) return
+    ! cleanup
+    if (present(srcToDstTransposeMap)) then
+      deallocate(dstToSrcTransposeMap)
+    endif
+    
+    ! garbage collection
+    call ESMF_InterArrayDestroy(srcToDstTransposeMapArg, rc=localrc)
+    if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+      ESMF_CONTEXT, rcToReturn=rc)) return
+
+    ! return successfully
+    if (present(rc)) rc = ESMF_SUCCESS
+
+  end subroutine ESMF_ArrayRedistStoreI8TP
+!------------------------------------------------------------------------------
+
+
+!------------------------------------------------------------------------------
+#undef  ESMF_METHOD
+#define ESMF_METHOD "ESMF_ArrayRedistStoreR4TP()"
+!BOPI
+! !IROUTINE: ESMF_ArrayRedistStore - Precompute Array redistribution
+!
+! !INTERFACE:
+  ! Private name; call using ESMF_ArrayRedistStore()
+  subroutine ESMF_ArrayRedistStoreR4TP(srcArray, dstArray, routehandle, &
+    transposeRoutehandle, factor, keywordEnforcer, srcToDstTransposeMap, &
+    ignoreUnmatchedIndices, pipelineDepth, rc)
+!
+! !ARGUMENTS:
+    type(ESMF_Array),           intent(inout)           :: srcArray
+    type(ESMF_Array),           intent(inout)           :: dstArray
+    type(ESMF_RouteHandle),     intent(inout)           :: transposeRoutehandle
+    type(ESMF_RouteHandle),     intent(inout)           :: routehandle
+    real(ESMF_KIND_R4),         intent(in)              :: factor
+type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
+    integer,                    intent(in),    optional :: srcToDstTransposeMap(:)
+    logical,                    intent(in),    optional :: ignoreUnmatchedIndices
+    integer,                    intent(inout), optional :: pipelineDepth
+    integer,                    intent(out),   optional :: rc
+!
+!EOPI
+!------------------------------------------------------------------------------
+    integer               :: localrc                  ! local return code
+    type(ESMF_InterArray) :: srcToDstTransposeMapArg  ! index helper
+    type(ESMF_Logical)    :: opt_ignoreUnmatched      ! helper variable
+    integer, allocatable  :: dstToSrcTransposeMap(:)  ! helper variable
+    integer               :: i
+
+    ! initialize return code; assume routine not implemented
+    localrc = ESMF_RC_NOT_IMPL
+    if (present(rc)) rc = ESMF_RC_NOT_IMPL
+    
+    ! Check init status of arguments
+    ESMF_INIT_CHECK_DEEP(ESMF_ArrayGetInit, srcArray, rc)
+    ESMF_INIT_CHECK_DEEP(ESMF_ArrayGetInit, dstArray, rc)
+    
+    ! Deal with (optional) array arguments
+    srcToDstTransposeMapArg = ESMF_InterArrayCreate(srcToDstTransposeMap, &
+      rc=localrc)
+    if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+      ESMF_CONTEXT, rcToReturn=rc)) return
+
+    ! Set default flags
+    opt_ignoreUnmatched = ESMF_FALSE
+    if (present(ignoreUnmatchedIndices)) opt_ignoreUnmatched = ignoreUnmatchedIndices
+
+    ! Call into the C++ interface, which will sort out optional arguments
+    call c_ESMC_ArrayRedistStore(srcArray, dstArray, routehandle, &
+      srcToDstTransposeMapArg, ESMF_TYPEKIND_R4, factor, opt_ignoreUnmatched, &
+      pipelineDepth, localrc)
+    if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+      ESMF_CONTEXT, rcToReturn=rc)) return
+    
+    ! Mark routehandle object as being created
+    call ESMF_RouteHandleSetInitCreated(routehandle, rc=localrc)
+    if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+      ESMF_CONTEXT, rcToReturn=rc)) return
+    
+    ! Compute the transposeRoutehandle
+    ! Invert the srcToDstTransposeMap
+    if (present(srcToDstTransposeMap)) then
+      allocate(dstToSrcTransposeMap(size(srcToDstTransposeMap)))
+      do i=1, size(srcToDstTransposeMap)
+        dstToSrcTransposeMap(srcToDstTransposeMap(i))=i
+      enddo
+      ! garbage collection
+      call ESMF_InterArrayDestroy(srcToDstTransposeMapArg, rc=localrc)
+      if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+        ESMF_CONTEXT, rcToReturn=rc)) return
+      ! create new srcToDstTransposeMapArg
+      srcToDstTransposeMapArg = ESMF_InterArrayCreate(dstToSrcTransposeMap,&
+        rc=localrc)
+      if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+        ESMF_CONTEXT, rcToReturn=rc)) return
+    endif
+    ! Call into the C++ interface, which will sort out optional arguments
+    call c_ESMC_ArrayRedistStore(dstArray, srcArray, transposeRoutehandle, &
+      srcToDstTransposeMapArg, ESMF_TYPEKIND_I4, factor, opt_ignoreUnmatched, &
+      pipelineDepth, localrc)
+    if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+      ESMF_CONTEXT, rcToReturn=rc)) return
+    ! Mark transposeRoutehandle object as being created
+    call ESMF_RouteHandleSetInitCreated(transposeRoutehandle, rc=localrc)
+    if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+      ESMF_CONTEXT, rcToReturn=rc)) return
+    ! cleanup
+    if (present(srcToDstTransposeMap)) then
+      deallocate(dstToSrcTransposeMap)
+    endif
+    
+    ! garbage collection
+    call ESMF_InterArrayDestroy(srcToDstTransposeMapArg, rc=localrc)
+    if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+      ESMF_CONTEXT, rcToReturn=rc)) return
+
+    ! return successfully
+    if (present(rc)) rc = ESMF_SUCCESS
+
+  end subroutine ESMF_ArrayRedistStoreR4TP
+!------------------------------------------------------------------------------
+
+
+!------------------------------------------------------------------------------
+#undef  ESMF_METHOD
+#define ESMF_METHOD "ESMF_ArrayRedistStoreR8TP()"
+!BOPI
+! !IROUTINE: ESMF_ArrayRedistStore - Precompute Array redistribution
+!
+! !INTERFACE:
+  ! Private name; call using ESMF_ArrayRedistStore()
+  subroutine ESMF_ArrayRedistStoreR8TP(srcArray, dstArray, routehandle, &
+    transposeRoutehandle, factor, keywordEnforcer, srcToDstTransposeMap, &
+    ignoreUnmatchedIndices, pipelineDepth, rc)
+!
+! !ARGUMENTS:
+    type(ESMF_Array),           intent(inout)           :: srcArray
+    type(ESMF_Array),           intent(inout)           :: dstArray
+    type(ESMF_RouteHandle),     intent(inout)           :: routehandle
+    type(ESMF_RouteHandle),     intent(inout)           :: transposeRoutehandle
+    real(ESMF_KIND_R8),         intent(in)              :: factor
+type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
+    integer,                    intent(in),    optional :: srcToDstTransposeMap(:)
+    logical,                    intent(in),    optional :: ignoreUnmatchedIndices
+    integer,                    intent(inout), optional :: pipelineDepth
+    integer,                    intent(out),   optional :: rc
+!
+!EOPI
+!------------------------------------------------------------------------------
+    integer               :: localrc                  ! local return code
+    type(ESMF_InterArray) :: srcToDstTransposeMapArg  ! index helper
+    type(ESMF_Logical)    :: opt_ignoreUnmatched      ! helper variable
+    integer, allocatable  :: dstToSrcTransposeMap(:)  ! helper variable
+    integer               :: i
+
+    ! initialize return code; assume routine not implemented
+    localrc = ESMF_RC_NOT_IMPL
+    if (present(rc)) rc = ESMF_RC_NOT_IMPL
+    
+    ! Check init status of arguments
+    ESMF_INIT_CHECK_DEEP(ESMF_ArrayGetInit, srcArray, rc)
+    ESMF_INIT_CHECK_DEEP(ESMF_ArrayGetInit, dstArray, rc)
+    
+    ! Deal with (optional) array arguments
+    srcToDstTransposeMapArg = ESMF_InterArrayCreate(srcToDstTransposeMap, &
+      rc=localrc)
+    if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+      ESMF_CONTEXT, rcToReturn=rc)) return
+
+    ! Set default flags
+    opt_ignoreUnmatched = ESMF_FALSE
+    if (present(ignoreUnmatchedIndices)) opt_ignoreUnmatched = ignoreUnmatchedIndices
+
+    ! Call into the C++ interface, which will sort out optional arguments
+    call c_ESMC_ArrayRedistStore(srcArray, dstArray, routehandle, &
+      srcToDstTransposeMapArg, ESMF_TYPEKIND_R8, factor, opt_ignoreUnmatched, &
+      pipelineDepth, localrc)
+    if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+      ESMF_CONTEXT, rcToReturn=rc)) return
+    
+    ! Mark routehandle object as being created
+    call ESMF_RouteHandleSetInitCreated(routehandle, rc=localrc)
+    if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+      ESMF_CONTEXT, rcToReturn=rc)) return
+    
+    ! Compute the transposeRoutehandle
+    ! Invert the srcToDstTransposeMap
+    if (present(srcToDstTransposeMap)) then
+      allocate(dstToSrcTransposeMap(size(srcToDstTransposeMap)))
+      do i=1, size(srcToDstTransposeMap)
+        dstToSrcTransposeMap(srcToDstTransposeMap(i))=i
+      enddo
+      ! garbage collection
+      call ESMF_InterArrayDestroy(srcToDstTransposeMapArg, rc=localrc)
+      if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+        ESMF_CONTEXT, rcToReturn=rc)) return
+      ! create new srcToDstTransposeMapArg
+      srcToDstTransposeMapArg = ESMF_InterArrayCreate(dstToSrcTransposeMap,&
+        rc=localrc)
+      if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+        ESMF_CONTEXT, rcToReturn=rc)) return
+    endif
+    ! Call into the C++ interface, which will sort out optional arguments
+    call c_ESMC_ArrayRedistStore(dstArray, srcArray, transposeRoutehandle, &
+      srcToDstTransposeMapArg, ESMF_TYPEKIND_I4, factor, opt_ignoreUnmatched, &
+      pipelineDepth, localrc)
+    if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+      ESMF_CONTEXT, rcToReturn=rc)) return
+    ! Mark transposeRoutehandle object as being created
+    call ESMF_RouteHandleSetInitCreated(transposeRoutehandle, rc=localrc)
+    if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+      ESMF_CONTEXT, rcToReturn=rc)) return
+    ! cleanup
+    if (present(srcToDstTransposeMap)) then
+      deallocate(dstToSrcTransposeMap)
+    endif
+    
+    ! garbage collection
+    call ESMF_InterArrayDestroy(srcToDstTransposeMapArg, rc=localrc)
+    if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+      ESMF_CONTEXT, rcToReturn=rc)) return
+
+    ! return successfully
+    if (present(rc)) rc = ESMF_SUCCESS
+
+  end subroutine ESMF_ArrayRedistStoreR8TP
 !------------------------------------------------------------------------------
 
 
@@ -1310,19 +1956,36 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 ! !INTERFACE:
   ! Private name; call using ESMF_ArrayRedistStore()
   subroutine ESMF_ArrayRedistStoreNF(srcArray, dstArray, routehandle, &
-    keywordEnforcer, srcToDstTransposeMap, rc)
+    keywordEnforcer, srcToDstTransposeMap, ignoreUnmatchedIndices, &
+    pipelineDepth, rc)
 !
 ! !ARGUMENTS:
-    type(ESMF_Array),       intent(in)            :: srcArray
-    type(ESMF_Array),       intent(inout)         :: dstArray
-    type(ESMF_RouteHandle), intent(inout)         :: routehandle
+    type(ESMF_Array),       intent(in)              :: srcArray
+    type(ESMF_Array),       intent(inout)           :: dstArray
+    type(ESMF_RouteHandle), intent(inout)           :: routehandle
 type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
-    integer,                intent(in),  optional :: srcToDstTransposeMap(:)
-    integer,                intent(out), optional :: rc
+    integer,                intent(in),    optional :: srcToDstTransposeMap(:)
+    logical,                intent(in),    optional :: ignoreUnmatchedIndices
+    integer,                intent(inout), optional :: pipelineDepth
+    integer,                intent(out),   optional :: rc
 !
 ! !STATUS:
 ! \begin{itemize}
 ! \item\apiStatusCompatibleVersion{5.2.0r}
+! \item\apiStatusModifiedSinceVersion{5.2.0r}
+! \begin{description}
+! \item[6.1.0] Added argument {\tt pipelineDepth}.
+!              The new argument provide access to the tuning parameter
+!              affecting the sparse matrix execution.
+! \item[7.0.0] Added argument {\tt transposeRoutehandle} to allow a handle to
+!              the transposed redist operation to be returned.\newline
+!              Added argument {\tt ignoreUnmatchedIndices} to support situations 
+!              where not all elements between source and destination Arrays 
+!              match.
+! \item[7.1.0r] Removed argument {\tt transposeRoutehandle} and provide it
+!              via interface overloading instead. This allows argument 
+!              {\tt srcArray} to stay strictly intent(in) for this entry point.
+! \end{description}
 ! \end{itemize}
 !
 ! !DESCRIPTION:
@@ -1371,7 +2034,8 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 !   {\tt ESMF\_ArrayRedist()} on any pair of Arrays that are weakly congruent
 !   and typekind conform with the {\tt srcArray}, {\tt dstArray} pair.
 !   Congruent Arrays possess matching DistGrids, and the shape of the local
-!   array tiles matches between the Arrays for every DE. For weakly congruent
+!   array tiles, i.e. the memory allocation, matches between the Arrays for
+!   every DE. For weakly congruent
 !   Arrays the sizes of the undistributed dimensions, that vary faster with
 !   memory than the first distributed dimension, are permitted to be different.
 !   This means that the same {\tt routehandle} can be applied to a large class
@@ -1382,26 +2046,65 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 ! This call is {\em collective} across the current VM.  
 !
 !   \begin{description}
+!
 !   \item [srcArray]
 !     {\tt ESMF\_Array} with source data.
+!
 !   \item [dstArray]
 !     {\tt ESMF\_Array} with destination data. The data in this Array may be
 !     destroyed by this call.
+!
 !   \item [routehandle]
 !     Handle to the precomputed Route.
+!
 !   \item [{[srcToDstTransposeMap]}]
 !     List with as many entries as there are dimensions in {\tt srcArray}. Each
 !     entry maps the corresponding {\tt srcArray} dimension against the 
 !     specified {\tt dstArray} dimension. Mixing of distributed and
 !     undistributed dimensions is supported.
+!
+!   \item [{[ignoreUnmatchedIndices]}]
+!     A logical flag that affects the behavior for when not all elements match
+!     between the {\tt srcArray} and {\tt dstArray} side. The default setting
+!     is {\tt .false.}, indicating that it is an error when such a situation is 
+!     encountered. Setting {\tt ignoreUnmatchedIndices} to {\tt .true.} ignores
+!     unmatched indices.
+!
+!   \item [{[pipelineDepth]}]
+!     The {\tt pipelineDepth} parameter controls how many messages a PET
+!     may have outstanding during a redist exchange. Larger values
+!     of {\tt pipelineDepth} typically lead to better performance. However,
+!     on some systems too large a value may lead to performance degradation,
+!     or runtime errors.
+!
+!     Note that the pipeline depth has no effect on the bit-for-bit
+!     reproducibility of the results. However, it may affect the performance
+!     reproducibility of the exchange.
+!
+!     The {\tt ESMF\_ArraySMMStore()} method implements an auto-tuning scheme
+!     for the {\tt pipelineDepth} parameter. The intent on the 
+!     {\tt pipelineDepth} argument is "{\tt inout}" in order to 
+!     support both overriding and accessing the auto-tuning parameter.
+!     If an argument $>= 0$ is specified, it is used for the 
+!     {\tt pipelineDepth} parameter, and the auto-tuning phase is skipped.
+!     In this case the {\tt pipelineDepth} argument is not modified on
+!     return. If the provided argument is $< 0$, the {\tt pipelineDepth}
+!     parameter is determined internally using the auto-tuning scheme. In this
+!     case the {\tt pipelineDepth} argument is re-set to the internally
+!     determined value on return. Auto-tuning is also used if the optional 
+!     {\tt pipelineDepth} argument is omitted.
+!
 !   \item [{[rc]}]
 !     Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
 !   \end{description}
 !
 !EOP
 !------------------------------------------------------------------------------
-    integer                 :: localrc      ! local return code
-    type(ESMF_InterfaceInt) :: srcToDstTransposeMapArg   ! index helper
+    integer               :: localrc                  ! local return code
+    type(ESMF_InterArray) :: srcToDstTransposeMapArg  ! index helper
+    type(ESMF_Logical)    :: opt_ignoreUnmatched      ! helper variable
+    integer, allocatable  :: dstToSrcTransposeMap(:)  ! helper variable
+    integer               :: i
 
     ! initialize return code; assume routine not implemented
     localrc = ESMF_RC_NOT_IMPL
@@ -1412,14 +2115,18 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
     ESMF_INIT_CHECK_DEEP(ESMF_ArrayGetInit, dstArray, rc)
     
     ! Deal with (optional) array arguments
-    srcToDstTransposeMapArg = ESMF_InterfaceIntCreate(srcToDstTransposeMap, &
+    srcToDstTransposeMapArg = ESMF_InterArrayCreate(srcToDstTransposeMap, &
       rc=localrc)
     if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
       ESMF_CONTEXT, rcToReturn=rc)) return
 
+    ! Set default flags
+    opt_ignoreUnmatched = ESMF_FALSE
+    if (present(ignoreUnmatchedIndices)) opt_ignoreUnmatched = ignoreUnmatchedIndices
+
     ! Call into the C++ interface, which will sort out optional arguments
     call c_ESMC_ArrayRedistStoreNF(srcArray, dstArray, routehandle, &
-      srcToDstTransposeMapArg, localrc)
+      srcToDstTransposeMapArg, opt_ignoreUnmatched, pipelineDepth, localrc)
     if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
       ESMF_CONTEXT, rcToReturn=rc)) return
     
@@ -1429,7 +2136,7 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
       ESMF_CONTEXT, rcToReturn=rc)) return
     
     ! garbage collection
-    call ESMF_InterfaceIntDestroy(srcToDstTransposeMapArg, rc=localrc)
+    call ESMF_InterArrayDestroy(srcToDstTransposeMapArg, rc=localrc)
     if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
       ESMF_CONTEXT, rcToReturn=rc)) return
 
@@ -1437,6 +2144,224 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
     if (present(rc)) rc = ESMF_SUCCESS
 
   end subroutine ESMF_ArrayRedistStoreNF
+!------------------------------------------------------------------------------
+
+
+!------------------------------------------------------------------------------
+#undef  ESMF_METHOD
+#define ESMF_METHOD "ESMF_ArrayRedistStore()"
+!BOP
+! !IROUTINE: ESMF_ArrayRedistStore - Precompute Array redistribution and transpose without local factor argument
+!
+! !INTERFACE:
+  ! Private name; call using ESMF_ArrayRedistStore()
+  subroutine ESMF_ArrayRedistStoreNFTP(srcArray, dstArray, routehandle, &
+    transposeRoutehandle, keywordEnforcer, srcToDstTransposeMap, &
+    ignoreUnmatchedIndices, pipelineDepth, rc)
+!
+! !ARGUMENTS:
+    type(ESMF_Array),       intent(inout)           :: srcArray
+    type(ESMF_Array),       intent(inout)           :: dstArray
+    type(ESMF_RouteHandle), intent(inout)           :: routehandle
+    type(ESMF_RouteHandle), intent(inout)           :: transposeRoutehandle
+type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
+    integer,                intent(in),    optional :: srcToDstTransposeMap(:)
+    logical,                intent(in),    optional :: ignoreUnmatchedIndices
+    integer,                intent(inout), optional :: pipelineDepth
+    integer,                intent(out),   optional :: rc
+!
+! !DESCRIPTION:
+! \label{ArrayRedistStoreNF}
+! {\tt ESMF\_ArrayRedistStore()} is a collective method across all PETs of the
+! current Component. The interface of the method is overloaded, allowing 
+! -- in principle -- each PET to call into {\tt ESMF\_ArrayRedistStore()}
+! through a different entry point. Restrictions apply as to which combinations
+! are sensible. All other combinations result in ESMF run time errors. The
+! complete semantics of the {\tt ESMF\_ArrayRedistStore()} method, as provided
+! through the separate entry points shown in \ref{ArrayRedistStoreTK} and
+! \ref{ArrayRedistStoreNF}, is described in the following paragraphs as a whole.
+!
+! Store an Array redistribution operation from {\tt srcArray} to {\tt dstArray}.
+! Interface \ref{ArrayRedistStoreTK} allows PETs to specify a {\tt factor}
+! argument. PETs not specifying a {\tt factor} argument call into interface
+! \ref{ArrayRedistStoreNF}. If multiple PETs specify the {\tt factor} argument,
+! its type and kind, as well as its value must match across all PETs. If none
+! of the PETs specify a {\tt factor} argument the default will be a factor of
+! 1. The resulting factor is applied to all of the source data during
+! redistribution, allowing scaling of the data, e.g. for unit transformation.
+!  
+! Both {\tt srcArray} and {\tt dstArray} are interpreted as sequentialized 
+! vectors. The sequence is defined by the order of DistGrid dimensions and the
+! order of tiles within the DistGrid or by user-supplied arbitrary sequence
+! indices. See section \ref{Array:SparseMatMul} for details on the definition
+! of {\em sequence indices}.
+!
+! Source Array, destination Array, and the factor may be of different
+! <type><kind>. Further, source and destination Arrays may differ in shape,
+! however, the number of elements must match. 
+!  
+! If {\tt srcToDstTransposeMap} is not specified the redistribution corresponds
+! to an identity mapping of the sequentialized source Array to the
+! sequentialized destination Array. If the {\tt srcToDstTransposeMap}
+! argument is provided it must be identical on all PETs. The
+! {\tt srcToDstTransposeMap} allows source and destination Array dimensions to
+! be transposed during the redistribution. The number of source and destination
+! Array dimensions must be equal under this condition and the size of mapped
+! dimensions must match.
+!  
+! It is erroneous to specify the identical Array object for {\tt srcArray} and
+! {\tt dstArray} arguments. 
+!  
+!   The routine returns an {\tt ESMF\_RouteHandle} that can be used to call 
+!   {\tt ESMF\_ArrayRedist()} on any pair of Arrays that are weakly congruent
+!   and typekind conform with the {\tt srcArray}, {\tt dstArray} pair.
+!   Congruent Arrays possess matching DistGrids, and the shape of the local
+!   array tiles, i.e. the memory allocation, matches between the Arrays for
+!   every DE. For weakly congruent
+!   Arrays the sizes of the undistributed dimensions, that vary faster with
+!   memory than the first distributed dimension, are permitted to be different.
+!   This means that the same {\tt routehandle} can be applied to a large class
+!   of similar Arrays that differ in the number of elements in the left most
+!   undistributed dimensions.
+!   \newline
+!  
+! This call is {\em collective} across the current VM.  
+!
+!   \begin{description}
+!
+!   \item [srcArray]
+!     {\tt ESMF\_Array} with source data. The data in this Array may be
+!     destroyed by this call.
+!
+!   \item [dstArray]
+!     {\tt ESMF\_Array} with destination data. The data in this Array may be
+!     destroyed by this call.
+!
+!   \item [routehandle]
+!     Handle to the precomputed Route.
+!
+!   \item [transposeRoutehandle]
+!     Handle to the transposed matrix operation. The transposed operation goes
+!     from {\tt dstArray} to {\tt srcArray}.
+!
+!   \item [{[srcToDstTransposeMap]}]
+!     List with as many entries as there are dimensions in {\tt srcArray}. Each
+!     entry maps the corresponding {\tt srcArray} dimension against the 
+!     specified {\tt dstArray} dimension. Mixing of distributed and
+!     undistributed dimensions is supported.
+!
+!   \item [{[ignoreUnmatchedIndices]}]
+!     A logical flag that affects the behavior for when not all elements match
+!     between the {\tt srcArray} and {\tt dstArray} side. The default setting
+!     is {\tt .false.}, indicating that it is an error when such a situation is 
+!     encountered. Setting {\tt ignoreUnmatchedIndices} to {\tt .true.} ignores
+!     unmatched indices.
+!
+!   \item [{[pipelineDepth]}]
+!     The {\tt pipelineDepth} parameter controls how many messages a PET
+!     may have outstanding during a redist exchange. Larger values
+!     of {\tt pipelineDepth} typically lead to better performance. However,
+!     on some systems too large a value may lead to performance degradation,
+!     or runtime errors.
+!
+!     Note that the pipeline depth has no effect on the bit-for-bit
+!     reproducibility of the results. However, it may affect the performance
+!     reproducibility of the exchange.
+!
+!     The {\tt ESMF\_ArraySMMStore()} method implements an auto-tuning scheme
+!     for the {\tt pipelineDepth} parameter. The intent on the 
+!     {\tt pipelineDepth} argument is "{\tt inout}" in order to 
+!     support both overriding and accessing the auto-tuning parameter.
+!     If an argument $>= 0$ is specified, it is used for the 
+!     {\tt pipelineDepth} parameter, and the auto-tuning phase is skipped.
+!     In this case the {\tt pipelineDepth} argument is not modified on
+!     return. If the provided argument is $< 0$, the {\tt pipelineDepth}
+!     parameter is determined internally using the auto-tuning scheme. In this
+!     case the {\tt pipelineDepth} argument is re-set to the internally
+!     determined value on return. Auto-tuning is also used if the optional 
+!     {\tt pipelineDepth} argument is omitted.
+!
+!   \item [{[rc]}]
+!     Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
+!   \end{description}
+!
+!EOP
+!------------------------------------------------------------------------------
+    integer               :: localrc                  ! local return code
+    type(ESMF_InterArray) :: srcToDstTransposeMapArg  ! index helper
+    type(ESMF_Logical)    :: opt_ignoreUnmatched      ! helper variable
+    integer, allocatable  :: dstToSrcTransposeMap(:)  ! helper variable
+    integer               :: i
+
+    ! initialize return code; assume routine not implemented
+    localrc = ESMF_RC_NOT_IMPL
+    if (present(rc)) rc = ESMF_RC_NOT_IMPL
+    
+    ! Check init status of arguments
+    ESMF_INIT_CHECK_DEEP(ESMF_ArrayGetInit, srcArray, rc)
+    ESMF_INIT_CHECK_DEEP(ESMF_ArrayGetInit, dstArray, rc)
+    
+    ! Deal with (optional) array arguments
+    srcToDstTransposeMapArg = ESMF_InterArrayCreate(srcToDstTransposeMap, &
+      rc=localrc)
+    if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+      ESMF_CONTEXT, rcToReturn=rc)) return
+
+    ! Set default flags
+    opt_ignoreUnmatched = ESMF_FALSE
+    if (present(ignoreUnmatchedIndices)) opt_ignoreUnmatched = ignoreUnmatchedIndices
+
+    ! Call into the C++ interface, which will sort out optional arguments
+    call c_ESMC_ArrayRedistStoreNF(srcArray, dstArray, routehandle, &
+      srcToDstTransposeMapArg, opt_ignoreUnmatched, pipelineDepth, localrc)
+    if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+      ESMF_CONTEXT, rcToReturn=rc)) return
+    
+    ! Mark routehandle object as being created
+    call ESMF_RouteHandleSetInitCreated(routehandle, rc=localrc)
+    if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+      ESMF_CONTEXT, rcToReturn=rc)) return
+    
+    ! Compute the transposeRoutehandle
+    ! Invert the srcToDstTransposeMap
+    if (present(srcToDstTransposeMap)) then
+      allocate(dstToSrcTransposeMap(size(srcToDstTransposeMap)))
+      do i=1, size(srcToDstTransposeMap)
+        dstToSrcTransposeMap(srcToDstTransposeMap(i))=i
+      enddo
+      ! garbage collection
+      call ESMF_InterArrayDestroy(srcToDstTransposeMapArg, rc=localrc)
+      if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+        ESMF_CONTEXT, rcToReturn=rc)) return
+      ! create new srcToDstTransposeMapArg
+      srcToDstTransposeMapArg = ESMF_InterArrayCreate(dstToSrcTransposeMap,&
+        rc=localrc)
+      if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+        ESMF_CONTEXT, rcToReturn=rc)) return
+    endif
+    ! Call into the C++ interface, which will sort out optional arguments
+    call c_ESMC_ArrayRedistStoreNF(dstArray, srcArray, transposeRoutehandle, &
+      srcToDstTransposeMapArg, opt_ignoreUnmatched, pipelineDepth, localrc)
+    if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+      ESMF_CONTEXT, rcToReturn=rc)) return
+    ! Mark transposeRoutehandle object as being created
+    call ESMF_RouteHandleSetInitCreated(transposeRoutehandle, rc=localrc)
+    if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+      ESMF_CONTEXT, rcToReturn=rc)) return
+    ! cleanup
+    if (present(srcToDstTransposeMap)) then
+      deallocate(dstToSrcTransposeMap)
+    endif
+    
+    ! garbage collection
+    call ESMF_InterArrayDestroy(srcToDstTransposeMapArg, rc=localrc)
+    if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+      ESMF_CONTEXT, rcToReturn=rc)) return
+
+    ! return successfully
+    if (present(rc)) rc = ESMF_SUCCESS
+
+  end subroutine ESMF_ArrayRedistStoreNFTP
 !------------------------------------------------------------------------------
 
 

@@ -1,7 +1,7 @@
-! $Id: ESMF_TimeUTest.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
+! $Id$
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2012, University Corporation for Atmospheric Research,
+! Copyright 2002-2018, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -37,7 +37,7 @@
 !------------------------------------------------------------------------------
 ! The following line turns the CVS identifier string into a printable variable.
       character(*), parameter :: version = &
-      '$Id: ESMF_TimeUTest.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $'
+      '$Id$'
 !------------------------------------------------------------------------------
 
       ! cumulative result: count failures; no failures equals "all pass"
@@ -66,14 +66,14 @@
       ! individual test result code
       logical :: bool
       integer :: dayOfYear, dayOfWeek, D, sD, sN, MS, NS, &
-		 US
+                 US
       real(ESMF_KIND_R8) :: NS_r8, S_r8, US_r8, MS_r8
       real(ESMF_KIND_R8) :: dayOfYear_r8, M_r8, D_r8, H_r8
       integer(ESMF_KIND_I8) :: year, SN_I8, SD_i8
  
       ! instantitate some general times and timeintervals
       type(ESMF_Time) :: time1, time2, time3, time4, time5, time6, time7, &
-			 midMonth, startTime2
+                         midMonth, startTime2
       type(ESMF_TimeInterval) :: timeInterval2, timeInterval3, timeInterval4, &
                                  timeInterval5, timeInterval6, timeInterval7
 
@@ -94,6 +94,7 @@
 
      ! initialize ESMF framework
       call ESMF_TestStart(ESMF_SRCLINE, rc=rc)
+      if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
       ! ----------------------------------------------------------------------------
       ! Calendar Interval tests
@@ -1142,6 +1143,7 @@
 
       ! free calendar memory
       call ESMF_CalendarDestroy(julianDayCalendar)
+      call ESMF_CalendarDestroy(modifiedJulianDayCalendar)
       call ESMF_CalendarDestroy(day360Calendar)
       call ESMF_CalendarDestroy(noLeapCalendar)
       call ESMF_CalendarDestroy(julianCalendar)
@@ -1149,6 +1151,6 @@
 
   
       ! finalize ESMF framework
-      call ESMF_TestEnd(result, ESMF_SRCLINE)
+      call ESMF_TestEnd(ESMF_SRCLINE)
 
       end program ESMF_TimeUTest

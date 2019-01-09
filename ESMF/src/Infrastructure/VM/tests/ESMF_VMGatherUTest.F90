@@ -1,7 +1,7 @@
-! $Id: ESMF_VMGatherUTest.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
+! $Id$
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2012, University Corporation for Atmospheric Research,
+! Copyright 2002-2018, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -36,7 +36,7 @@ program ESMF_VMGatherUTest
 !------------------------------------------------------------------------------
 ! The following line turns the CVS identifier string into a printable variable.
   character(*), parameter :: version = &
-    '$Id: ESMF_VMGatherUTest.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $'
+    '$Id$'
 !------------------------------------------------------------------------------
   ! cumulative result: count failures; no failures equals "all pass"
   integer :: result = 0
@@ -65,6 +65,7 @@ program ESMF_VMGatherUTest
 
   !------------------------------------------------------------------------
   call ESMF_TestStart(ESMF_SRCLINE, rc=rc)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   !------------------------------------------------------------------------
 
   ! get global vm information
@@ -92,8 +93,8 @@ program ESMF_VMGatherUTest
   ! prepare data array2
   do i=1, nsize
     array2(i)   = 2*localPet + i
-    farray2(i)  = real( 2*localPet + i , ESMF_KIND_R8)
-    f4array2(i) = farray2(i)
+    farray2(i)  = real(2*localPet + i, ESMF_KIND_R8)
+    f4array2(i) = real(farray2(i), ESMF_KIND_R4)
   enddo
 
   !Testing with Integer arguments
@@ -259,8 +260,8 @@ program ESMF_VMGatherUTest
   ! prepare data array2
   do i=1, nsize
     array2(i)   = 2*localPet + i
-    farray2(i)  = real( 2*localPet + i , ESMF_KIND_R8)
-    f4array2(i) = farray2(i)
+    farray2(i)  = real(2*localPet + i, ESMF_KIND_R8)
+    f4array2(i) = real(farray2(i), ESMF_KIND_R4)
   enddo
   
   ! recvCounts and recvOffsets
@@ -428,7 +429,7 @@ program ESMF_VMGatherUTest
   deallocate(recvOffsets)
 
   !------------------------------------------------------------------------
-  call ESMF_TestEnd(result, ESMF_SRCLINE)
+  call ESMF_TestEnd(ESMF_SRCLINE)
   !------------------------------------------------------------------------
 
 end program ESMF_VMGatherUTest

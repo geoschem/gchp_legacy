@@ -1,4 +1,4 @@
-# $Id: makefile,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
+# $Id$
 
 ALL:      build_examples
 run:      run_examples
@@ -6,7 +6,7 @@ run_uni:  run_examples_uni
 
 LOCDIR	  = src/Infrastructure/Grid/examples
 
-
+.NOTPARALLEL:
 EXAMPLES_BUILD    = $(ESMF_EXDIR)/ESMF_GridUsageEx \
 	            $(ESMF_EXDIR)/ESMF_GridCreateRegFromDGEx
 
@@ -28,21 +28,21 @@ CLOBBERDIRS =
 #  ESMF_GridUsage
 #
 run_ESMF_GridUsageEx:
-	cp -f $(ESMF_DIR)/src/Infrastructure/Grid/etc/esmf_grid_shape_tile.xml $(ESMF_EXDIR)
-	cp -r data $(ESMF_EXDIR)
+	mkdir -p $(ESMF_EXDIR)/data
+	cp -f data/*.nc $(ESMF_EXDIR)/data
+	cp -f ../../Field/tests/data/*.nc $(ESMF_EXDIR)/data
 	chmod u+rw $(ESMF_EXDIR)/data/*
-	$(ESMF_DIR)/scripts/copy_xsd $(ESMF_EXDIR)
 	$(MAKE) EXNAME=GridUsage NP=4 exfrun
 
 run_ESMF_GridUsageEx_uni:
-	cp -f $(ESMF_DIR)/src/Infrastructure/Grid/etc/esmf_grid_shape_tile.xml $(ESMF_EXDIR)
-	cp -r data $(ESMF_EXDIR)
+	mkdir -p $(ESMF_EXDIR)/data
+	cp -f data/*.nc $(ESMF_EXDIR)/data
+	cp -f ../../Field/tests/data/*.nc $(ESMF_EXDIR)/data
 	chmod u+rw $(ESMF_EXDIR)/data/*
-	$(ESMF_DIR)/scripts/copy_xsd $(ESMF_EXDIR)
 	$(MAKE) EXNAME=GridUsage NP=1 exfrun
 
 #
-#  ESMF_GridUsage
+#  ESMF_GridCreateRegFromDG
 #
 run_ESMF_GridCreateRegFromDGEx:
 	$(MAKE) EXNAME=GridCreateRegFromDG NP=4 exfrun

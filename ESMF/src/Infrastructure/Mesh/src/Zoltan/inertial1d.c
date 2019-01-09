@@ -6,8 +6,8 @@
 /*****************************************************************************
  * CVS File Information :
  *    $RCSfile: inertial1d.c,v $
- *    $Author: mathomp4 $
- *    $Date: 2013-01-11 20:23:44 $
+ *    $Author: dneckels $
+ *    $Date: 2007/11/28 16:13:50 $
  *    Revision: 1.11 $
  ****************************************************************************/
 /* This software was developed by Bruce Hendrickson and Robert Leland   *

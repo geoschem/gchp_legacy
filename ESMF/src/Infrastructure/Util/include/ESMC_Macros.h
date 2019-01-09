@@ -1,7 +1,7 @@
-// $Id: ESMC_Macros.h,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
+// $Id$
 //
 // Earth System Modeling Framework
-// Copyright 2002-2012, University Corporation for Atmospheric Research,
+// Copyright 2002-2018, University Corporation for Atmospheric Research,
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 // Laboratory, University of Michigan, National Centers for Environmental
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -50,14 +50,14 @@
 #define ESMF_MAXGRIDDIM 3
 
 
-#define ESMF_VERSION_MAJOR        5
-#define ESMF_VERSION_MINOR        2
+#define ESMF_VERSION_MAJOR        7
+#define ESMF_VERSION_MINOR        1
 #define ESMF_VERSION_REVISION     0
-#define ESMF_VERSION_PATCHLEVEL   2
+#define ESMF_VERSION_PATCHLEVEL   0
 #define ESMF_VERSION_PUBLIC       'T'
 #define ESMF_VERSION_BETASNAPSHOT 'F'
 
-#define ESMF_VERSION_STRING "5.2.0rp2"
+#define ESMF_VERSION_STRING "7.1.0r"
 
 #endif   // ESMC_MACROS_H
 

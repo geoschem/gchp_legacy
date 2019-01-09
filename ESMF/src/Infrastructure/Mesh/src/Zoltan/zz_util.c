@@ -6,8 +6,8 @@
 /*****************************************************************************
  * CVS File Information :
  *    $RCSfile: zz_util.c,v $
- *    $Author: mathomp4 $
- *    $Date: 2013-01-11 20:23:44 $
+ *    $Author: w6ws $
+ *    $Date: 2008/12/08 23:04:36 $
  *    Revision: 1.10 $
  ****************************************************************************/
 
@@ -70,7 +70,7 @@ char **pstring2) 		/* cleaned string to return */
 
 char *Zoltan_Strdup(const char *str)
 {
-  /* char *yo = "Zoltan_Strdup"; */
+  /* const char *yo = "Zoltan_Strdup"; */
   char *c = NULL;
   if (!str){
     return c;

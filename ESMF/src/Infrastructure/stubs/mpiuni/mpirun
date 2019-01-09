@@ -1,22 +1,45 @@
 #!/bin/sh
-# $Id: mpirun,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
-if [ $1 !=  "-np" ]; then
-progname=$*
-elif  [ $2 =  "1" ]; then
-shift ; shift
-progname=$*
-else
-echo "FAIL:Uniprocessor version of MPI can only use one processor."
-exit 1
-fi
+# $Id$
 
+CYCLE=1
+while [ $CYCLE = 1 ]
+do
+    case $1 in
+    --help)
+	echo "Usage: mpirun [OPTION]... [command [arg ...]]"
+	echo "-np 1           run the command with one processor (default)"
+	echo "--help          display this help and exit"
+	echo "-v, --version   output version information and exit"
+	exit 0
+	;;
+
+    -np)
+	if [ $2 != "1" ]; then
+	    echo "FAIL:Uniprocessor version of MPI can only use one processor."
+	    exit 1
+	fi
+	shift; shift
+	;;
+
+    --version|-v|-V)
+	echo "ESMF mpiuni:"
+	echo "  revision $Id$"
+	exit 0
+	;;
+
+    *)
+	CYCLE=0;;
+    esac
+done
+
+if [ $# -gt 0 ]; then
 # If relative path is used prepend a ./
-tail=`echo $progname | sed 's/\/.*//'` 
-if  [ "$tail" != "" ]; then
-  progname="./$progname"
-fi
+    progname=`dirname $1`/`basename $1`
+    shift
 
 # Execute the program
-$progname
-exit 0
+    $progname $*
+    exit $?
+fi
 
+exit 0

@@ -1,7 +1,7 @@
 // $Id$
 //
 // Earth System Modeling Framework
-// Copyright 2002-2012, University Corporation for Atmospheric Research, 
+// Copyright 2002-2018, University Corporation for Atmospheric Research, 
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
 // Laboratory, University of Michigan, National Centers for Environmental 
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
@@ -70,7 +70,7 @@ class SpaceDir {    // inherits from ESMC_Base class
  public:
 
   // SpaceDir Construct 
-  SpaceDir(double proc_min[3], double proc_max[3], OTree *otree);
+  SpaceDir(double proc_min[3], double proc_max[3], OTree *otree, bool searchThisProc=true);
 
   // SpaceDir Destruct (Does not delete OTree)
   ~SpaceDir();

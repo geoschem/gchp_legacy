@@ -1,8 +1,8 @@
 /*****************************************************************************
  * CVS File Information :
  *    $RCSfile: octant.c,v $
- *    $Author: mathomp4 $
- *    $Date: 2013-01-11 20:23:44 $
+ *    $Author: dneckels $
+ *    $Date: 2007/11/28 16:13:52 $
  *    Revision: 1.30 $
  ****************************************************************************/
 #include "zz_const.h"
@@ -352,7 +352,7 @@ pRegion Zoltan_Oct_regionlist(pOctant oct) {
  * add a region to oct's list
  */
 int Zoltan_Oct_addRegion(ZZ *zz, pOctant oct, pRegion region) { 
-  char *yo = "Zoltan_Oct_addRegion";
+  const char *yo = "Zoltan_Oct_addRegion";
   pRegion entry;                      /* pointer to new entry in region list */
 
   if(oct == NULL) 

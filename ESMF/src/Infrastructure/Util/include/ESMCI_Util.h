@@ -1,7 +1,7 @@
-// $Id: ESMCI_Util.h,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
+// $Id$
 //
 // Earth System Modeling Framework
-// Copyright 2002-2012, University Corporation for Atmospheric Research,
+// Copyright 2002-2018, University Corporation for Atmospheric Research,
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 // Laboratory, University of Michigan, National Centers for Environmental
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -73,17 +73,6 @@ enum ESMC_Pin_Flag { ESMF_PIN_DE_TO_PET=1,
 enum ESMC_Direction { ESMF_DIRECTION_FORWARD=1,
                       ESMF_DIRECTION_REVERSE};
 
-// io format type
-enum ESMC_IOFmtFlag { ESMF_IOFMT_BIN=0,
-                      ESMF_IOFMT_NETCDF,
-                      ESMF_IOFMT_NETCDF4P,
-                      ESMF_IOFMT_NETCDF4C};
-
-// indexflag type
-enum ESMC_IndexFlag { ESMF_INDEX_DELOCAL=0,
-                      ESMF_INDEX_GLOBAL,
-                      ESMF_INDEX_USER};
-
 // inquireonly flag type
 enum ESMC_InquireFlag { ESMF_INQUIREONLY=ESMF_TRUE,
                         ESMF_NOINQUIRE=ESMF_FALSE};
@@ -95,11 +84,6 @@ enum ESMC_ProxyFlag { ESMF_PROXYYES=1,
 // halostartregionflag type
 enum ESMC_HaloStartRegionFlag { ESMF_REGION_EXCLUSIVE=0,
                                 ESMF_REGION_COMPUTATIONAL};
-// regionflag type
-enum ESMC_RegionFlag { ESMF_REGION_TOTAL=0,
-                       ESMF_REGION_SELECT,
-                       ESMF_REGION_EMPTY};
-
 // commflag type
 enum ESMC_CommFlag { ESMF_COMM_BLOCKING=0,
                      ESMF_COMM_NBSTART,
@@ -108,9 +92,9 @@ enum ESMC_CommFlag { ESMF_COMM_BLOCKING=0,
                      ESMF_COMM_CANCEL};
 
 // Attribute reconcile type
-enum ESMC_AttCopyFlag { ESMF_COPY_ALIAS=0,
-                        ESMF_COPY_REFERENCE,
-                        ESMF_COPY_VALUE};
+enum ESMC_AttCopyFlag { ESMF_ATTCOPY_REFERENCE=0,
+                        ESMF_ATTCOPY_VALUE,
+                        ESMF_ATTCOPY_HYBRID};
 
 // attgetcount flag type
 enum ESMC_AttGetCountFlag { ESMC_ATTGETCOUNT_ATTRIBUTE=0,
@@ -118,17 +102,42 @@ enum ESMC_AttGetCountFlag { ESMC_ATTGETCOUNT_ATTRIBUTE=0,
                             ESMC_ATTGETCOUNT_ATTLINK,
                             ESMC_ATTGETCOUNT_TOTAL};
                         
-// Attribute reconcile type
-enum ESMC_AttReconcileFlag { ESMC_ATTRECONCILE_OFF=0,
-                            ESMC_ATTRECONCILE_ON};
+// attnest flag type
+enum ESMC_AttNest_Flag { ESMC_ATTNEST_OFF=0,
+                         ESMC_ATTNEST_ON};
 
 // Attribute reconcile type
-enum ESMC_AttTreeFlag { ESMC_ATTTREE_OFF=0,
-                        ESMC_ATTTREE_ON};
+enum ESMC_AttReconcileFlag { ESMC_ATTRECONCILE_OFF=0,
+                             ESMC_ATTRECONCILE_ON};
 
 // attwrite flag type
 enum ESMC_AttWriteFlag { ESMC_ATTWRITE_TAB=0,
                          ESMC_ATTWRITE_XML};
+
+// Item order when retrieving item lists from a Container object
+enum ESMC_ItemOrder_Flag { ESMC_ITEMORDER_ABC=0,
+                           ESMC_ITEMORDER_ADDORDER};
+
+// Source term order in the destination sums during SMM
+enum ESMC_TermOrder_Flag { ESMC_TERMORDER_SRCSEQ=0,
+                           ESMC_TERMORDER_SRCPET,
+                           ESMC_TERMORDER_FREE};
+// Mesh spatial operator
+enum ESMC_MeshOp_Flag { ESMC_MESHOP_DIFFERENCE=0 };
+
+// TODO: investigate why this is a macro instead of an enum
+#define ESMC_GRIDITEM_INVALID -2
+#define ESMC_GRIDITEM_UNINIT  -1
+#define ESMC_GRIDITEM_MASK     0
+#define ESMC_GRIDITEM_AREA     1
+#define ESMC_GRIDITEM_AREAM    2
+#define ESMC_GRIDITEM_FRAC     3
+#define ESMC_GRIDITEM_COUNT    4
+
+// Needs to be kept in line with ESMF_ATT_GRIDDED_DIM_LABELS and
+// ESMF_ATT_UNGRIDDED_DIM_LABELS in ../src/ESMCI_UtilTypes.F90
+#define ESMC_ATT_GRIDDED_DIM_LABELS   "ESMF:gridded_dim_labels"
+#define ESMC_ATT_UNGRIDDED_DIM_LABELS "ESMF:ungridded_dim_labels"
 
 // max/min macros if they don't already exist
 #ifndef MAX
@@ -159,27 +168,30 @@ typedef struct ESMC_ObjectID {
 //  and copies the contents of the src to the dst, padding the remainder
 //  with spaces and no null terminator.
 //
+size_t ESMC_F90lentrim (const char *src, ESMCI_FortranStrLenArg slen);
 char *ESMC_F90toCstring(const char *src, ESMCI_FortranStrLenArg slen);
 int  ESMC_F90toCstring(const char *src, ESMCI_FortranStrLenArg slen, char *dst, ESMCI_FortranStrLenArg dlen);
 int  ESMC_CtoF90string(const char *src, char *dst, ESMCI_FortranStrLenArg dlen);
 extern "C" {
-void  FTN(esmf_f90tocstring)(const char *src, char *dst, int *rc, 
+void  FTN_X(esmf_f90tocstring)(const char *src, char *dst, int *rc, 
                              /* hidden */ ESMCI_FortranStrLenArg slen, ESMCI_FortranStrLenArg dlen);
-void  FTN(esmf_ctof90string)(const char *src, char *dst, int *rc, 
+void  FTN_X(esmf_ctof90string)(const char *src, char *dst, int *rc, 
                              /* hidden */ ESMCI_FortranStrLenArg slen, ESMCI_FortranStrLenArg dlen);
 }
 
 // return byte counts for TypeKinds
-int ESMC_TypeKindSize(ESMC_TypeKind dk);
+int ESMC_TypeKind_FlagSize(ESMC_TypeKind_Flag dk);
 // return a static string name for various enums
 const char *ESMC_StatusString(ESMC_Status stat);
-const char *ESMC_TypeKindString(ESMC_TypeKind dk);
+const char *ESMC_TypeKind_FlagString(ESMC_TypeKind_Flag dk);
 const char *ESMC_LogicalString(ESMC_Logical tf);
 
 extern "C" {
-void FTN(esmf_pointertoint)(int *n, short *s, ESMC_POINTER *len);
-void FTN(esmf_pointerdifference)(int *n, short *s1, short *s2, int *len);
-
+void FTN_X(esmf_pointertoint)(int *n, short *s, ESMC_POINTER *len);
+void FTN_X(esmf_pointerdifference)(int *n, short *s1, short *s2, int *len);
+void FTN_X(c_esmc_getcwd)(char *pathname, int *rc, ESMCI_FortranStrLenArg pathname_l);
+void FTN_X(c_esmc_makedirectory)(const char *pathname, int *mode, ESMC_Logical *relaxedFlag,
+      int *rc, ESMCI_FortranStrLenArg pathname_l);
 }
 
 // generate a Globally Unique ID (GUID) in a platform independent way (e.g.
@@ -232,6 +244,7 @@ extern ESMC_ObjectID ESMC_ID_GRIDCOMPONENT;
 extern ESMC_ObjectID ESMC_ID_CPLCOMPONENT;
 extern ESMC_ObjectID ESMC_ID_COMPONENT;
 extern ESMC_ObjectID ESMC_ID_XGRID;
+extern ESMC_ObjectID ESMC_ID_XGRIDGEOMBASE;
 extern ESMC_ObjectID ESMC_ID_NONE;
 
 #endif  // ESMCI_UTIL_H

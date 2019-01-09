@@ -1,13 +1,13 @@
-# $Id: makefile,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
+# $Id$
 
 ALL: build_here 
 
-SOURCEC	  = ESMCI_RHandle_F.C
+SOURCEC	  = ESMCI_RHandle_F.C ESMC_RHandle.C
 SOURCEF	  = ESMF_RHandle.F90
 SOURCEH	  = 
 
 # list all .h files which should be copied to common include dir
-STOREH	  = 
+STOREH	  = ESMC_RHandle.h
 
 OBJSC     = $(addsuffix .o, $(basename $(SOURCEC)))
 OBJSF     = $(addsuffix .o, $(basename $(SOURCEF)))

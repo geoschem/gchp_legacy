@@ -1,7 +1,7 @@
 // $Id$
 //
 // Earth System Modeling Framework
-// Copyright 2002-2012, University Corporation for Atmospheric Research, 
+// Copyright 2002-2018, University Corporation for Atmospheric Research, 
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
 // Laboratory, University of Michigan, National Centers for Environmental 
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
@@ -19,7 +19,11 @@
 #ifndef ESMCI_OTree_H
 #define ESMCI_OTree_H
 
+// FOR ESMF
 #include <Mesh/include/ESMCI_Exception.h>
+
+// OUTSIDE ESMF
+//#include "ESMCI_Exception.h"
 
 //-------------------------------------------------------------------------
 //BOP
@@ -89,11 +93,19 @@ class OTree {    // inherits from ESMC_Base class
  // Add item to tree
  void add(double min[3], double max[3], void *data);
 
+ // Add item to tree and commit it at the same time
+ void add_commit(double min[3], double max[3], void *data);
+
  // Build tree
  void commit();
 
  int runon(double [], double [], int (*func)(void *,void *),void *);
+
+ int runon_mm_chng(double [], double [],
+        int (*func)(void *, void *, double *, double *),void *);
    
+
+
 };  // end class ESMC_OTree
 
  

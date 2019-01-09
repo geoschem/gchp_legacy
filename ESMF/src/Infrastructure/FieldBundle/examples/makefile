@@ -1,4 +1,4 @@
-# $Id: makefile,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $ 
+# $Id$ 
 
 ALL: build_examples
 
@@ -6,6 +6,7 @@ run: run_examples
 
 LOCDIR    = src/Infrastructure/FieldBundle/examples
 
+.NOTPARALLEL:
 EXAMPLES_BUILD = $(ESMF_EXDIR)/ESMF_FieldBundleCreateEx \
                  $(ESMF_EXDIR)/ESMF_FieldBundleRedistEx \
                  $(ESMF_EXDIR)/ESMF_FieldBundleSMMEx \

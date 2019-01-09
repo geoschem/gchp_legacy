@@ -6,8 +6,8 @@
 /*****************************************************************************
  * CVS File Information :
  *    $RCSfile: lb_copy.c,v $
- *    $Author: mathomp4 $
- *    $Date: 2013-01-11 20:23:44 $
+ *    $Author: dneckels $
+ *    $Date: 2007/11/28 16:13:51 $
  *    Revision: 1.5 $
  ****************************************************************************/
 #include "zz_const.h"
@@ -45,7 +45,7 @@ extern "C" {
 
 int Zoltan_LB_Copy_Struct(ZZ *toZZ, ZZ const *fromZZ)
 {
-char *yo = "Zoltan_LB_Copy_Struct";
+const char *yo = "Zoltan_LB_Copy_Struct";
 int proc = fromZZ->Proc;
 
   struct Zoltan_LB_Struct *to = &(toZZ->LB);

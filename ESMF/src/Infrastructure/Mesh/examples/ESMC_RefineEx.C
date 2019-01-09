@@ -1,8 +1,8 @@
-// $Id: ESMC_RefineEx.C,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
+// $Id$
 //==============================================================================
 //
 // Earth System Modeling Framework
-// Copyright 2002-2012, University Corporation for Atmospheric Research, 
+// Copyright 2002-2018, University Corporation for Atmospheric Research, 
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
 // Laboratory, University of Michigan, National Centers for Environmental 
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
@@ -14,7 +14,7 @@
 #include <ESMCI_MeshSkin.h>
 #include <ESMCI_ShapeFunc.h>
 #include <ESMCI_Mapping.h>
-#include <ESMCI_Search.h>
+//#include <ESMCI_Search.h>
 #include <ESMCI_MeshUtils.h>
 #include <ESMCI_MasterElement.h>
 #include <ESMCI_MeshRead.h>
@@ -113,10 +113,10 @@ void get_avgerage_nodecoord(double &diameter, double ave[], Mesh &mesh, MeshObj 
       ave[1] += coord[1];
       if (mesh.spatial_dim() == 3) ave[2] += coord[2];
       double diam = 0;
-      diam += std::fabs(coord0[0] - coord[0]);
-      diam += std::fabs(coord0[1] - coord[1]);
+      diam += std::abs(coord0[0] - coord[0]);
+      diam += std::abs(coord0[1] - coord[1]);
       if (mesh.spatial_dim() == 3)
-        diam += std::fabs(coord0[2] - coord[2]);
+        diam += std::abs(coord0[2] - coord[2]);
 
       if (diam > max_diam) max_diam = diam;
     }
@@ -199,11 +199,11 @@ void test_adapt_wave_exec(HAdapt &hadapt, Mesh &mesh) {
       // That is distance to center of circle, now refine if within the
       // tolerance.  Unrefine with a slight hysterisis, to avoid chattering between
       // the refine/unrefine state.
-      if (std::fabs(d2circle-circleRadius) < epsilon && diameter > h) { 
+      if (std::abs(d2circle-circleRadius) < epsilon && diameter > h) { 
         hadapt.MarkElement(elem, HAdapt::ELEM_REFINE);
       } else
       {
-        if (std::fabs(d2circle-circleRadius) > 2*epsilon)
+        if (std::abs(d2circle-circleRadius) > 2*epsilon)
           hadapt.MarkElement(elem, HAdapt::ELEM_UNREFINE);
       }
 

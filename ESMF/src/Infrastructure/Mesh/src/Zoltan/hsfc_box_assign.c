@@ -7,8 +7,8 @@
 /*****************************************************************************
  * CVS File Information :
  *    $RCSfile: hsfc_box_assign.c,v $
- *    $Author: mathomp4 $
- *    $Date: 2013-01-11 20:23:44 $
+ *    $Author: dneckels $
+ *    $Date: 2007/11/28 16:13:49 $
  *    Revision: 1.24 $
  ****************************************************************************/
 
@@ -53,7 +53,7 @@ int Zoltan_HSFC_Box_Assign (
                                 /* specific - 2^18 in 3d, 2^27 in 2d. */
    int        err = ZOLTAN_OK;
    int        *remap;
-   char      *yo = "Zoltan_HSFC_Box_Assign";
+   const char *yo = "Zoltan_HSFC_Box_Assign";
 
    ZOLTAN_TRACE_ENTER (zz, yo);
    d = (HSFC_Data *) zz->LB.Data_Structure;           /* persistant HSFC data */

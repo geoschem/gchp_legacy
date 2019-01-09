@@ -1,7 +1,7 @@
-! $Id: ESMF_ArrayEx.F90,v 1.1.5.1 2013-01-11 20:23:43 mathomp4 Exp $
+! $Id$
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2012, University Corporation for Atmospheric Research,
+! Copyright 2002-2018, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -15,8 +15,10 @@
 !==============================================================================
 
 program ESMF_ArrayEx
+#include "ESMF.h"
 
   use ESMF
+  use ESMF_TestMod
   
   implicit none
   
@@ -47,11 +49,23 @@ program ESMF_ArrayEx
   integer, allocatable:: computationalLBound(:,:), computationalUBound(:,:)
 !  integer, allocatable:: haloLDepth(:), haloUDepth(:)
 !  type(ESMF_RouteHandle):: haloHandle, haloHandle2
+  character(ESMF_MAXSTR) :: testname
+  character(ESMF_MAXSTR) :: failMsg
+
 
   ! result code
-  integer :: finalrc
+  integer :: finalrc, result
   
-  finalrc = ESMF_SUCCESS
+   finalrc = ESMF_SUCCESS
+!-------------------------------------------------------------------------
+!-------------------------------------------------------------------------
+
+  write(failMsg, *) "Example failure"
+  write(testname, *) "Example ESMF_ArrayEx"
+
+!-------------------------------------------------------------------------
+!-------------------------------------------------------------------------
+
   call ESMF_Initialize(vm=vm, defaultlogfilename="ArrayEx.Log", &
                     logkindflag=ESMF_LOGKIND_MULTI, rc=rc)
   if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
@@ -75,7 +89,7 @@ program ESMF_ArrayEx
 ! 
 ! As before, to create an {\tt ESMF\_Array} object an {\tt ESMF\_DistGrid}
 ! must be created. The DistGrid object holds information about the entire 
-! index space and how it is dcomposed into DE-local exclusive regions. The 
+! index space and how it is decomposed into DE-local exclusive regions. The 
 ! following line of code creates a DistGrid for a 5x5 global index space that 
 ! is decomposed into 2 x 3 = 6 DEs.
 !EOE
@@ -85,8 +99,8 @@ program ESMF_ArrayEx
 !EOC  
   if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !BOE
-! The following is a representation of the index space and its decompositon into
-! DEs. Each asterix (*) represents a single element.
+! The following is a representation of the index space and its decomposition into
+! DEs. Each asterisk (*) represents a single element.
 !
 ! \begin{verbatim}
 ! 
@@ -141,7 +155,7 @@ program ESMF_ArrayEx
 !BOE
 ! Alternatively the same Array can be created specifying the "tkr" information
 ! in form of an ArraySpec variable. The ArraySpec explicitly contains the 
-! Array rank and thus results in an overspecification on the ArrayCreate()
+! Array rank and thus results in an over specification on the ArrayCreate()
 ! interface. ESMF checks all input information for consistency and returns 
 ! appropriate error codes in case any inconsistencies are found.
 !EOE
@@ -259,8 +273,8 @@ program ESMF_ArrayEx
 ! pieces of information:
 ! \begin{itemize}
 ! \item The extent and topology of the global domain covered by the Array object
-!       in terms of indexed elements. The total extent may be a composition or 
-!       tilework of smaller logically rectangular (LR) domain pieces or tiles.
+!       in terms of indexed elements. The total extent may be a composition of
+!       smaller logically rectangular (LR) domain pieces called tiles.
 ! \item The decomposition of the entire domain into "element exclusive" DE-local
 !       LR chunks. {\em Element exclusive} means that there is no element overlap
 !       between DE-local chunks. This, however, does not exclude degeneracies 
@@ -398,7 +412,8 @@ program ESMF_ArrayEx
        datacopyflag=ESMF_DATACOPY_REFERENCE, rc=rc)
     do i=1, size(myFarray, 1)
       do j=1, size(myFarray, 2)
-        print *, "localPET=", localPet, " localDE=", localDe, ": array(",i,",",j,")=", myFarray(i,j)
+        print *, "localPET=", localPet, " localDE=", &
+            localDe, ": array(",i,",",j,")=", myFarray(i,j)
       enddo
     enddo
   enddo
@@ -932,7 +947,7 @@ program ESMF_ArrayEx
 !
 ! All previous examples were written for the 2D case. There is, however, no
 ! restriction within the Array or DistGrid class that limits the dimensionality
-! of Array objects beyond the language specific limitations (7D for Fortran). 
+! of Array objects beyond the language-specific limitations (7D for Fortran).
 !
 ! In order to create an {\tt n}-dimensional Array the rank indicated by both
 ! the {\tt arrayspec} and the {\tt distgrid} arguments specified during Array
@@ -1085,7 +1100,7 @@ program ESMF_ArrayEx
 ! call.
 !
 ! The rank specification contained in the {\tt distgrid} argument, which is of 
-! type {\tt ESMF\_DistGrid}, on the other hand has no affect on the 
+! type {\tt ESMF\_DistGrid}, on the other hand has no effect on the
 ! rank of the Array. The {\tt dimCount} specified by the DistGrid object,
 ! which may be equal, greater or less than the Array rank, determines the 
 ! dimensionality of the {\em decomposition}.
@@ -1178,9 +1193,11 @@ program ESMF_ArrayEx
        datacopyflag=ESMF_DATACOPY_REFERENCE, rc=rc)
     myFarray3D = 0.0 ! initialize
     myFarray3D(exclusiveLBound(1,localDe):exclusiveUBound(1,localDe), &
-      exclusiveLBound(2,localDe):exclusiveUBound(2,localDe), 1) = 5.1 ! dummy assignment
+      exclusiveLBound(2,localDe):exclusiveUBound(2,localDe), &
+      1) = 5.1 ! dummy assignment
     myFarray3D(exclusiveLBound(1,localDe):exclusiveUBound(1,localDe), &
-      exclusiveLBound(2,localDe):exclusiveUBound(2,localDe), 2) = 2.5 ! dummy assignment
+      exclusiveLBound(2,localDe):exclusiveUBound(2,localDe), &
+      2) = 2.5 ! dummy assignment
   enddo
   deallocate(larrayList)
 !EOC
@@ -1251,9 +1268,11 @@ program ESMF_ArrayEx
     call ESMF_LocalArrayGet(larrayList(localDe), myFarray3D, &
        datacopyflag=ESMF_DATACOPY_REFERENCE, rc=rc)
     myFarray3D(exclusiveLBound(1,localDe):exclusiveUBound(1,localDe), &
-      1, exclusiveLBound(2,localDe):exclusiveUBound(2,localDe)) = 10.5 !dummy assignment
+      1, exclusiveLBound(2,localDe):exclusiveUBound(2, &
+      localDe)) = 10.5 !dummy assignment
     myFarray3D(exclusiveLBound(1,localDe):exclusiveUBound(1,localDe), &
-      2, exclusiveLBound(2,localDe):exclusiveUBound(2,localDe)) = 23.3 !dummy assignment
+      2, exclusiveLBound(2,localDe):exclusiveUBound(2, &
+      localDe)) = 23.3 !dummy assignment
   enddo
   deallocate(exclusiveLBound, exclusiveUBound)
   deallocate(arrayToDistGridMap)
@@ -1567,6 +1586,10 @@ program ESMF_ArrayEx
 !>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 10 continue
+  ! IMPORTANT: ESMF_STest() prints the PASS string and the # of processors in the log
+  ! file that the scripts grep for.
+  call ESMF_STest((finalrc.eq.ESMF_SUCCESS), testname, failMsg, result, ESMF_SRCLINE)
+
   
   if (rc/=ESMF_SUCCESS) finalrc = ESMF_FAILURE
   if (finalrc==ESMF_SUCCESS) then

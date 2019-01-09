@@ -1,0 +1,5 @@
+% $Id$
+
+%\subsection{Design and Implementation Notes}
+
+The DELayout class is a light weight object. It stores the DE to PET and VAS mapping for all DEs within all PET instances and a list of local DEs for each PET instance. The DELayout does not store the computational and communication weights optionally provided as arguments to the create method. These hints are only used during create while they are available in user owned arrays.

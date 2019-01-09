@@ -6,8 +6,8 @@
 /*****************************************************************************
  * CVS File Information :
  *    $RCSfile: phg_util.c,v $
- *    $Author: mathomp4 $
- *    $Date: 2013-01-11 20:23:44 $
+ *    $Author: dneckels $
+ *    $Date: 2007/11/28 16:13:53 $
  *    Revision: 1.16 $
  ****************************************************************************/
 
@@ -37,7 +37,7 @@ char *Zoltan_PHG_uMe(PHGComm *hgc)
     return msg;
 }
 
-void Zoltan_PHG_uprintf(PHGComm *hgc, char *f_str,...)
+void Zoltan_PHG_uprintf(PHGComm *hgc, const char *f_str,...)
 {
 va_list argp;
 
@@ -53,7 +53,7 @@ fflush(stdout);
 /*************************************************************************
 * -------------------------- Error Exit ----------------------------------
 **************************************************************************/
-void Zoltan_PHG_errexit(char *f_str,...)
+void Zoltan_PHG_errexit(const char *f_str,...)
 {
 va_list argp;
 
@@ -101,7 +101,7 @@ struct {
 
 int Zoltan_PHG_LoadBalStat(ZZ *zz, HGraph *hg)
 {
-    char    *yo = "Zoltan_PHG_LoadBalStat";
+    const char *yo = "Zoltan_PHG_LoadBalStat";
     int     ierr=ZOLTAN_OK;
     PHGComm *comm = hg->comm;
     int     *v=NULL, *n=NULL, *p=NULL, x, y, i;

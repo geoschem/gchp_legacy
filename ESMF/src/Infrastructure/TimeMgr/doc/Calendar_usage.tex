@@ -1,0 +1,12 @@
+% $Id$
+
+In most multi-component Earth system applications, the timekeeping in 
+each component 
+must refer to the same standard calendar in order for the components 
+to properly synchronize.  It therefore makes sense to create as few 
+ESMF Calendars as possible, preferably one per application.
+A typical strategy would be to create a single Calendar at the start
+of an application, and use that Calendar in all subsequent calls that
+accept a Calendar, such as {\tt ESMF\_TimeSet}.
+
+The following example shows how to set up an ESMF Calendar.  

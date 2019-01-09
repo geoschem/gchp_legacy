@@ -1,7 +1,7 @@
-! $Id: ESMF_ArrayLarrayEx.F90,v 1.1.5.1 2013-01-11 20:23:43 mathomp4 Exp $
+! $Id$
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2012, University Corporation for Atmospheric Research,
+! Copyright 2002-2018, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -22,7 +22,7 @@
 ! Alternative to the direct usage of Fortran arrays during Array creation
 ! it is also possible to first create an {\tt ESMF\_LocalArray} and create the
 ! Array from it. While this may seem more burdensome for the 1 DE per PET cases
-! discussed in the previous sections it allows a straight forward 
+! discussed in the previous sections it allows a straightforward
 ! generalization to the multiple DE per PET case. The following example first
 ! recaptures the previous example using an {\tt ESMF\_LocalArray} and then
 ! expands to the multiple DE per PET case.
@@ -30,8 +30,10 @@
 !EOE
 !BOC
 program ESMF_ArrayLarrayEx
+#include "ESMF.h"
 
   use ESMF
+  use ESMF_TestMod
   
   implicit none
   
@@ -49,7 +51,7 @@ program ESMF_ArrayLarrayEx
   type(ESMF_DistGrid)         :: distgrid       ! DistGrid object
   type(ESMF_Array)            :: array          ! Array object
   integer                     :: rc, i, j, de
-  real                        :: localSum
+  real(ESMF_KIND_R8)          :: localSum
   type(ESMF_LocalArray), allocatable :: larrayList(:) ! LocalArray object list
   type(ESMF_LocalArray), allocatable :: larrayRefList(:)!LocalArray obj. list
   
@@ -58,9 +60,23 @@ program ESMF_ArrayLarrayEx
   
 !EOC
   ! result code
-  integer :: finalrc
+  integer :: finalrc, result
+  character(ESMF_MAXSTR) :: testname
+  character(ESMF_MAXSTR) :: failMsg
   
   finalrc = ESMF_SUCCESS
+
+
+!-------------------------------------------------------------------------
+!-------------------------------------------------------------------------
+
+  write(failMsg, *) "Example failure"
+  write(testname, *) "Example ESMF_ArrayLarrayEx"
+
+!-------------------------------------------------------------------------
+!-------------------------------------------------------------------------
+
+
   
 !BOC
   call ESMF_Initialize(vm=vm, defaultlogfilename="ArrayLarrayEx.Log", &
@@ -159,7 +175,7 @@ program ESMF_ArrayLarrayEx
 !EOC
 !BOE
 ! While the usage of LocalArrays is unnecessarily cumbersome for 1 DE per PET
-! Arrays, it provides a straight forward path for extending the interfaces 
+! Arrays, it provides a straightforward path for extending the interfaces
 ! to multiple DEs per PET. 
 !
 ! In the following example a 8 x 8 index space will be decomposed into
@@ -278,23 +294,36 @@ program ESMF_ArrayLarrayEx
 ! pointers to the actual Fortran arrays are lost. Notice that {\tt larrayList}
 ! is used to obtain the pointers used in the deallocate statement. Pointers
 ! obtained from the {\tt larrayRefList}, while pointing to the same data, 
-! {\em cannot} be used to deallocated the array allocations!
+! {\em cannot} be used to deallocate the array allocations!
 !EOE
 !BOC
   do de=1, 2
     call ESMF_LocalArrayGet(larrayList(de), farrayPtr, rc=rc)
+!EOC
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
+!BOC
     deallocate(farrayPtr)
     call ESMF_LocalArrayDestroy(larrayList(de), rc=rc)
+!EOC
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
+!BOC
   enddo
   deallocate(larrayList)
   deallocate(larrayRefList)
   call ESMF_ArrayDestroy(array, rc=rc)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   call ESMF_DistGridDestroy(distgrid, rc=rc)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !EOC  
 !BOE
 ! With that ESMF can be shut down cleanly.
 !EOE
 10 continue
+! IMPORTANT: ESMF_STest() prints the PASS string and the # of processors in the log
+! file that the scripts grep for.
+  call ESMF_STest((finalrc.eq.ESMF_SUCCESS), testname, failMsg, result, ESMF_SRCLINE)
+
+
 !BOC
 
   call ESMF_Finalize(rc=rc)

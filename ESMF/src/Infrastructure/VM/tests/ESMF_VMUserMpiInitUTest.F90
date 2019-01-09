@@ -1,7 +1,7 @@
-! $Id: ESMF_VMUserMpiInitUTest.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
+! $Id$
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2012, University Corporation for Atmospheric Research,
+! Copyright 2002-2018, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -307,7 +307,7 @@
         farray3_soln(i) = sum( farray2(i,:) )
         print *, localPet,'farray3(',i,')=',farray3(i), &
                           'farray3_soln(',i,')=',farray3_soln(i)
-        fsum=fsum + abs( farray3(i) - farray3_soln(i) )
+        fsum=fsum + real(abs( farray3(i) - farray3_soln(i) ))
       end do
       write(failMsg, *) "Returned wrong results"
       write(name, *) "Verify All Reduce ESMF_REDUCE_SUM Results Test"
@@ -380,7 +380,7 @@
         farray3_soln(i) = minval( farray2(i,:) )
         print *, localPet,'farray3(',i,')=',farray3(i), &
                           'farray3_soln(',i,')=',farray3_soln(i)
-        fsum=fsum + abs( farray3(i) - farray3_soln(i) )
+        fsum=fsum + real(abs( farray3(i) - farray3_soln(i) ))
       end do
       write(failMsg, *) "Returned wrong results"
       write(name, *) "Verify All Reduce ESMF_REDUCE_MINResults Test:ESMF_KIND_R8"
@@ -456,7 +456,7 @@
         farray3_soln(i) = maxval( farray2(i,:) )
         print *, localPet,'farray3(',i,')=',farray3(i), &
                           'farray3_soln(',i,')=',farray3_soln(i)
-        isum=isum + abs( farray3(i) - farray3_soln(i) )
+        isum=isum + int(abs( farray3(i) - farray3_soln(i) ))
       end do
       write(failMsg, *) "Returned wrong results"
       write(name, *) "Verify All Reduce ESMF_REDUCE_MAXResults Test: ESMF_KIND_R8"
@@ -480,7 +480,7 @@
         f4array3_soln(i) = maxval( f4array2(i,:) )
         print *, localPet,'f4array3(',i,')=',f4array3(i), &
                           'f4array3_soln(',i,')=',f4array3_soln(i)
-        isum=isum + abs( f4array3(i) - f4array3_soln(i) )
+        isum=isum + int(abs( f4array3(i) - f4array3_soln(i) ))
       end do
       write(failMsg, *) "Returned wrong results"
       write(name, *) "Verify All Reduce ESMF_REDUCE_MAXResults Test: ESMF_KIND_R4"
@@ -525,7 +525,7 @@
 !------------------------------------------------------------------------------
 ! The following line turns the CVS identifier string into a printable variable.
       character(*), parameter :: version = &
-      '$Id: ESMF_VMUserMpiInitUTest.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $'
+      '$Id$'
 !------------------------------------------------------------------------------
 
 !-------------------------------------------------------------------------------
@@ -546,6 +546,7 @@
 #endif
   
       call ESMF_TestStart(ESMF_SRCLINE, rc=rc)
+      if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
       !------------------------------------------------------------------------
       !NEX_UTest
@@ -579,8 +580,8 @@
 
 
       !------------------------------------------------------------------------
-
       ! allocate data arrays
+
       nsize = 2
       allocate(array1(nsize))
       allocate(farray1(nsize))
@@ -597,8 +598,8 @@
       ! prepare data array1, farray1, f4array1
       do i=1, nsize
         array1(i) = localPet * 100 + i
-        farray1(i)= real( array1(i) , ESMF_KIND_R8 )
-        f4array1(i)=farray1(i)
+        farray1(i)= real(array1(i), ESMF_KIND_R8)
+        f4array1(i)=real(farray1(i), ESMF_KIND_R4)
       enddo
 
       ! Populate array2
@@ -606,13 +607,12 @@
       allocate(farray2(nsize,npets))
       allocate(f4array2(nsize,npets))
       do j=1, npets 
-      	do i=1, nsize
-        	array2(i,j) = (j-1) * 100 + i
-               farray2(i,j) = real( array2(i,j) , ESMF_KIND_R8 )
-              f4array2(i,j) = farray2(i,j)
-      	enddo
+        do i=1, nsize
+          array2(i,j) = (j-1) * 100 + i
+          farray2(i,j) = real(array2(i,j), ESMF_KIND_R8)
+          f4array2(i,j) = real(farray2(i,j), ESMF_KIND_R4)
+        enddo
       enddo
-
 
       call test_AllFullReduce_sum
       call test_allReduce_sum
@@ -623,7 +623,26 @@
       call test_AllFullReduce_max
       call test_AllReduce_max
 
+      !------------------------------------------------------------------------
+      ! deallocate data arrays
+      
+      deallocate(array1)
+      deallocate(farray1)
+      deallocate(f4array1)
+
+      deallocate(array3)
+      deallocate(farray3)
+      deallocate(f4array3)
+
+      deallocate(array3_soln)
+      deallocate(farray3_soln)
+      deallocate(f4array3_soln)
+
+      deallocate(array2)
+      deallocate(farray2)
+      deallocate(f4array2)
+
 #endif
-      call ESMF_TestEnd(result, ESMF_SRCLINE)
+      call ESMF_TestEnd(ESMF_SRCLINE)
 
       end program ESMF_VMUTest

@@ -6,8 +6,8 @@
 /*****************************************************************************
  * CVS File Information :
  *    $RCSfile: build_machine_desc.c,v $
- *    $Author: mathomp4 $
- *    $Date: 2013-01-11 20:23:44 $
+ *    $Author: dneckels $
+ *    $Date: 2007/11/28 16:13:44 $
  *    Revision: 1.22 $
  ****************************************************************************/
 
@@ -64,7 +64,7 @@ int Zoltan_Build_Machine_Desc(
    ZZ *zz              /* The Zoltan structure.                */
 )
 {
-  char *yo = "Zoltan_Build_Machine_Desc";
+  const char *yo = "Zoltan_Build_Machine_Desc";
   int ierr = ZOLTAN_OK;
   int use_mach_desc;
   char filename[256];

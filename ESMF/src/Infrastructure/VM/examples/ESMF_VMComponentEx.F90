@@ -1,7 +1,7 @@
-! $Id: ESMF_VMComponentEx.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
+! $Id$
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2012, University Corporation for Atmospheric Research,
+! Copyright 2002-2018, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -132,7 +132,9 @@ end module
 
 !BOC
 program ESMF_VMComponentEx
+#include "ESMF.h"
   use ESMF
+  use ESMF_TestMod
   use ESMF_VMComponentEx_gcomp_mod
   implicit none
   
@@ -141,41 +143,59 @@ program ESMF_VMComponentEx
   integer:: rc
   type(ESMF_GridComp):: gcomp
   ! result code
-  integer :: finalrc
+  integer :: finalrc, result
+  character(ESMF_MAXSTR) :: testname
+  character(ESMF_MAXSTR) :: failMsg
+
+!-------------------------------------------------------------------------
+!-------------------------------------------------------------------------
+
+  write(failMsg, *) "Example failure"
+  write(testname, *) "Example ESMF_VMComponentEx"
+
+
+! ------------------------------------------------------------------------------
+! ------------------------------------------------------------------------------
+
+
   finalrc = ESMF_SUCCESS
 
   call ESMF_Initialize(defaultlogfilename="VMComponentEx.Log", &
                     logkindflag=ESMF_LOGKIND_MULTI, rc=rc)
-  if (rc/=ESMF_SUCCESS) finalrc = ESMF_FAILURE
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
 !BOC  
   gcomp = ESMF_GridCompCreate(petList=(/0/), rc=rc)
 !EOC  
-  if (rc/=ESMF_SUCCESS) finalrc = ESMF_FAILURE
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
 !BOC  
-  call ESMF_GridCompSetServices(gcomp, mygcomp_register, rc=rc)
+  call ESMF_GridCompSetServices(gcomp, userRoutine=mygcomp_register, rc=rc)
 !EOC  
-  if (rc/=ESMF_SUCCESS) finalrc = ESMF_FAILURE
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
 !BOC  
   call ESMF_GridCompInitialize(gcomp, rc=rc)
 !EOC  
-  if (rc/=ESMF_SUCCESS) finalrc = ESMF_FAILURE
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !BOC  
   call ESMF_GridCompRun(gcomp, rc=rc)
 !EOC  
-  if (rc/=ESMF_SUCCESS) finalrc = ESMF_FAILURE
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !BOC  
   call ESMF_GridCompFinalize(gcomp, rc=rc)
 !EOC  
-  if (rc/=ESMF_SUCCESS) finalrc = ESMF_FAILURE
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
 !BOC  
   call ESMF_GridCompDestroy(gcomp, rc=rc)
 !EOC  
-  if (rc/=ESMF_SUCCESS) finalrc = ESMF_FAILURE
-  
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
+
+  ! IMPORTANT: ESMF_STest() prints the PASS string and the # of processors in the log
+  ! file that the scripts grep for.
+  call ESMF_STest((finalrc.eq.ESMF_SUCCESS), testname, failMsg, result, ESMF_SRCLINE)
+
 !BOC  
   call ESMF_Finalize(rc=rc)
 !EOC  

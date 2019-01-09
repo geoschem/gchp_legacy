@@ -1,4 +1,4 @@
-# $Id: makefile,v 1.1.5.1 2013-01-11 20:23:43 mathomp4 Exp $ 
+# $Id$ 
 
 ALL:      build_unit_tests
 run:      run_unit_tests
@@ -6,6 +6,7 @@ run_uni:  run_unit_tests_uni
 
 LOCDIR	  = src/Infrastructure/ArrayBundle/tests
 
+.NOTPARALLEL:
 TESTS_BUILD   = $(ESMF_TESTDIR)/ESMF_ArrayBundleCreateUTest \
                 $(ESMF_TESTDIR)/ESMF_ArrayBundleIOUTest
 
@@ -13,7 +14,7 @@ TESTS_BUILD   = $(ESMF_TESTDIR)/ESMF_ArrayBundleCreateUTest \
 TESTS_RUN     = RUN_ESMF_ArrayBundleCreateUTest \
                 RUN_ESMF_ArrayBundleIOUTest
 
-TESTS_RUN_UNI =
+TESTS_RUN_UNI = RUN_ESMF_ArrayBundleCreateUTestUNI
 
 
 include ${ESMF_DIR}/makefile
@@ -30,6 +31,9 @@ DIRS        =
 
 RUN_ESMF_ArrayBundleCreateUTest:
 	$(MAKE) TNAME=ArrayBundleCreate NP=4 ftest
+
+RUN_ESMF_ArrayBundleCreateUTestUNI:
+	$(MAKE) TNAME=ArrayBundleCreate NP=1 ftest
 
 RUN_ESMF_ArrayBundleIOUTest:
 	$(MAKE) TNAME=ArrayBundleIO NP=4 ftest

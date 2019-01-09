@@ -1,7 +1,7 @@
 ! $Id$
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2012, University Corporation for Atmospheric Research,
+! Copyright 2002-2018, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -38,7 +38,7 @@
 !------------------------------------------------------------------------------
 
     ! Local variables
-    integer :: rc, finalrc
+    integer :: rc, finalrc, result
     type(ESMF_Field)                            :: srcField, dstField
     type(ESMF_Field)                            :: srcFieldA, dstFieldA
     type(ESMF_Grid)                             :: grid
@@ -60,7 +60,22 @@
     integer :: numElems
     integer, pointer :: elemIds(:),elemTypes(:),elemConn(:)
 
+    character(ESMF_MAXSTR) :: testname
+    character(ESMF_MAXSTR) :: failMsg
+
+!-------------------------------------------------------------------------
+!-------------------------------------------------------------------------
+
+    write(failMsg, *) "Example failure"
+    write(testname, *) "Example ESMF_FieldRedistEx"
+
+
+! ------------------------------------------------------------------------------
+! ------------------------------------------------------------------------------
+
+
     rc = ESMF_SUCCESS
+    localrc = ESMF_SUCCESS
     finalrc = ESMF_SUCCESS
 !------------------------------------------------------------------------------
     call ESMF_Initialize(defaultlogfilename="FieldRedistEx.Log", &
@@ -89,20 +104,20 @@
 
     ! Get current VM and pet number
     call ESMF_VMGetCurrent(vm, rc=rc)
-    if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
     call ESMF_VMGet(vm, localPet=localPet, rc=rc)
-    if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
     ! create grid
     distgrid = ESMF_DistGridCreate(minIndex=(/1/), maxIndex=(/16/), &
             regDecomp=(/4/), &
             rc=rc)
-    if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
     grid = ESMF_GridCreate(distgrid=distgrid, &
         name="grid", rc=rc)
-    if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
     ! create srcField
     ! +--------+--------+--------+--------+
@@ -110,10 +125,10 @@
     ! 1        4        8        12       16       ! bounds
     srcField = ESMF_FieldCreate(grid, typekind=ESMF_TYPEKIND_I4, &
       indexflag=ESMF_INDEX_DELOCAL, rc=rc)
-    if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
     call ESMF_FieldGet(srcField, farrayPtr=srcfptr, rc=rc)
-    if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
     srcfptr(:) = localPet
 
@@ -123,25 +138,25 @@
     ! 1        4        8        12       16       ! bounds
     dstField = ESMF_FieldCreate(grid, typekind=ESMF_TYPEKIND_I4, &
       indexflag=ESMF_INDEX_DELOCAL, rc=rc)
-    if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
     call ESMF_FieldGet(dstField, farrayPtr=dstfptr, rc=rc)
-    if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   
     dstfptr(:) = 0
 
     ! perform redist
     ! 1. setup routehandle from source Field to destination Field
     call ESMF_FieldRedistStore(srcField, dstField, routehandle, rc=rc)
-    if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
     ! 2. use precomputed routehandle to redistribute data
     call ESMF_FieldRedist(srcfield, dstField, routehandle, rc=rc)
-    if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
     ! verify redist
     call ESMF_FieldGet(dstField, localDe=0, farrayPtr=fptr, rc=rc)
-    if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
     ! Verify that the redistributed data in dstField is correct.
     ! Before the redist op, the dst Field contains all 0. 
@@ -149,14 +164,14 @@
     do i = lbound(fptr, 1), ubound(fptr, 1)
         if(fptr(i) .ne. localPet) localrc = ESMF_FAILURE
     enddo
-    if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
+    if (localrc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !EOC
 
     ! destroy all objects created in this example to prevent memory leak
     call ESMF_FieldDestroy(srcField, rc=rc)
-    if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
     call ESMF_FieldDestroy(dstField, rc=rc)
-    if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !BOE
 ! Field redistribution can also be performed between weakly congruent Fields.
 ! In this case, source and destination Fields can have ungridded dimensions
@@ -165,7 +180,7 @@
 !BOC
     call ESMF_ArraySpecSet(arrayspec, typekind=ESMF_TYPEKIND_I4, rank=2, rc=rc)
 !EOC
-    if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !BOE
 ! Create two fields with ungridded dimensions using the Grid created previously.
 ! The new Field pair has matching number of elements. The ungridded dimension
@@ -175,12 +190,12 @@
     srcFieldA = ESMF_FieldCreate(grid, arrayspec, gridToFieldMap=(/2/), &
         ungriddedLBound=(/1/), ungriddedUBound=(/10/), rc=rc)
 !EOC
-    if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !BOC
     dstFieldA = ESMF_FieldCreate(grid, arrayspec, gridToFieldMap=(/2/), &
         ungriddedLBound=(/1/), ungriddedUBound=(/10/), rc=rc)
 !EOC
-    if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
 !BOE
 ! Using the previously computed routehandle, weakly congruent Fields can be
@@ -189,19 +204,19 @@
 !BOC
     call ESMF_FieldRedist(srcfieldA, dstFieldA, routehandle, rc=rc)
 !EOC
-    if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
 !BOC
     call ESMF_FieldRedistRelease(routehandle, rc=rc)
 !EOC
-    if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
     call ESMF_FieldDestroy(srcFieldA, rc=rc)
-    if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
     call ESMF_FieldDestroy(dstFieldA, rc=rc)
-    if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
     call ESMF_GridDestroy(grid, rc=rc)
-    if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !------------------------------------------------------------------------------
 !BOE
 ! \subsubsection{FieldRedist as a form of scatter involving arbitrary distribution}
@@ -226,18 +241,18 @@
     distgrid = ESMF_DistGridCreate(minIndex=(/1/), maxIndex=(/9/), &
         regDecomp=(/1/), &
         rc=rc)
-    if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
     grid = ESMF_GridCreate(distgrid=distgrid, &
         indexflag=ESMF_INDEX_DELOCAL, rc=rc)
-    if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
     srcField = ESMF_FieldCreate(grid, typekind=ESMF_TYPEKIND_I4, rc=rc)
-    if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
     ! initialize the source data
     if (localPet == 0) then
         call ESMF_FieldGet(srcField, farrayPtr=srcfptr, rc=rc)
-        if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
+        if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
         do i = 1, 9
             srcfptr(i) = i
         enddo
@@ -389,7 +404,7 @@
              nodeOwners=nodeOwners, elementIds=elemIds,&
              elementTypes=elemTypes, elementConn=elemConn, &
              rc=rc)
-      if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
+      if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !EOC
       ! deallocate node data
       deallocate(nodeIds)
@@ -406,7 +421,7 @@
 !EOE
 !BOC
       dstField = ESMF_FieldCreate(mesh, typekind=ESMF_TYPEKIND_I4, rc=rc)
-      if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
+      if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !EOC
 
 !BOE
@@ -415,12 +430,12 @@
 !BOC
      call ESMF_FieldRedistStore(srcField, dstField, &
              routehandle=routehandle, rc=rc)
-     if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
+     if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
      call ESMF_FieldRedist(srcField, dstField, routehandle=routehandle, rc=rc)
-     if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
+     if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !EOC
 !BOE
-! We can now verify that the sequentially intialized source data is scattered
+! We can now verify that the sequentially initialized source data is scattered
 ! on to the destination Field. The data has been scattered onto the destination
 ! Field with the following distribution.
 !\begin{verbatim}
@@ -436,7 +451,7 @@
 !EOE
 !BOC
     call ESMF_FieldGet(dstField, farrayPtr=dstfptr, rc=rc)
-    if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !EOC
 !BOE
 ! The scatter operation is successful. Since the routehandle computed with
@@ -452,7 +467,7 @@
 !BOC
     call ESMF_FieldRedistRelease(routehandle=routehandle, rc=rc)
 !EOC
-    if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !------------------------------------------------------------------------------
 !BOE
 ! \subsubsection{FieldRedist as a form of gather involving arbitrary distribution}
@@ -473,7 +488,7 @@
     call ESMF_FieldRedistStore(dstField, srcField, routehandle=routehandle, &
          rc=rc)
 !EOC
-    if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
 !BOE
 ! Perform FieldRedist, this will gather the data points from the Field built on mesh to
@@ -482,7 +497,7 @@
 !BOC
     call ESMF_FieldRedist(dstField, srcField, routehandle=routehandle, rc=rc)
 !EOC
-    if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
 !BOE
 ! Release the routehandle used for the gather operation.
@@ -490,15 +505,21 @@
 !BOC
     call ESMF_FieldRedistRelease(routehandle=routehandle, rc=rc)
 !EOC
-    if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
     call ESMF_FieldDestroy(srcField, rc=rc)
-    if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
     call ESMF_FieldDestroy(dstField, rc=rc)
-    if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
     call ESMF_MeshDestroy(mesh, rc=rc)
-    if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
     call ESMF_DistGridDestroy(distgrid, rc=rc)
-    if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
+
+    ! IMPORTANT: ESMF_STest() prints the PASS string and the # of processors in the log
+    ! file that the scripts grep for.
+    call ESMF_STest((finalrc.eq.ESMF_SUCCESS), testname, failMsg, result, ESMF_SRCLINE)
+
+
 
     call ESMF_Finalize(rc=rc)
     if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE

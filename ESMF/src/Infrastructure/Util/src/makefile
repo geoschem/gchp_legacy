@@ -1,22 +1,27 @@
-# $Id: makefile,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $ 
+# $Id$ 
 
 ALL: build_here
 
-AUTOGEN   = ESMF_FortranWordsize.F90 ESMF_TypeKindGet.F90
+AUTOGEN   = ESMF_FortranWordsize.F90 ESMF_TypeKindGet.F90 \
+            ESMF_UtilSort.F90
 
-SOURCEC	  = ESMCI_Util.C ESMCI_Fraction.C ESMCI_F90Interface.C
+SOURCEC	  = ESMCI_Util.C ESMCI_Fraction.C ESMCI_F90Interface.C \
+	    			ESMCI_CoordSys.C
 SOURCEF	  = ESMF_UtilTypes.F90 \
+	    			ESMF_UtilString.F90 \
             ESMF_LogErr.F90  \
             $(AUTOGEN) \
             ESMF_InitMacros.F90 \
-            ESMF_IOUtil.F90
+            ESMF_IOUtil.F90 \
+            ESMF_StaggerLocType.F90 \
+	          ESMF_UtilCubedSphere.F90 \
+						ESMF_AttPackType.F90
             
 STOREH    = ESMCI_Arg.h ESMF_Macros.inc ESMF.h ESMCI_Util.h \
             ESMF_TypeKindRankMacros.hcppF90 ESMCI_Macros.h \
             ESMCI_F90Interface.h ESMF_ErrReturnCodes.inc \
             ESMF_LogMacros.inc ESMF_LogConstants.inc ESMCI_Fraction.h \
-            ESMF_TypeKindMacros.hcppF90 ESMF_InitMacros.inc \
-            ESMCI_LogMacros.inc
+            ESMF_TypeKindMacros.hcppF90 ESMF_InitMacros.inc ESMCI_CoordSys.h
 
 OBJSC     = $(addsuffix .o, $(basename $(SOURCEC)))
 OBJSF     = $(addsuffix .o, $(basename $(SOURCEF)))

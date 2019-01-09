@@ -6,8 +6,8 @@
 /*****************************************************************************
  * CVS File Information :
  *    $RCSfile: zz_set_fn.c,v $
- *    $Author: mathomp4 $
- *    $Date: 2013-01-11 20:23:44 $
+ *    $Author: theurich $
+ *    $Date: 2009/07/15 15:34:21 $
  *    Revision: 1.17.2.1 $
  ****************************************************************************/
 
@@ -53,7 +53,7 @@ int Zoltan_Set_Fn(ZZ *zz, ZOLTAN_FN_TYPE fn_type, ZOLTAN_VOID_FN *fn,
  *    zz                --  Appropriate field set to value in void *().
  */
 
-char *yo = "Zoltan_Set_Fn";
+const char *yo = "Zoltan_Set_Fn";
 char msg[256];
 int ierr;
 

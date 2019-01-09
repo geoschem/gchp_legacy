@@ -7,8 +7,8 @@
 /*****************************************************************************
  * CVS File Information :
  *    $RCSfile: comm_resize.c,v $
- *    $Author: mathomp4 $
- *    $Date: 2013-01-11 20:23:44 $
+ *    $Author: dneckels $
+ *    $Date: 2007/11/28 16:13:46 $
  *    Revision: 1.14 $
  ****************************************************************************/
 
@@ -50,7 +50,7 @@ int      *sum_recv_sizes)       /* sum of the sizes of the items I'll receive */
 					/* ordered like procs_from */
     int       var_sizes;        /* items have variable sizes? */
     int       i, j, k;		/* loop counters */
-    static char *yo = "Zoltan_Comm_Resize";
+    static const char *yo = "Zoltan_Comm_Resize";
 
 
     /* If sizes vary, then I need to compute and communicate message lengths */

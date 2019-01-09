@@ -1,7 +1,7 @@
 // $Id$
 //
 // Earth System Modeling Framework
-// Copyright 2002-2012, University Corporation for Atmospheric Research, 
+// Copyright 2002-2018, University Corporation for Atmospheric Research, 
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
 // Laboratory, University of Michigan, National Centers for Environmental 
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
@@ -11,6 +11,9 @@
 //-----------------------------------------------------------------------------
 
 #include "ESMCI_VMKernel.h"
+#include "ESMCI_VM.h"
+
+#define VM_MEMLOG_off
 
 // On SunOS systems there are a couple of macros that need to be set
 // in order to get POSIX compliant functions IPC, pthreads, gethostid
@@ -31,6 +34,7 @@
 
 #if !defined (ESMF_OS_MinGW)
 #include <unistd.h>
+#include <sys/time.h>
 #else
 #include <windows.h>
 #endif
@@ -64,6 +68,9 @@ using namespace std;
 
 #include <fcntl.h>
 
+#include "ESMCI_AccInfo.h"
+#include "ESMCI_LogErr.h"
+
 // macros used within this source file
 #define VERBOSITY             (0)       // 0: off, 10: max
 #define VM_TID_MPI_TAG        (10)      // mpi tag used to send/recv TID
@@ -87,15 +94,20 @@ typedef DWORD pid_t;
 #define getpid GetCurrentProcessId
 #endif
 
+// Requested MPI thread level
+#ifndef VM_MPI_THREAD_LEVEL
+#define VM_MPI_THREAD_LEVEL MPI_THREAD_MULTIPLE
+#endif
+
 namespace ESMCI {
 
 // Definition of class static data members
-MPI_Group VMK::default_mpi_g;
 MPI_Comm VMK::default_mpi_c;
 int VMK::mpi_thread_level;
 int VMK::ncores;
 int *VMK::cpuid;
 int *VMK::ssiid;
+double VMK::wtime0;
 // Static data members to support command line arguments
 int VMK::argc;
 char *VMK::argv_store[100];
@@ -121,10 +133,12 @@ typedef struct{
   esmf_pthread_mutex_t mut_extra2;
   esmf_pthread_cond_t cond_extra2;
   void *arg;
+  int released;
 }vmkt_t;
 
 int vmkt_create(vmkt_t *vmkt, void *(*vmkt_spawn)(void *), void *arg){
-  vmkt->flag = 0;
+  vmkt->flag = 0;     // initialize
+  vmkt->released = 0; // initialize
 #ifndef ESMF_NO_PTHREADS
   pthread_mutex_init(&(vmkt->mut0), NULL);
   pthread_mutex_lock(&(vmkt->mut0));
@@ -156,6 +170,7 @@ int vmkt_release(vmkt_t *vmkt, void *arg){
   pthread_cond_signal(&(vmkt->cond1));
   pthread_mutex_unlock(&(vmkt->mut1));
 #endif
+  vmkt->released = 1; // set flag
   return 0;
 }
 
@@ -163,11 +178,16 @@ int vmkt_catch(vmkt_t *vmkt){
 #ifndef ESMF_NO_PTHREADS
   pthread_cond_wait(&(vmkt->cond0), &(vmkt->mut0)); //wait for the child
 #endif
+  vmkt->released = 0; // reset flag  
   return 0;
 }
 
 int vmkt_join(vmkt_t *vmkt){
-  vmkt->flag = 1;
+  if (vmkt->released){
+    // need to first catch the released threads
+    vmkt_catch(vmkt);
+  }
+  vmkt->flag = 1; // set flag to indicate that this is a wrap up call
 #ifndef ESMF_NO_PTHREADS
   pthread_mutex_lock(&(vmkt->mut1));  
   pthread_cond_signal(&(vmkt->cond1));
@@ -280,20 +300,21 @@ void VMK::init(MPI_Comm mpiCommunicator){
   int initialized;
   MPI_Initialized(&initialized);
   if (!initialized){
-#ifdef ESMF_MPICH   
+#ifdef ESMF_MPICH
     // MPICH1.2 is not standard compliant and needs valid args
     // make copy of argc and argv for MPICH because it modifies them and
     // the original values are needed to delete the memory during finalize()
     argc_mpich = argc;
     for (int k=0; k<100; k++)
       argv_mpich[k] = argv[k];
-    MPI_Init_thread(&argc_mpich, (char ***)&argv_mpich, MPI_THREAD_MULTIPLE,
+    MPI_Init_thread(&argc_mpich, (char ***)&argv_mpich, VM_MPI_THREAD_LEVEL,
       &mpi_thread_level);
 #else
-    MPI_Init_thread(NULL, NULL, MPI_THREAD_MULTIPLE, &mpi_thread_level);
+    MPI_Init_thread(NULL, NULL, VM_MPI_THREAD_LEVEL, &mpi_thread_level);
 #endif
   }
   // so now MPI is for sure initialized...
+  wtime0 = MPI_Wtime();
   // TODO: now it should be safe to call obtain_args() for all MPI impl.
   // Obtain MPI variables
   int rank, size;
@@ -319,10 +340,11 @@ void VMK::init(MPI_Comm mpiCommunicator){
   // no threading in default global VM
   nothreadsflag = 1;
   // set up private Group and Comm objects across "mpiCommunicator"
+  MPI_Group mpi_g;
   MPI_Comm_group(mpiCommunicator, &mpi_g);
   MPI_Comm_create(mpiCommunicator, mpi_g, &mpi_c);
-  // ... and copy them into the class static default variables...
-  default_mpi_g = mpi_g;
+  MPI_Group_free(&mpi_g);
+  // ... and copy the Comm object into the class static default variable...
   default_mpi_c = mpi_c;
   // initialize the shared memory variables
   pth_finish_count = NULL;
@@ -348,6 +370,12 @@ void VMK::init(MPI_Comm mpiCommunicator){
   sendChannel[0].shmp = new shared_mp;
   sync_reset(&(sendChannel[0].shmp->shms));
   sendChannel[0].shmp->tcounter = 0;
+  sendChannel[0].shmp->recvCount = 0;
+  sendChannel[0].shmp->sendCount = 0;
+  for (int i=0; i<SHARED_NONBLOCK_CHANNELS; i++){
+    sendChannel[0].shmp->ptr_src_nb[i] = NULL;
+    sendChannel[0].shmp->ptr_dst_nb[i] = NULL;
+  }
   recvChannel[0] = sendChannel[0];
 #else
   if (npets==1){
@@ -356,6 +384,12 @@ void VMK::init(MPI_Comm mpiCommunicator){
     sendChannel[0].shmp = new shared_mp;
     sync_reset(&(sendChannel[0].shmp->shms));
     sendChannel[0].shmp->tcounter = 0;
+    sendChannel[0].shmp->recvCount = 0;
+    sendChannel[0].shmp->sendCount = 0;
+    for (int i=0; i<SHARED_NONBLOCK_CHANNELS; i++){
+      sendChannel[0].shmp->ptr_src_nb[i] = NULL;
+      sendChannel[0].shmp->ptr_dst_nb[i] = NULL;
+    }
     recvChannel[0] = sendChannel[0];
   }else{
     for (int i=0; i<npets; i++){
@@ -395,9 +429,9 @@ void VMK::init(MPI_Comm mpiCommunicator){
   }
 #else
   long int *temp_ssiid = new long int[ncores];
-  int hostid = gethostid();
-  MPI_Allgather(&hostid, sizeof(long int), MPI_BYTE, temp_ssiid, 
-    sizeof(long int), MPI_BYTE, mpi_c);
+  long hostid = gethostid();
+  MPI_Allgather(&hostid, 1, MPI_LONG,
+             temp_ssiid, 1, MPI_LONG, mpi_c);
   // now re-number the ssiid[] to go like 0, 1, 2, ...
   int ssi_counter=0;
   for (int i=0; i<ncores; i++){
@@ -420,15 +454,23 @@ void VMK::init(MPI_Comm mpiCommunicator){
   pid = new int[npets];
   tid = new int[npets];
   ncpet = new int[npets];
+  nadevs = new int[npets];
   cid = new int*[npets];
   for (int i=0; i<npets; i++){
     lpid[i]=i;
     pid[i]=i;
     tid[i]=0;
     ncpet[i]=1;
+    nadevs[i]=0;
     cid[i] = new int[ncpet[i]];
     cid[i][0]=i;
   }
+#ifdef ESMF_ACC_SOFTWARE_STACK
+  int num_adevices = 0;
+  num_adevices = VMAccFwGetNumDevices();
+  MPI_Allgather(&num_adevices, 1, MPI_INTEGER,
+                nadevs, 1, MPI_INTEGER, mpi_c);              
+#endif
 }
 
 
@@ -470,6 +512,7 @@ void VMK::finalize(int finalizeMpi){
   delete [] pid;
   delete [] tid;
   delete [] ncpet;
+  delete [] nadevs;
   for (int i=0; i<npets; i++)
     delete [] cid[i];
   delete [] cid;
@@ -478,7 +521,6 @@ void VMK::finalize(int finalizeMpi){
   MPI_Finalized(&finalized);
   if (!finalized){
     MPI_Comm_free(&mpi_c);
-    MPI_Group_free(&mpi_g);
     if (finalizeMpi)
       MPI_Finalize();
   }
@@ -512,9 +554,10 @@ struct SpawnArg{
   int *pid;
   int *tid;
   int *ncpet;
+  int *nadevs;
   int **cid;
-  MPI_Group mpi_g;
   MPI_Comm mpi_c;
+  int mpi_c_freeflag;
   int nothreadsflag;
   // shared memory variables
   esmf_pthread_mutex_t *pth_mutex2;
@@ -536,7 +579,7 @@ void VMK::abort(){
   int finalized;
   MPI_Finalized(&finalized);
   if (!finalized)
-    MPI_Abort(default_mpi_c, 0);
+    MPI_Abort(default_mpi_c, EXIT_FAILURE);
 }
 
 
@@ -550,17 +593,18 @@ void VMK::construct(void *ssarg){
   pid = new int[npets];
   tid = new int[npets];
   ncpet = new int[npets];
+  nadevs = new int[npets];
   cid = new int*[npets];
   for (int i=0; i<npets; i++){
     lpid[i]=sarg->lpid[i];
     pid[i]=sarg->pid[i];
     tid[i]=sarg->tid[i];
     ncpet[i]=sarg->ncpet[i];
+    nadevs[i]=sarg->nadevs[i];
     cid[i] = new int[ncpet[i]];
     for (int k=0; k<ncpet[i]; k++)
       cid[i][k] = sarg->cid[i][k];
   }
-  mpi_g = sarg->mpi_g;
   mpi_c = sarg->mpi_c;
   pth_mutex2 = sarg->pth_mutex2;
   pth_mutex = sarg->pth_mutex;
@@ -600,7 +644,11 @@ void VMK::construct(void *ssarg){
           int size = sizeof(pipc_mp);
           void *shm_segment;
           // first: sendChannel
+#ifdef ESMF_OS_Linux
+          sprintf(shm_file, "/shm_channel_%d_%d", mypet, i);
+#else
           sprintf(shm_file, "/tmp/shm_channel_%d_%d", mypet, i);
+#endif
           // get a descriptor for this shared memory resource
           // which ever PET comes first will create this resource, the other
           // will just open it...
@@ -621,8 +669,13 @@ void VMK::construct(void *ssarg){
           // enter the address into the sendChannel
           sendChannel[i].pipcmp = (pipc_mp *)shm_segment;
           sendChannel[i].comm_type = VM_COMM_TYPE_POSIXIPC;
+//fprintf(stderr, "Setting sendChannel[%d].pipcmp = %p, %p\n", i, shm_segment, MAP_FAILED);
           // then: recvChannel
+#ifdef ESMF_OS_Linux
+          sprintf(shm_file, "/shm_channel_%d_%d", i, mypet);
+#else
           sprintf(shm_file, "/tmp/shm_channel_%d_%d", i, mypet);
+#endif
           // get a descriptor for this shared memory resource
           // which ever PET comes first will create this resource, the other
           // will just open it...
@@ -643,6 +696,7 @@ void VMK::construct(void *ssarg){
           // enter the address into the recvChannel
           recvChannel[i].pipcmp = (pipc_mp *)shm_segment;
           recvChannel[i].comm_type = VM_COMM_TYPE_POSIXIPC;
+//fprintf(stderr, "Setting recvChannel[%d].pipcmp = %p, %p\n", i, shm_segment, MAP_FAILED);
         }
       }
     }
@@ -693,9 +747,6 @@ void VMK::destruct(){
 #if (VERBOSITY > 9)
     printf("mypet is the last one to wrap up for this pid..MPI & shared mem\n");
 #endif
-    //  - free MPI Group and Comm
-    MPI_Comm_free(&mpi_c);
-    MPI_Group_free(&mpi_g);  // this might have to be called from higher up...
     //  - free the shared memory variables
 #ifndef ESMF_NO_PTHREADS
     pthread_mutex_destroy(pth_mutex2);
@@ -723,86 +774,51 @@ void VMK::destruct(){
     pthread_mutex_destroy(ipSetupMutex);
 #endif
     delete ipSetupMutex;
-    for (int i=0; i<npets; i++){
-      if(sendChannel[i].comm_type==VM_COMM_TYPE_SHMHACK
-        ||sendChannel[i].comm_type==VM_COMM_TYPE_PTHREAD
-        ||sendChannel[i].comm_type==VM_COMM_TYPE_MPIUNI){
-        // intra-process shared memory structure to be deleted
-        shared_mp *shmp=sendChannel[i].shmp;
+  }
+  // only the sendChannels of all PETs free -> this also deletes recvChannels
+  for (int i=0; i<npets; i++){
+    if(sendChannel[i].comm_type==VM_COMM_TYPE_SHMHACK
+      ||sendChannel[i].comm_type==VM_COMM_TYPE_PTHREAD
+      ||sendChannel[i].comm_type==VM_COMM_TYPE_MPIUNI){
+      // intra-process shared memory structure to be deleted
+      shared_mp *shmp=sendChannel[i].shmp;
 #ifndef ESMF_NO_PTHREADS
-        if(sendChannel[i].comm_type==VM_COMM_TYPE_PTHREAD){
-          pthread_mutex_destroy(&(shmp->mutex1));
-          pthread_cond_destroy(&(shmp->cond1));
-          pthread_mutex_destroy(&(shmp->mutex2));
-          pthread_cond_destroy(&(shmp->cond2));
-        }
+      if(sendChannel[i].comm_type==VM_COMM_TYPE_PTHREAD){
+        pthread_mutex_destroy(&(shmp->mutex1));
+        pthread_cond_destroy(&(shmp->cond1));
+        pthread_mutex_destroy(&(shmp->mutex2));
+        pthread_cond_destroy(&(shmp->cond2));
+      }
 #endif
 #if (VERBOSITY > 9)
-        printf("deleting shmp=%p for sendChannel[%d], mypet=%d\n", 
-          shmp, i, mypet);
-#endif          
-        delete shmp;
-      }else if (sendChannel[i].comm_type==VM_COMM_TYPE_POSIXIPC){
+      printf("deleting shmp=%p for sendChannel[%d], mypet=%d\n", 
+        shmp, i, mypet);
+#endif
+      delete shmp;
+    }else if (sendChannel[i].comm_type==VM_COMM_TYPE_POSIXIPC){
 #ifdef ESMF_NO_POSIXIPC
 #else
-        pipc_mp *pipcmp=sendChannel[i].pipcmp;
-        char shm_name[80];
-        strcpy(shm_name, pipcmp->shm_name);
-        munmap((void *)pipcmp, sizeof(pipc_mp));
-        shm_unlink(shm_name);
+      pipc_mp *pipcmp=sendChannel[i].pipcmp;
+      char shm_name[80];
+      strcpy(shm_name, pipcmp->shm_name);
+      munmap((void *)pipcmp, sizeof(pipc_mp));
+      shm_unlink(shm_name);
 #if (VERBOSITY > 9)
-        printf("deleting pipcmp=%p (%s) for sendChannel[%d], mypet=%d\n", 
-          pipcmp, shm_name, i, mypet);
+      printf("deleting pipcmp=%p (%s) for sendChannel[%d], mypet=%d\n", 
+        pipcmp, shm_name, i, mypet);
 #endif
 #endif
-      }
-      if (i != mypet){
-        // diagonal element is handled by sendChannel
-        if(recvChannel[i].comm_type==VM_COMM_TYPE_SHMHACK
-          ||recvChannel[i].comm_type==VM_COMM_TYPE_PTHREAD
-          ||recvChannel[i].comm_type==VM_COMM_TYPE_MPIUNI){
-          // intra-process shared memory structure to be deleted
-          shared_mp *shmp=recvChannel[i].shmp;
-#ifndef ESMF_NO_PTHREADS
-          if(recvChannel[i].comm_type==VM_COMM_TYPE_PTHREAD){
-            pthread_mutex_destroy(&(shmp->mutex1));
-            pthread_cond_destroy(&(shmp->cond1));
-            pthread_mutex_destroy(&(shmp->mutex2));
-            pthread_cond_destroy(&(shmp->cond2));
-          }
-#endif
-#if (VERBOSITY > 9)
-          printf("deleting shmp=%p for recvChannel[%d], mypet=%d\n", 
-            shmp, i, mypet);
-#endif          
-          delete shmp;
-        }else if (recvChannel[i].comm_type==VM_COMM_TYPE_POSIXIPC){
-#ifdef ESMF_NO_POSIXIPC
-#else
-          pipc_mp *pipcmp=recvChannel[i].pipcmp;
-          char shm_name[80];
-          strcpy(shm_name, pipcmp->shm_name);
-          munmap((void *)pipcmp, sizeof(pipc_mp));
-          shm_unlink(shm_name);
-#if (VERBOSITY > 9)
-          printf("deleting pipcmp=%p (%s) for recvChannel[%d], mypet=%d\n", 
-            pipcmp, shm_name, i, mypet);
-#endif
-#endif
-        }
-      }
-    }    
-    delete [] sendChannel;
-    delete [] recvChannel;
+    }
   }
   delete [] lpid;
   delete [] pid;
   delete [] tid;
   delete [] ncpet;
+  delete [] nadevs;
   for (int i=0; i<npets; i++)
     delete [] cid[i];
   delete [] cid;
-}  
+}
 
 
 static void *vmk_spawn(void *arg){
@@ -883,12 +899,17 @@ static void *vmk_spawn(void *arg){
 // TODO: Windows equivalent, perhaps using TerminateProcess
 #endif
       // which ever thread of the other process woke up will try to receive tid
-//      MPI_Send(&(sarg->contributors[sarg->mypet][i].blocker_tid),
-//      sizeof(pthread_t), MPI_BYTE, sarg->contributors[sarg->mypet][i].mpi_pid,
-//      VM_TID_MPI_TAG, vm.default_mpi_c);
+#ifndef ESMF_NO_PTHREADS
+      if (vm->mpi_thread_level<MPI_THREAD_MULTIPLE)
+        pthread_mutex_lock(&(vmkt->mut0));
+#endif
       MPI_Send(&(sarg->contributors[sarg->mypet][i].blocker_vmkt),
         sizeof(vmkt_t *), MPI_BYTE, sarg->contributors[sarg->mypet][i].mpi_pid,
         VM_TID_MPI_TAG, vm->default_mpi_c);
+#ifndef ESMF_NO_PTHREADS
+      if (vm->mpi_thread_level<MPI_THREAD_MULTIPLE)
+        pthread_mutex_unlock(&(vmkt->mut0));
+#endif
     }
     // now signal to parent thread that child is done with its work
 #ifndef ESMF_NO_PTHREADS
@@ -994,14 +1015,10 @@ static void *vmk_sigcatcher(void *arg){
 #endif
   // this signal was received from a thread running under another process
   // receive the thread id of the blocker thread that needs to be woken up
-//  MPI_Recv(&thread_wake, sizeof(pthread_t), MPI_BYTE, MPI_ANY_SOURCE, 
-//    VM_TID_MPI_TAG, vm.default_mpi_c, &mpi_s);
   MPI_Recv(&blocker_vmkt, sizeof(vmkt_t *), MPI_BYTE, MPI_ANY_SOURCE, 
     VM_TID_MPI_TAG, vm.default_mpi_c, &mpi_s);
   // now wake up the correct blocker thread within this pid
 #if (VERBOSITY > 5)
-//  printf("It's the sigcatcher for pid %d again. I received the blocker tid\n"
-//    " and I'll wake up blocker thread with tid: %d\n", getpid(), thread_wake);
   fprintf(stderr, "It's the sigcatcher for pid %d again. I received the blocker"
     " &vmkt\n"
     " and I'll wake up blocker thread with &vmkt: %p\n", getpid(),
@@ -1059,7 +1076,7 @@ static void *vmk_block(void *arg){
 #endif
 #if (VERBOSITY > 5)
   fprintf(stderr, "blocker is past back-sync #2\n");  
-#endif  
+#endif
   volatile int *f = &(vmkt->flag);
   // now enter the catch/release loop
   for(;;){
@@ -1145,7 +1162,7 @@ void *VMK::startup(class VMKPlan *vmp,
     if (vmp->myvms == NULL){
       fprintf(stderr, "VM_ERROR: No vm objects provided.\n");
       MPI_Abort(default_mpi_c, 0);
-    } 
+    }
     sarg[i].myvm = vmp->myvms[i];
   }
   // next, determine new_npets and new_mypet_base ...
@@ -1168,6 +1185,7 @@ void *VMK::startup(class VMKPlan *vmp,
   int *new_pid = new int[new_npets];
   int *new_tid = new int[new_npets];
   int *new_ncpet = new int[new_npets];
+  int *new_nadevs = new int[new_npets];
   int *new_ncontributors = new int[new_npets];
   int **new_cid = new int*[new_npets];
   contrib_id **new_contributors = new contrib_id*[new_npets];
@@ -1220,6 +1238,7 @@ void *VMK::startup(class VMKPlan *vmp,
       new_tid[new_petid]=local_tid;   // new tid is continuous count per pid
       // next, determine how many cores the new pet will have & its contributors
       new_ncpet[new_petid]=0;         // reset the counter
+      new_nadevs[new_petid]=nadevs[i];         // copy the number of acc devs
       new_ncontributors[new_petid]=0; // reset the counter
       for (int kk=0; kk<npets; kk++){
         int k = vmp->petlist[kk];   // indirection to preserve petlist order
@@ -1414,21 +1433,13 @@ void *VMK::startup(class VMKPlan *vmp,
     }
   }
   
-  // next, create MPI group
-  // since this is a local MPI operation each pet can call this here...
-  MPI_Group new_mpi_g;
-  
-  // the new group will be derived from the mpi_g_part group so there is an
+  // the new MPI group will be derived from the mpi_g_part group so there is an
   // additional level of indirection here
   int *grouplist = new int[num_diff_pids];
   for (int i=0; i<num_diff_pids; i++){
     grouplist[i] = vmp->lpid_mpi_g_part_map[lpid_list[0][i]];
   }
   
-#if (VERBOSITY > 9)
-  printf("successfully derived new_mpi_g\n");
-#endif
-
   // setting up MPI communicators is a collective MPI communication call
   // thus it requires that exactly one pet of each process running in the 
   // current VMK makes that call, even if this process will not participate
@@ -1438,6 +1449,7 @@ void *VMK::startup(class VMKPlan *vmp,
   int foundfirstflag=0;
   int foundfirstpet;
   int mylpid = lpid[mypet];
+  sarg[0].mpi_c_freeflag = 0; // invalidate on all PETs
   for (int ii=0; ii<vmp->nplist; ii++){
     int i = vmp->petlist[ii];     // indirection to preserve petlist order
     if (mylpid == lpid[i]){
@@ -1451,14 +1463,23 @@ void *VMK::startup(class VMKPlan *vmp,
         // I am this pet
         if (foundfirstpet == i){
           // I am the first under this lpid and must create communicator
-          MPI_Group_incl(vmp->mpi_g_part, num_diff_pids, grouplist, &new_mpi_g);
+          MPI_Group mpi_g_part;
+          MPI_Comm_group(vmp->mpi_c_part, &mpi_g_part);     // plan's group
+          MPI_Group new_mpi_g;
+          MPI_Group_incl(mpi_g_part, num_diff_pids, grouplist, &new_mpi_g);
           MPI_Comm_create(vmp->mpi_c_part, new_mpi_g, &new_mpi_c);
+          MPI_Group_free(&new_mpi_g);
+          MPI_Group_free(&mpi_g_part);
+          // store the communicator on this PET with info to free
+          sarg[0].mpi_c = new_mpi_c;
+          sarg[0].mpi_c_freeflag = 1; // responsible to free the communicator
         }else{
           // I am not the first under this lpid and must receive 
 #if (VERBOSITY > 9)
           printf("mypet %d recvs new_mpi_c from %d\n", mypet, foundfirstpet);
 #endif
           recv(&new_mpi_c, sizeof(MPI_Comm), foundfirstpet);
+          sarg[0].mpi_c_freeflag = 0; // not responsible to free the communicat.
         }
       }else if (mypet == foundfirstpet){
         // I am the master and must send the communicator
@@ -1472,13 +1493,11 @@ void *VMK::startup(class VMKPlan *vmp,
   delete [] grouplist;
   
 #if (VERBOSITY > 9)
-  printf("now valid new_mpi_g and new_mpi_c exist\n");
+  printf("now valid new_mpi_c exists\n");
 #endif
 
   // now:
-  //    new_mpi_g is the valid MPI_Group for the new VMK
   //    new_mpi_c is the valid MPI_Comm for the new VMK
-  //
   // Next, setting up intra-process shared memory connection between
   // qualifying pets of the new VMK. Only one of the current pets that
   // spawn for a certain lpid must allocate memory for the shared variables 
@@ -1528,6 +1547,7 @@ void *VMK::startup(class VMKPlan *vmp,
             int pet2Index = 0;  // reset
             for (int pet2=0; pet2<new_npets; pet2++){
               if (new_pid[pet2]==pid[mypet]){
+                new_commarray[pet1Index][pet2Index].shmp = NULL; // detectable
 #ifdef ESMF_MPIUNI
                 // pet1==pet2==mypet==0
                 // -> allocate shared_mp structure for such PETs
@@ -1537,6 +1557,14 @@ void *VMK::startup(class VMKPlan *vmp,
                 new_commarray[pet1Index][pet2Index].comm_type =
                   VM_COMM_TYPE_MPIUNI;
                 new_commarray[pet1Index][pet2Index].shmp->tcounter = 0;
+                new_commarray[pet1Index][pet2Index].shmp->recvCount = 0;
+                new_commarray[pet1Index][pet2Index].shmp->sendCount = 0;
+                for (int i=0; i<SHARED_NONBLOCK_CHANNELS; i++){
+                  new_commarray[pet1Index][pet2Index].shmp->ptr_src_nb[i]
+                    = NULL;
+                  new_commarray[pet1Index][pet2Index].shmp->ptr_dst_nb[i]
+                    = NULL;
+                }
 #else
                 if (pet1 != pet2){
                   // pet1 and pet2 are different PETs that run in mypet's VAS
@@ -1567,12 +1595,20 @@ void *VMK::startup(class VMKPlan *vmp,
                       NULL);
 #endif
                     new_commarray[pet1Index][pet2Index].shmp->tcounter = 0;
+                    new_commarray[pet1Index][pet2Index].shmp->recvCount = 0;
+                    new_commarray[pet1Index][pet2Index].shmp->sendCount = 0;
+                    for (int i=0; i<SHARED_NONBLOCK_CHANNELS; i++){
+                      new_commarray[pet1Index][pet2Index].shmp->ptr_src_nb[i]
+                        = NULL;
+                      new_commarray[pet1Index][pet2Index].shmp->ptr_dst_nb[i]
+                        = NULL;
+                    }
                   }
                 }else{
                   new_commarray[pet1Index][pet2Index].comm_type =
                     VM_COMM_TYPE_MPI1;  // default for selfcommunication
                 }
-#endif               
+#endif
                 ++pet2Index;
               }
             }
@@ -1628,6 +1664,7 @@ void *VMK::startup(class VMKPlan *vmp,
     sarg[i].pid = new int[new_npets];
     sarg[i].tid = new int[new_npets];
     sarg[i].ncpet = new int[new_npets];
+    sarg[i].nadevs = new int[new_npets];
     sarg[i].cid = new int*[new_npets];
     sarg[i].ncontributors = new int[new_npets];
     sarg[i].contributors = new contrib_id*[new_npets];
@@ -1636,6 +1673,7 @@ void *VMK::startup(class VMKPlan *vmp,
       sarg[i].pid[j] = new_pid[j];
       sarg[i].tid[j] = new_tid[j];
       sarg[i].ncpet[j] = new_ncpet[j];
+      sarg[i].nadevs[j] = new_nadevs[j];
       sarg[i].cid[j] = new int[new_ncpet[j]];
       for (int k=0; k<new_ncpet[j]; k++)
         sarg[i].cid[j][k] = new_cid[j][k];
@@ -1644,7 +1682,6 @@ void *VMK::startup(class VMKPlan *vmp,
       for (int k=0; k<new_ncontributors[j]; k++)
         sarg[i].contributors[j][k] = new_contributors[j][k];
     }
-    sarg[i].mpi_g = new_mpi_g;
     sarg[i].mpi_c = new_mpi_c;
     sarg[i].pth_mutex2 = new_pth_mutex2;
     sarg[i].pth_mutex = new_pth_mutex;
@@ -1703,6 +1740,7 @@ void *VMK::startup(class VMKPlan *vmp,
   delete [] new_pid;
   delete [] new_tid;
   delete [] new_ncpet;
+  delete [] new_nadevs;
   delete [] new_ncontributors;
   for (int i=0; i<new_npets; i++){
     delete [] new_cid[i];
@@ -1832,6 +1870,7 @@ void VMK::shutdown(class VMKPlan *vmp, void *arg){
     delete [] sarg[i].pid;
     delete [] sarg[i].tid;
     delete [] sarg[i].ncpet;
+    delete [] sarg[i].nadevs;
     delete [] sarg[i].ncontributors;
     for (int j=0; j<sarg[i].npets; j++){
       delete [] sarg[i].cid[j];
@@ -1839,6 +1878,8 @@ void VMK::shutdown(class VMKPlan *vmp, void *arg){
     }
     delete [] sarg[i].cid;
     delete [] sarg[i].contributors;
+    delete [] sarg[i].sendChannel;
+    delete [] sarg[i].recvChannel;
   }
   // need to block pets that did not spawn but contributed in the VMKPlan
   if (vmp->spawnflag[mypet]==0 && vmp->contribute[mypet]>-1){
@@ -1854,6 +1895,9 @@ void VMK::shutdown(class VMKPlan *vmp, void *arg){
       getpid(), pthread_self());
 #endif
   }
+  // now free up the MPI communicator that was associated with the VMK
+  if (sarg[0].mpi_c_freeflag && (sarg[0].mpi_c != MPI_COMM_NULL))
+    MPI_Comm_free(&(sarg[0].mpi_c));
   // done holding info in SpawnArg array -> delete now
   delete [] sarg;
   // done blocking...
@@ -1869,8 +1913,6 @@ void VMK::print()const{
          "  pth_finish_count =\t %p\n",
     pth_mutex, pth_finish_count);
   int size, rank;
-  MPI_Group_size(mpi_g, &size);
-  printf("MPI_Group_size: %d\n", size);
   MPI_Comm_size(mpi_c, &size);
   printf("MPI_Comm_size: %d\n", size);
   MPI_Comm_rank(mpi_c, &rank);
@@ -1882,8 +1924,8 @@ void VMK::print()const{
   printf("mpionly: %d\n", mpionly);
   printf("nothreadsflag: %d\n", nothreadsflag);
   for (int i=0; i<npets; i++){
-    printf("  lpid[%d]=%d, tid[%d]=%d, vas[%d]=%d, ncpet[%d]=%d",
-      i, lpid[i], i, tid[i], i, pid[i], i, ncpet[i]);
+    printf("  lpid[%d]=%d, tid[%d]=%d, vas[%d]=%d, ncpet[%d]=%d, nadevs[%d]=%d",
+      i, lpid[i], i, tid[i], i, pid[i], i, ncpet[i], i, nadevs[i]);
     for (int j=0; j<ncpet[i]; j++)
       printf(", cid[%d][%d]=%d", i, j, cid[i][j]);
     printf("\n");
@@ -1912,6 +1954,11 @@ esmf_pthread_t VMK::getMypthid(){
 
 int VMK::getNcpet(int i){
   return ncpet[i];
+}
+
+
+int VMK::getNadevs(int i){
+  return nadevs[i];
 }
 
 
@@ -1975,7 +2022,6 @@ VMKPlan::VMKPlan(){
   // invalidate members that deal with communicator of participating PETs
   lpid_mpi_g_part_map = NULL;
   commfreeflag = 0;
-  groupfreeflag = 0;
 }
 
 
@@ -1989,10 +2035,6 @@ VMKPlan::~VMKPlan(){
   if (commfreeflag){
     MPI_Comm_free(&mpi_c_part);
     commfreeflag = 0;
-  }
-  if (groupfreeflag){
-    MPI_Group_free(&mpi_g_part);
-    groupfreeflag = 0;
   }
 }
 
@@ -2043,20 +2085,22 @@ void VMKPlan::vmkplan_mpi_c_part(VMK &vm){
     }
   }
   
-  // all parent PETs create the new group of participating PETs
-  groupfreeflag = 1;
-  MPI_Group_incl(vm.mpi_g, n, grouplist, &mpi_g_part);
- 
   // all master PETs of the current vm must create the communicator
   int mypet = vm.getMypet();
   if (vm.getTid(mypet) == 0){
     // master PET in this VAS
+    MPI_Group mpi_g;
+    MPI_Comm_group(vm.mpi_c, &mpi_g);                 // parent's goup
+    MPI_Group mpi_g_part;
+    MPI_Group_incl(mpi_g, n, grouplist, &mpi_g_part); // child's group
     MPI_Comm_create(vm.mpi_c, mpi_g_part, &mpi_c_part);
     commfreeflag = 1;   // this PET is responsible for freeing the communicator
+    MPI_Group_free(&mpi_g);
+    MPI_Group_free(&mpi_g_part);
   }else{
     commfreeflag = 0;   // this PET is _not_ responsible for freeing the commu.
   }
-  
+
   // reset those commfreeflags for PETs outside the group of participants
   int j;
   for (j=0; j<n; j++)
@@ -2228,9 +2272,7 @@ int VMKPlan::vmkplan_maxthreads(VMK &vm, int max, int *plist,
   if (pref_inter_ssi >= 0)
     this->pref_inter_ssi = pref_inter_ssi;
   vmkplan_maxthreads(vm, max, plist, nplist);
-#ifdef ESMF_NO_PTHREADS
-  if (!nothreadflag) return 1; // indicate error
-#endif
+  if ((vm.isPthreadsEnabled()==false) && !nothreadflag) return 1; // error
   return 0;
 }
 
@@ -2342,9 +2384,7 @@ int VMKPlan::vmkplan_minthreads(VMK &vm, int max, int *plist,
   if (pref_inter_ssi >= 0)
     this->pref_inter_ssi = pref_inter_ssi;
   vmkplan_minthreads(vm, max, plist, nplist);
-#ifdef ESMF_NO_PTHREADS
-  if (!nothreadflag) return 1; // indicate error
-#endif
+  if ((vm.isPthreadsEnabled()==false) && !nothreadflag) return 1; // error
   return 0;
 }
 
@@ -2461,9 +2501,7 @@ int VMKPlan::vmkplan_maxcores(VMK &vm, int max, int *plist,
   if (pref_inter_ssi >= 0)
     this->pref_inter_ssi = pref_inter_ssi;
   vmkplan_maxcores(vm, max, plist, nplist);
-#ifdef ESMF_NO_PTHREADS
-  if (!nothreadflag) return 1; // indicate error
-#endif
+  if ((vm.isPthreadsEnabled()==false) && !nothreadflag) return 1; // error
   return 0;
 }
 
@@ -2559,6 +2597,10 @@ int VMK::commtest(commhandle **ch, int *completeFlag, status *status){
 //fprintf(stderr, "(%d)VMK::commtest: nhandles=%d\n", mypet, nhandles);
 //fprintf(stderr, "(%d)VMK::commtest: *ch=%p\n", mypet, *ch);
   int localrc=0;
+  if (status) {
+    memset (status, 0, sizeof (*status));     // quiet valgrind
+    status->comm_type = VM_COMM_TYPE_MPIUNI;  // safe initialization
+  }
   if ((ch!=NULL) && ((*ch)!=NULL)){
     // wait for all non-blocking requests in commhandle to complete
     int localCompleteFlag = 0;
@@ -2641,6 +2683,8 @@ int VMK::commwait(commhandle **ch, status *status, int nanopause){
 //fprintf(stderr, "(%d)VMK::commwait: nhandles=%d\n", mypet, nhandles);
 //fprintf(stderr, "(%d)VMK::commwait: *ch=%p\n", mypet, *ch);
   int localrc=0;
+  if (status)
+    status->comm_type = VM_COMM_TYPE_MPIUNI;  // safe initialization
   if ((ch!=NULL) && ((*ch)!=NULL)){
     // wait for all non-blocking requests in commhandle to complete
     if ((*ch)->type==0){
@@ -2735,6 +2779,16 @@ int VMK::commwait(commhandle **ch, status *status, int nanopause){
         }
       }
       delete [] (*ch)->mpireq;
+#if 0
+    //TODO: totally wrong code here!!!!
+    }else if ((*ch)->type==5){
+      // this commhandle is based on POSIXIPC share memory channels
+      if ((*ch)->ptr){
+        // This transfer was not complete when it was initiated -> wait now
+        volatile void *ptr = *((void **)((*ch)->ptr));
+        while (ptr);
+      }
+#endif
     }else if ((*ch)->type==-1){
       // this is a dummy commhandle and there is nothing to wait for...
     }else{
@@ -2868,9 +2922,9 @@ int VMK::send(const void *message, int size, int dest, int tag){
     }
     pthread_mutex_unlock(&(shmp->mutex1));
 #endif
-    // now ptr_src and ptr_dest are valid for this message
+    // now ptr_src and ptr_dst are valid for this message
     scpsize = size/2;   // send takes the lower half
-    pdest = (char *)shmp->ptr_dest;
+    pdest = (char *)shmp->ptr_dst;
     psrc = (char *)shmp->ptr_src;
     // do the actual memcpy
     memcpy(pdest, psrc, scpsize);
@@ -2906,9 +2960,9 @@ int VMK::send(const void *message, int size, int dest, int tag){
       shmp->ptr_src = message;                        // set the source pointer
       // synchronize with recv()
       sync_a_flip(&shmp->shms);
-      // now ptr_src and ptr_dest are valid for this message
+      // now ptr_src and ptr_dst are valid for this message
       scpsize = size/2;   // send takes the lower half
-      pdest = (char *)shmp->ptr_dest;
+      pdest = (char *)shmp->ptr_dst;
       psrc = (char *)shmp->ptr_src;
       // do the actual memcpy
       memcpy(pdest, psrc, scpsize);
@@ -2970,7 +3024,7 @@ int VMK::send(const void *message, int size, int dest, int tag){
 
 int VMK::send(const void *message, int size, int dest, commhandle **ch,
   int tag){
-  // p2p send
+  // p2p send non-blocking
 //fprintf(stderr, "VMK::send: ch=%p\n", *ch);
 #if (VERBOSITY > 9)
   printf("sending to: %d, %d\n", dest, lpid[dest]);
@@ -2983,6 +3037,7 @@ int VMK::send(const void *message, int size, int dest, commhandle **ch,
   char *psrc;
   int i;
   char *mess;
+  int sendCount;
   // check if this needs a new entry in the request queue
   if (*ch==NULL){
     *ch = new commhandle;
@@ -2992,8 +3047,8 @@ int VMK::send(const void *message, int size, int dest, commhandle **ch,
   switch(sendChannel[dest].comm_type){
   case VM_COMM_TYPE_MPI1:
     (*ch)->nelements=1;
-    (*ch)->type=1;
-    (*ch)->sendFlag=true; // send request
+    (*ch)->type=1;          // MPI
+    (*ch)->sendFlag=true;   // send request
     (*ch)->mpireq = new MPI_Request[1];
     // MPI-1 implementation
     void *messageC; // for MPI C interface convert (const void *) -> (void *)
@@ -3012,43 +3067,75 @@ int VMK::send(const void *message, int size, int dest, commhandle **ch,
       else
         tag = 0;
     }
+#ifdef VM_MEMLOG_on
+  VM::logMemInfo(std::string("VM::send():1.0"));
+#endif
     localrc = MPI_Isend(messageC, size, MPI_BYTE, lpid[dest], tag, mpi_c, 
       (*ch)->mpireq);
+#ifdef VM_MEMLOG_on
+  VM::logMemInfo(std::string("VM::send():2.0"));
+#endif
 #ifndef ESMF_NO_PTHREADS
     if (mpi_mutex_flag) pthread_mutex_unlock(pth_mutex);
 #endif
     break;
   case VM_COMM_TYPE_PTHREAD:
     // Pthread implementation
+    // TODO: implement this using the SHARED_NONBLOCK_CHANNELS mechanism
     printf("non-blocking send not implemented for VM_COMM_TYPE_PTHREAD.\n");
     break;
   case VM_COMM_TYPE_SHMHACK:
     // Shared memory hack sync with spin-lock
+    // TODO: implement this using the SHARED_NONBLOCK_CHANNELS mechanism
     printf("non-blocking send not implemented for VM_COMM_TYPE_SHMHACK.\n");
     break;
   case VM_COMM_TYPE_POSIXIPC:
     // Shared memory hack sync with spin-lock
-    printf("non-blocking send not implemented for VM_COMM_TYPE_POSIXIPC.\n");
+    printf("non-blocking not implemented for VM_COMM_TYPE_POSIXIPC.\n");
+#if 0
+    //TODO: the following is totally incorrect code!!!!!!!!!
+    (*ch)->type=5;          // POSIXIPC share memory channels
+    pipcmp = sendChannel[dest].pipcmp;  // shared memory mp channel
+    sendCount = pipcmp->sendCount;
+    //TODO: enter mutex with "dest"
+    pdest = (char *)pipcmp->ptr_dst_nb[sendCount];
+    if (pdest != NULL){
+      // recv() already set the pointer, send() came second -> copy data
+      memcpy(pdest, message, size);      
+      // reset ptr_dst_nb entry
+      pipcmp->ptr_dst_nb[sendCount] = NULL;
+      (*ch)->ptr=NULL;        // indicate that this transfer is complete
+    }else{
+      // send() came first, set pointer for recv() side
+      pipcmp->ptr_src_nb[sendCount] = message;  // set the destination pointer
+      (*ch)->ptr=&(pipcmp->ptr_src_nb[sendCount]);  // check by reference
+    }
+    //TODO: exit mutex with "dest"
+    // increment sendCount
+    ++sendCount;
+    pipcmp->sendCount = sendCount%SHARED_NONBLOCK_CHANNELS;
+#endif
     break;
   case VM_COMM_TYPE_MPIUNI:
     // Shared memory hack for mpiuni
     // This shared memory implementation is naturally non-blocking.
-    // Of course this allows only one message per sender - receiver channel.
-    // TODO: To remove the single message per channel limitation there will need
-    // TODO: to be one shared_mp element per request.
+    // Limited to SHARED_NONBLOCK_CHANNELS per src/dst pair
     (*ch)->type=-1; // indicate that this is a dummy commhandle
     shmp = sendChannel[dest].shmp;  // shared memory mp channel
-    if (shmp->tcounter == 1){
-      // recv() already set the ptr_dest -> send() came second -> copy data
-      pdest = (char *)shmp->ptr_dest;
+    sendCount = shmp->sendCount;
+    pdest = (char *)shmp->ptr_dst_nb[sendCount];
+    if (pdest != NULL){
+      // recv() already set the pointer, send() came second -> copy data
       memcpy(pdest, message, size);      
-      // reset counter
-      shmp->tcounter = 0;
+      // reset ptr_dst_nb entry
+      shmp->ptr_dst_nb[sendCount] = NULL;
     }else{
-      // send() came first, set variables for recv() side
-      shmp->ptr_src = message;        // set the source pointer
-      shmp->tcounter++; // no need to sync for this in mpiuni
+      // send() came first, set pointer for recv() side
+      shmp->ptr_src_nb[sendCount] = message;  // set the destination pointer
     }
+    // increment sendCount
+    ++sendCount;
+    shmp->sendCount = sendCount%SHARED_NONBLOCK_CHANNELS;
     break;
   default:
     printf("unknown comm_type.\n");
@@ -3131,7 +3218,7 @@ int VMK::recv(void *message, int size, int source, int tag, status *status){
   case VM_COMM_TYPE_PTHREAD:
     // Pthread implementation
     shmp = recvChannel[source].shmp;   // shared memory mp channel
-    shmp->ptr_dest = message;               // set the destination pointer
+    shmp->ptr_dst = message;               // set the destination pointer
     // synchronize with send()
 #ifndef ESMF_NO_PTHREADS
     pthread_mutex_lock(&(shmp->mutex1));
@@ -3146,10 +3233,10 @@ int VMK::recv(void *message, int size, int source, int tag, status *status){
     }
     pthread_mutex_unlock(&(shmp->mutex1));
 #endif
-    // now ptr_src and ptr_dest are valid for this message
+    // now ptr_src and ptr_dst are valid for this message
     scpsize = size/2;           // send takes the lower half
     rcpsize = size - scpsize;   // recv takes the upper half
-    pdest = (char *)shmp->ptr_dest;
+    pdest = (char *)shmp->ptr_dst;
     psrc = (char *)shmp->ptr_src;
     // do actual memcpy
     memcpy(pdest + scpsize, psrc + scpsize, rcpsize);
@@ -3182,13 +3269,13 @@ int VMK::recv(void *message, int size, int source, int tag, status *status){
       sync_buffer_flag_empty(&shmp->shms, 0);
     }else{
       // don't use buffer
-      shmp->ptr_dest = message;               // set the destination pointer
+      shmp->ptr_dst = message;               // set the destination pointer
       // synchronize with send()
       sync_b_flip(&shmp->shms);
-      // now ptr_src and ptr_dest are valid for this message
+      // now ptr_src and ptr_dst are valid for this message
       scpsize = size/2;           // send takes the lower half
       rcpsize = size - scpsize;   // recv takes the upper half
-      pdest = (char *)shmp->ptr_dest;
+      pdest = (char *)shmp->ptr_dst;
       psrc = (char *)shmp->ptr_src;
       // do actual memcpy
       memcpy(pdest + scpsize, psrc + scpsize, rcpsize);
@@ -3249,7 +3336,7 @@ int VMK::recv(void *message, int size, int source, int tag, status *status){
 
 
 int VMK::recv(void *message, int size, int source, commhandle **ch, int tag){
-  // p2p recv
+  // p2p recv non-blocking
 //fprintf(stderr, "VMK::recv: ch=%p\n", *ch);
 #if (VERBOSITY > 9)
   printf("receiving from: %d, %d\n", source, lpid[source]);
@@ -3262,6 +3349,7 @@ int VMK::recv(void *message, int size, int source, commhandle **ch, int tag){
   char *psrc;
   int i;
   char *mess;
+  int recvCount;
   // check if this needs a new entry in the request queue
   if (*ch==NULL){
     *ch = new commhandle;
@@ -3279,7 +3367,7 @@ int VMK::recv(void *message, int size, int source, commhandle **ch, int tag){
   switch(comm_type){
   case VM_COMM_TYPE_MPI1:
     (*ch)->nelements=1;
-    (*ch)->type=1;
+    (*ch)->type=1;          // MPI
     (*ch)->sendFlag=false;  // not a send request
     (*ch)->mpireq = new MPI_Request[1];
     // MPI-1 implementation
@@ -3309,35 +3397,61 @@ int VMK::recv(void *message, int size, int source, commhandle **ch, int tag){
     break;
   case VM_COMM_TYPE_PTHREAD:
     // Pthread implementation
+    // TODO: implement this using the SHARED_NONBLOCK_CHANNELS mechanism
     printf("non-blocking recv not implemented for VM_COMM_TYPE_PTHREAD.\n");
     break;
   case VM_COMM_TYPE_SHMHACK:
     // Shared memory hack sync with spin-lock
+    // TODO: implement this using the SHARED_NONBLOCK_CHANNELS mechanism
     printf("non-blocking recv not implemented for VM_COMM_TYPE_SHMHACK.\n");
     break;
   case VM_COMM_TYPE_POSIXIPC:
     // Shared memory hack sync with spin-lock
     printf("non-blocking recv not implemented for VM_COMM_TYPE_POSIXIPC.\n");
+#if 0    
+    //TODO: the following is totally incorrect code!!!!!!!!!
+    (*ch)->type=5;          // POSIXIPC share memory channels
+    pipcmp = recvChannel[source].pipcmp;  // shared memory mp channel
+    recvCount = pipcmp->recvCount;
+    //TODO: enter mutex with "source"
+    psrc = (char *)pipcmp->ptr_src_nb[recvCount];
+    if (psrc != NULL){
+      // send() already set the pointer, recv() came second -> copy data
+      memcpy(message, psrc, size);
+      // reset ptr_src_nb entry
+      pipcmp->ptr_src_nb[recvCount] = NULL;
+      (*ch)->ptr=NULL;         // indicate that this transfer is complete
+    }else{
+      // recv() came first, set pointer for send() side
+      pipcmp->ptr_dst_nb[recvCount] = message;  // set the destination pointer
+      (*ch)->ptr=&(pipcmp->ptr_src_nb[recvCount]);  // check by reference
+    }
+    //TODO: exit mutex with "source"
+    // increment recvCount
+    ++recvCount;
+    pipcmp->recvCount = recvCount%SHARED_NONBLOCK_CHANNELS;
+#endif
     break;
   case VM_COMM_TYPE_MPIUNI:
     // Shared memory hack for mpiuni
     // This shared memory implementation is naturally non-blocking.
-    // Of course this allows only one message per sender - receiver channel.
-    // TODO: To remove the single message per channel limitation there will need
-    // TODO: to be one shared_mp element per request.
+    // Limited to SHARED_NONBLOCK_CHANNELS per src/dst pair
     (*ch)->type=-1; // indicate that this is a dummy commhandle
     shmp = recvChannel[source].shmp;  // shared memory mp channel
-    if (shmp->tcounter == 1){
-      // send() already set the ptr_src -> recv() came second -> copy data
-      psrc = (char *)shmp->ptr_src;
+    recvCount = shmp->recvCount;
+    psrc = (char *)shmp->ptr_src_nb[recvCount];
+    if (psrc != NULL){
+      // send() already set the pointer, recv() came second -> copy data
       memcpy(message, psrc, size);
-      // reset counter
-      shmp->tcounter = 0;
+      // reset ptr_src_nb entry
+      shmp->ptr_src_nb[recvCount] = NULL;
     }else{
-      // recv() came first, set variables for send() side
-      shmp->ptr_dest = message;        // set the destination pointer
-      shmp->tcounter++; // no need to sync for this in mpiuni
+      // recv() came first, set pointer for send() side
+      shmp->ptr_dst_nb[recvCount] = message;  // set the destination pointer
     }
+    // increment recvCount
+    ++recvCount;
+    shmp->recvCount = recvCount%SHARED_NONBLOCK_CHANNELS;
     break;
   default:
     printf("unknown comm_type.\n");
@@ -3423,13 +3537,33 @@ int VMK::barrier(){
 
 
 int VMK::sendrecv(void *sendData, int sendSize, int dst, void *recvData,
-  int recvSize, int src){
+  int recvSize, int src, int dstTag, int srcTag){
   // p2p sendrecv
   int localrc=0;
   if (mpionly){
     MPI_Status mpi_s;
-    localrc = MPI_Sendrecv(sendData, sendSize, MPI_BYTE, dst, 1000*mypet+dst, 
-      recvData, recvSize, MPI_BYTE, src, 1000*src+mypet, mpi_c, &mpi_s);
+    if (dstTag == -1){
+      dstTag = 1000*mypet+dst;  // default tag to simplify debugging
+      // make sure to stay below max tag
+      int maxTag = getMaxTag();
+      if (maxTag > 0)
+        dstTag = dstTag%maxTag;
+      else
+        dstTag = 0;
+    }else if (dstTag == VM_ANY_TAG)
+      dstTag = MPI_ANY_TAG;
+    if (srcTag == -1){
+      srcTag = 1000*src+mypet;  // default tag to simplify debugging
+      // make sure to stay below max tag
+      int maxTag = getMaxTag();
+      if (maxTag > 0)
+        srcTag = srcTag%maxTag;
+      else
+        srcTag = 0;
+    }else if (srcTag == VM_ANY_TAG)
+      srcTag = MPI_ANY_TAG;
+    localrc = MPI_Sendrecv(sendData, sendSize, MPI_BYTE, dst, dstTag, 
+      recvData, recvSize, MPI_BYTE, src, srcTag, mpi_c, &mpi_s);
   }else{
     // A unique order of the send and receive is given by the PET index.
     // This very simplistic implementation establishes a unique order by
@@ -3552,12 +3686,18 @@ int VMK::reduce(void *in, void *out, int len, vmType type, vmOp op, int root){
     case vmI4:
       mpitype = MPI_INT;
       break;
+    case vmI8:
+      mpitype = MPI_LONG_LONG_INT;
+      break;
     case vmR4:
       mpitype = MPI_FLOAT;
       break;
     case vmR8:
       mpitype = MPI_DOUBLE;
       break;
+    case vmBYTE:
+      localrc = -1;   // error
+      return localrc; // bail out
     }
     localrc = MPI_Reduce(in, out, len, mpitype, mpiop, root, mpi_c);
   }else{
@@ -3567,12 +3707,18 @@ int VMK::reduce(void *in, void *out, int len, vmType type, vmOp op, int root){
     case vmI4:
       templen *= 4;   // 4 bytes
       break;
+    case vmI8:
+      templen *= 8;   // 8 bytes
+      break;
     case vmR4:
       templen *= 4;   // 4 bytes
       break;
     case vmR8:
       templen *= 8;   // 8 bytes
       break;
+    case vmBYTE:
+      localrc = -1;   // error
+      return localrc; // bail out
     }
     char *temparray;
     if (mypet==root)
@@ -3588,6 +3734,20 @@ int VMK::reduce(void *in, void *out, int len, vmType type, vmOp op, int root){
           {
             int *tempdata = (int *)temparray;
             int *outdata = (int *)out;
+            for (int i=0; i<len; i++){
+              *outdata = 0;
+              for (int j=0; j<npets; j++){
+                *outdata += tempdata[j*len];
+              }
+              ++tempdata;
+              ++outdata;
+            }
+          }
+          break;
+        case vmI8:
+          {
+            long long int *tempdata = (long long int *)temparray;
+            long long int *outdata = (long long int *)out;
             for (int i=0; i<len; i++){
               *outdata = 0;
               for (int j=0; j<npets; j++){
@@ -3626,6 +3786,9 @@ int VMK::reduce(void *in, void *out, int len, vmType type, vmOp op, int root){
             }
           }
           break;
+        case vmBYTE:
+          localrc = -1;   // error
+          return localrc; // bail out
         }
         break;
       case vmMIN:
@@ -3645,6 +3808,21 @@ int VMK::reduce(void *in, void *out, int len, vmType type, vmOp op, int root){
             }
           }
           break;
+        case vmI8:
+          {
+            long long int *tempdata = (long long int *)temparray;
+            long long int *outdata = (long long int *)out;
+            for (int i=0; i<len; i++){
+              *outdata = tempdata[0];
+              for (int j=1; j<npets; j++){
+                if (tempdata[j*len] < *outdata)
+                  *outdata = tempdata[j*len];
+              }
+              ++tempdata;
+              ++outdata;
+            }
+          }
+          break;
         case vmR4:
           {
             float *tempdata = (float *)temparray;
@@ -3675,6 +3853,9 @@ int VMK::reduce(void *in, void *out, int len, vmType type, vmOp op, int root){
             }
           }
           break;
+        case vmBYTE:
+          localrc = -1;   // error
+          return localrc; // bail out
         }
         break;
       case vmMAX:
@@ -3694,6 +3875,21 @@ int VMK::reduce(void *in, void *out, int len, vmType type, vmOp op, int root){
             }
           }
           break;
+        case vmI8:
+          {
+            long long int *tempdata = (long long int *)temparray;
+            long long int *outdata = (long long int *)out;
+            for (int i=0; i<len; i++){
+              *outdata = tempdata[0];
+              for (int j=1; j<npets; j++){
+                if (tempdata[j*len] > *outdata)
+                  *outdata = tempdata[j*len];
+              }
+              ++tempdata;
+              ++outdata;
+            }
+          }
+          break;
         case vmR4:
           {
             float *tempdata = (float *)temparray;
@@ -3724,6 +3920,9 @@ int VMK::reduce(void *in, void *out, int len, vmType type, vmOp op, int root){
             }
           }
           break;
+        case vmBYTE:
+          localrc = -1;   // error
+          return localrc; // bail out
         }
         break;
       }
@@ -3756,12 +3955,18 @@ int VMK::allreduce(void *in, void *out, int len, vmType type, vmOp op){
     case vmI4:
       mpitype = MPI_INT;
       break;
+    case vmI8:
+      mpitype = MPI_LONG_LONG_INT;
+      break;
     case vmR4:
       mpitype = MPI_FLOAT;
       break;
     case vmR8:
       mpitype = MPI_DOUBLE;
       break;
+    case vmBYTE:
+      localrc = -1;   // error
+      return localrc; // bail out
     }
     localrc = MPI_Allreduce(in, out, len, mpitype, mpiop, mpi_c);
   }else{
@@ -3771,12 +3976,18 @@ int VMK::allreduce(void *in, void *out, int len, vmType type, vmOp op){
     case vmI4:
       templen *= 4;   // 4 bytes
       break;
+    case vmI8:
+      templen *= 8;   // 8 bytes
+      break;
     case vmR4:
       templen *= 4;   // 4 bytes
       break;
     case vmR8:
       templen *= 8;   // 8 bytes
       break;
+    case vmBYTE:
+      localrc = -1;   // error
+      return localrc; // bail out
     }
     char *temparray = new char[templen*npets]; // allocate temp data array
     // gather all data onto each PET
@@ -3802,6 +4013,20 @@ int VMK::allreduce(void *in, void *out, int len, vmType type, vmOp op){
           }
         }
         break;
+      case vmI8:
+        {
+          long long int *tempdata = (long long int *)temparray;
+          long long int *outdata = (long long int *)out;
+          for (int i=0; i<len; i++){
+            *outdata = 0;
+            for (int j=0; j<npets; j++){
+              *outdata += tempdata[j*len];
+            }
+            ++tempdata;
+            ++outdata;
+          }
+        }
+        break;
       case vmR4:
         {
           float *tempdata = (float *)temparray;
@@ -3830,6 +4055,9 @@ int VMK::allreduce(void *in, void *out, int len, vmType type, vmOp op){
           }
         }
         break;
+      case vmBYTE:
+        localrc = -1;   // error
+        return localrc; // bail out
       }
       break;
     case vmMIN:
@@ -3849,6 +4077,21 @@ int VMK::allreduce(void *in, void *out, int len, vmType type, vmOp op){
           }
         }
         break;
+      case vmI8:
+        {
+          long long int *tempdata = (long long int *)temparray;
+          long long int *outdata = (long long int *)out;
+          for (int i=0; i<len; i++){
+            *outdata = tempdata[0];
+            for (int j=1; j<npets; j++){
+              if (tempdata[j*len] < *outdata)
+                *outdata = tempdata[j*len];
+            }
+            ++tempdata;
+            ++outdata;
+          }
+        }
+        break;
       case vmR4:
         {
           float *tempdata = (float *)temparray;
@@ -3879,6 +4122,9 @@ int VMK::allreduce(void *in, void *out, int len, vmType type, vmOp op){
           }
         }
         break;
+      case vmBYTE:
+        localrc = -1;   // error
+        return localrc; // bail out
       }
       break;
     case vmMAX:
@@ -3898,6 +4144,21 @@ int VMK::allreduce(void *in, void *out, int len, vmType type, vmOp op){
           }
         }
         break;
+      case vmI8:
+        {
+          long long int *tempdata = (long long int *)temparray;
+          long long int *outdata = (long long int *)out;
+          for (int i=0; i<len; i++){
+            *outdata = tempdata[0];
+            for (int j=1; j<npets; j++){
+              if (tempdata[j*len] > *outdata)
+                *outdata = tempdata[j*len];
+            }
+            ++tempdata;
+            ++outdata;
+          }
+        }
+        break;
       case vmR4:
         {
           float *tempdata = (float *)temparray;
@@ -3928,6 +4189,9 @@ int VMK::allreduce(void *in, void *out, int len, vmType type, vmOp op){
           }
         }
         break;
+      case vmBYTE:
+        localrc = -1;   // error
+        return localrc; // bail out
       }
       break;
     }
@@ -3941,6 +4205,7 @@ int VMK::allfullreduce(void *in, void *out, int len, vmType type, vmOp op){
   int localrc=0;
   void *localresult;
   int local_i4;
+  long long int local_i8;
   float local_r4;
   double local_r8;
   // first reduce the vector on each PET
@@ -3954,6 +4219,16 @@ int VMK::allfullreduce(void *in, void *out, int len, vmType type, vmOp op){
         int *tempdata = (int *)in;        // type cast for pointer arithmetic
         for (int j=0; j<len; j++)
           local_i4 += tempdata[j];
+      }
+      break;
+    case vmI8:
+      {
+        localresult = (void *)&local_i8;
+        local_i8 = 0;
+        // type cast for pointer arithmetic
+        long long int *tempdata = (long long int *)in;
+        for (int j=0; j<len; j++)
+          local_i8 += tempdata[j];
       }
       break;
     case vmR4:
@@ -3974,6 +4249,9 @@ int VMK::allfullreduce(void *in, void *out, int len, vmType type, vmOp op){
           local_r8 += tempdata[j];
       }
       break;
+    case vmBYTE:
+      localrc = -1;   // error
+      return localrc; // bail out
     }
     break;
   case vmMIN:
@@ -3985,6 +4263,16 @@ int VMK::allfullreduce(void *in, void *out, int len, vmType type, vmOp op){
         local_i4 = tempdata[0];
         for (int j=1; j<len; j++)
           if (tempdata[j] < local_i4) local_i4 = tempdata[j];
+      }
+      break;
+    case vmI8:
+      {
+        localresult = (void *)&local_i8;
+        // type cast for pointer arithmetic
+        long long int *tempdata = (long long int *)in;
+        local_i8 = tempdata[0];
+        for (int j=1; j<len; j++)
+          if (tempdata[j] < local_i8) local_i8 = tempdata[j];
       }
       break;
     case vmR4:
@@ -4005,6 +4293,9 @@ int VMK::allfullreduce(void *in, void *out, int len, vmType type, vmOp op){
           if (tempdata[j] < local_r8) local_r8 = tempdata[j];
       }
       break;
+    case vmBYTE:
+      localrc = -1;   // error
+      return localrc; // bail out
     }
     break;
   case vmMAX:
@@ -4016,6 +4307,16 @@ int VMK::allfullreduce(void *in, void *out, int len, vmType type, vmOp op){
         local_i4 = tempdata[0];
         for (int j=1; j<len; j++)
           if (tempdata[j] > local_i4) local_i4 = tempdata[j];
+      }
+      break;
+    case vmI8:
+      {
+        localresult = (void *)&local_i8;
+        // type cast for pointer arithmetic
+        long long int *tempdata = (long long int *)in;
+        local_i8 = tempdata[0];
+        for (int j=1; j<len; j++)
+          if (tempdata[j] > local_i8) local_i8 = tempdata[j];
       }
       break;
     case vmR4:
@@ -4036,6 +4337,9 @@ int VMK::allfullreduce(void *in, void *out, int len, vmType type, vmOp op){
           if (tempdata[j] > local_r8) local_r8 = tempdata[j];
       }
       break;
+    case vmBYTE:
+      localrc = -1;   // error
+      return localrc; // bail out
     }
     break;
   }
@@ -4099,12 +4403,18 @@ int VMK::reduce_scatter(void *in, void *out, int *outCounts,
     case vmI4:
       mpitype = MPI_INT;
       break;
+    case vmI8:
+      mpitype = MPI_LONG_LONG_INT;
+      break;
     case vmR4:
       mpitype = MPI_FLOAT;
       break;
     case vmR8:
       mpitype = MPI_DOUBLE;
       break;
+    case vmBYTE:
+      localrc = -1;   // error
+      return localrc; // bail out
     }
     localrc = MPI_Reduce_scatter(in, out, outCounts, mpitype, mpiop, mpi_c);
   }else{
@@ -4179,6 +4489,9 @@ int VMK::scatterv(void *in, int *inCounts, int *inOffsets, void *out,
     case vmI4:
       mpitype = MPI_INT;
       break;
+    case vmI8:
+      mpitype = MPI_LONG_LONG_INT;
+      break;
     case vmR4:
       mpitype = MPI_FLOAT;
       break;
@@ -4195,12 +4508,18 @@ int VMK::scatterv(void *in, int *inCounts, int *inOffsets, void *out,
     case vmI4:
       size=4;
       break;
+    case vmI8:
+      size=8;
+      break;
     case vmR4:
       size=4;
       break;
     case vmR8:
       size=8;
       break;
+    case vmBYTE:
+      localrc = -1;   // error
+      return localrc; // bail out
     }
     int root = 0; // arbitrary root, 0 always exists!
     if (mypet==root){
@@ -4329,6 +4648,9 @@ int VMK::gatherv(void *in, int inCount, void *out, int *outCounts,
     case vmI4:
       mpitype = MPI_INT;
       break;
+    case vmI8:
+      mpitype = MPI_LONG_LONG_INT;
+      break;
     case vmR4:
       mpitype = MPI_FLOAT;
       break;
@@ -4342,8 +4664,14 @@ int VMK::gatherv(void *in, int inCount, void *out, int *outCounts,
     // This is a very simplistic, probably very bad peformance implementation.
     int size=0;
     switch (type){
+    case vmBYTE:
+      size=1;
+      break;
     case vmI4:
       size=4;
+      break;
+    case vmI8:
+      size=8;
       break;
     case vmR4:
       size=4;
@@ -4459,6 +4787,9 @@ int VMK::allgatherv(void *in, int inCount, void *out, int *outCounts,
     case vmI4:
       mpitype = MPI_INT;
       break;
+    case vmI8:
+      mpitype = MPI_LONG_LONG_INT;
+      break;
     case vmR4:
       mpitype = MPI_FLOAT;
       break;
@@ -4472,8 +4803,14 @@ int VMK::allgatherv(void *in, int inCount, void *out, int *outCounts,
     // This is a very simplistic, probably very bad peformance implementation.
     int size=0;
     switch (type){
+    case vmBYTE:
+      size=1;
+      break;
     case vmI4:
       size=4;
+      break;
+    case vmI8:
+      size=8;
       break;
     case vmR4:
       size=4;
@@ -4533,6 +4870,9 @@ int VMK::alltoall(void *in, int inCount, void *out, int outCount,
     case vmI4:
       mpitype = MPI_INT;
       break;
+    case vmI8:
+      mpitype = MPI_LONG_LONG_INT;
+      break;
     case vmR4:
       mpitype = MPI_FLOAT;
       break;
@@ -4545,8 +4885,14 @@ int VMK::alltoall(void *in, int inCount, void *out, int outCount,
     // This is a very simplistic, probably very bad peformance implementation.
     int size=0;
     switch (type){
+    case vmBYTE:
+      size=1;
+      break;
     case vmI4:
       size=4;
+      break;
+    case vmI8:
+      size=8;
       break;
     case vmR4:
       size=4;
@@ -4597,6 +4943,9 @@ int VMK::alltoallv(void *in, int *inCounts, int *inOffsets, void *out,
     case vmI4:
       mpitype = MPI_INT;
       break;
+    case vmI8:
+      mpitype = MPI_LONG_LONG_INT;
+      break;
     case vmR4:
       mpitype = MPI_FLOAT;
       break;
@@ -4610,8 +4959,14 @@ int VMK::alltoallv(void *in, int *inCounts, int *inOffsets, void *out,
     // This is a very simplistic, probably very bad peformance implementation.
     int size=0;
     switch (type){
+    case vmBYTE:
+      size=1;
+      break;
     case vmI4:
       size=4;
+      break;
+    case vmI8:
+      size=8;
       break;
     case vmR4:
       size=4;
@@ -4724,7 +5079,7 @@ int VMK::broadcast(void *data, int len, int root, commhandle **ch){
 
 
 void VMK::wtime(double *time){
-  *time = MPI_Wtime();
+  *time = MPI_Wtime() - wtime0;
 }
 
 
@@ -4738,7 +5093,7 @@ void VMK::wtimeprec(double *prec){
       wtime(&t2);
     dt = t2 - t1;
     if (dt > temp_prec) temp_prec = dt;
-  }  
+  }
   *prec = temp_prec;
 }
 
@@ -4890,6 +5245,28 @@ int VMK::ipmutexunlock(ipmutex *ipm){
 #endif
 }
 
+
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// ~~~ Simple thread-safety lock/unlock using internal pth_mutex
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+int VMK::lock(){
+#ifndef ESMF_NO_PTHREADS
+  return pthread_mutex_lock(pth_mutex);
+#else
+  return 0;
+#endif
+}
+
+int VMK::unlock(){
+#ifndef ESMF_NO_PTHREADS
+  return pthread_mutex_unlock(pth_mutex);
+#else
+  return 0;
+#endif
+}
 
 } // namespace ESMCI
 
@@ -5043,3 +5420,995 @@ namespace ESMCI{
     }while (iiStart < localPet+petCount);
   }
 } // namespace ESMCI
+
+
+//==============================================================================
+//==============================================================================
+//==============================================================================
+// ComPat2: abstract class providing basic communication patters
+//==============================================================================
+//==============================================================================
+//==============================================================================
+
+#define DEBUG_COMPAT2_off
+
+namespace ESMCI{
+  void ComPat2::totalExchange(VMK *vmk){
+    int petCount = vmk->getNpets();
+    int localPet = vmk->getMypet();
+    // prepare commhandles and message buffers
+    VMK::commhandle *sendCommh1 = NULL;
+    VMK::commhandle *sendCommh2 = NULL;
+    VMK::commhandle *sendCommh3 = NULL;
+    VMK::commhandle *sendCommh4 = NULL;
+    VMK::commhandle *recvCommh1 = NULL;
+    VMK::commhandle *recvCommh2 = NULL;
+    char *sendRequestBuffer;
+    char *sendResponseBuffer;
+    char *recvBuffer1;
+    char *recvBuffer2;
+    for (int i=0; i<petCount; i++){
+      int requestPet = (petCount + localPet-i) % petCount;
+      int responsePet = (localPet+i) % petCount;
+#ifdef DEBUG_COMPAT2
+    {
+      std::stringstream msg;
+      msg << "ComPat2#" << __LINE__
+        << " requestPet=" << requestPet 
+        << " responsePet=" << responsePet;
+      ESMC_LogDefault.Write(msg.str(), ESMC_LOGMSG_INFO);
+    }
+#endif
+      if (i==0){
+        // the localPet handles its own local operations
+        handleLocal();
+      }else{
+        // localPet interacts with requestPet and responsePet as their
+        // responder and requester, respectively.
+        int recvResponseSize=0; // reset
+        int sendResponseSize=0; // reset
+        // localPet acts as responder
+        int recvRequestSize;
+        vmk->recv(&recvRequestSize, sizeof(int), requestPet, &recvCommh1);
+        // localPet acts as requester
+        int sendRequestSize;
+        generateRequest(responsePet, sendRequestBuffer, sendRequestSize);
+        vmk->send(&sendRequestSize, sizeof(int), responsePet, &sendCommh1);
+        // localPet acts as responder
+        vmk->commwait(&recvCommh1); // wait for valid recvRequestSize
+#ifdef DEBUG_COMPAT2
+    {
+      std::stringstream msg;
+      msg << "ComPat2#" << __LINE__
+        << " recvRequestSize=" << recvRequestSize
+        << " sendRequestSize=" << sendRequestSize;
+      ESMC_LogDefault.Write(msg.str(), ESMC_LOGMSG_INFO);
+    }
+#endif
+        if (recvRequestSize>0){
+          recvBuffer1 = new char[recvRequestSize];
+          vmk->recv(recvBuffer1, recvRequestSize, requestPet, &recvCommh1);
+#ifdef DEBUG_COMPAT2
+    {
+      std::stringstream msg;
+      msg << "ComPat2#" << __LINE__
+        << " receiving request from requestPet=" << requestPet
+        << " in recvBuffer1=" << (void*)recvBuffer1;
+      ESMC_LogDefault.Write(msg.str(), ESMC_LOGMSG_INFO);
+    }
+#endif
+        }
+        // localPet acts as requester
+        if (sendRequestSize>0){
+          vmk->send(sendRequestBuffer, sendRequestSize, responsePet,
+            &sendCommh2);
+#ifdef DEBUG_COMPAT2
+    {
+      std::stringstream msg;
+      msg << "ComPat2#" << __LINE__
+        << " sending request to responsePet=" << responsePet
+        << " in sendRequestBuffer=" << (void*)sendRequestBuffer;
+      ESMC_LogDefault.Write(msg.str(), ESMC_LOGMSG_INFO);
+    }
+#endif
+          vmk->recv(&recvResponseSize, sizeof(int), responsePet, &recvCommh2);
+        }
+        // localPet acts as responder
+        if (recvRequestSize>0){
+          vmk->commwait(&recvCommh1); // wait for valid recvBuffer1
+#ifdef DEBUG_COMPAT2
+    {
+      std::stringstream msg;
+      msg << "ComPat2#" << __LINE__
+        << " finished receiving request from requestPet=" << requestPet
+        << " in recvBuffer1=" << (void*)recvBuffer1;
+      ESMC_LogDefault.Write(msg.str(), ESMC_LOGMSG_INFO);
+    }
+#endif
+          sendResponseBuffer = NULL; // detectable reset
+          handleRequest(requestPet, recvBuffer1, recvRequestSize,
+            sendResponseBuffer, sendResponseSize);
+          vmk->send(&sendResponseSize, sizeof(int), requestPet, &sendCommh3);
+        }
+        // localPet acts as requester
+        if (sendRequestSize>0){
+          vmk->commwait(&recvCommh2); // wait for valid recvResponseSize
+          vmk->commwait(&sendCommh2); // wait to be done with sendRequestBuffer
+        }
+#ifdef DEBUG_COMPAT2
+    {
+      std::stringstream msg;
+      msg << "ComPat2#" << __LINE__
+        << " sendResponseSize=" << sendResponseSize
+        << " recvResponseSize=" << recvResponseSize;
+      ESMC_LogDefault.Write(msg.str(), ESMC_LOGMSG_INFO);
+    }
+#endif
+        recvBuffer2 = NULL; // detectable reset
+        if (recvResponseSize>0){
+          recvBuffer2 = new char[recvResponseSize];
+          vmk->recv(recvBuffer2, recvResponseSize, responsePet, &recvCommh2);
+#ifdef DEBUG_COMPAT2
+    {
+      std::stringstream msg;
+      msg << "ComPat2#" << __LINE__
+        << " receiving response from responsePet=" << responsePet
+        << " in recvBuffer2=" << (void*)recvBuffer2;
+      ESMC_LogDefault.Write(msg.str(), ESMC_LOGMSG_INFO);
+    }
+#endif
+        }
+        // localPet acts as responder
+        if (sendResponseSize>0){
+          vmk->send(sendResponseBuffer, sendResponseSize, requestPet,
+            &sendCommh4);
+#ifdef DEBUG_COMPAT2
+    {
+      std::stringstream msg;
+      msg << "ComPat2#" << __LINE__
+        << " sending response to requestPet=" << requestPet
+        << " in sendResponseBuffer=" << (void*)sendResponseBuffer;
+      ESMC_LogDefault.Write(msg.str(), ESMC_LOGMSG_INFO);
+    }
+#endif
+        }
+        // localPet acts as requester
+        if (recvResponseSize>0){        
+          vmk->commwait(&recvCommh2); // wait for valid recvBuffer2
+#ifdef DEBUG_COMPAT2
+    {
+      std::stringstream msg;
+      msg << "ComPat2#" << __LINE__
+        << " finished receiving response from responsePet=" << responsePet
+        << " in recvBuffer2=" << (void*)recvBuffer2;
+      ESMC_LogDefault.Write(msg.str(), ESMC_LOGMSG_INFO);
+    }
+#endif
+          handleResponse(responsePet, recvBuffer2, recvResponseSize);
+        }
+        // localPet acts as requester
+        vmk->commwait(&sendCommh1);
+        if (recvResponseSize>0){
+          delete [] recvBuffer2;
+        }
+        // localPet acts as responder
+        if (sendResponseSize>0){
+          vmk->commwait(&sendCommh4);
+        }
+        if (recvRequestSize>0){
+          vmk->commwait(&sendCommh3);
+          if ((sendResponseBuffer != NULL) && (sendResponseBuffer!=recvBuffer1))
+            delete [] sendResponseBuffer;
+          delete [] recvBuffer1;
+        }
+      }
+      
+    }
+  }
+  
+} // namespace ESMCI
+
+//==============================================================================
+//==============================================================================
+//==============================================================================
+// Socket based VMKernel prototyping
+//==============================================================================
+//==============================================================================
+//==============================================================================
+
+#ifndef ESMF_NO_SOCKETS
+
+#ifdef ESMF_OS_MinGW
+
+#include <Windows.h>
+#include <Winsock.h>
+typedef int socklen_t;
+typedef char* value_ptr_t;
+#define ECONNABORTED WSAECONNABORTED
+#define EALREADY WSAEALREADY
+#define ECONNREFUSED WSAECONNREFUSED
+#define EINPROGRESS WSAEINPROGRESS
+#define EWOULDBLOCK WSAEWOULDBLOCK
+// #define errno WSAGetLastError()
+
+#else
+
+#include <sys/socket.h>
+#include <sys/select.h>
+#include <netinet/in.h>
+#include <netdb.h>
+#include <unistd.h>
+#include <fcntl.h>
+typedef void* value_ptr_t;
+
+#endif
+
+#include <errno.h>
+
+#define SERVERFILE "server.txt"   // file containing server name
+#define PORT 54320                // a random port for prototype testing
+
+#endif
+
+namespace ESMCI {
+
+  int socketServerInit(
+    int port,               // port number
+    double timeout          // timeout in seconds
+    //--------------------------------------------------------------------------
+    // Attempt to open an INET socket as server and wait for a client to connect
+    // The return value are:
+    // >SOCKERR_UNSPEC  -- successfully connected socket
+    // SOCKERR_UNSPEC   -- unspecified error, may be fatal, prints perror()
+    // SOCKERR_TIMEOUT  -- timeout condition was reached
+    //--------------------------------------------------------------------------
+  ){
+
+    fprintf(stderr, "Hi there from socketServerInit()\n");
+    
+#ifdef ESMF_NO_SOCKETS
+    fprintf(stderr, "ESMF was built with ESMF_NO_SOCKETS\n");
+    return SOCKERR_UNSPEC;
+#else
+    
+    // create an inet/stream socket
+    int sock = socket(PF_INET, SOCK_STREAM, 0);
+    if (sock < 0){
+      perror("socketServerInit: socket()");
+      return SOCKERR_UNSPEC;  // bail out
+    }
+    // allow immediate address + port reuse in bind
+    int value = 1;
+    if (setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, (value_ptr_t)&value,
+      sizeof(value)) < 0){
+      perror("socketServerInit: setsockopt()");
+      return SOCKERR_UNSPEC;  // bail out
+    }
+    // bind the hosts address + a port to it
+    struct sockaddr_in name;
+    name.sin_family = AF_INET;
+    name.sin_port = htons(port);
+    name.sin_addr.s_addr = INADDR_ANY;  // system to fill in automatically
+    if (bind(sock, (struct sockaddr *) &name, sizeof(name)) < 0){
+      perror("socketServerInit: bind()");
+      return SOCKERR_UNSPEC;  // bail out
+    }
+    // turn it into a server socket that is listening for connections
+    if (listen(sock, 1) < 0){
+      perror("socketServerInit: listen()");
+      return SOCKERR_UNSPEC;  // bail out
+    }
+    // make socket non-blocking
+#if !defined (ESMF_OS_MinGW)
+    int sockFlags = fcntl(sock, F_GETFL);
+    fcntl(sock, F_SETFL, sockFlags | O_NONBLOCK);   // Add non-blocking flag
+#else
+    unsigned long nbio_on = 1;
+    ioctlsocket (sock, FIONBIO, &nbio_on);  // Set non-blocking flag
+#endif
+    // accept incoming connection from client -> but limit to time out
+    double t0, t1;
+    VMK::wtime(&t0);
+    VMK::wtime(&t1);
+    int newSock;
+    
+//TODO: I think using select would be a better use here    
+    
+    while (((newSock = accept(sock, NULL, NULL)) < 0) && (t1 - t0 <= timeout)){
+      VMK::wtime(&t1);
+    }
+    fprintf(stderr, "socketServerInit waited: %g\n", t1-t0);
+    
+    // close the original socket
+#if !defined (ESMF_OS_MinGW)
+    if (close(sock) < 0){
+#else
+    if (closesocket(sock) < 0) {
+#endif
+      perror("socketServerInit: close()");
+      return SOCKERR_UNSPEC;  // bail out
+    }
+
+    if (newSock < 0){
+      if ((t1-t0) > timeout)
+        return SOCKERR_TIMEOUT; // bail out
+      // error condition on accept()
+      perror("socketServerInit: accept()");
+      return SOCKERR_UNSPEC;  // bail out
+    }
+    
+    // newSock socket does _not_ inherit the non-blocking setting
+    // return successfully
+    fprintf(stderr, "socketServerInit: CONNECTED!\n");
+    return newSock; // return the connected socket
+#endif
+  }
+
+  // ------------------------------------------------------------------------
+  
+  int socketClientInit(
+    char const *serverName, // server by name
+    int port,               // port number
+    double timeout          // timeout in seconds
+    //--------------------------------------------------------------------------
+    // Attempt to open an INET socket and connect to the specified server.
+    // The return value are:
+    // >SOCKERR_UNSPEC  -- successfully connected socket
+    // SOCKERR_UNSPEC   -- unspecified error, may be fatal, prints perror()
+    // SOCKERR_TIMEOUT  -- timeout condition was reached
+    //--------------------------------------------------------------------------
+  ){
+    
+    fprintf(stderr, "Hi there from socketClientInit() with timeout %g\n", timeout);
+
+#ifdef ESMF_NO_SOCKETS
+    fprintf(stderr, "ESMF was built with ESMF_NO_SOCKETS\n");
+    return SOCKERR_UNSPEC;
+#else
+
+    // construct the server address
+    struct hostent *server = gethostbyname(serverName);
+    if (server == NULL){
+      perror("socketClientInit: gethostbyname()");
+      return SOCKERR_UNSPEC;  // bail out
+    }
+    struct sockaddr_in name;
+    name.sin_family = AF_INET;
+    name.sin_port = htons(port);
+    name.sin_addr = *(struct in_addr *)(server->h_addr_list[0]);
+
+    // create an inet/stream socket
+    int sock = socket(PF_INET, SOCK_STREAM, 0);
+    if (sock < 0){
+      perror("socketClientInit: socket()");
+      return SOCKERR_UNSPEC;  // bail out
+    }
+    
+    // make socket non-blocking
+#if !defined (ESMF_OS_MinGW)
+    int sockFlags = fcntl(sock, F_GETFL, 0);
+    fcntl(sock, F_SETFL, sockFlags | O_NONBLOCK); // Set non-blocking flag
+#else
+    unsigned long nbio_on = 1;
+    ioctlsocket (sock, FIONBIO, &nbio_on); // Set non-blocking flag
+#endif
+
+    // start timing
+    double t0, t1;
+    VMK::wtime(&t0);
+    VMK::wtime(&t1);
+    
+    // timeout loop
+    bool connected = false;
+    while ((t1-t0) < timeout){
+      // try to open connection 
+      if (connect(sock, (struct sockaddr *) &name, sizeof(name)) < 0){
+        // connection has not (yet) been established
+        perror("socketClientInit connect(), not yet established... continue");
+        if (errno==ECONNABORTED){
+          // on some systems, e.g. linux, repeated call to connect may give this
+          perror("socketClientInit connect(), but continue");
+          VMK::wtime(&t1);  // update the endtime
+          continue;         // next attempt
+        }
+        // check for unexpected error conditions and bail
+        if (errno!=EINPROGRESS && errno!=EALREADY && errno!=EWOULDBLOCK
+          && errno!=ECONNREFUSED){
+          perror("socketClientInit: connect(), bailing");
+          return SOCKERR_UNSPEC;  // bail out
+        }
+        bool refusedFlag = false; // initialize
+        if (errno==ECONNREFUSED)
+          refusedFlag = true;
+        // wait in select for socket to become writable
+        fd_set sendfds;
+        FD_ZERO(&sendfds);
+        FD_SET(sock, &sendfds);
+        struct timeval timev = {1, 0};  // 1s wait time in select
+        if (select(FD_SETSIZE, NULL, &sendfds, NULL, &timev) < 0){
+          perror("socketClientInit: select(), bailing");
+          return SOCKERR_UNSPEC;  // bail out
+        }
+        if (FD_ISSET(sock, &sendfds)){
+          // socket is now indicated as writable, still could be success or not
+          // look at SO_ERROR to determine success or failure to connect
+          int error;
+          socklen_t len = sizeof(error);
+          if (getsockopt(sock, SOL_SOCKET, SO_ERROR, (value_ptr_t)&error, &len)
+            < 0){
+            perror("socketClientInit: getsockopt(), bailing");
+            return SOCKERR_UNSPEC;  // bail out
+          }
+          VMK::wtime(&t1);
+          fprintf(stderr, "socketClientInit: getsockopt() at %g SO_ERROR: "
+            "%s\n", t1-t0, strerror(error));
+          if (error==0 && !refusedFlag){
+            // successful connection was made
+            connected = true;
+            break;
+          }else if (error==0 && refusedFlag){
+            // this happens on IBM, where getsockopt() doesn't return error
+            // but the sock variable has become invalid due to failed connect()
+            sock = socket(PF_INET, SOCK_STREAM, 0);
+          }else if (error==ECONNREFUSED){
+            // this happens on Darwin, and it requires that the sock variable
+            // is re-initialized (just as in the IBM case above) - not doing 
+            // this will lead to EINVAL in the next connect() attempt
+            sock = socket(PF_INET, SOCK_STREAM, 0);
+          }else if (error && error!=ECONNREFUSED){
+            // bail if this wasn't just a straight refusal due to absent server
+            fprintf(stderr, "socketClientInit: getsockopt() error and bail: "
+              "%s\n", strerror(error));
+            return SOCKERR_UNSPEC;  // bail out
+          }
+        }else{
+          fprintf(stderr, "socketClientInit: select: TIMEOUT!\n");
+        }
+      }else{
+        // connection was established right away
+        connected = true;
+        break;
+      }
+      // update the endtime
+      VMK::wtimedelay(1.);  // 1s delay to lower load on network
+      VMK::wtime(&t1);
+    }
+    // reset socket to be blocking
+#if !defined (ESMF_OS_MinGW)
+    sockFlags = fcntl(sock, F_GETFL, 0);
+    fcntl(sock, F_SETFL, sockFlags & (~O_NONBLOCK));
+#else
+    unsigned long nbio_off = 0;
+    ioctlsocket (sock, FIONBIO, &nbio_off);
+#endif
+    
+    fprintf(stderr, "socketClientInit waited: %g\n", t1-t0);    
+
+    if (!connected){
+      fprintf(stderr, "socketClientInit: TIMEOUT!\n");
+#if !defined (ESMF_OS_MinGW)
+      close(sock);
+#else
+      closesocket (sock);
+#endif
+      return SOCKERR_TIMEOUT;
+    }
+    
+    // return successfully
+    fprintf(stderr, "socketClientInit: CONNECTED!\n");
+    return sock;  // return the connected socket
+#endif
+  }
+
+  // ------------------------------------------------------------------------
+
+  int socketFinal(
+    int sock,         // connected socket to be finalized
+    double timeout    // timeout in seconds
+    //--------------------------------------------------------------------------
+    // Attempt to cleanly take down a socket connection.
+    // The return value are:
+    // 0                -- successfully disconnect hand-shake
+    // SOCKERR_UNSPEC   -- unspecified error, may be fatal, prints perror()
+    // SOCKERR_TIMEOUT  -- timeout condition was reached
+    //--------------------------------------------------------------------------
+  ){
+
+    fprintf(stderr, "Hi there from socketFinal()\n");
+
+#ifdef ESMF_NO_SOCKETS
+    fprintf(stderr, "ESMF was built with ESMF_NO_SOCKETS\n");
+    return SOCKERR_UNSPEC;
+#else
+
+    int const bufferSize = 1024;
+    char buffer[bufferSize];
+    if (shutdown(sock, 1) < 0){ // send EOF to other side
+      perror("socketFinal: shutdown()");
+      return SOCKERR_UNSPEC;  // bail out
+    }
+    fd_set recvfds;
+    struct timeval timev = {1, 0};  // 1s wait time in select
+    int len;
+    
+    // start timing
+    double t0, t1;
+    VMK::wtime(&t0);
+    VMK::wtime(&t1);
+    
+    // timeout loop
+    while ((t1-t0) < timeout){
+    
+      FD_ZERO(&recvfds);
+      FD_SET(sock, &recvfds);
+      if (select(FD_SETSIZE, &recvfds, NULL, NULL, &timev) < 0){
+        perror("socketFinal: select()");
+        return SOCKERR_UNSPEC;  // bail out
+      }
+      if (FD_ISSET(sock, &recvfds)){
+        if ((len=recv(sock, buffer, bufferSize, 0)) < 0){
+          perror("socketFinal: recv()");
+          return SOCKERR_UNSPEC;  // bail out
+        }
+        if (len==0) break;  // received EOF from other side
+        fprintf(stderr, "after shutdown received: len=%d\n", len);
+      }
+      // update the endtime
+      VMK::wtime(&t1);
+    }
+   
+    fprintf(stderr, "socketFinal waited: %g\n", t1-t0);    
+
+    // return timeout condition
+    if ((t1-t0) >= timeout){
+      // complete shutdown
+      if (shutdown(sock, 2) < 0){ // send EOF to other side
+        perror("socketFinal: shutdown()");
+        return SOCKERR_UNSPEC;  // bail out
+      }
+      return SOCKERR_TIMEOUT; // bail out
+    }
+    
+
+    // close the socket
+#if !defined (ESMF_OS_MinGW)
+    if (close(sock) < 0){
+#else
+    if (closesocket (sock) < 0) {
+#endif
+      perror("socketFinal: close()");
+      return SOCKERR_UNSPEC;  // bail out
+    }
+
+    // return successfully
+    return 0;
+#endif
+  }
+    
+  // ------------------------------------------------------------------------
+
+  int socketSend(
+    int sock,             // socket holding the connection
+    void const *buffer,   // data buffer
+    size_t size,          // number of bytes to send out of buffer
+    double timeout        // timeout in seconds
+    //--------------------------------------------------------------------------
+    // Attempt to send data through a socket connection.
+    // The return value are:
+    // >SOCKERR_UNSPEC  -- number of bytes sent
+    // SOCKERR_UNSPEC   -- unspecified error, may be fatal, prints perror()
+    // SOCKERR_TIMEOUT  -- timeout condition was reached
+    //--------------------------------------------------------------------------
+  ){
+
+    fprintf(stderr, "Hi there from socketSend()\n");
+    
+#ifdef ESMF_NO_SOCKETS
+    fprintf(stderr, "ESMF was built with ESMF_NO_SOCKETS\n");
+    return SOCKERR_UNSPEC;
+#else
+
+    int waitSeconds = timeout;
+    int waitMicro   = (timeout - waitSeconds)*1000000;
+    
+    fd_set sendfds;
+    FD_ZERO(&sendfds);
+    FD_SET(sock, &sendfds);
+    struct timeval timev = {waitSeconds, waitMicro};
+    
+    int len;
+    
+    if (select(FD_SETSIZE, NULL, &sendfds, NULL, &timev) < 0){
+      perror("socketSend: select()");
+      return SOCKERR_UNSPEC;  // bail out
+    }
+    if (FD_ISSET(sock, &sendfds)){
+      if ((len=send(sock, (value_ptr_t)buffer, size, 0)) < 0){
+        perror("socketSend: send()");
+        return SOCKERR_UNSPEC;  // bail out
+      }
+      if ((unsigned)len!=size){
+        fprintf(stderr, "socketSend: incorrect number of bytes sent!\n");
+        return SOCKERR_UNSPEC;  // bail out
+      }
+    }else{
+      fprintf(stderr, "socketSend: select() TIMEOUT!\n");
+      return SOCKERR_TIMEOUT;
+    }
+    
+    fprintf(stderr, "socketSend: buffer size=%lu, bytes sent=%d\n", size, len);
+    
+    // return successfully
+    return len;
+#endif
+  }
+    
+  // ------------------------------------------------------------------------
+
+  int socketRecv(
+    int sock,             // socket holding the connection
+    void *buffer,         // data buffer
+    size_t size,          // size of buffer in bytes
+    double timeout        // timeout in seconds
+    //--------------------------------------------------------------------------
+    // Attempt to receive data through a socket connection.
+    // The return value are:
+    // >0                 -- number of bytes received
+    // SOCKERR_UNSPEC     -- unspecified error, may be fatal, prints perror()
+    // SOCKERR_TIMEOUT    -- timeout condition was reached
+    // SOCKERR_DISCONNECT -- the other side has disconnected
+    //--------------------------------------------------------------------------
+  ){
+
+    fprintf(stderr, "Hi there from socketRecv()\n");
+    
+#ifdef ESMF_NO_SOCKETS
+    fprintf(stderr, "ESMF was built with ESMF_NO_SOCKETS\n");
+    return SOCKERR_UNSPEC;
+#else
+
+    int waitSeconds = timeout;
+    int waitMicro   = (timeout - waitSeconds)*1000000;
+    
+    // attempted recv with a timeout based on select
+    fd_set recvfds;
+    FD_ZERO(&recvfds);
+    FD_SET(sock, &recvfds);
+    struct timeval timev = {waitSeconds, waitMicro};
+
+    int len;
+    
+    if (select(FD_SETSIZE, &recvfds, NULL, NULL, &timev) < 0){
+      perror("socketRecv: select()");
+      return SOCKERR_UNSPEC;  // bail out
+    }
+    if (FD_ISSET(sock, &recvfds)){
+      if ((len=recv(sock, (value_ptr_t)buffer, size, 0)) < 0){
+        perror("socketRecv: recv()");
+        return SOCKERR_UNSPEC;  // bail out
+      }
+      if (len==0){
+        perror("socketRecv: recv()");
+        return SOCKERR_DISCONNECT;  // bail out
+      }
+    }else{
+      fprintf(stderr, "socketRecv: select() TIMEOUT!\n");
+      return SOCKERR_TIMEOUT;
+    }
+    
+    fprintf(stderr, "socketRecv: buffer size=%lu, bytes recvd=%d\n", size, len);
+
+    // return successfully
+    return len;
+#endif
+  }
+    
+  // ------------------------------------------------------------------------
+  // ------------------------------------------------------------------------
+  // The following two calls are just code to help prototype the above
+  // socket based methods. They are called from two independent MPI apps.
+  // ------------------------------------------------------------------------
+  // ------------------------------------------------------------------------
+
+#define MORE_EXHAUSTIVE_SOCK_TESTING___disable
+  
+  int socketServer(void){
+    
+    fprintf(stderr, "Hi there from socketServer()\n");
+    
+#ifdef ESMF_NO_SOCKETS
+    fprintf(stderr, "ESMF was built with ESMF_NO_SOCKETS\n");
+    return SOCKERR_UNSPEC;
+#else
+
+    // attempt to open and connect a server socket
+    int sock = socketServerInit(PORT, 60.);
+    if (sock <= SOCKERR_UNSPEC){
+      fprintf(stderr, "socketServer: socketServerInit() no client connected\n");
+      return 0;   // bail out, but don't indicate abort
+    }
+    
+    // prepare buffer for following tests    
+    int const bufferSize = 256;
+    char buffer[bufferSize];
+    int len;
+
+    // simple ping-pong test using blocking send/recv
+    sprintf(buffer, "Hi, this is the PING message!");
+    if (send(sock, buffer, strlen(buffer)+1, 0) < 0){
+      perror("server: send()");
+      return 0;   // bail out, but don't indicate abort
+    }
+    VMK::wtimedelay(3);  // delay the receive for 3s
+    if ((len=recv(sock, buffer, bufferSize, 0)) < 0){
+      perror("server: recv()");
+      return 0;   // bail out, but don't indicate abort
+    }
+    fprintf(stderr, "server received: len=%d :: %s\n", len, buffer);
+    
+    // attempt a clean disconnect
+    if (socketFinal(sock, 20.) <= SOCKERR_UNSPEC){
+      fprintf(stderr, "socketServer: socketFinal() handshake failed\n");
+      return 0;   // bail out, but don't indicate abort
+    }
+    fprintf(stderr, "server back from clean disconnect\n");
+    
+#ifdef MORE_EXHAUSTIVE_SOCK_TESTING
+    VMK::wtimedelay(20.);
+    
+    // attempt to re-open and connect a server socket (while client is gone)
+    sock = socketServerInit(PORT, 5.);
+    if (sock <= SOCKERR_UNSPEC){
+      fprintf(stderr, "socketServer: socketServerInit() failed"
+        " - expected\n");
+    }else{
+      fprintf(stderr, "socketServer: socketServerInit() unexpected connect\n");
+      return 0;   // bail out, but don't indicate abort
+    }
+    
+    // attempt to re-open and connect a server socket (with client now there)
+    sock = socketServerInit(PORT, 10.);
+    if (sock <= SOCKERR_UNSPEC){
+      fprintf(stderr, "socketServer: socketServerInit() failed\n");
+      return 0;  // bail out, but don't indicate abort
+    }
+    
+    // attempted send with timeout based on select
+    sprintf(buffer, "Hi, this is the SELECT message!");
+    if (socketSend(sock, buffer, strlen(buffer)+1, 10.) <= SOCKERR_UNSPEC){
+      fprintf(stderr, "socketServer: socketSend() failed\n");
+      return 0;  // bail out, but don't indicate abort
+    }
+        
+    // attempt a clean disconnect
+    if (socketFinal(sock, 2.) <= SOCKERR_UNSPEC){
+      fprintf(stderr, "socketServer: socketFinal() handshake failed"
+        " - expected\n");
+    }else{
+      fprintf(stderr, "socketServer: socketFinal() unexpected handshake\n");
+      return 0;  // bail out, but don't indicate abort
+    }
+    
+    // attempt to re-open and connect a server socket
+    sock = socketServerInit(PORT, 30.);
+    if (sock <= SOCKERR_UNSPEC){
+      fprintf(stderr, "socketServer: socketServerInit() failed\n");
+      return 0;  // bail out, but don't indicate abort
+    }
+    
+    // send an integer back and forth in a fault tolerant way
+    int data;
+    int i;
+    for (i=0; i<10; i++){
+      if (socketRecv(sock, &data, sizeof(data), 1.) <= SOCKERR_UNSPEC){
+        fprintf(stderr, "socketServer: socketRecv() failed - break loop\n");
+        break;
+      }
+      fprintf(stderr, "socketServer: recv'd data = %d\n", data);
+      ++data; // server increments the integer
+      if (socketSend(sock, &data, sizeof(data), 1.) <= SOCKERR_UNSPEC){
+        fprintf(stderr, "socketServer: socketSend() failed - break loop\n");
+        break;
+      }
+      fprintf(stderr, "socketServer:   sent data = %d\n", data);
+
+      // at iteration 5 take a long break which the other side will time out on
+      if (i==5){
+        fprintf(stderr, "socketServer: taking a 4s delay now...\n");
+        VMK::wtimedelay(4.);
+      }
+    }
+    
+    if (i!=10){
+      // the previous comm loop was interrupted due to connection issues
+      if (socketFinal(sock, 5.) <= SOCKERR_UNSPEC){
+        fprintf(stderr, "socketServer: socketFinal() handshake failed\n");
+      }
+      // attempt to re-open and connect a server socket
+      sock = socketServerInit(PORT, 30.);
+      if (sock <= SOCKERR_UNSPEC){
+        fprintf(stderr, "socketServer: socketServerInit() failed\n");
+      }
+    }
+    
+    // again send an integer back and forth in a fault tolerant way
+    for (i=0; i<10; i++){
+      if (socketRecv(sock, &data, sizeof(data), 1.) <= SOCKERR_UNSPEC){
+        fprintf(stderr, "socketServer: socketRecv() failed - break loop\n");
+        break;
+      }
+      fprintf(stderr, "socketServer: recv'd data = %d\n", data);
+      ++data; // server increments the integer
+      if (socketSend(sock, &data, sizeof(data), 1.) <= SOCKERR_UNSPEC){
+        fprintf(stderr, "socketServer: socketSend() failed - break loop\n");
+        break;
+      }
+      fprintf(stderr, "socketServer:   sent data = %d\n", data);
+
+      // at iteration 5 a catastrophic event happens - division by zero CRASH
+      if (i==5){
+        fprintf(stderr, "socketServer: oh no, divide by zero CRASH...\n");
+        int b = 53/0; // trigger failure
+      }
+    }
+#endif
+    
+    // return successfully
+    return 0;
+#endif
+  }
+  
+  // ------------------------------------------------------------------------
+
+  int socketClient(void){
+    
+    fprintf(stderr, "Hi there from socketClient()\n");
+    
+#ifdef ESMF_NO_SOCKETS
+    fprintf(stderr, "ESMF was built with ESMF_NO_SOCKETS\n");
+    return SOCKERR_UNSPEC;
+#else
+
+    FILE *fp = fopen(SERVERFILE, "r");
+    if (fp == NULL){
+      fprintf(stderr, "socketClient: failed opening SERVERFILE\n");
+      return 0;   // bail out, but don't indicate abort
+    }
+    
+    char serverName[80];
+    fscanf(fp, "%s", serverName);
+    fclose(fp);
+    
+    fprintf(stderr, "socketClient: connecting to server: %s\n", serverName);
+    
+    // attempt to open an connect a client socket
+    int sock = socketClientInit(serverName, PORT, 60.);
+    if (sock <= SOCKERR_UNSPEC){
+      fprintf(stderr, "socketClient: socketClientInit() failed to connect\n");
+      return 0;  // bail out, but don't indicate abort
+    }
+    
+    // prepare buffer for following tests    
+    int const bufferSize = 256;
+    char buffer[bufferSize];
+    int len;
+
+    // simple ping-pong test using blocking send/recv
+    if ((len=recv(sock, buffer, bufferSize, 0)) < 0){
+      perror("client: recv()");
+      return 0;   // bail out, but don't indicate abort
+    }
+    fprintf(stderr, "client received: len=%d :: %s\n", len, buffer);
+    sprintf(buffer, "Hi, this is the PONG message!");
+    if (send(sock, buffer, strlen(buffer)+1, 0) < 0){
+      perror("client: send()");
+      return 0;   // bail out, but don't indicate abort
+    }
+
+    // attempt a clean disconnect
+    if (socketFinal(sock, 20.) <= SOCKERR_UNSPEC){
+      fprintf(stderr, "socketClient: socketFinal() handshake failed\n");
+      return 0;  // bail out, but don't indicate abort
+    }
+    fprintf(stderr, "client back from clean disconnect\n");
+
+#ifdef MORE_EXHAUSTIVE_SOCK_TESTING
+    // attempt to reconnect with server (while it isn't up)
+    sock = socketClientInit(serverName, PORT, 10.);
+    if (sock <= SOCKERR_UNSPEC){
+      fprintf(stderr, "socketClient: socketClientInit() failed to connect"
+        " - expected\n");
+    }else{
+      fprintf(stderr, "socketClient: socketClientInit() unexpected connect\n");
+      return 0;  // bail out, but don't indicate abort
+    }
+    
+    VMK::wtimedelay(20.);
+    
+    // attempt to reconnect with server (now it should be there)
+    sock = socketClientInit(serverName, PORT, 10.);
+    if (sock <= SOCKERR_UNSPEC){
+      fprintf(stderr, "socketClient: socketClientInit() failed to connect\n");
+      return 0;  // bail out, but don't indicate abort
+    }
+    
+    // attempted recv with a timeout based on select
+    if ((len=socketRecv(sock, buffer, bufferSize, 10.)) <= SOCKERR_UNSPEC){
+      fprintf(stderr, "socketClient: socketRecv() failed\n");
+      return 0;  // bail out, but don't indicate abort
+    }
+    fprintf(stderr, "socketClient: received %d bytes: %s\n", len, buffer);
+    
+    VMK::wtimedelay(10.);
+    
+    // attempt a clean disconnect
+    if (socketFinal(sock, 2.) <= SOCKERR_UNSPEC){
+      fprintf(stderr, "socketClient: socketFinal() handshake failed\n");
+      return 0;  // bail out, but don't indicate abort
+    }
+    
+    // attempt to reconnect with server
+    sock = socketClientInit(serverName, PORT, 20.);
+    if (sock <= SOCKERR_UNSPEC){
+      fprintf(stderr, "socketClient: socketClientInit() failed to connect\n");
+      return 0;  // bail out, but don't indicate abort
+    }
+    
+    // send an integer back and forth in a fault tolerant way
+    int data = 0; // initialize
+    int i;
+    for (i=0; i<10; i++){
+      if (socketSend(sock, &data, sizeof(data), 1.) <= SOCKERR_UNSPEC){
+        fprintf(stderr, "socketClient: socketSend() failed - break loop\n");
+        break;
+      }
+      fprintf(stderr, "socketClient:   sent data = %d\n", data);
+      if (socketRecv(sock, &data, sizeof(data), 1.) <= SOCKERR_UNSPEC){
+        fprintf(stderr, "socketClient: socketRecv() failed - break loop\n");
+        break;
+      }
+      fprintf(stderr, "socketClient: recv'd data = %d\n", data);
+    }
+    
+    if (i!=10){
+      // the previous comm loop was interrupted due to connection issues
+      if (socketFinal(sock, 5.) <= SOCKERR_UNSPEC){
+        fprintf(stderr, "socketClient: socketFinal() handshake failed\n");
+      }
+      // attempt to reconnect with server
+      sock = socketClientInit(serverName, PORT, 20.);
+      if (sock <= SOCKERR_UNSPEC){
+        fprintf(stderr, "socketClient: socketClientInit() failed to connect\n");
+      }
+    }
+    
+    // again send an integer back and forth in a fault tolerant way
+    data = 0; // initialize
+    for (i=0; i<10; i++){
+      if (socketSend(sock, &data, sizeof(data), 1.) <= SOCKERR_UNSPEC){
+        fprintf(stderr, "socketClient: socketSend() failed - break loop\n");
+        break;
+      }
+      fprintf(stderr, "socketClient:   sent data = %d\n", data);
+      if (socketRecv(sock, &data, sizeof(data), 1.) <= SOCKERR_UNSPEC){
+        fprintf(stderr, "socketClient: socketRecv() failed - break loop\n");
+        break;
+      }
+      fprintf(stderr, "socketClient: recv'd data = %d\n", data);
+    }
+    
+    if (i!=10){
+      // the previous comm loop was interrupted due to connection issues
+      if (socketFinal(sock, 5.) <= SOCKERR_UNSPEC){
+        fprintf(stderr, "socketClient: socketFinal() handshake failed\n");
+      }
+    }
+#endif
+    
+    // return successfully
+    return 0;
+#endif
+  }
+  
+} // namespace ESMCI
+//==============================================================================

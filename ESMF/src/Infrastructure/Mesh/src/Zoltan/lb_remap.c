@@ -6,8 +6,8 @@
 /*****************************************************************************
  * CVS File Information :
  *    $RCSfile: lb_remap.c,v $
- *    $Author: mathomp4 $
- *    $Date: 2013-01-11 20:23:44 $
+ *    $Author: dneckels $
+ *    $Date: 2007/11/28 16:13:51 $
  *    Revision: 1.13 $
  ****************************************************************************/
 
@@ -40,7 +40,7 @@ static int local_HEs_from_import_lists(ZZ *, int, int, int *, int *, int *,
   int *, int **);
 static int local_HEs_from_export_lists(ZZ *, int, int, int *, int *, int *,
   int *, int **);
-static float measure_stays(ZZ *, HGraph *, int, char *);
+static float measure_stays(ZZ *, HGraph *, int, const char *);
 
 /******************************************************************************/
 
@@ -66,7 +66,7 @@ int Zoltan_LB_Remap(
                           the algorithm knows export or import info.  */
 )
 {
-char *yo = "Zoltan_LB_Remap";
+const char *yo = "Zoltan_LB_Remap";
 int ierr = ZOLTAN_OK;
 int i;
 int remap_type;               /* Type of remapping to be done: 
@@ -144,7 +144,7 @@ static int local_HEs_from_import_lists(
  *  Objects described are those that ENDED UP on my_proc due to load balancing.
  *  For all these objects, new_proc == my_proc.
  */
-char *yo = "local_HEs_from_import_lists";
+const char *yo = "local_HEs_from_import_lists";
 int ierr = ZOLTAN_OK;
 int i, cnt, tmp;
 int *tmp_HEinfo;
@@ -295,7 +295,7 @@ static int local_HEs_from_export_lists(
  *  Objects described are those that STARTED on zz->Proc due to load balancing.
  *  For all these objects, old_proc == zz->Proc.
  */
-char *yo = "local_HEs_from_export_lists";
+const char *yo = "local_HEs_from_export_lists";
 int ierr = ZOLTAN_OK;
 int i, cnt, tmp;
 int *tmp_HEinfo;
@@ -471,7 +471,7 @@ static int malloc_HEinfo(
 )
 {
 /* Routine for allocating HEs to use in remap's matching routine. */
-char *yo = "malloc_HEinfo";
+const char *yo = "malloc_HEinfo";
 int ierr = ZOLTAN_OK;
 
   if (HEcnt) {
@@ -498,7 +498,7 @@ static int gather_and_build_remap(
                                  to minimize communication calls.  */
 )
 {
-char *yo = "gather_and_remap";
+const char *yo = "gather_and_remap";
 int ierr = ZOLTAN_OK;
 int i, uidx, tmp;
 int *each_size = NULL;        /* sizes (# HEs * HEINFO_ENTRIES) for each proc */
@@ -699,7 +699,7 @@ static float measure_stays(
   ZZ *zz,
   HGraph *hg, 
   int max0,
-  char *when
+  const char *when
 )
 {
 /* Routine that measures and prints the amount of data that doesn't move
@@ -737,7 +737,7 @@ static int matching_pgm (ZZ *zz, HGraph *hg, int *match, int *limit)
 int i, j, k, side = 0, edge, vertex, *Match[2] = {NULL, NULL};
 int limits[2], neighbor, next_vertex, pins;
 double w[2]={0.0,0.0}, weight, max_weight, *sims = NULL;
-char  *yo = "matching_pgm";
+const char *yo = "matching_pgm";
 
   limits[0] = limits[1] = *limit;
   Match[0] = match;

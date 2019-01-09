@@ -2,7 +2,7 @@
 //==============================================================================
 //
 // Earth System Modeling Framework
-// Copyright 2002-2012, University Corporation for Atmospheric Research, 
+// Copyright 2002-2018, University Corporation for Atmospheric Research, 
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
 // Laboratory, University of Michigan, National Centers for Environmental 
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
@@ -150,8 +150,8 @@ int main(int argc, char *argv[]) {
   mass[1] = compute_mass(mesh,sF2,iwts);
   mass[2] = compute_mass(mesh,sF3,iwts);
 
-  double massg[5];
-  MPI_Allreduce(mass, massg, 5, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+  double massg[3];
+  MPI_Allreduce(mass, massg, 3, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 
   using std::cout;
   using std::left;
@@ -200,7 +200,7 @@ int main(int argc, char *argv[]) {
   //----------------------------------------------------------------------------
 
   //----------------------------------------------------------------------------
-  TestEnd(result, __FILE__, __LINE__, 0);
+  TestEnd(__FILE__, __LINE__, 0);
   //----------------------------------------------------------------------------f
 
   Par::End();

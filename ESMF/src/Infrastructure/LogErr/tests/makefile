@@ -1,4 +1,4 @@
-# $Id: makefile,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $ 
+# $Id$ 
 
 ALL:     build_unit_tests
 run:     run_unit_tests
@@ -8,16 +8,23 @@ LOCDIR	  = src/Infrastructure/LogErr/tests
 
 # TODO:FIELDINTEGRATION Restore LogErrHaltUTest
 
+.NOTPARALLEL:
 TESTS_BUILD   = $(ESMF_TESTDIR)/ESMC_LogErrUTest \
-		$(ESMF_TESTDIR)/ESMF_LogErrUTest
+		$(ESMF_TESTDIR)/ESMC_LogErrPerfUTest \
+		$(ESMF_TESTDIR)/ESMF_LogErrUTest \
+		$(ESMF_TESTDIR)/ESMF_LogErrPerfUTest
 #		$(ESMF_TESTDIR)/ESMF_LogErrHaltUTest
 
 TESTS_RUN     = RUN_ESMC_LogErrUTest \
-		RUN_ESMF_LogErrUTest
+		RUN_ESMC_LogErrPerfUTest \
+		RUN_ESMF_LogErrUTest \
+		RUN_ESMF_LogErrPerfUTest
 #                RUN_ESMF_LogErrHaltUTest
 
 TESTS_RUN_UNI = RUN_ESMC_LogErrUTestUNI \
-		RUN_ESMF_LogErrUTestUNI
+		RUN_ESMC_LogErrPerfUTestUNI \
+		RUN_ESMF_LogErrUTestUNI \
+		RUN_ESMF_LogErrPerfUTestUNI
 #                RUN_ESMF_LogErrHaltUTestUNI
 
 
@@ -33,6 +40,18 @@ DIRS        =
 #
 # LogErr
 #
+RUN_ESMC_LogErrUTest:
+	$(MAKE) TNAME=LogErr NP=4 ctest
+
+RUN_ESMC_LogErrUTestUNI:
+	$(MAKE) TNAME=LogErr NP=1 ctest
+
+RUN_ESMC_LogErrPerfUTest:
+	$(MAKE) TNAME=LogErrPerf NP=4 ctest
+
+RUN_ESMC_LogErrPerfUTestUNI:
+	$(MAKE) TNAME=LogErrPerf NP=1 ctest
+
 RUN_ESMF_LogErrUTest:
 	# remove log files of previous test runs
 	rm -f $(ESMF_TESTDIR)/*Log_Test_File* $(ESMF_TESTDIR)/Single_Log_File
@@ -43,11 +62,11 @@ RUN_ESMF_LogErrUTestUNI:
 	rm -f $(ESMF_TESTDIR)/*Log_Test_File* $(ESMF_TESTDIR)/Single_Log_File
 	$(MAKE) TNAME=LogErr NP=1 ftest
 
-RUN_ESMC_LogErrUTest:
-	$(MAKE) TNAME=LogErr NP=4 ctest
+RUN_ESMF_LogErrPerfUTest:
+	$(MAKE) TNAME=LogErrPerf NP=4 ftest
 
-RUN_ESMC_LogErrUTestUNI:
-	$(MAKE) TNAME=LogErr NP=1 ctest
+RUN_ESMF_LogErrPerfUTestUNI:
+	$(MAKE) TNAME=LogErrPerf NP=1 ftest
 
 #
 # LogErrHalt - special for the lam implementation of MPI.  halting a

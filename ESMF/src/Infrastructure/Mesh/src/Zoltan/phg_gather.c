@@ -6,8 +6,8 @@
 /*****************************************************************************
  * CVS File Information :
  *    $RCSfile: phg_gather.c,v $
- *    $Author: mathomp4 $
- *    $Date: 2013-01-11 20:23:44 $
+ *    $Author: dneckels $
+ *    $Date: 2007/11/28 16:13:53 $
  *    Revision: 1.10 $
  ****************************************************************************/
 
@@ -40,7 +40,7 @@ int Zoltan_PHG_Gather_To_All_Procs(
  * Second the column hypergraphs are gathered along processor rows.
  * Each processor then has a complete description of the hypergraph.
  */
-char *yo = "Zoltan_PHG_Gather_To_All_Procs";
+const char *yo = "Zoltan_PHG_Gather_To_All_Procs";
 int ierr = ZOLTAN_OK;
 int i, tmp, sum;
 int *each = NULL,

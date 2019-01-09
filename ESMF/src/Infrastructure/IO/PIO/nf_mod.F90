@@ -1,5 +1,13 @@
 #include "ESMFPIO.h"
 #define __PIO_FILE__ "nf_mod.F90"
+!>
+!! @file
+!! @brief NetCDF interface routines
+!!
+!! $Revision: 751 $
+!! $LastChangedDate: 2013-04-02 09:01:13 -0700 (Tue, 02 Apr 2013) $
+!!
+!<
 module nf_mod
 
 #ifdef TIMING
@@ -8,11 +16,10 @@ module nf_mod
   use alloc_mod
 
   use pio_kinds, only: i4,r4,r8,pio_offset
-  use pio_types, only: file_desc_t, iosystem_desc_t, var_desc_t,  &
-        pio_noerr, pio_iotype_netcdf, pio_iotype_pnetcdf, &
-	pio_iotype_netcdf4p, pio_iotype_netcdf4c, pio_max_name
+  use pio_types, only: file_desc_t, iosystem_desc_t, var_desc_t, pio_noerr, pio_iotype_netcdf, &
+        pio_iotype_pnetcdf, pio_iotype_netcdf4p, pio_iotype_netcdf4c, pio_max_name
 
-  use pio_support, only : Debug, DebugIO, DebugAsync, piodie   
+  use pio_support, only : Debug, DebugIO, DebugAsync, piodie
   use pio_utils, only : bad_iotype, check_netcdf
 
 #ifdef _NETCDF
@@ -20,9 +27,18 @@ module nf_mod
 #endif
   use pio_support, only : CheckMPIReturn
   use pio_msg_mod
+#ifdef _COMPRESSION
+  use pio_types, only : pio_iotype_vdc2
+!  use piovdc
+#endif
+#ifndef NO_MPIMOD
+  use mpi ! _EXTERNAL
+#endif
   implicit none
   private
+#ifdef NO_MPIMOD
   include 'mpif.h' ! _EXTERNAL
+#endif
 #ifdef _PNETCDF
 #include <pnetcdf.inc>   /* _EXTERNAL */
 #endif
@@ -31,7 +47,7 @@ module nf_mod
   !  Attribute functions
   !
   public :: pio_def_var,   &
-       pio_inq_attname,    & 
+       pio_inq_attname,    &
        pio_inq_att,        &
        pio_inq_attlen,     &
        pio_inq_varid,      &
@@ -138,7 +154,7 @@ module nf_mod
 !<
   public :: PIO_redef
 
-!> 
+!>
 !! \defgroup PIO_inquire
 !<
    public :: PIO_inquire
@@ -163,21 +179,28 @@ module nf_mod
 !<
   public :: PIO_inquire_dimension
 
-!> 
+!>
 !! \defgroup PIO_copy_att
 !<
   public :: PIO_copy_att
-
-contains 
+#ifdef _COMPRESSION
+  interface
+     subroutine defvdfvar(foo) bind(C)
+       use, intrinsic :: iso_c_binding
+       type(c_ptr), value, intent(in) :: foo
+     end subroutine defvdfvar
+  end interface
+#endif
+contains
 
 !>
-!! @public 
+!! @public
 !! @ingroup PIO_inquire
 !! @brief Gets metadata information for netcdf file.
 !! @details
 !! @param File @copydoc file_desc_t
 !! @param nDimensions :  Number of dimensions defined for the netcdf file
-!! @param nVariables : Number of variables defined for the netcdf file 
+!! @param nVariables : Number of variables defined for the netcdf file
 !! @param nAttributes : Number of attributes defined for the netcdf file
 !! @param unlimitedDimID : the Unlimited dimension ID
 !! @retval ierr @copydoc error_return
@@ -210,10 +233,10 @@ contains
     end if
 
     iotype = File%iotype
-    
+
     if(ios%IOproc) then
        select case(iotype)
-          
+
 #ifdef _PNETCDF
        case(pio_iotype_pnetcdf)
           ierr=nfmpi_inq( File%fh,vals(1),vals(2), &
@@ -230,7 +253,7 @@ contains
              ierr=nf90_inquire( File%fh,vals(1),vals(2), &
                   vals(3),vals(4))
           endif
-          
+
           if(ios%num_iotasks>1) then
              call MPI_BCAST(vals,4,MPI_INTEGER,0,ios%IO_comm, mpierr)
              call CheckMPIReturn('nf_mod',mpierr)
@@ -240,7 +263,7 @@ contains
 
        case default
           call bad_iotype(iotype,__PIO_FILE__,__LINE__)
-          
+
        end select
     endif
 
@@ -251,31 +274,31 @@ contains
        call CheckMPIReturn('nf_mod',mpierr)
     end if
 
-    if(present(nDimensions)) then	
+    if(present(nDimensions)) then       
        ndimensions = vals(1)
     endif
-    if(present(nVariables)) then	
+    if(present(nVariables)) then        
        nVariables = vals(2)
     endif
-    if(present(nAttributes)) then	
+    if(present(nAttributes)) then       
        nAttributes = vals(3)
     endif
-    if(present(unlimitedDimID)) then	
+    if(present(unlimitedDimID)) then    
        unlimitedDimID = vals(4)
     endif
-    
+
   end function pio_inquire
 
 !>
-!! @public 
+!! @public
 !! @ingroup PIO_inq_att
 !! @brief Gets information about attributes
 !! @details
 !! @param File @copydoc file_desc_t
 !! @param varid : The netcdf variable identifier
-!! @param name : Name of the attribute 
+!! @param name : Name of the attribute
 !! @param xtype : The type of attribute
-!! @param len : The length of the attribute 
+!! @param len : The length of the attribute
 !! @retval ierr @copydoc error_return
 !>
   integer function inq_att_vid(File,varid,name,xtype,len) result(ierr)
@@ -325,7 +348,7 @@ contains
 #ifdef _NETCDF
        case(pio_iotype_netcdf4p, pio_iotype_netcdf4c)
           ierr=nf90_inquire_attribute( File%fh,varid,name(1:nlen), &
-               xtype=xtype,len=len)          
+               xtype=xtype,len=len)
        case(pio_iotype_netcdf)
 
           if (ios%io_rank==0) then
@@ -357,15 +380,15 @@ contains
 
 
 !>
-!! @public 
+!! @public
 !! @ingroup PIO_inq_att
 !! @brief  Gets information about attributes
 !! @details
 !! @param File @copydoc file_desc_t
 !! @param vardesc @copydoc var_desc_t
-!! @param name : Name of the attribute 
+!! @param name : Name of the attribute
 !! @param xtype : The type of attribute
-!! @param len : The length of the attribute 
+!! @param len : The length of the attribute
 !! @retval ierr @copydoc error_return
 !>
   integer function inq_att_vardesc(File,vardesc,name,xtype,len) result(ierr)
@@ -381,9 +404,9 @@ contains
   end function inq_att_vardesc
 
 !>
-!! @public 
+!! @public
 !! @ingroup PIO_inq_attlen
-!! @brief Gets the attribute length 
+!! @brief Gets the attribute length
 !! @details
 !! @param File @copydoc file_desc_t
 !! @param varid : attribute id
@@ -421,7 +444,7 @@ contains
        call MPI_BCAST(varid,1,MPI_INTEGER,ios%CompMaster, ios%my_comm , mpierr)
        call MPI_BCAST(nlen,1,MPI_INTEGER,ios%CompMaster, ios%my_comm , mpierr)
        call MPI_BCAST(name,nlen,MPI_CHARACTER,ios%CompMaster, ios%my_comm , mpierr)
-       
+
     end if
 
     if(ios%IOproc) then
@@ -464,9 +487,9 @@ contains
   end function inq_attlen_vid
 
 !>
-!! @public 
+!! @public
 !! @ingroup PIO_inq_attlen
-!! @brief  Gets the attribute length 
+!! @brief  Gets the attribute length
 !! @details
 !! @param File @copydoc file_desc_t
 !! @param vardesc @copydoc var_desc_t
@@ -485,13 +508,13 @@ contains
 
   end function inq_attlen_vardesc
 
-!> 
-!! @public 
+!>
+!! @public
 !! @ingroup PIO_inq_attname
-!! @brief Returns the name of a netcdf attribute 
+!! @brief Returns the name of a netcdf attribute
 !! @details
 !! @param File @copydoc file_desc_t
-!! @param varid :  The variable ID 
+!! @param varid :  The variable ID
 !! @param attnum : Attribute number returned from function ????
 !! @param name   : Name of the returned attribute
 !! @retval ierr @copydoc error_return
@@ -562,13 +585,13 @@ contains
     name = tmpname(1:len_trim(tmpname))
   end function inq_attname_vid
 
-!> 
-!! @public 
+!>
+!! @public
 !! @ingroup PIO_inq_attname
 !! @brief  Returns the name of a netcdf attribute.
 !! @details
 !! @param File @copydoc file_desc_t
-!! @param vardesc @copydoc var_desc_t 
+!! @param vardesc @copydoc var_desc_t
 !! @param attnum : Attribute number returned from function ????
 !! @param name   : Name of the returned attribute
 !! @retval ierr @copydoc error_return
@@ -583,10 +606,10 @@ contains
 
   end function inq_attname_vardesc
 
-!> 
-!! @public 
+!>
+!! @public
 !! @ingroup PIO_inq_varid
-!! @brief  Returns the ID of a netcdf variable given its name 
+!! @brief  Returns the ID of a netcdf variable given its name
 !! @details
 !! @param File @copydoc file_desc_t
 !! @param name : Name of the returned attribute
@@ -618,7 +641,7 @@ contains
           if(ios%comp_rank==0) call mpi_send(msg, 1, mpi_integer, ios%ioroot, 1, ios%union_comm, ierr)
           call MPI_BCAST(file%fh,1,MPI_INTEGER,ios%CompMaster, ios%my_comm , mpierr)
        end if
-       
+
        call MPI_BCAST(nlen,1,MPI_INTEGER,ios%CompMaster, ios%my_comm , mpierr)
        call MPI_BCAST(name,nlen,MPI_CHARACTER,ios%CompMaster, ios%my_comm , mpierr)
     end if
@@ -656,10 +679,10 @@ contains
 
   end function inq_varid_vid
 
-!> 
-!! @public 
+!>
+!! @public
 !! @ingroup PIO_inq_varid
-!! @brief Returns the ID of a netcdf variable given its name 
+!! @brief Returns the ID of a netcdf variable given its name
 !! @details
 !! @param File @copydoc file_desc_t
 !! @param name   : Name of the returned attribute
@@ -680,7 +703,7 @@ contains
   end function inq_varid_vardesc
 
 !>
-!! @public 
+!! @public
 !! @ingroup PIO_inq_varname
 !! @brief Get the name associated with a variable
 !! @details
@@ -694,13 +717,13 @@ contains
     type (File_desc_t), intent(in)   :: File
     type (Var_desc_t), intent(in)    :: vardesc
     character(len=*), intent(out)    :: name
-    
+
     ierr = pio_inq_varname(file,vardesc%varid,name)
 
   end function inq_varname_vdesc
 
 !>
-!! @public 
+!! @public
 !! @ingroup PIO_inq_varname
 !! @brief Get the name associated with a variable
 !! @details
@@ -772,13 +795,13 @@ contains
   end function inq_varname_vid
 
 !>
-!! @public 
+!! @public
 !! @ingroup PIO_inq_varndims
 !! @brief Gets the number of dimension associated with a netcdf variable
 !! @details
 !! @param File @copydoc file_desc_t
 !! @param varid : The variable identifier
-!! @param ndims : The number of dimensions for the variable 
+!! @param ndims : The number of dimensions for the variable
 !! @retval ierr @copydoc error_return
 !>
   integer function inq_varndims_vid(File,varid,ndims) result(ierr)
@@ -807,7 +830,7 @@ contains
        end if
        call MPI_BCAST(varid,1,MPI_INTEGER,ios%CompMaster, ios%my_comm , mpierr)
     end if
-    
+
     if(ios%IOproc) then
        select case(iotype)
 
@@ -836,6 +859,8 @@ contains
     endif
     call check_netcdf(File,ierr,__PIO_FILE__,__LINE__)
 
+
+
     if(ios%async_interface .or. ios%num_tasks>ios%num_iotasks) then
        call MPI_BCAST(ndims,1,MPI_INTEGER,ios%IOMaster,ios%my_comm, mpierr)
        call CheckMPIReturn('nf_mod',mpierr)
@@ -843,13 +868,13 @@ contains
   end function inq_varndims_vid
 
 !>
-!! @public 
+!! @public
 !! @ingroup PIO_inq_varndims
 !! @brief Gets the number of dimension associated with a netcdf variable
 !! @details
 !! @param File @copydoc file_desc_t
 !! @param vardesc @copydoc var_desc_t
-!! @param ndims : The number of dimensions for the variable 
+!! @param ndims : The number of dimensions for the variable
 !! @retval ierr @copydoc error_return
 !>
   integer function inq_varndims_vdesc(File,vardesc,ndims) result(ierr)
@@ -862,7 +887,7 @@ contains
   end function inq_varndims_vdesc
 
 !>
-!! @public 
+!! @public
 !! @ingroup PIO_inq_vartype
 !! @brief Gets metadata information for netcdf file.
 !! @details
@@ -933,7 +958,7 @@ contains
   end function inq_vartype_vid
 
 !>
-!! @public 
+!! @public
 !! @ingroup PIO_inq_vartype
 !! @brief Gets metadata information for netcdf file.
 !! @details
@@ -952,7 +977,7 @@ contains
   end function inq_vartype_vdesc
 
 !>
-!! @public 
+!! @public
 !! @ingroup PIO_inq_vardimid
 !! @brief returns the dimids of the variable as an interger array
 !! @details
@@ -979,7 +1004,7 @@ contains
 
     iotype = File%iotype
     ierr=PIO_noerr
-    
+
     size_dimids=size(dimids)
 
     if(ios%async_interface) then
@@ -1027,7 +1052,7 @@ contains
   end function inq_vardimid_vid
 
 !>
-!! @public 
+!! @public
 !! @ingroup PIO_inq_vardimid
 !! @brief returns the dimids of the variable as an interger array
 !! @details
@@ -1047,7 +1072,7 @@ contains
   end function inq_vardimid_vdesc
 
 !>
-!! @public 
+!! @public
 !! @ingroup PIO_inq_varnatts
 !! @brief Returns the number of attributes associated with a varaible
 !! @details
@@ -1116,7 +1141,7 @@ contains
   end function inq_varnatts_vid
 
 !>
-!! @public 
+!! @public
 !! @ingroup PIO_inq_varnatts
 !! @brief Returns the number of attributes associated with a varaible
 !! @details
@@ -1136,7 +1161,7 @@ contains
   end function inq_varnatts_vdesc
 
 !>
-!! @public 
+!! @public
 !! @ingroup PIO_inq_dimid
 !! @brief Returns the netcdf dimension id for the name.
 !! @details
@@ -1202,9 +1227,9 @@ contains
        end select
     endif
 
-    if(Debug .or. Debugasync)  &
-      print *,__PIO_FILE__,__LINE__,file%fh, name, dimid, &
-      ios%async_interface, ios%iomaster,ios%my_comm,ios%intercomm, ierr
+    if(Debug .or. Debugasync) print *,__PIO_FILE__,__LINE__,file%fh, &
+      name, dimid, ios%async_interface, ios%iomaster, &
+      ios%my_comm,ios%intercomm, ierr
     call check_netcdf(File, ierr,__PIO_FILE__,__LINE__)
 
     if(ios%async_interface .or. ios%num_tasks>ios%num_iotasks) then
@@ -1212,11 +1237,11 @@ contains
        if(Debugasync) print *,__PIO_FILE__,__LINE__,dimid,ierr,mpierr
        call CheckMPIReturn('nf_mod',mpierr)
     end if
- 
+
   end function pio_inq_dimid
 
 !>
-!! @public 
+!! @public
 !! @ingroup PIO_inq_dimname
 !! @brief Gets the name of a dimension given its ID
 !! @details
@@ -1237,7 +1262,7 @@ contains
     !------------------
     integer :: iotype, mpierr, msg, ldn
     type(iosystem_desc_t), pointer :: ios
-    
+
     ios => File%iosystem
     iotype = File%iotype
     ierr=PIO_noerr
@@ -1290,9 +1315,9 @@ contains
   end function pio_inq_dimname
 
 !>
-!! @public 
+!! @public
 !! @ingroup PIO_inq_dimlen
-!! @brief Returns the extent of a netCDF dimension 
+!! @brief Returns the extent of a netCDF dimension
 !! @details
 !! @param File @copydoc file_desc_t
 !! @param dimid : The netcdf dimension.
@@ -1312,7 +1337,7 @@ contains
     integer :: iotype, mpierr, msg
     integer(kind=PIO_OFFSET) :: clen
     type(iosystem_desc_t), pointer :: ios
-    
+
     ios => File%iosystem
     iotype = File%iotype
     ierr=PIO_noerr
@@ -1363,7 +1388,7 @@ contains
 
   end function pio_inq_dimlen
 
-!> 
+!>
 !! @public
 !! @ingroup PIO_enddef
 !! @brief Exits netcdf define mode.
@@ -1381,7 +1406,12 @@ contains
     integer :: iotype, mpierr
     logical, parameter :: Check = .TRUE.
     integer :: msg = PIO_MSG_ENDDEF
-
+#ifdef _COMPRESSION
+    interface
+       subroutine endvdfdef() bind(C)
+       end subroutine endvdfdef
+    end interface
+#endif
     iotype = File%iotype
 
     ierr=PIO_noerr
@@ -1408,6 +1438,13 @@ contains
           ierr=nf90_enddef(File%fh)
 #endif
 
+#ifdef _COMPRESSION
+       case(pio_iotype_vdc2)
+          if(ios%io_rank .eq. 0) then
+             call endvdfdef
+          endif
+
+#endif
        case default
           call bad_iotype(iotype,__PIO_FILE__,__LINE__)
 
@@ -1416,13 +1453,13 @@ contains
     call check_netcdf(File, ierr,__PIO_FILE__,__LINE__)
   end function PIO_enddef
 
-!> 
+!>
 !! @public
 !! @ingroup PIO_redef
-!! @brief Re-enters netcdf define mode.   
-!! @details 
-!! @warning Entering and leaving netcdf define mode causes a file sync operation to 
-!!          occur, these operations can be very expensive in parallel systems.   We 
+!! @brief Re-enters netcdf define mode.
+!! @details
+!! @warning Entering and leaving netcdf define mode causes a file sync operation to
+!!          occur, these operations can be very expensive in parallel systems.   We
 !!          recommend structuring your code to minimize calls to this function.
 !! @param File @copydoc file_desc_t
 !! @retval ierr @copydoc error_return
@@ -1436,7 +1473,7 @@ contains
     integer :: iotype, mpierr, msg
     logical, parameter :: Check = .TRUE.
     type(iosystem_desc_t), pointer :: ios
-    
+
 
     iotype = File%iotype
     ios => file%iosystem
@@ -1474,7 +1511,7 @@ contains
     call check_netcdf(File, ierr,__PIO_FILE__,__LINE__)
   end function PIO_redef
 
-!> 
+!>
 !! @public
 !! @ingroup PIO_def_dim
 !! @brief Defines the netcdf dimension
@@ -1514,7 +1551,7 @@ contains
        call mpi_bcast(nlen, 1, mpi_integer, ios%compmaster, ios%intercomm, ierr)
        call mpi_bcast(name, nlen, mpi_character, ios%compmaster, ios%intercomm, ierr)
     end if
-       
+
     if(ios%IOproc) then
        select case(iotype)
 
@@ -1547,17 +1584,17 @@ contains
        call MPI_BCAST(dimid, 1, MPI_INTEGER, ios%IOMaster, ios%my_Comm, ierr)
     end if
     if(debugasync) print *,__PIO_FILE__,__LINE__,dimid
-  end function PIO_def_dim    
+  end function PIO_def_dim
 
 
-!> 
-!! @public 
+!>
+!! @public
 !! @ingroup PIO_def_var
 !! @brief Defines a netcdf variable
 !! @details
 !! @param File @copydoc file_desc_t
 !! @param name : The name of the variable to define
-!! @param type : The type of variable 
+!! @param type : The type of variable
 !! @param vardesc @copydoc var_desc_t
 !! @retval ierr @copydoc error_return
 !<
@@ -1573,20 +1610,22 @@ contains
 
   end function def_var_0d
 
-!> 
+!>
 !! @public
 !! @ingroup PIO_def_var
 !! @brief Defines the a netcdf variable
 !! @details
 !! @param File @copydoc file_desc_t
 !! @param name : The name of the variable to define
-!! @param type : The type of variable 
+!! @param type : The type of variable
 !! @param dimids : The dimension identifier returned by \ref PIO_def_dim
 !! @param vardesc @copydoc var_desc_t
 !! @retval ierr @copydoc error_return
 !<
   integer function def_var_md(File,name,type,dimids,vardesc) result(ierr)
-
+#ifdef _COMPRESSION
+    use C_interface_mod, only : F_C_String_dup
+#endif
     type (File_desc_t), intent(in)  :: File
     character(len=*), intent(in)    :: name
     integer, intent(in)             :: type
@@ -1599,6 +1638,7 @@ contains
     !------------------
     integer :: iotype, mpierr, nlen
     integer :: msg = PIO_MSG_DEF_VAR
+
 
     iotype = File%iotype
 
@@ -1617,7 +1657,7 @@ contains
           call mpi_bcast(file%fh, 1, mpi_integer, ios%compmaster, ios%intercomm, ierr)
        end if
        call mpi_bcast(type, 1, mpi_integer, ios%compmaster, ios%intercomm, ierr)
-       
+
        call mpi_bcast(nlen, 1, mpi_integer, ios%compmaster, ios%intercomm, ierr)
        call mpi_bcast(name, nlen, mpi_character, ios%compmaster, ios%intercomm, ierr)
        call mpi_bcast(vardesc%ndims, 1, mpi_integer, ios%compmaster, ios%intercomm, ierr)
@@ -1628,11 +1668,9 @@ contains
 #ifdef _PNETCDF
        case(pio_iotype_pnetcdf)
           if(vardesc%ndims==0) then
-             ierr=nfmpi_def_var(File%fh,name(1:nlen),type, &
-                  vardesc%ndims,dimids,vardesc%varid)
+             ierr=nfmpi_def_var(File%fh,name(1:nlen),type,vardesc%ndims,dimids,vardesc%varid)
           else
-             ierr=nfmpi_def_var(File%fh,name(1:nlen),type, &
-                  vardesc%ndims,dimids(1:vardesc%ndims),vardesc%varid)
+             ierr=nfmpi_def_var(File%fh,name(1:nlen),type,vardesc%ndims,dimids(1:vardesc%ndims),vardesc%varid)
           end if
 #endif
 
@@ -1672,14 +1710,21 @@ contains
              call MPI_BCAST(vardesc%varid, 1, MPI_INTEGER, 0, ios%IO_Comm, ierr)
           end if
 #endif
+#ifdef _COMPRESSION
+       case(pio_iotype_vdc2)
+          vardesc%name = name(1:nlen)//char(0)
 
+          if(ios%io_rank .eq. 0) then
+             call defvdfvar( F_C_String_dup(name) )
+          endif
+#endif
        case default
           call bad_iotype(iotype,__PIO_FILE__,__LINE__)
 
        end select
     endif
     call check_netcdf(File, ierr,__PIO_FILE__,__LINE__)
-    if(ios%async_interface  .or. ios%num_tasks> ios%num_iotasks) then  
+    if(ios%async_interface  .or. ios%num_tasks> ios%num_iotasks) then
        call MPI_BCAST(vardesc%varid, 1, MPI_INTEGER, ios%Iomaster, ios%my_Comm, ierr)
     end if
   end function def_var_md
@@ -1688,10 +1733,10 @@ contains
 !! @public
 !! @ingroup PIO_copy_att
 !! @brief No idea what this function does
-!! @details 
+!! @details
 !! @param infile @copydoc file_desc_t
 !! @param invarid :
-!! @param name : 
+!! @param name :
 !! @param outfile :
 !! @param outvarid :
 !! @retval ierr @copydoc error_return
@@ -1721,12 +1766,12 @@ contains
        case(pio_iotype_netcdf,PIO_iotype_netcdf4c)
           if (ios%io_rank==0) then
              ierr = nf90_copy_att(infile%fh,invarid,name,&
-                  outfile%fh,outvarid)     
+                  outfile%fh,outvarid)
           end if
        case(PIO_iotype_netcdf4p)
           ierr = nf90_copy_att(infile%fh,invarid,name,&
-               outfile%fh,outvarid)     
-#endif    
+               outfile%fh,outvarid)
+#endif
        end select
     end if
     call check_netcdf(outFile, ierr,__PIO_FILE__,__LINE__)
@@ -1734,9 +1779,9 @@ contains
 
 
 !>
-!! @public 
+!! @public
 !! @ingroup PIO_inquire_variable
-!! @brief Inquires if a NetCDF variable is present and returns its attributes  
+!! @brief Inquires if a NetCDF variable is present and returns its attributes
 !! @details
 !! @param ncid : A netcdf file descriptor returned by \ref PIO_openfile or \ref PIO_createfile.
 !! @param varid : The netcdf variable ID.
@@ -1755,7 +1800,7 @@ contains
     integer, dimension(:), optional, intent(out) :: dimids
     integer,               optional, intent(out) :: natts
 
-    
+
     if(present(name)) ierr = pio_inq_varname(ncid, varid, name)
     if(present(ndims)) ierr = pio_inq_varndims(ncid, varid, ndims)
     if(present(dimids)) ierr = pio_inq_vardimid(ncid, varid, dimids)
@@ -1767,9 +1812,9 @@ contains
   end function inquire_variable_vid
 
 !>
-!! @public 
+!! @public
 !! @ingroup PIO_inquire_variable
-!! @brief Inquires if a NetCDF variable is present and returns its attributes  
+!! @brief Inquires if a NetCDF variable is present and returns its attributes
 !! @details
 !! @param ncid : A netcdf file descriptor returned by \ref PIO_openfile or \ref PIO_createfile.
 !! @param vardesc @copydoc var_desc_t
@@ -1797,9 +1842,9 @@ contains
   end function inquire_variable_vdesc
 
 !>
-!! @public 
+!! @public
 !! @ingroup PIO_inquire_dimension
-!! @brief  Get information about a particular dimension in netcdf file 
+!! @brief  Get information about a particular dimension in netcdf file
 !! @details
 !! @param ncid : A netcdf file descriptor returned by \ref PIO_openfile or \ref PIO_createfile.
 !! @param dimid : The netcdf dimension ID.
@@ -1817,5 +1862,6 @@ contains
     if(present(name)) ierr = pio_inq_dimname(ncid, dimid,name)
 
   end function PIO_inquire_dimension
+
 
 end module nf_mod

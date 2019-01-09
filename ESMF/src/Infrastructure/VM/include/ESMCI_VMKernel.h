@@ -1,7 +1,7 @@
 // $Id$
 //
 // Earth System Modeling Framework
-// Copyright 2002-2012, University Corporation for Atmospheric Research, 
+// Copyright 2002-2018, University Corporation for Atmospheric Research, 
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
 // Laboratory, University of Michigan, National Centers for Environmental 
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
@@ -34,7 +34,7 @@ typedef pthread_t       esmf_pthread_t;
 // reduction operations
 enum vmOp   { vmSUM=1, vmMIN, vmMAX};
 // typekind indicators
-enum vmType { vmBYTE=1, vmI4, vmR4, vmR8};
+enum vmType { vmBYTE=1, vmI4, vmI8, vmR4, vmR8};
 
 // VM_ANY_SOURCE and VM_ANY_TAG
 #define VM_ANY_SRC                    (-2)
@@ -62,6 +62,9 @@ enum vmType { vmBYTE=1, vmI4, vmR4, vmR8};
 // - buffer lenghts in bytes
 #define PIPC_BUFFER                   (4096)
 #define SHARED_BUFFER                 (64)
+
+// - number of shared memory non-blocking channels
+#define SHARED_NONBLOCK_CHANNELS      (16)
 
 // begin sync stuff -----
 #define SYNC_NBUFFERS                 (2)
@@ -119,6 +122,8 @@ class VMK{
     // comm_type specific parts
     int comm_type;      // comm_type for this communication status
     MPI_Status mpi_s;
+
+    status() : mpi_s() {}
   };
   
   
@@ -135,7 +140,13 @@ class VMK{
   struct shared_mp{
     // source and destination pointers
     volatile const void *ptr_src;
-    volatile void *ptr_dest;
+    volatile void *ptr_dst;
+    volatile int tcounter;
+    // non-blocking channels
+    volatile const void *ptr_src_nb[SHARED_NONBLOCK_CHANNELS];
+    volatile void *ptr_dst_nb[SHARED_NONBLOCK_CHANNELS];
+    int recvCount;
+    int sendCount;
     // hack sync variables
     shmsync shms;
     // buffer for small messages
@@ -145,7 +156,6 @@ class VMK{
     esmf_pthread_cond_t cond1;
     esmf_pthread_mutex_t mutex2;
     esmf_pthread_cond_t cond2;
-    volatile int tcounter;
   };
 
 
@@ -174,12 +184,12 @@ class VMK{
     int *pid;       // pid (equal to rank in MPI_COMM_WORLD)
     int *tid;       // thread index
     int *ncpet;     // number of cores this pet references
+    int *nadevs;     // number of accelerator devices accessible from this pet
     int **cid;      // core id of the cores this pet references
     // general information about this VMK
     int mpionly;    // 0: there is multi-threading, 1: MPI-only
     int nothreadsflag; // 0-threaded VM, 1-non-threaded VM
-    // MPI communication handles for MPI processes associated with this VMK
-    MPI_Group mpi_g;
+    // MPI Communicator handle
     MPI_Comm mpi_c;
     // Shared mutex and thread_finish variables. These are pointers that will be
     // pointing to shared memory variables between different thread-instances of
@@ -202,15 +212,15 @@ class VMK{
     int nhandles;
     commhandle *firsthandle;
     // static info of physical machine
-    static int ncores; // total number of cores in the physical machine
-    static int *cpuid; // cpuid associated with certain core (multi-core cpus)
-    static int *ssiid; // single system image id to which this core belongs
+    static int ncores;  // total number of cores in the physical machine
+    static int *cpuid;  // cpuid associated with certain core (multi-core cpus)
+    static int *ssiid;    // single system image id to which this core belongs
+    static double wtime0; // the MPI WTime at the very beginning of execution
   public:
     // Declaration of static data members - Definitions are in the header of
     // source file ESMF_VMKernel.C
-    // static MPI info, Group and Comm of the default VMK
+    // static MPI Comm of the default VMK
     // and the thread level that the MPI implementation supports.
-    static MPI_Group default_mpi_g;
     static MPI_Comm default_mpi_c;
     static int mpi_thread_level;
     // Static data members that hold command line arguments
@@ -267,6 +277,7 @@ class VMK{
     int getMypet();                // return mypet
     esmf_pthread_t getMypthid();   // return mypthid
     int getNcpet(int i);           // return ncpet
+    int getNadevs(int i);          // return nadevs
     int getSsiid(int i);           // return ssiid
     MPI_Comm getMpi_c();           // return mpi_c
     int getNthreads(int i);        // return number of threads in group PET
@@ -282,13 +293,17 @@ class VMK{
     esmf_pthread_t getLocalPthreadId() const {return mypthid;}
     bool isPthreadsEnabled() const{
 #ifdef ESMF_NO_PTHREADS
+      // did not compile with threads
       return false;
 #else
+      // check whether MPI impl. supports MPI_THREAD_SERIALIZED or higher
+      if (mpi_thread_level < MPI_THREAD_SERIALIZED)
+        return false;
       return true;
 #endif
     }
     bool isOpenMPEnabled() const{
-#ifdef ESMF_NO_OPENMP      
+#ifdef ESMF_NO_OPENMP
       return false;
 #else
 #ifndef _OPENMP
@@ -296,6 +311,13 @@ class VMK{
 #else
       return true;
 #endif
+#endif
+    }
+    bool isOpenACCEnabled() const{
+#ifdef ESMF_NO_OPENACC
+      return false;
+#else
+      return true;
 #endif
     }
 
@@ -309,7 +331,7 @@ class VMK{
       int tag=-1);
     
     int sendrecv(void *sendData, int sendSize, int dst, void *recvData,
-      int recvSize, int src);
+      int recvSize, int src, int dstTag=-1, int srcTag=-1);
     int sendrecv(void *sendData, int sendSize, int dst, void *recvData,
       int recvSize, int src, commhandle **commh);
 
@@ -371,7 +393,11 @@ class VMK{
     int ipmutexlock(ipmutex *ipmutex);
     int ipmutexunlock(ipmutex *ipmutex);
     
+    // Simple thread-safety lock/unlock using internal pth_mutex
+    int lock();
+    int unlock();
     
+    // Timer methods
     static void wtime(double *time);
     static void wtimeprec(double *prec);
     static void wtimedelay(double delay);
@@ -402,11 +428,9 @@ class VMKPlan{
     int pref_inter_ssi;         // defualt: PREF_INTER_SSI_MPI1
     // MPI communicator for the participating PET group of parent VM
     int *lpid_mpi_g_part_map;
-    MPI_Group mpi_g_part;
     MPI_Comm mpi_c_part;
     int commfreeflag;   // flag to indicate which PETs must free MPIcommunicator
-    int groupfreeflag;  // flag to indicate which PETs must free MPIgroup
-        
+    
   public:
     VMKPlan();
       // native constructor (sets communication preferences to defaults)
@@ -475,17 +499,140 @@ class VMKPlan{
   
 };
 
+
 class ComPat{
  private:
   // pure virtual methods to be implemented by user
+     
   virtual int messageSize(int srcPet, int dstPet)                  const =0;
+    // will be called on both sides, i.e. localPet==srcPet and localPet==dstPet
+ 
   virtual void messagePrepare(int srcPet, int dstPet, char *buffer)const =0;
+    // will be called only for localPet==srcPet
+  
   virtual void messageProcess(int srcPet, int dstPet, char *buffer)      =0;
+    // will be called only for localPet==dstPet
+  
   virtual void localPrepareAndProcess(int localPet)                      =0;
+    // will be called for every localPet once
+  
  public:
   // communication patterns
   void totalExchange(VMK *vmk);
 }; // ComPat
+
+
+class ComPat2{
+ private:
+  // pure virtual methods to be implemented by user
+     
+  virtual void handleLocal() =0;
+    // called on every localPet exactly once, before any other method
+
+  virtual void generateRequest(int responsePet,
+    char* &requestBuffer, int &requestSize) =0;
+    // called on every localPet for every responsePet != localPet
+ 
+  virtual void handleRequest(int requestPet,
+    char *requestBuffer, int requestSize,
+    char* &responseBuffer, int &responseSize)const =0;
+    // called on every localPet for every requestPet != localPet
+ 
+  virtual void handleResponse(int responsePet,
+    char const *responseBuffer, int responseSize)const =0;
+    // called on every localPet for every responsePet != localPet
+
+ public:
+     
+  // communication patterns
+  void totalExchange(VMK *vmk);
+}; // ComPat2
+
+
+
+//==============================================================================
+//==============================================================================
+//==============================================================================
+// Socket based VMKernel prototyping
+//==============================================================================
+//==============================================================================
+//==============================================================================
+
+int const SOCKERR_UNSPEC        = -1;
+int const SOCKERR_TIMEOUT       = -2;
+int const SOCKERR_DISCONNECT    = -3;
+
+int socketServerInit(
+  int port,               // port number
+  double timeout          // timeout in seconds
+  //--------------------------------------------------------------------------
+  // Attempt to open an INET socket as server and wait for a client to connect
+  // The return value are:
+  // >SOCKERR_UNSPEC  -- successfully connected socket
+  // SOCKERR_UNSPEC   -- unspecified error, may be fatal, prints perror()
+  // SOCKERR_TIMEOUT  -- timeout condition was reached
+  //--------------------------------------------------------------------------
+);
+
+int socketClientInit(
+  char const *serverName, // server by name
+  int port,               // port number
+  double timeout          // timeout in seconds
+  //--------------------------------------------------------------------------
+  // Attempt to open an INET socket and connect to the specified server.
+  // The return value are:
+  // >SOCKERR_UNSPEC  -- successfully connected socket
+  // SOCKERR_UNSPEC   -- unspecified error, may be fatal, prints perror()
+  // SOCKERR_TIMEOUT  -- timeout condition was reached
+  //--------------------------------------------------------------------------
+);
+    
+int socketFinal(
+  int sock,         // connected socket to be finalized
+  double timeout    // timeout in seconds
+  //--------------------------------------------------------------------------
+  // Attempt to cleanly take down a socket connection.
+  // The return value are:
+  // 0                -- successfully disconnect hand-shake
+  // SOCKERR_UNSPEC   -- unspecified error, may be fatal, prints perror()
+  // SOCKERR_TIMEOUT  -- timeout condition was reached
+  //--------------------------------------------------------------------------
+);
+
+int socketSend(
+  int sock,             // socket holding the connection
+  void const *buffer,   // data buffer
+  size_t size,          // number of bytes to send out of buffer
+  double timeout        // timeout in seconds
+  //--------------------------------------------------------------------------
+  // Attempt to send data through a socket connection.
+  // The return value are:
+  // >SOCKERR_UNSPEC  -- number of bytes sent
+  // SOCKERR_UNSPEC   -- unspecified error, may be fatal, prints perror()
+  // SOCKERR_TIMEOUT  -- timeout condition was reached
+  //--------------------------------------------------------------------------
+);
+
+int socketRecv(
+  int sock,             // socket holding the connection
+  void *buffer,         // data buffer
+  size_t size,          // size of buffer in bytes
+  double timeout        // timeout in seconds
+  //--------------------------------------------------------------------------
+  // Attempt to receive data through a socket connection.
+  // The return value are:
+  // >0                 -- number of bytes received
+  // SOCKERR_UNSPEC     -- unspecified error, may be fatal, prints perror()
+  // SOCKERR_TIMEOUT    -- timeout condition was reached
+  // SOCKERR_DISCONNECT -- the other side has disconnected
+  //--------------------------------------------------------------------------
+);
+
+
+
+// testing methods, TODO: will be removed when done
+int socketServer(void);
+int socketClient(void);
 
 
 } // namespace ESMCI

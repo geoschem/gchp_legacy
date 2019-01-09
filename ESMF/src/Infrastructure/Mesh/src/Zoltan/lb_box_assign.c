@@ -6,8 +6,8 @@
 /*****************************************************************************
  * CVS File Information :
  *    $RCSfile: lb_box_assign.c,v $
- *    $Author: mathomp4 $
- *    $Date: 2013-01-11 20:23:44 $
+ *    $Author: dneckels $
+ *    $Date: 2007/11/28 16:13:51 $
  *    Revision: 1.6 $
  ****************************************************************************/
 #include "zz_const.h"
@@ -30,7 +30,7 @@ int Zoltan_LB_Box_Assign (
  int *procs,
  int *count)
 {
-  char *yo = "Zoltan_LB_Box_Assign";
+  const char *yo = "Zoltan_LB_Box_Assign";
   int tmp = 0;
 
   if (zz->LB.Box_Assign == NULL) {
@@ -67,7 +67,7 @@ int Zoltan_LB_Box_PP_Assign (
  int *parts,
  int *part_count)
 {
-  char *yo = "Zoltan_LB_Box_PP_Assign";
+  const char *yo = "Zoltan_LB_Box_PP_Assign";
 
   if (zz->LB.Box_Assign == NULL) {
     /* function not supported by current decomposition method */

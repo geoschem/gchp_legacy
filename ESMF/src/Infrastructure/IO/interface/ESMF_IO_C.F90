@@ -1,7 +1,7 @@
 !  $Id$
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2012, University Corporation for Atmospheric Research,
+! Copyright 2002-2018, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -35,10 +35,7 @@
     use ESMF_UtilTypesMod
     use ESMF_BaseMod
     use ESMF_LogErrMod
-    use ESMF_LocalArrayMod
-    use ESMF_VMMod
     use ESMF_ArrayMod
-    use ESMF_ArrayGetMod
     use ESMF_ArrayIOMod
 
   implicit none
@@ -251,10 +248,7 @@
     use ESMF_UtilTypesMod
     use ESMF_BaseMod
     use ESMF_LogErrMod
-    use ESMF_LocalArrayMod
-    use ESMF_VMMod
     use ESMF_ArrayMod
-    use ESMF_ArrayGetMod
     use ESMF_ArrayIOMod
 
   implicit none

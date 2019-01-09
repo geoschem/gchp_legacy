@@ -6,8 +6,8 @@
 /*****************************************************************************
  * CVS File Information :
  *    $RCSfile: rib.c,v $
- *    $Author: mathomp4 $
- *    $Date: 2013-01-11 20:23:44 $
+ *    $Author: dneckels $
+ *    $Date: 2007/11/28 16:13:54 $
  *    Revision: 1.6.2.2 $
  ****************************************************************************/
 
@@ -195,7 +195,7 @@ static int rib_fn(
                                 assigned to each partition.               */
 )
 {
-  char    yo[] = "rib_fn";
+  const char yo[] = "rib_fn";
   int     proc,nprocs;        /* my proc id, total # of procs */
   struct Dot_Struct *dotpt;   /* temporary pointer to local dot arrays */
   int     pdotnum;            /* # of dots - decomposition changes it */
@@ -967,7 +967,7 @@ static int serial_rib(
                                 assigned to each partition.               */
 )
 {
-char *yo = "serial_rib";
+const char *yo = "serial_rib";
 int ierr = ZOLTAN_OK;
 double valuelo;            /* smallest value of value[i] */
 double valuehi;            /* largest value of value[i] */

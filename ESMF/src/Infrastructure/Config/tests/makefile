@@ -1,4 +1,4 @@
-# $Id: makefile,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
+# $Id$
 
 ALL:      build_unit_tests
 run:      run_unit_tests
@@ -6,6 +6,7 @@ run_uni:  run_unit_tests_uni
 
 LOCDIR	  =  src/Infrastructure/Config/tests
 
+.NOTPARALLEL:
 TESTS_BUILD   = $(ESMF_TESTDIR)/ESMF_ConfigUTest \
  	        $(ESMF_TESTDIR)/ESMC_ConfigUTest 
 

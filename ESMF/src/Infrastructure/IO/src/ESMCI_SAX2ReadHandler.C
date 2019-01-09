@@ -1,7 +1,7 @@
 // $Id$
 //
 // Earth System Modeling Framework
-// Copyright 2002-2012, University Corporation for Atmospheric Research,
+// Copyright 2002-2018, University Corporation for Atmospheric Research,
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 // Laboratory, University of Michigan, National Centers for Environmental
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -19,8 +19,10 @@
 // in the companion file {\tt ESMCI\_SAX2ReadHandler.h}
 //
 //-------------------------------------------------------------------------
-//
 #define ESMC_FILENAME "ESMCI_SAX2ReadHandler.C"
+
+// associated class definition file
+#include "ESMCI_SAX2ReadHandler.h"
 
 //#include <iostream>
 //using std::cout;
@@ -29,19 +31,15 @@
 #include <exception>
 using std::exception;
 
-#include <ESMCI_LogErr.h>
-#include <ESMF_LogMacros.inc>
-
-// associated class definition file
-#include <ESMCI_SAX2ReadHandler.h>
+#include "ESMCI_LogErr.h"
 
 using std::string;
 using std::vector;
 
 //-------------------------------------------------------------------------
- // leave the following line as-is; it will insert the cvs ident string
- // into the object file for tracking purposes.
- static const char *const version = "$Id$";
+// leave the following line as-is; it will insert the cvs ident string
+// into the object file for tracking purposes.
+static const char *const version = "$Id$";
 //-------------------------------------------------------------------------
 
 namespace ESMCI{
@@ -113,14 +111,14 @@ void SAX2ReadHandler::startElement(const XMLCh* const uri,
 
       if (cname.empty()) {
           ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_BAD,
-                             "bad attribute name conversion", &status);
+                      "bad attribute name conversion", ESMC_CONTEXT, &status);
           //if (rc) *rc = status;  TODO
           return;
       }
  
       if (cvalue.empty()) {
           ESMC_LogDefault.Write("Attribute has an empty value argument",
-                                  ESMC_LOG_INFO);
+                                  ESMC_LOGMSG_INFO, ESMC_CONTEXT);
           cvalue = '\0';
       }
 
@@ -135,7 +133,7 @@ void SAX2ReadHandler::startElement(const XMLCh* const uri,
       if (cname != "convention" && cname != "purpose") {
         if (!this->convention.empty() && !this->purpose.empty()) {
           // string attPackInstanceName;
-          attPackAttr = this->attr->AttPackGetAttribute(cname);
+          attPackAttr = this->attr->AttPackGetAttribute(cname, ESMC_ATTNEST_ON);
           status = attPackAttr->AttrModifyValue(ESMC_TYPEKIND_CHARACTER, 1, &valueVector);
 //          status = this->attr->AttPackSet(cname, ESMC_TYPEKIND_CHARACTER, 1,
 //                                          &valueVector, this->convention,
@@ -150,7 +148,7 @@ void SAX2ReadHandler::startElement(const XMLCh* const uri,
         }
         if (status != ESMF_SUCCESS) {
           ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_BAD,
-                               "failed setting attribute value", &status);
+                      "failed setting attribute value", ESMC_CONTEXT, &status);
         }
       }
     }
@@ -164,7 +162,7 @@ void SAX2ReadHandler::startElement(const XMLCh* const uri,
       //cout << "AttPackCreateStandard() status = " << status << endl;
       if (status != ESMF_SUCCESS) {
         ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_BAD,
-                             "failed creating attribute package", &status);
+                  "failed creating attribute package", ESMC_CONTEXT, &status);
       }
     }
 
@@ -201,21 +199,21 @@ void SAX2ReadHandler::characters(const XMLCh *const chars,
 
       if (this->qname.empty()) {
           ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_BAD,
-                         "no attribute name to associate value to", &status);
+               "no attribute name to associate value to", ESMC_CONTEXT, &status);
           //if (rc) *rc = status;  TODO
           return;
       }
  
       if (cvalue.empty()) {
           ESMC_LogDefault.Write("Attribute has an empty value argument",
-                                 ESMC_LOG_INFO);
+                                 ESMC_LOGMSG_INFO, ESMC_CONTEXT);
           cvalue = '\0';
       }
 
       // Set the attribute on the object
       if (!this->convention.empty() && !this->purpose.empty()) {
         // string attPackInstanceName;
-        attPackAttr = this->attr->AttPackGetAttribute(this->qname);
+        attPackAttr = this->attr->AttPackGetAttribute(this->qname, ESMC_ATTNEST_ON);
         status = attPackAttr->AttrModifyValue(ESMC_TYPEKIND_CHARACTER, 1, &valueVector);
 //        status = this->attr->AttPackSet(this->qname, ESMC_TYPEKIND_CHARACTER, 1,
 //                                        &valueVector, this->convention,
@@ -230,7 +228,7 @@ void SAX2ReadHandler::characters(const XMLCh *const chars,
       }
       if (status != ESMF_SUCCESS) {
         ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_BAD,
-                             "failed setting attribute value", &status);
+               "failed setting attribute value", ESMC_CONTEXT, &status);
       }
     }
     XMLString::release(&msg);
@@ -295,14 +293,14 @@ void SAX2ErrorHandler::warning(const SAXParseException& exc)
     sprintf(logMsg, "SAX2 parse warning in %s, line %d, column %d, "
                     "message is: %s\n", id, exc.getLineNumber(),
                                             exc.getColumnNumber(), msg);
-    ESMC_LogDefault.Write(logMsg, ESMC_LOG_WARN, ESMC_CONTEXT);
+    ESMC_LogDefault.Write(logMsg, ESMC_LOGMSG_WARN, ESMC_CONTEXT);
 
     XMLString::release(&msg);
     XMLString::release(&id);
 #else
     char logMsg[ESMF_MAXSTR];
     sprintf(logMsg, "SAX2 warning\n");
-    ESMC_LogDefault.Write(logMsg, ESMC_LOG_WARN, ESMC_CONTEXT);
+    ESMC_LogDefault.Write(logMsg, ESMC_LOGMSG_WARN, ESMC_CONTEXT);
 #endif
 
 } // SAX2ErrorHandler::warning()
@@ -329,7 +327,7 @@ void SAX2ErrorHandler::error(const SAXParseException& exc)
     sprintf(logMsg, "SAX2 parse error in %s, line %d, column %d, "
                     "message is: %s\n", id, exc.getLineNumber(),
                                             exc.getColumnNumber(), msg);
-    ESMC_LogDefault.Write(logMsg, ESMC_LOG_ERROR, ESMC_CONTEXT);
+    ESMC_LogDefault.Write(logMsg, ESMC_LOGMSG_ERROR, ESMC_CONTEXT);
 
     XMLString::release(&msg);
     XMLString::release(&id);
@@ -338,7 +336,7 @@ void SAX2ErrorHandler::error(const SAXParseException& exc)
 #else
     char logMsg[ESMF_MAXSTR];
     sprintf(logMsg, "SAX2 parse error\n");
-    ESMC_LogDefault.Write(logMsg, ESMC_LOG_ERROR, ESMC_CONTEXT);
+    ESMC_LogDefault.Write(logMsg, ESMC_LOGMSG_ERROR, ESMC_CONTEXT);
     throw exception();
 #endif
 
@@ -366,7 +364,7 @@ void SAX2ErrorHandler::fatalError(const SAXParseException& exc)
     sprintf(logMsg, "SAX2 parse fatal error in %s, line %d, column %d, "
                     "message is: %s\n", id, exc.getLineNumber(),
                                             exc.getColumnNumber(), msg);
-    ESMC_LogDefault.Write(logMsg, ESMC_LOG_ERROR, ESMC_CONTEXT);
+    ESMC_LogDefault.Write(logMsg, ESMC_LOGMSG_ERROR, ESMC_CONTEXT);
 
     XMLString::release(&msg);
     XMLString::release(&id);
@@ -375,7 +373,7 @@ void SAX2ErrorHandler::fatalError(const SAXParseException& exc)
 #else
     char logMsg[ESMF_MAXSTR];
     sprintf(logMsg, "SAX2 parse fatal error\n");
-    ESMC_LogDefault.Write(logMsg, ESMC_LOG_ERROR, ESMC_CONTEXT);
+    ESMC_LogDefault.Write(logMsg, ESMC_LOGMSG_ERROR, ESMC_CONTEXT);
     throw exception();
 #endif
 

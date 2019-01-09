@@ -1,7 +1,7 @@
 ! $Id$
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2012, University Corporation for Atmospheric Research,
+! Copyright 2002-2018, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -15,20 +15,31 @@
 !==============================================================================
 
 program ESMF_ArrayScatterGatherArbEx
+#include "ESMF.h"
+
 
   use ESMF
+  use ESMF_TestMod
   
   implicit none
   
   ! local variables
   integer :: rc, petCount, localPet, finalrc
-  integer :: i, j
+  integer :: i, j, result
   integer, allocatable :: arbSeqIndexList(:), farray(:,:)
   type(ESMF_VM):: vm
   type(ESMF_DistGrid):: distgrid, distgridAux
   type(ESMF_ArraySpec):: arrayspec
   type(ESMF_Array):: array, arrayAux
   type(ESMF_RouteHandle):: scatterHandle, gatherHandle
+  character(ESMF_MAXSTR) :: testname
+  character(ESMF_MAXSTR) :: failMsg
+
+!-------------------------------------------------------------------------
+!-------------------------------------------------------------------------
+
+  write(failMsg, *) "Example failure"
+  write(testname, *) "Example ESMF_ArrayScatterGatherArbEx"
 
   
 ! ------------------------------------------------------------------------------
@@ -297,6 +308,10 @@ program ESMF_ArrayScatterGatherArbEx
 ! ------------------------------------------------------------------------------
 ! ------------------------------------------------------------------------------
 10 continue
+  ! IMPORTANT: ESMF_STest() prints the PASS string and the # of processors in the log
+  ! file that the scripts grep for.
+  call ESMF_STest((finalrc.eq.ESMF_SUCCESS), testname, failMsg, result, ESMF_SRCLINE)
+
   call ESMF_Finalize(rc=rc)
   
   if (rc/=ESMF_SUCCESS) finalrc = ESMF_FAILURE

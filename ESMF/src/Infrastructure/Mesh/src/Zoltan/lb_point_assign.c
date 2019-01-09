@@ -6,8 +6,8 @@
 /*****************************************************************************
  * CVS File Information :
  *    $RCSfile: lb_point_assign.c,v $
- *    $Author: mathomp4 $
- *    $Date: 2013-01-11 20:23:44 $
+ *    $Author: dneckels $
+ *    $Date: 2007/11/28 16:13:51 $
  *    Revision: 1.6 $
  ****************************************************************************/
 
@@ -26,7 +26,7 @@ int Zoltan_LB_Point_Assign (
  int *proc)
 {
 /* Returns processor to which a point should be assigned. */
-  char *yo = "Zoltan_LB_Point_Assign";
+  const char *yo = "Zoltan_LB_Point_Assign";
   if (zz->LB.Point_Assign == NULL) {
     /* function not supported by current decomposition method */
     ZOLTAN_PRINT_ERROR(zz->Proc, yo, 
@@ -54,7 +54,7 @@ int Zoltan_LB_Point_PP_Assign (
  int *part)
 {
 /* Returns processor and partition to which a point should be assigned. */
-  char *yo = "Zoltan_LB_Point_PP_Assign";
+  const char *yo = "Zoltan_LB_Point_PP_Assign";
   if (zz->LB.Point_Assign == NULL) {
     /* function not supported by current decomposition method */
      ZOLTAN_PRINT_ERROR(zz->Proc, yo, 

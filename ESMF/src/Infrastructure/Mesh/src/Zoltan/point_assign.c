@@ -6,8 +6,8 @@
 /*****************************************************************************
  * CVS File Information :
  *    $RCSfile: point_assign.c,v $
- *    $Author: mathomp4 $
- *    $Date: 2013-01-11 20:23:44 $
+ *    $Author: dneckels $
+ *    $Date: 2007/11/28 16:13:53 $
  *    Revision: 1.27 $
  ****************************************************************************/
 
@@ -36,7 +36,7 @@ int      *part                  /* partition that point lands in;
 /* Locate which processor a point is inside within the tree defined
    by the recursive bisection algorithm chosen. */
 
-     char             *yo = "Zoltan_RB_Point_Assign";
+     const char        *yo = "Zoltan_RB_Point_Assign";
      int               partmid; /* 1st partition in upper half */
      RCB_STRUCT        *rcb;    /* Pointer to data structures for RCB.  */
      struct rcb_tree   *treept; /* tree of RCB cuts */

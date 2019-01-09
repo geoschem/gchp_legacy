@@ -1,7 +1,7 @@
 ! $Id$
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2012, University Corporation for Atmospheric Research,
+! Copyright 2002-2018, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -62,6 +62,7 @@ program ESMF_ArraySpecUTest
 ! added to allow a script to count the number and types of unit tests.
 !------------------------------------------------------------------------------- 
   call ESMF_TestStart(ESMF_SRCLINE, rc=rc)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
   !------------------------------------------------------------------------
   !NEX_UTest 
@@ -107,6 +108,8 @@ program ESMF_ArraySpecUTest
     
   !------------------------------------------------------------------------
   !NEX_UTest 
+  ! Test ESMF_ArraySpecAssignment(=)(arraySpec, arraySpec)
+  ! Test ESMF_ArraySpecOperator(==)(arraySpec1, arraySpec2)
   write(name, *) "Test ESMF_ArraySpec assignment and (==) operator"
   write(failMsg, *) "Incorrect behavior"
   arrayspec2 = arrayspec
@@ -114,6 +117,7 @@ program ESMF_ArraySpecUTest
   
   !------------------------------------------------------------------------
   !NEX_UTest 
+  ! Test ESMF_ArraySpecOperator(/=)(arraySpec1, arraySpec2)
   write(name, *) "Test ESMF_ArraySpec (/=) operator"
   write(failMsg, *) "Incorrect behavior"
   call ESMF_Test(.not.(arrayspec2/=arrayspec), name, failMsg, result, ESMF_SRCLINE)
@@ -150,12 +154,14 @@ program ESMF_ArraySpecUTest
 
   !------------------------------------------------------------------------
   !EX_UTest 
+  ! Test ESMF_ArraySpecOperator(==)(arraySpec1, arraySpec2)
   write(name, *) "Test ESMF_ArraySpec (==) operator"
   write(failMsg, *) "Incorrect behavior"
   call ESMF_Test(.not.(arrayspec2==arrayspec), name, failMsg, result, ESMF_SRCLINE)
   
   !------------------------------------------------------------------------
   !EX_UTest 
+  ! Test ESMF_ArraySpecOperator(/=)(arraySpec1, arraySpec2)
   write(name, *) "Test ESMF_ArraySpec (/=) operator"
   write(failMsg, *) "Incorrect behavior"
   call ESMF_Test(arrayspec2/=arrayspec, name, failMsg, result, ESMF_SRCLINE)
@@ -176,12 +182,14 @@ program ESMF_ArraySpecUTest
 
   !------------------------------------------------------------------------
   !EX_UTest 
+  ! Test ESMF_ArraySpecOperator(==)(arraySpec1, arraySpec2)
   write(name, *) "Test ESMF_ArraySpec (==) operator"
   write(failMsg, *) "Incorrect behavior"
   call ESMF_Test(.not.(arrayspec2==arrayspec), name, failMsg, result, ESMF_SRCLINE)
   
   !------------------------------------------------------------------------
   !EX_UTest 
+  ! Test ESMF_ArraySpecOperator(/=)(arraySpec1, arraySpec2)
   write(name, *) "Test ESMF_ArraySpec (/=) operator"
   write(failMsg, *) "Incorrect behavior"
   call ESMF_Test(arrayspec2/=arrayspec, name, failMsg, result, ESMF_SRCLINE)
@@ -189,6 +197,6 @@ program ESMF_ArraySpecUTest
 #endif
 
 
-  call ESMF_TestEnd(result, ESMF_SRCLINE)
+  call ESMF_TestEnd(ESMF_SRCLINE)
 
 end program ESMF_ArraySpecUTest

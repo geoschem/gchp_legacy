@@ -1,7 +1,7 @@
-! $Id: ESMF_Base.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
+! $Id$
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2012, University Corporation for Atmospheric Research,
+! Copyright 2002-2018, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -51,6 +51,7 @@ module ESMF_BaseMod
   use ESMF_InitMacrosMod    ! ESMF initializer macros
   use ESMF_IOUtilMod        ! ESMF I/O utilities
   use ESMF_LogErrMod        ! ESMF error handling
+  use ESMF_VMMod            ! ESMF VM
 
   implicit none
 
@@ -63,7 +64,9 @@ module ESMF_BaseMod
 
   ! Contains pointer to real Base object which is defined in C++
   type ESMF_Base
+#ifndef ESMF_NO_SEQUENCE
   sequence
+#endif
   !private
     type(ESMF_Pointer) :: this
     ESMF_INIT_DECLARE
@@ -89,7 +92,9 @@ module ESMF_BaseMod
 !      public ESMF_BaseGetInstCount
 
 !      public ESMF_BaseSetID
-!      public ESMF_BaseGetID
+       public ESMF_BaseGetID
+       public ESMF_BaseSetVMId
+       public ESMF_BaseGetVMId
 
 !      public ESMF_BaseSetRefCount
 !      public ESMF_BaseGetRefCount
@@ -106,6 +111,10 @@ module ESMF_BaseMod
        public ESMF_BaseGetInit
        public ESMF_BaseSetInitCreated
 
+       public ESMF_BaseSerialize
+       public ESMF_BaseDeserialize
+       public ESMF_BaseDeserializeIDVMId
+
 !   Virtual methods to be defined by derived classes
 !      public ESMF_Read
 !      public ESMF_Write
@@ -115,6 +124,8 @@ module ESMF_BaseMod
 !  Misc methods - work on Base object but apply to any type
       public ESMF_SetName
       public ESMF_GetName
+      public ESMF_GetVM
+      public ESMF_IsProxy
 
 !
 
@@ -127,7 +138,7 @@ module ESMF_BaseMod
 ! leave the following line as-is; it will insert the cvs ident string
 ! into the object file for tracking purposes.
       character(*), parameter, private :: version = &
-               '$Id: ESMF_Base.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $'
+               '$Id$'
 !------------------------------------------------------------------------------
 
       contains
@@ -180,7 +191,7 @@ module ESMF_BaseMod
 !
 !EOPI
 
-    integer :: status, allocNAttrs
+    integer :: localrc, allocNAttrs
 
     ! Initialize return code; assume routine not implemented
     if (present(rc)) rc = ESMF_RC_NOT_IMPL
@@ -189,12 +200,12 @@ module ESMF_BaseMod
     if (present(nattr)) allocNAttrs = nattr
 
     if (present(name)) then
-        call c_ESMC_BaseCreate(base , superclass, name, allocNattrs, status)
+        call c_ESMC_BaseCreate(base , superclass, name, allocNattrs, localrc)
     else
         !!call c_ESMC_BaseCreate(base , superclass, ESMF_NULL_POINTER, &
-        call c_ESMC_BaseCreate(base , superclass, "", allocNattrs, status)
+        call c_ESMC_BaseCreate(base , superclass, "", allocNattrs, localrc)
     endif
-    if (ESMF_LogFoundError(status, ESMF_ERR_PASSTHRU, &
+    if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
       ESMF_CONTEXT, rcToReturn=rc)) return
     
     ! Set init code
@@ -213,11 +224,12 @@ module ESMF_BaseMod
 ! !IROUTINE:  ESMF_BaseDestroy - Release resources from a Base object
 !
 ! !INTERFACE:
-  subroutine ESMF_BaseDestroy(base, rc)
+  subroutine ESMF_BaseDestroy(base, noGarbage, rc)
 !
 ! !ARGUMENTS:
-    type(ESMF_Base)                         :: base                 
-    integer,        intent(out),  optional  :: rc     
+    type(ESMF_Base)                        :: base                 
+    logical,        intent(in),   optional :: noGarbage
+    integer,        intent(out),  optional :: rc     
 
 !
 ! !DESCRIPTION:
@@ -226,6 +238,24 @@ module ESMF_BaseMod
 !     \begin{description}
 !     \item [base]
 !           An {\tt ESMF\_Base} derived type to be deleted.
+! \item[{[noGarbage]}]
+!      If set to {\tt .TRUE.} the object will be fully destroyed and removed
+!      from the ESMF garbage collection system. Note however that under this 
+!      condition ESMF cannot protect against accessing the destroyed object 
+!      through dangling aliases -- a situation which may lead to hard to debug 
+!      application crashes.
+! 
+!      It is generally recommended to leave the {\tt noGarbage} argument
+!      set to {\tt .FALSE.} (the default), and to take advantage of the ESMF 
+!      garbage collection system which will prevent problems with dangling
+!      aliases or incorrect sequences of destroy calls. However this level of
+!      support requires that a small remnant of the object is kept in memory
+!      past the destroy call. This can lead to an unexpected increase in memory
+!      consumption over the course of execution in applications that use 
+!      temporary ESMF objects. For situations where the repeated creation and 
+!      destruction of temporary objects leads to memory issues, it is 
+!      recommended to call with {\tt noGarbage} set to {\tt .TRUE.}, fully 
+!      removing the entire temporary object from memory.
 !     \item [{[rc]}]
 !           Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
 !     \end{description}
@@ -233,7 +263,8 @@ module ESMF_BaseMod
 !EOPI
 
     logical :: rcpresent                          ! Return code present   
-    integer :: status
+    integer :: localrc
+    type(ESMF_Logical)      :: opt_noGarbage  ! helper variable
 
     ! Initialize return code
     rcpresent = .FALSE.
@@ -245,8 +276,13 @@ module ESMF_BaseMod
     ! check input parameters
     ESMF_INIT_CHECK_DEEP(ESMF_BaseGetInit,base,rc)
 
-    call c_ESMC_BaseDestroy(base , status)
-    if (ESMF_LogFoundError(status, ESMF_ERR_PASSTHRU, &
+    ! Set default flags
+    opt_noGarbage = ESMF_FALSE
+    if (present(noGarbage)) opt_noGarbage = noGarbage
+
+    ! Call into the C++ interface
+    call c_ESMC_BaseDestroy(base, opt_noGarbage, localrc)
+    if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
       ESMF_CONTEXT, rcToReturn=rc)) return
 
     ! Set init code
@@ -303,7 +339,7 @@ module ESMF_BaseMod
 ! 
 !EOPI
       logical :: rcpresent                          ! Return code present   
-      integer :: status
+      integer :: localrc
 
       ! Initialize return code; assume routine not implemented
       rcpresent = .FALSE.
@@ -311,20 +347,20 @@ module ESMF_BaseMod
         rcpresent = .TRUE.
         rc = ESMF_RC_NOT_IMPL
       endif
-      status = ESMF_RC_NOT_IMPL
+      localrc = ESMF_RC_NOT_IMPL
 
       ! TODO: remove this once everyone is initializing their Base objects.
       ! cheat for old code for now.
       if (base%isInit .ne. ESMF_INIT_CREATED) then 
-          call ESMF_BaseCreate(base, namespace, name, 0, status)
-          if (rcpresent) rc = status
+          call ESMF_BaseCreate(base, namespace, name, 0, localrc)
+          if (rcpresent) rc = localrc
           return
       endif
       ! end cheat
 
-      call c_ESMC_SetName(base , namespace, name, status)
+      call c_ESMC_SetName(base , namespace, name, localrc)
 
-      if (rcpresent) rc = status
+      if (rcpresent) rc = localrc
 
   end subroutine ESMF_SetName
 
@@ -357,16 +393,179 @@ module ESMF_BaseMod
 !     \end{description}
 !
 !EOPI
-      integer :: status
+      integer :: localrc
 
       ! Initialize return code; assume routine not implemented
       if (present(rc)) rc = ESMF_RC_NOT_IMPL
-      status = ESMF_RC_NOT_IMPL
+      localrc = ESMF_RC_NOT_IMPL
 
-      call c_ESMC_GetName(base , name, status)
-      if (present(rc)) rc = status
+      call c_ESMC_GetName(base , name, localrc)
+      if (present(rc)) rc = localrc
 
   end subroutine ESMF_GetName
+
+
+!-------------------------------------------------------------------------
+#undef  ESMF_METHOD
+#define ESMF_METHOD "ESMF_BaseGetId"
+!BOPI
+! !IROUTINE:  ESMF_BaseGetId - get the ESMF object ID of this object
+!
+! !INTERFACE:
+  subroutine ESMF_BaseGetId(base, id, rc)
+!
+! !ARGUMENTS:
+      type(ESMF_Base), intent(in)             :: base
+      integer,         intent(out)            :: id
+      integer,         intent(out), optional  :: rc
+
+!
+! !DESCRIPTION:
+!     Return the ESMF object Id.
+!
+!     The arguments are:
+!     \begin{description}
+!     \item[base]
+!       Any ESMF type.
+!     \item[id]
+!       The object ID of the Base object.
+!     \item[{[rc]}]
+!       Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
+!     \end{description}
+!
+!EOPI
+      integer :: localrc
+
+      ! Initialize return code; assume routine not implemented
+      if (present(rc)) rc = ESMF_RC_NOT_IMPL
+      localrc = ESMF_RC_NOT_IMPL
+
+      call c_ESMC_GetId (base , id, localrc)
+      if (present(rc)) rc = localrc
+
+  end subroutine ESMF_BaseGetId
+
+
+!-------------------------------------------------------------------------
+#undef  ESMF_METHOD
+#define ESMF_METHOD "ESMF_GetVM"
+!BOPI
+! !IROUTINE:  ESMF_GetVM - get the VM of this object
+!
+! !INTERFACE:
+  subroutine ESMF_GetVM(base, vm, rc)
+!
+! !ARGUMENTS:
+      type(ESMF_Base), intent(in)             :: base
+      type(ESMF_VM),   intent(out)            :: vm
+      integer,         intent(out), optional  :: rc
+
+!
+! !DESCRIPTION:
+!     Return the vm of any type in the system.
+!
+!     The arguments are:
+!     \begin{description}
+!     \item[base]
+!       Any ESMF type.
+!     \item[vm]
+!       The vm on which the Base object was created.
+!     \item[{[rc]}]
+!       Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
+!     \end{description}
+!
+!EOPI
+      integer :: localrc
+
+      ! Initialize return code; assume routine not implemented
+      if (present(rc)) rc = ESMF_RC_NOT_IMPL
+      localrc = ESMF_RC_NOT_IMPL
+
+      call c_ESMC_GetVM(base , vm, localrc)
+      if (present(rc)) rc = localrc
+
+  end subroutine ESMF_GetVM
+
+
+!-------------------------------------------------------------------------
+#undef  ESMF_METHOD
+#define ESMF_METHOD "ESMF_BaseSetVMId"
+!BOPI
+! !IROUTINE:  ESMF_SetVMId - get the VM Id of this object
+!
+! !INTERFACE:
+  subroutine ESMF_BaseSetVMId (base, vmid, rc)
+!
+! !ARGUMENTS:
+      type(ESMF_Base), intent(inout)          :: base
+      type(ESMF_VMId), intent(in)             :: vmid
+      integer,         intent(out), optional  :: rc
+
+!
+! !DESCRIPTION:
+!     Set the VMId of any type in the system.
+!
+!     The arguments are:
+!     \begin{description}
+!     \item[base]
+!       Base object of any ESMF type.
+!     \item[vmid]
+!       The vmid of the Base object.
+!     \item[{[rc]}]
+!       Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
+!     \end{description}
+!
+!EOPI
+      integer :: localrc
+
+      ! Initialize return code; assume routine not implemented
+      if (present(rc)) rc = ESMF_RC_NOT_IMPL
+      localrc = ESMF_RC_NOT_IMPL
+
+      call c_ESMC_SetVMID(base , vmid, localrc)
+      if (present(rc)) rc = localrc
+
+  end subroutine ESMF_BaseSetVMId
+
+!-------------------------------------------------------------------------
+#undef  ESMF_METHOD
+#define ESMF_METHOD "ESMF_BaseGetVMId"
+!BOPI
+! !IROUTINE:  ESMF_GetVMId - get the VM Id of this object
+!
+! !INTERFACE:
+  subroutine ESMF_BaseGetVMId (base, vmid, rc)
+!
+! !ARGUMENTS:
+      type(ESMF_Base), intent(in)             :: base
+      type(ESMF_VMId), intent(out)            :: vmid
+      integer,         intent(out), optional  :: rc
+
+!
+! !DESCRIPTION:
+!     Return the vm of any type in the system.
+!
+!     The arguments are:
+!     \begin{description}
+!     \item[base]
+!       Any ESMF type.
+!     \item[vmid]
+!       The vmid of the Base object.
+!     \item[{[rc]}]
+!       Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
+!     \end{description}
+!
+!EOPI
+      integer :: localrc
+
+      ! Initialize return code; assume routine not implemented
+      if (present(rc)) rc = ESMF_RC_NOT_IMPL
+      localrc = ESMF_RC_NOT_IMPL
+
+      call c_ESMC_GetVMID(base , vmid, localrc)
+      if (present(rc)) rc = localrc
+
+  end subroutine ESMF_BaseGetVMId
 
 
 !-------------------------------------------------------------------------
@@ -511,7 +710,7 @@ module ESMF_BaseMod
 ! !IROUTINE:  ESMF_BaseGetStatus - get the status
 !
 ! !INTERFACE:
-  subroutine ESMF_BaseGetStatus(base, status, rc)
+  recursive subroutine ESMF_BaseGetStatus(base, status, rc)
 !
 ! !ARGUMENTS:
       type(ESMF_Base),    intent(in)            :: base
@@ -558,11 +757,12 @@ module ESMF_BaseMod
 ! !IROUTINE:  ESMF_BasePrint - Call into C++ code to print base object
 !
 ! !INTERFACE:
-  subroutine ESMF_BasePrint(base, options, rc)
+  subroutine ESMF_BasePrint(base, options, filename, rc)
 !
 ! !ARGUMENTS:
     type(ESMF_Base),  intent(in)              :: base
     character(len=*), intent(in),   optional  :: options
+    character(len=*), intent(in),   optional  :: filename
     integer,          intent(out),  optional  :: rc
 !
 ! !DESCRIPTION:
@@ -574,14 +774,18 @@ module ESMF_BaseMod
 !       Any ESMF type.
 !     \item[options]
 !       Print options.
+!     \item[{[filename]}]
+!       Used to determine whether to write to file or stdout.
 !     \item[{[rc]}]
 !       Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
 !     \end{description}
 !
 !
 !EOPI
-    integer                     :: localrc, ignorerc
+    integer                     :: localrc
+    integer                     :: ignore_iostat
     character(len=ESMF_MAXSTR)  :: opts
+    type(ESMF_Logical)          :: tofile
 
     ! Initialize return code; assume routine not implemented
     if (present(rc)) rc = ESMF_RC_NOT_IMPL
@@ -596,11 +800,13 @@ module ESMF_BaseMod
         opts = ''
     endif
 
-    call ESMF_UtilIOUnitFlush (unit=ESMF_UtilIOstdout, rc=ignorerc)
-    ! Ignore localrc, because sometimes stdout is not open at this point
+    tofile = present (filename)
+
+    call ESMF_UtilIOUnitFlush (unit=ESMF_UtilIOstdout, rc=ignore_iostat)
+    ! Ignore iostat, because sometimes stdout is not open at this point
     ! and some compilers FLUSH statements will complain.
 
-    call c_ESMC_BasePrint(base , 0, opts, localrc)
+    call c_ESMC_BasePrint(base, 0, opts, tofile, filename, ESMF_TRUE, localrc)
     if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
       ESMF_CONTEXT, rcToReturn=rc)) return
 
@@ -740,6 +946,240 @@ module ESMF_BaseMod
     if (present(rc)) rc = ESMF_SUCCESS
 
   end subroutine ESMF_BaseSetInitCreated
+!------------------------------------------------------------------------------
+
+
+! -------------------------- ESMF-internal method -----------------------------
+#undef  ESMF_METHOD
+#define ESMF_METHOD "ESMF_BaseSerialize"
+!BOPI
+! !IROUTINE: ESMF_BaseSerialize - serialize into a byte stream
+!
+! !INTERFACE:
+  subroutine ESMF_BaseSerialize(base, buffer, offset, &
+      attreconflag, inquireflag, rc) 
+!
+! !ARGUMENTS:
+    type(ESMF_Base), intent(in)    :: base
+    character,       intent(inout) :: buffer(:)
+    integer,         intent(inout) :: offset
+    type(ESMF_AttReconcileFlag), intent(in) :: attreconflag
+    type(ESMF_InquireFlag),      intent(in) :: inquireflag
+    integer,         intent(out), optional  :: rc 
+!
+! !DESCRIPTION:
+!      Takes an {\tt ESMF\_Base} object and adds all the information needed
+!      to save the information to a file or recreate the object based on this
+!      information.   Expected to be used by {\tt ESMF\_StateReconcile()}.
+!
+!     The arguments are:
+!     \begin{description}
+!     \item [base]
+!           {\tt ESMF\_Base} object to be serialized.
+!     \item [buffer]
+!           Data buffer which will hold the serialized information.
+!     \item [offset]
+!           Current write offset in the current buffer.  This will be
+!           updated by this routine and return pointing to the next
+!           available byte in the buffer.  Note that the offset might be
+!           overestimated when the ESMF\_INQUIREONLY option is used.
+!     \item[attreconflag]
+!           Flag to tell if Attribute serialization is to be done
+!     \item[inquireflag]
+!           Flag to tell if serialization is to be done (ESMF\_NOINQUIRE)
+!           or if this is simply a size inquiry (ESMF\_INQUIREONLY)
+!     \item [rc]
+!           Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
+!     \end{description}
+!
+!EOPI
+    integer :: localrc
+
+    ! Initialize
+    localrc = ESMF_RC_NOT_IMPL
+    if (present(rc)) rc = ESMF_RC_NOT_IMPL
+
+    call c_ESMC_BaseSerialize(base, buffer, size (buffer), offset, &
+        attreconflag, inquireflag, localrc)
+    if (ESMF_LogFoundError(localrc, &
+        msg="Top level Base serialize", &
+        ESMF_CONTEXT,  &
+        rcToReturn=rc)) return
+
+    ! Return successfully
+    if (present (rc)) rc = ESMF_SUCCESS
+
+  end subroutine ESMF_BaseSerialize
+!------------------------------------------------------------------------------
+
+
+! -------------------------- ESMF-internal method -----------------------------
+#undef  ESMF_METHOD
+#define ESMF_METHOD "ESMF_BaseDeserialize"
+!BOPI
+! !IROUTINE: ESMF_BaseDeserialize - Deserialize from a buffer
+!
+! !INTERFACE:
+  function ESMF_BaseDeserialize (buffer, offset, attreconflag, rc) 
+!
+! !RETURN VALUE:
+    type(ESMF_Base) :: ESMF_BaseDeserialize
+!
+! !ARGUMENTS:
+    character,       intent(in)    :: buffer(:)
+    integer,         intent(inout) :: offset
+    type(ESMF_AttReconcileFlag), intent(in) :: attreconflag
+    integer,         intent(out), optional  :: rc
+!
+! !DESCRIPTION:
+!      Recreates a {\tt ESMF\_Base} object from a serialized byte stream.
+!      Expected to be used by {\tt ESMF\_StateReconcile()}.
+!
+!     The arguments are:
+!     \begin{description}
+!     \item [buffer]
+!           Data buffer of serialized information.
+!     \item [offset]
+!           Current read offset in the current buffer.  This will be
+!           updated by this routine and return pointing to the next
+!           available byte in the buffer.
+!     \item[attreconflag]
+!           Flag to tell if Attribute deserialization is to be done
+!     \item [rc]
+!           Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
+!     \end{description}
+!
+!EOPI
+    integer :: localrc
+
+    ! Initialize
+    localrc = ESMF_RC_NOT_IMPL
+    if (present(rc)) rc = ESMF_RC_NOT_IMPL
+
+    call c_ESMC_BaseDeserialize(ESMF_BaseDeserialize,  &
+        buffer, offset, &
+        attreconflag, localrc)
+    if (ESMF_LogFoundError(localrc, &
+        msg="Top level Base Deserialize", &
+        ESMF_CONTEXT,  &
+        rcToReturn=rc)) return
+
+    ! Return successfully
+    if (present (rc)) rc = ESMF_SUCCESS
+
+  end function ESMF_BaseDeserialize
+!------------------------------------------------------------------------------
+
+
+! -------------------------- ESMF-internal method -----------------------------
+#undef  ESMF_METHOD
+#define ESMF_METHOD "ESMF_BaseDeserializeIDVMId"
+!BOPI
+! !IROUTINE: ESMF_BaseDeserializeIDVMId - Deserialize from a buffer
+!
+! !INTERFACE:
+  subroutine ESMF_BaseDeserializeIDVMId (buffer, offset, ID, VMId, rc)
+!
+! !ARGUMENTS:
+    character,       intent(in)    :: buffer(:)
+    integer,         intent(in)    :: offset
+    integer,         intent(out)   :: ID
+    type(ESMF_VMId), intent(inout) :: VMId
+    integer,         intent(out)   :: rc
+!
+! !DESCRIPTION:
+!      Obtains the ID and VMId from a {\tt ESMF\_Base} object in a
+!      serialized byte stream. Expected to be used by {\tt ESMF\_StateReconcile()}
+!      and friends.
+!
+!     The arguments are:
+!     \begin{description}
+!     \item [buffer]
+!           Data buffer of serialized information.
+!     \item [offset]
+!           Current read offset in the current buffer.
+!     \item[ID]
+!           Returns the ESMF object ID
+!     \item[VMId]
+!           Returns the ESMF object VMId
+!     \item [rc]
+!           Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
+!     \end{description}
+!
+!EOPI
+    integer :: localrc
+
+    ! Initialize
+    localrc = ESMF_RC_NOT_IMPL
+    rc = ESMF_RC_NOT_IMPL
+
+    call c_ESMC_BaseDeserialize_idvmid(buffer, offset, &
+        ID, VMId, localrc)
+    if (ESMF_LogFoundError(localrc, &
+        msg="Base ID/VMId inquiry", &
+        ESMF_CONTEXT,  &
+        rcToReturn=rc)) return
+
+    ! Return successfully
+    rc = ESMF_SUCCESS
+
+  end subroutine ESMF_BaseDeserializeIDVMId
+!------------------------------------------------------------------------------
+
+
+! -------------------------- ESMF-internal method -----------------------------
+#undef  ESMF_METHOD
+#define ESMF_METHOD "ESMF_IsProxy"
+!BOPI
+! !IROUTINE: ESMF_IsProxy - Internal access routine to determine whether proxy
+!
+! !INTERFACE:
+  function ESMF_IsProxy(base, rc) 
+!
+! !RETURN VALUE:
+    logical :: ESMF_IsProxy   
+!
+! !ARGUMENTS:
+    type(ESMF_Base), intent(in),  optional :: base
+    integer,         intent(out), optional :: rc
+!
+! !DESCRIPTION:
+!      Access proxyflag and return true/false accordingly
+!
+!     The arguments are:
+!     \begin{description}
+!     \item [{[base]}]
+!           Base object.
+!     \item [{[rc]}]
+!           Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
+!     \end{description}
+!
+!EOPI
+    integer             :: localrc
+    type(ESMF_Logical)  :: isProxy
+
+    ! Initialize
+    localrc = ESMF_RC_NOT_IMPL
+    rc = ESMF_RC_NOT_IMPL
+
+    ESMF_IsProxy = .false. ! initialize
+    
+    if (.not.present(base)) then
+      call ESMF_LogSetError(rcToCheck=ESMF_RC_ARG_INCOMP, &
+        msg="Base object must be present.", &
+        ESMF_CONTEXT, rcToReturn=rc)
+      return
+    else
+      call c_ESMC_IsProxy(base, isProxy, localrc)
+      if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+        ESMF_CONTEXT, rcToReturn=rc)) return
+      ESMF_IsProxy = isProxy
+    endif
+
+    ! Return successfully
+    rc = ESMF_SUCCESS
+
+  end function ESMF_IsProxy
 !------------------------------------------------------------------------------
 
 

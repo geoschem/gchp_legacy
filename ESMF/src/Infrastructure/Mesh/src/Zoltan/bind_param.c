@@ -6,8 +6,8 @@
 /*****************************************************************************
  * CVS File Information :
  *    $RCSfile: bind_param.c,v $
- *    $Author: mathomp4 $
- *    $Date: 2013-01-11 20:23:44 $
+ *    $Author: dneckels $
+ *    $Date: 2007/11/28 16:13:44 $
  *    Revision: 1.17 $
  ****************************************************************************/
 
@@ -28,7 +28,7 @@ extern "C" {
 
 int       Zoltan_Bind_Param(
 PARAM_VARS *params,		/* parameter structure */
-char *name,			/* parameter name */
+const char *name,		/* parameter name */
 void *var 			/* pointer to variable to be associated 
 				   with the parameter name */
 )
@@ -38,7 +38,7 @@ void *var 			/* pointer to variable to be associated
 
 int       Zoltan_Bind_Param_Vec(
 PARAM_VARS *params,		/* parameter structure */
-char *name,			/* parameter name */
+const char *name,		/* parameter name */
 void *var,			/* pointer to variable to be associated 
 				   with the parameter name */
 int dim				/* dimension of parameter vector */
@@ -53,7 +53,7 @@ int dim				/* dimension of parameter vector */
  *    ZOLTAN_FATAL signals something more serious.
  */
 
-    char     *yo = "Zoltan_Bind_Param";
+    const char     *yo = "Zoltan_Bind_Param";
     char      msg[256];
     char     *name2;		/* clean version of name */
     int       flag;		/* return value from function */

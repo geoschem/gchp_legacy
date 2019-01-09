@@ -1,7 +1,7 @@
-! $Id: ESMF_UtilUTest.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
+! $Id$
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2012, University Corporation for Atmospheric Research,
+! Copyright 2002-2018, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -28,13 +28,12 @@
 ! !USES:
       use ESMF_TestMod     ! test methods
       use ESMF         ! the ESMF Framework
-      use ESMF_IOUtilMod   ! Internal Fortran I/O routines
       implicit none
 
 !------------------------------------------------------------------------------
 ! The following line turns the CVS identifier string into a printable variable.
       character(*), parameter :: version = &
-      '$Id: ESMF_UtilUTest.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $'
+      '$Id$'
 !------------------------------------------------------------------------------
 
       ! cumulative result: count failures; no failures equals "all pass"
@@ -70,17 +69,45 @@
       integer :: ioerr
 
 #ifdef ESMF_TESTEXHAUSTIVE
-      character(ESMF_MAXSTR) :: arg
+      character(ESMF_MAXPATHLEN) :: arg
       character(2) :: argshort
       integer :: arg_len
       integer :: nargs
-      character(ESMF_MAXSTR) :: program_path
+      character(ESMF_MAXPATHLEN) :: program_path
       integer :: argindex
 
-      type(ESMF_MapPtr) :: mapcontainer
-      integer :: newvalue
-      integer :: mapsize
-      logical :: isfound
+      real(ESMF_KIND_R8) :: random_values(50) = (/  &
+        0.997560, 0.566825, 0.965915, 0.747928, 0.367391,  &
+        0.480637, 0.073754, 0.005355, 0.347081, 0.342244,  &
+        0.217952, 0.133160, 0.900524, 0.386766, 0.445482,  &
+        0.661932, 0.016108, 0.650855, 0.646409, 0.322987,  &
+        0.855692, 0.401287, 0.206874, 0.968539, 0.598400,  &
+        0.672981, 0.456882, 0.330015, 0.100383, 0.755453,  &
+        0.605693, 0.719048, 0.897335, 0.658229, 0.150717,  &
+        0.612315, 0.978660, 0.999142, 0.256798, 0.550865,  &
+        0.659047, 0.554005, 0.977760, 0.901923, 0.657925,  &
+        0.728858, 0.402455, 0.928628, 0.147835, 0.674529   &
+      /)
+
+      integer :: sorted_ints (size (random_values))
+      real    :: sorted_reals(size (random_values))
+      integer(ESMF_KIND_I8) :: sorted_dblints (size (random_values))
+      real(ESMF_KIND_R8)    :: sorted_dblreals(size (random_values))
+
+      character(8) :: sort_array(4)
+      character(8), parameter :: sort_input(4) =  &
+          (/ "this", "is  ", "a   ", "test" /)
+      character(8), parameter :: sort_ascend(4) =  &
+          (/ "a   ", "is  ", "test", "this" /)
+      character(8), parameter :: sort_descend(4) =  &
+          (/ "this", "test", "is  ", "a   " /)
+
+      character(ESMF_MAXPATHLEN) :: pathname
+      character(1) :: pathname_tooshort
+
+      character(ESMF_MAXSTR) :: str, cstr
+      integer :: cstrlen
+      integer :: valueInt
 #endif
 
 !-------------------------------------------------------------------------------
@@ -93,6 +120,7 @@
 !-------------------------------------------------------------------------------
 
       call ESMF_TestStart(ESMF_SRCLINE, rc=rc)
+      if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
       call ESMF_VMGetGlobal(vm, rc=rc)
       call ESMF_VMGet(vm, localPet=localPet, rc=rc)
@@ -111,6 +139,7 @@
       print *, ' ESMF_VERSION_PATCHLEVEL    =', ESMF_VERSION_PATCHLEVEL
       print *, ' ESMF_VERSION_STRING=', trim (ESMF_VERSION_STRING)
 
+  !------------------------------------------------------------------------
     !NEX_UTest
     ! Compare numeric major version to the string
     write (major_version,'(i2)') ESMF_VERSION_MAJOR
@@ -120,7 +149,8 @@
     write(name, *) "Comparing numeric and character major version"
     call ESMF_Test(evs(:evs_dotpos-1) == adjustl (major_version),  &
       name, failMsg, result, ESMF_SRCLINE)
-    !
+
+  !------------------------------------------------------------------------
     !NEX_UTest
     ! Compare numeric minor version to the string
     write (minor_version,'(i2)') ESMF_VERSION_MINOR
@@ -130,7 +160,8 @@
     write(name, *) "Comparing numeric and character minor version"
     call ESMF_Test(evs(:evs_dotpos-1) == adjustl (minor_version),  &
       name, failMsg, result, ESMF_SRCLINE)
-    !
+
+  !------------------------------------------------------------------------
     !NEX_UTest
     ! Compare numeric revision to the string
     write (revision,'(i2)') ESMF_VERSION_REVISION
@@ -146,13 +177,45 @@
         name, failMsg, result, ESMF_SRCLINE)
     else
       write (failMsg, *) 'Could not find revision number in string'
-      call ESMF_Test(i >= 2, name, failMsg, result, ESMF_SRCLINE)      
+      call ESMF_Test(i >= 2, name, failMsg, result, ESMF_SRCLINE)
     end if
+
+  !------------------------------------------------------------------------
+    !NEX_UTest
+    ! Print versions using version API
+    write (failMsg, *) "No arg VersionPrint test failed"
+    write (name, *) "No arg VersionPrint test"
+    call ESMF_UtilVersionPrint (rc=rc)
+    call ESMF_Test(rc == ESMF_SUCCESS, name, failMsg, result, ESMF_SRCLINE)
+
+  !------------------------------------------------------------------------
+    !NEX_UTest
+    ! Print versions using version API
+    write (failMsg, *) "One line VersionPrint test failed"
+    write (name, *) "One line VersionPrint test"
+    call ESMF_UtilVersionPrint (vFlag=.true., rc=rc)
+    call ESMF_Test(rc == ESMF_SUCCESS, name, failMsg, result, ESMF_SRCLINE)
+
+  !------------------------------------------------------------------------
+    !NEX_UTest
+    ! Print versions using version API
+    write (failMsg, *) "Multi-line VersionPrint test failed"
+    write (name, *) "Multi-line VersionPrint test"
+    call ESMF_UtilVersionPrint (versionFlag=.true., rc=rc)
+    call ESMF_Test(rc == ESMF_SUCCESS, name, failMsg, result, ESMF_SRCLINE)
+
+  !------------------------------------------------------------------------
+    !NEX_UTest
+    ! Print versions using version API
+    write (failMsg, *) "Single and multi-line VersionPrint test failed"
+    write (name, *) "Single and multi-line VersionPrint test"
+    call ESMF_UtilVersionPrint (vflag=.true., versionFlag=.true., rc=rc)
+    call ESMF_Test(rc == ESMF_SUCCESS, name, failMsg, result, ESMF_SRCLINE)
 
 ! Test Fortran unit numbers
 ! =========================
 
-    !
+  !------------------------------------------------------------------------
     !NEX_UTest
     ! Obtain a few Fortran units
     funits = -1
@@ -183,7 +246,7 @@
 !Flush data to a file
 !====================
 
-    !
+  !------------------------------------------------------------------------
     !NEX_UTest
     ! Get a unit number for flush
     write (name, *) "Testing ESMF_UtilIOUnitFlush, get a free unit"
@@ -191,7 +254,7 @@
     write (failMsg, *) "Obtaining a fresh unit"
     call ESMF_Test(rc == ESMF_SUCCESS, name, failMsg, result, ESMF_SRCLINE)
 
-    !
+  !------------------------------------------------------------------------
     !NEX_UTest
     ! Open it
     write (filename,'(a,i2.2)') 'IOtempfile_', localPet
@@ -200,7 +263,7 @@
     open (funits(1), file=filename, form='formatted', iostat=ioerr)
     call ESMF_Test(ioerr == 0, name, failMsg, result, ESMF_SRCLINE)
 
-    !
+  !------------------------------------------------------------------------
     !NEX_UTest
     ! Flush it
     write (name, *) "ESMF_UtilIOUnitFlush, flush the scratch file"
@@ -216,7 +279,7 @@
 !Command line arguments
 !====================
 
-    !
+  !------------------------------------------------------------------------
     !EX_UTest
     ! Get command line argument count
     write (name, *) "Testing ESMF_UtilGetArgC, command line argument count"
@@ -224,7 +287,7 @@
     call ESMF_UtilGetArgC (nargs)
     call ESMF_Test(nargs >= 0, name, failMsg, result, ESMF_SRCLINE)
 
-    !
+  !------------------------------------------------------------------------
     !EX_UTest
     ! Test bad command line argument index
     write (name, *) "Testing ESMF_UtilGetArgC, argindex < 0"
@@ -232,7 +295,7 @@
     call ESMF_UtilGetArg (argindex=-1, rc=rc)
     call ESMF_Test(rc == ESMF_RC_ARG_VALUE, name, failMsg, result, ESMF_SRCLINE)
 
-    !
+  !------------------------------------------------------------------------
     !EX_UTest
     ! Get command name
     write (name, *) "Testing ESMF_UtilGetArgC, get command name"
@@ -241,7 +304,7 @@
     print *, 'command name = ', trim (arg)
     call ESMF_Test(rc == ESMF_SUCCESS, name, failMsg, result, ESMF_SRCLINE)
 
-    !
+  !------------------------------------------------------------------------
     !EX_UTest
     ! Get command line arguments
     write (name, *) "Testing ESMF_UtilGetArgC, get truncated command name"
@@ -249,7 +312,7 @@
     call ESMF_UtilGetArg (argindex=0, argvalue=argshort, rc=rc)
     call ESMF_Test(rc == ESMF_RC_ARG_SIZE, name, failMsg, result, ESMF_SRCLINE)
 
-    !
+  !------------------------------------------------------------------------
     !EX_UTest
     ! Get command line arguments
     write (name, *) "Testing ESMF_UtilGetArgC, compare arg lengths"
@@ -261,7 +324,7 @@
 
     program_path = arg
 
-    !
+  !------------------------------------------------------------------------
     !EX_UTest
     ! Test bad command line argument index
     write (name, *) "Testing ESMF_UtilGetArgC, argindex > nargs"
@@ -269,7 +332,7 @@
     call ESMF_UtilGetArg (argindex=nargs+1, rc=rc)
     call ESMF_Test(rc == ESMF_RC_ARG_VALUE, name, failMsg, result, ESMF_SRCLINE)
 
-    !
+  !------------------------------------------------------------------------
     !EX_UTest
     ! Test command line argument index with the program name
     write (name, *) "Testing ESMF_UtilGetArgIndex for program path"
@@ -278,7 +341,7 @@
     call ESMF_Test(rc == ESMF_SUCCESS .and. argindex == 0,  &
       name, failMsg, result, ESMF_SRCLINE)
 
-    !
+  !------------------------------------------------------------------------
     !EX_UTest
     ! Test command line argument index with unknown value
     write (name, *) "Testing ESMF_UtilGetArgIndex for program path"
@@ -288,134 +351,516 @@
       name, failMsg, result, ESMF_SRCLINE)
 
 
-!MapName Containers
-!==================
+!Sorting
+!=======
 
-! Note: These are internal ESMF routines, subject to change, and
-! not intended to be end-user callable.
+! Reals
 
-    !
+  !------------------------------------------------------------------------
     !EX_UTest
-    ! Test creation of a MapName container
-    write (name, *) "Testing creation of a MapName container"
+    ! Test ascending sort
+    write (name, *) "Testing ascending real sort"
     write (failMsg, *) "did not return ESMF_SUCCESS"
-    call ESMF_UtilMapNameCreate (mapcontainer, rc=rc)
+    sorted_reals = random_values
+    call ESMF_UtilSort (sorted_reals, direction=ESMF_SORTFLAG_ASCENDING, rc=rc)
     call ESMF_Test(rc == ESMF_SUCCESS, name, failMsg, result, ESMF_SRCLINE)
 
+  !------------------------------------------------------------------------
     !EX_UTest
-    ! Test adding a name/value pair
-    write (name, *) "Testing adding a name/value pair"
+    ! Test for correctly sorted results
+    write (name, *) "Testing sorted ascending real results"
     write (failMsg, *) "did not return ESMF_SUCCESS"
-    call ESMF_UtilMapNameAdd (mapcontainer,  &
-        name="Temperature", value=1, rc=rc)
+    rc = ESMF_SUCCESS
+    do, i=2, size (sorted_reals)
+      if (sorted_reals(i-1) > sorted_reals(i)) then
+        rc = ESMF_FAILURE
+        exit
+      end if
+    end do
     call ESMF_Test(rc == ESMF_SUCCESS, name, failMsg, result, ESMF_SRCLINE)
 
+  !------------------------------------------------------------------------
     !EX_UTest
-    ! Test adding a second name/value pair
-    write (name, *) "Testing adding a name/value pair #2"
+    ! Test descending sort
+    write (name, *) "Testing descending real sort"
     write (failMsg, *) "did not return ESMF_SUCCESS"
-    call ESMF_UtilMapNameAdd (mapcontainer,  &
-        name="Pressure", value=42, rc=rc)
+    sorted_reals = random_values
+    call ESMF_UtilSort (sorted_reals, direction=ESMF_SORTFLAG_DESCENDING, rc=rc)
     call ESMF_Test(rc == ESMF_SUCCESS, name, failMsg, result, ESMF_SRCLINE)
 
+  !------------------------------------------------------------------------
     !EX_UTest
-    ! Test obtaining the size of the map
-    write (name, *) "Testing obtaining size"
-    write (failMsg, *) "did not return correct size"
-    mapsize = ESMF_UtilMapNameSize (mapcontainer)
-    call ESMF_Test(mapsize == 2, name, failMsg, result, ESMF_SRCLINE)
-
-    !EX_UTest
-    ! Test obtaining the size of the map
-    write (name, *) "Testing obtaining size return code"
+    ! Test for correctly sorted results
+    write (name, *) "Testing sorted descending real results"
     write (failMsg, *) "did not return ESMF_SUCCESS"
-    mapsize = ESMF_UtilMapNameSize (mapcontainer, rc=rc)
+    rc = ESMF_SUCCESS
+    do, i=2, size (sorted_reals)
+      if (sorted_reals(i-1) < sorted_reals(i)) then
+        rc = ESMF_FAILURE
+        exit
+      end if
+    end do
     call ESMF_Test(rc == ESMF_SUCCESS, name, failMsg, result, ESMF_SRCLINE)
 
+! Double precision reals
+
+  !------------------------------------------------------------------------
     !EX_UTest
-    ! Test printing the name/value pairs
-    write (name, *) "Testing debug printout to stdout"
+    ! Test ascending sort
+    write (name, *) "Testing ascending double precision real sort"
     write (failMsg, *) "did not return ESMF_SUCCESS"
-    call ESMF_UtilMapNamePrint (mapcontainer, title=name, rc=rc)
+    sorted_dblreals = random_values
+    call ESMF_UtilSort (sorted_dblreals, direction=ESMF_SORTFLAG_ASCENDING, rc=rc)
     call ESMF_Test(rc == ESMF_SUCCESS, name, failMsg, result, ESMF_SRCLINE)
 
+  !------------------------------------------------------------------------
     !EX_UTest
-    ! Test looking up a name/value pair (part 1)
-    write (name, *) "Testing looking up a name/value pair (part 1)"
+    ! Test for correctly sorted results
+    write (name, *) "Testing sorted ascending double precision real results"
     write (failMsg, *) "did not return ESMF_SUCCESS"
-    call ESMF_UtilMapNameLookup (mapcontainer,  &
-        name="Temperature", value=newvalue, foundFlag=isfound, rc=rc)
+    rc = ESMF_SUCCESS
+    do, i=2, size (sorted_dblreals)
+      if (sorted_dblreals(i-1) > sorted_dblreals(i)) then
+        rc = ESMF_FAILURE
+        exit
+      end if
+    end do
     call ESMF_Test(rc == ESMF_SUCCESS, name, failMsg, result, ESMF_SRCLINE)
 
+  !------------------------------------------------------------------------
     !EX_UTest
-    ! Test looking up a name/value pair (part 2)
-    write (name, *) "Testing looking up a name/value pair (part 2)"
-    write (failMsg, *) "did not return correct foundFlag"
-    call ESMF_Test(isfound, name, failMsg, result, ESMF_SRCLINE)
-
-    !EX_UTest
-    ! Test looking up a name/value pair (part 3)
-    write (name, *) "Testing looking up a name/value pair (part 3)"
-    write (failMsg, *) "did not return correct value"
-    call ESMF_Test(newvalue == 1, name, failMsg, result, ESMF_SRCLINE)
-
-    !EX_UTest
-    ! Test looking up a second name/value pair (part 1)
-    write (name, *) "Testing looking up a second name/value pair (part 1)"
-    write (failMsg, *) "did not return ESMF_SUCCESS or correct value"
-    call ESMF_UtilMapNameLookup (mapcontainer,  &
-        name="Pressure", value=newvalue, foundFlag=isfound, rc=rc)
+    ! Test descending sort
+    write (name, *) "Testing descending double precision real sort"
+    write (failMsg, *) "did not return ESMF_SUCCESS"
+    sorted_dblreals = random_values
+    call ESMF_UtilSort (sorted_dblreals, direction=ESMF_SORTFLAG_DESCENDING, rc=rc)
     call ESMF_Test(rc == ESMF_SUCCESS, name, failMsg, result, ESMF_SRCLINE)
 
+  !------------------------------------------------------------------------
     !EX_UTest
-    ! Test looking up a second name/value pair (part 2)
-    write (name, *) "Testing looking up a second name/value pair (part 2)"
-    write (failMsg, *) "did not return correct foundFlag"
-    call ESMF_Test(isfound, name, failMsg, result, ESMF_SRCLINE)
-
-    !EX_UTest
-    ! Test looking up a second name/value pair (part 3)
-    write (name, *) "Testing looking up a second name/value pair (part 3)"
-    write (failMsg, *) "did not return correct value"
-    call ESMF_Test(newvalue == 42, name, failMsg, result, ESMF_SRCLINE)
-
-    !EX_UTest
-    ! Test removing a name/value pair
-    write (name, *) "Testing removing a name/value pair"
+    ! Test for correctly sorted results
+    write (name, *) "Testing sorted descending double precision real results"
     write (failMsg, *) "did not return ESMF_SUCCESS"
-    call ESMF_UtilMapNameRemove (mapcontainer,  &
-        name="Temperature", rc=rc)
+    rc = ESMF_SUCCESS
+    do, i=2, size (sorted_dblreals)
+      if (sorted_dblreals(i-1) < sorted_dblreals(i)) then
+        rc = ESMF_FAILURE
+        exit
+      end if
+    end do
     call ESMF_Test(rc == ESMF_SUCCESS, name, failMsg, result, ESMF_SRCLINE)
 
+! Integers
+
+  !------------------------------------------------------------------------
     !EX_UTest
-    ! Test looking up a removed name/value pair (part 1)
-    write (name, *) "Testing looking up a removed name/value pair (part 1)"
+    ! Test ascending sort
+    write (name, *) "Testing ascending integer sort"
     write (failMsg, *) "did not return ESMF_SUCCESS"
-    call ESMF_UtilMapNameLookup (mapcontainer,  &
-        name="Temperature", value=newvalue, foundFlag=isfound, rc=rc)
-    call ESMF_Test(rc == ESMF_SUCCESS,  &
-        name, failMsg, result, ESMF_SRCLINE)
+    sorted_ints = random_values * 123456
+    call ESMF_UtilSort (sorted_ints, direction=ESMF_SORTFLAG_ASCENDING, rc=rc)
+    call ESMF_Test(rc == ESMF_SUCCESS, name, failMsg, result, ESMF_SRCLINE)
 
+  !------------------------------------------------------------------------
     !EX_UTest
-    ! Test looking up a removed name/value pair (part 2)
-    write (name, *) "Testing looking up a removed name/value pair (part 2)"
-    write (failMsg, *) "indicated a removed pair was found"
-    call ESMF_Test(.not. isfound,  &
-        name, failMsg, result, ESMF_SRCLINE)
-
-    call ESMF_UtilMapNamePrint (mapcontainer, title=name, rc=rc)
-
-    !EX_UTest
-    ! Test destruction of a MapName container
-    write (name, *) "Testing destruction of a MapName container"
+    ! Test for correctly sorted results
+    write (name, *) "Testing sorted ascending integer results"
     write (failMsg, *) "did not return ESMF_SUCCESS"
-    call ESMF_UtilMapNameDestroy (mapcontainer, rc=rc)
+    rc = ESMF_SUCCESS
+    do, i=2, size (sorted_ints)
+      if (sorted_ints(i-1) > sorted_ints(i)) then
+        print *, 'failed testing: ', sorted_ints(i-1), " < ", sorted_ints(i)
+        rc = ESMF_FAILURE
+        exit
+      end if
+    end do
+    call ESMF_Test(rc == ESMF_SUCCESS, name, failMsg, result, ESMF_SRCLINE)
+
+  !------------------------------------------------------------------------
+    !EX_UTest
+    ! Test descending sort
+    write (name, *) "Testing descending integer sort"
+    write (failMsg, *) "did not return ESMF_SUCCESS"
+    sorted_ints = random_values * 123456
+    call ESMF_UtilSort (sorted_ints, direction=ESMF_SORTFLAG_DESCENDING, rc=rc)
+    call ESMF_Test(rc == ESMF_SUCCESS, name, failMsg, result, ESMF_SRCLINE)
+
+  !------------------------------------------------------------------------
+    !EX_UTest
+    ! Test for correctly sorted results
+    write (name, *) "Testing sorted descending integer results"
+    write (failMsg, *) "did not return ESMF_SUCCESS"
+    rc = ESMF_SUCCESS
+    do, i=2, size (sorted_ints)
+      if (sorted_ints(i-1) < sorted_ints(i)) then
+        print *, 'failed testing: ', sorted_ints(i-1), " > ", sorted_ints(i)
+        rc = ESMF_FAILURE
+        exit
+      end if
+    end do
+    call ESMF_Test(rc == ESMF_SUCCESS, name, failMsg, result, ESMF_SRCLINE)
+
+! Double integers
+
+  !------------------------------------------------------------------------
+    !EX_UTest
+    ! Test ascending sort
+    write (name, *) "Testing ascending double integer sort"
+    write (failMsg, *) "did not return ESMF_SUCCESS"
+    sorted_dblints = random_values * 123456
+    call ESMF_UtilSort (sorted_dblints, direction=ESMF_SORTFLAG_ASCENDING, rc=rc)
+    call ESMF_Test(rc == ESMF_SUCCESS, name, failMsg, result, ESMF_SRCLINE)
+
+  !------------------------------------------------------------------------
+    !EX_UTest
+    ! Test for correctly sorted results
+    write (name, *) "Testing sorted ascending double integer results"
+    write (failMsg, *) "did not return ESMF_SUCCESS"
+    rc = ESMF_SUCCESS
+    do, i=2, size (sorted_dblints)
+      if (sorted_dblints(i-1) > sorted_dblints(i)) then
+        print *, 'failed testing: ', sorted_dblints(i-1), " < ", sorted_dblints(i)
+        rc = ESMF_FAILURE
+        exit
+      end if
+    end do
+    call ESMF_Test(rc == ESMF_SUCCESS, name, failMsg, result, ESMF_SRCLINE)
+
+  !------------------------------------------------------------------------
+    !EX_UTest
+    ! Test descending sort
+    write (name, *) "Testing descending double integer sort"
+    write (failMsg, *) "did not return ESMF_SUCCESS"
+    sorted_dblints = random_values * 123456
+    call ESMF_UtilSort (sorted_dblints, direction=ESMF_SORTFLAG_DESCENDING, rc=rc)
+    call ESMF_Test(rc == ESMF_SUCCESS, name, failMsg, result, ESMF_SRCLINE)
+
+  !------------------------------------------------------------------------
+    !EX_UTest
+    ! Test for correctly sorted results
+    write (name, *) "Testing sorted descending double integer results"
+    write (failMsg, *) "did not return ESMF_SUCCESS"
+    rc = ESMF_SUCCESS
+    do, i=2, size (sorted_dblints)
+      if (sorted_dblints(i-1) < sorted_dblints(i)) then
+        print *, 'failed testing: ', sorted_dblints(i-1), " > ", sorted_dblints(i)
+        rc = ESMF_FAILURE
+        exit
+      end if
+    end do
+    call ESMF_Test(rc == ESMF_SUCCESS, name, failMsg, result, ESMF_SRCLINE)
+
+! Character strings
+
+  !------------------------------------------------------------------------
+    !EX_UTest
+    ! Test ascending sort
+    write (name, *) "Testing ascending character string sort"
+    write (failMsg, *) "did not return ESMF_SUCCESS"
+    sort_array = sort_input
+    call ESMF_UtilSort (sort_array, direction=ESMF_SORTFLAG_ASCENDING, rc=rc)
+    call ESMF_Test(rc == ESMF_SUCCESS, name, failMsg, result, ESMF_SRCLINE)
+
+  !------------------------------------------------------------------------
+    !EX_UTest
+    ! Test for correctly sorted results
+    write (name, *) "Testing sorted ascending character string results"
+    write (failMsg, *) "did not return ESMF_SUCCESS"
+    if (all (sort_array == sort_ascend)) then
+      rc = ESMF_SUCCESS
+    else
+      rc = ESMF_FAILURE
+    end if
+    call ESMF_Test(rc == ESMF_SUCCESS, name, failMsg, result, ESMF_SRCLINE)
+
+  !------------------------------------------------------------------------
+    !EX_UTest
+    ! Test descending sort
+    write (name, *) "Testing descending character string sort"
+    write (failMsg, *) "did not return ESMF_SUCCESS"
+    sort_array = sort_input
+    call ESMF_UtilSort (sort_array, direction=ESMF_SORTFLAG_DESCENDING, rc=rc)
+    call ESMF_Test(rc == ESMF_SUCCESS, name, failMsg, result, ESMF_SRCLINE)
+
+  !------------------------------------------------------------------------
+    !EX_UTest
+    ! Test for correctly sorted results
+    write (name, *) "Testing sorted descending character string results"
+    write (failMsg, *) "did not return ESMF_SUCCESS"
+    if (all (sort_array == sort_descend)) then
+      rc = ESMF_SUCCESS
+    else
+      rc = ESMF_FAILURE
+    end if
+    call ESMF_Test(rc == ESMF_SUCCESS, name, failMsg, result, ESMF_SRCLINE)
+
+
+! File system directory creation and removal
+!===========================================
+
+    write (pathname,'(a,i3.3)') 'ESMF_rocks_', localPet
+
+  !------------------------------------------------------------------------
+    !EX_UTest
+    ! Test creating a directory
+    write (name, *) "Testing creating a directory"
+    write (failMsg, *) "did not return ESMF_SUCCESS"
+    call ESMF_UtilIOMkDir (pathname, rc=rc)
+    call ESMF_Test(rc == ESMF_SUCCESS, name, failMsg, result, ESMF_SRCLINE)
+
+  !------------------------------------------------------------------------
+    !EX_UTest
+    ! Test creating a directory which already exists
+    write (name, *) "Testing creating a directory which already exists"
+    write (failMsg, *) "did not return ESMF_FAILURE"
+    call ESMF_UtilIOMkDir (pathname, rc=rc)
+    call ESMF_Test(rc /= ESMF_SUCCESS, name, failMsg, result, ESMF_SRCLINE)
+
+  !------------------------------------------------------------------------
+    !EX_UTest
+    ! Test creating a directory
+    write (name, *) "Testing creating a directory which already exists w/relaxedFlag"
+    write (failMsg, *) "did not return ESMF_SUCCESS"
+    call ESMF_UtilIOMkDir (pathname, relaxedFlag=.true., rc=rc)
+    call ESMF_Test(rc == ESMF_SUCCESS, name, failMsg, result, ESMF_SRCLINE)
+
+  !------------------------------------------------------------------------
+    !EX_UTest
+    ! Test removing a directory
+    write (name, *) "Testing removing a directory"
+    write (failMsg, *) "did not return ESMF_SUCCESS"
+    call ESMF_UtilIORmDir (pathname, rc=rc)
+    call ESMF_Test(rc == ESMF_SUCCESS, name, failMsg, result, ESMF_SRCLINE)
+
+  !------------------------------------------------------------------------
+    !EX_UTest
+    ! Test removing a directory which does not exist
+    write (name, *) "Testing removing a directory which does not exist"
+    write (failMsg, *) "did not return failure"
+    call ESMF_UtilIORmDir (pathname, rc=rc)
+    call ESMF_Test(rc /= ESMF_SUCCESS, name, failMsg, result, ESMF_SRCLINE)
+
+  !------------------------------------------------------------------------
+    !EX_UTest
+    ! Test removing a directory which does not exist, relaxed
+    write (name, *) "Testing removing a directory which does not exist, relaxed"
+    write (failMsg, *) "did not return ESMF_SUCCESS"
+    call ESMF_UtilIORmDir (pathname, relaxedFlag=.true., rc=rc)
+    call ESMF_Test(rc == ESMF_SUCCESS, name, failMsg, result, ESMF_SRCLINE)
+
+! Get the current directory
+!===========================================
+
+    write (pathname,'(a,i3.3)') 'ESMF_rocks_', localPet
+
+  !------------------------------------------------------------------------
+    !EX_UTest
+    ! Test getting the current directory
+    write (name, *) "Testing getting the current directory"
+    write (failMsg, *) "did not return ESMF_SUCCESS"
+    pathname = ' '
+    call ESMF_UtilIOGetCWD (pathname, rc=rc)
+    call ESMF_Test(rc == ESMF_SUCCESS, name, failMsg, result, ESMF_SRCLINE)
+    print *, 'current directory name =>', trim (pathname), '<'
+
+  !------------------------------------------------------------------------
+    !EX_UTest
+    ! Test for valid characters
+    write (name, *) "Testing directory name for valid characters"
+    write (failMsg, *) "did not contain valid characters"
+    rc = ESMF_SUCCESS
+    if (pathname /= ' ') then
+      do, i=1, len (pathname)
+        if (iachar (pathname(i:i)) < 32 .or. iachar (pathname(i:i)) > 126) then
+          rc = ESMF_FAILURE
+          exit
+        end if
+      end do
+    else
+      rc = ESMF_FAILURE
+    end if
+    call ESMF_Test (rc == ESMF_SUCCESS, name, failMsg, result, ESMF_SRCLINE)
+
+  !------------------------------------------------------------------------
+    !EX_UTest
+    ! Test getting the current directory
+    write (name, *) "Testing getting the current directory with small string"
+    write (failMsg, *) "did not return failure"
+    call ESMF_UtilIOGetCWD (pathname_tooshort, rc=rc)
+    call ESMF_Test(rc /= ESMF_SUCCESS, name, failMsg, result, ESMF_SRCLINE)
+
+! String utilities
+!=================
+
+  !------------------------------------------------------------------------
+    !EX_UTest
+    ! Test converting string to UPPER case
+    write (name, *) "Testing converting string to UPPER case"
+    write (failMsg, *) "conversion failure"
+    str = ESMF_UtilStringUpperCase ("aBcDeFg123+-*/")
+    rc = merge (ESMF_SUCCESS, ESMF_FAILURE, str == 'ABCDEFG123+-*/')
+    call ESMF_Test(rc == ESMF_SUCCESS, name, failMsg, result, ESMF_SRCLINE)
+
+
+  !------------------------------------------------------------------------
+    !EX_UTest
+    ! Test converting string to lower case
+    write (name, *) "Testing converting string to lower case"
+    write (failMsg, *) "conversion failure"
+    str = ESMF_UtilStringLowerCase ("aBcDeFg123+-*/")
+    rc = merge (ESMF_SUCCESS, ESMF_FAILURE, str == 'abcdefg123+-*/')
+    call ESMF_Test(rc == ESMF_SUCCESS, name, failMsg, result, ESMF_SRCLINE)
+
+  !------------------------------------------------------------------------
+  !EX_UTest
+  ! Test converting numeric string to integer
+  write(name, *) "ESMF_UtilString2Int() - no blanks - Test"
+  write(failMsg, *) "Did not return ESMF_SUCCESS"
+  valueInt = ESMF_UtilString2Int("123", rc=rc)
+  call ESMF_Test((rc == ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+  !------------------------------------------------------------------------
+
+  !------------------------------------------------------------------------
+  !EX_UTest
+  write(name, *) "ESMF_UtilString2Int() - no blanks - Test"
+  write(failMsg, *) "Did not convert correctly"
+  call ESMF_Test((valueInt == 123), name, failMsg, result, ESMF_SRCLINE)
+  !------------------------------------------------------------------------
+
+  !------------------------------------------------------------------------
+  !EX_UTest
+  write(name, *) "ESMF_UtilString2Int() - negative value - Test"
+  write(failMsg, *) "Did not return ESMF_SUCCESS"
+  valueInt = ESMF_UtilString2Int("-1234567890", rc=rc)
+  call ESMF_Test((rc == ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+  !------------------------------------------------------------------------
+
+  !------------------------------------------------------------------------
+  !EX_UTest
+  write(name, *) "ESMF_UtilString2Int() - negative value - Test"
+  write(failMsg, *) "Did not convert correctly"
+  call ESMF_Test((valueInt == -1234567890), name, failMsg, result, ESMF_SRCLINE)
+  !------------------------------------------------------------------------
+
+  !------------------------------------------------------------------------
+  !EX_UTest
+  write(name, *) "ESMF_UtilString2Int() - explicit positive value - Test"
+  write(failMsg, *) "Did not return ESMF_SUCCESS"
+  valueInt = ESMF_UtilString2Int("+987654321", rc=rc)
+  call ESMF_Test((rc == ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+  !------------------------------------------------------------------------
+
+  !------------------------------------------------------------------------
+  !EX_UTest
+  write(name, *) "ESMF_UtilString2Int() - explicit positive value - Test"
+  write(failMsg, *) "Did not convert correctly"
+  call ESMF_Test((valueInt == 987654321), name, failMsg, result, ESMF_SRCLINE)
+  !------------------------------------------------------------------------
+
+  !------------------------------------------------------------------------
+  !EX_UTest
+  write(name, *) "ESMF_UtilString2Int() - leading blanks - Test"
+  write(failMsg, *) "Did not return ESMF_SUCCESS"
+  valueInt = ESMF_UtilString2Int("   456", rc=rc)
+  call ESMF_Test((rc == ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+  !------------------------------------------------------------------------
+
+  !------------------------------------------------------------------------
+  !EX_UTest
+  write(name, *) "ESMF_UtilString2Int() - leading blanks - Test"
+  write(failMsg, *) "Did not convert correctly"
+  call ESMF_Test((valueInt == 456), name, failMsg, result, ESMF_SRCLINE)
+  !------------------------------------------------------------------------
+
+  !------------------------------------------------------------------------
+  !EX_UTest
+  write(name, *) "ESMF_UtilString2Int() - trailing blanks - Test"
+  write(failMsg, *) "Did not return ESMF_SUCCESS"
+  valueInt = ESMF_UtilString2Int("789   ", rc=rc)
+  call ESMF_Test((rc == ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+  !------------------------------------------------------------------------
+
+  !------------------------------------------------------------------------
+  !EX_UTest
+  write(name, *) "ESMF_UtilString2Int() - trailing blanks - Test"
+  write(failMsg, *) "Did not convert correctly"
+  call ESMF_Test((valueInt == 789), name, failMsg, result, ESMF_SRCLINE)
+  !------------------------------------------------------------------------
+
+  !------------------------------------------------------------------------
+  !EX_UTest
+  write(name, *) "ESMF_UtilString2Int() - special string missing - Test"
+  write(failMsg, *) "Did return ESMF_SUCCESS"
+  valueInt = ESMF_UtilString2Int(" bla ",  &
+    specialStringList=(/" bla ", "bla  "/), &
+    rc=rc)
+  call ESMF_Test((rc /= ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+  !------------------------------------------------------------------------
+
+  !------------------------------------------------------------------------
+  !EX_UTest
+  write(name, *) "ESMF_UtilString2Int() - special string - Test"
+  write(failMsg, *) "Did not return ESMF_SUCCESS"
+  valueInt = ESMF_UtilString2Int("bla",  &
+    specialStringList=(/"aha", "bla"/), specialValueList=(/1,2/),  &
+    rc=rc)
+  call ESMF_Test((rc == ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+  !------------------------------------------------------------------------
+
+  !------------------------------------------------------------------------
+  !EX_UTest
+  write(name, *) "ESMF_UtilString2Int() - special string - Test"
+  write(failMsg, *) "Did not convert correctly"
+  call ESMF_Test((valueInt == 2), name, failMsg, result, ESMF_SRCLINE)
+  !------------------------------------------------------------------------
+
+! Internal string utilities (NOT part of the external ESMF API)
+!==============================================================
+
+  !------------------------------------------------------------------------
+    !EX_UTest
+    ! Test concatenating strings
+    write (name, *) "Testing concatenating strings"
+    write (failMsg, *) "comparison failure"
+    str = ESMF_StringConcat ("1234", "abcdefg")
+    rc = merge (ESMF_SUCCESS, ESMF_FAILURE, str == '1234abcdefg')
+    call ESMF_Test(rc == ESMF_SUCCESS, name, failMsg, result, ESMF_SRCLINE)
+
+  !------------------------------------------------------------------------
+    !EX_UTest
+    ! Test converting a C string (zero byte terminated) to a Fortran string (blank padded)
+    write (name, *) "Testing converting C string to Fortran string"
+    write (failMsg, *) "conversion failure"
+    cstr = 'A text string' // achar (0)
+    str = repeat (achar(255), len (str))
+    call ESMF_CtoF90String (cstr, str, rc)
+    if (rc == ESMF_SUCCESS) then
+      if (str /= 'A text string') then
+        rc = ESMF_FAILURE
+      end if
+    end if
+    call ESMF_Test(rc == ESMF_SUCCESS, name, failMsg, result, ESMF_SRCLINE)
+
+  !------------------------------------------------------------------------
+    !EX_UTest
+    ! Test converting a Fortran string (blank padded) to a C string (zero byte terminated)
+    write (name, *) "Testing converting Fortran string to C string"
+    write (failMsg, *) "conversion failure"
+    str = 'A second text string'
+    cstr = repeat (achar(255), len (cstr))
+    call ESMF_F90toCString (str, cstr, rc)
+    if (rc == ESMF_SUCCESS) then
+      cstrlen = index (cstr, achar (0))
+      if (cstr(1:cstrlen) /= trim (str) // achar (0)) then
+        rc = ESMF_FAILURE
+      end if
+    end if
     call ESMF_Test(rc == ESMF_SUCCESS, name, failMsg, result, ESMF_SRCLINE)
 
 #endif
 
       ! This calls finalize before returning, so it must be the last
       ! ESMF-related thing the test does.
-      call ESMF_TestEnd(result, ESMF_SRCLINE)
-  
+      call ESMF_TestEnd(ESMF_SRCLINE)
+
       end program ESMF_UtilUTest

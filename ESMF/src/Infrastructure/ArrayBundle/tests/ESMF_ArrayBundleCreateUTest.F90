@@ -1,7 +1,7 @@
-! $Id: ESMF_ArrayBundleCreateUTest.F90,v 1.1.5.1 2013-01-11 20:23:43 mathomp4 Exp $
+! $Id$
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2012, University Corporation for Atmospheric Research,
+! Copyright 2002-2018, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -34,7 +34,7 @@ program ESMF_ArrayBundleCreateUTest
 !------------------------------------------------------------------------------
 ! The following line turns the CVS identifier string into a printable variable.
   character(*), parameter :: version = &
-    '$Id: ESMF_ArrayBundleCreateUTest.F90,v 1.1.5.1 2013-01-11 20:23:43 mathomp4 Exp $'
+    '$Id$'
 !------------------------------------------------------------------------------
 
   ! cumulative result: count failures; no failures equals "all pass"
@@ -55,11 +55,12 @@ program ESMF_ArrayBundleCreateUTest
   type(ESMF_Array):: array(10), arrayOut(5), arraySingle
   type(ESMF_Array), pointer :: arrays(:)
   type(ESMF_Array), allocatable :: arrayList(:)
-  character(len=ESMF_MAXSTR):: arrayNameList(5)
+  character(len=ESMF_MAXSTR):: arrayNameList(9)
   integer:: arrayCount, i
   type(ESMF_ArrayBundle):: arraybundle, arraybundleAlias
-  character (len=80)      :: arrayName
+  character (len=ESMF_MAXSTR)      :: arrayName
   logical:: arraybundleBool, isPresent, loopResult
+  logical:: isCreated
   
   character, allocatable :: buffer(:)
   integer :: buff_len, offset
@@ -78,35 +79,89 @@ program ESMF_ArrayBundleCreateUTest
 
   !------------------------------------------------------------------------
   call ESMF_TestStart(ESMF_SRCLINE, rc=rc)  ! calls ESMF_Initialize() internally
-  !------------------------------------------------------------------------
-  
-  !------------------------------------------------------------------------
-  ! preparations
-  call ESMF_VMGetGlobal(vm, rc=rc)
   if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
-  call ESMF_VMGet(vm, localPet=localPet, petCount=petCount, rc=rc)
-  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
+  !------------------------------------------------------------------------
   
   !------------------------------------------------------------------------
-  ! this unit test requires to be run on exactly 4 PETs
-  if (petCount /= 4) goto 10
-  
+  !NEX_UTest
+  write(name, *) "Testing ArrayBundle IsCreated for uncreated object"
+  write(failMsg, *) "Did not return .false."
+  isCreated = ESMF_ArrayBundleIsCreated(arraybundle)
+  call ESMF_Test((isCreated .eqv. .false.), name, failMsg, result, ESMF_SRCLINE)
   !------------------------------------------------------------------------
-  !NEX_UTest_Multi_Proc_Only
+
+  !------------------------------------------------------------------------
+  !NEX_UTest
+  write(name, *) "Testing ArrayBundle IsCreated for uncreated object"
+  write(failMsg, *) "Did not return ESMF_SUCCESS"
+  isCreated = ESMF_ArrayBundleIsCreated(arraybundle, rc=rc)
+  call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+  !------------------------------------------------------------------------
+
+  !------------------------------------------------------------------------
+  !NEX_UTest
+  write(name, *) "Create test ArrayBundle for IsCreated"
+  write(failMsg, *) "Did not return ESMF_SUCCESS"
+  arraybundle = ESMF_ArrayBundleCreate(name="MyEmptyArrayBundle", rc=rc)
+  call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+  !------------------------------------------------------------------------
+
+  !------------------------------------------------------------------------
+  !NEX_UTest
+  write(name, *) "Testing ArrayBundle IsCreated for created object"
+  write(failMsg, *) "Did not return .true."
+  isCreated = ESMF_ArrayBundleIsCreated(arraybundle)
+  call ESMF_Test((isCreated .eqv. .true.), name, failMsg, result, ESMF_SRCLINE)
+  !------------------------------------------------------------------------
+
+  !------------------------------------------------------------------------
+  !NEX_UTest
+  write(name, *) "Testing ArrayBundle IsCreated for created object"
+  write(failMsg, *) "Did not return ESMF_SUCCESS"
+  isCreated = ESMF_ArrayBundleIsCreated(arraybundle, rc=rc)
+  call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+  !------------------------------------------------------------------------
+
+  !------------------------------------------------------------------------
+  !NEX_UTest
+  write(name, *) "Destroy test ArrayBundle for IsCreated"
+  write(failMsg, *) "Did not return ESMF_SUCCESS"
+  call ESMF_ArrayBundleDestroy(arraybundle, rc=rc)
+  call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+  !------------------------------------------------------------------------
+
+  !------------------------------------------------------------------------
+  !NEX_UTest
+  write(name, *) "Testing ArrayBundle IsCreated for destroyed object"
+  write(failMsg, *) "Did not return .false."
+  isCreated = ESMF_ArrayBundleIsCreated(arraybundle)
+  call ESMF_Test((isCreated .eqv. .false.), name, failMsg, result, ESMF_SRCLINE)
+  !------------------------------------------------------------------------
+
+  !------------------------------------------------------------------------
+  !NEX_UTest
+  write(name, *) "Testing ArrayBundle IsCreated for destroyed object"
+  write(failMsg, *) "Did not return ESMF_SUCCESS"
+  isCreated = ESMF_ArrayBundleIsCreated(arraybundle, rc=rc)
+  call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+  !------------------------------------------------------------------------
+
+  !------------------------------------------------------------------------
+  !NEX_UTest
   write(name, *) "empty ArrayBundleCreate Test"
   write(failMsg, *) "Did not return ESMF_SUCCESS"
   arraybundle = ESMF_ArrayBundleCreate(name="MyEmptyArrayBundle", rc=rc)
   call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
   
   !------------------------------------------------------------------------
-  !NEX_UTest_Multi_Proc_Only
+  !NEX_UTest
   write(name, *) "ArrayBundlePrint Test"
   write(failMsg, *) "Did not return ESMF_SUCCESS"
   call ESMF_ArrayBundlePrint(arraybundle, rc=rc)
   call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
 
   !------------------------------------------------------------------------
-  !NEX_UTest_Multi_Proc_Only
+  !NEX_UTest
   write(name, *) "ArrayBundleDestroy Test"
   write(failMsg, *) "Did not return ESMF_SUCCESS"
   call ESMF_ArrayBundleDestroy(arraybundle, rc=rc)
@@ -121,7 +176,7 @@ program ESMF_ArrayBundleCreateUTest
   if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   
   !------------------------------------------------------------------------
-  !NEX_UTest_Multi_Proc_Only
+  !NEX_UTest
   write(name, *) "ArrayCreate Allocate 2D ESMF_TYPEKIND_R8 Test"
   write(failMsg, *) "Did not return ESMF_SUCCESS"
   array(1) = ESMF_ArrayCreate(arrayspec=arrayspec, distgrid=distgrid, &
@@ -129,7 +184,7 @@ program ESMF_ArrayBundleCreateUTest
   call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
   
   !------------------------------------------------------------------------
-  !NEX_UTest_Multi_Proc_Only
+  !NEX_UTest
   write(name, *) "ArrayCreate Allocate 2D ESMF_TYPEKIND_R8 Test"
   write(failMsg, *) "Did not return ESMF_SUCCESS"
   array(2) = ESMF_ArrayCreate(arrayspec=arrayspec, distgrid=distgrid, &
@@ -137,7 +192,7 @@ program ESMF_ArrayBundleCreateUTest
   call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
   
   !------------------------------------------------------------------------
-  !NEX_UTest_Multi_Proc_Only
+  !NEX_UTest
   write(name, *) "ArrayBundleCreate Test"
   write(failMsg, *) "Did not return ESMF_SUCCESS"
   arraybundle = ESMF_ArrayBundleCreate(arrayList=array(1:2), &
@@ -145,53 +200,55 @@ program ESMF_ArrayBundleCreateUTest
   call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
   
   !------------------------------------------------------------------------
-  !NEX_UTest_Multi_Proc_Only
+  !NEX_UTest
+  ! Testing ESMF_ArrayBundleOperator(==)(fieldBundle1,fieldBundle2)
   write(name, *) "ArrayBundle equality before assignment Test"
-  write(failMsg, *) "Did not return ESMF_SUCCESS"
+  write(failMsg, *) "Did not compare correctly"
   arraybundleBool = (arraybundleAlias.eq.arraybundle)
   call ESMF_Test(.not.arraybundleBool, name, failMsg, result, ESMF_SRCLINE)
   
   !------------------------------------------------------------------------
-  !NEX_UTest_Multi_Proc_Only
-  ! Testing ESMF_ArrayBundleAssignment(=)()
+  !NEX_UTest
+  ! Testing ESMF_ArrayBundleAssignment(=)(fieldBundle1)
+  ! Testing ESMF_ArrayBundleOperator(==)(fieldBundle1,fieldBundle2)
   write(name, *) "ArrayBundle assignment and equality Test"
-  write(failMsg, *) "Did not return ESMF_SUCCESS"
+  write(failMsg, *) "Did not compare correctly"
   arraybundleAlias = arraybundle
   arraybundleBool = (arraybundleAlias.eq.arraybundle)
   call ESMF_Test(arraybundleBool, name, failMsg, result, ESMF_SRCLINE)
   
   !------------------------------------------------------------------------
-  !NEX_UTest_Multi_Proc_Only
+  !NEX_UTest
   write(name, *) "ArrayBundleDestroy Test"
   write(failMsg, *) "Did not return ESMF_SUCCESS"
   call ESMF_ArrayBundleDestroy(arraybundle, rc=rc)
   call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
   
   !------------------------------------------------------------------------
-  !NEX_UTest_Multi_Proc_Only
-  ! Testing ESMF_ArrayBundleOperator(==)()
+  !NEX_UTest
+  ! Testing ESMF_ArrayBundleOperator(==)(fieldBundle1,fieldBundle2)
   write(name, *) "ArrayBundle equality after destroy Test"
-  write(failMsg, *) "Did not return ESMF_SUCCESS"
+  write(failMsg, *) "Did not compare correctly"
   arraybundleBool = (arraybundleAlias==arraybundle)
   call ESMF_Test(.not.arraybundleBool, name, failMsg, result, ESMF_SRCLINE)
   
   !------------------------------------------------------------------------
-  !NEX_UTest_Multi_Proc_Only
-  ! Testing ESMF_ArrayBundleOperator(/=)()
+  !NEX_UTest
+  ! Testing ESMF_ArrayBundleOperator(/=)(fieldBundle1,fieldBundle2)
   write(name, *) "ArrayBundle non-equality after destroy Test"
-  write(failMsg, *) "Did not return ESMF_SUCCESS"
+  write(failMsg, *) "Did not compare correctly"
   arraybundleBool = (arraybundleAlias/=arraybundle)
   call ESMF_Test(arraybundleBool, name, failMsg, result, ESMF_SRCLINE)
   
   !------------------------------------------------------------------------
-  !NEX_UTest_Multi_Proc_Only
+  !NEX_UTest
   write(name, *) "Double ArrayBundleDestroy through alias Test"
   write(failMsg, *) "Did not return ESMF_SUCCESS"
   call ESMF_ArrayBundleDestroy(arraybundleAlias, rc=rc)
   call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
   
   !------------------------------------------------------------------------
-  !NEX_UTest_Multi_Proc_Only
+  !NEX_UTest
   write(name, *) "ArrayBundleCreate Test"
   write(failMsg, *) "Did not return ESMF_SUCCESS"
   arraybundle = ESMF_ArrayBundleCreate(arrayList=array(1:2), &
@@ -199,14 +256,14 @@ program ESMF_ArrayBundleCreateUTest
   call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
   
   !------------------------------------------------------------------------
-  !NEX_UTest_Multi_Proc_Only
+  !NEX_UTest
   write(name, *) "ArrayBundlePrint Test"
   write(failMsg, *) "Did not return ESMF_SUCCESS"
   call ESMF_ArrayBundlePrint(arraybundle, rc=rc)
   call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
 
   !------------------------------------------------------------------------
-  !NEX_UTest_Multi_Proc_Only
+  !NEX_UTest
   write(name, *) "ArrayBundleGet with arrayList Test"
   write(failMsg, *) "Did not return ESMF_SUCCESS"
   call ESMF_ArrayBundleGet(arraybundle, arrayCount=arrayCount, &
@@ -216,7 +273,7 @@ program ESMF_ArrayBundleCreateUTest
   print *,"arrayCount=", arrayCount
 
   !------------------------------------------------------------------------
-  !NEX_UTest_Multi_Proc_Only
+  !NEX_UTest
   write(name, *) "ArrayBundleGet with arrayNameList Test"
   write(failMsg, *) "Did not return ESMF_SUCCESS"
   call ESMF_ArrayBundleGet(arraybundle, arrayCount=arrayCount, &
@@ -228,14 +285,14 @@ program ESMF_ArrayBundleCreateUTest
   enddo
 
   !------------------------------------------------------------------------
-  !NEX_UTest_Multi_Proc_Only
+  !NEX_UTest
   write(name, *) "ArrayBundleAdd with existing Array Test"
   write(failMsg, *) "Did return ESMF_SUCCESS"
   call ESMF_ArrayBundleAdd(arraybundle, arrayList=(/array(1)/), rc=rc)
   call ESMF_Test((rc.ne.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
   
   !------------------------------------------------------------------------
-  !NEX_UTest_Multi_Proc_Only
+  !NEX_UTest
   write(name, *) "ArrayBundleAdd with existing Array but relaxed Test"
   write(failMsg, *) "Did not return ESMF_SUCCESS"
   call ESMF_ArrayBundleAdd(arraybundle, arrayList=(/array(1)/), &
@@ -243,7 +300,7 @@ program ESMF_ArrayBundleCreateUTest
   call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
   
   !------------------------------------------------------------------------
-  !NEX_UTest_Multi_Proc_Only
+  !NEX_UTest
   write(name, *) "ArrayBundleAdd with zero size arrayList Test"
   write(failMsg, *) "Did not return ESMF_SUCCESS"
   allocate(arrays(0))
@@ -252,7 +309,7 @@ program ESMF_ArrayBundleCreateUTest
   if (associated(arrays)) deallocate(arrays)
   
   !------------------------------------------------------------------------
-  !NEX_UTest_Multi_Proc_Only
+  !NEX_UTest
   write(name, *) "ArrayBundleGet with arrayName not exist Test"
   write(failMsg, *) "Did return ESMF_SUCCESS"
   call ESMF_ArrayBundleGet(arraybundle, arrayName="MyArray3", &
@@ -260,7 +317,7 @@ program ESMF_ArrayBundleCreateUTest
   call ESMF_Test((rc.ne.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
   
   !------------------------------------------------------------------------
-  !NEX_UTest_Multi_Proc_Only
+  !NEX_UTest
   write(name, *) "ArrayBundleGet with arrayName not exist isPresent Test"
   write(failMsg, *) "Did not return ESMF_SUCCESS"
   call ESMF_ArrayBundleGet(arraybundle, arrayName="MyArray3", &
@@ -268,7 +325,7 @@ program ESMF_ArrayBundleCreateUTest
   call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
   
   !------------------------------------------------------------------------
-  !NEX_UTest_Multi_Proc_Only
+  !NEX_UTest
   write(name, *) "Validate isPresent flag"
   call ESMF_Test((isPresent.eqv. .false.), name, failMsg, result, ESMF_SRCLINE)
 
@@ -278,7 +335,7 @@ program ESMF_ArrayBundleCreateUTest
   if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
   !------------------------------------------------------------------------
-  !NEX_UTest_Multi_Proc_Only
+  !NEX_UTest
   write(name, *) "ArrayBundleAdd with arrayList size 1 Test"
   write(failMsg, *) "Did not return ESMF_SUCCESS"  
   call ESMF_ArrayBundleAdd(arraybundle, arrayList=arrays, rc=rc)
@@ -286,7 +343,7 @@ program ESMF_ArrayBundleCreateUTest
   if (associated(arrays)) deallocate(arrays)
   
   !------------------------------------------------------------------------
-  !NEX_UTest_Multi_Proc_Only
+  !NEX_UTest
   write(name, *) "ArrayBundleGet with arrayName Test"
   write(failMsg, *) "Did not return ESMF_SUCCESS"
   call ESMF_ArrayBundleGet(arraybundle, arrayName="MyArray3", &
@@ -297,21 +354,21 @@ program ESMF_ArrayBundleCreateUTest
   if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   
   !------------------------------------------------------------------------
-  !NEX_UTest_Multi_Proc_Only
+  !NEX_UTest
   write(name, *) "ArrayBundleRemove with arrayNameList size 1 exising Test"
   write(failMsg, *) "Did not return ESMF_SUCCESS"  
   call ESMF_ArrayBundleRemove(arraybundle, arrayNameList=(/"MyArray"/), rc=rc)
   call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
 
   !------------------------------------------------------------------------
-  !NEX_UTest_Multi_Proc_Only
+  !NEX_UTest
   write(name, *) "ArrayBundleRemove with arrayNameList size 1 not-existing Test"
   write(failMsg, *) "Did return ESMF_SUCCESS"  
   call ESMF_ArrayBundleRemove(arraybundle, arrayNameList=(/"MyArray"/), rc=rc)
   call ESMF_Test((rc.ne.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
 
   !------------------------------------------------------------------------
-  !NEX_UTest_Multi_Proc_Only
+  !NEX_UTest
   write(name, *) "ArrayBundleRemove with arrayNameList size 1 not-existing but relaxed Test"
   write(failMsg, *) "Did not return ESMF_SUCCESS"  
   call ESMF_ArrayBundleRemove(arraybundle, arrayNameList=(/"MyArray"/), &
@@ -330,14 +387,14 @@ program ESMF_ArrayBundleCreateUTest
   if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
   !------------------------------------------------------------------------
-  !NEX_UTest_Multi_Proc_Only
+  !NEX_UTest
   write(name, *) "ArrayBundleAdd with arrayList size 3 Test"
   write(failMsg, *) "Did not return ESMF_SUCCESS"  
   call ESMF_ArrayBundleAdd(arraybundle, arrayList=arrays, rc=rc)
   call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
   
   !------------------------------------------------------------------------
-  !NEX_UTest_Multi_Proc_Only
+  !NEX_UTest
   write(name, *) "ArrayBundleRemove with arrayNameList size 2 existing Test"
   write(failMsg, *) "Did not return ESMF_SUCCESS"  
   call ESMF_ArrayBundleRemove(arraybundle, arrayNameList=(/"MyArray4", &
@@ -345,7 +402,7 @@ program ESMF_ArrayBundleCreateUTest
   call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
   
   !------------------------------------------------------------------------
-  !NEX_UTest_Multi_Proc_Only
+  !NEX_UTest
   write(name, *) "ArrayBundleReplace with arrayList 1exist+2notexist relaxed Test"
   write(failMsg, *) "Did not return ESMF_SUCCESS"  
   call ESMF_ArrayBundleReplace(arraybundle, arrayList=arrays, &
@@ -353,21 +410,21 @@ program ESMF_ArrayBundleCreateUTest
   call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
   
   !------------------------------------------------------------------------
-  !NEX_UTest_Multi_Proc_Only
+  !NEX_UTest
   write(name, *) "ArrayBundleReplace with arrayList 1exist+2notexist strict Test"
   write(failMsg, *) "Did return ESMF_SUCCESS"  
   call ESMF_ArrayBundleReplace(arraybundle, arrayList=arrays, rc=rc)
   call ESMF_Test((rc.ne.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
   
   !------------------------------------------------------------------------
-  !NEX_UTest_Multi_Proc_Only
+  !NEX_UTest
   write(name, *) "ArrayBundleAddReplace with arrayList 1exist+2notexist Test"
   write(failMsg, *) "Did not return ESMF_SUCCESS"  
   call ESMF_ArrayBundleAddReplace(arraybundle, arrayList=arrays, rc=rc)
   call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
   
   !------------------------------------------------------------------------
-  !NEX_UTest_Multi_Proc_Only
+  !NEX_UTest
   write(name, *) "ArrayBundleRemove with arrayNameList size 2 existing Test"
   write(failMsg, *) "Did not return ESMF_SUCCESS"  
   call ESMF_ArrayBundleRemove(arraybundle, arrayNameList=(/"MyArray3", &
@@ -375,7 +432,7 @@ program ESMF_ArrayBundleCreateUTest
   call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
   
   !------------------------------------------------------------------------
-  !NEX_UTest_Multi_Proc_Only
+  !NEX_UTest
   write(name, *) "ArrayBundleAdd with multiflag #1 Test"
   write(failMsg, *) "Did not return ESMF_SUCCESS"  
   call ESMF_ArrayBundleAdd(arraybundle, arrayList=arrays, multiflag=.true., &
@@ -383,7 +440,7 @@ program ESMF_ArrayBundleCreateUTest
   call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
   
   !------------------------------------------------------------------------
-  !NEX_UTest_Multi_Proc_Only
+  !NEX_UTest
   write(name, *) "ArrayBundleAdd with multiflag #2 Test"
   write(failMsg, *) "Did not return ESMF_SUCCESS"  
   call ESMF_ArrayBundleAdd(arraybundle, arrayList=arrays, multiflag=.true., &
@@ -395,7 +452,7 @@ program ESMF_ArrayBundleCreateUTest
   if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   
   !------------------------------------------------------------------------
-  !NEX_UTest_Multi_Proc_Only
+  !NEX_UTest
   write(name, *) "ArrayBundleGet with arrayName to get count Test"
   write(failMsg, *) "Did not return ESMF_SUCCESS"
   call ESMF_ArrayBundleGet(arraybundle, arrayName="MyArray6", &
@@ -403,10 +460,16 @@ program ESMF_ArrayBundleCreateUTest
   call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
   
   !------------------------------------------------------------------------
+  !NEX_UTest
+  write(name, *) "Check arrayCount Test"
+  write(failMsg, *) "Value incorrect"
+  call ESMF_Test((arrayCount==3), name, failMsg, result, ESMF_SRCLINE)
+  
+  !------------------------------------------------------------------------
   allocate(arrayList(arrayCount))
   
   !------------------------------------------------------------------------
-  !NEX_UTest_Multi_Proc_Only
+  !NEX_UTest
   write(name, *) "ArrayBundleGet arrayList for arrayName Test"
   write(failMsg, *) "Did not return ESMF_SUCCESS"
   call ESMF_ArrayBundleGet(arraybundle, arrayName="MyArray6", &
@@ -414,7 +477,7 @@ program ESMF_ArrayBundleCreateUTest
   call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
   
   !------------------------------------------------------------------------
-  !NEX_UTest_Multi_Proc_Only
+  !NEX_UTest
   write(name, *) "Verify Container Get arrayList for arrayname Test"
   write(failMsg, *) "arrayList contains incorrect Arrays"
   loopResult = .false. ! initialize
@@ -429,6 +492,153 @@ program ESMF_ArrayBundleCreateUTest
   endif
   call ESMF_Test(loopResult, name, failMsg, result, ESMF_SRCLINE)
   
+  deallocate(arrayList)
+  
+  !------------------------------------------------------------------------
+  !NEX_UTest
+  write(name, *) "ArrayBundleGet arrayCount Test"
+  write(failMsg, *) "Did not return ESMF_SUCCESS"
+  call ESMF_ArrayBundleGet(arraybundle, arrayCount=arrayCount, rc=rc)
+  call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+  
+  !------------------------------------------------------------------------
+  !NEX_UTest
+  write(name, *) "Check arrayCount Test"
+  write(failMsg, *) "Value incorrect"
+  call ESMF_Test((arrayCount==9), name, failMsg, result, ESMF_SRCLINE)
+  
+  !------------------------------------------------------------------------
+
+  allocate(arrayList(arrayCount))
+  
+  !------------------------------------------------------------------------
+  !NEX_UTest
+  write(name, *) "ArrayBundleGet arrayList default order (abc) Test"
+  write(failMsg, *) "Did not return ESMF_SUCCESS"
+  call ESMF_ArrayBundleGet(arraybundle, arrayList=arrayList, rc=rc)
+  call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+  
+  !------------------------------------------------------------------------
+  !NEX_UTest
+  write(name, *) "Verify Container Get arrayList for arrayname default order (abc) Test"
+  write(failMsg, *) "arrayList contains incorrect Arrays"
+  loopResult = .false. ! initialize
+  if (allocated(arrayList)) then
+    if (arrayCount == 9) then
+      loopResult = .true. ! initialize
+      do i=1, arrayCount
+        call ESMF_ArrayGet(arrayList(i), name=arrayName, rc=rc)
+        if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
+        print *, "name of arrayList(",i,") is: ", arrayName
+        if (i==1 .and. trim(arrayName)/="MyArray2") loopResult = .false.
+        if (i==2 .and. trim(arrayName)/="MyArray4") loopResult = .false.
+        if (i==3 .and. trim(arrayName)/="MyArray4") loopResult = .false.
+        if (i==4 .and. trim(arrayName)/="MyArray4") loopResult = .false.
+        if (i==5 .and. trim(arrayName)/="MyArray5") loopResult = .false.
+        if (i==6 .and. trim(arrayName)/="MyArray5") loopResult = .false.
+        if (i==7 .and. trim(arrayName)/="MyArray6") loopResult = .false.
+        if (i==8 .and. trim(arrayName)/="MyArray6") loopResult = .false.
+        if (i==9 .and. trim(arrayName)/="MyArray6") loopResult = .false.
+      enddo
+    endif
+  endif
+  call ESMF_Test(loopResult, name, failMsg, result, ESMF_SRCLINE)
+  
+  !------------------------------------------------------------------------
+  !NEX_UTest
+  write(name, *) "ArrayBundleGet arrayNameList default order (abc) Test"
+  write(failMsg, *) "Did not return ESMF_SUCCESS"
+  call ESMF_ArrayBundleGet(arraybundle, arrayNameList=arrayNameList, rc=rc)
+  call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+  
+  !------------------------------------------------------------------------
+  !NEX_UTest
+  write(name, *) "Verify Container Get arrayNameList for arrayname default order (abc) Test"
+  write(failMsg, *) "arrayNameList contains incorrect names"
+  loopResult = .false. ! initialize
+  loopResult = .true. ! initialize
+  do i=1, arrayCount
+    arrayName = arrayNameList(i)
+    print *, "arrayNameList(",i,") is: ", arrayName
+    if (i==1 .and. trim(arrayName)/="MyArray2") loopResult = .false.
+    if (i==2 .and. trim(arrayName)/="MyArray4") loopResult = .false.
+    if (i==3 .and. trim(arrayName)/="MyArray4") loopResult = .false.
+    if (i==4 .and. trim(arrayName)/="MyArray4") loopResult = .false.
+    if (i==5 .and. trim(arrayName)/="MyArray5") loopResult = .false.
+    if (i==6 .and. trim(arrayName)/="MyArray5") loopResult = .false.
+    if (i==7 .and. trim(arrayName)/="MyArray6") loopResult = .false.
+    if (i==8 .and. trim(arrayName)/="MyArray6") loopResult = .false.
+    if (i==9 .and. trim(arrayName)/="MyArray6") loopResult = .false.
+  enddo
+  call ESMF_Test(loopResult, name, failMsg, result, ESMF_SRCLINE)
+  
+  !------------------------------------------------------------------------
+  !NEX_UTest
+  write(name, *) "ArrayBundleGet arrayList ESMF_ITEMORDER_ADDORDER Test"
+  write(failMsg, *) "Did not return ESMF_SUCCESS"
+  call ESMF_ArrayBundleGet(arraybundle, arrayList=arrayList, &
+    itemorderflag=ESMF_ITEMORDER_ADDORDER, rc=rc)
+  call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+  
+  !------------------------------------------------------------------------
+  !NEX_UTest
+  write(name, *) "Verify Container Get arrayList for arrayname ESMF_ITEMORDER_ADDORDER Test"
+  write(failMsg, *) "arrayList contains incorrect Arrays"
+  loopResult = .false. ! initialize
+  if (allocated(arrayList)) then
+    if (arrayCount == 9) then
+      loopResult = .true. ! initialize
+      do i=1, arrayCount
+        call ESMF_ArrayGet(arrayList(i), name=arrayName, rc=rc)
+        if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
+        print *, "name of arrayList(",i,") is: ", arrayName
+        if (i==1 .and. trim(arrayName)/="MyArray2") loopResult = .false.
+        if (i==2 .and. trim(arrayName)/="MyArray6") loopResult = .false.
+        if (i==3 .and. trim(arrayName)/="MyArray4") loopResult = .false.
+        if (i==4 .and. trim(arrayName)/="MyArray4") loopResult = .false.
+        if (i==5 .and. trim(arrayName)/="MyArray6") loopResult = .false.
+        if (i==6 .and. trim(arrayName)/="MyArray5") loopResult = .false.
+        if (i==7 .and. trim(arrayName)/="MyArray4") loopResult = .false.
+        if (i==8 .and. trim(arrayName)/="MyArray6") loopResult = .false.
+        if (i==9 .and. trim(arrayName)/="MyArray5") loopResult = .false.
+      enddo
+    endif
+  endif
+  call ESMF_Test(loopResult, name, failMsg, result, ESMF_SRCLINE)
+
+  !------------------------------------------------------------------------
+  !NEX_UTest
+  write(name, *) "ArrayBundleGet arrayNameList ESMF_ITEMORDER_ADDORDER Test"
+  write(failMsg, *) "Did not return ESMF_SUCCESS"
+  call ESMF_ArrayBundleGet(arraybundle, arrayNameList=arrayNameList, &
+    itemorderflag=ESMF_ITEMORDER_ADDORDER, rc=rc)
+  call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+  
+  !------------------------------------------------------------------------
+  !NEX_UTest
+  write(name, *) "Verify Container Get arrayNameList for arrayname ESMF_ITEMORDER_ADDORDER Test"
+  write(failMsg, *) "arrayNameList contains incorrect names"
+  loopResult = .false. ! initialize
+  loopResult = .true. ! initialize
+  do i=1, arrayCount
+    arrayName = arrayNameList(i)
+    print *, "arrayNameList(",i,") is: ", arrayName
+    if (i==1 .and. trim(arrayName)/="MyArray2") loopResult = .false.
+    if (i==2 .and. trim(arrayName)/="MyArray6") loopResult = .false.
+    if (i==3 .and. trim(arrayName)/="MyArray4") loopResult = .false.
+    if (i==4 .and. trim(arrayName)/="MyArray4") loopResult = .false.
+    if (i==5 .and. trim(arrayName)/="MyArray6") loopResult = .false.
+    if (i==6 .and. trim(arrayName)/="MyArray5") loopResult = .false.
+    if (i==7 .and. trim(arrayName)/="MyArray4") loopResult = .false.
+    if (i==8 .and. trim(arrayName)/="MyArray6") loopResult = .false.
+    if (i==9 .and. trim(arrayName)/="MyArray5") loopResult = .false.
+  enddo
+  call ESMF_Test(loopResult, name, failMsg, result, ESMF_SRCLINE)
+  
+  !------------------------------------------------------------------------
+
+  deallocate(arrayList)
+
   !------------------------------------------------------------------------
   !------------------------------------------------------------------------
   !------------------------------------------------------------------------
@@ -437,7 +647,7 @@ program ESMF_ArrayBundleCreateUTest
   ! to change and are NOT part of the ESMF user API.
 
   !------------------------------------------------------------------------
-  !NEX_UTest_Multi_Proc_Only
+  !NEX_UTest
   ! test the serialize inquire-only option
   ! WARNING: This is testing an INTERNAL method.  It is NOT
   ! part of the supported ESMF user API!
@@ -455,7 +665,7 @@ program ESMF_ArrayBundleCreateUTest
   deallocate (buffer)
 
   !------------------------------------------------------------------------
-  !NEX_UTest_Multi_Proc_Only
+  !NEX_UTest
   write(name, *) "Allocate serialization buffer"
   write(failMsg, *) "Size was illegal"
   buff_len = offset
@@ -465,7 +675,7 @@ program ESMF_ArrayBundleCreateUTest
   !-----------------------------------------------------------------------------
 
   !------------------------------------------------------------------------
-  !NEX_UTest_Multi_Proc_Only
+  !NEX_UTest
   ! test actually doing the serialization
   ! WARNING: This is testing an INTERNAL method.  It is NOT
   ! part of the supported ESMF user API!
@@ -478,13 +688,14 @@ program ESMF_ArrayBundleCreateUTest
   call c_esmc_arraybundleserialize (arraybundle, buffer, buff_len, offset,  &
       attreconflag, inquireflag, rc)
   call ESMF_Test((rc == ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+  deallocate (buffer)
   !-----------------------------------------------------------------------------
 
   ! END tests of INTERNAL serialization methods.  They are subject
   ! to change and are NOT part of the ESMF user API.
 
   !------------------------------------------------------------------------
-  !NEX_UTest_Multi_Proc_Only
+  !NEX_UTest
   write(name, *) "ArrayBundleDestroy Test"
   write(failMsg, *) "Did not return ESMF_SUCCESS"
   call ESMF_ArrayBundleDestroy(arraybundle, rc=rc)
@@ -512,7 +723,7 @@ program ESMF_ArrayBundleCreateUTest
   
 10 continue
   !------------------------------------------------------------------------
-  call ESMF_TestEnd(result, ESMF_SRCLINE) ! calls ESMF_Finalize() internally
+  call ESMF_TestEnd(ESMF_SRCLINE) ! calls ESMF_Finalize() internally
   !------------------------------------------------------------------------
 
 end program ESMF_ArrayBundleCreateUTest

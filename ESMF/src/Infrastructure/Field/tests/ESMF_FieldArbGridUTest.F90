@@ -1,7 +1,7 @@
 ! $Id$
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2012, University Corporation for Atmospheric Research,
+! Copyright 2002-2018, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -39,7 +39,7 @@
 !------------------------------------------------------------------------------
 ! The following line turns the CVS identifier string into a printable variable.
     character(*), parameter :: version = &
-      '$Id'
+      '$Id$'
     
     type(ESMF_Grid) :: grid2d, grid3d
     type(ESMF_VM) :: vm
@@ -69,6 +69,7 @@
     character(512) :: name
 
     call ESMF_TestStart(ESMF_SRCLINE, rc=rc)
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
   ! Calculate localIndices and localCount for a 100x200 2D arbitrary grid with 
   ! an optional undistributed 3rd dimenison of size 4
@@ -1252,10 +1253,10 @@
   ! set the grid such that one PET has no localindices
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   if (myPet .eq. petCount-1) then
-	localCount = 0
-	deallocate(localIndices)
-	allocate(localIndices(localCount,2))
-  endif		
+    localCount = 0
+    deallocate(localIndices)
+    allocate(localIndices(localCount,2))
+  endif
 
   !NEX_UTest
   write(name, *) "Create a Field using a 2D arb. grid with one PET without any grid points"
@@ -1297,6 +1298,8 @@
 
   call ESMF_Test(((rc.eq.ESMF_SUCCESS) .and. correct), name, failMsg, result, ESMF_SRCLINE)
 
+  deallocate (localIndices)
+
   call ESMF_FieldDestroy(field, rc=localrc)
   call ESMF_LogSetError(localrc, ESMF_ERR_PASSTHRU, &
     ESMF_CONTEXT, rcToReturn=rc)
@@ -1308,7 +1311,7 @@
     ESMF_CONTEXT, rcToReturn=rc)
 
   !-----------------------------------------------------------------------------
-  call ESMF_TestEnd(result, ESMF_SRCLINE)
+  call ESMF_TestEnd(ESMF_SRCLINE)
   !-----------------------------------------------------------------------------
 
 end program ESMF_FieldArbGridUTest

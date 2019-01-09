@@ -6,8 +6,8 @@
 /*****************************************************************************
  * CVS File Information :
  *    $RCSfile: phg_refinement.c,v $
- *    $Author: mathomp4 $
- *    $Date: 2013-01-11 20:23:44 $
+ *    $Author: w6ws $
+ *    $Date: 2008/12/10 20:50:37 $
  *    Revision: 1.49.2.1 $
  ****************************************************************************/
 
@@ -153,7 +153,7 @@ double total_weight, part_weight[2], max_weight[2];
 double cutsize_beforepass, best_cutsize, *gain = 0;
 HEAP   heap[2];
 int    steplimit;
-char   *yo="serial_fm2";
+const char *yo="serial_fm2";
 #ifdef HANDLE_ISOLATED_VERTICES    
  int    isocnt=0;
 #endif
@@ -492,7 +492,7 @@ static int refine_fm2 (ZZ *zz,
     double cutsize, best_cutsize, 
         best_limbal, imbal, limbal;
     HEAP   heap[2];
-    char   *yo="refine_fm2";
+    const char *yo="refine_fm2";
 #ifdef HANDLE_ISOLATED_VERTICES    
     int    isocnt=hg->nVtx; /* only root uses isocnt, isolated vertices
                                are kept at the end of moves array */

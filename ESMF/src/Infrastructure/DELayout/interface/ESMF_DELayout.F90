@@ -1,7 +1,7 @@
-! $Id: ESMF_DELayout.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
+! $Id$
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2012, University Corporation for Atmospheric Research, 
+! Copyright 2002-2018, University Corporation for Atmospheric Research, 
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
 ! Laboratory, University of Michigan, National Centers for Environmental 
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
@@ -55,7 +55,9 @@ module ESMF_DELayoutMod
 
   ! F90 class type to hold pointer to C++ object
   type ESMF_DELayout
+#ifndef ESMF_NO_SEQUENCE
   sequence
+#endif
   private
     type(ESMF_Pointer) :: this
     ESMF_INIT_DECLARE
@@ -103,10 +105,11 @@ module ESMF_DELayoutMod
   public ESMF_DELayoutDestroy
   
   public ESMF_DELayoutGet
-    
+   
   public ESMF_DELayoutGetDEMatchDE
   public ESMF_DELayoutGetDEMatchPET
   
+  public ESMF_DELayoutIsCreated
   public ESMF_DELayoutPrint
   public ESMF_DELayoutValidate
   
@@ -131,7 +134,7 @@ module ESMF_DELayoutMod
 !------------------------------------------------------------------------------
 ! The following line turns the CVS identifier string into a printable variable.
   character(*), parameter, private :: version = &
-    '$Id: ESMF_DELayout.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $'
+    '$Id$'
 
 !==============================================================================
 ! 
@@ -395,18 +398,18 @@ contains
 !------------------------------------------------------------------------------
 ! function to compare two ESMF_ServiceReply_Flag args to see if they're the same
 
-  function ESMF_sreq(sr1, sr2)
-    logical ESMF_sreq
+  recursive function ESMF_sreq(sr1, sr2) result (sreq)
+    logical sreq
     type(ESMF_ServiceReply_Flag), intent(in) :: sr1, sr2
 
-    ESMF_sreq = (sr1%value == sr2%value)    
+    sreq = (sr1%value == sr2%value)    
   end function
 
-  function ESMF_srne(sr1, sr2)
-    logical ESMF_srne
+  recursive function ESMF_srne(sr1, sr2) result (srne)
+    logical srne
     type(ESMF_ServiceReply_Flag), intent(in) :: sr1, sr2
 
-    ESMF_srne = (sr1%value /= sr2%value)
+    srne = (sr1%value /= sr2%value)
   end function
 !------------------------------------------------------------------------------
 
@@ -419,8 +422,11 @@ contains
 
 ! !INTERFACE:
   ! Private name; call using ESMF_DELayoutCreate()
-  function ESMF_DELayoutCreateDefault(keywordEnforcer, deCount, deGrouping, &
-    pinflag, petList, vm, rc)
+  recursive function ESMF_DELayoutCreateDefault(keywordEnforcer, deCount, &
+    deGrouping, pinflag, petList, vm, rc)
+!         
+! !RETURN VALUE:
+    type(ESMF_DELayout) :: ESMF_DELayoutCreateDefault
 !
 ! !ARGUMENTS:
 type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
@@ -430,9 +436,6 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
     integer, target,              intent(in),  optional :: petList(:)
     type(ESMF_VM),                intent(in),  optional :: vm
     integer,                      intent(out), optional :: rc
-!         
-! !RETURN VALUE:
-    type(ESMF_DELayout) :: ESMF_DELayoutCreateDefault
 !
 ! !STATUS:
 ! \begin{itemize}
@@ -476,37 +479,39 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 !          the provided VM context. The default is to include all the PETs of
 !          the VM.
 !     \item[{[vm]}]
-!          Optional {\tt ESMF\_VM} object of the current context. Providing the
-!          VM of the current context will lower the method's overhead.
+!          If present, the DELayout object is created on the specified 
+!          {\tt ESMF\_VM} object. The default is to create on the VM of the 
+!          current context.
 !     \item[{[rc]}]
 !          Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
 !     \end{description}
 !
 !EOP
 !------------------------------------------------------------------------------
-    integer                 :: localrc      ! local return code
-    type(ESMF_DELayout)     :: delayout     ! opaque pointer to new C++ DELayout  
-    type(ESMF_InterfaceInt) :: deGroupingArg
-    type(ESMF_InterfaceInt) :: petListArg
+    integer               :: localrc      ! local return code
+    type(ESMF_DELayout)   :: delayout     ! opaque pointer to new C++ DELayout  
+    type(ESMF_InterArray) :: deGroupingArg
+    type(ESMF_InterArray) :: petListArg
 
     ! initialize return code; assume routine not implemented
     localrc = ESMF_RC_NOT_IMPL
     if (present(rc)) rc = ESMF_RC_NOT_IMPL
 
+    ! Mark this DELayout as invalid
+    delayout%this = ESMF_NULL_POINTER
+    ESMF_DELayoutCreateDefault = delayout 
+
     ! Check init status of arguments
     ESMF_INIT_CHECK_DEEP(ESMF_VMGetInit, vm, rc)
     
     ! Deal with optional array arguments
-    deGroupingArg = ESMF_InterfaceIntCreate(deGrouping, rc=localrc)
+    deGroupingArg = ESMF_InterArrayCreate(deGrouping, rc=localrc)
     if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
       ESMF_CONTEXT, rcToReturn=rc)) return
-    petListArg = ESMF_InterfaceIntCreate(petList, rc=localrc)
+    petListArg = ESMF_InterArrayCreate(petList, rc=localrc)
     if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
       ESMF_CONTEXT, rcToReturn=rc)) return
     
-    ! Mark this DELayout as invalid
-    delayout%this = ESMF_NULL_POINTER
-
     ! Call into the C++ interface, which will sort out optional arguments
     call c_ESMC_DELayoutCreateDefault(delayout, deCount, deGroupingArg, &
       pinflag, petListArg, vm, localrc)
@@ -517,10 +522,10 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
     ESMF_DELayoutCreateDefault = delayout 
     
     ! Garbage collection
-    call ESMF_InterfaceIntDestroy(deGroupingArg, rc=localrc)
+    call ESMF_InterArrayDestroy(deGroupingArg, rc=localrc)
     if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
       ESMF_CONTEXT, rcToReturn=rc)) return
-    call ESMF_InterfaceIntDestroy(petListArg, rc=localrc)
+    call ESMF_InterArrayDestroy(petListArg, rc=localrc)
     if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
       ESMF_CONTEXT, rcToReturn=rc)) return
       
@@ -542,8 +547,11 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 
 ! !INTERFACE:
   ! Private name; call using ESMF_DELayoutCreate()
-  function ESMF_DELayoutCreateFromPetMap(petMap, keywordEnforcer, pinflag, &
-    vm, rc)
+  recursive function ESMF_DELayoutCreateFromPetMap(petMap, keywordEnforcer, &
+    pinflag, vm, rc)
+!         
+! !RETURN VALUE:
+    type(ESMF_DELayout) :: ESMF_DELayoutCreateFromPetMap
 !
 ! !ARGUMENTS:
     integer,                      intent(in)            :: petMap(:)
@@ -551,9 +559,6 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
     type(ESMF_Pin_Flag),          intent(in),  optional :: pinflag
     type(ESMF_VM),                intent(in),  optional :: vm
     integer,                      intent(out), optional :: rc
-!         
-! !RETURN VALUE:
-    type(ESMF_DELayout) :: ESMF_DELayoutCreateFromPetMap
 !
 ! !STATUS:
 ! \begin{itemize}
@@ -584,8 +589,9 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 !          also possible to pin DEs to VASs. See section 
 !          \ref{const:pin_flag} for a list of valid pinning options.
 !     \item[{[vm]}]
-!          Optional {\tt ESMF\_VM} object. The VM of the current context is the
-!          typical and default value.
+!          If present, the DELayout object is created on the specified 
+!          {\tt ESMF\_VM} object. The default is to create on the VM of the 
+!          current context.
 !     \item[{[rc]}]
 !          Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
 !     \end{description}
@@ -600,14 +606,15 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
     localrc = ESMF_RC_NOT_IMPL
     if (present(rc)) rc = ESMF_RC_NOT_IMPL
 
+    ! Mark this DELayout as invalid
+    delayout%this = ESMF_NULL_POINTER
+    ESMF_DELayoutCreateFromPetMap = delayout 
+
     ! Check init status of arguments
     ESMF_INIT_CHECK_DEEP(ESMF_VMGetInit, vm, rc)
     
     ! Set arguments
     len_petMap = size(petMap)
-
-    ! Mark this DELayout as invalid
-    delayout%this = ESMF_NULL_POINTER
 
     ! Call into the C++ interface, which will sort out optional arguments
     call c_ESMC_DELayoutCreateFromPetMap(delayout, petMap(1), len_petMap, &
@@ -636,8 +643,11 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 
 ! !INTERFACE:
   ! Private name; call using ESMF_DELayoutCreate()
-  function ESMF_DELayoutCreateHintWeights(keywordEnforcer, deCount, &
+  recursive function ESMF_DELayoutCreateHintWeights(keywordEnforcer, deCount, &
     compWeights, commWeights, deGrouping, pinflag, petList, vm, rc)
+!         
+! !RETURN VALUE:
+    type(ESMF_DELayout) :: ESMF_DELayoutCreateHintWeights
 !
 ! !ARGUMENTS:
 type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
@@ -649,9 +659,6 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
     integer, target,              intent(in),  optional :: petList(:)
     type(ESMF_VM),                intent(in),  optional :: vm
     integer,                      intent(out), optional :: rc
-!         
-! !RETURN VALUE:
-    type(ESMF_DELayout) :: ESMF_DELayoutCreateHintWeights
 !
 ! !STATUS:
 ! \begin{itemize}
@@ -711,28 +718,29 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 !
 !EOPI
 !------------------------------------------------------------------------------
-    integer                 :: localrc      ! local return code
-    type(ESMF_DELayout)     :: delayout     ! opaque pointer to new C++ DELayout  
-    type(ESMF_InterfaceInt) :: deGroupingArg
-    type(ESMF_InterfaceInt) :: petListArg
+    integer               :: localrc      ! local return code
+    type(ESMF_DELayout)   :: delayout     ! opaque pointer to new C++ DELayout  
+    type(ESMF_InterArray) :: deGroupingArg
+    type(ESMF_InterArray) :: petListArg
 
     ! initialize return code; assume routine not implemented
     localrc = ESMF_RC_NOT_IMPL
     if (present(rc)) rc = ESMF_RC_NOT_IMPL
 
+    ! Mark this DELayout as invalid
+    delayout%this = ESMF_NULL_POINTER
+    ESMF_DELayoutCreateHintWeights = delayout 
+    
     ! Check init status of arguments
     ESMF_INIT_CHECK_DEEP(ESMF_VMGetInit, vm, rc)
     
     ! Deal with optional array arguments
-    deGroupingArg = ESMF_InterfaceIntCreate(deGrouping, rc=localrc)
+    deGroupingArg = ESMF_InterArrayCreate(deGrouping, rc=localrc)
     if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
       ESMF_CONTEXT, rcToReturn=rc)) return
-    petListArg = ESMF_InterfaceIntCreate(petList, rc=localrc)
+    petListArg = ESMF_InterArrayCreate(petList, rc=localrc)
     if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
       ESMF_CONTEXT, rcToReturn=rc)) return
-    
-    ! Mark this DELayout as invalid
-    delayout%this = ESMF_NULL_POINTER
     
     !DUMMY TEST TO QUIET DOWN COMPILER WARNINGS
     !TODO: Remove the following dummy test when dummy argument actually used
@@ -754,10 +762,10 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
     ESMF_DELayoutCreateHintWeights = delayout 
  
     ! Garbage collection
-    call ESMF_InterfaceIntDestroy(deGroupingArg, rc=localrc)
+    call ESMF_InterArrayDestroy(deGroupingArg, rc=localrc)
     if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
       ESMF_CONTEXT, rcToReturn=rc)) return
-    call ESMF_InterfaceIntDestroy(petListArg, rc=localrc)
+    call ESMF_InterArrayDestroy(petListArg, rc=localrc)
     if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
       ESMF_CONTEXT, rcToReturn=rc)) return
  
@@ -779,8 +787,11 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 
 ! !INTERFACE:
   ! Private name; call using ESMF_DELayoutCreate()
-  function ESMF_DELayoutCreateDeprecated(vmObject, deCountList, petList, &
-    connectionWeightDimList, cyclicFlagDimList, rc)
+  recursive function ESMF_DELayoutCreateDeprecated(vmObject, deCountList, &
+    petList, connectionWeightDimList, cyclicFlagDimList, rc)
+!         
+! !RETURN VALUE:
+    type(ESMF_DELayout) :: ESMF_DELayoutCreateDeprecated
 !
 ! !ARGUMENTS:
     type(ESMF_VM),      intent(in)            :: vmObject
@@ -789,9 +800,6 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
     integer,            intent(in),  optional :: connectionWeightDimList(:)
     type(ESMF_Logical), intent(in),  optional :: cyclicFlagDimList(:)
     integer,            intent(out), optional :: rc
-!         
-! !RETURN VALUE:
-    type(ESMF_DELayout) :: ESMF_DELayoutCreateDeprecated
 !
 ! !DESCRIPTION:
 !     Create an N-dimensional, logically rectangular {\tt ESMF\_DELayout}.
@@ -872,12 +880,13 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
     localrc = ESMF_RC_NOT_IMPL
     if (present(rc)) rc = ESMF_RC_NOT_IMPL
 
+    ! Mark this DELayout as invalid
+    delayout%this = ESMF_NULL_POINTER
+    ESMF_DELayoutCreateDeprecated = delayout 
+
     ! Check init status of arguments
     ESMF_INIT_CHECK_DEEP(ESMF_VMGetInit, vmObject, rc)
     
-    ! Mark this DELayout as invalid
-    delayout%this = ESMF_NULL_POINTER
-
     ! Deal with optional array arguments
     if (present(deCountList)) then
       len_deCountList = size(deCountList)
@@ -934,32 +943,63 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 ! !IROUTINE: ESMF_DELayoutDestroy - Release resources associated with DELayout object
 
 ! !INTERFACE:
-  subroutine ESMF_DELayoutDestroy(delayout, keywordEnforcer, rc)
+  recursive subroutine ESMF_DELayoutDestroy(delayout, keywordEnforcer, noGarbage, rc)
 !
 ! !ARGUMENTS:
     type(ESMF_DELayout),  intent(inout)          :: delayout
 type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
+    logical,              intent(in),   optional :: noGarbage
     integer,              intent(out),  optional :: rc  
 !
 ! !STATUS:
 ! \begin{itemize}
 ! \item\apiStatusCompatibleVersion{5.2.0r}
+! \item\apiStatusModifiedSinceVersion{5.2.0r}
+! \begin{description}
+! \item[7.0.0] Added argument {\tt noGarbage}.
+!   The argument provides a mechanism to override the default garbage collection
+!   mechanism when destroying an ESMF object.
+! \end{description}
 ! \end{itemize}
 !
 ! !DESCRIPTION:
-!     Destroy an {\tt ESMF\_DELayout} object.
+!   Destroy an {\tt ESMF\_DELayout} object, releasing the resources associated
+!   with the object.
 !
-!     The arguments are:
-!     \begin{description}
-!     \item[delayout] 
-!          {\tt ESMF\_DELayout} object to be destroyed.
-!     \item[{[rc]}] 
-!          Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
-!     \end{description}
+!   By default a small remnant of the object is kept in memory in order to 
+!   prevent problems with dangling aliases. The default garbage collection
+!   mechanism can be overridden with the {\tt noGarbage} argument.
+!
+! The arguments are:
+! \begin{description}
+! \item[delayout] 
+!      {\tt ESMF\_DELayout} object to be destroyed.
+! \item[{[noGarbage]}]
+!      If set to {\tt .TRUE.} the object will be fully destroyed and removed
+!      from the ESMF garbage collection system. Note however that under this 
+!      condition ESMF cannot protect against accessing the destroyed object 
+!      through dangling aliases -- a situation which may lead to hard to debug 
+!      application crashes.
+! 
+!      It is generally recommended to leave the {\tt noGarbage} argument
+!      set to {\tt .FALSE.} (the default), and to take advantage of the ESMF 
+!      garbage collection system which will prevent problems with dangling
+!      aliases or incorrect sequences of destroy calls. However this level of
+!      support requires that a small remnant of the object is kept in memory
+!      past the destroy call. This can lead to an unexpected increase in memory
+!      consumption over the course of execution in applications that use 
+!      temporary ESMF objects. For situations where the repeated creation and 
+!      destruction of temporary objects leads to memory issues, it is 
+!      recommended to call with {\tt noGarbage} set to {\tt .TRUE.}, fully 
+!      removing the entire temporary object from memory.
+! \item[{[rc]}] 
+!      Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
+! \end{description}
 !
 !EOP
 !------------------------------------------------------------------------------
-    integer                 :: localrc      ! local return code
+    integer                 :: localrc        ! local return code
+    type(ESMF_Logical)      :: opt_noGarbage  ! helper variable
 
     ! initialize return code; assume routine not implemented
     localrc = ESMF_RC_NOT_IMPL
@@ -968,8 +1008,12 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
     ! Check init status of arguments
     ESMF_INIT_CHECK_DEEP(ESMF_DELayoutGetInit, delayout, rc)
     
+    ! Set default flags
+    opt_noGarbage = ESMF_FALSE
+    if (present(noGarbage)) opt_noGarbage = noGarbage
+
     ! Call into the C++ interface, which will sort out optional arguments
-    call c_ESMC_DELayoutDestroy(delayout, localrc)
+    call c_ESMC_DELayoutDestroy(delayout, opt_noGarbage, localrc)
     if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
       ESMF_CONTEXT, rcToReturn=rc)) return
 
@@ -993,8 +1037,8 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 ! !IROUTINE: ESMF_DELayoutGet - Get object-wide DELayout information
 
 ! !INTERFACE:
-  subroutine ESMF_DELayoutGet(delayout, keywordEnforcer, vm, deCount, petMap, &
-    vasMap, oneToOneFlag, pinflag, localDeCount, localDeToDeMap, &
+  recursive subroutine ESMF_DELayoutGet(delayout, keywordEnforcer, vm, deCount,&
+    petMap, vasMap, oneToOneFlag, pinflag, localDeCount, localDeToDeMap, &
     localDeList, &      ! DEPRECATED ARGUMENT
     vasLocalDeCount, vasLocalDeToDeMap, &
     vasLocalDeList, &   ! DEPRECATED ARGUMENT
@@ -1011,10 +1055,10 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
     type(ESMF_Pin_Flag),      intent(out), optional :: pinflag
     integer,                  intent(out), optional :: localDeCount
     integer, target,          intent(out), optional :: localDeToDeMap(:)
-    integer, target,          intent(out), optional :: localDeList(:)     ! DEPRECATED ARGUMENT
+    integer, target, intent(out), optional :: localDeList(:)  !DEPRECATED ARG
     integer,                  intent(out), optional :: vasLocalDeCount
     integer, target,          intent(out), optional :: vasLocalDeToDeMap(:)
-    integer, target,          intent(out), optional :: vasLocalDeList(:)  ! DEPRECATED ARGUMENT
+    integer, target, intent(out), optional :: vasLocalDeList(:) !DEPRECATED ARG
     integer,                  intent(out), optional :: rc  
 !
 ! !STATUS:
@@ -1094,12 +1138,12 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 !        2D array where each dimension must at least be of size {\tt deCount}.
 !
 !------------------------------------------------------------------------------
-    integer                 :: localrc                ! local return code
-    type(ESMF_InterfaceInt) :: petMapArg              ! helper variable
-    type(ESMF_InterfaceInt) :: vasMapArg              ! helper variable
-    type(ESMF_InterfaceInt) :: localDeToDeMapArg      ! helper variable
-    type(ESMF_InterfaceInt) :: vasLocalDeToDeMapArg   ! helper variable
-    type(ESMF_Logical)      :: oneToOneFlagArg        ! helper variable
+    integer               :: localrc                ! local return code
+    type(ESMF_InterArray) :: petMapArg              ! helper variable
+    type(ESMF_InterArray) :: vasMapArg              ! helper variable
+    type(ESMF_InterArray) :: localDeToDeMapArg      ! helper variable
+    type(ESMF_InterArray) :: vasLocalDeToDeMapArg   ! helper variable
+    type(ESMF_Logical)    :: oneToOneFlagArg        ! helper variable
     
     ! initialize return code; assume routine not implemented
     localrc = ESMF_RC_NOT_IMPL
@@ -1123,16 +1167,16 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 !    endif
     
     ! Deal with (optional) array arguments
-    petMapArg = ESMF_InterfaceIntCreate(petMap, rc=localrc)
+    petMapArg = ESMF_InterArrayCreate(petMap, rc=localrc)
     if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
       ESMF_CONTEXT, rcToReturn=rc)) return
-    vasMapArg = ESMF_InterfaceIntCreate(vasMap, rc=localrc)
+    vasMapArg = ESMF_InterArrayCreate(vasMap, rc=localrc)
     if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
       ESMF_CONTEXT, rcToReturn=rc)) return
-    localDeToDeMapArg = ESMF_InterfaceIntCreate(localDeToDeMap, rc=localrc)
+    localDeToDeMapArg = ESMF_InterArrayCreate(localDeToDeMap, rc=localrc)
     if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
       ESMF_CONTEXT, rcToReturn=rc)) return
-    vasLocalDeToDeMapArg = ESMF_InterfaceIntCreate(vasLocalDeToDeMap, &
+    vasLocalDeToDeMapArg = ESMF_InterArrayCreate(vasLocalDeToDeMap, &
       rc=localrc)
     if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
       ESMF_CONTEXT, rcToReturn=rc)) return
@@ -1145,10 +1189,10 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
       if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
         ESMF_CONTEXT, rcToReturn=rc)) return
       if (.not.present(localDeToDeMap)) then
-        call ESMF_InterfaceIntDestroy(localDeToDeMapArg, rc=localrc)
+        call ESMF_InterArrayDestroy(localDeToDeMapArg, rc=localrc)
         if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
           ESMF_CONTEXT, rcToReturn=rc)) return
-        localDeToDeMapArg = ESMF_InterfaceIntCreate(localDeList, rc=localrc)
+        localDeToDeMapArg = ESMF_InterArrayCreate(localDeList, rc=localrc)
         if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
           ESMF_CONTEXT, rcToReturn=rc)) return
       endif
@@ -1160,10 +1204,10 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
       if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
         ESMF_CONTEXT, rcToReturn=rc)) return
       if (.not.present(vasLocalDeToDeMap)) then
-        call ESMF_InterfaceIntDestroy(vasLocalDeToDeMapArg, rc=localrc)
+        call ESMF_InterArrayDestroy(vasLocalDeToDeMapArg, rc=localrc)
         if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
           ESMF_CONTEXT, rcToReturn=rc)) return
-        vasLocalDeToDeMapArg = ESMF_InterfaceIntCreate(vasLocalDeList, &
+        vasLocalDeToDeMapArg = ESMF_InterArrayCreate(vasLocalDeList, &
           rc=localrc)
         if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
           ESMF_CONTEXT, rcToReturn=rc)) return
@@ -1187,16 +1231,16 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
     endif
     
     ! garbage collection
-    call ESMF_InterfaceIntDestroy(petMapArg, rc=localrc)
+    call ESMF_InterArrayDestroy(petMapArg, rc=localrc)
     if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
       ESMF_CONTEXT, rcToReturn=rc)) return
-    call ESMF_InterfaceIntDestroy(vasMapArg, rc=localrc)
+    call ESMF_InterArrayDestroy(vasMapArg, rc=localrc)
     if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
       ESMF_CONTEXT, rcToReturn=rc)) return
-    call ESMF_InterfaceIntDestroy(localDeToDeMapArg, rc=localrc)
+    call ESMF_InterArrayDestroy(localDeToDeMapArg, rc=localrc)
     if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
       ESMF_CONTEXT, rcToReturn=rc)) return
-    call ESMF_InterfaceIntDestroy(vasLocalDeToDeMapArg, rc=localrc)
+    call ESMF_InterArrayDestroy(vasLocalDeToDeMapArg, rc=localrc)
     if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
       ESMF_CONTEXT, rcToReturn=rc)) return
       
@@ -1588,6 +1632,45 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 
 ! -------------------------- ESMF-public method -------------------------------
 #undef  ESMF_METHOD
+#define ESMF_METHOD "ESMF_DELayoutIsCreated()"
+!BOP
+! !IROUTINE: ESMF_DELayoutIsCreated - Check whether a DELayout object has been created
+
+! !INTERFACE:
+  function ESMF_DELayoutIsCreated(delayout, keywordEnforcer, rc)
+! !RETURN VALUE:
+    logical :: ESMF_DELayoutIsCreated
+!
+! !ARGUMENTS:
+    type(ESMF_DELayout), intent(in)            :: delayout
+type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
+    integer,             intent(out), optional :: rc
+
+! !DESCRIPTION:
+!   Return {\tt .true.} if the {\tt delayout} has been created. Otherwise return 
+!   {\tt .false.}. If an error occurs, i.e. {\tt rc /= ESMF\_SUCCESS} is 
+!   returned, the return value of the function will also be {\tt .false.}.
+!
+! The arguments are:
+!   \begin{description}
+!   \item[delayout]
+!     {\tt ESMF\_DELayout} queried.
+!   \item[{[rc]}]
+!     Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
+!   \end{description}
+!
+!EOP
+  !-----------------------------------------------------------------------------    
+    ESMF_DELayoutIsCreated = .false.   ! initialize
+    if (present(rc)) rc = ESMF_SUCCESS
+    if (ESMF_DELayoutGetInit(delayout)==ESMF_INIT_CREATED) &
+      ESMF_DELayoutIsCreated = .true.
+  end function
+!------------------------------------------------------------------------------
+
+
+! -------------------------- ESMF-public method -------------------------------
+#undef  ESMF_METHOD
 #define ESMF_METHOD "ESMF_DELayoutPrint()"
 !BOP
 ! !IROUTINE: ESMF_DELayoutPrint - Print DELayout information
@@ -1711,15 +1794,15 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 
 ! !INTERFACE:
   recursive function ESMF_DELayoutServiceOffer(delayout, keywordEnforcer, de, rc)
+!         
+! !RETURN VALUE:
+    type(ESMF_ServiceReply_Flag) :: ESMF_DELayoutServiceOffer
 !
 ! !ARGUMENTS:
     type(ESMF_DELayout),  intent(in)            :: delayout
     integer,              intent(in)            :: de
 type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
     integer,              intent(out), optional :: rc
-!         
-! !RETURN VALUE:
-    type(ESMF_ServiceReply_Flag) :: ESMF_DELayoutServiceOffer
 !
 ! !STATUS:
 ! \begin{itemize}
@@ -1762,6 +1845,9 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
     ! initialize return code; assume routine not implemented
     localrc = ESMF_RC_NOT_IMPL
     if (present(rc)) rc = ESMF_RC_NOT_IMPL
+    
+    ! initialize return value in case of early bail out
+    ESMF_DELayoutServiceOffer = ESMF_SERVICEREPLY_DENY
 
     ! Check init status of arguments
     ESMF_INIT_CHECK_DEEP(ESMF_DELayoutGetInit, delayout, rc)
@@ -2001,13 +2087,13 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 ! !INTERFACE:
   function ESMF_DELayoutDeserialize(buffer, offset, rc) 
 !
+! !RETURN VALUE:
+    type(ESMF_DELayout) :: ESMF_DELayoutDeserialize   
+!
 ! !ARGUMENTS:
     character, pointer               :: buffer(:)
     integer,   intent(inout)         :: offset
     integer,   intent(out), optional :: rc 
-!
-! !RETURN VALUE:
-    type(ESMF_DELayout) :: ESMF_DELayoutDeserialize   
 !
 ! !DESCRIPTION:
 !      Takes a byte-stream buffer and reads the information needed to
@@ -2059,13 +2145,13 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 ! !IROUTINE: ESMF_DELayoutGetInit - Internal access routine for init code
 !
 ! !INTERFACE:
-  function ESMF_DELayoutGetInit(delayout) 
+  recursive function ESMF_DELayoutGetInit(delayout) result (DELayoutGetInit)
+!
+! !RETURN VALUE:
+    ESMF_INIT_TYPE :: DELayoutGetInit
 !
 ! !ARGUMENTS:
     type(ESMF_DELayout), intent(in), optional :: delayout
-!
-! !RETURN VALUE:
-    ESMF_INIT_TYPE :: ESMF_DELayoutGetInit   
 !
 ! !DESCRIPTION:
 !      Access deep object init code.
@@ -2079,9 +2165,9 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 !EOPI
 !------------------------------------------------------------------------------
     if (present(delayout)) then
-      ESMF_DELayoutGetInit = ESMF_INIT_GET(delayout)
+      DELayoutGetInit = ESMF_INIT_GET(delayout)
     else
-      ESMF_DELayoutGetInit = ESMF_INIT_CREATED
+      DELayoutGetInit = ESMF_INIT_CREATED
     endif
 
   end function ESMF_DELayoutGetInit
@@ -2095,7 +2181,7 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 ! !IROUTINE: ESMF_DELayoutSetInitCreated - Set DELayout init code to "CREATED"
 
 ! !INTERFACE:
-  subroutine ESMF_DELayoutSetInitCreated(delayout, rc)
+  recursive subroutine ESMF_DELayoutSetInitCreated(delayout, rc)
 !
 ! !ARGUMENTS:
     type(ESMF_DELayout),  intent(inout)           :: delayout

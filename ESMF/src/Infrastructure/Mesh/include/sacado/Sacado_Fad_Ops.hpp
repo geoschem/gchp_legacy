@@ -1,5 +1,4 @@
-// $Id: Sacado_Fad_Ops.hpp,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $ 
-// $Source: /cvsroot/baselibs/Baselibs/src/esmf/src/Infrastructure/Mesh/include/sacado/Sacado_Fad_Ops.hpp,v $ 
+// $Id$ 
 // @HEADER
 // ***********************************************************************
 // 
@@ -203,7 +202,7 @@ FAD_UNARYOP_MACRO(abs,
 		    value_type(-expr.fastAccessDx(i)))
 FAD_UNARYOP_MACRO(fabs,
 		  FAbsOp, 
-		  std::fabs(expr.val()),
+		  std::abs(expr.val()),
 		  expr.val() >= 0 ? value_type(+expr.dx(i)) : 
 		    value_type(-expr.dx(i)),
 		  expr.val() >= 0 ? value_type(+expr.fastAccessDx(i)) : 

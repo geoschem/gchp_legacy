@@ -1,7 +1,7 @@
-! $Id: ESMF_FieldCreateEx.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
+! $Id$
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2012, University Corporation for Atmospheric Research,
+! Copyright 2002-2018, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -51,7 +51,21 @@
     integer :: numElems
     integer, pointer :: elemIds(:),elemTypes(:),elemConn(:)
 
-    integer                         :: finalrc, rc
+    integer                         :: finalrc, rc, result
+
+  character(ESMF_MAXSTR) :: testname
+  character(ESMF_MAXSTR) :: failMsg
+
+!-------------------------------------------------------------------------
+!-------------------------------------------------------------------------
+
+  write(failMsg, *) "Example failure"
+  write(testname, *) "Example ESMF_FieldCreateEx"
+
+
+! ------------------------------------------------------------------------------
+! ------------------------------------------------------------------------------
+
 
 !   !Set finalrc to success
     finalrc = ESMF_SUCCESS
@@ -98,8 +112,8 @@
 !  from {\tt ESMF\_GridGet} interface. {\em Rule 1 assumes that the Grid and the Fortran intrinsic
 !  array have same number of dimensions; and optional arguments
 !  of FieldCreate from Fortran array are left unspecified using default setup}. These assumptions 
-!  are true for most typical use of FieldCreate from Fortran data array. This is the easiest way
-!  to create a Field from a Grid and Fortran intrinsic data array.
+!  are true for most typical uses of FieldCreate from Fortran data array. This is the easiest way
+!  to create a Field from a Grid and a Fortran intrinsic data array.
 !  
 !  Fortran array dimension sizes (called shape in most Fortran language books) are equivalent
 !  to the bounds and counts used in this manual.  The following equation holds: 
@@ -115,11 +129,11 @@
 !  
 !  Rule 1 is most useful for a user working with Field creation from a Grid and a Fortran
 !  data array in most scenarios. It extends to higher dimension count, 3D, 4D, etc...
-!  Typically, as the code example demonstrates, a user first creates a Grid 
-!  , then uses {\tt ESMF\_GridGet()}
+!  Typically, as the code example demonstrates, a user first creates a Grid,
+!  then uses {\tt ESMF\_GridGet()}
 !  to retrieve the exclusive counts.  Next the user calculates the shape
 !  of each Fortran array dimension according to rule 1. The Fortran data array is allocated
-!  and initialized based on the computed shape.  A Field can either be created in one shot
+!  and initialized based on the computed shape.  A Field can either be created in one shot or
 !  created empty and finished using {\tt ESMF\_FieldEmptyComplete}.
 !
 !  \begin{sloppypar}
@@ -137,21 +151,21 @@
 !BOC
     grid = ESMF_GridCreateNoPeriDim(minIndex=(/1,1/), maxIndex=(/10,20/), &
           regDecomp=(/2,2/), name="atmgrid", rc=rc)
-    if (rc.NE.ESMF_SUCCESS) finalrc = ESMF_FAILURE
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
     call ESMF_GridGet(grid, localDE=0, staggerloc=ESMF_STAGGERLOC_CENTER, &
         exclusiveCount=gec, rc=rc)
-    if (rc.NE.ESMF_SUCCESS) finalrc = ESMF_FAILURE
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
     allocate(farray(gec(1), gec(2)) )
 
     field = ESMF_FieldCreate(grid, farray, ESMF_INDEX_DELOCAL, rc=rc)
-    if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !EOC
     print *, "Field Create from a Grid and a Fortran data array returned"
-    if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
     call ESMF_FieldDestroy(field,rc=rc)
-    if (rc.NE.ESMF_SUCCESS) finalrc = ESMF_FAILURE
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
     deallocate(farray)
 
 !>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%
@@ -163,7 +177,7 @@
 !
 ! The setup of this example is similar to the previous section except 
 ! that the Field is created from a data pointer instead of a data array.
-! We highlight the ability to deallocate the internal fortran data
+! We highlight the ability to deallocate the internal Fortran data
 ! pointer queried from the Field. This gives a user more flexibility with
 ! memory management.
 !
@@ -173,16 +187,15 @@
     allocate(farrayPtr(gec(1), gec(2)) )
 
     field = ESMF_FieldCreate(grid, farrayPtr, rc=rc)
-    if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
     call ESMF_FieldGet(field, farrayPtr=farrayPtr2, rc=rc)
-    if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
-    ! deallocate the retrieved fortran array pointer
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
+    ! deallocate the retrieved Fortran array pointer
     deallocate(farrayPtr2)
 !EOC
     print *, "Field Create from a Grid and a Fortran data array returned"
-    if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
     call ESMF_FieldDestroy(field,rc=rc)
-    if (rc.NE.ESMF_SUCCESS) finalrc = ESMF_FAILURE
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
 !>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%
 !-------------------------------- Example -----------------------------
@@ -248,16 +261,16 @@
 ! 
 !  \end{verbatim}
 !
-!  Here we use rank and dimension count interchangably. These 2 terminologies are typically
+!  Here we use rank and dimension count interchangeably. These 2 terminologies are typically
 !  equivalent. But there are subtle differences
 !  under certain conditions. Rank is the total number of dimensions of a tensor object.
 !  Dimension count allows a finer description of the heterogeneous dimensions in that object.
-!  For example, A Field of rank 5 can have 3 gridded dimensions and 2 ungridded dimensions.
+!  For example, a Field of rank 5 can have 3 gridded dimensions and 2 ungridded dimensions.
 !  Rank is precisely the summation of dimension count of all types of dimensions. 
 ! 
 !  For example, if a 5D array is used with a 3D Grid, there are 2 ungridded dimensions:
 !  ungriddedLBound=(/1,2/) and ungriddedUBound=(/5,7/).
-!  Suppose the distribution of dimensions look like (O, X, O, X, O), O means gridded,
+!  Suppose the distribution of dimensions looks like (O, X, O, X, O), O means gridded,
 !  X means ungridded. Then the mapping from ungridded bounds to Fortran array is
 !  ugb2fa=(/2, 4/). The shape of 2nd and 4th dimension of Fortran array should equal
 !  (5, 8).
@@ -278,11 +291,11 @@
     field = ESMF_FieldCreate(grid, farray3d, ESMF_INDEX_DELOCAL, &
         ungriddedLBound=(/3/), ungriddedUBound=(/9/), &
         rc=rc)
-    if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !EOC
     print *, "Field Create from a Grid and a Fortran data array returned"
     call ESMF_FieldDestroy(field,rc=rc)
-    if (rc.NE.ESMF_SUCCESS) finalrc = ESMF_FAILURE
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
     deallocate(farray3d)
 
 !>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%
@@ -332,11 +345,11 @@
         ungriddedLBound=(/3/), ungriddedUBound=(/9/), &
         gridToFieldMap=gridToFieldMap2d, &
         rc=rc)
-    if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !EOC
     print *, "Field Create from a Grid and a Fortran data array returned"
     call ESMF_FieldDestroy(field,rc=rc)
-    if (rc.NE.ESMF_SUCCESS) finalrc = ESMF_FAILURE
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
     deallocate(farray3d)
 
 !>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%
@@ -346,9 +359,9 @@
 !\subsubsection{Create a 3D Field with a 2D Grid and a 3D Fortran data array with halos}
 !\label{sec:field:usage:create_2dgrid_3dptr_map_halo}
 !
-!  This example is similar to example \ref{sec:field:usage:create_2dgrid_3dptr_map}, 
-!  in addition we will show
-!  a user can associate different halo width to a Fortran array to create
+!  This example is similar to example \ref{sec:field:usage:create_2dgrid_3dptr_map}.
+!  In addition, here we will show how
+!  a user can associate different halo widths to a Fortran array to create
 !  a Field through the totalLWidth and totalUWidth optional arguments.
 !  A diagram of the dimension configuration from Grid, halos, and Fortran data array
 !  is shown here.
@@ -495,11 +508,11 @@
         totalLWidth=totalLWidth2d, totalUWidth=totalUWidth2d, &
         gridToFieldMap=gridToFieldMap2d, &
         rc=rc)
-    if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !EOC
     print *, "Field Create from a Grid and a Fortran data array returned"
     call ESMF_FieldDestroy(field,rc=rc)
-    if (rc.NE.ESMF_SUCCESS) finalrc = ESMF_FAILURE
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
     deallocate(farray3d)
 
 !>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%
@@ -519,18 +532,18 @@
 !BOC
 
     locs = ESMF_LocStreamCreate(minIndex=1, maxIndex=16, rc=rc)
-    if (rc.NE.ESMF_SUCCESS) finalrc = ESMF_FAILURE
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
     field = ESMF_FieldCreate(locs, typekind=ESMF_TYPEKIND_I4, &
         rc=rc)
-    if (rc.NE.ESMF_SUCCESS) finalrc = ESMF_FAILURE
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
 !EOC
     print *, "Field Create from a LocStream, typekind, and rank returned"
     call ESMF_FieldDestroy(field,rc=rc)
-    if (rc.NE.ESMF_SUCCESS) finalrc = ESMF_FAILURE
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
     call ESMF_LocStreamDestroy(locs,rc=rc)
-    if (rc.NE.ESMF_SUCCESS) finalrc = ESMF_FAILURE
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
 !>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%
 !-------------------------------- Example -----------------------------
@@ -549,21 +562,21 @@
 !BOC
 
     locs = ESMF_LocStreamCreate(minIndex=1, maxIndex=16, rc=rc)
-    if (rc.NE.ESMF_SUCCESS) finalrc = ESMF_FAILURE
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
     call ESMF_ArraySpecSet(arrayspec, 1, ESMF_TYPEKIND_I4, rc=rc)
-    if (rc.NE.ESMF_SUCCESS) finalrc = ESMF_FAILURE
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
     field = ESMF_FieldCreate(locs, arrayspec, &
         rc=rc)
-    if (rc.NE.ESMF_SUCCESS) finalrc = ESMF_FAILURE
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
 !EOC
     print *, "Field Create from a LocStream and an Arrayspec returned"
     call ESMF_FieldDestroy(field,rc=rc)
-    if (rc.NE.ESMF_SUCCESS) finalrc = ESMF_FAILURE
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
     call ESMF_LocStreamDestroy(locs,rc=rc)
-    if (rc.NE.ESMF_SUCCESS) finalrc = ESMF_FAILURE
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
 !>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%
 !-------------------------------- Example -----------------------------
@@ -576,7 +589,7 @@
 ! and typekind/rank.
 ! The mesh object is on a Euclidean surface that is partitioned to a 2x2 rectangular
 ! space with 4 elements and 9 nodes. The nodal space is represented by
-! a distgrid with 9 indices. Field is created on locally owned nodes on each PET.
+! a distgrid with 9 indices. A Field is created on locally owned nodes on each PET.
 ! Therefore, the created Field has 9 data points globally.
 ! The mesh object can be represented by the picture
 ! below. For more information on Mesh creation, please see Section~\ref{sec:mesh:usage:meshCreation}.
@@ -762,12 +775,12 @@
              nodeOwners=nodeOwners, elementIds=elemIds,&
              elementTypes=elemTypes, elementConn=elemConn, &
              rc=rc)
-      if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
+      if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
-      ! Field is created on the 1 dimensinonal nodal distgrid. On
+      ! Field is created on the 1 dimensional nodal distgrid. On
       ! each PET, Field is created on the locally owned nodes.
       field = ESMF_FieldCreate(mesh, typekind=ESMF_TYPEKIND_I4, rc=rc)
-      if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
+      if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !EOC
 
       ! deallocate node data
@@ -779,6 +792,11 @@
       deallocate(elemIds)
       deallocate(elemTypes)
       deallocate(elemConn)
+
+     ! Get rid of Mesh
+     call ESMF_MeshDestroy(mesh, rc=rc)
+     if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
+
     ! endif for skip for != 4 procs
     endif 
     print *, "Field Create from a Mesh and typekind/rank returned"
@@ -944,15 +962,15 @@
              nodeOwners=nodeOwners, elementIds=elemIds,&
              elementTypes=elemTypes, elementConn=elemConn, &
              rc=rc)
-      if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
+      if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
       call ESMF_ArraySpecSet(arrayspec, 1, ESMF_TYPEKIND_I4, rc=rc)
-      if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
+      if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
-      ! Field is created on the 1 dimensinonal nodal distgrid. On
+      ! Field is created on the 1 dimensional nodal distgrid. On
       ! each PET, Field is created on the locally owned nodes.
       field = ESMF_FieldCreate(mesh, arrayspec, rc=rc)
-      if(rc .ne. ESMF_SUCCESS) finalrc = ESMF_FAILURE
+      if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !EOC
 
       ! deallocate node data
@@ -983,24 +1001,26 @@
 
 !BOC
     call ESMF_MeshGet(mesh, nodalDistgrid=distgrid, rc=rc)
-    if (rc.NE.ESMF_SUCCESS) finalrc = ESMF_FAILURE
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
     array = ESMF_ArrayCreate(distgrid=distgrid, arrayspec=arrayspec, rc=rc)
-    if (rc.NE.ESMF_SUCCESS) finalrc = ESMF_FAILURE
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
     ! query the array from the previous example
     call ESMF_FieldGet(field, array=array, rc=rc)
-    if (rc.NE.ESMF_SUCCESS) finalrc = ESMF_FAILURE
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
     ! create a Field from a mesh and an array
     field1 = ESMF_FieldCreate(mesh, array, rc=rc)
-    if (rc.NE.ESMF_SUCCESS) finalrc = ESMF_FAILURE
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !EOC
 
     print *, "Field Create from a Mesh and an Array returned"
     call ESMF_FieldDestroy(field1,rc=rc)
-    if (rc.NE.ESMF_SUCCESS) finalrc = ESMF_FAILURE
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
     call ESMF_FieldDestroy(field,rc=rc)
-    if (rc.NE.ESMF_SUCCESS) finalrc = ESMF_FAILURE
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
     call ESMF_ArrayDestroy(array, rc=rc)
-    if (rc.NE.ESMF_SUCCESS) finalrc = ESMF_FAILURE
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
+
+
 !>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%
 !-------------------------------- Example -----------------------------
 !>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%>%
@@ -1021,17 +1041,22 @@
     call ESMF_ArraySpecSet(arrayspec, 2, ESMF_TYPEKIND_I4, rc=rc)
     field = ESMF_FieldCreate(mesh, arrayspec=arrayspec, gridToFieldMap=(/2/), &
         ungriddedLBound=(/1/), ungriddedUBound=(/3/), rc=rc)
-    if (rc.NE.ESMF_SUCCESS) finalrc = ESMF_FAILURE
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !EOC
     print *, "Field Create from a Mesh and an ArraySpec with ungridded dimension returned"
     call ESMF_FieldDestroy(field,rc=rc)
-    if (rc.NE.ESMF_SUCCESS) finalrc = ESMF_FAILURE
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
     call ESMF_MeshDestroy(mesh,rc=rc)
-    if (rc.NE.ESMF_SUCCESS) finalrc = ESMF_FAILURE
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 !-------------------------------------------------------------------------
 ! Destroy objects
     call ESMF_GridDestroy(grid, rc=rc)
-    if (rc.NE.ESMF_SUCCESS) finalrc = ESMF_FAILURE
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
+
+    ! IMPORTANT: ESMF_STest() prints the PASS string and the # of processors in the log
+    ! file that the scripts grep for.
+    call ESMF_STest((finalrc.eq.ESMF_SUCCESS), testname, failMsg, result, ESMF_SRCLINE)
+
 
 !-------------------------------------------------------------------------
      call ESMF_Finalize(rc=rc)

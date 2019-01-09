@@ -6,8 +6,8 @@
 /*****************************************************************************
  * CVS File Information :
  *    $RCSfile: comm_do_reverse.c,v $
- *    $Author: mathomp4 $
- *    $Date: 2013-01-11 20:23:44 $
+ *    $Author: dneckels $
+ *    $Date: 2007/11/28 16:13:45 $
  *    Revision: 1.19 $
  ****************************************************************************/
 
@@ -63,7 +63,7 @@ char     *recv_data)		/* array of data I'll own after reverse comm */
     int       sum_recv_sizes;	/* sum of the item sizes I receive */
     int       comm_flag;		/* status flag */
     int       i;		/* loop counter */
-    static char *yo = "Zoltan_Comm_Do_Reverse_Post";
+    static const char *yo = "Zoltan_Comm_Do_Reverse_Post";
 
     /* Check input parameters */
     if (!plan){

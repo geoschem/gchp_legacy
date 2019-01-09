@@ -1,7 +1,7 @@
-! $Id: ESMF_FieldCreateGetUTest.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
+! $Id$
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2012, University Corporation for Atmospheric Research,
+! Copyright 2002-2018, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -38,7 +38,7 @@
 !------------------------------------------------------------------------------
 ! The following line turns the CVS identifier string into a printable variable.
     character(*), parameter :: version = &
-      '$Id'
+      '$Id$'
 
     ! cumulative result: count failures; no failures equals "all pass"
     integer :: result = 0
@@ -51,6 +51,7 @@
     character(512) :: name
 
     call ESMF_TestStart(ESMF_SRCLINE, rc=rc)
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
  
 #ifdef ESMF_TESTEXHAUSTIVE
         !------------------------------------------------------------------------
@@ -916,23 +917,34 @@
         !------------------------------------------------------------------------
         !EX_UTest_Multi_Proc_Only
         ! Create a 7D field from a 5D grid and 2D ungridded bounds
+#ifndef ESMF_NO_GREATER_THAN_4D
         call test7d1(rc)
         write(failMsg, *) ""
         write(name, *) "Creating a 7D field from a 5D grid and 2D ungridded bounds"
+#else
+        rc = ESMF_SUCCESS
+        write(name, *) "Skipped test because: ESMF_NO_GREATER_THAN_4D"
+#endif
         call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
 
         !------------------------------------------------------------------------
         !EX_UTest_Multi_Proc_Only
         ! Create a 7D field from a 5D grid and 2D ungridded bounds
+#ifndef ESMF_NO_GREATER_THAN_4D
         call test7d2(rc)
         write(failMsg, *) ""
         write(name, *) "Creating a 7D field from a 5D grid and 2D ungridded bounds " // &
             "allocate the Fortran array from bounds instead of counts"
+#else
+        rc = ESMF_SUCCESS
+        write(name, *) "Skipped test because: ESMF_NO_GREATER_THAN_4D"
+#endif
         call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
 
         !------------------------------------------------------------------------
         !EX_UTest_Multi_Proc_Only
         ! Create a 7D field from a 5D grid and 2D ungridded bounds
+#ifndef ESMF_NO_GREATER_THAN_4D
         call test7d_generic(rc, minIndex=(/1,1,1,1,1/), maxIndex=(/3,4,3,4,2/), &
             regDecomp=(/2,1,2,1,1/), &
             ungriddedLBound=(/1,2/), ungriddedUBound=(/4,5/), &
@@ -941,12 +953,17 @@
         write(failMsg, *) ""
         write(name, *) "Creating a 7D field from a 5D grid and 2D ungridded bounds " // &
             "using generic interface"
+#else
+        rc = ESMF_SUCCESS
+        write(name, *) "Skipped test because: ESMF_NO_GREATER_THAN_4D"
+#endif
         call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
 
         !------------------------------------------------------------------------
         !EX_UTest_Multi_Proc_Only
         ! Create a 7D field from a 5D grid and 2D ungridded bounds
-        call test7d2_generic(rc, minIndex=(/1,1,1,1,1/), maxIndex=(/3,4,3,4,2/), &
+#ifndef ESMF_NO_GREATER_THAN_4D
+        call test7d2_generic(rc, minIndex=(/1,1,1,1,1/), maxIndex=(/3,2,3,4,2/), &
             regDecomp=(/2,1,2,1,1/), &
             ungriddedLBound=(/1,2/), ungriddedUBound=(/4,5/), &
             totalLWidth=(/1,1,1,2,2/), totalUWidth=(/1,2,3,4,5/) &
@@ -954,12 +971,17 @@
         write(failMsg, *) ""
         write(name, *) "Creating a 7D field from a 5D grid and 2D ungridded bounds " // &
             "using generic interface"
+#else
+        rc = ESMF_SUCCESS
+        write(name, *) "Skipped test because: ESMF_NO_GREATER_THAN_4D"
+#endif
         call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
 
         !------------------------------------------------------------------------
         !EX_UTest_Multi_Proc_Only
         ! Create a 7D field from a 5D grid and 2D ungridded bounds
         ! fieldget is very expensive for 7D grid, only this test has it set true
+#ifndef ESMF_NO_GREATER_THAN_4D
         call test7d_generic(rc, minIndex=(/1,1,1,1,1/), maxIndex=(/3,4,3,4,2/), &
             regDecomp=(/2,1,2,1,1/), &
             ungriddedLBound=(/1,2/), ungriddedUBound=(/4,5/), &
@@ -969,12 +991,17 @@
         write(failMsg, *) ""
         write(name, *) "Creating a 7D field from a 5D grid and 2D ungridded bounds " // &
             "using generic interface, fieldget=true"
+#else
+        rc = ESMF_SUCCESS
+        write(name, *) "Skipped test because: ESMF_NO_GREATER_THAN_4D"
+#endif
         call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
 
         !------------------------------------------------------------------------
         !EX_UTest_Multi_Proc_Only
         ! Create a 7D field from a 5D grid and 2D ungridded bounds
-        call test7d2_generic(rc, minIndex=(/1,1,1,1,1/), maxIndex=(/3,4,3,4,2/), &
+#ifndef ESMF_NO_GREATER_THAN_4D
+        call test7d2_generic(rc, minIndex=(/1,1,1,1,1/), maxIndex=(/3,4,3,2,2/), &
             regDecomp=(/2,1,2,1,1/), &
             ungriddedLBound=(/1,2/), ungriddedUBound=(/4,5/), &
             totalLWidth=(/1,1,1,2,2/), totalUWidth=(/1,2,3,4,5/), &
@@ -983,11 +1010,16 @@
         write(failMsg, *) ""
         write(name, *) "Creating a 7D field from a 5D grid and 2D ungridded bounds " // &
             "using generic interface, fieldget=true"
+#else
+        rc = ESMF_SUCCESS
+        write(name, *) "Skipped test because: ESMF_NO_GREATER_THAN_4D"
+#endif
         call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
 
         !------------------------------------------------------------------------
         !EX_UTest_Multi_Proc_Only
         ! Create a 7D field from a 5D grid and 2D ungridded bounds
+#ifndef ESMF_NO_GREATER_THAN_4D
         call test7d_generic(rc, minIndex=(/1,1,1,1,1/), maxIndex=(/3,4,3,4,2/), &
             regDecomp=(/2,1,2,1,1/), &
             ungriddedLBound=(/1,2/), ungriddedUBound=(/4,5/), &
@@ -997,12 +1029,17 @@
         write(failMsg, *) ""
         write(name, *) "Creating a 7D field from a 5D grid and 2D ungridded bounds " // &
             "using generic interface, irregular gridToFieldMap"
+#else
+        rc = ESMF_SUCCESS
+        write(name, *) "Skipped test because: ESMF_NO_GREATER_THAN_4D"
+#endif
         call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
 
         !------------------------------------------------------------------------
         !EX_UTest_Multi_Proc_Only
         ! Create a 7D field from a 5D grid and 2D ungridded bounds
-        call test7d2_generic(rc, minIndex=(/1,1,1,1,1/), maxIndex=(/3,4,3,4,2/), &
+#ifndef ESMF_NO_GREATER_THAN_4D
+        call test7d2_generic(rc, minIndex=(/1,1,1,1,1/), maxIndex=(/3,4,3,4,1/), &
             regDecomp=(/2,1,2,1,1/), &
             ungriddedLBound=(/1,2/), ungriddedUBound=(/4,5/), &
             totalLWidth=(/1,1,1,2,2/), totalUWidth=(/1,2,3,4,5/), &
@@ -1011,6 +1048,10 @@
         write(failMsg, *) ""
         write(name, *) "Creating a 7D field from a 5D grid and 2D ungridded bounds " // &
             "using generic interface, irregular gridToFieldMap"
+#else
+        rc = ESMF_SUCCESS
+        write(name, *) "Skipped test because: ESMF_NO_GREATER_THAN_4D"
+#endif
         call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
 
 !        !------------------------------------------------------------------------
@@ -1033,6 +1074,7 @@
         !------------------------------------------------------------------------
         !EX_UTest_Multi_Proc_Only
         ! Create a 7D field from a 5D grid and 2D ungridded bounds
+#ifndef ESMF_NO_GREATER_THAN_4D
         call test7d_generic(rc, minIndex=(/1,1,1,1,1/), maxIndex=(/4,2,4,2,2/), &
             regDecomp=(/2,1,2,1,1/), &
             ungriddedLBound=(/1,2/), ungriddedUBound=(/4,5/), &
@@ -1043,12 +1085,17 @@
         write(failMsg, *) ""
         write(name, *) "Creating a 7D field from a 5D grid and 2D ungridded bounds " // &
             "using generic interface, irregular gridToFieldMap, data copy"
+#else
+        rc = ESMF_SUCCESS
+        write(name, *) "Skipped test because: ESMF_NO_GREATER_THAN_4D"
+#endif
         call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
 
         !------------------------------------------------------------------------
         !EX_UTest_Multi_Proc_Only
         ! Create a 7D field from a 5D grid and 2D ungridded bounds
-        call test7d2_generic(rc, minIndex=(/1,1,1,1,1/), maxIndex=(/4,2,4,2,2/), &
+#ifndef ESMF_NO_GREATER_THAN_4D
+        call test7d2_generic(rc, minIndex=(/1,1,1,1,1/), maxIndex=(/4,2,2,2,2/), &
             regDecomp=(/2,1,2,1,1/), &
             ungriddedLBound=(/1,2/), ungriddedUBound=(/4,5/), &
             totalLWidth=(/1,1,1,2,2/), totalUWidth=(/1,1,2,1,1/), &
@@ -1058,11 +1105,16 @@
         write(failMsg, *) ""
         write(name, *) "Creating a 7D field from a 5D grid and 2D ungridded bounds " // &
             "using generic interface, irregular gridToFieldMap, data copy"
+#else
+        rc = ESMF_SUCCESS
+        write(name, *) "Skipped test because: ESMF_NO_GREATER_THAN_4D"
+#endif
         call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
 
         !------------------------------------------------------------------------
         !EX_UTest_Multi_Proc_Only
         ! Create a 7D field from a 5D grid and 2D ungridded bounds
+#ifndef ESMF_NO_GREATER_THAN_4D
         call test7d_generic(rc, minIndex=(/1,1,1,1,1/), maxIndex=(/3,4,3,4,2/), &
             regDecomp=(/2,1,2,1,1/), &
             ungriddedLBound=(/1,2/), ungriddedUBound=(/4,5/), &
@@ -1073,12 +1125,17 @@
         write(failMsg, *) ""
         write(name, *) "Creating a 7D field from a 5D grid and 2D ungridded bounds " // &
             "using generic interface, irregular gridToFieldMap, edge1 stagger"
+#else
+        rc = ESMF_SUCCESS
+        write(name, *) "Skipped test because: ESMF_NO_GREATER_THAN_4D"
+#endif
         call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
 
         !------------------------------------------------------------------------
         !EX_UTest_Multi_Proc_Only
         ! Create a 7D field from a 5D grid and 2D ungridded bounds
-        call test7d2_generic(rc, minIndex=(/1,1,1,1,1/), maxIndex=(/3,4,3,4,2/), &
+#ifndef ESMF_NO_GREATER_THAN_4D
+        call test7d2_generic(rc, minIndex=(/1,1,1,1,1/), maxIndex=(/3,4,3,2,2/), &
             regDecomp=(/2,1,2,1,1/), &
             ungriddedLBound=(/1,2/), ungriddedUBound=(/4,5/), &
             totalLWidth=(/1,1,1,2,2/), totalUWidth=(/1,2,3,4,5/), &
@@ -1088,11 +1145,16 @@
         write(failMsg, *) ""
         write(name, *) "Creating a 7D field from a 5D grid and 2D ungridded bounds " // &
             "using generic interface, irregular gridToFieldMap, edge1 stagger"
+#else
+        rc = ESMF_SUCCESS
+        write(name, *) "Skipped test because: ESMF_NO_GREATER_THAN_4D"
+#endif
         call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
 
         !------------------------------------------------------------------------
         !EX_UTest_Multi_Proc_Only
         ! Create a 7D field from a 5D grid and 2D ungridded bounds
+#ifndef ESMF_NO_GREATER_THAN_4D
         call test7d_generic(rc, minIndex=(/1,1,1,1,1/), maxIndex=(/3,4,3,4,2/), &
             regDecomp=(/2,1,2,1,1/), &
             ungriddedLBound=(/1,2/), ungriddedUBound=(/4,5/), &
@@ -1105,14 +1167,19 @@
         write(name, *) "Creating a 7D field from a 5D grid and 2D ungridded bounds " // &
             "using generic interface, irregular gridToFieldMap, edge1 stagger " // &
             "distgrid padded"
+#else
+        rc = ESMF_SUCCESS
+        write(name, *) "Skipped test because: ESMF_NO_GREATER_THAN_4D"
+#endif
         call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
 
         !------------------------------------------------------------------------
         !EX_UTest_Multi_Proc_Only
         ! Create a 7D field from a 5D grid and 2D ungridded bounds
+#ifndef ESMF_NO_GREATER_THAN_4D
         call test7d2_generic(rc, minIndex=(/1,1,1,1,1/), maxIndex=(/3,4,3,4,2/), &
             regDecomp=(/2,1,2,1,1/), &
-            ungriddedLBound=(/1,2/), ungriddedUBound=(/4,5/), &
+            ungriddedLBound=(/1,2/), ungriddedUBound=(/2,5/), &
             totalLWidth=(/1,1,1,2,2/), totalUWidth=(/1,2,3,4,5/), &
             gridEdgeLWidth=(/1,0,1,0,1/), gridEdgeUWidth=(/0,1,2,1,0/), &
             staggerloc=ESMF_STAGGERLOC_EDGE1, &
@@ -1122,11 +1189,16 @@
         write(name, *) "Creating a 7D field from a 5D grid and 2D ungridded bounds " // &
             "using generic interface, irregular gridToFieldMap, edge1 stagger " // &
             "distgrid padded"
+#else
+        rc = ESMF_SUCCESS
+        write(name, *) "Skipped test because: ESMF_NO_GREATER_THAN_4D"
+#endif
         call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
 
         !------------------------------------------------------------------------
         !EX_UTest_Multi_Proc_Only
         ! Create a 7D field from a 5D grid and 2D ungridded bounds
+#ifndef ESMF_NO_GREATER_THAN_4D
         call test7d_generic(rc, minIndex=(/1,1,1,1,1/), maxIndex=(/3,4,3,4,2/), &
             regDecomp=(/2,1,2,1,1/), &
             ungriddedLBound=(/1,2/), ungriddedUBound=(/4,5/), &
@@ -1137,12 +1209,17 @@
         write(failMsg, *) ""
         write(name, *) "Creating a 7D field from a 5D grid and 2D ungridded bounds " // &
             "using generic interface, irregular gridToFieldMap and distgridToGridMap"
+#else
+        rc = ESMF_SUCCESS
+        write(name, *) "Skipped test because: ESMF_NO_GREATER_THAN_4D"
+#endif
         call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
 
         !------------------------------------------------------------------------
         !EX_UTest_Multi_Proc_Only
         ! Create a 7D field from a 5D grid and 2D ungridded bounds
-        call test7d2_generic(rc, minIndex=(/1,1,1,1,1/), maxIndex=(/3,4,3,4,2/), &
+#ifndef ESMF_NO_GREATER_THAN_4D
+        call test7d2_generic(rc, minIndex=(/1,1,1,1,1/), maxIndex=(/3,4,1,4,2/), &
             regDecomp=(/2,1,2,1,1/), &
             ungriddedLBound=(/1,2/), ungriddedUBound=(/4,5/), &
             totalLWidth=(/1,1,1,2,2/), totalUWidth=(/1,2,3,4,5/), &
@@ -1152,11 +1229,16 @@
         write(failMsg, *) ""
         write(name, *) "Creating a 7D field from a 5D grid and 2D ungridded bounds " // &
             "using generic interface, irregular gridToFieldMap and distgridToGridMap"
+#else
+        rc = ESMF_SUCCESS
+        write(name, *) "Skipped test because: ESMF_NO_GREATER_THAN_4D"
+#endif
         call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
 
         !------------------------------------------------------------------------
         !EX_UTest_Multi_Proc_Only
         ! Create a 7D field from a 5D grid and 2D ungridded bounds
+#ifndef ESMF_NO_GREATER_THAN_4D
         call test7d_generic(rc, minIndex=(/1,1,1,1,1/), maxIndex=(/3,4,3,4,2/), &
             regDecomp=(/2,1,2,1,1/), &
             ungriddedLBound=(/1,2/), ungriddedUBound=(/4,5/), &
@@ -1168,12 +1250,17 @@
         write(failMsg, *) ""
         write(name, *) "Creating a 7D field from a 5D grid and 2D ungridded bounds " // &
             "using generic interface, irregular gridToFieldMap and distgridToGridMap"
+#else
+        rc = ESMF_SUCCESS
+        write(name, *) "Skipped test because: ESMF_NO_GREATER_THAN_4D"
+#endif
         call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
 
         !------------------------------------------------------------------------
         !EX_UTest_Multi_Proc_Only
         ! Create a 7D field from a 5D grid and 2D ungridded bounds
-        call test7d2_generic(rc, minIndex=(/1,1,1,1,1/), maxIndex=(/3,4,3,4,2/), &
+#ifndef ESMF_NO_GREATER_THAN_4D
+        call test7d2_generic(rc, minIndex=(/1,1,1,1,1/), maxIndex=(/3,4,3,2,2/), &
             regDecomp=(/2,1,2,1,1/), &
             ungriddedLBound=(/1,2/), ungriddedUBound=(/4,5/), &
             totalLWidth=(/1,1,1,2,2/), totalUWidth=(/1,2,3,4,5/), &
@@ -1184,11 +1271,16 @@
         write(failMsg, *) ""
         write(name, *) "Creating a 7D field from a 5D grid and 2D ungridded bounds " // &
             "using generic interface, irregular gridToFieldMap and distgridToGridMap"
+#else
+        rc = ESMF_SUCCESS
+        write(name, *) "Skipped test because: ESMF_NO_GREATER_THAN_4D"
+#endif
         call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
 
         !------------------------------------------------------------------------
         !EX_UTest_Multi_Proc_Only
         ! Create a 7D field from a 4D grid and 3D ungridded bounds
+#ifndef ESMF_NO_GREATER_THAN_4D
         call test7d_generic(rc, minIndex=(/1,1,1,1/), maxIndex=(/3,4,3,4/), &
             regDecomp=(/2,1,2,1/), &
             ungriddedLBound=(/1,2,1/), ungriddedUBound=(/4,2,3/), &
@@ -1200,12 +1292,17 @@
         write(failMsg, *) ""
         write(name, *) "Creating a 7D field from a 4D grid and 3D ungridded bounds " // &
             "using generic interface, irregular gridToFieldMap and distgridToGridMap"
+#else
+        rc = ESMF_SUCCESS
+        write(name, *) "Skipped test because: ESMF_NO_GREATER_THAN_4D"
+#endif
         call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
 
         !------------------------------------------------------------------------
         !EX_UTest_Multi_Proc_Only
         ! Create a 7D field from a 4D grid and 3D ungridded bounds
-        call test7d2_generic(rc, minIndex=(/1,1,1,1/), maxIndex=(/3,4,3,4/), &
+#ifndef ESMF_NO_GREATER_THAN_4D
+        call test7d2_generic(rc, minIndex=(/1,1,1,1/), maxIndex=(/3,4,3,1/), &
             regDecomp=(/2,1,2,1/), &
             ungriddedLBound=(/1,2,1/), ungriddedUBound=(/4,2,3/), &
             totalLWidth=(/1,1,1,2/), totalUWidth=(/2,3,4,5/), &
@@ -1216,11 +1313,16 @@
         write(failMsg, *) ""
         write(name, *) "Creating a 7D field from a 4D grid and 3D ungridded bounds " // &
             "using generic interface, irregular gridToFieldMap and distgridToGridMap"
+#else
+        rc = ESMF_SUCCESS
+        write(name, *) "Skipped test because: ESMF_NO_GREATER_THAN_4D"
+#endif
         call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
 
         !------------------------------------------------------------------------
         !EX_UTest_Multi_Proc_Only
         ! Create a 7D field from a 1D grid and 6D ungridded bounds
+#ifndef ESMF_NO_GREATER_THAN_4D
         call test7d_generic(rc, minIndex=(/1/), maxIndex=(/6/), &
             regDecomp=(/4/), &
             ungriddedLBound=(/1,2,1,2,1,2/), ungriddedUBound=(/4,2,3,3,2,4/), &
@@ -1232,14 +1334,19 @@
         write(failMsg, *) ""
         write(name, *) "Creating a 7D field from a 1D grid and 6D ungridded bounds " // &
             "using generic interface, irregular gridToFieldMap and distgridToGridMap"
+#else
+        rc = ESMF_SUCCESS
+        write(name, *) "Skipped test because: ESMF_NO_GREATER_THAN_4D"
+#endif
         call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
 
         !------------------------------------------------------------------------
         !EX_UTest_Multi_Proc_Only
         ! Create a 7D field from a 1D grid and 6D ungridded bounds
-        call test7d2_generic(rc, minIndex=(/1/), maxIndex=(/6/), &
+#ifndef ESMF_NO_GREATER_THAN_4D
+        call test7d2_generic(rc, minIndex=(/1/), maxIndex=(/3/), &
             regDecomp=(/4/), &
-            ungriddedLBound=(/1,2,1,2,1,2/), ungriddedUBound=(/4,2,3,3,2,4/), &
+            ungriddedLBound=(/1,2,1,2,1,2/), ungriddedUBound=(/2,2,3,3,2,4/), &
             totalLWidth=(/1/), totalUWidth=(/2/), &
             fieldget=.true., &
             distgridToGridMap=(/1/), &
@@ -1248,11 +1355,16 @@
         write(failMsg, *) ""
         write(name, *) "Creating a 7D field from a 1D grid and 6D ungridded bounds " // &
             "using generic interface, irregular gridToFieldMap and distgridToGridMap"
+#else
+        rc = ESMF_SUCCESS
+        write(name, *) "Skipped test because: ESMF_NO_GREATER_THAN_4D"
+#endif
         call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
 
         !------------------------------------------------------------------------
         !EX_UTest_Multi_Proc_Only
         ! CreateFromPtr test
+#ifndef ESMF_NO_GREATER_THAN_4D
         call test7d2_generic_fptr(rc, minIndex=(/1,1,1,1,1,1,1/), &
             maxIndex=(/2,2,2,2,2,2,6/), &
             gridEdgeLWidth=(/0,0,0,0,0,0,0/), gridEdgeUWidth=(/0,0,0,0,0,0,0/), &
@@ -1261,11 +1373,16 @@
             )
         write(failMsg, *) ""
         write(name, *) "Creating a 7D field using generic interface"
+#else
+        rc = ESMF_SUCCESS
+        write(name, *) "Skipped test because: ESMF_NO_GREATER_THAN_4D"
+#endif
         call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
 
         !------------------------------------------------------------------------
         !EX_UTest_Multi_Proc_Only
         ! CreateFromPtr test
+#ifndef ESMF_NO_GREATER_THAN_4D
         call test7d2_generic_fptr(rc, minIndex=(/1,1,2,1,2,1,1/), &
             maxIndex=(/2,2,3,2,3,2,6/), &
             gridEdgeLWidth=(/0,0,0,0,0,0,0/), gridEdgeUWidth=(/0,0,0,0,0,0,0/), &
@@ -1275,11 +1392,16 @@
             )
         write(failMsg, *) ""
         write(name, *) "Creating a 7D field using generic interface, arbitrary gridToFieldMap"
+#else
+        rc = ESMF_SUCCESS
+        write(name, *) "Skipped test because: ESMF_NO_GREATER_THAN_4D"
+#endif
         call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
 
         !------------------------------------------------------------------------
         !EX_UTest_Multi_Proc_Only
         ! CreateFromPtr test
+#ifndef ESMF_NO_GREATER_THAN_4D
         call test7d2_generic_fptr(rc, minIndex=(/1,1,2,1,2,1,1/), &
             maxIndex=(/2,2,3,2,3,2,6/), &
             gridEdgeLWidth=(/0,0,0,0,0,0,0/), gridEdgeUWidth=(/0,0,0,0,0,0,0/), &
@@ -1290,11 +1412,16 @@
         write(failMsg, *) ""
         write(name, *) "Creating a 7D field using generic interface, arbitrary gridToFieldMap" // &
             " no fieldget"
+#else
+        rc = ESMF_SUCCESS
+        write(name, *) "Skipped test because: ESMF_NO_GREATER_THAN_4D"
+#endif
         call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
 
         !------------------------------------------------------------------------
         !EX_UTest_Multi_Proc_Only
         ! CreateFromPtr test
+#ifndef ESMF_NO_GREATER_THAN_4D
         call test7d2_generic_fptr(rc, minIndex=(/1,1,2,1,2,1,1/), &
             maxIndex=(/2,2,3,2,3,2,6/), &
             gridEdgeLWidth=(/0,0,0,0,0,0,0/), gridEdgeUWidth=(/0,0,0,0,0,0,0/), &
@@ -1306,11 +1433,16 @@
         write(failMsg, *) ""
         write(name, *) "Creating a 7D field using generic interface, arbitrary gridToFieldMap" // &
             " arbitrary distgridToGridMap"
+#else
+        rc = ESMF_SUCCESS
+        write(name, *) "Skipped test because: ESMF_NO_GREATER_THAN_4D"
+#endif
         call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
 
         !------------------------------------------------------------------------
         !EX_UTest_Multi_Proc_Only
         ! CreateFromPtr test
+#ifndef ESMF_NO_GREATER_THAN_4D
         call test7d2_generic_fptr(rc, minIndex=(/1,1,2,1,2,1,1/), &
             maxIndex=(/2,2,3,2,3,2,6/), &
             gridEdgeLWidth=(/0,0,0,0,0,0,0/), gridEdgeUWidth=(/0,0,0,0,0,0,0/), &
@@ -1323,11 +1455,16 @@
         write(failMsg, *) ""
         write(name, *) "Creating a 7D field using generic interface, arbitrary gridToFieldMap" // &
             " arbitrary distgridToGridMap, arbitrary haloWidth"
+#else
+        rc = ESMF_SUCCESS
+        write(name, *) "Skipped test because: ESMF_NO_GREATER_THAN_4D"
+#endif
         call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
 
         !------------------------------------------------------------------------
         !EX_UTest_Multi_Proc_Only
         ! CreateFromPtr test
+#ifndef ESMF_NO_GREATER_THAN_4D
         call test7d2_generic_fptr(rc, minIndex=(/1,1,2,1,2,1,1/), &
             maxIndex=(/2,2,3,2,3,2,6/), &
             gridEdgeLWidth=(/0,0,0,0,0,0,0/), gridEdgeUWidth=(/0,0,0,0,0,0,0/), &
@@ -1341,11 +1478,16 @@
         write(failMsg, *) ""
         write(name, *) "Creating a 7D field using generic interface, arbitrary gridToFieldMap" // &
             " arbitrary distgridToGridMap, arbitrary haloWidth, ESMF_DATACOPY_VALUE"
+#else
+        rc = ESMF_SUCCESS
+        write(name, *) "Skipped test because: ESMF_NO_GREATER_THAN_4D"
+#endif
         call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
 
         !------------------------------------------------------------------------
         !EX_UTest_Multi_Proc_Only
         ! CreateFromPtr test
+#ifndef ESMF_NO_GREATER_THAN_4D
         call test7d2_generic_fptr(rc, minIndex=(/1,1,2,1,2,1,1/), &
             maxIndex=(/2,2,3,2,3,2,6/), &
             gridEdgeLWidth=(/0,0,0,0,0,0,0/), gridEdgeUWidth=(/0,0,0,0,0,0,0/), &
@@ -1360,11 +1502,16 @@
         write(failMsg, *) ""
         write(name, *) "Creating a 7D field using generic interface, arbitrary gridToFieldMap" // &
             " arbitrary distgridToGridMap, arbitrary haloWidth, ESMF_DATACOPY_VALUE, CORNER STAGGER"
+#else
+        rc = ESMF_SUCCESS
+        write(name, *) "Skipped test because: ESMF_NO_GREATER_THAN_4D"
+#endif
         call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
 
         !------------------------------------------------------------------------
         !EX_UTest_Multi_Proc_Only
         ! CreateFromPtr test
+#ifndef ESMF_NO_GREATER_THAN_4D
         call test7d2_generic_fptr(rc, minIndex=(/1,1,2,1,2,1,1/), &
             maxIndex=(/2,2,3,2,3,2,6/), &
             gridEdgeLWidth=(/0,0,0,0,0,0,0/), gridEdgeUWidth=(/0,0,0,0,0,0,0/), &
@@ -1378,11 +1525,16 @@
         write(failMsg, *) ""
         write(name, *) "Creating a 7D field using generic interface, arbitrary gridToFieldMap" // &
             " arbitrary distgridToGridMap, arbitrary haloWidth, EDGE1 STAGGER"
+#else
+        rc = ESMF_SUCCESS
+        write(name, *) "Skipped test because: ESMF_NO_GREATER_THAN_4D"
+#endif
         call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
 
         !------------------------------------------------------------------------
         !EX_UTest_Multi_Proc_Only
         ! CreateFromPtr test
+#ifndef ESMF_NO_GREATER_THAN_4D
         call test7d3_generic_fptr(rc, minIndex=(/1,1,1,1,1,1,1/), &
             maxIndex=(/2,2,2,2,2,2,6/), &
             gridEdgeLWidth=(/0,0,0,0,0,0,0/), gridEdgeUWidth=(/0,0,0,0,0,0,0/), &
@@ -1391,11 +1543,16 @@
             )
         write(failMsg, *) ""
         write(name, *) "Creating a 7D field using generic interface"
+#else
+        rc = ESMF_SUCCESS
+        write(name, *) "Skipped test because: ESMF_NO_GREATER_THAN_4D"
+#endif
         call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
 
         !------------------------------------------------------------------------
         !EX_UTest_Multi_Proc_Only
         ! CreateFromPtr test
+#ifndef ESMF_NO_GREATER_THAN_4D
         call test7d3_generic_fptr(rc, minIndex=(/1,1,2,1,2,1,1/), &
             maxIndex=(/2,2,3,2,3,2,6/), &
             gridEdgeLWidth=(/0,0,0,0,0,0,0/), gridEdgeUWidth=(/0,0,0,0,0,0,0/), &
@@ -1405,11 +1562,16 @@
             )
         write(failMsg, *) ""
         write(name, *) "Creating a 7D field using generic interface, arbitrary gridToFieldMap"
+#else
+        rc = ESMF_SUCCESS
+        write(name, *) "Skipped test because: ESMF_NO_GREATER_THAN_4D"
+#endif
         call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
 
         !------------------------------------------------------------------------
         !EX_UTest_Multi_Proc_Only
         ! CreateFromPtr test
+#ifndef ESMF_NO_GREATER_THAN_4D
         call test7d3_generic_fptr(rc, minIndex=(/1,1,2,1,2,1,1/), &
             maxIndex=(/2,2,3,2,3,2,6/), &
             gridEdgeLWidth=(/0,0,0,0,0,0,0/), gridEdgeUWidth=(/0,0,0,0,0,0,0/), &
@@ -1420,11 +1582,16 @@
         write(failMsg, *) ""
         write(name, *) "Creating a 7D field using generic interface, arbitrary gridToFieldMap" // &
             " no fieldget"
+#else
+        rc = ESMF_SUCCESS
+        write(name, *) "Skipped test because: ESMF_NO_GREATER_THAN_4D"
+#endif
         call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
 
         !------------------------------------------------------------------------
         !EX_UTest_Multi_Proc_Only
         ! CreateFromPtr test
+#ifndef ESMF_NO_GREATER_THAN_4D
         call test7d3_generic_fptr(rc, minIndex=(/1,1,2,1,2,1,1/), &
             maxIndex=(/2,2,3,2,3,2,6/), &
             gridEdgeLWidth=(/0,0,0,0,0,0,0/), gridEdgeUWidth=(/0,0,0,0,0,0,0/), &
@@ -1436,11 +1603,16 @@
         write(failMsg, *) ""
         write(name, *) "Creating a 7D field using generic interface, arbitrary gridToFieldMap" // &
             " arbitrary distgridToGridMap"
+#else
+        rc = ESMF_SUCCESS
+        write(name, *) "Skipped test because: ESMF_NO_GREATER_THAN_4D"
+#endif
         call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
 
         !------------------------------------------------------------------------
         !EX_UTest_Multi_Proc_Only
         ! CreateFromPtr test
+#ifndef ESMF_NO_GREATER_THAN_4D
         call test7d3_generic_fptr(rc, minIndex=(/1,1,2,1,2,1,1/), &
             maxIndex=(/2,2,3,2,3,2,6/), &
             gridEdgeLWidth=(/0,0,0,0,0,0,0/), gridEdgeUWidth=(/0,0,0,0,0,0,0/), &
@@ -1453,11 +1625,16 @@
         write(failMsg, *) ""
         write(name, *) "Creating a 7D field using generic interface, arbitrary gridToFieldMap" // &
             " arbitrary distgridToGridMap, arbitrary haloWidth"
+#else
+        rc = ESMF_SUCCESS
+        write(name, *) "Skipped test because: ESMF_NO_GREATER_THAN_4D"
+#endif
         call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
 
         !------------------------------------------------------------------------
         !EX_UTest_Multi_Proc_Only
         ! CreateFromPtr test
+#ifndef ESMF_NO_GREATER_THAN_4D
         call test7d3_generic_fptr(rc, minIndex=(/1,1,2,1,2,1,1/), &
             maxIndex=(/2,2,3,2,3,2,6/), &
             gridEdgeLWidth=(/0,0,0,0,0,0,0/), gridEdgeUWidth=(/0,0,0,0,0,0,0/), &
@@ -1471,11 +1648,16 @@
         write(failMsg, *) ""
         write(name, *) "Creating a 7D field using generic interface, arbitrary gridToFieldMap" // &
             " arbitrary distgridToGridMap, arbitrary haloWidth, ESMF_DATACOPY_VALUE"
+#else
+        rc = ESMF_SUCCESS
+        write(name, *) "Skipped test because: ESMF_NO_GREATER_THAN_4D"
+#endif
         call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
 
         !------------------------------------------------------------------------
         !EX_UTest_Multi_Proc_Only
         ! CreateFromPtr test
+#ifndef ESMF_NO_GREATER_THAN_4D
         call test7d3_generic_fptr(rc, minIndex=(/1,1,2,1,2,1,1/), &
             maxIndex=(/2,2,3,2,3,2,6/), &
             gridEdgeLWidth=(/0,0,0,0,0,0,0/), gridEdgeUWidth=(/0,0,0,0,0,0,0/), &
@@ -1490,11 +1672,16 @@
         write(failMsg, *) ""
         write(name, *) "Creating a 7D field using generic interface, arbitrary gridToFieldMap" // &
             " arbitrary distgridToGridMap, arbitrary haloWidth, ESMF_DATACOPY_VALUE, CORNER STAGGER"
+#else
+        rc = ESMF_SUCCESS
+        write(name, *) "Skipped test because: ESMF_NO_GREATER_THAN_4D"
+#endif
         call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
 
         !------------------------------------------------------------------------
         !EX_UTest_Multi_Proc_Only
         ! CreateFromPtr test
+#ifndef ESMF_NO_GREATER_THAN_4D
         call test7d3_generic_fptr(rc, minIndex=(/1,1,2,1,2,1,1/), &
             maxIndex=(/2,2,3,2,3,2,6/), &
             gridEdgeLWidth=(/0,0,0,0,0,0,0/), gridEdgeUWidth=(/0,0,0,0,0,0,0/), &
@@ -1508,6 +1695,10 @@
         write(failMsg, *) ""
         write(name, *) "Creating a 7D field using generic interface, arbitrary gridToFieldMap" // &
             " arbitrary distgridToGridMap, arbitrary haloWidth, EDGE1 STAGGER"
+#else
+        rc = ESMF_SUCCESS
+        write(name, *) "Skipped test because: ESMF_NO_GREATER_THAN_4D"
+#endif
         call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
 
         !------------------------------------------------------------------------
@@ -1515,6 +1706,7 @@
         !------------------------------------------------------------------------
         !EX_UTest_Multi_Proc_Only
         ! Create a 7D field from a 5D grid and 2D ungridded bounds
+#ifndef ESMF_NO_GREATER_THAN_4D
         call test7d3_generic(rc, minIndex=(/1,1,1,1,1/), maxIndex=(/3,4,3,4,2/), &
             regDecomp=(/2,1,2,1,1/), &
             ungriddedLBound=(/1,2/), ungriddedUBound=(/4,5/), &
@@ -1523,11 +1715,16 @@
         write(failMsg, *) ""
         write(name, *) "Creating a 7D field from a 5D grid and 2D ungridded bounds " // &
             "using generic interface"
+#else
+        rc = ESMF_SUCCESS
+        write(name, *) "Skipped test because: ESMF_NO_GREATER_THAN_4D"
+#endif
         call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
 
         !------------------------------------------------------------------------
         !EX_UTest_Multi_Proc_Only
         ! Create a 7D field from a 5D grid and 2D ungridded bounds
+#ifndef ESMF_NO_GREATER_THAN_4D
         call test7d3_generic(rc, minIndex=(/1,1,1,1,1/), maxIndex=(/3,4,3,4,2/), &
             regDecomp=(/2,1,2,1,1/), &
             ungriddedLBound=(/1,2/), ungriddedUBound=(/4,5/), &
@@ -1537,11 +1734,16 @@
         write(failMsg, *) ""
         write(name, *) "Creating a 7D field from a 5D grid and 2D ungridded bounds " // &
             "using generic interface, fieldget=true"
+#else
+        rc = ESMF_SUCCESS
+        write(name, *) "Skipped test because: ESMF_NO_GREATER_THAN_4D"
+#endif
         call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
 
         !------------------------------------------------------------------------
         !EX_UTest_Multi_Proc_Only
         ! Create a 7D field from a 5D grid and 2D ungridded bounds
+#ifndef ESMF_NO_GREATER_THAN_4D
         call test7d3_generic(rc, minIndex=(/1,1,1,1,1/), maxIndex=(/3,4,3,4,2/), &
             regDecomp=(/2,1,2,1,1/), &
             ungriddedLBound=(/1,2/), ungriddedUBound=(/4,5/), &
@@ -1551,11 +1753,16 @@
         write(failMsg, *) ""
         write(name, *) "Creating a 7D field from a 5D grid and 2D ungridded bounds " // &
             "using generic interface, irregular gridToFieldMap"
+#else
+        rc = ESMF_SUCCESS
+        write(name, *) "Skipped test because: ESMF_NO_GREATER_THAN_4D"
+#endif
         call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
 
         !------------------------------------------------------------------------
         !EX_UTest_Multi_Proc_Only
         ! Create a 7D field from a 5D grid and 2D ungridded bounds
+#ifndef ESMF_NO_GREATER_THAN_4D
         call test7d3_generic(rc, minIndex=(/1,1,1,1,1/), maxIndex=(/4,2,4,2,2/), &
             regDecomp=(/2,1,2,1,1/), &
             ungriddedLBound=(/1,2/), ungriddedUBound=(/4,5/), &
@@ -1565,11 +1772,16 @@
         write(failMsg, *) ""
         write(name, *) "Creating a 7D field from a 5D grid and 2D ungridded bounds " // &
             "using generic interface, irregular gridToFieldMap, data copy"
+#else
+        rc = ESMF_SUCCESS
+        write(name, *) "Skipped test because: ESMF_NO_GREATER_THAN_4D"
+#endif
         call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
 
         !------------------------------------------------------------------------
         !EX_UTest_Multi_Proc_Only
         ! Create a 7D field from a 1D grid and 6D ungridded bounds
+#ifndef ESMF_NO_GREATER_THAN_4D
         call test7d3_generic(rc, minIndex=(/1/), maxIndex=(/6/), &
             regDecomp=(/4/), &
             ungriddedLBound=(/1,2,1,2,1,2/), ungriddedUBound=(/4,2,3,3,2,4/), &
@@ -1581,11 +1793,16 @@
         write(failMsg, *) ""
         write(name, *) "Creating a 7D field from a 1D grid and 6D ungridded bounds " // &
             "using generic interface, irregular gridToFieldMap and distgridToGridMap"
+#else
+        rc = ESMF_SUCCESS
+        write(name, *) "Skipped test because: ESMF_NO_GREATER_THAN_4D"
+#endif
         call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
 
         !------------------------------------------------------------------------
         !EX_UTest_Multi_Proc_Only
         ! Create a 7D field from a 4D grid and 3D ungridded bounds
+#ifndef ESMF_NO_GREATER_THAN_4D
         call test7d3_generic(rc, minIndex=(/1,1,1,1/), maxIndex=(/3,4,3,4/), &
             regDecomp=(/2,1,2,1/), &
             ungriddedLBound=(/1,2,1/), ungriddedUBound=(/4,2,3/), &
@@ -1597,11 +1814,16 @@
         write(failMsg, *) ""
         write(name, *) "Creating a 7D field from a 4D grid and 3D ungridded bounds " // &
             "using generic interface, irregular gridToFieldMap and distgridToGridMap"
+#else
+        rc = ESMF_SUCCESS
+        write(name, *) "Skipped test because: ESMF_NO_GREATER_THAN_4D"
+#endif
         call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
 
         !------------------------------------------------------------------------
         !EX_UTest_Multi_Proc_Only
         ! Create a 7D field from a 7D grid
+#ifndef ESMF_NO_GREATER_THAN_4D
         call test7d3_generic(rc, minIndex=(/1,1,1,1,1,1,1/), maxIndex=(/3,4,3,4,3,3,3/), &
             regDecomp=(/2,1,2,1,1,1,1/), &
             fieldget=.true., &
@@ -1611,11 +1833,16 @@
         write(failMsg, *) ""
         write(name, *) "Creating a 7D field from a 4D grid and 3D ungridded bounds " // &
             "using generic interface, irregular gridToFieldMap and distgridToGridMap"
+#else
+        rc = ESMF_SUCCESS
+        write(name, *) "Skipped test because: ESMF_NO_GREATER_THAN_4D"
+#endif
         call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
 
         !------------------------------------------------------------------------
         !EX_UTest_Multi_Proc_Only
         ! Create a 7D field from a 4D grid and 3D ungridded bounds
+#ifndef ESMF_NO_GREATER_THAN_4D
         call test7d3_generic(rc, minIndex=(/1,1,1,1/), maxIndex=(/3,4,3,4/), &
             regDecomp=(/2,1,2,1/), &
             ungriddedLBound=(/1,2,1/), ungriddedUBound=(/4,2,3/), &
@@ -1629,11 +1856,16 @@
         write(name, *) "Creating a 7D field from a 4D grid and 3D ungridded bounds " // &
             "using generic interface, irregular gridToFieldMap and distgridToGridMap " // &
             "data copy, center stagger"
+#else
+        rc = ESMF_SUCCESS
+        write(name, *) "Skipped test because: ESMF_NO_GREATER_THAN_4D"
+#endif
         call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
 
         !------------------------------------------------------------------------
         !EX_UTest_Multi_Proc_Only
         ! Create a 7D field from a 4D grid and 3D ungridded bounds
+#ifndef ESMF_NO_GREATER_THAN_4D
         call test7d3_generic(rc, minIndex=(/1,1,1,1/), maxIndex=(/3,4,3,4/), &
             regDecomp=(/2,1,2,1/), &
             ungriddedLBound=(/1,2,1/), ungriddedUBound=(/4,2,3/), &
@@ -1647,11 +1879,16 @@
         write(name, *) "Creating a 7D field from a 4D grid and 3D ungridded bounds " // &
             "using generic interface, irregular gridToFieldMap and distgridToGridMap " // &
             "data copy, corner stagger"
+#else
+        rc = ESMF_SUCCESS
+        write(name, *) "Skipped test because: ESMF_NO_GREATER_THAN_4D"
+#endif
         call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
 
         !------------------------------------------------------------------------
         !EX_UTest_Multi_Proc_Only
         ! Create a 7D field from a 4D grid and 3D ungridded bounds
+#ifndef ESMF_NO_GREATER_THAN_4D
         call test7d3_generic_repdim(rc, minIndex=(/1,1,1,1/), maxIndex=(/3,4,3,4/), &
             regDecomp=(/2,1,2,1/), &
             ungriddedLBound=(/1,2,1,1/), ungriddedUBound=(/4,2,3,1/), &
@@ -1665,6 +1902,10 @@
         write(name, *) "Creating a 7D field from a 4D grid and 4D ungridded bounds " // &
             "using generic interface, irregular gridToFieldMap and distgridToGridMap " // &
             "data copy, corner stagger, replicated dimension"
+#else
+        rc = ESMF_SUCCESS
+        write(name, *) "Skipped test because: ESMF_NO_GREATER_THAN_4D"
+#endif
         call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
 
         !------------------------------------------------------------------------
@@ -1705,6 +1946,7 @@
         !------------------------------------------------------------------------
         !EX_UTest_Multi_Proc_Only
         ! Create a 7D field from a 4D grid and 3D ungridded bounds
+#ifndef ESMF_NO_GREATER_THAN_4D
         call test7d3_generic_repdim_sct(rc, &
             minIndex=(/1,1,1,1/), maxIndex=(/3,4,3,4/), &
             regDecomp=(/2,1,2,1/), &
@@ -1719,6 +1961,10 @@
         write(name, *) "Complete a 7D field from a 4D grid and 4D ungridded bounds " // &
             "using generic interface, irregular gridToFieldMap and distgridToGridMap " // &
             "data copy, corner stagger, replicated dimension"
+#else
+        rc = ESMF_SUCCESS
+        write(name, *) "Skipped test because: ESMF_NO_GREATER_THAN_4D"
+#endif
         call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
 
         !------------------------------------------------------------------------
@@ -1799,6 +2045,7 @@
         !------------------------------------------------------------------------
         !EX_UTest_Multi_Proc_Only
         ! Create a 7D field from a 5D grid and 2D ungridded bounds
+#ifndef ESMF_NO_GREATER_THAN_4D
         call test7d4_generic(rc, minIndex=(/1,1,1,1,1/), maxIndex=(/3,4,3,4,2/), &
             regDecomp=(/2,1,2,1,1/), &
             ungriddedLBound=(/1,2/), ungriddedUBound=(/4,5/), &
@@ -1807,11 +2054,16 @@
         write(failMsg, *) ""
         write(name, *) "Creating a 7D field from a 5D grid and 2D ungridded bounds " // &
             "using generic interface"
+#else
+        rc = ESMF_SUCCESS
+        write(name, *) "Skipped test because: ESMF_NO_GREATER_THAN_4D"
+#endif
         call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
 
         !------------------------------------------------------------------------
         !EX_UTest_Multi_Proc_Only
         ! Create a 7D field from a 5D grid and 2D ungridded bounds
+#ifndef ESMF_NO_GREATER_THAN_4D
         call test7d4_generic(rc, minIndex=(/1,1,1,1,1/), maxIndex=(/3,4,3,4,2/), &
             regDecomp=(/2,1,2,1,1/), &
             gridEdgeLWidth=(/0,0,0,0,0/), gridEdgeUWidth=(/0,0,0,0,0/), &
@@ -1823,12 +2075,17 @@
         write(name, *) "Creating a 7D field from a 5D grid and 2D ungridded bounds " // &
             "using generic interface"
         ! Why should this test fail - BOB?
+#else
+        rc = ESMF_SUCCESS
+        write(name, *) "Skipped test because: ESMF_NO_GREATER_THAN_4D"
+#endif
         !call ESMF_Test((rc.ne.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
         call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
 
         !------------------------------------------------------------------------
         !EX_UTest_Multi_Proc_Only
         ! Create a 7D field from a 5D grid and 2D ungridded bounds
+#ifndef ESMF_NO_GREATER_THAN_4D
         call test7d4_generic(rc, minIndex=(/1,1,1,1,1/), maxIndex=(/3,4,3,4,2/), &
             regDecomp=(/2,1,2,1,1/), &
             gridEdgeLWidth=(/0,0,0,0,0/), gridEdgeUWidth=(/1,1,1,1,1/), &
@@ -1839,11 +2096,16 @@
         write(failMsg, *) ""
         write(name, *) "Creating a 7D field from a 5D grid and 2D ungridded bounds " // &
             "using generic interface, fieldget=true"
+#else
+        rc = ESMF_SUCCESS
+        write(name, *) "Skipped test because: ESMF_NO_GREATER_THAN_4D"
+#endif
         call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
 
         !------------------------------------------------------------------------
         !EX_UTest_Multi_Proc_Only
         ! Create a 7D field from a 5D grid and 2D ungridded bounds
+#ifndef ESMF_NO_GREATER_THAN_4D
         call test7d4_generic(rc, minIndex=(/1,1,1,1,1/), maxIndex=(/3,4,3,4,2/), &
             regDecomp=(/2,1,2,1,1/), &
             ungriddedLBound=(/1,2/), ungriddedUBound=(/4,5/), &
@@ -1853,11 +2115,16 @@
         write(failMsg, *) ""
         write(name, *) "Creating a 7D field from a 5D grid and 2D ungridded bounds " // &
             "using generic interface, irregular gridToFieldMap"
+#else
+        rc = ESMF_SUCCESS
+        write(name, *) "Skipped test because: ESMF_NO_GREATER_THAN_4D"
+#endif
         call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
 
         !------------------------------------------------------------------------
         !EX_UTest_Multi_Proc_Only
         ! Create a 7D field from a 5D grid and 2D ungridded bounds
+#ifndef ESMF_NO_GREATER_THAN_4D
         call test7d4_generic(rc, minIndex=(/1,1,1,1,1/), maxIndex=(/4,2,4,2,2/), &
             regDecomp=(/2,1,2,1,1/), &
             ungriddedLBound=(/1,2/), ungriddedUBound=(/4,5/), &
@@ -1867,11 +2134,16 @@
         write(failMsg, *) ""
         write(name, *) "Creating a 7D field from a 5D grid and 2D ungridded bounds " // &
             "using generic interface, irregular gridToFieldMap, data copy"
+#else
+        rc = ESMF_SUCCESS
+        write(name, *) "Skipped test because: ESMF_NO_GREATER_THAN_4D"
+#endif
         call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
 
         !------------------------------------------------------------------------
         !EX_UTest_Multi_Proc_Only
         ! Create a 7D field from a 1D grid and 6D ungridded bounds
+#ifndef ESMF_NO_GREATER_THAN_4D
         call test7d4_generic(rc, minIndex=(/1/), maxIndex=(/6/), &
             regDecomp=(/4/), &
             ungriddedLBound=(/1,2,1,2,1,2/), ungriddedUBound=(/4,2,3,3,2,4/), &
@@ -1883,11 +2155,16 @@
         write(failMsg, *) ""
         write(name, *) "Creating a 7D field from a 1D grid and 6D ungridded bounds " // &
             "using generic interface, irregular gridToFieldMap and distgridToGridMap"
+#else
+        rc = ESMF_SUCCESS
+        write(name, *) "Skipped test because: ESMF_NO_GREATER_THAN_4D"
+#endif
         call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
 
         !------------------------------------------------------------------------
         !EX_UTest_Multi_Proc_Only
         ! Create a 7D field from a 4D grid and 3D ungridded bounds
+#ifndef ESMF_NO_GREATER_THAN_4D
         call test7d4_generic(rc, minIndex=(/1,1,1,1/), maxIndex=(/3,4,3,4/), &
             regDecomp=(/2,1,2,1/), &
             ungriddedLBound=(/1,2,1/), ungriddedUBound=(/4,2,3/), &
@@ -1899,11 +2176,16 @@
         write(failMsg, *) ""
         write(name, *) "Creating a 7D field from a 4D grid and 3D ungridded bounds " // &
             "using generic interface, irregular gridToFieldMap and distgridToGridMap"
+#else
+        rc = ESMF_SUCCESS
+        write(name, *) "Skipped test because: ESMF_NO_GREATER_THAN_4D"
+#endif
         call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
 
         !------------------------------------------------------------------------
         !EX_UTest_Multi_Proc_Only
         ! Create a 7D field from a 7D grid
+#ifndef ESMF_NO_GREATER_THAN_4D
         call test7d4_generic(rc, minIndex=(/1,1,1,1,1,1,1/), maxIndex=(/3,4,3,4,3,3,3/), &
             regDecomp=(/2,1,2,1,1,1,1/), &
             datacopyflag=ESMF_DATACOPY_VALUE, &
@@ -1914,12 +2196,17 @@
         write(failMsg, *) ""
         write(name, *) "Creating a 7D field from a 4D grid and 3D ungridded bounds " // &
             "using generic interface, irregular gridToFieldMap and distgridToGridMap"
+#else
+        rc = ESMF_SUCCESS
+        write(name, *) "Skipped test because: ESMF_NO_GREATER_THAN_4D"
+#endif
         call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
 
         !------------------------------------------------------------------------
         !EX_UTest_Multi_Proc_Only
         ! Create a 7D field from a 4D grid and 3D ungridded bounds
         ! this test fails since grid padding is currently hardcoded in test7d4
+#ifndef ESMF_NO_GREATER_THAN_4D
         call test7d4_generic(rc, minIndex=(/1,1,1,1/), maxIndex=(/3,4,3,2/), &
             regDecomp=(/2,1,2,1/), &
             ungriddedLBound=(/1,2,1/), ungriddedUBound=(/2,2,3/), &
@@ -1934,8 +2221,27 @@
         write(name, *) "Creating a 7D field from a 4D grid and 3D ungridded bounds " // &
             "using generic interface, irregular gridToFieldMap and distgridToGridMap " // &
             "data copy, corner stagger"
+#else
+        rc = ESMF_SUCCESS
+        write(name, *) "Skipped test because: ESMF_NO_GREATER_THAN_4D"
+#endif
         call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
 #endif
+        !------------------------------------------------------------------------
+        !NEX_UTest_Multi_Proc_Only
+        !    create a 3d array.
+        !    add it to a field with the ESMF_DATACOPY_VALUE flag set (not REF).
+        !    delete the original array� (i should have made a copy inside the
+        !    field)
+
+        !    get the array from the field
+        !    get a data pointer from the array
+        !    it crashes for him here.
+        call test_atnas_gridindex(rc)
+        write(failMsg, *) ""
+        write(name, *) "Testing Atnas's case #3556962"
+        call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+
         !------------------------------------------------------------------------
         !NEX_UTest_Multi_Proc_Only
         !    create a 3d array.
@@ -1975,7 +2281,7 @@
         write(name, *) "Testing field create when all entries in map are 0 pointer"
         call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
 
-    call ESMF_TestEnd(result, ESMF_SRCLINE)
+    call ESMF_TestEnd(ESMF_SRCLINE)
 
 contains 
 #define ESMF_METHOD "ESMF_TESTS"
@@ -3883,6 +4189,7 @@ contains
 
     end subroutine test3d_generic
 
+#ifndef ESMF_NO_GREATER_THAN_4D
     ! create a 7d Field from 5d grid and 2d ungridded bounds using ESMF_FieldGetAllocBounds
     subroutine test7d1(rc)
         integer, intent(out) :: rc
@@ -4678,7 +4985,7 @@ contains
         logical, optional                 :: fieldget
 
         real(ESMF_KIND_R8), dimension(:,:,:,:,:,:,:), allocatable :: farray
-        type(ESMF_Field)    :: field
+        type(ESMF_Field)    :: field, dstField
         type(ESMF_Grid)     :: grid
         type(ESMF_DistGrid) :: distgrid
         integer             :: localrc
@@ -4762,6 +5069,55 @@ contains
         if (ESMF_LogFoundError(localrc, &
             ESMF_ERR_PASSTHRU, &
             ESMF_CONTEXT, rcToReturn=rc)) return
+
+        dstField = ESMF_FieldCreate(grid, farray=farray, indexflag=ESMF_INDEX_DELOCAL, &
+            ungriddedLBound=ungriddedLBound, ungriddedUBound=ungriddedUBound, &
+            totalLWidth=totalLWidth, totalUWidth=totalUWidth, &
+            gridToFieldMap=gridToFieldMap, &
+            datacopyflag=ESMF_DATACOPY_VALUE, &
+            staggerloc=staggerloc, &
+            rc=localrc)
+        if (ESMF_LogFoundError(localrc, &
+            ESMF_ERR_PASSTHRU, &
+            ESMF_CONTEXT, rcToReturn=rc)) return
+        call ESMF_FieldGet(dstField, localDe=0, farrayPtr=farray1, &
+          totalLBound=ftlb, totalUBound=ftub, rc=localrc)
+        if (ESMF_LogFoundError(localrc, &
+            ESMF_ERR_PASSTHRU, &
+            ESMF_CONTEXT, rcToReturn=rc)) return
+        farray1 = 0.
+
+        call ESMF_FieldCopy(dstField, field, rc=localrc)
+        if (ESMF_LogFoundError(localrc, &
+            ESMF_ERR_PASSTHRU, &
+            ESMF_CONTEXT, rcToReturn=rc)) return
+  
+        ! Verify fieldCopy copies the values correctly
+        if(present(fieldget)) then
+          if(fieldget) then
+            do ip = ftlb(7), ftub(7)
+             do io = ftlb(6), ftub(6)
+              do im = ftlb(5), ftub(5)
+               do il = ftlb(4), ftub(4)
+                do ik = ftlb(3), ftub(3)
+                 do ij = ftlb(2), ftub(2)
+                  do ii = ftlb(1), ftub(1)
+                    n = ii+ij*2+ik+il*2+im+io*2+ip
+                    if(farray1(ii,ij,ik,il,im,io,ip) /= n) then
+                      call ESMF_LogSetError(ESMF_RC_PTR_BAD, &
+                        msg="- dst Field pointer value is different from src Field value", &
+                        ESMF_CONTEXT, rcToReturn=rc)
+                      return
+                    endif
+                  enddo
+                 enddo
+                enddo
+               enddo
+              enddo
+             enddo
+            enddo
+          endif
+        endif
 
         if(present(fieldget)) then
           if(fieldget) then
@@ -5302,9 +5658,9 @@ contains
             ESMF_CONTEXT, rcToReturn=rc)) return
 
     end subroutine test7d3_generic_repdim
-
+#endif
 !------------------------------------------------------------------------
-    ! create a 7d Field using grid and arrayspec
+    ! create a 3d Field using grid and arrayspec
     ! use allocBounds to verify field create
     subroutine test3d_generic_repdim(rc, minindex, maxindex, &
         gridEdgeLWidth, gridEdgeUWidth, &
@@ -5529,6 +5885,7 @@ contains
 
     end subroutine test3d_generic_repdim
 
+#ifndef ESMF_NO_GREATER_THAN_4D
 !------------------------------------------------------------------------
     ! create a 7d Field using grid and arrayspec
     ! use allocBounds to verify field create
@@ -5803,6 +6160,7 @@ contains
 
         deallocate(farray_cr)
     end subroutine test7d3_generic_repdim_sct
+#endif
 
 !------------------------------------------------------------------------
     ! create a 3d Field using grid and arrayspec
@@ -6508,6 +6866,7 @@ contains
         deallocate(farray_cr)
     end subroutine test2d_generic_sctptr
 
+#ifndef ESMF_NO_GREATER_THAN_4D
 !------------------------------------------------------------------------
     ! create a 7d Field using grid and array
     ! use allocBounds to verify field create
@@ -6953,7 +7312,184 @@ contains
         deallocate(farray)
 
     end subroutine test7d4_generic
+#endif
 
+!----------------------------------------------------------------------------------
+
+    subroutine test_atnas_gridindex(rc)
+
+
+    
+    ! Arguments
+    integer, intent(OUT) :: RC
+
+    ! Local variables
+
+    type(ESMF_VM)                   :: vm
+    type(ESMF_Grid)                 :: grid
+    type(ESMF_DistGrid)             :: distgrid
+    type(ESMF_Field)                :: field, f
+    type (ESMF_Array)               :: array
+    integer                         :: counts(7)
+    integer                         :: npets
+    integer                         :: myid
+    integer                         :: i, j, ntiles, extra
+    integer                         :: fieldRank, gridRank
+    integer, allocatable            :: tileIndex(:)
+    integer, allocatable            :: gridToFieldMap(:)
+    real(kind=ESMF_KIND_R4), pointer:: VAR_1D(:)
+    integer                         :: arbIndexCount
+    integer, allocatable            :: arbIndex(:,:)
+    integer, parameter              :: ntilesGlobal = 100
+
+    type(ESMF_INDEX_FLAG)           :: idx
+
+    call ESMF_VMGetCurrent(vm, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, &
+        ESMF_ERR_PASSTHRU, &
+        ESMF_CONTEXT, rcToReturn=rc)) return
+
+    call ESMF_VmGet(VM, petCount=npets, localPet=myid, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, &
+        ESMF_ERR_PASSTHRU, &
+        ESMF_CONTEXT, rcToReturn=rc)) return
+    
+  ! set up abritrary index 
+  ! for this example it won't be arbitrary
+  ! but it does not matter. The real usage is for MAPL_LocStream
+
+    J = 0
+
+    extra = 1
+    if(mod(ntilesGlobal,npets) <= myid) extra=0
+    ntiles = ntilesGlobal / npets + extra
+
+    allocate(tileIndex(ntiles), stat=rc)
+    do I = 1, ntilesGlobal
+       if (mod(I-1,npets) == myid) then
+          J = J + 1
+          tileIndex(J) = I
+       end if
+    end do
+    if(ntiles /= J) then
+      rc = ESMF_FAILURE
+      return
+    endif
+
+  ! the actual preproducer
+
+  ! create distGrid for arbSeqIndexList
+    distgrid=ESMF_DistGridCreate(arbSeqIndexList=tileIndex, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, &
+        ESMF_ERR_PASSTHRU, &
+        ESMF_CONTEXT, rcToReturn=rc)) return
+
+  ! create grid for the distgrid
+  ! IMPORTANT the indexFlag has to be ESMF_INDEX_USER
+
+    GRID = ESMF_GridEmptyCreate(rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, &
+        ESMF_ERR_PASSTHRU, &
+        ESMF_CONTEXT, rcToReturn=rc)) return
+           
+    arbIndexCount = ntiles
+    allocate(arbIndex(arbIndexCount,1), stat=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, &
+        ESMF_ERR_PASSTHRU, &
+        ESMF_CONTEXT, rcToReturn=rc)) return
+    
+    arbIndex(:,1) = tileIndex
+    deallocate(tileIndex)
+
+    call ESMF_GridSet(grid,  &
+         name="tile_grid",    &
+         distgrid=distgrid, & 
+         gridMemLBound=(/1/), &
+         indexFlag=ESMF_INDEX_USER, &
+         distDim = (/1/), &
+         localArbIndexCount=arbIndexCount, &
+         localArbIndex=arbIndex, &
+         minIndex=(/1/), &
+         maxIndex=(/ntilesGlobal/), &
+         rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, &
+        ESMF_ERR_PASSTHRU, &
+        ESMF_CONTEXT, rcToReturn=rc)) return
+
+    deallocate(arbIndex)
+    call ESMF_GridCommit(grid, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, &
+        ESMF_ERR_PASSTHRU, &
+        ESMF_CONTEXT, rcToReturn=rc)) return
+
+    call ESMF_GridGet(GRID, dimCount=gridRank, indexflag=idx, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, &
+        ESMF_ERR_PASSTHRU, &
+        ESMF_CONTEXT, rcToReturn=rc)) return
+    idx = ESMF_INDEX_USER
+
+
+    call ESMF_GridGet(GRID, localDE=0, &
+         staggerloc=ESMF_STAGGERLOC_CENTER, &
+         computationalCount=COUNTS, RC=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, &
+        ESMF_ERR_PASSTHRU, &
+        ESMF_CONTEXT, rcToReturn=rc)) return
+
+    allocate(VAR_1D(counts(1)), stat=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, &
+        ESMF_ERR_PASSTHRU, &
+        ESMF_CONTEXT, rcToReturn=rc)) return
+
+  ! create a field
+    FIELD = ESMF_FieldCreate(GRID, farrayPtr=VAR_1D,    &
+         name = "tilevar1D",                         &
+         datacopyFlag = ESMF_DATACOPY_REFERENCE,     &
+         rc = rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, &
+        ESMF_ERR_PASSTHRU, &
+        ESMF_CONTEXT, rcToReturn=rc)) return
+
+  !    print *,'PE ',myid,' returned from FieldCreateF90',rc
+
+  ! Now we query the field and get the grid and the esmf array
+  ! then we want to create a new field (possibly different name)
+  ! and use the same grid and esmf array
+    call ESMF_FieldGet(FIELD, grid=GRID, dimCount=fieldRank, RC=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, &
+        ESMF_ERR_PASSTHRU, &
+        ESMF_CONTEXT, rcToReturn=rc)) return
+    call ESMF_GridGet(GRID, dimCount=gridRank, indexflag=idx, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, &
+        ESMF_ERR_PASSTHRU, &
+        ESMF_CONTEXT, rcToReturn=rc)) return
+    
+    if(fieldRank /= gridRank) then
+      rc = ESMF_FAILURE
+      return
+    endif
+    allocate(gridToFieldMap(gridRank), stat=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, &
+        ESMF_ERR_PASSTHRU, &
+        ESMF_CONTEXT, rcToReturn=rc)) return
+    call ESMF_FieldGet(FIELD, Array=Array, gridToFieldMap=gridToFieldMap, RC=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, &
+        ESMF_ERR_PASSTHRU, &
+        ESMF_CONTEXT, rcToReturn=rc)) return
+
+  ! this call fails
+  ! the reason is that ESMF "thinks" gridIndex is different from arrayIndex
+  !
+    F = ESMF_FieldCreate(GRID, ARRAY = Array, &
+         name="newName", gridToFieldMap=gridToFieldMap, RC=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, &
+        ESMF_ERR_PASSTHRU, &
+        ESMF_CONTEXT, rcToReturn=rc)) return
+
+    deallocate(gridToFieldMap)
+    
+    end subroutine
+  
 !----------------------------------------------------------------------------------
     subroutine test_eric_klusek(rc)
 

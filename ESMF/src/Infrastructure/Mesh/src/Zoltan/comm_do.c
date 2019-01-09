@@ -6,8 +6,8 @@
 /*****************************************************************************
  * CVS File Information :
  *    $RCSfile: comm_do.c,v $
- *    $Author: mathomp4 $
- *    $Date: 2013-01-11 20:23:44 $
+ *    $Author: dneckels $
+ *    $Date: 2007/11/28 16:13:45 $
  *    Revision: 1.15 $
  ****************************************************************************/
 
@@ -82,7 +82,7 @@ char *recv_data)		/* array of data I'll own after comm */
     int       proc_index;	/* loop counter over procs to send to */
     int       i, j, k, jj;	/* loop counters */
 
-    static char *yo = "Zoltan_Comm_Do_Post";
+    static const char *yo = "Zoltan_Comm_Do_Post";
 
 
     /* Check input parameters */

@@ -1,5 +1,5 @@
 /*
-** $Id: exmisc.c,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
+** $Id$
 **
 ** Miscellaneous functions to support writing simple Zoltan examples.
 */
@@ -14,7 +14,7 @@ extern "C" {
 #endif
 
 
-void exShowError(int val, char *s, int me)
+void exShowError(int val, const char *s, int me)
 {
   if (s)
     {

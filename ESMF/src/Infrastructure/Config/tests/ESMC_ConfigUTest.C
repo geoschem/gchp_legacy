@@ -1,7 +1,7 @@
 // $Id$
 //
 // Earth System Modeling Framework
-// Copyright 2002-2012, University Corporation for Atmospheric Research, 
+// Copyright 2002-2018, University Corporation for Atmospheric Research, 
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
 // Laboratory, University of Michigan, National Centers for Environmental 
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
@@ -71,6 +71,24 @@ int main(void){
 
   //----------------------------------------------------------------------------
   //NEX_UTest
+  //Destroy Config object
+  strcpy(name, "ConfigDestroy Unit test");
+  strcpy(failMsg, "Did not return ESMF_SUCCESS");
+  rc = ESMC_ConfigDestroy(&cf);
+  ESMC_Test((rc == ESMF_SUCCESS), name, failMsg, &result, __FILE__, __LINE__,0);
+  //----------------------------------------------------------------------------
+
+  //----------------------------------------------------------------------------
+  //NEX_UTest
+  // Create a config object -- cf
+  strcpy(name, "ConfigCreate Unit test");
+  strcpy(failMsg, "Did not return ESMF_SUCCESS");
+  cf = ESMC_ConfigCreate(&rc);
+  ESMC_Test((rc == ESMF_SUCCESS), name, failMsg, &result, __FILE__, __LINE__,0);
+  //----------------------------------------------------------------------------
+
+  //----------------------------------------------------------------------------
+  //NEX_UTest
   //Load resource file into memory - set optional argument unique to .true.
   unique = 1;
   strcpy(name, "ConfigLoadFile Unit test - optional arg");
@@ -99,7 +117,26 @@ int main(void){
   //----------------------------------------------------------------------------
  
 #ifdef ESMF_TESTEXHAUSTIVE
- //----------------------------------------------------------------------------
+
+  //----------------------------------------------------------------------------
+  //EX_UTest
+  //Destroy Config object
+  strcpy(name, "ConfigDestroy Unit test");
+  strcpy(failMsg, "Did not return ESMF_SUCCESS");
+  rc = ESMC_ConfigDestroy(&cf);
+  ESMC_Test((rc == ESMF_SUCCESS), name, failMsg, &result, __FILE__, __LINE__,0);
+  //----------------------------------------------------------------------------
+
+  //----------------------------------------------------------------------------
+  //EX_UTest
+  // Create a config object -- cf
+  strcpy(name, "ConfigCreate Unit test");
+  strcpy(failMsg, "Did not return ESMF_SUCCESS");
+  cf = ESMC_ConfigCreate(&rc);
+  ESMC_Test((rc == ESMF_SUCCESS), name, failMsg, &result, __FILE__, __LINE__,0);
+  //----------------------------------------------------------------------------
+
+  //----------------------------------------------------------------------------
   //EX_UTest
   //Load resource file into memory
   //This UTest tests whether the code will recognize that the input file 
@@ -117,10 +154,19 @@ int main(void){
   //NEX_UTest
   //Find a label in the loaded resource file
   const char* label="Number_of_Members:";
+  int present;
   strcpy(name, "ConfigFindLabel Unit test");
   strcpy(failMsg, "Did not return ESMF_SUCCESS");
-  rc = ESMC_ConfigFindLabel(cf, label);
+  rc = ESMC_ConfigFindLabel(cf, label, &present);
   ESMC_Test((rc == ESMF_SUCCESS), name, failMsg, &result, __FILE__, __LINE__,0);
+  //----------------------------------------------------------------------------
+
+  //----------------------------------------------------------------------------
+  //NEX_UTest
+  //Presence of a label in the loaded resource file
+  strcpy(name, "ConfigFindLabel presence Unit test");
+  strcpy(failMsg, "Did not return present");
+  ESMC_Test(present, name, failMsg, &result, __FILE__, __LINE__,0);
   //----------------------------------------------------------------------------
 
   //----------------------------------------------------------------------------
@@ -145,6 +191,25 @@ int main(void){
   ESMC_Test((rc == ESMF_SUCCESS), name, failMsg, &result, __FILE__, __LINE__,0);
   //----------------------------------------------------------------------------
 
+  //----------------------------------------------------------------------------
+  //NEX_UTest
+  //Find a non-present label in the loaded resource file
+  const char* labelx="xyzzy";
+  int presentx;
+  strcpy(name, "ConfigFindLabel of non-present label Unit test");
+  strcpy(failMsg, "Did not return ESMF_SUCCESS");
+  rc = ESMC_ConfigFindLabel(cf, labelx, &presentx);
+  ESMC_Test((rc == ESMF_SUCCESS), name, failMsg, &result, __FILE__, __LINE__,0);
+  //----------------------------------------------------------------------------
+
+  //----------------------------------------------------------------------------
+  //NEX_UTest
+  //Presence of a non-present label in the loaded resource file
+  strcpy(name, "ConfigFindLabel presence Unit test");
+  strcpy(failMsg, "Did not return present");
+  ESMC_Test(!presentx, name, failMsg, &result, __FILE__, __LINE__,0);
+  //----------------------------------------------------------------------------
+
 
   //----------------------------------------------------------------------------
   //NEX_UTest
@@ -156,7 +221,7 @@ int main(void){
   //----------------------------------------------------------------------------
 
   //----------------------------------------------------------------------------
-  ESMC_TestEnd(result, __FILE__, __LINE__, 0);
+  ESMC_TestEnd(__FILE__, __LINE__, 0);
   //----------------------------------------------------------------------------
   
   return 0;

@@ -1,0 +1,83 @@
+% $Id$
+
+% Earth System Modeling Framework
+% Copyright 2002-2018, University Corporation for Atmospheric Research, 
+% Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
+% Laboratory, University of Michigan, National Centers for Environmental 
+% Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
+% NASA Goddard Space Flight Center.
+% Licensed under the University of Illinois-NCSA License.
+
+\subsubsection{ESMF\_LOGERR}
+\label{const:logerr}
+
+The valid values are:
+\begin{description}
+	\item [ESMF\_LOGERR\_PASSTHRU]
+		A named character constant, with a predefined generic error message, 
+		that can be used for the {\tt msg} argument in any {\tt ESMF\_Log} 
+		routine.  The message indicated 
+		by this named constant is ``{\it Passing error in return code}."
+\end{description}
+
+\subsubsection{ESMF\_LOGKIND}
+\label{const:logkindflag}
+
+{\sf DESCRIPTION:\\}
+Specifies a single log file, multiple log files (one per PET), or no log files.
+
+The type of this flag is:
+
+{\tt type(ESMF\_LogKind\_Flag)}
+
+The valid values are:
+\begin{description}
+   \item [ESMF\_LOGKIND\_SINGLE] 
+         Use a single log file, combining messages from all of the PETs.  Not supported on some platforms.
+   \item [ESMF\_LOGKIND\_MULTI]
+         Use multiple log files --- one per PET.
+   \item [ESMF\_LOGKIND\_MULTI\_ON\_ERROR]
+         Use multiple log files --- one per PET.  A log file is only opened when a message
+         of type {\tt ESMF\_LOGMSG\_ERROR} is encountered.
+   \item [ESMF\_LOGKIND\_NONE]
+         Do not issue messages to a log file.
+\end{description}
+
+\subsubsection{ESMF\_LOGMSG}
+\label{const:logmsgflag}
+
+{\sf DESCRIPTION:\\}
+\begin{sloppypar}
+Specifies a message level
+\end{sloppypar}
+
+The type of this flag is:
+
+{\tt type(ESMF\_LogMsg\_Flag)}
+
+The valid values are:
+\begin{description}
+   \item [ESMF\_LOGMSG\_INFO] 
+         Informational messages
+   \item [ESMF\_LOGMSG\_WARNING]
+         Warning messages
+   \item [ESMF\_LOGMSG\_ERROR]
+         Error messages
+   \item [ESMF\_LOGMSG\_TRACE]
+         Trace messages
+   \item [ESMF\_LOGMSG\_JSON]
+         JSON format messages
+\end{description}
+
+Valid predefined named array constant values are:
+
+\begin{description}
+	\item [ESMF\_LOGMSG\_ALL]
+		All messages
+	\item [ESMF\_LOGMSG\_NONE]
+		No messages
+	\item [ESMF\_LOGMSG\_NOTRACE]
+		All messages EXCEPT trace messages
+\end{description}
+
+
