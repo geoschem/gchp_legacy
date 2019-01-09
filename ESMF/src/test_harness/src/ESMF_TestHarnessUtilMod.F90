@@ -1,7 +1,7 @@
 ! $Id$
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2012, University Corporation for Atmospheric Research,
+! Copyright 2002-2018, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -885,7 +885,7 @@ integer :: rootPet = Harness_rootPet
   character(THARN_MAXSTR) :: lchar, ltmp
   integer :: int_tmp
 
-  logical :: flag = .true.
+  logical :: flag
 
   ! initialize return flag
   localrc = ESMF_RC_NOT_IMPL
@@ -1005,7 +1005,7 @@ integer :: rootPet = Harness_rootPet
   character(THARN_MAXSTR) :: lchar, ltmp
   real(ESMF_KIND_R8) :: flt_tmp
 
-  logical :: flag = .true.
+  logical :: flag
 
   ! initialize return flag
   localrc = ESMF_RC_NOT_IMPL
@@ -1124,7 +1124,7 @@ integer :: rootPet = Harness_rootPet
   ! local character strings
   character(THARN_MAXSTR) :: ltmp, lchar
 
-  logical :: flag = .true.
+  logical :: flag
 
   ! initialize return flag
   localrc = ESMF_RC_NOT_IMPL

@@ -1,0 +1,1031 @@
+% $Id$
+
+\section{Appendix A:  Master List of Constants}
+\label{const:master}
+
+\subsection{ESMF\_ALARMLIST}
+This flag is documented in section \ref{const:alarmlist}.
+
+\subsection{ESMF\_DIM\_ARB}
+\label{const:arbdim}
+
+{\sf DESCRIPTION:\\}
+An integer named constant which is used to indicate that a particular dimension is arbitrarily distributed.
+
+\subsection{ESMF\_ATTCOPY}
+This flag is documented in section \ref{const:attcopy}.
+
+\subsection{ESMF\_ATTGETCOUNT}
+This flag is documented in section \ref{const:attgetcount}.
+
+\subsection{ESMF\_ATTNEST}
+\label{const:attnest}
+{\sf DESCRIPTION:\\}
+Indicate whether or not to descend the Attribute hierarchy.
+
+The type of this flag is:
+
+{\tt type(ESMF\_AttNest\_Flag)}
+
+The valid values are:
+\begin{description}
+    \item[ESMF\_ATTNEST\_ON]
+    Indicates that the Attribute hierarchy should be traversed.
+    \item[ESMF\_ATTNEST\_OFF]
+    Indicates that the Attribute hierarchy should not be traversed.
+\end{description}
+
+
+\subsection{ESMF\_ATTRECONCILE}
+\label{const:attreconcile}
+{\sf DESCRIPTION:\\}
+Indicate whether or not to handle metadata (Attributes) in {\tt ESMF\_StateReconcile()}.
+
+The type of this flag is:
+
+{\tt type(ESMF\_AttReconcileFlag)}
+
+The valid values are:
+\begin{description}
+	\item[ESMF\_ATTRECONCILE\_ON]
+	Attribute reconciliation will be turned on.
+	\item[ESMF\_ATTRECONCILE\_OFF]
+ 	Attribute reconciliation will be turned off.
+\end{description}
+
+
+\subsection{ESMF\_ATTWRITE}
+This flag is documented in section \ref{const:attwrite}.
+
+
+\subsection{ESMF\_CALKIND}
+This flag is documented in section \ref{const:calkindflag}.
+
+
+\subsection{ESMF\_COMPTYPE}
+\label{const:comptype}
+{\sf DESCRIPTION:\\}
+Indicate the type of a Component.
+
+The type of this flag is:
+
+{\tt type(ESMF\_CompType\_Flag)}
+
+The valid values are:
+\begin{description}
+	\item[ESMF\_COMPTYPE\_GRID]
+	A {\tt ESMF\_GridComp} object. 
+	\item[ESMF\_COMPTYPE\_CPL]
+	A {\tt ESMF\_CplComp} objects.
+	\item[ESMF\_COMPTYPE\_SCI]
+	A {\tt ESMF\_SciComp} objects.
+\end{description}
+
+
+\subsection{ESMF\_CONTEXT}
+\label{const:contextflag}
+{\sf DESCRIPTION:\\}  
+Indicates the type of VM context in which a Component will be executing its
+standard methods.
+
+The type of this flag is:
+
+{\tt type(ESMF\_Context\_Flag)}
+
+The valid values are:
+\begin{description}
+
+ \item [ESMF\_CONTEXT\_OWN\_VM]
+         The component is running in its own, separate VM context. Resources
+         are inherited from the parent but can be arranged to fit the
+         component's requirements.
+\item [ESMF\_CONTEXT\_PARENT\_VM]
+         The component uses the parent's VM for resource management. Compared
+         to components that use their own VM context components that run in the
+         parent's VM context are more light-weight with respect to the overhead
+         of calling into their initialize, run and finalize methods.
+         Furthermore, VM-specific properties remain unchanged when going from
+         the parent component to the child component. These properties include
+         the MPI communicator, the number of PETs, the PET labeling, 
+         communication attributes, threading-level.
+\end{description}
+
+
+\subsection{ESMF\_COORDSYS}
+\label{const:coordsys}
+
+{\sf DESCRIPTION:\\}
+ A set of values which indicates in which system the coordinates in a class (e.g. Grid) are. This type is useful both
+to indicate to other users the type of the coordinates, but also to control how the coordinates are interpreted in ESMF
+methods which depend on the coordinates (e.g. regridding methods like {\tt ESMF\_FieldRegridStore()}).
+
+The type of this flag is:
+
+{\tt type(ESMF\_CoordSys\_Flag)}
+
+The valid values are:
+\begin{description}
+\item [ESMF\_COORDSYS\_CART] Cartesian coordinate system. In this system, the Cartesian coordinates are mapped to the coordinate dimensions in the following order: x,y,z. (E.g. using {\tt coordDim=2} in ESMF\_GridGetCoord() references the y dimension) 
+
+\item [ESMF\_COORDSYS\_SPH\_DEG] Spherical coordinates in degrees. In this system, the spherical coordinates are mapped to the coordinate dimensions in the following order: longitude, latitude, radius. (E.g. using {\tt coordDim=2} in ESMF\_GridGetCoord() references the latitude dimension.)
+
+\item [ESMF\_COORDSYS\_SPH\_RAD] Spherical coordinates in radians. In this system, the spherical coordinates are mapped to the coordinate dimensions in the following order: longitude, latitude, radius. (E.g. using {\tt coordDim=2} in ESMF\_GridGetCoord() references the latitude dimension.)
+
+\end{description}
+
+\subsection{ESMF\_DATACOPY}
+\label{const:datacopyflag}
+{\sf DESCRIPTION:\\}
+Indicates whether to reference a data item or make a copy of it.
+
+The type of this flag is:
+
+{\tt type(ESMF\_DataCopy\_Flag)}
+
+The valid values are:
+\begin{description}
+\item [ESMF\_DATACOPY\_VALUE]
+      Copy the data item to another buffer.
+\item [ESMF\_DATACOPY\_REFERENCE]
+      Reference the data item.
+\end{description}
+
+\subsection{ESMF\_DECOMP}
+\label{const:decompflag}
+{\sf DESCRIPTION:\\}
+Indicates how DistGrid elements are decomposed over DEs.
+
+The type of this flag is:
+
+{\tt type(ESMF\_Decomp\_Flag)}
+
+The valid values are:
+\begin{description}
+\item [ESMF\_DECOMP\_BALANCED]
+      Decompose elements as balanced as possible across DEs. The maximum 
+      difference in number of elements per DE is 1, with the extra elements on
+      the lower DEs.
+\item [ESMF\_DECOMP\_CYCLIC]
+      Decompose elements cyclically across DEs.
+\item [ESMF\_DECOMP\_RESTFIRST]
+      Divide elements over DEs. Assign the rest of this division to the first
+      DE.
+\item [ESMF\_DECOMP\_RESTLAST]
+       Divide elements over DEs. Assign the rest of this division to the last DE.
+\end{description}
+
+\subsection{ESMF\_DIRECTION}
+This flag is documented in section \ref{const:direction}.
+
+\subsection{ESMF\_DISTGRIDMATCH}
+This flag is documented in section \ref{const:distgridmatch}.
+
+\subsection{ESMF\_END}
+
+This flag is documented in section \ref{const:endflag}.
+
+\subsection{ESMF\_EXTRAPMETHOD}
+\label{opt:extrapmethod}
+
+{\sf DESCRIPTION:\\}  
+Specify which extrapolation method to use on unmapped destination points after regridding. 
+
+The type of this flag is:
+
+{\tt type(ESMF\_ExtrapMethod\_Flag)}
+
+The valid values are:
+\begin{description}
+\item [ESMF\_EXTRAPMETHOD\_NONE]
+     Indicates that no extrapolation should be done. 
+\item [ESMF\_EXTRAPMETHOD\_NEAREST\_IDAVG]
+      Inverse distance weighted average. 
+      Here the value of a destination point is the weighted average
+      of the closest N source points. The weight is 
+      the reciprocal of the distance of the source point from the destination point raised to a power P.
+      All the weights contributing to one destination point are normalized so that they sum to 1.0. 
+      The user can choose N and P when using this method, but defaults are also provided.  
+      This extrapolation method not supported with conservative regrid methods 
+      (e.g. {\tt ESMF\_REGRIDMETHOD\_CONSERVE}).
+\item [ESMF\_EXTRAPMETHOD\_NEAREST\_STOD]
+      Nearest source to destination. 
+      Here each destination point is mapped to the closest source point. A given source point may go 
+      to multiple destination points, but no destination point will receive input from more than
+      one source point. This extrapolation method not supported with conservative regrid methods
+      (e.g. {\tt ESMF\_REGRIDMETHOD\_CONSERVE}).
+\end{description}
+
+\subsection{ESMF\_FIELDSTATUS}
+This flag is documented in section \ref{const:fieldstatus}.
+
+\subsection{ESMF\_FILEFORMAT}
+\label{const:fileformatflag}
+{\sf DESCRIPTION:\\}
+This flag is used in {\tt ESMF\_GridCreate} and {\tt ESMF\_MeshCreate}
+functions.  It is also used in the {\tt ESMF\_RegridWeightGen} API as an
+optional argument.
+
+The type of this flag is:
+
+{\tt type(ESMF\_FileFormat\_Flag)}
+
+The valid values are:
+\begin{description}
+\item [ESMF\_FILEFORMAT\_CFGRID]  A single tile logically rectangular
+  grid file that follows the NetCDF CF convention. See section~\ref{sec:fileformat:gridspec} for more detailed description.
+
+\item [ESMF\_FILEFORMAT\_ESMFMESH] ESMF unstructured grid file format. This format was developed by the ESMF team to match the capabilities of the Mesh class and to be efficient to convert to that class. See section~\ref{sec:fileformat:esmf} for more detailed description.
+
+\item [ESMF\_FILEFORMAT\_GRIDSPEC]  Equivalent to {\tt ESMF\_FILEFORMAT\_CFGRID} flag.  
+
+\item [ESMF\_FILEFORMAT\_MOSAIC] This format is a proposed extension to the 
+CF-conventions for grid mosaics consisting of multiple logically rectangular grid
+tiles. See section~\ref{sec:fileformat:mosaic} for more detailed description.
+
+\item [ESMF\_FILEFORMAT\_SCRIP] SCRIP format grid file. The SCRIP format is
+  the format accepted by the SCRIP regridding tool~\cite{ref:SCRIP}.  See section\ref{sec:fileformat:scrip} for more detailed description.
+
+\item [ESMF\_FILEFORMAT\_UGRID] CF-convention unstructured grid file format. This format is a proposed extension to the 
+CF-conventions for unstructured grid data model. See section~\ref{sec:fileformat:ugrid} for more detailed description.
+
+\end{description}
+
+\subsection{ESMF\_FILESTATUS}
+\label{const:filestatusflag}
+{\sf DESCRIPTION:\\}
+This flag is used in ESMF I/O functions. It's use is similar to the
+{\tt status} keyword in the Fortran {\tt open} statement.
+
+The type of this flag is:
+
+{\tt type(ESMF\_FileStatus\_Flag)}
+
+The valid values are:
+\begin{description}
+\item [ESMF\_FILESTATUS\_NEW]
+      The file must not exist, it will be created.
+\item [ESMF\_FILESTATUS\_OLD]
+      The file must exist.
+\item [ESMF\_FILESTATUS\_REPLACE]
+      If the file exists, all of its contents will be deleted before writing.
+      If the file does not exist, it will be created.
+\item [ESMF\_FILESTATUS\_UNKNOWN]
+      The value is treated as if it were {\tt ESMF\_FILESTATUS\_OLD} if
+      the corresponding file already exists. Otherwise, the value is
+      treated as if it were {\tt ESMF\_FILESTATUS\_NEW}.
+
+\end{description}
+
+\subsection{ESMF\_GEOMTYPE}
+\label{const:geomtype}
+
+{\sf DESCRIPTION:\\}
+ Different types of geometries upon which an ESMF Field or ESMF Fieldbundle may
+be built. 
+
+The type of this flag is:
+
+{\tt type(ESMF\_GeomType\_Flag)}
+
+The valid values are:
+\begin{description}
+\item [ESMF\_GEOMTYPE\_GRID]
+      An ESMF\_Grid, a structured grid composed of one or more logically rectangular tiles.
+\item [ESMF\_GEOMTYPE\_MESH]
+      An ESMF\_Mesh, an unstructured grid.
+\item [ESMF\_GEOMTYPE\_XGRID]
+      An ESMF\_XGrid, an exchange grid.
+\item [ESMF\_GEOMTYPE\_LOCSTREAM]
+      An ESMF\_LocStream, a disconnected series of points with associated key values.
+\end{description}
+
+\subsection{ESMF\_GRIDCONN}
+This flag is documented in section \ref{const:gridconn}.
+
+\subsection{ESMF\_GRIDITEM}
+This flag is documented in section \ref{const:griditem}.
+
+\subsection{ESMF\_GRIDMATCH}
+This flag is documented in section \ref{const:gridmatch}.
+
+\subsection{ESMF\_GRIDSTATUS}
+This flag is documented in section \ref{const:gridstatus}.
+
+\subsection{ESMF\_INDEX}
+\label{const:indexflag}
+{\sf DESCRIPTION:\\}
+Indicates whether index is local (per DE) or global (per object).
+
+The type of this flag is:
+
+{\tt type(ESMF\_Index\_Flag)}
+
+The valid values are:
+\begin{description}
+\item [ESMF\_INDEX\_DELOCAL]
+      Indicates that DE-local index space starts at lower bound 1 for each DE.
+\item [ESMF\_INDEX\_GLOBAL]
+      Indicates that global indices are used. This means that DE-local index
+      space starts at the global lower bound for each DE.
+\item [ESMF\_INDEX\_USER]
+      Indicates that the DE-local index bounds are explicitly set by the user.
+ \end{description}
+
+\subsection{ESMF\_IOFMT}
+\label{opt:iofmtflag}
+{\sf DESCRIPTION:\\}
+Indicates I/O format options that are currently supported.
+
+The type of this flag is:
+
+{\tt type(ESMF\_IOFmt\_Flag)}
+
+The valid values are:
+\begin{description}
+\item [ESMF\_IOFMT\_BIN]
+      Binary format.
+\item [ESMF\_IOFMT\_NETCDF]
+      NETCDF and PNETCDF format.
+\item [ESMF\_IOFMT\_NETCDF\_64BIT\_OFFSET]
+      NETCDF and PNETCDF 64-bit format.
+\end{description}
+
+\subsection{ESMF\_IO\_NETCDF\_PRESENT}
+\label{const:ionetcdfflag}
+{\sf DESCRIPTION:\\}
+Indicates whether netcdf feature support has been enabled
+within the current ESMF build.
+
+The type of this flag is:
+
+{\tt logical}
+
+The valid values are:
+\begin{description}
+\item [.true.]
+      Netcdf features are enabled.
+\item [.false.]
+      Netcdf features are not enabled.
+\end{description}
+
+\subsection{ESMF\_IO\_PIO\_PRESENT}
+\label{const:iopioflag}
+{\sf DESCRIPTION:\\}
+Indicates whether PIO (parallel I/O) feature support has been enabled
+within the current ESMF build.
+
+The type of this flag is:
+
+{\tt logical}
+
+The valid values are:
+\begin{description}
+ \item [.true.]
+      PIO features are enabled..
+\item [.false.]
+      PIO  features are not enabled.
+\end{description}
+
+\subsection{ESMF\_IO\_PNETCDF\_PRESENT}
+\label{const:iopnetcdfflag}
+{\sf DESCRIPTION:\\}
+Indicates whether parallel netcdf feature support has been enabled
+within the current ESMF build.
+
+The type of this flag is:
+
+{\tt logical}
+
+The valid values are:
+\begin{description}
+\item [.true.]
+      Parallel netcdf features are enabled.
+\item [.false.]
+      Parallel netcdf features are not enabled.
+\end{description}
+
+
+\subsection{ESMF\_ITEMORDER}
+\label{const:itemorderflag}
+{\sf DESCRIPTION:\\}  
+Specifies the order of items in a list.
+
+The type of this flag is:
+
+{\tt type(ESMF\_ItemOrder\_Flag)}
+
+The valid values are:
+\begin{description}
+
+\item [ESMF\_ITEMORDER\_ABC]
+         The items are in alphabetical order, according to their names.
+\item [ESMF\_ITEMORDER\_ADDORDER]
+         The items are in the order in which they were added to the container.
+\end{description}
+
+
+\subsection{ESMF\_KIND}
+\label{const:kind}
+
+{\sf DESCRIPTION:\\}
+Named constants to be used as {\em kind-parameter} in Fortran variable
+ declarations. For example:
+\begin{verbatim}
+  integer(ESMF_KIND_I4)       :: integerVariable
+  integer(kind=ESMF_KIND_I4)  :: integerVariable
+  real(ESMF_KIND_R4)          :: realVariable
+  real(kind=ESMF_KIND_R4)     :: realVariable
+\end{verbatim}
+The Fortran standard does not mandate what numeric values correspond to
+actual number of bytes allocated for the various kinds. The following constants
+are defined by ESMF to be correct across the supported Fortran compilers.
+Note that not all compilers support every kind listed below; in particular
+1 and 2 byte integers can be problematic.
+
+The type of these named constants is:
+
+{\tt integer}
+
+The named constants are:
+\begin{description}
+\item [ESMF\_KIND\_I1]
+      Kind-parameter for 1 byte integer.
+\item [ESMF\_KIND\_I2]
+      Kind-parameter for 2 byte integer.
+\item [ESMF\_KIND\_I4]
+      Kind-parameter for 4 byte integer.
+\item [ESMF\_KIND\_I8]
+      Kind-parameter for 8 byte integer.
+\item [ESMF\_KIND\_R4]
+      Kind-parameter for 4 byte real.
+\item [ESMF\_KIND\_R8]
+      Kind-parameter for 8 byte real.
+%\item [ESMF\_KIND\_C8]
+%      Kind-parameter for 8 byte complex.
+%\item [ESMF\_KIND\_C16]
+%      Kind-parameter for 16 byte compled.
+\end{description}
+
+
+\subsection{ESMF\_LINETYPE}
+\label{opt:lineType}
+
+{\sf DESCRIPTION:\\}  This argument allows the user to select the path of the line which connects two points on the surface of a sphere.
+This in turn controls the path along which distances are calculated and the shape of the edges that make up a cell. 
+
+The type of this flag is:
+
+{\tt type(ESMF\_LineType\_Flag)}
+
+The valid values are:
+ \begin{description}
+\item [ESMF\_LINETYPE\_CART]
+   Cartesian line. When this option is specified distances are calculated in a straight line through the 3D Cartesian space
+   in which the sphere is embedded. Cells are approximated by 3D planes bounded by 3D Cartesian lines between their corner vertices. 
+   When calculating regrid weights, this line type is currently the default for the following regrid methods: ESMF\_REGRIDMETHOD\_BILINEAR, 
+   ESMF\_REGRIDMETHOD\_PATCH, ESMF\_REGRIDMETHOD\_NEAREST\_STOD, and  ESMF\_REGRIDMETHOD\_NEAREST\_DTOS.
+\item [ESMF\_LINETYPE\_GREAT\_CIRCLE]
+   Great circle line. When this option is specified distances are calculated along a great circle path (the shortest distance
+   between two points on a sphere surface). Cells are bounded by great circle paths between their corner vertices. When calculating regrid 
+   weights, this line type is currently the default for the following regrid method: ESMF\_REGRIDMETHOD\_CONSERVE. 
+\end{description}
+
+
+\subsection{ESMF\_LOGERR}
+This flag is documented in section \ref{const:logerr}.
+
+\subsection{ESMF\_LOGKIND}
+This flag is documented in section \ref{const:logkindflag}.
+
+\subsection{ESMF\_LOGMSG}
+This flag is documented in section \ref{const:logmsgflag}.
+
+\subsection{ESMF\_MESHELEMTYPE}
+This flag is documented in section \ref{const:meshelemtype}.
+
+\subsection{ESMF\_MESHLOC}
+\label{const:meshloc}
+{\sf DESCRIPTION:\\}  
+Used to indicate a specific part of a Mesh. This is commonly used to specify the part of the Mesh to
+create a Field on. 
+
+The type of this flag is:
+
+{\tt type(ESMF\_MeshLoc)}
+
+The valid values are:
+\begin{description}
+
+\item [ESMF\_MESHLOC\_NODE]
+         The nodes (also known as corners or vertices) of a Mesh. 
+
+\item [ESMF\_MESHLOC\_ELEMENT]
+         The elements (also known as cells) of a Mesh. 
+\end{description}
+
+
+\subsection{ESMF\_MESHOP}
+\label{const:meshop}
+{\sf DESCRIPTION:\\}  
+ Specifies the spatial operation with two source Meshes, treating the Meshes as point sets.
+
+The type of this flag is:
+
+{\tt type(ESMF\_MeshOp\_Flag)}
+
+The valid values are:
+\begin{description}
+
+\item [ESMF\_MESHOP\_DIFFERENCE]
+         Calculate the difference of the two point sets from the source Meshes.
+\end{description}
+
+\subsection{ESMF\_METHOD}
+\label{const:method}
+
+{\sf DESCRIPTION:\\}  
+Specify standard ESMF Component method.
+
+The type of this flag is:
+
+{\tt type(ESMF\_Method\_Flag)}
+
+The valid values are:
+\begin{description}
+\item [ESMF\_METHOD\_FINALIZE]
+      Finalize method.
+\item [ESMF\_METHOD\_INITIALIZE]
+      Initialize method.
+\item [ESMF\_METHOD\_READRESTART]
+      ReadRestart method.
+\item [ESMF\_METHOD\_RUN]
+      Run method.
+\item [ESMF\_METHOD\_WRITERESTART]
+      WriteRestart method.
+\end{description}
+
+
+\subsection{ESMF\_NORMTYPE}
+
+\label{opt:normType}
+
+{\sf DESCRIPTION:\\}  When doing conservative regridding (e.g. {\tt ESMF\_REGRIDMETHOD\_CONSERVE}), this option allows the user to select the type of normalization used when producing the weights. 
+
+{\tt type(ESMF\_NormType\_Flag)}
+
+The valid values are:
+ \begin{description}
+\item [ESMF\_NORMTYPE\_DSTAREA]
+ Destination area normalization. Here the weights are calculated by dividing the area of overlap of the source and 
+ destination cells by the area of the entire destination cell. In other words, the weight is the fraction of the 
+ entire destination cell which overlaps with the given source cell. 
+\item [ESMF\_NORMTYPE\_FRACAREA]
+   Fraction area normalization. Here in addition to the weight calculation done for destination area normalization 
+({\tt ESMF\_NORMTYPE\_DSTAREA}) the weights are also divided by the fraction that the destination cell overlaps with
+  the entire source grid. In other words, the weight is the fraction of just the part of the destination cell that 
+  overlaps with the entire source mesh.  
+\end{description}
+
+
+\subsection{ESMF\_PIN}
+This flag is documented in section \ref{const:pin_flag}.
+
+\subsection{ESMF\_POLEKIND}
+This flag is documented in section \ref{const:polekind}.
+
+\subsection{ESMF\_POLEMETHOD}
+\label{const:polemethod}
+
+{\sf DESCRIPTION:\\}  
+\begin{sloppypar}
+When interpolating between two Grids which have been mapped to a sphere these can be used to specify the type of artificial pole to create on the source Grid during interpolation. Creating the pole allows destination points above the top row or below the bottom row of the source Grid to still be mapped.
+\end{sloppypar}
+
+The type of this flag is:
+
+{\tt type(ESMF\_PoleMethod\_Flag)}
+
+The valid values are:
+\begin{description}
+\item [ESMF\_POLEMETHOD\_NONE]
+      No pole. Destination points which lie above the top or below the bottom row of the source Grid won't be mapped. 
+\item [ESMF\_POLEMETHOD\_ALLAVG]
+      Construct an artificial pole placed in the center of the top (or bottom) row of nodes, but projected onto the sphere formed by the rest of the grid. The value at this pole is the average of all the source values surrounding the pole.
+\item [ESMF\_POLEMETHOD\_NPNTAVG] Construct an artificial pole placed in the center of the top (or bottom) row of nodes, but projected onto the sphere formed by the rest of the grid. The value at this pole is the average of the N source nodes next to the pole and surrounding the destination point (i.e. the value may differ for each destination point). Here N is set by using the {\tt regridPoleNPnts} parameter and ranges from 1 to the number of nodes around the pole. This option is useful for interpolating values which may be zeroed out by averaging around the entire pole (e.g. vector components). 
+\item [ESMF\_POLEMETHOD\_TEETH]
+    No new pole point is constructed, instead the holes at the poles are filled by constructing triangles across the top and bottom row of the source Grid. This can be useful because no averaging occurs, however, because the top and bottom of the sphere are now flat, for a big enough mismatch between the size of the destination and source pole holes, some destination points may still not be able to be mapped to the source Grid. 
+\end{description}
+
+\subsection{ESMF\_REDUCE}
+\label{const:reduce}
+{\sf DESCRIPTION:\\}
+Indicates reduce operation.
+
+The type of this flag is:
+
+{\tt type(ESMF\_Reduce\_Flag)}
+
+The valid values are:
+\begin{description}
+   \item [ESMF\_REDUCE\_SUM]
+         Use arithmetic sum to add all data elements.
+   \item [ESMF\_REDUCE\_MIN]
+         Determine the minimum of all data elements.
+   \item [ESMF\_REDUCE\_MAX]
+         Determine the maximum of all data elements.
+\end{description}
+
+\subsection{ESMF\_REGION}
+\label{const:region}
+{\sf DESCRIPTION:\\}
+Specifies various regions in the data layout of an Array or Field object.
+
+The type of this flag is:
+
+{\tt type(ESMF\_Region\_Flag)}
+
+The valid values are:
+\begin{description}
+\item [ESMF\_REGION\_TOTAL]
+      Total allocated memory.
+\item [ESMF\_REGION\_SELECT]
+      Region of operation-specific elements.
+\item [ESMF\_REGION\_EMPTY]
+      The empty region contains no elements.
+\end{description}
+
+
+\subsection{ESMF\_REGRIDMETHOD}
+\label{opt:regridmethod}
+
+{\sf DESCRIPTION:\\}  
+Specify which interpolation method to use during regridding. For a more detailed discussion of these methods, as well as ESMF regridding in general, see Section~\ref{sec:regrid}.
+
+The type of this flag is:
+
+{\tt type(ESMF\_RegridMethod\_Flag)}
+
+The valid values are:
+\begin{description}
+\item [ESMF\_REGRIDMETHOD\_BILINEAR]
+      Bilinear interpolation. Destination value is a linear combination of the source values in the cell which contains the destination point. The weights for the linear combination are based on the distance of destination point from each source value. 
+\item [ESMF\_REGRIDMETHOD\_PATCH]
+      Higher-order patch recovery interpolation. Destination value is a weighted average of 2D polynomial patches constructed from cells surrounding the source cell which contains the destination point. This method typically results in better approximations to values and derivatives than bilinear. However, because of its larger stencil, it also results in a much larger interpolation matrix (and thus routeHandle) than the bilinear. 
+\item [ESMF\_REGRIDMETHOD\_NEAREST\_STOD]
+      In this version of nearest neighbor interpolation each destination point is mapped to the closest source point. A given source point may go to multiple destination points, but no destination point will receive input from more than one source point. 
+\item [ESMF\_REGRIDMETHOD\_NEAREST\_DTOS]
+      In this version of nearest neighbor interpolation each source point is mapped to the closest destination point. A given destination point may receive input from multiple source points, but no source point will go to more than one destination point. 
+\item [ESMF\_REGRIDMETHOD\_CONSERVE]
+      First-order conservative interpolation. The main purpose of this method is to preserve the integral of the field between the source and destination. 
+      Will typically give a less accurate approximation to the individual field values than the bilinear or patch methods. The value of a destination cell is calculated as the weighted sum of the values of the source cells that it overlaps. The weights are determined by the amount the source cell overlaps the destination cell. Needs corner coordinate values to be provided in the Grid. Currently only works for Fields created on the Grid center stagger or the Mesh element location. 
+\item [ESMF\_REGRIDMETHOD\_CONSERVE\_2ND]
+      Second-order conservative interpolation. As with first-order, preserves the integral of the value between the source and destination. However, typically produces a smoother more accurate result than first-order. Also like first-order, the value of a destination cell is calculated as the weighted sum of the values of the source cells that it overlaps. However, second-order also includes additional terms to take into account the gradient of the field across the source cell. Needs corner coordinate values to be provided in the Grid. Currently only works for Fields created on the Grid center stagger or the Mesh element location. 
+
+
+\end{description}
+
+
+\subsection{ESMF\_REGRIDSTATUS}
+\label{opt:regridstatus}
+
+{\sf DESCRIPTION:\\}  
+ These values can be output during regridding (e.g. from {\tt ESMF\_FieldRegridStore()} via the {\tt dstStatusField} argument). They indicate the status of each destination location.
+
+The type of this flag is:
+
+{\tt integer(ESMF\_KIND\_I4)}
+
+The valid values for all regrid methods are:
+\begin{description}
+\item [ESMF\_REGRIDSTATUS\_DSTMASKED] The destination location is masked, so no regridding has been peformed on it. 
+\item [ESMF\_REGRIDSTATUS\_SRCMASKED] The destination location is within a masked part of the source grid, so no regridding has been performed on it. 
+\item [ESMF\_REGRIDSTATUS\_OUTSIDE] The destination location is outside the source grid, so no regridding has been performed on it. 
+\item [ESMF\_REGRIDSTATUS\_MAPPED] The destination location is within the unmasked source grid, and so has been regridded (i.e. there is an entry for it within the factorIndexList or routeHandle). 
+\item [ESMF\_REGRIDSTATUS\_EXMAPPED] The destination location was not within the unmasked source grid, and so typically it wouldn't be regridded. However, extrapolation was used, and so it has been regridded (i.e. there is an entry for it within the factorIndexList or routeHandle). 
+\end{description}
+
+In addition to the above, regridding using the conservative method can result in other values. The reason for this is that in that method one destination cell can overlap multiple source cells, so a single destination can have a combination of values.  
+The following are the additional values that apply to the conservative method:
+\begin{description}
+\item [ESMF\_REGRIDSTATUS\_SMSK\_OUT] The destination cell overlaps a masked source cell, and extends outside the source grid. 
+\item [ESMF\_REGRIDSTATUS\_SMSK\_MP] The destination cell overlaps a masked source cell, and an unmasked source cell. (Because it overlaps with the unmasked source grid, there will be an entry for the destination cell within the factorIndexList or routeHandle).  
+\item [ESMF\_REGRIDSTATUS\_OUT\_MP] The destination cell overlaps an unmasked source cell, and extends outside the source grid.  (Because it overlaps with the unmasked source grid, there will be an entry for the destination cell within the factorIndexList or routeHandle). 
+\item [ESMF\_REGRIDSTATUS\_SMSK\_OUT\_MP] The destination cell overlaps a masked source cell, an unmasked source cell, and extends outside the source grid. (Because it overlaps with the unmasked source grid, there will be an entry for the destination cell within the factorIndexList or routeHandle).  
+\end{description}
+
+
+\subsection{ESMF\_ROUTESYNC}
+\label{const:routesync}
+{\sf DESCRIPTION:\\}  
+\begin{sloppypar}
+Switch between blocking and non-blocking execution of RouteHandle based
+communication calls. Every RouteHandle based communication method contains
+an optional argument {\tt routesyncflag} that is of type {\tt ESMF\_RouteSync\_Flag}.
+\end{sloppypar}
+
+The type of this flag is:
+
+{\tt type(ESMF\_RouteSync\_Flag)}
+
+The valid values are:
+\begin{description}
+
+\item [ESMF\_ROUTESYNC\_BLOCKING]
+         Execute a precomputed communication pattern in blocking mode. This
+         mode guarantees that when the method returns all PET-local data
+         transfers, both in-bound and out-bound, have finished. 
+\item [ESMF\_ROUTESYNC\_NBSTART]
+         \begin{sloppypar}
+         Start executing a precomputed communication pattern in non-blocking
+         mode. When a method returns from being called in this mode, it
+         guarantees that all PET-local out-bound data has been transferred.
+         It is now safe for the user to overwrite out-bound data elements.
+         No guarantees are made for in-bound data elements at this stage. It is
+         unsafe to access these elements until a call in
+         {\tt ESMF\_ROUTESYNC\_NBTESTFINISH} mode has been issued and has returned
+         with {\tt finishedflag} equal to .true., or a call in
+         {\tt ESMF\_ROUTESYNC\_NBWAITFINISH} mode has been issued and has returned.
+         \end{sloppypar}
+\item [ESMF\_ROUTESYNC\_NBTESTFINISH]
+         Test whether the transfer of data of a precomputed communication
+         pattern, started with {\tt ESMF\_ROUTESYNC\_NBSTART}, has completed.
+         Finish up as much as possible and set the {\tt finishedflag} to 
+         {\tt .true.} if {\em all} data operations have completed, or
+         {\tt .false.} if there are still outstanding transfers. Only after
+         a {\tt finishedflag} equal to {\tt .true.} has been returned is it
+         safe to access any of the in-bound data elements.
+\item [ESMF\_ROUTESYNC\_NBWAITFINISH]
+         Wait (i.e. block) until the transfer of data of a precomputed
+         communication pattern, started with {\tt ESMF\_ROUTESYNC\_NBSTART}, has
+         completed. Finish up {\em all} data operations and set the returned 
+         {\tt finishedflag} to {\tt .true.}. It is safe to access any of the
+         in-bound data elements once the call has returned.
+\item [ESMF\_ROUTESYNC\_CANCEL]
+         Cancel outstanding transfers for a precomputed communication pattern.
+\end{description}
+
+\subsection{ESMF\_SERVICEREPLY}
+This flag is documented in section \ref{const:servicereply_flag}.
+
+\subsection{ESMF\_STAGGERLOC}
+This flag is documented in section \ref{const:staggerloc}.
+
+\subsection{ESMF\_STARTREGION}
+\label{const:startregion}
+{\sf DESCRIPTION:\\}
+Specifies the start of the effective halo region of an Array or Field object.
+
+The type of this flag is:
+
+{\tt type(ESMF\_StartRegion\_Flag)}
+
+The valid values are:
+\begin{description}
+\item [ESMF\_STARTREGION\_EXCLUSIVE]
+      Region of elements that are exclusively owned by the local DE.
+\item [ESMF\_STARTREGION\_COMPUTATIONAL]
+      User defined region, greater or equal to the exclusive region.
+\end{description}
+
+\subsection{ESMF\_STATEINTENT}
+This flag is documented in section \ref{const:stateintent}.
+
+\subsection{ESMF\_STATEITEM}
+This flag is documented in section \ref{const:stateitem}.
+
+\subsection{ESMF\_SYNC}
+\label{const:sync}
+{\sf DESCRIPTION:\\}  
+Indicates method blocking behavior and PET synchronization for VM communication
+methods, as well as for standard Component methods, such as Initialize(), Run() 
+and Finalize().
+
+For VM communication calls the {\tt ESMF\_SYNC\_BLOCKING} and {\tt ESMF\_SYNC\_NONBLOCKING}
+modes provide behavior that is practically identical to the blocking and
+non-blocking communication calls familiar from MPI.
+
+The details of how the blocking mode setting affects Component methods are
+more complex. This is a consequence of the fact that ESMF Components can be
+executed in threaded or non-threaded mode. However, in the default,
+non-threaded case, where an ESMF application runs as a pure MPI or mpiuni
+program, most of the complexity is removed.
+
+See the {\bf VM} item in \ref{sec:spatialclasses} for an
+explanation of the PET and VAS concepts used in the following
+descriptions.
+         
+The type of this flag is:
+
+{\tt type(ESMF\_Sync\_Flag)}
+
+The valid values are:
+\begin{description}
+
+\item [ESMF\_SYNC\_BLOCKING]
+         {\em Communication calls:} The called method will block until all
+         (PET-)local operations are complete. After the return of a blocking
+         communication method it is safe to modify or use all participating
+         local data.
+         
+         {\em Component calls:} The called method will block until all PETs of
+         the VM have completed the operation.
+         
+         For a non-threaded, pure MPI
+         component the behavior is identical to calling a barrier before 
+         returning from the method. Generally this kind of rigid 
+         synchronization is not the desirable mode of operation for an MPI
+         application, but may be useful for application debugging.
+         In the opposite case, where all PETs of the component are running as
+         threads in shared memory, i.e. in a single VAS, strict synchronization
+         of all PETs is required to prevent race conditions.
+
+\item [ESMF\_SYNC\_VASBLOCKING]
+         {\em Communication calls:} Not available for communication calls.
+         
+         {\em Component calls:} The called method will block each PET until
+         all operations in the PET-local VAS have completed. 
+         
+         This mode is a combination of {\tt ESMF\_SYNC\_BLOCKING} and
+         {\tt ESMF\_SYNC\_NONBLOCKING} modes. It provides a default setting 
+         that leads to the typically desirable behavior for pure MPI 
+         components as well as those that share address spaces between PETs.
+         
+         For a non-threaded, pure MPI component each PET returns
+         independent of the other PETs. This is generally the expected 
+         behavior in the pure MPI case where calling into a component method is
+         practically identical to a subroutine call without extra 
+         synchronization between the processes.
+         
+\begin{sloppypar}
+         In the case where some PETs of the component are running as
+         threads in shared memory {\tt ESMF\_SYNC\_VASBLOCKING} becomes identical
+         to {\tt ESMF\_SYNC\_BLOCKING} within thread groups, to prevent race
+         conditions, while there is no synchronization between the thread
+         groups.
+\end{sloppypar}
+         
+\item [ESMF\_SYNC\_NONBLOCKING]
+         {\em Communication calls:} The called method will not block but 
+         returns immediately after initiating the requested operation. It is
+         unsafe to modify or use participating local data before all local
+         operations have completed. Use the {\tt ESMF\_VMCommWait()} or
+         {\tt ESMF\_VMCommQueueWait()} method to block the local PET until
+         local data access is safe again. 
+
+         {\em Component calls:} The behavior of this mode is fundamentally
+         different for threaded and non-threaded components,
+         independent on whether the components use shared memory or not.
+         The {\tt ESMF\_SYNC\_NONBLOCKING} mode is the most complex mode for
+         calling component methods and should only be used if the extra
+         control, described below, is absolutely necessary.
+         
+\begin{sloppypar}
+         For non-threaded components (the ESMF default)
+         calling a component method with {\tt ESMF\_SYNC\_NONBLOCKING}
+         is identical to calling it with {\tt ESMF\_SYNC\_VASBLOCKING}. However,
+         different than for {\tt ESMF\_SYNC\_VASBLOCKING}, a call to
+         {\tt ESMF\_GridCompWait()} or {\tt ESMF\_CplCompWait()} is
+         required in order to deallocate memory internally allocated for the
+         {\tt ESMF\_SYNC\_NONBLOCKING} mode.
+\end{sloppypar}
+         
+         For threaded components the calling PETs
+         of the parent component will not be blocked and return immediately
+         after initiating the requested child component method. In this
+          scenario parent and child components will run concurrently in
+         identical VASs. This is the most complex mode of operation.
+         It is unsafe to modify or use VAS local data that
+         may be accessed by concurrently running components until the child
+         component method has completed. Use the appropriate
+         {\tt ESMF\_GridCompWait()} or {\tt ESMF\_CplCompWait()} method to
+         block the local parent PET until the child component method has
+         completed in the local VAS.
+\end{description}
+
+
+\subsection{ESMF\_TERMORDER}
+\label{const:termorderflag}
+{\sf DESCRIPTION:\\}  
+Specifies the order of source terms in a destination sum, e.g. during sparse
+matrix multiplication.
+
+The type of this flag is:
+
+{\tt type(ESMF\_TermOrder\_Flag)}
+
+The valid values are:
+\begin{description}
+
+\item [ESMF\_TERMORDER\_SRCSEQ]
+         The source terms are in strict ascending order according to
+         their source sequence index.
+\item [ESMF\_TERMORDER\_SRCPET]
+         The source terms are first ordered according to their distribution
+         across the source side PETs: for each destination PET the source PET
+         order starts with the localPet and decrements from there, modulo
+         petCount, until all petCount PETs are accounted for. The term order
+         within each source PET is given by the source term sequence index.
+\item [ESMF\_TERMORDER\_FREE]
+         There is no prescribed term order. The source terms may be summed in 
+         any order that optimizes performance.
+\end{description}
+
+
+\subsection{ESMF\_TYPEKIND}
+\label{const:typekind}
+
+{\sf DESCRIPTION:\\}
+Named constants used to indicate type and kind combinations supported by the
+overloaded ESMF interfaces. The corresponding Fortran kind-parameter constants
+are described in section \ref{const:kind}.
+
+The type of these named constants is:
+
+{\tt type(ESMF\_TypeKind\_Flag)}
+
+The named constants numerical types are:
+\begin{description}
+
+\item [ESMF\_TYPEKIND\_I1]
+      Indicates 1 byte integer. \newline
+      (Only available if ESMF was built with 
+      {\tt ESMF\_NO\_INTEGER\_1\_BYTE = FALSE}. This is {\em not} the default.)
+\item [ESMF\_TYPEKIND\_I2]
+      Indicates 2 byte integer. \newline
+      (Only available if ESMF was built with 
+      {\tt ESMF\_NO\_INTEGER\_2\_BYTE = FALSE}. This is {\em not} the default.)
+\item [ESMF\_TYPEKIND\_I4]
+      Indicates 4 byte integer.
+\item [ESMF\_TYPEKIND\_I8]
+      Indicates 8 byte integer.
+\item [ESMF\_TYPEKIND\_R4]
+      Indicates 4 byte real.
+\item [ESMF\_TYPEKIND\_R8]
+      Indicates 8 byte real.
+
+\end{description}
+
+The named constants non-numerical types are:
+\begin{description}
+
+\item [ESMF\_TYPEKIND\_LOGICAL]
+      Indicates a logical value.
+\item [ESMF\_TYPEKIND\_CHARACTER]
+      Indicates a character string.
+
+\end{description}
+
+\subsection{ESMF\_UNMAPPEDACTION}
+\label{const:unmappedaction}
+{\sf DESCRIPTION:\\}
+Indicates what action to take with respect to unmapped destination points
+and the entries of the sparse matrix that correspond to these points.
+
+The type of this flag is:
+
+{\tt type(ESMF\_UnmappedAction\_Flag)}
+
+The valid values are:
+\begin{description}
+	\item[ESMF\_UNMAPPEDACTION\_ERROR]
+	An error is issued when there exist destination points in a regridding
+	operation that are not mapped by corresponding source points.
+	\item[ESMF\_UNMAPPEDACTION\_IGNORE]
+	Destination points which do not have corresponding source points are 
+	ignored and zeros are used for the entries of the sparse matrix
+	that is generated.
+\end{description}
+
+\subsection{ESMF\_VERSION}
+\label{const:version}
+
+{\sf DESCRIPTION:\\}
+The following named constants define the precise version of ESMF in use.
+
+\begin{description}
+\item [ESMF\_VERSION\_BETASNAPSHOT]
+      Constant of type {\tt logical} indicating beta snapshot phase
+      ({\tt .true.} for any version during the pre-release development phase,
+      {\tt .false.} for any released version of the software).
+\item [ESMF\_VERSION\_MAJOR]
+      Constant of type {\tt integer} indicating the major version number
+      (e.g. 5 for v5.2.0r).
+\item [ESMF\_VERSION\_MINOR]
+      Constant of type {\tt integer} indicating the minor version number
+      (e.g. 2 for v5.2.0r).
+\item [ESMF\_VERSION\_PATCHLEVEL]
+      Constant of type {\tt integer} indicating the patch level of a specific
+      revision (e.g. 0 for v5.2.0r, or 1 for v5.2.0rp1).
+\item [ESMF\_VERSION\_PUBLIC]
+      Constant of type {\tt logical} indicating public vs. internal release
+      status (e.g. {\tt .true.} for v5.2.0r, or {\tt .false.} for v5.2.0).
+\item [ESMF\_VERSION\_REVISION]
+      Constant of type {\tt integer} indicating the revision number
+      (e.g. 0 for v5.2.0r).
+\item [ESMF\_VERSION\_STRING]
+      Constant of type {\tt character} holding the exact release version string
+      (e.g. "5.2.0r").
+\end{description}
+
+\subsection{ESMF\_XGRIDSIDE}
+This flag is documented in section \ref{const:xgridside}.

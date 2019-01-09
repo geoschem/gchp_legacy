@@ -1,7 +1,7 @@
-! $Id: ESMF_StringUTest.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
+! $Id$
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2012, University Corporation for Atmospheric Research,
+! Copyright 2002-2018, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -26,6 +26,17 @@
     integer :: i1, i2, i3, i4
     external f90ints, f90string2, f90string3
 
+    character(len=*), parameter :: &
+      str1 = "1234567890"
+    character(len=*), parameter :: &
+      str2 = "12345678901234567890"
+    character(len=*), parameter :: &
+      str3 = "123456789012345678901234567890"
+    character(len=*), parameter :: &
+      str4 = "1234567890123456789012345678901234567890"
+    character(len=*), parameter :: &
+      str5 = "12345678901234567890123456789012345678901234567890"
+
 
 !------------------------------------------------------------------------
 ! test of passing ints and strings between F90 and C++
@@ -33,6 +44,7 @@
     result = 0
 
     call ESMF_TestStart(ESMF_SRCLINE, rc=rc)
+    if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
     
 
     !------------------------------------------------------------------------
@@ -78,6 +90,13 @@
     call ESMF_Test((rc .eq. ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE) 
 
     !------------------------------------------------------------------------
+    !NEX_UTest
+    write(failMsg,*) "Failure in c_5strings"
+    write(name, *) "Calling c_5strings"
+    call c_5strings(str1, str2, str3, str4, str5, rc)
+    call ESMF_Test((rc .eq. ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE) 
+
+    !------------------------------------------------------------------------
     !------------------------------------------------------------------------
 
 #ifdef ESMF_TESTEXHAUSTIVE
@@ -98,7 +117,7 @@
 
 #endif
 
-    call ESMF_TestEnd(result, ESMF_SRCLINE)
+    call ESMF_TestEnd(ESMF_SRCLINE)
 
     end program StringTest
     

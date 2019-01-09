@@ -1,4 +1,4 @@
-! $Id: ESMF_FieldRegridSTest.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
+! $Id$
 !
 ! System test code FieldRegrid
 !  Description on Sourceforge under System Test #79497
@@ -134,7 +134,7 @@
 !  Register section
 !-------------------------------------------------------------------------
 !-------------------------------------------------------------------------
-    call ESMF_GridCompSetServices(comp1, userm1_register, &
+    call ESMF_GridCompSetServices(comp1, userRoutine=userm1_register, &
       userRc=userrc, rc=localrc)
     if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
       ESMF_CONTEXT, rcToReturn=rc)) &
@@ -144,7 +144,7 @@
       call ESMF_Finalize(endflag=ESMF_END_ABORT)
     print *, "Comp SetServices finished, rc= ", rc, userrc
 
-    call ESMF_GridCompSetServices(comp2, userm2_register, &
+    call ESMF_GridCompSetServices(comp2, userRoutine=userm2_register, &
       userRc=userrc, rc=localrc)
     if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
       ESMF_CONTEXT, rcToReturn=rc)) &
@@ -154,7 +154,7 @@
       call ESMF_Finalize(endflag=ESMF_END_ABORT)
     print *, "Comp SetServices finished, rc= ", rc, userrc
 
-    call ESMF_CplCompSetServices(cpl, usercpl_register, &
+    call ESMF_CplCompSetServices(cpl, userRoutine=usercpl_register, &
       userRc=userrc, rc=localrc)
     if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
       ESMF_CONTEXT, rcToReturn=rc)) &

@@ -223,6 +223,7 @@
 
         ! Create Mesh structure in 1 step
         mesh=ESMF_MeshCreate(parametricDim=2,spatialDim=2, &
+             coordSys=ESMF_COORDSYS_CART, &
                nodeIds=nodeIds, nodeCoords=nodeCoords, &
                nodeOwners=nodeOwners, elementIds=elemIds,&
                elementTypes=elemTypes, elementConn=elemConn, &
@@ -247,6 +248,8 @@
      !   call ESMF_StatePrint(exportState, rc=rc)
 
         print *, localPet, "User Comp 1 Init returning"
+        deallocate(nodeCoords, nodeIds, nodeOwners)
+        deallocate(elemIds, elemTypes, elemConn)
 
     end subroutine user_init
 

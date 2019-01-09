@@ -32,7 +32,7 @@ module user_model2
     type(ESMF_GridComp)   :: comp
     integer, intent(out)  :: rc
     
-#ifdef ESMF_TESTWITHTHREADS
+#ifdef ESMF_TESTWITHTHREADS_disabled
     type(ESMF_VM) :: vm
     logical       :: pthreadsEnabled
 #endif
@@ -40,7 +40,7 @@ module user_model2
     ! Initialize user return code
     rc = ESMF_SUCCESS
 
-#ifdef ESMF_TESTWITHTHREADS
+#ifdef ESMF_TESTWITHTHREADS_disabled
     ! The following call will turn on ESMF-threading (single threaded)
     ! for this component. If you are using this file as a template for
     ! your own code development you probably don't want to include the
@@ -87,9 +87,9 @@ module user_model2
     call ESMF_GridCompSetEntryPoint(comp, ESMF_METHOD_RUN, userRoutine=user_run, &
       rc=rc)
     if (rc/=ESMF_SUCCESS) return ! bail out
-!    call ESMF_GridCompSetEntryPoint(comp, ESMF_METHOD_FINALIZE, userRoutine=user_final, &
-!      rc=rc)
-!    if (rc/=ESMF_SUCCESS) return ! bail out
+    call ESMF_GridCompSetEntryPoint(comp, ESMF_METHOD_FINALIZE, userRoutine=user_final, &
+      rc=rc)
+    if (rc/=ESMF_SUCCESS) return ! bail out
     
     
 !    call registerIC(comp, rc=rc) !!!!!!!!!!!!!!!!!  I C  !!!!!!!!!!!!!!!!!
@@ -113,6 +113,7 @@ module user_model2
 
     ! Local variables
     integer               :: localPet
+    type(ESMF_AttPack)    :: attpack
     type(ESMF_Field)      :: field
     type(ESMF_FieldBundle):: fieldbundle
     type(ESMF_Clock)      :: clockInternal
@@ -125,12 +126,13 @@ module user_model2
 
     print *, localPet, "User Comp2 Init starting"
 
-    call ESMF_AttributeAdd(comp, convention="CIM", &
-      purpose="Model Component Simulation Description", rc=rc)
+    call ESMF_AttributeAdd(comp, "CIM 1.5", "ModelComp", &
+      attpack=attpack, rc=rc)
+    if (rc/=ESMF_SUCCESS) return ! bail out
     
     call ESMF_AttributeSet(comp, name="ShortName", value="ABC", &
-      convention="CIM", purpose="Model Component Simulation Description", &
-      rc=rc)
+      attpack=attpack, rc=rc)
+    if (rc/=ESMF_SUCCESS) return ! bail out
    
     field = ESMF_FieldEmptyCreate(name="myTestField", rc=rc)
     if (rc/=ESMF_SUCCESS) return ! bail out
@@ -205,14 +207,18 @@ module user_model2
 
     ! Local variables
     integer               :: localPet
+    type(ESMF_Clock)      :: clockInternal
     
     ! Initialize user return code
     rc = ESMF_SUCCESS
 
-    call ESMF_GridCompGet(comp, localPet=localPet, rc=rc)
+    call ESMF_GridCompGet(comp, localPet=localPet, clock=clockInternal, rc=rc)
     if (rc/=ESMF_SUCCESS) return ! bail out
 
     print *, localPet, "User Comp2 Final starting"
+
+    call ESMF_ClockDestroy(clockInternal, rc=rc)
+    if (rc/=ESMF_SUCCESS) return ! bail out
 
     print *, localPet, "User Comp2 Final returning"
 

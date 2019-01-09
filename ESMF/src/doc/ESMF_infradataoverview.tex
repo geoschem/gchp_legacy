@@ -1,0 +1,805 @@
+% $Id$
+
+\section{Overview of Data Classes}
+
+The ESMF infrastructure data classes are part of the framework's 
+hierarchy of structures for handling Earth system model data and 
+metadata on parallel platforms.  The hierarchy is in complexity; the 
+simplest data class in the infrastructure represents a distributed data
+array and the most complex data class represents a bundle of physical 
+fields that are discretized on the same grid.  Data class methods 
+are called both from user-written code and from other classes 
+internal to the framework. 
+
+Data classes are distributed over {\bf DE}s, or {\bf Decomposition Elements}.  
+A DE represents a piece of a decomposition.  A DELayout is a collection
+of DEs with some associated connectivity that describes a specific 
+distribution.  For example, the distribution of a grid divided 
+into four segments in the x-dimension would be expressed in ESMF as
+a DELayout with four DEs lying along an x-axis. This abstract concept 
+enables a data decomposition to be defined in 
+terms of threads, MPI processes, virtual decomposition elements, or
+combinations of these without changes to user code.  This is a
+primary strategy for ensuring optimal performance and portability
+for codes using ESMF for communications.
+
+ESMF data classes provide a standard,
+convenient way for developers to collect together information 
+related to model or observational data.  The information assembled 
+in a data class includes a data pointer, a set of attributes 
+(e.g. units, although attributes can also be user-defined), and a 
+description of an associated grid.  The same set of information within 
+an ESMF data object can be used by the framework to arrange 
+intercomponent data transfers, to perform I/O, for communications
+such as gathers and scatters, for simplification of interfaces 
+within user code, for debugging, and for other functions.  
+This unifies and organizes codes overall so that the user need not
+define different representations of metadata for the same field 
+for I/O and for component coupling.  
+
+Since it is critical that users be able to introduce ESMF into their
+codes easily and incrementally, ESMF data classes can be created based 
+on native Fortran pointers.  Likewise, there are methods for retrieving 
+native Fortran pointers from within ESMF data objects.  This allows
+the user to perform allocations using ESMF, and to retrieve Fortran
+arrays later for optimized model calculations.  The ESMF data classes 
+do not have associated differential operators or other mathematical 
+methods.
+
+For flexibility, it is not necessary to build an ESMF data object 
+all at once.  For example, it's possible to create a 
+field but to defer allocation of the associated field data until 
+a later time.
+
+
+\begin{center}  
+\begin{tabular}{|p{6in}|}
+\hline
+\vspace{.01in}
+{\bf Key Features} \\[.01in]
+Hierarchy of data structures designed specifically for the Earth 
+system domain and high performance, parallel computing. \\
+Multi-use ESMF structures simplify user code overall. \\
+Data objects support incremental construction and deferred allocation. \\ 
+Native Fortran arrays can be associated with or retrieved from ESMF data
+objects, for ease of adoption, convenience, and performance. \\
+A variety of operations are provided for manipulating data in data objects 
+such as regridding, redistribution, halo communication, and sparse matrix multiply.\\[.03in] \hline
+\end{tabular}
+\end{center}
+
+The main classes that are used for model and observational data manipulation
+are as follows:
+
+\begin{itemize}
+
+\item {\bf Array}  An ESMF Array contains a data pointer, 
+information about its associated datatype, precision, and 
+dimension.  
+
+Data elements in Arrays are partitioned into categories 
+defined by the role the data element plays in distributed halo 
+operations.  Haloing - sometimes called ghosting - is the 
+practice of copying portions of array data to multiple memory 
+locations to ensure that data dependencies can be satisfied 
+quickly when performing a calculation.  ESMF Arrays contain 
+an {\bf exclusive} domain, which contains data elements
+updated exclusively and definitively by a given DE; a 
+{\bf computational} domain, which contains all data elements
+with values that are updated by the DE in computations; and 
+a {\bf total} domain, which includes both the computational 
+domain and data elements from other DEs which may be read 
+but are not updated in computations.
+
+\item {\bf ArrayBundle} ArrayBundles are collections of
+Arrays that are stored in a single object.  Unlike FieldBundles,
+they don't need to be distributed the same way across PETs.  The
+motivation for ArrayBundles is both convenience and performance.
+
+\item {\bf Field}  A Field holds model and/or observational 
+data together with its underlying grid or set of spatial 
+locations.  It provides methods for configuration, 
+initialization, setting and retrieving data values, 
+data I/O, data regridding, and manipulation of attributes.
+
+\item {\bf FieldBundle} Groups of Fields on the same underlying 
+physical grid can be collected into a single object called a FieldBundle.  
+A FieldBundle provides two major functions: it allows groups of 
+Fields to be manipulated using a single identifier, for example 
+during export or import of data between Components; and 
+it allows data from multiple Fields to be packed together 
+in memory for higher locality of reference and ease in 
+subsetting operations.  Packing a set of Fields into a single
+FieldBundle before performing a data communication allows the set 
+to be transferred at once rather than as a Field at a time.
+This can improve performance on high-latency platforms.
+
+FieldBundle objects contain methods for setting and retrieving constituent 
+fields, regridding, data I/O, and reordering of data in memory.
+
+\end{itemize}
+
+\subsection{Bit-for-Bit Considerations}
+
+Bit-for-bit reproducibility is at the core of the regression testing
+schemes of many scientific model codes. The bit-for-bit requirement makes it
+easy to compare the numerical results of simulation runs using standard
+binary diff tools.
+
+For the most part, ESMF methods do not modify user data numerically, and
+thus have no effect on the bit-for-bit characteristics of the model code.
+The exceptions are the regrid weight generation and the sparse matrix
+multiplication.
+
+In the case of the regrid weight generation, user data is used to produce
+interpolation weights following specific numerical schemes. The bit-for-bit
+reproducibility of the generated weights depends on the implementation
+details. Section \ref{sec:regrid} provides more details about the bit-for-bit
+considerations with respect to the regrid weights generated by ESMF.
+
+In the case of the sparse matrix multiplication, which is the typical method
+that is used to apply the regrid weights, user data is directly manipulated 
+by ESMF. In order to help users with the implementation of their bit-for-bit
+requirements, while also considering the associated performance impact,
+the ESMF sparse matrix implementation provides three levels of bit-for-bit
+support. The strictest level ensures that the numerical results are
+bit-for-bit identical, even when executing across different numbers of
+PETs. In the relaxed level, bit-for-bit reproducibility is guaranteed when
+running across an unchanged number of PETs. The lowest level makes no
+guarantees about bit-for-bit reproducibility, however, it provides the
+greatest performance potential for those cases where numerical round-off
+differences are acceptable. An in-depth discussion of bit-for-bit
+reproducibility, and the performance aspects of route-based communication
+methods, such the sparse matrix multiplication, is given in section
+\ref{RH:bfb}.
+
+
+\subsection{Regrid}\label{sec:regrid}
+
+ This section describes the regridding methods provided by ESMF. Regridding, also called remapping or interpolation, is 
+ the process of changing the grid that underlies data values while preserving qualities of the original data. Different 
+ kinds of transformations are appropriate for different problems. Regridding may be needed when communicating data between
+ Earth system model components such as land and atmosphere, or between different data sets to support operations such as visualization.
+
+ Regridding can be broken into two stages. The first stage is generation of an interpolation weight matrix that describes how points in 
+ the source grid contribute to points in the destination grid. The second stage is the multiplication of values on the source grid by the
+ interpolation weight matrix to produce values on the destination grid. This is implemented as a parallel sparse matrix multiplication.
+
+ There are two options for accessing ESMF regridding functionality: {\bf offline} and {\bf integrated}. Offline regridding is a process whereby interpolation 
+ weights are generated by a separate ESMF application, not within the user code. The ESMF offline regridding application also only generates the interpolation 
+ matrix, the user is responsible for reading in this matrix and doing the actual interpolation (multiplication by the sparse matrix) in their code.
+ Please see Section~\ref{sec:ESMF_RegridWeightGen} for a description of the offline regridding application and the options it supports. For user convenience, there
+ is also a method interface to the offline regrid application functionality which is described in Section~\ref{api:esmf_regridweightgenfile}.
+ In contrast to offline regridding, integrated regridding is a process whereby interpolation weights are generated via subroutine calls during the
+ execution of the user's code. In addition to generating the weights, integrated regridding can also produce a {\bf RouteHandle} (described in Section~\ref{sec:RHandle}) which allows the user to perform the parallel sparse 
+ matrix multiplication using ESMF methods. In other words, ESMF integrated regridding allows a user to perform the whole process of interpolation within their code. 
+
+ To see what types of grids and other options are supported in the two types of regridding and their testing status, please see the \htmladdnormallink{ESMF Regridding Status}{http://earthsystemmodeling.org/esmf_releases/public/ESMF_6_3_0rp1/esmf_6_3_0rp1_regridding_status.html} webpage for this version of ESMF.
+ Figure~\ref{Regrid Interfaces} shows a comparison of different regrid interfaces and where they can be found in the documentation. 
+
+ The rest of this section further describes various options available in ESMF regridding. It starts with a description of the five interpolation methods available in regridding.
+ Next, it describes how to remove (mask) pieces of a grid from the regridding. Following that, it describes options if a destination point can't be regridding. After that, is a section
+ on spherical grids and controlling what happens at the pole. Finally, there is a section on troubleshooting regridding.  
+
+\begin{table}[ht]
+\centering
+\vspace{0.2cm}
+\begin{tabular}{| l | l | l | c | c | l |}
+\hline
+Name & Access via & Inputs & \multicolumn{2}{|c|}{Outputs} & Description\\ 
+     &            &        &  Weights & RouteHandle        &            \\ 
+\hline
+ESMF\_FieldRegridStore() & Subroutine call & Field object & yes  & yes & Sec.~\ref{api:esmf_fieldregridstorenx} \\
+\hline
+ESMF\_FieldBundleRegridStore() & Subroutine call & Fieldbundle obj. & no  & yes & Sec.~\ref{api:esmf_fieldbundleregridstore} \\
+\hline
+ESMF\_RegridWeightGen() & Subroutine call & Grid files & yes  & no & Sec.~\ref{api:esmf_regridweightgenfile} \\
+\hline
+ESMF\_RegridWeightGen & Application & Grid files & yes  & no & Sec.~\ref{sec:ESMF_RegridWeightGen} \\
+\hline
+\end{tabular}
+\label{Regrid Interfaces}
+\caption{Regrid Interfaces}
+\end{table}
+
+
+\subsubsection{Interpolation methods: bilinear}\label{sec:interpolation:bilinear}
+ Bilinear interpolation calculates the value for the 
+ destination point as a combination of multiple linear interpolations, one for each dimension of the Grid. Note that for ease of 
+ use, the term bilinear interpolation is used for 3D interpolation in ESMF as well, although it should more properly be referred 
+ to as trilinear interpolation.
+
+\smallskip
+
+ In 2D, ESMF supports bilinear regridding between any combination of the following:
+ \begin{itemize}
+ \item Structured grids ({\tt ESMF\_Grid}) composed of any number of logically rectangular tiles
+ \item Unstructured meshes ({\tt ESMF\_Mesh}) composed of polygons with any number of sides
+ \item A set of disconnected points ({\tt ESMF\_LocStream}) may be the destination of the regridding
+ \end{itemize}
+
+\smallskip
+
+ In 3D, ESMF supports bilinear regridding between any combination of the following:
+ \begin{itemize}
+ \item Structured grids ({\tt ESMF\_Grid}) composed of a single logically rectangular tile
+ \item Unstructured meshes ({\tt ESMF\_Mesh}) composed of hexahedrons 
+ \item A set of disconnected points ({\tt ESMF\_LocStream}) may be the destination of the regridding
+ \end{itemize}
+
+\smallskip
+
+{\bf Restrictions:}
+ \begin{itemize}
+ \item Cells which contain enough identical corners to collapse to a line or point are currently ignored
+ \item Self-intersecting cells (e.g. a cell twisted into a bow tie) are not supported 
+ \item On a spherical grid, cells which contain an edge which extends more than half way around the sphere are not supported 
+ \end{itemize}
+
+ To use the bilinear method the user may create their Fields on any stagger location (e.g. {\tt ESMF\_STAGGERLOC\_CENTER}) for a Grid, or
+ any Mesh location (e.g. {\tt ESMF\_MESHLOC\_NODE}) for a Mesh. For either a Grid or a Mesh, the location upon which the Field is built 
+ must contain coordinates. 
+
+\subsubsection{Interpolation methods: higher-order patch}\label{sec:interpolation:patch}
+
+ Patch (or higher-order) interpolation is the ESMF version of a technique called ``patch recovery'' commonly
+ used in finite element modeling~\cite{PatchInterp1}~\cite{PatchInterp2}. It typically results in better approximations to 
+ values and derivatives when compared to bilinear interpolation.
+ Patch interpolation works by constructing multiple polynomial patches to represent
+ the data in a source cell. For 2D grids, these polynomials
+ are currently 2nd degree 2D polynomials. One patch is constructed for each corner of the source cell, and the patch is constructed 
+ by doing a least squares fit through the data in the cells surrounding the corner. The interpolated value at the destination point is 
+ then a weighted average of the values of the patches at that point. The patch method has a larger
+ stencil than the bilinear, for this reason the patch weight matrix can be correspondingly larger
+ than the bilinear matrix (e.g. for a quadrilateral grid the patch matrix is around 4x the size of
+ the bilinear matrix). This can be an issue when performing a regrid operation close to the memory
+ limit on a machine.  
+
+\smallskip
+
+ In 2D, ESMF supports patch regridding between any combination of the following:
+ \begin{itemize}
+ \item Structured Grids ({\tt ESMF\_Grid}) composed of a single logically rectangular tile
+ \item Unstructured meshes ({\tt ESMF\_Mesh}) composed of polygons with any number of sides
+ \item A set of disconnected points ({\tt ESMF\_LocStream}) may be the destination of the regridding
+ \end{itemize}
+
+\smallskip
+
+ In 3D, ESMF supports patch regridding between any combination of the following:
+ \begin{itemize}
+ \item NONE
+ \end{itemize}
+
+\smallskip
+
+{\bf Restrictions:}
+ \begin{itemize}
+ \item Cells which contain enough identical corners to collapse to a line or point are currently ignored
+ \item Self-intersecting cells (e.g. a cell twisted into a bow tie) are not supported
+ \item On a spherical grid, cells which contain an edge which extends more than half way around the sphere are not supported 
+ \end{itemize}
+
+ To use the patch method the user may create their Fields on any stagger location (e.g. {\tt ESMF\_STAGGERLOC\_CENTER}) for a Grid, or
+ any Mesh location (e.g. {\tt ESMF\_MESHLOC\_NODE}) for a Mesh. For either a Grid or a Mesh, the location upon which the Field is built 
+ must contain coordinates. 
+
+\subsubsection{Interpolation methods: nearest source to destination}\label{sec:interpolation:neareststod}
+In nearest source to destination interpolation ({\tt ESMF\_REGRIDMETHOD\_NEAREST\_STOD}) each destination point is mapped to the closest source point. A given source point may map to multiple destination points, but no destination point will receive input from more than one source point. If two points are equally close, then the point with the smallest sequence index is arbitrarily used (i.e. the point which would have the smallest index in the weight matrix). 
+
+\smallskip
+
+ In 2D, ESMF supports nearest source to destination regridding between any combination of the following:
+ \begin{itemize}
+ \item Structured Grids ({\tt ESMF\_Grid}) composed of any number of logically rectangular tiles
+ \item Unstructured meshes ({\tt ESMF\_Mesh}) composed of polygons with any number of sides
+ \item A set of disconnected points ({\tt ESMF\_LocStream}) 
+ \end{itemize}
+
+\smallskip
+
+ In 3D, ESMF supports nearest source to destination regridding between any combination of the following:
+ \begin{itemize}
+ \item Structured Grids ({\tt ESMF\_Grid}) composed of any number of logically rectangular tiles
+ \item Unstructured Meshes ({\tt ESMF\_Mesh}) composed of hexahedrons (e.g. cubes) and tetrahedrons
+ \item A set of disconnected points ({\tt ESMF\_LocStream}) 
+ \end{itemize}
+
+\smallskip
+
+\textbf{Restrictions:}\\*
+\textit{NONE}
+
+\smallskip
+
+ To use the nearest source to destination method the user may create their Fields on any stagger location (e.g. {\tt ESMF\_STAGGERLOC\_CENTER}) for a Grid, or
+ any Mesh location (e.g. {\tt ESMF\_MESHLOC\_NODE}) for a Mesh. For either a Grid or a Mesh, the location upon which the Field is built 
+ must contain coordinates. 
+
+
+\subsubsection{Interpolation methods: nearest destination to source}\label{sec:interpolation:nearestdtos}
+In nearest destination to source interpolation ({\tt ESMF\_REGRIDMETHOD\_NEAREST\_DTOS}) each source point is mapped to the closest destination point. A given destination point may receive input from multiple source points, but no source point will map to more than one destination point. If two points are equally close, then the point with the smallest sequence index is arbitrarily used (i.e. the point which would have the smallest index in the weight matrix). Note that with this method the unmapped destination point detection currently doesn't work, so no error will be returned even if there are destination points that don't map to any source point. 
+
+\smallskip
+
+ In 2D, ESMF supports nearest destination to source regridding between any combination of the following:
+ \begin{itemize}
+ \item Structured Grids ({\tt ESMF\_Grid}) composed of any number of logically rectangular tiles
+ \item Unstructured meshes ({\tt ESMF\_Mesh}) composed of polygons with any number of sides
+ \item A set of disconnected points ({\tt ESMF\_LocStream}) 
+ \end{itemize}
+
+\smallskip
+
+ In 3D, ESMF supports nearest destination to source regridding between any combination of the following:
+ \begin{itemize}
+ \item Structured Grids ({\tt ESMF\_Grid}) composed of any number of logically rectangular tiles
+ \item Unstructured Meshes ({\tt ESMF\_Mesh}) composed of hexahedrons (e.g. cubes) and tetrahedrons
+ \item A set of disconnected points ({\tt ESMF\_LocStream}) 
+ \end{itemize}
+
+\smallskip
+
+\textbf{Restrictions:}\\*
+\textit{NONE}
+
+\smallskip
+
+ To use the nearest destination to source method the user may create their Fields on any stagger location (e.g. {\tt ESMF\_STAGGERLOC\_CENTER}) for a Grid, or
+ any Mesh location (e.g. {\tt ESMF\_MESHLOC\_NODE}) for a Mesh. For either a Grid or a Mesh, the location upon which the Field is built 
+ must contain coordinates. 
+
+\subsubsection{Interpolation methods: first-order conservative}\label{sec:interpolation:conserve}
+ The goal of this method is to preserve the integral of the field across the interpolation from source to destination.  
+ (For a more in-depth description of what this preservation of the integral (i.e. conservation) means please see section~\ref{sec:interpolation:conservation}.)  In this method the value across each source cell is treated as a constant, so it will typically have a larger 
+ interpolation error than the bilinear or patch methods.  The first-order method used here is similar to that described in the following paper~\cite{ConservativeOrder1}.
+
+ In the first-order method, the values for a particular destination cell are a calculated as a combination of the values of the intersecting 
+ source cells. The weight of a given source cell's contribution 
+ to the total being the amount that that source cell overlaps with the destination cell. 
+ In particular, the weight is the ratio of the area of intersection of the source and destination cells to the area of the whole destination cell. 
+
+ To see a description of how the different normalization options affect the values and integrals produced by the conservative methods see section~\ref{sec:interpolation:conservative_norm_opts}. For Grids or Meshes on a sphere this method uses great circle cells, for a description of potential problems with these see~\ref{sec:interpolation:great_circle_cells}.
+
+\smallskip
+
+ In 2D, ESMF supports conservative regridding between any combination of the following:
+ \begin{itemize}
+ \item Structured Grids ({\tt ESMF\_Grid}) composed of any number of logically rectangular tiles
+ \item Unstructured meshes ({\tt ESMF\_Mesh}) composed of polygons with any number of sides
+ \end{itemize}
+
+\smallskip
+
+ In 3D, ESMF supports conservative regridding between any combination of the following:
+ \begin{itemize}
+ \item Structured Grids ({\tt ESMF\_Grid}) composed of a single logically rectangular tile
+ \item Unstructured Meshes ({\tt ESMF\_Mesh}) composed of hexahedrons (e.g. cubes) and tetrahedrons
+ \end{itemize}
+
+\smallskip
+
+{\bf Restrictions:}
+ \begin{itemize}
+ \item Cells which contain enough identical corners to collapse to a line or point are optionally (via a flag) either ignored or return an error
+ \item Self-intersecting cells (e.g. a cell twisted into a bow tie) are not supported
+ \item On a spherical grid, cells which contain an edge which extends more than half way around the sphere are not supported 
+ \end{itemize}
+
+\smallskip
+
+ To use the conservative method the user should create their Fields on the center 
+ stagger location ({\tt ESMF\_STAGGERLOC\_CENTER} in 2D or {\tt ESMF\_STAGGERLOC\_CENTER\_VCENTER} in 3D) for Grids  or the element location ({\tt ESMF\_MESHLOC\_ELEMENT}) for Meshes.
+ For Grids, the corner stagger location ({\tt ESMF\_STAGGERLOC\_CORNER} in 2D or {\tt ESMF\_STAGGERLOC\_CORNER\_VFACE} in 3D) must contain coordinates describing the outer perimeter of the Grid cells. 
+
+\subsubsection{Interpolation methods: second-order conservative}\label{sec:interpolation:conserve_2ndorder}
+ Like the first-order conservative method, this method's goal is to preserve the integral of the field across the interpolation from source to destination.  
+ (For a more in-depth description of what this preservation of the integral (i.e. conservation) means please see section~\ref{sec:interpolation:conservation}.)  The difference between the first and second-order conservative methods is that the second-order takes the source gradient into account, so
+ it yields a smoother destination field that typically better matches the source field. This difference between the first and second-order methods 
+ is particularly apparent when going from a coarse source grid to a finer destination grid. The implementation of this method is based on the one 
+ described in this paper~\cite{ConservativeOrder2}.
+
+ Like the first-order method, the values for a particular destination cell with the second-order method
+ are a combination of the values of the intersecting source cells. With the weight of a given source cell's contribution to the total 
+ being the amount that that source cell overlaps with the destination cell. 
+ However, with the second-order conservative interpolation there are additional terms that take into account the gradient of the field 
+ across the source cell. In particular, the value $d$ for a given destination cell is calculated as:
+ 
+ $d=\sum^{intersecting-source-cells}_{i}(s_{i}+\nabla s_{i} \cdot (c_{si}-c_{d}))$
+
+\smallskip
+
+Where:
+\vspace{-1em}
+\begin{description}
+  \itemsep0em
+  \item[$s_{i}$] is the intersecting source cell value. 
+  \item[$\nabla s_{i}$] is the intersecting source cell gradient. 
+  \item[$c_{si}$] is the intersecting source cell centroid. 
+  \item[$c_{d}$] is the destination cell centroid. 
+\end{description}
+
+\smallskip
+
+ To see a description of how the different normalization options affect the values and integrals produced by the conservative methods see section~\ref{sec:interpolation:conservative_norm_opts}. For Grids or Meshes on a sphere this method uses great circle cells, for a description of potential problems with these see~\ref{sec:interpolation:great_circle_cells}.
+
+\smallskip
+
+ In 2D, ESMF supports second-order conservative regridding between any combination of the following:
+ \begin{itemize}
+ \item Structured Grids ({\tt ESMF\_Grid}) composed of any number of logically rectangular tiles
+ \item Unstructured meshes ({\tt ESMF\_Mesh}) composed of polygons with any number of sides
+ \end{itemize}
+
+\smallskip
+
+ In 3D, ESMF supports second-order conservative regridding between any combination of the following:
+ \begin{itemize}
+ \item NONE
+ \end{itemize}
+
+\smallskip
+
+{\bf Restrictions:}
+ \begin{itemize}
+ \item Cells which contain enough identical corners to collapse to a line or point are optionally (via a flag) either ignored or return an error
+ \item Self-intersecting cells (e.g. a cell twisted into a bow tie) are not supported
+ \item On a spherical grid, cells which contain an edge which extends more than half way around the sphere are not supported 
+ \end{itemize}
+ 
+\smallskip
+
+ To use the second-order conservative method the user should create their Fields on the center 
+ stagger location ({\tt ESMF\_STAGGERLOC\_CENTER} for Grids  or the element location ({\tt ESMF\_MESHLOC\_ELEMENT}) for Meshes.
+ For Grids, the corner stagger location ({\tt ESMF\_STAGGERLOC\_CORNER} in 2D must contain coordinates describing the outer perimeter of the Grid cells. 
+
+\subsubsection{Conservation}\label{sec:interpolation:conservation}
+ Conservation means that the following equation will hold:  $\sum^{all-source-cells}(V_{si}*A_{si}) = \sum^{all-destination-cells}(V_{dj}*A_{dj})$, where
+ V is the variable being regridded and A is the area of a cell.  The subscripts s and d refer to source and destination values, and the i and j are the source  and destination grid cell indices (flattening the arrays to 1 dimension). 
+
+ If the user doesn't specify a cell areas in the involved Grids or Meshes, then the areas (A) in the above equation are calculated by ESMF. 
+ For Cartesian grids, the area of a grid cell calculated by ESMF is the typical Cartesian area. 
+ For grids on a sphere, cell areas are calculated by connecting the corner coordinates of each grid cell with great circles. If the user 
+ does specify the areas in the Grid or Mesh, then the conservation will be adjusted to work for the areas 
+ provided by the user. This means that the above equation will hold, but with the areas (A) being the ones specified by the user.
+
+ The user should be aware that because of the conservation relationship between the source and destination fields, the more the total source area
+ differs from the total destination area the more the values of the source field will differ from the corresponding values of the destination field, 
+ likely giving a higher interpolation error. It is best to have the total source and destination areas the same 
+ (this will automatically be true if no user areas are specified). For source and destination grids 
+ that only partially overlap, the overlapping regions of the source and destination should be the same.
+
+\subsubsection{The effect of normalization options on integrals and values produced by conservative methods}\label{sec:interpolation:conservative_norm_opts}
+ It is important to note that by default (i.e. using destination area normalization) 
+conservative regridding doesn't normalize the interpolation weights by the destination fraction. 
+This means that for a destination grid which only partially overlaps the source grid
+the destination field that is output from the regrid operation 
+should be divided by the corresponding destination fraction to yield the 
+true interpolated values for cells which are only partially covered by the source grid. 
+The fraction also needs to be included when computing the total source and destination integrals. 
+(To include the fraction in the conservative weights, the user can specify 
+the fraction area normalization type. This can be done by specifying {\tt normType=ESMF\_NORMTYPE\_FRACAREA} when
+invoking {\tt ESMF\_FieldRegridStore()}.)
+
+For weights generated using destination area normalization (either by not specifying any normalization type or by specifying {\tt normType=ESMF\_NORMTYPE\_DSTAREA}), if a destination field extends 
+outside the unmasked source field, then the values of the cells which 
+extend partway outside the unmasked source field are decreased by the fraction they extend outside. 
+To correct these values, the destination field ({\tt dst\_field}) resulting
+from the {\tt ESMF\_FieldRegrid()} call can be divided by the destination fraction {\tt dst\_frac} 
+from the {\tt ESMF\_FieldRegridStore()} call. The following pseudocode demonstrates  how to do this:
+
+\begin{verbatim}
+
+ for each destination element i
+    if (dst_frac(i) not equal to 0.0) then
+       dst_field(i)=dst_field(i)/dst_frac(i)
+    end if
+ end for
+\end{verbatim}
+
+For weights generated using destination area normalization (either by not specifying any normalization type or by specifying {\tt normType=ESMF\_NORMTYPE\_DSTAREA}), 
+the following pseudo-code shows how to compute the total destination integral ({\tt dst\_total}) given the
+destination field values ({\tt dst\_field}) resulting
+from the {\tt ESMF\_FieldRegrid()} call, the destination area ({\tt dst\_area}) from the {\tt ESMF\_FieldRegridGetArea()} call,  and the destination fraction ({\tt dst\_frac}) from the {\tt ESMF\_FieldRegridStore()} call. As shown in the previous paragraph, it also 
+shows how to adjust the destination field ({\tt dst\_field}) resulting from the {\tt ESMF\_FieldRegrid()} call by the
+fraction ({\tt dst\_frac}) from the {\tt ESMF\_FieldRegridStore()} call: 
+
+\begin{verbatim}
+
+ dst_total=0.0
+ for each destination element i
+    if (dst_frac(i) not equal to 0.0) then
+       dst_total=dst_total+dst_field(i)*dst_area(i) 
+       dst_field(i)=dst_field(i)/dst_frac(i)
+       ! If mass computed here after dst_field adjust, would need to be:
+       ! dst_total=dst_total+dst_field(i)*dst_area(i)*dst_frac(i) 
+    end if
+ end for
+\end{verbatim}
+
+For weights generated using fraction area normalization (by specifying {\tt normType=ESMF\_NORMTYPE\_FRACAREA}),
+no adjustment of the destination field is necessary. The following pseudo-code shows how to compute 
+the total destination integral ({\tt dst\_total}) given the
+destination field values ({\tt dst\_field}) resulting
+from the {\tt ESMF\_FieldRegrid()} call, the destination area ({\tt dst\_area}) from the {\tt ESMF\_FieldRegridGetArea()}
+call,  and the destination fraction ({\tt dst\_frac}) from the {\tt ESMF\_FieldRegridStore()} call:
+
+\begin{verbatim}
+ dst_total=0.0
+ for each destination element i
+      dst_total=dst_total+dst_field(i)*dst_area(i)*dst_frac(i) 
+ end for
+\end{verbatim}
+
+ For both normalization types, the following pseudo-code shows how to compute the total source integral ({\tt src\_total}) given the source field values
+ ({\tt src\_field}), the source area ({\tt src\_area}) from the {\tt ESMF\_FieldRegridGetArea()} call, and
+ the source fraction ({\tt src\_frac}) from the {\tt ESMF\_FieldRegridStore()} call:
+
+\begin{verbatim}
+ src_total=0.0
+ for each source element i
+    src_total=src_total+src_field(i)*src_area(i)*src_frac(i)
+ end for
+\end{verbatim}
+
+\subsubsection{Great circle cells}\label{sec:interpolation:great_circle_cells}
+ For Grids and Meshes on a sphere some combinations of interpolation options 
+ (e.g. first and second-order conservative methods) use cells whose edges are great circles. This section describes some behavior 
+ that the user may not expect from these cells and some potential solutions. 
+ 
+ A great circle edge isn't necessarily the same as a straight line in latitude longitude space. 
+ For small edges, this difference will be small, but for long edges it
+ could be significant. This means if the user expects cell edges as straight lines in latitude longitude 
+ space, they should avoid using one large cell with 
+ long edges to compute an average over a region (e.g. over an ocean basin).
+
+ Also, the  user should also avoid using cells that contain one edge that runs half way or more around the earth, because the 
+ regrid weight calculation assumes the edge follows the shorter great circle path. 
+ There isn't a unique great circle edge defined between points on the 
+ exact opposite side of the earth from one another (antipodal points). 
+ However, the user can work around both of these problem by breaking the long edge into two smaller edges by inserting 
+ an extra node, or by breaking the large target grid cells 
+ into two or more smaller grid cells. This allows the application to resolve the ambiguity in edge direction. 
+
+\subsubsection{Masking}
+\label {regrid:masking}
+Masking is the process whereby parts of a Grid, Mesh or LocStream 
+can be marked to be ignored during an operation, such as when they 
+are used in regridding.  Masking can be used on a Field created from 
+a regridding source to indicate that certain portions should not be 
+used to generate regridded data.  This is useful, for example, if a 
+portion of the source contains unusable values.  Masking can also be 
+used on a Field created from a regridding destination to indicate 
+that a certain portion should not receive regridded data.  This is 
+useful, for example, when part of the destination isn't being used 
+(e.g. the land portion of an ocean grid).
+
+The user may mask out points in the source
+Field or destination Field or both. To do masking the user sets
+mask information in the Grid (see \ref{sec:usage:items}), Mesh
+(see \ref{sec:mesh:mask}), or LocStream (see \ref{const:maskkeyname})
+upon which the Fields passed into the
+{\tt ESMF\_FieldRegridStore()} call are built. The {\tt srcMaskValues}
+and {\tt dstMaskValues} arguments to that
+call can then be used to specify which values in that mask
+information indicate that a location should be masked out. For
+example, if {\tt dstMaskValues} is set to (/1,2/), then any location that
+has a value of 1 or 2 in the mask information of the Grid, Mesh or LocStream
+upon which the destination Field is built will be masked out.
+
+Masking behavior differs slightly between regridding methods. For
+non-conservative regridding methods (e.g. bilinear or high-order
+patch), masking is done on points. For these methods, masking a
+destination point means that that point won't participate in
+regridding (e.g. won't be interpolated to). For these methods,
+masking a source point means that the entire source cell using
+that point is masked out. In other words, if any corner point
+making up a source cell is masked then the cell is masked. For
+conservative regridding methods (e.g. first-order conservative)
+masking is done on cells. Masking a destination cell means that
+the cell won't participate in regridding (e.g. won't be
+interpolated to). Similarly, masking a source cell means that the
+cell won't participate in regridding (e.g. won't be interpolated
+from).  For any type of interpolation method (conservative or
+non-conservative) the masking is set on the location upon
+which the Fields passed into the regridding call are built.
+For example, if Fields built on  {\tt ESMF\_STAGGERLOC\_CENTER} are
+passed into the {\tt ESMF\_FieldRegridStore()} call then the masking
+should also be set on {\tt ESMF\_STAGGERLOC\_CENTER}.
+
+
+\subsubsection{Unmapped destination points}
+ If a destination point can't be mapped to a location in the source grid, the user has two options. The user may ignore those destination points
+ that can't be mapped by setting the {\tt unmappedaction} argument to {\tt ESMF\_UNMAPPEDACTION\_IGNORE} (Ignored points won't be included in
+ the sparse matrix or routeHandle). If the user needs the unmapped points, the {\tt ESMF\_FieldRegridStore()} method has the capability to return
+ a list of them using the {\tt unmappedDstList} argument.  In addition to ignoring them, the user also has the option to return
+ an error if unmapped destination points exist. This is the default behavior, so the user can either not set the {\tt unmappedaction} argument
+ or the user can set it to {\tt ESMF\_UNMAPPEDACTION\_ERROR}. At this point ESMF does not support extrapolation to destination points outside 
+ the unmasked source Field. Currently, the unmapped destination error detection doesn't work with the nearest destination to source regrid method
+({\tt ESMF\_REGRIDMETHOD\_NEAREST\_DTOS}), so with this method the regridding behaves as if {\tt ESMF\_UNMAPPEDACTION\_IGNORE} is always on. 
+
+\subsubsection{Spherical grids and poles}
+In the case that the Grid is on a sphere ({\tt coordSys=ESMF\_COORDSYS\_SPH\_DEG or ESMF\_COORDSYS\_SPH\_RAD})
+then the coordinates given in the Grid are interpreted as latitude and longitude values. The coordinates can either be in degrees or radians as indicated by the 
+{\tt coordSys} flag set during Grid creation. As is true with many global models, this application currently assumes the latitude and longitude refer to positions on a 
+perfect sphere, as opposed to a more complex and accurate representation of the Earth's true shape such as would be used in a GIS system. (ESMF's current user base doesn't 
+require this level of detail in representing the Earth's shape, but it could be added in the future if necessary.)
+
+For Grids on a sphere, the regridding occurs in 3D Cartesian to avoid
+problems with periodicity and with the pole singularity. This library
+ supports four options for handling the pole region (i.e. the empty area above the top row of the source grid or below
+ the bottom row of the source grid).  Note that all of these pole options currently only work for the Fields build on the Grid class and not for those built on 
+ the Mesh class. 
+
+ The first option is to leave the pole region empty ({\tt polemethod=ESMF\_POLEMETHOD\_NONE}), in this 
+ case if a destination point lies above or below the 
+ top row of the source grid, it will fail to map, yielding an error (unless {\tt unmappedaction=ESMF\_UNMAPPEDACTION\_IGNORE} is specified).  
+
+ With the next two options ({\tt ESMF\_POLEMETHOD\_ALLAVG} and {\tt ESMF\_POLEMETHOD\_NPNTAVG}), the pole region is handled by constructing 
+ an artificial pole in the center of the top and bottom row of grid points and then filling
+ in the region from this pole to the edges of the source grid with triangles. 
+ The pole is located at the average of the position of the points surrounding
+ it, but moved outward to be at the same radius as the rest of the points
+ in the grid. The difference between the two artificial pole options is what value is used at the pole. 
+ The option ({\tt polemethod=ESMF\_POLEMETHOD\_ALLAVG}) sets the value at the pole to be the average of the values
+ of all of the grid points surrounding the pole. The option ({\tt polemethod=ESMF\_POLEMETHOD\_NPNTAVG}) allows the user to choose
+ a number N from 1 to the number of source grid points around the pole. The value N is set via the argument {\tt regridPoleNPnts}. For
+ each destination point, the value at the pole is then the average of the N source points
+ surrounding that destination point. 
+
+ The last option ({\tt polemethod=ESMF\_POLEMETHOD\_TEETH}) does not construct an artificial pole, instead the
+ pole region is covered by connecting points across the top and bottom row of the source Grid into triangles. As 
+ this makes the top and bottom of the source sphere flat, for a big enough difference between the size of
+ the source and destination pole regions, this can still result in unmapped destination points.  
+ Only pole option {\tt ESMF\_POLEMETHOD\_NONE} is currently supported with the conservative interpolation methods 
+ (e.g. {\tt regridmethod=ESMF\_REGRIDMETHOD\_CONSERVE}) and with the nearest neighbor interpolation options (e.g. {\tt regridmethod=ESMF\_REGRIDMETHOD\_NEAREST\_STOD}).
+
+
+\begin{table}[ht]
+\centering
+\vspace{0.2cm}
+\begin{tabular}{| l | c | c |}
+\hline
+Regrid Method & \multicolumn{2}{|c|}{Line Type} \\ 
+     &  ESMF\_LINETYPE\_CART & ESMF\_LINETYPE\_GREAT\_CIRCLE \\ 
+\hline
+ ESMF\_REGRIDMETHOD\_BILINEAR & Y* & Y \\
+\hline
+ ESMF\_REGRIDMETHOD\_PATCH & Y* & Y \\
+\hline
+ ESMF\_REGRIDMETHOD\_NEAREST\_STOD & Y* & N \\
+\hline
+ ESMF\_REGRIDMETHOD\_NEAREST\_DTOS & Y* & N \\
+\hline
+ ESMF\_REGRIDMETHOD\_CONSERVE & N/A & Y* \\
+\hline
+ ESMF\_REGRIDMETHOD\_CONSERVE\_2ND & N/A & Y* \\
+\hline
+\end{tabular}
+\label{line_type_support}
+\caption{Line Type Support by Regrid Method (* indicates the default)}
+\end{table}
+
+
+ Another variation in the regridding supported with spherical grids is {\bf line type}. This is controlled in the
+{\tt ESMF\_FieldRegridStore()} method by the {\tt lineType} argument. This argument allows the user to select the path of the line which connects
+two points on a sphere surface. This in turn controls the path along which distances are calculated and the shape of 
+the edges that make up a cell. Both of these quantities can influence how interpolation weights are calculated, for example in
+bilinear interpolation the distances are used to calculate the weights and the cell edges are used to determine to which source 
+cell a destination point should be mapped. 
+
+ESMF currently supports two line types: ESMF\_LINETYPE\_CART and ESMF\_LINETYPE\_GREAT\_CIRCLE. The ESMF\_LINETYPE\_CART option 
+specifies that the line between two points follows a straight path through the 3D Cartesian space in which the sphere is embedded.
+Distances are measured along 
+this 3D Cartesian line. Under this option cells are approximated by planes in 3D space, and their boundaries are 3D Cartesian lines
+between their corner points.  The ESMF\_LINETYPE\_GREAT\_CIRCLE option specifies that the line between two points follows
+a great circle path along the sphere surface. (A great circle is the shortest path between two points on a sphere.) 
+Distances are measured along the great circle path. Under this option cells are on the sphere surface, and their boundaries 
+are great circle paths between their corner points. 
+
+Figure~\ref{line_type_support} shows which line types are supported for each regrid method as well as the defaults (indicated by *). 
+
+\subsubsection{Troubleshooting guide}
+
+ The below is a list of problems users commonly encounter with regridding and potential solutions. 
+ This is by no means an exhaustive list, so if none of these problems fit your case, or if the solutions
+ don't fix your problem, please feel free to email esmf support (esmf\_support@list.woc.noaa.gov).
+
+ \bigskip
+ 
+ {\bf Problem:} Regridding is too slow.
+
+ \medskip
+
+ {\bf Possible Cause:} The {\tt ESMF\_FieldRegridStore()} method is called more than is necessary. \newline
+ The {\tt ESMF\_FieldRegridStore()} operation is a complex one and can be 
+ relatively slow for some cases (large Grids, 3D grids, etc.) 
+ 
+ \smallskip
+
+ {\bf Solution:} Reduce the number of {\tt ESMF\_FieldRegridStore()} calls to the minimum necessary. The
+ routeHandle generated by the {\tt ESMF\_FieldRegridStore()} call depends on only four factors: the 
+ stagger locations that the input Fields are created on, the coordinates in the Grids the input Fields
+ are built on at those stagger locations, the padding of the input Fields 
+ (specified by the {\tt totalWidth} arguments in {\tt FieldCreate}) and the size of the tensor
+ dimensions in the input Fields (specified by the {\tt ungridded} arguments in {\tt FieldCreate}). 
+ For any pair of Fields which share these attributes with the Fields used in the
+ {\tt ESMF\_FieldRegridStore} call  the same routeHandle can be used. Note that the data in the 
+ Fields does NOT matter, the same routeHandle can be used no matter how the data in the Fields changes.
+
+ \smallskip
+
+ In particular:
+ \begin{itemize}
+
+ \item If Grid coordinates do not change during a run, then the {\tt ESMF\_FieldRegridStore()} call can be
+ done once between a pair of Fields at the beginning and the resulting routeHandle used for each 
+ timestep during the run. 
+
+ \item If a pair of Fields was created with exactly the same arguments to {\tt ESMF\_FieldCreate()} as the 
+ pair of Fields used during an {\tt ESMF\_FieldRegridStore()} call, then the resulting routeHandle can 
+ also be used between that pair of Fields. 
+ \end{itemize}
+
+ \bigskip
+ 
+ {\bf Problem:} Distortions in destination Field at periodic boundary.
+
+ \medskip
+
+ {\bf Possible Cause:} The Grid overlaps itself. With a periodic Grid, the regrid system expects
+  the first point to not be a repeat of the last point. In other words,
+  regrid constructs its own connection and overlap between the first and last points of the
+  periodic dimension and so the Grid doesn't need to contain these. If the Grid does, then this
+  can cause problems. 
+
+ \smallskip
+
+ {\bf Solution:} Define the Grid so that it doesn't contain the overlap point. This typically means simply making
+ the Grid one point smaller in the periodic dimension.  If a Field 
+ constructed on the Grid needs to contain these overlap points then the user can use the
+ {\tt totalWidth} arguments to include this extra padding in the Field. Note, however, 
+ that the regrid won't update these extra points, so the user will have to do a copy to fill the points
+ in the overlap region in the Field.  
+
+\subsubsection{Design and implementation notes}
+
+The ESMF regrid weight calculation functionality has been designed to enable it to support a wide range
+of grid and interpolation types without needing to support each individual combination of source grid type,
+destination grid type, and interpolation method. To avoid the quadratic growth of the number of pairs
+of grid types, all grids are converted to a common internal format and the regrid weight calculation
+is performed on that format. This vastly reduces the variety of grids that need to be supported in 
+the weight calculations for each interpolation method. It also has the added benefit of making it
+straightforward to add new grid types and to allow them to work with all the existing grid types.
+To hook into the existing weight calculation code, the new type just needs to be converted to the
+internal format. 
+
+The internal grid format used by the ESMF regrid weight calculation is a finite element
+unstructured mesh. This was chosen because it was the most general format and all the others could be 
+converted to it. The ESMF finite element unstructured mesh (ESMF FEM) is similar in some respects to the SIERRA~\cite{Sierra} package 
+developed at Sandia National Laboratory. The ESMF code relies on some of the same underlying toolkits (e.g. Zoltan~\cite{Zoltan} library 
+for calculating mesh partitions) and adds a layer on top that allows the calculation of regrid weights and some mesh operations 
+(e.g. mesh redistribution) that ESMF needs. The ESMF FEM has similar notions to SIERRA about the basic structure of the
+mesh entities, fields, iteration and a similar notion of parallel distribution. 
+
+Currently we use the ESMF FEM internal mesh to hold the structure of our Mesh class and 
+in our regrid weight calculation. The parts of the internal FEM code that are used/tested by ESMF are the following:
+\begin{itemize}
+\item The creation of a mesh composed of triangles and quadrilaterals or hexahedrons and tetrahedrons.
+\item The object relations data base to store the connections between objects (e.g. which element contains which nodes).
+\item The fields to hold data (e.g. coordinates). We currently only build fields on nodes and elements (2D and 3D).
+\item Iteration to move through mesh entities.
+\item The parallel code to maintain information about the distribution of the mesh across processors and to communicate data between parts of the mesh on different processors (i.e. halos).
+\end{itemize}
+
+
+
+\subsection{File-based Regrid API}~\label{sec:filebasedregrid}
+\input{../Superstructure/PreESMFMod/doc/ESMF_RegridWeightGen_fapi}
+\input{../Superstructure/PreESMFMod/doc/ESMF_FileRegrid_fapi}
+
+\subsection{Restrictions and Future Work}
+\begin{enumerate}
+
+\item {\bf 32-bit index limitation:} Currently all index space dimensions in an ESMF object are represented by signed 32-bit integers. This limits the number of elements in one-dimensional objects to the 32-bit limit. This limit can be crossed by higher dimensional objects, where the product space is only limited by the 64-bit sequence index representation.
+\end{enumerate}

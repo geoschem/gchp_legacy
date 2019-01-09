@@ -5,7 +5,9 @@
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
-#include "ESMCI_WebServPassThruSvr.h"
+//#include "ESMCI_WebServPassThruSvr.h"
+#include "ESMC.h"
+#include "ESMCI_WebServProcCtrl.h"
 
 
 static char*   monthStr[] =
@@ -74,33 +76,108 @@ const char*  getDateAndTime(
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
+int print_usage() 
+{
+   printf("ESMF_WebServController: Run a Process Controller that provides access to an ESMF Web Service enabled Component.\n");
+   printf("Usage: ESMF_WebServController [--help] [--version] [-V] procCtrlPort registrarHost registrarPort\n");
+   printf("    [--help]        Display this information and exit.\n");
+   printf("    [--version]     Display ESMF version and license information "
+        "and exit.\n");
+   printf("    [-V]            Display ESMF version string and exit.\n");
+   printf("    procCtrlPort    Port num for Process Controller listener.\n");
+   printf("    registrarHost   Host name on which Registrar is running.\n");
+   printf("    registrarPort   Port num on which Registrar is listening.\n");
+   printf("    runScriptDir    Directory containing run script.\n");
+   printf("    runScriptFile   File name of run script.\n");
+   printf("\n");
+   return 0;
+}
+
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
 int main(int    argc, 
          char*  argv[])
 {
-  	printf("hello from ESMF_WebServController\n");
+   string   compSvrHost = "localhost";
+   int      compSvrStartPort = 27060;
+   int      portPoolSize = 5;
+   //string   compSvrScriptDir = "./";
+   //string   compSvrScriptName = "runjob.sh";
 
-	if (argc < 4)
+
+   int	argIndex = 0;
+   int	argFlag = 0;
+   int	vFlag = 0;
+   int	versionFlag = 0;
+   int   rc = 0;
+
+   /* check for standard command line arguments */
+   /* if any of these flags are set, print out the info and exit */
+   argIndex = ESMC_UtilGetArgIndex(argc, argv, "--help", &rc);
+   if (argIndex >= 0)
+   {
+      argFlag = 1;
+      print_usage();
+   }
+
+   argIndex = ESMC_UtilGetArgIndex(argc, argv, "--version", &rc);
+   if (argIndex >= 0)
+   {
+      argFlag = 1;
+      versionFlag = 1;
+   }
+
+   argIndex = ESMC_UtilGetArgIndex(argc, argv, "-V", &rc);
+   if (argIndex >= 0)
+   {
+      argFlag = 1;
+      vFlag = 1;
+   }
+
+   if (argFlag)
+   {
+      ESMC_UtilVersionPrint(vFlag, versionFlag, &rc);
+		return 0;
+   }
+
+	if (argc < 6)
 	{
-		printf("Usage: ESMF_WebServController <portNum> <runDir> <svrPort>\n");
+      print_usage();
 		return 1;
 	}
 
-	int	portNum = atoi(argv[1]);
-	char	runDir[512];
-	int	svrPort = atoi(argv[3]);
-	char	host[512] = { "" };
+   int      procCtrlPort = atoi(argv[1]);
+   char     registrarHost[256];
+   strcpy(registrarHost, argv[2]);
+   int      registrarPort = atoi(argv[3]);
 
-	strcpy(runDir, argv[2]);
-	gethostname(host, sizeof(host) - 1);
+   //string   compSvrScriptDir = "./";
+   //string   compSvrScriptName = "runjob.sh";
+   char compSvrScriptDir[512];
+   strcpy(compSvrScriptDir, argv[4]);
+   char compSvrScriptName[512];
+   strcpy(compSvrScriptName, argv[5]);
 
-	ESMCI::ESMCI_WebServPassThruSvr		server(portNum, runDir, svrPort);
+   ESMC_Initialize(NULL, ESMC_InitArgLogKindFlag(ESMC_LOGKIND_SINGLE), ESMC_ArgLast);
+
+   ESMCI::ESMCI_WebServProcCtrl
+      server(procCtrlPort,
+             registrarHost, registrarPort,
+             compSvrHost,
+             compSvrStartPort, portPoolSize,
+             compSvrScriptDir, compSvrScriptName,
+             ESMCI::ESMCI_WebServProcCtrl::ESMC_JOBMGRTYPE_FORK);
 
    printf("\n");
    printf("ESMF_WebServController\n");
    printf("-----------------------------------------------------\n");
    printf(" date:  %s\n", getDateAndTime());
-   printf(" host:  %s\n", host);
-   printf(" port:  %d\n", server.getPort());
+   printf(" Registrar:\n");
+   printf("    host:  %s\n", registrarHost);
+   printf("    port:  %d\n", registrarPort);
+   printf("    script dir: %s\n", compSvrScriptDir);
+   printf("    script name: %s\n", compSvrScriptName);
    printf("-----------------------------------------------------\n");
    printf("\n");
 
@@ -111,6 +188,8 @@ int main(int    argc,
 
    printf("\n-----------------------------------------------------\n");
    fflush(stdout);
+
+   ESMC_Finalize();
 
   	return 0;
 }

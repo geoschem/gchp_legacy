@@ -1,0 +1,490 @@
+\section{Quick Start}
+\label{sec:QuickStart}
+
+This section gives a brief description of how to get the ESMF software, build 
+it, and run the self-tests to verify the installation was successful. There is 
+also a short guide for using the bundled ESMF applications. More detailed 
+information on each of these steps is provided in sections \ref{sec:TechOver},
+ \ref{sec:TechOver2} and \ref{sec:Apps}, respectively.
+
+With a growing user community requiring access to ESMF, central computing 
+resources (such as ORNL for the {\it Jaguar} and {\it Kraken} supercomputers) 
+have recently started providing system wide ESMF installations. The availablity 
+of center-managed ESMF installations dramatically increases the ease of use of 
+ESMF. Practically it means that if you are working on a system (such as 
+{\it Jaguar}) that offers a standard ESMF installation, you do not have to 
+download, build and validate your own ESMF installation from source! Instead you 
+can proceed directly to using ESMF as a programming library or through access to 
+the bundled applications as described in sections \ref{sec:Use} and 
+\ref{sec:Apps}, respectively.
+
+\subsection{Downloading ESMF}
+\subsubsection{From the ESMF web site}
+\label{sec:download}
+ESMF is distributed as a source code tar file.  The tar file for the latest
+public release, release notes, 
+known bugs, supported platforms, documentation, and other related information 
+can be found on the ESMF website, under the {\bf Download} tab:
+\begin{verbatim}
+    http://www.earthsystemmodeling.org -> Download
+\end{verbatim}
+The source code for all other releases including the HEAD of the CVS trunk and the
+last stable version can be found by following the {\bf View All Releases} link on the left hand navigation bar under {\bf Download}:
+\begin{verbatim}
+    http://www.earthsystemmodeling.org -> Download -> View All Releases
+\end{verbatim}
+
+\subsubsection{From the SourceForge website}
+ESMF can also be downloaded from the SourceForge website
+from the {\bf Files} link on that website.
+\begin{verbatim}
+    http://sourceforge.net/projects/esmf -> Files
+\end{verbatim}
+Follow the directions on that web page to download a tar file.  
+
+\subsection{Unpacking the download}
+The source code comes as a zipped tar file. First unzip the file:
+\begin{verbatim}
+gunzip esmf*.tar.gz
+\end{verbatim}
+
+Then untar the file:
+\begin{verbatim}
+tar -xf esmf*.tar
+\end{verbatim}
+
+This will create a directory called {\tt esmf}.
+
+\subsection{Directory Structure}
+The current list of directories includes the following:
+\begin{itemize}
+\item README
+\item build
+\item build\_config
+\item makefile
+\item scripts
+\item src
+\end{itemize}
+
+The {\tt build\_config} directory contains subdirectories for
+different operating system and compiler combinations. This is
+a useful area to examine if porting ESMF to a new platform.
+
+\subsection{Building ESMF}
+
+After downloading and unpacking the ESMF tar file, the build procedure is:
+\begin{enumerate}
+\item Set the required environment variables. 
+\item Type {\tt gmake info} to view and verify your settings
+\item Type {\tt gmake } to build the library.
+\item Type {\tt gmake check } to run self-tests to verify
+the build was successful.
+\end{enumerate}
+See the following sections for more information on each of these steps.
+
+\subsubsection{Environment variables}
+
+The syntax for setting environment variables depends on which shell
+you are running.  Examples of the two most common ways to set 
+an environment variable are:
+\begin{description}
+\item[ksh] {\tt  export ESMF\_DIR=/home/joeuser/esmf}
+\item[csh] {\tt  setenv ESMF\_DIR /home/joeuser/esmf}
+\end{description}
+
+The shell environment variables listed below are the ones most
+frequently used.  There are others which address needs on specific
+platforms or are needed under more unusual circumstances; 
+see Section \ref{sec:TechOver} for the full list.  
+\begin{description}
+
+\item[ESMF\_DIR]
+The environment variable {\tt ESMF\_DIR} must be set to the full pathname 
+of the top level ESMF directory before building the framework.  This is the 
+only environment variable which is required to be set on all platforms under 
+all conditions.
+
+\item[ESMF\_BOPT]
+This environment variable controls the build option. To make a debuggable
+version of the library set {\tt ESMF\_BOPT} to {\tt g} before building. The
+default is {\tt O} (capital oh) which builds an optimized version of the 
+library. If {\tt ESMF\_BOPT} is {\tt O}, {\tt ESMF\_OPTLEVEL} can also be set
+to a numeric value between 0 and 4 to select a specific optimization level.
+
+\item[ESMF\_COMM]
+On systems with a vendor-supplied MPI communications library the vendor library 
+is chosen by default for communications and {\tt ESMF\_COMM} need not be set.
+For other systems (e.g. Linux or Darwin) a multitude of MPI implementations is
+available and {\tt ESMF\_COMM} must be set to indicate which implementation is
+used to build the ESMF library. Set {\tt ESMF\_COMM} according to your situation
+to: {\tt mpich, mpich2, mpich3, lam, openmpi} or {\tt intelmpi}. {\tt ESMF\_COMM} may
+also be set to {\tt user} indicating that the user will set all the required
+flags using advanced ESMF environment variables.
+
+Alternatively, ESMF comes with a single-processor MPI-bypass library which is
+the default for Linux and Darwin systems. To force the use of this bypass
+library set {\tt ESMF\_COMM} equal to {\tt mpiuni}.
+
+\item[ESMF\_COMPILER]
+The ESMF library build requires a working Fortran90 and C++ compiler. On 
+platforms that don't come with a single vendor supplied compiler suite
+(e.g. Linux or Darwin) {\tt ESMF\_COMPILER} must be set to select which Fortran
+and C++ compilers are being used to build the ESMF library. Notice that setting
+the {\tt ESMF\_COMPILER} variable does {\em not} affect how the compiler
+executables are located on the system. {\tt ESMF\_COMPILER} (together with
+{\tt ESMF\_COMM}) affect the name that is expected for the compiler executables.
+Furthermore, the {\tt ESMF\_COMPILER} setting is used to select compiler and
+linker flags consistent with the compilers indicated.
+
+By default Fortran and C++ compiler executables are expected to be located in
+a location contained in the user's {\tt PATH} environment variable. This means
+that if you cannot locate the correct compiler executable via the {\tt which}
+command on the shell prompt the ESMF build system won't find it either!
+
+There are advanced ESMF environment variables that can be used to select 
+specific compiler executables by specifying the full path. This can be used to
+pick specific compiler executables without having to modify the {\tt PATH}
+environment variable.
+
+Use 'gmake info' to see which compiler executables the ESMF build system will
+be using according to your environment variable settings.
+
+To see possible values for {\tt ESMF\_COMPILER}, cd to 
+{\tt \$ESMF\_DIR/build\_config} and list the directories there. The first part 
+of each directory name corresponds to the output of 'uname -s' for this 
+platform. The second part contains possible values for {\tt ESMF\_COMPILER}. In
+some cases multiple combinations of Fortran and C++ compilers are possible, e.g.
+there is {\tt intel} and {\tt intelgcc} available for Linux. Setting 
+{\tt ESMF\_COMPILER} to {\tt intel} indicates that both Intel Fortran and 
+C++ compilers are used, whereas {\tt intelgcc} indicates that the Intel Fortran
+compiler is used in combination with GCC's C++ compiler.
+
+If you do not find a configuration that matches your situation you will need to
+port ESMF.
+
+\item[ESMF\_ABI]
+If a system supports 32-bit and 64-bit (pointer wordsize) application binary
+interfaces (ABIs), this variable can be set to select which ABI to use. Valid 
+values are {\tt 32} or {\tt 64}. By default the most common ABI is chosen. On
+x86\_64 architectures three additional, more specific ABI settings are available,
+{\tt x86\_64\_32}, {\tt x86\_64\_small} and {\tt x86\_64\_medium}.
+
+\item[ESMF\_SITE]
+The SourceForge {\tt esmfcontrib} repository contains makefiles which have 
+already been customized for certain machines.  If one exists for your site 
+and you wish to use it, download the corresponding files into the 
+{\tt build\_contrib} directory and set {\tt ESMF\_SITE} to your location
+(which corresponds to the last part of the directory name).  See the 
+SourceForge site {\tt http://sourceforge.net/projects/esmfcontrib} for more 
+information.
+
+\item[ESMF\_ETCDIR]
+If a user wants to add Attribute package specification files for their own 
+customized Attribute packages, this is where they should go.  ESMF will look in 
+this directory for files that specify which Attributes are in an Attribute 
+package for certain ESMF objects, and what the appropriate initial values would 
+be for those Attributes.  The format for these Attribute package specification 
+files is to be defined in a future ESMF release.  This environment variable is 
+largely for internal use at this point. 
+
+\item[ESMF\_INSTALL\_PREFIX]
+This variable specifies the prefix of the installation path used during the
+installation process accessible thought the install target. Libraries, F90
+module files, header files and documentation all are installed relative to
+{\tt ESMF\_INSTALL\_PREFIX} by default. The {\tt ESMF\_INSTALL\_PREFIX} may be
+provided as absolute path or relative to {\tt ESMF\_DIR}.
+
+\end{description}
+
+
+\subsubsection{GNU make}
+The ESMF build system uses the GNU make program; it is normally named 
+{\tt gmake} but may also be simply {\tt make} or {\tt gnumake} on some 
+platforms (we will use {\tt gmake} in this document). ESMF does not use
+configure or autoconf;  the selection of various options is done by
+setting environment variables before building the framework. 
+
+
+\subsubsection{gmake info}
+{\tt gmake info} is a command that assists the user in verifying that the ESMF 
+variables have been set appropriately. It also tells the user the paths to 
+various libraries e.g. MPI that are set on the system. The user to review 
+this information to verify their settings. In the case of a build failure, 
+this information is invaluable and will be the first thing asked for by the
+ESMF support team. Below is an {\bf example output} from {\tt gmake info}: 
+ 
+\begin{verbatim}
+
+--------------------------------------------------------------
+Make version:
+GNU Make 3.80
+Copyright (C) 2002  Free Software Foundation, Inc.
+This is free software; see the source for copying conditions.
+There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A
+PARTICULAR PURPOSE.
+
+--------------------------------------------------------------
+Fortran Compiler version:
+Intel(R) Fortran Compiler for applications running on Intel(R) 64, \
+	Version 10.1    
+Build 20081024 Package ID: l_fc_p_10.1.021
+Copyright (C) 1985-2008 Intel Corporation.  All rights reserved.
+
+Version 10.1 
+
+--------------------------------------------------------------
+C++ Compiler version:
+Intel(R) C++ Compiler for applications running on Intel(R) 64, Version 10.1    
+Build 20081024 Package ID: l_cc_p_10.1.021
+Copyright (C) 1985-2008 Intel Corporation.  All rights reserved.
+
+Version 10.1 
+
+--------------------------------------------------------------
+Preprocessor version:
+gcc (GCC) 4.1.2 20070115 (SUSE Linux)
+Copyright (C) 2006 Free Software Foundation, Inc.
+This is free software; see the source for copying conditions.  There is NO
+warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+
+
+--------------------------------------------------------------
+ESMF_VERSION_STRING:    5.1.0
+--------------------------------------------------------------
+ 
+--------------------------------------------------------------
+ * User set ESMF environment variables *
+ESMF_OS=Linux
+ESMF_TESTMPMD=ON
+ESMF_TESTHARNESS_ARRAY=RUN_ESMF_TestHarnessArrayUNI_2
+ESMF_DIR=/nobackupp10/scvasque/daily_builds/intel/esmf
+ESMF_TESTHARNESS_FIELD=RUN_ESMF_TestHarnessFieldUNI_1
+ESMF_TESTWITHTHREADS=OFF
+ESMF_COMM=mpiuni
+ESMF_INSTALL_PREFIX= /nobackupp10/scvasque/daily_builds/intel/esmf/.. \
+	/install_dir
+ESMF_TESTEXHAUSTIVE=ON
+ESMF_BOPT=g
+ESMF_SITE=default
+ESMF_ABI=64
+ESMF_COMPILER=intel
+ 
+--------------------------------------------------------------
+ * ESMF environment variables *
+ESMF_DIR: /nobackupp10/scvasque/daily_builds/intel/esmf
+ESMF_OS:                Linux
+ESMF_MACHINE:           x86_64
+ESMF_ABI:               64
+ESMF_COMPILER:          intel
+ESMF_BOPT:              g
+ESMF_COMM:              mpiuni
+ESMF_SITE:              default
+ESMF_PTHREADS:          ON
+ESMF_OPENMP:            ON
+ESMF_ARRAY_LITE:        FALSE
+ESMF_NO_INTEGER_1_BYTE: FALSE
+ESMF_NO_INTEGER_2_BYTE: FALSE
+ESMF_FORTRANSYMBOLS:    default
+ESMF_DEFER_LIB_BUILD:   ON
+ESMF_TESTEXHAUSTIVE:    ON
+ESMF_TESTWITHTHREADS:   OFF
+ESMF_TESTMPMD:          ON
+ESMF_TESTSHAREDOBJ:     OFF
+ESMF_TESTFORCEOPENMP:   OFF
+ESMF_TESTHARNESS_ARRAY: RUN_ESMF_TestHarnessArrayUNI_2
+ESMF_TESTHARNESS_FIELD: RUN_ESMF_TestHarnessFieldUNI_1
+ESMF_MPIRUN:            /nobackupp10/scvasque/daily_builds/intel/esmf/src/ \
+                         Infrastructure/stubs/mpiuni/mpirun
+ 
+--------------------------------------------------------------
+ * ESMF environment variables pointing to 3rd party software *
+ 
+--------------------------------------------------------------
+ * ESMF environment variables for final installation *
+ESMF_INSTALL_PREFIX:    /nobackupp10/scvasque/daily_builds/intel/esmf/../ \
+	install_dir
+ESMF_INSTALL_HEADERDIR: include
+ESMF_INSTALL_MODDIR:    mod/modg/Linux.intel.64.mpiuni.default
+ESMF_INSTALL_LIBDIR:    lib/libg/Linux.intel.64.mpiuni.default
+ESMF_INSTALL_BINDIR:    bin/bing/Linux.intel.64.mpiuni.default
+ESMF_INSTALL_DOCDIR:    doc
+ 
+ 
+--------------------------------------------------------------
+ * Compilers, Linkers, Flags, and Libraries *
+Location of the preprocessor:      /usr/bin/gcc
+Location of the Fortran compiler:  /nasa/intel/fce/10.1.021/bin/ifort
+Location of the Fortran linker:    /nasa/intel/fce/10.1.021/bin/ifort
+Location of the C++ compiler:      /nasa/intel/cce/10.1.021/bin/icpc
+Location of the C++ linker:        /nasa/intel/cce/10.1.021/bin/icpc
+
+Fortran compiler flags:
+ESMF_F90COMPILEOPTS: -g -fPIC -m64 -mcmodel=small -threads  -openmp
+ESMF_F90COMPILEPATHS: -I/nobackupp10/scvasque/daily_builds/intel/esmf/mod/ \
+	modg/Linux.intel.64.mpiuni.default -I/nobackupp10/scvasque/daily_builds \
+	/intel/esmf/src/include 
+ESMF_F90COMPILECPPFLAGS: -DESMF_TESTEXHAUSTIVE -DSx86_64_small=1 \
+	-DESMF_OS_Linux=1  -DESMF_MPIUNI
+ESMF_F90COMPILEFREECPP: 
+ESMF_F90COMPILEFREENOCPP: 
+ESMF_F90COMPILEFIXCPP: 
+ESMF_F90COMPILEFIXNOCPP: 
+
+Fortran linker flags:
+ESMF_F90LINKOPTS:  -m64 -mcmodel=small -threads  -openmp
+ESMF_F90LINKPATHS: -L/nobackupp10/scvasque/daily_builds/intel/esmf/lib/libg/ \
+	Linux.intel.64.mpiuni.default  -L/nasa/sgi/mpt/1.25/lib -L/nasa/intel/ \
+	cce/10.1.021/lib/shared -L/nasa/intel/fce/10.1.021/lib/shared -L/nasa/ \
+	intel/cce/10.1.021/lib -L/nasa/intel/fce/10.1.021/lib -L/nasa/intel/cce/ \
+	10.1.021/lib -L/usr/lib64/gcc/x86_64-suse-linux/4.1.2/ -L/usr/lib64/gcc/ \
+	x86_64-suse-linux/4.1.2/../../../../lib64
+ESMF_F90LINKRPATHS: 
+	-Wl,-rpath,/nobackupp10/scvasque/daily_builds/intel/esmf/lib/libg/ \
+	Linux.intel.64.mpiuni.default
+ESMF_F90LINKLIBS:  -limf -lsvml -lm -lipgo -lguide -lstdc++ -lirc -lgcc_s \
+	-lgcc -lirc -lpthread -lgcc_s -lgcc -lirc_s -ldl -lrt -ldl
+ESMF_F90ESMFLINKLIBS: -lesmf  -limf -lsvml -lm -lipgo -lguide -lstdc++ -lirc \
+	-lgcc_s -lgcc -lirc -lpthread -lgcc_s -lgcc -lirc_s -ldl -lrt -ldl
+
+C++ compiler flags:
+ESMF_CXXCOMPILEOPTS: -g -fPIC -m64 -mcmodel=small -pthread  -openmp
+ESMF_CXXCOMPILEPATHS: -I/nobackupp10/scvasque/daily_builds/intel/ esmf/src/ \
+	include  -I/nobackupp10/scvasque/daily_builds/intel/esmf/src/Infrastructure \
+	/stubs/mpiuni
+ESMF_CXXCOMPILECPPFLAGS: -DESMF_TESTEXHAUSTIVE  -DSx86_64_small=1 \
+	-DESMF_OS_Linux=1 -D__SDIR__='' -DESMF_MPIUNI
+
+C++ linker flags:
+ESMF_CXXLINKOPTS:  -m64 -mcmodel=small -pthread  -openmp
+ESMF_CXXLINKPATHS: -L/nobackupp10/scvasque/daily_builds/intel/esmf/lib/libg/ \
+	Linux.intel.64.mpiuni.default  -L/nasa/intel/fce/10.1.021/lib/
+ESMF_CXXLINKRPATHS: -Wl,-rpath,/nobackupp10/scvasque/daily_builds/intel/esmf/ \
+	lib/libg/Linux.intel.64.mpiuni.default -Wl,-rpath,/nasa/intel/fce/ \
+	10.1.021/lib/
+ESMF_CXXLINKLIBS:  -lifport -lifcoremt -limf -lsvml -lm -lipgo -lguide -lirc \
+	-lpthread -lgcc_s -lgcc -lirc_s -ldl -lrt -ldl
+ESMF_CXXESMFLINKLIBS: -lesmf  -lifport -lifcoremt -limf -lsvml -lm -lipgo \
+	-lguide -lirc -lpthread -lgcc_s -lgcc -lirc_s -ldl -lrt -ldl
+
+
+--------------------------------------------------------------
+Compiling on Thu Oct 21 02:15:56 PDT 2010 on r75i0n8
+Machine characteristics: Linux r75i0n8 2.6.16.60-0.68.1.20100916-nasa \
+	#1 SMP Fri 
+Sep 17 17:49:05 UTC 2010 x86_64 x86_64 x86_64 GNU/Linux
+==============================================================
+
+\end{verbatim}
+
+
+\subsubsection{Building makefile targets}
+
+The makefiles follow the GNU target standards where possible.
+The most frequently used targets for building are listed below:
+\begin{description}
+\item[lib] build the ESMF libraries only (default)
+%\item[all] build the libraries, unit and system tests, examples, and demos
+\item[all] build the libraries, unit and system tests and examples
+\item[doc] build the documentation (requires specific latex macros packages
+and additional utilities; see Section \ref{sec:TechOver} for more details
+on the requirements).  
+\item[info] print out extensive system configuration information about what
+           compilers, libraries, paths, flags, etc are being used
+\item[clean] remove all files built for this platform/compiler/wordsize.
+\item[clobber] remove all files built for all architectures
+\item[install] install the ESMF library in a custom location
+\end{description}
+
+
+\subsubsection{Testing makefile targets}
+
+To build and run the unit and system tests, type:
+\begin{verbatim}
+gmake check
+\end{verbatim}
+A summary report of success and failures will be printed out at the end.
+
+See section \ref{ESMFRunSetting} on how to set up ESMF to be able to launch
+the bundled test and example applications.
+
+\noindent Other test-related targets are:
+\begin{description}
+\item[all\_tests] build and run all available tests and examples
+\item[build\_all\_tests] build tests and examples; do not execute
+\item[run\_all\_tests] run tests and examples without rebuilding; print a
+summary of the results
+\item[check\_all\_tests] print out the results summary without re-executing
+\item[dust\_all\_tests] remove all test and example output files
+\item[clean\_all\_tests] remove all test and example executables and output
+files
+\end{description}
+
+For all the targets listed above, the string {\tt all\_tests} can be
+replaced with one of the strings listed below to select a
+specific type of test:
+\begin{description}
+\item[unit\_tests] unit tests exercise a single part of the system
+\item[system\_tests] system tests combine functions across the system
+\item[examples] examples contain code illustrating a single type of function
+%\item[demos] demos are example applications showing the use of the system
+\end{description}
+For example, {\tt gmake build\_examples} recompiles the example programs but 
+does not execute them. {\tt gmake dust\_unit\_tests} removes all
+output files generated when executing the unit tests, but leaves the
+executables. {\tt gmake clean\_system\_tests} removes all executables and files
+associated with the system tests.
+
+For the unit tests only, there is an additional environment variable
+which affects how the tests are built:
+\begin{description}
+\item[ESMF\_TESTEXHAUSTIVE]
+If this variable is set to {\tt ON} before compiling the unit tests,
+longer and more exhaustive unit tests will be run.  Note that this is a
+compile-time and not run-time option.
+\end{description}
+
+
+\subsubsection{Building and using bundled ESMF applications}
+\label{quickapps}
+
+This section describes how the bundled ESMF applications can be built and used 
+from inside the ESMF source tree. Notice that this is sort of a quick and dirty 
+way of accessing the ESMF applications. It is supported as convenience to those 
+users interested in quickly gaining access to the bundled ESMF applications, and 
+do not mind the shortcomings of this approach. Users interested in maximum 
+portability should instead follow the instructions provided in section 
+\ref{sec:Apps}.
+
+To build the bundled ESMF applications type:
+\begin{verbatim}
+gmake build_apps
+\end{verbatim}
+This will build the applications and place the executables under the 
+{\tt \$ESMF\_DIR/apps} directory inside the ESMF source tree. The 
+applications can be directly executed from within the {\tt \$ESMF\_DIR/apps} 
+directory following the system specific rules for execution. The details will 
+depend on whether ESMF was built with or without MPI dependency. In the latter 
+case the system specific rules for launching parallel applications must be 
+followed. System specific execution details on this level are outside of ESMF's 
+scope.
+
+For most systems, the MPI version of the ESMF bundled applications can be 
+executed by a command equivalent to:
+
+\begin{verbatim}
+
+mpirun -np X $(ESMF_DIR)/apps/..../application
+
+\end{verbatim}
+ 
+where {\tt X} specifies the total number of PETs and {\tt application} is the 
+name of the specific ESMF application to be executed. The {\tt ....} in the path 
+indicates the precise subdirectory structure under {\tt ./apps} which follows 
+the standard ESMF pattern also used for the {\tt ./tests} and {\tt ./examples} 
+subdirectories.
+
+All bundled ESMF applications support the standard \verb+ '--help'+ command line 
+option that prints out information on its proper use. More detailed instructions 
+of the individual applications are available in the "Applications" section of 
+the {\it ESMF Reference Manual}.
+

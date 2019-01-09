@@ -1,4 +1,4 @@
-! $Id: user_model2.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
+! $Id$
 !
 ! Example/test code which shows User Component calls.
 
@@ -120,12 +120,23 @@ module user_model2
       indexflag=ESMF_INDEX_GLOBAL, rc=rc)
     if (rc/=ESMF_SUCCESS) call ESMF_Finalize(rc=rc, endflag=ESMF_END_ABORT)
 
+#if 0
     do i = 1, 3
         field(i) = ESMF_FieldCreate(grid, arrayspec=arrayspec, &
               staggerloc=ESMF_STAGGERLOC_CENTER, rc=rc)
         if (rc/=ESMF_SUCCESS) call ESMF_Finalize(rc=rc, endflag=ESMF_END_ABORT)
     enddo
-
+#else
+    field(1) = ESMF_FieldCreate(grid, name="Z", arrayspec=arrayspec, &
+          staggerloc=ESMF_STAGGERLOC_CENTER, rc=rc)
+    if (rc/=ESMF_SUCCESS) call ESMF_Finalize(rc=rc, endflag=ESMF_END_ABORT)
+    field(2) = ESMF_FieldCreate(grid, name="Y", arrayspec=arrayspec, &
+          staggerloc=ESMF_STAGGERLOC_CENTER, rc=rc)
+    if (rc/=ESMF_SUCCESS) call ESMF_Finalize(rc=rc, endflag=ESMF_END_ABORT)
+    field(3) = ESMF_FieldCreate(grid, name="X", arrayspec=arrayspec, &
+          staggerloc=ESMF_STAGGERLOC_CENTER, rc=rc)
+    if (rc/=ESMF_SUCCESS) call ESMF_Finalize(rc=rc, endflag=ESMF_END_ABORT)
+#endif
     fieldbundle = ESMF_FieldBundleCreate(fieldList=field, &
         name="fieldbundle data", rc=rc)
     if (rc/=ESMF_SUCCESS) call ESMF_Finalize(rc=rc, endflag=ESMF_END_ABORT)
@@ -151,7 +162,7 @@ module user_model2
     ! Local variables
     real(ESMF_KIND_R8)    :: pi
     type(ESMF_FieldBundle):: fieldbundle
-    type(ESMF_Field)      :: field
+    type(ESMF_Field)      :: field, fields(3)
     type(ESMF_Array)      :: array
     type(ESMF_Grid)       :: grid
     real(ESMF_KIND_R8), pointer :: farrayPtr(:,:)   ! matching F90 array pointer
@@ -180,17 +191,18 @@ module user_model2
 
     do k = 1, 3
         ! Get the k-th field from the FieldBundle
-        call ESMF_FieldBundleGet(fieldbundle, fieldIndex=k, field=field, rc=rc)
+        call ESMF_FieldBundleGet(fieldbundle, fieldList=fields, &
+          itemorderflag=ESMF_ITEMORDER_ADDORDER, rc=rc)
         if (rc/=ESMF_SUCCESS) call ESMF_Finalize(rc=rc, endflag=ESMF_END_ABORT)
 
         ! Gain access to actual data via F90 array pointer
-        call ESMF_FieldGet(field, localDe=0, farrayPtr=farrayPtr, rc=rc)
+        call ESMF_FieldGet(fields(k), localDe=0, farrayPtr=farrayPtr, rc=rc)
         if (rc/=ESMF_SUCCESS) call ESMF_Finalize(rc=rc, endflag=ESMF_END_ABORT)
           
         ! Test FieldBundle in import state against exact solution
         do j = compLBnd(2), compUBnd(2)
           do i = compLBnd(1), compUbnd(1)
-            if (abs(farrayPtr(i,j) - (10.0d0 &
+            if (abs(farrayPtr(i,j) - (real(k,ESMF_KIND_R8) * 10.0d0 &
               + 5.0d0 * sin(real(i,ESMF_KIND_R8)/100.d0*pi) &
               + 2.0d0 * sin(real(j,ESMF_KIND_R8)/150.d0*pi))) > 1.d-8) then
               rc=ESMF_FAILURE

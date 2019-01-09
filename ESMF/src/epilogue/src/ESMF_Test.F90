@@ -1,7 +1,7 @@
-! $Id: ESMF_Test.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
+! $Id$
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2012, University Corporation for Atmospheric Research,
+! Copyright 2002-2018, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -35,6 +35,7 @@
       use ESMF_LogErrMod
       use ESMF_VMMod
       use ESMF_InitMod
+      use ESMF_IOUtilMod
       implicit none
 
 ! !PUBLIC MEMBER FUNCTIONS:
@@ -42,6 +43,7 @@
       public ESMF_STest
       public ESMF_TestGlobal
       public ESMF_TestEnd
+      public ESMF_TestFileCompare
       public ESMF_TestNumPETs
       public ESMF_TestMinPETs
       public ESMF_TestMaxPETs
@@ -52,9 +54,13 @@
 !------------------------------------------------------------------------------
 ! The following line turns the CVS identifier string into a printable variable.
       character(*), parameter, private :: version = &
-      '$Id: ESMF_Test.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $'
+      '$Id$'
 
 !==============================================================================
+      
+!     ! Test start time
+      real(ESMF_KIND_R8), save :: start_time
+      integer, save :: PETnum
 
       contains
 
@@ -88,15 +94,19 @@
 !-------------------------------------------------------------------------------
 
       character(2*ESMF_MAXSTR) :: msg
+      character(16) :: linestr
+
+      write (linestr,*) line
+      linestr = adjustl (linestr)
 
       if(condition) then
-        write(msg, *) "PASS ", trim(name), ", ", trim(file), ", line", line
+        write(msg, *) "PASS ", trim(name), ", ", trim(file), ", line ", trim (linestr)
         print *, trim(msg)
         call ESMF_LogWrite(trim(msg), ESMF_LOGMSG_INFO)
         if (present(unit)) write(unit, *) trim(msg)
       else
-        write(msg, *) "FAIL ", trim(name), ", ", trim(file), ", line", &
-                      line, trim(failMsg)
+        write(msg, *) "FAIL ", trim(name), ", ", trim(file), ", line ", &
+                      trim (linestr), ": ", trim(failMsg)
         print *, trim(msg)
         call ESMF_LogWrite(trim(msg), ESMF_LOGMSG_INFO)
         if (present(unit)) write(unit, *) trim(msg)
@@ -113,7 +123,8 @@
 ! !IROUTINE:  ESMF_STest - Print PASS/FAIL and number of processor messages for tests
 !
 ! !INTERFACE:
-      subroutine ESMF_STest(condition, name, failMsg, result, file, line, unit)
+      subroutine ESMF_STest(condition, name, failMsg, result, file, line, unit, &
+        petCount)
 
 ! !ARGUMENTS:
       logical, intent(in) :: condition      ! pass/fail condition
@@ -123,6 +134,8 @@
       character(*), intent(in) :: file      ! test file name
       integer, intent(in) :: line           ! test file line number
       integer, intent(in), optional :: unit ! additional output unit number
+      integer, intent(in), optional :: petCount ! number of PETs if need override
+      
 
 ! !DESCRIPTION:
 !     Gets the PET count and prints out a number of processors message.
@@ -135,13 +148,16 @@
 !-------------------------------------------------------------------------------
 
       type(ESMF_VM):: vm
-      integer:: petCount, localrc
+      integer:: petCountOpt, localrc
       character(ESMF_MAXSTR) :: msg
      
-
-      call ESMF_VMGetGlobal(vm, rc=localrc)
-      call ESMF_VMGet(vm, petCount=petCount, rc=localrc)
-      write(msg, *) "NUMBER_OF_PROCESSORS", petCount
+      if (present(petCount)) then
+        petCountOpt = petCount
+      else
+        call ESMF_VMGetGlobal(vm, rc=localrc)
+        call ESMF_VMGet(vm, petCount=petCountOpt, rc=localrc)
+      endif
+      write(msg, *) "NUMBER_OF_PROCESSORS", petCountOpt
       call ESMF_LogWrite(trim(msg), ESMF_LOGMSG_INFO)
 
       call ESMF_Test(condition, name, failMsg, result,  file, line, unit)
@@ -212,10 +228,9 @@
 ! !IROUTINE:  ESMF_TestEnd - Print information at the end of testing
 !
 ! !INTERFACE:
-      subroutine ESMF_TestEnd(result, file, line, unit)
+      subroutine ESMF_TestEnd(file, line, unit)
 
 ! !ARGUMENTS:
-      integer, intent(in) :: result         ! number of successful tests
       character(*), intent(in) :: file      ! test file name
       integer, intent(in) :: line           ! test file line number
       integer, intent(in), optional :: unit ! additional output unit number
@@ -229,15 +244,15 @@
 !EOP
 !-------------------------------------------------------------------------------
 
-      integer :: rc
+      integer :: rc, localrc
       character(ESMF_MAXSTR) :: msg
+      real(ESMF_KIND_R8) :: end_time, elapsed_time
+      character(16) :: linestr
 
-      write(msg, *) "Number of failed tests:", result
-      print *, trim(msg)
-      call ESMF_LogWrite(trim(msg), ESMF_LOGMSG_INFO)
-      if (present(unit)) write(unit, *) trim(msg)
+      write (linestr,*) line
+      linestr = adjustl (linestr)
 
-      write(msg, *) "Ending Test, file ", trim(file), ", line", line
+      write(msg, *) "Ending Test, file ", trim(file), ", line ", trim (linestr)
       print *, trim(msg)
       call ESMF_LogWrite(trim(msg), ESMF_LOGMSG_INFO)
       if (present(unit)) write(unit, *) trim(msg)
@@ -250,7 +265,166 @@
           if (present(unit)) write(unit, *) trim(msg)
       endif
 
+      ! Calculate & print out test elasped time
+      call cpu_time(end_time)
+      elapsed_time = (end_time-start_time) * 1000.0  ! msec
+      write(msg, *) "PET", PETnum, " Test Elapsed Time ", elapsed_time, " msec."
+      print *, trim(msg)
+
       end subroutine ESMF_TestEnd
+
+
+#undef ESMF_METHOD
+#define ESMF_METHOD 'ESMF_TestFileCompare'
+!------------------------------------------------------------------------------
+!BOP
+!
+! !IROUTINE:  ESMF_TestFileCompare - Compare two text files for equivalence
+!
+! !INTERFACE:
+      function ESMF_TestFileCompare(file1, file2, exclusionList)
+
+! !RETURN VALUE:
+      logical :: ESMF_TestFileCompare
+
+! !ARGUMENTS:
+      character(*), intent(in) :: file1     ! test file name
+      character(*), intent(in) :: file2     ! test file name
+      character(*), intent(in), optional :: exclusionList(:)
+
+! !DESCRIPTION:
+!     Compares two files to see if they are identical.
+!
+!     Restrictions:
+!     1.) Only text files are supported
+!     2.) On systems which do not support recursive I/O, this function
+!     should not be called from the I/O list of an I/O statement.
+!     3.) On Windows, blank lines are ignored to avoid issues with cr/lfs.
+!
+!     The arguments are:
+!     \begin{description}
+!     \item [file1]
+!       First of two files to be compared.
+!     \item [file2]
+!        Second of two files to be compared.
+!     \item [{[exclusionList]}]
+!       Character strings which, if any are present in text records being
+!       compared, will cause a comparison error to be bypassed.  This is
+!       useful for records which might legitimately differ between the two
+!       files - such as a date or version string.
+!     \end{description}
+!EOP
+!-------------------------------------------------------------------------------
+
+      logical :: exclusions
+      integer :: i
+      integer :: ioerr1, ioerr2
+      integer :: localrc
+      character(1024) :: string1, string2
+      integer :: unit1, unit2
+
+      ESMF_TestFileCompare = .false.
+      exclusions = present (exclusionList)
+
+      call ESMF_UtilIOUnitGet (unit=unit1, rc=localrc)
+      if (localrc /= ESMF_SUCCESS) then
+        write (ESMF_UtilIOStderr,*) ESMF_METHOD,  &
+            ': Can not obtain IO unit number'
+        return
+      end if        
+
+      open (unit1, file=file1,  &
+        form='formatted', status='old', action='read',  &
+        iostat=ioerr1)
+      if (ioerr1 /= 0) then
+        write (ESMF_UtilIOStderr,*) ESMF_METHOD,  &
+            ': Can not open file: ', trim (file1)
+        return
+      end if        
+
+      call ESMF_UtilIOUnitGet (unit=unit2, rc=localrc)
+      if (localrc /= ESMF_SUCCESS) then
+        write (ESMF_UtilIOStderr,*) ESMF_METHOD,  &
+            ': Can not obtain IO unit number'
+        close (unit1)
+        return
+      end if
+
+      open (unit2, file=file2,  &
+        form='formatted', status='old', action='read',  &
+        iostat=ioerr2)
+      if (ioerr2 /= 0) then
+        write (ESMF_UtilIOStderr,*) ESMF_METHOD,  &
+            ': Can not open file: ', trim (file2)
+        close (unit1)
+        return
+      end if        
+
+read_loop:  &
+      do
+        do
+          read (unit1, '(a)', iostat=ioerr1) string1
+          if (ioerr1 /= 0) exit
+          ! Ignore blank lines due to cr/lf vs newline issues
+          do, i=1, len (string1)
+            string1(i:i) = merge (string1(i:i), ' ', string1(i:i) /= achar (13))
+          end do
+          if (string1 /= ' ') exit
+        end do
+
+        do
+          read (unit2, '(a)', iostat=ioerr2) string2
+          if (ioerr2 /= 0) exit
+          ! Ignore blank lines due to cr/lf vs newline issues
+          do, i=1, len (string2)
+            string2(i:i) = merge (string2(i:i), ' ', string2(i:i) /= achar (13))
+          end do
+          if (string2 /= ' ') exit
+        end do
+
+        if (ioerr1 /= ioerr2) then
+!          print *, ESMF_METHOD, ': read iostats differ:', ioerr1, ioerr2
+          exit
+        end if
+
+        select case (ioerr1)
+        case (:-1)
+          ESMF_TestFileCompare = .true.
+          exit
+
+        case (0)
+          if (string1 /= string2) then
+            if (exclusions) then
+exclusion_loop:  &
+              do, i=1, size (exclusionList)
+                if (index (string1, trim (exclusionList(i))) /= 0 .and.  &
+                    index (string2, trim (exclusionList(i))) /= 0) then
+                  exit exclusion_loop
+                end if
+              end do exclusion_loop
+              if (i > size (exclusionList)) exit read_loop
+            else
+#if 0
+              print *, ESMF_METHOD, ': comparison error:'
+              print *, '  string1 = >', trim (string1), '<'
+              print *, '  string2 = >', trim (string2), '<'
+#endif
+              exit read_loop
+            end if
+          end if
+
+        case (1:)
+          print *, ESMF_METHOD, ': unknown iostat =', ioerr1
+          exit
+        end select
+
+      end do read_loop
+
+      close (unit2)
+      close (unit1)
+
+
+      end function ESMF_TestFileCompare
 
 !------------------------------------------------------------------------------
 !BOP
@@ -280,6 +454,10 @@
       character(ESMF_MAXSTR) :: msg, failMsg
       type(ESMF_VM) :: globalVM
       integer :: numPETs, localrc
+      character(16) :: linestr
+
+      write (linestr,*) line
+      linestr = adjustl (linestr)
 
       ! assume failure until sure of success
       ESMF_TestMinPETs = .false.
@@ -288,7 +466,7 @@
       call ESMF_VMGetGlobal(globalVM, rc=localrc)
       if (localrc .ne. ESMF_SUCCESS) then
         failMsg = "Unable to get global VM" 
-        write(msg, *) "FAIL ", trim(file), ", line", line, trim(failMsg)
+        write(msg, *) "FAIL ", trim(file), ", line ", trim (linestr), ": ", trim(failMsg)
         print *, trim(msg)
         call ESMF_LogWrite(trim(msg), ESMF_LOGMSG_INFO)
         if (present(unit)) write(unit, *) trim(msg)
@@ -298,8 +476,8 @@
       call ESMF_VMGet(globalVM, petCount=numPETs, rc=localrc)
       if (localrc .ne. ESMF_SUCCESS) then
         failMsg = "Unable to get number of PETS from global VM" 
-        write(msg, *) "FAIL ", trim(file), ", line", &
-                      line, trim(failMsg)
+        write(msg, *) "FAIL ", trim(file), ", line ", &
+                      trim (linestr), ": ", trim(failMsg)
         print *, trim(msg)
         call ESMF_LogWrite(trim(msg), ESMF_LOGMSG_INFO)
         if (present(unit)) write(unit, *) trim(msg)
@@ -312,8 +490,8 @@
       ! but this is more for the user to see.
       if (petCount .gt. numPETs) then
         write(failMsg, *) "These tests must run on at least", petCount, " processors."
-        write(msg, *) "SKIP ", trim(file), ", line", &
-                      line, trim(failMsg)
+        write(msg, *) "SKIP ", trim(file), ", line ", &
+                      trim (linestr), ": ", trim(failMsg)
         print *, trim(msg)
         call ESMF_LogWrite(trim(msg), ESMF_LOGMSG_INFO)
         if (present(unit)) write(unit, *) trim(msg)
@@ -353,6 +531,10 @@
       character(ESMF_MAXSTR) :: msg, failMsg
       type(ESMF_VM) :: globalVM
       integer :: numPETs, localrc
+      character(16) :: linestr
+
+      write (linestr,*) line
+      linestr = adjustl (linestr)
 
       ! assume failure until sure of success
       ESMF_TestMaxPETs = .false.
@@ -361,7 +543,7 @@
       call ESMF_VMGetGlobal(globalVM, rc=localrc)
       if (localrc .ne. ESMF_SUCCESS) then
         failMsg = "Unable to get global VM" 
-        write(msg, *) "FAIL ", trim(file), ", line", line, trim(failMsg)
+        write(msg, *) "FAIL ", trim(file), ", line ", trim (linestr), ": ", trim(failMsg)
         print *, trim(msg)
         call ESMF_LogWrite(trim(msg), ESMF_LOGMSG_INFO)
         if (present(unit)) write(unit, *) trim(msg)
@@ -371,8 +553,8 @@
       call ESMF_VMGet(globalVM, petCount=numPETs, rc=localrc)
       if (localrc .ne. ESMF_SUCCESS) then
         failMsg = "Unable to query global VM" 
-        write(msg, *) "FAIL ", trim(file), ", line", &
-                      line, trim(failMsg)
+        write(msg, *) "FAIL ", trim(file), ", line ", &
+                      trim (linestr), ": ", trim(failMsg)
         print *, trim(msg)
         call ESMF_LogWrite(trim(msg), ESMF_LOGMSG_INFO)
         if (present(unit)) write(unit, *) trim(msg)
@@ -385,8 +567,8 @@
       ! but this is more for the user to see.
       if (petCount .lt. numPETs) then
         write(failMsg, *) "These tests must run not more than", petCount, " processors."
-        write(msg, *) "SKIP ", trim(file), ", line", &
-                      line, trim(failMsg)
+        write(msg, *) "SKIP ", trim(file), ", line ", &
+                      trim (linestr), ": ", trim(failMsg)
         print *, trim(msg)
         call ESMF_LogWrite(trim(msg), ESMF_LOGMSG_INFO)
         if (present(unit)) write(unit, *) trim(msg)
@@ -426,6 +608,10 @@
       character(ESMF_MAXSTR) :: msg, failMsg
       type(ESMF_VM) :: globalVM
       integer :: numPETs, localrc
+      character(16) :: linestr
+
+      write (linestr,*) line
+      linestr = adjustl (linestr)
 
       ! assume failure until sure of success
       ESMF_TestNumPETs = .false.
@@ -434,7 +620,7 @@
       call ESMF_VMGetGlobal(globalVM, rc=localrc)
       if (localrc .ne. ESMF_SUCCESS) then
         failMsg = "Unable to get global VM" 
-        write(msg, *) "FAIL ", trim(file), ", line", line, trim(failMsg)
+        write(msg, *) "FAIL ", trim(file), ", line ", trim (linestr), ": ", trim(failMsg)
         print *, trim(msg)
         call ESMF_LogWrite(trim(msg), ESMF_LOGMSG_INFO)
         if (present(unit)) write(unit, *) trim(msg)
@@ -444,8 +630,8 @@
       call ESMF_VMGet(globalVM, petCount=numPETs, rc=localrc)
       if (localrc .ne. ESMF_SUCCESS) then
         failMsg = "Unable to query global VM" 
-        write(msg, *) "FAIL ", trim(file), ", line", &
-                      line, trim(failMsg)
+        write(msg, *) "FAIL ", trim(file), ", line ", &
+                      trim (linestr), ": ", trim(failMsg)
         print *, trim(msg)
         call ESMF_LogWrite(trim(msg), ESMF_LOGMSG_INFO)
         if (present(unit)) write(unit, *) trim(msg)
@@ -458,8 +644,8 @@
       ! but this is more for the user to see.
       if (petCount .ne. numPETs) then
         write(failMsg, *) "These tests must run on exactly", petCount, " processors."
-        write(msg, *) "SKIP ", trim(file), ", line", &
-                      line, trim(failMsg)
+        write(msg, *) "SKIP ", trim(file), ", line ", &
+                      trim (linestr), ": ", trim(failMsg)
         print *, trim(msg)
         call ESMF_LogWrite(trim(msg), ESMF_LOGMSG_INFO)
         if (present(unit)) write(unit, *) trim(msg)
@@ -478,7 +664,8 @@
 ! !IROUTINE:  ESMF_TestResultsGather - Gathers test results from all Pets and prints out a PASS/FAIL message
 !
 ! !INTERFACE:
-      subroutine ESMF_TestResultsGather(vm, localPet, petCount, testResults, file, line, unit,  rc)
+      subroutine ESMF_TestResultsGather(vm, localPet, petCount, testResults, &
+        file, line, unit,  rc)
 
 ! !ARGUMENTS:
       type(ESMF_VM), intent(in) :: vm     ! the vm of this pet
@@ -499,8 +686,12 @@
 !-------------------------------------------------------------------------------
       character(ESMF_MAXSTR) :: msg
 !      character(ESMF_MAXSTR) :: failMsg
-      integer, allocatable:: array1(:), array2(:)	
+      integer, allocatable:: array1(:), array2(:)
       integer:: finalrc, gatherRoot, i, localrc
+      character(16) :: linestr
+
+      write (linestr,*) line
+      linestr = adjustl (linestr)
 
       allocate(array1(petCount))
       allocate(array2(1))
@@ -541,10 +732,10 @@
                 if (array1(i).EQ.ESMF_FAILURE) finalrc = ESMF_FAILURE
         enddo
         if (finalrc.EQ.ESMF_SUCCESS) then
-            print *, " PASS: ", trim(file), line
+            print *, " PASS: ", trim(file), ' ', trim (linestr)
             call c_ESMC_PrintPassFlush(); ! print and flush out of C++
         else
-            print *, " FAIL: ", trim(file), line
+            print *, " FAIL: ", trim(file), ' ', trim (linestr)
         endif
       endif
       deallocate(array1)
@@ -559,8 +750,8 @@
           if (present(rc)) rc = localrc
           return
       endif
-      rc=ESMF_SUCCESS
-      return
+      
+      if (present(rc)) rc=ESMF_SUCCESS
                                                  
       end subroutine ESMF_TestResultsGather
 
@@ -591,12 +782,17 @@
       character(ESMF_MAXSTR) :: msg, logFileName
       type(ESMF_VM) :: globalVM
       integer :: numPETs, localrc, underScore, Period
+      character(16) :: linestr
+
+      write (linestr,*) line
+      linestr = adjustl (linestr)
 
       ! create a file name for the log file
       ! find locations of the underscore and period
       underScore = index (file, "_")
       Period = index (file, ".")
       logFileName = file(underScore+1:Period)  // "Log"
+
 
 
       ! initialize the framework.  if this fails, print a message directly
@@ -612,7 +808,10 @@
           return
       endif
 
-      call ESMF_VMGet(globalVM, petCount=numPETs, rc=localrc)
+      ! get test start time
+      call cpu_time(start_time)
+
+      call ESMF_VMGet(globalVM, petCount=numPETs, localPet=PETnum, rc=localrc)
       if (localrc .ne. ESMF_SUCCESS) then
           write(msg, *) "FAIL  Unable to get number of PETs.  Error code ", localrc
           print *, trim(msg)
@@ -621,7 +820,7 @@
           return
        endif
 
-      write(msg, *) "Beginning Test, file ", trim(file), ", line", line
+      write(msg, *) "Beginning Test, file ", trim(file), ", line ", trim (linestr)
       print *, trim(msg)
       call ESMF_LogWrite(trim(msg), ESMF_LOGMSG_INFO)
       if (present(unit)) write(unit, *) trim(msg)
@@ -630,6 +829,8 @@
       print *, trim(msg)
       call ESMF_LogWrite(trim(msg), ESMF_LOGMSG_INFO)
       if (present(unit)) write(unit, *) trim(msg)
+      
+      if (present(rc)) rc=ESMF_SUCCESS
 
       end subroutine ESMF_TestStart
 

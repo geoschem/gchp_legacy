@@ -15,7 +15,7 @@
 !                 The first component has a quadruple type Mesh with
 !                 a Field whose data is set to constant value 1
 !                 and then transformed to the second component through
-!                 sparse matrix multiply operation. The destination Field  builds upon
+!                 sparse matrix multiplication operation. The destination Field builds upon
 !                 a Grid congruent with the nodal distribution of the source Mesh.
 !                 The transformed data is then compared
 !                 to predetermined result based on the structure of SMM operation.
@@ -127,7 +127,7 @@
 !  Register section
 !-------------------------------------------------------------------------
 !-------------------------------------------------------------------------
-    call ESMF_GridCompSetServices(comp1, userm1_register, &
+    call ESMF_GridCompSetServices(comp1, userRoutine=userm1_register, &
       userRc=userrc, rc=localrc)
     print *, "Comp SetServices finished, rc= ", localrc
     if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
@@ -137,7 +137,7 @@
       ESMF_CONTEXT, rcToReturn=rc)) &
       call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
-    call ESMF_GridCompSetServices(comp2, userm2_register, &
+    call ESMF_GridCompSetServices(comp2, userRoutine=userm2_register, &
       userRc=userrc, rc=localrc)
     print *, "Comp SetServices finished, rc= ", localrc
     if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
@@ -147,7 +147,7 @@
       ESMF_CONTEXT, rcToReturn=rc)) &
       call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
-    call ESMF_CplCompSetServices(cpl, usercpl_register, &
+    call ESMF_CplCompSetServices(cpl, userRoutine=usercpl_register, &
       userRc=userrc, rc=localrc)
     print *, "Comp SetServices finished, rc= ", localrc
     if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &

@@ -41,7 +41,7 @@ void myInitInC(ESMC_GridComp gcomp, ESMC_State importState,
   ESMC_Field field;
   ESMC_ArraySpec arrayspec;
   int *gridToFieldMap, *ungriddedLBound, *ungriddedUBound;
-  ESMC_InterfaceInt i_gridToFieldMap, i_ungriddedLBound, i_ungriddedUBound;
+  ESMC_InterArrayInt i_gridToFieldMap, i_ungriddedLBound, i_ungriddedUBound;
     
   // initialize return code
   *rc = ESMF_SUCCESS;
@@ -73,7 +73,8 @@ void myInitInC(ESMC_GridComp gcomp, ESMC_State importState,
   printf("local ptr[0] = %g\n", ptr[0]);
   
   // Create a Mesh from VTK file
-  mesh = ESMC_MeshCreate(pdim, sdim, rc);
+  ESMC_CoordSys_Flag local_coordSys=ESMC_COORDSYS_CART;
+  mesh = ESMC_MeshCreate(pdim, sdim, &local_coordSys, rc);
   if (*rc!=ESMF_SUCCESS) return;  // bail out
 
   // Hold this to be deleted later, because getting a C mesh from a C field broken  
@@ -102,12 +103,19 @@ void myInitInC(ESMC_GridComp gcomp, ESMC_State importState,
     elemConn[i] = elemConn[i]+1;
   }
   
+  // We no longer use VTK 2D element types, so translate
+  for (int i = 0; i < num_elem; i++){
+    if (elemType[i]==5) elemType[i]=ESMC_MESHELEMTYPE_TRI;
+    else if (elemType[i]==9) elemType[i]=ESMC_MESHELEMTYPE_QUAD;
+  }
+
   // Add node information to the mesh
   *rc = ESMC_MeshAddNodes(mesh, num_node, nodeId, nodeCoord, nodeOwner);
   if (*rc!=ESMF_SUCCESS) return;  // bail out
   
   // Add element information to the mesh
-  *rc = ESMC_MeshAddElements(mesh, num_elem, elemId, elemType, elemConn);
+  *rc = ESMC_MeshAddElements(mesh, num_elem, elemId, elemType, elemConn, 
+                             NULL, NULL, NULL);
   if (*rc!=ESMF_SUCCESS) return;  // bail out
   
   // garbage collection of temporary variables used to create Mesh object
@@ -127,26 +135,26 @@ void myInitInC(ESMC_GridComp gcomp, ESMC_State importState,
   // Setup gridToFieldMap    
   gridToFieldMap = (int *)malloc(sizeof(int));
   gridToFieldMap[0] = 1;
-  i_gridToFieldMap = ESMC_InterfaceIntCreate(gridToFieldMap, 1, rc);
+  *rc = ESMC_InterArrayIntSet(&i_gridToFieldMap, gridToFieldMap, 1);
   if (*rc!=ESMF_SUCCESS) return;  // bail out
   
   // Setup ungriddedLBound    
   ungriddedLBound = (int *)malloc(2*sizeof(int));
   ungriddedLBound[0] = 1;
   ungriddedLBound[1] = 1;
-  i_ungriddedLBound = ESMC_InterfaceIntCreate(ungriddedLBound, 2, rc);
+  *rc = ESMC_InterArrayIntSet(&i_ungriddedLBound, ungriddedLBound, 2);
   if (*rc!=ESMF_SUCCESS) return;  // bail out
 
   // Setup ungriddedUBound    
   ungriddedUBound = (int *)malloc(2*sizeof(int));
   ungriddedUBound[0] = 2;
   ungriddedUBound[1] = 3;
-  i_ungriddedUBound = ESMC_InterfaceIntCreate(ungriddedUBound, 2, rc);
+  *rc = ESMC_InterArrayIntSet(&i_ungriddedUBound, ungriddedUBound, 2);
   if (*rc!=ESMF_SUCCESS) return;  // bail out
 
   // Finally create Field  
-  field = ESMC_FieldCreate(mesh, arrayspec, i_gridToFieldMap, i_ungriddedLBound,
-    i_ungriddedUBound, "Field from C", rc);
+  field = ESMC_FieldCreateMeshArraySpec(mesh, arrayspec, &i_gridToFieldMap, 
+    &i_ungriddedLBound, &i_ungriddedUBound, "Field from C", rc);
   if (*rc!=ESMF_SUCCESS) return;  // bail out
   
   // Add Field to the export State
@@ -154,13 +162,10 @@ void myInitInC(ESMC_GridComp gcomp, ESMC_State importState,
   if (*rc!=ESMF_SUCCESS) return;  // bail out
 
   // garbage collection of temporary variables used to create Field object
-  *rc = ESMC_InterfaceIntDestroy(&i_gridToFieldMap);
   if (*rc!=ESMF_SUCCESS) return;  // bail out
   free(gridToFieldMap);
-  *rc = ESMC_InterfaceIntDestroy(&i_ungriddedLBound);
   if (*rc!=ESMF_SUCCESS) return;  // bail out
   free(ungriddedLBound);
-  *rc = ESMC_InterfaceIntDestroy(&i_ungriddedUBound);
   if (*rc!=ESMF_SUCCESS) return;  // bail out
   free(ungriddedUBound);
 }
@@ -249,7 +254,7 @@ extern "C" {
   // The SetServices entry point must ensure to have external C linkage,
   // so it can be called from Fortran.
   
-  void FTN(my_setservicesinc)(ESMC_GridComp gcomp, int *rc){
+  void FTN_X(my_setservicesinc)(ESMC_GridComp gcomp, int *rc){
     // set entry points for standard Component methods Init(), Run(), Finalize()
     
     // initialize return code

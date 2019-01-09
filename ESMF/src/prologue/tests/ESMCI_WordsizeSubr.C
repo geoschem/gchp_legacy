@@ -1,7 +1,7 @@
 // $Id$
 //
 // Earth System Modeling Framework
-// Copyright 2002-2012, University Corporation for Atmospheric Research,
+// Copyright 2002-2018, University Corporation for Atmospheric Research,
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 // Laboratory, University of Michigan, National Centers for Environmental
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -28,7 +28,7 @@ extern "C" {
 // verify that we are using the same word sizes on each side of the language
 // boundary - F90 and C++.
 
-void FTN(c_ints)(int *i1, int *i2, int *i3, int *i4,
+void FTN_X(c_ints)(int *i1, int *i2, int *i3, int *i4,
                  int *i5, int *i6, int *i7, int *rc) {
 
       printf("In C++: sizeof(char)     = %d\n", (int) sizeof(char));

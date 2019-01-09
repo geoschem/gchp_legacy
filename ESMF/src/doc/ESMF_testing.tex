@@ -1,0 +1,428 @@
+% $Id$
+
+\subsection{Running ESMF Self-Tests}
+\label{testing}
+
+Robustness and portability are primary goals of the ESMF development
+effort.  To ensure that these goals are met, the ESMF includes a
+comprehensive suite of tests.  They allow testing and validation of
+everything from individual functions to complete system tests.  These
+test suites are used by the ESMF development team as part of their
+regular development process.  ESMF users can run the testing suites to
+verify that the framework software was built and installed properly,
+and is running correctly on a particular platform.
+
+Test targets will compile the ESMF library if it has not already been built.
+
+\subsubsection{Setting up ESMF to run test suite applications}
+\label{ESMFRunSetting}
+
+Unless the ESMF library was built in MPI-bypass mode (mpiuni), all applications
+compiled and linked against ESMF automatically become MPI applications and must
+be executed as such. The ESMF test suite and example applications are no
+different in this respect.
+
+Details of how to execute MPI applications vary widely from system to system.
+ESMF uses an mpirun script mechanism to abstract away most of these differences.
+All ESMF makefile targets that require the execution of applications do this by
+launching the application via the executable specified in the 
+{\tt ESMF\_MPIRUN} variable. ESMF assumes that an MPI applications can be 
+launched across {\tt N} processes by calling
+
+\begin{verbatim}
+$(ESMF_MPIRUN) -np N application
+\end{verbatim}
+
+and that the output of the application arrives at the calling shell via 
+{\tt stdout} and {\tt stderr}.
+
+On systems that allow direct launching of MPI application via a suitable
+{\tt mpirun} facility, ESMF can use it directly. This is the ESMF default for
+all those configurations that come with a suitable {\tt mpirun}. In these
+cases the {\tt ESMF\_MPIRUN} environment variable does not need to be set by
+the user.
+
+There are systems, however, that allow direct launching of MPI application but
+provide a launch mechanism that is incompatible with ESMF's assumptions. In
+these cases a simple mpirun wrapper is required. The ESMF {\tt ./scripts}
+directory contains wrappers for several cases in this class, e.g. for
+interactive POE access on IBM machines and {\tt aprun}, as well as
+{\tt yod} on Cray machines. The ESMF configurations will access the
+appropriate wrapper scripts by default if necessary.
+
+Finally, there are those systems that utilize batch software to access the
+parallel execution environment. One option is to execute the ESMF test targets
+from within a batch session, either interactively or from within a script. In 
+this case the batch software does not add any additional complexity for ESMF.
+The same issues discussed above, of how to launch an MPI application, apply 
+directly. 
+
+However, in some cases it is more convenient to execute the ESMF test target
+on the front-end machine, and have ESMF access the batch software each time it
+needs to launch an application. In fact, on IBM systems this is often the only
+working option, because the integrated POE system will execute each application
+on the exact same number of processes specified during batch access, regardless
+of how many ways parallel a specific application needs to be run.
+
+Two modes of operation need to be considered for the ESMF batch access. First,
+if interactive batch access is available, it is straightforward to write an
+{\tt mpirun} script that fulfills the ESMF requirements outlined above. The
+ESMF {\tt ./scripts} directory contains several scripts that access various
+parallel launching facilities though interactive LSF.
+
+Second, if interactive batch access is not available, a more complex scripting
+approach is necessary. The basic requirements in this case are that ESMF must
+be able to launch MPI applications across {\tt N} processes by calling
+
+\begin{verbatim}
+$(ESMF_MPIRUN) -np N application  ,
+\end{verbatim}
+
+that the output of the application will be available in a file named
+{\tt application.stdout} after the script finishes, and that the
+{\tt ESMF\_MPIRUN} script blocks execution until {\tt application.stdout}
+has become accessible.
+
+The ESMF {\tt ./scripts} directory contains scripts of this flavor for a wide
+variety of batch systems. Most of these scripts, when called through ESMF,
+will generate a customized, temporary batch script for a specific executable
+"on the fly" and submit this batch script to the queuing software. The script
+then waits for completion of the submitted job, after which it copies the
+output, received through a system specific mechanism, into the prescribed file.
+
+Regardless of whether the batch system access is interactive or not, it is
+often necessary to specify various system specific options when calling the
+batch submission tool. ESMF utilizes the {\tt ESMF\_MPIBATCHOPTIONS} environment
+variable to pass user supplied values to the batch system.
+
+The environment variable {\tt ESMF\_MPISCRIPTOPTIONS} is available to pass
+user specified options to the actual script specified by {\tt ESMF\_MPIRUN}.
+However, {\tt ESMF\_MPISCRIPTOPTIONS} will only be added automatically to the 
+{\tt ESMF\_MPIRUN} call if the specified {\tt ESMF\_MPIRUN} can be found in the
+ESMF {\tt ./scripts} directory.
+
+Finally, the value of {\tt ESMF\_MPILAUNCHOPTIONS} is passed to the MPI launch
+facility by default, i.e if {\tt ESMF\_MPIRUN} was not specified by the user.
+In case the user specifies {\tt ESMF\_MPIRUN} to be anything else but scripts
+out of the ESMF {\tt ./scripts} directory, it is the user's responsibility to
+add {\tt ESMF\_MPISCRIPTOPTIONS} to {\tt ESMF\_MPIRUN} and/or to utilize
+{\tt ESMF\_MPILAUNCHOPTIONS} within the specified script.
+
+The possibilities covered by the generic scripts provided in the ESMF
+{\tt ./scripts} directory, combined with the {\tt ESMF\_MPISCRIPTOPTIONS},
+{\tt ESMF\_MPIBATCHOPTIONS}, and {\tt ESMF\_MPILAUNCHOPTIONS} environment
+variables, will satisfy the majority of common situations. There are, however,
+circumstances for which a customized, user-provided mpirun script is necessary.
+One such situation arises with the LoadLeveler batch software. LoadLeveler
+typically requires a list of options specified in the actual batch script. This
+is most easily handled by a script that produces such a system and user specific
+script "on the fly". Another situation is where certain modules or software
+packages need to be made available inside the batch script. Again this is most
+easily handled by a customized script the user writes and provides to ESMF via
+the {\tt ESMF\_MPIRUN} environment variable. This will override any default
+settings for the configuration and rely on the user provided script instead.
+
+\begin{sloppypar}
+Users that face the need to write a customized mpirun script for their
+parallel execution environment are encouraged to start with the closest match 
+from the ESMF {\tt ./scripts} directory and customize it to their situation.
+The best way to see how the existing scripts are used on the supported
+platforms is to go to the 
+\htmladdnormallink{http://www.earthsystemmodeling.org/download/platforms/}
+{http://www.earthsystemmodeling.org/download/platforms/} web page and follow the link 
+for the platform of interest. Each test report contains the output of
+{\tt gmake info}, which lists the settings of the {\tt ESMF\_MPIxxx} 
+environment variables.
+\end{sloppypar}
+
+Furthermore, the {\tt esmfcontrib} repository on SourceForge hosts a 
+{\tt scripts} module that contains scripts that were customized to certain
+user environments. These scripts are not generic enough to be included in the
+ESMF distribution, but users faced with the need to customize a script to their
+environment may find the script collection on {\tt esmfcontrib} a valuable
+resource. Please refer to
+\htmladdnormallink{http://sourceforge.net/projects/esmfcontrib}
+{http://sourceforge.net/projects/esmfcontrib} on how to access 
+{\tt esmfcontrib}, and the {\tt scripts} module in particular.
+
+\subsubsection{Running ESMF unit tests}
+
+\label{UnitTestDescription}
+The unit tests provided with the ESMF library evaluate the following:
+\begin{itemize}
+\item correctness of individual functions
+\item behavior of individual modules or classes
+\item appropriate error handling
+\end{itemize}
+
+Unit tests can be run in either an exhaustive or a non-exhaustive (sanity check)
+mode.  The exhaustive mode includes the sanity check tests.  Typically, sanity
+checks for each ESMF capability include creating and destroying an object and 
+testing its basic function using a valid argument set.  In the exhaustive mode,
+a wide range of valid and non-valid arguments are evaluated for correct behavior.
+
+\label{RunUnitTests}
+
+The following commands are used to build and run the unit tests provided with 
+the ESMF:
+\begin{verbatim}
+        gmake [ESMF_TESTEXHAUSTIVE=<ON,OFF>] unit_tests
+        gmake [ESMF_TESTEXHAUSTIVE=<ON,OFF>] unit_tests_uni
+\end{verbatim}
+
+The {\tt tests\_uni} target runs the tests on a single processor. 
+The {\tt tests} target runs the test on multiple processors.
+
+The non-exhaustive set of unit tests should all pass.  At this point in 
+development, the exhaustive tests do not all pass.  Current problems with 
+unit tests are being tracked and corrected by the ESMF development team.
+
+The results of running the unit tests can be found in the following location:
+\begin{verbatim}
+${ESMF_DIR}/test/test${ESMF_BOPT}/${ESMF_OS}.${ESMF_COMPILER}.${ESMF_ABI}. \
+	${ESMF_SITE}
+\end{verbatim}
+
+For example, if your esmf source files have been placed in: 
+\begin{verbatim}
+       /usr/local/esmf
+\end{verbatim}
+
+If your platform is a Linux uni-processor that has an installed Lahey
+Fortran compiler and ESMF\_COMPILER has been set to lahey, then the build
+system configuration file will be:
+
+\begin{verbatim}
+      build_config/Linux.lahey.default/build_rules.mk
+\end{verbatim}
+
+If you want to run a debug version of non-exhaustive unit tests,
+then you use these commands from /usr/local/esmf:
+
+\begin{verbatim}
+       setenv ESMF_DIR /usr/local/esmf
+       gmake ESMF_BOPT=g ESMF_SITE=lahey ESMF_TESTEXHAUSTIVE=OFF tests_uni
+\end{verbatim}
+
+
+If you are using ksh, then replace the setenv command with:
+\begin{verbatim}
+       export ESMF_DIR=/usr/local/esmf
+\end{verbatim}
+
+The results of the unit tests will be in:
+\begin{verbatim}
+       /usr/local/esmf/test/testg/Linux.lahey.32.default/
+\end{verbatim}
+
+At the end of unit test execution a script runs to analyze the results.
+
+The script output indicates whether there are any unit test failures.
+If any unit tests fail, please check if the failures are listed as known bugs in the ESMF release
+page \htmladdnormallink{http://www.earthsystemmodeling.org/download/releases.shtml}{http://www.earthsystemmodeling.org/download/releases.shtml}
+for your platform and compiler.
+If the failures are not listed please contact ESMF Support at \htmladdnormallink{esmf\_support@list.woc.noaa.gov}
+{mailto:esmf\_support@list.woc.noaa.gov}
+Please indicate which unit tests are failing, and attach the output of the "gmake info" command to the email.
+
+
+The script output indicates whether there are any unit test failures.
+The following is a sample from the script output:
+
+\begin{verbatim}
+
+
+The unit tests in the following files all pass:
+
+src/Infrastructure/Array/tests/ESMF_ArrayUTest.F90
+src/Infrastructure/ArrayDataMap/tests/ESMF_ArrayDataMapUTest.F90
+src/Infrastructure/Base/tests/ESMF_BaseUTest.F90
+src/Infrastructure/FieldBundle/tests/ESMF_FieldBundleUTest.F90
+src/Infrastructure/FieldBundleDataMap/tests/ESMF_FieldBundleDataMapUTest.F90
+src/Infrastructure/Config/tests/ESMF_ConfigUTest.F90
+src/Infrastructure/DELayout/tests/ESMF_DELayoutUTest.F90
+src/Infrastructure/Field/tests/ESMF_FRoute4UTest.F90
+src/Infrastructure/Field/tests/ESMF_FieldUTest.F90
+src/Infrastructure/FieldComm/tests/ESMF_FieldGatherUTest.F90
+src/Infrastructure/FieldDataMap/tests/ESMF_FieldDataMapUTest.F90
+src/Infrastructure/Grid/tests/ESMF_GridUTest.F90
+src/Infrastructure/LocalArray/tests/ESMF_ArrayDataUTest.F90
+src/Infrastructure/LocalArray/tests/ESMF_ArrayF90PtrUTest.F90
+src/Infrastructure/LocalArray/tests/ESMF_LocalArrayUTest.F90
+src/Infrastructure/LogErr/tests/ESMF_LogErrUTest.F90
+src/Infrastructure/Regrid/tests/ESMF_Regrid1UTest.F90
+src/Infrastructure/Regrid/tests/ESMF_RegridUTest.F90
+src/Infrastructure/TimeMgr/tests/ESMF_AlarmUTest.F90
+src/Infrastructure/TimeMgr/tests/ESMF_CalRangeUTest.F90
+src/Infrastructure/TimeMgr/tests/ESMF_ClockUTest.F90
+src/Infrastructure/TimeMgr/tests/ESMF_TimeIntervalUTest.F90
+src/Infrastructure/TimeMgr/tests/ESMF_TimeUTest.F90
+src/Infrastructure/VM/tests/ESMF_VMBarrierUTest.F90
+src/Infrastructure/VM/tests/ESMF_VMBroadcastUTest.F90
+src/Infrastructure/VM/tests/ESMF_VMGatherUTest.F90
+src/Infrastructure/VM/tests/ESMF_VMScatterUTest.F90
+src/Infrastructure/VM/tests/ESMF_VMSendVMRecvUTest.F90
+src/Infrastructure/VM/tests/ESMF_VMUTest.F90
+src/Superstructure/Component/tests/ESMF_CplCompCreateUTest.F90
+src/Superstructure/Component/tests/ESMF_GridCompCreateUTest.F90
+src/Superstructure/State/tests/ESMF_StateUTest.F90
+
+
+The following unit test files failed to build, failed to execute or 
+crashed during execution:
+
+src/Infrastructure/TimeMgr/tests/ESMF_CalendarUTest.F90
+src/Infrastructure/VM/tests/ESMF_VMSendRecvUTest.F90
+
+
+The following unit test files had failed unit tests:
+
+src/Infrastructure/Field/tests/ESMF_FRoute8UTest.F90
+src/Infrastructure/Grid/tests/ESMF_GridCreateUTest.F90
+
+
+The following individual unit tests fail:
+
+  FAIL  DELayout Get Test, ESMF_FRoute8UTest.F90, line 139                                                                                                                                                                                                       
+  FAIL  Grid Distribute Test, ESMF_GridCreateUTest.F90, line 198                                                                                                                                                                                                 
+
+
+The stdout files for the unit tests can be found at:
+/home/bluedawn/svasquez/script_dirs/daily_builds/esmf/test/testO/ \
+	AIX.default.64.default
+
+Found 1224 exhaustive multi processor unit tests, 1220 pass and 4 fail.
+
+
+\end{verbatim}
+
+The following is an example of the output generated when a unit test fails:
+\begin{verbatim}
+ESMF_FieldUTest.stdout: FAIL  Unique default Field names Test, FLD1.5.1 
+			& 1.7.1, ESMF_FieldUTest.F90, line 204  Field names 
+			not unique
+\end{verbatim}
+
+\subsubsection{Running ESMF system tests}
+\label{SystemTestDescription}
+
+The system tests provided with the ESMF library evaluate:
+\begin{itemize}
+\item interface agreement between parts of the system
+\item behavior of the system as a whole
+\end{itemize}
+
+The current system test suite includes tests that perform layout
+reduction operations, redistribution-transpose, halo operations,
+component creation and intra-grid communication.  Some of the system
+tests are no longer compatible with the current API, but are included
+in the release for completeness.  A complete description of each
+available system test and its current compatibility status can be
+found at the ESMF website,
+\htmladdnormallink{http://www.earthsystemmodeling.org}{http://www.earthsystemmodeling.org}.  
+The testing
+and validation page is accessible from the {\bf Development} 
+link on the navigation bar.
+
+The following commands are used to build and run the system tests:
+
+\begin{verbatim}
+        gmake [SYSTEM_TEST=xxx] system_tests
+        gmake [SYSTEM_TEST=xxx] system_tests_uni
+\end{verbatim}
+
+The {\tt system\_tests\_uni} target runs the tests on a single processor. 
+The {\tt system\_tests} target runs the test on multiple processors.
+
+If a particular SYSTEM\_TEST is not specified, then all available system tests 
+are built and run.
+
+The results of the test can be found in the following location:
+\begin{verbatim}
+${ESMF_DIR}/test/test${ESMF_BOPT}/${ESMF_OS}.${ESMF_COMPILER}.${ESMF_ABI}. \
+	${ESMF_SITE}
+\end{verbatim}
+
+For example, if your ESMF source files have been placed in your home directory:
+\begin{verbatim}
+       ~/esmf
+\end{verbatim}
+
+and your platform and compiler configuration is:
+\begin{verbatim}
+       Alpha multi-processor using the native compiler
+\end{verbatim}
+
+and you want to run an optimized version of system test SimpleCoupling,
+then you use these commands from the directory {\tt \~/esmf}. 
+\begin{verbatim}
+       setenv ESMF_PROJECT <project_name>
+       gmake ESMF_DIR=`pwd` SYSTEM_TEST=ESMF_SimpleCoupling system_tests
+\end{verbatim}
+
+If you are using ksh then replace the setenv command with
+this:
+
+\begin{verbatim}
+       export ESMF_PROJECT=<project_name>
+\end{verbatim}
+
+The results will be in:
+\begin{verbatim}
+~/esmf/test/testO/OSF1.default.64.default/ESMF_SimpleCouplingSTest.stdout
+\end{verbatim}
+
+At the end of system test execution a script runs to analyze the results.
+
+
+The script output indicates whether there are any system test failures.
+If any system tests fail, please check if the failures are listed as known bugs in the ESMF release
+page \htmladdnormallink{http://www.earthsystemmodeling.org/download/releases.shtml}{http://www.earthsystemmodeling.org/download/releases.shtml}
+for your platform and compiler.
+If the failures are not listed please contact ESMF Support at \htmladdnormallink{esmf\_support@list.woc.noaa.gov}
+{mailto:esmf\_support@list.woc.noaa.gov}
+Please indicate which system tests are failing, and attach the output of the "gmake info" command to the email.
+
+
+
+The script output indicates whether there are any system test failures.
+The following is a sample from the script output:
+
+\begin{verbatim}
+
+
+The following system tests passed:
+
+
+src/system_tests/ESMF_CompCreate/ESMF_CompCreateSTest.F90
+src/system_tests/ESMF_FieldExcl/ESMF_FieldExclSTest.F90
+src/system_tests/ESMF_FieldHalo/ESMF_FieldHaloSTest.F90
+src/system_tests/ESMF_FieldHaloPer/ESMF_FieldHaloPerSTest.F90
+src/system_tests/ESMF_FieldRedist/ESMF_FieldRedistSTest.F90
+src/system_tests/ESMF_FieldRegrid/ESMF_FieldRegridSTest.F90
+src/system_tests/ESMF_FieldRegridMulti/ESMF_FieldRegridMultiSTest.F90
+src/system_tests/ESMF_FieldRegridOrder/ESMF_FieldRegridOrderSTest.F90
+src/system_tests/ESMF_FlowComp/ESMF_FlowCompSTest.F90
+src/system_tests/ESMF_FlowWithCoupling/ESMF_FlowWithCouplingSTest.F90
+src/system_tests/ESMF_SimpleCoupling/ESMF_SimpleCouplingSTest.F90
+src/system_tests/ESMF_VectorStorage/ESMF_VectorStorageSTest.F90
+
+
+The following system tests failed, did not build, or did not execute:
+
+
+src/system_tests/ESMF_FieldRegridConserv/ESMF_FieldRegridConsrvSTest.F90
+src/system_tests/ESMF_RowReduce/ESMF_RowReduceSTest.F90
+
+
+
+
+The stdout files for the system_tests can be found at:
+/home/bluedawn/svasquez/script_dirs/daily_builds/esmf/test/testO/ \
+	AIX.default.64.default
+
+Found 14 system tests, 12 passed and 2 failed.
+
+
+\end{verbatim}
+

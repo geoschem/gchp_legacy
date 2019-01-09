@@ -1,7 +1,7 @@
 ! $Id$
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2012, University Corporation for Atmospheric Research,
+! Copyright 2002-2018, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -93,7 +93,7 @@
   real(ESMF_KIND_R8) :: tvalue
 
   ! local logical
-  logical :: flag = .true.
+  logical :: flag
 
   ! local integer variables
   integer :: ntmp, src_rank, dst_rank
@@ -269,7 +269,8 @@
   ! as long as the current row is within the bounds of the table process entry
   !-----------------------------------------------------------------------------
   out_counter = 0
-  do while(irow <= nrows .and. new_row(irow) /= 0 )
+  do while(irow <= nrows)
+    if (new_row(irow) == 0 ) exit
     !---------------------------------------------------------------------------
     ! start at the top of the table and read new specification. check that it is
     ! not a continuation symbol and not end of row

@@ -1,0 +1,1037 @@
+% $Id$
+
+%\section{Building and Installing the ESMF}
+\subsection{ESMF Download Options}
+
+Major releases of the ESMF software can be downloaded by following
+the instructions on the the {\bf Download} link on the ESMF 
+website, \htmladdnormallink{http://www.earthsystemmodeling.org}{http://www.earthsystemmodeling.org}.
+
+The ESMF is distributed as a full source code tree.
+Follow the instructions in the following sections
+to build the library and link it with your application.
+
+\subsection{Acquiring Development Snapshots}
+Occasionally, it is helpful to acquire a development snapshot of ESMF
+in order to test emerging capabilities, optimizations, and bug fixes
+before they are available in a formal release.  Development snaphots
+are ``use at your own risk.'' Efforts are made to ensure that most unit
+and system tests are passing on typical platforms, but there are no
+guarantees of the stability of development snapshots. New APIs available
+in development snapshots may change before the next release.
+
+Users aware of these risks may check out development snapshots
+using the appropriate git tag.  The standard naming convention
+for development tags is:
+
+\begin{verbatim}
+ESMF_<VERSION>_beta_snapshot_<NUMBER>
+\end{verbatim}
+
+For example, to check out ESMF version 7.1.0 beta snapshot 31, use the
+following command:
+
+\begin{verbatim}
+  $ git archive --remote=git://git.code.sf.net/p/esmf/esmf --format=tar --prefix=esmf/ ESMF_7_1_0_beta_snapshot_31 | tar xf -
+\end{verbatim}
+
+Once downloaded, development snapshots are built in the same way as releases.
+
+\subsection{System Requirements}
+\label{sec:systemreq}
+\input{ESMF_systemreq}
+
+\subsection{Third Party Libraries}
+\label{sec:ThirdParty}
+
+Some portions of the ESMF library can offer enhanced capabilities when
+certain third party libraries are available. This section describes
+these dependencies and the associated environment settings
+that allow the user to control them.
+
+On many platforms, the ESMF library is also created as a shared library.
+When third party libraries are called from ESMF, it is recommended that they are
+also available as shared libraries.  In cases where they are not, they should at
+least be compiled with the position independent code option enabled (e.g., -fPIC on
+Linux with gfortran/gcc) where necessary, so that the ESMF shared library
+build can successfully incorporate them.
+
+\subsubsection{LAPACK}
+\label{sec:lapack}
+The patch recovery regridding method of the ESMF Mesh class requires solving
+local least squares problems. It uses the
+\htmladdnormallink{LAPACK}{http://www.netlib.org/lapack} {\it DGELSY} solver 
+to carry out this task.
+
+The following environment variables control whether a minimal set of
+LAPACK code that comes with ESMF is used, or whether ESMF should link against
+an externally available LAPACK installation. Alternatively, ESMF's
+LAPACK-dependent features can be turned off altogether.
+
+\begin{description}
+
+\item[ESMF\_LAPACK] Possible value: {\tt "internal"} (default), {\tt "OFF"},
+ {\tt "system"}, {\tt "mkl"}, {\tt "netlib"}, {\tt "scsl"}, {\it <userstring>}.
+
+\begin{description}
+\item[{\tt "internal"} (default)] ESMF will be compiled with LAPACK-dependent
+features. A minimal set of LAPACK/BLAS code included in ESMF will be used
+to satisfy the dependencies.
+
+\item[{\tt "OFF"}] Disables LAPACK-dependent code.
+ 
+\item[{\tt "system"}] A system-dependent external LAPACK/BLAS installation
+is used to satisfy the external dependencies of the LAPACK-dependent ESMF code.
+Sets {\tt ESMF\_LAPACK\_LIBS} appropriately.
+
+\item[{\tt "mkl"}] The Intel MKL library is used to satisfy the external 
+dependencies of the LAPACK-dependent ESMF code. When {\tt ESMF\_COMPILER} is set to
+{\tt "intel"}, {\tt ESMF\_LAPACK\_LIBS} is set to {\tt "-mkl"}.  Otherwise {\tt ESMF\_LAPACK\_LIBS}
+is set to {\tt "-lmkl\_lapack -lmkl"}, unless it is already defined in the user 
+environment.
+
+\item[{\tt "netlib"}] The NETLIB library is used to satisfy the external 
+dependencies of the LAPACK-dependent ESMF code. Sets {\tt ESMF\_LAPACK\_LIBS} to
+{\tt "-llapack -lblas"}, unless it is already defined in the user environment.
+
+\item[{\tt "scsl"}] The SCSL library is used to satisfy the external 
+dependencies of the LAPACK-dependent ESMF code. Sets {\tt ESMF\_LAPACK\_LIBS} to
+{\tt "-lscs"}, unless it is already defined in the user environment.
+
+\item[{\it <userstring>}] Enables ESMF's LAPACK-dependent code, but does not set
+a default for {\tt ESMF\_LAPACK\_LIBS}.  {\tt ESMF\_LAPACK\_LIBS}, and if 
+required, {\tt ESMF\_LAPACK\_LIBPATH}, must be set explicitly in the user 
+environment.
+\end{description}
+
+\item[ESMF\_LAPACK\_LIBPATH] Typical value: {\tt /usr/local/lib} (no default).
+
+Specifies the path where the LAPACK library is located.
+
+\item[ESMF\_LAPACK\_LIBS] Typical value: {\tt "-llapack -lblas"} 
+(default is dependent on {\tt ESMF\_LAPACK}).
+
+Specifies the linker directive needed to link the LAPACK library to
+the application.  On some systems, the BLAS library must also be included.
+\end{description}
+
+
+\subsubsection{NetCDF}
+\label{sec:netcdf}
+ESMF provides the ability to read Grid and Mesh data in 
+\htmladdnormallink{NetCDF}{http://www.unidata.ucar.edu/software/netcdf/} format. 
+
+Beginning with NetCDF 4.2, the C and Fortran API libraries are released as separate packages.
+To compile ESMF with NetCDF 4.2 and newer releases, the {\tt ESMF\_NETCDF} environment variable
+can be set to {\tt "split"}.  The {\tt "split"} option requires the NetCDF C library, 
+and the NetCDF Fortran API library be installed in the same directory.  As an alternative,
+the {\tt "nc-config"} option may be used to automatically determine the include and lib directory
+locations.  The {\tt "nc-config"} option supports separate C and Fortran directories.
+
+
+The following environment variables enable, and specify the name and location
+of the desired NetCDF library and associated header files:
+
+\begin{description}
+
+\item[ESMF\_NETCDF] Possible value: {\it not set} (default), {\tt "nc-config"}, {\tt "split"}, 
+{\tt "standard"}, {\it <userstring>}.
+
+\begin{description}
+\item[{\it not set}] (default) NetCDF-dependent features will be disabled.
+The {\tt ESMF\_NETCDF\_INCLUDE}, {\tt ESMF\_NETCDF\_LIBPATH}, and
+{\tt ESMF\_NETCDF\_LIBS} environment variables will be ignored.
+
+\item[{\tt "nc-config"}] The NetCDF {\tt nc-config} and if available, {\tt nf-config},
+tools will be used to determine the proper settings of {\tt ESMF\_NETCDF\_INCLUDE},
+{\tt ESMF\_NETCDF\_LIBPATH}, and {\tt ESMF\_NETCDF\_LIBS}.  The shell {\tt PATH}
+environment variable must include the NetCDF bin directories where {\tt nc-config}
+and {\tt nf-config} reside.  This option supports having the main NetCDF library and the
+Fortran API library reside in separate directories.
+
+\item[{\tt "split"}] {\tt ESMF\_NETCDF\_LIBS} will be set to 
+{\tt "-lnetcdff -lnetcdf"}.  This option is useful for systems 
+which have the Fortran and C bindings archived in separate library files.  
+The {\tt ESMF\_NETCDF\_INCLUDE} and {\tt ESMF\_NETCDF\_LIBPATH}
+environment variables will also be used, if defined.
+
+\item[{\tt "standard"}] {\tt ESMF\_NETCDF\_LIBS} will be set to 
+{\tt "-lnetcdf"}.  This option is useful when the Fortran and 
+C bindings are archived together in the same library file.  The {\tt ESMF\_NETCDF\_INCLUDE} 
+and {\tt ESMF\_NETCDF\_LIBPATH} environment variables will also be used, 
+if defined.
+
+\item[{\it <userstring>}] If set, {\tt ESMF\_NETCDF\_INCLUDE}, 
+{\tt ESMF\_NETCDF\_LIBPATH}, and {\tt ESMF\_NETCDF\_LIBS} environment 
+variables will be used, if defined.
+\end{description}
+
+\item[ESMF\_NETCDF\_INCLUDE] Typical value: {\tt /usr/local/include} 
+(no default).
+
+Specifies the path where the NetCDF header files are located.
+
+\item[ESMF\_NETCDF\_LIBPATH] Typical value: {\tt /usr/local/lib} (no default).
+
+Specifies the path where the NetCDF library file is located.
+
+\item[ESMF\_NETCDF\_LIBS] Typical value: {\tt "-lnetcdf"} 
+
+Specifies the linker directives needed to link the NetCDF library to
+the application.
+
+The default value depends on the setting of {\tt ESMF\_NETCDF}.  For the 
+typical case where {\tt ESMF\_NETCDF} is set to {\tt "standard"}, 
+{\tt ESMF\_NETCDF\_LIBS} is set to {\tt "-lnetcdf"}.  
+When {\tt ESMF\_NETCDF} is set to {\tt "split"}, {\tt ESMF\_NETCDF\_LIBS} 
+is set to {\tt "-lnetcdff -lnetcdf"}.
+
+If the hdf5 library is required, append {\tt "-lhdf5\_hl -lhdf5"} to the
+desired setting.  E.g. {\tt "-lnetcdff -lnetcdf -lhdf5\_hl -lhdf5"}
+\end{description}
+
+\subsubsection{Parallel-NetCDF}
+\label{sec:pnetcdf}
+ESMF provides the ability to write Mesh weights using 
+\htmladdnormallink{Parallel-NetCDF}{http://trac.mcs.anl.gov/projects/parallel-netcdf}.
+
+Some file systems, for example \htmladdnormallink{Lustre}{http://wiki.lustre.org}, may need
+to have locking attributes enabled when the file system is mounted.
+
+The following environment variables enable and specify the name and 
+location of the desired Parallel-NetCDF library and associated header files:
+
+\begin{description}
+\item[ESMF\_PNETCDF] Possible value: {\it not set} (default), {\tt "pnetcdf-config"},
+{\tt "standard"}, {\it <userstring>}.  
+
+When defined, enables the use of Parallel-NetCDF.
+
+\begin{description}
+\begin{sloppypar}
+\item[{\it not set}] (default) PNETCDF-dependent features will be disabled.
+The {\tt ESMF\_PNETCDF\_INCLUDE}, {\tt ESMF\_PNETCDF\_LIBPATH}, and
+{\tt ESMF\_PNETCDF\_LIBS} environment variables will be ignored.
+\end{sloppypar}
+
+\item[{\tt "pnetcdf-config"}] The PNetCDF {\tt pnetcdf-config} tool will be used
+to determine the proper settings of {\tt ESMF\_PNETCDF\_INCLUDE},
+{\tt ESMF\_PNETCDF\_LIBPATH}, and {\tt ESMF\_PNETCDF\_LIBS}.  The shell {\tt PATH}
+environment variable must include the PNetCDF bin directory where {\tt pnetcdf-config}
+resides.
+
+\item[{\tt "standard"}] {\tt ESMF\_PNETCDF\_LIBS} will be set to 
+{\tt "-lpnetcdf"}.  The {\tt ESMF\_PNETCDF\_INCLUDE} and 
+{\tt ESMF\_PNETCDF\_LIBPATH} environment variables will also be used, 
+if defined.
+
+\item[{\it <userstring>}] If set, {\tt ESMF\_PNETCDF\_INCLUDE},
+{\tt ESMF\_PNETCDF\_LIBPATH}, and {\tt ESMF\_PNETCDF\_LIBS} environment
+variables will be used.
+\end{description}
+
+\item[ESMF\_PNETCDF\_INCLUDE] Typical value: {\tt /usr/local/include} 
+(no default).
+
+Specifies the path where the Parallel-NetCDF header files are located.
+
+\item[ESMF\_PNETCDF\_LIBPATH] Typical value: {\tt /usr/local/lib} (no default).
+
+Specifies the path where the Parallel-NetCDF library file is located.
+
+\item[ESMF\_PNETCDF\_LIBS] Typical value: {\tt "-lpnetcdf"} (no default).
+
+Specifies the linker directives needed to link the Parallel-NetCDF library to the
+application.
+\end{description}
+
+\subsubsection{PIO}
+\label{sec:pio}
+ESMF provides the ability to read and write data in both binary and 
+NetCDF formats through \htmladdnormallink{ParallelIO (PIO)}
+{http://code.google.com/p/parallelio/}, a third-party I/O software
+library that is integrated in the ESMF library. The following environment
+variable enables PIO functionalities inside of ESMF.
+
+The PIO code depends on MPI I/O support by the underlying MPI
+implementation to provide the binary format. Almost all current MPI
+implementations support MPI I/O to the required degree. For NetCDF format
+support the integrated PIO code depends on {\tt ESMF\_PNETCDF}
+(see \ref{sec:pnetcdf}) and/or {\tt ESMF\_NETCDF} (see \ref{sec:netcdf})
+being enabled.
+
+\begin{description}
+\item[ESMF\_PIO] Possible value: {\it not set} (default), {\tt "internal"}.
+
+\begin{description}
+\item[{\it not set}] (default) PIO-dependent features will be enabled on platforms where
+certain Fortran-2003 C Interoperability features are available.  Most currently supported
+compilers support these features.
+
+\item[{\tt "OFF"}] Disables PIO-dependent code.
+
+\item[{\tt "internal"}] PIO-dependent features will be enabled and will use the 
+PIO library that is included and built with ESMF.  
+
+\end{description}
+
+\end{description}
+
+\subsubsection{Accelerator Software Stacks}
+\label{sec:acc}
+ESMF provides the ability to query various third party accelerator software
+stacks and gather information about the accelerator devices available in a
+system. The users can query the number of accelerator devices accessible
+from a PET using the OpenCL, OpenACC, Intel MIC and OpenMP software stacks.
+
+The following environment variables enable, and specify the name and location
+of the desired accelerator software stacks and associated header files:
+
+\begin{description}
+
+\item[ESMF\_ACC\_SOFTWARE\_STACK] Possible value: 
+{\it not set} (default), {\tt "opencl"}, {\tt "openacc"},
+{\tt "intelmic"}, {\tt "openmp4"}.
+
+\begin{description}
+\item[{\it not set}] (default) All accelerator software stack related features
+ will be disabled.
+The {\tt ESMF\_ACC\_SOFTWARE\_STACK\_INCLUDE}, 
+{\tt ESMF\_ACC\_SOFTWARE\_STACK\_LIBPATH}, and
+{\tt ESMF\_ACC\_SOFTWARE\_STACK\_LIBS} environment variables will be ignored.
+
+\item[{\tt "opencl"}] The ESMF library will use the OpenCL
+framework to query information about accelerator devices in the system.
+The {\tt ESMF\_ACC\_SOFTWARE\_STACK\_INCLUDE},
+{\tt ESMF\_ACC\_SOFTWARE\_STACK\_LIBPATH} and
+{\tt ESMF\_ACC\_SOFTWARE\_STACK\_LIBS} environment variables will be used
+to build and link the library.
+
+\item[{\tt "openacc"}] The ESMF library will use the interfaces defined
+in the OpenACC standard to query information about accelerator devices 
+in the system.
+The {\tt ESMF\_ACC\_SOFTWARE\_STACK\_INCLUDE},
+{\tt ESMF\_ACC\_SOFTWARE\_STACK\_LIBPATH} and
+{\tt ESMF\_ACC\_SOFTWARE\_STACK\_LIBS} environment variables are not typically
+defined since the standard is supported inherently by a OpenACC standard
+compliant compiler.
+
+\item[{\tt "intelmic"}] The ESMF library will use the interfaces defined
+by the Intel MIC software stack to query information about accelerator devices 
+in the system.
+The {\tt ESMF\_ACC\_SOFTWARE\_STACK\_INCLUDE},
+{\tt ESMF\_ACC\_SOFTWARE\_STACK\_LIBPATH} and
+{\tt ESMF\_ACC\_SOFTWARE\_STACK\_LIBS} environment variables are not typically
+defined since the standard is supported inherently by the Intel compiler.
+
+\item[{\tt "openmp4"}] The ESMF library will use the interfaces defined
+in the OpenMP v4.0 standard to query information about accelerator devices 
+in the system.
+The {\tt ESMF\_ACC\_SOFTWARE\_STACK\_INCLUDE},
+{\tt ESMF\_ACC\_SOFTWARE\_STACK\_LIBPATH} and
+{\tt ESMF\_ACC\_SOFTWARE\_STACK\_LIBS} environment variables are not typically
+defined since the standard is supported inherently by a standard compliant
+compiler.
+
+\end{description}
+
+\item[ESMF\_ACC\_SOFTWARE\_STACK\_INCLUDE] (no default)
+
+Specifies the path where the header files for the accelerator software
+stack is located. If not set, this environment variable is ignored.
+
+\item[ESMF\_ACC\_SOFTWARE\_STACK\_LIBPATH] (no default)
+
+Specifies the path where the libraries for the accelerator software
+stack is located. If not set, this environment variable is ignored.
+
+\item[ESMF\_ACC\_SOFTWARE\_STACK\_LIBS] (no default)
+
+Specifies the linker directives required to link the library with
+the accelerator software stack. If not set, this environment variable 
+is ignored.
+
+\end{description}
+
+
+\subsubsection{XERCES}
+\label{sec:xerces}
+ESMF provides the ability to read Attribute data in XML file format 
+via the \htmladdnormallink{XERCES C++}{http://xerces.apache.org/xerces-c/} 
+library.  (Writing Attribute XML files is performed with the standard C++ 
+output file stream facility, rather than with Xerces).  The following 
+environment variables enable, and specify the name and location of the 
+desired XERCES C++ library and associated header files:
+
+\begin{description}
+
+\item[ESMF\_XERCES] Possible value: {\it not set} (default), {\tt "standard"}, 
+{\it <userstring>}.
+
+\begin{description}
+\item[{\it not set}] (default) XERCES-dependent features will be disabled.
+The {\tt ESMF\_XERCES\_INCLUDE}, {\tt ESMF\_XERCES\_LIBPATH}, and
+{\tt ESMF\_XERCES\_LIBS} environment variables will be ignored.
+
+\item[{\tt "standard"}] {\tt ESMF\_XERCES\_LIBS} will be set to 
+{\tt "-lxerces-c"}.  The {\tt ESMF\_XERCES\_INCLUDE} and 
+{\tt ESMF\_XERCES\_LIBPATH} environment variables will also be used, 
+if defined.
+
+\item[{\it <userstring>}] If set, {\tt ESMF\_XERCES\_INCLUDE}, 
+{\tt ESMF\_XERCES\_LIBPATH}, and {\tt ESMF\_XERCES\_LIBS} environment 
+variables will be used, if defined.
+\end{description}
+
+\item[ESMF\_XERCES\_INCLUDE] Typical value: {\tt /usr/local/include} 
+(no default).
+
+Specifies the path where the XERCES C++ header files are located.
+
+\item[ESMF\_XERCES\_LIBPATH] Typical value: {\tt /usr/local/lib} (no default).
+
+Specifies the path where the XERCES C++ library file is located.
+
+\item[ESMF\_XERCES\_LIBS] Typical value: {\tt "-lxerces-c"} (no default).
+
+Specifies the linker directives needed to link the XERCES C++ library to
+the application.
+
+The default value depends on the setting of {\tt ESMF\_XERCES}.  For the
+typical case where {\tt ESMF\_XERCES} is set to {\tt "standard"}, 
+{\tt ESMF\_XERCES\_LIBS} is set to {\tt "-lxerces-c"}. 
+\end{description}
+
+
+\subsection{ESMF Environment Variables}
+\label{EnvironmentVariables}
+
+The following is a full alphabetical list of all environment variables which
+are used by the ESMF build system. In many cases only {\tt ESMF\_DIR} must be 
+set. On Linux and Darwin systems {\tt ESMF\_COMPILER} and {\tt ESMF\_COMM} must
+also be set to select the appropriate Fortran and C++ compilers and MPI 
+implementation. The other variables have default values which work for
+most systems.
+
+\begin{description}
+
+\item[ESMF\_ABI]
+Possible value: {\tt 32}, {\tt 64}, {\tt x86\_64\_32}, {\tt x86\_64\_small}, {\tt x86\_64\_medium}
+
+If a system supports 32-bit and 64-bit (pointer wordsize) application binary
+interfaces (ABIs), this variable can be set to select which ABI to use. Valid 
+values are {\tt 32} or {\tt 64}. By default the most common ABI is chosen. On
+x86\_64 architectures three additional, more specific ABI settings are available,
+{\tt x86\_64\_32}, {\tt x86\_64\_small} and {\tt x86\_64\_medium}.
+
+\item[ESMF\_ARRAY\_LITE]
+Possible value: {\tt TRUE}, {\tt FALSE} (default)
+
+Not normally set by user. ESMF auto-generates subroutine interfaces for a wide
+variety of data arrays of different ranks, shapes, and types. Setting this
+variable to {\tt TRUE} instructs ESMF to {\em not} generating interfaces for
+5D, 6D, and 7D arrays. This shrinks the amount of autogenerated code as well
+as the number of overloaded interfaces.
+
+\item[ESMF\_BOPT] 
+Possible value: {\tt g}, {\tt O} (default)
+
+This environment variable controls the build option. To make a debuggable
+version of the library set {\tt ESMF\_BOPT} to {\tt g} before building. The 
+default is {\tt O} (capital oh) which builds an optimized version of the
+library. If {\tt ESMF\_BOPT} is {\tt O}, {\tt ESMF\_OPTLEVEL} can also be set
+to a numeric value between 0 and 4 to select a specific optimization level.
+
+\item[ESMF\_COMM]
+Possible value: {\em system-dependent}
+
+On systems with a vendor-supplied MPI communications library the vendor library 
+is chosen by default for communications and {\tt ESMF\_COMM} need not be set.
+For other systems (e.g. Linux or Darwin) a multitude of MPI implementations is
+available and {\tt ESMF\_COMM} must be set to indicate which implementation is
+used to build the ESMF library. Set {\tt ESMF\_COMM} according to your situation
+to: {\tt mpich, mpich2, mpich3, lam, openmpi} or {\tt intelmpi}. {\tt ESMF\_COMM} may
+also be set to {\tt user} indicating that the user will set all the required
+flags using advanced ESMF environment variables.
+
+Alternatively, ESMF comes with a single-processor MPI-bypass library which is
+the default for Linux and Darwin systems. To force the use of this bypass
+library set {\tt ESMF\_COMM} equal to "mpiuni".
+
+\item[ESMF\_COMPILER]
+Possible value: {\em system-dependent}
+
+The ESMF library build requires a working Fortran90 and C++ compiler. On 
+platforms that don't come with a single vendor supplied compiler suite
+(e.g. Linux or Darwin) {\tt ESMF\_COMPILER} must be set to select which Fortran
+and C++ compilers are being used to build the ESMF library. Notice that setting
+the {\tt ESMF\_COMPILER} variable does {\em not} affect how the compiler
+executables are located on the system. {\tt ESMF\_COMPILER} (together with
+{\tt ESMF\_COMM}) affect the name that is expected for the compiler executables.
+Furthermore, the {\tt ESMF\_COMPILER} setting is used to select compiler and
+linker flags consistent with the compilers indicated.
+
+By default Fortran and C++ compiler executables are expected to be located in
+a location contained in the user's {\tt PATH} environment variable. This means
+that if you cannot locate the correct compiler executable via the {\tt which}
+command on the shell prompt the ESMF build system won't find it either!
+
+There are advanced ESMF environment variables that can be used to select 
+specific compiler executables by specifying the full path. This can be used to
+pick specific compiler executables without having to modify the {\tt PATH}
+environment variable.
+
+Use 'gmake info' to see which compiler executables the ESMF build system will
+be using according to your environment variable settings.
+
+To see possible values for {\tt ESMF\_COMPILER}, cd to 
+{\tt \$ESMF\_DIR/build\_config} and list the directories there. The first part 
+of each directory name corresponds to the output of 'uname -s' for this 
+platform. The second part contains possible values for {\tt ESMF\_COMPILER}. In
+some cases multiple combinations of Fortran and C++ compilers are possible, e.g.
+there is {\tt intel} and {\tt intelgcc} available for Linux. Setting 
+{\tt ESMF\_COMPILER} to {\tt intel} indicates that both Intel Fortran and 
+C++ compilers are used, whereas {\tt intelgcc} indicates that the Intel Fortran
+compiler is used in combination with GCC's C++ compiler.
+
+If you do not find a configuration that matches your situation you will need to
+port ESMF.
+
+\item[ESMF\_CXX]
+Possible value: {\em executable}
+
+This variable can be used to override the default C++ compiler and linker
+front-end executables. The executable may be specified with absolute path
+overriding the location determined by default from the user's PATH variable.
+
+\item[ESMF\_CXXCOMPILEOPTS]
+Possible value: {\em list of flags}
+
+Prepend compiler flags to the list of flags the ESMF build system determines.
+
+\item[ESMF\_CXXCOMPILEPATHS]
+Possible value: {\em list of paths, each prepended with -I}
+
+Prepend compiler search paths to the list of search paths the ESMF build system
+determines.
+
+\item[ESMF\_CXXCOMPILER]
+Possible value: {\em executable}
+
+This variable can be used to override the default C++ compiler
+front-end executables. The executable may be specified with absolute path
+overriding the location determined by default from the user's PATH variable.
+
+\item[ESMF\_CXXLINKER]
+Possible value: {\em executable}
+
+This variable can be used to override the default C++ linker
+front-end executables. The executable may be specified with absolute path
+overriding the location determined by default from the user's PATH variable.
+
+\item[ESMF\_CXXLINKLIBS]
+Possible value: {\em list of libraries, each prepended with -l}
+
+Prepend libraries to the list of libraries the ESMF build system determines.
+
+\item[ESMF\_CXXLINKOPTS]
+Possible value: {\em list of flags}
+
+Prepend linker flags to the list of flags the ESMF build system determines.
+
+\item[ESMF\_CXXLINKPATHS]
+Possible value: {\em list of paths, each prepended with -L}
+
+Prepend linker search paths to the list of search paths the ESMF build system
+determines.
+
+\item[ESMF\_CXXLINKRPATHS]
+Possible value: {\em list of paths, each prepended with the correct rpath option}
+
+Prepend linker rpaths to the list of rpaths the ESMF build system determines.
+
+\item[ESMF\_CXXOPTFLAG]
+Possible value: {\em flag}
+
+This variable can be used to override the default C++ optimization flag.
+
+\item[ESMF\_DEFER\_LIB\_BUILD]
+Possible value: {\em ON} (default), {\em OFF}
+
+This variable can be used to override the deferring of the build of the
+ESMF library.  By default, the library is built after all of the source
+files have been compiled.  This speeds up the build process. It also
+allows parallel compilation of source code when the -j flag is used with
+gmake.  Setting this environment variable to {\tt OFF} forces the library to
+be updated after each individual compilation, thus disabling the ability
+to use parallel compilation.
+
+\item[ESMF\_DIR]
+Possible value: {\em absolute path}
+
+The environment variable {\tt ESMF\_DIR} must be set to the full pathname 
+of the top level ESMF directory before building the framework. This is the 
+only environment variable which is required to be set on all platforms under 
+all conditions.
+
+\item[ESMF\_F90]
+Possible value: {\em executable}
+
+This variable can be used to override the default Fortran90 compiler and linker
+front-end executables. The executable may be specified with absolute path
+overriding the location determined by default from the user's PATH variable.
+
+\item[ESMF\_F90COMPILEOPTS]
+Possible value: {\em list of flags}
+
+Prepend compiler flags to the list of flags the ESMF build system determines.
+
+\item[ESMF\_F90COMPILEPATHS]
+Possible value: {\em list of paths, each prepended with -I}
+
+Prepend compiler search paths to the list of search paths the ESMF build system
+determines.
+
+\item[ESMF\_F90COMPILER]
+Possible value: {\em executable}
+
+This variable can be used to override the default Fortran90 compiler
+front-end executables. The executable may be specified with absolute path
+overriding the location determined by default from the user's PATH variable.
+
+\item[ESMF\_F90IMOD]
+Possible value: {\em flag}
+
+This variable can be used to override the default flag (-I) used to specify a
+Fortran module directory.
+
+\item[ESMF\_F90LINKER]
+Possible value: {\em executable}
+
+This variable can be used to override the default Fortran90 linker
+front-end executables. The executable may be specified with absolute path
+overriding the location determined by default from the user's PATH variable.
+
+\item[ESMF\_F90LINKLIBS]
+Possible value: {\em list of libraries, each prepended with -l}
+
+Prepend libraries to the list of libraries the ESMF build system determines.
+
+\item[ESMF\_F90LINKOPTS]
+Possible value: {\em list of flags}
+
+Prepend linker flags to the list of flags the ESMF build system determines.
+
+\item[ESMF\_F90LINKPATHS]
+Possible value: {\em list of paths, each prepended with -L}
+
+Prepend linker search paths to the list of search paths the ESMF build system
+determines.
+
+\item[ESMF\_F90LINKRPATHS]
+Possible value: {\em list of paths, each prepended with the correct rpath option}
+
+Prepend linker rpaths to the list of rpaths the ESMF build system determines.
+
+\item[ESMF\_F90OPTFLAG]
+Possible value: {\em flag}
+
+This variable can be used to override the default  Fortran90 optimization flag.
+
+\item[ESMF\_INSTALL\_BINDIR]
+Possible value: {\em relative or absolute path}
+
+Location into which to install the ESMF apps during installation. This
+location can be specified as absolute path (starting with "/") or relative to
+{\tt ESMF\_INSTALL\_PREFIX}.
+
+\item[ESMF\_INSTALL\_DOCDIR]
+Possible value: {\em relative or absolute path}
+
+Location into which to install the documentation during installation. This
+location can be specified as absolute path (starting with "/") or relative to
+{\tt ESMF\_INSTALL\_PREFIX}.
+
+\item[ESMF\_INSTALL\_HEADERDIR]
+Possible value: {\em relative or absolute path}
+
+Location into which to install the header files during installation. This
+location can be specified as absolute path (starting with "/") or relative to
+{\tt ESMF\_INSTALL\_PREFIX}.
+
+\item[ESMF\_INSTALL\_LIBDIR]
+Possible value: {\em relative or absolute path}
+
+Location into which to install the library files during installation. This
+location can be specified as absolute path (starting with "/") or relative to
+{\tt ESMF\_INSTALL\_PREFIX}.
+
+\item[ESMF\_INSTALL\_MODDIR]
+Possible value: {\em relative or absolute path}
+
+Location into which to install the F90 module files during installation. This
+location can be specified as absolute path (starting with "/") or relative to
+{\tt ESMF\_INSTALL\_PREFIX}.
+
+\item[ESMF\_INSTALL\_PREFIX]
+Possible value: {\em relative or absolute path}
+
+This variable specifies the prefix of the installation path used during the
+installation process accessible thought the install target. Libraries, F90
+module files, header files and documentation all are installed relative to
+{\tt ESMF\_INSTALL\_PREFIX} by default. The {\tt ESMF\_INSTALL\_PREFIX} may be
+provided as absolute path (starting with "/") or relative to {\tt ESMF\_DIR}.
+
+\item[ESMF\_LAPACK]
+See \ref{sec:lapack}
+
+\item[ESMF\_LAPACK\_LIBPATH]
+See \ref{sec:lapack}
+
+\item[ESMF\_LAPACK\_LIBS]
+See \ref{sec:lapack}
+
+\item[ESMF\_MACHINE]
+Possible value: output of {\tt uname -m} where available.
+
+Not normally set by user. This variable indicates architectural details about
+the machine on which the ESMF library is being built. The value of this 
+variable will affect which ABI settings are available and what they mean. 
+{\tt ESMF\_MACHINE} is set automatically.
+
+\item[ESMF\_MPIBATCHOPTIONS]
+Possible value: {\em system-dependent}
+
+Variable used to pass system-specific queue options to the batch system. 
+Typically the queue, project and limits are set.
+See section \ref{ESMFRunSetting} for a discussion of this option.
+
+\item[ESMF\_MPILAUNCHOPTIONS]
+Possible value: {\em system-dependent}
+
+Variable used to pass system-specific options to the MPI launch facility.
+See section \ref{ESMFRunSetting} for a discussion of this option.
+
+\item[ESMF\_MPIMPMDRUN]
+Possible value: {\em executable}
+
+This variable can be used to override the default utility used to launch
+parallel execution of ESMF test applications in MPMD mode. The executable in
+{\tt ESMF\_MPIMPMDRUN} may be specified with path.
+
+\item[ESMF\_MPIRUN]
+Possible value: {\em executable}
+
+This variable can be used to override the default utility used to launch
+parallel ESMF test or example applications. The executable in {\tt ESMF\_MPIRUN}
+may be specified with path. 
+See section \ref{ESMFRunSetting} for a discussion of this option.
+
+\item[ESMF\_MPISCRIPTOPTIONS]
+Possible value: {\em system-dependent}
+
+Variable used to pass system-specific options to the first level MPI script
+accessed by ESMF.
+See section \ref{ESMFRunSetting} for a discussion of this option.
+
+\item[ESMF\_NETCDF]
+See \ref{sec:netcdf}
+
+\item[ESMF\_NETCDF\_INCLUDE]
+See \ref{sec:netcdf}
+
+\item[ESMF\_NETCDF\_LIBPATH]
+See \ref{sec:netcdf}
+
+\item[ESMF\_NETCDF\_LIBS]
+See \ref{sec:netcdf}
+
+\item[ESMF\_NO\_INTEGER\_1\_BYTE]
+Possible value: {\tt TRUE} (default), {\tt FALSE}
+
+Not normally set by user. Setting this variable to {\tt FALSE} instructs
+ESMF to generating data array interfaces for data types of 1-byte integers.
+
+\item[ESMF\_NO\_INTEGER\_2\_BYTE] 
+Possible value: {\tt TRUE} (default), {\tt FALSE}
+
+Not normally set by user. Setting this variable to {\tt FALSE} instructs
+ESMF to generating data array interfaces for data types of 2-byte integers.
+
+\item[ESMF\_OPENACC] 
+Possible value: {\tt ON}, {\tt OFF} (default)
+
+Compiles and links the ESMF library with OpenACC compiler flags.
+
+\item[ESMF\_OPENMP] 
+Possible value: {\tt ON}, {\tt OFF} (default is system dependent)
+
+Compiles and links the ESMF library with OpenMP compiler flags.
+
+\item[ESMF\_OPTLEVEL] 
+Possible value: {\em numerical value}
+
+See {\tt ESMF\_BOPT} for details.
+
+\item[ESMF\_OS]
+Possible value: output of {\tt uname -s} except when cross-compiling or for
+{\tt UNICOS/mp} where {\tt ESMF\_OS} is {\tt Unicos}.
+
+Not normally set by user unless cross-compiling. This variable indicates the
+target system for which the ESMF library is being built. Under normal
+circumstances, i.e. ESMF is being build on the target system, {\tt ESMF\_OS} is
+set automatically. However, when cross-compiling for a different target system
+{\tt ESMF\_OS} must be set to the respective target OS. For example, when
+compiling for the Cray X1 on an interactive X1 node {\tt ESMF\_OS} will be set
+automatically. However, when ESMF is being cross-compiled for the X1 on a Linux
+host the user must set {\tt ESMF\_OS} to {\tt Unicos} manually in order to
+indicate the intended target platform.
+
+\item[ESMF\_PNETCDF]
+See \ref{sec:pnetcdf}
+
+\item[ESMF\_PNETCDF\_INCLUDE]
+See \ref{sec:pnetcdf}
+
+\item[ESMF\_PNETCDF\_LIBPATH]
+See \ref{sec:pnetcdf}
+
+\item[ESMF\_PNETCDF\_LIBS]
+See \ref{sec:pnetcdf}
+
+\item[ESMF\_PTHREADS]
+Possible value: {\tt ON} (default on most platforms), {\tt OFF}
+
+This compile-time option controls ESMF's dependency on a functioning
+Pthreads library. The default option is set to {\tt ON} with the exception
+of IRIX64 and platforms that don't provide Pthreads. On IRIX64 the use of
+Pthreads in ESMF is disabled by default because the Pthreads library conflicts
+with the use of OpenMP on this platform.
+
+The user can override the default setting of {\tt ESMF\_PTHREADS} on all
+platforms that provide Pthread support. Setting the {\tt ESMF\_PTHREADS}
+environment variable to {\tt OFF} will disable ESMF's Pthreads feature set.
+On platforms that don't support Pthreads, e.g. IBM BlueGene/L or Cray XT3, the
+default {\tt OFF} setting cannot be overridden!
+ 
+\item[ESMF\_SITE]
+Possible value: {\em site string}, {\tt default}
+
+Build configure file site name or the value default. If not set, then the value
+of default is assumed. When including platform-specific files, this value is 
+used as the third part of the directory name (parts 1 and 2 are the
+ESMF\_OS value and ESMF\_COMPILER value, respectively.)
+
+The Sourceforge {\tt esmfcontrib} repository contains makefiles which have 
+already been customized for certain machines.  If one exists for your site 
+and you wish to use it, download the corresponding files into the 
+{\tt build\_contrib} directory and set {\tt ESMF\_SITE} to your location
+(which corresponds to the last part of the directory name).  See the 
+Sourceforge site 
+\htmladdnormallink{http://sourceforge.net/projects/esmfcontrib}{http://sourceforge.net/projects/esmfcontrib} for more information.
+
+\item[ESMF\_TESTEXHAUSTIVE] 
+Possible value: {\tt ON}, {\tt OFF} (default)
+
+Variable specifying how to compile the unit tests. If set to the value {\tt ON},
+then all unit tests will be compiled and will be executed when the test is
+run.  If unset or set to any other value, only a subset of the unit tests
+will be included to verify basic functions. Note that this is a compile-time
+selection, not a run-time option.
+
+\item[ESMF\_TESTFORCEOPENACC] 
+Possible value: {\tt ON}, {\tt OFF} (default)
+
+The {\tt ON} setting enforces usage of OpenACC compiler flags when building ESMF test applications. This allows testing of user-level OpenACC usage even with {\tt ESMF\_OPENACC} set to {\tt OFF}.
+
+\item[ESMF\_TESTFORCEOPENMP] 
+Possible value: {\tt ON}, {\tt OFF} (default)
+
+The {\tt ON} setting enforces usage of OpenMP compiler flags when building ESMF test applications. This allows testing of user-level OpenMP usage even with {\tt ESMF\_OPENMP} set to {\tt OFF}.
+
+\item[ESMF\_TESTHARNESS\_ARRAY]
+Possible value: {\em test harness make target} (default not set)
+
+Variable specifying the test harness makefile target for the array class.  If this variable is not specified, a default test scenario will be run for the array class.  See the ESMF Software Developer's Guide for instructions for selecting other test harness scenarios.
+
+\item[ESMF\_TESTHARNESS\_FIELD]
+Possible value: {\em test harness make target} (default not set)
+
+Variable specifying the test harness makefile target for the field class.  If this variable is not specified, a default test scenario will be run for the field class.  See the ESMF Software Developer's Guide for instructions for selecting other test harness scenarios.
+
+\item[ESMF\_TESTMPMD] 
+Possible value: {\tt ON}, {\tt OFF} (default)
+
+Variable specifying whether to run MPMD-style tests, i.e. test applications
+that start up as multiple separate executables.
+
+\item[ESMF\_TESTSHAREDOBJ]
+Possible value: {\tt ON}, {\tt OFF} (default)
+
+Variable specifying whether to run shared object tests. This requires that the compute environment supports shared objects, and that the ESMF library is available in form of a shared library.
+
+\item[ESMF\_TESTWITHTHREADS]
+Possible value: {\tt ON}, {\tt OFF} (default)
+
+If this environment variable is set to {\tt ON} {\em before} the ESMF system
+tests are build they will activate ESMF threading in their code. Specifically
+each component will be executed using ESMF single threading instead of the
+default non-threaded mode. The difference between non-threaded and ESMF
+single threaded execution should be completely transparent. Notice that the
+setting of {\tt ESMF\_TESTWITHTHREADS} does {\em not} alter ESMF's dependency
+on Pthreads but tests ESMF threading features during the system tests. An
+ESMF library that was compiled with disabled Pthread features (via the {\tt
+ESMF\_PTHREADS} variable) will produce ESMF error messages during system test
+execution if the system tests were compiled with {\tt ESMF\_TESTWITHTHREADS}
+set to {\tt ON}.
+
+\item[ESMF\_XERCES]
+See \ref{sec:xerces}
+
+\item[ESMF\_XERCES\_INCLUDE]
+See \ref{sec:xerces}
+
+\item[ESMF\_XERCES\_LIBPATH]
+See \ref{sec:xerces}
+
+\item[ESMF\_XERCES\_LIBS]
+See \ref{sec:xerces}
+
+\end{description}
+
+Environment variables must be set in the user's shell or when calling gmake. It
+is {\em not} necessary to edit ESMF makefiles or other build system files to set
+these variables. Here is an example of setting an environment variable in the
+csh/tcsh shell:
+
+\begin{verbatim}
+  setenv ESMF_ABI 32
+\end{verbatim}
+
+In bash/ksh shell environment variables are set this way:
+
+\begin{verbatim}
+  export ESMF_ABI=32
+\end{verbatim}
+
+Environment variables can also be set from the gmake command line:
+
+\begin{verbatim}
+  gmake ESMF_ABI=32
+\end{verbatim}
+
+\subsection{Supported Platforms}
+\input{../../build/doc/user_arch}
+
+Building the library for multiple architectures or options at the same
+time is supported; building or running the tests or examples is restricted
+to one platform/architecture at a time.  The output from the test cases
+will be stored in a separate directories so the results will be kept 
+separate for different architectures or options.
+
+\subsection{Building the ESMF Library}
+\label{BuildESMF}
+
+% GNU make requirement.  File in build/doc
+\input{../../build/doc/user_make}
+
+Build the library with the command:
+\begin{verbatim}
+  gmake 
+\end{verbatim}
+
+%Build options that enable you to copy the library and *.mod files to
+%specified directories are explained in Section~\ref{BuildOptions}. 
+
+Makefiles throughout the framework are configured to allow users to
+compile files only in the directory where {\tt gmake} is entered. Shared
+libraries are rebuilt only if necessary. In addition the entire ESMF
+framework may be built from any directory by entering {\tt gmake all},
+assuming that all the environmental variables are set correctly as
+described in Section~\ref{EnvironmentVariables}.
+
+The makefiles are also configured to allow multiple make targets to be
+compiled in parallel, via the gmake -j flag.  For example, to use eight
+parallel processes to build the library, use -j8:
+\begin{verbatim}
+  gmake -j8 lib
+\end{verbatim}
+
+The parallel compilation feature depends on {\tt ESMF\_DEFER\_LIB\_BUILD=ON}
+(the default) so that the library build will be deferred until all files
+have been compiled.
+
+The -j option should only be used during the creation of the library.
+The test base and examples will not work correctly with -j set larger
+than 1.
+
+Users may also run examples or execute unit tests of specific classes
+by changing directories to the desired class {\tt examples} or {\tt tests} 
+directories and entering {\tt gmake run\_examples} or 
+{\tt gmake run\_unit\_tests}, respectively.  For non-multiprocessor machines,
+uni-processor targets are available as {\tt gmake run\_examples\_uni} or
+{\tt gmake run\_unit\_tests\_uni}.
+
+\subsection{Building the ESMF Documentation}
+\label{BuildDocumentation}
+
+The ESMF source documentation consists of an {\it ESMF User's Guide}
+and an {\it ESMF Reference Manual for Fortran}.
+
+The tarballs on the ESMF website for ESMF versions 3.0.1 and later do
+not contain the ESMF documentation files.  The documentation is 
+available on the ESMF website in html or pdf form and most users should
+not need to build it from the source.
+
+If a user does want to build the documentation, they will need to 
+download the {\tt esmf} module from the ESMF SourceForge repository
+(see section \ref{sec:download}.  Latex and latex2html must be
+installed.
+
+\noindent To build documentation:
+\begin{verbatim}
+  gmake doc              ! Builds the manuals, including pdf and html.
+\end{verbatim}
+
+\noindent The resulting documentation files will be
+located in the top level directory \${ESMF\_DIR}/doc
+
+\subsection{Installing the ESMF}
+\label{InstallESMF}
+
+The ESMF build system offers the standard {\tt install} target to install all
+necessary files created during the build process into user specified locations.
+The installation procedure will also install the ESMF documentation if it has
+been built successfully following the procedure outlined above.
+
+The installation location can be customized using six {\tt ESMF\_} environment
+variables:
+\begin{itemize}
+\item {\tt ESMF\_INSTALL\_PREFIX} -- prefix for the other five variables.
+\item {\tt ESMF\_INSTALL\_HEADERDIR} -- where to install header files.
+\item {\tt ESMF\_INSTALL\_LIBDIR} -- where to install library files.
+\item {\tt ESMF\_INSTALL\_MODDIR} -- where to install Fortran module files.
+\item {\tt ESMF\_INSTALL\_BINDIR} -- where to install application files.
+\item {\tt ESMF\_INSTALL\_DOCDIR} -- where to install documentation files.
+\end{itemize}
+
+Section~\ref{EnvironmentVariables} describes what each of these 
+environment variables does and how to set them.
+
+Install ESMF with the command:
+\begin{verbatim}
+  gmake install
+\end{verbatim}
+
+Check the ESMF installation with the command:
+\begin{verbatim}
+  gmake installcheck
+\end{verbatim}
+
+{\em Advice to installers.} To complete the installation of ESMF, a single ESMF specific environment variable should be set. The variable is named {\tt ESMFMKFILE}, and it must point to the {\tt esmf.mk} file that was generated during the installation process. Systems that support multiple ESMF installations via management software (e.g. {\em modules, softenv, ...}) should set/reset the {\tt ESMFMKFILE} environment variable as part of the configuration.
+
+Additionally, it is typically convenient to append the user's {\tt PATH} environment variable to provide access to the ESMF applications that were built during the installation process. The application binaries are located in the directory that was specified as {\tt ESMF\_INSTALL\_BINDIR} during the ESMF installation. The location is also stored in variable {\tt ESMF\_APPSDIR}, defined in file {\tt esmf.mk}. Systems that make ESMF installations available through management software (e.g. {\em modules, softenv, ...}) should modify the user's {\tt PATH} environment variable as part of the configuration.
+
+{\em Hint.} By default, file {\tt esmf.mk} is located next to the ESMF library file in  directory {\tt ESMF\_INSTALL\_LIBDIR}. Consequently, unless {\tt esmf.mk} has been moved to a different location after the installation, the correct setting for {\tt ESMFMKFILE} is {\tt \$(ESMF\_INSTALL\_LIBDIR)/esmf.mk}.
+
+{\em Rationale.} The only piece of information that is needed to use an ESMF installation is the exact location of the associated {\tt esmf.mk} file. This file contains all of the relevant settings and flags that allow a user to build their application against the ESMF installation. Standardizing the mechanism by which the location of {\tt esmf.mk} is made available to the user by the system will help users in the design of portable application build systems. (See sections \ref{sec:Use} and \ref{sec:Apps} for details about the usage of {\tt esmf.mk}.) Further, modifying the user's {\tt PATH} environment variable is optional, since the location of the ESMF application binaries is available through the {\tt esmf.mk} file. However, setting the user's {\tt PATH} variable so that the ESMF applications are directly and conveniently accessible from the command line is recommended, especially if management software (e.g. {\em modules, softenv, ...}) is used on the system.

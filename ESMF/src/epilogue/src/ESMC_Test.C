@@ -1,7 +1,7 @@
-// $Id: ESMC_Test.C,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
+// $Id$
 //
 // Earth System Modeling Framework
-// Copyright 2002-2012, University Corporation for Atmospheric Research,    
+// Copyright 2002-2018, University Corporation for Atmospheric Research,    
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 // Laboratory, University of Michigan, National Centers for Environmental
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
@@ -32,7 +32,7 @@
 //-----------------------------------------------------------------------------
 // leave the following line as-is; it will insert the cvs ident string
 // into the object file for tracking purposes.
-static const char *const version = "$Id: ESMC_Test.C,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $";
+static const char *const version = "$Id$";
 //-----------------------------------------------------------------------------
 
 
@@ -80,19 +80,18 @@ int ESMC_TestEnd(
 //    ESMF_SUCCESS or ESMF_FAILURE
 //
 // !ARGUMENTS:
-  int result,       // in - cumulative failure count
   const char *file, // in - test filename
   int line,         // in - test line number in test filename
   int only) {       // in - if set to 0, print on stderr also
 // 
 // !DESCRIPTION:
-//    Prints summary message about total failures, and standard exit message.
+//    Prints a standard exit message.
 //    If {\tt only} is zero, also print same message to stderr as well
 //    as the normal output on stdout.  The default for {\tt only} is 1.
 //
 //EOP
 //-----------------------------------------------------------------------------
-  return ESMCI::TestEnd(result, file, line, only);
+  return ESMCI::TestEnd(file, line, only);
 }
 //-----------------------------------------------------------------------------
 
@@ -121,6 +120,58 @@ int ESMC_TestStart(
 //EOP
 //-----------------------------------------------------------------------------
   return ESMCI::TestStart(file, line, only);
+}
+//-----------------------------------------------------------------------------
+
+//-----------------------------------------------------------------------------
+//BOPI
+// !IROUTINE:  ESMC_fabs - absolute value of a float
+//
+// !INTERFACE:   
+float ESMC_fabs(
+//
+// !RETURN VALUE:
+//    absolute value
+//
+// !ARGUMENTS:
+  float val) { 
+// 
+// !DESCRIPTION:
+//    Returns the absolute value of a floating point value
+//
+//EOPI
+//-----------------------------------------------------------------------------
+
+  float negone = -1;
+
+  if (val < 0) return val*negone;
+  else return val;
+}
+//-----------------------------------------------------------------------------
+
+//-----------------------------------------------------------------------------
+//BOPI
+// !IROUTINE:  ESMC_dabs - absolute value of a double
+//
+// !INTERFACE:   
+double ESMC_dabs(
+//
+// !RETURN VALUE:
+//    absolute value
+//
+// !ARGUMENTS:
+  double val) { 
+// 
+// !DESCRIPTION:
+//    Returns the absolute value of a double value
+//
+//EOPI
+//-----------------------------------------------------------------------------
+
+  double negone = -1;
+
+  if (val < 0) return val*negone;
+  else return val;
 }
 //-----------------------------------------------------------------------------
 

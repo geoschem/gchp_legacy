@@ -1,4 +1,4 @@
-# $Id: makefile,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $ 
+# $Id$ 
 
 ALL: build_system_tests
 
@@ -39,10 +39,16 @@ DIRS      = ESMF_CompCreate \
             ESMF_FieldRegridMeshToMesh \
             ESMF_FieldLSSMM \
             ESMF_FieldMeshSMM \
-	    ESMF_SequentialEnsemble \
-	    ESMF_ConcurrentEnsemble \
-	    ESMF_ArrayRedistOpenMP \
-            ESMF_DirectCoupling
+            ESMF_TransferGrid \
+            ESMF_TransferMesh \
+            ESMF_SequentialEnsemble \
+            ESMF_ConcurrentEnsemble \
+            ESMF_ArrayRedistOpenMP \
+            ESMF_ArrayRedistOpenACC \
+            ESMF_DirectCoupling \
+            ESMF_XGridConcurrent \
+            ESMF_XGridSerial \
+            ESMF_Trace
 # Disabled STests
 #           ESMF_FieldRegridConserv \ cover by Regrid
 #           ESMF_FieldRegridMulti \   cover by Regrid

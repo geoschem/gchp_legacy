@@ -1,0 +1,456 @@
+%  $Id$
+
+% there is a separate copy of this under build/doc which is
+% now used only by the implementation report.  this was separated
+% out because it replicated information which was in the ESMF_install and
+% ESMF_quickstart files.
+
+\subsection{The ESMF Build System}
+\label{sec:make}
+For most users the description of the build system in previous
+sections should be sufficient.  Some users, however, may wish to have
+a more detailed knowledge of the make system either for configuring
+different build options or for porting to unsupported platforms.
+
+\subsubsection{General structure}
+
+The main components of the build system are:
+
+\label{sec:BuildOptions}
+\begin{itemize}
+\item{{\bf Build directories with makefile fragments}}
+
+There are two directories containing makefile fragment files used by
+the ESMF build system.  
+
+The {\tt build} directory contains the generic makefile fragment file
+{\tt common.mk} that is included by the top level {\tt makefile} in the source
+tree. The {\tt common.mk} contains generic build system settings and build
+rules used across all platforms.  A user should have no reason to edit
+{\tt common.mk}.
+
+The {\tt build\_config} directory contains subdirectories with makefile
+fragments ({\tt build\_rules.mk}) for each supported platform defining
+compilers, compiler flags and the various other definitions that are
+necessary to build on each platform. One of the {\tt build\_rules.mk} files
+will be included by the {\tt build/common.mk} file depending on the values of
+the environment variables ESMF\_OS, ESMF\_COMPILER and ESMF\_SITE. See below
+for more details on environment variables.
+
+\item{{\bf Environment variables}}
+
+Environment variables with the prefix {\tt ESMF\_} are used to pass user
+specified information to the ESMF build system. A full list of {\tt ESMF\_}
+environment variables is provided in section \ref{EnvironmentVariables} of this
+document.
+
+Most environment variables are optional and the ESMF build system will use
+default settings if it finds these variable unset. One piece of information that
+must always be provided by setting the respective environment variable is the
+root of the ESMF directory. There are three sets of source codes the build
+system supports. All need environment variables set to point to their top 
+level source code directories.
+
+\begin{description}
+
+\item{ESMF Library} 
+
+To build the ESMF library, ESMF\_DIR needs to be set to the top level ESMF
+library source code directory.
+
+\item{Implementation Report} 
+
+The build system needs ESMF\_IMPL\_DIR set to the top level source
+code directory of the Implementation Report source tree to build the
+report and to build and run the examples.
+
+\item{EVA Applications} 
+
+An EVA source code tree does not contain a copy of the ESMF build
+system.  Instead it uses a copy found in an ESMF library source code
+tree.  Building the EVA applications requires that ESMF\_EVA\_DIR and
+ESMF\_DIR be set.  ESMF\_EVA\_DIR has to be set to the top directory
+of the EVA source code.  ESMF\_DIR has to be set to the top directory
+of an ESMF source code tree.
+
+\end{description}
+
+
+\item{{\bf Makefiles}}
+
+Every source tree contains a {\tt makefile} in its top level directory. This
+{\tt makefile} includes the {\tt common.mk} file from the {\tt build} directory
+which in turn includes the platform specific {\tt build\_rules.mk} file from
+one of the {\tt build\_config} subdirectories. The top level {\tt makefile}
+contains makefile settings specific for the source code that it is found in.
+
+Each directory in the source tree contains a {\tt makefile} which includes
+the top level {\tt makefile}. These local makefiles include definitions that
+allow the local files and documents to be built.
+\end{itemize}
+
+\subsubsection{Build configuration}
+
+A single makefile or makefile fragment from the build system never
+constitutes a complete set of build rules and settings.  Starting from
+the local makefile, successive include commands are used to string
+together makefiles and makefile fragments to create a complete system
+of build rules and settings.  Configuration of the build system is
+done by including a configuration makefile fragment. A configuration for a
+specific machine or compiler is referred to as a site configuration.
+
+The string of files included is fairly short.  Makefiles below the top
+level makefile include the top level makefile. The top level makefile
+includes {\tt build/common.mk} and then {\tt build/common.mk} includes a
+configuration file from the {\tt build\_config} directory.  The configuration
+files in the {\tt build\_config} directory contain the platform and site
+specific build settings.  The os, compiler and site that a file
+configures is determined by its name.  The configuration makefile
+fragments follow the naming convention
+
+\begin{verbatim}
+    build_config/ESMF_OS.ESMF_COMPILER.ESMF_SITE/build_rules.mk
+\end{verbatim}
+
+where {\tt ESMF\_OS}, {\tt ESMF\_COMPILER} and {\tt ESMF\_SITE} are environment
+variables either set by the user or given default values by the build
+system. {\tt ESMF\_OS} is the target operating system. If the build is performed
+{\em on} the target system {\tt ESMF\_OS} will typically have the value
+returned by the command {\tt uname -s}. {\tt ESMF\_COMPILER} is the compiler
+name. {\tt ESMF\_SITE}, if set, is generally the current machine name, the
+location, or the organization (e.g. mit, cola).  If there are no site specific
+files for a particular platform, then {\tt ESMF\_COMPILER} and {\tt ESMF\_SITE}
+will be set to {\tt default}.  Examples:
+
+\begin{verbatim}
+    ! Default configuration for IBM AIX systems
+    build_config/AIX.default.default/build_rules.mk
+    
+    ! Linux configuration using lahey compilers.    
+    build_config/Linux.lahey.default/build_rules.mk
+\end{verbatim}
+
+\subsubsection{Source code configuration}
+
+Some of the ESMF C++ and Fortran source files contain preprocessor directives
+to configure the source code for specific platforms.  The directives are 
+included in the source code and are pre-processed before the source code is 
+compiled.  The directives are used to determine among other things, the size 
+of variable types.
+
+The ESMF build system provides preprocessor directives in 
+{\tt ESMC\_Conf.h} and {\tt ESMF\_Conf.inc} files
+that are included in the source code. These files are located in
+
+\begin{verbatim}
+    build_config/ESMF_OS.ESMF_COMPILER.ESMF_SITE/ESMC_Conf.h
+    build_config/ESMF_OS.ESMF_COMPILER.ESMF_SITE/ESMF_Conf.inc
+\end{verbatim}
+
+where {\tt ESMF\_OS}, {\tt ESMF\_COMPILER} and {\tt ESMF\_SITE} are
+environment variables set by the user or given default values be the
+build system.  Based on the settings of these environment variables
+the build system provides a path to the correct files during
+source code compilation.
+
+\subsection{Porting the ESMF to New Platforms}
+
+The ESMF build system can be ported to other Unix platforms by adding a new
+platform specific makefile fragment and two associated configuration files.
+These files ({\tt build\_rules.mk}, {\tt ESMC\_Conf.h}, {\tt ESMF\_Conf.inc})
+must be placed into a new subdirectory of the {\tt build\_config} directory,
+following the {\tt ESMF\_OS.ESMF\_COMPILER.ESMF\_SITE} naming convention.
+
+When porting to a new platform it is often helpful to start with a copy 
+of the configuration of an existing ESMF port. You may, for example, want to
+start with a copy of the {\tt build\_config/Linux.g95.default} directory when
+working on a new Linux configuration.
+
+\subsubsection{Customizing the {\tt build\_rules.mk} fragment}
+
+The purpose of the {\tt build\_rules.mk} makefile fragment is to customize the
+build procedure for a specific platform. The customization is done via makefile
+variables. The main {\tt makefile} at the top level of the ESMF directory
+structure first includes the {\tt common.mk} makefile fragment. This common
+makefile fragment defines a large number of variables, setting them either to
+generally valid default values or to specific values the user has set in their
+environment using {\tt ESMF\_} style environment variables.
+
+The platform specific {\tt build\_rules.mk} makefile fragment is included by
+{\tt common.mk} {\em after} the variables have been initialized, but 
+{\em before} any rules are defined in {\tt common.mk} using these variables.
+This gives {\tt build\_rules.mk} a chance to modify these variables as it may
+be necessary to accommodate platform specific properties.
+
+Fortunately only a very small subset of variables pre-defined in {\tt common.mk}
+typically need to be modified or overridden in {\tt build\_rules.mk} with 
+platform specific settings. However, there are some variables that {\em must}
+be set in every {\tt build\_rules.mk} file. These are variables that are not
+pre-set in {\tt common.mk}.
+
+\begin{description}
+
+\item[ESMF\_CXXDEFAULT]
+Default C++ compiler to be used on this platform. This variable will be used
+by {\tt common.mk} to set the associated {\tt ESMF\_CXX} variables.
+\item[ESMF\_CXXCOMPILER\_VERSION]
+Command that when executed will provide information about the version of the
+C++ compiler to stdout.
+\item[ESMF\_F90DEFAULT]
+Default Fortran compiler to be used on this platform. This variable will be used
+by {\tt common.mk} to set the associated {\tt ESMF\_F90} variables.
+\item[ESMF\_F90COMPILER\_VERSION]
+Command that when executed will provide information about the version of the
+F90 compiler to stdout.
+\item[ESMF\_MPIRUNDEFAULT]
+Default MPI job launch facility to be used on this platform. This variable will
+be used by {\tt common.mk} to set the associated {\tt ESMF\_MPIRUN} variables.
+
+\end{description}
+
+The following is a complete alphabetical list of variables that are pre-set 
+in {\tt common.mk} before {\tt build\_rules.mk} is included. Some of these
+variables correspond to {\tt ESMF\_} environment variables while others have 
+a more complicated dependency on the environment variables set by the user.
+
+\begin{description}
+
+\item[ESMF\_ABI]
+\item[ESMF\_APPSDIR]
+\item[ESMF\_AR]
+\item[ESMF\_ARCREATEFLAGS]
+\item[ESMF\_ARCREATEFLAGSDEFAULT]
+\item[ESMF\_ARDEFAULT]
+\item[ESMF\_AREXTRACTFLAGS]
+\item[ESMF\_AREXTRACTFLAGSDEFAULT]
+\item[ESMF\_ARRAY\_LITE]
+\item[ESMF\_BOPT]
+\item[ESMF\_BUILD]
+\item[ESMF\_BUILD\_DOCDIR]
+\item[ESMF\_COMM]
+\item[ESMF\_COMPILER]
+\item[ESMF\_CONFDIR]
+\item[ESMF\_CPP]
+\item[ESMF\_CPPDEFAULT]
+\item[ESMF\_CXXCOMPILECPPFLAGS]
+\item[ESMF\_CXXCOMPILEOPTS]
+\item[ESMF\_CXXCOMPILEPATHS]
+\item[ESMF\_CXXCOMPILEPATHSLOCAL]
+\item[ESMF\_CXXCOMPILER]
+\item[ESMF\_CXXCOMPILERDEFAULT]
+\item[ESMF\_CXXESMFLINKLIBS]
+\item[ESMF\_CXXLINKER]
+\item[ESMF\_CXXLINKERDEFAULT]
+\item[ESMF\_CXXLINKLIBS]
+\item[ESMF\_CXXLINKOPTS]
+\item[ESMF\_CXXLINKPATHS]
+\item[ESMF\_CXXLINKRPATHS]
+\item[ESMF\_CXXOPTFLAG]
+\item[ESMF\_CXXOPTFLAG\_G]
+\item[ESMF\_CXXOPTFLAG\_O]
+\item[ESMF\_CXXOPTFLAG\_X]
+\item[ESMF\_DIR]
+\item[ESMF\_DOCDIR]
+\item[ESMF\_EXDIR]
+\item[ESMF\_F90COMPILECPPFLAGS]
+\item[ESMF\_F90COMPILEFIXCPP]
+\item[ESMF\_F90COMPILEFIXNOCPP]
+\item[ESMF\_F90COMPILEFREECPP]
+\item[ESMF\_F90COMPILEFREENOCPP]
+\item[ESMF\_F90COMPILEOPTS]
+\item[ESMF\_F90COMPILEPATHS]
+\item[ESMF\_F90COMPILEPATHSLOCAL]
+\item[ESMF\_F90COMPILER]
+\item[ESMF\_F90COMPILERDEFAULT]
+\item[ESMF\_F90ESMFLINKLIBS]
+\item[ESMF\_F90IMOD]
+\item[ESMF\_F90LINKER]
+\item[ESMF\_F90LINKERDEFAULT]
+\item[ESMF\_F90LINKLIBS]
+\item[ESMF\_F90LINKOPTS]
+\item[ESMF\_F90LINKPATHS]
+\item[ESMF\_F90LINKRPATHS]
+\item[ESMF\_F90MODDIR]
+\item[ESMF\_F90OPTFLAG]
+\item[ESMF\_F90OPTFLAG\_G]
+\item[ESMF\_F90OPTFLAG\_O]
+\item[ESMF\_F90OPTFLAG\_X]
+\item[ESMF\_GREPV]
+\item[ESMF\_INCDIR]
+\item[ESMF\_INSTALL\_BINDIR]
+\item[ESMF\_INSTALL\_BINDIR\_ABSPATH]
+\item[ESMF\_INSTALL\_DOCDIR]
+\item[ESMF\_INSTALL\_DOCDIR\_ABSPATH]
+\item[ESMF\_INSTALL\_HEADERDIR]
+\item[ESMF\_INSTALL\_HEADERDIR\_ABSPATH]
+\item[ESMF\_INSTALL\_LIBDIR]
+\item[ESMF\_INSTALL\_LIBDIR\_ABSPATH]
+\item[ESMF\_INSTALL\_MODDIR]
+\item[ESMF\_INSTALL\_MODDIR\_ABSPATH]
+\item[ESMF\_INSTALL\_PREFIX]
+\item[ESMF\_INSTALL\_PREFIX\_ABSPATH]
+\item[ESMF\_LDIR]
+\item[ESMF\_LIBDIR]
+\item[ESMF\_LOCOBJDIR]
+\item[ESMF\_MACHINE]
+\item[ESMF\_MODDIR]
+\item[ESMF\_MPIBATCHOPTIONS]
+\item[ESMF\_MPILAUNCHOPTIONS]
+\item[ESMF\_MPIMPMDRUN]
+\item[ESMF\_MPIMPMDRUNDEFAULT]
+\item[ESMF\_MPIRUN]
+\item[ESMF\_MPIRUNDEFAULT]
+\item[ESMF\_MPISCRIPTOPTIONS]
+\item[ESMF\_MV]
+\item[ESMF\_NO\_INTEGER\_1\_BYTE]
+\item[ESMF\_NO\_INTEGER\_2\_BYTE]
+\item[ESMF\_OS]
+\item[ESMF\_OPTLEVEL]
+\item[ESMF\_PTHREADS]
+\item[ESMF\_PTHREADSDEFAULT]
+\item[ESMF\_RANLIB]
+\item[ESMF\_RANLIBDEFAULT]
+\item[ESMF\_RM]
+\item[ESMF\_RPATHPREFIX]
+\item[ESMF\_SED]
+\item[ESMF\_SEDDEFAULT]
+\item[ESMF\_SITE]
+\item[ESMF\_SITEDIR]
+\item[ESMF\_SL\_LIBLIBS]
+\item[ESMF\_SL\_LIBLINKER]
+\item[ESMF\_SL\_LIBOPTS]
+\item[ESMF\_SL\_LIBS\_TO\_MAKE]
+\item[ESMF\_SL\_SUFFIX]
+\item[ESMF\_STDIR]
+\item[ESMF\_TEMPLATES]
+\item[ESMF\_TESTDIR]
+\item[ESMF\_TESTEXHAUSTIVE]
+\item[ESMF\_TESTMPMD]
+\item[ESMF\_TESTWITHTHREADS]
+\item[ESMF\_UTCDIR]
+\item[ESMF\_UTCSCRIPTS]
+\item[ESMF\_WC]
+
+\end{description}
+
+
+
+\subsubsection{Customizing {\tt ESMC\_Conf.h} and {\tt ESMF\_Conf.inc}}
+
+The {\tt ESMC\_Conf.h} file is used to define several settings used
+during compilation of ESMF library code written in C++.
+
+\begin{description}
+
+\item[FTN\_X(func)]
+Macro that will correctly expand "func" to match the Fortran symbol convention.
+Use this macro for function names that contain an underscore.
+
+\item[FTNX(func)]
+Macro that will correctly expand "func" to match the Fortran symbol convention.
+Use this macro for function names that do {\em not} contain an underscore.
+
+\item[ESMCI\_FortranStrLenArg]
+Typedef to match the data type of the 'hidden' string length argument that
+Fortran uses when passing CHARACTER strings.
+
+\item[ESMF\_PRESENT(arg)]
+Macro for a boolean expression that returns TRUE if "arg" is a "present"
+argument passed from Fortran into C++.
+
+\item[ESMC\_POINTER\_SIZE]
+Size of C pointer in bytes.
+
+\end{description}
+
+
+The {\tt ESMF\_Conf.inc} file is used to {\em optionally} define two 
+important macros:
+
+\begin{description}
+
+\item[ESMF\_NO\_INITIALIZERS]
+If this macro is defined ESMF will assume that initializers inside 
+Fortran derived type definitions are not supported.
+
+\item[ESMF\_SEQUENCE\_BUG]
+If this macro is defined ESMF will not use the {\tt SEQUENCE} specifier
+inside Fortran derived types under certain circumstances.
+
+\end{description}
+
+
+\subsection{Shared Object Libraries}
+
+On many platforms, a shared object library is created in addition to the
+standard {\tt .a} archive library.
+Shared object libraries are libraries that are pre-linked into an executable.
+They can then be linked to an application at run time.  There are many advantages
+to using shared libraries.  These include smaller executable files, and shared
+memory usage when multiple executables are running - as is often the case of
+programs using MPI.  They also allow easier bug fixing and development because
+the library can often be upgraded without necessarily re-linking the executables
+which call into it.
+
+Shared object libraries can be pre-linked to system libraries and using them
+can simplify dealing with ESMF's dependency on Fortran90 and C++ runtime 
+libraries.
+
+See \ref{sec:ThirdParty} for third party library build requirements.
+
+\subsection{Customized SITE Files}
+
+In an effort to provide platform specific information for building ESMF 
+and linking the libraries with your application, a SourceForge 
+site, {\tt esmfcontrib}, has been created.
+To locate the platform makefiles for a specific institution, check out 
+the {\tt build\_config\_files} using the appropriate CVSROOT.
+The URL for the {\tt esmfcontrib} SourceForge site is:
+
+\begin{verbatim}
+        http://sourceforge.net/projects/esmfcontrib/
+\end{verbatim}
+
+Additionally, you may check out all the platform makefile fragments 
+for a particular institution from the {\tt esmfcontrib} site. For example, 
+to check out the available makefile fragments for platforms at the
+National Center for Atmospheric Research, {\tt ncar}, change directories to
+
+\begin{verbatim}
+ 	$ESMF_DIR/build_config
+\end{verbatim}
+
+and use the following CVS command:
+
+\begin{verbatim}
+	cvs -z3 -d:ext:$username@cvs.sourceforge.net:/cvsroot/esmfcontrib checkout ncar
+\end{verbatim}
+
+The following directories will be checked out:
+
+\begin{verbatim}
+	AIX.default.bluesky
+	Linux.lahey.longs
+\end{verbatim}
+
+To build using these makefiles you must set the environment 
+variable {\tt ESMF\_SITE} to {\tt bluesky}, or {\tt longs}.
+
+At the present time, we have files for the following institutions:
+
+\begin{verbatim}
+anl  - Argonne National Laboratory
+cola - Center for Ocean-Land-Atmosphere Studies
+gsfc - Goddard Space Flight Center
+mit  - Massachusetts Institute of Technology
+ncar - National Center for Atmospheric Research
+\end{verbatim}
+
+
+Users are encouraged to contribute pertinent information to the 
+{\tt esmfcontrib} repository.
+
+
+
+
+

@@ -1,4 +1,4 @@
-! $Id: ESMF_ArrayBundleSparseMatMulSTest.F90,v 1.1.5.1 2013-01-11 20:23:44 mathomp4 Exp $
+! $Id$
 !
 !-------------------------------------------------------------------------
 !ESMF_MULTI_PROC_SYSTEM_TEST        String used by test script to count system tests.
@@ -94,7 +94,7 @@ program ESMF_ArrayBundleSparseMMSTest
 !
   ! Initialize framework and get back default global VM
   call ESMF_Initialize(vm=vm, &
-		defaultlogfilename="ArrayBundleSparseMatMulSTest.Log", &
+                defaultlogfilename="ArrayBundleSparseMatMulSTest.Log", &
                 logkindflag=ESMF_LOGKIND_MULTI, rc=localrc)
   if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
     ESMF_CONTEXT, rcToReturn=rc)) &

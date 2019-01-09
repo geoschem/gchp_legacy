@@ -1,22 +1,36 @@
 % $Id$ 
 
 #ifdef STANDALONE
-\documentclass[]{article}
+\documentclass[english]{article}
 
-\usepackage{epsf}
+\usepackage{babel}
+\usepackage{longtable}
 \usepackage{html}
 \usepackage{times}
-\usepackage{alltt}
+%\usepackage{subsections}
+\usepackage{graphicx}
+\usepackage{hyperref}
 \usepackage[T1]{fontenc}
-\usepackage[dvips]{graphics,color}
 
 \textwidth 6.5in
 \textheight 8.5in
 \addtolength{\oddsidemargin}{-.75in}
 \newcommand{\mytitle}{\Large {\bf NUOPC Layer Reference}}
-\newcommand{\myauthors}{\large {\it CSC Committee Members}}
-#endif
+\newcommand{\myauthors}{\large {\it Content Standards Committee (CSC) Members}}
+\newcommand{\myversion}{ESMF v7.1.0r}
+% set a standard paragraph style
+\setlength{\parskip}{0pt}
+\setlength{\parindent}{0pt}
+\setlength{\baselineskip}{11pt}
+% these are temporary patches until something more
+% permanent is done to the protex script.
+\newlength{\oldparskip}
+\newlength{\oldparindent}
+\newlength{\oldbaselineskip}
 
+\setlongtables
+#endif
+\sloppy
 #ifdef STANDALONE
 \begin{document}
 #endif
@@ -31,6 +45,8 @@
 \tableofcontents
 
 \newpage
+\setlength{\parskip}{1.5ex}
+
 #endif
 
 
@@ -38,84 +54,291 @@
 % NUOPC Layer
 %============================================================================
 
-\section{NUOPC Layer}
-
-\subsection{Description}
+\section{Description}
 #ifdef STANDALONE
 \input{NUOPC_desc}
 #elif defined(CONSTITUENT)
 \input{../addon/NUOPC/doc/NUOPC_desc}
 #endif
 
-\subsection{Design and Implementation Notes}
+\section{Design and Implementation Notes}
 #ifdef STANDALONE
 \input{NUOPC_implnotes}
 #elif defined(CONSTITUENT)
 \input{../addon/NUOPC/doc/NUOPC_implnotes}
 #endif
 
-\subsection{NUOPC Field Dictionary}
+\subsection{Generic Components}
 #ifdef STANDALONE
+\input{NUOPC_GenericComponents}
+#elif defined(CONSTITUENT)
+\input{../addon/NUOPC/doc/NUOPC_GenericComponents}
+#endif
+
+\newpage
+
+\subsection{Field Dictionary}
+#ifdef STANDALONE
+\input{NUOPC_FieldDictionary}
 \input{NUOPC_FieldDictionaryDef_fapi}
 #elif defined(CONSTITUENT)
 \input{../addon/NUOPC/doc/NUOPC_FieldDictionaryDef_fapi}
+\input{../addon/NUOPC/doc/NUOPC_FieldDictionary}
 #endif
 
-\subsection{Utility API}
+\subsection{Metadata}
 #ifdef STANDALONE
-\input{NUOPC_fapi}
+\input{NUOPC_Metadata}
 #elif defined(CONSTITUENT)
-\input{../addon/NUOPC/doc/NUOPC_fapi}
+\input{../addon/NUOPC/doc/NUOPC_Metadata}
 #endif
 
-\subsection{Generic Component API: NUOPC\_DriverExplicit}
+\subsubsection{Driver Component Metadata}
 #ifdef STANDALONE
-\input{NUOPC_DriverExplicit_manual_fapi}
+\input{NUOPC_DriverComponent_metadata}
 #elif defined(CONSTITUENT)
-\input{../addon/NUOPC/doc/NUOPC_DriverExplicit_manual_fapi}
+\input{../addon/NUOPC/doc/NUOPC_DriverComponent_metadata}
 #endif
 
-\subsection{Generic Component API: NUOPC\_DriverExplicitAtmOcn}
+\subsubsection{Model Component Metadata}
 #ifdef STANDALONE
-%\input{NUOPC_DriverExplicitAtmOcn_fapi}
+\input{NUOPC_ModelComponent_metadata}
 #elif defined(CONSTITUENT)
-%\input{../addon/NUOPC/doc/NUOPC_DriverExplicitAtmOcn_fapi}
+\input{../addon/NUOPC/doc/NUOPC_ModelComponent_metadata}
 #endif
 
-\subsection{Generic Component API: NUOPC\_DriverExplicitAtmOcnMed}
+\subsubsection{Mediator Component Metadata}
 #ifdef STANDALONE
-%\input{NUOPC_DriverExplicitAtmOcnMed_fapi}
+\input{NUOPC_MediatorComponent_metadata}
 #elif defined(CONSTITUENT)
-%\input{../addon/NUOPC/doc/NUOPC_DriverExplicitAtmOcnMed_fapi}
+\input{../addon/NUOPC/doc/NUOPC_MediatorComponent_metadata}
 #endif
 
-\subsection{Generic Component API: NUOPC\_ModelExplicitBase}
+\subsubsection{Connector Component Metadata}
 #ifdef STANDALONE
-\input{NUOPC_ModelExplicitBase_manual_fapi}
+\input{NUOPC_ConnectorComponent_metadata}
 #elif defined(CONSTITUENT)
-\input{../addon/NUOPC/doc/NUOPC_ModelExplicitBase_manual_fapi}
+\input{../addon/NUOPC/doc/NUOPC_ConnectorComponent_metadata}
 #endif
 
-\subsection{Generic Component API: NUOPC\_ModelExplicit}
+\subsubsection{State Metadata}
 #ifdef STANDALONE
-\input{NUOPC_ModelExplicit_manual_fapi}
+\input{NUOPC_State_metadata}
 #elif defined(CONSTITUENT)
-\input{../addon/NUOPC/doc/NUOPC_ModelExplicit_manual_fapi}
+\input{../addon/NUOPC/doc/NUOPC_State_metadata}
 #endif
 
-\subsection{Generic Component API: NUOPC\_MediatorExplicit}
+\subsubsection{Field Metadata}
 #ifdef STANDALONE
-%\input{NUOPC_MediatorExplicit_manual_fapi}
+\input{NUOPC_Field_metadata}
 #elif defined(CONSTITUENT)
-%\input{../addon/NUOPC/doc/NUOPC_MediatorExplicit_manual_fapi}
+\input{../addon/NUOPC/doc/NUOPC_Field_metadata}
 #endif
 
-\subsection{Generic Component API: NUOPC\_Connector}
+\newpage
+
+\subsection{Initialization}
+
+\subsubsection{Phase Maps and Component Labels}
 #ifdef STANDALONE
-%\input{NUOPC_Connector_fapi}
+\input{NUOPC_PhaseMaps}
 #elif defined(CONSTITUENT)
-%\input{../addon/NUOPC/doc/NUOPC_Connector_fapi}
+\input{../addon/NUOPC/doc/NUOPC_PhaseMaps}
 #endif
+
+\subsubsection{Initialize Phase Definitions}
+#ifdef STANDALONE
+\input{NUOPC_IPD}
+#elif defined(CONSTITUENT)
+\input{../addon/NUOPC/doc/NUOPC_IPD}
+#endif
+
+\subsubsection{Field Pairing}
+#ifdef STANDALONE
+\input{NUOPC_FieldPairing}
+#elif defined(CONSTITUENT)
+\input{../addon/NUOPC/doc/NUOPC_FieldPairing}
+#endif
+
+\subsubsection{Namespaces}
+#ifdef STANDALONE
+\input{NUOPC_Namespaces}
+#elif defined(CONSTITUENT)
+\input{../addon/NUOPC/doc/NUOPC_Namespaces}
+#endif
+
+\subsubsection{Connection Options}
+#ifdef STANDALONE
+\input{NUOPC_ConnectionOptions}
+#elif defined(CONSTITUENT)
+\input{../addon/NUOPC/doc/NUOPC_ConnectionOptions}
+#endif
+
+\subsubsection{Data-Dependencies during Initialize}
+#ifdef STANDALONE
+\input{NUOPC_DataDepInit}
+#elif defined(CONSTITUENT)
+\input{../addon/NUOPC/doc/NUOPC_DataDepInit}
+#endif
+
+\subsubsection{Transfer of Grid/Mesh/LocStream Objects between Components}
+#ifdef STANDALONE
+\input{NUOPC_TransferGeom}
+#elif defined(CONSTITUENT)
+\input{../addon/NUOPC/doc/NUOPC_TransferGeom}
+#endif
+
+\subsubsection{Field Mirroring}
+#ifdef STANDALONE
+\input{NUOPC_FieldMirror}
+#elif defined(CONSTITUENT)
+\input{../addon/NUOPC/doc/NUOPC_FieldMirror}
+#endif
+
+\subsection{Timekeeping}
+#ifdef STANDALONE
+\input{NUOPC_Timekeeping}
+#elif defined(CONSTITUENT)
+\input{../addon/NUOPC/doc/NUOPC_Timekeeping}
+#endif
+
+\newpage
+
+\section{API}
+
+\subsection{Generic Component: NUOPC\_Driver}
+#ifdef STANDALONE
+\input{NUOPC_Driver_manual_fapi}
+\input{NUOPC_Driver_fapi}
+#elif defined(CONSTITUENT)
+\input{../addon/NUOPC/doc/NUOPC_Driver_manual_fapi}
+\input{../addon/NUOPC/doc/NUOPC_Driver_fapi}
+#endif
+
+\subsection{Generic Component: NUOPC\_ModelBase}
+#ifdef STANDALONE
+\input{NUOPC_ModelBase_manual_fapi}
+#elif defined(CONSTITUENT)
+\input{../addon/NUOPC/doc/NUOPC_ModelBase_manual_fapi}
+#endif
+
+\subsection{Generic Component: NUOPC\_Model}
+#ifdef STANDALONE
+\input{NUOPC_Model_manual_fapi}
+\input{NUOPC_Model_fapi}
+#elif defined(CONSTITUENT)
+\input{../addon/NUOPC/doc/NUOPC_Model_manual_fapi}
+\input{../addon/NUOPC/doc/NUOPC_Model_fapi}
+#endif
+
+\subsection{Generic Component: NUOPC\_Mediator}
+#ifdef STANDALONE
+\input{NUOPC_Mediator_manual_fapi}
+\input{NUOPC_Mediator_fapi}
+#elif defined(CONSTITUENT)
+\input{../addon/NUOPC/doc/NUOPC_Mediator_manual_fapi}
+\input{../addon/NUOPC/doc/NUOPC_Mediator_fapi}
+#endif
+
+\subsection{Generic Component: NUOPC\_Connector}
+#ifdef STANDALONE
+\input{NUOPC_Connector_manual_fapi}
+\input{NUOPC_Connector_fapi}
+#elif defined(CONSTITUENT)
+\input{../addon/NUOPC/doc/NUOPC_Connector_manual_fapi}
+\input{../addon/NUOPC/doc/NUOPC_Connector_fapi}
+#endif
+
+\newpage
+
+\subsection{General Generic Component Methods}
+#ifdef STANDALONE
+\input{NUOPC_Comp_fapi}
+#elif defined(CONSTITUENT)
+\input{../addon/NUOPC/doc/NUOPC_Comp_fapi}
+#endif
+
+\subsection{Field Dictionary Methods}
+#ifdef STANDALONE
+\input{NUOPC_FieldDictionaryApi_fapi}
+#elif defined(CONSTITUENT)
+\input{../addon/NUOPC/doc/NUOPC_FieldDictionaryApi_fapi}
+#endif
+
+\subsection{Free Format Methods}
+#ifdef STANDALONE
+\input{NUOPC_FreeFormatDef_fapi}
+#elif defined(CONSTITUENT)
+\input{../addon/NUOPC/doc/NUOPC_FreeFormatDef_fapi}
+#endif
+
+\subsection{Utility Routines}
+#ifdef STANDALONE
+\input{NUOPC_Base_fapi}
+#elif defined(CONSTITUENT)
+\input{../addon/NUOPC/doc/NUOPC_Base_fapi}
+#endif
+
+\subsection{Auxiliary Routines}
+Auxiliary routines are provided with the NUOPC Layer as a convenience to the
+user. Typically more work is needed on these methods before considering them
+NUOPC core functionality.
+#ifdef STANDALONE
+\input{NUOPC_Auxiliary_fapi}
+#elif defined(CONSTITUENT)
+\input{../addon/NUOPC/doc/NUOPC_Auxiliary_fapi}
+#endif
+
+\newpage
+
+% re-set to a standard paragraph style
+\setlength{\parskip}{1.5ex}
+
+\section{Standardized Component Dependencies}
+#ifdef STANDALONE
+\input{NUOPC_StandardComponentDep}
+#elif defined(CONSTITUENT)
+\input{../addon/NUOPC/doc/NUOPC_StandardComponentDep}
+#endif
+
+\section{NUOPC Layer Compliance}
+#ifdef STANDALONE
+\input{NUOPC_Compliance}
+#elif defined(CONSTITUENT)
+\input{../addon/NUOPC/doc/NUOPC_Compliance}
+#endif
+
+\subsection{The Compliance Checker}
+#ifdef STANDALONE
+\input{NUOPC_ComplianceChecker}
+#elif defined(CONSTITUENT)
+\input{../addon/NUOPC/doc/NUOPC_ComplianceChecker}
+#endif
+
+\subsection{The Component Explorer}
+#ifdef STANDALONE
+\input{NUOPC_ComponentExplorer}
+#elif defined(CONSTITUENT)
+\input{../addon/NUOPC/doc/NUOPC_ComponentExplorer}
+#endif
+
+\newpage
+
+\section{Appendix A: Run Sequence}
+
+The NUOPC Driver utilizes an internal class to parametrize the run sequence. The {\tt NUOPC\_RunSequence} provides a unified data structure that allows simple as well as complex time loops to be encoded and executed. There are entry points that allow different run phases to be mapped against distinctly different time loops. 
+
+Figure \ref{fig:NUOPCRunSequence} depicts the data structures surrounding the {\tt NUOPC\_RunSequence}, starting with the InternalState of the {\tt NUOPC\_Driver} generic component.
+\begin{figure}[h]
+\begin{center}
+\scalebox{0.6}{\includegraphics{NUOPC_RunSequence}}
+\end{center}
+\caption{NUOPC\_RunSequence class as it relates to the surrounding data structures.}
+\label{fig:NUOPCRunSequence}
+\end{figure}
+
+\newpage
+
 
 %#ifdef STANDALONE
 %\section{Bibliography}

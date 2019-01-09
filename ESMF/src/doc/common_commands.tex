@@ -1,0 +1,21 @@
+% $Id$
+%
+% Earth System Modeling Framework
+% Copyright 2002-2018, University Corporation for Atmospheric Research, 
+% Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
+% Laboratory, University of Michigan, National Centers for Environmental 
+% Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
+% NASA Goddard Space Flight Center.
+% Licensed under the University of Illinois-NCSA License.
+
+\newcommand{\apiStatusCompatibleVersion}[1]{This interface is backward compatible with ESMF versions starting at #1. If code using this interface compiles with any version of ESMF starting with #1, then it will compile with the current version.}
+\newcommand{\apiStatusModifiedSinceVersion}[1]{This interface was modified since ESMF version #1. The fact that code using this interface compiles with the current ESMF version does not guarantee that it compiles with previous versions of this interface. If user code compatibility with version #1 is desired then care must be taken to limit the use of this interface to features that were available in the #1 release. \\
+Changes made after the #1 release:}
+
+\newcommand{\apiStatusCompatibleVersionExceptions}[1]{This interface is backward compatible with ESMF versions starting at #1 - {\em except those arguments indicated below}.}
+\newcommand{\apiStatusCompatibleException}{{\sc Status:}{\em This argument is excluded from the backward compatibility statement}.\\}
+
+\newcommand{\apiDeprecatedArg}{DEPRECATED ARGUMENT!}
+\newcommand{\apiDeprecatedArgWithReplacement}[1]{DEPRECATED ARGUMENT! Please use the argument {\tt #1} instead.}
+
+\newcommand{\apiDeprecatedMethodWithReplacement}[3]{DEPRECATED METHOD as of ESMF #1. Please use {\tt #2 \ref{#3}} instead.}

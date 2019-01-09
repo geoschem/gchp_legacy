@@ -15,7 +15,7 @@
 !                 The first component has a location stream with
 !                 a Field whose data is set to constant value 1
 !                 and then transformed to the second component through
-!                 sparse matrix multiply operation. The destination field  builds upon
+!                 sparse matrix multiplication operation. The destination field builds upon
 !                 a location stream. The transformed data is then compared
 !                 to predetermined result based on the structure of SMM operation.
 !
@@ -130,7 +130,7 @@
 !  Register section
 !-------------------------------------------------------------------------
 !-------------------------------------------------------------------------
-    call ESMF_GridCompSetServices(comp1, userm1_register, &
+    call ESMF_GridCompSetServices(comp1, userRoutine=userm1_register, &
       userRc=userrc, rc=localrc)
     if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
       ESMF_CONTEXT, rcToReturn=rc)) &
@@ -140,7 +140,7 @@
       call ESMF_Finalize(endflag=ESMF_END_ABORT)
     print *, "Comp SetServices finished, rc= ", rc, userrc
 
-    call ESMF_GridCompSetServices(comp2, userm2_register, &
+    call ESMF_GridCompSetServices(comp2, userRoutine=userm2_register, &
       userRc=userrc, rc=localrc)
     if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
       ESMF_CONTEXT, rcToReturn=rc)) &
@@ -150,7 +150,7 @@
       call ESMF_Finalize(endflag=ESMF_END_ABORT)
     print *, "Comp SetServices finished, rc= ", rc, userrc
 
-    call ESMF_CplCompSetServices(cpl, usercpl_register, &
+    call ESMF_CplCompSetServices(cpl, userRoutine=usercpl_register, &
       userRc=userrc, rc=localrc)
     if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
       ESMF_CONTEXT, rcToReturn=rc)) &

@@ -1,7 +1,7 @@
 ! $Id$
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2012, University Corporation for Atmospheric Research,
+! Copyright 2002-2018, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -24,10 +24,13 @@ program ESMF_LAPACKUTest
   integer :: rc, result
 
 #if defined (ESMF_LAPACK)
+#if defined (ESMF_LAPACK_INTERNAL)
+#include "ESMF_LapackBlas.inc"
+#endif
 
   integer, parameter :: dp_k = kind (1.0d0)
 
-  integer, parameter :: n = 1234, nrhs = 12
+  integer, parameter :: n = 123, nrhs = 12
   real(dp_k) :: a(n, n), b(n, nrhs)
   integer :: pivs(n)
 
@@ -62,6 +65,7 @@ program ESMF_LAPACKUTest
 ! Basic test of calling an LAPACK routine
 
   call ESMF_TestStart (ESMF_SRCLINE, rc=rc)
+  if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
   result = 0
 
 #if defined (ESMF_LAPACK)
@@ -74,8 +78,9 @@ program ESMF_LAPACKUTest
   !NEX_UTest
   name = "DGELSY workspace size inquiry test"
   info = 0
+  pivs = 0
   call DGELSY (n, n, nrhs, a, n, b, n, pivs, cond, rank, work1, -1, info)
-  worklen = work1(1)
+  worklen = int (work1(1))
   print *, '  suggested workspace length =', worklen
 
   write (failMsg, *) trim (name) // ': info =', info
@@ -86,10 +91,12 @@ program ESMF_LAPACKUTest
   name = "DGELSY computation test"
   allocate (work(worklen))
   cond = 1.234e-5
+  pivs = 0
   call DGELSY (n, n, nrhs, a, n, b, n, pivs, cond, rank, work, worklen, info)
 
   write (failMsg, *) trim (name) // ': info =', info
   call ESMF_Test (info == 0, name, failMsg, result, ESMF_SRCLINE)
+  deallocate (work)
 #else
   ! Add two dummy passes so test won't show up as crashed
   name = "dummy test without LAPACK"
@@ -99,6 +106,6 @@ program ESMF_LAPACKUTest
 
 #endif
 
-  call ESMF_TestEnd (result, ESMF_SRCLINE)
+  call ESMF_TestEnd (ESMF_SRCLINE)
 
 end program

@@ -1,0 +1,262 @@
+% $Id$
+
+\section{Appendix A: Master List of Constants}
+\label{const:cmaster}
+
+\subsection{ESMC\_CALKIND}
+This flag is documented in section \ref{const:calkindflag_c}.
+
+\subsection{ESMC\_COORDSYS}
+This flag is documented in section \ref{const:ccoordsys}.
+
+\subsection{ESMC\_DECOMP}
+\label{const:cdecompflag}
+{\sf DESCRIPTION:\\}
+Indicates how DistGrid elements are decomposed over DEs.
+
+The type of this flag is:
+
+{\tt type(ESMC\_Decomp\_Flag)}
+
+The valid values are:
+\begin{description}
+\item [ESMC\_DECOMP\_BALANCED]
+      Decompose elements as balanced as possible across DEs. The maximum 
+      difference in number of elements per DE is 1, with the extra elements on
+      the lower DEs.
+\item [ESMC\_DECOMP\_CYCLIC]
+      Decompose elements cyclically across DEs.
+\item [ESMC\_DECOMP\_RESTFIRST]
+      Divide elements over DEs. Assign the rest of this division to the first
+      DE.
+\item [ESMC\_DECOMP\_RESTLAST]
+      Divide elements over DEs. Assign the rest of this division to the last DE.
+\end{description}
+
+{\tt type(ESMC\_ExtrapMethod\_Flag)}
+\label{opt:cextrapmethod}
+
+{\sf DESCRIPTION:\\}
+Specify which extrapolation method to use on unmapped destination points after 
+regridding.
+
+The type of this flag is:
+
+{\tt type(ESMC\_ExtrapMethod\_Flag)}
+
+The valid values are:
+\begin{description}
+\item [ESMC\_EXTRAPMETHOD\_NONE]
+      Indicates that no extrapolation should be done. 
+\item [ESMC\_EXTRAPMETHOD\_NEAREST\_STOD]
+      Inverse distance weighted average. 
+      Here the value of a destination point is the weighted average of the 
+      closest N source points. The weight is the reciprocal of the distance of 
+      the source point from the destination point raised to a power P. All the
+      weights contributing to one destination point are normalized so that they 
+      sum to 1.0. The user can choose N and P when using this method, but 
+      defaults are also provided.  
+\item [ESMC\_EXTRAPMETHOD\_NEAREST\_IDAVG]
+      Nearest source to destination. 
+      Here each destination point is mapped to the closest source point. A given 
+      source point may go to multiple destination points, but no destination 
+      point will receive input from more than one source point. 
+\end{description}
+
+\subsection{ESMC\_FILEFORMAT}
+This flag is documented in section \ref{const:cfileformat}.
+
+\subsection{ESMC\_GRIDITEM}
+This flag is documented in section \ref{const:cgriditem}.
+
+\subsection{ESMC\_GRIDSTATUS}
+This flag is documented in section \ref{const:cgridstatus}.
+
+\subsection{ESMC\_INDEX}
+\label{const:indexflag}
+
+{\sf DESCRIPTION:\\}
+Indicates whether index is local (per DE) or global (per object).
+
+The type of this flag is:
+
+{\tt type(ESMC\_IndexFlag)}
+
+The valid values are:
+\begin{description}
+\item [ESMC\_INDEX\_DELOCAL]
+      Indicates that DE-local index space starts at lower bound 1 for each DE.
+\item [ESMC\_INDEX\_GLOBAL]
+      Indicates that global indices are used. This means that DE-local index
+      space starts at the global lower bound for each DE.
+\item [ESMC\_INDEX\_USER]
+      Indicates that the DE-local index bounds are explicitly set by the user.
+\end{description}
+
+\subsection{ESMC\_LINETYPE}
+\label{opt:lineType}
+
+{\sf DESCRIPTION:\\}  This argument allows the user to select the path of the 
+line which connects two points on the surface of a sphere.
+This in turn controls the path along which distances are calculated and the 
+shape of the edges that make up a cell.
+
+The type of this flag is:
+
+{\tt type(ESMC\_LineType\_Flag)}
+
+The valid values are:
+\begin{description}
+\item [ESMC\_LINETYPE\_CART]
+    Cartesian line. When this option is specified distances are calculated in a 
+    straight line through the 3D Cartesian space in which the sphere is 
+    embedded. Cells are approximated by 3D planes bounded by 3D Cartesian lines 
+    between their corner vertices.
+    When calculating regrid weights, this line type is currently the default for 
+    the following regrid methods: ESMC\_REGRIDMETHOD\_BILINEAR,
+    ESMC\_REGRIDMETHOD\_PATCH, ESMC\_REGRIDMETHOD\_NEAREST\_STOD, and 
+    ESMC\_REGRIDMETHOD\_NEAREST\_DTOS.
+\item [ESMC\_LINETYPE\_GREAT\_CIRCLE]
+    Great circle line. When this option is specified distances are calculated 
+    along a great circle path (the shortest distance between two points on a 
+    sphere surface). Cells are bounded by great circle paths between their 
+    corner vertices. When calculating regrid weights, this line type is 
+    currently the default for the following regrid method: 
+    ESMC\_REGRIDMETHOD\_CONSERVE.
+\end{description}
+
+
+\subsection{ESMC\_LOGKIND}
+This flag is documented in section \ref{const:clogkindflag}.
+
+\subsection{ESMC\_LOGMSG}
+This flag is documented in section \ref{const:clogmsgflag}.
+
+\subsection{ESMC\_MESHELEMTYPE}
+This flag is documented in section \ref{const:cmeshelemtype}.
+
+\subsection{ESMF\_METHOD}
+\label{const:cmethod}
+
+{\sf DESCRIPTION:\\}  
+Specify standard ESMF Component method.
+
+The type of this flag is:
+
+{\tt type(ESMF\_Method\_Flag)}
+
+The valid values are:
+\begin{description}
+\item [ESMF\_METHOD\_FINALIZE]
+      Finalize method.
+\item [ESMF\_METHOD\_INITIALIZE]
+      Initialize method.
+\item [ESMF\_METHOD\_READRESTART]
+      ReadRestart method.
+\item [ESMF\_METHOD\_RUN]
+      Run method.
+\item [ESMF\_METHOD\_WRITERESTART]
+      WriteRestart method.
+\end{description}
+
+\subsection{ESMC\_POLEKIND}
+This flag is documented in section \ref{const:cpolekind}.
+
+\subsection{ESMC\_REDUCE}
+\label{const:creduce}
+{\sf DESCRIPTION:\\}
+Indicates reduce operation.
+
+The type of this flag is:
+
+{\tt type(ESMC\_Reduce\_Flag)}
+
+The valid values are:
+\begin{description}
+\item [ESMC\_REDUCE\_SUM]
+      Use arithmetic sum to add all data elements.
+\item [ESMC\_REDUCE\_MIN]
+      Determine the minimum of all data elements.
+\item [ESMC\_REDUCE\_MAX]
+      Determine the maximum of all data elements.
+\end{description}
+
+\subsection{ESMC\_REGION}
+\label{const:cregion}
+{\sf DESCRIPTION:\\}
+Specifies various regions in the data layout of an Array or Field object.
+
+The type of this flag is:
+
+{\tt type(ESMC\_Region\_Flag)}
+
+The valid values are:
+\begin{description}
+\item [ESMC\_REGION\_TOTAL]
+      Total allocated memory.
+\item [ESMC\_REGION\_SELECT]
+      Region of operation-specific elements.
+\item [ESMC\_REGION\_EMPTY]
+      The empty region contains no elements.
+\end{description}
+
+\subsection{ESMC\_REGRIDMETHOD}
+This flag is documented in section \ref{opt:cregridmethod}.
+
+\subsection{ESMC\_STAGGERLOC}
+This flag is documented in section \ref{const:cstaggerloc}.
+
+\subsection{ESMC\_TYPEKIND}
+\label{const:ctypekind}
+
+{\sf DESCRIPTION:\\}
+Named constants used to indicate type and kind combinations supported by the
+overloaded ESMC interfaces. The corresponding Fortran kind-parameter constants 
+are described in the ESMF\_TYPEKIND section of Appendices of the ESMF Fortran 
+reference manual.
+
+The type of these named constants is:
+
+{\tt type(ESMC\_TypeKind\_Flag)}
+
+The named constants are:
+\begin{description}
+\item [ESMC\_TYPEKIND\_I1]
+      Indicates 1 byte integer. \newline 
+      (Only available if ESMF was built with 
+      {\tt ESMF\_NO\_INTEGER\_1\_BYTE = FALSE}. This is {\em not} the default.)
+\item [ESMC\_TYPEKIND\_I2]
+      Indicates 2 byte integer. \newline
+      (Only available if ESMF was built with 
+      {\tt ESMF\_NO\_INTEGER\_2\_BYTE = FALSE}. This is {\em not} the default.)
+\item [ESMC\_TYPEKIND\_I4]
+      Indicates 4 byte integer.
+\item [ESMC\_TYPEKIND\_I8]
+      Indicates 8 byte integer.
+\item [ESMC\_TYPEKIND\_R4]
+      Indicates 4 byte real.
+\item [ESMC\_TYPEKIND\_R8]
+      Indicates 8 byte real.
+\end{description}
+
+\subsection{ESMC\_UNMAPPEDACTION}
+\label{const:unmappedaction}
+{\sf DESCRIPTION:\\}
+Indicates what action to take with respect to unmapped destination points
+and the entries of the sparse matrix that correspond to these points.
+
+The type of this flag is:
+
+{\tt type(ESMC\_UnmappedAction\_Flag)}
+
+The valid values are:
+\begin{description}
+	\item[ESMC\_UNMAPPEDACTION\_ERROR]
+	An error is issued when there exist destination points in a regridding
+	operation that are not mapped by corresponding source points.
+	\item[ESMC\_UNMAPPEDACTION\_IGNORE]
+	Destination points which do not have corresponding source points are 
+	ignored and zeros are used for the entries of the sparse matrix
+	that is generated.
+\end{description}
+

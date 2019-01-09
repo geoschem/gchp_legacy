@@ -1,7 +1,7 @@
 ! $Id$
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2012, University Corporation for Atmospheric Research,
+! Copyright 2002-2018, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -655,7 +655,7 @@
     character(len=*),          intent(in)  :: reportFname
     integer,                   intent(out) :: localrc
 
-    integer, parameter :: rptLun = 50
+    integer :: rptLun
     integer :: iostat
     logical :: openstat
 
@@ -666,6 +666,11 @@
 
     ! initialize return status
     localrc = ESMF_FAILURE
+    
+    ! find an open unit number
+    call ESMF_UtilIOUnitGet (rptLun, rc=localrc)
+    if (ESMF_LogFoundError(localrc, msg="Unable to find available unit.")) &
+      return ! bail out
 
     ! open report file
     open (unit=rptLun, file=reportFname, status='REPLACE', iostat=iostat, action='WRITE')

@@ -1,7 +1,7 @@
 ! $Id$
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2012, University Corporation for Atmospheric Research,
+! Copyright 2002-2018, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -222,7 +222,7 @@
   character(THARN_MAXSTR) :: ltmp, lchar
   character(THARN_MAXSTR) :: gtype, gunits
 
-  logical :: flag = .true.
+  logical :: flag
 
   ! local integer variables
   integer :: ntmp, grank, gsize
@@ -608,7 +608,7 @@
   character(THARN_MAXSTR) :: gtype, gunits, gtag
   type(character_array) :: wchar(10)
 
-  logical :: flag = .true.
+  logical :: flag
 
   ! local integer variables
   integer :: ntmp, grank, gsize
@@ -786,7 +786,8 @@
   ! as long as the current row is within the bounds of the table process entry
   !-----------------------------------------------------------------------------
   out_counter = 0
-  do while(irow <= nrows .and. new_row(irow) /= 0 )
+  do while(irow <= nrows)
+     if (new_row(irow) == 0 ) exit
      !--------------------------------------------------------------------------
      ! new grid specification - not continuation symbol and not end of row
      !--------------------------------------------------------------------------

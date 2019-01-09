@@ -1,0 +1,102 @@
+%===============================================================================
+% CVS $Id$
+%===============================================================================
+\documentclass[english,dvips]{article}
+\usepackage{epsf}
+\usepackage{babel}
+\usepackage{html}
+\usepackage{times}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage[T1]{fontenc}
+
+\setlength{\textwidth}{6.5truein}
+\setlength{\textheight}{8.5truein}
+\setlength{\oddsidemargin}{0in}
+\setlength{\unitlength}{1truecm}
+
+
+\begin{document}
+
+\bodytext{BGCOLOR=white LINK=#083194 VLINK=#21004A}
+
+\begin{titlepage}
+
+\begin{center}
+{\Large    Earth System Modeling Framework } \\
+{\Large {\bf  Software Developer's Guide}} \\
+\medskip
+{\it Silverio Vasquez, Sylvia Murphy, Cecelia DeLuca, Walter Spector, 
+Gerhard Theurich} \\
+\vspace{.5in}
+{\large \today}
+\end{center}
+
+\begin{latexonly}
+\vspace{6in}
+\begin{tabular}{p{5in}p{.9in}}
+\hrulefill \\
+\noindent http://www.earthsystemmodeling.org \\
+\end{tabular}
+\end{latexonly}
+
+\end{titlepage}
+
+\tableofcontents
+
+\newpage
+
+\input{intro}
+
+%\section{Groups and Roles}
+\input{roles}
+
+%\section{Communications}
+\input{communication}
+
+%\section{Processes}
+\input{processes}
+
+%\section{Testing and Validation}
+\input{testing}
+
+%\section{User Suppport}
+\input{usr_support}
+
+%\section{Apps}
+\input{apps}
+
+%\section{Test Harness}
+\input{../../test_harness/doc/test_harness}
+
+%\section{Conventions}
+\input{code_conv}
+
+%\section{Tracking}
+\input{tracking}
+
+%\section{Policies}
+\input{policies}
+
+\newpage
+%\section*{Appendix A:  Testing Terminology}
+\input{append_testing}
+\addcontentsline{toc}{section}{Appendix A: Testing Terminology}
+
+\newpage
+%\section{Bibliography}
+\bibliography{dev_guide} 
+\bibliographystyle{plain}
+\addcontentsline{toc}{section}{Bibliography}
+
+\end{document}
+
+
+
+
+
+
+
+
+
+
