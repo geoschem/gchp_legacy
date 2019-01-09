@@ -4889,7 +4889,7 @@ end function MAPL_AddChildFromGC
          Default='NO', RC=STATUS)
     VERIFY_(STATUS)
 
-    call ESMF_StringUpperCase(rstBoot)
+    rstBoot = ESMF_UtilStringUpperCase(rstBoot)
 
     bootstrapable = (rstBoot /= 'NO')
 

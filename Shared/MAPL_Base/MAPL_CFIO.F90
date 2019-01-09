@@ -3202,8 +3202,8 @@ contains
              call ESMF_CFIOVarInfoGet(VARS(K),vname=CFIOVARNAME,          RC=STATUS)
              VERIFY_(STATUS)
              if (ignoreCase_) then
-                call ESMF_StringUpperCase(BUNDLEVARNAME,status)
-                call ESMF_StringUpperCase(CFIOVARNAME,status)
+                BUNDLEVARNAME = ESMF_UtilStringUpperCase(BUNDLEVARNAME)
+                CFIOVARNAME = ESMF_UtilStringUpperCase(CFIOVARNAME)
              end if
              if(trim(BUNDLEVARNAME)==trim(CFIOVARNAME)) then
                found = .true.
@@ -3789,12 +3789,12 @@ CONTAINS
     Iam = "getVarNameIgnoreCase"
 
     tname = vname
-    call ESMF_StringUpperCase(tname)
+    tname = ESMF_UtilStringUpperCase(tname)
     do j=1,size(vars)
         call ESMF_CFIOVarInfoGet(vars(j),vname=cfiovarname,RC=STATUS)
         VERIFY_(STATUS)
         tcfioname = cfiovarname
-        call ESMF_StringUpperCase(tcfioname,status)
+        tcfioname = ESMF_UtilStringUpperCase(tcfioname)
         if (trim(tname) == trim(tcfioname)) then
            vname = cfiovarname
            exit

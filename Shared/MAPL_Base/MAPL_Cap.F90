@@ -473,7 +473,7 @@ contains
       call MAPL_GetResource(MAPLOBJ, enableMemUtils, "MAPL_ENABLE_MEMUTILS:", default='NO',             RC=STATUS )
       VERIFY_(STATUS)
    !EOR
-      call ESMF_StringUpperCase(enableTimers)
+      enableTimers = ESMF_UtilStringUpperCase(enableTimers)
       if (enableTimers /= 'YES') then
          call MAPL_ProfDisable( rc=STATUS )
          VERIFY_(STATUS)
@@ -481,7 +481,7 @@ contains
          call MAPL_GetResource(MAPLOBJ, timerModeStr, "MAPL_TIMER_MODE:", &
                                default='MAX', RC=STATUS )
          VERIFY_(STATUS)
-         call ESMF_StringUpperCase(timerModeStr)
+         timerModeStr = ESMF_UtilStringUpperCase(timerModeStr)
 
          TestTimerMode: select case(timerModeStr)
          case("OLD")
@@ -499,7 +499,7 @@ contains
          VERIFY_(status)
       end if
 
-      call ESMF_StringUpperCase(enableMemUtils)
+      enableMemUtils = ESMF_UtilStringUpperCase(enableMemUtils)
       if (enableMemUtils /= 'YES') then
          call MAPL_MemUtilsDisable( rc=STATUS )
          VERIFY_(STATUS)

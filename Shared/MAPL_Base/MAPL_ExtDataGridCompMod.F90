@@ -564,7 +564,7 @@ CONTAINS
 
                         ! horizontal information entry
                         call ESMF_ConfigGetAttribute(CFtemp, buffer, __RC__)
-                        call ESMF_StringLowerCase(buffer, iret)
+                        buffer = ESMF_UtilStringLowerCase(buffer)
             
                         if (buffer == 'xy') then
                            primary%item(totalPrimaryEntries)%dim = MAPL_DimsHorzOnly
@@ -576,7 +576,7 @@ CONTAINS
 
                         ! vertical information entry
                         call ESMF_ConfigGetAttribute(CFtemp, buffer, __RC__)
-                        call ESMF_StringLowerCase(buffer, iret)
+                        buffer = ESMF_UtilStringLowerCase(buffer)
                         if (buffer == 'c') then
                            primary%item(totalPrimaryEntries)%vloc = MAPL_VLocationCenter
                         else if (buffer == 'e') then
@@ -587,7 +587,7 @@ CONTAINS
                   
                         ! climatology entry
                         call ESMF_ConfigGetAttribute(CFtemp, buffer, __RC__)
-                        call ESMF_StringLowerCase(buffer, iret)
+                        buffer = ESMF_UtilStringLowerCase(buffer)
                         if (trim(buffer) == 'n') then
                            primary%item(totalPrimaryEntries)%cyclic = "n"
                         else if (trim(buffer) == 'y') then
@@ -606,7 +606,7 @@ CONTAINS
                         ! F;val - fractional, returns the fraction of the input cells with value, val
                         !         that overlap the target cell
                         call ESMF_ConfigGetAttribute(CFtemp, buffer, __RC__)
-                        call ESMF_StringLowerCase(buffer, iret)
+                        buffer = ESMF_UtilStringLowerCase(buffer)
                         buffer = trim(buffer)
                         if (trim(buffer) == 'y') then
                            primary%item(totalPrimaryEntries)%Trans = MAPL_HorzTransOrderBinning
@@ -848,7 +848,7 @@ CONTAINS
 
           ! first check if it is a non-arithmetic function
           expression = derived%item(i)%expression
-          call ESMF_StringLowerCase(expression, iret)
+          expression = ESMF_UtilStringLowerCase(expression)
           if ( index(expression,"mask") /=0  ) then
              derived%item(i)%masking = .true.
           else
@@ -1781,7 +1781,7 @@ CONTAINS
      ASSERT_(len_trim(template) < DATETIME_MAXSTR_)
 
      buff = trim(template)
-     call ESMF_StringLowerCase(buff, stat)
+     buff = ESMF_UtilStringLowerCase(buff)
       
      ! test if the template is empty and return the current time as result
      if (buff == '-'  .or. buff == '--'   .or. buff == '---' .or. &
@@ -3521,7 +3521,7 @@ CONTAINS
      i1 = index(Funcstr,"(")
      ASSERT_(i1 > 0)
      functionname = adjustl(Funcstr(:i1-1))
-     call ESMF_StringLowerCase(functionname,status)
+     functionname = ESMF_UtilStringLowerCase(functionname)
      if (trim(functionname) == "regionmask") twovar = .true.
      if (trim(functionname) == "zonemask") twovar = .false.
      tmpstring = adjustl(Funcstr(i1+1:))
@@ -3591,7 +3591,7 @@ CONTAINS
     i1 = index(exportExpr,"(")
     ASSERT_(i1 > 0)
     functionname = adjustl(exportExpr(:i1-1))
-    call ESMF_StringLowerCase(functionname,status)
+    functionname = ESMF_UtilStringLowerCase(functionname)
 
     if (trim(functionname) == "regionmask") then
 
