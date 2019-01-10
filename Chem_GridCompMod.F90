@@ -861,15 +861,15 @@ CONTAINS
     ! ewl note: might be able to remove some of these...
 
     ! Max # of diagnostics
-    CALL ESMF_ConfigGetAttribute( GeosCF, Input_Opt%MAX_DIAG,       &
+    CALL ESMF_ConfigGetAttribute( GeosCF, Input_Opt%MAX_BPCH_DIAG,  &
                                   Default = 80,                     &
                                   Label   = "MAX_DIAG:",            &
                                   __RC__                           ) 
 
     ! Max # of families per ND65 family tracer (not used for ESMF)
-    CALL ESMF_ConfigGetAttribute( GeosCF, Input_Opt%MAX_FAM,       &
+    CALL ESMF_ConfigGetAttribute( GeosCF, Input_Opt%MAX_Families,   &
                                   Default = 20,                     &
-                                  Label   = "MAX_FAM:",            & 
+                                  Label   = "MAX_FAM:",             & 
                                   __RC__                           )
 
     ! # of levels in LINOZ climatology

@@ -58,9 +58,9 @@ CONTAINS
 !
 ! !USES:
 !
-    USE Input_Opt_Mod,       ONLY : OptInput, Set_Input_Opt_Passive
-    USE ErrCode_Mod,         ONLY : GC_SUCCESS
-    USE ESMF,                ONLY : ESMF_MAXSTR
+    USE Input_Opt_Mod, ONLY : OptInput
+    USE ErrCode_Mod,   ONLY : GC_SUCCESS
+    USE ESMF,          ONLY : ESMF_MAXSTR
     USE MAPL_MOD
     USE M_MPIF
 !
@@ -120,8 +120,8 @@ CONTAINS
     !----------------------------------------
     ! SIZE PARAMETER fields
     !----------------------------------------
-    CALL MPI_Bcast( INPUT_OPT%MAX_DIAG, 1, mpi_integer, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%MAX_FAM,  1, mpi_integer, 0, mpiComm, RC )
+    CALL MPI_Bcast( INPUT_OPT%MAX_Bpch_Diag, 1, mpi_integer, 0, mpiComm, RC )
+    CALL MPI_Bcast( INPUT_OPT%MAX_Families,  1, mpi_integer, 0, mpiComm, RC )
 
     !----------------------------------------
     ! SIMULATION MENU fields
@@ -143,23 +143,15 @@ CONTAINS
     !----------------------------------------
     ! PASSIVE SPECIES MENU fields
     !----------------------------------------
-    CALL MPI_Bcast( INPUT_OPT%NPASSIVE,            1,                       mpi_integer,   0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%NPASSIVE_DECAY,      1,                       mpi_integer,   0, mpiComm, RC )
-
-    ! Allocate and initialize passive tracer arrays for non-root threads. 
-    ! Array size is dependent on Input_Opt%NPASSIVE and therefore this
-    ! step can not be done prior to the broadcasting above (ewl, 5/8/18)
-    IF ( .NOT. am_I_Root ) THEN
-       CALL Set_Input_Opt_Passive( am_I_Root, Input_Opt, RC )
-       ASSERT_(RC==GC_SUCCESS)
-    ENDIf
-
-    CALL MPI_Bcast( INPUT_OPT%PASSIVE_ID(:),       Input_Opt%NPASSIVE,      mpi_integer,   0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%PASSIVE_MW(:),       Input_Opt%NPASSIVE,      mpi_real8,     0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%PASSIVE_TAU(:),      Input_Opt%NPASSIVE,      mpi_real8,     0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%PASSIVE_INITCONC(:), Input_Opt%NPASSIVE,      mpi_real8,     0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%PASSIVE_DECAYID(:),  Input_Opt%NPASSIVE,      mpi_integer,   0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%PASSIVE_NAME(:),     (63)*Input_Opt%NPASSIVE, mpi_character, 0, mpiComm, RC )
+    CALL MPI_Bcast( INPUT_OPT%NPASSIVE,            1,                              mpi_integer,   0, mpiComm, RC )
+    CALL MPI_Bcast( INPUT_OPT%NPASSIVE_DECAY,      1,                              mpi_integer,   0, mpiComm, RC )
+    CALL MPI_Bcast( INPUT_OPT%PASSIVE_NAME(:),     (63)*Input_Opt%Max_PassiveSpc,  mpi_character, 0, mpiComm, RC )
+    CALL MPI_Bcast( INPUT_OPT%PASSIVE_LONGNAME(:), (255)*Input_Opt%Max_PassiveSpc, mpi_character, 0, mpiComm, RC )
+    CALL MPI_Bcast( INPUT_OPT%PASSIVE_ID(:),       Input_Opt%Max_PassiveSpc,       mpi_integer,   0, mpiComm, RC )
+    CALL MPI_Bcast( INPUT_OPT%PASSIVE_MW(:),       Input_Opt%Max_PassiveSpc,       mpi_real8,     0, mpiComm, RC )
+    CALL MPI_Bcast( INPUT_OPT%PASSIVE_TAU(:),      Input_Opt%Max_PassiveSpc,       mpi_real8,     0, mpiComm, RC )
+    CALL MPI_Bcast( INPUT_OPT%PASSIVE_INITCONC(:), Input_Opt%Max_PassiveSpc,       mpi_real8,     0, mpiComm, RC )
+    CALL MPI_Bcast( INPUT_OPT%PASSIVE_DECAYID(:),  Input_Opt%Max_PassiveSpc,       mpi_integer,   0, mpiComm, RC )
 
     !----------------------------------------
     ! ADVECTED SPECIES MENU fields
@@ -448,6 +440,16 @@ CONTAINS
     CALL MPI_Bcast( INPUT_OPT%PF_OFILE, len(INPUT_OPT%PF_OFILE), mpi_character, 0, mpiComm, RC )
 
     !----------------------------------------
+    ! OBSPACK MENU fields
+    !----------------------------------------
+    CALL MPI_Bcast( INPUT_OPT%Do_ObsPack, 1, mpi_logical, 0, mpiComm, RC )
+    CALL MPI_Bcast( INPUT_OPT%ObsPack_Quiet, 1, mpi_logical, 0, mpiComm, RC )
+    CALL MPI_Bcast( INPUT_OPT%ObsPack_InputFile, len(INPUT_OPT%ObsPack_InputFile), mpi_character, 0, mpiComm, RC )
+    CALL MPI_Bcast( INPUT_OPT%ObsPack_OutputFile, len(INPUT_OPT%ObsPack_OutputFile), mpi_character, 0, mpiComm, RC )
+    CALL MPI_Bcast( INPUT_OPT%ObsPack_nSpc, 1, mpi_integer, 0, mpiComm, RC )
+    CALL MPI_Bcast( INPUT_OPT%ObsPack_SpcName, len(INPUT_OPT%ObsPack_SpcName)*1000, mpi_character, 0, mpiComm, RC )
+
+    !----------------------------------------
     ! PROD LOSS MENU fields
     !----------------------------------------
     CALL MPI_Bcast( INPUT_OPT%DO_SAVE_PL, 1, mpi_logical, 0, mpiComm, RC )
@@ -455,8 +457,8 @@ CONTAINS
     CALL MPI_Bcast( INPUT_OPT%LD65,       1, mpi_integer, 0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%DO_SAVE_O3, 1, mpi_logical, 0, mpiComm, RC )
     CALL MPI_Bcast( INPUT_OPT%NFAM,       1, mpi_integer, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%FAM_NAME, len(INPUT_OPT%FAM_NAME)*INPUT_OPT%MAX_FAM, mpi_character, 0, mpiComm, RC )
-    CALL MPI_Bcast( INPUT_OPT%FAM_TYPE, len(INPUT_OPT%FAM_TYPE)*INPUT_OPT%MAX_FAM, mpi_character, 0, mpiComm, RC )
+    CALL MPI_Bcast( INPUT_OPT%FAM_NAME, len(INPUT_OPT%FAM_NAME)*INPUT_OPT%MAX_Families, mpi_character, 0, mpiComm, RC )
+    CALL MPI_Bcast( INPUT_OPT%FAM_TYPE, len(INPUT_OPT%FAM_TYPE)*INPUT_OPT%MAX_Families, mpi_character, 0, mpiComm, RC )
 
     !----------------------------------------
     ! NESTED GRID MENU fields
