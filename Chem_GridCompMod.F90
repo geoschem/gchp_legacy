@@ -545,11 +545,7 @@ CONTAINS
     ! OLSON
     DO T = 1, NSURFTYPE
        landTypeInt = T-1
-       IF ( landTypeInt < 10 ) THEN
-          WRITE ( landTypeStr, "(A1,I1)" ) '0', landTypeInt
-       ELSE
-          WRITE ( landTypeStr, "(I2)" ) landTypeInt  
-       ENDIF
+       WRITE ( landTypeStr, '(I2.2)' ) landTypeInt
        importName = 'OLSON' // TRIM(landTypeStr)
        CALL MAPL_AddImportSpec(GC,                                  &
           SHORT_NAME         = importName,                          &
@@ -1870,25 +1866,21 @@ CONTAINS
        IF ( FIRST ) THEN
        
           ! Set Olson fractional land type from import (ewl)
-          If (am_I_Root) Write(6,'(a)') 'Initializing land type ' // &
+          If (am_I_Root) Write(6,'(a)') 'Initializing land type ' //         &
                            'fractions from Olson imports'
           Ptr2d => NULL()
           DO T = 1, NSURFTYPE
        
              ! Create two-char string for land type
              landTypeInt = T-1
-             IF ( landTypeInt < 10 ) THEN
-                WRITE ( landTypeStr, "(A1,I1)" ) '0', landTypeInt
-             ELSE
-                WRITE ( landTypeStr, "(I2)" ) landTypeInt  
-             ENDIF
+             WRITE ( landTypeStr, '(I2.2)' ) landTypeInt
              importName = 'OLSON' // TRIM(landTypeStr)
        
              ! Get pointer and set populate State_Met variable
-             CALL MAPL_GetPointer ( IMPORT, Ptr2D, TRIM(importName),  &
+             CALL MAPL_GetPointer ( IMPORT, Ptr2D, TRIM(importName),         &
                                     notFoundOK=.TRUE., __RC__ )
              If ( Associated(Ptr2D) ) Then
-                If (am_I_Root) Write(6,*)                                &
+                If (am_I_Root) Write(6,*)                                    &
                      ' ### Reading ' // TRIM(importName) // ' from imports'
                 State_Met%LandTypeFrac(:,:,T) = Ptr2D(:,:)
              ELSE
@@ -1898,7 +1890,21 @@ CONTAINS
              ! Nullify pointer
              Ptr2D => NULL()
           ENDDO
-          
+
+          ! Add an error check to stop the run if the Olson land
+          ! map data comes back as all zeroes.  This issue is known
+          ! to happen in gfortran but not with ifort. (bmy, 1/10/19)
+          IF ( MINVAL( State_Met%LandTypeFrac ) < 1e-32  .and.               &
+               MAXVAL( State_Met%LandTypeFrac ) < 1e-32 ) THEN
+             WRITE( 6, '(a)' )                                               &
+                'ERROR: State_Met%LandTypeFrac contains all zeroes! '     // & 
+                'This error is a known issue in MAPL with gfortran. '     // &
+                'You should not get this error if you compiled with '     // &
+                'ifort.'
+             RC = GC_FAILURE
+             ASSERT_(RC==GC_SUCCESS)
+          ENDIF
+  
           ! Compute State_Met variables IREG, ILAND, IUSE, and FRCLND
           CALL Compute_Olson_Landmap_GCHP( am_I_Root, State_Met, RC )
        ENDIF
