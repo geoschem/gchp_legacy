@@ -80,7 +80,6 @@ CONTAINS
     USE GC_Environment_Mod
     USE GC_Grid_Mod,             ONLY : SetGridFromCtr
     USE GIGC_HistoryExports_Mod, ONLY : HistoryConfigObj
-    USE GIGC_MPI_Wrap,           ONLY : GIGC_Input_Bcast
     USE HCO_Types_Mod,           ONLY : ConfigObj
     USE Input_Mod,               ONLY : Read_Input_File
     USE Input_Opt_Mod,           ONLY : OptInput, Set_Input_Opt
@@ -171,6 +170,7 @@ CONTAINS
 !                              Now call GC_Allocate_All after input.geos read;
 !                              Restructure grid init based on gcbe v11-02e;
 !                              Remove all unused code and simplify comments
+!  14 Jan 2019 - E. Lundgren - Read input.geos on all threads and remove broadcast
 !EOP
 !------------------------------------------------------------------------------
 !BOC
