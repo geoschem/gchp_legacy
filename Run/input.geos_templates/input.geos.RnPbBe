@@ -17,11 +17,10 @@ Species Entries ------->: Name
 Species name            : Rn
 Species name            : Pb
 Species name            : Be7
-Species name            : PASV
+Species name            : Passive
 ------------------------+------------------------------------------------------
 %%% PASSIVE SPECIES MENU %%%:
-Number of passive spec. : 1
-Passive species #1      : PASV 1.0 -1 1.0e-7
+Passive species name    : Passive    1.0    -1      1.0e-7   Passive_tracer_for_mass_conservation_eval
 ------------------------+------------------------------------------------------
 %%% TRANSPORT MENU %%%  :
 Turn on Transport       : T
