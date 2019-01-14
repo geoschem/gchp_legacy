@@ -205,27 +205,19 @@ CONTAINS
     Input_Opt%TS_CONV = INT( tsDyn  )   ! Dynamic   timestep [sec]
     Input_Opt%myCPU   = myPET
 
-    ! Root CPU only
-    IF ( am_I_Root ) THEN
-
-       ! Read input.geos
-       CALL Read_Input_File( am_I_Root, Input_Opt, RC )
-       ASSERT_(RC==GC_SUCCESS)
-
-       ! In the ESMF/MPI environment, we can get the total overhead ozone
-       ! either from the met fields (GIGCsa) or from the Import State (GEOS-5)
-       Input_Opt%USE_O3_FROM_MET = .TRUE.
-
-       ! Read LINOZ climatology
-       IF ( Input_Opt%LLINOZ ) THEN
-          CALL Linoz_Read( am_I_Root, Input_Opt, RC ) 
-          ASSERT_(RC==GC_SUCCESS)
-       ENDIF
-    ENDIF
-
-    ! Broadcast Input_Opt from root to all other CPUs
-    CALL GIGC_Input_Bcast( am_I_Root, Input_Opt, RC )
+    ! Read input.geos
+    CALL Read_Input_File( am_I_Root, Input_Opt, RC )
     ASSERT_(RC==GC_SUCCESS)
+
+    ! In the ESMF/MPI environment, we can get the total overhead ozone
+    ! either from the met fields (GIGCsa) or from the Import State (GEOS-5)
+    Input_Opt%USE_O3_FROM_MET = .TRUE.
+
+    ! Read LINOZ climatology
+    IF ( Input_Opt%LLINOZ ) THEN
+       CALL Linoz_Read( am_I_Root, Input_Opt, RC ) 
+       ASSERT_(RC==GC_SUCCESS)
+    ENDIF
 
     ! Allocate all lat/lon arrays including CMN_Size_Mod parameters
     CALL GC_Allocate_All( am_I_Root, Input_Opt, RC,         &  

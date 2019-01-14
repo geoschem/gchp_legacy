@@ -354,7 +354,6 @@ GEOSChem.o		    : GEOSChem.F90                                  \
                               GIGC_GridCompMod.o
 
 Chem_GridCompMod.o          : Chem_GridCompMod.F90                          \
-                              gigc_mpi_wrap.o                               \
 			      gigc_chunk_mod.o                              \
                               gigc_historyexports_mod.o                     \
                               gigc_providerservices_mod.o
@@ -367,11 +366,8 @@ GEOS_ctmEnvGridComp.o	    : GEOS_ctmEnvGridComp.F90
 
 gigc_chunk_mod.o            : gigc_chunk_mod.F90                            \
                               gigc_historyexports_mod.o                     \
-                              gigc_mpi_wrap.o 
 
 gigc_historyexports_mod.o   : gigc_historyexports_mod.F90
-
-gigc_mpi_wrap.o             : gigc_mpi_wrap.F90
 
 gigc_providerservices_mod.o : gigc_providerservices_mod.F90
 

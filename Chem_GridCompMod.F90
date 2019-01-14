@@ -43,7 +43,6 @@ MODULE Chem_GridCompMod
   USE Charpak_Mod                                    ! String functions
   USE Hco_Types_Mod, ONLY : ConfigObj
   USE Input_Opt_Mod                                  ! Input Options obj
-  USE GIGC_MPI_Wrap, ONLY : mpiComm
   USE GIGC_Chunk_Mod                                 ! GIGC IRF methods
   USE GIGC_HistoryExports_Mod
   USE GIGC_ProviderServices_Mod
@@ -140,6 +139,9 @@ MODULE Chem_GridCompMod
   REAL, POINTER     :: PTR_ARCHIVED_DQRC   (:,:,:) => NULL()
   REAL, POINTER     :: PTR_ARCHIVED_REV_CN (:,:,:) => NULL()
   REAL, POINTER     :: PTR_ARCHIVED_T      (:,:,:) => NULL()
+
+  ! MPI communicator
+  INTEGER, SAVE     :: mpiCOMM
 !
 ! !REMARKS:
 !  Developed for GEOS-5 release Fortuna 2.0 and later.
@@ -804,6 +806,8 @@ CONTAINS
                    __RC__                      )
 
     Input_Opt%myCpu   = myPet
+    Input_Opt%mpiCOMM = mpiComm
+    print *, "Input_Opt%mpiCOMM"
 
     ! MSL - shift from 0 - 360 to -180 - 180 degree grid
     where (lonCtr .gt. MAPL_PI ) lonCtr = lonCtr - 2*MAPL_PI
@@ -2121,10 +2125,10 @@ CONTAINS
     ! (ewl, 11/2/17)
     !=======================================================================
     IF ( FIRST ) THEN
-       CALL HistoryExports_SetDataPointers( am_I_Root,     EXPORT,    &
-                                            HistoryConfig, State_Chm, &
-                                            State_Diag,    State_Met, &
-                                            STATUS )
+       CALL HistoryExports_SetDataPointers( am_I_Root,   Input_Opt,     &
+                                            EXPORT,      HistoryConfig, &
+                                            State_Chm,   State_Diag,    &
+                                            State_Met,   STATUS )
        VERIFY_(STATUS)
     ENDIF
     CALL CopyGCStates2Exports( am_I_Root, Input_Opt, HistoryConfig, STATUS )
