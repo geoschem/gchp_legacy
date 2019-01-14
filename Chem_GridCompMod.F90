@@ -2125,10 +2125,9 @@ CONTAINS
     ! (ewl, 11/2/17)
     !=======================================================================
     IF ( FIRST ) THEN
-       CALL HistoryExports_SetDataPointers( am_I_Root,   Input_Opt,     &
-                                            EXPORT,      HistoryConfig, &
-                                            State_Chm,   State_Diag,    &
-                                            State_Met,   STATUS )
+       CALL HistoryExports_SetDataPointers( am_I_Root,     EXPORT,        &
+                                            HistoryConfig, State_Chm,     &
+                                            State_Diag,    State_Met,   STATUS )
        VERIFY_(STATUS)
     ENDIF
     CALL CopyGCStates2Exports( am_I_Root, Input_Opt, HistoryConfig, STATUS )
