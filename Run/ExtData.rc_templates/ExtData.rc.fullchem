@@ -1976,7 +1976,6 @@ NEI99_SEASON_OCPI 1 xy C N N -                     none none OCPI    ./MainDataD
 # Country/region masks
 #==============================================================================
 EMEP_MASK    1 xy C N Y - none none MASK     ./MainDataDir/MASKS/v2018-09/EMEP_mask.geos.1x1.20151222.nc
-MEXICO_MASK  1 xy C N Y - none none MASK     ./MainDataDir/MASKS/v2018-09/Mexico_Mask.001x001.nc
 CANADA_MASK  1 xy C N Y - none none MASK     ./MainDataDir/MASKS/v2018-09/Canada_mask.geos.1x1.nc
 SEASIA_MASK  1 xy C N Y - none none MASK     ./MainDataDir/MASKS/v2018-09/SE_Asia_mask.generic.1x1.nc
 ASIA_MASK    1 xy C N Y - none none MASK     ./MainDataDir/MASKS/v2018-09/MIX_Asia_mask.generic.025x025.nc
