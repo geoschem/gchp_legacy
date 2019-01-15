@@ -281,8 +281,7 @@ fi
 domain_ratio1=$(( $NX*6/$NY )) 
 domain_ratio2=$(( $NY/$NX/6 ))
 if [[ ${domain_ratio1} -ge 3 || ${domain_ratio2} -ge 3 ]] ; then
-    echo "ERROR: Change NX and NY such that NX x NY/6 is more square (side ratio < 3)"
-    exit 1
+    echo "WARNING: Change NX and NY such that NX x NY/6 is more square (side ratio < 3)"
 fi
 
 ## Check if restart file exists
