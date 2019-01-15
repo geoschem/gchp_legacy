@@ -21,10 +21,10 @@ Species name            : Be7
 Species name            : Be7Strat
 Species name            : Be10
 Species name            : Be10Strat
-Species name            : Passive
+Species name            : PassiveTracer
 ------------------------+------------------------------------------------------
 %%% PASSIVE SPECIES MENU %%%:
-Passive species name    : Passive    1.0    -1      1.0e-7   Passive_tracer_for_mass_conservation_eval
+Passive species name    : PassiveTracer    1.0    -1      1.0e-7   Passive_tracer_for_mass_conservation_eval
 ------------------------+------------------------------------------------------
 %%% TRANSPORT MENU %%%  :
 Turn on Transport       : T
