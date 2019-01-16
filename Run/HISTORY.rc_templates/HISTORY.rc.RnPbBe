@@ -25,17 +25,17 @@ COLLECTIONS: 'Emissions',
   Emissions.mode:             'time-averaged'
   Emissions.fields:           'EmisRn_Soil             ', 'GIGCchem',
                               'EmisBe7_Cosmic          ', 'GIGCchem',
-                              'EmisBe7Strat_Cosmic     ', 'GIGCchem'
-                              'EmisBe10_Cosmic         ', 'GIGCchem'
-                              'EmisBe10Strat_Cosmic    ', 'GIGCchem'
-                              #'EmisSF6tracer           ', 'GIGCchem'
-                              #'EmisCH3ITracer          ', 'GIGCchem'
-                              #'EmisCOtracer25days      ', 'GIGCchem'
-                              #'EmisCOtracer50days      ', 'GIGCchem'
-                              #'Emis90dayTracer         ', 'GIGCchem'
-                              #'Emis90dayTracerNH       ', 'GIGCchem'
-                              #'Emis90dayTracerSH       ', 'GIGCchem'
-                              #'EmisUniformTracer       ', 'GIGCchem'
+                              'EmisBe7Strat_Cosmic     ', 'GIGCchem',
+                              'EmisBe10_Cosmic         ', 'GIGCchem',
+                              'EmisBe10Strat_Cosmic    ', 'GIGCchem',
+                              'EmisSF6tracer           ', 'GIGCchem',
+                              'EmisCH3Itracer          ', 'GIGCchem',
+                              'EmisCOtracer25days      ', 'GIGCchem',
+                              'EmisCOtracer50days      ', 'GIGCchem',
+                              'Emis90dayTracer         ', 'GIGCchem',
+                              'Emis90dayTracerNH       ', 'GIGCchem',
+                              'Emis90dayTracerSH       ', 'GIGCchem',
+                              'EmisUniformTracer       ', 'GIGCchem',
 ::
 #==============================================================================
 # Budget defined as species kg/s in the column (full, troposphere, or PBL) 
@@ -75,15 +75,15 @@ COLLECTIONS: 'Emissions',
                               'CloudConvFlux_Be7Strat           ', 'GIGCchem',
                               'CloudConvFlux_Be10               ', 'GIGCchem',
                               'CloudConvFlux_Be10Strat          ', 'GIGCchem',
-                              'CloudConvFlux_Passive            ', 'GIGCchem',
-                              #'CloudConvFlux_SF6tracer         ', 'GIGCchem',
-                              #'CloudConvFlux_CH3ITracer        ', 'GIGCchem',
-                              #'CloudConvFlux_COtracer25days    ', 'GIGCchem',
-                              #'CloudConvFlux_COtracer50days    ', 'GIGCchem',
-                              #'CloudConvFlux_Emis90dayTracer   ', 'GIGCchem',
-                              #'CloudConvFlux_Emis90dayTracerNH ', 'GIGCchem',
-                              #'CloudConvFlux_Emis90dayTracerSH ', 'GIGCchem',
-                              #'CloudConvFlux_UniformTracer     ', 'GIGCchem',
+                              'CloudConvFlux_PassiveTracer      ', 'GIGCchem',
+                              'CloudConvFlux_SF6tracer          ', 'GIGCchem',
+                              'CloudConvFlux_CH3Itracer         ', 'GIGCchem',
+                              'CloudConvFlux_COtracer25days     ', 'GIGCchem',
+                              'CloudConvFlux_COtracer50days     ', 'GIGCchem',
+                              'CloudConvFlux_Emis90dayTracer    ', 'GIGCchem',
+                              'CloudConvFlux_Emis90dayTracerNH  ', 'GIGCchem',
+                              'CloudConvFlux_Emis90dayTracerSH  ', 'GIGCchem',
+                              'CloudConvFlux_UniformTracer      ', 'GIGCchem',
 ::
 #==============================================================================
   DryDep.template:            '%y4%m2%d2_%h2%n2z.nc4',
@@ -146,15 +146,15 @@ COLLECTIONS: 'Emissions',
                               'SpeciesConc_Be7Strat           ', 'GIGCchem',
                               'SpeciesConc_Be10               ', 'GIGCchem',
                               'SpeciesConc_Be10Strat          ', 'GIGCchem',
-                              'SpeciesConc_Passive            ', 'GIGCchem',
-                              #'SpeciesConc_SF6tracer         ', 'GIGCchem',
-                              #'SpeciesConc_CH3ITracer        ', 'GIGCchem',
-                              #'SpeciesConc_COtracer25days    ', 'GIGCchem',
-                              #'SpeciesConc_COtracer50days    ', 'GIGCchem',
-                              #'SpeciesConc_Emis90dayTracer   ', 'GIGCchem',
-                              #'SpeciesConc_Emis90dayTracerNH ', 'GIGCchem',
-                              #'SpeciesConc_Emis90dayTracerSH ', 'GIGCchem',
-                              #'SpeciesConc_UniformTracer     ', 'GIGCchem',
+                              'SpeciesConc_PassiveTracer      ', 'GIGCchem',
+                              'SpeciesConc_SF6tracer          ', 'GIGCchem',
+                              'SpeciesConc_CH3Itracer         ', 'GIGCchem',
+                              'SpeciesConc_COtracer25days     ', 'GIGCchem',
+                              'SpeciesConc_COtracer50days     ', 'GIGCchem',
+                              'SpeciesConc_Emis90dayTracer    ', 'GIGCchem',
+                              'SpeciesConc_Emis90dayTracerNH  ', 'GIGCchem',
+                              'SpeciesConc_Emis90dayTracerSH  ', 'GIGCchem',
+                              'SpeciesConc_UniformTracer      ', 'GIGCchem',
 ::
 #==============================================================================
   SpeciesConc_inst.template:  '%y4%m2%d2_%h2%n2z.nc4',
@@ -169,15 +169,15 @@ COLLECTIONS: 'Emissions',
                               'SpeciesConc_Be7Strat           ', 'GIGCchem',
                               'SpeciesConc_Be10               ', 'GIGCchem',
                               'SpeciesConc_Be10Strat          ', 'GIGCchem',
-                              'SpeciesConc_Passive            ', 'GIGCchem',
-                              #'SpeciesConc_SF6tracer         ', 'GIGCchem',
-                              #'SpeciesConc_CH3ITracer        ', 'GIGCchem',
-                              #'SpeciesConc_COtracer25days    ', 'GIGCchem',
-                              #'SpeciesConc_COtracer50days    ', 'GIGCchem',
-                              #'SpeciesConc_Emis90dayTracer   ', 'GIGCchem',
-                              #'SpeciesConc_Emis90dayTracerNH ', 'GIGCchem',
-                              #'SpeciesConc_Emis90dayTracerSH ', 'GIGCchem',
-                              #'SpeciesConc_UniformTracer     ', 'GIGCchem',
+                              'SpeciesConc_PassiveTracer      ', 'GIGCchem',
+                              'SpeciesConc_SF6tracer          ', 'GIGCchem',
+                              'SpeciesConc_CH3Itracer         ', 'GIGCchem',
+                              'SpeciesConc_COtracer25days     ', 'GIGCchem',
+                              'SpeciesConc_COtracer50days     ', 'GIGCchem',
+                              'SpeciesConc_Emis90dayTracer    ', 'GIGCchem',
+                              'SpeciesConc_Emis90dayTracerNH  ', 'GIGCchem',
+                              'SpeciesConc_Emis90dayTracerSH  ', 'GIGCchem',
+                              'SpeciesConc_UniformTracer      ', 'GIGCchem',
 ::
 #==============================================================================
   StateMet_avg.template:      '%y4%m2%d2_%h2%n2z.nc4',
