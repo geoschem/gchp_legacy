@@ -10,7 +10,7 @@ get_filename_component(THIRD_PARTY "${THIRD_PARTY}" ABSOLUTE)
 set(THIRD_PARTY_LIBNAMES
 	-L${THIRD_PARTY}/lib
 	esmf 
-    MAPL_Base MAPL_cfio GMAO_mpeu GMAO_pilgrim
+    MAPL_Base MAPL_cfio_r4 GMAO_mpeu GMAO_pilgrim
     FVdycoreCubed_GridComp fvdycore GFDL_fms GEOS_Shared GMAO_hermes 
 )
 
