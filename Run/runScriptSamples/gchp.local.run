@@ -1,0 +1,59 @@
+#!/bin/bash
+
+# Use 6 cores for quick local runs
+nCores=6
+
+# Define log
+log=gchp.log
+
+# Always remove cap_restart if not doing a multi-segmented run.
+if [[ -e cap_restart ]]; then
+   rm cap_restart
+fi
+
+# Sync all config files with settings in runConfig.sh                           
+./runConfig.sh > runConfig.log
+if [[ $? == 0 ]]; then
+
+    # Source your environment file. This requires first setting the gchp.env
+    # symbolic link using script setEnvironment in the run directory. 
+    # Be sure gchp.env points to the same file for both compilation and 
+    # running. You can copy or adapt sample environment files located in 
+    # ./envSamples subdirectory.
+    gchp_env=$(readlink -f gchp.env)
+    if [ ! -f ${gchp_env} ] 
+    then
+       echo "ERROR: gchp.rc symbolic link is not set!"
+       echo "Copy or adapt an environment file from the ./envSamples "
+       echo "subdirectory prior to running. Then set the gchp.env "
+       echo "symbolic link to point to it using ./setEnvironment."
+       echo "Exiting."
+       exit 1
+    fi
+    echo "WARNING: You are using environment settings in ${gchp_env}"
+    source ${gchp_env}
+
+    # Echo info from computational cores to log file for displaying results
+    echo "# of CPUs : $coreCount\n"
+    echo "# of nodes: $NNODES\n"
+    echo "-m plane  : ${planeCount}"
+
+    # Echo start date (overwrite last log)
+    echo '===> Run started at' `date` > ${log}
+
+    # Start the simulation. Use 6 cores.
+    time mpirun -np ${nCores} ./geos >> ${log}
+
+    # Echo end date
+    echo '===> Run ended at' `date` >> ${log}
+
+else
+    cat runConfig.log
+fi
+
+# Clear variable
+unset log
+
+# Exit normally
+exit 0
+

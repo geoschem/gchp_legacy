@@ -43,7 +43,6 @@ MODULE Chem_GridCompMod
   USE Charpak_Mod                                    ! String functions
   USE Hco_Types_Mod, ONLY : ConfigObj
   USE Input_Opt_Mod                                  ! Input Options obj
-  USE GIGC_MPI_Wrap, ONLY : mpiComm
   USE GIGC_Chunk_Mod                                 ! GIGC IRF methods
   USE GIGC_HistoryExports_Mod
   USE GIGC_ProviderServices_Mod
@@ -140,6 +139,9 @@ MODULE Chem_GridCompMod
   REAL, POINTER     :: PTR_ARCHIVED_DQRC   (:,:,:) => NULL()
   REAL, POINTER     :: PTR_ARCHIVED_REV_CN (:,:,:) => NULL()
   REAL, POINTER     :: PTR_ARCHIVED_T      (:,:,:) => NULL()
+
+  ! MPI communicator
+  INTEGER, SAVE     :: mpiCOMM
 !
 ! !REMARKS:
 !  Developed for GEOS-5 release Fortuna 2.0 and later.
@@ -545,11 +547,7 @@ CONTAINS
     ! OLSON
     DO T = 1, NSURFTYPE
        landTypeInt = T-1
-       IF ( landTypeInt < 10 ) THEN
-          WRITE ( landTypeStr, "(A1,I1)" ) '0', landTypeInt
-       ELSE
-          WRITE ( landTypeStr, "(I2)" ) landTypeInt  
-       ENDIF
+       WRITE ( landTypeStr, '(I2.2)' ) landTypeInt
        importName = 'OLSON' // TRIM(landTypeStr)
        CALL MAPL_AddImportSpec(GC,                                  &
           SHORT_NAME         = importName,                          &
@@ -808,6 +806,8 @@ CONTAINS
                    __RC__                      )
 
     Input_Opt%myCpu   = myPet
+    Input_Opt%mpiCOMM = mpiComm
+    print *, "Input_Opt%mpiCOMM"
 
     ! MSL - shift from 0 - 360 to -180 - 180 degree grid
     where (lonCtr .gt. MAPL_PI ) lonCtr = lonCtr - 2*MAPL_PI
@@ -861,15 +861,15 @@ CONTAINS
     ! ewl note: might be able to remove some of these...
 
     ! Max # of diagnostics
-    CALL ESMF_ConfigGetAttribute( GeosCF, Input_Opt%MAX_DIAG,       &
+    CALL ESMF_ConfigGetAttribute( GeosCF, Input_Opt%MAX_BPCH_DIAG,  &
                                   Default = 80,                     &
                                   Label   = "MAX_DIAG:",            &
                                   __RC__                           ) 
 
     ! Max # of families per ND65 family tracer (not used for ESMF)
-    CALL ESMF_ConfigGetAttribute( GeosCF, Input_Opt%MAX_FAM,       &
+    CALL ESMF_ConfigGetAttribute( GeosCF, Input_Opt%MAX_Families,   &
                                   Default = 20,                     &
-                                  Label   = "MAX_FAM:",            & 
+                                  Label   = "MAX_FAM:",             & 
                                   __RC__                           )
 
     ! # of levels in LINOZ climatology
@@ -1870,25 +1870,21 @@ CONTAINS
        IF ( FIRST ) THEN
        
           ! Set Olson fractional land type from import (ewl)
-          If (am_I_Root) Write(6,'(a)') 'Initializing land type ' // &
+          If (am_I_Root) Write(6,'(a)') 'Initializing land type ' //         &
                            'fractions from Olson imports'
           Ptr2d => NULL()
           DO T = 1, NSURFTYPE
        
              ! Create two-char string for land type
              landTypeInt = T-1
-             IF ( landTypeInt < 10 ) THEN
-                WRITE ( landTypeStr, "(A1,I1)" ) '0', landTypeInt
-             ELSE
-                WRITE ( landTypeStr, "(I2)" ) landTypeInt  
-             ENDIF
+             WRITE ( landTypeStr, '(I2.2)' ) landTypeInt
              importName = 'OLSON' // TRIM(landTypeStr)
        
              ! Get pointer and set populate State_Met variable
-             CALL MAPL_GetPointer ( IMPORT, Ptr2D, TRIM(importName),  &
+             CALL MAPL_GetPointer ( IMPORT, Ptr2D, TRIM(importName),         &
                                     notFoundOK=.TRUE., __RC__ )
              If ( Associated(Ptr2D) ) Then
-                If (am_I_Root) Write(6,*)                                &
+                If (am_I_Root) Write(6,*)                                    &
                      ' ### Reading ' // TRIM(importName) // ' from imports'
                 State_Met%LandTypeFrac(:,:,T) = Ptr2D(:,:)
              ELSE
@@ -1898,7 +1894,21 @@ CONTAINS
              ! Nullify pointer
              Ptr2D => NULL()
           ENDDO
-          
+
+          ! Add an error check to stop the run if the Olson land
+          ! map data comes back as all zeroes.  This issue is known
+          ! to happen in gfortran but not with ifort. (bmy, 1/10/19)
+          IF ( MINVAL( State_Met%LandTypeFrac ) < 1e-32  .and.               &
+               MAXVAL( State_Met%LandTypeFrac ) < 1e-32 ) THEN
+             WRITE( 6, '(a)' )                                               &
+                'ERROR: State_Met%LandTypeFrac contains all zeroes! '     // & 
+                'This error is a known issue in MAPL with gfortran. '     // &
+                'You should not get this error if you compiled with '     // &
+                'ifort.'
+             RC = GC_FAILURE
+             ASSERT_(RC==GC_SUCCESS)
+          ENDIF
+  
           ! Compute State_Met variables IREG, ILAND, IUSE, and FRCLND
           CALL Compute_Olson_Landmap_GCHP( am_I_Root, State_Met, RC )
        ENDIF
@@ -2115,10 +2125,9 @@ CONTAINS
     ! (ewl, 11/2/17)
     !=======================================================================
     IF ( FIRST ) THEN
-       CALL HistoryExports_SetDataPointers( am_I_Root,     EXPORT,    &
-                                            HistoryConfig, State_Chm, &
-                                            State_Diag,    State_Met, &
-                                            STATUS )
+       CALL HistoryExports_SetDataPointers( am_I_Root,     EXPORT,        &
+                                            HistoryConfig, State_Chm,     &
+                                            State_Diag,    State_Met,   STATUS )
        VERIFY_(STATUS)
     ENDIF
     CALL CopyGCStates2Exports( am_I_Root, Input_Opt, HistoryConfig, STATUS )
@@ -2389,12 +2398,12 @@ CONTAINS
     Input_Opt%myCpu = myPet
 
     ! Call the FINALIZE method of the GEOS-Chem column chemistry code
-    CALL GIGC_Chunk_Final( am_I_Root = am_I_Root,  &   ! Is this the root PET?
-                           Input_Opt = Input_Opt,  &   ! Input Options
-                           State_Chm = State_Chm,  &   ! Chemistry State
-                           State_Met = State_Met,  &   ! Meteorology State
-                           __RC__                 )
-
+    CALL GIGC_Chunk_Final( am_I_Root  = am_I_Root,   &   ! Is this the root PET?
+                           Input_Opt  = Input_Opt,   &   ! Input Options
+                           State_Chm  = State_Chm,   &   ! Chemistry State
+                           State_Met  = State_Met,   &   ! Meteorology State
+                           State_Diag = State_Diag,  &   ! Diagnostics State
+                           __RC__                   )
 
     ! Free Int2Chm pointer
     IF ( ASSOCIATED(Int2Chm) ) THEN

@@ -233,42 +233,70 @@ POET_EOH kgC/m2/s xy C Y Y - none none EOH ./MainDataDir/POET/v2017-03/POET_EOH.
 
 #==============================================================================
 # --- EDGAR v4.3 (EDGARv4.3) ---
-# EDGARv4.3 is turned off by default in HEMCO_Config.rc
+# EDGARv4.3 is off by default in HEMCO_Config.rc
 #==============================================================================
-EDGAR_NO_1A1a            1   xy C N Y F%y4-01-01T00:00:00 none none emi_no  ./MainDataDir/EDGARv42/v2015-02/NO/EDGAR_v42_NO_IPCC_1A1a.generic.01x01.nc 
-EDGAR_NO_1A2             1   xy C N Y F%y4-01-01T00:00:00 none none emi_no  ./MainDataDir/EDGARv42/v2015-02/NO/EDGAR_v42_NO_IPCC_1A2.generic.01x01.nc 
-EDGAR_NO_1A3b            1   xy C N Y F%y4-01-01T00:00:00 none none emi_no  ./MainDataDir/EDGARv42/v2015-02/NO/EDGAR_v42_NO_IPCC_1A3b.generic.01x01.nc 
-EDGAR_NO_1A4             1   xy C N Y F%y4-01-01T00:00:00 none none emi_no  ./MainDataDir/EDGARv42/v2015-02/NO/EDGAR_v42_NO_IPCC_1A4.generic.01x01.nc 
-EDGAR_NO_1B2a_c_1A1b_c   1   xy C N Y F%y4-01-01T00:00:00 none none emi_no  ./MainDataDir/EDGARv42/v2015-02/NO/EDGAR_v42_NO_IPCC_1B2a_c_1A1b_c.generic.01x01.nc 
-EDGAR_NO_2               1   xy C N Y F%y4-01-01T00:00:00 none none emi_no  ./MainDataDir/EDGARv42/v2015-02/NO/EDGAR_v42_NO_IPCC_2.generic.01x01.nc 
-EDGAR_NO_4B              1   xy C N Y F%y4-01-01T00:00:00 none none emi_no  ./MainDataDir/EDGARv42/v2015-02/NO/EDGAR_v42_NO_IPCC_4B.generic.01x01.nc 
-EDGAR_NO_6A_6C           1   xy C N Y F%y4-01-01T00:00:00 none none emi_no  ./MainDataDir/EDGARv42/v2015-02/NO/EDGAR_v42_NO_IPCC_6A_6C.generic.01x01.nc 
-EDGAR_NO_7A              1   xy C N Y F%y4-01-01T00:00:00 none none emi_no  ./MainDataDir/EDGARv42/v2015-02/NO/EDGAR_v42_NO_IPCC_7A.generic.01x01.nc 
-EDGAR_CO_1A1a_6          1   xy C N Y F%y4-01-01T00:00:00 none none emi_co  ./MainDataDir/EDGARv42/v2015-02/CO/EDGAR_v42_CO_IPCC_1A1a_6.generic.01x01.nc 
-EDGAR_CO_1A2             1   xy C N Y F%y4-01-01T00:00:00 none none emi_co  ./MainDataDir/EDGARv42/v2015-02/CO/EDGAR_v42_CO_IPCC_1A2.generic.01x01.nc 
-EDGAR_CO_1A3b            1   xy C N Y F%y4-01-01T00:00:00 none none emi_co  ./MainDataDir/EDGARv42/v2015-02/CO/EDGAR_v42_CO_IPCC_1A3b.generic.01x01.nc 
-EDGAR_CO_1A4             1   xy C N Y F%y4-01-01T00:00:00 none none emi_co  ./MainDataDir/EDGARv42/v2015-02/CO/EDGAR_v42_CO_IPCC_1A4.generic.01x01.nc 
-EDGAR_CO_1B2a_c_1A1b_c   1   xy C N Y F%y4-01-01T00:00:00 none none emi_co  ./MainDataDir/EDGARv42/v2015-02/CO/EDGAR_v42_CO_IPCC_1B2a_c_1A1b_c.generic.01x01.nc 
-EDGAR_CO_2A_2B_2D        1   xy C N Y F%y4-01-01T00:00:00 none none emi_co  ./MainDataDir/EDGARv42/v2015-02/CO/EDGAR_v42_CO_IPCC_2A_2B_2D.generic.01x01.nc 
-EDGAR_CO_2C              1   xy C N Y F%y4-01-01T00:00:00 none none emi_co  ./MainDataDir/EDGARv42/v2015-02/CO/EDGAR_v42_CO_IPCC_2C.generic.01x01.nc 
-EDGAR_CO_7A              1   xy C N Y F%y4-01-01T00:00:00 none none emi_co  ./MainDataDir/EDGARv42/v2015-02/CO/EDGAR_v42_CO_IPCC_7A.generic.01x01.nc 
-EDGAR_SO2_1A1a_6C        1   xy C N Y F%y4-01-01T00:00:00 none none emi_so2 ./MainDataDir/EDGARv42/v2015-02/SO2/EDGAR_v42_SO2_IPCC_1A1a_6C.generic.01x01.nc 
-EDGAR_SO2_1A2            1   xy C N Y F%y4-01-01T00:00:00 none none emi_so2 ./MainDataDir/EDGARv42/v2015-02/SO2/EDGAR_v42_SO2_IPCC_1A2.generic.01x01.nc 
-EDGAR_SO2_1A3b           1   xy C N Y F%y4-01-01T00:00:00 none none emi_so2 ./MainDataDir/EDGARv42/v2015-02/SO2/EDGAR_v42_SO2_IPCC_1A3b.generic.01x01.nc 
-EDGAR_SO2_1A4            1   xy C N Y F%y4-01-01T00:00:00 none none emi_so2 ./MainDataDir/EDGARv42/v2015-02/SO2/EDGAR_v42_SO2_IPCC_1A4.generic.01x01.nc 
-EDGAR_SO2_1B1_1B2_1A1b_c 1   xy C N Y F%y4-01-01T00:00:00 none none emi_so2 ./MainDataDir/EDGARv42/v2015-02/SO2/EDGAR_v42_SO2_IPCC_1B1_1B2_1A1b_c.generic.01x01.nc 
-EDGAR_SO2_2B_2D          1   xy C N Y F%y4-01-01T00:00:00 none none emi_so2 ./MainDataDir/EDGARv42/v2015-02/SO2/EDGAR_v42_SO2_IPCC_2B_2D.generic.01x01.nc 
-EDGAR_SO2_2C             1   xy C N Y F%y4-01-01T00:00:00 none none emi_so2 ./MainDataDir/EDGARv42/v2015-02/SO2/EDGAR_v42_SO2_IPCC_2C.generic.01x01.nc 
-EDGAR_SO2_7A             1   xy C N Y F%y4-01-01T00:00:00 none none emi_so2 ./MainDataDir/EDGARv42/v2015-02/SO2/EDGAR_v42_SO2_IPCC_7A.generic.01x01.nc 
-EDGAR_NH3_1A1a_6         1   xy C N Y F%y4-01-01T00:00:00 none none emi_nh3 ./MainDataDir/EDGARv42/v2015-02/NH3/EDGAR_v42_NH3_IPCC_1A1a_6.generic.01x01.nc 
-EDGAR_NH3_1A1b_c         1   xy C N Y F%y4-01-01T00:00:00 none none emi_nh3 ./MainDataDir/EDGARv42/v2015-02/NH3/EDGAR_v42_NH3_IPCC_1A1b_c.generic.01x01.nc 
-EDGAR_NH3_1A2            1   xy C N Y F%y4-01-01T00:00:00 none none emi_nh3 ./MainDataDir/EDGARv42/v2015-02/NH3/EDGAR_v42_NH3_IPCC_1A2.generic.01x01.nc 
-EDGAR_NH3_1A3            1   xy C N Y F%y4-01-01T00:00:00 none none emi_nh3 ./MainDataDir/EDGARv42/v2015-02/NH3/EDGAR_v42_NH3_IPCC_1A3.generic.01x01.nc 
-EDGAR_NH3_1A4            1   xy C N Y F%y4-01-01T00:00:00 none none emi_nh3 ./MainDataDir/EDGARv42/v2015-02/NH3/EDGAR_v42_NH3_IPCC_1A4.generic.01x01.nc 
-EDGAR_NH3_2A             1   xy C N Y F%y4-01-01T00:00:00 none none emi_nh3 ./MainDataDir/EDGARv42/v2015-02/NH3/EDGAR_v42_NH3_IPCC_2A.generic.01x01.nc 
-EDGAR_NH3_2B             1   xy C N Y F%y4-01-01T00:00:00 none none emi_nh3 ./MainDataDir/EDGARv42/v2015-02/NH3/EDGAR_v42_NH3_IPCC_2B.generic.01x01.nc 
-EDGAR_NH3_4B             1   xy C N Y F%y4-01-01T00:00:00 none none emi_nh3 ./MainDataDir/EDGARv42/v2015-02/NH3/EDGAR_v42_NH3_IPCC_4B.generic.01x01.nc 
-EDGAR_NH3_4C_4D          1   xy C N Y F%y4-01-01T00:00:00 none none emi_nh3 ./MainDataDir/EDGARv42/v2015-02/NH3/EDGAR_v42_NH3_IPCC_4C_4D.generic.01x01.nc 
+EDGAR_BCPI_POW kg/m2/s xy C N Y F%y4-01-01T00:00:00 none none emi_bc  ./MainDataDir/EDGARv43/v2016-11/EDGAR_v43.BC.POW.0.1x0.1.nc 
+EDGAR_BCPI_ENG kg/m2/s xy C N Y F%y4-01-01T00:00:00 none none emi_bc  ./MainDataDir/EDGARv43/v2016-11/EDGAR_v43.BC.ENG.0.1x0.1.nc 
+EDGAR_BCPI_IND kg/m2/s xy C N Y F%y4-01-01T00:00:00 none none emi_bc  ./MainDataDir/EDGARv43/v2016-11/EDGAR_v43.BC.IND.0.1x0.1.nc 
+EDGAR_BCPI_TRO kg/m2/s xy C N Y F%y4-01-01T00:00:00 none none emi_bc  ./MainDataDir/EDGARv43/v2016-11/EDGAR_v43.BC.TRO.0.1x0.1.nc 
+EDGAR_BCPI_TNG kg/m2/s xy C N Y F%y4-01-01T00:00:00 none none emi_bc  ./MainDataDir/EDGARv43/v2016-11/EDGAR_v43.BC.TNG.0.1x0.1.nc 
+EDGAR_BCPI_RCO kg/m2/s xy C N Y F%y4-01-01T00:00:00 none none emi_bc  ./MainDataDir/EDGARv43/v2016-11/EDGAR_v43.BC.RCO.0.1x0.1.nc 
+EDGAR_BCPI_PPA kg/m2/s xy C N Y F%y4-01-01T00:00:00 none none emi_bc  ./MainDataDir/EDGARv43/v2016-11/EDGAR_v43.BC.PPA.0.1x0.1.nc 
+EDGAR_BCPI_AWB kg/m2/s xy C N Y F%y4-01-01T00:00:00 none none emi_bc  ./MainDataDir/EDGARv43/v2016-11/EDGAR_v43.BC.AWB.0.1x0.1.nc 
+EDGAR_BCPI_SWD kg/m2/s xy C N Y F%y4-01-01T00:00:00 none none emi_bc  ./MainDataDir/EDGARv43/v2016-11/EDGAR_v43.BC.SWD.0.1x0.1.nc 
+EDGAR_BCPI_FFF kg/m2/s xy C N Y F%y4-01-01T00:00:00 none none emi_bc  ./MainDataDir/EDGARv43/v2016-11/EDGAR_v43.BC.FFF.0.1x0.1.nc 
+EDGAR_CO_POW   kg/m2/s xy C N Y F%y4-01-01T00:00:00 none none emi_co  ./MainDataDir/EDGARv43/v2016-11/EDGAR_v43.CO.POW.0.1x0.1.nc 
+EDGAR_CO_ENG   kg/m2/s xy C N Y F%y4-01-01T00:00:00 none none emi_co  ./MainDataDir/EDGARv43/v2016-11/EDGAR_v43.CO.ENG.0.1x0.1.nc 
+EDGAR_CO_IND   kg/m2/s xy C N Y F%y4-01-01T00:00:00 none none emi_co  ./MainDataDir/EDGARv43/v2016-11/EDGAR_v43.CO.IND.0.1x0.1.nc 
+EDGAR_CO_TRO   kg/m2/s xy C N Y F%y4-01-01T00:00:00 none none emi_co  ./MainDataDir/EDGARv43/v2016-11/EDGAR_v43.CO.TRO.0.1x0.1.nc 
+EDGAR_CO_TNG   kg/m2/s xy C N Y F%y4-01-01T00:00:00 none none emi_co  ./MainDataDir/EDGARv43/v2016-11/EDGAR_v43.CO.TNG.0.1x0.1.nc 
+EDGAR_CO_RCO   kg/m2/s xy C N Y F%y4-01-01T00:00:00 none none emi_co  ./MainDataDir/EDGARv43/v2016-11/EDGAR_v43.CO.RCO.0.1x0.1.nc 
+EDGAR_CO_PPA   kg/m2/s xy C N Y F%y4-01-01T00:00:00 none none emi_co  ./MainDataDir/EDGARv43/v2016-11/EDGAR_v43.CO.PPA.0.1x0.1.nc 
+EDGAR_CO_AWB   kg/m2/s xy C N Y F%y4-01-01T00:00:00 none none emi_co  ./MainDataDir/EDGARv43/v2016-11/EDGAR_v43.CO.AWB.0.1x0.1.nc 
+EDGAR_CO_SWD   kg/m2/s xy C N Y F%y4-01-01T00:00:00 none none emi_co  ./MainDataDir/EDGARv43/v2016-11/EDGAR_v43.CO.SWD.0.1x0.1.nc 
+EDGAR_CO_FFF   kg/m2/s xy C N Y F%y4-01-01T00:00:00 none none emi_co  ./MainDataDir/EDGARv43/v2016-11/EDGAR_v43.CO.FFF.0.1x0.1.nc 
+EDGAR_NH3_POW  kg/m2/s xy C N Y F%y4-01-01T00:00:00 none none emi_nh3 ./MainDataDir/EDGARv43/v2016-11/EDGAR_v43.NH3.POW.0.1x0.1.nc
+EDGAR_NH3_ENG  kg/m2/s xy C N Y F%y4-01-01T00:00:00 none none emi_nh3 ./MainDataDir/EDGARv43/v2016-11/EDGAR_v43.NH3.ENG.0.1x0.1.nc
+EDGAR_NH3_IND  kg/m2/s xy C N Y F%y4-01-01T00:00:00 none none emi_nh3 ./MainDataDir/EDGARv43/v2016-11/EDGAR_v43.NH3.IND.0.1x0.1.nc
+EDGAR_NH3_TRO  kg/m2/s xy C N Y F%y4-01-01T00:00:00 none none emi_nh3 ./MainDataDir/EDGARv43/v2016-11/EDGAR_v43.NH3.TRO.0.1x0.1.nc
+EDGAR_NH3_TNG  kg/m2/s xy C N Y F%y4-01-01T00:00:00 none none emi_nh3 ./MainDataDir/EDGARv43/v2016-11/EDGAR_v43.NH3.TNG.0.1x0.1.nc
+EDGAR_NH3_RCO  kg/m2/s xy C N Y F%y4-01-01T00:00:00 none none emi_nh3 ./MainDataDir/EDGARv43/v2016-11/EDGAR_v43.NH3.RCO.0.1x0.1.nc
+EDGAR_NH3_PPA  kg/m2/s xy C N Y F%y4-01-01T00:00:00 none none emi_nh3 ./MainDataDir/EDGARv43/v2016-11/EDGAR_v43.NH3.PPA.0.1x0.1.nc
+EDGAR_NH3_AGR  kg/m2/s xy C N Y F%y4-01-01T00:00:00 none none emi_nh3 ./MainDataDir/EDGARv43/v2016-11/EDGAR_v43.NH3.AGR.0.1x0.1.nc
+EDGAR_NH3_AWB  kg/m2/s xy C N Y F%y4-01-01T00:00:00 none none emi_nh3 ./MainDataDir/EDGARv43/v2016-11/EDGAR_v43.NH3.AWB.0.1x0.1.nc
+EDGAR_NH3_SOL  kg/m2/s xy C N Y F%y4-01-01T00:00:00 none none emi_nh3 ./MainDataDir/EDGARv43/v2016-11/EDGAR_v43.NH3.SOL.0.1x0.1.nc
+EDGAR_NH3_SWD  kg/m2/s xy C N Y F%y4-01-01T00:00:00 none none emi_nh3 ./MainDataDir/EDGARv43/v2016-11/EDGAR_v43.NH3.SWD.0.1x0.1.nc
+EDGAR_NO_POW   kg/m2/s xy C N Y F%y4-01-01T00:00:00 none none emi_nox ./MainDataDir/EDGARv43/v2016-11/EDGAR_v43.NOx.POW.0.1x0.1.nc
+EDGAR_NO_ENG   kg/m2/s xy C N Y F%y4-01-01T00:00:00 none none emi_nox ./MainDataDir/EDGARv43/v2016-11/EDGAR_v43.NOx.ENG.0.1x0.1.nc
+EDGAR_NO_IND   kg/m2/s xy C N Y F%y4-01-01T00:00:00 none none emi_nox ./MainDataDir/EDGARv43/v2016-11/EDGAR_v43.NOx.IND.0.1x0.1.nc
+EDGAR_NO_TRO   kg/m2/s xy C N Y F%y4-01-01T00:00:00 none none emi_nox ./MainDataDir/EDGARv43/v2016-11/EDGAR_v43.NOx.TRO.0.1x0.1.nc
+EDGAR_NO_TNG   kg/m2/s xy C N Y F%y4-01-01T00:00:00 none none emi_nox ./MainDataDir/EDGARv43/v2016-11/EDGAR_v43.NOx.TNG.0.1x0.1.nc
+EDGAR_NO_RCO   kg/m2/s xy C N Y F%y4-01-01T00:00:00 none none emi_nox ./MainDataDir/EDGARv43/v2016-11/EDGAR_v43.NOx.RCO.0.1x0.1.nc
+EDGAR_NO_PPA   kg/m2/s xy C N Y F%y4-01-01T00:00:00 none none emi_nox ./MainDataDir/EDGARv43/v2016-11/EDGAR_v43.NOx.PPA.0.1x0.1.nc
+EDGAR_NO_AGR   kg/m2/s xy C N Y F%y4-01-01T00:00:00 none none emi_nox ./MainDataDir/EDGARv43/v2016-11/EDGAR_v43.NOx.AGR.0.1x0.1.nc
+EDGAR_NO_AWB   kg/m2/s xy C N Y F%y4-01-01T00:00:00 none none emi_nox ./MainDataDir/EDGARv43/v2016-11/EDGAR_v43.NOx.AWB.0.1x0.1.nc
+EDGAR_NO_SOL   kg/m2/s xy C N Y F%y4-01-01T00:00:00 none none emi_nox ./MainDataDir/EDGARv43/v2016-11/EDGAR_v43.NOx.SOL.0.1x0.1.nc
+EDGAR_NO_SWD   kg/m2/s xy C N Y F%y4-01-01T00:00:00 none none emi_nox ./MainDataDir/EDGARv43/v2016-11/EDGAR_v43.NOx.SWD.0.1x0.1.nc
+EDGAR_NO_FFF   kg/m2/s xy C N Y F%y4-01-01T00:00:00 none none emi_nox ./MainDataDir/EDGARv43/v2016-11/EDGAR_v43.NOx.FFF.0.1x0.1.nc
+EDGAR_OCPI_POW kg/m2/s xy C N Y F%y4-01-01T00:00:00 none none emi_oc  ./MainDataDir/EDGARv43/v2016-11/EDGAR_v43.OC.POW.0.1x0.1.nc 
+EDGAR_OCPI_ENG kg/m2/s xy C N Y F%y4-01-01T00:00:00 none none emi_oc  ./MainDataDir/EDGARv43/v2016-11/EDGAR_v43.OC.ENG.0.1x0.1.nc 
+EDGAR_OCPI_IND kg/m2/s xy C N Y F%y4-01-01T00:00:00 none none emi_oc  ./MainDataDir/EDGARv43/v2016-11/EDGAR_v43.OC.IND.0.1x0.1.nc 
+EDGAR_OCPI_TRO kg/m2/s xy C N Y F%y4-01-01T00:00:00 none none emi_oc  ./MainDataDir/EDGARv43/v2016-11/EDGAR_v43.OC.TRO.0.1x0.1.nc 
+EDGAR_OCPI_TNG kg/m2/s xy C N Y F%y4-01-01T00:00:00 none none emi_oc  ./MainDataDir/EDGARv43/v2016-11/EDGAR_v43.OC.TNG.0.1x0.1.nc 
+EDGAR_OCPI_RCO kg/m2/s xy C N Y F%y4-01-01T00:00:00 none none emi_oc  ./MainDataDir/EDGARv43/v2016-11/EDGAR_v43.OC.RCO.0.1x0.1.nc 
+EDGAR_OCPI_AWB kg/m2/s xy C N Y F%y4-01-01T00:00:00 none none emi_oc  ./MainDataDir/EDGARv43/v2016-11/EDGAR_v43.OC.AWB.0.1x0.1.nc 
+EDGAR_OCPI_SWD kg/m2/s xy C N Y F%y4-01-01T00:00:00 none none emi_oc  ./MainDataDir/EDGARv43/v2016-11/EDGAR_v43.OC.SWD.0.1x0.1.nc 
+EDGAR_OCPI_FFF kg/m2/s xy C N Y F%y4-01-01T00:00:00 none none emi_oc  ./MainDataDir/EDGARv43/v2016-11/EDGAR_v43.OC.FFF.0.1x0.1.nc 
+EDGAR_SO2_POW  kg/m2/s xy C N Y F%y4-01-01T00:00:00 none none emi_so2 ./MainDataDir/EDGARv43/v2016-11/EDGAR_v43.SO2.POW.0.1x0.1.nc
+EDGAR_SO2_ENG  kg/m2/s xy C N Y F%y4-01-01T00:00:00 none none emi_so2 ./MainDataDir/EDGARv43/v2016-11/EDGAR_v43.SO2.ENG.0.1x0.1.nc
+EDGAR_SO2_IND  kg/m2/s xy C N Y F%y4-01-01T00:00:00 none none emi_so2 ./MainDataDir/EDGARv43/v2016-11/EDGAR_v43.SO2.IND.0.1x0.1.nc
+EDGAR_SO2_TRO  kg/m2/s xy C N Y F%y4-01-01T00:00:00 none none emi_so2 ./MainDataDir/EDGARv43/v2016-11/EDGAR_v43.SO2.TRO.0.1x0.1.nc
+EDGAR_SO2_TNG  kg/m2/s xy C N Y F%y4-01-01T00:00:00 none none emi_so2 ./MainDataDir/EDGARv43/v2016-11/EDGAR_v43.SO2.TNG.0.1x0.1.nc
+EDGAR_SO2_RCO  kg/m2/s xy C N Y F%y4-01-01T00:00:00 none none emi_so2 ./MainDataDir/EDGARv43/v2016-11/EDGAR_v43.SO2.RCO.0.1x0.1.nc
+EDGAR_SO2_PPA  kg/m2/s xy C N Y F%y4-01-01T00:00:00 none none emi_so2 ./MainDataDir/EDGARv43/v2016-11/EDGAR_v43.SO2.PPA.0.1x0.1.nc
+EDGAR_SO2_AWB  kg/m2/s xy C N Y F%y4-01-01T00:00:00 none none emi_so2 ./MainDataDir/EDGARv43/v2016-11/EDGAR_v43.SO2.AWB.0.1x0.1.nc
+EDGAR_SO2_SWD  kg/m2/s xy C N Y F%y4-01-01T00:00:00 none none emi_so2 ./MainDataDir/EDGARv43/v2016-11/EDGAR_v43.SO2.SWD.0.1x0.1.nc
+EDGAR_SO2_FFF  kg/m2/s xy C N Y F%y4-01-01T00:00:00 none none emi_so2 ./MainDataDir/EDGARv43/v2016-11/EDGAR_v43.SO2.FFF.0.1x0.1.nc
 
 #==============================================================================
 # --- NAP Anthropogenic (EDGAR_NAP) --- 
@@ -278,13 +306,34 @@ EDGAR_NAP kgC/m2/s xy C N Y - none none BENZ ./MainDataDir/EDGARv42/v2015-02/VOC
 
 #==============================================================================
 # --- HTAP v2 (HTAP) ---
-# HTAP is off by default in HEMCO_Config.rc; may need to add to this section if turning on
+# HTAP is off by default in HEMCO_Config.rc
 #==============================================================================
-HTAP_NH3_IND 1 xy C N N - none none HTAP_NH3_IND /dev/null
-HTAP_NH3_POW 1 xy C N N - none none HTAP_NH3_POW /dev/null
-HTAP_NH3_TRA 1 xy C N N - none none HTAP_NH3_TRA /dev/null
-HTAP_NH3_AGR 1 xy C N N - none none HTAP_NH3_AGR /dev/null
-HTAP_NH3_RES 1 xy C N N - none none HTAP_NH3_RES /dev/null
+HTAP_NO_IND    kg/m2/s xy C N Y F%y4-01-01T00:00:00 none none emi_no  ./MainDataDir/HTAP/v2015-03/NO/EDGAR_HTAP_NO_INDUSTRY.generic.01x01.nc
+HTAP_NO_POW    kg/m2/s xy C N Y F%y4-01-01T00:00:00 none none emi_no  ./MainDataDir/HTAP/v2015-03/NO/EDGAR_HTAP_NO_ENERGY.generic.01x01.nc
+HTAP_NO_RES    kg/m2/s xy C N Y F%y4-01-01T00:00:00 none none emi_no  ./MainDataDir/HTAP/v2015-03/NO/EDGAR_HTAP_NO_RESIDENTIAL.generic.01x01.nc
+HTAP_NO_TRA    kg/m2/s xy C N Y F%y4-01-01T00:00:00 none none emi_no  ./MainDataDir/HTAP/v2015-03/NO/EDGAR_HTAP_NO_TRANSPORT.generic.01x01.nc
+#HTAP_NO_AIR1  kg/m2/s xy C N Y F%y4-01-01T00:00:00 none none emi_no  ./MainDataDir/HTAP/v2015-03/NO/EDGAR_HTAP_NO_AIR_LTO.generic.01x01.nc
+#HTAP_NO_AIR2  kg/m2/s xy C N Y F%y4-01-01T00:00:00 none none emi_no  ./MainDataDir/HTAP/v2015-03/NO/EDGAR_HTAP_NO_AIR_CDS.generic.01x01.nc
+#HTAP_NO_AIR3  kg/m2/s xy C N Y F%y4-01-01T00:00:00 none none emi_no  ./MainDataDir/HTAP/v2015-03/NO/EDGAR_HTAP_NO_AIR_CRS.generic.01x01.nc
+HTAP_CO_IND    kg/m2/s xy C N Y F%y4-01-01T00:00:00 none none emi_co  ./MainDataDir/HTAP/v2015-03/CO/EDGAR_HTAP_CO_INDUSTRY.generic.01x01.nc
+HTAP_CO_POW    kg/m2/s xy C N Y F%y4-01-01T00:00:00 none none emi_co  ./MainDataDir/HTAP/v2015-03/CO/EDGAR_HTAP_CO_ENERGY.generic.01x01.nc
+HTAP_CO_RES    kg/m2/s xy C N Y F%y4-01-01T00:00:00 none none emi_co  ./MainDataDir/HTAP/v2015-03/CO/EDGAR_HTAP_CO_RESIDENTIAL.generic.01x01.nc
+HTAP_CO_TRA    kg/m2/s xy C N Y F%y4-01-01T00:00:00 none none emi_co  ./MainDataDir/HTAP/v2015-03/CO/EDGAR_HTAP_CO_TRANSPORT.generic.01x01.nc
+#HTAP_CO_AIR1  kg/m2/s xy C N Y F%y4-01-01T00:00:00 none none emi_co  ./MainDataDir/HTAP/v2015-03/CO/EDGAR_HTAP_CO_AIR_LTO.generic.01x01.nc
+#HTAP_CO_AIR2  kg/m2/s xy C N Y F%y4-01-01T00:00:00 none none emi_co  ./MainDataDir/HTAP/v2015-03/CO/EDGAR_HTAP_CO_AIR_CDS.generic.01x01.nc
+#HTAP_CO_AIR3  kg/m2/s xy C N Y F%y4-01-01T00:00:00 none none emi_co  ./MainDataDir/HTAP/v2015-03/CO/EDGAR_HTAP_CO_AIR_CRS.generic.01x01.nc
+HTAP_SO2_IND   kg/m2/s xy C N Y F%y4-01-01T00:00:00 none none emi_so2 ./MainDataDir/HTAP/v2015-03/SO2/EDGAR_HTAP_SO2_INDUSTRY.generic.01x01.nc
+HTAP_SO2_POW   kg/m2/s xy C N Y F%y4-01-01T00:00:00 none none emi_so2 ./MainDataDir/HTAP/v2015-03/SO2/EDGAR_HTAP_SO2_ENERGY.generic.01x01.nc
+HTAP_SO2_RES   kg/m2/s xy C N Y F%y4-01-01T00:00:00 none none emi_so2 ./MainDataDir/HTAP/v2015-03/SO2/EDGAR_HTAP_SO2_RESIDENTIAL.generic.01x01.nc
+HTAP_SO2_TRA   kg/m2/s xy C N Y F%y4-01-01T00:00:00 none none emi_so2 ./MainDataDir/HTAP/v2015-03/SO2/EDGAR_HTAP_SO2_TRANSPORT.generic.01x01.nc
+#HTAP_SO2_AIR1 kg/m2/s xy C N Y F%y4-01-01T00:00:00 none none emi_so2 ./MainDataDir/HTAP/v2015-03/SO2/EDGAR_HTAP_SO2_AIR_LTO.generic.01x01.nc
+#HTAP_SO2_AIR2 kg/m2/s xy C N Y F%y4-01-01T00:00:00 none none emi_so2 ./MainDataDir/HTAP/v2015-03/SO2/EDGAR_HTAP_SO2_AIR_CDS.generic.01x01.nc
+#HTAP_SO2_AIR3 kg/m2/s xy C N Y F%y4-01-01T00:00:00 none none emi_so2 ./MainDataDir/HTAP/v2015-03/SO2/EDGAR_HTAP_SO2_AIR_CRS.generic.01x01.nc
+HTAP_NH3_IND   kg/m2/s xy C N Y F%y4-01-01T00:00:00 none none emi_nh3 ./MainDataDir/HTAP/v2015-03/NH3/EDGAR_HTAP_NH3_INDUSTRY.generic.01x01.nc
+HTAP_NH3_POW   kg/m2/s xy C N Y F%y4-01-01T00:00:00 none none emi_nh3 ./MainDataDir/HTAP/v2015-03/NH3/EDGAR_HTAP_NH3_ENERGY.generic.01x01.nc
+HTAP_NH3_RES   kg/m2/s xy C N Y F%y4-01-01T00:00:00 none none emi_nh3 ./MainDataDir/HTAP/v2015-03/NH3/EDGAR_HTAP_NH3_RESIDENTIAL.generic.01x01.nc
+HTAP_NH3_TRA   kg/m2/s xy C N Y F%y4-01-01T00:00:00 none none emi_nh3 ./MainDataDir/HTAP/v2015-03/NH3/EDGAR_HTAP_NH3_TRANSPORT.generic.01x01.nc
+HTAP_NH3_AGR   kg/m2/s xy C N Y F%y4-01-01T00:00:00 none none emi_nh3 ./MainDataDir/HTAP/v2015-03/NH3/EDGAR_HTAP_NH3_AGRICULTURE.generic.01x01.nc
 
 #==============================================================================
 # --- CEDS (CEDS) ---
@@ -1976,7 +2025,6 @@ NEI99_SEASON_OCPI 1 xy C N N -                     none none OCPI    ./MainDataD
 # Country/region masks
 #==============================================================================
 EMEP_MASK    1 xy C N Y - none none MASK     ./MainDataDir/MASKS/v2018-09/EMEP_mask.geos.1x1.20151222.nc
-MEXICO_MASK  1 xy C N Y - none none MASK     ./MainDataDir/MASKS/v2018-09/Mexico_Mask.001x001.nc
 CANADA_MASK  1 xy C N Y - none none MASK     ./MainDataDir/MASKS/v2018-09/Canada_mask.geos.1x1.nc
 SEASIA_MASK  1 xy C N Y - none none MASK     ./MainDataDir/MASKS/v2018-09/SE_Asia_mask.generic.1x1.nc
 ASIA_MASK    1 xy C N Y - none none MASK     ./MainDataDir/MASKS/v2018-09/MIX_Asia_mask.generic.025x025.nc

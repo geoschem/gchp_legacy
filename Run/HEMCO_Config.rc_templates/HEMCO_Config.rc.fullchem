@@ -2970,7 +2970,9 @@ Warnings:                    1
 #==============================================================================
 # --- GFAS scale factors ---
 #==============================================================================
+(((GFAS
 300 GFAS_EMITL $ROOT/GFAS/v2018-09/$YYYY/GFAS_$YYYY$MM.nc mami 2003-2018/1-12/1-31/0 C xy m 1
+)))GFAS
 
 #==============================================================================
 # --- Seasalt SALA/SALC to BrSALA/BrSALC scale factor for offline emissions ---
@@ -3167,7 +3169,6 @@ Warnings:                    1
 # Country/region masks
 #==============================================================================
 1000 EMEP_MASK   $ROOT/MASKS/v2018-09/EMEP_mask.geos.1x1.20151222.nc           MASK     2000/1/1/0 C xy 1 1 -30/30/45/70
-1001 MEXICO_MASK $ROOT/MASKS/v2018-09/Mexico_Mask.001x001.nc                   MASK     2000/1/1/0 C xy 1 1 -118/17/-95/33
 1002 CANADA_MASK $ROOT/MASKS/v2018-09/Canada_mask.geos.1x1.nc                  MASK     2000/1/1/0 C xy 1 1 -141/40/-52/85
 1003 SEASIA_MASK $ROOT/MASKS/v2018-09/SE_Asia_mask.generic.1x1.nc              MASK     2000/1/1/0 C xy 1 1  60/-12/153/55
 1006 ASIA_MASK   $ROOT/MASKS/v2018-09/MIX_Asia_mask.generic.025x025.nc         MASK     2000/1/1/0 C xy 1 1 46/-12/180/82

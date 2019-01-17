@@ -14,14 +14,33 @@ Chem/emis timestep [sec]: 1200
 %%% ADVECTED SPECIES MENU %%%:
 Type of simulation      : 1
 Species Entries ------->: Name
-Species name            : Rn
-Species name            : Pb
+Species name            : Rn222
+Species name            : Pb210
+Species name            : Pb210Strat
 Species name            : Be7
-Species name            : PASV
+Species name            : Be7Strat
+Species name            : Be10
+Species name            : Be10Strat
+Species name            : PassiveTracer
+Species name            : SF6tracer
+Species name            : CH3Itracer
+Species name            : COtracer25days
+Species name            : COtracer50days
+Species name            : Emis90dayTracer
+Species name            : Emis90dayTracerNH
+Species name            : Emis90dayTracerSH
+Species name            : UniformTracer
 ------------------------+------------------------------------------------------
 %%% PASSIVE SPECIES MENU %%%:
-Number of passive spec. : 1
-Passive species #1      : PASV 1.0 -1 1.0e-7
+Passive species name    : PassiveTracer     1.0    -1      1.0e-7   Passive_tracer_for_mass_conservation_eval
+Passive species name    : SF6tracer         146.0  1.0e11  1.0e-20  Sulfur_hexafluoride
+Passive species name    : CH3Itracer        142.0  4.32e5  1.0e-20  Methyl_iodide
+Passive species name    : COtracer25days    28.0   2.16e6  1.0e-20  Anthro_CO_25day_tracer
+Passive species name    : COtracer50days    28.0   4.32e6  1.0e-20  Anthro_CO_50day_tracer
+Passive species name    : Emis90dayTracer   1.0    7.776e6 1.0e-20  Constant_emission_tracer
+Passive species name    : Emis90dayTracerNH 1.0    7.776e6 1.0e-20  Constant_emission_tracer_for_NH
+Passive species name    : Emis90dayTracerSH 1.0    7.776e6 1.0e-20  Constant_emission_tracer_for_SH
+Passive species name    : UniformTracer     28.0   2.16e6  1.0e-20  CO-like_tracer_with_uniform_emission
 ------------------------+------------------------------------------------------
 %%% TRANSPORT MENU %%%  :
 Turn on Transport       : T
@@ -195,6 +214,13 @@ ND73: ISORROPIA         :  0   all
 Turn on plane flt diag? : F
 Flight track info file  : Planeflight.dat.YYYYMMDD
 Output file name        : plane.log.YYYYMMDD
+------------------------+------------------------------------------------------
+%%% OBSPACK MENU %%%    :
+Turn on ObsPack diag?   : F
+Quiet logfile output    : F
+ObsPack input file      : ./obspack_co2_1_OCO2MIP_2018-11-28.YYYYMMDD.nc
+ObsPack output file     : GEOSChem.ObsPack.YYYYMMDD_hhmmz.nc4
+ObsPack output species  : ?ADV?
 ------------------------+------------------------------------------------------
 %%% ND48 MENU %%%       :
 Turn on ND48 stations   : F

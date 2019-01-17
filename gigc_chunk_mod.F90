@@ -80,7 +80,6 @@ CONTAINS
     USE GC_Environment_Mod
     USE GC_Grid_Mod,             ONLY : SetGridFromCtr
     USE GIGC_HistoryExports_Mod, ONLY : HistoryConfigObj
-    USE GIGC_MPI_Wrap,           ONLY : GIGC_Input_Bcast
     USE HCO_Types_Mod,           ONLY : ConfigObj
     USE Input_Mod,               ONLY : Read_Input_File
     USE Input_Opt_Mod,           ONLY : OptInput, Set_Input_Opt
@@ -171,6 +170,7 @@ CONTAINS
 !                              Now call GC_Allocate_All after input.geos read;
 !                              Restructure grid init based on gcbe v11-02e;
 !                              Remove all unused code and simplify comments
+!  14 Jan 2019 - E. Lundgren - Read input.geos on all threads and remove broadcast
 !EOP
 !------------------------------------------------------------------------------
 !BOC
@@ -205,27 +205,19 @@ CONTAINS
     Input_Opt%TS_CONV = INT( tsDyn  )   ! Dynamic   timestep [sec]
     Input_Opt%myCPU   = myPET
 
-    ! Root CPU only
-    IF ( am_I_Root ) THEN
-
-       ! Read input.geos
-       CALL Read_Input_File( am_I_Root, Input_Opt, RC )
-       ASSERT_(RC==GC_SUCCESS)
-
-       ! In the ESMF/MPI environment, we can get the total overhead ozone
-       ! either from the met fields (GIGCsa) or from the Import State (GEOS-5)
-       Input_Opt%USE_O3_FROM_MET = .TRUE.
-
-       ! Read LINOZ climatology
-       IF ( Input_Opt%LLINOZ ) THEN
-          CALL Linoz_Read( am_I_Root, Input_Opt, RC ) 
-          ASSERT_(RC==GC_SUCCESS)
-       ENDIF
-    ENDIF
-
-    ! Broadcast Input_Opt from root to all other CPUs
-    CALL GIGC_Input_Bcast( am_I_Root, Input_Opt, RC )
+    ! Read input.geos
+    CALL Read_Input_File( am_I_Root, Input_Opt, RC )
     ASSERT_(RC==GC_SUCCESS)
+
+    ! In the ESMF/MPI environment, we can get the total overhead ozone
+    ! either from the met fields (GIGCsa) or from the Import State (GEOS-5)
+    Input_Opt%USE_O3_FROM_MET = .TRUE.
+
+    ! Read LINOZ climatology
+    IF ( Input_Opt%LLINOZ ) THEN
+       CALL Linoz_Read( am_I_Root, Input_Opt, RC ) 
+       ASSERT_(RC==GC_SUCCESS)
+    ENDIF
 
     ! Allocate all lat/lon arrays including CMN_Size_Mod parameters
     CALL GC_Allocate_All( am_I_Root, Input_Opt, RC,         &  
@@ -983,14 +975,16 @@ CONTAINS
 !\\
 ! !INTERFACE:
 !
-  SUBROUTINE GIGC_Chunk_Final( am_I_Root, Input_Opt, State_Chm, State_Met, RC )
+  SUBROUTINE GIGC_Chunk_Final( am_I_Root, Input_Opt,  State_Chm,             &
+                               State_Met, State_Diag, RC                    )
 !
 ! !USES:
 !
-    USE Input_Opt_Mod,         ONLY : OptInput, Cleanup_Input_Opt
-    USE State_Chm_Mod,         ONLY : ChmState, Cleanup_State_Chm
-    USE State_Met_Mod,         ONLY : MetState, Cleanup_State_Met
-    USE HCOI_GC_MAIN_MOD,      ONLY : HCOI_GC_FINAL
+    USE Input_Opt_Mod,    ONLY : OptInput, Cleanup_Input_Opt
+    USE State_Chm_Mod,    ONLY : ChmState, Cleanup_State_Chm
+    USE State_Met_Mod,    ONLY : MetState, Cleanup_State_Met
+    USE State_Diag_Mod,   ONLY : DgnState, Cleanup_State_Diag
+    USE HCOI_GC_MAIN_MOD, ONLY : HCOI_GC_FINAL
 !
 ! !INPUT PARAMETERS:
 !
@@ -1001,6 +995,7 @@ CONTAINS
     TYPE(OptInput), INTENT(INOUT) :: Input_Opt     ! Input Options object
     TYPE(ChmState), INTENT(INOUT) :: State_Chm     ! Chemistry State object
     TYPE(MetState), INTENT(INOUT) :: State_Met     ! Meteorology State object
+    TYPE(DgnState), INTENT(INOUT) :: State_Diag    ! Diagnostics State object
 !
 ! !OUTPUT PARAMETERS:
 !
@@ -1032,13 +1027,13 @@ CONTAINS
        ENDIF
     ENDIF
 
-    ! Deallocate fields of the Input Options object
-    CALL Cleanup_Input_Opt( am_I_Root, Input_Opt, RC )
+    ! Deallocate fields of the Diagnostics State object
+    CALL Cleanup_State_Diag( am_I_Root, State_Diag, RC )
     IF ( am_I_Root ) THEN
        IF ( RC == GC_SUCCESS ) THEN
-          write(*,'(a)') 'Chem::Input_Opt Finalize... OK.'
+          write(*,'(a)') 'Chem::State_Diag Finalize... OK.'
        ELSE
-          write(*,'(a)') 'Chem::Input_Opt Finalize... FAILURE.'
+          write(*,'(a)') 'Chem::State_Diag Finalize... FAILURE.'
        ENDIF
     ENDIF
 
@@ -1059,6 +1054,16 @@ CONTAINS
           write(*,'(a)') 'Chem::State_Met Finalize... OK.'
        ELSE
           write(*,'(a)') 'Chem::State_Met Finalize... FAILURE.'
+       ENDIF
+    ENDIF
+
+    ! Deallocate fields of the Input Options object
+    CALL Cleanup_Input_Opt( am_I_Root, Input_Opt, RC )
+    IF ( am_I_Root ) THEN
+       IF ( RC == GC_SUCCESS ) THEN
+          write(*,'(a)') 'Chem::Input_Opt Finalize... OK.'
+       ELSE
+          write(*,'(a)') 'Chem::Input_Opt Finalize... FAILURE.'
        ENDIF
     ENDIF
 

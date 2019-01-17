@@ -54,13 +54,18 @@ source runConfig.sh > $runconfiglog
 # Only continue if runConfig.sh had no errors
 if [[ $? == 0 ]]; then
    rm -f gchp.log
-   rm -f cap_restart
    rm -f $multirunlog
-   
+
+
    echo "Submitting    ${Num_Runs} jobs with duration '${Duration}'" | tee $multirunlog
-   echo "Start date:   ${Start_Time}" | tee -a $multirunlog
+   if [[ -e cap_restart ]]; then
+       echo 'WARNING: cap_restart file exists. Starting simulation at:' | tee -a $multirunlog
+       cat cap_restart | tee -a $multirunlog
+   else
+       echo "Start date:   ${Start_Time}" | tee -a $multirunlog
+   fi
    echo "End date:     ${End_Time}" | tee -a $multirunlog
-   echo "*** Check that end date is sufficiently past start date to span all runs ***"
+   echo "*** Check that end date is sufficiently past start date to span all intended runs ***"
    
    msg=$(sbatch gchp.multirun.run)
    echo $msg | tee -a $multirunlog
