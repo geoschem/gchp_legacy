@@ -30,11 +30,13 @@ Licensed under the University of Illinois-NCSA License.
 #if defined (__cplusplus)
 // Typedef to match the data type of the 'hidden' string length
 // argument that Fortran uses when passing CHARACTER strings.
-#if (__GNUC__ > 7)
-typedef size_t ESMCI_FortranStrLenArg;
-#else
+// For GCHP (ewl, 1/17/19):
+// Modify handling of GNUC > 7 to use int instaed of size_t to avoid
+// compilation errors when compiling on the Harvard Odyssey cluster.
+// This issue should be revisited in the future since it implies 
+// a problem with access to the C library.
+//typedef size_t ESMCI_FortranStrLenArg;
 typedef int ESMCI_FortranStrLenArg;
-#endif
 #endif
 
 #define ESMC_PRESENT(arg) ( (arg) != 0 )
