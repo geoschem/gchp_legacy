@@ -391,7 +391,6 @@ contains
 
 	integer lu,ios
 	logical inuse
-	character*8 attr
 
 	lu=-1
 	ios=0
@@ -464,7 +463,9 @@ end function luavail
 !_______________________________________________________________________
   character(len=*),parameter :: myname_=myname//'::luflush'
 
+#ifdef sysIRIX64
   integer :: ier
+#endif
   integer :: lu
 
 	! Which logical unit number?

@@ -1,3 +1,4 @@
+#include "unused_dummy.H"
 !~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 !       NASA/GSFC, Data Assimilation Office, Code 910.3, GEOS/DAS      !
 !-----------------------------------------------------------------------
@@ -304,6 +305,7 @@ contains
 
   character(len=*),parameter :: myname_=myname//'::typeI_'
 
+  _UNUSED_DUMMY(ival)
   typeI_=MP_INTEGER
 
 end function typeI_
@@ -329,6 +331,7 @@ end function typeI_
 
   character(len=*),parameter :: myname_=myname//'::typeL_'
 
+  _UNUSED_DUMMY(lval)
   typeL_=MP_LOGICAL
 
 end function typeL_
@@ -354,6 +357,7 @@ end function typeL_
 
   character(len=*),parameter :: myname_=myname//'::typeC_'
 
+  _UNUSED_DUMMY(cval)
   typeC_=MP_CHARACTER
 
 end function typeC_
@@ -380,6 +384,7 @@ end function typeC_
 
   character(len=*),parameter :: myname_=myname//'::typeSP_'
 
+  _UNUSED_DUMMY(rval)
   typeSP_=MP_REAL
 
 end function typeSP_
@@ -407,6 +412,7 @@ end function typeSP_
 
   character(len=*),parameter :: myname_=myname//'::typeDP_'
 
+  _UNUSED_DUMMY(rval)
   typeDP_=MP_DOUBLE_PRECISION
 
 end function typeDP_
@@ -433,6 +439,7 @@ end function typeDP_
 
   character(len=*),parameter :: myname_=myname//'::typeI1_'
 
+  _UNUSED_DUMMY(ival)
   typeI1_=MP_INTEGER
 
 end function typeI1_
@@ -458,6 +465,7 @@ end function typeI1_
 
   character(len=*),parameter :: myname_=myname//'::typeL1_'
 
+  _UNUSED_DUMMY(lval)
   typeL1_=MP_LOGICAL
 
 end function typeL1_
@@ -483,6 +491,7 @@ end function typeL1_
 
   character(len=*),parameter :: myname_=myname//'::typeC1_'
 
+  _UNUSED_DUMMY(cval)
   typeC1_=MP_CHARACTER
 
 end function typeC1_
@@ -509,6 +518,7 @@ end function typeC1_
 
   character(len=*),parameter :: myname_=myname//'::typeSP1_'
 
+  _UNUSED_DUMMY(rval)
   typeSP1_=MP_REAL
 
 end function typeSP1_
@@ -536,6 +546,7 @@ end function typeSP1_
 
   character(len=*),parameter :: myname_=myname//'::typeDP1_'
 
+  _UNUSED_DUMMY(rval)
   typeDP1_=MP_DOUBLE_PRECISION
 
 end function typeDP1_
@@ -562,6 +573,7 @@ end function typeDP1_
 
   character(len=*),parameter :: myname_=myname//'::typeI2_'
 
+  _UNUSED_DUMMY(ival)
   typeI2_=MP_INTEGER
 
 end function typeI2_
@@ -587,6 +599,7 @@ end function typeI2_
 
   character(len=*),parameter :: myname_=myname//'::typeL2_'
 
+  _UNUSED_DUMMY(lval)
   typeL2_=MP_LOGICAL
 
 end function typeL2_
@@ -612,6 +625,7 @@ end function typeL2_
 
   character(len=*),parameter :: myname_=myname//'::typeC2_'
 
+  _UNUSED_DUMMY(cval)
   typeC2_=MP_CHARACTER
 
 end function typeC2_
@@ -638,6 +652,7 @@ end function typeC2_
 
   character(len=*),parameter :: myname_=myname//'::typeSP2_'
 
+  _UNUSED_DUMMY(rval)
   typeSP2_=MP_REAL
 
 end function typeSP2_
@@ -665,6 +680,7 @@ end function typeSP2_
 
   character(len=*),parameter :: myname_=myname//'::typeDP2_'
 
+  _UNUSED_DUMMY(rval)
   typeDP2_=MP_DOUBLE_PRECISION
 
 end function typeDP2_
@@ -691,6 +707,7 @@ end function typeDP2_
 
   character(len=*),parameter :: myname_=myname//'::typeI3_'
 
+  _UNUSED_DUMMY(ival)
   typeI3_=MP_INTEGER
 
 end function typeI3_
@@ -716,6 +733,7 @@ end function typeI3_
 
   character(len=*),parameter :: myname_=myname//'::typeL3_'
 
+  _UNUSED_DUMMY(lval)
   typeL3_=MP_LOGICAL
 
 end function typeL3_
@@ -741,6 +759,7 @@ end function typeL3_
 
   character(len=*),parameter :: myname_=myname//'::typeC3_'
 
+  _UNUSED_DUMMY(cval)
   typeC3_=MP_CHARACTER
 
 end function typeC3_
@@ -767,6 +786,7 @@ end function typeC3_
 
   character(len=*),parameter :: myname_=myname//'::typeSP3_'
 
+  _UNUSED_DUMMY(rval)
   typeSP3_=MP_REAL
 
 end function typeSP3_
@@ -794,6 +814,7 @@ end function typeSP3_
 
   character(len=*),parameter :: myname_=myname//'::typeDP3_'
 
+  _UNUSED_DUMMY(rval)
   typeDP3_=MP_DOUBLE_PRECISION
 
 end function typeDP3_
@@ -820,6 +841,7 @@ end function typeDP3_
 
   character(len=*),parameter :: myname_=myname//'::type2I_'
 
+  _UNUSED_DUMMY(ival)
   type2I_=MP_2INTEGER
 
 end function type2I_
@@ -847,6 +869,7 @@ end function type2I_
 
   character(len=*),parameter :: myname_=myname//'::type2SP_'
 
+  _UNUSED_DUMMY(rval)
   type2SP_=MP_2REAL
 
 end function type2SP_
@@ -874,6 +897,7 @@ end function type2SP_
 
   character(len=*),parameter :: myname_=myname//'::type2DP_'
 
+  _UNUSED_DUMMY(rval)
   type2DP_=MP_2DOUBLE_PRECISION
 
 end function type2DP_

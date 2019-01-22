@@ -10,7 +10,8 @@
 ! !INTERFACE:
 
     module m_zeit
-      use m_realkinds, only: zeit_kind => kind_r8
+       use m_realkinds, only: zeit_kind => kind_r8
+       use m_realkinds, only: DP
       implicit none
       private	! except
 
@@ -225,11 +226,11 @@
   integer,save,dimension(0:MXN)	:: knt_l	! counts of ci_() calls
   integer,save,dimension(0:MXN) :: level_l	! remaining ci_() counts
 
-  real*8,save,dimension(0:5)	   :: zts_sv	! the last timings
+  real(kind=DP),save,dimension(0:5)	   :: zts_sv	! the last timings
 
-  real*8,save,dimension(0:5,0:MXN) ::  zts_l	! credited to a name
-  real*8,save,dimension(0:5,0:MXN) :: szts_l	! all under the name
-  real*8,save,dimension(0:5,0:MXN) :: szts_sv	! the last ci_ timings
+  real(kind=DP),save,dimension(0:5,0:MXN) ::  zts_l	! credited to a name
+  real(kind=DP),save,dimension(0:5,0:MXN) :: szts_l	! all under the name
+  real(kind=DP),save,dimension(0:5,0:MXN) :: szts_sv	! the last ci_ timings
 
 !=======================================================================
 contains
@@ -252,8 +253,8 @@ contains
       use m_sysclocks, only: get_zeits => sysclocks_get
       implicit none
       character(len=*), intent(in) :: name
-      real*8, optional, intent(in) :: usrtime
-      real*8, optional,dimension(0:),intent(in) :: mytime
+      real(kind=DP), optional, intent(in) :: usrtime
+      real(kind=DP), optional,dimension(0:),intent(in) :: mytime
 
 ! !REVISION HISTORY:
 ! 	05Mar98 - Jing Guo <guo@thunder> - initial prototype/prolog/code
@@ -263,7 +264,7 @@ contains
 
 	! Local variables
 
-  real*8,dimension(0:5) :: zts
+  real(kind=DP),dimension(0:5) :: zts
   integer :: lname,iname
   integer :: ntm
   integer :: i
@@ -364,9 +365,9 @@ end subroutine ci_
       use m_sysclocks, only: get_zeits => sysclocks_get
       implicit none
       character(len=*), intent(in) :: name	! account name
-      real*8,optional,dimension(0:5,0:1),intent(out) :: tms ! timings
-      real*8,optional,intent(in)::usrtime
-      real*8,optional,dimension(0:),intent(in) :: mytime
+      real(kind=DP),optional,dimension(0:5,0:1),intent(out) :: tms ! timings
+      real(kind=DP),optional,intent(in)::usrtime
+      real(kind=DP),optional,dimension(0:),intent(in) :: mytime
 
 !     The returned variable tms(0:5,0:1) contains two sets of timing
 !   information.  tms(0:5,0) is the NET timing data charged under the
@@ -375,14 +376,14 @@ end subroutine ci_
 !
 ! !REVISION HISTORY:
 ! 	11Oct99 - J.W. Larson - <jlarson@dao> explicit definition of 
-!                 tms as real*8
+!                 tms as real(kind=DP)
 ! 	05Mar98 - Jing Guo <guo@thunder> - initial prototype/prolog/code
 !EOP
 !_______________________________________________________________________
   character(len=*),parameter :: myname_=myname//'::co_'
 
-  real*8 :: tms0,tms1
-  real*8,dimension(0:5) :: zts
+  real(kind=DP) :: tms0,tms1
+  real(kind=DP),dimension(0:5) :: zts
   integer :: lname
   integer :: ntm
   integer :: i
@@ -478,8 +479,8 @@ end subroutine co_
       use m_mpif90,only : MP_wtime
       use m_sysclocks, only: get_zeits => sysclocks_get
       implicit none
-      real*8, optional,intent(in)::usrtime
-      real*8, optional,dimension(0:),intent(in) :: mytime
+      real(kind=DP), optional,intent(in)::usrtime
+      real(kind=DP), optional,dimension(0:),intent(in) :: mytime
 
 ! !REVISION HISTORY:
 ! 	04Mar98 - Jing Guo <guo@thunder> - initial prototype/prolog/code
@@ -607,10 +608,10 @@ end function lookup_
       implicit none
       integer,intent(in) :: lu	! logical unit for the output
       integer,optional,intent(in) :: umask
-      real*8, optional,intent(in) :: usrtime
-      real*8, optional,dimension(0:),intent(in) :: mytime
+      real(kind=DP), optional,intent(in) :: usrtime
+      real(kind=DP), optional,dimension(0:),intent(in) :: mytime
       logical,optional,intent(in) :: subname_at_end
-      real*8, optional,intent(in) :: scale
+      real(kind=DP), optional,intent(in) :: scale
 
 ! !REVISION HISTORY:
 !       14Mar2003 - Lang_ping Chang
@@ -625,7 +626,7 @@ end function lookup_
   character(len=*),parameter :: myname_=myname//'::flush_'
   integer :: imask
 
-  real*8,dimension(0:5) :: zts
+  real(kind=DP),dimension(0:5) :: zts
   integer :: ntm,i,ier
 
 	! specify which timer to print
@@ -694,9 +695,9 @@ end subroutine flush_
       implicit none
       integer,intent(in) :: lu
       integer,intent(in) :: itm
-      real*8,intent(in) :: zti
+      real(kind=DP),intent(in) :: zti
       logical,optional,intent(in) :: subname_at_end
-      real*8,optional,intent(in) :: scale
+      real(kind=DP),optional,intent(in) :: scale
 
 ! !REVISION HISTORY:
 !       14Mar2003 - Lang_ping Chang
@@ -710,7 +711,7 @@ end subroutine flush_
 !_______________________________________________________________________
   character(len=*),parameter :: myname_=myname//'::sp_balances_'
 
-  real*8,parameter :: res=.001	! (sec)
+  real(kind=DP),parameter :: res=.001	! (sec)
 
   integer,parameter :: lnmax=12
   character(len=max(NSZ,lnmax)) :: name
@@ -720,11 +721,11 @@ end subroutine flush_
 
   integer :: zt_min,zt_sec
   integer :: sz_min,sz_sec
-  integer :: l,i,ln,lt
+  integer :: l,i,ln
 
-  real*8 :: sz0
-  real*8 :: zt,zt_percent,zt_percall
-  real*8 :: sz,sz_percent
+  real(kind=DP) :: sz0
+  real(kind=DP) :: zt,zt_percent,zt_percall
+  real(kind=DP) :: sz,sz_percent
   real(kind=zeit_kind) :: scale_
 
   logical :: line_end_subname
@@ -869,9 +870,9 @@ end subroutine sp_balances_
       integer,intent(in) :: root
       integer,intent(in) :: lu
       integer,optional,intent(in) :: umask
-      real*8,optional,dimension(0:),intent(in) :: mytime
+      real(kind=DP),optional,dimension(0:),intent(in) :: mytime
       logical,optional,intent(in) :: subname_at_end
-      real*8,optional,intent(in) :: scale
+      real(kind=DP),optional,intent(in) :: scale
 
 ! !REVISION HISTORY:
 !       14Mar2003 - Lang_ping Chang
@@ -886,12 +887,12 @@ end subroutine sp_balances_
   character(len=*),parameter :: myname_=myname//'::allflush_'
   integer myID,nPEs
   integer :: imask
-  real*8,dimension(0:5)	:: zts
-  real*8,allocatable,dimension(:,:,:  ) :: ztmp
-  real*8,allocatable,dimension(:,:,:  ) :: zsum
-  real*8,allocatable,dimension(:,:,:  ) :: zavg
-  real*8,allocatable,dimension(:,:,:  ) :: zabv
-  real*8,allocatable,dimension(:,:,:,:) :: zmax
+  real(kind=DP),dimension(0:5)	:: zts
+  real(kind=DP),allocatable,dimension(:,:,:  ) :: ztmp
+  real(kind=DP),allocatable,dimension(:,:,:  ) :: zsum
+  real(kind=DP),allocatable,dimension(:,:,:  ) :: zavg
+  real(kind=DP),allocatable,dimension(:,:,:  ) :: zabv
+  real(kind=DP),allocatable,dimension(:,:,:,:) :: zmax
   integer,allocatable,dimension(:):: ktmp
   integer,allocatable,dimension(:):: ksum
   integer :: mname
@@ -1095,10 +1096,10 @@ end subroutine allflush_
       integer,intent(in) :: item
       integer,intent(in) :: nPEs
       character(len=1),dimension(:,0:),intent(in) :: names
-      real*8,   dimension(0:,0:,0:   ),intent(in) :: zsum
-      real*8,   dimension(0:,0:,0:   ),intent(in) :: zavg
-      real*8,   dimension(0:,0:,0:   ),intent(in) :: zabv
-      real*8,   dimension(0:,0:,0:,0:),intent(in) :: zmax
+      real(kind=DP),   dimension(0:,0:,0:   ),intent(in) :: zsum
+      real(kind=DP),   dimension(0:,0:,0:   ),intent(in) :: zavg
+      real(kind=DP),   dimension(0:,0:,0:   ),intent(in) :: zabv
+      real(kind=DP),   dimension(0:,0:,0:,0:),intent(in) :: zmax
       integer,dimension(0:),intent(in) :: ksum
       logical,optional,intent(in) :: subname_at_end
 
@@ -1114,7 +1115,7 @@ end subroutine allflush_
 !_______________________________________________________________________
   character(len=*),parameter :: myname_=myname//'::mp_balances_'
 
-  real*8,parameter :: res=.001	! (sec)
+  real(kind=DP),parameter :: res=.001	! (sec)
 
   integer,parameter :: lnmax=12
   character(len=max(size(names,1),lnmax)) :: namei
@@ -1124,12 +1125,12 @@ end subroutine allflush_
 
 	! NET timings
   integer :: ix_o
-  real*8  :: zts_o,zta_o,ztm_o,ztr_o
+  real(kind=DP)  :: zts_o,zta_o,ztm_o,ztr_o
   integer :: x_o,i_o,r_o,m_o
 
 	! SCOPE timings
   integer :: ix_s
-  real*8  :: zts_s,zta_s,ztm_s,ztr_s,tta_s
+  real(kind=DP)  :: zts_s,zta_s,ztm_s,ztr_s,tta_s
   integer :: x_s,i_s,r_s,m_s
 
   logical :: line_end_subname
@@ -1235,11 +1236,11 @@ end subroutine mp_balances_
       use m_mpif90,only : MP_SUM
       use m_die   ,only : MP_die
       implicit none
-      real*8,dimension(0:,0:,0:   ),intent(in ) :: ztmp
-      real*8,dimension(0:,0:,0:   ),intent(out) :: zsum
-      real*8,dimension(0:,0:,0:   ),intent(out) :: zavg
-      real*8,dimension(0:,0:,0:   ),intent(out) :: zabv
-      real*8,dimension(0:,0:,0:,0:),intent(out) :: zmax
+      real(kind=DP),dimension(0:,0:,0:   ),intent(in ) :: ztmp
+      real(kind=DP),dimension(0:,0:,0:   ),intent(out) :: zsum
+      real(kind=DP),dimension(0:,0:,0:   ),intent(out) :: zavg
+      real(kind=DP),dimension(0:,0:,0:   ),intent(out) :: zabv
+      real(kind=DP),dimension(0:,0:,0:,0:),intent(out) :: zmax
       integer,dimension(0:),intent(in ) :: ktmp
       integer,dimension(0:),intent(out) :: ksum
       integer,intent(in) :: myID
@@ -1296,7 +1297,7 @@ end subroutine mp_balances_
   do l=0,nl
     do k=0,nk
       do i=0,ni
-	zabv(i,k,l)=max(0._8,ztmp(i,k,l)-zavg(i,k,l))
+	zabv(i,k,l)=max(0._DP,ztmp(i,k,l)-zavg(i,k,l))
       end do
     end do
   end do

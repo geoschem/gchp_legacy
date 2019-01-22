@@ -132,7 +132,6 @@ function jday_(y,m,d)
     integer,intent(in) :: m	! the month in the year
     integer,intent(in) :: d	! the day in the month
     integer :: jday_		! the result
-    integer :: md
 
     jday_ = -1
     if(.not.validi_(y,m,d)) return
@@ -147,10 +146,6 @@ subroutine resjday_(jd,y,m,d) ! -- jdays to (y,m,d) without validation
     implicit none
     integer, intent(in) :: jd ! Julian days (1752)
     integer, intent(out) :: y,m,d ! output as (year, month, day)
-
-    integer :: dx
-    integer :: m5,m2,m1
-    integer :: y1,y4,y100,y400
 
     if(JZ<0) JZ=jdayi_(YZ,MZ,DZ)
     if(J9<0) J9=jdayi_(9999,12,31) -JZ
@@ -218,7 +213,6 @@ function jdayi_(y,m,d) ! -- compute jday without validating (y,m,d)
     integer :: yr
     integer :: mr,m5,m2,m1
     integer :: jd
-    integer :: md
 
 	! Count the days of the month, starting at 0
 

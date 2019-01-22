@@ -203,7 +203,7 @@ contains
 ! Local variables:
 
 	character(len=64) :: str
-	integer  i,k,l,lu
+	integer  i,k,l
 
 	integer :: idim,jdim,kdim,ldim,nvar
 	integer :: ierr
@@ -751,8 +751,7 @@ end subroutine close_
 !EOP ___________________________________________________________________
 
   character(len=*), parameter :: myname_=myname//'::input1lev_'
-  integer :: i,ierr,nrec,nskp,ivar,lu
-  logical :: no_buffer
+  integer :: ierr,nrec,ivar
 
   if(present(stat)) stat=0
 
@@ -774,9 +773,9 @@ end subroutine close_
 
   if(size(vfld,1) /= gs%idim .or. size(vfld,2) /= gs%jdim) then
 
-    write(stderr,'(2a,$)') myname_,': invalid arguments'
-    write(stderr,'(a,2i6,a,$)') ', shape(vfld) = (',shape(vfld),')'
-    write(stderr,'(a,2i6,a,$)') ', gs%[ij]dim = (',gs%idim,gs%jdim,')'
+    write(stderr,'(2a)',advance='no') myname_,': invalid arguments'
+    write(stderr,'(a,2i6,a)',advance='no') ', shape(vfld) = (',shape(vfld),')'
+    write(stderr,'(a,2i6,a)',advance='no') ', gs%[ij]dim = (',gs%idim,gs%jdim,')'
     write(stderr,*)
     if(.not.present(stat)) call die(myname_)
     stat=2
@@ -796,7 +795,7 @@ end subroutine close_
 		! Check the requested time
 
   if(llev < 1 .or. llev > gs%ldim) then
-    write(stderr,'(2a,$)') myname_,': invalid time request'
+    write(stderr,'(2a)',advance='no') myname_,': invalid time request'
     write(stderr,'(2(a,i3))') ', llev =',llev,', gs%ldim =',gs%ldim
     if(.not.present(stat)) call die(myname_)
     stat=4
@@ -956,7 +955,6 @@ end subroutine input1levdp_
   integer :: nskp
   integer :: i
   integer :: nx,ny
-  real :: xdum
 
   no_buffer =	kind(dbuf)   == kind(vfld)	.and.	&
 		size(dbuf,1) == size(vfld,1)	.and.	&
@@ -1064,7 +1062,7 @@ end subroutine read_
 !EOP ___________________________________________________________________
 
   character(len=*),parameter :: myname_=myname//'::inquire_'
-  integer :: ier,ivar
+  integer :: ivar
 
   if(present(stat)) stat=0
 

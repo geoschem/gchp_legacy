@@ -13,7 +13,7 @@
 # Make sure ESMADIR is defined
 # ----------------------------
 ifndef ESMADIR
-       ESMADIR := $(PWD)/..
+       ESMADIR := $(PWD)/../../..
 endif
 
 # Compilation rules, flags, etc
@@ -167,8 +167,8 @@ FREAL = $(FREAL4)
 $(LIBeu): $(OBJS_ALL) mpi0/libmpi0.a
 	$(RM) $@
 	cp -p mpi0/libmpi0.a $@
-	@ echo $(AR) cq $@ $(OBJS_ALL)
-	@ $(AR) cq $@ $(OBJS_ALL)
+	$(AR) cq $@ $(OBJS_ALL)
+	$(RANLIB) $(RANLIB_FLAGS) $@
 
 mpi0/libmpi0.a:
 	$(MAKE) -C mpi0 libmpi0.a
@@ -179,8 +179,8 @@ lib:	$(LIBeu) $(LIB)
 
 $(LIB):	$(OBJS_ALL)
 	$(RM) $@
-	@ echo $(AR) cq $@ $(OBJS_ALL)
-	@ $(AR) cq $@ $(OBJS_ALL)
+	$(AR) cq $@ $(OBJS_ALL)
+	$(RANLIB) $(RANLIB_FLAGS) $@
 
 #                  --------------------
 #                      Dependencies

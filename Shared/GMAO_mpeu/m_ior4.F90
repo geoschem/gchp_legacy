@@ -1,3 +1,4 @@
+#include "unused_dummy.H"
 !~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 !       NASA/GSFC, Data Assimilation Office, Code 910.3, GEOS/DAS      !
 !BOP -------------------------------------------------------------------
@@ -237,6 +238,9 @@ end subroutine readr4_2dr8_
 
   character(len=*),parameter :: myname_=myname//'::writer4_2dr4_'
 
+  _UNUSED_DUMMY(nlon)
+  _UNUSED_DUMMY(nlat)
+
   select case(iacc)
   case(iacc_DIRECT)
 
@@ -285,6 +289,9 @@ end subroutine writer4_2dr4_
   character(len=*),parameter :: myname_=myname//'::writer4_2dr8_'
 
   real(kind=kind_R4),dimension(size(vfld,1),size(vfld,2)) :: dbuf
+
+  _UNUSED_DUMMY(nlon)
+  _UNUSED_DUMMY(nlat)
 
   dbuf(:,:)=vfld(:,:)
 
