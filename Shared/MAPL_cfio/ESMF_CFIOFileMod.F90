@@ -15,8 +15,6 @@
       use ESMF_CFIOUtilMod
       use ESMF_CFIOGridMod
       use ESMF_CFIOVarInfoMod
-      use ESMF_CFIOwGrADSMod, only : CFIO_wGrADS
-      use ESMF_CFIOrGrADSMod, only : CFIO_rGrADS
 
 ! !REVISION HISTORY:
 !
@@ -86,13 +84,13 @@
          type(iNode), pointer :: iList => NULL()
          type(rNode), pointer :: rList => NULL()
          type(cNode), pointer :: cList => NULL()
-         logical :: isOpen              ! flag to check fName is opened or not
+         logical :: isOpen = .false.             ! flag to check fName is opened or not
 !         integer :: nSteps
          logical :: isCyclic            ! flag for cyclic for input files
          character(len=16) :: format    ! output/input format -- GrADS or SDF(HDF)
                                         ! default is SDF.
-         type(CFIO_wGrADS) :: gw
-         type(CFIO_rGrADS) :: gr
+         logical           :: useVertexCoordinates = .false.
+         real              :: FormatVersion = 1.0
       end type ESMF_CFIO
 
 !
@@ -185,9 +183,9 @@
                               attRealNames, attRealCnts, attReals,          &
                               attIntNames, attIntCnts, attInts,             &
                               attCharName, attChar, attRealName, attReal,   &
-                              attIntName, attInt, gw, gr, format,           &
+                              attIntName, attInt, format,           &
                               expid, isCyclic, isOpen, nSteps, fNameTmplt,  &
-                              deflate,                                   rc )
+                              deflate, formatVersion,                    rc )
        implicit NONE
 
 ! !ARGUMENTS:
@@ -247,14 +245,13 @@
                                     ! User defined global real attribute 
        integer, intent(in), OPTIONAL :: attInt(:)
                                     ! User defined global int attribute 
-       type(CFIO_wGrADS), intent(in), OPTIONAL :: gw
-       type(CFIO_rGrADS), intent(in), OPTIONAL :: gr
        character(len=*), intent(in), OPTIONAL :: format
        character(len=*), intent(in), OPTIONAL :: expid
        logical, intent(in), OPTIONAL :: isCyclic
        logical, intent(in), OPTIONAL :: isOpen
        integer, intent(in), OPTIONAL :: nSteps
        integer, intent(in), OPTIONAL :: deflate
+       real,    intent(in), OPTIONAL :: formatVersion
 !
 ! !OUTPUT PARAMETERS:
 !
@@ -298,18 +295,13 @@
        if ( present(date) ) cfio%date = date    
        if ( present(begTime) ) cfio%begTime = begTime 
        if ( present(timeInc) ) cfio%timeInc = timeInc 
-       if ( present(gw) ) then
-          cfio%gw = gw
-       end if
-       if ( present(gr) ) then
-          cfio%gr = gr
-       end if
        if ( present(format) ) cfio%format = format
        if ( present(expid) ) cfio%expid = expid
        if ( present(isCyclic) ) cfio%isCyclic = isCyclic
        if ( present(isOpen) ) cfio%isOpen = isOpen
        if ( present(nSteps) ) cfio%tSteps = nSteps
        if ( present(deflate) ) cfio%deflate = deflate
+       if ( present(formatVersion) ) cfio%formatVersion = formatVersion
 
        if ( present(timeString) ) then
           call strToInt(timeString, cfio%date, cfio%begTime)
@@ -489,7 +481,7 @@
                               attIntNames, nAttInt, attIntCnts, attInts,    &
                               attCharName, attCharCnt, attChar, attRealName,&
                               attRealCnt, attReal, attIntName, attIntCnt,   &
-                              attInt, gw, gr, isOpen, format, fNameTmplt, rc )
+                              attInt, isOpen, format, fNameTmplt, rc )
 !
 ! !ARGUMENTS:
 !
@@ -555,8 +547,6 @@
                                     ! User defined global real attribute
        integer, pointer, OPTIONAL :: attInt(:)
                                     ! User defined global int attribute
-       type(CFIO_wGrADS), intent(out), OPTIONAL :: gw
-       type(CFIO_rGrADS), intent(out), OPTIONAL :: gr
        logical, intent(out), OPTIONAL :: isOpen
        character(len=*), intent(out), OPTIONAL :: format
 
@@ -606,8 +596,6 @@
        if ( present(begTime) ) begTime = cfio%begTime
        if ( present(timeInc) ) timeInc = cfio%timeInc
        if ( present(prec) ) prec = cfio%prec
-       if ( present(gw) ) gw = cfio%gw
-       if ( present(gr) ) gr = cfio%gr
        if ( present(isOpen) ) isOpen = cfio%isOpen
        if ( present(format) ) format = cfio%format
        if ( present(nSteps) ) nSteps = cfio%tSteps
