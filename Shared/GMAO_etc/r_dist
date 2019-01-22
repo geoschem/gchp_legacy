@@ -93,7 +93,7 @@ sub initialize {
    $opt_v = 0;
    $opt_x = 0;
 #Get options from command line
-   $opt_status=GetOptions( "c", "d=i", "dm=i", "fm=i", "h", "local=s", "L=s", "ne", "o=s", "rc=s", "remote=s", "t=i", "u=s", "v", "x=s" );
+   $opt_status=GetOptions( "c", "d=i", "dm=i", "fm=i", "h", "local=s", "L=s", "R=s", "S=s", "ne", "o=s", "rc=s", "remote=s", "t=i", "u=s", "v", "x=s" );
 #Check for any unprocessed arguments
    $numargs = @ARGV;
 
@@ -132,6 +132,12 @@ sub initialize {
         $error_log = 'DEFAULT';
    }else{
         $error_log = $opt_L;
+   }
+   if ( $opt_R ) { 
+        @regexp1 = split ( ',', $opt_R );
+   }
+   if ( $opt_S ) { 
+        @regexp2 = split ( ',', $opt_S );
    }
    if ( !$opt_remote ) {
         $REMOTEROOT = '';
@@ -314,7 +320,17 @@ return $put_rc;
                     }
                     chomp (@source_file_list = (`ls ${source_file}`));
                     foreach $file ( @source_file_list ){
-                         $dest_file = $destination_path."/".$file;
+                          if ( $opt_R ) {
+                             $newfile = $file;
+                             $newfile =~ s/$regexp1[0]/$regexp1[1]/;
+                             if ( $opt_S ) {
+                                $newfile =~ s/$regexp2[0]/$regexp2[1]/;
+                             }
+                             $dest_file = $destination_path."/".${newfile};
+                          }
+                          else {
+                             $dest_file = $destination_path."/".$file;
+                          }
                           my $multi_put_rc =  system("cp ${file}  ${dest_file}");
                           my $multi_chmd_rc = system("chmod $filemode ${dest_file}"); 
                           if ($verbose) {
@@ -337,7 +353,17 @@ return $put_rc;
                }else{    
                           print "$source_file\n";
                           print "${destination_path}\n";
-                          my $dest_file = join /\//,${destination_path},${source_file};
+                          if ( $opt_R ) {
+                             $newfile = $source_file;
+                             $newfile =~ s/$regexp1[0]/$regexp1[1]/;
+                             if ( $opt_S ) {
+                                $newfile =~ s/$regexp2[0]/$regexp2[1]/;
+                             }
+                             my $dest_file = join /\//,${destination_path},${newfile};
+                          }
+                          else {
+                             my $dest_file = join /\//,${destination_path},${source_file};
+                          }
 
                           $put_rc =  system("cp ${source_file} ${dest_file}");
                           my $chmod_rc =   system("chmod ${filemode} ${dest_file}");
@@ -492,6 +518,9 @@ OPTIONS
      -L logfile    Fully resolved path and name of event log [default is  ~$user/GEOS_EVENT_LOG]
      -ne           suppress error logging
      -o file       fully resolved name of output file [default = STDOUT]
+     -R regexp     use these two values as a target,replace pair in a regular expression substitution, i.e.,
+                   "GEOS.fp,e5131_fp"
+     -S regexp     use with -R to specify a 2nd target for substitution
      -remote path  REMOTEROOT directory 
      -rc rc_file   fully resolved name of config file [default is /u/\$user/\$expno/R_DIST_Config]
      -u user       remote user account [default =\$user]

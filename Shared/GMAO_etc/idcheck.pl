@@ -135,11 +135,11 @@ sub check_semperpy_dbs {
 
         $list = $ldb_found[0];
         for (1..$#ldb_found) { $list .= ", $ldb_found[$_]" }
-        myprint("FOUND: \"$expid\" in SemperPy database$ess: $list");
+        myprint("FOUND: Experiment ID \"$expid\" in SemperPy database$ess: $list");
 
         $status = 1;
     }
-    else { myprint("experiment ID <$expid> not found in SemperPy databases") }
+    else { myprint("Experiment ID \"$expid\" not found in SemperPy databases") }
 
     if ($removeAfterCheck) {
         myprint("Removing temporary password file: $pgpass");
@@ -160,7 +160,7 @@ sub check_plots_dir {
     # check for access to Intranet plot directory
     #--------------------------------------------
     $geos5dir = "/gmao/intranet/research/modeling/agcm/geos5";
-    $cmd = "if (-e $geos5dir) echo yes";
+    $cmd = "/usr/bin/tcsh -c 'if (-e $geos5dir) echo yes'";
     $ssh_cmd = "ssh -q -oBatchMode=yes $rem_acct \"$cmd\"";
     print "$ssh_cmd\n" if $verbose;
     chomp($check = `$ssh_cmd`);
@@ -173,18 +173,18 @@ sub check_plots_dir {
 
     # look for $expid as subdirectory
     #--------------------------------
-    $cmd = "if (-e $geos5dir/$expid) echo yes";
+    $cmd = "/usr/bin/tcsh -c 'if (-e $geos5dir/$expid) echo yes'";
     $ssh_cmd = "ssh -q -oBatchMode=yes $rem_acct \"$cmd\"";
     print "$ssh_cmd\n" if $verbose;
     chomp($check = `$ssh_cmd`);
 
     if ($check eq "yes") {
-        myprint("FOUND: \"$expid\" in Intranet plot directory\n" .
-                "    => $geos5dir/$expid/");
+        myprint("FOUND: Experiment ID \"$expid\" in Intranet plot directory: " .
+                "$geos5dir/$expid/");
         $status = 1;
     }
     else {
-        myprint("experiment ID <$expid> not found in Intranet plot directory");
+        myprint("Experiment ID \"$expid\" not found in Intranet plot directory");
     }
 }
 

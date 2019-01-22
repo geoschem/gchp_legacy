@@ -3,7 +3,6 @@
 
       integer timeId, timInc
       integer fid, rc
-      integer  :: in_fmode = 1         ! non-zero for READ-ONLY
       integer  iarg, iargc, argc
       character*255 fname, argv
 

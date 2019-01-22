@@ -2,6 +2,7 @@
 
 # Note:  $1 is the portion of the name to replace
 #        $2 (optional) is what will replace $1 (Default: $2 is blank)
+#        $3 (optional) is the specific file to modify
 #        Wildcards (*) may be used in $1
 #
 # eg_1: stripdate _restart.e19860525_21z _rst
@@ -38,7 +39,11 @@ else
     set name2 = $2
 endif
 
-set files = `ls -1 *$name1*`
+if( .$3 == . ) then
+    set files = `ls -1 *$name1*`
+else
+    set files = $3
+endif
 set num = $#files
 
 if( $num != 0 ) then

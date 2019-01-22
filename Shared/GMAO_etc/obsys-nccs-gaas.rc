@@ -70,15 +70,27 @@ END
 BEGIN mod04_051_flk => MOD04_L2.A%y4%j3.%h2%n2.051.NRT.hdf
   20140101_00z-21001231_18z 000500 /discover/nobackup/dao_ops/intermediate/flk/modis/MOD04/%y4/%j3/MOD04_L2.A%y4%j3.%h2%n2.051.NRT.hdf
 END
+BEGIN mod04_006_flk => MOD04_L2.A%y4%j3.%h2%n2.006.NRT.hdf
+  20161101_00z-21001231_18z 000500 /archive/input/dao_ops/obs/flk/modis.006/MOD04/%y4/%j3/MOD04_L2.A%y4%j3.%h2%n2.006.NRT.hdf
+END
+BEGIN mod04_006_his
+  20030101_00z-21001231_18z 000500 /discover/nobackup/projects/gmao/iesa/aerosol/Data/MODIS/Level2/006/MOD04/%y4/%j3/MOD04_L2.A%y4%j3.%h2%n2.006.%c%c%c%c%c%c%c%c%c%c%c%c%c.hdf
+END
 
 # MODIS Aqua Level2 Data
 #-----------------------
 BEGIN myd04_051_flk => MYD04_L2.A%y4%j3.%h2%n2.051.NRT.hdf
   20140101_00z-21001231_18z 000500 /discover/nobackup/dao_ops/intermediate/flk/modis/MYD04/%y4/%j3/MYD04_L2.A%y4%j3.%h2%n2.051.NRT.hdf
 END
+BEGIN myd04_006_flk => MYD04_L2.A%y4%j3.%h2%n2.006.NRT.hdf
+  20161101_00z-21001231_18z 000500 /archive/input/dao_ops/obs/flk/modis.006/MYD04/%y4/%j3/MYD04_L2.A%y4%j3.%h2%n2.006.NRT.hdf
+END
+BEGIN myd04_006_his
+  20030101_00z-21001231_18z 000500 /discover/nobackup/projects/gmao/iesa/aerosol/Data/MODIS/Level2/006/MYD04/%y4/%j3/MYD04_L2.A%y4%j3.%h2%n2.006.%c%c%c%c%c%c%c%c%c%c%c%c%c.hdf
+END
 
 # AERONET Data
 #-------------
 BEGIN aeronet_obs => aeronet.obs.%y4%m2%d2.ods
-  19990101_00z-20141029_00z 240000 /archive/input/dao_ops/obs/reanalysis/aeronet/ods/Y%y4/M%m2/aeronet.obs.%y4%m2%d2.ods
+  19990101_00z-20150930_00z 240000 /archive/input/dao_ops/obs/reanalysis/aeronet/ods/Y%y4/M%m2/aeronet.obs.%y4%m2%d2.ods
 END

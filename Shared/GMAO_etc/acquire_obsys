@@ -114,6 +114,7 @@
         usage() if ($opt_h);
         ($opt_la = $opt_la) or ($opt_la = 0);
         ($opt_drc = $opt_drc) or ($opt_drc = $tname);  
+        ($opt_acqonly = $opt_acqonly) or ($opt_acqonly = 0);
         $acqonly=0; if($opt_acqonly) {$acqonly = 1};
         if(!(-e $opt_drc)) {msg("E", "DataBase resource file '$opt_drc' not found.");}       
         print("Database resource file = $opt_drc\n") if ($opt_v);

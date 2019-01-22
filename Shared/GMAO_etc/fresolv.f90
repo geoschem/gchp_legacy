@@ -14,7 +14,7 @@
     integer nymd, nhms
     logical caching, dryrun
     integer i, iarg, argc, iargc
-    character(len=255) expid, argv, template, fname
+    character(len=255) expid, argv, fname
 
     caching = .true.
     dryrun = .false.

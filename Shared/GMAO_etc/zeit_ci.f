@@ -14,7 +14,7 @@
             
 
       implicit none
-      integer i,j,n
+      integer n
       character*8 dd
       character*10 tt
       character*5 zz 

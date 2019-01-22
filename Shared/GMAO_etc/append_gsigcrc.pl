@@ -59,6 +59,7 @@ sub init {
    if ( $ENV{PREPQC} ) {
        die ">>>> ERROR <<< PREPQC is on, therefore need EXPID env var to be set" unless $ENV{EXPID};
        $prepqcfile_handle = "gmao_prep_bufr => $EXPID.prepbufr.%y4%m2%d2.t%h2z.blk";
+       $acftprofl_handle = "gmao_acftpfl_bufr => $EXPID.acft_profl.%y4%m2%d2.t%h2z.bfr"
    }
 
 }
@@ -95,8 +96,10 @@ EOF
 # care for when running prep-QC
 if ($ENV{PREPQC} ) {
     $row = $prepqcfile_handle;
+    $row2 = $acftprofl_handle;
 print  MYJUNK <<"EOF";
 $row
+$row2
 EOF
 }
 # place close mark of table in file
