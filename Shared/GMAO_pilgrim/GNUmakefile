@@ -14,7 +14,7 @@
 # Make sure ESMADIR is defined
 # ----------------------------
 ifndef ESMADIR
-       ESMADIR := $(PWD)/..
+       ESMADIR := $(PWD)/../..
 endif
 
 # Compilation rules, flags, etc
@@ -81,7 +81,10 @@ OBJS = $(PILGRIM_SEQOBJS) $(PILGRIM_PUMOBJS) ### $(PILGRIM_COBJS)
 DEPS = $(OBJS:.o=.d) 
 
 USER_FINCS += $(I). $(I)$(INC_MPI)  
-USER_FDEFS += $(D)$(ARCH) $(D)SPMD $(D)STAND_ALONE $(D)MODCM_ALLOC ###$(D)SET_CPUS $(D)USE_MPI2
+USER_FDEFS += $(D)$(ARCH) $(D)SPMD $(D)STAND_ALONE \
+              $(D)MODCM_ALLOC ###$(D)SET_CPUS $(D)USE_MPI2
+
+FPPFLAGS += $(DC)STAND_ALONE 
 
 #USER_CFLAGS = $(D)$(ARCH) $(D)FORTRANUNDERSCORE $(D)SET_CPUS \
 #                   $(D)PIN_CPUS $(D)USE_MPI2
@@ -95,6 +98,7 @@ FREAL =   # Undefined any of the nasty -r4 or -r8 flags
 
 $(LIB) lib : $(DEPS) $(OBJS)
 	$(AR) $(AR_FLAGS) $(LIB) $(OBJS)
+	$(RANLIB) $(RANLIB_FLAGS) $(LIB)
 
 #                  --------------------
 #                      Dependencies

@@ -98,7 +98,7 @@
 !      \end{tabular}
 !
 ! !LOCAL VARIABLES:
-      INTEGER I, MyID, Ierror
+
 !
 ! !SYSTEM ROUTINES:
 !
@@ -160,7 +160,7 @@
 !      \end{tabular}
 !
 ! !LOCAL VARIABLES:
-      INTEGER MyID, Ierror
+
 ! !REVISION HISTORY:
 !   97.09.30   Sawyer     Creation
 !
@@ -215,7 +215,7 @@
 !      \end{tabular}
 !
 ! !LOCAL VARIABLES:
-      INTEGER MyID, Ierror
+
 ! !REVISION HISTORY:
 !   97.09.30   Sawyer     Creation
 !

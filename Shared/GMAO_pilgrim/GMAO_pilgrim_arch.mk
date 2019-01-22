@@ -25,7 +25,18 @@ endif  #    IRIX64
 
 ifeq ($(ARCH),Linux)
 
-FOPT = -O2
-COPT = -O2
+ifneq ("$(BOPT)","g")
+   FOPT = -O2
+   COPT = -O2
+endif
 USER_FDEFS = -DNO_TYPE_INIT
 endif  #    Linux
+
+ifeq ($(ARCH),Darwin)
+
+ifneq ("$(BOPT)","g")
+   FOPT = -O2
+   COPT = -O2
+endif
+USER_FDEFS = -DNO_TYPE_INIT
+endif  #    Darwin

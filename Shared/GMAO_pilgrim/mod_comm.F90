@@ -3,6 +3,7 @@
 #if !defined( STAND_ALONE )
 #define NOR4 ! Activate to effectively eliminate real*4 window
 #endif
+#include "unused_dummy.H"
 !BOP
 !
 ! !MODULE: mod_comm --- SPMD parallel decompostion/communication module
@@ -656,6 +657,8 @@
 !EOP
 !------------------------------------------------------------------------------
 !BOC
+        _UNUSED_DUMMY(comm)
+
         call MPI_FINALIZE (ierror)
         return
 !EOC
@@ -680,7 +683,6 @@
 !BOC
 !
 ! !LOCAL VARIABLES:
-        integer ios, n, nowpro, nowcpu
 
 ! Compute number of OpenMP threads
 
@@ -722,7 +724,6 @@
 !
 ! !LOCAL VARIABLES:
         logical flag
-        integer npthreads
 
         call MPI_INITIALIZED( flag, ierror )
         if ( .not. flag ) then
@@ -763,6 +764,9 @@
 !
 ! !LOCAL VARIABLES:
 
+        _UNUSED_DUMMY(comm)
+        _UNUSED_DUMMY(ga)
+
         win_count = win_count + 1
         win%id = win_count
         win%size = isize
@@ -802,6 +806,9 @@
 !
 ! !LOCAL VARIABLES:
 
+        _UNUSED_DUMMY(comm)
+        _UNUSED_DUMMY(ga)
+
         win_count = win_count + 1
         win%id = win_count
         win%size = isize
@@ -840,6 +847,9 @@
 !BOC
 !
 ! !LOCAL VARIABLES:
+
+        _UNUSED_DUMMY(comm)
+        _UNUSED_DUMMY(ga)
 
         win_count = win_count + 1
         win%id = win_count
@@ -1608,6 +1618,8 @@
 !------------------------------------------------------------------------------
 !BOC
 
+      _UNUSED_DUMMY(comm)
+
       win%ncall_s = win%ncall_s + 1
 
 !EOC
@@ -1638,6 +1650,8 @@
 !------------------------------------------------------------------------------
 !BOC
 
+      _UNUSED_DUMMY(comm)
+
       win%ncall_r = win%ncall_r + 1
 
 !EOC
@@ -1666,6 +1680,8 @@
 !EOP
 !------------------------------------------------------------------------------
 !BOC
+
+      _UNUSED_DUMMY(comm)
 
       if (win%ncall_s == win%ncall_r) then
         call MPI_WAITALL(win%nsend, win%sqest, Stats, ierror)
@@ -1717,6 +1733,12 @@
 
       integer send_tag, qsize
       integer :: gidu
+
+      _UNUSED_DUMMY(jm)
+      _UNUSED_DUMMY(km)
+      _UNUSED_DUMMY(im)
+      _UNUSED_DUMMY(nq)
+      _UNUSED_DUMMY(ga_r)
 
       call MPI_COMM_RANK (comm, gidu, ierror)
 
@@ -1829,6 +1851,13 @@
 ! !LOCAL VARIABLES:
       integer i, j, k, iq, inc, inc1
       integer i_length, j_length, k_length, ij_length, ijk_length
+
+      _UNUSED_DUMMY(comm)
+      _UNUSED_DUMMY(im)
+      _UNUSED_DUMMY(jm)
+      _UNUSED_DUMMY(km)
+      _UNUSED_DUMMY(nq)
+
       win%nread = win%nread + 1
       call MPI_WAIT(win%rqest(win%nread), Status, ierror)
 
@@ -1894,6 +1923,12 @@
 
       integer send_tag, qsize
       integer :: gidu
+
+      _UNUSED_DUMMY(im)
+      _UNUSED_DUMMY(jm)
+      _UNUSED_DUMMY(km)
+      _UNUSED_DUMMY(nq)
+      _UNUSED_DUMMY(ga_r)
 
       call MPI_COMM_RANK (comm, gidu, ierror)
 
@@ -2017,6 +2052,12 @@
       integer i, j, k, iq, inc, inc1
       integer i_length, j_length, k_length, ij_length, ijk_length
 
+      _UNUSED_DUMMY(comm)
+      _UNUSED_DUMMY(im)
+      _UNUSED_DUMMY(jm)
+      _UNUSED_DUMMY(km)
+      _UNUSED_DUMMY(nq)
+
 #if defined ( NOR4 )
         write(iulog,*) 'Mod_comm: Ga_Get4d_r4 - r4 windows disabled - exiting'
         call exit(1)
@@ -2088,6 +2129,12 @@
       integer send_tag, qsize
       integer :: gidu
 
+      _UNUSED_DUMMY(im)
+      _UNUSED_DUMMY(jm)
+      _UNUSED_DUMMY(km)
+      _UNUSED_DUMMY(nq)
+      _UNUSED_DUMMY(ga_r)
+      
       call MPI_COMM_RANK (comm, gidu, ierror)
 
       i_length   = i2-i1+1
@@ -2198,6 +2245,12 @@
 ! !LOCAL VARIABLES:
       integer i, j, k, iq, inc, inc1
       integer i_length, j_length, k_length, ij_length, ijk_length
+
+      _UNUSED_DUMMY(comm)
+      _UNUSED_DUMMY(im)
+      _UNUSED_DUMMY(jm)
+      _UNUSED_DUMMY(km)
+      _UNUSED_DUMMY(nq)
 
       win%nread = win%nread + 1
       call MPI_WAIT(win%rqest(win%nread), Status, ierror)
@@ -2444,9 +2497,10 @@
 !
 ! !LOCAL VARIABLES:
 
-      integer :: i, j, k, ns, pos, por, numpsq, ierror
-      integer :: ami(numpro,numpro), am(numpro,numpro)
-      integer mod_method, num_s, num_r
+      integer :: j
+      integer num_s, num_r
+
+      _UNUSED_DUMMY(comm)
 
       num_s = size(send_bl)
       num_r = size(recv_bl)
@@ -2510,8 +2564,8 @@
 !BOC
 !
 ! !LOCAL VARIABLES:
-      integer ipe, qsize, offset, blocksize, nparcels, offset_s, offset_r, ierr, mod_method
-      integer p, mysize, nthpc, minsize, nthrd, pn, pt, tmpsize, unitsize, offset_0
+      integer ipe, qsize, offset_s, offset_r, ierr, mod_method
+      integer unitsize, offset_0
       integer i, j, send_tag, recv_tag, num_s, num_r
       integer :: offset_v (Max_Nparcels)
       integer signal
@@ -2822,7 +2876,7 @@
 !EOP
 !------------------------------------------------------------------------------
 !BOC
-      integer :: ipe, blocksize, offset_r, mod_method
+      integer :: ipe, offset_r, mod_method
       integer unitsize, offset_0
       integer Ierr
       integer InStats(numpro*MPI_STATUS_SIZE)
@@ -2834,8 +2888,9 @@
       logical twovar
       integer sw_local, maxreq_local
       logical hs_local, send_local
-      logical sw_alltoall
       integer comm_size, comm_pid
+
+      _UNUSED_DUMMY(q1in(1))
 
       if (present(modc)) then
          sw_local   = modc(1)
@@ -3031,6 +3086,15 @@
 !------------------------------------------------------------------------------
 !BOC
 !
+      _UNUSED_DUMMY(comm)
+      _UNUSED_DUMMY(send_bl)
+      _UNUSED_DUMMY(recv_bl)
+      _UNUSED_DUMMY(q1in(1))
+      _UNUSED_DUMMY(q1out(1)); q1out(1) = 0 ! intent(out)
+      _UNUSED_DUMMY(q2in(1))
+      _UNUSED_DUMMY(q2out(1)); q2out(2) = 0 ! intent(out)
+      _UNUSED_DUMMY(modc)
+
       write(iulog,*) 'Mod_comm: mp_sendirr_r4 - r4 no longer supported - exiting'
       call exit(1)
 
@@ -3080,6 +3144,15 @@
 !------------------------------------------------------------------------------
 !BOC
 !
+      _UNUSED_DUMMY(comm)
+      _UNUSED_DUMMY(send_bl)
+      _UNUSED_DUMMY(recv_bl)
+      _UNUSED_DUMMY(q1in(1))
+      _UNUSED_DUMMY(q1out(1)); q1out(1) = 0 ! intent(out)
+      _UNUSED_DUMMY(q2in(1))
+      _UNUSED_DUMMY(q2out(1)); q2out(1) = 0 ! intent(out)
+      _UNUSED_DUMMY(modc)
+
       write(iulog,*) 'Mod_comm: mp_recvirr_r4 - r4 no longer supported - exiting'
       call exit(1)
 
@@ -3134,8 +3207,8 @@
 !BOC
 !
 ! !LOCAL VARIABLES:
-      integer ipe, qsize, offset, blocksize, nparcels, offset_s, offset_r, ierr, mod_method
-      integer p, mysize, nthpc, minsize, nthrd, pn, pt, tmpsize, unitsize, offset_0
+      integer ipe, qsize, offset_s, offset_r, ierr, mod_method
+      integer unitsize, offset_0
       integer i, j, send_tag, recv_tag, num_s, num_r
       integer :: offset_v (Max_Nparcels)
       integer signal
@@ -3448,7 +3521,7 @@
 !EOP
 !------------------------------------------------------------------------------
 !BOC
-      integer :: ipe, blocksize, offset_r, mod_method
+      integer :: ipe, offset_r, mod_method
       integer unitsize, offset_0
       integer Ierr
       integer InStats(numpro*MPI_STATUS_SIZE)
@@ -3460,8 +3533,9 @@
       logical twovar
       integer sw_local, maxreq_local
       logical hs_local, send_local
-      logical sw_alltoall
       integer comm_size, comm_pid
+
+      _UNUSED_DUMMY(q1in(1))
 
       if (present(modc)) then
          sw_local   = modc(1)
@@ -5132,8 +5206,8 @@
 !BOC
 !
 ! !LOCAL VARIABLES:
-      integer ipe, qsize, offset, blocksize, nparcels, offset_s, offset_r, ierr, mod_method
-      integer p, mysize, nthpc, minsize, nthrd, pn, pt, tmpsize, unitsize, offset_0
+      integer ipe, qsize, offset_s, offset_r, ierr, mod_method
+      integer unitsize, offset_0
       integer i, j, send_tag, recv_tag, num_s, num_r, m
       integer :: offset_v (Max_Nparcels)
       integer signal
@@ -5437,7 +5511,7 @@
 !EOP
 !------------------------------------------------------------------------------
 !BOC
-      integer :: ipe, blocksize, offset_r, mod_method
+      integer :: ipe, offset_r, mod_method
       integer unitsize, offset_0
       integer Ierr
       integer InStats(numpro*MPI_STATUS_SIZE)
@@ -5448,9 +5522,11 @@
       integer numtr, numtrm
       integer sw_local, maxreq_local
       logical hs_local, send_local
-      logical sw_alltoall
       integer comm_size, comm_pid
       integer ijks, ijkr, ij
+
+      _UNUSED_DUMMY(qin(1))
+      _UNUSED_DUMMY(mq)
 
       if (present(modc)) then
          sw_local   = modc(1)
@@ -5677,6 +5753,8 @@
       logical :: handshake, alltoall, sendd
       integer ::  numtr, numtrm, m
       integer ijks, ijkr, ij
+
+      _UNUSED_DUMMY(mq)
 
 #if defined( MODCM_TIMING )
       call t_startf('mod_comm communication')

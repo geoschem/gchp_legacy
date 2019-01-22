@@ -1,4 +1,5 @@
 #include "pilgrim.h"
+#include "unused_dummy.H"
 !-------------------------------------------------------------------------
 !         NASA/GSFC, Data Assimilation Office, Code 910.3, GEOS/DAS
 !-------------------------------------------------------------------------
@@ -247,10 +248,12 @@
 !BOC
 
 ! !LOCAL VARIABLES:
-      INTEGER I, Ierr, LenOutBuf( Gsize )
+      INTEGER I, LenOutBuf( Gsize )
       REAL(CPP_REAL8), ALLOCATABLE :: InBuf(:), OutBuf(:)
 
       CPP_ENTER_PROCEDURE( "REDISTRIBUTEPERFORM" )
+
+      _UNUSED_DUMMY(GID)
 
       IF ( Forward ) THEN
 !
@@ -325,7 +328,6 @@
 !BOC
 
 ! !LOCAL VARIABLES:
-      INTEGER Ierr
 
       CPP_ENTER_PROCEDURE( "REDISTRIBUTEFREE" )
 
@@ -387,9 +389,11 @@
 !BOC
 
 ! !LOCAL VARIABLES:
-      INTEGER I, Ierr, Dest( Gsize ), Src( Gsize )
+      INTEGER I, Dest( Gsize ), Src( Gsize )
 
       CPP_ENTER_PROCEDURE( "REDISTRIBUTESTART" )
+
+      _UNUSED_DUMMY(GID)
 
       DO I = 1, Gsize
         Dest( I ) = I-1
@@ -436,7 +440,7 @@
 ! !INTERFACE:
       SUBROUTINE RedistributeFinish( Inter, Forward, Output )
 ! !USES:
-      USE parutilitiesmodule, ONLY: CommGlobal,Gsize,ParEndTransfer,GID
+      USE parutilitiesmodule, ONLY: CommGlobal,Gsize,ParEndTransfer
       IMPLICIT NONE
 !
 ! !INPUT PARAMETERS:

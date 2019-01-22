@@ -211,7 +211,6 @@
 !-----------------------------------------------------------------------
 !BOC
 ! !LOCAL VARIABLES:
-      INTEGER  :: I, Nsize
 
       CPP_ENTER_PROCEDURE( "GHOSTCOPY" )
 
