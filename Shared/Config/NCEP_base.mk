@@ -1,5 +1,3 @@
-I = -I
-LIB_SDF = -L/mnt/as/home/m/mlong/tools/Baselibs/v3.2.1/x86_64-unknown-linux-gnu/ifort/Linux/lib -lnetcdf -L/mnt/as/home/m/mlong/tools/Baselibs/v3.2.1/x86_64-unknown-linux-gnu/ifort/Linux/lib -lhdf5_hl -lhdf5 -lz -lm -L/mnt/as/home/m/mlong/tools/Baselibs/v3.2.1/x86_64-unknown-linux-gnu/ifort/Linux/lib -lmfhdf -ldf -lsz -ljpeg -lm -L/mnt/as/home/m/mlong/tools/Baselibs/v3.2.1/x86_64-unknown-linux-gnu/ifort/Linux/lib -lmfhdf -ldf -L/mnt/as/home/m/mlong/tools/Baselibs/v3.2.1/x86_64-unknown-linux-gnu/ifort/Linux/lib -lcurl -lrt -lm -lz -lm
 #
 # Earth System Modeling Applications (ESMA) base makefile fragment.
 # This fragment defines Generic macros for compiling and linking the
